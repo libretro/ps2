@@ -460,7 +460,6 @@ set(pcsx2GSSources
 	GS/GSDrawingContext.cpp
 	GS/GSLocalMemory.cpp
 	GS/GSPerfMon.cpp
-	GS/GSPng.cpp
 	GS/GSRingHeap.cpp
 	GS/GSState.cpp
 	GS/GSTables.cpp
@@ -499,7 +498,6 @@ set(pcsx2GSHeaders
 	GS/GS.h
 	GS/GSLocalMemory.h
 	GS/GSPerfMon.h
-	GS/GSPng.h
 	GS/GSRingHeap.h
 	GS/GSState.h
 	GS/GSTables.h

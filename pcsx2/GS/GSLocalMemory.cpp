@@ -17,7 +17,6 @@
 #include "GS/GS.h"
 #include "GS/GSLocalMemory.h"
 #include "GS/GSExtra.h"
-#include "GS/GSPng.h"
 #include <unordered_set>
 
 template <typename Fn>

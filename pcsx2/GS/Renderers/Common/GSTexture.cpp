@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "GS/Renderers/Common/GSTexture.h"
 #include "GS/Renderers/Common/GSDevice.h"
-#include "GS/GSPng.h"
 #include "common/Align.h"
 #include "common/StringUtil.h"
 #include <bitset>
