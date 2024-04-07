@@ -419,7 +419,7 @@ bool GSDeviceOGL::Create()
 	// ****************************************************************
 	// Post processing
 	// ****************************************************************
-	if (!CompileShadeBoostProgram() || !CompileFXAAProgram())
+	if (!CompileShadeBoostProgram())
 		return false;
 
 	// Image load store and GLSL 420pack is core in GL4.2, no need to check.
@@ -577,8 +577,6 @@ void GSDeviceOGL::DestroyResources()
 	for (GL::Program& prog : m_date.primid_ps)
 		prog.Destroy();
 	delete m_date.dss;
-
-	m_fxaa.ps.Destroy();
 
 	for (GL::Program& prog : m_present)
 		prog.Destroy();
@@ -1528,50 +1526,6 @@ void GSDeviceOGL::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	m_interlace.ps[static_cast<int>(shader)].Uniform4fv(0, cb.ZrH.F32);
 
 	StretchRect(sTex, sRect, dTex, dRect, m_interlace.ps[static_cast<int>(shader)], linear);
-}
-
-bool GSDeviceOGL::CompileFXAAProgram()
-{
-	// Needs ARB_gpu_shader5 for gather.
-	if (!GLAD_GL_ARB_gpu_shader5)
-	{
-		Console.Warning("FXAA is not supported with the current GPU");
-		return true;
-	}
-
-	const std::string_view fxaa_macro = "#define FXAA_GLSL_130 1\n";
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/common/fxaa.fx");
-	if (!shader.has_value())
-	{
-		Console.Error("Failed to read fxaa.fs");
-		return false;
-	}
-
-	const std::string ps(GetShaderSource("ps_main", GL_FRAGMENT_SHADER, shader->c_str(), fxaa_macro));
-	std::optional<GL::Program> prog = m_shader_cache.GetProgram(m_convert.vs, ps);
-	if (!prog.has_value())
-	{
-		Console.Error("Failed to compile FXAA fragment shader");
-		return false;
-	}
-
-	m_fxaa.ps = std::move(prog.value());
-	return true;
-}
-
-void GSDeviceOGL::DoFXAA(GSTexture* sTex, GSTexture* dTex)
-{
-	if (!m_fxaa.ps.IsValid())
-		return;
-
-	OMSetColorMaskState();
-
-	const GSVector2i s = dTex->GetSize();
-
-	const GSVector4 sRect(0, 0, 1, 1);
-	const GSVector4 dRect(0, 0, s.x, s.y);
-
-	StretchRect(sTex, sRect, dTex, dRect, m_fxaa.ps, true);
 }
 
 bool GSDeviceOGL::CompileShadeBoostProgram()

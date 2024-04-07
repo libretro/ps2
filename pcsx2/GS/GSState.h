@@ -862,9 +862,6 @@ public:
 	} PCRTCDisplays;
 
 public:
-	/// Returns the appropriate directory for draw dumping.
-	static std::string GetDrawDumpPath(const char* format, ...);
-
 	/// Expands dither matrix, suitable for software renderer.
 	static void ExpandDIMX(GSVector4i* dimx, const GIFRegDIMX DIMX);
 
@@ -912,8 +909,6 @@ public:
 
 	u8* GetRegsMem() const { return reinterpret_cast<u8*>(m_regs); }
 	void SetRegsMem(u8* basemem) { m_regs = reinterpret_cast<GSPrivRegSet*>(basemem); }
-
-	void DumpVertices(const std::string& filename);
 
 	PRIM_OVERLAP PrimitiveOverlap();
 	GIFRegTEX0 GetTex0Layer(u32 lod);

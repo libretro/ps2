@@ -648,7 +648,6 @@ struct Pcsx2Config
 					UserHacks_NativePaletteDraw : 1,
 					UserHacks_TargetPartialInvalidation : 1,
 					UserHacks_EstimateTextureRegion : 1,
-					FXAA : 1,
 					ShadeBoost : 1,
 					SaveRT : 1,
 					SaveFrame : 1,

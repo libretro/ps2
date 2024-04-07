@@ -74,10 +74,6 @@ void GSDeviceNull::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float pa
 {
 
 }
-void GSDeviceNull::DoFXAA(GSTexture* sTex, GSTexture* dTex)
-{
-
-}
 bool GSDeviceNull::DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants)
 {
     return true;

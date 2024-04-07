@@ -1276,22 +1276,6 @@ void GSDeviceVK::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float para
 	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void GSDeviceVK::DoFXAA(GSTexture* sTex, GSTexture* dTex)
-{
-	const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
-	const GSVector4i dRect = dTex->GetRect();
-	EndRenderPass();
-	OMSetRenderTargets(dTex, nullptr, dRect);
-	SetUtilityTexture(sTex, m_linear_sampler);
-	BeginRenderPass(m_utility_color_render_pass_discard, dRect);
-	dTex->SetState(GSTexture::State::Dirty);
-	SetPipeline(m_fxaa_pipeline);
-	DrawStretchRect(sRect, GSVector4(dRect), dTex->GetSize());
-	EndRenderPass();
-
-	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-}
-
 void GSDeviceVK::IASetVertexBuffer(const void* vertex, size_t stride, size_t count)
 {
 	const u32 size = static_cast<u32>(stride) * static_cast<u32>(count);
@@ -2070,42 +2054,6 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 	gpb.SetRenderPass(rp, 0);
 
 	{
-		std::optional<std::string> vshader = Host::ReadResourceFileToString("shaders/vulkan/convert.glsl");
-		if (!vshader)
-		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/convert.glsl.");
-			return false;
-		}
-
-		std::optional<std::string> pshader = Host::ReadResourceFileToString("shaders/common/fxaa.fx");
-		if (!pshader)
-		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/common/fxaa.fx.");
-			return false;
-		}
-
-		const std::string psource = "#define FXAA_GLSL_VK 1\n" + *pshader;
-
-		VkShaderModule vs = GetUtilityVertexShader(*vshader);
-		VkShaderModule ps = GetUtilityFragmentShader(psource, "ps_main");
-		ScopedGuard shader_guard([&vs, &ps]() {
-			Vulkan::Util::SafeDestroyShaderModule(vs);
-			Vulkan::Util::SafeDestroyShaderModule(ps);
-		});
-		if (vs == VK_NULL_HANDLE || ps == VK_NULL_HANDLE)
-			return false;
-
-		gpb.SetVertexShader(vs);
-		gpb.SetFragmentShader(ps);
-
-		m_fxaa_pipeline = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
-		if (!m_fxaa_pipeline)
-			return false;
-
-		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_fxaa_pipeline, "FXAA pipeline");
-	}
-
-	{
 		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/shadeboost.glsl");
 		if (!shader)
 		{
@@ -2306,7 +2254,6 @@ void GSDeviceVK::DestroyResources()
 			Vulkan::Util::SafeDestroyPipeline(m_date_image_setup_pipelines[ds][datm]);
 		}
 	}
-	Vulkan::Util::SafeDestroyPipeline(m_fxaa_pipeline);
 	Vulkan::Util::SafeDestroyPipeline(m_shadeboost_pipeline);
 
 	for (VkPipeline& it : m_cas_pipelines)

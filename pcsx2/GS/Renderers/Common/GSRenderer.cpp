@@ -225,9 +225,6 @@ bool GSRenderer::Merge(int field)
 	if (GSConfig.ShadeBoost)
 		g_gs_device->ShadeBoost();
 
-	if (GSConfig.FXAA)
-		g_gs_device->FXAA();
-
 	// Sharpens biinear at lower resolutions, almost nearest but with more uniform pixels.
 	if (GSConfig.LinearPresent == GSPostBilinearMode::BilinearSharp && (g_gs_device->GetWindowWidth() > fs.x || g_gs_device->GetWindowHeight() > fs.y))
 	{

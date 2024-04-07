@@ -22,8 +22,6 @@
 
 #include <algorithm> // clamp
 #include <cfloat> // FLT_MAX
-#include <fstream>
-#include <iomanip> // Dump Verticles
 
 int GSState::s_n = 0;
 int GSState::s_transfer_n = 0;
@@ -127,16 +125,6 @@ GSState::~GSState()
 		_aligned_free(m_vertex.buff);
 	if (m_index.buff)
 		_aligned_free(m_index.buff);
-}
-
-std::string GSState::GetDrawDumpPath(const char* format, ...)
-{
-	std::va_list ap;
-	va_start(ap, format);
-	const std::string& base = GSConfig.UseHardwareRenderer() ? GSConfig.HWDumpDirectory : GSConfig.SWDumpDirectory;
-	std::string ret(Path::Combine(base, StringUtil::StdStringFromFormatV(format, ap)));
-	va_end(ap);
-	return ret;
 }
 
 void GSState::Reset(bool hardware_reset)
@@ -386,151 +374,6 @@ float GSState::GetTvRefreshRate()
 	}
 
 	__assume(0); // unreachable
-}
-
-void GSState::DumpVertices(const std::string& filename)
-{
-	std::ofstream file(filename);
-
-	if (!file.is_open())
-		return;
-
-	file << "FLUSH REASON: ";
-
-	switch (m_state_flush_reason)
-	{
-		case GSFlushReason::RESET:
-			file << "RESET";
-			break;
-		case GSFlushReason::CONTEXTCHANGE:
-			file << "CONTEXT CHANGE";
-			break;
-		case GSFlushReason::CLUTCHANGE:
-			file << "CLUT CHANGE (RELOAD REQ)";
-			break;
-		case GSFlushReason::GSTRANSFER:
-			file << "GS TRANSFER";
-			break;
-		case GSFlushReason::UPLOADDIRTYTEX:
-			file << "GS UPLOAD OVERWRITES CURRENT TEXTURE OR CLUT";
-			break;
-		case GSFlushReason::LOCALTOLOCALMOVE:
-			file << "GS LOCAL TO LOCAL OVERWRITES CURRENT TEXTURE OR CLUT";
-			break;
-		case GSFlushReason::DOWNLOADFIFO:
-			file << "DOWNLOAD FIFO";
-			break;
-		case GSFlushReason::SAVESTATE:
-			file << "SAVESTATE";
-			break;
-		case GSFlushReason::LOADSTATE:
-			file << "LOAD SAVESTATE";
-			break;
-		case GSFlushReason::AUTOFLUSH:
-			file << "AUTOFLUSH OVERLAP DETECTED";
-			break;
-		case GSFlushReason::VSYNC:
-			file << "VSYNC";
-			break;
-		case GSFlushReason::GSREOPEN:
-			file << "GS REOPEN";
-			break;
-		case GSFlushReason::UNKNOWN:
-		default:
-			file << "UNKNOWN";
-			break;
-	}
-
-	if (m_state_flush_reason != GSFlushReason::CONTEXTCHANGE && m_dirty_gs_regs)
-		file << " AND POSSIBLE CONTEXT CHANGE";
-
-	file << std::endl << std::endl;
-
-	const u32 count = m_index.tail;
-	GSVertex* buffer = &m_vertex.buff[0];
-
-	const char* DEL = ", ";
-
-	file << "VERTEX COORDS (XYZ)" << std::endl;
-	file << std::fixed << std::setprecision(4);
-	for (u32 i = 0; i < count; ++i)
-	{
-		file << "\t" << "v" << i << ": ";
-		GSVertex v = buffer[m_index.buff[i]];
-
-		const float x = (v.XYZ.X - (int)m_context->XYOFFSET.OFX) / 16.0f;
-		const float y = (v.XYZ.Y - (int)m_context->XYOFFSET.OFY) / 16.0f;
-
-		file << x << DEL;
-		file << y << DEL;
-		file << v.XYZ.Z;
-		file << std::endl;
-	}
-
-	file << std::endl;
-
-	file << "VERTEX COLOR (RGBA)" << std::endl;
-	file << std::fixed << std::setprecision(6);
-	for (u32 i = 0; i < count; ++i)
-	{
-		file << "\t" << "v" << i << ": ";
-		GSVertex v = buffer[m_index.buff[i]];
-
-		file << std::setfill('0') << std::setw(3) << unsigned(v.RGBAQ.R) << DEL;
-		file << std::setfill('0') << std::setw(3) << unsigned(v.RGBAQ.G) << DEL;
-		file << std::setfill('0') << std::setw(3) << unsigned(v.RGBAQ.B) << DEL;
-		file << std::setfill('0') << std::setw(3) << unsigned(v.RGBAQ.A);
-		file << std::endl;
-	}
-
-	file << std::endl;
-
-	const bool use_uv = PRIM->FST;
-	const std::string qualifier = use_uv ? "UV" : "STQ";
-
-	file << "TEXTURE COORDS (" << qualifier << ")" << std::endl;;
-	for (u32 i = 0; i < count; ++i)
-	{
-		file << "\t" << "v" << i << ": ";
-		const GSVertex v = buffer[m_index.buff[i]];
-
-		// note
-		// Yes, technically as far as the GS is concerned Q belongs
-		// to RGBAQ. However, the purpose of this dump is to print
-		// our data in a more human readable format and typically Q
-		// is associated with STQ.
-		if (use_uv)
-		{
-			const float uv_U = v.U / 16.0f;
-			const float uv_V = v.V / 16.0f;
-
-			file << uv_U << DEL << uv_V;
-		}
-		else
-			file << v.ST.S << DEL << v.ST.T << DEL << v.RGBAQ.Q;
-
-		file << std::endl;
-	}
-
-	file << std::endl;
-
-	file << "TRACER" << std::endl;
-
-	GSVector4i v = m_vt.m_min.c;
-	file << "\tmin c (x,y,z,w): " << v.x << DEL << v.y << DEL << v.z << DEL << v.w << std::endl;
-	v = m_vt.m_max.c;
-	file << "\tmax c (x,y,z,w): " << v.x << DEL << v.y << DEL << v.z << DEL << v.w << std::endl;
-
-	GSVector4 v2 = m_vt.m_min.p;
-	file << "\tmin p (x,y,z,w): " << v2.x << DEL << v2.y << DEL << v2.z << DEL << v2.w << std::endl;
-	v2 = m_vt.m_max.p;
-	file << "\tmax p (x,y,z,w): " << v2.x << DEL << v2.y << DEL << v2.z << DEL << v2.w << std::endl;
-	v2 = m_vt.m_min.t;
-	file << "\tmin t (x,y,z,w): " << v2.x << DEL << v2.y << DEL << v2.z << DEL << v2.w << std::endl;
-	v2 = m_vt.m_max.t;
-	file << "\tmax t (x,y,z,w): " << v2.x << DEL << v2.y << DEL << v2.z << DEL << v2.w << std::endl;
-
-	file.close();
 }
 
 __inline void GSState::CheckFlushes()

@@ -623,7 +623,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEnumEx(UserHacks_TextureInsideRt, "UserHacks_TextureInsideRt");
 	GSSettingBoolEx(UserHacks_TargetPartialInvalidation, "UserHacks_TargetPartialInvalidation");
 	GSSettingBoolEx(UserHacks_EstimateTextureRegion, "UserHacks_EstimateTextureRegion");
-	GSSettingBoolEx(FXAA, "fxaa");
 	GSSettingBool(ShadeBoost);
 	GSSettingBoolEx(SaveRT, "save");
 	GSSettingBoolEx(SaveFrame, "savef");

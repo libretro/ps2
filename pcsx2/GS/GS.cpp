@@ -62,8 +62,6 @@ static HRESULT s_hr = E_FAIL;
 
 #include "Renderers/Null/GSDeviceNull.h"
 
-#include <fstream>
-
 // do NOT undefine this/put it above includes, as x11 people love to redefine
 // things that make obscure compiler bugs, unless you want to run around and
 // debug obscure compiler errors --govanify

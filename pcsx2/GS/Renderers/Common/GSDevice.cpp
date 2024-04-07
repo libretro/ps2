@@ -464,17 +464,6 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 	}
 }
 
-void GSDevice::FXAA()
-{
-	// Combining FXAA+ShadeBoost can't share the same target.
-	GSTexture*& dTex = (m_current == m_target_tmp) ? m_merge : m_target_tmp;
-	if (ResizeRenderTarget(&dTex, m_current->GetWidth(), m_current->GetHeight(), false, false))
-	{
-		DoFXAA(m_current, dTex);
-		m_current = dTex;
-	}
-}
-
 void GSDevice::ShadeBoost()
 {
 	if (ResizeRenderTarget(&m_target_tmp, m_current->GetWidth(), m_current->GetHeight(), false, false))

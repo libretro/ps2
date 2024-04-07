@@ -1037,31 +1037,6 @@ void GSDevice11::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	StretchRect(sTex, sRect, dTex, dRect, m_interlace.ps[static_cast<int>(shader)].get(), m_interlace.cb.get(), linear);
 }
 
-void GSDevice11::DoFXAA(GSTexture* sTex, GSTexture* dTex)
-{
-	const GSVector2i s = dTex->GetSize();
-
-	const GSVector4 sRect(0, 0, 1, 1);
-	const GSVector4 dRect(0, 0, s.x, s.y);
-
-	if (!m_fxaa_ps)
-	{
-		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/common/fxaa.fx");
-		if (!shader.has_value())
-		{
-			Console.Error("FXAA shader is missing");
-			return;
-		}
-
-		ShaderMacro sm(m_shader_cache.GetFeatureLevel());
-		m_fxaa_ps = m_shader_cache.GetPixelShader(m_dev.get(), *shader, sm.GetPtr(), "ps_main");
-		if (!m_fxaa_ps)
-			return;
-	}
-
-	StretchRect(sTex, sRect, dTex, dRect, m_fxaa_ps.get(), nullptr, true);
-}
-
 void GSDevice11::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
 {
 	const GSVector2i s = dTex->GetSize();

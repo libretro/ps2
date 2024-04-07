@@ -981,24 +981,6 @@ void GSDevice12::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float para
 	static_cast<GSTexture12*>(dTex)->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void GSDevice12::DoFXAA(GSTexture* sTex, GSTexture* dTex)
-{
-	const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
-	const GSVector4i dRect = dTex->GetRect();
-	EndRenderPass();
-	OMSetRenderTargets(dTex, nullptr, dRect);
-	SetUtilityRootSignature();
-	SetUtilityTexture(sTex, m_linear_sampler_cpu);
-	BeginRenderPass(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE,
-		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS);
-	dTex->SetState(GSTexture::State::Dirty);
-	SetPipeline(m_fxaa_pipeline.get());
-	DrawStretchRect(sRect, GSVector4(dRect), dTex->GetSize());
-	EndRenderPass();
-
-	static_cast<GSTexture12*>(dTex)->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-}
-
 bool GSDevice12::CompileCASPipelines()
 {
 	D3D12::RootSignatureBuilder rsb;
@@ -1605,27 +1587,6 @@ bool GSDevice12::CompilePostProcessingPipelines()
 	gpb.SetVertexShader(m_convert_vs.get());
 
 	{
-		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/common/fxaa.fx");
-		if (!shader)
-		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/common/fxaa.fx.");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, "ps_main"));
-		if (!ps)
-			return false;
-
-		gpb.SetPixelShader(ps.get());
-
-		m_fxaa_pipeline = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
-		if (!m_fxaa_pipeline)
-			return false;
-
-		D3D12::SetObjectName(m_fxaa_pipeline.get(), "FXAA pipeline");
-	}
-
-	{
 		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/shadeboost.fx");
 		if (!shader)
 		{
@@ -1672,7 +1633,6 @@ void GSDevice12::DestroyResources()
 	m_hdr_setup_pipelines = {};
 	m_hdr_finish_pipelines = {};
 	m_date_image_setup_pipelines = {};
-	m_fxaa_pipeline.reset();
 	m_shadeboost_pipeline.reset();
 
 	m_linear_sampler_cpu.Clear();

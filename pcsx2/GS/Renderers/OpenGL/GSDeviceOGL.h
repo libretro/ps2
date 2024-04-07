@@ -191,11 +191,6 @@ private:
 
 	struct
 	{
-		GL::Program ps;
-	} m_fxaa;
-
-	struct
-	{
 		GSDepthStencilOGL* dss = nullptr;
 		GL::Program primid_ps[2];
 	} m_date;
@@ -231,9 +226,6 @@ private:
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
-
-	bool CompileFXAAProgram();
-	void DoFXAA(GSTexture* sTex, GSTexture* dTex) override;
 
 	bool CompileShadeBoostProgram();
 	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
