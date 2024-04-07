@@ -428,18 +428,6 @@ void mVUsetCycles(mV)
 	tCycles(mVUregs.xgkick,                mVUregsTemp.xgkick);
 }
 
-// Prints Start/End PC of blocks executed, for debugging...
-void mVUdebugPrintBlocks(microVU& mVU, bool isEndPC)
-{
-	if (mVUdebugNow)
-	{
-		mVUbackupRegs(mVU, true);
-		if (isEndPC) xFastCall(mVUprintPC2, xPC);
-		else         xFastCall(mVUprintPC1, xPC);
-		mVUrestoreRegs(mVU, true);
-	}
-}
-
 // Test cycles to see if we need to exit-early...
 void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 {
@@ -828,7 +816,6 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	xMOV(ptr32[&mVU.regs().blockhasmbit], mVUregs.mbitinblock);
 	mVUsetFlags(mVU, mFC);           // Sets Up Flag instances
 	mVUoptimizePipeState(mVU);       // Optimize the End Pipeline State for nicer Block Linking
-	mVUdebugPrintBlocks(mVU, false); // Prints Start/End PC of blocks executed, for debugging...
 	mVUtestCycles(mVU, mFC);         // Update VU Cycles and Exit Early if Necessary
 
 	// Second Pass
@@ -841,17 +828,6 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 
 	for (; x < endCount; x++)
 	{
-#if 0
-		if (mVU.index == 1 && (x == 0 || true))
-		{
-			mVU.regAlloc->flushAll(false);
-			mVUbackupRegs(mVU, true);
-			xFastCall(DumpVUState, mVU.index, (xPC) | ((x == 0) ? 0x80000000 : 0));
-			mVUrestoreRegs(mVU, true);
-			//if (xPC == 0x1358) __debugbreak();
-		}
-#endif
-
 		if (mVUinfo.isEOB)
 		{
 			handleBadOp(mVU, x);
@@ -927,7 +903,6 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 		{
 			incPC(1);
 			mVUsetupRange(mVU, xPC, false);
-			mVUdebugPrintBlocks(mVU, true);
 			incPC(-4); // Go back to branch opcode
 
 			switch (mVUlow.branch)

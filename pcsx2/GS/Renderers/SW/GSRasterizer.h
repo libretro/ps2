@@ -141,7 +141,6 @@ public:
 	virtual void Sync() = 0;
 	virtual bool IsSynced() const = 0;
 	virtual int GetPixels(bool reset = true) = 0;
-	virtual void PrintStats() = 0;
 };
 
 class GSSingleRasterizer final : public IRasterizer
@@ -154,7 +153,6 @@ public:
 	void Sync() override;
 	bool IsSynced() const override;
 	int GetPixels(bool reset = true) override;
-	void PrintStats() override;
 
 	void Draw(GSRasterizerData& data);
 
@@ -192,7 +190,6 @@ public:
 	void Sync() override;
 	bool IsSynced() const override;
 	int GetPixels(bool reset) override;
-	void PrintStats() override;
 };
 
 MULTI_ISA_UNSHARED_END

@@ -169,7 +169,6 @@ __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 
 		if (size != ret)
 		{ // Stall if gif didn't process all the data (path2 queued)
-			//gifUnit.PrintInfo();
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
 			vif1.vifstalled.value = VIF_TIMING_BREAK;
 			vif1Regs.stat.VGW = true;
@@ -210,7 +209,6 @@ vifOp(vifCode_Flush)
 		vifFlush(idx);
 		if (gifUnit.checkPaths(1, 1, 0) || p1or2)
 		{
-			//gifUnit.PrintInfo();
 			vif1Regs.stat.VGW = true;
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
 			vif1.vifstalled.value = VIF_TIMING_BREAK;

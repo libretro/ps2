@@ -17,10 +17,6 @@ optional_system_library(zstd)
 optional_system_library(libzip)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "")
 option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
-
-
-option(USE_VTUNE "Plug VTUNE to profile GS JIT.")
-
 #-------------------------------------------------------------------------------
 # Graphical option
 #-------------------------------------------------------------------------------
@@ -170,10 +166,6 @@ if(MSVC)
 		$<${CONFIG_REL_NO_DEB}:/OPT:REF>
 		$<${CONFIG_REL_NO_DEB}:/OPT:ICF>
 	)
-endif()
-
-if(USE_VTUNE)
-	list(APPEND PCSX2_DEFS ENABLE_VTUNE)
 endif()
 
 if(USE_OPENGL)

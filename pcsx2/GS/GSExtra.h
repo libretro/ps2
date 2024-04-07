@@ -149,17 +149,3 @@ __fi static T VectorAlign(T value)
 		#define ALIGN_STACK(n) alignas(n) int dummy__;
 	#endif
 #endif
-
-#ifdef ENABLE_VTUNE
-	#include "jitprofiling.h"
-	#ifdef _WIN32
-		#pragma comment(lib, "jitprofiling.lib")
-	#endif
-#endif
-
-#ifdef _WIN32
-	#define DIRECTORY_SEPARATOR '\\'
-#else
-	#include <sys/stat.h> // mkdir
-	#define DIRECTORY_SEPARATOR '/'
-#endif

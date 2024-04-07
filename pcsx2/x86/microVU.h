@@ -256,10 +256,6 @@ struct microVU
 alignas(16) microVU microVU0;
 alignas(16) microVU microVU1;
 
-// Debug Helper
-int mVUdebugNow = 0;
-extern void DumpVUState(u32 n, u32 pc);
-
 // Main Functions
 extern void mVUclear(mV, u32, u32);
 extern void mVUreset(microVU& mVU, bool resetReserve);

@@ -138,16 +138,6 @@ bool GSDrawScanline::SetupDraw(GSRasterizerData& data)
 #endif
 }
 
-void GSDrawScanline::UpdateDrawStats(u64 frame, u64 ticks, int actual, int total, int prims)
-{
-	m_ds_map.UpdateStats(frame, ticks, actual, total, prims);
-}
-
-void GSDrawScanline::PrintStats()
-{
-	m_ds_map.PrintStats();
-}
-
 #if _M_SSE >= 0x501
 typedef GSVector8i VectorI;
 typedef GSVector8  VectorF;

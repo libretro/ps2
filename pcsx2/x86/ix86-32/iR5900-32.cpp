@@ -320,11 +320,7 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 	u8* retval = xGetAlignedCallTarget();
 
 	{ // Properly scope the frame prologue/epilogue
-#ifdef ENABLE_VTUNE
-		xScopedStackFrame frame(true, true);
-#else
 		xScopedStackFrame frame(false, true);
-#endif
 
 		if (CHECK_FASTMEM)
 			xMOV(RFASTMEMBASE, ptrNative[&vtlb_private::vtlbdata.fastmem_base]);

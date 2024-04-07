@@ -53,9 +53,6 @@ public:
 	/// Not currently jitted.
 	static void DrawRect(const GSVector4i& r, const GSVertexSW& v, GSScanlineLocalData& local);
 
-	void UpdateDrawStats(u64 frame, u64 ticks, int actual, int total, int prims);
-	void PrintStats();
-
 private:
 	GSCodeGeneratorFunctionMap<GSSetupPrimCodeGenerator, u64, SetupPrimPtr> m_sp_map;
 	GSCodeGeneratorFunctionMap<GSDrawScanlineCodeGenerator, u64, DrawScanlinePtr> m_ds_map;

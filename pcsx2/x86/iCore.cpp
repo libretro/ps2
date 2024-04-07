@@ -66,12 +66,6 @@ bool _isAllocatableX86reg(int x86reg)
 	if (CHECK_FASTMEM && x86reg == 5)
 		return false;
 
-#ifdef ENABLE_VTUNE
-	// vtune needs ebp...
-	if (!CHECK_FASTMEM && x86reg == 5)
-		return false;
-#endif
-
 	// rsp is never allocatable..
 	if (x86reg == 4)
 		return false;

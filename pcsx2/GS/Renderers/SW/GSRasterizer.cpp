@@ -24,8 +24,6 @@
 #include "common/StringUtil.h"
 #include "VMManager.h"
 
-#define ENABLE_DRAW_STATS 0
-
 MULTI_ISA_UNSHARED_IMPL;
 
 int GSRasterizerData::s_counter = 0;
@@ -143,9 +141,6 @@ void GSRasterizer::Draw(GSRasterizerData& data)
 	m_pixels.total = 0;
 	m_primcount = 0;
 
-	if constexpr (ENABLE_DRAW_STATS)
-		data.start = __rdtsc();
-
 	m_setup_prim = data.setup_prim;
 	m_draw_scanline = data.draw_scanline;
 	m_draw_edge = data.draw_edge;
@@ -252,12 +247,8 @@ void GSRasterizer::Draw(GSRasterizerData& data)
 	_mm256_zeroupper();
 #endif
 
-	data.pixels = m_pixels.actual;
-
+	data.pixels   = m_pixels.actual;
 	m_pixels.sum += m_pixels.actual;
-
-	if constexpr (ENABLE_DRAW_STATS)
-		m_ds->UpdateDrawStats(data.frame, __rdtsc() - data.start, m_pixels.actual, m_pixels.total, m_primcount);
 }
 
 template <bool scissor_test>
@@ -1190,13 +1181,6 @@ int GSSingleRasterizer::GetPixels(bool reset /*= true*/)
 	return m_r.GetPixels(reset);
 }
 
-void GSSingleRasterizer::PrintStats()
-{
-	m_ds.PrintStats();
-}
-
-//
-
 GSRasterizerList::GSRasterizerList(int threads)
 {
 	m_thread_height = compute_best_thread_height(threads);
@@ -1325,8 +1309,4 @@ std::unique_ptr<IRasterizer> GSRasterizerList::Create(int threads)
 	}
 
 	return rl;
-}
-
-void GSRasterizerList::PrintStats()
-{
 }

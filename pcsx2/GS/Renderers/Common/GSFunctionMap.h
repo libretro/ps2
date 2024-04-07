@@ -26,8 +26,7 @@ class GSFunctionMap
 protected:
 	struct ActivePtr
 	{
-		u64 frame, frames, prims;
-		u64 ticks, actual, total;
+		u64 frame;
 		VALUE f;
 	};
 
@@ -75,70 +74,6 @@ public:
 		}
 
 		return m_active->f;
-	}
-
-	void UpdateStats(u64 frame, u64 ticks, int actual, int total, int prims)
-	{
-		if (m_active)
-		{
-			if (m_active->frame != frame)
-			{
-				m_active->frame = frame;
-				m_active->frames++;
-			}
-
-			m_active->prims += prims;
-			m_active->ticks += ticks;
-			m_active->actual += actual;
-			m_active->total += total;
-
-			ASSERT(m_active->total >= m_active->actual);
-		}
-	}
-
-	virtual void PrintStats()
-	{
-		u64 totalTicks = 0;
-
-		for (const auto& i : m_map_active)
-		{
-			ActivePtr* p = i.second;
-			totalTicks += p->ticks;
-		}
-
-		double tick_us = 1.0 / x86capabilities::CachedMHz();
-		double tick_ms = tick_us / 1000;
-		double tick_ns = tick_us * 1000;
-
-		printf("GS stats\n");
-
-		printf("       key       | frames | prims |       runtime       |          pixels\n");
-		printf("                 |        |  #/f  |   pct   ms/f  ns/px |    #/f   #/prim overdraw\n");
-
-		std::vector<std::pair<KEY, ActivePtr*>> sorted(std::begin(m_map_active), std::end(m_map_active));
-		std::sort(std::begin(sorted), std::end(sorted), [](const auto& l, const auto& r){ return l.second->ticks > r.second->ticks; });
-
-		for (const auto& i : sorted)
-		{
-			KEY key = i.first;
-			ActivePtr* p = i.second;
-
-			if (p->frames && p->actual)
-			{
-				u64 tpf = p->ticks / p->frames;
-
-				printf("%016llx | %6llu | %5llu | %5.2f%% %5.1f %6.1f | %8llu %6llu %5.2f%%\n",
-					(u64)key,
-					p->frames,
-					p->prims / p->frames,
-					(double)(p->ticks * 100) / totalTicks,
-					tpf * tick_ms,
-					(p->ticks * tick_ns) / p->actual,
-					p->actual / p->frames,
-					p->actual / (p->prims ? p->prims : 1),
-					(double)((p->total - p->actual) * 100) / p->total);
-			}
-		}
 	}
 };
 
@@ -204,57 +139,11 @@ public:
 			CG cg(key, code_ptr, MAX_SIZE);
 			ASSERT(cg.getSize() < MAX_SIZE);
 
-#if 0
-			fprintf(stderr, "%s Location:%p Size:%zu Key:%llx\n", m_name.c_str(), code_ptr, cg.getSize(), (u64)key);
-			GSScanlineSelector sel(key);
-			sel.Print();
-#endif
-
 			GSCodeReserve::GetInstance().Commit(cg.getSize());
 
 			ret = (VALUE)cg.getCode();
 
 			m_cgmap[key] = ret;
-
-#ifdef ENABLE_VTUNE
-
-			// vtune method registration
-
-			// if(iJIT_IsProfilingActive()) // always > 0
-			{
-				std::string name = fmt::format("%s<%016llx>()", m_name.c_str(), (u64)key);
-
-				iJIT_Method_Load ml;
-
-				memset(&ml, 0, sizeof(ml));
-
-				ml.method_id = iJIT_GetNewMethodID();
-				ml.method_name = (char*)name.c_str();
-				ml.method_load_address = (void*)cg.getCode();
-				ml.method_size = (unsigned int)cg.getSize();
-
-				iJIT_NotifyEvent(iJVM_EVENT_TYPE_METHOD_LOAD_FINISHED, &ml);
-/*
-				name = format("c:/temp1/%s_%016llx.bin", m_name.c_str(), (u64)key);
-
-				if(FILE* fp = fopen(name.c_str(), "wb"))
-				{
-					fputc(0x0F, fp); fputc(0x0B, fp);
-					fputc(0xBB, fp); fputc(0x6F, fp); fputc(0x00, fp); fputc(0x00, fp); fputc(0x00, fp);
-					fputc(0x64, fp); fputc(0x67, fp); fputc(0x90, fp);
-
-					fwrite(cg.getCode(), cg.getSize(), 1, fp);
-
-					fputc(0xBB, fp); fputc(0xDE, fp); fputc(0x00, fp); fputc(0x00, fp); fputc(0x00, fp);
-					fputc(0x64, fp); fputc(0x67, fp); fputc(0x90, fp);
-					fputc(0x0F, fp); fputc(0x0B, fp);
-
-					fclose(fp);
-				}
-*/
-			}
-
-#endif
 		}
 
 		return ret;

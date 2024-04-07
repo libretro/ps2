@@ -170,10 +170,6 @@ if(USE_VULKAN)
 	)
 endif()
 
-if(USE_VTUNE)
-	target_link_libraries(common PUBLIC Vtune::Vtune)
-endif()
-
 if(WIN32)
 	enable_language(ASM_MASM)
 	target_sources(common PRIVATE FastJmp.asm)
