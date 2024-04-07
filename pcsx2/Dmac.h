@@ -204,9 +204,6 @@ struct DMACh {
 	tDMA_TAG *getAddr(u32 addr, u32 num, bool write);
 	tDMA_TAG *DMAtransfer(u32 addr, u32 num);
 	tDMA_TAG dma_tag();
-
-	std::string cmq_to_str() const;
-	std::string cmqt_to_str() const;
 };
 
 enum INTCIrqs

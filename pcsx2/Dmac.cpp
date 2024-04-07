@@ -70,16 +70,6 @@ tDMA_TAG DMACh::dma_tag()
 	return chcr.tag();
 }
 
-std::string DMACh::cmq_to_str() const
-{
-	return StringUtil::StdStringFromFormat("chcr = %lx, madr = %lx, qwc  = %lx", chcr._u32, madr, qwc);
-}
-
-std::string DMACh::cmqt_to_str() const
-{
-	return StringUtil::StdStringFromFormat("chcr = %lx, madr = %lx, qwc  = %lx, tadr = %1x", chcr._u32, madr, qwc, tadr);
-}
-
 __fi void throwBusError(const char *s)
 {
     Console.Error("%s BUSERR", s);
