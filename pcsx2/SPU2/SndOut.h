@@ -285,10 +285,6 @@ struct Stereo71Out16
 
 namespace SndBuffer
 {
-	void UpdateTempoChangeAsyncMixing();
 	bool Init(const char* modname);
-	void Cleanup();
 	void Write(StereoOut16 Sample);
-	void ClearContents();
-	void ResetBuffers();
 }

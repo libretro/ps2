@@ -40,9 +40,6 @@ void SetOutputVolume(s32 volume);
 /// Pauses/resumes the output stream.
 void SetOutputPaused(bool paused);
 
-/// Clears output buffers in no-sync mode, prevents long delays after fast forwarding.
-void OnTargetSpeedChanged();
-
 /// Adjusts the premultiplier on the output sample rate. Used for syncing to host refresh rate.
 void SetDeviceSampleRateMultiplier(double multiplier);
 

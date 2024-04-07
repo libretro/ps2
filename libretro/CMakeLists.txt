@@ -6,7 +6,6 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/options.cpp
    ${CMAKE_SOURCE_DIR}/libretro/input.cpp
    ${CMAKE_SOURCE_DIR}/libretro/Console.cpp
-   ${CMAKE_SOURCE_DIR}/libretro/SPU2.cpp
    ${CMAKE_SOURCE_DIR}/libretro/DEV9.cpp
    ${CMAKE_SOURCE_DIR}/libretro/USB.cpp
 

@@ -101,10 +101,6 @@ void SPU2::InitSndBuffer()
 
 		SampleRate = original_sample_rate;
 	}
-
-	// just use nullout
-	if (!SndBuffer::Init("nullout"))
-		pxFailRel("Failed to initialize nullout.");
 }
 
 void SPU2::UpdateSampleRate()
@@ -113,7 +109,6 @@ void SPU2::UpdateSampleRate()
 	if (SampleRate == new_sample_rate)
 		return;
 
-	SndBuffer::Cleanup();
 	SampleRate = new_sample_rate;
 	InitSndBuffer();
 }
@@ -139,12 +134,6 @@ void SPU2::Reset(bool psxmode)
 {
 	InternalReset(psxmode);
 	UpdateSampleRate();
-}
-
-void SPU2::OnTargetSpeedChanged()
-{
-	if (EmuConfig.SPU2.SynchMode != Pcsx2Config::SPU2Options::SynchronizationMode::TimeStretch)
-		SndBuffer::ResetBuffers();
 }
 
 void SPU2::SetDeviceSampleRateMultiplier(double multiplier)
@@ -208,7 +197,6 @@ bool SPU2::Open()
 
 void SPU2::Close()
 {
-	SndBuffer::Cleanup();
 }
 
 void SPU2::Shutdown()

@@ -181,7 +181,6 @@ void VMManager::SetState(VMState state)
 			frameLimitReset();
 		}
 
-		SPU2::SetOutputPaused(state == VMState::Paused);
 		if (state == VMState::Paused)
 			Host::OnVMPaused();
 		else
