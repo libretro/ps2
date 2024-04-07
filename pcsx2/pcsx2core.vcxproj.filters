@@ -992,9 +992,6 @@
     <ClCompile Include="GS\GSCrc.cpp">
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
-    <ClCompile Include="GS\GSDump.cpp">
-      <Filter>System\Ps2\GS</Filter>
-    </ClCompile>
     <ClCompile Include="GS\GSLocalMemory.cpp">
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
@@ -1026,9 +1023,6 @@
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
     <ClCompile Include="GS\GSRingHeap.cpp">
-      <Filter>System\Ps2\GS</Filter>
-    </ClCompile>
-    <ClCompile Include="GS\GSLzma.cpp">
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\ChdFileReader.cpp">
@@ -1342,9 +1336,6 @@
     </ClCompile>
     <ClCompile Include="SPU2\SndOut_XAudio2.cpp">
       <Filter>System\Ps2\SPU2</Filter>
-    </ClCompile>
-    <ClCompile Include="GSDumpReplayer.cpp">
-      <Filter>Tools</Filter>
     </ClCompile>
     <ClCompile Include="VirtualMemory.cpp">
       <Filter>System</Filter>
@@ -1861,9 +1852,6 @@
     <ClInclude Include="GS\GSCrc.h">
       <Filter>System\Ps2\GS</Filter>
     </ClInclude>
-    <ClInclude Include="GS\GSDump.h">
-      <Filter>System\Ps2\GS</Filter>
-    </ClInclude>
     <ClInclude Include="GS\GSLocalMemory.h">
       <Filter>System\Ps2\GS</Filter>
     </ClInclude>
@@ -1910,9 +1898,6 @@
       <Filter>System\Ps2\GS</Filter>
     </ClInclude>
     <ClInclude Include="GS\GSThread_CXX11.h">
-      <Filter>System\Ps2\GS</Filter>
-    </ClInclude>
-    <ClInclude Include="GS\GSLzma.h">
       <Filter>System\Ps2\GS</Filter>
     </ClInclude>
     <ClInclude Include="GS\Renderers\Common\GSFastList.h">
@@ -2235,9 +2220,6 @@
       <Filter>System\Ps2\IPU</Filter>
     </ClInclude>
     <ClInclude Include="Achievements.h">
-      <Filter>Tools</Filter>
-    </ClInclude>
-    <ClInclude Include="GSDumpReplayer.h">
       <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="GS.h">

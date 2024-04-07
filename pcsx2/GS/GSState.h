@@ -27,7 +27,6 @@
 #include "Renderers/Common/GSDevice.h"
 #include "GSCrc.h"
 #include "GSAlignedClass.h"
-#include "GSDump.h"
 
 class GSState : public GSAlignedClass<32>
 {
@@ -221,7 +220,6 @@ public:
 	GSVector4i temp_draw_rect = {};
 	u32 m_crc = 0;
 	CRC::Game m_game = {};
-	std::unique_ptr<GSDumpBase> m_dump;
 	bool m_nativeres = false;
 	bool m_mipmap = false;
 	bool m_texflush_flag = false;

@@ -321,13 +321,6 @@ enum class GSScreenshotFormat : u8
 	Count,
 };
 
-enum class GSDumpCompressionMethod : u8
-{
-	Uncompressed,
-	LZMA,
-	Zstandard,
-};
-
 enum class GSHardwareDownloadMode : u8
 {
 	Enabled,
@@ -733,7 +726,6 @@ struct Pcsx2Config
 		CRCHackLevel CRCHack = CRCHackLevel::Automatic;
 		BiFiltering TextureFiltering = BiFiltering::PS2;
 		TexturePreloadingLevel TexturePreloading = TexturePreloadingLevel::Full;
-		GSDumpCompressionMethod GSDumpCompression = GSDumpCompressionMethod::Zstandard;
 		GSHardwareDownloadMode HWDownloadMode = GSHardwareDownloadMode::Enabled;
 		GSCASMode CASMode = GSCASMode::Disabled;
 		u8 Dithering = 2;

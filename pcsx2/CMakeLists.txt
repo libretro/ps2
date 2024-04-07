@@ -458,9 +458,7 @@ set(pcsx2GSSources
 	GS/GSClut.cpp
 	GS/GSCrc.cpp
 	GS/GSDrawingContext.cpp
-	GS/GSDump.cpp
 	GS/GSLocalMemory.cpp
-	GS/GSLzma.cpp
 	GS/GSPerfMon.cpp
 	GS/GSPng.cpp
 	GS/GSRingHeap.cpp
@@ -494,14 +492,12 @@ set(pcsx2GSHeaders
 	GS/GSCrc.h
 	GS/GSDrawingContext.h
 	GS/GSDrawingEnvironment.h
-	GS/GSDump.h
 	GS/GSExtra.h
 	GS/GSGL.h
 	GS/GSIntrin.h
 	GS/GSRegs.h
 	GS/GS.h
 	GS/GSLocalMemory.h
-	GS/GSLzma.h
 	GS/GSPerfMon.h
 	GS/GSPng.h
 	GS/GSRingHeap.h

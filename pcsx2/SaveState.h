@@ -43,7 +43,7 @@ static const u32 g_SaveVersion = (0x9A35 << 16) | 0x0000;
 // an interesting thing to note is that this dates back from before plugin
 // merges and was used to pass data between plugins and cores, although the
 // struct was system dependant as the size of int differs between systems, thus
-// subsystems making use of freezeData, like GSDump and save states aren't
+// subsystems making use of freezeData, like save states aren't
 // necessarily portable; we might want to investigate this in the future -- govanify
 struct freezeData
 {

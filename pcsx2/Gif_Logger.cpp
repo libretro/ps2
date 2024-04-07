@@ -18,17 +18,6 @@
 #include "Gif_Unit.h"
 #include "Gif.h"
 
-static const char GifTag_ModeStr[4][16] = {
-	"Packed", "Reglist", "Image", "Image2"
-};
-
-static const char GifTag_RegStr[16][16] = {
-	"PRIM",    "RGBA",    "STQ",    "UV",
-	"XYZF2",   "XYZ2",    "TEX0_1", "TEX0_2",
-	"CLAMP_1", "CLAMP_2", "FOG",    "INVALID",
-	"XYZF3",   "XYZ3",    "A+D",    "NOP"
-};
-
 void Gif_ParsePacket(u8* data, u32 size, GIF_PATH path) {
 	Gif_Tag gifTag;
 	u8* buffer = data;

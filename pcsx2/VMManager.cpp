@@ -1084,13 +1084,6 @@ bool VMManager::IsBlockDumpFileName(const std::string_view& path)
 	return StringUtil::EndsWithNoCase(path, ".dump");
 }
 
-bool VMManager::IsGSDumpFileName(const std::string_view& path)
-{
-	return (StringUtil::EndsWithNoCase(path, ".gs") ||
-			StringUtil::EndsWithNoCase(path, ".gs.xz") ||
-			StringUtil::EndsWithNoCase(path, ".gs.zst"));
-}
-
 bool VMManager::IsSaveStateFileName(const std::string_view& path)
 {
 	return StringUtil::EndsWithNoCase(path, ".p2s");
@@ -1111,7 +1104,7 @@ bool VMManager::IsDiscFileName(const std::string_view& path)
 
 bool VMManager::IsLoadableFileName(const std::string_view& path)
 {
-	return IsDiscFileName(path) || IsElfFileName(path) || IsGSDumpFileName(path) || IsBlockDumpFileName(path);
+	return IsDiscFileName(path) || IsElfFileName(path) || IsBlockDumpFileName(path);
 }
 
 void VMManager::Execute()

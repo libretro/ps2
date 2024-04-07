@@ -445,11 +445,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	UserHacks_BilinearHack = false;
 	UserHacks_NativePaletteDraw = false;
 
-	DumpReplaceableTextures = false;
-	DumpReplaceableMipmaps = false;
-	DumpTexturesWithFMVActive = false;
-	DumpDirectTextures = true;
-	DumpPaletteTextures = true;
 	LoadTextureReplacements = false;
 	LoadTextureReplacementsAsync = true;
 	PrecacheTextureReplacements = false;
@@ -504,7 +499,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(CRCHack) &&
 		OpEqu(TextureFiltering) &&
 		OpEqu(TexturePreloading) &&
-		OpEqu(GSDumpCompression) &&
 		OpEqu(HWDownloadMode) &&
 		OpEqu(CASMode) &&
 		OpEqu(Dithering) &&
@@ -553,10 +547,8 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(VideoCaptureHeight) &&
 		OpEqu(AudioCaptureBitrate) &&
 
-		OpEqu(Adapter) &&
-		
-		OpEqu(HWDumpDirectory) &&
-		OpEqu(SWDumpDirectory));
+		OpEqu(Adapter)
+		);
 }
 
 bool Pcsx2Config::GSOptions::operator!=(const GSOptions& right) const
@@ -668,11 +660,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(SaveFrame, "savef");
 	GSSettingBoolEx(SaveTexture, "savet");
 	GSSettingBoolEx(SaveDepth, "savez");
-	GSSettingBool(DumpReplaceableTextures);
-	GSSettingBool(DumpReplaceableMipmaps);
-	GSSettingBool(DumpTexturesWithFMVActive);
-	GSSettingBool(DumpDirectTextures);
-	GSSettingBool(DumpPaletteTextures);
 	GSSettingBool(LoadTextureReplacements);
 	GSSettingBool(LoadTextureReplacementsAsync);
 	GSSettingBool(PrecacheTextureReplacements);
@@ -698,7 +685,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEnumEx(CRCHack, "crc_hack_level");
 	GSSettingIntEnumEx(TextureFiltering, "filter");
 	GSSettingIntEnumEx(TexturePreloading, "texture_preloading");
-	GSSettingIntEnumEx(GSDumpCompression, "GSDumpCompression");
 	GSSettingIntEnumEx(HWDownloadMode, "HWDownloadMode");
 	GSSettingIntEnumEx(CASMode, "CASMode");
 	GSSettingIntEx(CAS_Sharpness, "CASSharpness");
@@ -741,12 +727,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEx(AudioCaptureBitrate, "AudioCaptureBitrate");
 
 	GSSettingString(Adapter);
-	GSSettingString(HWDumpDirectory);
-	if (!HWDumpDirectory.empty() && !Path::IsAbsolute(HWDumpDirectory))
-		HWDumpDirectory = Path::Combine(EmuFolders::DataRoot, HWDumpDirectory);
-	GSSettingString(SWDumpDirectory);
-	if (!SWDumpDirectory.empty() && !Path::IsAbsolute(SWDumpDirectory))
-		SWDumpDirectory = Path::Combine(EmuFolders::DataRoot, SWDumpDirectory);
 
 #undef GSSettingInt
 #undef GSSettingIntEx
@@ -1409,7 +1389,6 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Console.WriteLn("Cache Directory: %s", Cache.c_str());
 	Console.WriteLn("Textures Directory: %s", Textures.c_str());
 	Console.WriteLn("Input Profile Directory: %s", InputProfiles.c_str());
-	Console.WriteLn("Video Dumping Directory: %s", Videos.c_str());
 }
 
 bool EmuFolders::EnsureFoldersExist()

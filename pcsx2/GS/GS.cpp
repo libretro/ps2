@@ -22,7 +22,6 @@
 #include "Renderers/Null/GSRendererNull.h"
 #include "Renderers/HW/GSRendererHW.h"
 #include "Renderers/HW/GSTextureReplacements.h"
-#include "GSLzma.h"
 #include "MultiISA.h"
 
 #include "common/Console.h"

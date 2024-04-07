@@ -556,25 +556,6 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	PerformanceMetrics::Update(registers_written, fb_sprite_frame, false);
 }
 
-void GSRenderer::QueueSnapshot(const std::string& path, u32 gsdump_frames)
-{
-	if (!m_snapshot.empty())
-		return;
-
-	// Allows for providing a complete path
-	if (path.size() > 4 && StringUtil::EndsWithNoCase(path, ".png"))
-	{
-		m_snapshot = path.substr(0, path.size() - 4);
-	}
-	else
-	{
-		m_snapshot = GSGetBaseSnapshotFilename();
-	}
-
-	// this is really gross, but wx we get the snapshot request after shift...
-	m_dump_frames = gsdump_frames;
-}
-
 static std::string GSGetBaseFilename()
 {
 	std::string filename;
@@ -631,12 +612,6 @@ std::string GSGetBaseVideoFilename()
 {
 	// prepend video directory
 	return Path::Combine(EmuFolders::Videos, GSGetBaseFilename());
-}
-
-void GSRenderer::StopGSDump()
-{
-	m_snapshot = {};
-	m_dump_frames = 0;
 }
 
 void GSRenderer::PresentCurrentFrame()
@@ -696,90 +671,4 @@ GSTexture* GSRenderer::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2
 bool GSRenderer::IsIdleFrame() const
 {
 	return (m_last_draw_n == s_n && m_last_transfer_n == s_transfer_n);
-}
-
-bool GSRenderer::SaveSnapshotToMemory(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
-	u32* width, u32* height, std::vector<u32>* pixels)
-{
-	GSTexture* const current = g_gs_device->GetCurrent();
-	if (!current)
-	{
-		*width = 0;
-		*height = 0;
-		pixels->clear();
-		return false;
-	}
-
-	const GSVector4i src_rect(CalculateDrawSrcRect(current));
-	const GSVector4 src_uv(GSVector4(src_rect) / GSVector4(current->GetSize()).xyxy());
-
-	const bool is_progressive = (GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets));
-	GSVector4 draw_rect;
-	if (window_width == 0 || window_height == 0)
-	{
-		if (apply_aspect)
-		{
-			// use internal resolution of the texture
-			const float aspect = GetCurrentAspectRatioFloat(is_progressive);
-			const int tex_width = current->GetWidth();
-			const int tex_height = current->GetHeight();
-
-			// expand to the larger dimension
-			const float tex_aspect = static_cast<float>(tex_width) / static_cast<float>(tex_height);
-			if (tex_aspect >= aspect)
-				draw_rect = GSVector4(0.0f, 0.0f, static_cast<float>(tex_width), static_cast<float>(tex_width) / aspect);
-			else
-				draw_rect = GSVector4(0.0f, 0.0f, static_cast<float>(tex_height) * aspect, static_cast<float>(tex_height));
-		}
-		else
-		{
-			// uncorrected aspect is only available at internal resolution
-			draw_rect = GSVector4(0.0f, 0.0f, static_cast<float>(current->GetWidth()), static_cast<float>(current->GetHeight()));
-		}
-	}
-	else
-	{
-		draw_rect = CalculateDrawDstRect(window_width, window_height, src_rect, current->GetSize(),
-			GSDisplayAlignment::LeftOrTop, false, is_progressive);
-	}
-	const u32 draw_width = static_cast<u32>(draw_rect.z - draw_rect.x);
-	const u32 draw_height = static_cast<u32>(draw_rect.w - draw_rect.y);
-	const u32 image_width = crop_borders ? draw_width : std::max(draw_width, window_width);
-	const u32 image_height = crop_borders ? draw_height : std::max(draw_height, window_height);
-
-	// We're not expecting screenshots to be fast, so just allocate a download texture on demand.
-	GSTexture* rt = g_gs_device->CreateRenderTarget(draw_width, draw_height, GSTexture::Format::Color, false);
-	if (rt)
-	{
-		std::unique_ptr<GSDownloadTexture> dl(g_gs_device->CreateDownloadTexture(draw_width, draw_height, GSTexture::Format::Color));
-		if (dl)
-		{
-			const GSVector4i rc(0, 0, draw_width, draw_height);
-			g_gs_device->StretchRect(current, src_uv, rt, GSVector4(rc), ShaderConvert::TRANSPARENCY_FILTER);
-			dl->CopyFromTexture(rc, rt, rc, 0);
-			dl->Flush();
-
-			if (dl->Map(rc))
-			{
-				const u32 pad_x = (image_width - draw_width) / 2;
-				const u32 pad_y = (image_height - draw_height) / 2;
-				pixels->clear();
-				pixels->resize(image_width * image_height, 0);
-				*width = image_width;
-				*height = image_height;
-				StringUtil::StrideMemCpy(pixels->data() + pad_y * image_width + pad_x, image_width * sizeof(u32), dl->GetMapPointer(),
-					dl->GetMapPitch(), draw_width * sizeof(u32), draw_height);
-
-				g_gs_device->Recycle(rt);
-				return true;
-			}
-		}
-
-		g_gs_device->Recycle(rt);
-	}
-
-	*width = 0;
-	*height = 0;
-	pixels->clear();
-	return false;
 }

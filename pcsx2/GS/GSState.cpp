@@ -2105,9 +2105,6 @@ void GSState::ReadFIFO(u8* mem, int size)
 	size *= 16;
 
 	Read(mem, size);
-
-	if (m_dump)
-		m_dump->ReadFIFO(size / 16);
 }
 
 void GSState::ReadLocalMemoryUnsync(u8* mem, int qwc, GIFRegBITBLTBUF BITBLTBUF, GIFRegTRXPOS TRXPOS, GIFRegTRXREG TRXREG)
@@ -2336,9 +2333,6 @@ void GSState::Transfer(const u8* mem, u32 size)
 				break;
 		}
 	}
-
-	if (m_dump && mem > start)
-		m_dump->Transfer(index, start, mem - start);
 
 	if (index == 0)
 	{

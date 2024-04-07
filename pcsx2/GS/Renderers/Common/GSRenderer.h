@@ -28,8 +28,6 @@ private:
 
 	u64 m_shader_time_start = 0;
 
-	std::string m_snapshot;
-	u32 m_dump_frames = 0;
 	u32 m_skipped_duplicate_frames = 0;
 
 	// Tracking draw counters for idle frame detection.
@@ -63,11 +61,6 @@ public:
 
 	bool IsIdleFrame() const;
 
-	bool SaveSnapshotToMemory(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
-		u32* width, u32* height, std::vector<u32>* pixels);
-
-	void QueueSnapshot(const std::string& path, u32 gsdump_frames);
-	void StopGSDump();
 	void PresentCurrentFrame();
 };
 

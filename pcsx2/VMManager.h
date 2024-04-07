@@ -115,9 +115,6 @@ namespace VMManager
 	/// Returns true if the specified path is a blockdump.
 	bool IsBlockDumpFileName(const std::string_view& path);
 
-	/// Returns true if the specified path is a GS Dump.
-	bool IsGSDumpFileName(const std::string_view& path);
-
 	/// Returns true if the specified path is a save state.
 	bool IsSaveStateFileName(const std::string_view& path);
 
