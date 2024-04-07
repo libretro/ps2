@@ -112,8 +112,7 @@ int  _SPR0chain()
 		{
 			partialqwc = std::min(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
 
-			if ((spr0ch.madr & ~dmacRegs.rbsr.RMSK) != dmacRegs.rbor.ADDR)
-				Console.WriteLn("SPR MFIFO Write outside MFIFO area");
+			if ((spr0ch.madr & ~dmacRegs.rbsr.RMSK) != dmacRegs.rbor.ADDR) { }
 			else
 				mfifotransferred += partialqwc;
 
@@ -293,9 +292,7 @@ void SPRFROMinterrupt()
 				case MFD_VIF1: // Most common case.
 				case MFD_GIF:
 				{
-					if ((spr0ch.madr & ~dmacRegs.rbsr.RMSK) != dmacRegs.rbor.ADDR) Console.WriteLn("GIF MFIFO Write outside MFIFO area");
 					spr0ch.madr = dmacRegs.rbor.ADDR + (spr0ch.madr & dmacRegs.rbsr.RMSK);
-					//Console.WriteLn("mfifoGIFtransfer %x madr %x, tadr %x", gif->chcr._u32, gif->madr, gif->tadr);
 					hwMFIFOResume(mfifotransferred);
 					break;
 				}

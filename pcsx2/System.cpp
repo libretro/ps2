@@ -56,37 +56,6 @@ void SetCPUState(SSE_MXCSR sseMXCSR, SSE_MXCSR sseVU0MXCSR, SSE_MXCSR sseVU1MXCS
 // This function should be called once during program execution.
 void SysLogMachineCaps()
 {
-	if (!PCSX2_isReleaseVersion)
-	{
-		if (GIT_TAGGED_COMMIT) // Nightly builds
-		{
-			// tagged commit - more modern implementation of dev build versioning
-			// - there is no need to include the commit - that is associated with the tag,
-			// - git is implied and the tag is timestamped
-			Console.WriteLn(Color_StrongGreen, "PCSX2 Nightly - %s Compiled on %s", GIT_TAG, __DATE__);
-		}
-		else
-		{
-			Console.WriteLn(Color_StrongGreen, "PCSX2 %u.%u.%u-%lld"
-#ifndef DISABLE_BUILD_DATE
-											   "- compiled on " __DATE__
-#endif
-				,
-				PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo,
-				SVN_REV);
-		}
-	}
-	else
-	{ // shorter release version string
-		Console.WriteLn(Color_StrongGreen, "PCSX2 %u.%u.%u-%lld"
-#ifndef DISABLE_BUILD_DATE
-										   "- compiled on " __DATE__
-#endif
-			,
-			PCSX2_VersionHi, PCSX2_VersionMid, PCSX2_VersionLo,
-			SVN_REV);
-	}
-
 	Console.WriteLn("Savestate version: 0x%x", g_SaveVersion);
 	Console.Newline();
 
@@ -340,7 +309,7 @@ void SysClearExecutionCache()
 // Example for romver 0160EC20010704
 // 20010704-160707,ROMconf,PS20160EC20010704.bin,kuma@rom-server/~/f10k/g/app/rom
 // 20010704-160707 can be used as unique ID for Bios
-std::string SysGetBiosDiscID()
+std::string SysGetBiosDiscID(void)
 {
 	if (!BiosSerial.empty())
 		return BiosSerial;

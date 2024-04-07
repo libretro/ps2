@@ -438,13 +438,11 @@ bool VU_Thread::IsDone()
 
 void VU_Thread::WaitVU()
 {
-	MTVU_LOG("MTVU - WaitVU!");
 	semaEvent.WaitForEmpty();
 }
 
 void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)
 {
-	MTVU_LOG("MTVU - ExecuteVU!");
 	Get_MTVUChanges(); // Clear any pending interrupts
 	ReserveSpace(5);
 	Write(MTVU_VU_EXECUTE);
@@ -470,7 +468,6 @@ void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)
 
 void VU_Thread::VifUnpack(vifStruct& _vif, VIFregisters& _vifRegs, const u8* data, u32 size)
 {
-	MTVU_LOG("MTVU - VifUnpack!");
 	u32 vif_copy_size = (uptr)&_vif.StructEnd - (uptr)&_vif.tag;
 	ReserveSpace(1 + size_u32(vif_copy_size) + size_u32(sizeof(VIFregistersMTVU)) + 1 + size_u32(size));
 	Write(MTVU_VIF_UNPACK);
@@ -484,7 +481,6 @@ void VU_Thread::VifUnpack(vifStruct& _vif, VIFregisters& _vifRegs, const u8* dat
 
 void VU_Thread::WriteMicroMem(u32 vu_micro_addr, const void* data, u32 size)
 {
-	MTVU_LOG("MTVU - WriteMicroMem!");
 	ReserveSpace(3 + size_u32(size));
 	Write(MTVU_VU_WRITE_MICRO);
 	Write(vu_micro_addr);
@@ -496,7 +492,6 @@ void VU_Thread::WriteMicroMem(u32 vu_micro_addr, const void* data, u32 size)
 
 void VU_Thread::WriteDataMem(u32 vu_data_addr, const void* data, u32 size)
 {
-	MTVU_LOG("MTVU - WriteDataMem!");
 	ReserveSpace(3 + size_u32(size));
 	Write(MTVU_VU_WRITE_DATA);
 	Write(vu_data_addr);
@@ -508,7 +503,6 @@ void VU_Thread::WriteDataMem(u32 vu_data_addr, const void* data, u32 size)
 
 void VU_Thread::WriteVIRegs(REG_VI* viRegs)
 {
-	MTVU_LOG("MTVU - WriteRegs!");
 	ReserveSpace(1 + size_u32(32));
 	Write(MTVU_VU_WRITE_VIREGS);
 	Write(viRegs, size_u32(32));
@@ -518,7 +512,6 @@ void VU_Thread::WriteVIRegs(REG_VI* viRegs)
 
 void VU_Thread::WriteVFRegs(VECTOR* vfRegs)
 {
-	MTVU_LOG("MTVU - WriteRegs!");
 	ReserveSpace(1 + size_u32(32*4));
 	Write(MTVU_VU_WRITE_VFREGS);
 	Write(vfRegs, size_u32(32*4));
@@ -528,7 +521,6 @@ void VU_Thread::WriteVFRegs(VECTOR* vfRegs)
 
 void VU_Thread::WriteCol(vifStruct& _vif)
 {
-	MTVU_LOG("MTVU - WriteCol!");
 	ReserveSpace(1 + size_u32(sizeof(_vif.MaskCol)));
 	Write(MTVU_VIF_WRITE_COL);
 	Write(&_vif.MaskCol, sizeof(_vif.MaskCol));
@@ -538,7 +530,6 @@ void VU_Thread::WriteCol(vifStruct& _vif)
 
 void VU_Thread::WriteRow(vifStruct& _vif)
 {
-	MTVU_LOG("MTVU - WriteRow!");
 	ReserveSpace(1 + size_u32(sizeof(_vif.MaskRow)));
 	Write(MTVU_VIF_WRITE_ROW);
 	Write(&_vif.MaskRow, sizeof(_vif.MaskRow));

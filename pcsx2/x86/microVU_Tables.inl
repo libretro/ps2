@@ -219,8 +219,6 @@ mVUop(mVUunknown)
 	}
 	pass2
 	{
-		if (mVU.code != 0x8000033c)
-			Console.Error("microVU%d: Unknown Micro VU opcode called (%x) [%04x]\n", getIndex, mVU.code, xPC);
 	}
-	pass3 { mVUlog("Unknown", mVU.code); }
+	pass3 { }
 }

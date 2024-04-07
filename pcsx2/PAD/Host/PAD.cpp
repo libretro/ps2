@@ -56,7 +56,7 @@ namespace PAD
 	static std::array<std::array<MacroButton, NUM_MACRO_BUTTONS_PER_CONTROLLER>, NUM_CONTROLLER_PORTS> s_macro_buttons;
 } // namespace PAD
 
-s32 PADinit()
+s32 PADinit(void)
 {
 	Pad::reset_all();
 
@@ -68,19 +68,15 @@ s32 PADinit()
 	return 0;
 }
 
-void PADshutdown()
-{
-}
+void PADshutdown(void) { }
 
-s32 PADopen()
+s32 PADopen(void)
 {
 	g_key_status.Init();
 	return 0;
 }
 
-void PADclose()
-{
-}
+void PADclose(void) { }
 
 s32 PADsetSlot(u8 port, u8 slot)
 {
@@ -261,12 +257,6 @@ void PAD::SetDefaultHotkeyConfig(SettingsInterface& si)
 
 	// PCSX2 Controller Settings - Hotkeys - Input Recording
 	si.SetStringValue("Hotkeys", "InputRecToggleMode", "Keyboard/Shift & Keyboard/R");
-
-	// PCSX2 Controller Settings - Hotkeys - Save States
-	si.SetStringValue("Hotkeys", "LoadStateFromSlot", "Keyboard/F3");
-	si.SetStringValue("Hotkeys", "SaveStateToSlot", "Keyboard/F1");
-	si.SetStringValue("Hotkeys", "NextSaveStateSlot", "Keyboard/F2");
-	si.SetStringValue("Hotkeys", "PreviousSaveStateSlot", "Keyboard/Shift & Keyboard/F2");
 
 	// PCSX2 Controller Settings - Hotkeys - System
 	si.SetStringValue("Hotkeys", "OpenPauseMenu", "Keyboard/Escape");

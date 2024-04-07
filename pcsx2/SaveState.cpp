@@ -53,42 +53,6 @@ using namespace R5900;
 
 static tlbs s_tlb_backup[std::size(tlb)];
 
-static void PreLoadPrep()
-{
-	// ensure everything is in sync before we start overwriting stuff.
-	if (THREAD_VU1)
-		vu1Thread.WaitVU();
-	GetMTGS().WaitGS(false);
-
-	// backup current TLBs, since we're going to overwrite them all
-	std::memcpy(s_tlb_backup, tlb, sizeof(s_tlb_backup));
-
-	// clear protected pages, since we don't want to fault loading EE memory
-	mmap_ResetBlockTracking();
-
-	SysClearExecutionCache();
-}
-
-static void PostLoadPrep()
-{
-	resetCache();
-//	WriteCP0Status(cpuRegs.CP0.n.Status.val);
-	for (int i = 0; i < 48; i++)
-	{
-		if (std::memcmp(&s_tlb_backup[i], &tlb[i], sizeof(tlbs)) != 0)
-		{
-			UnmapTLB(s_tlb_backup[i], i);
-			MapTLB(tlb[i], i);
-		}
-	}
-
-	if (EmuConfig.Gamefixes.GoemonTlbHack) GoemonPreloadTlb();
-	CBreakPoints::SetSkipFirst(BREAKPOINT_EE, 0);
-	CBreakPoints::SetSkipFirst(BREAKPOINT_IOP, 0);
-
-	UpdateVSyncRate(true);
-}
-
 // --------------------------------------------------------------------------------------
 //  SaveStateBase  (implementations)
 // --------------------------------------------------------------------------------------
@@ -174,9 +138,6 @@ SaveStateBase& SaveStateBase::FreezeBios()
 SaveStateBase& SaveStateBase::FreezeInternals()
 {
 	const u32 previousCRC = ElfCRC;
-
-	// Print this until the MTVU problem in gifPathFreeze is taken care of (rama)
-	if (THREAD_VU1) Console.Warning("MTVU speedhack is enabled, saved states may not be stable");
 
 	// Second Block - Various CPU Registers and States
 	// -----------------------------------------------
@@ -406,7 +367,6 @@ public:
 
 	virtual const char* GetFilename() const = 0;
 	virtual void FreezeOut(SaveStateBase& writer) const = 0;
-	virtual bool IsRequired() const = 0;
 };
 
 class MemorySavestateEntry : public BaseSavestateEntry
@@ -417,7 +377,6 @@ protected:
 
 public:
 	virtual void FreezeOut(SaveStateBase& writer) const;
-	virtual bool IsRequired() const { return true; }
 
 protected:
 	virtual u8* GetDataPtr() const = 0;

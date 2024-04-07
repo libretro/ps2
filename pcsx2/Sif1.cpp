@@ -39,10 +39,7 @@ static __fi bool WriteEEtoFifo()
 {
 	// There's some data ready to transfer into the fifo..
 	const int writeSize = std::min((s32)sif1ch.qwc, sif1.fifo.sif_free() >> 2);
-
-	tDMA_TAG *ptag;
-
-	ptag = sif1ch.getAddr(sif1ch.madr, DMAC_SIF1, false);
+	tDMA_TAG *ptag = sif1ch.getAddr(sif1ch.madr, DMAC_SIF1, false);
 	if (ptag == NULL)
 		return false;
 
@@ -57,7 +54,7 @@ static __fi bool WriteEEtoFifo()
 }
 
 // Read from the fifo and write to IOP
-static __fi bool WriteFifoToIOP()
+static __fi bool WriteFifoToIOP(void)
 {
 	// If we're reading something, continue to do so.
 
@@ -73,34 +70,23 @@ static __fi bool WriteFifoToIOP()
 }
 
 // Get a tag and process it.
-static __fi bool ProcessEETag()
+static __fi bool ProcessEETag(void)
 {
 	// Chain mode
-	tDMA_TAG *ptag;
-
 	// Process DMA tag at sif1ch.tadr
-	ptag = sif1ch.DMAtransfer(sif1ch.tadr, DMAC_SIF1);
+	tDMA_TAG *ptag = sif1ch.DMAtransfer(sif1ch.tadr, DMAC_SIF1);
 	if (ptag == NULL)
-	{
-		Console.WriteLn("Sif1 ProcessEETag: ptag = NULL");
 		return false;
-	}
 
 	if (sif1ch.chcr.TTE)
-	{
-		Console.WriteLn("SIF1 TTE");
 		sif1.fifo.write((u32*)ptag + 2, 2);
-	}
 
 	sif1ch.madr = ptag[1]._u32;
 
 	sif1.ee.end = hwDmacSrcChain(sif1ch, ptag->ID);
 
 	if (sif1ch.chcr.TIE && ptag->IRQ)
-	{
-		//Console.WriteLn("SIF1 TIE");
 		sif1.ee.end = true;
-	}
 
 	return true;
 }
@@ -315,9 +301,7 @@ __fi void dmaSIF1(void)
 	if (sif1ch.chcr.MOD == CHAIN_MODE && sif1ch.qwc > 0)
 	{
 		if ((sif1ch.chcr.tag().ID == TAG_REFE) || (sif1ch.chcr.tag().ID == TAG_END) || (sif1ch.chcr.tag().IRQ && vif1ch.chcr.TIE))
-		{
 			sif1.ee.end = true;
-		}
 	}
 
 	SIF1Dma();

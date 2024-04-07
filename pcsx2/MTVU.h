@@ -21,9 +21,6 @@
 
 #include <thread>
 
-#define MTVU_LOG(...) do{} while(0)
-//#define MTVU_LOG DevCon.WriteLn
-
 // Notes:
 // - This class should only be accessed from the EE thread...
 // - buffer_size must be power of 2

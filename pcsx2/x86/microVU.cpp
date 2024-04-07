@@ -94,7 +94,6 @@ void mVUreset(microVU& mVU, bool resetReserve)
 
 	mVU.regs().nextBlockCycles = 0;
 	memset(&mVU.prog.lpState, 0, sizeof(mVU.prog.lpState));
-	mVU.profiler.Reset(mVU.index);
 
 	// Program Variables
 	mVU.prog.cleared  =  1;
@@ -216,7 +215,6 @@ __ri void mVUcacheProg(microVU& mVU, microProgram& prog)
 		else
 			memcpy(prog.data, mVU.regs().Micro, 0x4000);
 	}
-	mVUdumpProg(mVU, prog);
 }
 
 // Generate Hash for partial program based on compiled ranges...

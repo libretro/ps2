@@ -4,7 +4,6 @@ set(PCSX2_DEFS "")
 #-------------------------------------------------------------------------------
 # Misc option
 #-------------------------------------------------------------------------------
-option(DISABLE_BUILD_DATE "Disable including the binary compile date")
 option(LIBRETRO "Enables building the libretro core" ON)
 set(USE_SYSTEM_LIBS "AUTO" CACHE STRING "Use system libraries instead of bundled libraries.  ON - Always use system and fail if unavailable, OFF - Always use bundled, AUTO - Use system if available, otherwise use bundled.  Default is AUTO")
 set(CMAKE_BUILD_PO FALSE)
@@ -232,11 +231,6 @@ if(USE_CLANG AND TIMETRACE)
 endif()
 
 set(PCSX2_WARNINGS ${DEFAULT_WARNINGS})
-
-if(DISABLE_BUILD_DATE)
-	message(STATUS "Disabling the inclusion of the binary compile date.")
-	list(APPEND PCSX2_DEFS DISABLE_BUILD_DATE)
-endif()
 
 #-------------------------------------------------------------------------------
 # MacOS-specific things

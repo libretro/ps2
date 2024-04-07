@@ -29,9 +29,7 @@ using namespace x86Emitter;
 // we need enough for a 32-bit jump forwards (5 bytes)
 static constexpr u32 LOADSTORE_PADDING = 5;
 
-//#define LOG_STORES
-
-static u32 GetAllocatedGPRBitmask()
+static u32 GetAllocatedGPRBitmask(void)
 {
 	u32 mask = 0;
 	for (u32 i = 0; i < iREGCNT_GPR; i++)
@@ -103,34 +101,6 @@ static u32 GetAllocatedXMMBitmask()
 
 */
 
-#ifdef LOG_STORES
-static std::FILE* logfile;
-static bool CheckLogFile()
-{
-	if (!logfile)
-		logfile = std::fopen("C:\\Dumps\\comp\\memlog.bad.txt", "wb");
-	return (logfile != nullptr);
-}
-
-static void LogWrite(u32 addr, u64 val)
-{
-	if (!CheckLogFile())
-		return;
-
-	std::fprintf(logfile, "%08X @ %u: %llx\n", addr, cpuRegs.cycle, val);
-	std::fflush(logfile);
-}
-
-static void __vectorcall LogWriteQuad(u32 addr, __m128i val)
-{
-	if (!CheckLogFile())
-		return;
-
-	std::fprintf(logfile, "%08X @ %u: %llx %llx\n", addr, cpuRegs.cycle, val.m128i_u64[0], val.m128i_u64[1]);
-	std::fflush(logfile);
-}
-#endif
-
 namespace vtlb_private
 {
 	// ------------------------------------------------------------------------
@@ -139,8 +109,6 @@ namespace vtlb_private
 	//
 	static void DynGen_PrepRegs(int addr_reg, int value_reg, u32 sz, bool xmm)
 	{
-		EE::Profiler.EmitMem();
-
 		_freeX86reg(arg1regd);
 		xMOV(arg1regd, xRegister32(addr_reg));
 
@@ -482,8 +450,6 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 //
 int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
-	EE::Profiler.EmitConstMem(addr_const);
-
 	int x86_dest_reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
@@ -629,8 +595,6 @@ int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallbac
 {
 	pxAssert(bits == 128);
 
-	EE::Profiler.EmitConstMem(addr_const);
-
 	int reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
@@ -661,60 +625,6 @@ int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallbac
 
 void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 {
-#ifdef LOG_STORES
-	{
-		xSUB(rsp, 16 * 16);
-		for (u32 i = 0; i < 16; i++)
-			xMOVAPS(ptr[rsp + i * 16], xRegisterSSE::GetInstance(i));
-		for (const auto& reg : {rbx, rcx, rdx, rsi, rdi, r8, r9, r10, r11, r12, r13, r14, r15, rbp})
-			xPUSH(reg);
-
-		xPUSH(xRegister64(addr_reg));
-		xPUSH(xRegister64(value_reg));
-		xPUSH(arg1reg);
-		xPUSH(arg2reg);
-		xMOV(arg1regd, xRegister32(addr_reg));
-		if (xmm)
-		{
-			xSUB(rsp, 32 + 32);
-			xMOVAPS(ptr[rsp + 32], xRegisterSSE::GetInstance(value_reg));
-			xMOVAPS(ptr[rsp + 48], xRegisterSSE::GetArgRegister(1, 0));
-			if (sz < 128)
-				xPSHUF.D(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg), 0);
-			else
-				xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg));
-			xFastCall((void*)LogWriteQuad);
-			xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), ptr[rsp + 48]);
-			xMOVAPS(xRegisterSSE::GetInstance(value_reg), ptr[rsp + 32]);
-			xADD(rsp, 32 + 32);
-		}
-		else
-		{
-			xMOV(arg2reg, xRegister64(value_reg));
-			if (sz == 8)
-				xAND(arg2regd, 0xFF);
-			else if (sz == 16)
-				xAND(arg2regd, 0xFFFF);
-			else if (sz == 32)
-				xAND(arg2regd, -1);
-			xSUB(rsp, 32);
-			xFastCall((void*)LogWrite);
-			xADD(rsp, 32);
-		}
-		xPOP(arg2reg);
-		xPOP(arg1reg);
-		xPOP(xRegister64(value_reg));
-		xPOP(xRegister64(addr_reg));
-
-		for (const auto& reg : {rbp, r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rdx, rcx, rbx})
-			xPOP(reg);
-
-		for (u32 i = 0; i < 16; i++)
-			xMOVAPS(xRegisterSSE::GetInstance(i), ptr[rsp + i * 16]);
-		xADD(rsp, 16 * 16);
-	}
-#endif
-
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
 		iFlushCall(FLUSH_FULLVTLB);
@@ -780,62 +690,6 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 // recompiler if the TLB is changed.
 void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 {
-	EE::Profiler.EmitConstMem(addr_const);
-
-#ifdef LOG_STORES
-	{
-		xSUB(rsp, 16 * 16);
-		for (u32 i = 0; i < 16; i++)
-			xMOVAPS(ptr[rsp + i * 16], xRegisterSSE::GetInstance(i));
-		for (const auto& reg : { rbx, rcx, rdx, rsi, rdi, r8, r9, r10, r11, r12, r13, r14, r15, rbp })
-			xPUSH(reg);
-
-		xPUSH(xRegister64(value_reg));
-		xPUSH(xRegister64(value_reg));
-		xPUSH(arg1reg);
-		xPUSH(arg2reg);
-		xMOV(arg1reg, addr_const);
-		if (xmm)
-		{
-			xSUB(rsp, 32 + 32);
-			xMOVAPS(ptr[rsp + 32], xRegisterSSE::GetInstance(value_reg));
-			xMOVAPS(ptr[rsp + 48], xRegisterSSE::GetArgRegister(1, 0));
-			if (bits < 128)
-				xPSHUF.D(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg), 0);
-			else
-				xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg));
-			xFastCall((void*)LogWriteQuad);
-			xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), ptr[rsp + 48]);
-			xMOVAPS(xRegisterSSE::GetInstance(value_reg), ptr[rsp + 32]);
-			xADD(rsp, 32 + 32);
-		}
-		else
-		{
-			xMOV(arg2reg, xRegister64(value_reg));
-			if (bits == 8)
-				xAND(arg2regd, 0xFF);
-			else if (bits == 16)
-				xAND(arg2regd, 0xFFFF);
-			else if (bits == 32)
-				xAND(arg2regd, -1);
-			xSUB(rsp, 32);
-			xFastCall((void*)LogWrite);
-			xADD(rsp, 32);
-		}
-		xPOP(arg2reg);
-		xPOP(arg1reg);
-		xPOP(xRegister64(value_reg));
-		xPOP(xRegister64(value_reg));
-
-		for (const auto& reg : {rbp, r15, r14, r13, r12, r11, r10, r9, r8, rdi, rsi, rdx, rcx, rbx})
-			xPOP(reg);
-
-		for (u32 i = 0; i < 16; i++)
-			xMOVAPS(xRegisterSSE::GetInstance(i), ptr[rsp + i * 16]);
-		xADD(rsp, 16 * 16);
-	}
-#endif
-
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
 	{

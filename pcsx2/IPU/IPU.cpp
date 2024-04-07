@@ -101,7 +101,7 @@ __fi void IPUProcessInterrupt()
 /////////////////////////////////////////////////////////
 // Register accesses (run on EE thread)
 
-void ipuReset()
+void ipuReset(void)
 {
 	IPUWorker = MULTI_ISA_SELECT(IPUWorker);
 	memzero(ipuRegs);
@@ -115,24 +115,9 @@ void ipuReset()
 	ipuDmaReset();
 }
 
-void ReportIPU()
-{
-	//Console.WriteLn(g_nDMATransfer.desc());
-	Console.WriteLn(ipu_fifo.in.desc());
-	Console.WriteLn(ipu_fifo.out.desc());
-	Console.WriteLn(g_BP.desc());
-	Console.WriteLn("vqclut = 0x%x.", g_ipu_vqclut);
-	Console.WriteLn("thresh = 0x%x.", g_ipu_thresh);
-	Console.WriteLn("coded_block_pattern = 0x%x.", coded_block_pattern);
-	Console.WriteLn("g_decoder = 0x%x.", &decoder);
-	Console.WriteLn(ipu_cmd.desc());
-	Console.Newline();
-}
-
-void SaveStateBase::ipuFreeze()
+void SaveStateBase::ipuFreeze(void)
 {
 	// Get a report of the status of the ipu variables when saving and loading savestates.
-	//ReportIPU();
 	FreezeTag("IPU");
 	Freeze(ipu_fifo);
 
@@ -219,7 +204,7 @@ __fi u64 ipuRead64(u32 mem)
 	return psHu64(IPU_CMD + mem);
 }
 
-void ipuSoftReset()
+void ipuSoftReset(void)
 {
 	ipu_fifo.clear();
 	memzero(g_BP);
@@ -322,8 +307,6 @@ static __ri void ipuIDEC(tIPU_CMD_IDEC idec)
 	//other stuff
 	decoder.dcr = 1; // resets DC prediction value
 }
-
-static int s_bdec = 0;
 
 static __ri void ipuBDEC(tIPU_CMD_BDEC bdec)
 {

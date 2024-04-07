@@ -41,10 +41,8 @@ REC_SYS_DEL(JALR, _Rd_);
 #else
 
 ////////////////////////////////////////////////////
-void recJ()
+void recJ(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::J);
-
 	// SET_FPUSTATE;
 	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
 	recompileNextInstruction(true, false);
@@ -55,10 +53,8 @@ void recJ()
 }
 
 ////////////////////////////////////////////////////
-void recJAL()
+void recJAL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::JAL);
-
 	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
 	_deleteEEreg(31, 0);
 	if (EE_CONST_PROP)
@@ -86,18 +82,14 @@ void recJAL()
 *********************************************************/
 
 ////////////////////////////////////////////////////
-void recJR()
+void recJR(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::JR);
-
 	SetBranchReg(_Rs_);
 }
 
 ////////////////////////////////////////////////////
-void recJALR()
+void recJALR(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::JALR);
-
 	const u32 newpc = pc + 4;
 	const bool swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? false : TrySwapDelaySlot(_Rs_, 0, _Rd_, true);
 

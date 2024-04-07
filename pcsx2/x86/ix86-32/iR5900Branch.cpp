@@ -360,10 +360,8 @@ void recBNEL()
 //}
 
 ////////////////////////////////////////////////////
-void recBLTZAL()
+void recBLTZAL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BLTZAL);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
@@ -409,10 +407,8 @@ void recBLTZAL()
 }
 
 ////////////////////////////////////////////////////
-void recBGEZAL()
+void recBGEZAL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BGEZAL);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
@@ -458,10 +454,8 @@ void recBGEZAL()
 }
 
 ////////////////////////////////////////////////////
-void recBLTZALL()
+void recBLTZALL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BLTZALL);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
@@ -496,10 +490,8 @@ void recBLTZALL()
 }
 
 ////////////////////////////////////////////////////
-void recBGEZALL()
+void recBGEZALL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BGEZALL);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
@@ -535,10 +527,8 @@ void recBGEZALL()
 
 
 //// BLEZ
-void recBLEZ()
+void recBLEZ(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BLEZ);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -584,10 +574,8 @@ void recBLEZ()
 }
 
 //// BGTZ
-void recBGTZ()
+void recBGTZ(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BGTZ);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -633,10 +621,8 @@ void recBGTZ()
 }
 
 ////////////////////////////////////////////////////
-void recBLTZ()
+void recBLTZ(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BLTZ);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -675,10 +661,8 @@ void recBLTZ()
 }
 
 ////////////////////////////////////////////////////
-void recBGEZ()
+void recBGEZ(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BGEZ);
-
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -718,10 +702,8 @@ void recBGEZ()
 }
 
 ////////////////////////////////////////////////////
-void recBLTZL()
+void recBLTZL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BLTZL);
-
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -751,10 +733,8 @@ void recBLTZL()
 
 
 ////////////////////////////////////////////////////
-void recBGEZL()
+void recBGEZL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BGEZL);
-
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -790,10 +770,8 @@ void recBGEZL()
 *********************************************************/
 
 ////////////////////////////////////////////////////
-void recBLEZL()
+void recBLEZL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BLEZL);
-
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -829,10 +807,8 @@ void recBLEZL()
 }
 
 ////////////////////////////////////////////////////
-void recBGTZL()
+void recBGTZL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BGTZL);
-
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))

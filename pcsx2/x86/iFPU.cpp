@@ -124,7 +124,6 @@ void recCFC1(void)
 {
 	if (!_Rt_)
 		return;
-	EE::Profiler.EmitOp(eeOpcode::CFC1);
 
 	const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
 	if (_Fs_ >= 16)
@@ -144,7 +143,6 @@ void recCTC1()
 {
 	if (_Fs_ != 31)
 		return;
-	EE::Profiler.EmitOp(eeOpcode::CTC1);
 
 	if (GPR_IS_CONST1(_Rt_))
 	{
@@ -182,8 +180,6 @@ void recMFC1()
 {
 	if (!_Rt_)
 		return;
-
-	EE::Profiler.EmitOp(eeOpcode::MFC1);
 
 	const int xmmregt = _allocIfUsedGPRtoXMM(_Rt_, MODE_READ | MODE_WRITE);
 	const int regs = _allocIfUsedFPUtoXMM(_Fs_, MODE_READ);
@@ -227,9 +223,8 @@ void recMFC1()
 //------------------------------------------------------------------
 // MTC1
 //------------------------------------------------------------------
-void recMTC1()
+void recMTC1(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::MTC1);
 	if (GPR_IS_CONST1(_Rt_))
 	{
 		const int xmmreg = _allocIfUsedFPUtoXMM(_Fs_, MODE_WRITE);
@@ -395,7 +390,6 @@ void ClampValues(int regd)
 //------------------------------------------------------------------
 void recABS_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::ABS_F);
 	if (info & PROCESS_EE_S)
 		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
 	else
@@ -668,18 +662,13 @@ int recCommutativeOp(int info, int regd, int op)
 //------------------------------------------------------------------
 void recADD_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::ADD_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	ClampValues(recCommutativeOp(info, EEREC_D, 0));
-	//REC_FPUOP(ADD_S);
 }
 
 FPURECOMPILE_CONSTCODE(ADD_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recADDA_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::ADDA_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	ClampValues(recCommutativeOp(info, EEREC_ACC, 0));
 }
 
@@ -702,27 +691,24 @@ static void _setupBranchTest()
 	xTEST(eax, FPUflagC);
 }
 
-void recBC1F()
+void recBC1F(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BC1F);
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = TrySwapDelaySlot(0, 0, 0, true);
 	_setupBranchTest();
 	recDoBranchImm(branchTo, JNZ32(0), false, swap);
 }
 
-void recBC1T()
+void recBC1T(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BC1T);
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = TrySwapDelaySlot(0, 0, 0, true);
 	_setupBranchTest();
 	recDoBranchImm(branchTo, JZ32(0), false, swap);
 }
 
-void recBC1FL()
+void recBC1FL(void)
 {
-	EE::Profiler.EmitOp(eeOpcode::BC1FL);
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
 	recDoBranchImm(branchTo, JNZ32(0), true, false);
@@ -730,7 +716,6 @@ void recBC1FL()
 
 void recBC1TL()
 {
-	EE::Profiler.EmitOp(eeOpcode::BC1TL);
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
 	recDoBranchImm(branchTo, JZ32(0), true, false);
@@ -743,8 +728,6 @@ void recBC1TL()
 //------------------------------------------------------------------
 void recC_EQ_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::CEQ_F);
-
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{
 		case PROCESS_EE_S:
@@ -820,15 +803,12 @@ FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
 
 void recC_F()
 {
-	EE::Profiler.EmitOp(eeOpcode::CF_F);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 }
 //REC_FPUFUNC(C_F);
 
 void recC_LE_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::CLE_F);
-
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{
 		case PROCESS_EE_S:
@@ -904,8 +884,6 @@ FPURECOMPILE_CONSTCODE(C_LE, XMMINFO_READS | XMMINFO_READT);
 
 void recC_LT_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::CLT_F);
-
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{
 		case PROCESS_EE_S:
@@ -986,7 +964,6 @@ FPURECOMPILE_CONSTCODE(C_LT, XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 void recCVT_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::CVTS_F);
 	if (info & PROCESS_EE_D)
 	{
 		if (info & PROCESS_EE_S)
@@ -1012,9 +989,6 @@ void recCVT_W()
 		DOUBLE::recCVT_W();
 		return;
 	}
-	// If we have the following EmitOP() on the top then it'll get calculated twice when CHECK_FPU_FULL is true
-	// as we also have an EmitOP() at recCVT_W() on iFPUd.cpp.  hence we have it below the possible return.
-	EE::Profiler.EmitOp(eeOpcode::CVTW);
 
 	int regs = _checkXMMreg(XMMTYPE_FPREG, _Fs_, MODE_READ);
 
@@ -1107,7 +1081,6 @@ alignas(16) static SSE_MXCSR roundmode_nearest, roundmode_neg;
 
 void recDIV_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::DIV_F);
 	bool roundmodeFlag = false;
 	int t0reg = _allocTempXMMreg(XMMT_FPS);
 
@@ -1398,8 +1371,6 @@ void recMADDtemp(int info, int regd)
 
 void recMADD_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MADD_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	recMADDtemp(info, EEREC_D);
 }
 
@@ -1407,8 +1378,6 @@ FPURECOMPILE_CONSTCODE(MADD_S, XMMINFO_WRITED | XMMINFO_READACC | XMMINFO_READS 
 
 void recMADDA_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MADDA_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	recMADDtemp(info, EEREC_ACC);
 }
 
@@ -1421,8 +1390,6 @@ FPURECOMPILE_CONSTCODE(MADDA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_REA
 //------------------------------------------------------------------
 void recMAX_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MAX_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	recCommutativeOp(info, EEREC_D, 2);
 }
 
@@ -1430,8 +1397,6 @@ FPURECOMPILE_CONSTCODE(MAX_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recMIN_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MIN_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	recCommutativeOp(info, EEREC_D, 3);
 }
 
@@ -1444,7 +1409,6 @@ FPURECOMPILE_CONSTCODE(MIN_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 void recMOV_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MOV_F);
 	if (info & PROCESS_EE_S)
 		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
 	else
@@ -1618,8 +1582,6 @@ void recMSUBtemp(int info, int regd)
 
 void recMSUB_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MSUB_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	recMSUBtemp(info, EEREC_D);
 }
 
@@ -1627,8 +1589,6 @@ FPURECOMPILE_CONSTCODE(MSUB_S, XMMINFO_WRITED | XMMINFO_READACC | XMMINFO_READS 
 
 void recMSUBA_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MSUBA_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	recMSUBtemp(info, EEREC_ACC);
 }
 
@@ -1641,8 +1601,6 @@ FPURECOMPILE_CONSTCODE(MSUBA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_REA
 //------------------------------------------------------------------
 void recMUL_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MUL_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	ClampValues(recCommutativeOp(info, EEREC_D, 1));
 }
 
@@ -1650,8 +1608,6 @@ FPURECOMPILE_CONSTCODE(MUL_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recMULA_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::MULA_F);
-	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 	ClampValues(recCommutativeOp(info, EEREC_ACC, 1));
 }
 
@@ -1664,7 +1620,6 @@ FPURECOMPILE_CONSTCODE(MULA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 //------------------------------------------------------------------
 void recNEG_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::NEG_F);
 	if (info & PROCESS_EE_S)
 		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
 	else
@@ -1742,7 +1697,6 @@ void recSUBop(int info, int regd)
 
 void recSUB_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::SUB_F);
 	recSUBop(info, EEREC_D);
 }
 
@@ -1751,7 +1705,6 @@ FPURECOMPILE_CONSTCODE(SUB_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recSUBA_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::SUBA_F);
 	recSUBop(info, EEREC_ACC);
 }
 
@@ -1764,7 +1717,6 @@ FPURECOMPILE_CONSTCODE(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 //------------------------------------------------------------------
 void recSQRT_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::SQRT_F);
 	bool roundmodeFlag = false;
 
 	if (g_sseMXCSR.GetRoundMode() != SSEround_Nearest)
@@ -1884,7 +1836,6 @@ void recRSQRThelper2(int regd, int t0reg) // Preforms the RSQRT function when re
 
 void recRSQRT_S_xmm(int info)
 {
-	EE::Profiler.EmitOp(eeOpcode::RSQRT_F);
 	// iFPUd (Full mode) sets roundmode to nearest for rSQRT.
 	// Should this do the same, or should Full mode leave roundmode alone? --air
 

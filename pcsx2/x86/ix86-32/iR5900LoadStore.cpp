@@ -202,71 +202,58 @@ static void recStore(u32 bits)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-void recLB()
+void recLB(void)
 {
 	recLoad(8, true);
-	EE::Profiler.EmitOp(eeOpcode::LB);
 }
-void recLBU()
+void recLBU(void)
 {
 	recLoad(8, false);
-	EE::Profiler.EmitOp(eeOpcode::LBU);
 }
-void recLH()
+void recLH(void)
 {
 	recLoad(16, true);
-	EE::Profiler.EmitOp(eeOpcode::LH);
 }
-void recLHU()
+void recLHU(void)
 {
 	recLoad(16, false);
-	EE::Profiler.EmitOp(eeOpcode::LHU);
 }
-void recLW()
+void recLW(void)
 {
 	recLoad(32, true);
-	EE::Profiler.EmitOp(eeOpcode::LW);
 }
-void recLWU()
+void recLWU(void)
 {
 	recLoad(32, false);
-	EE::Profiler.EmitOp(eeOpcode::LWU);
 }
-void recLD()
+void recLD(void)
 {
 	recLoad(64, false);
-	EE::Profiler.EmitOp(eeOpcode::LD);
 }
-void recLQ()
+void recLQ(void)
 {
 	recLoadQuad(128, false);
-	EE::Profiler.EmitOp(eeOpcode::LQ);
 }
 
-void recSB()
+void recSB(void)
 {
 	recStore(8);
-	EE::Profiler.EmitOp(eeOpcode::SB);
 }
-void recSH()
+void recSH(void)
 {
 	recStore(16);
-	EE::Profiler.EmitOp(eeOpcode::SH);
 }
-void recSW()
+void recSW(void)
 {
 	recStore(32);
-	EE::Profiler.EmitOp(eeOpcode::SW);
 }
-void recSD()
+void recSD(void)
 {
 	recStore(64);
-	EE::Profiler.EmitOp(eeOpcode::SD);
 }
-void recSQ()
+void recSQ(void)
 {
 	recStore(128);
-	EE::Profiler.EmitOp(eeOpcode::SQ);
 }
 
 ////////////////////////////////////////////////////
@@ -327,8 +314,6 @@ void recLWL()
 
 	recCall(LWL);
 #endif
-
-	EE::Profiler.EmitOp(eeOpcode::LWL);
 }
 
 ////////////////////////////////////////////////////
@@ -394,8 +379,6 @@ void recLWR()
 
 	recCall(LWR);
 #endif
-
-	EE::Profiler.EmitOp(eeOpcode::LWR);
 }
 
 ////////////////////////////////////////////////////
@@ -472,8 +455,6 @@ void recSWL()
 	_deleteEEreg(_Rt_, 1);
 	recCall(SWL);
 #endif
-
-	EE::Profiler.EmitOp(eeOpcode::SWL);
 }
 
 ////////////////////////////////////////////////////
@@ -547,8 +528,6 @@ void recSWR()
 	_deleteEEreg(_Rt_, 1);
 	recCall(SWR);
 #endif
-
-	EE::Profiler.EmitOp(eeOpcode::SWR);
 }
 
 ////////////////////////////////////////////////////
@@ -667,8 +646,6 @@ void recLDL()
 	_deleteEEreg(_Rt_, 1);
 	recCall(LDL);
 #endif
-
-	EE::Profiler.EmitOp(eeOpcode::LDL);
 }
 
 ////////////////////////////////////////////////////
@@ -752,8 +729,6 @@ void recLDR()
 	_deleteEEreg(_Rt_, 1);
 	recCall(LDR);
 #endif
-
-	EE::Profiler.EmitOp(eeOpcode::LDR);
 }
 
 ////////////////////////////////////////////////////
@@ -871,7 +846,6 @@ void recSDL()
 	_deleteEEreg(_Rt_, 1);
 	recCall(SDL);
 #endif
-	EE::Profiler.EmitOp(eeOpcode::SDL);
 }
 
 ////////////////////////////////////////////////////
@@ -956,7 +930,6 @@ void recSDR()
 	_deleteEEreg(_Rt_, 1);
 	recCall(SDR);
 #endif
-	EE::Profiler.EmitOp(eeOpcode::SDR);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -988,8 +961,6 @@ void recLWC1()
 
 		vtlb_DynGenReadNonQuad(32, false, true, arg1regd.GetId(), alloc_cb);
 	}
-
-	EE::Profiler.EmitOp(eeOpcode::LWC1);
 #endif
 }
 
@@ -1015,8 +986,6 @@ void recSWC1()
 
 		vtlb_DynGenWrite(32, true, arg1regd.GetId(), regt);
 	}
-
-	EE::Profiler.EmitOp(eeOpcode::SWC1);
 #endif
 }
 

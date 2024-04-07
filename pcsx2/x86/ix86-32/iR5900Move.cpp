@@ -75,8 +75,6 @@ void recLUI()
 		const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
 		xMOV64(xRegister64(regt), (s64)(s32)(cpuRegs.code << 16));
 	}
-
-	EE::Profiler.EmitOp(eeOpcode::LUI);
 }
 
 ////////////////////////////////////////////////////
@@ -220,52 +218,44 @@ static void recMTHILO(bool hi, bool upper)
 }
 
 
-void recMFHI()
+void recMFHI(void)
 {
 	recMFHILO(true, false);
-	EE::Profiler.EmitOp(eeOpcode::MFHI);
 }
 
-void recMFLO()
+void recMFLO(void)
 {
 	recMFHILO(false, false);
-	EE::Profiler.EmitOp(eeOpcode::MFLO);
 }
 
-void recMTHI()
+void recMTHI(void)
 {
 	recMTHILO(true, false);
-	EE::Profiler.EmitOp(eeOpcode::MTHI);
 }
 
-void recMTLO()
+void recMTLO(void)
 {
 	recMTHILO(false, false);
-	EE::Profiler.EmitOp(eeOpcode::MTLO);
 }
 
-void recMFHI1()
+void recMFHI1(void)
 {
 	recMFHILO(true, true);
-	EE::Profiler.EmitOp(eeOpcode::MFHI1);
 }
 
-void recMFLO1()
+void recMFLO1(void)
 {
 	recMFHILO(false, true);
-	EE::Profiler.EmitOp(eeOpcode::MFLO1);
 }
 
-void recMTHI1()
+void recMTHI1(void)
 {
 	recMTHILO(true, true);
-	EE::Profiler.EmitOp(eeOpcode::MTHI1);
 }
 
-void recMTLO1()
+void recMTLO1(void)
 {
 	recMTHILO(false, true);
-	EE::Profiler.EmitOp(eeOpcode::MTLO1);
 }
 
 //// MOVZ

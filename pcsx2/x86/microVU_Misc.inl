@@ -363,31 +363,7 @@ void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, c
 	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
 	const xmm& t2 = t2in.IsEmpty() ? mVU.regAlloc->allocReg() : t2in;
 
-	if (0) // use double comparison
-	{
-		// ZW
-		xPSHUF.D(t1, to, 0xfa);
-		xPAND   (t1, ptr128[sseMasks.MIN_MAX_1]);
-		xPOR    (t1, ptr128[sseMasks.MIN_MAX_2]);
-		xPSHUF.D(t2, from, 0xfa);
-		xPAND   (t2, ptr128[sseMasks.MIN_MAX_1]);
-		xPOR    (t2, ptr128[sseMasks.MIN_MAX_2]);
-		if (min) xMIN.PD(t1, t2);
-		else     xMAX.PD(t1, t2);
-
-		// XY
-		xPSHUF.D(t2, from, 0x50);
-		xPAND   (t2, ptr128[sseMasks.MIN_MAX_1]);
-		xPOR    (t2, ptr128[sseMasks.MIN_MAX_2]);
-		xPSHUF.D(to, to, 0x50);
-		xPAND   (to, ptr128[sseMasks.MIN_MAX_1]);
-		xPOR    (to, ptr128[sseMasks.MIN_MAX_2]);
-		if (min) xMIN.PD(to, t2);
-		else     xMAX.PD(to, t2);
-
-		xSHUF.PS(to, t1, 0x88);
-	}
-	else // use integer comparison
+	// use integer comparison
 	{
 		const xmm& c1 = min ? t2 : t1;
 		const xmm& c2 = min ? t1 : t2;

@@ -283,18 +283,18 @@ int psxIsBreakpointNeeded(u32 addr)
 
 int psxIsMemcheckNeeded(u32 pc)
 {
-	if (CBreakPoints::GetNumMemchecks() == 0)
-		return 0;
+	if (CBreakPoints::GetNumMemchecks() != 0)
+	{
+		u32 addr = pc;
+		if (psxIsBranchOrJump(addr))
+			addr += 4;
 
-	u32 addr = pc;
-	if (psxIsBranchOrJump(addr))
-		addr += 4;
+		u32 op = iopMemRead32(addr);
+		const R5900::OPCODE& opcode = R5900::GetInstruction(op);
 
-	u32 op = iopMemRead32(addr);
-	const R5900::OPCODE& opcode = R5900::GetInstruction(op);
-
-	if (opcode.flags & IS_MEMORY)
-		return addr == pc ? 1 : 2;
+		if (opcode.flags & IS_MEMORY)
+			return addr == pc ? 1 : 2;
+	}
 
 	return 0;
 }

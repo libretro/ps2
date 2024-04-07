@@ -389,7 +389,6 @@ void SysMtgsThread::MainLoop(bool flush_all)
 
 				case GS_RINGTYPE_MTVU_GSPACKET:
 				{
-					MTVU_LOG("MTGS - Waiting on semaXGkick!");
 					if (!vu1Thread.semaXGkick.TryWait())
 					{
 						mtvu_lock.unlock();

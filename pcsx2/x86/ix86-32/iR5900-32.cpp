@@ -67,8 +67,6 @@ alignas(16) GPR_reg64 g_cpuConstRegs[32] = {};
 u32 g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
 bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
 
-eeProfiler EE::Profiler;
-
 ////////////////////////////////////////////////////////////////
 // Static Private Variables - R5900 Dynarec
 
@@ -487,8 +485,6 @@ static void recResetRaw()
 
 	Perf::ee.reset();
 
-	EE::Profiler.Reset();
-
 	recAlloc();
 
 	recMem->Reset();
@@ -619,8 +615,6 @@ static void recExecute()
 ////////////////////////////////////////////////////
 void R5900::Dynarec::OpcodeImpl::recSYSCALL()
 {
-	EE::Profiler.EmitOp(eeOpcode::SYSCALL);
-
 	recCall(R5900::Interpreter::OpcodeImpl::SYSCALL);
 	g_branch = 2; // Indirect branch with event check.
 }
@@ -628,8 +622,6 @@ void R5900::Dynarec::OpcodeImpl::recSYSCALL()
 ////////////////////////////////////////////////////
 void R5900::Dynarec::OpcodeImpl::recBREAK()
 {
-	EE::Profiler.EmitOp(eeOpcode::BREAK);
-
 	recCall(R5900::Interpreter::OpcodeImpl::BREAK);
 	g_branch = 2; // Indirect branch with event check.
 }

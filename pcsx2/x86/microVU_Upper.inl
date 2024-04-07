@@ -163,11 +163,10 @@ enum clampModes
 // Prints Opcode to MicroProgram Logs
 static void mVU_printOP(microVU& mVU, int opCase, microOpcode opEnum, bool isACC)
 {
-	mVUlog(microOpcodeName[opEnum]);
-	opCase1 { if (isACC) { mVUlogACC(); } else { mVUlogFd(); } mVUlogFt(); }
-	opCase2 { if (isACC) { mVUlogACC(); } else { mVUlogFd(); } mVUlogBC(); }
-	opCase3 { if (isACC) { mVUlogACC(); } else { mVUlogFd(); } mVUlogI();  }
-	opCase4 { if (isACC) { mVUlogACC(); } else { mVUlogFd(); } mVUlogQ();  }
+	opCase1 { }
+	opCase2 { }
+	opCase3 { }
+	opCase4 { }
 }
 
 // Sets Up Pass1 Info for Normal, BC, I, and Q Cases
@@ -286,7 +285,6 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 
 		mVU.regAlloc->clearNeeded(Fs); // Always Clear Written Reg First
 		mVU.regAlloc->clearNeeded(Ft);
-		mVU.profiler.EmitOp(opEnum);
 	}
 	pass3 { mVU_printOP(mVU, opCase, opEnum, isACC); }
 	pass4
@@ -338,7 +336,6 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, microOp
 		mVU.regAlloc->clearNeeded(ACC);
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(Ft);
-		mVU.profiler.EmitOp(opEnum);
 	}
 	pass3 { mVU_printOP(mVU, opCase, opEnum, true); }
 	pass4 { mVUregs.needExactMatch |= 8; }
@@ -375,7 +372,6 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, microOpcode opEnum,
 		mVU.regAlloc->clearNeeded(Fs); // Always Clear Written Reg First
 		mVU.regAlloc->clearNeeded(Ft);
 		mVU.regAlloc->clearNeeded(ACC);
-		mVU.profiler.EmitOp(opEnum);
 	}
 	pass3 { mVU_printOP(mVU, opCase, opEnum, false); }
 	pass4 { mVUregs.needExactMatch |= 8; }
@@ -405,7 +401,6 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, microOpcode opEnum,
 		mVU.regAlloc->clearNeeded(Fd); // Always Clear Written Reg First
 		mVU.regAlloc->clearNeeded(Ft);
 		mVU.regAlloc->clearNeeded(Fs);
-		mVU.profiler.EmitOp(opEnum);
 	}
 	pass3 { mVU_printOP(mVU, opCase, opEnum, false); }
 	pass4 { mVUregs.needExactMatch |= 8; }
@@ -422,12 +417,9 @@ mVUop(mVU_ABS)
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 		xAND.PS(Fs, ptr128[mVUglob.absclip]);
 		mVU.regAlloc->clearNeeded(Fs);
-		mVU.profiler.EmitOp(opABS);
 	}
 	pass3
 	{
-		mVUlog("ABS");
-		mVUlogFtFs();
 	}
 }
 
@@ -446,13 +438,9 @@ mVUop(mVU_OPMULA)
 		mVU.regAlloc->clearNeeded(Ft);
 		mVUupdateFlags(mVU, Fs);
 		mVU.regAlloc->clearNeeded(Fs);
-		mVU.profiler.EmitOp(opOPMULA);
 	}
 	pass3
 	{
-		mVUlog("OPMULA");
-		mVUlogACC();
-		mVUlogFt();
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -475,13 +463,9 @@ mVUop(mVU_OPMSUB)
 		mVU.regAlloc->clearNeeded(Ft);
 		mVUupdateFlags(mVU, ACC);
 		mVU.regAlloc->clearNeeded(ACC);
-		mVU.profiler.EmitOp(opOPMSUB);
 	}
 	pass3
 	{
-		mVUlog("OPMSUB");
-		mVUlogFd();
-		mVUlogFt();
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -513,12 +497,9 @@ static void mVU_FTOIx(mP, const float* addr, microOpcode opEnum)
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(t1);
 		mVU.regAlloc->clearNeeded(t2);
-		mVU.profiler.EmitOp(opEnum);
 	}
 	pass3
 	{
-		mVUlog(microOpcodeName[opEnum]);
-		mVUlogFtFs();
 	}
 }
 
@@ -538,12 +519,9 @@ static void mVU_ITOFx(mP, const float* addr, microOpcode opEnum)
 		//mVUclamp2(Fs, xmmT1, 15); // Clamp (not sure if this is needed)
 
 		mVU.regAlloc->clearNeeded(Fs);
-		mVU.profiler.EmitOp(opEnum);
 	}
 	pass3
 	{
-		mVUlog(microOpcodeName[opEnum]);
-		mVUlogFtFs();
 	}
 }
 
@@ -586,12 +564,9 @@ mVUop(mVU_CLIP)
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(Ft);
 		mVU.regAlloc->clearNeeded(t1);
-		mVU.profiler.EmitOp(opCLIP);
 	}
 	pass3
 	{
-		mVUlog("CLIP");
-		mVUlogCLIP();
 	}
 }
 
@@ -689,4 +664,4 @@ mVUop(mVU_ITOF0)  { mVU_ITOFx(mX, NULL,                  opITOF0);      }
 mVUop(mVU_ITOF4)  { mVU_ITOFx(mX, mVUglob.ITOF_4,        opITOF4);      }
 mVUop(mVU_ITOF12) { mVU_ITOFx(mX, mVUglob.ITOF_12,       opITOF12);     }
 mVUop(mVU_ITOF15) { mVU_ITOFx(mX, mVUglob.ITOF_15,       opITOF15);     }
-mVUop(mVU_NOP)    { pass2 { mVU.profiler.EmitOp(opNOP); } pass3 { mVUlog("NOP"); } }
+mVUop(mVU_NOP)    { pass2 { } pass3 { } }

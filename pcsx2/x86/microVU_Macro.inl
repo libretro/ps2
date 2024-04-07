@@ -847,8 +847,6 @@ void recLQC2()
 	// toss away if loading to vf00
 	if (!_Rt_)
 		_freeXMMreg(xmmreg);
-
-	EE::Profiler.EmitOp(eeOpcode::LQC2);
 }
 
 ////////////////////////////////////////////////////
@@ -882,8 +880,6 @@ void recSQC2()
 
 	if (!_Rt_)
 		_freeXMMreg(ftreg);
-
-	EE::Profiler.EmitOp(eeOpcode::SQC2);
 }
 
 #else

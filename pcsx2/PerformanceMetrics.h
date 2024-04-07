@@ -27,9 +27,6 @@ namespace PerformanceMetrics
 		DISPFBBlit
 	};
 
-	static constexpr u32 NUM_FRAME_TIME_SAMPLES = 150;
-	using FrameTimeHistory = std::array<float, NUM_FRAME_TIME_SAMPLES>;
-
 	void Clear();
 	void Reset();
 	void Update(bool gs_register_write, bool fb_blit, bool is_skipping_present);
@@ -45,32 +42,7 @@ namespace PerformanceMetrics
 	/// Sets the vertical frequency, used in speed calculations.
 	void SetVerticalFrequency(float rate);
 
-	u64 GetFrameNumber();
-
 	InternalFPSMethod GetInternalFPSMethod();
-	bool IsInternalFPSValid();
 
-	float GetFPS();
 	float GetInternalFPS();
-	float GetSpeed();
-	float GetAverageFrameTime();
-	float GetMinimumFrameTime();
-	float GetMaximumFrameTime();
-
-	double GetCPUThreadUsage();
-	double GetCPUThreadAverageTime();
-	float GetGSThreadUsage();
-	float GetGSThreadAverageTime();
-	float GetVUThreadUsage();
-	float GetVUThreadAverageTime();
-
-	u32 GetGSSWThreadCount();
-	double GetGSSWThreadUsage(u32 index);
-	double GetGSSWThreadAverageTime(u32 index);
-
-	float GetGPUUsage();
-	float GetGPUAverageTime();
-
-	const FrameTimeHistory& GetFrameTimeHistory();
-	u32 GetFrameTimeHistoryPos();
 } // namespace PerformanceMetrics

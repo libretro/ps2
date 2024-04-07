@@ -129,9 +129,6 @@ static bool s_gs_open_on_initialize = false;
 
 bool VMManager::PerformEarlyHardwareChecks(const char** error)
 {
-#define COMMON_DOWNLOAD_MESSAGE \
-	"PCSX2 builds can be downloaded from https://pcsx2.net/downloads/"
-
 #if defined(_M_X86)
 	// On Windows, this gets called as a global object constructor, before any of our objects are constructed.
 	// So, we have to put it on the stack instead.
@@ -141,7 +138,7 @@ bool VMManager::PerformEarlyHardwareChecks(const char** error)
 	if (!temp_x86_caps.hasStreamingSIMD4Extensions)
 	{
 		*error = "PCSX2 requires the Streaming SIMD 4.1 Extensions instruction set, which your CPU does not support.\n\n"
-				 "SSE4.1 is now a minimum requirement for PCSX2. You should either upgrade your CPU, or use an older build such as 1.6.0.\n\n" COMMON_DOWNLOAD_MESSAGE;
+				 "SSE4.1 is now a minimum requirement for PCSX2. You should either upgrade your CPU, or use an older build such as 1.6.0.\n\n";
 		return false;
 	}
 
@@ -149,13 +146,12 @@ bool VMManager::PerformEarlyHardwareChecks(const char** error)
 	if (!temp_x86_caps.hasAVX || !temp_x86_caps.hasAVX2)
 	{
 		*error = "This build of PCSX2 requires the Advanced Vector Extensions 2 instruction set, which your CPU does not support.\n\n"
-				 "You should download and run the SSE4.1 build of PCSX2 instead, or upgrade to a CPU that supports AVX2 to use this build.\n\n" COMMON_DOWNLOAD_MESSAGE;
+				 "You should download and run the SSE4.1 build of PCSX2 instead, or upgrade to a CPU that supports AVX2 to use this build.\n\n";
 		return false;
 	}
 #endif
 #endif
 
-#undef COMMON_DOWNLOAD_MESSAGE
 	return true;
 }
 
@@ -367,52 +363,6 @@ std::string VMManager::GetDiscOverrideFromGameSettings(const std::string& elf_pa
 std::string VMManager::GetInputProfilePath(const std::string_view& name)
 {
 	return Path::Combine(EmuFolders::InputProfiles, fmt::format("{}.ini", name));
-}
-
-void VMManager::RequestDisplaySize(float scale /*= 0.0f*/)
-{
-	int iwidth, iheight;
-	GSgetInternalResolution(&iwidth, &iheight);
-	if (iwidth <= 0 || iheight <= 0)
-		return;
-
-	// scale x not y for aspect ratio
-	float x_scale;
-	switch (GSConfig.AspectRatio)
-	{
-		case AspectRatioType::RAuto4_3_3_2:
-			if (GSgetDisplayMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets))
-				x_scale = (3.0f / 2.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
-			else
-				x_scale = (4.0f / 3.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
-			break;
-		case AspectRatioType::R4_3:
-			x_scale = (4.0f / 3.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
-			break;
-		case AspectRatioType::R16_9:
-			x_scale = (16.0f / 9.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
-			break;
-		case AspectRatioType::Stretch:
-		default:
-			x_scale = 1.0f;
-			break;
-	}
-
-	float width = static_cast<float>(iwidth) * x_scale;
-	float height = static_cast<float>(iheight);
-
-	if (scale != 0.0f)
-	{
-		// unapply the upscaling, then apply the scale
-		scale = (1.0f / GSConfig.UpscaleMultiplier) * scale;
-		width *= scale;
-		height *= scale;
-	}
-
-	iwidth = std::max(static_cast<int>(std::lroundf(width)), 1);
-	iheight = std::max(static_cast<int>(std::lroundf(height)), 1);
-
-	Host::RequestResizeHostDisplay(iwidth, iheight);
 }
 
 std::string VMManager::GetSerialForGameSettings()

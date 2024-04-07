@@ -237,7 +237,6 @@ typedef u32 (*mVUCall)(void*, void*);
 #define aWrap(x, m)  ((x > m) ? 0 : x)
 #define shuffleSS(x) ((x == 1) ? (0x27) : ((x == 2) ? (0xc6) : ((x == 4) ? (0xe1) : (0xe4))))
 #define clampE       CHECK_VU_EXTRA_OVERFLOW(mVU.index)
-#define varPrint(x)  DevCon.WriteLn(#x " = %d", (int)x)
 #define islowerOP    ((iPC & 1) == 0)
 
 #define blockCreate(addr) \
@@ -262,23 +261,6 @@ typedef u32 (*mVUCall)(void*, void*);
 #define xyzwStr(x, s) (_X_Y_Z_W == x) ? s:
 #define _XYZW_String (xyzwStr(1, "w") (xyzwStr(2, "z") (xyzwStr(3, "zw") (xyzwStr(4, "y") (xyzwStr(5, "yw") (xyzwStr(6, "yz") (xyzwStr(7, "yzw") (xyzwStr(8, "x") (xyzwStr(9, "xw") (xyzwStr(10, "xz") (xyzwStr(11, "xzw") (xyzwStr(12, "xy") (xyzwStr(13, "xyw") (xyzwStr(14, "xyz") "xyzw"))))))))))))))
 #define _BC_String   (_bc_x ? "x" : (_bc_y ? "y" : (_bc_z ? "z" : "w")))
-#define mVUlogFtFs() { mVUlog(".%s vf%02d, vf%02d", _XYZW_String, _Ft_, _Fs_); }
-#define mVUlogFd()   { mVUlog(".%s vf%02d, vf%02d", _XYZW_String, _Fd_, _Fs_); }
-#define mVUlogACC()  { mVUlog(".%s ACC, vf%02d", _XYZW_String, _Fs_); }
-#define mVUlogFt()   { mVUlog(", vf%02d", _Ft_); }
-#define mVUlogBC()   { mVUlog(", vf%02d%s", _Ft_, _BC_String); }
-#define mVUlogI()    { mVUlog(", I"); }
-#define mVUlogQ()    { mVUlog(", Q"); }
-#define mVUlogCLIP() { mVUlog("w.xyz vf%02d, vf%02dw", _Fs_, _Ft_); }
-
-// Program Logging...
-#ifdef mVUlogProg
-	#define mVUlog      ((isVU1) ? __mVULog<1> : __mVULog<0>)
-	#define mVUdumpProg __mVUdumpProgram
-#else
-	#define mVUlog(...)      if (0) {}
-	#define mVUdumpProg(...) if (0) {}
-#endif
 
 //------------------------------------------------------------------
 // Optimization / Debug Options
