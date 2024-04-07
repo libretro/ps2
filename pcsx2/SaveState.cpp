@@ -22,7 +22,6 @@
 #include "common/SafeArray.inl"
 #include "common/ScopedGuard.h"
 #include "common/StringUtil.h"
-#include "common/ZipHelpers.h"
 
 #include "ps2/BiosTools.h"
 #include "COP0.h"
@@ -363,24 +362,6 @@ static void SysState_ComponentFreezeOutRoot(void* dest, SysState_Component comp)
 		throw std::runtime_error(std::string(" * ") + comp.name + std::string(": Error saving state!\n"));
 }
 
-static void SysState_ComponentFreezeIn(zip_file_t* zf, SysState_Component comp)
-{
-	if (!zf)
-		return;
-
-	freezeData fP = { 0, nullptr };
-	if (comp.freeze(FreezeAction::Size, &fP) != 0)
-		fP.size = 0;
-
-	Console.Indent().WriteLn("Loading %s", comp.name);
-
-	auto data = std::make_unique<u8[]>(fP.size);
-	fP.data = data.get();
-
-	if (zip_fread(zf, data.get(), fP.size) != static_cast<zip_int64_t>(fP.size) || comp.freeze(FreezeAction::Load, &fP) != 0)
-		throw std::runtime_error(std::string(" * ") + comp.name + std::string(": Error loading state!\n"));
-}
-
 static void SysState_ComponentFreezeOut(SaveStateBase& writer, SysState_Component comp)
 {
 	freezeData fP = { 0, NULL };
@@ -392,25 +373,6 @@ static void SysState_ComponentFreezeOut(SaveStateBase& writer, SysState_Componen
 		writer.CommitBlock(size);
 	}
 	return;
-}
-
-static void SysState_ComponentFreezeInNew(zip_file_t* zf, const char* name, bool(*do_state_func)(StateWrapper&))
-{
-	// TODO: We could decompress on the fly here for a little bit more speed.
-	std::vector<u8> data;
-	if (zf)
-	{
-		std::optional<std::vector<u8>> optdata(ReadBinaryFileInZip(zf));
-		if (optdata.has_value())
-			data = std::move(optdata.value());
-	}
-
-	StateWrapper::ReadOnlyMemoryStream stream(data.empty() ? nullptr : data.data(), data.size());
-	StateWrapper sw(&stream, StateWrapper::Mode::Read, g_SaveVersion);
-
-	// TODO: Get rid of the bloody exceptions.
-	if (!do_state_func(sw))
-		throw std::runtime_error(fmt::format(" * {}: Error loading state!", name));
 }
 
 static void SysState_ComponentFreezeOutNew(SaveStateBase& writer, const char* name, u32 reserve, bool (*do_state_func)(StateWrapper&))
@@ -443,7 +405,6 @@ public:
 	virtual ~BaseSavestateEntry() = default;
 
 	virtual const char* GetFilename() const = 0;
-	virtual void FreezeIn(zip_file_t* zf) const = 0;
 	virtual void FreezeOut(SaveStateBase& writer) const = 0;
 	virtual bool IsRequired() const = 0;
 };
@@ -455,7 +416,6 @@ protected:
 	virtual ~MemorySavestateEntry() = default;
 
 public:
-	virtual void FreezeIn(zip_file_t* zf) const;
 	virtual void FreezeOut(SaveStateBase& writer) const;
 	virtual bool IsRequired() const { return true; }
 
@@ -464,167 +424,7 @@ protected:
 	virtual u32 GetDataSize() const = 0;
 };
 
-void MemorySavestateEntry::FreezeIn(zip_file_t* zf) const
-{
-	const u32 expectedSize = GetDataSize();
-	const s64 bytesRead = zip_fread(zf, GetDataPtr(), expectedSize);
-	if (bytesRead != static_cast<s64>(expectedSize))
-	{
-		Console.WriteLn(Color_Yellow, " '%s' is incomplete (expected 0x%x bytes, loading only 0x%x bytes)",
-			GetFilename(), expectedSize, static_cast<u32>(bytesRead));
-	}
-}
-
 void MemorySavestateEntry::FreezeOut(SaveStateBase& writer) const
 {
 	writer.FreezeMem(GetDataPtr(), GetDataSize());
 }
-
-// --------------------------------------------------------------------------------------
-//  SavestateEntry_* (EmotionMemory, IopMemory, etc)
-// --------------------------------------------------------------------------------------
-// Implementation Rationale:
-//  The address locations of PS2 virtual memory components is fully dynamic, so we need to
-//  resolve the pointers at the time they are requested (eeMem, iopMem, etc).  Thusly, we
-//  cannot use static struct member initializers -- we need virtual functions that compute
-//  and resolve the addresses on-demand instead... --air
-
-class SavestateEntry_EmotionMemory : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_EmotionMemory() = default;
-
-	const char* GetFilename() const { return "eeMemory.bin"; }
-	u8* GetDataPtr() const { return eeMem->Main; }
-	uint GetDataSize() const { return sizeof(eeMem->Main); }
-
-	virtual void FreezeIn(zip_file_t* zf) const
-	{
-		SysClearExecutionCache();
-		MemorySavestateEntry::FreezeIn(zf);
-	}
-};
-
-class SavestateEntry_IopMemory : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_IopMemory() = default;
-
-	const char* GetFilename() const { return "iopMemory.bin"; }
-	u8* GetDataPtr() const { return iopMem->Main; }
-	uint GetDataSize() const { return sizeof(iopMem->Main); }
-};
-
-class SavestateEntry_HwRegs : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_HwRegs() = default;
-
-	const char* GetFilename() const { return "eeHwRegs.bin"; }
-	u8* GetDataPtr() const { return eeHw; }
-	uint GetDataSize() const { return sizeof(eeHw); }
-};
-
-class SavestateEntry_IopHwRegs : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_IopHwRegs() = default;
-
-	const char* GetFilename() const { return "iopHwRegs.bin"; }
-	u8* GetDataPtr() const { return iopHw; }
-	uint GetDataSize() const { return sizeof(iopHw); }
-};
-
-class SavestateEntry_Scratchpad : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_Scratchpad() = default;
-
-	const char* GetFilename() const { return "Scratchpad.bin"; }
-	u8* GetDataPtr() const { return eeMem->Scratch; }
-	uint GetDataSize() const { return sizeof(eeMem->Scratch); }
-};
-
-class SavestateEntry_VU0mem : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_VU0mem() = default;
-
-	const char* GetFilename() const { return "vu0Memory.bin"; }
-	u8* GetDataPtr() const { return vuRegs[0].Mem; }
-	uint GetDataSize() const { return VU0_MEMSIZE; }
-};
-
-class SavestateEntry_VU1mem : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_VU1mem() = default;
-
-	const char* GetFilename() const { return "vu1Memory.bin"; }
-	u8* GetDataPtr() const { return vuRegs[1].Mem; }
-	uint GetDataSize() const { return VU1_MEMSIZE; }
-};
-
-class SavestateEntry_VU0prog : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_VU0prog() = default;
-
-	const char* GetFilename() const { return "vu0MicroMem.bin"; }
-	u8* GetDataPtr() const { return vuRegs[0].Micro; }
-	uint GetDataSize() const { return VU0_PROGSIZE; }
-};
-
-class SavestateEntry_VU1prog : public MemorySavestateEntry
-{
-public:
-	virtual ~SavestateEntry_VU1prog() = default;
-
-	const char* GetFilename() const { return "vu1MicroMem.bin"; }
-	u8* GetDataPtr() const { return vuRegs[1].Micro; }
-	uint GetDataSize() const { return VU1_PROGSIZE; }
-};
-
-class SavestateEntry_SPU2 : public BaseSavestateEntry
-{
-public:
-	virtual ~SavestateEntry_SPU2() = default;
-
-	const char* GetFilename() const { return "SPU2.bin"; }
-	void FreezeIn(zip_file_t* zf) const { return SysState_ComponentFreezeIn(zf, SPU2_); }
-	void FreezeOut(SaveStateBase& writer) const { return SysState_ComponentFreezeOut(writer, SPU2_); }
-	bool IsRequired() const { return true; }
-};
-
-class SavestateEntry_USB : public BaseSavestateEntry
-{
-public:
-	virtual ~SavestateEntry_USB() = default;
-
-	const char* GetFilename() const { return "USB.bin"; }
-	void FreezeIn(zip_file_t* zf) const { return SysState_ComponentFreezeInNew(zf, "USB", &USB::DoState); }
-	void FreezeOut(SaveStateBase& writer) const { return SysState_ComponentFreezeOutNew(writer, "USB", 16 * 1024, &USB::DoState); }
-	bool IsRequired() const { return false; }
-};
-
-class SavestateEntry_PAD : public BaseSavestateEntry
-{
-public:
-	virtual ~SavestateEntry_PAD() = default;
-
-	const char* GetFilename() const { return "PAD.bin"; }
-	void FreezeIn(zip_file_t* zf) const { return SysState_ComponentFreezeIn(zf, PAD_); }
-	void FreezeOut(SaveStateBase& writer) const { return SysState_ComponentFreezeOut(writer, PAD_); }
-	bool IsRequired() const { return true; }
-};
-
-class SavestateEntry_GS : public BaseSavestateEntry
-{
-public:
-	virtual ~SavestateEntry_GS() = default;
-
-	const char* GetFilename() const { return "GS.bin"; }
-	void FreezeIn(zip_file_t* zf) const { return SysState_ComponentFreezeIn(zf, GS); }
-	void FreezeOut(SaveStateBase& writer) const { return SysState_ComponentFreezeOut(writer, GS); }
-	bool IsRequired() const { return true; }
-};
