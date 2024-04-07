@@ -233,9 +233,6 @@ public:
 	MRCOwned<MTLRenderPassDescriptor*> m_pass_desc;
 	u32 m_capture_start_frame;
 	UsePresentDrawable m_use_present_drawable;
-	bool m_gpu_timing_enabled = false;
-	double m_accumulated_gpu_time = 0;
-	double m_last_gpu_time_end = 0;
 	std::mutex m_mtx;
 
 	// Draw IDs are used to make sure we're not clobbering things
@@ -400,10 +397,6 @@ public:
 	void SetVSync(VsyncMode mode) override;
 
 	bool GetHostRefreshRate(float* refresh_rate) override;
-
-	bool SetGPUTimingEnabled(bool enabled) override;
-	float GetAndResetAccumulatedGPUTime() override;
-	void AccumulateCommandBufferTime(id<MTLCommandBuffer> buffer);
 
 	void ClearRenderTarget(GSTexture* t, const GSVector4& c) override;
 	void ClearRenderTarget(GSTexture* t, u32 c) override;
