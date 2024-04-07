@@ -255,8 +255,6 @@ public:
 
 	RenderAPI GetRenderAPI() const override;
 
-	bool UpdateWindow() override;
-	void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) override;
 	bool HasSurface() const override;
 	void DestroySurface() override;
 	std::string GetDriverInfo() const override;

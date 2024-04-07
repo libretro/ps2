@@ -50,9 +50,6 @@ public:
 	bool HasSurface() const override;
 	void DestroySurface() override;
 
-	bool UpdateWindow() override;
-	void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) override;
-
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 	void SetVSync(VsyncMode mode) override;

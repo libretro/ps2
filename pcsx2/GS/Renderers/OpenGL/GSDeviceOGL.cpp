@@ -619,47 +619,6 @@ void GSDeviceOGL::DestroyResources()
 		glDeleteFramebuffers(1, &m_fbo_write);
 }
 
-bool GSDeviceOGL::UpdateWindow()
-{
-	pxAssert(m_gl_context);
-
-	DestroySurface();
-
-	if (!AcquireWindow(false))
-		return false;
-
-	if (!m_gl_context->ChangeSurface(m_window_info))
-	{
-		Console.Error("Failed to change surface");
-		ReleaseWindow();
-		return false;
-	}
-
-	m_window_info = m_gl_context->GetWindowInfo();
-
-	if (m_window_info.type != WindowInfo::Type::Surfaceless)
-	{
-		// reset vsync rate, since it (usually) gets lost
-		if (m_vsync_mode != VsyncMode::Adaptive || !m_gl_context->SetSwapInterval(-1))
-			m_gl_context->SetSwapInterval(static_cast<s32>(m_vsync_mode != VsyncMode::Off));
-
-		RenderBlankFrame();
-	}
-
-	return true;
-}
-
-void GSDeviceOGL::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
-{
-	m_window_info.surface_scale = new_window_scale;
-	if (       m_window_info.surface_width  == static_cast<u32>(new_window_width)
-		&& m_window_info.surface_height == static_cast<u32>(new_window_height))
-		return;
-
-	m_gl_context->ResizeSurface(static_cast<u32>(new_window_width), static_cast<u32>(new_window_height));
-	m_window_info = m_gl_context->GetWindowInfo();
-}
-
 void GSDeviceOGL::DestroySurface()
 {
 	m_window_info = {};

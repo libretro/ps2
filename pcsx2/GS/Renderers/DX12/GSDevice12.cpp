@@ -252,24 +252,6 @@ void GSDevice12::DestroySwapChain()
 {
 }
 
-bool GSDevice12::UpdateWindow()
-{
-	ExecuteCommandList(true);
-	DestroySwapChain();
-
-	if (!AcquireWindow(false))
-		return false;
-
-	if (m_window_info.type != WindowInfo::Type::Surfaceless && !CreateSwapChain())
-	{
-		Console.WriteLn("Failed to create swap chain on updated window");
-		ReleaseWindow();
-		return false;
-	}
-
-	return true;
-}
-
 void GSDevice12::DestroySurface()
 {
 }
@@ -314,10 +296,6 @@ std::string GSDevice12::GetDriverInfo() const
 	}
 
 	return ret;
-}
-
-void GSDevice12::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
-{
 }
 
 GSDevice::PresentResult GSDevice12::BeginPresent(bool frame_skip)

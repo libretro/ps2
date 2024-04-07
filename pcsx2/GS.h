@@ -414,8 +414,6 @@ public:
 
 	void RunOnGSThread(AsyncCallType func);
 	void ApplySettings();
-	void ResizeDisplayWindow(int width, int height, float scale);
-	void UpdateDisplayWindow();
 	void SetVSyncMode(VsyncMode mode);
 	void UpdateVSyncMode();
 	void SwitchRenderer(GSRendererType renderer, bool display_message = true);

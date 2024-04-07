@@ -251,78 +251,6 @@ void GSDeviceVK::Destroy()
 	}
 }
 
-bool GSDeviceVK::UpdateWindow()
-{
-	DestroySurface();
-
-	if (!AcquireWindow(false))
-		return false;
-
-	if (m_window_info.type == WindowInfo::Type::Surfaceless)
-		return true;
-
-	// make sure previous frames are presented
-	ExecuteCommandBuffer(false);
-	g_vulkan_context->WaitForGPUIdle();
-
-	// recreate surface in existing swap chain if it already exists
-	if (m_swap_chain)
-	{
-		if (m_swap_chain->RecreateSurface(m_window_info))
-		{
-			m_window_info = m_swap_chain->GetWindowInfo();
-			return true;
-		}
-
-		m_swap_chain.reset();
-	}
-
-	VkSurfaceKHR surface = Vulkan::SwapChain::CreateVulkanSurface(
-		g_vulkan_context->GetVulkanInstance(), g_vulkan_context->GetPhysicalDevice(), &m_window_info);
-	if (surface == VK_NULL_HANDLE)
-	{
-		Console.Error("Failed to create new surface for swap chain");
-		ReleaseWindow();
-		return false;
-	}
-
-	m_swap_chain = Vulkan::SwapChain::Create(m_window_info, surface, GetPreferredPresentModeForVsyncMode(m_vsync_mode));
-	if (!m_swap_chain)
-	{
-		Console.Error("Failed to create swap chain");
-		Vulkan::SwapChain::DestroyVulkanSurface(g_vulkan_context->GetVulkanInstance(), &m_window_info, surface);
-		ReleaseWindow();
-		return false;
-	}
-
-	m_window_info = m_swap_chain->GetWindowInfo();
-	RenderBlankFrame();
-	return true;
-}
-
-void GSDeviceVK::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
-{
-	if (m_swap_chain->GetWidth() == static_cast<u32>(new_window_width) &&
-		m_swap_chain->GetHeight() == static_cast<u32>(new_window_height))
-	{
-		// skip unnecessary resizes
-		m_window_info.surface_scale = new_window_scale;
-		return;
-	}
-
-	// make sure previous frames are presented
-	g_vulkan_context->WaitForGPUIdle();
-
-	if (!m_swap_chain->ResizeSwapChain(new_window_width, new_window_height, new_window_scale))
-	{
-		// AcquireNextImage() will fail, and we'll recreate the surface.
-		Console.Error("Failed to resize swap chain. Next present will fail.");
-		return;
-	}
-
-	m_window_info = m_swap_chain->GetWindowInfo();
-}
-
 void GSDeviceVK::DestroySurface()
 {
 	g_vulkan_context->WaitForGPUIdle();
@@ -387,10 +315,7 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 		m_swap_chain->ReleaseCurrentImage();
 
 		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
-		{
-			ResizeWindow(0, 0, m_window_info.surface_scale);
 			res = m_swap_chain->AcquireNextImage();
-		}
 		else if (res == VK_ERROR_SURFACE_LOST_KHR)
 		{
 			Console.Warning("Surface lost, attempting to recreate");

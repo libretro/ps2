@@ -425,20 +425,6 @@ void GSSetGameCRC(u32 crc)
 	g_gs_renderer->SetGameCRC(crc);
 }
 
-void GSResizeDisplayWindow(int width, int height, float scale)
-{
-	g_gs_device->ResizeWindow(width, height, scale);
-}
-
-void GSUpdateDisplayWindow()
-{
-	if (!g_gs_device->UpdateWindow())
-	{
-		Host::ReportErrorAsync("Error", "Failed to change window after update. The log may contain more information.");
-		return;
-	}
-}
-
 void GSSetVSyncMode(VsyncMode mode)
 {
 	g_gs_device->SetVSync(mode);

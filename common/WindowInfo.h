@@ -47,9 +47,6 @@ struct WindowInfo
 	/// Height of the surface in pixels.
 	u32 surface_height = 0;
 
-	/// DPI scale for the surface.
-	float surface_scale = 1.0f;
-
 	/// Refresh rate of the surface, if available.
 	float surface_refresh_rate = 0.0f;
 

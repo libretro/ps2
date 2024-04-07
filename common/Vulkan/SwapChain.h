@@ -60,7 +60,6 @@ namespace Vulkan
 		__fi const WindowInfo& GetWindowInfo() const { return m_window_info; }
 		__fi u32 GetWidth() const { return m_window_info.surface_width; }
 		__fi u32 GetHeight() const { return m_window_info.surface_height; }
-		__fi float GetScale() const { return m_window_info.surface_scale; }
 		__fi u32 GetCurrentImageIndex() const { return m_current_image; }
 		__fi const u32* GetCurrentImageIndexPtr() const { return &m_current_image; }
 		__fi u32 GetImageCount() const { return static_cast<u32>(m_images.size()); }

@@ -815,7 +815,6 @@ public:
 	__fi s32 GetWindowWidth() const { return static_cast<s32>(m_window_info.surface_width); }
 	__fi s32 GetWindowHeight() const { return static_cast<s32>(m_window_info.surface_height); }
 	__fi GSVector2i GetWindowSize() const { return GSVector2i(static_cast<s32>(m_window_info.surface_width), static_cast<s32>(m_window_info.surface_height)); }
-	__fi float GetWindowScale() const { return m_window_info.surface_scale; }
 	__fi VsyncMode GetVsyncMode() const { return m_vsync_mode; }
 
 	__fi GSTexture* GetCurrent() const { return m_current; }
@@ -839,12 +838,6 @@ public:
 
 	/// Destroys the surface we're currently drawing to.
 	virtual void DestroySurface() = 0;
-
-	/// Switches to a new window/surface.
-	virtual bool UpdateWindow() = 0;
-
-	/// Call when the window size changes externally to recreate any resources.
-	virtual void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) = 0;
 
 	/// Returns false if the window was completely occluded. If frame_skip is set, the frame won't be
 	/// displayed, but the GPU command queue will still be flushed.

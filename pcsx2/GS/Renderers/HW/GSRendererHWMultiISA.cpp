@@ -122,9 +122,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 	if (PRIM->TME)
 	{
 		if (GSLocalMemory::m_psm[context->TEX0.PSM].pal > 0)
-		{
 			hw.m_mem.m_clut.Read32(context->TEX0, env.TEXA);
-		}
 	}
 
 	if (context->TEST.ATE)
@@ -166,9 +164,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 		gd.sel.fpsm = GSLocalMemory::m_psm[context->FRAME.PSM].fmt;
 
 		if ((primclass == GS_LINE_CLASS || primclass == GS_TRIANGLE_CLASS) && vt.m_eq.rgba != 0xffff)
-		{
 			gd.sel.iip = PRIM->IIP;
-		}
 
 		if (PRIM->TME)
 		{
@@ -221,19 +217,13 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 				// 101 l tri
 
 				if (vt.m_lod.x > 0)
-				{
 					gd.sel.ltf = context->TEX1.MMIN >> 2;
-				}
-				else
-				{
-					// TODO: isbilinear(mmag) != isbilinear(mmin) && vt.m_lod.x <= 0 && vt.m_lod.y > 0
-				}
 
 				gd.sel.mmin = (context->TEX1.MMIN & 1) + 1; // 1: round, 2: tri
-				gd.sel.lcm = context->TEX1.LCM;
+				gd.sel.lcm  = context->TEX1.LCM;
 
-				int mxl = std::min<int>((int)context->TEX1.MXL, 6) << 16;
-				int k = context->TEX1.K << 12;
+				int mxl     = std::min<int>((int)context->TEX1.MXL, 6) << 16;
+				int k       = context->TEX1.K << 12;
 
 				if ((int)vt.m_lod.x >= (int)context->TEX1.MXL)
 				{
@@ -244,14 +234,11 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 				}
 
 				if (gd.sel.mmin == 2)
-				{
 					mxl--; // don't sample beyond the last level (TODO: add a dummy level instead?)
-				}
 
 				if (gd.sel.fst)
 				{
 					pxAssert(gd.sel.lcm == 1);
-					//pxAssert(((vt.m_min.t.uph(vt.m_max.t) == GSVector4::zero()).mask() & 3) == 3); // ratchet and clank (menu)
 
 					gd.sel.lcm = 1;
 				}
@@ -261,9 +248,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 					int lod = std::max<int>(std::min<int>(k, mxl), 0);
 
 					if (gd.sel.mmin == 1)
-					{
 						lod = (lod + 0x8000) & 0xffff0000; // rounding
-					}
 
 					gd.lod.i = GSVector4i(lod >> 16);
 					gd.lod.f = GSVector4i(lod & 0xffff).xxxxl().xxzz();
@@ -518,14 +503,9 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 	}
 
 	if (gd.sel.zpsm == 1)
-	{
 		gd.zm |= GSVector4i::xff000000();
-	}
 	else if (gd.sel.zpsm == 2)
-	{
 		gd.zm |= GSVector4i::xffff0000();
-	}
-
 #endif
 
 	if (gd.sel.prim == GS_SPRITE_CLASS && !gd.sel.ftest && !gd.sel.ztest && data.bbox.eq(data.bbox.rintersect(data.scissor))) // TODO: check scissor horizontally only

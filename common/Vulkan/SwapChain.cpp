@@ -536,8 +536,6 @@ namespace Vulkan
 			m_window_info.surface_height = new_height;
 		}
 
-		m_window_info.surface_scale = new_scale;
-
 		if (!CreateSwapChain() || !SetupSwapChainImages())
 		{
 			DestroySwapChainImages();

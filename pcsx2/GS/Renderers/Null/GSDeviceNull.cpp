@@ -103,14 +103,7 @@ void GSDeviceNull::DestroySurface()
 {
 
 }
-bool GSDeviceNull::UpdateWindow()
-{
-    return true;
-}
-void GSDeviceNull::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
-{
 
-}
 GSDeviceNull::PresentResult GSDeviceNull::BeginPresent(bool frame_skip)
 {
     return PresentResult::OK;

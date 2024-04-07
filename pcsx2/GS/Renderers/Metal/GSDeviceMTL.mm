@@ -1181,20 +1181,6 @@ void GSDeviceMTL::DestroySurface()
 	m_layer = nullptr;
 }
 
-bool GSDeviceMTL::UpdateWindow()
-{
-	DestroySurface();
-
-	if (!AcquireWindow(false))
-		return false;
-
-	if (m_window_info.type == WindowInfo::Type::Surfaceless)
-		return true;
-
-	OnMainThread([this] { AttachSurfaceOnMainThread(); });
-	return true;
-}
-
 std::string GSDeviceMTL::GetDriverInfo() const
 { @autoreleasepool {
 	std::string desc([[m_dev.dev description] UTF8String]);
@@ -1206,19 +1192,6 @@ std::string GSDeviceMTL::GetDriverInfo() const
 	desc += "\n    Max Texture Size:  " + std::to_string(m_dev.features.max_texsize);
 	return desc;
 }}
-
-void GSDeviceMTL::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
-{
-	m_window_info.surface_scale = new_window_scale;
-	if (m_window_info.surface_width == static_cast<u32>(new_window_width) && m_window_info.surface_height == static_cast<u32>(new_window_height))
-		return;
-	m_window_info.surface_width = new_window_width;
-	m_window_info.surface_height = new_window_height;
-	@autoreleasepool
-	{
-		[m_layer setDrawableSize:CGSizeMake(new_window_width, new_window_height)];
-	}
-}
 
 void GSDeviceMTL::UpdateTexture(id<MTLTexture> texture, u32 x, u32 y, u32 width, u32 height, const void* data, u32 data_stride)
 {

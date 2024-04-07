@@ -89,8 +89,6 @@ void GSPresentCurrentFrame();
 void GSThrottlePresentation();
 void GSSetGameCRC(u32 crc);
 void GSSetDisplayAlignment(GSDisplayAlignment alignment);
-void GSResizeDisplayWindow(int width, int height, float scale);
-void GSUpdateDisplayWindow();
 void GSSetVSyncMode(VsyncMode mode);
 
 bool GSGetHostRefreshRate(float* refresh_rate);

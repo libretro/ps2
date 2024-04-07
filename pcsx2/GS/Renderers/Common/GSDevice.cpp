@@ -150,12 +150,7 @@ bool GSDevice::AcquireWindow(bool recreate_window)
 {
 	std::optional<WindowInfo> wi = Host::AcquireRenderWindow(recreate_window);
 	if (!wi.has_value())
-	{
-		Console.Error("Failed to acquire render window.");
-		Host::ReportErrorAsync("Error", "Failed to acquire render window. The log may have more information.");
 		return false;
-	}
-
 	m_window_info = std::move(wi.value());
 	return true;
 }

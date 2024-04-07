@@ -828,30 +828,6 @@ void SysMtgsThread::ApplySettings()
 		WaitGS(false, false, false);
 }
 
-void SysMtgsThread::ResizeDisplayWindow(int width, int height, float scale)
-{
-	pxAssertRel(IsOpen(), "MTGS is running");
-	RunOnGSThread([width, height, scale]() {
-		GSResizeDisplayWindow(width, height, scale);
-
-		// If we're paused, re-present the current frame at the new window size.
-		if (VMManager::GetState() == VMState::Paused)
-			GSPresentCurrentFrame();
-	});
-}
-
-void SysMtgsThread::UpdateDisplayWindow()
-{
-	pxAssertRel(IsOpen(), "MTGS is running");
-	RunOnGSThread([]() {
-		GSUpdateDisplayWindow();
-
-		// If we're paused, re-present the current frame at the new window size.
-		if (VMManager::GetState() == VMState::Paused)
-			GSPresentCurrentFrame();
-	});
-}
-
 void SysMtgsThread::SetVSyncMode(VsyncMode mode)
 {
 	pxAssertRel(IsOpen(), "MTGS is running");
