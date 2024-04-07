@@ -297,9 +297,6 @@
     <None Include="x86\microVU_Flags.inl">
       <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
     </None>
-    <None Include="x86\microVU_Log.inl">
-      <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
-    </None>
     <None Include="x86\microVU_Lower.inl">
       <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
     </None>

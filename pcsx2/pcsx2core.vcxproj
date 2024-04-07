@@ -110,7 +110,6 @@
     <None Include="x86\microVU_Compile.inl" />
     <None Include="x86\microVU_Execute.inl" />
     <None Include="x86\microVU_Flags.inl" />
-    <None Include="x86\microVU_Log.inl" />
     <None Include="x86\microVU_Lower.inl" />
     <None Include="x86\microVU_Macro.inl" />
     <None Include="x86\microVU_Misc.inl" />
