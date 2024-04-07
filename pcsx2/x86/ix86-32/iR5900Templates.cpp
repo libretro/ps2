@@ -81,8 +81,6 @@ int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
 	if ((xmminfo & XMMINFO_NORENAME) || fromx86 < 0 || to == from || to == other || !EEINST_RENAMETEST(from))
 		return -1;
 
-	RALOG("Renaming %s to %s\n", R3000A::disRNameGPR[from], R3000A::disRNameGPR[to]);
-
 	// flush back when it's been modified
 	if (x86regs[fromx86].mode & MODE_WRITE && EEINST_LIVETEST(from))
 		_writebackX86Reg(fromx86);
@@ -187,8 +185,6 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 	if (xmminfo & XMMINFO_WRITED)
 		GPR_DEL_CONST(_Rd_);
 
-	_validateRegs();
-
 	if (s_is_const && regs < 0)
 	{
 		constscode(info /*| PROCESS_CONSTS*/);
@@ -236,7 +232,6 @@ void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
 
 	info |= PROCESS_EE_SET_T(regt);
-	_validateRegs();
 
 	GPR_DEL_CONST(_Rt_);
 	noconstcode(info);
@@ -275,7 +270,6 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 		regd = _allocX86reg(X86TYPE_GPR, _Rd_, MODE_WRITE);
 
 	info |= PROCESS_EE_SET_D(regd);
-	_validateRegs();
 
 	GPR_DEL_CONST(_Rd_);
 	noconstcode(info);
@@ -350,7 +344,6 @@ int eeRecompileCodeXMM(int xmminfo)
 	if (xmminfo & XMMINFO_WRITED)
 		GPR_DEL_CONST(_Rd_);
 
-	_validateRegs();
 	return info;
 }
 

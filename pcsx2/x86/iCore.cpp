@@ -301,16 +301,12 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			pxFailRel("Somehow ended up with an allocated register without mode");
 
 		if (mode & MODE_WRITE && hostx86reg >= 0)
-		{
-			RALOG("Invalidating cached guest GPR reg %d in host reg GPR %d due to XMM transition\n", gprreg, hostx86reg);
 			x86regs[hostx86reg].inuse = 0;
-		}
 
 		if (mode & MODE_WRITE)
 		{
 			if (GPR_IS_CONST1(gprreg))
 			{
-				RALOG("Clearing constant value for guest GPR reg %d on XMM reconfig\n", gprreg);
 				GPR_DEL_CONST(gprreg);
 			}
 			if (hostx86reg >= 0)
@@ -328,7 +324,6 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 	}
 
 	const int xmmreg = _getFreeXMMreg();
-	RALOG("Allocating host XMM %d to guest GPR %d in %s mode\n", xmmreg, gprreg, GetModeString(mode));
 
 	xmmregs[xmmreg].inuse = 1;
 	xmmregs[xmmreg].type = XMMTYPE_GPRREG;
@@ -347,8 +342,6 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 		{
 			if (GPR_IS_CONST1(gprreg))
 			{
-				RALOG("Writing constant value %lld from guest reg %d to host XMM reg %d\n", g_cpuConstRegs[gprreg].SD[0], gprreg, xmmreg);
-
 				// load lower+upper, replace lower
 				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&cpuRegs.GPR.r[gprreg].UQ]);
 				xMOV64(rax, g_cpuConstRegs[gprreg].SD[0]);
@@ -358,22 +351,16 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 
 				// kill any gpr allocation which is dirty, since it's a constant value
 				if (hostx86reg >= 0)
-				{
-					RALOG("Invalidating guest reg %d in GPR %d due to constant value write to XMM %d\n", gprreg, hostx86reg, xmmreg);
 					x86regs[hostx86reg].inuse = 0;
-				}
 			}
 			else if (hostx86reg >= 0)
 			{
-				RALOG("Copying (for guest reg %d) host GPR %d to XMM %d\n", gprreg, hostx86reg, xmmreg);
-
 				// load lower+upper, replace lower if dirty
 				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&cpuRegs.GPR.r[gprreg].UQ]);
 
 				// if the gpr was written to (dirty), we need to invalidate it
 				if (x86regs[hostx86reg].mode & MODE_WRITE)
 				{
-					RALOG("Moving dirty guest reg %d from GPR %d to XMM %d\n", gprreg, hostx86reg, xmmreg);
 					xPINSR.Q(xRegisterSSE(xmmreg), xRegister64(hostx86reg), 0);
 					_freeX86regWithoutWriteback(hostx86reg);
 					xmmregs[xmmreg].mode |= MODE_WRITE;
@@ -382,7 +369,6 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			else
 			{
 				// not loaded
-				RALOG("Loading guest reg %d to host FPR %d\n", gprreg, xmmreg);
 				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&cpuRegs.GPR.r[gprreg].UQ]);
 			}
 		}
@@ -390,12 +376,10 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 
 	if (mode & MODE_WRITE && gprreg < 32 && GPR_IS_CONST1(gprreg))
 	{
-		RALOG("Clearing constant value for guest GPR reg %d on XMM alloc\n", gprreg);
 		GPR_DEL_CONST(gprreg);
 	}
 	if (mode & MODE_WRITE && hostx86reg >= 0)
 	{
-		RALOG("Invalidating cached guest GPR reg %d in host reg GPR %d due to XMM transition\n", gprreg, hostx86reg);
 		_freeX86regWithoutWriteback(hostx86reg);
 	}
 
@@ -634,8 +618,6 @@ void _deletePSXtoX86reg(int reg, int flush)
 						// get rid of MODE_WRITE since don't want to flush again
 						x86regs[i].mode &= ~MODE_WRITE;
 						x86regs[i].mode |= MODE_READ;
-
-						RALOG("Writing back X86 reg %d for guest PSX reg %d P2\n", i, x86regs[i].reg);
 					}
 
 					if (flush == 2)
@@ -837,7 +819,6 @@ void _flushCOP2regs()
 	{
 		if (xmmregs[i].inuse && xmmregs[i].type == XMMTYPE_VFREG)
 		{
-			RALOG("Flushing cop2 fpr %u with vf%u\n", i, xmmregs[i].reg);
 			_freeXMMreg(i);
 		}
 	}
@@ -847,14 +828,13 @@ void _flushXMMreg(int xmmreg)
 {
 	if (xmmregs[xmmreg].inuse && xmmregs[xmmreg].mode & MODE_WRITE)
 	{
-		RALOG("Flushing xmm reg %u in _flushXMMregs()\n", i);
 		_writebackXMMreg(xmmreg);
 		xmmregs[xmmreg].mode = (xmmregs[xmmreg].mode & ~MODE_WRITE) | MODE_READ;
 	}
 }
 
 // Flush in memory all inuse registers but registers are still valid
-void _flushXMMregs()
+void _flushXMMregs(void)
 {
 	for (u32 i = 0; i < iREGCNT_XMM; ++i)
 		_flushXMMreg(i);

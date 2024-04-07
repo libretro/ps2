@@ -504,16 +504,12 @@ bool psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd)
 			goto is_unsafe;
 	}
 
-	RALOG("Swapping delay slot %08X %s\n", psxpc, disR3000AF(iopMemRead32(psxpc), psxpc));
 	psxRecompileNextInstruction(true, true);
 	return true;
 
 is_unsafe:
-	RALOG("NOT SWAPPING delay slot %08X %s\n", psxpc, disR3000AF(iopMemRead32(psxpc), psxpc));
-	return false;
-#else
-	return false;
 #endif
+	return false;
 }
 
 int psxTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
@@ -521,8 +517,6 @@ int psxTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
 	// can't rename when in form Rd = Rs op Rt and Rd == Rs or Rd == Rt
 	if ((xmminfo & XMMINFO_NORENAME) || fromx86 < 0 || to == from || to == other || !EEINST_RENAMETEST(from))
 		return -1;
-
-	RALOG("Renaming %s to %s\n", R3000A::disRNameGPR[from], R3000A::disRNameGPR[to]);
 
 	// flush back when it's been modified
 	if (x86regs[fromx86].mode & MODE_WRITE && EEINST_LIVETEST(from))
@@ -589,8 +583,6 @@ void psxRecompileCodeConst0(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 	}
 	if (regd >= 0)
 		info |= PROCESS_EE_SET_D(regd);
-
-	_validateRegs();
 
 	if (s_is_const && regs < 0)
 	{
@@ -682,8 +674,6 @@ void psxRecompileCodeConst1(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 	if (regt >= 0)
 		info |= PROCESS_EE_SET_T(regt);
 
-	_validateRegs();
-
 	PSX_DEL_CONST(_Rt_);
 	noconstcode(info);
 }
@@ -718,8 +708,6 @@ void psxRecompileCodeConst2(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 	}
 	if (regd >= 0)
 		info |= PROCESS_EE_SET_D(regd);
-
-	_validateRegs();
 
 	PSX_DEL_CONST(_Rd_);
 	noconstcode(info);
@@ -790,8 +778,6 @@ void psxRecompileCodeConst3(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 		else
 			_deletePSXtoX86reg(PSX_HI, DELETE_REG_FREE_NO_WRITEBACK);
 	}
-
-	_validateRegs();
 
 	if (s_is_const && regs < 0)
 	{
@@ -919,7 +905,7 @@ void recResetIOP()
 	psxbranch = 0;
 }
 
-static void recShutdown()
+static void recShutdown(void)
 {
 	safe_delete(recMem);
 
@@ -927,9 +913,6 @@ static void recShutdown()
 
 	safe_free(s_pInstCache);
 	s_nInstCacheSize = 0;
-
-	// FIXME Warning thread unsafe
-	Perf::dump();
 }
 
 static void iopClearRecLUT(BASEBLOCK* base, int count)

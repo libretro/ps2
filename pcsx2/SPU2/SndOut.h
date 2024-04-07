@@ -17,11 +17,6 @@
 
 #include <vector>
 
-// Number of stereo samples per SndOut block.
-// All drivers must work in units of this size when communicating with
-// SndOut.
-static constexpr int SndOutPacketSize = 64;
-
 // Samplerate of the SPU2. For accurate playback we need to match this
 // exactly.  Trying to scale samplerates and maintain SPU2's Ts timing accuracy
 // is too problematic. :)

@@ -217,9 +217,6 @@ struct microIR
 // Reg Alloc
 //------------------------------------------------------------------
 
-//#define MVURALOG(...) fprintf(stderr, __VA_ARGS__)
-#define MVURALOG(...)
-
 struct microMapXMM
 {
 	int  VFreg;    // VF Reg Number Stored (-1 = Temp; 0 = vf0 and will not be written back; 32 = ACC; 33 = I reg)
@@ -400,7 +397,6 @@ public:
 				// pxAssertRel(fprregs[i].reg >= 0, "Valid full register preserved");
 				if (pxmmregs[i].reg >= 0)
 				{
-					MVURALOG("Preserving VF reg %d in host reg %d across instruction\n", pxmmregs[i].reg, i);
 					pxAssert(pxmmregs[i].reg >= 0);
 					pxmmregs[i].needed = false;
 					xmmMap[i].isNeeded = false;
@@ -417,7 +413,6 @@ public:
 				// pxAssertRel(armregs[i].reg >= 0, "Valid full register preserved");
 				if (x86regs[i].reg >= 0)
 				{
-					MVURALOG("Preserving VI reg %d in host reg %d across instruction\n", x86regs[i].reg, i);
 					x86regs[i].needed = false;
 					gprMap[i].isNeeded = false;
 					gprMap[i].isZeroExtended = false;
@@ -948,7 +943,6 @@ public:
 				// if it's needed, we just unbind the allocation and preserve it, otherwise clear
 				if (mapI.isNeeded)
 				{
-					MVURALOG("  unbind %d to %d for write\n", i, reg);
 					if (regAllocCOP2)
 					{
 						pxAssert(x86regs[i].type == X86TYPE_VIREG && x86regs[i].reg == static_cast<u8>(mapI.VIreg));
@@ -961,7 +955,6 @@ public:
 				}
 				else
 				{
-					MVURALOG("  clear %d to %d for write\n", i, reg);
 					clearGPR(i);
 				}
 
@@ -995,7 +988,6 @@ public:
 				gprMap[x].count = this_counter;
 				gprMap[x].isNeeded = true;
 				gprMap[x].isZeroExtended = true;
-				MVURALOG("  alloc zero to scratch %d\n", x);
 				return gprX;
 			}
 		}
@@ -1036,7 +1028,6 @@ public:
 							else
 								xMOV(gprX, xRegister32(i));
 							gprMap[x].isZeroExtended = zext_if_dirty;
-							MVURALOG("  clone write %d in %d to %d for %d\n", viLoadReg, i, x, viWriteReg);
 							std::swap(x, i);
 						}
 						else
@@ -1066,7 +1057,6 @@ public:
 						x86regs[i].mode = gprMap[i].dirty ? (MODE_WRITE | MODE_READ) : (MODE_READ);
 					}
 
-					MVURALOG("  returning cached in %d\n", i);
 					return xRegister32::GetInstance(i);
 				}
 			}
@@ -1121,7 +1111,6 @@ public:
 			x86regs[x].mode = gprMap[x].dirty ? (MODE_WRITE | MODE_READ) : (MODE_READ);
 		}
 
-		MVURALOG("  returning new %d\n", x);
 		return gprX;
 	}
 

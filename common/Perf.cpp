@@ -15,12 +15,11 @@
 
 #include "common/Perf.h"
 #include "common/Pcsx2Defs.h"
-#ifdef __unix__
+#ifdef _WIN32
+#include <io.h>
+#else
 #include <unistd.h>
 #endif
-
-//#define ProfileWithPerf
-#define MERGE_BLOCK_RESULT
 
 namespace Perf
 {
@@ -31,124 +30,12 @@ namespace Perf
 	InfoVector vu("VU");
 	InfoVector vif("VIF");
 
-// Perf is only supported on linux
-#if defined(__linux__) && (defined(ProfileWithPerf))
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Implementation of the Info object
-	////////////////////////////////////////////////////////////////////////////////
-
-	Info::Info(uptr x86, u32 size, const char* symbol)
-		: m_x86(x86)
-		, m_size(size)
-		, m_dynamic(false)
-	{
-		strncpy(m_symbol, symbol, sizeof(m_symbol));
-	}
-
-	Info::Info(uptr x86, u32 size, const char* symbol, u32 pc)
-		: m_x86(x86)
-		, m_size(size)
-		, m_dynamic(true)
-	{
-		snprintf(m_symbol, sizeof(m_symbol), "%s_0x%08x", symbol, pc);
-	}
-
-	void Info::Print(FILE* fp)
-	{
-		fprintf(fp, "%x %x %s\n", m_x86, m_size, m_symbol);
-	}
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Implementation of the InfoVector object
-	////////////////////////////////////////////////////////////////////////////////
-
-	InfoVector::InfoVector(const char* prefix)
-	{
-		strncpy(m_prefix, prefix, sizeof(m_prefix));
-		m_vtune_id = 0;
-	}
-
-	void InfoVector::print(FILE* fp)
-	{
-		for (auto&& it : m_v)
-			it.Print(fp);
-	}
-
-	void InfoVector::map(uptr x86, u32 size, const char* symbol)
-	{
-// This function is typically used for dispatcher and recompiler.
-// Dispatchers are on a page and must always be kept.
-// Recompilers are much bigger (TODO check VIF) and are only
-// useful when MERGE_BLOCK_RESULT is defined
-#if !defined(MERGE_BLOCK_RESULT)
-		u32 max_code_size = 16 * _1kb;
-#else
-		u32 max_code_size = _1gb;
-#endif
-
-		if (size < max_code_size)
-			m_v.emplace_back(x86, size, symbol);
-	}
-
-	void InfoVector::map(uptr x86, u32 size, u32 pc)
-	{
-#ifndef MERGE_BLOCK_RESULT
-		m_v.emplace_back(x86, size, m_prefix, pc);
-#endif
-	}
-
-	void InfoVector::reset()
-	{
-		auto dynamic = std::remove_if(m_v.begin(), m_v.end(), [](Info i) { return i.m_dynamic; });
-		m_v.erase(dynamic, m_v.end());
-	}
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Global function
-	////////////////////////////////////////////////////////////////////////////////
-
-	void dump()
-	{
-		char file[256];
-		snprintf(file, 250, "/tmp/perf-%d.map", getpid());
-		FILE* fp = fopen(file, "w");
-
-		any.print(fp);
-		ee.print(fp);
-		iop.print(fp);
-		vu.print(fp);
-
-		if (fp)
-			fclose(fp);
-	}
-
-	void dump_and_reset()
-	{
-		dump();
-
-		any.reset();
-		ee.reset();
-		iop.reset();
-		vu.reset();
-	}
-
-#else
-
 	////////////////////////////////////////////////////////////////////////////////
 	// Dummy implementation
 	////////////////////////////////////////////////////////////////////////////////
 
-	InfoVector::InfoVector(const char* prefix)
-		: m_vtune_id(0)
-	{
-	}
+	InfoVector::InfoVector(const char* prefix) { }
 	void InfoVector::map(uptr x86, u32 size, const char* symbol) {}
 	void InfoVector::map(uptr x86, u32 size, u32 pc) {}
 	void InfoVector::reset() {}
-
-	void dump() {}
-	void dump_and_reset() {}
-
-#endif
 } // namespace Perf

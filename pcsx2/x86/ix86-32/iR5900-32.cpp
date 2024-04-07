@@ -504,7 +504,7 @@ static void recResetRaw()
 	g_resetEeScalingStats = true;
 }
 
-static void recShutdown()
+static void recShutdown(void)
 {
 	safe_delete(recMem);
 	safe_aligned_free(recRAMCopy);
@@ -516,18 +516,13 @@ static void recShutdown()
 
 	safe_free(s_pInstCache);
 	s_nInstCacheSize = 0;
-
-	// FIXME Warning thread unsafe
-	Perf::dump();
 }
 
-void recStep()
-{
-}
+void recStep(void) { }
 
 static fastjmp_buf m_SetJmp_StateCheck;
 
-static void recExitExecution()
+static void recExitExecution(void)
 {
 	fastjmp_jmp(&m_SetJmp_StateCheck, 1);
 }
@@ -603,9 +598,6 @@ static void recExecute()
 	}
 
 	eeCpuExecuting = false;
-
-	// FIXME Warning thread unsafe
-	Perf::dump();
 }
 
 ////////////////////////////////////////////////////
@@ -1553,10 +1545,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 	}
 
 	if (g_pCurInstInfo->info & EEINST_COP2_FLUSH_VU0_REGISTERS)
-	{
-		RALOG("Flushing cop2 registers\n");
 		_flushCOP2regs();
-	}
 
 	const OPCODE& opcode = GetCurrentInstruction();
 
@@ -1642,7 +1631,6 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 		_clearNeededX86regs();
 		_clearNeededXMMregs();
 	}
-	_validateRegs();
 
 	if (delayslot)
 	{

@@ -21,9 +21,6 @@
 // Namespace Note : iCore32 contains all of the Register Allocation logic, in addition to a handful
 // of utility functions for emitting frequent code.
 
-//#define RALOG(...) fprintf(stderr, __VA_ARGS__)
-#define RALOG(...)
-
 ////////////////////////////////////////////////////////////////////////////////
 // Shared Register allocation flags (apply to X86, XMM, MMX, etc).
 
@@ -123,7 +120,6 @@ void _freeX86regs();
 void _flushX86regs();
 void _flushConstRegs();
 void _flushConstReg(int reg);
-void _validateRegs();
 void _writebackX86Reg(int x86reg);
 
 void mVUFreeCOP2GPR(int hostreg);

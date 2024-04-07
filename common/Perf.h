@@ -41,19 +41,13 @@ namespace Perf
 	{
 		std::vector<Info> m_v;
 		char m_prefix[20];
-		unsigned int m_vtune_id;
 
 	public:
 		InfoVector(const char* prefix);
-
-		void print(FILE* fp);
 		void map(uptr x86, u32 size, const char* symbol);
 		void map(uptr x86, u32 size, u32 pc);
 		void reset();
 	};
-
-	void dump();
-	void dump_and_reset();
 
 	extern InfoVector any;
 	extern InfoVector ee;
