@@ -27,8 +27,6 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
-#include <fstream>
-#include <sstream>
 #include <VersionHelpers.h>
 #include <d3dcompiler.h>
 #include <dxgidebug.h>

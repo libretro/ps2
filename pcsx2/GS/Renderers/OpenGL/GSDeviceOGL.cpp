@@ -26,8 +26,6 @@
 #include "common/StringUtil.h"
 
 #include <cinttypes>
-#include <fstream>
-#include <sstream>
 
 static constexpr u32 g_vs_cb_index        = 1;
 static constexpr u32 g_ps_cb_index        = 0;

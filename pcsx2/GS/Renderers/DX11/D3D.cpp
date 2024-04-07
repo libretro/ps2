@@ -182,13 +182,7 @@ std::string D3D::GetAdapterName(IDXGIAdapter1* adapter)
 	DXGI_ADAPTER_DESC1 desc;
 	HRESULT hr = adapter->GetDesc1(&desc);
 	if (SUCCEEDED(hr))
-	{
 		ret = StringUtil::WideStringToUTF8String(desc.Description);
-	}
-	else
-	{
-		Console.Error(fmt::format("IDXGIAdapter1::GetDesc() returned {:08X}", hr));
-	}
 
 	if (ret.empty())
 		ret = "(Unknown)";
@@ -249,86 +243,74 @@ D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)
 	if (FAILED(hr))
 	{
 		Console.Error(fmt::format("IDXGIAdapter1::GetDesc() returned {:08X}", hr));
-		return VendorID::Unknown;
 	}
-
-	switch (desc.VendorId)
+	else
 	{
-		case 0x10DE:
-			return VendorID::Nvidia;
-		case 0x1002:
-		case 0x1022:
-			return VendorID::AMD;
-		case 0x163C:
-		case 0x8086:
-		case 0x8087:
-			return VendorID::Intel;
-		default:
-			return VendorID::Unknown;
+		switch (desc.VendorId)
+		{
+			case 0x10DE:
+				return VendorID::Nvidia;
+			case 0x1002:
+			case 0x1022:
+				return VendorID::AMD;
+			case 0x163C:
+			case 0x8086:
+			case 0x8087:
+				return VendorID::Intel;
+			default:
+				break;
+		}
 	}
+	return VendorID::Unknown;
 }
 
-GSRendererType D3D::GetPreferredRenderer()
+GSRendererType D3D::GetPreferredRenderer(void)
 {
 	auto factory = CreateFactory(false);
 	auto adapter = GetChosenOrFirstAdapter(factory.get(), GSConfig.Adapter);
 
 	// If we somehow can't get a D3D11 device, it's unlikely any of the renderers are going to work.
-	if (!adapter)
-		return GSRendererType::DX11;
-
-	D3D_FEATURE_LEVEL feature_level;
-
-	static const D3D_FEATURE_LEVEL check[] = {
-		D3D_FEATURE_LEVEL_12_0,
-		D3D_FEATURE_LEVEL_11_0,
-	};
-
-	const HRESULT hr = D3D11CreateDevice(adapter.get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, std::data(check),
-		std::size(check), D3D11_SDK_VERSION, nullptr, &feature_level, nullptr);
-
-	if (FAILED(hr))
+	if (adapter)
 	{
-		// See note above.
-		return GSRendererType::DX11;
+		D3D_FEATURE_LEVEL feature_level;
+
+		static const D3D_FEATURE_LEVEL check[] = {
+			D3D_FEATURE_LEVEL_12_0,
+			D3D_FEATURE_LEVEL_11_0,
+		};
+
+		const HRESULT hr = D3D11CreateDevice(adapter.get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, std::data(check),
+				std::size(check), D3D11_SDK_VERSION, nullptr, &feature_level, nullptr);
+
+		if (SUCCEEDED(hr))
+		{
+			switch (GetVendorID(adapter.get()))
+			{
+				case VendorID::Nvidia:
+					if (feature_level == D3D_FEATURE_LEVEL_12_0)
+						return GSRendererType::VK;
+					else if (feature_level == D3D_FEATURE_LEVEL_11_0)
+						return GSRendererType::OGL;
+					break;
+
+				case VendorID::AMD:
+					if (feature_level == D3D_FEATURE_LEVEL_12_0)
+						return GSRendererType::VK;
+					break;
+
+				case VendorID::Intel:
+					// Older Intel GPUs prior to Xe seem to have broken OpenGL drivers which choke
+					// on some of our shaders, causing what appears to be GPU timeouts+device removals.
+					// Vulkan has broken barriers, also prior to Xe. So just fall back to DX11 everywhere,
+					// unless we have Arc, which is easy to identify.
+					if (StringUtil::StartsWith(GetAdapterName(adapter.get()), "Intel(R) Arc(TM) "))
+						return GSRendererType::VK;
+					break;
+				default:
+					break;
+			}
+		}
 	}
 
-	switch (GetVendorID(adapter.get()))
-	{
-		case VendorID::Nvidia:
-		{
-			if (feature_level == D3D_FEATURE_LEVEL_12_0)
-				return GSRendererType::VK;
-			else if (feature_level == D3D_FEATURE_LEVEL_11_0)
-				return GSRendererType::OGL;
-			else
-				return GSRendererType::DX11;
-		}
-
-		case VendorID::AMD:
-		{
-			if (feature_level == D3D_FEATURE_LEVEL_12_0)
-				return GSRendererType::VK;
-			else
-				return GSRendererType::DX11;
-		}
-
-		case VendorID::Intel:
-		{
-			// Older Intel GPUs prior to Xe seem to have broken OpenGL drivers which choke
-			// on some of our shaders, causing what appears to be GPU timeouts+device removals.
-			// Vulkan has broken barriers, also prior to Xe. So just fall back to DX11 everywhere,
-			// unless we have Arc, which is easy to identify.
-			if (StringUtil::StartsWith(GetAdapterName(adapter.get()), "Intel(R) Arc(TM) "))
-				return GSRendererType::VK;
-			else
-				return GSRendererType::DX11;
-		}
-
-		default:
-		{
-			// Default is D3D11
-			return GSRendererType::DX11;
-		}
-	}
+	return GSRendererType::DX11;
 }

@@ -34,7 +34,6 @@
 
 #include "D3D12MemAlloc.h"
 
-#include <sstream>
 #include <limits>
 
 #include "libretro_d3d.h"

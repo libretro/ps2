@@ -29,7 +29,6 @@
 #include "common/Vulkan/SwapChain.h"
 #include "common/Vulkan/Util.h"
 #include "common/Align.h"
-#include "common/Path.h"
 #include "common/ScopedGuard.h"
 
 #include <sstream>
