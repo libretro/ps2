@@ -122,7 +122,7 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr_libretro(VkInstan
 	return fptr;
 }
 
-void vk_libretro_init_wraps()
+void vk_libretro_init_wraps(void)
 {
 	vkGetInstanceProcAddr_org = pcsx2_vkGetInstanceProcAddr;
 	pcsx2_vkGetInstanceProcAddr = vkGetInstanceProcAddr_libretro;

@@ -664,7 +664,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(UserHacks_EstimateTextureRegion, "UserHacks_EstimateTextureRegion");
 	GSSettingBoolEx(FXAA, "fxaa");
 	GSSettingBool(ShadeBoost);
-	GSSettingBoolEx(DumpGSData, "dump");
 	GSSettingBoolEx(SaveRT, "save");
 	GSSettingBoolEx(SaveFrame, "savef");
 	GSSettingBoolEx(SaveTexture, "savet");
@@ -758,14 +757,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 #undef GSSettingIntEnumEx
 #undef GSSettingString
 #undef GSSettingStringEx
-
-	// Sanity check: don't dump a bunch of crap in the current working directory.
-	const std::string& dump_dir = UseHardwareRenderer() ? HWDumpDirectory : SWDumpDirectory;
-	if (DumpGSData && dump_dir.empty())
-	{
-		Console.Error("Draw dumping is enabled but directory is unconfigured, please set one.");
-		DumpGSData = false;
-	}
 }
 
 void Pcsx2Config::GSOptions::MaskUserHacks()

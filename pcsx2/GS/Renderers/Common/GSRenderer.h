@@ -69,9 +69,6 @@ public:
 	void QueueSnapshot(const std::string& path, u32 gsdump_frames);
 	void StopGSDump();
 	void PresentCurrentFrame();
-
-	bool BeginCapture(std::string filename);
-	void EndCapture();
 };
 
 extern std::unique_ptr<GSRenderer> g_gs_renderer;

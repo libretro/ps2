@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 
 #include "GS/Renderers/Common/GSRenderer.h"
-#include "GS/GSCapture.h"
 #include "GS/GSGL.h"
 #include "Host.h"
 #include "PerformanceMetrics.h"
@@ -74,7 +73,6 @@ void GSRenderer::Reset(bool hardware_reset)
 
 void GSRenderer::Destroy()
 {
-	GSCapture::EndCapture();
 }
 
 bool GSRenderer::Merge(int field)
@@ -689,22 +687,6 @@ void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float
 void GSSetDisplayAlignment(GSDisplayAlignment alignment)
 {
 	s_display_alignment = alignment;
-}
-
-bool GSRenderer::BeginCapture(std::string filename)
-{
-	const GSVector2i capture_resolution(GSConfig.VideoCaptureAutoResolution ?
-											GetInternalResolution() :
-											GSVector2i(GSConfig.VideoCaptureWidth, GSConfig.VideoCaptureHeight));
-
-	return GSCapture::BeginCapture(GetTvRefreshRate(), capture_resolution,
-		GetCurrentAspectRatioFloat(GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets)),
-		std::move(filename));
-}
-
-void GSRenderer::EndCapture()
-{
-	GSCapture::EndCapture();
 }
 
 GSTexture* GSRenderer::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)

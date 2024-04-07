@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 
 #include "GS.h"
-#include "GSCapture.h"
 #include "GSGL.h"
 #include "GSUtil.h"
 #include "GSExtra.h"
@@ -467,32 +466,6 @@ int GSfreeze(FreezeAction mode, freezeData* data)
 	return 0;
 }
 
-void GSQueueSnapshot(const std::string& path, u32 gsdump_frames)
-{
-	if (g_gs_renderer)
-		g_gs_renderer->QueueSnapshot(path, gsdump_frames);
-}
-
-void GSStopGSDump()
-{
-	if (g_gs_renderer)
-		g_gs_renderer->StopGSDump();
-}
-
-bool GSBeginCapture(std::string filename)
-{
-	if (g_gs_renderer)
-		return g_gs_renderer->BeginCapture(std::move(filename));
-	else
-		return false;
-}
-
-void GSEndCapture()
-{
-	if (g_gs_renderer)
-		g_gs_renderer->EndCapture();
-}		
-
 void GSPresentCurrentFrame()
 {
 	g_gs_renderer->PresentCurrentFrame();
@@ -802,16 +775,6 @@ void GSSwitchRenderer(GSRendererType new_renderer)
 	GSConfig.Renderer = new_renderer;
 	if (!GSreopen(!is_software_switch, true, old_config))
 		pxFailRel("Failed to reopen GS for renderer switch.");
-}
-
-bool GSSaveSnapshotToMemory(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
-	u32* width, u32* height, std::vector<u32>* pixels)
-{
-	if (!g_gs_renderer)
-		return false;
-
-	return g_gs_renderer->SaveSnapshotToMemory(window_width, window_height, apply_aspect, crop_borders,
-		width, height, pixels);
 }
 
 #ifdef _WIN32

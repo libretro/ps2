@@ -682,7 +682,6 @@ struct Pcsx2Config
 					UserHacks_EstimateTextureRegion : 1,
 					FXAA : 1,
 					ShadeBoost : 1,
-					DumpGSData : 1,
 					SaveRT : 1,
 					SaveFrame : 1,
 					SaveTexture : 1,

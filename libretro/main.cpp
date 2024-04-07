@@ -108,9 +108,9 @@ static MemorySettingsInterface s_settings_interface;
 
 #ifdef ENABLE_VULKAN
 static retro_hw_render_interface_vulkan *vulkan;
-void vk_libretro_init_wraps();
+void vk_libretro_init_wraps(void);
 void vk_libretro_init(VkInstance instance, VkPhysicalDevice gpu, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features);
-void vk_libretro_shutdown();
+void vk_libretro_shutdown(void);
 void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_render_interface);
 #endif
 

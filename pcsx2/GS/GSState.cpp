@@ -1814,16 +1814,6 @@ void GSState::InitReadFIFO(u8* mem, int len)
 
 	// Read the image all in one go.
 	m_mem.ReadImageX(m_tr.x, m_tr.y, m_tr.buff, m_tr.total, m_env.BITBLTBUF, m_env.TRXPOS, m_env.TRXREG);
-
-	if (GSConfig.DumpGSData && GSConfig.SaveRT && s_n >= GSConfig.SaveN)
-	{
-		const std::string s(GetDrawDumpPath(
-			"%05d_read_%05x_%d_%d_%d_%d_%d_%d.bmp",
-			s_n, (int)m_env.BITBLTBUF.SBP, (int)m_env.BITBLTBUF.SBW, (int)m_env.BITBLTBUF.SPSM,
-			r.left, r.top, r.right, r.bottom));
-
-		m_mem.SaveBMP(s, m_env.BITBLTBUF.SBP, m_env.BITBLTBUF.SBW, m_env.BITBLTBUF.SPSM, r.right, r.bottom);
-	}
 }
 
 // NOTE: called from outside MTGS

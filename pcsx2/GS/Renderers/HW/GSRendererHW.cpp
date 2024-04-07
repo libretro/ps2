@@ -193,16 +193,6 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 			y_offset = y_pages * GSLocalMemory::m_psm[curFramebuffer.PSM].pgs.y;
 			GL_CACHE("Frame y offset %d pixels, unit %d", y_offset, i);
 		}
-
-#ifdef ENABLE_OGL_DEBUG
-		if (GSConfig.DumpGSData)
-		{
-			if (GSConfig.SaveFrame && s_n >= GSConfig.SaveN)
-			{
-				t->Save(GetDrawDumpPath("%05d_f%lld_fr%d_%05x_%s.bmp", s_n, g_perfmon.GetFrame(), i, static_cast<int>(TEX0.TBP0), psm_str(TEX0.PSM)));
-			}
-		}
-#endif
 	}
 
 	return t;
@@ -225,11 +215,6 @@ GSTexture* GSRendererHW::GetFeedbackOutput(float& scale)
 	rt->Update(false);
 	GSTexture* t = rt->m_texture;
 	scale = rt->m_scale;
-
-#ifdef ENABLE_OGL_DEBUG
-	if (GSConfig.DumpGSData && GSConfig.SaveFrame && s_n >= GSConfig.SaveN)
-		t->Save(GetDrawDumpPath("%05d_f%lld_fr%d_%05x_%s.bmp", s_n, g_perfmon.GetFrame(), 3, static_cast<int>(TEX0.TBP0), psm_str(TEX0.PSM)));
-#endif
 
 	return t;
 }
@@ -1376,25 +1361,6 @@ void GSRendererHW::RoundSpriteOffset()
 
 void GSRendererHW::Draw()
 {
-	if (GSConfig.DumpGSData && (s_n >= GSConfig.SaveN))
-	{
-		std::string s;
-
-		// Dump Register state
-		s = GetDrawDumpPath("%05d_context.txt", s_n);
-
-		m_draw_env->Dump(s);
-		m_context->Dump(s);
-
-		// Dump vertices
-		s = GetDrawDumpPath("%05d_vertex.txt", s_n);
-		DumpVertices(s);
-	}
-
-#ifdef ENABLE_OGL_DEBUG
-	static u32 num_skipped_channel_shuffle_draws = 0;
-#endif
-
 	// We mess with this state as an optimization, so take a copy and use that instead.
 	const GSDrawingContext* context = m_context;
 	m_cached_ctx.TEX0 = context->TEX0;
@@ -2148,47 +2114,6 @@ void GSRendererHW::Draw()
 		src->m_texture = src->m_from_target->m_texture;
 	}
 
-	if (GSConfig.DumpGSData)
-	{
-		const u64 frame = g_perfmon.GetFrame();
-
-		std::string s;
-
-		if (GSConfig.SaveTexture && s_n >= GSConfig.SaveN && src)
-		{
-			s = GetDrawDumpPath("%05d_f%lld_itex_%05x_%s_%d%d_%02x_%02x_%02x_%02x.dds",
-				s_n, frame, static_cast<int>(m_cached_ctx.TEX0.TBP0), psm_str(m_cached_ctx.TEX0.PSM),
-				static_cast<int>(m_cached_ctx.CLAMP.WMS), static_cast<int>(m_cached_ctx.CLAMP.WMT),
-				static_cast<int>(m_cached_ctx.CLAMP.MINU), static_cast<int>(m_cached_ctx.CLAMP.MAXU),
-				static_cast<int>(m_cached_ctx.CLAMP.MINV), static_cast<int>(m_cached_ctx.CLAMP.MAXV));
-
-			src->m_texture->Save(s);
-
-			if (src->m_palette)
-			{
-				s = GetDrawDumpPath("%05d_f%lld_itpx_%05x_%s.dds", s_n, frame, m_cached_ctx.TEX0.CBP, psm_str(m_cached_ctx.TEX0.CPSM));
-
-				src->m_palette->Save(s);
-			}
-		}
-
-		if (rt && GSConfig.SaveRT && s_n >= GSConfig.SaveN)
-		{
-			s = GetDrawDumpPath("%05d_f%lld_rt0_%05x_%s.bmp", s_n, frame, m_cached_ctx.FRAME.Block(), psm_str(m_cached_ctx.FRAME.PSM));
-
-			if (rt->m_texture)
-				rt->m_texture->Save(s);
-		}
-
-		if (ds && GSConfig.SaveDepth && s_n >= GSConfig.SaveN)
-		{
-			s = GetDrawDumpPath("%05d_f%lld_rz0_%05x_%s.bmp", s_n, frame, m_cached_ctx.ZBUF.Block(), psm_str(m_cached_ctx.ZBUF.PSM));
-
-			if (ds->m_texture)
-				ds->m_texture->Save(s);
-		}
-	}
-
 	if (m_oi && !m_oi(*this, rt ? rt->m_texture : nullptr, ds ? ds->m_texture : nullptr, src))
 	{
 		GL_INS("Warning skipping a draw call (%d)", s_n);
@@ -2309,34 +2234,6 @@ void GSRendererHW::Draw()
 	}
 
 	//
-
-	if (GSConfig.DumpGSData)
-	{
-		const u64 frame = g_perfmon.GetFrame();
-
-		std::string s;
-
-		if (GSConfig.SaveRT && s_n >= GSConfig.SaveN)
-		{
-			s = GetDrawDumpPath("%05d_f%lld_rt1_%05x_%s.bmp", s_n, frame, m_cached_ctx.FRAME.Block(), psm_str(m_cached_ctx.FRAME.PSM));
-
-			if (rt)
-				rt->m_texture->Save(s);
-		}
-
-		if (GSConfig.SaveDepth && s_n >= GSConfig.SaveN)
-		{
-			s = GetDrawDumpPath("%05d_f%lld_rz1_%05x_%s.bmp", s_n, frame, m_cached_ctx.ZBUF.Block(), psm_str(m_cached_ctx.ZBUF.PSM));
-
-			if (ds)
-				ds->m_texture->Save(s);
-		}
-
-		if (GSConfig.SaveL > 0 && (s_n - GSConfig.SaveN) > GSConfig.SaveL)
-		{
-			GSConfig.DumpGSData = 0;
-		}
-	}
 
 #ifdef DISABLE_HW_TEXTURE_CACHE
 	if (rt)

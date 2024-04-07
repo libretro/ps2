@@ -87,10 +87,6 @@ void GSvsync(u32 field, bool registers_written);
 int GSfreeze(FreezeAction mode, freezeData* data);
 std::string GSGetBaseSnapshotFilename();
 std::string GSGetBaseVideoFilename();
-void GSQueueSnapshot(const std::string& path, u32 gsdump_frames = 0);
-void GSStopGSDump();
-bool GSBeginCapture(std::string filename);
-void GSEndCapture();
 void GSPresentCurrentFrame();
 void GSThrottlePresentation();
 void GSSetGameCRC(u32 crc);
@@ -115,8 +111,6 @@ void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);
-bool GSSaveSnapshotToMemory(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
-	u32* width, u32* height, std::vector<u32>* pixels);
 
 struct GSError
 {

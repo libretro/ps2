@@ -29,8 +29,6 @@
 #include <fstream>
 #include <sstream>
 
-//#define ONLY_LINES
-
 static constexpr u32 g_vs_cb_index        = 1;
 static constexpr u32 g_ps_cb_index        = 0;
 

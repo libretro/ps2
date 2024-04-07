@@ -455,7 +455,6 @@ set(pcsx2GSSourcesUnshared
 set(pcsx2GSSources
 	GS/GS.cpp
 	GS/GSAlignedClass.cpp
-	GS/GSCapture.cpp
 	GS/GSClut.cpp
 	GS/GSCrc.cpp
 	GS/GSDrawingContext.cpp
@@ -491,7 +490,6 @@ set(pcsx2GSSources
 set(pcsx2GSHeaders
 	GS/GSAlignedClass.h
 	GS/GSBlock.h
-	GS/GSCapture.h
 	GS/GSClut.h
 	GS/GSCrc.h
 	GS/GSDrawingContext.h

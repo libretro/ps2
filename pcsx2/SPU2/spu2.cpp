@@ -18,8 +18,6 @@
 #include "SPU2/Debug.h"
 #include "SPU2/spu2.h"
 #include "SPU2/Dma.h"
-#include "GS.h"
-#include "GS/GSCapture.h"
 #include "R3000A.h"
 
 namespace SPU2
@@ -118,13 +116,6 @@ void SPU2::UpdateSampleRate()
 	SndBuffer::Cleanup();
 	SampleRate = new_sample_rate;
 	InitSndBuffer();
-
-	// Can't be capturing when the sample rate changes.
-	if (IsAudioCaptureActive())
-	{
-		GetMTGS().RunOnGSThread(&GSEndCapture);
-		GetMTGS().WaitGS(false, false, false);
-	}
 }
 
 void SPU2::InternalReset(bool psxmode)
