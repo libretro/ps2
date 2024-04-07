@@ -618,15 +618,6 @@ namespace Vulkan
 		                       m_device_properties.limits.timestampPeriod > 0;
 		m_spin_queue_is_graphics_queue = m_spin_queue_family_index == m_graphics_queue_family_index && spin_queue_index == 0;
 
-		m_gpu_timing_supported = (m_device_properties.limits.timestampComputeAndGraphics != 0 &&
-		                          queue_family_properties[m_graphics_queue_family_index].timestampValidBits > 0 &&
-		                          m_device_properties.limits.timestampPeriod > 0);
-		Console.WriteLn("GPU timing is %s (TS=%u TS valid bits=%u, TS period=%f)",
-			m_gpu_timing_supported ? "supported" : "not supported",
-			static_cast<u32>(m_device_properties.limits.timestampComputeAndGraphics),
-			queue_family_properties[m_graphics_queue_family_index].timestampValidBits,
-			m_device_properties.limits.timestampPeriod);
-
 		ProcessDeviceExtensions();
 
 		if (m_spinning_supported)
@@ -887,19 +878,6 @@ namespace Vulkan
 		}
 		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_global_descriptor_pool, "Global Descriptor Pool");
 
-		if (m_gpu_timing_supported)
-		{
-			const VkQueryPoolCreateInfo query_create_info = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO, nullptr,
-				0, VK_QUERY_TYPE_TIMESTAMP, NUM_COMMAND_BUFFERS * 4, 0};
-			res = vkCreateQueryPool(m_device, &query_create_info, nullptr, &m_timestamp_query_pool);
-			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateQueryPool failed: ");
-				m_gpu_timing_supported = false;
-				return false;
-			}
-		}
-
 		return true;
 	}
 
@@ -1003,19 +981,6 @@ namespace Vulkan
 		vkDeviceWaitIdle(m_device);
 	}
 
-	float Context::GetAndResetAccumulatedGPUTime()
-	{
-		const float time = m_accumulated_gpu_time;
-		m_accumulated_gpu_time = 0.0f;
-		return time;
-	}
-
-	bool Context::SetEnableGPUTiming(bool enabled)
-	{
-		m_gpu_timing_enabled = enabled && m_gpu_timing_supported;
-		return (enabled == m_gpu_timing_enabled);
-	}
-
 	void Context::ScanForCommandBufferCompletion()
 	{
 		for (u32 check_index = (m_current_frame + 1) % NUM_COMMAND_BUFFERS; check_index != m_current_frame; check_index = (check_index + 1) % NUM_COMMAND_BUFFERS)
@@ -1084,7 +1049,7 @@ namespace Vulkan
 			}
 		}
 
-		bool wants_timestamp = m_gpu_timing_enabled || m_spin_timer;
+		bool wants_timestamp = m_spin_timer;
 		if (wants_timestamp && resources.timestamp_written)
 		{
 			vkCmdWriteTimestamp(m_current_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, m_current_frame * 2 + 1);
@@ -1292,7 +1257,7 @@ namespace Vulkan
 			it();
 		resources.cleanup_resources.clear();
 
-		bool wants_timestamps = m_gpu_timing_enabled || resources.spin_id >= 0;
+		bool wants_timestamps = resources.spin_id >= 0;
 
 		if (wants_timestamps && resources.timestamp_written)
 		{
@@ -1301,12 +1266,6 @@ namespace Vulkan
 				sizeof(u64) * timestamps.size(), timestamps.data(), sizeof(u64), VK_QUERY_RESULT_64_BIT);
 			if (res == VK_SUCCESS)
 			{
-				// if we didn't write the timestamp at the start of the cmdbuffer (just enabled timing), the first TS will be zero
-				if (timestamps[0] > 0 && m_gpu_timing_enabled)
-				{
-					const double ns_diff = (timestamps[1] - timestamps[0]) * static_cast<double>(m_device_properties.limits.timestampPeriod);
-					m_accumulated_gpu_time += ns_diff / 1000000.0;
-				}
 				if (resources.spin_id >= 0)
 				{
 					if (m_optional_extensions.vk_ext_calibrated_timestamps && timestamps[1] > 0)
@@ -1364,7 +1323,7 @@ namespace Vulkan
 		if (res != VK_SUCCESS)
 			LOG_VULKAN_ERROR(res, "vkResetDescriptorPool failed: ");
 
-		bool wants_timestamp = m_gpu_timing_enabled || m_spin_timer;
+		bool wants_timestamp = m_spin_timer;
 		if (wants_timestamp)
 		{
 			vkCmdResetQueryPool(resources.command_buffers[1], m_timestamp_query_pool, index * 2, 2);

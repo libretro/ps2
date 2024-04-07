@@ -131,14 +131,7 @@ std::string GSDeviceNull::GetDriverInfo() const
 {
     return "";
 }
-bool GSDeviceNull::SetGPUTimingEnabled(bool enabled)
-{
-    return true;
-}
-float GSDeviceNull::GetAndResetAccumulatedGPUTime()
-{
-    return 0.0f;
-}
+
 void GSDeviceNull::ClearRenderTarget(GSTexture* t, const GSVector4& c)
 {
 

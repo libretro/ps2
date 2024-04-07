@@ -244,9 +244,6 @@ public:
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 
-	bool SetGPUTimingEnabled(bool enabled) override;
-	float GetAndResetAccumulatedGPUTime() override;
-
 	void ResetAPIState() override;
 	void RestoreAPIState() override;
 

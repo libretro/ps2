@@ -870,12 +870,6 @@ public:
 	/// Returns a string of information about the graphics driver being used.
 	virtual std::string GetDriverInfo() const = 0;
 
-	/// Enables/disables GPU frame timing.
-	virtual bool SetGPUTimingEnabled(bool enabled) = 0;
-
-	/// Returns the amount of GPU time utilized since the last time this method was called.
-	virtual float GetAndResetAccumulatedGPUTime() = 0;
-
 	virtual void ClearRenderTarget(GSTexture* t, const GSVector4& c) = 0;
 	virtual void ClearRenderTarget(GSTexture* t, u32 c) = 0;
 	virtual void InvalidateRenderTarget(GSTexture* t) = 0;

@@ -232,9 +232,6 @@ namespace Vulkan
 
 		void WaitForGPUIdle();
 
-		float GetAndResetAccumulatedGPUTime();
-		bool SetEnableGPUTiming(bool enabled);
-
 		void CountRenderPass() { m_command_buffer_render_passes++; }
 		void NotifyOfReadback();
 
@@ -368,9 +365,6 @@ namespace Vulkan
 		bool m_spin_buffer_initialized = false;
 
 		VkQueryPool m_timestamp_query_pool = VK_NULL_HANDLE;
-		float m_accumulated_gpu_time = 0.0f;
-		bool m_gpu_timing_enabled = false;
-		bool m_gpu_timing_supported = false;
 		bool m_wants_new_timestamp_calibration = false;
 		VkTimeDomainEXT m_calibrated_timestamp_type = VK_TIME_DOMAIN_DEVICE_EXT;
 

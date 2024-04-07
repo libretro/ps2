@@ -59,8 +59,6 @@ public:
 	void SetVSync(VsyncMode mode) override;
 
 	std::string GetDriverInfo() const override;
-	bool SetGPUTimingEnabled(bool enabled) override;
-	float GetAndResetAccumulatedGPUTime() override;
 
 	void ClearRenderTarget(GSTexture* t, const GSVector4& c) override;
 	void ClearRenderTarget(GSTexture* t, u32 c) override;

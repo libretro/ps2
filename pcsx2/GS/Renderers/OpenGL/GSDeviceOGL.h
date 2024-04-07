@@ -224,14 +224,6 @@ private:
 
 	GLuint m_palette_ss = 0;
 
-	std::array<GLuint, NUM_TIMESTAMP_QUERIES> m_timestamp_queries = {};
-	float m_accumulated_gpu_time = 0.0f;
-	u8 m_read_timestamp_query = 0;
-	u8 m_write_timestamp_query = 0;
-	u8 m_waiting_timestamp_queries = 0;
-	bool m_timestamp_query_started = false;
-	bool m_gpu_timing_enabled = false;
-
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
@@ -240,11 +232,6 @@ private:
 
 	void SetSwapInterval();
 	void DestroyResources();
-
-	void CreateTimestampQueries();
-	void DestroyTimestampQueries();
-	void PopTimestampQuery();
-	void KickTimestampQuery();
 
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 
@@ -298,9 +285,6 @@ public:
 
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
-
-	bool SetGPUTimingEnabled(bool enabled) override;
-	float GetAndResetAccumulatedGPUTime() override;
 
 	void ResetAPIState() override;
 	void RestoreAPIState() override;

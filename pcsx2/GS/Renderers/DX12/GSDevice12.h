@@ -255,9 +255,6 @@ public:
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 
-	bool SetGPUTimingEnabled(bool enabled) override;
-	float GetAndResetAccumulatedGPUTime() override;
-
 	void PushDebugGroup(const char* fmt, ...) override;
 	void PopDebugGroup() override;
 	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;

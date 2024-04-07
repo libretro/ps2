@@ -55,7 +55,7 @@ namespace D3D12
 			SAMPLER_GROUP_SIZE = 2,
 
 			/// Start/End timestamp queries.
-			NUM_TIMESTAMP_QUERIES_PER_CMDLIST = 2,
+			NUM_TIMESTAMP_QUERIES_PER_CMDLIST = 2
 		};
 
 		~Context();
@@ -149,9 +149,6 @@ namespace D3D12
 		void DeferDescriptorDestruction(DescriptorHeapManager& manager, u32 index);
 		void DeferDescriptorDestruction(DescriptorHeapManager& manager, DescriptorHandle* handle);
 
-		float GetAndResetAccumulatedGPUTime();
-		void SetEnableGPUTiming(bool enabled);
-
 		// Allocates a temporary CPU staging buffer, fires the callback with it to populate, then copies to a GPU buffer.
 		bool AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buffer, D3D12MA::Allocation** gpu_allocation,
 			const std::function<void(void*)>& fill_callback);
@@ -167,7 +164,6 @@ namespace D3D12
 			std::vector<std::pair<DescriptorHeapManager&, u32>> pending_descriptors;
 			u64 ready_fence_value = 0;
 			bool init_command_list_used = false;
-			bool has_timestamp_query = false;
 		};
 
 		Context();
@@ -179,7 +175,6 @@ namespace D3D12
 		bool CreateDescriptorHeaps();
 		bool CreateCommandLists();
 		bool CreateTextureStreamBuffer();
-		bool CreateTimestampQuery();
 		void MoveToNextCommandList();
 		void DestroyPendingResources(CommandListResources& cmdlist);
 		void DestroyResources();
@@ -197,13 +192,6 @@ namespace D3D12
 
 		std::array<CommandListResources, NUM_COMMAND_LISTS> m_command_lists;
 		u32 m_current_command_list = NUM_COMMAND_LISTS - 1;
-
-		ComPtr<ID3D12QueryHeap> m_timestamp_query_heap;
-		ComPtr<ID3D12Resource> m_timestamp_query_buffer;
-		ComPtr<D3D12MA::Allocation> m_timestamp_query_allocation;
-		double m_timestamp_frequency = 0.0;
-		float m_accumulated_gpu_time = 0.0f;
-		bool m_gpu_timing_enabled = false;
 
 		DescriptorHeapManager m_descriptor_heap_manager;
 		DescriptorHeapManager m_rtv_heap_manager;

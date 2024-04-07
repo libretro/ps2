@@ -454,16 +454,6 @@ void GSDeviceVK::EndPresent()
 	InvalidateCachedState();
 }
 
-bool GSDeviceVK::SetGPUTimingEnabled(bool enabled)
-{
-	return g_vulkan_context->SetEnableGPUTiming(enabled);
-}
-
-float GSDeviceVK::GetAndResetAccumulatedGPUTime()
-{
-	return g_vulkan_context->GetAndResetAccumulatedGPUTime();
-}
-
 void GSDeviceVK::ResetAPIState()
 {
 	EndRenderPass();

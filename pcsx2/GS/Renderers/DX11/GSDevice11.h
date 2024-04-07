@@ -124,11 +124,6 @@ private:
 	bool CreateSwapChainRTV();
 	void DestroySwapChain();
 
-	bool CreateTimestampQueries();
-	void DestroyTimestampQueries();
-	void PopTimestampQuery();
-	void KickTimestampQuery();
-
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
 	void DoFXAA(GSTexture* sTex, GSTexture* dTex) override;
@@ -178,14 +173,6 @@ private:
 		ID3D11RenderTargetView* rt_view;
 		ID3D11DepthStencilView* dsv;
 	} m_state;
-
-	std::array<std::array<wil::com_ptr_nothrow<ID3D11Query>, 3>, NUM_TIMESTAMP_QUERIES> m_timestamp_queries = {};
-	float m_accumulated_gpu_time = 0.0f;
-	u8 m_read_timestamp_query = 0;
-	u8 m_write_timestamp_query = 0;
-	u8 m_waiting_timestamp_queries = 0;
-	bool m_timestamp_query_started = false;
-	bool m_gpu_timing_enabled = false;
 
 	struct
 	{
@@ -295,9 +282,6 @@ public:
 
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
-
-	bool SetGPUTimingEnabled(bool enabled) override;
-	float GetAndResetAccumulatedGPUTime() override;
 
 	void DrawPrimitive();
 	void DrawIndexedPrimitive();

@@ -344,17 +344,6 @@ void GSDevice12::EndPresent()
 	InvalidateCachedState();
 }
 
-bool GSDevice12::SetGPUTimingEnabled(bool enabled)
-{
-	g_d3d12_context->SetEnableGPUTiming(enabled);
-	return true;
-}
-
-float GSDevice12::GetAndResetAccumulatedGPUTime()
-{
-	return g_d3d12_context->GetAndResetAccumulatedGPUTime();
-}
-
 void GSDevice12::PushDebugGroup(const char* fmt, ...)
 {
 }
