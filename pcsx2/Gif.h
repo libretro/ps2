@@ -17,9 +17,6 @@
 
 #include "common/StringUtil.h"
 
-#define COPY_GS_PACKET_TO_MTGS 0
-#define PRINT_GIF_PACKET 0
-
 enum GIF_PATH {
 	GIF_PATH_1 = 0,
 	GIF_PATH_2,
@@ -35,16 +32,6 @@ enum GIF_TRANSFER_TYPE {
 	GIF_TRANS_DIRECTHL = 0x401, // Path 2
 	GIF_TRANS_DMA      = 0x502, // Path 3
 	GIF_TRANS_FIFO     = 0x602  // Path 3
-};
-
-static const char Gif_TransferStr[7][32] = {
-	"Invalid Transfer Type",
-	"GIF_TRANS_XGKICK",
-	"GIF_TRANS_MTVU",
-	"GIF_TRANS_DIRECT",
-	"GIF_TRANS_DIRECTHL",
-	"GIF_TRANS_DMA",
-	"GIF_TRANS_FIFO"
 };
 
 enum GIF_PATH_STATE {
@@ -273,5 +260,4 @@ extern void GIFdma();
 extern void dmaGIF();
 extern void mfifoGIFtransfer();
 extern void gifMFIFOInterrupt();
-extern void clearFIFOstuff(bool full);
 extern void gifCheckPathStatus(bool calledFromGIF);

@@ -43,30 +43,19 @@ static __fi void GifDMAInt(int cycles)
 		CPU_INT(DMAC_GIF, cycles);
 	}
 }
-__fi void clearFIFOstuff(bool full)
-{
-	CSRreg.FIFO = full ? CSR_FIFO_FULL : CSR_FIFO_EMPTY;
-}
 
 //I suspect this is GS side which should really be handled by GS which also doesn't current have a fifo, but we can guess from our fifo
-static __fi void CalculateFIFOCSR()
+static __fi void CalculateFIFOCSR(void)
 {
 	if (gifRegs.stat.FQC >= 15)
-	{
 		CSRreg.FIFO = CSR_FIFO_FULL;
-	}
 	else if (gifRegs.stat.FQC == 0)
-	{
 		CSRreg.FIFO = CSR_FIFO_EMPTY;
-	}
 	else
-	{
 		CSRreg.FIFO = CSR_FIFO_NORMAL;
-	}
 }
 
-
-bool CheckPaths()
+static bool CheckPaths(void)
 {
 	// Can't do Path 3, so try dma again later...
 	if (!gifUnit.CanDoPath3())
@@ -150,7 +139,7 @@ int GIF_Fifo::read_fifo()
 	return sizeRead;
 }
 
-void incGifChAddr(u32 qwc)
+static void incGifChAddr(u32 qwc)
 {
 	if (gifch.chcr.STR)
 	{
@@ -206,7 +195,7 @@ __fi void gifCheckPathStatus(bool calledFromGIF)
 	}
 }
 
-__fi void gifInterrupt()
+__fi void gifInterrupt(void)
 {
 	gifCheckPathStatus(false);
 
@@ -330,7 +319,7 @@ static u32 WRITERING_DMA(u32* pMem, u32 qwc)
 	return size;
 }
 
-static __fi void GIFchain()
+static __fi void GIFchain(void)
 {
 	tDMA_TAG* pMem;
 
@@ -361,7 +350,7 @@ static __fi bool checkTieBit(tDMA_TAG*& ptag)
 	return false;
 }
 
-static __fi tDMA_TAG* ReadTag()
+static __fi tDMA_TAG* ReadTag(void)
 {
 	tDMA_TAG* ptag = dmaGetAddr(gifch.tadr, false); // Set memory pointer to TADR
 
@@ -375,21 +364,7 @@ static __fi tDMA_TAG* ReadTag()
 	return ptag;
 }
 
-#if 0
-// Not used
-static __fi tDMA_TAG* ReadTag2()
-{
-	tDMA_TAG* ptag = dmaGetAddr(gifch.tadr, false); // Set memory pointer to TADR
-
-	gifch.unsafeTransfer(ptag);
-	gifch.madr = ptag[1]._u32;
-
-	gif.gspath3done = hwDmacSrcChainWithStack(gifch, ptag->ID);
-	return ptag;
-}
-#endif
-
-void GIFdma()
+void GIFdma(void)
 {
 	while (gifch.qwc > 0 || !gif.gspath3done)
 	{
@@ -463,7 +438,7 @@ void GIFdma()
 	GifDMAInt(16);
 }
 
-void dmaGIF()
+void dmaGIF(void)
 {
 	gif.gspath3done = false; // For some reason this doesn't clear? So when the system starts the thread, we will clear it :)
 	CPU_SET_DMASTALL(DMAC_GIF, false);
@@ -475,9 +450,7 @@ void dmaGIF()
 	if (gifch.chcr.MOD == CHAIN_MODE && gifch.qwc > 0)
 	{
 		if ((gifch.chcr.tag().ID == TAG_REFE) || (gifch.chcr.tag().ID == TAG_END) || (gifch.chcr.tag().IRQ && gifch.chcr.TIE))
-		{
 			gif.gspath3done = true;
-		}
 	}
 
 	gifInterrupt();
@@ -506,7 +479,7 @@ static u32 QWCinGIFMFIFO(u32 DrainADDR)
 	return ret;
 }
 
-static __fi bool mfifoGIFrbTransfer()
+static __fi bool mfifoGIFrbTransfer(void)
 {
 	u32 qwc = std::min(QWCinGIFMFIFO(gifch.madr), gifch.qwc);
 
@@ -547,7 +520,7 @@ static __fi bool mfifoGIFrbTransfer()
 	return true;
 }
 
-static __fi void mfifoGIFchain()
+static __fi void mfifoGIFchain(void)
 {
 	// Is QWC = 0? if so there is nothing to transfer
 	if (gifch.qwc == 0)
@@ -600,7 +573,7 @@ static u32 qwctag(u32 mask)
 	return (dmacRegs.rbor.ADDR + (mask & dmacRegs.rbsr.RMSK));
 }
 
-void mfifoGifMaskMem(int id)
+static void mfifoGifMaskMem(int id)
 {
 	switch (id)
 	{
@@ -621,7 +594,7 @@ void mfifoGifMaskMem(int id)
 	}
 }
 
-void mfifoGIFtransfer()
+void mfifoGIFtransfer(void)
 {
 	tDMA_TAG* ptag;
 	gif.mfifocycles = 0;
@@ -656,10 +629,6 @@ void mfifoGIFtransfer()
 
 		gif.gspath3done = hwDmacSrcChainWithStack(gifch, ptag->ID);
 
-		if (dmacRegs.ctrl.STD == STD_GIF && (ptag->ID == TAG_REFS))
-		{
-			Console.WriteLn("GIF MFIFO DMA Stall not implemented - Report which game to PCSX2 Team");
-		}
 		mfifoGifMaskMem(ptag->ID);
 
 		gifch.tadr = qwctag(gifch.tadr);
@@ -673,7 +642,7 @@ void mfifoGIFtransfer()
 	GifDMAInt(std::max(gif.mfifocycles, (u32)4));
 }
 
-void gifMFIFOInterrupt()
+void gifMFIFOInterrupt(void)
 {
 	gif.mfifocycles = 0;
 
