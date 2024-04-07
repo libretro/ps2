@@ -522,10 +522,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(SaveN) &&
 		OpEqu(SaveL) &&
 
-		OpEqu(ScreenshotSize) &&
-		OpEqu(ScreenshotFormat) &&
-		OpEqu(ScreenshotQuality) &&
-
 		OpEqu(CaptureContainer) &&
 		OpEqu(VideoCaptureCodec) &&
 		OpEqu(VideoCaptureParameters) &&
@@ -575,9 +571,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(SyncToHostRefreshRate);
 	SettingsWrapEnumEx(AspectRatio, "AspectRatio", AspectRatioNames);
 	SettingsWrapEnumEx(FMVAspectRatioSwitch, "FMVAspectRatioSwitch", FMVAspectRatioSwitchNames);
-	SettingsWrapIntEnumEx(ScreenshotSize, "ScreenshotSize");
-	SettingsWrapIntEnumEx(ScreenshotFormat, "ScreenshotFormat");
-	SettingsWrapEntry(ScreenshotQuality);
 	SettingsWrapEntry(StretchY);
 	SettingsWrapEntryEx(Crop[0], "CropLeft");
 	SettingsWrapEntryEx(Crop[1], "CropTop");
