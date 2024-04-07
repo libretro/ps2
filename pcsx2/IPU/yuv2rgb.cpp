@@ -64,7 +64,7 @@ void yuv2rgb_reference(void)
 // An AVX2 version is only slightly faster than an SSE2 version (+2-3fps)
 // (or I'm a poor optimiser), though it might be worth attempting again
 // once we've ported to 64 bits (the extra registers should help).
-__ri void yuv2rgb_sse2()
+__ri void yuv2rgb_sse2(void)
 {
 	const __m128i c_bias = _mm_set1_epi8(s8(IPU_C_BIAS));
 	const __m128i y_bias = _mm_set1_epi8(IPU_Y_BIAS);

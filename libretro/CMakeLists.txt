@@ -9,7 +9,6 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/SPU2.cpp
    ${CMAKE_SOURCE_DIR}/libretro/DEV9.cpp
    ${CMAKE_SOURCE_DIR}/libretro/USB.cpp
-   ${CMAKE_SOURCE_DIR}/libretro/InputRecording.cpp
 
    ${CMAKE_SOURCE_DIR}/common/GL/ContextRetroGL.cpp
 )

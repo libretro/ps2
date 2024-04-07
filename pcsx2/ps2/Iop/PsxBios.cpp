@@ -40,17 +40,14 @@ static void flush_stdout(bool closing = false)
                 psxout_repeat++;
             else {
                 if (psxout_repeat) {
-                    iopConLog(fmt::format("[{} more]\n", psxout_repeat));
                     psxout_repeat = 0;
                 }
                 psxout_last = psxout_buf.substr(0, linelen);
-                iopConLog(ShiftJIS_ConvertString(psxout_last.data()));
             }
         }
         psxout_buf.erase(0, linelen);
     }
     if (closing && psxout_repeat) {
-        iopConLog(fmt::format("[{} more]\n", psxout_repeat));
         psxout_repeat = 0;
     }
 }

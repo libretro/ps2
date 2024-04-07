@@ -23,20 +23,6 @@ struct ConvertVSIn
 	vector_float2 texcoord0 [[attribute(1)]];
 };
 
-struct ImGuiVSIn
-{
-	vector_float2 position  [[attribute(0)]];
-	vector_float2 texcoord0 [[attribute(1)]];
-	vector_half4  color     [[attribute(2)]];
-};
-
-struct ImGuiShaderData
-{
-	float4 p [[position]];
-	float2 t;
-	half4  c;
-};
-
 template <typename Format>
 struct DirectReadTextureIn
 {
@@ -60,15 +46,6 @@ vertex ConvertShaderData vs_convert(ConvertVSIn in [[stage_in]])
 	ConvertShaderData out;
 	out.p = float4(in.position, 0, 1);
 	out.t = in.texcoord0;
-	return out;
-}
-
-vertex ImGuiShaderData vs_imgui(ImGuiVSIn in [[stage_in]], constant float4& cb [[buffer(GSMTLBufferIndexUniforms)]])
-{
-	ImGuiShaderData out;
-	out.p = float4(in.position * cb.xy + cb.zw, 0, 1);
-	out.t = in.texcoord0;
-	out.c = in.color;
 	return out;
 }
 
@@ -354,12 +331,6 @@ fragment float4 ps_yuv(ConvertShaderData data [[stage_in]], ConvertPSRes res,
 	}
 
 	return o;
-}
-
-fragment half4 ps_imgui(ImGuiShaderData data [[stage_in]], texture2d<half> texture [[texture(GSMTLTextureIndexNonHW)]])
-{
-	constexpr sampler s(coord::normalized, filter::linear, address::clamp_to_edge);
-	return data.c * texture.sample(s, data.t);
 }
 
 fragment float4 ps_shadeboost(float4 p [[position]], DirectReadTextureIn<float> tex, constant float3& cb [[buffer(GSMTLBufferIndexUniforms)]])

@@ -57,24 +57,4 @@ add_subdirectory(common)
 
 # make pcsx2
 add_subdirectory(pcsx2)
-
-if (QT_BUILD)
-	add_subdirectory(pcsx2-qt)
-
-	# Updater is Windows only for now.
-	if (WIN32)
-		add_subdirectory(updater)
-	endif()
-endif()
-
-if(LIBRETRO)
-   add_subdirectory(libretro)
-endif()
-
-# tests
-if(ACTUALLY_ENABLE_TESTS)
-	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-	add_subdirectory(3rdparty/gtest EXCLUDE_FROM_ALL)
-	add_subdirectory(tests/ctest)
-endif()
-
+add_subdirectory(libretro)

@@ -264,118 +264,6 @@ struct eeProfiler
 		return (double)part / (double)total * 100.0;
 	}
 
-	void Print()
-	{
-		// Compute opcode stat
-		u64 total = 0;
-		std::vector<std::pair<u32, u32>> v;
-		std::vector<std::pair<u32, u32>> vc;
-		for (int i = 0; i < static_cast<int>(eeOpcode::LAST); i++)
-		{
-			total += opStats[i];
-			v.push_back(std::make_pair(opStats[i], i));
-		}
-		std::sort(v.begin(), v.end());
-		std::reverse(v.begin(), v.end());
-
-		DevCon.WriteLn("EE Profiler:");
-		for (u32 i = 0; i < v.size(); i++)
-		{
-			u64 count = v[i].first;
-			double stat = (double)count / (double)total * 100.0;
-			DevCon.WriteLn("%-8s - [%3.4f%%][count=%u]",
-				eeOpcodeName[v[i].second], stat, (u32)count);
-			if (stat < 0.01)
-				break;
-		}
-		//DevCon.WriteLn("Total = 0x%x_%x", (u32)(u64)(total>>32),(u32)total);
-
-		// Compute memory stat
-		total = 0;
-		u64 reg = 0;
-		u64 gs  = 0;
-		u64 vu  = 0;
-		// FIXME: MAYBE count the scratch pad
-		for (size_t i = 0; i < memSpace; i++)
-			total += memStats[i];
-
-		int ou = 32 * _1kb; // user segment (0x10000000)
-		int ok = 352 * _1kb; // kernel segment (0xB0000000)
-		for (int i = 0; i < 4 * _1kb; i++) reg += memStats[ou + 0 * _1kb + i] + memStats[ok + 0 * _1kb + i];
-		for (int i = 0; i < 4 * _1kb; i++) gs  += memStats[ou + 4 * _1kb + i] + memStats[ok + 4 * _1kb + i];
-		for (int i = 0; i < 4 * _1kb; i++) vu  += memStats[ou + 8 * _1kb + i] + memStats[ok + 8 * _1kb + i];
-
-
-		u64 ram = total - reg - gs - vu;
-		double ram_p = per(ram, total);
-		double reg_p = per(reg, total);
-		double gs_p  = per(gs, total);
-		double vu_p  = per(vu, total);
-
-		// Compute const memory stat
-		u64 total_const = 0;
-		u64 reg_const = 0;
-		for (size_t i = 0; i < memSpace; i++)
-			total_const += memStatsConst[i];
-
-		for (int i = 0; i < 4 * _1kb; i++)
-			reg_const += memStatsConst[ou + i] + memStatsConst[ok + i];
-		u64 ram_const = total_const - reg_const; // value is slightly wrong but good enough
-
-		double ram_const_p = per(ram_const, ram);
-		double reg_const_p = per(reg_const, reg);
-
-		DevCon.WriteLn("\nEE Memory Profiler:");
-		DevCon.WriteLn("Total = 0x%08x_%08x", (u32)(u64)(total >> 32), (u32)total);
-		DevCon.WriteLn("  RAM = 0x%08x_%08x [%3.4f%%] Const[%3.4f%%]", (u32)(u64)(ram >> 32), (u32)ram, ram_p, ram_const_p);
-		DevCon.WriteLn("  REG = 0x%08x_%08x [%3.4f%%] Const[%3.4f%%]", (u32)(u64)(reg >> 32), (u32)reg, reg_p, reg_const_p);
-		DevCon.WriteLn("  GS  = 0x%08x_%08x [%3.4f%%]", (u32)(u64)(gs >> 32), (u32)gs, gs_p);
-		DevCon.WriteLn("  VU  = 0x%08x_%08x [%3.4f%%]", (u32)(u64)(vu >> 32), (u32)vu, vu_p);
-
-		u64 total_ram = memStatsSlow + memStatsFast;
-		DevCon.WriteLn("\n  RAM Fast [%3.4f%%] RAM Slow [%3.4f%%]. Total 0x%08x_%08x [%3.4f%%]",
-			per(memStatsFast, total_ram), per(memStatsSlow, total_ram), (u32)(u64)(total_ram >> 32), (u32)total_ram, per(total_ram, total));
-
-		v.clear();
-		vc.clear();
-		for (int i = 0; i < 4 * _1kb; i++)
-		{
-			u32 reg_c = memStatsConst[ou + i] + memStatsConst[ok + i];
-			u32 reg   = memStats[ok + i] + memStats[ou + i] - reg_c;
-			if (reg)
-				v.push_back(std::make_pair(reg, i * 16));
-			if (reg_c)
-				vc.push_back(std::make_pair(reg_c, i * 16));
-		}
-		std::sort(v.begin(), v.end());
-		std::reverse(v.begin(), v.end());
-
-		std::sort(vc.begin(), vc.end());
-		std::reverse(vc.begin(), vc.end());
-
-		DevCon.WriteLn("\nEE Reg Profiler:");
-		for (u32 i = 0; i < v.size(); i++)
-		{
-			u64    count = v[i].first;
-			double stat  = (double)count / (double)(reg - reg_const) * 100.0;
-			DevCon.WriteLn("%04x - [%3.4f%%][count=%u]",
-				v[i].second, stat, (u32)count);
-			if (stat < 0.01)
-				break;
-		}
-
-		DevCon.WriteLn("\nEE Const Reg Profiler:");
-		for (u32 i = 0; i < vc.size(); i++)
-		{
-			u64    count = vc[i].first;
-			double stat  = (double)count / (double)reg_const * 100.0;
-			DevCon.WriteLn("%04x - [%3.4f%%][count=%u]",
-				vc[i].second, stat, (u32)count);
-			if (stat < 0.01)
-				break;
-		}
-	}
-
 	// Warning dirty ebx
 	void EmitMem()
 	{
@@ -414,7 +302,6 @@ struct eeProfiler
 {
 	__fi void Reset() {}
 	__fi void EmitOp(eeOpcode op) {}
-	__fi void Print() {}
 	__fi void EmitMem() {}
 	__fi void EmitConstMem(u32 add) {}
 	__fi void EmitSlowMem() {}

@@ -19,7 +19,6 @@
 #include "Hardware.h"
 #include "IopHw.h"
 #include "ps2/HwInternal.h"
-#include "ps2/eeHwTraceLog.inl"
 
 #include "ps2/pgif.h"
 
@@ -105,9 +104,6 @@ mem32_t _hwRead32(u32 mem)
 					ret = psxHu32(0x1f801814);
 					break;
 				case 0x80:
-#if PSX_EXTRALOGS
-					DevCon.Warning("FIFO Size %x", sif2fifosize);
-#endif
 					ret = psHu32(mem) | (sif2fifosize << 16);
 					if (sif2.fifo.size > 0) ret |= 0x80000000;
 					break;
@@ -125,17 +121,10 @@ mem32_t _hwRead32(u32 mem)
 					else ret = 0;
 					break;
 				}
-#if PSX_EXTRALOGS
-				DevCon.Warning("SBUS read %x value sending %x", mem, ret);
-#endif
 				return ret;
 
 
 			}
-			/*if ((mem & 0x1000ff00) == 0x1000f200)
-			{
-				if((mem & 0xffff) != 0xf230)DevCon.Warning("SBUS read %x value sending %x", mem, psHu32(mem));
-			}*/
 			switch( mem )
 			{
 				case SIO_ISR:
@@ -145,14 +134,8 @@ mem32_t _hwRead32(u32 mem)
 					return 0;
 
 				case SBUS_F240:
-#if PSX_EXTRALOGS
-					DevCon.Warning("Read  SBUS_F240  %x ", psHu32(SBUS_F240));
-#endif
 					return psHu32(SBUS_F240) | 0xF0000102;
 				case SBUS_F260:
-#if PSX_EXTRALOGS
-					DevCon.Warning("Read  SBUS_F260  %x ", psHu32(SBUS_F260));
-#endif
 					return psHu32(SBUS_F260);
 				case MCH_DRD:
 					if( !((psHu32(MCH_RICM) >> 6) & 0xF) )
@@ -206,16 +189,12 @@ mem32_t _hwRead32(u32 mem)
 template< uint page >
 mem32_t hwRead32(u32 mem)
 {
-	mem32_t retval = _hwRead32<page,false>(mem);
-	eeHwTraceLog( mem, retval, true );
-	return retval;
+	return _hwRead32<page,false>(mem);
 }
 
 mem32_t hwRead32_page_0F_INTC_HACK(u32 mem)
 {
-	mem32_t retval = _hwRead32<0x0f,true>(mem);
-	eeHwTraceLog( mem, retval, true );
-	return retval;
+	return _hwRead32<0x0f,true>(mem);
 }
 
 // --------------------------------------------------------------------------------------
@@ -232,9 +211,7 @@ mem8_t _hwRead8(u32 mem)
 template< uint page >
 mem8_t hwRead8(u32 mem)
 {
-	mem8_t ret8 = _hwRead8<page>(mem);
-	eeHwTraceLog( mem, ret8, true );
-	return ret8;
+	return _hwRead8<page>(mem);
 }
 
 template< uint page >
@@ -249,9 +226,7 @@ mem16_t _hwRead16(u32 mem)
 template< uint page >
 mem16_t hwRead16(u32 mem)
 {
-	u16 ret16 = _hwRead16<page>(mem);
-	eeHwTraceLog( mem, ret16, true );
-	return ret16;
+	return _hwRead16<page>(mem);
 }
 
 mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
@@ -259,10 +234,7 @@ mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
 	pxAssume( (mem & 0x01) == 0 );
 
 	u32 ret32 = _hwRead32<0x0f, true>(mem & ~0x03);
-	u16 ret16 = ((u16*)&ret32)[(mem>>1) & 0x01];
-
-	eeHwTraceLog( mem, ret16, true );
-	return ret16;
+	return ((u16*)&ret32)[(mem>>1) & 0x01];
 }
 
 template< uint page >
@@ -294,7 +266,6 @@ static u64 _hwRead64(u32 mem)
 		case 0x0F:
 			if ((mem & 0xffffff00) == 0x1000f300)
 			{
-				DevCon.Warning("64bit read from %x wibble", mem);
 				if (mem == 0x1000f3E0)
 				{
 
@@ -314,9 +285,7 @@ static u64 _hwRead64(u32 mem)
 template< uint page >
 mem64_t hwRead64(u32 mem)
 {
-	u64 res = _hwRead64<page>(mem);
-	eeHwTraceLog(mem, res, true);
-	return res;
+	return _hwRead64<page>(mem);
 }
 
 template< uint page >
@@ -361,7 +330,6 @@ RETURNS_R128 _hwRead128(u32 mem)
 			// It requires investigation of what to do.
 			if ((mem & 0xffffff00) == 0x1000f300)
 			{
-				DevCon.Warning("128bit read from %x wibble", mem);
 				if (mem == 0x1000f3E0)
 				{
 
@@ -387,9 +355,7 @@ RETURNS_R128 _hwRead128(u32 mem)
 template< uint page >
 RETURNS_R128 hwRead128(u32 mem)
 {
-	r128 res = _hwRead128<page>(mem);
-	eeHwTraceLog(mem, res, true);
-	return res;
+	return _hwRead128<page>(mem);
 }
 
 #define InstantizeHwRead(pageidx) \

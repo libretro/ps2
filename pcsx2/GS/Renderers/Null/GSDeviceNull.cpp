@@ -16,11 +16,8 @@
 #include "GS/Renderers/Null/GSDeviceNull.h"
 #include "GS.h"
 
-#ifdef __LIBRETRO__
 #include <libretro.h>
 extern retro_video_refresh_t video_cb;
-#endif
-
 
 GSTextureNull::GSTextureNull(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {

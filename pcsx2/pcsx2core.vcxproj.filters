@@ -276,9 +276,6 @@
     <None Include="Docs\License.txt">
       <Filter>Docs</Filter>
     </None>
-    <None Include="ps2\eeHwTraceLog.inl">
-      <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
-    </None>
     <None Include="x86\microVU_Alloc.inl">
       <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
     </None>
@@ -814,9 +811,6 @@
     </ClCompile>
     <ClCompile Include="CDVD\Linux\DriveUtility.cpp">
       <Filter>System\Ps2\Iop\CDVD\Linux</Filter>
-    </ClCompile>
-    <ClCompile Include="PINE.cpp">
-      <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="FW.cpp">
       <Filter>System\Ps2\Iop\FW</Filter>
@@ -1692,9 +1686,6 @@
     </ClInclude>
     <ClInclude Include="CDVD\CDVDdiscReader.h">
       <Filter>System\Ps2\Iop\CDVD</Filter>
-    </ClInclude>
-    <ClInclude Include="PINE.h">
-      <Filter>System\Include</Filter>
     </ClInclude>
     <ClInclude Include="FW.h">
       <Filter>System\Ps2\Iop\FW</Filter>

@@ -71,18 +71,15 @@ IsoDirectory::IsoDirectory(SectorSource& r)
 			switch (sector[0])
 			{
 				case 0:
-					DevCon.WriteLn(Color_Green, "(IsoFS) Block 0x%x: Boot partition info.", i);
 					break;
 
 				case 1:
-					DevCon.WriteLn("(IsoFS) Block 0x%x: Primary partition info.", i);
 					rootDirEntry.Load(sector + 156, 38);
 					isValid = true;
 					break;
 
 				case 2:
 					// Probably means Joliet (long filenames support), which PCSX2 doesn't care about.
-					DevCon.WriteLn(Color_Green, "(IsoFS) Block 0x%x: Extended partition info.", i);
 					m_fstype = FStype_Joliet;
 					break;
 
@@ -110,7 +107,6 @@ IsoDirectory::IsoDirectory(SectorSource& r)
 		throw Exception::FileNotFound("IsoFileSystem") // FIXME: Should report the name of the ISO here...
 			.SetDiagMsg("IsoFS could not find the root directory on the ISO image.");
 
-	DevCon.WriteLn("(IsoFS) Filesystem is %s", FStype_ToString().c_str());
 	Init(rootDirEntry);
 }
 

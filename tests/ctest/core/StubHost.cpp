@@ -22,10 +22,6 @@
 #include "pcsx2/HostSettings.h"
 #include "pcsx2/VMManager.h"
 
-#ifdef ENABLE_ACHIEVEMENTS
-#include "pcsx2/Frontend/Achievements.h"
-#endif
-
 void Host::CommitBaseSettingChanges()
 {
 }
@@ -57,11 +53,6 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	return std::nullopt;
 }
 
-std::optional<std::time_t> Host::GetResourceFileTimestamp(const char* filename)
-{
-	return std::nullopt;
-}
-
 void Host::ReportErrorAsync(const std::string_view& title, const std::string_view& message)
 {
 }
@@ -71,26 +62,12 @@ bool Host::ConfirmMessage(const std::string_view& title, const std::string_view&
 	return true;
 }
 
-void Host::OpenURL(const std::string_view& url)
-{
-}
-
-bool Host::CopyTextToClipboard(const std::string_view& text)
-{
-	return false;
-}
-
 void Host::BeginTextInput()
 {
 }
 
 void Host::EndTextInput()
 {
-}
-
-std::optional<WindowInfo> Host::GetTopLevelWindowInfo()
-{
-	return std::nullopt;
 }
 
 void Host::OnInputDeviceConnected(const std::string_view& identifier, const std::string_view& device_name)
@@ -147,40 +124,7 @@ void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_ov
 {
 }
 
-void Host::OnPerformanceMetricsUpdated()
-{
-}
-
-void Host::OnSaveStateLoading(const std::string_view& filename)
-{
-}
-
-void Host::OnSaveStateLoaded(const std::string_view& filename, bool was_successful)
-{
-}
-
-void Host::OnSaveStateSaved(const std::string_view& filename)
-{
-}
-
 void Host::RunOnCPUThread(std::function<void()> function, bool block /* = false */)
-{
-}
-
-void Host::RefreshGameListAsync(bool invalidate_cache)
-{
-}
-
-void Host::CancelGameListRefresh()
-{
-}
-
-bool Host::IsFullscreen()
-{
-	return false;
-}
-
-void Host::SetFullscreen(bool enabled)
 {
 }
 
@@ -195,12 +139,6 @@ void Host::RequestVMShutdown(bool allow_confirm, bool allow_save_state, bool def
 void Host::CPUThreadVSync()
 {
 }
-
-#ifdef ENABLE_ACHIEVEMENTS
-void Host::OnAchievementsRefreshed()
-{
-}
-#endif
 
 std::optional<u32> InputManager::ConvertHostKeyboardStringToCode(const std::string_view& str)
 {

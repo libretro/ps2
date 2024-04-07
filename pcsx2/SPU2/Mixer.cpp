@@ -61,8 +61,6 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& pr
 	const s32 header = *block;
 	const s32 shift = (header & 0xF) + 16;
 	const int id = header >> 4 & 0xF;
-	if (id > 4 && SPU2::MsgToConsole())
-		SPU2::ConLog("* SPU2: Unknown ADPCM coefficients table id %d\n", id);
 	const s32 pred1 = tbl_XA_Factor[id][0];
 	const s32 pred2 = tbl_XA_Factor[id][1];
 
@@ -98,12 +96,7 @@ static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
 	for (int i = 0; i < 2; i++)
 	{
 		if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
-		{
-			//if( IsDevBuild )
-			//	ConLog(" * SPU2 Core %d: IRQ Requested (IRQA (%05X) passed; voice %d).\n", i, Cores[i].IRQA, thiscore.Index * 24 + voiceidx);
-
 			SetIrqCall(i);
-		}
 	}
 
 	vc.NextA++;
@@ -141,14 +134,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				if (vc.LoopCycle < vc.PlayCycle)
 				{
 					vc.LoopStartA = vc.PendingLoopStartA;
-					if (SPU2::MsgToConsole())
-						SPU2::ConLog("Core %d Voice %d Loop Written by HW within 4T of Key On, Now Applying\n", thiscore.Index, voiceidx);
 					vc.LoopMode = 1;
-				}
-				else
-				{
-					if (SPU2::MsgToConsole())
-						SPU2::ConLog("Loop point from waveform set within 4T's, ignoring HW write\n");
 				}
 
 				vc.PendingLoopStart = false;
@@ -163,15 +149,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				thiscore.Regs.ENDX |= (1 << voiceidx);
 				vc.NextA = vc.LoopStartA | 1;
 				if (!(vc.LoopFlags & XAFLAG_LOOP))
-				{
 					vc.Stop();
-
-					if (IsDevBuild)
-					{
-						if (SPU2::MsgVoiceOff())
-							SPU2::ConLog("* SPU2: Voice Off by EndPoint: %d \n", voiceidx);
-					}
-				}
 			}
 			else
 				vc.NextA++; // no, don't IncrementNextA here.  We haven't read the header yet.
@@ -208,11 +186,6 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 
 			vc.Prev1 = vc.SBuffer[27];
 			vc.Prev2 = vc.SBuffer[26];
-
-			//ConLog( "* SPU2: Cache Hit! NextA=0x%x, cacheIdx=0x%x\n", vc.NextA, cacheIdx );
-
-			if (IsDevBuild)
-				g_counter_cache_hits++;
 		}
 		else
 		{
@@ -222,14 +195,6 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				cacheLine.Validated = true;
 				cacheLine.Prev1 = vc.Prev1;
 				cacheLine.Prev2 = vc.Prev2;
-			}
-
-			if (IsDevBuild)
-			{
-				if (vc.NextA < SPU2_DYN_MEMLINE)
-					g_counter_cache_ignores++;
-				else
-					g_counter_cache_misses++;
 			}
 
 			XA_decode_block(vc.SBuffer, memptr, vc.Prev1, vc.Prev2);
@@ -330,14 +295,7 @@ static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
 	}
 
 	if (!vc.ADSR.Calculate())
-	{
-		if (IsDevBuild)
-		{
-			if (SPU2::MsgVoiceOff())
-				SPU2::ConLog("* SPU2: Voice Off by ADSR: %d \n", voiceidx);
-		}
 		vc.Stop();
-	}
 
 	pxAssume(vc.ADSR.Value >= 0); // ADSR should never be negative...
 }
@@ -480,12 +438,8 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 		// use a full 64-bit multiply/result here.
 
 		CalculateADSR(thiscore, voiceidx);
-		Value = ApplyVolume(Value, vc.ADSR.Value);
-		vc.OutX = Value;
-
-		if (IsDevBuild)
-			DebugCores[coreidx].Voices[voiceidx].displayPeak = std::max(DebugCores[coreidx].Voices[voiceidx].displayPeak, (s32)vc.OutX);
-
+		Value    = ApplyVolume(Value, vc.ADSR.Value);
+		vc.OutX  = Value;
 		voiceOut = ApplyVolume(StereoOut32(Value, Value), vc.Volume);
 	}
 	else
@@ -536,13 +490,6 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	spu2M_WriteFast(((0 == Index) ? 0x1200 : 0x1A00) + OutPos, Voices.Dry.Right);
 	spu2M_WriteFast(((0 == Index) ? 0x1400 : 0x1C00) + OutPos, Voices.Wet.Left);
 	spu2M_WriteFast(((0 == Index) ? 0x1600 : 0x1E00) + OutPos, Voices.Wet.Right);
-
-	// Write mixed results to logfile (if enabled)
-
-#ifdef PCSX2_DEVBUILD
-	WaveDump::WriteCore(Index, CoreSrc_DryVoiceMix, Voices.Dry);
-	WaveDump::WriteCore(Index, CoreSrc_WetVoiceMix, Voices.Wet);
-#endif
 
 	// Mix in the Input data
 
@@ -596,15 +543,7 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	TW.Left += Ext.Left & WetGate.ExtL;
 	TW.Right += Ext.Right & WetGate.ExtR;
 
-#ifdef PCSX2_DEVBUILD
-	WaveDump::WriteCore(Index, CoreSrc_PreReverb, TW);
-#endif
-
 	StereoOut32 RV = DoReverb(TW);
-
-#ifdef PCSX2_DEVBUILD
-	WaveDump::WriteCore(Index, CoreSrc_PostReverb, RV);
-#endif
 
 	// Mix Dry + Wet
 	// (master volume is applied later to the result of both outputs added together).
@@ -634,11 +573,6 @@ __forceinline
 			// CDDA is on Core 1:
 			(PlayMode & 8) ? StereoOut32(0, 0) : ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol)};
 
-#ifdef PCSX2_DEVBUILD
-	WaveDump::WriteCore(0, CoreSrc_Input, InputData[0]);
-	WaveDump::WriteCore(1, CoreSrc_Input, InputData[1]);
-#endif
-
 	// Todo: Replace me with memzero initializer!
 	VoiceMixSet VoiceData[2] = {VoiceMixSet::Empty, VoiceMixSet::Empty}; // mixed voice data for each core.
 	MixCoreVoices(VoiceData[0], 0);
@@ -657,10 +591,6 @@ __forceinline
 	spu2M_WriteFast(0x800 + OutPos, Ext.Left);
 	spu2M_WriteFast(0xA00 + OutPos, Ext.Right);
 
-#ifdef PCSX2_DEVBUILD
-	WaveDump::WriteCore(0, CoreSrc_External, Ext);
-#endif
-
 	Ext = ApplyVolume(Ext, Cores[1].ExtVol);
 	StereoOut32 Out(Cores[1].Mix(VoiceData[1], InputData[1], Ext));
 
@@ -670,7 +600,6 @@ __forceinline
 		// The CDDA overrides all other mixer output.  It's a direct feed!
 
 		Out = Cores[1].ReadInput_HiFi();
-		//WaveLog::WriteCore( 1, "CDDA-32", OutL, OutR );
 	}
 	else
 	{
@@ -694,24 +623,4 @@ __forceinline
 	OutPos++;
 	if (OutPos >= 0x200)
 		OutPos = 0;
-
-	if (IsDevBuild)
-	{
-		p_cachestat_counter++;
-		if (p_cachestat_counter > (48000 * 10))
-		{
-			p_cachestat_counter = 0;
-			if (SPU2::MsgCache())
-			{
-				SPU2::ConLog(" * SPU2 > CacheStats > Hits: %d  Misses: %d  Ignores: %d\n",
-					   g_counter_cache_hits,
-					   g_counter_cache_misses,
-					   g_counter_cache_ignores);
-			}
-
-			g_counter_cache_hits =
-				g_counter_cache_misses =
-					g_counter_cache_ignores = 0;
-		}
-	}
 }

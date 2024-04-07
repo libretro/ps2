@@ -102,10 +102,6 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 				}
 				return true;
 			});
-#ifdef PCSX2_DEVBUILD
-			if (m_cfc2_pc != apc)
-				DevCon.WriteLn("CTC2 at %08X paired with CFC2 %08X", apc, m_cfc2_pc);
-#endif
 		}
 
 		// CFC2/CTC2

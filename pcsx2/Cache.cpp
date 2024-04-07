@@ -116,7 +116,6 @@ namespace
 
 			uptr target = addr();
 
-			CACHE_LOG("Write back at %zx", target);
 			*reinterpret_cast<CacheData*>(target) = data;
 			tag.clearDirty();
 		}
@@ -190,15 +189,7 @@ static int getFreeCache(u32 mem, int* way)
 	pxAssertMsg(!vmv.isHandler(mem), "Cache currently only supports non-handler addresses!");
 	uptr ppf = vmv.assumePtr(mem);
 
-	if((cpuRegs.CP0.n.Config & 0x10000) == 0)
-		CACHE_LOG("Cache off!");
-
-	if (findInCache(set, ppf, way))
-	{
-		if (set.tags[*way].isLocked())
-			CACHE_LOG("Index %x Way %x Locked!!", setIdx, *way);
-	}
-	else
+	if (!findInCache(set, ppf, way))
 	{
 		int newWay = set.tags[0].lrf() ^ set.tags[1].lrf();
 		*way = newWay;
@@ -229,8 +220,6 @@ void writeCache(u32 mem, Int value)
 {
 	int way, idx;
 	void* addr = prepareCacheAccess<true, sizeof(Int)>(mem, &way, &idx);
-
-	CACHE_LOG("writeCache%d %8.8x adding to %d, way %d, value %llx", 8 * sizeof(value), mem, idx, way, value);
 	*reinterpret_cast<Int*>(addr) = value;
 }
 
@@ -258,8 +247,6 @@ void writeCache128(u32 mem, const mem128_t* value)
 {
 	int way, idx;
 	void* addr = prepareCacheAccess<true, sizeof(mem128_t)>(mem, &way, &idx);
-
-	CACHE_LOG("writeCache128 %8.8x adding to %d, way %x, lo %llx, hi %llx", mem, idx, way, value->lo, value->hi);
 	*reinterpret_cast<mem128_t*>(addr) = *value;
 }
 
@@ -268,9 +255,7 @@ Int readCache(u32 mem)
 {
 	int way, idx;
 	void* addr = prepareCacheAccess<false, sizeof(Int)>(mem, &way, &idx);
-
 	Int value = *reinterpret_cast<Int*>(addr);
-	CACHE_LOG("readCache%d %8.8x from %d, way %d, value %llx", 8 * sizeof(value), mem, idx, way, value);
 	return value;
 }
 
@@ -301,7 +286,6 @@ RETURNS_R128 readCache128(u32 mem)
 	void* addr = prepareCacheAccess<false, sizeof(mem128_t)>(mem, &way, &idx);
 	r128 value = r128_load(addr);
 	u64* vptr = reinterpret_cast<u64*>(&value);
-	CACHE_LOG("readCache128 %8.8x from %d, way %d, lo %llx, hi %llx", mem, idx, way, vptr[0], vptr[1]);
 	return value;
 }
 
@@ -315,12 +299,7 @@ void doCacheHitOp(u32 addr, const char* name, Op op)
 	int way;
 
 	if (!findInCache(set, ppf, &way))
-	{
-		CACHE_LOG("CACHE %s NO HIT addr %x, index %d, tag0 %zx tag1 %zx", name, addr, index, set.tags[0].rawValue, set.tags[1].rawValue);
 		return;
-	}
-
-	CACHE_LOG("CACHE %s addr %x, index %d, way %d, flags %x OP %x", name, addr, index, way, set.tags[way].flags(), cpuRegs.code);
 
 	op(cache.lineAt(index, way));
 }
@@ -335,7 +314,6 @@ extern int Dcache;
 void CACHE()
 {
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	// CACHE_LOG("cpuRegs.GPR.r[_Rs_].UL[0] = %x, IMM = %x RT = %x", cpuRegs.GPR.r[_Rs_].UL[0], _Imm_, _Rt_);
 
 	switch (_Rt_)
 	{
@@ -367,8 +345,6 @@ void CACHE()
 			const int way = addr & 0x1;
 			CacheLine line = cache.lineAt(index, way);
 
-			CACHE_LOG("CACHE DXIN addr %x, index %d, way %d, flag %x", addr, index, way, line.tag.flags());
-
 			line.clear();
 			break;
 		}
@@ -381,7 +357,6 @@ void CACHE()
 
 			cpuRegs.CP0.n.TagLo = *reinterpret_cast<u32*>(&line.data.bytes[addr & 0x3C]);
 
-			CACHE_LOG("CACHE DXLDT addr %x, index %d, way %d, DATA %x OP %x", addr, index, way, cpuRegs.CP0.n.TagLo, cpuRegs.code);
 			break;
 		}
 
@@ -397,9 +372,6 @@ void CACHE()
 
 			// Our tags don't contain PS2 paddrs (instead they contain x86 addrs)
 			cpuRegs.CP0.n.TagLo = line.tag.flags();
-
-			CACHE_LOG("CACHE DXLTG addr %x, index %d, way %d, DATA %x OP %x ", addr, index, way, cpuRegs.CP0.n.TagLo, cpuRegs.code);
-			CACHE_LOG("WARNING: DXLTG emulation supports flags only, things could break");
 			break;
 		}
 
@@ -410,8 +382,6 @@ void CACHE()
 			CacheLine line = cache.lineAt(index, way);
 
 			*reinterpret_cast<u32*>(&line.data.bytes[addr & 0x3C]) = cpuRegs.CP0.n.TagLo;
-
-			CACHE_LOG("CACHE DXSDT addr %x, index %d, way %d, DATA %x OP %x", addr, index, way, cpuRegs.CP0.n.TagLo, cpuRegs.code);
 			break;
 		}
 
@@ -423,9 +393,6 @@ void CACHE()
 
 			line.tag.rawValue &= ~CacheTag::ALL_FLAGS;
 			line.tag.rawValue |= (cpuRegs.CP0.n.TagLo & CacheTag::ALL_FLAGS);
-
-			CACHE_LOG("CACHE DXSTG addr %x, index %d, way %d, DATA %x OP %x", addr, index, way, cpuRegs.CP0.n.TagLo, cpuRegs.code);
-			CACHE_LOG("WARNING: DXSTG emulation supports flags only, things will probably break");
 			break;
 		}
 
@@ -434,27 +401,19 @@ void CACHE()
 			const int index = (addr >> 6) & 0x3F;
 			const int way = addr & 0x1;
 			CacheLine line = cache.lineAt(index, way);
-
-			CACHE_LOG("CACHE DXWBIN addr %x, index %d, way %d, flags %x paddr %zx", addr, index, way, line.tag.flags(), line.addr());
 			line.writeBackIfNeeded();
 			line.clear();
 			break;
 		}
 
 		case 0x7: //IXIN (Instruction Cache Index Invalidate)
-		{
 			//Not Implemented as we do not have instruction cache
 			break;
-		}
 
 		case 0xC: //BFH (BTAC Flush)
-		{
 			//Not Implemented as we do not cache Branch Target Addresses.
 			break;
-		}
-
 		default:
-			DevCon.Warning("Cache mode %x not implemented", _Rt_);
 			break;
 	}
 }

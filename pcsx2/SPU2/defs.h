@@ -45,8 +45,6 @@ struct V_VolumeLR
 		, Right(both)
 	{
 	}
-
-	void DebugDump(FILE* dump, const char* title);
 };
 
 struct V_VolumeSlide
@@ -71,10 +69,6 @@ public:
 
 	void Update();
 	void RegSet(u16 src); // used to set the volume from a register source (16 bit signed)
-
-#ifdef PCSX2_DEVBUILD
-	void DebugDump(FILE* dump, const char* title, const char* nameLR);
-#endif
 };
 
 struct V_VolumeSlideLR
@@ -97,10 +91,6 @@ public:
 		Left.Update();
 		Right.Update();
 	}
-
-#ifdef PCSX2_DEVBUILD
-	void DebugDump(FILE* dump, const char* title);
-#endif
 };
 
 struct V_ADSR
@@ -201,35 +191,6 @@ struct V_Voice
 	void Start();
 	void Stop();
 };
-
-// ** Begin Debug-only variables section **
-// Separated from the V_Voice struct to improve cache performance of
-// the Public Release build.
-struct V_VoiceDebug
-{
-	s8 FirstBlock;
-	s32 SampleData;
-	s32 PeakX;
-	s32 displayPeak;
-	s32 lastSetStartA;
-};
-
-struct V_CoreDebug
-{
-	V_VoiceDebug Voices[24];
-	// Last Transfer Size
-	u32 lastsize;
-
-	// draw adma waveform in the visual debugger
-	s32 admaWaveformL[0x100];
-	s32 admaWaveformR[0x100];
-
-	// Enabled when a dma write starts, disabled when the visual debugger showed it once
-	s32 dmaFlag;
-};
-
-// Debug tracking information - 24 voices and 2 cores.
-extern V_CoreDebug DebugCores[2];
 
 struct V_Reverb
 {
@@ -483,7 +444,6 @@ struct V_Core
 
 	void Init(int index);
 	void UpdateEffectsBufferSize();
-	void AnalyzeReverbPreset();
 
 	s32 EffectsBufferIndexer(s32 offset) const;
 
@@ -537,8 +497,6 @@ struct V_Core
 		ActiveTSA &= 0xfffff;
 		TSA = ActiveTSA;
 	}
-
-	void LogAutoDMA(FILE* fp);
 
 	void DoDMAwrite(u16* pMem, u32 size);
 	void DoDMAread(u16* pMem, u32 size);

@@ -210,19 +210,6 @@ void* GSRingHeap::alloc_internal(size_t size, size_t align_mask, size_t prefix_s
 			*bptr = m_current_buffer;
 			return bptr + 1;
 		}
-		else if (IsDevBuild)
-		{
-			size_t total = m_current_buffer->m_size;
-			size_t mb = 1024 * 1024;
-			if (total >= mb)
-			{
-				size_t used = m_current_buffer->m_amt_allocated.load(std::memory_order_relaxed) - 1;
-				if (used * 4 < total)
-				{
-					fprintf(stderr, "GSRingHeap: Orphaning %zdmb buffer with low usage of %d%%, check that allocations are actually being deallocated approximately in order\n", total / mb, static_cast<int>((used * 100) / total));
-				}
-			}
-		}
 	}
 
 	// Couldn't allocate, orphan buffer and make a new one

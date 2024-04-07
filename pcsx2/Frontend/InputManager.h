@@ -33,13 +33,6 @@ enum class InputSourceType : u32
 {
 	Keyboard,
 	Pointer,
-#ifdef _WIN32
-	DInput,
-	XInput,
-#endif
-#ifdef SDL_BUILD
-	SDL,
-#endif
 	Count,
 };
 
@@ -123,31 +116,6 @@ struct InputInterceptHook
 	using Callback = std::function<CallbackResult(InputBindingKey key, float value)>;
 };
 
-/// Hotkeys are actions (e.g. toggle frame limit) which can be bound to keys or chords.
-/// The handler is called with an integer representing the key state, where 0 means that
-/// one or more keys were released, 1 means all the keys were pressed, and -1 means that
-/// the hotkey was cancelled due to a chord with more keys being activated.
-struct HotkeyInfo
-{
-	const char* name;
-	const char* category;
-	const char* display_name;
-	void (*handler)(s32 pressed);
-};
-#define DECLARE_HOTKEY_LIST(name) extern const HotkeyInfo name[]
-#define BEGIN_HOTKEY_LIST(name) const HotkeyInfo name[] = {
-#define DEFINE_HOTKEY(name, category, display_name, handler) {(name), (category), (display_name), (handler)},
-#define END_HOTKEY_LIST() \
-	{ \
-		nullptr, nullptr, nullptr, nullptr \
-	} \
-	} \
-	;
-
-DECLARE_HOTKEY_LIST(g_common_hotkeys);
-DECLARE_HOTKEY_LIST(g_gs_hotkeys);
-DECLARE_HOTKEY_LIST(g_host_hotkeys);
-
 /// Host mouse relative axes are X, Y, wheel horizontal, wheel vertical.
 enum class InputPointerAxis : u8
 {
@@ -170,39 +138,14 @@ namespace InputManager
 	static constexpr u32 MAX_POINTER_DEVICES = 1;
 	static constexpr u32 MAX_POINTER_BUTTONS = 3;
 
-	/// Returns a pointer to the external input source class, if present.
-	InputSource* GetInputSourceInterface(InputSourceType type);
-
-	/// Converts an input class to a string.
-	const char* InputSourceToString(InputSourceType clazz);
-
-	/// Returns the default state for an input source.
-	bool GetInputSourceDefaultEnabled(InputSourceType type);
-
 	/// Parses an input class string.
 	std::optional<InputSourceType> ParseInputSourceString(const std::string_view& str);
-
-	/// Parses a pointer device string, i.e. tells you which pointer is specified.
-	std::optional<u32> GetIndexFromPointerBinding(const std::string_view& str);
-
-	/// Returns the device name for a pointer index (e.g. Pointer-0).
-	std::string GetPointerDeviceName(u32 pointer_index);
 
 	/// Converts a key code from a human-readable string to an identifier.
 	std::optional<u32> ConvertHostKeyboardStringToCode(const std::string_view& str);
 
 	/// Converts a key code from an identifier to a human-readable string.
 	std::optional<std::string> ConvertHostKeyboardCodeToString(u32 code);
-
-	/// Creates a key for a host-specific key code.
-	InputBindingKey MakeHostKeyboardKey(u32 key_code);
-
-	/// Creates a key for a host-specific button.
-	InputBindingKey MakePointerButtonKey(u32 index, u32 button_index);
-
-	/// Creates a key for a host-specific mouse relative event
-	/// (axis 0 = horizontal, 1 = vertical, 2 = wheel horizontal, 3 = wheel vertical).
-	InputBindingKey MakePointerAxisKey(u32 index, InputPointerAxis axis);
 
 	/// Parses an input binding key string.
 	std::optional<InputBindingKey> ParseInputBindingKey(const std::string_view& binding);
@@ -213,21 +156,8 @@ namespace InputManager
 	/// Converts a chord of binding keys to a string.
 	std::string ConvertInputBindingKeysToString(InputBindingInfo::Type binding_type, const InputBindingKey* keys, size_t num_keys);
 
-	/// Returns a list of all hotkeys.
-	std::vector<const HotkeyInfo*> GetHotkeyList();
-
-	/// Enumerates available devices. Returns a pair of the prefix (e.g. SDL-0) and the device name.
-	std::vector<std::pair<std::string, std::string>> EnumerateDevices();
-
-	/// Enumerates available vibration motors at the time of call.
-	std::vector<InputBindingKey> EnumerateMotors();
-
 	/// Retrieves bindings that match the generic bindings for the specified device.
 	using GenericInputBindingMapping = std::vector<std::pair<GenericInputBinding, std::string>>;
-	GenericInputBindingMapping GetGenericBindingMapping(const std::string_view& device);
-
-	/// Returns whether a given input source is enabled.
-	bool IsInputSourceEnabled(SettingsInterface& si, InputSourceType type);
 
 	/// Re-parses the config and registers all hotkey and pad bindings.
 	void ReloadBindings(SettingsInterface& si, SettingsInterface& binding_si);
@@ -235,27 +165,11 @@ namespace InputManager
 	/// Re-parses the sources part of the config and initializes any backends.
 	void ReloadSources(SettingsInterface& si, std::unique_lock<std::mutex>& settings_lock);
 
-	/// Called when a device change is triggered by the system (DBT_DEVNODES_CHANGED on Windows).
-	/// Returns true if any device changes are detected.
-	bool ReloadDevices();
-
 	/// Shuts down any enabled input sources.
 	void CloseSources();
 
 	/// Polls input sources for events (e.g. external controllers).
 	void PollSources();
-
-	/// Returns true if any bindings exist for the specified key.
-	/// Can be safely called on another thread.
-	bool HasAnyBindingsForKey(InputBindingKey key);
-
-	/// Returns true if any bindings exist for the specified source + index.
-	/// Can be safely called on another thread.
-	bool HasAnyBindingsForSource(InputBindingKey key);
-
-	/// Updates internal state for any binds for this key, and fires callbacks as needed.
-	/// Returns true if anything was bound to this key, otherwise false.
-	bool InvokeEvents(InputBindingKey key, float value, GenericInputBinding generic_key = GenericInputBinding::Unknown);
 
 	/// Clears internal state for any binds with a matching source/index.
 	void ClearBindStateFromSource(InputBindingKey key);
@@ -296,9 +210,6 @@ namespace InputManager
 
 namespace Host
 {
-	/// Return the current window handle. Needed for DInput.
-	std::optional<WindowInfo> GetTopLevelWindowInfo();
-
 	/// Called when a new input device is connected.
 	void OnInputDeviceConnected(const std::string_view& identifier, const std::string_view& device_name);
 

@@ -142,7 +142,7 @@ namespace Vulkan
 					[&](const VkExtensionProperties& properties) { return !strcmp(name, properties.extensionName); }) !=
 				available_extension_list.end())
 			{
-				DevCon.WriteLn("Enabling extension: %s", name);
+				Console.WriteLn("Enabling extension: %s", name);
 				extension_list->push_back(name);
 				return true;
 			}
@@ -176,11 +176,6 @@ namespace Vulkan
 #if defined(VK_USE_PLATFORM_METAL_EXT)
 		if (wi.type == WindowInfo::Type::MacOS && !SupportsExtension(VK_EXT_METAL_SURFACE_EXTENSION_NAME, true))
 			return false;
-#endif
-
-#if 0
-	if (wi.type == WindowInfo::Type::Display && !SupportsExtension(VK_KHR_DISPLAY_EXTENSION_NAME, true))
-		return false;
 #endif
 
 		// VK_EXT_debug_utils
@@ -360,7 +355,7 @@ namespace Vulkan
 				if (std::none_of(extension_list->begin(), extension_list->end(),
 						[&](const char* existing_name) { return (std::strcmp(existing_name, name) == 0); }))
 				{
-					DevCon.WriteLn("Enabling extension: %s", name);
+					Console.WriteLn("Enabling extension: %s", name);
 					extension_list->push_back(name);
 				}
 
@@ -626,7 +621,7 @@ namespace Vulkan
 		m_gpu_timing_supported = (m_device_properties.limits.timestampComputeAndGraphics != 0 &&
 		                          queue_family_properties[m_graphics_queue_family_index].timestampValidBits > 0 &&
 		                          m_device_properties.limits.timestampPeriod > 0);
-		DevCon.WriteLn("GPU timing is %s (TS=%u TS valid bits=%u, TS period=%f)",
+		Console.WriteLn("GPU timing is %s (TS=%u TS valid bits=%u, TS period=%f)",
 			m_gpu_timing_supported ? "supported" : "not supported",
 			static_cast<u32>(m_device_properties.limits.timestampComputeAndGraphics),
 			queue_family_properties[m_graphics_queue_family_index].timestampValidBits,
@@ -1504,7 +1499,7 @@ namespace Vulkan
 		}
 		else
 		{
-			DevCon.WriteLn("Vulkan debug report: (%s) %s",
+			Console.WriteLn("Vulkan debug report: (%s) %s",
 				pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
 		}
 

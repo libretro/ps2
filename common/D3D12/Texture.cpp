@@ -334,8 +334,6 @@ ID3D12GraphicsCommandList* Texture::BeginStreamUpdate(ID3D12GraphicsCommandList*
 
 	if (!g_d3d12_context->GetTextureStreamBuffer().ReserveMemory(upload_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 	{
-		DevCon.WriteLn("Executing command buffer while waiting for %u bytes (%ux%u) in upload buffer", upload_size, width,
-			height);
 		g_d3d12_context->ExecuteCommandList(Context::WaitType::None);
 		if (!g_d3d12_context->GetTextureStreamBuffer().ReserveMemory(upload_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 		{

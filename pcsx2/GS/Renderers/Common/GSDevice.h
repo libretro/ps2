@@ -830,9 +830,6 @@ public:
 	/// Returns true if it's an OpenGL-based renderer.
 	bool UsesLowerLeftOrigin() const;
 
-	/// Recreates the font, call when the window scaling changes.
-	bool UpdateImGuiFontTexture();
-
 	virtual bool Create();
 	virtual void Destroy();
 

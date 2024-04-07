@@ -19,12 +19,12 @@
 // Messages Called at Execution Time...
 //------------------------------------------------------------------
 
-static inline void mVUbadOp0  (u32 prog, u32 pc) { Console.Error("microVU0 Warning: Exiting... Block contains an illegal opcode. [%04x] [%03d]", pc, prog); }
-static inline void mVUbadOp1  (u32 prog, u32 pc) { Console.Error("microVU1 Warning: Exiting... Block contains an illegal opcode. [%04x] [%03d]", pc, prog); }
-static inline void mVUwarning0(u32 prog, u32 pc) { Console.Error("microVU0 Warning: Exiting from Possible Infinite Loop [%04x] [%03d]", pc, prog); }
-static inline void mVUwarning1(u32 prog, u32 pc) { Console.Error("microVU1 Warning: Exiting from Possible Infinite Loop [%04x] [%03d]", pc, prog); }
-static inline void mVUprintPC1(u32 pc) { Console.WriteLn("Block Start PC = 0x%04x", pc); }
-static inline void mVUprintPC2(u32 pc) { Console.WriteLn("Block End PC   = 0x%04x", pc); }
+static inline void mVUbadOp0  (u32 prog, u32 pc) {  }
+static inline void mVUbadOp1  (u32 prog, u32 pc) {  }
+static inline void mVUwarning0(u32 prog, u32 pc) {  }
+static inline void mVUwarning1(u32 prog, u32 pc) {  }
+static inline void mVUprintPC1(u32 pc) {  }
+static inline void mVUprintPC2(u32 pc) {  }
 
 //------------------------------------------------------------------
 // Program Range Checking and Setting up Ranges
@@ -50,7 +50,6 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 	std::deque<microRange>*& ranges = mVUcurProg.ranges;
 	if (pc > (s64)mVU.microMemSize)
 	{
-		Console.Error("microVU%d: PC outside of VU memory PC=0x%04x", mVU.index, pc);
 		pxFailDev("microVU: PC out of VU memory");
 	}
 
@@ -112,7 +111,6 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 	else
 	{
 		mVUrange.end = mVU.microMemSize;
-		DevCon.WriteLn(Color_Green, "microVU%d: Prog Range Wrap [%04x] [%04x] PC %x", mVU.index, mVUrange.start, mVUrange.end, cur_pc);
 		microRange mRange = {0, cur_pc };
 		ranges->push_front(mRange);
 	}
@@ -157,10 +155,7 @@ void doIbit(mV)
 		{
 			u32 tempI;
 			if (CHECK_VU_OVERFLOW(mVU.index) && ((curI & 0x7fffffff) >= 0x7f800000))
-			{
-				DevCon.WriteLn(Color_Green, "microVU%d: Clamping I Reg", mVU.index);
 				tempI = (0x80000000 & curI) | 0x7f7fffff; // Clamp I Reg
-			}
 			else
 				tempI = curI;
 
@@ -174,8 +169,6 @@ void doSwapOp(mV)
 {
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
-		DevCon.WriteLn(Color_Green, "microVU%d: Backing Up VF Reg [%04x]", getIndex, xPC);
-
 		// Allocate t1 first for better chance of reg-alloc
 		const xmm& t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
 		const xmm& t2 = mVU.regAlloc->allocReg();
@@ -243,11 +236,7 @@ __fi void mVUcheckBadOp(mV)
 	//So to prevent spamming we ignore these, however its possible the real VU will bomb out if
 	//this happens, so we will bomb out without warning.
 	if (mVUinfo.isBadOp && mVU.code != 0x8000033c)
-	{
-
 		mVUinfo.isEOB = true;
-		DevCon.Warning("microVU Warning: Block contains an illegal opcode...");
-	}
 }
 
 // Prints msg when exiting block early if 1st op was a bad opcode (Dawn of Mana Level 2)
@@ -271,7 +260,6 @@ __ri void branchWarning(mV)
 	if (mVUup.eBit && mVUbranch)
 	{
 		incPC(2);
-		DevCon.Warning("microVU%d Warning: Branch in E-bit delay slot! [%04x]", mVU.index, xPC);
 		mVUlow.isNOP = true;
 	}
 	else
@@ -298,16 +286,9 @@ __fi void eBitPass1(mV, int& branch)
 
 __ri void eBitWarning(mV)
 {
-	if (mVUpBlock->pState.blockType == 1)
-		Console.Error("microVU%d Warning: Branch, E-bit, Branch! [%04x]",  mVU.index, xPC);
-	if (mVUpBlock->pState.blockType == 2)
-		DevCon.Warning("microVU%d Warning: Branch, Branch, Branch! [%04x]", mVU.index, xPC);
 	incPC(2);
 	if (curI & _Ebit_)
-	{
-		DevCon.Warning("microVU%d: E-bit in Branch delay slot! [%04x]", mVU.index, xPC);
 		mVUregs.blockType = 1;
-	}
 	incPC(-2);
 }
 
@@ -511,12 +492,6 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 // This gets run at the start of every loop of mVU's first pass
 __fi void startLoop(mV)
 {
-	if (curI & _Mbit_ && isVU0)
-		DevCon.WriteLn(Color_Green, "microVU%d: M-bit set! PC = %x", getIndex, xPC);
-	if (curI & _Dbit_)
-		DevCon.WriteLn(Color_Green, "microVU%d: D-bit set! PC = %x", getIndex, xPC);
-	if (curI & _Tbit_)
-		DevCon.WriteLn(Color_Green, "microVU%d: T-bit set! PC = %x", getIndex, xPC);
 	memzero(mVUinfo);
 	memzero(mVUregsTemp);
 }
@@ -986,10 +961,6 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 			}
 		}
 	}
-	if ((x == endCount) && (x != 1))
-	{
-		Console.Error("microVU%d: Possible infinite compiling loop!", mVU.index);
-	}
 
 	// E-bit End
 	mVUsetupRange(mVU, xPC, false);
@@ -1008,8 +979,7 @@ __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uptr
 	microBlock* pBlock = block->search((microRegInfo*)pState);
 	if (pBlock)
 		return pBlock->x86ptrStart;
-	else
-		return mVUcompile(mVU, startPC, pState);
+	return mVUcompile(mVU, startPC, pState);
 }
 
 // Search for Existing Compiled Block (if found, return x86ptr; else, compile and return x86ptr)

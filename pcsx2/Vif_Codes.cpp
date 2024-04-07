@@ -142,7 +142,7 @@ vifOp(vifCode_Base)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { VifCodeLog("Base"); }
+	pass3 { }
 	return 1;
 }
 
@@ -167,13 +167,8 @@ __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 		vif1.tag.size -= ret / 4; // Convert to u32's
 		vif1Regs.stat.VGW = false;
 
-		if (ret & 3)
-			DevCon.Warning("Vif %s: Ret wasn't a multiple of 4!", name); // Shouldn't happen
-		if (size == 0)
-			DevCon.Warning("Vif %s: No Data Transfer?", name); // Can this happen?
 		if (size != ret)
 		{ // Stall if gif didn't process all the data (path2 queued)
-			GUNIT_WARN("Vif %s: Stall! [size=%d][ret=%d]", name, size, ret);
 			//gifUnit.PrintInfo();
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
 			vif1.vifstalled.value = VIF_TIMING_BREAK;
@@ -194,13 +189,13 @@ __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 
 vifOp(vifCode_Direct)
 {
-	pass3 { VifCodeLog("Direct"); }
+	pass3 { }
 	return _vifCode_Direct<idx>(pass, (u8*)data, 0);
 }
 
 vifOp(vifCode_DirectHL)
 {
-	pass3 { VifCodeLog("DirectHL"); }
+	pass3 { }
 	return _vifCode_Direct<idx>(pass, (u8*)data, 1);
 }
 
@@ -215,7 +210,6 @@ vifOp(vifCode_Flush)
 		vifFlush(idx);
 		if (gifUnit.checkPaths(1, 1, 0) || p1or2)
 		{
-			GUNIT_WARN("Vif Flush: Stall!");
 			//gifUnit.PrintInfo();
 			vif1Regs.stat.VGW = true;
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
@@ -231,7 +225,7 @@ vifOp(vifCode_Flush)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { VifCodeLog("Flush"); }
+	pass3 { }
 	return 1;
 }
 
@@ -249,7 +243,6 @@ vifOp(vifCode_FlushA)
 
 		if (gifBusy)
 		{
-			GUNIT_WARN("Vif FlushA: Stall!");
 			vif1Regs.stat.VGW = true;
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
 			vif1.vifstalled.value = VIF_TIMING_BREAK;
@@ -264,7 +257,7 @@ vifOp(vifCode_FlushA)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { VifCodeLog("FlushA"); }
+	pass3 { }
 	return 1;
 }
 
@@ -285,7 +278,7 @@ vifOp(vifCode_FlushE)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { VifCodeLog("FlushE"); }
+	pass3 { }
 	return 1;
 }
 
@@ -297,7 +290,7 @@ vifOp(vifCode_ITop)
 		GetVifX.cmd = 0;
 		GetVifX.pass = 0;
 	}
-	pass3 { VifCodeLog("ITop"); }
+	pass3 { }
 	return 1;
 }
 
@@ -311,7 +304,7 @@ vifOp(vifCode_Mark)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { VifCodeLog("Mark"); }
+	pass3 { }
 	return 1;
 }
 
@@ -345,7 +338,6 @@ static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 	// Don't forget the Unsigned designator for these checks
 	if ((addr + size * 4) > vuMemSize)
 	{
-		//DevCon.Warning("Handling split MPG");
 		if (!idx)
 			CpuVU0->Clear(addr, vuMemSize - addr);
 		else
@@ -399,20 +391,12 @@ vifOp(vifCode_MPG)
 	{
 		if (vifX.vifpacketsize < vifX.tag.size)
 		{ // Partial Transfer
-			if ((vifX.tag.addr + vifX.vifpacketsize * 4) > (idx ? 0x4000 : 0x1000))
-			{
-				//DevCon.Warning("Vif%d MPG Split Overflow", idx);
-			}
 			_vifCode_MPG(idx, vifX.tag.addr, data, vifX.vifpacketsize);
 			vifX.tag.size -= vifX.vifpacketsize; //We can do this first as its passed as a pointer
 			return vifX.vifpacketsize;
 		}
 		else
 		{ // Full Transfer
-			if ((vifX.tag.addr + vifX.tag.size * 4) > (idx ? 0x4000 : 0x1000))
-			{
-				//DevCon.Warning("Vif%d MPG Split Overflow full %x", idx, vifX.tag.addr + vifX.tag.size*4);
-			}
 			_vifCode_MPG(idx, vifX.tag.addr, data, vifX.tag.size);
 			int ret = vifX.tag.size;
 			vifX.tag.size = 0;
@@ -421,7 +405,7 @@ vifOp(vifCode_MPG)
 			return ret;
 		}
 	}
-	pass3 { VifCodeLog("MPG"); }
+	pass3 { }
 	return 0;
 }
 
@@ -452,7 +436,7 @@ vifOp(vifCode_MSCAL)
 			}
 		}
 	}
-	pass3 { VifCodeLog("MSCAL"); }
+	pass3 { }
 	return 1;
 }
 
@@ -465,7 +449,6 @@ vifOp(vifCode_MSCALF)
 		vifFlush(idx);
 		if (u32 a = gifUnit.checkPaths(1, 1, 0))
 		{
-			GUNIT_WARN("Vif MSCALF: Stall! [%d,%d]", !!(a & 1), !!(a & 2));
 			vif1Regs.stat.VGW = true;
 			vifX.vifstalled.enabled = VifStallEnable(vifXch);
 			vifX.vifstalled.value = VIF_TIMING_BREAK;
@@ -482,7 +465,7 @@ vifOp(vifCode_MSCALF)
 		vifX.pass = 0;
 		vifExecQueue(idx);
 	}
-	pass3 { VifCodeLog("MSCALF"); }
+	pass3 { }
 	return 1;
 }
 
@@ -510,7 +493,7 @@ vifOp(vifCode_MSCNT)
 			}
 		}
 	}
-	pass3 { VifCodeLog("MSCNT"); }
+	pass3 { }
 	return 1;
 }
 
@@ -522,16 +505,12 @@ vifOp(vifCode_MskPath3)
 	{
 		vif1Regs.mskpath3 = (vif1Regs.code >> 15) & 0x1;
 		gifRegs.stat.M3P = (vif1Regs.code >> 15) & 0x1;
-		GUNIT_LOG("Vif1 - MskPath3 [p3 = %s]", vif1Regs.mskpath3 ? "masked" : "enabled");
 		if (!vif1Regs.mskpath3)
-		{
-			GUNIT_WARN("VIF MSKPATH3 off Path3 triggering!");
 			gifInterrupt();
-		}
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { VifCodeLog("MskPath3"); }
+	pass3 { }
 	return 1;
 }
 
@@ -552,7 +531,7 @@ vifOp(vifCode_Nop)
 			}
 		}
 	}
-	pass3 { VifCodeLog("Nop"); }
+	pass3 { }
 	return 1;
 }
 
@@ -579,7 +558,7 @@ vifOp(vifCode_Null)
 			vifX.irq = 0;
 	}
 	pass2 { Console.Error("Vif%d bad vifcode! [CMD = %x]", idx, vifX.cmd); }
-	pass3 { VifCodeLog("Null"); }
+	pass3 { }
 	return 1;
 }
 
@@ -594,7 +573,7 @@ vifOp(vifCode_Offset)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { VifCodeLog("Offset"); }
+	pass3 { }
 	return 1;
 }
 
@@ -654,7 +633,7 @@ vifOp(vifCode_STCol)
 			vu1Thread.WriteCol(vifX);
 		return ret;
 	}
-	pass3 { VifCodeLog("STCol"); }
+	pass3 { }
 	return 0;
 }
 
@@ -675,7 +654,7 @@ vifOp(vifCode_STRow)
 			vu1Thread.WriteRow(vifX);
 		return ret;
 	}
-	pass3 { VifCodeLog("STRow"); }
+	pass3 { }
 	return 1;
 }
 
@@ -689,7 +668,7 @@ vifOp(vifCode_STCycl)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { VifCodeLog("STCycl"); }
+	pass3 { }
 	return 1;
 }
 
@@ -709,7 +688,7 @@ vifOp(vifCode_STMask)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { VifCodeLog("STMask"); }
+	pass3 { }
 	return 1;
 }
 
@@ -721,7 +700,7 @@ vifOp(vifCode_STMod)
 		GetVifX.cmd = 0;
 		GetVifX.pass = 0;
 	}
-	pass3 { VifCodeLog("STMod"); }
+	pass3 { }
 	return 1;
 }
 
@@ -750,18 +729,6 @@ vifOp(vifCode_Unpack)
 	}
 	pass3
 	{
-		vifStruct& vifX = GetVifX;
-		VIFregisters& vifRegs = vifXRegs;
-		uint vl = vifX.cmd & 0x03;
-		uint vn = (vifX.cmd >> 2) & 0x3;
-		bool flg = (vifRegs.code >> 15) & 1;
-		static const char* const vntbl[] = {"S", "V2", "V3", "V4"};
-		static const uint vltbl[] = {32, 16, 8, 5};
-
-		VifCodeLog("Unpack %s_%u (%s) @ 0x%04X%s (cl=%u  wl=%u  num=0x%02X)",
-			vntbl[vn], vltbl[vl], (vifX.cmd & 0x10) ? "masked" : "unmasked",
-			calc_addr<idx>(flg), flg ? "(FLG)" : "",
-			vifRegs.cycle.cl, vifRegs.cycle.wl, (vifXRegs.code >> 16) & 0xff);
 	}
 	return 0;
 }

@@ -64,7 +64,6 @@ __noinline static void UpdatePauseTime()
 	for (int i = 0; i < 4; i++)
 		pause = std::min(pause, MeasurePauseTime());
 	PAUSE_TIME = pause;
-	DevCon.WriteLn("MultiPause time: %uns", pause);
 }
 
 u32 ShortSpin()
@@ -84,16 +83,11 @@ u32 ShortSpin()
 	return time;
 }
 
-static u32 GetSpinTime()
+static u32 GetSpinTime(void)
 {
 	if (char* req = getenv("WAIT_SPIN_MICROSECONDS"))
-	{
 		return 1000 * atoi(req);
-	}
-	else
-	{
-		return 50 * 1000; // 50µs
-	}
+	return 50 * 1000; // 50µs
 }
 
 const u32 SPIN_TIME_NS = GetSpinTime();

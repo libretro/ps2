@@ -32,14 +32,8 @@
 #include "common/Path.h"
 #include "common/ScopedGuard.h"
 
-#include "imgui.h"
-
 #include <sstream>
 #include <limits>
-
-#ifdef ENABLE_OGL_DEBUG
-static u32 s_debug_scope_depth = 0;
-#endif
 
 static bool IsDATMConvertShader(ShaderConvert i) { return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1); }
 static bool IsDATEModePrimIDInit(u32 flag) { return flag == 1 || flag == 2; }
@@ -74,10 +68,6 @@ static constexpr VkClearValue s_present_clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}
 
 GSDeviceVK::GSDeviceVK()
 {
-#ifdef ENABLE_OGL_DEBUG
-	s_debug_scope_depth = 0;
-#endif
-
 	std::memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
 }
 
@@ -237,9 +227,6 @@ bool GSDeviceVK::Create()
 	}
 
 	CompileCASPipelines();
-
-	if (!CompileImGuiPipeline())
-		return false;
 
 	InitializeState();
 	return true;
@@ -456,8 +443,6 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 
 void GSDeviceVK::EndPresent()
 {
-	RenderImGui();
-
 	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
 	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
 	m_swap_chain->GetCurrentTexture().TransitionToLayout(cmdbuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -489,81 +474,16 @@ void GSDeviceVK::RestoreAPIState()
 	InvalidateCachedState();
 }
 
-#ifdef ENABLE_OGL_DEBUG
-static std::array<float, 3> Palette(float phase, const std::array<float, 3>& a, const std::array<float, 3>& b,
-	const std::array<float, 3>& c, const std::array<float, 3>& d)
-{
-	std::array<float, 3> result;
-	result[0] = a[0] + b[0] * std::cos(6.28318f * (c[0] * phase + d[0]));
-	result[1] = a[1] + b[1] * std::cos(6.28318f * (c[1] * phase + d[1]));
-	result[2] = a[2] + b[2] * std::cos(6.28318f * (c[2] * phase + d[2]));
-	return result;
-}
-#endif
-
 void GSDeviceVK::PushDebugGroup(const char* fmt, ...)
 {
-#ifdef ENABLE_OGL_DEBUG
-	if (!vkCmdBeginDebugUtilsLabelEXT)
-		return;
-
-	std::va_list ap;
-	va_start(ap, fmt);
-	const std::string buf(StringUtil::StdStringFromFormatV(fmt, ap));
-	va_end(ap);
-
-	const std::array<float, 3> color = Palette(
-		++s_debug_scope_depth, {0.5f, 0.5f, 0.5f}, {0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 0.5f}, {0.8f, 0.90f, 0.30f});
-
-	const VkDebugUtilsLabelEXT label = {
-		VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
-		nullptr,
-		buf.c_str(),
-		{color[0], color[1], color[2], 1.0f},
-	};
-	vkCmdBeginDebugUtilsLabelEXT(g_vulkan_context->GetCurrentCommandBuffer(), &label);
-#endif
 }
 
 void GSDeviceVK::PopDebugGroup()
 {
-#ifdef ENABLE_OGL_DEBUG
-	if (!vkCmdEndDebugUtilsLabelEXT)
-		return;
-
-	s_debug_scope_depth = (s_debug_scope_depth == 0) ? 0 : (s_debug_scope_depth - 1u);
-
-	vkCmdEndDebugUtilsLabelEXT(g_vulkan_context->GetCurrentCommandBuffer());
-#endif
 }
 
 void GSDeviceVK::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
 {
-#ifdef ENABLE_OGL_DEBUG
-	if (!vkCmdInsertDebugUtilsLabelEXT)
-		return;
-
-	std::va_list ap;
-	va_start(ap, fmt);
-	const std::string buf(StringUtil::StdStringFromFormatV(fmt, ap));
-	va_end(ap);
-
-	if (buf.empty())
-		return;
-
-	static constexpr float colors[][3] = {
-		{0.1f, 0.1f, 0.0f}, // Cache
-		{0.1f, 0.1f, 0.0f}, // Reg
-		{0.5f, 0.0f, 0.5f}, // Debug
-		{0.0f, 0.5f, 0.5f}, // Message
-		{0.0f, 0.2f, 0.0f} // Performance
-	};
-
-	const VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, buf.c_str(),
-		{colors[static_cast<int>(category)][0], colors[static_cast<int>(category)][1],
-			colors[static_cast<int>(category)][2], 1.0f}};
-	vkCmdInsertDebugUtilsLabelEXT(g_vulkan_context->GetCurrentCommandBuffer(), &label);
-#endif
 }
 
 bool GSDeviceVK::CreateDeviceAndSwapChain()
@@ -748,7 +668,7 @@ bool GSDeviceVK::CheckFeatures()
 	m_features.line_expand =
 		(features.wideLines && limits.lineWidthRange[0] <= f_upscale && limits.lineWidthRange[1] >= f_upscale);
 
-	DevCon.WriteLn("Using %s for point expansion and %s for line expansion.",
+	Console.WriteLn("Using %s for point expansion and %s for line expansion.",
 		m_features.point_expand ? "hardware" : "vertex expanding",
 		m_features.line_expand ? "hardware" : "vertex expanding");
 
@@ -2358,139 +2278,6 @@ bool GSDeviceVK::CompileCASPipelines()
 	return true;
 }
 
-bool GSDeviceVK::CompileImGuiPipeline()
-{
-	const std::optional<std::string> glsl = Host::ReadResourceFileToString("shaders/vulkan/imgui.glsl");
-	if (!glsl.has_value())
-	{
-		Console.Error("Failed to read imgui.glsl");
-		return false;
-	}
-	
-	VkShaderModule vs = GetUtilityVertexShader(glsl.value(), "vs_main");
-	if (vs == VK_NULL_HANDLE)
-	{
-		Console.Error("Failed to compile ImGui vertex shader");
-		return false;
-	}
-	ScopedGuard vs_guard([&vs]() { Vulkan::Util::SafeDestroyShaderModule(vs); });
-
-	VkShaderModule ps = GetUtilityFragmentShader(glsl.value(), "ps_main");
-	if (ps == VK_NULL_HANDLE)
-	{
-		Console.Error("Failed to compile ImGui pixel shader");
-		return false;
-	}
-	ScopedGuard ps_guard([&ps]() { Vulkan::Util::SafeDestroyShaderModule(ps); });
-
-	Vulkan::GraphicsPipelineBuilder gpb;
-	SetPipelineProvokingVertex(m_features, gpb);
-	gpb.SetPipelineLayout(m_utility_pipeline_layout);
-	gpb.SetRenderPass(m_swap_chain_render_pass, 0);
-	gpb.AddVertexBuffer(0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX);
-	gpb.AddVertexAttribute(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos));
-	gpb.AddVertexAttribute(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv));
-	gpb.AddVertexAttribute(2, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col));
-	gpb.SetPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	gpb.SetVertexShader(vs);
-	gpb.SetFragmentShader(ps);
-	gpb.SetNoCullRasterizationState();
-	gpb.SetNoDepthTestState();
-	gpb.SetBlendAttachment(0, true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
-		VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD);
-	gpb.SetDynamicViewportAndScissorState();
-	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-
-	m_imgui_pipeline = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(), false);
-	if (!m_imgui_pipeline)
-	{
-		Console.Error("Failed to compile ImGui pipeline");
-		return false;
-	}
-
-	Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_imgui_pipeline, "ImGui pipeline");
-	return true;
-}
-
-void GSDeviceVK::RenderImGui()
-{
-	ImGui::Render();
-	const ImDrawData* draw_data = ImGui::GetDrawData();
-	if (draw_data->CmdListsCount == 0)
-		return;
-
-	const float uniforms[2][2] = {{
-									  2.0f / static_cast<float>(m_window_info.surface_width),
-									  2.0f / static_cast<float>(m_window_info.surface_height),
-								  },
-		{
-			-1.0f,
-			-1.0f,
-		}};
-
-	SetUtilityPushConstants(uniforms, sizeof(uniforms));
-	SetPipeline(m_imgui_pipeline);
-
-	if (m_utility_sampler != m_linear_sampler)
-	{
-		m_utility_sampler = m_linear_sampler;
-		m_dirty_flags |= DIRTY_FLAG_UTILITY_TEXTURE;
-	}
-
-	// this is for presenting, we don't want to screw with the viewport/scissor set by display
-	m_dirty_flags &= ~(DIRTY_FLAG_VIEWPORT | DIRTY_FLAG_SCISSOR);
-
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
-	{
-		const ImDrawList* cmd_list = draw_data->CmdLists[n];
-
-		u32 vertex_offset;
-		{
-			const u32 size = sizeof(ImDrawVert) * static_cast<u32>(cmd_list->VtxBuffer.Size);
-			if (!m_vertex_stream_buffer.ReserveMemory(size, sizeof(ImDrawVert)))
-			{
-				Console.Warning("Skipping ImGui draw because of no vertex buffer space");
-				return;
-			}
-
-			vertex_offset = m_vertex_stream_buffer.GetCurrentOffset() / sizeof(ImDrawVert);
-			std::memcpy(m_vertex_stream_buffer.GetCurrentHostPointer(), cmd_list->VtxBuffer.Data, size);
-			m_vertex_stream_buffer.CommitMemory(size);
-		}
-
-		static_assert(sizeof(ImDrawIdx) == sizeof(u16));
-		IASetIndexBuffer(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size);
-
-		for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-		{
-			const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
-			pxAssert(!pcmd->UserCallback);
-
-			const GSVector4 clip = GSVector4::load<false>(&pcmd->ClipRect);
-			if ((clip.zwzw() <= clip.xyxy()).mask() != 0)
-				continue;
-
-			SetScissor(GSVector4i(clip).max_i32(GSVector4i::zero()));
-
-			// Since we don't have the GSTexture...
-			Vulkan::Texture* tex = static_cast<Vulkan::Texture*>(pcmd->GetTexID());
-			if (m_utility_texture != tex)
-			{
-				m_utility_texture = tex;
-				m_dirty_flags |= DIRTY_FLAG_UTILITY_TEXTURE;
-			}
-
-			if (ApplyUtilityState())
-			{
-				vkCmdDrawIndexed(g_vulkan_context->GetCurrentCommandBuffer(), pcmd->ElemCount, 1,
-					m_index.start + pcmd->IdxOffset, vertex_offset + pcmd->VtxOffset, 0);
-			}
-		}
-
-		g_perfmon.Put(GSPerfMon::DrawCalls, cmd_list->CmdBuffer.Size);
-	}
-}
-
 void GSDeviceVK::RenderBlankFrame()
 {
 	VkResult res = m_swap_chain->AcquireNextImage();
@@ -2626,7 +2413,6 @@ void GSDeviceVK::DestroyResources()
 		Vulkan::Util::SafeDestroyPipeline(it);
 	Vulkan::Util::SafeDestroyPipelineLayout(m_cas_pipeline_layout);
 	Vulkan::Util::SafeDestroyDescriptorSetLayout(m_cas_ds_layout);
-	Vulkan::Util::SafeDestroyPipeline(m_imgui_pipeline);
 
 	for (auto& it : m_samplers)
 		Vulkan::Util::SafeDestroySampler(it.second);

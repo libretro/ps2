@@ -273,22 +273,12 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 	}
 }
 
-#if 0
-// Gets called by mVUaddrFix at execution-time
-static void mVUwarningRegAccess(u32 prog, u32 pc)
-{
-	Console.Error("microVU0 Warning: Accessing VU1 Regs! [%04x] [%x]", pc, prog);
-}
-#endif
-
-static void mVUTBit()
+static void mVUTBit(void)
 {
 	u32 old = vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUTBit, std::memory_order_release);
-	if (old & VU_Thread::InterruptFlagVUTBit)
-		DevCon.Warning("Old TBit not registered");
 }
 
-static void mVUEBit()
+static void mVUEBit(void)
 {
 	vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUEBit, std::memory_order_release);
 }
@@ -301,8 +291,6 @@ static inline u32 branchAddr(const mV)
 
 static void mVUwaitMTVU()
 {
-	if (IsDevBuild)
-		DevCon.WriteLn("microVU0: Waiting on VU1 thread to access VU1 regs!");
 	vu1Thread.WaitVU();
 }
 
@@ -323,16 +311,6 @@ __fi void mVUaddrFix(mV, const xAddressReg& gprReg)
 		jmpA.SetTarget();
 			if (THREAD_VU1)
 			{
-#if 0
-					if (IsDevBuild && !isCOP2) // Lets see which games do this!
-					{
-						xMOV(gprT1, mVU.prog.cur->idx); // Note: Kernel does it via COP2 to initialize VU1!
-						xMOV(gprT2, xPC);               // So we don't spam console, we'll only check micro-mode...
-						mVUbackupRegs(mVU, true, false);
-						xFastCall((void*)mVUwarningRegAccess, arg1regd, arg2regd);
-						mVUrestoreRegs(mVU, true, false);
-					}
-#endif
 				xFastCall((void*)mVU.waitMTVU);
 			}
 			xAND(xRegister32(gprReg.Id), 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!

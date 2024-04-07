@@ -32,9 +32,6 @@
 //
 StereoOut32 V_Core::ReadInput_HiFi()
 {
-	if (SPU2::IsRunningPSXMode() && SPU2::MsgToConsole())
-		SPU2::ConLog("ReadInput_HiFi!!!!!\n");
-
 	u16 ReadIndex = (OutPos * 2) & 0x1FF;
 
 	StereoOut32 retval(
@@ -81,19 +78,7 @@ StereoOut32 V_Core::ReadInput_HiFi()
 			AutoDMAReadBuffer(0);
 			AdmaInProgress = 1;
 			if (InputDataLeft < 0x100)
-			{
-				if (IsDevBuild)
-				{
-					SPU2::FileLog("[%10d] AutoDMA%c block end.\n", Cycles, GetDmaIndexChar());
-					if (InputDataLeft > 0)
-					{
-						if (SPU2::MsgAutoDMA())
-							SPU2::ConLog("WARNING: adma buffer didn't finish with a whole block!!\n");
-					}
-				}
-
 				InputDataLeft = 0;
-			}
 		}
 		else if ((AutoDMACtrl & (Index + 1)))
 			AutoDMACtrl |= ~3;
@@ -117,11 +102,6 @@ StereoOut32 V_Core::ReadInput()
 			(s32)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex)),
 			(s32)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex)));
 	}
-
-#ifdef PCSX2_DEVBUILD
-	DebugCores[Index].admaWaveformL[OutPos % 0x100] = retval.Left;
-	DebugCores[Index].admaWaveformR[OutPos % 0x100] = retval.Right;
-#endif
 
 	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer
 	if (InputDataTransferred)
@@ -156,19 +136,7 @@ StereoOut32 V_Core::ReadInput()
 			AutoDMAReadBuffer(0);
 			AdmaInProgress = 1;
 			if (InputDataLeft < 0x100)
-			{
-				if (IsDevBuild)
-				{
-					SPU2::FileLog("[%10d] AutoDMA%c block end.\n", Cycles, GetDmaIndexChar());
-					if (InputDataLeft > 0)
-					{
-						if (SPU2::MsgAutoDMA())
-							SPU2::ConLog("WARNING: adma buffer didn't finish with a whole block!!\n");
-					}
-				}
-
 				InputDataLeft = 0;
-			}
 		}
 		else if ((AutoDMACtrl & (Index + 1)))
 			AutoDMACtrl |= ~3;

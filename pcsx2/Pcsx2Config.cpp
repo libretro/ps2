@@ -1189,96 +1189,6 @@ void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntry(SlomoScalar);
 }
 
-#ifndef __LIBRETRO__
-Pcsx2Config::USBOptions::USBOptions()
-{
-	for (u32 i = 0; i < static_cast<u32>(Ports.size()); i++)
-	{
-		Ports[i].DeviceType = -1;
-		Ports[i].DeviceSubtype = 0;
-	}
-}
-
-void Pcsx2Config::USBOptions::LoadSave(SettingsWrapper& wrap)
-{
-	for (u32 i = 0; i < static_cast<u32>(Ports.size()); i++)
-	{
-		const std::string section(USB::GetConfigSection(i));
-
-		std::string device = USB::DeviceTypeIndexToName(Ports[i].DeviceType);
-		wrap.Entry(section.c_str(), "Type", device, device);
-
-		if (wrap.IsLoading())
-			Ports[i].DeviceType = USB::DeviceTypeNameToIndex(device);
-
-		if (Ports[i].DeviceType >= 0)
-		{
-			const std::string subtype_key(fmt::format("{}_subtype", USB::DeviceTypeIndexToName(Ports[i].DeviceType)));
-			wrap.Entry(section.c_str(), subtype_key.c_str(), Ports[i].DeviceSubtype);
-		}
-	}
-}
-
-bool Pcsx2Config::USBOptions::Port::operator==(const USBOptions::Port& right) const
-{
-	return OpEqu(DeviceType) && OpEqu(DeviceSubtype);
-}
-
-bool Pcsx2Config::USBOptions::Port::operator!=(const USBOptions::Port& right) const
-{
-	return !this->operator==(right);
-}
-
-bool Pcsx2Config::USBOptions::operator==(const USBOptions& right) const
-{
-	for (u32 i = 0; i < static_cast<u32>(Ports.size()); i++)
-	{
-		if (!OpEqu(Ports[i]))
-			return false;
-	}
-
-	return true;
-}
-
-bool Pcsx2Config::USBOptions::operator!=(const USBOptions& right) const
-{
-	return !this->operator==(right);
-}
-
-#endif
-
-#ifdef ENABLE_ACHIEVEMENTS
-
-Pcsx2Config::AchievementsOptions::AchievementsOptions()
-{
-	Enabled = false;
-	TestMode = false;
-	UnofficialTestMode = false;
-	RichPresence = true;
-	ChallengeMode = false;
-	Leaderboards = true;
-	Notifications = true;
-	SoundEffects = true;
-	PrimedIndicators = true;
-}
-
-void Pcsx2Config::AchievementsOptions::LoadSave(SettingsWrapper& wrap)
-{
-	SettingsWrapSection("Achievements");
-
-	SettingsWrapBitBool(Enabled);
-	SettingsWrapBitBool(TestMode);
-	SettingsWrapBitBool(UnofficialTestMode);
-	SettingsWrapBitBool(RichPresence);
-	SettingsWrapBitBool(ChallengeMode);
-	SettingsWrapBitBool(Leaderboards);
-	SettingsWrapBitBool(Notifications);
-	SettingsWrapBitBool(SoundEffects);
-	SettingsWrapBitBool(PrimedIndicators);
-}
-
-#endif
-
 Pcsx2Config::Pcsx2Config()
 {
 	bitset = 0;
@@ -1288,7 +1198,6 @@ Pcsx2Config::Pcsx2Config()
 	EnablePatches = true;
 	EnableRecordingTools = true;
 	EnableGameFixes = true;
-	InhibitScreensaver = true;
 	BackupSavestate = true;
 	SavestateZstdCompression = true;
 
@@ -1325,14 +1234,12 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(CdvdShareWrite);
 	SettingsWrapBitBool(EnablePatches);
 	SettingsWrapBitBool(EnableCheats);
-	SettingsWrapBitBool(EnablePINE);
 	SettingsWrapBitBool(EnableWideScreenPatches);
 	SettingsWrapBitBool(EnableNoInterlacingPatches);
 	SettingsWrapBitBool(EnableRecordingTools);
 	SettingsWrapBitBool(EnableGameFixes);
 	SettingsWrapBitBool(SaveStateOnShutdown);
 	SettingsWrapBitBool(EnableDiscordPresence);
-	SettingsWrapBitBool(InhibitScreensaver);
 	SettingsWrapBitBool(ConsoleToStdio);
 	SettingsWrapBitBool(HostFs);
 
@@ -1355,13 +1262,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 
 	Debugger.LoadSave(wrap);
 	Trace.LoadSave(wrap);
-#ifndef __LIBRETRO__
-	USB.LoadSave(wrap);
-#endif
-
-#ifdef ENABLE_ACHIEVEMENTS
-	Achievements.LoadSave(wrap);
-#endif
 
 	SettingsWrapEntry(GzipIsoIndexTemplate);
 
@@ -1457,7 +1357,6 @@ void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 	CurrentIRX = std::move(cfg.CurrentIRX);
 	CurrentGameArgs = std::move(cfg.CurrentGameArgs);
 	CurrentAspectRatio = cfg.CurrentAspectRatio;
-	LimiterMode = cfg.LimiterMode;
 
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
 	{

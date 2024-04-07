@@ -192,8 +192,9 @@ u32 GSUtil::GetChannelMask(u32 spsm)
 		case PSMT4HL: // So uuhh TODO I guess.
 			return 0x8;
 		default:
-			return 0xf;
+			break;
 	}
+	return 0xf;
 }
 
 CRCHackLevel GSUtil::GetRecommendedCRCHackLevel(GSRendererType type)

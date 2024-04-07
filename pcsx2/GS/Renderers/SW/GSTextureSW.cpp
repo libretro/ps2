@@ -87,17 +87,7 @@ void GSTextureSW::Unmap()
 
 bool GSTextureSW::Save(const std::string& fn)
 {
-#ifdef __LIBRETRO__
 	return true;
-#else
-#ifdef PCSX2_DEVBUILD
-	GSPng::Format fmt = GSPng::RGB_A_PNG;
-#else
-	GSPng::Format fmt = GSPng::RGB_PNG;
-#endif
-	int compression = GSConfig.PNGCompressionLevel;
-	return GSPng::Save(fmt, fn, static_cast<u8*>(m_data), m_size.x, m_size.y, m_pitch, compression);
-#endif
 }
 
 void GSTextureSW::Swap(GSTexture* tex)

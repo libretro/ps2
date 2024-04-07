@@ -34,12 +34,6 @@ void Close();
 /// Reset, rebooting VM or going into PSX mode.
 void Reset(bool psxmode);
 
-/// Identifies any configuration changes and applies them.
-void CheckForConfigChanges(const Pcsx2Config& old_config);
-
-/// Returns the current output volume, irrespective of the configuration.
-s32 GetOutputVolume();
-
 /// Directly updates the output volume without going through the configuration.
 void SetOutputVolume(s32 volume);
 

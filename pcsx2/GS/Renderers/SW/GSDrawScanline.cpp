@@ -44,9 +44,6 @@ GSDrawScanline::GSDrawScanline()
 
 GSDrawScanline::~GSDrawScanline()
 {
-	if (const size_t used = GSCodeReserve::GetInstance().GetMemoryUsed(); used > 0)
-		DevCon.WriteLn("SW JIT generated %zu bytes of code", used);
-
 	GSCodeReserve::GetInstance().ForbidModification();
 }
 

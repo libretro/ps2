@@ -210,17 +210,6 @@ public:
 			std::pair<linkiter_t, linkiter_t> range = links.equal_range(blocks[idx].startpc);
 			for (linkiter_t i = range.first; i != range.second; ++i)
 				*(u32*)i->second = recompiler - (i->second + 4);
-
-			if (IsDevBuild)
-			{
-				// Clear the first instruction to 0xcc (breakpoint), as a way to assert if some
-				// static jumps get left behind to this block.  Note: Do not clear more than the
-				// first byte, since this code is called during exception handlers and event handlers
-				// both of which expect to be able to return to the recompiled code.
-
-				BASEBLOCKEX effu(blocks[idx]);
-				memset((void*)effu.fnptr, 0xcc, 1);
-			}
 		} while (idx++ < last);
 
 		// TODO: remove links from this block?

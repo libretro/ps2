@@ -29,12 +29,6 @@
 #include "ps2/pgif.h"
 #include "Mdec.h"
 
-#define SIO0LOG_ENABLE 0
-#define SIO2LOG_ENABLE 0
-
-#define Sio0Log if (SIO0LOG_ENABLE) DevCon
-#define Sio2Log if (SIO2LOG_ENABLE) DevCon
-
 namespace IopMemory {
 
 using namespace Internal;
@@ -48,8 +42,6 @@ using namespace Internal;
 template< typename T >
 static __fi void _generic_write( u32 addr, T val )
 {
-	//int bitsize = (sizeof(T) == 1) ? 8 : ( (sizeof(T) == 2) ? 16 : 32 );
-	IopHwTraceLog<T>( addr, val, false );
 	psxHu(addr) = val;
 }
 
@@ -62,11 +54,7 @@ void iopHwWrite32_generic( u32 addr, mem32_t val )	{ _generic_write<mem32_t>( ad
 template< typename T >
 static __fi T _generic_read( u32 addr )
 {
-	//int bitsize = (sizeof(T) == 1) ? 8 : ( (sizeof(T) == 2) ? 16 : 32 );
-
-	T ret = psxHu(addr);
-	IopHwTraceLog<T>( addr, ret, true );
-	return ret;
+	return psxHu(addr);
 }
 
 mem8_t iopHwRead8_generic( u32 addr )	{ return _generic_read<mem8_t>( addr ); }
@@ -89,16 +77,9 @@ void iopHwWrite8_Page1( u32 addr, mem8_t val )
 			sio0.SetTxData(val);
 			break;
 		case (HW_SIO_STAT & 0x0fff):
-			Sio0Log.Error("%s(%08X, %08X) Unexpected SIO0 STAT 8 bit write", __FUNCTION__, addr, val);
-			break;
 		case (HW_SIO_MODE & 0x0fff):
-			Sio0Log.Error("%s(%08X, %08X) Unexpected SIO0 MODE 8 bit write", __FUNCTION__, addr, val);
-			break;
 		case (HW_SIO_CTRL & 0x0fff):
-			Sio0Log.Error("%s(%08X, %08X) Unexpected SIO0 CTRL 8 bit write", __FUNCTION__, addr, val);
-			break;
 		case (HW_SIO_BAUD & 0x0fff):
-			Sio0Log.Error("%s(%08X, %08X) Unexpected SIO0 BAUD 8 bit write", __FUNCTION__, addr, val);
 			break;
 		// for use of serial port ignore for now
 		//case 0x50: serial_write8( val ); break;
@@ -112,15 +93,9 @@ void iopHwWrite8_Page1( u32 addr, mem8_t val )
 
 		default:
 			if( masked_addr >= 0x100 && masked_addr < 0x130 )
-			{
-				DbgCon.Warning( "HwWrite8 to Counter16 [ignored] @ addr 0x%08x = 0x%02x", addr, psxHu8(addr) );
 				psxHu8( addr ) = val;
-			}
 			else if( masked_addr >= 0x480 && masked_addr < 0x4a0 )
-			{
-				DbgCon.Warning( "HwWrite8 to Counter32 [ignored] @ addr 0x%08x = 0x%02x", addr, psxHu8(addr) );
 				psxHu8( addr ) = val;
-			}
 			else if( (masked_addr >= pgmsk(HW_USB_START)) && (masked_addr < pgmsk(HW_USB_END)) )
 			{
 				USBwrite8( addr, val );
@@ -131,8 +106,6 @@ void iopHwWrite8_Page1( u32 addr, mem8_t val )
 			}
 		break;
 	}
-
-	IopHwTraceLog<mem8_t>( addr, val, false );
 }
 
 void iopHwWrite8_Page3( u32 addr, mem8_t val )
@@ -160,13 +133,11 @@ void iopHwWrite8_Page3( u32 addr, mem8_t val )
 		if ((pidx == std::size(pbuf)-1) || (pbuf[pidx-1] == '\n'))
 		{
 			pbuf[pidx] = 0;
-			iopConLog( ShiftJIS_ConvertString(pbuf) );
 			pidx = 0;
 		}
 	}
 
 	psxHu8( addr ) = val;
-	IopHwTraceLog<mem8_t>( addr, val, false );
 }
 
 void iopHwWrite8_Page8( u32 addr, mem8_t val )
@@ -175,15 +146,10 @@ void iopHwWrite8_Page8( u32 addr, mem8_t val )
 	pxAssert( (addr >> 12) == 0x1f808 );
 
 	if (addr == HW_SIO2_DATAIN)
-	{
 		sio2.Write(val);
-	}
 	else
-	{
 		psxHu8(addr) = val;
-	}
 
-	IopHwTraceLog<mem8_t>( addr, val, false );
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -275,21 +241,12 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 	{
 		if( sizeof(T) == 2 )
 			SPU2write( addr, val );
-		else
-		{
-			DbgCon.Warning( "HwWrite32 to SPU2? @ 0x%08X .. What manner of trickery is this?!", addr );
-			//psxHu(addr) = val;
-		}
 	}
 	// ------------------------------------------------------------------------
 	// PS1 GPU access
 	//
 	else if( (masked_addr >= pgmsk(HW_PS1_GPU_START)) && (masked_addr < pgmsk(HW_PS1_GPU_END)) )
 	{
-		// todo: psx mode: this is new
-		if( sizeof(T) == 2 )
-			DevCon.Warning( "HwWrite16 to PS1 GPU? @ 0x%08X .. What manner of trickery is this?!", addr );
-
 		pxAssert(sizeof(T) == 4);
 
 		psxDma2GpuW(addr, val);
@@ -387,7 +344,6 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 				psxDma1(HW_DMA1_MADR, HW_DMA1_BCR, HW_DMA1_CHCR);
 			break;
 			mcase(0x1f8010ac):
-				DevCon.Warning("SIF2 IOP TADR?? write");
 				psxHu(addr) = val;
 			break;
 
@@ -462,11 +418,8 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 				else {
 					newtmp &= ~0x80000000;
 				}
-				//if (newtmp != old)
-				//	DevCon.Warning("ICR Old %x New %x", old, newtmp);
 				psxHu(addr) = newtmp;
 				if ((HW_DMA_ICR >> 15) & 0x1) {
-					DevCon.Warning("Force ICR IRQ!");
 					psxRegs.CP0.n.Cause &= ~0x7C;
 					iopIntcIrq(3);
 				}
@@ -478,7 +431,6 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 
 			mcase(0x1f8010f6):		// ICR_hi (16 bit?) [dunno if it ever happens]
 			{
-				DevCon.Warning("High ICR Write!!");
 				const u32 val2 = (u32)val << 16;
 				const u32 tmp = (~val2) & HW_DMA_ICR;
 				psxHu(addr) = (((tmp ^ val2) & 0xffffff) ^ tmp) >> 16;
@@ -500,11 +452,8 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 				else {
 					newtmp &= ~0x80000000;
 				}
-				//if (newtmp != old)
-				//	DevCon.Warning("ICR2 Old %x New %x", old, newtmp);
 				psxHu(addr) = newtmp;
 				if ((HW_DMA_ICR2 >> 15) & 0x1) {
-					DevCon.Warning("Force ICR2 IRQ!");
 					psxRegs.CP0.n.Cause &= ~0x7C;
 					iopIntcIrq(3);
 				}
@@ -516,7 +465,6 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 
 			mcase(0x1f801576):		// ICR2_hi (16 bit?) [dunno if it ever happens]
 			{
-				DevCon.Warning("ICR2 high write!");
 				const u32 val2 = (u32)val << 16;
 				const u32 tmp = (~val2) & HW_DMA_ICR2;
 				psxHu(addr) = (((tmp ^ val2) & 0xffffff) ^ tmp) >> 16;
@@ -556,8 +504,6 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 			break;
 		}
 	}
-
-	IopHwTraceLog<T>( addr, val, false );
 }
 
 
@@ -573,7 +519,6 @@ void iopHwWrite16_Page3( u32 addr, mem16_t val )
 	// all addresses are assumed to be prefixed with 0x1f803xxx:
 	pxAssert( (addr >> 12) == 0x1f803 );
 	psxHu16(addr) = val;
-	IopHwTraceLog<mem16_t>( addr, val, false );
 }
 
 void iopHwWrite16_Page8( u32 addr, mem16_t val )
@@ -581,7 +526,6 @@ void iopHwWrite16_Page8( u32 addr, mem16_t val )
 	// all addresses are assumed to be prefixed with 0x1f808xxx:
 	pxAssert( (addr >> 12) == 0x1f808 );
 	psxHu16(addr) = val;
-	IopHwTraceLog<mem16_t>( addr, val, false );
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -596,7 +540,6 @@ void iopHwWrite32_Page3( u32 addr, mem32_t val )
 	// all addresses are assumed to be prefixed with 0x1f803xxx:
 	pxAssert( (addr >> 12) == 0x1f803 );
 	psxHu16(addr) = val;
-	IopHwTraceLog<mem32_t>( addr, val, false );
 }
 
 void iopHwWrite32_Page8( u32 addr, mem32_t val )
@@ -610,7 +553,6 @@ void iopHwWrite32_Page8( u32 addr, mem32_t val )
 	{
 		if( masked_addr < 0x240 )
 		{
-			Sio2Log.WriteLn("%s(%08X, %08X) SIO2 SEND3 Write (len = %d / %d) (port = %d)", __FUNCTION__, addr, val, (val >> 8) & Send3::COMMAND_LENGTH_MASK, (val >> 18) & Send3::COMMAND_LENGTH_MASK, val & 0x01);
 			const int parm = (masked_addr - 0x200) / 4;
 			sio2.SetSend3(parm, val);
 		}
@@ -622,52 +564,37 @@ void iopHwWrite32_Page8( u32 addr, mem32_t val )
 			const int parm = (masked_addr - 0x240) / 8;
 
 			if (masked_addr & 4)
-			{
-				Sio2Log.WriteLn("%s(%08X, %08X) SIO2 SEND2 Write", __FUNCTION__, addr, val);
 				sio2.send2.at(parm) = val;
-			}
 			else
-			{
-				Sio2Log.WriteLn("%s(%08X, %08X) SIO2 SEND1 Write", __FUNCTION__, addr, val);
 				sio2.send1.at(parm) = val;
-			}
 		}
 		else if( masked_addr <= 0x280 )
 		{
 			switch( masked_addr )
 			{
 				case (HW_SIO2_DATAIN & 0x0fff):
-					Sio2Log.Warning("%s(%08X, %08X) Unexpected 32 bit write to HW_SIO2_DATAIN", __FUNCTION__, addr, val);
 					break;
 				case (HW_SIO2_FIFO & 0x0fff):
-					Sio2Log.Warning("%s(%08X, %08X) Unexpected 32 bit write to HW_SIO2_FIFO", __FUNCTION__, addr, val);
 					break;
 				case (HW_SIO2_CTRL & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 CTRL Write", __FUNCTION__, addr, val);
 					sio2.SetCtrl(val);
 					break;
 				case (HW_SIO2_RECV1 & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 RECV1 Write", __FUNCTION__, addr, val);
 					sio2.recv1 = val;
 					break;
 				case (HW_SIO2_RECV2 & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 RECV2 Write", __FUNCTION__, addr, val);
 					sio2.recv2 = val;
 					break;
 				case (HW_SIO2_RECV3 & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 RECV3 Write", __FUNCTION__, addr, val);
 					sio2.recv3 = val;
 					break;
 				case (HW_SIO2_8278 & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 UNK1 Write", __FUNCTION__, addr, val);
 					sio2.unknown1 = val;
 					break;
 				case (HW_SIO2_827C & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 UNK2 Write", __FUNCTION__, addr, val);
 					sio2.unknown2 = val;
 					break;
 				case (HW_SIO2_INTR & 0x0fff):
-					Sio2Log.WriteLn("%s(%08X, %08X) SIO2 ISTAT Write", __FUNCTION__, addr, val);
 					sio2.iStat = val;
 					break;
 				// Other SIO2 registers are read-only, no-ops on write.
@@ -682,8 +609,6 @@ void iopHwWrite32_Page8( u32 addr, mem32_t val )
 		}
 	}
 	else psxHu32(addr) = val;
-
-	IopHwTraceLog<mem32_t>( addr, val, false );
 }
 
 }

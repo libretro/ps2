@@ -18,14 +18,10 @@
 #include "MultitapProtocol.h"
 #include "Sio.h"
 
-#define MT_LOG_ENABLE 0
-#define MT_LOG if (MT_LOG_ENABLE) DevCon
-
 MultitapProtocol g_MultitapProtocol;
 
 void MultitapProtocol::SupportCheck()
 {
-	MT_LOG.WriteLn("%s", __FUNCTION__);
 	fifoOut.push_back(0x5a);
 	fifoOut.push_back(0x04);
 	fifoOut.push_back(0x00);
@@ -34,16 +30,12 @@ void MultitapProtocol::SupportCheck()
 
 void MultitapProtocol::Select()
 {
-	MT_LOG.WriteLn("%s", __FUNCTION__);
 	const u8 newSlot = fifoIn.front();
 	fifoIn.pop_front();
 	const bool isInBounds = (newSlot < SIO::SLOTS);
 
 	if (isInBounds)
-	{
 		sio2.slot = newSlot;
-		MT_LOG.WriteLn("Slot changed to %d", sio2.slot);
-	}
 
 	fifoOut.push_back(0x5a);
 	fifoOut.push_back(0x00);
@@ -83,7 +75,6 @@ void MultitapProtocol::SendToMultitap()
 			Select();
 			break;
 		default:
-			DevCon.Warning("%s() Unhandled MultitapMode (%02X)", __FUNCTION__, commandByte);
 			break;
 	}
 }

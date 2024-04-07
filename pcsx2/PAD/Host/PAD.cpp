@@ -87,9 +87,7 @@ s32 PADsetSlot(u8 port, u8 slot)
 	port--;
 	slot--;
 	if (port > 1 || slot > 3)
-	{
 		return 0;
-	}
 	// Even if no pad there, record the slot, as it is the active slot regardless.
 	slots[port] = slot;
 
@@ -102,9 +100,7 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 		return -1;
 
 	if (mode == FreezeAction::Size)
-	{
 		data->size = sizeof(PadFullFreezeData);
-	}
 	else if (mode == FreezeAction::Load)
 	{
 		PadFullFreezeData* pdata = (PadFullFreezeData*)(data->data);
@@ -117,9 +113,7 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 
 		query = pdata->query;
 		if (pdata->query.slot < 4)
-		{
 			query = pdata->query;
-		}
 
 		// Tales of the Abyss - pad fix
 		// - restore data for both ports
@@ -130,9 +124,7 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 				u8 mode = pdata->padData[port][slot].mode;
 
 				if (mode != MODE_DIGITAL && mode != MODE_ANALOG && mode != MODE_DS2_NATIVE)
-				{
 					break;
-				}
 
 				memcpy(&pads[port][slot], &pdata->padData[port][slot], sizeof(PadFreezeData));
 			}
@@ -159,17 +151,13 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 		for (int port = 0; port < 2; port++)
 		{
 			for (int slot = 0; slot < 4; slot++)
-			{
 				pdata->padData[port][slot] = pads[port][slot];
-			}
 
 			pdata->slot[port] = slots[port];
 		}
 	}
 	else
-	{
 		return -1;
-	}
 
 	return 0;
 }
@@ -189,7 +177,7 @@ std::string PAD::GetConfigSection(u32 pad_index)
 	return fmt::format("Pad{}", pad_index + 1);
 }
 
-bool PADcomplete()
+bool PADcomplete(void)
 {
 	return pad_complete();
 }
@@ -250,75 +238,6 @@ const char* PAD::GetDefaultPadType(u32 pad)
 	return (pad == 0) ? "DualShock2" : "None";
 }
 
-void PAD::SetDefaultControllerConfig(SettingsInterface& si)
-{
-#ifndef __LIBRETRO__
-	si.ClearSection("InputSources");
-	si.ClearSection("Hotkeys");
-	si.ClearSection("Pad");
-
-	// PCSX2 Controller Settings - Global Settings
-	for (u32 i = 0; i < static_cast<u32>(InputSourceType::Count); i++)
-	{
-		si.SetBoolValue("InputSources",
-			InputManager::InputSourceToString(static_cast<InputSourceType>(i)),
-			InputManager::GetInputSourceDefaultEnabled(static_cast<InputSourceType>(i)));
-	}
-#ifdef SDL_BUILD
-	si.SetBoolValue("InputSources", "SDLControllerEnhancedMode", false);
-#endif
-	si.SetBoolValue("Pad", "MultitapPort1", false);
-	si.SetBoolValue("Pad", "MultitapPort2", false);
-	si.SetFloatValue("Pad", "PointerXSpeed", 40.0f);
-	si.SetFloatValue("Pad", "PointerYSpeed", 40.0f);
-	si.SetFloatValue("Pad", "PointerXDeadZone", 20.0f);
-	si.SetFloatValue("Pad", "PointerYDeadZone", 20.0f);
-	si.SetFloatValue("Pad", "PointerInertia", 10.0f);
-
-	// PCSX2 Controller Settings - Default pad types and parameters.
-	for (u32 i = 0; i < NUM_CONTROLLER_PORTS; i++)
-	{
-		const char* type = GetDefaultPadType(i);
-		const std::string section(GetConfigSection(i));
-		si.ClearSection(section.c_str());
-		si.SetStringValue(section.c_str(), "Type", type);
-
-		const ControllerInfo* ci = GetControllerInfo(type);
-		if (ci)
-		{
-			for (u32 i = 0; i < ci->num_settings; i++)
-			{
-				const SettingInfo& csi = ci->settings[i];
-				switch (csi.type)
-				{
-					case SettingInfo::Type::Boolean:
-						si.SetBoolValue(section.c_str(), csi.name, csi.BooleanDefaultValue());
-						break;
-					case SettingInfo::Type::Integer:
-					case SettingInfo::Type::IntegerList:
-						si.SetIntValue(section.c_str(), csi.name, csi.IntegerDefaultValue());
-						break;
-					case SettingInfo::Type::Float:
-						si.SetFloatValue(section.c_str(), csi.name, csi.FloatDefaultValue());
-						break;
-					case SettingInfo::Type::String:
-					case SettingInfo::Type::StringList:
-					case SettingInfo::Type::Path:
-						si.SetStringValue(section.c_str(), csi.name, csi.StringDefaultValue());
-						break;
-					default:
-						break;
-				}
-			}
-		}
-	}
-
-	// PCSX2 Controller Settings - Controller 1 / Controller 2 / ...
-	// Use the automapper to set this up.
-	MapController(si, 0, InputManager::GetGenericBindingMapping("Keyboard"));
-#endif
-}
-
 void PAD::SetDefaultHotkeyConfig(SettingsInterface& si)
 {
 	// PCSX2 Controller Settings - Hotkeys
@@ -330,9 +249,6 @@ void PAD::SetDefaultHotkeyConfig(SettingsInterface& si)
 	si.SetStringValue("Hotkeys", "CycleAspectRatio", "Keyboard/F6");
 	si.SetStringValue("Hotkeys", "CycleInterlaceMode", "Keyboard/F5");
 	si.SetStringValue("Hotkeys", "CycleMipmapMode", "Keyboard/Insert");
-	//	si.SetStringValue("Hotkeys", "DecreaseUpscaleMultiplier", "Keyboard"); TBD
-	//	si.SetStringValue("Hotkeys", "IncreaseUpscaleMultiplier", "Keyboard"); TBD
-	//  si.SetStringValue("Hotkeys", "ReloadTextureReplacements", "Keyboard"); TBD
 	si.SetStringValue("Hotkeys", "GSDumpMultiFrame", "Keyboard/Control & Keyboard/Shift & Keyboard/F8");
 	si.SetStringValue("Hotkeys", "Screenshot", "Keyboard/F8");
 	si.SetStringValue("Hotkeys", "GSDumpSingleFrame", "Keyboard/Shift & Keyboard/F8");
@@ -353,11 +269,6 @@ void PAD::SetDefaultHotkeyConfig(SettingsInterface& si)
 	si.SetStringValue("Hotkeys", "PreviousSaveStateSlot", "Keyboard/Shift & Keyboard/F2");
 
 	// PCSX2 Controller Settings - Hotkeys - System
-	//	si.SetStringValue("Hotkeys", "DecreaseSpeed", "Keyboard"); TBD
-	//  si.SetStringValue("Hotkeys", "FrameAdvance", "Keyboard"); TBD
-	//	si.SetStringValue("Hotkeys", "IncreaseSpeed", "Keyboard"); TBD
-	//  si.SetStringValue("Hotkeys", "ResetVM", "Keyboard"); TBD
-	//  si.SetStringValue("Hotkeys", "ShutdownVM", "Keyboard"); TBD
 	si.SetStringValue("Hotkeys", "OpenPauseMenu", "Keyboard/Escape");
 	si.SetStringValue("Hotkeys", "ToggleFrameLimit", "Keyboard/F4");
 	si.SetStringValue("Hotkeys", "TogglePause", "Keyboard/Space");
@@ -525,99 +436,6 @@ void PAD::ClearPortBindings(SettingsInterface& si, u32 port)
 		si.DeleteValue(section.c_str(), fmt::format("{}Scale", bi.name).c_str());
 		si.DeleteValue(section.c_str(), fmt::format("{}Deadzone", bi.name).c_str());
 	}
-}
-
-void PAD::CopyConfiguration(SettingsInterface* dest_si, const SettingsInterface& src_si,
-	bool copy_pad_config, bool copy_pad_bindings, bool copy_hotkey_bindings)
-{
-#ifndef __LIBRETRO__
-	if (copy_pad_config)
-	{
-		dest_si->CopyBoolValue(src_si, "Pad", "MultitapPort1");
-		dest_si->CopyBoolValue(src_si, "Pad", "MultitapPort2");
-		dest_si->CopyBoolValue(src_si, "Pad", "MultitapPort1");
-		dest_si->CopyBoolValue(src_si, "Pad", "MultitapPort2");
-		dest_si->CopyFloatValue(src_si, "Pad", "PointerXSpeed");
-		dest_si->CopyFloatValue(src_si, "Pad", "PointerYSpeed");
-		dest_si->CopyFloatValue(src_si, "Pad", "PointerXDeadZone");
-		dest_si->CopyFloatValue(src_si, "Pad", "PointerYDeadZone");
-		dest_si->CopyFloatValue(src_si, "Pad", "PointerInertia");
-		for (u32 i = 0; i < static_cast<u32>(InputSourceType::Count); i++)
-		{
-			dest_si->CopyBoolValue(src_si, "InputSources",
-				InputManager::InputSourceToString(static_cast<InputSourceType>(i)));
-		}
-#ifdef SDL_BUILD
-		dest_si->CopyBoolValue(src_si, "InputSources", "SDLControllerEnhancedMode");
-#endif
-	}
-
-	for (u32 port = 0; port < NUM_CONTROLLER_PORTS; port++)
-	{
-		const std::string section(fmt::format("Pad{}", port + 1));
-		const std::string type(src_si.GetStringValue(section.c_str(), "Type", GetDefaultPadType(port)));
-		if (copy_pad_config)
-			dest_si->SetStringValue(section.c_str(), "Type", type.c_str());
-
-		const ControllerInfo* info = GetControllerInfo(type);
-		if (!info)
-			return;
-
-		if (copy_pad_bindings)
-		{
-			for (u32 i = 0; i < info->num_bindings; i++)
-			{
-				const InputBindingInfo& bi = info->bindings[i];
-				dest_si->CopyStringListValue(src_si, section.c_str(), bi.name);
-				dest_si->CopyFloatValue(src_si, section.c_str(), fmt::format("{}Sensitivity", bi.name).c_str());
-				dest_si->CopyFloatValue(src_si, section.c_str(), fmt::format("{}Deadzone", bi.name).c_str());
-			}
-
-			for (u32 i = 0; i < NUM_MACRO_BUTTONS_PER_CONTROLLER; i++)
-			{
-				dest_si->CopyStringListValue(src_si, section.c_str(), fmt::format("Macro{}", i + 1).c_str());
-				dest_si->CopyStringValue(src_si, section.c_str(), fmt::format("Macro{}Binds", i + 1).c_str());
-				dest_si->CopyUIntValue(src_si, section.c_str(), fmt::format("Macro{}Frequency", i + 1).c_str());
-				dest_si->CopyFloatValue(src_si, section.c_str(), fmt::format("Macro{}Pressure", i + 1).c_str());
-			}
-		}
-
-		if (copy_pad_config)
-		{
-			for (u32 i = 0; i < info->num_settings; i++)
-			{
-				const SettingInfo& csi = info->settings[i];
-				switch (csi.type)
-				{
-					case SettingInfo::Type::Boolean:
-						dest_si->CopyBoolValue(src_si, section.c_str(), csi.name);
-						break;
-					case SettingInfo::Type::Integer:
-					case SettingInfo::Type::IntegerList:
-						dest_si->CopyIntValue(src_si, section.c_str(), csi.name);
-						break;
-					case SettingInfo::Type::Float:
-						dest_si->CopyFloatValue(src_si, section.c_str(), csi.name);
-						break;
-					case SettingInfo::Type::String:
-					case SettingInfo::Type::StringList:
-					case SettingInfo::Type::Path:
-						dest_si->CopyStringValue(src_si, section.c_str(), csi.name);
-						break;
-					default:
-						break;
-				}
-			}
-		}
-	}
-
-	if (copy_hotkey_bindings)
-	{
-		std::vector<const HotkeyInfo*> hotkeys(InputManager::GetHotkeyList());
-		for (const HotkeyInfo* hki : hotkeys)
-			dest_si->CopyStringListValue(src_si, "Hotkeys", hki->name);
-	}
-#endif
 }
 
 static u32 TryMapGenericMapping(SettingsInterface& si, const std::string& section,

@@ -55,20 +55,6 @@ if(USE_LEGACY_USER_DIRECTORY)
 	target_compile_definitions(PCSX2_FLAGS INTERFACE USE_LEGACY_USER_DIRECTORY)
 endif()
 
-if(TARGET SDL2::SDL2 OR TARGET SDL2::SDL2-static)
-	target_compile_definitions(PCSX2_FLAGS INTERFACE SDL_BUILD)
-	if ("${SDL2_TYPE}" STREQUAL Bundled)
-		# Use our in-tree SDL build.
-		target_link_libraries(PCSX2_FLAGS INTERFACE SDL2::SDL2-static)
-	else()
-		target_link_libraries(PCSX2_FLAGS INTERFACE SDL2::SDL2)
-	endif()
-	target_sources(PCSX2 PRIVATE
-		Frontend/SDLInputSource.cpp
-		Frontend/SDLInputSource.h
-	)
-endif()
-
 if(WIN32)
 	set(MIN_WIN32 0x0A00)
 	target_compile_definitions(PCSX2_FLAGS INTERFACE
@@ -113,7 +99,6 @@ set(pcsx2Sources
 	IopHw.cpp
 	IopIrq.cpp
 	IopMem.cpp
-	PINE.cpp
 	Mdec.cpp
 	Memory.cpp
 	MemoryCardFile.cpp
@@ -167,7 +152,6 @@ set(pcsx2Sources
 
 # Main pcsx2 header
 set(pcsx2Headers
-	Achievements.h
 	AsyncFileReader.h
 	Cache.h
 	Common.h
@@ -190,7 +174,6 @@ set(pcsx2Headers
 	IopGte.h
 	IopHw.h
 	IopMem.h
-	PINE.h
 	Mdec.h
 	MTVU.h
 	Memory.h
@@ -273,7 +256,6 @@ set(pcsx2CDVDHeaders
 # SPU2 sources
 set(pcsx2SPU2Sources
 	SPU2/ADSR.cpp
-	SPU2/Debug.cpp
 	SPU2/DplIIdecoder.cpp
 	SPU2/Dma.cpp
 	SPU2/Mixer.cpp
@@ -281,10 +263,8 @@ set(pcsx2SPU2Sources
 	SPU2/ReadInput.cpp
 	SPU2/RegTable.cpp
 	SPU2/Reverb.cpp
-	SPU2/SndOut.cpp
 	SPU2/spu2freeze.cpp
 	SPU2/spu2sys.cpp
-	SPU2/Wavedump_wav.cpp
 )
 
 # SPU2 headers
@@ -300,18 +280,6 @@ set(pcsx2SPU2Headers
 	SPU2/SndOut.h
 	SPU2/spdif.h
 )
-
-if(CUBEB_API)
-	list(APPEND pcsx2SPU2Sources SPU2/SndOut_Cubeb.cpp)
-	target_compile_definitions(PCSX2_FLAGS INTERFACE "SPU2X_CUBEB")
-	target_link_libraries(PCSX2_FLAGS INTERFACE cubeb)
-endif()
-
-if(WIN32)
-	list(APPEND pcsx2SPU2Sources
-		SPU2/SndOut_XAudio2.cpp
-	)
-endif()
 
 # DEV9 sources
 set(pcsx2DEV9Sources
@@ -456,20 +424,8 @@ set(pcsx2USBHeaders
 	USB/usb-printer/usb-printer.h
 )
 
-if(CUBEB_API)
-	list(APPEND pcsx2USBSources USB/usb-mic/audiodev-cubeb.cpp)
-	list(APPEND pcsx2USBHeaders USB/usb-mic/audiodev-cubeb.h)
-endif()
-
-if(TARGET SDL2::SDL2 OR TARGET SDL2::SDL2-static)
-	list(APPEND pcsx2USBSources USB/usb-pad/usb-pad-sdl-ff.cpp)
-	list(APPEND pcsx2USBHeaders USB/usb-pad/usb-pad-sdl-ff.h)
-endif()
-
-
 # Host PAD
 set(pcsx2PADSources
-	PAD/Host/KeyStatus.cpp
 	PAD/Host/PAD.cpp
 	PAD/Host/StateManagement.cpp
 )
@@ -774,18 +730,6 @@ set(pcsx2DebugToolsHeaders
 	DebugTools/DisVUops.h
 	DebugTools/BiosDebugData.h)
 
-# Frontend sources
-set(pcsx2FrontendSources
-	Frontend/ImGuiManager.cpp
-	Frontend/ImGuiOverlays.cpp
-)
-
-# Frontend headers
-set(pcsx2FrontendHeaders
-	Frontend/ImGuiManager.h
-	Frontend/ImGuiOverlays.h
-)
-
 if(APPLE)
 	list(APPEND pcsx2GSSources
 		GS/Renderers/Metal/GSDeviceMTL.mm
@@ -804,74 +748,23 @@ endif()
 
 list(APPEND pcsx2FrontendSources
 	Frontend/CommonHost.cpp
-	Frontend/CommonHotkeys.cpp
-	Frontend/FullscreenUI.cpp
 	Frontend/GameList.cpp
 	Frontend/HostSettings.cpp
-	Frontend/ImGuiFullscreen.cpp
-	Frontend/InputManager.cpp
 	Frontend/InputSource.cpp
 	Frontend/LayeredSettingsInterface.cpp
 	Frontend/LogSink.cpp
-	GSDumpReplayer.cpp
 	INISettingsInterface.cpp
 	VMManager.cpp
 )
 list(APPEND pcsx2FrontendHeaders
 	Frontend/CommonHost.h
-	Frontend/FullscreenUI.h
 	Frontend/GameList.h
-	Frontend/ImGuiFullscreen.h
-	Frontend/InputManager.h
 	Frontend/InputSource.h
 	Frontend/LayeredSettingsInterface.h
 	Frontend/LogSink.h
-	GSDumpReplayer.h
 	HostSettings.h
 	INISettingsInterface.h
 	VMManager.h)
-
-if(USE_ACHIEVEMENTS)
-	list(APPEND pcsx2FrontendSources
-		Frontend/Achievements.cpp
-	)
-	list(APPEND pcsx2FrontendHeaders
-		Frontend/Achievements.h
-	)
-	target_compile_definitions(PCSX2_FLAGS INTERFACE
-		ENABLE_ACHIEVEMENTS
-	)
-	target_link_libraries(PCSX2_FLAGS INTERFACE
-		rcheevos
-	)
-	if(WIN32)
-		# RAIntegration is only supported on Windows.
-		target_compile_definitions(PCSX2_FLAGS INTERFACE
-			ENABLE_RAINTEGRATION
-		)
-		target_link_libraries(PCSX2_FLAGS INTERFACE
-			rainterface
-		)
-	endif()
-endif()
-if(USE_DISCORD_PRESENCE)
-	target_compile_definitions(PCSX2_FLAGS INTERFACE
-		ENABLE_DISCORD_PRESENCE
-	)
-	target_link_libraries(PCSX2_FLAGS INTERFACE
-		discord-rpc
-	)
-endif()
-if(WIN32)
-	list(APPEND pcsx2FrontendSources
-		Frontend/DInputSource.cpp
-		Frontend/XInputSource.cpp
-	)
-	list(APPEND pcsx2FrontendHeaders
-		Frontend/DInputSource.h
-		Frontend/XInputSource.h
-	)
-endif()
 
 # Linux sources
 set(pcsx2LinuxSources
@@ -907,50 +800,9 @@ set(pcsx2ps2Sources
 # ps2 headers
 set(pcsx2ps2Headers
 	ps2/BiosTools.h
-	ps2/eeHwTraceLog.inl
 	ps2/pgif.h
 	ps2/HwInternal.h
 	ps2/Iop/IopHw_Internal.h)
-
-# RDebug sources
-set(pcsx2RDebugSources
-	RDebug/deci2.cpp
-	RDebug/deci2_dbgp.cpp
-	RDebug/deci2_dcmp.cpp
-	RDebug/deci2_drfp.cpp
-	RDebug/deci2_iloadp.cpp
-	RDebug/deci2_netmp.cpp
-	RDebug/deci2_ttyp.cpp)
-
-# RDebug headers
-set(pcsx2RDebugHeaders
-	RDebug/deci2_dbgp.h
-	RDebug/deci2_dcmp.h
-	RDebug/deci2_drfp.h
-	RDebug/deci2.h
-	RDebug/deci2_iloadp.h
-	RDebug/deci2_netmp.h
-	RDebug/deci2_ttyp.h)
-
-# Recording sources
-set(rec_src "Recording")
-set(rec_vp_src "${rec_src}/VirtualPad")
-set(pcsx2RecordingSources
-	${rec_src}/InputRecording.cpp
-	${rec_src}/InputRecordingControls.cpp
-	${rec_src}/InputRecordingFile.cpp
-	${rec_src}/PadData.cpp
-	${rec_src}/Utilities/InputRecordingLogger.cpp
-)
-
-# Recording headers
-set(pcsx2RecordingHeaders
-	${rec_src}/InputRecording.h
-	${rec_src}/InputRecordingControls.h
-	${rec_src}/InputRecordingFile.h
-	${rec_src}/PadData.h
-	${rec_src}/Utilities/InputRecordingLogger.h
-)
 
 # Windows sources
 set(pcsx2WindowsSources
@@ -1032,51 +884,15 @@ set(pcsx2x86Headers
 	x86/R5900_Profiler.h
 	)
 
-if(LIBRETRO)
-	set(pcsx2DEV9Sources)
-	set(pcsx2DEV9Headers)
-	set(pcsx2USBSources)
-	set(pcsx2USBHeaders)
-	set(pcsx2RecordingSources)
-	set(pcsx2RecordingVirtualPadResources)
-	set(pcsx2RecordingHeaders)
-	set(pcsx2ZipToolsSources)
-	set(pcsx2ZipToolsHeaders)
-
-	LIST(REMOVE_ITEM pcsx2PADSources
-		PAD/Host/KeyStatus.cpp
+set(pcsx2DEV9Sources)
+set(pcsx2DEV9Headers)
+set(pcsx2USBSources)
+set(pcsx2USBHeaders)
+set(pcsx2ZipToolsSources)
+set(pcsx2ZipToolsHeaders)
+LIST(APPEND pcsx2GSSources
+	GS/Renderers/Null/GSDeviceNull.cpp
 	)
-
-	LIST(REMOVE_ITEM pcsx2FrontendSources
-		Frontend/FullscreenUI.cpp
-		Frontend/ImGuiManager.cpp
-		Frontend/ImGuiOverlays.cpp
-		Frontend/CommonHotkeys.cpp
-		Frontend/InputManager.cpp
-	)
-	LIST(REMOVE_ITEM pcsx2FrontendSources
-		Frontend/DInputSource.cpp
-		Frontend/XInputSource.cpp
-	)
-	LIST(REMOVE_ITEM pcsx2SPU2Sources
-	#	SPU2/Debug.cpp
-	#	SPU2/Wavedump_wav.cpp
-
-		SPU2/SndOut.cpp
-		SPU2/SndOut_SDL.cpp
-		SPU2/SndOut_Portaudio.cpp
-		SPU2/SndOut_XAudio2.cpp
-		SPU2/Config.cpp
-		SPU2/ConfigSoundTouch.cpp
-		SPU2/Timestretcher.cpp
-		SPU2/wx/wxConfig.cpp
-		SPU2/Linux/Alsa.cpp
-		SPU2/Linux/Dialogs.cpp
-	)
-	LIST(APPEND pcsx2GSSources
-		GS/Renderers/Null/GSDeviceNull.cpp
-	)
-endif()
 
 # These ones benefit a lot from LTO
 set(pcsx2LTOSources
@@ -1116,7 +932,6 @@ target_sources(PCSX2 PRIVATE
 	${pcsx2DEV9Headers}
 	${pcsx2PADHeaders}
 	${pcsx2PADSources}
-	${pcsx2RecordingSources}
 	${pcsx2DebugToolsSources}
 	${pcsx2DebugToolsHeaders}
 	${pcsx2FrontendSources}
@@ -1134,8 +949,6 @@ if(Linux)
 		)
 
 	target_link_libraries(PCSX2_FLAGS INTERFACE
-		PkgConfig::AIO
-		PkgConfig::LIBUDEV
 	)
 endif()
 
@@ -1164,7 +977,6 @@ endif()
 
 target_link_libraries(PCSX2_FLAGS INTERFACE
 	common
-	imgui
 	fmt::fmt
 	ryml
 	chdr-static
@@ -1172,22 +984,12 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	cpuinfo
 	zydis
 	ZLIB::ZLIB
-	PkgConfig::SOUNDTOUCH
 	PNG::PNG
 	LibLZMA::LibLZMA
+	simpleini
 	Zstd::Zstd
 	${LIBC_LIBRARIES}
 )
-
-target_link_libraries(PCSX2_FLAGS INTERFACE
-	simpleini
-)
-
-if(NOT LIBRETRO)
-	target_link_libraries(PCSX2_FLAGS INTERFACE
-		demangler
-	)
-endif()
 
 if(WIN32)
 	target_link_libraries(PCSX2_FLAGS INTERFACE
@@ -1237,21 +1039,6 @@ if(COMMAND target_precompile_headers AND NOT CCACHE_FOUND)
 	target_precompile_headers(PCSX2_FLAGS INTERFACE PrecompiledHeader.h)
 endif()
 
-# Copy resource files if needed
-function(pcsx2_resource target path basedir)
-	get_filename_component(dir ${path} DIRECTORY)
-	file(RELATIVE_PATH subdir ${basedir} ${dir})
-	if(APPLE)
-		target_sources(${target} PRIVATE ${path})
-		set_source_files_properties(${path} PROPERTIES MACOSX_PACKAGE_LOCATION Resources/${subdir})
-	else()
-		add_custom_command(TARGET ${target} POST_BUILD
-			COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:${target}>/resources/${subdir}"
-			COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${path}" "$<TARGET_FILE_DIR:${target}>/resources/${subdir}")
-	endif()
-	source_group(Resources/${subdir} FILES ${path})
-endfunction()
-
 if (NOT APPLE)
 	set_target_properties(PCSX2 PROPERTIES
 		OUTPUT_NAME pcsx2
@@ -1274,119 +1061,6 @@ endif()
 set_property(GLOBAL PROPERTY PCSX2_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set_property(GLOBAL PROPERTY PCSX2_METAL_SHADERS ${pcsx2GSMetalShaders})
 
-function(setup_main_executable target)
-	file(GLOB_RECURSE RESOURCE_FILES ${CMAKE_SOURCE_DIR}/bin/resources/*)
-	foreach(path IN LISTS RESOURCE_FILES)
-		get_filename_component(file ${path} NAME)
-		if("${file}" MATCHES "^\\.") # Don't copy macOS garbage (mainly Finder's .DS_Store files) into application
-			continue()
-		endif()
-		if (NOT WIN32 AND "${path}" MATCHES "/dx11/") # Don't include unneccessary stuff
-			continue()
-		endif()
-		pcsx2_resource(${target} ${path} ${CMAKE_SOURCE_DIR}/bin/resources/)
-	endforeach()
-
-	get_property(PCSX2_SOURCE_DIR GLOBAL PROPERTY PCSX2_SOURCE_DIR)
-	get_property(PCSX2_METAL_SHADERS GLOBAL PROPERTY PCSX2_METAL_SHADERS)
-
-	get_target_property(MOC_EXECUTABLE_LOCATION Qt6::moc IMPORTED_LOCATION)
-	get_filename_component(QT_BINARY_DIRECTORY "${MOC_EXECUTABLE_LOCATION}" DIRECTORY)
-
-	if(WIN32)
-		target_sources(${target} PRIVATE
-			${PCSX2_SOURCE_DIR}/windows/PCSX2.manifest
-			${PCSX2_SOURCE_DIR}/windows/PCSX2.rc
-		)
-		set_target_properties(${target} PROPERTIES WIN32_EXECUTABLE TRUE)
-		install(TARGETS ${target} DESTINATION ${CMAKE_SOURCE_DIR}/bin)
-		if(MSVC)
-			install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_SOURCE_DIR}/bin)
-		endif()
-		find_program(WINDEPLOYQT_EXE windeployqt HINTS "${QT_BINARY_DIRECTORY}")
-		install(CODE "execute_process(COMMAND \"${WINDEPLOYQT_EXE}\" \"${CMAKE_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:${target}>\" --plugindir \"${CMAKE_SOURCE_DIR}/bin/QtPlugins\" --no-compiler-runtime --no-system-d3d-compiler COMMAND_ERROR_IS_FATAL ANY)")
-		install(CODE "file(WRITE \"${CMAKE_SOURCE_DIR}/bin/qt.conf\" \"[Paths]\\nPlugins = ./QtPlugins\")")
-	endif()
-
-	if(APPLE)
-		if(CMAKE_GENERATOR MATCHES "Xcode")
-			# If we're generating an xcode project, you can just add the shaders to the main pcsx2 target and xcode will deal with them properly
-			# This will make sure xcode supplies code completion, etc (if you use a custom command, it won't)
-			set_target_properties(${target} PROPERTIES
-				XCODE_ATTRIBUTE_MTL_ENABLE_DEBUG_INFO INCLUDE_SOURCE
-			)
-			foreach(shader IN LISTS PCSX2_METAL_SHADERS)
-				target_sources(${target} PRIVATE ${PCSX2_SOURCE_DIR}/${shader})
-				set_source_files_properties(${PCSX2_SOURCE_DIR}/${shader} PROPERTIES LANGUAGE METAL)
-			endforeach()
-		else()
-			function(generateMetallib std triple outputName)
-				set(pcsx2GSMetalShaderOut)
-				set(flags
-					-ffast-math
-					$<$<NOT:$<CONFIG:Release,MinSizeRel>>:-gline-tables-only>
-					$<$<NOT:$<CONFIG:Release,MinSizeRel>>:-MO>
-				)
-				foreach(shader IN LISTS PCSX2_METAL_SHADERS)
-					set(shaderOut ${CMAKE_CURRENT_BINARY_DIR}/${outputName}/${shader}.air)
-					list(APPEND pcsx2GSMetalShaderOut ${shaderOut})
-					get_filename_component(shaderDir ${shaderOut} DIRECTORY)
-					add_custom_command(OUTPUT ${shaderOut}
-						COMMAND ${CMAKE_COMMAND} -E make_directory ${shaderDir}
-						COMMAND xcrun metal ${flags} -std=${std} -target ${triple} -o ${shaderOut} -c ${PCSX2_SOURCE_DIR}/${shader}
-						DEPENDS ${PCSX2_SOURCE_DIR}/${shader} ${PCSX2_SOURCE_DIR}/GS/Renderers/Metal/GSMTLSharedHeader.h ${PCSX2_SOURCE_DIR}/GS/Renderers/Metal/GSMTLShaderCommon.h
-					)
-					set(metallib ${CMAKE_CURRENT_BINARY_DIR}/${outputName}.metallib)
-				endforeach()
-				add_custom_command(OUTPUT ${metallib}
-					COMMAND xcrun metallib -o ${metallib} ${pcsx2GSMetalShaderOut}
-					DEPENDS ${pcsx2GSMetalShaderOut}
-				)
-				pcsx2_resource(${target} ${metallib} ${CMAKE_CURRENT_BINARY_DIR})
-			endfunction()
-			generateMetallib(macos-metal2.0 air64-apple-macos10.13 default)
-			generateMetallib(macos-metal2.2 air64-apple-macos10.15 Metal22)
-			generateMetallib(macos-metal2.3 air64-apple-macos11.0  Metal23)
-		endif()
-
-		set_target_properties(${target} PROPERTIES
-			MACOSX_BUNDLE true
-			MACOSX_BUNDLE_INFO_PLIST "${PCSX2_SOURCE_DIR}/Resources/Info.plist.in"
-			OUTPUT_NAME PCSX2
-		)
-
-		pcsx2_resource(${target} ${PCSX2_SOURCE_DIR}/Resources/PCSX2.icns ${PCSX2_SOURCE_DIR}/Resources)
-
-		# If they say to skip postprocess bundle, leave the target in but make it so they have
-		# to manually run it
-		if (SKIP_POSTPROCESS_BUNDLE)
-			set(postprocessBundleType "")
-		else()
-			set(postprocessBundleType ALL)
-		endif()
-
-		find_program(MACDEPLOYQT_EXE macdeployqt HINTS "${QT_BINARY_DIRECTORY}")
-		add_custom_target(pcsx2-postprocess-bundle ${postprocessBundleType}
-			COMMAND "${MACDEPLOYQT_EXE}" "$<TARGET_FILE_DIR:${target}>/../.." -no-strip
-		)
-		add_dependencies(pcsx2-postprocess-bundle ${target})
-	endif()
-
-	if(ENABLE_SETCAP AND UNIX AND NOT APPLE)
-		message(WARNING "Networking capabilities enabled, building will require temporary root elevation.")
-		add_custom_target(
-			pcsx2-enable-setcap
-			ALL
-			DEPENDS ${target}
-			COMMAND bash -c "set +x\; echo 'Elevating to enable networking capability on $<TARGET_FILE:${target}>...'\; sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' '$<TARGET_FILE:${target}>'"
-		)
-	endif()
-
-	if(PCSX2_EXE_NAME)
-		set_target_properties(${target} PROPERTIES OUTPUT_NAME ${PCSX2_EXE_NAME})
-	endif()
-endfunction()
-
 source_groups_from_vcxproj_filters(pcsx2core.vcxproj.filters)
 
 # Unix-only files aren't in the vcxproj.filters
@@ -1395,9 +1069,3 @@ source_group(System/Ps2/PAD FILES ${pcsx2PADSources} ${pcsx2PADHeaders})
 source_group(System/Ps2/SPU2 REGULAR_EXPRESSION SPU2/*)
 source_group(System/Ps2/USB REGULAR_EXPRESSION USB/*)
 source_group(System/Ps2/GS/Renderers/Metal REGULAR_EXPRESSION GS/Renderers/Metal/*)
-
-# Generated resource files
-source_group(Resources/GUI FILES ${pcsx2GuiResources})
-source_group(Resources/PAD FILES ${pcsx2PADResources})
-source_group(Resources/Recording FILES ${pcsx2RecordingVirtualPadResources})
-source_group(Resources REGULAR_EXPRESSION ${CMAKE_CURRENT_BINARY_DIR}/*)

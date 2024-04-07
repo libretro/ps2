@@ -243,11 +243,7 @@ void InputManager::ReloadSources(SettingsInterface& si, std::unique_lock<std::mu
 void InputManager::ReloadBindings(SettingsInterface& si, SettingsInterface& binding_si)
 {
 }
+
 void InputManager::PauseVibration()
 {
-}
-
-const char* InputManager::InputSourceToString(InputSourceType clazz)
-{
-	return "";
 }

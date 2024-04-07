@@ -457,10 +457,6 @@ public:
 	void ProcessDebugEntry(id<MTLCommandEncoder> enc, const DebugEntry& entry);
 	void FlushDebugEntries(id<MTLCommandEncoder> enc);
 	void EndDebugGroup(id<MTLCommandEncoder> enc);
-
-	// MARK: ImGui
-
-	void RenderImGui(ImDrawData* data);
 	u32 FrameNo() const { return m_frame; }
 };
 

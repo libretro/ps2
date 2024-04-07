@@ -102,7 +102,6 @@ void MultipartFileReader::FindParts()
 	if (!pxFileExists_WithExt(nameparts, extbuf))
 		return;
 
-	DevCon.WriteLn( Color_Blue, "isoFile: multi-part %s detected...", StringUtil::toUpper(curext).c_str() );
 	ConsoleIndentScope indent;
 
 	int bsize = m_parts[0].reader->GetBlockSize();
@@ -136,15 +135,8 @@ void MultipartFileReader::FindParts()
 
 		thispart->end = blocks;
 
-		DevCon.WriteLn( Color_Blue, "\tblocks %u - %u in: %s",
-			thispart->start, thispart->end,
-			nameparts.c_str()
-		);
-
 		++m_numparts;
 	}
-
-	//Console.WriteLn( Color_Blue, "isoFile: multi-part ISO loaded (%u parts found)", m_numparts );
 }
 
 bool MultipartFileReader::Open(std::string fileName)

@@ -1251,10 +1251,7 @@ GSDevice::PresentResult GSDeviceMTL::BeginPresent(bool frame_skip)
 	if (m_capture_start_frame && FrameNo() == m_capture_start_frame)
 		s_capture_next = true;
 	if (frame_skip || m_window_info.type == WindowInfo::Type::Surfaceless || !g_gs_device)
-	{
-		ImGui::EndFrame();
 		return PresentResult::FrameSkipped;
-	}
 	id<MTLCommandBuffer> buf = GetRenderCmdBuf();
 	m_current_drawable = MRCRetain([m_layer nextDrawable]);
 	EndRenderPass();
@@ -1263,7 +1260,6 @@ GSDevice::PresentResult GSDeviceMTL::BeginPresent(bool frame_skip)
 		[buf pushDebugGroup:@"Present Skipped"];
 		[buf popDebugGroup];
 		FlushEncoders();
-		ImGui::EndFrame();
 		return PresentResult::FrameSkipped;
 	}
 	[m_pass_desc colorAttachments][0].texture = [m_current_drawable texture];
@@ -1276,8 +1272,6 @@ GSDevice::PresentResult GSDeviceMTL::BeginPresent(bool frame_skip)
 void GSDeviceMTL::EndPresent()
 { @autoreleasepool {
 	pxAssertDev(m_current_render.encoder && m_current_render_cmdbuf, "BeginPresent cmdbuf was destroyed");
-	ImGui::Render();
-	RenderImGui(ImGui::GetDrawData());
 	EndRenderPass();
 	if (m_current_drawable)
 	{
@@ -1294,56 +1288,6 @@ void GSDeviceMTL::EndPresent()
 	FlushEncoders();
 	FrameCompleted();
 	m_current_drawable = nullptr;
-#if !defined(__LIBRETRO__)
-	if (m_capture_start_frame)
-	{
-		if (@available(macOS 10.15, iOS 13, *))
-		{
-			static NSString* const path = @"/tmp/PCSX2MTLCapture.gputrace";
-			static u32 frames;
-			if (frames)
-			{
-				--frames;
-				if (!frames)
-				{
-					[[MTLCaptureManager sharedCaptureManager] stopCapture];
-					Console.WriteLn("Metal Trace Capture to /tmp/PCSX2MTLCapture.gputrace finished");
-					[[NSWorkspace sharedWorkspace] selectFile:path
-					                 inFileViewerRootedAtPath:@"/tmp/"];
-				}
-			}
-			else if (s_capture_next)
-			{
-				s_capture_next = false;
-				MTLCaptureManager* mgr = [MTLCaptureManager sharedCaptureManager];
-				if ([mgr supportsDestination:MTLCaptureDestinationGPUTraceDocument])
-				{
-					MTLCaptureDescriptor* desc = [[MTLCaptureDescriptor new] autorelease];
-					[desc setCaptureObject:m_dev.dev];
-					if ([[NSFileManager defaultManager] fileExistsAtPath:path])
-						[[NSFileManager defaultManager] removeItemAtPath:path error:nil];
-					[desc setOutputURL:[NSURL fileURLWithPath:path]];
-					[desc setDestination:MTLCaptureDestinationGPUTraceDocument];
-					NSError* err = nullptr;
-					[mgr startCaptureWithDescriptor:desc error:&err];
-					if (err)
-					{
-						Console.Error("Metal Trace Capture failed: %s", [[err localizedDescription] UTF8String]);
-					}
-					else
-					{
-						Console.WriteLn("Metal Trace Capture to /tmp/PCSX2MTLCapture.gputrace started");
-						frames = 2;
-					}
-				}
-				else
-				{
-					Console.Error("Metal Trace Capture Failed: MTLCaptureManager doesn't support GPU trace documents! (Did you forget to run with METAL_CAPTURE_ENABLED=1?)");
-				}
-			}
-		}
-	}
-#endif
 }}
 
 void GSDeviceMTL::SetVSync(VsyncMode mode)
@@ -2320,88 +2264,6 @@ void GSDeviceMTL::EndDebugGroup(id<MTLCommandEncoder> enc)
 		m_debug_entries.erase(begin, cur);
 	}
 #endif
-}
-
-static simd::float2 ToSimd(const ImVec2& vec)
-{
-	return simd::make_float2(vec.x, vec.y);
-}
-
-static simd::float4 ToSimd(const ImVec4& vec)
-{
-	return simd::make_float4(vec.x, vec.y, vec.z, vec.w);
-}
-
-void GSDeviceMTL::RenderImGui(ImDrawData* data)
-{
-	if (data->CmdListsCount == 0)
-		return;
-	simd::float4 transform;
-	transform.xy = 2.f / simd::make_float2(data->DisplaySize.x, -data->DisplaySize.y);
-	transform.zw = ToSimd(data->DisplayPos) * -transform.xy + simd::make_float2(-1, 1);
-	id<MTLRenderCommandEncoder> enc = m_current_render.encoder;
-	[enc pushDebugGroup:@"ImGui"];
-
-	Map map = Allocate(m_vertex_upload_buf, data->TotalVtxCount * sizeof(ImDrawVert) + data->TotalIdxCount * sizeof(ImDrawIdx));
-	size_t vtx_off = 0;
-	size_t idx_off = data->TotalVtxCount * sizeof(ImDrawVert);
-
-	[enc setRenderPipelineState:m_imgui_pipeline];
-	[enc setVertexBuffer:map.gpu_buffer offset:map.gpu_offset atIndex:GSMTLBufferIndexVertices];
-	[enc setVertexBytes:&transform length:sizeof(transform) atIndex:GSMTLBufferIndexUniforms];
-
-	simd::uint4 last_scissor = simd::make_uint4(0, 0, GetWindowWidth(), GetWindowHeight());
-	simd::float2 fb_size = simd_float(last_scissor.zw);
-	simd::float2 clip_off   = ToSimd(data->DisplayPos);       // (0,0) unless using multi-viewports
-	simd::float2 clip_scale = ToSimd(data->FramebufferScale); // (1,1) unless using retina display which are often (2,2)
-	ImTextureID last_tex = nullptr;
-
-	for (int i = 0; i < data->CmdListsCount; i++)
-	{
-		const ImDrawList* cmd_list = data->CmdLists[i];
-		size_t vtx_size = cmd_list->VtxBuffer.Size * sizeof(ImDrawVert);
-		size_t idx_size = cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx);
-		memcpy(static_cast<char*>(map.cpu_buffer) + vtx_off, cmd_list->VtxBuffer.Data, vtx_size);
-		memcpy(static_cast<char*>(map.cpu_buffer) + idx_off, cmd_list->IdxBuffer.Data, idx_size);
-
-		for (const ImDrawCmd& cmd : cmd_list->CmdBuffer)
-		{
-			if (cmd.UserCallback)
-				[NSException raise:@"Unimplemented" format:@"UserCallback not implemented"];
-
-			simd::float4 clip_rect = (ToSimd(cmd.ClipRect) - clip_off.xyxy) * clip_scale.xyxy;
-			simd::float2 clip_min = clip_rect.xy;
-			simd::float2 clip_max = clip_rect.zw;
-			clip_min = simd::max(clip_min, simd::float2(0));
-			clip_max = simd::min(clip_max, fb_size);
-			if (simd::any(clip_min >= clip_max))
-				continue;
-			simd::uint4 scissor = simd::make_uint4(simd_uint(clip_min), simd_uint(clip_max - clip_min));
-			ImTextureID tex = cmd.GetTexID();
-			if (simd::any(scissor != last_scissor))
-			{
-				last_scissor = scissor;
-				[enc setScissorRect:(MTLScissorRect){ .x = scissor.x, .y = scissor.y, .width = scissor.z, .height = scissor.w }];
-			}
-			if (tex != last_tex)
-			{
-				last_tex = tex;
-				[enc setFragmentTexture:(__bridge id<MTLTexture>)tex atIndex:0];
-			}
-
-			[enc setVertexBufferOffset:map.gpu_offset + vtx_off + cmd.VtxOffset * sizeof(ImDrawVert) atIndex:0];
-			[enc drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-			                indexCount:cmd.ElemCount
-			                 indexType:sizeof(ImDrawIdx) == 2 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32
-			               indexBuffer:map.gpu_buffer
-			         indexBufferOffset:map.gpu_offset + idx_off + cmd.IdxOffset * sizeof(ImDrawIdx)];
-		}
-
-		vtx_off += vtx_size;
-		idx_off += idx_size;
-	}
-
-	[enc popDebugGroup];
 }
 
 #endif // __APPLE__

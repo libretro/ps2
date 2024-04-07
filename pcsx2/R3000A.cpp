@@ -70,8 +70,6 @@ void psxShutdown() {
 
 void psxException(u32 code, u32 bd)
 {
-//	PSXCPU_LOG("psxException %x: %x, %x", code, psxHu32(0x1070), psxHu32(0x1074));
-	//Console.WriteLn("!! psxException %x: %x, %x", code, psxHu32(0x1070), psxHu32(0x1074));
 	// Set the Cause
 	psxRegs.CP0.n.Cause &= ~0x7f;
 	psxRegs.CP0.n.Cause |= code;
@@ -79,7 +77,6 @@ void psxException(u32 code, u32 bd)
 	// Set the EPC & PC
 	if (bd)
 	{
-		PSXCPU_LOG("bd set");
 		psxRegs.CP0.n.Cause|= 0x80000000;
 		psxRegs.CP0.n.EPC = (psxRegs.pc - 4);
 	}
@@ -232,7 +229,6 @@ __ri void iopEventTest()
 	{
 		if ((psxRegs.CP0.n.Status & 0xFE01) >= 0x401)
 		{
-			PSXCPU_LOG("Interrupt: %x  %x", psxHu32(0x1070), psxHu32(0x1074));
 			psxException(0, 0);
 			iopEventAction = true;
 		}

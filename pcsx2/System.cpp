@@ -32,11 +32,7 @@
 
 #include "common/emitter/x86_intrin.h"
 
-#include "GSDumpReplayer.h"
-
 #include "svnrev.h"
-
-extern R5900cpu GSDumpReplayerCpu;
 
 Pcsx2Config EmuConfig;
 
@@ -152,7 +148,7 @@ namespace HostMemoryMap
 /// Attempts to find a spot near static variables for the main memory
 static VirtualMemoryManagerPtr makeMemoryManager(const char* name, const char* file_mapping_name, size_t size, size_t offset_from_base)
 {
-#if !defined(__LIBRETRO__) || defined(_WIN32)
+#if defined(_WIN32)
 	// Everything looks nicer when the start of all the sections is a nice round looking number.
 	// Also reduces the variation in the address due to small changes in code.
 	// Breaks ASLR but so does anything else that tries to make addresses constant for our debugging pleasure
@@ -165,20 +161,12 @@ static VirtualMemoryManagerPtr makeMemoryManager(const char* name, const char* f
 	for (int offset = 4; offset >= -6; offset--)
 	{
 		uptr base = codeBase + (offset << 28) + offset_from_base;
+		// VTLB will throw a fit if we try to put EE main memory here
 		if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
-		{
-			// VTLB will throw a fit if we try to put EE main memory here
 			continue;
-		}
-#if defined(__LIBRETRO__) && defined(_DEBUG) && !defined(_WIN32)
-		auto mgr = std::make_shared<VirtualMemoryManager>(name, file_mapping_name, base, size, /*upper_bounds=*/0, /*strict=*/false);
-#else
 		auto mgr = std::make_shared<VirtualMemoryManager>(name, file_mapping_name, base, size, /*upper_bounds=*/0, /*strict=*/true);
-#endif
 		if (mgr->IsOk())
-		{
 			return mgr;
-		}
 	}
 
 	// If the above failed and it's x86-64, recompiled code is going to break!
@@ -220,7 +208,7 @@ SysMainMemory::~SysMainMemory()
 
 bool SysMainMemory::Allocate()
 {
-	DevCon.WriteLn(Color_StrongBlue, "Allocating host memory for virtual systems...");
+	Console.WriteLn(Color_StrongBlue, "Allocating host memory for virtual systems...");
 
 	ConsoleIndentScope indent(1);
 
@@ -235,7 +223,7 @@ bool SysMainMemory::Allocate()
 
 void SysMainMemory::Reset()
 {
-	DevCon.WriteLn(Color_StrongBlue, "Resetting host memory for virtual systems...");
+	Console.WriteLn(Color_StrongBlue, "Resetting host memory for virtual systems...");
 	ConsoleIndentScope indent(1);
 
 	m_ee.Reset();
@@ -309,16 +297,7 @@ BaseVUmicroCPU* CpuVU1 = nullptr;
 
 void SysCpuProviderPack::ApplyConfig() const
 {
-	if (GSDumpReplayer::IsReplayingDump())
-	{
-		Cpu = &GSDumpReplayerCpu;
-		psxCpu = &psxInt;
-		CpuVU0 = &CpuIntVU0;
-		CpuVU1 = &CpuIntVU1;
-		return;
-	}
-
-	Cpu = CHECK_EEREC ? &recCpu : &intCpu;
+	Cpu    = CHECK_EEREC ? &recCpu : &intCpu;
 	psxCpu = CHECK_IOPREC ? &psxRec : &psxInt;
 
 	CpuVU0 = &CpuIntVU0;
@@ -365,14 +344,13 @@ std::string SysGetBiosDiscID()
 {
 	if (!BiosSerial.empty())
 		return BiosSerial;
-	else
-		return {};
+	return {};
 }
 
 // This function always returns a valid DiscID -- using the Sony serial when possible, and
 // falling back on the CRC checksum of the ELF binary if the PS2 software being run is
 // homebrew or some other serial-less item.
-std::string SysGetDiscID()
+std::string SysGetDiscID(void)
 {
 	if (!DiscSerial.empty())
 		return DiscSerial;

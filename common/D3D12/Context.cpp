@@ -28,11 +28,9 @@
 #include <queue>
 #include <vector>
 
-#ifdef __LIBRETRO__
 #include <libretro_d3d.h>
 extern retro_environment_t environ_cb;
 retro_hw_render_interface_d3d12 *d3d12;
-#endif
 
 std::unique_ptr<D3D12::Context> g_d3d12_context;
 
@@ -142,7 +140,6 @@ bool Context::Create(IDXGIFactory5* dxgi_factory, IDXGIAdapter1* adapter, bool e
 	}
 
 	g_d3d12_context.reset(new Context());
-#ifdef __LIBRETRO__
 	d3d12 = nullptr;
 	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&d3d12) || !d3d12) {
 		printf("Failed to get HW rendering interface!\n");
@@ -153,7 +150,6 @@ bool Context::Create(IDXGIFactory5* dxgi_factory, IDXGIAdapter1* adapter, bool e
 		printf("HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, d3d12->interface_version);
 		return false;
 	}
-#endif
 	if (!g_d3d12_context->CreateDevice(dxgi_factory, adapter, enable_debug_layer) ||
 		!g_d3d12_context->CreateCommandQueue() || !g_d3d12_context->CreateAllocator() ||
 		!g_d3d12_context->CreateFence() || !g_d3d12_context->CreateDescriptorHeaps() ||
@@ -189,79 +185,18 @@ u32 Context::GetAdapterVendorID() const
 
 bool Context::CreateDevice(IDXGIFactory5* dxgi_factory, IDXGIAdapter1* adapter, bool enable_debug_layer)
 {
-#ifdef __LIBRETRO__
 	m_device = d3d12->device;
-#else
-	HRESULT hr;
-
-	// Enabling the debug layer will fail if the Graphics Tools feature is not installed.
-	if (enable_debug_layer)
-	{
-		hr = s_d3d12_get_debug_interface(IID_PPV_ARGS(&m_debug_interface));
-		if (SUCCEEDED(hr))
-		{
-			m_debug_interface->EnableDebugLayer();
-		}
-		else
-		{
-			Console.Error("Debug layer requested but not available.");
-			enable_debug_layer = false;
-		}
-	}
-
-	// Create the actual device.
-	hr = s_d3d12_create_device(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
-	if (FAILED(hr))
-	{
-		Console.Error("Failed to create D3D12 device: %08X", hr);
-		return false;
-	}
-#endif
 	// get adapter
 	const LUID luid(m_device->GetAdapterLuid());
 	if (FAILED(dxgi_factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(m_adapter.put()))))
 		Console.Error("Failed to get lookup adapter by device LUID");
-#ifndef __LIBRETRO__
-	if (enable_debug_layer)
-	{
-		ComPtr<ID3D12InfoQueue> info_queue = m_device.try_query<ID3D12InfoQueue>();
-		if (info_queue)
-		{
-			if (IsDebuggerPresent())
-			{
-				info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-				info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-			}
-
-			D3D12_INFO_QUEUE_FILTER filter = {};
-			std::array<D3D12_MESSAGE_ID, 5> id_list{
-				D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-				D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-				D3D12_MESSAGE_ID_CREATEGRAPHICSPIPELINESTATE_RENDERTARGETVIEW_NOT_SET,
-				D3D12_MESSAGE_ID_CREATEINPUTLAYOUT_TYPE_MISMATCH,
-				D3D12_MESSAGE_ID_DRAW_EMPTY_SCISSOR_RECTANGLE,
-			};
-			filter.DenyList.NumIDs = static_cast<UINT>(id_list.size());
-			filter.DenyList.pIDList = id_list.data();
-			info_queue->PushStorageFilter(&filter);
-		}
-	}
-#endif
 	return true;
 }
 
 bool Context::CreateCommandQueue()
 {
-#ifdef __LIBRETRO__
 	m_command_queue = d3d12->queue;
 	return true;
-#else
-	const D3D12_COMMAND_QUEUE_DESC queue_desc = {D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-		D3D12_COMMAND_QUEUE_FLAG_NONE};
-	HRESULT hr = m_device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&m_command_queue));
-	pxAssertRel(SUCCEEDED(hr), "Create command queue");
-	return SUCCEEDED(hr);
-#endif
 }
 
 bool Context::CreateAllocator()

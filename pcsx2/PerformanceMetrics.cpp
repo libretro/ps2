@@ -239,8 +239,6 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_sk
 	s_frames_since_last_update = 0;
 	s_unskipped_frames_since_last_update = 0;
 	s_presents_since_last_update = 0;
-
-	Host::OnPerformanceMetricsUpdated();
 }
 
 void PerformanceMetrics::OnGPUPresent(float gpu_time)

@@ -15,12 +15,9 @@
 
 #include "PrecompiledHeader.h"
 
-#include "Frontend/FullscreenUI.h"
-#include "Frontend/ImGuiManager.h"
 #include "GS/Renderers/Common/GSRenderer.h"
 #include "GS/GSCapture.h"
 #include "GS/GSGL.h"
-#include "GSDumpReplayer.h"
 #include "Host.h"
 #include "PerformanceMetrics.h"
 #include "pcsx2/Config.h"
@@ -45,9 +42,6 @@ static constexpr std::array<PresentShader, 6> s_tv_shader_indices = {
 	PresentShader::COPY, PresentShader::SCANLINE,
 	PresentShader::DIAGONAL_FILTER, PresentShader::TRIANGULAR_FILTER,
 	PresentShader::COMPLEX_FILTER, PresentShader::LOTTES_FILTER};
-
-static std::deque<std::thread> s_screenshot_threads;
-static std::mutex s_screenshot_threads_mutex;
 
 std::unique_ptr<GSRenderer> g_gs_renderer;
 
@@ -412,78 +406,13 @@ static GSVector4i CalculateDrawSrcRect(const GSTexture* src)
 	return GSVector4i(left, top, right, bottom);
 }
 
-static const char* GetScreenshotSuffix()
-{
-	static constexpr const char* suffixes[static_cast<u8>(GSScreenshotFormat::Count)] = {
-		"png", "jpg"};
-	return suffixes[static_cast<u8>(GSConfig.ScreenshotFormat)];
-}
-
-static void CompressAndWriteScreenshot(std::string filename, u32 width, u32 height, std::vector<u32> pixels)
-{
-	Common::RGBA8Image image;
-	image.SetPixels(width, height, std::move(pixels));
-
-	std::string key(fmt::format("GSScreenshot_{}", filename));
-
-	if(!GSDumpReplayer::IsRunner())
-		Host::AddIconOSDMessage(key, ICON_FA_CAMERA, fmt::format("Saving screenshot to '{}'.", Path::GetFileName(filename)), 60.0f);
-
-	// maybe std::async would be better here.. but it's definitely worth threading, large screenshots take a while to compress.
-	std::unique_lock lock(s_screenshot_threads_mutex);
-	s_screenshot_threads.emplace_back([key = std::move(key), filename = std::move(filename), image = std::move(image), quality = GSConfig.ScreenshotQuality]() {
-		if (image.SaveToFile(filename.c_str(), quality))
-		{
-			if(!GSDumpReplayer::IsRunner())
-				Host::AddIconOSDMessage(std::move(key), ICON_FA_CAMERA,
-					fmt::format("Saved screenshot to '{}'.", Path::GetFileName(filename)), Host::OSD_INFO_DURATION);
-		}
-		else
-		{
-			Host::AddIconOSDMessage(std::move(key), ICON_FA_CAMERA,
-				fmt::format("Failed to save screenshot to '{}'.", Path::GetFileName(filename), Host::OSD_ERROR_DURATION));
-		}
-
-		// remove ourselves from the list, if the GS thread is waiting for us, we won't be in there
-		const auto this_id = std::this_thread::get_id();
-		std::unique_lock lock(s_screenshot_threads_mutex);
-		for (auto it = s_screenshot_threads.begin(); it != s_screenshot_threads.end(); ++it)
-		{
-			if (it->get_id() == this_id)
-			{
-				it->detach();
-				s_screenshot_threads.erase(it);
-				break;
-			}
-		}
-	});
-}
-
-void GSJoinSnapshotThreads()
-{
-	std::unique_lock lock(s_screenshot_threads_mutex);
-	while (!s_screenshot_threads.empty())
-	{
-		std::thread save_thread(std::move(s_screenshot_threads.front()));
-		s_screenshot_threads.pop_front();
-		lock.unlock();
-		save_thread.join();
-		lock.lock();
-	}
-}
-
 bool GSRenderer::BeginPresentFrame(bool frame_skip)
 {
 	Host::BeginPresentFrame();
 
 	const GSDevice::PresentResult res = g_gs_device->BeginPresent(frame_skip);
 	if (res == GSDevice::PresentResult::FrameSkipped)
-	{
-		// If we're skipping a frame, we need to reset imgui's state, since
-		// we won't be calling EndPresentFrame().
-		ImGuiManager::SkipFrame();
 		return false;
-	}
 	else if (res == GSDevice::PresentResult::OK)
 	{
 		// All good!
@@ -518,23 +447,12 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 
 void GSRenderer::EndPresentFrame()
 {
-	if (GSDumpReplayer::IsReplayingDump())
-		GSDumpReplayer::RenderUI();
-
-	FullscreenUI::Render();
-	ImGuiManager::RenderOSD();
 	g_gs_device->EndPresent();
-	ImGuiManager::NewFrame();
 }
 
 void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 {
 	Flush(GSFlushReason::VSYNC);
-
-	if (GSConfig.DumpGSData && s_n >= GSConfig.SaveN)
-	{
-		m_regs->Dump(GetDrawDumpPath("vsync_%05d_f%lld_gs_reg.txt", s_n, g_perfmon.GetFrame()));
-	}
 
 	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
 	const bool fb_sprite_frame = (fb_sprite_blits > 0);
@@ -596,15 +514,8 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	if (current && !blank_frame)
 	{
 		src_rect = CalculateDrawSrcRect(current);
-#ifdef __LIBRETRO__
 		src_uv = GSVector4(0, 0, 1, 1);
 		draw_rect = GSVector4(0, 0, current->GetWidth(), current->GetHeight());
-#else
-		src_uv = GSVector4(src_rect) / GSVector4(current->GetSize()).xyxy();
-		draw_rect = CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
-			src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
-			GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets));
-#endif
 		s_last_draw_rect = draw_rect;
 
 		if (GSConfig.CASMode != GSCASMode::Disabled)
@@ -646,116 +557,6 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	}
 	g_gs_device->RestoreAPIState();
 	PerformanceMetrics::Update(registers_written, fb_sprite_frame, false);
-
-	// snapshot
-	if (!m_snapshot.empty())
-	{
-		u32 screenshot_width, screenshot_height;
-		std::vector<u32> screenshot_pixels;
-
-		if (!m_dump && m_dump_frames > 0)
-		{
-			freezeData fd = {0, nullptr};
-			Freeze(&fd, true);
-			fd.data = new u8[fd.size];
-			Freeze(&fd, false);
-
-			// keep the screenshot relatively small so we don't bloat the dump
-			static constexpr u32 DUMP_SCREENSHOT_WIDTH = 640;
-			static constexpr u32 DUMP_SCREENSHOT_HEIGHT = 480;
-			SaveSnapshotToMemory(DUMP_SCREENSHOT_WIDTH, DUMP_SCREENSHOT_HEIGHT, true, false,
-				&screenshot_width, &screenshot_height, &screenshot_pixels);
-
-			std::string_view compression_str;
-			if (GSConfig.GSDumpCompression == GSDumpCompressionMethod::Uncompressed)
-			{
-				m_dump = std::unique_ptr<GSDumpBase>(new GSDumpUncompressed(m_snapshot, VMManager::GetGameSerial(), m_crc,
-					screenshot_width, screenshot_height,
-					screenshot_pixels.empty() ? nullptr : screenshot_pixels.data(),
-					fd, m_regs));
-				compression_str = "with no compression";
-			}
-			else if (GSConfig.GSDumpCompression == GSDumpCompressionMethod::LZMA)
-			{
-				m_dump = std::unique_ptr<GSDumpBase>(new GSDumpXz(m_snapshot, VMManager::GetGameSerial(), m_crc,
-					screenshot_width, screenshot_height,
-					screenshot_pixels.empty() ? nullptr : screenshot_pixels.data(),
-					fd, m_regs));
-				compression_str = "with LZMA compression";
-			}
-			else
-			{
-				m_dump = std::unique_ptr<GSDumpBase>(new GSDumpZst(m_snapshot, VMManager::GetGameSerial(), m_crc,
-					screenshot_width, screenshot_height,
-					screenshot_pixels.empty() ? nullptr : screenshot_pixels.data(),
-					fd, m_regs));
-				compression_str = "with Zstandard compression";
-			}
-
-			delete[] fd.data;
-
-			Host::AddKeyedOSDMessage("GSDump", fmt::format("Saving {0} GS dump {1} to '{2}'",
-				(m_dump_frames == 1) ? "single frame" : "multi-frame", compression_str,
-				Path::GetFileName(m_dump->GetPath())), Host::OSD_INFO_DURATION);
-		}
-
-		const bool internal_resolution = (GSConfig.ScreenshotSize >= GSScreenshotSize::InternalResolution);
-		const bool aspect_correct = (GSConfig.ScreenshotSize != GSScreenshotSize::InternalResolutionUncorrected);
-
-		if (g_gs_device->GetCurrent() && SaveSnapshotToMemory(
-			internal_resolution ? 0 : g_gs_device->GetWindowWidth(),
-			internal_resolution ? 0 : g_gs_device->GetWindowHeight(),
-			aspect_correct, true,
-			&screenshot_width, &screenshot_height, &screenshot_pixels))
-		{
-			CompressAndWriteScreenshot(fmt::format("{}.{}", m_snapshot, GetScreenshotSuffix()),
-				screenshot_width, screenshot_height, std::move(screenshot_pixels));
-		}
-		else
-		{
-			Host::AddIconOSDMessage("GSScreenshot", ICON_FA_CAMERA, "Failed to render/download screenshot.", Host::OSD_ERROR_DURATION);
-		}
-
-		m_snapshot = {};
-	}
-	else if (m_dump)
-	{
-		const bool last = (m_dump_frames == 0);
-		if (m_dump->VSync(field, last, m_regs))
-		{
-			Host::AddKeyedOSDMessage("GSDump", fmt::format("Saved GS dump to '{}'.", Path::GetFileName(m_dump->GetPath())), Host::OSD_INFO_DURATION);
-			m_dump.reset();
-		}
-		else if (!last)
-		{
-			m_dump_frames--;
-		}
-	}
-
-	// capture
-	if (GSCapture::IsCapturingVideo())
-	{
-		if (GSTexture* current = g_gs_device->GetCurrent())
-		{
-			const GSVector2i size(GSCapture::GetSize());
-
-			// TODO: Maybe avoid this copy in the future? We can use swscale to fix it up on the dumping thread..
-			if (current->GetSize() != size)
-			{
-				GSTexture* temp = g_gs_device->CreateRenderTarget(size.x, size.y, GSTexture::Format::Color, false);
-				if (temp)
-				{
-					g_gs_device->StretchRect(current, temp, GSVector4(0, 0, size.x, size.y));
-					GSCapture::DeliverVideoFrame(temp);
-					g_gs_device->Recycle(temp);
-				}
-			}
-			else
-			{
-				GSCapture::DeliverVideoFrame(current);
-			}
-		}
-	}
 }
 
 void GSRenderer::QueueSnapshot(const std::string& path, u32 gsdump_frames)

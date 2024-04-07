@@ -469,7 +469,6 @@ s32 FileMemoryCard::Read(uint slot, u8* dest, u32 adr, int size)
 	std::FILE* mcfp = m_file[slot];
 	if (!mcfp)
 	{
-		DevCon.Error("(FileMcd) Ignoring attempted read from disabled slot.");
 		memset(dest, 0, size);
 		return 1;
 	}
@@ -483,10 +482,7 @@ s32 FileMemoryCard::Save(uint slot, const u8* src, u32 adr, int size)
 	std::FILE* mcfp = m_file[slot];
 
 	if (!mcfp)
-	{
-		DevCon.Error("(FileMcd) Ignoring attempted save/write to disabled slot.");
 		return 1;
-	}
 
 	if (m_ispsx[slot])
 	{
@@ -549,10 +545,7 @@ s32 FileMemoryCard::EraseBlock(uint slot, u32 adr)
 {
 	std::FILE* mcfp = m_file[slot];
 	if (!mcfp)
-	{
-		DevCon.Error("MemoryCard: Ignoring erase for disabled slot.");
 		return 1;
-	}
 
 	if (!Seek(mcfp, adr))
 		return 0;

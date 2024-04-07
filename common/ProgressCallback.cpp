@@ -133,7 +133,7 @@ public:
 	void DisplayError(const char* message) override { Console.Error("%s", message); }
 	void DisplayWarning(const char* message) override { Console.Warning("%s", message); }
 	void DisplayInformation(const char* message) override { Console.WriteLn("%s", message); }
-	void DisplayDebugMessage(const char* message) override { DevCon.WriteLn("%s", message); }
+	void DisplayDebugMessage(const char* message) override { }
 
 	void ModalError(const char* message) override { Console.Error(message); }
 	bool ModalConfirmation(const char* message) override

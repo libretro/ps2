@@ -49,23 +49,17 @@ s32 SPU2::GetConsoleSampleRate()
 void SPU2readDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
 {
 	TimeUpdate(psxRegs.cycle);
-
-	SPU2::FileLog("[%10d] SPU2 readDMA4Mem size %x\n", Cycles, size << 1);
 	Cores[0].DoDMAread(pMem, size);
 }
 
 void SPU2writeDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
 {
 	TimeUpdate(psxRegs.cycle);
-
-	SPU2::FileLog("[%10d] SPU2 writeDMA4Mem size %x at address %x\n", Cycles, size << 1, Cores[0].TSA);
-
 	Cores[0].DoDMAwrite(pMem, size);
 }
 
 void SPU2interruptDMA4()
 {
-	SPU2::FileLog("[%10d] SPU2 interruptDMA4\n", Cycles);
 	if (Cores[0].DmaMode)
 		Cores[0].Regs.STATX |= 0x80;
 	Cores[0].Regs.STATX &= ~0x400;
@@ -74,7 +68,6 @@ void SPU2interruptDMA4()
 
 void SPU2interruptDMA7()
 {
-	SPU2::FileLog("[%10d] SPU2 interruptDMA7\n", Cycles);
 	if (Cores[1].DmaMode)
 		Cores[1].Regs.STATX |= 0x80;
 	Cores[1].Regs.STATX &= ~0x400;
@@ -84,17 +77,12 @@ void SPU2interruptDMA7()
 void SPU2readDMA7Mem(u16* pMem, u32 size)
 {
 	TimeUpdate(psxRegs.cycle);
-
-	SPU2::FileLog("[%10d] SPU2 readDMA7Mem size %x\n", Cycles, size << 1);
 	Cores[1].DoDMAread(pMem, size);
 }
 
 void SPU2writeDMA7Mem(u16* pMem, u32 size)
 {
 	TimeUpdate(psxRegs.cycle);
-
-	SPU2::FileLog("[%10d] SPU2 writeDMA7Mem size %x at address %x\n", Cycles, size << 1, Cores[1].TSA);
-
 	Cores[1].DoDMAwrite(pMem, size);
 }
 
@@ -218,44 +206,18 @@ bool SPU2::Initialize()
 
 bool SPU2::Open()
 {
-#ifdef PCSX2_DEVBUILD
-	if (SPU2::AccessLog())
-		SPU2::OpenFileLog();
-#endif
-
-#ifdef PCSX2_DEVBUILD
-	DMALogOpen();
-
-	FileLog("[%10d] SPU2 Open\n", Cycles);
-#endif
-
 	lClocks = psxRegs.cycle;
 
 	InternalReset(false);
 
 	SampleRate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate()) * s_device_sample_rate_multiplier));
 	InitSndBuffer();
-#ifdef PCSX2_DEVBUILD
-	WaveDump::Open();
-#endif
-
-	SetOutputVolume(EmuConfig.SPU2.FinalVolume);
 	return true;
 }
 
 void SPU2::Close()
 {
-	FileLog("[%10d] SPU2 Close\n", Cycles);
-
 	SndBuffer::Cleanup();
-
-#ifdef PCSX2_DEVBUILD
-	WaveDump::Close();
-	DMALogClose();
-
-	DoFullDump();
-	CloseFileLog();
-#endif
 }
 
 void SPU2::Shutdown()
@@ -303,23 +265,11 @@ u16 SPU2read(u32 rmem)
 		TimeUpdate(psxRegs.cycle);
 
 		if (rmem >> 16 == 0x1f80)
-		{
 			ret = Cores[0].ReadRegPS1(rmem);
-		}
 		else if (mem >= 0x800)
-		{
 			ret = spu2Ru16(mem);
-			if (SPU2::MsgToConsole())
-				SPU2::ConLog("* SPU2: Read from reg>=0x800: %x value %x\n", mem, ret);
-		}
 		else
-		{
 			ret = *(regtable[(mem >> 1)]);
-#ifdef PCSX2_DEVBUILD
-			//FileLog("[%10d] SPU2 read mem %x (core %d, register %x): %x\n",Cycles, mem, core, (omem & 0x7ff), ret);
-			SPU2::WriteRegLog("read", rmem, ret);
-#endif
-		}
 	}
 
 	return ret;
@@ -336,12 +286,7 @@ void SPU2write(u32 rmem, u16 value)
 	if (rmem >> 16 == 0x1f80)
 		Cores[0].WriteRegPS1(rmem, value);
 	else
-	{
-#ifdef PCSX2_DEVBUILD
-		SPU2::WriteRegLog("write", rmem, value);
-#endif
 		SPU2_FastWrite(rmem, value);
-	}
 }
 
 s32 SPU2freeze(FreezeAction mode, freezeData* data)
@@ -381,49 +326,4 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 
 	// technically unreachable, but kills a warning:
 	return 0;
-}
-
-void SPU2::CheckForConfigChanges(const Pcsx2Config& old_config)
-{
-	if (EmuConfig.SPU2 == old_config.SPU2)
-		return;
-
-	const Pcsx2Config::SPU2Options& opts = EmuConfig.SPU2;
-	const Pcsx2Config::SPU2Options& oldopts = old_config.SPU2;
-
-	// No need to reinit for volume change.
-	if (opts.FinalVolume != oldopts.FinalVolume)
-		SetOutputVolume(opts.FinalVolume);
-
-	// Wipe buffer out when changing sync mode, so e.g. TS->none doesn't have a huge delay.
-	if (opts.SynchMode != oldopts.SynchMode)
-		SndBuffer::ResetBuffers();
-
-	// Things which require re-initialzing the output.
-	if (opts.Latency != oldopts.Latency ||
-		opts.OutputLatency != oldopts.OutputLatency ||
-		opts.OutputLatencyMinimal != oldopts.OutputLatencyMinimal ||
-		opts.OutputModule != oldopts.OutputModule ||
-		opts.BackendName != oldopts.BackendName ||
-		opts.DeviceName != oldopts.DeviceName ||
-		opts.SpeakerConfiguration != oldopts.SpeakerConfiguration ||
-		opts.DplDecodingLevel != oldopts.DplDecodingLevel ||
-		opts.SequenceLenMS != oldopts.SequenceLenMS ||
-		opts.SeekWindowMS != oldopts.SeekWindowMS ||
-		opts.OverlapMS != oldopts.OverlapMS)
-	{
-		SndBuffer::Cleanup();
-		InitSndBuffer();
-	}
-
-#ifdef PCSX2_DEVBUILD
-	// AccessLog controls file output.
-	if (opts.AccessLog != oldopts.AccessLog)
-	{
-		if (AccessLog())
-			OpenFileLog();
-		else
-			CloseFileLog();
-	}
-#endif
 }

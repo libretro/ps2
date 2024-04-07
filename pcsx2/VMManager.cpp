@@ -30,7 +30,6 @@
 #include "common/Threading.h"
 #include "fmt/core.h"
 
-#include "Achievements.h"
 #include "Counters.h"
 #include "CDVD/CDVD.h"
 #include "DEV9/DEV9.h"
@@ -38,7 +37,6 @@
 #include "FW.h"
 #include "GameDatabase.h"
 #include "GS.h"
-#include "GSDumpReplayer.h"
 #include "Host.h"
 #include "HostSettings.h"
 #include "INISettingsInterface.h"
@@ -54,14 +52,11 @@
 #include "PAD/Host/PAD.h"
 #include "Sio.h"
 #include "ps2/BiosTools.h"
-#include "Recording/InputRecordingControls.h"
 
 #include "DebugTools/MIPSAnalyst.h"
 #include "DebugTools/SymbolMap.h"
 
 #include "IconsFontAwesome5.h"
-
-#include "Recording/InputRecording.h"
 
 #include "common/emitter/tools.h"
 #ifdef _M_X86
@@ -85,7 +80,6 @@ namespace VMManager
 	static void CheckForPatchConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForDEV9ConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config);
-	static void EnforceAchievementsChallengeModeSettings();
 	static void LogUnsafeSettingsToConsole(const std::string& messages);
 	static void WarnAboutUnsafeSettings();
 
@@ -95,16 +89,6 @@ namespace VMManager
 	static void LoadPatches(const std::string& serial, u32 crc,
 		bool show_messages, bool show_messages_when_disabled);
 	static void UpdateRunningGame(bool resetting, bool game_starting);
-
-	static std::string GetCurrentSaveStateFileName(s32 slot);
-	static bool DoLoadState(const char* filename);
-	static bool DoSaveState(const char* filename, s32 slot_for_message, bool zip_on_thread, bool backup_old_state);
-	static void ZipSaveState(std::unique_ptr<ArchiveEntryList> elist,
-		std::unique_ptr<SaveStateScreenshotData> screenshot, std::string osd_key,
-		const char* filename, s32 slot_for_message);
-	static void ZipSaveStateOnThread(std::unique_ptr<ArchiveEntryList> elist,
-		std::unique_ptr<SaveStateScreenshotData> screenshot, std::string osd_key,
-		std::string filename, s32 slot_for_message);
 
 	static void SetTimerResolutionIncreased(bool enabled);
 	static void SetHardwareDependentDefaultSettings(SettingsInterface& si);
@@ -191,15 +175,7 @@ void VMManager::SetState(VMState state)
 	if (state != VMState::Stopping && (state == VMState::Paused || old_state == VMState::Paused))
 	{
 		const bool paused = (state == VMState::Paused);
-		if (paused)
-		{
-#ifndef __LIBRETRO__
-			if (THREAD_VU1)
-				vu1Thread.WaitVU();
-			GetMTGS().WaitGS(false);
-#endif
-		}
-		else
+		if (!paused)
 		{
 			PerformanceMetrics::Reset();
 			frameLimitReset();
@@ -250,18 +226,6 @@ std::string VMManager::GetGameName()
 
 bool VMManager::Internal::InitializeGlobals()
 {
-	// On Win32, we have a bunch of things which use COM (e.g. SDL, XAudio2, etc).
-	// We need to initialize COM first, before anything else does, because otherwise they might
-	// initialize it in single-threaded/apartment mode, which can't be changed to multithreaded.
-#if defined(_WIN32) && !defined(__LIBRETRO__)
-	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-	if (FAILED(hr))
-	{
-		Host::ReportErrorAsync("Error", fmt::format("CoInitializeEx() failed: {:08X}", hr));
-		return false;
-	}
-#endif
-
 	x86caps.Identify();
 	x86caps.CountCores();
 	x86caps.SIMD_EstablishMXCSRmask();
@@ -294,10 +258,6 @@ void VMManager::Internal::ReleaseGlobals()
 	USBshutdown();
 	SPU2::Shutdown();
 	GSshutdown();
-
-#if defined(_WIN32) && !defined(__LIBRETRO__)
-	CoUninitialize();
-#endif
 }
 
 bool VMManager::Internal::InitializeMemory()
@@ -340,9 +300,6 @@ void VMManager::LoadSettings()
 	PAD::LoadConfig(*si);
 	Host::LoadSettings(*si, lock);
 
-	// Achievements hardcore mode disallows setting some configuration options.
-	EnforceAchievementsChallengeModeSettings();
-
 	// Remove any user-specified hacks in the config (we don't want stale/conflicting values when it's globally disabled).
 	EmuConfig.GS.MaskUserHacks();
 	EmuConfig.GS.MaskUpscalingHacks();
@@ -360,10 +317,6 @@ void VMManager::LoadSettings()
 
 		EmuConfig.GS.AspectRatio = AspectRatioType::R16_9;
 	}
-
-	// Force MTVU off when playing back GS dumps, it doesn't get used.
-	if (GSDumpReplayer::IsReplayingDump())
-		EmuConfig.Speedhacks.vuThread = false;
 
 	if (HasValidVM())
 	{
@@ -495,7 +448,7 @@ bool VMManager::UpdateGameSettingsLayer()
 		}
 		else
 		{
-			DevCon.WriteLn("No game settings found (tried '%s')", filename.c_str());
+			Console.WriteLn("No game settings found (tried '%s')", filename.c_str());
 		}
 	}
 
@@ -533,7 +486,7 @@ bool VMManager::UpdateGameSettingsLayer()
 			}
 			else
 			{
-				DevCon.WriteLn("No game settings found (tried '%s')", filename.c_str());
+				Console.WriteLn("No game settings found (tried '%s')", filename.c_str());
 				input_profile_name = {};
 			}
 		}
@@ -593,10 +546,8 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 	// wide screen patches
 	if (EmuConfig.EnableWideScreenPatches && crc != 0)
 	{
-		if (!Achievements::ChallengeModeActive() && (s_active_widescreen_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsWS, "Widescreen hacks", false)) > 0)
-		{
+		if ((s_active_widescreen_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsWS, "Widescreen hacks", false)) > 0)
 			Console.WriteLn(Color_Gray, "Found widescreen patches in the cheats_ws folder --> skipping cheats_ws.zip");
-		}
 		else
 		{
 			// No ws cheat files found at the cheats_ws folder, try the ws cheats zip file.
@@ -635,7 +586,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 	// no-interlacing patches
 	if (EmuConfig.EnableNoInterlacingPatches && crc != 0)
 	{
-		if (!Achievements::ChallengeModeActive() && (s_active_no_interlacing_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsNI, "No-interlacing patches", false)) > 0)
+		if ((s_active_no_interlacing_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsNI, "No-interlacing patches", false)) > 0)
 		{
 			Console.WriteLn(Color_Gray, "Found no-interlacing patches in the cheats_ni folder --> skipping cheats_ni.zip");
 		}
@@ -697,17 +648,9 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	// settings as if the game is already running (title, loadeding patches, etc).
 	u32 new_crc;
 	std::string new_serial;
-	if (!GSDumpReplayer::IsReplayingDump())
-	{
-		const bool ingame = (ElfCRC && (g_GameLoading || g_GameStarted));
-		new_crc = ingame ? ElfCRC : 0;
-		new_serial = ingame ? SysGetDiscID() : SysGetBiosDiscID();
-	}
-	else
-	{
-		new_crc = GSDumpReplayer::GetDumpCRC();
-		new_serial = GSDumpReplayer::GetDumpSerial();
-	}
+	const bool ingame = (ElfCRC && (g_GameLoading || g_GameStarted));
+	new_crc = ingame ? ElfCRC : 0;
+	new_serial = ingame ? SysGetDiscID() : SysGetBiosDiscID();
 
 	if (!resetting && s_game_crc == new_crc && s_game_serial == new_serial)
 		return;
@@ -760,12 +703,6 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	if (s_patches_crc != s_game_crc)
 		ReloadPatches(game_starting, false);
 
-#ifdef ENABLE_ACHIEVEMENTS
-	// Per-game ini enabling of hardcore mode. We need to re-enforce the settings if so.
-	if (game_starting && Achievements::ResetChallengeMode())
-		ApplySettings();
-#endif
-
 	GetMTGS().SendGameCRC(new_crc);
 
 	Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_name, s_game_crc);
@@ -780,11 +717,6 @@ void VMManager::ReloadPatches(bool verbose, bool show_messages_when_disabled)
 	LoadPatches(s_game_serial, s_game_crc, verbose, show_messages_when_disabled);
 }
 
-static LimiterModeType GetInitialLimiterMode()
-{
-	return EmuConfig.GS.FrameLimitEnable ? LimiterModeType::Nominal : LimiterModeType::Unlimited;
-}
-
 bool VMManager::AutoDetectSource(const std::string& filename)
 {
 	if (!filename.empty())
@@ -796,12 +728,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 		}
 
 		const std::string display_name(FileSystem::GetDisplayNameFromPath(filename));
-		if (IsGSDumpFileName(display_name))
-		{
-			CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
-			return GSDumpReplayer::Initialize(filename.c_str());
-		}
-		else if (IsElfFileName(display_name))
+		if (IsElfFileName(display_name))
 		{
 			// alternative way of booting an elf, change the elf override, and (optionally) use the disc
 			// specified in the game settings.
@@ -845,35 +772,6 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 
 	s_elf_override = std::move(params.elf_override);
 	s_disc_path.clear();
-	if (!params.save_state.empty())
-		*state_to_load = std::move(params.save_state);
-
-	// if we're loading an indexed save state, we need to get the serial/crc from the disc.
-	if (params.state_index.has_value())
-	{
-		if (params.filename.empty())
-		{
-			Host::ReportErrorAsync("Error", "Cannot load an indexed save state without a boot filename.");
-			return false;
-		}
-
-		*state_to_load = GetSaveStateFileName(params.filename.c_str(), params.state_index.value());
-		if (state_to_load->empty())
-		{
-			Host::ReportErrorAsync("Error", "Could not resolve path indexed save state load.");
-			return false;
-		}
-	}
-
-#ifdef ENABLE_ACHIEVEMENTS
-	// Check for resuming with hardcore mode.
-	Achievements::ResetChallengeMode();
-	if (!state_to_load->empty() && Achievements::ChallengeModeActive() &&
-		!Achievements::ConfirmChallengeModeDisable("Resuming state"))
-	{
-		return false;
-	}
-#endif
 
 	// resolve source type
 	if (params.source_type.has_value())
@@ -936,19 +834,11 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	const Common::Timer init_timer;
 	pxAssertRel(s_state.load(std::memory_order_acquire) == VMState::Shutdown, "VM is shutdown");
 
-	// cancel any game list scanning, we need to use CDVD!
-	// TODO: we can get rid of this once, we make CDVD not use globals...
-	// (or make it thread-local, but that seems silly.)
-	Host::CancelGameListRefresh();
-
 	s_state.store(VMState::Initializing, std::memory_order_release);
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 	Host::OnVMStarting();
 
 	ScopedGuard close_state = [] {
-		if (GSDumpReplayer::IsReplayingDump())
-			GSDumpReplayer::Shutdown();
-
 		s_vm_thread_handle = {};
 		s_state.store(VMState::Shutdown, std::memory_order_release);
 		Host::OnVMDestroyed();
@@ -958,10 +848,8 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	if (!ApplyBootParameters(std::move(boot_params), &state_to_load))
 		return false;
 
-	EmuConfig.LimiterMode = GetInitialLimiterMode();
-
 	// early out if we don't have a bios
-	if (!GSDumpReplayer::IsReplayingDump() && !CheckBIOSAvailability())
+	if (!CheckBIOSAvailability())
 		return false;
 
 	Console.WriteLn("Opening CDVD...");
@@ -1073,16 +961,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	PerformanceMetrics::Clear();
 
-	// do we want to load state?
-	if (!GSDumpReplayer::IsReplayingDump() && !state_to_load.empty())
-	{
-		if (!DoLoadState(state_to_load.c_str()))
-		{
-			Shutdown(false);
-			return false;
-		}
-	}
-
 	return true;
 }
 
@@ -1098,17 +976,6 @@ void VMManager::Shutdown(bool save_resume_state)
 	if (THREAD_VU1)
 		vu1Thread.WaitVU();
 	GetMTGS().WaitGS();
-
-	if (!GSDumpReplayer::IsReplayingDump() && save_resume_state)
-	{
-		std::string resume_file_name(GetCurrentSaveStateFileName(-1));
-		if (!resume_file_name.empty() && !DoSaveState(resume_file_name.c_str(), -1, true, false))
-			Console.Error("Failed to save resume state");
-	}
-	else if (GSDumpReplayer::IsReplayingDump())
-	{
-		GSDumpReplayer::Shutdown();
-	}
 
 	{
 		LastELF.clear();
@@ -1185,11 +1052,6 @@ void VMManager::Reset()
 		return;
 	}
 
-#ifdef ENABLE_ACHIEVEMENTS
-	if (!Achievements::OnReset())
-		return;
-#endif
-
 	const bool game_was_started = g_GameStarted;
 
 	s_active_game_fixes = 0;
@@ -1206,169 +1068,9 @@ void VMManager::Reset()
 	if (game_was_started)
 		UpdateRunningGame(true, false);
 
-	if (g_InputRecording.isActive())
-	{
-		g_InputRecording.handleReset();
-		GetMTGS().PresentCurrentFrame();
-	}
-
 	// If we were paused, state won't be resetting, so don't flip back to running.
 	if (s_state.load(std::memory_order_acquire) == VMState::Resetting)
 		s_state.store(VMState::Running, std::memory_order_release);
-}
-
-std::string VMManager::GetSaveStateFileName(const char* game_serial, u32 game_crc, s32 slot)
-{
-	std::string filename;
-	if (game_crc != 0)
-	{
-		if (slot < 0)
-			filename = fmt::format("{} ({:08X}).resume.p2s", game_serial, game_crc);
-		else
-			filename = fmt::format("{} ({:08X}).{:02d}.p2s", game_serial, game_crc, slot);
-
-		filename = Path::Combine(EmuFolders::Savestates, filename);
-	}
-
-	return filename;
-}
-
-std::string VMManager::GetSaveStateFileName(const char* filename, s32 slot)
-{
-	pxAssertRel(!HasValidVM(), "Should not have a VM when calling the non-gamelist GetSaveStateFileName()");
-
-	std::string ret;
-	std::string serial;
-	u32 crc;
-	if (Host::GetSerialAndCRCForFilename(filename, &serial, &crc))
-		ret = GetSaveStateFileName(serial.c_str(), crc, slot);
-
-	return ret;
-}
-
-bool VMManager::HasSaveStateInSlot(const char* game_serial, u32 game_crc, s32 slot)
-{
-	std::string filename(GetSaveStateFileName(game_serial, game_crc, slot));
-	return (!filename.empty() && FileSystem::FileExists(filename.c_str()));
-}
-
-std::string VMManager::GetCurrentSaveStateFileName(s32 slot)
-{
-	std::unique_lock lock(s_info_mutex);
-	return GetSaveStateFileName(s_game_serial.c_str(), s_game_crc, slot);
-}
-
-bool VMManager::DoLoadState(const char* filename)
-{
-	if (GSDumpReplayer::IsReplayingDump())
-		return false;
-
-	try
-	{
-		Host::OnSaveStateLoading(filename);
-		SaveState_UnzipFromDisk(filename);
-		UpdateRunningGame(false, false);
-		Host::OnSaveStateLoaded(filename, true);
-		if (g_InputRecording.isActive())
-		{
-			g_InputRecording.handleLoadingSavestate();
-			GetMTGS().PresentCurrentFrame();
-		}
-		return true;
-	}
-	catch (Exception::BaseException& e)
-	{
-		Host::ReportErrorAsync("Failed to load save state", e.UserMsg());
-		Host::OnSaveStateLoaded(filename, false);
-		return false;
-	}
-}
-
-bool VMManager::DoSaveState(const char* filename, s32 slot_for_message, bool zip_on_thread, bool backup_old_state)
-{
-	if (GSDumpReplayer::IsReplayingDump())
-		return false;
-
-	std::string osd_key(fmt::format("SaveStateSlot{}", slot_for_message));
-
-	try
-	{
-		std::unique_ptr<ArchiveEntryList> elist(SaveState_DownloadState());
-		std::unique_ptr<SaveStateScreenshotData> screenshot(SaveState_SaveScreenshot());
-
-		if (FileSystem::FileExists(filename) && backup_old_state)
-		{
-			const std::string backup_filename(fmt::format("{}.backup", filename));
-			Console.WriteLn(fmt::format("Creating save state backup {}...", backup_filename));
-			if (!FileSystem::RenamePath(filename, backup_filename.c_str()))
-			{
-				Host::AddIconOSDMessage(std::move(osd_key), ICON_FA_EXCLAMATION_TRIANGLE,
-					fmt::format("Failed to back up old save state {}.", Path::GetFileName(filename)), Host::OSD_ERROR_DURATION);
-			}
-		}
-
-		if (zip_on_thread)
-		{
-			// lock order here is important; the thread could exit before we resume here.
-			std::unique_lock lock(s_save_state_threads_mutex);
-			s_save_state_threads.emplace_back(&VMManager::ZipSaveStateOnThread,
-				std::move(elist), std::move(screenshot), std::move(osd_key), std::string(filename),
-				slot_for_message);
-		}
-		else
-		{
-			ZipSaveState(std::move(elist), std::move(screenshot), std::move(osd_key), filename, slot_for_message);
-		}
-
-		Host::OnSaveStateSaved(filename);
-		return true;
-	}
-	catch (Exception::BaseException& e)
-	{
-		Host::AddIconOSDMessage(std::move(osd_key), ICON_FA_EXCLAMATION_TRIANGLE, fmt::format("Failed to save save state: {}.", e.DiagMsg()),
-			Host::OSD_ERROR_DURATION);
-		return false;
-	}
-}
-
-void VMManager::ZipSaveState(std::unique_ptr<ArchiveEntryList> elist,
-	std::unique_ptr<SaveStateScreenshotData> screenshot, std::string osd_key,
-	const char* filename, s32 slot_for_message)
-{
-	Common::Timer timer;
-
-	if (SaveState_ZipToDisk(std::move(elist), std::move(screenshot), filename))
-	{
-		if (slot_for_message >= 0 && VMManager::HasValidVM())
-			Host::AddIconOSDMessage(std::move(osd_key), ICON_FA_SAVE, fmt::format("State saved to slot {}.", slot_for_message),
-				Host::OSD_QUICK_DURATION);
-	}
-	else
-	{
-		Host::AddIconOSDMessage(std::move(osd_key), ICON_FA_EXCLAMATION_TRIANGLE, fmt::format("Failed to save save state to slot {}.", slot_for_message),
-			Host::OSD_ERROR_DURATION);
-	}
-
-	DevCon.WriteLn("Zipping save state to '%s' took %.2f ms", filename, timer.GetTimeMilliseconds());
-}
-
-void VMManager::ZipSaveStateOnThread(std::unique_ptr<ArchiveEntryList> elist, std::unique_ptr<SaveStateScreenshotData> screenshot,
-	std::string osd_key, std::string filename, s32 slot_for_message)
-{
-	ZipSaveState(std::move(elist), std::move(screenshot), std::move(osd_key), filename.c_str(), slot_for_message);
-
-	// remove ourselves from the thread list. if we're joining, we might not be in there.
-	const auto this_id = std::this_thread::get_id();
-	std::unique_lock lock(s_save_state_threads_mutex);
-	for (auto it = s_save_state_threads.begin(); it != s_save_state_threads.end(); ++it)
-	{
-		if (it->get_id() == this_id)
-		{
-			it->detach();
-			s_save_state_threads.erase(it);
-			break;
-		}
-	}
 }
 
 void VMManager::WaitForSaveStateFlush()
@@ -1384,112 +1086,6 @@ void VMManager::WaitForSaveStateFlush()
 		save_thread.join();
 		lock.lock();
 	}
-}
-
-u32 VMManager::DeleteSaveStates(const char* game_serial, u32 game_crc, bool also_backups /* = true */)
-{
-	WaitForSaveStateFlush();
-
-	u32 deleted = 0;
-	for (s32 i = -1; i <= NUM_SAVE_STATE_SLOTS; i++)
-	{
-		std::string filename(GetSaveStateFileName(game_serial, game_crc, i));
-		if (FileSystem::FileExists(filename.c_str()) && FileSystem::DeleteFilePath(filename.c_str()))
-			deleted++;
-
-		if (also_backups)
-		{
-			filename += ".backup";
-			if (FileSystem::FileExists(filename.c_str()) && FileSystem::DeleteFilePath(filename.c_str()))
-				deleted++;
-		}
-	}
-
-	return deleted;
-}
-
-bool VMManager::LoadState(const char* filename)
-{
-#ifdef ENABLE_ACHIEVEMENTS
-	if (Achievements::ChallengeModeActive() &&
-		!Achievements::ConfirmChallengeModeDisable("Loading state"))
-	{
-		return false;
-	}
-#endif
-
-	// TODO: Save the current state so we don't need to reset.
-	if (DoLoadState(filename))
-		return true;
-
-	Reset();
-	return false;
-}
-
-bool VMManager::LoadStateFromSlot(s32 slot)
-{
-	const std::string filename(GetCurrentSaveStateFileName(slot));
-	if (filename.empty())
-	{
-		Host::AddIconOSDMessage("LoadStateFromSlot", ICON_FA_EXCLAMATION_TRIANGLE, fmt::format("There is no save state in slot {}.", slot), 5.0f);
-		return false;
-	}
-
-#ifdef ENABLE_ACHIEVEMENTS
-	if (Achievements::ChallengeModeActive() &&
-		!Achievements::ConfirmChallengeModeDisable("Loading state"))
-	{
-		return false;
-	}
-#endif
-
-	Host::AddIconOSDMessage("LoadStateFromSlot", ICON_FA_FOLDER_OPEN, fmt::format("Loading state from slot {}...", slot), Host::OSD_QUICK_DURATION);
-	return DoLoadState(filename.c_str());
-}
-
-bool VMManager::SaveState(const char* filename, bool zip_on_thread, bool backup_old_state)
-{
-	return DoSaveState(filename, -1, zip_on_thread, backup_old_state);
-}
-
-bool VMManager::SaveStateToSlot(s32 slot, bool zip_on_thread)
-{
-	const std::string filename(GetCurrentSaveStateFileName(slot));
-	if (filename.empty())
-		return false;
-
-	// if it takes more than a minute.. well.. wtf.
-	Host::AddIconOSDMessage(fmt::format("SaveStateSlot{}", slot), ICON_FA_SAVE, fmt::format("Saving state to slot {}...", slot), 60.0f);
-	return DoSaveState(filename.c_str(), slot, zip_on_thread, EmuConfig.BackupSavestate);
-}
-
-LimiterModeType VMManager::GetLimiterMode()
-{
-	return EmuConfig.LimiterMode;
-}
-
-void VMManager::SetLimiterMode(LimiterModeType type)
-{
-	if (EmuConfig.LimiterMode == type)
-		return;
-
-	EmuConfig.LimiterMode = type;
-	gsUpdateFrequency(EmuConfig);
-	SPU2::OnTargetSpeedChanged();
-}
-
-void VMManager::FrameAdvance(u32 num_frames /*= 1*/)
-{
-	if (!HasValidVM())
-		return;
-
-#ifdef ENABLE_ACHIEVEMENTS
-	if (Achievements::ChallengeModeActive() && !Achievements::ConfirmChallengeModeDisable("Frame advancing"))
-		return;
-#endif
-
-	s_frame_advance_count = num_frames;
-	SetState(VMState::Running);
 }
 
 bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
@@ -1651,24 +1247,6 @@ void VMManager::Internal::VSyncOnCPUThread()
 	}
 
 	Host::CPUThreadVSync();
-#ifndef __LIBRETRO__
-	if (EmuConfig.EnableRecordingTools)
-	{
-		// This code is called _before_ Counter's vsync end, and _after_ vsync start
-		if (g_InputRecording.isActive())
-		{
-			// Process any outstanding recording actions (ie. toggle mode, stop the recording, etc)
-			g_InputRecording.processRecordQueue();
-			g_InputRecording.getControls().processControlQueue();
-			// Increment our internal frame counter, used to keep track of when we hit the end, etc.
-			g_InputRecording.incFrameCounter();
-			g_InputRecording.handleExceededFrameCounter();
-		}
-		// At this point, the PAD data has been read from the user for the current frame
-		// so we can either read from it, or overwrite it!
-		g_InputRecording.handleControllerDataUpdate();
-	}
-#endif
 }
 
 void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
@@ -1711,9 +1289,6 @@ void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
 		return;
 
 	Console.WriteLn("Updating GS configuration...");
-
-	if (EmuConfig.GS.FrameLimitEnable != old_config.GS.FrameLimitEnable)
-		EmuConfig.LimiterMode = GetInitialLimiterMode();
 
 	gsUpdateFrequency(EmuConfig);
 	UpdateVSyncRate(true);
@@ -1811,7 +1386,6 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 		CheckForCPUConfigChanges(old_config);
 		CheckForFramerateConfigChanges(old_config);
 		CheckForPatchConfigChanges(old_config);
-		SPU2::CheckForConfigChanges(old_config);
 		CheckForDEV9ConfigChanges(old_config);
 		CheckForMemoryCardConfigChanges(old_config);
 		USB::CheckForConfigChanges(old_config);
@@ -1875,41 +1449,6 @@ void VMManager::SetDefaultSettings(SettingsInterface& si)
 	si.SetBoolValue("EmuCore", "EnableFastBoot", true);
 
 	SetHardwareDependentDefaultSettings(si);
-}
-
-void VMManager::EnforceAchievementsChallengeModeSettings()
-{
-	if (!Achievements::ChallengeModeActive())
-		return;
-
-	static constexpr auto ClampSpeed = [](float& rate) {
-		if (rate > 0.0f && rate < 1.0f)
-			rate = 1.0f;
-	};
-
-	// Can't use slow motion.
-	ClampSpeed(EmuConfig.Framerate.NominalScalar);
-	ClampSpeed(EmuConfig.Framerate.TurboScalar);
-	ClampSpeed(EmuConfig.Framerate.SlomoScalar);
-
-	// Can't use cheats.
-	if (EmuConfig.EnableCheats)
-	{
-		Host::AddKeyedOSDMessage("ChallengeDisableCheats", "Cheats have been disabled due to achievements hardcore mode.", Host::OSD_WARNING_DURATION);
-		EmuConfig.EnableCheats = false;
-	}
-
-	// Input recording/playback is probably an issue.
-	EmuConfig.EnableRecordingTools = false;
-	EmuConfig.EnablePINE = false;
-
-	// Framerates should be at default.
-	EmuConfig.GS.FramerateNTSC = Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC;
-	EmuConfig.GS.FrameratePAL = Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL;
-
-	// You can overclock, but not underclock (since that might slow down the game and make it easier).
-	EmuConfig.Speedhacks.EECycleRate = std::max<decltype(EmuConfig.Speedhacks.EECycleRate)>(EmuConfig.Speedhacks.EECycleRate, 0);
-	EmuConfig.Speedhacks.EECycleSkip = 0;
 }
 
 void VMManager::LogUnsafeSettingsToConsole(const std::string& messages)
@@ -2179,7 +1718,7 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 
 static void InitializeCPUInfo()
 {
-	DevCon.WriteLn("(VMManager) InitializeCPUInfo() not implemented.");
+	Console.WriteLn("(VMManager) InitializeCPUInfo() not implemented.");
 }
 
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)

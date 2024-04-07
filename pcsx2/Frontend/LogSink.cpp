@@ -401,7 +401,6 @@ void CommonHost::UpdateLogging(SettingsInterface& si)
 	s_log_timestamps = si.GetBoolValue("Logging", "EnableTimestamps", true);
 
 	const bool any_logging_sinks = system_console_enabled || file_logging_enabled;
-	DevConWriterEnabled = any_logging_sinks && (IsDevBuild || si.GetBoolValue("Logging", "EnableVerbose", false));
 	SysConsole.eeConsole.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableEEConsole", false);
 	SysConsole.iopConsole.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableIOPConsole", false);
 	SysTrace.IOP.R3000A.Enabled = true;
@@ -410,11 +409,7 @@ void CommonHost::UpdateLogging(SettingsInterface& si)
 	SysTrace.SIF.Enabled = true;
 
 	// Input Recording Logs
-	SysConsole.recordingConsole.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableInputRecordingLogs", true);
 	SysConsole.controlInfo.Enabled = any_logging_sinks && si.GetBoolValue("Logging", "EnableControllerLogs", false);
-#ifndef __LIBRETRO__
-	UpdateLoggingSinks(system_console_enabled, file_logging_enabled);
-#endif
 }
 
 void CommonHost::SetDefaultLoggingSettings(SettingsInterface& si)

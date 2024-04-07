@@ -18,9 +18,6 @@
 #include "MemoryCardProtocol.h"
 #include "Sio.h"
 
-#define MC_LOG_ENABLE 0
-#define MC_LOG if (MC_LOG_ENABLE) DevCon
-
 #define PS1_FAIL() if (this->PS1Fail()) return;
 
 MemoryCardProtocol g_MemoryCardProtocol;
@@ -83,21 +80,18 @@ void MemoryCardProtocol::ResetPS1State()
 
 void MemoryCardProtocol::Probe()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::UnknownWriteDeleteEnd()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::SetSector()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	const u8 sectorLSB = fifoIn.front();
 	fifoIn.pop_front();
@@ -130,7 +124,6 @@ void MemoryCardProtocol::SetSector()
 
 void MemoryCardProtocol::GetSpecs()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	//u8 checksum = 0x00;
 	McdSizeInfo info;
@@ -175,7 +168,6 @@ void MemoryCardProtocol::GetSpecs()
 
 void MemoryCardProtocol::SetTerminator()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	const u8 newTerminator = fifoIn.front();
 	fifoIn.pop_front();
@@ -188,7 +180,6 @@ void MemoryCardProtocol::SetTerminator()
 
 void MemoryCardProtocol::GetTerminator()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	fifoOut.push_back(0x2b);
 	fifoOut.push_back(mcd->term);
@@ -197,7 +188,6 @@ void MemoryCardProtocol::GetTerminator()
 
 void MemoryCardProtocol::WriteData()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	fifoOut.push_back(0x00);
 	fifoOut.push_back(0x2b);
@@ -224,7 +214,6 @@ void MemoryCardProtocol::WriteData()
 
 void MemoryCardProtocol::ReadData()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	const u8 readLength = fifoIn.front();
 	fifoIn.pop_front();
@@ -249,7 +238,6 @@ void MemoryCardProtocol::ReadData()
 
 u8 MemoryCardProtocol::PS1Read(u8 data)
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	bool sendAck = true;
 	u8 ret = 0;
 
@@ -310,14 +298,12 @@ u8 MemoryCardProtocol::PS1Read(u8 data)
 
 u8 MemoryCardProtocol::PS1State(u8 data)
 {
-	DevCon.Error("%s(%02X) I do not exist, please change that ASAP.", __FUNCTION__, data);
 	assert(false);
 	return 0x00;
 }
 
 u8 MemoryCardProtocol::PS1Write(u8 data)
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	bool sendAck = true;
 	u8 ret = 0;
 
@@ -389,21 +375,18 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 
 u8 MemoryCardProtocol::PS1Pocketstation(u8 data)
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	sio2.SetRecv1(Recv1::DISCONNECTED);
 	return 0x00;
 }
 
 void MemoryCardProtocol::ReadWriteEnd()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::EraseBlock()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	mcd->EraseBlock();
 	The2bTerminator(4);
@@ -411,14 +394,12 @@ void MemoryCardProtocol::EraseBlock()
 
 void MemoryCardProtocol::UnknownBoot()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	The2bTerminator(5);
 }
 
 void MemoryCardProtocol::AuthXor()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	const u8 modeByte = fifoIn.front();
 	fifoIn.pop_front();
@@ -490,14 +471,12 @@ void MemoryCardProtocol::AuthXor()
 
 void MemoryCardProtocol::AuthF3()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	The2bTerminator(5);
 }
 
 void MemoryCardProtocol::AuthF7()
 {
-	MC_LOG.WriteLn("%s", __FUNCTION__);
 	PS1_FAIL();
 	The2bTerminator(5);
 }

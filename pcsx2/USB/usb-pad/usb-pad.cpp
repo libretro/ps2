@@ -274,9 +274,6 @@ namespace usb_pad
 				UpdateSteering();
 				UpdateHatSwitch();
 
-				DbgCon.WriteLn("Steering: %d Throttle: %d Brake: %d Buttons: %d",
-					data.steering, data.throttle, data.brake, data.buttons);
-
 				w->lo = data.steering & 0x3FF;
 				w->lo |= (data.buttons & 0xFFF) << 10;
 				w->lo |= 0xFF << 24;

@@ -72,14 +72,9 @@ bool StateWrapper::DoMarker(const char* marker)
 {
 	std::string file_value(marker);
 	Do(&file_value);
-	if (m_error)
-		return false;
-
-	if (m_mode == Mode::Write || file_value == marker)
-		return true;
-
-	Console.WriteLn("Marker mismatch at offset %u: found '%s' expected '%s'", m_stream->GetPosition(),
-		file_value.c_str(), marker);
+	if (!m_error)
+		if (m_mode == Mode::Write || file_value == marker)
+			return true;
 
 	return false;
 }
@@ -128,7 +123,6 @@ bool StateWrapper::ReadOnlyMemoryStream::SeekRelative(s32 count)
 			return false;
 
 		m_buf_position -= static_cast<u32>(-count);
-		return true;
 	}
 	else
 	{
@@ -136,8 +130,8 @@ bool StateWrapper::ReadOnlyMemoryStream::SeekRelative(s32 count)
 			return false;
 
 		m_buf_position += static_cast<u32>(count);
-		return true;
 	}
+	return true;
 }
 
 StateWrapper::MemoryStream::MemoryStream(void* buf, u32 buf_length)
@@ -190,7 +184,6 @@ bool StateWrapper::MemoryStream::SeekRelative(s32 count)
 			return false;
 
 		m_buf_position -= static_cast<u32>(-count);
-		return true;
 	}
 	else
 	{
@@ -198,8 +191,8 @@ bool StateWrapper::MemoryStream::SeekRelative(s32 count)
 			return false;
 
 		m_buf_position += static_cast<u32>(count);
-		return true;
 	}
+	return true;
 }
 
 StateWrapper::VectorMemoryStream::VectorMemoryStream() = default;
@@ -254,7 +247,6 @@ bool StateWrapper::VectorMemoryStream::SeekRelative(s32 count)
 			return false;
 
 		m_buf_position -= static_cast<u32>(-count);
-		return true;
 	}
 	else
 	{
@@ -262,8 +254,8 @@ bool StateWrapper::VectorMemoryStream::SeekRelative(s32 count)
 			return false;
 
 		m_buf_position += static_cast<u32>(count);
-		return true;
 	}
+	return true;
 }
 
 void StateWrapper::VectorMemoryStream::Expand(u32 new_size)

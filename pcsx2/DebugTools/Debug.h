@@ -91,8 +91,6 @@ public:
 	{
 		return SysTraceLog::IsActive() && EmuConfig.Trace.EE.m_EnableAll;
 	}
-
-	std::string GetCategory() const override { return "EE"; }
 };
 
 class SysTraceLog_VIFcode : public SysTraceLog_EE
@@ -116,8 +114,6 @@ public:
 	{
 		return _parent::IsActive() && EmuConfig.Trace.EE.m_EnableDisasm;
 	}
-
-	std::string GetCategory() const override { return _parent::GetCategory() + ".Disasm"; }
 };
 
 class SysTraceLog_EE_Registers : public SysTraceLog_EE
@@ -131,8 +127,6 @@ public:
 	{
 		return _parent::IsActive() && EmuConfig.Trace.EE.m_EnableRegisters;
 	}
-
-	std::string GetCategory() const override { return _parent::GetCategory() + ".Registers"; }
 };
 
 class SysTraceLog_EE_Events : public SysTraceLog_EE
@@ -146,8 +140,6 @@ public:
 	{
 		return _parent::IsActive() && EmuConfig.Trace.EE.m_EnableEvents;
 	}
-
-	std::string GetCategory() const override { return _parent::GetCategory() + ".Events"; }
 };
 
 
@@ -163,8 +155,6 @@ public:
 	{
 		return SysTraceLog::IsActive() && EmuConfig.Trace.IOP.m_EnableAll;
 	}
-
-	std::string GetCategory() const override { return "IOP"; }
 };
 
 class SysTraceLog_IOP_Disasm : public SysTraceLog_IOP
@@ -177,8 +167,6 @@ public:
 	{
 		return _parent::IsActive() && EmuConfig.Trace.IOP.m_EnableDisasm;
 	}
-
-	std::string GetCategory() const override { return _parent::GetCategory() + ".Disasm"; }
 };
 
 class SysTraceLog_IOP_Registers : public SysTraceLog_IOP
@@ -191,8 +179,6 @@ public:
 	{
 		return _parent::IsActive() && EmuConfig.Trace.IOP.m_EnableRegisters;
 	}
-
-	std::string GetCategory() const override { return _parent::GetCategory() + ".Registers"; }
 };
 
 class SysTraceLog_IOP_Events : public SysTraceLog_IOP
@@ -205,8 +191,6 @@ public:
 	{
 		return _parent::IsActive() && EmuConfig.Trace.IOP.m_EnableEvents;
 	}
-
-	std::string GetCategory() const override { return _parent::GetCategory() + ".Events"; }
 };
 
 // --------------------------------------------------------------------------------------
@@ -322,8 +306,7 @@ struct SysConsoleLogPack
 	ConsoleLogFromVM<Color_Cyan>		eeConsole;
 	ConsoleLogFromVM<Color_Yellow>		iopConsole;
 	ConsoleLogFromVM<Color_Cyan>		deci2;
-	ConsoleLogFromVM<Color_StrongMagenta>	recordingConsole;
-	ConsoleLogFromVM<Color_Red>				controlInfo;
+	ConsoleLogFromVM<Color_Red>		controlInfo;
 
 	SysConsoleLogPack();
 };
@@ -331,62 +314,3 @@ struct SysConsoleLogPack
 
 extern SysTraceLogPack SysTrace;
 extern SysConsoleLogPack SysConsole;
-
-extern void __Log( const char* fmt, ... );
-
-// Helper macro for cut&paste.  Note that we intentionally use a top-level *inline* bitcheck
-// against Trace.Enabled, to avoid extra overhead in Debug builds when logging is disabled.
-// (specifically this allows debug builds to skip havingto resolve all the parameters being
-//  passed into the function)
-#ifdef PCSX2_DEVBUILD
-#	define SysTraceActive(trace)	SysTrace.trace.IsActive()
-#else
-#	define SysTraceActive(trace)	(false)
-#endif
-
-#define macTrace(trace)	SysTraceActive(trace) && SysTrace.trace.Write
-
-#define SIF_LOG			macTrace(SIF)
-
-#define BIOS_LOG		macTrace(EE.Bios)
-#define CPU_LOG			macTrace(EE.R5900)
-#define COP0_LOG		macTrace(EE.COP0)
-#define VUM_LOG			macTrace(EE.COP2)
-#define MEM_LOG			macTrace(EE.Memory)
-#define CACHE_LOG		macTrace(EE.Cache)
-#define HW_LOG			macTrace(EE.KnownHw)
-#define UnknownHW_LOG	macTrace(EE.UnknownHw)
-#define DMA_LOG			macTrace(EE.DMAhw)
-#define IPU_LOG			macTrace(EE.IPU)
-#define VIF_LOG			macTrace(EE.VIF)
-#define SPR_LOG			macTrace(EE.SPR)
-#define GIF_LOG			macTrace(EE.GIF)
-#define MSKPATH3_LOG	macTrace(EE.MSKPATH3)
-#define EECNT_LOG		macTrace(EE.Counters)
-#define VifCodeLog		macTrace(EE.VIFcode)
-#define GifTagLog		macTrace(EE.GIFtag)
-
-
-#define PSXBIOS_LOG		macTrace(IOP.Bios)
-#define PSXCPU_LOG		macTrace(IOP.R3000A)
-#define PSXMEM_LOG		macTrace(IOP.Memory)
-#define PSXHW_LOG		macTrace(IOP.KnownHw)
-#define PSXUnkHW_LOG	macTrace(IOP.UnknownHw)
-#define PSXDMA_LOG		macTrace(IOP.DMAhw)
-#define PSXCNT_LOG		macTrace(IOP.Counters)
-#define MEMCARDS_LOG	macTrace(IOP.Memcards)
-#define PAD_LOG			macTrace(IOP.PAD)
-#define GPU_LOG			macTrace(IOP.GPU)
-#define CDVD_LOG		macTrace(IOP.CDVD)
-#define MDEC_LOG		macTrace(IOP.MDEC)
-
-
-#define ELF_LOG			SysConsole.ELF.IsActive()			&& SysConsole.ELF.Write
-#define eeRecPerfLog	SysConsole.eeRecPerf.IsActive()		&& SysConsole.eeRecPerf
-#define eeConLog		SysConsole.eeConsole.IsActive()		&& SysConsole.eeConsole.Write
-#define eeDeci2Log		SysConsole.deci2.IsActive()			&& SysConsole.deci2.Write
-#define iopConLog		SysConsole.iopConsole.IsActive()	&& SysConsole.iopConsole.Write
-#define sysConLog		SysConsole.sysoutConsole.IsActive()	&& SysConsole.sysoutConsole.Write
-#define pgifConLog		SysConsole.pgifLog.IsActive()		&& SysConsole.pgifLog.Write
-#define recordingConLog	SysConsole.recordingConsole.IsActive()	&& SysConsole.recordingConsole.Write
-#define controlLog		SysConsole.controlInfo.IsActive()		&& SysConsole.controlInfo.Write

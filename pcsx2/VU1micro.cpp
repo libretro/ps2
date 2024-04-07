@@ -37,7 +37,6 @@ void vu1ResetRegs()
 
 void vu1Finish(bool add_cycles) {
 	if (THREAD_VU1) {
-		//if (VU0.VI[REG_VPU_STAT].UL & 0x100) DevCon.Error("MTVU: VU0.VI[REG_VPU_STAT].UL & 0x100");
 		if (INSTANT_VU1 || add_cycles)
 		{
 			vu1Thread.WaitVU();
@@ -46,12 +45,9 @@ void vu1Finish(bool add_cycles) {
 		return;
 	}
 	u32 vu1cycles = VU1.cycle;
-	if(VU0.VI[REG_VPU_STAT].UL & 0x100) {
-		VUM_LOG("vu1ExecMicro > Stalling until current microprogram finishes");
+	if(VU0.VI[REG_VPU_STAT].UL & 0x100)
 		CpuVU1->Execute(vu1RunCycles);
-	}
 	if (VU0.VI[REG_VPU_STAT].UL & 0x100) {
-		DevCon.Warning("Force Stopping VU1, ran for too long");
 		VU0.VI[REG_VPU_STAT].UL &= ~0x100;
 	}
 	if (add_cycles)
@@ -79,7 +75,6 @@ void vu1ExecMicro(u32 addr)
 	static int count = 0;
 	vu1Finish(false);
 
-	VUM_LOG("vu1ExecMicro %x (count=%d)", addr, count++);
 	VU1.cycle = cpuRegs.cycle;
 	VU0.VI[REG_VPU_STAT].UL &= ~0xFF00;
 	VU0.VI[REG_VPU_STAT].UL |=  0x0100;

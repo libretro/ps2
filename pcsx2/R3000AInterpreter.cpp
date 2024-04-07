@@ -228,8 +228,6 @@ static __fi void execI()
 
 	psxRegs.code = iopMemRead32(psxRegs.pc);
 
-		PSXCPU_LOG("%s", disR3000AF(psxRegs.code, psxRegs.pc));
-
 	psxRegs.pc+= 4;
 	psxRegs.cycle++;
 
@@ -246,13 +244,9 @@ static __fi void execI()
 }
 
 static void doBranch(s32 tar) {
-	if (tar == 0x0)
-		DevCon.Warning("[R3000 Interpreter] Warning: Branch to 0x0!");
-
 	branch2 = iopIsDelaySlot = true;
 	branchPC = tar;
 	execI();
-	PSXCPU_LOG( "\n" );
 	iopIsDelaySlot = false;
 	psxRegs.pc = branchPC;
 

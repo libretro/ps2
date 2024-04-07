@@ -47,13 +47,3 @@ enum gamePadValues
 	PAD_R_LEFT,   // Right joystick (Left) ←
 	MAX_KEYS,
 };
-
-static inline bool IsAnalogKey(int index)
-{
-	return ((index >= PAD_L_UP) && (index <= PAD_R_LEFT));
-}
-
-static inline bool IsTriggerKey(int index)
-{
-	return (index == PAD_L2 || index == PAD_R2);
-}

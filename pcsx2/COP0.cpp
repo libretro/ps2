@@ -18,26 +18,8 @@
 #include "Common.h"
 #include "COP0.h"
 
-// Updates the CPU's mode of operation (either, Kernel, Supervisor, or User modes).
-// Currently the different modes are not implemented.
-// Given this function is called so much, it's commented out for now. (rama)
-__ri void cpuUpdateOperationMode() {
-
-	//u32 value = cpuRegs.CP0.n.Status.val;
-
-	//if (value & 0x06 ||
-	//	(value & 0x18) == 0) { // Kernel Mode (KSU = 0 | EXL = 1 | ERL = 1)*/
-	//	memSetKernelMode();	// Kernel memory always
-	//} else { // User Mode
-	//	memSetUserMode();
-	//}
-}
-
 void WriteCP0Status(u32 value) {
-
-	//DMA_LOG("COP0 Status write = 0x%08x", value);
-
-	cpuRegs.CP0.n.Status.val = value;
+    cpuRegs.CP0.n.Status.val = value;
     cpuSetNextEventDelta(4);
 }
 
@@ -77,25 +59,18 @@ static __fi bool PERF_ShouldCountEvent( uint evt )
 
 		// left sides are PCR0 / right sides are PCR1
 
-		case 1:		// cpu cycle counter.
-		case 2:		// single/dual instruction issued
-		case 3:		// Branch issued / Branch mispredicated
-			return true;
-
 		case 4:		// BTAC/TLB miss
 		case 5:		// ITLB/DTLB miss
 		case 6:		// Data/Instruction cache miss
-			return false;
-
 		case 7:		// Access to DTLB / WBB single request fail
 		case 8:		// Non-blocking load / WBB burst request fail
 		case 9:
 		case 10:
-			return false;
-
 		case 11:	// CPU address bus busy / CPU data bus busy
-			return false;
-
+			break;
+		case 1:		// cpu cycle counter.
+		case 2:		// single/dual instruction issued
+		case 3:		// Branch issued / Branch mispredicated
 		case 12:	// Instruction completed
 		case 13:	// non-delayslot instruction completed
 		case 14:	// COP2/COP1 instruction complete
@@ -109,16 +84,10 @@ static __fi bool PERF_ShouldCountEvent( uint evt )
 // Diagnostics for event modes that we just ignore for now.  Using these perf units could
 // cause compat issues in some very odd/rare games, so if this msg comes up who knows,
 // might save some debugging effort. :)
-void COP0_DiagnosticPCCR()
-{
-	if( cpuRegs.PERF.n.pccr.b.Event0 >= 7 && cpuRegs.PERF.n.pccr.b.Event0 <= 10 )
-		Console.Warning( "PERF/PCR0 Unsupported Update Event Mode = 0x%x", cpuRegs.PERF.n.pccr.b.Event0 );
+void COP0_DiagnosticPCCR(void) { }
 
-	if( cpuRegs.PERF.n.pccr.b.Event1 >= 7 && cpuRegs.PERF.n.pccr.b.Event1 <= 10 )
-		Console.Warning( "PERF/PCR1 Unsupported Update Event Mode = 0x%x", cpuRegs.PERF.n.pccr.b.Event1 );
-}
 extern int branch;
-__fi void COP0_UpdatePCCR()
+__fi void COP0_UpdatePCCR(void)
 {
 	// Counting and counter exceptions are not performed if we are currently executing a Level 2 exception (ERL)
 	// or the counting function is not enabled (CTE)
@@ -146,39 +115,6 @@ __fi void COP0_UpdatePCCR()
 			//u32 prev = cpuRegs.PERF.n.pcr0;
 			cpuRegs.PERF.n.pcr0 += incr;
 			cpuRegs.lastPERFCycle[0] = cpuRegs.cycle;
-
-			//prev ^= (1UL<<31);		// XOR is fun!
-			//if( (prev & cpuRegs.PERF.n.pcr0) & (1UL<<31) )
-			if((cpuRegs.PERF.n.pcr0 & 0x80000000))
-			{
-				// TODO: Vector to the appropriate exception here.
-				// This code *should* be correct, but is untested (and other parts of the emu are
-				// not prepared to handle proper Level 2 exception vectors yet)
-
-				//branch == 1 is probably not the best way to check for the delay slot, but it beats nothing! (Refraction)
-			/*	if( branch == 1 )
-				{
-					cpuRegs.CP0.n.ErrorEPC = cpuRegs.pc - 4;
-					cpuRegs.CP0.n.Cause |= 0x40000000;
-				}
-				else
-				{
-					cpuRegs.CP0.n.ErrorEPC = cpuRegs.pc;
-					cpuRegs.CP0.n.Cause &= ~0x40000000;
-				}
-
-				if( cpuRegs.CP0.n.Status.b.DEV )
-				{
-					// Bootstrap vector
-					cpuRegs.pc = 0xbfc00280;
-				}
-				else
-				{
-					cpuRegs.pc = 0x80000080;
-				}
-				cpuRegs.CP0.n.Status.b.ERL = 1;
-				cpuRegs.CP0.n.Cause |= 0x20000;*/
-			}
 		}
 	}
 
@@ -195,38 +131,6 @@ __fi void COP0_UpdatePCCR()
 
 			cpuRegs.PERF.n.pcr1 += incr;
 			cpuRegs.lastPERFCycle[1] = cpuRegs.cycle;
-
-			if( (cpuRegs.PERF.n.pcr1 & 0x80000000))
-			{
-				// TODO: Vector to the appropriate exception here.
-				// This code *should* be correct, but is untested (and other parts of the emu are
-				// not prepared to handle proper Level 2 exception vectors yet)
-
-				//branch == 1 is probably not the best way to check for the delay slot, but it beats nothing! (Refraction)
-
-				/*if( branch == 1 )
-				{
-					cpuRegs.CP0.n.ErrorEPC = cpuRegs.pc - 4;
-					cpuRegs.CP0.n.Cause |= 0x40000000;
-				}
-				else
-				{
-					cpuRegs.CP0.n.ErrorEPC = cpuRegs.pc;
-					cpuRegs.CP0.n.Cause &= ~0x40000000;
-				}
-
-				if( cpuRegs.CP0.n.Status.b.DEV )
-				{
-					// Bootstrap vector
-					cpuRegs.pc = 0xbfc00280;
-				}
-				else
-				{
-					cpuRegs.pc = 0x80000080;
-				}
-				cpuRegs.CP0.n.Status.b.ERL = 1;
-				cpuRegs.CP0.n.Cause |= 0x20000;*/
-			}
 		}
 	}
 }
@@ -240,14 +144,8 @@ void MapTLB(const tlbs& t, int i)
 	u32 mask, addr;
 	u32 saddr, eaddr;
 
-	COP0_LOG("MAP TLB %d: 0x%08X-> [0x%08X 0x%08X] S=%d G=%d ASID=%d Mask=0x%03X EntryLo0 PFN=%x EntryLo0 Cache=%x EntryLo1 PFN=%x EntryLo1 Cache=%x VPN2=%x",
-		i, t.VPN2, t.PFN0, t.PFN1, t.S >> 31, t.G, t.ASID,
-		t.Mask, t.EntryLo0 >> 6, (t.EntryLo0 & 0x38) >> 3, t.EntryLo1 >> 6, (t.EntryLo1 & 0x38) >> 3, t.VPN2);
-
 	if (t.S)
-	{
 		vtlb_VMapBuffer(t.VPN2, eeMem->Scratch, Ps2MemSize::Scratch);
-	}
 
 	if (t.VPN2 == 0x70000000) return; //uh uhh right ...
 	if (t.EntryLo0 & 0x2) {
@@ -279,7 +177,6 @@ void MapTLB(const tlbs& t, int i)
 
 void UnmapTLB(const tlbs& t, int i)
 {
-	//Console.WriteLn("Clear TLB %d: %08x-> [%08x %08x] S=%d G=%d ASID=%d Mask= %03X", i,t.VPN2,t.PFN0,t.PFN1,t.S,t.G,t.ASID,t.Mask);
 	u32 mask, addr;
 	u32 saddr, eaddr;
 
@@ -294,7 +191,6 @@ void UnmapTLB(const tlbs& t, int i)
 		mask  = ((~t.Mask) << 1) & 0xfffff;
 		saddr = t.VPN2 >> 12;
 		eaddr = saddr + t.Mask + 1;
-	//	Console.WriteLn("Clear TLB: %08x ~ %08x",saddr,eaddr-1);
 		for (addr=saddr; addr<eaddr; addr++) {
 			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) { //match
 				memClearPageAddr(addr << 12);
@@ -307,7 +203,6 @@ void UnmapTLB(const tlbs& t, int i)
 		mask  = ((~t.Mask) << 1) & 0xfffff;
 		saddr = (t.VPN2 >> 12) + t.Mask + 1;
 		eaddr = saddr + t.Mask + 1;
-	//	Console.WriteLn("Clear TLB: %08x ~ %08x",saddr,eaddr-1);
 		for (addr=saddr; addr<eaddr; addr++) {
 			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) { //match
 				memClearPageAddr(addr << 12);
@@ -341,11 +236,7 @@ namespace Interpreter {
 namespace OpcodeImpl {
 namespace COP0 {
 
-void TLBR() {
-	COP0_LOG("COP0_TLBR %d:%x,%x,%x,%x",
-			cpuRegs.CP0.n.Index,   cpuRegs.CP0.n.PageMask, cpuRegs.CP0.n.EntryHi,
-			cpuRegs.CP0.n.EntryLo0, cpuRegs.CP0.n.EntryLo1);
-
+void TLBR(void) {
 	int i = cpuRegs.CP0.n.Index & 0x3f;
 
 	cpuRegs.CP0.n.PageMask = tlb[i].PageMask;
@@ -357,12 +248,6 @@ void TLBR() {
 void TLBWI() {
 	int j = cpuRegs.CP0.n.Index & 0x3f;
 
-	//if (j > 48) return;
-
-	COP0_LOG("COP0_TLBWI %d:%x,%x,%x,%x",
-			cpuRegs.CP0.n.Index,    cpuRegs.CP0.n.PageMask, cpuRegs.CP0.n.EntryHi,
-			cpuRegs.CP0.n.EntryLo0, cpuRegs.CP0.n.EntryLo1);
-
 	UnmapTLB(tlb[j], j);
 	tlb[j].PageMask = cpuRegs.CP0.n.PageMask;
 	tlb[j].EntryHi = cpuRegs.CP0.n.EntryHi;
@@ -373,14 +258,6 @@ void TLBWI() {
 
 void TLBWR() {
 	int j = cpuRegs.CP0.n.Random & 0x3f;
-
-	//if (j > 48) return;
-
-DevCon.Warning("COP0_TLBWR %d:%x,%x,%x,%x\n",
-			cpuRegs.CP0.n.Random,   cpuRegs.CP0.n.PageMask, cpuRegs.CP0.n.EntryHi,
-			cpuRegs.CP0.n.EntryLo0, cpuRegs.CP0.n.EntryLo1);
-
-	//if (j > 48) return;
 
 	UnmapTLB(tlb[j], j);
 	tlb[j].PageMask = cpuRegs.CP0.n.PageMask;
@@ -421,7 +298,6 @@ void MFC0()
 	// Note on _Rd_ Condition 9: CP0.Count should be updated even if _Rt_ is 0.
 	if ((_Rd_ != 9) && !_Rt_ ) return;
 
-	//if(bExecBIOS == FALSE && _Rd_ == 25) Console.WriteLn("MFC0 _Rd_ %x = %x", _Rd_, cpuRegs.CP0.r[_Rd_]);
 	switch (_Rd_)
 	{
 		case 12:
@@ -430,9 +306,7 @@ void MFC0()
 
 		case 25:
 			if (0 == (_Imm_ & 1)) // MFPS, register value ignored
-			{
 				cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.PERF.n.pccr.val;
-			}
 			else if (0 == (_Imm_ & 2)) // MFPC 0, only LSB of register matters
 			{
 				COP0_UpdatePCCR();
@@ -443,22 +317,19 @@ void MFC0()
 				COP0_UpdatePCCR();
 				cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.PERF.n.pcr1;
 			}
-		    /*Console.WriteLn("MFC0 PCCR = %x PCR0 = %x PCR1 = %x IMM= %x",  params
-		    cpuRegs.PERF.n.pccr, cpuRegs.PERF.n.pcr0, cpuRegs.PERF.n.pcr1, _Imm_ & 0x3F);*/
-		break;
+			break;
 
 		case 24:
-			COP0_LOG("MFC0 Breakpoint debug Registers code = %x", cpuRegs.code & 0x3FF);
-		break;
+			break;
 
 		case 9:
-		{
-			u32 incr = cpuRegs.cycle - cpuRegs.lastCOP0Cycle;
-			if( incr == 0 ) incr++;
-			cpuRegs.CP0.n.Count += incr;
-			cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
-			if( !_Rt_ ) break;
-		}
+			{
+				u32 incr = cpuRegs.cycle - cpuRegs.lastCOP0Cycle;
+				if( incr == 0 ) incr++;
+				cpuRegs.CP0.n.Count += incr;
+				cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
+				if( !_Rt_ ) break;
+			}
 			[[fallthrough]];
 
 		default:
@@ -468,29 +339,25 @@ void MFC0()
 
 void MTC0()
 {
-	//if(bExecBIOS == FALSE && _Rd_ == 25) Console.WriteLn("MTC0 _Rd_ %x = %x", _Rd_, cpuRegs.CP0.r[_Rd_]);
 	switch (_Rd_)
 	{
 		case 9:
 			cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
 			cpuRegs.CP0.r[9] = cpuRegs.GPR.r[_Rt_].UL[0];
-		break;
+			break;
 
 		case 12:
 			WriteCP0Status(cpuRegs.GPR.r[_Rt_].UL[0]);
-		break;
+			break;
 
 		case 16:
 			WriteCP0Config(cpuRegs.GPR.r[_Rt_].UL[0]);
-		break;
+			break;
 
 		case 24:
-			COP0_LOG("MTC0 Breakpoint debug Registers code = %x", cpuRegs.code & 0x3FF);
-		break;
+			break;
 
 		case 25:
-			/*if(bExecBIOS == FALSE && _Rd_ == 25) Console.WriteLn("MTC0 PCCR = %x PCR0 = %x PCR1 = %x IMM= %x", params
-				cpuRegs.PERF.n.pccr, cpuRegs.PERF.n.pcr0, cpuRegs.PERF.n.pcr1, _Imm_ & 0x3F);*/
 			if (0 == (_Imm_ & 1)) // MTPS
 			{
 				if (0 != (_Imm_ & 0x3E)) // only effective when the register is 0
@@ -510,15 +377,15 @@ void MTC0()
 				cpuRegs.PERF.n.pcr1 = cpuRegs.GPR.r[_Rt_].UL[0];
 				cpuRegs.lastPERFCycle[1] = cpuRegs.cycle;
 			}
-		break;
+			break;
 
 		default:
 			cpuRegs.CP0.r[_Rd_] = cpuRegs.GPR.r[_Rt_].UL[0];
-		break;
+			break;
 	}
 }
 
-int CPCOND0() {
+int CPCOND0(void) {
 	return (((dmacRegs.stat.CIS | ~dmacRegs.pcr.CPC) & 0x3FF) == 0x3ff);
 }
 
@@ -540,32 +407,14 @@ void BC0FL() {
 
 }
 
-void BC0TL() {
+void BC0TL(void) {
 	if (CPCOND0() == 1)
 		intDoBranch(_BranchTarget_);
 	else
 		cpuRegs.pc+= 4;
 }
 
-void ERET() {
-#ifdef ENABLE_VTUNE
-	// Allow to stop vtune in a predictable way to compare runs
-	// Of course, the limit will depend on the game.
-	const u32 million = 1000 * 1000;
-	static u32 vtune = 0;
-	vtune++;
-
-	// quick_exit vs exit: quick_exit won't call static storage destructor (OS will manage). It helps
-	// avoiding the race condition between threads destruction.
-	if (vtune > 30 * million) {
-		Console.WriteLn("VTUNE: quick_exit");
-		std::quick_exit(EXIT_SUCCESS);
-	} else if (!(vtune % million)) {
-		Console.WriteLn("VTUNE: ERET was called %uM times", vtune/million);
-	}
-
-#endif
-
+void ERET(void) {
 	if (cpuRegs.CP0.n.Status.b.ERL) {
 		cpuRegs.pc = cpuRegs.CP0.n.ErrorEPC;
 		cpuRegs.CP0.n.Status.b.ERL = 0;

@@ -25,37 +25,7 @@ GSTexture::GSTexture() = default;
 
 bool GSTexture::Save(const std::string& fn)
 {
-#ifdef __LIBRETRO__
 	return true;
-#else
-#ifdef PCSX2_DEVBUILD
-	GSPng::Format format = GSPng::RGB_A_PNG;
-#else
-	GSPng::Format format = GSPng::RGB_PNG;
-#endif
-	switch (m_format)
-	{
-		case Format::UNorm8:
-			format = GSPng::R8I_PNG;
-			break;
-		case Format::Color:
-			break;
-		default:
-			Console.Error("Format %d not saved to image", static_cast<int>(m_format));
-			return false;
-	}
-
-	const GSVector4i rc(0, 0, m_size.x, m_size.y);
-	std::unique_ptr<GSDownloadTexture> dl(g_gs_device->CreateDownloadTexture(m_size.x, m_size.y, m_format));
-	if (!dl || (dl->CopyFromTexture(rc, this, rc, 0), dl->Flush(), !dl->Map(rc)))
-	{
-		Console.Error("(GSTexture) DownloadTexture() failed.");
-		return false;
-	}
-
-	const int compression = GSConfig.PNGCompressionLevel;
-	return GSPng::Save(format, fn, dl->GetMapPointer(), m_size.x, m_size.y, dl->GetMapPitch(), compression, g_gs_device->IsRBSwapped());
-#endif
 }
 
 void GSTexture::Swap(GSTexture* tex)

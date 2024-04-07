@@ -55,7 +55,4 @@ struct WindowInfo
 
 	/// Returns the host's refresh rate for the given window, if available.
 	static bool QueryRefreshRateForWindow(const WindowInfo& wi, float* refresh_rate);
-
-	/// Enables or disables the screen saver from starting.
-	static bool InhibitScreensaver(const WindowInfo& wi, bool inhibit);
 };

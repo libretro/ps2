@@ -204,8 +204,6 @@ private:
 	bool CompilePostProcessingPipelines();
 	bool CompileCASPipelines();
 
-	bool CompileImGuiPipeline();
-	void RenderImGui();
 	void RenderBlankFrame();
 
 	void DestroyResources();

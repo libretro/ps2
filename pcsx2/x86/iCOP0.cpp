@@ -197,10 +197,7 @@ void recMFC0()
 		return;
 	}
 	else if (_Rd_ == 24)
-	{
-		COP0_LOG("MFC0 Breakpoint debug Registers code = %x\n", cpuRegs.code & 0x3FF);
 		return;
-	}
 
 	const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
 	xMOVSX(xRegister64(regt), ptr32[&cpuRegs.CP0.r[_Rd_]]);
@@ -254,7 +251,6 @@ void recMTC0()
 				break;
 
 			case 24:
-				COP0_LOG("MTC0 Breakpoint debug Registers code = %x\n", cpuRegs.code & 0x3FF);
 				break;
 
 			default:
@@ -309,7 +305,6 @@ void recMTC0()
 				break;
 
 			case 24:
-				COP0_LOG("MTC0 Breakpoint debug Registers code = %x\n", cpuRegs.code & 0x3FF);
 				break;
 
 			default:
@@ -319,34 +314,6 @@ void recMTC0()
 	}
 }
 #endif
-
-
-/*void rec(COP0) {
-}
-
-void rec(BC0F) {
-}
-
-void rec(BC0T) {
-}
-
-void rec(BC0FL) {
-}
-
-void rec(BC0TL) {
-}
-
-void rec(TLBR) {
-}
-
-void rec(TLBWI) {
-}
-
-void rec(TLBWR) {
-}
-
-void rec(TLBP) {
-}*/
 
 } // namespace COP0
 } // namespace OpcodeImpl

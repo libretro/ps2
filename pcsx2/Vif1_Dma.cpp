@@ -80,8 +80,6 @@ void vif1TransferToMemory()
 	//That said, I think this is pointless and a waste of cycles and could cause more problems than good. We will alert this situation below anyway.
 	/*if (vif1.GSLastDownloadSize < vif1ch.qwc) {
 		if (pMem < pMemEnd) {
-			DevCon.Warning("GS Transfer < VIF QWC, Clearing end of space GST %x QWC %x", vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
-
 			__m128 zeroreg = _mm_setzero_ps();
 			do {
 				_mm_store_ps((float*)pMem, zeroreg);
@@ -102,8 +100,6 @@ void vif1TransferToMemory()
 		vif1Regs.stat.FQC = 0;
 		vif1ch.qwc -= vif1.GSLastDownloadSize;
 		vif1.GSLastDownloadSize = 0;
-		//This could be potentially bad and cause hangs. I guess we will find out.
-		DevCon.Warning("QWC left on VIF FIFO Reverse");
 	}
 }
 
@@ -136,13 +132,9 @@ bool _VIF1chain()
 		return true;
 	}
 
-	VIF_LOG("VIF1chain size=%d, madr=%lx, tadr=%lx",
-		vif1ch.qwc, vif1ch.madr, vif1ch.tadr);
-
 	if (vif1.irqoffset.enabled)
 		return VIF1transfer(pMem + vif1.irqoffset.value, vif1ch.qwc * 4 - vif1.irqoffset.value, false);
-	else
-		return VIF1transfer(pMem, vif1ch.qwc * 4, false);
+	return VIF1transfer(pMem, vif1ch.qwc * 4, false);
 }
 
 __fi void vif1SetupTransfer()
@@ -158,15 +150,11 @@ __fi void vif1SetupTransfer()
 	g_vif1Cycles += 1; // Add 1 g_vifCycles from the QW read for the tag
 	vif1.inprogress &= ~1;
 
-	VIF_LOG("VIF1 Tag %8.8x_%8.8x size=%d, id=%d, madr=%lx, tadr=%lx",
-		ptag[1]._u32, ptag[0]._u32, vif1ch.qwc, ptag->ID, vif1ch.madr, vif1ch.tadr);
-
 	if (!vif1.done && ((dmacRegs.ctrl.STD == STD_VIF1) && (ptag->ID == TAG_REFS))) // STD == VIF1
 	{
 		// there are still bugs, need to also check if gif->madr +16*qwc >= stadr, if not, stall
 		if ((vif1ch.madr + vif1ch.qwc * 16) > dmacRegs.stadr.ADDR)
 		{
-			//DevCon.Warning("VIF1 DMA Stall");
 			// stalled
 			hwDmacIrq(DMAC_STALL_SIS);
 			return;
@@ -183,8 +171,6 @@ __fi void vif1SetupTransfer()
 
 		masked_tag._u64[0] = 0;
 		masked_tag._u64[1] = *((u64*)ptag + 1);
-
-		VIF_LOG("\tVIF1 SrcChain TTE=1, data = 0x%08x.%08x", masked_tag._u32[3], masked_tag._u32[2]);
 
 		if (vif1.irqoffset.enabled)
 		{
@@ -219,8 +205,6 @@ __fi void vif1SetupTransfer()
 	//Check TIE bit of CHCR and IRQ bit of tag
 	if (vif1ch.chcr.TIE && ptag->IRQ)
 	{
-		VIF_LOG("dmaIrq Set");
-
 		//End Transfer
 		vif1.done = true;
 		return;
@@ -248,7 +232,6 @@ __fi void vif1VUFinish()
 	if (VU0.VI[REG_VPU_STAT].UL & 0x100)
 	{
 		u32 _cycles = VU1.cycle;
-		//DevCon.Warning("Finishing VU1");
 		vu1Finish(false);
 		if (THREAD_VU1 && !INSTANT_VU1 && (VU0.VI[REG_VPU_STAT].UL & 0x100))
 			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
@@ -259,7 +242,6 @@ __fi void vif1VUFinish()
 	}
 
 	vif1Regs.stat.VEW = false;
-	VIF_LOG("VU1 finished");
 
 	if (vif1.waitforvu)
 	{
@@ -273,14 +255,10 @@ __fi void vif1VUFinish()
 				vif1Interrupt();
 		}
 	}
-
-	//DevCon.Warning("VU1 state cleared");
 }
 
 __fi void vif1Interrupt()
 {
-	VIF_LOG("vif1Interrupt: %8.8x chcr %x, done %x, qwc %x", cpuRegs.cycle, vif1ch.chcr._u32, vif1.done, vif1ch.qwc);
-
 	g_vif1Cycles = 0;
 
 	if (gifRegs.stat.APATH == 2 && gifUnit.gifPath[GIF_PATH_2].isDone())
@@ -312,7 +290,6 @@ __fi void vif1Interrupt()
 		bool isDirectHL = (vif1.cmd & 0x7f) == 0x51;
 		if ((isDirect && !gifUnit.CanDoPath2()) || (isDirectHL && !gifUnit.CanDoPath2HL()))
 		{
-			GUNIT_WARN("vif1Interrupt() - Waiting for Path 2 to be ready");
 			CPU_INT(DMAC_VIF1, 128);
 			if (gifRegs.stat.APATH == 3)
 				vif1Regs.stat.VGW = 1; //We're waiting for path 3. Gunslinger II
@@ -326,7 +303,6 @@ __fi void vif1Interrupt()
 
 	if (vif1.waitforvu)
 	{
-		//DevCon.Warning("Waiting on VU1");
 		//CPU_INT(DMAC_VIF1, 16);
 		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles(VU_MTVU_BUSY)));
 		CPU_SET_DMASTALL(DMAC_VIF1, true);
@@ -344,7 +320,6 @@ __fi void vif1Interrupt()
 
 	if (vif1.irq && vif1.vifstalled.enabled && vif1.vifstalled.value == VIF_IRQ_STALL)
 	{
-		VIF_LOG("VIF IRQ Firing");
 		if (!vif1Regs.stat.ER1)
 			vif1Regs.stat.INT = true;
 
@@ -367,7 +342,6 @@ __fi void vif1Interrupt()
 			if ((vif1ch.qwc > 0 || !vif1.done) && !CHECK_VIF1STALLHACK)
 			{
 				vif1Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
-				VIF_LOG("VIF1 Stalled");
 				CPU_SET_DMASTALL(DMAC_VIF1, true);
 				return;
 			}
@@ -399,8 +373,6 @@ __fi void vif1Interrupt()
 		{
 			if (vif1.waitforvu)
 			{
-				//if (cpuGetCycles(VU_MTVU_BUSY) > static_cast<int>(g_vif1Cycles))
-				//	DevCon.Warning("Waiting %d instead of %d", cpuGetCycles(VU_MTVU_BUSY), static_cast<int>(g_vif1Cycles));
 				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles(VU_MTVU_BUSY)));
 			}
 			else
@@ -427,8 +399,6 @@ __fi void vif1Interrupt()
 		{
 			if (vif1.waitforvu)
 			{
-				//if (cpuGetCycles(VU_MTVU_BUSY) > static_cast<int>(g_vif1Cycles))
-				//	DevCon.Warning("Waiting %d instead of %d", cpuGetCycles(VU_MTVU_BUSY), static_cast<int>(g_vif1Cycles));
 				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles(VU_MTVU_BUSY)));
 			}
 			else
@@ -439,17 +409,10 @@ __fi void vif1Interrupt()
 
 	if (vif1.vifstalled.enabled && vif1.done)
 	{
-		DevCon.WriteLn("VIF1 looping on stall at end\n");
 		CPU_INT(DMAC_VIF1, 0);
 		CPU_SET_DMASTALL(DMAC_VIF1, true);
 		return; //Dont want to end if vif is stalled.
 	}
-#ifdef PCSX2_DEVBUILD
-	if (vif1ch.qwc > 0)
-		DevCon.WriteLn("VIF1 Ending with %x QWC left", vif1ch.qwc);
-	if (vif1.cmd != 0)
-		DevCon.WriteLn("vif1.cmd still set %x tag size %x", vif1.cmd, vif1.tag.size);
-#endif
 
 	if ((vif1ch.chcr.DIR == VIF_NORMAL_TO_MEM_MODE) && vif1.GSLastDownloadSize <= 16)
 	{
@@ -466,18 +429,12 @@ __fi void vif1Interrupt()
 	if (vif1.queued_program)
 		vifExecQueue(1);
 	g_vif1Cycles = 0;
-	VIF_LOG("VIF1 DMA End");
 	hwDmacIrq(DMAC_VIF1);
 	CPU_SET_DMASTALL(DMAC_VIF1, false);
 }
 
-void dmaVIF1()
+void dmaVIF1(void)
 {
-	VIF_LOG("dmaVIF1 chcr = %lx, madr = %lx, qwc  = %lx\n"
-			"        tadr = %lx, asr0 = %lx, asr1 = %lx",
-		vif1ch.chcr._u32, vif1ch.madr, vif1ch.qwc,
-		vif1ch.tadr, vif1ch.asr0, vif1ch.asr1);
-
 	g_vif1Cycles = 0;
 	vif1.inprogress = 0;
 	CPU_SET_DMASTALL(DMAC_VIF1, false);
@@ -489,7 +446,6 @@ void dmaVIF1()
 		if (vif1ch.chcr.MOD == CHAIN_MODE && vif1ch.chcr.DIR)
 		{
 			vif1.dmamode = VIF_CHAIN_MODE;
-			//DevCon.Warning(L"VIF1 QWC on Chain CHCR " + vif1ch.chcr.desc());
 
 			if ((vif1ch.chcr.tag().ID == TAG_REFE) || (vif1ch.chcr.tag().ID == TAG_END) || (vif1ch.chcr.tag().IRQ && vif1ch.chcr.TIE))
 			{
@@ -510,8 +466,6 @@ void dmaVIF1()
 			else
 				vif1.dmamode = VIF_NORMAL_TO_MEM_MODE;
 
-			if (vif1.irqoffset.enabled && !vif1.done)
-				DevCon.Warning("Warning! VIF1 starting a Normal transfer with vif offset set (Possible force stop?)");
 			vif1.done = true;
 		}
 

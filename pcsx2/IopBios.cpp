@@ -91,7 +91,6 @@ static std::string hostRoot;
 
 void Hle_SetElfPath(const char* elfFileName)
 {
-	DevCon.WriteLn("HLE Host: Will load ELF: %s\n", elfFileName);
 	hostRoot = Path::ToNativePath(Path::GetDirectory(elfFileName));
 	Console.WriteLn("HLE Host: Set 'host:' root path to: %s\n", hostRoot.c_str());
 }
@@ -853,7 +852,6 @@ namespace R3000A
 			if (fd == 1) // stdout
 			{
 				const std::string s = Ra1;
-				iopConLog(ShiftJIS_ConvertString(s.data(), a2));
 				pc = ra;
 				v0 = a2;
 				return 1;
@@ -984,7 +982,6 @@ namespace R3000A
 				}
 			}
 			*ptmp = 0;
-			iopConLog(ShiftJIS_ConvertString(tmp, 1023));
 
 			return 1;
 		}
@@ -1025,8 +1022,6 @@ namespace R3000A
 
 		void RegisterLibraryEntries_DEBUG()
 		{
-			const std::string modname = iopMemReadString(a0 + 12);
-			DevCon.WriteLn(Color_Gray, "RegisterLibraryEntries: %8.8s version %x.%02x", modname.data(), (unsigned)iopMemRead8(a0 + 9), (unsigned)iopMemRead8(a0 + 8));
 		}
 	} // namespace loadcore
 
@@ -1056,14 +1051,6 @@ namespace R3000A
 
 		void RegisterIntrHandler_DEBUG()
 		{
-			if (a0 < std::size(intrname) - 1)
-			{
-				DevCon.WriteLn(Color_Gray, "RegisterIntrHandler: intr %s, handler %x", intrname[a0], a2);
-			}
-			else
-			{
-				DevCon.WriteLn(Color_Gray, "RegisterIntrHandler: intr UNKNOWN (%d), handler %x", a0, a2);
-			}
 		}
 	} // namespace intrman
 
@@ -1071,7 +1058,6 @@ namespace R3000A
 	{
 		void sceSifRegisterRpc_DEBUG()
 		{
-			DevCon.WriteLn(Color_Gray, "sifcmd sceSifRegisterRpc: rpc_id %x", a1);
 		}
 	} // namespace sifcmd
 
@@ -1196,14 +1182,10 @@ namespace R3000A
 
 	void irxImportLog(const std::string& libname, u16 index, const char* funcname)
 	{
-		PSXBIOS_LOG("%8.8s.%03d: %s (%x, %x, %x, %x)",
-			libname.data(), index, funcname ? funcname : "unknown",
-			a0, a1, a2, a3);
 	}
 
 	void irxImportLog_rec(u32 import_table, u16 index, const char* funcname)
 	{
-		irxImportLog(iopMemReadString(import_table + 12, 8), index, funcname);
 	}
 
 	int irxImportExec(u32 import_table, u16 index)
@@ -1216,15 +1198,12 @@ namespace R3000A
 		irxHLE hle = irxImportHLE(libname, index);
 		irxDEBUG debug = irxImportDebug(libname, index);
 
-		irxImportLog(libname, index, funcname);
-
 		if (debug)
 			debug();
 
 		if (hle)
 			return hle();
-		else
-			return 0;
+		return 0;
 	}
 
 } // end namespace R3000A

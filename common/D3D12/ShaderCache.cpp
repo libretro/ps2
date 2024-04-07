@@ -263,8 +263,6 @@ bool ShaderCache::ReadExisting(const std::string& index_filename, const std::str
 
 	// ensure we don't write before seeking
 	std::fseek(index_file, 0, SEEK_END);
-
-	DevCon.WriteLn("Read %zu entries from '%s'", index.size(), index_filename.c_str());
 	return true;
 }
 

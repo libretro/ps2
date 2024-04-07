@@ -417,11 +417,6 @@ __ri void mVUanalyzeSflag(mV, int It)
 		//mVUsFlagHack = 0; // Don't Optimize Out Status Flags for this block
 		mVUinfo.swapOps = 1;
 		flagSet(mVU, 0);
-		if (mVUcount < 4)
-		{
-			if (!(mVUpBlock->pState.needExactMatch & 1)) // The only time this should happen is on the first program block
-				DevCon.WriteLn(Color_Green, "microVU%d: pState's sFlag Info was expected to be set [%04x]", getIndex, xPC);
-		}
 	}
 }
 
@@ -448,11 +443,6 @@ __ri void mVUanalyzeMflag(mV, int Is, int It)
 	{
 		mVUinfo.swapOps = 1;
 		flagSet(mVU, 1);
-		if (mVUcount < 4)
-		{
-			if (!(mVUpBlock->pState.needExactMatch & 2)) // The only time this should happen is on the first program block
-				DevCon.WriteLn(Color_Green, "microVU%d: pState's mFlag Info was expected to be set [%04x]", getIndex, xPC);
-		}
 	}
 }
 
@@ -464,11 +454,6 @@ __fi void mVUanalyzeCflag(mV, int It)
 {
 	mVUinfo.swapOps = 1;
 	mVUlow.readFlags = true;
-	if (mVUcount < 4)
-	{
-		if (!(mVUpBlock->pState.needExactMatch & 4)) // The only time this should happen is on the first program block
-			DevCon.WriteLn(Color_Green, "microVU%d: pState's cFlag Info was expected to be set [%04x]", getIndex, xPC);
-	}
 	analyzeVIreg2(mVU, It, mVUlow.VI_write, 1);
 }
 
@@ -508,10 +493,7 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 	if (!xReg)
 		return;
 	if (mVUstall) // I assume a stall on branch means the vi reg is not modified directly b4 the branch...
-	{
-		DevCon.Warning("microVU%d: %d cycle stall on branch instruction [%04x]", getIndex, mVUstall, xPC);
 		return;
-	}
 	int i, j = 0;
 	int cyc  = 0;
 	int iEnd = 4;
@@ -519,10 +501,6 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 	incPC2(-2);
 	for (i = 0; i < iEnd && cyc < iEnd; i++)
 	{
-		if (i && mVUstall)
-		{
-			DevCon.Warning("microVU%d: Branch VI-Delay with %d cycle stall (%d) [%04x]", getIndex, mVUstall, i, xPC);
-		}
 		if (i == (int)mVUcount)
 		{
 			bool warn = false;
@@ -532,8 +510,6 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 
 			if (mVUpBlock->pState.viBackUp == xReg)
 			{
-				DevCon.WriteLn(Color_Green, "microVU%d: Loading Branch VI value from previous block", getIndex);
-
 				if (i == 0)
 					warn = true;
 
@@ -541,16 +517,12 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 				j = i;
 				i++;
 			}
-			if (warn)
-				DevCon.Warning("microVU%d: Branch VI-Delay with small block (%d) [%04x]", getIndex, i, xPC);
 			break; // if (warn), we don't have enough information to always guarantee the correct result.
 		}
 		if ((mVUlow.VI_write.reg == xReg) && mVUlow.VI_write.used)
 		{
 			if (mVUlow.readFlags)
 			{
-				if (i)
-					DevCon.Warning("microVU%d: Branch VI-Delay with Read Flags Set (%d) [%04x]", getIndex, i, xPC);
 				break; // Not sure if on the above "if (i)" case, if we need to "continue" or if we should "break"
 			}
 			j = i;
@@ -573,7 +545,6 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 			infoVar = true;
 		}
 		iPC = bPC;
-		DevCon.WriteLn(Color_Green, "microVU%d: Branch VI-Delay (%d) [%04x][%03d]", getIndex, j + 1, xPC, mVU.prog.cur->idx);
 	}
 	else
 	{
@@ -600,11 +571,6 @@ __ri int mVUbranchCheck(mV)
 			Console.Error("microVU%d: %s in branch, branch delay slot requires link [%04x] - If game broken report to PCSX2 Team", mVU.index,
 				branchSTR[mVUlow.branch & 0xf], xPC);
 		}
-		else
-		{
-			DevCon.Warning("microVU%d: %s in branch, branch delay slot! [%04x] - If game broken report to PCSX2 Team", mVU.index,
-				branchSTR[mVUlow.branch & 0xf], xPC);
-		}
 		return 1;
 	}
 
@@ -623,16 +589,12 @@ __ri int mVUbranchCheck(mV)
 
 			mVUregs.needExactMatch |= 7; // This might not be necessary, but w/e...
 			mVUregs.flagInfo = 0;
-			DevCon.Warning("microVU%d: %s in %s delay slot! [%04x]  - If game broken report to PCSX2 Team", mVU.index,
-				branchSTR[mVUlow.branch & 0xf], branchSTR[branchType & 0xf], xPC);
 			return 1;
 		}
 		else
 		{
 			incPC(2);
 			mVUlow.isNOP = true;
-			DevCon.Warning("microVU%d: %s in %s delay slot! [%04x]", mVU.index,
-				branchSTR[mVUlow.branch & 0xf], branchSTR[branchType & 0xf], xPC);
 			return 0;
 		}
 	}

@@ -178,7 +178,6 @@ namespace GL
 		}
 
 		*out_data_format = static_cast<u32>(format);
-		DevCon.WriteLn("Program binary retrieved, %zu bytes, format %u", out_data->size(), *out_data_format);
 		return true;
 	}
 

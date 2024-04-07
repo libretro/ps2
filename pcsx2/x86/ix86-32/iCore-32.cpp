@@ -113,8 +113,6 @@ void _flushConstReg(int reg)
 	{
 		xWriteImm64ToMem(&cpuRegs.GPR.r[reg].UD[0], rax, g_cpuConstRegs[reg].SD[0]);
 		g_cpuFlushedConstReg |= (1 << reg);
-		if (reg == 0)
-			DevCon.Warning("Flushing r0!");
 	}
 }
 

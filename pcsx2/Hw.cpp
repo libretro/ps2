@@ -84,17 +84,11 @@ void hwReset()
 
 __fi uint intcInterrupt()
 {
-	if ((psHu32(INTC_STAT)) == 0) {
-		//DevCon.Warning("*PCSX2*: intcInterrupt already cleared");
+	if ((psHu32(INTC_STAT)) == 0)
 		return 0;
-	}
 	if ((psHu32(INTC_STAT) & psHu32(INTC_MASK)) == 0)
-	{
-		//DevCon.Warning("*PCSX2*: No valid interrupt INTC_MASK: %x INTC_STAT: %x", psHu32(INTC_MASK), psHu32(INTC_STAT));
 		return 0;
-	}
 
-	HW_LOG("intcInterrupt %x", psHu32(INTC_STAT) & psHu32(INTC_MASK));
 	if(psHu32(INTC_STAT) & 0x2){
 		counters[0].hold = rcntRcount(0);
 		counters[1].hold = rcntRcount(1);
@@ -108,21 +102,10 @@ __fi uint dmacInterrupt()
 {
 	if( ((psHu16(DMAC_STAT + 2) & psHu16(DMAC_STAT)) == 0 ) &&
 		( psHu16(DMAC_STAT) & 0x8000) == 0 )
-	{
-		//DevCon.Warning("No valid DMAC interrupt MASK %x STAT %x", psHu16(DMAC_STAT+2), psHu16(DMAC_STAT));
 		return 0;
-	}
 
 	if (!dmacRegs.ctrl.DMAE || psHu8(DMAC_ENABLER+2) == 1)
-	{
-		//DevCon.Warning("DMAC Suspended or Disabled on interrupt");
 		return 0;
-	}
-
-	DMA_LOG("dmacInterrupt %x",
-		((psHu16(DMAC_STAT + 2) & psHu16(DMAC_STAT)) |
-		 (psHu16(DMAC_STAT) & 0x8000))
-	);
 
 	//cpuException(0x800, cpuRegs.branch);
 	return 0x800;
@@ -142,7 +125,6 @@ void hwDmacIrq(int n)
 
 void FireMFIFOEmpty()
 {
-	SPR_LOG("MFIFO Data Empty");
 	hwDmacIrq(DMAC_MFIFO_EMPTY);
 
 	if (dmacRegs.ctrl.MFD == MFD_VIF1) vif1Regs.stat.FQC = 0;
@@ -156,7 +138,6 @@ __ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
 	pxAssert((dmacRegs.rbor.ADDR & 15) == 0);
 	pxAssert((addr & 15) == 0);
 
-	if(qwc > ((dmacRegs.rbsr.RMSK + 16u) >> 4u)) DevCon.Warning("MFIFO Write bigger than MFIFO! QWC=%x FifoSize=%x", qwc, ((dmacRegs.rbsr.RMSK + 16) >> 4));
 	// DMAC Address resolution:  FIFO can be placed anywhere in the *physical* memory map
 	// for the PS2.  Its probably a serious error for a PS2 app to have the buffer cross
 	// valid/invalid page areas of ram, so realistically we only need to test the base address
@@ -171,7 +152,6 @@ __ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
 	}
 	else
 	{
-		SPR_LOG( "Scratchpad/MFIFO: invalid base physical address: 0x%08x", dmacRegs.rbor.ADDR );
 		pxFailDev( fmt::format( "Scratchpad/MFIFO: Invalid base physical address: 0x{:08x}", u32(dmacRegs.rbor.ADDR)).c_str() );
 		return false;
 	}
@@ -190,14 +170,12 @@ __ri void hwMFIFOResume(u32 transferred) {
 	{
 		case MFD_VIF1: // Most common case.
 		{
-			SPR_LOG("Added %x qw to mfifo, Vif CHCR %x Stalled %x done %x", transferred, vif1ch.chcr._u32, vif1.vifstalled.enabled, vif1.done);
 			if (vif1.inprogress & 0x10)
 			{
 				vif1.inprogress &= ~0x10;
 				//Don't resume if stalled or already looping
 				if (vif1ch.chcr.STR && !(cpuRegs.interrupt & (1 << DMAC_MFIFO_VIF)) && !vif1Regs.stat.INT)
 				{
-					SPR_LOG("Data Added, Resuming");
 					//Need to simulate the time it takes to copy here, if the VIF resumes before the SPR has finished, it isn't happy.
 					CPU_INT(DMAC_MFIFO_VIF, transferred * BIAS);
 				}
@@ -209,7 +187,6 @@ __ri void hwMFIFOResume(u32 transferred) {
 		}
 		case MFD_GIF:
 		{
-			SPR_LOG("Added %x qw to mfifo, Gif CHCR %x done %x", transferred, gifch.chcr._u32, gif.gspath3done);
 			if ((gif.gifstate & GIF_STATE_EMPTY)) {
 				CPU_INT(DMAC_MFIFO_GIF, transferred * BIAS);
 				gif.gifstate = GIF_STATE_READY;

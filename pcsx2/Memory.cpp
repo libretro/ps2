@@ -48,7 +48,6 @@ BIOS
 
 #include "common/AlignedMalloc.h"
 
-#include "GSDumpReplayer.h"
 
 #ifdef ENABLECACHE
 #include "Cache.h"
@@ -70,8 +69,6 @@ void memSetUserMode() {
 
 u16 ba0R16(u32 mem)
 {
-	//MEM_LOG("ba00000 Memory read16 address %x", mem);
-
 	if (mem == 0x1a000006) {
 		static int ba6;
 		ba6++;
@@ -209,44 +206,34 @@ void memMapUserMem()
 }
 
 static mem8_t nullRead8(u32 mem) {
-	MEM_LOG("Read uninstalled memory at address %08x", mem);
 	return 0;
 }
 static mem16_t nullRead16(u32 mem) {
-	MEM_LOG("Read uninstalled memory at address %08x", mem);
 	return 0;
 }
 static mem32_t nullRead32(u32 mem) {
-	MEM_LOG("Read uninstalled memory at address %08x", mem);
 	return 0;
 }
 static mem64_t nullRead64(u32 mem) {
-	MEM_LOG("Read uninstalled memory at address %08x", mem);
 	return 0;
 }
 static RETURNS_R128 nullRead128(u32 mem) {
-	MEM_LOG("Read uninstalled memory at address %08x", mem);
 	return r128_zero();
 }
 static void nullWrite8(u32 mem, mem8_t value)
 {
-	MEM_LOG("Write uninstalled memory at address %08x", mem);
 }
 static void nullWrite16(u32 mem, mem16_t value)
 {
-	MEM_LOG("Write uninstalled memory at address %08x", mem);
 }
 static void nullWrite32(u32 mem, mem32_t value)
 {
-	MEM_LOG("Write uninstalled memory at address %08x", mem);
 }
 static void nullWrite64(u32 mem, mem64_t value)
 {
-	MEM_LOG("Write uninstalled memory at address %08x", mem);
 }
 static void TAKES_R128 nullWrite128(u32 mem, r128 value)
 {
-	MEM_LOG("Write uninstalled memory at address %08x", mem);
 }
 
 template<int p>
@@ -267,7 +254,6 @@ static mem8_t _ext_memRead8 (u32 mem)
 		default: break;
 	}
 
-	MEM_LOG("Unknown Memory Read8   from address %8.8x", mem);
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
@@ -278,7 +264,6 @@ static mem16_t _ext_memRead16(u32 mem)
 	switch (p)
 	{
 		case 4: // b80
-			MEM_LOG("b800000 Memory read16 address %x", mem);
 			return 0;
 		case 5: // ba0
 			return ba0R16(mem);
@@ -297,7 +282,6 @@ static mem16_t _ext_memRead16(u32 mem)
 
 		default: break;
 	}
-	MEM_LOG("Unknown Memory read16  from address %8.8x", mem);
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
@@ -318,7 +302,6 @@ static mem32_t _ext_memRead32(u32 mem)
 		default: break;
 	}
 
-	MEM_LOG("Unknown Memory read32  from address %8.8x (Status=%8.8x)", mem, cpuRegs.CP0.n.Status.val);
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
@@ -333,7 +316,6 @@ static u64 _ext_memRead64(u32 mem)
 		default: break;
 	}
 
-	MEM_LOG("Unknown Memory read64  from address %8.8x", mem);
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
@@ -350,7 +332,6 @@ static RETURNS_R128 _ext_memRead128(u32 mem)
 		default: break;
 	}
 
-	MEM_LOG("Unknown Memory read128 from address %8.8x", mem);
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return r128_zero();
 }
@@ -370,7 +351,6 @@ static void _ext_memWrite8 (u32 mem, mem8_t  value)
 		default: break;
 	}
 
-	MEM_LOG("Unknown Memory write8   to  address %x with data %2.2x", mem, value);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
@@ -379,7 +359,6 @@ static void _ext_memWrite16(u32 mem, mem16_t value)
 {
 	switch (p) {
 		case 5: // ba0
-			MEM_LOG("ba00000 Memory write16 to  address %x with data %x", mem, value);
 			return;
 		case 6: // gsm
 			gsWrite16(mem, value); return;
@@ -391,7 +370,6 @@ static void _ext_memWrite16(u32 mem, mem16_t value)
 			SPU2write(mem, value); return;
 		default: break;
 	}
-	MEM_LOG("Unknown Memory write16  to  address %x with data %4.4x", mem, value);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
@@ -407,41 +385,19 @@ static void _ext_memWrite32(u32 mem, mem32_t value)
 			return;
 		default: break;
 	}
-	MEM_LOG("Unknown Memory write32  to  address %x with data %8.8x", mem, value);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
 template<int p>
 static void _ext_memWrite64(u32 mem, mem64_t value)
 {
-
-	/*switch (p) {
-		//case 1: // hwm
-		//	hwWrite64(mem & ~0xa0000000, *value);
-		//	return;
-		//case 6: // gsm
-		//	gsWrite64(mem & ~0xa0000000, *value); return;
-	}*/
-
-	MEM_LOG("Unknown Memory write64  to  address %x with data %8.8x_%8.8x", mem, (u32)(value>>32), (u32)value);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
 template<int p>
 static void TAKES_R128 _ext_memWrite128(u32 mem, r128 value)
 {
-	/*switch (p) {
-		//case 1: // hwm
-		//	hwWrite128(mem & ~0xa0000000, value);
-		//	return;
-		//case 6: // gsm
-		//	mem &= ~0xa0000000;
-		//	gsWrite64(mem,   value[0]);
-		//	gsWrite64(mem+8, value[1]); return;
-	}*/
-
 	alignas(16) const u128 uvalue = r128_to_u128(value);
-	MEM_LOG("Unknown Memory write128 to  address %x with data %8.8x_%8.8x_%8.8x_%8.8x", mem, uvalue._u32[3], uvalue._u32[2], uvalue._u32[1], uvalue._u32[0]);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
@@ -841,10 +797,7 @@ void eeMemoryReserve::Reset()
 	vtlb_VMap(0x00000000,0x00000000,0x20000000);
 	vtlb_VMapUnmap(0x20000000,0x60000000);
 
-	const bool needs_bios = !GSDumpReplayer::IsReplayingDump();
-
-	// TODO(Stenzek): Move BIOS loading out and far away...
-	if (needs_bios && !LoadBIOS())
+	if (!LoadBIOS())
 		pxFailRel("Failed to load BIOS");
 }
 

@@ -94,15 +94,6 @@ std::string GetOSVersionString()
 	return retval;
 }
 
-bool WindowInfo::InhibitScreensaver(const WindowInfo& wi, bool inhibit)
-{
-	EXECUTION_STATE flags = ES_CONTINUOUS;
-	if (inhibit)
-		flags |= ES_DISPLAY_REQUIRED;
-	SetThreadExecutionState(flags);
-	return true;
-}
-
 bool Common::PlaySoundAsync(const char* path)
 {
 	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));

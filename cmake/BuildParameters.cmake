@@ -5,32 +5,22 @@ set(PCSX2_DEFS "")
 # Misc option
 #-------------------------------------------------------------------------------
 option(DISABLE_BUILD_DATE "Disable including the binary compile date")
-option(ENABLE_TESTS "Enables building the unit tests" ON)
-option(LIBRETRO "Enables building the libretro core" OFF)
+option(LIBRETRO "Enables building the libretro core" ON)
 set(USE_SYSTEM_LIBS "AUTO" CACHE STRING "Use system libraries instead of bundled libraries.  ON - Always use system and fail if unavailable, OFF - Always use bundled, AUTO - Use system if available, otherwise use bundled.  Default is AUTO")
-if(LIBRETRO)
-	set(ENABLE_TESTS OFF)
-	set(CMAKE_BUILD_PO FALSE)
-	set(BUILD_REPLAY_LOADERS FALSE)
-	set(CUBEB_API FALSE)
-	set(DISABLE_SETCAP TRUE)
-	set(USE_DISCORD_PRESENCE FALSE)
-	set(USE_ACHIEVEMENTS OFF)
-	set(QT_BUILD OFF)
-	set(USE_SYSTEM_LIBS OFF)
-	add_definitions(-D__LIBRETRO__)
-endif()
+set(CMAKE_BUILD_PO FALSE)
+set(BUILD_REPLAY_LOADERS FALSE)
+set(DISABLE_SETCAP TRUE)
+set(USE_SYSTEM_LIBS OFF)
+add_definitions(-D__LIBRETRO__)
 optional_system_library(fmt)
 optional_system_library(ryml)
 optional_system_library(zstd)
 optional_system_library(libzip)
-optional_system_library(SDL2)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "")
 option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
 
 
 option(USE_VTUNE "Plug VTUNE to profile GS JIT.")
-option(USE_ACHIEVEMENTS "Build with RetroAchievements support" ON)
-option(USE_DISCORD_PRESENCE "Enable support for Discord Rich Presence" ON)
 
 #-------------------------------------------------------------------------------
 # Graphical option
@@ -41,14 +31,9 @@ option(USE_VULKAN "Enable Vulkan GS renderer" ON)
 #-------------------------------------------------------------------------------
 # Path and lib option
 #-------------------------------------------------------------------------------
-option(CUBEB_API "Build Cubeb support on SPU2" ON)
-option(QT_BUILD "Build Qt frontend" ON)
-
 if(UNIX AND NOT APPLE)
 	option(ENABLE_SETCAP "Enable networking capability for DEV9" OFF)
 	option(USE_LEGACY_USER_DIRECTORY "Use legacy home/PCSX2 user directory instead of XDG standard" OFF)
-	option(X11_API "Enable X11 support" ON)
-	option(WAYLAND_API "Enable Wayland support" ON)
 endif()
 
 if(APPLE)
@@ -200,14 +185,6 @@ if(USE_VULKAN)
 	list(APPEND PCSX2_DEFS ENABLE_VULKAN)
 endif()
 
-if(X11_API)
-	list(APPEND PCSX2_DEFS X11_API)
-endif()
-
-if(WAYLAND_API)
-	list(APPEND PCSX2_DEFS WAYLAND_API)
-endif()
-
 # -Wno-attributes: "always_inline function might not be inlinable" <= real spam (thousand of warnings!!!)
 # -Wno-missing-field-initializers: standard allow to init only the begin of struct/array in static init. Just a silly warning.
 # Note: future GCC (aka GCC 5.1.1) has less false positive so warning could maybe put back
@@ -269,11 +246,7 @@ if(NOT CMAKE_GENERATOR MATCHES "Xcode")
 	# Assume Xcode builds aren't being used for distribution
 	# Helpful because Xcode builds don't build multiple metallibs for different macOS versions
 	# Also helpful because Xcode's interactive shader debugger requires apps be built for the latest macOS
-	if (QT_BUILD)
-		set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14)
-	else()
-		set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
-	endif()
+	set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
 endif()
 
 if (APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND "${CMAKE_OSX_DEPLOYMENT_TARGET}" VERSION_LESS 10.14 AND NOT ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 9)

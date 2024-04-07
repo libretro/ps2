@@ -93,11 +93,9 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 	if ((m2 && doMask) || doMode)
 	{
 		xMOVAPS(xmmRow, ptr128[&vif.MaskRow]);
-		MSKPATH3_LOG("Moving row");
 	}
 	if (m3 && doMask)
 	{
-		MSKPATH3_LOG("Merging Cols");
 		xMOVAPS(xmmCol0, ptr128[&vif.MaskCol]);
 		if ((cS >= 2) && (m3 & 0x0000ff00)) xPSHUF.D(xmmCol1, xmmCol0, _v1);
 		if ((cS >= 3) && (m3 & 0x00ff0000)) xPSHUF.D(xmmCol2, xmmCol0, _v2);
@@ -177,8 +175,6 @@ void VifUnpackSSE_Dynarec::writeBackRow() const
 {
 	const int idx = v.idx;
 	xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmmRow);
-
-	DevCon.WriteLn("nVif: writing back row reg! [doMode = %d]", doMode);
 	// ToDo: Do we need to write back to vifregs.rX too!? :/
 }
 
@@ -269,7 +265,6 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	uint vNum = vB.num ? vB.num : 256;
 	doMode    = (upkNum == 0xf) ? 0 : doMode; // V4_5 has no mode feature.
 	UnpkNoOfIterations = 0;
-	MSKPATH3_LOG("Compiling new block, unpack number %x, mode %x, masking %x, vNum %x", upkNum, doMode, doMask, vNum);
 
 	pxAssume(vCL == 0);
 
@@ -304,7 +299,6 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 		else if (isFill)
 		{
 			//Filling doesn't need anything fancy, it's pretty much a normal write, just doesnt increment the source.
-			//DevCon.WriteLn("filling mode!");
 			xUnpack(upkNum);
 			xMovDest();
 
@@ -343,14 +337,6 @@ static u16 dVifComputeLength(uint cl, uint wl, u8 num, bool isFill)
 _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 {
 	nVifStruct& v = nVif[idx];
-
-	// Check size before the compilation
-	if (v.recWritePtr > (v.recReserve->GetPtrEnd() - _256kb))
-	{
-		DevCon.WriteLn("nVif Recompiler Cache Reset! [0x%016" PRIXPTR " > 0x%016" PRIXPTR "]",
-			v.recWritePtr, v.recReserve->GetPtrEnd());
-		recReset(idx);
-	}
 
 	// Compile the block now
 	xSetPtr(v.recWritePtr);
@@ -399,12 +385,6 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill)
 	block.key0 = key0;
 	block.key1 = key1;
 
-	//DevCon.WriteLn("nVif%d: Recompiled Block!", idx);
-	//DevCon.WriteLn(L"[num=% 3d][upkType=0x%02x][scl=%d][cl=%d][wl=%d][mode=%d][m=%d][mask=%s]",
-	//	block.num, block.upkType, block.scl, block.cl, block.wl, block.mode,
-	//	doMask >> 4, doMask ? wxsFormat( L"0x%08x", block.mask ).c_str() : L"ignored"
-	//);
-
 	// Seach in cache before trying to compile the block
 	nVifBlock* b = v.vifBlocks.find(block);
 	if (unlikely(b == nullptr))
@@ -419,17 +399,11 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill)
 		u8* startmem = VU.Mem + (vif.tag.addr & (vuMemLimit - 0x10));
 		u8* endmem   = VU.Mem + vuMemLimit;
 
+		// No wrapping, you can run the fast dynarec
 		if (likely((startmem + b->length) <= endmem))
-		{
-			// No wrapping, you can run the fast dynarec
 			((nVifrecCall)b->startPtr)((uptr)startmem, (uptr)data);
-		}
 		else
-		{
-			VIF_LOG("Running Interpreter Block: nVif%x - VU Mem Ptr Overflow; falling back to interpreter. Start = %x End = %x num = %x, wl = %x, cl = %x",
-				v.idx, vif.tag.addr, vif.tag.addr + (block.num * 16), block.num, block.wl, block.cl);
 			_nVifUnpack(idx, data, vifRegs.mode, isFill);
-		}
 	}
 }
 

@@ -242,10 +242,7 @@ GSVector4i GSTextureCache::TranslateAlignedRectByPage(Target* t, u32 sbp, u32 sp
 			{
 				// Results won't be square, if it's not invalidation, it's a texture, which is problematic to translate, so let's not (FIFA 2005).
 				if (!is_invalidation)
-				{
-					DevCon.Warning("Uneven pages mess up sbp %x dbp %x spgw %d dpgw %d", sbp, t->m_TEX0.TBP0, src_pgw, dst_pgw);
 					return GSVector4i::zero();
-				}
 
 				//TODO: Maybe control dirty blocks directly and add them page at a time for better granularity.
 				const u32 start_y_page = (rect_pages.y * src_pgw) / dst_pgw;
@@ -268,10 +265,6 @@ GSVector4i GSTextureCache::TranslateAlignedRectByPage(Target* t, u32 sbp, u32 sp
 					new_rect.z = std::min(totalpages * dst_page_size.x, dst_pgw * dst_page_size.x);
 					new_rect.y = start_y_page * dst_page_size.y;
 					new_rect.w = new_rect.y + (((totalpages + (dst_pgw - 1)) / dst_pgw) * dst_page_size.y);
-				}
-				else
-				{
-					DevCon.Warning("Panic! How did we get here?");
 				}
 			}
 		}
@@ -422,10 +415,6 @@ void GSTextureCache::DirtyRectByPage(u32 sbp, u32 spsm, u32 sbw, Target* t, GSVe
 					new_rect.y = start_y_page * dst_page_size.y;
 					new_rect.w = new_rect.y + (((totalpages + (dst_pgw - 1)) / dst_pgw) * dst_page_size.y);
 				}
-				else
-				{
-					DevCon.Warning("Panic! How did we get here?");
-				}
 			}
 		}
 		else if (single_page)
@@ -541,12 +530,8 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 {
 	if (GSConfig.UserHacks_DisableDepthSupport)
 	{
-		GL_CACHE("LookupDepthSource not supported (0x%x, F:0x%x)", TEX0.TBP0, TEX0.PSM);
 		throw GSRecoverableError();
 	}
-
-	GL_CACHE("TC: Lookup Depth Source <%d,%d => %d,%d> (0x%x, %s, BW: %u, CBP: 0x%x, TW: %d, TH: %d)", r.x, r.y, r.z,
-		r.w, TEX0.TBP0, psm_str(TEX0.PSM), TEX0.TBW, TEX0.CBP, 1 << TEX0.TW, 1 << TEX0.TH);
 
 	const SourceRegion region = SourceRegion::Create(TEX0, CLAMP);
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
@@ -554,7 +539,6 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 		region.IsFixedTEX0(TEX0), m_src.m_map[TEX0.TBP0 >> 5]);
 	if (src)
 	{
-		GL_CACHE("TC: src hit: (0x%x, %s)", TEX0.TBP0, psm_str(TEX0.PSM));
 		src->Update(r);
 		return src;
 	}
@@ -650,9 +634,6 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 
 	if (dst)
 	{
-		GL_CACHE("TC depth: dst %s hit: (0x%x, %s)", to_string(dst->m_type),
-			TEX0.TBP0, psm_str(psm));
-
 		// Create a shared texture source
 		src = new Source(TEX0, TEXA);
 		src->m_texture = dst->m_texture;
@@ -702,8 +683,6 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 
 GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const GSVector2i* lod)
 {
-	GL_CACHE("TC: Lookup Source <%d,%d => %d,%d> (0x%x, %s, BW: %u, CBP: 0x%x, TW: %d, TH: %d)", r.x, r.y, r.z, r.w, TEX0.TBP0, psm_str(TEX0.PSM), TEX0.TBW, TEX0.CBP, 1 << TEX0.TW, 1 << TEX0.TH);
-
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 	//const GSLocalMemory::psm_t& cpsm = psm.pal > 0 ? GSLocalMemory::m_psm[TEX0.CPSM] : psm;
 
@@ -714,10 +693,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 
 	// Prevent everything going to rubbish if a game somehow sends a TW/TH above 10, and region isn't being used.
 	if ((TEX0.TW > 10 && !region.HasX()) || (TEX0.TH > 10 && !region.HasY()))
-	{
-		GL_CACHE("Invalid TEX0 size %ux%u without region, aborting draw.", TEX0.TW, TEX0.TH);
 		throw GSRecoverableError();
-	}
 
 	const GSVector2i compare_lod(lod ? *lod : GSVector2i(0, 0));
 	Source* src = nullptr;
@@ -1084,31 +1060,9 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 	}
 
 	if (!src)
-	{
-#ifdef ENABLE_OGL_DEBUG
-		if (dst)
-		{
-			GL_CACHE("TC: dst %s hit (%s, OFF <%d,%d>): (0x%x, %s)",
-				to_string(dst->m_type),
-				half_right ? "half" : "full",
-				x_offset,
-				y_offset,
-				TEX0.TBP0,
-				psm_str(TEX0.PSM));
-		}
-		else
-		{
-			GL_CACHE("TC: src miss (0x%x, 0x%x, %s)", TEX0.TBP0, psm_s.pal > 0 ? TEX0.CBP : 0, psm_str(TEX0.PSM));
-		}
-#endif
 		src = CreateSource(TEX0, TEXA, dst, half_right, x_offset, y_offset, lod, &r, gpu_clut, region);
-	}
 	else
 	{
-		GL_CACHE("TC: src hit: (0x%x, 0x%x, %s)",
-			TEX0.TBP0, psm_s.pal > 0 ? TEX0.CBP : 0,
-			psm_str(TEX0.PSM));
-
 		if (gpu_clut)
 			AttachPaletteToSource(src, gpu_clut);
 		else if (src->m_palette && (!src->m_palette_obj || !src->ClutMatch({ clut, psm_s.pal })))
@@ -1196,7 +1150,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 				}
 
 				dst = t;
-				GL_CACHE("TC: Lookup Frame %dx%d, perfect hit: (0x%x -> 0x%x %s)", size.x, size.y, bp, t->m_end_block, psm_str(TEX0.PSM));
 				if (size.x > 0 || size.y > 0)
 					ScaleTargetForDisplay(dst, TEX0, size.x, size.y);
 
@@ -1218,7 +1171,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 						continue;
 
 					dst = t;
-					GL_CACHE("TC: Lookup Frame %dx%d, inclusive hit: (0x%x, took 0x%x -> 0x%x %s)", size.x, size.y, bp, t->m_TEX0.TBP0, t->m_end_block, psm_str(TEX0.PSM));
 
 					if (size.x > 0 || size.y > 0)
 						ScaleTargetForDisplay(dst, TEX0, size.x, size.y);
@@ -1241,7 +1193,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 				if (bp == t->m_TEX0.TBP0)
 				{
 					dst = t;
-					GL_CACHE("TC: Lookup Frame %dx%d, empty hit: (0x%x -> 0x%x %s)", size.x, size.y, bp, t->m_end_block, psm_str(TEX0.PSM));
 					break;
 				}
 			}
@@ -1256,9 +1207,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 
 	if (dst)
 	{
-		GL_CACHE("TC: Lookup %s(%s) %dx%d (0x%x, BW:%u, %s) hit (0x%x, BW:%d, %s)", is_frame ? "Frame" : "Target",
-			to_string(type), size.x, size.y, bp, TEX0.TBW, psm_str(TEX0.PSM), dst->m_TEX0.TBP0, dst->m_TEX0.TBW, psm_str(dst->m_TEX0.PSM));
-
 		// Update is done by caller after TEX0 update for non-frame.
 		if (is_frame)
 			dst->Update(old_found == dst);
@@ -1322,15 +1270,9 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			// In this case it needs to make sure it isn't part of a shuffle, where it needs to be interpreted as 32bits.
 			const bool fmt_16_bits = (psm_s.bpp == 16 && GSLocalMemory::m_psm[dst_match->m_TEX0.PSM].bpp == 16 && !dst->m_32_bits_fmt);
 			if (type == DepthStencil)
-			{
-				GL_CACHE("TC: Lookup Target(Depth) %dx%d, hit Color (0x%x, TBW %d, %s was %s)", new_size.x, new_size.y, bp, TEX0.TBW, psm_str(TEX0.PSM), psm_str(dst_match->m_TEX0.PSM));
 				shader = (fmt_16_bits) ? ShaderConvert::RGB5A1_TO_FLOAT16 : (ShaderConvert)(static_cast<int>(ShaderConvert::RGBA8_TO_FLOAT32) + psm_s.fmt);
-			}
 			else
-			{
-				GL_CACHE("TC: Lookup Target(Color) %dx%d, hit Depth (0x%x, TBW %d, %s was %s)", new_size.x, new_size.y, bp, TEX0.TBW, psm_str(TEX0.PSM), psm_str(dst_match->m_TEX0.PSM));
 				shader = (fmt_16_bits) ? ShaderConvert::FLOAT16_TO_RGB5A1 : ShaderConvert::FLOAT32_TO_RGBA8;
-			}
 
 			// The old target's going to get invalidated (at least until we handle concurrent frame+depth at the same BP),
 			// so just move the dirty rects across.
@@ -1354,12 +1296,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 	{
 		// Skip full screen clears from making massive targets.
 		if (is_clear)
-		{
-			GL_CACHE("TC: Create RT skipped on clear draw");
 			return nullptr;
-		}
-
-		GL_CACHE("TC: Lookup %s(%s) %dx%d, miss (0x%x, TBW %d, %s)", is_frame ? "Frame" : "Target", to_string(type), size.x, size.y, bp, TEX0.TBW, psm_str(TEX0.PSM));
 
 		dst = CreateTarget(TEX0, size.x, size.y, scale, type, true);
 		// In theory new textures contain invalidated data. Still in theory a new target
@@ -1527,14 +1464,9 @@ void GSTextureCache::ScaleTargetForDisplay(Target* t, const GIFRegTEX0& dispfb, 
 	const int scaled_new_height = static_cast<int>(std::ceil(static_cast<float>(new_height) * scale));
 	const int scaled_new_width = static_cast<int>(std::ceil(static_cast<float>(new_width) * scale));
 	GSTexture* new_texture = g_gs_device->CreateRenderTarget(scaled_new_width, scaled_new_height, GSTexture::Format::Color, false);
+	// Memory allocation failure, do our best to hobble along.
 	if (!new_texture)
-	{
-		// Memory allocation failure, do our best to hobble along.
 		return;
-	}
-
-	GL_CACHE("Expanding target for display output, target height %d @ 0x%X, display %d @ 0x%X offset %d needed %d",
-		t->m_unscaled_size.y, t->m_TEX0.TBP0, real_h, dispfb.TBP0, y_offset, needed_height);
 
 	// Fill the new texture with the old data, and discard the old texture.
 	g_gs_device->StretchRect(old_texture, new_texture, GSVector4(old_texture->GetSize()).zwxy(), ShaderConvert::COPY, false);
@@ -1606,9 +1538,6 @@ void GSTextureCache::InvalidateVideoMemType(int type, u32 bp)
 
 		if (bp == t->m_TEX0.TBP0)
 		{
-			GL_CACHE("TC: InvalidateVideoMemType: Remove Target(%s) (0x%x)", to_string(type),
-				t->m_TEX0.TBP0);
-
 			// Need to also remove any sources which reference this target.
 			InvalidateSourcesFromTarget(t);
 
@@ -1771,9 +1700,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 			{
 				if (!found && GSUtil::HasCompatibleBits(psm, t->m_TEX0.PSM) && bw == std::max(t->m_TEX0.TBW, 1U))
 				{
-					GL_CACHE("TC: Dirty Target(%s) (0x%x) r(%d,%d,%d,%d)", to_string(type),
-						t->m_TEX0.TBP0, r.x, r.y, r.z, r.w);
-
 					if (eewrite)
 						t->m_age = 0;
 					
@@ -1796,24 +1722,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 						if (bw == std::max(t->m_TEX0.TBW, 1U) && GSLocalMemory::m_psm[psm].bpp == GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp)
 						{
 							AddDirtyRectTarget(t, rect, psm, bw, rgba);
-							GL_CACHE("TC: Direct Dirty in the middle [aggressive] of Target(%s) [PSM:%s BP:0x%x->0x%x BW:%u rect(%d,%d=>%d,%d)] write[PSM:%s BP:0x%x BW:%u rect(%d,%d=>%d,%d)]",
-								to_string(type),
-								psm_str(t->m_TEX0.PSM),
-								t->m_TEX0.TBP0,
-								t->m_end_block,
-								t->m_TEX0.TBW,
-								rect.x,
-								rect.y,
-								rect.z,
-								rect.w,
-								psm_str(psm),
-								bp,
-								bw,
-								r.x,
-								r.y,
-								r.z,
-								r.w);
-
 							can_erase = false;
 						}
 						else
@@ -1872,24 +1780,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 									if (so.is_valid)
 									{
 										AddDirtyRectTarget(t, so.b2a_offset, psm, bw, rgba);
-										GL_CACHE("TC: Dirty in the middle [aggressive] of Target(%s) [PSM:%s BP:0x%x->0x%x BW:%u rect(%d,%d=>%d,%d)] write[PSM:%s BP:0x%x BW:%u rect(%d,%d=>%d,%d)]",
-											to_string(type),
-											psm_str(t->m_TEX0.PSM),
-											t->m_TEX0.TBP0,
-											t->m_end_block,
-											t->m_TEX0.TBW,
-											so.b2a_offset.x,
-											so.b2a_offset.y,
-											so.b2a_offset.z,
-											so.b2a_offset.w,
-											psm_str(psm),
-											bp,
-											bw,
-											r.x,
-											r.y,
-											r.z,
-											r.w);
-
 										can_erase = false;
 									}
 								}
@@ -1910,8 +1800,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 						else
 						{
 							i = list.erase(j);
-							GL_CACHE("TC: Remove Target(%s) (0x%x)", to_string(type),
-								t->m_TEX0.TBP0);
 							delete t;
 						}
 					}
@@ -1950,9 +1838,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 
 						if (r.bottom > y)
 						{
-							GL_CACHE("TC: Dirty After Target(%s) (0x%x)", to_string(type),
-								t->m_TEX0.TBP0);
-
 							if (eewrite)
 								t->m_age = 0;
 
@@ -1979,10 +1864,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 					{
 						const int y = GSLocalMemory::m_psm[psm].pgs.y * offset / rowsize;
 
-						GL_CACHE("TC: Dirty in the middle of Target(%s) (0x%x->0x%x) pos(%d,%d => %d,%d) bw:%u", to_string(type),
-							t->m_TEX0.TBP0, t->m_end_block,
-							r.left, r.top + y, r.right, r.bottom + y, bw);
-
 						if (eewrite)
 							t->m_age = 0;
 
@@ -2002,11 +1883,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 					if (t->m_age > 1 && bw > 1 && bw != t->m_TEX0.TBW)
 					{
 						i = list.erase(j);
-						GL_CACHE("TC: Tex in RT Remove Old Target(%s) (0x%x) TPSM %x PSM %x bp 0x%x", to_string(type),
-							t->m_TEX0.TBP0,
-							t->m_TEX0.PSM,
-							psm,
-							bp);
 						delete t;
 						continue;
 					}
@@ -2026,31 +1902,12 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 						else
 						{
 							i = list.erase(j);
-							GL_CACHE("TC: Tex in RT Remove Target(%s) (0x%x) TPSM %x PSM %x bp 0x%x x %d y %d z %d w %d", to_string(type),
-								t->m_TEX0.TBP0,
-								t->m_TEX0.PSM,
-								psm,
-								bp,
-								r.x,
-								r.y,
-								r.z,
-								r.w);
 							delete t;
 							continue;
 						}
 					}
 					else if (can_translate)
 					{
-						GL_CACHE("TC: Tex in RT Dirty Target by page(%s) (0x%x->0x%x) TPSM %x PSM %x bp 0x%x r x %d y %d z %d w %d", to_string(type),
-							t->m_TEX0.TBP0,
-							t->m_end_block,
-							t->m_TEX0.PSM,
-							psm,
-							bp,
-							r.x,
-							r.y,
-							r.z,
-							r.w);
 						const bool swizzle_match = GSLocalMemory::m_psm[psm].depth == GSLocalMemory::m_psm[t->m_TEX0.PSM].depth;
 						if (swizzle_match)
 						{
@@ -2076,16 +1933,6 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 					}
 					else
 					{
-						GL_CACHE("TC: Tex in RT Dirty Target by offset(%s) (0x%x->0x%x) TPSM %x PSM %x bp 0x%x r x %d y %d z %d w %d", to_string(type),
-							t->m_TEX0.TBP0,
-							t->m_end_block,
-							t->m_TEX0.PSM,
-							psm,
-							bp,
-							r.x,
-							r.y,
-							r.z,
-							r.w);
 						SurfaceOffsetKey sok;
 						sok.elems[0].bp = bp;
 						sok.elems[0].bw = bw;
@@ -2122,23 +1969,11 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 	const u32 read_start = GSLocalMemory::m_psm[psm].info.bn(r.x, r.y, bp, bw);
 	const u32 read_end = GSLocalMemory::m_psm[psm].info.bn(r.z - 1, r.w - 1, bp, bw);
 
-	GL_CACHE("TC: InvalidateLocalMem off(0x%x, %u, %s) r(%d, %d => %d, %d)",
-		bp,
-		bw,
-		psm_str(psm),
-		r.x,
-		r.y,
-		r.z,
-		r.w);
-
 	// Could be reading Z24/32 back as CT32 (Gundam Battle Assault 3)
 	if (GSLocalMemory::m_psm[psm].bpp >= 16)
 	{
 		if (GSConfig.HWDownloadMode != GSHardwareDownloadMode::Enabled)
-		{
-			DevCon.Error("Skipping depth readback of %ux%u @ %u,%u", r.width(), r.height(), r.left, r.top);
 			return;
-		}
 
 		bool z_found = false;
 
@@ -2373,10 +2208,7 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 			if (!targetr.rempty())
 			{
 				if (GSConfig.HWDownloadMode != GSHardwareDownloadMode::Enabled)
-				{
-					DevCon.Error("Skipping depth readback of %ux%u @ %u,%u", targetr.width(), targetr.height(), targetr.left, targetr.top);
 					continue;
-				}
 
 				Read(t, targetr);
 
@@ -2420,10 +2252,7 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 	// TODO: In theory we could do channel swapping on the GPU, but we haven't found anything which needs it so far.
 	// Same with SBP == DBP, but this behavior could change based on direction?
 	if (SPSM != DPSM || ((SBP == DBP) && !(GSVector4i(sx, sy, sx + w, sy + h).rintersect(GSVector4i(dx, dy, dx + w, dy + h))).rempty()))
-	{
-		GL_CACHE("Skipping HW move from 0x%X to 0x%X with SPSM=%u DPSM=%u", SBP, DBP, SPSM, DPSM);
 		return false;
-	}
 
 	// DX11/12 is a bit lame and can't partial copy depth targets. We could do this with a blit instead,
 	// but so far haven't seen anything which needs it.
@@ -2508,7 +2337,6 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 	// Make sure the copy doesn't go out of bounds (it shouldn't).
 	if ((scaled_dx + scaled_w) > dst->m_texture->GetWidth() || (scaled_dy + scaled_h) > dst->m_texture->GetHeight())
 		return false;
-	GL_CACHE("HW Move 0x%x to 0x%x <%d,%d->%d,%d> -> <%d,%d->%d,%d>", SBP, DBP, sx, sy, sx + w, sy, h, dx, dy, dx + w, dy + h);
 	g_gs_device->CopyRect(src->m_texture, dst->m_texture,
 		GSVector4i(scaled_sx, scaled_sy, scaled_sx + scaled_w, scaled_sy + scaled_h),
 		scaled_dx, scaled_dy);
@@ -2529,8 +2357,6 @@ bool GSTextureCache::ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx
 	if (PSM != PSMCT16)
 		return false;
 
-	GL_CACHE("Trying ShuffleMove: BP=%04X BW=%u PSM=%u SX=%d SY=%d DX=%d DY=%d W=%d H=%d", BP, BW, PSM, sx, sy, dx, dy, w, h);
-
 	GSTextureCache::Target* tgt = nullptr;
 	for (auto t : m_dst[RenderTarget])
 	{
@@ -2540,7 +2366,6 @@ bool GSTextureCache::ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx
 			if (so.is_valid)
 			{
 				tgt = t;
-				GL_CACHE("ShuffleMove: Surface offset %d,%d from BP %04X - %04X", so.b2a_offset.x, so.b2a_offset.y, BP, t->m_TEX0.TBP0);
 				sx += so.b2a_offset.x;
 				sy += so.b2a_offset.y;
 				dx += so.b2a_offset.x;
@@ -2550,18 +2375,12 @@ bool GSTextureCache::ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx
 		}
 	}
 	if (!tgt)
-	{
-		GL_CACHE("ShuffleMove: No target found");
 		return false;
-	}
 
 	// Since we're only concerned with 32->16 shuffles, the difference should be 8x8 for this to work.
 	const s32 diff_x = (dx - sx);
 	if (std::abs(diff_x) != 8 || sy != dy)
-	{
-		GL_CACHE("ShuffleMove: Difference is not 8 pixels");
 		return false;
-	}
 
 	const bool read_ba = (diff_x < 0);
 	const bool write_rg = (diff_x < 0);
@@ -2684,12 +2503,6 @@ GSVector2i GSTextureCache::GetTargetSize(u32 bp, u32 fbw, u32 psm, s32 min_width
 		TargetHeightElem& elem = const_cast<TargetHeightElem&>(*it);
 		if (elem.bits == search.bits)
 		{
-			if (elem.width < min_width || elem.height < min_height)
-			{
-				DbgCon.WriteLn("Expand size at %x %u %u from %ux%u to %ux%u", bp, fbw, psm, elem.width, elem.height,
-					min_width, min_height);
-			}
-
 			elem.width = std::max(elem.width, min_width);
 			elem.height = std::max(elem.height, min_height);
 
@@ -2699,7 +2512,6 @@ GSVector2i GSTextureCache::GetTargetSize(u32 bp, u32 fbw, u32 psm, s32 min_width
 		}
 	}
 
-	DbgCon.WriteLn("New size at %x %u %u: %ux%u", bp, fbw, psm, min_width, min_height);
 	m_target_heights.push_front(search);
 	return GSVector2i(min_width, min_height);
 }
@@ -2777,9 +2589,6 @@ void GSTextureCache::InvalidateVideoMemTargets(int type, u32 bp, u32 bw, u32 psm
 
 		if (t->m_TEX0.TBP0 != bp && t->Overlaps(bp, bw, psm, r))
 		{
-			GL_CACHE("InvalidateVideoMemTargets(%x, %u, %s, %d,%d => %d,%d): Removing target at %x %u %s", bp, bw,
-				psm_str(psm), r.x, r.y, r.z, r.w, t->m_TEX0.TBP0, t->m_TEX0.TBW, psm_str(t->m_TEX0.PSM));
-
 			// Need to also remove any sources which reference this target.
 			InvalidateSourcesFromTarget(t);
 
@@ -2795,10 +2604,7 @@ void GSTextureCache::InvalidateSourcesFromTarget(const Target* t)
 	{
 		Source* src = *it++;
 		if (src->m_from_target == t)
-		{
-			GL_CACHE("TC: Removing source at %x referencing target", src->m_TEX0.TBP0);
 			m_src.RemoveAt(src);
-		}
 	}
 }
 
@@ -2867,9 +2673,6 @@ void GSTextureCache::IncAge()
 			if (++t->m_age > max_rt_age)
 			{
 				i = list.erase(i);
-				GL_CACHE("TC: Remove Target(%s): (0x%x) due to age", to_string(type),
-					t->m_TEX0.TBP0);
-
 				delete t;
 			}
 			else
@@ -2883,9 +2686,7 @@ void GSTextureCache::IncAge()
 	{
 		TargetHeightElem& elem = const_cast<TargetHeightElem&>(*it);
 		if (elem.age >= max_size_age)
-		{
 			it = m_target_heights.erase(it);
-		}
 		else
 		{
 			elem.age++;
@@ -2954,9 +2755,6 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 		}
 		else
 		{
-			GL_CACHE("TC: Sample offset (%d,%d) reduced region directly from target: %dx%d -> %dx%d @ %d,%d",
-				dst->m_texture->GetWidth(), x_offset, y_offset, dst->m_texture->GetHeight(), w, h, x_offset, y_offset);
-
 			src->m_region.SetX(x_offset, x_offset + tw);
 			src->m_region.SetY(y_offset, y_offset + th);
 			src->m_texture = dst->m_texture;
@@ -3115,15 +2913,9 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			{
 				const int copy_width = std::min(half_width, dst->m_unscaled_size.x - half_width);
 				region_rect = GSVector4i(half_width, 0, half_width + copy_width, th);
-				GL_CACHE("TC: Half right fix: %d,%d => %d,%d", region_rect.x, region_rect.y, region_rect.z, region_rect.w);
-
-				sRect = sRect.blend32<5>(GSVector4i(GSVector4(region_rect.rintersect(dst->GetUnscaledRect())) * GSVector4(dst->m_scale)));
-				new_size.x = sRect.width();
+				sRect       = sRect.blend32<5>(GSVector4i(GSVector4(region_rect.rintersect(dst->GetUnscaledRect())) * GSVector4(dst->m_scale)));
+				new_size.x  = sRect.width();
 				src->m_unscaled_size.x = copy_width;
-			}
-			else
-			{
-				DevCon.Error("Invalid half-right copy with width %d from %dx%d texture", half_width * 2, dst->m_unscaled_size.x, dst->m_unscaled_size.y);
 			}
 		}
 
@@ -3145,9 +2937,6 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			// if the size doesn't match, we need to engage shader sampling.
 			if (new_size != dst_texture_size)
 			{
-				GL_CACHE("TC: Sample reduced region directly from target: %dx%d -> %dx%d", dst_texture_size.x,
-					dst_texture_size.y, new_size.x, new_size.y);
-
 				if (new_size.x != dst_texture_size.x)
 					src->m_region.SetX(region_rect.x, region_rect.z);
 				if (new_size.y != dst_texture_size.y)
@@ -3156,10 +2945,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 
 			// kill source immediately if it's the RT/DS, because that'll get invalidated immediately
 			if (GSRendererHW::GetInstance()->IsTBPFrameOrZ(dst->m_TEX0.TBP0))
-			{
-				GL_CACHE("TC: Source is RT or ZBUF, invalidating after draw.");
 				m_temporary_source = src;
-			}
 		}
 		else
 		{
@@ -3597,7 +3383,6 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 	if (it != m_hash_cache.end())
 	{
 		// super easy, cache hit. remove paltex if it's a replacement texture.
-		GL_CACHE("HC Hit: %" PRIx64 " %" PRIx64 " R-%" PRIx64, key.TEX0Hash, key.CLUTHash, key.region.bits);
 		HashCacheEntry* entry = &it->second;
 		paltex &= (entry->texture->GetFormat() == GSTexture::Format::UNorm8);
 		entry->refcount++;
@@ -3605,7 +3390,6 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 	}
 
 	// cache miss.
-	GL_CACHE("HC Miss: %" PRIx64 " %" PRIx64 " R-%" PRIx64, key.TEX0Hash, key.CLUTHash, key.region.bits);
 
 	// check for a replacement texture with the full clut key
 	if (replace)
@@ -3923,10 +3707,7 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[TEX0.PSM];
 	const u32 write_mask = t->m_valid_bits & psm.fmsk;
 	if (psm.bpp > 16 && write_mask == 0)
-	{
-		DbgCon.Warning("Not reading back target %x PSM %s due to no write mask", TEX0.TBP0, psm_str(TEX0.PSM));
 		return;
-	}
 
 	// Yes lots of logging, but I'm not confident with this code
 	GL_PUSH("Texture Cache Read. Format(0x%x)", TEX0.PSM);
@@ -4499,8 +4280,6 @@ void GSTextureCache::Target::UpdateIfDirtyIntersects(const GSVector4i& rc)
 
 		// strictly speaking, we only need to update the area outside of the move.
 		// but, to keep things simple, just update the whole thing
-		GL_CACHE("TC: Update dirty rectangle [%d,%d,%d,%d] due to intersection with [%d,%d,%d,%d]",
-			dirty_rc.x, dirty_rc.y, dirty_rc.z, dirty_rc.w, rc.x, rc.y, rc.z, rc.w);
 		Update(true);
 		break;
 	}
@@ -4544,8 +4323,6 @@ void GSTextureCache::Target::ResizeValidity(const GSVector4i& rect)
 		// No valid size, so need to resize down.
 		return;
 	}
-
-	// GL_CACHE("ResizeValidity (0x%x->0x%x) from R:%d,%d Valid: %d,%d", m_TEX0.TBP0, m_end_block, rect.z, rect.w, m_valid.z, m_valid.w);
 }
 
 void GSTextureCache::Target::UpdateValidity(const GSVector4i& rect, bool can_resize)
@@ -4568,7 +4345,6 @@ void GSTextureCache::Target::UpdateValidity(const GSVector4i& rect, bool can_res
 			m_end_block = (((m_end_block + page_mask) & ~page_mask)) - 1;
 		}
 	}
-	// GL_CACHE("UpdateValidity (0x%x->0x%x) from R:%d,%d Valid: %d,%d", m_TEX0.TBP0, m_end_block, rect.z, rect.w, m_valid.z, m_valid.w);
 }
 
 void GSTextureCache::Target::UpdateValidBits(u32 bits_written)
@@ -4689,9 +4465,6 @@ void GSTextureCache::SourceMap::RemoveAll()
 void GSTextureCache::SourceMap::RemoveAt(Source* s)
 {
 	m_surfaces.erase(s);
-
-	GL_CACHE("TC: Remove Src Texture: 0x%x TBW %u PSM %s",
-		s->m_TEX0.TBP0, s->m_TEX0.TBW, psm_str(s->m_TEX0.PSM));
 
 	s->m_pages.loopPages([this, s](u32 page)
 	{
@@ -4864,7 +4637,6 @@ GSTextureCache::SurfaceOffset GSTextureCache::ComputeSurfaceOffset(const Surface
 			if (!so.is_valid)
 			{
 				// Sweep search <z,w> MISS.
-				GL_CACHE("TC: ComputeSurfaceOffset - Could not find <z,w> offset.");
 				b2a_offset.z = b_rect.z;
 				b2a_offset.w = b_rect.w;
 			}
@@ -4885,24 +4657,8 @@ GSTextureCache::SurfaceOffset GSTextureCache::ComputeSurfaceOffset(const Surface
 
 	// Clear cache if size too big.
 	if (m_surface_offset_cache.size() + 1 > S_SURFACE_OFFSET_CACHE_MAX_SIZE)
-	{
-		GL_PERF("TC: ComputeSurfaceOffset - Size of cache %d too big, clearing it.", m_surface_offset_cache.size());
 		m_surface_offset_cache.clear();
-	}
 	m_surface_offset_cache.emplace(std::make_pair(sok, so));
-	if (so.is_valid)
-	{
-		GL_CACHE("TC: ComputeSurfaceOffset - Cached HIT element (size %d), [B] BW %d, PSM %s, BP 0x%x (END 0x%x) + OFF <%d,%d => %d,%d> ---> [A] BP 0x%x (END: 0x%x).",
-			m_surface_offset_cache.size(), b_el.bw, psm_str(b_el.psm), b_el.bp, b_bp_end,
-			so.b2a_offset.x, so.b2a_offset.y, so.b2a_offset.z, so.b2a_offset.w,
-			a_el.bp, a_bp_end);
-	}
-	else
-	{
-		GL_CACHE("TC: ComputeSurfaceOffset - Cached MISS element (size %d), [B] BW %d, PSM %s, BP 0x%x (END 0x%x) -/-> [A] BP 0x%x (END: 0x%x).",
-			m_surface_offset_cache.size(), b_el.bw, psm_str(b_el.psm), b_el.bp, b_bp_end,
-			a_el.bp, a_bp_end);
-	}
 	return so;
 }
 
@@ -5096,8 +4852,6 @@ std::shared_ptr<GSTextureCache::Palette> GSTextureCache::PaletteMap::LookupPalet
 
 	map.emplace(palette->GetPaletteKey(), palette);
 
-	GL_CACHE("TC, %u-bit PaletteMap (Size %u): Added new palette.", pal * sizeof(u32), map.size());
-
 	return palette;
 }
 
@@ -5216,10 +4970,7 @@ GSTextureCache::SourceRegion GSTextureCache::SourceRegion::Create(GIFRegTEX0 TEX
 		// into the texture, but a smaller TW/TH. Catch this by looking for a clamp range above TW.
 		const u32 rw = CLAMP.MAXU - CLAMP.MINU + 1;
 		if (rw < (1u << TEX0.TW) || CLAMP.MAXU >= (1u << TEX0.TW))
-		{
 			region.SetX(CLAMP.MINU, CLAMP.MAXU + 1);
-			GL_CACHE("TC: Region clamp optimization: %d width -> %d", 1 << TEX0.TW, region.GetWidth());
-		}
 	}
 	else if (CLAMP.WMS == CLAMP_REGION_REPEAT && CLAMP.MINU != 0)
 	{
@@ -5228,28 +4979,19 @@ GSTextureCache::SourceRegion GSTextureCache::SourceRegion::Create(GIFRegTEX0 TEX
 		// the region texture path.
 		const u32 rw = ((CLAMP.MINU | CLAMP.MAXU) - CLAMP.MAXU) + 1;
 		if (rw < (1u << TEX0.TW) || (CLAMP.MAXU != 0 && (rw <= (1u << TEX0.TW))))
-		{
 			region.SetX(CLAMP.MAXU, (CLAMP.MINU | CLAMP.MAXU) + 1);
-			GL_CACHE("TC: Region repeat optimization: %d width -> %d", 1 << TEX0.TW, region.GetWidth());
-		}
 	}
 	if (CLAMP.WMT == CLAMP_REGION_CLAMP && CLAMP.MAXV >= CLAMP.MINV)
 	{
 		const u32 rh = CLAMP.MAXV - CLAMP.MINV + 1;
 		if (rh < (1u << TEX0.TH) || CLAMP.MAXV >= (1u << TEX0.TH))
-		{
 			region.SetY(CLAMP.MINV, CLAMP.MAXV + 1);
-			GL_CACHE("TC: Region clamp optimization: %d height -> %d", 1 << TEX0.TW, region.GetHeight());
-		}
 	}
 	else if (CLAMP.WMT == CLAMP_REGION_REPEAT && CLAMP.MINV != 0)
 	{
 		const u32 rh = ((CLAMP.MINV | CLAMP.MAXV) - CLAMP.MAXV) + 1;
 		if (rh < (1u << TEX0.TH) || (CLAMP.MAXV != 0 && (rh <= (1u << TEX0.TH))))
-		{
 			region.SetY(CLAMP.MAXV, (CLAMP.MINV | CLAMP.MAXV) + 1);
-			GL_CACHE("TC: Region repeat optimization: %d height -> %d", 1 << TEX0.TW, region.GetHeight());
-		}
 	}
 
 	return region;

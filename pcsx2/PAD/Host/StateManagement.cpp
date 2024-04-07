@@ -28,13 +28,13 @@ static bool __fi test_bit(T& value, int bit)
 }
 
 // Typical packet response on the bus
-static const u8 ConfigExit[7] = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-static const u8 noclue[7] = {0x5A, 0x00, 0x00, 0x02, 0x00, 0x00, 0x5A};
-static const u8 setMode[7] = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static const u8 ConfigExit[7]    = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static const u8 noclue[7]        = {0x5A, 0x00, 0x00, 0x02, 0x00, 0x00, 0x5A};
+static const u8 setMode[7]       = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static const u8 queryModelDS2[7] = {0x5A, 0x03, 0x02, 0x00, 0x02, 0x01, 0x00};
 static const u8 queryModelDS1[7] = {0x5A, 0x01, 0x02, 0x00, 0x02, 0x01, 0x00};
-static const u8 queryComb[7] = {0x5A, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00};
-static const u8 queryMode[7] = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static const u8 queryComb[7]     = {0x5A, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00};
+static const u8 queryMode[7]     = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static const u8 setNativeMode[7] = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5A};
 
 static u8 queryMaskMode[7] = {0x5A, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x5A};
@@ -135,7 +135,7 @@ void Pad::rumble(unsigned port)
 
 	currentVibrate[0] = nextVibrate[0];
 	currentVibrate[1] = nextVibrate[1];
-#ifndef __LIBRETRO__
+#if 0
 	InputManager::SetPadVibrationIntensity(port,
 		std::min(static_cast<float>(currentVibrate[0]) * g_key_status.GetVibrationScale(port, 0) * (1.0f / 255.0f), 1.0f),
 		std::min(static_cast<float>(currentVibrate[1]) * g_key_status.GetVibrationScale(port, 1) * (1.0f / 255.0f), 1.0f)
@@ -175,7 +175,7 @@ void Pad::rumble_all()
 // Pad implementation
 //////////////////////////////////////////////////////////////////////
 
-inline bool IsDualshock2()
+inline bool IsDualshock2(void)
 {
 // FIXME
 #if 0
@@ -519,7 +519,7 @@ u8 pad_poll(u8 value)
 	}
 }
 
-bool pad_complete()
+bool pad_complete(void)
 {
 	return query.queryDone;
 }

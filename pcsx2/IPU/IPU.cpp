@@ -144,80 +144,6 @@ void SaveStateBase::ipuFreeze()
 	Freeze(ipu_cmd);
 }
 
-void tIPU_CMD_IDEC::log() const
-{
-	IPU_LOG("IDEC command.");
-
-	if (FB) IPU_LOG(" Skip %d	bits.", FB);
-	IPU_LOG(" Quantizer step code=0x%X.", QSC);
-
-	if (DTD == 0)
-		IPU_LOG(" Does not decode DT.");
-	else
-		IPU_LOG(" Decodes DT.");
-
-	if (SGN == 0)
-		IPU_LOG(" No bias.");
-	else
-		IPU_LOG(" Bias=128.");
-
-	if (DTE == 1) IPU_LOG(" Dither Enabled.");
-	if (OFM == 0)
-		IPU_LOG(" Output format is RGB32.");
-	else
-		IPU_LOG(" Output format is RGB16.");
-
-	IPU_LOG("");
-}
-
-void tIPU_CMD_BDEC::log(int s_bdec) const
-{
-	IPU_LOG("BDEC(macroblock decode) command %x, num: 0x%x", cpuRegs.pc, s_bdec);
-	if (FB) IPU_LOG(" Skip 0x%X bits.", FB);
-
-	if (MBI)
-		IPU_LOG(" Intra MB.");
-	else
-		IPU_LOG(" Non-intra MB.");
-
-	if (DCR)
-		IPU_LOG(" Resets DC prediction value.");
-	else
-		IPU_LOG(" Doesn't reset DC prediction value.");
-
-	if (DT)
-		IPU_LOG(" Use field DCT.");
-	else
-		IPU_LOG(" Use frame DCT.");
-
-	IPU_LOG(" Quantizer step=0x%X", QSC);
-}
-
-void tIPU_CMD_CSC::log_from_YCbCr() const
-{
-	IPU_LOG("CSC(Colorspace conversion from YCbCr) command (%d).", MBC);
-	if (OFM)
-		IPU_LOG("Output format is RGB16. ");
-	else
-		IPU_LOG("Output format is RGB32. ");
-
-	if (DTE) IPU_LOG("Dithering enabled.");
-}
-
-void tIPU_CMD_CSC::log_from_RGB32() const
-{
-	IPU_LOG("PACK (Colorspace conversion from RGB32) command.");
-
-	if (OFM)
-		IPU_LOG("Output format is RGB16. ");
-	else
-		IPU_LOG("Output format is INDX4. ");
-
-	if (DTE) IPU_LOG("Dithering enabled.");
-
-	IPU_LOG("Number of macroblocks to be converted: %d", MBC);
-}
-
 
 __fi u32 ipuRead32(u32 mem)
 {
@@ -243,10 +169,6 @@ __fi u32 ipuRead32(u32 mem)
 		{
 			ipuRegs.ctrl.IFC = g_BP.IFC;
 			ipuRegs.ctrl.CBP = coded_block_pattern;
-
-			if (!ipuRegs.ctrl.BUSY)
-				IPU_LOG("read32: IPU_CTRL=0x%08X", ipuRegs.ctrl._u32);
-
 			return ipuRegs.ctrl._u32;
 		}
 
@@ -257,13 +179,11 @@ __fi u32 ipuRead32(u32 mem)
 			ipuRegs.ipubp = g_BP.BP & 0x7f;
 			ipuRegs.ipubp |= g_BP.IFC << 8;
 			ipuRegs.ipubp |= g_BP.FP << 16;
-
-			IPU_LOG("read32: IPU_BP=0x%08X", ipuRegs.ipubp);
 			return ipuRegs.ipubp;
 		}
 
 		default:
-			IPU_LOG("read32: Addr=0x%08X Value = 0x%08X", mem, psHu32(IPU_CMD + mem));
+			break;
 	}
 
 	return psHu32(IPU_CMD + mem);
@@ -287,25 +207,13 @@ __fi u64 ipuRead64(u32 mem)
 					ipuRegs.cmd.DATA = BigEndian(ipuRegs.cmd.DATA);
 			}
 
-			if (ipuRegs.cmd.DATA & 0xffffff)
-				IPU_LOG("read64: IPU_CMD=BUSY=%x, DATA=%08X", ipuRegs.cmd.BUSY ? 1 : 0, ipuRegs.cmd.DATA);
 			return ipuRegs.cmd._u64;
 		}
 
 		ipucase(IPU_CTRL):
-			IPU_LOG("reading 64bit IPU ctrl");
-			break;
-
 		ipucase(IPU_BP):
-			IPU_LOG("reading 64bit IPU top");
-			break;
-
 		ipucase(IPU_TOP): // IPU_TOP
-			IPU_LOG("read64: IPU_TOP=%x,  bp = %d", ipuRegs.top, g_BP.BP);
-			break;
-
 		default:
-			IPU_LOG("read64: Unknown=%x", mem);
 			break;
 	}
 	return psHu64(IPU_CMD + mem);
@@ -340,7 +248,6 @@ __fi bool ipuWrite32(u32 mem, u32 value)
 	switch (mem)
 	{
 		ipucase(IPU_CMD): // IPU_CMD
-			IPU_LOG("write32: IPU_CMD=0x%08X", value);
 			IPUCMD_WRITE(value);
 		return false;
 
@@ -356,7 +263,6 @@ __fi bool ipuWrite32(u32 mem, u32 value)
 
 			if (ipuRegs.ctrl.RST) ipuSoftReset(); // RESET
 
-			IPU_LOG("write32: IPU_CTRL=0x%08X", value);
 		return false;
 	}
 	return true;
@@ -375,7 +281,6 @@ __fi bool ipuWrite64(u32 mem, u64 value)
 	switch (mem)
 	{
 		ipucase(IPU_CMD):
-			IPU_LOG("write64: IPU_CMD=0x%08X", value);
 			IPUCMD_WRITE((u32)value);
 		return false;
 	}
@@ -393,13 +298,10 @@ static void ipuBCLR(u32 val)
 	g_BP.BP = val & 0x7F;
 
 	ipuRegs.cmd.BUSY = 0;
-	IPU_LOG("Clear IPU input FIFO. Set Bit offset=0x%X", g_BP.BP);
 }
 
 static __ri void ipuIDEC(tIPU_CMD_IDEC idec)
 {
-	idec.log();
-
 	//from IPU_CTRL
 	ipuRegs.ctrl.PCT = I_TYPE; //Intra DECoding;)
 
@@ -425,9 +327,6 @@ static int s_bdec = 0;
 
 static __ri void ipuBDEC(tIPU_CMD_BDEC bdec)
 {
-	bdec.log(s_bdec);
-	if (IsDebugBuild) s_bdec++;
-
 	decoder.coding_type			= I_TYPE;
 	decoder.mpeg1				= ipuRegs.ctrl.MP1;
 	decoder.q_scale_type		= ipuRegs.ctrl.QST;
@@ -449,7 +348,6 @@ static void ipuSETTH(u32 val)
 {
 	g_ipu_thresh[0] = (val & 0x1ff);
 	g_ipu_thresh[1] = ((val >> 16) & 0x1ff);
-	IPU_LOG("SETTH (Set threshold value)command %x.", val&0x1ff01ff);
 }
 
 // --------------------------------------------------------------------------------------
@@ -502,14 +400,11 @@ __fi void IPUCMD_WRITE(u32 val)
 			break;
 
 		case SCE_IPU_FDEC:
-			IPU_LOG("FDEC command. Skip 0x%X bits, FIFO 0x%X qwords, BP 0x%X, CHCR 0x%x",
-			        val & 0x3f, g_BP.IFC, g_BP.BP, ipu1ch.chcr._u32);
 			g_BP.Advance(val & 0x3F);
 			ipuRegs.SetDataBusy();
 			break;
 
 		case SCE_IPU_SETIQ:
-			IPU_LOG("SETIQ command.");
 			g_BP.Advance(val & 0x3F);
 			break;
 

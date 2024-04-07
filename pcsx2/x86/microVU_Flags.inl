@@ -69,7 +69,6 @@ __fi void mVUstatusFlagOp(mV)
 		}
 	}
 	iPC = curPC;
-	DevCon.WriteLn(Color_Green, "microVU%d: FSSET Optimization", getIndex);
 }
 
 int findFlagInst(int* fFlag, int cycles)
@@ -266,25 +265,12 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 // Recompiles Code for Proper Flags on Block Linkings
 __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 {
-
-	if (mVUregs.flagInfo & 1)
-	{
-		if (mVUregs.needExactMatch)
-			DevCon.Error("mVU ERROR!!!");
-	}
-
 	const bool pf = false; // Print Flag Info
-	if (pf)
-		DevCon.WriteLn("mVU%d - [#%d][sPC=%04x][bPC=%04x][mVUBranch=%d][branch=%d]",
-			mVU.index, mVU.prog.cur->idx, mVUstartPC / 2 * 8, xPC, mVUbranch, mVUlow.branch);
 
 	if (doSFlagInsts && __Status)
 	{
-		if (pf)
-			DevCon.WriteLn("mVU%d - Status Flag", mVU.index);
 		int bStatus[4];
 		int sortRegs = sortFlag(mFC.xStatus, bStatus, mFC.cycles);
-		// DevCon::Status("sortRegs = %d", params sortRegs);
 		// Note: Emitter will optimize out mov(reg1, reg1) cases...
 		if (sortRegs == 1)
 		{
@@ -327,8 +313,6 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 
 	if (doMFlagInsts && __Mac)
 	{
-		if (pf)
-			DevCon.WriteLn("mVU%d - Mac Flag", mVU.index);
 		int bMac[4];
 		sortFlag(mFC.xMac, bMac, mFC.cycles);
 		xMOVAPS(xmmT1, ptr128[mVU.macFlag]);
@@ -338,8 +322,6 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 
 	if (doCFlagInsts && __Clip)
 	{
-		if (pf)
-			DevCon.WriteLn("mVU%d - Clip Flag", mVU.index);
 		int bClip[4];
 		sortFlag(mFC.xClip, bClip, mFC.cycles);
 		xMOVAPS(xmmT2, ptr128[mVU.clipFlag]);

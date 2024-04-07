@@ -71,7 +71,6 @@ void mVUreset(microVU& mVU, bool resetReserve)
 
 	if (THREAD_VU1)
 	{
-		DevCon.Warning("mVU Reset");
 		// If MTVU is toggled on during gameplay we need to flush the running VU1 program, else it gets in a mess
 		if (VU0.VI[REG_VPU_STAT].UL & 0x100)
 		{
@@ -199,8 +198,6 @@ __ri microProgram* mVUcreateProg(microVU& mVU, int startPC)
 	double cacheUsed = ((double)((uptr)mVU.prog.x86ptr - (uptr)mVU.prog.x86start)) / (double)_1mb;
 	double cachePerc = ((double)((uptr)mVU.prog.x86ptr - (uptr)mVU.prog.x86start)) / cacheSize * 100;
 	ConsoleColors c = mVU.index ? Color_Orange : Color_Magenta;
-	DevCon.WriteLn(c, "microVU%d: Cached Prog = [%03d] [PC=%04x] [List=%02d] (Cache=%3.3f%%) [%3.1fmb]",
-		mVU.index, prog->idx, startPC * 8, mVU.prog.prog[startPC]->size() + 1, cachePerc, cacheUsed);
 	return prog;
 }
 
@@ -234,10 +231,6 @@ u64 mVUrangesHash(microVU& mVU, microProgram& prog)
 	std::deque<microRange>::const_iterator it(prog.ranges->begin());
 	for (; it != prog.ranges->end(); ++it)
 	{
-		if ((it[0].start < 0) || (it[0].end < 0))
-		{
-			DevCon.Error("microVU%d: Negative Range![%d][%d]", mVU.index, it[0].start, it[0].end);
-		}
 		for (int i = it[0].start / 4; i < it[0].end / 4; i++)
 		{
 			hash.v32[0] -= prog.data[i];
@@ -245,29 +238,6 @@ u64 mVUrangesHash(microVU& mVU, microProgram& prog)
 		}
 	}
 	return hash.v64;
-}
-
-// Prints the ratio of unique programs to total programs
-void mVUprintUniqueRatio(microVU& mVU)
-{
-	std::vector<u64> v;
-	for (u32 pc = 0; pc < mProgSize / 2; pc++)
-	{
-		microProgramList* list = mVU.prog.prog[pc];
-		if (!list)
-			continue;
-		std::deque<microProgram*>::iterator it(list->begin());
-		for (; it != list->end(); ++it)
-		{
-			v.push_back(mVUrangesHash(mVU, *it[0]));
-		}
-	}
-	u32 total = v.size();
-	sortVector(v);
-	makeUnique(v);
-	if (!total)
-		return;
-	DevCon.WriteLn("%d / %d [%3.1f%%]", v.size(), total, 100. - (double)v.size() / (double)total * 100.);
 }
 
 // Compare Cached microProgram to mVU.regs().Micro
@@ -282,10 +252,6 @@ __fi bool mVUcmpProg(microVU& mVU, microProgram& prog)
 	{
 		for (const auto& range : *prog.ranges)
 		{
-#if defined(PCSX2_DEVBUILD) || defined(_DEBUG)
-			if ((range.start < 0) || (range.end < 0))
-				DevCon.Error("microVU%d: Negative Range![%d][%d]", mVU.index, range.start, range.end);
-#endif
 			auto cmpOffset = [&](void* x) { return (u8*)x + range.start; };
 
 			if (memcmp(cmpOffset(prog.data), cmpOffset(mVU.regs().Micro), (range.end - range.start)))
@@ -337,7 +303,6 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		quick.block      = mVU.prog.cur->block[startPC/8];
 		quick.prog       = mVU.prog.cur;
 		list->push_front(mVU.prog.cur);
-		//mVUprintUniqueRatio(mVU);
 		return entryPoint;
 	}
 

@@ -90,9 +90,6 @@ void SaveStateBase::mtvuFreeze()
 
 VU_Thread::VU_Thread()
 {
-#ifndef __LIBRETRO__ /* can't call thread functions/locks from dlload in windows */
-	Reset();
-#endif
 }
 
 VU_Thread::~VU_Thread()
@@ -372,14 +369,13 @@ void VU_Thread::Get_MTVUChanges()
 		// If load of signal was moved after clearing the flag, the other thread could write a new value before we load without noticing the double signal
 		// Prevent that with release semantics
 		mtvuInterrupts.fetch_and(~InterruptFlagSignal, std::memory_order_release);
-		GUNIT_WARN("SIGNAL firing");
+		/* Signal firing */
 		const u32 signalMsk = (u32)(signal >> 32);
 		const u32 signalData = (u32)signal;
 		if (CSRreg.SIGNAL)
 		{
-			GUNIT_WARN("Queue SIGNAL");
+			/* Queue signal */
 			gifUnit.gsSIGNAL.queued = true;
-			//DevCon.Warning("Firing pending signal");
 			gifUnit.gsSIGNAL.data[0] = signalData;
 			gifUnit.gsSIGNAL.data[1] = signalMsk;
 		}
@@ -395,7 +391,7 @@ void VU_Thread::Get_MTVUChanges()
 	if (interrupts & InterruptFlagFinish)
 	{
 		mtvuInterrupts.fetch_and(~InterruptFlagFinish, std::memory_order_relaxed);
-		GUNIT_WARN("Finish firing");
+		/* Finish firing */
 		CSRreg.FINISH = true;
 		gifUnit.gsFINISH.gsFINISHFired = false;
 
@@ -408,8 +404,8 @@ void VU_Thread::Get_MTVUChanges()
 		// If other thread updates gsLabel for a second interrupt, that's okay.  Worst case we think there's a label interrupt but gsLabel is 0
 		// We do not want the exchange of gsLabel to move ahead of clearing the flag, or the other thread could add more work before we clear the flag, resulting in an update with the flag unset
 		// acquire semantics should supply that guarantee
+		/* LABEL firing */
 		const u64 label = gsLabel.exchange(0, std::memory_order_relaxed);
-		GUNIT_WARN("LABEL firing");
 		const u32 labelMsk = (u32)(label >> 32);
 		const u32 labelData = (u32)label;
 		GSSIGLBLID.LBLID = (GSSIGLBLID.LBLID & ~labelMsk) | (labelData & labelMsk);
@@ -420,14 +416,12 @@ void VU_Thread::Get_MTVUChanges()
 
 		if(INSTANT_VU1)
 			VU0.VI[REG_VPU_STAT].UL &= ~0xFF00;
-		//DevCon.Warning("E-Bit registered %x", VU0.VI[REG_VPU_STAT].UL);
 	}
 	if (interrupts & InterruptFlagVUTBit)
 	{
 		mtvuInterrupts.fetch_and(~InterruptFlagVUTBit, std::memory_order_relaxed);
 		VU0.VI[REG_VPU_STAT].UL &= ~0xFF00;
 		VU0.VI[REG_VPU_STAT].UL |= 0x0400;
-		//DevCon.Warning("T-Bit registered %x", VU0.VI[REG_VPU_STAT].UL);
 		hwIntcIrq(7);
 	}
 }

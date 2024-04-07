@@ -21,83 +21,6 @@
 #include "IopHw.h"
 #include "Config.h"
 
-#ifdef PCSX2_DEVBUILD
-
-static FILE* DMA4LogFile = nullptr;
-static FILE* DMA7LogFile = nullptr;
-static FILE* ADMA4LogFile = nullptr;
-static FILE* ADMA7LogFile = nullptr;
-static FILE* ADMAOutLogFile = nullptr;
-
-static FILE* REGWRTLogFile[2] = {0, 0};
-
-void DMALogOpen()
-{
-	if (!SPU2::DMALog())
-		return;
-	DMA4LogFile = EmuFolders::OpenLogFile("SPU2dma4.dat", "wb");
-	DMA7LogFile = EmuFolders::OpenLogFile("SPU2dma7.dat", "wb");
-	ADMA4LogFile = EmuFolders::OpenLogFile("adma4.raw", "wb");
-	ADMA7LogFile = EmuFolders::OpenLogFile("adma7.raw", "wb");
-	ADMAOutLogFile = EmuFolders::OpenLogFile("admaOut.raw", "wb");
-}
-
-void DMA4LogWrite(void* lpData, u32 ulSize)
-{
-	if (!SPU2::DMALog())
-		return;
-	if (!DMA4LogFile)
-		return;
-	fwrite(lpData, ulSize, 1, DMA4LogFile);
-}
-
-void DMA7LogWrite(void* lpData, u32 ulSize)
-{
-	if (!SPU2::DMALog())
-		return;
-	if (!DMA7LogFile)
-		return;
-	fwrite(lpData, ulSize, 1, DMA7LogFile);
-}
-
-void ADMAOutLogWrite(void* lpData, u32 ulSize)
-{
-	if (!SPU2::DMALog())
-		return;
-	if (!ADMAOutLogFile)
-		return;
-	fwrite(lpData, ulSize, 1, ADMAOutLogFile);
-}
-
-void RegWriteLog(u32 core, u16 value)
-{
-	if (!SPU2::DMALog())
-		return;
-	if (!REGWRTLogFile[core])
-		return;
-	fwrite(&value, 2, 1, REGWRTLogFile[core]);
-}
-
-void DMALogClose()
-{
-	safe_fclose(DMA4LogFile);
-	safe_fclose(DMA7LogFile);
-	safe_fclose(REGWRTLogFile[0]);
-	safe_fclose(REGWRTLogFile[1]);
-	safe_fclose(ADMA4LogFile);
-	safe_fclose(ADMA7LogFile);
-	safe_fclose(ADMAOutLogFile);
-}
-
-#endif
-
-void V_Core::LogAutoDMA(FILE* fp)
-{
-	if (!SPU2::DMALog() || !fp || !DMAPtr)
-		return;
-	fwrite(DMAPtr + InputDataProgress, 0x400, 1, fp);
-}
-
 void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not split stereo
 {
 	u32 spos = InputPosWrite & 0x100; // Starting position passed by TSA
@@ -111,10 +34,6 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 	int size = std::min(InputDataLeft, (u32)0x200);
 	if (!leftbuffer)
 		size = std::min(size, 0x100);
-#ifdef PCSX2_DEVBUILD
-	LogAutoDMA(Index ? ADMA7LogFile : ADMA4LogFile);
-#endif
-	//ConLog("Refilling ADMA buffer at %x OutPos %x with %x\n", spos, OutPos, size);
 	// HACKFIX!! DMAPtr can be invalid after a savestate load, so the savestate just forces it
 	// to nullptr and we ignore it here.  (used to work in old VM editions of PCSX2 with fixed
 	// addressing, but new PCSX2s have dynamic memory addressing).
@@ -161,12 +80,6 @@ void V_Core::StartADMAWrite(u16* pMem, u32 sz)
 
 	TimeUpdate(psxRegs.cycle);
 
-	if (SPU2::MsgAutoDMA())
-	{
-		SPU2::ConLog("* SPU2: DMA%c AutoDMA Transfer of %d bytes to %x (%02x %x %04x).OutPos %x\n",
-			   GetDmaIndexChar(), size << 1, ActiveTSA, DMABits, AutoDMACtrl, (~Regs.ATTR) & 0xffff, OutPos);
-	}
-
 	InputDataProgress = 0;
 	TADR = MADR + (size << 1);
 	if ((AutoDMACtrl & (Index + 1)) == 0)
@@ -197,8 +110,6 @@ void V_Core::StartADMAWrite(u16* pMem, u32 sz)
 	}
 	else
 	{
-		if (SPU2::MsgToConsole())
-			SPU2::ConLog("ADMA%c Error Size of %x too small\n", GetDmaIndexChar(), size);
 		InputDataLeft = 0;
 		DMAICounter = size * 4;
 		LastClock = psxRegs.cycle;
@@ -207,20 +118,6 @@ void V_Core::StartADMAWrite(u16* pMem, u32 sz)
 
 void V_Core::PlainDMAWrite(u16* pMem, u32 size)
 {
-	if (SPU2::MsgToConsole())
-	{
-		// Don't need this anymore. Target may still be good to know though.
-		/*if((uptr)pMem & 15)
-		{
-			ConLog("* SPU2 DMA Write > Misaligned source. Core: %d  IOP: %p  TSA: 0x%x  Size: 0x%x\n", Index, (void*)pMem, TSA, size);
-		}*/
-
-		if (ActiveTSA & 7)
-		{
-			SPU2::ConLog("* SPU2 DMA Write > Misaligned target. Core: %d  IOP: %p  TSA: 0x%x  Size: 0x%x\n", Index, (void*)DMAPtr, ActiveTSA, ReadSize);
-		}
-	}
-
 	TimeUpdate(psxRegs.cycle);
 
 	ReadSize = size;
@@ -230,13 +127,6 @@ void V_Core::PlainDMAWrite(u16* pMem, u32 size)
 	Regs.STATX &= ~0x80;
 	Regs.STATX |= 0x400;
 	TADR = MADR + (size << 1);
-
-	if (SPU2::MsgDMA())
-	{
-		SPU2::ConLog("* SPU2: DMA%c Write Transfer of %d bytes to %x (%02x %x %04x). IRQE = %d IRQA = %x \n",
-			GetDmaIndexChar(), size << 1, ActiveTSA, DMABits, AutoDMACtrl, Regs.ATTR & 0xffff,
-			Cores[Index].IRQEnable, Cores[Index].IRQA);
-	}
 
 	FinishDMAwrite();
 }
@@ -249,13 +139,6 @@ void V_Core::FinishDMAwrite()
 	}
 
 	DMAICounter = ReadSize;
-
-#ifdef PCSX2_DEVBUILD
-	if (Index == 0)
-		DMA4LogWrite(DMAPtr, ReadSize << 1);
-	else
-		DMA7LogWrite(DMAPtr, ReadSize << 1);
-#endif
 
 	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + std::abs(DMAICounter / 4));
 	u32 buff2end = 0;
@@ -275,10 +158,6 @@ void V_Core::FinishDMAwrite()
 		cacheLine->Validated = false;
 		cacheLine++;
 	} while (cacheLine != &cacheEnd);
-
-	//ConLog( "* SPU2: Cache Clear Range!  TSA=0x%x, TDA=0x%x (low8=0x%x, high8=0x%x, len=0x%x)\n",
-	//	ActiveTSA, buff1end, flagTSA, flagTDA, clearLen );
-
 
 	// First Branch needs cleared:
 	// It starts at TSA and goes to buff1end.
@@ -324,10 +203,7 @@ void V_Core::FinishDMAwrite()
 			// and an interrupt never fires again, leaving the voices looping the same samples forever.
 
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > start || Cores[i].IRQA < TDA))
-			{
-				//ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
 				SetIrqCallDMA(i);
-			}
 		}
 	}
 	else
@@ -342,10 +218,7 @@ void V_Core::FinishDMAwrite()
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > ActiveTSA && Cores[i].IRQA < TDA))
-			{
-				//ConLog("DMAwrite Core %d: IRQ Called (IRQ passed). IRQA = %x Cycles = %d\n", i, Cores[i].IRQA, Cycles );
 				SetIrqCallDMA(i);
-			}
 		}
 	}
 
@@ -489,13 +362,6 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 		if (psxCounters[6].CycleT < psxNextCounter)
 			psxNextCounter = psxCounters[6].CycleT;
 	}
-
-	if (SPU2::MsgDMA())
-	{
-		SPU2::ConLog("* SPU2: DMA%c Read Transfer of %d bytes from %x (%02x %x %04x). IRQE = %d IRQA = %x \n",
-			GetDmaIndexChar(), size << 1, ActiveTSA, DMABits, AutoDMACtrl, Regs.ATTR & 0xffff,
-			Cores[Index].IRQEnable, Cores[Index].IRQA);
-	}
 }
 
 void V_Core::DoDMAwrite(u16* pMem, u32 size)
@@ -509,20 +375,6 @@ void V_Core::DoDMAwrite(u16* pMem, u32 size)
 		DMAICounter = 1 * 4;
 		LastClock = psxRegs.cycle;
 		return;
-	}
-
-	if (IsDevBuild)
-	{
-		DebugCores[Index].lastsize = size;
-		DebugCores[Index].dmaFlag = 2;
-	}
-
-	if (SPU2::MsgToConsole())
-	{
-		if (TSA > 0xfffff)
-		{
-			SPU2::ConLog("* SPU2: Transfer Start Address out of bounds. TSA is %x\n", TSA);
-		}
 	}
 
 	ActiveTSA = TSA & 0xfffff;

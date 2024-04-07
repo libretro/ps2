@@ -687,8 +687,6 @@ public:
 
 					if (mapI.VFreg == mapX.VFreg)
 					{
-						if (mapI.xyzw && mapI.xyzw < 0xf)
-							DevCon.Error("microVU Error: writeBackReg() [%d]", mapI.VFreg);
 						clearReg(i); // Invalidate any Cached Regs of same vf Reg
 					}
 				}
@@ -736,10 +734,6 @@ public:
 					microMapXMM& mapI = xmmMap[i];
 					if (mapI.VFreg == clear.VFreg)
 					{
-						if (mapI.xyzw && mapI.xyzw < 0xf)
-						{
-							DevCon.Error("microVU Error: clearNeeded() [%d]", mapI.VFreg);
-						}
 						if (mergeRegs == 1)
 						{
 							mVUmergeRegs(xmm(i), reg, clear.xyzw, true);
@@ -778,7 +772,6 @@ public:
 	// To load a reg which you don't want written back or cached, specify vfLoadReg >= 0 and vfWriteReg = 0
 	const xmm& allocReg(int vfLoadReg = -1, int vfWriteReg = -1, int xyzw = 0, bool cloneWrite = true)
 	{
-		//DevCon.WriteLn("vfLoadReg = %02d, vfWriteReg = %02d, xyzw = %x, clone = %d",vfLoadReg,vfWriteReg,xyzw,(int)cloneWrite);
 		counter++;
 		if (vfLoadReg >= 0) // Search For Cached Regs
 		{
@@ -987,7 +980,6 @@ public:
 	{
 		// TODO: When load != write, we should check whether load is used later, and if so, copy it.
 
-		//DevCon.WriteLn("viLoadReg = %02d, viWriteReg = %02d, backup = %d",viLoadReg,viWriteReg,(int)backup);
 		const int this_counter = regAllocCOP2 ? (g_x86AllocCounter++) : (counter++);
 		if (viLoadReg == 0 || viWriteReg == 0)
 		{

@@ -42,9 +42,6 @@ namespace Host
 	/// Reads a resource file file from the resources directory as a string.
 	std::optional<std::string> ReadResourceFileToString(const char* filename);
 
-	/// Returns the modified time of a resource.
-	std::optional<std::time_t> GetResourceFileTimestamp(const char* filename);
-
 	/// Adds OSD messages, duration is in seconds.
 	void AddOSDMessage(std::string message, float duration = 2.0f);
 	void AddKeyedOSDMessage(std::string key, std::string message, float duration = 2.0f);
@@ -62,12 +59,6 @@ namespace Host
 	bool ConfirmMessage(const std::string_view& title, const std::string_view& message);
 	bool ConfirmFormattedMessage(const std::string_view& title, const char* format, ...);
 
-	/// Opens a URL, using the default application.
-	void OpenURL(const std::string_view& url);
-
-	/// Copies the provided text to the host's clipboard, if present.
-	bool CopyTextToClipboard(const std::string_view& text);
-
 	/// Requests settings reset. Can be called from any thread, will call back and apply on the CPU thread.
 	bool RequestResetSettings(bool folders, bool core, bool controllers, bool hotkeys, bool ui);
 
@@ -76,12 +67,6 @@ namespace Host
 
 	/// Safely executes a function on the VM thread.
 	void RunOnCPUThread(std::function<void()> function, bool block = false);
-
-	/// Asynchronously starts refreshing the game list.
-	void RefreshGameListAsync(bool invalidate_cache);
-
-	/// Cancels game list refresh, if there is one in progress.
-	void CancelGameListRefresh();
 
 	/// Requests shut down and exit of the hosting application. This may not actually exit,
 	/// if the user cancels the shutdown confirmation.

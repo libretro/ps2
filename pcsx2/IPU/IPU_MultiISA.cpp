@@ -509,7 +509,6 @@ intra:
 			macroblock_modes = GETBITS(1);
 			//I suspect (as this is actually a 2 bit command) that this should be getbits(2)
 			//additionally, we arent dumping any bits here when i think we should be, need a game to test. (Refraction)
-			DevCon.Warning(" Rare MPEG command! ");
 			if (macroblock_modes == 0) return 0;   // error
 			return (MACROBLOCK_INTRA | (1 << 16));
 
@@ -1670,10 +1669,6 @@ __fi static bool ipuVDEC(u32 val)
 
 			ipuRegs.top = BigEndian(ipuRegs.top);
 
-			IPU_LOG("VDEC command data 0x%x(0x%x). Skip 0x%X bits/Table=%d (%s), pct %d",
-			        ipuRegs.cmd.DATA, ipuRegs.cmd.DATA >> 16, val & 0x3f, (val >> 26) & 3, (val >> 26) & 1 ?
-			        ((val >> 26) & 2 ? "DMV" : "MBT") : (((val >> 26) & 2 ? "MC" : "MBAI")), ipuRegs.ctrl.PCT);
-
 			return true;
 
 		jNO_DEFAULT
@@ -1689,8 +1684,6 @@ __ri static bool ipuFDEC(u32 val)
 	ipuRegs.cmd.DATA = BigEndian(ipuRegs.cmd.DATA);
 	ipuRegs.top = ipuRegs.cmd.DATA;
 
-	IPU_LOG("FDEC read: 0x%08x", ipuRegs.top);
-
 	return true;
 }
 
@@ -1704,14 +1697,6 @@ static bool ipuSETIQ(u32 val)
 		{
 			if (!getBits64((u8*)niq + 8 * ipu_cmd.pos[0], 1)) return false;
 		}
-
-		IPU_LOG("Read non-intra quantization matrix from FIFO.");
-		for (uint i = 0; i < 8; i++)
-		{
-			IPU_LOG("%02X %02X %02X %02X %02X %02X %02X %02X",
-			        niq[i * 8 + 0], niq[i * 8 + 1], niq[i * 8 + 2], niq[i * 8 + 3],
-			        niq[i * 8 + 4], niq[i * 8 + 5], niq[i * 8 + 6], niq[i * 8 + 7]);
-		}
 	}
 	else
 	{
@@ -1720,14 +1705,6 @@ static bool ipuSETIQ(u32 val)
 		for(;ipu_cmd.pos[0] < 8; ipu_cmd.pos[0]++)
 		{
 			if (!getBits64((u8*)iq + 8 * ipu_cmd.pos[0], 1)) return false;
-		}
-
-		IPU_LOG("Read intra quantization matrix from FIFO.");
-		for (uint i = 0; i < 8; i++)
-		{
-			IPU_LOG("%02X %02X %02X %02X %02X %02X %02X %02X",
-			        iq[i * 8 + 0], iq[i * 8 + 1], iq[i * 8 + 2], iq[i *8 + 3],
-			        iq[i * 8 + 4], iq[i * 8 + 5], iq[i * 8 + 6], iq[i *8 + 7]);
 		}
 	}
 
@@ -1741,36 +1718,12 @@ static bool ipuSETVQ(u32 val)
 		if (!getBits64(((u8*)g_ipu_vqclut) + 8 * ipu_cmd.pos[0], 1)) return false;
 	}
 
-	IPU_LOG("SETVQ command.   Read VQCLUT table from FIFO.\n"
-	        "%02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d\n"
-	        "%02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d\n"
-	        "%02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d\n"
-	        "%02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d %02d:%02d:%02d",
-	        g_ipu_vqclut[ 0].r, g_ipu_vqclut[ 0].g, g_ipu_vqclut[ 0].b,
-	        g_ipu_vqclut[ 1].r, g_ipu_vqclut[ 1].g, g_ipu_vqclut[ 1].b,
-	        g_ipu_vqclut[ 2].r, g_ipu_vqclut[ 2].g, g_ipu_vqclut[ 2].b,
-	        g_ipu_vqclut[ 3].r, g_ipu_vqclut[ 3].g, g_ipu_vqclut[ 3].b,
-	        g_ipu_vqclut[ 4].r, g_ipu_vqclut[ 4].g, g_ipu_vqclut[ 4].b,
-	        g_ipu_vqclut[ 5].r, g_ipu_vqclut[ 5].g, g_ipu_vqclut[ 5].b,
-	        g_ipu_vqclut[ 6].r, g_ipu_vqclut[ 6].g, g_ipu_vqclut[ 6].b,
-	        g_ipu_vqclut[ 7].r, g_ipu_vqclut[ 7].g, g_ipu_vqclut[ 7].b,
-	        g_ipu_vqclut[ 8].r, g_ipu_vqclut[ 8].g, g_ipu_vqclut[ 8].b,
-	        g_ipu_vqclut[ 9].r, g_ipu_vqclut[ 9].g, g_ipu_vqclut[ 9].b,
-	        g_ipu_vqclut[10].r, g_ipu_vqclut[10].g, g_ipu_vqclut[10].b,
-	        g_ipu_vqclut[11].r, g_ipu_vqclut[11].g, g_ipu_vqclut[11].b,
-	        g_ipu_vqclut[12].r, g_ipu_vqclut[12].g, g_ipu_vqclut[12].b,
-	        g_ipu_vqclut[13].r, g_ipu_vqclut[13].g, g_ipu_vqclut[13].b,
-	        g_ipu_vqclut[14].r, g_ipu_vqclut[14].g, g_ipu_vqclut[14].b,
-	        g_ipu_vqclut[15].r, g_ipu_vqclut[15].g, g_ipu_vqclut[15].b);
-
 	return true;
 }
 
 // IPU Transfers are split into 8Qwords so we need to send ALL the data
 __ri static bool ipuCSC(tIPU_CMD_CSC csc)
 {
-	csc.log_from_YCbCr();
-
 	for (;ipu_cmd.index < (int)csc.MBC; ipu_cmd.index++)
 	{
 		for(;ipu_cmd.pos[0] < 48; ipu_cmd.pos[0]++)
@@ -1801,8 +1754,6 @@ __ri static bool ipuCSC(tIPU_CMD_CSC csc)
 
 __ri static bool ipuPACK(tIPU_CMD_CSC csc)
 {
-	csc.log_from_RGB32();
-
 	for (;ipu_cmd.index < (int)csc.MBC; ipu_cmd.index++)
 	{
 		for(;ipu_cmd.pos[0] < (int)sizeof(macroblock_rgb32) / 8; ipu_cmd.pos[0]++)
@@ -1960,7 +1911,6 @@ __noinline void IPUWorker()
 	}
 
 	// success
-	IPU_LOG("IPU Command finished");
 	ipuRegs.ctrl.BUSY = 0;
 	//ipu_cmd.current = 0xffffffff;
 	hwIntcIrq(INTC_IPU);

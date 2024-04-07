@@ -182,16 +182,11 @@ static int __Deci2Call(int call, u32 *addr)
 		case 1: // open
 			if( addr != NULL )
 			{
-				deci2addr = addr[1];
-				BIOS_LOG("deci2open: %x,%x,%x,%x",
-						 addr[3], addr[2], addr[1], addr[0]);
+				deci2addr    = addr[1];
 				deci2handler = addr[2];
 			}
 			else
-			{
 				deci2handler = 0;
-				DevCon.Warning( "Deci2Call.Open > NULL address ignored." );
-			}
 			return 1;
 
 		case 2: // close
@@ -209,14 +204,6 @@ static int __Deci2Call(int call, u32 *addr)
 
 			const u32* d2ptr = (u32*)PSM(deci2addr);
 
-			BIOS_LOG("deci2reqsend: %s: deci2addr: %x,%x,%x,buf=%x %x,%x,len=%x,%x",
-				(( addr == NULL ) ? "NULL" : reqaddr),
-				d2ptr[7], d2ptr[6], d2ptr[5], d2ptr[4],
-				d2ptr[3], d2ptr[2], d2ptr[1], d2ptr[0]);
-
-//			cpuRegs.pc = deci2handler;
-//			Console.WriteLn("deci2msg: %s",  (char*)PSM(d2ptr[4]+0xc));
-
 			if (d2ptr[1]>0xc){
 				// this looks horribly wrong, justification please?
 				u8* pdeciaddr = (u8*)dmaGetAddr(d2ptr[4]+0xc, false);
@@ -229,15 +216,12 @@ static int __Deci2Call(int call, u32 *addr)
 				memcpy(deci2buffer, pdeciaddr, copylen );
 				deci2buffer[copylen] = '\0';
 
-				eeConLog( ShiftJIS_ConvertString(deci2buffer) );
 			}
 			((u32*)PSM(deci2addr))[3] = 0;
 			return 1;
 		}
 
 		case 4: // poll
-			if( addr != NULL )
-				BIOS_LOG("deci2poll: %x,%x,%x,%x\n", addr[3], addr[2], addr[1], addr[0]);
 			return 1;
 
 		case 5: // exrecv
@@ -247,10 +231,6 @@ static int __Deci2Call(int call, u32 *addr)
 			return 1;
 
 		case 0x10://kputs
-			if( addr != NULL )
-			{
-				eeDeci2Log( ShiftJIS_ConvertString((char*)PSM(*addr)) );
-			}
 			return 1;
 	}
 
@@ -261,22 +241,16 @@ namespace R5900 {
 namespace Interpreter {
 namespace OpcodeImpl {
 
-void COP2()
+void COP2(void)
 {
-	//std::string disOut;
-	//disR5900Fasm(disOut, cpuRegs.code, cpuRegs.pc);
-
-	//VU0_LOG("%s", disOut.c_str());
 	Int_COP2PrintTable[_Rs_]();
 }
 
-void Unknown() {
-	CPU_LOG("%8.8lx: Unknown opcode called", cpuRegs.pc);
-}
+void Unknown(void) { }
 
-void MMI_Unknown() { Console.Warning("Unknown MMI opcode called"); }
-void COP0_Unknown() { Console.Warning("Unknown COP0 opcode called"); }
-void COP1_Unknown() { Console.Warning("Unknown FPU/COP1 opcode called"); }
+void MMI_Unknown(void) { Console.Warning("Unknown MMI opcode called"); }
+void COP0_Unknown(void) { Console.Warning("Unknown COP0 opcode called"); }
+void COP1_Unknown(void) { Console.Warning("Unknown FPU/COP1 opcode called"); }
 
 
 
@@ -891,9 +865,6 @@ void SYSCALL()
 	else
 		call = cpuRegs.GPR.n.v1.UC[0];
 
-	BIOS_LOG("Bios call: %s (%x)", R5900::bios[call], call);
-
-
 	switch (static_cast<Syscall>(call))
 	{
 		case Syscall::SetGsCrt:
@@ -950,10 +921,8 @@ void SYSCALL()
 					mode = "DVD PAL 720x480 @ ??.???"; gsSetVideoMode(GS_VideoMode::DVD_PAL); break;
 
 				default:
-					DevCon.Error("Mode %x is not supported. Report me upstream", cpuRegs.GPR.n.a1.UC[0]);
 					gsSetVideoMode(GS_VideoMode::Unknown);
 			}
-			DevCon.Warning("Set GS CRTC configuration. %s %s (%s)",mode.c_str(), inter, field);
 		}
 		break;
 		case Syscall::ExecPS2:
@@ -1007,7 +976,6 @@ void SYSCALL()
 			}
 			break;
 		case Syscall::SetVTLBRefillHandler:
-			DevCon.Warning("A tlb refill handler is set. New handler %x", (u32*)PSM(cpuRegs.GPR.n.a1.UL[0]));
 			break;
 		case Syscall::StartThread:
 		case Syscall::ChangeThreadPriority:
@@ -1031,7 +999,6 @@ void SYSCALL()
 						// We (well, I) know that the thread address is always 0x8001 + the immediate of the 6th instruction from here
 						const u32 op = memRead32(0x80000000 + offset + (sizeof(u32) * 6));
 						CurrentBiosInformation.eeThreadListAddr = 0x80010000 + static_cast<u16>(op) - 8; // Subtract 8 because the address here is offset by 8.
-						DevCon.WriteLn("BIOS: Successfully found the instruction pattern. Assuming the thread list is here: %0x", CurrentBiosInformation.eeThreadListAddr);
 						break;
 					}
 					offset += 4;
@@ -1047,37 +1014,11 @@ void SYSCALL()
 		}
 		break;
 		case Syscall::sceSifSetDma:
-			// The only thing this code is used for is the one log message, so don't execute it if we aren't logging bios messages.
-			if (SysTraceActive(EE.Bios))
-			{
-				t_sif_dma_transfer *dmat;
-				//struct t_sif_cmd_header	*hdr;
-				//struct t_sif_rpc_bind *bind;
-				//struct t_rpc_server_data *server;
-				int n_transfer;
-				u32 addr;
-				//int sid;
-
-				n_transfer = cpuRegs.GPR.n.a1.UL[0] - 1;
-				if (n_transfer >= 0)
-				{
-					addr = cpuRegs.GPR.n.a0.UL[0] + n_transfer * sizeof(t_sif_dma_transfer);
-					dmat = (t_sif_dma_transfer*)PSM(addr);
-
-					BIOS_LOG("bios_%s: n_transfer=%d, size=%x, attr=%x, dest=%x, src=%x",
-							R5900::bios[cpuRegs.GPR.n.v1.UC[0]], n_transfer,
-							dmat->size, dmat->attr,
-							dmat->dest, dmat->src);
-				}
-			}
 			break;
 
 		case Syscall::Deci2Call:
 		{
-			if (cpuRegs.GPR.n.a0.UL[0] == 0x10)
-			{
-				eeConLog(ShiftJIS_ConvertString((char*)PSM(memRead32(cpuRegs.GPR.n.a1.UL[0]))));
-			}
+			if (cpuRegs.GPR.n.a0.UL[0] == 0x10) { }
 			else
 				__Deci2Call(cpuRegs.GPR.n.a0.UL[0], (u32*)PSM(cpuRegs.GPR.n.a1.UL[0]));
 
@@ -1121,16 +1062,6 @@ void SYSCALL()
 						}
 					}
 				}
-
-				sysConLog(fmt,
-					regs[0],
-					regs[1],
-					regs[2],
-					regs[3],
-					regs[4],
-					regs[5],
-					regs[6]
-				);
 			}
 			break;
 		}

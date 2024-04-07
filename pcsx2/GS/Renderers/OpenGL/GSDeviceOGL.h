@@ -260,8 +260,6 @@ private:
 	bool CreateCASPrograms();
 	bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) override;
 
-	bool CreateImGuiProgram();
-	void RenderImGui();
 	void RenderBlankFrame();
 
 	void OMAttachRt(GSTextureOGL* rt = nullptr);

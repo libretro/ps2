@@ -19,7 +19,6 @@ target_sources(common PRIVATE
 	FileSystem.cpp
 	General.cpp
 	Image.cpp
-	HTTPDownloader.cpp
 	MemorySettingsInterface.cpp
 	Misc.cpp
 	MD5Digest.cpp
@@ -78,7 +77,6 @@ target_sources(common PRIVATE
 	Image.h
 	LRUCache.h
 	HeapArray.h
-	HTTPDownloader.h
 	MemcpyFast.h
 	MemorySettingsInterface.h
 	MemsetFast.inl
@@ -184,8 +182,6 @@ if(WIN32)
 		CrashHandler.cpp
 		CrashHandler.h
 		FastJmp.asm
-		HTTPDownloaderWinHTTP.cpp
-		HTTPDownloaderWinHTTP.h
 		StackWalker.cpp
 		StackWalker.h
 		D3D11/ShaderCache.cpp
@@ -218,74 +214,17 @@ if(APPLE)
 	target_link_options(common PRIVATE -fobjc-link-runtime)
 endif()
 
-if(USE_OPENGL AND NOT LIBRETRO)
-	if(WIN32)
-		target_sources(common PRIVATE
-			GL/ContextWGL.cpp
-			GL/ContextWGL.h
-		)
-		target_link_libraries(common PUBLIC opengl32.lib)
-	elseif(APPLE)
-		target_sources(common PRIVATE
-			GL/ContextAGL.mm
-			GL/ContextAGL.h
-		)
-	else()
-		if(X11_API OR WAYLAND_API)
-			target_sources(common PRIVATE
-				GL/ContextEGL.cpp
-				GL/ContextEGL.h
-			)
-			target_link_libraries(common PRIVATE PkgConfig::EGL)
-		endif()
-
-		if(X11_API)
-			target_sources(common PRIVATE
-				GL/ContextEGLX11.cpp
-				GL/ContextEGLX11.h
-			)
-			if(TARGET PkgConfig::XRANDR)
-				target_link_libraries(common PRIVATE PkgConfig::XRANDR)
-				target_compile_definitions(common PRIVATE "HAS_XRANDR=1")
-			endif()
-		endif()
-
-		if(WAYLAND_API)
-			target_sources(common PRIVATE
-				GL/ContextEGLWayland.cpp
-				GL/ContextEGLWayland.h
-			)
-		endif()
-	endif()
-endif()
-
 if(USE_VULKAN)
 	if(APPLE)
 		# Needed for Metal surface creation.
 		target_compile_options(common PRIVATE -fobjc-arc)
 		target_link_options(common PRIVATE -fobjc-link-runtime)
-	elseif(NOT WIN32)
-		if(X11_API)
-			target_compile_definitions(common PUBLIC "VULKAN_USE_X11=1")
-		endif()
-		if(WAYLAND_API)
-			target_compile_definitions(common PUBLIC "VULKAN_USE_WAYLAND=1")
-		endif()
 	endif()
 endif()
 
 if (USE_GCC AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
 	# GCC LTO doesn't work with asm statements
 	set_source_files_properties(FastJmp.cpp PROPERTIES COMPILE_FLAGS -fno-lto)
-endif()
-
-if(NOT WIN32 AND (QT_BUILD OR NOGUI_BUILD))
-	# libcurl-based HTTPDownloader
-	target_sources(common PRIVATE
-		HTTPDownloaderCurl.cpp
-		HTTPDownloaderCurl.h
-	)
-	target_link_libraries(common PRIVATE CURL::libcurl)
 endif()
 
 if(UNIX AND NOT APPLE AND TARGET libbacktrace::libbacktrace)

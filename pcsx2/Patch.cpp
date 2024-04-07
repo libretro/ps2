@@ -226,13 +226,6 @@ namespace PatchFunc
 
 	void patch(const std::string_view& cmd, const std::string_view& param)
 	{
-		// print the actual patch lines only in verbose mode (even in devel)
-		if (DevConWriterEnabled)
-		{
-			DevCon.WriteLn("%.*s %.*s", static_cast<int>(cmd.size()), cmd.data(),
-				static_cast<int>(param.size()), param.data());
-		}
-
 #define PATCH_ERROR(fmt, ...) Console.Error("(Patch) Error Parsing: %.*s=%.*s: " fmt, \
 	static_cast<int>(cmd.size()), cmd.data(), static_cast<int>(param.size()), param.data(), \
 	__VA_ARGS__)

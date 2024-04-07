@@ -55,21 +55,18 @@ struct _mcd
 
 	void EraseBlock()
 	{
-		//DevCon.WriteLn("Memcard Erase (sectorAddr = %08X)", sectorAddr);
 		FileMcd_EraseBlock(port, slot, transferAddr);
 	}
 
 	// Read from memorycard to dest
 	void Read(u8 *dest, int size)
 	{
-		//DevCon.WriteLn("Memcard Read (sectorAddr = %08X)", sectorAddr);
 		FileMcd_Read(port, slot, dest, transferAddr, size);
 	}
 
 	// Write to memorycard from src
 	void Write(u8 *src, int size)
 	{
-		//DevCon.WriteLn("Memcard Write (sectorAddr = %08X)", sectorAddr);
 		FileMcd_Save(port, slot, src,transferAddr, size);
 	}
 
@@ -161,9 +158,6 @@ public:
 
 class Sio2
 {
-private:
-	void UpdateInputRecording(u8& dataIn, u8& dataOut);
-
 public:
 	std::array<u32, 16> send3;	// 0x1f808200 - 0x1f80823f
 	// SEND1 and SEND2 are an unusual bunch. It's not entirely clear just from

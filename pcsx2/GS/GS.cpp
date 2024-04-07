@@ -32,10 +32,8 @@
 #include "common/StringUtil.h"
 #include "pcsx2/Config.h"
 #include "pcsx2/Counters.h"
-#include "pcsx2/Frontend/ImGuiManager.h"
 #include "pcsx2/Host.h"
 #include "pcsx2/HostSettings.h"
-#include "pcsx2/Frontend/FullscreenUI.h"
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/GS.h"
 
@@ -64,9 +62,7 @@ static HRESULT s_hr = E_FAIL;
 
 #endif
 
-#ifdef __LIBRETRO__
 #include "Renderers/Null/GSDeviceNull.h"
-#endif
 
 #include <fstream>
 
@@ -85,33 +81,16 @@ int GSinit()
 
 	GSUtil::Init();
 
-#if defined(_WIN32) && !defined(__LIBRETRO__)
-	s_hr = ::CoInitializeEx(NULL, COINIT_MULTITHREADED);
-#endif
-
 	return 0;
 }
 
 void GSshutdown()
 {
 	GSclose();
-
-#if defined(_WIN32) && !defined(__LIBRETRO__)
-	if (SUCCEEDED(s_hr))
-	{
-		::CoUninitialize();
-
-		s_hr = E_FAIL;
-	}
-#endif
-
-	// ensure all screenshots have been saved
-	GSJoinSnapshotThreads();
 }
 
 static RenderAPI GetAPIForRenderer(GSRendererType renderer)
 {
-#ifdef __LIBRETRO__
 	switch(hw_render.context_type)
 	{
 	case RETRO_HW_CONTEXT_D3D11:
@@ -126,33 +105,6 @@ static RenderAPI GetAPIForRenderer(GSRendererType renderer)
 		break;
 	}
 	return RenderAPI::OpenGL;
-#else
-	switch (renderer)
-	{
-		case GSRendererType::OGL:
-		case GSRendererType::SW:
-			return RenderAPI::OpenGL;
-
-		case GSRendererType::VK:
-			return RenderAPI::Vulkan;
-
-#ifdef _WIN32
-		case GSRendererType::DX11:
-			return RenderAPI::D3D11;
-
-		case GSRendererType::DX12:
-			return RenderAPI::D3D12;
-#endif
-
-#ifdef __APPLE__
-		case GSRendererType::Metal:
-			return RenderAPI::Metal;
-#endif
-
-		default:
-			return GetAPIForRenderer(GSUtil::GetPreferredRenderer());
-	}
-#endif
 }
 
 static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool recreate_window)
@@ -184,31 +136,18 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 			g_gs_device = std::make_unique<GSDeviceVK>();
 			break;
 #endif
-#ifdef __LIBRETRO__
 		case RenderAPI::None:
 			g_gs_device = std::make_unique<GSDeviceNull>();
 		break;
-#endif
 		default:
 			Console.Error("Unsupported render API %s", GSDevice::RenderAPIToString(new_api));
 			return false;
 	}
 
 	bool okay = g_gs_device->Create();
-	if (okay)
-	{
-		okay = ImGuiManager::Initialize();
-		if (!okay)
-			Console.Error("Failed to initialize ImGuiManager");
-	}
-	else
-	{
-		Console.Error("Failed to create GS device");
-	}
 
 	if (!okay)
 	{
-		ImGuiManager::Shutdown(clear_state_on_fail);
 		g_gs_device->Destroy();
 		g_gs_device.reset();
 		Host::ReleaseRenderWindow();
@@ -228,7 +167,6 @@ static void CloseGSDevice(bool clear_state)
 	if (!g_gs_device)
 		return;
 
-	ImGuiManager::Shutdown(clear_state);
 	g_gs_device->Destroy();
 	g_gs_device.reset();
 }
@@ -595,7 +533,6 @@ void GSSetGameCRC(u32 crc)
 void GSResizeDisplayWindow(int width, int height, float scale)
 {
 	g_gs_device->ResizeWindow(width, height, scale);
-	ImGuiManager::WindowResized();
 }
 
 void GSUpdateDisplayWindow()
@@ -605,8 +542,6 @@ void GSUpdateDisplayWindow()
 		Host::ReportErrorAsync("Error", "Failed to change window after update. The log may contain more information.");
 		return;
 	}
-
-	ImGuiManager::WindowResized();
 }
 
 void GSSetVSyncMode(VsyncMode mode)
@@ -785,20 +720,6 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 	if (!g_gs_renderer)
 		return;
 
-
-	// Handle OSD scale changes by pushing a window resize through.
-#ifndef __LIBRETRO__
-	if (new_config.OsdScale != old_config.OsdScale)
-		ImGuiManager::WindowResized();
-
-	// Options which need a full teardown/recreate.
-	if (!GSConfig.RestartOptionsAreEqual(old_config))
-	{
-		if (!GSreopen(true, true, old_config))
-			pxFailRel("Failed to do full GS reopen");
-		return;
-	}
-#endif
 	// Options which aren't using the global struct yet, so we need to recreate all GS objects.
 	if (
 		GSConfig.SWExtraThreads != old_config.SWExtraThreads ||
@@ -932,10 +853,7 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 		}
 
 		if (okay)
-		{
-			DbgCon.WriteLn("fifo_alloc(): Mapped %zu repeats of %zu bytes at %p.", repeat, size, base);
 			return base;
-		}
 
 		VirtualFreeEx(GetCurrentProcess(), base, 0, MEM_RELEASE);
 	}
@@ -1015,156 +933,3 @@ void GSFreeWrappedMemory(void* ptr, size_t size, size_t repeat)
 }
 
 #endif
-
-static void HotkeyAdjustUpscaleMultiplier(s32 delta)
-{
-	const u32 new_multiplier = static_cast<u32>(std::clamp(static_cast<s32>(EmuConfig.GS.UpscaleMultiplier) + delta, 1, 8));
-	Host::AddKeyedFormattedOSDMessage("UpscaleMultiplierChanged", Host::OSD_QUICK_DURATION, "Upscale multiplier set to %ux.", new_multiplier);
-	EmuConfig.GS.UpscaleMultiplier = new_multiplier;
-
-	// this is pretty slow. we only really need to flush the TC and recompile shaders.
-	// TODO(Stenzek): Make it faster at some point in the future.
-	GetMTGS().ApplySettings();
-}
-
-BEGIN_HOTKEY_LIST(g_gs_hotkeys)
-	{"Screenshot", "Graphics", "Save Screenshot", [](s32 pressed) {
-		if (!pressed)
-		{
-			GetMTGS().RunOnGSThread([]() {
-				GSQueueSnapshot(std::string(), 0);
-			});
-		}
-	}},
-	{"ToggleVideoCapture", "Graphics", "Toggle Video Capture", [](s32 pressed) {
-		 if (!pressed)
-		 {
-			 if (GSCapture::IsCapturing())
-			 {
-				 GetMTGS().RunOnGSThread([]() { g_gs_renderer->EndCapture(); });
-				 GetMTGS().WaitGS(false, false, false);
-				 return;
-			 }
-
-			 GetMTGS().RunOnGSThread([]() {
-				 std::string filename(fmt::format("{}.{}", GSGetBaseVideoFilename(), GSConfig.CaptureContainer));
-				 g_gs_renderer->BeginCapture(std::move(filename));
-			 });
-
-			 // Sync GS thread. We want to start adding audio at the same time as video.
-			 GetMTGS().WaitGS(false, false, false);
-		 }
-	 }},
-	{"GSDumpSingleFrame", "Graphics", "Save Single Frame GS Dump", [](s32 pressed) {
-		if (!pressed)
-		{
-			GetMTGS().RunOnGSThread([]() {
-				GSQueueSnapshot(std::string(), 1);
-			});
-		}
-	}},
-	{"GSDumpMultiFrame", "Graphics", "Save Multi Frame GS Dump", [](s32 pressed) {
-		GetMTGS().RunOnGSThread([pressed]() {
-			if (pressed > 0)
-				GSQueueSnapshot(std::string(), std::numeric_limits<u32>::max());
-			else
-				GSStopGSDump();
-		});
-	}},
-	{"ToggleSoftwareRendering", "Graphics", "Toggle Software Rendering", [](s32 pressed) {
-		if (!pressed)
-			GetMTGS().ToggleSoftwareRendering();
-	}},
-	{"IncreaseUpscaleMultiplier", "Graphics", "Increase Upscale Multiplier", [](s32 pressed) {
-		 if (!pressed)
-			 HotkeyAdjustUpscaleMultiplier(1);
-	 }},
-	{"DecreaseUpscaleMultiplier", "Graphics", "Decrease Upscale Multiplier", [](s32 pressed) {
-		 if (!pressed)
-			 HotkeyAdjustUpscaleMultiplier(-1);
-	 }},
-	{"CycleAspectRatio", "Graphics", "Cycle Aspect Ratio", [](s32 pressed) {
-		 if (pressed)
-			 return;
-
-		 // technically this races, but the worst that'll happen is one frame uses the old AR.
-		 EmuConfig.CurrentAspectRatio = static_cast<AspectRatioType>((static_cast<int>(EmuConfig.CurrentAspectRatio) + 1) % static_cast<int>(AspectRatioType::MaxCount));
-		 Host::AddKeyedFormattedOSDMessage("CycleAspectRatio", Host::OSD_QUICK_DURATION, "Aspect ratio set to '%s'.", Pcsx2Config::GSOptions::AspectRatioNames[static_cast<int>(EmuConfig.CurrentAspectRatio)]);
-	 }},
-	{"CycleMipmapMode", "Graphics", "Cycle Hardware Mipmapping", [](s32 pressed) {
-		 if (pressed)
-			 return;
-
-		 static constexpr s32 CYCLE_COUNT = 4;
-		 static constexpr std::array<const char*, CYCLE_COUNT> option_names = {{"Automatic", "Off", "Basic (Generated)", "Full (PS2)"}};
-
-		 const HWMipmapLevel new_level = static_cast<HWMipmapLevel>(((static_cast<s32>(EmuConfig.GS.HWMipmap) + 2) % CYCLE_COUNT) - 1);
-		 Host::AddKeyedFormattedOSDMessage("CycleMipmapMode", Host::OSD_QUICK_DURATION, "Hardware mipmapping set to '%s'.", option_names[static_cast<s32>(new_level) + 1]);
-		 EmuConfig.GS.HWMipmap = new_level;
-
-		 GetMTGS().RunOnGSThread([new_level]() {
-			 GSConfig.HWMipmap = new_level;
-			 g_gs_renderer->PurgeTextureCache();
-			 g_gs_renderer->PurgePool();
-		 });
-	 }},
-	{"CycleInterlaceMode", "Graphics", "Cycle Deinterlace Mode", [](s32 pressed) {
-		 if (pressed)
-			 return;
-
-		 static constexpr std::array<const char*, static_cast<int>(GSInterlaceMode::Count)> option_names = {{
-			 "Automatic",
-			 "Off",
-			 "Weave (Top Field First)",
-			 "Weave (Bottom Field First)",
-			 "Bob (Top Field First)",
-			 "Bob (Bottom Field First)",
-			 "Blend (Top Field First)",
-			 "Blend (Bottom Field First)",
-			 "Adaptive (Top Field First)",
-			 "Adaptive (Bottom Field First)",
-		 }};
-
-		 const GSInterlaceMode new_mode = static_cast<GSInterlaceMode>((static_cast<s32>(EmuConfig.GS.InterlaceMode) + 1) % static_cast<s32>(GSInterlaceMode::Count));
-		 Host::AddKeyedFormattedOSDMessage("CycleInterlaceMode", Host::OSD_QUICK_DURATION, "Deinterlace mode set to '%s'.", option_names[static_cast<s32>(new_mode)]);
-		 EmuConfig.GS.InterlaceMode = new_mode;
-
-		 GetMTGS().RunOnGSThread([new_mode]() { GSConfig.InterlaceMode = new_mode; });
-	 }},
-	{"ToggleTextureDumping", "Graphics", "Toggle Texture Dumping", [](s32 pressed) {
-		 if (!pressed)
-		 {
-			 EmuConfig.GS.DumpReplaceableTextures = !EmuConfig.GS.DumpReplaceableTextures;
-			 Host::AddKeyedOSDMessage("ToggleTextureReplacements",
-				 EmuConfig.GS.DumpReplaceableTextures ? "Texture dumping is now enabled." : "Texture dumping is now disabled.",
-				 Host::OSD_INFO_DURATION);
-			 GetMTGS().ApplySettings();
-		 }
-	 }},
-	{"ToggleTextureReplacements", "Graphics", "Toggle Texture Replacements", [](s32 pressed) {
-		 if (!pressed)
-		 {
-			 EmuConfig.GS.LoadTextureReplacements = !EmuConfig.GS.LoadTextureReplacements;
-			 Host::AddKeyedOSDMessage("ToggleTextureReplacements",
-				 EmuConfig.GS.LoadTextureReplacements ? "Texture replacements are now enabled." : "Texture replacements are now disabled.",
-				 Host::OSD_INFO_DURATION);
-			 GetMTGS().ApplySettings();
-		 }
-	 }},
-	{"ReloadTextureReplacements", "Graphics", "Reload Texture Replacements", [](s32 pressed) {
-		 if (!pressed)
-		 {
-			 if (!EmuConfig.GS.LoadTextureReplacements)
-			 {
-				 Host::AddKeyedOSDMessage("ReloadTextureReplacements", "Texture replacements are not enabled.", Host::OSD_INFO_DURATION);
-			 }
-			 else
-			 {
-				 Host::AddKeyedOSDMessage("ReloadTextureReplacements", "Reloading texture replacements...", Host::OSD_INFO_DURATION);
-				 GetMTGS().RunOnGSThread([]() {
-					 GSTextureReplacements::ReloadReplacementMap();
-				 });
-			 }
-		 }
-	 }},
-END_HOTKEY_LIST()

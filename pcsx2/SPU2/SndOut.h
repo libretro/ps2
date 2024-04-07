@@ -27,22 +27,6 @@ static constexpr int SndOutPacketSize = 64;
 // is too problematic. :)
 extern int SampleRate;
 
-// Returns a null-terminated list of backends for the specified module.
-// nullptr is returned if the specified module does not have multiple backends.
-extern const char* const* GetOutputModuleBackends(const char* omodid);
-
-// Returns a list of output devices and their associated minimum latency.
-struct SndOutDeviceInfo
-{
-	std::string name;
-	std::string display_name;
-	u32 minimum_latency_frames;
-
-	SndOutDeviceInfo(std::string name_, std::string display_name_, u32 minimum_latency_);
-	~SndOutDeviceInfo();
-};
-std::vector<SndOutDeviceInfo> GetOutputDeviceList(const char* omodid, const char* driver);
-
 struct StereoOut16;
 
 struct Stereo51Out16DplII;
@@ -307,46 +291,4 @@ namespace SndBuffer
 	void Write(StereoOut16 Sample);
 	void ClearContents();
 	void ResetBuffers();
-
-	// Note: When using with 32 bit output buffers, the user of this function is responsible
-	// for shifting the values to where they need to be manually.  The fixed point depth of
-	// the sample output is determined by the SndOutVolumeShift, which is the number of bits
-	// to shift right to get a 16 bit result.
-	template <typename T>
-	void ReadSamples(T* bData, int nSamples = SndOutPacketSize);
 }
-
-class SndOutModule
-{
-public:
-	// Virtual destructor, because it helps fight C+++ funny-business.
-	virtual ~SndOutModule() {}
-
-	// Returns a unique identification string for this driver.
-	// (usually just matches the driver's cpp filename)
-	virtual const char* GetIdent() const = 0;
-
-	// Returns a null-terminated list of backends, or nullptr.
-	virtual const char* const* GetBackendNames() const = 0;
-
-	// Returns a list of output devices and their associated minimum latency.
-	virtual std::vector<SndOutDeviceInfo> GetOutputDeviceList(const char* driver) const = 0;
-
-	virtual bool Init() = 0;
-	virtual void Close() = 0;
-
-	// Temporarily pauses the stream, preventing it from requesting data.
-	virtual void SetPaused(bool paused) = 0;
-
-	// Returns the number of empty samples in the output buffer.
-	// (which is effectively the amount of data played since the last update)
-	virtual int GetEmptySampleCount() = 0;
-};
-
-#ifdef _WIN32
-extern SndOutModule* XAudio2Out;
-#endif
-#if defined(SPU2X_CUBEB)
-extern SndOutModule* CubebOut;
-#endif
-

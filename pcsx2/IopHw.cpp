@@ -49,7 +49,6 @@ __fi u8 psxHw4Read8(u32 add)
 {
 	u16 mem = add & 0xFF;
 	u8 ret = cdvdRead(mem);
-	PSXHW_LOG("HwRead8 from Cdvd [segment 0x1f40], addr 0x%02x = 0x%02x", mem, ret);
 	return ret;
 }
 
@@ -57,7 +56,6 @@ __fi void psxHw4Write8(u32 add, u8 value)
 {
 	u8 mem = (u8)add;	// only lower 8 bits are relevant (cdvd regs mirror across the page)
 	cdvdWrite(mem, value);
-	PSXHW_LOG("HwWrite8 to Cdvd [segment 0x1f40], addr 0x%02x = 0x%02x", mem, value);
 }
 
 void psxDmaInterrupt(int n)

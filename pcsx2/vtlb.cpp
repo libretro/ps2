@@ -47,9 +47,6 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#define FASTMEM_LOG(...)
-//#define FASTMEM_LOG(...) Console.WriteLn(__VA_ARGS__)
-
 using namespace R5900;
 using namespace vtlb_private;
 
@@ -129,10 +126,7 @@ __inline int CheckCache(u32 addr)
 	u32 mask;
 
 	if (((cpuRegs.CP0.n.Config >> 16) & 0x1) == 0)
-	{
-		//DevCon.Warning("Data Cache Disabled! %x", cpuRegs.CP0.n.Config);
-		return false; //
-	}
+		return false;
 
 	for (int i = 1; i < 48; i++)
 	{
@@ -141,20 +135,14 @@ __inline int CheckCache(u32 addr)
 			mask = tlb[i].PageMask;
 
 			if ((addr >= tlb[i].PFN1) && (addr <= tlb[i].PFN1 + mask))
-			{
-				//DevCon.Warning("Yay! Cache check cache addr=%x, mask=%x, addr+mask=%x, VPN2=%x PFN0=%x", addr, mask, (addr & mask), tlb[i].VPN2, tlb[i].PFN0);
 				return true;
-			}
 		}
 		if (((tlb[i].EntryLo0 & 0x38) >> 3) == 0x3)
 		{
 			mask = tlb[i].PageMask;
 
 			if ((addr >= tlb[i].PFN0) && (addr <= tlb[i].PFN0 + mask))
-			{
-				//DevCon.Warning("Yay! Cache check cache addr=%x, mask=%x, addr+mask=%x, VPN2=%x PFN0=%x", addr, mask, (addr & mask), tlb[i].VPN2, tlb[i].PFN0);
 				return true;
-			}
 		}
 	}
 	return false;
@@ -376,16 +364,6 @@ template bool vtlb_ramWrite<mem128_t>(u32 mem, const mem128_t& data);
 
 static void GoemonTlbMissDebug()
 {
-	// 0x3d5580 is the address of the TLB cache
-	GoemonTlb* tlb = (GoemonTlb*)&eeMem->Main[0x3d5580];
-
-	for (u32 i = 0; i < 150; i++)
-	{
-		if (tlb[i].valid == 0x1 && tlb[i].low_add != tlb[i].high_add)
-			DevCon.WriteLn("GoemonTlbMissDebug: Entry %d is valid. Key %x. From V:0x%8.8x to V:0x%8.8x (P:0x%8.8x)", i, tlb[i].key, tlb[i].low_add, tlb[i].high_add, tlb[i].physical_add);
-		else if (tlb[i].low_add != tlb[i].high_add)
-			DevCon.WriteLn("GoemonTlbMissDebug: Entry %d is invalid. Key %x. From V:0x%8.8x to V:0x%8.8x (P:0x%8.8x)", i, tlb[i].key, tlb[i].low_add, tlb[i].high_add, tlb[i].physical_add);
-	}
 }
 
 void GoemonPreloadTlb()
@@ -407,7 +385,6 @@ void GoemonPreloadTlb()
 			auto vmv = vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS];
 			if (vmv.isHandler(vaddr) && vmv.assumeHandlerGetID() == 0)
 			{
-				DevCon.WriteLn("GoemonPreloadTlb: Entry %d. Key %x. From V:0x%8.8x to P:0x%8.8x (%d pages)", i, tlb[i].key, vaddr, paddr, size >> VTLB_PAGE_BITS);
 				vtlb_VMap(vaddr, paddr, size);
 				vtlb_VMap(0x20000000 | vaddr, paddr, size);
 			}
@@ -427,7 +404,6 @@ void GoemonUnloadTlb(u32 key)
 			{
 				u32 size = tlb[i].high_add - tlb[i].low_add;
 				u32 vaddr = tlb[i].low_add;
-				DevCon.WriteLn("GoemonUnloadTlb: Entry %d. Key %x. From V:0x%8.8x to V:0x%8.8x (%d pages)", i, tlb[i].key, vaddr, vaddr + size, size >> VTLB_PAGE_BITS);
 
 				vtlb_VMapUnmap(vaddr, size);
 				vtlb_VMapUnmap(0x20000000 | vaddr, size);
@@ -438,10 +414,6 @@ void GoemonUnloadTlb(u32 key)
 				tlb[i].key = 0xFEFEFEFE;
 				tlb[i].low_add = 0xFEFEFEFE;
 				tlb[i].high_add = 0xFEFEFEFE;
-			}
-			else
-			{
-				DevCon.Error("GoemonUnloadTlb: Entry %d is not valid. Key %x", i, tlb[i].key);
 			}
 		}
 	}
@@ -477,7 +449,7 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 	}
 
 	static int spamStop = 0;
-	if (spamStop++ < 50 || IsDevBuild)
+	if (spamStop++ < 50)
 		Console.Error(message);
 }
 
@@ -832,8 +804,6 @@ static bool vtlb_GetMainMemoryOffset(u32 paddr, u32* mainmem_offset, u32* mainme
 
 static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageProtectionMode& mode)
 {
-	FASTMEM_LOG("Create fastmem mapping @ vaddr %08X mainmem %08X", vaddr, mainmem_offset);
-
 	const u32 page = vaddr / VTLB_PAGE_SIZE;
 
 	if (s_fastmem_virtual_mapping[page] == mainmem_offset)
@@ -887,7 +857,6 @@ static void vtlb_RemoveFastmemMapping(u32 vaddr)
 
 	const u32 mainmem_offset = s_fastmem_virtual_mapping[page];
 	const bool was_coalesced = vtlb_IsHostCoalesced(page);
-	FASTMEM_LOG("Remove fastmem mapping @ vaddr %08X mainmem %08X", vaddr, mainmem_offset);
 	s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
 
 	if (was_coalesced && !s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize))
@@ -947,17 +916,12 @@ bool vtlb_ResolveFastmemMapping(uptr* addr)
 		return false;
 
 	const u32 vaddr = static_cast<u32>(uaddr - fastmem_start);
-	FASTMEM_LOG("Trying to resolve %p (vaddr %08X)", (void*)uaddr, vaddr);
 
 	const u32 vpage = vaddr / VTLB_PAGE_SIZE;
 	if (s_fastmem_virtual_mapping[vpage] == NO_FASTMEM_MAPPING)
-	{
-		FASTMEM_LOG("%08X is not virtual mapped", vaddr);
 		return false;
-	}
 
 	const u32 mainmem_offset = s_fastmem_virtual_mapping[vpage] + (vaddr & VTLB_PAGE_MASK);
-	FASTMEM_LOG("Resolved %p (vaddr %08X) to mainmem offset %08X", uaddr, vaddr, mainmem_offset);
 	*addr = ((uptr)GetVmMemory().MainMemory()->GetBase()) + mainmem_offset;
 	return true;
 }
@@ -986,8 +950,6 @@ void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode&
 	if (!vtlb_GetMainMemoryOffset(paddr, &mainmem_start, &mainmem_size, &old_prot))
 		return;
 
-	FASTMEM_LOG("UpdateFastmemProtection %08X mmoffset %08X %08X", paddr, mainmem_start, size);
-
 	u32 current_mainmem = mainmem_start;
 	const u32 num_pages = std::min(size, mainmem_size) / VTLB_PAGE_SIZE;
 	for (u32 i = 0; i < num_pages; i++, current_mainmem += VTLB_PAGE_SIZE)
@@ -996,8 +958,6 @@ void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode&
 		auto range = s_fastmem_physical_mapping.equal_range(current_mainmem);
 		for (auto it = range.first; it != range.second; ++it)
 		{
-			FASTMEM_LOG("  valias %08X (size %u)", it->second, VTLB_PAGE_SIZE);
-
 			if (vtlb_IsHostAligned(it->second))
 				HostSys::MemProtect(s_fastmem_area->OffsetPointer(it->second), __pagesize, prot);
 		}
@@ -1203,8 +1163,6 @@ void vtlb_Shutdown()
 
 void vtlb_ResetFastmem()
 {
-	DevCon.WriteLn("Resetting fastmem mappings...");
-
 	vtlb_RemoveFastmemMappings();
 	s_fastmem_backpatch_info.clear();
 	s_fastmem_faulting_pcs.clear();
@@ -1438,11 +1396,6 @@ void mmap_MarkCountedRamPage(u32 paddr)
 	if (m_PageProtectInfo[rampage].Mode == ProtMode_Write)
 		return; // skip town if we're already protected.
 
-	eeRecPerfLog.Write((m_PageProtectInfo[rampage].Mode == ProtMode_Manual) ?
-						   "Re-protecting page @ 0x%05x" :
-						   "Protected page @ 0x%05x",
-		paddr >> __pageshift);
-
 	m_PageProtectInfo[rampage].Mode = ProtMode_Write;
 	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, PageAccess_ReadOnly());
 	vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadOnly());
@@ -1510,7 +1463,6 @@ bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 //  (this function is called by default from the eerecReset).
 void mmap_ResetBlockTracking()
 {
-	//DbgCon.WriteLn( "vtlb/mmap: Block Tracking reset..." );
 	memzero(m_PageProtectInfo);
 	if (eeMem)
 		HostSys::MemProtect(eeMem->Main, Ps2MemSize::MainRam, PageAccess_ReadWrite());

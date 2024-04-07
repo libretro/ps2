@@ -89,15 +89,10 @@ namespace PAD
 	void LoadConfig(const SettingsInterface& si);
 
 	/// Restores default configuration.
-	void SetDefaultControllerConfig(SettingsInterface& si);
 	void SetDefaultHotkeyConfig(SettingsInterface& si);
 
 	/// Clears all bindings for a given port.
 	void ClearPortBindings(SettingsInterface& si, u32 port);
-
-	/// Copies pad configuration from one interface (ini) to another.
-	void CopyConfiguration(SettingsInterface* dest_si, const SettingsInterface& src_si,
-		bool copy_pad_config = true, bool copy_pad_bindings = true, bool copy_hotkey_bindings = true);
 
 	/// Updates vibration and other internal state. Called at the *end* of a frame.
 	void Update();

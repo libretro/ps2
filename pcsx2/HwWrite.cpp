@@ -21,7 +21,6 @@
 #include "IopMem.h"
 
 #include "ps2/HwInternal.h"
-#include "ps2/eeHwTraceLog.inl"
 
 #include "ps2/pgif.h"
 #include "SPU2/spu2.h"
@@ -52,10 +51,6 @@ void _hwWrite32( u32 mem, u32 value )
 	// All unknown registers on the EE are "reserved" as discarded writes and indeterminate
 	// reads.  Bus error is only generated for registers outside the first 16k of mapped
 	// register space (which is handled by the VTLB mapping, so no need for checks here).
-#if PSX_EXTRALOGS
-	if ((mem & 0x1000ff00) == 0x1000f300) DevCon.Warning("32bit Write to SIF Register %x value %x", mem, value);
-	//if ((mem & 0x1000ff00) == 0x1000f200) DevCon.Warning("Write to SIF Register %x value %x", mem, value);
-#endif
 
 	switch (page)
 	{
@@ -103,9 +98,7 @@ void _hwWrite32( u32 mem, u32 value )
 					// Not exactly sure what RST needs to do
 					gifRegs.ctrl.write(value & 9);
 					if (gifRegs.ctrl.RST) {
-						GUNIT_LOG("GIF CTRL - Reset");
 						gifUnit.Reset(true); // Should it reset gsSIGNAL?
-						//gifUnit.ResetRegs();
 					}
 					gifRegs.stat.PSE = gifRegs.ctrl.PSE;
 					return;
@@ -117,7 +110,6 @@ void _hwWrite32( u32 mem, u32 value )
 					//Need to kickstart the GIF if the M3R mask comes off
 					if (gifRegs.stat.M3R == 1 && gifRegs.mode.M3R == 0 && (gifch.chcr.STR || gif_fifo.fifoSize))
 					{
-						DevCon.Warning("GIF Mode cancelling P3 Disable");
 						CPU_INT(DMAC_GIF, 8);
 					}
 
@@ -199,43 +191,8 @@ void _hwWrite32( u32 mem, u32 value )
 				return;
 
 				mcase(SBUS_F260):
-#if PSX_EXTRALOGS
-					DevCon.Warning("Write  SBUS_F260  %x ", psHu32(SBUS_F260));
-#endif
 					psHu32(mem) = value;
 				return;
-
-				// TODO: psx handling is done in the default case. Keep the code until we decide if we decide which interface to use (sif2/Pgif dma)
-#if 0
-				mcase(SBUS_F300) :
-					psxHu32(0x1f801814) = value;
-				/*
-				if (sif2.fifo.size == 0) psxHu32(0x1f801814) |= 0x4000000;
-				switch ((psxHu32(HW_PS1_GPU_STATUS) >> 29) & 0x3)
-					{
-					case 0x0:
-						//DevCon.Warning("Set DMA Mode OFF");
-						psxHu32(HW_PS1_GPU_STATUS) &= ~0x2000000;
-						break;
-					case 0x1:
-						//DevCon.Warning("Set DMA Mode FIFO");
-						psxHu32(HW_PS1_GPU_STATUS) |= 0x2000000;
-						break;
-					case 0x2:
-						//DevCon.Warning("Set DMA Mode CPU->GPU");
-						psxHu32(HW_PS1_GPU_STATUS) = (psxHu32(HW_PS1_GPU_STATUS) & ~0x2000000) | ((psxHu32(HW_PS1_GPU_STATUS) & 0x10000000) >> 3);
-						break;
-					case 0x3:
-						//DevCon.Warning("Set DMA Mode GPUREAD->CPU");
-						psxHu32(HW_PS1_GPU_STATUS) = (psxHu32(HW_PS1_GPU_STATUS) & ~0x2000000) | ((psxHu32(HW_PS1_GPU_STATUS) & 0x8000000) >> 2);
-						break;
-					}*/
-					//psHu32(mem) = 0;
-				return;
-				mcase(SBUS_F380) :
-					psHu32(mem) = value;
-				return;
-#endif
 
 				mcase(MCH_RICM)://MCH_RICM: x:4|SA:12|x:5|SDEV:1|SOP:4|SBC:1|SDEV:5
 					if ((((value >> 16) & 0xFFF) == 0x21) && (((value >> 6) & 0xF) == 1) && (((psHu32(0xf440) >> 7) & 1) == 0))//INIT & SRP=0
@@ -256,7 +213,6 @@ void _hwWrite32( u32 mem, u32 value )
 					// TODO: psx add the real address in a sbus mcase
 					if (((mem & 0x1FFFFFFF) >= EEMemoryMap::SBUS_PS1_Start) && ((mem & 0x1FFFFFFF) < EEMemoryMap::SBUS_PS1_End)) {
 						// Tharr be console spam here! Need to figure out how to print what mode
-						//pgifConLog(L"Pgif DMA: set mode");.
 						PGIFw((mem & 0x1FFFFFFF), value);
 						return;
 					}
@@ -277,7 +233,6 @@ void _hwWrite32( u32 mem, u32 value )
 template<uint page>
 void hwWrite32( u32 mem, u32 value )
 {
-	eeHwTraceLog( mem, value, false );
 	_hwWrite32<page>( mem, value );
 }
 
@@ -288,9 +243,6 @@ void hwWrite32( u32 mem, u32 value )
 template< uint page >
 void _hwWrite8(u32 mem, u8 value)
 {
-#if PSX_EXTRALOGS
-	if ((mem & 0x1000ff00) == 0x1000f300) DevCon.Warning("8bit Write to SIF Register %x value %x wibble", mem, value);
-#endif
 	if (mem == SIO_TXFIFO)
 	{
 		static bool included_newline = false;
@@ -311,7 +263,6 @@ void _hwWrite8(u32 mem, u8 value)
 		if ((sio_count == std::size(sio_buffer)-1) || (sio_count != 0 && sio_buffer[sio_count-1] == '\n'))
 		{
 			sio_buffer[sio_count] = 0;
-			eeConLog( ShiftJIS_ConvertString(sio_buffer) );
 			sio_count = 0;
 		}
 		return;
@@ -323,7 +274,6 @@ void _hwWrite8(u32 mem, u8 value)
 		case INTC_STAT:
 		case INTC_MASK:
 		case DMAC_FAKESTAT:
-			DevCon.Warning ( "8bit write mem = %x value %x", mem, value );
 			_hwWrite32<page>(mem & ~3, (u32)value << (mem & 3) * 8);
 			return;
 	}
@@ -337,7 +287,6 @@ void _hwWrite8(u32 mem, u8 value)
 template< uint page >
 void hwWrite8(u32 mem, u8 value)
 {
-	eeHwTraceLog( mem, value, false );
 	_hwWrite8<page>(mem, value);
 }
 
@@ -345,16 +294,12 @@ template< uint page >
 void _hwWrite16(u32 mem, u16 value)
 {
 	pxAssume( (mem & 0x01) == 0 );
-#if PSX_EXTRALOGS
-	if ((mem & 0x1000ff00) == 0x1000f300) DevCon.Warning("16bit Write to SIF Register %x wibble", mem);
-#endif
 	switch(mem & ~3)
 	{
 		case DMAC_STAT:
 		case INTC_STAT:
 		case INTC_MASK:
 		case DMAC_FAKESTAT:
-			DevCon.Warning ( "16bit write mem = %x value %x", mem, value );
 			_hwWrite32<page>(mem & ~3, (u32)value << (mem & 3) * 8);
 			return;
 	}
@@ -368,7 +313,6 @@ void _hwWrite16(u32 mem, u16 value)
 template< uint page >
 void hwWrite16(u32 mem, u16 value)
 {
-	eeHwTraceLog( mem, value, false );
 	_hwWrite16<page>(mem, value);
 }
 
@@ -381,9 +325,6 @@ void _hwWrite64( u32 mem, u64 value )
 	// * FIFOs have 128 bit registers that are probably zero-fill.
 	// * All other registers likely disregard the upper 32-bits and simply act as normal
 	//   32-bit writes.
-#if PSX_EXTRALOGS
-	if ((mem & 0x1000ff00) == 0x1000f300) DevCon.Warning("64bit Write to SIF Register %x wibble", mem);
-#endif
 	switch (page)
 	{
 		case 0x02:
@@ -414,7 +355,6 @@ void _hwWrite64( u32 mem, u64 value )
 template<uint page>
 void hwWrite64( u32 mem, mem64_t value )
 {
-	eeHwTraceLog( mem, value, false );
 	_hwWrite64<page>(mem, value);
 }
 
@@ -426,9 +366,6 @@ void TAKES_R128 _hwWrite128(u32 mem, r128 srcval)
 	// FIFOs are the only "legal" 128 bit registers.  Handle them first.
 	// all other registers fall back on the 64-bit handler (and from there
 	// most of them fall back to the 32-bit handler).
-#if PSX_EXTRALOGS
-	if ((mem & 0x1000ff00) == 0x1000f300) DevCon.Warning("128bit Write to SIF Register %x wibble", mem);
-#endif
 
 	switch (page)
 	{
@@ -490,7 +427,6 @@ void TAKES_R128 _hwWrite128(u32 mem, r128 srcval)
 template< uint page >
 void TAKES_R128 hwWrite128(u32 mem, r128 srcval)
 {
-	eeHwTraceLog( mem, srcval, false );
 	_hwWrite128<page>(mem, srcval);
 }
 

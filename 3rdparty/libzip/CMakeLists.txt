@@ -10,11 +10,6 @@ set(ENABLE_BZIP2 OFF CACHE BOOL "")
 set(ENABLE_LZMA OFF CACHE BOOL "")
 set(ENABLE_ZSTD ON CACHE BOOL "")
 
-set(BUILD_TOOLS OFF CACHE BOOL "")
-set(BUILD_REGRESS OFF CACHE BOOL "")
-set(BUILD_EXAMPLES OFF CACHE BOOL "")
-set(BUILD_DOC OFF CACHE BOOL "")
-
 if(WIN32)
 	# Needed otherwise find_package() will look in the system.
 	set(ZLIB_FOUND TRUE)

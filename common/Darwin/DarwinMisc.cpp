@@ -99,20 +99,6 @@ std::string GetOSVersionString()
 
 static IOPMAssertionID s_pm_assertion;
 
-bool WindowInfo::InhibitScreensaver(const WindowInfo& wi, bool inhibit)
-{
-	if (s_pm_assertion)
-	{
-		IOPMAssertionRelease(s_pm_assertion);
-		s_pm_assertion = 0;
-	}
-
-	if (inhibit)
-		IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleDisplaySleep, kIOPMAssertionLevelOn, CFSTR("Playing a game"), &s_pm_assertion);
-
-	return true;
-}
-
 void Threading::Sleep(int ms)
 {
 	usleep(1000 * ms);

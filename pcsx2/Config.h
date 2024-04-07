@@ -221,14 +221,6 @@ enum class MemoryCardFileType
 	MaxCount
 };
 
-enum class LimiterModeType : u8
-{
-	Nominal,
-	Turbo,
-	Slomo,
-	Unlimited,
-};
-
 enum class GSRendererType : s8
 {
 	Auto = -1,
@@ -1203,37 +1195,6 @@ struct Pcsx2Config
 
 	// ------------------------------------------------------------------------
 
-#ifdef ENABLE_ACHIEVEMENTS
-	struct AchievementsOptions
-	{
-		BITFIELD32()
-		bool
-			Enabled : 1,
-			TestMode : 1,
-			UnofficialTestMode : 1,
-			RichPresence : 1,
-			ChallengeMode : 1,
-			Leaderboards : 1,
-			Notifications : 1,
-			SoundEffects : 1,
-			PrimedIndicators : 1;
-		BITFIELD_END
-
-		AchievementsOptions();
-		void LoadSave(SettingsWrapper& wrap);
-
-		bool operator==(const AchievementsOptions& right) const
-		{
-			return OpEqu(bitset);
-		}
-
-		bool operator!=(const AchievementsOptions& right) const
-		{
-			return !this->operator==(right);
-		}
-	};
-#endif
-
 	// ------------------------------------------------------------------------
 
 	BITFIELD32()
@@ -1243,7 +1204,6 @@ struct Pcsx2Config
 		CdvdShareWrite : 1, // allows the iso to be modified while it's loaded
 		EnablePatches : 1, // enables patch detection and application
 		EnableCheats : 1, // enables cheat detection and application
-		EnablePINE : 1, // enables inter-process communication
 		EnableWideScreenPatches : 1,
 		EnableNoInterlacingPatches : 1,
 		// TODO - Vaser - where are these settings exposed in the Qt UI?
@@ -1251,7 +1211,6 @@ struct Pcsx2Config
 		EnableGameFixes : 1, // enables automatic game fixes
 		SaveStateOnShutdown : 1, // default value for saving state on shutdown
 		EnableDiscordPresence : 1, // enables discord rich presence integration
-		InhibitScreensaver : 1,
 		// when enabled uses BOOT2 injection, skipping sony bios splashes
 		UseBOOT2Injection : 1,
 		BackupSavestate : 1,
@@ -1283,17 +1242,13 @@ struct Pcsx2Config
 	FramerateOptions Framerate;
 	SPU2Options SPU2;
 	DEV9Options DEV9;
-#ifndef __LIBRETRO__
+#if 0
 	USBOptions USB;
 #endif
 
 	TraceLogFilters Trace;
 
 	FilenameOptions BaseFilenames;
-
-#ifdef ENABLE_ACHIEVEMENTS
-	AchievementsOptions Achievements;
-#endif
 
 	// Memorycard options - first 2 are default slots, last 6 are multitap 1 and 2
 	// slots (3 each)
@@ -1305,7 +1260,6 @@ struct Pcsx2Config
 	std::string CurrentIRX;
 	std::string CurrentGameArgs;
 	AspectRatioType CurrentAspectRatio = AspectRatioType::RAuto4_3_3_2;
-	LimiterModeType LimiterMode = LimiterModeType::Nominal;
 
 	Pcsx2Config();
 	void LoadSave(SettingsWrapper& wrap);
@@ -1427,7 +1381,3 @@ namespace EmuFolders
 #endif
 
 #define EE_CONST_PROP 1 // rec2 - enables constant propagation (faster)
-
-// Change to 1 for console logs of SIF, GPU (PS1 mode) and MDEC (PS1 mode).
-// These do spam a lot though!
-#define PSX_EXTRALOGS 0

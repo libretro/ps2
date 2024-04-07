@@ -34,9 +34,6 @@ namespace CommonHost
 	/// Initializes critical folders (AppRoot, DataRoot, Settings). Call once on startup.
 	bool InitializeCriticalFolders();
 
-	/// Checks settings version. Call once on startup. If it returns false, you should prompt the user to reset.
-	bool CheckSettingsVersion();
-
 	/// Loads early settings. Call once on startup.
 	void LoadStartupSettings();
 
@@ -76,18 +73,4 @@ namespace CommonHost
 
 	/// Provided by the host; called once per frame at guest vsync.
 	void CPUThreadVSync();
-
-	/// Returns the time elapsed in the current play session.
-	u64 GetSessionPlayedTime();
-
-#ifdef ENABLE_DISCORD_PRESENCE
-	/// Called when the rich presence string, provided by RetroAchievements, changes.
-	void UpdateDiscordPresence(const std::string& rich_presence);
-#endif
-
-	namespace Internal
-	{
-		/// Resets any state for hotkey-related VMs, called on VM startup.
-		void ResetVMHotkeyState();
-	} // namespace Internal
 } // namespace CommonHost

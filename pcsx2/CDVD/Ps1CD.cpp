@@ -146,7 +146,6 @@ static __fi void StartReading(u32 type)
 	cdr.StatP &= ~STATUS_ERROR;
 	cdr.FirstSector = 1;
 	cdr.Readed = 0xff;
-	//DevCon.Warning("ReadN/ReadS delay: %d", sectorSeekReadDelay);
 	AddIrqQueue(READ_ACK, sectorSeekReadDelay);
 	sectorSeekReadDelay = shortSectorSeekReadDelay;
 }
@@ -181,10 +180,6 @@ static void ReadTrack()
 	cdr.Prev[0] = itob(cdr.SetSector[0]);
 	cdr.Prev[1] = itob(cdr.SetSector[1]);
 	cdr.Prev[2] = itob(cdr.SetSector[2]);
-
-	CDVD_LOG("KEY *** %x:%x:%x", cdr.Prev[0], cdr.Prev[1], cdr.Prev[2]);
-	if (EmuConfig.CdvdVerboseReads)
-		DevCon.WriteLn("CD Read Sector %x", msf_to_lsn(cdr.SetSector));
 	cdr.RErr = DoCDVDreadTrack(msf_to_lsn(cdr.SetSector), CDVD_MODE_2340);
 }
 
@@ -554,8 +549,6 @@ void cdrInterrupt()
 
 	if (cdr.Stat != NoIntr && cdr.Reg2 != 0x18)
 		psxHu32(0x1070) |= 0x4;
-
-	CDVD_LOG("Cdr Interrupt %x\n", Irq);
 }
 
 void cdrReadInterrupt()
@@ -569,8 +562,6 @@ void cdrReadInterrupt()
 		CDREAD_INT(0x800 * 4); // * 4 reduces dma3 errors lots here
 		return;
 	}
-
-	CDVD_LOG("KEY END");
 
 	cdr.OCUP = 1;
 	SetResultSize(1);
@@ -590,7 +581,6 @@ void cdrReadInterrupt()
 
 	if (cdr.RErr == -1)
 	{
-		DevCon.Warning("CD err");
 		memzero(cdr.Transfer);
 		cdr.Stat = DiskError;
 		cdr.StatP |= STATUS_ERROR;
@@ -601,8 +591,6 @@ void cdrReadInterrupt()
 	}
 
 	cdr.Stat = DataReady;
-
-	CDVD_LOG(" %x:%x:%x", cdr.Transfer[0], cdr.Transfer[1], cdr.Transfer[2]);
 
 	cdr.SetSector[2]++;
 
@@ -621,13 +609,11 @@ void cdrReadInterrupt()
 
 	if ((cdr.Transfer[4 + 2] & 0x80) && (cdr.Mode & 0x2))
 	{ // EOF
-		DevCon.Warning("CD AutoPausing Read");
 		AddIrqQueue(CdlPause, 0x800);
 	}
 	else
 	{
 		ReadTrack();
-		//DevCon.Warning("normal: %d",cdReadTime);
 		CDREAD_INT((cdr.Mode & 0x80) ? (cdReadTime / 2) : cdReadTime);
 	}
 
@@ -662,7 +648,6 @@ u8 cdrRead0(void)
 	// what means the 0x10 and the 0x08 bits? i only saw it used by the bios
 	cdr.Ctrl |= 0x18;
 
-	CDVD_LOG("CD0 Read: %x", cdr.Ctrl);
 	return psxHu8(0x1800) = cdr.Ctrl;
 }
 
@@ -673,8 +658,6 @@ cdrWrite0:
 
 void cdrWrite0(u8 rt)
 {
-	CDVD_LOG("CD0 write: %x", rt);
-
 	cdr.Ctrl = rt | (cdr.Ctrl & ~0x3);
 
 	if (rt == 0)
@@ -703,7 +686,6 @@ u8 cdrRead1(void)
 	else
 		psxHu8(0x1801) = 0;
 
-	CDVD_LOG("CD1 Read: %x", psxHu8(0x1801));
 	return psxHu8(0x1801);
 }
 
@@ -711,23 +693,8 @@ void cdrWrite1(u8 rt)
 {
 	int i;
 
-	CDVD_LOG("CD1 write: %x (%s)", rt, CmdName[rt]);
 	cdr.Cmd = rt;
 	cdr.OCUP = 0;
-
-//#define CDRCMD_DEBUG
-#ifdef CDRCMD_DEBUG
-	DevCon.Warning("CD1 write: %x (%s)", rt, CmdName[rt]);
-	if (cdr.ParamC)
-	{
-		DevCon.Warning(" Param[%d] = {", cdr.ParamC);
-		for (i = 0; i < cdr.ParamC; i++)
-			DevCon.Warning(" %x,", cdr.Param[i]);
-		DevCon.Warning("}\n");
-	}
-	else
-		DevCon.Warning("\n");
-#endif
 
 	if (cdr.Ctrl & 0x1)
 		return;
@@ -766,7 +733,6 @@ void cdrWrite1(u8 rt)
 			sectorSeekReadDelay = abs(newSector - oldSector) * 100;
 			if (sectorSeekReadDelay < shortSectorSeekReadDelay)
 				sectorSeekReadDelay = shortSectorSeekReadDelay;
-			//DevCon.Warning("CdlSetloc sectorSeekReadDelay: %d", sectorSeekReadDelay);
 
 			cdr.Ctrl |= 0x80;
 			cdr.Stat = NoIntr;
@@ -866,7 +832,6 @@ void cdrWrite1(u8 rt)
 			break;
 
 		case CdlSetmode:
-			CDVD_LOG("Setmode %x", cdr.Param[0]);
 			cdr.Mode = cdr.Param[0];
 			cdr.Ctrl |= 0x80;
 			cdr.Stat = NoIntr;
@@ -915,7 +880,6 @@ void cdrWrite1(u8 rt)
 			cdr.Ctrl |= 0x80;
 			cdr.Stat = NoIntr;
 
-			//DevCon.Warning("CdlSeekL delay: %d", sectorSeekReadDelay);
 			AddIrqQueue(cdr.Cmd, sectorSeekReadDelay);
 			sectorSeekReadDelay = shortSectorSeekReadDelay;
 			break;
@@ -925,7 +889,6 @@ void cdrWrite1(u8 rt)
 			cdr.Ctrl |= 0x80;
 			cdr.Stat = NoIntr;
 
-			//DevCon.Warning("CdlSeekP delay: %d", sectorSeekReadDelay);
 			AddIrqQueue(cdr.Cmd, sectorSeekReadDelay);
 			sectorSeekReadDelay = shortSectorSeekReadDelay;
 			break;
@@ -957,7 +920,6 @@ void cdrWrite1(u8 rt)
 			break;
 
 		default:
-			DevCon.Warning("Unknown CD Cmd: %x\n", cdr.Cmd);
 			return;
 	}
 	if (cdr.Stat != NoIntr)
@@ -969,22 +931,15 @@ u8 cdrRead2(void)
 	u8 ret;
 
 	if (cdr.Readed == 0)
-	{
-		ret = 0;
-	}
-	else
-	{
-		ret = *cdr.pTransfer++;
-	}
+		return 0;
 
-	CDVD_LOG("CD2 Read: %x", ret);
+	ret = *cdr.pTransfer++;
+
 	return ret;
 }
 
 void cdrWrite2(u8 rt)
 {
-	CDVD_LOG("CD2 write: %x", rt);
-
 	if (cdr.Ctrl & 0x1)
 	{
 		switch (rt)
@@ -1023,14 +978,11 @@ u8 cdrRead3(void)
 	else
 		psxHu8(0x1803) = 0;
 
-	CDVD_LOG("CD3 Read: %x", psxHu8(0x1803));
 	return psxHu8(0x1803);
 }
 
 void cdrWrite3(u8 rt)
 {
-	CDVD_LOG("CD3 write: %x", rt);
-
 	if (rt == 0x07 && cdr.Ctrl & 0x1)
 	{
 		cdr.Stat = 0;
@@ -1068,17 +1020,12 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr)
 {
 	u32 cdsize;
 
-	CDVD_LOG("*** DMA 3 *** %lx addr = %lx size = %lx", chcr, madr, bcr);
-
 	switch (chcr)
 	{
 		case 0x11000000:
 		case 0x11400100:
 			if (cdr.Readed == 0)
-			{
-				DevCon.Warning("*** DMA 3 *** NOT READY");
 				break;
-			}
 
 			cdsize = (bcr & 0xffff) * 4;
 			memcpy(iopPhysMem(madr), cdr.pTransfer, cdsize);
@@ -1094,11 +1041,9 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr)
 			{
 				PSX_INT(IopEvt_CdvdRead, (cdvd.BlockSize / 4) * 12); //Data should be already buffered so simulate DMA time
 			}
-			//SysPrintf("unhandled cdrom dma3: madr: %x, bcr: %x, chcr %x\n", madr, bcr, chcr);
 			return;
 
 		default:
-			CDVD_LOG("Unknown cddma %lx", chcr);
 			break;
 	}
 	HW_DMA3_CHCR &= ~0x01000000;

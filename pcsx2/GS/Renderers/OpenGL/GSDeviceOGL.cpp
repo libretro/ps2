@@ -25,9 +25,6 @@
 
 #include "common/StringUtil.h"
 
-#include "imgui.h"
-#include "IconsFontAwesome5.h"
-
 #include <cinttypes>
 #include <fstream>
 #include <sstream>
@@ -170,7 +167,7 @@ bool GSDeviceOGL::Create()
 	{
 		GLint max_vertex_ssbos = 0;
 		glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &max_vertex_ssbos);
-		DevCon.WriteLn("GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS: %d", max_vertex_ssbos);
+		Console.WriteLn("GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS: %d", max_vertex_ssbos);
 		m_features.vs_expand = (max_vertex_ssbos > 0 && GLAD_GL_ARB_gpu_shader5);
 	}
 	if (!m_features.vs_expand)
@@ -527,9 +524,6 @@ bool GSDeviceOGL::Create()
 		}
 	}
 
-	if (!CreateImGuiProgram())
-		return false;
-
 	// Basic to ensure structures are correctly packed
 	static_assert(sizeof(VSSelector) == 1, "Wrong VSSelector size");
 	static_assert(sizeof(PSSelector) == 12, "Wrong PSSelector size");
@@ -608,10 +602,6 @@ void GSDeviceOGL::DestroyResources()
 
 	if (m_ps_ss[0] != 0)
 		glDeleteSamplers(std::size(m_ps_ss), m_ps_ss);
-
-	m_imgui.ps.Destroy();
-	if (m_imgui.vao != 0)
-		glDeleteVertexArrays(1, &m_imgui.vao);
 
 	m_cas.upscale_ps.Destroy();
 	m_cas.sharpen_ps.Destroy();
@@ -747,9 +737,6 @@ GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
 
 void GSDeviceOGL::EndPresent()
 {
-#ifndef __LIBRETRO__
-	RenderImGui();
-#endif
 	if (m_gpu_timing_enabled)
 		PopTimestampQuery();
 
@@ -800,7 +787,7 @@ void GSDeviceOGL::PopTimestampQuery()
 		glGetIntegerv(GL_GPU_DISJOINT_EXT, &disjoint);
 		if (disjoint)
 		{
-			DevCon.WriteLn("GPU timing disjoint, resetting.");
+			Console.WriteLn("GPU timing disjoint, resetting.");
 			if (m_timestamp_query_started)
 				glEndQueryEXT(GL_TIME_ELAPSED);
 
@@ -1267,7 +1254,7 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 
 std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 {
-	DevCon.WriteLn("Compiling new vertex shader with selector 0x%" PRIX64, sel.key);
+	Console.WriteLn("Compiling new vertex shader with selector 0x%" PRIX64, sel.key);
 
 	std::string macro = fmt::format("#define VS_FST {}\n", static_cast<u32>(sel.fst))
 		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
@@ -1281,7 +1268,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 
 std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 {
-	DevCon.WriteLn("Compiling new pixel shader with selector 0x%" PRIX64 "%08X", sel.key_hi, sel.key_lo);
+	Console.WriteLn("Compiling new pixel shader with selector 0x%" PRIX64 "%08X", sel.key_hi, sel.key_lo);
 
 	std::string macro = fmt::format("#define PS_FST {}\n", sel.fst)
 		+ fmt::format("#define PS_WMS {}\n", sel.wms)
@@ -2007,130 +1994,6 @@ bool GSDeviceOGL::DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, con
 	glDispatchCompute(dispatchX, dispatchY, 1);
 
 	return true;
-}
-
-bool GSDeviceOGL::CreateImGuiProgram()
-{
-	std::optional<std::string> glsl = Host::ReadResourceFileToString("shaders/opengl/imgui.glsl");
-	if (!glsl.has_value())
-	{
-		Console.Error("Failed to read imgui.glsl");
-		return false;
-	}
-
-	std::optional<GL::Program> prog = m_shader_cache.GetProgram(
-		GetShaderSource("vs_main", GL_VERTEX_SHADER, glsl.value()),
-		GetShaderSource("ps_main", GL_FRAGMENT_SHADER, glsl.value()));
-	if (!prog.has_value())
-	{
-		Console.Error("Failed to compile imgui shaders");
-		return false;
-	}
-
-	prog->SetName("ImGui Render");
-	prog->RegisterUniform("ProjMtx");
-	m_imgui.ps = std::move(prog.value());
-
-	// Need a different VAO because the layout doesn't match GS
-	glGenVertexArrays(1, &m_imgui.vao);
-	glBindVertexArray(m_imgui.vao);
-	m_vertex_stream_buffer->Bind();
-	m_index_stream_buffer->Bind();
-
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, pos));
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, uv));
-	glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, col));
-
-	glBindVertexArray(GLState::vao);
-	return true;
-}
-
-void GSDeviceOGL::RenderImGui()
-{
-	ImGui::Render();
-	const ImDrawData* draw_data = ImGui::GetDrawData();
-	if (draw_data->CmdListsCount == 0)
-		return;
-
-	constexpr float L = 0.0f;
-	const float R = static_cast<float>(m_window_info.surface_width);
-	constexpr float T = 0.0f;
-	const float B = static_cast<float>(m_window_info.surface_height);
-
-	// clang-format off
-	const float ortho_projection[4][4] =
-	{
-		{ 2.0f/(R-L),   0.0f,         0.0f,   0.0f },
-		{ 0.0f,         2.0f/(T-B),   0.0f,   0.0f },
-		{ 0.0f,         0.0f,        -1.0f,   0.0f },
-		{ (R+L)/(L-R),  (T+B)/(B-T),  0.0f,   1.0f },
-	};
-	// clang-format on
-
-	m_imgui.ps.Bind();
-	m_imgui.ps.UniformMatrix4fv(0, &ortho_projection[0][0]);
-	IASetVAO(m_imgui.vao);
-	OMSetBlendState(true, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_FUNC_ADD);
-	OMSetDepthStencilState(m_convert.dss);
-	PSSetSamplerState(m_convert.ln);
-
-	// Need to flip the scissor due to lower-left on the window framebuffer
-	GSVector4i last_scissor = GSVector4i::xffffffff();
-
-	// Render command lists
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
-	{
-		const ImDrawList* cmd_list = draw_data->CmdLists[n];
-
-		// Different vertex format.
-		u32 vertex_start;
-		{
-			const u32 size = static_cast<u32>(cmd_list->VtxBuffer.Size) * sizeof(ImDrawVert);
-			auto res = m_vertex_stream_buffer->Map(sizeof(ImDrawVert), size);
-			std::memcpy(res.pointer, cmd_list->VtxBuffer.Data, size);
-			vertex_start = res.index_aligned;
-			m_vertex_stream_buffer->Unmap(size);
-		}
-
-		IASetIndexBuffer(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size);
-
-		for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-		{
-			const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
-			pxAssert(!pcmd->UserCallback);
-
-			const GSVector4 clip = GSVector4::load<false>(&pcmd->ClipRect);
-			if ((clip.zwzw() <= clip.xyxy()).mask() != 0)
-				continue;
-
-			// Apply scissor/clipping rectangle (Y is inverted in OpenGL)
-			const GSVector4i iclip = GSVector4i(clip);
-			if (!last_scissor.eq(iclip))
-			{
-				glScissor(iclip.x, m_window_info.surface_height - iclip.w, iclip.width(), iclip.height());
-				last_scissor = iclip;
-			}
-
-			// Since we don't have the GSTexture...
-			const GLuint texture_id = static_cast<GLuint>(reinterpret_cast<uintptr_t>(pcmd->GetTexID()));
-			if (GLState::tex_unit[0] != texture_id)
-			{
-				GLState::tex_unit[0] = texture_id;
-				glBindTextureUnit(0, texture_id);
-			}
-
-			glDrawElementsBaseVertex(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, GL_UNSIGNED_SHORT,
-				(void*)(intptr_t)((pcmd->IdxOffset + m_index.start) * sizeof(ImDrawIdx)), pcmd->VtxOffset + vertex_start);
-		}
-
-		g_perfmon.Put(GSPerfMon::DrawCalls, cmd_list->CmdBuffer.Size);
-	}
-
-	IASetVAO(m_vao);
-	glScissor(GLState::scissor.x, GLState::scissor.y, GLState::scissor.width(), GLState::scissor.height());
 }
 
 void GSDeviceOGL::RenderBlankFrame()

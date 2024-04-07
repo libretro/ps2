@@ -26,30 +26,20 @@ _sif sif0;
 
 static bool done = false;
 
-static __fi void Sif0Init()
+static __fi void Sif0Init(void)
 {
-	SIF_LOG("SIF0 DMA start...");
 	done = false;
 	sif0.ee.cycles = 0;
 	sif0.iop.cycles = 0;
 }
 
 // Write from Fifo to EE.
-static __fi bool WriteFifoToEE()
+static __fi bool WriteFifoToEE(void)
 {
 	const int readSize = std::min((s32)sif0ch.qwc, sif0.fifo.size >> 2);
-
-	tDMA_TAG *ptag;
-
-	//SIF_LOG(" EE SIF doing transfer %04Xqw to %08X", readSize, sif0ch.madr);
-	SIF_LOG("Write Fifo to EE: ----------- %lX of %lX", readSize << 2, sif0ch.qwc << 2);
-
-	ptag = sif0ch.getAddr(sif0ch.madr, DMAC_SIF0, true);
+	tDMA_TAG *ptag     = sif0ch.getAddr(sif0ch.madr, DMAC_SIF0, true);
 	if (ptag == NULL)
-	{
-		DevCon.Warning("Write Fifo to EE: ptag == NULL");
 		return false;
-	}
 
 	sif0.fifo.read((u32*)ptag, readSize << 2);
 
@@ -62,7 +52,6 @@ static __fi bool WriteFifoToEE()
 
 	if (sif0ch.qwc == 0 && dmacRegs.ctrl.STS == STS_SIF0)
 	{
-		//DevCon.Warning("SIF0 Stall Control");
 		if ((sif0ch.chcr.MOD == NORMAL_MODE) || ((sif0ch.chcr.TAG >> 28) & 0x7) == TAG_CNTS)
 			dmacRegs.stadr.ADDR = sif0ch.madr;
 	}
@@ -76,8 +65,6 @@ static __fi bool WriteIOPtoFifo()
 	// There's some data ready to transfer into the fifo..
 	const int writeSize = std::min(sif0.iop.counter, sif0.fifo.sif_free());
 
-	SIF_LOG("Write IOP to Fifo: +++++++++++ %lX of %lX", writeSize, sif0.iop.counter);
-
 	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
 	hw_dma9.madr += writeSize << 2;
 
@@ -90,30 +77,23 @@ static __fi bool WriteIOPtoFifo()
 }
 
 // Read Fifo into an ee tag, transfer it to sif0ch, and process it.
-static __fi bool ProcessEETag()
+static __fi bool ProcessEETag(void)
 {
 	alignas(16) static u32 tag[4];
 	tDMA_TAG& ptag(*(tDMA_TAG*)tag);
 
 	sif0.fifo.read((u32*)&tag[0], 2); // Tag
-	SIF_LOG("SIF0 EE read tag: %x %x %x %x", tag[0], tag[1], tag[2], tag[3]);
 
 	sif0ch.unsafeTransfer(&ptag);
 	sif0ch.madr = tag[1];
 
-	SIF_LOG("SIF0 EE dest chain tag madr:%08X qwc:%04X id:%X irq:%d(%08X_%08X)",
-		sif0ch.madr, sif0ch.qwc, ptag.ID, ptag.IRQ, tag[1], tag[0]);
-
 	if (sif0ch.chcr.TIE && ptag.IRQ)
-	{
-		//Console.WriteLn("SIF0 TIE");
 		sif0.ee.end = true;
-	}
 
 	switch (ptag.ID)
 	{
-		case TAG_CNT:	break;
-
+		case TAG_CNT:
+			break;
 		case TAG_CNTS:
 			if (dmacRegs.ctrl.STS == STS_SIF0) // STS == SIF0 - Initial Value
 					dmacRegs.stadr.ADDR = sif0ch.madr;
@@ -127,13 +107,14 @@ static __fi bool ProcessEETag()
 }
 
 // Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
-static __fi bool ProcessIOPTag()
+static __fi bool ProcessIOPTag(void)
 {
 	// Process DMA tag at hw_dma9.tadr
-	sif0.iop.data = *(sifData *)iopPhysMem(hw_dma9.tadr);
+	sif0.iop.data       = *(sifData *)iopPhysMem(hw_dma9.tadr);
 	sif0.iop.data.words = sif0.iop.data.words;
 
-	// send the EE's side of the DMAtag.  The tag is only 64 bits, with the upper 64 bits
+	// send the EE's side of the DMAtag.  
+	// The tag is only 64 bits, with the upper 64 bits
 	// ignored by the EE.
 
 	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.tadr + 8), 2);
@@ -144,46 +125,36 @@ static __fi bool ProcessIOPTag()
 
 	// We're only copying the first 24 bits.  Bits 30 and 31 (checked below) are Stop/IRQ bits.
 	hw_dma9.madr = sif0data & 0xFFFFFF;
-	if (sif0words > 0xFFFFF) DevCon.Warning("SIF0 Overrun %x", sif0words);
 	//Maximum transfer amount 1mb-16 also masking out top part which is a "Mode" cache stuff, we don't care :)
 	sif0.iop.counter = sif0words & 0xFFFFF;
 
 	sif0.iop.writeJunk = (sif0.iop.counter & 0x3) ? (4 - sif0.iop.counter & 0x3) : 0;
 	// IOP tags have an IRQ bit and an End of Transfer bit:
 	if (sif0tag.IRQ  || (sif0tag.ID & 4)) sif0.iop.end = true;
-	SIF_LOG("SIF0 IOP Tag: madr=%lx, tadr=%lx, counter=%lx (%08X_%08X) Junk %d", hw_dma9.madr, hw_dma9.tadr, sif0.iop.counter, sif0words, sif0data, sif0.iop.writeJunk);
 
 	return true;
 }
 
 // Stop transferring ee, and signal an interrupt.
-static __fi void EndEE()
+static __fi void EndEE(void)
 {
-	SIF_LOG("Sif0: End EE");
-	sif0.ee.end = false;
+	sif0.ee.end  = false;
 	sif0.ee.busy = false;
 	if (sif0.ee.cycles == 0)
-	{
-		SIF_LOG("SIF0 EE: cycles = 0");
 		sif0.ee.cycles = 1;
-	}
 	CPU_SET_DMASTALL(DMAC_SIF0, false);
 	CPU_INT(DMAC_SIF0, sif0.ee.cycles*BIAS);
 }
 
 // Stop transferring iop, and signal an interrupt.
-static __fi void EndIOP()
+static __fi void EndIOP(void)
 {
-	SIF_LOG("Sif0: End IOP");
-	sif0data = 0;
-	sif0.iop.end = false;
+	sif0data      = 0;
+	sif0.iop.end  = false;
 	sif0.iop.busy = false;
 
 	if (sif0.iop.cycles == 0)
-	{
-		DevCon.Warning("SIF0 IOP: cycles = 0");
 		sif0.iop.cycles = 1;
-	}
 	// Hack alert
 	// Parappa the rapper hates SIF0 taking the length of time it should do on bigger packets
 	// I logged it and couldn't work out why, changing any other SIF timing (EE or IOP) seems to have no effect.
@@ -194,23 +165,14 @@ static __fi void EndIOP()
 }
 
 // Handle the EE transfer.
-static __fi void HandleEETransfer()
+static __fi void HandleEETransfer(void)
 {
 	if(!sif0ch.chcr.STR)
 	{
-		//DevCon.Warning("Replacement for irq prevention hack EE SIF0");
 		sif0.ee.end = false;
 		sif0.ee.busy = false;
 		return;
 	}
-
-	/*if (sif0ch.qwc == 0)
-		if (sif0ch.chcr.MOD == NORMAL_MODE)
-			if (!sif0.ee.end){
-				DevCon.Warning("sif0 irq prevented");
-				done = true;
-				return;
-			}*/
 
 	if (sif0ch.qwc <= 0)
 	{
@@ -294,16 +256,14 @@ static __fi void HandleIOPTransfer()
 	}
 }
 
-static __fi void Sif0End()
+static __fi void Sif0End(void)
 {
 	psHu32(SBUS_F240) &= ~0x20;
 	psHu32(SBUS_F240) &= ~0x2000;
-
-	DMA_LOG("SIF0 DMA End");
 }
 
 // Transfer IOP to EE, putting data in the fifo as an intermediate step.
-__fi void SIF0Dma()
+__fi void SIF0Dma(void)
 {
 	int BusyCheck = 0;
 	Sif0Init();
@@ -315,7 +275,6 @@ __fi void SIF0Dma()
 
 		if (sif0.iop.counter == 0 && sif0.iop.writeJunk && sif0.fifo.sif_free() >= sif0.iop.writeJunk)
 		{
-			SIF_LOG("Writing Junk %d", sif0.iop.writeJunk);
 			sif0.fifo.writeJunk(sif0.iop.writeJunk);
 			sif0.iop.writeJunk = 0;
 		}
@@ -353,16 +312,8 @@ __fi void  EEsif0Interrupt()
 	sif0ch.chcr.STR = false;
 }
 
-__fi void dmaSIF0()
+__fi void dmaSIF0(void)
 {
-	SIF_LOG("dmaSIF0 %s", sif0ch.cmqt_to_str().c_str());
-
-	if (sif0.fifo.readPos != sif0.fifo.writePos)
-	{
-		SIF_LOG("warning, sif0.fifoReadPos != sif0.fifoWritePos");
-	}
-
-	//if(sif0ch.chcr.MOD == CHAIN_MODE && sif0ch.qwc > 0) DevCon.Warning(L"SIF0 QWC on Chain CHCR " + sif0ch.chcr.desc());
 	psHu32(SBUS_F240) |= 0x2000;
 	sif0.ee.busy = true;
 

@@ -34,7 +34,6 @@
 #include "Sio.h"
 #include "SPU2/spu2.h"
 #include "PAD/Host/PAD.h"
-#include "Recording/InputRecording.h"
 #include "VMManager.h"
 
 using namespace Threading;
@@ -121,10 +120,8 @@ static __fi void _rcntSet( int cntidx )
 	// target will be turned on afterward, and handled in the next event test).
 
 	if( counter.target & EECNT_FUTURE_TARGET )
-	{
 		return;
-	}
-	else
+
 	{
 		c = ((counter.target - counter.count) * counter.rate) - (cpuRegs.cycle - counter.sCycleT);
 		c += cpuRegs.cycle - nextsCounter;		// adjust for time passed since last rcntUpdate();
@@ -368,9 +365,6 @@ static double AdjustToHostRefreshRate(double vertical_frequency, double frame_li
 	const double ratio = host_refresh_rate / vertical_frequency;
 	const bool syncing_to_host = (ratio >= 0.95f && ratio <= 1.05f);
 	s_use_vsync_for_timing = (syncing_to_host && !EmuConfig.GS.SkipDuplicateFrames && EmuConfig.GS.VsyncEnable != VsyncMode::Off);
-	Console.WriteLn("Refresh rate: Host=%fhz Guest=%fhz Ratio=%f - %s %s", host_refresh_rate,
-		vertical_frequency, ratio, syncing_to_host ? "can sync" : "can't sync",
-		s_use_vsync_for_timing ? "and using vsync for pacing" : "and using sleep for pacing");
 
 	if (!syncing_to_host)
 		return frame_limit;
@@ -496,7 +490,6 @@ static __fi void DoFMVSwitch()
 	bool new_fmv_state = s_last_fmv_state;
 	if (EnableFMV)
 	{
-		DevCon.WriteLn("FMV started");
 		new_fmv_state = true;
 		EnableFMV = false;
 	}
@@ -505,7 +498,6 @@ static __fi void DoFMVSwitch()
 		const int diff = cpuRegs.cycle - eecount_on_last_vdec;
 		if (diff > 60000000)
 		{
-			DevCon.WriteLn("FMV ended");
 			new_fmv_state = false;
 			FMVstarted = false;
 		}
@@ -560,7 +552,7 @@ static __fi void VSyncCheckExit()
 
 // Framelimiter - Measures the delta time between calls and stalls until a
 // certain amount of time passes if such time hasn't passed yet.
-static __fi void frameLimit()
+static __fi void frameLimit(void)
 {
 	// Framelimiter off in settings? Framelimiter go brrr.
 	if (EmuConfig.GS.LimitScalar == 0.0f || s_use_vsync_for_timing)
@@ -680,12 +672,6 @@ static __fi void VSyncEnd(u32 sCycle)
 	//cpuRegs.eCycle[30] = 2;
 }
 
-//#define VSYNC_DEBUG		// Uncomment this to enable some vSync Timer debugging features.
-#ifdef VSYNC_DEBUG
-static u32 hsc=0;
-static int vblankinc = 0;
-#endif
-
 __fi void rcntUpdate_hScanline()
 {
 	if( !cpuTestCycle( hsyncCounter.sCycle, hsyncCounter.CycleT ) ) return;
@@ -714,10 +700,6 @@ __fi void rcntUpdate_hScanline()
 		hsyncCounter.sCycle += vSyncInfo.hRender;	// start (absolute cycle value)
 		hsyncCounter.CycleT = vSyncInfo.hBlank;		// endpoint (delta from start value)
 		hsyncCounter.Mode = MODE_HBLANK;
-
-#		ifdef VSYNC_DEBUG
-		hsc++;
-#		endif
 	}
 }
 
@@ -751,17 +733,6 @@ __fi void rcntUpdate_vSync()
 
 		// Accumulate hsync rounding errors:
 		hsyncCounter.sCycle += vSyncInfo.hSyncError;
-
-#		ifdef VSYNC_DEBUG
-		vblankinc++;
-		if( vblankinc > 1 )
-		{
-			if( hsc != vSyncInfo.hScanlinesPerFrame )
-				Console.WriteLn( " ** vSync > Abnormal Scanline Count: %d", hsc );
-			hsc = 0;
-			vblankinc = 0;
-		}
-#		endif
 	}
 }
 
@@ -771,7 +742,6 @@ static __fi void _cpuTestTarget( int i )
 		return;
 
 	if(counters[i].mode.TargetInterrupt) {
-		EECNT_LOG("EE Counter[%d] TARGET reached - mode=%x, count=%x, target=%x", i, counters[i].mode, counters[i].count, counters[i].target);
 		if (!counters[i].mode.TargetReached)
 		{
 			counters[i].mode.TargetReached = 1;
@@ -790,7 +760,6 @@ static __fi void _cpuTestOverflow( int i )
 	if (counters[i].count <= 0xffff) return;
 
 	if (counters[i].mode.OverflowInterrupt) {
-		EECNT_LOG("EE Counter[%d] OVERFLOW - mode=%x, count=%x", i, counters[i].mode, counters[i].count);
 		if (!counters[i].mode.OverflowReached)
 		{
 			counters[i].mode.OverflowReached = 1;
@@ -850,16 +819,11 @@ static __fi void _rcntSetGate( int index )
 
 		if( !(counters[index].mode.GateSource == 0 && counters[index].mode.ClockSource == 3) )
 		{
-			EECNT_LOG( "EE Counter[%d] Using Gate!  Source=%s, Mode=%d.",
-				index, counters[index].mode.GateSource ? "vblank" : "hblank", counters[index].mode.GateMode );
-
 			gates |= (1<<index);
 			counters[index].mode.IsCounting = 0;
 			rcntReset(index);
 			return;
 		}
-		else
-			EECNT_LOG( "EE Counter[%d] GATE DISABLED because of hblank source.", index );
 	}
 
 	gates &= ~(1<<index);
@@ -899,8 +863,6 @@ static __fi void rcntStartGate(bool isVblank, u32 sCycle)
 				counters[i].count = rcntRcount(i);
 				counters[i].mode.IsCounting = 0;
 				counters[i].sCycleT = sCycle;
-				EECNT_LOG("EE Counter[%d] %s StartGate Type0, count = %x", i,
-					isVblank ? "vblank" : "hblank", counters[i].count );
 				break;
 
 			case 0x2:	// reset and start counting on vsync end
@@ -913,8 +875,6 @@ static __fi void rcntStartGate(bool isVblank, u32 sCycle)
 				counters[i].count = 0;
 				counters[i].target &= 0xffff;
 				counters[i].sCycleT = sCycle;
-				EECNT_LOG("EE Counter[%d] %s StartGate Type%d, count = %x", i,
-					isVblank ? "vblank" : "hblank", counters[i].mode.GateMode, counters[i].count );
 				break;
 		}
 	}
@@ -944,9 +904,6 @@ static __fi void rcntEndGate(bool isVblank , u32 sCycle)
 				// calls to rcntUpdate).
 				counters[i].mode.IsCounting = 1;
 				counters[i].sCycleT = cpuRegs.cycle;
-
-				EECNT_LOG("EE Counter[%d] %s EndGate Type0, count = %x", i,
-					isVblank ? "vblank" : "hblank", counters[i].count );
 			break;
 
 			case 0x1:	// Reset and start counting on Vsync start
@@ -959,8 +916,6 @@ static __fi void rcntEndGate(bool isVblank , u32 sCycle)
 				counters[i].count = 0;
 				counters[i].target &= 0xffff;
 				counters[i].sCycleT = sCycle;
-				EECNT_LOG("EE Counter[%d] %s EndGate Type%d, count = %x", i,
-					isVblank ? "vblank" : "hblank", counters[i].mode.GateMode, counters[i].count );
 			break;
 		}
 	}
@@ -972,8 +927,7 @@ static __fi u32 rcntCycle(int index)
 {
 	if (counters[index].mode.IsCounting && (counters[index].mode.ClockSource != 0x3))
 		return counters[index].count + ((cpuRegs.cycle - counters[index].sCycleT) / counters[index].rate);
-	else
-		return counters[index].count;
+	return counters[index].count;
 }
 
 static __fi void rcntWmode(int index, u32 value)
@@ -997,7 +951,6 @@ static __fi void rcntWmode(int index, u32 value)
 
 	counters[index].modeval &= ~(value & 0xc00);
 	counters[index].modeval = (counters[index].modeval & 0xc00) | (value & 0x3ff);
-	EECNT_LOG("EE Counter[%d] writeMode = %x   passed value=%x", index, counters[index].modeval, value );
 
 	switch (counters[index].mode.ClockSource) { //Clock rate divisers *2, they use BUSCLK speed not PS2CLK
 		case 0: counters[index].rate = 2; break;
@@ -1012,8 +965,6 @@ static __fi void rcntWmode(int index, u32 value)
 
 static __fi void rcntWcount(int index, u32 value)
 {
-	EECNT_LOG("EE Counter[%d] writeCount = %x,   oldcount=%x, target=%x", index, value, counters[index].count, counters[index].target );
-
 	counters[index].count = value & 0xffff;
 
 	// reset the target, and make sure we don't get a premature target.
@@ -1038,8 +989,6 @@ static __fi void rcntWcount(int index, u32 value)
 
 static __fi void rcntWtarget(int index, u32 value)
 {
-	EECNT_LOG("EE Counter[%d] writeTarget = %x", index, value);
-
 	counters[index].target = value & 0xffff;
 
 	// guard against premature (instant) targeting.
@@ -1067,7 +1016,6 @@ static __fi void rcntWtarget(int index, u32 value)
 
 static __fi void rcntWhold(int index, u32 value)
 {
-	EECNT_LOG("EE Counter[%d] Hold Write = %x", index, value);
 	counters[index].hold = value;
 }
 
@@ -1082,7 +1030,6 @@ __fi u32 rcntRcount(int index)
 		ret = counters[index].count;
 
 	// Spams the Console.
-	EECNT_LOG("EE Counter[%d] readCount32 = %x", index, ret);
 	return ret;
 }
 

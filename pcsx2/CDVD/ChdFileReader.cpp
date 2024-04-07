@@ -269,9 +269,6 @@ bool ChdFileReader::ParseTOC(u64* out_frame_count)
 			}
 		}
 
-		DevCon.WriteLn(fmt::format("CHD Track {}: frames:{} pregap:{} postgap:{} type:{} sub:{} pgtype:{} pgsub:{}",
-			track_num, frames, pregap_frames, postgap_frames, type_str, subtype_str, pgtype_str, pgsub_str));
-
 		// PCSX2 doesn't currently support multiple tracks for CDs.
 		if (track_num != 1)
 		{

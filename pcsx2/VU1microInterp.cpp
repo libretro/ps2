@@ -75,8 +75,6 @@ static void _vu1Exec(VURegs* VU)
 		}
 	}
 
-	//VUM_LOG("VU->cycle = %d (flags st=%x;mac=%x;clip=%x,q=%f)", VU->cycle, VU->statusflag, VU->macflag, VU->clipflag, VU->q.F);
-
 	VU->code = ptr[1];
 	VU1regs_UPPER_OPCODE[VU->code & 0x3f](&uregs);
 
@@ -191,7 +189,6 @@ static void _vu1Exec(VURegs* VU)
 
 			if (VU->takedelaybranch)
 			{
-				//DevCon.Warning("VU1 - Branch/Jump in Delay Slot");
 				VU->branch = 1;
 				VU->branchpc = VU->delaybranchpc;
 				VU->takedelaybranch = false;
@@ -227,17 +224,6 @@ void vu1Exec(VURegs* VU)
 {
 	VU->cycle++;
 	_vu1Exec(VU);
-
-	if (VU->VI[0].UL != 0)
-		DbgCon.Error("VI[0] != 0!!!!\n");
-	if (VU->VF[0].f.x != 0.0f)
-		DbgCon.Error("VF[0].x != 0.0!!!!\n");
-	if (VU->VF[0].f.y != 0.0f)
-		DbgCon.Error("VF[0].y != 0.0!!!!\n");
-	if (VU->VF[0].f.z != 0.0f)
-		DbgCon.Error("VF[0].z != 0.0!!!!\n");
-	if (VU->VF[0].f.w != 1.0f)
-		DbgCon.Error("VF[0].w != 1.0!!!!\n");
 }
 
 InterpVU1 CpuIntVU1;
@@ -250,7 +236,6 @@ InterpVU1::InterpVU1()
 
 void InterpVU1::Reset()
 {
-	DevCon.Warning("VU1 Int Reset");
 	VU1.fmacwritepos = 0;
 	VU1.fmacreadpos = 0;
 	VU1.fmaccount = 0;

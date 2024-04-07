@@ -97,10 +97,7 @@ namespace Vulkan
 		VkResult res =
 			vmaCreateImage(g_vulkan_context->GetAllocator(), &image_info, &aci, &image, &allocation, nullptr);
 		if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY)
-		{
-			DevCon.WriteLn("Failed to allocate device memory for %ux%u texture", width, height);
 			return false;
-		}
 		else if (res != VK_SUCCESS)
 		{
 			LOG_VULKAN_ERROR(res, "vmaCreateImage failed: ");

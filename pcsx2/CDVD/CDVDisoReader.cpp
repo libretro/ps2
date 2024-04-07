@@ -196,8 +196,6 @@ s32 CALLBACK ISOgetTOC(void* toc)
 	u8 type = ISOgetDiskType();
 	u8* tocBuff = (u8*)toc;
 
-	//CDVD_LOG("CDVDgetTOC\n");
-
 	if (type == CDVD_TYPE_DVDV || type == CDVD_TYPE_PS2DVD)
 	{
 		// get dvd structure format

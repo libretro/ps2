@@ -104,9 +104,6 @@ public:
 		// Replace the empty cell by the new block and create a new empty cell
 		memcpy(&m_bucket[b][size++], &dataPtr, sizeof(nVifBlock));
 		memset(&m_bucket[b][size], 0, sizeof(nVifBlock));
-
-		if (size > 3)
-			DevCon.Warning("recVifUnpk: Bucket 0x%04x has %d micro-programs", b, size);
 	}
 
 	u32 bucket_size(const nVifBlock& dataPtr)

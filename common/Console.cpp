@@ -65,11 +65,6 @@ void Console_SetActiveHandler(const IConsoleWriter& writer, FILE* flushfp)
 		"Invalid IConsoleWriter object!  All function pointer interfaces must be implemented.");
 
 	Console = writer;
-	DevConWriter = writer;
-
-#ifdef PCSX2_DEBUG
-	DbgCon = writer;
-#endif
 }
 
 // Writes text to the Visual Studio Output window (Microsoft Windows only).
@@ -509,12 +504,6 @@ ConsoleAttrScope::~ConsoleAttrScope()
 #define _DefaultWriter_ ConsoleWriter_Stdout
 
 IConsoleWriter Console = _DefaultWriter_;
-IConsoleWriter DevConWriter = _DefaultWriter_;
-bool DevConWriterEnabled = false;
-
-#ifdef PCSX2_DEBUG
-IConsoleWriter DbgConWriter = _DefaultWriter_;
-#endif
 
 NullConsoleWriter NullCon = {};
 

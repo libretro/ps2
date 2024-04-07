@@ -184,9 +184,7 @@ GSVector4i GSVector4i::fit(int arx, int ary) const
 		r = r.rintersect(*this);
 	}
 	else
-	{
 		r = *this;
-	}
 
 	return r;
 }
@@ -198,13 +196,8 @@ GSVector4i GSVector4i::fit(int preset) const
 	GSVector4i r;
 
 	if (preset > 0 && preset < (int)std::size(s_ar))
-	{
 		r = fit(s_ar[preset][0], s_ar[preset][1]);
-	}
 	else
-	{
 		r = *this;
-	}
-
 	return r;
 }

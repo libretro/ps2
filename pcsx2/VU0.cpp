@@ -48,9 +48,8 @@ void COP2_SPECIAL2() {
 	Int_COP2SPECIAL2PrintTable[(cpuRegs.code & 0x3) | ((cpuRegs.code >> 4) & 0x7c)]();
 }
 
-void COP2_Unknown()
+void COP2_Unknown(void)
 {
-	CPU_LOG("Unknown COP2 opcode called");
 }
 
 //****************************************************************************

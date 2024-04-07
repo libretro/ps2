@@ -1567,7 +1567,6 @@ void recQFSRV()
 {
 	if (!_Rd_)
 		return;
-	//Console.WriteLn("recQFSRV()");
 
 	EE::Profiler.EmitOp(eeOpcode::QFSRV);
 

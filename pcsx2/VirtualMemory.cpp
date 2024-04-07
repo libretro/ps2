@@ -52,9 +52,6 @@ VirtualMemoryManager::VirtualMemoryManager(std::string name, const char* file_ma
 		m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, (void*)base, reserved_bytes, PageAccess_ReadWrite()));
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
-			DevCon.Warning("%s: host memory @ 0x%016" PRIXPTR " -> 0x%016" PRIXPTR " is unavailable; attempting to map elsewhere...",
-				m_name.c_str(), base, base + size);
-
 			SafeSysMunmap(m_baseptr, reserved_bytes);
 
 			if (base)
@@ -71,9 +68,6 @@ VirtualMemoryManager::VirtualMemoryManager(std::string name, const char* file_ma
 
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
-			DevCon.Warning("%s: host memory @ 0x%016" PRIXPTR " -> 0x%016" PRIXPTR " is unavailable; attempting to map elsewhere...",
-				m_name.c_str(), base, base + size);
-
 			SafeSysMunmap(m_baseptr, reserved_bytes);
 
 			if (base)
@@ -111,16 +105,6 @@ VirtualMemoryManager::VirtualMemoryManager(std::string name, const char* file_ma
 		return;
 
 	m_pageuse = new std::atomic<bool>[m_pages_reserved]();
-
-	std::string mbkb;
-	uint mbytes = reserved_bytes / _1mb;
-	if (mbytes)
-		mbkb = fmt::format("[{}mb]", mbytes);
-	else
-		mbkb = fmt::format("[{}kb]", reserved_bytes / 1024);
-
-	DevCon.WriteLn(Color_Gray, "%-32s @ 0x%016" PRIXPTR " -> 0x%016" PRIXPTR " %s", m_name.c_str(),
-		m_baseptr, (uptr)m_baseptr + reserved_bytes, mbkb.c_str());
 }
 
 VirtualMemoryManager::~VirtualMemoryManager()
@@ -259,16 +243,6 @@ void VirtualMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, u8* baseptr
 	m_allocator = std::move(allocator);
 	m_baseptr = baseptr;
 	m_size = size;
-
-	std::string mbkb;
-	uint mbytes = size / _1mb;
-	if (mbytes)
-		mbkb = fmt::format("[{}mb]", mbytes);
-	else
-		mbkb = fmt::format("[{}kb]", size / 1024);
-
-	DevCon.WriteLn(Color_Gray, "%-32s @ 0x%016" PRIXPTR " -> 0x%016" PRIXPTR " %s", m_name.c_str(),
-		m_baseptr, (uptr)m_baseptr + size, mbkb.c_str());
 }
 
 u8* VirtualMemoryReserve::BumpAllocate(VirtualMemoryBumpAllocator& allocator, size_t size)
@@ -335,14 +309,6 @@ void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t off
 
 void RecompiledCodeReserve::Reset()
 {
-	if (IsDevBuild && m_baseptr)
-	{
-		// Clear the recompiled code block to 0xcc (INT3) -- this helps disasm tools show
-		// the assembly dump more cleanly.  We don't clear the block on Release builds since
-		// it can add a noticeable amount of overhead to large block recompilations.
-
-		std::memset(m_baseptr, 0xCC, m_size);
-	}
 }
 
 void RecompiledCodeReserve::AllowModification()

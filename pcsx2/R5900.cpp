@@ -34,7 +34,6 @@
 #include "CDVD/CDVD.h"
 #include "Patch.h"
 #include "GameDatabase.h"
-#include "GSDumpReplayer.h"
 
 #include "DebugTools/Breakpoints.h"
 #include "DebugTools/MIPSAnalyst.h"

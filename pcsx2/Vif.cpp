@@ -73,7 +73,6 @@ void SaveStateBase::vif1Freeze()
 
 __fi void vif0FBRST(u32 value)
 {
-	VIF_LOG("VIF0_FBRST write32 0x%8.8x", value);
 	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is it just stops it what its doing
 			  usually accompanied by a reset, but if we find a broken game which falls here, we need to see it! (Refraction) */
 	if (value & 0x2) // Forcebreak Vif,
@@ -120,7 +119,6 @@ __fi void vif0FBRST(u32 value)
 		u128 SaveCol;
 		u128 SaveRow;
 
-		//	if(vif0ch.chcr.STR) DevCon.Warning("FBRST While Vif0 active");
 		//Must Preserve Row/Col registers! (Downhill Domination for testing)
 		SaveCol._u64[0] = vif0.MaskCol._u64[0];
 		SaveCol._u64[1] = vif0.MaskCol._u64[1];
@@ -148,8 +146,6 @@ __fi void vif0FBRST(u32 value)
 
 __fi void vif1FBRST(u32 value)
 {
-	VIF_LOG("VIF1_FBRST write32 0x%8.8x", value);
-
 	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is it just stops it what its doing
 			  usually accompanied by a reset, but if we find a broken game which falls here, we need to see it! (Refraction) */
 
@@ -177,7 +173,6 @@ __fi void vif1FBRST(u32 value)
 	if (FBRST(value).STC) // Cancel Vif Stall.
 	{
 		bool cancel = false;
-		//DevCon.Warning("Cancel stall. Stat = %x", vif1Regs.stat._u32);
 		// Cancel stall, first check if there is a stall to cancel, and then clear VIF1_STAT VSS|VFS|VIS|INT|ER0|ER1 bits
 		if (vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
@@ -217,7 +212,6 @@ __fi void vif1FBRST(u32 value)
 	{
 		u128 SaveCol;
 		u128 SaveRow;
-		//if(vif1ch.chcr.STR) DevCon.Warning("FBRST While Vif1 active");
 		//Must Preserve Row/Col registers! (Downhill Domination for testing) - Really shouldnt be part of the vifstruct.
 		SaveCol._u64[0] = vif1.MaskCol._u64[0];
 		SaveCol._u64[1] = vif1.MaskCol._u64[1];
@@ -230,8 +224,6 @@ __fi void vif1FBRST(u32 value)
 		vif1.MaskRow._u64[0] = SaveRow._u64[0];
 		vif1.MaskRow._u64[1] = SaveRow._u64[1];
 
-
-		GUNIT_WARN(Color_Red, "VIF FBRST Reset MSK = %x", vif1Regs.mskpath3);
 		vif1Regs.mskpath3 = false;
 		gifRegs.stat.M3P = 0;
 		vif1Regs.err.reset();
@@ -244,18 +236,13 @@ __fi void vif1FBRST(u32 value)
 
 __fi void vif1STAT(u32 value)
 {
-	VIF_LOG("VIF1_STAT write32 0x%8.8x", value);
-
 	/* Only FDR bit is writable, so mask the rest */
 	if ((vif1Regs.stat.FDR) ^ ((tVIF_STAT&)value).FDR)
 	{
 		bool isStalled = false;
 		// different so can't be stalled
 		if (vif1Regs.stat.test(VIF1_STAT_INT | VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
-		{
-			DbgCon.WriteLn("changing dir when vif1 fifo stalled done = %x qwc = %x stat = %x", vif1.done, vif1ch.qwc, vif1Regs.stat._u32);
 			isStalled = true;
-		}
 
 		//Hack!! Hotwheels seems to leave 1QW in the fifo and expect the DMA to be ready for a reverse FIFO
 		//There's no important data in there so for it to work, we will just end it.
@@ -355,9 +342,7 @@ _vifT __fi bool vifWrite32(u32 mem, u32 value)
 	switch (mem)
 	{
 		case caseVif(MARK):
-			VIF_LOG("VIF%d_MARK write32 0x%8.8x", idx, value);
 			vifXRegs.stat.MRK = false;
-			//vifXRegs.mark	   = value;
 			break;
 
 		case caseVif(FBRST):

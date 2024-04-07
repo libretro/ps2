@@ -119,22 +119,13 @@ void intCheckMemcheck()
 	}
 }
 
-static void execI()
+static void execI(void)
 {
 	// execI is called for every instruction so it must remains as light as possible.
 	// If you enable the next define, Interpreter will be much slower (around
 	// ~4fps on 3.9GHz Haswell vs ~8fps (even 10fps on dev build))
 	// Extra note: due to some cycle count issue PCSX2's internal debugger is
 	// not yet usable with the interpreter
-//#define EXTRA_DEBUG
-#if defined(EXTRA_DEBUG) || defined(PCSX2_DEVBUILD)
-	// check if any breakpoints or memchecks are triggered by this instruction
-	if (isBreakpointNeeded(cpuRegs.pc))
-		intBreakpoint(false);
-
-	intCheckMemcheck();
-#endif
-
 	u32 pc = cpuRegs.pc;
 	// We need to increase the pc before executing the memRead32. An exception could appears
 	// and it expects the PC counter to be pre-incremented
@@ -144,34 +135,6 @@ static void execI()
 	cpuRegs.code = memRead32( pc );
 
 	const OPCODE& opcode = GetCurrentInstruction();
-#if 0
-	static long int runs = 0;
-	//use this to find out what opcodes your game uses. very slow! (rama)
-	runs++;
-	if (runs > 1599999999){ //leave some time to startup the testgame
-		if (opcode.Name[0] == 'L') { //find all opcodes beginning with "L"
-			Console.WriteLn ("Load %s", opcode.Name);
-		}
-	}
-#endif
-
-#if 0
-	static long int print_me = 0;
-	// Based on cycle
-	// if( cpuRegs.cycle > 0x4f24d714 )
-	// Or dump from a particular PC (useful to debug handler/syscall)
-	if (pc == 0x80000000) {
-		print_me = 2000;
-	}
-	if (print_me) {
-		print_me--;
-		disOut.clear();
-		disR5900Fasm(disOut, cpuRegs.code, pc);
-		CPU_LOG( disOut.c_str() );
-	}
-#endif
-
-
 	cpuBlockCycles += opcode.cycles;
 
 	opcode.interpret();

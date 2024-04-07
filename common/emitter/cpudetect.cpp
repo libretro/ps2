@@ -162,8 +162,9 @@ const char* x86capabilities::GetTypeName() const
 		case 3:
 			return "Reserved";
 		default:
-			return "Unknown";
+			break;
 	}
+	return "Unknown";
 }
 
 void x86capabilities::CountCores()
@@ -315,8 +316,7 @@ u32 x86capabilities::CalculateMHz() const
 
 	if ((span % 1000) < 400) // helps minimize rounding errors
 		return (u32)(_CPUSpeedHz(span / 1000) / 1000);
-	else
-		return (u32)(_CPUSpeedHz(span / 500) / 2000);
+	return (u32)(_CPUSpeedHz(span / 500) / 2000);
 }
 
 u32 x86capabilities::CachedMHz()

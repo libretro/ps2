@@ -673,14 +673,12 @@ void recDIV_S_xmm(int info)
 {
 	EE::Profiler.EmitOp(eeOpcode::DIV_F);
 	bool roundmodeFlag = false;
-	//Console.WriteLn("DIV");
 
 	if (CHECK_FPUNEGDIVHACK)
 	{
 		if (g_sseMXCSR.GetRoundMode() != SSEround_NegInf)
 		{
 			// Set roundmode to nearest since it isn't already
-			//Console.WriteLn("div to negative inf");
 
 			roundmode_neg = g_sseMXCSR;
 			roundmode_neg.SetRoundMode(SSEround_NegInf);
@@ -693,7 +691,6 @@ void recDIV_S_xmm(int info)
 		if (g_sseMXCSR.GetRoundMode() != SSEround_Nearest)
 		{
 			// Set roundmode to nearest since it isn't already
-			//Console.WriteLn("div to nearest");
 
 			roundmode_nearest = g_sseMXCSR;
 			roundmode_nearest.SetRoundMode(SSEround_Nearest);
@@ -965,12 +962,10 @@ void recSQRT_S_xmm(int info)
 	EE::Profiler.EmitOp(eeOpcode::SQRT_F);
 	int roundmodeFlag = 0;
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
-	//Console.WriteLn("FPU: SQRT");
 
 	if (g_sseMXCSR.GetRoundMode() != SSEround_Nearest)
 	{
 		// Set roundmode to nearest if it isn't already
-		//Console.WriteLn("sqrt to nearest");
 		roundmode_nearest = g_sseMXCSR;
 		roundmode_nearest.SetRoundMode(SSEround_Nearest);
 		xLDMXCSR(roundmode_nearest);
@@ -1092,7 +1087,6 @@ void recRSQRT_S_xmm(int info)
 	if (g_sseMXCSR.GetRoundMode() != SSEround_Nearest)
 	{
 		// Set roundmode to nearest if it isn't already
-		//Console.WriteLn("sqrt to nearest");
 		roundmode_nearest = g_sseMXCSR;
 		roundmode_nearest.SetRoundMode(SSEround_Nearest);
 		xLDMXCSR(roundmode_nearest);

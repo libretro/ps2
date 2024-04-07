@@ -27,14 +27,7 @@
 #include "PAD/Host/PAD.h"
 
 #include "common/Timer.h"
-#include "Recording/InputRecording.h"
 #include "IconsFontAwesome5.h"
-
-#define SIO0LOG_ENABLE 0
-#define SIO2LOG_ENABLE 0
-
-#define Sio0Log if (SIO0LOG_ENABLE) DevCon
-#define Sio2Log if (SIO2LOG_ENABLE) DevCon
 
 std::deque<u8> fifoIn;
 std::deque<u8> fifoOut;
@@ -125,13 +118,11 @@ void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 
 u8 Sio0::GetTxData()
 {
-	Sio0Log.WriteLn("%s() SIO0 TX_DATA Read (%02X)", __FUNCTION__, txData);
 	return txData;
 }
 
 u8 Sio0::GetRxData()
 {
-	Sio0Log.WriteLn("%s() SIO0 RX_DATA Read (%02X)", __FUNCTION__, rxData);
 	stat |= (SIO0_STAT::TX_READY | SIO0_STAT::TX_EMPTY);
 	stat &= ~(SIO0_STAT::RX_FIFO_NOT_EMPTY);
 	return rxData;
@@ -139,7 +130,6 @@ u8 Sio0::GetRxData()
 
 u32 Sio0::GetStat()
 {
-	Sio0Log.WriteLn("%s() SIO0 STAT Read (%08X)", __FUNCTION__, stat);
 	const u32 ret = stat;
 	Interrupt(Sio0Interrupt::STAT_READ);
 	return ret;
@@ -147,26 +137,21 @@ u32 Sio0::GetStat()
 
 u16 Sio0::GetMode()
 {
-	Sio0Log.WriteLn("%s() SIO0 MODE Read (%08X)", __FUNCTION__, mode);
 	return mode;
 }
 
 u16 Sio0::GetCtrl()
 {
-	Sio0Log.WriteLn("%s() SIO0 CTRL Read (%08X)", __FUNCTION__, ctrl);
 	return ctrl;
 }
 
 u16 Sio0::GetBaud()
 {
-	Sio0Log.WriteLn("%s() SIO0 BAUD Read (%08X)", __FUNCTION__, baud);
 	return baud;
 }
 
 void Sio0::SetTxData(u8 value)
 {
-	Sio0Log.WriteLn("%s(%02X) SIO0 TX_DATA Write", __FUNCTION__, value);
-
 	stat |= SIO0_STAT::TX_READY | SIO0_STAT::TX_EMPTY;
 	stat |= (SIO0_STAT::RX_FIFO_NOT_EMPTY);
 
@@ -306,24 +291,20 @@ void Sio0::SetTxData(u8 value)
 
 void Sio0::SetRxData(u8 value)
 {
-	Sio0Log.WriteLn("%s(%02X) SIO0 RX_DATA Write", __FUNCTION__, value);
 	rxData = value;
 }
 
 void Sio0::SetStat(u32 value)
 {
-	Sio0Log.Error("%s(%08X) SIO0 STAT Write", __FUNCTION__, value);
 }
 
 void Sio0::SetMode(u16 value)
 {
-	Sio0Log.WriteLn("%s(%04X) SIO0 MODE Write", __FUNCTION__, value);
 	mode = value;
 }
 
 void Sio0::SetCtrl(u16 value)
 {
-	Sio0Log.WriteLn("%s(%04X) SIO0 CTRL Write", __FUNCTION__, value);
 	ctrl = value;
 	port = (ctrl & SIO0_CTRL::PORT) > 0;
 
@@ -354,7 +335,6 @@ void Sio0::SetCtrl(u16 value)
 
 void Sio0::SetBaud(u16 value)
 {
-	Sio0Log.WriteLn("%s(%04X) SIO0 BAUD Write", __FUNCTION__, value);
 	baud = value;
 }
 
@@ -717,8 +697,6 @@ void Sio2::Memcard()
 
 void Sio2::Write(u8 data)
 {
-	Sio2Log.WriteLn("%s(%02X) SIO2 DATA Write", __FUNCTION__, data);
-
 	if (!send3Read)
 	{
 		// No more SEND3 positions to access, but the game is still sending us SIO2 writes. Lets ignore them.
@@ -822,7 +800,6 @@ u8 Sio2::Read()
 		Console.Warning("%s() fifoOut underflow! Returning 0x00.", __FUNCTION__);
 	}
 	
-	Sio2Log.WriteLn("%s() SIO2 DATA Read (%02X)", __FUNCTION__, ret);
 	return ret;
 }
 

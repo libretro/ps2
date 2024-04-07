@@ -690,25 +690,16 @@ static void psxRecompileIrxImport()
 	irxHLE hle = irxImportHLE(libname, index);
 #ifdef PCSX2_DEVBUILD
 	const irxDEBUG debug = irxImportDebug(libname, index);
-	const char* funcname = irxImportFuncname(libname, index);
 #else
 	const irxDEBUG debug = 0;
-	const char* funcname = nullptr;
 #endif
 
-	if (!hle && !debug && (!SysTraceActive(IOP.Bios) || !funcname))
+	if (!hle && !debug)
 		return;
 
 	xMOV(ptr32[&psxRegs.code], psxRegs.code);
 	xMOV(ptr32[&psxRegs.pc], psxpc);
 	_psxFlushCall(FLUSH_NODESTROY);
-
-	if (SysTraceActive(IOP.Bios))
-	{
-		xMOV64(arg3reg, (uptr)funcname);
-
-		xFastCall((void*)irxImportLog_rec, import_table, index);
-	}
 
 	if (debug)
 		xFastCall((void*)debug);
@@ -938,8 +929,6 @@ static void recAlloc()
 
 void recResetIOP()
 {
-	DevCon.WriteLn("iR3000A Recompiler reset.");
-
 	Perf::iop.reset();
 
 	recAlloc();
@@ -1094,10 +1083,7 @@ static __fi u32 psxRecClearMem(u32 pc)
 	while (BASEBLOCKEX* pexblock = recBlocks[blockidx++])
 	{
 		if (pc >= pexblock->startpc && pc < pexblock->startpc + pexblock->size * 4)
-		{
-			DevCon.Error("[IOP] Impossible block clearing failure");
 			pxFailDev("[IOP] Impossible block clearing failure");
-		}
 	}
 
 	iopClearRecLUT(PSX_GETBLOCK(lowerextent), (upperextent - lowerextent) / 4);
@@ -1230,25 +1216,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 	}
 }
 
-#if 0
-//static const int *s_pCode;
-
-#if !defined(_MSC_VER)
-static void checkcodefn()
-{
-	int pctemp;
-
-#ifdef _MSC_VER
-	__asm mov pctemp, eax;
-#else
-    __asm__ __volatile__("movl %%eax, %[pctemp]" : [pctemp]"m="(pctemp) );
-#endif
-	Console.WriteLn("iop code changed! %x", pctemp);
-}
-#endif
-#endif
-
-void rpsxSYSCALL()
+void rpsxSYSCALL(void)
 {
 	xMOV(ptr32[&psxRegs.code], psxRegs.code);
 	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
@@ -1343,10 +1311,6 @@ static bool psxDynarecMemcheck()
 
 static void psxDynarecMemLogcheck(u32 start, bool store)
 {
-	if (store)
-		DevCon.WriteLn("Hit store breakpoint @0x%x", start);
-	else
-		DevCon.WriteLn("Hit load breakpoint @0x%x", start);
 }
 
 static void psxRecMemcheck(u32 op, u32 bits, bool store)

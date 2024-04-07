@@ -388,7 +388,6 @@ void normBranch(mV, microFlagCycles& mFC)
 	}
 	if (mVUup.mBit)
 	{
-		DevCon.Warning("M-Bit on normal branch, report if broken");
 		u32 tempPC = iPC;
 		u32* cpS = (u32*)&mVUregs;
 		u32* lpS = (u32*)&mVU.prog.lpState;
@@ -407,9 +406,6 @@ void normBranch(mV, microFlagCycles& mFC)
 	}
 	if (mVUup.eBit)
 	{
-		if (mVUlow.badBranch)
-			DevCon.Warning("End on evil Unconditional branch! - Not implemented! - If game broken report to PCSX2 Team");
-
 		iPC = branchAddr(mVU) / 4;
 		mVUendProgram(mVU, &mFC, 1);
 		return;
@@ -426,7 +422,6 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 
 	if (mVUup.tBit)
 	{
-		DevCon.Warning("T-Bit on branch, please report if broken");
 		u32 tempPC = iPC;
 		if (mVU.index && THREAD_VU1)
 			xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x800 : 0x8));
@@ -511,9 +506,6 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 	}
 	if (mVUup.eBit) // Conditional Branch With E-Bit Set
 	{
-		if (mVUlow.evilBranch)
-			DevCon.Warning("End on evil branch! - Not implemented! - If game broken report to PCSX2 Team");
-
 		mVUendProgram(mVU, &mFC, 2);
 		xCMP(ptr16[&mVU.branch], 0);
 
@@ -570,10 +562,6 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 
 void normJump(mV, microFlagCycles& mFC)
 {
-	if (mVUup.mBit)
-	{
-		DevCon.Warning("M-Bit on Jump! Please report if broken");
-	}
 	if (mVUlow.constJump.isValid) // Jump Address is Constant
 	{
 		if (mVUup.eBit) // E-bit Jump

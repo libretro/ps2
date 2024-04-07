@@ -89,11 +89,6 @@ public:
 		m_Descriptor = desc;
 	}
 
-	// Provides a categorical identifier, typically in "group.subgroup.subgroup" form.
-	// (use periods in favor of colons, since they do not require escape characters when
-	// written to ini/config files).
-	virtual std::string GetCategory() const { return std::string(); }
-
 	// This method should be used to determine if a log should be generated or not.
 	// See the class overview comments for details on how and why this method should
 	// be used.

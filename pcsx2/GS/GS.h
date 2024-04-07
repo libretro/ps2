@@ -117,7 +117,6 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);
 bool GSSaveSnapshotToMemory(u32 window_width, u32 window_height, bool apply_aspect, bool crop_borders,
 	u32* width, u32* height, std::vector<u32>* pixels);
-void GSJoinSnapshotThreads();
 
 struct GSError
 {
@@ -138,21 +137,11 @@ namespace Host
 	/// Called when the GS is finished with a render window.
 	void ReleaseRenderWindow();
 
-	/// Returns true if the hosting application is currently fullscreen.
-	bool IsFullscreen();
-
-	/// Alters fullscreen state of hosting application.
-	void SetFullscreen(bool enabled);
-
 	/// Returns the desired vsync mode, depending on the runtime environment.
 	VsyncMode GetEffectiveVSyncMode();
 }
 
-#ifdef __LIBRETRO__
 #include <libretro.h>
 #include "options.h"
 extern retro_hw_render_callback hw_render;
 #define GL_DEFAULT_FRAMEBUFFER hw_render.get_current_framebuffer()
-#else
-#define GL_DEFAULT_FRAMEBUFFER 0
-#endif

@@ -744,8 +744,6 @@ mVUop(mVU_FSAND)
 	pass1 { mVUanalyzeSflag(mVU, _It_); }
 	pass2
 	{
-		if (_Imm12_ & 0x0c30) DevCon.WriteLn(Color_Green, "mVU_FSAND: Checking I/D/IS/DS Flags");
-		if (_Imm12_ & 0x030c) DevCon.WriteLn(Color_Green, "mVU_FSAND: Checking U/O/US/OS Flags");
 		const xRegister32& reg = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
 		mVUallocSFLAGc(reg, gprT1, sFLAG.read);
 		xAND(reg, _Imm12_);
@@ -777,8 +775,6 @@ mVUop(mVU_FSEQ)
 	pass2
 	{
 		int imm = 0;
-		if (_Imm12_ & 0x0c30) DevCon.WriteLn(Color_Green, "mVU_FSEQ: Checking I/D/IS/DS Flags");
-		if (_Imm12_ & 0x030c) DevCon.WriteLn(Color_Green, "mVU_FSEQ: Checking U/O/US/OS Flags");
 		if (_Imm12_ & 0x0001) imm |= 0x0000f00; // Z
 		if (_Imm12_ & 0x0002) imm |= 0x000f000; // S
 		if (_Imm12_ & 0x0004) imm |= 0x0010000; // U
@@ -1613,7 +1609,6 @@ void mVU_XGKICK_(u32 addr)
 
 	if (size > diff)
 	{
-		//DevCon.WriteLn(Color_Green, "microVU1: XGkick Wrap!");
 		gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[addr], diff, true);
 		gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[0], size - diff, true);
 	}
@@ -1631,7 +1626,6 @@ void _vuXGKICKTransfermVU(bool flush)
 
 		if (VU1.xgkicksizeremaining == 0)
 		{
-			//VUM_LOG("XGKICK reading new tag from %x", VU1.xgkickaddr);
 			u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, VU1.xgkickaddr, ~0u, flush);
 			VU1.xgkicksizeremaining = size & 0xFFFF;
 			VU1.xgkickendpacket = size >> 31;
@@ -1639,12 +1633,9 @@ void _vuXGKICKTransfermVU(bool flush)
 
 			if (VU1.xgkicksizeremaining == 0)
 			{
-				//VUM_LOG("Invalid GS packet size returned, cancelling XGKick");
 				VU1.xgkickenable = false;
 				break;
 			}
-			//else
-				//VUM_LOG("XGKICK New tag size %d bytes EOP %d", VU1.xgkicksizeremaining, VU1.xgkickendpacket);
 		}
 
 		if (!flush)
@@ -1657,8 +1648,6 @@ void _vuXGKICKTransfermVU(bool flush)
 			transfersize = VU1.xgkicksizeremaining;
 			transfersize = std::min(transfersize, VU1.xgkickdiff);
 		}
-
-		//VUM_LOG("XGKICK Transferring %x bytes from %x size %x", transfersize * 0x10, VU1.xgkickaddr, VU1.xgkicksizeremaining);
 
 		// Would be "nicer" to do the copy until it's all up, however this really screws up PATH3 masking stuff
 		// So lets just do it the other way :)
@@ -1684,15 +1673,8 @@ void _vuXGKICKTransfermVU(bool flush)
 		VU1.xgkickdiff = 0x4000 - VU1.xgkickaddr;
 
 		if (VU1.xgkickendpacket && !VU1.xgkicksizeremaining)
-		//	VUM_LOG("XGKICK next addr %x left size %x", VU1.xgkickaddr, VU1.xgkicksizeremaining);
-		//else
-		{
-			//VUM_LOG("XGKICK transfer finished");
 			VU1.xgkickenable = false;
-			// Check if VIF is waiting for the GIF to not be busy
-		}
 	}
-	//VUM_LOG("XGKick run complete Enabled %d", VU1.xgkickenable);
 }
 
 static __fi void mVU_XGKICK_SYNC(mV, bool flush)
@@ -1797,7 +1779,6 @@ void setBranchA(mP, int x, int _x_)
 	{
 		if (_Imm11_ == 1 && !_x_ && !isBranchDelaySlot)
 		{
-			DevCon.WriteLn(Color_Green, "microVU%d: Branch Optimization", mVU.index);
 			mVUlow.isNOP = true;
 			return;
 		}
@@ -1844,8 +1825,6 @@ void condEvilBranch(mV, int JMPcc)
 		xMOV(ptr32[&mVU.evilBranch], gprT1);
 		cJMP.SetTarget();
 		incPC(-2);
-		if (mVUlow.branch >= 9)
-			DevCon.Warning("Conditional in JALR/JR delay slot - If game broken report to PCSX2 Team");
 		incPC(2);
 	}
 }
@@ -1878,7 +1857,6 @@ mVUop(mVU_BAL)
 		else
 		{
 			incPC(-2);
-			DevCon.Warning("Linking BAL from %s branch taken/not taken target! - If game broken report to PCSX2 Team", branchSTR[mVUlow.branch & 0xf]);
 			incPC(2);
 
 			const xRegister32& regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
@@ -2097,7 +2075,6 @@ mVUop(mVU_JALR)
 			else
 			{
 				incPC(-2);
-				DevCon.Warning("Linking JALR from %s branch taken/not taken target! - If game broken report to PCSX2 Team", branchSTR[mVUlow.branch & 0xf]);
 				incPC(2);
 
 				xMOV(regT, ptr32[&mVU.badBranch]);

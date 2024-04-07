@@ -38,10 +38,8 @@
 #include "libretro_vulkan.h"
 #endif
 #include "pcsx2/Frontend/CommonHost.h"
-#include "pcsx2/Frontend/FullscreenUI.h"
 #include "pcsx2/Frontend/GameList.h"
 #include "pcsx2/Frontend/InputManager.h"
-#include "pcsx2/Frontend/ImGuiManager.h"
 #include "pcsx2/Frontend/LogSink.h"
 #include "pcsx2/Frontend/LayeredSettingsInterface.h"
 #include "pcsx2/VMManager.h"
@@ -389,7 +387,7 @@ void retro_reset(void)
 
 freezeData gs_freeze_data = {};
 
-static void context_reset()
+static void context_reset(void)
 {
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
 	GSConfig.UpscaleMultiplier = Options::upscale_multiplier;
@@ -418,7 +416,7 @@ static void context_reset()
 	VMManager::SetPaused(false);
 }
 
-static void context_destroy()
+static void context_destroy(void)
 {
 	cpu_thread_pause();
 
@@ -486,7 +484,7 @@ static bool set_hw_render(retro_hw_context_type type)
 	return environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render);
 }
 
-bool select_hw_render()
+bool select_hw_render(void)
 {
 	if (Options::renderer == "Auto" || Options::renderer == "Software")
 	{
@@ -532,7 +530,7 @@ bool select_hw_render()
 	return false;
 }
 
-static void executeVM()
+static void executeVM(void)
 {
 	for (;;)
 	{
@@ -990,7 +988,7 @@ unsigned retro_get_region(void)
 	return RETRO_REGION_NTSC;
 }
 
-unsigned retro_api_version()
+unsigned retro_api_version(void)
 {
 	return RETRO_API_VERSION;
 }
@@ -1010,10 +1008,6 @@ void retro_cheat_reset(void)
 }
 
 void retro_cheat_set(unsigned index, bool enabled, const char* code)
-{
-}
-
-void SaveStateBase::InputRecordingFreeze()
 {
 }
 
@@ -1046,16 +1040,6 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	if (!ret.has_value())
 		Console.Error("Failed to read resource file to string '%s'", filename);
 	return ret;
-}
-
-std::optional<std::time_t> Host::GetResourceFileTimestamp(const char* filename)
-{
-	const std::string path(Path::Combine(EmuFolders::Resources, filename));
-	FILESYSTEM_STAT_DATA sd;
-	if (!FileSystem::StatFile(filename, &sd))
-		return std::nullopt;
-
-	return sd.ModificationTime;
 }
 
 void Host::AddFormattedOSDMessage(float duration, const char* format, ...)
@@ -1093,10 +1077,6 @@ bool Host::ConfirmMessage(const std::string_view& title, const std::string_view&
 	return true;
 }
 
-void Host::OnPerformanceMetricsUpdated()
-{
-}
-
 void Host::OnVMPaused()
 {
 }
@@ -1126,22 +1106,6 @@ void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_ov
 {
 }
 
-void Host::OnSaveStateLoading(const std::string_view& filename)
-{
-}
-
-void Host::OnSaveStateLoaded(const std::string_view& filename, bool was_successful)
-{
-}
-
-void Host::OnSaveStateSaved(const std::string_view& filename)
-{
-}
-
-void Host::CancelGameListRefresh()
-{
-}
-
 void Host::CPUThreadVSync()
 {
 }
@@ -1163,73 +1127,4 @@ void Host::SetDefaultUISettings(SettingsInterface& si)
 void Host::RequestVMShutdown(bool allow_confirm, bool allow_save_state, bool default_save_state)
 {
 	VMManager::SetState(VMState::Stopping);
-}
-
-
-void FullscreenUI::CheckForConfigChanges(const Pcsx2Config& old_config)
-{
-}
-
-void CommonHost::Internal::ResetVMHotkeyState()
-{
-}
-
-void FullscreenUI::OnVMStarted()
-{
-}
-
-void FullscreenUI::OnVMDestroyed()
-{
-}
-
-void FullscreenUI::OnRunningGameChanged(std::string path, std::string serial, std::string title, u32 crc)
-{
-}
-
-bool FullscreenUI::IsInitialized()
-{
-	return true;
-}
-
-void FullscreenUI::Render()
-{
-}
-
-std::optional<WindowInfo> Host::GetTopLevelWindowInfo()
-{
-	WindowInfo wi;
-	wi.surface_width = 640;
-	wi.surface_height = 448;
-	wi.surface_scale = 1.0f;
-	wi.type = WindowInfo::Type::Libretro;
-
-	return wi;
-}
-
-bool Host::IsFullscreen()
-{
-	return true;
-}
-
-void ImGuiManager::Shutdown(bool clear_state)
-{
-}
-void ImGuiManager::WindowResized()
-{
-}
-
-bool ImGuiManager::Initialize()
-{
-	return true;
-}
-void ImGuiManager::SkipFrame()
-{
-}
-
-void ImGuiManager::RenderOSD()
-{
-}
-
-void ImGuiManager::NewFrame()
-{
 }

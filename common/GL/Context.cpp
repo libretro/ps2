@@ -28,20 +28,7 @@
 #include <malloc.h>
 #endif
 
-#if defined(__LIBRETRO__)
 #include "common/GL/ContextRetroGL.h"
-#elif defined(_WIN32) && !defined(_M_ARM64)
-#include "common/GL/ContextWGL.h"
-#elif defined(__APPLE__)
-#include "common/GL/ContextAGL.h"
-#else
-#ifdef X11_API
-#include "common/GL/ContextEGLX11.h"
-#endif
-#ifdef WAYLAND_API
-#include "common/GL/ContextEGLWayland.h"
-#endif
-#endif
 
 namespace GL
 {
@@ -91,25 +78,7 @@ namespace GL
 		}
 
 		std::unique_ptr<Context> context;
-#if defined(__LIBRETRO__)
 		context = ContextRetroGL::Create(wi, versions_to_try);
-#else
-#if defined(_WIN32) && !defined(_M_ARM64)
-		context = ContextWGL::Create(wi, versions_to_try);
-#elif defined(__APPLE__)
-		context = ContextAGL::Create(wi, versions_to_try);
-#endif
-
-#if defined(X11_API)
-		if (wi.type == WindowInfo::Type::X11)
-			context = ContextEGLX11::Create(wi, versions_to_try);
-#endif
-
-#if defined(WAYLAND_API)
-		if (wi.type == WindowInfo::Type::Wayland)
-			context = ContextEGLWayland::Create(wi, versions_to_try);
-#endif
-#endif
 
 		if (!context)
 			return nullptr;
@@ -139,15 +108,6 @@ namespace GL
 		}
 
 		context_being_created = nullptr;
-
-		const char* gl_vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-		const char* gl_renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-		const char* gl_version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-		const char* gl_shading_language_version = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
-		DevCon.WriteLn(Color_Magenta, "GL_VENDOR: %s", gl_vendor);
-		DevCon.WriteLn(Color_Magenta, "GL_RENDERER: %s", gl_renderer);
-		DevCon.WriteLn(Color_Magenta, "GL_VERSION: %s", gl_version);
-		DevCon.WriteLn(Color_Magenta, "GL_SHADING_LANGUAGE_VERSION: %s", gl_shading_language_version);
 
 		return context;
 	}

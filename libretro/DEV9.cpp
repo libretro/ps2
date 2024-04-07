@@ -10,18 +10,18 @@ void DEV9configure()
 
 s32 DEV9init()
 {
-    DevCon.WriteLn("Initializing dev9null");
+    Console.WriteLn("Initializing dev9null");
     return 0;
 }
 
 void DEV9shutdown()
 {
-    DevCon.WriteLn("Shutting down Dev9null.");
+    Console.WriteLn("Shutting down Dev9null.");
 }
 
 s32 DEV9open()
 {
-    DevCon.WriteLn("Opening Dev9null.");
+    Console.WriteLn("Opening Dev9null.");
     // Get anything ready we need to. Opening and creating hard
     // drive files, for example.
     return 0;
@@ -29,7 +29,7 @@ s32 DEV9open()
 
 void DEV9close()
 {
-    DevCon.WriteLn("Closing Dev9null.");
+    Console.WriteLn("Closing Dev9null.");
     // Close files opened.
 }
 
@@ -43,7 +43,7 @@ u8 DEV9read8(u32 addr)
             break;       // We need to have at least one case to avoid warnings.
         default:
             //value = dev9Ru8(addr);
-            DevCon.WriteLn("*Unknown 8 bit read at address %lx", addr);
+            Console.WriteLn("*Unknown 8 bit read at address %lx", addr);
             break;
     }
     return value;
@@ -75,7 +75,7 @@ u16 DEV9read16(u32 addr)
             break;
         default:
             //value = dev9Ru16(addr);
-            DevCon.WriteLn("*Unknown 16 bit read at address %lx", addr);
+            Console.WriteLn("*Unknown 16 bit read at address %lx", addr);
             break;
     }
 
@@ -91,7 +91,7 @@ u32 DEV9read32(u32 addr)
             break;
         default:
             //value = dev9Ru32(addr);
-            DevCon.WriteLn("*Unknown 32 bit read at address %lx", addr);
+            Console.WriteLn("*Unknown 32 bit read at address %lx", addr);
             break;
     }
 
@@ -104,7 +104,7 @@ void DEV9write8(u32 addr, u8 value)
         case 0x10000038: /*dev9Ru8(addr) = value;*/
             break;
         default:
-            DevCon.WriteLn("*Unknown 8 bit write; address %lx = %x", addr, value);
+            Console.WriteLn("*Unknown 8 bit write; address %lx = %x", addr, value);
             //dev9Ru8(addr) = value;
             break;
     }
@@ -118,7 +118,7 @@ void DEV9write16(u32 addr, u16 value)
         case 0x10000038: /*dev9Ru16(addr) = value;*/
             break;
         default:
-            DevCon.WriteLn("*Unknown 16 bit write; address %lx = %x", addr, value);
+            Console.WriteLn("*Unknown 16 bit write; address %lx = %x", addr, value);
             //dev9Ru16(addr) = value;
             break;
     }
@@ -130,7 +130,7 @@ void DEV9write32(u32 addr, u32 value)
         case 0x10000038: /*dev9Ru32(addr) = value;*/
             break;
         default:
-            DevCon.WriteLn("*Unknown 32 bit write; address %lx = %x", addr, value);
+            Console.WriteLn("*Unknown 32 bit write; address %lx = %x", addr, value);
             //dev9Ru32(addr) = value;
             break;
     }
@@ -140,7 +140,7 @@ s32 DEV9dmaRead(s32 channel, u32 *data, u32 bytesLeft, u32 *bytesProcessed)
 {
     // You'll want to put your own DMA8 reading code here.
     // Time to interact with your fake (or real) hardware.
-    DevCon.WriteLn("Reading DMA8 Mem.");
+    Console.WriteLn("Reading DMA8 Mem.");
     *bytesProcessed = bytesLeft;
     return 0;
 }
@@ -148,7 +148,7 @@ s32 DEV9dmaRead(s32 channel, u32 *data, u32 bytesLeft, u32 *bytesProcessed)
 s32 DEV9dmaWrite(s32 channel, u32 *data, u32 bytesLeft, u32 *bytesProcessed)
 {
     // See above.
-    DevCon.WriteLn("Writing DMA8 Mem.");
+    Console.WriteLn("Writing DMA8 Mem.");
     *bytesProcessed = bytesLeft;
     return 0;
 }
@@ -162,13 +162,13 @@ void DEV9readDMA8Mem(u32 *pMem, int size)
 {
     // You'll want to put your own DMA8 reading code here.
     // Time to interact with your fake (or real) hardware.
-    DevCon.WriteLn("Reading DMA8 Mem.");
+    Console.WriteLn("Reading DMA8 Mem.");
 }
 
 void DEV9writeDMA8Mem(u32 *pMem, int size)
 {
     // See above.
-    DevCon.WriteLn("Writing DMA8 Mem.");
+    Console.WriteLn("Writing DMA8 Mem.");
 }
 
 int DEV9irqHandler(void)

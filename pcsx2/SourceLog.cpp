@@ -45,22 +45,6 @@ std::string emuLogName;
 SysTraceLogPack SysTrace;
 SysConsoleLogPack SysConsole;
 
-// writes text directly to the logfile, no newlines appended.
-void __Log(const char* fmt, ...)
-{
-	va_list list;
-	va_start(list, fmt);
-
-	if (emuLog != NULL)
-	{
-		std::vfprintf(emuLog, fmt, list);
-		fputs("\n", emuLog);
-		fflush(emuLog);
-	}
-
-	va_end(list);
-}
-
 void SysTraceLog::DoWrite(const char* msg) const
 {
 	if (emuLog == NULL)
@@ -108,8 +92,6 @@ static const TraceLogDescriptor
 
 	TLD_Pgif = {"PGIFout", "&PGIF Console", "Shows output from pgif the emulated ps1 gpu"},
 
-	TLD_recordingConsole = {"Input Recording", "Input Recording Console", "Shows recording related logs and information."},
-
 	TLD_controlInfo = {"Controller Info", "Controller Info", "Shows detailed controller input values for port 1, every frame."}
 ; // End init of TraceLogDescriptors
 
@@ -121,7 +103,6 @@ SysConsoleLogPack::SysConsoleLogPack()
 	, eeConsole(&TLD_eeConsole)
 	, iopConsole(&TLD_iopConsole)
 	, deci2(&TLD_deci2)
-	, recordingConsole(&TLD_recordingConsole)
 	, controlInfo(&TLD_controlInfo)
 {
 }

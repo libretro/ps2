@@ -23,8 +23,6 @@
 #include <string_view>
 #include <optional>
 
-#include "common/Pcsx2Defs.h"
-
 #include "Config.h"
 
 enum class CDVD_SourceType : uint8_t;
@@ -107,41 +105,8 @@ namespace VMManager
 	/// Reloads cheats/patches. If verbose is set, the number of patches loaded will be shown in the OSD.
 	void ReloadPatches(bool verbose, bool show_messages_when_disabled);
 
-	/// Returns the save state filename for the given game serial/crc.
-	std::string GetSaveStateFileName(const char* game_serial, u32 game_crc, s32 slot);
-
-	/// Returns the path to save state for the specified disc/elf.
-	std::string GetSaveStateFileName(const char* filename, s32 slot);
-
-	/// Returns true if there is a save state in the specified slot.
-	bool HasSaveStateInSlot(const char* game_serial, u32 game_crc, s32 slot);
-
-	/// Loads state from the specified file.
-	bool LoadState(const char* filename);
-
-	/// Loads state from the specified slot.
-	bool LoadStateFromSlot(s32 slot);
-
-	/// Saves state to the specified filename.
-	bool SaveState(const char* filename, bool zip_on_thread = true, bool backup_old_state = false);
-
-	/// Saves state to the specified slot.
-	bool SaveStateToSlot(s32 slot, bool zip_on_thread = true);
-
 	/// Waits until all compressing save states have finished saving to disk.
 	void WaitForSaveStateFlush();
-
-	/// Removes all save states for the specified serial and crc. Returns the number of files deleted.
-	u32 DeleteSaveStates(const char* game_serial, u32 game_crc, bool also_backups = true);
-
-	/// Returns the current limiter mode.
-	LimiterModeType GetLimiterMode();
-
-	/// Updates the host vsync state, as well as timer frequencies. Call when the speed limiter is adjusted.
-	void SetLimiterMode(LimiterModeType type);
-
-	/// Runs the virtual machine for the specified number of video frames, and then automatically pauses.
-	void FrameAdvance(u32 num_frames = 1);
 
 	/// Changes the disc in the virtual CD/DVD drive. Passing an empty will remove any current disc.
 	/// Returns false if the new disc can't be opened.
