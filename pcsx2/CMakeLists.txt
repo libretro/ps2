@@ -957,7 +957,6 @@ if(Windows)
 endif()
 
 target_sources(PCSX2 PRIVATE ${pcsx2USBSources} ${pcsx2USBHeaders})
-target_link_libraries(PCSX2_FLAGS INTERFACE jpgd)
 
 # MacOSX/BSD
 if(UNIX AND NOT Linux)
@@ -1026,7 +1025,6 @@ target_include_directories(PCSX2_FLAGS INTERFACE
 	x86
 	${CMAKE_BINARY_DIR}/pcsx2
 	${CMAKE_BINARY_DIR}/common/include/
-	"${CMAKE_SOURCE_DIR}/3rdparty/jpgd/"
 	"${CMAKE_SOURCE_DIR}/3rdparty/xbyak/"
 	"${FFMPEG_INCLUDE_DIRS}"
 )

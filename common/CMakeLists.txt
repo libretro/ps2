@@ -18,7 +18,6 @@ target_sources(common PRIVATE
 	FastJmp.cpp
 	FileSystem.cpp
 	General.cpp
-	Image.cpp
 	MemorySettingsInterface.cpp
 	Misc.cpp
 	MD5Digest.cpp
@@ -74,7 +73,6 @@ target_sources(common PRIVATE
 	General.h
 	HashCombine.h
 	HeterogeneousContainers.h
-	Image.h
 	LRUCache.h
 	HeapArray.h
 	MemcpyFast.h
@@ -231,7 +229,6 @@ endif()
 target_link_libraries(common PRIVATE
 	${LIBC_LIBRARIES}
 	PNG::PNG
-	jpgd
 )
 
 target_link_libraries(common PUBLIC

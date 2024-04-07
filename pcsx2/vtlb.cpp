@@ -1428,22 +1428,14 @@ bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 	u32 vaddr;
 	if (CHECK_FASTMEM && vtlb_GetGuestAddress(info.addr, &vaddr))
 	{
-		// this was inside the fastmem area. check if it's a code page
-		// fprintf(stderr, "Fault on fastmem %p vaddr %08X\n", info.addr, vaddr);
-
 		uptr ptr = (uptr)PSM(vaddr);
 		uptr offset = (ptr - (uptr)eeMem->Main);
 		if (ptr && m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write)
 		{
-			// fprintf(stderr, "Not backpatching code write at %08X\n", vaddr);
 			mmap_ClearCpuBlock(offset);
 			return true;
 		}
-		else
-		{
-			// fprintf(stderr, "Trying backpatching vaddr %08X\n", vaddr);
-			return vtlb_BackpatchLoadStore(info.pc, info.addr);
-		}
+		return vtlb_BackpatchLoadStore(info.pc, info.addr);
 	}
 	else
 	{

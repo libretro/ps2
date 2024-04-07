@@ -24,7 +24,6 @@
 #include "VMManager.h"
 
 #include "common/FileSystem.h"
-#include "common/Image.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 #include "common/Timer.h"

@@ -48,19 +48,6 @@
 
 #include "fmt/core.h"
 
-// #define DUMP_BLOCKS 1
-// #define TRACE_BLOCKS 1
-
-#ifdef DUMP_BLOCKS
-#include "Zydis/Zydis.h"
-#include "Zycore/Format.h"
-#include "Zycore/Status.h"
-#endif
-
-#ifdef TRACE_BLOCKS
-#include <zlib.h>
-#endif
-
 using namespace x86Emitter;
 
 extern void psxBREAK();
@@ -117,56 +104,6 @@ static void iopClearRecLUT(BASEBLOCK* base, int count);
 			psxRecClearMem(mem) : \
             4)
 
-#ifdef DUMP_BLOCKS
-static ZydisFormatterFunc s_old_print_address;
-
-static ZyanStatus ZydisFormatterPrintAddressAbsolute(const ZydisFormatter* formatter,
-	ZydisFormatterBuffer* buffer, ZydisFormatterContext* context)
-{
-	ZyanU64 address;
-	ZYAN_CHECK(ZydisCalcAbsoluteAddress(context->instruction, context->operand,
-		context->runtime_address, &address));
-
-	char buf[128];
-	u32 len = 0;
-
-#define A(x) ((u64)(x))
-
-	if (address >= A(iopMem->Main) && address < A(iopMem->P))
-	{
-		len = snprintf(buf, sizeof(buf), "iopMem+0x%08X", static_cast<u32>(address - A(iopMem->Main)));
-	}
-	else if (address >= A(&psxRegs.GPR) && address < A(&psxRegs.CP0))
-	{
-		len = snprintf(buf, sizeof(buf), "psxRegs.GPR.%s", R3000A::disRNameGPR[static_cast<u32>(address - A(&psxRegs)) / 4u]);
-	}
-	else if (address == A(&psxRegs.pc))
-	{
-		len = snprintf(buf, sizeof(buf), "psxRegs.pc");
-	}
-	else if (address == A(&psxRegs.cycle))
-	{
-		len = snprintf(buf, sizeof(buf), "psxRegs.cycle");
-	}
-	else if (address == A(&g_nextEventCycle))
-	{
-		len = snprintf(buf, sizeof(buf), "g_nextEventCycle");
-	}
-
-#undef A
-
-	if (len > 0)
-	{
-		ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
-		ZyanString* string;
-		ZYAN_CHECK(ZydisFormatterBufferGetString(buffer, &string));
-		return ZyanStringAppendFormat(string, "&%s", buf);
-	}
-
-	return s_old_print_address(formatter, buffer, context);
-}
-#endif
-
 // =====================================================================================================
 //  Dynamically Compiled Dispatchers - R3000A style
 // =====================================================================================================
@@ -185,14 +122,14 @@ static DynGenFunc* iopJITCompileInBlock = NULL;
 static DynGenFunc* iopEnterRecompiledCode = NULL;
 static DynGenFunc* iopExitRecompiledCode = NULL;
 
-static void recEventTest()
+static void recEventTest(void)
 {
 	_cpuEventTest_Shared();
 }
 
 // The address for all cleared blocks.  It recompiles the current pc and then
 // dispatches to the recompiled block address.
-static DynGenFunc* _DynGen_JITCompile()
+static DynGenFunc* _DynGen_JITCompile(void)
 {
 	pxAssertMsg(iopDispatcherReg != NULL, "Please compile the DispatcherReg subroutine *before* JITComple.  Thanks.");
 
@@ -1402,27 +1339,6 @@ static void psxEncodeMemcheck()
 
 void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
 {
-#ifdef DUMP_BLOCKS
-	const bool dump_block = true;
-
-	const u8* instStart = x86Ptr;
-	ZydisDecoder disas_decoder;
-	ZydisFormatter disas_formatter;
-	ZydisDecodedInstruction disas_instruction;
-
-	if (dump_block)
-	{
-		fprintf(stderr, "Compiling %s%s\n", delayslot ? "delay slot " : "", disR3000AF(iopMemRead32(psxpc), psxpc));
-		if (!delayslot)
-		{
-			ZydisDecoderInit(&disas_decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_ADDRESS_WIDTH_64);
-			ZydisFormatterInit(&disas_formatter, ZYDIS_FORMATTER_STYLE_INTEL);
-			s_old_print_address = (ZydisFormatterFunc)&ZydisFormatterPrintAddressAbsolute;
-			ZydisFormatterSetHook(&disas_formatter, ZYDIS_FORMATTER_FUNC_PRINT_ADDRESS_ABS, (const void**)&s_old_print_address);
-		}
-	}
-#endif
-
 	const int old_code = psxRegs.code;
 	EEINST* old_inst_info = g_pCurInstInfo;
 	s_recompilingDelaySlot = delayslot;
@@ -1457,59 +1373,7 @@ void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
 		psxRegs.code = old_code;
 		g_pCurInstInfo = old_inst_info;
 	}
-
-#ifdef DUMP_BLOCKS
-	if (dump_block && !delayslot)
-	{
-		const u8* instPtr = instStart;
-		ZyanUSize instLength = static_cast<ZyanUSize>(x86Ptr - instStart);
-		while (ZYAN_SUCCESS(ZydisDecoderDecodeBuffer(&disas_decoder, instPtr, instLength, &disas_instruction)))
-		{
-			char buffer[256];
-			if (ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&disas_formatter, &disas_instruction, buffer, sizeof(buffer), (ZyanU64)instPtr)))
-				std::fprintf(stderr, "    %016" PRIX64 "    %s\n", (u64)instPtr, buffer);
-
-			instPtr += disas_instruction.length;
-			instLength -= disas_instruction.length;
-		}
-	}
-#endif
 }
-
-#ifdef TRACE_BLOCKS
-static void PreBlockCheck(u32 blockpc)
-{
-#if 0
-	static FILE* fp = nullptr;
-	static bool fp_opened = false;
-	if (!fp_opened && psxRegs.cycle >= 0)
-	{
-		fp = std::fopen("C:\\Dumps\\comp\\ioplog.txt", "wb");
-		fp_opened = true;
-	}
-	if (fp)
-	{
-		u32 hash = crc32(0, (Bytef*)&psxRegs, offsetof(psxRegisters, pc));
-
-#if 1
-		std::fprintf(fp, "%08X (%u; %08X):", psxRegs.pc, psxRegs.cycle, hash);
-		for (int i = 0; i < 34; i++)
-		{
-			std::fprintf(fp, " %s: %08X", R3000A::disRNameGPR[i], psxRegs.GPR.r[i]);
-		}
-		std::fprintf(fp, "\n");
-#else
-		std::fprintf(fp, "%08X (%u): %08X\n", psxRegs.pc, psxRegs.cycle, hash);
-#endif
-		// std::fflush(fp);
-	}
-#endif
-#if 0
-	if (psxRegs.cycle == 0)
-		__debugbreak();
-#endif
-}
-#endif
 
 static void iopRecRecompile(const u32 startpc)
 {
@@ -1564,10 +1428,6 @@ static void iopRecRecompile(const u32 startpc)
 		xTEST(al, al);
 		xJNZ(iopDispatcherReg);
 	}
-
-#ifdef TRACE_BLOCKS
-	xFastCall((void*)PreBlockCheck, psxpc);
-#endif
 
 	// go until the next branch
 	i = startpc;

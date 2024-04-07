@@ -809,9 +809,6 @@
       <Project>{2f6c0388-20cb-4242-9f6c-a6ebb6a83f47}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)3rdparty\jpgd\jpgd.vcxproj">
-      <Project>{ed2f21fd-0a36-4a8f-9b90-e7d92a2acb63}</Project>
-    </ProjectReference>
     <ProjectReference Include="$(SolutionDir)3rdparty\cubeb\cubeb.vcxproj">
       <Project>{bf74c473-dc04-44b3-92e8-4145f4e77342}</Project>
     </ProjectReference>

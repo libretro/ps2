@@ -117,11 +117,6 @@ union GSScanlineSelector
 			fwrite, ftest, zoverflow, zequal, zclamp, edge);
 		return str;
 	}
-
-	void Print() const
-	{
-		fprintf(stderr, "%s\n", to_string().c_str());
-	}
 };
 
 struct alignas(32) GSScanlineGlobalData // per batch variables, this is like a pixel shader constant buffer

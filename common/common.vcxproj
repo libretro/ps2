@@ -37,7 +37,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\d3d12memalloc\include;$(SolutionDir)3rdparty\glad\include;$(SolutionDir)3rdparty\glslang\glslang;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\rapidyaml\rapidyaml\ext\c4core\src\c4\ext\fast_float\include</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\libpng</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\jpgd</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Async</ExceptionHandling>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <ForcedIncludeFiles>PrecompiledHeader.h</ForcedIncludeFiles>
@@ -238,9 +238,6 @@
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\glslang\glslang.vcxproj">
       <Project>{ef6834a9-11f3-4331-bc34-21b325abb180}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdparty\jpgd\jpgd.vcxproj">
-      <Project>{ed2f21fd-0a36-4a8f-9b90-e7d92a2acb63}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
