@@ -123,7 +123,6 @@ static std::vector<u8> s_no_interlacing_cheats_data;
 static bool s_no_interlacing_cheats_loaded = false;
 static s32 s_active_widescreen_patches = 0;
 static u32 s_active_no_interlacing_patches = 0;
-static u32 s_frame_advance_count = 0;
 static u32 s_mxcsr_saved;
 static bool s_gs_open_on_initialize = false;
 
@@ -1175,18 +1174,6 @@ void VMManager::Internal::VSyncOnCPUThread()
 	// TODO: Move frame limiting here to reduce CPU usage after sleeping...
 	ApplyLoadedPatches(PPT_CONTINUOUSLY);
 	ApplyLoadedPatches(PPT_COMBINED_0_1);
-
-	// Frame advance must be done *before* pumping messages, because otherwise
-	// we'll immediately reduce the counter we just set.
-	if (s_frame_advance_count > 0)
-	{
-		s_frame_advance_count--;
-		if (s_frame_advance_count == 0)
-		{
-			// auto pause at the end of frame advance
-			SetState(VMState::Paused);
-		}
-	}
 
 	Host::CPUThreadVSync();
 }
