@@ -538,37 +538,6 @@ void GSLocalMemory::ReadTexture(const GSOffset& off, const GSVector4i& r, u8* ds
 
 //
 
-#include "Renderers/SW/GSTextureSW.h"
-
-void GSLocalMemory::SaveBMP(const std::string& fn, u32 bp, u32 bw, u32 psm, int w, int h)
-{
-	int pitch = w * 4;
-	int size = pitch * h;
-	void* bits = _aligned_malloc(size, VECTOR_ALIGNMENT);
-
-	GIFRegTEX0 TEX0;
-
-	TEX0.TBP0 = bp;
-	TEX0.TBW = bw;
-	TEX0.PSM = psm;
-
-	readPixel rp = m_psm[psm].rp;
-
-	u8* p = (u8*)bits;
-
-	for (int j = 0; j < h; j++, p += pitch)
-	{
-		for (int i = 0; i < w; i++)
-		{
-			((u32*)p)[i] = (this->*rp)(i, j, TEX0.TBP0, TEX0.TBW);
-		}
-	}
-
-	GSPng::Save(GSPng::RGB_PNG, fn, static_cast<u8*>(bits), w, h, pitch, GSConfig.PNGCompressionLevel, false);
-
-	_aligned_free(bits);
-}
-
 // GSOffset
 
 namespace

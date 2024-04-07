@@ -1083,9 +1083,6 @@ void GSDevice11::DoFXAA(GSTexture* sTex, GSTexture* dTex)
 	}
 
 	StretchRect(sTex, sRect, dTex, dRect, m_fxaa_ps.get(), nullptr, true);
-
-	//sTex->Save("c:\\temp1\\1.bmp");
-	//dTex->Save("c:\\temp1\\2.bmp");
 }
 
 void GSDevice11::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])

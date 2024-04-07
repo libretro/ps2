@@ -85,11 +85,6 @@ void GSTextureSW::Unmap()
 	m_mapped.clear(std::memory_order_release);
 }
 
-bool GSTextureSW::Save(const std::string& fn)
-{
-	return true;
-}
-
 void GSTextureSW::Swap(GSTexture* tex)
 {
 	GSTexture::Swap(tex);

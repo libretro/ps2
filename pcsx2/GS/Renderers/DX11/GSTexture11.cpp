@@ -115,11 +115,6 @@ void GSTexture11::Unmap()
 	GSDevice11::GetInstance()->GetD3DContext()->Unmap(m_texture.get(), subresource);
 }
 
-bool GSTexture11::Save(const std::string& fn)
-{
-	return true;
-}
-
 void GSTexture11::GenerateMipmap()
 {
 	GSDevice11::GetInstance()->GetD3DContext()->GenerateMips(operator ID3D11ShaderResourceView*());

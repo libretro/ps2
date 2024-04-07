@@ -1134,10 +1134,6 @@ public:
 	}
 
 	void ReadTexture(const GSOffset& off, const GSVector4i& r, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
-
-	//
-
-	void SaveBMP(const std::string& fn, u32 bp, u32 bw, u32 psm, int w, int h);
 };
 
 constexpr inline GSOffset GSOffset::fromKnownPSM(u32 bp, u32 bw, GS_PSM psm)

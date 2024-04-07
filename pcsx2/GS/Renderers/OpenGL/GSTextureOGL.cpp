@@ -333,11 +333,6 @@ void GSTextureOGL::GenerateMipmap()
 	glGenerateTextureMipmap(m_texture_id);
 }
 
-bool GSTextureOGL::Save(const std::string& fn)
-{
-	return true;
-}
-
 void GSTextureOGL::Swap(GSTexture* tex)
 {
 	GSTexture::Swap(tex);

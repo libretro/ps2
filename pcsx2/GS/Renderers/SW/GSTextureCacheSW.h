@@ -49,7 +49,6 @@ public:
 		void Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA);
 
 		bool Update(const GSVector4i& r);
-		bool Save(const std::string& fn, bool dds = false) const;
 	};
 
 protected:

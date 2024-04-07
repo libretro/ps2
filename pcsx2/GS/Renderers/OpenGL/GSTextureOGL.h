@@ -53,7 +53,6 @@ public:
 	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) final;
 	void Unmap() final;
 	void GenerateMipmap() final;
-	bool Save(const std::string& fn) final;
 	void Swap(GSTexture* tex) final;
 
 	GSMap Read(const GSVector4i& r, AlignedBuffer<u8, 32>& buffer);

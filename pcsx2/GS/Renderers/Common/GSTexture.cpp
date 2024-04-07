@@ -23,11 +23,6 @@
 
 GSTexture::GSTexture() = default;
 
-bool GSTexture::Save(const std::string& fn)
-{
-	return true;
-}
-
 void GSTexture::Swap(GSTexture* tex)
 {
 	std::swap(m_size, tex->m_size);
