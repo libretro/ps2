@@ -140,16 +140,6 @@ void Host::CPUThreadVSync()
 {
 }
 
-std::optional<u32> InputManager::ConvertHostKeyboardStringToCode(const std::string_view& str)
-{
-	return std::nullopt;
-}
-
-std::optional<std::string> InputManager::ConvertHostKeyboardCodeToString(u32 code)
-{
-	return std::nullopt;
-}
-
 SysMtgsThread& GetMTGS()
 {
 	throw std::exception();

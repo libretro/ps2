@@ -17,8 +17,6 @@ static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 struct retro_rumble_interface rumble;
 
-//PADconf g_conf;
-
 static struct retro_input_descriptor desc[] = {
 	{0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT, "Left"},
 	{0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP, "Up"},

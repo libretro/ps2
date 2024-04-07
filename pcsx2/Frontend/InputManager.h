@@ -138,24 +138,6 @@ namespace InputManager
 	static constexpr u32 MAX_POINTER_DEVICES = 1;
 	static constexpr u32 MAX_POINTER_BUTTONS = 3;
 
-	/// Parses an input class string.
-	std::optional<InputSourceType> ParseInputSourceString(const std::string_view& str);
-
-	/// Converts a key code from a human-readable string to an identifier.
-	std::optional<u32> ConvertHostKeyboardStringToCode(const std::string_view& str);
-
-	/// Converts a key code from an identifier to a human-readable string.
-	std::optional<std::string> ConvertHostKeyboardCodeToString(u32 code);
-
-	/// Parses an input binding key string.
-	std::optional<InputBindingKey> ParseInputBindingKey(const std::string_view& binding);
-
-	/// Converts a input key to a string.
-	std::string ConvertInputBindingKeyToString(InputBindingInfo::Type binding_type, InputBindingKey key);
-
-	/// Converts a chord of binding keys to a string.
-	std::string ConvertInputBindingKeysToString(InputBindingInfo::Type binding_type, const InputBindingKey* keys, size_t num_keys);
-
 	/// Retrieves bindings that match the generic bindings for the specified device.
 	using GenericInputBindingMapping = std::vector<std::pair<GenericInputBinding, std::string>>;
 
