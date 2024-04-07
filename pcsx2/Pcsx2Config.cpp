@@ -412,17 +412,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	DisableFramebufferFetch = false;
 	DisableThreadedPresentation = false;
 	SkipDuplicateFrames = false;
-	OsdShowMessages = true;
-	OsdShowSpeed = false;
-	OsdShowFPS = false;
-	OsdShowCPU = false;
-	OsdShowGPU = false;
-	OsdShowResolution = false;
-	OsdShowGSStats = false;
-	OsdShowIndicators = true;
-	OsdShowSettings = false;
-	OsdShowInputs = false;
-	OsdShowFrameTimes = false;
 
 	HWDownloadMode = GSHardwareDownloadMode::Enabled;
 	HWSpinGPUForReadbacks = false;
@@ -573,9 +562,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 {
 	SettingsWrapSection("EmuCore/GS");
 
-#ifdef PCSX2_DEVBUILD
 	SettingsWrapEntry(SynchronousMTGS);
-#endif
 	SettingsWrapEntry(VsyncQueueSize);
 
 	SettingsWrapEntry(FrameLimitEnable);
@@ -621,17 +608,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBool(DisableFramebufferFetch);
 	GSSettingBool(DisableThreadedPresentation);
 	GSSettingBool(SkipDuplicateFrames);
-	GSSettingBool(OsdShowMessages);
-	GSSettingBool(OsdShowSpeed);
-	GSSettingBool(OsdShowFPS);
-	GSSettingBool(OsdShowCPU);
-	GSSettingBool(OsdShowGPU);
-	GSSettingBool(OsdShowResolution);
-	GSSettingBool(OsdShowGSStats);
-	GSSettingBool(OsdShowIndicators);
-	GSSettingBool(OsdShowSettings);
-	GSSettingBool(OsdShowInputs);
-	GSSettingBool(OsdShowFrameTimes);
 
 	GSSettingBool(HWSpinGPUForReadbacks);
 	GSSettingBool(HWSpinCPUForReadbacks);

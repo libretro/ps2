@@ -65,7 +65,6 @@
     <ClCompile Include="D3D12\StreamBuffer.cpp" />
     <ClCompile Include="D3D12\Texture.cpp" />
     <ClCompile Include="D3D12\Util.cpp" />
-    <ClCompile Include="DynamicLibrary.cpp" />
     <ClCompile Include="Exceptions.cpp" />
     <ClCompile Include="FastJmp.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -101,7 +100,6 @@
     <ClCompile Include="Vulkan\SwapChain.cpp" />
     <ClCompile Include="Vulkan\Texture.cpp" />
     <ClCompile Include="Vulkan\Util.cpp" />
-    <ClCompile Include="WAVWriter.cpp" />
     <ClCompile Include="WindowInfo.cpp" />
     <ClCompile Include="Perf.cpp" />
     <ClCompile Include="PrecompiledHeader.cpp">
@@ -147,7 +145,6 @@
     <ClInclude Include="D3D12\StreamBuffer.h" />
     <ClInclude Include="D3D12\Texture.h" />
     <ClInclude Include="D3D12\Util.h" />
-    <ClInclude Include="DynamicLibrary.h" />
     <ClInclude Include="Easing.h" />
     <ClInclude Include="boost_spsc_queue.hpp" />
     <ClInclude Include="FastJmp.h" />
@@ -198,7 +195,6 @@
     <ClInclude Include="Vulkan\SwapChain.h" />
     <ClInclude Include="Vulkan\Texture.h" />
     <ClInclude Include="Vulkan\Util.h" />
-    <ClInclude Include="WAVWriter.h" />
     <ClInclude Include="WindowInfo.h" />
     <ClInclude Include="Threading.h" />
     <ClInclude Include="emitter\implement\avx.h" />

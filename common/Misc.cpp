@@ -19,7 +19,7 @@
 
 static u32 PAUSE_TIME = 0;
 
-static void MultiPause()
+static void MultiPause(void)
 {
 	_mm_pause();
 	_mm_pause();
@@ -31,7 +31,7 @@ static void MultiPause()
 	_mm_pause();
 }
 
-static u32 MeasurePauseTime()
+static u32 MeasurePauseTime(void)
 {
 	// GetCPUTicks may have resolution as low as 1µs
 	// One call to MultiPause could take anywhere from 20ns (fast Haswell) to 400ns (slow Skylake)
@@ -53,7 +53,7 @@ static u32 MeasurePauseTime()
 	}
 }
 
-__noinline static void UpdatePauseTime()
+__noinline static void UpdatePauseTime(void)
 {
 	u64 wait = GetCPUTicks() + GetTickFrequency() / 100; // Wake up processor (spin for 10ms)
 	while (GetCPUTicks() < wait)
@@ -66,7 +66,7 @@ __noinline static void UpdatePauseTime()
 	PAUSE_TIME = pause;
 }
 
-u32 ShortSpin()
+u32 ShortSpin(void)
 {
 	u32 inc = PAUSE_TIME;
 	if (unlikely(inc == 0))

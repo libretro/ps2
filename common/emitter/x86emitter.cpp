@@ -575,7 +575,7 @@ const xRegister32
 		// Core2/i7 CPUs prefer unaligned addresses.  Checking for SSSE3 is a decent filter.
 		// (also align in debug modes for disasm convenience)
 
-		if (IsDebugBuild || !x86caps.hasSupplementalStreamingSIMD3Extensions)
+		if (!x86caps.hasSupplementalStreamingSIMD3Extensions)
 		{
 			// - P4's and earlier prefer 16 byte alignment.
 			// - AMD Athlons and Phenoms prefer 8 byte alignment, but I don't have an easy

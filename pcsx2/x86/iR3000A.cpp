@@ -192,7 +192,7 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 	return (DynGenFunc*)retval;
 }
 
-static void _DynGen_Dispatchers()
+static void _DynGen_Dispatchers(void)
 {
 	// In case init gets called multiple times:
 	HostSys::MemProtectStatic(iopRecDispatchers, PageAccess_ReadWrite());
@@ -603,7 +603,7 @@ void psxRecompileCodeConst0(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 	noconstcode(info);
 }
 
-static void psxRecompileIrxImport()
+static void psxRecompileIrxImport(void)
 {
 	u32 import_table = irxImportTableAddr(psxpc - 4);
 	u16 index = psxRegs.code & 0xffff;
@@ -611,13 +611,8 @@ static void psxRecompileIrxImport()
 		return;
 
 	const std::string libname = iopMemReadString(import_table + 12, 8);
-
-	irxHLE hle = irxImportHLE(libname, index);
-#ifdef PCSX2_DEVBUILD
-	const irxDEBUG debug = irxImportDebug(libname, index);
-#else
-	const irxDEBUG debug = 0;
-#endif
+	irxHLE hle                = irxImportHLE(libname, index);
+	const irxDEBUG debug      = 0;
 
 	if (!hle && !debug)
 		return;
@@ -925,11 +920,6 @@ static __noinline s32 recExecuteBlock(s32 eeCycles)
 {
 	psxRegs.iopBreak = 0;
 	psxRegs.iopCycleEE = eeCycles;
-
-#ifdef PCSX2_DEVBUILD
-	//if (SysTrace.SIF.IsActive())
-	//	SysTrace.IOP.R3000A.Write("Switching to IOP CPU for %d cycles", eeCycles);
-#endif
 
 	// [TODO] recExecuteBlock could be replaced by a direct call to the iopEnterRecompiledCode()
 	//   (by assigning its address to the psxRec structure).  But for that to happen, we need

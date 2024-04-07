@@ -206,18 +206,8 @@ void psxCheckMemcheck()
 ///////////////////////////////////////////
 // These macros are used to assemble the repassembler functions
 
-static __fi void execI()
+static __fi void execI(void)
 {
-	// This function is called for every instruction.
-	// Enabling the define below will probably, no, will cause the interpretor to be slower.
-//#define EXTRA_DEBUG
-#if defined(EXTRA_DEBUG) || defined(PCSX2_DEVBUILD)
-	if (psxIsBreakpointNeeded(psxRegs.pc))
-		psxBreakpoint(false);
-
-	psxCheckMemcheck();
-#endif
-
 	// Inject IRX hack
 	if (psxRegs.pc == 0x1630 && EmuConfig.CurrentIRX.length() > 3) {
 		if (iopMemRead32(0x20018) == 0x1F) {

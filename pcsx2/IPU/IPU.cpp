@@ -30,7 +30,7 @@ alignas(16) tIPU_cmd ipu_cmd;
 alignas(16) tIPU_BP g_BP;
 alignas(16) decoder_t decoder;
 
-static void (*IPUWorker)();
+static void (*IPUWorker)(void);
 
 // Color conversion stuff, the memory layout is a total hack
 // convert_data_buffer is a pointer to the internal rgb struct (the first param in convert_init_t)

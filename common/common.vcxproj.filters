@@ -202,12 +202,6 @@
     <ClCompile Include="MemorySettingsInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DynamicLibrary.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="WAVWriter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="General.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -485,12 +479,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HeapArray.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DynamicLibrary.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="WAVWriter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

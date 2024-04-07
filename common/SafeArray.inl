@@ -41,7 +41,8 @@ T* SafeArray<T>::_virtual_realloc(int newsize)
                          malloc(newsize * sizeof(T)) :
                          realloc(m_ptr, newsize * sizeof(T)));
 
-	if (IsDebugBuild && (retval != NULL))
+#ifndef NDEBUG
+	if (retval)
 	{
 		// Zero everything out to 0xbaadf00d, so that its obviously uncleared
 		// to a debuggee
@@ -51,6 +52,7 @@ T* SafeArray<T>::_virtual_realloc(int newsize)
 		for (; fill < end; ++fill)
 			*fill = 0xbaadf00d;
 	}
+#endif
 
 	return retval;
 }

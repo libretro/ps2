@@ -572,12 +572,6 @@ void GSState::GIFPackedRegHandlerSTQ(const GIFPackedReg* RESTRICT r)
 	q = GSVector4i::cast(GSVector4::cast(q).replace_nan(GSVector4::m_max));
 
 	GSVector4::store(&m_q, GSVector4::cast(q));
-
-	// hide behind a define for now to avoid spam in the above cases for users
-#if defined(PCSX2_DEVBUILD) || defined(_DEBUG)
-	if (std::isnan(m_v.ST.S) || std::isnan(m_v.ST.T))
-		Console.Warning("S or T is nan");
-#endif
 }
 
 void GSState::GIFPackedRegHandlerUV(const GIFPackedReg* RESTRICT r)
@@ -765,11 +759,6 @@ void GSState::GIFRegHandlerRGBAQ(const GIFReg* RESTRICT r)
 void GSState::GIFRegHandlerST(const GIFReg* RESTRICT r)
 {
 	m_v.ST = r->ST;
-
-#if defined(PCSX2_DEVBUILD) || defined(_DEBUG)
-	if (std::isnan(m_v.ST.S) || std::isnan(m_v.ST.T))
-		Console.Warning("S or T is nan");
-#endif
 }
 
 void GSState::GIFRegHandlerUV(const GIFReg* RESTRICT r)
@@ -1630,33 +1619,9 @@ void GSState::FlushPrim()
 			ASSERT((int)unused < GSUtil::GetVertexCount(PRIM->PRIM));
 		}
 
-		// If the PSM format of Z is invalid, but it is masked (no write) and ZTST is set to ALWAYS pass (no test, just allow)
-		// we can ignore the Z format, since it won't be used in the draw (Star Ocean 3 transitions)
-#ifdef PCSX2_DEVBUILD
-		const bool ignoreZ = m_context->ZBUF.ZMSK && m_context->TEST.ZTST == 1;
-		if (GSLocalMemory::m_psm[m_context->FRAME.PSM].fmt >= 3 || (GSLocalMemory::m_psm[m_context->ZBUF.PSM].fmt >= 3 && !ignoreZ))
-		{
-			Console.Warning("GS: Possible invalid draw, Frame PSM %x ZPSM %x", m_context->FRAME.PSM, m_context->ZBUF.PSM);
-		}
-#endif
-
 		m_vt.Update(m_vertex.buff, m_index.buff, m_vertex.tail, m_index.tail, GSUtil::GetPrimClass(PRIM->PRIM));
 
-		try
-		{
-			Draw();
-		}
-		catch (GSRecoverableError&)
-		{
-			// could be an unsupported draw call
-		}
-		catch (const std::bad_alloc&)
-		{
-			// Texture Out Of Memory
-			PurgePool();
-			Console.Error("GS: Memory allocation failure.");
-		}
-
+		Draw();
 		g_perfmon.Put(GSPerfMon::Draw, 1);
 		g_perfmon.Put(GSPerfMon::Prim, m_index.tail / GSUtil::GetVertexCount(PRIM->PRIM));
 
@@ -3966,16 +3931,7 @@ bool GSState::GSTransferBuffer::Update(int tw, int th, int bpp, int& len)
 	const int remaining = total - end;
 
 	if (len > remaining)
-	{
-		if (len > packet_size)
-		{
-#if defined(PCSX2_DEVBUILD) || defined(_DEBUG)
-			Console.Warning("GS transfer buffer overflow len %d remaining %d, tex_size %d tw %d th %d bpp %d", len, remaining, tex_size, tw, th, bpp);
-#endif
-		}
-
 		len = remaining;
-	}
 
 	return len > 0;
 }

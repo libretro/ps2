@@ -13,7 +13,6 @@ target_sources(common PRIVATE
 	SafeArray.inl
 	Console.cpp
 	CrashHandler.cpp
-	DynamicLibrary.cpp
 	Exceptions.cpp
 	FastJmp.cpp
 	FileSystem.cpp
@@ -30,7 +29,6 @@ target_sources(common PRIVATE
 	StringUtil.cpp
 	Timer.cpp
 	ThreadPool.cpp
-	WAVWriter.cpp
 	WindowInfo.cpp
 	emitter/avx.cpp
 	emitter/bmi.cpp
@@ -64,7 +62,6 @@ target_sources(common PRIVATE
 	boost_spsc_queue.hpp
 	Console.h
 	CrashHandler.h
-	DynamicLibrary.h
 	Easing.h
 	EnumOps.h
 	Exceptions.h
@@ -95,7 +92,6 @@ target_sources(common PRIVATE
 	Threading.h
 	ThreadPool.h
 	TraceLog.h
-	WAVWriter.h
 	WindowInfo.h
 	emitter/cpudetect_internal.h
 	emitter/implement/dwshift.h

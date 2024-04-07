@@ -57,15 +57,6 @@ union u128
 	u16 _u16[8];
 	u8 _u8[16];
 
-	// Explicit conversion from u64. Zero-extends the source through 128 bits.
-	static u128 From64(u64 src)
-	{
-		u128 retval;
-		retval.lo = src;
-		retval.hi = 0;
-		return retval;
-	}
-
 	// Explicit conversion from u32. Zero-extends the source through 128 bits.
 	static u128 From32(u32 src)
 	{
@@ -95,20 +86,6 @@ struct s128
 {
 	s64 lo;
 	s64 hi;
-
-	// explicit conversion from s64, with sign extension.
-	static s128 From64(s64 src)
-	{
-		s128 retval = {src, (src < 0) ? -1 : 0};
-		return retval;
-	}
-
-	// explicit conversion from s32, with sign extension.
-	static s128 From64(s32 src)
-	{
-		s128 retval = {src, (src < 0) ? -1 : 0};
-		return retval;
-	}
 
 	operator u32() const { return (s32)lo; }
 	operator u16() const { return (s16)lo; }

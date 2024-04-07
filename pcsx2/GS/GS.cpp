@@ -152,8 +152,6 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 		return false;
 	}
 
-	GSConfig.OsdShowGPU = EmuConfig.GS.OsdShowGPU && g_gs_device->SetGPUTimingEnabled(true);
-
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", GSDevice::RenderAPIToString(new_api));
 	Console.Indent().WriteLn(g_gs_device->GetDriverInfo());
 
@@ -750,15 +748,7 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 	// also clear it when dumping changes, since we want to dump everything being used
 	if (GSConfig.LoadTextureReplacements != old_config.LoadTextureReplacements ||
 		GSConfig.DumpReplaceableTextures != old_config.DumpReplaceableTextures)
-	{
 		g_gs_renderer->PurgeTextureCache();
-	}
-
-	if (GSConfig.OsdShowGPU != old_config.OsdShowGPU)
-	{
-		if (!g_gs_device->SetGPUTimingEnabled(GSConfig.OsdShowGPU))
-			GSConfig.OsdShowGPU = false;
-	}
 }
 
 void GSSwitchRenderer(GSRendererType new_renderer)

@@ -39,46 +39,6 @@
 // Use this in those situations
 #define OFFSETOF(a, b) (reinterpret_cast<size_t>(&(static_cast<a*>(0)->b)))
 
-// --------------------------------------------------------------------------------------
-// Dev / Debug conditionals - Consts for using if() statements instead of uglier #ifdef.
-// --------------------------------------------------------------------------------------
-// Note: Using if() optimizes nicely in Devel and Release builds, but will generate extra
-// code overhead in debug builds (since debug neither inlines, nor optimizes out const-
-// level conditionals).  Normally not a concern, but if you stick if( IsDevbuild ) in
-// some tight loops it will likely make debug builds unusably slow.
-//
-#ifdef PCSX2_DEVBUILD
-	static const bool IsDevBuild = true;
-#else
-	static const bool IsDevBuild = false;
-#endif
-
-#ifdef PCSX2_DEBUG
-	static const bool IsDebugBuild = true;
-#else
-	static const bool IsDebugBuild = false;
-#endif
-
-#ifdef PCSX2_DEBUG
-	#define pxDebugCode(code) code
-#else
-	#define pxDebugCode(code)
-#endif
-
-#ifdef PCSX2_DEVBUILD
-	#define pxDevelCode(code) code
-#else
-	#define pxDevelCode(code)
-#endif
-
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-	#define pxReleaseCode(code)
-	#define pxNonReleaseCode(code) code
-#else
-	#define pxReleaseCode(code) code
-	#define pxNonReleaseCode(code)
-#endif
-
 // Defines the memory page size for the target platform at compilation.  All supported platforms
 // (which means Intel only right now) have a 4k granularity.
 #define PCSX2_PAGESIZE 0x1000
@@ -147,11 +107,7 @@ static constexpr size_t __pagemask = PCSX2_PAGESIZE - 1;
 // from Devel builds is likely useful; but which should be inlined in an optimized Release
 // environment.
 //
-#ifdef PCSX2_DEVBUILD
-	#define __releaseinline
-#else
-	#define __releaseinline __forceinline
-#endif
+#define __releaseinline __forceinline
 
 #define __ri __releaseinline
 #define __fi __forceinline

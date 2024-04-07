@@ -410,11 +410,8 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 	const GSDevice::PresentResult res = g_gs_device->BeginPresent(frame_skip);
 	if (res == GSDevice::PresentResult::FrameSkipped)
 		return false;
-	else if (res == GSDevice::PresentResult::OK)
-	{
-		// All good!
+	else if (res == GSDevice::PresentResult::OK) /* All good */
 		return true;
-	}
 
 	// If we're constantly crashing on something in particular, we don't want to end up in an
 	// endless reset loop.. that'd probably end up leaking memory and/or crashing us for other
@@ -548,9 +545,6 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 		}
 
 		EndPresentFrame();
-
-		if (GSConfig.OsdShowGPU)
-			PerformanceMetrics::OnGPUPresent(g_gs_device->GetAndResetAccumulatedGPUTime());
 	}
 	g_gs_device->RestoreAPIState();
 	PerformanceMetrics::Update(registers_written, fb_sprite_frame, false);
@@ -600,18 +594,6 @@ static std::string GSGetBaseFilename()
 	}
 
 	return filename;
-}
-
-std::string GSGetBaseSnapshotFilename()
-{
-	// prepend snapshots directory
-	return Path::Combine(EmuFolders::Snapshots, GSGetBaseFilename());
-}
-
-std::string GSGetBaseVideoFilename()
-{
-	// prepend video directory
-	return Path::Combine(EmuFolders::Videos, GSGetBaseFilename());
 }
 
 void GSRenderer::PresentCurrentFrame()

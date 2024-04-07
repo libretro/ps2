@@ -239,21 +239,6 @@ __fi void mVUcheckBadOp(mV)
 		mVUinfo.isEOB = true;
 }
 
-// Prints msg when exiting block early if 1st op was a bad opcode (Dawn of Mana Level 2)
-// #ifdef PCSX2_DEVBUILD because starting with SVN R5586 we get log spam in releases (Shadow Hearts battles)
-__fi void handleBadOp(mV, int count)
-{
-#ifdef PCSX2_DEVBUILD
-	if (mVUinfo.isBadOp)
-	{
-		mVUbackupRegs(mVU, true);
-		if (!isVU1) xFastCall(mVUbadOp0, mVU.prog.cur->idx, xPC);
-		else        xFastCall(mVUbadOp1, mVU.prog.cur->idx, xPC);
-		mVUrestoreRegs(mVU, true);
-	}
-#endif
-}
-
 __ri void branchWarning(mV)
 {
 	incPC(-2);
@@ -829,10 +814,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	for (; x < endCount; x++)
 	{
 		if (mVUinfo.isEOB)
-		{
-			handleBadOp(mVU, x);
 			x = 0xffff;
-		} // handleBadOp currently just prints a warning
 		if (mVUup.mBit)
 		{
 			xOR(ptr32[&mVU.regs().flags], VUFLAG_MFLAGSET);

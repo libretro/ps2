@@ -238,10 +238,6 @@ __fi void vif0Interrupt()
 		CPU_INT(DMAC_VIF0, 0);
 		return; //Dont want to end if vif is stalled.
 	}
-#ifdef PCSX2_DEVBUILD
-	if (vif0ch.qwc > 0) Console.WriteLn("vif0 Ending with %x QWC left", vif0ch.qwc);
-	if (vif0.cmd != 0) Console.WriteLn("vif0.cmd still set %x tag size %x", vif0.cmd, vif0.tag.size);
-#endif
 
 	vif0ch.chcr.STR = false;
 	vif0Regs.stat.FQC = std::min((u32)0x8, vif0ch.qwc);

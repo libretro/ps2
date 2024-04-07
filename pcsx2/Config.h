@@ -640,18 +640,7 @@ struct Pcsx2Config
 					DisableDualSourceBlend : 1,
 					DisableFramebufferFetch : 1,
 					DisableThreadedPresentation : 1,
-					SkipDuplicateFrames : 1,
-					OsdShowMessages : 1,
-					OsdShowSpeed : 1,
-					OsdShowFPS : 1,
-					OsdShowCPU : 1,
-					OsdShowGPU : 1,
-					OsdShowResolution : 1,
-					OsdShowGSStats : 1,
-					OsdShowIndicators : 1,
-					OsdShowSettings : 1,
-					OsdShowInputs : 1,
-					OsdShowFrameTimes : 1;
+					SkipDuplicateFrames : 1;
 
 				bool
 					HWSpinGPUForReadbacks : 1,

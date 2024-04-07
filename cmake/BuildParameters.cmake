@@ -209,8 +209,8 @@ if(USE_PGO_OPTIMIZE)
 endif()
 
 list(APPEND PCSX2_DEFS
-	"$<$<CONFIG:Debug>:PCSX2_DEVBUILD;PCSX2_DEBUG;_DEBUG>"
-	"$<$<CONFIG:Devel>:PCSX2_DEVBUILD;_DEVEL>")
+	"$<$<CONFIG:Debug>:PCSX2_DEBUG;_DEBUG>"
+	"$<$<CONFIG:Devel>:_DEVEL>")
 
 if (USE_ASAN)
 	add_compile_options(-fsanitize=address)
