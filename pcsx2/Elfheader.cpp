@@ -245,67 +245,56 @@ int GetPS2ElfName( std::string& name )
 {
 	int retype = 0;
 
-	try {
-		IsoFSCDVD isofs;
-		IsoFile file( isofs, "SYSTEM.CNF;1");
+	IsoFSCDVD isofs;
+	IsoFile file( isofs, "SYSTEM.CNF;1");
 
-		int size = file.getLength();
-		if( size == 0 ) return 0;
+	int size = file.getLength();
+	if( size == 0 ) return 0;
 
-		while( !file.eof() )
-		{
-			const std::string line(file.readLine());
-			std::string_view key, value;
-			if (!StringUtil::ParseAssignmentString(line, &key, &value))
-				continue;
+	while( !file.eof() )
+	{
+		const std::string line(file.readLine());
+		std::string_view key, value;
+		if (!StringUtil::ParseAssignmentString(line, &key, &value))
+			continue;
 
-			if( value.empty() && file.getLength() != file.getSeekPos() )
-			{ // Some games have a character on the last line of the file, don't print the error in those cases.
-				Console.Warning( "(SYSTEM.CNF) Unusual or malformed entry in SYSTEM.CNF ignored:" );
-				Console.Indent().WriteLn(line);
-				continue;
-			}
-
-			if( key == "BOOT2" )
-			{
-				Console.WriteLn( Color_StrongBlue, "(SYSTEM.CNF) Detected PS2 Disc = %.*s",
-					static_cast<int>(value.size()), value.data());
-				name = value;
-				retype = 2;
-			}
-			else if( key == "BOOT" )
-			{
-				Console.WriteLn( Color_StrongBlue, "(SYSTEM.CNF) Detected PSX/PSone Disc = %.*s",
-					static_cast<int>(value.size()), value.data());
-				name = value;
-				retype = 1;
-			}
-			else if( key == "VMODE" )
-			{
-				Console.WriteLn( Color_Blue, "(SYSTEM.CNF) Disc region type = %.*s",
-					static_cast<int>(value.size()), value.data());
-			}
-			else if( key == "VER" )
-			{
-				Console.WriteLn( Color_Blue, "(SYSTEM.CNF) Software version = %.*s",
-					static_cast<int>(value.size()), value.data());
-			}
+		if( value.empty() && file.getLength() != file.getSeekPos() )
+		{ // Some games have a character on the last line of the file, don't print the error in those cases.
+			Console.Warning( "(SYSTEM.CNF) Unusual or malformed entry in SYSTEM.CNF ignored:" );
+			Console.Indent().WriteLn(line);
+			continue;
 		}
 
-		if( retype == 0 )
+		if( key == "BOOT2" )
 		{
-			Console.Error("(GetElfName) Disc image is *not* a PlayStation or PS2 game!");
-			return 0;
+			Console.WriteLn( Color_StrongBlue, "(SYSTEM.CNF) Detected PS2 Disc = %.*s",
+					static_cast<int>(value.size()), value.data());
+			name = value;
+			retype = 2;
+		}
+		else if( key == "BOOT" )
+		{
+			Console.WriteLn( Color_StrongBlue, "(SYSTEM.CNF) Detected PSX/PSone Disc = %.*s",
+					static_cast<int>(value.size()), value.data());
+			name = value;
+			retype = 1;
+		}
+		else if( key == "VMODE" )
+		{
+			Console.WriteLn( Color_Blue, "(SYSTEM.CNF) Disc region type = %.*s",
+					static_cast<int>(value.size()), value.data());
+		}
+		else if( key == "VER" )
+		{
+			Console.WriteLn( Color_Blue, "(SYSTEM.CNF) Software version = %.*s",
+					static_cast<int>(value.size()), value.data());
 		}
 	}
-	catch( Exception::FileNotFound& )
+
+	if( retype == 0 )
 	{
-		return 0;		// no SYSTEM.CNF, not a PS1/PS2 disc.
-	}
-	catch (Exception::BadStream& ex)
-	{
-		Console.Error(ex.FormatDiagnosticMessage());
-		return 0;		// ISO error
+		Console.Error("(GetElfName) Disc image is *not* a PlayStation or PS2 game!");
+		return 0;
 	}
 
 	return retype;

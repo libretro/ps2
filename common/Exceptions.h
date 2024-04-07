@@ -24,8 +24,6 @@ namespace Exception
 {
 	class BaseException;
 
-	std::unique_ptr<BaseException> FromErrno(std::string streamname, int errcode);
-
 	// --------------------------------------------------------------------------------------
 	//  BaseException
 	// --------------------------------------------------------------------------------------
@@ -61,14 +59,6 @@ namespace Exception
 		BaseException& SetBothMsgs(const char* msg_diag);
 		BaseException& SetDiagMsg(std::string msg_diag);
 		BaseException& SetUserMsg(std::string msg_user);
-
-		// Returns a message suitable for diagnostic / logging purposes.
-		// This message is always in English, and includes a full stack trace.
-		virtual std::string FormatDiagnosticMessage() const;
-
-		// Returns a message suitable for end-user display.
-		// This message is usually meant for display in a user popup or such.
-		virtual std::string FormatDisplayMessage() const;
 
 		virtual void Rethrow() const = 0;
 		virtual BaseException* Clone() const = 0;
@@ -200,9 +190,6 @@ public: \
 
 		std::string StreamName; // name of the stream (if applicable)
 
-		virtual std::string FormatDiagnosticMessage() const override;
-		virtual std::string FormatDisplayMessage() const override;
-
 	protected:
 		void _formatDiagMsg(std::string& dest) const;
 		void _formatUserMsg(std::string& dest) const;
@@ -213,9 +200,6 @@ public: \
 	class CannotCreateStream : public BadStream
 	{
 		DEFINE_STREAM_EXCEPTION(CannotCreateStream, BadStream)
-
-		virtual std::string FormatDiagnosticMessage() const override;
-		virtual std::string FormatDisplayMessage() const override;
 	};
 
 	// Exception thrown when an attempt to open a non-existent file is made.
@@ -225,18 +209,12 @@ public: \
 	{
 	public:
 		DEFINE_STREAM_EXCEPTION(FileNotFound, CannotCreateStream)
-
-		virtual std::string FormatDiagnosticMessage() const override;
-		virtual std::string FormatDisplayMessage() const override;
 	};
 
 	class AccessDenied : public CannotCreateStream
 	{
 	public:
 		DEFINE_STREAM_EXCEPTION(AccessDenied, CannotCreateStream)
-
-		virtual std::string FormatDiagnosticMessage() const override;
-		virtual std::string FormatDisplayMessage() const override;
 	};
 
 	// EndOfStream can be used either as an error, or used just as a shortcut for manual
@@ -246,9 +224,6 @@ public: \
 	{
 	public:
 		DEFINE_STREAM_EXCEPTION(EndOfStream, BadStream)
-
-		virtual std::string FormatDiagnosticMessage() const override;
-		virtual std::string FormatDisplayMessage() const override;
 	};
 } // namespace Exception
 

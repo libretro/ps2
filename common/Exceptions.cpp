@@ -154,16 +154,6 @@ BaseException& BaseException::SetUserMsg(std::string msg_user)
 	return *this;
 }
 
-std::string BaseException::FormatDiagnosticMessage() const
-{
-	return m_message_diag;
-}
-
-std::string BaseException::FormatDisplayMessage() const
-{
-	return m_message_user.empty() ? m_message_diag : m_message_user;
-}
-
 // --------------------------------------------------------------------------------------
 //  Exception::RuntimeError   (implementations)
 // --------------------------------------------------------------------------------------
@@ -189,23 +179,6 @@ Exception::RuntimeError::RuntimeError(const std::exception& ex, const char* pref
 		ex.what()));
 }
 
-// --------------------------------------------------------------------------------------
-//  Exception::BadStream  (implementations)
-// --------------------------------------------------------------------------------------
-std::string Exception::BadStream::FormatDiagnosticMessage() const
-{
-	std::string retval;
-	_formatDiagMsg(retval);
-	return retval;
-}
-
-std::string Exception::BadStream::FormatDisplayMessage() const
-{
-	std::string retval;
-	_formatUserMsg(retval);
-	return retval;
-}
-
 void Exception::BadStream::_formatDiagMsg(std::string& dest) const
 {
 	fmt::format_to(std::back_inserter(dest), "Path: ");
@@ -228,119 +201,4 @@ void Exception::BadStream::_formatUserMsg(std::string& dest) const
 
 	if (!m_message_user.empty())
 		fmt::format_to(std::back_inserter(dest), "\n{}", m_message_user);
-}
-
-// --------------------------------------------------------------------------------------
-//  Exception::CannotCreateStream  (implementations)
-// --------------------------------------------------------------------------------------
-std::string Exception::CannotCreateStream::FormatDiagnosticMessage() const
-{
-	std::string retval;
-	retval = "File could not be created.";
-	_formatDiagMsg(retval);
-	return retval;
-}
-
-std::string Exception::CannotCreateStream::FormatDisplayMessage() const
-{
-	std::string retval;
-	retval = "A file could not be created.\n";
-	_formatUserMsg(retval);
-	return retval;
-}
-
-// --------------------------------------------------------------------------------------
-//  Exception::FileNotFound  (implementations)
-// --------------------------------------------------------------------------------------
-std::string Exception::FileNotFound::FormatDiagnosticMessage() const
-{
-	std::string retval;
-	retval = "File not found.\n";
-	_formatDiagMsg(retval);
-	return retval;
-}
-
-std::string Exception::FileNotFound::FormatDisplayMessage() const
-{
-	std::string retval;
-	retval = "File not found.\n";
-	_formatUserMsg(retval);
-	return retval;
-}
-
-// --------------------------------------------------------------------------------------
-//  Exception::AccessDenied  (implementations)
-// --------------------------------------------------------------------------------------
-std::string Exception::AccessDenied::FormatDiagnosticMessage() const
-{
-	std::string retval;
-	retval = "Permission denied to file.\n";
-	_formatDiagMsg(retval);
-	return retval;
-}
-
-std::string Exception::AccessDenied::FormatDisplayMessage() const
-{
-	std::string retval;
-	retval = "Permission denied while trying to open file, likely due to insufficient user account rights.\n";
-	_formatUserMsg(retval);
-	return retval;
-}
-
-// --------------------------------------------------------------------------------------
-//  Exception::EndOfStream  (implementations)
-// --------------------------------------------------------------------------------------
-std::string Exception::EndOfStream::FormatDiagnosticMessage() const
-{
-	std::string retval;
-	retval = "Unexpected end of file or stream.\n";
-	_formatDiagMsg(retval);
-	return retval;
-}
-
-std::string Exception::EndOfStream::FormatDisplayMessage() const
-{
-	std::string retval;
-	retval = "Unexpected end of file or stream encountered.  File is probably truncated or corrupted.\n";
-	_formatUserMsg(retval);
-	return retval;
-}
-
-// --------------------------------------------------------------------------------------
-//  Exceptions from Errno (POSIX)
-// --------------------------------------------------------------------------------------
-
-// Translates an Errno code into an exception.
-// Throws an exception based on the given error code (usually taken from ANSI C's errno)
-std::unique_ptr<BaseException> Exception::FromErrno(std::string streamname, int errcode)
-{
-	pxAssumeDev(errcode != 0, "Invalid NULL error code?  (errno)");
-
-	switch (errcode)
-	{
-		case EINVAL:
-			pxFailDev("Invalid argument");
-			return std::unique_ptr<BaseException>(&(new Exception::BadStream(streamname))->SetDiagMsg("Invalid argument? (likely caused by an unforgivable programmer error!)"));
-
-		case EACCES: // Access denied!
-			return std::unique_ptr<BaseException>(new Exception::AccessDenied(streamname));
-
-		case EMFILE: // Too many open files!
-			return std::unique_ptr<BaseException>(&(new Exception::CannotCreateStream(streamname))->SetDiagMsg("Too many open files")); // File handle allocation failure
-
-		case EEXIST:
-			return std::unique_ptr<BaseException>(&(new Exception::CannotCreateStream(streamname))->SetDiagMsg("File already exists"));
-
-		case ENOENT: // File not found!
-			return std::unique_ptr<BaseException>(new Exception::FileNotFound(streamname));
-
-		case EPIPE:
-			return std::unique_ptr<BaseException>(&(new Exception::BadStream(streamname))->SetDiagMsg("Broken pipe"));
-
-		case EBADF:
-			return std::unique_ptr<BaseException>(&(new Exception::BadStream(streamname))->SetDiagMsg("Bad file number"));
-
-		default:
-			return std::unique_ptr<BaseException>(&(new Exception::BadStream(streamname))->SetDiagMsg(fmt::format("General file/stream error [errno: {}]", errcode)));
-	}
 }

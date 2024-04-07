@@ -272,22 +272,6 @@ void memLoadingState::FreezeMem( void* data, int size )
 	memcpy( data, src, size );
 }
 
-std::string Exception::SaveStateLoadError::FormatDiagnosticMessage() const
-{
-	std::string retval = "Savestate is corrupt or incomplete!\n";
-	Host::AddOSDMessage("Error: Savestate is corrupt or incomplete!", 15.0f);
-	_formatDiagMsg(retval);
-	return retval;
-}
-
-std::string Exception::SaveStateLoadError::FormatDisplayMessage() const
-{
-	std::string retval = "The savestate cannot be loaded, as it appears to be corrupt or incomplete.\n";
-	Host::AddOSDMessage("Error: The savestate cannot be loaded, as it appears to be corrupt or incomplete.", 15.0f);
-	_formatUserMsg(retval);
-	return retval;
-}
-
 // Used to hold the current state backup (fullcopy of PS2 memory and subcomponents states).
 //static VmStateBuffer state_buffer( L"Public Savestate Buffer" );
 
