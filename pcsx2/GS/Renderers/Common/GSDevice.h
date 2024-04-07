@@ -757,8 +757,6 @@ protected:
 	WindowInfo m_window_info;
 	VsyncMode m_vsync_mode = VsyncMode::Off;
 
-	GSTexture* m_imgui_font = nullptr;
-
 	GSTexture* m_merge = nullptr;
 	GSTexture* m_weavebob = nullptr;
 	GSTexture* m_blend = nullptr;

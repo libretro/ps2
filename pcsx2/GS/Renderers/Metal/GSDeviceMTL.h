@@ -263,8 +263,6 @@ public:
 	MRCOwned<id<MTLRenderPipelineState>> m_hdr_resolve_pipeline;
 	MRCOwned<id<MTLRenderPipelineState>> m_fxaa_pipeline;
 	MRCOwned<id<MTLRenderPipelineState>> m_shadeboost_pipeline;
-	MRCOwned<id<MTLRenderPipelineState>> m_imgui_pipeline;
-	MRCOwned<id<MTLRenderPipelineState>> m_imgui_pipeline_a8;
 
 	MRCOwned<id<MTLFunction>> m_hw_vs[1 << 5];
 	std::unordered_map<PSSelector, MRCOwned<id<MTLFunction>>> m_hw_ps;

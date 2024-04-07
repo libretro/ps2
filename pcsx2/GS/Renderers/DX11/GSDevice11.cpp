@@ -36,10 +36,6 @@
 #include "libretro_d3d.h"
 extern retro_environment_t environ_cb;
 
-// #define REPORT_LEAKED_OBJECTS 1
-
-static constexpr std::array<float, 4> s_present_clear_color = {};
-
 static bool SupportsTextureFormat(ID3D11Device* dev, DXGI_FORMAT format)
 {
 	UINT support;
@@ -469,20 +465,10 @@ void GSDevice11::Destroy()
 
 	m_shader_cache.Close();
 
-#ifdef REPORT_LEAKED_OBJECTS
-	wil::com_ptr_nothrow<ID3D11Debug> debug;
-	m_dev.try_query_to(&debug);
-#endif
-
 	m_annotation.reset();
 	m_ctx.reset();
 	m_dev.reset();
 	m_dxgi_factory.reset();
-
-#ifdef REPORT_LEAKED_OBJECTS
-	if (debug)
-		debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL);
-#endif
 }
 
 void GSDevice11::SetFeatures()

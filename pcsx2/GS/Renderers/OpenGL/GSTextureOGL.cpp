@@ -220,7 +220,6 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 	}
 #endif
 
-	GL_PUSH("Upload Texture %d", m_texture_id);
 	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
 
 	// Don't use PBOs for huge texture uploads, let the driver sort it out.
@@ -283,7 +282,6 @@ bool GSTextureOGL::Map(GSMap& m, const GSVector4i* _r, int layer)
 		if (GLLoader::buggy_pbo || upload_size > GSDeviceOGL::GetTextureUploadBuffer()->GetChunkSize())
 			return false;
 
-		GL_PUSH_("Upload Texture %d", m_texture_id); // POP is in Unmap
 		g_perfmon.Put(GSPerfMon::TextureUploads, 1);
 
 		m_clean = false;
@@ -326,8 +324,6 @@ void GSTextureOGL::Unmap()
 		sb->Unbind();
 
 		m_needs_mipmaps_generated = true;
-
-		GL_POP(); // PUSH is in Map
 	}
 }
 

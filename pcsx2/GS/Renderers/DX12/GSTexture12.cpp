@@ -228,7 +228,6 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	}
 
 	ID3D12GraphicsCommandList* cmdlist = GetCommandBufferForUpdate();
-	GL_PUSH("GSTexture12::Update({%d,%d} %dx%d Lvl:%u", r.x, r.y, r.width(), r.height(), layer);
 
 	// first time the texture is used? don't leave it undefined
 	if (m_texture.GetState() == D3D12_RESOURCE_STATE_COMMON)
@@ -308,8 +307,6 @@ void GSTexture12::Unmap()
 	buffer.CommitMemory(required_size);
 
 	ID3D12GraphicsCommandList* cmdlist = GetCommandBufferForUpdate();
-	GL_PUSH("GSTexture12::Update({%d,%d} %dx%d Lvl:%u", m_map_area.x, m_map_area.y, m_map_area.width(),
-		m_map_area.height(), m_map_level);
 
 	// first time the texture is used? don't leave it undefined
 	if (m_texture.GetState() == D3D12_RESOURCE_STATE_COMMON)
@@ -477,7 +474,6 @@ void GSDownloadTexture12::CopyFromTexture(
 		Unmap();
 
 	ID3D12GraphicsCommandList* cmdlist = g_d3d12_context->GetCommandList();
-	GL_INS("ReadbackTexture: {%d,%d} %ux%u", src.left, src.top, src.width(), src.height());
 
 	D3D12_TEXTURE_COPY_LOCATION srcloc;
 	srcloc.pResource = tex12->GetResource();

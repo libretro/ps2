@@ -303,7 +303,6 @@ bool GSHwHack::GSC_BlackAndBurnoutSky(GSRendererHW& r, int& skip)
 			// Later the alpha channel from the 32 bit frame buffer is used as an 8 bit indexed texture to draw
 			// the clouds on top of the sky at each frame.
 			// Burnout 3 PAL 50Hz: 0x3ba0 => 0x1e80.
-			GL_INS("OO_BurnoutGames - Readback clouds renderered from TEX0.TBP0 = 0x%04x (TEX0.CBP = 0x%04x) to FBP = 0x%04x", TEX0.TBP0, TEX0.CBP, FRAME.Block());
 			r.SwPrimRender(r, true);
 			skip = 1;
 		}
@@ -311,7 +310,6 @@ bool GSHwHack::GSC_BlackAndBurnoutSky(GSRendererHW& r, int& skip)
 		{
 			// Rendering of the glass smashing effect and some chassis decal in to the alpha channel of the FRAME on boot (before the menu).
 			// This gets ejected from the texture cache due to old age, but never gets written back.
-			GL_INS("OO_BurnoutGames - Render glass smash from TEX0.TBP0 = 0x%04x (TEX0.CBP = 0x%04x) to FBP = 0x%04x", TEX0.TBP0, TEX0.CBP, FRAME.Block());
 			r.SwPrimRender(r, true);
 			skip = 1;
 		}
@@ -557,7 +555,7 @@ bool GSHwHack::GSC_UrbanReign(GSRendererHW& r, int& skip)
 			RFRAME.FBW == (RTEX0.TBW / 2) && RCLAMP.WMS == CLAMP_REGION_CLAMP &&
 			RCLAMP.WMT == CLAMP_REGION_CLAMP && ((r.m_vt.m_max.t == GSVector4(64.0f, 448.0f)).mask() == 0x3))
 		{
-			GL_CACHE("GSC_UrbanReign: Fix region clamp to 64 wide");
+			/* "GSC_UrbanReign: Fix region clamp to 64 wide" */
 			RCLAMP.MAXU = 63;
 		}
 	}
@@ -836,7 +834,6 @@ bool GSHwHack::OI_PointListPalette(GSRendererHW& r, GSTexture* rt, GSTexture* ds
 	{
 		const u32 FBP = r.m_cached_ctx.FRAME.Block();
 		const u32 FBW = r.m_cached_ctx.FRAME.FBW;
-		GL_INS("PointListPalette - m_r = <%d, %d => %d, %d>, n_vertices = %zu, FBP = 0x%x, FBW = %u", r.m_r.x, r.m_r.y, r.m_r.z, r.m_r.w, n_vertices, FBP, FBW);
 		const GSVertex* RESTRICT v = r.m_vertex.buff;
 		const int ox(r.m_context->XYOFFSET.OFX);
 		const int oy(r.m_context->XYOFFSET.OFY);
@@ -877,7 +874,7 @@ bool GSHwHack::OI_BigMuthaTruckers(GSRendererHW& r, GSTexture* rt, GSTexture* ds
 	if (RPRIM->TME && Frame.TBW == 10 && Texture.TBW == 10 && Frame.TBP0 == 0x00a00 && Texture.PSM == PSMT8H && (r.m_r.y == 256 || r.m_r.y == 224))
 	{
 		// 224 ntsc, 256 pal.
-		GL_INS("OI_BigMuthaTruckers half bottom offset");
+		/* "OI_BigMuthaTruckers half bottom offset" */
 
 		const size_t count = r.m_vertex.next;
 		GSVertex* v = &r.m_vertex.buff[0];
@@ -916,7 +913,7 @@ bool GSHwHack::OI_FFX(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTextureCa
 	if ((FBP == 0x00d00 || FBP == 0x00000) && ZBP == 0x02100 && RPRIM->TME && TBP == 0x01a00 && RTEX0.PSM == PSMCT16S)
 	{
 		// random battle transition (z buffer written directly, clear it now)
-		GL_INS("OI_FFX ZB clear");
+		/* "OI_FFX ZB clear" */
 		g_gs_device->ClearDepth(ds);
 	}
 
@@ -942,7 +939,7 @@ bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTextu
 
 			if (GSTextureCache::Target* tmp_rt = g_texture_cache->LookupTarget(TEX0, r.GetTargetSize(), r.GetTextureScaleFactor(), GSTextureCache::RenderTarget))
 			{
-				GL_INS("OI_RozenMaidenGebetGarden FB clear");
+				/* "OI_RozenMaidenGebetGarden FB clear" */
 				g_gs_device->ClearRenderTarget(tmp_rt->m_texture, 0);
 			}
 
@@ -960,7 +957,7 @@ bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTextu
 
 			if (GSTextureCache::Target* tmp_ds = g_texture_cache->LookupTarget(TEX0, r.GetTargetSize(), r.GetTextureScaleFactor(), GSTextureCache::DepthStencil))
 			{
-				GL_INS("OI_RozenMaidenGebetGarden ZB clear");
+				/* "OI_RozenMaidenGebetGarden ZB clear" */
 				g_gs_device->ClearDepth(tmp_ds->m_texture);
 			}
 
@@ -989,7 +986,7 @@ bool GSHwHack::OI_SonicUnleashed(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 	if ((!RPRIM->TME) || (GSLocalMemory::m_psm[Texture.PSM].bpp != 16) || (GSLocalMemory::m_psm[Frame.PSM].bpp != 16) || (Texture.TBP0 == Frame.TBP0) || (Frame.TBW != 16 && Texture.TBW != 16))
 		return true;
 
-	GL_INS("OI_SonicUnleashed replace draw by a copy");
+	/* "OI_SonicUnleashed replace draw by a copy" */
 
 	GSTextureCache::Target* src = g_texture_cache->LookupTarget(Texture, GSVector2i(1, 1), r.GetTextureScaleFactor(), GSTextureCache::RenderTarget);
 
@@ -1046,7 +1043,7 @@ bool GSHwHack::OI_ArTonelico2(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GST
 
 	if (r.m_vertex.next == 2 && !RPRIM->TME && RFRAME.FBW == 10 && v->XYZ.Z == 0 && RTEST.ZTST == ZTST_ALWAYS)
 	{
-		GL_INS("OI_ArTonelico2");
+		/* "OI_ArTonelico2" */
 		g_gs_device->ClearDepth(ds);
 	}
 
@@ -1113,7 +1110,7 @@ bool GSHwHack::OI_HauntingGround(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 	// This currently isn't handled in our HLE clears, so we need to manually remove the other target.
 	if (rt && !ds && !t && r.IsConstantDirectWriteMemClear(true))
 	{
-		GL_CACHE("GSHwHack::OI_HauntingGround()");
+		/* "GSHwHack::OI_HauntingGround()" */
 		g_texture_cache->InvalidateVideoMemTargets(GSTextureCache::RenderTarget, RFRAME.Block(), RFRAME.FBW, RFRAME.PSM, r.m_r);
 	}
 

@@ -160,7 +160,6 @@ private:
 	VkDescriptorSetLayout m_cas_ds_layout = VK_NULL_HANDLE;
 	VkPipelineLayout m_cas_pipeline_layout = VK_NULL_HANDLE;
 	std::array<VkPipeline, NUM_CAS_PIPELINES> m_cas_pipelines = {};
-	VkPipeline m_imgui_pipeline = VK_NULL_HANDLE;
 
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;

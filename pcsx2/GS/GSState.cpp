@@ -813,8 +813,6 @@ void GSState::ApplyTEX0(GIFRegTEX0& TEX0)
 	// extremely broken for the same reasons as MLB Power Pros in that it spams TEX0 with
 	// complete garbage making for a nice 1G heap of GSOffset.
 
-	GL_REG("Apply TEX0_%d = 0x%x_%x", i, TEX0.U32[1], TEX0.U32[0]);
-
 	// Even if TEX0 did not change, a new palette may have been uploaded and will overwrite the currently queued for drawing.
 	const bool wt = m_mem.m_clut.WriteTest(TEX0, m_env.TEXCLUT);
 
@@ -891,8 +889,6 @@ void GSState::ApplyTEX0(GIFRegTEX0& TEX0)
 template <int i>
 void GSState::GIFRegHandlerTEX0(const GIFReg* RESTRICT r)
 {
-	GL_REG("TEX0_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	GIFRegTEX0 TEX0 = r->TEX0;
 	// Max allowed MTBA size for 32bit swizzled textures (including 8H 4HL etc) is 512, 16bit and normal 8/4bit formats can be 1024
 	const u32 maxTex = (GSLocalMemory::m_psm[TEX0.PSM].bpp < 32) ? 10 : 9;
@@ -966,8 +962,6 @@ void GSState::GIFRegHandlerTEX0(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerCLAMP(const GIFReg* RESTRICT r)
 {
-	GL_REG("CLAMP_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	m_env.CTXT[i].CLAMP = r->CLAMP;
 
 	if (i == m_prev_env.PRIM.CTXT)
@@ -991,8 +985,6 @@ void GSState::GIFRegHandlerNOP(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerTEX1(const GIFReg* RESTRICT r)
 {
-	GL_REG("TEX1_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	m_env.CTXT[i].TEX1 = r->TEX1;
 
 	if (i == m_prev_env.PRIM.CTXT)
@@ -1007,8 +999,6 @@ void GSState::GIFRegHandlerTEX1(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerTEX2(const GIFReg* RESTRICT r)
 {
-	GL_REG("TEX2_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	// TEX2 is a masked write to TEX0, for performing CLUT swaps (palette swaps).
 	// It only applies the following fields:
 	//    CLD, CSA, CSM, CPSM, CBP, PSM.
@@ -1027,8 +1017,6 @@ void GSState::GIFRegHandlerTEX2(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerXYOFFSET(const GIFReg* RESTRICT r)
 {
-	GL_REG("XYOFFSET_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	const u64 r_masked = r->U64 & 0x0000FFFF0000FFFFu;
 
 	if (i == m_prev_env.PRIM.CTXT)
@@ -1051,15 +1039,11 @@ void GSState::GIFRegHandlerXYOFFSET(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerPRMODECONT(const GIFReg* RESTRICT r)
 {
-	GL_REG("PRMODECONT = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	m_env.PRMODECONT.AC = r->PRMODECONT.AC;
 }
 
 void GSState::GIFRegHandlerPRMODE(const GIFReg* RESTRICT r)
 {
-	GL_REG("PRMODE = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	// We're in PRIM mode, need to ignore any writes
 	if (m_env.PRMODECONT.AC)
 		return;
@@ -1078,8 +1062,6 @@ void GSState::GIFRegHandlerPRMODE(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTEXCLUT(const GIFReg* RESTRICT r)
 {
-	GL_REG("TEXCLUT = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	m_env.TEXCLUT = r->TEXCLUT;
 }
 
@@ -1099,8 +1081,6 @@ void GSState::GIFRegHandlerSCANMSK(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerMIPTBP1(const GIFReg* RESTRICT r)
 {
-	GL_REG("MIPTBP1_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	m_env.CTXT[i].MIPTBP1 = r->MIPTBP1;
 
 	if (i == m_prev_env.PRIM.CTXT)
@@ -1115,8 +1095,6 @@ void GSState::GIFRegHandlerMIPTBP1(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerMIPTBP2(const GIFReg* RESTRICT r)
 {
-	GL_REG("MIPTBP2_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	m_env.CTXT[i].MIPTBP2 = r->MIPTBP2;
 
 	if (i == m_prev_env.PRIM.CTXT)
@@ -1130,8 +1108,6 @@ void GSState::GIFRegHandlerMIPTBP2(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTEXA(const GIFReg* RESTRICT r)
 {
-	GL_REG("TEXA = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	m_env.TEXA = r->TEXA;
 
 	if (m_prev_env.TEXA != m_env.TEXA)
@@ -1142,8 +1118,6 @@ void GSState::GIFRegHandlerTEXA(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerFOGCOL(const GIFReg* RESTRICT r)
 {
-	GL_REG("FOGCOL = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	m_env.FOGCOL = r->FOGCOL;
 
 	if (m_prev_env.FOGCOL != m_env.FOGCOL)
@@ -1154,7 +1128,6 @@ void GSState::GIFRegHandlerFOGCOL(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTEXFLUSH(const GIFReg* RESTRICT r)
 {
-	GL_REG("TEXFLUSH = 0x%x_%x PRIM TME %x", r->U32[1], r->U32[0], PRIM->TME);
 	m_texflush_flag = true;
 }
 
@@ -1181,8 +1154,6 @@ void GSState::GIFRegHandlerSCISSOR(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerALPHA(const GIFReg* RESTRICT r)
 {
-	GL_REG("ALPHA = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	m_env.CTXT[i].ALPHA = r->ALPHA;
 
 	// value of 3 is not allowed by the spec
@@ -1272,8 +1243,6 @@ void GSState::GIFRegHandlerFBA(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerFRAME(const GIFReg* RESTRICT r)
 {
-	GL_REG("FRAME_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	GIFRegFRAME NewFrame = r->FRAME;
 	// FBW is clamped to 32
 	NewFrame.FBW = std::min(NewFrame.FBW, 32U);
@@ -1296,17 +1265,14 @@ void GSState::GIFRegHandlerFRAME(const GIFReg* RESTRICT r)
 	{
 		case PSMT8H:
 			// Berserk uses the format to only update the alpha channel
-			GL_INS("CORRECT FRAME FORMAT replaces PSMT8H by PSMCT32/0x00FF_FFFF");
 			m_env.CTXT[i].FRAME.PSM = PSMCT32;
 			m_env.CTXT[i].FRAME.FBMSK = 0x00FFFFFF;
 			break;
 		case PSMT4HH: // Not tested. Based on PSMT8H behavior
-			GL_INS("CORRECT FRAME FORMAT replaces PSMT4HH by PSMCT32/0x0FFF_FFFF");
 			m_env.CTXT[i].FRAME.PSM = PSMCT32;
 			m_env.CTXT[i].FRAME.FBMSK = 0x0FFFFFFF;
 			break;
 		case PSMT4HL: // Not tested. Based on PSMT8H behavior
-			GL_INS("CORRECT FRAME FORMAT replaces PSMT4HL by PSMCT32/0xF0FF_FFFF");
 			m_env.CTXT[i].FRAME.PSM = PSMCT32;
 			m_env.CTXT[i].FRAME.FBMSK = 0xF0FFFFFF;
 			break;
@@ -1326,8 +1292,6 @@ void GSState::GIFRegHandlerFRAME(const GIFReg* RESTRICT r)
 template <int i>
 void GSState::GIFRegHandlerZBUF(const GIFReg* RESTRICT r)
 {
-	GL_REG("ZBUF_%d = 0x%x_%x", i, r->U32[1], r->U32[0]);
-
 	GIFRegZBUF ZBUF = r->ZBUF;
 
 	// We tested this on the PS2 and it seems to be that when the FRAME is a Z format,
@@ -1370,8 +1334,6 @@ void GSState::GIFRegHandlerBITBLTBUF(const GIFReg* RESTRICT r)
 	// documentation on this problem, nothing in the game to suggest
 	// it is broken and the code here for it was likely incorrect to begin with.
 
-	GL_REG("BITBLTBUF = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	if (r->BITBLTBUF != m_env.BITBLTBUF)
 		FlushWrite();
 
@@ -1380,8 +1342,6 @@ void GSState::GIFRegHandlerBITBLTBUF(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTRXPOS(const GIFReg* RESTRICT r)
 {
-	GL_REG("TRXPOS = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	if (r->TRXPOS != m_env.TRXPOS)
 		FlushWrite();
 
@@ -1390,7 +1350,6 @@ void GSState::GIFRegHandlerTRXPOS(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTRXREG(const GIFReg* RESTRICT r)
 {
-	GL_REG("TRXREG = 0x%x_%x", r->U32[1], r->U32[0]);
 	if (r->TRXREG != m_env.TRXREG)
 		FlushWrite();
 
@@ -1399,7 +1358,6 @@ void GSState::GIFRegHandlerTRXREG(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTRXDIR(const GIFReg* RESTRICT r)
 {
-	GL_REG("TRXDIR = 0x%x_%x", r->U32[1], r->U32[0]);
 
 	Flush(GSFlushReason::GSTRANSFER);
 
@@ -1423,8 +1381,6 @@ void GSState::GIFRegHandlerTRXDIR(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerHWREG(const GIFReg* RESTRICT r)
 {
-	GL_REG("HWREG = 0x%x_%x", r->U32[1], r->U32[0]);
-
 	// don't bother if not host -> local
 	// real hw ignores
 	if (m_env.TRXDIR.XDIR != 0)
@@ -1560,8 +1516,6 @@ void GSState::FlushPrim()
 {
 	if (m_index.tail > 0)
 	{
-		GL_REG("FlushPrim ctxt %d", PRIM->CTXT);
-
 		// clear texture cache flushed flag, since we're reading from it
 		m_texflush_flag = PRIM->TME ? false : m_texflush_flag;
 
@@ -1727,11 +1681,6 @@ void GSState::Write(const u8* mem, int len)
 			m_draw_transfers.push_back(new_transfer);
 		}
 
-		GL_CACHE("Write! %u ...  => 0x%x W:%d F:%s (DIR %d%d), dPos(%d %d) size(%d %d)", s_transfer_n,
-			blit.DBP, blit.DBW, psm_str(blit.DPSM),
-			m_env.TRXPOS.DIRX, m_env.TRXPOS.DIRY,
-			m_env.TRXPOS.DSAX, m_env.TRXPOS.DSAY, w, h);
-
 		if (len >= m_tr.total)
 		{
 			// received all data in one piece, no need to buffer it
@@ -1824,12 +1773,6 @@ void GSState::Move()
 
 	const int w = m_env.TRXREG.RRW;
 	const int h = m_env.TRXREG.RRH;
-
-	GL_CACHE("Move! 0x%x W:%d F:%s => 0x%x W:%d F:%s (DIR %d%d), sPos(%d %d) dPos(%d %d) size(%d %d)",
-			 m_env.BITBLTBUF.SBP, m_env.BITBLTBUF.SBW, psm_str(m_env.BITBLTBUF.SPSM),
-			 m_env.BITBLTBUF.DBP, m_env.BITBLTBUF.DBW, psm_str(m_env.BITBLTBUF.DPSM),
-			 m_env.TRXPOS.DIRX, m_env.TRXPOS.DIRY,
-			 sx, sy, dx, dy, w, h);
 
 	InvalidateLocalMem(m_env.BITBLTBUF, GSVector4i(sx, sy, sx + w, sy + h));
 	InvalidateVideoMem(m_env.BITBLTBUF, GSVector4i(dx, dy, dx + w, dy + h), true);
@@ -2546,9 +2489,6 @@ void GSState::UpdateCRCHacks()
 void GSState::UpdateContext()
 {
 	const bool ctx_switch = (m_context != &m_draw_env->CTXT[PRIM->CTXT]);
-
-	if (ctx_switch)
-		GL_REG("Context Switch %d", PRIM->CTXT);
 
 	m_context = const_cast<GSDrawingContext*>(&m_draw_env->CTXT[PRIM->CTXT]);
 

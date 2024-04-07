@@ -296,11 +296,9 @@ void GSClut::WriteCLUT16S_CSM2(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXC
 	}
 }
 
-void GSClut::WriteCLUT_NULL(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT)
-{
-	// xenosaga3, bios
-	GL_INS("[WARNING] CLUT write ignored (psm: %d, cpsm: %d)", TEX0.PSM, TEX0.CPSM);
-}
+/* "[WARNING] CLUT write ignored (psm: %d, cpsm: %d)", TEX0.PSM, TEX0.CPSM) */
+/* xenosaga3, bios */
+void GSClut::WriteCLUT_NULL(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT) { }
 
 #if 0
 void GSClut::Read(const GIFRegTEX0& TEX0)
@@ -438,8 +436,6 @@ void GSClut::Read32(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 				}
 				if (dst)
 				{
-					GL_PUSH("Update GPU CLUT [CBP=%04X, CPSM=%s, CBW=%u, CSA=%u, Offset=(%d,%d)]",
-						TEX0.CBP, psm_str(TEX0.CPSM), CBW, TEX0.CSA, offset.x, offset.y);
 					g_gs_device->UpdateCLUTTexture(src, scale, offset.x, offset.y, dst, dOffset, dst_size);
 					m_current_gpu_clut = dst;
 				}

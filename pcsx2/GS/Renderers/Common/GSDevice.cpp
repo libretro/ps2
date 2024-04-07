@@ -429,7 +429,6 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 			GSVector4(static_cast<float>(bufIdx), 1.0f / ds.y, ds.y, MAD_SENSITIVITY)
 		};
 
-		GL_PUSH("DoInterlace %dx%d Shader:%d Linear:%d", ds_i.x, ds_i.y, static_cast<int>(shader), linear);
 		DoInterlace(sTex, sRect, dTex, dRect, shader, linear, cb);
 	};
 

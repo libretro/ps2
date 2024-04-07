@@ -49,7 +49,6 @@ GSDeviceOGL::~GSDeviceOGL()
 
 GSTexture* GSDeviceOGL::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
-	GL_PUSH("Create surface");
 	return new GSTextureOGL(type, width, height, levels, format);
 }
 
@@ -198,18 +197,12 @@ bool GSDeviceOGL::Create()
 
 		// Uncomment synchronous if you want callstacks which match where the error occurred.
 		glEnable(GL_DEBUG_OUTPUT);
-		//glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
 	}
-
-	// WARNING it must be done after the control setup (at least on MESA)
-	GL_PUSH("GSDeviceOGL::Create");
 
 	// ****************************************************************
 	// Various object
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Various");
-
 		glGenFramebuffers(1, &m_fbo);
 		glGenFramebuffers(1, &m_fbo_read);
 		glGenFramebuffers(1, &m_fbo_write);
@@ -230,8 +223,6 @@ bool GSDeviceOGL::Create()
 	// Vertex buffer state
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Vertex Buffer");
-
 		glGenVertexArrays(1, &m_vao);
 		IASetVAO(m_vao);
 
@@ -294,12 +285,8 @@ bool GSDeviceOGL::Create()
 	// Pre Generate the different sampler object
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Sampler");
-
 		for (u32 key = 0; key < std::size(m_ps_ss); key++)
-		{
 			m_ps_ss[key] = CreateSampler(PSSamplerSelector(key));
-		}
 	}
 
 	// these all share the same vertex shader
@@ -314,10 +301,6 @@ bool GSDeviceOGL::Create()
 	// convert
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Convert");
-
-
-
 		m_convert.vs = GetShaderSource("vs_main", GL_VERTEX_SHADER, *convert_glsl);
 
 		for (size_t i = 0; i < std::size(m_convert.ps); i++)
@@ -362,8 +345,6 @@ bool GSDeviceOGL::Create()
 	// present
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Present");
-
 		// these all share the same vertex shader
 		const auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
 		if (!shader.has_value())
@@ -399,8 +380,6 @@ bool GSDeviceOGL::Create()
 	// merge
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Merge");
-
 		const auto shader = Host::ReadResourceFileToString("shaders/opengl/merge.glsl");
 		if (!shader.has_value())
 		{
@@ -422,8 +401,6 @@ bool GSDeviceOGL::Create()
 	// interlace
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Interlace");
-
 		const auto shader = Host::ReadResourceFileToString("shaders/opengl/interlace.glsl");
 		if (!shader.has_value())
 		{
@@ -454,8 +431,6 @@ bool GSDeviceOGL::Create()
 	// rasterization configuration
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Rasterization");
-
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glDisable(GL_CULL_FACE);
 		glEnable(GL_SCISSOR_TEST);
@@ -468,8 +443,6 @@ bool GSDeviceOGL::Create()
 	// DATE
 	// ****************************************************************
 	{
-		GL_PUSH("GSDeviceOGL::Date");
-
 		m_date.dss = new GSDepthStencilOGL();
 		m_date.dss->EnableStencil();
 		m_date.dss->SetStencil(GL_ALWAYS, GL_REPLACE);
@@ -549,8 +522,6 @@ void GSDeviceOGL::Destroy()
 
 bool GSDeviceOGL::CreateTextureFX()
 {
-	GL_PUSH("GSDeviceOGL::CreateTextureFX");
-
 	auto vertex_shader = Host::ReadResourceFileToString("shaders/opengl/tfx_vgs.glsl");
 	auto fragment_shader = Host::ReadResourceFileToString("shaders/opengl/tfx_fs.glsl");
 	if (!vertex_shader.has_value() || !fragment_shader.has_value())
@@ -681,11 +652,9 @@ bool GSDeviceOGL::UpdateWindow()
 void GSDeviceOGL::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
 {
 	m_window_info.surface_scale = new_window_scale;
-	if (m_window_info.surface_width == static_cast<u32>(new_window_width) &&
-		m_window_info.surface_height == static_cast<u32>(new_window_height))
-	{
+	if (       m_window_info.surface_width  == static_cast<u32>(new_window_width)
+		&& m_window_info.surface_height == static_cast<u32>(new_window_height))
 		return;
-	}
 
 	m_gl_context->ResizeSurface(static_cast<u32>(new_window_width), static_cast<u32>(new_window_height));
 	m_window_info = m_gl_context->GetWindowInfo();
@@ -845,8 +814,6 @@ void GSDeviceOGL::ClearRenderTarget(GSTexture* t, const GSVector4& c)
 
 	// So using the old/standard path is faster/better albeit verbose.
 
-	GL_PUSH("Clear RT %d", T->GetID());
-
 	// TODO: check size of scissor before toggling it
 	glDisable(GL_SCISSOR_TEST);
 
@@ -916,8 +883,6 @@ void GSDeviceOGL::ClearDepth(GSTexture* t)
 
 	GSTextureOGL* T = static_cast<GSTextureOGL*>(t);
 
-	GL_PUSH("Clear Depth %d", T->GetID());
-
 	OMSetFBO(m_fbo);
 	// RT must be detached, if RT is too small, depth won't be fully cleared
 	// AT tolenico 2 map clip bug
@@ -947,8 +912,6 @@ void GSDeviceOGL::ClearStencil(GSTexture* t, u8 c)
 
 	GSTextureOGL* T = static_cast<GSTextureOGL*>(t);
 
-	GL_PUSH("Clear Stencil %d", T->GetID());
-
 	// Keep SCISSOR_TEST enabled on purpose to reduce the size
 	// of clean in DATE (impact big upscaling)
 	OMSetFBO(m_fbo);
@@ -965,8 +928,6 @@ std::unique_ptr<GSDownloadTexture> GSDeviceOGL::CreateDownloadTexture(u32 width,
 
 GLuint GSDeviceOGL::CreateSampler(PSSamplerSelector sel)
 {
-	GL_PUSH("Create Sampler");
-
 	GLuint sampler;
 	glCreateSamplers(1, &sampler);
 
@@ -1049,7 +1010,6 @@ GSTexture* GSDeviceOGL::InitPrimDateTexture(GSTexture* rt, const GSVector4i& are
 
 	GSTexture* tex = CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::PrimID, false);
 
-	GL_PUSH("PrimID Destination Alpha Clear");
 	StretchRect(rt, GSVector4(area) / GSVector4(rtsize).xyxy(), tex, GSVector4(area), m_date.primid_ps[datm], false);
 	return tex;
 }
@@ -1200,7 +1160,6 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 // Copy a sub part of texture (same as below but force a conversion)
 void GSDeviceOGL::BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2i& dsize, bool at_origin, bool linear)
 {
-	GL_PUSH(fmt::format("CopyRectConv from {}", static_cast<GSTextureOGL*>(sTex)->GetID()).c_str());
 	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 	// NOTE: This previously used glCopyTextureSubImage2D(), but this appears to leak memory in
@@ -1229,8 +1188,6 @@ void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r
 
 	const GLuint& sid = static_cast<GSTextureOGL*>(sTex)->GetID();
 	const GLuint& did = static_cast<GSTextureOGL*>(dTex)->GetID();
-
-	GL_PUSH("CopyRect from %d to %d", sid, did);
 
 #ifdef ENABLE_OGL_DEBUG
 	PSSetShaderResource(6, sTex);
@@ -1315,7 +1272,6 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	// Init
 	// ************************************
 
-	GL_PUSH("StretchRect from %d to %d", static_cast<GSTextureOGL*>(sTex)->GetID(), static_cast<GSTextureOGL*>(dTex)->GetID());
 	if (draw_in_depth)
 		OMSetRenderTargets(NULL, dTex);
 	else
@@ -1549,8 +1505,6 @@ void GSDeviceOGL::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rec
 
 void GSDeviceOGL::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear)
 {
-	GL_PUSH("DoMerge");
-
 	const GSVector4 full_r(0.0f, 0.0f, 1.0f, 1.0f);
 	const bool feedback_write_2 = PMODE.EN2 && sTex[2] != nullptr && EXTBUF.FBIN == 1;
 	const bool feedback_write_1 = PMODE.EN1 && sTex[2] != nullptr && EXTBUF.FBIN == 0;
@@ -1653,8 +1607,6 @@ void GSDeviceOGL::DoFXAA(GSTexture* sTex, GSTexture* dTex)
 	if (!m_fxaa.ps.IsValid())
 		return;
 
-	GL_PUSH("DoFxaa");
-
 	OMSetColorMaskState();
 
 	const GSVector2i s = dTex->GetSize();
@@ -1684,8 +1636,6 @@ bool GSDeviceOGL::CompileShadeBoostProgram()
 
 void GSDeviceOGL::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
 {
-	GL_PUSH("DoShadeBoost");
-
 	m_shadeboost.ps.Bind();
 	m_shadeboost.ps.Uniform4fv(0, params);
 
@@ -1701,8 +1651,6 @@ void GSDeviceOGL::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float par
 
 void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, bool datm)
 {
-	GL_PUSH("DATE First Pass");
-
 	// sfex3 (after the capcom logo), vf4 (first menu fading in), ffxii shadows, rumble roses shadows, persona4 shadows
 
 	ClearStencil(ds, 0);
@@ -2152,15 +2100,11 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	{
 		// Requires a copy of the RT
 		draw_rt_clone = CreateTexture(rtsize.x, rtsize.y, 1, GSTexture::Format::Color, true);
-		GL_PUSH("Copy RT to temp texture for fbmask {%d,%d %dx%d}",
-			config.drawarea.left, config.drawarea.top,
-			config.drawarea.width(), config.drawarea.height());
 		CopyRect(config.rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
 	}
 	else if (config.tex && config.tex == config.ds)
 	{
 		// Ensure all depth writes are finished before sampling
-		GL_INS("Texture barrier to flush depth before reading");
 		glTextureBarrier();
 	}
 
@@ -2240,8 +2184,6 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 
 	if (config.destination_alpha == GSHWDrawConfig::DestinationAlphaMode::PrimIDTracking)
 	{
-		GL_PUSH("Destination Alpha PrimID Init");
-
 		OMSetRenderTargets(primid_texture, config.ds, &config.scissor);
 		OMColorMaskSelector mask;
 		mask.wrgba = 0;
@@ -2355,21 +2297,6 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config, bool needs_barrier)
 {
 	if (config.drawlist)
 	{
-		GL_PUSH("Split the draw (SPRITE)");
-#if defined(_DEBUG)
-		// Check how draw call is split.
-		std::map<size_t, size_t> frequency;
-		for (const auto& it : *config.drawlist)
-			++frequency[it];
-
-		std::string message;
-		for (const auto& it : frequency)
-			message += " " + std::to_string(it.first) + "(" + std::to_string(it.second) + ")";
-
-		GL_PERF("Split single draw (%d sprites) into %zu draws: consecutive draws(frequency):%s",
-		        config.nindices / config.indices_per_prim, config.drawlist->size(), message.c_str());
-#endif
-
 		g_perfmon.Put(GSPerfMon::Barriers, static_cast<u32>(config.drawlist->size()));
 
 		const u32 indices_per_prim = config.indices_per_prim;
@@ -2392,7 +2319,6 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config, bool needs_barrier)
 		{
 			const u32 indices_per_prim = config.indices_per_prim;
 
-			GL_PUSH("Split single draw in %d draw", config.nindices / indices_per_prim);
 			g_perfmon.Put(GSPerfMon::Barriers, config.nindices / config.indices_per_prim);
 
 			for (u32 p = 0; p < config.nindices; p += indices_per_prim)

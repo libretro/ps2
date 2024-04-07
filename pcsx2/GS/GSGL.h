@@ -43,25 +43,3 @@
 #else
 	#define GL_DBG(...) (void)(0)
 #endif
-
-#if defined(ENABLE_OGL_DEBUG)
-	struct GLAutoPop
-	{
-		~GLAutoPop()
-		{
-			g_gs_device->PopDebugGroup();
-		}
-	};
-
-	#define GL_PUSH_(...) g_gs_device->PushDebugGroup(__VA_ARGS__)
-	#define GL_PUSH(...)  g_gs_device->PushDebugGroup(__VA_ARGS__); GLAutoPop gl_auto_pop;
-	#define GL_POP()      g_gs_device->PopDebugGroup()
-	#define GL_INS(...)   g_gs_device->InsertDebugMessage(GSDevice::DebugMessageCategory::Message, __VA_ARGS__)
-	#define GL_PERF(...)  g_gs_device->InsertDebugMessage(GSDevice::DebugMessageCategory::Performance, __VA_ARGS__)
-#else
-	#define GL_PUSH_(...) (void)(0)
-	#define GL_PUSH(...) (void)(0)
-	#define GL_POP()     (void)(0)
-	#define GL_INS(...)  (void)(0)
-	#define GL_PERF(...) (void)(0)
-#endif

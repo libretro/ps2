@@ -903,11 +903,6 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 {
 	pxAssert(HasDepthOutput(shader) == (dTex && dTex->GetType() == GSTexture::Type::DepthStencil));
 	pxAssert(linear ? SupportsBilinear(shader) : SupportsNearest(shader));
-
-	GL_INS("StretchRect(%d) {%d,%d} %dx%d -> {%d,%d) %dx%d", shader, int(sRect.left), int(sRect.top),
-		int(sRect.right - sRect.left), int(sRect.bottom - sRect.top), int(dRect.left), int(dRect.top),
-		int(dRect.right - dRect.left), int(dRect.bottom - dRect.top));
-
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
 		dTex ? m_convert[static_cast<int>(shader)] : m_present[static_cast<int>(shader)], linear, true);
 }
@@ -915,8 +910,6 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
 	bool green, bool blue, bool alpha)
 {
-	GL_PUSH("ColorCopy Red:%d Green:%d Blue:%d Alpha:%d", red, green, blue, alpha);
-
 	const u32 index = (red ? 1 : 0) | (green ? 2 : 0) | (blue ? 4 : 0) | (alpha ? 8 : 0);
 	const bool allow_discard = (index == 0xf);
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect, m_color_copy[index],
@@ -1220,8 +1213,6 @@ void GSDeviceVK::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offs
 void GSDeviceVK::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
 	const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear)
 {
-	GL_PUSH("DoMerge");
-
 	const GSVector4 full_r(0.0f, 0.0f, 1.0f, 1.0f);
 	const u32 yuv_constants[4] = {EXTBUF.EMODA, EXTBUF.EMODC};
 	const bool feedback_write_2 = PMODE.EN2 && sTex[2] != nullptr && EXTBUF.FBIN == 1;
@@ -2860,10 +2851,7 @@ void GSDeviceVK::PSSetShaderResource(int i, GSTexture* sr, bool check_state)
 		if (check_state)
 		{
 			if (vkTex->GetTexture().GetLayout() != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && InRenderPass())
-			{
-				GL_INS("Ending render pass due to resource transition");
 				EndRenderPass();
-			}
 
 			vkTex->CommitClear();
 			vkTex->TransitionToLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -3311,8 +3299,6 @@ static void ColorBufferBarrier(GSTextureVK* rt)
 
 void GSDeviceVK::SetupDATE(GSTexture* rt, GSTexture* ds, bool datm, const GSVector4i& bbox)
 {
-	GL_PUSH("SetupDATE {%d,%d} %dx%d", bbox.left, bbox.top, bbox.width(), bbox.height());
-
 	const GSVector2i size(ds->GetSize());
 	const GSVector4 src = GSVector4(bbox) / GSVector4(size).xyxy();
 	const GSVector4 dst = src * 2.0f - 1.0f;
@@ -3343,9 +3329,6 @@ GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
 	// - so, instead of just filling the int texture with INT_MAX, we sample the RT and use -1 for failing values
 	// - then, instead of sampling the RT with DATE=1/2, we just do a min() without it, the -1 gets preserved
 	// - then, the DATE=3 draw is done as normal
-	GL_INS("Setup DATE Primitive ID Image for {%d,%d}-{%d,%d}", config.drawarea.left, config.drawarea.top,
-		config.drawarea.right, config.drawarea.bottom);
-
 	const GSVector2i rtsize(config.rt->GetSize());
 	GSTextureVK* image =
 		static_cast<GSTextureVK*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::PrimID, false));
@@ -3502,7 +3485,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	{
 		EndRenderPass();
 
-		GL_PUSH_("HDR Render Target Setup");
 		hdr_rt = static_cast<GSTextureVK*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::HDRColor, false));
 		if (!hdr_rt)
 		{
@@ -3536,10 +3518,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		if (draw_rt_clone)
 		{
 			EndRenderPass();
-
-			GL_PUSH("Copy RT to temp texture for fbmask {%d,%d %dx%d}",
-				config.drawarea.left, config.drawarea.top,
-				config.drawarea.width(), config.drawarea.height());
 
 			CopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
 			PSSetShaderResource(2, draw_rt_clone, true);
@@ -3633,8 +3611,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
 		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
-		GL_POP();
 	}
 
 	// VB/IB upload, if we did DATE setup and it's not HDR this has already been done
@@ -3688,8 +3664,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	// now blit the hdr texture back to the original target
 	if (hdr_rt)
 	{
-		GL_INS("Blit HDR back to RT");
-
 		EndRenderPass();
 		hdr_rt->TransitionToLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -3774,7 +3748,6 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 {
 	if (config.drawlist)
 	{
-		GL_PUSH("Split the draw (SPRITE)");
 		g_perfmon.Put(GSPerfMon::Barriers, static_cast<u32>(config.drawlist->size()) - static_cast<u32>(skip_first_barrier));
 
 		const u32 indices_per_prim = config.indices_per_prim;
@@ -3807,7 +3780,6 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 		{
 			const u32 indices_per_prim = config.indices_per_prim;
 
-			GL_PUSH("Split single draw in %d draw", config.nindices / indices_per_prim);
 			g_perfmon.Put(GSPerfMon::Barriers, (config.nindices / indices_per_prim) - static_cast<u32>(skip_first_barrier));
 
 			u32 p = 0;

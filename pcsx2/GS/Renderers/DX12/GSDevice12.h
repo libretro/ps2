@@ -167,7 +167,6 @@ private:
 	std::array<std::array<ComPtr<ID3D12PipelineState>, 2>, 2> m_date_image_setup_pipelines{}; // [depth][datm]
 	ComPtr<ID3D12PipelineState> m_fxaa_pipeline;
 	ComPtr<ID3D12PipelineState> m_shadeboost_pipeline;
-	ComPtr<ID3D12PipelineState> m_imgui_pipeline;
 
 	std::unordered_map<u32, ComPtr<ID3DBlob>> m_tfx_vertex_shaders;
 	std::unordered_map<GSHWDrawConfig::PSSelector, ComPtr<ID3DBlob>, GSHWDrawConfig::PSSelectorHash> m_tfx_pixel_shaders;

@@ -246,7 +246,6 @@ bool GSTextureVK::Update(const GSVector4i& r, const void* data, int pitch, int l
 	}
 
 	const VkCommandBuffer cmdbuf = GetCommandBufferForUpdate();
-	GL_PUSH("GSTextureVK::Update({%d,%d} %dx%d Lvl:%u", r.x, r.y, r.width(), r.height(), layer);
 
 	// first time the texture is used? don't leave it undefined
 	if (m_texture.GetLayout() == VK_IMAGE_LAYOUT_UNDEFINED)
@@ -319,8 +318,6 @@ void GSTextureVK::Unmap()
 	buffer.CommitMemory(required_size);
 
 	const VkCommandBuffer cmdbuf = GetCommandBufferForUpdate();
-	GL_PUSH("GSTextureVK::Update({%d,%d} %dx%d Lvl:%u", m_map_area.x, m_map_area.y, m_map_area.width(),
-		m_map_area.height(), m_map_level);
 
 	// first time the texture is used? don't leave it undefined
 	if (m_texture.GetLayout() == VK_IMAGE_LAYOUT_UNDEFINED)
@@ -528,13 +525,10 @@ void GSDownloadTextureVK::CopyFromTexture(
 	vkTex->CommitClear();
 
 	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
-	GL_INS("GSDownloadTextureVK::CopyFromTexture: {%d,%d} %ux%u", src.left, src.top, src.width(), src.height());
 
 	VkImageLayout old_layout = vkTex->GetTexture().GetLayout();
 	if (old_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-	{
 		vkTex->GetTexture().TransitionSubresourcesToLayout(cmdbuf, src_level, 1, 0, 1, old_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	}
 
 	VkBufferImageCopy image_copy = {};
 	const VkImageAspectFlags aspect =

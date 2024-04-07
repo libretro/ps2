@@ -131,12 +131,6 @@ __fi static T VectorAlign(T value)
 
 // clang-format off
 
-#ifdef __POSIX__
-	#include <zlib.h>
-#else
-	#include <zlib/zlib.h>
-#endif
-
 #ifdef _MSC_VER
 	#define ALIGN_STACK(n) alignas(n) int dummy__; (void)dummy__;
 #else

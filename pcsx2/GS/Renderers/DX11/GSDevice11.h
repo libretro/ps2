@@ -224,15 +224,6 @@ private:
 		wil::com_ptr_nothrow<ID3D11ComputeShader> cs_sharpen;
 	} m_cas;
 
-	struct
-	{
-		wil::com_ptr_nothrow<ID3D11InputLayout> il;
-		wil::com_ptr_nothrow<ID3D11VertexShader> vs;
-		wil::com_ptr_nothrow<ID3D11PixelShader> ps;
-		wil::com_ptr_nothrow<ID3D11BlendState> bs;
-		wil::com_ptr_nothrow<ID3D11Buffer> vs_cb;
-	} m_imgui;
-
 	// Shaders...
 
 	std::unordered_map<u32, GSVertexShader11> m_vs;

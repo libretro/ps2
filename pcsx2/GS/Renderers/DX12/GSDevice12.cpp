@@ -579,11 +579,6 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	ShaderConvert shader /* = ShaderConvert::COPY */, bool linear /* = true */)
 {
 	pxAssert(HasDepthOutput(shader) == (dTex && dTex->GetType() == GSTexture::Type::DepthStencil));
-
-	GL_INS("StretchRect(%d) {%d,%d} %dx%d -> {%d,%d) %dx%d", shader, int(sRect.left), int(sRect.top),
-		int(sRect.right - sRect.left), int(sRect.bottom - sRect.top), int(dRect.left), int(dRect.top),
-		int(dRect.right - dRect.left), int(dRect.bottom - dRect.top));
-
 	DoStretchRect(static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect,
 		dTex ? m_convert[static_cast<int>(shader)].get() : m_present[static_cast<int>(shader)].get(), linear, true);
 }
@@ -591,8 +586,6 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
 	bool green, bool blue, bool alpha)
 {
-	GL_PUSH("ColorCopy Red:%d Green:%d Blue:%d Alpha:%d", red, green, blue, alpha);
-
 	const u32 index = (red ? 1 : 0) | (green ? 2 : 0) | (blue ? 4 : 0) | (alpha ? 8 : 0);
 	const bool allow_discard = (index == 0xf);
 	DoStretchRect(static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect,
@@ -855,8 +848,6 @@ void GSDevice12::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect,
 void GSDevice12::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect,
 	const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear)
 {
-	GL_PUSH("DoMerge");
-
 	const GSVector4 full_r(0.0f, 0.0f, 1.0f, 1.0f);
 	const bool feedback_write_2 = PMODE.EN2 && sTex[2] != nullptr && EXTBUF.FBIN == 1;
 	const bool feedback_write_1 = PMODE.EN1 && sTex[2] != nullptr && EXTBUF.FBIN == 0;
@@ -2587,8 +2578,6 @@ void GSDevice12::SetPSConstantBuffer(const GSHWDrawConfig::PSConstantBuffer& cb)
 
 void GSDevice12::SetupDATE(GSTexture* rt, GSTexture* ds, bool datm, const GSVector4i& bbox)
 {
-	GL_PUSH("SetupDATE {%d,%d} %dx%d", bbox.left, bbox.top, bbox.width(), bbox.height());
-
 	const GSVector2i size(ds->GetSize());
 	const GSVector4 src = GSVector4(bbox) / GSVector4(size).xyxy();
 	const GSVector4 dst = src * 2.0f - 1.0f;
@@ -2624,9 +2613,6 @@ GSTexture12* GSDevice12::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config, Pipe
 	// - so, instead of just filling the int texture with INT_MAX, we sample the RT and use -1 for failing values
 	// - then, instead of sampling the RT with DATE=1/2, we just do a min() without it, the -1 gets preserved
 	// - then, the DATE=3 draw is done as normal
-	GL_INS("Setup DATE Primitive ID Image for {%d,%d}-{%d,%d}", config.drawarea.left, config.drawarea.top,
-		config.drawarea.right, config.drawarea.bottom);
-
 	const GSVector2i rtsize(config.rt->GetSize());
 	GSTexture12* image =
 		static_cast<GSTexture12*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::PrimID, false));
@@ -2752,8 +2738,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 	if (pipe.ps.hdr)
 	{
 		EndRenderPass();
-
-		GL_PUSH_("HDR Render Target Setup");
 		hdr_rt = static_cast<GSTexture12*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::HDRColor, false));
 		if (!hdr_rt)
 		{
@@ -2787,10 +2771,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		if (draw_rt_clone)
 		{
 			EndRenderPass();
-
-			GL_PUSH("Copy RT to temp texture for fbmask {%d,%d %dx%d}",
-				config.drawarea.left, config.drawarea.top,
-				config.drawarea.width(), config.drawarea.height());
 
 			draw_rt_clone->SetState(GSTexture::State::Invalidated);
 			CopyRect(draw_rt, draw_rt_clone, config.drawarea, config.drawarea.left, config.drawarea.top);
@@ -2851,8 +2831,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
 		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
-		GL_POP();
 	}
 
 	// VB/IB upload, if we did DATE setup and it's not HDR this has already been done
@@ -2909,8 +2887,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 	// now blit the hdr texture back to the original target
 	if (hdr_rt)
 	{
-		GL_INS("Blit HDR back to RT");
-
 		EndRenderPass();
 		hdr_rt->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 

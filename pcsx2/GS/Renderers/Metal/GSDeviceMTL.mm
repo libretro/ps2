@@ -1150,7 +1150,6 @@ bool GSDeviceMTL::Create()
 		applyAttribute(pdesc.vertexDescriptor, 2, MTLVertexFormatUChar4Normalized, offsetof(ImDrawVert, col), 0);
 		pdesc.vertexDescriptor.layouts[0].stride = sizeof(ImDrawVert);
 		pdesc.colorAttachments[0].pixelFormat = layer_px_fmt;
-		m_imgui_pipeline = MakePipeline(pdesc, LoadShader(@"vs_imgui"), LoadShader(@"ps_imgui"), @"imgui");
 
 		[initCommands commit];
 	}

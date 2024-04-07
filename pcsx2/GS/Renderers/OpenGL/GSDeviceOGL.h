@@ -211,12 +211,6 @@ private:
 		GL::Program sharpen_ps;
 	} m_cas;
 
-	struct
-	{
-		GL::Program ps;
-		GLuint vao = 0;
-	} m_imgui;
-
 	GLuint m_ps_ss[1 << 8];
 	GSDepthStencilOGL* m_om_dss[1 << 5] = {};
 	std::unordered_map<ProgramSelector, GL::Program, ProgramSelectorHash> m_programs;
