@@ -93,17 +93,7 @@ namespace GameList
 		u32 crc = 0;
 
 		CompatibilityRating compatibility_rating = CompatibilityRating::Unknown;
-
-		__fi bool IsDisc() const { return (type == EntryType::PS1Disc || type == EntryType::PS2Disc); }
 	};
-
-	const char* EntryTypeToString(EntryType type);
-	const char* EntryTypeToDisplayString(EntryType type);
-	const char* RegionToString(Region region);
-	const char* EntryCompatibilityRatingToString(CompatibilityRating rating);
-
-	/// Fills in boot parameters (iso or elf) based on the game list entry.
-	void FillBootParametersForEntry(VMBootParameters* params, const Entry* entry);
 
 	/// Populates a game list entry struct with information from the iso/elf.
 	/// Do *not* call while the system is running, it will mess with CDVD state.
@@ -112,10 +102,4 @@ namespace GameList
 	// Game list access. It's the caller's responsibility to hold the lock while manipulating the entry in any way.
 	std::unique_lock<std::recursive_mutex> GetLock();
 	const Entry* GetEntryForPath(const char* path);
-	const Entry* GetEntryByCRC(u32 crc);
-
-	/// Populates the game list with files in the configured directories.
-	/// If invalidate_cache is set, all files will be re-scanned.
-	/// If only_cache is set, no new files will be scanned, only those present in the cache.
-	void Refresh(bool invalidate_cache, bool only_cache = false, ProgressCallback* progress = nullptr);
 } // namespace GameList

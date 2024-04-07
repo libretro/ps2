@@ -4306,16 +4306,9 @@ bool GSTextureCache::Target::ResizeTexture(int new_unscaled_width, int new_unsca
 
 	// These exceptions *really* need to get lost. This gets called outside of draws, which just crashes
 	// when it tries to propagate the exception back.
-	GSTexture* tex = nullptr;
-	try
-	{
-		tex = m_texture->IsDepthStencil() ?
-				  g_gs_device->CreateDepthStencil(new_width, new_height, m_texture->GetFormat(), clear) :
-				  g_gs_device->CreateRenderTarget(new_width, new_height, m_texture->GetFormat(), clear);
-	}
-	catch (const std::bad_alloc&)
-	{
-	}
+	GSTexture *tex = m_texture->IsDepthStencil() ?
+		g_gs_device->CreateDepthStencil(new_width, new_height, m_texture->GetFormat(), clear) :
+		g_gs_device->CreateRenderTarget(new_width, new_height, m_texture->GetFormat(), clear);
 
 	if (!tex)
 	{

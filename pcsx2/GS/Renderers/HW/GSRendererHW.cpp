@@ -4605,13 +4605,7 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 				GSTextureCache::Target* target = clear_depth ? ds : rt;
 				const GSVector2 size = GSVector2(static_cast<float>(target->GetUnscaledWidth()) * target->m_scale, static_cast<float>(target->GetUnscaledHeight()) * target->m_scale);
 				pxAssert(!target->m_texture->IsDepthStencil());
-				try
-				{
-					tex = g_gs_device->CreateRenderTarget(size.x, size.y, target->m_texture->GetFormat(), false);
-				}
-				catch (const std::bad_alloc&)
-				{
-				}
+				tex = g_gs_device->CreateRenderTarget(size.x, size.y, target->m_texture->GetFormat(), false);
 
 				if (!tex)
 				{
@@ -4676,13 +4670,7 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 			GSTexture* tex = nullptr;
 			GSTextureCache::Target* target = rt;
 			const GSVector2 size = GSVector2(static_cast<float>(target->GetUnscaledWidth()) * target->m_scale, static_cast<float>(target->GetUnscaledHeight()) * target->m_scale);
-			try
-			{
-				tex = g_gs_device->CreateRenderTarget(size.x, size.y, target->m_texture->GetFormat(), true);
-			}
-			catch (const std::bad_alloc&)
-			{
-			}
+			tex = g_gs_device->CreateRenderTarget(size.x, size.y, target->m_texture->GetFormat(), true);
 
 			if (!tex)
 			{

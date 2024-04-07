@@ -87,10 +87,10 @@ static int CheckDiskTypeFS(int baseType)
 			buffer[size] = '\0';
 
 			char* pos = strstr(buffer.get(), "BOOT2");
-			if (pos == NULL)
+			if (!pos)
 			{
 				pos = strstr(buffer.get(), "BOOT");
-				if (pos == NULL)
+				if (!pos)
 					return CDVD_TYPE_ILLEGAL;
 				return CDVD_TYPE_PSCD;
 			}
@@ -146,9 +146,7 @@ static int FindDiskType(int mType)
 	CDVD->getTN(&tn);
 
 	if (tn.strack != tn.etrack) // multitrack == CD.
-	{
 		iCDType = CDVD_TYPE_DETCTCD;
-	}
 	else if (mType < 0)
 	{
 		static u8 bleh[CD_FRAMESIZE_RAW];
@@ -156,9 +154,7 @@ static int FindDiskType(int mType)
 
 		CDVD->getTD(0, &td);
 		if (td.lsn > 452849)
-		{
 			iCDType = CDVD_TYPE_DETCTDVDS;
-		}
 		else
 		{
 			if (DoCDVDreadSector(bleh, 16, CDVD_MODE_2048) == 0)

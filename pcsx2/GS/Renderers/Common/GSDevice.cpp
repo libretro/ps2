@@ -530,13 +530,10 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 		return true;
 	}
 
-	GSTexture* new_tex;
-	try
-	{
-		const GSTexture::Format fmt = orig_tex ? orig_tex->GetFormat() : GSTexture::Format::Color;
-		new_tex = FetchSurface(GSTexture::Type::RenderTarget, w, h, 1, fmt, !preserve_contents, true);
-	}
-	catch (std::bad_alloc&)
+	const GSTexture::Format fmt = orig_tex ? orig_tex->GetFormat() : GSTexture::Format::Color;
+	GSTexture *new_tex = FetchSurface(GSTexture::Type::RenderTarget, w, h, 1, fmt, !preserve_contents, true);
+
+	if (!new_tex)
 	{
 		Console.WriteLn("%dx%d texture allocation failed in ResizeTexture()", w, h);
 		return false;
