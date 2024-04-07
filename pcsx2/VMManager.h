@@ -193,10 +193,6 @@ namespace Host
 	/// Called when performance metrics are updated, approximately once a second.
 	void OnPerformanceMetricsUpdated();
 
-	/// Looks up the serial and CRC for a game in the most efficient manner possible.
-	/// Implemented in the host because it may have a game list cache.
-	bool GetSerialAndCRCForFilename(const char* filename, std::string* serial, u32* crc);
-
 	/// Called when a save state is loading, before the file is processed.
 	void OnSaveStateLoading(const std::string_view& filename);
 

@@ -21,7 +21,6 @@
 #include "common/Timer.h"
 #include "common/Threading.h"
 #include "Frontend/CommonHost.h"
-#include "Frontend/GameList.h"
 #include "Frontend/LayeredSettingsInterface.h"
 #include "Frontend/InputManager.h"
 #include "Frontend/LogSink.h"
@@ -92,8 +91,6 @@ void CommonHost::SetDefaultSettings(SettingsInterface& si, bool folders, bool co
 		VMManager::SetDefaultSettings(si);
 		SetCommonDefaultSettings(si);
 	}
-	if (hotkeys)
-		PAD::SetDefaultHotkeyConfig(si);
 	if (ui)
 		Host::SetDefaultUISettings(si);
 }
@@ -175,28 +172,4 @@ void CommonHost::OnGameChanged(const std::string& disc_path, const std::string& 
 void CommonHost::CPUThreadVSync()
 {
 	InputManager::PollSources();
-}
-
-bool Host::GetSerialAndCRCForFilename(const char* filename, std::string* serial, u32* crc)
-{
-	{
-		auto lock = GameList::GetLock();
-		if (const GameList::Entry* entry = GameList::GetEntryForPath(filename); entry)
-		{
-			*serial = entry->serial;
-			*crc = entry->crc;
-			return true;
-		}
-	}
-
-	// Just scan it.. hopefully it'll come back okay.
-	GameList::Entry temp_entry;
-	if (GameList::PopulateEntryFromPath(filename, &temp_entry))
-	{
-		*serial = std::move(temp_entry.serial);
-		*crc = temp_entry.crc;
-		return true;
-	}
-
-	return false;
 }

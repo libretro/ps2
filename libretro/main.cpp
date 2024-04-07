@@ -38,7 +38,6 @@
 #include "libretro_vulkan.h"
 #endif
 #include "pcsx2/Frontend/CommonHost.h"
-#include "pcsx2/Frontend/GameList.h"
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/LogSink.h"
 #include "pcsx2/Frontend/LayeredSettingsInterface.h"
