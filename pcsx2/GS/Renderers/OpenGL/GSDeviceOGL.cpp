@@ -691,11 +691,6 @@ void GSDeviceOGL::ResizeWindow(s32 new_window_width, s32 new_window_height, floa
 	m_window_info = m_gl_context->GetWindowInfo();
 }
 
-bool GSDeviceOGL::SupportsExclusiveFullscreen() const
-{
-	return false;
-}
-
 void GSDeviceOGL::DestroySurface()
 {
 	m_window_info = {};

@@ -147,11 +147,6 @@ private:
 	u32 m_structured_vb_pos = 0; // bytes
 	int m_d3d_texsize = 0;
 
-	bool m_allow_tearing_supported = false;
-	bool m_using_flip_model_swap_chain = true;
-	bool m_using_allow_tearing = false;
-	bool m_is_exclusive_fullscreen = false;
-
 	struct
 	{
 		ID3D11InputLayout* layout;
@@ -271,7 +266,6 @@ public:
 
 	bool UpdateWindow() override;
 	void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) override;
-	bool SupportsExclusiveFullscreen() const override;
 	bool HasSurface() const override;
 	void DestroySurface() override;
 	std::string GetDriverInfo() const override;

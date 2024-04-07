@@ -1196,8 +1196,6 @@ bool GSDeviceMTL::UpdateWindow()
 	return true;
 }
 
-bool GSDeviceMTL::SupportsExclusiveFullscreen() const { return false; }
-
 std::string GSDeviceMTL::GetDriverInfo() const
 { @autoreleasepool {
 	std::string desc([[m_dev.dev description] UTF8String]);

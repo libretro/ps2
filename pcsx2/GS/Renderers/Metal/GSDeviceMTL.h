@@ -385,7 +385,6 @@ public:
 	bool HasSurface() const override;
 	void DestroySurface() override;
 	bool UpdateWindow() override;
-	bool SupportsExclusiveFullscreen() const override;
 	std::string GetDriverInfo() const override;
 
 	void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) override;

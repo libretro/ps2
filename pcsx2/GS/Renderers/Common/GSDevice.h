@@ -803,9 +803,6 @@ public:
 	/// Returns a string representing the specified API.
 	static const char* RenderAPIToString(RenderAPI api);
 
-	/// Parses the configured fullscreen mode into its components (width * height @ refresh hz)
-	static bool GetRequestedExclusiveFullscreenMode(u32* width, u32* height, float* refresh_rate);
-
 	/// Converts a fullscreen mode to a string.
 	static std::string GetFullscreenModeString(u32 width, u32 height, float refresh_rate);
 
@@ -850,9 +847,6 @@ public:
 
 	/// Call when the window size changes externally to recreate any resources.
 	virtual void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) = 0;
-
-	/// Returns true if exclusive fullscreen is supported.
-	virtual bool SupportsExclusiveFullscreen() const = 0;
 
 	/// Returns false if the window was completely occluded. If frame_skip is set, the frame won't be
 	/// displayed, but the GPU command queue will still be flushed.

@@ -519,16 +519,6 @@ void GSSetVSyncMode(VsyncMode mode)
 	g_gs_device->SetVSync(mode);
 }
 
-bool GSWantsExclusiveFullscreen()
-{
-	if (!g_gs_device || !g_gs_device->SupportsExclusiveFullscreen())
-		return false;
-
-	u32 width, height;
-	float refresh_rate;
-	return GSDevice::GetRequestedExclusiveFullscreenMode(&width, &height, &refresh_rate);
-}
-
 bool GSGetHostRefreshRate(float* refresh_rate)
 {
 	if (!g_gs_device)

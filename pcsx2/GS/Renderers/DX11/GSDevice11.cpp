@@ -608,11 +608,6 @@ void GSDevice11::ResizeWindow(s32 new_window_width, s32 new_window_height, float
 {
 }
 
-bool GSDevice11::SupportsExclusiveFullscreen() const
-{
-	return true;
-}
-
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)
 {
 	return PresentResult::OK;

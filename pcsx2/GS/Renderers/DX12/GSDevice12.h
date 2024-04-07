@@ -140,9 +140,6 @@ public:
 private:
 	ComPtr<IDXGIFactory5> m_dxgi_factory;
 
-	bool m_allow_tearing_supported = false;
-	bool m_using_allow_tearing = false;
-	bool m_is_exclusive_fullscreen = false;
 	bool m_device_lost = false;
 
 	ComPtr<ID3D12RootSignature> m_tfx_root_signature;
@@ -244,7 +241,6 @@ public:
 
 	bool UpdateWindow() override;
 	void ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale) override;
-	bool SupportsExclusiveFullscreen() const override;
 	void DestroySurface() override;
 	std::string GetDriverInfo() const override;
 

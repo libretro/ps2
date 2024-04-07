@@ -138,11 +138,6 @@ bool GSDevice12::Create()
 		return false;
 	}
 
-	BOOL allow_tearing_supported = false;
-	HRESULT hr = m_dxgi_factory->CheckFeatureSupport(
-		DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing_supported, sizeof(allow_tearing_supported));
-	m_allow_tearing_supported = (SUCCEEDED(hr) && allow_tearing_supported == TRUE);
-
 	if (!CheckFeatures())
 	{
 		Console.Error("Your GPU does not support the required D3D12 features.");
@@ -323,11 +318,6 @@ std::string GSDevice12::GetDriverInfo() const
 
 void GSDevice12::ResizeWindow(s32 new_window_width, s32 new_window_height, float new_window_scale)
 {
-}
-
-bool GSDevice12::SupportsExclusiveFullscreen() const
-{
-	return true;
 }
 
 GSDevice::PresentResult GSDevice12::BeginPresent(bool frame_skip)

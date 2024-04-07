@@ -93,7 +93,6 @@ void GSResizeDisplayWindow(int width, int height, float scale);
 void GSUpdateDisplayWindow();
 void GSSetVSyncMode(VsyncMode mode);
 
-bool GSWantsExclusiveFullscreen();
 bool GSGetHostRefreshRate(float* refresh_rate);
 void GSGetAdaptersAndFullscreenModes(
 	GSRendererType renderer, std::vector<std::string>* adapters, std::vector<std::string>* fullscreen_modes);

@@ -323,11 +323,6 @@ void GSDeviceVK::ResizeWindow(s32 new_window_width, s32 new_window_height, float
 	m_window_info = m_swap_chain->GetWindowInfo();
 }
 
-bool GSDeviceVK::SupportsExclusiveFullscreen() const
-{
-	return false;
-}
-
 void GSDeviceVK::DestroySurface()
 {
 	g_vulkan_context->WaitForGPUIdle();
