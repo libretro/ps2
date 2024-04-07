@@ -516,24 +516,6 @@ void PAD::LoadMacroButtonConfig(const SettingsInterface& si, u32 pad, const std:
 	}
 }
 
-void PAD::SetMacroButtonState(u32 pad, u32 index, bool state)
-{
-	if (pad >= NUM_CONTROLLER_PORTS || index >= NUM_MACRO_BUTTONS_PER_CONTROLLER)
-		return;
-
-	MacroButton& mb = s_macro_buttons[pad][index];
-	if (mb.buttons.empty() || mb.trigger_state == state)
-		return;
-
-	mb.toggle_counter = mb.toggle_frequency;
-	mb.trigger_state = state;
-	if (mb.toggle_state != state)
-	{
-		mb.toggle_state = state;
-		ApplyMacroButton(pad, mb);
-	}
-}
-
 std::vector<std::string> PAD::GetInputProfileNames()
 {
 	FileSystem::FindResultsArray results;

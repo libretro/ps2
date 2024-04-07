@@ -111,9 +111,6 @@ namespace PAD
 	/// Sets the specified bind on a controller to the specified pressure (normalized to 0..1).
 	void SetControllerState(u32 controller, u32 bind, float value);
 
-	/// Sets the state of the specified macro button.
-	void SetMacroButtonState(u32 pad, u32 index, bool state);
-
 	/// Returns a list of input profiles available.
 	std::vector<std::string> GetInputProfileNames();
 } // namespace PAD
