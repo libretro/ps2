@@ -166,7 +166,6 @@ public:
 
 	BASEBLOCKEX* New(u32 startpc, uptr fnptr);
 	int LastIndex(u32 startpc) const;
-	//BASEBLOCKEX* GetByX86(uptr ip);
 
 	__fi int Index(u32 startpc) const
 	{
@@ -175,8 +174,7 @@ public:
 		if ((idx == -1) || (startpc < blocks[idx].startpc) ||
 			((blocks[idx].size) && (startpc >= blocks[idx].startpc + blocks[idx].size * 4)))
 			return -1;
-		else
-			return idx;
+		return idx;
 	}
 
 	__fi BASEBLOCKEX* operator[](int idx)

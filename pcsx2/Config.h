@@ -307,20 +307,6 @@ enum class TexturePreloadingLevel : u8
 	Full,
 };
 
-enum class GSScreenshotSize : u8
-{
-	WindowResolution,
-	InternalResolution,
-	InternalResolutionUncorrected,
-};
-
-enum class GSScreenshotFormat : u8
-{
-	PNG,
-	JPEG,
-	Count,
-};
-
 enum class GSHardwareDownloadMode : u8
 {
 	Enabled,
@@ -750,10 +736,6 @@ struct Pcsx2Config
 
 		int SaveN = 0;
 		int SaveL = 5000;
-
-		GSScreenshotSize ScreenshotSize = GSScreenshotSize::WindowResolution;
-		GSScreenshotFormat ScreenshotFormat = GSScreenshotFormat::PNG;
-		int ScreenshotQuality = 50;
 
 		std::string CaptureContainer = DEFAULT_CAPTURE_CONTAINER;
 		std::string VideoCaptureCodec;
