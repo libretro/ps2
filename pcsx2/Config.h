@@ -403,40 +403,6 @@ struct TraceFiltersIOP
 };
 
 // --------------------------------------------------------------------------------------
-//  TraceLogFilters
-// --------------------------------------------------------------------------------------
-struct TraceLogFilters
-{
-	// Enabled - global toggle for high volume logging.  This is effectively the equivalent to
-	// (EE.Enabled() || IOP.Enabled() || SIF) -- it's cached so that we can use the macros
-	// below to inline the conditional check.  This is desirable because these logs are
-	// *very* high volume, and debug builds get noticably slower if they have to invoke
-	// methods/accessors to test the log enable bits.  Debug builds are slow enough already,
-	// so I prefer this to help keep them usable.
-	bool Enabled;
-
-	TraceFiltersEE EE;
-	TraceFiltersIOP IOP;
-
-	TraceLogFilters()
-	{
-		Enabled = false;
-	}
-
-	void LoadSave(SettingsWrapper& ini);
-
-	bool operator==(const TraceLogFilters& right) const
-	{
-		return OpEqu(Enabled) && OpEqu(EE) && OpEqu(IOP);
-	}
-
-	bool operator!=(const TraceLogFilters& right) const
-	{
-		return !this->operator==(right);
-	}
-};
-
-// --------------------------------------------------------------------------------------
 //  Pcsx2Config class
 // --------------------------------------------------------------------------------------
 // This is intended to be a public class library between the core emulator and GUI only.
@@ -1182,8 +1148,6 @@ struct Pcsx2Config
 #if 0
 	USBOptions USB;
 #endif
-
-	TraceLogFilters Trace;
 
 	FilenameOptions BaseFilenames;
 

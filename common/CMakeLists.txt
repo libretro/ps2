@@ -85,7 +85,6 @@ target_sources(common PRIVATE
 	Timer.h
 	Threading.h
 	ThreadPool.h
-	TraceLog.h
 	WindowInfo.h
 	emitter/cpudetect_internal.h
 	emitter/implement/dwshift.h

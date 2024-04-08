@@ -105,19 +105,6 @@ namespace EmuFolders
 	std::string Videos;
 } // namespace EmuFolders
 
-void TraceLogFilters::LoadSave(SettingsWrapper& wrap)
-{
-	SettingsWrapSection("EmuCore/TraceLog");
-
-	SettingsWrapEntry(Enabled);
-
-	// Retaining backwards compat of the trace log enablers isn't really important, and
-	// doing each one by hand would be murder.  So let's cheat and just save it as an int:
-
-	SettingsWrapEntry(EE.bitset);
-	SettingsWrapEntry(IOP.bitset);
-}
-
 const char* const tbl_SpeedhackNames[] =
 {
 	"mvuFlag",
@@ -1180,7 +1167,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	Profiler.LoadSave(wrap);
 
 	Debugger.LoadSave(wrap);
-	Trace.LoadSave(wrap);
 
 	SettingsWrapEntry(GzipIsoIndexTemplate);
 
@@ -1256,7 +1242,6 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 		OpEqu(Profiler) &&
 		OpEqu(Debugger) &&
 		OpEqu(Framerate) &&
-		OpEqu(Trace) &&
 		OpEqu(BaseFilenames) &&
 		OpEqu(GzipIsoIndexTemplate);
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)

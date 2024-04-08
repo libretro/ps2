@@ -13,10 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/Console.h"
 #include "common/Threading.h"
-#include "common/TraceLog.h"
 #include "common/Assertions.h"
 #include "common/RedtapeWindows.h" // OutputDebugString
+#include "common/StringUtil.h"
 
 using namespace Threading;
 
@@ -506,25 +507,3 @@ ConsoleAttrScope::~ConsoleAttrScope()
 IConsoleWriter Console = _DefaultWriter_;
 
 NullConsoleWriter NullCon = {};
-
-// --------------------------------------------------------------------------------------
-//  ConsoleLogSource  (implementations)
-// --------------------------------------------------------------------------------------
-
-// Writes to the console using the specified color.  This overrides the default color setting
-// for this log.
-bool ConsoleLogSource::WriteV(ConsoleColors color, const char* fmt, va_list list) const
-{
-	ConsoleColorScope cs(color);
-	Console.WriteLn(StringUtil::StdStringFromFormatV(fmt, list));
-	return false;
-}
-
-// Writes to the console using the source's default color.  Note that the source's default
-// color will always be used, thus ConsoleColorScope() will not be effectual unless the
-// console's default color is Color_Default.
-bool ConsoleLogSource::WriteV(const char* fmt, va_list list) const
-{
-	WriteV(DefaultColor, fmt, list);
-	return false;
-}
