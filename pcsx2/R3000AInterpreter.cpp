@@ -21,7 +21,6 @@
 #include "VMManager.h"
 
 #include "R5900OpcodeTables.h"
-#include "DebugTools/Breakpoints.h"
 #include "IopBios.h"
 #include "IopHw.h"
 
@@ -128,79 +127,6 @@ void psxJALR()
 		_SetLink(_Rd_);
 	}
 	doBranch(_u32(_rRs_));
-}
-
-void psxBreakpoint(bool memcheck)
-{
-	u32 pc = psxRegs.pc;
-	if (CBreakPoints::CheckSkipFirst(BREAKPOINT_IOP, pc) != 0)
-		return;
-
-	if (!memcheck)
-	{
-		auto cond = CBreakPoints::GetBreakPointCondition(BREAKPOINT_IOP, pc);
-		if (cond && !cond->Evaluate())
-			return;
-	}
-
-	CBreakPoints::SetBreakpointTriggered(true);
-	VMManager::SetPaused(true);
-	throw Exception::ExitCpuExecute();
-}
-
-void psxMemcheck(u32 op, u32 bits, bool store)
-{
-	// compute accessed address
-	u32 start = psxRegs.GPR.r[(op >> 21) & 0x1F];
-	if ((s16)op != 0)
-		start += (s16)op;
-
-	u32 end = start + bits / 8;
-
-	auto checks = CBreakPoints::GetMemChecks(BREAKPOINT_IOP);
-	for (size_t i = 0; i < checks.size(); i++)
-	{
-		auto& check = checks[i];
-
-		if (check.result == 0)
-			continue;
-		if ((check.cond & MEMCHECK_WRITE) == 0 && store)
-			continue;
-		if ((check.cond & MEMCHECK_READ) == 0 && !store)
-			continue;
-
-		if (start < check.end && check.start < end)
-			psxBreakpoint(true);
-	}
-}
-
-void psxCheckMemcheck()
-{
-	u32 pc = psxRegs.pc;
-	int needed = psxIsMemcheckNeeded(pc);
-	if (needed == 0)
-		return;
-
-	u32 op = iopMemRead32(needed == 2 ? pc + 4 : pc);
-	// Yeah, we use the R5900 opcode table for the R3000
-	const R5900::OPCODE& opcode = R5900::GetInstruction(op);
-
-	bool store = (opcode.flags & IS_STORE) != 0;
-	switch (opcode.flags & MEMTYPE_MASK)
-	{
-	case MEMTYPE_BYTE:
-		psxMemcheck(op, 8, store);
-		break;
-	case MEMTYPE_HALF:
-		psxMemcheck(op, 16, store);
-		break;
-	case MEMTYPE_WORD:
-		psxMemcheck(op, 32, store);
-		break;
-	case MEMTYPE_DWORD:
-		psxMemcheck(op, 64, store);
-		break;
-	}
 }
 
 ///////////////////////////////////////////

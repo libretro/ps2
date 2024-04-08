@@ -44,7 +44,6 @@
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/Perf.h"
-#include "DebugTools/Breakpoints.h"
 
 #include "fmt/core.h"
 
@@ -1165,168 +1164,12 @@ void rpsxBREAK()
 	//if (!psxbranch) psxbranch = 2;
 }
 
-static bool psxDynarecCheckBreakpoint()
-{
-	u32 pc = psxRegs.pc;
-	if (CBreakPoints::CheckSkipFirst(BREAKPOINT_IOP, pc) == pc)
-		return false;
-
-	int bpFlags = psxIsBreakpointNeeded(pc);
-	bool hit = false;
-	//check breakpoint at current pc
-	if (bpFlags & 1)
-	{
-		auto cond = CBreakPoints::GetBreakPointCondition(BREAKPOINT_IOP, pc);
-		if (cond == NULL || cond->Evaluate())
-		{
-			hit = true;
-		}
-	}
-	//check breakpoint in delay slot
-	if (bpFlags & 2)
-	{
-		auto cond = CBreakPoints::GetBreakPointCondition(BREAKPOINT_IOP, pc + 4);
-		if (cond == NULL || cond->Evaluate())
-			hit = true;
-	}
-
-	if (!hit)
-		return false;
-
-	CBreakPoints::SetBreakpointTriggered(true);
-	VMManager::SetPaused(true);
-
-	// Exit the EE too.
-	Cpu->ExitExecution();
-	return true;
-}
-
-static bool psxDynarecMemcheck()
-{
-	u32 pc = psxRegs.pc;
-	if (CBreakPoints::CheckSkipFirst(BREAKPOINT_IOP, pc) == pc)
-		return false;
-
-	CBreakPoints::SetBreakpointTriggered(true);
-	VMManager::SetPaused(true);
-
-	// Exit the EE too.
-	Cpu->ExitExecution();
-	return true;
-}
-
-static void psxDynarecMemLogcheck(u32 start, bool store)
-{
-}
-
-static void psxRecMemcheck(u32 op, u32 bits, bool store)
-{
-	_psxFlushCall(FLUSH_EVERYTHING | FLUSH_PC);
-
-	// compute accessed address
-	_psxMoveGPRtoR(ecx, (op >> 21) & 0x1F);
-	if ((s16)op != 0)
-		xADD(ecx, (s16)op);
-
-	xMOV(edx, ecx);
-	xADD(edx, bits / 8);
-
-	// ecx = access address
-	// edx = access address+size
-
-	auto checks = CBreakPoints::GetMemChecks(BREAKPOINT_IOP);
-	for (size_t i = 0; i < checks.size(); i++)
-	{
-		if (checks[i].result == 0)
-			continue;
-		if ((checks[i].cond & MEMCHECK_WRITE) == 0 && store)
-			continue;
-		if ((checks[i].cond & MEMCHECK_READ) == 0 && !store)
-			continue;
-
-		// logic: memAddress < bpEnd && bpStart < memAddress+memSize
-
-		xMOV(eax, checks[i].end);
-		xCMP(ecx, eax); // address < end
-		xForwardJGE8 next1; // if address >= end then goto next1
-
-		xMOV(eax, checks[i].start);
-		xCMP(eax, edx); // start < address+size
-		xForwardJGE8 next2; // if start >= address+size then goto next2
-
-		// hit the breakpoint
-		if (checks[i].result & MEMCHECK_LOG)
-		{
-			xMOV(edx, store);
-			xFastCall((void*)psxDynarecMemLogcheck, ecx, edx);
-		}
-		if (checks[i].result & MEMCHECK_BREAK)
-		{
-			xFastCall((void*)psxDynarecMemcheck);
-			xTEST(al, al);
-			xJNZ(iopExitRecompiledCode);
-		}
-
-		next1.SetTarget();
-		next2.SetTarget();
-	}
-}
-
-static void psxEncodeBreakpoint()
-{
-	if (psxIsBreakpointNeeded(psxpc) != 0)
-	{
-		_psxFlushCall(FLUSH_EVERYTHING | FLUSH_PC);
-		xFastCall((void*)psxDynarecCheckBreakpoint);
-		xTEST(al, al);
-		xJNZ(iopExitRecompiledCode);
-	}
-}
-
-static void psxEncodeMemcheck()
-{
-	int needed = psxIsMemcheckNeeded(psxpc);
-	if (needed == 0)
-		return;
-
-	u32 op = iopMemRead32(needed == 2 ? psxpc + 4 : psxpc);
-	const R5900::OPCODE& opcode = R5900::GetInstruction(op);
-
-	bool store = (opcode.flags & IS_STORE) != 0;
-	switch (opcode.flags & MEMTYPE_MASK)
-	{
-		case MEMTYPE_BYTE:
-			psxRecMemcheck(op, 8, store);
-			break;
-		case MEMTYPE_HALF:
-			psxRecMemcheck(op, 16, store);
-			break;
-		case MEMTYPE_WORD:
-			psxRecMemcheck(op, 32, store);
-			break;
-		case MEMTYPE_DWORD:
-			psxRecMemcheck(op, 64, store);
-			break;
-	}
-}
 
 void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
 {
 	const int old_code = psxRegs.code;
 	EEINST* old_inst_info = g_pCurInstInfo;
 	s_recompilingDelaySlot = delayslot;
-
-	// add breakpoint
-	if (!delayslot)
-	{
-		// Broken on x64
-		psxEncodeBreakpoint();
-		psxEncodeMemcheck();
-	}
-	else
-	{
-		_clearNeededX86regs();
-	}
 
 	psxRegs.code = iopMemRead32(psxpc);
 	s_psxBlockCycles++;

@@ -25,7 +25,6 @@
 #include "CDVD/CDVD.h"
 #include "ps2/BiosTools.h"
 #include "DebugTools/DebugInterface.h"
-#include "DebugTools/Breakpoints.h"
 #include "Host.h"
 #include "VMManager.h"
 
@@ -926,14 +925,7 @@ void SYSCALL()
 		}
 		break;
 		case Syscall::ExecPS2:
-		{
-			if (DebugInterface::getPauseOnEntry())
-			{
-				CBreakPoints::AddBreakPoint(BREAKPOINT_EE, cpuRegs.GPR.n.a0.UL[0], true);
-				DebugInterface::setPauseOnEntry(false);
-			}
-		}
-		break;
+			break;
 		case Syscall::SetOsdConfigParam:
 			AllowParams1 = true;
 			break;

@@ -419,10 +419,6 @@ extern void cpuTestINTCInts();
 extern void cpuTestDMACInts();
 extern void cpuTestTIMRInts();
 
-// breakpoint code shared between interpreter and recompiler
-int isMemcheckNeeded(u32 pc);
-int isBreakpointNeeded(u32 addr);
-
 ////////////////////////////////////////////////////////////////////
 // Exception Codes
 

@@ -731,9 +731,6 @@
     <ClCompile Include="DebugTools\MIPSAnalyst.cpp">
       <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="DebugTools\Breakpoints.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="DebugTools\ExpressionParser.cpp">
       <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
@@ -1607,9 +1604,6 @@
       <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
     <ClInclude Include="DebugTools\MIPSAnalyst.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\Breakpoints.h">
       <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
     <ClInclude Include="DebugTools\ExpressionParser.h">
