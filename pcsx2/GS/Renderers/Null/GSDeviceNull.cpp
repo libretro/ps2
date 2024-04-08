@@ -159,8 +159,7 @@ void GSDeviceNull::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTextur
 {
 
 }
-void GSDeviceNull::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-	bool linear)
+void GSDeviceNull::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 
 }

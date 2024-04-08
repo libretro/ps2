@@ -1244,7 +1244,7 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DrawStretchRect(sRect, dRect, dTex->GetSize());
 }
 
-void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool linear)
+void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	ASSERT(sTex);
 
@@ -1270,7 +1270,7 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	OMSetColorMaskState();
 
 	PSSetShaderResource(0, sTex);
-	PSSetSamplerState(linear ? m_convert.ln : m_convert.pt);
+	PSSetSamplerState(m_convert.pt);
 
 	// Flip y axis only when we render in the backbuffer
 	// By default everything is render in the wrong order (ie dx).

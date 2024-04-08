@@ -404,7 +404,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	PCRTCOffsets = false;
 	PCRTCOverscan = false;
 	IntegerScaling = false;
-	LinearPresent = GSPostBilinearMode::BilinearSmooth;
 	SyncToHostRefreshRate = false;
 	UseDebugDevice = false;
 	UseBlitSwapChain = false;
@@ -470,7 +469,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(VsyncEnable) &&
 
 		OpEqu(InterlaceMode) &&
-		OpEqu(LinearPresent) &&
 
 		OpEqu(StretchY) &&
 		OpEqu(Crop[0]) &&
@@ -630,7 +628,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBool(EnableAudioCapture);
 	GSSettingBool(EnableAudioCaptureParameters);
 
-	GSSettingIntEnumEx(LinearPresent, "linear_present_mode");
 	GSSettingIntEnumEx(InterlaceMode, "deinterlace_mode");
 
 	GSSettingFloat(OsdScale);

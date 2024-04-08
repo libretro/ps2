@@ -203,10 +203,6 @@ bool GSRenderer::Merge(int field)
 		g_gs_device->Interlace(fs, field ^ field2, mode, offset);
 	}
 
-	// Sharpens biinear at lower resolutions, almost nearest but with more uniform pixels.
-	if (GSConfig.LinearPresent == GSPostBilinearMode::BilinearSharp && (g_gs_device->GetWindowWidth() > fs.x || g_gs_device->GetWindowHeight() > fs.y))
-		g_gs_device->Resize(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight());
-
 	if (m_scanmask_used)
 		m_scanmask_used--;
 
@@ -282,21 +278,6 @@ static GSVector4 CalculateDrawDstRect(s32 window_width, s32 window_height, const
 		// make target width/height an integer multiple of the texture width/height
 		float t_width = static_cast<double>(src_rect.width());
 		float t_height = static_cast<double>(src_rect.height());
-
-		// If using Bilinear (Shape) the image will be prescaled to larger than the window, so we need to unscale it.
-		if (GSConfig.LinearPresent == GSPostBilinearMode::BilinearSharp && src_rect.width() > 0 && src_rect.height() > 0)
-		{
-			GSVector2i resolution = g_gs_renderer->PCRTCDisplays.GetResolution();
-			const GSVector2i fs = GSVector2i(static_cast<int>(static_cast<float>(resolution.x) * g_gs_renderer->GetUpscaleMultiplier()),
-				static_cast<int>(static_cast<float>(resolution.y) * g_gs_renderer->GetUpscaleMultiplier()));
-
-			if (g_gs_device->GetWindowWidth() > fs.x || g_gs_device->GetWindowHeight() > fs.y)
-			{
-				t_width *= static_cast<float>(fs.x) / src_rect.width();
-				t_height *= static_cast<float>(fs.y) / src_rect.height();
-			}
-		}
-
 		float scale;
 		if ((t_width / t_height) >= 1.0)
 			scale = target_width / t_width;
@@ -467,8 +448,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 			GSVector4 src_uv        = GSVector4(0, 0, 1, 1);
 			GSVector4 draw_rect     = GSVector4(0, 0, current->GetWidth(), current->GetHeight());
 
-			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect,
-				GSConfig.LinearPresent != GSPostBilinearMode::Off);
+			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
 		}
 
 		EndPresentFrame();
@@ -537,8 +517,7 @@ void GSRenderer::PresentCurrentFrame()
 				src_rect, current->GetSize(), GSDisplayAlignment::Center, g_gs_device->UsesLowerLeftOrigin(),
 				GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets)));
 
-			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect,
-				GSConfig.LinearPresent != GSPostBilinearMode::Off);
+			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
 		}
 
 		EndPresentFrame();

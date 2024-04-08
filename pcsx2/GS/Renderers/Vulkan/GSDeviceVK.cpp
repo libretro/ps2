@@ -838,8 +838,7 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 		false, allow_discard);
 }
 
-void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-	bool linear)
+void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
 	DisplayConstantBuffer cb;
 	cb.SetSource(sRect, sTex->GetSize());
@@ -847,7 +846,7 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	SetUtilityPushConstants(&cb, sizeof(cb));
 
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
-		m_present[0], linear, true);
+		m_present[0], false, true);
 }
 
 void GSDeviceVK::DrawMultiStretchRects(

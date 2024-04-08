@@ -1423,7 +1423,7 @@ static_assert(offsetof(DisplayConstantBuffer, SourceResolution)    == offsetof(G
 static_assert(offsetof(DisplayConstantBuffer, RcpSourceResolution) == offsetof(GSMTLPresentPSUniform, rcp_source_resolution));
 static_assert(offsetof(DisplayConstantBuffer, TimeAndPad.x)        == offsetof(GSMTLPresentPSUniform, time));
 
-void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool linear)
+void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 { @autoreleasepool {
 	GSVector2i ds = dTex ? dTex->GetSize() : GetWindowSize();
 	DisplayConstantBuffer cb;
@@ -1432,12 +1432,12 @@ void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	id<MTLRenderPipelineState> pipe = m_present_pipeline[static_cast<int>(0)];
 
 	if (dTex)
-		DoStretchRect(sTex, sRect, dTex, dRect, pipe, linear, LoadAction::DontCareIfFull, &cb, sizeof(cb));
+		DoStretchRect(sTex, sRect, dTex, dRect, pipe, false, LoadAction::DontCareIfFull, &cb, sizeof(cb));
 	else
 	{
 		// !dTex → Use current draw encoder
 		[m_current_render.encoder setRenderPipelineState:pipe];
-		[m_current_render.encoder setFragmentSamplerState:m_sampler_hw[linear ? SamplerSelector::Linear().key : SamplerSelector::Point().key] atIndex:0];
+		[m_current_render.encoder setFragmentSamplerState:m_sampler_hw[SamplerSelector::Point().key] atIndex:0];
 		[m_current_render.encoder setFragmentTexture:static_cast<GSTextureMTL*>(sTex)->GetTexture() atIndex:0];
 		[m_current_render.encoder setFragmentBytes:&cb length:sizeof(cb) atIndex:GSMTLBufferIndexUniforms];
 		DrawStretchRect(sRect, dRect, ds);
