@@ -88,7 +88,6 @@ namespace EmuFolders
 	std::string DataRoot;
 	std::string Settings;
 	std::string Bios;
-	std::string Savestates;
 	std::string MemoryCards;
 	std::string Cheats;
 	std::string CheatsWS;
@@ -1094,7 +1093,6 @@ void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 void EmuFolders::SetDefaults(SettingsInterface& si)
 {
 	si.SetStringValue("Folders", "Bios", "bios");
-	si.SetStringValue("Folders", "Savestates", "sstates");
 	si.SetStringValue("Folders", "MemoryCards", "memcards");
 	si.SetStringValue("Folders", "Cheats", "cheats");
 	si.SetStringValue("Folders", "CheatsWS", "cheats_ws");
@@ -1114,7 +1112,6 @@ static std::string LoadPathFromSettings(SettingsInterface& si, const std::string
 void EmuFolders::LoadConfig(SettingsInterface& si)
 {
 	Bios = LoadPathFromSettings(si, DataRoot, "Bios", "bios");
-	Savestates = LoadPathFromSettings(si, DataRoot, "Savestates", "sstates");
 	MemoryCards = LoadPathFromSettings(si, DataRoot, "MemoryCards", "memcards");
 	Cheats = LoadPathFromSettings(si, DataRoot, "Cheats", "cheats");
 	CheatsWS = LoadPathFromSettings(si, DataRoot, "CheatsWS", "cheats_ws");
@@ -1123,7 +1120,6 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Textures = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
 
 	Console.WriteLn("BIOS Directory: %s", Bios.c_str());
-	Console.WriteLn("Savestates Directory: %s", Savestates.c_str());
 	Console.WriteLn("MemoryCards Directory: %s", MemoryCards.c_str());
 	Console.WriteLn("Cheats Directory: %s", Cheats.c_str());
 	Console.WriteLn("CheatsWS Directory: %s", CheatsWS.c_str());
@@ -1136,7 +1132,6 @@ bool EmuFolders::EnsureFoldersExist()
 {
 	bool result = FileSystem::CreateDirectoryPath(Bios.c_str(), false);
 	result = FileSystem::CreateDirectoryPath(Settings.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Savestates.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(MemoryCards.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Cheats.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(CheatsWS.c_str(), false) && result;
