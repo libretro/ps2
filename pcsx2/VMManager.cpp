@@ -214,25 +214,15 @@ bool VMManager::Internal::InitializeGlobals()
 	x86caps.CountCores();
 	x86caps.SIMD_EstablishMXCSRmask();
 	x86caps.CalculateMHz();
-	SysLogMachineCaps();
 
 	if (GSinit() != 0)
-	{
-		Host::ReportErrorAsync("Error", "Failed to initialize GS (GSinit()).");
 		return false;
-	}
 
 	if (!SPU2::Initialize())
-	{
-		Host::ReportErrorAsync("Error", "Failed to initialize SPU2.");
 		return false;
-	}
 
 	if (USBinit() != 0)
-	{
-		Host::ReportErrorAsync("Error", "Failed to initialize USB (USBinit())");
 		return false;
-	}
 
 	return true;
 }
@@ -363,11 +353,9 @@ bool VMManager::UpdateGameSettingsLayer()
 	if (s_game_crc != 0 && Host::GetBaseBoolSettingValue("EmuCore", "EnablePerGameSettings", true))
 	{
 		std::string filename(GetGameSettingsPath(GetSerialForGameSettings(), s_game_crc));
+		// try the legacy format (crc.ini)
 		if (!FileSystem::FileExists(filename.c_str()))
-		{
-			// try the legacy format (crc.ini)
 			filename = GetGameSettingsPath({}, s_game_crc);
-		}
 
 		if (FileSystem::FileExists(filename.c_str()))
 		{
@@ -380,9 +368,7 @@ bool VMManager::UpdateGameSettingsLayer()
 			}
 		}
 		else
-		{
 			Console.WriteLn("No game settings found (tried '%s')", filename.c_str());
-		}
 	}
 
 	std::string input_profile_name;
@@ -643,12 +629,9 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 				s_disc_path = std::move(disc_path);
 			}
 			else
-			{
 				CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
-			}
 
 			s_elf_override = filename;
-			return true;
 		}
 		else
 		{
@@ -656,7 +639,6 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 			CDVDsys_SetFile(CDVD_SourceType::Iso, filename);
 			CDVDsys_ChangeSource(CDVD_SourceType::Iso);
 			s_disc_path = filename;
-			return true;
 		}
 	}
 	else
@@ -664,8 +646,8 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 		// make sure we're not fast booting when we have no filename
 		CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
 		EmuConfig.UseBOOT2Injection = false;
-		return true;
 	}
+	return true;
 }
 
 bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_to_load)

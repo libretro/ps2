@@ -141,7 +141,6 @@ public:
 // implemented by the provisioning interface.
 extern SysCpuProviderPack& GetCpuProviders();
 
-extern void SysLogMachineCaps();		// Detects cpu type and fills cpuInfo structs.
 extern void SysClearExecutionCache();	// clears recompiled execution caches!
 
 extern std::string SysGetBiosDiscID();

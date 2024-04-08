@@ -53,55 +53,6 @@ void SetCPUState(SSE_MXCSR sseMXCSR, SSE_MXCSR sseVU0MXCSR, SSE_MXCSR sseVU1MXCS
 	_mm_setcsr(g_sseMXCSR.bitmask);
 }
 
-// This function should be called once during program execution.
-void SysLogMachineCaps()
-{
-	Console.WriteLn("Savestate version: 0x%x", g_SaveVersion);
-	Console.Newline();
-
-	Console.WriteLn(Color_StrongBlack, "Host Machine Init:");
-
-	Console.Indent().WriteLn(
-		"Operating System =  %s\n"
-		"Physical RAM     =  %u MB",
-
-		GetOSVersionString().c_str(),
-		(u32)(GetPhysicalMemory() / _1mb));
-
-	u32 speed = x86caps.CalculateMHz();
-
-	Console.Indent().WriteLn(
-		"CPU name         =  %s\n"
-		"Vendor/Model     =  %s (stepping %02X)\n"
-		"CPU speed        =  %u.%03u ghz (%u logical thread%ls)\n"
-		"x86PType         =  %s\n"
-		"x86Flags         =  %08x %08x\n"
-		"x86EFlags        =  %08x",
-		x86caps.FamilyName,
-		x86caps.VendorName, x86caps.StepID,
-		speed / 1000, speed % 1000,
-		x86caps.LogicalCores, (x86caps.LogicalCores == 1) ? L"" : L"s",
-		x86caps.GetTypeName(),
-		x86caps.Flags, x86caps.Flags2,
-		x86caps.EFlags);
-
-	Console.Newline();
-
-	std::string features;
-
-	if (x86caps.hasAVX)
-		features += "AVX ";
-	if (x86caps.hasAVX2)
-		features += "AVX2 ";
-
-	StringUtil::StripWhitespace(&features);
-
-	Console.WriteLn(Color_StrongBlack, "x86 Features Detected:");
-	Console.Indent().WriteLn("%s", features.c_str());
-
-	Console.Newline();
-}
-
 namespace HostMemoryMap
 {
 	// For debuggers
