@@ -125,8 +125,6 @@ struct psxRegisters {
 
 	u32 sCycle[32];		// start cycle for signaled ints
 	s32 eCycle[32];		// cycle delta for signaled ints (sCycle + eCycle == branch cycle)
-	//u32 _msflag[32];
-	//u32 _smflag[32];
 };
 
 alignas(16) extern psxRegisters psxRegs;
@@ -193,24 +191,21 @@ extern bool iopIsDelaySlot;
 // --------------------------------------------------------------------------------------
 
 struct R3000Acpu {
-	void (*Reserve)();
-	void (*Reset)();
+	void (*Reserve)(void);
+	void (*Reset)(void);
 	s32 (*ExecuteBlock)( s32 eeCycles );		// executes the given number of EE cycles.
 	void (*Clear)(u32 Addr, u32 Size);
-	void (*Shutdown)();
+	void (*Shutdown)(void);
 };
 
 extern R3000Acpu *psxCpu;
 extern R3000Acpu psxInt;
 extern R3000Acpu psxRec;
 
-extern void psxReset();
+extern void psxReset(void);
 extern void psxException(u32 code, u32 step);
-extern void iopEventTest();
-extern void psxMemReset();
-
-int psxIsBreakpointNeeded(u32 addr);
-int psxIsMemcheckNeeded(u32 pc);
+extern void iopEventTest(void);
+extern void psxMemReset(void);
 
 // Subsets
 extern void (*psxBSC[64])();

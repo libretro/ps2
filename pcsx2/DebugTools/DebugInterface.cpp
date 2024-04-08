@@ -32,27 +32,6 @@
 R5900DebugInterface r5900Debug;
 R3000DebugInterface r3000Debug;
 
-#ifdef _WIN32
-#define strcasecmp stricmp
-#endif
-
-enum ReferenceIndexType
-{
-	REF_INDEX_PC       = 32,
-	REF_INDEX_HI       = 33,
-	REF_INDEX_LO       = 34,
-	REF_INDEX_OPTARGET = 0x800,
-	REF_INDEX_OPSTORE  = 0x1000,
-	REF_INDEX_OPLOAD   = 0x2000,
-	REF_INDEX_IS_OPSL  = REF_INDEX_OPTARGET | REF_INDEX_OPSTORE | REF_INDEX_OPLOAD,
-	REF_INDEX_FPU      = 0x4000,
-	REF_INDEX_FPU_INT  = 0x8000,
-	REF_INDEX_VFPU     = 0x10000,
-	REF_INDEX_VFPU_INT = 0x20000,
-	REF_INDEX_IS_FLOAT = REF_INDEX_FPU | REF_INDEX_VFPU,
-
-};
-
 //
 // R5900DebugInterface
 //

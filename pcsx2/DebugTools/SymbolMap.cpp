@@ -227,32 +227,6 @@ std::vector<SymbolEntry> SymbolMap::GetAllSymbols(SymbolType symmask) {
 	return result;
 }
 
-void SymbolMap::AddModule(const char *name, u32 address, u32 size) {
-	std::lock_guard<std::recursive_mutex> guard(m_lock);
-
-	for (auto it = modules.begin(), end = modules.end(); it != end; ++it) {
-		if (!strcmp(it->name, name)) {
-			// Just reactivate that one.
-			it->start = address;
-			it->size = size;
-			activeModuleEnds.insert(std::make_pair(it->start + it->size, *it));
-			UpdateActiveSymbols();
-			return;
-		}
-	}
-
-	ModuleEntry mod;
-	strncpy(mod.name, name, ARRAY_SIZE(mod.name));
-	mod.name[ARRAY_SIZE(mod.name) - 1] = 0;
-	mod.start = address;
-	mod.size = size;
-	mod.index = (int)modules.size() + 1;
-
-	modules.push_back(mod);
-	activeModuleEnds.insert(std::make_pair(mod.start + mod.size, mod));
-	UpdateActiveSymbols();
-}
-
 void SymbolMap::UnloadModule(u32 address, u32 size) {
 	std::lock_guard<std::recursive_mutex> guard(m_lock);
 	activeModuleEnds.erase(address + size);
@@ -305,31 +279,11 @@ bool SymbolMap::IsModuleActive(int moduleIndex) const {
 	return false;
 }
 
-std::vector<LoadedModuleInfo> SymbolMap::getAllModules() const {
-	std::lock_guard<std::recursive_mutex> guard(m_lock);
-
-	std::vector<LoadedModuleInfo> result;
-	for (size_t i = 0; i < modules.size(); i++) {
-		LoadedModuleInfo m;
-		m.name = modules[i].name;
-		m.address = modules[i].start;
-		m.size = modules[i].size;
-
-		u32 key = modules[i].start + modules[i].size;
-		m.active = activeModuleEnds.find(key) != activeModuleEnds.end();
-
-		result.push_back(m);
-	}
-
-	return result;
-}
-
 void SymbolMap::AddFunction(const char* name, u32 address, u32 size, int moduleIndex) {
 	std::lock_guard<std::recursive_mutex> guard(m_lock);
 
-	if (moduleIndex == -1) {
+	if (moduleIndex == -1)
 		moduleIndex = GetModuleIndex(address);
-	}
 
 	// Is there an existing one?
 	u32 relAddress = GetModuleRelativeAddr(address, moduleIndex);

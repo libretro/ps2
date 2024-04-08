@@ -74,7 +74,7 @@
 //****************************************************************
 
 // If we have an infinity value, then Overflow has occured.
-bool checkOverflow(u32& xReg, u32 cFlagsToSet)
+static bool checkOverflow(u32& xReg, u32 cFlagsToSet)
 {
 	if ( (xReg & ~0x80000000) == PosInfinity ) {
 		/*Console.Warning( "FPU OVERFLOW!: Changing to +/-Fmax!!!!!!!!!!!!\n" );*/
@@ -87,7 +87,7 @@ bool checkOverflow(u32& xReg, u32 cFlagsToSet)
 }
 
 // If we have a denormal value, then Underflow has occured.
-bool checkUnderflow(u32& xReg, u32 cFlagsToSet) {
+static bool checkUnderflow(u32& xReg, u32 cFlagsToSet) {
 	if ( ( (xReg & 0x7F800000) == 0 ) && ( (xReg & 0x007FFFFF) != 0 ) ) {
 		/*Console.Warning( "FPU UNDERFLOW!: Changing to +/-0!!!!!!!!!!!!\n" );*/
 		xReg &= 0x80000000;
@@ -103,7 +103,7 @@ bool checkUnderflow(u32& xReg, u32 cFlagsToSet) {
 	cFlagsToSet2 = Flags to set if (z == 0)
 	( Denormals are counted as "0" )
 */
-bool checkDivideByZero(u32& xReg, u32 yDivisorReg, u32 zDividendReg, u32 cFlagsToSet1, u32 cFlagsToSet2) {
+static bool checkDivideByZero(u32& xReg, u32 yDivisorReg, u32 zDividendReg, u32 cFlagsToSet1, u32 cFlagsToSet2) {
 
 	if ( (yDivisorReg & 0x7F800000) == 0 ) {
 		_ContVal_ |= ( (zDividendReg & 0x7F800000) == 0 ) ? cFlagsToSet2 : cFlagsToSet1;
@@ -170,15 +170,13 @@ float fpuDouble(u32 f)
 		case 0x0:
 			f &= 0x80000000;
 			return *(float*)&f;
-			break;
 		case 0x7f800000:
 			f = (f & 0x80000000)|0x7f7fffff;
 			return *(float*)&f;
-			break;
 		default:
-			return *(float*)&f;
 			break;
 	}
+	return *(float*)&f;
 }
 
 void ABS_S() {
@@ -384,15 +382,13 @@ void SUBA_S() {
 // seem more appropriately located here.
 
 void LWC1() {
-	u32 addr;
-	addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)(cpuRegs.code & 0xffff);	// force sign extension to 32bit
+	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)(cpuRegs.code & 0xffff);	// force sign extension to 32bit
 	if (addr & 0x00000003) { Console.Error( "FPU (LWC1 Opcode): Invalid Unaligned Memory Address" ); return; }  // Should signal an exception?
 	fpuRegs.fpr[_Rt_].UL = memRead32(addr);
 }
 
 void SWC1() {
-	u32 addr;
-	addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)(cpuRegs.code & 0xffff);	// force sign extension to 32bit
+	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)(cpuRegs.code & 0xffff);	// force sign extension to 32bit
 	if (addr & 0x00000003) { Console.Error( "FPU (SWC1 Opcode): Invalid Unaligned Memory Address" ); return; }  // Should signal an exception?
 	memWrite32(addr, fpuRegs.fpr[_Rt_].UL);
 }

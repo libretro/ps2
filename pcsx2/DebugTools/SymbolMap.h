@@ -71,13 +71,11 @@ public:
 	std::string GetDescription(unsigned int address) const;
 	std::vector<SymbolEntry> GetAllSymbols(SymbolType symmask);
 
-	void AddModule(const char *name, u32 address, u32 size);
 	void UnloadModule(u32 address, u32 size);
 	u32 GetModuleRelativeAddr(u32 address, int moduleIndex = -1) const;
 	u32 GetModuleAbsoluteAddr(u32 relative, int moduleIndex) const;
 	int GetModuleIndex(u32 address) const;
 	bool IsModuleActive(int moduleIndex) const;
-	std::vector<LoadedModuleInfo> getAllModules() const;
 
 	void AddFunction(const char* name, u32 address, u32 size, int moduleIndex = -1);
 	u32 GetFunctionStart(u32 address) const;

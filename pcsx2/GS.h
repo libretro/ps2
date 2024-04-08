@@ -307,14 +307,6 @@ struct MTGS_FreezeData
 	s32 retval; // value returned from the call, valid only after an mtgsWaitGS()
 };
 
-struct MTGS_MemoryScreenshotData
-{
-	u32 width = 0;
-	u32 height = 0;
-	std::vector<u32> pixels; // width * height
-	bool success = false;
-};
-
 // --------------------------------------------------------------------------------------
 //  SysMtgsThread
 // --------------------------------------------------------------------------------------

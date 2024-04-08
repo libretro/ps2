@@ -15,7 +15,6 @@
 
 #pragma once
 
-class AsciiFile;
 using namespace x86Emitter;
 
 #include <deque>
