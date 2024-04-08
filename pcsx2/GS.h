@@ -284,10 +284,6 @@ extern bool gsIsInterlaced;
 /////////////////////////////////////////////////////////////////////////////
 // MTGS Threaded Class Declaration
 
-// Uncomment this to enable the MTGS debug stack, which tracks to ensure reads
-// and writes stay synchronized.  Warning: the debug stack is VERY slow.
-//#define RINGBUF_DEBUG_STACK
-
 enum MTGS_RingCommand
 {
 	GS_RINGTYPE_P1,
@@ -358,10 +354,6 @@ public:
 	uint m_packet_size; // size of the packet (data only, ie. not including the 16 byte command!)
 	uint m_packet_writepos; // index of the data location in the ringbuffer.
 
-#ifdef RINGBUF_DEBUG_STACK
-	std::mutex m_lock_Stack;
-#endif
-
 	std::thread::id m_thread;
 	Threading::ThreadHandle m_thread_handle;
 	std::atomic_bool m_open_flag{false};
@@ -419,7 +411,6 @@ public:
 	void SwitchRenderer(GSRendererType renderer, bool display_message = true);
 	void SetSoftwareRendering(bool software, bool display_message = true);
 	void ToggleSoftwareRendering();
-	void SetRunIdle(bool enabled);
 
 	bool TryOpenGS();
 	void CloseGS();

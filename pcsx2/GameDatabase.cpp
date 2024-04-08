@@ -79,27 +79,6 @@ const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 	return nullptr;
 }
 
-const char* GameDatabaseSchema::GameEntry::compatAsString() const
-{
-	switch (compat)
-	{
-		case GameDatabaseSchema::Compatibility::Perfect:
-			return "Perfect";
-		case GameDatabaseSchema::Compatibility::Playable:
-			return "Playable";
-		case GameDatabaseSchema::Compatibility::InGame:
-			return "In-Game";
-		case GameDatabaseSchema::Compatibility::Menu:
-			return "Menu";
-		case GameDatabaseSchema::Compatibility::Intro:
-			return "Intro";
-		case GameDatabaseSchema::Compatibility::Nothing:
-			return "Nothing";
-		default:
-			return "Unknown";
-	}
-}
-
 void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml::NodeRef& node)
 {
 	GameDatabaseSchema::GameEntry gameEntry;
@@ -412,8 +391,9 @@ bool GameDatabaseSchema::isUserHackHWFix(GSHWFixId id)
 		case GSHWFixId::BeforeDraw:
 			return false;
 		default:
-			return true;
+			break;
 	}
+	return true;
 }
 
 u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool applyAuto) const

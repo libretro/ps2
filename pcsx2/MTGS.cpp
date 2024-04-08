@@ -882,19 +882,11 @@ void SysMtgsThread::ToggleSoftwareRendering()
 
 void SysMtgsThread::PresentCurrentFrame()
 {
+	// If we're running idle, we're going to re-present anyway.
 	if (m_run_idle_flag.load(std::memory_order_relaxed))
-	{
-		// If we're running idle, we're going to re-present anyway.
 		return;
-	}
 
 	RunOnGSThread([]() {
 		GSPresentCurrentFrame();
 	});
-}
-
-void SysMtgsThread::SetRunIdle(bool enabled)
-{
-	// NOTE: Should only be called on the GS thread.
-	m_run_idle_flag.store(enabled, std::memory_order_release);
 }

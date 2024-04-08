@@ -273,8 +273,9 @@ static __fi const char* ChcrName(u32 addr)
         case D7_CHCR: return "Sif 2";
         case D8_CHCR: return "SPR 0";
         case D9_CHCR: return "SPR 1";
-        default: return "???";
+        default: break;
     }
+    return "???";
 }
 
 // Believe it or not, making this const can generate compiler warnings in gcc.
@@ -439,11 +440,6 @@ union tDMAC_ADDR
 		ADDR += incval;
 		if (SPR) ADDR &= (Ps2MemSize::Scratch-1);
 	}
-
-	std::string ToString(bool sprIsValid=true) const
-	{
-		return StringUtil::StdStringFromFormat((sprIsValid && SPR) ? "0x%04X(SPR)" : "0x%08X", ADDR);
-	}
 };
 
 struct DMACregisters
@@ -511,7 +507,7 @@ static DMACregisters& dmacRegs	= (DMACregisters&)eeHw[0xE000];
 // Various useful locations
 static DMACh& vif0ch	= (DMACh&)eeHw[0x8000];
 static DMACh& vif1ch	= (DMACh&)eeHw[0x9000];
-static DMACh& gifch		= (DMACh&)eeHw[0xA000];
+static DMACh& gifch	= (DMACh&)eeHw[0xA000];
 static DMACh& spr0ch	= (DMACh&)eeHw[0xD000];
 static DMACh& spr1ch	= (DMACh&)eeHw[0xD400];
 static DMACh& ipu0ch	= (DMACh&)eeHw[0xb000];
@@ -528,7 +524,7 @@ extern tDMA_TAG *dmaGetAddr(u32 addr, bool write);
 extern void hwIntcIrq(int n);
 extern void hwDmacIrq(int n);
 
-extern void FireMFIFOEmpty();
+extern void FireMFIFOEmpty(void);
 extern bool hwMFIFOWrite(u32 addr, const u128* data, uint size_qwc);
 extern void hwMFIFOResume(u32 transferred);
 extern void hwDmacSrcTadrInc(DMACh& dma);

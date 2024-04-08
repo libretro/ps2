@@ -92,7 +92,7 @@ struct SyncCounter
 //------------------------------------------------------------------
 // NTSC Timing Information!!! (some scanline info is guessed)
 //------------------------------------------------------------------
-#define FRAMERATE_NTSC			29.97 // frames per second
+#define FRAMERATE_NTSC		29.97 // frames per second
 
 #define SCANLINES_TOTAL_NTSC_I	525 // total number of scanlines (Interlaced)
 #define SCANLINES_TOTAL_NTSC_NI	526 // total number of scanlines (Interlaced)
@@ -104,11 +104,11 @@ struct SyncCounter
 //------------------------------------------------------------------
 // PAL Timing Information!!! (some scanline info is guessed)
 //------------------------------------------------------------------
-#define FRAMERATE_PAL			25.0// frames per second * 100 (25)
+#define FRAMERATE_PAL		25.0// frames per second * 100 (25)
 
 #define SCANLINES_TOTAL_PAL_I	625 // total number of scanlines per frame (Interlaced)
 #define SCANLINES_TOTAL_PAL_NI	628 // total number of scanlines per frame (Not Interlaced)
-#define SCANLINES_VSYNC_PAL		5   // scanlines that are used for syncing every half-frame
+#define SCANLINES_VSYNC_PAL	5   // scanlines that are used for syncing every half-frame
 #define SCANLINES_VRENDER_PAL	288 // scanlines in a half-frame (because of interlacing)
 #define SCANLINES_VBLANK1_PAL	19  // scanlines used for vblank1 (even interlace)
 #define SCANLINES_VBLANK2_PAL	20  // scanlines used for vblank2 (odd interlace)
@@ -116,18 +116,18 @@ struct SyncCounter
 //------------------------------------------------------------------
 // vSync and hBlank Timing Modes
 //------------------------------------------------------------------
-#define MODE_VRENDER	0x0		//Set during the Render/Frame Scanlines
-#define MODE_VBLANK		0x1		//Set during the Blanking Scanlines
-#define MODE_GSBLANK	0x2		//Set during the Syncing Scanlines (Delayed GS CSR Swap)
-#define MODE_VSYNC		0x3		//Set during the Syncing Scanlines
-#define MODE_VBLANK1	0x0		//Set during the Blanking Scanlines (half-frame 1)
-#define MODE_VBLANK2	0x1		//Set during the Blanking Scanlines (half-frame 2)
+#define MODE_VRENDER		0x0 //Set during the Render/Frame Scanlines
+#define MODE_VBLANK		0x1 //Set during the Blanking Scanlines
+#define MODE_GSBLANK		0x2 //Set during the Syncing Scanlines (Delayed GS CSR Swap)
+#define MODE_VSYNC		0x3 //Set during the Syncing Scanlines
+#define MODE_VBLANK1		0x0 //Set during the Blanking Scanlines (half-frame 1)
+#define MODE_VBLANK2		0x1 //Set during the Blanking Scanlines (half-frame 2)
 
-#define MODE_HRENDER	0x0		//Set for ~5/6 of 1 Scanline
-#define MODE_HBLANK		0x1		//Set for the remaining ~1/6 of 1 Scanline
+#define MODE_HRENDER		0x0 //Set for ~5/6 of 1 Scanline
+#define MODE_HBLANK		0x1 //Set for the remaining ~1/6 of 1 Scanline
 
-extern const char* ReportVideoMode();
-extern const char* ReportInterlaceMode();
+extern const char* ReportVideoMode(void);
+extern const char* ReportInterlaceMode(void);
 extern Counter counters[4];
 extern SyncCounter hsyncCounter;
 extern SyncCounter vsyncCounter;
@@ -135,14 +135,13 @@ extern SyncCounter vsyncCounter;
 extern s32 nextCounter;		// delta until the next counter event (must be signed)
 extern u32 nextsCounter;
 
-extern void rcntUpdate_hScanline();
-extern void rcntUpdate_vSync();
-extern void rcntUpdate();
+extern void rcntUpdate_hScanline(void);
+extern void rcntUpdate_vSync(void);
+extern void rcntUpdate(void);
 
-extern void rcntInit();
-extern u32	rcntRcount(int index);
+extern void rcntInit(void);
+extern u32 rcntRcount(int index);
 template< uint page > extern bool rcntWrite32( u32 mem, mem32_t& value );
 template< uint page > extern u16 rcntRead32( u32 mem );		// returns u16 by design! (see implementation for details)
 
 extern void UpdateVSyncRate(bool force);
-

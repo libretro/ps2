@@ -122,7 +122,6 @@ namespace GameDatabaseSchema
 		// Returns the list of memory card serials as a `/` delimited string
 		std::string memcardFiltersAsString() const;
 		const std::string* findPatch(u32 crc) const;
-		const char* compatAsString() const;
 
 		/// Applies Core game fixes to an existing config. Returns the number of applied fixes.
 		u32 applyGameFixes(Pcsx2Config& config, bool applyAuto) const;

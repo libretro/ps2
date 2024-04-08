@@ -25,24 +25,25 @@ using namespace std;
 u8 phyregs[16];
 s8* fwregs;
 
-s32 FWopen()
+s32 FWopen(void)
 {
 	memset(phyregs, 0, sizeof(phyregs));
 	// Initializing our registers.
 	fwregs = (s8*)calloc(0x10000, 1);
-	if (fwregs == NULL)
+	if (!fwregs)
 		return -1;
 	return 0;
 }
 
-void FWclose()
+void FWclose(void)
 {
 	// Freeing the registers.
-	free(fwregs);
+	if (fwregs)
+		free(fwregs);
 	fwregs = NULL;
 }
 
-void PHYWrite()
+void PHYWrite(void)
 {
 	u8 reg = (PHYACC >> 8) & 0xf;
 	u8 data = PHYACC & 0xff;
@@ -52,7 +53,7 @@ void PHYWrite()
 	PHYACC &= ~0x4000ffff;
 }
 
-void PHYRead()
+void PHYRead(void)
 {
 	u8 reg = (PHYACC >> 24) & 0xf;
 

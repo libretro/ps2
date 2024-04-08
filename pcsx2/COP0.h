@@ -29,5 +29,5 @@ extern void WriteTLB(int i);
 extern void UnmapTLB(const tlbs& t, int i);
 extern void MapTLB(const tlbs& t, int i);
 
-extern void COP0_UpdatePCCR();
-extern void COP0_DiagnosticPCCR();
+extern void COP0_UpdatePCCR(void);
+extern void COP0_DiagnosticPCCR(void);
