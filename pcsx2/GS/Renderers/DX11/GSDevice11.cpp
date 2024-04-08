@@ -825,7 +825,7 @@ void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	PSSetShaderResources(nullptr, nullptr);
 }
 
-void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, float shaderTime, bool linear)
+void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool linear)
 {
 	ID3D11RenderTargetView *nullView = nullptr;
 	m_ctx->OMSetRenderTargets(1, &nullView, nullptr);

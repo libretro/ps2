@@ -839,12 +839,11 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 }
 
 void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-	float shaderTime, bool linear)
+	bool linear)
 {
 	DisplayConstantBuffer cb;
 	cb.SetSource(sRect, sTex->GetSize());
 	cb.SetTarget(dRect, dTex ? dTex->GetSize() : GSVector2i(GetWindowWidth(), GetWindowHeight()));
-	cb.SetTime(shaderTime);
 	SetUtilityPushConstants(&cb, sizeof(cb));
 
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,

@@ -26,8 +26,6 @@ private:
 	bool BeginPresentFrame(bool frame_skip);
 	void EndPresentFrame();
 
-	u64 m_shader_time_start = 0;
-
 	u32 m_skipped_duplicate_frames = 0;
 
 	// Tracking draw counters for idle frame detection.

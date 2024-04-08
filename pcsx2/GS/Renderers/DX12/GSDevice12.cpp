@@ -568,7 +568,7 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 }
 
 void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-	float shaderTime, bool linear)
+	bool linear)
 {
 	GSTexture12* texture = (GSTexture12*)sTex;
 	texture->TransitionToState(d3d12->required_state);

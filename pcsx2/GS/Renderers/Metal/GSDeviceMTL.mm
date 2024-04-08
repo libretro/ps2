@@ -1423,13 +1423,12 @@ static_assert(offsetof(DisplayConstantBuffer, SourceResolution)    == offsetof(G
 static_assert(offsetof(DisplayConstantBuffer, RcpSourceResolution) == offsetof(GSMTLPresentPSUniform, rcp_source_resolution));
 static_assert(offsetof(DisplayConstantBuffer, TimeAndPad.x)        == offsetof(GSMTLPresentPSUniform, time));
 
-void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, float shaderTime, bool linear)
+void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool linear)
 { @autoreleasepool {
 	GSVector2i ds = dTex ? dTex->GetSize() : GetWindowSize();
 	DisplayConstantBuffer cb;
 	cb.SetSource(sRect, sTex->GetSize());
 	cb.SetTarget(dRect, ds);
-	cb.SetTime(shaderTime);
 	id<MTLRenderPipelineState> pipe = m_present_pipeline[static_cast<int>(0)];
 
 	if (dTex)

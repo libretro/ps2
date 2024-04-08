@@ -38,10 +38,7 @@
 
 std::unique_ptr<GSRenderer> g_gs_renderer;
 
-GSRenderer::GSRenderer()
-	: m_shader_time_start(Common::Timer::GetCurrentValue())
-{
-}
+GSRenderer::GSRenderer() { }
 
 GSRenderer::~GSRenderer() = default;
 
@@ -467,14 +464,11 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 		GSTexture* current = g_gs_device->GetCurrent();
 		if (current && !blank_frame)
 		{
-			const u64 current_time  = Common::Timer::GetCurrentValue();
-			const float shader_time = static_cast<float>(Common::Timer::ConvertValueToSeconds(current_time - m_shader_time_start));
-			GSVector4i src_rect     = CalculateDrawSrcRect(current);
 			GSVector4 src_uv        = GSVector4(0, 0, 1, 1);
 			GSVector4 draw_rect     = GSVector4(0, 0, current->GetWidth(), current->GetHeight());
 
 			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect,
-				shader_time, GSConfig.LinearPresent != GSPostBilinearMode::Off);
+				GSConfig.LinearPresent != GSPostBilinearMode::Off);
 		}
 
 		EndPresentFrame();
@@ -543,11 +537,8 @@ void GSRenderer::PresentCurrentFrame()
 				src_rect, current->GetSize(), GSDisplayAlignment::Center, g_gs_device->UsesLowerLeftOrigin(),
 				GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets)));
 
-			const u64 current_time = Common::Timer::GetCurrentValue();
-			const float shader_time = static_cast<float>(Common::Timer::ConvertValueToSeconds(current_time - m_shader_time_start));
-
 			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect,
-				shader_time, GSConfig.LinearPresent != GSPostBilinearMode::Off);
+				GSConfig.LinearPresent != GSPostBilinearMode::Off);
 		}
 
 		EndPresentFrame();

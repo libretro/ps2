@@ -1244,7 +1244,7 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DrawStretchRect(sRect, dRect, dTex->GetSize());
 }
 
-void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, float shaderTime, bool linear)
+void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool linear)
 {
 	ASSERT(sTex);
 
@@ -1252,7 +1252,6 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DisplayConstantBuffer cb;
 	cb.SetSource(sRect, sTex->GetSize());
 	cb.SetTarget(dRect, ds);
-	cb.SetTime(shaderTime);
 
 	GL::Program& prog = m_present[0];
 	prog.Bind();

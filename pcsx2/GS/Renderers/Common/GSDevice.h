@@ -863,7 +863,7 @@ public:
 	void StretchRect(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader = ShaderConvert::COPY, bool linear = true);
 
 	/// Performs a screen blit for display. If dTex is null, it assumes you are writing to the system framebuffer/swap chain.
-	virtual void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, float shaderTime, bool linear) = 0;
+	virtual void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool linear) = 0;
 
 	/// Same as doing StretchRect for each item, except tries to batch together rectangles in as few draws as possible.
 	/// The provided list should be sorted by texture, the implementations only check if it's the same as the last.
