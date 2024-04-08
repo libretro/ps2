@@ -144,9 +144,7 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 
 		// MAC
 		if (flags & 2)
-		{
 			m_last_mac_write = inst;
-		}
 
 		// CLIP
 		if (flags & 4)
@@ -569,7 +567,6 @@ void recBackpropBSC(u32 code, EEINST* prev, EEINST* pinst)
 			break;
 
 		default:
-			Console.Warning("Unknown R5900 Standard: %08X", code);
 			break;
 	}
 }
@@ -696,7 +693,6 @@ void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst)
 			break;
 
 		default:
-			Console.Warning("Unknown R5900 SPECIAL: %08X", code);
 			break;
 	}
 }
@@ -732,7 +728,6 @@ void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst)
 			break;
 
 		default:
-			Console.Warning("Unknown R5900 REGIMM: %08X", code);
 			break;
 	}
 }
@@ -759,7 +754,6 @@ void recBackpropCOP0(u32 code, EEINST* prev, EEINST* pinst)
 			break;
 
 		default:
-			Console.Warning("Unknown R5900 COP0: %08X", code);
 			break;
 	}
 }
@@ -865,7 +859,6 @@ void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
 					break;
 
 				default:
-					Console.Warning("Unknown R5900 COP1: %08X", code);
 					break;
 			}
 		}
@@ -881,14 +874,12 @@ void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
 					break;
 
 				default:
-					Console.Warning("Unknown R5900 COP1: %08X", code);
 					break;
 			}
 		}
 		break;
 
 		default:
-			Console.Warning("Unknown R5900 COP1: %08X", code);
 			break;
 	}
 }
@@ -1220,14 +1211,12 @@ void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 							break;
 
 						default:
-							Console.Warning("Unknown R5900 COP2 SPEC2: %08X", code);
 							break;
 					}
 				}
 				break;
 
 				default:
-					Console.Warning("Unknown R5900 COP2 SPEC1: %08X", code);
 					break;
 			}
 		}
@@ -1371,7 +1360,6 @@ void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 					break;
 
 				default:
-					Console.Warning("Unknown R5900 MMI0: %08X", code);
 					break;
 			}
 		}
@@ -1411,7 +1399,6 @@ void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 
 				case 0: // MMI_Unknown
 				default:
-					Console.Warning("Unknown R5900 MMI1: %08X", code);
 					break;
 			}
 		}
@@ -1484,7 +1471,6 @@ void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 					break;
 
 				default:
-					Console.Warning("Unknown R5900 MMI2: %08X", code);
 					break;
 			}
 		}
@@ -1548,16 +1534,12 @@ void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 					break;
 
 				default:
-					Console.Warning("Unknown R5900 MMI3: %08X", code);
 					break;
 			}
 		}
 		break;
 
 		default:
-		{
-			Console.Warning("Unknown R5900 MMI: %08X", code);
-		}
-		break;
+			break;
 	}
 }

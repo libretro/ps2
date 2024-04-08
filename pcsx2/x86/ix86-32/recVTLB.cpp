@@ -328,7 +328,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 // One-time initialization procedure.  Multiple subsequent calls during the lifespan of the
 // process will be ignored.
 //
-void vtlb_dynarec_init()
+void vtlb_dynarec_init(void)
 {
 	static bool hasBeenCalled = false;
 	if (hasBeenCalled)
@@ -789,7 +789,7 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 //   ecx - virtual address
 //   Returns physical address in eax.
 //   Clobbers edx
-void vtlb_DynV2P()
+void vtlb_DynV2P(void)
 {
 	xMOV(eax, ecx);
 	xAND(ecx, VTLB_PAGE_MASK); // vaddr & VTLB_PAGE_MASK

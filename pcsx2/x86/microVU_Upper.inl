@@ -30,11 +30,6 @@
 	} while (0)
 
 
-alignas(16) const u32 sse4_compvals[2][4] = {
-	{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111
-	{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1111
-};
-
 // Note: If modXYZW is true, then it adjusts XYZW for Single Scalar operations
 static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, const xmm& regT2in = xEmptyReg, bool modXYZW = 1)
 {
@@ -90,6 +85,10 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 	// until some sort of soft float implementation.
 	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK)
 	{
+		alignas(16) const u32 sse4_compvals[2][4] = {
+			{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111
+			{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1111
+		};
 		//Calculate overflow
 		xMOVAPS(regT1, regT2);
 		xAND.PS(regT1, ptr128[&sse4_compvals[1][0]]); // Remove sign flags (we don't care)
