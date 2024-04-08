@@ -33,10 +33,6 @@ namespace R5900
 		/// Takes a functor of bool(pc, EEINST*), returning false if iteration should stop.
 		template <class F>
 		void ForEachInstruction(u32 start, u32 end, EEINST* inst_cache, const F& func);
-
-		/// Dumps the block to the console, calling the functor void(pc, EEINST*, std::string&) for each instruction.
-		template <class F>
-		void DumpAnnotatedBlock(u32 start, u32 end, EEINST* inst_cache, const F& func);
 	};
 
 	class COP2FlagHackPass final : public AnalysisPass
@@ -48,8 +44,6 @@ namespace R5900
 		void Run(u32 start, u32 end, EEINST* inst_cache) override;
 
 	private:
-		void DumpAnnotatedBlock(u32 start, u32 end, EEINST* inst_cache);
-
 		void CommitStatusFlag();
 		void CommitMACFlag();
 		void CommitClipFlag();

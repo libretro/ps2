@@ -133,13 +133,7 @@
     <ClCompile Include="CDVD\Windows\DriveUtility.cpp" />
     <ClCompile Include="CDVD\Windows\IOCtlSrc.cpp" />
     <ClCompile Include="DebugTools\DebugInterface.cpp" />
-    <ClCompile Include="DebugTools\DisassemblyManager.cpp" />
-    <ClCompile Include="DebugTools\BiosDebugData.cpp" />
-    <ClCompile Include="DebugTools\ExpressionParser.cpp" />
     <ClCompile Include="DebugTools\MIPSAnalyst.cpp" />
-    <ClCompile Include="DebugTools\MipsAssembler.cpp" />
-    <ClCompile Include="DebugTools\MipsAssemblerTables.cpp" />
-    <ClCompile Include="DebugTools\MipsStackWalk.cpp" />
     <ClCompile Include="DebugTools\SymbolMap.cpp" />
     <ClCompile Include="DEV9\AdapterUtils.cpp" />
     <ClCompile Include="DEV9\ATA\Commands\ATA_Command.cpp" />
@@ -340,7 +334,6 @@
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="SaveState.cpp" />
-    <ClCompile Include="SourceLog.cpp" />
     <ClCompile Include="System.cpp" />
     <ClCompile Include="Elfheader.cpp" />
     <ClCompile Include="CDVD\InputIsoFile.cpp" />
@@ -430,10 +423,6 @@
     <ClCompile Include="Ipu\yuv2rgb.cpp" />
     <ClCompile Include="GS.cpp" />
     <ClCompile Include="MTGS.cpp" />
-    <ClCompile Include="DebugTools\DisR3000A.cpp" />
-    <ClCompile Include="DebugTools\DisR5900asm.cpp" />
-    <ClCompile Include="DebugTools\DisVU0Micro.cpp" />
-    <ClCompile Include="DebugTools\DisVU1Micro.cpp" />
     <ClCompile Include="rdebug\deci2.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
@@ -471,13 +460,7 @@
     <ClInclude Include="CDVD\ThreadedFileReader.h" />
     <ClInclude Include="CDVD\zlib_indexed.h" />
     <ClInclude Include="DebugTools\DebugInterface.h" />
-    <ClInclude Include="DebugTools\DisassemblyManager.h" />
-    <ClInclude Include="DebugTools\BiosDebugData.h" />
-    <ClInclude Include="DebugTools\ExpressionParser.h" />
     <ClInclude Include="DebugTools\MIPSAnalyst.h" />
-    <ClInclude Include="DebugTools\MipsAssembler.h" />
-    <ClInclude Include="DebugTools\MipsAssemblerTables.h" />
-    <ClInclude Include="DebugTools\MipsStackWalk.h" />
     <ClInclude Include="DebugTools\SymbolMap.h" />
     <ClInclude Include="DEV9\AdapterUtils.h" />
     <ClInclude Include="DEV9\ATA\ATA.h" />
@@ -736,10 +719,6 @@
     <ClInclude Include="Ipu\IPU_MultiISA.h" />
     <ClInclude Include="Ipu\yuv2rgb.h" />
     <ClInclude Include="GS.h" />
-    <ClInclude Include="DebugTools\Debug.h" />
-    <ClInclude Include="DebugTools\DisASM.h" />
-    <ClInclude Include="DebugTools\DisVUmicro.h" />
-    <ClInclude Include="DebugTools\DisVUops.h" />
     <CustomBuildStep Include="rdebug\deci2.h">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </CustomBuildStep>

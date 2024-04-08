@@ -17,7 +17,7 @@
 
 #include "iR5900Analysis.h"
 #include "Memory.h"
-#include "DebugTools/Debug.h"
+#include "Config.h"
 
 using namespace R5900;
 
@@ -41,21 +41,6 @@ void __fi AnalysisPass::ForEachInstruction(u32 start, u32 end, EEINST* inst_cach
 		cpuRegs.code = memRead32(apc);
 		if (!func(apc, eeinst))
 			break;
-	}
-}
-
-template <class F>
-void __fi R5900::AnalysisPass::DumpAnnotatedBlock(u32 start, u32 end, EEINST* inst_cache, const F& func)
-{
-	std::string d;
-	EEINST* eeinst = inst_cache;
-	for (u32 apc = start; apc < end; apc += 4, eeinst++)
-	{
-		const u32 code = memRead32(apc);
-		d.clear();
-		disR5900Fasm(d, code, apc, false);
-		func(apc, eeinst, d);
-		Console.WriteLn("  %08X %08X %s", apc, code, d.c_str());
 	}
 }
 
@@ -176,27 +161,6 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 	});
 
 	CommitAllFlags();
-
-#if 0
-	if (m_cfc2_pc != start)
-		DumpAnnotatedBlock(start, end, inst_cache);
-#endif
-}
-
-void COP2FlagHackPass::DumpAnnotatedBlock(u32 start, u32 end, EEINST* inst_cache)
-{
-	AnalysisPass::DumpAnnotatedBlock(start, end, inst_cache, [](u32, EEINST* eeinst, std::string& d) {
-		if (eeinst->info & EEINST_COP2_DENORMALIZE_STATUS_FLAG)
-			d.append(" COP2_DENORMALIZE_STATUS_FLAG");
-		if (eeinst->info & EEINST_COP2_NORMALIZE_STATUS_FLAG)
-			d.append(" COP2_NORMALIZE_STATUS_FLAG");
-		if (eeinst->info & EEINST_COP2_STATUS_FLAG)
-			d.append(" COP2_STATUS_FLAG");
-		if (eeinst->info & EEINST_COP2_MAC_FLAG)
-			d.append(" COP2_MAC_FLAG");
-		if (eeinst->info & EEINST_COP2_CLIP_FLAG)
-			d.append(" COP2_CLIP_FLAG");
-	});
 }
 
 void COP2FlagHackPass::CommitStatusFlag()
@@ -329,34 +293,6 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 
 		return true;
 	});
-
-#if 0
-	if (!block_interlocked)
-		return;
-#endif
-
-#if 0
-	Console.WriteLn("-- Beginning of COP2 block at %08X - %08X%s", start, end, block_interlocked ? " [BLOCK IS INTERLOCKED]" : "");
-	AnalysisPass::DumpAnnotatedBlock(start, end, inst_cache, [](u32, EEINST* eeinst, std::string& d) {
-		if (eeinst->info & EEINST_COP2_DENORMALIZE_STATUS_FLAG)
-			d.append(" COP2_DENORMALIZE_STATUS_FLAG");
-		if (eeinst->info & EEINST_COP2_NORMALIZE_STATUS_FLAG)
-			d.append(" COP2_NORMALIZE_STATUS_FLAG");
-		if (eeinst->info & EEINST_COP2_STATUS_FLAG)
-			d.append(" COP2_STATUS_FLAG");
-		if (eeinst->info & EEINST_COP2_MAC_FLAG)
-			d.append(" COP2_MAC_FLAG");
-		if (eeinst->info & EEINST_COP2_CLIP_FLAG)
-			d.append(" COP2_CLIP_FLAG");
-		if (eeinst->info & EEINST_COP2_SYNC_VU0)
-			d.append(" COP2_SYNC_VU0");
-		if (eeinst->info & EEINST_COP2_FINISH_VU0)
-			d.append(" COP2_FINISH_VU0");
-		if (eeinst->info & EEINST_COP2_FLUSH_VU0_REGISTERS)
-			d.append(" COP2_FLUSH_VU0_REGISTERS");
-	});
-	Console.WriteLn("-- End of COP2 block at %08X - %08X", start, end);
-#endif
 }
 
 /////////////////////////////////////////////////////////////////////

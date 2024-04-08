@@ -799,9 +799,6 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 		return true;
 	}
 
-	//std::string disasm;
-	//disR5900Fasm(disasm, opcode_encoded, pc, false);
-
 	const u32 opcode_rs = ((opcode_encoded >> 21) & 0x1F);
 	const u32 opcode_rt = ((opcode_encoded >> 16) & 0x1F);
 	const u32 opcode_rd = ((opcode_encoded >> 11) & 0x1F);
@@ -1517,14 +1514,6 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 				else if (COP2IsQOP(cpuRegs.code))
 				{
 					Console.Warning("Possible incorrect Q value used in COP2. If the game is broken, please report to http://github.com/pcsx2/pcsx2.");
-					for (u32 i = s_pCurBlockEx->startpc; i < s_nEndBlock; i += 4)
-					{
-						std::string disasm = "";
-						disR5900Fasm(disasm, memRead32(i), i, false);
-						Console.Warning("%x %s%08X %s", i, i == pc - 4 ? "*" : i == p ? "=" :
-                                                                                        " ",
-							memRead32(i), disasm.c_str());
-					}
 					break;
 				}
 			}
@@ -1541,16 +1530,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 					// rd is fs
 					if ((_Rd_ == 16 && s & 1) || (_Rd_ == 17 && s & 2) || (_Rd_ == 18 && s & 4))
 					{
-						std::string disasm;
 						Console.Warning("Possible old value used in COP2 code. If the game is broken, please report to http://github.com/pcsx2/pcsx2.");
-						for (u32 i = s_pCurBlockEx->startpc; i < s_nEndBlock; i += 4)
-						{
-							disasm = "";
-							disR5900Fasm(disasm, memRead32(i), i, false);
-							Console.Warning("%x %s%08X %s", i, i == pc - 4 ? "*" : i == p ? "=" :
-                                                                                            " ",
-								memRead32(i), disasm.c_str());
-						}
 						break;
 					}
 				s &= ~cop2flags(cpuRegs.code);

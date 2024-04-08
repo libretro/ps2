@@ -14,9 +14,7 @@
  */
 
 #pragma once
-#include "DebugTools/BiosDebugData.h"
 #include "MemoryTypes.h"
-#include "ExpressionParser.h"
 #include "SymbolMap.h"
 
 #include <string>
@@ -60,30 +58,12 @@ public:
 	virtual void write32(u32 address, u32 value) = 0;
 
 	// register stuff
-	virtual int getRegisterCategoryCount() = 0;
-	virtual const char* getRegisterCategoryName(int cat) = 0;
-	virtual int getRegisterSize(int cat) = 0;
-	virtual int getRegisterCount(int cat) = 0;
-	virtual RegisterType getRegisterType(int cat) = 0;
-	virtual const char* getRegisterName(int cat, int num) = 0;
-	virtual u128 getRegister(int cat, int num) = 0;
-	virtual std::string getRegisterString(int cat, int num) = 0;
 	virtual u128 getHI() = 0;
 	virtual u128 getLO() = 0;
 	virtual u32 getPC() = 0;
 	virtual bool getCPCOND0() = 0;
-	virtual void setPc(u32 newPc) = 0;
-	virtual void setRegister(int cat, int num, u128 newValue) = 0;
 
-	virtual std::string disasm(u32 address, bool simplify) = 0;
 	virtual bool isValidAddress(u32 address) = 0;
-	virtual u32 getCycles() = 0;
-	[[nodiscard]] virtual SymbolMap& GetSymbolMap() const = 0;
-	[[nodiscard]] virtual std::vector<std::unique_ptr<BiosThread>> GetThreadList() const = 0;
-
-	bool initExpression(const char* exp, PostfixExpression& dest);
-	bool parseExpression(PostfixExpression& exp, u64& dest);
-	bool isAlive();
 };
 
 class R5900DebugInterface : public DebugInterface
@@ -102,26 +82,12 @@ public:
 	void write32(u32 address, u32 value) override;
 
 	// register stuff
-	int getRegisterCategoryCount() override;
-	const char* getRegisterCategoryName(int cat) override;
-	int getRegisterSize(int cat) override;
-	int getRegisterCount(int cat) override;
-	RegisterType getRegisterType(int cat) override;
-	const char* getRegisterName(int cat, int num) override;
-	u128 getRegister(int cat, int num) override;
-	std::string getRegisterString(int cat, int num) override;
 	u128 getHI() override;
 	u128 getLO() override;
 	u32 getPC() override;
 	bool getCPCOND0() override;
-	void setPc(u32 newPc) override;
-	void setRegister(int cat, int num, u128 newValue) override;
-	[[nodiscard]] SymbolMap& GetSymbolMap() const override;
-	[[nodiscard]] std::vector<std::unique_ptr<BiosThread>> GetThreadList() const override;
 
-	std::string disasm(u32 address, bool simplify) override;
 	bool isValidAddress(u32 address) override;
-	u32 getCycles() override;
 };
 
 
@@ -141,26 +107,12 @@ public:
 	void write32(u32 address, u32 value) override;
 
 	// register stuff
-	int getRegisterCategoryCount() override;
-	const char* getRegisterCategoryName(int cat) override;
-	int getRegisterSize(int cat) override;
-	int getRegisterCount(int cat) override;
-	RegisterType getRegisterType(int cat) override;
-	const char* getRegisterName(int cat, int num) override;
-	u128 getRegister(int cat, int num) override;
-	std::string getRegisterString(int cat, int num) override;
 	u128 getHI() override;
 	u128 getLO() override;
 	u32 getPC() override;
 	bool getCPCOND0() override;
-	void setPc(u32 newPc) override;
-	void setRegister(int cat, int num, u128 newValue) override;
-	[[nodiscard]] SymbolMap& GetSymbolMap() const override;
-	[[nodiscard]] std::vector<std::unique_ptr<BiosThread>> GetThreadList() const override;
 
-	std::string disasm(u32 address, bool simplify) override;
 	bool isValidAddress(u32 address) override;
-	u32 getCycles() override;
 };
 
 extern R5900DebugInterface r5900Debug;

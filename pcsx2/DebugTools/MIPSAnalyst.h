@@ -72,6 +72,4 @@ namespace MIPSAnalyst
 		bool hasRelevantAddress;
 		u32 releventAddress;
 	} MipsOpcodeInfo;
-
-	MipsOpcodeInfo GetOpcodeInfo(DebugInterface* cpu, u32 address);
 };

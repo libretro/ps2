@@ -127,7 +127,6 @@ set(pcsx2Sources
 	Sif1.cpp
 	sif2.cpp
 	Sio.cpp
-	SourceLog.cpp
 	SPR.cpp
 	StateWrapper.cpp
 	System.cpp
@@ -689,34 +688,16 @@ endif()
 # DebugTools sources
 set(pcsx2DebugToolsSources
 	DebugTools/DebugInterface.cpp
-	DebugTools/DisassemblyManager.cpp
-	DebugTools/ExpressionParser.cpp
 	DebugTools/MIPSAnalyst.cpp
-	DebugTools/MipsAssembler.cpp
-	DebugTools/MipsAssemblerTables.cpp
-	DebugTools/MipsStackWalk.cpp
 	DebugTools/SymbolMap.cpp
-	DebugTools/DisR3000A.cpp
-	DebugTools/DisR5900asm.cpp
-	DebugTools/DisVU0Micro.cpp
-	DebugTools/DisVU1Micro.cpp
-	DebugTools/BiosDebugData.cpp)
+	)
 
 # DebugTools headers
 set(pcsx2DebugToolsHeaders
 	DebugTools/DebugInterface.h
-	DebugTools/DisassemblyManager.h
-	DebugTools/ExpressionParser.h
 	DebugTools/MIPSAnalyst.h
-	DebugTools/MipsAssembler.h
-	DebugTools/MipsAssemblerTables.h
-	DebugTools/MipsStackWalk.h
 	DebugTools/SymbolMap.h
-	DebugTools/Debug.h
-	DebugTools/DisASM.h
-	DebugTools/DisVUmicro.h
-	DebugTools/DisVUops.h
-	DebugTools/BiosDebugData.h)
+	)
 
 if(APPLE)
 	list(APPEND pcsx2GSSources

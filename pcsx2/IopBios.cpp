@@ -884,105 +884,6 @@ namespace R3000A
 			iopMemWrite32(sp + 12, a3);
 			pc = ra;
 
-			const std::string fmt = Ra0;
-
-			// From here we're intercepting the Kprintf and piping it to our console, complete with
-			// printf-style formatting processing.  This part can be skipped if the user has the
-			// console disabled.
-
-			if (!SysConsole.iopConsole.IsActive())
-				return 1;
-
-			char tmp[1024], tmp2[1024];
-			char* ptmp = tmp;
-			int n = 1, i = 0, j = 0;
-
-			while (fmt[i])
-			{
-				switch (fmt[i])
-				{
-					case '%':
-						j = 0;
-						tmp2[j++] = '%';
-					_start:
-						switch (fmt[++i])
-						{
-							case '.':
-							case 'l':
-								tmp2[j++] = fmt[i];
-								goto _start;
-							default:
-								if (fmt[i] >= '0' && fmt[i] <= '9')
-								{
-									tmp2[j++] = fmt[i];
-									goto _start;
-								}
-								break;
-						}
-
-						tmp2[j++] = fmt[i];
-						tmp2[j] = 0;
-
-						switch (fmt[i])
-						{
-							case 'f':
-							case 'F':
-								ptmp += sprintf(ptmp, tmp2, (float)iopMemRead32(sp + n * 4));
-								n++;
-								break;
-
-							case 'a':
-							case 'A':
-							case 'e':
-							case 'E':
-							case 'g':
-							case 'G':
-								ptmp += sprintf(ptmp, tmp2, (double)iopMemRead32(sp + n * 4));
-								n++;
-								break;
-
-							case 'p':
-							case 'i':
-							case 'd':
-							case 'D':
-							case 'o':
-							case 'O':
-							case 'x':
-							case 'X':
-								ptmp += sprintf(ptmp, tmp2, (u32)iopMemRead32(sp + n * 4));
-								n++;
-								break;
-
-							case 'c':
-								ptmp += sprintf(ptmp, tmp2, (u8)iopMemRead32(sp + n * 4));
-								n++;
-								break;
-
-							case 's':
-							{
-								std::string s = iopMemReadString(iopMemRead32(sp + n * 4));
-								ptmp += sprintf(ptmp, tmp2, s.data());
-								n++;
-							}
-							break;
-
-							case '%':
-								*ptmp++ = fmt[i];
-								break;
-
-							default:
-								break;
-						}
-						i++;
-						break;
-
-					default:
-						*ptmp++ = fmt[i++];
-						break;
-				}
-			}
-			*ptmp = 0;
-
 			return 1;
 		}
 	} // namespace sysmem
@@ -990,33 +891,8 @@ namespace R3000A
 	namespace loadcore
 	{
 
-		// Gets the thread list ptr from thbase
-		u32 GetThreadList(u32 a0reg, u32 version)
-		{
-			// Function 3 returns the main thread manager struct
-			u32 function = iopMemRead32(a0reg + 0x20);
-
-			// read the lui
-			u32 thstruct = (iopMemRead32(function) & 0xFFFF) << 16;
-			thstruct |= iopMemRead32(function + 4) & 0xFFFF;
-
-			u32 list = thstruct + 0x42c;
-
-			if (version > 0x101)
-				list = thstruct + 0x430;
-
-			return list;
-		}
-
 		int RegisterLibraryEntries_HLE()
 		{
-			const std::string modname = iopMemReadString(a0 + 12);
-			if (modname == "thbase")
-			{
-				const u32 version = iopMemRead32(a0 + 8);
-				CurrentBiosInformation.iopThreadListAddr = GetThreadList(a0, version);
-			}
-
 			return 0;
 		}
 

@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "DebugTools/Debug.h"
 #include "Frontend/LogSink.h"
 #include "HostSettings.h"
 
@@ -33,18 +32,6 @@
 
 void CommonHost::UpdateLogging(SettingsInterface& si)
 {
-	const bool system_console_enabled = si.GetBoolValue("Logging", "EnableSystemConsole", false);
-	const bool file_logging_enabled   = si.GetBoolValue("Logging", "EnableFileLogging", false);
-	const bool any_logging_sinks      = system_console_enabled || file_logging_enabled;
-	SysConsole.eeConsole.Enabled      = any_logging_sinks && si.GetBoolValue("Logging", "EnableEEConsole", false);
-	SysConsole.iopConsole.Enabled     = any_logging_sinks && si.GetBoolValue("Logging", "EnableIOPConsole", false);
-	SysTrace.IOP.R3000A.Enabled       = true;
-	SysTrace.IOP.COP2.Enabled         = true;
-	SysTrace.IOP.Memory.Enabled       = true;
-	SysTrace.SIF.Enabled              = true;
-
-	// Input Recording Logs
-	SysConsole.controlInfo.Enabled    = any_logging_sinks && si.GetBoolValue("Logging", "EnableControllerLogs", false);
 }
 
 void CommonHost::SetDefaultLoggingSettings(SettingsInterface& si)

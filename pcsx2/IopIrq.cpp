@@ -21,8 +21,6 @@
 #include "Common.h"
 #include "R3000A.h"
 
-using namespace R3000A;
-
 void dev9Interrupt()
 {
 	if (DEV9irqHandler() != 1) return;
