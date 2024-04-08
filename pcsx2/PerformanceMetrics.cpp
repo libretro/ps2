@@ -33,7 +33,6 @@ static float s_vertical_frequency = 0.0f;
 static float s_internal_fps = 0.0f;
 static u32 s_frames_since_last_update = 0;
 static Common::Timer s_last_update_time;
-static Common::Timer s_last_frame_time;
 
 // internal fps heuristics
 static PerformanceMetrics::InternalFPSMethod s_internal_fps_method = PerformanceMetrics::InternalFPSMethod::None;
@@ -52,8 +51,6 @@ struct GSSWThreadStats
 };
 std::vector<GSSWThreadStats> s_gs_sw_threads;
 
-static u32 s_presents_since_last_update = 0;
-
 void PerformanceMetrics::Clear()
 {
 	Reset();
@@ -69,10 +66,7 @@ void PerformanceMetrics::Reset()
 	s_gs_framebuffer_blits_since_last_update = 0;
 	s_gs_privileged_register_writes_since_last_update = 0;
 
-	s_presents_since_last_update = 0;
-
 	s_last_update_time.Reset();
-	s_last_frame_time.Reset();
 
 	for (GSSWThreadStats& stat : s_gs_sw_threads)
 		stat.last_cpu_time = stat.handle.GetCPUTime();
@@ -95,17 +89,17 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_sk
 	// prefer privileged register write based framerate detection, it's less likely to have false positives
 	if (s_gs_privileged_register_writes_since_last_update > 0 && !EmuConfig.Gamefixes.BlitInternalFPSHack)
 	{
-		s_internal_fps = static_cast<float>(s_gs_privileged_register_writes_since_last_update) / time;
+		s_internal_fps        = static_cast<float>(s_gs_privileged_register_writes_since_last_update) / time;
 		s_internal_fps_method = InternalFPSMethod::GSPrivilegedRegister;
 	}
 	else if (s_gs_framebuffer_blits_since_last_update > 0)
 	{
-		s_internal_fps = static_cast<float>(s_gs_framebuffer_blits_since_last_update) / time;
+		s_internal_fps        = static_cast<float>(s_gs_framebuffer_blits_since_last_update) / time;
 		s_internal_fps_method = InternalFPSMethod::DISPFBBlit;
 	}
 	else
 	{
-		s_internal_fps = 0;
+		s_internal_fps        = 0;
 		s_internal_fps_method = InternalFPSMethod::None;
 	}
 
@@ -132,12 +126,6 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_sk
 	}
 
 	s_frames_since_last_update = 0;
-	s_presents_since_last_update = 0;
-}
-
-void PerformanceMetrics::OnGPUPresent(float gpu_time)
-{
-	s_presents_since_last_update++;
 }
 
 void PerformanceMetrics::SetCPUThread(Threading::ThreadHandle thread)

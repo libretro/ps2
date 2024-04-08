@@ -337,15 +337,6 @@ const char* Pcsx2Config::GSOptions::BlendingLevelNames[] = {
 	"Maximum",
 	nullptr};
 
-const char* Pcsx2Config::GSOptions::CaptureContainers[] = {
-	"mp4",
-	"mkv",
-	"avi",
-	"wav",
-	"mp3",
-	nullptr};
-const char* Pcsx2Config::GSOptions::DEFAULT_CAPTURE_CONTAINER = "mp4";
-
 const char* Pcsx2Config::GSOptions::GetRendererName(GSRendererType type)
 {
 	switch (type)
@@ -402,11 +393,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	LoadTextureReplacements = false;
 	LoadTextureReplacementsAsync = true;
 	PrecacheTextureReplacements = false;
-
-	EnableVideoCapture = true;
-	EnableVideoCaptureParameters = false;
-	EnableAudioCapture = true;
-	EnableAudioCaptureParameters = false;
 }
 
 bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
@@ -441,8 +427,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(Crop[2]) &&
 		OpEqu(Crop[3]) &&
 
-		OpEqu(OsdScale) &&
-
 		OpEqu(Renderer) &&
 		OpEqu(UpscaleMultiplier) &&
 
@@ -474,21 +458,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_GPUTargetCLUTMode) &&
 		OpEqu(UserHacks_TextureInsideRt) &&
 		OpEqu(OverrideTextureBarriers) &&
-
 		OpEqu(PNGCompressionLevel) &&
-		OpEqu(SaveN) &&
-		OpEqu(SaveL) &&
-
-		OpEqu(CaptureContainer) &&
-		OpEqu(VideoCaptureCodec) &&
-		OpEqu(VideoCaptureParameters) &&
-		OpEqu(AudioCaptureCodec) &&
-		OpEqu(AudioCaptureParameters) &&
-		OpEqu(VideoCaptureBitrate) &&
-		OpEqu(VideoCaptureWidth) &&
-		OpEqu(VideoCaptureHeight) &&
-		OpEqu(AudioCaptureBitrate) &&
-
 		OpEqu(Adapter)
 		);
 }
@@ -585,15 +555,8 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBool(LoadTextureReplacements);
 	GSSettingBool(LoadTextureReplacementsAsync);
 	GSSettingBool(PrecacheTextureReplacements);
-	GSSettingBool(EnableVideoCapture);
-	GSSettingBool(EnableVideoCaptureParameters);
-	GSSettingBool(VideoCaptureAutoResolution);
-	GSSettingBool(EnableAudioCapture);
-	GSSettingBool(EnableAudioCaptureParameters);
 
 	GSSettingIntEnumEx(InterlaceMode, "deinterlace_mode");
-
-	GSSettingFloat(OsdScale);
 
 	GSSettingIntEnumEx(Renderer, "Renderer");
 	GSSettingFloatEx(UpscaleMultiplier, "upscale_multiplier");
@@ -628,18 +591,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEx(OverrideTextureBarriers, "OverrideTextureBarriers");
 
 	GSSettingIntEx(PNGCompressionLevel, "png_compression_level");
-	GSSettingIntEx(SaveN, "saven");
-	GSSettingIntEx(SaveL, "savel");
-
-	GSSettingStringEx(CaptureContainer, "CaptureContainer");
-	GSSettingStringEx(VideoCaptureCodec, "VideoCaptureCodec");
-	GSSettingStringEx(VideoCaptureParameters, "VideoCaptureParameters");
-	GSSettingStringEx(AudioCaptureCodec, "AudioCaptureCodec");
-	GSSettingStringEx(AudioCaptureParameters, "AudioCaptureParameters");
-	GSSettingIntEx(VideoCaptureBitrate, "VideoCaptureBitrate");
-	GSSettingIntEx(VideoCaptureWidth, "VideoCaptureWidth");
-	GSSettingIntEx(VideoCaptureHeight, "VideoCaptureHeight");
-	GSSettingIntEx(AudioCaptureBitrate, "AudioCaptureBitrate");
 
 	GSSettingString(Adapter);
 
@@ -967,21 +918,22 @@ void Pcsx2Config::FilenameOptions::LoadSave(SettingsWrapper& wrap)
 
 void Pcsx2Config::FramerateOptions::SanityCheck()
 {
-	// Ensure Conformation of various options...
+       // Ensure Conformation of various options...
 
-	NominalScalar = std::clamp(NominalScalar, 0.05f, 10.0f);
-	TurboScalar = std::clamp(TurboScalar, 0.05f, 10.0f);
-	SlomoScalar = std::clamp(SlomoScalar, 0.05f, 10.0f);
+       NominalScalar = std::clamp(NominalScalar, 0.05f, 10.0f);
+       TurboScalar = std::clamp(TurboScalar, 0.05f, 10.0f);
+       SlomoScalar = std::clamp(SlomoScalar, 0.05f, 10.0f);
 }
 
 void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)
 {
-	SettingsWrapSection("Framerate");
+       SettingsWrapSection("Framerate");
 
-	SettingsWrapEntry(NominalScalar);
-	SettingsWrapEntry(TurboScalar);
-	SettingsWrapEntry(SlomoScalar);
+       SettingsWrapEntry(NominalScalar);
+       SettingsWrapEntry(TurboScalar);
+       SettingsWrapEntry(SlomoScalar);
 }
+
 
 Pcsx2Config::Pcsx2Config()
 {
@@ -990,9 +942,7 @@ Pcsx2Config::Pcsx2Config()
 	McdEnableEjection = true;
 	McdFolderAutoManage = true;
 	EnablePatches = true;
-	EnableRecordingTools = true;
 	EnableGameFixes = true;
-	BackupSavestate = true;
 
 #ifdef _WIN32
 	McdCompressNTFS = true;
@@ -1022,21 +972,15 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapSection("EmuCore");
 
-	SettingsWrapBitBool(CdvdVerboseReads);
 	SettingsWrapBitBool(CdvdDumpBlocks);
 	SettingsWrapBitBool(CdvdShareWrite);
 	SettingsWrapBitBool(EnablePatches);
 	SettingsWrapBitBool(EnableCheats);
 	SettingsWrapBitBool(EnableWideScreenPatches);
 	SettingsWrapBitBool(EnableNoInterlacingPatches);
-	SettingsWrapBitBool(EnableRecordingTools);
 	SettingsWrapBitBool(EnableGameFixes);
-	SettingsWrapBitBool(SaveStateOnShutdown);
-	SettingsWrapBitBool(EnableDiscordPresence);
-	SettingsWrapBitBool(ConsoleToStdio);
 	SettingsWrapBitBool(HostFs);
 
-	SettingsWrapBitBool(BackupSavestate);
 	SettingsWrapBitBool(McdEnableEjection);
 	SettingsWrapBitBool(McdFolderAutoManage);
 

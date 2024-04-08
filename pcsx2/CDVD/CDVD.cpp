@@ -1812,10 +1812,6 @@ static void cdvdWrite04(u8 rt)
 				break;
 			}
 
-			if (EmuConfig.CdvdVerboseReads)
-				Console.WriteLn(Color_Gray, "CDRead: Reading Sector %07d (%03d Blocks of Size %d) at Speed=%dx(%s) Spindle=%x",
-					cdvd.SeekToSector, cdvd.nSectors, cdvd.BlockSize, cdvd.Speed, (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV) ? "CAV" : "CLV", cdvd.SpindlCtrl);
-
 			cdvd.ReadTime = cdvdBlockReadTime((CDVD_MODE_TYPE)cdvdIsDVD());
 			CDVDREAD_INT(cdvdStartSeek(cdvd.SeekToSector, (CDVD_MODE_TYPE)cdvdIsDVD()));
 
@@ -1907,10 +1903,6 @@ static void cdvdWrite04(u8 rt)
 				break;
 			}
 
-			if (EmuConfig.CdvdVerboseReads)
-				Console.WriteLn(Color_Gray, "CdAudioRead: Reading Sector %07d (%03d Blocks of Size %d) at Speed=%dx(%s) Spindle=%x",
-					cdvd.Sector, cdvd.nSectors, cdvd.BlockSize, cdvd.Speed, (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV) ? "CAV" : "CLV", cdvd.SpindlCtrl);
-
 			cdvd.ReadTime = cdvdBlockReadTime(MODE_CDROM);
 			CDVDREAD_INT(cdvdStartSeek(cdvd.SeekToSector, MODE_CDROM));
 
@@ -1998,10 +1990,6 @@ static void cdvdWrite04(u8 rt)
 				CDVD_INT(cdvdRotationalLatency((CDVD_MODE_TYPE)cdvdIsDVD()));
 				break;
 			}
-
-			if (EmuConfig.CdvdVerboseReads)
-				Console.WriteLn(Color_Gray, "DvdRead: Reading Sector %07d (%03d Blocks of Size %d) at Speed=%dx(%s) SpindleCtrl=%x",
-					cdvd.SeekToSector, cdvd.nSectors, cdvd.BlockSize, cdvd.Speed, (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV) ? "CAV" : "CLV", cdvd.SpindlCtrl);
 
 			cdvd.ReadTime = cdvdBlockReadTime(MODE_DVDROM);
 			CDVDREAD_INT(cdvdStartSeek(cdvd.SeekToSector, MODE_DVDROM));

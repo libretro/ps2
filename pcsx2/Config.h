@@ -459,7 +459,6 @@ struct Pcsx2Config
 		static const char* AspectRatioNames[];
 		static const char* FMVAspectRatioSwitchNames[];
 		static const char* BlendingLevelNames[];
-		static const char* CaptureContainers[];
 
 		static const char* GetRendererName(GSRendererType type);
 
@@ -470,7 +469,6 @@ struct Pcsx2Config
 		static constexpr int DEFAULT_VIDEO_CAPTURE_WIDTH = 640;
 		static constexpr int DEFAULT_VIDEO_CAPTURE_HEIGHT = 480;
 		static constexpr int DEFAULT_AUDIO_CAPTURE_BITRATE = 160;
-		static const char* DEFAULT_CAPTURE_CONTAINER;
 
 		union
 		{
@@ -523,12 +521,7 @@ struct Pcsx2Config
 					DumpPaletteTextures : 1,
 					LoadTextureReplacements : 1,
 					LoadTextureReplacementsAsync : 1,
-					PrecacheTextureReplacements : 1,
-					EnableVideoCapture : 1,
-					EnableVideoCaptureParameters : 1,
-					VideoCaptureAutoResolution : 1,
-					EnableAudioCapture : 1,
-					EnableAudioCaptureParameters : 1;
+					PrecacheTextureReplacements : 1;
 			};
 		};
 
@@ -550,8 +543,6 @@ struct Pcsx2Config
 
 		float StretchY = 100.0f;
 		int Crop[4] = {};
-
-		float OsdScale = 100.0;
 
 		GSRendererType Renderer = GSRendererType::Auto;
 		float UpscaleMultiplier = 1.0f;
@@ -587,19 +578,6 @@ struct Pcsx2Config
 
 		u16 SWExtraThreads = 2;
 		u16 SWExtraThreadsHeight = 4;
-
-		int SaveN = 0;
-		int SaveL = 5000;
-
-		std::string CaptureContainer = DEFAULT_CAPTURE_CONTAINER;
-		std::string VideoCaptureCodec;
-		std::string VideoCaptureParameters;
-		std::string AudioCaptureCodec;
-		std::string AudioCaptureParameters;
-		int VideoCaptureBitrate = DEFAULT_VIDEO_CAPTURE_BITRATE;
-		int VideoCaptureWidth = DEFAULT_VIDEO_CAPTURE_WIDTH;
-		int VideoCaptureHeight = DEFAULT_VIDEO_CAPTURE_HEIGHT;
-		int AudioCaptureBitrate = DEFAULT_AUDIO_CAPTURE_BITRATE;
 
 		std::string Adapter;
 		std::string HWDumpDirectory;
@@ -836,6 +814,8 @@ struct Pcsx2Config
 		}
 	};
 
+
+
 	// ------------------------------------------------------------------------
 	struct FilenameOptions
 	{
@@ -897,7 +877,6 @@ struct Pcsx2Config
 
 	BITFIELD32()
 	bool
-		CdvdVerboseReads : 1, // enables cdvd read activity verbosely dumped to the console
 		CdvdDumpBlocks : 1, // enables cdvd block dumping
 		CdvdShareWrite : 1, // allows the iso to be modified while it's loaded
 		EnablePatches : 1, // enables patch detection and application
@@ -905,13 +884,9 @@ struct Pcsx2Config
 		EnableWideScreenPatches : 1,
 		EnableNoInterlacingPatches : 1,
 		// TODO - Vaser - where are these settings exposed in the Qt UI?
-		EnableRecordingTools : 1,
 		EnableGameFixes : 1, // enables automatic game fixes
-		SaveStateOnShutdown : 1, // default value for saving state on shutdown
-		EnableDiscordPresence : 1, // enables discord rich presence integration
 		// when enabled uses BOOT2 injection, skipping sony bios splashes
 		UseBOOT2Injection : 1,
-		BackupSavestate : 1,
 		// enables simulated ejection of memory cards when loading savestates
 		McdEnableEjection : 1,
 		McdFolderAutoManage : 1,
@@ -919,7 +894,6 @@ struct Pcsx2Config
 		MultitapPort0_Enabled : 1,
 		MultitapPort1_Enabled : 1,
 
-		ConsoleToStdio : 1,
 		HostFs : 1,
 
 		WarnAboutUnsafeSettings : 1;
