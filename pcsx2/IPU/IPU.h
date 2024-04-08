@@ -141,11 +141,6 @@ struct alignas(16) tIPU_BP {
 
 		return true;
 	}
-
-	std::string desc() const
-	{
-		return StringUtil::StdStringFromFormat("Ipu BP: bp = 0x%x, IFC = 0x%x, FP = 0x%x.", BP, IFC, FP);
-	}
 };
 
 union tIPU_CMD_IDEC
@@ -275,11 +270,6 @@ union tIPU_cmd
 	u128 _u128[2];
 
 	void clear();
-	std::string desc() const
-	{
-		return StringUtil::StdStringFromFormat("Ipu cmd: index = 0x%x, current = 0x%x, pos[0] = 0x%x, pos[1] = 0x%x",
-			index, current, pos[0], pos[1]);
-	}
 };
 
 static IPUregisters& ipuRegs = (IPUregisters&)eeHw[0x2000];
