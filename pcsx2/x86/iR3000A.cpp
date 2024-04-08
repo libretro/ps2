@@ -43,7 +43,6 @@
 #include "common/AlignedMalloc.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/Perf.h"
 
 #include "fmt/core.h"
 
@@ -214,8 +213,6 @@ static void _DynGen_Dispatchers(void)
 	HostSys::MemProtectStatic(iopRecDispatchers, PageAccess_ExecOnly());
 
 	recBlocks.SetJITCompile(iopJITCompile);
-
-	Perf::any.map((uptr)&iopRecDispatchers, 4096, "IOP Dispatcher");
 }
 
 ////////////////////////////////////////////////////
@@ -800,7 +797,6 @@ static void recReserve()
 		return;
 
 	recMem = new RecompiledCodeReserve("R3000A Recompiler Cache");
-	recMem->SetProfilerName("IOPrec");
 	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
 }
 
@@ -842,8 +838,6 @@ static void recAlloc()
 
 void recResetIOP()
 {
-	Perf::iop.reset();
-
 	recAlloc();
 	recMem->Reset();
 
@@ -1403,8 +1397,6 @@ StartRecomp:
 
 	pxAssert(xGetPtr() - recPtr < _64kb);
 	s_pCurBlockEx->x86size = xGetPtr() - recPtr;
-
-	Perf::iop.map(s_pCurBlockEx->fnptr, s_pCurBlockEx->x86size, s_pCurBlockEx->startpc);
 
 	recPtr = xGetPtr();
 

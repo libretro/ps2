@@ -36,7 +36,6 @@
 #include "common/AlignedMalloc.h"
 #include "common/FastJmp.h"
 #include "common/MemsetFast.inl"
-#include "common/Perf.h"
 
 // Only for MOVQ workaround.
 #include "common/emitter/internal.h"
@@ -375,8 +374,6 @@ static void _DynGen_Dispatchers()
 	HostSys::MemProtectStatic(eeRecDispatchers, PageAccess_ExecOnly());
 
 	recBlocks.SetJITCompile(JITCompile);
-
-	Perf::any.map((uptr)&eeRecDispatchers, 4096, "EE Dispatcher");
 }
 
 
@@ -395,21 +392,16 @@ static void recReserve()
 		return;
 
 	recMem = new RecompiledCodeReserve("R5900 Recompiler Cache");
-	recMem->SetProfilerName("EErec");
 	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::EErecOffset, 64 * _1mb);
 }
 
 static void recAlloc()
 {
 	if (!recRAMCopy)
-	{
 		recRAMCopy = (u8*)_aligned_malloc(Ps2MemSize::MainRam, 4096);
-	}
 
 	if (!recRAM)
-	{
 		recLutReserve_RAM = (u8*)_aligned_malloc(recLutSize, 4096);
-	}
 
 	BASEBLOCK* basepos = (BASEBLOCK*)recLutReserve_RAM;
 	recRAM = basepos;
@@ -477,8 +469,6 @@ alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
 static void recResetRaw()
 {
 	Console.WriteLn(Color_StrongBlack, "EE/iR5900-32 Recompiler Reset");
-
-	Perf::ee.reset();
 
 	recAlloc();
 
@@ -2144,14 +2134,6 @@ StartRecomp:
 	pxAssert(xGetPtr() < recMem->GetPtrEnd());
 
 	s_pCurBlockEx->x86size = static_cast<u32>(xGetPtr() - recPtr);
-
-#if 0
-	// Example: Dump both x86/EE code
-	if (startpc == 0x456630) {
-		iDumpBlock(s_pCurBlockEx->startpc, s_pCurBlockEx->size*4, s_pCurBlockEx->fnptr, s_pCurBlockEx->x86size);
-	}
-#endif
-	Perf::ee.map(s_pCurBlockEx->fnptr, s_pCurBlockEx->x86size, s_pCurBlockEx->startpc);
 
 	recPtr = xGetPtr();
 

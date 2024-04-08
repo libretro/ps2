@@ -21,7 +21,6 @@ target_sources(common PRIVATE
 	Misc.cpp
 	MD5Digest.cpp
 	PrecompiledHeader.cpp
-	Perf.cpp
 	ProgressCallback.cpp
 	ReadbackSpinManager.cpp
 	Semaphore.cpp

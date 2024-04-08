@@ -101,7 +101,6 @@
     <ClCompile Include="Vulkan\Texture.cpp" />
     <ClCompile Include="Vulkan\Util.cpp" />
     <ClCompile Include="WindowInfo.cpp" />
-    <ClCompile Include="Perf.cpp" />
     <ClCompile Include="PrecompiledHeader.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

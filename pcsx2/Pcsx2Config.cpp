@@ -198,9 +198,6 @@ Pcsx2Config::RecompilerOptions::RecompilerOptions()
 {
 	bitset = 0;
 
-	//StackFrameChecks	= false;
-	//PreBlockCheckEE	= false;
-
 	// All recs are enabled by default.
 
 	EnableEE = true;

@@ -20,7 +20,6 @@
 #include "PrecompiledHeader.h"
 #include "newVif_UnpackSSE.h"
 #include "MTVU.h"
-#include "common/Perf.h"
 #include "common/StringUtil.h"
 #include "fmt/core.h"
 
@@ -346,8 +345,6 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	v.vifBlocks.add(block);
 
 	VifUnpackSSE_Dynarec(v, block).CompileRoutine();
-
-	Perf::vif.map((uptr)v.recWritePtr, xGetPtr() - v.recWritePtr, block.upkType /* FIXME ideally a key*/);
 	v.recWritePtr = xGetPtr();
 
 	return &block;

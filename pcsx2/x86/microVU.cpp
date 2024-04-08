@@ -19,7 +19,6 @@
 #include "microVU.h"
 
 #include "common/AlignedMalloc.h"
-#include "common/Perf.h"
 #include "common/StringUtil.h"
 
 //------------------------------------------------------------------
@@ -31,7 +30,6 @@ alignas(__pagesize) static u8 vu1_RecDispatchers[mVUdispCacheSize];
 void mVUreserveCache(microVU& mVU)
 {
 	mVU.cache_reserve = new RecompiledCodeReserve(StringUtil::StdStringFromFormat("Micro VU%u Recompiler Cache", mVU.index));
-	mVU.cache_reserve->SetProfilerName(StringUtil::StdStringFromFormat("mVU%urec", mVU.index));
 
 	const size_t alloc_offset = mVU.index ? HostMemoryMap::mVU0recOffset : HostMemoryMap::mVU1recOffset;
 	mVU.cache_reserve->Assign(GetVmMemory().CodeMemory(), alloc_offset, mVU.cacheSize * _1mb);
@@ -126,11 +124,6 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	}
 
 	HostSys::MemProtect(mVU.dispCache, mVUdispCacheSize, PageAccess_ExecOnly());
-
-	if (mVU.index)
-		Perf::any.map((uptr)&mVU.dispCache, mVUdispCacheSize, "mVU1 Dispatcher");
-	else
-		Perf::any.map((uptr)&mVU.dispCache, mVUdispCacheSize, "mVU0 Dispatcher");
 }
 
 // Free Allocated Resources
