@@ -217,57 +217,9 @@ private:
 // DebugInterface
 //
 
-bool DebugInterface::m_pause_on_entry = false;
-
 bool DebugInterface::isAlive()
 {
 	return VMManager::HasValidVM();
-}
-
-bool DebugInterface::isCpuPaused()
-{
-	return VMManager::GetState() == VMState::Paused;
-}
-
-void DebugInterface::pauseCpu()
-{
-	VMManager::SetPaused(true);
-}
-
-void DebugInterface::resumeCpu()
-{
-	VMManager::SetPaused(false);
-}
-
-char* DebugInterface::stringFromPointer(u32 p)
-{
-	const int BUFFER_LEN = 25;
-	static char buf[BUFFER_LEN] = {0};
-
-	if (!isValidAddress(p))
-		return NULL;
-
-	// This is going to blow up if it hits a TLB miss..
-	// Hopefully the checks in isValidAddress() are sufficient.
-	for (u32 i = 0; i < BUFFER_LEN; i++)
-	{
-		char c = read8(p + i);
-		buf[i] = c;
-
-		if (c == 0)
-		{
-			return i > 0 ? buf : NULL;
-		}
-		else if (c < 0x20 || c >= 0x7f)
-		{
-			// non printable character
-			return NULL;
-		}
-	}
-
-	buf[BUFFER_LEN - 1] = 0;
-	buf[BUFFER_LEN - 2] = '~';
-	return buf;
 }
 
 bool DebugInterface::initExpression(const char* exp, PostfixExpression& dest)
@@ -286,11 +238,6 @@ bool DebugInterface::parseExpression(PostfixExpression& exp, u64& dest)
 //
 // R5900DebugInterface
 //
-
-BreakPointCpu R5900DebugInterface::getCpuType()
-{
-	return BREAKPOINT_EE;
-}
 
 u32 R5900DebugInterface::read8(u32 address)
 {
@@ -746,11 +693,6 @@ std::vector<std::unique_ptr<BiosThread>> R5900DebugInterface::GetThreadList() co
 // R3000DebugInterface
 //
 
-
-BreakPointCpu R3000DebugInterface::getCpuType()
-{
-	return BREAKPOINT_IOP;
-}
 
 u32 R3000DebugInterface::read8(u32 address)
 {

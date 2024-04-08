@@ -37,12 +37,6 @@ enum
 	IOPCAT_GPR,
 	IOPCAT_COUNT
 };
-enum BreakPointCpu
-{
-	BREAKPOINT_EE = 0x01,
-	BREAKPOINT_IOP = 0x02,
-	BREAKPOINT_IOP_AND_EE = 0x03
-};
 
 class DebugInterface
 {
@@ -84,23 +78,12 @@ public:
 	virtual std::string disasm(u32 address, bool simplify) = 0;
 	virtual bool isValidAddress(u32 address) = 0;
 	virtual u32 getCycles() = 0;
-	virtual BreakPointCpu getCpuType() = 0;
 	[[nodiscard]] virtual SymbolMap& GetSymbolMap() const = 0;
 	[[nodiscard]] virtual std::vector<std::unique_ptr<BiosThread>> GetThreadList() const = 0;
 
 	bool initExpression(const char* exp, PostfixExpression& dest);
 	bool parseExpression(PostfixExpression& exp, u64& dest);
 	bool isAlive();
-	bool isCpuPaused();
-	void pauseCpu();
-	void resumeCpu();
-	char* stringFromPointer(u32 p);
-
-	static void setPauseOnEntry(bool pauseOnEntry) { m_pause_on_entry = pauseOnEntry; };
-	static bool getPauseOnEntry() { return m_pause_on_entry; }
-
-private:
-	static bool m_pause_on_entry;
 };
 
 class R5900DebugInterface : public DebugInterface
@@ -139,7 +122,6 @@ public:
 	std::string disasm(u32 address, bool simplify) override;
 	bool isValidAddress(u32 address) override;
 	u32 getCycles() override;
-	BreakPointCpu getCpuType() override;
 };
 
 
@@ -179,7 +161,6 @@ public:
 	std::string disasm(u32 address, bool simplify) override;
 	bool isValidAddress(u32 address) override;
 	u32 getCycles() override;
-	BreakPointCpu getCpuType() override;
 };
 
 extern R5900DebugInterface r5900Debug;
