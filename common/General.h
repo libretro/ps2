@@ -199,7 +199,6 @@ private:
 extern void InitCPUTicks();
 extern u64 GetTickFrequency();
 extern u64 GetCPUTicks();
-extern u64 GetPhysicalMemory();
 /// Spin for a short period of time (call while spinning waiting for a lock)
 /// Returns the approximate number of ns that passed
 extern u32 ShortSpin();
@@ -207,12 +206,3 @@ extern u32 ShortSpin();
 extern const u32 SPIN_TIME_NS;
 /// Like C abort() but adds the given message to the crashlog
 [[noreturn]] void AbortWithMessage(const char* msg);
-
-extern std::string GetOSVersionString();
-
-namespace Common
-{
-	/// Abstracts platform-specific code for asynchronously playing a sound.
-	/// On Windows, this will use PlaySound(). On Linux, it will shell out to aplay. On MacOS, it uses NSSound.
-	bool PlaySoundAsync(const char* path);
-} // namespace Common

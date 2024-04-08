@@ -65,41 +65,6 @@ u64 GetCPUTicks()
 	return count.QuadPart;
 }
 
-u64 GetPhysicalMemory()
-{
-	MEMORYSTATUSEX status;
-	status.dwLength = sizeof(status);
-	GlobalMemoryStatusEx(&status);
-	return status.ullTotalPhys;
-}
-
-// Calculates the Windows OS Version and processor architecture, and returns it as a
-// human-readable string. :)
-std::string GetOSVersionString()
-{
-	std::string retval;
-
-	SYSTEM_INFO si;
-	GetNativeSystemInfo(&si);
-
-	if (IsWindows10OrGreater())
-	{
-		retval = "Microsoft ";
-		retval += IsWindowsServer() ? "Windows Server 2016+" : "Windows 10+";
-		
-	}
-	else
-		retval = "Unsupported Operating System!";
-
-	return retval;
-}
-
-bool Common::PlaySoundAsync(const char* path)
-{
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	return PlaySoundW(wpath.c_str(), NULL, SND_ASYNC | SND_NODEFAULT);
-}
-
 void Threading::Sleep(int ms)
 {
 	::Sleep(ms);

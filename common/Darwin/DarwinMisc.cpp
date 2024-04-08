@@ -36,18 +36,6 @@
 // For an overview of all of Darwin's sysctls, check:
 // https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man3/sysctl.3.html
 
-// Return the total physical memory on the machine, in bytes. Returns 0 on
-// failure (not supported by the operating system).
-u64 GetPhysicalMemory()
-{
-	u64 getmem = 0;
-	size_t len = sizeof(getmem);
-	int mib[] = {CTL_HW, HW_MEMSIZE};
-	if (sysctl(mib, std::size(mib), &getmem, &len, NULL, 0) < 0)
-		perror("sysctl:");
-	return getmem;
-}
-
 static u64 tickfreq;
 static mach_timebase_info_data_t s_timebase_info;
 
@@ -79,25 +67,6 @@ u64 GetCPUTicks()
 {
 	return mach_absolute_time();
 }
-
-static std::string sysctl_str(int category, int name)
-{
-	char buf[32];
-	size_t len = sizeof(buf);
-	int mib[] = {category, name};
-	sysctl(mib, std::size(mib), buf, &len, nullptr, 0);
-	return std::string(buf, len > 0 ? len - 1 : 0);
-}
-
-std::string GetOSVersionString()
-{
-	std::string type    = sysctl_str(CTL_KERN, KERN_OSTYPE);
-	std::string release = sysctl_str(CTL_KERN, KERN_OSRELEASE);
-	std::string arch    = sysctl_str(CTL_HW, HW_MACHINE);
-	return type + " " + release + " " + arch;
-}
-
-static IOPMAssertionID s_pm_assertion;
 
 void Threading::Sleep(int ms)
 {

@@ -27,26 +27,9 @@
 
 #include "common/Pcsx2Types.h"
 #include "common/General.h"
-#include "common/StringUtil.h"
 #include "common/Threading.h"
-#include "common/WindowInfo.h"
 
-// Returns 0 on failure (not supported by the operating system).
-u64 GetPhysicalMemory()
-{
-	u64 pages = 0;
-
-#ifdef _SC_PHYS_PAGES
-	pages = sysconf(_SC_PHYS_PAGES);
-#endif
-
-	return pages * getpagesize();
-}
-
-
-void InitCPUTicks()
-{
-}
+void InitCPUTicks() { }
 
 u64 GetTickFrequency()
 {
@@ -58,31 +41,6 @@ u64 GetCPUTicks()
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (static_cast<u64>(ts.tv_sec) * 1000000000ULL) + ts.tv_nsec;
-}
-
-std::string GetOSVersionString()
-{
-#if defined(__linux__)
-	return "Linux";
-#else // freebsd
-	return "Other Unix";
-#endif
-}
-
-bool Common::PlaySoundAsync(const char* path)
-{
-#ifdef __linux__
-	// This is... pretty awful. But I can't think of a better way without linking to e.g. gstreamer.
-	const char* cmdname = "aplay";
-	const char* argv[] = {cmdname, path, nullptr};
-	pid_t pid;
-
-	// Since we set SA_NOCLDWAIT in Qt, we don't need to wait here.
-	int res = posix_spawnp(&pid, cmdname, nullptr, nullptr, const_cast<char**>(argv), environ);
-	return (res == 0);
-#else
-	return false;
-#endif
 }
 
 void Threading::Sleep(int ms)
