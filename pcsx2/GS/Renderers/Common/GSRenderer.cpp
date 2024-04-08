@@ -43,12 +43,6 @@ static constexpr std::array<PresentShader, 6> s_tv_shader_indices = {
 
 std::unique_ptr<GSRenderer> g_gs_renderer;
 
-// Last time we reset the renderer due to a GPU crash, if any.
-static Common::Timer::Value s_last_gpu_reset_time;
-
-// Screen alignment
-static GSDisplayAlignment s_display_alignment = GSDisplayAlignment::Center;
-
 GSRenderer::GSRenderer()
 	: m_shader_time_start(Common::Timer::GetCurrentValue())
 {
@@ -405,24 +399,10 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 	else if (res == GSDevice::PresentResult::OK) /* All good */
 		return true;
 
-	// If we're constantly crashing on something in particular, we don't want to end up in an
-	// endless reset loop.. that'd probably end up leaking memory and/or crashing us for other
-	// reasons. So just abort in such case.
-	const Common::Timer::Value current_time = Common::Timer::GetCurrentValue();
-	if (s_last_gpu_reset_time != 0 &&
-		Common::Timer::ConvertValueToSeconds(current_time - s_last_gpu_reset_time) < 15.0f)
-	{
-		pxFailRel("Host GPU lost too many times, device is probably completely wedged.");
-	}
-	s_last_gpu_reset_time = current_time;
-
 	// Device lost, something went really bad.
 	// Let's just toss out everything, and try to hobble on.
 	if (!GSreopen(true, false, GSConfig))
-	{
-		pxFailRel("Failed to recreate GS device after loss.");
 		return false;
-	}
 
 	// First frame after reopening is definitely going to be trash, so skip it.
 	Host::AddIconOSDMessage("GSDeviceLost", ICON_FA_EXCLAMATION_TRIANGLE,
@@ -466,9 +446,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 			skip_frame = true;
 		}
 		else
-		{
 			m_skipped_duplicate_frames = 0;
-		}
 	}
 
 	const bool blank_frame = !Merge(field);
@@ -572,7 +550,7 @@ void GSRenderer::PresentCurrentFrame()
 			const GSVector4i src_rect(CalculateDrawSrcRect(current));
 			const GSVector4 src_uv(GSVector4(src_rect) / GSVector4(current->GetSize()).xyxy());
 			const GSVector4 draw_rect(CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
-				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
+				src_rect, current->GetSize(), GSDisplayAlignment::Center, g_gs_device->UsesLowerLeftOrigin(),
 				GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets)));
 
 			const u64 current_time = Common::Timer::GetCurrentValue();
@@ -585,11 +563,6 @@ void GSRenderer::PresentCurrentFrame()
 		EndPresentFrame();
 	}
 	g_gs_device->RestoreAPIState();
-}
-
-void GSSetDisplayAlignment(GSDisplayAlignment alignment)
-{
-	s_display_alignment = alignment;
 }
 
 GSTexture* GSRenderer::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)

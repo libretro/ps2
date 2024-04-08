@@ -88,7 +88,6 @@ int GSfreeze(FreezeAction mode, freezeData* data);
 void GSPresentCurrentFrame();
 void GSThrottlePresentation();
 void GSSetGameCRC(u32 crc);
-void GSSetDisplayAlignment(GSDisplayAlignment alignment);
 void GSSetVSyncMode(VsyncMode mode);
 
 bool GSGetHostRefreshRate(float* refresh_rate);
