@@ -39,7 +39,6 @@
 #endif
 #include "pcsx2/Frontend/CommonHost.h"
 #include "pcsx2/Frontend/InputManager.h"
-#include "pcsx2/Frontend/LogSink.h"
 #include "pcsx2/Frontend/LayeredSettingsInterface.h"
 #include "pcsx2/VMManager.h"
 #include "pcsx2/StateWrapper.h"

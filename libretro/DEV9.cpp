@@ -42,8 +42,6 @@ u8 DEV9read8(u32 addr)
         case 0x10000038: /*value = dev9Ru8(addr);*/
             break;       // We need to have at least one case to avoid warnings.
         default:
-            //value = dev9Ru8(addr);
-            Console.WriteLn("*Unknown 8 bit read at address %lx", addr);
             break;
     }
     return value;
@@ -74,8 +72,6 @@ u16 DEV9read16(u32 addr)
         case 0x10000038: /*value = dev9Ru16(addr);*/
             break;
         default:
-            //value = dev9Ru16(addr);
-            Console.WriteLn("*Unknown 16 bit read at address %lx", addr);
             break;
     }
 
@@ -90,8 +86,6 @@ u32 DEV9read32(u32 addr)
         case 0x10000038: /*value = dev9Ru32(addr);*/
             break;
         default:
-            //value = dev9Ru32(addr);
-            Console.WriteLn("*Unknown 32 bit read at address %lx", addr);
             break;
     }
 
@@ -104,8 +98,6 @@ void DEV9write8(u32 addr, u8 value)
         case 0x10000038: /*dev9Ru8(addr) = value;*/
             break;
         default:
-            Console.WriteLn("*Unknown 8 bit write; address %lx = %x", addr, value);
-            //dev9Ru8(addr) = value;
             break;
     }
 }
@@ -118,8 +110,6 @@ void DEV9write16(u32 addr, u16 value)
         case 0x10000038: /*dev9Ru16(addr) = value;*/
             break;
         default:
-            Console.WriteLn("*Unknown 16 bit write; address %lx = %x", addr, value);
-            //dev9Ru16(addr) = value;
             break;
     }
 }
@@ -130,8 +120,6 @@ void DEV9write32(u32 addr, u32 value)
         case 0x10000038: /*dev9Ru32(addr) = value;*/
             break;
         default:
-            Console.WriteLn("*Unknown 32 bit write; address %lx = %x", addr, value);
-            //dev9Ru32(addr) = value;
             break;
     }
 }

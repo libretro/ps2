@@ -337,9 +337,6 @@
     <ClInclude Include="WindowInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BitCast.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GL\Context.h">
       <Filter>Header Files\GL</Filter>
     </ClInclude>
@@ -436,28 +433,7 @@
     <ClInclude Include="D3D12\Builders.h">
       <Filter>Header Files\D3D12</Filter>
     </ClInclude>
-    <ClInclude Include="CrashHandler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StackWalker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="LRUCache.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Easing.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="HTTPDownloader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="HTTPDownloaderCurl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="HTTPDownloaderWinHTTP.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThreadPool.h">

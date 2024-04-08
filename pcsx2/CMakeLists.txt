@@ -719,13 +719,11 @@ list(APPEND pcsx2FrontendSources
 	Frontend/CommonHost.cpp
 	Frontend/HostSettings.cpp
 	Frontend/LayeredSettingsInterface.cpp
-	Frontend/LogSink.cpp
 	VMManager.cpp
 )
 list(APPEND pcsx2FrontendHeaders
 	Frontend/CommonHost.h
 	Frontend/LayeredSettingsInterface.h
-	Frontend/LogSink.h
 	HostSettings.h
 	VMManager.h)
 

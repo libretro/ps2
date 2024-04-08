@@ -22,7 +22,6 @@
 #include "Frontend/CommonHost.h"
 #include "Frontend/LayeredSettingsInterface.h"
 #include "Frontend/InputManager.h"
-#include "Frontend/LogSink.h"
 #include "GS.h"
 #include "GS/Renderers/HW/GSTextureReplacements.h"
 #include "Host.h"
@@ -66,7 +65,6 @@ void CommonHost::LoadStartupSettings()
 	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
 	EmuFolders::LoadConfig(*bsi);
 	EmuFolders::EnsureFoldersExist();
-	UpdateLogging(*bsi);
 }
 
 void CommonHost::SetDefaultSettings(SettingsInterface& si, bool folders, bool core, bool controllers, bool hotkeys, bool ui)
@@ -84,7 +82,6 @@ void CommonHost::SetDefaultSettings(SettingsInterface& si, bool folders, bool co
 
 void CommonHost::SetCommonDefaultSettings(SettingsInterface& si)
 {
-	SetDefaultLoggingSettings(si);
 }
 
 void CommonHost::CPUThreadInitialize()
@@ -115,8 +112,6 @@ void CommonHost::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex
 	SettingsInterface* binding_si = Host::GetSettingsInterfaceForBindings();
 	InputManager::ReloadSources(si, lock);
 	InputManager::ReloadBindings(si, *binding_si);
-
-	UpdateLogging(si);
 }
 
 void CommonHost::CheckForSettingsChanges(const Pcsx2Config& old_config)
