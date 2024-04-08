@@ -125,34 +125,6 @@ static u32 s_active_no_interlacing_patches = 0;
 static u32 s_mxcsr_saved;
 static bool s_gs_open_on_initialize = false;
 
-bool VMManager::PerformEarlyHardwareChecks(const char** error)
-{
-#if defined(_M_X86)
-	// On Windows, this gets called as a global object constructor, before any of our objects are constructed.
-	// So, we have to put it on the stack instead.
-	x86capabilities temp_x86_caps;
-	temp_x86_caps.Identify();
-
-	if (!temp_x86_caps.hasStreamingSIMD4Extensions)
-	{
-		*error = "PCSX2 requires the Streaming SIMD 4.1 Extensions instruction set, which your CPU does not support.\n\n"
-				 "SSE4.1 is now a minimum requirement for PCSX2. You should either upgrade your CPU, or use an older build such as 1.6.0.\n\n";
-		return false;
-	}
-
-#if _M_SSE >= 0x0501
-	if (!temp_x86_caps.hasAVX || !temp_x86_caps.hasAVX2)
-	{
-		*error = "This build of PCSX2 requires the Advanced Vector Extensions 2 instruction set, which your CPU does not support.\n\n"
-				 "You should download and run the SSE4.1 build of PCSX2 instead, or upgrade to a CPU that supports AVX2 to use this build.\n\n";
-		return false;
-	}
-#endif
-#endif
-
-	return true;
-}
-
 VMState VMManager::GetState()
 {
 	return s_state.load(std::memory_order_acquire);
@@ -177,11 +149,9 @@ void VMManager::SetState(VMState state)
 		else
 			Host::OnVMResumed();
 	}
+	// If stopping, break execution as soon as possible.
 	else if (state == VMState::Stopping && old_state == VMState::Running)
-	{
-		// If stopping, break execution as soon as possible.
 		Cpu->ExitExecution();
-	}
 }
 
 bool VMManager::HasValidVM()
