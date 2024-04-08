@@ -414,7 +414,6 @@ __ri void mVUanalyzeSflag(mV, int It)
 	}
 	else
 	{
-		//mVUsFlagHack = 0; // Don't Optimize Out Status Flags for this block
 		mVUinfo.swapOps = 1;
 		flagSet(mVU, 0);
 	}
@@ -522,15 +521,11 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 		if ((mVUlow.VI_write.reg == xReg) && mVUlow.VI_write.used)
 		{
 			if (mVUlow.readFlags)
-			{
 				break; // Not sure if on the above "if (i)" case, if we need to "continue" or if we should "break"
-			}
 			j = i;
 		}
 		else if (i == 0)
-		{
 			break;
-		}
 		cyc += mVUstall + 1;
 		incPC2(-2);
 	}
@@ -565,12 +560,6 @@ __ri int mVUbranchCheck(mV)
 		mVUregs.blockType = 2;
 		mVUregs.needExactMatch |= 7; // This might not be necessary, but w/e...
 		mVUregs.flagInfo = 0;
-
-		if (mVUlow.branch == 2 || mVUlow.branch == 10)
-		{
-			Console.Error("microVU%d: %s in branch, branch delay slot requires link [%04x] - If game broken report to PCSX2 Team", mVU.index,
-				branchSTR[mVUlow.branch & 0xf], xPC);
-		}
 		return 1;
 	}
 
@@ -591,12 +580,9 @@ __ri int mVUbranchCheck(mV)
 			mVUregs.flagInfo = 0;
 			return 1;
 		}
-		else
-		{
-			incPC(2);
-			mVUlow.isNOP = true;
-			return 0;
-		}
+		incPC(2);
+		mVUlow.isNOP = true;
+		return 0;
 	}
 	incPC(2);
 	return 0;

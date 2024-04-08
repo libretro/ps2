@@ -32,7 +32,6 @@ using namespace x86Emitter;
 #include "common/emitter/x86emitter.h"
 #include "microVU_Misc.h"
 #include "microVU_IR.h"
-#include "microVU_Profiler.h"
 
 struct microBlockLink
 {
@@ -52,13 +51,10 @@ private:
 	microBlockLink *qBlockList, *qBlockEnd; // Quick Search
 	microBlockLink *fBlockList, *fBlockEnd; // Full  Search
 	std::vector<microBlockLinkRef> quickLookup;
-	int qListI, fListI;
 
 public:
-	inline int getFullListCount() const { return fListI; }
 	microBlockManager()
 	{
-		qListI = fListI = 0;
 		qBlockEnd = qBlockList = nullptr;
 		fBlockEnd = fBlockList = nullptr;
 	}
@@ -79,7 +75,6 @@ public:
 			linkI = linkI->next;
 			_aligned_free(freeI);
 		}
-		qListI = fListI = 0;
 		qBlockEnd = qBlockList = nullptr;
 		fBlockEnd = fBlockList = nullptr;
 		quickLookup.clear();
@@ -90,10 +85,6 @@ public:
 		if (!thisBlock)
 		{
 			u8 fullCmp = pBlock->pState.needExactMatch;
-			if (fullCmp)
-				fListI++;
-			else
-				qListI++;
 
 			microBlockLink*& blockList = fullCmp ? fBlockList : qBlockList;
 			microBlockLink*& blockEnd  = fullCmp ? fBlockEnd  : qBlockEnd;

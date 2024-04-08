@@ -46,11 +46,6 @@ static __fi bool _add64_Overflow( s64 x, s64 y, s64 &ret )
 		return true;
 	}
 
-	// the not-as-fast style!
-	//if( ((x >= 0) && (y >= 0) && (result <  0)) ||
-	//	((x <  0) && (y <  0) && (result >= 0)) )
-	//	cpuException(0x30, cpuRegs.branch);
-
 	ret = result;
 	return false;
 }
@@ -149,7 +144,7 @@ static u32 deci2addr = 0;
 static u32 deci2handler = 0;
 static char deci2buffer[256];
 
-void Deci2Reset()
+void Deci2Reset(void)
 {
 	deci2handler	= 0;
 	deci2addr		= 0;
@@ -221,14 +216,8 @@ static int __Deci2Call(int call, u32 *addr)
 		}
 
 		case 4: // poll
-			return 1;
-
 		case 5: // exrecv
-			return 1;
-
 		case 6: // exsend
-			return 1;
-
 		case 0x10://kputs
 			return 1;
 	}
@@ -572,13 +561,10 @@ void LWU()
 	cpuRegs.GPR.r[_Rt_].UD[0] = temp;
 }
 
-static const u32 LWL_MASK[4] = { 0xffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
-static const u32 LWR_MASK[4] = { 0x000000, 0xff000000, 0xffff0000, 0xffffff00 };
-static const u8 LWL_SHIFT[4] = { 24, 16, 8, 0 };
-static const u8 LWR_SHIFT[4] = { 0, 8, 16, 24 };
-
 void LWL()
 {
+	static const u32 LWL_MASK[4] = { 0xffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
+	static const u8 LWL_SHIFT[4] = { 24, 16, 8, 0 };
 	s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
 
@@ -603,6 +589,8 @@ void LWL()
 
 void LWR()
 {
+	static const u32 LWR_MASK[4] = { 0x000000, 0xff000000, 0xffff0000, 0xffffff00 };
+	static const u8 LWR_SHIFT[4] = { 0, 8, 16, 24 };
 	s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
 
@@ -851,11 +839,7 @@ void MOVN() {
 * Format:  OP                                            *
 *********************************************************/
 
-
-// This function is the only one that uses Sifcmd.h in Pcsx2.
-#include "Sifcmd.h"
-
-void SYSCALL()
+void SYSCALL(void)
 {
 	u8 call;
 

@@ -159,7 +159,6 @@ __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 	}
 	pass2
 	{
-		const char* name = isDirectHL ? "DirectHL" : "Direct";
 		GIF_TRANSFER_TYPE tranType = isDirectHL ? GIF_TRANS_DIRECTHL : GIF_TRANS_DIRECT;
 		uint size = std::min(vif1.vifpacketsize, vif1.tag.size) * 4; // Get size in bytes
 		uint ret = gifUnit.TransferGSPacketData(tranType, (u8*)data, size);
@@ -201,7 +200,6 @@ vifOp(vifCode_DirectHL)
 vifOp(vifCode_Flush)
 {
 	vif1Only();
-	//vifStruct& vifX = GetVifX;
 	pass1or2
 	{
 		bool p1or2 = (gifRegs.stat.APATH != 0 && gifRegs.stat.APATH != 3);
@@ -230,12 +228,9 @@ vifOp(vifCode_Flush)
 vifOp(vifCode_FlushA)
 {
 	vif1Only();
-	//vifStruct& vifX = GetVifX;
 	pass1or2
 	{
-		//Gif_Path& p3      = gifUnit.gifPath[GIF_PATH_3];
 		u32 gifBusy = gifUnit.checkPaths(1, 1, 1) || (gifRegs.stat.APATH != 0);
-		//bool      doStall = false;
 		vif1Regs.stat.VGW = false;
 		vifFlush(idx);
 
@@ -546,7 +541,6 @@ vifOp(vifCode_Null)
 			vifXRegs.stat.ER1 = true;
 			vifX.vifstalled.enabled = VifStallEnable(vifXch);
 			vifX.vifstalled.value = VIF_IRQ_STALL;
-			//vifX.irq++;
 		}
 		vifX.cmd = 0;
 		vifX.pass = 0;
@@ -703,23 +697,11 @@ vifOp(vifCode_STMod)
 	return 1;
 }
 
-template <uint idx>
-static uint calc_addr(bool flg)
-{
-	VIFregisters& vifRegs = vifXRegs;
-
-	uint retval = vifRegs.code;
-	if (idx && flg)
-		retval += vifRegs.tops;
-	return retval & (idx ? 0x3ff : 0xff);
-}
-
 vifOp(vifCode_Unpack)
 {
 	pass1
 	{
 		vifUnpackSetup<idx>(data);
-
 		return 1;
 	}
 	pass2

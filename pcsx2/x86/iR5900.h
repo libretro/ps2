@@ -19,7 +19,6 @@
 #include "R5900.h"
 #include "VU.h"
 #include "iCore.h"
-#include "R5900_Profiler.h"
 
 // Register containing a pointer to our fastmem (4GB) area
 #define RFASTMEMBASE x86Emitter::rbp

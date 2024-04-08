@@ -16,17 +16,6 @@
 #pragma once
 
 //------------------------------------------------------------------
-// Messages Called at Execution Time...
-//------------------------------------------------------------------
-
-static inline void mVUbadOp0  (u32 prog, u32 pc) {  }
-static inline void mVUbadOp1  (u32 prog, u32 pc) {  }
-static inline void mVUwarning0(u32 prog, u32 pc) {  }
-static inline void mVUwarning1(u32 prog, u32 pc) {  }
-static inline void mVUprintPC1(u32 pc) {  }
-static inline void mVUprintPC2(u32 pc) {  }
-
-//------------------------------------------------------------------
 // Program Range Checking and Setting up Ranges
 //------------------------------------------------------------------
 
@@ -34,9 +23,7 @@ static inline void mVUprintPC2(u32 pc) {  }
 __fi void mVUcheckIsSame(mV)
 {
 	if (mVU.prog.isSame == -1)
-	{
 		mVU.prog.isSame = !memcmp((u8*)mVUcurProg.data, mVU.regs().Micro, mVU.microMemSize);
-	}
 	if (mVU.prog.isSame == 0)
 	{
 		mVUcacheProg(mVU, *mVU.prog.cur);
@@ -48,10 +35,6 @@ __fi void mVUcheckIsSame(mV)
 void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 {
 	std::deque<microRange>*& ranges = mVUcurProg.ranges;
-	if (pc > (s64)mVU.microMemSize)
-	{
-		pxFailDev("microVU: PC out of VU memory");
-	}
 
 	// The PC handling will prewrap the PC so we need to set the end PC to the end of the micro memory, but only if it wraps, no more.
 	const s32 cur_pc = (!isStartPC && mVUrange.start > pc && pc == 0) ? mVU.microMemSize : pc;
@@ -242,13 +225,9 @@ __fi void mVUcheckBadOp(mV)
 __ri void branchWarning(mV)
 {
 	incPC(-2);
+	incPC(2);
 	if (mVUup.eBit && mVUbranch)
-	{
-		incPC(2);
 		mVUlow.isNOP = true;
-	}
-	else
-		incPC(2);
 
 	if (mVUinfo.isBdelay && !mVUlow.evilBranch) // Check if VI Reg Written to on Branch Delay Slot Instruction
 	{
@@ -366,9 +345,7 @@ void cmpVFregs(microVFreg& VFreg1, microVFreg& VFreg2, bool& xVar)
 	{
 		if ((VFreg1.x && VFreg2.x) || (VFreg1.y && VFreg2.y)
 		 || (VFreg1.z && VFreg2.z) || (VFreg1.w && VFreg2.w))
-		{
 			xVar = 1;
-		}
 	}
 }
 

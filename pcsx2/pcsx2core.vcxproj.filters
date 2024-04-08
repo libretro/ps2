@@ -1414,9 +1414,6 @@
     <ClInclude Include="Sif.h">
       <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
     </ClInclude>
-    <ClInclude Include="Sifcmd.h">
-      <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
-    </ClInclude>
     <ClInclude Include="Vif.h">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif</Filter>
     </ClInclude>
@@ -1588,9 +1585,6 @@
     <ClInclude Include="Gif_Unit.h">
       <Filter>System\Ps2\GS\GIF</Filter>
     </ClInclude>
-    <ClInclude Include="x86\microVU_Profiler.h">
-      <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
-    </ClInclude>
     <ClInclude Include="AsyncFileReader.h">
       <Filter>System\ISO</Filter>
     </ClInclude>
@@ -1644,9 +1638,6 @@
     </ClInclude>
     <ClInclude Include="CDVD\CompressedFileReaderUtils.h">
       <Filter>System\ISO</Filter>
-    </ClInclude>
-    <ClInclude Include="x86\R5900_Profiler.h">
-      <Filter>System\Include</Filter>
     </ClInclude>
     <ClInclude Include="IopGte.h">
       <Filter>System\Ps2\Iop</Filter>

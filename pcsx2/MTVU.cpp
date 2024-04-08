@@ -23,9 +23,6 @@
 
 VU_Thread vu1Thread;
 
-#define MTVU_ALWAYS_KICK 0
-#define MTVU_SYNC_MODE 0
-
 // Rounds up a size in bytes for size in u32's
 static __fi u32 size_u32(u32 x) { return (x + 3) >> 2; }
 
@@ -208,7 +205,7 @@ void VU_Thread::ExecuteRingBuffer()
 					break;
 			}
 
-			CommitReadPos();
+			m_ato_read_pos.store(m_read_pos, std::memory_order_release);
 		}
 	}
 
@@ -256,7 +253,7 @@ void VU_Thread::ReserveSpace(s32 size)
 		Write(MTVU_NULL_PACKET);
 		// Reset local write pointer/position
 		m_write_pos = 0;
-		CommitWritePos();
+		m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	}
 
 	WaitOnSize(size);
@@ -279,21 +276,6 @@ __fi u32* VU_Thread::GetWritePtr()
 {
 	pxAssert(m_write_pos < buffer_size);
 	return &buffer[m_write_pos];
-}
-
-__fi void VU_Thread::CommitWritePos()
-{
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
-
-	if (MTVU_ALWAYS_KICK)
-		KickStart();
-	if (MTVU_SYNC_MODE)
-		WaitVU();
-}
-
-__fi void VU_Thread::CommitReadPos()
-{
-	m_ato_read_pos.store(m_read_pos, std::memory_order_release);
 }
 
 __fi u32 VU_Thread::Read()
@@ -451,7 +433,7 @@ void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)
 	Write(vif_top);
 	Write(vif_itop);
 	Write(fbrst);
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	gifUnit.TransferGSPacketData(GIF_TRANS_MTVU, NULL, 0);
 	KickStart();
 	u32 cycles = std::max(Get_vuCycles(), 4u);
@@ -476,7 +458,7 @@ void VU_Thread::VifUnpack(vifStruct& _vif, VIFregisters& _vifRegs, const u8* dat
 	WriteRegs(&_vifRegs);
 	Write(size);
 	Write(data, size);
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }
 
@@ -487,7 +469,7 @@ void VU_Thread::WriteMicroMem(u32 vu_micro_addr, const void* data, u32 size)
 	Write(vu_micro_addr);
 	Write(size);
 	Write(data, size);
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }
 
@@ -498,7 +480,7 @@ void VU_Thread::WriteDataMem(u32 vu_data_addr, const void* data, u32 size)
 	Write(vu_data_addr);
 	Write(size);
 	Write(data, size);
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }
 
@@ -507,7 +489,7 @@ void VU_Thread::WriteVIRegs(REG_VI* viRegs)
 	ReserveSpace(1 + size_u32(32));
 	Write(MTVU_VU_WRITE_VIREGS);
 	Write(viRegs, size_u32(32));
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }
 
@@ -516,7 +498,7 @@ void VU_Thread::WriteVFRegs(VECTOR* vfRegs)
 	ReserveSpace(1 + size_u32(32*4));
 	Write(MTVU_VU_WRITE_VFREGS);
 	Write(vfRegs, size_u32(32*4));
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }
 
@@ -525,7 +507,7 @@ void VU_Thread::WriteCol(vifStruct& _vif)
 	ReserveSpace(1 + size_u32(sizeof(_vif.MaskCol)));
 	Write(MTVU_VIF_WRITE_COL);
 	Write(&_vif.MaskCol, sizeof(_vif.MaskCol));
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }
 
@@ -534,6 +516,6 @@ void VU_Thread::WriteRow(vifStruct& _vif)
 	ReserveSpace(1 + size_u32(sizeof(_vif.MaskRow)));
 	Write(MTVU_VIF_WRITE_ROW);
 	Write(&_vif.MaskRow, sizeof(_vif.MaskRow));
-	CommitWritePos();
+	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
 	KickStart();
 }

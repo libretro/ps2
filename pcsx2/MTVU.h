@@ -115,9 +115,6 @@ private:
 
 	u32* GetWritePtr();
 
-	void CommitWritePos();
-	void CommitReadPos();
-
 	u32 Read();
 	void Read(void* dest, u32 size);
 	void ReadRegs(VIFregisters* dest);

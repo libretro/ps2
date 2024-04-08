@@ -157,7 +157,6 @@ struct cpuRegisters {
 	GPR_reg LO;			// hi & log 128bit wide
 	CP0regs CP0;		// is COP0 32bit?
 	u32 sa;				// shift amount (32bit), needs to be 16 byte aligned
-	u32 IsDelaySlot;	// set true when the current instruction is a delay slot.
 	u32 pc;				// Program counter, when changing offset in struct, check iR5900-X.S to make sure offset is correct
 	u32 code;			// current instruction
 	PERFregs PERF;

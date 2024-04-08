@@ -186,10 +186,6 @@ __ri microProgram* mVUcreateProg(microVU& mVU, int startPC)
 	prog->startPC = startPC;
 	if(doWholeProgCompare)
 		mVUcacheProg(mVU, *prog); // Cache Micro Program
-	double cacheSize = (double)((uptr)mVU.prog.x86end - (uptr)mVU.prog.x86start);
-	double cacheUsed = ((double)((uptr)mVU.prog.x86ptr - (uptr)mVU.prog.x86start)) / (double)_1mb;
-	double cachePerc = ((double)((uptr)mVU.prog.x86ptr - (uptr)mVU.prog.x86start)) / cacheSize * 100;
-	ConsoleColors c = mVU.index ? Color_Orange : Color_Magenta;
 	return prog;
 }
 

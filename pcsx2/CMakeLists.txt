@@ -191,7 +191,6 @@ set(pcsx2Headers
 	R5900OpcodeTables.h
 	SaveState.h
 	ShaderCacheVersion.h
-	Sifcmd.h
 	Sif.h
 	SingleRegisterTypes.h
 	Sio.h
@@ -859,13 +858,11 @@ set(pcsx2x86Headers
 	x86/microVU_Macro.inl
 	x86/microVU_Misc.h
 	x86/microVU_Misc.inl
-	x86/microVU_Profiler.h
 	x86/microVU_Tables.inl
 	x86/microVU_Upper.inl
 	x86/newVif.h
 	x86/newVif_HashBucket.h
 	x86/newVif_UnpackSSE.h
-	x86/R5900_Profiler.h
 	)
 
 set(pcsx2DEV9Sources)
