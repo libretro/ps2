@@ -47,11 +47,6 @@ namespace Common
 		return ReturnValue;
 	}
 
-	double Timer::ConvertValueToNanoseconds(Timer::Value value)
-	{
-		return (static_cast<double>(value) / s_counter_frequency);
-	}
-
 	double Timer::ConvertValueToMilliseconds(Timer::Value value)
 	{
 		return ((static_cast<double>(value) / s_counter_frequency) / 1000000.0);
@@ -82,11 +77,6 @@ namespace Common
 		struct timespec tv;
 		clock_gettime(CLOCK_MONOTONIC, &tv);
 		return ((Value)tv.tv_nsec + (Value)tv.tv_sec * 1000000000);
-	}
-
-	double Timer::ConvertValueToNanoseconds(Timer::Value value)
-	{
-		return static_cast<double>(value);
 	}
 
 	double Timer::ConvertValueToMilliseconds(Timer::Value value)
@@ -125,41 +115,15 @@ namespace Common
 		m_tvStartValue = GetCurrentValue();
 	}
 
-	double Timer::GetTimeSeconds() const
-	{
-		return ConvertValueToSeconds(GetCurrentValue() - m_tvStartValue);
-	}
-
 	double Timer::GetTimeMilliseconds() const
 	{
 		return ConvertValueToMilliseconds(GetCurrentValue() - m_tvStartValue);
-	}
-
-	double Timer::GetTimeNanoseconds() const
-	{
-		return ConvertValueToNanoseconds(GetCurrentValue() - m_tvStartValue);
-	}
-
-	double Timer::GetTimeSecondsAndReset()
-	{
-		const Value value = GetCurrentValue();
-		const double ret = ConvertValueToSeconds(value - m_tvStartValue);
-		m_tvStartValue = value;
-		return ret;
 	}
 
 	double Timer::GetTimeMillisecondsAndReset()
 	{
 		const Value value = GetCurrentValue();
 		const double ret = ConvertValueToMilliseconds(value - m_tvStartValue);
-		m_tvStartValue = value;
-		return ret;
-	}
-
-	double Timer::GetTimeNanosecondsAndReset()
-	{
-		const Value value = GetCurrentValue();
-		const double ret = ConvertValueToNanoseconds(value - m_tvStartValue);
 		m_tvStartValue = value;
 		return ret;
 	}
