@@ -27,7 +27,7 @@ enum SymbolType {
 	ST_NONE     = 0,
 	ST_FUNCTION = 1,
 	ST_DATA     = 2,
-	ST_ALL      = 3,
+	ST_ALL      = 3
 };
 
 struct SymbolInfo {
@@ -50,7 +50,11 @@ struct LoadedModuleInfo {
 };
 
 enum DataType {
-	DATATYPE_NONE, DATATYPE_BYTE, DATATYPE_HALFWORD, DATATYPE_WORD, DATATYPE_ASCII
+	DATATYPE_NONE = 0,
+	DATATYPE_BYTE,
+	DATATYPE_HALFWORD,
+	DATATYPE_WORD,
+	DATATYPE_ASCII
 };
 
 class SymbolMap {

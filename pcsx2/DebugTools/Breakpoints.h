@@ -74,10 +74,9 @@ enum MemCheckCondition
 enum MemCheckResult
 {
 	MEMCHECK_IGNORE = 0x00,
-	MEMCHECK_LOG = 0x01,
-	MEMCHECK_BREAK = 0x02,
-
-	MEMCHECK_BOTH = 0x03,
+	MEMCHECK_LOG    = 0x01,
+	MEMCHECK_BREAK  = 0x02,
+	MEMCHECK_BOTH   = 0x03
 };
 
 struct MemCheck

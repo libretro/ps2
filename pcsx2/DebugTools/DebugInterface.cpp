@@ -430,8 +430,9 @@ int R5900DebugInterface::getRegisterSize(int cat)
 		case EECAT_GSPRIV:
 			return 64;
 		default:
-			return 0;
+			break;
 	}
+	return 0;
 }
 
 int R5900DebugInterface::getRegisterCount(int cat)
@@ -450,8 +451,9 @@ int R5900DebugInterface::getRegisterCount(int cat)
 		case EECAT_GSPRIV:
 			return 19;
 		default:
-			return 0;
+			break;
 	}
+	return 0;
 }
 
 DebugInterface::RegisterType R5900DebugInterface::getRegisterType(int cat)
@@ -848,8 +850,9 @@ int R3000DebugInterface::getRegisterSize(int cat)
 		case IOPCAT_GPR:
 			return 32;
 		default:
-			return 0;
+			break;
 	}
+	return 0;
 }
 
 int R3000DebugInterface::getRegisterCount(int cat)
@@ -859,8 +862,9 @@ int R3000DebugInterface::getRegisterCount(int cat)
 		case IOPCAT_GPR:
 			return 35; // 32 + pc + hi + lo
 		default:
-			return 0;
+			break;
 	}
+	return 0;
 }
 
 DebugInterface::RegisterType R3000DebugInterface::getRegisterType(int cat)
@@ -932,8 +936,9 @@ std::string R3000DebugInterface::getRegisterString(int cat, int num)
 		case IOPCAT_GPR:
 			return StringUtil::U128ToString(getRegister(cat, num));
 		default:
-			return "Invalid";
+			break;
 	}
+	return "Invalid";
 }
 
 u128 R3000DebugInterface::getHI()

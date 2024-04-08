@@ -39,20 +39,11 @@
 
 using namespace R5900;
 
-FILE* emuLog;
-std::string emuLogName;
-
 SysTraceLogPack SysTrace;
 SysConsoleLogPack SysConsole;
 
 void SysTraceLog::DoWrite(const char* msg) const
 {
-	if (emuLog == NULL)
-		return;
-
-	fputs(msg, emuLog);
-	fputs("\n", emuLog);
-	fflush(emuLog);
 }
 
 void SysTraceLog_EE::ApplyPrefix(std::string& ascii) const

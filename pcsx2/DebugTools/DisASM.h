@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 
-//DECODE PROCUDURES
+//DECODE PROCEDURES
 
 //cop0
 #define DECODE_FS           (DECODE_RD)

@@ -25,10 +25,6 @@
 #include "DisASM.h"
 #include "R5900OpcodeTables.h"
 
-// Allow to print register content when you print dissassembler info
-// Note only a subset of the opcodes are supported. It is intended as a cheap debugger
-//#define PRINT_REG_CONTENT
-
 // Note: Perf is not important
 static void vssappendf(std::string &dest, const char *format, va_list args)
 {
@@ -761,16 +757,10 @@ const char* signedImmediate(s32 imm, int len = 0)
 const char* disDestSource(int dest, int source)
 {
 	static char buffer[64];
-#ifdef PRINT_REG_CONTENT
-	sprintf(buffer,"%s,%s(0x%8.8x)",GPR_REG[dest],GPR_REG[source], cpuRegs.GPR.r[source].UL[0]);
-#else
 	if (disSimplify && dest == source)
 		sprintf(buffer,"%s",GPR_REG[dest]);
 	else
 		sprintf(buffer,"%s,%s",GPR_REG[dest],GPR_REG[source]);
-
-#endif
-
 	return buffer;
 }
 
@@ -782,21 +772,13 @@ void disBranch(std::string& output, const char* op)
 
 void disBranch(std::string& output, const char* op, int rs)
 {
-#ifdef PRINT_REG_CONTENT
-	ssappendf(output, "%s\t%s(0x%8.8x), ", op, GPR_REG[rs], cpuRegs.GPR.r[rs].UL[0]);
-#else
 	ssappendf(output, "%s\t%s, ", op, GPR_REG[rs]);
-#endif
 	offset_decode(output);
 }
 
 void disBranch(std::string& output, const char* op, int rs, int rt)
 {
-#ifdef PRINT_REG_CONTENT
-	ssappendf(output, "%s\t%s(0x%8.8x), %s(0x%8.8x), ", op, GPR_REG[rs], cpuRegs.GPR.r[rs].UL[0], GPR_REG[rt], cpuRegs.GPR.r[rt].UL[0]);
-#else
 	ssappendf(output, "%s\t%s, %s, ", op, GPR_REG[rs], GPR_REG[rt]);
-#endif
 	offset_decode(output);
 }
 
