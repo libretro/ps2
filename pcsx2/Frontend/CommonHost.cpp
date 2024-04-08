@@ -51,15 +51,6 @@ bool CommonHost::InitializeCriticalFolders()
 	Console.WriteLn("DataRoot Directory: %s", EmuFolders::DataRoot.c_str());
 	Console.WriteLn("Resources Directory: %s", EmuFolders::Resources.c_str());
 
-	if (EmuFolders::Settings.empty())
-	{
-		EmuFolders::Settings = Path::Combine(EmuFolders::DataRoot, "inis");
-
-		// Create settings directory if it doesn't exist. If we're not using portable mode, it won't.
-		if (!FileSystem::DirectoryExists(EmuFolders::Settings.c_str()))
-			FileSystem::CreateDirectoryPath(EmuFolders::Settings.c_str(), false);
-	}
-
 	// the resources directory should exist, bail out if not
 	if (!FileSystem::DirectoryExists(EmuFolders::Resources.c_str()))
 	{

@@ -86,7 +86,6 @@ namespace EmuFolders
 {
 	std::string AppRoot;
 	std::string DataRoot;
-	std::string Settings;
 	std::string Bios;
 	std::string MemoryCards;
 	std::string Cheats;
@@ -1131,7 +1130,6 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 bool EmuFolders::EnsureFoldersExist()
 {
 	bool result = FileSystem::CreateDirectoryPath(Bios.c_str(), false);
-	result = FileSystem::CreateDirectoryPath(Settings.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(MemoryCards.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Cheats.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(CheatsWS.c_str(), false) && result;
