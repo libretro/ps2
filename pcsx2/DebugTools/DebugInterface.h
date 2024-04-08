@@ -91,29 +91,4 @@ public:
 };
 
 
-class R3000DebugInterface : public DebugInterface
-{
-public:
-	u32 read8(u32 address) override;
-	u32 read8(u32 address, bool& valid) override;
-	u32 read16(u32 address) override;
-	u32 read16(u32 address, bool& valid) override;
-	u32 read32(u32 address) override;
-	u32 read32(u32 address, bool& valid) override;
-	u64 read64(u32 address) override;
-	u64 read64(u32 address, bool& valid) override;
-	u128 read128(u32 address) override;
-	void write8(u32 address, u8 value) override;
-	void write32(u32 address, u32 value) override;
-
-	// register stuff
-	u128 getHI() override;
-	u128 getLO() override;
-	u32 getPC() override;
-	bool getCPCOND0() override;
-
-	bool isValidAddress(u32 address) override;
-};
-
 extern R5900DebugInterface r5900Debug;
-extern R3000DebugInterface r3000Debug;
