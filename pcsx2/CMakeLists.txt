@@ -741,7 +741,6 @@ endif()
 list(APPEND pcsx2FrontendSources
 	Frontend/CommonHost.cpp
 	Frontend/HostSettings.cpp
-	Frontend/InputSource.cpp
 	Frontend/LayeredSettingsInterface.cpp
 	Frontend/LogSink.cpp
 	INISettingsInterface.cpp
@@ -749,7 +748,6 @@ list(APPEND pcsx2FrontendSources
 )
 list(APPEND pcsx2FrontendHeaders
 	Frontend/CommonHost.h
-	Frontend/InputSource.h
 	Frontend/LayeredSettingsInterface.h
 	Frontend/LogSink.h
 	HostSettings.h
