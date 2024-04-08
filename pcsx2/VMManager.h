@@ -133,9 +133,6 @@ namespace VMManager
 	/// Returns the ISO override for an ELF via gamesettings.
 	std::string GetDiscOverrideFromGameSettings(const std::string& elf_path);
 
-	/// Returns the path for the input profile ini file with the specified name (may not exist).
-	std::string GetInputProfilePath(const std::string_view& name);
-
 	/// Initializes default configuration in the specified file.
 	void SetDefaultSettings(SettingsInterface& si);
 

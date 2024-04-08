@@ -516,20 +516,6 @@ void PAD::LoadMacroButtonConfig(const SettingsInterface& si, u32 pad, const std:
 	}
 }
 
-std::vector<std::string> PAD::GetInputProfileNames()
-{
-	FileSystem::FindResultsArray results;
-	FileSystem::FindFiles(EmuFolders::InputProfiles.c_str(), "*.ini",
-		FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES | FILESYSTEM_FIND_RELATIVE_PATHS,
-		&results);
-
-	std::vector<std::string> ret;
-	ret.reserve(results.size());
-	for (FILESYSTEM_FIND_DATA& fd : results)
-		ret.emplace_back(Path::GetFileTitle(fd.FileName));
-	return ret;
-}
-
 void PAD::ApplyMacroButton(u32 pad, const MacroButton& mb)
 {
 	const float value = mb.toggle_state ? mb.pressure : 0.0f;

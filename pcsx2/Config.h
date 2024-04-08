@@ -1235,11 +1235,8 @@ namespace EmuFolders
 	extern std::string CheatsNI;
 	extern std::string Resources;
 	extern std::string Cache;
-	extern std::string Covers;
 	extern std::string GameSettings;
 	extern std::string Textures;
-	extern std::string InputProfiles;
-	extern std::string Videos;
 
 	// Assumes that AppRoot and DataRoot have been initialized.
 	void SetDefaults(SettingsInterface& si);

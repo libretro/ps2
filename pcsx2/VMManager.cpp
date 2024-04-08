@@ -99,7 +99,6 @@ namespace VMManager
 static std::unique_ptr<SysMainMemory> s_vm_memory;
 static std::unique_ptr<SysCpuProviderPack> s_cpu_provider_pack;
 static std::unique_ptr<INISettingsInterface> s_game_settings_interface;
-static std::unique_ptr<INISettingsInterface> s_input_settings_interface;
 
 static std::atomic<VMState> s_state{VMState::Shutdown};
 static bool s_cpu_implementation_changed = false;
@@ -356,11 +355,6 @@ std::string VMManager::GetDiscOverrideFromGameSettings(const std::string& elf_pa
 	return iso_path;
 }
 
-std::string VMManager::GetInputProfilePath(const std::string_view& name)
-{
-	return Path::Combine(EmuFolders::InputProfiles, fmt::format("{}.ini", name));
-}
-
 std::string VMManager::GetSerialForGameSettings()
 {
 	// If we're running an ELF, we don't want to use the serial for any ISO override
@@ -412,39 +406,9 @@ bool VMManager::UpdateGameSettingsLayer()
 	Host::Internal::SetGameSettingsLayer(new_interface.get());
 	s_game_settings_interface = std::move(new_interface);
 
-	std::unique_ptr<INISettingsInterface> input_interface;
-	if (!use_game_settings_for_controller)
-	{
-		if (!input_profile_name.empty())
-		{
-			const std::string filename(GetInputProfilePath(input_profile_name));
-			if (FileSystem::FileExists(filename.c_str()))
-			{
-				Console.WriteLn("Loading input profile from '%s'...", filename.c_str());
-				input_interface = std::make_unique<INISettingsInterface>(std::move(filename));
-				if (!input_interface->Load())
-				{
-					Console.Error("Failed to parse input profile ini '%s'", input_interface->GetFileName().c_str());
-					input_interface.reset();
-					input_profile_name = {};
-				}
-			}
-			else
-			{
-				Console.WriteLn("No game settings found (tried '%s')", filename.c_str());
-				input_profile_name = {};
-			}
-		}
+	// using game settings for bindings too
+	Host::Internal::SetInputSettingsLayer(s_game_settings_interface.get());
 
-		Host::Internal::SetInputSettingsLayer(input_interface ? input_interface.get() : Host::Internal::GetBaseSettingsLayer());
-	}
-	else
-	{
-		// using game settings for bindings too
-		Host::Internal::SetInputSettingsLayer(s_game_settings_interface.get());
-	}
-
-	s_input_settings_interface = std::move(input_interface);
 	s_input_profile_name = std::move(input_profile_name);
 	return true;
 }
