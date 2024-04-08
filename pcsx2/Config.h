@@ -605,7 +605,6 @@ struct Pcsx2Config
 					PCRTCOffsets : 1,
 					PCRTCOverscan : 1,
 					IntegerScaling : 1,
-					SyncToHostRefreshRate : 1,
 					UseDebugDevice : 1,
 					UseBlitSwapChain : 1,
 					DisableShaderCache : 1,
@@ -663,7 +662,6 @@ struct Pcsx2Config
 
 		VsyncMode VsyncEnable = VsyncMode::Off;
 
-		float LimitScalar = 1.0f;
 		float FramerateNTSC = DEFAULT_FRAME_RATE_NTSC;
 		float FrameratePAL = DEFAULT_FRAME_RATE_PAL;
 

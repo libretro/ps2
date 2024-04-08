@@ -171,10 +171,7 @@ void VMManager::SetState(VMState state)
 	{
 		const bool paused = (state == VMState::Paused);
 		if (!paused)
-		{
 			PerformanceMetrics::Reset();
-			frameLimitReset();
-		}
 
 		if (state == VMState::Paused)
 			Host::OnVMPaused();
@@ -896,7 +893,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	ForgetLoadedPatches();
 	gsUpdateFrequency(EmuConfig);
-	frameLimitReset();
 	cpuReset();
 
 	Console.WriteLn("VM subsystems initialized in %.2f ms", init_timer.GetTimeMilliseconds());
@@ -1009,7 +1005,6 @@ void VMManager::Reset()
 	SysClearExecutionCache();
 	memBindConditionalHandlers();
 	UpdateVSyncRate(true);
-	frameLimitReset();
 	cpuReset();
 
 	// gameid change, so apply settings
@@ -1132,14 +1127,7 @@ void VMManager::SetPaused(bool paused)
 
 VsyncMode Host::GetEffectiveVSyncMode()
 {
-	const bool has_vm = VMManager::GetState() != VMState::Shutdown;
-
-	// Force vsync off when not running at 100% speed.
-	if (has_vm && EmuConfig.GS.LimitScalar != 1.0f)
-		return VsyncMode::Off;
-
-	// Otherwise use the config setting.
-	return EmuConfig.GS.VsyncEnable;
+	return VsyncMode::Off;
 }
 
 const std::string& VMManager::Internal::GetElfOverride()
@@ -1221,7 +1209,6 @@ void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
 
 	gsUpdateFrequency(EmuConfig);
 	UpdateVSyncRate(true);
-	frameLimitReset();
 	GetMTGS().ApplySettings();
 }
 
@@ -1233,7 +1220,6 @@ void VMManager::CheckForFramerateConfigChanges(const Pcsx2Config& old_config)
 	Console.WriteLn("Updating frame rate configuration");
 	gsUpdateFrequency(EmuConfig);
 	UpdateVSyncRate(true);
-	frameLimitReset();
 }
 
 void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)

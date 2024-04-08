@@ -404,7 +404,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	PCRTCOffsets = false;
 	PCRTCOverscan = false;
 	IntegerScaling = false;
-	SyncToHostRefreshRate = false;
 	UseDebugDevice = false;
 	UseBlitSwapChain = false;
 	DisableShaderCache = false;
@@ -451,7 +450,6 @@ bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
 
 		OpEqu(FrameLimitEnable) &&
 
-		OpEqu(LimitScalar) &&
 		OpEqu(FramerateNTSC) &&
 		OpEqu(FrameratePAL) &&
 
@@ -556,11 +554,9 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntry(FrameLimitEnable);
 	wrap.EnumEntry(CURRENT_SETTINGS_SECTION, "VsyncEnable", VsyncEnable, NULL, VsyncEnable);
 
-	// LimitScalar is set at runtime.
 	SettingsWrapEntry(FramerateNTSC);
 	SettingsWrapEntry(FrameratePAL);
 
-	SettingsWrapBitBool(SyncToHostRefreshRate);
 	SettingsWrapEnumEx(AspectRatio, "AspectRatio", AspectRatioNames);
 	SettingsWrapEnumEx(FMVAspectRatioSwitch, "FMVAspectRatioSwitch", FMVAspectRatioSwitchNames);
 	SettingsWrapEntry(StretchY);
@@ -1274,7 +1270,6 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 
 void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 {
-	GS.LimitScalar = cfg.GS.LimitScalar;
 	UseBOOT2Injection = cfg.UseBOOT2Injection;
 	CurrentBlockdump = std::move(cfg.CurrentBlockdump);
 	CurrentIRX = std::move(cfg.CurrentIRX);

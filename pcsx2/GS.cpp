@@ -45,8 +45,6 @@ void gsReset()
 
 void gsUpdateFrequency(Pcsx2Config& config)
 {
-	config.GS.LimitScalar = 0.0f;
-
 	GetMTGS().UpdateVSyncMode();
 	UpdateVSyncRate(true);
 }
