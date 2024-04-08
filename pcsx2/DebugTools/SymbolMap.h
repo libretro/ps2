@@ -42,13 +42,6 @@ struct SymbolEntry {
 	u32 size;
 };
 
-struct LoadedModuleInfo {
-	std::string name;
-	u32 address;
-	u32 size;
-	bool active;
-};
-
 enum DataType {
 	DATATYPE_NONE = 0,
 	DATATYPE_BYTE,
