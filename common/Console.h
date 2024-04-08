@@ -101,9 +101,6 @@ struct IConsoleWriter
 	// All functions always return false.  Return value is provided only so that we can easily
 	// disable logs at compile time using the "0&&action" macro trick.
 
-	ConsoleColors GetColor() const;
-	const IConsoleWriter& SetColor(ConsoleColors color) const;
-	const IConsoleWriter& ClearColor() const;
 	const IConsoleWriter& SetIndent(int tabcount = 1) const;
 
 	IConsoleWriter Indent(int tabcount = 1) const;
@@ -118,35 +115,6 @@ struct IConsoleWriter
 	bool WriteLn(const std::string& str) const;
 	bool Error(const std::string& str) const;
 	bool Warning(const std::string& str) const;
-};
-
-// --------------------------------------------------------------------------------------
-//  NullConsoleWriter
-// --------------------------------------------------------------------------------------
-// Used by Release builds for Debug and Devel writes (DevCon).  Inlines to NOPs. :)
-//
-struct NullConsoleWriter
-{
-	void WriteRaw(const char* fmt) {}
-	void DoWriteLn(const char* fmt) {}
-	void DoSetColor(ConsoleColors color) {}
-	void DoWriteFromStdout(const char* fmt) {}
-	void Newline() {}
-	void SetTitle(const char* title) {}
-
-
-	ConsoleColors GetColor() const { return Color_Current; }
-	const NullConsoleWriter& SetColor(ConsoleColors color) const { return *this; }
-	const NullConsoleWriter& ClearColor() const { return *this; }
-	const NullConsoleWriter& SetIndent(int tabcount = 1) const { return *this; }
-
-	NullConsoleWriter Indent(int tabcount = 1) const { return NullConsoleWriter(); }
-
-	bool FormatV(const char* fmt, va_list args) const { return false; }
-	bool WriteLn(ConsoleColors color, const char* fmt, ...) const { return false; }
-	bool WriteLn(const char* fmt, ...) const { return false; }
-	bool Error(const char* fmt, ...) const { return false; }
-	bool Warning(const char* fmt, ...) const { return false; }
 };
 
 // --------------------------------------------------------------------------------------
@@ -177,46 +145,4 @@ public:
 	void LeaveScope();
 };
 
-// --------------------------------------------------------------------------------------
-//  ConsoleColorScope
-// --------------------------------------------------------------------------------------
-class ConsoleColorScope
-{
-	DeclareNoncopyableObject(ConsoleColorScope);
-
-protected:
-	ConsoleColors m_newcolor;
-	ConsoleColors m_old_color;
-	bool m_IsScoped;
-
-public:
-	ConsoleColorScope(ConsoleColors newcolor);
-	virtual ~ConsoleColorScope();
-	void EnterScope();
-	void LeaveScope();
-};
-
-// --------------------------------------------------------------------------------------
-//  ConsoleAttrScope
-// --------------------------------------------------------------------------------------
-// Applies both color and tab attributes in a single object constructor.
-//
-class ConsoleAttrScope
-{
-	DeclareNoncopyableObject(ConsoleAttrScope);
-
-protected:
-	ConsoleColors m_old_color;
-	int m_tabsize;
-
-public:
-	ConsoleAttrScope(ConsoleColors newcolor, int indent = 0);
-	virtual ~ConsoleAttrScope();
-};
-
 extern IConsoleWriter Console;
-
-extern const IConsoleWriter ConsoleWriter_Null;
-extern const IConsoleWriter ConsoleWriter_Stdout;
-
-extern NullConsoleWriter NullCon;

@@ -13,29 +13,126 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <libretro.h>
 #include "common/Console.h"
-#include "common/Threading.h"
 #include "common/Assertions.h"
-#include "common/RedtapeWindows.h" // OutputDebugString
 #include "common/StringUtil.h"
-
-using namespace Threading;
 
 // thread-local console indentation setting.
 static thread_local int conlog_Indent(0);
 
-// thread-local console color storage.
-static thread_local ConsoleColors conlog_Color(DefaultConsoleColor);
+extern retro_log_printf_t log_cb;
+static ConsoleColors log_color = Color_Default;
 
 // --------------------------------------------------------------------------------------
-//  ConsoleNull
+//  ConsoleWriter_Libretro
 // --------------------------------------------------------------------------------------
+static void RetroLog_DoSetColor(ConsoleColors color)
+{
+	if (color != Color_Current)
+		log_color = color;
+}
 
-static void ConsoleNull_SetTitle(const char* title) {}
-static void ConsoleNull_DoSetColor(ConsoleColors color) {}
-static void ConsoleNull_Newline() {}
-static void ConsoleNull_DoWrite(const char* fmt) {}
-static void ConsoleNull_DoWriteLn(const char* fmt) {}
+static void RetroLog_DoWrite(const char* fmt)
+{
+	retro_log_level level = RETRO_LOG_INFO;
+	switch (log_color)
+	{
+		case Color_StrongRed: // intended for errors
+			level = RETRO_LOG_ERROR;
+			break;
+		case Color_StrongOrange: // intended for warnings
+			level = RETRO_LOG_WARN;
+			break;
+		case Color_Cyan:   // faint visibility, intended for logging PS2/IOP output
+		case Color_Yellow: // faint visibility, intended for logging PS2/IOP output
+		case Color_White:  // faint visibility, intended for logging PS2/IOP output
+			level = RETRO_LOG_DEBUG;
+			break;
+		default:
+		case Color_Default:
+		case Color_Black:
+		case Color_Green:
+		case Color_Red:
+		case Color_Blue:
+		case Color_Magenta:
+		case Color_Orange:
+		case Color_Gray:
+		case Color_StrongBlack:
+		case Color_StrongGreen: // intended for infrequent state information
+		case Color_StrongBlue:  // intended for block headings
+		case Color_StrongMagenta:
+		case Color_StrongGray:
+		case Color_StrongCyan:
+		case Color_StrongYellow:
+		case Color_StrongWhite:
+			break;
+	}
+
+	log_cb(level, "%s", fmt);
+}
+
+static void RetroLog_SetTitle(const char* title)
+{
+	log_cb(RETRO_LOG_INFO, "%s\n", title);
+}
+
+static void RetroLog_Newline(void)
+{
+	RetroLog_DoWrite("\n");
+}
+
+static void RetroLog_DoWriteLn(const char* fmt)
+{
+	retro_log_level level = RETRO_LOG_INFO;
+	switch (log_color)
+	{
+		case Color_StrongRed: // intended for errors
+			level = RETRO_LOG_ERROR;
+			break;
+		case Color_StrongOrange: // intended for warnings
+			level = RETRO_LOG_WARN;
+			break;
+		case Color_Cyan:   // faint visibility, intended for logging PS2/IOP output
+		case Color_Yellow: // faint visibility, intended for logging PS2/IOP output
+		case Color_White:  // faint visibility, intended for logging PS2/IOP output
+			level = RETRO_LOG_DEBUG;
+			break;
+		default:
+		case Color_Default:
+		case Color_Black:
+		case Color_Green:
+		case Color_Red:
+		case Color_Blue:
+		case Color_Magenta:
+		case Color_Orange:
+		case Color_Gray:
+		case Color_StrongBlack:
+		case Color_StrongGreen: // intended for infrequent state information
+		case Color_StrongBlue:  // intended for block headings
+		case Color_StrongMagenta:
+		case Color_StrongGray:
+		case Color_StrongCyan:
+		case Color_StrongYellow:
+		case Color_StrongWhite:
+			break;
+	}
+
+	log_cb(level, "%s\n", fmt);
+}
+
+static const IConsoleWriter ConsoleWriter_Libretro =
+	{
+		RetroLog_DoWrite,
+		RetroLog_DoWriteLn,
+		RetroLog_DoSetColor,
+
+		RetroLog_DoWrite,
+		RetroLog_Newline,
+		RetroLog_SetTitle,
+
+		0, // instance-level indentation (should always be 0)
+};
 
 // =====================================================================================================
 //  IConsoleWriter  (implementations)
@@ -87,37 +184,6 @@ IConsoleWriter IConsoleWriter::Indent(int tabcount) const
 	return retval;
 }
 
-// Changes the active console color.
-// This color will be unset by calls to colored text methods
-// such as ErrorMsg and Notice.
-const IConsoleWriter& IConsoleWriter::SetColor(ConsoleColors color) const
-{
-	// Ignore current color requests since, well, the current color is already set. ;)
-	if (color == Color_Current)
-		return *this;
-
-	pxAssertMsg((color > Color_Current) && (color < ConsoleColors_Count), "Invalid ConsoleColor specified.");
-
-	if (conlog_Color != color)
-		DoSetColor(conlog_Color = color);
-
-	return *this;
-}
-
-ConsoleColors IConsoleWriter::GetColor() const
-{
-	return conlog_Color;
-}
-
-// Restores the console color to default (usually black, or low-intensity white if the console uses a black background)
-const IConsoleWriter& IConsoleWriter::ClearColor() const
-{
-	if (conlog_Color != DefaultConsoleColor)
-		DoSetColor(conlog_Color = DefaultConsoleColor);
-
-	return *this;
-}
-
 // --------------------------------------------------------------------------------------
 //  ASCII/UTF8 (char*)
 // --------------------------------------------------------------------------------------
@@ -147,7 +213,6 @@ bool IConsoleWriter::WriteLn(ConsoleColors color, const char* fmt, ...) const
 {
 	va_list args;
 	va_start(args, fmt);
-	ConsoleColorScope cs(color);
 	FormatV(fmt, args);
 	va_end(args);
 
@@ -158,7 +223,6 @@ bool IConsoleWriter::Error(const char* fmt, ...) const
 {
 	va_list args;
 	va_start(args, fmt);
-	ConsoleColorScope cs(Color_StrongRed);
 	FormatV(fmt, args);
 	va_end(args);
 
@@ -169,7 +233,6 @@ bool IConsoleWriter::Warning(const char* fmt, ...) const
 {
 	va_list args;
 	va_start(args, fmt);
-	ConsoleColorScope cs(Color_StrongOrange);
 	FormatV(fmt, args);
 	va_end(args);
 
@@ -178,7 +241,6 @@ bool IConsoleWriter::Warning(const char* fmt, ...) const
 
 bool IConsoleWriter::WriteLn(ConsoleColors color, const std::string& str) const
 {
-	ConsoleColorScope cs(color);
 	return WriteLn(str);
 }
 
@@ -204,35 +266,8 @@ bool IConsoleWriter::Warning(const std::string& str) const
 }
 
 // --------------------------------------------------------------------------------------
-//  ConsoleColorScope / ConsoleIndentScope
+//  ConsoleIndentScope
 // --------------------------------------------------------------------------------------
-
-ConsoleColorScope::ConsoleColorScope(ConsoleColors newcolor)
-{
-	m_IsScoped = false;
-	m_newcolor = newcolor;
-	EnterScope();
-}
-
-ConsoleColorScope::~ConsoleColorScope()
-{
-	LeaveScope();
-}
-
-void ConsoleColorScope::EnterScope()
-{
-	if (!m_IsScoped)
-	{
-		m_old_color = Console.GetColor();
-		Console.SetColor(m_newcolor);
-		m_IsScoped = true;
-	}
-}
-
-void ConsoleColorScope::LeaveScope()
-{
-	m_IsScoped = m_IsScoped && (Console.SetColor(m_old_color), false);
-}
 
 ConsoleIndentScope::ConsoleIndentScope(int tabs)
 {
@@ -257,17 +292,5 @@ void ConsoleIndentScope::LeaveScope()
 }
 
 
-ConsoleAttrScope::ConsoleAttrScope(ConsoleColors newcolor, int indent)
-{
-	m_old_color = Console.GetColor();
-	Console.SetIndent(m_tabsize = indent);
-	Console.SetColor(newcolor);
-}
-
-ConsoleAttrScope::~ConsoleAttrScope()
-{
-	Console.SetColor(m_old_color);
-	Console.SetIndent(-m_tabsize);
-}
-
-NullConsoleWriter NullCon = {};
+IConsoleWriter Console = ConsoleWriter_Libretro;
+const IConsoleWriter* PatchesCon = &ConsoleWriter_Libretro;
