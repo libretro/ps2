@@ -216,13 +216,7 @@ public:
 
 extern IConsoleWriter Console;
 
-#if defined(__POSIX__)
-extern void Console_SetStdout(FILE* fp);
-#endif
-extern void Console_SetActiveHandler(const IConsoleWriter& writer, FILE* flushfp = NULL);
-
 extern const IConsoleWriter ConsoleWriter_Null;
 extern const IConsoleWriter ConsoleWriter_Stdout;
-extern const IConsoleWriter ConsoleWriter_Assert;
 
 extern NullConsoleWriter NullCon;

@@ -27,67 +27,6 @@ static thread_local int conlog_Indent(0);
 // thread-local console color storage.
 static thread_local ConsoleColors conlog_Color(DefaultConsoleColor);
 
-#ifdef __POSIX__
-#include <unistd.h>
-
-static FILE* stdout_fp = stdout;
-
-static bool checkSupportsColor()
-{
-	if (!isatty(fileno(stdout_fp)))
-		return false;
-	char* term = getenv("TERM");
-	if (!term || (0 == strcmp(term, "dumb")))
-		return false;
-	return true; // Probably supports color
-}
-
-static bool supports_color = checkSupportsColor();
-
-void Console_SetStdout(FILE* fp)
-{
-	stdout_fp = fp;
-}
-#endif
-
-// This function re-assigns the console log writer(s) to the specified target.  It makes sure
-// to flush any contents from the buffered console log (which typically accumulates due to
-// log suspension during log file/window re-init operations) into the new log.
-//
-// Important!  Only Assert and Null console loggers are allowed during C++ startup init (when
-// the program or DLL first loads).  Other log targets rely on the static buffer and a
-// threaded mutex lock, which are only valid after C++ initialization has finished.
-void Console_SetActiveHandler(const IConsoleWriter& writer, FILE* flushfp)
-{
-	pxAssertDev(
-		(writer.WriteRaw != NULL) && (writer.DoWriteLn != NULL) &&
-			(writer.Newline != NULL) && (writer.SetTitle != NULL) &&
-			(writer.DoSetColor != NULL),
-		"Invalid IConsoleWriter object!  All function pointer interfaces must be implemented.");
-
-	Console = writer;
-}
-
-// Writes text to the Visual Studio Output window (Microsoft Windows only).
-// On all other platforms this pipes to Stdout instead.
-static void MSW_OutputDebugString(const char* text)
-{
-#ifdef _WIN32
-	static bool hasDebugger = IsDebuggerPresent();
-	if (hasDebugger)
-		OutputDebugStringA(text);
-	else
-	{
-		printf(text);
-		fflush(stdout);
-	}
-#else
-	fputs(text, stdout_fp);
-	fflush(stdout_fp);
-#endif
-}
-
-
 // --------------------------------------------------------------------------------------
 //  ConsoleNull
 // --------------------------------------------------------------------------------------
@@ -97,159 +36,6 @@ static void ConsoleNull_DoSetColor(ConsoleColors color) {}
 static void ConsoleNull_Newline() {}
 static void ConsoleNull_DoWrite(const char* fmt) {}
 static void ConsoleNull_DoWriteLn(const char* fmt) {}
-
-const IConsoleWriter ConsoleWriter_Null =
-	{
-		ConsoleNull_DoWrite,
-		ConsoleNull_DoWriteLn,
-		ConsoleNull_DoSetColor,
-
-		ConsoleNull_DoWrite,
-		ConsoleNull_Newline,
-		ConsoleNull_SetTitle,
-
-		0, // instance-level indentation (should always be 0)
-};
-
-// --------------------------------------------------------------------------------------
-//  Console_Stdout
-// --------------------------------------------------------------------------------------
-
-#if defined(__POSIX__)
-static __fi const char* GetLinuxConsoleColor(ConsoleColors color)
-{
-	switch (color)
-	{
-		case Color_Black:
-		case Color_StrongBlack:
-			return "\033[30m\033[1m";
-
-		case Color_Red:
-			return "\033[31m";
-		case Color_StrongRed:
-			return "\033[31m\033[1m";
-
-		case Color_Green:
-			return "\033[32m";
-		case Color_StrongGreen:
-			return "\033[32m\033[1m";
-
-		case Color_Yellow:
-			return "\033[33m";
-		case Color_StrongYellow:
-			return "\033[33m\033[1m";
-
-		case Color_Blue:
-			return "\033[34m";
-		case Color_StrongBlue:
-			return "\033[34m\033[1m";
-
-		// No orange, so use magenta.
-		case Color_Orange:
-		case Color_Magenta:
-			return "\033[35m";
-		case Color_StrongOrange:
-		case Color_StrongMagenta:
-			return "\033[35m\033[1m";
-
-		case Color_Cyan:
-			return "\033[36m";
-		case Color_StrongCyan:
-			return "\033[36m\033[1m";
-
-		// Use 'white' instead of grey.
-		case Color_Gray:
-		case Color_White:
-			return "\033[37m";
-		case Color_StrongGray:
-		case Color_StrongWhite:
-			return "\033[37m\033[1m";
-
-		// On some other value being passed, clear any formatting.
-		case Color_Default:
-		default:
-			return "\033[0m";
-	}
-}
-#endif
-
-// One possible default write action at startup and shutdown is to use the stdout.
-static void ConsoleStdout_DoWrite(const char* fmt)
-{
-	MSW_OutputDebugString(fmt);
-}
-
-// Default write action at startup and shutdown is to use the stdout.
-static void ConsoleStdout_DoWriteLn(const char* fmt)
-{
-	MSW_OutputDebugString(fmt);
-	MSW_OutputDebugString("\n");
-}
-
-static void ConsoleStdout_Newline()
-{
-	MSW_OutputDebugString("\n");
-}
-
-static void ConsoleStdout_DoSetColor(ConsoleColors color)
-{
-#if defined(__POSIX__)
-	if (!supports_color)
-		return;
-	fprintf(stdout_fp, "\033[0m%s", GetLinuxConsoleColor(color));
-	fflush(stdout_fp);
-#endif
-}
-
-static void ConsoleStdout_SetTitle(const char* title)
-{
-#if defined(__POSIX__)
-	if (supports_color)
-		fputs("\033]0;", stdout_fp);
-	fputs(title, stdout_fp);
-	if (supports_color)
-		fputs("\007", stdout_fp);
-#endif
-}
-
-const IConsoleWriter ConsoleWriter_Stdout =
-	{
-		ConsoleStdout_DoWrite, // Writes without newlines go to buffer to avoid error log spam.
-		ConsoleStdout_DoWriteLn,
-		ConsoleStdout_DoSetColor,
-
-		ConsoleNull_DoWrite, // writes from re-piped stdout are ignored here, lest we create infinite loop hell >_<
-		ConsoleStdout_Newline,
-		ConsoleStdout_SetTitle,
-		0, // instance-level indentation (should always be 0)
-};
-
-// --------------------------------------------------------------------------------------
-//  ConsoleAssert
-// --------------------------------------------------------------------------------------
-
-static void ConsoleAssert_DoWrite(const char* fmt)
-{
-	pxFailRel("Console class has not been initialized");
-}
-
-static void ConsoleAssert_DoWriteLn(const char* fmt)
-{
-	pxFailRel("Console class has not been initialized");
-}
-
-const IConsoleWriter ConsoleWriter_Assert =
-	{
-		ConsoleAssert_DoWrite,
-		ConsoleAssert_DoWriteLn,
-		ConsoleNull_DoSetColor,
-
-		ConsoleNull_DoWrite,
-		ConsoleNull_Newline,
-		ConsoleNull_SetTitle,
-
-		0, // instance-level indentation (should always be 0)
-};
 
 // =====================================================================================================
 //  IConsoleWriter  (implementations)
@@ -340,13 +126,9 @@ bool IConsoleWriter::FormatV(const char* fmt, va_list args) const
 {
 	// TODO: Make this less rubbish
 	if ((_imm_indentation + conlog_Indent) > 0)
-	{
 		DoWriteLn(_addIndentation(StringUtil::StdStringFromFormatV(fmt, args), conlog_Indent).c_str());
-	}
 	else
-	{
 		DoWriteLn(StringUtil::StdStringFromFormatV(fmt, args).c_str());
-	}
 
 	return false;
 }
@@ -404,13 +186,9 @@ bool IConsoleWriter::WriteLn(const std::string& str) const
 {
 	// TODO: Make this less rubbish
 	if ((_imm_indentation + conlog_Indent) > 0)
-	{
 		DoWriteLn(_addIndentation(str, conlog_Indent).c_str());
-	}
 	else
-	{
 		DoWriteLn(str.c_str());
-	}
 
 	return false;
 }
@@ -491,19 +269,5 @@ ConsoleAttrScope::~ConsoleAttrScope()
 	Console.SetColor(m_old_color);
 	Console.SetIndent(-m_tabsize);
 }
-
-
-// --------------------------------------------------------------------------------------
-//  Default Writer for C++ init / startup:
-// --------------------------------------------------------------------------------------
-// Currently all build types default to Stdout, which is very functional on Linux but not
-// always so useful on Windows (which itself lacks a proper stdout console without using
-// platform specific code).  Under windows Stdout will attempt to write to the IDE Debug
-// console, if one is available (such as running pcsx2 via MSVC).  If not available, then
-// the log message will pretty much be lost into the ether.
-//
-#define _DefaultWriter_ ConsoleWriter_Stdout
-
-IConsoleWriter Console = _DefaultWriter_;
 
 NullConsoleWriter NullCon = {};

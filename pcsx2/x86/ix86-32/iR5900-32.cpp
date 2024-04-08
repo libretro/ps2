@@ -1639,9 +1639,6 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 
 				xADD(ptr16[&manual_page[inpage_ptr >> 12]], size);
 				xJC(DispatchPageReset);
-
-				// note: clearcnt is measured per-page, not per-block!
-				ConsoleColorScope cs(Color_Gray);
 			}
 			break;
 	}
