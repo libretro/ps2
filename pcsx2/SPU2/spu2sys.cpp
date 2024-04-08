@@ -63,11 +63,6 @@ void SetIrqCallDMA(int core)
 
 __forceinline s16* GetMemPtr(u32 addr)
 {
-#ifndef DEBUG_FAST
-	// In case you're wondering, this assert is the reason SPU2
-	// runs so incrediously slow in Debug mode. :P
-	pxAssume(addr < 0x100000);
-#endif
 	return (_spu2mem + addr);
 }
 
@@ -297,10 +292,7 @@ __forceinline bool StartQueuedVoice(uint coreidx, uint voiceidx)
 		return false;
 
 	if (vc.StartA & 7)
-	{
-		fprintf(stderr, " *** Misaligned StartA %05x!\n", vc.StartA);
 		vc.StartA = (vc.StartA + 0xFFFF8) + 0x8;
-	}
 
 	vc.ADSR.Releasing = false;
 	vc.ADSR.Value = 1;
@@ -1450,7 +1442,6 @@ static void RegWrite_CoreExt(u16 value)
 			{
 				thisvol.Mode = (value & 0xF000) >> 12;
 				thisvol.Increment = (value & 0x7F);
-				//printf("slides Mode = %x, Increment = %x\n",thisvol.Mode,thisvol.Increment);
 			}
 			else
 			{

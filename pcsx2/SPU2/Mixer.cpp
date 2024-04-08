@@ -386,15 +386,8 @@ static __forceinline void spu2M_WriteFast(u32 addr, s16 value)
 	for (int i = 0; i < 2; i++)
 	{
 		if (Cores[i].IRQEnable && Cores[i].IRQA == addr)
-		{
-			//printf("Core %d special write IRQ Called (IRQ passed). IRQA = %x\n",i,addr);
 			SetIrqCall(i);
-		}
 	}
-// throw an assertion if the memory range is invalid:
-#ifndef DEBUG_FAST
-	pxAssume(addr < SPU2_DYN_MEMLINE);
-#endif
 	*GetMemPtr(addr) = value;
 }
 
@@ -404,7 +397,7 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 	V_Core& thiscore(Cores[coreidx]);
 	V_Voice& vc(thiscore.Voices[voiceidx]);
 
-	// If this assertion fails, it mans SCurrent is being corrupted somewhere, or is not initialized
+	// If this assertion fails, it means SCurrent is being corrupted somewhere, or is not initialized
 	// properly.  Invalid values in SCurrent will cause errant IRQs and corrupted audio.
 	pxAssertMsg((vc.SCurrent <= 28) && (vc.SCurrent != 0), "Current sample should always range from 1->28");
 
@@ -550,11 +543,8 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	return TD + ApplyVolume(RV, FxVol);
 }
 
-// used to throttle the output rate of cache stat reports
-static int p_cachestat_counter = 0;
-
 // Gcc does not want to inline it when lto is enabled because some functions growth too much.
-// The function is big enought to see any speed impact. -- Gregory
+// The function is big enough to see any speed impact. -- Gregory
 #ifndef __POSIX__
 __forceinline
 #endif
@@ -583,9 +573,7 @@ __forceinline
 	if ((PlayMode & 4) || (Cores[0].Mute != 0))
 		Ext = StereoOut32(0, 0);
 	else
-	{
 		Ext = clamp_mix(ApplyVolume(Ext, Cores[0].MasterVol));
-	}
 
 	// Commit Core 0 output to ram before mixing Core 1:
 	spu2M_WriteFast(0x800 + OutPos, Ext.Left);
@@ -607,14 +595,6 @@ __forceinline
 		Out.Right = MulShr32(Out.Right, Cores[1].MasterVol.Right.Value);
 	}
 
-	// Final Clamp!
-	// Like any good audio system, the PS2 pumps the volume and incurs some distortion in its
-	// output, giving us a nice thumpy sound at times.  So we add 1 above (2x volume pump) and
-	// then clamp it all here.
-
-	// Edit: I'm sorry Jake, but I know of no good audio system that arbitrary distorts and clips
-	// output by design.
-	// Good thing though that this code gets the volume exactly right, as per tests :)
 	Out = clamp_mix(Out);
 
 	SndBuffer::Write(StereoOut16(Out));

@@ -34,24 +34,11 @@ void Close();
 /// Reset, rebooting VM or going into PSX mode.
 void Reset(bool psxmode);
 
-/// Directly updates the output volume without going through the configuration.
-void SetOutputVolume(s32 volume);
-
-/// Pauses/resumes the output stream.
-void SetOutputPaused(bool paused);
-
-/// Adjusts the premultiplier on the output sample rate. Used for syncing to host refresh rate.
-void SetDeviceSampleRateMultiplier(double multiplier);
-
 /// Returns true if we're currently running in PSX mode.
 bool IsRunningPSXMode();
 
 /// Returns the current sample rate the SPU2 is operating at.
 s32 GetConsoleSampleRate();
-
-/// Tells SPU2 to forward audio packets to GSCapture.
-void SetAudioCaptureActive(bool active);
-bool IsAudioCaptureActive();
 } // namespace SPU2
 
 void SPU2write(u32 mem, u16 value);

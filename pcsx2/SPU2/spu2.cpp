@@ -136,15 +136,6 @@ void SPU2::Reset(bool psxmode)
 	UpdateSampleRate();
 }
 
-void SPU2::SetDeviceSampleRateMultiplier(double multiplier)
-{
-	if (s_device_sample_rate_multiplier == multiplier)
-		return;
-
-	s_device_sample_rate_multiplier = multiplier;
-	UpdateSampleRate();
-}
-
 bool SPU2::Initialize()
 {
 	pxAssert(regtable[0x400] == nullptr);
@@ -161,10 +152,7 @@ bool SPU2::Initialize()
 	pcm_cache_data = (PcmCacheEntry*)calloc(pcm_BlockCount, sizeof(PcmCacheEntry));
 
 	if (!spu2regs || !_spu2mem || !pcm_cache_data)
-	{
-		Console.Error("SPU2: Error allocating Memory");
 		return false;
-	}
 
 	// Patch up a copy of regtable that directly maps "nullptrs" to SPU2 memory.
 
@@ -174,9 +162,7 @@ bool SPU2::Initialize()
 	{
 		u16* ptr = regtable[mem >> 1];
 		if (!ptr)
-		{
 			regtable[mem >> 1] = &(spu2Ru16(mem));
-		}
 	}
 
 	InitADSR();
@@ -233,9 +219,7 @@ u16 SPU2read(u32 rmem)
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA == Cores[core].ActiveTSA))
-			{
 				SetIrqCall(i);
-			}
 		}
 		ret = Cores[core].DmaRead();
 	}
@@ -272,10 +256,7 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 {
 	pxAssume(data != nullptr);
 	if (!data)
-	{
-		printf("SPU2 savestate null pointer!\n");
 		return -1;
-	}
 
 	if (mode == FreezeAction::Size)
 	{
@@ -286,10 +267,7 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 	pxAssume(mode == FreezeAction::Load || mode == FreezeAction::Save);
 
 	if (data->data == nullptr)
-	{
-		printf("SPU2 savestate null pointer!\n");
 		return -1;
-	}
 
 	auto& spud = (SPU2Savestate::DataBlock&)*(data->data);
 
