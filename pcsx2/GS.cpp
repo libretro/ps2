@@ -63,12 +63,6 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		GetMTGS().SendSimplePacket(GS_RINGTYPE_RESET, 0, 0, 0);
 	}
 
-	if(csr.FLUSH)
-	{
-		// Our emulated GS has no FIFO, but if it did, it would flush it here...
-		//Console.WriteLn("GS_CSR FLUSH GS fifo: %x (CSRr=%x)", value, GSCSRr);
-	}
-
 	if(csr.SIGNAL)
 	{
 		// SIGNAL : What's not known here is whether or not the SIGID register should be updated
@@ -305,14 +299,12 @@ __fi u128 gsNonMirroredRead(u32 mem)
 	return *(u128*)PS2GS_BASE(mem);
 }
 
-void gsIrq() {
-	hwIntcIrq(INTC_GS);
-}
+void gsIrq(void) { hwIntcIrq(INTC_GS); }
 
 //These are done at VSync Start.  Drawing is done when VSync is off, then output the screen when Vsync is on
 //The GS needs to be told at the start of a vsync else it loses half of its picture (could be responsible for some halfscreen issues)
 //We got away with it before i think due to our awful GS timing, but now we have it right (ish)
-void gsPostVsyncStart()
+void gsPostVsyncStart(void)
 {
 	//gifUnit.FlushToMTGS();  // Needed for some (broken?) homebrew game loaders
 

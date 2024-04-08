@@ -36,13 +36,11 @@
 #include "PAD/Host/PAD.h"
 #include "VMManager.h"
 
-using namespace Threading;
-
 extern u8 psxhblankgate;
 static const uint EECNT_FUTURE_TARGET = 0x10000000;
 static int gates = 0;
 
-uint g_FrameCount = 0;
+static uint g_FrameCount = 0;
 
 // Counter 4 takes care of scanlines - hSync/hBlanks
 // Counter 5 takes care of vSync/vBlanks
@@ -411,12 +409,6 @@ void UpdateVSyncRate(bool force)
 
 		vSyncInfoCalc(&vSyncInfo, frames_per_second, total_scanlines);
 
-		if (video_mode_initialized)
-			Console.WriteLn(Color_Green, "(UpdateVSyncRate) Mode Changed to %s.", ReportVideoMode());
-
-		if (custom && video_mode_initialized)
-			Console.Indent().WriteLn(Color_StrongGreen, "... with user configured refresh rate: %.02f Hz", vertical_frequency);
-
 		hsyncCounter.CycleT = vSyncInfo.hRender; // Amount of cycles before the counter will be updated
 		vsyncCounter.CycleT = vSyncInfo.Render;  // Amount of cycles before the counter will be updated
 		hsyncCounter.sCycle = cpuRegs.cycle;
@@ -509,9 +501,6 @@ static __fi void VSyncStart(u32 sCycle)
 	gsPostVsyncStart();
 	VSyncCheckExit();
 
-	if(EmuConfig.Trace.Enabled && EmuConfig.Trace.EE.m_EnableAll)
-		SysTrace.EE.Counters.Write( "    ================  EE COUNTER VSYNC START (frame: %d)  ================", g_FrameCount );
-
 	hwIntcIrq(INTC_VBLANK_S);
 	psxVBlankStart();
 
@@ -560,9 +549,6 @@ static __fi void GSVSync()
 
 static __fi void VSyncEnd(u32 sCycle)
 {
-	if(EmuConfig.Trace.Enabled && EmuConfig.Trace.EE.m_EnableAll)
-		SysTrace.EE.Counters.Write( "    ================  EE COUNTER VSYNC END (frame: %d)  ================", g_FrameCount );
-
 	g_FrameCount++;
 
 	hwIntcIrq(INTC_VBLANK_E);  // HW Irq

@@ -51,13 +51,6 @@ struct freezeData
 	u8* data;
 };
 
-struct SaveStateScreenshotData
-{
-	u32 width;
-	u32 height;
-	std::vector<u32> pixels;
-};
-
 class ArchiveEntryList;
 
 // --------------------------------------------------------------------------------------
@@ -205,13 +198,6 @@ protected:
 	void sio2Freeze();
 
 	void deci2Freeze();
-
-	// Save or load PCSX2's global frame counter (g_FrameCount) along with each savestate
-	//
-	// This is to prevent any inaccuracy issues caused by having a different
-	// internal emulation frame count than what it was at the beginning of the
-	// original recording
-	void InputRecordingFreeze();
 };
 
 // --------------------------------------------------------------------------------------

@@ -221,7 +221,7 @@ bool DebugInterface::m_pause_on_entry = false;
 
 bool DebugInterface::isAlive()
 {
-	return VMManager::HasValidVM() && g_FrameCount > 0;
+	return VMManager::HasValidVM();
 }
 
 bool DebugInterface::isCpuPaused()
