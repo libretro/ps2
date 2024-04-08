@@ -113,11 +113,3 @@ void SafeArray<T>::ExactAlloc(int newsize)
 
 	m_size = newsize;
 }
-
-template <typename T>
-SafeArray<T>* SafeArray<T>::Clone() const
-{
-	SafeArray<T>* retval = new SafeArray<T>(m_size);
-	memcpy(retval->GetPtr(), m_ptr, sizeof(T) * m_size);
-	return retval;
-}

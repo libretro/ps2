@@ -168,18 +168,14 @@ DataType vtlb_memRead(u32 addr)
 				{
 					case 8:
 						return readCache8(addr);
-						break;
 					case 16:
 						return readCache16(addr);
-						break;
 					case 32:
 						return readCache32(addr);
-						break;
 					case 64:
 						return readCache64(addr);
+					default:
 						break;
-
-						jNO_DEFAULT;
 				}
 			}
 		}
@@ -202,8 +198,8 @@ DataType vtlb_memRead(u32 addr)
 			return vmv.assumeHandler<32, false>()(paddr);
 		case 64:
 			return vmv.assumeHandler<64, false>()(paddr);
-
-			jNO_DEFAULT;
+		default:
+			break;
 	}
 
 	return 0; // technically unreachable, but suppresses warnings.

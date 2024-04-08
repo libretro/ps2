@@ -31,7 +31,6 @@ target_sources(common PRIVATE
 	ThreadPool.cpp
 	WindowInfo.cpp
 	emitter/avx.cpp
-	emitter/bmi.cpp
 	emitter/cpudetect.cpp
 	emitter/fpu.cpp
 	emitter/groups.cpp

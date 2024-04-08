@@ -136,12 +136,6 @@ void pxOnAssertFail(const char* file, int line, const char* func, const char* ms
 //  BaseException  (implementations)
 // --------------------------------------------------------------------------------------
 
-BaseException& BaseException::SetBothMsgs(const char* msg_diag)
-{
-	m_message_user = msg_diag ? std::string(msg_diag) : std::string();
-	return SetDiagMsg(msg_diag);
-}
-
 BaseException& BaseException::SetDiagMsg(std::string msg_diag)
 {
 	m_message_diag = std::move(msg_diag);

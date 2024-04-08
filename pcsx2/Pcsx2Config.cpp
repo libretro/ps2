@@ -144,7 +144,8 @@ void Pcsx2Config::SpeedhackOptions::Set(SpeedhackId id, bool enabled)
 		case Speedhack_MTVU:
 			vuThread = enabled;
 			break;
-        jNO_DEFAULT;
+		default:
+			break;
 	}
 }
 
@@ -996,7 +997,8 @@ void Pcsx2Config::GamefixOptions::Set(GamefixId id, bool enabled)
 		case Fix_VUOverflow:          VUOverflowHack          = enabled; break;
 		case Fix_BlitInternalFPS:     BlitInternalFPSHack     = enabled; break;
 		case Fix_FullVU0Sync:         FullVU0SyncHack         = enabled; break;
-		jNO_DEFAULT;
+		default:
+					      break;
 	}
 }
 
@@ -1024,7 +1026,8 @@ bool Pcsx2Config::GamefixOptions::Get(GamefixId id) const
 		case Fix_VUOverflow:          return VUOverflowHack;
 		case Fix_BlitInternalFPS:     return BlitInternalFPSHack;
 		case Fix_FullVU0Sync:         return FullVU0SyncHack;
-		jNO_DEFAULT;
+		default:
+					      break;
 	}
 	return false; // unreachable, but we still need to suppress warnings >_<
 }

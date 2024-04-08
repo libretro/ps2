@@ -246,8 +246,8 @@ static void rpsxLogicalOpI(u64 info, int op)
 			case 2:
 				xXOR(xRegister32(EEREC_T), _ImmU_);
 				break;
-
-				jNO_DEFAULT
+			default:
+				break;
 		}
 	}
 	else
@@ -1110,8 +1110,8 @@ static void rpsxLoad(int size, bool sign)
 		case 32:
 			xFastCall((void*)iopMemRead32);
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 	}
 
 	if (_Rt_ == 0)
@@ -1139,8 +1139,8 @@ static void rpsxLoad(int size, bool sign)
 		case 32:
 			xMOV(eax, ptr32[addr]);
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 	}
 
 	done.SetTarget();
@@ -1160,7 +1160,8 @@ static void rpsxLoad(int size, bool sign)
 		case 32:
 			xMOV(dreg, eax);
 			break;
-			jNO_DEFAULT
+		default:
+			break;
 	}
 
 	// if not caching, write back
@@ -2295,8 +2296,8 @@ void rpsxpropREGIMM(EEINST* prev, EEINST* pinst)
 			// do not write 31
 			rpsxpropSetRead(_Rs_);
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 	}
 }
 
@@ -2319,8 +2320,8 @@ void rpsxpropCP0(EEINST* prev, EEINST* pinst)
 			break;
 		case 16: // rfe
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 	}
 }
 

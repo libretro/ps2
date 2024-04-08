@@ -118,10 +118,6 @@ namespace x86Emitter
 		xSETS, xSETNS,
 		xSETPE, xSETPO;
 
-	// ------------------------------------------------------------------------
-	// BMI extra instruction requires BMI1/BMI2
-	extern const xImplBMI_RVM xMULX, xPDEP, xPEXT, xANDN_S; // Warning xANDN is already used by SSE
-
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Miscellaneous Instructions
 	// These are all defined inline or in ix86.cpp.

@@ -93,8 +93,8 @@ u32 IsoFile::seek(s64 offset, int mode)
 		case SEEK_END:
 			// truncate negative values to zero, and positive values to 4gb
 			return seek(std::min(std::max<s64>(0, (s64)fileEntry.size + offset), (s64)ULONG_MAX));
-
-			jNO_DEFAULT;
+		default:
+			break;
 	}
 
 	return 0; // unreachable

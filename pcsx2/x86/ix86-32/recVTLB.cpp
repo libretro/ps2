@@ -175,8 +175,8 @@ namespace vtlb_private
 			case 128:
 				xMOVAPS(xmm0, ptr128[arg1reg]);
 				break;
-
-			jNO_DEFAULT
+			default:
+				break;
 		}
 	}
 
@@ -252,7 +252,8 @@ static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits
 		case  32: szidx = 2; break;
 		case  64: szidx = 3; break;
 		case 128: szidx = 4; break;
-		jNO_DEFAULT;
+		default:
+			  break;
 	}
 	xForwardJS8 to_handler;
 	gen_direct();
@@ -415,8 +416,8 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 		case 64:
 			xMOV(x86reg, ptr64[RFASTMEMBASE + x86addr]);
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 		}
 	}
 	else
@@ -653,8 +654,8 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 		case 64:
 			xMOV(ptr64[RFASTMEMBASE + vaddr_reg], xRegister64(value_reg));
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 		}
 	}
 	else
@@ -668,8 +669,8 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 		case 128:
 			xMOVAPS(ptr128[RFASTMEMBASE + vaddr_reg], xRegisterSSE(value_reg));
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 		}
 	}
 
@@ -713,8 +714,8 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 				case 64:
 					xMOV(ptr64[(void*)ppf], xRegister64(value_reg));
 					break;
-
-					jNO_DEFAULT
+				default:
+					break;
 			}
 		}
 		else
@@ -728,8 +729,8 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 				case 128:
 					xMOVAPS(ptr128[(void*)ppf], xRegisterSSE(value_reg));
 					break;
-
-					jNO_DEFAULT
+				default:
+					break;
 			}
 		}
 	}

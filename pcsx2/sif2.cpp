@@ -33,14 +33,6 @@ static __fi void Sif2Init(void)
 	sif2.iop.cycles = 0;
 }
 
-__fi bool WriteFifoSingleWord(void)
-{
-	// There's some data ready to transfer into the fifo..
-	sif2.fifo.write((u32*)&psxHu32(HW_PS1_GPU_DATA), 1);
-	if (sif2.fifo.size > 0) psxHu32(0x1000f300) &= ~0x4000000;
-	return true;
-}
-
 __fi bool ReadFifoSingleWord(void)
 {
 	u32 ptag[4];
@@ -61,9 +53,6 @@ static __fi bool WriteFifoToEE(void)
 		return false;
 
 	sif2.fifo.read((u32*)ptag, readSize << 2);
-
-	// Clearing handled by vtlb memory protection and manual blocks.
-	//Cpu->Clear(sif2dma.madr, readSize*4);
 
 	sif2dma.madr += readSize << 4;
 	sif2.ee.cycles += readSize;	// fixme : BIAS is factored in above
@@ -91,7 +80,7 @@ static __fi bool WriteIOPtoFifo(void)
 }
 
 // Read Fifo into an ee tag, transfer it to sif2dma, and process it.
-static __fi bool ProcessEETag()
+static __fi bool ProcessEETag(void)
 {
 	alignas(16) static u32 tag[4];
 	tDMA_TAG& ptag(*(tDMA_TAG*)tag);

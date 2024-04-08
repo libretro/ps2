@@ -1100,8 +1100,8 @@ __ri static bool mpeg2sliceIDEC()
 						return false;
 					}
 					break;
-
-				jNO_DEFAULT;
+				default:
+					break;
 				}
 
 				// Send The MacroBlock via DmaIpuFrom
@@ -1195,8 +1195,8 @@ __ri static bool mpeg2sliceIDEC()
 					return false;
 				}
 				break;
-
-			jNO_DEFAULT;
+			default:
+				break;
 			}
 
 			ipu_cmd.pos[1] = 0;
@@ -1255,8 +1255,8 @@ finish_idec:
 
 		ipuRegs.top = BigEndian(ipuRegs.top);
 		break;
-
-	jNO_DEFAULT;
+	default:
+		break;
 	}
 
 	return true;
@@ -1368,8 +1368,8 @@ __fi static bool mpeg2_slice()
 					return false;
 				}
 				break;
-
-			jNO_DEFAULT;
+			default:
+				break;
 			}
 
 			// Copy macroblock8 to macroblock16 - without sign extension.
@@ -1485,8 +1485,8 @@ __fi static bool mpeg2_slice()
 						}
 					}
 					break;
-
-				jNO_DEFAULT;
+				default:
+					break;
 				}
 			}
 		}
@@ -1642,8 +1642,8 @@ __fi static bool ipuVDEC(u32 val)
 						ipuRegs.cmd.DATA = (tab->dmv | (tab->len << 16));
 					}
 					break;
-
-				jNO_DEFAULT
+				default:
+					break;
 			}
 
 			// HACK ATTACK!  This code OR's the MPEG decoder's bitstream position into the upper
@@ -1671,7 +1671,8 @@ __fi static bool ipuVDEC(u32 val)
 
 			return true;
 
-		jNO_DEFAULT
+		default:
+			break;
 	}
 
 	return false;
@@ -1906,8 +1907,8 @@ __noinline void IPUWorker()
 		case SCE_IPU_PACK:
 			if (!ipuPACK(ipu_cmd.current)) return;
 			break;
-
-		jNO_DEFAULT
+		default:
+			break;
 	}
 
 	// success

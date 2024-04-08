@@ -94,6 +94,4 @@ public:
 	// DevBuilds : Generates assertion if the index is invalid.
 	T& operator[](int idx) { return *_getPtr((uint)idx); }
 	const T& operator[](int idx) const { return *_getPtr((uint)idx); }
-
-	virtual SafeArray<T>* Clone() const;
 };

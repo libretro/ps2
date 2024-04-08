@@ -365,8 +365,8 @@ s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
 			pbuffer += 24;
 			psize = 2048;
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 	}
 
 	memcpy(tempbuffer, pbuffer, psize);

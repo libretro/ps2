@@ -502,7 +502,6 @@ set(pcsx2GSHeaders
 	GS/GSState.h
 	GS/GSTables.h
 	GS/GSThread_CXX11.h
-	GS/GSThread.h
 	GS/GSUtil.h
 	GS/GSVector.h
 	GS/GSVector4.h

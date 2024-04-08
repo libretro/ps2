@@ -392,15 +392,11 @@ __fi void IPUCMD_WRITE(u32 val)
 			break;
 
 		case SCE_IPU_SETVQ:
-			break;
-
 		case SCE_IPU_CSC:
-			break;
-
 		case SCE_IPU_PACK:
 			break;
-
-		jNO_DEFAULT;
+		default:
+			break;
 	}
 
 	ipuRegs.ctrl.BUSY = 1;

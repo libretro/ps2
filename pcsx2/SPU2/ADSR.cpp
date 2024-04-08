@@ -158,8 +158,8 @@ bool V_ADSR::Calculate()
 		case 6: // release end
 			Value = 0;
 			break;
-
-			jNO_DEFAULT
+		default:
+			break;
 	}
 
 	// returns true if the voice is active, or false if it's stopping.

@@ -577,8 +577,8 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 			case 0xe:
 				Voices[voice].LoopStartA = map_spu1to2(value);
 				break;
-
-				jNO_DEFAULT;
+			default:
+				break;
 		}
 	}
 
@@ -868,8 +868,8 @@ u16 V_Core::ReadRegPS1(u32 mem)
 			case 0xe:
 				value = map_spu2to1(Voices[voice].LoopStartA);
 				break;
-
-				jNO_DEFAULT;
+			default:
+				break;
 		}
 	}
 	else
@@ -1030,20 +1030,12 @@ static void RegWrite_VoiceParams(u16 value)
 			// REG_VP_ENVX, REG_VP_VOLXL and REG_VP_VOLXR have been confirmed to not be allowed to be written to, so code has been commented out.
 			// Colin McRae Rally 2005 triggers case 5 (ADSR), but it doesn't produce issues enabled or disabled.
 
-		case 5:
-			// [Air] : Mysterious ADSR set code.  Too bad none of my games ever use it.
-			//      (as usual... )
-			//thisvoice.ADSR.Value = (value << 16) | value;
+		case 5: /* ADSR Value */
+		case 6: /* LEFT RegSet */
+		case 7: /* RIGHT RegSet */
 			break;
-
-		case 6:
-			//thisvoice.Volume.Left.RegSet(value);
+		default:
 			break;
-		case 7:
-			//thisvoice.Volume.Right.RegSet(value);
-			break;
-
-			jNO_DEFAULT;
 	}
 }
 

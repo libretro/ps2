@@ -357,12 +357,12 @@ void CDVDsys_ChangeSource(CDVD_SourceType type)
 		case CDVD_SourceType::NoDisc:
 			CDVD = &CDVDapi_NoDisc;
 			break;
-
-			jNO_DEFAULT;
+		default:
+			break;
 	}
 }
 
-bool DoCDVDopen()
+bool DoCDVDopen(void)
 {
 	CheckNullCDVD();
 

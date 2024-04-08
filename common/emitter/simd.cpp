@@ -68,12 +68,6 @@ SSE_MXCSR& SSE_MXCSR::ClearExceptionFlags()
 	return *this;
 }
 
-SSE_MXCSR& SSE_MXCSR::EnableExceptions()
-{
-	bitmask &= ~(0x3f << 7);
-	return *this;
-}
-
 SSE_MXCSR& SSE_MXCSR::DisableExceptions()
 {
 	bitmask |= 0x3f << 7;

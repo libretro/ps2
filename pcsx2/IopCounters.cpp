@@ -604,13 +604,12 @@ __fi void psxRcntWmode16(int index, u32 value)
 			case 0x200:
 				psxCounters[2].rate = 8;
 				break;
-				jNO_DEFAULT;
+			default:
+				break;
 		}
 
 		if ((counter.mode & 0x7) == 0x7 || (counter.mode & 0x7) == 0x1)
-		{
 			counter.mode |= IOPCNT_STOPPED;
-		}
 	}
 	else
 	{

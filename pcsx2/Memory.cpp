@@ -49,10 +49,6 @@ BIOS
 #include "common/AlignedMalloc.h"
 
 
-#ifdef ENABLECACHE
-#include "Cache.h"
-#endif
-
 int MemMode = 0;		// 0 is Kernel Mode, 1 is Supervisor Mode, 2 is User Mode
 
 void memSetKernelMode() {
@@ -76,14 +72,6 @@ u16 ba0R16(u32 mem)
 		return ba6;
 	}
 	return 0;
-}
-
-#define CHECK_MEM(mem) //MyMemCheck(mem)
-
-void MyMemCheck(u32 mem)
-{
-    if( mem == 0x1c02f2a0 )
-        Console.WriteLn("yo; (mem == 0x1c02f2a0) in MyMemCheck...");
 }
 
 /////////////////////////////
@@ -246,11 +234,7 @@ static mem8_t _ext_memRead8 (u32 mem)
 		case 6: // gsm
 			return gsRead8(mem);
 		case 7: // dev9
-		{
-			mem8_t retval = DEV9read8(mem & ~0xa4000000);
-			Console.WriteLn("DEV9 read8 %8.8lx: %2.2lx", mem & ~0xa4000000, retval);
-			return retval;
-		}
+			return DEV9read8(mem & ~0xa4000000);
 		default: break;
 	}
 
@@ -271,11 +255,7 @@ static mem16_t _ext_memRead16(u32 mem)
 			return gsRead16(mem);
 
 		case 7: // dev9
-		{
-			mem16_t retval = DEV9read16(mem & ~0xa4000000);
-			Console.WriteLn("DEV9 read16 %8.8lx: %4.4lx", mem & ~0xa4000000, retval);
-			return retval;
-		}
+			return DEV9read16(mem & ~0xa4000000);
 
 		case 8: // spu2
 			return SPU2read(mem);
@@ -294,11 +274,7 @@ static mem32_t _ext_memRead32(u32 mem)
 		case 6: // gsm
 			return gsRead32(mem);
 		case 7: // dev9
-		{
-			mem32_t retval = DEV9read32(mem & ~0xa4000000);
-			Console.WriteLn("DEV9 read32 %8.8lx: %8.8lx", mem & ~0xa4000000, retval);
-			return retval;
-		}
+			return DEV9read32(mem & ~0xa4000000);
 		default: break;
 	}
 
@@ -346,7 +322,6 @@ static void _ext_memWrite8 (u32 mem, mem8_t  value)
 			gsWrite8(mem, value); return;
 		case 7: // dev9
 			DEV9write8(mem & ~0xa4000000, value);
-			Console.WriteLn("DEV9 write8 %8.8lx: %2.2lx", mem & ~0xa4000000, value);
 			return;
 		default: break;
 	}
@@ -364,7 +339,6 @@ static void _ext_memWrite16(u32 mem, mem16_t value)
 			gsWrite16(mem, value); return;
 		case 7: // dev9
 			DEV9write16(mem & ~0xa4000000, value);
-			Console.WriteLn("DEV9 write16 %8.8lx: %4.4lx", mem & ~0xa4000000, value);
 			return;
 		case 8: // spu2
 			SPU2write(mem, value); return;
@@ -381,7 +355,6 @@ static void _ext_memWrite32(u32 mem, mem32_t value)
 			gsWrite32(mem, value); return;
 		case 7: // dev9
 			DEV9write32(mem & ~0xa4000000, value);
-			Console.WriteLn("DEV9 write32 %8.8lx: %8.8lx", mem & ~0xa4000000, value);
 			return;
 		default: break;
 	}
@@ -602,22 +575,13 @@ template<int vunum> static void TAKES_R128 vuDataWrite128(u32 addr, r128 data) {
 
 void memSetPageAddr(u32 vaddr, u32 paddr)
 {
-	//Console.WriteLn("memSetPageAddr: %8.8x -> %8.8x", vaddr, paddr);
-
 	vtlb_VMap(vaddr,paddr,0x1000);
 
 }
 
 void memClearPageAddr(u32 vaddr)
 {
-	//Console.WriteLn("memClearPageAddr: %8.8x", vaddr);
-
 	vtlb_VMapUnmap(vaddr,0x1000); // -> whut ?
-
-#ifdef FULLTLB
-//	memLUTRK[vaddr >> 12] = 0;
-//	memLUTWK[vaddr >> 12] = 0;
-#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -626,8 +590,7 @@ void memClearPageAddr(u32 vaddr)
 EEVM_MemoryAllocMess* eeMem = NULL;
 alignas(__pagesize) u8 eeHw[Ps2MemSize::Hardware];
 
-
-void memBindConditionalHandlers()
+void memBindConditionalHandlers(void)
 {
 	if( hw_by_page[0xf] == 0xFFFFFFFF ) return;
 
@@ -687,10 +650,6 @@ void eeMemoryReserve::Reset()
 	// we opt for the hard/safe version.
 
 	pxAssume( eeMem );
-
-#ifdef ENABLECACHE
-	memset(pCache,0,sizeof(_cacheS)*64);
-#endif
 
 	vtlb_Init();
 

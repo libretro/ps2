@@ -44,7 +44,8 @@ void Gif_ParsePacket(u8* data, u32 size, GIF_PATH path) {
 			case GIF_FLG_IMAGE2:
 				offset += gifTag.len; // Data length
 				break;
-			jNO_DEFAULT;
+			default:
+				break;
 		}
 
 		// Reload gif tag next loop

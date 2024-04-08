@@ -860,8 +860,8 @@ const xRegister32
 				Base = Index;
 				Scale = 3;
 				break;
-
-				jNO_DEFAULT
+			default:
+				break;
 		}
 	}
 

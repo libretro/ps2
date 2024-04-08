@@ -1855,9 +1855,6 @@
     <ClInclude Include="GS\GSTables.h">
       <Filter>System\Ps2\GS</Filter>
     </ClInclude>
-    <ClInclude Include="GS\GSThread.h">
-      <Filter>System\Ps2\GS</Filter>
-    </ClInclude>
     <ClInclude Include="GS\GSUtil.h">
       <Filter>System\Ps2\GS</Filter>
     </ClInclude>

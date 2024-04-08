@@ -205,10 +205,10 @@ namespace x86Emitter
 				case 2:
 					return 2;
 				case 4:
-					return 4;
 				case 8:
 					return 4; // Only mov's take 64-bit immediates
-					jNO_DEFAULT
+				default:
+					break;
 			}
 			return 0;
 		}
@@ -226,8 +226,8 @@ namespace x86Emitter
 				case 4:
 					xWrite32(imm);
 					break;
-
-					jNO_DEFAULT
+				default:
+					break;
 			}
 		}
 	};
@@ -1082,5 +1082,4 @@ extern const xRegister32
 #include "implement/test.h"
 #include "implement/jmpcall.h"
 
-#include "implement/bmi.h"
 #include "implement/avx.h"

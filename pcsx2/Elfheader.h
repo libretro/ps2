@@ -111,13 +111,6 @@ struct Elf32_Sym {
 	u16	st_shndx;
 };
 
-#define ELF32_ST_TYPE(i) ((i)&0xf)
-
-struct Elf32_Rel {
-	u32	r_offset;
-	u32	r_info;
-};
-
 class ElfObject
 {
 	private:
@@ -154,9 +147,7 @@ class ElfObject
 };
 
 //-------------------
-extern void loadElfFile(const std::string& filename);
 extern int  GetPS2ElfName( std::string& dest );
-
 
 extern u32 ElfCRC;
 extern u32 ElfEntry;

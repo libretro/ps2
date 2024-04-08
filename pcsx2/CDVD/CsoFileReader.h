@@ -77,7 +77,7 @@ private:
 	u32 m_frameSize;
 	u8 m_frameShift;
 	u8 m_indexShift;
-	u8* m_readBuffer;;
+	u8* m_readBuffer;
 	u32* m_index;
 	u64 m_totalSize;
 	// The actual source cso file handle.
