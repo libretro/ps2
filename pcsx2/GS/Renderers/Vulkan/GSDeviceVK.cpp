@@ -1257,23 +1257,6 @@ void GSDeviceVK::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void GSDeviceVK::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
-{
-	const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
-	const GSVector4i dRect = dTex->GetRect();
-	EndRenderPass();
-	OMSetRenderTargets(dTex, nullptr, dRect);
-	SetUtilityTexture(sTex, m_point_sampler);
-	BeginRenderPass(m_utility_color_render_pass_discard, dRect);
-	dTex->SetState(GSTexture::State::Dirty);
-	SetPipeline(m_shadeboost_pipeline);
-	SetUtilityPushConstants(params, sizeof(float) * 4);
-	DrawStretchRect(sRect, GSVector4(dRect), dTex->GetSize());
-	EndRenderPass();
-
-	static_cast<GSTextureVK*>(dTex)->TransitionToLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-}
-
 void GSDeviceVK::IASetVertexBuffer(const void* vertex, size_t stride, size_t count)
 {
 	const u32 size = static_cast<u32>(stride) * static_cast<u32>(count);
@@ -2051,33 +2034,6 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 	gpb.SetNoBlendingState();
 	gpb.SetRenderPass(rp, 0);
 
-	{
-		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/shadeboost.glsl");
-		if (!shader)
-		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/shadeboost.glsl.");
-			return false;
-		}
-
-		VkShaderModule vs = GetUtilityVertexShader(*shader);
-		VkShaderModule ps = GetUtilityFragmentShader(*shader);
-		ScopedGuard shader_guard([&vs, &ps]() {
-			Vulkan::Util::SafeDestroyShaderModule(vs);
-			Vulkan::Util::SafeDestroyShaderModule(ps);
-		});
-		if (vs == VK_NULL_HANDLE || ps == VK_NULL_HANDLE)
-			return false;
-
-		gpb.SetVertexShader(vs);
-		gpb.SetFragmentShader(ps);
-
-		m_shadeboost_pipeline = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
-		if (!m_shadeboost_pipeline)
-			return false;
-
-		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_shadeboost_pipeline, "Shadeboost pipeline");
-	}
-
 	return true;
 }
 
@@ -2141,7 +2097,6 @@ void GSDeviceVK::DestroyResources()
 			Vulkan::Util::SafeDestroyPipeline(m_date_image_setup_pipelines[ds][datm]);
 		}
 	}
-	Vulkan::Util::SafeDestroyPipeline(m_shadeboost_pipeline);
 
 	for (auto& it : m_samplers)
 		Vulkan::Util::SafeDestroySampler(it.second);

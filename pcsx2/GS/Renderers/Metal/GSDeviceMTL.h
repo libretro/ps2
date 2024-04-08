@@ -260,7 +260,6 @@ public:
 	MRCOwned<id<MTLRenderPipelineState>> m_primid_init_pipeline[2][2];
 	MRCOwned<id<MTLRenderPipelineState>> m_hdr_init_pipeline;
 	MRCOwned<id<MTLRenderPipelineState>> m_hdr_resolve_pipeline;
-	MRCOwned<id<MTLRenderPipelineState>> m_shadeboost_pipeline;
 
 	MRCOwned<id<MTLFunction>> m_hw_vs[1 << 5];
 	std::unordered_map<PSSelector, MRCOwned<id<MTLFunction>>> m_hw_ps;
@@ -363,7 +362,6 @@ public:
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
-	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
 
 	MRCOwned<id<MTLFunction>> LoadShader(NSString* name);
 	MRCOwned<id<MTLRenderPipelineState>> MakePipeline(MTLRenderPipelineDescriptor* desc, id<MTLFunction> vertex, id<MTLFunction> fragment, NSString* name);

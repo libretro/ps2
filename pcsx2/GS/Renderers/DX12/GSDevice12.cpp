@@ -960,25 +960,6 @@ void GSDevice12::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	static_cast<GSTexture12*>(dTex)->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
-void GSDevice12::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
-{
-	const GSVector4 sRect = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
-	const GSVector4i dRect = dTex->GetRect();
-	EndRenderPass();
-	OMSetRenderTargets(dTex, nullptr, dRect);
-	SetUtilityRootSignature();
-	SetUtilityTexture(sTex, m_point_sampler_cpu);
-	BeginRenderPass(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE,
-		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS);
-	dTex->SetState(GSTexture::State::Dirty);
-	SetPipeline(m_shadeboost_pipeline.get());
-	SetUtilityPushConstants(params, sizeof(float) * 4);
-	DrawStretchRect(sRect, GSVector4(dRect), dTex->GetSize());
-	EndRenderPass();
-
-	static_cast<GSTexture12*>(dTex)->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-}
-
 void GSDevice12::IASetVertexBuffer(const void* vertex, size_t stride, size_t count)
 {
 	const u32 size = static_cast<u32>(stride) * static_cast<u32>(count);
@@ -1508,27 +1489,6 @@ bool GSDevice12::CompilePostProcessingPipelines()
 	gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
 	gpb.SetVertexShader(m_convert_vs.get());
 
-	{
-		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/shadeboost.fx");
-		if (!shader)
-		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/shadeboost.fx.");
-			return false;
-		}
-
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, "ps_main"));
-		if (!ps)
-			return false;
-
-		gpb.SetPixelShader(ps.get());
-
-		m_shadeboost_pipeline = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
-		if (!m_shadeboost_pipeline)
-			return false;
-
-		D3D12::SetObjectName(m_shadeboost_pipeline.get(), "Shadeboost pipeline");
-	}
-
 	return true;
 }
 
@@ -1551,7 +1511,6 @@ void GSDevice12::DestroyResources()
 	m_hdr_setup_pipelines = {};
 	m_hdr_finish_pipelines = {};
 	m_date_image_setup_pipelines = {};
-	m_shadeboost_pipeline.reset();
 
 	m_linear_sampler_cpu.Clear();
 	m_point_sampler_cpu.Clear();

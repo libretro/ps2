@@ -195,11 +195,6 @@ private:
 		GL::Program primid_ps[2];
 	} m_date;
 
-	struct
-	{
-		GL::Program ps;
-	} m_shadeboost;
-
 	GLuint m_ps_ss[1 << 8];
 	GSDepthStencilOGL* m_om_dss[1 << 5] = {};
 	std::unordered_map<ProgramSelector, GL::Program, ProgramSelectorHash> m_programs;
@@ -220,9 +215,6 @@ private:
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
-
-	bool CompileShadeBoostProgram();
-	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
 
 	void RenderBlankFrame();
 

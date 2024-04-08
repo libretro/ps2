@@ -111,9 +111,7 @@ bool GSDevice11::Create()
 	if (!GSConfig.DisableShaderCache)
 	{
 		if (!m_shader_cache.Open(EmuFolders::Cache, m_dev->GetFeatureLevel(), SHADER_CACHE_VERSION, GSConfig.UseDebugDevice))
-		{
 			Console.Warning("Shader cache failed to open.");
-		}
 	}
 	else
 	{
@@ -134,9 +132,7 @@ bool GSDevice11::Create()
 		wil::com_ptr_nothrow<IDXGIAdapter1> dxgi_adapter;
 		if (SUCCEEDED(m_dev->QueryInterface(dxgi_device.put())) &&
 			SUCCEEDED(dxgi_device->GetParent(IID_PPV_ARGS(dxgi_adapter.put()))))
-		{
 			m_features.broken_point_sampler = (D3D::GetVendorID(dxgi_adapter.get()) == D3D::VendorID::AMD);
-		}
 	}
 
 	SetFeatures();
@@ -270,22 +266,6 @@ bool GSDevice11::Create()
 		if (!m_interlace.ps[i])
 			return false;
 	}
-
-	// Shade Boost
-
-	memset(&bd, 0, sizeof(bd));
-	bd.ByteWidth = sizeof(float) * 4;
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-	m_dev->CreateBuffer(&bd, nullptr, m_shadeboost.cb.put());
-
-	shader = Host::ReadResourceFileToString("shaders/dx11/shadeboost.fx");
-	if (!shader.has_value())
-		return false;
-	m_shadeboost.ps = m_shader_cache.GetPixelShader(m_dev.get(), *shader, sm_model.GetPtr(), "ps_main");
-	if (!m_shadeboost.ps)
-		return false;
 
 	// Vertex/Index Buffer
 	bd = {};
@@ -434,7 +414,6 @@ void GSDevice11::Destroy()
 	m_present = {};
 	m_merge = {};
 	m_interlace = {};
-	m_shadeboost = {};
 	m_date = {};
 	m_cas = {};
 
@@ -1033,18 +1012,6 @@ void GSDevice11::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	m_ctx->UpdateSubresource(m_interlace.cb.get(), 0, nullptr, &cb, 0, 0);
 
 	StretchRect(sTex, sRect, dTex, dRect, m_interlace.ps[static_cast<int>(shader)].get(), m_interlace.cb.get(), linear);
-}
-
-void GSDevice11::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
-{
-	const GSVector2i s = dTex->GetSize();
-
-	const GSVector4 sRect(0, 0, 1, 1);
-	const GSVector4 dRect(0, 0, s.x, s.y);
-
-	m_ctx->UpdateSubresource(m_shadeboost.cb.get(), 0, nullptr, params, 0, 0);
-
-	StretchRect(sTex, sRect, dTex, dRect, m_shadeboost.ps.get(), m_shadeboost.cb.get(), false);
 }
 
 void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, bool datm)

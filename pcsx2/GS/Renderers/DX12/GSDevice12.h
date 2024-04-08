@@ -161,7 +161,6 @@ private:
 	std::array<ComPtr<ID3D12PipelineState>, 2> m_hdr_setup_pipelines{}; // [depth]
 	std::array<ComPtr<ID3D12PipelineState>, 2> m_hdr_finish_pipelines{}; // [depth]
 	std::array<std::array<ComPtr<ID3D12PipelineState>, 2>, 2> m_date_image_setup_pipelines{}; // [depth][datm]
-	ComPtr<ID3D12PipelineState> m_shadeboost_pipeline;
 
 	std::unordered_map<u32, ComPtr<ID3DBlob>> m_tfx_vertex_shaders;
 	std::unordered_map<GSHWDrawConfig::PSSelector, ComPtr<ID3DBlob>, GSHWDrawConfig::PSSelectorHash> m_tfx_pixel_shaders;
@@ -186,7 +185,6 @@ private:
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE,
 		const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) final;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) final;
-	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) final;
 
 	bool GetSampler(D3D12::DescriptorHandle* cpu_handle, GSHWDrawConfig::SamplerSelector ss);
 	void ClearSamplerCache() final;

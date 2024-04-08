@@ -315,13 +315,6 @@ enum class GSHardwareDownloadMode : u8
 	Disabled
 };
 
-enum class GSCASMode : u8
-{
-	Disabled,
-	SharpenOnly,
-	SharpenAndResize,
-};
-
 enum class GSHWAutoFlushLevel : u8
 {
 	Disabled,
@@ -648,7 +641,6 @@ struct Pcsx2Config
 					UserHacks_NativePaletteDraw : 1,
 					UserHacks_TargetPartialInvalidation : 1,
 					UserHacks_EstimateTextureRegion : 1,
-					ShadeBoost : 1,
 					SaveRT : 1,
 					SaveFrame : 1,
 					SaveTexture : 1,
@@ -701,7 +693,6 @@ struct Pcsx2Config
 		BiFiltering TextureFiltering = BiFiltering::PS2;
 		TexturePreloadingLevel TexturePreloading = TexturePreloadingLevel::Full;
 		GSHardwareDownloadMode HWDownloadMode = GSHardwareDownloadMode::Enabled;
-		GSCASMode CASMode = GSCASMode::Disabled;
 		u8 Dithering = 2;
 		u8 MaxAnisotropy = 0;
 		u8 TVShader = 0;
@@ -724,10 +715,6 @@ struct Pcsx2Config
 		TriFiltering TriFilter = TriFiltering::Automatic;
 		s8 OverrideTextureBarriers = -1;
 
-		u8 CAS_Sharpness = 50;
-		u8 ShadeBoost_Brightness = 50;
-		u8 ShadeBoost_Contrast = 50;
-		u8 ShadeBoost_Saturation = 50;
 		u8 PNGCompressionLevel = 1;
 
 		u16 SWExtraThreads = 2;

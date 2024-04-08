@@ -126,7 +126,6 @@ private:
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
-	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
 
 	wil::com_ptr_nothrow<IDXGIFactory5> m_dxgi_factory;
 	wil::com_ptr_nothrow<ID3D11Device1> m_dev;
@@ -197,12 +196,6 @@ private:
 		wil::com_ptr_nothrow<ID3D11PixelShader> ps[NUM_INTERLACE_SHADERS];
 		wil::com_ptr_nothrow<ID3D11Buffer> cb;
 	} m_interlace;
-
-	struct
-	{
-		wil::com_ptr_nothrow<ID3D11PixelShader> ps;
-		wil::com_ptr_nothrow<ID3D11Buffer> cb;
-	} m_shadeboost;
 
 	struct
 	{

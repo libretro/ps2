@@ -70,10 +70,6 @@ void GSDeviceNull::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTextur
 {
     m_field = ((int)cb.ZrH.x & 0x1) ^ 0x1;
 }
-void GSDeviceNull::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
-{
-
-}
 GSDeviceNull::GSDeviceNull()
 {
 

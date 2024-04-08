@@ -211,14 +211,9 @@ bool GSRenderer::Merge(int field)
 		g_gs_device->Interlace(fs, field ^ field2, mode, offset);
 	}
 
-	if (GSConfig.ShadeBoost)
-		g_gs_device->ShadeBoost();
-
 	// Sharpens biinear at lower resolutions, almost nearest but with more uniform pixels.
 	if (GSConfig.LinearPresent == GSPostBilinearMode::BilinearSharp && (g_gs_device->GetWindowWidth() > fs.x || g_gs_device->GetWindowHeight() > fs.y))
-	{
 		g_gs_device->Resize(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight());
-	}
 
 	if (m_scanmask_used)
 		m_scanmask_used--;

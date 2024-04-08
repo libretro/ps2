@@ -417,12 +417,6 @@ bool GSDeviceOGL::Create()
 	}
 
 	// ****************************************************************
-	// Post processing
-	// ****************************************************************
-	if (!CompileShadeBoostProgram())
-		return false;
-
-	// ****************************************************************
 	// rasterization configuration
 	// ****************************************************************
 	{
@@ -565,8 +559,6 @@ void GSDeviceOGL::DestroyResources()
 
 	if (m_ps_ss[0] != 0)
 		glDeleteSamplers(std::size(m_ps_ss), m_ps_ss);
-
-	m_shadeboost.ps.Destroy();
 
 	for (GL::Program& prog : m_date.primid_ps)
 		prog.Destroy();
@@ -1520,38 +1512,6 @@ void GSDeviceOGL::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	m_interlace.ps[static_cast<int>(shader)].Uniform4fv(0, cb.ZrH.F32);
 
 	StretchRect(sTex, sRect, dTex, dRect, m_interlace.ps[static_cast<int>(shader)], linear);
-}
-
-bool GSDeviceOGL::CompileShadeBoostProgram()
-{
-	const auto shader = Host::ReadResourceFileToString("shaders/opengl/shadeboost.glsl");
-	if (!shader.has_value())
-	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/shadeboost.glsl.");
-		return false;
-	}
-
-	const std::string ps(GetShaderSource("ps_main", GL_FRAGMENT_SHADER, *shader));
-	if (!m_shader_cache.GetProgram(&m_shadeboost.ps, m_convert.vs, ps))
-		return false;
-	m_shadeboost.ps.RegisterUniform("params");
-	m_shadeboost.ps.SetName("Shadeboost pipe");
-	return true;
-}
-
-void GSDeviceOGL::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
-{
-	m_shadeboost.ps.Bind();
-	m_shadeboost.ps.Uniform4fv(0, params);
-
-	OMSetColorMaskState();
-
-	const GSVector2i s = dTex->GetSize();
-
-	const GSVector4 sRect(0, 0, 1, 1);
-	const GSVector4 dRect(0, 0, s.x, s.y);
-
-	StretchRect(sTex, sRect, dTex, dRect, m_shadeboost.ps, false);
 }
 
 void GSDeviceOGL::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, bool datm)

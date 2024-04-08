@@ -608,15 +608,6 @@ void GSDeviceMTL::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DoStretchRect(sTex, sRect, dTex, dRect, m_interlace_pipeline[static_cast<int>(shader)], linear, !can_discard ? LoadAction::DontCareIfFull : LoadAction::Load, &cb, sizeof(cb));
 }}
 
-void GSDeviceMTL::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4])
-{
-	BeginRenderPass(@"ShadeBoost", dTex, MTLLoadActionDontCare, nullptr, MTLLoadActionDontCare);
-	[m_current_render.encoder setFragmentBytes:params
-	                                    length:sizeof(float) * 4
-	                                   atIndex:GSMTLBufferIndexUniforms];
-	RenderCopy(sTex, m_shadeboost_pipeline, GSVector4i(0, 0, dTex->GetSize().x, dTex->GetSize().y));
-}
-
 MRCOwned<id<MTLFunction>> GSDeviceMTL::LoadShader(NSString* name)
 {
 	NSError* err = nil;
@@ -991,7 +982,6 @@ bool GSDeviceMTL::Create()
 		// FS Triangle Pipelines
 		pdesc.colorAttachments[0].pixelFormat = ConvertPixelFormat(GSTexture::Format::Color);
 		m_hdr_resolve_pipeline = MakePipeline(pdesc, fs_triangle, LoadShader(@"ps_hdr_resolve"), @"HDR Resolve");
-		m_shadeboost_pipeline = MakePipeline(pdesc, fs_triangle, LoadShader(@"ps_shadeboost"), @"shadeboost");
 		m_clut_pipeline[0] = MakePipeline(pdesc, fs_triangle, LoadShader(@"ps_convert_clut_4"), @"4-bit CLUT Update");
 		m_clut_pipeline[1] = MakePipeline(pdesc, fs_triangle, LoadShader(@"ps_convert_clut_8"), @"8-bit CLUT Update");
 		pdesc.colorAttachments[0].pixelFormat = ConvertPixelFormat(GSTexture::Format::HDRColor);

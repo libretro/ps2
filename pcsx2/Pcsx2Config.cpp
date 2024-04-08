@@ -489,7 +489,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(TextureFiltering) &&
 		OpEqu(TexturePreloading) &&
 		OpEqu(HWDownloadMode) &&
-		OpEqu(CASMode) &&
 		OpEqu(Dithering) &&
 		OpEqu(MaxAnisotropy) &&
 		OpEqu(SWExtraThreads) &&
@@ -514,10 +513,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_TextureInsideRt) &&
 		OpEqu(OverrideTextureBarriers) &&
 
-		OpEqu(CAS_Sharpness) &&
-		OpEqu(ShadeBoost_Brightness) &&
-		OpEqu(ShadeBoost_Contrast) &&
-		OpEqu(ShadeBoost_Saturation) &&
 		OpEqu(PNGCompressionLevel) &&
 		OpEqu(SaveN) &&
 		OpEqu(SaveL) &&
@@ -623,7 +618,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEnumEx(UserHacks_TextureInsideRt, "UserHacks_TextureInsideRt");
 	GSSettingBoolEx(UserHacks_TargetPartialInvalidation, "UserHacks_TargetPartialInvalidation");
 	GSSettingBoolEx(UserHacks_EstimateTextureRegion, "UserHacks_EstimateTextureRegion");
-	GSSettingBool(ShadeBoost);
 	GSSettingBoolEx(SaveRT, "save");
 	GSSettingBoolEx(SaveFrame, "savef");
 	GSSettingBoolEx(SaveTexture, "savet");
@@ -654,8 +648,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEnumEx(TextureFiltering, "filter");
 	GSSettingIntEnumEx(TexturePreloading, "texture_preloading");
 	GSSettingIntEnumEx(HWDownloadMode, "HWDownloadMode");
-	GSSettingIntEnumEx(CASMode, "CASMode");
-	GSSettingIntEx(CAS_Sharpness, "CASSharpness");
 	GSSettingIntEx(Dithering, "dithering_ps2");
 	GSSettingIntEx(MaxAnisotropy, "MaxAnisotropy");
 	GSSettingIntEx(SWExtraThreads, "extrathreads");
@@ -677,9 +669,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEnumEx(TriFilter, "TriFilter");
 	GSSettingIntEx(OverrideTextureBarriers, "OverrideTextureBarriers");
 
-	GSSettingInt(ShadeBoost_Brightness);
-	GSSettingInt(ShadeBoost_Contrast);
-	GSSettingInt(ShadeBoost_Saturation);
 	GSSettingIntEx(PNGCompressionLevel, "png_compression_level");
 	GSSettingIntEx(SaveN, "saven");
 	GSSettingIntEx(SaveL, "savel");
