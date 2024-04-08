@@ -109,9 +109,6 @@
     <ClCompile Include="Timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ProgressCallback.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Vulkan\Builders.cpp">
       <Filter>Source Files\Vulkan</Filter>
     </ClCompile>
@@ -362,9 +359,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ProgressCallback.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ScopedGuard.h">

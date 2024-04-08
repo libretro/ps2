@@ -21,7 +21,6 @@ target_sources(common PRIVATE
 	Misc.cpp
 	MD5Digest.cpp
 	PrecompiledHeader.cpp
-	ProgressCallback.cpp
 	ReadbackSpinManager.cpp
 	Semaphore.cpp
 	SettingsWrapper.cpp
@@ -77,7 +76,6 @@ target_sources(common PRIVATE
 	MRCHelpers.h
 	Path.h
 	PrecompiledHeader.h
-	ProgressCallback.h
 	ReadbackSpinManager.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
