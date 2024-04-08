@@ -58,7 +58,6 @@
 
 #include "IconsFontAwesome5.h"
 
-#include "common/emitter/tools.h"
 #ifdef _M_X86
 #include "common/emitter/x86_intrin.h"
 #endif
@@ -98,7 +97,6 @@ namespace VMManager
 
 static std::unique_ptr<SysMainMemory> s_vm_memory;
 static std::unique_ptr<SysCpuProviderPack> s_cpu_provider_pack;
-static std::unique_ptr<INISettingsInterface> s_game_settings_interface;
 
 static std::atomic<VMState> s_state{VMState::Shutdown};
 static bool s_cpu_implementation_changed = false;
@@ -114,7 +112,6 @@ static u32 s_patches_crc;
 static std::string s_game_serial;
 static std::string s_game_name;
 static std::string s_elf_override;
-static std::string s_input_profile_name;
 static u32 s_active_game_fixes = 0;
 static std::vector<u8> s_widescreen_cheats_data;
 static bool s_widescreen_cheats_loaded = false;
@@ -292,23 +289,6 @@ std::string VMManager::GetGameSettingsPath(const std::string_view& game_serial, 
 			   Path::Combine(EmuFolders::GameSettings, fmt::format("{}_{:08X}.ini", sanitized_serial, game_crc));
 }
 
-std::string VMManager::GetDiscOverrideFromGameSettings(const std::string& elf_path)
-{
-	std::string iso_path;
-	if (const u32 crc = cdvdGetElfCRC(elf_path); crc != 0)
-	{
-		INISettingsInterface si(GetGameSettingsPath(std::string_view(), crc));
-		if (si.Load())
-		{
-			iso_path = si.GetStringValue("EmuCore", "DiscPath");
-			if (!iso_path.empty())
-				Console.WriteLn(fmt::format("Disc override for ELF at '{}' is '{}'", elf_path, iso_path));
-		}
-	}
-
-	return iso_path;
-}
-
 std::string VMManager::GetSerialForGameSettings()
 {
 	// If we're running an ELF, we don't want to use the serial for any ISO override
@@ -319,47 +299,6 @@ std::string VMManager::GetSerialForGameSettings()
 
 bool VMManager::UpdateGameSettingsLayer()
 {
-	std::unique_ptr<INISettingsInterface> new_interface;
-	if (s_game_crc != 0 && Host::GetBaseBoolSettingValue("EmuCore", "EnablePerGameSettings", true))
-	{
-		std::string filename(GetGameSettingsPath(GetSerialForGameSettings(), s_game_crc));
-		// try the legacy format (crc.ini)
-		if (!FileSystem::FileExists(filename.c_str()))
-			filename = GetGameSettingsPath({}, s_game_crc);
-
-		if (FileSystem::FileExists(filename.c_str()))
-		{
-			Console.WriteLn("Loading game settings from '%s'...", filename.c_str());
-			new_interface = std::make_unique<INISettingsInterface>(std::move(filename));
-			if (!new_interface->Load())
-			{
-				Console.Error("Failed to parse game settings ini '%s'", new_interface->GetFileName().c_str());
-				new_interface.reset();
-			}
-		}
-		else
-			Console.WriteLn("No game settings found (tried '%s')", filename.c_str());
-	}
-
-	std::string input_profile_name;
-	bool use_game_settings_for_controller = false;
-	if (new_interface)
-	{
-		new_interface->GetBoolValue("Pad", "UseGameSettingsForController", &use_game_settings_for_controller);
-		if (!use_game_settings_for_controller)
-			new_interface->GetStringValue("EmuCore", "InputProfileName", &input_profile_name);
-	}
-
-	if (!s_game_settings_interface && !new_interface && s_input_profile_name == input_profile_name)
-		return false;
-
-	Host::Internal::SetGameSettingsLayer(new_interface.get());
-	s_game_settings_interface = std::move(new_interface);
-
-	// using game settings for bindings too
-	Host::Internal::SetInputSettingsLayer(s_game_settings_interface.get());
-
-	s_input_profile_name = std::move(input_profile_name);
 	return true;
 }
 
@@ -586,30 +525,10 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 			return false;
 		}
 
-		const std::string display_name(FileSystem::GetDisplayNameFromPath(filename));
-		if (IsElfFileName(display_name))
-		{
-			// alternative way of booting an elf, change the elf override, and (optionally) use the disc
-			// specified in the game settings.
-			std::string disc_path(GetDiscOverrideFromGameSettings(filename));
-			if (!disc_path.empty())
-			{
-				CDVDsys_SetFile(CDVD_SourceType::Iso, disc_path);
-				CDVDsys_ChangeSource(CDVD_SourceType::Iso);
-				s_disc_path = std::move(disc_path);
-			}
-			else
-				CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
-
-			s_elf_override = filename;
-		}
-		else
-		{
-			// TODO: Maybe we should check if it's a valid iso here...
-			CDVDsys_SetFile(CDVD_SourceType::Iso, filename);
-			CDVDsys_ChangeSource(CDVD_SourceType::Iso);
-			s_disc_path = filename;
-		}
+		// TODO: Maybe we should check if it's a valid iso here...
+		CDVDsys_SetFile(CDVD_SourceType::Iso, filename);
+		CDVDsys_ChangeSource(CDVD_SourceType::Iso);
+		s_disc_path = filename;
 	}
 	else
 	{

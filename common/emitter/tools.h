@@ -210,5 +210,4 @@ union SSE_MXCSR
 
 extern SSE_MXCSR MXCSR_Mask;
 
-
 alignas(16) extern x86capabilities x86caps;
