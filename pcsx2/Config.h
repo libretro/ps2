@@ -345,64 +345,6 @@ ImplementEnumOperators(SpeedhackId);
 #define SYSTEM_sseMXCSR 0x1f80
 
 // --------------------------------------------------------------------------------------
-//  TraceFiltersEE
-// --------------------------------------------------------------------------------------
-struct TraceFiltersEE
-{
-	BITFIELD32()
-	bool
-		m_EnableAll : 1, // Master Enable switch (if false, no logs at all)
-		m_EnableDisasm : 1,
-		m_EnableRegisters : 1,
-		m_EnableEvents : 1; // Enables logging of event-driven activity -- counters, DMAs, etc.
-	BITFIELD_END
-
-	TraceFiltersEE()
-	{
-		bitset = 0;
-	}
-
-	bool operator==(const TraceFiltersEE& right) const
-	{
-		return OpEqu(bitset);
-	}
-
-	bool operator!=(const TraceFiltersEE& right) const
-	{
-		return !this->operator==(right);
-	}
-};
-
-// --------------------------------------------------------------------------------------
-//  TraceFiltersIOP
-// --------------------------------------------------------------------------------------
-struct TraceFiltersIOP
-{
-	BITFIELD32()
-	bool
-		m_EnableAll : 1, // Master Enable switch (if false, no logs at all)
-		m_EnableDisasm : 1,
-		m_EnableRegisters : 1,
-		m_EnableEvents : 1; // Enables logging of event-driven activity -- counters, DMAs, etc.
-	BITFIELD_END
-
-	TraceFiltersIOP()
-	{
-		bitset = 0;
-	}
-
-	bool operator==(const TraceFiltersIOP& right) const
-	{
-		return OpEqu(bitset);
-	}
-
-	bool operator!=(const TraceFiltersIOP& right) const
-	{
-		return !this->operator==(right);
-	}
-};
-
-// --------------------------------------------------------------------------------------
 //  Pcsx2Config class
 // --------------------------------------------------------------------------------------
 // This is intended to be a public class library between the core emulator and GUI only.
@@ -415,35 +357,6 @@ struct TraceFiltersIOP
 //
 struct Pcsx2Config
 {
-	struct ProfilerOptions
-	{
-		BITFIELD32()
-		bool
-			Enabled : 1, // universal toggle for the profiler.
-			RecBlocks_EE : 1, // Enables per-block profiling for the EE recompiler [unimplemented]
-			RecBlocks_IOP : 1, // Enables per-block profiling for the IOP recompiler [unimplemented]
-			RecBlocks_VU0 : 1, // Enables per-block profiling for the VU0 recompiler [unimplemented]
-			RecBlocks_VU1 : 1; // Enables per-block profiling for the VU1 recompiler [unimplemented]
-		BITFIELD_END
-
-		// Default is Disabled, with all recs enabled underneath.
-		ProfilerOptions()
-			: bitset(0xfffffffe)
-		{
-		}
-		void LoadSave(SettingsWrapper& wrap);
-
-		bool operator==(const ProfilerOptions& right) const
-		{
-			return OpEqu(bitset);
-		}
-
-		bool operator!=(const ProfilerOptions& right) const
-		{
-			return !OpEqu(bitset);
-		}
-	};
-
 	// ------------------------------------------------------------------------
 	struct RecompilerOptions
 	{
@@ -716,95 +629,6 @@ struct Pcsx2Config
 		bool operator!=(const GSOptions& right) const;
 	};
 
-	struct SPU2Options
-	{
-		enum class SynchronizationMode
-		{
-			TimeStretch,
-			ASync,
-			NoSync,
-		};
-
-		static constexpr s32 MAX_VOLUME = 200;
-		
-		static constexpr s32 MIN_LATENCY = 3;
-		static constexpr s32 MIN_LATENCY_TIMESTRETCH = 15;
-		static constexpr s32 MAX_LATENCY = 750;
-
-		static constexpr s32 MIN_SEQUENCE_LEN = 20;
-		static constexpr s32 MAX_SEQUENCE_LEN = 100;
-		static constexpr s32 MIN_SEEKWINDOW = 10;
-		static constexpr s32 MAX_SEEKWINDOW = 30;
-		static constexpr s32 MIN_OVERLAP = 5;
-		static constexpr s32 MAX_OVERLAP = 15;
-
-		BITFIELD32()
-		bool OutputLatencyMinimal : 1;
-		bool
-			DebugEnabled : 1,
-			MsgToConsole : 1,
-			MsgKeyOnOff : 1,
-			MsgVoiceOff : 1,
-			MsgDMA : 1,
-			MsgAutoDMA : 1,
-			MsgOverruns : 1,
-			MsgCache : 1,
-			AccessLog : 1,
-			DMALog : 1,
-			WaveLog : 1,
-			CoresDump : 1,
-			MemDump : 1,
-			RegDump : 1,
-			VisualDebugEnabled : 1;
-		BITFIELD_END
-
-		SynchronizationMode SynchMode = SynchronizationMode::TimeStretch;
-
-		s32 FinalVolume = 100;
-		s32 Latency = 60;
-		s32 OutputLatency = 20;
-		s32 SpeakerConfiguration = 0;
-		s32 DplDecodingLevel = 0;
-
-		s32 SequenceLenMS = 30;
-		s32 SeekWindowMS = 20;
-		s32 OverlapMS = 10;
-
-		std::string OutputModule;
-		std::string BackendName;
-		std::string DeviceName;
-
-		SPU2Options();
-
-		void LoadSave(SettingsWrapper& wrap);
-
-		bool operator==(const SPU2Options& right) const
-		{
-			return OpEqu(bitset) &&
-
-				OpEqu(SynchMode) &&
-
-				OpEqu(FinalVolume) &&
-				OpEqu(Latency) &&
-				OpEqu(OutputLatency) &&
-				OpEqu(SpeakerConfiguration) &&
-				OpEqu(DplDecodingLevel) &&
-
-				OpEqu(SequenceLenMS) &&
-				OpEqu(SeekWindowMS) &&
-				OpEqu(OverlapMS) &&
-
-				OpEqu(OutputModule) &&
-				OpEqu(BackendName) &&
-				OpEqu(DeviceName);
-		}
-
-		bool operator!=(const SPU2Options& right) const
-		{
-			return !this->operator==(right);
-		}
-	};
-
 	struct DEV9Options
 	{
 		enum struct NetApi : int
@@ -991,35 +815,6 @@ struct Pcsx2Config
 		}
 	};
 
-	struct DebugOptions
-	{
-		BITFIELD32()
-		bool
-			ShowDebuggerOnStart : 1;
-		bool
-			AlignMemoryWindowStart : 1;
-		BITFIELD_END
-
-		u8 FontWidth;
-		u8 FontHeight;
-		u32 WindowWidth;
-		u32 WindowHeight;
-		u32 MemoryViewBytesPerRow;
-
-		DebugOptions();
-		void LoadSave(SettingsWrapper& wrap);
-
-		bool operator==(const DebugOptions& right) const
-		{
-			return OpEqu(bitset) && OpEqu(FontWidth) && OpEqu(FontHeight) && OpEqu(WindowWidth) && OpEqu(WindowHeight) && OpEqu(MemoryViewBytesPerRow);
-		}
-
-		bool operator!=(const DebugOptions& right) const
-		{
-			return !this->operator==(right);
-		}
-	};
-
 	// ------------------------------------------------------------------------
 	struct FramerateOptions
 	{
@@ -1117,7 +912,6 @@ struct Pcsx2Config
 		// when enabled uses BOOT2 injection, skipping sony bios splashes
 		UseBOOT2Injection : 1,
 		BackupSavestate : 1,
-		SavestateZstdCompression : 1,
 		// enables simulated ejection of memory cards when loading savestates
 		McdEnableEjection : 1,
 		McdFolderAutoManage : 1,
@@ -1140,10 +934,7 @@ struct Pcsx2Config
 	GSOptions GS;
 	SpeedhackOptions Speedhacks;
 	GamefixOptions Gamefixes;
-	ProfilerOptions Profiler;
-	DebugOptions Debugger;
 	FramerateOptions Framerate;
-	SPU2Options SPU2;
 	DEV9Options DEV9;
 #if 0
 	USBOptions USB;
@@ -1189,26 +980,19 @@ namespace EmuFolders
 	extern std::string DataRoot;
 	extern std::string Settings;
 	extern std::string Bios;
-	extern std::string Snapshots;
 	extern std::string Savestates;
 	extern std::string MemoryCards;
-	extern std::string Langs;
-	extern std::string Logs;
 	extern std::string Cheats;
 	extern std::string CheatsWS;
 	extern std::string CheatsNI;
 	extern std::string Resources;
 	extern std::string Cache;
-	extern std::string GameSettings;
 	extern std::string Textures;
 
 	// Assumes that AppRoot and DataRoot have been initialized.
 	void SetDefaults(SettingsInterface& si);
 	void LoadConfig(SettingsInterface& si);
 	bool EnsureFoldersExist();
-
-	/// Opens the specified log file for writing.
-	std::FILE* OpenLogFile(const std::string_view& name, const char* mode);
 } // namespace EmuFolders
 
 /////////////////////////////////////////////////////////////////////////////////////////

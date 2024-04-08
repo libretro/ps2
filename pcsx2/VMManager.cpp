@@ -971,11 +971,9 @@ void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
 {
 	if (EmuConfig.Cpu == old_config.Cpu &&
 		EmuConfig.Gamefixes == old_config.Gamefixes &&
-		EmuConfig.Speedhacks == old_config.Speedhacks &&
-		EmuConfig.Profiler == old_config.Profiler)
-	{
+		EmuConfig.Speedhacks == old_config.Speedhacks
+		)
 		return;
-	}
 
 	Console.WriteLn("Updating CPU configuration...");
 	SetCPUState(EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVU0MXCSR, EmuConfig.Cpu.sseVU1MXCSR);
@@ -1186,8 +1184,6 @@ void VMManager::WarnAboutUnsafeSettings()
 		messages += ICON_FA_COMPACT_DISC " Fast CDVD is enabled, this may break games.\n";
 	if (EmuConfig.Speedhacks.EECycleRate != 0 || EmuConfig.Speedhacks.EECycleSkip != 0)
 		messages += ICON_FA_TACHOMETER_ALT " Cycle rate/skip is not at default, this may crash or make games run too slow.\n";
-	if (EmuConfig.SPU2.SynchMode == Pcsx2Config::SPU2Options::SynchronizationMode::ASync)
-		messages += ICON_FA_VOLUME_MUTE " Audio is using async mix, expect desynchronization in FMVs.\n";
 	if (EmuConfig.GS.UpscaleMultiplier < 1.0f)
 		messages += ICON_FA_TV " Upscale multiplier is below native, this will break rendering.\n";
 	if (EmuConfig.GS.HWMipmap != HWMipmapLevel::Automatic)

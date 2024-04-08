@@ -280,6 +280,6 @@ struct Stereo71Out16
 
 namespace SndBuffer
 {
-	bool Init(const char* modname);
+	bool Init(void);
 	void Write(StereoOut16 Sample);
 }

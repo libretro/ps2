@@ -88,21 +88,14 @@ namespace EmuFolders
 	std::string DataRoot;
 	std::string Settings;
 	std::string Bios;
-	std::string Snapshots;
 	std::string Savestates;
 	std::string MemoryCards;
-	std::string Langs;
-	std::string Logs;
 	std::string Cheats;
 	std::string CheatsWS;
 	std::string CheatsNI;
 	std::string Resources;
 	std::string Cache;
-	std::string Covers;
-	std::string GameSettings;
 	std::string Textures;
-	std::string InputProfiles;
-	std::string Videos;
 } // namespace EmuFolders
 
 const char* const tbl_SpeedhackNames[] =
@@ -168,17 +161,6 @@ void Pcsx2Config::SpeedhackOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(vuFlagHack);
 	SettingsWrapBitBool(vuThread);
 	SettingsWrapBitBool(vu1Instant);
-}
-
-void Pcsx2Config::ProfilerOptions::LoadSave(SettingsWrapper& wrap)
-{
-	SettingsWrapSection("EmuCore/Profiler");
-
-	SettingsWrapBitBool(Enabled);
-	SettingsWrapBitBool(RecBlocks_EE);
-	SettingsWrapBitBool(RecBlocks_IOP);
-	SettingsWrapBitBool(RecBlocks_VU0);
-	SettingsWrapBitBool(RecBlocks_VU1);
 }
 
 Pcsx2Config::RecompilerOptions::RecompilerOptions()
@@ -726,75 +708,6 @@ bool Pcsx2Config::GSOptions::UseHardwareRenderer() const
 	return (Renderer != GSRendererType::Null && Renderer != GSRendererType::SW);
 }
 
-Pcsx2Config::SPU2Options::SPU2Options()
-{
-	bitset = 0;
-	OutputModule = "cubeb";
-}
-
-void Pcsx2Config::SPU2Options::LoadSave(SettingsWrapper& wrap)
-{
-	{
-		SettingsWrapSection("SPU2/Debug");
-
-		SettingsWrapBitBoolEx(DebugEnabled, "Global_Enable");
-		SettingsWrapBitBoolEx(MsgToConsole, "Show_Messages");
-		SettingsWrapBitBoolEx(MsgKeyOnOff, "Show_Messages_Key_On_Off");
-		SettingsWrapBitBoolEx(MsgVoiceOff, "Show_Messages_Voice_Off");
-		SettingsWrapBitBoolEx(MsgDMA, "Show_Messages_DMA_Transfer");
-		SettingsWrapBitBoolEx(MsgAutoDMA, "Show_Messages_AutoDMA");
-		SettingsWrapBitBoolEx(MsgOverruns, "Show_Messages_Overruns");
-		SettingsWrapBitBoolEx(MsgCache, "Show_Messages_CacheStats");
-
-		SettingsWrapBitBoolEx(AccessLog, "Log_Register_Access");
-		SettingsWrapBitBoolEx(DMALog, "Log_DMA_Transfers");
-		SettingsWrapBitBoolEx(WaveLog, "Log_WAVE_Output");
-
-		SettingsWrapBitBoolEx(CoresDump, "Dump_Info");
-		SettingsWrapBitBoolEx(MemDump, "Dump_Memory");
-		SettingsWrapBitBoolEx(RegDump, "Dump_Regs");
-
-		// If the global switch is off, save runtime checks.
-		if (wrap.IsLoading() && !DebugEnabled)
-		{
-			MsgToConsole = false;
-			MsgKeyOnOff = false;
-			MsgVoiceOff = false;
-			MsgDMA = false;
-			MsgAutoDMA = false;
-			MsgOverruns = false;
-			MsgCache = false;
-			AccessLog = false;
-			DMALog = false;
-			WaveLog = false;
-			CoresDump = false;
-			MemDump = false;
-			RegDump = false;
-		}
-	}
-	{
-		SettingsWrapSection("SPU2/Mixing");
-
-		SettingsWrapEntry(FinalVolume);
-	}
-
-	{
-		SettingsWrapSection("SPU2/Output");
-
-		SettingsWrapEntry(OutputModule);
-		SettingsWrapEntry(BackendName);
-		SettingsWrapEntry(DeviceName);
-		SettingsWrapEntry(Latency);
-		SettingsWrapEntry(OutputLatency);
-		SettingsWrapBitBool(OutputLatencyMinimal);
-		SynchMode = static_cast<SynchronizationMode>(wrap.EntryBitfield(CURRENT_SETTINGS_SECTION, "SynchMode", static_cast<int>(SynchMode), static_cast<int>(SynchMode)));
-		SettingsWrapEntry(SpeakerConfiguration);
-		SettingsWrapEntry(DplDecodingLevel);
-	}
-
-	// clampy clamp
-}
-
 const char* Pcsx2Config::DEV9Options::NetApiNames[] = {
 	"Unset",
 	"PCAP Bridged",
@@ -1041,31 +954,6 @@ void Pcsx2Config::GamefixOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(FullVU0SyncHack);
 }
 
-
-Pcsx2Config::DebugOptions::DebugOptions()
-{
-	ShowDebuggerOnStart = false;
-	AlignMemoryWindowStart = true;
-	FontWidth = 8;
-	FontHeight = 12;
-	WindowWidth = 0;
-	WindowHeight = 0;
-	MemoryViewBytesPerRow = 16;
-}
-
-void Pcsx2Config::DebugOptions::LoadSave(SettingsWrapper& wrap)
-{
-	SettingsWrapSection("EmuCore/Debugger");
-
-	SettingsWrapBitBool(ShowDebuggerOnStart);
-	SettingsWrapBitBool(AlignMemoryWindowStart);
-	SettingsWrapBitfield(FontWidth);
-	SettingsWrapBitfield(FontHeight);
-	SettingsWrapBitfield(WindowWidth);
-	SettingsWrapBitfield(WindowHeight);
-	SettingsWrapBitfield(MemoryViewBytesPerRow);
-}
-
 Pcsx2Config::FilenameOptions::FilenameOptions()
 {
 }
@@ -1105,7 +993,6 @@ Pcsx2Config::Pcsx2Config()
 	EnableRecordingTools = true;
 	EnableGameFixes = true;
 	BackupSavestate = true;
-	SavestateZstdCompression = true;
 
 #ifdef _WIN32
 	McdCompressNTFS = true;
@@ -1150,7 +1037,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(HostFs);
 
 	SettingsWrapBitBool(BackupSavestate);
-	SettingsWrapBitBool(SavestateZstdCompression);
 	SettingsWrapBitBool(McdEnableEjection);
 	SettingsWrapBitBool(McdFolderAutoManage);
 
@@ -1161,12 +1047,8 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	Speedhacks.LoadSave(wrap);
 	Cpu.LoadSave(wrap);
 	GS.LoadSave(wrap);
-	SPU2.LoadSave(wrap);
 	DEV9.LoadSave(wrap);
 	Gamefixes.LoadSave(wrap);
-	Profiler.LoadSave(wrap);
-
-	Debugger.LoadSave(wrap);
 
 	SettingsWrapEntry(GzipIsoIndexTemplate);
 
@@ -1239,8 +1121,6 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 		OpEqu(DEV9) &&
 		OpEqu(Speedhacks) &&
 		OpEqu(Gamefixes) &&
-		OpEqu(Profiler) &&
-		OpEqu(Debugger) &&
 		OpEqu(Framerate) &&
 		OpEqu(BaseFilenames) &&
 		OpEqu(GzipIsoIndexTemplate);
@@ -1270,17 +1150,13 @@ void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 void EmuFolders::SetDefaults(SettingsInterface& si)
 {
 	si.SetStringValue("Folders", "Bios", "bios");
-	si.SetStringValue("Folders", "Snapshots", "snaps");
 	si.SetStringValue("Folders", "Savestates", "sstates");
 	si.SetStringValue("Folders", "MemoryCards", "memcards");
-	si.SetStringValue("Folders", "Logs", "logs");
 	si.SetStringValue("Folders", "Cheats", "cheats");
 	si.SetStringValue("Folders", "CheatsWS", "cheats_ws");
 	si.SetStringValue("Folders", "CheatsNI", "cheats_ni");
 	si.SetStringValue("Folders", "Cache", "cache");
 	si.SetStringValue("Folders", "Textures", "textures");
-	si.SetStringValue("Folders", "InputProfiles", "inputprofiles");
-	si.SetStringValue("Folders", "Videos", "videos");
 }
 
 static std::string LoadPathFromSettings(SettingsInterface& si, const std::string& root, const char* name, const char* def)
@@ -1294,60 +1170,34 @@ static std::string LoadPathFromSettings(SettingsInterface& si, const std::string
 void EmuFolders::LoadConfig(SettingsInterface& si)
 {
 	Bios = LoadPathFromSettings(si, DataRoot, "Bios", "bios");
-	Snapshots = LoadPathFromSettings(si, DataRoot, "Snapshots", "snaps");
 	Savestates = LoadPathFromSettings(si, DataRoot, "Savestates", "sstates");
 	MemoryCards = LoadPathFromSettings(si, DataRoot, "MemoryCards", "memcards");
-	Logs = LoadPathFromSettings(si, DataRoot, "Logs", "logs");
 	Cheats = LoadPathFromSettings(si, DataRoot, "Cheats", "cheats");
 	CheatsWS = LoadPathFromSettings(si, DataRoot, "CheatsWS", "cheats_ws");
 	CheatsNI = LoadPathFromSettings(si, DataRoot, "CheatsNI", "cheats_ni");
-	Covers = LoadPathFromSettings(si, DataRoot, "Covers", "covers");
-	GameSettings = LoadPathFromSettings(si, DataRoot, "GameSettings", "gamesettings");
 	Cache = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
 	Textures = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
-	InputProfiles = LoadPathFromSettings(si, DataRoot, "InputProfiles", "inputprofiles");
-	Videos = LoadPathFromSettings(si, DataRoot, "Videos", "videos");
 
 	Console.WriteLn("BIOS Directory: %s", Bios.c_str());
-	Console.WriteLn("Snapshots Directory: %s", Snapshots.c_str());
 	Console.WriteLn("Savestates Directory: %s", Savestates.c_str());
 	Console.WriteLn("MemoryCards Directory: %s", MemoryCards.c_str());
-	Console.WriteLn("Logs Directory: %s", Logs.c_str());
 	Console.WriteLn("Cheats Directory: %s", Cheats.c_str());
 	Console.WriteLn("CheatsWS Directory: %s", CheatsWS.c_str());
 	Console.WriteLn("CheatsNI Directory: %s", CheatsNI.c_str());
-	Console.WriteLn("Covers Directory: %s", Covers.c_str());
-	Console.WriteLn("Game Settings Directory: %s", GameSettings.c_str());
 	Console.WriteLn("Cache Directory: %s", Cache.c_str());
 	Console.WriteLn("Textures Directory: %s", Textures.c_str());
-	Console.WriteLn("Input Profile Directory: %s", InputProfiles.c_str());
 }
 
 bool EmuFolders::EnsureFoldersExist()
 {
 	bool result = FileSystem::CreateDirectoryPath(Bios.c_str(), false);
 	result = FileSystem::CreateDirectoryPath(Settings.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Snapshots.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Savestates.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(MemoryCards.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Logs.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Cheats.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(CheatsWS.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(CheatsNI.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Covers.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(GameSettings.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Cache.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Textures.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(InputProfiles.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Videos.c_str(), false) && result;
 	return result;
-}
-
-std::FILE* EmuFolders::OpenLogFile(const std::string_view& name, const char* mode)
-{
-	if (name.empty())
-		return nullptr;
-
-	const std::string path(Path::Combine(Logs, name));
-	return FileSystem::OpenCFile(path.c_str(), mode);
 }

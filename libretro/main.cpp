@@ -144,9 +144,9 @@ void retro_set_audio_sample(retro_audio_sample_t cb)
 	sample_cb = cb;
 }
 
-bool SndBuffer::Init(const char* modname)
+bool SndBuffer::Init(void)
 {
-	read_pos = 0;
+	read_pos  = 0;
 	write_pos = 0;
 	return true;
 }

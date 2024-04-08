@@ -87,7 +87,7 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 void SPU2::InitSndBuffer()
 {
 	Console.WriteLn("Initializing SndBuffer at sample rate of %u...", SampleRate);
-	if (SndBuffer::Init(EmuConfig.SPU2.OutputModule.c_str()))
+	if (SndBuffer::Init())
 		return;
 
 	if (SampleRate != GetConsoleSampleRate())
@@ -96,7 +96,7 @@ void SPU2::InitSndBuffer()
 		const int original_sample_rate = SampleRate;
 		Console.Error("Failed to init SPU2 at adjusted sample rate %u, trying console rate.", SampleRate);
 		SampleRate = GetConsoleSampleRate();
-		if (SndBuffer::Init(EmuConfig.SPU2.OutputModule.c_str()))
+		if (SndBuffer::Init())
 			return;
 
 		SampleRate = original_sample_rate;
