@@ -353,24 +353,23 @@ bool GSDeviceOGL::Create()
 
 		std::string present_vs(GetShaderSource("vs_main", GL_VERTEX_SHADER, *shader));
 
-		for (size_t i = 0; i < std::size(m_present); i++)
 		{
-			const char* name = shaderName(static_cast<PresentShader>(i));
-			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, *shader));
-			if (!m_shader_cache.GetProgram(&m_present[i], present_vs, ps))
+			const char* name = "ps_copy";
+			const std::string ps(GetShaderSource("ps_copy", GL_FRAGMENT_SHADER, *shader));
+			if (!m_shader_cache.GetProgram(&m_present[0], present_vs, ps))
 				return false;
-			m_present[i].SetFormattedName("Present pipe %s", name);
+			m_present[0].SetFormattedName("Present pipe ps_copy");
 
 			// This is a bit disgusting, but it saves allocating a UBO when no shaders currently need it.
-			m_present[i].RegisterUniform("u_source_rect");
-			m_present[i].RegisterUniform("u_target_rect");
-			m_present[i].RegisterUniform("u_source_size");
-			m_present[i].RegisterUniform("u_target_size");
-			m_present[i].RegisterUniform("u_target_resolution");
-			m_present[i].RegisterUniform("u_rcp_target_resolution");
-			m_present[i].RegisterUniform("u_source_resolution");
-			m_present[i].RegisterUniform("u_rcp_source_resolution");
-			m_present[i].RegisterUniform("u_time");
+			m_present[0].RegisterUniform("u_source_rect");
+			m_present[0].RegisterUniform("u_target_rect");
+			m_present[0].RegisterUniform("u_source_size");
+			m_present[0].RegisterUniform("u_target_size");
+			m_present[0].RegisterUniform("u_target_resolution");
+			m_present[0].RegisterUniform("u_rcp_target_resolution");
+			m_present[0].RegisterUniform("u_source_resolution");
+			m_present[0].RegisterUniform("u_rcp_source_resolution");
+			m_present[0].RegisterUniform("u_time");
 		}
 	}
 
@@ -1245,7 +1244,7 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	DrawStretchRect(sRect, dRect, dTex->GetSize());
 }
 
-void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, PresentShader shader, float shaderTime, bool linear)
+void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, float shaderTime, bool linear)
 {
 	ASSERT(sTex);
 
@@ -1255,7 +1254,7 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	cb.SetTarget(dRect, ds);
 	cb.SetTime(shaderTime);
 
-	GL::Program& prog = m_present[static_cast<int>(shader)];
+	GL::Program& prog = m_present[0];
 	prog.Bind();
 	prog.Uniform4fv(0, cb.SourceRect.F32);
 	prog.Uniform4fv(1, cb.TargetRect.F32);

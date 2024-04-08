@@ -555,7 +555,7 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 {
 	pxAssert(HasDepthOutput(shader) == (dTex && dTex->GetType() == GSTexture::Type::DepthStencil));
 	DoStretchRect(static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect,
-		dTex ? m_convert[static_cast<int>(shader)].get() : m_present[static_cast<int>(shader)].get(), linear, true);
+		dTex ? m_convert[static_cast<int>(shader)].get() : m_present[0].get(), linear, true);
 }
 
 void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
@@ -568,7 +568,7 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 }
 
 void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-	PresentShader shader, float shaderTime, bool linear)
+	float shaderTime, bool linear)
 {
 	GSTexture12* texture = (GSTexture12*)sTex;
 	texture->TransitionToState(d3d12->required_state);
@@ -1384,22 +1384,18 @@ bool GSDevice12::CompilePresentPipelines()
 	gpb.SetNoStencilState();
 	gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-	for (PresentShader i = PresentShader::COPY; static_cast<int>(i) < static_cast<int>(PresentShader::Count);
-		 i = static_cast<PresentShader>(static_cast<int>(i) + 1))
 	{
-		const int index = static_cast<int>(i);
-
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, shaderName(i)));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, "ps_copy"));
 		if (!ps)
 			return false;
 
 		gpb.SetPixelShader(ps.get());
 
-		m_present[index] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
-		if (!m_present[index])
+		m_present[0] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
+		if (!m_present[0])
 			return false;
 
-		D3D12::SetObjectNameFormatted(m_present[index].get(), "Present pipeline %d", i);
+		D3D12::SetObjectNameFormatted(m_present[0].get(), "Present pipeline 0");
 	}
 
 	return true;

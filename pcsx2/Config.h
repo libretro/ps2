@@ -695,7 +695,6 @@ struct Pcsx2Config
 		GSHardwareDownloadMode HWDownloadMode = GSHardwareDownloadMode::Enabled;
 		u8 Dithering = 2;
 		u8 MaxAnisotropy = 0;
-		u8 TVShader = 0;
 		s16 GetSkipCountFunctionId = -1;
 		s16 BeforeDrawFunctionId = -1;
 		int SkipDrawStart = 0;

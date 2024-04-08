@@ -36,11 +36,6 @@
 #include <thread>
 #include <mutex>
 
-static constexpr std::array<PresentShader, 6> s_tv_shader_indices = {
-	PresentShader::COPY, PresentShader::SCANLINE,
-	PresentShader::DIAGONAL_FILTER, PresentShader::TRIANGULAR_FILTER,
-	PresentShader::COMPLEX_FILTER, PresentShader::LOTTES_FILTER};
-
 std::unique_ptr<GSRenderer> g_gs_renderer;
 
 GSRenderer::GSRenderer()
@@ -479,7 +474,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 			GSVector4 draw_rect     = GSVector4(0, 0, current->GetWidth(), current->GetHeight());
 
 			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect,
-				s_tv_shader_indices[GSConfig.TVShader], shader_time, GSConfig.LinearPresent != GSPostBilinearMode::Off);
+				shader_time, GSConfig.LinearPresent != GSPostBilinearMode::Off);
 		}
 
 		EndPresentFrame();
@@ -552,7 +547,7 @@ void GSRenderer::PresentCurrentFrame()
 			const float shader_time = static_cast<float>(Common::Timer::ConvertValueToSeconds(current_time - m_shader_time_start));
 
 			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect,
-				s_tv_shader_indices[GSConfig.TVShader], shader_time, GSConfig.LinearPresent != GSPostBilinearMode::Off);
+				shader_time, GSConfig.LinearPresent != GSPostBilinearMode::Off);
 		}
 
 		EndPresentFrame();

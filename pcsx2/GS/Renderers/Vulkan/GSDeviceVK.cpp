@@ -826,7 +826,7 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	pxAssert(HasDepthOutput(shader) == (dTex && dTex->GetType() == GSTexture::Type::DepthStencil));
 	pxAssert(linear ? SupportsBilinear(shader) : SupportsNearest(shader));
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
-		dTex ? m_convert[static_cast<int>(shader)] : m_present[static_cast<int>(shader)], linear, true);
+		dTex ? m_convert[static_cast<int>(shader)] : m_present[0], linear, true);
 }
 
 void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
@@ -839,7 +839,7 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 }
 
 void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
-	PresentShader shader, float shaderTime, bool linear)
+	float shaderTime, bool linear)
 {
 	DisplayConstantBuffer cb;
 	cb.SetSource(sRect, sTex->GetSize());
@@ -848,7 +848,7 @@ void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	SetUtilityPushConstants(&cb, sizeof(cb));
 
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
-		m_present[static_cast<int>(shader)], linear, true);
+		m_present[0], linear, true);
 }
 
 void GSDeviceVK::DrawMultiStretchRects(
@@ -1890,24 +1890,20 @@ bool GSDeviceVK::CompilePresentPipelines()
 	gpb.SetNoStencilState();
 	gpb.SetRenderPass(m_swap_chain_render_pass, 0);
 
-	for (PresentShader i = PresentShader::COPY; static_cast<int>(i) < static_cast<int>(PresentShader::Count);
-		i = static_cast<PresentShader>(static_cast<int>(i) + 1))
 	{
-		const int index = static_cast<int>(i);
-
-		VkShaderModule ps = GetUtilityFragmentShader(*shader, shaderName(i));
+		VkShaderModule ps = GetUtilityFragmentShader(*shader, "ps_copy");
 		if (ps == VK_NULL_HANDLE)
 			return false;
 
 		ScopedGuard ps_guard([&ps]() { Vulkan::Util::SafeDestroyShaderModule(ps); });
 		gpb.SetFragmentShader(ps);
 
-		m_present[index] =
+		m_present[0] =
 			gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
-		if (!m_present[index])
+		if (!m_present[0])
 			return false;
 
-		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_present[index], "Present pipeline %d", i);
+		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_present[0], "Present pipeline 0");
 	}
 
 	return true;

@@ -62,20 +62,7 @@ const char* shaderName(ShaderConvert value)
 
 const char* shaderName(PresentShader value)
 {
-	switch (value)
-	{
-			// clang-format off
-		case PresentShader::COPY:              return "ps_copy";
-		case PresentShader::SCANLINE:          return "ps_filter_scanlines";
-		case PresentShader::DIAGONAL_FILTER:   return "ps_filter_diagonal";
-		case PresentShader::TRIANGULAR_FILTER: return "ps_filter_triangular";
-		case PresentShader::COMPLEX_FILTER:    return "ps_filter_complex";
-		case PresentShader::LOTTES_FILTER:     return "ps_filter_lottes";
-			// clang-format on
-		default:
-			ASSERT(0);
-			return "DisplayShaderUnknownShader";
-	}
+	return "ps_copy";
 }
 
 static int MipmapLevelsForSize(int width, int height)

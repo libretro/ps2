@@ -1058,12 +1058,11 @@ bool GSDeviceMTL::Create()
 			m_convert_pipeline[i] = MakePipeline(pdesc, vs_convert, LoadShader(name), name);
 		}
 		pdesc.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
-		for (size_t i = 0; i < std::size(m_present_pipeline); i++)
 		{
 			PresentShader conv = static_cast<PresentShader>(i);
 			NSString* name = [NSString stringWithCString:shaderName(conv) encoding:NSUTF8StringEncoding];
 			pdesc.colorAttachments[0].pixelFormat = layer_px_fmt;
-			m_present_pipeline[i] = MakePipeline(pdesc, vs_convert, LoadShader(name), [NSString stringWithFormat:@"present_%s", shaderName(conv) + 3]);
+			m_present_pipeline[0] = MakePipeline(pdesc, vs_convert, LoadShader(name), [NSString stringWithFormat:@"present_%s", "ps_copy" + 3]);
 		}
 		pdesc.colorAttachments[0].pixelFormat = ConvertPixelFormat(GSTexture::Format::Color);
 		m_convert_pipeline_copy[0] = MakePipeline(pdesc, vs_convert, ps_copy, @"copy_color");
@@ -1424,19 +1423,17 @@ static_assert(offsetof(DisplayConstantBuffer, SourceResolution)    == offsetof(G
 static_assert(offsetof(DisplayConstantBuffer, RcpSourceResolution) == offsetof(GSMTLPresentPSUniform, rcp_source_resolution));
 static_assert(offsetof(DisplayConstantBuffer, TimeAndPad.x)        == offsetof(GSMTLPresentPSUniform, time));
 
-void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, PresentShader shader, float shaderTime, bool linear)
+void GSDeviceMTL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, float shaderTime, bool linear)
 { @autoreleasepool {
 	GSVector2i ds = dTex ? dTex->GetSize() : GetWindowSize();
 	DisplayConstantBuffer cb;
 	cb.SetSource(sRect, sTex->GetSize());
 	cb.SetTarget(dRect, ds);
 	cb.SetTime(shaderTime);
-	id<MTLRenderPipelineState> pipe = m_present_pipeline[static_cast<int>(shader)];
+	id<MTLRenderPipelineState> pipe = m_present_pipeline[static_cast<int>(0)];
 
 	if (dTex)
-	{
 		DoStretchRect(sTex, sRect, dTex, dRect, pipe, linear, LoadAction::DontCareIfFull, &cb, sizeof(cb));
-	}
 	else
 	{
 		// !dTex → Use current draw encoder

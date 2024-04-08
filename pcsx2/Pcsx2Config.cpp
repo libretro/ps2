@@ -494,7 +494,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(SWExtraThreads) &&
 		OpEqu(SWExtraThreadsHeight) &&
 		OpEqu(TriFilter) &&
-		OpEqu(TVShader) &&
 		OpEqu(GetSkipCountFunctionId) &&
 		OpEqu(BeforeDrawFunctionId) &&
 		OpEqu(SkipDrawEnd) &&
@@ -652,7 +651,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEx(MaxAnisotropy, "MaxAnisotropy");
 	GSSettingIntEx(SWExtraThreads, "extrathreads");
 	GSSettingIntEx(SWExtraThreadsHeight, "extrathreads_height");
-	GSSettingIntEx(TVShader, "TVShader");
 	GSSettingIntEx(SkipDrawStart, "UserHacks_SkipDraw_Start");
 	GSSettingIntEx(SkipDrawEnd, "UserHacks_SkipDraw_End");
 	SkipDrawEnd = std::max(SkipDrawStart, SkipDrawEnd);
