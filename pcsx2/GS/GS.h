@@ -63,8 +63,6 @@ enum class GSDisplayAlignment
 
 extern Pcsx2Config::GSOptions GSConfig;
 
-class HostDisplay;
-
 // Returns the ID for the specified function, otherwise -1.
 s16 GSLookupGetSkipCountFunctionId(const std::string_view& name);
 s16 GSLookupBeforeDrawFunctionId(const std::string_view& name);
@@ -91,10 +89,6 @@ void GSSetGameCRC(u32 crc);
 void GSSetVSyncMode(VsyncMode mode);
 
 bool GSGetHostRefreshRate(float* refresh_rate);
-void GSGetAdaptersAndFullscreenModes(
-	GSRendererType renderer, std::vector<std::string>* adapters, std::vector<std::string>* fullscreen_modes);
-GSVideoMode GSgetDisplayMode();
-void GSgetInternalResolution(int* width, int* height);
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);

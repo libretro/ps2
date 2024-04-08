@@ -67,17 +67,8 @@ namespace Host
 		/// Retrieves the base settings layer. Must call with lock held.
 		SettingsInterface* GetBaseSettingsLayer();
 
-		/// Retrieves the input settings layer, if present. Must call with lock held.
-		SettingsInterface* GetInputSettingsLayer();
-
 		/// Sets the base settings layer. Should be called by the host at initialization time.
 		void SetBaseSettingsLayer(SettingsInterface* sif);
-
-		/// Sets the game settings layer. Called by VMManager when the game changes.
-		void SetGameSettingsLayer(SettingsInterface* sif);
-
-		/// Sets the input profile settings layer. Called by VMManager when the game changes.
-		void SetInputSettingsLayer(SettingsInterface* sif);
 
 		/// Updates the variables in the EmuFolders namespace, reloading subsystems if needed. Must call with the lock held.
 		void UpdateEmuFolders();

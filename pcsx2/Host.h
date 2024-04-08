@@ -62,15 +62,8 @@ namespace Host
 	/// Requests settings reset. Can be called from any thread, will call back and apply on the CPU thread.
 	bool RequestResetSettings(bool folders, bool core, bool controllers, bool hotkeys, bool ui);
 
-	/// Requests a specific display window size.
-	void RequestResizeHostDisplay(s32 width, s32 height);
-
 	/// Safely executes a function on the VM thread.
 	void RunOnCPUThread(std::function<void()> function, bool block = false);
-
-	/// Requests shut down and exit of the hosting application. This may not actually exit,
-	/// if the user cancels the shutdown confirmation.
-	void RequestExit(bool allow_confirm);
 
 	/// Requests shut down of the current virtual machine.
 	void RequestVMShutdown(bool allow_confirm, bool allow_save_state, bool default_save_state);

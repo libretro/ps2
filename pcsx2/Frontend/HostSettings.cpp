@@ -188,27 +188,10 @@ SettingsInterface* Host::Internal::GetBaseSettingsLayer()
 	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE);
 }
 
-SettingsInterface* Host::Internal::GetInputSettingsLayer()
-{
-	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_INPUT);
-}
-
 void Host::Internal::SetBaseSettingsLayer(SettingsInterface* sif)
 {
 	pxAssertRel(s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE) == nullptr, "Base layer has not been set");
 	s_layered_settings_interface.SetLayer(LayeredSettingsInterface::LAYER_BASE, sif);
-}
-
-void Host::Internal::SetGameSettingsLayer(SettingsInterface* sif)
-{
-	std::unique_lock lock(s_settings_mutex);
-	s_layered_settings_interface.SetLayer(LayeredSettingsInterface::LAYER_GAME, sif);
-}
-
-void Host::Internal::SetInputSettingsLayer(SettingsInterface* sif)
-{
-	std::unique_lock lock(s_settings_mutex);
-	s_layered_settings_interface.SetLayer(LayeredSettingsInterface::LAYER_INPUT, sif);
 }
 
 void Host::Internal::UpdateEmuFolders()
@@ -226,9 +209,7 @@ void Host::Internal::UpdateEmuFolders()
 	{
 		if (EmuFolders::Cheats != old_cheats_directory || EmuFolders::CheatsWS != old_cheats_ws_directory ||
 			EmuFolders::CheatsNI != old_cheats_ni_directory)
-		{
 			VMManager::ReloadPatches(true, true);
-		}
 
 		if (EmuFolders::MemoryCards != old_memcards_directory)
 		{

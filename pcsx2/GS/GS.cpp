@@ -430,66 +430,6 @@ bool GSGetHostRefreshRate(float* refresh_rate)
 	return g_gs_device->GetHostRefreshRate(refresh_rate);
 }
 
-void GSGetAdaptersAndFullscreenModes(
-	GSRendererType renderer, std::vector<std::string>* adapters, std::vector<std::string>* fullscreen_modes)
-{
-	switch (renderer)
-	{
-#ifdef _WIN32
-		case GSRendererType::DX11:
-		case GSRendererType::DX12:
-		{
-			auto factory = D3D::CreateFactory(false);
-			if (factory)
-			{
-				if (adapters)
-					*adapters = D3D::GetAdapterNames(factory.get());
-				if (fullscreen_modes)
-					*fullscreen_modes = D3D::GetFullscreenModes(factory.get(), EmuConfig.GS.Adapter);
-			}
-		}
-		break;
-#endif
-
-#ifdef ENABLE_VULKAN
-		case GSRendererType::VK:
-			GSDeviceVK::GetAdaptersAndFullscreenModes(adapters, fullscreen_modes);
-		break;
-#endif
-
-#ifdef __APPLE__
-		case GSRendererType::Metal:
-			if (adapters)
-				*adapters = GetMetalAdapterList();
-		break;
-#endif
-		default:
-			break;
-	}
-}
-
-GSVideoMode GSgetDisplayMode()
-{
-	GSRenderer* gs = g_gs_renderer.get();
-
-	return gs->GetVideoMode();
-}
-
-void GSgetInternalResolution(int* width, int* height)
-{
-	GSRenderer* gs = g_gs_renderer.get();
-	if (!gs)
-	{
-		*width = 0;
-		*height = 0;
-		return;
-	}
-
-	const GSVector2i res(gs->GetInternalResolution());
-	*width = res.x;
-	*height = res.y;
-}
-
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 {
 	Pcsx2Config::GSOptions old_config(std::move(GSConfig));

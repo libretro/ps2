@@ -1083,10 +1083,6 @@ void Host::OnVMResumed()
 {
 }
 
-void Host::RequestResizeHostDisplay(s32 width, s32 height)
-{
-}
-
 void Host::OnVMStarting()
 {
 }
