@@ -35,14 +35,10 @@ namespace Threading
 	// The following set of documented functions have Linux/Win32 specific implementations,
 	// which are found in WinThreads.cpp and LnxThreads.cpp
 
-	extern u64 GetThreadCpuTime();
 	extern u64 GetThreadTicksPerSecond();
 
 	/// Set the name of the current thread
 	extern void SetNameOfCurrentThread(const char* name);
-
-	// Releases a timeslice to other threads.
-	extern void Timeslice();
 
 	// For use in spin/wait loops.
 	extern void SpinWait();
@@ -118,10 +114,6 @@ namespace Threading
 		ThreadHandle& operator=(const Thread& handle) = delete;
 
 		__fi bool Joinable() const { return (m_native_handle != nullptr); }
-		__fi u32 GetStackSize() const { return m_stack_size; }
-
-		/// Sets the stack size for the thread. Do not call if the thread has already been started.
-		void SetStackSize(u32 size);
 
 		bool Start(EntryPoint func);
 		void Detach();

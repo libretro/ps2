@@ -50,15 +50,6 @@
 
 #else
 
-// Note: assuming multicore is safer because it forces the interlocked routines to use
-// the LOCK prefix.  The prefix works on single core CPUs fine (but is slow), but not
-// having the LOCK prefix is very bad indeed.
-
-__forceinline void Threading::Timeslice()
-{
-	sched_yield();
-}
-
 // For use in spin/wait loops,  Acts as a hint to Intel CPUs and should, in theory
 // improve performance and reduce cpu power consumption.
 __forceinline void Threading::SpinWait()
@@ -77,7 +68,7 @@ __forceinline void Threading::DisableHiresScheduler()
 {
 }
 
-// Unit of time of GetThreadCpuTime/GetCpuTime
+// Unit of time of GetCpuTime
 u64 Threading::GetThreadTicksPerSecond()
 {
 	return 1000000;
@@ -105,12 +96,6 @@ static u64 get_thread_time(uptr id = 0)
 		return 0;
 
 	return (u64)ts.tv_sec * (u64)1e6 + (u64)ts.tv_nsec / (u64)1e3;
-}
-
-// Returns the current timestamp (not relative to a real world clock)
-u64 Threading::GetThreadCpuTime()
-{
-	return get_thread_time();
 }
 
 Threading::ThreadHandle::ThreadHandle() = default;
@@ -222,12 +207,6 @@ Threading::Thread::Thread(EntryPoint func)
 Threading::Thread::~Thread()
 {
 	pxAssertRel(!m_native_handle, "Thread should be detached or joined at destruction");
-}
-
-void Threading::Thread::SetStackSize(u32 size)
-{
-	pxAssertRel(!m_native_handle, "Can't change the stack size on a started thread");
-	m_stack_size = size;
 }
 
 #ifdef __linux__

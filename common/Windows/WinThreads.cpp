@@ -23,11 +23,6 @@
 #include <process.h>
 #include <timeapi.h>
 
-__fi void Threading::Timeslice()
-{
-	::Sleep(0);
-}
-
 // For use in spin/wait loops,  Acts as a hint to Intel CPUs and should, in theory
 // improve performance and reduce cpu power consumption.
 __fi void Threading::SpinWait()
@@ -150,12 +145,6 @@ Threading::Thread::~Thread()
 	pxAssertRel(!m_native_handle, "Thread should be detached or joined at destruction");
 }
 
-void Threading::Thread::SetStackSize(u32 size)
-{
-	pxAssertRel(!m_native_handle, "Can't change the stack size on a started thread");
-	m_stack_size = size;
-}
-
 unsigned Threading::Thread::ThreadProc(void* param)
 {
 	std::unique_ptr<EntryPoint> entry(static_cast<EntryPoint*>(param));
@@ -202,13 +191,6 @@ Threading::ThreadHandle& Threading::Thread::operator=(Thread&& thread)
 	m_stack_size = thread.m_stack_size;
 	thread.m_stack_size = 0;
 	return *this;
-}
-
-u64 Threading::GetThreadCpuTime()
-{
-	u64 ret = 0;
-	QueryThreadCycleTime(GetCurrentThread(), &ret);
-	return ret;
 }
 
 u64 Threading::GetThreadTicksPerSecond()

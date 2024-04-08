@@ -26,15 +26,6 @@
 #include "common/Threading.h"
 #include "common/Assertions.h"
 
-// Note: assuming multicore is safer because it forces the interlocked routines to use
-// the LOCK prefix.  The prefix works on single core CPUs fine (but is slow), but not
-// having the LOCK prefix is very bad indeed.
-
-__forceinline void Threading::Timeslice()
-{
-	sched_yield();
-}
-
 // For use in spin/wait loops, acts as a hint to Intel CPUs and should, in theory
 // improve performance and reduce cpu power consumption.
 __forceinline void Threading::SpinWait()
@@ -56,7 +47,7 @@ __forceinline void Threading::DisableHiresScheduler()
 }
 
 // Just like on Windows, this is not really the number of ticks per second,
-// but just a factor by which one has to divide GetThreadCpuTime() or
+// but just a factor by which one has to divide
 // pxThread::GetCpuTime() if one wants to receive a value in seconds. NOTE:
 // doing this will of course yield precision loss.
 u64 Threading::GetThreadTicksPerSecond()
@@ -83,18 +74,6 @@ static u64 getthreadtime(thread_port_t thread)
 		   (u64)info.user_time.microseconds +
 		   (u64)info.system_time.seconds * (u64)1e6 +
 		   (u64)info.system_time.microseconds;
-}
-
-// Returns the current timestamp (not relative to a real world clock) in microseconds
-u64 Threading::GetThreadCpuTime()
-{
-	// we could also use mach_thread_self() and mach_port_deallocate(), but
-	// that calls upon mach traps (kinda like system calls). Unless I missed
-	// something in the COMMPAGE (like Linux vDSO) which makes overrides it
-	// to be user-space instead. In contract,
-	// pthread_mach_thread_np(pthread_self()) is entirely in user-space.
-	u64 us = getthreadtime(pthread_mach_thread_np(pthread_self()));
-	return us;
 }
 
 Threading::ThreadHandle::ThreadHandle() = default;
@@ -162,12 +141,6 @@ Threading::Thread::Thread(EntryPoint func)
 Threading::Thread::~Thread()
 {
 	pxAssertRel(!m_native_handle, "Thread should be detached or joined at destruction");
-}
-
-void Threading::Thread::SetStackSize(u32 size)
-{
-	pxAssertRel(!m_native_handle, "Can't change the stack size on a started thread");
-	m_stack_size = size;
 }
 
 void* Threading::Thread::ThreadProc(void* param)
