@@ -188,11 +188,6 @@ SettingsInterface* Host::Internal::GetBaseSettingsLayer()
 	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE);
 }
 
-SettingsInterface* Host::Internal::GetGameSettingsLayer()
-{
-	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_GAME);
-}
-
 SettingsInterface* Host::Internal::GetInputSettingsLayer()
 {
 	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_INPUT);

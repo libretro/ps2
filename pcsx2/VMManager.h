@@ -109,12 +109,6 @@ namespace VMManager
 	/// Returns true if the specified path is a disc image.
 	bool IsDiscFileName(const std::string_view& path);
 
-	/// Returns the serial to use when computing the game settings path for the current game.
-	std::string GetSerialForGameSettings();
-
-	/// Returns the path for the game settings ini file for the specified CRC.
-	std::string GetGameSettingsPath(const std::string_view& game_serial, u32 game_crc);
-
 	/// Initializes default configuration in the specified file.
 	void SetDefaultSettings(SettingsInterface& si);
 

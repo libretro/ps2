@@ -280,23 +280,6 @@ void VMManager::ApplyGameFixes()
 	s_active_game_fixes += game->applyGSHardwareFixes(EmuConfig.GS);
 }
 
-std::string VMManager::GetGameSettingsPath(const std::string_view& game_serial, u32 game_crc)
-{
-	std::string sanitized_serial(Path::SanitizeFileName(game_serial));
-
-	return game_serial.empty() ?
-			   Path::Combine(EmuFolders::GameSettings, fmt::format("{:08X}.ini", game_crc)) :
-			   Path::Combine(EmuFolders::GameSettings, fmt::format("{}_{:08X}.ini", sanitized_serial, game_crc));
-}
-
-std::string VMManager::GetSerialForGameSettings()
-{
-	// If we're running an ELF, we don't want to use the serial for any ISO override
-	// for game settings, since the game settings is where we define the override.
-	std::unique_lock lock(s_info_mutex);
-	return s_elf_override.empty() ? std::string(s_game_serial) : std::string();
-}
-
 bool VMManager::UpdateGameSettingsLayer()
 {
 	return true;

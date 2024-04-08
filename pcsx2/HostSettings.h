@@ -67,9 +67,6 @@ namespace Host
 		/// Retrieves the base settings layer. Must call with lock held.
 		SettingsInterface* GetBaseSettingsLayer();
 
-		/// Retrieves the game settings layer, if present. Must call with lock held.
-		SettingsInterface* GetGameSettingsLayer();
-
 		/// Retrieves the input settings layer, if present. Must call with lock held.
 		SettingsInterface* GetInputSettingsLayer();
 
