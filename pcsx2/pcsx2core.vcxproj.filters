@@ -1139,9 +1139,6 @@
     <ClCompile Include="Frontend\GameList.cpp">
       <Filter>Host</Filter>
     </ClCompile>
-    <ClCompile Include="INISettingsInterface.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
     <ClCompile Include="Frontend\InputManager.cpp">
       <Filter>Host</Filter>
     </ClCompile>
@@ -1995,9 +1992,6 @@
     </ClInclude>
     <ClInclude Include="GS.h" />
     <ClInclude Include="Frontend\GameList.h">
-      <Filter>Host</Filter>
-    </ClInclude>
-    <ClInclude Include="INISettingsInterface.h">
       <Filter>Host</Filter>
     </ClInclude>
     <ClInclude Include="Frontend\InputManager.h">

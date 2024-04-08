@@ -720,7 +720,6 @@ list(APPEND pcsx2FrontendSources
 	Frontend/HostSettings.cpp
 	Frontend/LayeredSettingsInterface.cpp
 	Frontend/LogSink.cpp
-	INISettingsInterface.cpp
 	VMManager.cpp
 )
 list(APPEND pcsx2FrontendHeaders
@@ -728,7 +727,6 @@ list(APPEND pcsx2FrontendHeaders
 	Frontend/LayeredSettingsInterface.h
 	Frontend/LogSink.h
 	HostSettings.h
-	INISettingsInterface.h
 	VMManager.h)
 
 # Linux sources

@@ -39,7 +39,6 @@
 #include "GS.h"
 #include "Host.h"
 #include "HostSettings.h"
-#include "INISettingsInterface.h"
 #include "IopBios.h"
 #include "MTVU.h"
 #include "MemoryCardFile.h"
