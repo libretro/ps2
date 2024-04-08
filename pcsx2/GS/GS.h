@@ -95,9 +95,6 @@ void GSGetAdaptersAndFullscreenModes(
 	GSRendererType renderer, std::vector<std::string>* adapters, std::vector<std::string>* fullscreen_modes);
 GSVideoMode GSgetDisplayMode();
 void GSgetInternalResolution(int* width, int* height);
-void GSgetStats(std::string& info);
-void GSgetMemoryStats(std::string& info);
-void GSgetTitleStats(std::string& info);
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);

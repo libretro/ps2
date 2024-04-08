@@ -168,17 +168,11 @@ static void CloseGSDevice(bool clear_state)
 static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 {
 	if (renderer == GSRendererType::Null)
-	{
 		g_gs_renderer = std::make_unique<GSRendererNull>();
-	}
 	else if (renderer != GSRendererType::SW)
-	{
 		g_gs_renderer = std::make_unique<GSRendererHW>();
-	}
 	else
-	{
 		g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
-	}
 
 	g_gs_renderer->SetRegsMem(basemem);
 	g_gs_renderer->ResetPCRTC();
@@ -459,21 +453,16 @@ void GSGetAdaptersAndFullscreenModes(
 
 #ifdef ENABLE_VULKAN
 		case GSRendererType::VK:
-		{
 			GSDeviceVK::GetAdaptersAndFullscreenModes(adapters, fullscreen_modes);
-		}
 		break;
 #endif
 
 #ifdef __APPLE__
 		case GSRendererType::Metal:
-		{
 			if (adapters)
 				*adapters = GetMetalAdapterList();
-		}
 		break;
 #endif
-
 		default:
 			break;
 	}
@@ -501,86 +490,6 @@ void GSgetInternalResolution(int* width, int* height)
 	*height = res.y;
 }
 
-void GSgetStats(std::string& info)
-{
-	GSPerfMon& pm = g_perfmon;
-	const char* api_name = GSDevice::RenderAPIToString(g_gs_device->GetRenderAPI());
-	if (GSConfig.Renderer == GSRendererType::SW)
-	{
-		const double fps = GetVerticalFrequency();
-		const double fillrate = pm.Get(GSPerfMon::Fillrate);
-		fmt::format_to(std::back_inserter(info), "{} SW | {} S | {} P | {} D | {:.2f} U | {:.2f} D | {:.2f} mpps",
-			api_name,
-			(int)pm.Get(GSPerfMon::SyncPoint),
-			(int)pm.Get(GSPerfMon::Prim),
-			(int)pm.Get(GSPerfMon::Draw),
-			pm.Get(GSPerfMon::Swizzle) / 1024,
-			pm.Get(GSPerfMon::Unswizzle) / 1024,
-			fps * fillrate / (1024 * 1024));
-	}
-	else if (GSConfig.Renderer == GSRendererType::Null)
-	{
-		fmt::format_to(std::back_inserter(info), "{} Null", api_name);
-	}
-	else
-	{
-		fmt::format_to(std::back_inserter(info), "{} HW | {} P | {} D | {} DC | {} B | {} RP | {} RB | {} TC | {} TU",
-			api_name,
-			(int)pm.Get(GSPerfMon::Prim),
-			(int)pm.Get(GSPerfMon::Draw),
-			(int)std::ceil(pm.Get(GSPerfMon::DrawCalls)),
-			(int)std::ceil(pm.Get(GSPerfMon::Barriers)),
-			(int)std::ceil(pm.Get(GSPerfMon::RenderPasses)),
-			(int)std::ceil(pm.Get(GSPerfMon::Readbacks)),
-			(int)std::ceil(pm.Get(GSPerfMon::TextureCopies)),
-			(int)std::ceil(pm.Get(GSPerfMon::TextureUploads)));
-	}
-}
-
-void GSgetMemoryStats(std::string& info)
-{
-	if (!g_texture_cache)
-		return;
-
-	const u64 targets = g_texture_cache->GetTargetMemoryUsage();
-	const u64 sources = g_texture_cache->GetSourceMemoryUsage();
-	const u64 hashcache = g_texture_cache->GetHashCacheMemoryUsage();
-	const u64 pool = g_gs_device->GetPoolMemoryUsage();
-	const u64 total = targets + sources + hashcache + pool;
-
-	if (GSConfig.TexturePreloading == TexturePreloadingLevel::Full)
-	{
-		fmt::format_to(std::back_inserter(info), "VRAM: {} MB | T: {} MB | S: {} MB | H: {} MB | P: {} MB",
-			(int)std::ceil(total / 1048576.0f),
-			(int)std::ceil(targets / 1048576.0f),
-			(int)std::ceil(sources / 1048576.0f),
-			(int)std::ceil(hashcache / 1048576.0f),
-			(int)std::ceil(pool / 1048576.0f));
-	}
-	else
-	{
-		fmt::format_to(std::back_inserter(info), "VRAM: {} MB | T: {} MB | S: {} MB | P: {} MB",
-			(int)std::ceil(total / 1048576.0f),
-			(int)std::ceil(targets / 1048576.0f),
-			(int)std::ceil(sources / 1048576.0f),
-			(int)std::ceil(pool / 1048576.0f));
-	}
-}
-
-void GSgetTitleStats(std::string& info)
-{
-	static constexpr const char* deinterlace_modes[] = {
-		"Automatic", "None", "Weave tff", "Weave bff", "Bob tff", "Bob bff", "Blend tff", "Blend bff", "Adaptive tff", "Adaptive bff"};
-
-	const char* api_name = GSDevice::RenderAPIToString(g_gs_device->GetRenderAPI());
-	const char* hw_sw_name = (GSConfig.Renderer == GSRendererType::Null) ? " Null" : (GSConfig.UseHardwareRenderer() ? " HW" : " SW");
-	const char* deinterlace_mode = deinterlace_modes[static_cast<int>(GSConfig.InterlaceMode)];
-
-	const char* interlace_mode = ReportInterlaceMode();
-	const char* video_mode = ReportVideoMode();
-	info = StringUtil::StdStringFromFormat("%s%s | %s | %s | %s", api_name, hw_sw_name, video_mode, interlace_mode, deinterlace_mode);
-}
-
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 {
 	Pcsx2Config::GSOptions old_config(std::move(GSConfig));
@@ -591,8 +500,8 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 
 	// Options which aren't using the global struct yet, so we need to recreate all GS objects.
 	if (
-		GSConfig.SWExtraThreads != old_config.SWExtraThreads ||
-		GSConfig.SWExtraThreadsHeight != old_config.SWExtraThreadsHeight)
+		   GSConfig.SWExtraThreads       != old_config.SWExtraThreads
+		|| GSConfig.SWExtraThreadsHeight != old_config.SWExtraThreadsHeight)
 	{
 		if (!GSreopen(false, true, old_config))
 			pxFailRel("Failed to do quick GS reopen");
@@ -603,13 +512,11 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 	// This is where we would do finer-grained checks in the future.
 	// For example, flushing the texture cache when mipmap settings change.
 
-	if (GSConfig.CRCHack != old_config.CRCHack ||
-		GSConfig.UpscaleMultiplier != old_config.UpscaleMultiplier ||
-		GSConfig.GetSkipCountFunctionId != old_config.GetSkipCountFunctionId ||
-		GSConfig.BeforeDrawFunctionId != old_config.BeforeDrawFunctionId)
-	{
+	if (       GSConfig.CRCHack                != old_config.CRCHack
+		|| GSConfig.UpscaleMultiplier      != old_config.UpscaleMultiplier
+		|| GSConfig.GetSkipCountFunctionId != old_config.GetSkipCountFunctionId
+		|| GSConfig.BeforeDrawFunctionId   != old_config.BeforeDrawFunctionId)
 		g_gs_renderer->UpdateCRCHacks();
-	}
 
 	// renderer-specific options (e.g. auto flush, TC offset)
 	g_gs_renderer->UpdateSettings(old_config);
