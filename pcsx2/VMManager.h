@@ -63,9 +63,6 @@ namespace VMManager
 	/// Returns true if there is an active virtual machine.
 	bool HasValidVM();
 
-	/// Returns the path of the disc currently running.
-	std::string GetDiscPath();
-
 	/// Returns the crc of the executable currently running.
 	u32 GetGameCRC();
 
@@ -96,9 +93,6 @@ namespace VMManager
 	/// Reloads settings, and applies any changes present.
 	void ApplySettings();
 
-	/// Reloads game specific settings, and applys any changes present.
-	bool ReloadGameSettings();
-
 	/// Reloads cheats/patches. If verbose is set, the number of patches loaded will be shown in the OSD.
 	void ReloadPatches(bool verbose, bool show_messages_when_disabled);
 
@@ -115,14 +109,8 @@ namespace VMManager
 	/// Returns true if the specified path is a blockdump.
 	bool IsBlockDumpFileName(const std::string_view& path);
 
-	/// Returns true if the specified path is a save state.
-	bool IsSaveStateFileName(const std::string_view& path);
-
 	/// Returns true if the specified path is a disc image.
 	bool IsDiscFileName(const std::string_view& path);
-
-	/// Returns true if the specified path is a disc/elf/etc.
-	bool IsLoadableFileName(const std::string_view& path);
 
 	/// Returns the serial to use when computing the game settings path for the current game.
 	std::string GetSerialForGameSettings();

@@ -190,12 +190,6 @@ bool VMManager::HasValidVM()
 	return (state >= VMState::Running && state <= VMState::Resetting);
 }
 
-std::string VMManager::GetDiscPath()
-{
-	std::unique_lock lock(s_info_mutex);
-	return s_disc_path;
-}
-
 u32 VMManager::GetGameCRC()
 {
 	std::unique_lock lock(s_info_mutex);
@@ -1042,11 +1036,6 @@ bool VMManager::IsBlockDumpFileName(const std::string_view& path)
 	return StringUtil::EndsWithNoCase(path, ".dump");
 }
 
-bool VMManager::IsSaveStateFileName(const std::string_view& path)
-{
-	return StringUtil::EndsWithNoCase(path, ".p2s");
-}
-
 bool VMManager::IsDiscFileName(const std::string_view& path)
 {
 	static const char* extensions[] = {".iso", ".bin", ".img", ".mdf", ".gz", ".cso", ".chd"};
@@ -1058,11 +1047,6 @@ bool VMManager::IsDiscFileName(const std::string_view& path)
 	}
 
 	return false;
-}
-
-bool VMManager::IsLoadableFileName(const std::string_view& path)
-{
-	return IsDiscFileName(path) || IsElfFileName(path) || IsBlockDumpFileName(path);
 }
 
 void VMManager::Execute()
@@ -1305,15 +1289,6 @@ void VMManager::ApplySettings()
 	EmuConfig.CopyRuntimeConfig(old_config);
 	LoadSettings();
 	CheckForConfigChanges(old_config);
-}
-
-bool VMManager::ReloadGameSettings()
-{
-	if (!UpdateGameSettingsLayer())
-		return false;
-
-	ApplySettings();
-	return true;
 }
 
 void VMManager::SetDefaultSettings(SettingsInterface& si)
