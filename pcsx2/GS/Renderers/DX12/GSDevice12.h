@@ -130,11 +130,7 @@ public:
 
 		UTILITY_ROOT_SIGNATURE_PARAM_PUSH_CONSTANTS = 0,
 		UTILITY_ROOT_SIGNATURE_PARAM_PS_TEXTURES = 1,
-		UTILITY_ROOT_SIGNATURE_PARAM_PS_SAMPLERS = 2,
-
-		CAS_ROOT_SIGNATURE_PARAM_PUSH_CONSTANTS = 0,
-		CAS_ROOT_SIGNATURE_PARAM_SRC_TEXTURE = 1,
-		CAS_ROOT_SIGNATURE_PARAM_DST_TEXTURE = 2
+		UTILITY_ROOT_SIGNATURE_PARAM_PS_SAMPLERS = 2
 	};
 
 private:
@@ -171,10 +167,6 @@ private:
 	std::unordered_map<GSHWDrawConfig::PSSelector, ComPtr<ID3DBlob>, GSHWDrawConfig::PSSelectorHash> m_tfx_pixel_shaders;
 	std::unordered_map<PipelineSelector, ComPtr<ID3D12PipelineState>, PipelineSelectorHash> m_tfx_pipelines;
 
-	ComPtr<ID3D12RootSignature> m_cas_root_signature;
-	ComPtr<ID3D12PipelineState> m_cas_upscale_pipeline;
-	ComPtr<ID3D12PipelineState> m_cas_sharpen_pipeline;
-
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
@@ -195,8 +187,6 @@ private:
 		const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) final;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) final;
 	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) final;
-
-	bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) final;
 
 	bool GetSampler(D3D12::DescriptorHandle* cpu_handle, GSHWDrawConfig::SamplerSelector ss);
 	void ClearSamplerCache() final;
@@ -220,7 +210,6 @@ private:
 	bool CompileInterlacePipelines();
 	bool CompileMergePipelines();
 	bool CompilePostProcessingPipelines();
-	bool CompileCASPipelines();
 
 	void DestroyResources();
 

@@ -21,8 +21,6 @@
 #include "GS/Renderers/Metal/GSTextureMTL.h"
 #include "GS/GSPerfMon.h"
 
-#include "imgui.h"
-
 #ifdef __APPLE__
 #include "GSMTLSharedHeader.h"
 
@@ -619,26 +617,6 @@ void GSDeviceMTL::DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float par
 	RenderCopy(sTex, m_shadeboost_pipeline, GSVector4i(0, 0, dTex->GetSize().x, dTex->GetSize().y));
 }
 
-bool GSDeviceMTL::DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants)
-{ @autoreleasepool {
-	static constexpr int threadGroupWorkRegionDim = 16;
-	const int dispatchX = (dTex->GetWidth() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
-	const int dispatchY = (dTex->GetHeight() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
-	static_assert(sizeof(constants) == sizeof(GSMTLCASPSUniform));
-
-	EndRenderPass();
-	id<MTLComputeCommandEncoder> enc = [GetRenderCmdBuf() computeCommandEncoder];
-	[enc setLabel:@"CAS"];
-	[enc setComputePipelineState:m_cas_pipeline[sharpen_only]];
-	[enc setTexture:static_cast<GSTextureMTL*>(sTex)->GetTexture() atIndex:0];
-	[enc setTexture:static_cast<GSTextureMTL*>(dTex)->GetTexture() atIndex:1];
-	[enc setBytes:&constants length:sizeof(constants) atIndex:GSMTLBufferIndexUniforms];
-	[enc dispatchThreadgroups:MTLSizeMake(dispatchX, dispatchY, 1)
-	    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
-	[enc endEncoding];
-	return true;
-}}
-
 MRCOwned<id<MTLFunction>> GSDeviceMTL::LoadShader(NSString* name)
 {
 	NSError* err = nil;
@@ -835,7 +813,6 @@ bool GSDeviceMTL::Create()
 	m_features.dual_source_blend = true;
 	m_features.clip_control = true;
 	m_features.stencil_buffer = true;
-	m_features.cas_sharpening = true;
 	m_features.test_and_sample_depth = true;
 
 	try
@@ -857,13 +834,6 @@ bool GSDeviceMTL::Create()
 		[clearSpinBuffer updateFence:m_spin_fence];
 		[clearSpinBuffer endEncoding];
 		m_spin_pipeline = MakeComputePipeline(LoadShader(@"waste_time"), @"waste_time");
-
-		for (int sharpen_only = 0; sharpen_only < 2; sharpen_only++)
-		{
-			setFnConstantB(m_fn_constants, sharpen_only, GSMTLConstantIndex_CAS_SHARPEN_ONLY);
-			NSString* shader = m_dev.features.has_fast_half ? @"CASHalf" : @"CASFloat";
-			m_cas_pipeline[sharpen_only] = MakeComputePipeline(LoadShader(shader), sharpen_only ? @"CAS Sharpen" : @"CAS Upscale");
-		}
 
 		m_expand_index_buffer = CreatePrivateBufferWithContent(m_dev.dev, initCommands, MTLResourceHazardTrackingModeUntracked, EXPAND_BUFFER_SIZE, GenerateExpansionIndexBuffer);
 		[m_expand_index_buffer setLabel:@"Point/Sprite Expand Indices"];

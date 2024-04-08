@@ -90,7 +90,7 @@ GSDevice::GSDevice() = default;
 GSDevice::~GSDevice()
 {
 	// should've been cleaned up in Destroy()
-	pxAssert(m_pool[0].empty() && m_pool[1].empty() && !m_merge && !m_weavebob && !m_blend && !m_mad && !m_target_tmp && !m_cas);
+	pxAssert(m_pool[0].empty() && m_pool[1].empty() && !m_merge && !m_weavebob && !m_blend && !m_mad && !m_target_tmp);
 }
 
 const char* GSDevice::RenderAPIToString(RenderAPI api)
@@ -379,14 +379,12 @@ void GSDevice::ClearCurrent()
 	delete m_blend;
 	delete m_mad;
 	delete m_target_tmp;
-	delete m_cas;
 
 	m_merge = nullptr;
 	m_weavebob = nullptr;
 	m_blend = nullptr;
 	m_mad = nullptr;
 	m_target_tmp = nullptr;
-	m_cas = nullptr;
 }
 
 void GSDevice::Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c)
@@ -578,67 +576,11 @@ void GSDevice::SetHWDrawConfigForAlphaPass(GSHWDrawConfig::PSSelector* ps,
 #pragma GCC diagnostic ignored "-Wignored-qualifiers"
 #endif
 
-// Kinda grotty, but better than copy/pasting the relevant bits in..
-#define A_CPU 1
-#include "bin/resources/shaders/common/ffx_a.h"
-#include "bin/resources/shaders/common/ffx_cas.h"
-
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-
-bool GSDevice::GetCASShaderSource(std::string* source)
-{
-	std::optional<std::string> ffx_a_source(Host::ReadResourceFileToString("shaders/common/ffx_a.h"));
-	std::optional<std::string> ffx_cas_source(Host::ReadResourceFileToString("shaders/common/ffx_cas.h"));
-	if (!ffx_a_source.has_value() || !ffx_cas_source.has_value())
-		return false;
-
-	// Since our shader compilers don't support includes, and OpenGL doesn't at all... we'll do a really cheeky string replace.
-	StringUtil::ReplaceAll(source, "#include \"ffx_a.h\"", ffx_a_source.value());
-	StringUtil::ReplaceAll(source, "#include \"ffx_cas.h\"", ffx_cas_source.value());
-	return true;
-}
-
-void GSDevice::CAS(GSTexture*& tex, GSVector4i& src_rect, GSVector4& src_uv, const GSVector4& draw_rect, bool sharpen_only)
-{
-	const int dst_width = sharpen_only ? src_rect.width() : static_cast<int>(std::ceil(draw_rect.z - draw_rect.x));
-	const int dst_height = sharpen_only ? src_rect.height() : static_cast<int>(std::ceil(draw_rect.w - draw_rect.y));
-	const int src_offset_x = static_cast<int>(src_rect.x);
-	const int src_offset_y = static_cast<int>(src_rect.y);
-
-	GSTexture* src_tex = tex;
-	if (!m_cas || m_cas->GetWidth() != dst_width || m_cas->GetHeight() != dst_height)
-	{
-		delete m_cas;
-		m_cas = CreateSurface(GSTexture::Type::RWTexture, dst_width, dst_height, 1, GSTexture::Format::Color);
-		if (!m_cas)
-		{
-			Console.Error("Failed to allocate CAS RW texture.");
-			return;
-		}
-	}
-
-	std::array<u32, NUM_CAS_CONSTANTS> consts;
-	CasSetup(&consts[0], &consts[4], static_cast<float>(GSConfig.CAS_Sharpness) * 0.01f,
-		static_cast<AF1>(src_rect.width()), static_cast<AF1>(src_rect.height()),
-		static_cast<AF1>(dst_width), static_cast<AF1>(dst_height));
-	consts[8] = static_cast<u32>(src_offset_x);
-	consts[9] = static_cast<u32>(src_offset_y);
-
-	if (!DoCAS(src_tex, m_cas, sharpen_only, consts))
-	{
-		// leave textures intact if we failed
-		Console.Warning("Applying CAS failed.");
-		return;
-	}
-
-	tex = m_cas;
-	src_rect = GSVector4i(0, 0, dst_width, dst_height);
-	src_uv = GSVector4(0.0f, 0.0f, 1.0f, 1.0f);
-}
 
 // clang-format off
 

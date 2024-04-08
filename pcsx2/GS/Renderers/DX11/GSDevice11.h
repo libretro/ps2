@@ -128,9 +128,6 @@ private:
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
 	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
 
-	bool CreateCASShaders();
-	bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) override;
-
 	wil::com_ptr_nothrow<IDXGIFactory5> m_dxgi_factory;
 	wil::com_ptr_nothrow<ID3D11Device1> m_dev;
 	wil::com_ptr_nothrow<ID3D11DeviceContext1> m_ctx;
@@ -213,13 +210,6 @@ private:
 		wil::com_ptr_nothrow<ID3D11BlendState> bs;
 		wil::com_ptr_nothrow<ID3D11PixelShader> primid_init_ps[2];
 	} m_date;
-
-	struct
-	{
-		wil::com_ptr_nothrow<ID3D11Buffer> cb;
-		wil::com_ptr_nothrow<ID3D11ComputeShader> cs_upscale;
-		wil::com_ptr_nothrow<ID3D11ComputeShader> cs_sharpen;
-	} m_cas;
 
 	// Shaders...
 

@@ -200,12 +200,6 @@ private:
 		GL::Program ps;
 	} m_shadeboost;
 
-	struct
-	{
-		GL::Program upscale_ps;
-		GL::Program sharpen_ps;
-	} m_cas;
-
 	GLuint m_ps_ss[1 << 8];
 	GSDepthStencilOGL* m_om_dss[1 << 5] = {};
 	std::unordered_map<ProgramSelector, GL::Program, ProgramSelectorHash> m_programs;
@@ -229,9 +223,6 @@ private:
 
 	bool CompileShadeBoostProgram();
 	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) override;
-
-	bool CreateCASPrograms();
-	bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) override;
 
 	void RenderBlankFrame();
 

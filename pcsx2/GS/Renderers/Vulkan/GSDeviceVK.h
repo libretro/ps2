@@ -96,9 +96,7 @@ public:
 		VERTEX_BUFFER_SIZE = 32 * 1024 * 1024,
 		INDEX_BUFFER_SIZE = 16 * 1024 * 1024,
 		VERTEX_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024,
-		FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024,
-
-		NUM_CAS_PIPELINES = 2,
+		FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024
 	};
 	enum DATE_RENDER_PASS : u32
 	{
@@ -156,10 +154,6 @@ private:
 
 	VkRenderPass m_tfx_render_pass[2][2][2][3][2][2][3][3] = {}; // [rt][ds][hdr][date][fbl][dsp][rt_op][ds_op]
 
-	VkDescriptorSetLayout m_cas_ds_layout = VK_NULL_HANDLE;
-	VkPipelineLayout m_cas_pipeline_layout = VK_NULL_HANDLE;
-	std::array<VkPipeline, NUM_CAS_PIPELINES> m_cas_pipelines = {};
-
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
@@ -173,8 +167,6 @@ private:
 		const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) final;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) final;
 	void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) final;
-
-	bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) final;
 
 	VkSampler GetSampler(GSHWDrawConfig::SamplerSelector ss);
 	void ClearSamplerCache() final;
@@ -199,7 +191,6 @@ private:
 	bool CompileInterlacePipelines();
 	bool CompileMergePipelines();
 	bool CompilePostProcessingPipelines();
-	bool CompileCASPipelines();
 
 	void RenderBlankFrame();
 

@@ -705,7 +705,6 @@ public:
 		bool dual_source_blend    : 1; ///< Can use alpha output as a blend factor.
 		bool clip_control         : 1; ///< Can use 0..1 depth range instead of -1..1.
 		bool stencil_buffer       : 1; ///< Supports stencil buffer, and can use for DATE.
-		bool cas_sharpening       : 1; ///< Supports sufficient functionality for contrast adaptive sharpening.
 		bool test_and_sample_depth: 1; ///< Supports concurrently binding the depth-stencil buffer for sampling and depth testing.
 		FeatureSupport()
 		{
@@ -751,7 +750,6 @@ protected:
 	static constexpr u32 MAX_TARGET_AGE = 20;
 	static constexpr u32 MAX_POOLED_TEXTURES = 300;
 	static constexpr u32 MAX_TEXTURE_AGE = 10;
-	static constexpr u32 NUM_CAS_CONSTANTS = 12; // 8 plus src offset x/y, 16 byte alignment
 	static constexpr u32 EXPAND_BUFFER_SIZE = sizeof(u16) * 65532 * 6;
 
 	WindowInfo m_window_info;
@@ -786,12 +784,6 @@ protected:
 	virtual void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) = 0;
 	virtual void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) = 0;
 	virtual void DoShadeBoost(GSTexture* sTex, GSTexture* dTex, const float params[4]) = 0;
-
-	/// Resolves CAS shader includes for the specified source.
-	static bool GetCASShaderSource(std::string* source);
-
-	/// Applies CAS and writes to the destination texture, which should be a RWTexture.
-	virtual bool DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants) = 0;
 
 public:
 	GSDevice();
@@ -901,8 +893,6 @@ public:
 	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset);
 	void ShadeBoost();
 	void Resize(int width, int height);
-
-	void CAS(GSTexture*& tex, GSVector4i& src_rect, GSVector4& src_uv, const GSVector4& draw_rect, bool sharpen_only);
 
 	bool ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle);
 

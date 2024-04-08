@@ -422,9 +422,6 @@ bool GSDeviceOGL::Create()
 	if (!CompileShadeBoostProgram())
 		return false;
 
-	// Image load store and GLSL 420pack is core in GL4.2, no need to check.
-	m_features.cas_sharpening = ((GLAD_GL_VERSION_4_2 && GLAD_GL_ARB_compute_shader) || GLAD_GL_ES_VERSION_3_2) && CreateCASPrograms();
-
 	// ****************************************************************
 	// rasterization configuration
 	// ****************************************************************
@@ -568,9 +565,6 @@ void GSDeviceOGL::DestroyResources()
 
 	if (m_ps_ss[0] != 0)
 		glDeleteSamplers(std::size(m_ps_ss), m_ps_ss);
-
-	m_cas.upscale_ps.Destroy();
-	m_cas.sharpen_ps.Destroy();
 
 	m_shadeboost.ps.Destroy();
 
@@ -1669,59 +1663,6 @@ void GSDeviceOGL::ClearSamplerCache()
 	{
 		m_ps_ss[key] = CreateSampler(PSSamplerSelector(key));
 	}
-}
-
-bool GSDeviceOGL::CreateCASPrograms()
-{
-	std::optional<std::string> cas_source(Host::ReadResourceFileToString("shaders/opengl/cas.glsl"));
-	if (!cas_source.has_value() || !GetCASShaderSource(&cas_source.value()))
-	{
-		m_features.cas_sharpening = false;
-		return false;
-	}
-
-	const char* header =
-		"#version 420\n"
-		"#extension GL_ARB_compute_shader : require\n";
-	const char* sharpen_params[2] = {
-		"#define CAS_SHARPEN_ONLY false\n",
-		"#define CAS_SHARPEN_ONLY true\n"};
-
-	if (!m_shader_cache.GetComputeProgram(&m_cas.upscale_ps, fmt::format("{}{}{}", header, sharpen_params[0], cas_source.value())) ||
-		!m_shader_cache.GetComputeProgram(&m_cas.sharpen_ps, fmt::format("{}{}{}", header, sharpen_params[1], cas_source.value())))
-	{
-		m_features.cas_sharpening = false;
-		return false;
-	}
-
-	const auto link_uniforms = [](GL::Program& prog) {
-		prog.RegisterUniform("const0");
-		prog.RegisterUniform("const1");
-		prog.RegisterUniform("srcOffset");
-	};
-	link_uniforms(m_cas.upscale_ps);
-	link_uniforms(m_cas.sharpen_ps);
-
-	return true;
-}
-
-bool GSDeviceOGL::DoCAS(GSTexture* sTex, GSTexture* dTex, bool sharpen_only, const std::array<u32, NUM_CAS_CONSTANTS>& constants)
-{
-	const GL::Program& prog = sharpen_only ? m_cas.sharpen_ps : m_cas.upscale_ps;
-	prog.Bind();
-	prog.Uniform4uiv(0, &constants[0]);
-	prog.Uniform4uiv(1, &constants[4]);
-	prog.Uniform2iv(2, reinterpret_cast<const s32*>(&constants[8]));
-
-	PSSetShaderResource(0, sTex);
-	glBindImageTexture(0, static_cast<GSTextureOGL*>(dTex)->GetID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
-
-	static const int threadGroupWorkRegionDim = 16;
-	const int dispatchX = (dTex->GetWidth() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
-	const int dispatchY = (dTex->GetHeight() + (threadGroupWorkRegionDim - 1)) / threadGroupWorkRegionDim;
-	glDispatchCompute(dispatchX, dispatchY, 1);
-
-	return true;
 }
 
 void GSDeviceOGL::RenderBlankFrame()
