@@ -16,7 +16,6 @@
 #include "Threading.h"
 #include "General.h"
 #include "Exceptions.h"
-#include "CrashHandler.h"
 
 #include <mutex>
 #include "fmt/core.h"
@@ -117,11 +116,7 @@ void pxOnAssertFail(const char* file, int line, const char* func, const char* ms
 		__debugbreak();
 	}
 	else if (result != IDIGNORE)
-	{
-		// try to save a crash dump before exiting
-		CrashHandler::WriteDumpForCaller();
 		TerminateProcess(GetCurrentProcess(), 0xBAADC0DE);
-	}
 #else
 	fputs(full_msg, stderr);
 	fputs("\nAborting application.\n", stderr);

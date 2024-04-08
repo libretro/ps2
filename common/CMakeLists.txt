@@ -12,7 +12,6 @@ target_sources(common PRIVATE
 	AlignedMalloc.cpp
 	SafeArray.inl
 	Console.cpp
-	CrashHandler.cpp
 	Exceptions.cpp
 	FastJmp.cpp
 	FileSystem.cpp
@@ -58,7 +57,6 @@ target_sources(common PRIVATE
 	Assertions.h
 	boost_spsc_queue.hpp
 	Console.h
-	CrashHandler.h
 	Easing.h
 	EnumOps.h
 	Exceptions.h
@@ -165,11 +163,7 @@ if(WIN32)
 	target_sources(common PRIVATE FastJmp.asm)
 	target_link_libraries(common PUBLIC WIL::WIL D3D12MemAlloc winmm)
 	target_sources(common PRIVATE
-		CrashHandler.cpp
-		CrashHandler.h
 		FastJmp.asm
-		StackWalker.cpp
-		StackWalker.h
 		D3D11/ShaderCache.cpp
 		D3D11/ShaderCache.h
 		D3D11/ShaderCompiler.cpp

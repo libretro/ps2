@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "common/Assertions.h"
-#include "common/CrashHandler.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/Timer.h"
@@ -60,9 +59,6 @@ bool CommonHost::InitializeCriticalFolders()
 		if (!FileSystem::DirectoryExists(EmuFolders::Settings.c_str()))
 			FileSystem::CreateDirectoryPath(EmuFolders::Settings.c_str(), false);
 	}
-
-	// Write crash dumps to the data directory, since that'll be accessible for certain.
-	CrashHandler::SetWriteDirectory(EmuFolders::DataRoot);
 
 	// the resources directory should exist, bail out if not
 	if (!FileSystem::DirectoryExists(EmuFolders::Resources.c_str()))

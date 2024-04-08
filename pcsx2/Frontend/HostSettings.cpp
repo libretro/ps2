@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "common/Assertions.h"
-#include "common/CrashHandler.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "Frontend/LayeredSettingsInterface.h"
