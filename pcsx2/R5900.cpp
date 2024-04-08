@@ -33,10 +33,7 @@
 #include "Elfheader.h"
 #include "CDVD/CDVD.h"
 #include "Patch.h"
-#include "GameDatabase.h"
 
-#include "DebugTools/MIPSAnalyst.h"
-#include "DebugTools/SymbolMap.h"
 #include "R5900OpcodeTables.h"
 
 using namespace R5900;	// for R5900 disasm tools

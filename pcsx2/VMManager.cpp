@@ -53,7 +53,6 @@
 #include "ps2/BiosTools.h"
 
 #include "DebugTools/MIPSAnalyst.h"
-#include "DebugTools/SymbolMap.h"
 
 #include "IconsFontAwesome5.h"
 
@@ -610,20 +609,14 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	Console.WriteLn("Opening CDVD...");
 	if (!DoCDVDopen())
-	{
-		Host::ReportErrorAsync("Startup Error", "Failed to initialize CDVD.");
 		return false;
-	}
 	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
 
 	Console.WriteLn("Opening GS...");
 	s_gs_open_on_initialize = GetMTGS().IsOpen();
 	if (!s_gs_open_on_initialize && !GetMTGS().WaitForOpen())
-	{
 		// we assume GS is going to report its own error
-		Console.WriteLn("Failed to open GS.");
 		return false;
-	}
 
 	ScopedGuard close_gs = []() {
 		if (!s_gs_open_on_initialize)
@@ -632,18 +625,12 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	Console.WriteLn("Opening SPU2...");
 	if (!SPU2::Open())
-	{
-		Host::ReportErrorAsync("Startup Error", "Failed to initialize SPU2.");
 		return false;
-	}
 	ScopedGuard close_spu2(&SPU2::Close);
 
 	Console.WriteLn("Opening PAD...");
 	if (PADinit() != 0 || PADopen() != 0)
-	{
-		Host::ReportErrorAsync("Startup Error", "Failed to initialize PAD.");
 		return false;
-	}
 	ScopedGuard close_pad = []() {
 		PADclose();
 		PADshutdown();
@@ -651,10 +638,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	Console.WriteLn("Opening DEV9...");
 	if (DEV9init() != 0 || DEV9open() != 0)
-	{
-		Host::ReportErrorAsync("Startup Error", "Failed to initialize DEV9.");
 		return false;
-	}
 	ScopedGuard close_dev9 = []() {
 		DEV9close();
 		DEV9shutdown();
@@ -662,20 +646,14 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	Console.WriteLn("Opening USB...");
 	if (!USBopen())
-	{
-		Host::ReportErrorAsync("Startup Error", "Failed to initialize USB.");
 		return false;
-	}
 	ScopedGuard close_usb = []() {
 		USBclose();
 	};
 
 	Console.WriteLn("Opening FW...");
 	if (FWopen() != 0)
-	{
-		Host::ReportErrorAsync("Startup Error", "Failed to initialize FW.");
 		return false;
-	}
 	ScopedGuard close_fw = []() { FWclose(); };
 
 	FileMcd_EmuOpen();
