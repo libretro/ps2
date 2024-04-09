@@ -515,26 +515,6 @@ namespace Vulkan
 		m_image_acquire_result.reset();
 	}
 
-	bool SwapChain::ResizeSwapChain(u32 new_width, u32 new_height, float new_scale)
-	{
-		DestroySwapChainImages();
-
-		if (new_width != 0 && new_height != 0)
-		{
-			m_window_info.surface_width = new_width;
-			m_window_info.surface_height = new_height;
-		}
-
-		if (!CreateSwapChain() || !SetupSwapChainImages())
-		{
-			DestroySwapChainImages();
-			DestroySwapChain();
-			return false;
-		}
-
-		return true;
-	}
-
 	bool SwapChain::RecreateSwapChain()
 	{
 		DestroySwapChainImages();

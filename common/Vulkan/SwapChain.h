@@ -67,7 +67,6 @@ namespace Vulkan
 		void ReleaseCurrentImage();
 
 		bool RecreateSurface(const WindowInfo& new_wi);
-		bool ResizeSwapChain(u32 new_width = 0, u32 new_height = 0, float new_scale = 1.0f);
 		bool RecreateSwapChain();
 
 		// Change vsync enabled state. This may fail as it causes a swapchain recreation.
