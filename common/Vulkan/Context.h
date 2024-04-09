@@ -73,7 +73,7 @@ namespace Vulkan
 
 		// Creates a new context and sets it up as global.
 		static bool Create(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical_device,
-			bool threaded_presentation, bool enable_debug_utils, bool enable_validation_layer);
+			bool enable_debug_utils, bool enable_validation_layer);
 
 		// Destroys context.
 		static void Destroy();
@@ -290,9 +290,6 @@ namespace Vulkan
 		void DoSubmitCommandBuffer(u32 index, SwapChain* present_swap_chain, u32 spin_cycles);
 		void DoPresent(SwapChain* present_swap_chain);
 		void WaitForPresentComplete(std::unique_lock<std::mutex>& lock);
-		void PresentThread();
-		void StartPresentThread();
-		void StopPresentThread();
 
 		bool InitSpinResources();
 		void DestroySpinResources();
@@ -381,17 +378,6 @@ namespace Vulkan
 		std::mutex m_present_mutex;
 		std::condition_variable m_present_queued_cv;
 		std::condition_variable m_present_done_cv;
-		std::thread m_present_thread;
-		std::atomic_bool m_present_thread_done{false};
-
-		struct QueuedPresent
-		{
-			SwapChain* swap_chain;
-			u32 command_buffer_index;
-			u32 spin_cycles;
-		};
-
-		QueuedPresent m_queued_present = {};
 
 		std::map<u32, VkRenderPass> m_render_pass_cache;
 

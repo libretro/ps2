@@ -364,7 +364,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	UseBlitSwapChain = false;
 	DisableShaderCache = false;
 	DisableFramebufferFetch = false;
-	DisableThreadedPresentation = false;
 	SkipDuplicateFrames = false;
 
 	HWDownloadMode = GSHardwareDownloadMode::Enabled;
@@ -475,7 +474,6 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 		   OpEqu(DisableShaderCache) &&
 		   OpEqu(DisableDualSourceBlend) &&
 		   OpEqu(DisableFramebufferFetch) &&
-		   OpEqu(DisableThreadedPresentation) &&
 		   OpEqu(OverrideTextureBarriers);
 }
 
@@ -522,7 +520,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
 	GSSettingBool(DisableDualSourceBlend);
 	GSSettingBool(DisableFramebufferFetch);
-	GSSettingBool(DisableThreadedPresentation);
 	GSSettingBool(SkipDuplicateFrames);
 
 	GSSettingBool(HWSpinGPUForReadbacks);

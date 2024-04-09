@@ -583,8 +583,6 @@ static bool create_device_vulkan(retro_vulkan_context *context, VkInstance insta
 		EmuConfig.GS.Adapter = props.deviceName;
 	}
 
-	EmuConfig.GS.DisableThreadedPresentation = true;
-
 	GetMTGS().TryOpenGS();
 
 	context->gpu = g_vulkan_context->GetPhysicalDevice();

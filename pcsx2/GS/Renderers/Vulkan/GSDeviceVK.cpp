@@ -283,7 +283,7 @@ namespace Vulkan
 	}
 
 	bool Context::Create(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical_device,
-		bool threaded_presentation, bool enable_debug_utils, bool enable_validation_layer)
+		bool enable_debug_utils, bool enable_validation_layer)
 	{
 		pxAssertMsg(!g_vulkan_context, "Has no current context");
 		g_vulkan_context.reset(new Context(instance, physical_device));
@@ -305,17 +305,12 @@ namespace Vulkan
 			return false;
 		}
 
-		if (threaded_presentation)
-			g_vulkan_context->StartPresentThread();
-
 		return true;
 	}
 
 	void Context::Destroy()
 	{
 		pxAssertMsg(g_vulkan_context, "Has context");
-
-		g_vulkan_context->StopPresentThread();
 
 		if (g_vulkan_context->m_device != VK_NULL_HANDLE)
 			g_vulkan_context->WaitForGPUIdle();
@@ -1120,7 +1115,7 @@ namespace Vulkan
 		if (spin_enabled && m_optional_extensions.vk_ext_calibrated_timestamps)
 			resources.submit_timestamp = GetCPUTimestamp();
 
-		if (!submit_on_thread || !m_present_thread.joinable())
+		if (!submit_on_thread)
 		{
 			DoSubmitCommandBuffer(m_current_frame, present_swap_chain, spin_cycles);
 			if (present_swap_chain)
@@ -1128,9 +1123,6 @@ namespace Vulkan
 			return;
 		}
 
-		m_queued_present.command_buffer_index = m_current_frame;
-		m_queued_present.swap_chain = present_swap_chain;
-		m_queued_present.spin_cycles = spin_cycles;
 		m_present_done.store(false);
 		m_present_queued_cv.notify_one();
 	}
@@ -1225,46 +1217,6 @@ namespace Vulkan
 		m_present_done_cv.wait(lock, [this]() { return m_present_done.load(); });
 	}
 
-	void Context::PresentThread()
-	{
-		std::unique_lock<std::mutex> lock(m_present_mutex);
-		while (!m_present_thread_done.load())
-		{
-			m_present_queued_cv.wait(lock, [this]() { return !m_present_done.load() || m_present_thread_done.load(); });
-
-			if (m_present_done.load())
-				continue;
-
-			DoSubmitCommandBuffer(m_queued_present.command_buffer_index, m_queued_present.swap_chain, m_queued_present.spin_cycles);
-			if (m_queued_present.swap_chain)
-				DoPresent(m_queued_present.swap_chain);
-			m_present_done.store(true);
-			m_present_done_cv.notify_one();
-		}
-	}
-
-	void Context::StartPresentThread()
-	{
-		pxAssert(!m_present_thread.joinable());
-		m_present_thread_done.store(false);
-		m_present_thread = std::thread(&Context::PresentThread, this);
-	}
-
-	void Context::StopPresentThread()
-	{
-		if (!m_present_thread.joinable())
-			return;
-
-		{
-			std::unique_lock<std::mutex> lock(m_present_mutex);
-			WaitForPresentComplete(lock);
-			m_present_thread_done.store(true);
-			m_present_queued_cv.notify_one();
-		}
-
-		m_present_thread.join();
-	}
-
 	void Context::CommandBufferCompleted(u32 index)
 	{
 		FrameResources& resources = m_frame_resources[index];
@@ -1305,9 +1257,6 @@ namespace Vulkan
 	void Context::ActivateCommandBuffer(u32 index)
 	{
 		FrameResources& resources = m_frame_resources[index];
-
-		if (!m_present_done.load() && m_queued_present.command_buffer_index == index)
-			WaitForPresentComplete();
 
 		// Wait for the GPU to finish with all resources for this command buffer.
 		if (resources.fence_counter > m_completed_fence_counter)
@@ -2413,8 +2362,8 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 			return false;
 	}
 
-	if (!Vulkan::Context::Create(instance, surface, gpus[gpu_index], enable_debug_utils, enable_validation_layer,
-			!GSConfig.DisableThreadedPresentation))
+	if (!Vulkan::Context::Create(instance, surface, gpus[gpu_index], enable_debug_utils, enable_validation_layer
+			))
 	{
 		Console.Error("Failed to create Vulkan context");
 		return false;

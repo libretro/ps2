@@ -487,7 +487,6 @@ struct Pcsx2Config
 					DisableShaderCache : 1,
 					DisableDualSourceBlend : 1,
 					DisableFramebufferFetch : 1,
-					DisableThreadedPresentation : 1,
 					SkipDuplicateFrames : 1;
 
 				bool
