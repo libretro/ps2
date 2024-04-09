@@ -83,10 +83,6 @@ RenderAPI GSDeviceNull::GetRenderAPI() const
 {
     return RenderAPI::None;
 }
-bool GSDeviceNull::HasSurface() const
-{
-    return true;
-}
 void GSDeviceNull::DestroySurface()
 {
 
@@ -103,10 +99,6 @@ void GSDeviceNull::EndPresent()
 void GSDeviceNull::SetVSync(VsyncMode mode)
 {
 
-}
-std::string GSDeviceNull::GetDriverInfo() const
-{
-    return "";
 }
 
 void GSDeviceNull::ClearRenderTarget(GSTexture* t, const GSVector4& c)

@@ -44,14 +44,11 @@ public:
 	~GSDeviceNull() override;
 
 	RenderAPI GetRenderAPI() const override;
-	bool HasSurface() const override;
 	void DestroySurface() override;
 
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 	void SetVSync(VsyncMode mode) override;
-
-	std::string GetDriverInfo() const override;
 
 	void ClearRenderTarget(GSTexture* t, const GSVector4& c) override;
 	void ClearRenderTarget(GSTexture* t, u32 c) override;

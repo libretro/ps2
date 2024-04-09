@@ -235,9 +235,7 @@ public:
 
 	RenderAPI GetRenderAPI() const override;
 
-	bool HasSurface() const override;
 	void DestroySurface() override;
-	std::string GetDriverInfo() const override;
 
 	bool GetHostRefreshRate(float* refresh_rate) override;
 

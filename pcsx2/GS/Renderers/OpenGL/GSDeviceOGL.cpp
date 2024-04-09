@@ -55,11 +55,6 @@ RenderAPI GSDeviceOGL::GetRenderAPI() const
 	return RenderAPI::OpenGL;
 }
 
-bool GSDeviceOGL::HasSurface() const
-{
-	return m_window_info.type != WindowInfo::Type::Surfaceless;
-}
-
 void GSDeviceOGL::SetVSync(VsyncMode mode)
 {
 	if (m_vsync_mode == mode || m_gl_context->GetWindowInfo().type == WindowInfo::Type::Surfaceless)
@@ -605,15 +600,6 @@ void GSDeviceOGL::DestroySurface()
 	m_window_info = {};
 	if (!m_gl_context->ChangeSurface(m_window_info))
 		Console.Error("Failed to switch to surfaceless");
-}
-
-std::string GSDeviceOGL::GetDriverInfo() const
-{
-	const char* gl_vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-	const char* gl_renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-	const char* gl_version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-	return StringUtil::StdStringFromFormat(
-		"%s Context:\n%s\n%s %s", m_gl_context->IsGLES() ? "OpenGL ES" : "OpenGL", gl_version, gl_vendor, gl_renderer);
 }
 
 GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
@@ -1174,7 +1160,6 @@ void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r
 void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)
 {
 	pxAssert(dTex->IsDepthStencil() == HasDepthOutput(shader));
-	pxAssert(linear ? SupportsBilinear(shader) : SupportsNearest(shader));
 	StretchRect(sTex, sRect, dTex, dRect, m_convert.ps[(int)shader], linear);
 }
 
@@ -1256,7 +1241,6 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	prog.Uniform2fv(5, &cb.RcpTargetResolution.x);
 	prog.Uniform2fv(6, &cb.SourceResolution.x);
 	prog.Uniform2fv(7, &cb.RcpSourceResolution.x);
-	prog.Uniform1f(8, cb.TimeAndPad.x);
 
 	OMSetDepthStencilState(m_convert.dss);
 	OMSetBlendState(false);

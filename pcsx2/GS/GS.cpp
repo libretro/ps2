@@ -150,9 +150,6 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 		return false;
 	}
 
-	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", GSDevice::RenderAPIToString(new_api));
-	Console.Indent().WriteLn(g_gs_device->GetDriverInfo());
-
 	return true;
 }
 

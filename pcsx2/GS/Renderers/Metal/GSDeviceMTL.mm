@@ -688,8 +688,6 @@ RenderAPI GSDeviceMTL::GetRenderAPI() const
 	return RenderAPI::Metal;
 }
 
-bool GSDeviceMTL::HasSurface()  const { return static_cast<bool>(m_layer);}
-
 void GSDeviceMTL::AttachSurfaceOnMainThread()
 {
 	ASSERT([NSThread isMainThread]);
@@ -1132,18 +1130,6 @@ void GSDeviceMTL::DestroySurface()
 	m_layer = nullptr;
 }
 
-std::string GSDeviceMTL::GetDriverInfo() const
-{ @autoreleasepool {
-	std::string desc([[m_dev.dev description] UTF8String]);
-	desc += "\n    Texture Swizzle:   " + std::string(m_dev.features.texture_swizzle   ? "Supported" : "Unsupported");
-	desc += "\n    Unified Memory:    " + std::string(m_dev.features.unified_memory    ? "Supported" : "Unsupported");
-	desc += "\n    Framebuffer Fetch: " + std::string(m_dev.features.framebuffer_fetch ? "Supported" : "Unsupported");
-	desc += "\n    Primitive ID:      " + std::string(m_dev.features.primid            ? "Supported" : "Unsupported");
-	desc += "\n    Shader Version:    " + std::string(to_string(m_dev.features.shader_version));
-	desc += "\n    Max Texture Size:  " + std::to_string(m_dev.features.max_texsize);
-	return desc;
-}}
-
 void GSDeviceMTL::UpdateTexture(id<MTLTexture> texture, u32 x, u32 y, u32 width, u32 height, const void* data, u32 data_stride)
 {
 	id<MTLCommandBuffer> cmdbuf = [m_queue commandBuffer];
@@ -1381,8 +1367,6 @@ void GSDeviceMTL::RenderCopy(GSTexture* sTex, id<MTLRenderPipelineState> pipelin
 void GSDeviceMTL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)
 { @autoreleasepool {
 	id<MTLRenderPipelineState> pipeline;
-
-	pxAssert(linear ? SupportsBilinear(shader) : SupportsNearest(shader));
 
 	if (shader == ShaderConvert::COPY)
 		pipeline = m_convert_pipeline_copy[dTex->GetFormat() == GSTexture::Format::Color ? 0 : 1];

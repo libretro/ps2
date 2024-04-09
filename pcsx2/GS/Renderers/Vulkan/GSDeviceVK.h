@@ -214,13 +214,11 @@ public:
 	__fi VkSampler GetLinearSampler() const { return m_linear_sampler; }
 
 	RenderAPI GetRenderAPI() const override;
-	bool HasSurface() const override;
 
 	bool Create() override;
 	void Destroy() override;
 
 	void DestroySurface() override;
-	std::string GetDriverInfo() const override;
 
 	void SetVSync(VsyncMode mode) override;
 

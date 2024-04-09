@@ -218,13 +218,11 @@ public:
 	__fi static GSDevice12* GetInstance() { return static_cast<GSDevice12*>(g_gs_device.get()); }
 
 	RenderAPI GetRenderAPI() const override;
-	bool HasSurface() const override;
 
 	bool Create() override;
 	void Destroy() override;
 
 	void DestroySurface() override;
-	std::string GetDriverInfo() const override;
 
 	bool GetHostRefreshRate(float* refresh_rate) override;
 

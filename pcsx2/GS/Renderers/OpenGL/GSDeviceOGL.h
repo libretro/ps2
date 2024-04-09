@@ -239,13 +239,11 @@ public:
 	__fi u32 GetFBOWrite() const { return m_fbo_write; }
 
 	RenderAPI GetRenderAPI() const override;
-	bool HasSurface() const override;
 
 	bool Create() override;
 	void Destroy() override;
 
 	void DestroySurface() override;
-	std::string GetDriverInfo() const override;
 
 	void SetVSync(VsyncMode mode) override;
 

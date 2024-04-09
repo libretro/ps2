@@ -415,7 +415,6 @@ void GSDevice11::Destroy()
 	m_merge = {};
 	m_interlace = {};
 	m_date = {};
-	m_cas = {};
 
 	m_vb.reset();
 	m_ib.reset();
@@ -459,11 +458,6 @@ void GSDevice11::SetFeatures()
 	m_features.vs_expand = (feature_level >= D3D_FEATURE_LEVEL_11_0);
 }
 
-bool GSDevice11::HasSurface() const
-{
-	return true;
-}
-
 bool GSDevice11::GetHostRefreshRate(float* refresh_rate)
 {
 	return GSDevice::GetHostRefreshRate(refresh_rate);
@@ -497,55 +491,6 @@ void GSDevice11::DestroySwapChain()
 void GSDevice11::DestroySurface()
 {
 	DestroySwapChain();
-}
-
-std::string GSDevice11::GetDriverInfo() const
-{
-	std::string ret = "Unknown Feature Level";
-
-	static constexpr std::array<std::tuple<D3D_FEATURE_LEVEL, const char*>, 4> feature_level_names = {{
-		{D3D_FEATURE_LEVEL_10_0, "D3D_FEATURE_LEVEL_10_0"},
-		{D3D_FEATURE_LEVEL_10_0, "D3D_FEATURE_LEVEL_10_1"},
-		{D3D_FEATURE_LEVEL_11_0, "D3D_FEATURE_LEVEL_11_0"},
-		{D3D_FEATURE_LEVEL_11_1, "D3D_FEATURE_LEVEL_11_1"},
-	}};
-
-	const D3D_FEATURE_LEVEL fl = m_dev->GetFeatureLevel();
-	for (size_t i = 0; i < std::size(feature_level_names); i++)
-	{
-		if (fl == std::get<0>(feature_level_names[i]))
-		{
-			ret = std::get<1>(feature_level_names[i]);
-			break;
-		}
-	}
-
-	ret += "\n";
-
-	wil::com_ptr_nothrow<IDXGIDevice> dxgi_dev;
-	if (m_dev.try_query_to(&dxgi_dev))
-	{
-		wil::com_ptr_nothrow<IDXGIAdapter> dxgi_adapter;
-		if (SUCCEEDED(dxgi_dev->GetAdapter(dxgi_adapter.put())))
-		{
-			DXGI_ADAPTER_DESC desc;
-			if (SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
-			{
-				ret += StringUtil::StdStringFromFormat("VID: 0x%04X PID: 0x%04X\n", desc.VendorId, desc.DeviceId);
-				ret += StringUtil::WideStringToUTF8String(desc.Description);
-				ret += "\n";
-
-				const std::string driver_version(D3D::GetDriverVersionFromLUID(desc.AdapterLuid));
-				if (!driver_version.empty())
-				{
-					ret += "Driver Version: ";
-					ret += driver_version;
-				}
-			}
-		}
-	}
-
-	return ret;
 }
 
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)
@@ -731,7 +676,6 @@ void GSDevice11::CloneTexture(GSTexture* src, GSTexture** dest, const GSVector4i
 void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)
 {
 	pxAssert(dTex->IsDepthStencil() == HasDepthOutput(shader));
-	pxAssert(linear ? SupportsBilinear(shader) : SupportsNearest(shader));
 	StretchRect(sTex, sRect, dTex, dRect, m_convert.ps[static_cast<int>(shader)].get(), nullptr, linear);
 }
 

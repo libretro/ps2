@@ -373,9 +373,7 @@ public:
 	void DetachSurfaceOnMainThread();
 
 	RenderAPI GetRenderAPI() const override;
-	bool HasSurface() const override;
 	void DestroySurface() override;
-	std::string GetDriverInfo() const override;
 
 	void UpdateTexture(id<MTLTexture> texture, u32 x, u32 y, u32 width, u32 height, const void* data, u32 data_stride);
 

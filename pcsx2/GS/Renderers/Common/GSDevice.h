@@ -79,8 +79,9 @@ static inline bool HasDepthOutput(ShaderConvert shader)
 		case ShaderConvert::DEPTH_COPY:
 			return true;
 		default:
-			return false;
+			break;
 	}
+	return false;
 }
 
 static inline bool HasStencilOutput(ShaderConvert shader)
@@ -91,36 +92,9 @@ static inline bool HasStencilOutput(ShaderConvert shader)
 		case ShaderConvert::DATM_1:
 			return true;
 		default:
-			return false;
+			break;
 	}
-}
-
-static inline bool SupportsNearest(ShaderConvert shader)
-{
-	switch (shader)
-	{
-		case ShaderConvert::RGBA8_TO_FLOAT32_BILN:
-		case ShaderConvert::RGBA8_TO_FLOAT24_BILN:
-		case ShaderConvert::RGBA8_TO_FLOAT16_BILN:
-		case ShaderConvert::RGB5A1_TO_FLOAT16_BILN:
-			return false;
-		default:
-			return true;
-	}
-}
-
-static inline bool SupportsBilinear(ShaderConvert shader)
-{
-	switch (shader)
-	{
-		case ShaderConvert::RGBA8_TO_FLOAT32:
-		case ShaderConvert::RGBA8_TO_FLOAT24:
-		case ShaderConvert::RGBA8_TO_FLOAT16:
-		case ShaderConvert::RGB5A1_TO_FLOAT16:
-			return false;
-		default:
-			return true;
-	}
+	return false;
 }
 
 enum class PresentShader
@@ -158,7 +132,6 @@ public:
 	GSVector2 RcpTargetResolution; // +56,zw
 	GSVector2 SourceResolution; // +64,xy
 	GSVector2 RcpSourceResolution; // +72,zw
-	GSVector4 TimeAndPad; // seconds since GS init +76,xyzw
 	// +96
 
 	// assumes that sRect is normalized
@@ -175,10 +148,6 @@ public:
 		TargetResolution = GSVector2(static_cast<float>(dSize.x), static_cast<float>(dSize.y));
 		RcpTargetResolution = GSVector2(1.0f) / TargetResolution;
 		TargetSize = GSVector2(dRect.z - dRect.x, dRect.w - dRect.y);
-	}
-	void SetTime(float time)
-	{
-		TimeAndPad = GSVector4(time);
 	}
 };
 
@@ -756,7 +725,6 @@ protected:
 	GSTexture* m_mad = nullptr;
 	GSTexture* m_target_tmp = nullptr;
 	GSTexture* m_current = nullptr;
-	GSTexture* m_cas = nullptr;
 
 	struct
 	{
@@ -818,9 +786,6 @@ public:
 	/// Returns the graphics API used by this device.
 	virtual RenderAPI GetRenderAPI() const = 0;
 
-	/// Returns true if we have a window we're rendering into.
-	virtual bool HasSurface() const = 0;
-
 	/// Destroys the surface we're currently drawing to.
 	virtual void DestroySurface() = 0;
 
@@ -836,9 +801,6 @@ public:
 
 	/// Returns the effective refresh rate of this display.
 	virtual bool GetHostRefreshRate(float* refresh_rate);
-
-	/// Returns a string of information about the graphics driver being used.
-	virtual std::string GetDriverInfo() const = 0;
 
 	virtual void ClearRenderTarget(GSTexture* t, const GSVector4& c) = 0;
 	virtual void ClearRenderTarget(GSTexture* t, u32 c) = 0;

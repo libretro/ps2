@@ -681,11 +681,6 @@ RenderAPI GSDevice12::GetRenderAPI() const
 	return RenderAPI::D3D12;
 }
 
-bool GSDevice12::HasSurface() const
-{
-	return true;
-}
-
 bool GSDevice12::Create()
 {
 	if (!GSDevice::Create())
@@ -817,48 +812,6 @@ void GSDevice12::DestroySwapChain()
 
 void GSDevice12::DestroySurface()
 {
-}
-
-std::string GSDevice12::GetDriverInfo() const
-{
-	std::string ret = "Unknown Feature Level";
-
-	static constexpr std::array<std::tuple<D3D_FEATURE_LEVEL, const char*>, 4> feature_level_names = {{
-		{D3D_FEATURE_LEVEL_10_0, "D3D_FEATURE_LEVEL_10_0"},
-		{D3D_FEATURE_LEVEL_10_0, "D3D_FEATURE_LEVEL_10_1"},
-		{D3D_FEATURE_LEVEL_11_0, "D3D_FEATURE_LEVEL_11_0"},
-		{D3D_FEATURE_LEVEL_11_1, "D3D_FEATURE_LEVEL_11_1"},
-	}};
-
-	const D3D_FEATURE_LEVEL fl = g_d3d12_context->GetFeatureLevel();
-	for (size_t i = 0; i < std::size(feature_level_names); i++)
-	{
-		if (fl == std::get<0>(feature_level_names[i]))
-		{
-			ret = std::get<1>(feature_level_names[i]);
-			break;
-		}
-	}
-
-	ret += "\n";
-
-	IDXGIAdapter* adapter = g_d3d12_context->GetAdapter();
-	DXGI_ADAPTER_DESC desc;
-	if (adapter && SUCCEEDED(adapter->GetDesc(&desc)))
-	{
-		ret += StringUtil::StdStringFromFormat("VID: 0x%04X PID: 0x%04X\n", desc.VendorId, desc.DeviceId);
-		ret += StringUtil::WideStringToUTF8String(desc.Description);
-		ret += "\n";
-
-		const std::string driver_version(D3D::GetDriverVersionFromLUID(desc.AdapterLuid));
-		if (!driver_version.empty())
-		{
-			ret += "Driver Version: ";
-			ret += driver_version;
-		}
-	}
-
-	return ret;
 }
 
 GSDevice::PresentResult GSDevice12::BeginPresent(bool frame_skip)
