@@ -43,10 +43,6 @@ else()
 
 	## Use pcsx2 package to find module
 	include(FindLibc)
-
-	## Use CheckLib package to find module
-	include(CheckLib)
-
 	if(UNIX AND NOT APPLE)
 		find_package(Libbacktrace)
 	endif()

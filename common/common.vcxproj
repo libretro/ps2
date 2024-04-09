@@ -59,7 +59,6 @@
     <ClCompile Include="D3D11\ShaderCache.cpp" />
     <ClCompile Include="D3D11\ShaderCompiler.cpp" />
     <ClCompile Include="D3D12\Builders.cpp" />
-    <ClCompile Include="D3D12\Context.cpp" />
     <ClCompile Include="D3D12\DescriptorHeapManager.cpp" />
     <ClCompile Include="D3D12\ShaderCache.cpp" />
     <ClCompile Include="D3D12\StreamBuffer.cpp" />
@@ -91,7 +90,6 @@
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Vulkan\vk_mem_alloc.cpp" />
     <ClCompile Include="Vulkan\Builders.cpp" />
-    <ClCompile Include="Vulkan\Context.cpp" />
     <ClCompile Include="Vulkan\Loader.cpp" />
     <ClCompile Include="Vulkan\ShaderCache.cpp" />
     <ClCompile Include="Vulkan\ShaderCompiler.cpp" />

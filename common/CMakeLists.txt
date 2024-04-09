@@ -140,7 +140,6 @@ if(USE_VULKAN)
 		Vulkan/Util.cpp
 		Vulkan/SwapChain.cpp
 		Vulkan/StreamBuffer.cpp
-		Vulkan/Context.cpp
 		Vulkan/Builders.cpp
 		Vulkan/vk_mem_alloc.cpp
 		Vulkan/Context.h
