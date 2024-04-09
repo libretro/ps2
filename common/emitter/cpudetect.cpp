@@ -64,8 +64,6 @@ x86capabilities::x86capabilities()
 	, EFlags2(0)
 	, SEFlag(0)
 	, AllCapabilities(0)
-	, PhysicalCores(0)
-	, LogicalCores(0)
 {
 	memzero(VendorName);
 	memzero(FamilyName);
@@ -170,9 +168,6 @@ const char* x86capabilities::GetTypeName() const
 void x86capabilities::CountCores()
 {
 	Identify();
-
-	// This will assign values into LogicalCores and PhysicalCores
-	CountLogicalCores();
 }
 
 static const char* tbl_x86vendors[] =

@@ -18,20 +18,6 @@
 
 #include <unistd.h>
 
-// Note: Apparently this solution is Linux/Solaris only.
-// FreeBSD/OsX need something far more complicated (apparently)
-void x86capabilities::CountLogicalCores()
-{
-#ifdef __linux__
-	// Note : GetCPUCount uses sysconf( _SC_NPROCESSORS_ONLN ) internally, which can return 1
-	// if sysconf info isn't available (a long standing linux bug).  There are no fallbacks or
-	// alternatives, apparently.
-	LogicalCores = sysconf(_SC_NPROCESSORS_ONLN);
-#else
-	LogicalCores = 1;
-#endif
-}
-
 // Not implemented yet for linux (see cpudetect_internal.h for details)
 SingleCoreAffinity::SingleCoreAffinity() = default;
 SingleCoreAffinity::~SingleCoreAffinity() = default;

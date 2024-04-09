@@ -18,24 +18,6 @@
 #include "common/Console.h"
 #include "common/emitter/cpudetect_internal.h"
 
-void x86capabilities::CountLogicalCores()
-{
-	DWORD_PTR vProcessCPUs;
-	DWORD_PTR vSystemCPUs;
-
-	LogicalCores = 1;
-
-	if (!GetProcessAffinityMask(GetCurrentProcess(), &vProcessCPUs, &vSystemCPUs))
-		return;
-
-	uint CPUs = 0;
-	for (DWORD_PTR bit = 1; bit != 0; bit <<= 1)
-		if (vSystemCPUs & bit)
-			CPUs++;
-
-	LogicalCores = CPUs;
-}
-
 SingleCoreAffinity::SingleCoreAffinity()
 {
 	s_threadId = nullptr;

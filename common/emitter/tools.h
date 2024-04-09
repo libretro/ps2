@@ -104,11 +104,6 @@ public:
 
 		u64 AllCapabilities;
 	};
-
-	// Core Counts!
-	u32 PhysicalCores;
-	u32 LogicalCores;
-
 public:
 	x86capabilities();
 
