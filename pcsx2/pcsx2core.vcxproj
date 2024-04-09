@@ -598,7 +598,6 @@
     <ClInclude Include="GS\Renderers\HW\GSTextureCache.h" />
     <ClInclude Include="GS\Renderers\SW\GSTextureCacheSW.h" />
     <ClInclude Include="GS\Renderers\SW\GSTextureSW.h" />
-    <ClInclude Include="GS\GSThread_CXX11.h" />
     <ClInclude Include="GS\GSUtil.h" />
     <ClInclude Include="GS\GSVector.h" />
     <ClInclude Include="GS\GSVector4i.h" />

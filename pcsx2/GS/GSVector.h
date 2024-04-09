@@ -27,7 +27,7 @@
 
 enum Align_Mode
 {
-	Align_Outside,
+	Align_Outside = 0,
 	Align_Inside,
 	Align_NegInf,
 	Align_PosInf

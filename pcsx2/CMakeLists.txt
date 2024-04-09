@@ -495,7 +495,6 @@ set(pcsx2GSHeaders
 	GS/GSRingHeap.h
 	GS/GSState.h
 	GS/GSTables.h
-	GS/GSThread_CXX11.h
 	GS/GSUtil.h
 	GS/GSVector.h
 	GS/GSVector4.h
