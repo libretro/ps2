@@ -20,8 +20,6 @@
 
 #if !defined(NDEBUG) || defined(_DEBUG) || defined(_DEVEL)
 #define ENABLE_OGL_DEBUG // Create a debug context and check opengl command status. Allow also to dump various textures/states.
-  //#define ENABLE_TRACE_REG // print GS reg write
- //#define ENABLE_EXTRA_LOG // print extra log
 #endif
 
 // Note: GL messages are present in common code, so in all renderers.
@@ -32,14 +30,5 @@
 	#define GL_CACHE(...) (void)(0)
 #endif
 
-#if defined(ENABLE_TRACE_REG) && defined(_DEBUG)
-	#define GL_REG(...) g_gs_device->InsertDebugMessage(GSDevice::DebugMessageCategory::Reg, __VA_ARGS__)
-#else
-	#define GL_REG(...) (void)(0)
-#endif
-
-#if defined(ENABLE_EXTRA_LOG) && defined(_DEBUG)
-	#define GL_DBG(...) g_gs_device->InsertDebugMessage(GSDevice::DebugMessageCategory::Debug, __VA_ARGS__)
-#else
-	#define GL_DBG(...) (void)(0)
-#endif
+#define GL_REG(...) (void)(0)
+#define GL_DBG(...) (void)(0)
