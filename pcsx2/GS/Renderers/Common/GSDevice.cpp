@@ -99,11 +99,6 @@ const char* GSDevice::RenderAPIToString(RenderAPI api)
 	}
 }
 
-std::string GSDevice::GetFullscreenModeString(u32 width, u32 height, float refresh_rate)
-{
-	return StringUtil::StdStringFromFormat("%u x %u @ %f hz", width, height, refresh_rate);
-}
-
 void GSDevice::GenerateExpansionIndexBuffer(void* buffer)
 {
 	static constexpr u32 MAX_INDEX = EXPAND_BUFFER_SIZE / 6 / sizeof(u16);

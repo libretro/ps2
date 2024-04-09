@@ -754,9 +754,6 @@ public:
 	/// Returns a string representing the specified API.
 	static const char* RenderAPIToString(RenderAPI api);
 
-	/// Converts a fullscreen mode to a string.
-	static std::string GetFullscreenModeString(u32 width, u32 height, float refresh_rate);
-
 	/// Generates a fixed index buffer for expanding points and sprites. Buffer is assumed to be at least EXPAND_BUFFER_SIZE in size.
 	static void GenerateExpansionIndexBuffer(void* buffer);
 

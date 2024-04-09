@@ -46,7 +46,6 @@ struct VMBootParameters
 	std::optional<CDVD_SourceType> source_type;
 
 	std::optional<bool> fast_boot;
-	std::optional<bool> fullscreen;
 };
 
 namespace VMManager
