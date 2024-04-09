@@ -29,7 +29,6 @@ enum class RenderAPI
 {
 	None,
 	D3D11,
-	Metal,
 	D3D12,
 	Vulkan,
 	OpenGL

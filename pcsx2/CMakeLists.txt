@@ -560,17 +560,6 @@ if(USE_VULKAN)
 	)
 endif()
 
-set(pcsx2GSMetalShaders
-	GS/Renderers/Metal/cas.metal
-	GS/Renderers/Metal/convert.metal
-	GS/Renderers/Metal/present.metal
-	GS/Renderers/Metal/merge.metal
-	GS/Renderers/Metal/misc.metal
-	GS/Renderers/Metal/interlace.metal
-	GS/Renderers/Metal/tfx.metal
-	GS/Renderers/Metal/fxaa.metal
-)
-
 if(WIN32)
 	list(APPEND pcsx2DEV9Sources
 		DEV9/Win32/pcap_io_win32.cpp
@@ -695,22 +684,6 @@ set(pcsx2DebugToolsHeaders
 	DebugTools/MIPSAnalyst.h
 	DebugTools/SymbolMap.h
 	)
-
-if(APPLE)
-	list(APPEND pcsx2GSSources
-		GS/Renderers/Metal/GSDeviceMTL.mm
-		GS/Renderers/Metal/GSMTLDeviceInfo.mm
-		GS/Renderers/Metal/GSTextureMTL.mm
-	)
-	list(APPEND pcsx2GSHeaders
-		GS/Renderers/Metal/GSDeviceMTL.h
-		GS/Renderers/Metal/GSMetalCPPAccessible.h
-		GS/Renderers/Metal/GSMTLDeviceInfo.h
-		GS/Renderers/Metal/GSMTLSharedHeader.h
-		GS/Renderers/Metal/GSMTLShaderCommon.h
-		GS/Renderers/Metal/GSTextureMTL.h
-	)
-endif()
 
 list(APPEND pcsx2FrontendSources
 	Frontend/CommonHost.cpp
@@ -999,8 +972,6 @@ endif()
 fixup_file_properties(PCSX2)
 
 if (APPLE)
-	find_library(METAL_LIBRARY Metal)
-	find_library(QUARTZCORE_LIBRARY QuartzCore)
 	target_link_libraries(PCSX2_FLAGS INTERFACE ${METAL_LIBRARY} ${QUARTZCORE_LIBRARY})
 
 	# MacOS defaults to having a maximum protection of the __DATA segment of rw (non-executable)
@@ -1010,7 +981,6 @@ if (APPLE)
 endif()
 
 set_property(GLOBAL PROPERTY PCSX2_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set_property(GLOBAL PROPERTY PCSX2_METAL_SHADERS ${pcsx2GSMetalShaders})
 
 source_groups_from_vcxproj_filters(pcsx2core.vcxproj.filters)
 
@@ -1019,4 +989,3 @@ source_group(System/Ps2/DEV9 REGULAR_EXPRESSION DEV9/*)
 source_group(System/Ps2/PAD FILES ${pcsx2PADSources} ${pcsx2PADHeaders})
 source_group(System/Ps2/SPU2 REGULAR_EXPRESSION SPU2/*)
 source_group(System/Ps2/USB REGULAR_EXPRESSION USB/*)
-source_group(System/Ps2/GS/Renderers/Metal REGULAR_EXPRESSION GS/Renderers/Metal/*)

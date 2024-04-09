@@ -204,10 +204,7 @@ CRCHackLevel GSUtil::GetRecommendedCRCHackLevel(GSRendererType type)
 
 GSRendererType GSUtil::GetPreferredRenderer()
 {
-#if defined(__APPLE__)
-	// Mac: Prefer Metal hardware.
-	return GSRendererType::Metal;
-#elif defined(_WIN32)
+#if defined(_WIN32)
 	// Use D3D device info to select renderer.
 	return D3D::GetPreferredRenderer();
 #else

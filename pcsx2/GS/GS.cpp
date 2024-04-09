@@ -41,10 +41,6 @@
 #include "Renderers/OpenGL/GSDeviceOGL.h"
 #endif
 
-#ifdef __APPLE__
-#include "Renderers/Metal/GSMetalCPPAccessible.h"
-#endif
-
 #ifdef ENABLE_VULKAN
 #include "Renderers/Vulkan/GSDeviceVK.h"
 #endif
@@ -114,11 +110,6 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 			break;
 		case RenderAPI::D3D12:
 			g_gs_device = std::make_unique<GSDevice12>();
-			break;
-#endif
-#ifdef __APPLE__
-		case RenderAPI::Metal:
-			g_gs_device = std::unique_ptr<GSDevice>(MakeGSDeviceMTL());
 			break;
 #endif
 #ifdef ENABLE_OPENGL

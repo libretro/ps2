@@ -89,7 +89,6 @@ const char* GSDevice::RenderAPIToString(RenderAPI api)
 		CASE(None);
 		CASE(D3D11);
 		CASE(D3D12);
-		CASE(Metal);
 		CASE(Vulkan);
 		CASE(OpenGL);
 #undef CASE
