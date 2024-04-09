@@ -169,31 +169,6 @@ namespace Vulkan
 			return false;
 		};
 
-		// Common extensions
-		if (wi.type != WindowInfo::Type::Surfaceless && !SupportsExtension(VK_KHR_SURFACE_EXTENSION_NAME, true))
-			return false;
-
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-		if (wi.type == WindowInfo::Type::Win32 && !SupportsExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, true))
-			return false;
-#endif
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-		if (wi.type == WindowInfo::Type::X11 && !SupportsExtension(VK_KHR_XLIB_SURFACE_EXTENSION_NAME, true))
-			return false;
-#endif
-#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
-		if (wi.type == WindowInfo::Type::Wayland && !SupportsExtension(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME, true))
-			return false;
-#endif
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-		if (wi.type == WindowInfo::Type::Android && !SupportsExtension(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME, true))
-			return false;
-#endif
-#if defined(VK_USE_PLATFORM_METAL_EXT)
-		if (wi.type == WindowInfo::Type::MacOS && !SupportsExtension(VK_EXT_METAL_SURFACE_EXTENSION_NAME, true))
-			return false;
-#endif
-
 		// VK_EXT_debug_utils
 		if (enable_debug_utils && !SupportsExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false))
 			Console.Warning("Vulkan: Debug report requested, but extension is not available.");
@@ -2355,12 +2330,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		if (surface != VK_NULL_HANDLE)
 			vkDestroySurfaceKHR(instance, surface, nullptr);
 	};
-	if (m_window_info.type != WindowInfo::Type::Surfaceless)
-	{
-		surface = Vulkan::SwapChain::CreateVulkanSurface(instance, gpus[gpu_index], &m_window_info);
-		if (surface == VK_NULL_HANDLE)
-			return false;
-	}
 
 	if (!Vulkan::Context::Create(instance, surface, gpus[gpu_index], enable_debug_utils, enable_validation_layer
 			))
@@ -2387,10 +2356,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	instance_cleanup.Cancel();
 	window_cleanup.Cancel();
 	library_cleanup.Cancel();
-
-	// Render a frame as soon as possible to clear out whatever was previously being displayed.
-	if (m_window_info.type != WindowInfo::Type::Surfaceless)
-		RenderBlankFrame();
 
 	return true;
 }

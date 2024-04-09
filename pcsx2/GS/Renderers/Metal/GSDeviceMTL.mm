@@ -1155,7 +1155,7 @@ GSDevice::PresentResult GSDeviceMTL::BeginPresent(bool frame_skip)
 { @autoreleasepool {
 	if (m_capture_start_frame && FrameNo() == m_capture_start_frame)
 		s_capture_next = true;
-	if (frame_skip || m_window_info.type == WindowInfo::Type::Surfaceless || !g_gs_device)
+	if (frame_skip || !g_gs_device)
 		return PresentResult::FrameSkipped;
 	id<MTLCommandBuffer> buf = GetRenderCmdBuf();
 	m_current_drawable = MRCRetain([m_layer nextDrawable]);

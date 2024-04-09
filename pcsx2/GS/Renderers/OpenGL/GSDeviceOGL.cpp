@@ -57,7 +57,7 @@ RenderAPI GSDeviceOGL::GetRenderAPI() const
 
 void GSDeviceOGL::SetVSync(VsyncMode mode)
 {
-	if (m_vsync_mode == mode || m_gl_context->GetWindowInfo().type == WindowInfo::Type::Surfaceless)
+	if (m_vsync_mode == mode)
 		return;
 
 	// Window framebuffer has to be bound to call SetSwapInterval.
@@ -100,8 +100,7 @@ bool GSDeviceOGL::Create()
 	}
 
 	// Render a frame as soon as possible to clear out whatever was previously being displayed.
-	if (m_window_info.type != WindowInfo::Type::Surfaceless)
-		RenderBlankFrame();
+	RenderBlankFrame();
 
 	if (!GLLoader::check_gl_requirements())
 		return false;
@@ -603,7 +602,7 @@ void GSDeviceOGL::DestroySurface()
 
 GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
 {
-	if (frame_skip || m_window_info.type == WindowInfo::Type::Surfaceless)
+	if (frame_skip)
 		return PresentResult::FrameSkipped;
 
 	OMSetFBO(0);
