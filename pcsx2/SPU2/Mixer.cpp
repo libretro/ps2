@@ -108,10 +108,6 @@ static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
 // invalided when DMA transfers and memory writes are performed.
 PcmCacheEntry* pcm_cache_data = nullptr;
 
-int g_counter_cache_hits = 0;
-int g_counter_cache_misses = 0;
-int g_counter_cache_ignores = 0;
-
 // LOOP/END sets the ENDX bit and sets NAX to LSA, and the voice is muted if LOOP is not set
 // LOOP seems to only have any effect on the block with LOOP/END set, where it prevents muting the voice
 // (the documented requirement that every block in a loop has the LOOP bit set is nonsense according to tests)
@@ -302,8 +298,7 @@ static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
 
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
 {
-	s32 out = 0;
-	out =  (interpTable[i][0] * pv4) >> 15;
+	s32 out =  (interpTable[i][0] * pv4) >> 15;
 	out += (interpTable[i][1] * pv3) >> 15;
 	out += (interpTable[i][2] * pv2) >> 15;
 	out += (interpTable[i][3] * pv1) >> 15;
