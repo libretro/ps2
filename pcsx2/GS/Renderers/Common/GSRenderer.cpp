@@ -20,15 +20,7 @@
 #include "Host.h"
 #include "PerformanceMetrics.h"
 #include "pcsx2/Config.h"
-#include "IconsFontAwesome5.h"
 #include "VMManager.h"
-
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
-#include "common/Timer.h"
-
-#include "fmt/core.h"
 
 #include <algorithm>
 #include <array>
@@ -144,9 +136,7 @@ bool GSRenderer::Merge(int field)
 		
 		float interlace_offset = 0.0f;
 		if (isReallyInterlaced() && m_regs->SMODE2.FFMD && !is_bob && !GSConfig.DisableInterlaceOffset && GSConfig.InterlaceMode != GSInterlaceMode::Off)
-		{
 			interlace_offset = (scale.y) * static_cast<float>(field ^ field2);
-		}
 		// Scanmask frame offsets. It's gross, I'm sorry but it sucks.
 		if (m_scanmask_used)
 		{
@@ -373,9 +363,6 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 		return false;
 
 	// First frame after reopening is definitely going to be trash, so skip it.
-	Host::AddIconOSDMessage("GSDeviceLost", ICON_FA_EXCLAMATION_TRIANGLE,
-		"Host GPU device encountered an error and was recovered. This may have broken rendering.",
-		Host::OSD_CRITICAL_ERROR_DURATION);
 	return false;
 }
 
@@ -453,52 +440,6 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	}
 	g_gs_device->RestoreAPIState();
 	PerformanceMetrics::Update(registers_written, fb_sprite_frame, false);
-}
-
-static std::string GSGetBaseFilename()
-{
-	std::string filename;
-
-	// append the game serial and title
-	if (std::string name(VMManager::GetGameName()); !name.empty())
-	{
-		Path::SanitizeFileName(&name);
-		if (name.length() > 219)
-			name.resize(219);
-		filename += name;
-	}
-	if (std::string serial(VMManager::GetGameSerial()); !serial.empty())
-	{
-		Path::SanitizeFileName(&serial);
-		filename += '_';
-		filename += serial;
-	}
-
-	const time_t cur_time = time(nullptr);
-	char local_time[16];
-
-	if (strftime(local_time, sizeof(local_time), "%Y%m%d%H%M%S", localtime(&cur_time)))
-	{
-		static time_t prev_snap;
-		// The variable 'n' is used for labelling the screenshots when multiple screenshots are taken in
-		// a single second, we'll start using this variable for naming when a second screenshot request is detected
-		// at the same time as the first one. Hence, we're initially setting this counter to 2 to imply that
-		// the captured image is the 2nd image captured at this specific time.
-		static int n = 2;
-
-		filename += '_';
-
-		if (cur_time == prev_snap)
-			filename += fmt::format("{0}_({1})", local_time, n++);
-		else
-		{
-			n = 2;
-			filename += fmt::format("{}", local_time);
-		}
-		prev_snap = cur_time;
-	}
-
-	return filename;
 }
 
 void GSRenderer::PresentCurrentFrame()
