@@ -567,7 +567,7 @@ __forceinline
 	if ((PlayMode & 4) || (Cores[0].Mute != 0))
 		Ext = StereoOut32(0, 0);
 	else
-		Ext = clamp_mix(ApplyVolume(Ext, Cores[0].MasterVol));
+		Ext = ApplyVolume(clamp_mix(Ext), Cores[0].MasterVol);
 
 	// Commit Core 0 output to ram before mixing Core 1:
 	spu2M_WriteFast(0x800 + OutPos, Ext.Left);
@@ -585,10 +585,10 @@ __forceinline
 	}
 	else
 	{
-		Out.Left = MulShr32(Out.Left, Cores[1].MasterVol.Left.Value);
-		Out.Right = MulShr32(Out.Right, Cores[1].MasterVol.Right.Value);
+		Out = ApplyVolume(clamp_mix(Out), Cores[1].MasterVol);
 	}
 
+	// Final clamp, take care not to exceed 16 bits from here on
 	Out = clamp_mix(Out);
 
 	SndBuffer::Write(StereoOut16(Out));
