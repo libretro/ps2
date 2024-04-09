@@ -15,8 +15,7 @@
 
 #pragma once
 
-#include "PAD/Host/PAD.h"
-#include <tuple>
+#include "PAD/PAD.h"
 
 enum gamePadValues
 {

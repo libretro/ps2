@@ -424,14 +424,13 @@ set(pcsx2USBHeaders
 
 # Host PAD
 set(pcsx2PADSources
-	PAD/Host/PAD.cpp
-	PAD/Host/StateManagement.cpp
+	PAD/PAD.cpp
+	PAD/StateManagement.cpp
 )
 set(pcsx2PADHeaders
-	PAD/Host/Global.h
-	PAD/Host/KeyStatus.h
-	PAD/Host/PAD.h
-	PAD/Host/StateManagement.h
+	PAD/KeyStatus.h
+	PAD/PAD.h
+	PAD/StateManagement.h
 )
 
 # GS sources

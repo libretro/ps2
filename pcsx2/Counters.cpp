@@ -33,7 +33,7 @@
 #include "ps2/HwInternal.h"
 #include "Sio.h"
 #include "SPU2/spu2.h"
-#include "PAD/Host/PAD.h"
+#include "PAD/PAD.h"
 #include "VMManager.h"
 
 extern u8 psxhblankgate;

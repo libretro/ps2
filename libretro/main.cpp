@@ -44,7 +44,7 @@
 #include "pcsx2/GS/Renderers/Common/GSRenderer.h"
 
 #include "SPU2/spu2.h"
-#include "PAD/Host/PAD.h"
+#include "PAD/PAD.h"
 
 //#define PERF_TEST
 #ifdef PERF_TEST

@@ -24,10 +24,9 @@
 #include "MultitapProtocol.h"
 #include "Config.h"
 #include "Host.h"
-#include "PAD/Host/PAD.h"
+#include "PAD/PAD.h"
 
 #include "common/Timer.h"
-#include "IconsFontAwesome5.h"
 
 std::deque<u8> fifoIn;
 std::deque<u8> fifoOut;
@@ -176,9 +175,7 @@ void Sio0::SetTxData(u8 value)
 					res = PADstartPoll(port, slot);
 
 					if (res)
-					{
 						Acknowledge();
-					}
 
 					break;
 				case SioMode::MEMCARD:
@@ -228,9 +225,7 @@ void Sio0::SetTxData(u8 value)
 				SetRxData(res);
 
 				if (!PADcomplete())
-				{
 					Acknowledge();
-				}
 
 				sioStage = SioStage::WORKING;
 			}
@@ -356,9 +351,7 @@ bool Sio0::IsPocketstationCommand(u8 command)
 u8 Sio0::Pad(u8 value)
 {
 	if (PADcomplete())
-	{
 		padStarted = false;
-	}
 	else if (!padStarted)
 	{
 		padStarted = true;
@@ -922,14 +915,10 @@ void AutoEject::Clear(size_t port, size_t slot)
 
 void AutoEject::SetAll()
 {
-	Host::AddIconOSDMessage("AutoEjectAllSet", ICON_FA_SD_CARD, "Force ejecting all memory cards.", Host::OSD_INFO_DURATION);
-
 	for (size_t port = 0; port < SIO::PORTS; port++)
 	{
 		for (size_t slot = 0; slot < SIO::SLOTS; slot++)
-		{
 			AutoEject::Set(port, slot);
-		}
 	}
 }
 
@@ -938,8 +927,6 @@ void AutoEject::ClearAll()
 	for (size_t port = 0; port < SIO::PORTS; port++)
 	{
 		for (size_t slot = 0; slot < SIO::SLOTS; slot++)
-		{
 			AutoEject::Clear(port, slot);
-		}
 	}
 }

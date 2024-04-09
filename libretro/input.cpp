@@ -6,10 +6,9 @@
 #include <libretro.h>
 
 #include "input.h"
-//#include "PS2Edefs.h"
 
-#include "PAD/Host/StateManagement.h"
-#include "PAD/Host/KeyStatus.h"
+#include "PAD/StateManagement.h"
+#include "PAD/KeyStatus.h"
 #include "Frontend/InputManager.h"
 
 extern retro_environment_t environ_cb;

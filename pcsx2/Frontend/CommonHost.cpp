@@ -27,7 +27,6 @@
 #include "Host.h"
 #include "HostSettings.h"
 #include "MemoryCardFile.h"
-#include "PAD/Host/PAD.h"
 #include "PerformanceMetrics.h"
 #include "Sio.h"
 #include "VMManager.h"
