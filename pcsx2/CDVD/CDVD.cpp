@@ -23,7 +23,6 @@
 #include <ctime>
 #include <memory>
 
-#include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
@@ -500,44 +499,31 @@ void cdvdReloadElfInfo(std::string elfoverride)
 	// called from context of executing VM code (recompilers), so we need to trap exceptions
 	// and route them through the VM's exception handler.  (needed for non-SEH platforms, such
 	// as Linux/GCC)
-	try
+	std::string elfpath;
+	u32 discType = GetPS2ElfName(elfpath);
+	DiscSerial = ExecutablePathToSerial(elfpath);
+
+	// Use the serial from the disc (if any), and the ELF CRC of the override.
+	if (!elfoverride.empty())
 	{
-		std::string elfpath;
-		u32 discType = GetPS2ElfName(elfpath);
-		DiscSerial = ExecutablePathToSerial(elfpath);
-
-		// Use the serial from the disc (if any), and the ELF CRC of the override.
-		if (!elfoverride.empty())
-		{
-			_reloadElfInfo(std::move(elfoverride));
-			return;
-		}
-
-		if (discType == 1)
-		{
-			// PCSX2 currently only recognizes *.elf executables in proper PS2 format.
-			// To support different PSX titles in the console title and for savestates, this code bypasses all the detection,
-			// simply using the exe name, stripped of problematic characters.
-			return;
-		}
-
-		// Isn't a disc we recognize?
-		if (discType == 0)
-			return;
-
-		// Recognized and PS2 (BOOT2).  Good job, user.
-		_reloadElfInfo(std::move(elfpath));
-	}
-	catch ([[maybe_unused]] Exception::FileNotFound& e)
-	{
-		Console.Error("Failed to load ELF info");
-		LastELF.clear();
-		DiscSerial.clear();
-		ElfCRC = 0;
-		ElfEntry = 0;
-		ElfTextRange = {};
+		_reloadElfInfo(std::move(elfoverride));
 		return;
 	}
+
+	if (discType == 1)
+	{
+		// PCSX2 currently only recognizes *.elf executables in proper PS2 format.
+		// To support different PSX titles in the console title and for savestates, this code bypasses all the detection,
+		// simply using the exe name, stripped of problematic characters.
+		return;
+	}
+
+	// Isn't a disc we recognize?
+	if (discType == 0)
+		return;
+
+	// Recognized and PS2 (BOOT2).  Good job, user.
+	_reloadElfInfo(std::move(elfpath));
 }
 
 void cdvdReadKey(u8, u16, u32 arg2, u8* key)
