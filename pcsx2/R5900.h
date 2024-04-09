@@ -15,10 +15,6 @@
 
 #pragma once
 
-#include "common/Exceptions.h"
-
-class BaseR5900Exception;
-
 // --------------------------------------------------------------------------------------
 //  Recompiler Stuffs
 // --------------------------------------------------------------------------------------
@@ -29,24 +25,6 @@ class BaseR5900Exception;
 extern bool g_SkipBiosHack;
 extern bool g_GameStarted;
 extern bool g_GameLoading;
-
-namespace Exception
-{
-	// Implementation Note: this exception has no meaningful type information and we don't
-	// care to have it be caught by any BaseException handlers lying about, so let's not
-	// derive from BaseException :D
-	class ExitCpuExecute
-	{
-	public:
-		explicit ExitCpuExecute() { }
-	};
-
-	class CancelInstruction
-	{
-	public:
-		explicit CancelInstruction() { }
-	};
-}
 
 // --------------------------------------------------------------------------------------
 //  EE Bios function name tables.
@@ -263,9 +241,9 @@ const u32 EELOAD_START		= 0x82000;
 const u32 EELOAD_SIZE		= 0x20000; // overestimate for searching
 extern u32 g_eeloadMain, g_eeloadExec;
 
-extern void eeGameStarting();
-extern void eeloadHook();
-extern void eeloadHook2();
+extern void eeGameStarting(void);
+extern void eeloadHook(void);
+extern void eeloadHook2(void);
 
 // --------------------------------------------------------------------------------------
 //  R5900cpu
@@ -310,8 +288,6 @@ struct R5900cpu
 	//   resets at the earliest safe convenience (typically right before recompiling a
 	//   new block of code, or after a vsync event).
 	//
-	// Exception Throws:  Emulator-defined.  Common exception types to expect are
-	//   OutOfMemory, Stream Exceptions
 	//
 	void (*Reset)();
 
@@ -319,7 +295,6 @@ struct R5900cpu
 	// and unimplemented.  Future note: recompiler "step" should *always* fall back
 	// on interpreters.
 	//
-	// Exception Throws:  [TODO] (possible execution-related throws to be added)
 	//
 	void (*Step)();
 
@@ -329,9 +304,6 @@ struct R5900cpu
 	// call to return at the nearest state check (typically handled internally using
 	// either C++ exceptions or setjmp/longjmp).
 	//
-	// Exception Throws:
-	//   Throws BaseR5900Exception and all derivatives.
-	//   Throws FileNotFound or other Streaming errors (typically related to BIOS MEC/NVM)
 	//
 	void (*Execute)();
 
@@ -354,8 +326,6 @@ struct R5900cpu
 	// Thread Affinity Rule:
 	//   Can be called from any thread (namely for being called from debugging threads)
 	//
-	// Exception Throws: [TODO] Emulator defined?  (probably shouldn't throw, probably
-	//   doesn't matter if we're stripping it out soon. ;)
 	//
 	void (*Clear)(u32 Addr, u32 Size);
 };
@@ -397,7 +367,7 @@ extern void CPU_SET_DMASTALL(EE_EventType n, bool set);
 extern uint intcInterrupt();
 extern uint dmacInterrupt();
 
-extern void cpuReset();		// can throw Exception::FileNotFound.
+extern void cpuReset();
 extern void cpuException(u32 code, u32 bd);
 extern void cpuTlbMissR(u32 addr, u32 bd);
 extern void cpuTlbMissW(u32 addr, u32 bd);

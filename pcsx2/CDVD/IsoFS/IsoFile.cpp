@@ -16,7 +16,6 @@
 
 #include "PrecompiledHeader.h"
 #include "common/Assertions.h"
-#include "common/Exceptions.h"
 
 #include "IsoFS.h"
 #include "IsoFile.h"
@@ -142,7 +141,7 @@ void IsoFile::makeDataAvailable()
 u8 IsoFile::readByte()
 {
 	if (currentOffset >= maxOffset)
-		throw Exception::EndOfStream();
+		return 0;
 
 	makeDataAvailable();
 

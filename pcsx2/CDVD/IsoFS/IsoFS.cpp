@@ -103,10 +103,6 @@ IsoDirectory::IsoDirectory(SectorSource& r)
 		++i;
 	}
 
-	if (!isValid)
-		throw Exception::FileNotFound("IsoFileSystem") // FIXME: Should report the name of the ISO here...
-			.SetDiagMsg("IsoFS could not find the root directory on the ISO image.");
-
 	Init(rootDirEntry);
 }
 
@@ -161,7 +157,7 @@ int IsoDirectory::GetIndexOf(const std::string_view& fileName) const
 			return i;
 	}
 
-	throw Exception::FileNotFound(std::string(fileName));
+	return 0;
 }
 
 const IsoFileDescriptor& IsoDirectory::GetEntry(const std::string_view& fileName) const
@@ -171,13 +167,13 @@ const IsoFileDescriptor& IsoDirectory::GetEntry(const std::string_view& fileName
 
 IsoFileDescriptor IsoDirectory::FindFile(const std::string_view& filePath) const
 {
+	IsoFileDescriptor info;
 	if (filePath.empty())
-		throw Exception::FileNotFound();
+		return info;
 
 	// DOS-style parser should work fine for ISO 9660 path names.  Only practical difference
 	// is case sensitivity, and that won't matter for path splitting.
 	std::vector<std::string_view> parts(Path::SplitWindowsPath(filePath));
-	IsoFileDescriptor info;
 	const IsoDirectory* dir = this;
 	std::unique_ptr<IsoDirectory> deleteme;
 

@@ -122,7 +122,6 @@ class ElfObject
 		void initElfHeaders(bool isPSXElf);
 		void readIso(IsoFile& file);
 		void readFile();
-		void checkElfSize(s64 elfsize);
 
 	public:
 		ELF_HEADER& header;

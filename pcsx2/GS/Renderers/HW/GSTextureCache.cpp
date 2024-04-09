@@ -529,9 +529,7 @@ __ri static GSTextureCache::Source* FindSourceInMap(const GIFRegTEX0& TEX0, cons
 GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, bool palette)
 {
 	if (GSConfig.UserHacks_DisableDepthSupport)
-	{
-		throw GSRecoverableError();
-	}
+		return nullptr;
 
 	const SourceRegion region = SourceRegion::Create(TEX0, CLAMP);
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
@@ -693,7 +691,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 
 	// Prevent everything going to rubbish if a game somehow sends a TW/TH above 10, and region isn't being used.
 	if ((TEX0.TW > 10 && !region.HasX()) || (TEX0.TH > 10 && !region.HasY()))
-		throw GSRecoverableError();
+		return nullptr;
 
 	const GSVector2i compare_lod(lod ? *lod : GSVector2i(0, 0));
 	Source* src = nullptr;

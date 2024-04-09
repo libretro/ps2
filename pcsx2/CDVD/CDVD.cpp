@@ -23,6 +23,7 @@
 #include <ctime>
 #include <memory>
 
+#include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"

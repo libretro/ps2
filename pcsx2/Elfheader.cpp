@@ -15,6 +15,7 @@
 
 #include "PrecompiledHeader.h"
 #include "Common.h"
+#include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
@@ -36,7 +37,6 @@ ElfObject::ElfObject(std::string srcfile, IsoFile& isofile, bool isPSXElf)
 	, filename(std::move(srcfile))
 	, header(*(ELF_HEADER*)data.GetPtr())
 {
-	checkElfSize(data.GetSizeInBytes());
 	readIso(isofile);
 	initElfHeaders(isPSXElf);
 }
@@ -46,7 +46,6 @@ ElfObject::ElfObject(std::string srcfile, u32 hdrsize, bool isPSXElf)
 	, filename(std::move(srcfile))
 	, header(*(ELF_HEADER*)data.GetPtr())
 {
-	checkElfSize(data.GetSizeInBytes());
 	readFile();
 	initElfHeaders(isPSXElf);
 }
@@ -116,21 +115,18 @@ std::pair<u32,u32> ElfObject::getTextRange()
 
 void ElfObject::readIso(IsoFile& file)
 {
-	int rsize = file.read(data.GetPtr(), data.GetSizeInBytes());
-	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream(filename);
+	file.read(data.GetPtr(), data.GetSizeInBytes());
 }
 
 void ElfObject::readFile()
 {
 	int rsize = 0;
 	FILE *f = FileSystem::OpenCFile( filename.c_str(), "rb");
-	if (f == NULL) throw Exception::FileNotFound(filename);
+	if (f == NULL) return;
 
 	fseek(f, 0, SEEK_SET);
 	rsize = fread(data.GetPtr(), 1, data.GetSizeInBytes(), f);
 	fclose( f );
-
-	if (rsize < data.GetSizeInBytes()) throw Exception::EndOfStream(filename);
 }
 
 static std::string GetMsg_InvalidELF()
@@ -139,20 +135,6 @@ static std::string GetMsg_InvalidELF()
 		"Cannot load ELF binary image.  The file may be corrupt or incomplete."
 		"\n\n"
 		"If loading from an ISO image, this error may be caused by an unsupported ISO image type or a bug in PCSX2 ISO image support.";
-}
-
-
-void ElfObject::checkElfSize(s64 elfsize)
-{
-	const char* diagMsg = NULL;
-	if		(elfsize > 0xfffffff)	diagMsg = "Illegal ELF file size over 2GB!";
-	else if	(elfsize == -1)			diagMsg = "ELF file does not exist!";
-	else if	(elfsize == 0)			diagMsg = "Unexpected end of ELF file.";
-
-	if (diagMsg)
-		throw Exception::BadStream(filename)
-			.SetDiagMsg(diagMsg)
-			.SetUserMsg(GetMsg_InvalidELF());
 }
 
 u32 ElfObject::getCRC()

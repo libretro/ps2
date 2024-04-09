@@ -93,13 +93,6 @@ bool GSGetHostRefreshRate(float* refresh_rate);
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);
 
-struct GSError
-{
-};
-struct GSRecoverableError : GSError
-{
-};
-
 namespace Host
 {
 	/// Called when the GS is creating a render device.

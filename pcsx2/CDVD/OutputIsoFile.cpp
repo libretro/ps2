@@ -18,7 +18,6 @@
 #include "CDVD/IsoFileFormats.h"
 #include "Host.h"
 
-#include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
@@ -64,7 +63,6 @@ bool OutputIsoFile::Create(std::string filename, int version)
 		return false;
 	}
 
-	Console.WriteLn("isoFile create ok: %s ", m_filename.c_str());
 	return true;
 }
 
@@ -72,12 +70,8 @@ bool OutputIsoFile::Create(std::string filename, int version)
 void OutputIsoFile::WriteHeader(int _blockofs, uint _blocksize, uint _blocks)
 {
 	m_blocksize = _blocksize;
-	m_blocks = _blocks;
-	m_blockofs = _blockofs;
-
-	Console.WriteLn("blockoffset = %d", m_blockofs);
-	Console.WriteLn("blocksize   = %u", m_blocksize);
-	Console.WriteLn("blocks	     = %u", m_blocks);
+	m_blocks    = _blocks;
+	m_blockofs  = _blockofs;
 
 	if (m_version == 2)
 	{
@@ -125,10 +119,7 @@ void OutputIsoFile::Close()
 void OutputIsoFile::WriteBuffer(const void* src, size_t size)
 {
 	if (std::fwrite(src, size, 1, m_outstream) != 1)
-	{
-		Host::ReportErrorAsync("Write Error", fmt::format("errno {} when trying to write {} bytes to block dump file.\n\nClosing file."));
 		Close();
-	}
 }
 
 bool OutputIsoFile::IsOpened() const

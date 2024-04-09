@@ -1720,11 +1720,9 @@ void GSRendererHW::Draw()
 		GIFRegCLAMP MIP_CLAMP = m_cached_ctx.CLAMP;
 
 		if (rt)
-		{
 			// copy of a 16bit source in to this target, make sure it's opaque and not bilinear to reduce false positives.
 			m_copy_16bit_to_target_shuffle = m_cached_ctx.TEX0.TBP0 != m_cached_ctx.FRAME.Block() && rt->m_32_bits_fmt == true && IsOpaque()
 											&& !(context->TEX1.MMIN & 1) && !src->m_32_bits_fmt && m_cached_ctx.FRAME.FBMSK;
-		}
 
 		// Hypothesis: texture shuffle is used as a postprocessing effect so texture will be an old target.
 		// Initially code also tested the RT but it gives too much false-positive

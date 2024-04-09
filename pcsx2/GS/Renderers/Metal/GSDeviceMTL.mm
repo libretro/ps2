@@ -615,7 +615,7 @@ MRCOwned<id<MTLFunction>> GSDeviceMTL::LoadShader(NSString* name)
 	{
 		NSString* msg = [NSString stringWithFormat:@"Failed to load shader %@: %@", name, [err localizedDescription]];
 		Console.Error("%s", [msg UTF8String]);
-		throw GSRecoverableError();
+		pxFailRel("Failed to load shader, check the log for more details.");
 	}
 	return fn;
 }
@@ -631,7 +631,7 @@ MRCOwned<id<MTLRenderPipelineState>> GSDeviceMTL::MakePipeline(MTLRenderPipeline
 	{
 		NSString* msg = [NSString stringWithFormat:@"Failed to create pipeline %@: %@", name, [err localizedDescription]];
 		Console.Error("%s", [msg UTF8String]);
-		throw GSRecoverableError();
+		pxFailRel("Failed to create pipeline, check the log for more details.");
 	}
 	return res;
 }
@@ -651,7 +651,7 @@ MRCOwned<id<MTLComputePipelineState>> GSDeviceMTL::MakeComputePipeline(id<MTLFun
 	{
 		NSString* msg = [NSString stringWithFormat:@"Failed to create pipeline %@: %@", name, [err localizedDescription]];
 		Console.Error("%s", [msg UTF8String]);
-		throw GSRecoverableError();
+		pxFailRel("Failed to create pipeline, check the log for more details.");
 	}
 	return res;
 }
