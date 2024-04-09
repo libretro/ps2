@@ -45,9 +45,6 @@ namespace D3D
 	// returns a utf-8 string of the specified adapter's name
 	std::string GetAdapterName(IDXGIAdapter1* adapter);
 
-	// returns the driver version from the registry as a string
-	std::string GetDriverVersionFromLUID(const LUID& luid);
-
 	// this is sort of a legacy thing that doesn't have much to do with d3d (just the easiest way)
 	// checks to see if the adapter at 0 is NV and thus we should prefer OpenGL
 	enum class VendorID
