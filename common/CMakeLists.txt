@@ -168,7 +168,6 @@ if(WIN32)
 		D3D11/ShaderCompiler.h
 		D3D12/Builders.cpp
 		D3D12/Builders.h
-		D3D12/Context.cpp
 		D3D12/Context.h
 		D3D12/DescriptorHeapManager.cpp
 		D3D12/DescriptorHeapManager.h
