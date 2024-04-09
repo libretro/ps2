@@ -27,7 +27,7 @@ _sif sif1;
 static bool done = false;
 static bool sif1_dma_stall = false;
 
-static __fi void Sif1Init()
+static __fi void Sif1Init(void)
 {
 	done = false;
 	sif1.ee.cycles = 0;
@@ -35,12 +35,12 @@ static __fi void Sif1Init()
 }
 
 // Write from the EE to Fifo.
-static __fi bool WriteEEtoFifo()
+static __fi bool WriteEEtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
 	const int writeSize = std::min((s32)sif1ch.qwc, sif1.fifo.sif_free() >> 2);
-	tDMA_TAG *ptag = sif1ch.getAddr(sif1ch.madr, DMAC_SIF1, false);
-	if (ptag == NULL)
+	tDMA_TAG *ptag      = sif1ch.getAddr(sif1ch.madr, DMAC_SIF1, false);
+	if (!ptag)
 		return false;
 
 	sif1.fifo.write((u32*)ptag, writeSize << 2);
@@ -75,7 +75,7 @@ static __fi bool ProcessEETag(void)
 	// Chain mode
 	// Process DMA tag at sif1ch.tadr
 	tDMA_TAG *ptag = sif1ch.DMAtransfer(sif1ch.tadr, DMAC_SIF1);
-	if (ptag == NULL)
+	if (!ptag)
 		return false;
 
 	if (sif1ch.chcr.TTE)

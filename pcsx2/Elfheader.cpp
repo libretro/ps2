@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "Common.h"
-#include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
@@ -127,14 +126,6 @@ void ElfObject::readFile()
 	fseek(f, 0, SEEK_SET);
 	rsize = fread(data.GetPtr(), 1, data.GetSizeInBytes(), f);
 	fclose( f );
-}
-
-static std::string GetMsg_InvalidELF()
-{
-	return
-		"Cannot load ELF binary image.  The file may be corrupt or incomplete."
-		"\n\n"
-		"If loading from an ISO image, this error may be caused by an unsupported ISO image type or a bug in PCSX2 ISO image support.";
 }
 
 u32 ElfObject::getCRC()

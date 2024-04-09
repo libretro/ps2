@@ -84,7 +84,7 @@ const R5900::OPCODE& R5900::GetInstruction(u32 op)
 {
 	const OPCODE* opcode = &R5900::OpcodeTables::tbl_Standard[op >> 26];
 
-	while( opcode->getsubclass != NULL )
+	while(opcode->getsubclass)
 		opcode = &opcode->getsubclass(op);
 
 	return *opcode;
@@ -239,9 +239,9 @@ void COP2(void)
 
 void Unknown(void) { }
 
-void MMI_Unknown(void) { Console.Warning("Unknown MMI opcode called"); }
-void COP0_Unknown(void) { Console.Warning("Unknown COP0 opcode called"); }
-void COP1_Unknown(void) { Console.Warning("Unknown FPU/COP1 opcode called"); }
+void MMI_Unknown(void)  { }
+void COP0_Unknown(void) { }
+void COP1_Unknown(void) { }
 
 
 
@@ -484,16 +484,6 @@ void DSRLV(){ if (!_Rd_) return; cpuRegs.GPR.r[_Rd_].UD[0] = (u64)(cpuRegs.GPR.r
 //    exceptions, since the lower bits of the address are used to determine the portions
 //    of the address/register operations.
 
-__noinline static void RaiseAddressError(u32 addr, bool store)
-{
-	const std::string message(fmt::format("Address Error, addr=0x{:x} [{}]", addr, store ? "store" : "load"));
-
-	// TODO: This doesn't actually get raised in the CPU yet.
-	Console.Error(message);
-
-	Cpu->CancelInstruction();
-}
-
 void LB()
 {
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
@@ -517,7 +507,7 @@ void LH()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 1))
-		RaiseAddressError(addr, false);
+		Cpu->CancelInstruction();
 
 	s16 temp = memRead16(addr);
 
@@ -530,7 +520,7 @@ void LHU()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 1))
-		RaiseAddressError(addr, false);
+		Cpu->CancelInstruction();
 
 	u16 temp = memRead16(addr);
 
@@ -543,7 +533,7 @@ void LW()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 3))
-		RaiseAddressError(addr, false);
+		Cpu->CancelInstruction();
 
 	u32 temp = memRead32(addr);
 
@@ -556,7 +546,7 @@ void LWU()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 3))
-		RaiseAddressError(addr, false);
+		Cpu->CancelInstruction();
 
 	u32 temp = memRead32(addr);
 
@@ -568,10 +558,9 @@ void LWL()
 {
 	static const u32 LWL_MASK[4] = { 0xffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
 	static const u8 LWL_SHIFT[4] = { 24, 16, 8, 0 };
-	s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	s32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-
-	u32 mem = memRead32(addr & ~3);
+	u32 mem   = memRead32(addr & ~3);
 
 	if (!_Rt_) return;
 
@@ -594,10 +583,9 @@ void LWR()
 {
 	static const u32 LWR_MASK[4] = { 0x000000, 0xff000000, 0xffff0000, 0xffffff00 };
 	static const u8 LWR_SHIFT[4] = { 0, 8, 16, 24 };
-	s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	s32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-
-	u32 mem = memRead32(addr & ~3);
+	u32 mem   = memRead32(addr & ~3);
 
 	if (!_Rt_) return;
 
@@ -640,10 +628,10 @@ static GPR_reg* gpr_GetWritePtr( uint gpr )
 
 void LD()
 {
-    s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	s32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 7))
-		RaiseAddressError(addr, false);
+		Cpu->CancelInstruction();
 
 	cpuRegs.GPR.r[_Rt_].UD[0] = memRead64(addr);
 }
@@ -657,17 +645,12 @@ static const u64 LDR_MASK[8] =
 	0xffffffff00000000ULL, 0xffffffffff000000ULL, 0xffffffffffff0000ULL, 0xffffffffffffff00ULL
 };
 
-static const u8 LDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
-static const u8 LDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
-
-
 void LDL()
 {
-	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	static const u8 LDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
+	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 7;
-
-	u64 mem = memRead64(addr & ~7);
-
+	u64 mem   = memRead64(addr & ~7);
 	if( !_Rt_ ) return;
 	cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDL_MASK[shift]) |
 								(mem << LDL_SHIFT[shift]);
@@ -675,11 +658,10 @@ void LDL()
 
 void LDR()
 {
-	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	static const u8 LDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 7;
-
-	u64 mem = memRead64(addr & ~7);
-
+	u64 mem   = memRead64(addr & ~7);
 	if (!_Rt_) return;
 	cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDR_MASK[shift]) |
 								(mem >> LDR_SHIFT[shift]);
@@ -689,7 +671,6 @@ void LQ()
 {
 	// MIPS Note: LQ and SQ are special and "silently" align memory addresses, thus
 	// an address error due to unaligned access isn't possible like it is on other loads/stores.
-
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	memRead128(addr & ~0xf, (u128*)gpr_GetWritePtr(_Rt_));
 }
@@ -705,7 +686,7 @@ void SH()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 1))
-		RaiseAddressError(addr, true);
+		Cpu->CancelInstruction();
 
 	memWrite16(addr, cpuRegs.GPR.r[_Rt_].US[0]);
 }
@@ -715,23 +696,18 @@ void SW()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 3))
-		RaiseAddressError(addr, true);
+		Cpu->CancelInstruction();
 
-  memWrite32(addr, cpuRegs.GPR.r[_Rt_].UL[0]);
+	memWrite32(addr, cpuRegs.GPR.r[_Rt_].UL[0]);
 }
-
-static const u32 SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
-static const u32 SWR_MASK[4] = { 0x00000000, 0x000000ff, 0x0000ffff, 0x00ffffff };
-
-static const u8 SWR_SHIFT[4] = { 0, 8, 16, 24 };
-static const u8 SWL_SHIFT[4] = { 24, 16, 8, 0 };
 
 void SWL()
 {
-	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	static const u32 SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
+	static const u8 SWL_SHIFT[4] = { 24, 16, 8, 0 };
+	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-	u32 mem = memRead32( addr & ~3 );
-
+	u32 mem   = memRead32( addr & ~3 );
 	memWrite32( addr & ~3,
 		(cpuRegs.GPR.r[_Rt_].UL[0] >> SWL_SHIFT[shift]) |
 		(mem & SWL_MASK[shift])
@@ -748,10 +724,11 @@ void SWL()
 }
 
 void SWR() {
-	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	static const u32 SWR_MASK[4] = { 0x00000000, 0x000000ff, 0x0000ffff, 0x00ffffff };
+	static const u8 SWR_SHIFT[4] = { 0, 8, 16, 24 };
+	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-	u32 mem = memRead32(addr & ~3);
-
+	u32 mem   = memRead32(addr & ~3);
 	memWrite32( addr & ~3,
 		(cpuRegs.GPR.r[_Rt_].UL[0] << SWR_SHIFT[shift]) |
 		(mem & SWR_MASK[shift])
@@ -772,41 +749,40 @@ void SD()
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
 	if (unlikely(addr & 7))
-		RaiseAddressError(addr, true);
+		Cpu->CancelInstruction();
 
-    memWrite64(addr,cpuRegs.GPR.r[_Rt_].UD[0]);
+	memWrite64(addr,cpuRegs.GPR.r[_Rt_].UD[0]);
 }
 
-static const u64 SDL_MASK[8] =
-{	0xffffffffffffff00ULL, 0xffffffffffff0000ULL, 0xffffffffff000000ULL, 0xffffffff00000000ULL,
-	0xffffff0000000000ULL, 0xffff000000000000ULL, 0xff00000000000000ULL, 0x0000000000000000ULL
-};
-static const u64 SDR_MASK[8] =
-{	0x0000000000000000ULL, 0x00000000000000ffULL, 0x000000000000ffffULL, 0x0000000000ffffffULL,
-	0x00000000ffffffffULL, 0x000000ffffffffffULL, 0x0000ffffffffffffULL, 0x00ffffffffffffffULL
-};
-
-static const u8 SDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
-static const u8 SDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
 
 void SDL()
 {
-	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	static const u64 SDL_MASK[8] =
+	{	0xffffffffffffff00ULL, 0xffffffffffff0000ULL, 0xffffffffff000000ULL, 0xffffffff00000000ULL,
+		0xffffff0000000000ULL, 0xffff000000000000ULL, 0xff00000000000000ULL, 0x0000000000000000ULL
+	};
+	static const u8 SDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
+	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 7;
-	u64 mem = memRead64(addr & ~7);
-	mem = (cpuRegs.GPR.r[_Rt_].UD[0] >> SDL_SHIFT[shift]) |
-		  (mem & SDL_MASK[shift]);
+	u64 mem   = memRead64(addr & ~7);
+	mem       = (cpuRegs.GPR.r[_Rt_].UD[0] >> SDL_SHIFT[shift]) |
+		    (mem & SDL_MASK[shift]);
 	memWrite64(addr & ~7, mem);
 }
 
 
 void SDR()
 {
-	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+	static const u64 SDR_MASK[8] =
+	{	0x0000000000000000ULL, 0x00000000000000ffULL, 0x000000000000ffffULL, 0x0000000000ffffffULL,
+		0x00000000ffffffffULL, 0x000000ffffffffffULL, 0x0000ffffffffffffULL, 0x00ffffffffffffffULL
+	};
+	static const u8 SDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
+	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 7;
-	u64 mem = memRead64(addr & ~7);
-	mem = (cpuRegs.GPR.r[_Rt_].UD[0] << SDR_SHIFT[shift]) |
-		  (mem & SDR_MASK[shift]);
+	u64 mem   = memRead64(addr & ~7);
+	mem       = (cpuRegs.GPR.r[_Rt_].UD[0] << SDR_SHIFT[shift]) |
+		    (mem & SDR_MASK[shift]);
 	memWrite64(addr & ~7, mem );
 }
 
@@ -814,7 +790,6 @@ void SQ()
 {
 	// MIPS Note: LQ and SQ are special and "silently" align memory addresses, thus
 	// an address error due to unaligned access isn't possible like it is on other loads/stores.
-
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	memWrite128(addr & ~0xf, cpuRegs.GPR.r[_Rt_].UQ);
 }
@@ -826,15 +801,13 @@ void SQ()
 
 void MOVZ() {
 	if (!_Rd_) return;
-	if (cpuRegs.GPR.r[_Rt_].UD[0] == 0) {
+	if (cpuRegs.GPR.r[_Rt_].UD[0] == 0)
 		cpuRegs.GPR.r[_Rd_].UD[0] = cpuRegs.GPR.r[_Rs_].UD[0];
-	}
 }
 void MOVN() {
 	if (!_Rd_) return;
-	if (cpuRegs.GPR.r[_Rt_].UD[0] != 0) {
+	if (cpuRegs.GPR.r[_Rt_].UD[0] != 0)
 		cpuRegs.GPR.r[_Rd_].UD[0] = cpuRegs.GPR.r[_Rs_].UD[0];
-	}
 }
 
 /*********************************************************
@@ -862,49 +835,48 @@ void SYSCALL(void)
 			bool gsIsFrameMode = cpuRegs.GPR.n.a2.UL[0] & 1;
 			const char* inter = (gsIsInterlaced) ? "Interlaced" : "Progressive";
 			const char* field = (gsIsFrameMode) ? "FRAME" : "FIELD";
-			std::string mode;
 			// Warning info might be incorrect!
 			switch (cpuRegs.GPR.n.a1.UC[0])
 			{
 				case 0x0:
 				case 0x2:
-					mode = "NTSC 640x448 @ 59.940 (59.82)"; gsSetVideoMode(GS_VideoMode::NTSC); break;
+					/* "NTSC 640x448 @ 59.940 (59.82)" */ gsSetVideoMode(GS_VideoMode::NTSC); break;
 
 				case 0x1:
 				case 0x3:
-					mode = "PAL  640x512 @ 50.000 (49.76)"; gsSetVideoMode(GS_VideoMode::PAL); break;
+					/* "PAL  640x512 @ 50.000 (49.76)" */ gsSetVideoMode(GS_VideoMode::PAL); break;
 
-				case 0x1A: mode = "VESA 640x480 @ 59.940"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x1B: mode = "VESA 640x480 @ 72.809"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x1C: mode = "VESA 640x480 @ 75.000"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x1D: mode = "VESA 640x480 @ 85.008"; gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x1A: /* "VESA 640x480 @ 59.940" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x1B: /* "VESA 640x480 @ 72.809" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x1C: /* "VESA 640x480 @ 75.000" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x1D: /* "VESA 640x480 @ 85.008" */ gsSetVideoMode(GS_VideoMode::VESA); break;
 
-				case 0x2A: mode = "VESA 800x600 @ 56.250"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x2B: mode = "VESA 800x600 @ 60.317"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x2C: mode = "VESA 800x600 @ 72.188"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x2D: mode = "VESA 800x600 @ 75.000"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x2E: mode = "VESA 800x600 @ 85.061"; gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x2A: /* "VESA 800x600 @ 56.250" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x2B: /* "VESA 800x600 @ 60.317" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x2C: /* "VESA 800x600 @ 72.188" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x2D: /* "VESA 800x600 @ 75.000" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x2E: /* "VESA 800x600 @ 85.061" */ gsSetVideoMode(GS_VideoMode::VESA); break;
 
-				case 0x3B: mode = "VESA 1024x768 @ 60.004"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x3C: mode = "VESA 1024x768 @ 70.069"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x3D: mode = "VESA 1024x768 @ 75.029"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x3E: mode = "VESA 1024x768 @ 84.997"; gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x3B: /* "VESA 1024x768 @ 60.004" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x3C: /* "VESA 1024x768 @ 70.069" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x3D: /* "VESA 1024x768 @ 75.029" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x3E: /* "VESA 1024x768 @ 84.997" */ gsSetVideoMode(GS_VideoMode::VESA); break;
 
-				case 0x4A: mode = "VESA 1280x1024 @ 63.981"; gsSetVideoMode(GS_VideoMode::VESA); break;
-				case 0x4B: mode = "VESA 1280x1024 @ 79.976"; gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x4A: /* "VESA 1280x1024 @ 63.981" */ gsSetVideoMode(GS_VideoMode::VESA); break;
+				case 0x4B: /* "VESA 1280x1024 @ 79.976" */ gsSetVideoMode(GS_VideoMode::VESA); break;
 
-				case 0x50: mode = "SDTV   720x480 @ 59.94"; gsSetVideoMode(GS_VideoMode::SDTV_480P); break;
-				case 0x51: mode = "HDTV 1920x1080 @ 60.00"; gsSetVideoMode(GS_VideoMode::HDTV_1080I); break;
-				case 0x52: mode = "HDTV  1280x720 @ ??.???"; gsSetVideoMode(GS_VideoMode::HDTV_720P); break;
-				case 0x53: mode = "SDTV   768x576 @ ??.???"; gsSetVideoMode(GS_VideoMode::SDTV_576P); break;
-				case 0x54: mode = "HDTV 1920x1080 @ ??.???"; gsSetVideoMode(GS_VideoMode::HDTV_1080P); break;
+				case 0x50: /* "SDTV   720x480 @ 59.94"  */ gsSetVideoMode(GS_VideoMode::SDTV_480P); break;
+				case 0x51: /* "HDTV 1920x1080 @ 60.00"  */ gsSetVideoMode(GS_VideoMode::HDTV_1080I); break;
+				case 0x52: /* "HDTV  1280x720 @ ??.???" */ gsSetVideoMode(GS_VideoMode::HDTV_720P); break;
+				case 0x53: /* "SDTV   768x576 @ ??.???" */ gsSetVideoMode(GS_VideoMode::SDTV_576P); break;
+				case 0x54: /* "HDTV 1920x1080 @ ??.???" */ gsSetVideoMode(GS_VideoMode::HDTV_1080P); break;
 
 				case 0x72:
 				case 0x82:
-					mode = "DVD NTSC 640x448 @ ??.???"; gsSetVideoMode(GS_VideoMode::DVD_NTSC); break;
+					/* "DVD NTSC 640x448 @ ??.???" */ gsSetVideoMode(GS_VideoMode::DVD_NTSC); break;
 				case 0x73:
 				case 0x83:
-					mode = "DVD PAL 720x480 @ ??.???"; gsSetVideoMode(GS_VideoMode::DVD_PAL); break;
+					/* "DVD PAL 720x480 @ ??.???" */ gsSetVideoMode(GS_VideoMode::DVD_PAL); break;
 
 				default:
 					gsSetVideoMode(GS_VideoMode::Unknown);
@@ -924,14 +896,12 @@ void SYSCALL(void)
 
 				cdvdReadLanguageParams(params);
 
-				u32 osdconf = 0;
 				u32 timezone = params[4] | ((u32)(params[3] & 0x7) << 8);
-
-				osdconf |= params[1] & 0x1F;						// SPDIF, Screen mode, RGB/Comp, Jap/Eng Switch (Early bios)
-				osdconf |= (u32)params[0] << 5;						// PS1 Mode Settings
+				u32 osdconf  = params[1] & 0x1F;			// SPDIF, Screen mode, RGB/Comp, Jap/Eng Switch (Early bios)
+				osdconf |= (u32)params[0] << 5;				// PS1 Mode Settings
 				osdconf |= (u32)((params[2] & 0xE0) >> 5) << 13;	// OSD Ver (Not sure but best guess)
-				osdconf |= (u32)(params[2] & 0x1F) << 16;			// Language
-				osdconf |= timezone << 21;							// Timezone
+				osdconf |= (u32)(params[2] & 0x1F) << 16;		// Language
+				osdconf |= timezone << 21;				// Timezone
 
 				memWrite32(memaddr, osdconf);
 				return;
@@ -970,7 +940,7 @@ void SYSCALL(void)
 					const u32 inst2 = memRead32(addr += 4);
 					const u32 inst3 = memRead32(addr += 4);
 
-					if (ThreadListInstructions[0] == inst1 && // sw v0,0x0(v0)
+					if (    ThreadListInstructions[0] == inst1 && // sw v0,0x0(v0)
 						ThreadListInstructions[1] == inst2 && // no-op
 						ThreadListInstructions[2] == inst3) // no-op
 					{
@@ -982,13 +952,9 @@ void SYSCALL(void)
 					}
 					offset += 4;
 				}
+				// We couldn't find the address
 				if (!CurrentBiosInformation.eeThreadListAddr)
-				{
-					// We couldn't find the address
 					CurrentBiosInformation.eeThreadListAddr = -1;
-					// If you're here because a user has reported this message, this means that the instruction pattern is not present on their bios, or it is aligned weirdly.
-					Console.Warning("BIOS Warning: Unable to get a thread list offset. The debugger thread and stack frame views will not be functional.");
-				}
 			}
 		}
 		break;
@@ -1034,9 +1000,8 @@ void SYSCALL(void)
 					{
 						// The extra check here is to be compatible with "%%s"
 						if (i == 0 || fmt[i - 1] != '%') {
-							if (fmt[i + 1] == 's') {
+							if (fmt[i + 1] == 's')
 								regs[curRegArg] = (u64)PSM(regs[curRegArg]); // PS2 Address -> PCSX2 Address
-							}
 							curRegArg++;
 						}
 					}
@@ -1086,7 +1051,6 @@ void PREF()
 static void trap(u16 code=0)
 {
 	cpuRegs.pc -= 4;
-	Console.Warning("Trap exception at 0x%08x", cpuRegs.pc);
 	cpuException(0x34, cpuRegs.branch);
 }
 

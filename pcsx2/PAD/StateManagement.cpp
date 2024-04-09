@@ -15,9 +15,9 @@
 
 #include "PrecompiledHeader.h"
 
-#include "PAD/Host/StateManagement.h"
-#include "PAD/Host/KeyStatus.h"
-#include "PAD/Host/PAD.h"
+#include "PAD/StateManagement.h"
+#include "PAD/KeyStatus.h"
+#include "PAD/PAD.h"
 #include "Frontend/InputManager.h"
 #include "Sio.h"
 

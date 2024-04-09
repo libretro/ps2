@@ -46,14 +46,7 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 	}
 
 	if (!(stat & test))
-	{
-		// VU currently flushes XGKICK on VU1 end so no need for this, yet
-		/*if (m_Idx == 1 && VU1.xgkickenable)
-		{
-			_vuXGKICKTransfer((cpuRegs.cycle - VU1.xgkicklastcycle), false);
-		}*/
 		return;
-	}
 
 	if (startUp)
 	{
@@ -78,13 +71,10 @@ void BaseVUmicroCPU::ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked)
 	const u32& stat = VU0.VI[REG_VPU_STAT].UL;
 	constexpr int test = 1;
 
-	if (stat & test)
-	{ // VU is running
+	if (stat & test) // VU is running
+	{ 
 		s32 delta = (s32)(u32)(cpuRegs.cycle - VU0.cycle);
-
 		if (delta > 0)
-		{
 			cpu->Execute(CalculateMinRunCycles(delta, interlocked)); // Execute the time since the last call
-		}
 	}
 }

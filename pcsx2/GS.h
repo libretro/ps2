@@ -19,10 +19,13 @@
 #include "Gif.h"
 #include "GS/GS.h"
 #include "SingleRegisterTypes.h"
+
 #include <atomic>
 #include <functional>
 #include <mutex>
 #include <thread>
+
+#include "common/Threading.h"
 
 extern double GetVerticalFrequency();
 alignas(16) extern u8 g_RealGSMem[Ps2MemSize::GSregs];
@@ -330,10 +333,6 @@ public:
 	Threading::WorkSema m_sem_event;
 	Threading::UserspaceSemaphore m_sem_OnRingReset;
 	Threading::UserspaceSemaphore m_sem_Vsync;
-
-	// used to keep multiple threads from sending packets to the ringbuffer concurrently.
-	// (currently not used or implemented -- is a planned feature for a future threaded VU1)
-	//MutexLockRecursive m_PacketLocker;
 
 	// Used to delay the sending of events.  Performance is better if the ringbuffer
 	// has more than one command in it when the thread is kicked.

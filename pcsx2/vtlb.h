@@ -185,17 +185,17 @@ public:
 
 namespace vtlb_private
 {
-	static const uint VTLB_PAGE_BITS = 12;
-	static const uint VTLB_PAGE_MASK = 4095;
-	static const uint VTLB_PAGE_SIZE = 4096;
+	static const uint VTLB_PAGE_BITS     = 12;
+	static const uint VTLB_PAGE_MASK     = 4095;
+	static const uint VTLB_PAGE_SIZE     = 4096;
 
-	static const uint VTLB_PMAP_SZ		= _1mb * 512;
-	static const uint VTLB_PMAP_ITEMS	= VTLB_PMAP_SZ / VTLB_PAGE_SIZE;
-	static const uint VTLB_VMAP_ITEMS	= _4gb / VTLB_PAGE_SIZE;
+	static const uint VTLB_PMAP_SZ	     = _1mb * 512;
+	static const uint VTLB_PMAP_ITEMS    = VTLB_PMAP_SZ / VTLB_PAGE_SIZE;
+	static const uint VTLB_VMAP_ITEMS    = _4gb / VTLB_PAGE_SIZE;
 
 	static const uint VTLB_HANDLER_ITEMS = 128;
 
-	static const uptr POINTER_SIGN_BIT = 1ULL << (sizeof(uptr) * 8 - 1);
+	static const uptr POINTER_SIGN_BIT   = 1ULL << (sizeof(uptr) * 8 - 1);
 
 	struct VTLBPhysical
 	{
@@ -290,10 +290,10 @@ namespace vtlb_private
 
 enum vtlb_ProtectionMode
 {
-	ProtMode_None = 0, // page is 'unaccounted' -- neither protected nor unprotected
-	ProtMode_Write, // page is under write protection (exception handler)
-	ProtMode_Manual, // page is under manual protection (self-checked at execution)
-	ProtMode_NotRequired // page doesn't require any protection
+	ProtMode_None = 0, 	// page is 'unaccounted' -- neither protected nor unprotected
+	ProtMode_Write, 	// page is under write protection (exception handler)
+	ProtMode_Manual, 	// page is under manual protection (self-checked at execution)
+	ProtMode_NotRequired 	// page doesn't require any protection
 };
 
 extern vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr);

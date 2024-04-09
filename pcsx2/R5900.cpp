@@ -123,7 +123,7 @@ __ri void cpuException(u32 code, u32 bd)
 	bool errLevel2, checkStatus;
 	u32 offset = 0;
 
-    cpuRegs.branch = 0;		// Tells the interpreter that an exception occurred during a branch.
+	cpuRegs.branch      = 0; // Tells the interpreter that an exception occurred during a branch.
 	cpuRegs.CP0.n.Cause = code & 0xffff;
 
 	if(cpuRegs.CP0.n.Status.b.ERL == 0)
@@ -142,15 +142,13 @@ __ri void cpuException(u32 code, u32 bd)
 	else
 	{
 		//Error Level 2
-		errLevel2 = true;
+		errLevel2   = true;
 		checkStatus = (cpuRegs.CP0.n.Status.b.DEV == 0); // for perf/debug exceptions
 
-		Console.Error("*PCSX2* FIX ME: Level 2 cpuException");
 		if ((code & 0x38000) <= 0x8000 )
 		{
 			//Reset / NMI
 			cpuRegs.pc = 0xBFC00000;
-			Console.Warning("Reset request");
 			cpuUpdateOperationMode();
 			return;
 		}
@@ -158,8 +156,6 @@ __ri void cpuException(u32 code, u32 bd)
 			offset = 0x80; //Performance Counter
 		else if((code & 0x38000) == 0x18000)
 			offset = 0x100; //Debug
-		else
-			Console.Error("Unknown Level 2 Exception!! Cause %x", code);
 	}
 
 	if (cpuRegs.CP0.n.Status.b.EXL == 0)
@@ -167,7 +163,6 @@ __ri void cpuException(u32 code, u32 bd)
 		cpuRegs.CP0.n.Status.b.EXL = 1;
 		if (bd)
 		{
-			Console.Warning("branch delay!!");
 			cpuRegs.CP0.n.EPC = cpuRegs.pc - 4;
 			cpuRegs.CP0.n.Cause |= 0x80000000;
 		}
@@ -178,10 +173,7 @@ __ri void cpuException(u32 code, u32 bd)
 		}
 	}
 	else
-	{
 		offset = 0x180; //Override the cause
-		if (errLevel2) Console.Warning("cpuException: Status.EXL = 1 cause %x", code);
-	}
 
 	if (checkStatus)
 		cpuRegs.pc = 0x80000000 + offset;
@@ -316,8 +308,7 @@ static __fi bool _cpuTestInterrupts()
 
 	if ((cpuRegs.interrupt & 0x1FFFF) & ~cpuRegs.dmastall)
 		return true;
-	else
-		return false;
+	return false;
 }
 
 static __fi void _cpuTestTIMR()
@@ -330,15 +321,13 @@ static __fi void _cpuTestTIMR()
 	// A proper fix would schedule the TIMR to trigger at a specific cycle anytime
 	// the Count or Compare registers are modified.
 
-	if ( (cpuRegs.CP0.n.Status.val & 0x8000) &&
-		cpuRegs.CP0.n.Count >= cpuRegs.CP0.n.Compare && cpuRegs.CP0.n.Count < cpuRegs.CP0.n.Compare+1000 )
-	{
-		Console.WriteLn( Color_Magenta, "timr intr: %x, %x", cpuRegs.CP0.n.Count, cpuRegs.CP0.n.Compare);
+	if (       (cpuRegs.CP0.n.Status.val & 0x8000)
+		&& (cpuRegs.CP0.n.Count >= cpuRegs.CP0.n.Compare)
+		&& (cpuRegs.CP0.n.Count  < cpuRegs.CP0.n.Compare+1000))
 		cpuException(0x808000, cpuRegs.branch);
-	}
 }
 
-static __fi void _cpuTestPERF()
+static __fi void _cpuTestPERF(void)
 {
 	// Perfs are updated when read by games (COP0's MFC0/MTC0 instructions), so we need
 	// only update them at semi-regular intervals to keep cpuRegs.cycle from wrapping
@@ -428,9 +417,6 @@ __fi void _cpuEventTest_Shared()
 
 	if (iopEventAction)
 	{
-		//if( EEsCycle < -450 )
-		//	Console.WriteLn( " IOP ahead by: %d cycles", -EEsCycle );
-
 		EEsCycle = psxCpu->ExecuteBlock(EEsCycle);
 
 		iopEventAction = false;
@@ -444,14 +430,10 @@ __fi void _cpuEventTest_Shared()
 
 	// ---- Schedule Next Event Test --------------
 
+	// EE's running way ahead of the IOP still, so we should branch quickly to give the
+	// IOP extra timeslices in short order.
 	if (EEsCycle > 192)
-	{
-		// EE's running way ahead of the IOP still, so we should branch quickly to give the
-		// IOP extra timeslices in short order.
-
 		cpuSetNextEventDelta(48);
-		//Console.Warning( "EE ahead of the IOP -- Rapid Event!  %d", EEsCycle );
-	}
 
 	// The IOP could be running ahead/behind of us, so adjust the iop's next branch by its
 	// relative position to the EE (via EEsCycle)
@@ -576,11 +558,11 @@ int ParseArgumentString(u32 arg_block)
 	if (!arg_block)
 		return 0;
 
-	int argc = 1; // one arg is guaranteed at least
-	g_argPtrs[0] = arg_block; // first arg is right here
-	bool wasSpace = false; // status of last char. scanned
-	int args_len = strlen((char *)PSM(arg_block));
-	for (int i = 0; i < args_len; i++)
+	int argc         = 1; // one arg is guaranteed at least
+	g_argPtrs[0]     = arg_block; // first arg is right here
+	bool wasSpace    = false; // status of last char. scanned
+	size_t args_len  = strlen((char *)PSM(arg_block));
+	for (int i = 0; i < (int)args_len; i++)
 	{
 		char curchar = *(char *)PSM(arg_block + i);
 		if (curchar == '\0')
@@ -631,9 +613,6 @@ void eeloadHook()
 		// then we add the desired launch arguments. PS2LOGO passes those on to the game itself as it calls EELOAD a third time.
 		if (!EmuConfig.CurrentGameArgs.empty() && !strcmp(elfname.c_str(), "rom0:PS2LOGO"))
 		{
-			const char *argString = EmuConfig.CurrentGameArgs.c_str();
-			Console.WriteLn("eeloadHook: Supplying launch argument(s) '%s' to module '%s'...", argString, elfname.c_str());
-
 			// Join all arguments by space characters so they can be processed as one string by ParseArgumentString(), then add the
 			// user's launch arguments onto the end
 			u32 arg_ptr = 0;
@@ -698,23 +677,17 @@ void eeloadHook()
 
 // Called from recompilers; define is mandatory.
 // Only called if g_SkipBiosHack is true
-void eeloadHook2()
+void eeloadHook2(void)
 {
 	if (EmuConfig.CurrentGameArgs.empty())
 		return;
 
 	if (!g_osdsys_str)
-	{
-		Console.WriteLn("eeloadHook2: Called before \"rom0:OSDSYS\" was found by eeloadHook()!");
 		return;
-	}
-
-	const char *argString = EmuConfig.CurrentGameArgs.c_str();
-	Console.WriteLn("eeloadHook2: Supplying launch argument(s) '%s' to ELF '%s'.", argString, (char *)PSM(g_osdsys_str));
 
 	// Add args string after game's ELF name that was written over "rom0:OSDSYS" by eeloadHook(). In between the ELF name and args
 	// string we insert a space character so that ParseArgumentString() has one continuous string to process.
-	int game_len = strlen((char *)PSM(g_osdsys_str));
+	size_t game_len = strlen((char *)PSM(g_osdsys_str));
 	memset(PSM(g_osdsys_str + game_len), 0x20, 1);
 	strcpy((char *)PSM(g_osdsys_str + game_len + 1), EmuConfig.CurrentGameArgs.c_str());
 	int argc = ParseArgumentString(g_osdsys_str);
@@ -722,24 +695,9 @@ void eeloadHook2()
 	// Back up 4 bytes from start of args block for every arg + 4 bytes for start of argv pointer block, write pointers
 	uptr block_start = g_osdsys_str - (argc * 4);
 	for (int a = 0; a < argc; a++)
-	{
 		memWrite32(block_start + (a * 4), g_argPtrs[a]);
-	}
 
 	// Save argc and argv as incoming arguments for EELOAD function which calls ExecPS2()
 	cpuRegs.GPR.n.a0.SD[0] = argc;
 	cpuRegs.GPR.n.a1.UD[0] = block_start;
-}
-
-inline bool isBranchOrJump(u32 addr)
-{
-	u32 op = memRead32(addr);
-	const OPCODE& opcode = GetInstruction(op);
-
-	// Return false for eret & syscall as they are branch type in pcsx2 debugging tools,
-	// but shouldn't have delay slot in isBreakpointNeeded/isMemcheckNeeded.
-	if ((opcode.flags == (IS_BRANCH | BRANCHTYPE_SYSCALL)) || (opcode.flags == (IS_BRANCH | BRANCHTYPE_ERET)))
-		return false;
-
-	return (opcode.flags & IS_BRANCH) != 0;
 }

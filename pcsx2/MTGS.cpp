@@ -588,8 +588,6 @@ void SysMtgsThread::SendDataPacket()
 	}
 
 	m_packet_size = 0;
-
-	//m_PacketLocker.Release();
 }
 
 void SysMtgsThread::GenericStall(uint size)
@@ -705,8 +703,6 @@ void SysMtgsThread::PrepDataPacket(MTGS_RingCommand cmd, u32 size)
 //  size - size of the packet data, in smd128's
 void SysMtgsThread::PrepDataPacket(GIF_PATH pathidx, u32 size)
 {
-	//m_PacketLocker.Acquire();
-
 	PrepDataPacket((MTGS_RingCommand)pathidx, size);
 }
 
@@ -724,8 +720,6 @@ __fi void SysMtgsThread::_FinishSimplePacket()
 
 void SysMtgsThread::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
-	//ScopedLock locker( m_PacketLocker );
-
 	GenericStall(1);
 	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos.load(std::memory_order_relaxed)];
 
@@ -751,8 +745,6 @@ void SysMtgsThread::SendSimpleGSPacket(MTGS_RingCommand type, u32 offset, u32 si
 
 void SysMtgsThread::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 {
-	//ScopedLock locker( m_PacketLocker );
-
 	GenericStall(1);
 	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos.load(std::memory_order_relaxed)];
 

@@ -24,9 +24,9 @@
 #include "Frontend/InputManager.h"
 #include "HostSettings.h"
 
-#include "PAD/Host/PAD.h"
-#include "PAD/Host/KeyStatus.h"
-#include "PAD/Host/StateManagement.h"
+#include "PAD/PAD.h"
+#include "PAD/KeyStatus.h"
+#include "PAD/StateManagement.h"
 
 #include <array>
 

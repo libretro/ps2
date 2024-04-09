@@ -37,26 +37,25 @@ static __ri u32 VU_MAC_UPDATE( int shift, VURegs * VU, float f )
 		VU->macflag &= ~(0x0010<<shift);
 
 	if( f == 0 )
-	{
 		VU->macflag = (VU->macflag & ~(0x1100<<shift)) | (0x0001<<shift);
-		return v;
-	}
-
-	switch(exp)
+	else
 	{
-		case 0:
-			VU->macflag = (VU->macflag&~(0x1000<<shift)) | (0x0101<<shift);
-			return s;
-		case 255:
-			VU->macflag = (VU->macflag&~(0x0101<<shift)) | (0x1000<<shift);
-			if (CHECK_VU_OVERFLOW((VU == &VU1) ? 1 : 0))
-				return s | 0x7f7fffff; /* max allowed */
-			else
-				return v;
-		default:
-			VU->macflag = (VU->macflag & ~(0x1101<<shift));
-			return v;
+		switch(exp)
+		{
+			case 0:
+				VU->macflag = (VU->macflag&~(0x1000<<shift)) | (0x0101<<shift);
+				return s;
+			case 255:
+				VU->macflag = (VU->macflag&~(0x0101<<shift)) | (0x1000<<shift);
+				if (CHECK_VU_OVERFLOW((VU == &VU1) ? 1 : 0))
+					return s | 0x7f7fffff; /* max allowed */
+				break;
+			default:
+				VU->macflag = (VU->macflag & ~(0x1101<<shift));
+				break;
+		}
 	}
+	return v;
 }
 
 __fi u32 VU_MACx_UPDATE(VURegs * VU, float x)

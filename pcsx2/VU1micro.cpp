@@ -23,10 +23,6 @@
 #include "VUmicro.h"
 #include "MTVU.h"
 
-#ifdef PCSX2_DEBUG
-u32 vudump = 0;
-#endif
-
 // This is called by the COP2 as per the CTC instruction
 void vu1ResetRegs()
 {

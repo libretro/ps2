@@ -19,19 +19,19 @@
 enum VURegFlags
 {
 	REG_STATUS_FLAG = 16,
-	REG_MAC_FLAG = 17,
-	REG_CLIP_FLAG = 18,
-	REG_ACC_FLAG = 19, // dummy flag that indicates that VFACC is written/read (nothing to do with VI[19])
-	REG_R = 20,
-	REG_I = 21,
-	REG_Q = 22,
-	REG_P = 23, // only exists in micromode
-	REG_VF0_FLAG = 24, // dummy flag that indicates VF0 is read (nothing to do with VI[24])
-	REG_TPC = 26,
-	REG_CMSAR0 = 27,
-	REG_FBRST = 28,
-	REG_VPU_STAT = 29,
-	REG_CMSAR1 = 31
+	REG_MAC_FLAG 	= 17,
+	REG_CLIP_FLAG 	= 18,
+	REG_ACC_FLAG 	= 19, // dummy flag that indicates that VFACC is written/read (nothing to do with VI[19])
+	REG_R 		= 20,
+	REG_I 		= 21,
+	REG_Q 		= 22,
+	REG_P 		= 23, // only exists in micromode
+	REG_VF0_FLAG 	= 24, // dummy flag that indicates VF0 is read (nothing to do with VI[24])
+	REG_TPC 	= 26,
+	REG_CMSAR0 	= 27,
+	REG_FBRST 	= 28,
+	REG_VPU_STAT 	= 29,
+	REG_CMSAR1 	= 31
 };
 
 //interpreter hacks, WIP
@@ -41,8 +41,8 @@ enum VURegFlags
 enum VUStatus
 {
 	VU_Ready = 0,
-	VU_Run = 1,
-	VU_Stop = 2,
+	VU_Run 	 = 1,
+	VU_Stop  = 2
 };
 
 union VECTOR
@@ -86,9 +86,9 @@ struct REG_VI
 		// VU0 mem, with only lower 16 bits valid, and the upper 112bits are hardwired to 0 (cottonvibes)
 };
 
-//#define VUFLAG_BREAKONMFLAG		0x00000001
 #define VUFLAG_MFLAGSET 0x00000002
 #define VUFLAG_INTCINTERRUPT 0x00000004
+
 struct fdivPipe
 {
 	int enable;

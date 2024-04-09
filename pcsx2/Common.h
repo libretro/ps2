@@ -31,6 +31,3 @@ extern s64 PSXCLK;	/* 36.864 Mhz */
 #include "SaveState.h"
 
 #include <string>
-
-extern std::string ShiftJIS_ConvertString( const char* src );
-extern std::string ShiftJIS_ConvertString( const char* src, int maxlen );

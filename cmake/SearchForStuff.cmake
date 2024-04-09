@@ -11,7 +11,6 @@ if (WIN32)
 	add_subdirectory(3rdparty/wil EXCLUDE_FROM_ALL)
 	add_subdirectory(3rdparty/xz EXCLUDE_FROM_ALL)
 	add_subdirectory(3rdparty/D3D12MemAlloc EXCLUDE_FROM_ALL)
-	set(FFMPEG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/3rdparty/ffmpeg/include")
 else()
 	find_package(PCAP REQUIRED)
 	find_package(LibLZMA REQUIRED)
@@ -30,14 +29,6 @@ else()
 	find_package(PNG REQUIRED)
 	set(CMAKE_FIND_FRAMEWORK ${FIND_FRAMEWORK_BACKUP})
 	find_package(Vtune)
-
-	# Use bundled ffmpeg v4.x.x headers if we can't locate it in the system.
-	# We'll try to load it dynamically at runtime.
-	find_package(FFMPEG COMPONENTS avcodec avformat avutil swresample swscale)
-	if(NOT FFMPEG_FOUND)
-		message(WARNING "FFmpeg not found, using bundled headers.")
-		set(FFMPEG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/3rdparty/ffmpeg/include")
-	endif()
 
 	find_package(ZLIB REQUIRED)
 

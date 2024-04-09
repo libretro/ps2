@@ -27,7 +27,7 @@
 using namespace R5900;
 
 // This is called by the COP2 as per the CTC instruction
-void vu0ResetRegs()
+void vu0ResetRegs(void)
 {
 	VU0.VI[REG_VPU_STAT].UL &= ~0xff; // stop vu0
 	VU0.VI[REG_FBRST].UL &= ~0xff; // stop vu0
@@ -49,10 +49,10 @@ static __fi void vu0SetMicroFlags(u32* flags, u32 value)
 #endif
 }
 
-void vu0ExecMicro(u32 addr) {
-	if(VU0.VI[REG_VPU_STAT].UL & 0x1) {
+void vu0ExecMicro(u32 addr)
+{
+	if(VU0.VI[REG_VPU_STAT].UL & 0x1)
 		vu0Finish();
-	}
 
 	// Need to copy the clip flag back to the interpreter in case COP2 has edited it
 	const u32 CLIP = VU0.VI[REG_CLIP_FLAG].UL;

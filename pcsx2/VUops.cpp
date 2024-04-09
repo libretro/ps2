@@ -21,7 +21,6 @@
 #include "MTVU.h"
 
 #include <cmath>
-u32 laststall = 0;
 //Lower/Upper instructions can use that..
 #define _Ft_ ((VU->code >> 16) & 0x1F)  // The rt part of the instruction register
 #define _Fs_ ((VU->code >> 11) & 0x1F)  // The rd part of the instruction register
@@ -112,15 +111,15 @@ static __ri bool _vuFDIVflush(VURegs* VU)
 
 static __ri bool _vuEFUflush(VURegs* VU)
 {
-	if (VU->efu.enable == 0)
-		return false;
-
-	if ((VU->cycle - VU->efu.sCycle) >= VU->efu.Cycle)
+	if (VU->efu.enable != 0)
 	{
-		VU->efu.enable = 0;
-		VU->VI[REG_P].UL = VU->efu.reg.UL;
+		if ((VU->cycle - VU->efu.sCycle) >= VU->efu.Cycle)
+		{
+			VU->efu.enable = 0;
+			VU->VI[REG_P].UL = VU->efu.reg.UL;
 
-		return true;
+			return true;
+		}
 	}
 
 	return false;
@@ -199,9 +198,7 @@ __fi void _vuTestPipes(VURegs* VU)
 	if (VU == &VU1)
 	{
 		if (VU1.xgkickenable)
-		{
 			_vuXGKICKTransfer((VU1.cycle - VU1.xgkicklastcycle) - 1, false);
-		}
 	}
 }
 
@@ -432,7 +429,6 @@ static float vuDouble(u32 f)
 		case 0x0:
 			f &= 0x80000000;
 			return *(float*)&f;
-			break;
 		case 0x7f800000:
 			if (CHECK_VU_OVERFLOW(0))
 			{
@@ -473,8 +469,7 @@ static __fi float vuADD_TriAceHack(u32 a, u32 b)
 	s32 bExp = (b >> 23) & 0xff;
 	if (aExp - bExp >= 25) b &= 0x80000000;
 	if (aExp - bExp <=-25) a &= 0x80000000;
-	float ret = vuDouble(a) + vuDouble(b);
-	return ret;
+	return vuDouble(a) + vuDouble(b);
 }
 
 void _vuABS(VURegs* VU)
@@ -501,7 +496,7 @@ static __fi void _vuADD(VURegs* VU)
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) + vuDouble(VU->VF[_Ft_].i.y)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) + vuDouble(VU->VF[_Ft_].i.z)); } else VU_MACz_CLEAR(VU);
 	if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) + vuDouble(VU->VF[_Ft_].i.w)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 
@@ -513,20 +508,21 @@ static __fi void _vuADDi(VURegs* VU)
 	else
 		dst = &VU->VF[_Fd_];
 
-	if (!CHECK_VUADDSUBHACK) {
+	if (!CHECK_VUADDSUBHACK)
+	{
 		if (_X){ dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.x) + vuDouble(VU->VI[REG_I].UL));} else VU_MACx_CLEAR(VU);
 		if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) + vuDouble(VU->VI[REG_I].UL));} else VU_MACy_CLEAR(VU);
 		if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) + vuDouble(VU->VI[REG_I].UL));} else VU_MACz_CLEAR(VU);
 		if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) + vuDouble(VU->VI[REG_I].UL));} else VU_MACw_CLEAR(VU);
-		VU_STAT_UPDATE(VU);
 	}
-	else {
+	else
+	{
 		if (_X){ dst->i.x = VU_MACx_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.x, VU->VI[REG_I].UL));} else VU_MACx_CLEAR(VU);
 		if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.y, VU->VI[REG_I].UL));} else VU_MACy_CLEAR(VU);
 		if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.z, VU->VI[REG_I].UL));} else VU_MACz_CLEAR(VU);
 		if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.w, VU->VI[REG_I].UL));} else VU_MACw_CLEAR(VU);
-		VU_STAT_UPDATE(VU);
 	}
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuADDq(VURegs* VU)
@@ -793,7 +789,7 @@ static __fi void _vuSUBw(VURegs* VU)
 	else
 		dst = &VU->VF[_Fd_];
 
-    ftw=vuDouble(VU->VF[_Ft_].i.w);
+	ftw=vuDouble(VU->VF[_Ft_].i.w);
 	if (_X){ dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.x) - ftw); } else VU_MACx_CLEAR(VU);
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) - ftw); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) - ftw); } else VU_MACz_CLEAR(VU);
@@ -882,7 +878,7 @@ static __fi void _vuMUL(VURegs* VU)
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Ft_].i.y)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Ft_].i.z)); } else VU_MACz_CLEAR(VU);
 	if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VF[_Ft_].i.w)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULi(VURegs* VU)
@@ -897,7 +893,7 @@ static __fi void _vuMULi(VURegs* VU)
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_I].UL)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_I].UL)); } else VU_MACz_CLEAR(VU);
 	if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_I].UL)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULq(VURegs* VU)
@@ -912,7 +908,7 @@ static __fi void _vuMULq(VURegs* VU)
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_Q].UL)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_Q].UL)); } else VU_MACz_CLEAR(VU);
 	if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_Q].UL)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULx(VURegs* VU)
@@ -929,7 +925,7 @@ static __fi void _vuMULx(VURegs* VU)
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * ftx); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * ftx); } else VU_MACz_CLEAR(VU);
 	if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * ftx); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 
@@ -947,7 +943,7 @@ static __fi void _vuMULy(VURegs* VU)
 	if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * fty); } else VU_MACy_CLEAR(VU);
 	if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * fty); } else VU_MACz_CLEAR(VU);
 	if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * fty); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULz(VURegs* VU)
@@ -1006,7 +1002,7 @@ static __fi void _vuMULAq(VURegs*  VU) {
 	if (_Y){ VU->ACC.i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_Q].UL)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ VU->ACC.i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_Q].UL)); } else VU_MACz_CLEAR(VU);
 	if (_W){ VU->ACC.i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_Q].UL)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULAx(VURegs*  VU) {
@@ -1014,7 +1010,7 @@ static __fi void _vuMULAx(VURegs*  VU) {
 	if (_Y){ VU->ACC.i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Ft_].i.x)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ VU->ACC.i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Ft_].i.x)); } else VU_MACz_CLEAR(VU);
 	if (_W){ VU->ACC.i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VF[_Ft_].i.x)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULAy(VURegs*  VU) {
@@ -1022,7 +1018,7 @@ static __fi void _vuMULAy(VURegs*  VU) {
 	if (_Y){ VU->ACC.i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Ft_].i.y)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ VU->ACC.i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Ft_].i.y)); } else VU_MACz_CLEAR(VU);
 	if (_W){ VU->ACC.i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VF[_Ft_].i.y)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMULAz(VURegs* VU)
@@ -1039,7 +1035,7 @@ static __fi void _vuMULAw(VURegs*  VU) {
 	if (_Y){ VU->ACC.i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Ft_].i.w)); } else VU_MACy_CLEAR(VU);
 	if (_Z){ VU->ACC.i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Ft_].i.w)); } else VU_MACz_CLEAR(VU);
 	if (_W){ VU->ACC.i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VF[_Ft_].i.w)); } else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMADD(VURegs* VU)
@@ -1051,10 +1047,10 @@ static __fi void _vuMADD(VURegs* VU)
 		dst = &VU->VF[_Fd_];
 
 	if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + ( vuDouble(VU->VF[_Fs_].i.x) * vuDouble(VU->VF[_Ft_].i.x))); else VU_MACx_CLEAR(VU);
-    if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + ( vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Ft_].i.y))); else VU_MACy_CLEAR(VU);
-    if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + ( vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Ft_].i.z))); else VU_MACz_CLEAR(VU);
-    if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + ( vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VF[_Ft_].i.w))); else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + ( vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Ft_].i.y))); else VU_MACy_CLEAR(VU);
+	if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + ( vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Ft_].i.z))); else VU_MACz_CLEAR(VU);
+	if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + ( vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VF[_Ft_].i.w))); else VU_MACw_CLEAR(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 
@@ -1066,11 +1062,11 @@ static __fi void _vuMADDi(VURegs* VU)
 	else
 		dst = &VU->VF[_Fd_];
 
-    if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * vuDouble(VU->VI[REG_I].UL))); else VU_MACx_CLEAR(VU);
-    if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_I].UL))); else VU_MACy_CLEAR(VU);
-    if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_I].UL))); else VU_MACz_CLEAR(VU);
-    if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_I].UL))); else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * vuDouble(VU->VI[REG_I].UL))); else VU_MACx_CLEAR(VU);
+	if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_I].UL))); else VU_MACy_CLEAR(VU);
+	if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_I].UL))); else VU_MACz_CLEAR(VU);
+	if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_I].UL))); else VU_MACw_CLEAR(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMADDq(VURegs* VU)
@@ -1082,10 +1078,10 @@ static __fi void _vuMADDq(VURegs* VU)
 		dst = &VU->VF[_Fd_];
 
 	if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACx_CLEAR(VU);
-    if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACy_CLEAR(VU);
-    if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACz_CLEAR(VU);
-    if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACy_CLEAR(VU);
+	if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACz_CLEAR(VU);
+	if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * vuDouble(VU->VI[REG_Q].UL))); else VU_MACw_CLEAR(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMADDx(VURegs* VU)
@@ -1098,11 +1094,11 @@ static __fi void _vuMADDx(VURegs* VU)
 		dst = &VU->VF[_Fd_];
 
 	ftx=vuDouble(VU->VF[_Ft_].i.x);
-    if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * ftx)); else VU_MACx_CLEAR(VU);
-    if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * ftx)); else VU_MACy_CLEAR(VU);
-    if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * ftx)); else VU_MACz_CLEAR(VU);
-    if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * ftx)); else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * ftx)); else VU_MACx_CLEAR(VU);
+	if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * ftx)); else VU_MACy_CLEAR(VU);
+	if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * ftx)); else VU_MACz_CLEAR(VU);
+	if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * ftx)); else VU_MACw_CLEAR(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMADDy(VURegs* VU)
@@ -1115,11 +1111,11 @@ static __fi void _vuMADDy(VURegs* VU)
 		dst = &VU->VF[_Fd_];
 
 	fty=vuDouble(VU->VF[_Ft_].i.y);
-    if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * fty)); else VU_MACx_CLEAR(VU);
-    if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * fty)); else VU_MACy_CLEAR(VU);
-    if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * fty)); else VU_MACz_CLEAR(VU);
-    if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * fty)); else VU_MACw_CLEAR(VU);
-    VU_STAT_UPDATE(VU);
+	if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * fty)); else VU_MACx_CLEAR(VU);
+	if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * fty)); else VU_MACy_CLEAR(VU);
+	if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * fty)); else VU_MACz_CLEAR(VU);
+	if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * fty)); else VU_MACw_CLEAR(VU);
+	VU_STAT_UPDATE(VU);
 }
 
 static __fi void _vuMADDz(VURegs* VU)
@@ -1132,10 +1128,10 @@ static __fi void _vuMADDz(VURegs* VU)
 		dst = &VU->VF[_Fd_];
 
 	ftz=vuDouble(VU->VF[_Ft_].i.z);
-    if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * ftz)); else VU_MACx_CLEAR(VU);
-    if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * ftz)); else VU_MACy_CLEAR(VU);
-    if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * ftz)); else VU_MACz_CLEAR(VU);
-    if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * ftz)); else VU_MACw_CLEAR(VU);
+	if (_X) dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->ACC.i.x) + (vuDouble(VU->VF[_Fs_].i.x) * ftz)); else VU_MACx_CLEAR(VU);
+	if (_Y) dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->ACC.i.y) + (vuDouble(VU->VF[_Fs_].i.y) * ftz)); else VU_MACy_CLEAR(VU);
+	if (_Z) dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->ACC.i.z) + (vuDouble(VU->VF[_Fs_].i.z) * ftz)); else VU_MACz_CLEAR(VU);
+	if (_W) dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->ACC.i.w) + (vuDouble(VU->VF[_Fs_].i.w) * ftz)); else VU_MACw_CLEAR(VU);
 	VU_STAT_UPDATE(VU);
 }
 
@@ -1777,11 +1773,9 @@ static __fi void _vuRSQRT(VURegs* VU)
 	else
 	{
 		if (ft < 0.0)
-		{
 			VU->statusflag |= 0x10;
-		}
 
-		temp = sqrt(fabs(ft));
+		temp    = sqrt(fabs(ft));
 		VU->q.F = fs / temp;
 		VU->q.F = vuDouble(VU->q.UL);
 	}
@@ -1790,7 +1784,7 @@ static __fi void _vuRSQRT(VURegs* VU)
 static __fi void _vuIADDI(VURegs* VU)
 {
 	s16 imm = ((VU->code >> 6) & 0x1f);
-	imm = ((imm & 0x10 ? 0xfff0 : 0) | (imm & 0xf));
+	imm     = ((imm & 0x10 ? 0xfff0 : 0) | (imm & 0xf));
 	if (_It_ == 0)
 		return;
 
@@ -1914,8 +1908,7 @@ __fi u32* GET_VU_MEM(VURegs* VU, u32 addr) // non-static, also used by sVU for n
 		return (u32*)(vuRegs[1].Mem + (addr & 0x3fff));
 	else if (addr & 0x4000)
 		return (u32*)((u8*)vuRegs[1].VF + (addr & 0x3ff)); // get VF and VI regs (they're mapped to 0x4xx0 in VU0 mem!)
-	else
-		return (u32*)(vuRegs[0].Mem + (addr & 0xfff)); // for addr 0x0000 to 0x4000 just wrap around
+	return (u32*)(vuRegs[0].Mem + (addr & 0xfff)); // for addr 0x0000 to 0x4000 just wrap around
 }
 
 static __ri void _vuLQ(VURegs* VU)
@@ -1923,9 +1916,8 @@ static __ri void _vuLQ(VURegs* VU)
 	if (_Ft_ == 0)
 		return;
 
-	s16 imm = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	s16 imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_Is_].SS[0]) * 16);
-
  	u32* ptr = (u32*)GET_VU_MEM(VU, addr);
 	if (_X) VU->VF[_Ft_].UL[0] = ptr[0];
 	if (_Y) VU->VF[_Ft_].UL[1] = ptr[1];
@@ -1967,7 +1959,7 @@ static __ri void _vuLQI(VURegs* VU)
 
 static __ri void _vuSQ(VURegs* VU)
 {
-	s16 imm = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	s16 imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_It_].SS[0]) * 16);
 	u32* ptr = (u32*)GET_VU_MEM(VU, addr);
 	if (_X) ptr[0] = VU->VF[_Fs_].UL[0];
@@ -2006,7 +1998,7 @@ static __ri void _vuILW(VURegs* VU)
 	if (_It_ == 0)
 		return;
 
-	s16 imm = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	s16 imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_Is_].SS[0]) * 16);
 	u16* ptr = (u16*)GET_VU_MEM(VU, addr);
 
@@ -2062,18 +2054,6 @@ As an example for setting the polynomial variable correctly, the 23-bit M-series
   would be specified as (1 << 14).
 */
 
-// Unused
-#if 0
-//The two-tap 23 stage M-series polynomials are x23+x18 and x23+x14 ((1 << 18) and (1 << 14), respectively).
-//The reverse sequences can be generated by x23+x(23-18) and x23+x(23-14) ((1 << 9) and (1 << 5), respectively)
-static u32 poly = 1 << 5;
-
-static __ri void SetPoly(u32 newPoly)
-{
-	poly = poly & ~1;
-}
-#endif
-
 static __ri void AdvanceLFSR(VURegs* VU)
 {
 	// code from www.project-fao.org (which is no longer there)
@@ -2123,9 +2103,7 @@ static __ri void _vuWAITQ(VURegs* VU)
 
 static __ri void _vuFSAND(VURegs* VU)
 {
-	u16 imm;
-
-	imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7ff);
+	u16 imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7ff);
 	if (_It_ == 0)
 		return;
 
@@ -2134,9 +2112,7 @@ static __ri void _vuFSAND(VURegs* VU)
 
 static __ri void _vuFSEQ(VURegs* VU)
 {
-	u16 imm;
-
-	imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7ff);
+	u16 imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7ff);
 	if (_It_ == 0)
 		return;
 
@@ -2148,9 +2124,7 @@ static __ri void _vuFSEQ(VURegs* VU)
 
 static __ri void _vuFSOR(VURegs* VU)
 {
-	u16 imm;
-
-	imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7ff);
+	u16 imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7ff);
 	if (_It_ == 0)
 		return;
 	VU->VI[_It_].US[0] = (VU->VI[REG_STATUS_FLAG].US[0] & 0xFFF) | imm;
@@ -2446,9 +2420,7 @@ static __ri void _vuELENG(VURegs* VU)
 	float p = vuDouble(VU->VF[_Fs_].i.x) * vuDouble(VU->VF[_Fs_].i.x) + vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Fs_].i.y) + vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Fs_].i.z);
 
 	if (p >= 0)
-	{
 		p = sqrt(p);
-	}
 	VU->p.F = p;
 }
 
@@ -2460,9 +2432,7 @@ static __ri void _vuERLENG(VURegs* VU)
 	{
 		p = sqrt(p);
 		if (p != 0)
-		{
 			p = 1.0f / p;
-		}
 	}
 	VU->p.F = p;
 }
@@ -2470,18 +2440,15 @@ static __ri void _vuERLENG(VURegs* VU)
 
 static __ri float _vuCalculateEATAN(float inputvalue) {
 	float eatanconst[9] = { 0.999999344348907f, -0.333298563957214f, 0.199465364217758f, -0.13085337519646f,
-							0.096420042216778f, -0.055909886956215f, 0.021861229091883f, -0.004054057877511f,
-							0.785398185253143f };
+				0.096420042216778f, -0.055909886956215f, 0.021861229091883f, -0.004054057877511f,
+				0.785398185253143f };
 
 	float result = (eatanconst[0] * inputvalue) + (eatanconst[1] * pow(inputvalue, 3)) + (eatanconst[2] * pow(inputvalue, 5))
 					+ (eatanconst[3] * pow(inputvalue, 7)) + (eatanconst[4] * pow(inputvalue, 9)) + (eatanconst[5] * pow(inputvalue, 11))
 					+ (eatanconst[6] * pow(inputvalue, 13)) + (eatanconst[7] * pow(inputvalue, 15));
 
 	result += eatanconst[8];
-
-	result = vuDouble(*(u32*)&result);
-
-	return result;
+	return vuDouble(*(u32*)&result);
 }
 
 static __ri void _vuEATAN(VURegs* VU)
@@ -2494,9 +2461,7 @@ static __ri void _vuEATANxy(VURegs* VU)
 {
 	float p = 0;
 	if (vuDouble(VU->VF[_Fs_].i.x) != 0)
-	{
 		p = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].i.y) / vuDouble(VU->VF[_Fs_].i.x));
-	}
 	VU->p.F = p;
 }
 
@@ -2504,9 +2469,7 @@ static __ri void _vuEATANxz(VURegs* VU)
 {
 	float p = 0;
 	if (vuDouble(VU->VF[_Fs_].i.x) != 0)
-	{
 		p = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].i.z) / vuDouble(VU->VF[_Fs_].i.x));
-	}
 	VU->p.F = p;
 }
 
@@ -2521,9 +2484,7 @@ static __ri void _vuERCPR(VURegs* VU)
 	float p = vuDouble(VU->VF[_Fs_].UL[_Fsf_]);
 
 	if (p != 0)
-	{
 		p = 1.0 / p;
-	}
 
 	VU->p.F = p;
 }
@@ -2533,9 +2494,7 @@ static __ri void _vuESQRT(VURegs* VU)
 	float p = vuDouble(VU->VF[_Fs_].UL[_Fsf_]);
 
 	if (p >= 0)
-	{
 		p = sqrt(p);
-	}
 
 	VU->p.F = p;
 }
