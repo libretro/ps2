@@ -130,7 +130,6 @@ private:
 	wil::com_ptr_nothrow<IDXGIFactory5> m_dxgi_factory;
 	wil::com_ptr_nothrow<ID3D11Device1> m_dev;
 	wil::com_ptr_nothrow<ID3D11DeviceContext1> m_ctx;
-	wil::com_ptr_nothrow<ID3DUserDefinedAnnotation> m_annotation;
 
 	wil::com_ptr_nothrow<ID3D11Buffer> m_vb;
 	wil::com_ptr_nothrow<ID3D11Buffer> m_ib;
@@ -253,10 +252,6 @@ public:
 	void InvalidateRenderTarget(GSTexture* t) override;
 	void ClearDepth(GSTexture* t) override;
 	void ClearStencil(GSTexture* t, u8 c) override;
-
-	void PushDebugGroup(const char* fmt, ...) override;
-	void PopDebugGroup() override;
-	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;
 
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format) override;

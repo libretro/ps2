@@ -97,7 +97,7 @@ namespace Host
 {
 	/// Called when the GS is creating a render device.
 	/// This could also be fullscreen transition.
-	std::optional<WindowInfo> AcquireRenderWindow(bool recreate_window);
+	std::optional<WindowInfo> AcquireRenderWindow(void);
 
 	/// Called before drawing the OSD and other display elements.
 	void BeginPresentFrame();

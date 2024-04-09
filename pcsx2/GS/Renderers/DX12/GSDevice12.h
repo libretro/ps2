@@ -231,10 +231,6 @@ public:
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 
-	void PushDebugGroup(const char* fmt, ...) override;
-	void PopDebugGroup() override;
-	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;
-
 	void DrawPrimitive();
 	void DrawIndexedPrimitive();
 	void DrawIndexedPrimitive(int offset, int count);

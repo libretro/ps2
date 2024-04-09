@@ -121,18 +121,6 @@ void GSDeviceNull::ClearStencil(GSTexture* t, u8 c)
 {
 
 }
-void GSDeviceNull::PushDebugGroup(const char* fmt, ...)
-{
-
-}
-void GSDeviceNull::PopDebugGroup()
-{
-
-}
-void GSDeviceNull::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
-{
-
-}
 std::unique_ptr<GSDownloadTexture> GSDeviceNull::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
 {
 	return nullptr;

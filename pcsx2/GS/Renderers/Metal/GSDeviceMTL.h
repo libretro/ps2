@@ -429,9 +429,6 @@ public:
 
 	// MARK: Debug
 
-	void PushDebugGroup(const char* fmt, ...) override;
-	void PopDebugGroup() override;
-	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;
 	void ProcessDebugEntry(id<MTLCommandEncoder> enc, const DebugEntry& entry);
 	void FlushDebugEntries(id<MTLCommandEncoder> enc);
 	void EndDebugGroup(id<MTLCommandEncoder> enc);

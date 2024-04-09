@@ -56,10 +56,6 @@ public:
 	void ClearDepth(GSTexture* t) override;
 	void ClearStencil(GSTexture* t, u8 c) override;
 
-	void PushDebugGroup(const char* fmt, ...) override;
-	void PopDebugGroup() override;
-	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;
-
 	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format) override;
 
 	void CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY) override;

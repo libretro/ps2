@@ -133,13 +133,10 @@ void GSDevice::Destroy()
 	PurgePool();
 }
 
-bool GSDevice::AcquireWindow(bool recreate_window)
+void GSDevice::AcquireWindow(void)
 {
-	std::optional<WindowInfo> wi = Host::AcquireRenderWindow(recreate_window);
-	if (!wi.has_value())
-		return false;
+	std::optional<WindowInfo> wi = Host::AcquireRenderWindow();
 	m_window_info = std::move(wi.value());
-	return true;
 }
 
 void GSDevice::ReleaseWindow()

@@ -834,7 +834,7 @@ void Host::BeginPresentFrame()
 #endif
 }
 
-std::optional<WindowInfo> Host::AcquireRenderWindow(bool recreate_window)
+std::optional<WindowInfo> Host::AcquireRenderWindow(void)
 {
 	WindowInfo wi;
 	wi.surface_width  = 640 * Options::upscale_multiplier;

@@ -771,8 +771,7 @@ bool GSDeviceMTL::Create()
 	{
 		// This is a little less than ideal, pinging back and forward between threads, but we don't really
 		// have any other option, because Qt uses a blocking queued connection for window acquire.
-		if (!AcquireWindow(true))
-			return false;
+		AcquireWindow();
 
 		OnMainThread([this]
 		{
@@ -2029,35 +2028,6 @@ void GSDeviceMTL::SendHWDraw(GSHWDrawConfig& config, id<MTLRenderCommandEncoder>
 #ifndef MTL_ENABLE_DEBUG
 	#define MTL_ENABLE_DEBUG 0
 #endif
-
-void GSDeviceMTL::PushDebugGroup(const char* fmt, ...)
-{
-#if MTL_ENABLE_DEBUG
-	va_list va;
-	va_start(va, fmt);
-	MRCOwned<NSString*> nsfmt = MRCTransfer([[NSString alloc] initWithUTF8String:fmt]);
-	m_debug_entries.emplace_back(DebugEntry::Push, MRCTransfer([[NSString alloc] initWithFormat:nsfmt arguments:va]));
-	va_end(va);
-#endif
-}
-
-void GSDeviceMTL::PopDebugGroup()
-{
-#if MTL_ENABLE_DEBUG
-	m_debug_entries.emplace_back(DebugEntry::Pop, nullptr);
-#endif
-}
-
-void GSDeviceMTL::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
-{
-#if MTL_ENABLE_DEBUG
-	va_list va;
-	va_start(va, fmt);
-	MRCOwned<NSString*> nsfmt = MRCTransfer([[NSString alloc] initWithUTF8String:fmt]);
-	m_debug_entries.emplace_back(DebugEntry::Insert, MRCTransfer([[NSString alloc] initWithFormat:nsfmt arguments:va]));
-	va_end(va);
-#endif
-}
 
 void GSDeviceMTL::ProcessDebugEntry(id<MTLCommandEncoder> enc, const DebugEntry& entry)
 {

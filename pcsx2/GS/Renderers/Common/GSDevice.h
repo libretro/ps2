@@ -738,7 +738,7 @@ protected:
 	bool m_rbswapped = false;
 	FeatureSupport m_features;
 
-	bool AcquireWindow(bool recreate_window);
+	void AcquireWindow();
 	void ReleaseWindow();
 
 	virtual GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) = 0;
@@ -807,10 +807,6 @@ public:
 	virtual void InvalidateRenderTarget(GSTexture* t) = 0;
 	virtual void ClearDepth(GSTexture* t) = 0;
 	virtual void ClearStencil(GSTexture* t, u8 c) = 0;
-
-	virtual void PushDebugGroup(const char* fmt, ...) = 0;
-	virtual void PopDebugGroup() = 0;
-	virtual void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) = 0;
 
 	GSTexture* CreateRenderTarget(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateDepthStencil(int w, int h, GSTexture::Format format, bool clear = true);

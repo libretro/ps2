@@ -78,8 +78,7 @@ bool GSDeviceOGL::Create()
 		return false;
 
 	// GL is a pain and needs the window super early to create the context.
-	if (!AcquireWindow(true))
-		return false;
+	AcquireWindow();
 
 	// We need at least GL3.3.
 	static constexpr const GL::Context::Version version_list[] = {{GL::Context::Profile::Core, 4, 6},
@@ -1109,10 +1108,6 @@ void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r
 
 	const GLuint& sid = static_cast<GSTextureOGL*>(sTex)->GetID();
 	const GLuint& did = static_cast<GSTextureOGL*>(dTex)->GetID();
-
-#ifdef ENABLE_OGL_DEBUG
-	PSSetShaderResource(6, sTex);
-#endif
 
 	if (GLAD_GL_VERSION_4_3 || GLAD_GL_ARB_copy_image)
 	{
@@ -2170,75 +2165,4 @@ void GSDeviceOGL::DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint 
 GL::StreamBuffer* GSDeviceOGL::GetTextureUploadBuffer()
 {
 	return s_texture_upload_buffer.get();
-}
-
-void GSDeviceOGL::PushDebugGroup(const char* fmt, ...)
-{
-#ifdef ENABLE_OGL_DEBUG
-	if (!glPushDebugGroup || !GSConfig.UseDebugDevice)
-		return;
-
-	std::va_list ap;
-	va_start(ap, fmt);
-	const std::string buf(StringUtil::StdStringFromFormatV(fmt, ap));
-	va_end(ap);
-	if (!buf.empty())
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0xBAD, -1, buf.c_str());
-#endif
-}
-
-void GSDeviceOGL::PopDebugGroup()
-{
-#ifdef ENABLE_OGL_DEBUG
-	if (!glPopDebugGroup || !GSConfig.UseDebugDevice)
-		return;
-
-	glPopDebugGroup();
-#endif
-}
-
-void GSDeviceOGL::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
-{
-#ifdef ENABLE_OGL_DEBUG
-	if (!glDebugMessageInsert || !GSConfig.UseDebugDevice)
-		return;
-
-	GLenum type, id, severity;
-	switch (category)
-	{
-	case GSDevice::DebugMessageCategory::Cache:
-			type = GL_DEBUG_TYPE_OTHER;
-			id = 0xFEAD;
-			severity = GL_DEBUG_SEVERITY_NOTIFICATION;
-		break;
-	case GSDevice::DebugMessageCategory::Reg:
-		type = GL_DEBUG_TYPE_OTHER;
-		id = 0xB0B0;
-		severity = GL_DEBUG_SEVERITY_NOTIFICATION;
-		break;
-	case GSDevice::DebugMessageCategory::Debug:
-		type = GL_DEBUG_TYPE_OTHER;
-		id = 0xD0D0;
-		severity = GL_DEBUG_SEVERITY_NOTIFICATION;
-		break;
-	case GSDevice::DebugMessageCategory::Message:
-		type = GL_DEBUG_TYPE_ERROR;
-		id = 0xDEAD;
-		severity = GL_DEBUG_SEVERITY_MEDIUM;
-		break;
-	case GSDevice::DebugMessageCategory::Performance:
-	default:
-		type = GL_DEBUG_TYPE_PERFORMANCE;
-		id = 0xFEE1;
-		severity = GL_DEBUG_SEVERITY_NOTIFICATION;
-		break;
-	}
-
-	std::va_list ap;
-	va_start(ap, fmt);
-	const std::string buf(StringUtil::StdStringFromFormatV(fmt, ap));
-	va_end(ap);
-	if (!buf.empty())
-		glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, type, id, severity, buf.size(), buf.c_str());
-#endif
 }

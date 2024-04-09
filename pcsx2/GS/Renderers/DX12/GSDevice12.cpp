@@ -704,8 +704,7 @@ bool GSDevice12::Create()
 		return false;
 	}
 
-	if (!AcquireWindow(true) || (m_window_info.type != WindowInfo::Type::Surfaceless && !CreateSwapChain()))
-		return false;
+	AcquireWindow();
 
 	{
 		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/tfx.fx");
@@ -789,11 +788,6 @@ void GSDevice12::SetVSync(VsyncMode mode)
 
 bool GSDevice12::CreateSwapChain()
 {
-	if (!CreateSwapChainRTV())
-	{
-		DestroySwapChain();
-		return false;
-	}
 	return true;
 }
 
@@ -826,18 +820,6 @@ GSDevice::PresentResult GSDevice12::BeginPresent(bool frame_skip)
 void GSDevice12::EndPresent()
 {
 	InvalidateCachedState();
-}
-
-void GSDevice12::PushDebugGroup(const char* fmt, ...)
-{
-}
-
-void GSDevice12::PopDebugGroup()
-{
-}
-
-void GSDevice12::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
-{
 }
 
 bool GSDevice12::CheckFeatures()

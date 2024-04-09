@@ -2325,18 +2325,6 @@ void GSDeviceVK::RestoreAPIState()
 	InvalidateCachedState();
 }
 
-void GSDeviceVK::PushDebugGroup(const char* fmt, ...)
-{
-}
-
-void GSDeviceVK::PopDebugGroup()
-{
-}
-
-void GSDeviceVK::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
-{
-}
-
 bool GSDeviceVK::CreateDeviceAndSwapChain()
 {
 	bool enable_debug_utils = GSConfig.UseDebugDevice;
@@ -2350,8 +2338,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	ScopedGuard library_cleanup(&Vulkan::UnloadVulkanLibrary);
 
-	if (!AcquireWindow(true))
-		return false;
+	AcquireWindow();
 
 	ScopedGuard window_cleanup = [this]() { ReleaseWindow(); };
 

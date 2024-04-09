@@ -269,10 +269,6 @@ public:
 
 	void CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY) override;
 
-	void PushDebugGroup(const char* fmt, ...) override;
-	void PopDebugGroup() override;
-	void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) override;
-
 	// BlitRect *does* mess with GL state, be sure to re-bind.
 	void BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2i& dsize, bool at_origin, bool linear);
 

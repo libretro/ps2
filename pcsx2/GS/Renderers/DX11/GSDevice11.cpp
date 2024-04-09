@@ -92,8 +92,7 @@ bool GSDevice11::Create()
 		Console.Error("Direct3D 11.1 is required and not supported.");
 		return false;
 	}
-	if (!AcquireWindow(true) || (m_window_info.type != WindowInfo::Type::Surfaceless && !CreateSwapChain()))
-		return false;
+	AcquireWindow();
 
 	D3D11_BUFFER_DESC bd;
 	D3D11_SAMPLER_DESC sd;
@@ -103,8 +102,6 @@ bool GSDevice11::Create()
 
 	D3D_FEATURE_LEVEL level;
 
-	if (GSConfig.UseDebugDevice)
-		m_annotation = m_ctx.try_query<ID3DUserDefinedAnnotation>();
 	level = m_dev->GetFeatureLevel();
 	const bool support_feature_level_11_0 = (level >= D3D_FEATURE_LEVEL_11_0);
 
@@ -439,7 +436,6 @@ void GSDevice11::Destroy()
 
 	m_shader_cache.Close();
 
-	m_annotation.reset();
 	m_ctx.reset();
 	m_dev.reset();
 	m_dxgi_factory.reset();
@@ -468,30 +464,10 @@ void GSDevice11::SetVSync(VsyncMode mode)
 	m_vsync_mode = mode;
 }
 
-bool GSDevice11::CreateSwapChain()
-{
-	if (!CreateSwapChainRTV())
-	{
-		DestroySwapChain();
-		return false;
-	}
-
-	return true;
-}
-
-bool GSDevice11::CreateSwapChainRTV()
-{
-	return true;
-}
-
-void GSDevice11::DestroySwapChain()
-{
-}
-
-void GSDevice11::DestroySurface()
-{
-	DestroySwapChain();
-}
+bool GSDevice11::CreateSwapChain() { return true; }
+bool GSDevice11::CreateSwapChainRTV() { return true; }
+void GSDevice11::DestroySwapChain() { }
+void GSDevice11::DestroySurface() { }
 
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)
 {
@@ -555,40 +531,6 @@ void GSDevice11::ClearDepth(GSTexture* t)
 void GSDevice11::ClearStencil(GSTexture* t, u8 c)
 {
 	m_ctx->ClearDepthStencilView(*(GSTexture11*)t, D3D11_CLEAR_STENCIL, 0, c);
-}
-
-void GSDevice11::PushDebugGroup(const char* fmt, ...)
-{
-	if (!m_annotation)
-		return;
-
-	std::va_list ap;
-	va_start(ap, fmt);
-	std::string str(StringUtil::StdStringFromFormatV(fmt, ap));
-	va_end(ap);
-
-	m_annotation->BeginEvent(StringUtil::UTF8StringToWideString(str).c_str());
-}
-
-void GSDevice11::PopDebugGroup()
-{
-	if (!m_annotation)
-		return;
-
-	m_annotation->EndEvent();
-}
-
-void GSDevice11::InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...)
-{
-	if (!m_annotation)
-		return;
-
-	std::va_list ap;
-	va_start(ap, fmt);
-	std::string str(StringUtil::StdStringFromFormatV(fmt, ap));
-	va_end(ap);
-
-	m_annotation->SetMarker(StringUtil::UTF8StringToWideString(str).c_str());
 }
 
 GSTexture* GSDevice11::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
