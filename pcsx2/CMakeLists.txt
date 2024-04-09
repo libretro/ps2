@@ -942,7 +942,6 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	ZLIB::ZLIB
 	PNG::PNG
 	LibLZMA::LibLZMA
-	simpleini
 	Zstd::Zstd
 	${LIBC_LIBRARIES}
 )

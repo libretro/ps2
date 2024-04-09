@@ -43,7 +43,6 @@
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\glad\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\cubeb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\imgui\include;$(SolutionDir)3rdparty\imgui\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\simpleini\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\sdl2\include;$(SolutionDir)3rdparty\sdl2\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\libzip;$(SolutionDir)3rdparty\libzip\libzip\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\d3d12memalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
