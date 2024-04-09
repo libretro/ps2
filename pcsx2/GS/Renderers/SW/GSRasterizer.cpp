@@ -19,7 +19,6 @@
 #include "GS/Renderers/SW/GSRasterizer.h"
 #include "GS/Renderers/SW/GSDrawScanline.h"
 #include "GS/GSExtra.h"
-#include "PerformanceMetrics.h"
 #include "common/AlignedMalloc.h"
 #include "common/StringUtil.h"
 #include "VMManager.h"
@@ -1189,16 +1188,11 @@ GSRasterizerList::GSRasterizerList(int threads)
 	m_scanline = static_cast<u8*>(_aligned_malloc(rows, 64));
 
 	for (int i = 0; i < rows; i++)
-	{
 		m_scanline[i] = static_cast<u8>(i % threads);
-	}
-
-	PerformanceMetrics::SetGSSWThreadCount(threads);
 }
 
 GSRasterizerList::~GSRasterizerList()
 {
-	PerformanceMetrics::SetGSSWThreadCount(0);
 	_aligned_free(m_scanline);
 }
 
@@ -1216,12 +1210,9 @@ void GSRasterizerList::OnWorkerStartup(int i)
 		{
 			const u32 procid = procs[processor_index];
 			const u64 affinity = static_cast<u64>(1) << procid;
-			Console.WriteLn("Pinning GS thread %d to CPU %u (0x%llx)", i, procid, affinity);
 			handle.SetAffinity(affinity);
 		}
 	}
-
-	PerformanceMetrics::SetGSSWThread(i, std::move(handle));
 }
 
 void GSRasterizerList::OnWorkerShutdown(int i)

@@ -29,9 +29,6 @@
 
 static const float UPDATE_INTERVAL = 0.5f;
 
-static float s_vertical_frequency = 0.0f;
-static float s_internal_fps = 0.0f;
-static u32 s_frames_since_last_update = 0;
 static Common::Timer s_last_update_time;
 
 // internal fps heuristics
@@ -39,42 +36,24 @@ static PerformanceMetrics::InternalFPSMethod s_internal_fps_method = Performance
 static u32 s_gs_framebuffer_blits_since_last_update = 0;
 static u32 s_gs_privileged_register_writes_since_last_update = 0;
 
-static Threading::ThreadHandle s_cpu_thread_handle;
-static u64 s_last_ticks = 0;
-
-struct GSSWThreadStats
-{
-	Threading::ThreadHandle handle;
-	u64 last_cpu_time = 0;
-	double usage = 0.0;
-	double time = 0.0;
-};
-std::vector<GSSWThreadStats> s_gs_sw_threads;
-
 void PerformanceMetrics::Clear()
 {
 	Reset();
 
-	s_internal_fps = 0.0f;
 	s_internal_fps_method = PerformanceMetrics::InternalFPSMethod::None;
 
 }
 
 void PerformanceMetrics::Reset()
 {
-	s_frames_since_last_update = 0;
 	s_gs_framebuffer_blits_since_last_update = 0;
 	s_gs_privileged_register_writes_since_last_update = 0;
 
 	s_last_update_time.Reset();
-
-	for (GSSWThreadStats& stat : s_gs_sw_threads)
-		stat.last_cpu_time = stat.handle.GetCPUTime();
 }
 
 void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_skipping_present)
 {
-	s_frames_since_last_update++;
 	s_gs_privileged_register_writes_since_last_update += static_cast<u32>(gs_register_write);
 	s_gs_framebuffer_blits_since_last_update += static_cast<u32>(fb_blit);
 
@@ -88,74 +67,17 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_sk
 
 	// prefer privileged register write based framerate detection, it's less likely to have false positives
 	if (s_gs_privileged_register_writes_since_last_update > 0 && !EmuConfig.Gamefixes.BlitInternalFPSHack)
-	{
-		s_internal_fps        = static_cast<float>(s_gs_privileged_register_writes_since_last_update) / time;
 		s_internal_fps_method = InternalFPSMethod::GSPrivilegedRegister;
-	}
 	else if (s_gs_framebuffer_blits_since_last_update > 0)
-	{
-		s_internal_fps        = static_cast<float>(s_gs_framebuffer_blits_since_last_update) / time;
 		s_internal_fps_method = InternalFPSMethod::DISPFBBlit;
-	}
 	else
-	{
-		s_internal_fps        = 0;
 		s_internal_fps_method = InternalFPSMethod::None;
-	}
 
 	s_gs_privileged_register_writes_since_last_update = 0;
 	s_gs_framebuffer_blits_since_last_update = 0;
-
-	const u64 ticks = GetCPUTicks();
-	const u64 ticks_delta = ticks - s_last_ticks;
-	s_last_ticks = ticks;
-
-	const double pct_divider =
-		100.0 * (1.0 / ((static_cast<double>(ticks_delta) * static_cast<double>(Threading::GetThreadTicksPerSecond())) /
-						   static_cast<double>(GetTickFrequency())));
-	const double time_divider = 1000.0 * (1.0 / static_cast<double>(Threading::GetThreadTicksPerSecond())) *
-								(1.0 / static_cast<double>(s_frames_since_last_update));
-
-	for (GSSWThreadStats& thread : s_gs_sw_threads)
-	{
-		const u64 time = thread.handle.GetCPUTime();
-		const u64 delta = time - thread.last_cpu_time;
-		thread.last_cpu_time = time;
-		thread.usage = static_cast<double>(delta) * pct_divider;
-		thread.time = static_cast<double>(delta) * time_divider;
-	}
-
-	s_frames_since_last_update = 0;
-}
-
-void PerformanceMetrics::SetCPUThread(Threading::ThreadHandle thread)
-{
-	s_cpu_thread_handle = std::move(thread);
-}
-
-void PerformanceMetrics::SetGSSWThreadCount(u32 count)
-{
-	s_gs_sw_threads.clear();
-	s_gs_sw_threads.resize(count);
-}
-
-void PerformanceMetrics::SetGSSWThread(u32 index, Threading::ThreadHandle thread)
-{
-	s_gs_sw_threads[index].last_cpu_time = thread ? thread.GetCPUTime() : 0;
-	s_gs_sw_threads[index].handle = std::move(thread);
-}
-
-void PerformanceMetrics::SetVerticalFrequency(float rate)
-{
-	s_vertical_frequency = rate;
 }
 
 PerformanceMetrics::InternalFPSMethod PerformanceMetrics::GetInternalFPSMethod()
 {
 	return s_internal_fps_method;
-}
-
-float PerformanceMetrics::GetInternalFPS()
-{
-	return s_internal_fps;
 }

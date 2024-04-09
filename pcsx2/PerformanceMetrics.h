@@ -16,7 +16,6 @@
 #pragma once
 
 #include <array>
-#include "common/Threading.h"
 
 namespace PerformanceMetrics
 {
@@ -31,17 +30,5 @@ namespace PerformanceMetrics
 	void Reset();
 	void Update(bool gs_register_write, bool fb_blit, bool is_skipping_present);
 
-	/// Sets the EE thread for CPU usage calculations.
-	void SetCPUThread(Threading::ThreadHandle thread);
-
-	/// Sets timers for GS software threads.
-	void SetGSSWThreadCount(u32 count);
-	void SetGSSWThread(u32 index, Threading::ThreadHandle thread);
-
-	/// Sets the vertical frequency, used in speed calculations.
-	void SetVerticalFrequency(float rate);
-
 	InternalFPSMethod GetInternalFPSMethod();
-
-	float GetInternalFPS();
 } // namespace PerformanceMetrics

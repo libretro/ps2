@@ -27,7 +27,6 @@
 #include "GS.h"
 #include "GS/GS.h"
 #include "VUmicro.h"
-#include "PerformanceMetrics.h"
 #include "Patch.h"
 
 #include "ps2/HwInternal.h"
@@ -391,8 +390,6 @@ void UpdateVSyncRate(bool force)
 		vsyncCounter.sCycle = cpuRegs.cycle;
 		vsyncCounter.Mode = MODE_VRENDER;
 		cpuRcntSet();
-
-		PerformanceMetrics::SetVerticalFrequency(vertical_frequency);
 	}
 }
 

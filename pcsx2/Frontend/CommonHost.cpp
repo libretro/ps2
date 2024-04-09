@@ -27,7 +27,6 @@
 #include "Host.h"
 #include "HostSettings.h"
 #include "MemoryCardFile.h"
-#include "PerformanceMetrics.h"
 #include "Sio.h"
 #include "VMManager.h"
 
@@ -86,7 +85,6 @@ void CommonHost::SetCommonDefaultSettings(SettingsInterface& si)
 void CommonHost::CPUThreadInitialize()
 {
 	Threading::SetNameOfCurrentThread("CPU Thread");
-	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle::GetForCallingThread());
 
 	// neither of these should ever fail.
 	if (!VMManager::Internal::InitializeGlobals() || !VMManager::Internal::InitializeMemory())
@@ -103,7 +101,6 @@ void CommonHost::CPUThreadShutdown()
 	VMManager::WaitForSaveStateFlush();
 	VMManager::Internal::ReleaseMemory();
 	VMManager::Internal::ReleaseGlobals();
-	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle());
 }
 
 void CommonHost::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& lock)
