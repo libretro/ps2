@@ -106,27 +106,4 @@ namespace GL
 
 		return context;
 	}
-
-	gsl::span<const Context::Version> Context::GetAllVersionsList()
-	{
-		static constexpr Version vlist[] = {
-			{Profile::Core, 4, 6},
-			{Profile::Core, 4, 5},
-			{Profile::Core, 4, 4},
-			{Profile::Core, 4, 3},
-			{Profile::Core, 4, 2},
-			{Profile::Core, 4, 1},
-			{Profile::Core, 4, 0},
-			{Profile::Core, 3, 3},
-			{Profile::Core, 3, 2},
-			{Profile::Core, 3, 1},
-			{Profile::Core, 3, 0},
-			{Profile::ES, 3, 2},
-			{Profile::ES, 3, 1},
-			{Profile::ES, 3, 0},
-			{Profile::ES, 2, 0},
-			{Profile::NoProfile, 0, 0}
-		};
-		return vlist;
-	}
 } // namespace GL

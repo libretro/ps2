@@ -59,11 +59,6 @@ namespace GL {
 		virtual std::unique_ptr<Context> CreateSharedContext(const WindowInfo& wi) = 0;
 
 		static std::unique_ptr<Context> Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try);
-
-		static std::unique_ptr<Context> Create(const WindowInfo& wi) { return Create(wi, GetAllVersionsList()); }
-
-		static gsl::span<const Version> GetAllVersionsList();
-
 	protected:
 		WindowInfo m_wi;
 		Version m_version = {};

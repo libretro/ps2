@@ -38,11 +38,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\glad.c" />
-    <ClCompile Include="src\glad_wgl.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\glad.h" />
-    <ClInclude Include="include\glad_wgl.h" />
     <ClInclude Include="include\khrplatform.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
