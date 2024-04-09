@@ -89,18 +89,14 @@ public:
 
 		// m_buffer index 0 is reserved for auxiliary element
 		for (u16 i = 0; i < m_capacity - 1; i++)
-		{
 			m_free_indexes_stack[i] = i + 1;
-		}
 	}
 
 	// Insert the element in front of the list and return its position in m_buffer
 	__forceinline u16 InsertFront(const T& data)
 	{
 		if (Full())
-		{
 			Grow();
-		}
 
 		// Pop a free index from the stack
 		const u16 free_index = m_free_indexes_stack[m_free_indexes_stack_top++];

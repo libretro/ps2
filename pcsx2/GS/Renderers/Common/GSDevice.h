@@ -116,7 +116,7 @@ enum ChannelFetch
 	ChannelFetch_BLUE  = 3,
 	ChannelFetch_ALPHA = 4,
 	ChannelFetch_RGB   = 5,
-	ChannelFetch_GXBY  = 6,
+	ChannelFetch_GXBY  = 6
 };
 
 #pragma pack(push, 1)
@@ -181,7 +181,7 @@ enum HWBlendFlags
 	BLEND_MIX3    = 0x40,  // Mix of hw and sw, do Cs*(1 - As) or Cs*(1 - F) in shader
 	BLEND_ACCU    = 0x80,  // Allow to use a mix of SW and HW blending to keep the best of the 2 worlds
 	BLEND_NO_REC  = 0x100, // Doesn't require sampling of the RT as a texture
-	BLEND_A_MAX   = 0x200, // Impossible blending uses coeff bigger than 1
+	BLEND_A_MAX   = 0x200  // Impossible blending uses coeff bigger than 1
 };
 
 // Determines the HW blend function for DX11/OGL
@@ -385,16 +385,11 @@ struct alignas(16) GSHWDrawConfig
 		/// Returns true if the effective minification filter is linear.
 		__fi bool IsMinFilterLinear() const
 		{
+			// use the same filter as mag when mipmapping is off
 			if (triln < static_cast<u8>(GS_MIN_FILTER::Nearest_Mipmap_Nearest))
-			{
-				// use the same filter as mag when mipmapping is off
 				return biln;
-			}
-			else
-			{
-				// Linear_Mipmap_Nearest or Linear_Mipmap_Linear
-				return (triln >= static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Nearest));
-			}
+			// Linear_Mipmap_Nearest or Linear_Mipmap_Linear
+			return (triln >= static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Nearest));
 		}
 
 		/// Returns true if the effective magnification filter is linear.
@@ -702,7 +697,6 @@ public:
 
 private:
 	std::array<FastList<GSTexture*>, 2> m_pool; // [texture, target]
-	u64 m_pool_memory_usage = 0;
 
 	static const std::array<HWBlend, 3*3*3*3> m_blendMap;
 	static const std::array<u8, 16> m_replaceDualSrcBlendMap;
@@ -756,8 +750,6 @@ public:
 
 	/// Generates a fixed index buffer for expanding points and sprites. Buffer is assumed to be at least EXPAND_BUFFER_SIZE in size.
 	static void GenerateExpansionIndexBuffer(void* buffer);
-
-	__fi u64 GetPoolMemoryUsage() const { return m_pool_memory_usage; }
 
 	__fi FeatureSupport Features() const { return m_features; }
 

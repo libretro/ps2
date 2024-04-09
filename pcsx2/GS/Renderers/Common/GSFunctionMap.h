@@ -55,9 +55,7 @@ public:
 		auto it = m_map_active.find(key);
 
 		if (it != m_map_active.end())
-		{
 			m_active = it->second;
-		}
 		else
 		{
 			ActivePtr* p = new ActivePtr();
@@ -89,8 +87,6 @@ public:
 	~GSCodeReserve();
 
 	static GSCodeReserve& GetInstance();
-
-	size_t GetMemoryUsed() const { return m_memory_used; }
 
 	void Assign(VirtualMemoryManagerPtr allocator);
 	void Reset();
@@ -130,9 +126,7 @@ public:
 		auto i = m_cgmap.find(key);
 
 		if (i != m_cgmap.end())
-		{
 			ret = i->second;
-		}
 		else
 		{
 			u8* code_ptr = GSCodeReserve::GetInstance().Reserve(MAX_SIZE);
