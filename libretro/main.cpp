@@ -272,59 +272,6 @@ static bool RETRO_CALLCONV get_image_label(unsigned index, char* label, size_t l
 	return true;
 }
 
-void retro_init(void)
-{
-	enum retro_pixel_format xrgb888 = RETRO_PIXEL_FORMAT_XRGB8888;
-	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &xrgb888);
-	struct retro_log_callback log;
-	if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
-		log_cb = log.log;
-
-	vu1Thread.Reset();
-
-	if (Options::bios.empty())
-	{
-		std::string bios_dir;
-		const char* system = nullptr;
-		environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system);
-		bios_dir = Path::Combine(system, "/pcsx2/bios");
-
-		FileSystem::FindResultsArray results;
-		if (FileSystem::FindFiles(bios_dir.c_str(), "*", FILESYSTEM_FIND_FILES, &results))
-		{
-			static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
-			static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;
-			u32 version, region;
-			std::string description, zone;
-			for (const FILESYSTEM_FIND_DATA& fd : results)
-			{
-				if (fd.Size < MIN_BIOS_SIZE || fd.Size > MAX_BIOS_SIZE)
-					continue;
-
-				if (IsBIOS(fd.FileName.c_str(), version, description, region, zone))
-					Options::bios.push_back(description, std::string(Path::GetFileName(fd.FileName)));
-			}
-		}
-	}
-
-	Options::SetVariables();
-
-	static retro_disk_control_ext_callback disk_control = {
-		set_eject_state,
-		get_eject_state,
-		get_image_index,
-		set_image_index,
-		get_num_images,
-		replace_image_index,
-		add_image_index,
-		set_initial_image,
-		get_image_path,
-		get_image_label,
-	};
-
-	environ_cb(RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE, &disk_control);
-}
-
 void retro_deinit(void)
 {
 	// WIN32 doesn't allow canceling threads from global constructors/destructors in a shared library.
@@ -339,17 +286,17 @@ void retro_get_system_info(retro_system_info* info)
 #ifdef GIT_REV
 	info->library_version = GIT_REV;
 #else
-	static char version[] = "#.#.#";
-	version[0] = '0' + PCSX2_VersionHi;
-	version[2] = '0' + PCSX2_VersionMid;
-	version[4] = '0' + PCSX2_VersionLo;
-	info->library_version = version;
+	static char version[]  = "#.#.#";
+	version[0]             = '0' + PCSX2_VersionHi;
+	version[2]             = '0' + PCSX2_VersionMid;
+	version[4]             = '0' + PCSX2_VersionLo;
+	info->library_version  = version;
 #endif
 
-	info->library_name = "pcsx2";
+	info->library_name     = "pcsx2";
 	info->valid_extensions = "elf|iso|ciso|cue|bin|gz";
-	info->need_fullpath = true;
-	info->block_extract = true;
+	info->need_fullpath    = true;
+	info->block_extract    = true;
 }
 
 void retro_get_system_av_info(retro_system_av_info* info)
@@ -392,12 +339,10 @@ static void context_reset(void)
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
-		if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&vulkan) || !vulkan) {
+		if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&vulkan) || !vulkan)
 			log_cb(RETRO_LOG_ERROR, "Failed to get HW rendering interface!\n");
-		}
-		if (vulkan->interface_version != RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION) {
+		if (vulkan->interface_version != RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION)
 			log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION, vulkan->interface_version);
-		}
 		vk_libretro_set_hwrender_interface(vulkan);
 	}
 #endif
@@ -431,12 +376,12 @@ static void context_destroy(void)
 
 static bool set_hw_render(retro_hw_context_type type)
 {
-	hw_render.context_type = type;
-	hw_render.context_reset = context_reset;
-	hw_render.context_destroy = context_destroy;
+	hw_render.context_type       = type;
+	hw_render.context_reset      = context_reset;
+	hw_render.context_destroy    = context_destroy;
 	hw_render.bottom_left_origin = true;
-	hw_render.depth = true;
-	hw_render.cache_context = false;
+	hw_render.depth              = true;
+	hw_render.cache_context      = false;
 
 	switch (type)
 	{
@@ -585,11 +530,11 @@ static bool create_device_vulkan(retro_vulkan_context *context, VkInstance insta
 
 	GetMTGS().TryOpenGS();
 
-	context->gpu = g_vulkan_context->GetPhysicalDevice();
-	context->device = g_vulkan_context->GetDevice();
-	context->queue = g_vulkan_context->GetGraphicsQueue();
-	context->queue_family_index = g_vulkan_context->GetGraphicsQueueFamilyIndex();
-	context->presentation_queue = context->queue;
+	context->gpu                             = g_vulkan_context->GetPhysicalDevice();
+	context->device                          = g_vulkan_context->GetDevice();
+	context->queue                           = g_vulkan_context->GetGraphicsQueue();
+	context->queue_family_index              = g_vulkan_context->GetGraphicsQueueFamilyIndex();
+	context->presentation_queue              = context->queue;
 	context->presentation_queue_family_index = context->queue_family_index;
 
 	return true;
@@ -597,26 +542,77 @@ static bool create_device_vulkan(retro_vulkan_context *context, VkInstance insta
 
 static const VkApplicationInfo *get_application_info_vulkan(void) {
 	static VkApplicationInfo app_info{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
-	app_info.pApplicationName = "PCSX2";
+	app_info.pApplicationName   = "PCSX2";
 	app_info.applicationVersion = VK_MAKE_VERSION(1, 7, 0);
-	app_info.pEngineName = "PCSX2";
-	app_info.engineVersion = VK_MAKE_VERSION(1, 7, 0);
-	app_info.apiVersion = VK_API_VERSION_1_1;
+	app_info.pEngineName        = "PCSX2";
+	app_info.engineVersion      = VK_MAKE_VERSION(1, 7, 0);
+	app_info.apiVersion         = VK_API_VERSION_1_1;
 	return &app_info;
 }
 #endif
+
+void retro_init(void)
+{
+	enum retro_pixel_format xrgb888 = RETRO_PIXEL_FORMAT_XRGB8888;
+	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &xrgb888);
+	struct retro_log_callback log;
+	if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
+		log_cb = log.log;
+
+	vu1Thread.Reset();
+
+	if (Options::bios.empty())
+	{
+		const char* system_base = nullptr;
+		environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
+
+		FileSystem::FindResultsArray results;
+		if (FileSystem::FindFiles(Path::Combine(system_base, "/pcsx2/bios").c_str(), "*", FILESYSTEM_FIND_FILES, &results))
+		{
+			static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
+			static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;
+			u32 version, region;
+			std::string description, zone;
+			for (const FILESYSTEM_FIND_DATA& fd : results)
+			{
+				if (fd.Size < MIN_BIOS_SIZE || fd.Size > MAX_BIOS_SIZE)
+					continue;
+
+				if (IsBIOS(fd.FileName.c_str(), version, description, region, zone))
+					Options::bios.push_back(description, std::string(Path::GetFileName(fd.FileName)));
+			}
+		}
+	}
+
+	Options::SetVariables();
+
+	static retro_disk_control_ext_callback disk_control = {
+		set_eject_state,
+		get_eject_state,
+		get_image_index,
+		set_image_index,
+		get_num_images,
+		replace_image_index,
+		add_image_index,
+		set_initial_image,
+		get_image_path,
+		get_image_label,
+	};
+
+	environ_cb(RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE, &disk_control);
+}
+
 bool retro_load_game(const struct retro_game_info* game)
 {
+	const char* system_base = nullptr;
 	int format = RETRO_PIXEL_FORMAT_XRGB8888;
 	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &format);
 
-	const char* system_base = nullptr;
 	environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
-	std::string system = Path::Combine(system_base, "pcsx2");
 
-	EmuFolders::AppRoot = system;
+	EmuFolders::AppRoot   = Path::Combine(system_base, "pcsx2");
 	EmuFolders::Resources = Path::Combine(EmuFolders::AppRoot, "resources");
-	EmuFolders::DataRoot = EmuFolders::AppRoot;
+	EmuFolders::DataRoot  = EmuFolders::AppRoot;
 	CommonHost::InitializeCriticalFolders();
 
 	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
@@ -633,7 +629,7 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	if (Options::bios.empty())
 	{
-		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 Bios File in %s\n", EmuFolders::Bios.c_str());
+		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios.c_str());
 		return false;
 	}
 
@@ -642,7 +638,7 @@ bool retro_load_game(const struct retro_game_info* game)
 	s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", Options::fast_boot);
 	s_settings_interface.SetStringValue("Filenames", "BIOS", Options::bios.Get().c_str());
 
-	read_pos = 0;
+	read_pos  = 0;
 	write_pos = 0;
 
 	Input::Init();
@@ -710,7 +706,7 @@ bool retro_load_game(const struct retro_game_info* game)
 }
 
 bool retro_load_game_special(unsigned game_type, const struct retro_game_info* info,
-							 size_t num_info)
+		size_t num_info)
 {
 	return false;
 }
@@ -739,6 +735,9 @@ void retro_unload_game(void)
 		gs_freeze_data = {};
 	}
 
+	read_pos  = 0;
+	write_pos = 0;
+
 	((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(LayeredSettingsInterface::LAYER_BASE, nullptr);
 	new (&GetMTGS()) SysMtgsThread();
 }
@@ -754,8 +753,6 @@ void retro_run(void)
 	{
 		retro_system_av_info av_info;
 		retro_get_system_av_info(&av_info);
-//		s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
-//		VMManager::ApplySettings();
 #if 1
 		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 #else
