@@ -59,16 +59,6 @@ void GSDeviceOGL::SetVSync(VsyncMode mode)
 {
 	if (m_vsync_mode == mode)
 		return;
-
-	// Window framebuffer has to be bound to call SetSwapInterval.
-	GLint current_fbo = 0;
-	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &current_fbo);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GL_DEFAULT_FRAMEBUFFER);
-
-	if (mode != VsyncMode::Adaptive || !m_gl_context->SetSwapInterval(-1))
-		m_gl_context->SetSwapInterval(static_cast<s32>(mode != VsyncMode::Off));
-
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, current_fbo);
 	m_vsync_mode = mode;
 }
 
@@ -104,8 +94,6 @@ bool GSDeviceOGL::Create()
 
 	if (!GLLoader::check_gl_requirements())
 		return false;
-
-	SetSwapInterval();
 
 	if (!GSConfig.DisableShaderCache)
 	{
@@ -529,12 +517,6 @@ bool GSDeviceOGL::CreateTextureFX()
 
 	GL::Program::ResetLastProgram();
 	return true;
-}
-
-void GSDeviceOGL::SetSwapInterval()
-{
-	const int interval = ((m_vsync_mode == VsyncMode::Adaptive) ? -1 : ((m_vsync_mode == VsyncMode::On) ? 1 : 0));
-	m_gl_context->SetSwapInterval(interval);
 }
 
 void GSDeviceOGL::DestroyResources()

@@ -33,7 +33,6 @@ namespace GL
 		bool SwapBuffers() override;
 		bool MakeCurrent() override;
 		bool DoneCurrent() override;
-		bool SetSwapInterval(s32 interval) override;
 		virtual std::unique_ptr<Context> CreateSharedContext(const WindowInfo& wi) override;
 	};
 

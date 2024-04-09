@@ -79,11 +79,6 @@ namespace GL
 		return true;
 	}
 
-	bool ContextRetroGL::SetSwapInterval(s32 interval)
-	{
-		return true;
-	}
-
 	std::unique_ptr<Context> ContextRetroGL::CreateSharedContext(const WindowInfo& wi)
 	{
 		std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>(wi);

@@ -208,7 +208,6 @@ private:
 	std::string m_shader_tfx_vgs;
 	std::string m_shader_tfx_fs;
 
-	void SetSwapInterval();
 	void DestroyResources();
 
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;

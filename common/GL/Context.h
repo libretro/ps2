@@ -55,7 +55,6 @@ namespace GL {
 		virtual bool SwapBuffers() = 0;
 		virtual bool MakeCurrent() = 0;
 		virtual bool DoneCurrent() = 0;
-		virtual bool SetSwapInterval(s32 interval) = 0;
 		virtual std::unique_ptr<Context> CreateSharedContext(const WindowInfo& wi) = 0;
 
 		static std::unique_ptr<Context> Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try);
