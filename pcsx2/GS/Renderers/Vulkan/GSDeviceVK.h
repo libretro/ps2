@@ -200,7 +200,7 @@ public:
 
 	__fi static GSDeviceVK* GetInstance() { return static_cast<GSDeviceVK*>(g_gs_device.get()); }
 
-	static void GetAdaptersAndFullscreenModes(std::vector<std::string>* adapters, std::vector<std::string>* fullscreen_modes);
+	static void GetAdapters(std::vector<std::string>* adapters);
 
 	/// Returns true if Vulkan is suitable as a default for the devices in the system.
 	static bool IsSuitableDefaultRenderer();

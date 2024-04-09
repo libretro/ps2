@@ -1976,21 +1976,13 @@ GSDeviceVK::~GSDeviceVK()
 	pxAssert(!g_vulkan_context);
 }
 
-void GSDeviceVK::GetAdaptersAndFullscreenModes(
-	std::vector<std::string>* adapters, std::vector<std::string>* fullscreen_modes)
+void GSDeviceVK::GetAdapters(
+	std::vector<std::string>* adapters)
 {
-	std::vector<Vulkan::SwapChain::FullscreenModeInfo> fsmodes;
-
 	if (g_vulkan_context)
 	{
 		if (adapters)
 			*adapters = Vulkan::Context::EnumerateGPUNames(g_vulkan_context->GetVulkanInstance());
-
-		if (fullscreen_modes)
-		{
-			fsmodes = Vulkan::SwapChain::GetSurfaceFullscreenModes(
-				g_vulkan_context->GetVulkanInstance(), g_vulkan_context->GetPhysicalDevice(), WindowInfo());
-		}
 	}
 	else
 	{
@@ -2007,22 +1999,12 @@ void GSDeviceVK::GetAdaptersAndFullscreenModes(
 			}
 		}
 	}
-
-	if (!fsmodes.empty())
-	{
-		fullscreen_modes->clear();
-		fullscreen_modes->reserve(fsmodes.size());
-		for (const Vulkan::SwapChain::FullscreenModeInfo& fmi : fsmodes)
-		{
-			fullscreen_modes->push_back(GetFullscreenModeString(fmi.width, fmi.height, fmi.refresh_rate));
-		}
-	}
 }
 
 bool GSDeviceVK::IsSuitableDefaultRenderer()
 {
 	std::vector<std::string> adapters;
-	GetAdaptersAndFullscreenModes(&adapters, nullptr);
+	GetAdapters(&adapters);
 	if (adapters.empty())
 	{
 		// No adapters, not gonna be able to use VK.

@@ -81,45 +81,6 @@ std::vector<std::string> D3D::GetAdapterNames(IDXGIFactory5* factory)
 	return adapter_names;
 }
 
-std::vector<std::string> D3D::GetFullscreenModes(IDXGIFactory5* factory, const std::string_view& adapter_name)
-{
-	std::vector<std::string> modes;
-	HRESULT hr;
-
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter = GetChosenOrFirstAdapter(factory, adapter_name);
-	if (!adapter)
-		return modes;
-
-	wil::com_ptr_nothrow<IDXGIOutput> output;
-	if (FAILED(hr = adapter->EnumOutputs(0, &output)))
-	{
-		Console.Error("EnumOutputs() failed: %08X", hr);
-		return modes;
-	}
-
-	UINT num_modes = 0;
-	if (FAILED(hr = output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, 0, &num_modes, nullptr)))
-	{
-		Console.Error("GetDisplayModeList() failed: %08X", hr);
-		return modes;
-	}
-
-	std::vector<DXGI_MODE_DESC> dmodes(num_modes);
-	if (FAILED(hr = output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, 0, &num_modes, dmodes.data())))
-	{
-		Console.Error("GetDisplayModeList() (2) failed: %08X", hr);
-		return modes;
-	}
-
-	for (const DXGI_MODE_DESC& mode : dmodes)
-	{
-		modes.push_back(GSDevice::GetFullscreenModeString(mode.Width, mode.Height,
-			static_cast<float>(mode.RefreshRate.Numerator) / static_cast<float>(mode.RefreshRate.Denominator)));
-	}
-
-	return modes;
-}
-
 wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetAdapterByName(IDXGIFactory5* factory, const std::string_view& name)
 {
 	if (name.empty())

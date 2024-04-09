@@ -52,11 +52,6 @@ namespace GL
 
 	Context::~Context() = default;
 
-	std::vector<Context::FullscreenModeInfo> Context::EnumerateFullscreenModes()
-	{
-		return {};
-	}
-
 	std::unique_ptr<GL::Context> Context::Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try)
 	{
 		if (ShouldPreferESContext())

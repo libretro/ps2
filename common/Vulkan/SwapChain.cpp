@@ -187,17 +187,6 @@ namespace Vulkan
 #endif
 	}
 
-	std::vector<SwapChain::FullscreenModeInfo> SwapChain::GetSurfaceFullscreenModes(
-		VkInstance instance, VkPhysicalDevice physical_device, const WindowInfo& wi)
-	{
-#if 0
-		if (wi.type == WindowInfo::Type::Display)
-			return GetDisplayModes(instance, physical_device, wi);
-#endif
-
-		return {};
-	}
-
 	std::unique_ptr<SwapChain> SwapChain::Create(const WindowInfo& wi, VkSurfaceKHR surface,
 		VkPresentModeKHR preferred_present_mode)
 	{

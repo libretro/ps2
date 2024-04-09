@@ -44,13 +44,6 @@ namespace GL {
 			int minor_version;
 		};
 
-		struct FullscreenModeInfo
-		{
-			u32 width;
-			u32 height;
-			float refresh_rate;
-		};
-
 		__fi const WindowInfo& GetWindowInfo() const { return m_wi; }
 		__fi bool IsGLES() const { return (m_version.profile == Profile::ES); }
 		__fi u32 GetSurfaceWidth() const { return m_wi.surface_width; }
@@ -64,8 +57,6 @@ namespace GL {
 		virtual bool DoneCurrent() = 0;
 		virtual bool SetSwapInterval(s32 interval) = 0;
 		virtual std::unique_ptr<Context> CreateSharedContext(const WindowInfo& wi) = 0;
-
-		virtual std::vector<FullscreenModeInfo> EnumerateFullscreenModes();
 
 		static std::unique_ptr<Context> Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try);
 
