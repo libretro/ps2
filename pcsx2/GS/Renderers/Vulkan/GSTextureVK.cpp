@@ -22,7 +22,6 @@
 #include "common/Vulkan/Context.h"
 #include "common/Vulkan/Util.h"
 #include "GS/GSPerfMon.h"
-#include "GS/GSGL.h"
 
 GSTextureVK::GSTextureVK(Type type, Format format, Vulkan::Texture texture)
 	: m_texture(std::move(texture))

@@ -18,7 +18,6 @@
 #include "GSTextureReplacements.h"
 #include "GSRendererHW.h"
 #include "GS/GSState.h"
-#include "GS/GSGL.h"
 #include "GS/GSIntrin.h"
 #include "GS/GSUtil.h"
 #include "GS/GSXXH.h"

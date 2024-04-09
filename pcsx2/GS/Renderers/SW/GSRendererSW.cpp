@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "GSRendererSW.h"
-#include "GS/GSGL.h"
 #include "common/StringUtil.h"
 
 MULTI_ISA_UNSHARED_IMPL;

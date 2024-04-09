@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "GS/Renderers/HW/GSRendererHW.h"
 #include "GS/Renderers/HW/GSHwHack.h"
-#include "GS/GSGL.h"
 
 static bool s_nativeres;
 static CRCHackLevel s_crc_hack_level = CRCHackLevel::Full;

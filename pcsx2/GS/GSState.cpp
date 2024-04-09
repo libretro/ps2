@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "GSState.h"
-#include "GSGL.h"
 #include "GSUtil.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"

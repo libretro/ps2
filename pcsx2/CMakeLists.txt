@@ -487,7 +487,6 @@ set(pcsx2GSHeaders
 	GS/GSDrawingContext.h
 	GS/GSDrawingEnvironment.h
 	GS/GSExtra.h
-	GS/GSGL.h
 	GS/GSIntrin.h
 	GS/GSRegs.h
 	GS/GS.h

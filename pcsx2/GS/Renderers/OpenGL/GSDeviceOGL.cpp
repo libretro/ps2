@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 
 #include "GS/GSState.h"
-#include "GS/GSGL.h"
 #include "GS/GSUtil.h"
 #include "GS/Renderers/OpenGL/GSDeviceOGL.h"
 #include "GS/Renderers/OpenGL/GLState.h"

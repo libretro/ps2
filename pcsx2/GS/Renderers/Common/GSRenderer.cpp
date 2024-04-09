@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 
 #include "GS/Renderers/Common/GSRenderer.h"
-#include "GS/GSGL.h"
 #include "Host.h"
 #include "PerformanceMetrics.h"
 #include "pcsx2/Config.h"

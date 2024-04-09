@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "GSDevice.h"
-#include "GS/GSGL.h"
 #include "GS/GS.h"
 #include "Host.h"
 #include "HostSettings.h"

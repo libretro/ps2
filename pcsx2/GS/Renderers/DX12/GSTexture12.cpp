@@ -24,7 +24,6 @@
 #include "common/StringUtil.h"
 #include "D3D12MemAlloc.h"
 #include "GS/GSPerfMon.h"
-#include "GS/GSGL.h"
 
 GSTexture12::GSTexture12(Type type, Format format, D3D12::Texture texture)
 	: m_texture(std::move(texture))

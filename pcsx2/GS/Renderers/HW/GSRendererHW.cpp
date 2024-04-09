@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "GSRendererHW.h"
 #include "GSTextureReplacements.h"
-#include "GS/GSGL.h"
 #include "Host.h"
 #include "common/Align.h"
 #include "common/StringUtil.h"

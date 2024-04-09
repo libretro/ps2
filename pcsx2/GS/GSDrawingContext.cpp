@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "GSDrawingContext.h"
-#include "GSGL.h"
 #include "GS.h"
 
 static int findmax(int tl, int br, int limit, int wm, int minuv, int maxuv)

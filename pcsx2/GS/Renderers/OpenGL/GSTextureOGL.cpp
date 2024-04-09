@@ -20,7 +20,6 @@
 #include "GS/Renderers/OpenGL/GLState.h"
 #include "GS/GSExtra.h"
 #include "GS/GSPerfMon.h"
-#include "GS/GSGL.h"
 #include "common/Align.h"
 #include "common/AlignedMalloc.h"
 #include "common/StringUtil.h"

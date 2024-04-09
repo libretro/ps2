@@ -17,7 +17,6 @@
 #include "PrecompiledHeader.h"
 
 #include "GS/GS.h"
-#include "GS/GSGL.h"
 #include "GS/GSPerfMon.h"
 #include "GS/GSUtil.h"
 #include "GS/Renderers/DX11/D3D.h"
