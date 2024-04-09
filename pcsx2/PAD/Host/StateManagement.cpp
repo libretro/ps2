@@ -37,9 +37,9 @@ static const u8 queryComb[7]     = {0x5A, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00};
 static const u8 queryMode[7]     = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static const u8 setNativeMode[7] = {0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5A};
 
-static u8 queryMaskMode[7] = {0x5A, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x5A};
+static u8 queryMaskMode[7]       = {0x5A, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x5A};
 
-static const u8 queryAct[2][7] = {
+static const u8 queryAct[2][7]   = {
 	{0x5A, 0x00, 0x00, 0x01, 0x02, 0x00, 0x0A},
 	{0x5A, 0x00, 0x00, 0x01, 0x01, 0x01, 0x14}};
 
@@ -294,7 +294,7 @@ u8 pad_poll(u8 value)
 					{ // DS2 native
 						query.numBytes = 21;
 
-						query.response[9] = !test_bit(buttons, 13) ? g_key_status.GetPressure(ext_port, PAD_RIGHT) : 0;
+						query.response[9]  = !test_bit(buttons, 13) ? g_key_status.GetPressure(ext_port, PAD_RIGHT) : 0;
 						query.response[10] = !test_bit(buttons, 15) ? g_key_status.GetPressure(ext_port, PAD_LEFT) : 0;
 						query.response[11] = !test_bit(buttons, 12) ? g_key_status.GetPressure(ext_port, PAD_UP) : 0;
 						query.response[12] = !test_bit(buttons, 14) ? g_key_status.GetPressure(ext_port, PAD_DOWN) : 0;

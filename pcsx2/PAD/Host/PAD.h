@@ -21,12 +21,10 @@
 #include <vector>
 
 #include "Config.h"
-#include "PAD/Host/Global.h"
+#include "Common/Pcsx2Defs.h"
 #include "SaveState.h"
 
 class SettingsInterface;
-struct WindowInfo;
-enum class GenericInputBinding : u8;
 
 s32 PADinit();
 void PADshutdown();
@@ -87,9 +85,6 @@ namespace PAD
 
 	/// Reloads configuration.
 	void LoadConfig(const SettingsInterface& si);
-
-	/// Clears all bindings for a given port.
-	void ClearPortBindings(SettingsInterface& si, u32 port);
 
 	/// Updates vibration and other internal state. Called at the *end* of a frame.
 	void Update();

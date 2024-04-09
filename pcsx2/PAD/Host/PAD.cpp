@@ -19,11 +19,11 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 #include "common/SettingsInterface.h"
+#include "common/Pcsx2Defs.h"
 
 #include "Frontend/InputManager.h"
 #include "HostSettings.h"
 
-#include "PAD/Host/Global.h"
 #include "PAD/Host/PAD.h"
 #include "PAD/Host/KeyStatus.h"
 #include "PAD/Host/StateManagement.h"
@@ -48,7 +48,6 @@ namespace PAD
 		bool trigger_state; ///< Whether the macro button is active.
 	};
 
-	static std::string GetConfigSection(u32 pad_index);
 	static void LoadMacroButtonConfig(const SettingsInterface& si, u32 pad, const std::string_view& type, const std::string& section);
 	static void ApplyMacroButton(u32 pad, const MacroButton& mb);
 	static void UpdateMacroButtons();
@@ -103,8 +102,9 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 
 		Pad::stop_vibrate_all();
 
-		if (data->size != sizeof(PadFullFreezeData) || pdata->version != PAD_SAVE_STATE_VERSION ||
-			strncmp(pdata->format, "LinPad", sizeof(pdata->format)))
+		if (               (data->size != sizeof(PadFullFreezeData))
+				|| pdata->version != PAD_SAVE_STATE_VERSION
+		   )
 			return 0;
 
 		query = pdata->query;
@@ -168,11 +168,6 @@ u8 PADpoll(u8 value)
 	return pad_poll(value);
 }
 
-std::string PAD::GetConfigSection(u32 pad_index)
-{
-	return fmt::format("Pad{}", pad_index + 1);
-}
-
 bool PADcomplete(void)
 {
 	return pad_complete();
@@ -188,7 +183,7 @@ void PAD::LoadConfig(const SettingsInterface& si)
 	// This is where we would load controller types, if onepad supported them.
 	for (u32 i = 0; i < NUM_CONTROLLER_PORTS; i++)
 	{
-		const std::string section(GetConfigSection(i));
+		const std::string section(fmt::format("Pad{}", i + 1));
 		const std::string type(si.GetStringValue(section.c_str(), "Type", GetDefaultPadType(i)));
 
 		const ControllerInfo* ci = GetControllerInfo(type);
@@ -375,24 +370,6 @@ std::vector<std::string> PAD::GetControllerBinds(const std::string_view& type)
 	}
 
 	return ret;
-}
-
-void PAD::ClearPortBindings(SettingsInterface& si, u32 port)
-{
-	const std::string section(StringUtil::StdStringFromFormat("Pad%u", port + 1));
-	const std::string type(si.GetStringValue(section.c_str(), "Type", GetDefaultPadType(port)));
-
-	const ControllerInfo* info = GetControllerInfo(type);
-	if (!info)
-		return;
-
-	for (u32 i = 0; i < info->num_bindings; i++)
-	{
-		const InputBindingInfo& bi = info->bindings[i];
-		si.DeleteValue(section.c_str(), bi.name);
-		si.DeleteValue(section.c_str(), fmt::format("{}Scale", bi.name).c_str());
-		si.DeleteValue(section.c_str(), fmt::format("{}Deadzone", bi.name).c_str());
-	}
 }
 
 static u32 TryMapGenericMapping(SettingsInterface& si, const std::string& section,
