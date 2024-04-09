@@ -374,9 +374,7 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 	auto it = m_p2tmap.find(hash);
 
 	if (it != m_p2tmap.end())
-	{
 		return it->second;
-	}
 
 	GSVector2i bs = m_psm[TEX0.PSM].bs;
 
@@ -418,13 +416,9 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 			auto k = m.find(row);
 
 			if (k != m.end())
-			{
 				k->second |= col;
-			}
 			else
-			{
 				m[row] = col;
-			}
 		}
 
 		// Allocate vector with initial size
@@ -433,9 +427,7 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 		// sort by x and flip the mask (it will be used to erase a lot of bits in a loop, [x] &= ~y)
 
 		for (const auto& j : m)
-		{
 			p2t[page].push_back(GSVector2i(j.first, ~j.second));
-		}
 
 		std::sort(p2t[page].begin(), p2t[page].end(), [](const GSVector2i& a, const GSVector2i& b) { return a.x < b.x; });
 	}
@@ -476,16 +468,10 @@ void GSLocalMemory::ReadTexture(const GSOffset& off, const GSVector4i& r, u8* ds
 		if (cr.rempty() || !aligned)
 		{
 			// TODO: expand r to block size, read into temp buffer
-
-			if (!aligned)
-				printf("unaligned memory pointer passed to ReadTexture\n");
-
 			for (int y = r.top; y < r.bottom; y++, dst += dstpitch)
 			{
 				for (int x = r.left, i = 0; x < r.right; x++, i++)
-				{
 					((u32*)dst)[i] = (this->*rt)(x, y, TEX0, TEXA);
-				}
 			}
 		}
 		else
@@ -495,9 +481,7 @@ void GSLocalMemory::ReadTexture(const GSOffset& off, const GSVector4i& r, u8* ds
 			for (int y = r.top; y < cr.top; y++, dst += dstpitch)
 			{
 				for (int x = r.left, i = 0; x < r.right; x++, i++)
-				{
 					((u32*)dst)[i] = (this->*rt)(x, y, TEX0, TEXA);
-				}
 			}
 
 			for (int y = cr.top; y < cr.bottom; y++, dst += dstpitch)
@@ -530,9 +514,7 @@ void GSLocalMemory::ReadTexture(const GSOffset& off, const GSVector4i& r, u8* ds
 		}
 	}
 	else
-	{
 		rtx(*this, off, r, dst, dstpitch, TEXA);
-	}
 }
 
 //
@@ -684,18 +666,14 @@ GSOffset::PageLooper GSOffset::pageLooperForRect(const GSVector4i& rect) const
 	adjustStartEnd(out.midRowPgXStart, out.midRowPgXEnd, 0, blkH);
 	// For first and last rows, either copy mid if they are full height or separately calculate them with their smaller ranges
 	if (a.oy1 != a.iy1)
-	{
 		adjustStartEnd(out.firstRowPgXStart, out.firstRowPgXEnd, a.oy1, a.iy1);
-	}
 	else
 	{
 		out.firstRowPgXStart = out.midRowPgXStart;
 		out.firstRowPgXEnd   = out.midRowPgXEnd;
 	}
 	if (a.oy2 != a.iy2)
-	{
 		adjustStartEnd(out.lastRowPgXStart, out.lastRowPgXEnd, a.iy2, a.oy2);
-	}
 	else
 	{
 		out.lastRowPgXStart = out.midRowPgXStart;

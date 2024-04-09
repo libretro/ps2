@@ -119,7 +119,6 @@ public:
 	int vertex_count;
 	u16* index;
 	int index_count;
-	u64 frame;
 	u64 start;
 	int pixels;
 	int counter;
@@ -140,7 +139,6 @@ public:
 		, vertex_count(0)
 		, index(NULL)
 		, index_count(0)
-		, frame(0)
 		, start(0)
 		, pixels(0)
 		, scanmsk_value(0)

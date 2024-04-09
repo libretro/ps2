@@ -320,14 +320,11 @@ void GSRendererSW::Draw()
 
 	GSVector4i r = bbox.rintersect(scissor);
 
-	sd->scissor = scissor;
-	sd->bbox = bbox;
-	sd->frame = g_perfmon.GetFrame();
+	sd->scissor  = scissor;
+	sd->bbox     = bbox;
 
 	if (!GetScanlineGlobalData(sd))
 		return;
-
-	//
 
 	GSOffset::PageLooper* fb_pages = NULL;
 	GSOffset::PageLooper* zb_pages = NULL;

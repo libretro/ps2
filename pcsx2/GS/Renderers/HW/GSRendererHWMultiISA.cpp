@@ -82,7 +82,6 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 
 	data.scissor = scissor;
 	data.bbox = bbox;
-	data.frame = g_perfmon.GetFrame();
 
 	gd.vm = hw.m_mem.m_vm8;
 

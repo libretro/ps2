@@ -1140,20 +1140,23 @@ constexpr inline GSOffset GSOffset::fromKnownPSM(u32 bp, u32 bw, GS_PSM psm)
 {
 	switch (psm)
 	{
-		case PSMCT32:  return GSOffset(GSLocalMemory::swizzle32,   bp, bw, psm);
-		case PSMCT24:  return GSOffset(GSLocalMemory::swizzle32,   bp, bw, psm);
-		case PSMCT16:  return GSOffset(GSLocalMemory::swizzle16,   bp, bw, psm);
-		case PSMCT16S: return GSOffset(GSLocalMemory::swizzle16S,  bp, bw, psm);
-		case PSGPU24:  return GSOffset(GSLocalMemory::swizzle16,   bp, bw, psm);
-		case PSMT8:    return GSOffset(GSLocalMemory::swizzle8,    bp, bw, psm);
 		case PSMT4:    return GSOffset(GSLocalMemory::swizzle4,    bp, bw, psm);
-		case PSMT8H:   return GSOffset(GSLocalMemory::swizzle32,   bp, bw, psm);
-		case PSMT4HL:  return GSOffset(GSLocalMemory::swizzle32,   bp, bw, psm);
-		case PSMT4HH:  return GSOffset(GSLocalMemory::swizzle32,   bp, bw, psm);
-		case PSMZ32:   return GSOffset(GSLocalMemory::swizzle32Z,  bp, bw, psm);
-		case PSMZ24:   return GSOffset(GSLocalMemory::swizzle32Z,  bp, bw, psm);
+		case PSMT8:    return GSOffset(GSLocalMemory::swizzle8,    bp, bw, psm);
 		case PSMZ16:   return GSOffset(GSLocalMemory::swizzle16Z,  bp, bw, psm);
+		case PSMCT16S: return GSOffset(GSLocalMemory::swizzle16S,  bp, bw, psm);
 		case PSMZ16S:  return GSOffset(GSLocalMemory::swizzle16SZ, bp, bw, psm);
+		case PSMCT16:
+		case PSGPU24:
+			       return GSOffset(GSLocalMemory::swizzle16,   bp, bw, psm);
+		case PSMZ32:
+		case PSMZ24:
+			       return GSOffset(GSLocalMemory::swizzle32Z,  bp, bw, psm);
+		case PSMCT32:
+		case PSMCT24:
+		case PSMT8H:
+		case PSMT4HL:
+		case PSMT4HH:
+			       break;
 	}
 	return GSOffset(GSLocalMemory::swizzle32, bp, bw, psm);
 }

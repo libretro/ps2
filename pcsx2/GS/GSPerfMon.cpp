@@ -20,13 +20,3 @@
 GSPerfMon g_perfmon;
 
 GSPerfMon::GSPerfMon() = default;
-
-void GSPerfMon::Reset()
-{
-	m_frame = 0;
-}
-
-void GSPerfMon::EndFrame()
-{
-	m_frame++;
-}

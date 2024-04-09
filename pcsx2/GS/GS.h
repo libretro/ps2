@@ -19,11 +19,9 @@
 #include "SaveState.h"
 #include "pcsx2/Config.h"
 
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 enum class RenderAPI
 {

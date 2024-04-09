@@ -72,9 +72,7 @@ public:
 		memset(CompatibleBitsField, 0, sizeof(CompatibleBitsField));
 
 		for (int i = 0; i < 64; i++)
-		{
 			CompatibleBitsField[i][i >> 5] |= 1U << (i & 0x1f);
-		}
 
 		CompatibleBitsField[PSMCT32][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
 		CompatibleBitsField[PSMCT24][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
@@ -88,9 +86,7 @@ public:
 		memset(SwizzleField, 0, sizeof(SwizzleField));
 
 		for (int i = 0; i < 64; i++)
-		{
 			SwizzleField[i][i >> 5] |= 1U << (i & 0x1f);
-		}
 
 		SwizzleField[PSMCT32][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
 		SwizzleField[PSMCT24][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
@@ -223,34 +219,4 @@ GSRendererType GSUtil::GetPreferredRenderer()
 	return GSRendererType::SW;
 #endif
 #endif
-}
-
-const char* psm_str(int psm)
-{
-	switch (psm)
-	{
-		// Normal color
-		case PSMCT32:  return "C_32";
-		case PSMCT24:  return "C_24";
-		case PSMCT16:  return "C_16";
-		case PSMCT16S: return "C_16S";
-
-		// Palette color
-		case PSMT8:    return "P_8";
-		case PSMT4:    return "P_4";
-		case PSMT8H:   return "P_8H";
-		case PSMT4HL:  return "P_4HL";
-		case PSMT4HH:  return "P_4HH";
-
-		// Depth
-		case PSMZ32:   return "Z_32";
-		case PSMZ24:   return "Z_24";
-		case PSMZ16:   return "Z_16";
-		case PSMZ16S:  return "Z_16S";
-
-		case PSGPU24:  return "PS24";
-
-		default:break;
-	}
-	return "BAD_PSM";
 }

@@ -35,9 +35,7 @@ public:
 	GIFRegTRXREG     TRXREG;
 	GSDrawingContext CTXT[2];
 
-	GSDrawingEnvironment()
-	{
-	}
+	GSDrawingEnvironment() { }
 
 	void Reset()
 	{

@@ -188,8 +188,8 @@ protected:
 			USES_BOUNDARY_TOP    = 1 << 1,
 			USES_BOUNDARY_RIGHT  = 1 << 2,
 			USES_BOUNDARY_BOTTOM = 1 << 3,
-			USES_BOUNDARY_U = USES_BOUNDARY_LEFT | USES_BOUNDARY_RIGHT,
-			USES_BOUNDARY_V = USES_BOUNDARY_TOP | USES_BOUNDARY_BOTTOM,
+			USES_BOUNDARY_U      = USES_BOUNDARY_LEFT | USES_BOUNDARY_RIGHT,
+			USES_BOUNDARY_V      = USES_BOUNDARY_TOP | USES_BOUNDARY_BOTTOM
 		};
 		GSVector4i coverage; ///< Part of the texture used
 		u8 uses_boundary;    ///< Whether or not the usage touches the left, top, right, or bottom edge (and therefore needs wrap modes preserved)
@@ -261,27 +261,27 @@ public:
 
 	enum GSFlushReason
 	{
-		UNKNOWN = 1 << 0,
-		RESET = 1 << 1,
-		CONTEXTCHANGE = 1 << 2,
-		CLUTCHANGE = 1 << 3,
-		GSTRANSFER = 1 << 4,
-		UPLOADDIRTYTEX = 1 << 5,
+		UNKNOWN 	 = 1 << 0,
+		RESET 		 = 1 << 1,
+		CONTEXTCHANGE	 = 1 << 2,
+		CLUTCHANGE 	 = 1 << 3,
+		GSTRANSFER 	 = 1 << 4,
+		UPLOADDIRTYTEX   = 1 << 5,
 		LOCALTOLOCALMOVE = 1 << 6,
-		DOWNLOADFIFO = 1 << 7,
-		SAVESTATE = 1 << 8,
-		LOADSTATE = 1 << 9,
-		AUTOFLUSH = 1 << 10,
-		VSYNC  = 1 << 11,
-		GSREOPEN = 1 << 12,
-		VERTEXCOUNT = 1 << 13,
+		DOWNLOADFIFO 	 = 1 << 7,
+		SAVESTATE        = 1 << 8,
+		LOADSTATE        = 1 << 9,
+		AUTOFLUSH        = 1 << 10,
+		VSYNC            = 1 << 11,
+		GSREOPEN         = 1 << 12,
+		VERTEXCOUNT      = 1 << 13
 	};
 
 	GSFlushReason m_state_flush_reason = UNKNOWN;
 
 	enum PRIM_OVERLAP
 	{
-		PRIM_OVERLAP_UNKNOW,
+		PRIM_OVERLAP_UNKNOW = 0,
 		PRIM_OVERLAP_YES,
 		PRIM_OVERLAP_NO
 	};
@@ -468,13 +468,8 @@ public:
 		GSVector4i GetFramebufferRect(int display)
 		{
 			if (display == -1)
-			{
 				return GSVector4i(PCRTCDisplays[0].framebufferRect.runion(PCRTCDisplays[1].framebufferRect));
-			}
-			else
-			{
-				return PCRTCDisplays[display].framebufferRect;
-			}
+			return PCRTCDisplays[display].framebufferRect;
 		}
 
 		int GetFramebufferBitDepth()
@@ -492,9 +487,7 @@ public:
 			int max_height = !GSConfig.PCRTCOverscan ? VideoModeOffsets[videomode].y : VideoModeOffsetsOverscan[videomode].y;
 
 			if (!(FFMD && interlaced))
-			{
 				max_height *= 2;
-			}
 
 			if (display == -1)
 			{

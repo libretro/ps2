@@ -416,8 +416,6 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	if (!idle_frame)
 		g_gs_device->AgePool();
 
-	g_perfmon.EndFrame();
-
 	g_gs_device->ResetAPIState();
 	if (BeginPresentFrame(false))
 	{

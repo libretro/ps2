@@ -2303,9 +2303,6 @@ int GSState::Defrost(const freezeData* fd)
 	}
 
 	UpdateScissor();
-
-	g_perfmon.SetFrame(5000);
-
 	ResetPCRTC();
 
 	return 0;

@@ -1537,8 +1537,8 @@ void GSTextureCache::InvalidateVideoMemType(int type, u32 bp)
 // Called each time you want to write to the GS memory
 void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& rect, bool eewrite, bool target)
 {
-	u32 bp = off.bp();
-	u32 bw = off.bw();
+	u32 bp  = off.bp();
+	u32 bw  = off.bw();
 	u32 psm = off.psm();
 
 	if (!target)
@@ -1947,11 +1947,11 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 // Called each time you want to read from the GS memory
 void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r)
 {
-	const u32 bp = off.bp();
-	const u32 psm = off.psm();
+	const u32 bp         = off.bp();
+	const u32 psm        = off.psm();
 	[[maybe_unused]] const u32 bw = off.bw();
 	const u32 read_start = GSLocalMemory::m_psm[psm].info.bn(r.x, r.y, bp, bw);
-	const u32 read_end = GSLocalMemory::m_psm[psm].info.bn(r.z - 1, r.w - 1, bp, bw);
+	const u32 read_end   = GSLocalMemory::m_psm[psm].info.bn(r.z - 1, r.w - 1, bp, bw);
 
 	// Could be reading Z24/32 back as CT32 (Gundam Battle Assault 3)
 	if (GSLocalMemory::m_psm[psm].bpp >= 16)
@@ -4948,9 +4948,11 @@ static void HashTextureLevel(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, GST
 	else
 	{
 		GSOffset::BNHelper bn = off.bnMulti(block_rect.left, block_rect.top);
-		const int right = block_rect.right >> off.blockShiftX();
-		const int bottom = block_rect.bottom >> off.blockShiftY();
-		const int xAdd = (1 << off.blockShiftX()) * (psm.bpp / 8);
+		u8 blockShiftX        = off.blockShiftX();
+		u8 blockShiftY        = off.blockShiftY();
+		const int right       = block_rect.right  >> blockShiftX;
+		const int bottom      = block_rect.bottom >> blockShiftY;
+		const int xAdd        = (1 << blockShiftX) * (psm.bpp / 8);
 
 		for (; bn.blkY() < bottom; bn.nextBlockY())
 		{

@@ -18,18 +18,10 @@
 class GSPerfMon
 {
 protected:
-	u64 m_frame = 0;
 	int m_disp_fb_sprite_blits = 0;
 
 public:
 	GSPerfMon();
-
-	void Reset();
-
-	void SetFrame(u64 frame) { m_frame = frame; }
-	u64 GetFrame() { return m_frame; }
-	void EndFrame();
-
 	__fi void AddDisplayFramebufferSpriteBlit() { m_disp_fb_sprite_blits++; }
 	__fi int GetDisplayFramebufferSpriteBlits()
 	{

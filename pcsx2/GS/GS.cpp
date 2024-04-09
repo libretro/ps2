@@ -163,7 +163,6 @@ static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 
 	g_gs_renderer->SetRegsMem(basemem);
 	g_gs_renderer->ResetPCRTC();
-	g_perfmon.Reset();
 	return true;
 }
 
