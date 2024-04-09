@@ -303,10 +303,10 @@ static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
 {
 	s32 out = 0;
-	out =  (interpTable[0x0FF - i] * pv4) >> 15;
-	out += (interpTable[0x1FF - i] * pv3) >> 15;
-	out += (interpTable[0x100 + i] * pv2) >> 15;
-	out += (interpTable[0x000 + i] * pv1) >> 15;
+	out =  (interpTable[i][0] * pv4) >> 15;
+	out += (interpTable[i][1] * pv3) >> 15;
+	out += (interpTable[i][2] * pv2) >> 15;
+	out += (interpTable[i][3] * pv1) >> 15;
 
 	return out;
 }
@@ -424,11 +424,6 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 			Value = GetVoiceValues(thiscore, voiceidx);
 
 		// Update and Apply ADSR  (applies to normal and noise sources)
-		//
-		// Note!  It's very important that ADSR stay as accurate as possible.  By the way
-		// it is used, various sound effects can end prematurely if we truncate more than
-		// one or two bits.  Best result comes from no truncation at all, which is why we
-		// use a full 64-bit multiply/result here.
 
 		CalculateADSR(thiscore, voiceidx);
 		Value    = ApplyVolume(Value, vc.ADSR.Value);
@@ -473,7 +468,6 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 {
 	MasterVol.Update();
 	UpdateNoise(*this);
-
 
 	// Saturate final result to standard 16 bit range.
 	const VoiceMixSet Voices(clamp_mix(inVoices.Dry), clamp_mix(inVoices.Wet));
