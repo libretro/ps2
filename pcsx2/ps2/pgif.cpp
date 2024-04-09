@@ -52,11 +52,6 @@ void ringBufPut(struct ringBuf_t* rb, u32* data)
 			rb->head = 0; //wrap back when the end is reached
 		rb->count++;
 	}
-	else
-	{
-		// This should never happen. If it does, the code is bad somewhere.
-		Console.Error("PGIF FIFO overflow! sz= %X", rb->size);
-	}
 }
 
 void ringBufGet(struct ringBuf_t* rb, u32* data)
@@ -69,11 +64,6 @@ void ringBufGet(struct ringBuf_t* rb, u32* data)
 			rb->tail = 0; //wrap back when the end is reached
 		rb->count--;
 	}
-	else
-	{
-		// This should never happen. If it does, the code is bad somewhere.
-		Console.Error("PGIF FIFO underflow! sz= %X", rb->size);
-	}
 }
 
 void ringBufferClear(struct ringBuf_t* rb)
@@ -81,11 +71,6 @@ void ringBufferClear(struct ringBuf_t* rb)
 	rb->head = 0;
 	rb->tail = 0;
 	rb->count = 0;
-	// wisi comment:
-	// Yes, the memset should be commented-out. The reason is that it shouldn't really be necessary (but I am not sure).
-	// It is better not to be enabled, because clearing the new huge PGIF FIFO, can waste significant time.
-	//memset(rb->buf, 0, rb->size * sizeof(u32));
-	return;
 }
 
 
@@ -367,11 +352,9 @@ void PGIFw(int addr, u32 data)
 			pgif.imm_response.reg.e5 = data;
 			break;
 		case PGPU_CMD_FIFO:
-			Console.Error("PGIF CMD FIFO write by EE (SHOULDN'T HAPPEN) 0x%08X = 0x%08X", addr, data);
 			break;
 		case PGPU_DAT_FIFO:
 			ringBufPut(&rb_gp0, &data);
-			// 	Console.WriteLn( "\n\r PGIF REVERSE !!! DATA write 0x%08X = 0x%08X  IF_CTRL= %08X   PGPU_STAT= %08X  CmdCnt 0x%X \n\r",  addr, data,  getUpdPgifCtrlReg(),  getUpdPgpuStatReg(), rb_gp1.count);
 			drainPgpuDmaNrToIop();
 			break;
 		default:
@@ -421,12 +404,7 @@ void PGIFrQword(u32 addr, void* dat)
 {
 	u32* data = (u32*)dat;
 
-	if (addr == PGPU_CMD_FIFO)
-	{
-		//shouldn't happen
-		Console.Error("PGIF QW CMD read =ERR!");
-	}
-	else if (addr == PGPU_DAT_FIFO)
+	if (addr == PGPU_DAT_FIFO)
 	{
 		fillFifoOnDrain();
 		rb_gp0_Get(data + 0);
@@ -435,11 +413,6 @@ void PGIFrQword(u32 addr, void* dat)
 		rb_gp0_Get(data + 3);
 
 		fillFifoOnDrain();
-	}
-	else
-	{
-		Console.WriteLn("PGIF QWord Read from address %08X  ERR - shouldnt happen!", addr);
-		Console.WriteLn("Data = %08X %08X %08X %08X ", *(u32*)(data + 0), *(u32*)(data + 1), *(u32*)(data + 2), *(u32*)(data + 3));
 	}
 }
 
@@ -590,17 +563,10 @@ void drainPgpuDmaNrToIop()
 }
 
 
-void processPgpuDma()
+void processPgpuDma(void)
 {
-	if (!dmaRegs.chcr.bits.TSM)
-	{
-		Console.Error("SyncMode 0 on GPU DMA!");
-	}
 	if (dmaRegs.chcr.bits.TSM == 3)
-	{
-		Console.Warning("SyncMode 3! Assuming SyncMode 1");
 		dmaRegs.chcr.bits.TSM = 1;
-	}
 
 	//Linked List Mode
 	if (dmaRegs.chcr.bits.TSM == 2)
@@ -615,13 +581,8 @@ void processPgpuDma()
 
 			//fill a single word in fifo now, because otherwise PS1DRV won't know that a transfer is pending.
 			fillFifoOnDrain();
-			return;
 		}
-		else
-		{
-			Console.Error("Error: Linked list from GPU DMA!");
-			return;
-		}
+		return;
 	}
 	dma.normal.current_word = 0;
 	dma.normal.address = dmaRegs.madr.address & 0x1FFFFFFF; // Sould we allow whole range? Maybe for psx SPR?
@@ -656,10 +617,8 @@ u32 psxDma2GpuR(u32 addr)
 			break;
 		case PGPU_DMA_TADR:
 			data = pgpuDmaTadr;
-			Console.Error("PGPU DMA read TADR!");
 			break;
 		default:
-			Console.Error("Unknown PGPU DMA read 0x%08X", addr);
 			break;
 	}
 	return data;
@@ -685,10 +644,8 @@ void psxDma2GpuW(u32 addr, u32 data)
 			break;
 		case PGPU_DMA_TADR:
 			pgpuDmaTadr = data;
-			Console.Error("PGPU DMA write TADR! ");
 			break;
 		default:
-			Console.Error("Unknown PGPU DMA write 0x%08X = 0x%08X", addr, data);
 			break;
 	}
 }
