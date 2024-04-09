@@ -37,8 +37,9 @@ namespace Vulkan
 				case VK_FORMAT_D32_SFLOAT_S8_UINT:
 					return true;
 				default:
-					return false;
+					break;
 			}
+			return false;
 		}
 
 		bool IsDepthStencilFormat(VkFormat format)
@@ -50,8 +51,9 @@ namespace Vulkan
 				case VK_FORMAT_D32_SFLOAT_S8_UINT:
 					return true;
 				default:
-					return false;
+					break;
 			}
+			return false;
 		}
 
 		VkFormat GetLinearFormat(VkFormat format)
@@ -71,8 +73,9 @@ namespace Vulkan
 				case VK_FORMAT_B8G8R8A8_SRGB:
 					return VK_FORMAT_B8G8R8A8_UNORM;
 				default:
-					return format;
+					break;
 			}
+			return format;
 		}
 
 		u32 GetTexelSize(VkFormat format)
@@ -80,9 +83,6 @@ namespace Vulkan
 			// Only contains pixel formats we use.
 			switch (format)
 			{
-				case VK_FORMAT_R8_UNORM:
-					return 1;
-
 				case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
 				case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
 				case VK_FORMAT_R5G6B5_UNORM_PACK16:
@@ -105,10 +105,11 @@ namespace Vulkan
 				case VK_FORMAT_BC7_UNORM_BLOCK:
 					return 16;
 
+				case VK_FORMAT_R8_UNORM:
 				default:
-					pxFailRel("Unhandled pixel format");
-					return 1;
+					break;
 			}
+			return 1;
 		}
 
 		VkBlendFactor GetAlphaBlendFactor(VkBlendFactor factor)
@@ -124,8 +125,9 @@ namespace Vulkan
 				case VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR:
 					return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
 				default:
-					return factor;
+					break;
 			}
+			return factor;
 		}
 
 		void SetViewport(VkCommandBuffer command_buffer, int x, int y, int width, int height,
@@ -269,125 +271,6 @@ namespace Vulkan
 			}
 
 			last_st->pNext = static_cast<const VkBaseInStructure*>(ptr);
-		}
-
-		const char* VkResultToString(VkResult res)
-		{
-			switch (res)
-			{
-				case VK_SUCCESS:
-					return "VK_SUCCESS";
-
-				case VK_NOT_READY:
-					return "VK_NOT_READY";
-
-				case VK_TIMEOUT:
-					return "VK_TIMEOUT";
-
-				case VK_EVENT_SET:
-					return "VK_EVENT_SET";
-
-				case VK_EVENT_RESET:
-					return "VK_EVENT_RESET";
-
-				case VK_INCOMPLETE:
-					return "VK_INCOMPLETE";
-
-				case VK_ERROR_OUT_OF_HOST_MEMORY:
-					return "VK_ERROR_OUT_OF_HOST_MEMORY";
-
-				case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-					return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
-
-				case VK_ERROR_INITIALIZATION_FAILED:
-					return "VK_ERROR_INITIALIZATION_FAILED";
-
-				case VK_ERROR_DEVICE_LOST:
-					return "VK_ERROR_DEVICE_LOST";
-
-				case VK_ERROR_MEMORY_MAP_FAILED:
-					return "VK_ERROR_MEMORY_MAP_FAILED";
-
-				case VK_ERROR_LAYER_NOT_PRESENT:
-					return "VK_ERROR_LAYER_NOT_PRESENT";
-
-				case VK_ERROR_EXTENSION_NOT_PRESENT:
-					return "VK_ERROR_EXTENSION_NOT_PRESENT";
-
-				case VK_ERROR_FEATURE_NOT_PRESENT:
-					return "VK_ERROR_FEATURE_NOT_PRESENT";
-
-				case VK_ERROR_INCOMPATIBLE_DRIVER:
-					return "VK_ERROR_INCOMPATIBLE_DRIVER";
-
-				case VK_ERROR_TOO_MANY_OBJECTS:
-					return "VK_ERROR_TOO_MANY_OBJECTS";
-
-				case VK_ERROR_FORMAT_NOT_SUPPORTED:
-					return "VK_ERROR_FORMAT_NOT_SUPPORTED";
-
-				case VK_ERROR_SURFACE_LOST_KHR:
-					return "VK_ERROR_SURFACE_LOST_KHR";
-
-				case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
-					return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
-
-				case VK_SUBOPTIMAL_KHR:
-					return "VK_SUBOPTIMAL_KHR";
-
-				case VK_ERROR_OUT_OF_DATE_KHR:
-					return "VK_ERROR_OUT_OF_DATE_KHR";
-
-				case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
-					return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
-
-				case VK_ERROR_VALIDATION_FAILED_EXT:
-					return "VK_ERROR_VALIDATION_FAILED_EXT";
-
-				case VK_ERROR_INVALID_SHADER_NV:
-					return "VK_ERROR_INVALID_SHADER_NV";
-
-				default:
-					return "UNKNOWN_VK_RESULT";
-			}
-		}
-
-		const char* PresentModeToString(VkPresentModeKHR mode)
-		{
-			switch (mode)
-			{
-				case VK_PRESENT_MODE_IMMEDIATE_KHR:
-					return "VK_PRESENT_MODE_IMMEDIATE_KHR";
-
-				case VK_PRESENT_MODE_MAILBOX_KHR:
-					return "VK_PRESENT_MODE_MAILBOX_KHR";
-
-				case VK_PRESENT_MODE_FIFO_KHR:
-					return "VK_PRESENT_MODE_FIFO_KHR";
-
-				case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
-					return "VK_PRESENT_MODE_FIFO_RELAXED_KHR";
-
-				case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
-					return "VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR";
-
-				case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR:
-					return "VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR";
-
-				default:
-					return "UNKNOWN_VK_PRESENT_MODE";
-			}
-		}
-
-		void LogVulkanResult(const char* func_name, VkResult res, const char* msg, ...)
-		{
-			std::va_list ap;
-			va_start(ap, msg);
-			std::string real_msg = StringUtil::StdStringFromFormatV(msg, ap);
-			va_end(ap);
-
-			Console.Error(
-				"(%s) %s (%d: %s)", func_name, real_msg.c_str(), static_cast<int>(res), VkResultToString(res));
 		}
 	} // namespace Util
 } // namespace Vulkan

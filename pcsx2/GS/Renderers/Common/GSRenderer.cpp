@@ -199,11 +199,6 @@ bool GSRenderer::Merge(int field)
 	return true;
 }
 
-GSVector2i GSRenderer::GetInternalResolution()
-{
-	return m_real_size;
-}
-
 float GSRenderer::GetModXYOffset()
 {
 	float mod_xy = 0.0f;

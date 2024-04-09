@@ -99,10 +99,7 @@ namespace Vulkan
 		if (res == VK_ERROR_OUT_OF_DEVICE_MEMORY)
 			return false;
 		else if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vmaCreateImage failed: ");
 			return false;
-		}
 
 		const VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0, image, view_type,
 			format, swizzle ? *swizzle : s_identity_swizzle,
@@ -114,7 +111,6 @@ namespace Vulkan
 		res = vkCreateImageView(g_vulkan_context->GetDevice(), &view_info, nullptr, &view);
 		if (res != VK_SUCCESS)
 		{
-			LOG_VULKAN_ERROR(res, "vkCreateImageView failed: ");
 			vmaDestroyImage(g_vulkan_context->GetAllocator(), image, allocation);
 			return false;
 		}
@@ -149,10 +145,7 @@ namespace Vulkan
 		VkImageView view = VK_NULL_HANDLE;
 		VkResult res = vkCreateImageView(g_vulkan_context->GetDevice(), &view_info, nullptr, &view);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateImageView failed: ");
 			return false;
-		}
 
 		if (IsValid())
 			Destroy(true);
@@ -363,10 +356,7 @@ namespace Vulkan
 		VkFramebuffer fb = VK_NULL_HANDLE;
 		VkResult res = vkCreateFramebuffer(g_vulkan_context->GetDevice(), &ci, nullptr, &fb);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateFramebuffer() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		return fb;
 	}

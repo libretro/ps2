@@ -204,7 +204,7 @@ struct alignas(16) GSHWDrawConfig
 		None,
 		Point,
 		Line,
-		Sprite,
+		Sprite
 	};
 #pragma pack(push, 1)
 	struct VSSelector

@@ -32,7 +32,7 @@ public:
 		RenderTarget = 1,
 		DepthStencil,
 		Texture,
-		RWTexture,
+		RWTexture
 	};
 
 	enum class Format : u8
@@ -48,7 +48,7 @@ public:
 		BC1,          ///< BC1, aka DXT1 compressed texture for replacements
 		BC2,          ///< BC2, aka DXT2/3 compressed texture for replacements
 		BC3,          ///< BC3, aka DXT4/5 compressed texture for replacements
-		BC7,          ///< BC7, aka BPTC compressed texture for replacements
+		BC7           ///< BC7, aka BPTC compressed texture for replacements
 	};
 
 	enum class State : u8
@@ -108,7 +108,6 @@ public:
 	static u32 CalcUploadRowLengthFromPitch(Format format, u32 pitch);
 	static u32 CalcUploadSize(Format format, u32 height, u32 pitch);
 
-	u32 GetCompressedBytesPerBlock() const;
 	u32 GetCompressedBlockSize() const;
 	u32 CalcUploadRowLengthFromPitch(u32 pitch) const;
 	u32 CalcUploadSize(u32 height, u32 pitch) const;

@@ -80,10 +80,7 @@ namespace Vulkan
 		VmaAllocation new_allocation = VK_NULL_HANDLE;
 		VkResult res = vmaCreateBuffer(g_vulkan_context->GetAllocator(), &bci, &aci, &new_buffer, &new_allocation, &ai);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateBuffer failed: ");
 			return false;
-		}
 
 		if (IsValid())
 			Destroy(true);

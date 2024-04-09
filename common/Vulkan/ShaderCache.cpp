@@ -314,10 +314,7 @@ namespace Vulkan
 		const VkPipelineCacheCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, 0, nullptr};
 		VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreatePipelineCache() failed: ");
 			return false;
-		}
 
 		m_pipeline_cache_dirty = true;
 		return true;
@@ -344,10 +341,7 @@ namespace Vulkan
 			VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, data->size(), data->data()};
 		VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreatePipelineCache() failed: ");
 			return false;
-		}
 
 		return true;
 	}
@@ -360,18 +354,12 @@ namespace Vulkan
 		size_t data_size;
 		VkResult res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, nullptr);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetPipelineCacheData() failed: ");
 			return false;
-		}
 
 		std::vector<u8> data(data_size);
 		res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, data.data());
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetPipelineCacheData() (2) failed: ");
 			return false;
-		}
 
 		data.resize(data_size);
 
@@ -480,10 +468,7 @@ namespace Vulkan
 		VkShaderModule mod;
 		VkResult res = vkCreateShaderModule(g_vulkan_context->GetDevice(), &ci, nullptr, &mod);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateShaderModule() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		return mod;
 	}

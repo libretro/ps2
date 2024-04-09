@@ -37,10 +37,7 @@ namespace Vulkan
 		VkDescriptorSetLayout layout;
 		VkResult res = vkCreateDescriptorSetLayout(device, &m_ci, nullptr, &layout);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateDescriptorSetLayout() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		Clear();
 		return layout;
@@ -80,10 +77,7 @@ namespace Vulkan
 		VkPipelineLayout layout;
 		VkResult res = vkCreatePipelineLayout(device, &m_ci, nullptr, &layout);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreatePipelineLayout() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		Clear();
 		return layout;
@@ -174,10 +168,7 @@ namespace Vulkan
 		VkPipeline pipeline;
 		VkResult res = vkCreateGraphicsPipelines(device, pipeline_cache, 1, &m_ci, nullptr, &pipeline);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateGraphicsPipelines() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		if (clear)
 			Clear();
@@ -466,10 +457,7 @@ namespace Vulkan
 		VkPipeline pipeline;
 		VkResult res = vkCreateComputePipelines(device, pipeline_cache, 1, &m_ci, nullptr, &pipeline);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateComputePipelines() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		if (clear)
 			Clear();
@@ -522,10 +510,7 @@ namespace Vulkan
 		VkSampler sampler;
 		VkResult res = vkCreateSampler(device, &m_ci, nullptr, &sampler);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateSampler() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		return sampler;
 	}
@@ -804,10 +789,7 @@ namespace Vulkan
 		VkFramebuffer fb;
 		VkResult res = vkCreateFramebuffer(device, &m_ci, nullptr, &fb);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateFramebuffer() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		if (clear)
 			Clear();
@@ -851,10 +833,7 @@ namespace Vulkan
 		VkRenderPass rp;
 		VkResult res = vkCreateRenderPass(device, &m_ci, nullptr, &rp);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateRenderPass() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		return rp;
 	}
@@ -934,10 +913,7 @@ namespace Vulkan
 		VkBufferView bv;
 		VkResult res = vkCreateBufferView(device, &m_ci, nullptr, &bv);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateBufferView() failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		return bv;
 	}

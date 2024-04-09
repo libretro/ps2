@@ -52,12 +52,6 @@ namespace Vulkan
 		// Adds a structure to a chain.
 		void AddPointerToChain(void* head, const void* ptr);
 
-		const char* VkResultToString(VkResult res);
-		const char* PresentModeToString(VkPresentModeKHR mode);
-		void LogVulkanResult(const char* func_name, VkResult res, const char* msg, ...) /*printflike(4, 5)*/;
-
-#define LOG_VULKAN_ERROR(res, ...) ::Vulkan::Util::LogVulkanResult(__func__, res, __VA_ARGS__)
-
 #if defined(_DEBUG)
 
 // We can't use the templates below because they're all the same type on 32-bit.

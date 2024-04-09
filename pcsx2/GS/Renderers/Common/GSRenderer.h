@@ -52,7 +52,6 @@ public:
 	virtual bool CanUpscale() { return false; }
 	virtual float GetUpscaleMultiplier() { return 1.0f; }
 	virtual float GetTextureScaleFactor() { return 1.0f; }
-	GSVector2i GetInternalResolution();
 	float GetModXYOffset();
 
 	virtual GSTexture* LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size);

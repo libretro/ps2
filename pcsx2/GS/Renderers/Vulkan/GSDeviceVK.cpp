@@ -125,10 +125,7 @@ namespace Vulkan
 		VkInstance instance;
 		VkResult res = vkCreateInstance(&instance_create_info, nullptr, &instance);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateInstance failed: ");
 			return nullptr;
-		}
 
 		return instance;
 	}
@@ -138,10 +135,7 @@ namespace Vulkan
 		u32 extension_count = 0;
 		VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkEnumerateInstanceExtensionProperties failed: ");
 			return false;
-		}
 
 		if (extension_count == 0)
 		{
@@ -181,24 +175,15 @@ namespace Vulkan
 		u32 gpu_count = 0;
 		VkResult res = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
 		if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || gpu_count == 0)
-		{
-			LOG_VULKAN_ERROR(res, "vkEnumeratePhysicalDevices (1) failed: ");
 			return {};
-		}
 
 		GPUList gpus;
 		gpus.resize(gpu_count);
 
 		res = vkEnumeratePhysicalDevices(instance, &gpu_count, gpus.data());
-		if (res == VK_INCOMPLETE)
-		{
-			Console.Warning("First vkEnumeratePhysicalDevices() call returned %zu devices, but second returned %u", gpus.size(), gpu_count);
-		}
+		if (res == VK_INCOMPLETE) { }
 		else if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkEnumeratePhysicalDevices (2) failed: ");
 			return {};
-		}
 
 		// Maybe we lost a GPU?
 		if (gpu_count < gpus.size())
@@ -212,20 +197,14 @@ namespace Vulkan
 		u32 gpu_count = 0;
 		VkResult res = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
 		if (res != VK_SUCCESS || gpu_count == 0)
-		{
-			LOG_VULKAN_ERROR(res, "vkEnumeratePhysicalDevices failed: ");
 			return {};
-		}
 
 		GPUList gpus;
 		gpus.resize(gpu_count);
 
 		res = vkEnumeratePhysicalDevices(instance, &gpu_count, gpus.data());
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkEnumeratePhysicalDevices failed: ");
 			return {};
-		}
 
 		GPUNameList gpu_names;
 		gpu_names.reserve(gpu_count);
@@ -317,10 +296,7 @@ namespace Vulkan
 		u32 extension_count = 0;
 		VkResult res = vkEnumerateDeviceExtensionProperties(m_physical_device, nullptr, &extension_count, nullptr);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkEnumerateDeviceExtensionProperties failed: ");
 			return false;
-		}
 
 		if (extension_count == 0)
 		{
@@ -438,10 +414,7 @@ namespace Vulkan
 				VkBool32 present_supported;
 				VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(m_physical_device, i, surface, &present_supported);
 				if (res != VK_SUCCESS)
-				{
-					LOG_VULKAN_ERROR(res, "vkGetPhysicalDeviceSurfaceSupportKHR failed: ");
 					return false;
-				}
 
 				if (present_supported)
 				{
@@ -584,10 +557,7 @@ namespace Vulkan
 
 		VkResult res = vkCreateDevice(m_physical_device, &device_info, nullptr, &m_device);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateDevice failed: ");
 			return false;
-		}
 
 		// With the device created, we can fill the remaining entry points.
 		if (!LoadVulkanDeviceFunctions(m_device))
@@ -723,10 +693,7 @@ namespace Vulkan
 
 		VkResult res = vmaCreateAllocator(&ci, &m_allocator);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vmaCreateAllocator failed: ");
 			return false;
-		}
 
 		return true;
 	}
@@ -753,10 +720,7 @@ namespace Vulkan
 				VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr, 0, m_graphics_queue_family_index};
 			res = vkCreateCommandPool(m_device, &pool_info, nullptr, &resources.command_pool);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateCommandPool failed: ");
 				return false;
-			}
 			Vulkan::Util::SetObjectName(
 				g_vulkan_context->GetDevice(), resources.command_pool, "Frame Command Pool %u", frame_index);
 
@@ -766,10 +730,7 @@ namespace Vulkan
 
 			res = vkAllocateCommandBuffers(m_device, &buffer_info, resources.command_buffers.data());
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkAllocateCommandBuffers failed: ");
 				return false;
-			}
 			for (u32 i = 0; i < resources.command_buffers.size(); i++)
 			{
 				Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), resources.command_buffers[i],
@@ -780,10 +741,7 @@ namespace Vulkan
 
 			res = vkCreateFence(m_device, &fence_info, nullptr, &resources.fence);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateFence failed: ");
 				return false;
-			}
 			Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), resources.fence, "Frame Fence %u", frame_index);
 			// TODO: A better way to choose the number of descriptors.
 			VkDescriptorPoolSize pool_sizes[] = {
@@ -798,10 +756,7 @@ namespace Vulkan
 
 			res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &resources.descriptor_pool);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateDescriptorPool failed: ");
 				return false;
-			}
 			Vulkan::Util::SetObjectName(
 				g_vulkan_context->GetDevice(), resources.descriptor_pool, "Frame Descriptor Pool %u", frame_index);
 
@@ -858,10 +813,7 @@ namespace Vulkan
 
 		VkResult res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &m_global_descriptor_pool);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateDescriptorPool failed: ");
 			return false;
-		}
 		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_global_descriptor_pool, "Global Descriptor Pool");
 
 		return true;
@@ -995,7 +947,6 @@ namespace Vulkan
 		const VkResult res = vkWaitForFences(m_device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
 		if (res != VK_SUCCESS)
 		{
-			LOG_VULKAN_ERROR(res, "vkWaitForFences failed: ");
 			m_last_submit_failed.store(true, std::memory_order_release);
 			return;
 		}
@@ -1029,10 +980,7 @@ namespace Vulkan
 		{
 			res = vkEndCommandBuffer(resources.command_buffers[0]);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
 				pxFailRel("Failed to end command buffer");
-			}
 		}
 
 		bool wants_timestamp = m_spin_timer;
@@ -1043,10 +991,7 @@ namespace Vulkan
 
 		res = vkEndCommandBuffer(resources.command_buffers[1]);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
 			pxFailRel("Failed to end command buffer");
-		}
 
 		// This command buffer now has commands, so can't be re-used without waiting.
 		resources.needs_fence_wait = true;
@@ -1140,7 +1085,6 @@ namespace Vulkan
 		const VkResult res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
 		if (res != VK_SUCCESS)
 		{
-			LOG_VULKAN_ERROR(res, "vkQueueSubmit failed: ");
 			m_last_submit_failed.store(true, std::memory_order_release);
 			return;
 		}
@@ -1161,10 +1105,6 @@ namespace Vulkan
 		const VkResult res = vkQueuePresentKHR(m_present_queue, &present_info);
 		if (res != VK_SUCCESS)
 		{
-			// VK_ERROR_OUT_OF_DATE_KHR is not fatal, just means we need to recreate our swap chain.
-			if (res != VK_ERROR_OUT_OF_DATE_KHR && res != VK_SUBOPTIMAL_KHR)
-				LOG_VULKAN_ERROR(res, "vkQueuePresentKHR failed: ");
-
 			m_last_present_failed.store(true, std::memory_order_release);
 			return;
 		}
@@ -1238,26 +1178,17 @@ namespace Vulkan
 			WaitForCommandBufferCompletion(index);
 
 		// Reset fence to unsignaled before starting.
-		VkResult res = vkResetFences(m_device, 1, &resources.fence);
-		if (res != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkResetFences failed: ");
-
+		vkResetFences(m_device, 1, &resources.fence);
 		// Reset command pools to beginning since we can re-use the memory now
-		res = vkResetCommandPool(m_device, resources.command_pool, 0);
-		if (res != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkResetCommandPool failed: ");
+		vkResetCommandPool(m_device, resources.command_pool, 0);
 
 		// Enable commands to be recorded to the two buffers again.
 		VkCommandBufferBeginInfo begin_info = {
 			VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr};
-		res = vkBeginCommandBuffer(resources.command_buffers[1], &begin_info);
-		if (res != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkBeginCommandBuffer failed: ");
+		vkBeginCommandBuffer(resources.command_buffers[1], &begin_info);
 
 		// Also can do the same for the descriptor pools
-		res = vkResetDescriptorPool(m_device, resources.descriptor_pool, 0);
-		if (res != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkResetDescriptorPool failed: ");
+		vkResetDescriptorPool(m_device, resources.descriptor_pool, 0);
 
 		bool wants_timestamp = m_spin_timer;
 		if (wants_timestamp)
@@ -1424,10 +1355,7 @@ namespace Vulkan
 		const VkResult res =
 			vkCreateDebugUtilsMessengerEXT(m_instance, &messenger_info, nullptr, &m_debug_messenger_callback);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateDebugUtilsMessengerEXT failed: ");
 			return false;
-		}
 
 		return true;
 	}
@@ -1518,10 +1446,7 @@ namespace Vulkan
 		VkRenderPass pass;
 		const VkResult res = vkCreateRenderPass(m_device, &pass_info, nullptr, &pass);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateRenderPass failed: ");
 			return VK_NULL_HANDLE;
-		}
 
 		m_render_pass_cache.emplace(key.key, pass);
 		return pass;
@@ -1565,10 +1490,7 @@ void main()
 #define CHECKED_CREATE(create_fn, create_struct, output_struct) \
 	do { \
 		if ((res = create_fn(m_device, create_struct, nullptr, output_struct)) != VK_SUCCESS) \
-		{ \
-			LOG_VULKAN_ERROR(res, #create_fn " failed: "); \
 			return false; \
-		} \
 	} while (0)
 
 		VkDescriptorSetLayoutBinding set_layout_binding = {};
@@ -1605,10 +1527,7 @@ void main()
 		res = vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &pl_create, nullptr, &m_spin_pipeline);
 		vkDestroyShaderModule(m_device, shader_module, nullptr);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateComputePipelines failed: ");
 			return false;
-		}
 		Util::SetObjectName(m_device, m_spin_pipeline, "Spin Pipeline");
 
 		VmaAllocationCreateInfo buf_vma_create = {};
@@ -1617,10 +1536,7 @@ void main()
 		buf_create.size = 4;
 		buf_create.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		if ((res = vmaCreateBuffer(m_allocator, &buf_create, &buf_vma_create, &m_spin_buffer, &m_spin_buffer_allocation, nullptr)) != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vmaCreateBuffer failed: ");
 			return false;
-		}
 		Util::SetObjectName(m_device, m_spin_buffer, "Spin Buffer");
 
 		VkDescriptorSetAllocateInfo desc_set_allocate = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
@@ -1628,10 +1544,7 @@ void main()
 		desc_set_allocate.descriptorSetCount = 1;
 		desc_set_allocate.pSetLayouts = &m_spin_descriptor_set_layout;
 		if ((res = vkAllocateDescriptorSets(m_device, &desc_set_allocate, &m_spin_descriptor_set)) != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkAllocateDescriptorSets failed: ");
 			return false;
-		}
 		const VkDescriptorBufferInfo desc_buffer_info = { m_spin_buffer, 0, VK_WHOLE_SIZE };
 		VkWriteDescriptorSet desc_set_write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		desc_set_write.dstSet = m_spin_descriptor_set;
@@ -1655,10 +1568,7 @@ void main()
 			buffer_info.commandBufferCount = 1;
 			res = vkAllocateCommandBuffers(m_device, &buffer_info, &resources.command_buffer);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkAllocateCommandBuffers failed: ");
 				return false;
-			}
 			Vulkan::Util::SetObjectName(m_device, resources.command_buffer, "Spin Command Buffer %u", index);
 
 			VkFenceCreateInfo fence_info = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -1726,7 +1636,6 @@ void main()
 		const VkResult res = vkWaitForFences(m_device, 1, &resources.fence, VK_TRUE, UINT64_MAX);
 		if (res != VK_SUCCESS)
 		{
-			LOG_VULKAN_ERROR(res, "vkWaitForFences failed: ");
 			m_last_submit_failed.store(true, std::memory_order_release);
 			return;
 		}
@@ -1747,39 +1656,31 @@ void main()
 			if (m_optional_extensions.vk_ext_calibrated_timestamps)
 			{
 				begin = timestamps[0] * m_spin_timestamp_scale + m_spin_timestamp_offset;
-				end = timestamps[1] * m_spin_timestamp_scale + m_spin_timestamp_offset;
+				end   = timestamps[1] * m_spin_timestamp_scale + m_spin_timestamp_offset;
 			}
 			else
 			{
 				begin = timestamps[0] * m_spin_timestamp_scale;
-				end = timestamps[1] * m_spin_timestamp_scale;
+				end   = timestamps[1] * m_spin_timestamp_scale;
 			}
 			m_spin_manager.SpinCompleted(resources.cycles, begin, end);
-		}
-		else
-		{
-			LOG_VULKAN_ERROR(res, "vkGetQueryPoolResults failed: ");
 		}
 	}
 
 	void Context::SubmitSpinCommand(u32 index, u32 cycles)
 	{
 		SpinResources& resources = m_spin_resources[index];
-		VkResult res;
 
 		// Reset fence to unsignaled before starting.
-		if ((res = vkResetFences(m_device, 1, &resources.fence)) != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkResetFences failed: ");
+		vkResetFences(m_device, 1, &resources.fence);
 
 		// Reset command pools to beginning since we can re-use the memory now
-		if ((res = vkResetCommandPool(m_device, resources.command_pool, 0)) != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkResetCommandPool failed: ");
+		vkResetCommandPool(m_device, resources.command_pool, 0);
 
 		// Enable commands to be recorded to the two buffers again.
 		VkCommandBufferBeginInfo begin_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		if ((res = vkBeginCommandBuffer(resources.command_buffer, &begin_info)) != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkBeginCommandBuffer failed: ");
+		vkBeginCommandBuffer(resources.command_buffer, &begin_info);
 
 		if (!m_spin_buffer_initialized)
 		{
@@ -1808,8 +1709,7 @@ void main()
 		vkCmdDispatch(resources.command_buffer, 1, 1, 1);
 		vkCmdWriteTimestamp(resources.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_timestamp_query_pool, timestamp_base + 1);
 
-		if ((res = vkEndCommandBuffer(resources.command_buffer)) != VK_SUCCESS)
-			LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
+		vkEndCommandBuffer(resources.command_buffer);
 
 		VkSubmitInfo submit_info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		submit_info.commandBufferCount = 1;
@@ -1849,10 +1749,7 @@ void main()
 		{
 			const VkResult res = vkGetCalibratedTimestampsEXT(m_device, std::size(infos), infos, timestamps, &maxDeviation);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkGetCalibratedTimestampsEXT failed: ");
 				return;
-			}
 			if (maxDeviation < MAX_MAX_DEVIATION)
 				break;
 		}
@@ -1905,10 +1802,7 @@ void main()
 		VkResult res = vmaCreateBuffer(m_allocator, &cpu_bci, &cpu_aci, &cpu_buffer,
 			&cpu_allocation, &cpu_ai);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vmaCreateBuffer() for CPU expand buffer failed: ");
 			return false;
-		}
 
 		const VkBufferCreateInfo gpu_bci = {
 			VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -1921,7 +1815,6 @@ void main()
 		res = vmaCreateBuffer(m_allocator, &gpu_bci, &gpu_aci, gpu_buffer, gpu_allocation, &ai);
 		if (res != VK_SUCCESS)
 		{
-			LOG_VULKAN_ERROR(res, "vmaCreateBuffer() for expand buffer failed: ");
 			vmaDestroyBuffer(m_allocator, cpu_buffer, cpu_allocation);
 			return false;
 		}
@@ -2182,7 +2075,6 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
 		{
 			// Still submit the command buffer, otherwise we'll end up with several frames waiting.
-			LOG_VULKAN_ERROR(res, "vkAcquireNextImageKHR() failed: ");
 			g_vulkan_context->ExecuteCommandBuffer(Vulkan::Context::WaitType::None);
 			return PresentResult::FrameSkipped;
 		}
@@ -3197,9 +3089,7 @@ VkSampler GSDeviceVK::GetSampler(GSHWDrawConfig::SamplerSelector ss)
 		VK_FALSE // unnormalized coordinates
 	};
 	VkSampler sampler = VK_NULL_HANDLE;
-	VkResult res = vkCreateSampler(g_vulkan_context->GetDevice(), &ci, nullptr, &sampler);
-	if (res != VK_SUCCESS)
-		LOG_VULKAN_ERROR(res, "vkCreateSampler() failed: ");
+	vkCreateSampler(g_vulkan_context->GetDevice(), &ci, nullptr, &sampler);
 
 	m_samplers.emplace(ss.key, sampler);
 	return sampler;

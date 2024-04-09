@@ -188,10 +188,7 @@ VkBuffer GSTextureVK::AllocateUploadStagingBuffer(const void* data, u32 pitch, u
 	VmaAllocation allocation;
 	VkResult res = vmaCreateBuffer(g_vulkan_context->GetAllocator(), &bci, &aci, &buffer, &allocation, &ai);
 	if (res != VK_SUCCESS)
-	{
-		LOG_VULKAN_ERROR(res, "(AllocateUploadStagingBuffer) vmaCreateBuffer() failed: ");
 		return VK_NULL_HANDLE;
-	}
 
 	// Immediately queue it for freeing after the command buffer finishes, since it's only needed for the copy.
 	g_vulkan_context->DeferBufferDestruction(buffer, allocation);
@@ -487,10 +484,7 @@ std::unique_ptr<GSDownloadTextureVK> GSDownloadTextureVK::Create(u32 width, u32 
 	VkBuffer buffer;
 	VkResult res = vmaCreateBuffer(g_vulkan_context->GetAllocator(), &bci, &aci, &buffer, &allocation, &ai);
 	if (res != VK_SUCCESS)
-	{
-		LOG_VULKAN_ERROR(res, "vmaCreateBuffer() failed: ");
 		return {};
-	}
 
 	std::unique_ptr<GSDownloadTextureVK> tex = std::unique_ptr<GSDownloadTextureVK>(new GSDownloadTextureVK(width, height, format));
 	tex->m_allocation = allocation;

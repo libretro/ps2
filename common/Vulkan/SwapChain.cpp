@@ -59,10 +59,7 @@ namespace Vulkan
 			VkSurfaceKHR surface;
 			VkResult res = vkCreateWin32SurfaceKHR(instance, &surface_create_info, nullptr, &surface);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateWin32SurfaceKHR failed: ");
 				return VK_NULL_HANDLE;
-			}
 
 			return surface;
 		}
@@ -82,10 +79,7 @@ namespace Vulkan
 			VkSurfaceKHR surface;
 			VkResult res = vkCreateXlibSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateXlibSurfaceKHR failed: ");
 				return VK_NULL_HANDLE;
-			}
 
 			return surface;
 		}
@@ -101,10 +95,7 @@ namespace Vulkan
 			VkSurfaceKHR surface;
 			VkResult res = vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateWaylandSurfaceEXT failed: ");
 				return VK_NULL_HANDLE;
-			}
 
 			return surface;
 		}
@@ -123,10 +114,7 @@ namespace Vulkan
 			VkSurfaceKHR surface;
 			VkResult res = vkCreateAndroidSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateAndroidSurfaceKHR failed: ");
 				return VK_NULL_HANDLE;
-			}
 
 			return surface;
 		}
@@ -144,10 +132,7 @@ namespace Vulkan
 			VkSurfaceKHR surface;
 			VkResult res = vkCreateMetalSurfaceEXT(instance, &surface_create_info, nullptr, &surface);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateMetalSurfaceEXT failed: ");
 				return VK_NULL_HANDLE;
-			}
 
 			return surface;
 		}
@@ -160,10 +145,7 @@ namespace Vulkan
 			VkSurfaceKHR surface;
 			VkResult res = vkCreateMacOSSurfaceMVK(instance, &surface_create_info, nullptr, &surface);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateMacOSSurfaceMVK failed: ");
 				return VK_NULL_HANDLE;
-			}
 
 			return surface;
 		}
@@ -203,10 +185,7 @@ namespace Vulkan
 		VkResult res = vkGetPhysicalDeviceSurfaceFormatsKHR(
 			g_vulkan_context->GetPhysicalDevice(), m_surface, &format_count, nullptr);
 		if (res != VK_SUCCESS || format_count == 0)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetPhysicalDeviceSurfaceFormatsKHR failed: ");
 			return false;
-		}
 
 		std::vector<VkSurfaceFormatKHR> surface_formats(format_count);
 		res = vkGetPhysicalDeviceSurfaceFormatsKHR(
@@ -243,10 +222,7 @@ namespace Vulkan
 		res = vkGetPhysicalDeviceSurfacePresentModesKHR(
 			g_vulkan_context->GetPhysicalDevice(), m_surface, &mode_count, nullptr);
 		if (res != VK_SUCCESS || mode_count == 0)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetPhysicalDeviceSurfaceFormatsKHR failed: ");
 			return false;
-		}
 
 		std::vector<VkPresentModeKHR> present_modes(mode_count);
 		res = vkGetPhysicalDeviceSurfacePresentModesKHR(
@@ -299,10 +275,7 @@ namespace Vulkan
 		VkResult res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 			g_vulkan_context->GetPhysicalDevice(), m_surface, &surface_capabilities);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed: ");
 			return false;
-		}
 
 		// Select swap chain format and present mode
 		if (!SelectSurfaceFormat() || !SelectPresentMode())
@@ -370,14 +343,9 @@ namespace Vulkan
 		}
 
 		if (m_swap_chain == VK_NULL_HANDLE)
-		{
 			res = vkCreateSwapchainKHR(g_vulkan_context->GetDevice(), &swap_chain_info, nullptr, &m_swap_chain);
-		}
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkCreateSwapchainKHR failed: ");
 			return false;
-		}
 
 		// Now destroy the old swap chain, since it's been recreated.
 		// We can do this immediately since all work should have been completed before calling resize.
@@ -396,10 +364,7 @@ namespace Vulkan
 		u32 image_count;
 		VkResult res = vkGetSwapchainImagesKHR(g_vulkan_context->GetDevice(), m_swap_chain, &image_count, nullptr);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetSwapchainImagesKHR failed: ");
 			return false;
-		}
 
 		std::vector<VkImage> images(image_count);
 		res = vkGetSwapchainImagesKHR(g_vulkan_context->GetDevice(), m_swap_chain, &image_count, images.data());
@@ -445,15 +410,11 @@ namespace Vulkan
 			const VkSemaphoreCreateInfo semaphore_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
 			res = vkCreateSemaphore(g_vulkan_context->GetDevice(), &semaphore_info, nullptr, &sema.available_semaphore);
 			if (res != VK_SUCCESS)
-			{
-				LOG_VULKAN_ERROR(res, "vkCreateSemaphore failed: ");
 				return false;
-			}
 
 			res = vkCreateSemaphore(g_vulkan_context->GetDevice(), &semaphore_info, nullptr, &sema.rendering_finished_semaphore);
 			if (res != VK_SUCCESS)
 			{
-				LOG_VULKAN_ERROR(res, "vkCreateSemaphore failed: ");
 				vkDestroySemaphore(g_vulkan_context->GetDevice(), sema.available_semaphore, nullptr);
 				return false;
 			}
@@ -558,10 +519,7 @@ namespace Vulkan
 		VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkan_context->GetPhysicalDevice(),
 			g_vulkan_context->GetPresentQueueFamilyIndex(), m_surface, &present_supported);
 		if (res != VK_SUCCESS)
-		{
-			LOG_VULKAN_ERROR(res, "vkGetPhysicalDeviceSurfaceSupportKHR failed: ");
 			return false;
-		}
 		if (!present_supported)
 		{
 			pxFailRel("Recreated surface does not support presenting.");

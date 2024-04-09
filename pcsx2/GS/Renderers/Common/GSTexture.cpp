@@ -33,11 +33,6 @@ void GSTexture::Swap(GSTexture* tex)
 	std::swap(m_last_frame_used, tex->m_last_frame_used);
 }
 
-u32 GSTexture::GetCompressedBytesPerBlock() const
-{
-	return GetCompressedBytesPerBlock(m_format);
-}
-
 u32 GSTexture::GetCompressedBytesPerBlock(Format format)
 {
 	static constexpr u32 bytes_per_block[] = {
@@ -67,8 +62,7 @@ u32 GSTexture::GetCompressedBlockSize(Format format)
 {
 	if (format >= Format::BC1 && format <= Format::BC7)
 		return 4;
-	else
-		return 1;
+	return 1;
 }
 
 u32 GSTexture::CalcUploadRowLengthFromPitch(u32 pitch) const
