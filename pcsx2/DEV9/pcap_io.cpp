@@ -324,7 +324,7 @@ bool PCAPAdapter::SetMACSwitchedFilter(MAC_Address mac)
 	char filter[1024] = "ether broadcast or ether dst ";
 
 	char virtual_mac_str[18];
-	sprintf(virtual_mac_str, "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", mac.bytes[0], mac.bytes[1], mac.bytes[2], mac.bytes[3], mac.bytes[4], mac.bytes[5]);
+	snprintf(virtual_mac_str, sizeof(virtual_mac_str), "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", mac.bytes[0], mac.bytes[1], mac.bytes[2], mac.bytes[3], mac.bytes[4], mac.bytes[5]);
 	strcat(filter, virtual_mac_str);
 
 	if (pcap_compile(hpcap, &fp, filter, 1, PCAP_NETMASK_UNKNOWN) == -1)

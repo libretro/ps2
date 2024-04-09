@@ -191,7 +191,7 @@ std::string SymbolMap::GetDescription(unsigned int address) const {
 		return labelName;
 
 	char descriptionTemp[256];
-	sprintf(descriptionTemp, "(%08x)", address);
+	snprintf(descriptionTemp, sizeof(descriptionTemp), "(%08x)", address);
 	return descriptionTemp;
 }
 
