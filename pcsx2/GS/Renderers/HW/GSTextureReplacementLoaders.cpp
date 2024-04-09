@@ -49,7 +49,7 @@ GSTextureReplacements::ReplacementTextureLoader GSTextureReplacements::GetLoader
 
 	for (const LoaderDefinition& defn : s_loaders)
 	{
-		if (StringUtil::Strncasecmp(extension.data(), defn.extension, extension.size()) == 0)
+		if (Strncasecmp(extension.data(), defn.extension, extension.size()) == 0)
 			return defn.loader;
 	}
 

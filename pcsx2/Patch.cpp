@@ -191,7 +191,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 	for (const FILESYSTEM_FIND_DATA& fd : files)
 	{
 		const std::string_view name(Path::GetFileName(fd.FileName));
-		if (name.length() < crc.length() || StringUtil::Strncasecmp(name.data(), crc.c_str(), crc.size()) != 0)
+		if (name.length() < crc.length() || Strncasecmp(name.data(), crc.c_str(), crc.size()) != 0)
 			continue;
 
 		PatchesCon->WriteLn(Color_Green, "Found %s file: '%.*s'", friendly_name, static_cast<int>(name.size()), name.data());

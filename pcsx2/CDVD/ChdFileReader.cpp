@@ -109,7 +109,7 @@ bool ChdFileReader::Open2(std::string fileName)
 			for (const FILESYSTEM_FIND_DATA& fd : results)
 			{
 				const std::string_view extension(Path::GetExtension(fd.FileName));
-				if (extension.empty() || StringUtil::Strncasecmp(extension.data(), "chd", 3) != 0)
+				if (extension.empty() || Strncasecmp(extension.data(), "chd", 3) != 0)
 					continue;
 
 				if (chd_read_header(fd.FileName.c_str(), &parent_header) == CHDERR_NONE &&

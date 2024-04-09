@@ -37,6 +37,12 @@
 #endif
 #endif
 
+#ifdef _MSC_VER
+#define Strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#else
+#define Strncasecmp(s1, s2, n) strncasecmp(s1, s2, n)
+#endif
+
 namespace StringUtil
 {
 	/// Constructs a std::string from a format string.
@@ -55,26 +61,6 @@ namespace StringUtil
 
 	/// Strlcpy from string_view.
 	std::size_t Strlcpy(char* dst, const std::string_view& src, std::size_t size);
-
-	/// Platform-independent strcasecmp
-	static inline int Strcasecmp(const char* s1, const char* s2)
-	{
-#ifdef _MSC_VER
-		return _stricmp(s1, s2);
-#else
-		return strcasecmp(s1, s2);
-#endif
-	}
-
-	/// Platform-independent strcasecmp
-	static inline int Strncasecmp(const char* s1, const char* s2, std::size_t n)
-	{
-#ifdef _MSC_VER
-		return _strnicmp(s1, s2, n);
-#else
-		return strncasecmp(s1, s2, n);
-#endif
-	}
 
 	/// Wrapper around std::from_chars
 	template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
@@ -209,10 +195,6 @@ namespace StringUtil
 	{
 		return std::string(value ? "true" : "false");
 	}
-
-	/// Encode/decode hexadecimal byte buffers
-	std::optional<std::vector<u8>> DecodeHex(const std::string_view& str);
-	std::string EncodeHex(const u8* data, int length);
 
 	/// starts_with from C++20
 	static inline bool StartsWith(const std::string_view& str, const std::string_view& prefix)

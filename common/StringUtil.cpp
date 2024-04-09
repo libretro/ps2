@@ -189,32 +189,6 @@ namespace StringUtil
 		return len;
 	}
 
-	std::optional<std::vector<u8>> DecodeHex(const std::string_view& in)
-	{
-		std::vector<u8> data;
-		data.reserve(in.size() / 2);
-
-		for (size_t i = 0; i < in.size() / 2; i++)
-		{
-			std::optional<u8> byte = StringUtil::FromChars<u8>(in.substr(i * 2, 2), 16);
-			if (byte.has_value())
-				data.push_back(*byte);
-			else
-				return std::nullopt;
-		}
-
-		return {data};
-	}
-
-	std::string EncodeHex(const u8* data, int length)
-	{
-		std::stringstream ss;
-		for (int i = 0; i < length; i++)
-			ss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(data[i]);
-
-		return ss.str();
-	}
-
 	std::string toLower(const std::string_view& input)
 	{
 		std::string newStr;
