@@ -592,6 +592,17 @@ static void recExecute()
 ////////////////////////////////////////////////////
 void R5900::Dynarec::OpcodeImpl::recSYSCALL()
 {
+	if (GPR_IS_CONST1(3))
+	{
+		// If it's FlushCache or iFlushCache, we can skip it since we don't support cache in the JIT.
+		if (g_cpuConstRegs[3].UC[0] == 0x64 || g_cpuConstRegs[3].UC[0] == 0x68)
+		{
+			// Emulate the amount of cycles it takes for the exception handlers to run
+			// This number was found by using github.com/F0bes/flushcache-cycles
+			s_nBlockCycles += 5650;
+			return;
+		}
+	}
 	recCall(R5900::Interpreter::OpcodeImpl::SYSCALL);
 	g_branch = 2; // Indirect branch with event check.
 }
