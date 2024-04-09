@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "GS/Renderers/SW/GSTextureSW.h"
 #include "GS/GSExtra.h"
+#include "common/AlignedMalloc.h"
 
 GSTextureSW::GSTextureSW(Type type, int width, int height)
 {
