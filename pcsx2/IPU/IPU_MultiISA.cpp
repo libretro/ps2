@@ -122,7 +122,6 @@ __fi static int GETWORD()
 __fi static void DUMPBITS(uint num)
 {
 	g_BP.Advance(num);
-	//pxAssume(g_BP.FP != 0);
 }
 
 __fi static u32 GETBITS(uint num)
@@ -149,9 +148,7 @@ __ri static u8 getBits64(u8 *address, bool advance)
 		*(u64*)address = ((~mask & *(u64*)(readpos + 1)) >> (8 - shift)) | (((mask) & *(u64*)readpos) << shift);
 	}
 	else
-	{
 		*(u64*)address = *(u64*)readpos;
-	}
 
 	if (advance) g_BP.Advance(64);
 
@@ -196,9 +193,7 @@ __ri static u8 getBits8(u8 *address, bool advance)
 		*(u8*)address = (((~mask) & readpos[1]) >> (8 - shift)) | (((mask) & *readpos) << shift);
 	}
 	else
-	{
 		*(u8*)address = *(u8*)readpos;
-	}
 
 	if (advance) g_BP.Advance(8);
 
@@ -400,12 +395,12 @@ __ri static void IDCT_Add(const int last, s16* block, s16* dest, const int strid
 static const DCTtab * tab;
 static int mbaCount = 0;
 
-__ri static int BitstreamInit ()
+__ri static int BitstreamInit(void)
 {
 	return g_BP.FillBuffer(32);
 }
 
-static int GetMacroblockModes()
+static int GetMacroblockModes(void)
 {
 	int macroblock_modes;
 	const MBtab * tab;
@@ -423,9 +418,7 @@ static int GetMacroblockModes()
 
 			if ((!(decoder.frame_pred_frame_dct)) &&
 				(decoder.picture_structure == FRAME_PICTURE))
-			{
 				macroblock_modes |= GETBITS(1) * DCT_TYPE_INTERLACED;
-			}
 			return macroblock_modes;
 
 		case P_TYPE:
@@ -440,9 +433,7 @@ static int GetMacroblockModes()
 			if (decoder.picture_structure != FRAME_PICTURE)
 			{
 				if (macroblock_modes & MACROBLOCK_MOTION_FORWARD)
-				{
 					macroblock_modes |= GETBITS(2) * MOTION_TYPE_BASE;
-				}
 
 				return macroblock_modes;
 			}
@@ -456,14 +447,10 @@ static int GetMacroblockModes()
 			else
 			{
 				if (macroblock_modes & MACROBLOCK_MOTION_FORWARD)
-				{
 					macroblock_modes |= GETBITS(2) * MOTION_TYPE_BASE;
-				}
 
 				if (macroblock_modes & (MACROBLOCK_INTRA | MACROBLOCK_PATTERN))
-				{
 					macroblock_modes |= GETBITS(1) * DCT_TYPE_INTERLACED;
-				}
 
 				return macroblock_modes;
 			}
@@ -480,9 +467,7 @@ static int GetMacroblockModes()
 			if (decoder.picture_structure != FRAME_PICTURE)
 			{
 				if (!(macroblock_modes & MACROBLOCK_INTRA))
-				{
 					macroblock_modes |= GETBITS(2) * MOTION_TYPE_BASE;
-				}
 				return (macroblock_modes | (tab->len << 16));
 			}
 			else if (decoder.frame_pred_frame_dct)
@@ -517,10 +502,9 @@ intra:
 	}
 }
 
-__ri static int get_macroblock_address_increment()
+__ri static int get_macroblock_address_increment(void)
 {
 	const MBAtab *mba;
-
 	u16 code = UBITS(16);
 
 	if (code >= 4096)
@@ -634,147 +618,147 @@ __ri static bool get_intra_block()
 	u16 code;
 
 	/* decode AC coefficients */
-  for (int i=1 + ipu_cmd.pos[4]; ; i++)
-  {
-	  switch (ipu_cmd.pos[5])
-	  {
-	  case 0:
-		if (!GETWORD())
+	for (int i=1 + ipu_cmd.pos[4]; ; i++)
+	{
+		switch (ipu_cmd.pos[5])
 		{
-		  ipu_cmd.pos[4] = i - 1;
-		  return false;
-		}
-
-		code = UBITS(16);
-
-		if (code >= 16384 && (!decoder.intra_vlc_format || decoder.mpeg1))
-		{
-		  tab = &DCT.next[(code >> 12) - 4];
-		}
-		else if (code >= 1024)
-		{
-			if (decoder.intra_vlc_format && !decoder.mpeg1)
-			{
-				tab = &DCT.tab0a[(code >> 8) - 4];
-			}
-			else
-			{
-				tab = &DCT.tab0[(code >> 8) - 4];
-			}
-		}
-		else if (code >= 512)
-		{
-			if (decoder.intra_vlc_format && !decoder.mpeg1)
-			{
-				tab = &DCT.tab1a[(code >> 6) - 8];
-			}
-			else
-			{
-				tab = &DCT.tab1[(code >> 6) - 8];
-			}
-		}
-
-		// [TODO] Optimization: Following codes can all be done by a single "expedited" lookup
-		// that should use a single unrolled DCT table instead of five separate tables used
-		// here.  Multiple conditional statements are very slow, while modern CPU data caches
-		// have lots of room to spare.
-
-		else if (code >= 256)
-		{
-			tab = &DCT.tab2[(code >> 4) - 16];
-		}
-		else if (code >= 128)
-		{
-			tab = &DCT.tab3[(code >> 3) - 16];
-		}
-		else if (code >= 64)
-		{
-			tab = &DCT.tab4[(code >> 2) - 16];
-		}
-		else if (code >= 32)
-		{
-			tab = &DCT.tab5[(code >> 1) - 16];
-		}
-		else if (code >= 16)
-		{
-			tab = &DCT.tab6[code - 16];
-		}
-		else
-		{
-		  ipu_cmd.pos[4] = 0;
-		  return true;
-		}
-
-		DUMPBITS(tab->len);
-
-		if (tab->run==64) /* end_of_block */
-		{
-			ipu_cmd.pos[4] = 0;
-			return true;
-		}
-
-		i += (tab->run == 65) ? GETBITS(6) : tab->run;
-		if (i >= 64)
-		{
-			ipu_cmd.pos[4] = 0;
-			return true;
-		}
-		[[fallthrough]];
-
-	  case 1:
-	  {
-			if (!GETWORD())
-			{
-				ipu_cmd.pos[4] = i - 1;
-				ipu_cmd.pos[5] = 1;
-				return false;
-			}
-
-			uint j = scan[i];
-			int val;
-
-			if (tab->run==65) /* escape */
-			{
-				if(!decoder.mpeg1)
+			case 0:
+				if (!GETWORD())
 				{
-				  val = (SBITS(12) * quantizer_scale * quant_matrix[i]) >> 4;
-				  DUMPBITS(12);
+					ipu_cmd.pos[4] = i - 1;
+					return false;
+				}
+
+				code = UBITS(16);
+
+				if (code >= 16384 && (!decoder.intra_vlc_format || decoder.mpeg1))
+				{
+					tab = &DCT.next[(code >> 12) - 4];
+				}
+				else if (code >= 1024)
+				{
+					if (decoder.intra_vlc_format && !decoder.mpeg1)
+					{
+						tab = &DCT.tab0a[(code >> 8) - 4];
+					}
+					else
+					{
+						tab = &DCT.tab0[(code >> 8) - 4];
+					}
+				}
+				else if (code >= 512)
+				{
+					if (decoder.intra_vlc_format && !decoder.mpeg1)
+					{
+						tab = &DCT.tab1a[(code >> 6) - 8];
+					}
+					else
+					{
+						tab = &DCT.tab1[(code >> 6) - 8];
+					}
+				}
+
+				// [TODO] Optimization: Following codes can all be done by a single "expedited" lookup
+				// that should use a single unrolled DCT table instead of five separate tables used
+				// here.  Multiple conditional statements are very slow, while modern CPU data caches
+				// have lots of room to spare.
+
+				else if (code >= 256)
+				{
+					tab = &DCT.tab2[(code >> 4) - 16];
+				}
+				else if (code >= 128)
+				{
+					tab = &DCT.tab3[(code >> 3) - 16];
+				}
+				else if (code >= 64)
+				{
+					tab = &DCT.tab4[(code >> 2) - 16];
+				}
+				else if (code >= 32)
+				{
+					tab = &DCT.tab5[(code >> 1) - 16];
+				}
+				else if (code >= 16)
+				{
+					tab = &DCT.tab6[code - 16];
 				}
 				else
 				{
-				  val = SBITS(8);
-				  DUMPBITS(8);
-
-				  if (!(val & 0x7f))
-				  {
-					val = GETBITS(8) + 2 * val;
-				  }
-
-				  val = (val * quantizer_scale * quant_matrix[i]) >> 4;
-				  val = (val + ~ (((s32)val) >> 31)) | 1;
+					ipu_cmd.pos[4] = 0;
+					return true;
 				}
-			}
-			else
-			{
-				val = (tab->level * quantizer_scale * quant_matrix[i]) >> 4;
-				if(decoder.mpeg1)
+
+				DUMPBITS(tab->len);
+
+				if (tab->run==64) /* end_of_block */
 				{
-					/* oddification */
-					val = (val - 1) | 1;
+					ipu_cmd.pos[4] = 0;
+					return true;
 				}
 
-				/* if (bitstream_get (1)) val = -val; */
-				int bit1 = SBITS(1);
-				val = (val ^ bit1) - bit1;
-				DUMPBITS(1);
-			}
+				i += (tab->run == 65) ? GETBITS(6) : tab->run;
+				if (i >= 64)
+				{
+					ipu_cmd.pos[4] = 0;
+					return true;
+				}
+				[[fallthrough]];
 
-			SATURATE(val);
-			dest[j] = val;
-			ipu_cmd.pos[5] = 0;
+			case 1:
+				{
+					if (!GETWORD())
+					{
+						ipu_cmd.pos[4] = i - 1;
+						ipu_cmd.pos[5] = 1;
+						return false;
+					}
+
+					uint j = scan[i];
+					int val;
+
+					if (tab->run==65) /* escape */
+					{
+						if(!decoder.mpeg1)
+						{
+							val = (SBITS(12) * quantizer_scale * quant_matrix[i]) >> 4;
+							DUMPBITS(12);
+						}
+						else
+						{
+							val = SBITS(8);
+							DUMPBITS(8);
+
+							if (!(val & 0x7f))
+							{
+								val = GETBITS(8) + 2 * val;
+							}
+
+							val = (val * quantizer_scale * quant_matrix[i]) >> 4;
+							val = (val + ~ (((s32)val) >> 31)) | 1;
+						}
+					}
+					else
+					{
+						val = (tab->level * quantizer_scale * quant_matrix[i]) >> 4;
+						if(decoder.mpeg1)
+						{
+							/* oddification */
+							val = (val - 1) | 1;
+						}
+
+						/* if (bitstream_get (1)) val = -val; */
+						int bit1 = SBITS(1);
+						val = (val ^ bit1) - bit1;
+						DUMPBITS(1);
+					}
+
+					SATURATE(val);
+					dest[j] = val;
+					ipu_cmd.pos[5] = 0;
+				}
 		}
-	 }
-  }
+	}
 
   ipu_cmd.pos[4] = 0;
   return true;

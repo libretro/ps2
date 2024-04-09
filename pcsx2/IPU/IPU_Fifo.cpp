@@ -138,14 +138,9 @@ void IPU_Fifo_Output::read(void *value, uint size)
 	pxAssert(ipuRegs.ctrl.OFC >= size);
 	ipuRegs.ctrl.OFC -= size;
 
-	// Zeroing the read data is not needed, since the ringbuffer design will never read back
-	// the zero'd data anyway. --air
-
-	//__m128 zeroreg = _mm_setzero_ps();
 	while (size > 0)
 	{
 		CopyQWC(value, &data[readpos]);
-		//_mm_store_ps((float*)&data[readpos], zeroreg);
 
 		readpos = (readpos + 4) & 31;
 		value = (u128*)value + 1;
