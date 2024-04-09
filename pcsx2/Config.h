@@ -514,11 +514,6 @@ struct Pcsx2Config
 					SaveFrame : 1,
 					SaveTexture : 1,
 					SaveDepth : 1,
-					DumpReplaceableTextures : 1,
-					DumpReplaceableMipmaps : 1,
-					DumpTexturesWithFMVActive : 1,
-					DumpDirectTextures : 1,
-					DumpPaletteTextures : 1,
 					LoadTextureReplacements : 1,
 					LoadTextureReplacementsAsync : 1,
 					PrecacheTextureReplacements : 1;
@@ -580,8 +575,6 @@ struct Pcsx2Config
 		u16 SWExtraThreadsHeight = 4;
 
 		std::string Adapter;
-		std::string HWDumpDirectory;
-		std::string SWDumpDirectory;
 
 		GSOptions();
 

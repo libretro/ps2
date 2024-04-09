@@ -44,9 +44,6 @@
 
 #include "fmt/core.h"
 
-#include <csetjmp>
-#include <png.h>
-
 using namespace R5900;
 
 static tlbs s_tlb_backup[std::size(tlb)];
@@ -88,7 +85,6 @@ bool SaveStateBase::FreezeTag(const char *src)
 
 	if(strcmp( m_tagspace, src ) != 0 )
 	{
-		Console.Error(fmt::format("Savestate data corruption detected while reading tag: {}", src));
 		m_error = true;
 		return false;
 	}

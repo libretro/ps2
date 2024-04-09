@@ -192,9 +192,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	int colorType = -1;
 	if (png_get_IHDR(png_ptr, info_ptr, &width, &height, &bitDepth, &colorType, nullptr, nullptr, nullptr) != 1 ||
 		width == 0 || height == 0)
-	{
 		return false;
-	}
 
 	const u32 pitch = width * sizeof(u32);
 	tex->width = width;
@@ -230,49 +228,6 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		}
 	}
 
-	return true;
-}
-
-bool GSTextureReplacements::SavePNGImage(const std::string& filename, u32 width, u32 height, const u8* buffer, u32 pitch)
-{
-	const int compression = GSConfig.PNGCompressionLevel;
-
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-	if (!png_ptr)
-		return false;
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-	if (info_ptr == nullptr)
-	{
-		png_destroy_write_struct(&png_ptr, nullptr);
-		return false;
-	}
-
-	ScopedGuard cleanup([&png_ptr, &info_ptr]() {
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-	});
-
-	if (setjmp(png_jmpbuf(png_ptr)))
-		return false;
-
-	auto fp = FileSystem::OpenManagedCFile(filename.c_str(), "wb");
-	if (!fp)
-		return false;
-
-	png_init_io(png_ptr, fp.get());
-	png_set_compression_level(png_ptr, compression);
-	png_set_IHDR(png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_RGBA,
-		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-	png_write_info(png_ptr, info_ptr);
-	png_set_swap(png_ptr);
-
-	for (u32 y = 0; y < height; ++y)
-	{
-		// cast is needed here for mac builder
-		png_write_row(png_ptr, (png_bytep)(buffer + y * pitch));
-	}
-
-	png_write_end(png_ptr, nullptr);
 	return true;
 }
 

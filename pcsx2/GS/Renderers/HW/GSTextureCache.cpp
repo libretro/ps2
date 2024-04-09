@@ -2960,7 +2960,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 	}
 	else
 	{
-		// maintain the clut even when paltex is on for the dump/replacement texture lookup
+		// maintain the clut even when paltex is on for the replacement texture lookup
 		bool paltex = (GSConfig.GPUPaletteConversion && psm.pal > 0) || gpu_clut;
 		const u32* clut = (psm.pal > 0) ? static_cast<const u32*>(g_gs_renderer->m_mem.m_clut) : nullptr;
 
@@ -3286,42 +3286,21 @@ extern bool FMVstarted;
 
 GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, bool& paltex, const u32* clut, const GSVector2i* lod, SourceRegion region)
 {
-	// don't bother hashing if we're not dumping or replacing.
-	const bool dump = GSConfig.DumpReplaceableTextures && (!FMVstarted || GSConfig.DumpTexturesWithFMVActive) &&
-					  (clut ? GSConfig.DumpPaletteTextures : GSConfig.DumpDirectTextures);
+	// don't bother hashing if we're not replacing.
 	const bool replace = GSConfig.LoadTextureReplacements && GSTextureReplacements::HasAnyReplacementTextures();
 	bool can_cache = CanCacheTextureSize(TEX0.TW, TEX0.TH);
-	if (!dump && !replace && !can_cache)
+	if (!replace && !can_cache)
 		return nullptr;
 
-	// need the hash either for replacing, dumping or caching.
-	// if dumping/replacing is on, we compute the clut hash regardless, since replacements aren't indexed
-	HashCacheKey key{ HashCacheKey::Create(TEX0, TEXA, (dump || replace || !paltex) ? clut : nullptr, lod, region) };
-
-	// handle dumping first, this is mostly isolated.
-	if (dump)
-	{
-		// dump base level
-		GSTextureReplacements::DumpTexture(key, TEX0, TEXA, region, g_gs_renderer->m_mem, 0);
-
-		// and the mips
-		if (lod && GSConfig.DumpReplaceableMipmaps)
-		{
-			const int basemip = lod->x;
-			const int nmips = lod->y - lod->x + 1;
-			for (int mip = 1; mip < nmips; mip++)
-			{
-				const GIFRegTEX0 MIP_TEX0{ g_gs_renderer->GetTex0Layer(basemip + mip) };
-				GSTextureReplacements::DumpTexture(key, MIP_TEX0, TEXA, region, g_gs_renderer->m_mem, mip);
-			}
-		}
-	}
+	// need the hash either for replacing or caching.
+	// if replacing is on, we compute the clut hash regardless, since replacements aren't indexed
+	HashCacheKey key{ HashCacheKey::Create(TEX0, TEXA, (replace || !paltex) ? clut : nullptr, lod, region) };
 
 	// check with the full key
 	auto it = m_hash_cache.find(key);
 
 	// if this fails, and paltex is on, try indexed texture
-	const bool needs_second_lookup = paltex && (dump || replace);
+	const bool needs_second_lookup = paltex && (replace);
 	if (needs_second_lookup && it == m_hash_cache.end())
 		it = m_hash_cache.find(key.WithRemovedCLUTHash());
 
@@ -3375,10 +3354,7 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 	// lookups, making replacements impossible.
 	if (paltex && !can_cache && TEX0.TW <= MAXIMUM_TEXTURE_HASH_CACHE_SIZE && TEX0.TH <= MAXIMUM_TEXTURE_HASH_CACHE_SIZE)
 	{
-		// We only need to remove paltex here if we're dumping, because we need all the palette permutations.
-		paltex &= !dump;
-
-		// We need to get it into the hash cache for dumping and replacing, because of the issue above.
+		// We need to get it into the hash cache for replacing, because of the issue above.
 		can_cache = true;
 	}
 
