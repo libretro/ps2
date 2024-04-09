@@ -717,22 +717,17 @@ void GSDeviceOGL::RestoreAPIState()
 
 void GSDeviceOGL::DrawPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	glDrawArrays(m_draw_topology, m_vertex.start, m_vertex.count);
 }
 
 void GSDeviceOGL::DrawIndexedPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	glDrawElementsBaseVertex(m_draw_topology, static_cast<u32>(m_index.count), GL_UNSIGNED_SHORT,
 		reinterpret_cast<void*>(static_cast<u32>(m_index.start) * sizeof(u16)), static_cast<GLint>(m_vertex.start));
 }
 
 void GSDeviceOGL::DrawIndexedPrimitive(int offset, int count)
 {
-	//ASSERT(offset + count <= (int)m_index.count);
-
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	glDrawElementsBaseVertex(m_draw_topology, count, GL_UNSIGNED_SHORT,
 		reinterpret_cast<void*>((static_cast<u32>(m_index.start) + static_cast<u32>(offset)) * sizeof(u16)),
 		static_cast<GLint>(m_vertex.start));
@@ -1100,8 +1095,6 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 // Copy a sub part of texture (same as below but force a conversion)
 void GSDeviceOGL::BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2i& dsize, bool at_origin, bool linear)
 {
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 	// NOTE: This previously used glCopyTextureSubImage2D(), but this appears to leak memory in
 	// the loading screens of Evolution Snowboarding in Intel/NVIDIA drivers.
 	glDisable(GL_SCISSOR_TEST);
@@ -1132,8 +1125,6 @@ void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r
 #ifdef ENABLE_OGL_DEBUG
 	PSSetShaderResource(6, sTex);
 #endif
-
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 	if (GLAD_GL_VERSION_4_3 || GLAD_GL_ARB_copy_image)
 	{
@@ -1754,8 +1745,6 @@ void GSDeviceOGL::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVecto
 	GSTextureOGL* RT = static_cast<GSTextureOGL*>(rt);
 	GSTextureOGL* DS = static_cast<GSTextureOGL*>(ds);
 
-	g_perfmon.Put(GSPerfMon::RenderPasses, static_cast<double>(GLState::rt != RT || GLState::ds != DS));
-
 	OMSetFBO(m_fbo);
 	if (rt)
 	{
@@ -2107,8 +2096,6 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config, bool needs_barrier)
 {
 	if (config.drawlist)
 	{
-		g_perfmon.Put(GSPerfMon::Barriers, static_cast<u32>(config.drawlist->size()));
-
 		const u32 indices_per_prim = config.indices_per_prim;
 		const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
 
@@ -2129,8 +2116,6 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config, bool needs_barrier)
 		{
 			const u32 indices_per_prim = config.indices_per_prim;
 
-			g_perfmon.Put(GSPerfMon::Barriers, config.nindices / config.indices_per_prim);
-
 			for (u32 p = 0; p < config.nindices; p += indices_per_prim)
 			{
 				glTextureBarrier();
@@ -2141,10 +2126,7 @@ void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config, bool needs_barrier)
 		}
 
 		if (config.require_one_barrier)
-		{
-			g_perfmon.Put(GSPerfMon::Barriers, 1);
 			glTextureBarrier();
-		}
 	}
 
 	DrawIndexedPrimitive();

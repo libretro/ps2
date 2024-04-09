@@ -561,14 +561,12 @@ void GSDevice11::EndPresent()
 
 void GSDevice11::DrawPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	PSUpdateShaderState();
 	m_ctx->Draw(m_vertex.count, m_vertex.start);
 }
 
 void GSDevice11::DrawIndexedPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	PSUpdateShaderState();
 	m_ctx->DrawIndexed(m_index.count, m_index.start, m_vertex.start);
 }
@@ -576,7 +574,6 @@ void GSDevice11::DrawIndexedPrimitive()
 void GSDevice11::DrawIndexedPrimitive(int offset, int count)
 {
 	ASSERT(offset + count <= (int)m_index.count);
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	PSUpdateShaderState();
 	m_ctx->DrawIndexed(count, m_index.start + offset, m_vertex.start);
 }
@@ -700,8 +697,6 @@ std::unique_ptr<GSDownloadTexture> GSDevice11::CreateDownloadTexture(u32 width, 
 
 void GSDevice11::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 	D3D11_BOX box = {(UINT)r.left, (UINT)r.top, 0U, (UINT)r.right, (UINT)r.bottom, 1U};
 
 	// DX api isn't happy if we pass a box for depth copy
@@ -1290,7 +1285,6 @@ void GSDevice11::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 	if (ds) dsv = *(GSTexture11*)ds;
 
 	const bool changed = (m_state.rt_view != rtv || m_state.dsv != dsv);
-	g_perfmon.Put(GSPerfMon::RenderPasses, static_cast<double>(changed));
 
 	if (m_state.rt_view != rtv)
 	{
@@ -1441,7 +1435,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		// Warning: StretchRect must be called before BeginScene otherwise
 		// vertices will be overwritten. Trust me you don't want to do that.
 		StretchRect(config.rt, sRect, hdr_rt, dRect, ShaderConvert::HDR_INIT, false);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 	}
 
 	if (config.vs.expand != GSHWDrawConfig::VSExpand::None)
@@ -1581,7 +1574,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		const GSVector4 dRect(config.drawarea);
 		const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
 		StretchRect(hdr_rt, sRect, config.rt, dRect, ShaderConvert::HDR_RESOLVE, false);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 		Recycle(hdr_rt);
 	}
 }

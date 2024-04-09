@@ -207,8 +207,6 @@ bool GSTextureVK::Update(const GSVector4i& r, const void* data, int pitch, int l
 	if (layer >= m_mipmap_levels)
 		return false;
 
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
-
 	const u32 width = r.width();
 	const u32 height = r.height();
 	const u32 upload_pitch = Common::AlignUpPow2(pitch, g_vulkan_context->GetBufferCopyRowPitchAlignment());
@@ -305,7 +303,6 @@ void GSTextureVK::Unmap()
 {
 	// this can't handle blocks/compressed formats at the moment.
 	pxAssert(m_map_level < m_texture.GetLevels() && !IsCompressedFormat());
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
 
 	// TODO: non-tightly-packed formats
 	const u32 width = static_cast<u32>(m_map_area.width());
@@ -520,7 +517,6 @@ void GSDownloadTextureVK::CopyFromTexture(
 		GetTransferPitch(use_transfer_pitch ? static_cast<u32>(drc.width()) : m_width, g_vulkan_context->GetBufferCopyRowPitchAlignment());
 	GetTransferSize(drc, &copy_offset, &copy_size, &copy_rows);
 
-	g_perfmon.Put(GSPerfMon::Readbacks, 1);
 	GSDeviceVK::GetInstance()->EndRenderPass();
 	vkTex->CommitClear();
 

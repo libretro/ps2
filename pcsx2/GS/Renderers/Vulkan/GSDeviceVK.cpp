@@ -2340,7 +2340,6 @@ void GSDeviceVK::EndPresent()
 	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
 	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
 	m_swap_chain->GetCurrentTexture().TransitionToLayout(cmdbuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-	g_perfmon.Put(GSPerfMon::RenderPasses, 1);
 
 	g_vulkan_context->SubmitCommandBuffer(m_swap_chain.get(), !m_swap_chain->IsPresentModeSynchronizing());
 	g_vulkan_context->MoveToNextCommandBuffer();
@@ -2590,20 +2589,16 @@ bool GSDeviceVK::CheckFeatures()
 
 void GSDeviceVK::DrawPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	vkCmdDraw(g_vulkan_context->GetCurrentCommandBuffer(), m_vertex.count, 1, m_vertex.start, 0);
 }
 
 void GSDeviceVK::DrawIndexedPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	vkCmdDrawIndexed(g_vulkan_context->GetCurrentCommandBuffer(), m_index.count, 1, m_index.start, m_vertex.start, 0);
 }
 
 void GSDeviceVK::DrawIndexedPrimitive(int offset, int count)
 {
-	ASSERT(offset + count <= (int)m_index.count);
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	vkCmdDrawIndexed(g_vulkan_context->GetCurrentCommandBuffer(), count, 1, m_index.start + offset, m_vertex.start, 0);
 }
 
@@ -2706,8 +2701,6 @@ std::unique_ptr<GSDownloadTexture> GSDeviceVK::CreateDownloadTexture(u32 width, 
 
 void GSDeviceVK::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 	GSTextureVK* const sTexVK = static_cast<GSTextureVK*>(sTex);
 	GSTextureVK* const dTexVK = static_cast<GSTextureVK*>(dTex);
 	const GSVector4i dtex_rc(0, 0, dTexVK->GetWidth(), dTexVK->GetHeight());
@@ -4690,7 +4683,6 @@ void GSDeviceVK::EndRenderPass()
 		return;
 
 	m_current_render_pass = VK_NULL_HANDLE;
-	g_perfmon.Put(GSPerfMon::RenderPasses, 1);
 
 	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
 }
@@ -5289,7 +5281,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 
 		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 	}
 
 	// VB/IB upload, if we did DATE setup and it's not HDR this has already been done
@@ -5376,7 +5367,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		SetPipeline(m_hdr_finish_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
 		SetUtilityTexture(hdr_rt, m_point_sampler);
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 		Recycle(hdr_rt);
 	}
@@ -5427,8 +5417,6 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 {
 	if (config.drawlist)
 	{
-		g_perfmon.Put(GSPerfMon::Barriers, static_cast<u32>(config.drawlist->size()) - static_cast<u32>(skip_first_barrier));
-
 		const u32 indices_per_prim = config.indices_per_prim;
 		const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
 		u32 p = 0;
@@ -5459,8 +5447,6 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 		{
 			const u32 indices_per_prim = config.indices_per_prim;
 
-			g_perfmon.Put(GSPerfMon::Barriers, (config.nindices / indices_per_prim) - static_cast<u32>(skip_first_barrier));
-
 			u32 p = 0;
 			if (skip_first_barrier)
 			{
@@ -5478,10 +5464,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 		}
 
 		if (config.require_one_barrier && !skip_first_barrier)
-		{
-			g_perfmon.Put(GSPerfMon::Barriers, 1);
 			ColorBufferBarrier(draw_rt);
-		}
 	}
 
 	DrawIndexedPrimitive();

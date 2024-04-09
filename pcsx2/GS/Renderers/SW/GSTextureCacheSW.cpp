@@ -307,10 +307,5 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 		}
 	}
 
-	if (blocks > 0)
-	{
-		g_perfmon.Put(GSPerfMon::Unswizzle, bs.x * bs.y * blocks << shift);
-	}
-
 	return true;
 }

@@ -1213,7 +1213,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			GSTexture* tex = type == RenderTarget ? g_gs_device->CreateRenderTarget(new_scaled_size.x, new_scaled_size.y, GSTexture::Format::Color, clear) :
 													g_gs_device->CreateDepthStencil(new_scaled_size.x, new_scaled_size.y, GSTexture::Format::DepthStencil, clear);
 			g_gs_device->StretchRect(dst->m_texture, sRect, tex, dRect, (type == RenderTarget) ? ShaderConvert::COPY : ShaderConvert::DEPTH_COPY, false);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			m_target_memory_usage = (m_target_memory_usage - dst->m_texture->GetMemUsage()) + tex->GetMemUsage();
 			
 			// If we're changing resolution scale, just toss the texture, it's not going to get reused.
@@ -1278,10 +1277,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			// Don't bother copying the old target in if the whole thing is dirty.
 			if (dst->m_dirty.empty() || (~dst->m_dirty.GetDirtyChannels() & GSUtil::GetChannelMask(TEX0.PSM)) != 0 ||
 				!dst->m_dirty.GetDirtyRect(0, TEX0, dst->GetUnscaledRect()).eq(dst->GetUnscaledRect()))
-			{
 				g_gs_device->StretchRect(dst_match->m_texture, sRect, dst->m_texture, dRect, shader, false);
-				g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-			}
 
 			// Now pull in any dirty areas in the new format.
 			dst->Update(true);
@@ -1462,7 +1458,6 @@ void GSTextureCache::ScaleTargetForDisplay(Target* t, const GIFRegTEX0& dispfb, 
 
 	// Fill the new texture with the old data, and discard the old texture.
 	g_gs_device->StretchRect(old_texture, new_texture, GSVector4(old_texture->GetSize()).zwxy(), ShaderConvert::COPY, false);
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 	m_target_memory_usage = (m_target_memory_usage - old_texture->GetMemUsage()) + new_texture->GetMemUsage();
 	g_gs_device->Recycle(old_texture);
 	t->m_texture = new_texture;
@@ -2935,10 +2930,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			src->m_texture = dTex;
 
 			if (use_texture)
-			{
 				g_gs_device->CopyRect(sTex, dTex, sRect, destX, destY);
-				g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-			}
 			else if (!source_rect_empty)
 			{
 				if (is_8bits)
@@ -2953,8 +2945,6 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 					g_gs_device->StretchRect(
 						sTex, sRectF, dTex, GSVector4(destX, destY, new_size.x, new_size.y), shader, false);
 				}
-
-				g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			}
 		}
 
@@ -3274,7 +3264,6 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 	// Sort rect list by the texture, we want to batch as many as possible together.
 	g_gs_device->SortMultiStretchRects(copy_queue, copy_count);
 	g_gs_device->DrawMultiStretchRects(copy_queue, copy_count, dtex, ShaderConvert::COPY);
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 	if (lmtex)
 		g_gs_device->Recycle(lmtex);
@@ -3680,7 +3669,6 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 		if (tmp)
 		{
 			g_gs_device->StretchRect(t->m_texture, src, tmp, GSVector4(drc), ps_shader, false);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			dltex->get()->CopyFromTexture(drc, tmp, drc, 0, true);
 			g_gs_device->Recycle(tmp);
 		}
@@ -3914,7 +3902,6 @@ void GSTextureCache::Source::Update(const GSVector4i& rect, int level)
 
 	if (blocks > 0)
 	{
-		g_perfmon.Put(GSPerfMon::Unswizzle, bs.x * bs.y * blocks << (m_palette ? 2 : 0));
 		Flush(m_write.count, level, off);
 	}
 }
@@ -4331,8 +4318,6 @@ bool GSTextureCache::Target::ResizeTexture(int new_unscaled_width, int new_unsca
 			// Fast memcpy()-like path for color targets.
 			g_gs_device->CopyRect(m_texture, tex, rc, 0, 0);
 		}
-
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 	}
 	else if (m_texture->GetState() == GSTexture::State::Cleared)
 	{

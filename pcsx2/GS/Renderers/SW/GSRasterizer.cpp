@@ -1255,11 +1255,7 @@ void GSRasterizerList::Sync()
 	if (!IsSynced())
 	{
 		for (size_t i = 0; i < m_workers.size(); i++)
-		{
 			m_workers[i]->Wait();
-		}
-
-		g_perfmon.Put(GSPerfMon::SyncPoint, 1);
 	}
 }
 

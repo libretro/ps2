@@ -219,8 +219,6 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 	}
 #endif
 
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
-
 	// Don't use PBOs for huge texture uploads, let the driver sort it out.
 	// Otherwise we'll just be syncing, or worse, crashing because the PBO routine above isn't great.
 	if (IsCompressedFormat())
@@ -280,8 +278,6 @@ bool GSTextureOGL::Map(GSMap& m, const GSVector4i* _r, int layer)
 		const u32 upload_size = CalcUploadSize(r.height(), pitch);
 		if (GLLoader::buggy_pbo || upload_size > GSDeviceOGL::GetTextureUploadBuffer()->GetChunkSize())
 			return false;
-
-		g_perfmon.Put(GSPerfMon::TextureUploads, 1);
 
 		m_clean = false;
 
@@ -440,7 +436,6 @@ void GSDownloadTextureOGL::CopyFromTexture(
 	u32 copy_offset, copy_size, copy_rows;
 	m_current_pitch = GetTransferPitch(use_transfer_pitch ? static_cast<u32>(drc.width()) : m_width, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 	GetTransferSize(drc, &copy_offset, &copy_size, &copy_rows);
-	g_perfmon.Put(GSPerfMon::Readbacks, 1);
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, GSDeviceOGL::GetInstance()->GetFBORead());
 	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, glTex->GetID(), 0);

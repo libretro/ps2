@@ -180,8 +180,6 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	if (layer >= m_mipmap_levels)
 		return false;
 
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
-
 	// Footprint and box must be block aligned for compressed textures.
 	const u32 block_size = GetCompressedBlockSize();
 	const u32 width = Common::AlignUpPow2(r.width(), block_size);
@@ -295,7 +293,6 @@ void GSTexture12::Unmap()
 {
 	// this can't handle blocks/compressed formats at the moment.
 	pxAssert(m_map_level < m_texture.GetLevels() && !IsCompressedFormat());
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
 
 	// TODO: non-tightly-packed formats
 	const u32 width = static_cast<u32>(m_map_area.width());
@@ -466,7 +463,6 @@ void GSDownloadTexture12::CopyFromTexture(
 	m_current_pitch = GetTransferPitch(use_transfer_pitch ? static_cast<u32>(drc.width()) : m_width, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	GetTransferSize(drc, &copy_offset, &copy_size, &copy_rows);
 
-	g_perfmon.Put(GSPerfMon::Readbacks, 1);
 	GSDevice12::GetInstance()->EndRenderPass();
 	tex12->CommitClear();
 

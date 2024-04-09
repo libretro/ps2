@@ -66,8 +66,6 @@ bool GSTexture11::Update(const GSVector4i& r, const void* data, int pitch, int l
 	if (layer >= m_mipmap_levels)
 		return false;
 
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
-
 	const u32 bs = GetCompressedBlockSize();
 	
 	const D3D11_BOX box = {Common::AlignDownPow2((u32)r.left, bs), Common::AlignDownPow2((u32)r.top, bs), 0U,
@@ -246,7 +244,6 @@ void GSDownloadTexture11::CopyFromTexture(
 	pxAssert(src.z <= stex->GetWidth() && src.w <= stex->GetHeight());
 	pxAssert(static_cast<u32>(drc.z) <= m_width && static_cast<u32>(drc.w) <= m_height);
 	pxAssert(src_level < static_cast<u32>(stex->GetMipmapLevels()));
-	g_perfmon.Put(GSPerfMon::Readbacks, 1);
 
 	if (IsMapped())
 		Unmap();

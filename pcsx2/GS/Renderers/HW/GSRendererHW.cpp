@@ -164,7 +164,6 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 	const GSVector2i framebufferSize(PCRTCDisplays.GetFramebufferSize(i));
 
 	PCRTCDisplays.RemoveFramebufferOffset(i);
-	// TRACE(_T("[%d] GetOutput %d %05x (%d)\n"), (int)m_perfmon.GetFrame(), i, (int)TEX0.TBP0, (int)TEX0.PSM);
 
 	GSTexture* t = nullptr;
 
@@ -845,8 +844,6 @@ bool GSRendererHW::IsTBPFrameOrZ(u32 tbp) const
 
 void GSRendererHW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool eewrite)
 {
-	// printf("[%d] InvalidateVideoMem %d,%d - %d,%d %05x (%d)\n", static_cast<int>(g_perfmon.GetFrame()), r.left, r.top, r.right, r.bottom, static_cast<int>(BITBLTBUF.DBP), static_cast<int>(BITBLTBUF.DPSM));
-
 	// This is gross, but if the EE write loops, we need to split it on the 2048 border.
 	GSVector4i rect = r;
 	bool loop_h = false;
@@ -882,8 +879,6 @@ void GSRendererHW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GS
 
 void GSRendererHW::InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool clut)
 {
-	// printf("[%d] InvalidateLocalMem %d,%d - %d,%d %05x (%d)\n", static_cast<int>(g_perfmon.GetFrame()), r.left, r.top, r.right, r.bottom, static_cast<int>(BITBLTBUF.SBP), static_cast<int>(BITBLTBUF.SPSM));
-
 	if (clut)
 		return; // FIXME
 
@@ -4627,7 +4622,6 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 
 				// Copy channels being masked.
 				g_gs_device->StretchRect(target->m_texture, GSVector4(0.0f,0.0f,1.0f,1.0f), tex, drect, keep_r, keep_g, keep_b, keep_a);
-				g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 				delete target->m_texture;
 
 				target->m_texture = tex;
@@ -4684,7 +4678,6 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 
 			// Copy channels being masked.
 			g_gs_device->StretchRect(target->m_texture, GSVector4(0, 0, 1, 1), tex, drect, keep_r, keep_g, keep_b, keep_a);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 			delete target->m_texture;
 
 			target->m_texture = tex;
@@ -4814,13 +4807,8 @@ bool GSRendererHW::OI_BlitFMV(GSTextureCache::Target* _rt, GSTextureCache::Sourc
 			const GSVector4i r_full(0, 0, tw, th);
 
 			g_gs_device->CopyRect(tex->m_texture, rt, r_full, 0, 0);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 			g_gs_device->StretchRect(tex->m_texture, sRect, rt, dRect);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 			g_gs_device->CopyRect(rt, tex->m_texture, r_full, 0, 0);
-			g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 			g_gs_device->Recycle(rt);
 		}

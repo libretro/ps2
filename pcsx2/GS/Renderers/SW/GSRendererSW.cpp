@@ -403,10 +403,6 @@ void GSRendererSW::Queue(GSRingHeap::SharedPtr<GSRasterizerData>& item)
 void GSRendererSW::Sync(int reason)
 {
 	m_rl->Sync();
-
-	int pixels = m_rl->GetPixels();
-
-	g_perfmon.Put(GSPerfMon::Fillrate, pixels);
 }
 
 void GSRendererSW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool eewrite)

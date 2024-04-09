@@ -916,20 +916,17 @@ bool GSDevice12::CheckFeatures()
 
 void GSDevice12::DrawPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	g_d3d12_context->GetCommandList()->DrawInstanced(m_vertex.count, 1, m_vertex.start, 0);
 }
 
 void GSDevice12::DrawIndexedPrimitive()
 {
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	g_d3d12_context->GetCommandList()->DrawIndexedInstanced(m_index.count, 1, m_index.start, m_vertex.start, 0);
 }
 
 void GSDevice12::DrawIndexedPrimitive(int offset, int count)
 {
 	ASSERT(offset + count <= (int)m_index.count);
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 	g_d3d12_context->GetCommandList()->DrawIndexedInstanced(count, 1, m_index.start + offset, m_vertex.start, 0);
 }
 
@@ -1035,8 +1032,6 @@ std::unique_ptr<GSDownloadTexture> GSDevice12::CreateDownloadTexture(u32 width, 
 
 void GSDevice12::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 	GSTexture12* const sTexVK = static_cast<GSTexture12*>(sTex);
 	GSTexture12* const dTexVK = static_cast<GSTexture12*>(dTex);
 	const GSVector4i dtex_rc(0, 0, dTexVK->GetWidth(), dTexVK->GetHeight());
@@ -2715,12 +2710,8 @@ void GSDevice12::EndRenderPass()
 		return;
 
 	m_in_render_pass = false;
-
 	// to render again, we need to reset OM
-	m_dirty_flags |= DIRTY_FLAG_RENDER_TARGET;
-
-	g_perfmon.Put(GSPerfMon::RenderPasses, 1);
-
+	m_dirty_flags   |= DIRTY_FLAG_RENDER_TARGET;
 	g_d3d12_context->GetCommandList()->EndRenderPass();
 
 }
@@ -3205,7 +3196,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 
 		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 	}
 
 	// VB/IB upload, if we did DATE setup and it's not HDR this has already been done
@@ -3278,7 +3268,6 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		SetPipeline(m_hdr_finish_pipelines[pipe.ds].get());
 		SetUtilityTexture(hdr_rt, m_point_sampler_cpu);
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 		Recycle(hdr_rt);
 	}

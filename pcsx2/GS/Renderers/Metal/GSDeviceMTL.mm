@@ -368,7 +368,6 @@ void GSDeviceMTL::EndRenderPass()
 	if (m_current_render.encoder)
 	{
 		EndDebugGroup(m_current_render.encoder);
-		g_perfmon.Put(GSPerfMon::RenderPasses, 1);
 		if (m_spin_timer)
 			[m_current_render.encoder updateFence:m_spin_fence afterStages:MTLRenderStageFragment];
 		[m_current_render.encoder endEncoding];
@@ -1279,8 +1278,6 @@ void GSDeviceMTL::ClearSamplerCache()
 
 void GSDeviceMTL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 { @autoreleasepool {
-	g_perfmon.Put(GSPerfMon::TextureCopies, 1);
-
 	GSTextureMTL* sT = static_cast<GSTextureMTL*>(sTex);
 	GSTextureMTL* dT = static_cast<GSTextureMTL*>(dTex);
 
@@ -1370,7 +1367,6 @@ void GSDeviceMTL::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect
 	[m_current_render.encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip
 	                             vertexStart:0
 	                             vertexCount:4];
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 }
 
 void GSDeviceMTL::RenderCopy(GSTexture* sTex, id<MTLRenderPipelineState> pipeline, const GSVector4i& rect)
@@ -1380,7 +1376,6 @@ void GSDeviceMTL::RenderCopy(GSTexture* sTex, id<MTLRenderPipelineState> pipelin
 	MRESetPipeline(pipeline);
 	MRESetTexture(sTex, GSMTLTextureIndexNonHW);
 	[m_current_render.encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 }
 
 void GSDeviceMTL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)
@@ -1910,7 +1905,6 @@ void GSDeviceMTL::RenderHW(GSHWDrawConfig& config)
 		BeginRenderPass(@"HDR Init", hdr_rt, MTLLoadActionDontCare, nullptr, MTLLoadActionDontCare);
 		RenderCopy(config.rt, m_hdr_init_pipeline, config.drawarea);
 		rt = hdr_rt;
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 	}
 
 	// Try to reduce render pass restarts
@@ -1959,7 +1953,6 @@ void GSDeviceMTL::RenderHW(GSHWDrawConfig& config)
 	{
 		BeginRenderPass(@"HDR Resolve", config.rt, MTLLoadActionLoad, nullptr, MTLLoadActionDontCare);
 		RenderCopy(hdr_rt, m_hdr_resolve_pipeline, config.drawarea);
-		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 		Recycle(hdr_rt);
 	}
@@ -1996,9 +1989,6 @@ void GSDeviceMTL::SendHWDraw(GSHWDrawConfig& config, id<MTLRenderCommandEncoder>
 #endif
 
 
-		g_perfmon.Put(GSPerfMon::DrawCalls, config.drawlist->size());
-		g_perfmon.Put(GSPerfMon::Barriers, config.drawlist->size());
-
 		const u32 indices_per_prim = config.indices_per_prim;
 		const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
 
@@ -2021,8 +2011,6 @@ void GSDeviceMTL::SendHWDraw(GSHWDrawConfig& config, id<MTLRenderCommandEncoder>
 	{
 		const u32 indices_per_prim = config.indices_per_prim;
 		const u32 ndraws = config.nindices / indices_per_prim;
-		g_perfmon.Put(GSPerfMon::DrawCalls, ndraws);
-		g_perfmon.Put(GSPerfMon::Barriers, ndraws);
 		[enc pushDebugGroup:[NSString stringWithFormat:@"Full barrier split draw (%d prims)", ndraws]];
 
 		for (u32 p = 0; p < config.nindices; p += indices_per_prim)
@@ -2042,7 +2030,6 @@ void GSDeviceMTL::SendHWDraw(GSHWDrawConfig& config, id<MTLRenderCommandEncoder>
 	{
 		// One barrier needed
 		textureBarrier(enc);
-		g_perfmon.Put(GSPerfMon::Barriers, 1);
 	}
 
 	[enc drawIndexedPrimitives:topology
@@ -2050,8 +2037,6 @@ void GSDeviceMTL::SendHWDraw(GSHWDrawConfig& config, id<MTLRenderCommandEncoder>
 	                 indexType:MTLIndexTypeUInt16
 	               indexBuffer:buffer
 	         indexBufferOffset:off];
-
-	g_perfmon.Put(GSPerfMon::DrawCalls, 1);
 }
 
 // tbh I'm not a fan of the current debug groups

@@ -176,7 +176,6 @@ void* GSTextureMTL::MapWithPitch(const GSVector4i& r, int pitch, int layer)
 	   destinationLevel:layer
 	  destinationOrigin:MTLOriginMake(r.x, r.y, 0)];
 
-	g_perfmon.Put(GSPerfMon::TextureUploads, 1);
 	return map.cpu_buffer;
 }}
 
@@ -256,7 +255,6 @@ void GSDownloadTextureMTL::CopyFromTexture(
 
 	m_dev->EndRenderPass();
 	mtlTex->FlushClears();
-	g_perfmon.Put(GSPerfMon::Readbacks, 1);
 
 	m_copy_cmdbuffer = MRCRetain(m_dev->GetRenderCmdBuf());
 

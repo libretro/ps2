@@ -1290,7 +1290,6 @@ void GSState::FlushWrite()
 
 	m_tr.start += len;
 
-	g_perfmon.Put(GSPerfMon::Swizzle, len);
 	s_transfer_n++;
 }
 
@@ -1419,8 +1418,6 @@ void GSState::FlushPrim()
 		m_vt.Update(m_vertex.buff, m_index.buff, m_vertex.tail, m_index.tail, GSUtil::GetPrimClass(PRIM->PRIM));
 
 		Draw();
-		g_perfmon.Put(GSPerfMon::Draw, 1);
-		g_perfmon.Put(GSPerfMon::Prim, m_index.tail / GSUtil::GetVertexCount(PRIM->PRIM));
 
 		m_index.tail = 0;
 		m_vertex.head = 0;
@@ -1533,7 +1530,6 @@ void GSState::Write(const u8* mem, int len)
 
 			m_tr.start = m_tr.end = m_tr.total;
 
-			g_perfmon.Put(GSPerfMon::Swizzle, len);
 			s_transfer_n++;
 
 			return;
