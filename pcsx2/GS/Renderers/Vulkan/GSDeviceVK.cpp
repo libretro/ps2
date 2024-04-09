@@ -180,8 +180,7 @@ namespace Vulkan
 		gpus.resize(gpu_count);
 
 		res = vkEnumeratePhysicalDevices(instance, &gpu_count, gpus.data());
-		if (res == VK_INCOMPLETE) { }
-		else if (res != VK_SUCCESS)
+		if (res != VK_SUCCESS)
 			return {};
 
 		// Maybe we lost a GPU?
@@ -392,9 +391,10 @@ namespace Vulkan
 
 		// Find graphics and present queues.
 		m_graphics_queue_family_index = queue_family_count;
-		m_present_queue_family_index = queue_family_count;
-		m_spin_queue_family_index = queue_family_count;
-		u32 spin_queue_index = 0;
+		m_present_queue_family_index  = queue_family_count;
+		m_spin_queue_family_index     = queue_family_count;
+		u32 spin_queue_index          = 0;
+
 		for (uint32_t i = 0; i < queue_family_count; i++)
 		{
 			VkBool32 graphics_supported = queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
@@ -403,9 +403,7 @@ namespace Vulkan
 				m_graphics_queue_family_index = i;
 				// Quit now, no need for a present queue.
 				if (!surface)
-				{
 					break;
-				}
 			}
 
 			if (surface)
@@ -416,17 +414,14 @@ namespace Vulkan
 					return false;
 
 				if (present_supported)
-				{
 					m_present_queue_family_index = i;
-				}
 
 				// Prefer one queue family index that does both graphics and present.
 				if (graphics_supported && present_supported)
-				{
 					break;
-				}
 			}
 		}
+
 		for (uint32_t i = 0; i < queue_family_count; i++)
 		{
 			// Pick a queue for spinning
@@ -444,41 +439,44 @@ namespace Vulkan
 			if (!(queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
 				break; // Async compute queue, definitely pick this one
 		}
+
 		if (m_graphics_queue_family_index == queue_family_count)
 		{
 			Console.Error("Vulkan: Failed to find an acceptable graphics queue.");
 			return false;
 		}
+
 		if (surface != VK_NULL_HANDLE && m_present_queue_family_index == queue_family_count)
 		{
 			Console.Error("Vulkan: Failed to find an acceptable present queue.");
 			return false;
 		}
 
-		VkDeviceCreateInfo device_info = {};
-		device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		device_info.pNext = nullptr;
-		device_info.flags = 0;
+		VkDeviceCreateInfo device_info   = {};
+		device_info.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		device_info.pNext                = nullptr;
+		device_info.flags                = 0;
 		device_info.queueCreateInfoCount = 0;
 
 		static constexpr float queue_priorities[] = {1.0f, 0.0f}; // Low priority for the spin queue
 		std::array<VkDeviceQueueCreateInfo, 3> queue_infos;
+
 		VkDeviceQueueCreateInfo& graphics_queue_info = queue_infos[device_info.queueCreateInfoCount++];
-		graphics_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		graphics_queue_info.pNext = nullptr;
-		graphics_queue_info.flags = 0;
-		graphics_queue_info.queueFamilyIndex = m_graphics_queue_family_index;
-		graphics_queue_info.queueCount = 1;
-		graphics_queue_info.pQueuePriorities = queue_priorities;
+		graphics_queue_info.sType                    = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		graphics_queue_info.pNext                    = nullptr;
+		graphics_queue_info.flags                    = 0;
+		graphics_queue_info.queueFamilyIndex         = m_graphics_queue_family_index;
+		graphics_queue_info.queueCount               = 1;
+		graphics_queue_info.pQueuePriorities         = queue_priorities;
 
 		if (surface != VK_NULL_HANDLE && m_graphics_queue_family_index != m_present_queue_family_index)
 		{
 			VkDeviceQueueCreateInfo& present_queue_info = queue_infos[device_info.queueCreateInfoCount++];
-			present_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			present_queue_info.pNext = nullptr;
-			present_queue_info.flags = 0;
+			present_queue_info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+			present_queue_info.pNext            = nullptr;
+			present_queue_info.flags            = 0;
 			present_queue_info.queueFamilyIndex = m_present_queue_family_index;
-			present_queue_info.queueCount = 1;
+			present_queue_info.queueCount       = 1;
 			present_queue_info.pQueuePriorities = queue_priorities;
 		}
 
@@ -495,12 +493,12 @@ namespace Vulkan
 		else
 		{
 			VkDeviceQueueCreateInfo& spin_queue_info = queue_infos[device_info.queueCreateInfoCount++];
-			spin_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			spin_queue_info.pNext = nullptr;
-			spin_queue_info.flags = 0;
-			spin_queue_info.queueFamilyIndex = m_spin_queue_family_index;
-			spin_queue_info.queueCount = 1;
-			spin_queue_info.pQueuePriorities = queue_priorities + 1;
+			spin_queue_info.sType                    = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+			spin_queue_info.pNext                    = nullptr;
+			spin_queue_info.flags                    = 0;
+			spin_queue_info.queueFamilyIndex         = m_spin_queue_family_index;
+			spin_queue_info.queueCount               = 1;
+			spin_queue_info.pQueuePriorities         = queue_priorities + 1;
 		}
 
 		device_info.pQueueCreateInfos = queue_infos.data();
@@ -511,9 +509,9 @@ namespace Vulkan
 		if (!SelectDeviceExtensions(&enabled_extensions, surface != VK_NULL_HANDLE))
 			return false;
 
-		device_info.enabledLayerCount = num_required_device_layers;
-		device_info.ppEnabledLayerNames = required_device_layers;
-		device_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
+		device_info.enabledLayerCount       = num_required_device_layers;
+		device_info.ppEnabledLayerNames     = required_device_layers;
+		device_info.enabledExtensionCount   = static_cast<uint32_t>(enabled_extensions.size());
 		device_info.ppEnabledExtensionNames = enabled_extensions.data();
 
 		// Check for required features before creating.
@@ -744,10 +742,10 @@ namespace Vulkan
 			Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), resources.fence, "Frame Fence %u", frame_index);
 			// TODO: A better way to choose the number of descriptors.
 			VkDescriptorPoolSize pool_sizes[] = {
-				{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTORS_PER_FRAME},
-				{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_SAMPLED_IMAGE_DESCRIPTORS_PER_FRAME},
-				{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_STORAGE_IMAGE_DESCRIPTORS_PER_FRAME},
-				{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, MAX_INPUT_ATTACHMENT_IMAGE_DESCRIPTORS_PER_FRAME},
+				{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,	MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTORS_PER_FRAME},
+				{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 		MAX_SAMPLED_IMAGE_DESCRIPTORS_PER_FRAME},
+				{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,		MAX_STORAGE_IMAGE_DESCRIPTORS_PER_FRAME},
+				{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,		MAX_INPUT_ATTACHMENT_IMAGE_DESCRIPTORS_PER_FRAME},
 			};
 
 			VkDescriptorPoolCreateInfo pool_create_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0,
@@ -805,10 +803,11 @@ namespace Vulkan
 			{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
 		};
 
-		VkDescriptorPoolCreateInfo pool_create_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr,
-			VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-			1024, // TODO: tweak this
-			static_cast<u32>(std::size(pool_sizes)), pool_sizes};
+		VkDescriptorPoolCreateInfo pool_create_info =  {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+								nullptr,
+								VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+								1024, // TODO: tweak this
+								static_cast<u32>(std::size(pool_sizes)), pool_sizes};
 
 		VkResult res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &m_global_descriptor_pool);
 		if (res != VK_SUCCESS)
@@ -860,18 +859,18 @@ namespace Vulkan
 
 	VkDescriptorSet Context::AllocateDescriptorSet(VkDescriptorSetLayout set_layout)
 	{
-		VkDescriptorSetAllocateInfo allocate_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
-			m_frame_resources[m_current_frame].descriptor_pool, 1, &set_layout};
+		VkDescriptorSetAllocateInfo allocate_info = 	{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+								 nullptr,
+								 m_frame_resources[m_current_frame].descriptor_pool,
+								 1,
+								 &set_layout};
 
 		VkDescriptorSet descriptor_set;
 		VkResult res = vkAllocateDescriptorSets(m_device, &allocate_info, &descriptor_set);
+		// Failing to allocate a descriptor set is not a fatal error, we can
+		// recover by moving to the next command buffer.
 		if (res != VK_SUCCESS)
-		{
-			// Failing to allocate a descriptor set is not a fatal error, we can
-			// recover by moving to the next command buffer.
 			return VK_NULL_HANDLE;
-		}
-
 		return descriptor_set;
 	}
 
@@ -1339,9 +1338,7 @@ namespace Vulkan
 
 		// Check for presence of the functions before calling
 		if (!vkCreateDebugUtilsMessengerEXT || !vkDestroyDebugUtilsMessengerEXT || !vkSubmitDebugUtilsMessageEXT)
-		{
 			return false;
-		}
 
 		VkDebugUtilsMessengerCreateInfoEXT messenger_info = {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 			nullptr, 0,
@@ -1510,47 +1507,47 @@ void main()
 		pl_layout_create.pPushConstantRanges = &push_constant_range;
 		CHECKED_CREATE(vkCreatePipelineLayout, &pl_layout_create, &m_spin_pipeline_layout);
 
+		VkShaderModule shader_module;
 		VkShaderModuleCreateInfo module_create = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 		module_create.codeSize = spirv->size() * sizeof(ShaderCompiler::SPIRVCodeType);
-		module_create.pCode = spirv->data();
-		VkShaderModule shader_module;
+		module_create.pCode    = spirv->data();
 		CHECKED_CREATE(vkCreateShaderModule, &module_create, &shader_module);
 		Util::SetObjectName(m_device, shader_module, "Spin Shader");
 
 		VkComputePipelineCreateInfo pl_create = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
-		pl_create.layout = m_spin_pipeline_layout;
-		pl_create.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		pl_create.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-		pl_create.stage.pName = "main";
+		pl_create.layout       = m_spin_pipeline_layout;
+		pl_create.stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		pl_create.stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+		pl_create.stage.pName  = "main";
 		pl_create.stage.module = shader_module;
-		res = vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &pl_create, nullptr, &m_spin_pipeline);
+		res                    = vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &pl_create, nullptr, &m_spin_pipeline);
 		vkDestroyShaderModule(m_device, shader_module, nullptr);
 		if (res != VK_SUCCESS)
 			return false;
 		Util::SetObjectName(m_device, m_spin_pipeline, "Spin Pipeline");
 
 		VmaAllocationCreateInfo buf_vma_create = {};
-		buf_vma_create.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		buf_vma_create.usage          = VMA_MEMORY_USAGE_GPU_ONLY;
 		VkBufferCreateInfo buf_create = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		buf_create.size = 4;
-		buf_create.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		buf_create.size               = 4;
+		buf_create.usage              = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		if ((res = vmaCreateBuffer(m_allocator, &buf_create, &buf_vma_create, &m_spin_buffer, &m_spin_buffer_allocation, nullptr)) != VK_SUCCESS)
 			return false;
 		Util::SetObjectName(m_device, m_spin_buffer, "Spin Buffer");
 
 		VkDescriptorSetAllocateInfo desc_set_allocate = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		desc_set_allocate.descriptorPool = m_global_descriptor_pool;
+		desc_set_allocate.descriptorPool     = m_global_descriptor_pool;
 		desc_set_allocate.descriptorSetCount = 1;
-		desc_set_allocate.pSetLayouts = &m_spin_descriptor_set_layout;
+		desc_set_allocate.pSetLayouts        = &m_spin_descriptor_set_layout;
 		if ((res = vkAllocateDescriptorSets(m_device, &desc_set_allocate, &m_spin_descriptor_set)) != VK_SUCCESS)
 			return false;
 		const VkDescriptorBufferInfo desc_buffer_info = { m_spin_buffer, 0, VK_WHOLE_SIZE };
 		VkWriteDescriptorSet desc_set_write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		desc_set_write.dstSet = m_spin_descriptor_set;
-		desc_set_write.dstBinding = 0;
-		desc_set_write.descriptorCount = 1;
-		desc_set_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		desc_set_write.pBufferInfo = &desc_buffer_info;
+		desc_set_write.dstSet               = m_spin_descriptor_set;
+		desc_set_write.dstBinding           = 0;
+		desc_set_write.descriptorCount      = 1;
+		desc_set_write.descriptorType       = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		desc_set_write.pBufferInfo          = &desc_buffer_info;
 		vkUpdateDescriptorSets(m_device, 1, &desc_set_write, 0, nullptr);
 
 		for (SpinResources& resources : m_spin_resources)
@@ -1562,8 +1559,8 @@ void main()
 			Vulkan::Util::SetObjectName(m_device, resources.command_pool, "Spin Command Pool %u", index);
 
 			VkCommandBufferAllocateInfo buffer_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-			buffer_info.commandPool = resources.command_pool;
-			buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+			buffer_info.commandPool        = resources.command_pool;
+			buffer_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 			buffer_info.commandBufferCount = 1;
 			res = vkAllocateCommandBuffers(m_device, &buffer_info, &resources.command_buffer);
 			if (res != VK_SUCCESS)
@@ -1868,20 +1865,24 @@ GSDeviceVK::~GSDeviceVK()
 	pxAssert(!g_vulkan_context);
 }
 
-void GSDeviceVK::GetAdapters(
-	std::vector<std::string>* adapters)
+void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 {
+	VkInstance instance;
 	if (g_vulkan_context)
 	{
-		if (adapters)
-			*adapters = Vulkan::Context::EnumerateGPUNames(g_vulkan_context->GetVulkanInstance());
+		instance = g_vulkan_context->GetVulkanInstance();
+		if (instance != VK_NULL_HANDLE)
+		{
+			if (adapters)
+				*adapters = Vulkan::Context::EnumerateGPUNames(instance);
+		}
 	}
 	else
 	{
 		if (Vulkan::LoadVulkanLibrary())
 		{
 			ScopedGuard lib_guard([]() { Vulkan::UnloadVulkanLibrary(); });
-			const VkInstance instance = Vulkan::Context::CreateVulkanInstance(WindowInfo(), false, false);
+			instance = Vulkan::Context::CreateVulkanInstance(WindowInfo(), false, false);
 			if (instance != VK_NULL_HANDLE)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -1898,18 +1899,15 @@ bool GSDeviceVK::IsSuitableDefaultRenderer()
 	std::vector<std::string> adapters;
 	GetAdapters(&adapters);
 	if (adapters.empty())
-	{
-		// No adapters, not gonna be able to use VK.
 		return false;
-	}
 
 	// Check the first GPU, should be enough.
 	const std::string& name = adapters.front();
 	Console.WriteLn(fmt::format("Using Vulkan GPU '{}' for automatic renderer check.", name));
 
 	// Any software rendering (LLVMpipe, SwiftShader).
-	if (StringUtil::StartsWithNoCase(name, "llvmpipe") ||
-		StringUtil::StartsWithNoCase(name, "SwiftShader"))
+	if (       StringUtil::StartsWithNoCase(name, "llvmpipe")
+		|| StringUtil::StartsWithNoCase(name, "SwiftShader"))
 	{
 		Console.WriteLn(Color_StrongOrange, "Not using Vulkan for software renderer.");
 		return false;
