@@ -880,10 +880,14 @@ void cdvdReset()
 	cdvdCtrlTrayClose();
 }
 
-void SaveStateBase::cdvdFreeze()
+bool SaveStateBase::cdvdFreeze()
 {
-	FreezeTag("cdvd");
+	if (!(FreezeTag("cdvd")))
+		return false;
+
 	Freeze(cdvd);
+	if (!IsOkay())
+		return false;
 
 	if (IsLoading())
 	{
@@ -894,6 +898,8 @@ void SaveStateBase::cdvdFreeze()
 		if (cdvd.Reading)
 			cdvd.RErr = DoCDVDreadTrack(cdvd.Readed ? cdvd.Sector : cdvd.SeekToSector, cdvd.ReadMode);
 	}
+
+	return true;
 }
 
 void cdvdNewDiskCB()

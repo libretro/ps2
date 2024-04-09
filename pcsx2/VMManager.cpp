@@ -44,6 +44,7 @@
 #include "MemoryCardFile.h"
 #include "Patch.h"
 #include "PerformanceMetrics.h"
+#include "SaveState.h"
 #include "R5900.h"
 #include "SPU2/spu2.h"
 #include "DEV9/DEV9.h"
@@ -1484,3 +1485,40 @@ const std::vector<u32>& VMManager::GetSortedProcessorList()
 	EnsureCPUInfoInitialized();
 	return s_processor_list;
 }
+
+#if 0
+bool SaveStateBase::vmFreeze()
+{
+	const u32 prev_crc = s_current_crc;
+	const std::string prev_elf = s_elf_path;
+	const bool prev_elf_executed = s_elf_executed;
+	Freeze(s_current_crc);
+	FreezeString(s_elf_path);
+	Freeze(s_elf_executed);
+
+	// We have to test all the variables here, because we could be loading a state created during ELF load, after the ELF has loaded.
+	if (IsLoading())
+	{
+		// Might need new ELF info.
+		if (s_elf_path != prev_elf)
+		{
+			if (s_elf_path.empty())
+			{
+				// Shouldn't have executed a non-existant ELF.. unless you load state created from a deleted ELF override I guess.
+				if (s_elf_executed)
+					Console.Error("Somehow executed a non-existant ELF");
+				VMManager::ClearELFInfo();
+			}
+			else
+			{
+				VMManager::UpdateELFInfo(std::move(s_elf_path));
+			}
+		}
+
+		if (s_current_crc != prev_crc || s_elf_path != prev_elf || s_elf_executed != prev_elf_executed)
+			VMManager::HandleELFChange(true);
+	}
+
+	return IsOkay();
+}
+#endif

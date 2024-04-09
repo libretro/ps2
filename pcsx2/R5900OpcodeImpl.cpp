@@ -151,13 +151,16 @@ void Deci2Reset(void)
 	memzero( deci2buffer );
 }
 
-void SaveStateBase::deci2Freeze()
+bool SaveStateBase::deci2Freeze()
 {
-	FreezeTag( "deci2" );
+	if (!(FreezeTag( "deci2" )))
+		return false;
 
 	Freeze( deci2addr );
 	Freeze( deci2handler );
 	Freeze( deci2buffer );
+
+	return IsOkay();
 }
 
 /*
@@ -1082,9 +1085,6 @@ void PREF()
 
 static void trap(u16 code=0)
 {
-	// unimplemented?
-	// throw R5900Exception::Trap(code);
-
 	cpuRegs.pc -= 4;
 	Console.Warning("Trap exception at 0x%08x", cpuRegs.pc);
 	cpuException(0x34, cpuRegs.branch);

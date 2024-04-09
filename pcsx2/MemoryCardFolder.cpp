@@ -14,7 +14,6 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "common/SafeArray.inl"
 #include "common/Path.h"
 
 #include "MemoryCardFile.h"
@@ -2351,22 +2350,7 @@ s32 FolderMemoryCardAggregator::Read(uint slot, u8* dest, u32 adr, int size)
 
 s32 FolderMemoryCardAggregator::Save(uint slot, const u8* src, u32 adr, int size)
 {
-	const s32 saveResult = m_cards[slot].Save(src, adr, size);
-	if (saveResult)
-	{
-		std::chrono::duration<float> elapsed = std::chrono::system_clock::now() - last;
-		if (elapsed > std::chrono::seconds(5))
-		{
-			const std::string_view filename = Path::GetFileName(m_cards[slot].GetFolderName());
-			Host::AddIconOSDMessage(fmt::format("MemoryCardSave{}", slot), ICON_FA_SD_CARD,
-				fmt::format("Memory card '{}' was saved to storage.", filename), Host::OSD_INFO_DURATION);
-
-			last = std::chrono::system_clock::now();
-		}
-		
-	}
-
-	return saveResult;
+	return m_cards[slot].Save(src, adr, size);
 }
 
 s32 FolderMemoryCardAggregator::EraseBlock(uint slot, u32 adr)

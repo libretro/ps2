@@ -972,7 +972,7 @@ template u16 rcntRead32<0x01>( u32 mem );
 template bool rcntWrite32<0x00>( u32 mem, mem32_t& value );
 template bool rcntWrite32<0x01>( u32 mem, mem32_t& value );
 
-void SaveStateBase::rcntFreeze()
+bool SaveStateBase::rcntFreeze()
 {
 	Freeze( counters );
 	Freeze( hsyncCounter );
@@ -986,4 +986,6 @@ void SaveStateBase::rcntFreeze()
 
 	if( IsLoading() )
 		cpuRcntSet();
+
+	return IsOkay();
 }

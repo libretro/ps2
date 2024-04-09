@@ -735,10 +735,14 @@ void gifMFIFOInterrupt(void)
 		GifDMAInt(8 * BIAS);
 }
 
-void SaveStateBase::gifDmaFreeze()
+bool SaveStateBase::gifDmaFreeze()
 {
 	// Note: mfifocycles is not a persistent var, so no need to save it here.
-	FreezeTag("GIFdma");
+	if (!(FreezeTag("GIFdma")))
+		return false;
+
 	Freeze(gif);
 	Freeze(gif_fifo);
+
+	return IsOkay();
 }

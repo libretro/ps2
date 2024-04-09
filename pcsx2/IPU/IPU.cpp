@@ -115,10 +115,12 @@ void ipuReset(void)
 	ipuDmaReset();
 }
 
-void SaveStateBase::ipuFreeze(void)
+bool SaveStateBase::ipuFreeze(void)
 {
 	// Get a report of the status of the ipu variables when saving and loading savestates.
-	FreezeTag("IPU");
+	if (!(FreezeTag("IPU")))
+		return false;
+
 	Freeze(ipu_fifo);
 
 	Freeze(g_BP);
@@ -127,6 +129,8 @@ void SaveStateBase::ipuFreeze(void)
 	Freeze(coded_block_pattern);
 	Freeze(decoder);
 	Freeze(ipu_cmd);
+
+	return IsOkay();
 }
 
 

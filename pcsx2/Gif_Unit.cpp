@@ -163,9 +163,8 @@ void Gif_MTGS_Wait(bool isMTVU)
 	GetMTGS().WaitGS(false, true, isMTVU);
 }
 
-void SaveStateBase::gifPathFreeze(u32 path)
+bool SaveStateBase::gifPathFreeze(u32 path)
 {
-
 	Gif_Path& gifPath = gifUnit.gifPath[path];
 	pxAssertDev(!gifPath.readAmount, "Gif Path readAmount should be 0!");
 	pxAssertDev(!gifPath.gsPack.readAmount, "GS Pack readAmount should be 0!");
@@ -188,14 +187,18 @@ void SaveStateBase::gifPathFreeze(u32 path)
 		gifPath.readAmount = 0;
 		gifPath.gsPack.readAmount = 0;
 	}
+
+	return IsOkay();
 }
 
-void SaveStateBase::gifFreeze(void)
+bool SaveStateBase::gifFreeze(void)
 {
 	bool mtvuMode = THREAD_VU1;
 	pxAssert(vu1Thread.IsDone());
 	GetMTGS().WaitGS();
-	FreezeTag("Gif Unit");
+	if (!(FreezeTag("Gif Unit")))
+		return false;
+
 	Freeze(mtvuMode);
 	Freeze(gifUnit.stat);
 	Freeze(gifUnit.gsSIGNAL);
@@ -204,4 +207,6 @@ void SaveStateBase::gifFreeze(void)
 	gifPathFreeze(GIF_PATH_1);
 	gifPathFreeze(GIF_PATH_2);
 	gifPathFreeze(GIF_PATH_3);
+
+	return true;
 }

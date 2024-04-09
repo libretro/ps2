@@ -30,7 +30,6 @@
 #include "common/Path.h"
 #include "common/FileSystem.h"
 #include "common/MemorySettingsInterface.h"
-#include "common/SafeArray.inl"
 #ifdef ENABLE_VULKAN
 #include "common/Vulkan/Loader.h"
 #include "common/Vulkan/Context.h"
@@ -879,7 +878,7 @@ bool retro_serialize(void* data, size_t size)
 {
 	cpu_thread_pause();
 
-	VmStateBuffer buffer;
+	std::vector<u8> buffer;
 	memSavingState saveme(buffer);
 	freezeData fP;
 
@@ -920,8 +919,7 @@ bool retro_serialize(void* data, size_t size)
 	GSfreeze(FreezeAction::Save, &fP);
 	saveme.CommitBlock(fP.size);
 
-	pxAssert(size >= (size_t)buffer.GetLength());
-	memcpy(data, buffer.GetPtr(), buffer.GetLength());
+	memcpy(data, buffer.data(), buffer.size());
 
 
 	VMManager::SetPaused(false);
@@ -932,9 +930,9 @@ bool retro_unserialize(const void* data, size_t size)
 {
 	cpu_thread_pause();
 
-	VmStateBuffer buffer;
-	buffer.MakeRoomFor(size);
-	memcpy(buffer.GetPtr(), data, size);
+	std::vector<u8> buffer;
+	buffer.reserve(size);
+	memcpy(buffer.data(), data, size);
 	memLoadingState loadme(buffer);
 	freezeData fP;
 

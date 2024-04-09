@@ -19,7 +19,6 @@
 
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/SafeArray.inl"
 #include "common/ScopedGuard.h"
 #include "common/StringUtil.h"
 
@@ -55,57 +54,52 @@ static tlbs s_tlb_backup[std::size(tlb)];
 // --------------------------------------------------------------------------------------
 //  SaveStateBase  (implementations)
 // --------------------------------------------------------------------------------------
-SaveStateBase::SaveStateBase( SafeArray<u8>& memblock )
+SaveStateBase::SaveStateBase( VmStateBuffer& memblock )
+	: m_memory(memblock)
+	, m_version(g_SaveVersion)
 {
-	Init( &memblock );
 }
 
-SaveStateBase::SaveStateBase( SafeArray<u8>* memblock )
+void SaveStateBase::PrepBlock(int size)
 {
-	Init( memblock );
-}
-
-void SaveStateBase::Init( SafeArray<u8>* memblock )
-{
-	m_memory	= memblock;
-	m_version	= g_SaveVersion;
-	m_idx		= 0;
-}
-
-void SaveStateBase::PrepBlock( int size )
-{
-	pxAssertDev( m_memory, "Savestate memory/buffer pointer is null!" );
-
+	if (m_error)
+		return;
 	const int end = m_idx+size;
-	if( IsSaving() )
-		m_memory->MakeRoomFor( end );
+	if (IsSaving())
+	{
+		if (static_cast<u32>(end) >= m_memory.size())
+			m_memory.resize(static_cast<u32>(end));
+	}
 	else
 	{
-		if( m_memory->GetSizeInBytes() < end )
-			throw Exception::SaveStateLoadError();
+		if (m_memory.size() < static_cast<u32>(end))
+			m_error = true;
 	}
 }
 
-void SaveStateBase::FreezeTag( const char* src )
+bool SaveStateBase::FreezeTag(const char *src)
 {
-	const uint allowedlen = sizeof( m_tagspace )-1;
-	pxAssertDev(strlen(src) < allowedlen, "Tag name exceeds the allowed length");
+	if (m_error)
+		return false;
 
 	memzero( m_tagspace );
 	strcpy( m_tagspace, src );
 	Freeze( m_tagspace );
 
-	if( strcmp( m_tagspace, src ) != 0 )
+	if(strcmp( m_tagspace, src ) != 0 )
 	{
-		std::string msg(fmt::format("Savestate data corruption detected while reading tag: {}", src));
-		pxFail( msg.c_str() );
-		throw Exception::SaveStateLoadError().SetDiagMsg(std::move(msg));
+		Console.Error(fmt::format("Savestate data corruption detected while reading tag: {}", src));
+		m_error = true;
+		return false;
 	}
+
+	return true;
 }
 
-SaveStateBase& SaveStateBase::FreezeBios()
+bool SaveStateBase::FreezeBios()
 {
-	FreezeTag( "BIOS" );
+	if (!FreezeTag("BIOS"))
+		return false;
 
 	// Check the BIOS, and issue a warning if the bios for this state
 	// doesn't match the bios currently being used (chances are it'll still
@@ -119,28 +113,23 @@ SaveStateBase& SaveStateBase::FreezeBios()
 	Freeze( bioscheck );
 	Freeze( biosdesc );
 
-	if (bioscheck != BiosChecksum)
-	{
-		Console.Newline();
-		Console.Indent(1).Error( "Warning: BIOS Version Mismatch, savestate may be unstable!" );
-		Console.Indent(2).Error(
-			"Current BIOS:   %s (crc=0x%08x)\n"
-			"Savestate BIOS: %s (crc=0x%08x)\n",
-			BiosDescription.c_str(), BiosChecksum,
-			biosdesc, bioscheck
-		);
-	}
-
-	return *this;
+	return IsOkay();
 }
 
-SaveStateBase& SaveStateBase::FreezeInternals()
+bool SaveStateBase::FreezeInternals()
 {
 	const u32 previousCRC = ElfCRC;
 
+#if 0
+	if (!vmFreeze())
+		return false;
+#endif
+
 	// Second Block - Various CPU Registers and States
 	// -----------------------------------------------
-	FreezeTag( "cpuRegs" );
+	if (!FreezeTag( "cpuRegs" ))
+		return false;
+
 	Freeze(cpuRegs);		// cpu regs + COP0
 	Freeze(psxRegs);		// iop regs
 	Freeze(fpuRegs);
@@ -173,7 +162,8 @@ SaveStateBase& SaveStateBase::FreezeInternals()
 
 	// Third Block - Cycle Timers and Events
 	// -------------------------------------
-	FreezeTag( "Cycles" );
+	if (!(FreezeTag( "Cycles" )))
+		return false;
 	Freeze(EEsCycle);
 	Freeze(EEoCycle);
 	Freeze(nextCounter);
@@ -183,37 +173,43 @@ SaveStateBase& SaveStateBase::FreezeInternals()
 
 	// Fourth Block - EE-related systems
 	// ---------------------------------
-	FreezeTag( "EE-Subsystems" );
-	rcntFreeze();
-	gsFreeze();
-	vuMicroFreeze();
-	vuJITFreeze();
-	vif0Freeze();
-	vif1Freeze();
-	sifFreeze();
-	ipuFreeze();
-	ipuDmaFreeze();
-	gifFreeze();
-	gifDmaFreeze();
-	sprFreeze();
-	mtvuFreeze();
+	if (!(FreezeTag( "EE-Subsystems" )))
+		return false;
+
+	bool okay = rcntFreeze();
+	okay = okay && gsFreeze();
+	okay = okay && vuMicroFreeze();
+	okay = okay && vuJITFreeze();
+	okay = okay && vif0Freeze();
+	okay = okay && vif1Freeze();
+	okay = okay && sifFreeze();
+	okay = okay && ipuFreeze();
+	okay = okay && ipuDmaFreeze();
+	okay = okay && gifFreeze();
+	okay = okay && gifDmaFreeze();
+	okay = okay && sprFreeze();
+	okay = okay && mtvuFreeze();
+	if (!okay)
+		return false;
 
 	// Fifth Block - iop-related systems
 	// ---------------------------------
-	FreezeTag( "IOP-Subsystems" );
+	if (!(FreezeTag( "IOP-Subsystems" )))
+		return false;
+
 	FreezeMem(iopMem->Sif, sizeof(iopMem->Sif));		// iop's sif memory (not really needed, but oh well)
 
-	psxRcntFreeze();
-	sioFreeze();
-	sio2Freeze();
-	cdrFreeze();
-	cdvdFreeze();
+	okay = okay && psxRcntFreeze();
+	okay = okay && sioFreeze();
+	okay = okay && sio2Freeze();
+	okay = okay && cdrFreeze();
+	okay = okay && cdvdFreeze();
 
 	// technically this is HLE BIOS territory, but we don't have enough such stuff
 	// to merit an HLE Bios sub-section... yet.
-	deci2Freeze();
+	okay = okay && deci2Freeze();
 
-	return *this;
+	return okay;
 }
 
 
@@ -222,57 +218,45 @@ SaveStateBase& SaveStateBase::FreezeInternals()
 // --------------------------------------------------------------------------------------
 // uncompressed to/from memory state saves implementation
 
-memSavingState::memSavingState( SafeArray<u8>& save_to )
-	: SaveStateBase( save_to )
-{
-}
-
-memSavingState::memSavingState( SafeArray<u8>* save_to )
+memSavingState::memSavingState( VmStateBuffer& save_to )
 	: SaveStateBase( save_to )
 {
 }
 
 // Saving of state data
-void memSavingState::FreezeMem( void* data, int size )
+void memSavingState::FreezeMem(void* data, int size)
 {
 	if (!size) return;
 
-	m_memory->MakeRoomFor( m_idx + size );
-	memcpy( m_memory->GetPtr(m_idx), data, size );
+	const int new_size = m_idx + size;
+	if (static_cast<u32>(new_size) > m_memory.size())
+		m_memory.resize(static_cast<u32>(new_size));
+
+	std::memcpy(&m_memory[m_idx], data, size);
 	m_idx += size;
-}
-
-void memSavingState::MakeRoomForData()
-{
-	pxAssertDev( m_memory, "Savestate memory/buffer pointer is null!" );
-
-	m_memory->ChunkSize = ReallocThreshold;
-	m_memory->MakeRoomFor( m_idx + MemoryBaseAllocSize );
 }
 
 // --------------------------------------------------------------------------------------
 //  memLoadingState  (implementations)
 // --------------------------------------------------------------------------------------
-memLoadingState::memLoadingState( const SafeArray<u8>& load_from )
-	: SaveStateBase( const_cast<SafeArray<u8>&>(load_from) )
-{
-}
-
-memLoadingState::memLoadingState( const SafeArray<u8>* load_from )
-	: SaveStateBase( const_cast<SafeArray<u8>*>(load_from) )
+memLoadingState::memLoadingState( const VmStateBuffer& load_from )
+	: SaveStateBase( const_cast<VmStateBuffer&>(load_from) )
 {
 }
 
 // Loading of state data from a memory buffer...
-void memLoadingState::FreezeMem( void* data, int size )
+void memLoadingState::FreezeMem(void* data, int size)
 {
-	const u8* const src = m_memory->GetPtr(m_idx);
-	m_idx += size;
-	memcpy( data, src, size );
-}
+	if (m_error)
+	{
+		memset(data, 0, size);
+		return;
+	}
 
-// Used to hold the current state backup (fullcopy of PS2 memory and subcomponents states).
-//static VmStateBuffer state_buffer( L"Public Savestate Buffer" );
+	const u8* const src = &m_memory[m_idx];
+	m_idx += size;
+	memcpy(data, src, size);
+}
 
 struct SysState_Component
 {
@@ -291,52 +275,6 @@ static constexpr SysState_Component SPU2_{ "SPU2", SPU2freeze };
 static constexpr SysState_Component PAD_{ "PAD", PADfreeze };
 static constexpr SysState_Component GS{ "GS", SysState_MTGSFreeze };
 
-
-static void SysState_ComponentFreezeOutRoot(void* dest, SysState_Component comp)
-{
-	freezeData fP = { 0, (u8*)dest };
-	if (comp.freeze(FreezeAction::Size, &fP) != 0)
-		return;
-	if (!fP.size)
-		return;
-
-	Console.Indent().WriteLn("Saving %s", comp.name);
-
-	if (comp.freeze(FreezeAction::Save, &fP) != 0)
-		throw std::runtime_error(std::string(" * ") + comp.name + std::string(": Error saving state!\n"));
-}
-
-static void SysState_ComponentFreezeOut(SaveStateBase& writer, SysState_Component comp)
-{
-	freezeData fP = { 0, NULL };
-	if (comp.freeze(FreezeAction::Size, &fP) == 0)
-	{
-		const int size = fP.size;
-		writer.PrepBlock(size);
-		SysState_ComponentFreezeOutRoot(writer.GetBlockPtr(), comp);
-		writer.CommitBlock(size);
-	}
-	return;
-}
-
-static void SysState_ComponentFreezeOutNew(SaveStateBase& writer, const char* name, u32 reserve, bool (*do_state_func)(StateWrapper&))
-{
-	StateWrapper::VectorMemoryStream stream(reserve);
-	StateWrapper sw(&stream, StateWrapper::Mode::Write, g_SaveVersion);
-
-	// TODO: Get rid of the bloody exceptions.
-	if (!do_state_func(sw))
-		throw std::runtime_error(fmt::format(" * {}: Error saving state!", name));
-
-	const int size = static_cast<int>(stream.GetBuffer().size());
-	if (size > 0)
-	{
-		writer.PrepBlock(size);
-		std::memcpy(writer.GetBlockPtr(), stream.GetBuffer().data(), size);
-		writer.CommitBlock(size);
-	}
-}
-
 // --------------------------------------------------------------------------------------
 //  BaseSavestateEntry
 // --------------------------------------------------------------------------------------
@@ -349,7 +287,6 @@ public:
 	virtual ~BaseSavestateEntry() = default;
 
 	virtual const char* GetFilename() const = 0;
-	virtual void FreezeOut(SaveStateBase& writer) const = 0;
 };
 
 class MemorySavestateEntry : public BaseSavestateEntry
@@ -357,16 +294,7 @@ class MemorySavestateEntry : public BaseSavestateEntry
 protected:
 	MemorySavestateEntry() {}
 	virtual ~MemorySavestateEntry() = default;
-
-public:
-	virtual void FreezeOut(SaveStateBase& writer) const;
-
 protected:
 	virtual u8* GetDataPtr() const = 0;
 	virtual u32 GetDataSize() const = 0;
 };
-
-void MemorySavestateEntry::FreezeOut(SaveStateBase& writer) const
-{
-	writer.FreezeMem(GetDataPtr(), GetDataSize());
-}

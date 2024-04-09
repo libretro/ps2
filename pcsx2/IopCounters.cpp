@@ -812,9 +812,10 @@ void psxRcntSetGates()
 		psxvblankgate &= ~(1 << 3);
 }
 
-void SaveStateBase::psxRcntFreeze()
+bool SaveStateBase::psxRcntFreeze()
 {
-	FreezeTag("iopCounters");
+	if (!(FreezeTag("iopCounters")))
+		return false;
 
 	Freeze(psxCounters);
 	Freeze(psxNextCounter);
@@ -822,6 +823,11 @@ void SaveStateBase::psxRcntFreeze()
 	Freeze(psxvblankgate);
 	Freeze(psxhblankgate);
 
+	if (!IsOkay())
+		return false;
+
 	if (IsLoading())
 		psxRcntUpdate();
+
+	return true;
 }

@@ -18,14 +18,11 @@
 #include "SysForwardDefs.h"
 
 #include "common/Exceptions.h"
-#include "common/SafeArray.h"
 #include "common/Threading.h"
 
 #include "Config.h"
 #include "VirtualMemory.h"
 #include "vtlb.h"
-
-typedef SafeArray<u8> VmStateBuffer;
 
 class BaseVUmicroCPU;
 
