@@ -20,9 +20,6 @@
 #include <vector>
 
 #include "System.h"
-#include "common/Assertions.h"
-
-class Error;
 
 enum class FreezeAction
 {
@@ -35,7 +32,6 @@ enum class FreezeAction
 
 // NOTICE: When updating g_SaveVersion, please make sure you add the following line to your commit message somewhere:
 // [SAVEVERSION+]
-// This informs the auto updater that the users savestates will be invalidated.
 
 static const u32 g_SaveVersion = (0x9A35 << 16) | 0x0000;
 
@@ -51,8 +47,6 @@ struct freezeData
 	int size;
 	u8* data;
 };
-
-class ArchiveEntryList;
 
 // --------------------------------------------------------------------------------------
 //  SaveStateBase class
@@ -77,15 +71,7 @@ public:
 	SaveStateBase( VmStateBuffer& memblock );
 	virtual ~SaveStateBase() { }
 
-	__fi bool HasError() const { return m_error; }
 	__fi bool IsOkay() const { return !m_error; }
-
-	// Gets the version of savestate that this object is acting on.
-	// The version refers to the low 16 bits only (high 16 bits classifies Pcsx2 build types)
-	u32 GetVersion() const
-	{
-		return (m_version & 0xffff);
-	}
 
 	bool FreezeBios();
 	bool FreezeInternals();
@@ -96,14 +82,6 @@ public:
 	void Freeze( T& data )
 	{
 		FreezeMem( const_cast<void*>((void*)&data), sizeof( T ) );
-	}
-
-	// FreezeLegacy can be used to load structures short of their full size, which is
-	// useful for loading structures that have had new stuff added since a previous version.
-	template<typename T>
-	void FreezeLegacy( T& data, int sizeOfNewStuff )
-	{
-		FreezeMem( &data, sizeof( T ) - sizeOfNewStuff );
 	}
 
 	void PrepBlock( int size );
@@ -136,11 +114,6 @@ public:
 			for (u32 i = 0; i < count; i++)
 				q.push_back(temp[i]);
 		}
-	}
-
-	uint GetCurrentPos() const
-	{
-		return m_idx;
 	}
 
 	u8* GetBlockPtr()
@@ -205,109 +178,6 @@ protected:
 
 	bool deci2Freeze();
 
-};
-
-// --------------------------------------------------------------------------------------
-//  ArchiveEntry
-// --------------------------------------------------------------------------------------
-class ArchiveEntry
-{
-protected:
-	std::string	m_filename;
-	uptr		m_dataidx;
-	size_t		m_datasize;
-
-public:
-	ArchiveEntry(std::string filename)
-		: m_filename(std::move(filename))
-	{
-		m_dataidx = 0;
-		m_datasize = 0;
-	}
-
-	virtual ~ArchiveEntry() = default;
-
-	ArchiveEntry& SetDataIndex(uptr idx)
-	{
-		m_dataidx = idx;
-		return *this;
-	}
-
-	ArchiveEntry& SetDataSize(size_t size)
-	{
-		m_datasize = size;
-		return *this;
-	}
-
-	const std::string& GetFilename() const
-	{
-		return m_filename;
-	}
-
-	uptr GetDataIndex() const
-	{
-		return m_dataidx;
-	}
-
-	uint GetDataSize() const
-	{
-		return m_datasize;
-	}
-};
-
-// --------------------------------------------------------------------------------------
-//  ArchiveEntryList
-// --------------------------------------------------------------------------------------
-class ArchiveEntryList final
-{
-public:
-	using VmStateBuffer = std::vector<u8>;
-	DeclareNoncopyableObject(ArchiveEntryList);
-
-protected:
-	std::vector<ArchiveEntry> m_list;
-	VmStateBuffer m_data;
-
-public:
-	virtual ~ArchiveEntryList() = default;
-
-	ArchiveEntryList() {}
-
-	const VmStateBuffer& GetBuffer() const
-	{
-		return m_data;
-	}
-
-	u8* GetPtr(uint idx)
-	{
-		return &m_data[idx];
-	}
-
-	const u8* GetPtr(uint idx) const
-	{
-		return &m_data[idx];
-	}
-
-	ArchiveEntryList& Add(const ArchiveEntry& src)
-	{
-		m_list.push_back(src);
-		return *this;
-	}
-
-	size_t GetLength() const
-	{
-		return m_list.size();
-	}
-
-	ArchiveEntry& operator[](uint idx)
-	{
-		return m_list[idx];
-	}
-
-	const ArchiveEntry& operator[](uint idx) const
-	{
-		return m_list[idx];
-	}
 };
 
 // --------------------------------------------------------------------------------------

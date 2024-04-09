@@ -17,7 +17,7 @@
 
 enum class SioStage
 {
-	IDLE,
+	IDLE = 0,
 	WAITING_COMMAND,
 	WORKING
 };
@@ -78,7 +78,7 @@ namespace MemcardCommand
 
 enum class Sio0Interrupt
 {
-	TEST_EVENT,
+	TEST_EVENT = 0,
 	STAT_READ,
 	TX_DATA_WRITE
 }; // namespace Sio0Interrupt

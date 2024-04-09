@@ -30,8 +30,6 @@ class VirtualMemoryManager
 {
 	DeclareNoncopyableObject(VirtualMemoryManager);
 
-	std::string m_name;
-
 	void* m_file_handle;
 	u8* m_baseptr;
 
@@ -48,19 +46,12 @@ public:
 	VirtualMemoryManager(std::string name, const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds = 0, bool strict = false);
 	~VirtualMemoryManager();
 
-	bool IsSharedMemory() const { return (m_file_handle != nullptr); }
 	void* GetFileHandle() const { return m_file_handle; }
 	u8* GetBase() const { return m_baseptr; }
-	u8* GetEnd() const { return (m_baseptr + m_pages_reserved * __pagesize); }
 
 	// Request the use of the memory at offsetLocation bytes from the start of the reserved memory area
 	// offsetLocation must be page-aligned
 	u8* Alloc(uptr offsetLocation, size_t size) const;
-
-	u8* AllocAtAddress(void* address, size_t size) const
-	{
-		return Alloc(size, static_cast<const u8*>(address) - m_baseptr);
-	}
 
 	void Free(void* address, size_t size) const;
 
@@ -94,8 +85,6 @@ class VirtualMemoryReserve
 	DeclareNoncopyableObject(VirtualMemoryReserve);
 
 protected:
-	std::string m_name;
-
 	// Where the memory came from (so we can return it)
 	VirtualMemoryManagerPtr m_allocator;
 
@@ -116,7 +105,6 @@ public:
 	void Release();
 
 	bool IsOk() const { return m_baseptr != NULL; }
-	const std::string& GetName() const { return m_name; }
 
 	u8* GetPtr() { return m_baseptr; }
 	const u8* GetPtr() const { return m_baseptr; }

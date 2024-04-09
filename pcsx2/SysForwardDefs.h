@@ -18,5 +18,3 @@
 #define PCSX2_VersionHi     1
 #define PCSX2_VersionMid    7
 #define PCSX2_VersionLo     0
-
-static const bool PCSX2_isReleaseVersion = 0;

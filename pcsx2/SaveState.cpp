@@ -38,7 +38,7 @@
 #include "GS/GS.h"
 #include "SPU2/spu2.h"
 #include "StateWrapper.h"
-#include "PAD/Host/PAD.h"
+#include "PAD/PAD.h"
 #include "USB/USB.h"
 #include "VMManager.h"
 
@@ -281,8 +281,6 @@ protected:
 
 public:
 	virtual ~BaseSavestateEntry() = default;
-
-	virtual const char* GetFilename() const = 0;
 };
 
 class MemorySavestateEntry : public BaseSavestateEntry

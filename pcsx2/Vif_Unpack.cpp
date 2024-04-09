@@ -186,6 +186,10 @@ alignas(16) const UNPACKFUNCTYPE VIFfuncTable[2][4][4 * 4 * 2 * 2] =
 //----------------------------------------------------------------------------
 // Unpack Setup Code
 //----------------------------------------------------------------------------
+__fi static int _limit(int a, int max)
+{
+	return ((a > max) ? max : a);
+}
 
 _vifT void vifUnpackSetup(const u32 *data) {
 

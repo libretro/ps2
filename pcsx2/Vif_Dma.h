@@ -141,16 +141,11 @@ typedef FnType_VifCmdHandler* Fnptr_VifCmdHandler;
 
 alignas(16) extern const Fnptr_VifCmdHandler vifCmdHandler[2][128];
 
-__fi static int _limit(int a, int max)
-{
-	return ((a > max) ? max : a);
-}
-
 enum VifModes
 {
-	VIF_NORMAL_TO_MEM_MODE = 0,
+	VIF_NORMAL_TO_MEM_MODE   = 0,
 	VIF_NORMAL_FROM_MEM_MODE = 1,
-	VIF_CHAIN_MODE = 2
+	VIF_CHAIN_MODE 		 = 2
 };
 
 // Generic constants

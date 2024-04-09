@@ -82,8 +82,8 @@ static const u32
 	HW_SIO2_RECV1		= 0x1f80826c,
 	HW_SIO2_RECV2		= 0x1f808270,
 	HW_SIO2_RECV3		= 0x1f808274,
-	HW_SIO2_8278        = 0x1F808278, // May as well add defs
-	HW_SIO2_827C        = 0x1F80827C, // for these 2...
+	HW_SIO2_8278        	= 0x1F808278, // May as well add defs
+	HW_SIO2_827C        	= 0x1F80827C, // for these 2...
 	HW_SIO2_INTR		= 0x1f808280;
 
 enum DMAMadrAddresses
@@ -201,15 +201,6 @@ struct dma_mbc
 	u32 madr;
 	u32 bcr;
 	u32 chcr;
-
-	u16 bcr_lower() const
-	{
-		return (u16)(bcr);
-	}
-	u16 bcr_upper() const
-	{
-		return (bcr >> 16);
-	}
 };
 
 struct dma_mbct
@@ -218,15 +209,6 @@ struct dma_mbct
 	u32 bcr;
 	u32 chcr;
 	u32 tadr;
-
-	u16 bcr_lower() const
-	{
-		return (u16)(bcr);
-	}
-	u16 bcr_upper() const
-	{
-		return (bcr >> 16);
-	}
 };
 
 static dma_mbc&		hw_dma0		= (dma_mbc&) iopHw[0x1080];

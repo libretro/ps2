@@ -42,13 +42,13 @@
 struct IConsoleWriter;
 
 enum patch_cpu_type {
-	NO_CPU,
+	NO_CPU = 0,
 	CPU_EE,
 	CPU_IOP
 };
 
 enum patch_data_type {
-	NO_TYPE,
+	NO_TYPE = 0,
 	BYTE_T,
 	SHORT_T,
 	WORD_T,

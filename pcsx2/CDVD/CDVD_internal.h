@@ -37,28 +37,13 @@ without proper emulation of the cdvd status flag it also tends to break things.
 
 */
 
-/* Old IRQ structure
-
-enum CdvdIrqId
-{
-	Irq_None = 0,
-	Irq_DataReady = 0,
-	Irq_CommandComplete,
-	Irq_Acknowledge,
-	Irq_EndOfData,
-	Irq_Error,
-	Irq_NotReady
-
-};
-*/
-
 enum CdvdIrqId
 {
 	Irq_None = 0,
 	Irq_CommandComplete = 0,
 	Irq_POffReady = 2,
 	Irq_Eject,
-	Irq_BSPower, //PS1 IRQ not used
+	Irq_BSPower //PS1 IRQ not used
 };
 
 /* Cdvd.Status bits and their meaning
@@ -78,7 +63,7 @@ enum cdvdStatus
 	CDVD_STATUS_READ = 0x06,
 	CDVD_STATUS_PAUSE = 0x0A,
 	CDVD_STATUS_SEEK = 0x12,
-	CDVD_STATUS_EMERGENCY = 0x20,
+	CDVD_STATUS_EMERGENCY = 0x20
 };
 
 /* from PS2Tek https://psi-rockin.github.io/ps2tek/#cdvdioports
@@ -100,7 +85,7 @@ enum cdvdready
 	CDVD_DRIVE_MECHA_INIT = 0x8,
 	CDVD_DRIVE_PWOFF = 0x20,
 	CDVD_DRIVE_READY = 0x40,
-	CDVD_DRIVE_BUSY = 0x80,
+	CDVD_DRIVE_BUSY = 0x80
 };
 
 // Cdvd actions tell the emulator how and when to respond to certain requests.
@@ -130,7 +115,7 @@ enum cdvdActions
 enum CDVD_MODE_TYPE
 {
 	MODE_CDROM = 0,
-	MODE_DVDROM,
+	MODE_DVDROM
 };
 
 static const uint tbl_FastSeekDelta[3] =
@@ -174,25 +159,6 @@ bool trayState = 0; // Used to check if the CD tray status has changed since the
 
 static const char* mg_zones[8] = {"Japan", "USA", "Europe", "Oceania", "Asia", "Russia", "China", "Mexico"};
 
-static const char* nCmdName[0x100] = {
-	"CdSync",
-	"CdNop",
-	"CdStandby",
-	"CdStop",
-	"CdPause",
-	"CdSeek",
-	"CdRead",
-	"CdReadCDDA",
-	"CdReadDVDV",
-	"CdGetToc",
-	"",
-	"NCMD_B",
-	"CdReadKey",
-	"",
-	"sceCdReadXCDDA",
-	"sceCdChgSpdlCtrl",
-};
-
 enum nCmds
 {
 	N_CD_NOP = 0x00,           // CdNop
@@ -209,50 +175,6 @@ enum nCmds
 	N_CD_READ_KEY = 0x0C,      // CdReadKey
 	N_CD_READ_XCDDA = 0x0E,    // CdReadXCDDA
 	N_CD_CHG_SPDL_CTRL = 0x0F, // CdChgSpdlCtrl
-};
-
-static const char* sCmdName[0x100] = {
-	"", "sceCdGetDiscType", "sceCdReadSubQ", "subcommands", //sceCdGetMecaconVersion, read/write console id, read renewal date
-	"", "sceCdTrayState", "sceCdTrayCtrl", "",
-	"sceCdReadClock", "sceCdWriteClock", "sceCdReadNVM", "sceCdWriteNVM",
-	"sceCdSetHDMode", "", "", "sceCdPowerOff",
-	"", "", "sceCdReadILinkID", "sceCdWriteILinkID", /*10*/
-	"sceAudioDigitalOut", "sceForbidDVDP", "sceAutoAdjustCtrl", "sceCdReadModelNumber",
-	"sceWriteModelNumber", "sceCdForbidCD", "sceCdBootCertify", "sceCdCancelPOffRdy",
-	"sceCdBlueLEDCtl", "", "sceRm2Read", "sceRemote2_7",               //Rm2PortGetConnection?
-	"sceRemote2_6", "sceCdWriteWakeUpTime", "sceCdReadWakeUpTime", "", /*20*/
-	"sceCdRcBypassCtl", "", "", "",
-	"", "sceCdNoticeGameStart", "", "",
-	"sceCdXBSPowerCtl", "sceCdXLEDCtl", "sceCdBuzzerCtl", "",
-	"", "sceCdSetMediumRemoval", "sceCdGetMediumRemoval", "sceCdXDVRPReset", /*30*/
-	"", "", "__sceCdReadRegionParams", "__sceCdReadMAC",
-	"__sceCdWriteMAC", "", "", "",
-	"", "", "__sceCdWriteRegionParams", "",
-	"sceCdOpenConfig", "sceCdReadConfig", "sceCdWriteConfig", "sceCdCloseConfig", /*40*/
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "", /*50*/
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "", /*60*/
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "", /*70*/
-	"", "", "", "",
-	"", "", "", "",
-	"", "", "", "",
-	"mechacon_auth_0x80", "mechacon_auth_0x81", "mechacon_auth_0x82", "mechacon_auth_0x83", /*80*/
-	"mechacon_auth_0x84", "mechacon_auth_0x85", "mechacon_auth_0x86", "mechacon_auth_0x87",
-	"mechacon_auth_0x88", "", "", "",
-	"", "sceMgWriteData", "sceMgReadData", "mechacon_auth_0x8F",
-	"sceMgWriteHeaderStart", "sceMgReadBITLength", "sceMgWriteDatainLength", "sceMgWriteDataoutLength", /*90*/
-	"sceMgReadKbit", "sceMgReadKbit2", "sceMgReadKcon", "sceMgReadKcon2",
-	"sceMgReadIcvPs2", "", "", "",
-	"", "", "", "",
-	/*A0, no sCmds above?*/
 };
 
 // NVM (eeprom) layout info

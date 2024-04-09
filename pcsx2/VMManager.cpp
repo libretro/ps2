@@ -168,12 +168,6 @@ std::string VMManager::GetGameSerial()
 	return s_game_serial;
 }
 
-std::string VMManager::GetGameName()
-{
-	std::unique_lock lock(s_info_mutex);
-	return s_game_name;
-}
-
 bool VMManager::Internal::InitializeGlobals()
 {
 	x86caps.Identify();
@@ -856,29 +850,6 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 	cdvd.Tray.cdvdActionSeconds = 1;
 	cdvd.Tray.trayState = CDVD_DISC_OPEN;
 	return result;
-}
-
-bool VMManager::IsElfFileName(const std::string_view& path)
-{
-	return StringUtil::EndsWithNoCase(path, ".elf");
-}
-
-bool VMManager::IsBlockDumpFileName(const std::string_view& path)
-{
-	return StringUtil::EndsWithNoCase(path, ".dump");
-}
-
-bool VMManager::IsDiscFileName(const std::string_view& path)
-{
-	static const char* extensions[] = {".iso", ".bin", ".img", ".mdf", ".gz", ".cso", ".chd"};
-
-	for (const char* test_extension : extensions)
-	{
-		if (StringUtil::EndsWithNoCase(path, test_extension))
-			return true;
-	}
-
-	return false;
 }
 
 void VMManager::Execute()

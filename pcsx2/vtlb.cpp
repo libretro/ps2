@@ -1299,7 +1299,7 @@ void VtlbMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset,
 	u8* base = allocator->Alloc(offset, size);
 	if (!base)
 	{
-		Console.WriteLn("(VtlbMemoryReserve) Failed to allocate %zu bytes for %s at offset %zu", size, m_name.c_str(), offset);
+		Console.WriteLn("(VtlbMemoryReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
 		pxFailRel("VtlbMemoryReserve allocation failed.");
 	}
 

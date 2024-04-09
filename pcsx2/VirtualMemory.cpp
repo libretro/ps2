@@ -29,8 +29,7 @@
 // --------------------------------------------------------------------------------------
 
 VirtualMemoryManager::VirtualMemoryManager(std::string name, const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds, bool strict)
-	: m_name(std::move(name))
-	, m_file_handle(nullptr)
+	: m_file_handle(nullptr)
 	, m_baseptr(0)
 	, m_pageuse(nullptr)
 	, m_pages_reserved(0)
@@ -217,7 +216,6 @@ u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
 //  VirtualMemoryReserve  (implementations)
 // --------------------------------------------------------------------------------------
 VirtualMemoryReserve::VirtualMemoryReserve(std::string name)
-	: m_name(std::move(name))
 {
 }
 
@@ -290,7 +288,7 @@ void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t off
 	u8* base = allocator->Alloc(offset, size);
 	if (!base)
 	{
-		Console.WriteLn("(RecompiledCodeReserve) Failed to allocate %zu bytes for %s at offset %zu", size, m_name.c_str(), offset);
+		Console.WriteLn("(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
 		pxFailRel("RecompiledCodeReserve allocation failed.");
 	}
 

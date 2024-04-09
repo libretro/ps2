@@ -80,9 +80,7 @@ struct _mcd
 		u8 ret = msb ^ lsb;
 
 		for (const u8 byte : buf)
-		{
 			ret ^= byte;
-		}
 
 		return ret;
 	}
