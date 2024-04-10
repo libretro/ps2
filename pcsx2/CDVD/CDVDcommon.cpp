@@ -389,19 +389,19 @@ bool DoCDVDopen(void)
 		return true;
 	}
 
-	std::string somepick(Path::StripExtension(FileSystem::GetDisplayNameFromPath(m_SourceFilename[CurrentSourceType])));
+	std::string dump_name(Path::StripExtension(m_SourceFilename[CurrentSourceType]));
 	//FWIW Disc serial availability doesn't seem reliable enough, sometimes it's there and sometime it's just null
 	//Shouldn't the serial be available all time? Potentially need to look into Elfreloadinfo() reliability
 	//TODO: Add extra fallback case for CRC.
-	if (somepick.empty() && !DiscSerial.empty())
-		somepick = StringUtil::StdStringFromFormat("Untitled-%s", DiscSerial.c_str());
-	else if (somepick.empty())
-		somepick = "Untitled";
+	if (dump_name.empty() && !DiscSerial.empty())
+		dump_name = StringUtil::StdStringFromFormat("Untitled-%s", DiscSerial.c_str());
+	else if (dump_name.empty())
+		dump_name = "Untitled";
 
 	if (EmuConfig.CurrentBlockdump.empty())
 		EmuConfig.CurrentBlockdump = FileSystem::GetWorkingDirectory();
 
-	std::string temp(Path::Combine(EmuConfig.CurrentBlockdump, somepick));
+	std::string temp(Path::Combine(EmuConfig.CurrentBlockdump, dump_name));
 
 #ifdef ENABLE_TIMESTAMPS
 	std::time_t curtime_t = std::time(nullptr);

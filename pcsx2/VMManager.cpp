@@ -55,8 +55,6 @@
 
 #include "DebugTools/MIPSAnalyst.h"
 
-#include "IconsFontAwesome5.h"
-
 #ifdef _M_X86
 #include "common/emitter/x86_intrin.h"
 #endif
@@ -79,7 +77,6 @@ namespace VMManager
 	static void CheckForDEV9ConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config);
 	static void LogUnsafeSettingsToConsole(const std::string& messages);
-	static void WarnAboutUnsafeSettings();
 
 	static bool AutoDetectSource(const std::string& filename);
 	static bool ApplyBootParameters(VMBootParameters params, std::string* state_to_load);
@@ -253,12 +250,7 @@ void VMManager::LoadSettings()
 	}
 
 	if (HasValidVM())
-	{
-		if (EmuConfig.WarnAboutUnsafeSettings)
-			WarnAboutUnsafeSettings();
-
 		ApplyGameFixes();
-	}
 }
 
 void VMManager::ApplyGameFixes()
@@ -405,11 +397,11 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 		if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
 		{
 			message += " are active.";
-			Host::AddIconOSDMessage("LoadPatches", ICON_FA_FILE_CODE, message, Host::OSD_INFO_DURATION);
+			//Host::AddIconOSDMessage("LoadPatches", ICON_FA_FILE_CODE, message, Host::OSD_INFO_DURATION);
 		}
 		else if (show_messages_when_disabled)
 		{
-			Host::AddIconOSDMessage("LoadPatches", ICON_FA_FILE_CODE, "No cheats or patches (widescreen, compatibility or others) are found / enabled.", Host::OSD_INFO_DURATION);
+			//Host::AddIconOSDMessage("LoadPatches", ICON_FA_FILE_CODE, "No cheats or patches (widescreen, compatibility or others) are found / enabled.", Host::OSD_INFO_DURATION);
 		}
 	}
 }
@@ -420,11 +412,9 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	// we have the CRC but we're still at the bios and the settings are changed
 	// (e.g. the user presses TAB to speed up emulation), we don't want to apply the
 	// settings as if the game is already running (title, loadeding patches, etc).
-	u32 new_crc;
-	std::string new_serial;
-	const bool ingame = (ElfCRC && (g_GameLoading || g_GameStarted));
-	new_crc = ingame ? ElfCRC : 0;
-	new_serial = ingame ? SysGetDiscID() : SysGetBiosDiscID();
+	const bool ingame      = (ElfCRC && (g_GameLoading || g_GameStarted));
+	u32 new_crc            = ingame ? ElfCRC : 0;
+	std::string new_serial = ingame ? SysGetDiscID() : SysGetBiosDiscID();
 
 	if (!resetting && s_game_crc == new_crc && s_game_serial == new_serial)
 		return;
@@ -432,7 +422,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	{
 		std::unique_lock lock(s_info_mutex);
 		s_game_serial = std::move(new_serial);
-		s_game_crc = new_crc;
+		s_game_crc    = new_crc;
 		s_game_name.clear();
 
 		std::string memcardFilters;
@@ -440,7 +430,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial))
 		{
 			if (!s_elf_override.empty())
-				s_game_name = Path::GetFileTitle(FileSystem::GetDisplayNameFromPath(s_elf_override));
+				s_game_name = Path::GetFileTitle(s_elf_override);
 			else
 				s_game_name = game->name;
 
@@ -818,7 +808,6 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 	const CDVD_SourceType old_type = CDVDsys_GetSourceType();
 	const std::string old_path(CDVDsys_GetFile(old_type));
 
-	const std::string display_name((source != CDVD_SourceType::Iso) ? path : FileSystem::GetDisplayNameFromPath(path));
 	CDVDsys_ChangeSource(source);
 	if (!path.empty())
 		CDVDsys_SetFile(source, std::move(path));
@@ -826,27 +815,26 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 	const bool result = DoCDVDopen();
 	if (result)
 	{
-		if (source == CDVD_SourceType::NoDisc)
-			Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC, "Disc removed.", Host::OSD_INFO_DURATION);
-		else
-			Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC, fmt::format("Disc changed to '{}'.", display_name), Host::OSD_INFO_DURATION);
+#if 0
+		if (source == CDVD_SourceType::NoDisc) { /* Disc removed */ }
+		else { /* Disc changed to '{}' */ }
+#endif
 	}
 	else
 	{
-		Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC, fmt::format("Failed to open new disc image '{}'. Reverting to old image.", display_name),
-			Host::OSD_ERROR_DURATION);
+		/* Failed to open new disc image '{}'. Reverting to old image */
 		CDVDsys_ChangeSource(old_type);
 		if (!old_path.empty())
 			CDVDsys_SetFile(old_type, std::move(old_path));
 		if (!DoCDVDopen())
 		{
-			Host::AddIconOSDMessage("ChangeDisc", ICON_FA_COMPACT_DISC, "Failed to switch back to old disc image. Removing disc.", Host::OSD_CRITICAL_ERROR_DURATION);
+			/* Failed to switch back to old disc image. Removing disc. */
 			CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
 			DoCDVDopen();
 		}
 	}
 	cdvd.Tray.cdvdActionSeconds = 1;
-	cdvd.Tray.trayState = CDVD_DISC_OPEN;
+	cdvd.Tray.trayState         = CDVD_DISC_OPEN;
 	return result;
 }
 
@@ -1122,101 +1110,6 @@ void VMManager::LogUnsafeSettingsToConsole(const std::string& messages)
 		}
 	}
 	Console.Warning(console_messages);
-}
-
-void VMManager::WarnAboutUnsafeSettings()
-{
-	std::string messages;
-
-	if (EmuConfig.Speedhacks.fastCDVD)
-		messages += ICON_FA_COMPACT_DISC " Fast CDVD is enabled, this may break games.\n";
-	if (EmuConfig.Speedhacks.EECycleRate != 0 || EmuConfig.Speedhacks.EECycleSkip != 0)
-		messages += ICON_FA_TACHOMETER_ALT " Cycle rate/skip is not at default, this may crash or make games run too slow.\n";
-	if (EmuConfig.GS.UpscaleMultiplier < 1.0f)
-		messages += ICON_FA_TV " Upscale multiplier is below native, this will break rendering.\n";
-	if (EmuConfig.GS.HWMipmap != HWMipmapLevel::Automatic)
-		messages += ICON_FA_IMAGES " Mipmapping is not set to automatic. This may break rendering in some games.\n";
-	if (EmuConfig.GS.TextureFiltering != BiFiltering::PS2)
-		messages += ICON_FA_FILTER " Texture filtering is not set to Bilinear (PS2). This will break rendering in some games.\n";
-	if (EmuConfig.GS.TriFilter != TriFiltering::Automatic)
-		messages += ICON_FA_PAGER " Trilinear filtering is not set to automatic. This may break rendering in some games.\n";
-	if (EmuConfig.GS.AccurateBlendingUnit <= AccBlendLevel::Minimum)
-		messages += ICON_FA_BLENDER " Blending is below basic, this may break effects in some games.\n";
-	if (EmuConfig.GS.CRCHack != CRCHackLevel::Automatic)
-		messages += ICON_FA_FIRST_AID " CRC Fix Level is not set to default, this may break effects in some games.\n";
-	if (EmuConfig.GS.HWDownloadMode != GSHardwareDownloadMode::Enabled)
-		messages += ICON_FA_DOWNLOAD " Hardware Download Mode is not set to Accurate, this may break rendering in some games.\n";
-	if (EmuConfig.Cpu.sseMXCSR.GetRoundMode() != SSEround_Chop)
-		messages += ICON_FA_MICROCHIP " EE FPU Round Mode is not set to default, this may break some games.\n";
-	if (!EmuConfig.Cpu.Recompiler.fpuOverflow || EmuConfig.Cpu.Recompiler.fpuExtraOverflow || EmuConfig.Cpu.Recompiler.fpuFullMode)
-		messages += ICON_FA_MICROCHIP " EE FPU Clamp Mode is not set to default, this may break some games.\n";
-	if (EmuConfig.Cpu.sseVU0MXCSR.GetRoundMode() != SSEround_Chop || EmuConfig.Cpu.sseVU1MXCSR.GetRoundMode() != SSEround_Chop)
-		messages += ICON_FA_MICROCHIP " VU Round Mode is not set to default, this may break some games.\n";
-	if (!EmuConfig.Cpu.Recompiler.vu0Overflow || EmuConfig.Cpu.Recompiler.vu0ExtraOverflow || EmuConfig.Cpu.Recompiler.vu0SignOverflow ||
-		!EmuConfig.Cpu.Recompiler.vu1Overflow || EmuConfig.Cpu.Recompiler.vu1ExtraOverflow || EmuConfig.Cpu.Recompiler.vu1SignOverflow)
-	{
-		messages += ICON_FA_MICROCHIP " VU Clamp Mode is not set to default, this may break some games.\n";
-	}
-	if (!EmuConfig.EnableGameFixes)
-		messages += ICON_FA_GAMEPAD " Game Fixes are not enabled. Compatibility with some games may be affected.\n";
-	if (!EmuConfig.EnablePatches)
-		messages += ICON_FA_GAMEPAD " Compatibility Patches are not enabled. Compatibility with some games may be affected.\n";
-	if (EmuConfig.GS.FramerateNTSC != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC)
-		messages += ICON_FA_TV " Frame rate for NTSC is not default. This may break some games.\n";
-	if (EmuConfig.GS.FrameratePAL != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL)
-		messages += ICON_FA_TV " Frame rate for PAL is not default. This may break some games.\n";
-
-	if (!messages.empty())
-	{
-		if (messages.back() == '\n')
-			messages.pop_back();
-
-		LogUnsafeSettingsToConsole(messages);
-		Host::AddKeyedOSDMessage("unsafe_settings_warning", std::move(messages), Host::OSD_WARNING_DURATION);
-	}
-	else
-	{
-		Host::RemoveKeyedOSDMessage("unsafe_settings_warning");
-	}
-
-	messages.clear();
-	if (!EmuConfig.Cpu.Recompiler.EnableEE)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " EE Recompiler is not enabled, this will significantly reduce performance.\n";
-	if (!EmuConfig.Cpu.Recompiler.EnableVU0)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " VU0 Recompiler is not enabled, this will significantly reduce performance.\n";
-	if (!EmuConfig.Cpu.Recompiler.EnableVU1)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " VU1 Recompiler is not enabled, this will significantly reduce performance.\n";
-	if (!EmuConfig.Cpu.Recompiler.EnableIOP)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " IOP Recompiler is not enabled, this will significantly reduce performance.\n";
-	if (EmuConfig.Cpu.Recompiler.EnableEECache)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " EE Cache is enabled, this will significantly reduce performance.\n";
-	if (!EmuConfig.Speedhacks.WaitLoop)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " EE Wait Loop Detection is not enabled, this may reduce performance.\n";
-	if (!EmuConfig.Speedhacks.IntcStat)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " INTC Spin Detection is not enabled, this may reduce performance.\n";
-	if (!EmuConfig.Speedhacks.vu1Instant)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " Instant VU1 is disabled, this may reduce performance.\n";
-	if (!EmuConfig.Speedhacks.vuFlagHack)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " mVU Flag Hack is not enabled, this may reduce performance.\n";
-	if (EmuConfig.GS.GPUPaletteConversion)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " GPU Palette Conversion is enabled, this may reduce performance.\n";
-	if (EmuConfig.GS.TexturePreloading != TexturePreloadingLevel::Full)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " Texture Preloading is not Full, this may reduce performance.\n";
-	if (EmuConfig.GS.UserHacks_EstimateTextureRegion)
-		messages += ICON_FA_EXCLAMATION_CIRCLE " Estimate texture region is enabled, this may reduce performance.\n";
-
-	if (!messages.empty())
-	{
-		if (messages.back() == '\n')
-			messages.pop_back();
-
-		LogUnsafeSettingsToConsole(messages);
-		Host::AddKeyedOSDMessage("performance_settings_warning", std::move(messages), Host::OSD_WARNING_DURATION);
-	}
-	else
-	{
-		Host::RemoveKeyedOSDMessage("performance_settings_warning");
-	}
 }
 
 #ifdef _WIN32
