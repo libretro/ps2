@@ -86,7 +86,6 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 
 void SPU2::InitSndBuffer()
 {
-	Console.WriteLn("Initializing SndBuffer at sample rate of %u...", SampleRate);
 	if (SndBuffer::Init())
 		return;
 

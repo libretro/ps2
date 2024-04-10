@@ -90,7 +90,6 @@ __fi void vif0FBRST(u32 value)
 		cpuRegs.interrupt &= ~1; //Stop all vif0 DMA's
 		vif0Regs.stat.VFS = true;
 		vif0Regs.stat.VPS = VPS_IDLE;
-		Console.WriteLn("vif0 force break");
 	}
 
 	if (value & 0x4) // Stop Vif.
@@ -124,7 +123,6 @@ __fi void vif0FBRST(u32 value)
 
 	if (value & 0x1) // Reset Vif.
 	{
-		//Console.WriteLn("Vif0 Reset %x", vif0Regs.stat._u32);
 		u128 SaveCol;
 		u128 SaveRow;
 
@@ -166,7 +164,6 @@ __fi void vif1FBRST(u32 value)
 		cpuRegs.interrupt &= ~((1 << 1) | (1 << 10)); //Stop all vif1 DMA's
 		vif1.vifstalled.enabled = VifStallEnable(vif1ch);
 		vif1.vifstalled.value = VIF_IRQ_STALL;
-		Console.WriteLn("vif1 force break");
 	}
 
 	if (FBRST(value).STP) // Stop Vif.
@@ -198,7 +195,6 @@ __fi void vif1FBRST(u32 value)
 			switch (dmacRegs.ctrl.MFD)
 			{
 			case MFD_VIF1:
-				//Console.WriteLn("MFIFO Stall");
 				//MFIFO active and not empty
 				if (vif1ch.chcr.STR && !vif1Regs.stat.test(VIF1_STAT_FDR))
 					CPU_INT(DMAC_MFIFO_VIF, 0);

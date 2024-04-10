@@ -160,8 +160,6 @@ __fi void vif0Interrupt()
 
 	vif0Regs.stat.FQC = std::min(vif0ch.qwc, (u32)8);
 
-	if (!(vif0ch.chcr.STR)) Console.WriteLn("vif0 running when CHCR == %x", vif0ch.chcr._u32);
-
 	if(vif0.waitforvu)
 	{
 		CPU_INT(VIF_VU0_FINISH, 16);
@@ -222,10 +220,7 @@ __fi void vif0Interrupt()
 	{
 
 		if (!(dmacRegs.ctrl.DMAE) || vif0Regs.stat.VSS) //Stopped or DMA Disabled
-		{
-			//Console.WriteLn("vif0 dma masked");
 			return;
-		}
 
 		if ((vif0.inprogress & 0x1) == 0) vif0SetupTransfer();
 		vif0Regs.stat.FQC = std::min(vif0ch.qwc, (u32)8);

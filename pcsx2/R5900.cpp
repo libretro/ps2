@@ -225,11 +225,8 @@ __fi int cpuGetCycles(int interrupt)
 {
 	if(interrupt == VU_MTVU_BUSY && (!THREAD_VU1 || INSTANT_VU1))
 		return 1;
-	{
-		const int cycles = (cpuRegs.sCycle[interrupt] + cpuRegs.eCycle[interrupt]) - cpuRegs.cycle;
-		return std::max(1, cycles);
-	}
-
+	const int cycles = (cpuRegs.sCycle[interrupt] + cpuRegs.eCycle[interrupt]) - cpuRegs.cycle;
+	return std::max(1, cycles);
 }
 
 // tests the cpu cycle against the given start and delta values.
@@ -274,10 +271,7 @@ static __fi bool _cpuTestInterrupts()
 {
 
 	if (!dmacRegs.ctrl.DMAE || (psHu8(DMAC_ENABLER+2) & 1))
-	{
-		//Console.Write("DMAC Disabled or suspended");
 		return false;
-	}
 	/* These are 'pcsx2 interrupts', they handle asynchronous stuff
 	   that depends on the cycle timings */
 	TESTINT(VU_MTVU_BUSY,	MTVUInterrupt);
@@ -543,7 +537,6 @@ void eeGameStarting()
 {
 	if (!g_GameStarted)
 	{
-		//Console.WriteLn( Color_Green, "(R5900) ELF Entry point! [addr=0x%08X]", ElfEntry );
 		g_GameStarted = true;
 		g_GameLoading = false;
 
@@ -590,8 +583,10 @@ int ParseArgumentString(u32 arg_block)
 }
 
 // Called from recompilers; define is mandatory.
-void eeloadHook()
+void eeloadHook(void)
 {
+	std::string discelf;
+	std::string elfname;
 	const std::string& elf_override(VMManager::Internal::GetElfOverride());
 
 	if (!elf_override.empty())
@@ -599,11 +594,8 @@ void eeloadHook()
 	else
 		cdvdReloadElfInfo();
 
-	std::string discelf;
 	int disctype = GetPS2ElfName(discelf);
-
-	std::string elfname;
-	int argc = cpuRegs.GPR.n.a0.SD[0];
+	int argc     = cpuRegs.GPR.n.a0.SD[0];
 	if (argc) // calls to EELOAD *after* the first one during the startup process will come here
 	{
 		if (argc > 1)
@@ -645,9 +637,7 @@ void eeloadHook()
 	{
 		std::string elftoload;
 		if (!elf_override.empty())
-		{
 			elftoload = StringUtil::StdStringFromFormat("host:%s", elf_override.c_str());
-		}
 		else
 		{
 			if (disctype == 2)

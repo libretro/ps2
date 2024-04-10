@@ -223,7 +223,6 @@ __fi void gifInterrupt(void)
 
 	if (dmacRegs.ctrl.MFD == MFD_GIF)
 	{ // GIF MFIFO
-		//Console.WriteLn("GIF MFIFO");
 		gifMFIFOInterrupt();
 		return;
 	}
@@ -382,7 +381,6 @@ void GIFdma(void)
 
 		if ((dmacRegs.ctrl.STD == STD_GIF) && (gif.prevcycles != 0))
 		{
-			//Console.WriteLn("GS Stall Control Source = %x, Drain = %x\n MADR = %x, STADR = %x", (psHu32(0xe000) >> 4) & 0x3, (psHu32(0xe000) >> 6) & 0x3, gifch.madr, psHu32(DMAC_STADR));
 			if ((gifch.madr + (gifch.qwc * 16)) > dmacRegs.stadr.ADDR)
 			{
 				GifDMAInt(4);
@@ -421,10 +419,6 @@ void GIFdma(void)
 			}
 
 			checkTieBit(ptag);
-		}
-		else if (dmacRegs.ctrl.STD == STD_GIF && gifch.chcr.MOD == NORMAL_MODE)
-		{
-			Console.WriteLn("GIF DMA Stall in Normal mode not implemented - Report which game to PCSX2 Team");
 		}
 
 		// Transfer Dn_QWC from Dn_MADR to GIF

@@ -127,7 +127,6 @@ static void _vu1Exec(VURegs* VU)
 			if (lregs.VFread0 == uregs.VFwrite ||
 				lregs.VFread1 == uregs.VFwrite)
 			{
-				//Console.WriteLn("saving reg %d at pc=%x", uregs.VFwrite, VU->VI[REG_TPC].UL);
 				_VF = VU->VF[uregs.VFwrite];
 				vfreg = uregs.VFwrite;
 			}

@@ -207,7 +207,6 @@ void SysMtgsThread::PostVsyncStart(bool registers_written)
 		return;
 
 	m_VsyncSignalListener.store(true, std::memory_order_release);
-	//Console.WriteLn( Color_Blue, "(EEcore Sleep) Vsync\t\tringpos=0x%06x, writepos=0x%06x", m_ReadPos.load(), m_WritePos.load() );
 
 	m_sem_Vsync.Wait();
 }
@@ -269,7 +268,7 @@ void SysMtgsThread::MainLoop(bool flush_all)
 
 	std::unique_lock mtvu_lock(m_mtx_RingBufferBusy2);
 
-	while (true)
+	for (;;)
 	{
 		if (flush_all)
 		{
@@ -451,8 +450,6 @@ void SysMtgsThread::MainLoop(bool flush_all)
 
 		if (m_VsyncSignalListener.exchange(false))
 			m_sem_Vsync.Post();
-
-		//Console.Warning( "(MTGS Thread) Nothing to do!  ringpos=0x%06x", m_ReadPos );
 	}
 
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
@@ -524,9 +521,8 @@ void SysMtgsThread::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
 		u32 startP1Packs = path.GetPendingGSPackets();
 		if (startP1Packs)
 		{
-			while (true)
+			for (;;)
 			{
-				// m_mtx_RingBufferBusy2.Wait();
 				m_mtx_RingBufferBusy2.lock();
 				m_mtx_RingBufferBusy2.unlock();
 				if (path.GetPendingGSPackets() != startP1Packs)
@@ -638,16 +634,12 @@ void SysMtgsThread::GenericStall(uint size)
 			pxAssertDev(m_SignalRingEnable == 0, "MTGS Thread Synchronization Error");
 			m_SignalRingPosition.store(somedone, std::memory_order_release);
 
-			//Console.WriteLn( Color_Blue, "(EEcore Sleep) PrepDataPacker \tringpos=0x%06x, writepos=0x%06x, signalpos=0x%06x", readpos, writepos, m_SignalRingPosition );
-
-			while (true)
+			for (;;)
 			{
 				m_SignalRingEnable.store(true, std::memory_order_release);
 				SetEvent();
 				m_sem_OnRingReset.Wait();
 				readpos = m_ReadPos.load(std::memory_order_acquire);
-				//Console.WriteLn( Color_Blue, "(EEcore Awake) Report!\tringpos=0x%06x", readpos );
-
 				if (writepos < readpos)
 					freeroom = readpos - writepos;
 				else
@@ -661,9 +653,8 @@ void SysMtgsThread::GenericStall(uint size)
 		}
 		else
 		{
-			//Console.WriteLn( Color_StrongGray, "(EEcore Spin) PrepDataPacket!" );
 			SetEvent();
-			while (true)
+			for (;;)
 			{
 				SpinWait();
 				readpos = m_ReadPos.load(std::memory_order_acquire);

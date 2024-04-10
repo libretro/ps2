@@ -94,7 +94,6 @@ void iopMemoryReserve::Reset()
 
 	psxMemWLUT[0x1f00] = (uptr)iopMem->P;
 	psxMemWLUT[0x1f80] = (uptr)iopHw;
-	//psxMemWLUT[0xbf80] = (uptr)iopHw;
 
 	// Read-only memory areas, so don't map WLUT for these...
 	for (int i = 0; i < 0x0040; i++)
@@ -313,7 +312,6 @@ void iopMemWrite8(u32 mem, u8 value)
 		{
 			if (t == 0x1d00)
 			{
-				Console.WriteLn("sw8 [0x%08X]=0x%08X", mem, value);
 				psxSu8(mem) = value;
 				return;
 			}
@@ -347,7 +345,6 @@ void iopMemWrite16(u32 mem, u16 value)
 		u8* p = (u8 *)(psxMemWLUT[mem >> 16]);
 		if (p != NULL && !(psxRegs.CP0.n.Status & 0x10000) )
 		{
-			if( t==0x1D00 ) Console.WriteLn("sw16 [0x%08X]=0x%08X", mem, value);
 			*(u16 *)(p + (mem & 0xffff)) = value;
 			psxCpu->Clear(mem&~3, 1);
 		}

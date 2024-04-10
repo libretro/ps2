@@ -170,14 +170,12 @@ void CTC2() {
 				Console.Error("fixme: VU0 Force Break");
 			}
 			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x2) { // VU0 Reset
-				//Console.WriteLn("fixme: VU0 Reset");
 				vu0ResetRegs();
 			}
 			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x100) { // VU1 Force Break
 				Console.Error("fixme: VU1 Force Break");
 			}
 			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x200) { // VU1 Reset
-//				Console.WriteLn("fixme: VU1 Reset");
 				vu1ResetRegs();
 			}
 			break;

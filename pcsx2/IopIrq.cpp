@@ -21,7 +21,7 @@
 #include "Common.h"
 #include "R3000A.h"
 
-void dev9Interrupt()
+void dev9Interrupt(void)
 {
 	if (DEV9irqHandler() != 1) return;
 
@@ -43,16 +43,13 @@ void usbIrq(int cycles)
 	PSX_INT(IopEvt_USB, cycles);
 }
 
-void fwIrq()
+void fwIrq(void)
 {
 	iopIntcIrq(24);
 }
 
-void spu2Irq()
+void spu2Irq(void)
 {
-	#ifdef SPU2IRQTEST
-		Console.Warning("spu2Irq");
-	#endif
 	iopIntcIrq(9);
 }
 

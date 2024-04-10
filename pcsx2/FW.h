@@ -17,8 +17,6 @@
 
 #include <stdio.h>
 
-#define FWdefs
-
 // Our main memory storage, and defines for accessing it.
 extern s8* fwregs;
 #define fwRs32(mem) (*(s32*)&fwregs[(mem)&0xffff])

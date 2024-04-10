@@ -1007,8 +1007,6 @@ int cdvdReadSector(void)
 	// be more correct. (air)
 	psxCpu->Clear(HW_DMA3_MADR, cdvd.BlockSize / 4);
 
-	//	Console.WriteLn("sector %x;%x;%x", PSXMu8(madr+0), PSXMu8(madr+1), PSXMu8(madr+2));
-
 	HW_DMA3_BCR_H16 -= (cdvd.BlockSize / (HW_DMA3_BCR_L16 * 4));
 	HW_DMA3_MADR += cdvd.BlockSize;
 
@@ -1077,10 +1075,8 @@ __fi void cdvdSectorReady(void)
 }
 
 // inlined due to being referenced in only one place.
-__fi void cdvdReadInterrupt()
+__fi void cdvdReadInterrupt(void)
 {
-	//Console.WriteLn("cdvdReadInterrupt %x %x %x %x %x", cpuRegs.interrupt, cdvd.Readed, cdvd.Reading, cdvd.nSectors, (HW_DMA3_BCR_H16 * HW_DMA3_BCR_L16) *4);
-
 	cdvdUpdateReady(CDVD_DRIVE_BUSY);
 	cdvdUpdateStatus(CDVD_STATUS_READ);
 	cdvd.WaitingDMA = false;
@@ -1639,7 +1635,6 @@ static void cdvdWrite04(u8 rt)
 			cdvdSetIrq();
 			break;
 		case N_CD_RESET: // CdSync
-			Console.WriteLn("CDVD: Reset NCommand");
 			cdvdUpdateReady(CDVD_DRIVE_READY);
 			cdvd.SCMDParamP = 0;
 			cdvd.SCMDParamC = 0;
@@ -2012,7 +2007,6 @@ static void cdvdWrite04(u8 rt)
 		break;
 
 		case N_CD_CHG_SPDL_CTRL: // CdChgSpdlCtrl
-			Console.WriteLn("sceCdChgSpdlCtrl(%d)", cdvd.NCMDParam[0]);
 			cdvdSetIrq();
 			break;
 
@@ -2172,10 +2166,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 				cdvd.SCMDResult[5] = itob(cdvd.RTC.day);    //Day
 				cdvd.SCMDResult[6] = itob(cdvd.RTC.month);  //Month
 				cdvd.SCMDResult[7] = itob(cdvd.RTC.year);   //Year
-				/*Console.WriteLn("RTC Read Sec %x Min %x Hr %x Day %x Month %x Year %x", cdvd.Result[1], cdvd.Result[2],
-				  cdvd.Result[3], cdvd.Result[5], cdvd.Result[6], cdvd.Result[7]);
-				  Console.WriteLn("RTC Read Real Sec %d Min %d Hr %d Day %d Month %d Year %d", cdvd.RTC.second, cdvd.RTC.minute,
-				  cdvd.RTC.hour, cdvd.RTC.day, cdvd.RTC.month, cdvd.RTC.year);*/
 				break;
 
 			case 0x09: // sceCdWriteRTC (7:1)
@@ -2189,11 +2179,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 				cdvd.RTC.day = btoi(cdvd.SCMDParam[cdvd.SCMDParamP - 3]);
 				cdvd.RTC.month = btoi(cdvd.SCMDParam[cdvd.SCMDParamP - 2] & 0x7f);
 				cdvd.RTC.year = btoi(cdvd.SCMDParam[cdvd.SCMDParamP - 1]);
-				/*Console.WriteLn("RTC write incomming Sec %x Min %x Hr %x Day %x Month %x Year %x", cdvd.Param[cdvd.ParamP-7], cdvd.Param[cdvd.ParamP-6],
-				  cdvd.Param[cdvd.ParamP-5], cdvd.Param[cdvd.ParamP-3], cdvd.Param[cdvd.ParamP-2], cdvd.Param[cdvd.ParamP-1]);
-				  Console.WriteLn("RTC Write Sec %d Min %d Hr %d Day %d Month %d Year %d", cdvd.RTC.second, cdvd.RTC.minute,
-				  cdvd.RTC.hour, cdvd.RTC.day, cdvd.RTC.month, cdvd.RTC.year);*/
-				//memcpy((u8*)&cdvd.RTC, cdvd.Param, 7);
 				break;
 
 			case 0x0A: // sceCdReadNVM (2:3)
@@ -2238,7 +2223,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 
 			case 0x0F: // sceCdPowerOff (0:1)- Call74 from Xcdvdman
-				Console.WriteLn(Color_StrongBlack, "sceCdPowerOff called. Shutting down VM.");
 				Host::RequestVMShutdown(false, false, false);
 				break;
 
@@ -2271,7 +2255,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 				break;
 
 			case 0x15: // sceCdForbidDVDP (0:1)
-				//Console.WriteLn("sceCdForbidDVDP");
 				SetSCMDResultSize(1);
 				cdvd.SCMDResult[0] = 5;
 				break;
@@ -2594,11 +2577,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 							zoneStr += mg_zones[i];
 					}
 
-					Console.WriteLn("[MG] ELF_size=0x%X Hdr_size=0x%X unk=0x%X flags=0x%X count=%d zones=%s",
-						*(u32*)&cdvd.mg_buffer[0x10], *(u16*)&cdvd.mg_buffer[0x14], *(u16*)&cdvd.mg_buffer[0x16],
-						*(u16*)&cdvd.mg_buffer[0x18], *(u16*)&cdvd.mg_buffer[0x1A],
-						zoneStr.c_str());
-
 					bit_ofs = mg_BIToffset(cdvd.mg_buffer);
 
 					psrc = (u64*)&cdvd.mg_buffer[bit_ofs - 0x20];
@@ -2627,8 +2605,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 				SetSCMDResultSize(1); //in:5
 				cdvd.mg_size = 0;
 				cdvd.mg_datatype = 1; //header data
-				Console.WriteLn("[MG] hcode=%d cnum=%d a2=%d length=0x%X",
-					cdvd.SCMDParam[0], cdvd.SCMDParam[3], cdvd.SCMDParam[4], cdvd.mg_maxsize = cdvd.SCMDParam[1] | (((int)cdvd.SCMDParam[2]) << 8));
 
 				cdvd.SCMDResult[0] = 0; // 0 complete ; 1 busy ; 0x80 error
 				break;
@@ -2641,7 +2617,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 				cdvd.mg_maxsize = 0; // don't allow any write
 				cdvd.mg_size = 8 + 16 * cdvd.mg_buffer[4]; //new offset, i just moved the data
-				Console.WriteLn("[MG] BIT count=%d", cdvd.mg_buffer[4]);
 
 				cdvd.SCMDResult[0] = (cdvd.mg_datatype == 1) ? 0 : 0x80; // 0 complete ; 1 busy ; 0x80 error
 				cdvd.SCMDResult[1] = (cdvd.mg_size >> 0) & 0xFF;
@@ -2705,11 +2680,9 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 			default:
 				SetSCMDResultSize(1); //in:0
 				cdvd.SCMDResult[0] = 0x80; // 0 complete ; 1 busy ; 0x80 error
-				Console.WriteLn("SCMD Unknown %x", rt);
 				break;
 		} // end switch
 
-		//Console.WriteLn("SCMD - 0x%x\n", rt);
 		cdvd.SCMDParamP = 0;
 		cdvd.SCMDParamC = 0;
 	}
@@ -2729,7 +2702,6 @@ static __fi void cdvdWrite17(u8 rt)
 
 static __fi void cdvdWrite18(u8 rt)
 { // SDATAOUT
-	Console.WriteLn("*PCSX2* SDATAOUT");
 }
 
 static __fi void cdvdWrite3A(u8 rt)

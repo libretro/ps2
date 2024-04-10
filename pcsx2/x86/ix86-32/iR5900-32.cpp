@@ -465,10 +465,8 @@ alignas(16) static u16 manual_page[Ps2MemSize::MainRam >> 12];
 alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
 
 ////////////////////////////////////////////////////
-static void recResetRaw()
+static void recResetRaw(void)
 {
-	Console.WriteLn(Color_StrongBlack, "EE/iR5900-32 Recompiler Reset");
-
 	recAlloc();
 
 	recMem->Reset();
@@ -1678,7 +1676,6 @@ bool skipMPEG_By_Pattern(u32 sPC)
 		iBranchTest();
 		g_branch = 1;
 		pc = s_nEndBlock;
-		Console.WriteLn(Color_StrongGreen, "sceMpegIsEnd pattern found! Recompiling skip video fix...");
 		return 1;
 	}
 	return 0;
@@ -1738,8 +1735,6 @@ static void recRecompile(const u32 startpc)
 				g_eeloadExec = EELOAD_START + 0x2B8;
 			else if (typeAexecjump >> 26 == 3) // JAL to 0x82170
 				g_eeloadExec = EELOAD_START + 0x170;
-			else // There might be other types of EELOAD, because these models' BIOSs have not been examined: 18000, 3500x, 3700x, 5500x, and 7900x. However, all BIOS versions have been examined except for v1.01 and v1.10.
-				Console.WriteLn("recRecompile: Could not enable launch arguments for fast boot mode; unidentified BIOS version! Please report this to the PCSX2 developers.");
 		}
 	}
 
@@ -1749,7 +1744,6 @@ static void recRecompile(const u32 startpc)
 	// this is the only way patches get applied, doesn't depend on a hack
 	if (g_GameLoading && HWADDR(startpc) == ElfEntry)
 	{
-		Console.WriteLn("Elf entry point @ 0x%08x about to get recompiled. Load patches first.", startpc);
 		xFastCall((void*)eeGameStarting);
 		VMManager::Internal::EntryPointCompilingOnCPUThread();
 	}

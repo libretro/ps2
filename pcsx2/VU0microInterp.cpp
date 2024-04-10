@@ -55,7 +55,6 @@ static void _vu0Exec(VURegs* VU)
 	{
 		VU->flags |= VUFLAG_MFLAGSET;
 		VU0.blockhasmbit = true;
-		//		Console.WriteLn("fixme: M flag set");
 	}
 	if (ptr[1] & 0x10000000) // D flag
 	{
@@ -126,7 +125,6 @@ static void _vu0Exec(VURegs* VU)
 			if (lregs.VFread0 == uregs.VFwrite ||
 				lregs.VFread1 == uregs.VFwrite)
 			{
-				//				Console.WriteLn("saving reg %d at pc=%x", i, VU->VI[REG_TPC].UL);
 				_VF = VU->VF[uregs.VFwrite];
 				vfreg = uregs.VFwrite;
 			}

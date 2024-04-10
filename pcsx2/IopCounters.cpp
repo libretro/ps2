@@ -685,10 +685,7 @@ __fi void psxRcntWmode32(int index, u32 value)
 
 		// Need to set a rate and target
 		if ((counter.mode & 0x7) == 0x7 || (counter.mode & 0x7) == 0x1)
-		{
-			Console.WriteLn("Gate set on IOP Counter %d, disabling", index);
 			counter.mode |= IOPCNT_STOPPED;
-		}
 	}
 
 	counter.count = 0;

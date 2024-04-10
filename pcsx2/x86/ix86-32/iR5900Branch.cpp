@@ -342,23 +342,6 @@ void recBNEL()
 		recBNEL_process(0);
 }
 
-/*********************************************************
-* Register branch logic                                  *
-* Format:  OP rs, offset                                 *
-*********************************************************/
-
-////////////////////////////////////////////////////
-//void recBLTZAL()
-//{
-//	Console.WriteLn("BLTZAL");
-//	_eeFlushAllUnused();
-//	xMOV(ptr32[(u32*)((int)&cpuRegs.code)], cpuRegs.code );
-//	xMOV(ptr32[(u32*)((int)&cpuRegs.pc)], pc );
-//	iFlushCall(FLUSH_EVERYTHING);
-//	xFastCall((void*)(int)BLTZAL );
-//	branch = 2;
-//}
-
 ////////////////////////////////////////////////////
 void recBLTZAL(void)
 {

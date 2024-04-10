@@ -573,12 +573,10 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	if (!IsBIOSAvailable(EmuConfig.FullpathToBios()))
 		return false;
 
-	Console.WriteLn("Opening CDVD...");
 	if (!DoCDVDopen())
 		return false;
 	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
 
-	Console.WriteLn("Opening GS...");
 	s_gs_open_on_initialize = GetMTGS().IsOpen();
 	if (!s_gs_open_on_initialize && !GetMTGS().WaitForOpen())
 		// we assume GS is going to report its own error
@@ -589,12 +587,10 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 			GetMTGS().WaitForClose();
 	};
 
-	Console.WriteLn("Opening SPU2...");
 	if (!SPU2::Open())
 		return false;
 	ScopedGuard close_spu2(&SPU2::Close);
 
-	Console.WriteLn("Opening PAD...");
 	if (PADinit() != 0 || PADopen() != 0)
 		return false;
 	ScopedGuard close_pad = []() {
@@ -602,7 +598,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		PADshutdown();
 	};
 
-	Console.WriteLn("Opening DEV9...");
 	if (DEV9init() != 0 || DEV9open() != 0)
 		return false;
 	ScopedGuard close_dev9 = []() {
@@ -610,14 +605,12 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DEV9shutdown();
 	};
 
-	Console.WriteLn("Opening USB...");
 	if (!USBopen())
 		return false;
 	ScopedGuard close_usb = []() {
 		USBclose();
 	};
 
-	Console.WriteLn("Opening FW...");
 	if (FWopen() != 0)
 		return false;
 	ScopedGuard close_fw = []() { FWclose(); };
@@ -979,8 +972,6 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 	if (!changed)
 		return;
 
-	Console.WriteLn("Updating memory card configuration");
-
 	FileMcd_EmuClose();
 	FileMcd_EmuOpen();
 
@@ -992,10 +983,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 			const uint index = FileMcd_ConvertToSlot(port, slot);
 			if (EmuConfig.Mcd[index].Enabled != old_config.Mcd[index].Enabled ||
 				EmuConfig.Mcd[index].Filename != old_config.Mcd[index].Filename)
-			{
-				Console.WriteLn("Ejecting memory card %u (port %u slot %u) due to source change", index, port, slot);
 				AutoEject::Set(port, slot);
-			}
 		}
 	}
 
@@ -1040,8 +1028,6 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 
 void VMManager::ApplySettings()
 {
-	Console.WriteLn("Applying settings...");
-
 	// if we're running, ensure the threads are synced
 	const bool running = (s_state.load(std::memory_order_acquire) == VMState::Running);
 	if (running)

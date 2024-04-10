@@ -43,12 +43,9 @@ static __fi bool WriteFifoToEE(void)
 
 	sif0.fifo.read((u32*)ptag, readSize << 2);
 
-	// Clearing handled by vtlb memory protection and manual blocks.
-	//Cpu->Clear(sif0ch.madr, readSize*4);
-
-	sif0ch.madr += readSize << 4;
+	sif0ch.madr    += readSize << 4;
 	sif0.ee.cycles += readSize;	// fixme : BIAS is factored in above
-	sif0ch.qwc -= readSize;
+	sif0ch.qwc     -= readSize;
 
 	if (sif0ch.qwc == 0 && dmacRegs.ctrl.STS == STS_SIF0)
 	{

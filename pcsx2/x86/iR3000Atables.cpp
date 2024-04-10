@@ -2042,9 +2042,8 @@ static void rpsxCOP0() { rpsxCP0[_Rs_](); }
 static void rpsxCOP2() { rpsxCP2[_Funct_](); }
 static void rpsxBASIC() { rpsxCP2BSC[_Rs_](); }
 
-static void rpsxNULL()
+static void rpsxNULL(void)
 {
-	Console.WriteLn("psxUNK: %8.8x", psxRegs.code);
 }
 
 // clang-format off

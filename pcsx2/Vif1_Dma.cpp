@@ -42,7 +42,6 @@ void vif1TransferToMemory()
 	// VIF from gsMemory
 	if (pMem == NULL)
 	{ // Is vif0ptag empty?
-		Console.WriteLn("Vif1 Tag BUSERR");
 		dmacRegs.stat.BEIS = true; // Bus Error
 		vif1Regs.stat.FQC = 0;
 
@@ -273,10 +272,7 @@ __fi void vif1Interrupt()
 	//Some games (Fahrenheit being one) start vif first, let it loop through blankness while it sets MFIFO mode, so we need to check it here.
 	if (dmacRegs.ctrl.MFD == MFD_VIF1)
 	{
-		//Console.WriteLn("VIFMFIFO\n");
 		// Test changed because the Final Fantasy 12 opening somehow has the tag in *Undefined* mode, which is not in the documentation that I saw.
-		if (vif1ch.chcr.MOD == NORMAL_MODE)
-			Console.WriteLn("MFIFO mode is normal (which isn't normal here)! %x", vif1ch.chcr._u32);
 		vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
 		vifMFIFOInterrupt();
 		return;
@@ -314,9 +310,6 @@ __fi void vif1Interrupt()
 		CPU_SET_DMASTALL(DMAC_VIF1, true);
 		return;
 	}
-
-	if (!vif1ch.chcr.STR)
-		Console.WriteLn("Vif1 running when CHCR == %x", vif1ch.chcr._u32);
 
 	if (vif1.irq && vif1.vifstalled.enabled && vif1.vifstalled.value == VIF_IRQ_STALL)
 	{
@@ -385,10 +378,7 @@ __fi void vif1Interrupt()
 	{
 
 		if (!(dmacRegs.ctrl.DMAE) || vif1Regs.stat.VSS) //Stopped or DMA Disabled
-		{
-			//Console.WriteLn("vif1 dma masked");
 			return;
-		}
 
 		if ((vif1.inprogress & 0x1) == 0)
 			vif1SetupTransfer();
@@ -458,9 +448,6 @@ void dmaVIF1(void)
 		}
 		else //Assume normal mode for reverse FIFO and Normal.
 		{
-			if (dmacRegs.ctrl.STD == STD_VIF1)
-				Console.WriteLn("DMA Stall Control on VIF1 normal not implemented - Report which game to PCSX2 Team");
-
 			if (vif1ch.chcr.DIR) // from Memory
 				vif1.dmamode = VIF_NORMAL_FROM_MEM_MODE;
 			else

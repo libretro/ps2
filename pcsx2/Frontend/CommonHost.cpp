@@ -43,11 +43,6 @@ namespace CommonHost
 
 bool CommonHost::InitializeCriticalFolders()
 {
-	// logging of directories in case something goes wrong super early
-	Console.WriteLn("AppRoot Directory: %s", EmuFolders::AppRoot.c_str());
-	Console.WriteLn("DataRoot Directory: %s", EmuFolders::DataRoot.c_str());
-	Console.WriteLn("Resources Directory: %s", EmuFolders::Resources.c_str());
-
 	// the resources directory should exist, bail out if not
 	if (!FileSystem::DirectoryExists(EmuFolders::Resources.c_str()))
 	{

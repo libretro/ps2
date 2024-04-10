@@ -89,10 +89,7 @@ static __fi void vuExecMicro(int idx, u32 addr, bool requires_wait)
 	}
 
 	if (vifRegs.itops > (idx ? 0x3ffu : 0xffu))
-	{
-		Console.WriteLn("VIF%d ITOP overrun! %x", idx, vifRegs.itops);
 		vifRegs.itops &= (idx ? 0x3ffu : 0xffu);
-	}
 
 	vifRegs.itop = vifRegs.itops;
 
@@ -537,7 +534,6 @@ vifOp(vifCode_Null)
 		// if ME1, then force the vif to interrupt
 		if (!(vifXRegs.err.ME1))
 		{ // Ignore vifcode and tag mismatch error
-			Console.WriteLn("Vif%d: Unknown VifCmd! [%x]", idx, vifX.cmd);
 			vifXRegs.stat.ER1 = true;
 			vifX.vifstalled.enabled = VifStallEnable(vifXch);
 			vifX.vifstalled.value = VIF_IRQ_STALL;

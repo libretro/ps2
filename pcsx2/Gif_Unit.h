@@ -476,11 +476,7 @@ struct Gif_Path
 	{
 		// FIXME is the error path useful ?
 		if (!mtvu.gsPackQueue.empty())
-		{
 			return mtvu.gsPackQueue.front();
-		}
-
-		Console.Error("MTVU: Expected gsPackQueue to have elements!");
 		pxAssert(0);
 		return GS_Packet(); // gsPack.size will be 0
 	}
@@ -572,13 +568,9 @@ struct Gif_Unit
 			if (curSize >= size)
 				return size;
 			if(((flush && gifTag.tag.EOP) || !flush) && (CHECK_XGKICKHACK || !EmuConfig.Cpu.Recompiler.EnableVU1))
-			{
 				return curSize | ((u32)gifTag.tag.EOP << 31);
-			}
 			if (gifTag.tag.EOP )
-			{
 				return curSize;
-			}
 		}
 	}
 
@@ -691,9 +683,7 @@ struct Gif_Unit
 	int Execute(bool isPath3, bool isResume)
 	{
 		if (!CanDoGif())
-		{
 			return 0;
-		}
 		bool didPath3 = false;
 		bool path3Check = isPath3;
 		int curPath = stat.APATH > 0 ? stat.APATH - 1 : 0; //Init to zero if no path is already set.
@@ -794,8 +784,7 @@ struct Gif_Unit
 		//Path3 can rewind the DMA, so we send back the amount we go back!
 		if (isPath3)
 			return gifPath[2].dmaRewind;
-		else
-			return 0;
+		return 0;
 	}
 
 	// XGkick

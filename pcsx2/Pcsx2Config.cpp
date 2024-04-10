@@ -747,12 +747,7 @@ void Pcsx2Config::DEV9Options::LoadSave(SettingsWrapper& wrap)
 		SettingsWrapEntryEx(entry.Enabled, "Enabled");
 
 		if (wrap.IsLoading())
-		{
 			EthHosts.push_back(entry);
-
-			if (EthLogDNS && entry.Enabled)
-				Console.WriteLn("DEV9: Host entry %i: url %s mapped to %s", i, entry.Url.c_str(), addrStr.c_str());
-		}
 	}
 
 	{
@@ -1102,21 +1097,13 @@ static std::string LoadPathFromSettings(SettingsInterface& si, const std::string
 
 void EmuFolders::LoadConfig(SettingsInterface& si)
 {
-	Bios = LoadPathFromSettings(si, DataRoot, "Bios", "bios");
+	Bios        = LoadPathFromSettings(si, DataRoot, "Bios", "bios");
 	MemoryCards = LoadPathFromSettings(si, DataRoot, "MemoryCards", "memcards");
-	Cheats = LoadPathFromSettings(si, DataRoot, "Cheats", "cheats");
-	CheatsWS = LoadPathFromSettings(si, DataRoot, "CheatsWS", "cheats_ws");
-	CheatsNI = LoadPathFromSettings(si, DataRoot, "CheatsNI", "cheats_ni");
-	Cache = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
-	Textures = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
-
-	Console.WriteLn("BIOS Directory: %s", Bios.c_str());
-	Console.WriteLn("MemoryCards Directory: %s", MemoryCards.c_str());
-	Console.WriteLn("Cheats Directory: %s", Cheats.c_str());
-	Console.WriteLn("CheatsWS Directory: %s", CheatsWS.c_str());
-	Console.WriteLn("CheatsNI Directory: %s", CheatsNI.c_str());
-	Console.WriteLn("Cache Directory: %s", Cache.c_str());
-	Console.WriteLn("Textures Directory: %s", Textures.c_str());
+	Cheats      = LoadPathFromSettings(si, DataRoot, "Cheats", "cheats");
+	CheatsWS    = LoadPathFromSettings(si, DataRoot, "CheatsWS", "cheats_ws");
+	CheatsNI    = LoadPathFromSettings(si, DataRoot, "CheatsNI", "cheats_ni");
+	Cache       = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
+	Textures    = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
 }
 
 bool EmuFolders::EnsureFoldersExist()
