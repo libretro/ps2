@@ -35,8 +35,6 @@ public:
 	SettingsInterface* GetLayer(Layer layer) const { return m_layers[layer]; }
 	void SetLayer(Layer layer, SettingsInterface* sif) { m_layers[layer] = sif; }
 
-	void Clear() override;
-
 	bool GetIntValue(const char* section, const char* key, int* value) const override;
 	bool GetUIntValue(const char* section, const char* key, uint* value) const override;
 	bool GetFloatValue(const char* section, const char* key, float* value) const override;

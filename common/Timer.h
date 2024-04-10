@@ -27,19 +27,11 @@ namespace Common
 
 		static Value GetCurrentValue();
 		static double ConvertValueToSeconds(Value value);
-		static double ConvertValueToMilliseconds(Value value);
-		static Value ConvertSecondsToValue(double s);
-		static Value ConvertMillisecondsToValue(double s);
-		static Value ConvertNanosecondsToValue(double ns);
 
 		void Reset();
 		void ResetTo(Value value) { m_tvStartValue = value; }
 
 		Value GetStartValue() const { return m_tvStartValue; }
-
-		double GetTimeMilliseconds() const;
-		double GetTimeMillisecondsAndReset();
-
 	private:
 		Value m_tvStartValue;
 	};

@@ -581,7 +581,6 @@ bool VMManager::CheckBIOSAvailability()
 
 bool VMManager::Initialize(VMBootParameters boot_params)
 {
-	const Common::Timer init_timer;
 	pxAssertRel(s_state.load(std::memory_order_acquire) == VMState::Shutdown, "VM is shutdown");
 
 	s_state.store(VMState::Initializing, std::memory_order_release);
@@ -679,7 +678,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	gsUpdateFrequency(EmuConfig);
 	cpuReset();
 
-	Console.WriteLn("VM subsystems initialized in %.2f ms", init_timer.GetTimeMilliseconds());
 	s_state.store(VMState::Paused, std::memory_order_release);
 	Host::OnVMStarted();
 

@@ -955,10 +955,9 @@ void GameDatabase::initDatabase()
 void GameDatabase::ensureLoaded()
 {
 	std::call_once(s_load_once_flag, []() {
-		Common::Timer timer;
 		Console.WriteLn(fmt::format("[GameDB] Has not been initialized yet, initializing..."));
 		initDatabase();
-		Console.WriteLn("[GameDB] %zu games on record (loaded in %.2fms)", s_game_db.size(), timer.GetTimeMilliseconds());
+		Console.WriteLn("[GameDB] %zu games on record", s_game_db.size());
 	});
 }
 

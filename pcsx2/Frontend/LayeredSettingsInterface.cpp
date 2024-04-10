@@ -24,11 +24,6 @@ LayeredSettingsInterface::LayeredSettingsInterface() = default;
 
 LayeredSettingsInterface::~LayeredSettingsInterface() = default;
 
-void LayeredSettingsInterface::Clear()
-{
-	pxFailRel("Attempting to clear layered settings interface");
-}
-
 bool LayeredSettingsInterface::GetIntValue(const char* section, const char* key, int* value) const
 {
 	for (u32 layer = FIRST_LAYER; layer <= LAST_LAYER; layer++)

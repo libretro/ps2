@@ -64,7 +64,6 @@ target_sources(common PRIVATE
 	General.h
 	HashCombine.h
 	HeterogeneousContainers.h
-	LRUCache.h
 	HeapArray.h
 	MemcpyFast.h
 	MemorySettingsInterface.h

@@ -181,18 +181,6 @@
     <ClCompile Include="CrashHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Image.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="HTTPDownloader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="HTTPDownloaderCurl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="HTTPDownloaderWinHTTP.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MemorySettingsInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -432,9 +420,6 @@
     </ClInclude>
     <ClInclude Include="D3D12\Builders.h">
       <Filter>Header Files\D3D12</Filter>
-    </ClInclude>
-    <ClInclude Include="LRUCache.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThreadPool.h">
       <Filter>Header Files</Filter>

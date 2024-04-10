@@ -20,11 +20,6 @@ MemorySettingsInterface::MemorySettingsInterface() = default;
 
 MemorySettingsInterface::~MemorySettingsInterface() = default;
 
-void MemorySettingsInterface::Clear()
-{
-	m_sections.clear();
-}
-
 bool MemorySettingsInterface::GetIntValue(const char* section, const char* key, s32* value) const
 {
 	const auto sit = UnorderedStringMapFind(m_sections, section);

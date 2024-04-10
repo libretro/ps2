@@ -47,29 +47,9 @@ namespace Common
 		return ReturnValue;
 	}
 
-	double Timer::ConvertValueToMilliseconds(Timer::Value value)
-	{
-		return ((static_cast<double>(value) / s_counter_frequency) / 1000000.0);
-	}
-
 	double Timer::ConvertValueToSeconds(Timer::Value value)
 	{
 		return ((static_cast<double>(value) / s_counter_frequency) / 1000000000.0);
-	}
-
-	Timer::Value Timer::ConvertSecondsToValue(double s)
-	{
-		return static_cast<Value>((s * 1000000000.0) * s_counter_frequency);
-	}
-
-	Timer::Value Timer::ConvertMillisecondsToValue(double ms)
-	{
-		return static_cast<Value>((ms * 1000000.0) * s_counter_frequency);
-	}
-
-	Timer::Value Timer::ConvertNanosecondsToValue(double ns)
-	{
-		return static_cast<Value>(ns * s_counter_frequency);
 	}
 #else
 	Timer::Value Timer::GetCurrentValue()
@@ -79,29 +59,9 @@ namespace Common
 		return ((Value)tv.tv_nsec + (Value)tv.tv_sec * 1000000000);
 	}
 
-	double Timer::ConvertValueToMilliseconds(Timer::Value value)
-	{
-		return (static_cast<double>(value) / 1000000.0);
-	}
-
 	double Timer::ConvertValueToSeconds(Timer::Value value)
 	{
 		return (static_cast<double>(value) / 1000000000.0);
-	}
-
-	Timer::Value Timer::ConvertSecondsToValue(double s)
-	{
-		return static_cast<Value>(s * 1000000000.0);
-	}
-
-	Timer::Value Timer::ConvertMillisecondsToValue(double ms)
-	{
-		return static_cast<Value>(ms * 1000000.0);
-	}
-
-	Timer::Value Timer::ConvertNanosecondsToValue(double ns)
-	{
-		return static_cast<Value>(ns);
 	}
 #endif
 
@@ -113,18 +73,5 @@ namespace Common
 	void Timer::Reset()
 	{
 		m_tvStartValue = GetCurrentValue();
-	}
-
-	double Timer::GetTimeMilliseconds() const
-	{
-		return ConvertValueToMilliseconds(GetCurrentValue() - m_tvStartValue);
-	}
-
-	double Timer::GetTimeMillisecondsAndReset()
-	{
-		const Value value = GetCurrentValue();
-		const double ret = ConvertValueToMilliseconds(value - m_tvStartValue);
-		m_tvStartValue = value;
-		return ret;
 	}
 } // namespace Common

@@ -74,7 +74,6 @@
     <ClCompile Include="GL\ShaderCache.cpp" />
     <ClCompile Include="GL\StreamBuffer.cpp" />
     <ClCompile Include="FileSystem.cpp" />
-    <ClCompile Include="Image.cpp" />
     <ClCompile Include="MD5Digest.cpp" />
     <ClCompile Include="MemorySettingsInterface.cpp" />
     <ClCompile Include="ReadbackSpinManager.cpp" />
@@ -144,8 +143,6 @@
     <ClInclude Include="HashCombine.h" />
     <ClInclude Include="HeapArray.h" />
     <ClInclude Include="HeterogeneousContainers.h" />
-    <ClInclude Include="Image.h" />
-    <ClInclude Include="LRUCache.h" />
     <ClInclude Include="MD5Digest.h" />
     <ClInclude Include="MemorySettingsInterface.h" />
     <ClInclude Include="ScopedGuard.h" />

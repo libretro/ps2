@@ -289,11 +289,6 @@ void FolderMemoryCard::LoadMemoryCardData(const u32 sizeInClusters, const bool e
 		CreateRootDir();
 		MemoryCardFileEntry* const rootDirEntry = &m_fileEntryDict[m_superBlock.data.rootdir_cluster].entries[0];
 		AddFolder(rootDirEntry, m_folderName, nullptr, enableFiltering, filter);
-
-
-#ifdef DEBUG_WRITE_FOLDER_CARD_IN_MEMORY_TO_FILE_ON_CHANGE
-		WriteToFile(m_folderName.GetFullPath().RemoveLast() + L"-debug_" + wxDateTime::Now().Format(L"%Y-%m-%d-%H-%M-%S") + L"_load.ps2");
-#endif
 	}
 }
 
@@ -1092,39 +1087,23 @@ void FolderMemoryCard::NextFrame()
 void FolderMemoryCard::Flush()
 {
 	if (m_cache.empty())
-	{
 		return;
-	}
-
-#ifdef DEBUG_WRITE_FOLDER_CARD_IN_MEMORY_TO_FILE_ON_CHANGE
-	WriteToFile(m_folderName.GetFullPath().RemoveLast() + L"-debug_" + wxDateTime::Now().Format(L"%Y-%m-%d-%H-%M-%S") + L"_pre-flush.ps2");
-#endif
-
-	Console.WriteLn("(FolderMcd) Writing data for slot %u to file system...", m_slot);
-	Common::Timer timeFlushStart;
 
 	// Keep a copy of the old file entries so we can figure out which files and directories, if any, have been deleted from the memory card.
 	std::vector<MemoryCardFileEntryTreeNode> oldFileEntryTree;
 	if (IsFormatted())
-	{
 		CopyEntryDictIntoTree(&oldFileEntryTree, m_superBlock.data.rootdir_cluster, m_fileEntryDict[m_superBlock.data.rootdir_cluster].entries[0].entry.data.length);
-	}
 
 	// first write the superblock if necessary
 	FlushSuperBlock();
 	if (!IsFormatted())
-	{
 		return;
-	}
 
 	// check if we were interrupted in the middle of a save operation, if yes abort
 	FlushBlock(m_superBlock.data.backup_block1);
 	FlushBlock(m_superBlock.data.backup_block2);
 	if (m_backupBlock2.programmedBlock != 0xFFFFFFFFu)
-	{
-		Console.Warning("(FolderMcd) Aborting flush of slot %u, emulation was interrupted during save process!", m_slot);
 		return;
-	}
 
 	const u32 clusterCount = GetSizeInClusters();
 	const u32 pageCount = clusterCount * 2;
@@ -1167,8 +1146,6 @@ void FolderMemoryCard::Flush()
 	m_lastAccessedFile.FlushAll();
 	m_lastAccessedFile.ClearMetadataWriteState();
 	m_oldDataCache.clear();
-
-	Console.WriteLn("(FolderMcd) Done! Took %.2f ms.", timeFlushStart.GetTimeMilliseconds());
 
 #ifdef DEBUG_WRITE_FOLDER_CARD_IN_MEMORY_TO_FILE_ON_CHANGE
 	WriteToFile(m_folderName.GetFullPath().RemoveLast() + L"-debug_" + wxDateTime::Now().Format(L"%Y-%m-%d-%H-%M-%S") + L"_post-flush.ps2");

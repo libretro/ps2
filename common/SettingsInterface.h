@@ -25,8 +25,6 @@ class SettingsInterface
 public:
 	virtual ~SettingsInterface() = default;
 
-	virtual void Clear() = 0;
-
 	virtual bool GetIntValue(const char* section, const char* key, int* value) const = 0;
 	virtual bool GetUIntValue(const char* section, const char* key, uint* value) const = 0;
 	virtual bool GetFloatValue(const char* section, const char* key, float* value) const = 0;

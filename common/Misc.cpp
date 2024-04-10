@@ -83,15 +83,6 @@ u32 ShortSpin(void)
 	return time;
 }
 
-static u32 GetSpinTime(void)
-{
-	if (char* req = getenv("WAIT_SPIN_MICROSECONDS"))
-		return 1000 * atoi(req);
-	return 50 * 1000; // 50µs
-}
-
-const u32 SPIN_TIME_NS = GetSpinTime();
-
 #ifdef __APPLE__
 // https://alastairs-place.net/blog/2013/01/10/interesting-os-x-crash-report-tidbits/
 // https://opensource.apple.com/source/WebKit2/WebKit2-7608.3.10.0.3/Platform/spi/Cocoa/CrashReporterClientSPI.h.auto.html
