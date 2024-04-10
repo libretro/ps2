@@ -70,17 +70,11 @@
     </ClCompile>
     <ClCompile Include="General.cpp" />
     <ClCompile Include="GL\Context.cpp" />
-    <ClCompile Include="GL\ContextWGL.cpp" />
     <ClCompile Include="GL\Program.cpp" />
     <ClCompile Include="GL\ShaderCache.cpp" />
     <ClCompile Include="GL\StreamBuffer.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="Image.cpp" />
-    <ClCompile Include="HTTPDownloader.cpp" />
-    <ClCompile Include="HTTPDownloaderCurl.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="HTTPDownloaderWinHTTP.cpp" />
     <ClCompile Include="MD5Digest.cpp" />
     <ClCompile Include="MemorySettingsInterface.cpp" />
     <ClCompile Include="ReadbackSpinManager.cpp" />
@@ -143,7 +137,6 @@
     <ClInclude Include="boost_spsc_queue.hpp" />
     <ClInclude Include="FastJmp.h" />
     <ClInclude Include="GL\Context.h" />
-    <ClInclude Include="GL\ContextWGL.h" />
     <ClInclude Include="GL\Program.h" />
     <ClInclude Include="GL\ShaderCache.h" />
     <ClInclude Include="GL\StreamBuffer.h" />
@@ -153,11 +146,6 @@
     <ClInclude Include="HeterogeneousContainers.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="LRUCache.h" />
-    <ClInclude Include="HTTPDownloader.h" />
-    <ClInclude Include="HTTPDownloaderCurl.h">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="HTTPDownloaderWinHTTP.h" />
     <ClInclude Include="MD5Digest.h" />
     <ClInclude Include="MemorySettingsInterface.h" />
     <ClInclude Include="ScopedGuard.h" />

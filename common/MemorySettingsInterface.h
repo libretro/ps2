@@ -24,8 +24,6 @@ public:
 	MemorySettingsInterface();
 	~MemorySettingsInterface();
 
-	bool Save() override;
-
 	void Clear() override;
 
 	bool GetIntValue(const char* section, const char* key, s32* value) const override;

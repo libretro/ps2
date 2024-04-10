@@ -24,12 +24,6 @@ LayeredSettingsInterface::LayeredSettingsInterface() = default;
 
 LayeredSettingsInterface::~LayeredSettingsInterface() = default;
 
-bool LayeredSettingsInterface::Save()
-{
-	pxFailRel("Attempting to save layered settings interface");
-	return false;
-}
-
 void LayeredSettingsInterface::Clear()
 {
 	pxFailRel("Attempting to clear layered settings interface");

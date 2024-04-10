@@ -20,11 +20,6 @@ MemorySettingsInterface::MemorySettingsInterface() = default;
 
 MemorySettingsInterface::~MemorySettingsInterface() = default;
 
-bool MemorySettingsInterface::Save()
-{
-	return false;
-}
-
 void MemorySettingsInterface::Clear()
 {
 	m_sections.clear();
