@@ -14,6 +14,11 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
+#include "common/Threading.h"
+
 #include "R3000A.h"
 #include "Common.h"
 
@@ -21,8 +26,6 @@
 #include "CDVD.h"
 #include "IopHw.h"
 #include "IopDma.h"
-
-#include "common/Threading.h"
 
 //THIS ALL IS FOR THE CDROM REGISTERS HANDLING
 
@@ -583,8 +586,8 @@ void cdrReadInterrupt()
 
 	if (cdr.RErr == -1)
 	{
-		memzero(cdr.Transfer);
-		cdr.Stat = DiskError;
+		memset(cdr.Transfer, 0, sizeof(cdr.Transfer));
+		cdr.Stat   = DiskError;
 		cdr.StatP |= STATUS_ERROR;
 		cdr.Result[0] = cdr.StatP;
 		ReadTrack();
@@ -1052,9 +1055,9 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr)
 	psxDmaInterrupt(3);
 }
 
-void cdrReset()
+void cdrReset(void)
 {
-	memzero(cdr);
+	memset(&cdr, 0, sizeof(cdr));
 	cdr.CurTrack = 1;
 	cdr.File = 1;
 	cdr.Channel = 1;

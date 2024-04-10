@@ -132,7 +132,7 @@ void MD5Digest::Reset()
   bits[0] = 0;
   bits[1] = 0;
 
-  std::memset(in, 0, sizeof(in));
+  memset(in, 0, sizeof(in));
 }
 
 void MD5Digest::Update(const void* pData, u32 cbData)
@@ -158,10 +158,10 @@ void MD5Digest::Update(const void* pData, u32 cbData)
     t = 64 - t;
     if (cbData < t)
     {
-      std::memcpy(p, pByteData, cbData);
+      memcpy(p, pByteData, cbData);
       return;
     }
-    std::memcpy(p, pByteData, t);
+    memcpy(p, pByteData, t);
     MD5Transform(this->buf, (u32*)this->in);
     pByteData += t;
     cbData -= t;
@@ -170,7 +170,7 @@ void MD5Digest::Update(const void* pData, u32 cbData)
 
   while (cbData >= 64)
   {
-    std::memcpy(this->in, pByteData, 64);
+    memcpy(this->in, pByteData, 64);
     MD5Transform(this->buf, (u32*)this->in);
     pByteData += 64;
     cbData -= 64;
@@ -178,20 +178,17 @@ void MD5Digest::Update(const void* pData, u32 cbData)
 
   /* Handle any remaining bytes of data. */
 
-  std::memcpy(this->in, pByteData, cbData);
+  memcpy(this->in, pByteData, cbData);
 }
 
 void MD5Digest::Final(u8 Digest[16])
 {
-  u32 count;
-  u8* p;
-
   /* Compute number of bytes mod 64 */
-  count = (this->bits[0] >> 3) & 0x3F;
+  u32 count = (this->bits[0] >> 3) & 0x3F;
 
   /* Set the first char of padding to 0x80.  This is safe since there is
      always at least one byte free */
-  p = this->in + count;
+  u8 *p = this->in + count;
   *p++ = 0x80;
 
   /* Bytes of padding needed to make 64 bytes */
@@ -201,22 +198,19 @@ void MD5Digest::Final(u8 Digest[16])
   if (count < 8)
   {
     /* Two lots of padding:  Pad the first block to 64 bytes */
-    std::memset(p, 0, count);
+    memset(p, 0, count);
     MD5Transform(this->buf, (u32*)this->in);
 
     /* Now fill the next block with 56 bytes */
-    std::memset(this->in, 0, 56);
+    memset(this->in, 0, 56);
   }
-  else
-  {
-    /* Pad block to 56 bytes */
-    std::memset(p, 0, count - 8);
-  }
+  else /* Pad block to 56 bytes */
+    memset(p, 0, count - 8);
 
   /* Append length in bits and transform */
   ((u32*)this->in)[14] = this->bits[0];
   ((u32*)this->in)[15] = this->bits[1];
 
   MD5Transform(this->buf, (u32*)this->in);
-  std::memcpy(Digest, this->buf, 16);
+  memcpy(Digest, this->buf, 16);
 }

@@ -15,6 +15,9 @@
 
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset/memcpy */
+
 #include "Common.h"
 #include "Cache.h"
 #include "vtlb.h"
@@ -162,9 +165,9 @@ namespace
 
 }
 
-void resetCache()
+void resetCache(void)
 {
-	memzero(cache);
+	memset(&cache, 0, sizeof(cache));
 }
 
 static bool findInCache(const CacheSet& set, uptr ppf, int* way)

@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset/memcpy */
+
 #include "GSRendererHW.h"
 #include "GSTextureReplacements.h"
 #include "Host.h"
@@ -282,7 +285,7 @@ void GSRendererHW::Lines2Sprites()
 			const GSVector4i this_indices = GSVector4i::broadcast16(i).add16(indices);
 			const int high = this_indices.extract32<2>();
 			GSVector4i::storel(index, this_indices);
-			std::memcpy(&index[4], &high, sizeof(high));
+			memcpy(&index[4], &high, sizeof(high));
 		}
 
 		m_vertex.head = m_vertex.tail = m_vertex.next = count * 2;

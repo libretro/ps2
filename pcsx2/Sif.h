@@ -15,7 +15,9 @@
 
 #pragma once
 
-static const int FIFO_SIF_W = 128;
+#include <cstring> /* memset */
+
+#define FIFO_SIF_W 128
 
 // Despite its name, this is actually the IOP's DMAtag, which itself also contains
 // the EE's DMAtag in its upper 64 bits.  Note that only the lower 24 bits of 'data' is
@@ -95,7 +97,7 @@ struct sifFifo
 	}
 	void clear()
 	{
-		memzero(data);
+		memset(data, 0, sizeof(data));
 		readPos = 0;
 		writePos = 0;
 		size = 0;

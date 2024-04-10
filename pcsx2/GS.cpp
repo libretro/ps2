@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 
+#include <cstring> /* memset */
 #include <list>
 
 #include "Gif_Unit.h"
@@ -39,7 +40,7 @@ void gsReset()
 {
 	GetMTGS().ResetGS(true);
 	gsVideoMode = GS_VideoMode::Uninitialized;
-	memzero(g_RealGSMem);
+	memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 	UpdateVSyncRate(true);
 }
 
@@ -57,7 +58,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		gifUnit.gsSIGNAL.queued = false;
 		gifUnit.gsFINISH.gsFINISHFired = true;
 		// Privilage registers also reset.
-		memzero(g_RealGSMem);
+		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 		GSIMR.reset();
 		CSRreg.Reset();
 		GetMTGS().SendSimplePacket(GS_RINGTYPE_RESET, 0, 0, 0);
@@ -176,7 +177,7 @@ __fi void gsWrite32(u32 mem, u32 value)
 
 void gsWrite64_generic( u32 mem, u64 value )
 {
-	std::memcpy(PS2GS_BASE(mem), &value, sizeof(value));
+	memcpy(PS2GS_BASE(mem), &value, sizeof(value));
 }
 
 void gsWrite64_page_00( u32 mem, u64 value )

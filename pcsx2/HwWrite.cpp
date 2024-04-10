@@ -15,6 +15,9 @@
 
 
 #include "PrecompiledHeader.h"
+
+#include <cstring>
+
 #include "Common.h"
 #include "Hardware.h"
 #include "Gif_Unit.h"
@@ -349,7 +352,7 @@ void _hwWrite64( u32 mem, u64 value )
 		return;
 	}
 
-	std::memcpy(&eeHw[(mem) & 0xffff], &value, sizeof(value));
+	memcpy(&eeHw[(mem) & 0xffff], &value, sizeof(value));
 }
 
 template<uint page>

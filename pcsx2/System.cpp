@@ -23,7 +23,6 @@
 #include "Elfheader.h"
 
 #include "common/Align.h"
-#include "common/MemsetFast.inl"
 #include "common/StringUtil.h"
 #include "CDVD/CDVD.h"
 #include "ps2/BiosTools.h"

@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <cstring> /* memset */
+
 extern void mVUincCycles(microVU& mVU, int x);
 extern void* mVUcompile(microVU& mVU, u32 startPC, uptr pState);
 __fi int getLastFlagInst(microRegInfo& pState, int* xFlag, int flagType, int isEbit)
@@ -26,8 +28,8 @@ __fi int getLastFlagInst(microRegInfo& pState, int* xFlag, int flagType, int isE
 	return (((pState.flagInfo >> (2 * flagType + 2)) & 3) - 1) & 3;
 }
 
-void mVU0clearlpStateJIT() { if (!microVU0.prog.cleared) memzero(microVU0.prog.lpState); }
-void mVU1clearlpStateJIT() { if (!microVU1.prog.cleared) memzero(microVU1.prog.lpState); }
+void mVU0clearlpStateJIT() { if (!microVU0.prog.cleared) memset(&microVU0.prog.lpState, 0, sizeof(microVU1.prog.lpState));  }
+void mVU1clearlpStateJIT() { if (!microVU1.prog.cleared) memset(&microVU1.prog.lpState, 0, sizeof(microVU1.prog.lpState)); }
 
 void mVUDTendProgram(mV, microFlagCycles* mFC, int isEbit)
 {
@@ -166,8 +168,8 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 
 	if (isEbit && isEbit != 3)
 	{
-		memzero(mVUinfo);
-		memzero(mVUregsTemp);
+		memset(&mVUinfo, 0, sizeof(mVUinfo));
+		memset(&mVUregsTemp, 0, sizeof(mVUregsTemp));
 		mVUincCycles(mVU, 100); // Ensures Valid P/Q instances (And sets all cycle data to 0)
 		mVUcycles -= 100;
 		qInst = mVU.q;

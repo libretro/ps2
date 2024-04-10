@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 
+#include <cstring>
+
 #include "GS/GS.h"
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/GSPerfMon.h"
@@ -358,7 +360,7 @@ namespace Vulkan
 		vkGetPhysicalDeviceFeatures(m_physical_device, &available_features);
 
 		if (required_features)
-			std::memcpy(&m_device_features, required_features, sizeof(m_device_features));
+			memcpy(&m_device_features, required_features, sizeof(m_device_features));
 
 		// Enable the features we use.
 		m_device_features.dualSrcBlend = available_features.dualSrcBlend;
@@ -1857,7 +1859,7 @@ static constexpr VkClearValue s_present_clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}
 
 GSDeviceVK::GSDeviceVK()
 {
-	std::memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
+	memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));
 }
 
 GSDeviceVK::~GSDeviceVK()
@@ -2994,7 +2996,7 @@ void GSDeviceVK::IASetIndexBuffer(const void* index, size_t count)
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);
 	m_index.count = count;
 
-	std::memcpy(m_index_stream_buffer.GetCurrentHostPointer(), index, size);
+	memcpy(m_index_stream_buffer.GetCurrentHostPointer(), index, size);
 	m_index_stream_buffer.CommitMemory(size);
 
 	SetIndexBuffer(m_index_stream_buffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT16);
@@ -4429,7 +4431,7 @@ void GSDeviceVK::SetViewport(const VkViewport& viewport)
 	if (std::memcmp(&viewport, &m_viewport, sizeof(VkViewport)) == 0)
 		return;
 
-	std::memcpy(&m_viewport, &viewport, sizeof(VkViewport));
+	memcpy(&m_viewport, &viewport, sizeof(VkViewport));
 	m_dirty_flags |= DIRTY_FLAG_VIEWPORT;
 }
 
@@ -4505,7 +4507,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 			return ApplyTFXState(true);
 		}
 
-		std::memcpy(m_vertex_uniform_stream_buffer.GetCurrentHostPointer(), &m_vs_cb_cache, sizeof(m_vs_cb_cache));
+		memcpy(m_vertex_uniform_stream_buffer.GetCurrentHostPointer(), &m_vs_cb_cache, sizeof(m_vs_cb_cache));
 		m_tfx_dynamic_offsets[0] = m_vertex_uniform_stream_buffer.GetCurrentOffset();
 		m_vertex_uniform_stream_buffer.CommitMemory(sizeof(m_vs_cb_cache));
 		flags |= DIRTY_FLAG_TFX_DYNAMIC_OFFSETS;
@@ -4526,7 +4528,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 			return ApplyTFXState(true);
 		}
 
-		std::memcpy(m_fragment_uniform_stream_buffer.GetCurrentHostPointer(), &m_ps_cb_cache, sizeof(m_ps_cb_cache));
+		memcpy(m_fragment_uniform_stream_buffer.GetCurrentHostPointer(), &m_ps_cb_cache, sizeof(m_ps_cb_cache));
 		m_tfx_dynamic_offsets[1] = m_fragment_uniform_stream_buffer.GetCurrentOffset();
 		m_fragment_uniform_stream_buffer.CommitMemory(sizeof(m_ps_cb_cache));
 		flags |= DIRTY_FLAG_TFX_DYNAMIC_OFFSETS;

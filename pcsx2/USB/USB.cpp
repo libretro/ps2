@@ -15,6 +15,7 @@
 
 #include <stdexcept>
 #include <cstdlib>
+#include <cstring> /* memset/memcpy */
 #include <string>
 #include <cerrno>
 #include <cassert>
@@ -265,7 +266,7 @@ void USB::DoDeviceState(USBDevice* dev, StateWrapper& sw)
 	usb_desc_set_config(dev, dev->configuration);
 
 	int altsetting[USB_MAX_INTERFACES];
-	std::memcpy(altsetting, dev->altsetting, sizeof(altsetting));
+	memcpy(altsetting, dev->altsetting, sizeof(altsetting));
 	sw.DoPODArray(altsetting, std::size(altsetting));
 	for (u32 i = 0; i < USB_MAX_INTERFACES; i++)
 	{

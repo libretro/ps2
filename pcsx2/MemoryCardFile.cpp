@@ -14,13 +14,16 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <array>
+#include <cstring> /* memset */
+#include <chrono>
+#include <vector>
+#include <map>
+
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
-
-#include <array>
-#include <chrono>
-#include <vector>
 
 #include "MemoryCardFile.h"
 #include "MemoryCardFolder.h"
@@ -33,13 +36,13 @@
 
 #include "fmt/core.h"
 
-#include <map>
+#define MCD_SIZE 131072 /* Legacy PSX card default size = 1024 * 8 * 16 = 131072 */
 
-static const int MCD_SIZE = 1024 * 8 * 16; // Legacy PSX card default size
+#define MC2_MBSIZE 1081344 // Size of a single megabyte of card data = 1024 * 528 * 2 = 1081344
 
-static const int MC2_MBSIZE = 1024 * 528 * 2; // Size of a single megabyte of card data
+#define MC2_ERASE_SIZE 8448 /* 528 * 16 */
 
-static const char* s_folder_mem_card_id_file = "_pcsx2_superblock";
+#define S_FOLDER_MEM_CARD_ID_FILE "_pcsx2_superblock"
 
 bool FileMcd_Open = false;
 
@@ -163,17 +166,16 @@ static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
 class FileMemoryCard
 {
 protected:
-	std::FILE* m_file[8];
-	std::string m_filenames[8];
-	u8 m_effeffs[528 * 16];
+	std::FILE* m_file[8] = {};
+	std::string m_filenames[8] = {};
 	std::vector<u8> m_currentdata;
-	u64 m_chksum[8];
-	bool m_ispsx[8];
-	u32 m_chkaddr;
+	u64 m_chksum[8] = {};
+	bool m_ispsx[8] = {};
+	u32 m_chkaddr = 0;
 
 public:
 	FileMemoryCard();
-	virtual ~FileMemoryCard() = default;
+	~FileMemoryCard();
 
 	void Lock();
 	void Unlock();
@@ -249,11 +251,9 @@ std::string FileMcd_GetDefaultName(uint slot)
 	return StringUtil::StdStringFromFormat("Mcd%03u.ps2", slot + 1);
 }
 
-FileMemoryCard::FileMemoryCard()
-	: m_chkaddr(0)
-{
-	memset8<0xff>(m_effeffs);
-}
+FileMemoryCard::FileMemoryCard() = default;
+
+FileMemoryCard::~FileMemoryCard() = default;
 
 void FileMemoryCard::Open()
 {
@@ -393,13 +393,16 @@ bool FileMemoryCard::Seek(std::FILE* f, u32 adr)
 // returns FALSE if an error occurred (either permission denied or disk full)
 bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 {
+	u8 buf[MC2_ERASE_SIZE];
 	auto fp = FileSystem::OpenManagedCFile(mcdFile, "wb");
 	if (!fp)
 		return false;
 
-	for (uint i = 0; i < (MC2_MBSIZE * sizeInMB) / sizeof(m_effeffs); i++)
+	memset(buf, 0xff, sizeof(buf));
+
+	for (uint i = 0; i < (MC2_MBSIZE * sizeInMB) / sizeof(buf); i++)
 	{
-		if (std::fwrite(m_effeffs, sizeof(m_effeffs), 1, fp.get()) != 1)
+		if (std::fwrite(buf, sizeof(buf), 1, fp.get()) != 1)
 			return false;
 	}
 	return true;
@@ -490,13 +493,15 @@ s32 FileMemoryCard::Save(uint slot, const u8* src, u32 adr, int size)
 
 s32 FileMemoryCard::EraseBlock(uint slot, u32 adr)
 {
+	u8 buf[MC2_ERASE_SIZE];
 	std::FILE* mcfp = m_file[slot];
 	if (!mcfp)
 		return 1;
 
 	if (!Seek(mcfp, adr))
 		return 0;
-	return std::fwrite(m_effeffs, sizeof(m_effeffs), 1, mcfp) == 1;
+	memset(buf, 0xff, sizeof(buf));
+	return std::fwrite(buf, sizeof(buf), 1, mcfp) == 1;
 }
 
 u64 FileMemoryCard::GetCRC(uint slot)
@@ -751,7 +756,7 @@ static MemoryCardFileType GetMemoryCardFileTypeFromSize(s64 size)
 
 static bool IsMemoryCardFolder(const std::string& path)
 {
-	const std::string superblock_path(Path::Combine(path, s_folder_mem_card_id_file));
+	const std::string superblock_path(Path::Combine(path, S_FOLDER_MEM_CARD_ID_FILE));
 	return FileSystem::FileExists(superblock_path.c_str());
 }
 
@@ -864,7 +869,7 @@ bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, Me
 			return false;
 
 		// write the superblock
-		auto fp = FileSystem::OpenManagedCFile(Path::Combine(full_path, s_folder_mem_card_id_file).c_str(), "wb");
+		auto fp = FileSystem::OpenManagedCFile(Path::Combine(full_path, S_FOLDER_MEM_CARD_ID_FILE).c_str(), "wb");
 		if (!fp)
 			return false;
 
@@ -890,13 +895,13 @@ bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, Me
 		if (!isPSX)
 		{
 			// PS2 Memory Card
-			u8 m_effeffs[528 * 16];
-			memset8<0xff>(m_effeffs);
+			u8 buf[MC2_ERASE_SIZE];
+			memset(buf, 0xff, sizeof(buf));
 
-			const u32 count = size / sizeof(m_effeffs);
+			const u32 count = size / sizeof(buf);
 			for (uint i = 0; i < count; i++)
 			{
-				if (std::fwrite(m_effeffs, sizeof(m_effeffs), 1, fp.get()) != 1)
+				if (std::fwrite(buf, sizeof(buf), 1, fp.get()) != 1)
 					return false;
 			}
 
@@ -905,13 +910,13 @@ bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, Me
 		else
 		{
 			// PSX Memory Card; 8192 is the size in bytes of a single block of a PSX memory card (8 KiB).
-			u8 m_effeffs_psx[8192];
-			memset8<0xff>(m_effeffs_psx);
+			u8 buf[8192];
+			memset(buf, 0xff, sizeof(buf));
 
 			// PSX cards consist of 16 blocks, each 8 KiB in size.
 			for (uint i = 0; i < 16; i++)
 			{
-				if (std::fwrite(m_effeffs_psx, sizeof(m_effeffs_psx), 1, fp.get()) != 1)
+				if (std::fwrite(buf, sizeof(buf), 1, fp.get()) != 1)
 					return false;
 			}
 

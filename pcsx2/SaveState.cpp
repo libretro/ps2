@@ -15,6 +15,9 @@
 
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
 #include "SaveState.h"
 
 #include "common/FileSystem.h"
@@ -79,7 +82,7 @@ bool SaveStateBase::FreezeTag(const char *src)
 	if (m_error)
 		return false;
 
-	memzero( m_tagspace );
+	memset(m_tagspace, 0, sizeof(m_tagspace));
 	strcpy( m_tagspace, src );
 	Freeze( m_tagspace );
 
@@ -94,16 +97,15 @@ bool SaveStateBase::FreezeTag(const char *src)
 
 bool SaveStateBase::FreezeBios()
 {
+	char biosdesc[256];
 	if (!FreezeTag("BIOS"))
 		return false;
 
 	// Check the BIOS, and issue a warning if the bios for this state
 	// doesn't match the bios currently being used (chances are it'll still
 	// work fine, but some games are very picky).
-
 	u32 bioscheck = BiosChecksum;
-	char biosdesc[256];
-	memzero( biosdesc );
+	memset(biosdesc, 0, sizeof(biosdesc));
 	memcpy( biosdesc, BiosDescription.c_str(), std::min( sizeof(biosdesc), BiosDescription.length() ) );
 
 	Freeze( bioscheck );
@@ -228,7 +230,7 @@ void memSavingState::FreezeMem(void* data, int size)
 	if (static_cast<u32>(new_size) > m_memory.size())
 		m_memory.resize(static_cast<u32>(new_size));
 
-	std::memcpy(&m_memory[m_idx], data, size);
+	memcpy(&m_memory[m_idx], data, size);
 	m_idx += size;
 }
 

@@ -14,12 +14,15 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+#include <thread>
+
 #include "Common.h"
 #include "MTVU.h"
 #include "newVif.h"
 #include "Gif_Unit.h"
 #include "common/Threading.h"
-#include <thread>
 
 VU_Thread vu1Thread;
 
@@ -121,14 +124,16 @@ void VU_Thread::Close()
 
 void VU_Thread::Reset()
 {
+	size_t i;
+
 	vuCycleIdx = 0;
 	m_ato_write_pos = 0;
 	m_write_pos = 0;
 	m_ato_read_pos = 0;
 	m_read_pos = 0;
-	memzero(vif);
-	memzero(vifRegs);
-	for (size_t i = 0; i < 4; ++i)
+	memset(&vif, 0, sizeof(vif));
+	memset(&vifRegs, 0, sizeof(vifRegs));
+	for (i = 0; i < 4; ++i)
 		vu1Thread.vuCycles[i] = 0;
 	vu1Thread.mtvuInterrupts = 0;
 }

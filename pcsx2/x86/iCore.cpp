@@ -39,9 +39,9 @@ _x86regs x86regs[iREGCNT_GPR], s_saveX86regs[iREGCNT_GPR];
 
 // Clear current register mapping structure
 // Clear allocation counter
-void _initXMMregs()
+void _initXMMregs(void)
 {
-	memzero(xmmregs);
+	memset(xmmregs, 0, sizeof(xmmregs));
 	g_xmmAllocCounter = 0;
 }
 
@@ -880,11 +880,11 @@ int _allocIfUsedFPUtoXMM(int fpureg, int mode)
 void _recClearInst(EEINST* pinst)
 {
 	// we set everything as being live to begin with, since it needs to be written at the end of the block
-	memzero(*pinst);
-	memset8<EEINST_LIVE>(pinst->regs);
-	memset8<EEINST_LIVE>(pinst->fpuregs);
-	memset8<EEINST_LIVE>(pinst->vfregs);
-	memset8<EEINST_LIVE>(pinst->viregs);
+	memset(pinst, 0, sizeof(EEINST));
+	memset(pinst->regs,    EEINST_LIVE, sizeof(pinst->regs));
+	memset(pinst->fpuregs, EEINST_LIVE, sizeof(pinst->fpuregs));
+	memset(pinst->vfregs,  EEINST_LIVE, sizeof(pinst->vfregs));
+	memset(pinst->viregs,  EEINST_LIVE, sizeof(pinst->viregs));
 }
 
 // returns nonzero value if reg has been written between [startpc, endpc-4]

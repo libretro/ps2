@@ -25,8 +25,11 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "USB/qemu-usb/qusb.h"
+
+#include <cstring> /* memset/memcpy */
 #include <utility>
+
+#include "USB/qemu-usb/qusb.h"
 
 void usb_pick_speed(USBPort* port)
 {
@@ -645,10 +648,10 @@ void usb_packet_copy(USBPacket* p, void* ptr, size_t bytes)
 	{
 		case USB_TOKEN_SETUP:
 		case USB_TOKEN_OUT:
-			std::memcpy(ptr, p->buffer_ptr, bytes);
+			memcpy(ptr, p->buffer_ptr, bytes);
 			break;
 		case USB_TOKEN_IN:
-			std::memcpy(p->buffer_ptr, ptr, bytes);
+			memcpy(p->buffer_ptr, ptr, bytes);
 			break;
 		default:
 			Console.Warning("%s: invalid pid: %x\n", __func__, p->pid);
@@ -663,9 +666,7 @@ void usb_packet_skip(USBPacket* p, size_t bytes)
 	assert(p->actual_length >= 0);
 	assert(p->actual_length + bytes <= p->buffer_size);
 	if (p->pid == USB_TOKEN_IN)
-	{
-		std::memset(p->buffer_ptr, 0, bytes);
-	}
+		memset(p->buffer_ptr, 0, bytes);
 	p->actual_length += bytes;
 }
 

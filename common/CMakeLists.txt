@@ -65,9 +65,7 @@ target_sources(common PRIVATE
 	HashCombine.h
 	HeterogeneousContainers.h
 	HeapArray.h
-	MemcpyFast.h
 	MemorySettingsInterface.h
-	MemsetFast.inl
 	MD5Digest.h
 	MRCHelpers.h
 	Path.h

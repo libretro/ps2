@@ -15,6 +15,9 @@
 
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
 #include "Common.h"
 #include "VUmicro.h"
 #include "MTVU.h"
@@ -64,9 +67,9 @@ void vuMemoryReserve::Reset()
 	//memMapVUmicro();
 
 	// === VU0 Initialization ===
-	memzero(VU0.ACC);
-	memzero(VU0.VF);
-	memzero(VU0.VI);
+	memset(&VU0.ACC, 0, sizeof(VU0.ACC));
+	memset(VU0.VF, 0, sizeof(VU0.VF));
+	memset(VU0.VI, 0, sizeof(VU0.VI));
 	VU0.VF[0].f.x = 0.0f;
 	VU0.VF[0].f.y = 0.0f;
 	VU0.VF[0].f.z = 0.0f;
@@ -74,9 +77,9 @@ void vuMemoryReserve::Reset()
 	VU0.VI[0].UL  = 0;
 
 	// === VU1 Initialization ===
-	memzero(VU1.ACC);
-	memzero(VU1.VF);
-	memzero(VU1.VI);
+	memset(&VU1.ACC, 0, sizeof(VU1.ACC));
+	memset(VU1.VF, 0, sizeof(VU1.VF));
+	memset(VU1.VI, 0, sizeof(VU1.VI));
 	VU1.VF[0].f.x = 0.0f;
 	VU1.VF[0].f.y = 0.0f;
 	VU1.VF[0].f.z = 0.0f;

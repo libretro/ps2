@@ -15,6 +15,11 @@
 
 #include "PrecompiledHeader.h"
 
+#include <cstring> /* memset/memcpy */
+#include <csetjmp>
+
+#include <png.h>
+
 #include "common/Align.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
@@ -22,9 +27,6 @@
 #include "common/ScopedGuard.h"
 
 #include "GS/Renderers/HW/GSTextureReplacements.h"
-
-#include <csetjmp>
-#include <png.h>
 
 struct LoaderDefinition
 {
@@ -103,9 +105,9 @@ static void ConvertTexture_A8R8G8B8(u32 width, u32 height, std::vector<u8>& data
 		{
 			// Byte swap ABGR -> RGBA
 			u32 val;
-			std::memcpy(&val, data_ptr, sizeof(val));
+			memcpy(&val, data_ptr, sizeof(val));
 			val = ((val & 0xFF00FF00) | ((val >> 16) & 0xFF) | ((val << 16) & 0xFF0000));
-			std::memcpy(data_ptr, &val, sizeof(u32));
+			memcpy(data_ptr, &val, sizeof(u32));
 			data_ptr += sizeof(u32);
 		}
 	}
@@ -121,9 +123,9 @@ static void ConvertTexture_X8R8G8B8(u32 width, u32 height, std::vector<u8>& data
 		{
 			// Byte swap XBGR -> RGBX, and set alpha to full intensity.
 			u32 val;
-			std::memcpy(&val, data_ptr, sizeof(val));
+			memcpy(&val, data_ptr, sizeof(val));
 			val = ((val & 0x0000FF00) | ((val >> 16) & 0xFF) | ((val << 16) & 0xFF0000)) | 0xFF000000;
-			std::memcpy(data_ptr, &val, sizeof(u32));
+			memcpy(data_ptr, &val, sizeof(u32));
 			data_ptr += sizeof(u32);
 		}
 	}
@@ -143,9 +145,9 @@ static void ConvertTexture_R8G8B8(u32 width, u32 height, std::vector<u8>& data, 
 		{
 			// This is BGR in memory.
 			u32 val;
-			std::memcpy(&val, rgb_data_ptr, sizeof(val));
+			memcpy(&val, rgb_data_ptr, sizeof(val));
 			val = ((val & 0x0000FF00) | ((val >> 16) & 0xFF) | ((val << 16) & 0xFF0000)) | 0xFF000000;
-			std::memcpy(data_ptr, &val, sizeof(u32));
+			memcpy(data_ptr, &val, sizeof(u32));
 			data_ptr += sizeof(u32);
 			rgb_data_ptr += 3;
 		}
@@ -218,14 +220,12 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 				pixel |= static_cast<u32>(*(row_ptr)++) << 8;
 				pixel |= static_cast<u32>(*(row_ptr)++) << 16;
 				pixel |= 0x80000000u; // make opaque
-				std::memcpy(out_ptr, &pixel, sizeof(pixel));
+				memcpy(out_ptr, &pixel, sizeof(pixel));
 				out_ptr += sizeof(pixel);
 			}
 		}
 		else if (colorType == PNG_COLOR_TYPE_RGBA)
-		{
-			std::memcpy(out_ptr, row_ptr, pitch);
-		}
+			memcpy(out_ptr, row_ptr, pitch);
 	}
 
 	return true;

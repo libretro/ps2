@@ -27,8 +27,12 @@
 	vtlb/phy only supports the [0000 0000,2000 0000) region, with 4k pages.
 	vtlb/vmap supports mapping to either of these locations, or some other (externaly) specified address.
 */
-
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+#include <map>
+#include <unordered_set>
+#include <unordered_map>
 
 #include "Common.h"
 #include "vtlb.h"
@@ -39,13 +43,8 @@
 #include "VMManager.h"
 
 #include "common/Align.h"
-#include "common/MemsetFast.inl"
 
 #include "fmt/core.h"
-
-#include <map>
-#include <unordered_set>
-#include <unordered_map>
 
 using namespace R5900;
 using namespace vtlb_private;
@@ -315,11 +314,11 @@ bool vtlb_ramRead(u32 addr, DataType* value)
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 	{
-		std::memset(value, 0, sizeof(DataType));
+		memset(value, 0, sizeof(DataType));
 		return false;
 	}
 
-	std::memcpy(value, reinterpret_cast<DataType*>(vmv.assumePtr(addr)), sizeof(DataType));
+	memcpy(value, reinterpret_cast<DataType*>(vmv.assumePtr(addr)), sizeof(DataType));
 	return true;
 }
 
@@ -330,7 +329,7 @@ bool vtlb_ramWrite(u32 addr, const DataType& data)
 	if (vmv.isHandler(addr))
 		return false;
 
-	std::memcpy(reinterpret_cast<DataType*>(vmv.assumePtr(addr)), &data, sizeof(DataType));
+	memcpy(reinterpret_cast<DataType*>(vmv.assumePtr(addr)), &data, sizeof(DataType));
 	return true;
 }
 
@@ -434,19 +433,14 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 		return;
 	}
 
-	const std::string message(fmt::format("TLB Miss, pc=0x{:x} addr=0x{:x} [{}]", cpuRegs.pc, addr, mode ? "store" : "load"));
 	if (EmuConfig.Cpu.Recompiler.PauseOnTLBMiss)
 	{
+		const std::string message(fmt::format("TLB Miss, pc=0x{:x} addr=0x{:x} [{}]", cpuRegs.pc, addr, mode ? "store" : "load"));
 		// Pause, let the user try to figure out what went wrong in the debugger.
 		Host::ReportErrorAsync("R5900 Exception", message);
 		VMManager::SetPaused(true);
 		Cpu->ExitExecution();
-		return;
 	}
-
-	static int spamStop = 0;
-	if (spamStop++ < 50)
-		Console.Error(message);
 }
 
 // BusError exception: more serious than a TLB miss.  If properly emulated the PS2 kernel
@@ -1102,10 +1096,10 @@ void vtlb_VMapUnmap(u32 vaddr, u32 size)
 }
 
 // vtlb_Init -- Clears vtlb handlers and memory mappings.
-void vtlb_Init()
+void vtlb_Init(void)
 {
 	vtlbHandlerCount = 0;
-	memzero(vtlbdata.RWFT);
+	memset(vtlbdata.RWFT, 0, sizeof(vtlbdata.RWFT));
 
 #define VTLB_BuildUnmappedHandler(baseName) \
 	baseName##ReadSm<mem8_t>, baseName##ReadSm<mem16_t>, baseName##ReadSm<mem32_t>, \
@@ -1308,7 +1302,7 @@ void VtlbMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset,
 
 void VtlbMemoryReserve::Reset()
 {
-	memzero_sse_a(GetPtr(), GetSize());
+	memset(GetPtr(), 0, GetSize());
 }
 
 
@@ -1449,9 +1443,9 @@ bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 // This does not clear any recompiler blocks.  It is assumed (and necessary) for the caller
 // to ensure the EErec is also reset in conjunction with calling this function.
 //  (this function is called by default from the eerecReset).
-void mmap_ResetBlockTracking()
+void mmap_ResetBlockTracking(void)
 {
-	memzero(m_PageProtectInfo);
+	memset(m_PageProtectInfo, 0, sizeof(m_PageProtectInfo));
 	if (eeMem)
 		HostSys::MemProtect(eeMem->Main, Ps2MemSize::MainRam, PageAccess_ReadWrite());
 	vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, PageAccess_ReadWrite());

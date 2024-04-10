@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memcpy/memset */
+
 #include "GSRendererSW.h"
 #include "common/StringUtil.h"
 
@@ -305,7 +308,7 @@ void GSRendererSW::Draw()
 
 	GSVertexSW::s_cvb[m_vt.m_primclass][PRIM->TME][PRIM->FST][q_div](m_context, sd->vertex, m_vertex.buff, m_vertex.next);
 
-	std::memcpy(sd->index, m_index.buff, sizeof(u16) * m_index.tail);
+	memcpy(sd->index, m_index.buff, sizeof(u16) * m_index.tail);
 
 	GSVector4i scissor = GSVector4i(context->scissor.in);
 	GSVector4i bbox = GSVector4i(m_vt.m_min.p.floor().xyxy(m_vt.m_max.p.ceil()));
@@ -1077,7 +1080,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 
 			gd.dimx = (GSVector4i*)m_vertex_heap.alloc(sizeof(m_dimx), VECTOR_ALIGNMENT);
 
-			std::memcpy(gd.dimx, m_dimx, sizeof(m_dimx));
+			memcpy(gd.dimx, m_dimx, sizeof(m_dimx));
 		}
 	}
 

@@ -276,7 +276,7 @@ namespace StringUtil
 	{
 		if (src_stride == dst_stride && src_stride == copy_size)
 		{
-			std::memcpy(dst, src, src_stride * count);
+			memcpy(dst, src, src_stride * count);
 			return;
 		}
 
@@ -284,7 +284,7 @@ namespace StringUtil
 		u8* dst_ptr = static_cast<u8*>(dst);
 		for (std::size_t i = 0; i < count; i++)
 		{
-			std::memcpy(dst_ptr, src_ptr, copy_size);
+			memcpy(dst_ptr, src_ptr, copy_size);
 			src_ptr += src_stride;
 			dst_ptr += dst_stride;
 		}
@@ -294,13 +294,13 @@ namespace StringUtil
 		std::size_t copy_size, std::size_t count)
 	{
 		if (p1_stride == p2_stride && p1_stride == copy_size)
-			return std::memcmp(p1, p2, p1_stride * count);
+			return memcmp(p1, p2, p1_stride * count);
 
 		const u8* p1_ptr = static_cast<const u8*>(p1);
 		const u8* p2_ptr = static_cast<const u8*>(p2);
 		for (std::size_t i = 0; i < count; i++)
 		{
-			int result = std::memcmp(p1_ptr, p2_ptr, copy_size);
+			int result = memcmp(p1_ptr, p2_ptr, copy_size);
 			if (result != 0)
 				return result;
 			p2_ptr += p2_stride;

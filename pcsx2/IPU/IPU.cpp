@@ -14,16 +14,17 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+#include <limits.h>
+
 #include "Common.h"
 
 #include "IPU.h"
 #include "IPU_MultiISA.h"
 #include "IPUdma.h"
 
-#include <limits.h>
 #include "Config.h"
-
-#include "common/MemsetFast.inl"
 
 // the BP doesn't advance and returns -1 if there is no data to be read
 alignas(16) tIPU_cmd ipu_cmd;
@@ -88,7 +89,7 @@ __ri static u8 getBits32(u8* address, bool advance)
 
 void tIPU_cmd::clear()
 {
-	memzero_sse_a(*this);
+	memset(this, 0, sizeof(*this));
 	current = 0xffffffff;
 }
 
@@ -104,9 +105,9 @@ __fi void IPUProcessInterrupt()
 void ipuReset(void)
 {
 	IPUWorker = MULTI_ISA_SELECT(IPUWorker);
-	memzero(ipuRegs);
-	memzero(g_BP);
-	memzero(decoder);
+	memset(&ipuRegs, 0, sizeof(ipuRegs));
+	memset(&g_BP, 0, sizeof(g_BP));
+	memset(&decoder, 0, sizeof(decoder));
 
 	decoder.picture_structure = FRAME_PICTURE;      //default: progressive...my guess:P
 
@@ -211,7 +212,7 @@ __fi u64 ipuRead64(u32 mem)
 void ipuSoftReset(void)
 {
 	ipu_fifo.clear();
-	memzero(g_BP);
+	memset(&g_BP, 0, sizeof(g_BP));
 
 	coded_block_pattern = 0;
 	g_ipu_thresh[0] = 0;
@@ -283,7 +284,7 @@ __fi bool ipuWrite64(u32 mem, u64 value)
 static void ipuBCLR(u32 val)
 {
 	ipu_fifo.in.clear();
-	memzero(g_BP);
+	memset(&g_BP, 0, sizeof(g_BP));
 	g_BP.BP = val & 0x7F;
 
 	ipuRegs.cmd.BUSY = 0;
@@ -327,8 +328,8 @@ static __ri void ipuBDEC(tIPU_CMD_BDEC bdec)
 	decoder.dcr					= bdec.DCR;
 	decoder.macroblock_modes	|= bdec.MBI ? MACROBLOCK_INTRA : MACROBLOCK_PATTERN;
 
-	memzero_sse_a(decoder.mb8);
-	memzero_sse_a(decoder.mb16);
+	memset(&decoder.mb8, 0, sizeof(decoder.mb8));
+	memset(&decoder.mb16, 0, sizeof(decoder.mb16));
 }
 
 static void ipuSETTH(u32 val)

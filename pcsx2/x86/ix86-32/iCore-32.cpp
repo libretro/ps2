@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 
+#include <cstring> /* memset */
+
 #include "System.h"
 #include "iR5900.h"
 #include "Vif.h"
@@ -36,7 +38,7 @@ static uint g_x86checknext;
 
 void _initX86regs(void)
 {
-	memzero(x86regs);
+	memset(x86regs, 0, sizeof(x86regs));
 	g_x86AllocCounter = 0;
 	g_x86checknext = 0;
 }

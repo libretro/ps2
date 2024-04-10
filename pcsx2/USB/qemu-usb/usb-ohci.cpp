@@ -29,6 +29,9 @@
 //typedef CPUReadMemoryFunc
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset/memcpy */
+
 #include "USB/qemu-usb/qusb.h"
 #include "USB/qemu-usb/queue.h"
 #include "USB/qemu-usb/USBinternal.h"
@@ -365,7 +368,7 @@ __fi static int get_dwords(uint32_t addr, uint32_t* buf, uint32_t num)
 	if ((addr + (num * sizeof(uint32_t))) > sizeof(iopMem->Main))
 		return 0;
 
-	std::memcpy(buf, iopMem->Main + addr, num * sizeof(uint32_t));
+	memcpy(buf, iopMem->Main + addr, num * sizeof(uint32_t));
 	return 1;
 }
 
@@ -375,7 +378,7 @@ __fi static int get_words(uint32_t addr, uint16_t* buf, uint32_t num)
 	if ((addr + (num * sizeof(uint16_t))) > sizeof(iopMem->Main))
 		return 0;
 
-	std::memcpy(buf, iopMem->Main + addr, num * sizeof(uint16_t));
+	memcpy(buf, iopMem->Main + addr, num * sizeof(uint16_t));
 	return 1;
 }
 
@@ -385,7 +388,7 @@ __fi static int put_dwords(uint32_t addr, uint32_t* buf, uint32_t num)
 	if ((addr + (num * sizeof(uint32_t))) > sizeof(iopMem->Main))
 		return 0;
 
-	std::memcpy(iopMem->Main + addr, buf, num * sizeof(uint32_t));
+	memcpy(iopMem->Main + addr, buf, num * sizeof(uint32_t));
 	return 1;
 }
 
@@ -395,7 +398,7 @@ __fi static int put_words(uint32_t addr, uint16_t* buf, uint32_t num)
 	if ((addr + (num * sizeof(uint16_t))) > sizeof(iopMem->Main))
 		return 0;
 
-	std::memcpy(iopMem->Main + addr, buf, num * sizeof(uint16_t));
+	memcpy(iopMem->Main + addr, buf, num * sizeof(uint16_t));
 	return 1;
 }
 
@@ -447,9 +450,9 @@ static int ohci_copy_td(OHCIState* ohci, struct ohci_td* td, uint8_t* buf, uint3
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	if (n == len)
 		return 0;
@@ -461,9 +464,9 @@ static int ohci_copy_td(OHCIState* ohci, struct ohci_td* td, uint8_t* buf, uint3
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	return 0;
 }
@@ -481,9 +484,9 @@ static int ohci_copy_iso_td(OHCIState* ohci, uint32_t start_addr, uint32_t end_a
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	if (n == len)
 		return 0;
@@ -495,9 +498,9 @@ static int ohci_copy_iso_td(OHCIState* ohci, uint32_t start_addr, uint32_t end_a
 		return 1;
 
 	if (write)
-		std::memcpy(iopMem->Main + ptr, buf, len);
+		memcpy(iopMem->Main + ptr, buf, len);
 	else
-		std::memcpy(buf, iopMem->Main + ptr, len);
+		memcpy(buf, iopMem->Main + ptr, len);
 
 	return 0;
 }
@@ -1739,7 +1742,7 @@ OHCIState* ohci_create(uint32_t base, int ports)
 
 	const int ticks_per_sec = usb_get_ticks_per_second();
 
-	std::memset(ohci, 0, sizeof(OHCIState));
+	memset(ohci, 0, sizeof(OHCIState));
 
 	ohci->mem_base = base;
 
@@ -1764,7 +1767,7 @@ OHCIState* ohci_create(uint32_t base, int ports)
 	ohci->num_ports = ports;
 	for (i = 0; i < ports; i++)
 	{
-		std::memset(&(ohci->rhport[i].port), 0, sizeof(USBPort));
+		memset(&(ohci->rhport[i].port), 0, sizeof(USBPort));
 		ohci->rhport[i].port.opaque = ohci;
 		ohci->rhport[i].port.index = i;
 		ohci->rhport[i].port.speedmask = USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL;

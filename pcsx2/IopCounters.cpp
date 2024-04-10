@@ -75,16 +75,6 @@ u8 psxvblankgate = 0;
 // which ensures they stay 100% in sync with the EE's hblank counters.
 #define PSXHBLANK 0x2001
 
-#if 0
-// Unused
-static void psxRcntReset(int index)
-{
-	psxCounters[index].count = 0;
-	psxCounters[index].mode &= ~0x18301C00;
-	psxCounters[index].sCycleT = psxRegs.cycle;
-}
-#endif
-
 static void _rcntSet(int cntidx)
 {
 	u64 overflowCap = (cntidx >= 3) ? 0x100000000ULL : 0x10000;
@@ -131,12 +121,11 @@ static void _rcntSet(int cntidx)
 	}
 }
 
-
-void psxRcntInit()
+void psxRcntInit(void)
 {
 	int i;
 
-	memzero(psxCounters);
+	memset(psxCounters, 0, sizeof(psxCounters));
 
 	for (i = 0; i < 3; i++)
 	{
@@ -794,7 +783,7 @@ u64 psxRcntCycles(int index)
 	return (u64)(psxCounters[index].count + (u32)((psxRegs.cycle - psxCounters[index].sCycleT) / psxCounters[index].rate));
 }
 
-void psxRcntSetGates()
+void psxRcntSetGates(void)
 {
 	if (psxCounters[0].mode & IOPCNT_ENABLE_GATE)
 		psxhblankgate |= 1;

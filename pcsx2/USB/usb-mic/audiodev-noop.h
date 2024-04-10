@@ -15,7 +15,7 @@
 
 #pragma once
 #include "audiodev.h"
-#include <cstring>
+#include <cstring> /* memset/memcpy */
 
 namespace usb_mic
 {
@@ -38,7 +38,7 @@ namespace usb_mic
 			bool GetFrames(uint32_t* size) override { return true; }
 			uint32_t GetBuffer(int16_t* outBuf, uint32_t outFrames) override
 			{
-				std::memset(outBuf, 0, outFrames * sizeof(int16_t));
+				memset(outBuf, 0, outFrames * sizeof(int16_t));
 				return outFrames;
 			}
 			uint32_t SetBuffer(int16_t* inBuf, uint32_t inFrames) override { return inFrames; }

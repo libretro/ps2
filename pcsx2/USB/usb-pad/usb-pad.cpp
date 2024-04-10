@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset/memcpy */
+
 #include "usb-pad.h"
 #include "USB/qemu-usb/USBinternal.h"
 #include "USB/USB.h"
@@ -265,7 +268,7 @@ namespace usb_pad
 		};
 
 		wheel_lohi* w = reinterpret_cast<wheel_lohi*>(buf);
-		std::memset(w, 0, 8);
+		memset(w, 0, 8);
 
 		switch (type)
 		{

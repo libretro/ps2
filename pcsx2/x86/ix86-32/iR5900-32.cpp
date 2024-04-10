@@ -35,7 +35,6 @@
 
 #include "common/AlignedMalloc.h"
 #include "common/FastJmp.h"
-#include "common/MemsetFast.inl"
 
 // Only for MOVQ workaround.
 #include "common/emitter/internal.h"

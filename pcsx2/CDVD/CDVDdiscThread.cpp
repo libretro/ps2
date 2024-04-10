@@ -14,14 +14,16 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "CDVDdiscReader.h"
-#include "CDVD/CDVD.h"
 
+#include <cstring>
 #include <atomic>
 #include <condition_variable>
 #include <limits>
 #include <queue>
 #include <thread>
+
+#include "CDVDdiscReader.h"
+#include "CDVD/CDVD.h"
 
 const u32 sectors_per_read = 16;
 
@@ -355,28 +357,29 @@ s32 cdvdDirectReadSector(u32 sector, s32 mode, u8* buffer)
 	{
 		u32 offset = 2048 * (sector - sector_block);
 		memcpy(buffer, data + offset, 2048);
-		return 0;
 	}
-
-	u32 offset = 2352 * (sector - sector_block);
-	u8* bfr = data + offset;
-
-	switch (mode)
+	else
 	{
-		case CDVD_MODE_2048:
-			// Data location depends on CD mode
-			std::memcpy(buffer, (bfr[15] & 3) == 2 ? bfr + 24 : bfr + 16, 2048);
-			return 0;
-		case CDVD_MODE_2328:
-			memcpy(buffer, bfr + 24, 2328);
-			return 0;
-		case CDVD_MODE_2340:
-			memcpy(buffer, bfr + 12, 2340);
-			return 0;
-		default:
-			memcpy(buffer, bfr, 2352);
-			return 0;
+		u32 offset = 2352 * (sector - sector_block);
+		u8* bfr    = data + offset;
+		switch (mode)
+		{
+			case CDVD_MODE_2048:
+				// Data location depends on CD mode
+				memcpy(buffer, (bfr[15] & 3) == 2 ? bfr + 24 : bfr + 16, 2048);
+				break;
+			case CDVD_MODE_2328:
+				memcpy(buffer, bfr + 24, 2328);
+				break;
+			case CDVD_MODE_2340:
+				memcpy(buffer, bfr + 12, 2340);
+				break;
+			default:
+				memcpy(buffer, bfr, 2352);
+				break;
+		}
 	}
+	return 0;
 }
 
 s32 cdvdGetMediaType()

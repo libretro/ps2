@@ -14,6 +14,7 @@
  */
 
 #include "PrecompiledHeader.h"
+
 #include "GS.h"
 #include "GSDevice11.h"
 #include "GS/Renderers/DX11/D3D.h"
@@ -29,7 +30,6 @@
 
 #include <VersionHelpers.h>
 #include <d3dcompiler.h>
-#include <dxgidebug.h>
 
 #include "libretro_d3d.h"
 extern retro_environment_t environ_cb;
@@ -1046,7 +1046,7 @@ bool GSDevice11::IASetIndexBuffer(const void* index, u32 count)
 	if (!map)
 		return false;
 
-	std::memcpy(map, index, count * sizeof(u16));
+	memcpy(map, index, count * sizeof(u16));
 	IAUnmapIndexBuffer(count);
 	IASetIndexBuffer(m_ib.get());
 	return true;

@@ -21,6 +21,7 @@
 #include "common/Console.h"
 
 #include <cstdarg>
+#include <cstring>
 #include <limits>
 
 using namespace D3D12;
@@ -32,8 +33,8 @@ GraphicsPipelineBuilder::GraphicsPipelineBuilder()
 
 void GraphicsPipelineBuilder::Clear()
 {
-	std::memset(&m_desc, 0, sizeof(m_desc));
-	std::memset(m_input_elements.data(), 0, sizeof(D3D12_INPUT_ELEMENT_DESC) * m_input_elements.size());
+	memset(&m_desc, 0, sizeof(m_desc));
+	memset(m_input_elements.data(), 0, sizeof(D3D12_INPUT_ELEMENT_DESC) * m_input_elements.size());
 	m_desc.NodeMask = 1;
 	m_desc.SampleMask = 0xFFFFFFFF;
 	m_desc.SampleDesc.Count = 1;
@@ -231,7 +232,7 @@ ComputePipelineBuilder::ComputePipelineBuilder()
 
 void ComputePipelineBuilder::Clear()
 {
-	std::memset(&m_desc, 0, sizeof(m_desc));
+	memset(&m_desc, 0, sizeof(m_desc));
 }
 
 wil::com_ptr_nothrow<ID3D12PipelineState> ComputePipelineBuilder::Create(ID3D12Device* device, bool clear /*= true*/)

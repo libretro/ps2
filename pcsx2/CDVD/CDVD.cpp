@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
 #include "R3000A.h"
 #include "Common.h"
 #include "IopHw.h"
@@ -21,6 +24,7 @@
 
 #include <cctype>
 #include <ctime>
+#include <cstring>
 #include <memory>
 
 #include "common/FileSystem.h"
@@ -204,9 +208,8 @@ static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 		fp = FileSystem::OpenManagedCFile(nvmfile.c_str(), "w+b");
 		if (!fp)
 		{
-			Console.Error("Failed to open NVM file '%s' for writing", nvmfile.c_str());
 			if (read)
-				std::memset(buffer, 0, bytes);
+				memset(buffer, 0, bytes);
 			return;
 		}
 
@@ -807,9 +810,9 @@ static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 	return static_cast<int>(cycles);
 }
 
-void cdvdReset()
+void cdvdReset(void)
 {
-	memzero(cdvd);
+	memset(&cdvd, 0, sizeof(cdvd));
 
 	cdvd.Type = CDVD_TYPE_NODISC;
 	cdvd.Spinning = false;
@@ -1642,7 +1645,7 @@ static void cdvdWrite04(u8 rt)
 			cdvd.SCMDParamC = 0;
 			cdvdUpdateStatus(CDVD_STATUS_STOP);
 			cdvd.Spinning = false;
-			memzero(cdvd.SCMDResult);
+			memset(cdvd.SCMDResult, 0, sizeof(cdvd.SCMDResult));
 			cdvdSetIrq();
 			break;
 
@@ -2078,7 +2081,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 		int address;
 		u8 tmp;
 		cdvd.sCommand = rt;
-		memzero(cdvd.SCMDResult);
+		memset(cdvd.SCMDResult, 0, sizeof(cdvd.SCMDResult));
 
 		switch (rt)
 		{

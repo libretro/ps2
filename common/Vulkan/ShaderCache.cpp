@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cstring>
+
 #include "common/Vulkan/ShaderCache.h"
 #include "common/Vulkan/ShaderCompiler.h"
 #include "common/Vulkan/Context.h"
@@ -80,7 +82,7 @@ namespace Vulkan
 			return false;
 		}
 
-		if (std::memcmp(header.uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
+		if (memcmp(header.uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
 		{
 			Console.Error("Pipeline cache failed validation: Incorrect UUID");
 			return false;
@@ -95,7 +97,7 @@ namespace Vulkan
 		header->header_version = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
 		header->vendor_id = g_vulkan_context->GetDeviceProperties().vendorID;
 		header->device_id = g_vulkan_context->GetDeviceProperties().deviceID;
-		std::memcpy(header->uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
+		memcpy(header->uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
 	}
 
 	ShaderCache::ShaderCache() = default;
@@ -333,7 +335,7 @@ namespace Vulkan
 		}
 
 		VK_PIPELINE_CACHE_HEADER header;
-		std::memcpy(&header, data->data(), sizeof(header));
+		memcpy(&header, data->data(), sizeof(header));
 		if (!ValidatePipelineCacheHeader(header))
 			return false;
 

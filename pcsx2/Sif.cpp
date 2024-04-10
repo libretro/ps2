@@ -15,7 +15,9 @@
 
 #include "PrecompiledHeader.h"
 
-#define _PC_	// disables MIPS opcode macros.
+#include <cstring> /* memset */
+
+#define _PC_	/* disables MIPS opcode macros. */
 
 #include "R3000A.h"
 #include "Common.h"
@@ -23,8 +25,8 @@
 
 void sifReset(void)
 {
-	memzero(sif0);
-	memzero(sif1);
+	memset(&sif0, 0, sizeof(sif0));
+	memset(&sif1, 0, sizeof(sif1));
 }
 
 bool SaveStateBase::sifFreeze()

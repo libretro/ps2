@@ -169,7 +169,7 @@ void Path::SanitizeFileName(std::string* str, bool strip_slashes /* = true */)
 		large_buf = std::make_unique<char[]>(len + 1);
 		str_copy = large_buf.get();
 	}
-	std::memcpy(str_copy, str->c_str(), sizeof(char) * (len + 1));
+	memcpy(str_copy, str->c_str(), sizeof(char) * (len + 1));
 	str->clear();
 
 	size_t pos = 0;

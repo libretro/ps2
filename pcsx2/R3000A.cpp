@@ -15,6 +15,9 @@
 
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
 #include "R3000A.h"
 #include "Common.h"
 
@@ -45,9 +48,9 @@ bool iopEventTestIsActive = false;
 
 alignas(16) psxRegisters psxRegs;
 
-void psxReset()
+void psxReset(void)
 {
-	memzero(psxRegs);
+	memset(&psxRegs, 0, sizeof(psxRegs));
 
 	psxRegs.pc = 0xbfc00000; // Start in bootstrap
 	psxRegs.CP0.n.Status = 0x10900000; // COP0 enabled | BEV = 1 | TS = 1
@@ -63,9 +66,7 @@ void psxReset()
 	psxBiosReset();
 }
 
-void psxShutdown() {
-	//psxCpu->Shutdown();
-}
+void psxShutdown(void) { }
 
 void psxException(u32 code, u32 bd)
 {
@@ -89,16 +90,7 @@ void psxException(u32 code, u32 bd)
 
 	// Set the Status
 	psxRegs.CP0.n.Status = (psxRegs.CP0.n.Status &~0x3f) |
-						  ((psxRegs.CP0.n.Status & 0xf) << 2);
-
-	/*if ((((PSXMu32(psxRegs.CP0.n.EPC) >> 24) & 0xfe) == 0x4a)) {
-		// "hokuto no ken" / "Crash Bandicot 2" ... fix
-		PSXMu32(psxRegs.CP0.n.EPC)&= ~0x02000000;
-	}*/
-
-	/*if (psxRegs.CP0.n.Cause == 0x400 && (!(psxHu32(0x1450) & 0x8))) {
-		hwIntcIrq(INTC_SBUS);
-	}*/
+		((psxRegs.CP0.n.Status & 0xf) << 2);
 }
 
 __fi void psxSetNextBranch( u32 startCycle, s32 delta )
@@ -162,9 +154,7 @@ static __fi void IopTestEvent( IopEventId n, void (*callback)() )
 static __fi void Sio0TestEvent(IopEventId n)
 {
 	if (!(psxRegs.interrupt & (1 << n)))
-	{
 		return;
-	}
 
 	if (psxTestCycle(psxRegs.sCycle[n], psxRegs.eCycle[n]))
 	{
@@ -172,12 +162,10 @@ static __fi void Sio0TestEvent(IopEventId n)
 		sio0.Interrupt(Sio0Interrupt::TEST_EVENT);
 	}
 	else
-	{
 		psxSetNextBranch(psxRegs.sCycle[n], psxRegs.eCycle[n]);
-	}
 }
 
-static __fi void _psxTestInterrupts()
+static __fi void _psxTestInterrupts(void)
 {
 	IopTestEvent(IopEvt_SIF0,		sif0Interrupt);	// SIF0
 	IopTestEvent(IopEvt_SIF1,		sif1Interrupt);	// SIF1
@@ -203,7 +191,7 @@ static __fi void _psxTestInterrupts()
 	}
 }
 
-__ri void iopEventTest()
+__ri void iopEventTest(void)
 {
 	if (psxTestCycle(psxNextsCounter, psxNextCounter))
 	{
@@ -234,7 +222,7 @@ __ri void iopEventTest()
 	}
 }
 
-void iopTestIntc()
+void iopTestIntc(void)
 {
 	if( psxHu32(0x1078) == 0 ) return;
 	if( (psxHu32(0x1070) & psxHu32(0x1074)) == 0 ) return;

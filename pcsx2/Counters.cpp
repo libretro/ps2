@@ -18,6 +18,7 @@
 
 #include <time.h>
 #include <cmath>
+#include <cstring> /* memset/memcpy */
 
 #include "Common.h"
 #include "R3000A.h"
@@ -129,8 +130,7 @@ static __fi void _rcntSet( int cntidx )
 	}
 }
 
-
-static __fi void cpuRcntSet()
+static __fi void cpuRcntSet(void)
 {
 	int i;
 
@@ -151,13 +151,13 @@ static __fi void cpuRcntSet()
 	cpuSetNextEvent(nextsCounter, nextCounter); // Need to update on counter resets/target changes
 }
 
-void rcntInit()
+void rcntInit(void)
 {
 	int i;
 
 	g_FrameCount = 0;
 
-	memzero(counters);
+	memset(counters, 0, sizeof(counters));
 
 	for (i=0; i<4; i++) {
 		counters[i].rate = 2;

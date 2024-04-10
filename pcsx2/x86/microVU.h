@@ -19,7 +19,9 @@ using namespace x86Emitter;
 
 #include <deque>
 #include <algorithm>
+#include <cstring> /* memset/memcpy */
 #include <memory>
+
 #include "Common.h"
 #include "VU.h"
 #include "MTVU.h"
@@ -97,11 +99,9 @@ public:
 				blockEnd       = newBlock;
 			}
 			else
-			{
 				blockEnd = blockList = newBlock;
-			}
 
-			std::memcpy(&newBlock->block, pBlock, sizeof(microBlock));
+			memcpy(&newBlock->block, pBlock, sizeof(microBlock));
 			thisBlock = &newBlock->block;
 
 			quickLookup.push_back({&newBlock->block, pBlock->pState.quick64[0]});

@@ -16,6 +16,8 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 
+#include <cstring> /* memset/memcpy */
+
 #include "GS.h"
 #include "Gif_Unit.h"
 #include "Vif_Dma.h"
@@ -69,7 +71,7 @@ static bool CheckPaths(void)
 
 void GIF_Fifo::init()
 {
-	memzero(data);
+	memset(data, 0, sizeof(data));
 	fifoSize = 0;
 	gifRegs.stat.FQC = 0;
 

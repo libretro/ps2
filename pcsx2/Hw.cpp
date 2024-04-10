@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
 #include "Common.h"
 
 #include "Hardware.h"
@@ -31,7 +34,7 @@ int rdram_sdevid = 0;
 
 static bool hwInitialized = false;
 
-void hwInit()
+void hwInit(void)
 {
 	// [TODO] / FIXME:  PCSX2 no longer works on an Init system.  It assumes that the
 	// static global vars for the process will be initialized when the process is created, and
@@ -45,7 +48,7 @@ void hwInit()
 	hwInitialized = true;
 }
 
-void hwShutdown()
+void hwShutdown(void)
 {
 	if (!hwInitialized) return;
 
@@ -54,11 +57,11 @@ void hwShutdown()
 	hwInitialized = false;
 }
 
-void hwReset()
+void hwReset(void)
 {
 	hwInit();
 
-	memzero( eeHw );
+	memset(eeHw, 0, sizeof(eeHw));
 
 	psHu32(SBUS_F260) = 0x1D000060;
 
@@ -329,10 +332,9 @@ void hwDmacSrcTadrInc(DMACh& dma)
 	u16 tagid = (dma.chcr.TAG >> 12) & 0x7;
 
 	if (tagid == TAG_CNT)
-	{
 		dma.tadr = dma.madr;
-	}
 }
+
 bool hwDmacSrcChain(DMACh& dma, int id)
 {
 	u32 temp;
@@ -341,39 +343,34 @@ bool hwDmacSrcChain(DMACh& dma, int id)
 	{
 		case TAG_REFE: // Refe - Transfer Packet According to ADDR field
 			dma.tadr += 16;
-            // End the transfer.
+			// End the transfer.
 			return true;
-
 		case TAG_CNT: // CNT - Transfer QWC following the tag.
-            // Set MADR to QW after the tag, and TADR to QW following the data.
+			      // Set MADR to QW after the tag, and TADR to QW following the data.
 			dma.madr = dma.tadr + 16;
 			dma.tadr = dma.madr;
-			return false;
-
+			break;
 		case TAG_NEXT: // Next - Transfer QWC following tag. TADR = ADDR
-            // Set MADR to QW following the tag, and set TADR to the address formerly in MADR.
+			       // Set MADR to QW following the tag, and set TADR to the address formerly in MADR.
 			temp = dma.madr;
 			dma.madr = dma.tadr + 16;
 			dma.tadr = temp;
-			return false;
-
-		case TAG_REF: // Ref - Transfer QWC from ADDR field
+			break;
+		case TAG_REF:  // Ref - Transfer QWC from ADDR field
 		case TAG_REFS: // Refs - Transfer QWC from ADDR field (Stall Control)
-            //Set TADR to next tag
+			       //Set TADR to next tag
 			dma.tadr += 16;
-			return false;
-
+			break;
 		case TAG_END: // End - Transfer QWC following the tag
-            //Set MADR to data following the tag, and end the transfer.
+			      //Set MADR to data following the tag, and end the transfer.
 			dma.madr = dma.tadr + 16;
 			//Don't Increment tadr; breaks Soul Calibur II and III
 			return true;
-		// Undefined Tag handling ends the DMA, maintaining the bad TADR and Tag in upper CHCR
-		// Some games such as DT racer try to use RET tags on IPU, which it doesn't support
+			// Undefined Tag handling ends the DMA, maintaining the bad TADR and Tag in upper CHCR
+			// Some games such as DT racer try to use RET tags on IPU, which it doesn't support
 		default:
 			return true;
 	}
 
 	return false;
 }
-

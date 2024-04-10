@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 
+#include <cstring>
 #include <list>
 
 #include "common/ScopedGuard.h"
@@ -218,7 +219,7 @@ void SysMtgsThread::InitAndReadFIFO(u8* mem, u32 qwc)
 		if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
 			GSReadLocalMemoryUnsync(mem, qwc, vif1.BITBLTBUF._u64, vif1.TRXPOS._u64, vif1.TRXREG._u64);
 		else
-			std::memset(mem, 0, qwc * 16);
+			memset(mem, 0, qwc * 16);
 
 		return;
 	}
@@ -249,7 +250,7 @@ bool SysMtgsThread::TryOpenGS()
 
 	m_thread = std::this_thread::get_id();
 
-	std::memcpy(RingBuffer.Regs, PS2MEM_GS, sizeof(PS2MEM_GS));
+	memcpy(RingBuffer.Regs, PS2MEM_GS, sizeof(PS2MEM_GS));
 
 	if (!GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, RingBuffer.Regs))
 		return false;

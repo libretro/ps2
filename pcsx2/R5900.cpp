@@ -15,6 +15,9 @@
 
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset */
+
 #include "Common.h"
 
 #include "common/StringUtil.h"
@@ -75,9 +78,9 @@ void cpuReset()
 
 	GetVmMemory().Reset();
 
-	memzero(cpuRegs);
-	memzero(fpuRegs);
-	memzero(tlb);
+	memset(&cpuRegs, 0, sizeof(cpuRegs));
+	memset(&fpuRegs, 0, sizeof(fpuRegs));
+	memset(&tlb, 0, sizeof(tlb));
 
 	cpuRegs.pc				= 0xbfc00000; //set pc reg to stack
 	cpuRegs.CP0.n.Config	= 0x440;

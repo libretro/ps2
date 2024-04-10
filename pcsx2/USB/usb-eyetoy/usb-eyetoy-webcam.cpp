@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset/memcpy */
+
 #include "videodev.h"
 #include "usb-eyetoy-webcam.h"
 #include "ov519.h"
@@ -474,7 +477,7 @@ namespace usb_eyetoy
 		s->hw_camera_running = 0;
 		s->frame_step = 0;
 		s->mpeg_frame_data = std::make_unique<unsigned char[]>(640 * 480 * 3);
-		std::memset(s->mpeg_frame_data.get(), 0, 640 * 480 * 3);
+		memset(s->mpeg_frame_data.get(), 0, 640 * 480 * 3);
 		s->mpeg_frame_offset = 0;
 
 		return &s->dev;

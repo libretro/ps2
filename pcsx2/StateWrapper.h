@@ -16,6 +16,7 @@
 #pragma once
 #include "common/HeapArray.h"
 #include "common/Pcsx2Defs.h"
+
 #include <array>
 #include <cstring>
 #include <deque>
@@ -133,9 +134,9 @@ public:
 	void Do(T* value_ptr)
 	{
 		using TType = std::underlying_type_t<T>;
+		TType temp;
 		if (m_mode == Mode::Read)
 		{
-			TType temp;
 			if (m_error || (m_error |= (m_stream->Read(&temp, sizeof(TType)) != sizeof(T))) == true)
 				temp = static_cast<TType>(0);
 
@@ -143,8 +144,7 @@ public:
 		}
 		else
 		{
-			TType temp;
-			std::memcpy(&temp, value_ptr, sizeof(TType));
+			memcpy(&temp, value_ptr, sizeof(TType));
 			if (!m_error)
 				m_error |= (m_stream->Write(&temp, sizeof(TType)) != sizeof(TType));
 		}
@@ -157,7 +157,7 @@ public:
 		if (m_mode == Mode::Read)
 		{
 			if (m_error || (m_error |= (m_stream->Read(value_ptr, sizeof(T)) != sizeof(T))) == true)
-				std::memset(value_ptr, 0, sizeof(*value_ptr));
+				memset(value_ptr, 0, sizeof(*value_ptr));
 		}
 		else
 		{

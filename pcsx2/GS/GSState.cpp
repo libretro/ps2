@@ -14,13 +14,15 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring> /* memset/memcpy */
+#include <algorithm> /* clamp */
+#include <cfloat> /* FLT_MAX */
+
 #include "GSState.h"
 #include "GSUtil.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
-
-#include <algorithm> // clamp
-#include <cfloat> // FLT_MAX
 
 int GSState::s_n = 0;
 int GSState::s_transfer_n = 0;
@@ -2367,15 +2369,13 @@ void GSState::GrowVertexBuffer()
 
 	if (m_vertex.buff)
 	{
-		std::memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);
-
+		memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);
 		_aligned_free(m_vertex.buff);
 	}
 
 	if (m_index.buff)
 	{
-		std::memcpy(index, m_index.buff, sizeof(u16) * m_index.tail);
-
+		memcpy(index, m_index.buff, sizeof(u16) * m_index.tail);
 		_aligned_free(m_index.buff);
 	}
 
@@ -2936,10 +2936,10 @@ __forceinline void GSState::VertexKick(u32 skip)
 	if (m_index.tail == 0 && ((m_backed_up_ctx != m_env.PRIM.CTXT) || m_dirty_gs_regs))
 	{
 		const int ctx = m_env.PRIM.CTXT;
-		std::memcpy(&m_prev_env, &m_env, 88);
-		std::memcpy(&m_prev_env.CTXT[ctx], &m_env.CTXT[ctx], 96);
-		std::memcpy(&m_prev_env.CTXT[ctx].offset, &m_env.CTXT[ctx].offset, sizeof(m_env.CTXT[ctx].offset));
-		std::memcpy(&m_prev_env.CTXT[ctx].scissor, &m_env.CTXT[ctx].scissor, sizeof(m_env.CTXT[ctx].scissor));
+		memcpy(&m_prev_env, &m_env, 88);
+		memcpy(&m_prev_env.CTXT[ctx], &m_env.CTXT[ctx], 96);
+		memcpy(&m_prev_env.CTXT[ctx].offset, &m_env.CTXT[ctx].offset, sizeof(m_env.CTXT[ctx].offset));
+		memcpy(&m_prev_env.CTXT[ctx].scissor, &m_env.CTXT[ctx].scissor, sizeof(m_env.CTXT[ctx].scissor));
 		m_dirty_gs_regs = 0;
 		m_backed_up_ctx = m_env.PRIM.CTXT;
 	}

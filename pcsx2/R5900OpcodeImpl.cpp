@@ -17,6 +17,7 @@
 #include "PrecompiledHeader.h"
 #include "Common.h"
 
+#include <cstring> /* memset */
 #include <float.h>
 
 #include "R5900.h"
@@ -148,7 +149,7 @@ void Deci2Reset(void)
 {
 	deci2handler	= 0;
 	deci2addr		= 0;
-	memzero( deci2buffer );
+	memset(deci2buffer, 0, sizeof(deci2buffer));
 }
 
 bool SaveStateBase::deci2Freeze()

@@ -18,6 +18,7 @@
 #include <cctype>
 #include <codecvt>
 #include <cstdio>
+#include <cstring>
 #include <sstream>
 #include <algorithm>
 
@@ -160,14 +161,12 @@ namespace StringUtil
 
 	std::size_t Strlcpy(char* dst, const char* src, std::size_t size)
 	{
-		std::size_t len = std::strlen(src);
+		std::size_t len = strlen(src);
 		if (len < size)
-		{
-			std::memcpy(dst, src, len + 1);
-		}
+			memcpy(dst, src, len + 1);
 		else
 		{
-			std::memcpy(dst, src, size - 1);
+			memcpy(dst, src, size - 1);
 			dst[size - 1] = '\0';
 		}
 		return len;
@@ -178,12 +177,12 @@ namespace StringUtil
 		std::size_t len = src.length();
 		if (len < size)
 		{
-			std::memcpy(dst, src.data(), len);
+			memcpy(dst, src.data(), len);
 			dst[len] = '\0';
 		}
 		else
 		{
-			std::memcpy(dst, src.data(), size - 1);
+			memcpy(dst, src.data(), size - 1);
 			dst[size - 1] = '\0';
 		}
 		return len;

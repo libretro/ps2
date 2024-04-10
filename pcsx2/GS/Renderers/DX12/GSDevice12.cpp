@@ -1486,7 +1486,7 @@ void GSDevice12::IASetIndexBuffer(const void* index, size_t count)
 	m_index.count = count;
 	SetIndexBuffer(m_index_stream_buffer.GetGPUPointer(), m_index_stream_buffer.GetSize(), DXGI_FORMAT_R16_UINT);
 
-	std::memcpy(m_index_stream_buffer.GetCurrentHostPointer(), index, size);
+	memcpy(m_index_stream_buffer.GetCurrentHostPointer(), index, size);
 	m_index_stream_buffer.CommitMemory(size);
 }
 
@@ -2652,10 +2652,10 @@ void GSDevice12::EndRenderPass()
 
 void GSDevice12::SetViewport(const D3D12_VIEWPORT& viewport)
 {
-	if (std::memcmp(&viewport, &m_viewport, sizeof(m_viewport)) == 0)
+	if (memcmp(&viewport, &m_viewport, sizeof(m_viewport)) == 0)
 		return;
 
-	std::memcpy(&m_viewport, &viewport, sizeof(m_viewport));
+	memcpy(&m_viewport, &viewport, sizeof(m_viewport));
 	m_dirty_flags |= DIRTY_FLAG_VIEWPORT;
 }
 
@@ -2747,7 +2747,7 @@ bool GSDevice12::ApplyTFXState(bool already_execed)
 			return ApplyTFXState(true);
 		}
 
-		std::memcpy(m_vertex_constant_buffer.GetCurrentHostPointer(), &m_vs_cb_cache, sizeof(m_vs_cb_cache));
+		memcpy(m_vertex_constant_buffer.GetCurrentHostPointer(), &m_vs_cb_cache, sizeof(m_vs_cb_cache));
 		m_tfx_constant_buffers[0] = m_vertex_constant_buffer.GetCurrentGPUPointer();
 		m_vertex_constant_buffer.CommitMemory(sizeof(m_vs_cb_cache));
 		flags |= DIRTY_FLAG_VS_CONSTANT_BUFFER_BINDING;
@@ -2768,7 +2768,7 @@ bool GSDevice12::ApplyTFXState(bool already_execed)
 			return ApplyTFXState(true);
 		}
 
-		std::memcpy(m_pixel_constant_buffer.GetCurrentHostPointer(), &m_ps_cb_cache, sizeof(m_ps_cb_cache));
+		memcpy(m_pixel_constant_buffer.GetCurrentHostPointer(), &m_ps_cb_cache, sizeof(m_ps_cb_cache));
 		m_tfx_constant_buffers[1] = m_pixel_constant_buffer.GetCurrentGPUPointer();
 		m_pixel_constant_buffer.CommitMemory(sizeof(m_ps_cb_cache));
 		flags |= DIRTY_FLAG_PS_CONSTANT_BUFFER_BINDING;

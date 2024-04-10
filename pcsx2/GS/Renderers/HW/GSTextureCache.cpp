@@ -14,6 +14,14 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <cstring>
+#ifdef __APPLE__
+#include <stdlib.h>
+#else
+#include <malloc.h>
+#endif
+
 #include "GSTextureCache.h"
 #include "GSTextureReplacements.h"
 #include "GSRendererHW.h"
@@ -23,12 +31,6 @@
 #include "GS/GSXXH.h"
 #include "common/Align.h"
 #include "common/HashCombine.h"
-
-#ifdef __APPLE__
-#include <stdlib.h>
-#else
-#include <malloc.h>
-#endif
 
 std::unique_ptr<GSTextureCache> g_texture_cache;
 
@@ -3045,7 +3047,7 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 	bool lmtex_mapped = false;
 
 	u8* pages_done = static_cast<u8*>(alloca((num_pages + 7) / 8));
-	std::memset(pages_done, 0, (num_pages + 7) / 8);
+	memset(pages_done, 0, (num_pages + 7) / 8);
 
 	// Queue of rectangles to copy, we try to batch as many at once as possible.
 	// Multiply by 2 in case we need to preload.

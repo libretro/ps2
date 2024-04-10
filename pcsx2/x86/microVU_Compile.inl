@@ -442,8 +442,8 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 // This gets run at the start of every loop of mVU's first pass
 __fi void startLoop(mV)
 {
-	memzero(mVUinfo);
-	memzero(mVUregsTemp);
+	memset(&mVUinfo, 0, sizeof(mVUinfo));
+	memset(&mVUregsTemp, 0, sizeof(mVUregsTemp));
 }
 
 // Initialize VI Constants (vi15 propagates through blocks)

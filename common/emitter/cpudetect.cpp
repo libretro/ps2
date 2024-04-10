@@ -13,12 +13,13 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/MemcpyFast.h"
+#include <cstring> /* memset */
+#include <atomic>
+
 #include "common/General.h"
 #include "common/emitter/cpudetect_internal.h"
 #include "common/emitter/internal.h"
 #include "common/emitter/x86_intrin.h"
-#include <atomic>
 
 // CPU information support
 #if defined(_WIN32)
@@ -46,11 +47,6 @@ using namespace x86Emitter;
 
 alignas(16) x86capabilities x86caps;
 
-#if defined(_MSC_VER)
-// We disable optimizations for this function, because we need x86capabilities for AVX
-// detection, but if we keep opts on, it'll use AVX instructions for inlining memzero.
-#pragma optimize("", off)
-#endif
 x86capabilities::x86capabilities()
 	: isIdentified(false)
 	, VendorID(x86Vendor_Unknown)
@@ -65,12 +61,7 @@ x86capabilities::x86capabilities()
 	, SEFlag(0)
 	, AllCapabilities(0)
 {
-	memzero(VendorName);
-	memzero(FamilyName);
 }
-#if defined(_MSC_VER)
-#pragma optimize("", on)
-#endif
 
 // Warning!  We've had problems with the MXCSR detection code causing stack corruption in
 // MSVC PGO builds.  The problem was fixed when I moved the MXCSR code to this function, and
@@ -188,7 +179,6 @@ void x86capabilities::Identify()
 	s32 regs[4];
 	u32 cmds;
 
-	memzero(VendorName);
 	cpuid(regs, 0);
 
 	cmds = regs[0];
@@ -241,7 +231,6 @@ void x86capabilities::Identify()
 		EFlags = regs[3];
 	}
 
-	memzero(FamilyName);
 	cpuid((int*)FamilyName, 0x80000002);
 	cpuid((int*)(FamilyName + 16), 0x80000003);
 	cpuid((int*)(FamilyName + 32), 0x80000004);

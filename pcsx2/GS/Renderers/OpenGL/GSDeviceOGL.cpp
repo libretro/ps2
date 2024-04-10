@@ -15,6 +15,9 @@
 
 #include "PrecompiledHeader.h"
 
+#include <cinttypes>
+#include <cstring>
+
 #include "GS/GSState.h"
 #include "GS/GSUtil.h"
 #include "GS/Renderers/OpenGL/GSDeviceOGL.h"
@@ -23,8 +26,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "common/StringUtil.h"
-
-#include <cinttypes>
 
 static constexpr u32 g_vs_cb_index        = 1;
 static constexpr u32 g_ps_cb_index        = 0;
@@ -219,8 +220,8 @@ bool GSDeviceOGL::Create()
 		m_index_stream_buffer->Bind();
 
 		// Force UBOs to be uploaded on first use.
-		std::memset(&m_vs_cb_cache, 0xFF, sizeof(m_vs_cb_cache));
-		std::memset(&m_ps_cb_cache, 0xFF, sizeof(m_ps_cb_cache));
+		memset(&m_vs_cb_cache, 0xFF, sizeof(m_vs_cb_cache));
+		memset(&m_ps_cb_cache, 0xFF, sizeof(m_ps_cb_cache));
 
 		static_assert(sizeof(GSVertexPT1) == sizeof(GSVertex), "wrong GSVertex size");
 		for (u32 i = 0; i < 8; i++)
@@ -676,8 +677,8 @@ void GSDeviceOGL::RestoreAPIState()
 		glLineWidth(GLState::line_width);
 
 	// Force UBOs to be reuploaded, we don't know what else was bound there.
-	std::memset(&m_vs_cb_cache, 0xFF, sizeof(m_vs_cb_cache));
-	std::memset(&m_ps_cb_cache, 0xFF, sizeof(m_ps_cb_cache));
+	memset(&m_vs_cb_cache, 0xFF, sizeof(m_vs_cb_cache));
+	memset(&m_ps_cb_cache, 0xFF, sizeof(m_ps_cb_cache));
 }
 
 void GSDeviceOGL::DrawPrimitive()
@@ -1513,8 +1514,8 @@ void GSDeviceOGL::IASetVAO(GLuint vao)
 void GSDeviceOGL::IASetVertexBuffer(const void* vertices, size_t count)
 {
 	const u32 size = static_cast<u32>(count) * sizeof(GSVertexPT1);
-	auto res = m_vertex_stream_buffer->Map(sizeof(GSVertexPT1), size);
-	std::memcpy(res.pointer, vertices, size);
+	auto res       = m_vertex_stream_buffer->Map(sizeof(GSVertexPT1), size);
+	memcpy(res.pointer, vertices, size);
 	m_vertex.start = res.index_aligned;
 	m_vertex.count = count;
 	m_vertex_stream_buffer->Unmap(size);
@@ -1526,7 +1527,7 @@ void GSDeviceOGL::IASetIndexBuffer(const void* index, size_t count)
 	auto res = m_index_stream_buffer->Map(sizeof(u16), size);
 	m_index.start = res.index_aligned;
 	m_index.count = count;
-	std::memcpy(res.pointer, index, size);
+	memcpy(res.pointer, index, size);
 	m_index_stream_buffer->Unmap(size);
 }
 
@@ -1751,7 +1752,7 @@ void GSDeviceOGL::SetScissor(const GSVector4i& scissor)
 __fi static void WriteToStreamBuffer(GL::StreamBuffer* sb, u32 index, u32 align, const void* data, u32 size)
 {
 	const auto res = sb->Map(align, size);
-	std::memcpy(res.pointer, data, size);
+	memcpy(res.pointer, data, size);
 	sb->Unmap(size);
 
 	glBindBufferRange(GL_UNIFORM_BUFFER, index, sb->GetGLBufferId(), res.buffer_offset, size);

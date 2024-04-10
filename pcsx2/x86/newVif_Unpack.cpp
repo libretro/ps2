@@ -18,6 +18,9 @@
 //			Jake.Stine (@gmail.com)
 
 #include "PrecompiledHeader.h"
+
+#include <cstring>
+
 #include "Common.h"
 #include "Vif_Dma.h"
 #include "newVif.h"
@@ -82,7 +85,7 @@ void resetNewVif(int idx)
 
 	nVif[idx].idx   = idx;
 	nVif[idx].bSize = 0;
-	memzero(nVif[idx].buffer);
+	memset(nVif[idx].buffer, 0, sizeof(nVif[idx].buffer));
 
 	if (newVifDynaRec)
 		dVifReset(idx);

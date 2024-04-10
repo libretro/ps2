@@ -13,10 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cinttypes>
+
 #include "StateWrapper.h"
 #include "common/Console.h"
-#include <cinttypes>
-#include <cstring>
 
 StateWrapper::StateWrapper(IStream* stream, Mode mode, u32 version)
 	: m_stream(stream)
@@ -32,7 +32,7 @@ void StateWrapper::DoBytes(void* data, size_t length)
 	if (m_mode == Mode::Read)
 	{
 		if (m_error || (m_error |= (m_stream->Read(data, static_cast<u32>(length)) != static_cast<u32>(length))) == true)
-			std::memset(data, 0, length);
+			memset(data, 0, length);
 	}
 	else
 	{
@@ -90,7 +90,7 @@ u32 StateWrapper::ReadOnlyMemoryStream::Read(void* buf, u32 count)
 	count = std::min(m_buf_length - m_buf_position, count);
 	if (count > 0)
 	{
-		std::memcpy(buf, &m_buf[m_buf_position], count);
+		memcpy(buf, &m_buf[m_buf_position], count);
 		m_buf_position += count;
 	}
 	return count;
@@ -145,7 +145,7 @@ u32 StateWrapper::MemoryStream::Read(void* buf, u32 count)
 	count = std::min(m_buf_length - m_buf_position, count);
 	if (count > 0)
 	{
-		std::memcpy(buf, &m_buf[m_buf_position], count);
+		memcpy(buf, &m_buf[m_buf_position], count);
 		m_buf_position += count;
 	}
 	return count;
@@ -156,7 +156,7 @@ u32 StateWrapper::MemoryStream::Write(const void* buf, u32 count)
 	count = std::min(m_buf_length - m_buf_position, count);
 	if (count > 0)
 	{
-		std::memcpy(&m_buf[m_buf_position], buf, count);
+		memcpy(&m_buf[m_buf_position], buf, count);
 		m_buf_position += count;
 	}
 	return count;
@@ -207,7 +207,7 @@ u32 StateWrapper::VectorMemoryStream::Read(void* buf, u32 count)
 	count = std::min(static_cast<u32>(m_buf.size() - m_buf_position), count);
 	if (count > 0)
 	{
-		std::memcpy(buf, &m_buf[m_buf_position], count);
+		memcpy(buf, &m_buf[m_buf_position], count);
 		m_buf_position += count;
 	}
 	return count;
@@ -218,7 +218,7 @@ u32 StateWrapper::VectorMemoryStream::Write(const void* buf, u32 count)
 	if (count > 0)
 	{
 		Expand(m_buf_position + count);
-		std::memcpy(&m_buf[m_buf_position], buf, count);
+		memcpy(&m_buf[m_buf_position], buf, count);
 		m_buf_position += count;
 	}
 
