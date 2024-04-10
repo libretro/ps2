@@ -79,7 +79,6 @@ namespace VMManager
 
 	static bool AutoDetectSource(const std::string& filename);
 	static bool ApplyBootParameters(VMBootParameters params, std::string* state_to_load);
-	static bool CheckBIOSAvailability();
 	static void LoadPatches(const std::string& serial, u32 crc,
 		bool show_messages, bool show_messages_when_disabled);
 	static void UpdateRunningGame(bool resetting, bool game_starting);
@@ -552,22 +551,6 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	return true;
 }
 
-bool VMManager::CheckBIOSAvailability()
-{
-	if (IsBIOSAvailable(EmuConfig.FullpathToBios()))
-		return true;
-
-	// TODO: When we translate core strings, translate this.
-
-	const char* message = "PCSX2 requires a PS2 BIOS in order to run.\n\n"
-						  "For legal reasons, you *must* obtain a BIOS from an actual PS2 unit that you own (borrowing doesn't count).\n\n"
-						  "Once dumped, this BIOS image should be placed in the bios folder within the data directory (Tools Menu -> Open Data Directory).\n\n"
-						  "Please consult the FAQs and Guides for further instructions.";
-
-	Host::ReportErrorAsync("Startup Error", message);
-	return false;
-}
-
 bool VMManager::Initialize(VMBootParameters boot_params)
 {
 	pxAssertRel(s_state.load(std::memory_order_acquire) == VMState::Shutdown, "VM is shutdown");
@@ -587,7 +570,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		return false;
 
 	// early out if we don't have a bios
-	if (!CheckBIOSAvailability())
+	if (!IsBIOSAvailable(EmuConfig.FullpathToBios()))
 		return false;
 
 	Console.WriteLn("Opening CDVD...");
