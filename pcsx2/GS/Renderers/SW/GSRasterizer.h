@@ -108,8 +108,6 @@ class GSDrawScanline;
 
 class alignas(32) GSRasterizerData : public GSAlignedClass<32>
 {
-	static int s_counter;
-
 public:
 	GSVector4i scissor;
 	GSVector4i bbox;
@@ -143,7 +141,6 @@ public:
 		, pixels(0)
 		, scanmsk_value(0)
 	{
-		counter = s_counter++;
 	}
 
 	virtual ~GSRasterizerData()
@@ -167,7 +164,6 @@ protected:
 	GSVector4 m_fscissor_y;
 	struct { GSVertexSW* buff; int count; } m_edge;
 	struct { int sum, actual, total; } m_pixels;
-	int m_primcount;
 
 	// For the current draw.
 	GSScanlineLocalData m_local = {};
