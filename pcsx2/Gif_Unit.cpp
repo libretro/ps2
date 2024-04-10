@@ -91,7 +91,7 @@ bool Gif_HandlerAD(u8* pMem)
 	return false;
 }
 
-bool Gif_HandlerAD_MTVU(u8* pMem)
+void Gif_HandlerAD_MTVU(u8* pMem)
 {
 	// Note: Atomic communication is with MTVU.cpp Get_GSChanges
 	u32 reg = pMem[8];
@@ -127,7 +127,6 @@ bool Gif_HandlerAD_MTVU(u8* pMem)
 		}
 		vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagLabel, std::memory_order_release);
 	}
-	return 0;
 }
 
 void Gif_FinishIRQ(void)

@@ -28,7 +28,7 @@ struct GS_Packet;
 extern void Gif_MTGS_Wait(bool isMTVU);
 extern void Gif_FinishIRQ();
 extern bool Gif_HandlerAD(u8* pMem);
-extern bool Gif_HandlerAD_MTVU(u8* pMem);
+extern void Gif_HandlerAD_MTVU(u8* pMem);
 extern void Gif_AddBlankGSPacket(u32 size, GIF_PATH path);
 extern void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path);
 extern void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path);
@@ -441,7 +441,7 @@ struct Gif_Path
 						break; // Exit Early
 					if (gifTag.curReg() == GIF_REG_A_D)
 					{
-						pxAssert(!Gif_HandlerAD_MTVU(&buffer[curOffset]));
+						Gif_HandlerAD_MTVU(&buffer[curOffset]);
 					}
 					incTag(curOffset, gsPack.size, 16); // 1 QWC
 					gifTag.packedStep();
