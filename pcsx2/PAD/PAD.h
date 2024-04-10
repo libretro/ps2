@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "Config.h"
-#include "Common/Pcsx2Defs.h"
+#include "common/Pcsx2Defs.h"
 #include "SaveState.h"
 
 class SettingsInterface;
