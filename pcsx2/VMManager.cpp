@@ -76,7 +76,6 @@ namespace VMManager
 	static void CheckForPatchConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForDEV9ConfigChanges(const Pcsx2Config& old_config);
 	static void CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config);
-	static void LogUnsafeSettingsToConsole(const std::string& messages);
 
 	static bool AutoDetectSource(const std::string& filename);
 	static bool ApplyBootParameters(VMBootParameters params, std::string* state_to_load);
@@ -1092,26 +1091,6 @@ void VMManager::SetDefaultSettings(SettingsInterface& si)
 	SetHardwareDependentDefaultSettings(si);
 }
 
-void VMManager::LogUnsafeSettingsToConsole(const std::string& messages)
-{
-	// a not-great way of getting rid of the icons for the console message
-	std::string console_messages(messages);
-	for (;;)
-	{
-		const std::string::size_type pos = console_messages.find("\xef");
-		if (pos != std::string::npos)
-		{
-			console_messages.erase(pos, pos + 3);
-			console_messages.insert(pos, "[Unsafe Settings]");
-		}
-		else
-		{
-			break;
-		}
-	}
-	Console.Warning(console_messages);
-}
-
 #ifdef _WIN32
 
 #include "common/RedtapeWindows.h"
@@ -1124,9 +1103,7 @@ void VMManager::SetTimerResolutionIncreased(bool enabled)
 		return;
 
 	if (enabled)
-	{
 		s_timer_resolution_increased = (timeBeginPeriod(1) == TIMERR_NOERROR);
-	}
 	else if (s_timer_resolution_increased)
 	{
 		timeEndPeriod(1);
