@@ -48,16 +48,10 @@ namespace Host
 	void AddIconOSDMessage(std::string key, const char* icon, const std::string_view& message, float duration = 2.0f);
 	void AddFormattedOSDMessage(float duration, const char* format, ...);
 	void AddKeyedFormattedOSDMessage(std::string key, float duration, const char* format, ...);
-	void RemoveKeyedOSDMessage(std::string key);
-	void ClearOSDMessages();
 
 	/// Displays an asynchronous error on the UI thread, i.e. doesn't block the caller.
 	void ReportErrorAsync(const std::string_view& title, const std::string_view& message);
 	void ReportFormattedErrorAsync(const std::string_view& title, const char* format, ...);
-
-	/// Displays a synchronous confirmation on the UI thread, i.e. blocks the caller.
-	bool ConfirmMessage(const std::string_view& title, const std::string_view& message);
-	bool ConfirmFormattedMessage(const std::string_view& title, const char* format, ...);
 
 	/// Requests settings reset. Can be called from any thread, will call back and apply on the CPU thread.
 	bool RequestResetSettings(bool folders, bool core, bool controllers, bool hotkeys, bool ui);

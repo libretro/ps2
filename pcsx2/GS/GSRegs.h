@@ -34,10 +34,6 @@
 #define MAX_BLOCKS (VM_SIZE / BLOCK_SIZE)
 #define MAX_COLUMNS (VM_SIZE / COLUMN_SIZE)
 
-//if defined, will send much info in reply to the API title info queri from PCSX2
-//default should be undefined
-//#define GSTITLEINFO_API_FORCE_VERBOSE
-
 #include "GSVector.h"
 
 #pragma pack(push, 1)

@@ -993,26 +993,13 @@ void* retro_get_memory_data(unsigned id)
 	return NULL;
 }
 
-void retro_cheat_reset(void)
-{
-}
+void retro_cheat_reset(void) { }
 
-void retro_cheat_set(unsigned index, bool enabled, const char* code)
-{
-}
+void retro_cheat_set(unsigned index, bool enabled, const char* code) { }
 
-void Host::AddOSDMessage(std::string message, float duration)
-{
-
-}
-void Host::AddKeyedOSDMessage(std::string key, std::string message, float duration)
-{
-
-}
-void Host::AddIconOSDMessage(std::string key, const char* icon, const std::string_view& message, float duration)
-{
-
-}
+void Host::AddOSDMessage(std::string message, float duration) { }
+void Host::AddKeyedOSDMessage(std::string key, std::string message, float duration) { }
+void Host::AddIconOSDMessage(std::string key, const char* icon, const std::string_view& message, float duration) { }
 
 std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
 {
@@ -1040,14 +1027,6 @@ void Host::AddKeyedFormattedOSDMessage(std::string key, float duration, const ch
 {
 
 }
-void Host::RemoveKeyedOSDMessage(std::string key)
-{
-
-}
-void Host::ClearOSDMessages()
-{
-
-}
 
 void Host::ReportErrorAsync(const std::string_view& title, const std::string_view& message)
 {
@@ -1060,11 +1039,6 @@ void Host::ReportErrorAsync(const std::string_view& title, const std::string_vie
 	{
 		Console.Error("ReportErrorAsync: %.*s", static_cast<int>(message.size()), message.data());
 	}
-}
-
-bool Host::ConfirmMessage(const std::string_view& title, const std::string_view& message)
-{
-	return true;
 }
 
 void Host::OnVMPaused()

@@ -861,10 +861,6 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 							Pcsx2Config::GSOptions::BlendingLevelNames[value]),
 						Host::OSD_WARNING_DURATION);
 				}
-				else
-				{
-					Host::RemoveKeyedOSDMessage("HWBlendingWarning");
-				}
 			}
 			break;
 
@@ -893,10 +889,6 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			fmt::format(ICON_FA_MAGIC " Manual GS hardware renderer fixes are enabled, automatic fixes were not applied:\n{}",
 				disabled_fixes),
 			Host::OSD_ERROR_DURATION);
-	}
-	else
-	{
-		Host::RemoveKeyedOSDMessage("HWFixesWarning");
 	}
 
 	return num_applied_fixes;
