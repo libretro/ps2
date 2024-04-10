@@ -23,19 +23,16 @@
 using namespace R5900;
 using namespace R5900::Interpreter;
 #define CP2COND (((VU0.VI[REG_VPU_STAT].US[0] >> 8) & 1))
-//#define CP2COND (vif1Regs.stat.VEW)
 
 //Run the FINISH either side of the VCALL's as we have no control over it past here.
 void VCALLMS(void) {
-	vu0Finish();
+	_vu0FinishMicro();
 	vu0ExecMicro(((cpuRegs.code >> 6) & 0x7FFF));
-	//vif0Regs.stat.VEW = false;
 }
 
 void VCALLMSR(void) {
-	vu0Finish();
+	_vu0FinishMicro();
 	vu0ExecMicro(VU0.VI[REG_CMSAR0].US[0]);
-	//vif0Regs.stat.VEW = false;
 }
 
 void BC2F()
