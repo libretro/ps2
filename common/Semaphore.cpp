@@ -105,7 +105,7 @@ void Threading::WorkSema::WaitForWorkWithSpin()
 bool Threading::WorkSema::WaitForEmpty()
 {
 	s32 value = m_state.load(std::memory_order_acquire);
-	while (true)
+	for (;;)
 	{
 		if (value < 0)
 			return !IsDead(value); // STATE_SLEEPING or STATE_SPINNING, queue is empty!
@@ -122,7 +122,7 @@ bool Threading::WorkSema::WaitForEmptyWithSpin()
 {
 	s32 value = m_state.load(std::memory_order_acquire);
 	u32 waited = 0;
-	while (true)
+	for (;;)
 	{
 		if (value < 0)
 			return !IsDead(value); // STATE_SLEEPING or STATE_SPINNING, queue is empty!

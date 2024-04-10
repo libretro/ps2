@@ -64,7 +64,7 @@ void ThreadedFileReader::Loop()
 
 	std::unique_lock<std::mutex> lock(m_mtx);
 
-	while (true)
+	for (;;)
 	{
 		while (!m_requestSize && !m_quit)
 			m_condition.wait(lock);

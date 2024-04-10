@@ -471,7 +471,7 @@ static void intExecute()
 
 		case GAME_RUNNING:
 			{
-				while (true)
+				for (;;)
 					execI();
 			}
 			break;

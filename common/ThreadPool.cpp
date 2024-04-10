@@ -84,7 +84,8 @@ void ThreadPool::Schedule(std::function<void(void)> func) {
 
 void ThreadPool::ThreadLoop() {
   // Wait until the ThreadPool sends us work.
-  while (true) {
+  for (;;) 
+  {
     WorkItem work_item;
 
     int prev_work_size = -1;
@@ -94,9 +95,8 @@ void ThreadPool::ThreadLoop() {
       // ...after the wait(), we hold the lock.
 
       // If all the work is done and exit_ is true, break out of the loop.
-      if (exit_ && work_.empty()) {
+      if (exit_ && work_.empty())
         break;
-      }
 
       // Pop the work off of the queue - we are careful to execute the
       // work_item.func callback only after we have released the lock.
@@ -109,16 +109,14 @@ void ThreadPool::ThreadLoop() {
     // TODO(cbraley): Handle exceptions properly.
     work_item.func();  // Do work.
 
-    if (work_done_callback_) {
+    if (work_done_callback_)
       work_done_callback_(prev_work_size - 1);
-    }
 
     // Notify a condvar is all work is done.
     {
       std::unique_lock<std::mutex> lock(mu_);
-      if (work_.empty() && prev_work_size == 1) {
+      if (work_.empty() && prev_work_size == 1)
         work_done_condvar_.notify_all();
-      }
     }
   }
 }

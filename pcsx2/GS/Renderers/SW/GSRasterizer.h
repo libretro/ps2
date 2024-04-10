@@ -48,7 +48,7 @@ private:
 		if (m_startup)
 			m_startup();
 
-		while (true)
+		for (;;)
 		{
 			m_sema.WaitForWorkWithSpin();
 			if (m_exit)

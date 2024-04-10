@@ -582,7 +582,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 		}
 	}
 
-	while (1)
+	for (;;)
 	{
 		do
 		{
