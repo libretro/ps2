@@ -225,8 +225,6 @@ public:
 
 	void DestroySurface() override;
 
-	void SetVSync(VsyncMode mode) override;
-
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 

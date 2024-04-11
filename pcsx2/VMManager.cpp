@@ -808,11 +808,6 @@ void VMManager::SetPaused(bool paused)
 	SetState(paused ? VMState::Paused : VMState::Running);
 }
 
-VsyncMode Host::GetEffectiveVSyncMode()
-{
-	return VsyncMode::Off;
-}
-
 const std::string& VMManager::Internal::GetElfOverride()
 {
 	return s_elf_override;

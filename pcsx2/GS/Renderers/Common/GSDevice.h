@@ -756,8 +756,6 @@ public:
 	__fi s32 GetWindowWidth() const { return static_cast<s32>(m_window_info.surface_width); }
 	__fi s32 GetWindowHeight() const { return static_cast<s32>(m_window_info.surface_height); }
 	__fi GSVector2i GetWindowSize() const { return GSVector2i(static_cast<s32>(m_window_info.surface_width), static_cast<s32>(m_window_info.surface_height)); }
-	__fi VsyncMode GetVsyncMode() const { return m_vsync_mode; }
-
 	__fi GSTexture* GetCurrent() const { return m_current; }
 
 	void Recycle(GSTexture* t);
@@ -783,9 +781,6 @@ public:
 
 	/// Presents the frame to the display.
 	virtual void EndPresent() = 0;
-
-	/// Changes vsync mode for this display.
-	virtual void SetVSync(VsyncMode mode) = 0;
 
 	virtual void ClearRenderTarget(GSTexture* t, const GSVector4& c) = 0;
 	virtual void ClearRenderTarget(GSTexture* t, u32 c) = 0;

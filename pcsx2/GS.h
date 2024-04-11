@@ -397,8 +397,6 @@ public:
 
 	void RunOnGSThread(AsyncCallType func);
 	void ApplySettings();
-	void SetVSyncMode(VsyncMode mode);
-	void UpdateVSyncMode();
 	void SwitchRenderer(GSRendererType renderer, bool display_message = true);
 	void SetSoftwareRendering(bool software, bool display_message = true);
 	void ToggleSoftwareRendering();

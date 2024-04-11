@@ -755,11 +755,6 @@ void GSDevice12::Destroy()
 	}
 }
 
-void GSDevice12::SetVSync(VsyncMode mode)
-{
-	m_vsync_mode = mode;
-}
-
 bool GSDevice12::CreateSwapChain()
 {
 	return true;

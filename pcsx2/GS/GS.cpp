@@ -369,11 +369,6 @@ void GSSetGameCRC(u32 crc)
 	g_gs_renderer->SetGameCRC(crc);
 }
 
-void GSSetVSyncMode(VsyncMode mode)
-{
-	g_gs_device->SetVSync(mode);
-}
-
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 {
 	Pcsx2Config::GSOptions old_config(std::move(GSConfig));

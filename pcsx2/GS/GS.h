@@ -82,7 +82,6 @@ void GSvsync(u32 field, bool registers_written);
 int GSfreeze(FreezeAction mode, freezeData* data);
 void GSPresentCurrentFrame();
 void GSSetGameCRC(u32 crc);
-void GSSetVSyncMode(VsyncMode mode);
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);
@@ -98,9 +97,6 @@ namespace Host
 
 	/// Called when the GS is finished with a render window.
 	void ReleaseRenderWindow();
-
-	/// Returns the desired vsync mode, depending on the runtime environment.
-	VsyncMode GetEffectiveVSyncMode();
 }
 
 #include <libretro.h>

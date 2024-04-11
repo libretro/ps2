@@ -28,7 +28,6 @@
 #include "Elfheader.h"
 
 #include "Host.h"
-#include "IconsFontAwesome5.h"
 #include "VMManager.h"
 
 using namespace Threading;
@@ -775,7 +774,6 @@ void SysMtgsThread::ApplySettings()
 {
 	RunOnGSThread([opts = EmuConfig.GS]() {
 		GSUpdateConfig(opts);
-		GSSetVSyncMode(Host::GetEffectiveVSyncMode());
 	});
 
 	// We need to synchronize the thread when changing any settings when the download mode
@@ -785,26 +783,8 @@ void SysMtgsThread::ApplySettings()
 		WaitGS(false, false, false);
 }
 
-void SysMtgsThread::SetVSyncMode(VsyncMode mode)
-{
-	RunOnGSThread([mode]() {
-		GSSetVSyncMode(mode);
-	});
-}
-
-void SysMtgsThread::UpdateVSyncMode()
-{
-	SetVSyncMode(Host::GetEffectiveVSyncMode());
-}
-
 void SysMtgsThread::SwitchRenderer(GSRendererType renderer, bool display_message /* = true */)
 {
-	if (display_message)
-	{
-		Host::AddIconOSDMessage("SwitchRenderer", ICON_FA_MAGIC, fmt::format("Switching to {} renderer...",
-			Pcsx2Config::GSOptions::GetRendererName(renderer)), Host::OSD_INFO_DURATION);
-	}
-
 	RunOnGSThread([renderer]() {
 		GSSwitchRenderer(renderer);
 	});

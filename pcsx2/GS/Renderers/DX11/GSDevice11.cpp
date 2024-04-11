@@ -453,11 +453,6 @@ void GSDevice11::SetFeatures()
 	m_features.vs_expand = (feature_level >= D3D_FEATURE_LEVEL_11_0);
 }
 
-void GSDevice11::SetVSync(VsyncMode mode)
-{
-	m_vsync_mode = mode;
-}
-
 bool GSDevice11::CreateSwapChain() { return true; }
 bool GSDevice11::CreateSwapChainRTV() { return true; }
 void GSDevice11::DestroySwapChain() { }

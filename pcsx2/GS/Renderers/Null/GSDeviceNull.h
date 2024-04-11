@@ -48,7 +48,6 @@ public:
 
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
-	void SetVSync(VsyncMode mode) override;
 
 	void ClearRenderTarget(GSTexture* t, const GSVector4& c) override;
 	void ClearRenderTarget(GSTexture* t, u32 c) override;

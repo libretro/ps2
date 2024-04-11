@@ -23,7 +23,6 @@
 #include "Counters.h"
 #include "Config.h"
 
-using namespace Threading;
 using namespace R5900;
 
 alignas(16) u8 g_RealGSMem[Ps2MemSize::GSregs];
@@ -36,7 +35,7 @@ void gsSetVideoMode(GS_VideoMode mode)
 }
 
 // Make sure framelimiter options are in sync with GS capabilities.
-void gsReset()
+void gsReset(void)
 {
 	GetMTGS().ResetGS(true);
 	gsVideoMode = GS_VideoMode::Uninitialized;
@@ -46,7 +45,6 @@ void gsReset()
 
 void gsUpdateFrequency(Pcsx2Config& config)
 {
-	GetMTGS().UpdateVSyncMode();
 	UpdateVSyncRate(true);
 }
 
@@ -305,8 +303,6 @@ void gsIrq(void) { hwIntcIrq(INTC_GS); }
 //We got away with it before i think due to our awful GS timing, but now we have it right (ish)
 void gsPostVsyncStart(void)
 {
-	//gifUnit.FlushToMTGS();  // Needed for some (broken?) homebrew game loaders
-
 	const bool registers_written = s_GSRegistersWritten;
 	s_GSRegistersWritten = false;
 	GetMTGS().PostVsyncStart(registers_written);

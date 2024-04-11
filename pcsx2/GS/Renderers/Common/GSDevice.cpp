@@ -114,7 +114,6 @@ void GSDevice::GenerateExpansionIndexBuffer(void* buffer)
 
 bool GSDevice::Create()
 {
-	m_vsync_mode = Host::GetEffectiveVSyncMode();
 	return true;
 }
 

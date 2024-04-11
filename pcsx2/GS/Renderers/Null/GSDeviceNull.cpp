@@ -96,10 +96,6 @@ void GSDeviceNull::EndPresent()
 {
 
 }
-void GSDeviceNull::SetVSync(VsyncMode mode)
-{
-
-}
 
 void GSDeviceNull::ClearRenderTarget(GSTexture* t, const GSVector4& c)
 {

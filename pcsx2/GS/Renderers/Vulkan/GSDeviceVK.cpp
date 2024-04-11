@@ -1840,16 +1840,6 @@ static VkAttachmentLoadOp GetLoadOpForTexture(GSTextureVK* tex)
 	// clang-format on
 }
 
-static VkPresentModeKHR GetPreferredPresentModeForVsyncMode(VsyncMode mode)
-{
-	if (mode == VsyncMode::On)
-		return VK_PRESENT_MODE_FIFO_KHR;
-	else if (mode == VsyncMode::Adaptive)
-		return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-	else
-		return VK_PRESENT_MODE_IMMEDIATE_KHR;
-}
-
 static constexpr VkClearValue s_present_clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
 
 GSDeviceVK::GSDeviceVK()
@@ -2015,17 +2005,6 @@ void GSDeviceVK::DestroySurface()
 {
 	g_vulkan_context->WaitForGPUIdle();
 	m_swap_chain.reset();
-}
-
-void GSDeviceVK::SetVSync(VsyncMode mode)
-{
-	if (!m_swap_chain || m_vsync_mode == mode)
-		return;
-
-	// This swap chain should not be used by the current buffer, thus safe to destroy.
-	g_vulkan_context->WaitForGPUIdle();
-	m_swap_chain->SetVSync(GetPreferredPresentModeForVsyncMode(mode));
-	m_vsync_mode = mode;
 }
 
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
@@ -2206,7 +2185,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	if (surface != VK_NULL_HANDLE)
 	{
 		m_swap_chain =
-			Vulkan::SwapChain::Create(m_window_info, surface, GetPreferredPresentModeForVsyncMode(m_vsync_mode));
+			Vulkan::SwapChain::Create(m_window_info, surface, VK_PRESENT_MODE_IMMEDIATE_KHR);
 		if (!m_swap_chain)
 		{
 			Console.Error("Failed to create swap chain");

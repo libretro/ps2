@@ -54,13 +54,6 @@ RenderAPI GSDeviceOGL::GetRenderAPI() const
 	return RenderAPI::OpenGL;
 }
 
-void GSDeviceOGL::SetVSync(VsyncMode mode)
-{
-	if (m_vsync_mode == mode)
-		return;
-	m_vsync_mode = mode;
-}
-
 bool GSDeviceOGL::Create()
 {
 	if (!GSDevice::Create())
