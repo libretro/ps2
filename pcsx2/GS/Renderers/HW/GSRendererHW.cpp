@@ -1490,9 +1490,11 @@ void GSRendererHW::Draw()
 		cleanup_draw();
 	};
 
+	const bool is_possible_mem_clear = IsConstantDirectWriteMemClear();
+
 	if (!GSConfig.UserHacks_DisableSafeFeatures)
 	{
-		if (IsConstantDirectWriteMemClear(true))
+		if (is_possible_mem_clear)
 		{
 			// Likely doing a huge single page width clear, which never goes well. (Superman)
 			// Burnout 3 does a 32x1024 double width clear on its reflection targets.
@@ -1529,6 +1531,7 @@ void GSRendererHW::Draw()
 
 			if (is_zero_clear && OI_GsMemClear() && clear_height_valid)
 			{
+				/* Clear draw with mem clear and valid clear height, invalidating. */
 				g_texture_cache->InvalidateVideoMem(context->offset.fb, m_r, false, true);
 				g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, m_cached_ctx.FRAME.Block());
 
@@ -1690,15 +1693,15 @@ void GSRendererHW::Draw()
 		// Normally we would use 1024 here to match the clear above, but The Godfather does a 1023x1023 draw instead
 		// (very close to 1024x1024, but apparently the GS rounds down..). So, catch that here, we don't want to
 		// create that target, because the clear isn't black, it'll hang around and never get invalidated.
-		const bool is_square = (t_size.y == t_size.x) && m_r.w >= 1023 && 
-			((m_index.tail == 2 && m_vt.m_primclass == GS_SPRITE_CLASS) || (m_index.tail == 6 && m_vt.m_primclass == GS_TRIANGLE_CLASS));
-		const bool is_clear = IsConstantDirectWriteMemClear(false) && is_square;
+		const bool is_square = (t_size.y == t_size.x) && m_r.w >= 1023 && PrimitiveCoversWithoutGaps();
+		const bool is_clear = is_possible_mem_clear && is_square;
 		rt = g_texture_cache->LookupTarget(FRAME_TEX0, t_size, target_scale, GSTextureCache::RenderTarget, true,
 			fm, false, is_clear, force_preload);
 
 		// Draw skipped because it was a clear and there was no target.
 		if (!rt)
 		{
+			/* Clear draw with no target, skipping. */
 			cleanup_cancelled_draw();
 			OI_GsMemClear();
 			return;
@@ -1880,8 +1883,7 @@ void GSRendererHW::Draw()
 
 	// Deferred update of TEX0. We don't want to change it when we're doing a shuffle/clear, because it
 	// may increase the buffer width, or change PSM, which breaks P8 conversion amongst other things.
-	const bool is_mem_clear = IsConstantDirectWriteMemClear(false);
-	const bool can_update_size = !is_mem_clear && !m_texture_shuffle && !m_channel_shuffle;
+	const bool can_update_size = !is_possible_mem_clear && !m_texture_shuffle && !m_channel_shuffle;
 	if (!m_texture_shuffle && !m_channel_shuffle)
 	{
 		if (rt)
@@ -2013,13 +2015,8 @@ void GSRendererHW::Draw()
 		return;
 	}
 
-	if (!GSConfig.UserHacks_DisableSafeFeatures)
-	{
-		if (IsConstantDirectWriteMemClear(true) && IsBlendedOrOpaque())
-		{
-			OI_DoubleHalfClear(rt, ds);
-		}
-	}
+	if (!GSConfig.UserHacks_DisableSafeFeatures && is_possible_mem_clear && IsBlendedOrOpaque())
+		OI_DoubleHalfClear(rt, ds);
 
 	// A couple of hack to avoid upscaling issue. So far it seems to impacts mostly sprite
 	// Note: first hack corrects both position and texture coordinate
@@ -4700,7 +4697,7 @@ bool GSRendererHW::OI_GsMemClear()
 							&& (m_cached_ctx.FRAME.PSM & 0xF) == (m_cached_ctx.ZBUF.PSM & 0xF) && m_vt.m_eq.z == 1 && m_vertex.buff[1].XYZ.Z == m_vertex.buff[1].RGBAQ.U32[0];
 
 	// Limit it further to a full screen 0 write
-	if (((m_vertex.next == 2) || ZisFrame) && m_vt.m_eq.rgba == 0xFFFF)
+	if ((PrimitiveCoversWithoutGaps() || ZisFrame) && m_vt.m_eq.rgba == 0xFFFF)
 	{
 		const GSOffset& off = m_context->offset.fb;
 		GSVector4i r = GSVector4i(m_vt.m_min.p.upld(m_vt.m_max.p)).rintersect(GSVector4i(m_context->scissor.in));
@@ -4829,7 +4826,36 @@ bool GSRendererHW::IsBlendedOrOpaque()
 	return (!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsCdOutput());
 }
 
-bool GSRendererHW::IsConstantDirectWriteMemClear(bool include_zero)
+bool GSRendererHW::PrimitiveCoversWithoutGaps() const
+{
+	// Draw shouldn't be offset.
+	if ((m_r.eq32(GSVector4i::zero())).mask() & 0xff00)
+		return false;
+
+	// This is potentially wrong for fans/strips...
+	if (m_vt.m_primclass == GS_TRIANGLE_CLASS)
+		return (m_index.tail == 6);
+	else if (m_vt.m_primclass != GS_SPRITE_CLASS)
+		return false;
+
+	// Simple case: one sprite.
+	if (m_index.tail == 2)
+		return true;
+
+	// Borrowed from MergeSprite().
+	const GSVertex* v = &m_vertex.buff[0];
+	const int first_dpX = v[1].XYZ.X - v[0].XYZ.X;
+	for (u32 i = 0; i < m_vertex.next; i += 2)
+	{
+		const int dpX = v[i + 1].XYZ.X - v[i].XYZ.X;
+		if (dpX != first_dpX)
+			return false;
+	}
+
+	return true;
+}
+
+bool GSRendererHW::IsConstantDirectWriteMemClear()
 {
 	const bool direct_draw = (m_vt.m_primclass == GS_SPRITE_CLASS) || (m_index.tail == 6 && m_vt.m_primclass == GS_TRIANGLE_CLASS);
 	// Constant Direct Write without texture/test/blending (aka a GS mem clear)

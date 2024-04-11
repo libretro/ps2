@@ -52,8 +52,9 @@ private:
 	float alpha1(int L, int X0, int X1);
 	void SwSpriteRender();
 	bool CanUseSwSpriteRender();
-	bool IsConstantDirectWriteMemClear(bool include_zero);
+	bool IsConstantDirectWriteMemClear();
 	bool IsBlendedOrOpaque();
+	bool PrimitiveCoversWithoutGaps() const;
 
 	enum class CLUTDrawTestResult
 	{
