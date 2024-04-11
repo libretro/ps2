@@ -111,5 +111,5 @@ void GetValidDrive(std::string& drive)
 			drive = drives.front();
 	}
 	if (!drive.empty())
-		DevCon.WriteLn("CDVD: Opening drive '%s'...", drive.c_str());
+		;//DevCon.WriteLn("CDVD: Opening drive '%s'...", drive.c_str());
 }
