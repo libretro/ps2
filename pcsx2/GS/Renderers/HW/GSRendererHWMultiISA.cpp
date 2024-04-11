@@ -236,11 +236,7 @@ bool GSRendererHWFunctions::SwPrimRender(GSRendererHW& hw, bool invalidate_tc)
 					mxl--; // don't sample beyond the last level (TODO: add a dummy level instead?)
 
 				if (gd.sel.fst)
-				{
-					pxAssert(gd.sel.lcm == 1);
-
 					gd.sel.lcm = 1;
-				}
 
 				if (gd.sel.lcm)
 				{

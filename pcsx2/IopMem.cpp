@@ -67,8 +67,6 @@ void iopMemoryReserve::Reset()
 {
 	_parent::Reset();
 
-	pxAssert( iopMem );
-
 	memset(psxMemWLUT, 0, 0x2000 * sizeof(uptr) * 2);	// clears both allocations, RLUT and WLUT
 
 	// Trick!  We're accessing RLUT here through WLUT, since it's the non-const pointer.

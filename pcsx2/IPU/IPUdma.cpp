@@ -153,10 +153,6 @@ void IPU0dma(void)
 	if ((!(ipu0ch.chcr.STR) || (cpuRegs.interrupt & (1 << DMAC_FROM_IPU))) || (ipu0ch.qwc == 0))
 		return;
 
-	pxAssert(!(ipu0ch.chcr.TTE));
-
-	pxAssert(ipu0ch.chcr.MOD == NORMAL_MODE);
-
 	pMem = dmaGetAddr(ipu0ch.madr, true);
 
 	readsize = std::min(ipu0ch.qwc, (u32)ipuRegs.ctrl.OFC);

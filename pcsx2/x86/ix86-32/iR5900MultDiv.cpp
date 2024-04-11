@@ -373,9 +373,6 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 			xMOV(divisor, ptr[&cpuRegs.GPR.r[_Rt_].UL[0]]);
 	}
 
-	// can't use edx, it's part of the dividend
-	pxAssert(divisor.GetId() != edx.GetId());
-
 	if (process & PROCESS_CONSTS)
 		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
 	else

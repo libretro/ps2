@@ -137,10 +137,6 @@ void FireMFIFOEmpty()
 // Write 'size' bytes to memory address 'addr' from 'data'.
 __ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
 {
-	// all FIFO addresses should always be QWC-aligned.
-	pxAssert((dmacRegs.rbor.ADDR & 15) == 0);
-	pxAssert((addr & 15) == 0);
-
 	// DMAC Address resolution:  FIFO can be placed anywhere in the *physical* memory map
 	// for the PS2.  Its probably a serious error for a PS2 app to have the buffer cross
 	// valid/invalid page areas of ram, so realistically we only need to test the base address
@@ -149,8 +145,7 @@ __ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
 	if (u128* dst = (u128*)PSM(dmacRegs.rbor.ADDR))
 	{
 		const u32 ringsize = (dmacRegs.rbsr.RMSK / 16) + 1;
-		pxAssertMsg( PSM(dmacRegs.rbor.ADDR+ringsize-1) != NULL, "Scratchpad/MFIFO ringbuffer spans into invalid (unmapped) physical memory!" );
-		uint startpos = (addr & dmacRegs.rbsr.RMSK)/16;
+		uint startpos      = (addr & dmacRegs.rbsr.RMSK)/16;
 		MemCopy_WrappedDest( data, dst, startpos, ringsize, qwc );
 		return true;
 	}

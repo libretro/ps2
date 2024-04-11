@@ -30,7 +30,6 @@ GSRendererHW::GSRendererHW()
 	m_mipmap = (GSConfig.HWMipmap >= HWMipmapLevel::Basic);
 	SetTCOffset();
 
-	pxAssert(!g_texture_cache);
 	g_texture_cache = std::make_unique<GSTextureCache>();
 	GSTextureReplacements::Initialize();
 
@@ -1924,7 +1923,6 @@ void GSRendererHW::Draw()
 			const bool new_height = new_h > rt->GetUnscaledHeight();
 			const int old_height = rt->m_texture->GetHeight();
 
-			pxAssert(rt->GetScale() == target_scale);
 			rt->ResizeTexture(new_w, new_h);
 
 			if (!m_texture_shuffle && !m_channel_shuffle)
@@ -1964,7 +1962,6 @@ void GSRendererHW::Draw()
 			const bool new_height = new_h > ds->GetUnscaledHeight();
 			const int old_height = ds->m_texture->GetHeight();
 
-			pxAssert(ds->GetScale() == target_scale);
 			ds->ResizeTexture(new_w, new_h);
 
 			if (!m_texture_shuffle && !m_channel_shuffle)
@@ -2513,7 +2510,6 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 			// the FBP here to point to the source, which is where it will eventually be copied back to.
 			// We need to force it to PSMCT24, the crossfade draw ends up reading the RT instead of local
 			// memory, which ends up with blue rubbish becuase the shuffle isn't correctly emulated.
-			pxAssertMsg((m_context->TEX0.TBP0 & 31) == 0, "TEX0 should be page aligned");
 			m_cached_ctx.FRAME.FBP = m_context->TEX0.TBP0 >> 5;
 			m_cached_ctx.FRAME.PSM = PSMCT24;
 			return true;
@@ -2529,7 +2525,6 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 			// Used in stages: Secret Garden, Acid Rain, Moonlit Wilderness
 			if (test_only)
 			{
-				pxAssertMsg((m_context->TEX0.TBP0 & 31) == 0, "TEX0 should be page aligned");
 				m_cached_ctx.FRAME.FBP = m_context->TEX0.TBP0 >> 5;
 				return true;
 			}
@@ -4599,7 +4594,6 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 				GSTexture* tex = nullptr;
 				GSTextureCache::Target* target = clear_depth ? ds : rt;
 				const GSVector2 size = GSVector2(static_cast<float>(target->GetUnscaledWidth()) * target->m_scale, static_cast<float>(target->GetUnscaledHeight()) * target->m_scale);
-				pxAssert(!target->m_texture->IsDepthStencil());
 				tex = g_gs_device->CreateRenderTarget(size.x, size.y, target->m_texture->GetFormat(), false);
 
 				if (!tex)

@@ -85,9 +85,6 @@ static void recSLL_const()
 
 static void recSLLs_(int info, int sa)
 {
-	// TODO: Use BMI
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	recMoveTtoD(info);
 	if (sa != 0)
 		xSHL(xRegister32(EEREC_D), sa);
@@ -109,8 +106,6 @@ static void recSRL_const()
 
 static void recSRLs_(int info, int sa)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	recMoveTtoD(info);
 	if (sa != 0)
 		xSHR(xRegister32(EEREC_D), sa);
@@ -132,8 +127,6 @@ static void recSRA_const()
 
 static void recSRAs_(int info, int sa)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	recMoveTtoD(info);
 	if (sa != 0)
 		xSAR(xRegister32(EEREC_D), sa);
@@ -155,8 +148,6 @@ static void recDSLL_const()
 
 static void recDSLLs_(int info, int sa)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	recMoveTtoD64(info);
 	if (sa != 0)
 		xSHL(xRegister64(EEREC_D), sa);
@@ -177,8 +168,6 @@ static void recDSRL_const()
 
 static void recDSRLs_(int info, int sa)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	recMoveTtoD64(info);
 	if (sa != 0)
 		xSHR(xRegister64(EEREC_D), sa);
@@ -199,8 +188,6 @@ static void recDSRA_const()
 
 static void recDSRAs_(int info, int sa)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	recMoveTtoD64(info);
 	if (sa != 0)
 		xSAR(xRegister64(EEREC_D), sa);
@@ -259,7 +246,6 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA32, XMMINFO_WRITED | XMMINFO_READT | X
 
 static void recShiftV_constt(int info, const xImpl_Group2& shift)
 {
-	pxAssert(_Rs_ != 0);
 	recMoveSToRCX(info);
 	xMOV(xRegister32(EEREC_D), g_cpuConstRegs[_Rt_].UL[0]);
 	shift(xRegister32(EEREC_D), cl);
@@ -268,8 +254,6 @@ static void recShiftV_constt(int info, const xImpl_Group2& shift)
 
 static void recShiftV(int info, const xImpl_Group2& shift)
 {
-	pxAssert(_Rs_ != 0);
-
 	recMoveSToRCX(info);
 	recMoveTtoD(info);
 	shift(xRegister32(EEREC_D), cl);
@@ -278,7 +262,6 @@ static void recShiftV(int info, const xImpl_Group2& shift)
 
 static void recDShiftV_constt(int info, const xImpl_Group2& shift)
 {
-	pxAssert(_Rs_ != 0);
 	recMoveSToRCX(info);
 	xMOV64(xRegister64(EEREC_D), g_cpuConstRegs[_Rt_].SD[0]);
 	shift(xRegister64(EEREC_D), cl);
@@ -286,7 +269,6 @@ static void recDShiftV_constt(int info, const xImpl_Group2& shift)
 
 static void recDShiftV(int info, const xImpl_Group2& shift)
 {
-	pxAssert(_Rs_ != 0);
 	recMoveSToRCX(info);
 	recMoveTtoD64(info);
 	shift(xRegister64(EEREC_D), cl);

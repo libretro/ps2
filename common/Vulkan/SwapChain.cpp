@@ -14,7 +14,6 @@
  */
 
 #include "common/Vulkan/SwapChain.h"
-#include "common/Assertions.h"
 #include "common/CocoaTools.h"
 #include "common/Console.h"
 #include "common/Vulkan/Context.h"
@@ -190,7 +189,6 @@ namespace Vulkan
 		std::vector<VkSurfaceFormatKHR> surface_formats(format_count);
 		res = vkGetPhysicalDeviceSurfaceFormatsKHR(
 			g_vulkan_context->GetPhysicalDevice(), m_surface, &format_count, surface_formats.data());
-		pxAssert(res == VK_SUCCESS);
 
 		// If there is a single undefined surface format, the device doesn't care, so we'll just use RGBA
 		if (surface_formats[0].format == VK_FORMAT_UNDEFINED)
@@ -226,7 +224,6 @@ namespace Vulkan
 		std::vector<VkPresentModeKHR> present_modes(mode_count);
 		res = vkGetPhysicalDeviceSurfacePresentModesKHR(
 			g_vulkan_context->GetPhysicalDevice(), m_surface, &mode_count, present_modes.data());
-		pxAssert(res == VK_SUCCESS);
 
 		// Checks if a particular mode is supported, if it is, returns that mode.
 		auto CheckForMode = [&present_modes](VkPresentModeKHR check_mode) {
@@ -358,7 +355,8 @@ namespace Vulkan
 
 	bool SwapChain::SetupSwapChainImages()
 	{
-		pxAssert(m_images.empty());
+		if (m_images.empty())
+			Console.Warning("Swapchain images empty");
 
 		u32 image_count;
 		VkResult res = vkGetSwapchainImagesKHR(g_vulkan_context->GetDevice(), m_swap_chain, &image_count, nullptr);
@@ -367,7 +365,6 @@ namespace Vulkan
 
 		std::vector<VkImage> images(image_count);
 		res = vkGetSwapchainImagesKHR(g_vulkan_context->GetDevice(), m_swap_chain, &image_count, images.data());
-		pxAssert(res == VK_SUCCESS);
 
 		m_load_render_pass =
 			g_vulkan_context->GetRenderPass(m_surface_format.format, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);

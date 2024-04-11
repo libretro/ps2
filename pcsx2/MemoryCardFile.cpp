@@ -419,7 +419,7 @@ void FileMemoryCard::GetSizeInfo(uint slot, McdSizeInfo& outways)
 	outways.EraseBlockSizeInSectors = 16; // 0x0010
 	outways.Xor = 18;                     // 0x12, XOR 02 00 00 10
 
-	if (pxAssert(m_file[slot]))
+	if (m_file[slot])
 		outways.McdSizeInSectors = static_cast<u32>(FileSystem::FSize64(m_file[slot])) / (outways.SectorSize + outways.EraseBlockSizeInSectors);
 	else
 		outways.McdSizeInSectors = 0x4000;

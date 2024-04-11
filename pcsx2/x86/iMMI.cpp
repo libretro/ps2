@@ -2546,7 +2546,6 @@ void recPINTEH(void)
 		}
 		else if (EEREC_D == EEREC_T)
 		{
-			pxAssert(EEREC_D != EEREC_S);
 			t0reg = _allocTempXMMreg(XMMT_INT);
 			xPSLL.D(xRegisterSSE(EEREC_D), 16);
 			xMOVDQA(xRegisterSSE(t0reg), xRegisterSSE(EEREC_S));

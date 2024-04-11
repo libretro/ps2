@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "Global.h"
-#include "common/Assertions.h"
 
 static const s32 ADSR_MAX_VOL = 0x7fffffff;
 
@@ -41,8 +40,6 @@ void InitADSR() // INIT ADSR
 
 bool V_ADSR::Calculate()
 {
-	pxAssume(Phase != 0);
-
 	if (Releasing && (Phase < 5))
 		Phase = 5;
 

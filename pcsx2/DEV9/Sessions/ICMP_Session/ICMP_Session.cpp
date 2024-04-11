@@ -192,7 +192,6 @@ namespace Sessions
 			ResetEvent(icmpEvent);
 			//Prep buffer for reasing
 			int count = IcmpParseReplies(icmpResponseBuffer.get(), icmpResponseBufferLen);
-			pxAssert(count == 1);
 			ICMP_ECHO_REPLY* pingRet = (ICMP_ECHO_REPLY*)icmpResponseBuffer.get();
 
 			//Map status to ICMP type/code
@@ -402,7 +401,6 @@ namespace Sessions
 						ex_err = (sock_extended_err*)CMSG_DATA(cmsg);
 						continue;
 					}
-					pxAssert(false);
 				}
 
 				if (ex_err != nullptr)
@@ -440,7 +438,6 @@ namespace Sessions
 					{
 						ip* ipHeader = (ip*)icmpResponseBuffer.get();
 						int headerLength = ipHeader->ip_hl << 2;
-						pxAssert(headerLength == 20);
 
 						offset = headerLength;
 #ifdef __APPLE__
@@ -502,7 +499,6 @@ namespace Sessions
 					{
 #if defined(ICMP_SOCKETS_LINUX)
 						Console.Error("DEV9: ICMP: Unexpected packet");
-						pxAssert(false);
 #endif
 						//Assume not for us
 						return nullptr;
@@ -755,7 +751,6 @@ namespace Sessions
 	bool ICMP_Session::Send(PacketReader::IP::IP_Payload* payload)
 	{
 		Console.Error("DEV9: ICMP: Invalid Call");
-		pxAssert(false);
 		return false;
 	}
 

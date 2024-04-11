@@ -18,7 +18,6 @@
 #include "common/D3D12/StreamBuffer.h"
 #include "common/D3D12/Context.h"
 #include "common/Align.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 #include "D3D12MemAlloc.h"
 
@@ -49,14 +48,12 @@ bool StreamBuffer::Create(u32 size)
 	HRESULT hr = g_d3d12_context->GetAllocator()->CreateResource(&allocationDesc,
 		&resource_desc, D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr, allocation.put(), IID_PPV_ARGS(buffer.put()));
-	pxAssertMsg(SUCCEEDED(hr), "Allocate buffer");
 	if (FAILED(hr))
 		return false;
 
 	static const D3D12_RANGE read_range = {};
 	u8* host_pointer;
 	hr = buffer->Map(0, &read_range, reinterpret_cast<void**>(&host_pointer));
-	pxAssertMsg(SUCCEEDED(hr), "Map buffer");
 	if (FAILED(hr))
 		return false;
 
@@ -140,8 +137,6 @@ bool StreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 
 void StreamBuffer::CommitMemory(u32 final_num_bytes)
 {
-	pxAssert((m_current_offset + final_num_bytes) <= m_size);
-	pxAssert(final_num_bytes <= m_current_space);
 	m_current_offset += final_num_bytes;
 	m_current_space -= final_num_bytes;
 }

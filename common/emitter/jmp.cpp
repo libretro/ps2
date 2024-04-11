@@ -199,11 +199,6 @@ namespace x86Emitter
 		const int slideVal = slideForward ? ((comparison == Jcc_Unconditional) ? 3 : 4) : 0;
 		displacement8 -= slideVal;
 
-		if (slideForward)
-		{
-			pxAssertDev(displacement8 >= 0, "Used slideForward on a backward jump; nothing to slide!");
-		}
-
 		if (is_s8(displacement8))
 			xJcc8(comparison, displacement8);
 		else
@@ -211,9 +206,6 @@ namespace x86Emitter
 			// Perform a 32 bit jump instead. :(
 			s32* bah = xJcc32(comparison);
 			sptr distance = (sptr)target - (sptr)xGetPtr();
-
-			// This assert won't physically happen on x86 targets
-			pxAssertDev(distance >= -0x80000000LL && distance < 0x80000000LL, "Jump target is too far away, needs an indirect register");
 
 			*bah = (s32)distance;
 		}
@@ -228,9 +220,6 @@ namespace x86Emitter
 
 	xForwardJumpBase::xForwardJumpBase(uint opsize, JccComparisonType cctype)
 	{
-		pxAssert(opsize == 1 || opsize == 4);
-		pxAssertDev(cctype != Jcc_Unknown, "Invalid ForwardJump conditional type.");
-
 		BasePtr = (s8*)xGetPtr() +
 				  ((opsize == 1) ? 2 : // j8's are always 2 bytes.
                                    ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
@@ -253,14 +242,9 @@ namespace x86Emitter
 
 	void xForwardJumpBase::_setTarget(uint opsize) const
 	{
-		pxAssertDev(BasePtr != NULL, "");
-
 		sptr displacement = (sptr)xGetPtr() - (sptr)BasePtr;
 		if (opsize == 1)
-		{
-			pxAssertDev(is_s8(displacement), "Emitter Error: Invalid short jump displacement.");
 			BasePtr[-1] = (s8)displacement;
-		}
 		else
 		{
 			// full displacement, no sanity checks needed :D
@@ -271,7 +255,6 @@ namespace x86Emitter
 	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
 	__fi JccComparisonType xInvertCond(JccComparisonType src)
 	{
-		pxAssert(src != Jcc_Unknown);
 		if (Jcc_Unconditional == src)
 			return Jcc_Unconditional;
 

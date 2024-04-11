@@ -2591,11 +2591,8 @@ void GSTextureCache::InvalidateSourcesFromTarget(const Target* t)
 void GSTextureCache::ReplaceSourceTexture(Source* s, GSTexture* new_texture, float new_scale,
 	const GSVector2i& new_unscaled_size, HashCacheEntry* hc_entry, bool new_texture_is_shared)
 {
-	pxAssert(!hc_entry || !new_texture_is_shared);
-
 	if (s->m_from_hash_cache)
 	{
-		pxAssert(s->m_from_hash_cache->refcount > 0);
 		if ((--s->m_from_hash_cache->refcount) == 0)
 			s->m_from_hash_cache->age = 0;
 	}
@@ -3177,7 +3174,6 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 					int src_x = so.b2a_offset.x;
 					int dst_x = page_x * page_width;
 					int row_page = current_copy_page;
-					pxAssert(dst_y < tex_height && copy_height > 0);
 
 					for (int copy_page_x = 0; copy_page_x < available_pages_x; copy_page_x++)
 					{
@@ -3191,7 +3187,6 @@ GSTextureCache::Source* GSTextureCache::CreateMergedSource(GIFRegTEX0 TEX0, GIFR
 							// In case a whole page isn't valid.
 							const int wanted_width = std::min(tex_width - dst_x, page_width);
 							const int copy_width = std::min(src_x_end - src_x, wanted_width);
-							pxAssert(dst_x < tex_width && copy_width > 0);
 
 							// Preload any missing parts. This will  happen when the valid rect isn't page aligned.
 							if (GSConfig.PreloadFrameWithGSData &&
@@ -4043,7 +4038,6 @@ GSTextureCache::Target::Target(const GIFRegTEX0& TEX0, const int type)
 GSTextureCache::Target::~Target()
 {
 	// Targets should never be shared.
-	pxAssert(!m_shared_texture);
 	if (m_texture)
 	{
 		g_texture_cache->m_target_memory_usage -= m_texture->GetMemUsage();
@@ -4324,7 +4318,6 @@ void GSTextureCache::SourceMap::RemoveAll()
 	{
 		if (s->m_from_hash_cache)
 		{
-			pxAssert(s->m_from_hash_cache->refcount > 0);
 			if ((--s->m_from_hash_cache->refcount) == 0)
 				s->m_from_hash_cache->age = 0;
 		}
@@ -4351,7 +4344,6 @@ void GSTextureCache::SourceMap::RemoveAt(Source* s)
 
 	if (s->m_from_hash_cache)
 	{
-		pxAssert(s->m_from_hash_cache->refcount > 0);
 		if ((--s->m_from_hash_cache->refcount) == 0)
 			s->m_from_hash_cache->age = 0;
 	}

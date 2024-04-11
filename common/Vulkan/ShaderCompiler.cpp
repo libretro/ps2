@@ -15,7 +15,6 @@
 
 #include "common/Vulkan/ShaderCompiler.h"
 #include "common/Vulkan/Util.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
 #include <cstring>

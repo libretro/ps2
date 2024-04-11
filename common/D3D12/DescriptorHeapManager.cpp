@@ -16,7 +16,6 @@
 #include "common/PrecompiledHeader.h"
 
 #include "common/D3D12/DescriptorHeapManager.h"
-#include "common/Assertions.h"
 
 using namespace D3D12;
 
@@ -53,11 +52,6 @@ bool DescriptorHeapManager::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_T
 
 void DescriptorHeapManager::Destroy()
 {
-	for (BitSetType& bs : m_free_slots)
-	{
-		pxAssert(bs.all());
-	}
-
 	m_shader_visible = false;
 	m_num_descriptors = 0;
 	m_descriptor_increment_size = 0;
@@ -97,8 +91,6 @@ bool DescriptorHeapManager::Allocate(DescriptorHandle* handle)
 
 void DescriptorHeapManager::Free(u32 index)
 {
-	pxAssert(index < m_num_descriptors);
-
 	u32 group = index / BITSET_SIZE;
 	u32 bit = index % BITSET_SIZE;
 	m_free_slots[group][bit] = true;

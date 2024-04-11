@@ -17,7 +17,6 @@
 #include "common/Vulkan/Context.h"
 #include "common/Vulkan/Util.h"
 #include "common/Align.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 
 namespace Vulkan
@@ -185,9 +184,6 @@ namespace Vulkan
 
 	void StreamBuffer::CommitMemory(u32 final_num_bytes)
 	{
-		pxAssert((m_current_offset + final_num_bytes) <= m_size);
-		pxAssert(final_num_bytes <= m_current_space);
-
 		// For non-coherent mappings, flush the memory range
 		vmaFlushAllocation(g_vulkan_context->GetAllocator(), m_allocation, m_current_offset, final_num_bytes);
 

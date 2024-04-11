@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Assertions.h"
 #include "common/FileSystem.h"
 
 #include "ATA.h"
@@ -77,7 +76,6 @@ void ATA::IO_Read()
 	if (lba == -1)
 	{
 		Console.Error("DEV9: ATA: Invalid LBA");
-		pxAssert(false);
 		abort();
 	}
 
@@ -86,7 +84,6 @@ void ATA::IO_Read()
 		std::fread(readBuffer,  512, nsector, hddImage) != static_cast<size_t>(nsector))
 	{
 		Console.Error("DEV9: ATA: File read error");
-		pxAssert(false);
 		abort();
 	}
 	{
@@ -109,7 +106,6 @@ bool ATA::IO_Write()
 	if (FileSystem::FSeek64(hddImage, imagePos, SEEK_SET) != 0)
 	{
 		Console.Error("DEV9: ATA: File seek error");
-		pxAssert(false);
 		abort();
 	}
 	if (hddSparse)
@@ -123,21 +119,10 @@ bool ATA::IO_Write()
 			// Limit to size of write.
 			writeSize = std::min(writeSize, entry.length - written);
 
-			pxAssert(writeSize > 0);
-			pxAssert(writeSize <= hddSparseBlockSize);
-			pxAssert((imagePos + written) >= HddSparseStart);
-			pxAssert((imagePos + written) - HddSparseStart + writeSize <= hddSparseBlockSize);
-
 			bool sparseWrite = IsAllZero(&entry.data[written], writeSize);
 
 			if (sparseWrite)
 			{
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-				std::unique_ptr<u8[]> zeroBlock = std::make_unique<u8[]>(writeSize);
-				memset(zeroBlock.get(), 0, writeSize);
-				pxAssert(memcmp(&entry.data[written], zeroBlock.get(), writeSize) == 0);
-#endif
-
 				if (!IO_SparseZero(imagePos + written, writeSize))
 				{
 					Console.Error("DEV9: ATA: File sparse write error");
@@ -158,14 +143,6 @@ bool ATA::IO_Write()
 			// Also handles sparse write failures.
 			if (!sparseWrite)
 			{
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-				if (hddSparse)
-				{
-					std::unique_ptr<u8[]> zeroBlock = std::make_unique<u8[]>(writeSize);
-					memset(zeroBlock.get(), 0, writeSize);
-					pxAssert(memcmp(&entry.data[written], zeroBlock.get(), writeSize) != 0);
-				}
-#endif
 				// Update cache.
 				if (hddSparseBlockValid)
 					memcpy(&hddSparseBlock[(imagePos + written) - HddSparseStart], &entry.data[written], writeSize);
@@ -174,12 +151,10 @@ bool ATA::IO_Write()
 					std::fflush(hddImage) != 0)
 				{
 					Console.Error("DEV9: ATA: File write error");
-					pxAssert(false);
 					abort();
 				}
 			}
 			written += writeSize;
-			pxAssert(FileSystem::FTell64(hddImage) == (s64)(imagePos + written));
 		}
 	}
 	else
@@ -187,7 +162,6 @@ bool ATA::IO_Write()
 		if (std::fwrite(entry.data, entry.length, 1, hddImage) != 1 || std::fflush(hddImage) != 0)
 		{
 			Console.Error("DEV9: ATA: File write error");
-			pxAssert(false);
 			abort();
 		}
 	}
@@ -233,38 +207,6 @@ void ATA::IO_SparseCacheLoad()
 		// We are sparse.
 		memset(hddSparseBlock.get(), 0, hddSparseBlockSize);
 		hddSparseBlockValid = true;
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-
-		// Store file pointer.
-		const s64 orgPos = FileSystem::FTell64(hddImage);
-		pxAssert(orgPos != -1);
-
-		//Load into check buffer.
-		FileSystem::FSeek64(hddImage, HddSparseStart, SEEK_SET);
-
-		std::unique_ptr<u8[]> temp = std::make_unique<u8[]>(hddSparseBlockSize);
-		memset(temp.get(), 0, hddSparseBlockSize);
-
-		if (FileSystem::FSeek64(hddImage, HddSparseStart, SEEK_SET) != 0 ||
-			std::fread((char*)hddSparseBlock.get(), readSize, 1, hddImage) != 1)
-			pxAssert(false);
-
-		// Restore file pointer.
-		if (FileSystem::FSeek64(hddImage, orgPos, SEEK_SET) != 0)
-			pxAssert(false);
-
-		// Check if file is actully zeros.
-		if (memcmp(hddSparseBlock.get(), temp.get(), hddSparseBlockSize) != 0)
-		{
-			Console.WriteLn("DEV9: ATA: Sparse area not sparse, BlockStart: %s, BlockEnd: %s",
-				std::to_string(HddSparseStart).c_str(), std::to_string(HddSparseStart + hddSparseBlockSize).c_str());
-		}
-		else
-			Console.WriteLn("DEV9: ATA: Sparse area is sparse (Yay), BlockStart: %s, BlockEnd: %s",
-				std::to_string(HddSparseStart).c_str(), std::to_string(HddSparseStart + hddSparseBlockSize).c_str());
-
-		pxAssert(memcmp(hddSparseBlock.get(), temp.get(), hddSparseBlockSize) == 0);
-#endif
 		return;
 	}
 #elif defined(__POSIX__)
@@ -280,38 +222,6 @@ void ATA::IO_SparseCacheLoad()
 			// We are sparse.
 			memset(hddSparseBlock.get(), 0, hddSparseBlockSize);
 			hddSparseBlockValid = true;
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-
-			// Store file pointer.
-			const s64 orgPos = FileSystem::FTell64(hddImage);
-			pxAssert(orgPos != -1);
-
-			// Load into check buffer.
-			FileSystem::FSeek64(hddImage, HddSparseStart, SEEK_SET);
-
-			std::unique_ptr<u8[]> temp = std::make_unique<u8[]>(hddSparseBlockSize);
-			memset(temp.get(), 0, hddSparseBlockSize);
-
-			if (FileSystem::FSeek64(hddImage, HddSparseStart, SEEK_SET) != 0 ||
-				std::fread((char*)hddSparseBlock.get(), readSize, 1, hddImage) != 1)
-				pxAssert(false);
-
-			// Restore file pointer.
-			if (FileSystem::FSeek64(hddImage, orgPos, SEEK_SET) != 0)
-				pxAssert(false);
-
-			// Check if file is actully zeros.
-			if (memcmp(hddSparseBlock.get(), temp.get(), hddSparseBlockSize) != 0)
-			{
-				Console.WriteLn("DEV9: ATA: Sparse area not sparse, BlockStart: %s, BlockEnd: %s",
-					std::to_string(HddSparseStart).c_str(), std::to_string(HddSparseStart + hddSparseBlockSize).c_str());
-			}
-			else
-				Console.WriteLn("DEV9: ATA: Sparse area is sparse (Yay), BlockStart: %s, BlockEnd: %s",
-					std::to_string(HddSparseStart).c_str(), std::to_string(HddSparseStart + hddSparseBlockSize).c_str());
-
-			pxAssert(memcmp(hddSparseBlock.get(), temp.get(), hddSparseBlockSize) == 0);
-#endif
 			return;
 		}
 	}
@@ -325,7 +235,6 @@ void ATA::IO_SparseCacheLoad()
 		FileSystem::FSeek64(hddImage, orgPos, SEEK_SET) != 0) // Restore file pointer.
 	{
 		Console.Error("DEV9: ATA: File read error");
-		pxAssert(false);
 		abort();
 	}
 
@@ -349,38 +258,21 @@ bool ATA::IO_SparseZero(u64 byteOffset, u64 byteSize)
 	if (hddSparseBlockValid == false)
 		IO_SparseCacheLoad();
 
-	//Assert as range check
-	pxAssert(byteOffset >= HddSparseStart);
-	pxAssert(byteOffset - HddSparseStart + byteSize <= hddSparseBlockSize);
-
 	//Write to cache
 	memset(&hddSparseBlock[byteOffset - HddSparseStart], 0, byteSize);
 
 	//Is block non-zero?
 	if (!IsAllZero(hddSparseBlock.get(), hddSparseBlockSize))
 	{
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-		std::unique_ptr<u8[]> zeroBlock = std::make_unique<u8[]>(hddSparseBlockSize);
-		memset(zeroBlock.get(), 0, hddSparseBlockSize);
-		pxAssert(memcmp(hddSparseBlock.get(), zeroBlock.get(), hddSparseBlockSize) != 0);
-#endif
-
 		//No, do normal write
 		if (std::fwrite((char*)&hddSparseBlock[byteOffset - HddSparseStart], byteSize, 1, hddImage) != 1 ||
 			std::fflush(hddImage) != 0)
 		{
 			Console.Error("DEV9: ATA: File write error");
-			pxAssert(false);
 			abort();
 		}
 		return true;
 	}
-
-#if defined(PCSX2_DEBUG) || defined(PCSX2_DEVBUILD)
-	std::unique_ptr<u8[]> zeroBlock = std::make_unique<u8[]>(hddSparseBlockSize);
-	memset(zeroBlock.get(), 0, hddSparseBlockSize);
-	pxAssert(memcmp(hddSparseBlock.get(), zeroBlock.get(), hddSparseBlockSize) == 0);
-#endif
 
 	//Yes, try sparse write
 #ifdef _WIN32
@@ -416,7 +308,6 @@ bool ATA::IO_SparseZero(u64 byteOffset, u64 byteSize)
 	if (FileSystem::FSeek64(hddImage, byteOffset + byteSize, SEEK_SET) != 0)
 	{
 		Console.Error("DEV9: ATA: File seek error");
-		pxAssert(false);
 		abort();
 	}
 	return true;

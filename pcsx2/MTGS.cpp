@@ -139,8 +139,6 @@ void SysMtgsThread::ThreadEntryPoint()
 
 void SysMtgsThread::ResetGS(bool hardware_reset)
 {
-	pxAssertDev(!IsOpen() || (m_ReadPos == m_WritePos), "Must close or terminate the GS thread prior to gsReset.");
-
 	// MTGS Reset process:
 	//  * clear the ringbuffer.
 	//  * Signal a reset.
@@ -297,9 +295,6 @@ void SysMtgsThread::MainLoop(bool flush_all)
 		while (m_ReadPos.load(std::memory_order_relaxed) != m_WritePos.load(std::memory_order_acquire))
 		{
 			const unsigned int local_ReadPos = m_ReadPos.load(std::memory_order_relaxed);
-
-			pxAssert(local_ReadPos < RingBufferSize);
-
 			const PacketTagType& tag = (PacketTagType&)RingBuffer[local_ReadPos];
 			u32 ringposinc = 1;
 
@@ -457,13 +452,11 @@ void SysMtgsThread::MainLoop(bool flush_all)
 
 void SysMtgsThread::StepFrame()
 {
-	pxAssert(std::this_thread::get_id() == m_thread);
 	MainLoop(false);
 }
 
 void SysMtgsThread::Flush()
 {
-	pxAssert(std::this_thread::get_id() == m_thread);
 	MainLoop(true);
 }
 
@@ -499,8 +492,11 @@ void SysMtgsThread::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
 		GetMTGS().Flush();
 		return;
 	}
-	if (!pxAssertDev(IsOpen(), "MTGS Warning!  WaitGS issued on a closed thread."))
+	if (!IsOpen())
+	{
+		Console.Error("MTGS Warning!  WaitGS issued on a closed thread.");
 		return;
+	}
 
 	Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
 
@@ -559,13 +555,7 @@ u8* SysMtgsThread::GetDataPacketPtr() const
 // Closes the data packet send command, and initiates the gs thread (if needed).
 void SysMtgsThread::SendDataPacket()
 {
-	// make sure a previous copy block has been started somewhere.
-	pxAssert(m_packet_size != 0);
-
 	uint actualSize = ((m_packet_writepos - m_packet_startpos) & RingBufferMask) - 1;
-	pxAssert(actualSize <= m_packet_size);
-	pxAssert(m_packet_writepos < RingBufferSize);
-
 	PacketTagType& tag = (PacketTagType&)RingBuffer[m_packet_startpos];
 	tag.data[0] = actualSize;
 
@@ -591,10 +581,6 @@ void SysMtgsThread::GenericStall(uint size)
 	// to use volatile reads here.  We do cache it though, since we know it never changes,
 	// except for calls to RingbufferRestert() -- handled below.
 	const uint writepos = m_WritePos.load(std::memory_order_relaxed);
-
-	// Sanity checks! (within the confines of our ringbuffer please!)
-	pxAssert(size < RingBufferSize);
-	pxAssert(writepos < RingBufferSize);
 
 	// generic gs wait/stall.
 	// if the writepos is past the readpos then we're safe.
@@ -629,7 +615,6 @@ void SysMtgsThread::GenericStall(uint size)
 
 		if (somedone > 0x80)
 		{
-			pxAssertDev(m_SignalRingEnable == 0, "MTGS Thread Synchronization Error");
 			m_SignalRingPosition.store(somedone, std::memory_order_release);
 
 			for (;;)
@@ -646,8 +631,6 @@ void SysMtgsThread::GenericStall(uint size)
 				if (freeroom > size)
 					break;
 			}
-
-			pxAssertDev(m_SignalRingPosition <= 0, "MTGS Thread Synchronization Error");
 		}
 		else
 		{
@@ -699,7 +682,6 @@ void SysMtgsThread::PrepDataPacket(GIF_PATH pathidx, u32 size)
 __fi void SysMtgsThread::_FinishSimplePacket()
 {
 	uint future_writepos = (m_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
-	pxAssert(future_writepos != m_ReadPos.load(std::memory_order_acquire));
 	m_WritePos.store(future_writepos, std::memory_order_release);
 
 	if (EmuConfig.GS.SynchronousMTGS)

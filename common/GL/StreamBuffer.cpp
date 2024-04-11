@@ -16,7 +16,6 @@
 #include "StreamBuffer.h"
 #include "common/Align.h"
 #include "common/AlignedMalloc.h"
-#include "common/Assertions.h"
 #include <array>
 #include <cstring>
 
@@ -174,10 +173,7 @@ namespace GL
 			virtual ~SyncingStreamBuffer() override
 			{
 				for (u32 i = m_available_block_index; i <= m_used_block_index; i++)
-				{
-					pxAssert(m_sync_objects[i]);
 					glDeleteSync(m_sync_objects[i]);
-				}
 			}
 
 		protected:
@@ -193,10 +189,7 @@ namespace GL
 			{
 				const u32 end = GetSyncIndexForOffset(offset);
 				for (; m_used_block_index < end; m_used_block_index++)
-				{
-					pxAssert(!m_sync_objects[m_used_block_index]);
 					m_sync_objects[m_used_block_index] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-				}
 			}
 
 			__fi void WaitForSync(GLsync& sync)
@@ -210,10 +203,7 @@ namespace GL
 			{
 				const u32 end = std::min<u32>(GetSyncIndexForOffset(offset) + 1, NUM_SYNC_POINTS);
 				for (; m_available_block_index < end; m_available_block_index++)
-				{
-					pxAssert(m_sync_objects[m_available_block_index]);
 					WaitForSync(m_sync_objects[m_available_block_index]);
-				}
 			}
 
 			void AllocateSpace(u32 size)
@@ -271,7 +261,6 @@ namespace GL
 					m_position = Common::AlignUp(m_position, alignment);
 
 				AllocateSpace(min_size);
-				pxAssert((m_position + min_size) <= (m_available_block_index * m_bytes_per_block));
 
 				const u32 free_space_in_block = ((m_available_block_index * m_bytes_per_block) - m_position);
 				return MappingResult{static_cast<void*>(m_mapped_ptr + m_position), m_position, m_position / alignment,
@@ -280,7 +269,6 @@ namespace GL
 
 			void Unmap(u32 used_size) override
 			{
-				pxAssert((m_position + used_size) <= m_size);
 				if (!m_coherent)
 				{
 					Bind();

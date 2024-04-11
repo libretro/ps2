@@ -15,7 +15,6 @@
 
 #include "USB/usb-mic/audiodev-cubeb.h"
 #include "USB/USB.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 
 #include "cubeb/cubeb.h"
@@ -37,7 +36,6 @@ static cubeb* GetCubebContext(const char* backend = nullptr)
 
 	if (!s_cubeb_context)
 	{
-		pxAssert(s_cubeb_refcount == 0);
 		const int res = cubeb_init(&s_cubeb_context, "PCSX2_USB", backend);
 		if (res != CUBEB_OK)
 		{
@@ -59,7 +57,6 @@ static void ReleaseCubebContext()
 {
 	std::unique_lock lock(s_cubeb_context_mutex);
 
-	pxAssert(s_cubeb_refcount > 0);
 	if ((--s_cubeb_refcount) == 0)
 	{
 		cubeb_device_collection_destroy(s_cubeb_context, &s_cubeb_input_devices);
@@ -198,7 +195,6 @@ namespace usb_mic
 			std::lock_guard<std::mutex> lk(mMutex);
 			u32 samples_to_read = frames * GetChannels();
 			short* pDst = (short*)buff;
-			pxAssert(samples_to_read <= mBuffer.size<short>());
 
 			while (samples_to_read > 0)
 			{

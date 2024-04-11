@@ -19,7 +19,6 @@
 #include "IsoFS.h"
 #include "IsoFile.h"
 
-#include "common/Assertions.h"
 #include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"

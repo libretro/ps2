@@ -115,13 +115,11 @@ namespace x86Emitter
 
 	void xImplAVX_ThreeArg::operator()(const xRegisterSSE& to, const xRegisterSSE& from1, const xRegisterSSE& from2) const
 	{
-		pxAssert(!to.IsWideSIMD() && !from1.IsWideSIMD() && !from2.IsWideSIMD());
 		xOpWriteC5(Prefix, Opcode, to, from1, from2);
 	}
 
 	void xImplAVX_ThreeArg::operator()(const xRegisterSSE& to, const xRegisterSSE& from1, const xIndirectVoid& from2) const
 	{
-		pxAssert(!to.IsWideSIMD() && !from1.IsWideSIMD());
 		xOpWriteC5(Prefix, Opcode, to, from1, from2);
 	}
 

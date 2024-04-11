@@ -129,8 +129,6 @@ static void recEventTest(void)
 // dispatches to the recompiled block address.
 static DynGenFunc* _DynGen_JITCompile(void)
 {
-	pxAssertMsg(iopDispatcherReg != NULL, "Please compile the DispatcherReg subroutine *before* JITComple.  Thanks.");
-
 	u8* retval = xGetPtr();
 
 	xFastCall((void*)iopRecRecompile, ptr32[&psxRegs.pc]);
@@ -943,7 +941,6 @@ static __fi u32 psxRecClearMem(u32 pc)
 
 	u32 lowerextent = pc, upperextent = pc + 4;
 	int blockidx = recBlocks.Index(pc);
-	pxAssert(blockidx != -1);
 
 	while (BASEBLOCKEX* pexblock = recBlocks[blockidx - 1])
 	{
@@ -1033,7 +1030,6 @@ void psxSetBranchReg(u32 reg)
 void psxSetBranchImm(u32 imm)
 {
 	psxbranch = 1;
-	pxAssert(imm);
 
 	// end the current block
 	xMOV(ptr32[&psxRegs.pc], imm);
@@ -1187,8 +1183,6 @@ static void iopRecRecompile(const u32 startpc)
 		}
 	}
 
-	pxAssert(startpc);
-
 	// if recPtr reached the mem limit reset whole mem
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
 	{
@@ -1200,8 +1194,6 @@ static void iopRecRecompile(const u32 startpc)
 	recPtr = x86Ptr;
 
 	s_pCurBlock = PSX_GETBLOCK(startpc);
-
-	pxAssert(s_pCurBlock->GetFnptr() == (uptr)iopJITCompile || s_pCurBlock->GetFnptr() == (uptr)iopJITCompileInBlock);
 
 	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
 
@@ -1318,7 +1310,6 @@ StartRecomp:
 			free(s_pInstCache);
 			s_nInstCacheSize = (s_nEndBlock - startpc) / 4 + 10;
 			s_pInstCache = (EEINST*)malloc(sizeof(EEINST) * s_nInstCacheSize);
-			pxAssert(s_pInstCache != NULL);
 		}
 
 		pcur = s_pInstCache + (s_nEndBlock - startpc) / 4;
@@ -1340,7 +1331,6 @@ StartRecomp:
 		psxRecompileNextInstruction(false, false);
 	}
 
-	pxAssert((psxpc - startpc) >> 2 <= 0xffff);
 	s_pCurBlockEx->size = (psxpc - startpc) >> 2;
 
 	for (i = 1; i < (u32)s_pCurBlockEx->size; ++i)
@@ -1362,8 +1352,7 @@ StartRecomp:
 	}
 	else
 	{
-		if (psxbranch)
-			pxAssert(!willbranch3);
+		if (psxbranch) { }
 		else
 		{
 			xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
@@ -1372,7 +1361,6 @@ StartRecomp:
 
 		if (willbranch3 || !psxbranch)
 		{
-			pxAssert(psxpc == s_nEndBlock);
 			_psxFlushCall(FLUSH_EVERYTHING);
 			xMOV(ptr32[&psxRegs.pc], psxpc);
 			recBlocks.Link(HWADDR(s_nEndBlock), xJcc32());
@@ -1380,14 +1368,9 @@ StartRecomp:
 		}
 	}
 
-	pxAssert(xGetPtr() < recMem->GetPtrEnd());
-
-	pxAssert(xGetPtr() - recPtr < _64kb);
 	s_pCurBlockEx->x86size = xGetPtr() - recPtr;
 
 	recPtr = xGetPtr();
-
-	pxAssert((g_psxHasConstReg & g_psxFlushedConstReg) == g_psxHasConstReg);
 
 	s_pCurBlock = NULL;
 	s_pCurBlockEx = NULL;

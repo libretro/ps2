@@ -137,7 +137,6 @@ void SPU2::Reset(bool psxmode)
 
 bool SPU2::Initialize()
 {
-	pxAssert(regtable[0x400] == nullptr);
 	spu2regs = (s16*)malloc(0x010000);
 	_spu2mem = (s16*)malloc(0x200000);
 
@@ -253,7 +252,6 @@ void SPU2write(u32 rmem, u16 value)
 
 s32 SPU2freeze(FreezeAction mode, freezeData* data)
 {
-	pxAssume(data != nullptr);
 	if (!data)
 		return -1;
 
@@ -262,8 +260,6 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 		data->size = SPU2Savestate::SizeIt();
 		return 0;
 	}
-
-	pxAssume(mode == FreezeAction::Load || mode == FreezeAction::Save);
 
 	if (data->data == nullptr)
 		return -1;

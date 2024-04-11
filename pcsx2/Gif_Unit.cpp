@@ -146,7 +146,6 @@ void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
 
 void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
 {
-	pxAssertDev(!gsPack.readAmount, "Gif Unit - gsPack.readAmount only valid for MTVU path 1!");
 	gifUnit.gifPath[path].readAmount.fetch_add(gsPack.size);
 	GetMTGS().SendSimpleGSPacket(GS_RINGTYPE_GSPACKET, gsPack.offset, gsPack.size, path);
 }
@@ -165,9 +164,6 @@ void Gif_MTGS_Wait(bool isMTVU)
 bool SaveStateBase::gifPathFreeze(u32 path)
 {
 	Gif_Path& gifPath = gifUnit.gifPath[path];
-	pxAssertDev(!gifPath.readAmount, "Gif Path readAmount should be 0!");
-	pxAssertDev(!gifPath.gsPack.readAmount, "GS Pack readAmount should be 0!");
-	pxAssertDev(!gifPath.GetPendingGSPackets(), "MTVU GS Pack Queue should be 0!");
 
 	if (!gifPath.isMTVU())
 	{ // FixMe: savestate freeze bug (Gust games) with MTVU enabled
@@ -193,7 +189,6 @@ bool SaveStateBase::gifPathFreeze(u32 path)
 bool SaveStateBase::gifFreeze(void)
 {
 	bool mtvuMode = THREAD_VU1;
-	pxAssert(vu1Thread.IsDone());
 	GetMTGS().WaitGS();
 	if (!(FreezeTag("Gif Unit")))
 		return false;

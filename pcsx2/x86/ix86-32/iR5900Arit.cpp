@@ -93,8 +93,6 @@ static void recADD_const()
 // s is constant
 static void recADD_consts(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s32 cval = g_cpuConstRegs[_Rs_].SL[0];
 	recMoveTtoD(info);
 	if (cval != 0)
@@ -105,8 +103,6 @@ static void recADD_consts(int info)
 // t is constant
 static void recADD_constt(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s32 cval = g_cpuConstRegs[_Rt_].SL[0];
 	recMoveStoD(info);
 	if (cval != 0)
@@ -117,8 +113,6 @@ static void recADD_constt(int info)
 // nothing is constant
 static void recADD_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
 	{
 		if (EEREC_D == EEREC_S)
@@ -171,8 +165,6 @@ void recDADD_const(void)
 // s is constant
 static void recDADD_consts(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s64 cval = g_cpuConstRegs[_Rs_].SD[0];
 	recMoveTtoD64(info);
 	if (cval != 0)
@@ -182,8 +174,6 @@ static void recDADD_consts(int info)
 // t is constant
 static void recDADD_constt(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s64 cval = g_cpuConstRegs[_Rt_].SD[0];
 	recMoveStoD64(info);
 	if (cval != 0)
@@ -193,8 +183,6 @@ static void recDADD_constt(int info)
 // nothing is constant
 static void recDADD_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
 	{
 		if (EEREC_D == EEREC_S)
@@ -245,8 +233,6 @@ static void recSUB_const()
 
 static void recSUB_consts(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s32 sval = g_cpuConstRegs[_Rs_].SL[0];
 	xMOV(eax, sval);
 
@@ -260,8 +246,6 @@ static void recSUB_consts(int info)
 
 static void recSUB_constt(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s32 tval = g_cpuConstRegs[_Rt_].SL[0];
 	recMoveStoD(info);
 	if (tval != 0)
@@ -272,8 +256,6 @@ static void recSUB_constt(int info)
 
 static void recSUB_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	if (_Rs_ == _Rt_)
 	{
 		xXOR(xRegister32(EEREC_D), xRegister32(EEREC_D));
@@ -339,8 +321,6 @@ static void recDSUB_const()
 
 static void recDSUB_consts(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	// gross, because if d == t, we can't destroy t
 	const s64 sval = g_cpuConstRegs[_Rs_].SD[0];
 	const xRegister64 regd((info & PROCESS_EE_T && EEREC_D == EEREC_T) ? rax.GetId() : EEREC_D);
@@ -357,8 +337,6 @@ static void recDSUB_consts(int info)
 
 static void recDSUB_constt(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s64 tval = g_cpuConstRegs[_Rt_].SD[0];
 	recMoveStoD64(info);
 	if (tval != 0)
@@ -367,8 +345,6 @@ static void recDSUB_constt(int info)
 
 static void recDSUB_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	if (_Rs_ == _Rt_)
 	{
 		xXOR(xRegister32(EEREC_D), xRegister32(EEREC_D));
@@ -425,8 +401,6 @@ enum class LogicalOp
 
 static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int regv)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	xImpl_G1Logic bad{};
 	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
 														 op == LogicalOp::XOR    ? xXOR :
@@ -456,7 +430,7 @@ static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int 
 			identityInput = 0;
 			break;
 		default:
-			pxAssert(0);
+			break;
 	}
 
 	GPR_reg64 cval = g_cpuConstRegs[creg];
@@ -480,15 +454,11 @@ static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int 
 
 static void recLogicalOp(LogicalOp op, int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	xImpl_G1Logic bad{};
 	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
-														 op == LogicalOp::XOR    ? xXOR :
-														 op == LogicalOp::NOR    ? xOR :
-                                                                                   bad;
-	pxAssert(&xOP != &bad);
-
+		op == LogicalOp::XOR    ? xXOR :
+		op == LogicalOp::NOR    ? xOR :
+		bad;
 	// swap because it's commutative and Rd might be Rt
 	u32 rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
@@ -619,8 +589,6 @@ static void recSLT_const()
 
 static void recSLTs_const(int info, int sign, int st)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const s64 cval = g_cpuConstRegs[st ? _Rt_ : _Rs_].SD[0];
 
 	const xImpl_Set& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
@@ -646,8 +614,6 @@ static void recSLTs_const(int info, int sign, int st)
 
 static void recSLTs_(int info, int sign)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	const xImpl_Set& SET = sign ? xSETL : xSETB;
 
 	// need to keep Rs/Rt around.

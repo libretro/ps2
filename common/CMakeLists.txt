@@ -54,7 +54,6 @@ target_sources(common PRIVATE
 target_sources(common PRIVATE
 	Align.h
 	AlignedMalloc.h
-	Assertions.h
 	boost_spsc_queue.hpp
 	Console.h
 	EnumOps.h
@@ -87,7 +86,6 @@ target_sources(common PRIVATE
 	emitter/implement/group1.h
 	emitter/implement/group2.h
 	emitter/implement/group3.h
-	emitter/implement/helpers.h
 	emitter/implement/incdec.h
 	emitter/implement/jmpcall.h
 	emitter/implement/movs.h

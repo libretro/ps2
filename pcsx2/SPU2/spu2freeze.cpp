@@ -54,8 +54,6 @@ s32 SPU2Savestate::FreezeIt(DataBlock& spud)
 	spud.spu2id = SAVE_ID;
 	spud.version = SAVE_VERSION;
 
-	pxAssertMsg(spu2regs && _spu2mem, "Looks like PCSX2 is trying to savestate while components are shut down.  That's a no-no! It shouldn't crash, but the savestate will probably be corrupted.");
-
 	if (spu2regs != nullptr)
 		memcpy(spud.unkregs, spu2regs, sizeof(spud.unkregs));
 	if (_spu2mem != nullptr)
@@ -73,7 +71,6 @@ s32 SPU2Savestate::FreezeIt(DataBlock& spud)
 	} \
 	else \
 	{ \
-		pxAssert(reinterpret_cast<const u8*>((x)) >= iopPhysMem(0) && reinterpret_cast<const u8*>((x)) < iopPhysMem(0x1fffff)); \
 		x = reinterpret_cast<decltype(x)>(reinterpret_cast<const u8*>((x)) - iopPhysMem(0)); \
 	}
 
@@ -115,8 +112,6 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 	}
 	else
 	{
-		pxAssertMsg(spu2regs && _spu2mem, "Looks like PCSX2 is trying to loadstate while components are shut down.  That's a no-no!  It shouldn't crash, but the savestate will probably be corrupted.");
-
 		// base stuff
 		if (spu2regs)
 			memcpy(spu2regs, spud.unkregs, sizeof(spud.unkregs));
@@ -134,7 +129,6 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 	} \
 	else \
 	{ \
-		pxAssert(reinterpret_cast<size_t>((x)) <= 0x1fffff); \
 		x = reinterpret_cast<decltype(x)>(iopPhysMem(0) + reinterpret_cast<size_t>((x))); \
 	}
 

@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "GSTexture12.h"
 #include "GSDevice12.h"
-#include "common/Assertions.h"
 #include "common/Align.h"
 #include "common/D3D12/Builders.h"
 #include "common/D3D12/Context.h"
@@ -66,8 +65,6 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 
 		case Type::RenderTarget:
 		{
-			pxAssert(levels == 1);
-
 			// RT's tend to be larger, so we'll keep them committed for speed.
 			D3D12::Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format, rtv_format,
@@ -82,8 +79,6 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 
 		case Type::DepthStencil:
 		{
-			pxAssert(levels == 1);
-
 			D3D12::Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format,
 					DXGI_FORMAT_UNKNOWN, dsv_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
@@ -98,8 +93,6 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 
 		case Type::RWTexture:
 		{
-			pxAssert(levels == 1);
-
 			D3D12::Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format, DXGI_FORMAT_UNKNOWN,
 					DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12MA::ALLOCATION_FLAG_COMMITTED))
@@ -290,9 +283,6 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 
 void GSTexture12::Unmap()
 {
-	// this can't handle blocks/compressed formats at the moment.
-	pxAssert(m_map_level < m_texture.GetLevels() && !IsCompressedFormat());
-
 	// TODO: non-tightly-packed formats
 	const u32 width = static_cast<u32>(m_map_area.width());
 	const u32 height = static_cast<u32>(m_map_area.height());
@@ -346,8 +336,6 @@ void GSTexture12::Unmap()
 
 void GSTexture12::GenerateMipmap()
 {
-	pxAssert(!IsCompressedFormat(m_format));
-
 	for (int dst_level = 1; dst_level < m_mipmap_levels; dst_level++)
 	{
 		const int src_level = dst_level - 1;
@@ -450,14 +438,6 @@ void GSDownloadTexture12::CopyFromTexture(
 	const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch)
 {
 	GSTexture12* const tex12 = static_cast<GSTexture12*>(stex);
-
-	pxAssert(tex12->GetFormat() == m_format);
-	pxAssert(drc.width() == src.width() && drc.height() == src.height());
-	pxAssert(src.z <= tex12->GetWidth() && src.w <= tex12->GetHeight());
-	pxAssert(static_cast<u32>(drc.z) <= m_width && static_cast<u32>(drc.w) <= m_height);
-	pxAssert(src_level < static_cast<u32>(tex12->GetMipmapLevels()));
-	pxAssert((drc.left == 0 && drc.top == 0) || !use_transfer_pitch);
-
 	u32 copy_offset, copy_size, copy_rows;
 	m_current_pitch = GetTransferPitch(use_transfer_pitch ? static_cast<u32>(drc.width()) : m_width, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	GetTransferSize(drc, &copy_offset, &copy_size, &copy_rows);

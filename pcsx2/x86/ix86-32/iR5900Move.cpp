@@ -117,7 +117,6 @@ static void recMFHILO(bool hi, bool upper)
 		const int gprd = _allocIfUsedGPRtoX86(_Rd_, MODE_WRITE);
 		if (gprd >= 0 && xmmhilo >= 0)
 		{
-			pxAssert(gprreg < 0);
 			if (upper)
 				xPEXTR.Q(xRegister64(gprd), xRegisterSSE(xmmhilo), 1);
 			else
@@ -125,7 +124,6 @@ static void recMFHILO(bool hi, bool upper)
 		}
 		else if (gprd < 0 && xmmhilo >= 0)
 		{
-			pxAssert(gprreg < 0);
 			if (upper)
 				xPEXTR.Q(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegisterSSE(xmmhilo), 1);
 			else

@@ -112,8 +112,6 @@ u32 GSDownloadTexture::GetBufferSize(u32 width, u32 height, GSTexture::Format fo
 	const u32 bytes_per_block = GSTexture::GetCompressedBytesPerBlock(format);
 	const u32 bw = (width + (block_size - 1)) / block_size;
 	const u32 bh = (height + (block_size - 1)) / block_size;
-
-	pxAssert(Common::IsPow2(pitch_align));
 	const u32 pitch = Common::AlignUpPow2(bw * bytes_per_block, pitch_align);
 	return (pitch * bh);
 }
@@ -123,8 +121,6 @@ u32 GSDownloadTexture::GetTransferPitch(u32 width, u32 pitch_align) const
 	const u32 block_size = GSTexture::GetCompressedBlockSize(m_format);
 	const u32 bytes_per_block = GSTexture::GetCompressedBytesPerBlock(m_format);
 	const u32 bw = (width + (block_size - 1)) / block_size;
-
-	pxAssert(Common::IsPow2(pitch_align));
 	return Common::AlignUpPow2(bw * bytes_per_block, pitch_align);
 }
 

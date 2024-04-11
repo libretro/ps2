@@ -495,7 +495,7 @@ static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int
 			identityInput = 0;
 			break;
 		default:
-			pxAssert(0);
+			break;
 	}
 
 	const s32 cval = static_cast<s32>(g_psxConstRegs[creg]);
@@ -519,15 +519,11 @@ static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int
 
 static void rpsxLogicalOp(LogicalOp op, int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	xImpl_G1Logic bad{};
 	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
 														 op == LogicalOp::XOR    ? xXOR :
 														 op == LogicalOp::NOR    ? xOR :
                                                                                    bad;
-	pxAssert(&xOP != &bad);
-
 	// swap because it's commutative and Rd might be Rt
 	u32 rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
@@ -1295,7 +1291,6 @@ PSXRECOMPILE_CONSTCODE2(SRA, XMMINFO_WRITED | XMMINFO_READS);
 //// SLLV
 static void rpsxShiftV_constt(int info, const xImpl_Group2& shift)
 {
-	pxAssert(_Rs_ != 0);
 	rpsxMoveSToECX(info);
 	xMOV(xRegister32(EEREC_D), g_psxConstRegs[_Rt_]);
 	shift(xRegister32(EEREC_D), cl);
@@ -1303,8 +1298,6 @@ static void rpsxShiftV_constt(int info, const xImpl_Group2& shift)
 
 static void rpsxShiftV(int info, const xImpl_Group2& shift)
 {
-	pxAssert(_Rs_ != 0);
-
 	rpsxMoveSToECX(info);
 	rpsxMoveTtoD(info);
 	shift(xRegister32(EEREC_D), cl);

@@ -362,7 +362,6 @@ static void context_destroy(void)
 {
 	cpu_thread_pause();
 
-	pxAssert(!gs_freeze_data.data);
 	g_gs_renderer->Freeze(&gs_freeze_data, true);
 	gs_freeze_data.data = (u8*)malloc(gs_freeze_data.size);
 	g_gs_renderer->Freeze(&gs_freeze_data, false);

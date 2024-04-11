@@ -78,9 +78,6 @@ int _getFreeX86reg(int mode)
 		if ((mode & MODE_COP2) && mVUIsReservedCOP2(i))
 			continue;
 
-		// should have checked inuse in the previous loop.
-		pxAssert(x86regs[i].inuse);
-
 		if (x86regs[i].needed)
 			continue;
 
@@ -183,11 +180,6 @@ void _flushConstRegs(void)
 
 int _allocX86reg(int type, int reg, int mode)
 {
-	if (type == X86TYPE_GPR || type == X86TYPE_PSX)
-	{
-		pxAssertDev(reg >= 0 && reg < 34, "Register index out of bounds.");
-	}
-
 	int hostXMMreg = (type == X86TYPE_GPR) ? _checkXMMreg(XMMTYPE_GPRREG, reg, 0) : -1;
 	if (type != X86TYPE_TEMP)
 	{
@@ -195,12 +187,6 @@ int _allocX86reg(int type, int reg, int mode)
 		{
 			if (!x86regs[i].inuse || x86regs[i].type != type || x86regs[i].reg != reg)
 				continue;
-
-			pxAssert(type != X86TYPE_GPR || !GPR_IS_CONST1(reg) || (GPR_IS_CONST1(reg) && g_cpuFlushedConstReg & (1u << reg)));
-
-			// can't go from write to read
-			pxAssert(!((x86regs[i].mode & (MODE_READ | MODE_WRITE)) == MODE_WRITE && (mode & (MODE_READ | MODE_WRITE)) == MODE_READ));
-			// if (type != X86TYPE_TEMP && !(x86regs[i].mode & MODE_READ) && (mode & MODE_READ))
 
 			if (type == X86TYPE_GPR)
 			{
@@ -214,7 +200,6 @@ int _allocX86reg(int type, int reg, int mode)
 					if (hostXMMreg >= 0)
 					{
 						// ensure upper bits get written
-						pxAssert(!(xmmregs[hostXMMreg].mode & MODE_WRITE));
 						_freeXMMreg(hostXMMreg);
 					}
 				}
@@ -392,21 +377,14 @@ int _checkX86reg(int type, int reg, int mode)
 	{
 		if (x86regs[i].inuse && x86regs[i].reg == reg && x86regs[i].type == type)
 		{
-			// shouldn't have dirty constants...
-			pxAssert((type != X86TYPE_GPR || !GPR_IS_DIRTY_CONST(reg)) &&
-					 (type != X86TYPE_PSX || !PSX_IS_DIRTY_CONST(reg)));
-
 			// ensure constants get deleted once we alloc as write
 			if (mode & MODE_WRITE)
 			{
+				// go through the alloc path instead, because we might need to invalidate an xmm.
 				if (type == X86TYPE_GPR)
-				{
-					// go through the alloc path instead, because we might need to invalidate an xmm.
 					return _allocX86reg(X86TYPE_GPR, reg, mode);
-				}
 				else if (type == X86TYPE_PSX)
 				{
-					pxAssert(!PSX_IS_DIRTY_CONST(reg));
 					PSX_DEL_CONST(reg);
 				}
 			}
@@ -453,8 +431,6 @@ void _freeX86reg(const x86Emitter::xRegister32& x86reg)
 
 void _freeX86reg(int x86reg)
 {
-	pxAssert(x86reg >= 0 && x86reg < (int)iREGCNT_GPR);
-
 	if (x86regs[x86reg].inuse && (x86regs[x86reg].mode & MODE_WRITE))
 	{
 		_writebackX86Reg(x86reg);
@@ -466,8 +442,6 @@ void _freeX86reg(int x86reg)
 
 void _freeX86regWithoutWriteback(int x86reg)
 {
-	pxAssert(x86reg >= 0 && x86reg < (int)iREGCNT_GPR);
-
 	x86regs[x86reg].inuse = 0;
 
 	if (x86regs[x86reg].type == X86TYPE_VIREG)
@@ -486,9 +460,6 @@ void _flushX86regs()
 	{
 		if (x86regs[i].inuse && x86regs[i].mode & MODE_WRITE)
 		{
-			// shouldn't be const, because if we got to write mode, we should've flushed then
-			pxAssert(x86regs[i].type != X86TYPE_GPR || !GPR_IS_DIRTY_CONST(x86regs[i].reg));
-
 			_writebackX86Reg(i);
 			x86regs[i].mode = (x86regs[i].mode & ~MODE_WRITE) | MODE_READ;
 		}

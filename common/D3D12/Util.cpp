@@ -16,7 +16,6 @@
 #include "common/PrecompiledHeader.h"
 
 #include "common/D3D12/Util.h"
-#include "common/Assertions.h"
 #include "common/StringUtil.h"
 
 u32 D3D12::GetTexelSize(DXGI_FORMAT format)

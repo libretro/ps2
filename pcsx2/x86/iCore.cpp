@@ -111,12 +111,8 @@ int _getFreeXMMreg(u32 maxreg)
 	bestcount = 0xffff;
 	for (i = 0; (uint)i < maxreg; i++)
 	{
-		pxAssert(xmmregs[i].inuse);
 		if (xmmregs[i].needed)
 			continue;
-
-		// temps should be needed
-		pxAssert(xmmregs[i].type != XMMTYPE_TEMP);
 
 		if (xmmregs[i].counter < bestcount)
 		{
@@ -158,7 +154,6 @@ int _getFreeXMMreg(u32 maxreg)
 	bestcount = 0xffff;
 	for (i = 0; (uint)i < maxreg; i++)
 	{
-		pxAssert(xmmregs[i].inuse);
 		if (xmmregs[i].needed)
 			continue;
 
@@ -202,9 +197,6 @@ int _checkXMMreg(int type, int reg, int mode)
 	{
 		if (xmmregs[i].inuse && (xmmregs[i].type == (type & 0xff)) && (xmmregs[i].reg == reg))
 		{
-			// shouldn't have dirty constants...
-			pxAssert(type != XMMTYPE_GPRREG || !GPR_IS_DIRTY_CONST(reg));
-
 			if (type == XMMTYPE_GPRREG && (mode & MODE_WRITE))
 			{
 				// go through the alloc path instead, because we might need to invalidate a gpr.
@@ -305,7 +297,6 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			if (hostx86reg >= 0)
 			{
 				// x86 register should be up to date, because if it was written, it should've been invalidated
-				pxAssert(!(x86regs[hostx86reg].mode & MODE_WRITE));
 				_freeX86regWithoutWriteback(hostx86reg);
 			}
 		}
@@ -424,7 +415,6 @@ int _allocFPACCtoXMMreg(int mode)
 
 void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, bool writeback /*= true*/)
 {
-	pxAssert(xmmreg >= 0 && xmmreg <= static_cast<int>(iREGCNT_XMM));
 	_xmmregs& xr = xmmregs[xmmreg];
 	if (writeback)
 		_freeXMMreg(xmmreg);
@@ -540,11 +530,6 @@ void _clearNeededXMMregs()
 				xmmregs[i].mode |= MODE_READ;
 			xmmregs[i].needed = 0;
 		}
-
-		if (xmmregs[i].inuse)
-		{
-			pxAssert(xmmregs[i].type != XMMTYPE_TEMP);
-		}
 	}
 }
 
@@ -567,7 +552,6 @@ void _deleteGPRtoX86reg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (x86regs[i].mode & MODE_WRITE)
 					{
-						pxAssert(reg != 0);
 						xMOV(ptr64[&cpuRegs.GPR.r[reg].UL[0]], xRegister64(i));
 
 						// get rid of MODE_WRITE since don't want to flush again
@@ -605,7 +589,6 @@ void _deletePSXtoX86reg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (x86regs[i].mode & MODE_WRITE)
 					{
-						pxAssert(reg != 0);
 						xMOV(ptr32[&psxRegs.GPR.r[reg]], xRegister32(i));
 
 						// get rid of MODE_WRITE since don't want to flush again
@@ -644,9 +627,6 @@ void _deleteGPRtoXMMreg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (xmmregs[i].mode & MODE_WRITE)
 					{
-						pxAssert(reg != 0);
-
-						//pxAssert( g_xmmtypes[i] == XMMT_INT );
 						xMOVDQA(ptr[&cpuRegs.GPR.r[reg].UL[0]], xRegisterSSE(i));
 
 						// get rid of MODE_WRITE since don't want to flush again
@@ -718,7 +698,6 @@ void _writebackXMMreg(int xmmreg)
 		break;
 
 		case XMMTYPE_GPRREG:
-			pxAssert(xmmregs[xmmreg].reg != 0);
 			xMOVDQA(ptr[&cpuRegs.GPR.r[xmmregs[xmmreg].reg].UL[0]], xRegisterSSE(xmmreg));
 			break;
 
@@ -740,7 +719,6 @@ void _writebackXMMreg(int xmmreg)
 // Step 2: clear 'inuse' field
 void _freeXMMreg(int xmmreg)
 {
-	pxAssert(static_cast<uint>(xmmreg) < iREGCNT_XMM);
 	if (!xmmregs[xmmreg].inuse)
 		return;
 
@@ -756,7 +734,6 @@ void _freeXMMreg(int xmmreg)
 
 void _freeXMMregWithoutWriteback(int xmmreg)
 {
-	pxAssert(static_cast<uint>(xmmreg) < iREGCNT_XMM);
 	if (!xmmregs[xmmreg].inuse)
 		return;
 
@@ -776,7 +753,6 @@ int _allocVFtoXMMreg(int vfreg, int mode)
 		{
 			if (xmmregs[i].inuse && xmmregs[i].type == XMMTYPE_VFREG && xmmregs[i].reg == vfreg)
 			{
-				pxAssert(mode == 0 || xmmregs[i].mode != 0);
 				xmmregs[i].counter = g_xmmAllocCounter++;
 				xmmregs[i].mode |= mode;
 				return i;
@@ -919,7 +895,6 @@ void _recFillRegister(EEINST& pinst, int type, int reg, int write)
 				return;
 			}
 		}
-		pxAssume(false);
 	}
 	else
 	{
@@ -932,6 +907,5 @@ void _recFillRegister(EEINST& pinst, int type, int reg, int write)
 				return;
 			}
 		}
-		pxAssume(false);
 	}
 }

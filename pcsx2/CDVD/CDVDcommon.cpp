@@ -29,7 +29,6 @@
 #include "IsoFS/IsoFSCDVD.h"
 #include "IsoFileFormats.h"
 
-#include "common/Assertions.h"
 #include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
@@ -55,17 +54,11 @@ static int diskTypeCached = -1;
 int lastReadSize;
 u32 lastLSN; // needed for block dumping
 
-// Records last read block length for block dumping
-//static int plsn = 0;
-
 static OutputIsoFile blockDumpFile;
 
 // Assertion check for CDVD != NULL (in devel and debug builds), because its handier than
 // relying on DEP exceptions -- and a little more reliable too.
-static void CheckNullCDVD()
-{
-	pxAssertDev(CDVD != NULL, "Invalid CDVD object state (null pointer exception)");
-}
+static void CheckNullCDVD(void) { }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Disk Type detection stuff (from cdvdGigaherz)

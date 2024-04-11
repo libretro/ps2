@@ -26,7 +26,6 @@
 #include "xbyak/xbyak.h"
 #include "xbyak/xbyak_util.h"
 #include "GS/MultiISA.h"
-#include "common/Assertions.h"
 
 /// Code generator that automatically selects between SSE and AVX, x86 and x64 so you don't have to
 /// Should make combined SSE and AVX codegen much easier

@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "AsyncFileReader.h"
 #include "IsoFileFormats.h"
-#include "common/Assertions.h"
 #include "common/FileSystem.h"
 
 #include <errno.h>
@@ -81,8 +80,6 @@ bool BlockdumpFileReader::Open(std::string fileName)
 	const s64 flen = FileSystem::FSize64(m_file);
 	const s64 datalen = flen - BlockDumpHeaderSize;
 
-	pxAssert((datalen % (m_blocksize + 4)) == 0);
-
 	m_dtablesize = datalen / (m_blocksize + 4);
 	m_dtable = std::make_unique<u32[]>(m_dtablesize);
 
@@ -128,15 +125,8 @@ int BlockdumpFileReader::ReadSync(void* pBuffer, uint lsn, uint count)
 				// We store the LSN (u32) along with each block inside of blockdumps, so the
 				// seek position ends up being based on (m_blocksize + 4) instead of just m_blocksize.
 
-#ifdef PCSX2_DEBUG
-			u32 check_lsn = 0;
-			FileSystem::FSeek64(m_file, BlockDumpHeaderSize + (i * (m_blocksize + 4)), SEEK_SET);
-			std::fread(&check_lsn, sizeof(check_lsn), 1, m_file);
-			pxAssert(check_lsn == lsn);
-#else
 			if (FileSystem::FSeek64(m_file, BlockDumpHeaderSize + (i * (m_blocksize + 4)) + 4, SEEK_SET) != 0)
 				break;
-#endif
 
 			if (std::fread(dst, m_blocksize, 1, m_file) != 1)
 				break;

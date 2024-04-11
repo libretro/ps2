@@ -37,8 +37,6 @@ template< uint page > RETURNS_R128 _hwRead128(u32 mem);
 template< uint page, bool intcstathack >
 mem32_t _hwRead32(u32 mem)
 {
-	pxAssume( (mem & 0x03) == 0 );
-
 	switch( page )
 	{
 		case 0x00:	return rcntRead32<0x00>( mem );
@@ -217,8 +215,6 @@ mem8_t hwRead8(u32 mem)
 template< uint page >
 mem16_t _hwRead16(u32 mem)
 {
-	pxAssume( (mem & 0x01) == 0 );
-
 	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
 	return ((u16*)&ret32)[(mem>>1) & 0x01];
 }
@@ -231,8 +227,6 @@ mem16_t hwRead16(u32 mem)
 
 mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
 {
-	pxAssume( (mem & 0x01) == 0 );
-
 	u32 ret32 = _hwRead32<0x0f, true>(mem & ~0x03);
 	return ((u16*)&ret32)[(mem>>1) & 0x01];
 }
@@ -240,8 +234,6 @@ mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
 template< uint page >
 static u64 _hwRead64(u32 mem)
 {
-	pxAssume( (mem & 0x07) == 0 );
-
 	switch (page)
 	{
 		case 0x02:
@@ -291,8 +283,6 @@ mem64_t hwRead64(u32 mem)
 template< uint page >
 RETURNS_R128 _hwRead128(u32 mem)
 {
-	pxAssume( (mem & 0x0f) == 0 );
-
 	alignas(16) mem128_t result;
 
 	// FIFOs are the only "legal" 128 bit registers, so we Handle them first.

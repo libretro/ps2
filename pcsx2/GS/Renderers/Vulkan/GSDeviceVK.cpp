@@ -25,7 +25,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "common/Align.h"
-#include "common/Assertions.h"
 #include "common/ScopedGuard.h"
 #include "common/Console.h"
 #include "common/General.h"
@@ -146,7 +145,6 @@ namespace Vulkan
 
 		std::vector<VkExtensionProperties> available_extension_list(extension_count);
 		res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, available_extension_list.data());
-		pxAssert(res == VK_SUCCESS);
 
 		auto SupportsExtension = [&](const char* name, bool required) {
 			if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
@@ -239,7 +237,8 @@ namespace Vulkan
 	bool Context::Create(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical_device,
 		bool enable_debug_utils, bool enable_validation_layer)
 	{
-		pxAssertMsg(!g_vulkan_context, "Has no current context");
+		if (!g_vulkan_context)
+			Console.Warning("Has no current context");
 		g_vulkan_context.reset(new Context(instance, physical_device));
 
 		if (enable_debug_utils)
@@ -264,8 +263,6 @@ namespace Vulkan
 
 	void Context::Destroy()
 	{
-		pxAssertMsg(g_vulkan_context, "Has context");
-
 		if (g_vulkan_context->m_device != VK_NULL_HANDLE)
 			g_vulkan_context->WaitForGPUIdle();
 
@@ -307,7 +304,6 @@ namespace Vulkan
 		std::vector<VkExtensionProperties> available_extension_list(extension_count);
 		res = vkEnumerateDeviceExtensionProperties(
 			m_physical_device, nullptr, &extension_count, available_extension_list.data());
-		pxAssert(res == VK_SUCCESS);
 
 		auto SupportsExtension = [&](const char* name, bool required) {
 			if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
@@ -909,7 +905,6 @@ namespace Vulkan
 			index = (index + 1) % NUM_COMMAND_BUFFERS;
 		}
 
-		pxAssert(index != m_current_frame);
 		WaitForCommandBufferCompletion(index);
 	}
 
@@ -1864,7 +1859,6 @@ GSDeviceVK::GSDeviceVK()
 
 GSDeviceVK::~GSDeviceVK()
 {
-	pxAssert(!g_vulkan_context);
 }
 
 void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
@@ -2535,7 +2529,6 @@ void GSDeviceVK::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
 	ShaderConvert shader /* = ShaderConvert::COPY */, bool linear /* = true */)
 {
-	pxAssert(HasDepthOutput(shader) == (dTex && dTex->GetType() == GSTexture::Type::DepthStencil));
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
 		dTex ? m_convert[static_cast<int>(shader)] : m_present[0], linear, true);
 }
@@ -2666,7 +2659,6 @@ void GSDeviceVK::DoMultiStretchRects(
 		BeginRenderPassForStretchRect(dTex, rc, rc, false);
 	SetUtilityTexture(rects[0].src, rects[0].linear ? m_linear_sampler : m_point_sampler);
 
-	pxAssert(shader == ShaderConvert::COPY || rects[0].wmask.wrgba == 0xf);
 	SetPipeline((rects[0].wmask.wrgba != 0xf) ? m_color_copy[rects[0].wmask.wrgba] : m_convert[static_cast<int>(shader)]);
 
 	if (ApplyUtilityState())
@@ -2676,8 +2668,6 @@ void GSDeviceVK::DoMultiStretchRects(
 void GSDeviceVK::BeginRenderPassForStretchRect(
 	GSTextureVK* dTex, const GSVector4i& dtex_rc, const GSVector4i& dst_rc, bool allow_discard)
 {
-	pxAssert(dst_rc.x >= 0 && dst_rc.y >= 0 && dst_rc.z <= dTex->GetWidth() && dst_rc.w <= dTex->GetHeight());
-
 	const VkAttachmentLoadOp load_op =
 		(allow_discard && dst_rc.eq(dtex_rc)) ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : GetLoadOpForTexture(dTex);
 	dTex->SetState(GSTexture::State::Dirty);
@@ -2790,8 +2780,6 @@ void GSDeviceVK::BlitRect(GSTexture* sTex, const GSVector4i& sRect, u32 sLevel, 
 	if (m_tfx_textures[0] == sTexVK->GetTexturePtr())
 		PSSetShaderResource(0, nullptr, false);
 
-	pxAssert(
-		(sTexVK->GetType() == GSTexture::Type::DepthStencil) == (dTexVK->GetType() == GSTexture::Type::DepthStencil));
 	const VkImageAspectFlags aspect =
 		(sTexVK->GetType() == GSTexture::Type::DepthStencil) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	const VkImageBlit ib{{aspect, sLevel, 0u, 1u}, {{sRect.left, sRect.top, 0}, {sRect.right, sRect.bottom, 1}},
@@ -3006,7 +2994,6 @@ void GSDeviceVK::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 {
 	GSTextureVK* vkRt = static_cast<GSTextureVK*>(rt);
 	GSTextureVK* vkDs = static_cast<GSTextureVK*>(ds);
-	pxAssert(vkRt || vkDs);
 
 	if (m_current_render_target != vkRt || m_current_depth_target != vkDs ||
 		m_current_framebuffer_feedback_loop != feedback_loop)
@@ -3015,14 +3002,9 @@ void GSDeviceVK::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 		EndRenderPass();
 
 		if (vkRt)
-		{
 			m_current_framebuffer = vkRt->GetLinkedFramebuffer(vkDs, (feedback_loop & FeedbackLoopFlag_ReadAndWriteRT) != 0);
-		}
 		else
-		{
-			pxAssert(!(feedback_loop & FeedbackLoopFlag_ReadAndWriteRT));
 			m_current_framebuffer = vkDs->GetLinkedFramebuffer(nullptr, false);
-		}
 	}
 
 	m_current_render_target = vkRt;
@@ -3478,7 +3460,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 			gpb.SetRenderPass(m_utility_color_render_pass_discard, 0);
 			for (u32 i = 0; i < 16; i++)
 			{
-				pxAssert(!m_color_copy[i]);
 				gpb.ClearBlendAttachments();
 				gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
 					VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, static_cast<VkColorComponentFlags>(i));
@@ -3500,8 +3481,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 			{
 				for (u32 fbl = 0; fbl < 2; fbl++)
 				{
-					pxAssert(!arr[ds][fbl]);
-
 					gpb.SetRenderPass(
 						GetTFXRenderPass(true, ds != 0, is_setup, DATE_RENDER_PASS_NONE, fbl != 0, false,
 							VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE),
@@ -4978,7 +4957,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	OMSetRenderTargets(draw_rt, draw_ds, config.scissor, static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
 	if (pipe.IsRTFeedbackLoop())
 	{
-		pxAssertMsg(m_features.texture_barrier, "Texture barriers enabled");
+		Console.WriteLn("Texture barriers enabled");
 		PSSetShaderResource(2, draw_rt, false);
 	}
 

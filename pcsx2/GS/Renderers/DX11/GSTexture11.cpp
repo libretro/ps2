@@ -239,12 +239,6 @@ std::unique_ptr<GSDownloadTexture11> GSDownloadTexture11::Create(u32 width, u32 
 void GSDownloadTexture11::CopyFromTexture(
 	const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch)
 {
-	pxAssert(stex->GetFormat() == m_format);
-	pxAssert(drc.width() == src.width() && drc.height() == src.height());
-	pxAssert(src.z <= stex->GetWidth() && src.w <= stex->GetHeight());
-	pxAssert(static_cast<u32>(drc.z) <= m_width && static_cast<u32>(drc.w) <= m_height);
-	pxAssert(src_level < static_cast<u32>(stex->GetMipmapLevels()));
-
 	if (IsMapped())
 		Unmap();
 

@@ -21,7 +21,6 @@
 #include "common/General.h"
 #include "common/StringUtil.h"
 #include "common/AlignedMalloc.h"
-#include "common/Assertions.h"
 
 #include "fmt/core.h"
 #include "fmt/format.h"
@@ -123,8 +122,6 @@ void HostSys::Munmap(void* base, size_t size)
 
 void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode& mode)
 {
-	pxAssert((size & (__pagesize - 1)) == 0);
-
 	DWORD OldProtect; // enjoy my uselessness, yo!
 	VirtualProtect(baseaddr, size, ConvertToWinApi(mode), &OldProtect);
 }
@@ -220,17 +217,9 @@ std::unique_ptr<SharedMemoryMappingArea> SharedMemoryMappingArea::Create(size_t 
 
 u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode& mode)
 {
-	pxAssert(static_cast<u8*>(map_base) >= m_base_ptr && static_cast<u8*>(map_base) < (m_base_ptr + m_size));
-
 	const size_t map_offset = static_cast<u8*>(map_base) - m_base_ptr;
-	pxAssert(Common::IsAlignedPow2(map_offset, __pagesize));
-	pxAssert(Common::IsAlignedPow2(map_size, __pagesize));
-
 	// should be a placeholder. unless there's some other mapping we didn't free.
 	PlaceholderMap::iterator phit = FindPlaceholder(map_offset);
-	pxAssertMsg(phit != m_placeholder_ranges.end(), "Page we're mapping is a placeholder");
-	pxAssertMsg(map_offset >= phit->first && map_offset < phit->second, "Page is in returned placeholder range");
-	pxAssertMsg((map_offset + map_size) <= phit->second, "Page range is in returned placeholder range");
 
 	// do we need to split to the left? (i.e. is there a placeholder before this range)
 	const size_t old_ph_end = phit->second;
@@ -279,12 +268,7 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 
 bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 {
-	pxAssert(static_cast<u8*>(map_base) >= m_base_ptr && static_cast<u8*>(map_base) < (m_base_ptr + m_size));
-
 	const size_t map_offset = static_cast<u8*>(map_base) - m_base_ptr;
-	pxAssert(Common::IsAlignedPow2(map_offset, __pagesize));
-	pxAssert(Common::IsAlignedPow2(map_size, __pagesize));
-
 	// unmap the specified range
 	if (!UnmapViewOfFile2(GetCurrentProcess(), map_base, MEM_PRESERVE_PLACEHOLDER))
 	{
@@ -297,7 +281,6 @@ bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 	if (left_it != m_placeholder_ranges.end())
 	{
 		// the left placeholder should end at our start
-		pxAssert(map_offset == left_it->second);
 		left_it->second = map_offset + map_size;
 
 		// combine placeholders before and the range we're unmapping, i.e. to the left
@@ -315,7 +298,6 @@ bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 	if (right_it != m_placeholder_ranges.end())
 	{
 		// should start at our end
-		pxAssert(right_it->first == (map_offset + map_size));
 		left_it->second = right_it->second;
 		m_placeholder_ranges.erase(right_it);
 

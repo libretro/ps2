@@ -76,8 +76,6 @@ using namespace Interpreter::OpcodeImpl;
 //
 static void recLoadQuad(u32 bits, bool sign)
 {
-	pxAssume(bits == 128);
-
 	// This mess is so we allocate *after* the vtlb flush, not before.
 	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
 	if (_Rt_)
@@ -104,7 +102,6 @@ static void recLoadQuad(u32 bits, bool sign)
 	}
 
 	// if there was a constant, it should have been invalidated.
-	pxAssert(!_Rt_ || !GPR_IS_CONST1(_Rt_));
 	if (!_Rt_)
 		_freeXMMreg(xmmreg);
 }
@@ -113,8 +110,6 @@ static void recLoadQuad(u32 bits, bool sign)
 //
 static void recLoad(u32 bits, bool sign)
 {
-	pxAssume(bits <= 64);
-
 	// This mess is so we allocate *after* the vtlb flush, not before.
 	// TODO(Stenzek): If not live, save directly to state, and delete constant.
 	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
@@ -139,7 +134,6 @@ static void recLoad(u32 bits, bool sign)
 	}
 
 	// if there was a constant, it should have been invalidated.
-	pxAssert(!_Rt_ || !GPR_IS_CONST1(_Rt_));
 	if (!_Rt_)
 		_freeX86reg(x86reg);
 }
@@ -535,8 +529,6 @@ void recSWR()
 /// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
 static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
-	pxAssert(rt.GetId() != ecx.GetId() && value.GetId() != ecx.GetId());
-
 	// Would xor rcx, rcx; not rcx be better here?
 	xMOV(rcx, -1);
 
@@ -550,8 +542,6 @@ static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt
 /// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
 static void ldlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
-	pxAssert(rt.GetId() != ecx.GetId() && amt.GetId() != ecx.GetId() && value.GetId() != ecx.GetId());
-
 	// Would xor rcx, rcx; not rcx be better here?
 	const xRegister64 maskamt64(maskamt);
 	xMOV(ecx, maskamt);
@@ -736,7 +726,6 @@ void recLDR()
 /// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
 static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
-	pxAssert(rt.GetId() != ecx.GetId() && value.GetId() != ecx.GetId());
 	xMOV(rcx, -1);
 	maskshift(rcx, maskamt);
 	xAND(rcx, value);
@@ -748,8 +737,6 @@ static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt
 /// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
 static void sdlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
-	pxAssert(rt.GetId() != ecx.GetId() && amt.GetId() != ecx.GetId() && value.GetId() != ecx.GetId());
-
 	// Generate mask 128-(shiftx8)
 	const xRegister64 maskamt64(maskamt);
 	xMOV(ecx, maskamt);

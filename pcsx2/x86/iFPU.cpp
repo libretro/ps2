@@ -185,9 +185,6 @@ void recMFC1()
 	const int regs = _allocIfUsedFPUtoXMM(_Fs_, MODE_READ);
 	if (regs >= 0 && xmmregt >= 0)
 	{
-		// if we're in xmm, we shouldn't be const
-		pxAssert(!GPR_IS_CONST1(_Rt_));
-
 		// both in xmm, sign extend and insert lower bits
 		const int temp = _allocTempXMMreg(XMMT_FPS);
 		xMOVAPS(xRegisterSSE(temp), xRegisterSSE(regs));
@@ -200,9 +197,6 @@ void recMFC1()
 
 	// storing to a gpr..
 	const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
-
-	// shouldn't be const after we're writing.
-	pxAssert(!GPR_IS_CONST1(_Rt_));
 
 	if (regs >= 0)
 	{
@@ -244,7 +238,6 @@ void recMTC1(void)
 		}
 		else
 		{
-			pxAssert(!_hasXMMreg(XMMTYPE_FPREG, _Fs_));
 			xMOV(ptr32[&fpuRegs.fpr[_Fs_].UL], g_cpuConstRegs[_Rt_].UL[0]);
 		}
 	}

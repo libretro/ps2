@@ -431,7 +431,6 @@ static void recCFC2()
 	}
 
 	const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
-	pxAssert(!GPR_IS_CONST1(_Rt_));
 
 	if (_Rd_ == 0) // why would you read vi00?
 	{
@@ -672,9 +671,6 @@ static void recQMFC2()
 	const bool vf_used = EEINST_VFUSEDTEST(_Rd_);
 	const int ftreg = _allocVFtoXMMreg(_Rd_, MODE_READ);
 	_deleteEEreg128(_Rt_);
-
-	// const flag should've been cleared, but sanity check..
-	pxAssert(!GPR_IS_CONST1(_Rt_));
 
 	if (vf_used)
 	{

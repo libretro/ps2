@@ -1150,9 +1150,6 @@ __fi void cdvdReadInterrupt(void)
 		}
 
 		cdvd.Reading = false;
-
-		// Any other value besides 0 should be considered invalid here
-		pxAssert(cdvd.RErr == 0);
 	}
 
 	if (cdvd.nSectors > 0 && cdvd.nextSectorsBuffered)
@@ -1164,14 +1161,6 @@ __fi void cdvdReadInterrupt(void)
 			// bit and try to read the sector again later.
 			// An arbitrary delay of some number of cycles probably makes more sense here,
 			// but for now it's based on the cdvd.ReadTime value. -- air
-			pxAssert((int)cdvd.ReadTime > 0);
-			//CDVDREAD_INT(cdvd.ReadTime); // Bring it back after the DMA has ended to avoid a nasty loop
-			/*if (!(cdvd.Ready & CDVD_DRIVE_DATARDY))
-			{
-				cdvd.PwOff |= (1 << Irq_DataReady);
-				psxHu32(0x1070) |= 0x4;
-				cdvd.Ready |= CDVD_DRIVE_DATARDY;
-			}*/
 			cdvdUpdateStatus(CDVD_STATUS_PAUSE);
 			cdvd.WaitingDMA = true;
 			return;

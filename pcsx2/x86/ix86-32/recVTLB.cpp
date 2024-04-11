@@ -361,8 +361,6 @@ void vtlb_dynarec_init(void)
 //   Returns read value in eax.
 int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
-	pxAssume(bits <= 64);
-
 	int x86_dest_reg;
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
@@ -546,8 +544,6 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 
 int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
-	pxAssume(bits == 128);
-
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
 		iFlushCall(FLUSH_FULLVTLB);

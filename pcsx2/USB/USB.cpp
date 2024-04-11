@@ -356,7 +356,6 @@ void USB::DoPacketState(USBPacket* p, StateWrapper& sw, const std::array<bool, 2
 		if (dev_index >= 0 && ep_index >= 0 && valid_devices[static_cast<u32>(dev_index)])
 		{
 			USBDevice* dev = s_usb_device[static_cast<u32>(dev_index)];
-			pxAssert(dev);
 
 			p->buffer_ptr = (p->buffer_size > 0) ? s_qemu_ohci->usb_buf : nullptr;
 
@@ -601,16 +600,13 @@ gsl::span<const SettingInfo> USB::GetDeviceSettings(const std::string_view& devi
 
 gsl::span<const InputBindingInfo> USB::GetDeviceBindings(u32 port)
 {
-	pxAssert(port < NUM_PORTS);
 	if (s_usb_device_proxy[port])
 		return s_usb_device_proxy[port]->Bindings(EmuConfig.USB.Ports[port].DeviceSubtype);
-	else
-		return {};
+	return {};
 }
 
 float USB::GetDeviceBindValue(u32 port, u32 bind_index)
 {
-	pxAssert(port < NUM_PORTS);
 	if (!s_usb_device[port])
 		return 0.0f;
 
@@ -619,7 +615,6 @@ float USB::GetDeviceBindValue(u32 port, u32 bind_index)
 
 void USB::SetDeviceBindValue(u32 port, u32 bind_index, float value)
 {
-	pxAssert(port < NUM_PORTS);
 	if (!s_usb_device[port])
 		return;
 

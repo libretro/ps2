@@ -14,7 +14,6 @@
 */
 
 #include "common/Threading.h"
-#include "common/Assertions.h"
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
@@ -29,7 +28,6 @@
 bool Threading::WorkSema::CheckForWork()
 {
 	s32 value = m_state.load(std::memory_order_relaxed);
-	pxAssert(!IsDead(value));
 
 	// we want to switch to the running state, but preserve the waiting empty bit for RUNNING_N -> RUNNING_0
 	// otherwise, we clear the waiting flag (since we're notifying the waiter that we're empty below)
@@ -58,7 +56,6 @@ void Threading::WorkSema::WaitForWork()
 	// RUNNING_0: Change state to SLEEPING, wake up thread if WAITING_EMPTY
 	// RUNNING_N: Change state to RUNNING_0 (and preserve WAITING_EMPTY flag)
 	s32 value = m_state.load(std::memory_order_relaxed);
-	pxAssert(!IsDead(value));
 	while (!m_state.compare_exchange_weak(value, NextStateWaitForWork(value), std::memory_order_acq_rel, std::memory_order_relaxed))
 		;
 	if (IsReadyForSleep(value))
@@ -74,7 +71,6 @@ void Threading::WorkSema::WaitForWork()
 void Threading::WorkSema::WaitForWorkWithSpin()
 {
 	s32 value = m_state.load(std::memory_order_relaxed);
-	pxAssert(!IsDead(value));
 	while (IsReadyForSleep(value))
 	{
 		if (m_state.compare_exchange_weak(value, STATE_SPINNING, std::memory_order_release, std::memory_order_relaxed))
@@ -113,7 +109,6 @@ bool Threading::WorkSema::WaitForEmpty()
 		if (m_state.compare_exchange_weak(value, value | STATE_FLAG_WAITING_EMPTY, std::memory_order_acquire))
 			break;
 	}
-	pxAssertDev(!(value & STATE_FLAG_WAITING_EMPTY), "Multiple threads attempted to wait for empty (not currently supported)");
 	m_empty_sema.Wait();
 	return !IsDead(m_state.load(std::memory_order_relaxed));
 }
@@ -131,7 +126,6 @@ bool Threading::WorkSema::WaitForEmptyWithSpin()
 		waited += ShortSpin();
 		value = m_state.load(std::memory_order_acquire);
 	}
-	pxAssertDev(!(value & STATE_FLAG_WAITING_EMPTY), "Multiple threads attempted to wait for empty (not currently supported)");
 	m_empty_sema.Wait();
 	return !IsDead(m_state.load(std::memory_order_relaxed));
 }

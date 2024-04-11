@@ -915,9 +915,6 @@ __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uptr
 // Search for Existing Compiled Block (if found, return x86ptr; else, compile and return x86ptr)
 __fi void* mVUblockFetch(microVU& mVU, u32 startPC, uptr pState)
 {
-
-	pxAssert((startPC & 7) == 0);
-	pxAssert(startPC <= mVU.microMemSize - 8);
 	startPC &= mVU.microMemSize - 8;
 
 	blockCreate(startPC / 8);

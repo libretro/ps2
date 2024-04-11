@@ -16,7 +16,6 @@
 #pragma once
 
 #include "common/General.h"
-#include "common/Assertions.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -121,13 +120,11 @@ public:
 
 	u8& operator[](uint idx)
 	{
-		pxAssert(idx < m_size);
 		return *((u8*)m_baseptr + idx);
 	}
 
 	const u8& operator[](uint idx) const
 	{
-		pxAssert(idx < m_size);
 		return *((u8*)m_baseptr + idx);
 	}
 };

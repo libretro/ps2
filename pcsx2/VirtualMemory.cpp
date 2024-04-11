@@ -187,8 +187,6 @@ VirtualMemoryBumpAllocator::VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr a
 	, m_baseptr(m_allocator->Alloc(offsetLocation, size))
 	, m_endptr(m_baseptr + size)
 {
-	if (m_baseptr.load() == 0)
-		pxAssertDev(0, "(VirtualMemoryBumpAllocator) tried to construct from bad VirtualMemoryManager");
 }
 
 u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
@@ -199,9 +197,6 @@ u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
 	size_t reservedSize = Common::PageAlign(size);
 
 	u8* out = m_baseptr.fetch_add(reservedSize, std::memory_order_relaxed);
-
-	if (!pxAssertDev(out - reservedSize + size <= m_endptr, "(VirtualMemoryBumpAllocator) ran out of memory"))
-		return nullptr;
 
 	return out;
 }

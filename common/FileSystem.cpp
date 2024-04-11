@@ -15,7 +15,6 @@
 
 #include "FileSystem.h"
 #include "Path.h"
-#include "Assertions.h"
 #include "Console.h"
 #include "StringUtil.h"
 #include "Path.h"

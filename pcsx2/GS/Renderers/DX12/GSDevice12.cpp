@@ -24,7 +24,6 @@
 #include "Host.h"
 #include "ShaderCacheVersion.h"
 
-#include "common/Assertions.h"
 #include "common/General.h"
 #include "common/Align.h"
 #include "common/ScopedGuard.h"
@@ -352,10 +351,7 @@ ID3D12GraphicsCommandList4* Context::GetInitCommandList()
 	if (!res.init_command_list_used)
 	{
 		HRESULT hr = res.command_allocators[0]->Reset();
-		pxAssertMsg(SUCCEEDED(hr), "Reset init command allocator failed");
-
 		res.command_lists[0]->Reset(res.command_allocators[0].get(), nullptr);
-		pxAssertMsg(SUCCEEDED(hr), "Reset init command list failed");
 		res.init_command_list_used = true;
 	}
 
@@ -557,7 +553,6 @@ bool Context::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buf
 	ComPtr<D3D12MA::Allocation> cpu_allocation;
 	HRESULT hr = m_allocator->CreateResource(&cpu_ad, &rd, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 		cpu_allocation.put(), IID_PPV_ARGS(cpu_buffer.put()));
-	pxAssertMsg(SUCCEEDED(hr), "Allocate CPU buffer");
 	if (FAILED(hr))
 		return false;
 
@@ -565,7 +560,6 @@ bool Context::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buf
 	const D3D12_RANGE write_range = {0, size};
 	void* mapped;
 	hr = cpu_buffer->Map(0, &read_range, &mapped);
-	pxAssertMsg(SUCCEEDED(hr), "Map CPU buffer");
 	if (FAILED(hr))
 		return false;
 	fill_callback(mapped);
@@ -577,7 +571,6 @@ bool Context::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_buf
 
 	hr = m_allocator->CreateResource(&gpu_ad, &rd, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
 		gpu_allocation, IID_PPV_ARGS(gpu_buffer));
-	pxAssertMsg(SUCCEEDED(hr), "Allocate GPU buffer");
 	if (FAILED(hr))
 		return false;
 
@@ -661,7 +654,6 @@ GSDevice12::GSDevice12() = default;
 
 GSDevice12::~GSDevice12()
 {
-	pxAssert(!g_d3d12_context);
 }
 
 RenderAPI GSDevice12::GetRenderAPI() const
@@ -1037,7 +1029,6 @@ void GSDevice12::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
 	ShaderConvert shader /* = ShaderConvert::COPY */, bool linear /* = true */)
 {
-	pxAssert(HasDepthOutput(shader) == (dTex && dTex->GetType() == GSTexture::Type::DepthStencil));
 	DoStretchRect(static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect,
 		dTex ? m_convert[static_cast<int>(shader)].get() : m_present[0].get(), linear, true);
 }
@@ -1210,7 +1201,6 @@ void GSDevice12::DoMultiStretchRects(
 	SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	SetUtilityTexture(rects[0].src, rects[0].linear ? m_linear_sampler_cpu : m_point_sampler_cpu);
 
-	pxAssert(shader == ShaderConvert::COPY || rects[0].wmask.wrgba == 0xf);
 	SetPipeline((rects[0].wmask.wrgba != 0xf) ? m_color_copy[rects[0].wmask.wrgba].get() :
 												m_convert[static_cast<int>(shader)].get());
 
@@ -1483,7 +1473,6 @@ void GSDevice12::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 {
 	GSTexture12* vkRt = static_cast<GSTexture12*>(rt);
 	GSTexture12* vkDs = static_cast<GSTexture12*>(ds);
-	pxAssert(vkRt || vkDs);
 
 	if (m_current_render_target != vkRt || m_current_depth_target != vkDs)
 	{
@@ -1587,7 +1576,6 @@ bool GSDevice12::GetTextureGroupDescriptors(D3D12::DescriptorHandle* gpu_handle,
 	D3D12_CPU_DESCRIPTOR_HANDLE dst_handle = *gpu_handle;
 	D3D12_CPU_DESCRIPTOR_HANDLE src_handles[NUM_TFX_TEXTURES];
 	UINT src_sizes[NUM_TFX_TEXTURES];
-	pxAssert(count <= NUM_TFX_TEXTURES);
 	for (u32 i = 0; i < count; i++)
 	{
 		src_handles[i] = cpu_handles[i];
@@ -1785,7 +1773,6 @@ bool GSDevice12::CompileConvertPipelines()
 			gpb.SetDepthStencilFormat(DXGI_FORMAT_UNKNOWN);
 			for (u32 i = 0; i < 16; i++)
 			{
-				pxAssert(!m_color_copy[i]);
 				gpb.SetBlendState(0, false, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
 					D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, static_cast<u8>(i));
 				m_color_copy[i] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
@@ -1803,8 +1790,6 @@ bool GSDevice12::CompileConvertPipelines()
 			std::array<ComPtr<ID3D12PipelineState>, 2>& arr = is_setup ? m_hdr_setup_pipelines : m_hdr_finish_pipelines;
 			for (u32 ds = 0; ds < 2; ds++)
 			{
-				pxAssert(!arr[ds]);
-
 				gpb.SetRenderTarget(0, is_setup ? DXGI_FORMAT_R16G16B16A16_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM);
 				gpb.SetDepthStencilFormat(ds ? DXGI_FORMAT_D32_FLOAT_S8X24_UINT : DXGI_FORMAT_UNKNOWN);
 				arr[ds] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);

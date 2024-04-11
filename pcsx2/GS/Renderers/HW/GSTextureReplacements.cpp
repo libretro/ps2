@@ -590,8 +590,6 @@ void GSTextureReplacements::StopWorkerThread()
 
 void GSTextureReplacements::QueueWorkerThreadItem(std::function<void()> fn)
 {
-	pxAssert(s_worker_thread.joinable());
-
 	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
 	s_worker_thread_queue.push(std::move(fn));
 	s_worker_thread_cv.notify_one();

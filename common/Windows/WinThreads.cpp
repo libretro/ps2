@@ -16,7 +16,6 @@
 #if defined(_WIN32)
 
 #include "common/Threading.h"
-#include "common/Assertions.h"
 #include "common/emitter/tools.h"
 #include "common/RedtapeWindows.h"
 #include <mmsystem.h>

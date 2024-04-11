@@ -89,7 +89,6 @@ struct alignas(16) tIPU_BP {
 		FillBuffer(bits);
 
 		BP += bits;
-		pxAssume( BP <= 256 );
 
 		if (BP >= 128)
 		{

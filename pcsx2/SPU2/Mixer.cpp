@@ -14,7 +14,6 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "common/Assertions.h"
 
 #include "SPU2/Global.h"
 #include "SPU2/spu2.h"
@@ -292,8 +291,6 @@ static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
 
 	if (!vc.ADSR.Calculate())
 		vc.Stop();
-
-	pxAssume(vc.ADSR.Value >= 0); // ADSR should never be negative...
 }
 
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
@@ -391,10 +388,6 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 {
 	V_Core& thiscore(Cores[coreidx]);
 	V_Voice& vc(thiscore.Voices[voiceidx]);
-
-	// If this assertion fails, it means SCurrent is being corrupted somewhere, or is not initialized
-	// properly.  Invalid values in SCurrent will cause errant IRQs and corrupted audio.
-	pxAssertMsg((vc.SCurrent <= 28) && (vc.SCurrent != 0), "Current sample should always range from 1->28");
 
 	// Most games don't use much volume slide effects.  So only call the UpdateVolume
 	// methods when needed by checking the flag outside the method here...

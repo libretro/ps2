@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "ChdFileReader.h"
 
-#include "common/Assertions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
@@ -136,10 +135,7 @@ bool ChdFileReader::Open2(std::string fileName)
 	}
 
 	if (child)
-	{
-		pxAssert(fp != nullptr);
 		m_files.push_back(fp);
-	}
 
 	for (int d = chd_depth - 1; d >= 0; d--)
 	{

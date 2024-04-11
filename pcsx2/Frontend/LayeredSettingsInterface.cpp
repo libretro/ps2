@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 
 #include "LayeredSettingsInterface.h"
-#include "common/Assertions.h"
 
 #include <unordered_set>
 

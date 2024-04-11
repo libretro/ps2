@@ -1096,8 +1096,6 @@ __ri static bool mpeg2sliceIDEC()
 			case 2:
 			{
 
-				pxAssert(decoder.ipu0_data > 0);
-
 				uint read = ipu_fifo.out.write((u32*)decoder.GetIpuDataPtr(), decoder.ipu0_data);
 				decoder.AdvanceIpuDataBy(read);
 
@@ -1477,8 +1475,6 @@ __fi static bool mpeg2_slice()
 
 	case 3:
 	{
-		pxAssert(decoder.ipu0_data > 0);
-
 		uint read = ipu_fifo.out.write((u32*)decoder.GetIpuDataPtr(), decoder.ipu0_data);
 		decoder.AdvanceIpuDataBy(read);
 
@@ -1829,8 +1825,6 @@ __fi static void ipu_vq(macroblock_rgb16& rgb16, u8* indx4)
 
 __noinline void IPUWorker()
 {
-	pxAssert(ipuRegs.ctrl.BUSY);
-
 	switch (ipu_cmd.CMD)
 	{
 		// These are unreachable (BUSY will always be 0 for them)

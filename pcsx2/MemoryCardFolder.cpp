@@ -573,7 +573,6 @@ bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const std:
 bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const std::string& dirPath, const EnumeratedFileEntry& fileEntry, MemoryCardFileMetadataReference* parent)
 {
 	const std::string filePath(Path::Combine(dirPath, fileEntry.m_fileName));
-	pxAssertMsg(StringUtil::StartsWith(filePath, m_folderName.c_str()), "Full file path starts with MC folder path");
 	const std::string relativeFilePath(filePath.substr(m_folderName.length() + 1));
 
 	if (auto file = FileSystem::OpenManagedCFile(filePath.c_str(), "rb"); file)
@@ -1003,7 +1002,6 @@ s32 FolderMemoryCard::Read(u8* dest, u32 adr, int size)
 			FolderMemoryCard::CalculateECC(ecc + (i * 3), &data[i * 0x80]);
 		}
 
-		pxAssert(static_cast<u32>(size) >= eccOffset);
 		const u32 copySize = std::min((u32)size - eccOffset, eccLength);
 		memcpy(dest + eccOffset, ecc, copySize);
 	}
@@ -1654,7 +1652,6 @@ u64 FolderMemoryCard::GetCRC() const
 
 void FolderMemoryCard::SetSlot(uint slot)
 {
-	pxAssert(slot < 8);
 	m_slot = slot;
 }
 
@@ -2050,18 +2047,9 @@ void FileAccessHelper::WriteMetadata(const std::string_view& folderName, const M
 
 void FileAccessHelper::WriteIndex(const std::string& baseFolderName, MemoryCardFileEntry* const entry, MemoryCardFileMetadataReference* const parent)
 {
-	// Not called for directories atm.
-	pxAssert(entry->IsFile());
-
 	std::string folderName(baseFolderName);
 	if (parent != nullptr)
-	{
 		parent->GetPath(&folderName);
-	}
-	else
-	{
-		Console.Warning(fmt::format("(FileAccesHelper::WriteIndex()) '{}' has null parent", Path::Combine(baseFolderName, (const char*)entry->entry.data.name)));
-	}
 
 	char cleanName[sizeof(entry->entry.data.name)];
 	memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));

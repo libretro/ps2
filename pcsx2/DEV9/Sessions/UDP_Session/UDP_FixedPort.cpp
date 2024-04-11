@@ -15,8 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Assertions.h"
-
 #ifdef __POSIX__
 #define SOCKET_ERROR -1
 #include <errno.h>
@@ -208,7 +206,6 @@ namespace Sessions
 
 	bool UDP_FixedPort::Send(PacketReader::IP::IP_Payload* payload)
 	{
-		pxAssert(false);
 		return false;
 	}
 

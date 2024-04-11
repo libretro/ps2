@@ -49,8 +49,6 @@
 using namespace R5900;
 using namespace vtlb_private;
 
-#define verify pxAssert
-
 namespace vtlb_private
 {
 	alignas(64) MapData vtlbdata;
@@ -96,7 +94,6 @@ static std::unordered_set<u32> s_fastmem_faulting_pcs;
 
 vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromPointer(sptr ptr)
 {
-	pxAssertMsg(ptr >= 0, "Address too high");
 	return VTLBPhysical(ptr);
 }
 
@@ -107,17 +104,10 @@ vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromHandler(vtlbHandler h
 
 vtlb_private::VTLBVirtual::VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr)
 {
-	pxAssertMsg(0 == (paddr & VTLB_PAGE_MASK), "Should be page aligned");
-	pxAssertMsg(0 == (vaddr & VTLB_PAGE_MASK), "Should be page aligned");
-	pxAssertMsg((uptr)paddr < POINTER_SIGN_BIT, "Address too high");
 	if (phys.isHandler())
-	{
 		value = phys.raw() + paddr - vaddr;
-	}
 	else
-	{
 		value = phys.raw() - vaddr;
-	}
 }
 
 __inline int CheckCache(u32 addr)
@@ -547,8 +537,6 @@ __ri void vtlb_ReassignHandler(vtlbHandler rv,
 	vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
 	vtlbMemW8FP* w8, vtlbMemW16FP* w16, vtlbMemW32FP* w32, vtlbMemW64FP* w64, vtlbMemW128FP* w128)
 {
-	pxAssume(rv < VTLB_HANDLER_ITEMS);
-
 	vtlbdata.RWFT[0][0][rv] = (void*)((r8 != 0) ? r8 : vtlbDefaultPhyRead8);
 	vtlbdata.RWFT[1][0][rv] = (void*)((r16 != 0) ? r16 : vtlbDefaultPhyRead16);
 	vtlbdata.RWFT[2][0][rv] = (void*)((r32 != 0) ? r32 : vtlbDefaultPhyRead32);
@@ -564,7 +552,6 @@ __ri void vtlb_ReassignHandler(vtlbHandler rv,
 
 vtlbHandler vtlb_NewHandler()
 {
-	pxAssertDev(vtlbHandlerCount < VTLB_HANDLER_ITEMS, "VTLB handler count overflow!");
 	return vtlbHandlerCount++;
 }
 
@@ -595,11 +582,7 @@ __ri vtlbHandler vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMe
 // The memory region start and size parameters must be pagesize aligned.
 void vtlb_MapHandler(vtlbHandler handler, u32 start, u32 size)
 {
-	verify(0 == (start & VTLB_PAGE_MASK));
-	verify(0 == (size & VTLB_PAGE_MASK) && size > 0);
-
 	u32 end = start + (size - VTLB_PAGE_SIZE);
-	pxAssume((end >> VTLB_PAGE_BITS) < (sizeof(vtlbdata.pmap) / sizeof(vtlbdata.pmap[0])));
 
 	while (start <= end)
 	{
@@ -610,16 +593,11 @@ void vtlb_MapHandler(vtlbHandler handler, u32 start, u32 size)
 
 void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 {
-	verify(0 == (start & VTLB_PAGE_MASK));
-	verify(0 == (size & VTLB_PAGE_MASK) && size > 0);
 	if (!blocksize)
 		blocksize = size;
-	verify(0 == (blocksize & VTLB_PAGE_MASK) && blocksize > 0);
-	verify(0 == (size % blocksize));
 
 	sptr baseint = (sptr)base;
 	u32 end = start + (size - VTLB_PAGE_SIZE);
-	verify((end >> VTLB_PAGE_BITS) < std::size(vtlbdata.pmap));
 
 	while (start <= end)
 	{
@@ -639,12 +617,7 @@ void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 
 void vtlb_Mirror(u32 new_region, u32 start, u32 size)
 {
-	verify(0 == (new_region & VTLB_PAGE_MASK));
-	verify(0 == (start & VTLB_PAGE_MASK));
-	verify(0 == (size & VTLB_PAGE_MASK) && size > 0);
-
 	u32 end = start + (size - VTLB_PAGE_SIZE);
-	verify((end >> VTLB_PAGE_BITS) < std::size(vtlbdata.pmap));
 
 	while (start <= end)
 	{
@@ -854,9 +827,6 @@ static void vtlb_RemoveFastmemMapping(u32 vaddr)
 
 static void vtlb_RemoveFastmemMappings(u32 vaddr, u32 size)
 {
-	pxAssert((vaddr & VTLB_PAGE_MASK) == 0);
-	pxAssert(size > 0 && (size & VTLB_PAGE_MASK) == 0);
-
 	const u32 num_pages = size / VTLB_PAGE_SIZE;
 	for (u32 i = 0; i < num_pages; i++, vaddr += VTLB_PAGE_SIZE)
 		vtlb_RemoveFastmemMapping(vaddr);
@@ -922,9 +892,6 @@ void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode&
 	if (!CHECK_FASTMEM)
 		return;
 
-	pxAssert((paddr & VTLB_PAGE_MASK) == 0);
-	pxAssert(size > 0 && (size & VTLB_PAGE_MASK) == 0);
-
 	u32 mainmem_start, mainmem_size;
 	PageProtectionMode old_prot;
 	if (!vtlb_GetMainMemoryOffset(paddr, &mainmem_start, &mainmem_size, &old_prot))
@@ -952,8 +919,6 @@ void vtlb_ClearLoadStoreInfo()
 
 void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr)
 {
-	pxAssert(code_size < std::numeric_limits<u8>::max());
-
 	auto iter = s_fastmem_backpatch_info.find(code_address);
 	if (iter != s_fastmem_backpatch_info.end())
 		s_fastmem_backpatch_info.erase(iter);
@@ -997,10 +962,6 @@ bool vtlb_IsFaultingPC(u32 guest_pc)
 //TODO: Add invalid paddr checks
 void vtlb_VMap(u32 vaddr, u32 paddr, u32 size)
 {
-	verify(0 == (vaddr & VTLB_PAGE_MASK));
-	verify(0 == (paddr & VTLB_PAGE_MASK));
-	verify(0 == (size & VTLB_PAGE_MASK) && size > 0);
-
 	if (CHECK_FASTMEM)
 	{
 		const u32 num_pages = size / VTLB_PAGE_SIZE;
@@ -1041,9 +1002,6 @@ void vtlb_VMap(u32 vaddr, u32 paddr, u32 size)
 
 void vtlb_VMapBuffer(u32 vaddr, void* buffer, u32 size)
 {
-	verify(0 == (vaddr & VTLB_PAGE_MASK));
-	verify(0 == (size & VTLB_PAGE_MASK) && size > 0);
-
 	if (CHECK_FASTMEM)
 	{
 		if (buffer == eeMem->Scratch && size == Ps2MemSize::Scratch)
@@ -1072,9 +1030,6 @@ void vtlb_VMapBuffer(u32 vaddr, void* buffer, u32 size)
 
 void vtlb_VMapUnmap(u32 vaddr, u32 size)
 {
-	verify(0 == (vaddr & VTLB_PAGE_MASK));
-	verify(0 == (size & VTLB_PAGE_MASK) && size > 0);
-
 	vtlb_RemoveFastmemMappings(vaddr, size);
 
 	while (size > 0)
@@ -1197,7 +1152,6 @@ bool vtlb_Core_Alloc()
 
 	if (!vtlbdata.fastmem_base)
 	{
-		pxAssert(!s_fastmem_area);
 		s_fastmem_area = SharedMemoryMappingArea::Create(FASTMEM_AREA_SIZE);
 		if (!s_fastmem_area)
 		{
@@ -1340,8 +1294,6 @@ alignas(16) static vtlb_PageProtectionInfo m_PageProtectInfo[Ps2MemSize::MainRam
 //
 vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr)
 {
-	pxAssert(eeMem);
-
 	paddr &= ~0xfff;
 
 	uptr ptr = (uptr)PSM(paddr);
@@ -1358,8 +1310,6 @@ vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr)
 // paddr - physically mapped PS2 address
 void mmap_MarkCountedRamPage(u32 paddr)
 {
-	pxAssert(eeMem);
-
 	paddr &= ~__pagemask;
 
 	uptr ptr = (uptr)PSM(paddr);
@@ -1383,14 +1333,7 @@ void mmap_MarkCountedRamPage(u32 paddr)
 // from code residing in this page will use manual protection.
 static __fi void mmap_ClearCpuBlock(uint offset)
 {
-	pxAssert(eeMem);
-
 	int rampage = offset >> __pageshift;
-
-	// Assertion: This function should never be run on a block that's already under
-	// manual protection.  Indicates a logic error in the recompiler or protection code.
-	pxAssertMsg(m_PageProtectInfo[rampage].Mode != ProtMode_Manual,
-		"Attempted to clear a block that is already under manual protection.");
 
 	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, PageAccess_ReadWrite());
 	vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadWrite());
@@ -1400,8 +1343,6 @@ static __fi void mmap_ClearCpuBlock(uint offset)
 
 bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 {
-	pxAssert(eeMem);
-
 	u32 vaddr;
 	if (CHECK_FASTMEM && vtlb_GetGuestAddress(info.addr, &vaddr))
 	{

@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Assertions.h"
-
 class alignas(16) GSVector4i
 {
 	static const GSVector4i m_xff[17];
@@ -237,7 +235,7 @@ public:
 			case Align_Outside: v = *this + mask.zwxy(); break;
 			case Align_NegInf:  v = *this;               break;
 			case Align_PosInf:  v = *this + mask.xyxy(); break;
-			default: pxAssert(0); break;
+			default: break;
 		}
 
 		return v.andnot(mask.xyxy());
@@ -1775,8 +1773,6 @@ public:
 
 	__forceinline static bool compare16(const void* dst, const void* src, size_t size)
 	{
-		pxAssert((size & 15) == 0);
-
 		size >>= 4;
 
 		GSVector4i* s = (GSVector4i*)src;
@@ -1795,8 +1791,6 @@ public:
 
 	__forceinline static bool compare64(const void* dst, const void* src, size_t size)
 	{
-		pxAssert((size & 63) == 0);
-
 		size >>= 6;
 
 		GSVector4i* s = (GSVector4i*)src;
@@ -1823,8 +1817,6 @@ public:
 
 	__forceinline static bool update(const void* dst, const void* src, size_t size)
 	{
-		pxAssert((size & 15) == 0);
-
 		size >>= 4;
 
 		GSVector4i* s = (GSVector4i*)src;

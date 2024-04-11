@@ -337,8 +337,6 @@ namespace InternalServers
 				break;
 		}
 
-		pxAssert(remaining != -1);
-
 		if (remaining == 0)
 			data->session->FinaliseDNS(data->state);
 
@@ -397,8 +395,6 @@ namespace InternalServers
 				remaining = state->AddNoAnswer(url);
 				break;
 		}
-
-		pxAssert(remaining != -1);
 
 		if (remaining == 0)
 			FinaliseDNS(state);

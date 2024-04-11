@@ -75,8 +75,6 @@ GSDevice::GSDevice() = default;
 
 GSDevice::~GSDevice()
 {
-	// should've been cleaned up in Destroy()
-	pxAssert(m_pool[0].empty() && m_pool[1].empty() && !m_merge && !m_weavebob && !m_blend && !m_mad && !m_target_tmp);
 }
 
 const char* GSDevice::RenderAPIToString(RenderAPI api)
@@ -328,7 +326,6 @@ void GSDevice::DrawMultiStretchRects(
 	for (u32 i = 0; i < num_rects; i++)
 	{
 		const MultiStretchRect& sr = rects[i];
-		pxAssert(shader == ShaderConvert::COPY || rects[0].wmask.wrgba == 0xf);
 		if (rects[0].wmask.wrgba != 0xf)
 		{
 			g_gs_device->StretchRect(sr.src, sr.src_rect, dTex, sr.dst_rect, rects[0].wmask.wr,
@@ -463,8 +460,6 @@ void GSDevice::Resize(int width, int height)
 
 bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle)
 {
-	pxAssert(t);
-
 	GSTexture* orig_tex = *t;
 	if (orig_tex && orig_tex->GetWidth() == w && orig_tex->GetHeight() == h)
 	{

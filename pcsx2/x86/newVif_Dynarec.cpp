@@ -43,8 +43,6 @@ void dVifReserve(int idx)
 
 void dVifReset(int idx)
 {
-	pxAssertDev(nVif[idx].recReserve, "Dynamic VIF recompiler reserve must be created prior to VIF use or reset!");
-
 	recReset(idx);
 }
 
@@ -105,8 +103,6 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 
 void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 {
-	pxAssertDev(regX.Id <= 1, "Reg Overflow! XMM2 thru XMM6 are reserved for masking.");
-
 	int cc = std::min(vCL, 3);
 	u32 m0 = (vB.mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
 	u32 m3 = ((m0 & 0xaa) >> 1) & ~m0; //all the upper bits (cols shifted right) cancelling out any write protects 0x10
@@ -262,8 +258,6 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	uint vNum = vB.num ? vB.num : 256;
 	doMode    = (upkNum == 0xf) ? 0 : doMode; // V4_5 has no mode feature.
 	UnpkNoOfIterations = 0;
-
-	pxAssume(vCL == 0);
 
 	// Value passed determines # of col regs we need to load
 	SetMasks(isFill ? blockSize : cycleSize);

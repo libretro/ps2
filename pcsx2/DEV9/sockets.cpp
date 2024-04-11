@@ -14,7 +14,6 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "common/Assertions.h"
 #include "common/StringUtil.h"
 
 #ifdef _WIN32
@@ -389,10 +388,7 @@ void SocketAdapter::reloadSettings()
 	if (foundAdapter)
 		ReloadInternalServer(&adapter, true, ps2IP, subnet, gateway);
 	else
-	{
-		pxAssert(false);
 		ReloadInternalServer(nullptr, true, ps2IP, subnet, gateway);
-	}
 }
 
 bool SocketAdapter::SendIP(IP_Packet* ipPkt)

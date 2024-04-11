@@ -70,7 +70,6 @@ static void recADDI_const(void)
 
 static void recADDI_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
 	recMoveStoT(info);
 	xADD(xRegister32(EEREC_T), _Imm_);
 	xMOVSX(xRegister64(EEREC_T), xRegister32(EEREC_T));
@@ -92,7 +91,6 @@ static void recDADDI_const()
 
 static void recDADDI_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
 	recMoveStoT64(info);
 	xADD(xRegister64(EEREC_T), _Imm_);
 }
@@ -113,8 +111,6 @@ static void recSLTIU_const()
 
 static void recSLTIU_(int info)
 {
-	pxAssert(!(info & PROCESS_EE_XMM));
-
 	// TODO(Stenzek): this can be made to suck less by turning Rs into a temp and reallocating Rt.
 	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
 	xXOR(dreg, dreg);
@@ -182,10 +178,8 @@ static void recLogicalOpI(int info, LogicalOp op)
 {
 	xImpl_G1Logic bad{};
 	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
-														 op == LogicalOp::XOR    ? xXOR :
-                                                                                   bad;
-	pxAssert(&xOP != &bad);
-
+		op == LogicalOp::XOR    ? xXOR :
+		bad;
 	if (_ImmU_ != 0)
 	{
 		recMoveStoT64(info);

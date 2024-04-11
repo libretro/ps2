@@ -26,7 +26,6 @@
 #include "fmt/core.h"
 
 #include "common/Align.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 #include "common/General.h"
 
@@ -185,8 +184,6 @@ static __ri uint LinuxProt(const PageProtectionMode& mode)
 
 void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode& mode)
 {
-	pxAssertDev((size & (__pagesize - 1)) == 0, "Size is page aligned");
-
 	if (mode.IsNone())
 		return nullptr;
 
@@ -213,7 +210,6 @@ void HostSys::Munmap(void* base, size_t size)
 
 void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode& mode)
 {
-	pxAssertDev((size & (__pagesize - 1)) == 0, "Size is page aligned");
 	const u32 lnxmode = LinuxProt(mode);
 	mprotect(baseaddr, size, lnxmode);
 }
@@ -301,8 +297,6 @@ std::unique_ptr<SharedMemoryMappingArea> SharedMemoryMappingArea::Create(size_t 
 
 u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode& mode)
 {
-	pxAssert(static_cast<u8*>(map_base) >= m_base_ptr && static_cast<u8*>(map_base) < (m_base_ptr + m_size));
-
 	const uint lnxmode = LinuxProt(mode);
 	void* const ptr = mmap(map_base, map_size, lnxmode, MAP_SHARED | MAP_FIXED,
 		static_cast<int>(reinterpret_cast<intptr_t>(file_handle)), static_cast<off_t>(file_offset));
@@ -315,8 +309,6 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 
 bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 {
-	pxAssert(static_cast<u8*>(map_base) >= m_base_ptr && static_cast<u8*>(map_base) < (m_base_ptr + m_size));
-
 	if (mmap(map_base, map_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED)
 		return false;
 

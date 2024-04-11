@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include "common/Assertions.h"
 #include "common/SafeArray.h"
 
 // Internal constructor for use by derived classes.  This allows a derived class to
@@ -89,7 +88,6 @@ void SafeArray<T>::Dispose()
 template <typename T>
 T* SafeArray<T>::_getPtr(uint i) const
 {
-	pxAssumeDev(i < static_cast<uint>(m_size), "Array index in bounds");
 	return &m_ptr[i];
 }
 

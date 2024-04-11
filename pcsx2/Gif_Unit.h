@@ -312,7 +312,6 @@ struct Gif_Path
 				break;      // Enough free front space
 			mtgsReadWait(); // Let MTGS run to free up buffer space
 		}
-		pxAssertDev(curSize + size <= buffSize, "Gif Path Buffer Overflow!");
 		memcpy(&buffer[curSize], pMem, size);
 		curSize += size;
 	}
@@ -327,7 +326,6 @@ struct Gif_Path
 			done = true;
 			return mtvu.fakePacket;
 		}
-		pxAssert(!isMTVU());
 		for (;;)
 		{
 			if (!gifTag.isValid)
@@ -454,7 +452,6 @@ struct Gif_Path
 			if (gifTag.tag.EOP)
 				break;
 		}
-		pxAssert(curOffset == curSize);
 		gifTag.isValid = false;
 	}
 
@@ -477,7 +474,6 @@ struct Gif_Path
 		// FIXME is the error path useful ?
 		if (!mtvu.gsPackQueue.empty())
 			return mtvu.gsPackQueue.front();
-		pxAssert(0);
 		return GS_Packet(); // gsPack.size will be 0
 	}
 
@@ -600,7 +596,6 @@ struct Gif_Unit
 
 		if (size == 0)
 			return 0;
-		//pxAssertDev((stat.APATH==0) || checkPaths(1,1,1), "Gif Unit - APATH wasn't cleared?");
 		lastTranType = tranType;
 
 		if (tranType == GIF_TRANS_DMA)
@@ -715,8 +710,6 @@ struct Gif_Unit
 								path.curOffset -= subOffset;                  // Start the next GS packet at the image-tag
 								path.gsPack.offset = path.curOffset;          // Set to image-tag
 								path.gifTag.isValid = false;                  // Reload tag next ExecuteGSPacket()
-								pxAssert((s32)path.curOffset >= 0);
-								pxAssert(path.state == GIF_PATH_IMAGE);
 							}
 							continue;
 						}

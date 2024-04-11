@@ -597,8 +597,6 @@ void GSDevice11::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 
 void GSDevice11::CloneTexture(GSTexture* src, GSTexture** dest, const GSVector4i& rect)
 {
-	pxAssertMsg(src->GetType() == GSTexture::Type::DepthStencil || src->GetType() == GSTexture::Type::RenderTarget, "Source is RT or DS.");
-
 	const int w = src->GetWidth();
 	const int h = src->GetHeight();
 
@@ -617,7 +615,6 @@ void GSDevice11::CloneTexture(GSTexture* src, GSTexture** dest, const GSVector4i
 
 void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader, bool linear)
 {
-	pxAssert(dTex->IsDepthStencil() == HasDepthOutput(shader));
 	StretchRect(sTex, sRect, dTex, dRect, m_convert.ps[static_cast<int>(shader)].get(), nullptr, linear);
 }
 

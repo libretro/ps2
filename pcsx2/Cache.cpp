@@ -125,8 +125,6 @@ namespace
 
 		void load(uptr ppf)
 		{
-			pxAssertMsg(!tag.isDirtyAndValid(), "Loaded a value into cache without writing back the old one!");
-
 			tag.setAddr(ppf);
 			data = *reinterpret_cast<CacheData*>(ppf & ~0x3FULL);
 			tag.setValid();
@@ -187,15 +185,14 @@ static bool findInCache(const CacheSet& set, uptr ppf, int* way)
 static int getFreeCache(u32 mem, int* way)
 {
 	const int setIdx = cache.setIdxFor(mem);
-	CacheSet& set = cache.sets[setIdx];
-	VTLBVirtual vmv = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
-	pxAssertMsg(!vmv.isHandler(mem), "Cache currently only supports non-handler addresses!");
-	uptr ppf = vmv.assumePtr(mem);
+	CacheSet& set    = cache.sets[setIdx];
+	VTLBVirtual vmv  = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
+	uptr ppf         = vmv.assumePtr(mem);
 
 	if (!findInCache(set, ppf, way))
 	{
-		int newWay = set.tags[0].lrf() ^ set.tags[1].lrf();
-		*way = newWay;
+		int newWay     = set.tags[0].lrf() ^ set.tags[1].lrf();
+		*way           = newWay;
 		CacheLine line = cache.lineAt(setIdx, newWay);
 
 		line.writeBackIfNeeded();

@@ -337,8 +337,6 @@ static void _psxCheckEndGate(int i)
 
 void psxCheckStartGate16(int i)
 {
-	pxAssert(i < 3);
-
 	if (i == 0) // hSync counting
 	{
 		// AlternateSource/scanline counters for Gates 1 and 3.
@@ -373,20 +371,17 @@ void psxCheckStartGate16(int i)
 
 void psxCheckEndGate16(int i)
 {
-	pxAssert(i < 3);
 	_psxCheckEndGate(i);
 }
 
 static void psxCheckStartGate32(int i)
 {
 	// 32 bit gate is called for gate 3 only.  Ever.
-	pxAssert(i == 3);
 	_psxCheckStartGate(i);
 }
 
 static void psxCheckEndGate32(int i)
 {
-	pxAssert(i == 3);
 	_psxCheckEndGate(i);
 }
 
@@ -513,8 +508,6 @@ void psxRcntWcount16(int index, u16 value)
 {
 	u32 change;
 
-	pxAssert(index < 3);
-
 	if (psxCounters[index].rate != PSXHBLANK)
 	{
 		// Re-adjust the sCycleT to match where the counter is currently
@@ -542,8 +535,6 @@ void psxRcntWcount16(int index, u16 value)
 void psxRcntWcount32(int index, u32 value)
 {
 	u32 change;
-
-	pxAssert(index >= 3 && index < 6);
 
 	if (psxCounters[index].rate != PSXHBLANK)
 	{
@@ -573,7 +564,6 @@ __fi void psxRcntWmode16(int index, u32 value)
 {
 	int irqmode = 0;
 
-	pxAssume(index >= 0 && index < 3);
 	psxCounter& counter = psxCounters[index];
 
 	counter.mode = (value & IOPCNT_MODE_WRITE_MSK) | (counter.mode & IOPCNT_MODE_FLAG_MSK); // Write new value, preserve flags
@@ -640,7 +630,6 @@ __fi void psxRcntWmode16(int index, u32 value)
 __fi void psxRcntWmode32(int index, u32 value)
 {
 	int irqmode = 0;
-	pxAssume(index >= 3 && index < 6);
 	psxCounter& counter = psxCounters[index];
 
 	counter.mode = (value & IOPCNT_MODE_WRITE_MSK) | (counter.mode & IOPCNT_MODE_FLAG_MSK); // Write new value, preserve flags
@@ -698,7 +687,6 @@ __fi void psxRcntWmode32(int index, u32 value)
 //
 void psxRcntWtarget16(int index, u32 value)
 {
-	pxAssert(index < 3);
 	psxCounters[index].target = value & 0xffff;
 
 	if (!(psxCounters[index].mode & IOPCNT_INT_TOGGLE))
@@ -718,8 +706,6 @@ void psxRcntWtarget16(int index, u32 value)
 
 void psxRcntWtarget32(int index, u32 value)
 {
-	pxAssert(index >= 3 && index < 6);
-
 	psxCounters[index].target = value;
 
 	if (!(psxCounters[index].mode & IOPCNT_INT_TOGGLE))
@@ -741,8 +727,6 @@ u16 psxRcntRcount16(int index)
 {
 	u32 retval = (u32)psxCounters[index].count;
 
-	pxAssert(index < 3);
-
 	// Don't count HBLANK timers
 	// Don't count stopped gates either.
 
@@ -759,8 +743,6 @@ u16 psxRcntRcount16(int index)
 u32 psxRcntRcount32(int index)
 {
 	u32 retval = (u32)psxCounters[index].count;
-
-	pxAssert(index >= 3 && index < 6);
 
 	if (!(psxCounters[index].mode & IOPCNT_STOPPED) &&
 		(psxCounters[index].rate != PSXHBLANK))

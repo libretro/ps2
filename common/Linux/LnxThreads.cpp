@@ -38,7 +38,6 @@
 #endif
 
 #include "common/Threading.h"
-#include "common/Assertions.h"
 
 // We wont need this until we actually have this more then just stubbed out, so I'm commenting this out
 // to remove an unneeded dependency.

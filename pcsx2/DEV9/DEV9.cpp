@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Assertions.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
@@ -253,7 +252,6 @@ void HDDWriteFIFO()
 		if (spaceSectors < 0)
 		{
 			Console.Error("DEV9: No Space on SPEED FIFO");
-			pxAssert(false);
 			abort();
 		}
 

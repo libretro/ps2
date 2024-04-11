@@ -84,7 +84,6 @@ void rcntReset(int index) {
 static __fi void _rcntSet( int cntidx )
 {
 	s32 c;
-	pxAssume( cntidx <= 4 );		// rcntSet isn't valid for h/vsync counters.
 
 	const Counter& counter = counters[cntidx];
 
@@ -371,7 +370,6 @@ void UpdateVSyncRate(bool force)
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
 				Console.Error("PCSX2-Counters: Unknown video mode detected");
-				pxAssertDev(false, "Unknown video mode detected via SetGsCrt");
 		}
 
 		const bool video_mode_initialized = gsVideoMode != GS_VideoMode::Uninitialized;
@@ -933,8 +931,6 @@ __fi u16 rcntRead32( u32 mem )
 template< uint page >
 __fi bool rcntWrite32( u32 mem, mem32_t& value )
 {
-	pxAssume( mem >= RCNT0_COUNT && mem < 0x10002000 );
-
 	// [TODO] : counters should actually just use the EE's hw register space for storing
 	// count, mode, target, and hold. This will allow for a simplified handler for register
 	// reads.

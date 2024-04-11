@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Assertions.h"
 #include <memory>
 
 #ifdef _WIN32
@@ -118,7 +117,6 @@ AdapterOptions PCAPAdapter::GetAdapterOptions()
 }
 bool PCAPAdapter::blocks()
 {
-	pxAssert(hpcap);
 	return blocking;
 }
 bool PCAPAdapter::isInitialised()
@@ -128,8 +126,6 @@ bool PCAPAdapter::isInitialised()
 //gets a packet.rv :true success
 bool PCAPAdapter::recv(NetPacket* pkt)
 {
-	pxAssert(hpcap);
-
 	if (!blocking && NetAdapter::recv(pkt))
 		return true;
 
@@ -145,8 +141,6 @@ bool PCAPAdapter::recv(NetPacket* pkt)
 			Console.Error("DEV9: Dropped jumbo frame of size: %u", header->len);
 			continue;
 		}
-
-		pxAssert(header->len == header->caplen);
 
 		memcpy(pkt->buffer, pkt_data, header->len);
 		pkt->size = (int)header->len;
@@ -167,8 +161,6 @@ bool PCAPAdapter::recv(NetPacket* pkt)
 //sends the packet .rv :true success
 bool PCAPAdapter::send(NetPacket* pkt)
 {
-	pxAssert(hpcap);
-
 	InspectSend(pkt);
 	if (NetAdapter::send(pkt))
 		return true;

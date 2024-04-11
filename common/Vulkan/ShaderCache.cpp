@@ -19,7 +19,6 @@
 #include "common/Vulkan/ShaderCompiler.h"
 #include "common/Vulkan/Context.h"
 #include "common/Vulkan/Util.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/MD5Digest.h"
@@ -123,7 +122,6 @@ namespace Vulkan
 
 	void ShaderCache::Create(std::string_view base_path, u32 version, bool debug)
 	{
-		pxAssert(!g_vulkan_shader_cache);
 		g_vulkan_shader_cache.reset(new ShaderCache());
 		g_vulkan_shader_cache->Open(base_path, version, debug);
 	}

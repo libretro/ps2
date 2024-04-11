@@ -255,10 +255,8 @@ static void recEventTest()
 
 // The address for all cleared blocks.  It recompiles the current pc and then
 // dispatches to the recompiled block address.
-static DynGenFunc* _DynGen_JITCompile()
+static DynGenFunc* _DynGen_JITCompile(void)
 {
-	pxAssertMsg(DispatcherReg != NULL, "Please compile the DispatcherReg subroutine *before* JITComple.  Thanks.");
-
 	u8* retval = xGetAlignedCallTarget();
 
 	xFastCall((void*)recRecompile, ptr32[&cpuRegs.pc]);
@@ -276,7 +274,7 @@ static DynGenFunc* _DynGen_JITCompile()
 	return (DynGenFunc*)retval;
 }
 
-static DynGenFunc* _DynGen_JITCompileInBlock()
+static DynGenFunc* _DynGen_JITCompileInBlock(void)
 {
 	u8* retval = xGetAlignedCallTarget();
 	xJMP((void*)JITCompile);
@@ -312,8 +310,6 @@ static DynGenFunc* _DynGen_DispatcherEvent()
 
 static DynGenFunc* _DynGen_EnterRecompiledCode()
 {
-	pxAssertDev(DispatcherReg != NULL, "Dynamically generated dispatchers are required prior to generating EnterRecompiledCode!");
-
 	u8* retval = xGetAlignedCallTarget();
 
 	{ // Properly scope the frame prologue/epilogue
@@ -759,8 +755,6 @@ void SetBranchImm(u32 imm)
 {
 	g_branch = 1;
 
-	pxAssert(imm);
-
 	// end the current block
 	iFlushCall(FLUSH_EVERYTHING);
 	xMOV(ptr32[&cpuRegs.pc], imm);
@@ -784,7 +778,6 @@ u8* recEndThunk()
 {
 	u8* block_end = x86Ptr;
 
-	pxAssert(block_end < recMem->GetPtrEnd());
 	recPtr = block_end;
 	return block_end;
 }
@@ -1331,7 +1324,6 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 		ApplyDynamicPatches(pc);
 
 	s_pCode = (int*)PSM(pc);
-	pxAssert(s_pCode);
 
 	const int old_code = cpuRegs.code;
 	EEINST* old_inst_info = g_pCurInstInfo;
@@ -1385,8 +1377,6 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 
 	const OPCODE& opcode = GetCurrentInstruction();
 
-	//pxAssert( !(g_pCurInstInfo->info & EEINSTINFO_NOREC) );
-	//Console.Warning("opcode name = %s, it's cycles = %d\n",opcode.Name,opcode.cycles);
 	// if this instruction is a jump or a branch, exit right away
 	if (delayslot)
 	{
@@ -1681,8 +1671,6 @@ static void recRecompile(const u32 startpc)
 	u32 i = 0;
 	u32 willbranch3 = 0;
 
-	pxAssert(startpc);
-
 	// if recPtr reached the mem limit reset whole mem
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
 		eeRecNeedsReset = true;
@@ -1698,14 +1686,9 @@ static void recRecompile(const u32 startpc)
 
 	s_pCurBlock = PC_GETBLOCK(startpc);
 
-	pxAssert(s_pCurBlock->GetFnptr() == (uptr)JITCompile || s_pCurBlock->GetFnptr() == (uptr)JITCompileInBlock);
-
 	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
-	pxAssert(!s_pCurBlockEx || s_pCurBlockEx->startpc != HWADDR(startpc));
 
 	s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uptr)recPtr);
-
-	pxAssert(s_pCurBlockEx);
 
 	if (HWADDR(startpc) == EELOAD_START)
 	{
@@ -1750,7 +1733,6 @@ static void recRecompile(const u32 startpc)
 	s_nBlockInterlocked = false;
 	pc = startpc;
 	g_cpuHasConstReg = g_cpuFlushedConstReg = 1;
-	pxAssert(g_cpuConstRegs[0].UD[0] == 0);
 
 	_initX86regs();
 	_initXMMregs();
@@ -1985,7 +1967,6 @@ StartRecomp:
 			free(s_pInstCache);
 			s_nInstCacheSize = (s_nEndBlock - startpc) / 4 + 10;
 			s_pInstCache = (EEINST*)malloc(sizeof(EEINST) * s_nInstCacheSize);
-			pxAssert(s_pInstCache != NULL);
 		}
 
 		pcur = s_pInstCache + (s_nEndBlock - startpc) / 4;
@@ -2026,7 +2007,6 @@ StartRecomp:
 			recompileNextInstruction(false, false); // For the love of recursion, batman!
 	}
 
-	pxAssert((pc - startpc) >> 2 <= 0xffff);
 	s_pCurBlockEx->size = (pc - startpc) >> 2;
 
 	if (HWADDR(pc) <= Ps2MemSize::MainRam)
@@ -2049,7 +2029,6 @@ StartRecomp:
 			{
 				recClear(startpc, (pc - startpc) / 4);
 				s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
-				pxAssert(s_pCurBlockEx->startpc == HWADDR(startpc));
 				break;
 			}
 		}
@@ -2081,9 +2060,6 @@ StartRecomp:
 	}
 	else
 	{
-		if (g_branch)
-			pxAssert(!willbranch3);
-
 		if (willbranch3 || !g_branch)
 		{
 
@@ -2107,13 +2083,9 @@ StartRecomp:
 		}
 	}
 
-	pxAssert(xGetPtr() < recMem->GetPtrEnd());
-
 	s_pCurBlockEx->x86size = static_cast<u32>(xGetPtr() - recPtr);
 
 	recPtr = xGetPtr();
-
-	pxAssert((g_cpuHasConstReg & g_cpuFlushedConstReg) == g_cpuHasConstReg);
 
 	s_pCurBlock = NULL;
 	s_pCurBlockEx = NULL;

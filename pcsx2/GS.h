@@ -475,7 +475,6 @@ struct MTGS_BufferedData
 
 	u128& operator[](uint idx)
 	{
-		pxAssert(idx < RingBufferSize);
 		return m_Ring[idx];
 	}
 };

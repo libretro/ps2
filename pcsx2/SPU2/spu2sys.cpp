@@ -522,8 +522,6 @@ static u32 map_spu2to1(u32 addr)
 
 void V_Core::WriteRegPS1(u32 mem, u16 value)
 {
-	pxAssume(Index == 0); // Valid on Core 0 only!
-
 	u32 reg = mem & 0xffff;
 
 	if ((reg >= 0x1c00) && (reg < 0x1d80))
@@ -826,8 +824,6 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 
 u16 V_Core::ReadRegPS1(u32 mem)
 {
-	pxAssume(Index == 0); // Valid on Core 0 only!
-
 	u16 value = spu2Ru16(mem);
 
 	u32 reg = mem & 0xffff;

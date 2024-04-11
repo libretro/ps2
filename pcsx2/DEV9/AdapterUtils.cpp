@@ -35,7 +35,6 @@
 #include <sys/sysctl.h>
 #include <net/route.h>
 
-#include "common/Assertions.h"
 
 #endif
 #endif
@@ -455,7 +454,6 @@ std::vector<IP_Address> AdapterUtils::GetGateways(Adapter* adapter)
 		if (hdr->rtm_flags & RTF_GATEWAY && hdr->rtm_addrs & RTA_GATEWAY && (hdr->rtm_index == ifIndex))
 		{
 			sockaddr* sockaddrs = (sockaddr*)(hdr + 1);
-			pxAssert(sockaddrs[RTAX_DST].sa_family == AF_INET);
 
 			// Default gateway has no destination address.
 			sockaddr_in* sockaddr = (sockaddr_in*)&sockaddrs[RTAX_DST];

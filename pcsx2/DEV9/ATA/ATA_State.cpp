@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Assertions.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
@@ -238,7 +237,6 @@ void ATA::Close()
 	if (!writeQueue.IsQueueEmpty())
 	{
 		Console.Error("DEV9: ATA: Write queue not empty, possible data loss");
-		pxAssert(false);
 		abort(); //All data must be written at this point
 	}
 

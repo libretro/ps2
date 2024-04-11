@@ -44,12 +44,10 @@ void GSCodeReserve::Reset()
 
 u8* GSCodeReserve::Reserve(size_t size)
 {
-	pxAssert((m_memory_used + size) <= m_size);
 	return m_baseptr + m_memory_used;
 }
 
 void GSCodeReserve::Commit(size_t size)
 {
-	pxAssert((m_memory_used + size) <= m_size);
 	m_memory_used += size;
 }

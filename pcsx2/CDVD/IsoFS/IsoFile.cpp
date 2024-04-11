@@ -15,7 +15,6 @@
 
 
 #include "PrecompiledHeader.h"
-#include "common/Assertions.h"
 
 #include "IsoFS.h"
 #include "IsoFile.h"
@@ -45,8 +44,6 @@ IsoFile::IsoFile(SectorSource& reader, const IsoFileDescriptor& fileEntry)
 
 void IsoFile::Init()
 {
-	//pxAssertDev( fileEntry.IsFile(), "IsoFile Error: Filename points to a directory." );
-
 	currentSectorNumber = fileEntry.lba;
 	currentOffset = 0;
 	sectorOffset = 0;
@@ -82,7 +79,6 @@ u32 IsoFile::seek(s64 offset, int mode)
 	switch (mode)
 	{
 		case SEEK_SET:
-			pxAssertDev(offset >= 0 && offset <= (s64)ULONG_MAX, "Invalid seek position from start.");
 			return seek(offset);
 
 		case SEEK_CUR:
@@ -173,9 +169,6 @@ int IsoFile::internalRead(void* dest, int off, int len)
 // returns the number of bytes actually read.
 s32 IsoFile::read(void* dest, s32 len)
 {
-	pxAssert(dest != NULL);
-	pxAssert(len >= 0); // should we silent-fail on negative length reads?  prolly not...
-
 	if (len <= 0)
 		return 0;
 

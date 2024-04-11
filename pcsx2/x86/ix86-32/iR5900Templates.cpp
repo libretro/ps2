@@ -122,9 +122,6 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 		return;
 	}
 
-	// this function should not be used for lo/hi.
-	pxAssert(!(xmminfo & (XMMINFO_READLO | XMMINFO_READHI | XMMINFO_WRITELO | XMMINFO_WRITEHI)));
-
 	// we have to put these up here, because the register allocator below will wipe out const flags
 	// for the destination register when/if it switches it to write mode.
 	const bool s_is_const = GPR_IS_CONST1(_Rs_);
@@ -178,7 +175,6 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 		if (regd < 0)
 			regd = _allocX86reg(X86TYPE_GPR, _Rd_, moded);
 
-		pxAssert(regd >= 0);
 		info |= PROCESS_EE_SET_D(regd);
 	}
 
@@ -202,8 +198,6 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 
 void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int xmminfo)
 {
-	pxAssert((xmminfo & (XMMINFO_READS | XMMINFO_WRITET)) == (XMMINFO_READS | XMMINFO_WRITET));
-
 	if (!_Rt_)
 		return;
 
@@ -240,8 +234,6 @@ void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 // rd = rt op sa
 void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int xmminfo)
 {
-	pxAssert((xmminfo & (XMMINFO_READT | XMMINFO_WRITED)) == (XMMINFO_READT | XMMINFO_WRITED));
-
 	if (!_Rd_)
 		return;
 
@@ -392,10 +384,7 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 	}
 
 	if (xmminfo & XMMINFO_READD)
-	{
-		pxAssert(xmminfo & XMMINFO_WRITED);
 		mmregd = _allocFPtoXMMreg(_Fd_, MODE_READ);
-	}
 
 	if (xmminfo & XMMINFO_READACC)
 	{
@@ -486,19 +475,12 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 		}
 	}
 
-	pxAssert(mmregs >= 0 || mmregt >= 0 || mmregd >= 0 || mmregacc >= 0);
-
 	if (xmminfo & XMMINFO_WRITED)
-	{
-		pxAssert(mmregd >= 0);
 		info |= PROCESS_EE_SET_D(mmregd);
-	}
 	if (xmminfo & (XMMINFO_WRITEACC | XMMINFO_READACC))
 	{
 		if (mmregacc >= 0)
 			info |= PROCESS_EE_SET_ACC(mmregacc) | PROCESS_EE_ACC;
-		else
-			pxAssert(!(xmminfo & XMMINFO_WRITEACC));
 	}
 
 	if (xmminfo & XMMINFO_READS)
@@ -510,12 +492,6 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 	{
 		if (mmregt >= 0)
 			info |= PROCESS_EE_SET_T(mmregt);
-	}
-
-	// at least one must be in xmm
-	if ((xmminfo & (XMMINFO_READS | XMMINFO_READT)) == (XMMINFO_READS | XMMINFO_READT))
-	{
-		pxAssert(mmregs >= 0 || mmregt >= 0);
 	}
 
 	xmmcode(info);

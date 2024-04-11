@@ -37,9 +37,6 @@ using namespace Internal;
 //
 mem8_t iopHwRead8_Page1( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f801xxx:
-	pxAssume( (addr >> 12) == 0x1f801 );
-
 	const u32 masked_addr = addr & 0x0fff;
 
 	mem8_t ret = 0; // using a return var can be helpful in debugging.
@@ -82,9 +79,6 @@ mem8_t iopHwRead8_Page1( u32 addr )
 //
 mem8_t iopHwRead8_Page3( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f803xxx:
-	pxAssume( (addr >> 12) == 0x1f803 );
-
 	mem8_t ret;
 	if( addr == 0x1f803100 )	// PS/EE/IOP conf related
 		//ret = 0x10; // Dram 2M
@@ -98,9 +92,6 @@ mem8_t iopHwRead8_Page3( u32 addr )
 //
 mem8_t iopHwRead8_Page8( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f808xxx:
-	pxAssume( (addr >> 12) == 0x1f808 );
-
 	mem8_t ret;
 
 	if (addr == HW_SIO2_FIFO)
@@ -114,15 +105,6 @@ mem8_t iopHwRead8_Page8( u32 addr )
 template< typename T >
 static __fi T _HwRead_16or32_Page1( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f801xxx:
-	pxAssume( (addr >> 12) == 0x1f801 );
-
-	// all addresses should be aligned to the data operand size:
-	pxAssume(
-		( sizeof(T) == 2 && (addr & 1) == 0 ) ||
-		( sizeof(T) == 4 && (addr & 3) == 0 )
-	);
-
 	u32 masked_addr = pgmsk( addr );
 	T ret = 0;
 
@@ -216,17 +198,13 @@ static __fi T _HwRead_16or32_Page1( u32 addr )
 	// PS1 GPU access
 	//
 	else if( (masked_addr >= pgmsk(HW_PS1_GPU_START)) && (masked_addr < pgmsk(HW_PS1_GPU_END)) )
-	{
-		pxAssert(sizeof(T) == 4);
 		ret = psxDma2GpuR(addr);
-	}
 	else
 	{
 		switch( masked_addr )
 		{
 			// ------------------------------------------------------------------------
 			case (HW_SIO_DATA & 0x0fff):
-				Console.Warning("%s(%08X) Unexpected 16 or 32 bit access to SIO0 data register!", __FUNCTION__, addr);
 				ret = sio0.GetRxData();
 				ret |= sio0.GetRxData() << 8;
 				if (sizeof(T) == 4)
@@ -240,11 +218,6 @@ static __fi T _HwRead_16or32_Page1( u32 addr )
 				break;
 			case (HW_SIO_MODE & 0x0fff):
 				ret = sio0.GetMode();
-				
-				if (sizeof(T) == 4)
-				{
-					Console.Warning("%s(%08X) Unexpected 32 bit access to SIO0 MODE register!", __FUNCTION__, addr);
-				}
 				
 				break;
 			case (HW_SIO_CTRL & 0x0fff):
@@ -326,9 +299,6 @@ mem16_t iopHwRead16_Page1( u32 addr )
 //
 mem16_t iopHwRead16_Page3( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f803xxx:
-	pxAssume( (addr >> 12) == 0x1f803 );
-
 	mem16_t ret = psxHu16(addr);
 	return ret;
 }
@@ -337,9 +307,6 @@ mem16_t iopHwRead16_Page3( u32 addr )
 //
 mem16_t iopHwRead16_Page8( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f808xxx:
-	pxAssume( (addr >> 12) == 0x1f808 );
-
 	mem16_t ret = psxHu16(addr);
 	return ret;
 }
@@ -355,8 +322,6 @@ mem32_t iopHwRead32_Page1( u32 addr )
 //
 mem32_t iopHwRead32_Page3( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f803xxx:
-	pxAssume( (addr >> 12) == 0x1f803 );
 	const mem32_t ret = psxHu32(addr);
 	return ret;
 }
@@ -365,8 +330,6 @@ mem32_t iopHwRead32_Page3( u32 addr )
 //
 mem32_t iopHwRead32_Page8( u32 addr )
 {
-	// all addresses are assumed to be prefixed with 0x1f808xxx:
-	pxAssume( (addr >> 12) == 0x1f808 );
 
 	u32 masked_addr = addr & 0x0fff;
 	mem32_t ret;

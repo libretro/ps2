@@ -100,7 +100,6 @@ int IPU_Fifo_Input::read(void *value)
 		}
 
 		if (g_BP.IFC == 0) return 0;
-		pxAssert(g_BP.IFC > 0);
 	}
 
 	CopyQWC(value, &data[readpos]);
@@ -112,25 +111,19 @@ int IPU_Fifo_Input::read(void *value)
 
 int IPU_Fifo_Output::write(const u32 *value, uint size)
 {
-	pxAssertMsg(size>0, "Invalid size==0 when calling IPU_Fifo_Output::write");
-
 	uint origsize = size;
-	/*do {*/
-		//IPU0dma();
+	uint transsize = std::min(size, 8 - (uint)ipuRegs.ctrl.OFC);
+	if(!transsize) return 0;
 
-		uint transsize = std::min(size, 8 - (uint)ipuRegs.ctrl.OFC);
-		if(!transsize) return 0;
-
-		ipuRegs.ctrl.OFC += transsize;
-		size -= transsize;
-		while (transsize > 0)
-		{
-			CopyQWC(&data[writepos], value);
-			writepos = (writepos + 4) & 31;
-			value += 4;
-			--transsize;
-		}
-	/*} while(true);*/
+	ipuRegs.ctrl.OFC += transsize;
+	size -= transsize;
+	while (transsize > 0)
+	{
+		CopyQWC(&data[writepos], value);
+		writepos = (writepos + 4) & 31;
+		value += 4;
+		--transsize;
+	}
 	if(ipu0ch.chcr.STR)
 		IPU_INT_FROM(ipuRegs.ctrl.OFC * BIAS);
 	return origsize - size;
@@ -138,7 +131,6 @@ int IPU_Fifo_Output::write(const u32 *value, uint size)
 
 void IPU_Fifo_Output::read(void *value, uint size)
 {
-	pxAssert(ipuRegs.ctrl.OFC >= size);
 	ipuRegs.ctrl.OFC -= size;
 
 	while (size > 0)
@@ -153,7 +145,7 @@ void IPU_Fifo_Output::read(void *value, uint size)
 
 void ReadFIFO_IPUout(mem128_t* out)
 {
-	if (!pxAssertDev( ipuRegs.ctrl.OFC > 0, "Attempted read from IPUout's FIFO, but the FIFO is empty!" )) return;
+	if (!( ipuRegs.ctrl.OFC > 0)) return;
 	ipu_fifo.out.read(out, 1);
 
 	// Games should always check the fifo before reading from it -- so if the FIFO has no data

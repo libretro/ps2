@@ -150,7 +150,6 @@
     <ClInclude Include="StringUtil.h" />
     <ClInclude Include="SettingsInterface.h" />
     <ClInclude Include="SettingsWrapper.h" />
-    <ClInclude Include="Assertions.h" />
     <ClInclude Include="Console.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="General.h" />

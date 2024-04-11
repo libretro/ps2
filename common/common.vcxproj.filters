@@ -190,9 +190,6 @@
     <ClInclude Include="AlignedMalloc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Assertions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="emitter\implement\bmi.h">
       <Filter>Header Files</Filter>
     </ClInclude>

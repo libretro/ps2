@@ -20,35 +20,13 @@
 #include "Config.h"
 #include "Host.h"
 
-#include "common/Assertions.h"
-
 #include "fmt/format.h"
-
-static const char* nameFromType(int type)
-{
-	switch (type)
-	{
-		case ISOTYPE_CD:
-			return "CD";
-		case ISOTYPE_DVD:
-			return "DVD";
-		case ISOTYPE_AUDIO:
-			return "Audio CD";
-		case ISOTYPE_DVDDL:
-			return "DVD9 (dual-layer)";
-		case ISOTYPE_ILLEGAL:
-			return "Illegal media";
-		default:
-			return "Unknown or corrupt";
-	}
-}
 
 int InputIsoFile::ReadSync(u8* dst, uint lsn)
 {
 	if (lsn >= m_blocks)
 	{
 		std::string msg(fmt::format("isoFile error: Block index is past the end of file! ({} >= {}).", lsn, m_blocks));
-		pxAssertDev(false, msg.c_str());
 		Console.Error(msg.c_str());
 		return -1;
 	}

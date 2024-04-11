@@ -15,7 +15,6 @@
 
 #include <libretro.h>
 #include "common/Console.h"
-#include "common/Assertions.h"
 #include "common/StringUtil.h"
 
 // thread-local console indentation setting.
@@ -173,7 +172,6 @@ std::string IConsoleWriter::_addIndentation(const std::string& src, int glob_ind
 const IConsoleWriter& IConsoleWriter::SetIndent(int tabcount) const
 {
 	conlog_Indent += tabcount;
-	pxAssert(conlog_Indent >= 0);
 	return *this;
 }
 

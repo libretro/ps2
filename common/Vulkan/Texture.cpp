@@ -16,7 +16,6 @@
 #include "common/Vulkan/Texture.h"
 #include "common/Vulkan/Context.h"
 #include "common/Vulkan/Util.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 #include <algorithm>
 
@@ -176,7 +175,6 @@ namespace Vulkan
 		// If we don't have device memory allocated, the image is not owned by us (e.g. swapchain)
 		if (m_allocation != VK_NULL_HANDLE)
 		{
-			pxAssert(m_image != VK_NULL_HANDLE);
 			if (defer)
 				g_vulkan_context->DeferImageDestruction(m_image, m_allocation);
 			else

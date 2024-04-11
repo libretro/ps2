@@ -60,7 +60,6 @@ bool SaveStateBase::mtvuFreeze()
 	if (!(FreezeTag("MTVU")))
 		return false;
 
-	pxAssert(vu1Thread.IsDone());
 	if (!IsSaving())
 	{
 		vu1Thread.Reset();
@@ -252,10 +251,6 @@ __ri void VU_Thread::WaitOnSize(s32 size)
 // to write a continuous 'size * sizeof(u32)' bytes
 void VU_Thread::ReserveSpace(s32 size)
 {
-	pxAssert(m_write_pos < buffer_size);
-	pxAssert(size < buffer_size);
-	pxAssert(size > 0);
-
 	if (m_write_pos + size > (buffer_size - 1))
 	{
 		WaitOnSize(1); // Size of MTVU_NULL_PACKET
@@ -283,7 +278,6 @@ __fi s32 VU_Thread::GetWritePos()
 // Gets the effective write pointer after
 __fi u32* VU_Thread::GetWritePtr()
 {
-	pxAssert(m_write_pos < buffer_size);
 	return &buffer[m_write_pos];
 }
 

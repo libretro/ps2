@@ -17,7 +17,6 @@
 
 #include <memory>
 #include <stdexcept>
-#include "common/Assertions.h"
 #include "common/Pcsx2Defs.h"
 
 namespace Exception

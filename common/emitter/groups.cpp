@@ -29,7 +29,6 @@
  */
 
 #include "common/emitter/internal.h"
-#include "common/emitter/implement/helpers.h"
 
 namespace x86Emitter
 {
@@ -63,8 +62,6 @@ namespace x86Emitter
 
 	void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xRegisterInt& from)
 	{
-		pxAssert(to.GetOperandSize() == from.GetOperandSize());
-
 		u8 opcode = (to.Is8BitOp() ? 0 : 1) | (InstType << 3);
 		xOpWrite(to.GetPrefix16(), opcode, from, to);
 	}
@@ -207,8 +204,6 @@ namespace x86Emitter
 	template <typename SrcType>
 	static void _imul_ImmStyle(const xRegisterInt& param1, const SrcType& param2, int imm)
 	{
-		pxAssert(param1.GetOperandSize() == param2.GetOperandSize());
-
 		xOpWrite0F(param1.GetPrefix16(), is_s8(imm) ? 0x6b : 0x69, param1, param2, is_s8(imm) ? 1 : param1.GetImmSize());
 
 		if (is_s8(imm))
@@ -244,7 +239,6 @@ namespace x86Emitter
 
 	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, const xRegister16or32or64& bitoffset) const
 	{
-		pxAssert(bitbase->GetOperandSize() == bitoffset->GetOperandSize());
 		xOpWrite0F(bitbase->GetPrefix16(), 0xa3 | (InstType << 3), bitbase, bitoffset);
 	}
 	void xImpl_Group8::operator()(const xIndirect64& bitbase, u8 bitoffset) const { xOpWrite0F(0xba, InstType, bitbase, bitoffset); }

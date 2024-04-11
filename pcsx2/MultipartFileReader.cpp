@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "AsyncFileReader.h"
-#include "common/Assertions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
@@ -148,9 +147,6 @@ bool MultipartFileReader::Open(std::string fileName)
 
 uint MultipartFileReader::GetFirstPart(uint lsn)
 {
-	pxAssertMsg(lsn < GetBlockCount(),	"Invalid lsn passed into MultipartFileReader::GetFirstPart.");
-	pxAssertMsg(m_numparts, "Invalid object state; multi-part iso file needs at least one part!");
-
 	for (uint i = 0; i < m_numparts; ++i)
 	{
 		if (lsn < m_parts[i].end)

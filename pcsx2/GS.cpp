@@ -156,17 +156,15 @@ __fi void gsWrite16(u32 mem, u16 value)
 
 __fi void gsWrite32(u32 mem, u32 value)
 {
-	pxAssume( (mem & 3) == 0 );
-
 	switch (mem)
 	{
 		case GS_CSR:
 			gsCSRwrite(tGS_CSR(value));
-		return;
+			return;
 
 		case GS_IMR:
 			IMRwrite(value);
-		return;
+			return;
 	}
 
 	*(u32*)PS2GS_BASE(mem) = value;

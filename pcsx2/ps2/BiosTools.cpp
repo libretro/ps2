@@ -180,7 +180,6 @@ static bool LoadBiosVersion(std::FILE* fp, u32& version, std::string& descriptio
 template <size_t _size>
 void ChecksumIt(u32& result, const u8 (&srcdata)[_size])
 {
-	pxAssume((_size & 3) == 0);
 	for (size_t i = 0; i < _size / 4; ++i)
 		result ^= ((u32*)srcdata)[i];
 }
@@ -271,10 +270,8 @@ static std::string FindBiosImage()
 // Exceptions:
 //   BadStream - Thrown if the primary bios file (usually .bin) is not found, corrupted, etc.
 //
-bool LoadBIOS()
+bool LoadBIOS(void)
 {
-	pxAssertDev(eeMem->ROM != NULL, "PS2 system memory has not been initialized yet.");
-
 	std::string path = EmuConfig.FullpathToBios();
 	if (path.empty() || !FileSystem::FileExists(path.c_str()))
 	{

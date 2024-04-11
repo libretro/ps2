@@ -303,7 +303,6 @@ static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 	VURegs& VUx = idx ? VU1 : VU0;
 	vifStruct& vifX = GetVifX;
 	u16 vuMemSize = idx ? 0x4000 : 0x1000;
-	pxAssert(VUx.Micro);
 
 	vifExecQueue(idx);
 
@@ -571,8 +570,6 @@ static __fi int _vifCode_STColRow(const u32* data, u32* pmem2)
 	vifStruct& vifX = GetVifX;
 
 	int ret = std::min(4 - vifX.tag.addr, vifX.vifpacketsize);
-	pxAssume(vifX.tag.addr < 4);
-	pxAssume(ret > 0);
 
 	switch (ret)
 	{

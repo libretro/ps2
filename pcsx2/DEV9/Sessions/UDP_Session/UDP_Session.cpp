@@ -15,8 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Assertions.h"
-
 #ifdef __POSIX__
 #define SOCKET_ERROR -1
 #include <errno.h>
@@ -274,8 +272,6 @@ namespace Sessions
 #endif
 			}
 
-			pxAssert(isMulticast == false);
-
 			sockaddr_in endpoint{0};
 			endpoint.sin_family = AF_INET;
 			*(IP_Address*)&endpoint.sin_addr = destIP;
@@ -344,7 +340,6 @@ namespace Sessions
 			if (ret == ECONNREFUSED)
 #endif
 			{
-				pxAssert(isBroadcast == false && isMulticast == false);
 				if (isFixedPort)
 				{
 					sockaddr_in endpoint{0};
@@ -375,7 +370,6 @@ namespace Sessions
 				return false;
 			}
 		}
-		pxAssert(ret == udpPayload->GetLength());
 
 		if (srcPort == 0)
 			RaiseEventConnectionClosed();

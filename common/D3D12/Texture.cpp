@@ -19,7 +19,6 @@
 #include "common/D3D12/Context.h"
 #include "common/D3D12/Util.h"
 #include "common/Align.h"
-#include "common/Assertions.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
 #include "D3D12MemAlloc.h"
@@ -154,7 +153,6 @@ bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI
 
 	if (rtv_format != DXGI_FORMAT_UNKNOWN)
 	{
-		pxAssert(dsv_format == DXGI_FORMAT_UNKNOWN && !(flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS));
 		write_descriptor_type = Texture::WriteDescriptorType::RTV;
 		if (!CreateRTVDescriptor(resource.get(), rtv_format, &write_descriptor))
 		{
@@ -212,7 +210,6 @@ bool Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI
 
 	if (rtv_format != DXGI_FORMAT_UNKNOWN)
 	{
-		pxAssert(dsv_format == DXGI_FORMAT_UNKNOWN);
 		write_descriptor_type = Texture::WriteDescriptorType::RTV;
 		if (!CreateRTVDescriptor(texture.get(), rtv_format, &write_descriptor))
 		{

@@ -16,7 +16,6 @@
 #pragma once
 
 #include "common/Threading.h"
-#include "common/Assertions.h"
 #include "common/Pcsx2Defs.h"
 
 static const uint iREGCNT_XMM = 16;
@@ -184,7 +183,6 @@ namespace x86Emitter
 	public:
 		uint GetOperandSize() const
 		{
-			pxAssertDev(_operandSize != 0, "Attempted to use operand size of uninitialized or void object");
 			return _operandSize;
 		}
 
@@ -256,7 +254,6 @@ namespace x86Emitter
 		{
 			// Note: to avoid tons of ifdef, the 32 bits build will instantiate
 			// all 16x64 bits registers.
-			pxAssert((Id >= xRegId_Empty) && (Id < 16));
 		}
 
 	public:
@@ -380,7 +377,6 @@ namespace x86Emitter
 		explicit xRegister16(const xRegisterInt& other)
 			: _parent(2, other.Id)
 		{
-			pxAssertDev(other.canMapIDTo(2), "Mapping h registers to higher registers can produce unexpected values");
 		}
 
 		bool operator==(const xRegister16& src) const { return this->Id == src.Id; }
@@ -400,7 +396,6 @@ namespace x86Emitter
 		explicit xRegister32(const xRegisterInt& other)
 			: _parent(4, other.Id)
 		{
-			pxAssertDev(other.canMapIDTo(4), "Mapping h registers to higher registers can produce unexpected values");
 		}
 
 		static const inline xRegister32& GetInstance(uint id);
@@ -422,7 +417,6 @@ namespace x86Emitter
 		explicit xRegister64(const xRegisterInt& other)
 			: _parent(8, other.Id)
 		{
-			pxAssertDev(other.canMapIDTo(8), "Mapping h registers to higher registers can produce unexpected values");
 		}
 
 		static const inline xRegister64& GetInstance(uint id);
@@ -679,8 +673,6 @@ extern const xRegister32
 				&r8d, &r9d, &r10d, &r11d,
 				&r12d, &r13d, &r14d, &r15d,
 		};
-
-		pxAssert(id < iREGCNT_GPR);
 		return *m_tbl_x86Regs[id];
 	}
 
@@ -693,8 +685,6 @@ extern const xRegister32
 				&r8, &r9, &r10, &r11,
 				&r12, &r13, &r14, &r15
 		};
-
-		pxAssert(id < iREGCNT_GPR);
 		return *m_tbl_x86Regs[id];
 	}
 
@@ -717,8 +707,6 @@ extern const xRegister32
 				&xmm4, &xmm5, &xmm6, &xmm7,
 				&xmm8, &xmm9, &xmm10, &xmm11,
 				&xmm12, &xmm13, &xmm14, &xmm15};
-
-		pxAssert(id < iREGCNT_XMM);
 		return *m_tbl_xmmRegs[id];
 	}
 
@@ -730,8 +718,6 @@ extern const xRegister32
 				&ymm4, &ymm5, &ymm6, &ymm7,
 				&ymm8, &ymm9, &ymm10, &ymm11,
 				&ymm12, &ymm13, &ymm14, &ymm15};
-
-		pxAssert(id < iREGCNT_XMM);
 		return *m_tbl_ymmRegs[id];
 	}
 
@@ -751,12 +737,10 @@ extern const xRegister32
 #ifdef _WIN32
 		// Windows passes arguments according to their position from the left.
 		static constexpr const xAddressReg* regs[] = {&rcx, &rdx, &r8, &r9};
-		pxAssert(arg_number < std::size(regs));
 		return *regs[arg_number];
 #else
 		// Linux counts the number of GPR parameters.
 		static constexpr const xAddressReg* regs[] = {&rdi, &rsi, &rdx, &rcx};
-		pxAssert(gpr_number < std::size(regs));
 		return *regs[gpr_number];
 #endif
 	}
@@ -1064,8 +1048,6 @@ extern const xRegister32
 		return reg + (sptr)addr;
 	}
 } // namespace x86Emitter
-
-#include "implement/helpers.h"
 
 #include "implement/simd_helpers.h"
 #include "implement/simd_moremovs.h"

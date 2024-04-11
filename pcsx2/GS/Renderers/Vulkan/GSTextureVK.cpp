@@ -17,7 +17,6 @@
 #include "GSDeviceVK.h"
 #include "GSTextureVK.h"
 #include "common/Align.h"
-#include "common/Assertions.h"
 #include "common/Vulkan/Builders.h"
 #include "common/Vulkan/Context.h"
 #include "common/Vulkan/Util.h"
@@ -90,8 +89,6 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 heigh
 
 		case Type::RenderTarget:
 		{
-			pxAssert(levels == 1);
-
 			Vulkan::Texture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
@@ -109,8 +106,6 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 heigh
 
 		case Type::DepthStencil:
 		{
-			pxAssert(levels == 1);
-
 			Vulkan::Texture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
@@ -127,8 +122,6 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 heigh
 
 		case Type::RWTexture:
 		{
-			pxAssert(levels == 1);
-
 			Vulkan::Texture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
@@ -297,9 +290,6 @@ bool GSTextureVK::Map(GSMap& m, const GSVector4i* r, int layer)
 
 void GSTextureVK::Unmap()
 {
-	// this can't handle blocks/compressed formats at the moment.
-	pxAssert(m_map_level < m_texture.GetLevels() && !IsCompressedFormat());
-
 	// TODO: non-tightly-packed formats
 	const u32 width = static_cast<u32>(m_map_area.width());
 	const u32 height = static_cast<u32>(m_map_area.height());
@@ -495,14 +485,6 @@ void GSDownloadTextureVK::CopyFromTexture(
 	const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch)
 {
 	GSTextureVK* const vkTex = static_cast<GSTextureVK*>(stex);
-
-	pxAssert(vkTex->GetFormat() == m_format);
-	pxAssert(drc.width() == src.width() && drc.height() == src.height());
-	pxAssert(src.z <= vkTex->GetWidth() && src.w <= vkTex->GetHeight());
-	pxAssert(static_cast<u32>(drc.z) <= m_width && static_cast<u32>(drc.w) <= m_height);
-	pxAssert(src_level < static_cast<u32>(vkTex->GetMipmapLevels()));
-	pxAssert((drc.left == 0 && drc.top == 0) || !use_transfer_pitch);
-
 	u32 copy_offset, copy_size, copy_rows;
 	m_current_pitch =
 		GetTransferPitch(use_transfer_pitch ? static_cast<u32>(drc.width()) : m_width, g_vulkan_context->GetBufferCopyRowPitchAlignment());

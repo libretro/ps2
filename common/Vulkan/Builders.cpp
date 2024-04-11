@@ -16,7 +16,6 @@
 #include <limits>
 #include "common/Vulkan/Builders.h"
 #include "common/Vulkan/Util.h"
-#include "common/Assertions.h"
 #include <limits>
 
 namespace Vulkan
@@ -46,8 +45,6 @@ namespace Vulkan
 	void DescriptorSetLayoutBuilder::AddBinding(
 		u32 binding, VkDescriptorType dtype, u32 dcount, VkShaderStageFlags stages)
 	{
-		pxAssert(m_ci.bindingCount < MAX_BINDINGS);
-
 		VkDescriptorSetLayoutBinding& b = m_bindings[m_ci.bindingCount];
 		b.binding = binding;
 		b.descriptorType = dtype;
@@ -85,8 +82,6 @@ namespace Vulkan
 
 	void PipelineLayoutBuilder::AddDescriptorSet(VkDescriptorSetLayout layout)
 	{
-		pxAssert(m_ci.setLayoutCount < MAX_SETS);
-
 		m_sets[m_ci.setLayoutCount] = layout;
 
 		m_ci.setLayoutCount++;
@@ -95,8 +90,6 @@ namespace Vulkan
 
 	void PipelineLayoutBuilder::AddPushConstants(VkShaderStageFlags stages, u32 offset, u32 size)
 	{
-		pxAssert(m_ci.pushConstantRangeCount < MAX_PUSH_CONSTANTS);
-
 		VkPushConstantRange& r = m_push_constants[m_ci.pushConstantRangeCount];
 		r.stageFlags = stages;
 		r.offset = offset;
@@ -179,8 +172,6 @@ namespace Vulkan
 	void GraphicsPipelineBuilder::SetShaderStage(
 		VkShaderStageFlagBits stage, VkShaderModule module, const char* entry_point)
 	{
-		pxAssert(m_ci.stageCount < MAX_SHADER_STAGES);
-
 		u32 index = 0;
 		for (; index < m_ci.stageCount; index++)
 		{
@@ -203,8 +194,6 @@ namespace Vulkan
 	void GraphicsPipelineBuilder::AddVertexBuffer(
 		u32 binding, u32 stride, VkVertexInputRate input_rate /*= VK_VERTEX_INPUT_RATE_VERTEX*/)
 	{
-		pxAssert(m_vertex_input_state.vertexAttributeDescriptionCount < MAX_VERTEX_BUFFERS);
-
 		VkVertexInputBindingDescription& b = m_vertex_buffers[m_vertex_input_state.vertexBindingDescriptionCount];
 		b.binding = binding;
 		b.stride = stride;
@@ -217,8 +206,6 @@ namespace Vulkan
 
 	void GraphicsPipelineBuilder::AddVertexAttribute(u32 location, u32 binding, VkFormat format, u32 offset)
 	{
-		pxAssert(m_vertex_input_state.vertexAttributeDescriptionCount < MAX_VERTEX_BUFFERS);
-
 		VkVertexInputAttributeDescription& a =
 			m_vertex_attributes[m_vertex_input_state.vertexAttributeDescriptionCount];
 		a.location = location;
@@ -315,8 +302,6 @@ namespace Vulkan
 		VkColorComponentFlags
 			write_mask /* = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT */)
 	{
-		pxAssert(m_blend_state.attachmentCount < MAX_ATTACHMENTS);
-
 		VkPipelineColorBlendAttachmentState& bs = m_blend_attachments[m_blend_state.attachmentCount];
 		bs.blendEnable = blend_enable;
 		bs.srcColorBlendFactor = src_factor;
@@ -338,8 +323,6 @@ namespace Vulkan
 		VkColorComponentFlags
 			write_mask /*= VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT*/)
 	{
-		pxAssert(attachment < MAX_ATTACHMENTS);
-
 		VkPipelineColorBlendAttachmentState& bs = m_blend_attachments[attachment];
 		bs.blendEnable = blend_enable;
 		bs.srcColorBlendFactor = src_factor;
@@ -379,8 +362,6 @@ namespace Vulkan
 
 	void GraphicsPipelineBuilder::AddDynamicState(VkDynamicState state)
 	{
-		pxAssert(m_dynamic_state.dynamicStateCount < MAX_DYNAMIC_STATE);
-
 		m_dynamic_state_values[m_dynamic_state.dynamicStateCount] = state;
 		m_dynamic_state.dynamicStateCount++;
 		m_dynamic_state.pDynamicStates = m_dynamic_state_values.data();
@@ -562,8 +543,6 @@ namespace Vulkan
 
 	void DescriptorSetUpdateBuilder::Update(VkDevice device, bool clear /*= true*/)
 	{
-		pxAssert(m_num_writes > 0);
-
 		vkUpdateDescriptorSets(device, m_num_writes, (m_num_writes > 0) ? m_writes.data() : nullptr, 0, nullptr);
 
 		if (clear)
@@ -573,8 +552,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddImageDescriptorWrite(VkDescriptorSet set, u32 binding, VkImageView view,
 		VkImageLayout layout /*= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL*/)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_image_infos < MAX_IMAGE_INFOS);
-
 		VkDescriptorImageInfo& ii = m_image_infos[m_num_image_infos++];
 		ii.imageView = view;
 		ii.imageLayout = layout;
@@ -593,35 +570,13 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddImageDescriptorWrites(VkDescriptorSet set, u32 binding,
 		const VkImageView* views, u32 num_views, VkImageLayout layout /*= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL*/)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && (m_num_image_infos + num_views) < MAX_IMAGE_INFOS);
-
-#if 1
 		// NOTE: This is deliberately split up - updating multiple descriptors in one write is broken on Adreno.
 		for (u32 i = 0; i < num_views; i++)
 			AddImageDescriptorWrite(set, binding + i, views[i], layout);
-#else
-		VkWriteDescriptorSet& dw = m_writes[m_num_writes++];
-		dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		dw.dstSet = set;
-		dw.dstBinding = binding;
-		dw.descriptorCount = num_views;
-		dw.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		dw.pImageInfo = &m_image_infos[m_num_image_infos];
-
-		for (u32 i = 0; i < num_views; i++)
-		{
-			VkDescriptorImageInfo& ii = m_image_infos[m_num_image_infos++];
-			ii.imageView = views[i];
-			ii.imageLayout = layout;
-			ii.sampler = VK_NULL_HANDLE;
-		}
-#endif
 	}
 
 	void DescriptorSetUpdateBuilder::AddSamplerDescriptorWrite(VkDescriptorSet set, u32 binding, VkSampler sampler)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_image_infos < MAX_IMAGE_INFOS);
-
 		VkDescriptorImageInfo& ii = m_image_infos[m_num_image_infos++];
 		ii.imageView = VK_NULL_HANDLE;
 		ii.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -640,8 +595,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddSamplerDescriptorWrites(
 		VkDescriptorSet set, u32 binding, const VkSampler* samplers, u32 num_samplers)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && (m_num_image_infos + num_samplers) < MAX_IMAGE_INFOS);
-
 		VkWriteDescriptorSet& dw = m_writes[m_num_writes++];
 		dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		dw.dstSet = set;
@@ -662,8 +615,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddCombinedImageSamplerDescriptorWrite(VkDescriptorSet set, u32 binding,
 		VkImageView view, VkSampler sampler, VkImageLayout layout /*= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL*/)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_image_infos < MAX_IMAGE_INFOS);
-
 		VkDescriptorImageInfo& ii = m_image_infos[m_num_image_infos++];
 		ii.imageView = view;
 		ii.imageLayout = layout;
@@ -682,8 +633,6 @@ namespace Vulkan
 		const VkImageView* views, const VkSampler* samplers, u32 num_views,
 		VkImageLayout layout /* = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL */)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && (m_num_image_infos + num_views) < MAX_IMAGE_INFOS);
-
 		VkWriteDescriptorSet& dw = m_writes[m_num_writes++];
 		dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		dw.dstSet = set;
@@ -704,8 +653,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddBufferDescriptorWrite(
 		VkDescriptorSet set, u32 binding, VkDescriptorType dtype, VkBuffer buffer, u32 offset, u32 size)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_buffer_infos < MAX_BUFFER_INFOS);
-
 		VkDescriptorBufferInfo& bi = m_buffer_infos[m_num_buffer_infos++];
 		bi.buffer = buffer;
 		bi.offset = offset;
@@ -723,8 +670,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddBufferViewDescriptorWrite(
 		VkDescriptorSet set, u32 binding, VkDescriptorType dtype, VkBufferView view)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_views < MAX_VIEWS);
-
 		VkBufferView& bi = m_views[m_num_views++];
 		bi = view;
 
@@ -740,8 +685,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddInputAttachmentDescriptorWrite(
 		VkDescriptorSet set, u32 binding, VkImageView view, VkImageLayout layout /*= VK_IMAGE_LAYOUT_GENERAL*/)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_image_infos < MAX_IMAGE_INFOS);
-
 		VkWriteDescriptorSet& dw = m_writes[m_num_writes++];
 		dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		dw.dstSet = set;
@@ -759,8 +702,6 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::AddStorageImageDescriptorWrite(
 		VkDescriptorSet set, u32 binding, VkImageView view, VkImageLayout layout /*= VK_IMAGE_LAYOUT_GENERAL*/)
 	{
-		pxAssert(m_num_writes < MAX_WRITES && m_num_image_infos < MAX_IMAGE_INFOS);
-
 		VkWriteDescriptorSet& dw = m_writes[m_num_writes++];
 		dw.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		dw.dstSet = set;
@@ -799,8 +740,6 @@ namespace Vulkan
 
 	void FramebufferBuilder::AddAttachment(VkImageView image)
 	{
-		pxAssert(m_ci.attachmentCount < MAX_ATTACHMENTS);
-
 		m_images[m_ci.attachmentCount] = image;
 
 		m_ci.attachmentCount++;
@@ -841,8 +780,6 @@ namespace Vulkan
 	u32 RenderPassBuilder::AddAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp load_op,
 		VkAttachmentStoreOp store_op, VkImageLayout initial_layout, VkImageLayout final_layout)
 	{
-		pxAssert(m_ci.attachmentCount < MAX_ATTACHMENTS);
-
 		const u32 index = m_ci.attachmentCount;
 		VkAttachmentDescription& ad = m_attachments[index];
 		ad.format = format;
@@ -862,8 +799,6 @@ namespace Vulkan
 
 	u32 RenderPassBuilder::AddSubpass()
 	{
-		pxAssert(m_ci.subpassCount < MAX_SUBPASSES);
-
 		const u32 index = m_ci.subpassCount;
 		VkSubpassDescription& sp = m_subpasses[index];
 		sp.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -876,8 +811,6 @@ namespace Vulkan
 
 	void RenderPassBuilder::AddSubpassColorAttachment(u32 subpass, u32 attachment, VkImageLayout layout)
 	{
-		pxAssert(subpass < m_ci.subpassCount && m_num_attachment_references < MAX_ATTACHMENT_REFERENCES);
-
 		VkAttachmentReference& ar = m_attachment_references[m_num_attachment_references++];
 		ar.attachment = attachment;
 		ar.layout = layout;
@@ -890,8 +823,6 @@ namespace Vulkan
 
 	void RenderPassBuilder::AddSubpassDepthAttachment(u32 subpass, u32 attachment, VkImageLayout layout)
 	{
-		pxAssert(subpass < m_ci.subpassCount && m_num_attachment_references < MAX_ATTACHMENT_REFERENCES);
-
 		VkAttachmentReference& ar = m_attachment_references[m_num_attachment_references++];
 		ar.attachment = attachment;
 		ar.layout = layout;

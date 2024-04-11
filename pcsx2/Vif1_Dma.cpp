@@ -54,24 +54,9 @@ void vif1TransferToMemory()
 	// MTGS concerns:  The MTGS is inherently disagreeable with the idea of downloading
 	// stuff from the GS.  The *only* way to handle this case safely is to flush the GS
 	// completely and execute the transfer there-after.
-	//Console.Warning("Real QWC %x", vif1ch.qwc);
 	const u32 size = std::min(vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
-	//const u128* pMemEnd  = vif1.GSLastDownloadSize + pMem;
-
-	if (size)
-	{
-		// Checking if any crazy game does a partial
-		// gs primitive and then does a gs download...
-		Gif_Path& p1 = gifUnit.gifPath[GIF_PATH_1];
-		Gif_Path& p2 = gifUnit.gifPath[GIF_PATH_2];
-		Gif_Path& p3 = gifUnit.gifPath[GIF_PATH_3];
-		pxAssert(p1.isDone() || !p1.gifTag.isValid);
-		pxAssert(p2.isDone() || !p2.gifTag.isValid);
-		pxAssert(p3.isDone() || !p3.gifTag.isValid);
-	}
 
 	GetMTGS().InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
-	//	pMem += size;
 
 	//Some games such as Alex Ferguson's Player Manager 2001 reads less than GSLastDownloadSize by VIF then reads the remainder by FIFO
 	//Clearing the memory is clearing memory it shouldn't be and kills it.

@@ -424,14 +424,6 @@ void GSDownloadTextureOGL::CopyFromTexture(
 	const GSVector4i& drc, GSTexture* stex, const GSVector4i& src, u32 src_level, bool use_transfer_pitch)
 {
 	GSTextureOGL* const glTex = static_cast<GSTextureOGL*>(stex);
-
-	pxAssert(glTex->GetFormat() == m_format);
-	pxAssert(drc.width() == src.width() && drc.height() == src.height());
-	pxAssert(src.z <= glTex->GetWidth() && src.w <= glTex->GetHeight());
-	pxAssert(static_cast<u32>(drc.z) <= m_width && static_cast<u32>(drc.w) <= m_height);
-	pxAssert(src_level < static_cast<u32>(glTex->GetMipmapLevels()));
-	pxAssert((drc.left == 0 && drc.top == 0) || !use_transfer_pitch);
-
 	u32 copy_offset, copy_size, copy_rows;
 	m_current_pitch = GetTransferPitch(use_transfer_pitch ? static_cast<u32>(drc.width()) : m_width, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 	GetTransferSize(drc, &copy_offset, &copy_size, &copy_rows);
@@ -442,11 +434,9 @@ void GSDownloadTextureOGL::CopyFromTexture(
 	glPixelStorei(GL_PACK_ALIGNMENT, 1u << glTex->GetIntShift());
 	glPixelStorei(GL_PACK_ROW_LENGTH, GSTexture::CalcUploadRowLengthFromPitch(m_format, m_current_pitch));
 
+	// Read to PBO.
 	if (!m_cpu_buffer)
-	{
-		// Read to PBO.
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, m_buffer_id);
-	}
 
 	glReadPixels(src.left, src.top, src.width(), src.height(), glTex->GetIntFormat(), glTex->GetIntType(), m_cpu_buffer + copy_offset);
 

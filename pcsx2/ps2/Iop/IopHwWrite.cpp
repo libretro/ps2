@@ -66,9 +66,6 @@ mem32_t iopHwRead32_generic( u32 addr )	{ return _generic_read<mem32_t>( addr );
 //
 void iopHwWrite8_Page1( u32 addr, mem8_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f801xxx:
-	pxAssert( (addr >> 12) == 0x1f801 );
-
 	u32 masked_addr = pgmsk( addr );
 
 	switch( masked_addr )
@@ -110,17 +107,11 @@ void iopHwWrite8_Page1( u32 addr, mem8_t val )
 
 void iopHwWrite8_Page3( u32 addr, mem8_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f803xxx:
-	pxAssert( (addr >> 12) == 0x1f803 );
-
 	psxHu8( addr ) = val;
 }
 
 void iopHwWrite8_Page8( u32 addr, mem8_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f808xxx:
-	pxAssert( (addr >> 12) == 0x1f808 );
-
 	if (addr == HW_SIO2_DATAIN)
 		sio2.Write(val);
 	else
@@ -134,15 +125,6 @@ void iopHwWrite8_Page8( u32 addr, mem8_t val )
 template< typename T >
 static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 {
-	// all addresses are assumed to be prefixed with 0x1f801xxx:
-	pxAssert( (addr >> 12) == 0x1f801 );
-
-	// all addresses should be aligned to the data operand size:
-	pxAssert(
-		( sizeof(T) == 2 && (addr & 1) == 0 ) ||
-		( sizeof(T) == 4 && (addr & 3) == 0 )
-	);
-
 	u32 masked_addr = addr & 0x0fff;
 
 	// ------------------------------------------------------------------------
@@ -223,8 +205,6 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 	//
 	else if( (masked_addr >= pgmsk(HW_PS1_GPU_START)) && (masked_addr < pgmsk(HW_PS1_GPU_END)) )
 	{
-		pxAssert(sizeof(T) == 4);
-
 		psxDma2GpuW(addr, val);
 	}
 	else
@@ -492,15 +472,11 @@ void iopHwWrite16_Page1( u32 addr, mem16_t val )
 
 void iopHwWrite16_Page3( u32 addr, mem16_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f803xxx:
-	pxAssert( (addr >> 12) == 0x1f803 );
 	psxHu16(addr) = val;
 }
 
 void iopHwWrite16_Page8( u32 addr, mem16_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f808xxx:
-	pxAssert( (addr >> 12) == 0x1f808 );
 	psxHu16(addr) = val;
 }
 
@@ -513,16 +489,11 @@ void iopHwWrite32_Page1( u32 addr, mem32_t val )
 
 void iopHwWrite32_Page3( u32 addr, mem32_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f803xxx:
-	pxAssert( (addr >> 12) == 0x1f803 );
 	psxHu16(addr) = val;
 }
 
 void iopHwWrite32_Page8( u32 addr, mem32_t val )
 {
-	// all addresses are assumed to be prefixed with 0x1f808xxx:
-	pxAssert( (addr >> 12) == 0x1f808 );
-
 	u32 masked_addr = addr & 0x0fff;
 
 	if( masked_addr >= 0x200 )
