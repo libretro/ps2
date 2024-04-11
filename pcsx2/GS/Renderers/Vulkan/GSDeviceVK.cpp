@@ -2226,29 +2226,31 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 bool GSDeviceVK::CheckFeatures()
 {
 	const VkPhysicalDeviceProperties& properties = g_vulkan_context->GetDeviceProperties();
-	const VkPhysicalDeviceFeatures& features = g_vulkan_context->GetDeviceFeatures();
-	const VkPhysicalDeviceLimits& limits = g_vulkan_context->GetDeviceLimits();
-	const u32 vendorID = properties.vendorID;
-	const bool isAMD = (vendorID == 0x1002 || vendorID == 0x1022);
-	// const bool isNVIDIA = (vendorID == 0x10DE);
+	const VkPhysicalDeviceFeatures& features     = g_vulkan_context->GetDeviceFeatures();
+	const VkPhysicalDeviceLimits& limits         = g_vulkan_context->GetDeviceLimits();
+	const u32 vendorID              = properties.vendorID;
+	const bool isAMD                = (vendorID == 0x1002 || vendorID == 0x1022);
+	// const bool isNVIDIA          = (vendorID == 0x10DE);
 
-	m_features.framebuffer_fetch = g_vulkan_context->GetOptionalExtensions().vk_ext_rasterization_order_attachment_access && !GSConfig.DisableFramebufferFetch;
-	m_features.texture_barrier = GSConfig.OverrideTextureBarriers != 0;
+	m_features.framebuffer_fetch    = g_vulkan_context->GetOptionalExtensions().vk_ext_rasterization_order_attachment_access && !GSConfig.DisableFramebufferFetch;
+	m_features.texture_barrier      = GSConfig.OverrideTextureBarriers != 0;
 	m_features.broken_point_sampler = isAMD;
-	// Usually, geometry shader indicates primid support
-	// However on Metal (MoltenVK), geometry shader is never available, but primid sometimes is
-	// Officially, it's available on GPUs that support barycentric coordinates (Newer AMD and Apple)
-	// Unofficially, it seems to work on older Intel GPUs (but breaks other things on newer Intel GPUs, see GSMTLDeviceInfo.mm for details)
-	// We'll only enable for the officially supported GPUs here.  We'll leave in the option of force-enabling it with OverrideGeometryShaders though.
-	m_features.primitive_id = features.geometryShader || g_vulkan_context->GetOptionalExtensions().vk_khr_fragment_shader_barycentric;
-	m_features.prefer_new_textures = true;
-	m_features.provoking_vertex_last = g_vulkan_context->GetOptionalExtensions().vk_ext_provoking_vertex;
-	m_features.dual_source_blend = features.dualSrcBlend && !GSConfig.DisableDualSourceBlend;
-	m_features.clip_control = true;
 #ifdef __APPLE__
-	m_features.vs_expand = false;
+	// On Metal (MoltenVK), primid is sometimes available, but broken on some older GPUs and MacOS versions.
+	// Officially, it's available on GPUs that support barycentric coordinates (Newer AMD and Apple)
+	// Unofficially, it seems to work on older Intel GPUs (but breaks other things on newer Intel GPUs)
+	m_features.primitive_id          = g_vulkan_context->GetOptionalExtensions().vk_khr_fragment_shader_barycentric;
 #else
-	m_features.vs_expand = g_vulkan_context->GetOptionalExtensions().vk_khr_shader_draw_parameters;
+	m_features.primitive_id          = true;
+#endif
+	m_features.prefer_new_textures   = true;
+	m_features.provoking_vertex_last = g_vulkan_context->GetOptionalExtensions().vk_ext_provoking_vertex;
+	m_features.dual_source_blend     = features.dualSrcBlend && !GSConfig.DisableDualSourceBlend;
+	m_features.clip_control          = true;
+#ifdef __APPLE__
+	m_features.vs_expand             = false;
+#else
+	m_features.vs_expand             = g_vulkan_context->GetOptionalExtensions().vk_khr_shader_draw_parameters;
 #endif
 
 	if (!m_features.dual_source_blend)
