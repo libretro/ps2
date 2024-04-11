@@ -114,7 +114,6 @@ static bool s_no_interlacing_cheats_loaded = false;
 static s32 s_active_widescreen_patches = 0;
 static u32 s_active_no_interlacing_patches = 0;
 static u32 s_mxcsr_saved;
-static bool s_gs_open_on_initialize = false;
 
 VMState VMManager::GetState()
 {
@@ -572,16 +571,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		return false;
 	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
 
-	s_gs_open_on_initialize = GetMTGS().IsOpen();
-	if (!s_gs_open_on_initialize && !GetMTGS().WaitForOpen())
-		// we assume GS is going to report its own error
-		return false;
-
-	ScopedGuard close_gs = []() {
-		if (!s_gs_open_on_initialize)
-			GetMTGS().WaitForClose();
-	};
-
 	if (!SPU2::Open())
 		return false;
 	ScopedGuard close_spu2(&SPU2::Close);
@@ -618,7 +607,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	close_dev9.Cancel();
 	close_pad.Cancel();
 	close_spu2.Cancel();
-	close_gs.Cancel();
 	close_cdvd.Cancel();
 	close_state.Cancel();
 
@@ -704,17 +692,7 @@ void VMManager::Shutdown(bool save_resume_state)
 	FWclose();
 	FileMcd_EmuClose();
 
-	// If the fullscreen UI is running, do a hardware reset on the GS
-	// so that the texture cache and targets are all cleared.
-	if (s_gs_open_on_initialize)
-	{
-		GetMTGS().WaitGS(false, false, false);
-		GetMTGS().ResetGS(true);
-	}
-	else
-	{
-		GetMTGS().WaitForClose();
-	}
+	GetMTGS().WaitForClose();
 
 	PADshutdown();
 	DEV9shutdown();
