@@ -15,10 +15,10 @@
 
 #pragma once
 
-#include "common/GL/Context.h"
-#include "common/GL/StreamBuffer.h"
-#include "common/GL/Program.h"
-#include "common/GL/ShaderCache.h"
+#include "GLContext.h"
+#include "GLStreamBuffer.h"
+#include "GLProgram.h"
+#include "GLShaderCache.h"
 #include "common/HashCombine.h"
 #include "GS/Renderers/Common/GSDevice.h"
 #include "GSTextureOGL.h"

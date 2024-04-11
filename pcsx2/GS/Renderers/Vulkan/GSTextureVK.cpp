@@ -17,10 +17,9 @@
 #include "GSDeviceVK.h"
 #include "GSTextureVK.h"
 #include "common/Align.h"
-#include "common/Vulkan/Builders.h"
-#include "common/Vulkan/Context.h"
-#include "common/Vulkan/Util.h"
-#include "GS/GSPerfMon.h"
+#include "VKBuilders.h"
+#include "VKContext.h"
+#include "VKUtil.h"
 
 GSTextureVK::GSTextureVK(Type type, Format format, Vulkan::Texture texture)
 	: m_texture(std::move(texture))

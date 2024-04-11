@@ -56,23 +56,11 @@
     <ClCompile Include="AlignedMalloc.cpp" />
     <ClCompile Include="Console.cpp" />
     <ClCompile Include="CrashHandler.cpp" />
-    <ClCompile Include="D3D11\ShaderCache.cpp" />
-    <ClCompile Include="D3D11\ShaderCompiler.cpp" />
-    <ClCompile Include="D3D12\Builders.cpp" />
-    <ClCompile Include="D3D12\DescriptorHeapManager.cpp" />
-    <ClCompile Include="D3D12\ShaderCache.cpp" />
-    <ClCompile Include="D3D12\StreamBuffer.cpp" />
-    <ClCompile Include="D3D12\Texture.cpp" />
-    <ClCompile Include="D3D12\Util.cpp" />
     <ClCompile Include="Exceptions.cpp" />
     <ClCompile Include="FastJmp.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="General.cpp" />
-    <ClCompile Include="GL\Context.cpp" />
-    <ClCompile Include="GL\Program.cpp" />
-    <ClCompile Include="GL\ShaderCache.cpp" />
-    <ClCompile Include="GL\StreamBuffer.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="MD5Digest.cpp" />
     <ClCompile Include="MemorySettingsInterface.cpp" />
@@ -81,15 +69,6 @@
     <ClCompile Include="StringUtil.cpp" />
     <ClCompile Include="SettingsWrapper.cpp" />
     <ClCompile Include="Timer.cpp" />
-    <ClCompile Include="Vulkan\vk_mem_alloc.cpp" />
-    <ClCompile Include="Vulkan\Builders.cpp" />
-    <ClCompile Include="Vulkan\Loader.cpp" />
-    <ClCompile Include="Vulkan\ShaderCache.cpp" />
-    <ClCompile Include="Vulkan\ShaderCompiler.cpp" />
-    <ClCompile Include="Vulkan\StreamBuffer.cpp" />
-    <ClCompile Include="Vulkan\SwapChain.cpp" />
-    <ClCompile Include="Vulkan\Texture.cpp" />
-    <ClCompile Include="Vulkan\Util.cpp" />
     <ClCompile Include="PrecompiledHeader.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -117,27 +96,13 @@
   </ItemGroup>
   <ItemGroup>
     <MASM Include="FastJmp.asm" />
-    <None Include="Vulkan\EntryPoints.inl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Align.h" />
     <ClInclude Include="AlignedMalloc.h" />
     <ClInclude Include="CrashHandler.h" />
-    <ClInclude Include="D3D11\ShaderCache.h" />
-    <ClInclude Include="D3D11\ShaderCompiler.h" />
-    <ClInclude Include="D3D12\Builders.h" />
-    <ClInclude Include="D3D12\Context.h" />
-    <ClInclude Include="D3D12\DescriptorHeapManager.h" />
-    <ClInclude Include="D3D12\ShaderCache.h" />
-    <ClInclude Include="D3D12\StreamBuffer.h" />
-    <ClInclude Include="D3D12\Texture.h" />
-    <ClInclude Include="D3D12\Util.h" />
     <ClInclude Include="boost_spsc_queue.hpp" />
     <ClInclude Include="FastJmp.h" />
-    <ClInclude Include="GL\Context.h" />
-    <ClInclude Include="GL\Program.h" />
-    <ClInclude Include="GL\ShaderCache.h" />
-    <ClInclude Include="GL\StreamBuffer.h" />
     <ClInclude Include="FileSystem.h" />
     <ClInclude Include="HashCombine.h" />
     <ClInclude Include="HeapArray.h" />
@@ -161,16 +126,6 @@
     <ClInclude Include="SafeArray.h" />
     <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="Timer.h" />
-    <ClInclude Include="Vulkan\Builders.h" />
-    <ClInclude Include="Vulkan\Context.h" />
-    <ClInclude Include="Vulkan\EntryPoints.h" />
-    <ClInclude Include="Vulkan\Loader.h" />
-    <ClInclude Include="Vulkan\ShaderCache.h" />
-    <ClInclude Include="Vulkan\ShaderCompiler.h" />
-    <ClInclude Include="Vulkan\StreamBuffer.h" />
-    <ClInclude Include="Vulkan\SwapChain.h" />
-    <ClInclude Include="Vulkan\Texture.h" />
-    <ClInclude Include="Vulkan\Util.h" />
     <ClInclude Include="WindowInfo.h" />
     <ClInclude Include="Threading.h" />
     <ClInclude Include="emitter\implement\avx.h" />

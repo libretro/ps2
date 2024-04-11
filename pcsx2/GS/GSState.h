@@ -22,7 +22,6 @@
 #include "Renderers/Common/GSVertex.h"
 #include "Renderers/Common/GSVertexTrace.h"
 #include "GSUtil.h"
-#include "GSPerfMon.h"
 #include "GSVector.h"
 #include "Renderers/Common/GSDevice.h"
 #include "GSCrc.h"

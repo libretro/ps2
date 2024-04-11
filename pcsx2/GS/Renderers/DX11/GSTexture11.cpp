@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "GSDevice11.h"
 #include "GSTexture11.h"
-#include "GS/GSPerfMon.h"
 #include "common/Align.h"
 
 GSTexture11::GSTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> texture, const D3D11_TEXTURE2D_DESC& desc,
@@ -50,9 +49,9 @@ DXGI_FORMAT GSTexture11::GetDXGIFormat(Format format)
 	case GSTexture::Format::BC7:          return DXGI_FORMAT_BC7_UNORM;
 	case GSTexture::Format::Invalid:
 	default:
-		ASSERT(0);
-		return DXGI_FORMAT_UNKNOWN;
+		break;
 	}
+	return DXGI_FORMAT_UNKNOWN;
 	// clang-format on
 }
 
@@ -80,10 +79,7 @@ bool GSTexture11::Update(const GSVector4i& r, const void* data, int pitch, int l
 bool GSTexture11::Map(GSMap& m, const GSVector4i* r, int layer)
 {
 	if (r != NULL)
-	{
-		// ASSERT(0); // not implemented
 		return false;
-	}
 
 	if (layer >= m_mipmap_levels)
 		return false;

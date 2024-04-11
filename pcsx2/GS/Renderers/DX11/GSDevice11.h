@@ -18,7 +18,7 @@
 #include "GSTexture11.h"
 #include "GS/GSVector.h"
 #include "GS/Renderers/Common/GSDevice.h"
-#include "common/D3D11/ShaderCache.h"
+#include "D3D11ShaderCache.h"
 #include <unordered_map>
 #include <wil/com.h>
 #include <dxgi1_5.h>

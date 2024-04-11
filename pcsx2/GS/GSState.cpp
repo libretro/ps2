@@ -19,6 +19,7 @@
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
 
+#include "GSPerfMon.h"
 #include "GSState.h"
 #include "GSUtil.h"
 #include "common/Path.h"

@@ -17,7 +17,6 @@
 #include "PrecompiledHeader.h"
 
 #include "GS/GS.h"
-#include "GS/GSPerfMon.h"
 #include "GS/GSUtil.h"
 #include "GS/Renderers/DX11/D3D.h"
 #include "GS/Renderers/DX12/GSDevice12.h"
@@ -29,10 +28,10 @@
 #include "common/ScopedGuard.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
-#include "common/D3D12/Builders.h"
-#include "common/D3D12/Context.h"
-#include "common/D3D12/ShaderCache.h"
-#include "common/D3D12/Util.h"
+#include "D3D12Builders.h"
+#include "D3D12Context.h"
+#include "D3D12ShaderCache.h"
+#include "D3D12Util.h"
 
 #include "D3D12MemAlloc.h"
 

@@ -31,10 +31,10 @@
 #include "common/FileSystem.h"
 #include "common/MemorySettingsInterface.h"
 #ifdef ENABLE_VULKAN
-#include "common/Vulkan/Loader.h"
-#include "common/Vulkan/Context.h"
+#include "GS/Renderers/Vulkan/VKLoader.h"
+#include "GS/Renderers/Vulkan/VKContext.h"
 #include "GS/Renderers/Vulkan/GSTextureVK.h"
-#include "libretro_vulkan.h"
+#include <libretro_vulkan.h>
 #endif
 #include "pcsx2/Frontend/CommonHost.h"
 #include "pcsx2/Frontend/InputManager.h"

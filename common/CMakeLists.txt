@@ -106,86 +106,18 @@ target_sources(common PRIVATE
 	emitter/x86types.h
 )
 
-if(USE_OPENGL)
-	target_sources(common PRIVATE
-		GL/Context.cpp
-		GL/Program.cpp
-		GL/ShaderCache.cpp
-		GL/StreamBuffer.cpp
-	)
-	target_sources(common PRIVATE
-		GL/Context.h
-		GL/Program.h
-		GL/ShaderCache.h
-		GL/StreamBuffer.h
-	)
-	target_link_libraries(common PUBLIC glad)
-endif()
-
-if(USE_VULKAN)
-	target_link_libraries(common PUBLIC
-		Vulkan-Headers glslang
-	)
-	target_sources(common PRIVATE
-		Vulkan/ShaderCache.cpp
-		Vulkan/Texture.cpp
-		Vulkan/Loader.cpp
-		Vulkan/ShaderCompiler.cpp
-		Vulkan/Util.cpp
-		Vulkan/SwapChain.cpp
-		Vulkan/StreamBuffer.cpp
-		Vulkan/Builders.cpp
-		Vulkan/vk_mem_alloc.cpp
-		Vulkan/Context.h
-		Vulkan/Texture.h
-		Vulkan/ShaderCompiler.h
-		Vulkan/SwapChain.h
-		Vulkan/Builders.h
-		Vulkan/StreamBuffer.h
-		Vulkan/ShaderCache.h
-		Vulkan/EntryPoints.h
-		Vulkan/Loader.h
-		Vulkan/Util.h
-	)
-endif()
-
 if(WIN32)
 	enable_language(ASM_MASM)
 	target_sources(common PRIVATE FastJmp.asm)
 	target_link_libraries(common PUBLIC WIL::WIL D3D12MemAlloc winmm)
 	target_sources(common PRIVATE
 		FastJmp.asm
-		D3D11/ShaderCache.cpp
-		D3D11/ShaderCache.h
-		D3D11/ShaderCompiler.cpp
-		D3D11/ShaderCompiler.h
-		D3D12/Builders.cpp
-		D3D12/Builders.h
-		D3D12/Context.h
-		D3D12/DescriptorHeapManager.cpp
-		D3D12/DescriptorHeapManager.h
-		D3D12/ShaderCache.cpp
-		D3D12/ShaderCache.h
-		D3D12/StreamBuffer.cpp
-		D3D12/StreamBuffer.h
-		D3D12/Texture.cpp
-		D3D12/Texture.h
-		D3D12/Util.cpp
-		D3D12/Util.h
 	)
 endif()
 
 if(APPLE)
 	target_compile_options(common PRIVATE -fobjc-arc)
 	target_link_options(common PRIVATE -fobjc-link-runtime)
-endif()
-
-if(USE_VULKAN)
-	if(APPLE)
-		# Needed for Metal surface creation.
-		target_compile_options(common PRIVATE -fobjc-arc)
-		target_link_options(common PRIVATE -fobjc-link-runtime)
-	endif()
 endif()
 
 if (USE_GCC AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)

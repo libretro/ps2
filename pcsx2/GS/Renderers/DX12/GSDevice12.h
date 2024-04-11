@@ -18,8 +18,8 @@
 #include "GS/GSVector.h"
 #include "GS/Renderers/Common/GSDevice.h"
 #include "GS/Renderers/DX12/GSTexture12.h"
-#include "common/D3D12/ShaderCache.h"
-#include "common/D3D12/StreamBuffer.h"
+#include "D3D12ShaderCache.h"
+#include "D3D12StreamBuffer.h"
 #include "common/HashCombine.h"
 #include <array>
 #include <unordered_map>

@@ -18,7 +18,7 @@
 #include "GSTextureVK.h"
 #include "GS/GSVector.h"
 #include "GS/Renderers/Common/GSDevice.h"
-#include "common/Vulkan/StreamBuffer.h"
+#include "VKStreamBuffer.h"
 #include "common/HashCombine.h"
 #include "vk_mem_alloc.h"
 #include <array>

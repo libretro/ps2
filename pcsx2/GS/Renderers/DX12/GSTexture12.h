@@ -17,8 +17,8 @@
 
 #include "GS/GS.h"
 #include "GS/Renderers/Common/GSTexture.h"
-#include "common/D3D12/Context.h"
-#include "common/D3D12/Texture.h"
+#include "D3D12Context.h"
+#include "D3D12Texture.h"
 
 class GSTexture12 final : public GSTexture
 {

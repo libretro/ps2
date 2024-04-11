@@ -26,7 +26,6 @@
 #include "GS/Renderers/SW/GSVertexSW.h"
 #include "GS/Renderers/SW/GSDrawScanline.h"
 #include "GS/GSAlignedClass.h"
-#include "GS/GSPerfMon.h"
 #include "GS/GSRingHeap.h"
 #include "GS/MultiISA.h"
 

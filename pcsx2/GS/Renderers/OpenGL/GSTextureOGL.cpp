@@ -15,11 +15,10 @@
 
 #include "PrecompiledHeader.h"
 #include <limits.h>
-#include "GS/Renderers/OpenGL/GSDeviceOGL.h"
-#include "GS/Renderers/OpenGL/GSTextureOGL.h"
-#include "GS/Renderers/OpenGL/GLState.h"
+#include "GSDeviceOGL.h"
+#include "GSTextureOGL.h"
+#include "GLState.h"
 #include "GS/GSExtra.h"
-#include "GS/GSPerfMon.h"
 #include "common/Align.h"
 #include "common/AlignedMalloc.h"
 #include "common/StringUtil.h"

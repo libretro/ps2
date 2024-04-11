@@ -19,7 +19,6 @@
 
 #include "GS/GS.h"
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
-#include "GS/GSPerfMon.h"
 #include "GS/GSUtil.h"
 #include "Host.h"
 #include "ShaderCacheVersion.h"
@@ -29,12 +28,12 @@
 #include "common/Console.h"
 #include "common/General.h"
 #include "common/StringUtil.h"
-#include "common/Vulkan/Builders.h"
-#include "common/Vulkan/Context.h"
-#include "common/Vulkan/ShaderCache.h"
-#include "common/Vulkan/ShaderCompiler.h"
-#include "common/Vulkan/SwapChain.h"
-#include "common/Vulkan/Util.h"
+#include "VKBuilders.h"
+#include "VKContext.h"
+#include "VKShaderCache.h"
+#include "VKShaderCompiler.h"
+#include "VKSwapChain.h"
+#include "VKUtil.h"
 
 #include <sstream>
 #include <limits>

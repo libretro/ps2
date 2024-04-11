@@ -15,6 +15,7 @@
 
 #include "PrecompiledHeader.h"
 
+#include "GS/GSPerfMon.h"
 #include "GS/Renderers/Common/GSRenderer.h"
 #include "Host.h"
 #include "PerformanceMetrics.h"

@@ -17,12 +17,11 @@
 #include "GSTexture12.h"
 #include "GSDevice12.h"
 #include "common/Align.h"
-#include "common/D3D12/Builders.h"
-#include "common/D3D12/Context.h"
-#include "common/D3D12/Util.h"
+#include "D3D12Builders.h"
+#include "D3D12Context.h"
+#include "D3D12Util.h"
 #include "common/StringUtil.h"
 #include "D3D12MemAlloc.h"
-#include "GS/GSPerfMon.h"
 
 GSTexture12::GSTexture12(Type type, Format format, D3D12::Texture texture)
 	: m_texture(std::move(texture))

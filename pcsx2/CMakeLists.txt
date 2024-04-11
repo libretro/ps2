@@ -537,12 +537,20 @@ if(USE_OPENGL)
 		GS/Renderers/OpenGL/GLState.cpp
 		GS/Renderers/OpenGL/GSDeviceOGL.cpp
 		GS/Renderers/OpenGL/GSTextureOGL.cpp
+		GS/Renderers/OpenGL/GLContext.cpp
+		GS/Renderers/OpenGL/GLProgram.cpp
+		GS/Renderers/OpenGL/GLShaderCache.cpp
+		GS/Renderers/OpenGL/GLStreamBuffer.cpp
 	)
 	list(APPEND pcsx2GSHeaders
 		GS/Renderers/OpenGL/GLLoader.h
 		GS/Renderers/OpenGL/GLState.h
 		GS/Renderers/OpenGL/GSDeviceOGL.h
 		GS/Renderers/OpenGL/GSTextureOGL.h
+		GS/Renderers/OpenGL/GLContext.h
+		GS/Renderers/OpenGL/GLProgram.h
+		GS/Renderers/OpenGL/GLShaderCache.h
+		GS/Renderers/OpenGL/GLStreamBuffer.h
 	)
 	target_link_libraries(PCSX2_FLAGS INTERFACE glad)
 endif()
@@ -551,11 +559,38 @@ if(USE_VULKAN)
 	list(APPEND pcsx2GSSources
 		GS/Renderers/Vulkan/GSDeviceVK.cpp
 		GS/Renderers/Vulkan/GSTextureVK.cpp
+		GS/Renderers/Vulkan/VKShaderCache.cpp
+		GS/Renderers/Vulkan/VKTexture.cpp
+		GS/Renderers/Vulkan/VKLoader.cpp
+		GS/Renderers/Vulkan/VKShaderCompiler.cpp
+		GS/Renderers/Vulkan/VKUtil.cpp
+		GS/Renderers/Vulkan/VKSwapChain.cpp
+		GS/Renderers/Vulkan/VKStreamBuffer.cpp
+		GS/Renderers/Vulkan/VKBuilders.cpp
+		GS/Renderers/Vulkan/vk_mem_alloc.cpp
 	)
 	list(APPEND pcsx2GSHeaders
 		GS/Renderers/Vulkan/GSDeviceVK.h
 		GS/Renderers/Vulkan/GSTextureVK.h
+		GS/Renderers/Vulkan/VKContext.h
+		GS/Renderers/Vulkan/VKTexture.h
+		GS/Renderers/Vulkan/VKShaderCompiler.h
+		GS/Renderers/Vulkan/VKSwapChain.h
+		GS/Renderers/Vulkan/VKBuilders.h
+		GS/Renderers/Vulkan/VKStreamBuffer.h
+		GS/Renderers/Vulkan/VKShaderCache.h
+		GS/Renderers/Vulkan/VKEntryPoints.h
+		GS/Renderers/Vulkan/VKLoader.h
+		GS/Renderers/Vulkan/VKUtil.h
 	)
+	target_link_libraries(common PUBLIC
+		Vulkan-Headers glslang
+	)
+	if(APPLE)
+		# Needed for Metal surface creation.
+		target_compile_options(common PRIVATE -fobjc-arc)
+		target_link_options(common PRIVATE -fobjc-link-runtime)
+	endif()
 endif()
 
 if(WIN32)
@@ -580,15 +615,32 @@ if(WIN32)
 		GS/Renderers/DX11/GSDevice11.cpp
 		GS/Renderers/DX11/GSTexture11.cpp
 		GS/Renderers/DX11/GSTextureFX11.cpp
+		GS/Renderers/DX11/D3D11ShaderCache.cpp
+		GS/Renderers/DX11/D3D11ShaderCompiler.cpp
 		GS/Renderers/DX12/GSDevice12.cpp
 		GS/Renderers/DX12/GSTexture12.cpp
+		GS/Renderers/DX12/D3D12Builders.cpp
+		GS/Renderers/DX12/D3D12DescriptorHeapManager.cpp
+		GS/Renderers/DX12/D3D12ShaderCache.cpp
+		GS/Renderers/DX12/D3D12StreamBuffer.cpp
+		GS/Renderers/DX12/D3D12Texture.cpp
+		GS/Renderers/DX12/D3D12Util.cpp
 	)
 	list(APPEND pcsx2GSHeaders
 		GS/Renderers/DX11/D3D.h
 		GS/Renderers/DX11/GSDevice11.h
 		GS/Renderers/DX11/GSTexture11.h
+		GS/Renderers/DX11/D3D11ShaderCache.h
+		GS/Renderers/DX11/D3D11ShaderCompiler.h
 		GS/Renderers/DX12/GSDevice12.h
 		GS/Renderers/DX12/GSTexture12.h
+		GS/Renderers/DX12/D3D12Builders.h
+		GS/Renderers/DX12/D3D12Context.h
+		GS/Renderers/DX12/D3D12DescriptorHeapManager.h
+		GS/Renderers/DX12/D3D12ShaderCache.h
+		GS/Renderers/DX12/D3D12StreamBuffer.h
+		GS/Renderers/DX12/D3D12Texture.h
+		GS/Renderers/DX12/D3D12Util.h
 	)
 elseif(Linux)
 	list(APPEND pcsx2USBSources

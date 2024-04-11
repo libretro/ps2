@@ -20,8 +20,8 @@
 
 #include "GS/GSState.h"
 #include "GS/GSUtil.h"
-#include "GS/Renderers/OpenGL/GSDeviceOGL.h"
-#include "GS/Renderers/OpenGL/GLState.h"
+#include "GSDeviceOGL.h"
+#include "GLState.h"
 #include "Host.h"
 #include "ShaderCacheVersion.h"
 

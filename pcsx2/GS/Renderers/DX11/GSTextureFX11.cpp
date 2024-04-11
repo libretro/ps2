@@ -14,7 +14,7 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "GS/Renderers/DX11/GSDevice11.h"
+#include "GSDevice11.h"
 #include "GS/GSTables.h"
 #include "common/StringUtil.h"
 

@@ -17,8 +17,8 @@
 
 #include "GS/GS.h"
 #include "GS/Renderers/Common/GSTexture.h"
-#include "common/Vulkan/Context.h"
-#include "common/Vulkan/Texture.h"
+#include "VKContext.h"
+#include "VKTexture.h"
 
 class GSTextureVK final : public GSTexture
 {
