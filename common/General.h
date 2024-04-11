@@ -155,6 +155,14 @@ namespace HostSys
 
 	/// Removes the page fault handler. handler is only specified to check against the active callback.
 	void RemovePageFaultHandler(PageFaultHandler handler);
+
+	/// Flushes the instruction cache on the host for the specified range.
+	/// Only needed on ARM64, X86 has coherent D/I cache.
+#ifdef _M_X86
+	__fi static void FlushInstructionCache(void* address, u32 size) {}
+#else
+	void FlushInstructionCache(void* address, u32 size);
+#endif
 }
 
 class SharedMemoryMappingArea

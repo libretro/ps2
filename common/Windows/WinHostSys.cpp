@@ -45,7 +45,13 @@ long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 	if (eps->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
 		return EXCEPTION_CONTINUE_SEARCH;
 
+#if defined(_M_AMD64)
 	void* const exception_pc = reinterpret_cast<void*>(eps->ContextRecord->Rip);
+#elif defined(_M_ARM64)
+	void* const exception_pc = reinterpret_cast<void*>(eps->ContextRecord->Pc);
+#else
+	void* const exception_pc = nullptr;
+#endif
 
 	const PageFaultInfo pfi{(uptr)exception_pc, (uptr)eps->ExceptionRecord->ExceptionInformation[1]};
 
@@ -163,6 +169,14 @@ void HostSys::UnmapSharedMemory(void* baseaddr, size_t size)
 {
 	UnmapViewOfFile(baseaddr);
 }
+
+#ifdef _M_ARM64
+void HostSys::FlushInstructionCache(void* address, u32 size)
+{
+	::FlushInstructionCache(GetCurrentProcess(), address, size);
+}
+
+#endif
 
 SharedMemoryMappingArea::SharedMemoryMappingArea(u8* base_ptr, size_t size, size_t num_pages)
 	: m_base_ptr(base_ptr)

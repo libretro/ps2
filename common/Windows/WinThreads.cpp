@@ -16,7 +16,6 @@
 #if defined(_WIN32)
 
 #include "common/Threading.h"
-#include "common/emitter/tools.h"
 #include "common/RedtapeWindows.h"
 #include <mmsystem.h>
 #include <process.h>
@@ -26,7 +25,11 @@
 // improve performance and reduce cpu power consumption.
 __fi void Threading::SpinWait()
 {
+#ifdef _M_X86
 	_mm_pause();
+#else
+	YieldProcessor();
+#endif
 }
 
 Threading::ThreadHandle::ThreadHandle() = default;
