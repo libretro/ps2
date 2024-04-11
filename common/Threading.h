@@ -35,24 +35,11 @@ namespace Threading
 	// The following set of documented functions have Linux/Win32 specific implementations,
 	// which are found in WinThreads.cpp and LnxThreads.cpp
 
-	extern u64 GetThreadTicksPerSecond();
-
-	/// Set the name of the current thread
-	extern void SetNameOfCurrentThread(const char* name);
-
 	// For use in spin/wait loops.
 	extern void SpinWait();
 
-	// Optional implementation to enable hires thread/process scheduler for the operating system.
-	// Needed by Windows, but might not be relevant to other platforms.
-	extern void EnableHiresScheduler();
-	extern void DisableHiresScheduler();
-
 	// sleeps the current thread for the given number of milliseconds.
 	extern void Sleep(int ms);
-
-	// sleeps the current thread until the specified time point, or later.
-	extern void SleepUntil(u64 ticks);
 
 	// --------------------------------------------------------------------------------------
 	//  ThreadHandle
@@ -76,9 +63,6 @@ namespace Threading
 
 		operator void*() const { return m_native_handle; }
 		operator bool() const { return (m_native_handle != nullptr); }
-
-		/// Returns the amount of CPU time consumed by the thread, at the GetThreadTicksPerSecond() frequency.
-		u64 GetCPUTime() const;
 
 		/// Sets the affinity for a thread to the specified processors.
 		/// Obviously, only works up to 64 processors.

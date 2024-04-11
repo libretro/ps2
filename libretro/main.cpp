@@ -505,8 +505,6 @@ static void executeVM(void)
 
 void cpu_thread_entry(VMBootParameters boot_params)
 {
-	Threading::SetNameOfCurrentThread("CPU Thread");
-
 	VMManager::Initialize(boot_params);
 	VMManager::SetState(VMState::Running);
 

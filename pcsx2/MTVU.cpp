@@ -137,10 +137,8 @@ void VU_Thread::Reset()
 	vu1Thread.mtvuInterrupts = 0;
 }
 
-void VU_Thread::ExecuteRingBuffer()
+void VU_Thread::ExecuteRingBuffer(void)
 {
-	Threading::SetNameOfCurrentThread("MTVU");
-
 	for (;;)
 	{
 		semaEvent.WaitForWork();

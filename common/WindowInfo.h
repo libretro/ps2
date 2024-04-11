@@ -46,10 +46,4 @@ struct WindowInfo
 
 	/// Height of the surface in pixels.
 	u32 surface_height = 0;
-
-	/// Refresh rate of the surface, if available.
-	float surface_refresh_rate = 0.0f;
-
-	/// Returns the host's refresh rate for the given window, if available.
-	static bool QueryRefreshRateForWindow(const WindowInfo& wi, float* refresh_rate);
 };

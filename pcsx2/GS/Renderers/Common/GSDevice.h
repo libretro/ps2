@@ -787,9 +787,6 @@ public:
 	/// Changes vsync mode for this display.
 	virtual void SetVSync(VsyncMode mode) = 0;
 
-	/// Returns the effective refresh rate of this display.
-	virtual bool GetHostRefreshRate(float* refresh_rate);
-
 	virtual void ClearRenderTarget(GSTexture* t, const GSVector4& c) = 0;
 	virtual void ClearRenderTarget(GSTexture* t, u32 c) = 0;
 	virtual void InvalidateRenderTarget(GSTexture* t) = 0;

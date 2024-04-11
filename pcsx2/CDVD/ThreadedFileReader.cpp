@@ -60,8 +60,6 @@ size_t ThreadedFileReader::CopyBlocks(void* dst, const void* src, size_t size) c
 
 void ThreadedFileReader::Loop()
 {
-	Threading::SetNameOfCurrentThread("ISO Decompress");
-
 	std::unique_lock<std::mutex> lock(m_mtx);
 
 	for (;;)

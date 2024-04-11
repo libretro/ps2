@@ -1158,8 +1158,6 @@ GSRasterizerList::~GSRasterizerList()
 
 void GSRasterizerList::OnWorkerStartup(int i)
 {
-	Threading::SetNameOfCurrentThread(StringUtil::StdStringFromFormat("GS-SW-%d", i).c_str());
-
 	Threading::ThreadHandle handle(Threading::ThreadHandle::GetForCallingThread());
 
 	if (EmuConfig.Cpu.AffinityControlMode != 0)

@@ -138,17 +138,6 @@ void GSDevice::RestoreAPIState()
 {
 }
 
-bool GSDevice::GetHostRefreshRate(float* refresh_rate)
-{
-	if (m_window_info.surface_refresh_rate > 0.0f)
-	{
-		*refresh_rate = m_window_info.surface_refresh_rate;
-		return true;
-	}
-
-	return WindowInfo::QueryRefreshRateForWindow(m_window_info, refresh_rate);
-}
-
 GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format, bool clear, bool prefer_reuse)
 {
 	const GSVector2i size(width, height);

@@ -453,11 +453,6 @@ void GSDevice11::SetFeatures()
 	m_features.vs_expand = (feature_level >= D3D_FEATURE_LEVEL_11_0);
 }
 
-bool GSDevice11::GetHostRefreshRate(float* refresh_rate)
-{
-	return GSDevice::GetHostRefreshRate(refresh_rate);
-}
-
 void GSDevice11::SetVSync(VsyncMode mode)
 {
 	m_vsync_mode = mode;

@@ -86,8 +86,6 @@ void SysMtgsThread::ShutdownThread()
 
 void SysMtgsThread::ThreadEntryPoint()
 {
-	Threading::SetNameOfCurrentThread("GS");
-
 	if (GSinit() != 0)
 	{
 		Host::ReportErrorAsync("Error", "GSinit() failed.");
@@ -275,10 +273,7 @@ void SysMtgsThread::MainLoop(bool flush_all)
 		if (m_run_idle_flag.load(std::memory_order_acquire) && VMManager::GetState() != VMState::Running)
 		{
 			if (!m_sem_event.CheckForWork())
-			{
 				GSPresentCurrentFrame();
-				GSThrottlePresentation();
-			}
 		}
 		else
 		{

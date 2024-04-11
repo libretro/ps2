@@ -26,7 +26,6 @@ target_sources(common PRIVATE
 	StringUtil.cpp
 	Timer.cpp
 	ThreadPool.cpp
-	WindowInfo.cpp
 	emitter/avx.cpp
 	emitter/cpudetect.cpp
 	emitter/fpu.cpp

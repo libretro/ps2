@@ -81,11 +81,8 @@ void GSgifTransfer3(u8* mem, u32 size);
 void GSvsync(u32 field, bool registers_written);
 int GSfreeze(FreezeAction mode, freezeData* data);
 void GSPresentCurrentFrame();
-void GSThrottlePresentation();
 void GSSetGameCRC(u32 crc);
 void GSSetVSyncMode(VsyncMode mode);
-
-bool GSGetHostRefreshRate(float* refresh_rate);
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
 void GSSwitchRenderer(GSRendererType new_renderer);

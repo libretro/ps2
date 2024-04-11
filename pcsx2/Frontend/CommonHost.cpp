@@ -78,8 +78,6 @@ void CommonHost::SetCommonDefaultSettings(SettingsInterface& si)
 
 void CommonHost::CPUThreadInitialize()
 {
-	Threading::SetNameOfCurrentThread("CPU Thread");
-
 	// neither of these should ever fail.
 	if (!VMManager::Internal::InitializeGlobals() || !VMManager::Internal::InitializeMemory())
 		Console.Error("Failed to allocate memory map");

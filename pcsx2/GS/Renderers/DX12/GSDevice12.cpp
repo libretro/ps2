@@ -755,11 +755,6 @@ void GSDevice12::Destroy()
 	}
 }
 
-bool GSDevice12::GetHostRefreshRate(float* refresh_rate)
-{
-	return GSDevice::GetHostRefreshRate(refresh_rate);
-}
-
 void GSDevice12::SetVSync(VsyncMode mode)
 {
 	m_vsync_mode = mode;

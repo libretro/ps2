@@ -58,45 +58,6 @@ __forceinline void Threading::SpinWait()
 	__asm__("pause");
 }
 
-__forceinline void Threading::EnableHiresScheduler()
-{
-	// Don't know if linux has a customizable scheduler resolution like Windows (doubtful)
-}
-
-__forceinline void Threading::DisableHiresScheduler()
-{
-}
-
-// Unit of time of GetCpuTime
-u64 Threading::GetThreadTicksPerSecond()
-{
-	return 1000000;
-}
-
-// Helper function to get either either the current cpu usage
-// in called thread or in id thread
-static u64 get_thread_time(uptr id = 0)
-{
-	clockid_t cid;
-	if (id)
-	{
-		int err = pthread_getcpuclockid((pthread_t)id, &cid);
-		if (err)
-			return 0;
-	}
-	else
-	{
-		cid = CLOCK_THREAD_CPUTIME_ID;
-	}
-
-	struct timespec ts;
-	int err = clock_gettime(cid, &ts);
-	if (err)
-		return 0;
-
-	return (u64)ts.tv_sec * (u64)1e6 + (u64)ts.tv_nsec / (u64)1e3;
-}
-
 Threading::ThreadHandle::ThreadHandle() = default;
 
 Threading::ThreadHandle::ThreadHandle(const ThreadHandle& handle)
@@ -149,11 +110,6 @@ Threading::ThreadHandle& Threading::ThreadHandle::operator=(const ThreadHandle& 
 	m_native_id = handle.m_native_id;
 #endif
 	return *this;
-}
-
-u64 Threading::ThreadHandle::GetCPUTime() const
-{
-	return m_native_handle ? get_thread_time((uptr)m_native_handle) : 0;
 }
 
 bool Threading::ThreadHandle::SetAffinity(u64 processor_mask) const
@@ -322,17 +278,5 @@ Threading::ThreadHandle& Threading::Thread::operator=(Thread&& thread)
 	thread.m_stack_size = 0;
 	return *this;
 }
-
-void Threading::SetNameOfCurrentThread(const char* name)
-{
-#if defined(__linux__)
-	// Extract of manpage: "The name can be up to 16 bytes long, and should be
-	//						null-terminated if it contains fewer bytes."
-	prctl(PR_SET_NAME, name, 0, 0, 0);
-#elif defined(__unix__)
-	pthread_set_name_np(pthread_self(), name);
-#endif
-}
-
 #endif
 #endif

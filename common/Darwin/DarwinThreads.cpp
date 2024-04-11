@@ -34,47 +34,6 @@ __forceinline void Threading::SpinWait()
 	__asm__("pause");
 }
 
-__forceinline void Threading::EnableHiresScheduler()
-{
-	// Darwin has customizable schedulers, see xnu/osfmk/man. Not
-	// implemented yet though (and not sure if useful for pcsx2).
-}
-
-__forceinline void Threading::DisableHiresScheduler()
-{
-	// see EnableHiresScheduler()
-}
-
-// Just like on Windows, this is not really the number of ticks per second,
-// but just a factor by which one has to divide
-// pxThread::GetCpuTime() if one wants to receive a value in seconds. NOTE:
-// doing this will of course yield precision loss.
-u64 Threading::GetThreadTicksPerSecond()
-{
-	return 1000000; // the *CpuTime() functions return values in microseconds
-}
-
-// gets the CPU time used by the current thread (both system and user), in
-// microseconds, returns 0 on failure
-static u64 getthreadtime(thread_port_t thread)
-{
-	mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
-	thread_basic_info_data_t info;
-
-	kern_return_t kr = thread_info(thread, THREAD_BASIC_INFO,
-		(thread_info_t)&info, &count);
-	if (kr != KERN_SUCCESS)
-	{
-		return 0;
-	}
-
-	// add system and user time
-	return (u64)info.user_time.seconds * (u64)1e6 +
-		   (u64)info.user_time.microseconds +
-		   (u64)info.system_time.seconds * (u64)1e6 +
-		   (u64)info.system_time.microseconds;
-}
-
 Threading::ThreadHandle::ThreadHandle() = default;
 
 Threading::ThreadHandle::ThreadHandle(const ThreadHandle& handle)
@@ -108,11 +67,6 @@ Threading::ThreadHandle& Threading::ThreadHandle::operator=(const ThreadHandle& 
 {
 	m_native_handle = handle.m_native_handle;
 	return *this;
-}
-
-u64 Threading::ThreadHandle::GetCPUTime() const
-{
-	return getthreadtime(pthread_mach_thread_np((pthread_t)m_native_handle));
 }
 
 bool Threading::ThreadHandle::SetAffinity(u64 processor_mask) const
@@ -185,11 +139,4 @@ void Threading::Thread::Join()
 	pthread_join((pthread_t)m_native_handle, &retval);
 	m_native_handle = nullptr;
 }
-
-// name can be up to 16 bytes
-void Threading::SetNameOfCurrentThread(const char* name)
-{
-	pthread_setname_np(name);
-}
-
 #endif

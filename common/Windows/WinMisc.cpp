@@ -22,30 +22,11 @@
 #include "common/General.h"
 #include "common/WindowInfo.h"
 
-#include "fmt/core.h"
-
 #include <mmsystem.h>
 #include <timeapi.h>
 #include <VersionHelpers.h>
 
 alignas(16) static LARGE_INTEGER lfreq;
-
-// This gets leaked... oh well.
-static thread_local HANDLE s_sleep_timer;
-static thread_local bool s_sleep_timer_created = false;
-
-static HANDLE GetSleepTimer()
-{
-	if (s_sleep_timer_created)
-		return s_sleep_timer;
-
-	s_sleep_timer_created = true;
-	s_sleep_timer = CreateWaitableTimerEx(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
-	if (!s_sleep_timer)
-		s_sleep_timer = CreateWaitableTimer(nullptr, TRUE, nullptr);
-
-	return s_sleep_timer;
-}
 
 void InitCPUTicks()
 {
@@ -68,30 +49,4 @@ void Threading::Sleep(int ms)
 {
 	::Sleep(ms);
 }
-
-void Threading::SleepUntil(u64 ticks)
-{
-	// This is definitely sub-optimal, but there's no way to sleep until a QPC timestamp on Win32.
-	const s64 diff = static_cast<s64>(ticks - GetCPUTicks());
-	if (diff <= 0)
-		return;
-
-	const HANDLE hTimer = GetSleepTimer();
-	if (!hTimer)
-		return;
-
-	const u64 one_hundred_nanos_diff = (static_cast<u64>(diff) * 10000000ULL) / GetTickFrequency();
-	if (one_hundred_nanos_diff == 0)
-		return;
-
-	LARGE_INTEGER fti;
-	fti.QuadPart = -static_cast<s64>(one_hundred_nanos_diff);
-
-	if (SetWaitableTimer(hTimer, &fti, 0, nullptr, nullptr, FALSE))
-	{
-		WaitForSingleObject(hTimer, INFINITE);
-		return;
-	}
-}
-
 #endif

@@ -364,31 +364,6 @@ void GSPresentCurrentFrame()
 	g_gs_renderer->PresentCurrentFrame();
 }
 
-void GSThrottlePresentation()
-{
-	// Let vsync take care of throttling.
-	if (g_gs_device->GetVsyncMode() != VsyncMode::Off)
-		return;
-
-	// Manually throttle presentation when vsync isn't enabled, so we don't try to render the
-	// fullscreen UI at thousands of FPS and make the gpu go brrrrrrrr.
-	const float surface_refresh_rate = g_gs_device->GetWindowInfo().surface_refresh_rate;
-	const float throttle_rate = (surface_refresh_rate > 0.0f) ? surface_refresh_rate : 60.0f;
-
-	const u64 sleep_period = static_cast<u64>(static_cast<double>(GetTickFrequency()) / static_cast<double>(throttle_rate));
-	const u64 current_ts = GetCPUTicks();
-
-	// Allow it to fall behind/run ahead up to 2*period. Sleep isn't that precise, plus we need to
-	// allow time for the actual rendering.
-	const u64 max_variance = sleep_period * 2;
-	if (static_cast<u64>(std::abs(static_cast<s64>(current_ts - s_next_manual_present_time))) > max_variance)
-		s_next_manual_present_time = current_ts + sleep_period;
-	else
-		s_next_manual_present_time += sleep_period;
-
-	Threading::SleepUntil(s_next_manual_present_time);
-}
-
 void GSSetGameCRC(u32 crc)
 {
 	g_gs_renderer->SetGameCRC(crc);
@@ -397,14 +372,6 @@ void GSSetGameCRC(u32 crc)
 void GSSetVSyncMode(VsyncMode mode)
 {
 	g_gs_device->SetVSync(mode);
-}
-
-bool GSGetHostRefreshRate(float* refresh_rate)
-{
-	if (!g_gs_device)
-		return false;
-
-	return g_gs_device->GetHostRefreshRate(refresh_rate);
 }
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
