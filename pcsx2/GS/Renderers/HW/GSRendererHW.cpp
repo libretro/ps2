@@ -1409,7 +1409,10 @@ void GSRendererHW::Draw()
 
 	// No Z test if no z buffer.
 	if (no_ds)
+	{
 		m_cached_ctx.TEST.ZTST = ZTST_ALWAYS;
+		m_cached_ctx.ZBUF.ZMSK = true;
+	}
 
 	if (no_rt && no_ds)
 		return;
@@ -3986,7 +3989,10 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	// No point outputting colours if we're just writing depth.
 	// We might still need the framebuffer for DATE, though.
 	if (!rt || m_conf.colormask.wrgba == 0)
+	{
 		m_conf.ps.DisableColorOutput();
+		m_conf.colormask.wrgba = 0;
+	}
 
 	if (m_conf.ps.scanmsk & 2)
 		DATE_PRIMID = false; // to have discard in the shader work correctly
