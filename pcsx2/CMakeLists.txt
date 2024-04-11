@@ -970,6 +970,7 @@ endif()
 fixup_file_properties(PCSX2)
 
 if (APPLE)
+	find_library(QUARTZCORE_LIBRARY QuartzCore)
 	target_link_libraries(PCSX2_FLAGS INTERFACE ${METAL_LIBRARY} ${QUARTZCORE_LIBRARY})
 
 	# MacOS defaults to having a maximum protection of the __DATA segment of rw (non-executable)
