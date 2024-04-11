@@ -182,12 +182,12 @@ void* GSTextureOGL::GetNativeHandle() const
 
 void GSTextureOGL::Clear(const void* data)
 {
-	glClearTexImage(m_texture_id, GL_TEX_LEVEL_0, m_int_format, m_int_type, data);
+	glClearTexImage(m_texture_id, 0, m_int_format, m_int_type, data);
 }
 
 void GSTextureOGL::Clear(const void* data, const GSVector4i& area)
 {
-	glClearTexSubImage(m_texture_id, GL_TEX_LEVEL_0, area.x, area.y, 0, area.width(), area.height(), 1, m_int_format, m_int_type, data);
+	glClearTexSubImage(m_texture_id, 0, area.x, area.y, 0, area.width(), area.height(), 1, m_int_format, m_int_type, data);
 }
 
 bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int layer)
@@ -212,7 +212,7 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 	if (r.height() == 1) {
 		// Palette data. Transfer is small either 64B or 1024B.
 		// Sometimes it is faster, sometimes slower.
-		glTextureSubImage2D(m_texture_id, GL_TEX_LEVEL_0, r.x, r.y, r.width(), r.height(), m_int_format, m_int_type, data);
+		glTextureSubImage2D(m_texture_id, 0, r.x, r.y, r.width(), r.height(), m_int_format, m_int_type, data);
 		return true;
 	}
 #endif

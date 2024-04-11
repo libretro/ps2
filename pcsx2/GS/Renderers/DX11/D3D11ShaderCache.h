@@ -18,13 +18,40 @@
 #include "common/HashCombine.h"
 #include "common/RedtapeWindows.h"
 #include "common/RedtapeWilCom.h"
-#include "D3D11ShaderCompiler.h"
 
 #include <cstdio>
 #include <d3d11.h>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
+
+namespace D3D11::ShaderCompiler
+{
+	enum class Type
+	{
+		Vertex,
+		Pixel,
+		Compute
+	};
+
+	wil::com_ptr_nothrow<ID3DBlob> CompileShader(Type type, D3D_FEATURE_LEVEL feature_level, bool debug, const std::string_view& code,
+		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+
+	wil::com_ptr_nothrow<ID3D11VertexShader> CompileAndCreateVertexShader(ID3D11Device* device, bool debug, const std::string_view& code,
+		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+	wil::com_ptr_nothrow<ID3D11PixelShader> CompileAndCreatePixelShader(ID3D11Device* device, bool debug, const std::string_view& code,
+		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+	wil::com_ptr_nothrow<ID3D11ComputeShader> CompileAndCreateComputeShader(ID3D11Device* device, bool debug, const std::string_view& code,
+		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+
+	wil::com_ptr_nothrow<ID3D11VertexShader> CreateVertexShader(ID3D11Device* device, const void* bytecode, size_t bytecode_length);
+	wil::com_ptr_nothrow<ID3D11VertexShader> CreateVertexShader(ID3D11Device* device, const ID3DBlob* blob);
+	wil::com_ptr_nothrow<ID3D11PixelShader> CreatePixelShader(ID3D11Device* device, const void* bytecode, size_t bytecode_length);
+	wil::com_ptr_nothrow<ID3D11PixelShader> CreatePixelShader(ID3D11Device* device, const ID3DBlob* blob);
+	wil::com_ptr_nothrow<ID3D11ComputeShader> CreateComputeShader(ID3D11Device* device, const void* bytecode, size_t bytecode_length);
+	wil::com_ptr_nothrow<ID3D11ComputeShader> CreateComputeShader(ID3D11Device* device, const ID3DBlob* blob);
+}; // namespace D3D11::ShaderCompiler
 
 namespace D3D11
 {

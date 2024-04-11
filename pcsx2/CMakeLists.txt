@@ -562,7 +562,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/VKShaderCache.cpp
 		GS/Renderers/Vulkan/VKTexture.cpp
 		GS/Renderers/Vulkan/VKLoader.cpp
-		GS/Renderers/Vulkan/VKShaderCompiler.cpp
 		GS/Renderers/Vulkan/VKUtil.cpp
 		GS/Renderers/Vulkan/VKSwapChain.cpp
 		GS/Renderers/Vulkan/VKStreamBuffer.cpp
@@ -574,7 +573,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/GSTextureVK.h
 		GS/Renderers/Vulkan/VKContext.h
 		GS/Renderers/Vulkan/VKTexture.h
-		GS/Renderers/Vulkan/VKShaderCompiler.h
 		GS/Renderers/Vulkan/VKSwapChain.h
 		GS/Renderers/Vulkan/VKBuilders.h
 		GS/Renderers/Vulkan/VKStreamBuffer.h
@@ -616,7 +614,6 @@ if(WIN32)
 		GS/Renderers/DX11/GSTexture11.cpp
 		GS/Renderers/DX11/GSTextureFX11.cpp
 		GS/Renderers/DX11/D3D11ShaderCache.cpp
-		GS/Renderers/DX11/D3D11ShaderCompiler.cpp
 		GS/Renderers/DX12/GSDevice12.cpp
 		GS/Renderers/DX12/GSTexture12.cpp
 		GS/Renderers/DX12/D3D12Builders.cpp
@@ -631,7 +628,6 @@ if(WIN32)
 		GS/Renderers/DX11/GSDevice11.h
 		GS/Renderers/DX11/GSTexture11.h
 		GS/Renderers/DX11/D3D11ShaderCache.h
-		GS/Renderers/DX11/D3D11ShaderCompiler.h
 		GS/Renderers/DX12/GSDevice12.h
 		GS/Renderers/DX12/GSTexture12.h
 		GS/Renderers/DX12/D3D12Builders.h

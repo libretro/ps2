@@ -15,7 +15,7 @@
 
 #include "VKUtil.h"
 #include "VKContext.h"
-#include "VKShaderCompiler.h"
+#include "VKShaderCache.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
 

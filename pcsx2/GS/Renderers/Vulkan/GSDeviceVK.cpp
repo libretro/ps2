@@ -31,7 +31,6 @@
 #include "VKBuilders.h"
 #include "VKContext.h"
 #include "VKShaderCache.h"
-#include "VKShaderCompiler.h"
 #include "VKSwapChain.h"
 #include "VKUtil.h"
 

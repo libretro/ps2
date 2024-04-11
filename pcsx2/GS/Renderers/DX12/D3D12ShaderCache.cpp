@@ -16,7 +16,7 @@
 #include "common/PrecompiledHeader.h"
 
 #include "D3D12ShaderCache.h"
-#include "../DX11/D3D11ShaderCompiler.h"
+#include "../DX11/D3D11ShaderCache.h"
 #include "common/FileSystem.h"
 #include "common/Console.h"
 #include "common/MD5Digest.h"
