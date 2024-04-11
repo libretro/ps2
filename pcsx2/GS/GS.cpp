@@ -293,10 +293,11 @@ bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* b
 	return true;
 }
 
-void GSclose()
+void GSclose(void)
 {
 	CloseGSRenderer();
 	CloseGSDevice(true);
+	Host::ReleaseRenderWindow();
 }
 
 void GSreset(bool hardware_reset)

@@ -733,7 +733,6 @@ protected:
 	FeatureSupport m_features;
 
 	void AcquireWindow();
-	void ReleaseWindow();
 
 	virtual GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) = 0;
 	GSTexture* FetchSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format, bool clear, bool prefer_reuse);

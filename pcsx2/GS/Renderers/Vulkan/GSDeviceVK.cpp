@@ -2005,7 +2005,6 @@ void GSDeviceVK::Destroy()
 
 		g_vulkan_context->WaitForGPUIdle();
 		m_swap_chain.reset();
-		ReleaseWindow();
 
 		Vulkan::ShaderCache::Destroy();
 		Vulkan::Context::Destroy();
@@ -2131,8 +2130,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	AcquireWindow();
 
-	ScopedGuard window_cleanup = [this]() { ReleaseWindow(); };
-
 	VkInstance instance =
 		Vulkan::Context::CreateVulkanInstance(m_window_info, enable_debug_utils, enable_validation_layer);
 	if (instance == VK_NULL_HANDLE)
@@ -2221,7 +2218,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	surface_cleanup.Cancel();
 	instance_cleanup.Cancel();
-	window_cleanup.Cancel();
 	library_cleanup.Cancel();
 
 	return true;

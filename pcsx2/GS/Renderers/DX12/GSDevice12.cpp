@@ -751,7 +751,6 @@ void GSDevice12::Destroy()
 		ExecuteCommandList(true);
 		DestroyResources();
 		DestroySwapChain();
-		ReleaseWindow();
 		g_d3d12_context->Destroy();
 	}
 }

@@ -483,8 +483,6 @@ void GSDeviceOGL::Destroy()
 
 		m_gl_context->DoneCurrent();
 		m_gl_context.reset();
-
-		ReleaseWindow();
 	}
 }
 

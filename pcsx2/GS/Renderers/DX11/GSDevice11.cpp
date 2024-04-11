@@ -405,7 +405,6 @@ void GSDevice11::Destroy()
 {
 	GSDevice::Destroy();
 	DestroySwapChain();
-	ReleaseWindow();
 
 	m_convert = {};
 	m_present = {};

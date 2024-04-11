@@ -130,12 +130,6 @@ void GSDevice::AcquireWindow(void)
 	m_window_info = std::move(wi.value());
 }
 
-void GSDevice::ReleaseWindow()
-{
-	Host::ReleaseRenderWindow();
-	m_window_info = WindowInfo();
-}
-
 void GSDevice::ResetAPIState()
 {
 }
