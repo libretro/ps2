@@ -482,7 +482,6 @@ struct Pcsx2Config
 					PCRTCOverscan : 1,
 					IntegerScaling : 1,
 					UseDebugDevice : 1,
-					UseBlitSwapChain : 1,
 					DisableShaderCache : 1,
 					DisableDualSourceBlend : 1,
 					DisableFramebufferFetch : 1,

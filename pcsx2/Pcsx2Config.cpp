@@ -359,7 +359,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	PCRTCOverscan = false;
 	IntegerScaling = false;
 	UseDebugDevice = false;
-	UseBlitSwapChain = false;
 	DisableShaderCache = false;
 	DisableFramebufferFetch = false;
 	SkipDuplicateFrames = false;
@@ -468,7 +467,6 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 	return OpEqu(Renderer) &&
 		   OpEqu(Adapter) &&
 		   OpEqu(UseDebugDevice) &&
-		   OpEqu(UseBlitSwapChain) &&
 		   OpEqu(DisableShaderCache) &&
 		   OpEqu(DisableDualSourceBlend) &&
 		   OpEqu(DisableFramebufferFetch) &&
@@ -514,7 +512,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(PCRTCOverscan, "pcrtc_overscan");
 	GSSettingBool(IntegerScaling);
 	GSSettingBool(UseDebugDevice);
-	GSSettingBool(UseBlitSwapChain);
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
 	GSSettingBool(DisableDualSourceBlend);
 	GSSettingBool(DisableFramebufferFetch);

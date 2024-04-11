@@ -50,7 +50,6 @@
 #include "Renderers/DX12/GSDevice12.h"
 #include "GS/Renderers/DX11/D3D.h"
 
-
 static HRESULT s_hr = E_FAIL;
 
 #endif
@@ -279,15 +278,6 @@ bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* b
 		res = OpenGSRenderer(renderer, basemem);
 		if (!res)
 			CloseGSDevice(true);
-	}
-
-	if (!res)
-	{
-		Host::ReportErrorAsync(
-			"Error", fmt::format("Failed to create render device. This may be due to your GPU not supporting the "
-								 "chosen renderer ({}), or because your graphics drivers need to be updated.",
-						 Pcsx2Config::GSOptions::GetRendererName(EmuConfig.GS.Renderer)));
-		return false;
 	}
 
 	return true;
