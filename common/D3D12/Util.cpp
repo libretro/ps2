@@ -31,8 +31,6 @@ u32 D3D12::GetTexelSize(DXGI_FORMAT format)
 			return 16;
 
 		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-			return 4;
-
 		case DXGI_FORMAT_R8G8B8A8_UNORM:
 		case DXGI_FORMAT_R8G8B8A8_SNORM:
 		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
@@ -50,12 +48,10 @@ u32 D3D12::GetTexelSize(DXGI_FORMAT format)
 
 		case DXGI_FORMAT_A8_UNORM:
 		case DXGI_FORMAT_R8_UNORM:
-			return 1;
-
 		default:
-			pxFailRel("Unknown format");
-			return 1;
+			break;
 	}
+	return 1;
 }
 
 void D3D12::SetDefaultSampler(D3D12_SAMPLER_DESC* desc)

@@ -31,7 +31,6 @@ bool DescriptorHeapManager::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_T
                          D3D12_DESCRIPTOR_HEAP_FLAG_NONE};
 
 	HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(m_descriptor_heap.put()));
-	pxAssertRel(SUCCEEDED(hr), "Create descriptor heap");
 	if (FAILED(hr))
 		return false;
 
@@ -93,7 +92,6 @@ bool DescriptorHeapManager::Allocate(DescriptorHandle* handle)
 		return true;
 	}
 
-	pxFailRel("Out of fixed descriptors");
 	return false;
 }
 
@@ -124,7 +122,6 @@ bool DescriptorAllocator::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYP
 	const D3D12_DESCRIPTOR_HEAP_DESC desc = {type, static_cast<UINT>(num_descriptors),
 		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE};
 	const HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_descriptor_heap));
-	pxAssertRel(SUCCEEDED(hr), "Creating descriptor heap for linear allocator");
 	if (FAILED(hr))
 		return false;
 

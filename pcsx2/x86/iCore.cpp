@@ -175,7 +175,6 @@ int _getFreeXMMreg(u32 maxreg)
 		return tempi;
 	}
 
-	pxFailRel("*PCSX2*: XMM Reg Allocation Error in _getFreeXMMreg()!");
 	return -1;
 }
 
@@ -205,9 +204,6 @@ int _checkXMMreg(int type, int reg, int mode)
 		{
 			// shouldn't have dirty constants...
 			pxAssert(type != XMMTYPE_GPRREG || !GPR_IS_DIRTY_CONST(reg));
-
-			if (type == XMMTYPE_GPRREG && !(xmmregs[i].mode & (MODE_READ | MODE_WRITE)) && (mode & MODE_READ))
-				pxFailRel("Somehow ended up with an allocated xmm without mode");
 
 			if (type == XMMTYPE_GPRREG && (mode & MODE_WRITE))
 			{
@@ -296,9 +292,6 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 	{
 		if (!xmmregs[i].inuse || xmmregs[i].type != XMMTYPE_GPRREG || xmmregs[i].reg != gprreg)
 			continue;
-
-		if (!(xmmregs[i].mode & (MODE_READ | MODE_WRITE)) && (mode & MODE_READ))
-			pxFailRel("Somehow ended up with an allocated register without mode");
 
 		if (mode & MODE_WRITE && hostx86reg >= 0)
 			x86regs[hostx86reg].inuse = 0;

@@ -29,9 +29,6 @@ SafeArray<T>::SafeArray(std::string name, T* allocated_mem, int initSize)
 	ChunkSize = DefaultChunkSize;
 	m_ptr = allocated_mem;
 	m_size = initSize;
-
-	if (m_ptr == NULL)
-		pxFailRel("SafeArray memory assignment failed");
 }
 
 template <typename T>
@@ -79,9 +76,6 @@ SafeArray<T>::SafeArray(int initialSize, std::string name)
 	ChunkSize = DefaultChunkSize;
 	m_ptr = (initialSize == 0) ? NULL : (T*)malloc(initialSize * sizeof(T));
 	m_size = initialSize;
-
-	if ((initialSize != 0) && (m_ptr == NULL))
-		pxFailRel("SafeArray memory allocation failed");
 }
 
 // Clears the contents of the array to zero, and frees all memory allocations.
@@ -107,9 +101,6 @@ void SafeArray<T>::ExactAlloc(int newsize)
 	if (newsize == m_size)
 		return;
 
-	m_ptr = _virtual_realloc(newsize);
-	if (m_ptr == NULL)
-		pxFailRel("SafeArray exact alloc failed");
-
+	m_ptr  = _virtual_realloc(newsize);
 	m_size = newsize;
 }

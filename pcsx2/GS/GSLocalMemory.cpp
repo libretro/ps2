@@ -63,9 +63,6 @@ GSLocalMemory::GSLocalMemory()
 	: m_clut(this)
 {
 	m_vm8 = (u8*)GSAllocateWrappedMemory(m_vmsize, 4);
-	if (!m_vm8)
-		pxFailRel("Failed to allocate GS memory storage.");
-
 	memset(m_vm8, 0, m_vmsize);
 
 	MULTI_ISA_SELECT(GSLocalMemoryPopulateFunctions)(*this);

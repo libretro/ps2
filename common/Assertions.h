@@ -19,14 +19,6 @@
 
 #include <string>
 
-#ifndef __pxFUNCTION__
-#if defined(__GNUG__)
-#define __pxFUNCTION__ __PRETTY_FUNCTION__
-#else
-#define __pxFUNCTION__ __FUNCTION__
-#endif
-#endif
-
 // ----------------------------------------------------------------------------------------
 //  pxAssert / pxAssertDev
 // ----------------------------------------------------------------------------------------
@@ -64,18 +56,6 @@
 // it can lead to the compiler optimizing out code and leading to crashes in dev/release
 // builds. To have code optimized, explicitly use pxAssume(false) or pxAssumeDev(false,msg);
 
-// pxAssertRel ->
-// Special release-mode assertion.  Limited use since stack traces in release mode builds
-// (especially with LTCG) are highly suspect.  But when troubleshooting crashes that only
-// rear ugly heads in optimized builds, this is one of the few tools we have.
-
-extern void pxOnAssertFail(const char* file, int line, const char* func, const char* msg);
-
-#define pxAssertRel(cond, msg) ((likely(cond)) || (pxOnAssertFail(__FILE__, __LINE__, __pxFUNCTION__, msg), false))
-#define pxAssumeRel(cond, msg) ((void)((!likely(cond)) && (pxOnAssertFail(__FILE__, __LINE__, __pxFUNCTION__, msg), false)))
-#define pxFailRel(msg) pxAssertRel(false, msg)
-
-
 // Release Builds just use __assume as an optimization, and return the conditional
 // as a result (which is optimized to nil if unused).
 
@@ -84,16 +64,6 @@ extern void pxOnAssertFail(const char* file, int line, const char* func, const c
 
 #define pxAssumeMsg(cond, msg) __assume(cond)
 #define pxAssumeDev(cond, msg) __assume(cond)
-
-#define pxFail(msg) \
-	do \
-	{ \
-	} while (0)
-
-#define pxFailDev(msg) \
-	do \
-	{ \
-	} while (0)
 
 #define pxAssert(cond) pxAssertMsg(cond, #cond)
 #define pxAssume(cond) pxAssumeMsg(cond, #cond)

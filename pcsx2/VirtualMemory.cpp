@@ -130,13 +130,10 @@ static bool VMMMarkPagesAsInUse(std::atomic<bool>* begin, std::atomic<bool>* end
 			// This was already allocated!  Undo the things we've set until this point
 			while (--current >= begin)
 			{
+				// In the time we were doing this, someone set one of the things we just set to true back to false
+				// This should never happen, but if it does we'll just stop and hope nothing bad happens
 				if (!current->compare_exchange_strong(expected, false, std::memory_order_relaxed))
-				{
-					// In the time we were doing this, someone set one of the things we just set to true back to false
-					// This should never happen, but if it does we'll just stop and hope nothing bad happens
-					pxAssert(0);
 					return false;
-				}
 			}
 			return false;
 		}
@@ -147,15 +144,15 @@ static bool VMMMarkPagesAsInUse(std::atomic<bool>* begin, std::atomic<bool>* end
 u8* VirtualMemoryManager::Alloc(uptr offsetLocation, size_t size) const
 {
 	size = Common::PageAlign(size);
-	if (!pxAssertDev(offsetLocation % __pagesize == 0, "(VirtualMemoryManager) alloc at unaligned offsetLocation"))
+	if (!(offsetLocation % __pagesize == 0))
 		return nullptr;
-	if (!pxAssertDev(size + offsetLocation <= m_pages_reserved * __pagesize, "(VirtualMemoryManager) alloc outside reserved area"))
+	if (!(size + offsetLocation <= m_pages_reserved * __pagesize))
 		return nullptr;
 	if (m_baseptr == 0)
 		return nullptr;
 	auto puStart = &m_pageuse[offsetLocation / __pagesize];
 	auto puEnd = &m_pageuse[(offsetLocation + size) / __pagesize];
-	if (!pxAssertDev(VMMMarkPagesAsInUse(puStart, puEnd), "(VirtualMemoryManager) allocation requests overlapped"))
+	if (!(VMMMarkPagesAsInUse(puStart, puEnd)))
 		return nullptr;
 	return m_baseptr + offsetLocation;
 }
@@ -163,25 +160,22 @@ u8* VirtualMemoryManager::Alloc(uptr offsetLocation, size_t size) const
 void VirtualMemoryManager::Free(void* address, size_t size) const
 {
 	uptr offsetLocation = (uptr)address - (uptr)m_baseptr;
-	if (!pxAssertDev(offsetLocation % __pagesize == 0, "(VirtualMemoryManager) free at unaligned address"))
+	if (!(offsetLocation % __pagesize == 0))
 	{
 		uptr newLoc = Common::PageAlign(offsetLocation);
 		size -= (offsetLocation - newLoc);
 		offsetLocation = newLoc;
 	}
-	if (!pxAssertDev(size % __pagesize == 0, "(VirtualMemoryManager) free with unaligned size"))
+	if (!(size % __pagesize == 0))
 		size -= size % __pagesize;
-	if (!pxAssertDev(size + offsetLocation <= m_pages_reserved * __pagesize, "(VirtualMemoryManager) free outside reserved area"))
+	if (!(size + offsetLocation <= m_pages_reserved * __pagesize))
 		return;
 	auto puStart = &m_pageuse[offsetLocation / __pagesize];
 	auto puEnd = &m_pageuse[(offsetLocation + size) / __pagesize];
 	for (; puStart < puEnd; puStart++)
 	{
 		bool expected = true;
-		if (!puStart->compare_exchange_strong(expected, false, std::memory_order_relaxed))
-		{
-			pxAssertDev(0, "(VirtaulMemoryManager) double-free");
-		}
+		if (!puStart->compare_exchange_strong(expected, false, std::memory_order_relaxed)) { }
 	}
 }
 
@@ -221,7 +215,6 @@ VirtualMemoryReserve::VirtualMemoryReserve(std::string name)
 
 VirtualMemoryReserve::~VirtualMemoryReserve()
 {
-	pxAssertRel(!m_baseptr, "VirtualMemoryReserve has not been released.");
 }
 
 // Notes:
@@ -234,9 +227,6 @@ VirtualMemoryReserve::~VirtualMemoryReserve()
 //
 void VirtualMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, u8* baseptr, size_t size)
 {
-	pxAssertRel(size > 0 && Common::IsAlignedPow2(size, __pagesize), "VM allocation is not page aligned");
-	pxAssertRel(!m_baseptr, "Virtual memory reserve has already been assigned");
-
 	m_allocator = std::move(allocator);
 	m_baseptr = baseptr;
 	m_size = size;
@@ -287,10 +277,7 @@ void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t off
 	// Since the memory has already been allocated as part of the main memory map, this should never fail.
 	u8* base = allocator->Alloc(offset, size);
 	if (!base)
-	{
-		Console.WriteLn("(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
-		pxFailRel("RecompiledCodeReserve allocation failed.");
-	}
+		Console.Error("(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
 
 	VirtualMemoryReserve::Assign(std::move(allocator), base, size);
 }

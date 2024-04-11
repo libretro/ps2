@@ -130,10 +130,7 @@ namespace Vulkan::ShaderCompiler
 			return true;
 
 		if (!glslang::InitializeProcess())
-		{
-			pxFailRel("Failed to initialize glslang shader compiler");
 			return false;
-		}
 
 		std::atexit(DeinitializeGlslang);
 		glslang_initialized = true;

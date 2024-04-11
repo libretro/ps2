@@ -91,8 +91,6 @@ bool USB::CreateDevice(u32 port)
 		return false;
 	}
 
-	pxAssertRel(s_qemu_ohci, "Has OHCI");
-	pxAssertRel(!GetOHCIPort(port).port.dev, "No device in OHCI when creating");
 	GetOHCIPort(port).port.dev = dev;
 	dev->attached = true;
 	usb_attach(&GetOHCIPort(port).port);

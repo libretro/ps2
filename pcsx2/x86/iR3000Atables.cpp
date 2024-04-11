@@ -2345,7 +2345,6 @@ void rpsxpropCP2_basic(EEINST* prev, EEINST* pinst)
 			break;
 
 		default:
-			pxFailDev("iop invalid opcode in const propagation (rpsxpropCP2/BASIC)");
 			break;
 	}
 }

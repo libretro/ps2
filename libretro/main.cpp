@@ -480,7 +480,7 @@ static void executeVM(void)
 		switch (VMManager::GetState())
 		{
 			case VMState::Initializing:
-				pxFailRel("Shouldn't be in the starting state state");
+				Console.Error("Shouldn't be in the starting state state");
 				continue;
 
 			case VMState::Paused:

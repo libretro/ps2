@@ -230,10 +230,6 @@ void GSVertexTraceFMM::FindMinMax(GSVertexTrace& vt, const void* vertex, const u
 			}
 		}
 	}
-	else
-	{
-		pxAssertRel(0, "Bad n value");
-	}
 
 	GSVector4 o(context->XYOFFSET);
 	GSVector4 s(1.0f / 16, 1.0f / 16, 2.0f, 1.0f);

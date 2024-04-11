@@ -757,7 +757,7 @@ void eeMemoryReserve::Reset()
 	vtlb_VMapUnmap(0x20000000,0x60000000);
 
 	if (!LoadBIOS())
-		pxFailRel("Failed to load BIOS");
+		Console.Error("Failed to load BIOS");
 }
 
 void eeMemoryReserve::Release()

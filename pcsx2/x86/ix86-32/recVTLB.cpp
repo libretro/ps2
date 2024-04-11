@@ -115,14 +115,12 @@ namespace vtlb_private
 		{
 			if (sz == 128)
 			{
-				pxAssert(xmm);
 				_freeXMMreg(xRegisterSSE::GetArgRegister(1, 0).GetId());
 				xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg));
 			}
 			else if (xmm)
 			{
 				// 32bit xmms are passed in GPRs
-				pxAssert(sz == 32);
 				_freeX86reg(arg2regd);
 				xMOVD(arg2regd, xRegisterSSE(value_reg));
 			}
@@ -142,8 +140,6 @@ namespace vtlb_private
 	// ------------------------------------------------------------------------
 	static void DynGen_DirectRead(u32 bits, bool sign)
 	{
-		pxAssert(bits == 8 || bits == 16 || bits == 32 || bits == 64 || bits == 128);
-
 		switch (bits)
 		{
 			case 8:
@@ -384,7 +380,6 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 		{
 			// we shouldn't be loading any FPRs which aren't 32bit..
 			// we use MOVD here despite it being floating-point data, because we're going int->float reinterpret.
-			pxAssert(bits == 32);
 			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
 			xMOVDZX(xRegisterSSE(x86_dest_reg), eax);
 		}
@@ -419,7 +414,6 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 	}
 	else
 	{
-		pxAssert(bits == 32);
 		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
 		codeStart = x86Ptr;
 		const xRegisterSSE xmmreg(x86_dest_reg);
@@ -591,8 +585,6 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 // recompiler if the TLB is changed.
 int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
-	pxAssert(bits == 128);
-
 	int reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
@@ -657,7 +649,6 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 	}
 	else
 	{
-		pxAssert(sz == 32 || sz == 128);
 		switch (sz)
 		{
 		case 32:
@@ -762,14 +753,12 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 		xMOV(arg1regd, paddr);
 		if (bits == 128)
 		{
-			pxAssert(xmm);
 			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
 			_freeXMMreg(argreg.GetId());
 			xMOVAPS(argreg, xRegisterSSE(value_reg));
 		}
 		else if (xmm)
 		{
-			pxAssert(bits == 32);
 			_freeX86reg(arg2regd);
 			xMOVD(arg2regd, xRegisterSSE(value_reg));
 		}
@@ -946,7 +935,6 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	xJMP(thunk);
 
 	// fill the rest of it with nops, if any
-	pxAssertRel(static_cast<u32>((uptr)x86Ptr - code_address) <= code_size, "Overflowed when backpatching");
 	for (u32 i = static_cast<u32>((uptr)x86Ptr - code_address); i < code_size; i++)
 		xNOP();
 }

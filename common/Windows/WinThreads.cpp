@@ -136,13 +136,11 @@ Threading::Thread::Thread(Thread&& thread)
 Threading::Thread::Thread(EntryPoint func)
 	: ThreadHandle()
 {
-	if (!Start(std::move(func)))
-		pxFailRel("Failed to start implicitly started thread.");
+	Start(std::move(func));
 }
 
 Threading::Thread::~Thread()
 {
-	pxAssertRel(!m_native_handle, "Thread should be detached or joined at destruction");
 }
 
 unsigned Threading::Thread::ThreadProc(void* param)
@@ -154,8 +152,6 @@ unsigned Threading::Thread::ThreadProc(void* param)
 
 bool Threading::Thread::Start(EntryPoint func)
 {
-	pxAssertRel(!m_native_handle, "Can't start an already-started thread");
-	
 	std::unique_ptr<EntryPoint> func_clone(std::make_unique<EntryPoint>(std::move(func)));
 	unsigned thread_id;
 	m_native_handle = reinterpret_cast<void*>(_beginthreadex(nullptr, m_stack_size, ThreadProc, func_clone.get(), 0, &thread_id));
@@ -169,18 +165,13 @@ bool Threading::Thread::Start(EntryPoint func)
 
 void Threading::Thread::Detach()
 {
-	pxAssertRel(m_native_handle, "Can't detach without a thread");
 	CloseHandle((HANDLE)m_native_handle);
 	m_native_handle = nullptr;
 }
 
 void Threading::Thread::Join()
 {
-	pxAssertRel(m_native_handle, "Can't join without a thread");
-	const DWORD res = WaitForSingleObject((HANDLE)m_native_handle, INFINITE);
-	if (res != WAIT_OBJECT_0)
-		pxFailRel("WaitForSingleObject() for thread join failed");
-
+	WaitForSingleObject((HANDLE)m_native_handle, INFINITE);
 	CloseHandle((HANDLE)m_native_handle);
 	m_native_handle = nullptr;
 }

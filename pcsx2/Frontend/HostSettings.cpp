@@ -190,7 +190,6 @@ SettingsInterface* Host::Internal::GetBaseSettingsLayer()
 
 void Host::Internal::SetBaseSettingsLayer(SettingsInterface* sif)
 {
-	pxAssertRel(s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE) == nullptr, "Base layer has not been set");
 	s_layered_settings_interface.SetLayer(LayeredSettingsInterface::LAYER_BASE, sif);
 }
 

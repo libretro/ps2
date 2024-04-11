@@ -134,13 +134,11 @@ Threading::Thread::Thread(Thread&& thread)
 Threading::Thread::Thread(EntryPoint func)
 	: ThreadHandle()
 {
-	if (!Start(std::move(func)))
-		pxFailRel("Failed to start implicitly started thread.");
+	Start(std::move(func));
 }
 
 Threading::Thread::~Thread()
 {
-	pxAssertRel(!m_native_handle, "Thread should be detached or joined at destruction");
 }
 
 void* Threading::Thread::ThreadProc(void* param)
@@ -152,8 +150,6 @@ void* Threading::Thread::ThreadProc(void* param)
 
 bool Threading::Thread::Start(EntryPoint func)
 {
-	pxAssertRel(!m_native_handle, "Can't start an already-started thread");
-
 	std::unique_ptr<EntryPoint> func_clone(std::make_unique<EntryPoint>(std::move(func)));
 
 	pthread_attr_t attrs;
@@ -180,19 +176,14 @@ bool Threading::Thread::Start(EntryPoint func)
 
 void Threading::Thread::Detach()
 {
-	pxAssertRel(m_native_handle, "Can't detach without a thread");
 	pthread_detach((pthread_t)m_native_handle);
 	m_native_handle = nullptr;
 }
 
 void Threading::Thread::Join()
 {
-	pxAssertRel(m_native_handle, "Can't join without a thread");
 	void* retval;
-	const int res = pthread_join((pthread_t)m_native_handle, &retval);
-	if (res != 0)
-		pxFailRel("pthread_join() for thread join failed");
-
+	pthread_join((pthread_t)m_native_handle, &retval);
 	m_native_handle = nullptr;
 }
 

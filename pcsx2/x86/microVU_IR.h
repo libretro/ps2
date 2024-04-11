@@ -309,9 +309,7 @@ protected:
 				return i; // Reg is not needed and was a temp reg
 			}
 		}
-		int x = findFreeRegRec(0);
-		pxAssertDev(x >= 0, "microVU register allocation failure!");
-		return x;
+		return findFreeRegRec(0);
 	}
 
 	int findFreeGPRRec(int startIdx)
@@ -341,9 +339,7 @@ protected:
 				return i; // Reg is not needed and was a temp reg
 			}
 		}
-		int x = findFreeGPRRec(0);
-		pxAssertDev(x >= 0, "microVU register allocation failure!");
-		return x;
+		return findFreeGPRRec(0);
 	}
 
 	void writeVIBackup(const xRegisterInt& reg);
@@ -394,10 +390,8 @@ public:
 
 				// we shouldn't have any temp registers in here.. except for PQ, which
 				// isn't allocated here yet.
-				// pxAssertRel(fprregs[i].reg >= 0, "Valid full register preserved");
 				if (pxmmregs[i].reg >= 0)
 				{
-					pxAssert(pxmmregs[i].reg >= 0);
 					pxmmregs[i].needed = false;
 					xmmMap[i].isNeeded = false;
 					xmmMap[i].VFreg = pxmmregs[i].reg;
@@ -410,7 +404,6 @@ public:
 				if (!x86regs[i].inuse || x86regs[i].type != X86TYPE_VIREG)
 					continue;
 
-				// pxAssertRel(armregs[i].reg >= 0, "Valid full register preserved");
 				if (x86regs[i].reg >= 0)
 				{
 					x86regs[i].needed = false;
@@ -620,10 +613,7 @@ public:
 	{
 		microMapXMM& clear = xmmMap[regId];
 		if (regAllocCOP2 && (clear.isNeeded || clear.VFreg >= 0))
-		{
-			pxAssert(pxmmregs[regId].type == XMMTYPE_VFREG);
 			pxmmregs[regId].inuse = false;
-		}
 
 		clear = {-1, 0, 0, false, false};
 	}
@@ -649,7 +639,6 @@ public:
 			return;
 
 		const bool dirty = (xmmMap[rn].VFreg > 0 && xmmMap[rn].xyzw != 0);
-		pxAssert(pxmmregs[rn].type == XMMTYPE_VFREG);
 		pxmmregs[rn].reg = xmmMap[rn].VFreg;
 		pxmmregs[rn].mode = dirty ? (MODE_READ | MODE_WRITE) : MODE_READ;
 		pxmmregs[rn].needed = xmmMap[rn].isNeeded;
@@ -752,7 +741,6 @@ public:
 		else if (regAllocCOP2 && clear.VFreg < 0)
 		{
 			// free on the EE side
-			pxAssert(pxmmregs[reg.Id].type == XMMTYPE_VFREG);
 			pxmmregs[reg.Id].inuse = false;
 		}
 	}
@@ -868,10 +856,7 @@ public:
 		if (regAllocCOP2)
 		{
 			if (x86regs[regId].inuse && x86regs[regId].type == X86TYPE_VIREG)
-			{
-				pxAssert(x86regs[regId].reg == clear.VIreg);
 				_freeX86regWithoutWriteback(regId);
-			}
 		}
 
 		clear.VIreg = -1;
@@ -894,7 +879,6 @@ public:
 
 		const u32 rn = reg.GetId();
 		const bool dirty = (gprMap[rn].VIreg >= 0 && gprMap[rn].dirty);
-		pxAssert(x86regs[rn].type == X86TYPE_VIREG);
 		x86regs[rn].reg = gprMap[rn].VIreg;
 		x86regs[rn].counter = gprMap[rn].count;
 		x86regs[rn].mode = dirty ? (MODE_READ | MODE_WRITE) : MODE_READ;
@@ -904,10 +888,8 @@ public:
 	void writeBackReg(const xRegisterInt& reg, bool clearDirty)
 	{
 		microMapGPR& mapX = gprMap[reg.GetId()];
-		pxAssert(mapX.usable || !mapX.dirty);
 		if (mapX.dirty)
 		{
-			pxAssert(mapX.VIreg > 0);
 			if (mapX.VIreg < 16)
 				xMOV(ptr16[&getVI(mapX.VIreg)], xRegister16(reg));
 			if (clearDirty)
@@ -920,7 +902,6 @@ public:
 
 	void clearNeeded(const xRegisterInt& reg)
 	{
-		pxAssert(reg.GetId() < gprTotal);
 		microMapGPR& clear = gprMap[reg.GetId()];
 		clear.isNeeded = false;
 		if (regAllocCOP2)
@@ -945,7 +926,6 @@ public:
 				{
 					if (regAllocCOP2)
 					{
-						pxAssert(x86regs[i].type == X86TYPE_VIREG && x86regs[i].reg == static_cast<u8>(mapI.VIreg));
 						x86regs[i].reg = -1;
 					}
 
@@ -956,12 +936,6 @@ public:
 				else
 				{
 					clearGPR(i);
-				}
-
-				// shouldn't be any others...
-				for (int j = i + 1; j < gprTotal; j++)
-				{
-					pxAssert(gprMap[j].VIreg != reg);
 				}
 
 				break;
@@ -1052,7 +1026,6 @@ public:
 
 					if (regAllocCOP2)
 					{
-						pxAssert(x86regs[i].inuse && x86regs[i].type == X86TYPE_VIREG);
 						x86regs[i].reg = gprMap[i].VIreg;
 						x86regs[i].mode = gprMap[i].dirty ? (MODE_WRITE | MODE_READ) : (MODE_READ);
 					}
@@ -1106,7 +1079,6 @@ public:
 
 		if (regAllocCOP2)
 		{
-			pxAssert(x86regs[x].inuse && x86regs[x].type == X86TYPE_VIREG);
 			x86regs[x].reg = gprMap[x].VIreg;
 			x86regs[x].mode = gprMap[x].dirty ? (MODE_WRITE | MODE_READ) : (MODE_READ);
 		}
@@ -1116,7 +1088,6 @@ public:
 
 	void moveVIToGPR(const xRegisterInt& reg, int vi, bool signext = false)
 	{
-		pxAssert(vi >= 0);
 		if (vi == 0)
 		{
 			xXOR(xRegister32(reg), xRegister32(reg));

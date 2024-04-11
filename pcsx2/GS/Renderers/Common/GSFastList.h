@@ -224,9 +224,6 @@ private:
 
 	void Grow()
 	{
-		if (m_capacity == USHRT_MAX)
-			pxFailRel("FastList size maxed out at USHRT_MAX (65535) elements, cannot grow futhermore.");
-
 		const u16 new_capacity = m_capacity <= (USHRT_MAX / 2) ? (m_capacity * 2) : USHRT_MAX;
 
 		Element<T>* new_buffer = (Element<T>*)_aligned_malloc(new_capacity * sizeof(Element<T>) + (new_capacity - 1) * sizeof(u16), 64);

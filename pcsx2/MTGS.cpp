@@ -64,7 +64,6 @@ void SysMtgsThread::StartThread()
 	if (m_thread != std::thread::id())
 		return;
 
-	pxAssertRel(!m_open_flag.load(), "GS thread should not be opened when starting");
 	m_sem_event.Reset();
 	m_shutdown_flag.store(false, std::memory_order_release);
 	GSinit();
@@ -128,7 +127,6 @@ void SysMtgsThread::ThreadEntryPoint()
 		}
 		// when we come back here, it's because we closed (or shutdown)
 		// that means the emu thread should be blocked, waiting for us to be done
-		pxAssertRel(!m_open_flag.load(std::memory_order_relaxed), "Open flag is clear on close");
 		CloseGS();
 		m_open_or_close_done.Post();
 
@@ -533,7 +531,7 @@ void SysMtgsThread::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
 	else
 	{
 		if (!m_sem_event.WaitForEmpty())
-			pxFailRel("MTGS Thread Died");
+			Console.Error("MTGS Thread Died");
 	}
 
 	assert(!(weakWait && syncRegs) && "No synchronization for this!");
@@ -784,7 +782,6 @@ void SysMtgsThread::WaitForClose()
 
 void SysMtgsThread::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	pxAssertRel(IsOpen(), "GS thread is open");
 	SendPointerPacket(GS_RINGTYPE_FREEZE, (int)mode, &data);
 	WaitGS();
 }
@@ -799,8 +796,6 @@ void SysMtgsThread::RunOnGSThread(AsyncCallType func)
 
 void SysMtgsThread::ApplySettings()
 {
-	pxAssertRel(IsOpen(), "MTGS is running");
-
 	RunOnGSThread([opts = EmuConfig.GS]() {
 		GSUpdateConfig(opts);
 		GSSetVSyncMode(Host::GetEffectiveVSyncMode());
@@ -815,8 +810,6 @@ void SysMtgsThread::ApplySettings()
 
 void SysMtgsThread::SetVSyncMode(VsyncMode mode)
 {
-	pxAssertRel(IsOpen(), "MTGS is running");
-
 	RunOnGSThread([mode]() {
 		GSSetVSyncMode(mode);
 	});
@@ -829,8 +822,6 @@ void SysMtgsThread::UpdateVSyncMode()
 
 void SysMtgsThread::SwitchRenderer(GSRendererType renderer, bool display_message /* = true */)
 {
-	pxAssertRel(IsOpen(), "MTGS is running");
-
 	if (display_message)
 	{
 		Host::AddIconOSDMessage("SwitchRenderer", ICON_FA_MAGIC, fmt::format("Switching to {} renderer...",

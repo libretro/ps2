@@ -62,7 +62,6 @@ long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 {
 	std::unique_lock lock(s_exception_handler_mutex);
-	pxAssertRel(!s_exception_handler_callback, "A page fault handler is already registered.");
 	if (!s_exception_handler_handle)
 	{
 		s_exception_handler_handle = AddVectoredExceptionHandler(TRUE, SysPageFaultExceptionFilter);
@@ -77,8 +76,6 @@ bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 {
 	std::unique_lock lock(s_exception_handler_mutex);
-	pxAssertRel(!s_exception_handler_callback || s_exception_handler_callback == handler,
-		"Not removing the same handler previously registered.");
 	s_exception_handler_callback = nullptr;
 
 	if (s_exception_handler_handle)
@@ -129,8 +126,7 @@ void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode& 
 	pxAssert((size & (__pagesize - 1)) == 0);
 
 	DWORD OldProtect; // enjoy my uselessness, yo!
-	if (!VirtualProtect(baseaddr, size, ConvertToWinApi(mode), &OldProtect))
-		pxFail("VirtualProtect() failed");
+	VirtualProtect(baseaddr, size, ConvertToWinApi(mode), &OldProtect);
 }
 
 std::string HostSys::GetFileMappingName(const char* prefix)
@@ -161,16 +157,14 @@ void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size
 	if (prot != PAGE_READWRITE)
 	{
 		DWORD old_prot;
-		if (!VirtualProtect(ret, size, prot, &old_prot))
-			pxFail("Failed to protect memory mapping");
+		VirtualProtect(ret, size, prot, &old_prot);
 	}
 	return ret;
 }
 
 void HostSys::UnmapSharedMemory(void* baseaddr, size_t size)
 {
-	if (!UnmapViewOfFile(baseaddr))
-		pxFail("Failed to unmap shared memory");
+	UnmapViewOfFile(baseaddr);
 }
 
 SharedMemoryMappingArea::SharedMemoryMappingArea(u8* base_ptr, size_t size, size_t num_pages)
@@ -183,11 +177,8 @@ SharedMemoryMappingArea::SharedMemoryMappingArea(u8* base_ptr, size_t size, size
 
 SharedMemoryMappingArea::~SharedMemoryMappingArea()
 {
-	pxAssertRel(m_num_mappings == 0, "No mappings left");
-
 	// hopefully this will be okay, and we don't need to coalesce all the placeholders...
-	if (!VirtualFreeEx(GetCurrentProcess(), m_base_ptr, 0, MEM_RELEASE))
-		pxFailRel("Failed to release shared memory area");
+	VirtualFreeEx(GetCurrentProcess(), m_base_ptr, 0, MEM_RELEASE);
 }
 
 SharedMemoryMappingArea::PlaceholderMap::iterator SharedMemoryMappingArea::FindPlaceholder(size_t offset)
@@ -220,8 +211,6 @@ SharedMemoryMappingArea::PlaceholderMap::iterator SharedMemoryMappingArea::FindP
 
 std::unique_ptr<SharedMemoryMappingArea> SharedMemoryMappingArea::Create(size_t size)
 {
-	pxAssertRel(Common::IsAlignedPow2(size, __pagesize), "Size is page aligned");
-
 	void* alloc = VirtualAlloc2(GetCurrentProcess(), nullptr, size, MEM_RESERVE | MEM_RESERVE_PLACEHOLDER, PAGE_NOACCESS, nullptr, 0);
 	if (!alloc)
 		return nullptr;
@@ -250,11 +239,8 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 		phit->second = map_offset;
 
 		// split it (i.e. left..start and start..end are now separated)
-		if (!VirtualFreeEx(GetCurrentProcess(), OffsetPointer(phit->first),
-				(map_offset - phit->first), MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER))
-		{
-			pxFailRel("Failed to left split placeholder for map");
-		}
+		VirtualFreeEx(GetCurrentProcess(), OffsetPointer(phit->first),
+				(map_offset - phit->first), MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
 	}
 	else
 	{
@@ -268,11 +254,8 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 		// split out end..ph_end
 		m_placeholder_ranges.emplace(map_offset + map_size, old_ph_end);
 
-		if (!VirtualFreeEx(GetCurrentProcess(), OffsetPointer(map_offset), map_size,
-				MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER))
-		{
-			pxFailRel("Failed to right split placeholder for map");
-		}
+		VirtualFreeEx(GetCurrentProcess(), OffsetPointer(map_offset), map_size,
+				MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
 	}
 
 	// actually do the mapping, replacing the placeholder on the range
@@ -287,8 +270,7 @@ u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* ma
 	if (prot != PAGE_READWRITE)
 	{
 		DWORD old_prot;
-		if (!VirtualProtect(map_base, map_size, prot, &old_prot))
-			pxFail("Failed to protect memory mapping");
+		VirtualProtect(map_base, map_size, prot, &old_prot);
 	}
 
 	m_num_mappings++;
@@ -319,11 +301,8 @@ bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 		left_it->second = map_offset + map_size;
 
 		// combine placeholders before and the range we're unmapping, i.e. to the left
-		if (!VirtualFreeEx(GetCurrentProcess(), OffsetPointer(left_it->first),
-				 left_it->second - left_it->first, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS))
-		{
-			pxFail("Failed to coalesce placeholders left for unmap");
-		}
+		VirtualFreeEx(GetCurrentProcess(), OffsetPointer(left_it->first),
+				 left_it->second - left_it->first, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS);
 	}
 	else
 	{
@@ -341,11 +320,8 @@ bool SharedMemoryMappingArea::Unmap(void* map_base, size_t map_size)
 		m_placeholder_ranges.erase(right_it);
 
 		// combine our placeholder and the next, i.e. to the right
-		if (!VirtualFreeEx(GetCurrentProcess(), OffsetPointer(left_it->first),
-				left_it->second - left_it->first, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS))
-		{
-			pxFail("Failed to coalescae placeholders right for unmap");
-		}
+		VirtualFreeEx(GetCurrentProcess(), OffsetPointer(left_it->first),
+				left_it->second - left_it->first, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS);
 	}
 
 	m_num_mappings--;

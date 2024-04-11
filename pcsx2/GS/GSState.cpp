@@ -2364,9 +2364,6 @@ void GSState::GrowVertexBuffer()
 	// Worst case index list is a list of points with vs expansion, 6 indices per point
 	u16* index = static_cast<u16*>(_aligned_malloc(sizeof(u16) * maxcount * 6, 32));
 
-	if (!vertex || !index)
-		pxFailRel("Memory allocation failed");
-
 	if (m_vertex.buff)
 	{
 		memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);

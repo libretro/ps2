@@ -124,7 +124,6 @@ namespace Vulkan
 		{
 			Console.Error("Attempting to allocate %u bytes from a %u byte stream buffer", static_cast<u32>(num_bytes),
 				static_cast<u32>(m_size));
-			pxFailRel("Stream buffer overflow");
 			return false;
 		}
 

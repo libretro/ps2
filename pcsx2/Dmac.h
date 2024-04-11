@@ -275,11 +275,9 @@ static __fi int ChannelNumber(u32 addr)
         case D8_CHCR: return 8;
         case D9_CHCR: return 9;
 		default:
-		{
-			pxFailDev("Invalid DMA channel number");
-			return 51; // some value
-		}
+		      break;
     }
+    return 51; // some value
 }
 
 union tDMAC_CTRL {

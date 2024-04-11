@@ -236,7 +236,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 			if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window) ||
 				(recreate_renderer && !OpenGSRenderer(GSConfig.Renderer, basemem)))
 			{
-				pxFailRel("Failed to reopen GS on old config");
+				Console.Error("Failed to reopen GS on old config");
 				Host::ReleaseRenderWindow();
 				return false;
 			}
@@ -430,7 +430,7 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 		|| GSConfig.SWExtraThreadsHeight != old_config.SWExtraThreadsHeight)
 	{
 		if (!GSreopen(false, true, old_config))
-			pxFailRel("Failed to do quick GS reopen");
+			Console.Error("Failed to do quick GS reopen");
 
 		return;
 	}
@@ -494,7 +494,7 @@ void GSSwitchRenderer(GSRendererType new_renderer)
 	const Pcsx2Config::GSOptions old_config(GSConfig);
 	GSConfig.Renderer = new_renderer;
 	if (!GSreopen(!is_software_switch, true, old_config))
-		pxFailRel("Failed to reopen GS for renderer switch.");
+		Console.Error("Failed to reopen GS for renderer switch.");
 }
 
 #ifdef _WIN32
@@ -503,8 +503,6 @@ static HANDLE s_fh = NULL;
 
 void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 {
-	pxAssertRel(!s_fh, "Has no file mapping");
-
 	s_fh = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, size, nullptr);
 	if (s_fh == NULL)
 	{
@@ -549,8 +547,6 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 
 void GSFreeWrappedMemory(void* ptr, size_t size, size_t repeat)
 {
-	pxAssertRel(s_fh, "Has a file mapping");
-
 	for (size_t i = 0; i < repeat; i++)
 	{
 		u8* addr = (u8*)ptr + i * size;

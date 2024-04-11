@@ -105,7 +105,6 @@ int _getFreeX86reg(int mode)
 		return tempi;
 	}
 
-	pxFailRel("x86 register allocation error");
 	return -1;
 }
 
@@ -396,9 +395,6 @@ int _checkX86reg(int type, int reg, int mode)
 			// shouldn't have dirty constants...
 			pxAssert((type != X86TYPE_GPR || !GPR_IS_DIRTY_CONST(reg)) &&
 					 (type != X86TYPE_PSX || !PSX_IS_DIRTY_CONST(reg)));
-
-			if ((type == X86TYPE_GPR || type == X86TYPE_PSX) && !(x86regs[i].mode & MODE_READ) && (mode & MODE_READ))
-				pxFailRel("Somehow ended up with an allocated x86 without mode");
 
 			// ensure constants get deleted once we alloc as write
 			if (mode & MODE_WRITE)

@@ -99,8 +99,6 @@ namespace GL
 				: StreamBuffer(target, buffer_id, size)
 			{
 				m_cpu_buffer = static_cast<u8*>(_aligned_malloc(size, 32));
-				if (!m_cpu_buffer)
-					pxFailRel("Failed to allocate CPU storage for GL buffer");
 			}
 
 			u8* m_cpu_buffer;
@@ -159,8 +157,6 @@ namespace GL
 				: StreamBuffer(target, buffer_id, size)
 			{
 				m_cpu_buffer = static_cast<u8*>(_aligned_malloc(size, 32));
-				if (!m_cpu_buffer)
-					pxFailRel("Failed to allocate CPU storage for GL buffer");
 			}
 
 			u8* m_cpu_buffer;
@@ -318,8 +314,6 @@ namespace GL
 				}
 
 				u8* mapped_ptr = static_cast<u8*>(glMapBufferRange(target, 0, size, map_flags));
-				pxAssertRel(mapped_ptr, "Persistent buffer was mapped");
-
 				return std::unique_ptr<StreamBuffer>(new BufferStorageStreamBuffer(target, buffer_id, size, mapped_ptr, coherent));
 			}
 

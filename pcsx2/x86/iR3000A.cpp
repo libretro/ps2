@@ -800,19 +800,15 @@ static void recReserve()
 	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
 }
 
-static void recAlloc()
+static void recAlloc(void)
 {
 	// Goal: Allocate BASEBLOCKs for every possible branch target in IOP memory.
 	// Any 4-byte aligned address makes a valid branch target as per MIPS design (all instructions are
 	// always 4 bytes long).
 
+	// We're on 64-bit, if these memory allocations fail, we're in real trouble.
 	if (!m_recBlockAlloc)
-	{
-		// We're on 64-bit, if these memory allocations fail, we're in real trouble.
 		m_recBlockAlloc = (u8*)_aligned_malloc(m_recBlockAllocSize, 4096);
-		if (!m_recBlockAlloc)
-			pxFailRel("Failed to allocate R3000A BASEBLOCK lookup tables");
-	}
 
 	u8* curpos = m_recBlockAlloc;
 	recRAM = (BASEBLOCK*)curpos;
@@ -829,8 +825,6 @@ static void recAlloc()
 	{
 		s_nInstCacheSize = 128;
 		s_pInstCache = (EEINST*)malloc(sizeof(EEINST) * s_nInstCacheSize);
-		if (!s_pInstCache)
-			pxFailRel("Failed to allocate R3000 InstCache array.");
 	}
 
 	_DynGen_Dispatchers();
@@ -976,13 +970,6 @@ static __fi u32 psxRecClearMem(u32 pc)
 	if (toRemoveFirst != blockidx)
 	{
 		recBlocks.Remove(toRemoveFirst, (blockidx - 1));
-	}
-
-	blockidx = 0;
-	while (BASEBLOCKEX* pexblock = recBlocks[blockidx++])
-	{
-		if (pc >= pexblock->startpc && pc < pexblock->startpc + pexblock->size * 4)
-			pxFailDev("[IOP] Impossible block clearing failure");
 	}
 
 	iopClearRecLUT(PSX_GETBLOCK(lowerextent), (upperextent - lowerextent) / 4);

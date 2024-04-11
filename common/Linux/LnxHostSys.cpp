@@ -128,7 +128,6 @@ static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 {
 	std::unique_lock lock(s_exception_handler_mutex);
-	pxAssertRel(!s_exception_handler_callback, "A page fault handler is already registered.");
 	if (!s_exception_handler_callback)
 	{
 		struct sigaction sa;
@@ -157,8 +156,6 @@ bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 {
 	std::unique_lock lock(s_exception_handler_mutex);
-	pxAssertRel(!s_exception_handler_callback || s_exception_handler_callback == handler,
-		"Not removing the same handler previously registered.");
 	if (!s_exception_handler_callback)
 		return;
 
@@ -217,12 +214,8 @@ void HostSys::Munmap(void* base, size_t size)
 void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode& mode)
 {
 	pxAssertDev((size & (__pagesize - 1)) == 0, "Size is page aligned");
-
 	const u32 lnxmode = LinuxProt(mode);
-
-	const int result = mprotect(baseaddr, size, lnxmode);
-	if (result != 0)
-		pxFail("mprotect() failed");
+	mprotect(baseaddr, size, lnxmode);
 }
 
 std::string HostSys::GetFileMappingName(const char* prefix)
@@ -281,8 +274,7 @@ void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size
 
 void HostSys::UnmapSharedMemory(void* baseaddr, size_t size)
 {
-	if (mmap(baseaddr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED)
-		pxFailRel("Failed to unmap shared memory");
+	mmap(baseaddr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 }
 
 SharedMemoryMappingArea::SharedMemoryMappingArea(u8* base_ptr, size_t size, size_t num_pages)
@@ -294,17 +286,12 @@ SharedMemoryMappingArea::SharedMemoryMappingArea(u8* base_ptr, size_t size, size
 
 SharedMemoryMappingArea::~SharedMemoryMappingArea()
 {
-	pxAssertRel(m_num_mappings == 0, "No mappings left");
-
-	if (munmap(m_base_ptr, m_size) != 0)
-		pxFailRel("Failed to release shared memory area");
+	munmap(m_base_ptr, m_size);
 }
 
 
 std::unique_ptr<SharedMemoryMappingArea> SharedMemoryMappingArea::Create(size_t size)
 {
-	pxAssertRel(Common::IsAlignedPow2(size, __pagesize), "Size is page aligned");
-
 	void* alloc = mmap(nullptr, size, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (alloc == MAP_FAILED)
 		return nullptr;

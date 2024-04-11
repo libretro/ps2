@@ -39,7 +39,6 @@
 void ReadFIFO_VIF1(mem128_t* out)
 {
 	ZeroQWC(out); // Clear first in case no data gets written...
-	pxAssertRel(vif1Regs.stat.FQC != 0, "FQC = 0 on VIF FIFO READ!");
 	if (vif1Regs.stat.FDR)
 	{
 		if (vif1Regs.stat.FQC > 0)

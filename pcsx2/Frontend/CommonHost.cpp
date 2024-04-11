@@ -83,7 +83,7 @@ void CommonHost::CPUThreadInitialize()
 
 	// neither of these should ever fail.
 	if (!VMManager::Internal::InitializeGlobals() || !VMManager::Internal::InitializeMemory())
-		pxFailRel("Failed to allocate memory map");
+		Console.Error("Failed to allocate memory map");
 
 	// We want settings loaded so we choose the correct renderer for big picture mode.
 	// This also sorts out input sources.

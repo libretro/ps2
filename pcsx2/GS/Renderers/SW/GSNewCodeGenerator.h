@@ -49,7 +49,7 @@ private:
 	void requireAVX()
 	{
 		if (!hasAVX)
-			pxFailRel("used AVX instruction in SSE code");
+			Console.Error("used AVX instruction in SSE code");
 	}
 
 public:
@@ -114,7 +114,7 @@ public:
 
 #define ACTUAL_FORWARD_SSEONLY(name, ...) \
 	if (hasAVX) \
-		pxFailRel("used SSE instruction in AVX code"); \
+		Console.Error("used SSE instruction in AVX code"); \
 	else \
 		actual.name(__VA_ARGS__);
 
@@ -122,19 +122,19 @@ public:
 	if (hasAVX) \
 		actual.name(__VA_ARGS__); \
 	else \
-		pxFailRel("used AVX instruction in SSE code");
+		Console.Error("used AVX instruction in SSE code");
 
 #define ACTUAL_FORWARD_AVX2(name, ...) \
 	if (hasAVX2) \
 		actual.name(__VA_ARGS__); \
 	else \
-		pxFailRel("used AVX instruction in SSE code");
+		Console.Error("used AVX instruction in SSE code");
 
 #define ACTUAL_FORWARD_FMA(name, ...) \
 	if (hasFMA) \
 		actual.name(__VA_ARGS__); \
 	else \
-		pxFailRel("used AVX instruction in SSE code");
+		Console.Error("used AVX instruction in SSE code");
 
 #define FORWARD1(category, name, type) \
 	void name(type a) \

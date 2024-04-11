@@ -211,7 +211,6 @@ namespace Vulkan
 			return true;
 		}
 
-		pxFailRel("Failed to find a suitable format for swap chain buffers.");
 		return false;
 	}
 
@@ -375,10 +374,7 @@ namespace Vulkan
 		m_clear_render_pass =
 			g_vulkan_context->GetRenderPass(m_surface_format.format, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR);
 		if (m_load_render_pass == VK_NULL_HANDLE || m_clear_render_pass == VK_NULL_HANDLE)
-		{
-			pxFailRel("Failed to get swap chain render passes.");
 			return false;
-		}
 
 		m_images.reserve(image_count);
 		m_current_image = 0;
@@ -522,7 +518,7 @@ namespace Vulkan
 			return false;
 		if (!present_supported)
 		{
-			pxFailRel("Recreated surface does not support presenting.");
+			Console.Error("Recreated surface does not support presenting.");
 			return false;
 		}
 

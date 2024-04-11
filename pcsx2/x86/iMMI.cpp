@@ -216,7 +216,7 @@ void recPMFHL()
 			break;
 		default:
 			Console.Error("PMFHL??  *pcsx2 head esplode!*");
-			pxFail("PMFHL??  *pcsx2 head esplode!*");
+			break;
 	}
 
 	_clearNeededXMMregs();

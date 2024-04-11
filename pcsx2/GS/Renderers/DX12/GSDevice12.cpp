@@ -146,8 +146,6 @@ bool Context::SupportsTextureFormat(DXGI_FORMAT format)
 
 bool Context::Create(IDXGIFactory5* dxgi_factory, IDXGIAdapter1* adapter, bool enable_debug_layer)
 {
-	pxAssertRel(!g_d3d12_context, "No context exists");
-
 	if (!LoadD3D12Library())
 	{
 		Console.Error("Failed to load D3D12 library");
@@ -234,12 +232,10 @@ bool Context::CreateAllocator()
 bool Context::CreateFence()
 {
 	HRESULT hr = m_device->CreateFence(m_completed_fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
-	pxAssertRel(SUCCEEDED(hr), "Create fence");
 	if (FAILED(hr))
 		return false;
 
 	m_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	pxAssertRel(m_fence_event != NULL, "Create fence event");
 	if (!m_fence_event)
 		return false;
 
@@ -266,10 +262,7 @@ bool Context::CreateDescriptorHeaps()
 		D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING};
 
 	if (!m_descriptor_heap_manager.Allocate(&m_null_srv_descriptor))
-	{
-		pxFailRel("Failed to allocate null descriptor");
 		return false;
-	}
 
 	m_device->CreateShaderResourceView(nullptr, &null_srv_desc, m_null_srv_descriptor.cpu_handle);
 	return true;
@@ -289,7 +282,6 @@ bool Context::CreateCommandLists()
 		{
 			hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
 				IID_PPV_ARGS(res.command_allocators[i].put()));
-			pxAssertRel(SUCCEEDED(hr), "Create command allocator");
 			if (FAILED(hr))
 				return false;
 
@@ -304,7 +296,6 @@ bool Context::CreateCommandLists()
 
 			// Close the command lists, since the first thing we do is reset them.
 			hr = res.command_lists[i]->Close();
-			pxAssertRel(SUCCEEDED(hr), "Closing new command list failed");
 			if (FAILED(hr))
 				return false;
 		}
@@ -407,7 +398,6 @@ bool Context::ExecuteCommandList(WaitType wait_for_completion)
 
 	// Update fence when GPU has completed.
 	hr = m_command_queue->Signal(m_fence.get(), res.ready_fence_value);
-	pxAssertRel(SUCCEEDED(hr), "Signal fence");
 
 	MoveToNextCommandList();
 	if (wait_for_completion != WaitType::None)
@@ -522,7 +512,6 @@ void Context::WaitForFence(u64 fence, bool spin)
 		{
 			// Fall back to event.
 			HRESULT hr = m_fence->SetEventOnCompletion(fence, m_fence_event);
-			pxAssertRel(SUCCEEDED(hr), "Set fence event on completion");
 			WaitForSingleObject(m_fence_event, INFINITE);
 			m_completed_fence_value = m_fence->GetCompletedValue();
 		}
@@ -1167,7 +1156,7 @@ void GSDevice12::DoMultiStretchRects(
 		if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
 			!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
 		{
-			pxFailRel("Failed to reserve space for vertices");
+			Console.Error("Failed to reserve space for vertices");
 		}
 	}
 
@@ -1461,7 +1450,7 @@ void GSDevice12::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 	{
 		ExecuteCommandListAndRestartRenderPass(false, "Uploading to vertex buffer");
 		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
-			pxFailRel("Failed to reserve space for vertices");
+			Console.Error("Failed to reserve space for vertices");
 	}
 
 	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
@@ -1479,7 +1468,7 @@ void GSDevice12::IASetIndexBuffer(const void* index, size_t count)
 	{
 		ExecuteCommandListAndRestartRenderPass(false, "Uploading bytes to index buffer");
 		if (!m_index_stream_buffer.ReserveMemory(size, sizeof(u16)))
-			pxFailRel("Failed to reserve space for vertices");
+			Console.Error("Failed to reserve space for vertices");
 	}
 
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);
@@ -2262,7 +2251,7 @@ void GSDevice12::InitializeSamplers()
 	result = result && GetSampler(&m_tfx_sampler, m_tfx_sampler_sel);
 
 	if (!result)
-		pxFailRel("Failed to initialize samplers");
+		Console.Error("Failed to initialize samplers");
 }
 
 static D3D12::Context::WaitType GetWaitType(bool wait, bool spin)
@@ -2271,8 +2260,7 @@ static D3D12::Context::WaitType GetWaitType(bool wait, bool spin)
 		return D3D12::Context::WaitType::None;
 	if (spin)
 		return D3D12::Context::WaitType::Spin;
-	else
-		return D3D12::Context::WaitType::Sleep;
+	return D3D12::Context::WaitType::Sleep;
 }
 
 void GSDevice12::ExecuteCommandList(bool wait_for_completion)

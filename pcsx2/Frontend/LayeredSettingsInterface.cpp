@@ -110,32 +110,26 @@ bool LayeredSettingsInterface::GetStringValue(const char* section, const char* k
 
 void LayeredSettingsInterface::SetIntValue(const char* section, const char* key, int value)
 {
-	pxFailRel("Attempt to call SetIntValue() on layered settings interface");
 }
 
 void LayeredSettingsInterface::SetUIntValue(const char* section, const char* key, uint value)
 {
-	pxFailRel("Attempt to call SetUIntValue() on layered settings interface");
 }
 
 void LayeredSettingsInterface::SetFloatValue(const char* section, const char* key, float value)
 {
-	pxFailRel("Attempt to call SetFloatValue() on layered settings interface");
 }
 
 void LayeredSettingsInterface::SetDoubleValue(const char* section, const char* key, double value)
 {
-	pxFailRel("Attempt to call SetDoubleValue() on layered settings interface");
 }
 
 void LayeredSettingsInterface::SetBoolValue(const char* section, const char* key, bool value)
 {
-	pxFailRel("Attempt to call SetBoolValue() on layered settings interface");
 }
 
 void LayeredSettingsInterface::SetStringValue(const char* section, const char* key, const char* value)
 {
-	pxFailRel("Attempt to call SetStringValue() on layered settings interface");
 }
 
 bool LayeredSettingsInterface::ContainsValue(const char* section, const char* key) const
@@ -153,12 +147,10 @@ bool LayeredSettingsInterface::ContainsValue(const char* section, const char* ke
 
 void LayeredSettingsInterface::DeleteValue(const char* section, const char* key)
 {
-	pxFailRel("Attempt to call DeleteValue() on layered settings interface");
 }
 
 void LayeredSettingsInterface::ClearSection(const char* section)
 {
-	pxFailRel("Attempt to call ClearSection() on layered settings interface");
 }
 
 std::vector<std::string> LayeredSettingsInterface::GetStringList(const char* section, const char* key) const
@@ -180,18 +172,15 @@ std::vector<std::string> LayeredSettingsInterface::GetStringList(const char* sec
 
 void LayeredSettingsInterface::SetStringList(const char* section, const char* key, const std::vector<std::string>& items)
 {
-	pxFailRel("Attempt to call SetStringList() on layered settings interface");
 }
 
 bool LayeredSettingsInterface::RemoveFromStringList(const char* section, const char* key, const char* item)
 {
-	pxFailRel("Attempt to call RemoveFromStringList() on layered settings interface");
 	return false;
 }
 
 bool LayeredSettingsInterface::AddToStringList(const char* section, const char* key, const char* item)
 {
-	pxFailRel("Attempt to call AddToStringList() on layered settings interface");
 	return true;
 }
 
@@ -221,5 +210,4 @@ std::vector<std::pair<std::string, std::string>> LayeredSettingsInterface::GetKe
 
 void LayeredSettingsInterface::SetKeyValueList(const char* section, const std::vector<std::pair<std::string, std::string>>& items)
 {
-	pxFailRel("Attempt to call SetKeyValueList() on layered settings interface");
 }

@@ -452,8 +452,6 @@ static void recAlloc()
 	{
 		s_nInstCacheSize = 128;
 		s_pInstCache = (EEINST*)malloc(sizeof(EEINST) * s_nInstCacheSize);
-		if (!s_pInstCache)
-			pxFailRel("Failed to allocate R5900-32 InstCache array");
 	}
 
 	// No errors.. Proceed with initialization:
@@ -550,12 +548,9 @@ static void recResetEE()
 	recResetRaw();
 }
 
-static void recCancelInstruction()
-{
-	pxFailRel("recCancelInstruction() called, this should never happen!");
-}
+static void recCancelInstruction(void) { }
 
-static void recExecute()
+static void recExecute(void)
 {
 	// Reset before we try to execute any code, if there's one pending.
 	// We need to do this here, because if we reset while we're executing, it sets the "needs reset"

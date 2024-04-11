@@ -152,14 +152,9 @@ __ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
 		pxAssertMsg( PSM(dmacRegs.rbor.ADDR+ringsize-1) != NULL, "Scratchpad/MFIFO ringbuffer spans into invalid (unmapped) physical memory!" );
 		uint startpos = (addr & dmacRegs.rbsr.RMSK)/16;
 		MemCopy_WrappedDest( data, dst, startpos, ringsize, qwc );
+		return true;
 	}
-	else
-	{
-		pxFailDev( fmt::format( "Scratchpad/MFIFO: Invalid base physical address: 0x{:08x}", u32(dmacRegs.rbor.ADDR)).c_str() );
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 __ri void hwMFIFOResume(u32 transferred) {

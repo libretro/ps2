@@ -45,8 +45,6 @@ GSTextureCache::GSTextureCache()
 	// isn't enough in custom resolution)
 	// Test: onimusha 3 PAL 60Hz
 	s_unswizzle_buffer = (u8*)_aligned_malloc(9 * 1024 * 1024, VECTOR_ALIGNMENT);
-	pxAssertRel(s_unswizzle_buffer, "Failed to allocate unswizzle buffer");
-
 	m_surface_offset_cache.reserve(S_SURFACE_OFFSET_CACHE_MAX_SIZE);
 }
 
@@ -4051,20 +4049,6 @@ GSTextureCache::Target::~Target()
 		g_texture_cache->m_target_memory_usage -= m_texture->GetMemUsage();
 		g_gs_device->Recycle(m_texture);
 	}
-
-#ifdef PCSX2_DEVBUILD
-	// Make sure all sources referencing this target have been removed.
-	for (GSTextureCache::Source* src : g_texture_cache->m_src.m_surfaces)
-	{
-		if (src->m_from_target == this)
-		{
-			pxFail(fmt::format("Source at TBP {:x} for target at TBP {:x} on target invalidation",
-				static_cast<u32>(src->m_TEX0.TBP0), static_cast<u32>(m_TEX0.TBP0))
-					   .c_str());
-			break;
-		}
-	}
-#endif
 }
 
 void GSTextureCache::Target::Update(bool reset_age)

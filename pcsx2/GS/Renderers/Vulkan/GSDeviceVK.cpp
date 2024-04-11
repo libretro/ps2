@@ -980,7 +980,7 @@ namespace Vulkan
 		{
 			res = vkEndCommandBuffer(resources.command_buffers[0]);
 			if (res != VK_SUCCESS)
-				pxFailRel("Failed to end command buffer");
+				Console.Error("Failed to end command buffer");
 		}
 
 		bool wants_timestamp = m_spin_timer;
@@ -991,7 +991,7 @@ namespace Vulkan
 
 		res = vkEndCommandBuffer(resources.command_buffers[1]);
 		if (res != VK_SUCCESS)
-			pxFailRel("Failed to end command buffer");
+			Console.Error("Failed to end command buffer");
 
 		// This command buffer now has commands, so can't be re-used without waiting.
 		resources.needs_fence_wait = true;
@@ -2615,7 +2615,7 @@ void GSDeviceVK::DoMultiStretchRects(
 		if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
 			!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
 		{
-			pxFailRel("Failed to reserve space for vertices");
+			Console.Error("Failed to reserve space for vertices");
 		}
 	}
 
@@ -2973,7 +2973,7 @@ void GSDeviceVK::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 	{
 		ExecuteCommandBufferAndRestartRenderPass(false, "Uploading bytes to vertex buffer");
 		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
-			pxFailRel("Failed to reserve space for vertices");
+			Console.Error("Failed to reserve space for vertices");
 	}
 
 	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
@@ -2990,7 +2990,7 @@ void GSDeviceVK::IASetIndexBuffer(const void* index, size_t count)
 	{
 		ExecuteCommandBufferAndRestartRenderPass(false, "Uploading bytes to index buffer");
 		if (!m_index_stream_buffer.ReserveMemory(size, sizeof(u16)))
-			pxFailRel("Failed to reserve space for vertices");
+			Console.Error("Failed to reserve space for vertices");
 	}
 
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);

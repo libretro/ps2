@@ -21,7 +21,6 @@
 #include "newVif_UnpackSSE.h"
 #include "MTVU.h"
 #include "common/StringUtil.h"
-#include "fmt/core.h"
 
 static void recReset(int idx)
 {
@@ -247,7 +246,6 @@ void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
 		case 3:
 		case 7:
 		case 11:
-			pxFailRel(fmt::format("Vpu/Vif - Invalid Unpack! [%d]", upknum).c_str());
 			break;
 	}
 }

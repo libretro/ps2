@@ -125,7 +125,6 @@ void VMManager::SetState(VMState state)
 {
 	// Some state transitions aren't valid.
 	const VMState old_state = s_state.load(std::memory_order_acquire);
-	pxAssert(state != VMState::Initializing && state != VMState::Shutdown);
 	SetTimerResolutionIncreased(state == VMState::Running);
 	s_state.store(state, std::memory_order_release);
 
@@ -191,8 +190,6 @@ void VMManager::Internal::ReleaseGlobals()
 
 bool VMManager::Internal::InitializeMemory()
 {
-	pxAssert(!s_vm_memory && !s_cpu_provider_pack);
-
 	s_vm_memory = std::make_unique<SysMainMemory>();
 	s_cpu_provider_pack = std::make_unique<SysCpuProviderPack>();
 
@@ -553,8 +550,6 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 
 bool VMManager::Initialize(VMBootParameters boot_params)
 {
-	pxAssertRel(s_state.load(std::memory_order_acquire) == VMState::Shutdown, "VM is shutdown");
-
 	s_state.store(VMState::Initializing, std::memory_order_release);
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 	Host::OnVMStarting();
@@ -730,8 +725,6 @@ void VMManager::Shutdown(bool save_resume_state)
 
 void VMManager::Reset()
 {
-	pxAssert(HasValidVM());
-
 	// If we're running, we're probably going to be executing this at event test time,
 	// at vsync, which happens in the middle of event handling. Resetting everything
 	// immediately here is a bad idea (tm), in fact, it breaks some games (e.g. TC:NYC).

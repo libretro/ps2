@@ -281,7 +281,7 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 		GSDevice12::GetInstance()->ExecuteCommandList(
 			false, "While waiting for %u bytes in texture upload buffer", required_size);
 		if (!buffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
-			pxFailRel("Failed to reserve texture upload memory");
+			Console.Error("Failed to reserve texture upload memory");
 	}
 
 	m.bits = static_cast<u8*>(buffer.GetCurrentHostPointer());

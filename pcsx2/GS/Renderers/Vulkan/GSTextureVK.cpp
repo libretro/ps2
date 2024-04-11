@@ -288,7 +288,7 @@ bool GSTextureVK::Map(GSMap& m, const GSVector4i* r, int layer)
 		GSDeviceVK::GetInstance()->ExecuteCommandBuffer(
 			false, "While waiting for %u bytes in texture upload buffer", required_size);
 		if (!buffer.ReserveMemory(required_size, g_vulkan_context->GetBufferCopyOffsetAlignment()))
-			pxFailRel("Failed to reserve texture upload memory");
+			Console.Error("Failed to reserve texture upload memory");
 	}
 
 	m.bits = static_cast<u8*>(buffer.GetCurrentHostPointer());
@@ -419,8 +419,6 @@ VkFramebuffer GSTextureVK::GetFramebuffer(bool feedback_loop) { return GetLinked
 
 VkFramebuffer GSTextureVK::GetLinkedFramebuffer(GSTextureVK* depth_texture, bool feedback_loop)
 {
-	pxAssertRel(m_type != Type::Texture, "Texture is a render target");
-
 	for (const auto& [other_tex, fb, other_feedback_loop] : m_framebuffers)
 	{
 		if (other_tex == depth_texture && other_feedback_loop == feedback_loop)
