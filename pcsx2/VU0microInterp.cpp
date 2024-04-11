@@ -54,7 +54,6 @@ static void _vu0Exec(VURegs* VU)
 	if (ptr[1] & 0x20000000 && VU == &VU0) // M flag
 	{
 		VU->flags |= VUFLAG_MFLAGSET;
-		VU0.blockhasmbit = true;
 	}
 	if (ptr[1] & 0x10000000) // D flag
 	{
@@ -183,8 +182,6 @@ static void _vu0Exec(VURegs* VU)
 		{
 			VU->VI[REG_TPC].UL = VU->branchpc;
 
-			VU->blockhasmbit = false;
-
 			if (VU->takedelaybranch)
 			{
 				VU->branch = 1;
@@ -202,8 +199,6 @@ static void _vu0Exec(VURegs* VU)
 			_vuFlushAll(VU);
 			VU0.VI[REG_VPU_STAT].UL &= ~0x1; /* E flag */
 			vif0Regs.stat.VEW = false;
-
-			VU->blockhasmbit = false;
 		}
 	}
 

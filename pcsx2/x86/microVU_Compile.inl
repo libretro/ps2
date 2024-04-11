@@ -259,9 +259,9 @@ __ri void eBitWarning(mV)
 //------------------------------------------------------------------
 // Cycles / Pipeline State / Early Exit from Execution
 //------------------------------------------------------------------
-__fi void optimizeReg(u8& rState) { rState = (rState == 1) ? 0 : rState; }
-__fi void calcCycles(u8& reg, u8 x) { reg = ((reg > x) ? (reg - x) : 0); }
-__fi void tCycles(u8& dest, u8& src) { dest = std::max(dest, src); }
+__fi u8 optimizeReg(u8 rState) { return (rState == 1) ? 0 : rState; }
+__fi u8 calcCycles(u8 reg, u8 x) { return ((reg > x) ? (reg - x) : 0); }
+__fi u8 tCycles(u8 dest, u8 src) { return std::max(dest, src); }
 __fi void incP(mV) { mVU.p ^= 1; }
 __fi void incQ(mV) { mVU.q ^= 1; }
 
@@ -273,17 +273,15 @@ void mVUoptimizePipeState(mV)
 {
 	for (int i = 0; i < 32; i++)
 	{
-		optimizeReg(mVUregs.VF[i].x);
-		optimizeReg(mVUregs.VF[i].y);
-		optimizeReg(mVUregs.VF[i].z);
-		optimizeReg(mVUregs.VF[i].w);
+		mVUregs.VF[i].x = optimizeReg(mVUregs.VF[i].x);
+		mVUregs.VF[i].y = optimizeReg(mVUregs.VF[i].y);
+		mVUregs.VF[i].z = optimizeReg(mVUregs.VF[i].z);
+		mVUregs.VF[i].w = optimizeReg(mVUregs.VF[i].w);
 	}
 	for (int i = 0; i < 16; i++)
-	{
-		optimizeReg(mVUregs.VI[i]);
-	}
-	if (mVUregs.q) { optimizeReg(mVUregs.q); if (!mVUregs.q) { incQ(mVU); } }
-	if (mVUregs.p) { optimizeReg(mVUregs.p); if (!mVUregs.p) { incP(mVU); } }
+		mVUregs.VI[i] = optimizeReg(mVUregs.VI[i]);
+	if (mVUregs.q) { mVUregs.q = optimizeReg(mVUregs.q); if (!mVUregs.q) { incQ(mVU); } }
+	if (mVUregs.p) { mVUregs.p = optimizeReg(mVUregs.p); if (!mVUregs.p) { incP(mVU); } }
 	mVUregs.r = 0; // There are no stalls on the R-reg, so its Safe to discard info
 }
 
@@ -293,49 +291,43 @@ void mVUincCycles(mV, int x)
 	// VF[0] is a constant value (0.0 0.0 0.0 1.0)
 	for (int z = 31; z > 0; z--)
 	{
-		calcCycles(mVUregs.VF[z].x, x);
-		calcCycles(mVUregs.VF[z].y, x);
-		calcCycles(mVUregs.VF[z].z, x);
-		calcCycles(mVUregs.VF[z].w, x);
+		mVUregs.VF[z].x = calcCycles(mVUregs.VF[z].x, x);
+		mVUregs.VF[z].y = calcCycles(mVUregs.VF[z].y, x);
+		mVUregs.VF[z].z = calcCycles(mVUregs.VF[z].z, x);
+		mVUregs.VF[z].w = calcCycles(mVUregs.VF[z].w, x);
 	}
 	// VI[0] is a constant value (0)
 	for (int z = 15; z > 0; z--)
-	{
-		calcCycles(mVUregs.VI[z], x);
-	}
+		mVUregs.VI[z] = calcCycles(mVUregs.VI[z], x);
 	if (mVUregs.q)
 	{
 		if (mVUregs.q > 4)
 		{
-			calcCycles(mVUregs.q, x);
+			mVUregs.q = calcCycles(mVUregs.q, x);
 			if (mVUregs.q <= 4)
-			{
 				mVUinfo.doDivFlag = 1;
-			}
 		}
 		else
-		{
-			calcCycles(mVUregs.q, x);
-		}
+			mVUregs.q = calcCycles(mVUregs.q, x);
 		if (!mVUregs.q)
 			incQ(mVU);
 	}
 	if (mVUregs.p)
 	{
-		calcCycles(mVUregs.p, x);
+		mVUregs.p = calcCycles(mVUregs.p, x);
 		if (!mVUregs.p || mVUregsTemp.p)
 			incP(mVU);
 	}
 	if (mVUregs.xgkick)
 	{
-		calcCycles(mVUregs.xgkick, x);
+		mVUregs.xgkick = calcCycles(mVUregs.xgkick, x);
 		if (!mVUregs.xgkick)
 		{
 			mVUinfo.doXGKICK = 1;
 			mVUinfo.XGKICKPC = xPC;
 		}
 	}
-	calcCycles(mVUregs.r, x);
+	mVUregs.r = calcCycles(mVUregs.r, x);
 }
 
 // Helps check if upper/lower ops read/write to same regs...
@@ -373,21 +365,21 @@ void mVUsetCycles(mV)
 		cmpVFregs(mVUlow.VF_write, mVUup.VF_read[1], mVUinfo.backupVF);
 	}
 
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].x, mVUregsTemp.VF[0].x);
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].y, mVUregsTemp.VF[0].y);
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].z, mVUregsTemp.VF[0].z);
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].w, mVUregsTemp.VF[0].w);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].x = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].x, mVUregsTemp.VF[0].x);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].y = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].y, mVUregsTemp.VF[0].y);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].z = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].z, mVUregsTemp.VF[0].z);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].w = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].w, mVUregsTemp.VF[0].w);
 
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].x, mVUregsTemp.VF[1].x);
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].y, mVUregsTemp.VF[1].y);
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].z, mVUregsTemp.VF[1].z);
-	tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].w, mVUregsTemp.VF[1].w);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].x = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].x, mVUregsTemp.VF[1].x);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].y = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].y, mVUregsTemp.VF[1].y);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].z = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].z, mVUregsTemp.VF[1].z);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].w = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].w, mVUregsTemp.VF[1].w);
 
-	tCycles(mVUregs.VI[mVUregsTemp.VIreg], mVUregsTemp.VI);
-	tCycles(mVUregs.q,                     mVUregsTemp.q);
-	tCycles(mVUregs.p,                     mVUregsTemp.p);
-	tCycles(mVUregs.r,                     mVUregsTemp.r);
-	tCycles(mVUregs.xgkick,                mVUregsTemp.xgkick);
+	mVUregs.VI[mVUregsTemp.VIreg]  = tCycles(mVUregs.VI[mVUregsTemp.VIreg], mVUregsTemp.VI);
+	mVUregs.q                      = tCycles(mVUregs.q,                     mVUregsTemp.q);
+	mVUregs.p                      = tCycles(mVUregs.p,                     mVUregsTemp.p);
+	mVUregs.r                      = tCycles(mVUregs.r,                     mVUregsTemp.r);
+	mVUregs.xgkick                 = tCycles(mVUregs.xgkick,                mVUregsTemp.xgkick);
 }
 
 // Test cycles to see if we need to exit-early...
@@ -401,8 +393,7 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 	else
 		xSUB(eax, 1); // Running ahead, make sure cycles left are above 0
 
-	xCMP(eax, 0);
-	xForwardJGE32 skip;
+	xForwardJNS32 skip;
 
 	u8* writeback = x86Ptr;
 	xLoadFarAddr(rax, x86Ptr);
@@ -481,7 +472,6 @@ __fi void mVUinitFirstPass(microVU& mVU, uptr pState, u8* thisPtr)
 	mVUregs.blockType = 0;
 	mVUregs.viBackUp  = 0;
 	mVUregs.flagInfo  = 0;
-	mVUregs.mbitinblock = false;
 	mVUsFlagHack = CHECK_VU_FLAGHACK;
 	mVUinitConstValues(mVU);
 }
@@ -652,7 +642,6 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 
 		if ((curI & _Mbit_) && isVU0)
 		{
-			mVUregs.mbitinblock = true;
 			if (xPC > 0)
 			{
 				incPC(-2);
@@ -775,7 +764,6 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	// Fix up vi15 const info for propagation through blocks
 	mVUregs.vi15 = (doConstProp && mVUconstReg[15].isValid) ? (u16)mVUconstReg[15].regValue : 0;
 	mVUregs.vi15v = (doConstProp && mVUconstReg[15].isValid) ? 1 : 0;
-	xMOV(ptr32[&mVU.regs().blockhasmbit], mVUregs.mbitinblock);
 	mVUsetFlags(mVU, mFC);           // Sets Up Flag instances
 	mVUoptimizePipeState(mVU);       // Optimize the End Pipeline State for nicer Block Linking
 	mVUtestCycles(mVU, mFC);         // Update VU Cycles and Exit Early if Necessary
