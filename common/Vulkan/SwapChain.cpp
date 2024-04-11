@@ -14,17 +14,12 @@
  */
 
 #include "common/Vulkan/SwapChain.h"
-#include "common/CocoaTools.h"
 #include "common/Console.h"
 #include "common/Vulkan/Context.h"
 #include "common/Vulkan/Util.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
-
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-#include <X11/Xlib.h>
-#endif
 
 namespace Vulkan
 {
@@ -44,128 +39,12 @@ namespace Vulkan
 
 	VkSurfaceKHR SwapChain::CreateVulkanSurface(VkInstance instance, VkPhysicalDevice physical_device, WindowInfo* wi)
 	{
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-		if (wi->type == WindowInfo::Type::Win32)
-		{
-			VkWin32SurfaceCreateInfoKHR surface_create_info = {
-				VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR, // VkStructureType               sType
-				nullptr, // const void*                   pNext
-				0, // VkWin32SurfaceCreateFlagsKHR  flags
-				nullptr, // HINSTANCE                     hinstance
-				reinterpret_cast<HWND>(wi->window_handle) // HWND                          hwnd
-			};
-
-			VkSurfaceKHR surface;
-			VkResult res = vkCreateWin32SurfaceKHR(instance, &surface_create_info, nullptr, &surface);
-			if (res != VK_SUCCESS)
-				return VK_NULL_HANDLE;
-
-			return surface;
-		}
-#endif
-
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-		if (wi->type == WindowInfo::Type::X11)
-		{
-			VkXlibSurfaceCreateInfoKHR surface_create_info = {
-				VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR, // VkStructureType               sType
-				nullptr, // const void*                   pNext
-				0, // VkXlibSurfaceCreateFlagsKHR   flags
-				static_cast<Display*>(wi->display_connection), // Display*                      dpy
-				reinterpret_cast<Window>(wi->window_handle) // Window                        window
-			};
-
-			VkSurfaceKHR surface;
-			VkResult res = vkCreateXlibSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
-			if (res != VK_SUCCESS)
-				return VK_NULL_HANDLE;
-
-			return surface;
-		}
-#endif
-
-#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
-		if (wi->type == WindowInfo::Type::Wayland)
-		{
-			VkWaylandSurfaceCreateInfoKHR surface_create_info = {VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
-				nullptr, 0, static_cast<struct wl_display*>(wi->display_connection),
-				static_cast<struct wl_surface*>(wi->window_handle)};
-
-			VkSurfaceKHR surface;
-			VkResult res = vkCreateWaylandSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
-			if (res != VK_SUCCESS)
-				return VK_NULL_HANDLE;
-
-			return surface;
-		}
-#endif
-
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-		if (wi->type == WindowInfo::Type::Android)
-		{
-			VkAndroidSurfaceCreateInfoKHR surface_create_info = {
-				VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR, // VkStructureType                sType
-				nullptr, // const void*                    pNext
-				0, // VkAndroidSurfaceCreateFlagsKHR flags
-				reinterpret_cast<ANativeWindow*>(wi->window_handle) // ANativeWindow* window
-			};
-
-			VkSurfaceKHR surface;
-			VkResult res = vkCreateAndroidSurfaceKHR(instance, &surface_create_info, nullptr, &surface);
-			if (res != VK_SUCCESS)
-				return VK_NULL_HANDLE;
-
-			return surface;
-		}
-#endif
-
-#if defined(VK_USE_PLATFORM_METAL_EXT)
-		if (wi->type == WindowInfo::Type::MacOS)
-		{
-			if (!wi->surface_handle && !CocoaTools::CreateMetalLayer(wi))
-				return VK_NULL_HANDLE;
-
-			VkMetalSurfaceCreateInfoEXT surface_create_info = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT, nullptr,
-				0, static_cast<const CAMetalLayer*>(wi->surface_handle)};
-
-			VkSurfaceKHR surface;
-			VkResult res = vkCreateMetalSurfaceEXT(instance, &surface_create_info, nullptr, &surface);
-			if (res != VK_SUCCESS)
-				return VK_NULL_HANDLE;
-
-			return surface;
-		}
-#elif defined(VK_USE_PLATFORM_MACOS_MVK)
-		if (wi->type == WindowInfo::Type::MacOS)
-		{
-			VkMacOSSurfaceCreateInfoMVK surface_create_info = {
-				VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK, nullptr, 0, wi->window_handle};
-
-			VkSurfaceKHR surface;
-			VkResult res = vkCreateMacOSSurfaceMVK(instance, &surface_create_info, nullptr, &surface);
-			if (res != VK_SUCCESS)
-				return VK_NULL_HANDLE;
-
-			return surface;
-		}
-#endif
-
-#if 0
-		if (wi->type == WindowInfo::Type::Display)
-			return CreateDisplaySurface(instance, physical_device, wi);
-#endif
-
 		return VK_NULL_HANDLE;
 	}
 
 	void SwapChain::DestroyVulkanSurface(VkInstance instance, WindowInfo* wi, VkSurfaceKHR surface)
 	{
 		vkDestroySurfaceKHR(g_vulkan_context->GetVulkanInstance(), surface, nullptr);
-
-#if defined(__APPLE__)
-		if (wi->type == WindowInfo::Type::MacOS && wi->surface_handle)
-			CocoaTools::DestroyMetalLayer(wi);
-#endif
 	}
 
 	std::unique_ptr<SwapChain> SwapChain::Create(const WindowInfo& wi, VkSurfaceKHR surface,

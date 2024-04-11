@@ -831,10 +831,6 @@ std::optional<WindowInfo> Host::AcquireRenderWindow(void)
 	WindowInfo wi;
 	wi.surface_width  = 640 * Options::upscale_multiplier;
 	wi.surface_height = 448 * Options::upscale_multiplier;
-	wi.type           = WindowInfo::Type::Libretro;
-	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
-		wi.type = WindowInfo::Type::Surfaceless;
-
 	return wi;
 }
 

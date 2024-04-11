@@ -19,19 +19,6 @@
 /// Contains the information required to create a graphics context in a window.
 struct WindowInfo
 {
-	enum class Type
-	{
-		Surfaceless,
-		Win32,
-		X11,
-		Wayland,
-		MacOS,
-		Libretro
-	};
-
-	/// The type of the surface. Surfaceless indicates it will not be displayed on screen at all.
-	Type type = Type::Surfaceless;
-
 	/// Connection to the display server. On most platforms except X11/Wayland, this is implicit and null.
 	void* display_connection = nullptr;
 

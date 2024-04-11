@@ -176,10 +176,6 @@ if(WIN32)
 endif()
 
 if(APPLE)
-	target_sources(common PRIVATE
-		CocoaTools.mm
-		CocoaTools.h
-	)
 	target_compile_options(common PRIVATE -fobjc-arc)
 	target_link_options(common PRIVATE -fobjc-link-runtime)
 endif()
