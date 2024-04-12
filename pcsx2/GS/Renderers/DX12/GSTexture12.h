@@ -23,15 +23,15 @@
 class GSTexture12 final : public GSTexture
 {
 public:
-	GSTexture12(Type type, Format format, D3D12::Texture texture);
+	GSTexture12(Type type, Format format, D3D12Texture texture);
 	~GSTexture12() override;
 
 	static std::unique_ptr<GSTexture12> Create(Type type, u32 width, u32 height, u32 levels, Format format,
 		DXGI_FORMAT d3d_format, DXGI_FORMAT srv_format, DXGI_FORMAT rtv_format, DXGI_FORMAT dsv_format);
 
-	__fi D3D12::Texture& GetTexture() { return m_texture; }
-	__fi const D3D12::DescriptorHandle& GetSRVDescriptor() const { return m_texture.GetSRVDescriptor(); }
-	__fi const D3D12::DescriptorHandle& GetRTVOrDSVHandle() const { return m_texture.GetWriteDescriptor(); }
+	__fi D3D12Texture& GetTexture() { return m_texture; }
+	__fi const D3D12DescriptorHandle& GetSRVDescriptor() const { return m_texture.GetSRVDescriptor(); }
+	__fi const D3D12DescriptorHandle& GetRTVOrDSVHandle() const { return m_texture.GetWriteDescriptor(); }
 	__fi D3D12_RESOURCE_STATES GetResourceState() const { return m_texture.GetState(); }
 	__fi DXGI_FORMAT GetNativeFormat() const { return m_texture.GetFormat(); }
 	__fi ID3D12Resource* GetResource() const { return m_texture.GetResource(); }
@@ -59,7 +59,7 @@ private:
 	ID3D12Resource* AllocateUploadStagingBuffer(const void* data, u32 pitch, u32 upload_pitch, u32 height) const;
 	void CopyTextureDataForUpload(void* dst, const void* src, u32 pitch, u32 upload_pitch, u32 height) const;
 
-	D3D12::Texture m_texture;
+	D3D12Texture m_texture;
 
 	// Contains the fence counter when the texture was last used.
 	// When this matches the current fence counter, the texture was used this command buffer.

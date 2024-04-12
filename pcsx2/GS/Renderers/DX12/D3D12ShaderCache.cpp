@@ -23,8 +23,6 @@
 
 #include <d3dcompiler.h>
 
-using namespace D3D12;
-
 #pragma pack(push, 1)
 struct CacheIndexEntry
 {
@@ -41,14 +39,14 @@ struct CacheIndexEntry
 };
 #pragma pack(pop)
 
-ShaderCache::ShaderCache() = default;
+D3D12ShaderCache::D3D12ShaderCache() = default;
 
-ShaderCache::~ShaderCache()
+D3D12ShaderCache::~D3D12ShaderCache()
 {
 	Close();
 }
 
-bool ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
+bool D3D12ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
 {
 	return (source_hash_low == key.source_hash_low && source_hash_high == key.source_hash_high &&
 			macro_hash_low == key.macro_hash_low && macro_hash_high == key.macro_hash_high &&
@@ -56,7 +54,7 @@ bool ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
 			type == key.type && source_length == key.source_length);
 }
 
-bool ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
+bool D3D12ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
 {
 	return (source_hash_low != key.source_hash_low || source_hash_high != key.source_hash_high ||
 			macro_hash_low != key.macro_hash_low || macro_hash_high != key.macro_hash_high ||
@@ -64,7 +62,7 @@ bool ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
 			type != key.type || source_length != key.source_length);
 }
 
-bool ShaderCache::Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug)
+bool D3D12ShaderCache::Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug)
 {
 	m_base_path = base_path;
 	m_feature_level = feature_level;
@@ -102,7 +100,7 @@ bool ShaderCache::Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_lev
 	return result;
 }
 
-void ShaderCache::Close()
+void D3D12ShaderCache::Close()
 {
 	if (m_pipeline_index_file)
 	{
@@ -128,7 +126,7 @@ void ShaderCache::Close()
 	m_base_path = {};
 }
 
-void ShaderCache::InvalidatePipelineCache()
+void D3D12ShaderCache::InvalidatePipelineCache()
 {
 	m_pipeline_index.clear();
 	if (m_pipeline_blob_file)
@@ -150,7 +148,7 @@ void ShaderCache::InvalidatePipelineCache()
 	CreateNew(pipelines_index_filename, pipelines_blob_filename, m_pipeline_index_file, m_pipeline_blob_file);
 }
 
-bool ShaderCache::CreateNew(const std::string& index_filename, const std::string& blob_filename, std::FILE*& index_file,
+bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::string& blob_filename, std::FILE*& index_file,
 	std::FILE*& blob_file)
 {
 	if (FileSystem::FileExists(index_filename.c_str()))
@@ -195,7 +193,7 @@ bool ShaderCache::CreateNew(const std::string& index_filename, const std::string
 	return true;
 }
 
-bool ShaderCache::ReadExisting(const std::string& index_filename, const std::string& blob_filename,
+bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std::string& blob_filename,
 	std::FILE*& index_file, std::FILE*& blob_file, CacheIndex& index)
 {
 	index_file = FileSystem::OpenCFile(index_filename.c_str(), "r+b");
@@ -266,7 +264,7 @@ bool ShaderCache::ReadExisting(const std::string& index_filename, const std::str
 	return true;
 }
 
-std::string ShaderCache::GetCacheBaseFileName(const std::string_view& base_path, const std::string_view& type,
+std::string D3D12ShaderCache::GetCacheBaseFileName(const std::string_view& base_path, const std::string_view& type,
 	D3D_FEATURE_LEVEL feature_level, bool debug)
 {
 	std::string base_filename(base_path);
@@ -306,7 +304,7 @@ union MD5Hash
 	u8 hash[16];
 };
 
-ShaderCache::CacheIndexKey ShaderCache::GetShaderCacheKey(EntryType type, const std::string_view& shader_code,
+D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetShaderCacheKey(EntryType type, const std::string_view& shader_code,
 	const D3D_SHADER_MACRO* macros, const char* entry_point)
 {
 	union
@@ -351,7 +349,7 @@ ShaderCache::CacheIndexKey ShaderCache::GetShaderCacheKey(EntryType type, const 
 	return key;
 }
 
-ShaderCache::CacheIndexKey ShaderCache::GetPipelineCacheKey(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& gpdesc)
+D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetPipelineCacheKey(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& gpdesc)
 {
 	MD5Digest digest;
 	u32 length = sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC);
@@ -404,7 +402,7 @@ ShaderCache::CacheIndexKey ShaderCache::GetPipelineCacheKey(const D3D12_GRAPHICS
 	return CacheIndexKey{h.low, h.high, 0, 0, 0, 0, length, EntryType::GraphicsPipeline};
 }
 
-ShaderCache::CacheIndexKey ShaderCache::GetPipelineCacheKey(const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc)
+D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetPipelineCacheKey(const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc)
 {
 	MD5Digest digest;
 	u32 length = sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC);
@@ -421,7 +419,7 @@ ShaderCache::CacheIndexKey ShaderCache::GetPipelineCacheKey(const D3D12_COMPUTE_
 	return CacheIndexKey{h.low, h.high, 0, 0, 0, 0, length, EntryType::ComputePipeline};
 }
 
-ShaderCache::ComPtr<ID3DBlob> ShaderCache::GetShaderBlob(EntryType type, std::string_view shader_code,
+D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::GetShaderBlob(EntryType type, std::string_view shader_code,
 	const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
 	const auto key = GetShaderCacheKey(type, shader_code, macros, entry_point);
@@ -441,7 +439,7 @@ ShaderCache::ComPtr<ID3DBlob> ShaderCache::GetShaderBlob(EntryType type, std::st
 	return blob;
 }
 
-ShaderCache::ComPtr<ID3D12PipelineState> ShaderCache::GetPipelineState(ID3D12Device* device,
+D3D12ShaderCache::ComPtr<ID3D12PipelineState> D3D12ShaderCache::GetPipelineState(ID3D12Device* device,
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
 {
 	const auto key = GetPipelineCacheKey(desc);
@@ -475,7 +473,7 @@ ShaderCache::ComPtr<ID3D12PipelineState> ShaderCache::GetPipelineState(ID3D12Dev
 	return pso;
 }
 
-ShaderCache::ComPtr<ID3D12PipelineState> ShaderCache::GetPipelineState(ID3D12Device* device,
+D3D12ShaderCache::ComPtr<ID3D12PipelineState> D3D12ShaderCache::GetPipelineState(ID3D12Device* device,
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc)
 {
 	const auto key = GetPipelineCacheKey(desc);
@@ -509,7 +507,7 @@ ShaderCache::ComPtr<ID3D12PipelineState> ShaderCache::GetPipelineState(ID3D12Dev
 	return pso;
 }
 
-ShaderCache::ComPtr<ID3DBlob> ShaderCache::CompileAndAddShaderBlob(const CacheIndexKey& key, std::string_view shader_code,
+D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::CompileAndAddShaderBlob(const CacheIndexKey& key, std::string_view shader_code,
 	const D3D_SHADER_MACRO* macros, const char* entry_point)
 {
 	ComPtr<ID3DBlob> blob;
@@ -563,8 +561,8 @@ ShaderCache::ComPtr<ID3DBlob> ShaderCache::CompileAndAddShaderBlob(const CacheIn
 	return blob;
 }
 
-ShaderCache::ComPtr<ID3D12PipelineState>
-ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKey& key,
+D3D12ShaderCache::ComPtr<ID3D12PipelineState>
+D3D12ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKey& key,
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC& gpdesc)
 {
 	ComPtr<ID3D12PipelineState> pso;
@@ -579,8 +577,8 @@ ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKey& ke
 	return pso;
 }
 
-ShaderCache::ComPtr<ID3D12PipelineState>
-ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKey& key,
+D3D12ShaderCache::ComPtr<ID3D12PipelineState>
+D3D12ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKey& key,
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc)
 {
 	ComPtr<ID3D12PipelineState> pso;
@@ -595,7 +593,7 @@ ShaderCache::CompileAndAddPipeline(ID3D12Device* device, const CacheIndexKey& ke
 	return pso;
 }
 
-bool ShaderCache::AddPipelineToBlob(const CacheIndexKey& key, ID3D12PipelineState* pso)
+bool D3D12ShaderCache::AddPipelineToBlob(const CacheIndexKey& key, ID3D12PipelineState* pso)
 {
 	if (!m_pipeline_blob_file || std::fseek(m_pipeline_blob_file, 0, SEEK_END) != 0)
 		return false;

@@ -28,13 +28,11 @@ namespace D3D12MA
 	class Allocation;
 }
 
-namespace D3D12
+class D3D12StreamBuffer
 {
-	class StreamBuffer
-	{
 	public:
-		StreamBuffer();
-		~StreamBuffer();
+		D3D12StreamBuffer();
+		~D3D12StreamBuffer();
 
 		bool Create(u32 size);
 
@@ -72,6 +70,4 @@ namespace D3D12
 
 		// List of fences and the corresponding positions in the buffer
 		std::deque<std::pair<u64, u32>> m_tracked_fences;
-	};
-
-} // namespace D3D12
+};

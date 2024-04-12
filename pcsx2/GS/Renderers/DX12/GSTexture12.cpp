@@ -23,7 +23,7 @@
 #include "common/StringUtil.h"
 #include "D3D12MemAlloc.h"
 
-GSTexture12::GSTexture12(Type type, Format format, D3D12::Texture texture)
+GSTexture12::GSTexture12(Type type, Format format, D3D12Texture texture)
 	: m_texture(std::move(texture))
 {
 	m_type = type;
@@ -51,7 +51,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 												   D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET :
                                                    D3D12_RESOURCE_FLAG_NONE;
 
-			D3D12::Texture texture;
+			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format,
 					DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN, flags))
 			{
@@ -65,7 +65,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 		case Type::RenderTarget:
 		{
 			// RT's tend to be larger, so we'll keep them committed for speed.
-			D3D12::Texture texture;
+			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format, rtv_format,
 					DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12MA::ALLOCATION_FLAG_COMMITTED))
 			{
@@ -78,7 +78,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 
 		case Type::DepthStencil:
 		{
-			D3D12::Texture texture;
+			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format,
 					DXGI_FORMAT_UNKNOWN, dsv_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 					D3D12MA::ALLOCATION_FLAG_COMMITTED))
@@ -92,7 +92,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 
 		case Type::RWTexture:
 		{
-			D3D12::Texture texture;
+			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format, DXGI_FORMAT_UNKNOWN,
 					DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12MA::ALLOCATION_FLAG_COMMITTED))
 			{
@@ -108,7 +108,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 	}
 }
 
-void* GSTexture12::GetNativeHandle() const { return const_cast<D3D12::Texture*>(&m_texture); }
+void* GSTexture12::GetNativeHandle() const { return const_cast<D3D12Texture*>(&m_texture); }
 
 ID3D12GraphicsCommandList* GSTexture12::GetCommandBufferForUpdate()
 {
@@ -198,7 +198,7 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	}
 	else
 	{
-		D3D12::StreamBuffer& sbuffer = g_d3d12_context->GetTextureStreamBuffer();
+		D3D12StreamBuffer& sbuffer = g_d3d12_context->GetTextureStreamBuffer();
 		if (!sbuffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 		{
 			GSDevice12::GetInstance()->ExecuteCommandList(
@@ -264,7 +264,7 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 
 	// see note in Update() for the reason why.
 	const u32 required_size = CalcUploadSize(m_map_area.height(), m.pitch);
-	D3D12::StreamBuffer& buffer = g_d3d12_context->GetTextureStreamBuffer();
+	D3D12StreamBuffer& buffer = g_d3d12_context->GetTextureStreamBuffer();
 	if (required_size >= (buffer.GetSize() / 2))
 		return false;
 
@@ -283,12 +283,12 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 void GSTexture12::Unmap()
 {
 	// TODO: non-tightly-packed formats
-	const u32 width = static_cast<u32>(m_map_area.width());
-	const u32 height = static_cast<u32>(m_map_area.height());
-	const u32 pitch = Common::AlignUpPow2(m_map_area.width() * D3D12::GetTexelSize(m_texture.GetFormat()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	const u32 required_size = CalcUploadSize(height, pitch);
-	D3D12::StreamBuffer& buffer = g_d3d12_context->GetTextureStreamBuffer();
-	const u32 buffer_offset = buffer.GetCurrentOffset();
+	const u32 width           = static_cast<u32>(m_map_area.width());
+	const u32 height          = static_cast<u32>(m_map_area.height());
+	const u32 pitch           = Common::AlignUpPow2(m_map_area.width() * D3D12::GetTexelSize(m_texture.GetFormat()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const u32 required_size   = CalcUploadSize(height, pitch);
+	D3D12StreamBuffer& buffer = g_d3d12_context->GetTextureStreamBuffer();
+	const u32 buffer_offset   = buffer.GetCurrentOffset();
 	buffer.CommitMemory(required_size);
 
 	ID3D12GraphicsCommandList* cmdlist = GetCommandBufferForUpdate();

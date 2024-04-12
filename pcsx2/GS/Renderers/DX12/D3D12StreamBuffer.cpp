@@ -24,16 +24,14 @@
 #include <algorithm>
 #include <functional>
 
-using namespace D3D12;
+D3D12StreamBuffer::D3D12StreamBuffer() = default;
 
-StreamBuffer::StreamBuffer() = default;
-
-StreamBuffer::~StreamBuffer()
+D3D12StreamBuffer::~D3D12StreamBuffer()
 {
 	Destroy();
 }
 
-bool StreamBuffer::Create(u32 size)
+bool D3D12StreamBuffer::Create(u32 size)
 {
 	const D3D12_RESOURCE_DESC resource_desc = {
 		D3D12_RESOURCE_DIMENSION_BUFFER, 0, size, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1, 0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
@@ -67,7 +65,7 @@ bool StreamBuffer::Create(u32 size)
 	return true;
 }
 
-bool StreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
+bool D3D12StreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 {
 	const u32 required_bytes = num_bytes + alignment;
 
@@ -135,13 +133,13 @@ bool StreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 	return false;
 }
 
-void StreamBuffer::CommitMemory(u32 final_num_bytes)
+void D3D12StreamBuffer::CommitMemory(u32 final_num_bytes)
 {
 	m_current_offset += final_num_bytes;
 	m_current_space -= final_num_bytes;
 }
 
-void StreamBuffer::Destroy(bool defer)
+void D3D12StreamBuffer::Destroy(bool defer)
 {
 	if (m_host_pointer)
 	{
@@ -161,7 +159,7 @@ void StreamBuffer::Destroy(bool defer)
 	m_tracked_fences.clear();
 }
 
-void StreamBuffer::UpdateCurrentFencePosition()
+void D3D12StreamBuffer::UpdateCurrentFencePosition()
 {
 	// Don't create a tracking entry if the GPU is caught up with the buffer.
 	if (m_current_offset == m_current_gpu_position)
@@ -180,7 +178,7 @@ void StreamBuffer::UpdateCurrentFencePosition()
 	m_tracked_fences.emplace_back(fence, m_current_offset);
 }
 
-void StreamBuffer::UpdateGPUPosition()
+void D3D12StreamBuffer::UpdateGPUPosition()
 {
 	auto start = m_tracked_fences.begin();
 	auto end = start;
@@ -196,7 +194,7 @@ void StreamBuffer::UpdateGPUPosition()
 		m_tracked_fences.erase(start, end);
 }
 
-bool StreamBuffer::WaitForClearSpace(u32 num_bytes)
+bool D3D12StreamBuffer::WaitForClearSpace(u32 num_bytes)
 {
 	u32 new_offset = 0;
 	u32 new_space = 0;

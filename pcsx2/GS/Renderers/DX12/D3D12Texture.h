@@ -27,26 +27,24 @@ namespace D3D12MA
 class Allocation;
 }
 
-namespace D3D12
-{
-	class StreamBuffer;
+class D3D12StreamBuffer;
 
-	class Texture final
-	{
+class D3D12Texture final
+{
 	public:
 		template <typename T>
-		using ComPtr = wil::com_ptr_nothrow<T>;
+			using ComPtr = wil::com_ptr_nothrow<T>;
 
-		Texture();
-		Texture(ID3D12Resource* resource, D3D12_RESOURCE_STATES state);
-		Texture(Texture&& texture);
-		Texture(const Texture&) = delete;
-		~Texture();
+		D3D12Texture();
+		D3D12Texture(ID3D12Resource* resource, D3D12_RESOURCE_STATES state);
+		D3D12Texture(D3D12Texture&& texture);
+		D3D12Texture(const D3D12Texture&) = delete;
+		~D3D12Texture();
 
 		__fi ID3D12Resource* GetResource() const { return m_resource.get(); }
 		__fi D3D12MA::Allocation* GetAllocation() const { return m_allocation.get(); }
-		__fi const DescriptorHandle& GetSRVDescriptor() const { return m_srv_descriptor; }
-		__fi const DescriptorHandle& GetWriteDescriptor() const { return m_write_descriptor; }
+		__fi const D3D12DescriptorHandle& GetSRVDescriptor() const { return m_srv_descriptor; }
+		__fi const D3D12DescriptorHandle& GetWriteDescriptor() const { return m_write_descriptor; }
 		__fi D3D12_RESOURCE_STATES GetState() const { return m_state; }
 
 		__fi u32 GetWidth() const { return m_width; }
@@ -58,9 +56,9 @@ namespace D3D12
 		__fi operator bool() const { return static_cast<bool>(m_resource); }
 
 		bool Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI_FORMAT srv_format,
-			DXGI_FORMAT rtv_format, DXGI_FORMAT dsv_format, D3D12_RESOURCE_FLAGS flags, u32 alloc_flags = 0);
+				DXGI_FORMAT rtv_format, DXGI_FORMAT dsv_format, D3D12_RESOURCE_FLAGS flags, u32 alloc_flags = 0);
 		bool Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI_FORMAT rtv_format, DXGI_FORMAT dsv_format,
-			D3D12_RESOURCE_STATES state);
+				D3D12_RESOURCE_STATES state);
 
 		D3D12_RESOURCE_DESC GetDesc() const;
 
@@ -68,10 +66,10 @@ namespace D3D12
 
 		void TransitionToState(ID3D12GraphicsCommandList* cmdlist, D3D12_RESOURCE_STATES state);
 		void TransitionSubresourceToState(ID3D12GraphicsCommandList* cmdlist, u32 level,
-			D3D12_RESOURCE_STATES before_state, D3D12_RESOURCE_STATES after_state) const;
+				D3D12_RESOURCE_STATES before_state, D3D12_RESOURCE_STATES after_state) const;
 
-		Texture& operator=(const Texture&) = delete;
-		Texture& operator=(Texture&& texture);
+		D3D12Texture& operator=(const D3D12Texture&) = delete;
+		D3D12Texture& operator=(D3D12Texture&& texture);
 
 		// NOTE: Does not handle compressed formats.
 		ID3D12GraphicsCommandList* BeginStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, void** out_data, u32* out_data_pitch);
@@ -80,23 +78,23 @@ namespace D3D12
 		void CopyFromBuffer(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, u32 pitch, ID3D12Resource* buffer, u32 buffer_offset);
 
 	private:
-		static bool CreateSRVDescriptor(ID3D12Resource* resource, u32 levels, DXGI_FORMAT format, DescriptorHandle* dh);
-		static bool CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, DescriptorHandle* dh);
-		static bool CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, DescriptorHandle* dh);
-		static bool CreateUAVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, DescriptorHandle* dh);
+		static bool CreateSRVDescriptor(ID3D12Resource* resource, u32 levels, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
+		static bool CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
+		static bool CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
+		static bool CreateUAVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh);
 
 		enum class WriteDescriptorType : u8
-		{
-			None,
-			RTV,
-			DSV,
-			UAV
-		};
+	{
+		None,
+		RTV,
+		DSV,
+		UAV
+	};
 
 		ComPtr<ID3D12Resource> m_resource;
 		ComPtr<D3D12MA::Allocation> m_allocation;
-		DescriptorHandle m_srv_descriptor = {};
-		DescriptorHandle m_write_descriptor = {};
+		D3D12DescriptorHandle m_srv_descriptor = {};
+		D3D12DescriptorHandle m_write_descriptor = {};
 		u32 m_width = 0;
 		u32 m_height = 0;
 		u32 m_levels = 0;
@@ -105,5 +103,4 @@ namespace D3D12
 		D3D12_RESOURCE_STATES m_state = D3D12_RESOURCE_STATE_COMMON;
 
 		WriteDescriptorType m_write_descriptor_type = WriteDescriptorType::None;
-	};
-} // namespace D3D12
+};

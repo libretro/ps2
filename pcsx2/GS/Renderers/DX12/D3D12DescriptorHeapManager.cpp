@@ -17,12 +17,10 @@
 
 #include "D3D12DescriptorHeapManager.h"
 
-using namespace D3D12;
+D3D12DescriptorHeapManager::D3D12DescriptorHeapManager() = default;
+D3D12DescriptorHeapManager::~D3D12DescriptorHeapManager() = default;
 
-DescriptorHeapManager::DescriptorHeapManager() = default;
-DescriptorHeapManager::~DescriptorHeapManager() = default;
-
-bool DescriptorHeapManager::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, u32 num_descriptors,
+bool D3D12DescriptorHeapManager::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, u32 num_descriptors,
 	bool shader_visible)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC desc = {type, static_cast<UINT>(num_descriptors),
@@ -50,7 +48,7 @@ bool DescriptorHeapManager::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_T
 	return true;
 }
 
-void DescriptorHeapManager::Destroy()
+void D3D12DescriptorHeapManager::Destroy()
 {
 	m_shader_visible = false;
 	m_num_descriptors = 0;
@@ -61,7 +59,7 @@ void DescriptorHeapManager::Destroy()
 	m_free_slots.clear();
 }
 
-bool DescriptorHeapManager::Allocate(DescriptorHandle* handle)
+bool D3D12DescriptorHeapManager::Allocate(D3D12DescriptorHandle* handle)
 {
 	// Start past the temporary slots, no point in searching those.
 	for (u32 group = 0; group < m_free_slots.size(); group++)
@@ -89,26 +87,26 @@ bool DescriptorHeapManager::Allocate(DescriptorHandle* handle)
 	return false;
 }
 
-void DescriptorHeapManager::Free(u32 index)
+void D3D12DescriptorHeapManager::Free(u32 index)
 {
 	u32 group = index / BITSET_SIZE;
 	u32 bit = index % BITSET_SIZE;
 	m_free_slots[group][bit] = true;
 }
 
-void DescriptorHeapManager::Free(DescriptorHandle* handle)
+void D3D12DescriptorHeapManager::Free(D3D12DescriptorHandle* handle)
 {
-	if (handle->index == DescriptorHandle::INVALID_INDEX)
+	if (handle->index == D3D12DescriptorHandle::INVALID_INDEX)
 		return;
 
 	Free(handle->index);
 	handle->Clear();
 }
 
-DescriptorAllocator::DescriptorAllocator() = default;
-DescriptorAllocator::~DescriptorAllocator() = default;
+D3D12DescriptorAllocator::D3D12DescriptorAllocator() = default;
+D3D12DescriptorAllocator::~D3D12DescriptorAllocator() = default;
 
-bool DescriptorAllocator::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
+bool D3D12DescriptorAllocator::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type,
 	u32 num_descriptors)
 {
 	const D3D12_DESCRIPTOR_HEAP_DESC desc = {type, static_cast<UINT>(num_descriptors),
@@ -124,7 +122,7 @@ bool DescriptorAllocator::Create(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYP
 	return true;
 }
 
-void DescriptorAllocator::Destroy()
+void D3D12DescriptorAllocator::Destroy()
 {
 	m_descriptor_heap.reset();
 	m_descriptor_increment_size = 0;
@@ -134,7 +132,7 @@ void DescriptorAllocator::Destroy()
 	m_heap_base_gpu = {};
 }
 
-bool DescriptorAllocator::Allocate(u32 num_handles, DescriptorHandle* out_base_handle)
+bool D3D12DescriptorAllocator::Allocate(u32 num_handles, D3D12DescriptorHandle* out_base_handle)
 {
 	if ((m_current_offset + num_handles) > m_num_descriptors)
 		return false;
@@ -148,7 +146,7 @@ bool DescriptorAllocator::Allocate(u32 num_handles, DescriptorHandle* out_base_h
 	return true;
 }
 
-void DescriptorAllocator::Reset()
+void D3D12DescriptorAllocator::Reset()
 {
 	m_current_offset = 0;
 }

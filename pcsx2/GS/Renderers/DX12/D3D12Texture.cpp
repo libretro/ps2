@@ -23,11 +23,9 @@
 #include "common/StringUtil.h"
 #include "D3D12MemAlloc.h"
 
-using namespace D3D12;
+D3D12Texture::D3D12Texture() = default;
 
-Texture::Texture() = default;
-
-Texture::Texture(ID3D12Resource* resource, D3D12_RESOURCE_STATES state)
+D3D12Texture::D3D12Texture(ID3D12Resource* resource, D3D12_RESOURCE_STATES state)
 	: m_resource(std::move(resource))
 {
 	const D3D12_RESOURCE_DESC desc = GetDesc();
@@ -37,7 +35,7 @@ Texture::Texture(ID3D12Resource* resource, D3D12_RESOURCE_STATES state)
 	m_format = desc.Format;
 }
 
-Texture::Texture(Texture&& texture)
+D3D12Texture::D3D12Texture(D3D12Texture&& texture)
 	: m_resource(std::move(texture.m_resource))
 	, m_allocation(std::move(texture.m_allocation))
 	, m_srv_descriptor(texture.m_srv_descriptor)
@@ -59,12 +57,12 @@ Texture::Texture(Texture&& texture)
 	texture.m_write_descriptor_type = WriteDescriptorType::None;
 }
 
-Texture::~Texture()
+D3D12Texture::~D3D12Texture()
 {
 	Destroy();
 }
 
-Texture& Texture::operator=(Texture&& texture)
+D3D12Texture& D3D12Texture::operator=(D3D12Texture&& texture)
 {
 	Destroy();
 	m_resource = std::move(texture.m_resource);
@@ -88,12 +86,12 @@ Texture& Texture::operator=(Texture&& texture)
 	return *this;
 }
 
-D3D12_RESOURCE_DESC Texture::GetDesc() const
+D3D12_RESOURCE_DESC D3D12Texture::GetDesc() const
 {
 	return m_resource->GetDesc();
 }
 
-bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI_FORMAT srv_format,
+bool D3D12Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI_FORMAT srv_format,
 	DXGI_FORMAT rtv_format, DXGI_FORMAT dsv_format, D3D12_RESOURCE_FLAGS flags, u32 alloc_flags)
 {
 	D3D12_RESOURCE_DESC desc = {};
@@ -143,7 +141,7 @@ bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI
 		return false;
 	}
 
-	DescriptorHandle srv_descriptor, write_descriptor;
+	D3D12DescriptorHandle srv_descriptor, write_descriptor;
 	WriteDescriptorType write_descriptor_type = WriteDescriptorType::None;
 	if (srv_format != DXGI_FORMAT_UNKNOWN)
 	{
@@ -153,7 +151,7 @@ bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI
 
 	if (rtv_format != DXGI_FORMAT_UNKNOWN)
 	{
-		write_descriptor_type = Texture::WriteDescriptorType::RTV;
+		write_descriptor_type = D3D12Texture::WriteDescriptorType::RTV;
 		if (!CreateRTVDescriptor(resource.get(), rtv_format, &write_descriptor))
 		{
 			g_d3d12_context->GetRTVHeapManager().Free(&srv_descriptor);
@@ -163,7 +161,7 @@ bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI
 	}
 	else if (dsv_format != DXGI_FORMAT_UNKNOWN && !(flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
 	{
-		write_descriptor_type = Texture::WriteDescriptorType::DSV;
+		write_descriptor_type = D3D12Texture::WriteDescriptorType::DSV;
 		if (!CreateDSVDescriptor(resource.get(), dsv_format, &write_descriptor))
 		{
 			g_d3d12_context->GetDSVHeapManager().Free(&srv_descriptor);
@@ -172,7 +170,7 @@ bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI
 	}
 	else if (flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 	{
-		write_descriptor_type = Texture::WriteDescriptorType::UAV;
+		write_descriptor_type = D3D12Texture::WriteDescriptorType::UAV;
 		if (!CreateUAVDescriptor(resource.get(), dsv_format, &write_descriptor))
 		{
 			g_d3d12_context->GetDescriptorHeapManager().Free(&srv_descriptor);
@@ -195,12 +193,12 @@ bool Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format, DXGI
 	return true;
 }
 
-bool Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI_FORMAT rtv_format,
+bool D3D12Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI_FORMAT rtv_format,
 	DXGI_FORMAT dsv_format, D3D12_RESOURCE_STATES state)
 {
 	const D3D12_RESOURCE_DESC desc(texture->GetDesc());
 
-	DescriptorHandle srv_descriptor, write_descriptor;
+	D3D12DescriptorHandle srv_descriptor, write_descriptor;
 	WriteDescriptorType write_descriptor_type = WriteDescriptorType::None;
 	if (srv_format != DXGI_FORMAT_UNKNOWN)
 	{
@@ -210,7 +208,7 @@ bool Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI
 
 	if (rtv_format != DXGI_FORMAT_UNKNOWN)
 	{
-		write_descriptor_type = Texture::WriteDescriptorType::RTV;
+		write_descriptor_type = D3D12Texture::WriteDescriptorType::RTV;
 		if (!CreateRTVDescriptor(texture.get(), rtv_format, &write_descriptor))
 		{
 			g_d3d12_context->GetRTVHeapManager().Free(&srv_descriptor);
@@ -219,7 +217,7 @@ bool Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI
 	}
 	else if (dsv_format != DXGI_FORMAT_UNKNOWN)
 	{
-		write_descriptor_type = Texture::WriteDescriptorType::DSV;
+		write_descriptor_type = D3D12Texture::WriteDescriptorType::DSV;
 		if (!CreateDSVDescriptor(texture.get(), dsv_format, &write_descriptor))
 		{
 			g_d3d12_context->GetDSVHeapManager().Free(&srv_descriptor);
@@ -228,7 +226,7 @@ bool Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI
 	}
 	else if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 	{
-		write_descriptor_type = Texture::WriteDescriptorType::UAV;
+		write_descriptor_type = D3D12Texture::WriteDescriptorType::UAV;
 		if (!CreateUAVDescriptor(texture.get(), srv_format, &write_descriptor))
 		{
 			g_d3d12_context->GetDescriptorHeapManager().Free(&srv_descriptor);
@@ -249,7 +247,7 @@ bool Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format, DXGI
 	return true;
 }
 
-void Texture::Destroy(bool defer /* = true */)
+void D3D12Texture::Destroy(bool defer /* = true */)
 {
 	if (defer)
 	{
@@ -257,16 +255,16 @@ void Texture::Destroy(bool defer /* = true */)
 
 		switch (m_write_descriptor_type)
 		{
-			case Texture::WriteDescriptorType::RTV:
+			case D3D12Texture::WriteDescriptorType::RTV:
 				g_d3d12_context->DeferDescriptorDestruction(g_d3d12_context->GetRTVHeapManager(), &m_write_descriptor);
 				break;
-			case Texture::WriteDescriptorType::DSV:
+			case D3D12Texture::WriteDescriptorType::DSV:
 				g_d3d12_context->DeferDescriptorDestruction(g_d3d12_context->GetDSVHeapManager(), &m_write_descriptor);
 				break;
-			case Texture::WriteDescriptorType::UAV:
+			case D3D12Texture::WriteDescriptorType::UAV:
 				g_d3d12_context->DeferDescriptorDestruction(g_d3d12_context->GetDescriptorHeapManager(), &m_write_descriptor);
 				break;
-			case Texture::WriteDescriptorType::None:
+			case D3D12Texture::WriteDescriptorType::None:
 			default:
 				break;
 		}
@@ -281,16 +279,16 @@ void Texture::Destroy(bool defer /* = true */)
 
 		switch (m_write_descriptor_type)
 		{
-			case Texture::WriteDescriptorType::RTV:
+			case D3D12Texture::WriteDescriptorType::RTV:
 				g_d3d12_context->GetRTVHeapManager().Free(&m_write_descriptor);
 				break;
-			case Texture::WriteDescriptorType::DSV:
+			case D3D12Texture::WriteDescriptorType::DSV:
 				g_d3d12_context->GetDSVHeapManager().Free(&m_write_descriptor);
 				break;
-			case Texture::WriteDescriptorType::UAV:
+			case D3D12Texture::WriteDescriptorType::UAV:
 				g_d3d12_context->GetDescriptorHeapManager().Free(&m_write_descriptor);
 				break;
-			case Texture::WriteDescriptorType::None:
+			case D3D12Texture::WriteDescriptorType::None:
 			default:
 				break;
 		}
@@ -306,16 +304,16 @@ void Texture::Destroy(bool defer /* = true */)
 	m_write_descriptor_type = WriteDescriptorType::None;
 }
 
-void Texture::TransitionToState(ID3D12GraphicsCommandList* cmdlist, D3D12_RESOURCE_STATES state)
+void D3D12Texture::TransitionToState(ID3D12GraphicsCommandList* cmdlist, D3D12_RESOURCE_STATES state)
 {
 	if (m_state == state)
 		return;
 
-	ResourceBarrier(cmdlist, m_resource.get(), m_state, state);
+	D3D12::ResourceBarrier(cmdlist, m_resource.get(), m_state, state);
 	m_state = state;
 }
 
-void Texture::TransitionSubresourceToState(ID3D12GraphicsCommandList* cmdlist, u32 level,
+void D3D12Texture::TransitionSubresourceToState(ID3D12GraphicsCommandList* cmdlist, u32 level,
 	D3D12_RESOURCE_STATES before_state, D3D12_RESOURCE_STATES after_state) const
 {
 	const D3D12_RESOURCE_BARRIER barrier = {D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
@@ -324,14 +322,14 @@ void Texture::TransitionSubresourceToState(ID3D12GraphicsCommandList* cmdlist, u
 	cmdlist->ResourceBarrier(1, &barrier);
 }
 
-ID3D12GraphicsCommandList* Texture::BeginStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, void** out_data, u32* out_data_pitch)
+ID3D12GraphicsCommandList* D3D12Texture::BeginStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, void** out_data, u32* out_data_pitch)
 {
-	const u32 copy_pitch = Common::AlignUpPow2(width * GetTexelSize(m_format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const u32 copy_pitch = Common::AlignUpPow2(width * D3D12::GetTexelSize(m_format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const u32 upload_size = copy_pitch * height;
 
 	if (!g_d3d12_context->GetTextureStreamBuffer().ReserveMemory(upload_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 	{
-		g_d3d12_context->ExecuteCommandList(Context::WaitType::None);
+		g_d3d12_context->ExecuteCommandList(D3D12Context::WaitType::None);
 		if (!g_d3d12_context->GetTextureStreamBuffer().ReserveMemory(upload_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 		{
 			Console.Error("Failed to reserve %u bytes for %ux%u upload", upload_size, width, height);
@@ -347,19 +345,19 @@ ID3D12GraphicsCommandList* Texture::BeginStreamUpdate(ID3D12GraphicsCommandList*
 	return cmdlist;
 }
 
-void Texture::EndStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height)
+void D3D12Texture::EndStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height)
 {
-	const u32 copy_pitch = Common::AlignUpPow2(width * GetTexelSize(m_format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const u32 copy_pitch  = Common::AlignUpPow2(width * D3D12::GetTexelSize(m_format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const u32 upload_size = copy_pitch * height;
 
-	StreamBuffer& sb = g_d3d12_context->GetTextureStreamBuffer();
-	const u32 sb_offset = sb.GetCurrentOffset();
+	D3D12StreamBuffer& sb = g_d3d12_context->GetTextureStreamBuffer();
+	const u32 sb_offset   = sb.GetCurrentOffset();
 	sb.CommitMemory(upload_size);
 
 	CopyFromBuffer(cmdlist, level, x, y, width, height, copy_pitch, sb.GetBuffer(), sb_offset);
 }
 
-void Texture::CopyFromBuffer(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, u32 pitch, ID3D12Resource* buffer, u32 buffer_offset)
+void D3D12Texture::CopyFromBuffer(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, u32 pitch, ID3D12Resource* buffer, u32 buffer_offset)
 {
 	D3D12_TEXTURE_COPY_LOCATION src;
 	src.pResource = buffer;
@@ -421,11 +419,11 @@ static ID3D12Resource* CreateStagingBuffer(u32 height, const void* data, u32 pit
 	return resource.get();
 }
 
-bool Texture::LoadData(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, const void* data, u32 pitch)
+bool D3D12Texture::LoadData(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, const void* data, u32 pitch)
 {
-	const u32 texel_size = GetTexelSize(m_format);
+	const u32 texel_size   = D3D12::GetTexelSize(m_format);
 	const u32 upload_pitch = Common::AlignUpPow2(width * texel_size, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	const u32 upload_size = upload_pitch * height;
+	const u32 upload_size  = upload_pitch * height;
 	if (upload_size >= g_d3d12_context->GetTextureStreamBuffer().GetSize())
 	{
 		ID3D12Resource* staging_buffer = CreateStagingBuffer(height, data, pitch, upload_pitch, upload_size);
@@ -446,7 +444,7 @@ bool Texture::LoadData(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32
 	return true;
 }
 
-bool Texture::CreateSRVDescriptor(ID3D12Resource* resource, u32 levels, DXGI_FORMAT format, DescriptorHandle* dh)
+bool D3D12Texture::CreateSRVDescriptor(ID3D12Resource* resource, u32 levels, DXGI_FORMAT format, D3D12DescriptorHandle* dh)
 {
 	if (!g_d3d12_context->GetDescriptorHeapManager().Allocate(dh))
 	{
@@ -461,7 +459,7 @@ bool Texture::CreateSRVDescriptor(ID3D12Resource* resource, u32 levels, DXGI_FOR
 	return true;
 }
 
-bool Texture::CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, DescriptorHandle* dh)
+bool D3D12Texture::CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh)
 {
 	if (!g_d3d12_context->GetRTVHeapManager().Allocate(dh))
 	{
@@ -474,7 +472,7 @@ bool Texture::CreateRTVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, 
 	return true;
 }
 
-bool Texture::CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, DescriptorHandle* dh)
+bool D3D12Texture::CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh)
 {
 	if (!g_d3d12_context->GetDSVHeapManager().Allocate(dh))
 	{
@@ -487,7 +485,7 @@ bool Texture::CreateDSVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, 
 	return true;
 }
 
-bool Texture::CreateUAVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, DescriptorHandle* dh)
+bool D3D12Texture::CreateUAVDescriptor(ID3D12Resource* resource, DXGI_FORMAT format, D3D12DescriptorHandle* dh)
 {
 	if (!g_d3d12_context->GetDescriptorHeapManager().Allocate(dh))
 	{

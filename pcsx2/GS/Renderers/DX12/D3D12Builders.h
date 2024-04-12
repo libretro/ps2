@@ -22,10 +22,10 @@
 #include <array>
 #include <d3d12.h>
 
+class D3D12ShaderCache;
+
 namespace D3D12
 {
-	class ShaderCache;
-
 	class RootSignatureBuilder
 	{
 	public:
@@ -71,7 +71,7 @@ namespace D3D12
 		void Clear();
 
 		wil::com_ptr_nothrow<ID3D12PipelineState> Create(ID3D12Device* device, bool clear = true);
-		wil::com_ptr_nothrow<ID3D12PipelineState> Create(ID3D12Device* device, ShaderCache& cache, bool clear = true);
+		wil::com_ptr_nothrow<ID3D12PipelineState> Create(ID3D12Device* device, D3D12ShaderCache& cache, bool clear = true);
 
 		void SetRootSignature(ID3D12RootSignature* rs);
 
@@ -127,7 +127,7 @@ namespace D3D12
 		void Clear();
 
 		wil::com_ptr_nothrow<ID3D12PipelineState> Create(ID3D12Device* device, bool clear = true);
-		wil::com_ptr_nothrow<ID3D12PipelineState> Create(ID3D12Device* device, ShaderCache& cache, bool clear = true);
+		wil::com_ptr_nothrow<ID3D12PipelineState> Create(ID3D12Device* device, D3D12ShaderCache& cache, bool clear = true);
 
 		void SetRootSignature(ID3D12RootSignature* rs);
 
