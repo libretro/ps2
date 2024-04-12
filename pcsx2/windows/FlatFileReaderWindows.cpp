@@ -17,7 +17,7 @@
 #include "AsyncFileReader.h"
 #include "common/StringUtil.h"
 
-FlatFileReader::FlatFileReader(bool shareWrite) : shareWrite(shareWrite)
+FlatFileReader::FlatFileReader()
 {
 	m_blocksize = 2048;
 	hOverlappedFile = INVALID_HANDLE_VALUE;
@@ -36,14 +36,10 @@ bool FlatFileReader::Open(std::string fileName)
 
 	hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
-	DWORD shareMode = FILE_SHARE_READ;
-	if (shareWrite)
-		shareMode |= FILE_SHARE_WRITE;
-
 	hOverlappedFile = CreateFile(
 		StringUtil::UTF8StringToWideString(m_filename).c_str(),
 		GENERIC_READ,
-		shareMode,
+		FILE_SHARE_READ,
 		NULL,
 		OPEN_EXISTING,
 		FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_OVERLAPPED,

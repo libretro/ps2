@@ -258,30 +258,9 @@ static GSVector4 CalculateDrawDstRect(s32 window_width, s32 window_height, const
 
 	target_height *= GSConfig.StretchY / 100.0f;
 
-	if (GSConfig.IntegerScaling)
-	{
-		// make target width/height an integer multiple of the texture width/height
-		float t_width = static_cast<double>(src_rect.width());
-		float t_height = static_cast<double>(src_rect.height());
-		float scale;
-		if ((t_width / t_height) >= 1.0)
-			scale = target_width / t_width;
-		else
-			scale = target_height / t_height;
-
-		if (scale > 1.0)
-		{
-			const float adjust = std::floor(scale) / scale;
-			target_width = target_width * adjust;
-			target_height = target_height * adjust;
-		}
-	}
-
 	float target_x, target_y;
 	if (target_width >= f_width)
-	{
 		target_x = -((target_width - f_width) * 0.5f);
-	}
 	else
 	{
 		switch (alignment)

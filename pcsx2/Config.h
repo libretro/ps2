@@ -478,7 +478,6 @@ struct Pcsx2Config
 					DisableInterlaceOffset : 1,
 					PCRTCOffsets : 1,
 					PCRTCOverscan : 1,
-					IntegerScaling : 1,
 					UseDebugDevice : 1,
 					DisableShaderCache : 1,
 					DisableDualSourceBlend : 1,
@@ -520,9 +519,6 @@ struct Pcsx2Config
 		// forces the MTGS to execute tags/tasks in fully blocking/synchronous
 		// style. Useful for debugging potential bugs in the MTGS pipeline.
 		bool SynchronousMTGS = false;
-		bool FrameLimitEnable = true;
-
-		VsyncMode VsyncEnable = VsyncMode::Off;
 
 		float FramerateNTSC = DEFAULT_FRAME_RATE_NTSC;
 		float FrameratePAL = DEFAULT_FRAME_RATE_PAL;
@@ -865,7 +861,6 @@ struct Pcsx2Config
 
 	BITFIELD32()
 	bool
-		CdvdShareWrite : 1, // allows the iso to be modified while it's loaded
 		EnablePatches : 1, // enables patch detection and application
 		EnableCheats : 1, // enables cheat detection and application
 		EnableWideScreenPatches : 1,

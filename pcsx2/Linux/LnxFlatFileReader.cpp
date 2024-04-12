@@ -21,8 +21,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-FlatFileReader::FlatFileReader(bool shareWrite)
-	: shareWrite(shareWrite)
+FlatFileReader::FlatFileReader()
 {
 	m_blocksize = 2048;
 	m_fd = -1;

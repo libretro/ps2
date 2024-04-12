@@ -55,11 +55,7 @@ void InputIsoFile::BeginRead2(uint lsn)
 	m_read_count = 1;
 
 	if (ReadUnit > 1)
-	{
-		//m_read_lsn   = lsn - (lsn % ReadUnit);
-
 		m_read_count = std::min(ReadUnit, m_blocks - m_read_lsn);
-	}
 
 	m_reader->BeginRead(m_readbuffer, m_read_lsn, m_read_count);
 	m_read_inprogress = true;
@@ -191,12 +187,7 @@ bool InputIsoFile::Open(std::string srcfile, bool testOnly)
 
 	// If it wasn't compressed, let's open it has a FlatFileReader.
 	if (!isCompressed)
-	{
-		// Allow write sharing of the iso based on the ini settings.
-		// Mostly useful for romhacking, where the disc is frequently
-		// changed and the emulator would block modifications
-		m_reader = new FlatFileReader(EmuConfig.CdvdShareWrite);
-	}
+		m_reader = new FlatFileReader();
 
 	if (!m_reader->Open(m_filename))
 		return false;

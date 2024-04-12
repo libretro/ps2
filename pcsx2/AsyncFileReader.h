@@ -81,11 +81,8 @@ class FlatFileReader : public AsyncFileReader
 	struct aiocb m_aiocb;
 	bool m_async_read_in_progress;
 #endif
-
-	bool shareWrite;
-
 public:
-	FlatFileReader(bool shareWrite = false);
+	FlatFileReader();
 	virtual ~FlatFileReader() override;
 
 	virtual bool Open(std::string fileName) override;

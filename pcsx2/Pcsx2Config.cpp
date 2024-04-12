@@ -355,7 +355,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	DisableInterlaceOffset = false;
 	PCRTCOffsets = false;
 	PCRTCOverscan = false;
-	IntegerScaling = false;
 	UseDebugDevice = false;
 	DisableShaderCache = false;
 	DisableFramebufferFetch = false;
@@ -393,8 +392,6 @@ bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
 		OpEqu(SynchronousMTGS) &&
 		OpEqu(VsyncQueueSize) &&
 
-		OpEqu(FrameLimitEnable) &&
-
 		OpEqu(FramerateNTSC) &&
 		OpEqu(FrameratePAL) &&
 
@@ -408,8 +405,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 {
 	return (
 		OpEqu(bitset) &&
-
-		OpEqu(VsyncEnable) &&
 
 		OpEqu(InterlaceMode) &&
 
@@ -478,9 +473,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntry(SynchronousMTGS);
 	SettingsWrapEntry(VsyncQueueSize);
 
-	SettingsWrapEntry(FrameLimitEnable);
-	wrap.EnumEntry(CURRENT_SETTINGS_SECTION, "VsyncEnable", VsyncEnable, NULL, VsyncEnable);
-
 	SettingsWrapEntry(FramerateNTSC);
 	SettingsWrapEntry(FrameratePAL);
 
@@ -508,7 +500,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(DisableInterlaceOffset, "disable_interlace_offset");
 	GSSettingBoolEx(PCRTCOffsets, "pcrtc_offsets");
 	GSSettingBoolEx(PCRTCOverscan, "pcrtc_overscan");
-	GSSettingBool(IntegerScaling);
 	GSSettingBool(UseDebugDevice);
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
 	GSSettingBool(DisableDualSourceBlend);
@@ -951,7 +942,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapSection("EmuCore");
 
-	SettingsWrapBitBool(CdvdShareWrite);
 	SettingsWrapBitBool(EnablePatches);
 	SettingsWrapBitBool(EnableCheats);
 	SettingsWrapBitBool(EnableWideScreenPatches);
