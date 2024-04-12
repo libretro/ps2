@@ -36,7 +36,6 @@
 #include "Elfheader.h"
 #include "Counters.h"
 #include "Patch.h"
-#include "Host.h"
 #include "GS.h"
 #include "GS/GS.h"
 #include "SPU2/spu2.h"

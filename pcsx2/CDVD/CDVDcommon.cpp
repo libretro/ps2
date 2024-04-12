@@ -23,8 +23,6 @@
 #include <exception>
 #include <memory>
 
-#include "fmt/core.h"
-
 #include "IsoFS/IsoFS.h"
 #include "IsoFS/IsoFSCDVD.h"
 #include "IsoFileFormats.h"
@@ -35,8 +33,6 @@
 #include "common/StringUtil.h"
 #include "DebugTools/SymbolMap.h"
 #include "Config.h"
-#include "Host.h"
-#include "IconsFontAwesome5.h"
 
 CDVD_API* CDVD = NULL;
 
@@ -399,7 +395,7 @@ bool DoCDVDopen(void)
 	cdvdTD td;
 	CDVD->getTD(0, &td);
 
-	Console.WriteLn(fmt::format("Saving CDVD block dump to '{}'.", temp));
+	Console.WriteLn("Saving CDVD block dump to '{%s}'.", temp);
 
 	if (blockDumpFile.Create(std::move(temp), 2))
 	{

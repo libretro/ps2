@@ -215,7 +215,7 @@ SysCpuProviderPack& GetCpuProviders()
 void VMManager::LoadSettings()
 {
 	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
-	SettingsInterface* si = Host::GetSettingsInterface();
+	SettingsInterface* si             = Host::GetSettingsInterface();
 	SettingsLoadWrapper slw(*si);
 	EmuConfig.LoadSave(slw);
 	PAD::LoadConfig(*si);

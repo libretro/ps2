@@ -16,7 +16,6 @@
 
 #include "PrecompiledHeader.h"
 #include "CDVD/IsoFileFormats.h"
-#include "Host.h"
 
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"

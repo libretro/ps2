@@ -18,7 +18,6 @@
 
 #include "CDVD/IsoFileFormats.h"
 #include "Config.h"
-#include "Host.h"
 
 #include "fmt/format.h"
 

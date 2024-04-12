@@ -19,7 +19,6 @@
 
 #include "GSRendererHW.h"
 #include "GSTextureReplacements.h"
-#include "Host.h"
 #include "common/Align.h"
 #include "common/StringUtil.h"
 

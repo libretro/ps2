@@ -1199,33 +1199,6 @@
     <ClCompile Include="Recording\PadData.cpp">
       <Filter>Tools\Input Recording</Filter>
     </ClCompile>
-    <ClCompile Include="Recording\Utilities\InputRecordingLogger.cpp">
-      <Filter>Tools\Input Recording\Utilities</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\LogSink.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\ImGuiFullscreen.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\FullscreenUI.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\CommonHost.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\CommonHotkeys.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\Achievements.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\ImGuiOverlays.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
-    <ClCompile Include="Frontend\DInputSource.cpp">
-      <Filter>Host</Filter>
-    </ClCompile>
     <ClCompile Include="MemoryCardProtocol.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
@@ -2030,44 +2003,8 @@
     <ClInclude Include="GS\Renderers\DX12\GSDevice12.h">
       <Filter>System\Ps2\GS\Renderers\Direct3D12</Filter>
     </ClInclude>
-    <ClInclude Include="Recording\InputRecording.h">
-      <Filter>Tools\Input Recording</Filter>
-    </ClInclude>
-    <ClInclude Include="Recording\InputRecordingControls.h">
-      <Filter>Tools\Input Recording</Filter>
-    </ClInclude>
-    <ClInclude Include="Recording\InputRecordingFile.h">
-      <Filter>Tools\Input Recording</Filter>
-    </ClInclude>
-    <ClInclude Include="Recording\PadData.h">
-      <Filter>Tools\Input Recording</Filter>
-    </ClInclude>
-    <ClInclude Include="Recording\Utilities\InputRecordingLogger.h">
-      <Filter>Tools\Input Recording\Utilities</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\LogSink.h">
-      <Filter>Host</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\ImGuiFullscreen.h">
-      <Filter>Host</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\FullscreenUI.h">
-      <Filter>Host</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\CommonHost.h">
-      <Filter>Host</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\Achievements.h">
-      <Filter>Host</Filter>
-    </ClInclude>
     <ClInclude Include="ShaderCacheVersion.h">
       <Filter>System\Include</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\ImGuiOverlays.h">
-      <Filter>Host</Filter>
-    </ClInclude>
-    <ClInclude Include="Frontend\DInputSource.h">
-      <Filter>Host</Filter>
     </ClInclude>
     <ClInclude Include="SioTypes.h">
       <Filter>System\Ps2\Iop</Filter>
@@ -2173,9 +2110,6 @@
     </ClInclude>
     <ClInclude Include="IPU\mpeg2_vlc.h">
       <Filter>System\Ps2\IPU</Filter>
-    </ClInclude>
-    <ClInclude Include="Achievements.h">
-      <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="GS.h">
       <Filter>System\Ps2\GS\GIF</Filter>

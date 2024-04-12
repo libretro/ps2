@@ -22,7 +22,6 @@
 #include "common/ScopedGuard.h"
 
 #include "Config.h"
-#include "Host.h"
 #include "GS/GSLocalMemory.h"
 #include "GS/Renderers/HW/GSTextureReplacements.h"
 #include "VMManager.h"

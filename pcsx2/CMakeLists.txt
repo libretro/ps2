@@ -732,13 +732,11 @@ set(pcsx2DebugToolsHeaders
 	)
 
 list(APPEND pcsx2FrontendSources
-	Frontend/CommonHost.cpp
 	Frontend/HostSettings.cpp
 	Frontend/LayeredSettingsInterface.cpp
 	VMManager.cpp
 )
 list(APPEND pcsx2FrontendHeaders
-	Frontend/CommonHost.h
 	Frontend/LayeredSettingsInterface.h
 	HostSettings.h
 	VMManager.h)

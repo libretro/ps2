@@ -18,7 +18,6 @@
 #include "GameDatabase.h"
 #include "GS/GS.h"
 #include "Host.h"
-#include "IconsFontAwesome5.h"
 #include "vtlb.h"
 
 #include "common/FileSystem.h"
@@ -32,7 +31,6 @@
 #include "fmt/core.h"
 #include "fmt/ranges.h"
 #include <fstream>
-#include <mutex>
 #include <optional>
 
 namespace GameDatabaseSchema

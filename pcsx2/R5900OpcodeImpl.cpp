@@ -25,11 +25,7 @@
 #include "GS.h"
 #include "CDVD/CDVD.h"
 #include "ps2/BiosTools.h"
-#include "DebugTools/DebugInterface.h"
-#include "Host.h"
 #include "VMManager.h"
-
-#include "fmt/format.h"
 
 GS_VideoMode gsVideoMode = GS_VideoMode::Uninitialized;
 bool gsIsInterlaced = false;

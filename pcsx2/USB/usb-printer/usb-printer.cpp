@@ -24,8 +24,6 @@
 #include "Config.h"
 #include "fmt/format.h"
 #include "StateWrapper.h"
-#include "Host.h"
-#include "IconsFontAwesome5.h"
 
 namespace usb_printer
 {

@@ -29,9 +29,6 @@
 #include "common/StringUtil.h"
 #include "pcsx2/Config.h"
 #include "pcsx2/Counters.h"
-#include "pcsx2/Host.h"
-#include "pcsx2/HostSettings.h"
-#include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/GS.h"
 
 #include "fmt/format.h"
@@ -51,11 +48,6 @@
 #endif
 
 #include "Renderers/Null/GSDeviceNull.h"
-
-// do NOT undefine this/put it above includes, as x11 people love to redefine
-// things that make obscure compiler bugs, unless you want to run around and
-// debug obscure compiler errors --govanify
-#undef None
 
 Pcsx2Config::GSOptions GSConfig;
 

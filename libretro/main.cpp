@@ -30,18 +30,17 @@
 #include "common/Path.h"
 #include "common/FileSystem.h"
 #include "common/MemorySettingsInterface.h"
+#include "pcsx2/GS/Renderers/Common/GSRenderer.h"
 #ifdef ENABLE_VULKAN
 #include "GS/Renderers/Vulkan/VKLoader.h"
 #include "GS/Renderers/Vulkan/VKContext.h"
 #include "GS/Renderers/Vulkan/GSTextureVK.h"
 #include <libretro_vulkan.h>
 #endif
-#include "pcsx2/Frontend/CommonHost.h"
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/LayeredSettingsInterface.h"
 #include "pcsx2/VMManager.h"
 #include "pcsx2/StateWrapper.h"
-#include "pcsx2/GS/Renderers/Common/GSRenderer.h"
 
 #include "SPU2/spu2.h"
 #include "PAD/PAD.h"
@@ -114,12 +113,12 @@ void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_ren
 static std::thread cpu_thread;
 alignas(16) static SysMtgsThread s_mtgs_thread;
 
-SysMtgsThread& GetMTGS()
+SysMtgsThread& GetMTGS(void)
 {
 	return s_mtgs_thread;
 }
 
-static void cpu_thread_pause()
+static void cpu_thread_pause(void)
 {
 	VMManager::SetPaused(true);
 	while(cpu_thread_state != VMState::Paused)
@@ -610,11 +609,15 @@ bool retro_load_game(const struct retro_game_info* game)
 	EmuFolders::AppRoot   = Path::Combine(system_base, "pcsx2");
 	EmuFolders::Resources = Path::Combine(EmuFolders::AppRoot, "resources");
 	EmuFolders::DataRoot  = EmuFolders::AppRoot;
-	CommonHost::InitializeCriticalFolders();
+	FileSystem::DirectoryExists(EmuFolders::Resources.c_str());
 
 	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
-	CommonHost::SetDefaultSettings(s_settings_interface, true, true, true, true, true);
-	CommonHost::LoadStartupSettings();
+	EmuFolders::SetDefaults(s_settings_interface);
+	VMManager::SetDefaultSettings(s_settings_interface);
+
+	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
+	EmuFolders::LoadConfig(*bsi);
+	EmuFolders::EnsureFoldersExist(); /* TODO/FIXME - check if this is not duplicate */
 
 	if (!VMManager::Internal::InitializeGlobals() || !VMManager::Internal::InitializeMemory())
 	{
@@ -1034,19 +1037,17 @@ void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_ov
 
 void Host::CPUThreadVSync()
 {
+	InputManager::PollSources();
 }
 
 void Host::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& lock)
 {
-	CommonHost::LoadSettings(si, lock);
+	SettingsInterface* binding_si = Host::GetSettingsInterfaceForBindings();
+	InputManager::ReloadSources(si, lock);
+	InputManager::ReloadBindings(si, *binding_si);
 }
 
 void Host::CheckForSettingsChanges(const Pcsx2Config& old_config)
-{
-	CommonHost::CheckForSettingsChanges(old_config);
-}
-
-void Host::SetDefaultUISettings(SettingsInterface& si)
 {
 }
 

@@ -23,7 +23,6 @@
 #include "MemoryCardProtocol.h"
 #include "MultitapProtocol.h"
 #include "Config.h"
-#include "Host.h"
 #include "PAD/PAD.h"
 
 #include "common/Timer.h"

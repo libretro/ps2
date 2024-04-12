@@ -21,8 +21,6 @@
 
 #include "System.h"
 #include "Config.h"
-#include "Host.h"
-#include "IconsFontAwesome5.h"
 
 #include "common/FileSystem.h"
 #include "common/Path.h"
@@ -32,8 +30,6 @@
 #include "fmt/core.h"
 #include "ryml_std.hpp"
 #include "ryml.hpp"
-
-#include "svnrev.h"
 
 #include <sstream>
 #include <mutex>
