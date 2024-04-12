@@ -977,6 +977,7 @@ if(WIN32)
 		PowrProf.lib
 		d3dcompiler.lib
 		d3d11.lib
+		d3d12.lib
 		dxgi.lib
 		strmiids.lib
 		opengl32.lib

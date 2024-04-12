@@ -752,9 +752,6 @@
     <ProjectReference Include="$(SolutionDir)3rdparty\libpng\projects\vstudio\libpng\libpng.vcxproj">
       <Project>{d6973076-9317-4ef2-a0b8-b7a18ac0713e}</Project>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)3rdparty\soundtouch\SoundTouch.vcxproj">
-      <Project>{e9b51944-7e6d-4bcd-83f2-7bbd5a46182d}</Project>
-    </ProjectReference>
     <ProjectReference Include="$(SolutionDir)3rdparty\xz\liblzma.vcxproj">
       <Project>{12728250-16ec-4dc6-94d7-e21dd88947f8}</Project>
     </ProjectReference>
@@ -765,32 +762,17 @@
       <Project>{2f6c0388-20cb-4242-9f6c-a6ebb6a83f47}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)3rdparty\cubeb\cubeb.vcxproj">
-      <Project>{bf74c473-dc04-44b3-92e8-4145f4e77342}</Project>
-    </ProjectReference>
     <ProjectReference Include="$(SolutionDir)3rdparty\rapidyaml\ryml.vcxproj">
       <Project>{de9653b6-17dd-356a-9ee0-28a731772587}</Project>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)3rdparty\imgui\imgui.vcxproj">
-      <Project>{88fb34ec-845e-4f21-a552-f1573b9ed167}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdparty\discord-rpc\discord-rpc.vcxproj">
-      <Project>{e960dfdf-1bd3-4c29-b251-d1a0919c9b09}</Project>
+    <ProjectReference Include="..\3rdparty\d3d12memalloc\d3d12memalloc.vcxproj">
+      <Project>{d45cec7a-3171-40dd-975d-e1544cf16139}</Project>
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\libzip\libzip.vcxproj">
       <Project>{20b2e9fe-f020-42a0-b324-956f5b06ea68}</Project>
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\cpuinfo\cpuinfo.vcxproj">
       <Project>{7e183337-a7e9-460c-9d3d-568bc9f9bcc1}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdparty\rainterface\rainterface.vcxproj">
-      <Project>{95dd0a0c-d14d-4cff-a593-820ef26efcc8}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdparty\rcheevos\rcheevos.vcxproj">
-      <Project>{6d5b5ad9-1525-459b-939f-a5e1082af6b3}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdparty\sdl2\SDL.vcxproj">
-      <Project>{812b4434-fd6b-4cb2-8865-5fd8eb34b046}</Project>
     </ProjectReference>
     <ProjectReference Include="..\common\common.vcxproj">
       <Project>{4639972e-424e-4e13-8b07-ca403c481346}</Project>

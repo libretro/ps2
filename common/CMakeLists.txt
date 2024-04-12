@@ -106,7 +106,7 @@ target_sources(common PRIVATE
 if(WIN32)
 	enable_language(ASM_MASM)
 	target_sources(common PRIVATE FastJmp.asm)
-	target_link_libraries(common PUBLIC WIL::WIL D3D12MemAlloc winmm)
+	target_link_libraries(common PUBLIC WIL::WIL winmm)
 	target_sources(common PRIVATE
 		FastJmp.asm
 	)
