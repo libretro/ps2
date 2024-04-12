@@ -292,7 +292,7 @@ void retro_get_system_info(retro_system_info* info)
 #endif
 
 	info->library_name     = "pcsx2";
-	info->valid_extensions = "elf|iso|ciso|cue|bin|gz";
+	info->valid_extensions = "elf|iso|ciso|cue|bin|gz|chd|cso";
 	info->need_fullpath    = true;
 	info->block_extract    = true;
 }
@@ -1008,19 +1008,6 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	if (!ret.has_value())
 		Console.Error("Failed to read resource file to string '%s'", filename);
 	return ret;
-}
-
-void Host::ReportErrorAsync(const std::string_view& title, const std::string_view& message)
-{
-	if (!title.empty() && !message.empty())
-	{
-		Console.Error(
-			"ReportErrorAsync: %.*s: %.*s", static_cast<int>(title.size()), title.data(), static_cast<int>(message.size()), message.data());
-	}
-	else if (!message.empty())
-	{
-		Console.Error("ReportErrorAsync: %.*s", static_cast<int>(message.size()), message.data());
-	}
 }
 
 void Host::OnVMPaused()    { }

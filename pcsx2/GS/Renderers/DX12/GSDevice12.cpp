@@ -689,7 +689,7 @@ bool GSDevice12::Create()
 		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/tfx.fx");
 		if (!shader.has_value())
 		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/tfx.fxf.");
+			Console.Error("Failed to read shaders/dx11/tfx.fxf.");
 			return false;
 		}
 
@@ -704,13 +704,13 @@ bool GSDevice12::Create()
 
 	if (!CreateNullTexture())
 	{
-		Host::ReportErrorAsync("GS", "Failed to create dummy texture");
+		Console.Error("Failed to create dummy texture");
 		return false;
 	}
 
 	if (!CreateRootSignatures())
 	{
-		Host::ReportErrorAsync("GS", "Failed to create pipeline layouts");
+		Console.Error("Failed to create pipeline layouts");
 		return false;
 	}
 
@@ -721,7 +721,7 @@ bool GSDevice12::Create()
 		!CompileInterlacePipelines() || !CompileMergePipelines() ||
 		!CompilePostProcessingPipelines())
 	{
-		Host::ReportErrorAsync("GS", "Failed to compile utility pipelines");
+		Console.Error("Failed to compile utility pipelines");
 		return false;
 	}
 
@@ -1600,32 +1600,32 @@ bool GSDevice12::CreateBuffers()
 {
 	if (!m_vertex_stream_buffer.Create(VERTEX_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate vertex buffer");
+		Console.Error("Failed to allocate vertex buffer");
 		return false;
 	}
 
 	if (!m_index_stream_buffer.Create(INDEX_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate index buffer");
+		Console.Error("Failed to allocate index buffer");
 		return false;
 	}
 
 	if (!m_vertex_constant_buffer.Create(VERTEX_UNIFORM_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate vertex uniform buffer");
+		Console.Error("Failed to allocate vertex uniform buffer");
 		return false;
 	}
 
 	if (!m_pixel_constant_buffer.Create(FRAGMENT_UNIFORM_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate fragment uniform buffer");
+		Console.Error("Failed to allocate fragment uniform buffer");
 		return false;
 	}
 
 	if (!g_d3d12_context->AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer,
 			&m_expand_index_buffer_allocation, &GSDevice::GenerateExpansionIndexBuffer))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate expansion index buffer");
+		Console.Error("Failed to allocate expansion index buffer");
 		return false;
 	}
 
@@ -1668,7 +1668,7 @@ bool GSDevice12::CompileConvertPipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/convert.fx");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/convert.fx.");
+		Console.Error("Failed to read shaders/dx11/convert.fx.");
 		return false;
 	}
 
@@ -1812,7 +1812,7 @@ bool GSDevice12::CompilePresentPipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/present.fx");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/present.fx.");
+		Console.Error("Failed to read shaders/dx11/present.fx.");
 		return false;
 	}
 
@@ -1852,7 +1852,7 @@ bool GSDevice12::CompileInterlacePipelines()
 	std::optional<std::string> source = Host::ReadResourceFileToString("shaders/dx11/interlace.fx");
 	if (!source)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/interlace.fx.");
+		Console.Error("Failed to read shaders/dx11/interlace.fx.");
 		return false;
 	}
 
@@ -1888,7 +1888,7 @@ bool GSDevice12::CompileMergePipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/merge.fx");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/merge.fx.");
+		Console.Error("Failed to read shaders/dx11/merge.fx.");
 		return false;
 	}
 

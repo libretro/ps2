@@ -1932,7 +1932,7 @@ bool GSDeviceVK::Create()
 		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/tfx.glsl");
 		if (!shader.has_value())
 		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/tfx.glsl.");
+			Console.Error("Failed to read shaders/vulkan/tfx.glsl.");
 			return false;
 		}
 
@@ -1941,19 +1941,19 @@ bool GSDeviceVK::Create()
 
 	if (!CreateNullTexture())
 	{
-		Host::ReportErrorAsync("GS", "Failed to create dummy texture");
+		Console.Error("Failed to create dummy texture");
 		return false;
 	}
 
 	if (!CreatePipelineLayouts())
 	{
-		Host::ReportErrorAsync("GS", "Failed to create pipeline layouts");
+		Console.Error("Failed to create pipeline layouts");
 		return false;
 	}
 
 	if (!CreateRenderPasses())
 	{
-		Host::ReportErrorAsync("GS", "Failed to create render passes");
+		Console.Error("Failed to create render passes");
 		return false;
 	}
 
@@ -1964,13 +1964,13 @@ bool GSDeviceVK::Create()
 		!CompileInterlacePipelines() || !CompileMergePipelines() ||
 		!CompilePostProcessingPipelines())
 	{
-		Host::ReportErrorAsync("GS", "Failed to compile utility pipelines");
+		Console.Error("Failed to compile utility pipelines");
 		return false;
 	}
 
 	if (!CreatePersistentDescriptorSets())
 	{
-		Host::ReportErrorAsync("GS", "Failed to create persistent descriptor sets");
+		Console.Error("Failed to create persistent descriptor sets");
 		return false;
 	}
 
@@ -2096,7 +2096,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	if (!Vulkan::LoadVulkanLibrary())
 	{
-		Host::ReportErrorAsync("Error", "Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
+		Console.Error("Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
 		return false;
 	}
 
@@ -2117,8 +2117,8 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 				VKContext::CreateVulkanInstance(m_window_info, enable_debug_utils, enable_validation_layer);
 			if (instance == VK_NULL_HANDLE)
 			{
-				Host::ReportErrorAsync(
-					"Error", "Failed to create Vulkan instance. Does your GPU and/or driver support Vulkan?");
+				Console.Error(
+					"Failed to create Vulkan instance. Does your GPU and/or driver support Vulkan?");
 				return false;
 			}
 
@@ -2136,7 +2136,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	VKContext::GPUList gpus = VKContext::EnumerateGPUs(instance);
 	if (gpus.empty())
 	{
-		Host::ReportErrorAsync("Error", "No physical devices found. Does your GPU and/or driver support Vulkan?");
+		Console.Error("No physical devices found. Does your GPU and/or driver support Vulkan?");
 		return false;
 	}
 
@@ -2275,7 +2275,7 @@ bool GSDeviceVK::CheckFeatures()
 		vkGetPhysicalDeviceFormatProperties(g_vulkan_context->GetPhysicalDevice(), vkfmt, &props);
 		if ((props.optimalTilingFeatures & bits) != bits)
 		{
-			Host::ReportFormattedErrorAsync("Vulkan Renderer Unavailable",
+			Console.Error("Vulkan Renderer Unavailable",
 				"Required format %u is missing bits, you may need to update your driver. (vk:%u, has:0x%x, needs:0x%x)",
 				fmt, static_cast<unsigned>(vkfmt), props.optimalTilingFeatures, bits);
 			return false;
@@ -3151,25 +3151,25 @@ bool GSDeviceVK::CreateBuffers()
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | (m_features.vs_expand ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : 0),
 			VERTEX_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate vertex buffer");
+		Console.Error("Failed to allocate vertex buffer");
 		return false;
 	}
 
 	if (!m_index_stream_buffer.Create(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, INDEX_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate index buffer");
+		Console.Error("Failed to allocate index buffer");
 		return false;
 	}
 
 	if (!m_vertex_uniform_stream_buffer.Create(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VERTEX_UNIFORM_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate vertex uniform buffer");
+		Console.Error("Failed to allocate vertex uniform buffer");
 		return false;
 	}
 
 	if (!m_fragment_uniform_stream_buffer.Create(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, FRAGMENT_UNIFORM_BUFFER_SIZE))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate fragment uniform buffer");
+		Console.Error("Failed to allocate fragment uniform buffer");
 		return false;
 	}
 
@@ -3179,7 +3179,7 @@ bool GSDeviceVK::CreateBuffers()
 			&m_expand_index_buffer_allocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			&GSDevice::GenerateExpansionIndexBuffer))
 	{
-		Host::ReportErrorAsync("GS", "Failed to allocate expansion index buffer");
+		Console.Error("Failed to allocate expansion index buffer");
 		return false;
 	}
 
@@ -3330,7 +3330,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/convert.glsl");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/convert.glsl.");
+		Console.Error("Failed to read shaders/vulkan/convert.glsl.");
 		return false;
 	}
 
@@ -3519,7 +3519,7 @@ bool GSDeviceVK::CompilePresentPipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/present.glsl");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/present.glsl.");
+		Console.Error("Failed to read shaders/vulkan/present.glsl.");
 		return false;
 	}
 
@@ -3566,7 +3566,7 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/interlace.glsl");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/interlace.glsl.");
+		Console.Error("Failed to read shaders/vulkan/interlace.glsl.");
 		return false;
 	}
 
@@ -3617,7 +3617,7 @@ bool GSDeviceVK::CompileMergePipelines()
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/merge.glsl");
 	if (!shader)
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/vulkan/merge.glsl.");
+		Console.Error("Failed to read shaders/vulkan/merge.glsl.");
 		return false;
 	}
 

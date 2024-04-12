@@ -422,15 +422,6 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 		Cpu->CancelInstruction();
 		return;
 	}
-
-	if (EmuConfig.Cpu.Recompiler.PauseOnTLBMiss)
-	{
-		const std::string message(fmt::format("TLB Miss, pc=0x{:x} addr=0x{:x} [{}]", cpuRegs.pc, addr, mode ? "store" : "load"));
-		// Pause, let the user try to figure out what went wrong in the debugger.
-		Host::ReportErrorAsync("R5900 Exception", message);
-		VMManager::SetPaused(true);
-		Cpu->ExitExecution();
-	}
 }
 
 // BusError exception: more serious than a TLB miss.  If properly emulated the PS2 kernel
@@ -439,15 +430,6 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 static __ri void vtlb_BusError(u32 addr, u32 mode)
 {
 	const std::string message(fmt::format("Bus Error, addr=0x{:x} [{}]", addr, mode ? "store" : "load"));
-	if (EmuConfig.Cpu.Recompiler.PauseOnTLBMiss)
-	{
-		// Pause, let the user try to figure out what went wrong in the debugger.
-		Host::ReportErrorAsync("R5900 Exception", message);
-		VMManager::SetPaused(true);
-		Cpu->ExitExecution();
-		return;
-	}
-
 	Console.Error(message);
 }
 
@@ -1139,7 +1121,7 @@ bool vtlb_Core_Alloc()
 		vmap = (VTLBVirtual*)GetVmMemory().BumpAllocator().Alloc(VMAP_SIZE);
 		if (!vmap)
 		{
-			Host::ReportErrorAsync("Error", "Failed to allocate vtlb vmap");
+			Console.Error("Failed to allocate vtlb vmap");
 			return false;
 		}
 	}
@@ -1155,7 +1137,7 @@ bool vtlb_Core_Alloc()
 		s_fastmem_area = SharedMemoryMappingArea::Create(FASTMEM_AREA_SIZE);
 		if (!s_fastmem_area)
 		{
-			Host::ReportErrorAsync("Error", "Failed to allocate fastmem area");
+			Console.Error("Failed to allocate fastmem area");
 			return false;
 		}
 
@@ -1167,7 +1149,7 @@ bool vtlb_Core_Alloc()
 
 	if (!HostSys::InstallPageFaultHandler(&vtlb_private::PageFaultHandler))
 	{
-		Host::ReportErrorAsync("Error", "Failed to install page fault handler.");
+		Console.Error("Failed to install page fault handler.");
 		return false;
 	}
 

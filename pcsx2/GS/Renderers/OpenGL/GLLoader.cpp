@@ -134,18 +134,18 @@ namespace GLLoader
 		glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
 		if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
 		{
-			Host::ReportFormattedErrorAsync("GS", "OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
+			Console.Error("OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
 			return false;
 		}
 
 		return true;
 	}
 
-	static bool check_gl_supported_extension()
+	static bool check_gl_supported_extension(void)
 	{
 		if (!GLAD_GL_ARB_shading_language_420pack)
 		{
-			Host::ReportFormattedErrorAsync("GS",
+			Console.Warning(
 				"GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.");
 			return false;
 		}
@@ -184,7 +184,7 @@ namespace GLLoader
 		return true;
 	}
 
-	bool check_gl_requirements()
+	bool check_gl_requirements(void)
 	{
 		if (!check_gl_version())
 			return false;

@@ -387,8 +387,6 @@ struct Pcsx2Config
 			EnableEECache : 1;
 		bool
 			EnableFastmem : 1;
-		bool
-			PauseOnTLBMiss : 1;
 		BITFIELD_END
 
 		RecompilerOptions();

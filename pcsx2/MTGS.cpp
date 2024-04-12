@@ -87,7 +87,6 @@ void SysMtgsThread::ThreadEntryPoint()
 {
 	if (GSinit() != 0)
 	{
-		Host::ReportErrorAsync("Error", "GSinit() failed.");
 		m_open_or_close_done.Post();
 		return;
 	}

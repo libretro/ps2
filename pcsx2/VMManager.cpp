@@ -456,7 +456,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 	{
 		if (!FileSystem::FileExists(filename.c_str()))
 		{
-			Host::ReportErrorAsync("Error", fmt::format("Requested filename '{}' does not exist.", filename));
+			Console.Error(fmt::format("Requested filename '{}' does not exist.", filename));
 			return false;
 		}
 
@@ -487,7 +487,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	{
 		if (params.source_type.value() == CDVD_SourceType::Iso && !FileSystem::FileExists(params.filename.c_str()))
 		{
-			Host::ReportErrorAsync("Error", fmt::format("Requested filename '{}' does not exist.", params.filename));
+			Console.Error(fmt::format("Requested filename '{}' does not exist.", params.filename));
 			return false;
 		}
 
@@ -507,7 +507,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	{
 		if (!FileSystem::FileExists(s_elf_override.c_str()))
 		{
-			Host::ReportErrorAsync("Error", fmt::format("Requested boot ELF '{}' does not exist.", s_elf_override));
+			Console.Error(fmt::format("Requested boot ELF '{}' does not exist.", s_elf_override));
 			return false;
 		}
 

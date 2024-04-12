@@ -87,7 +87,6 @@ set(pcsx2Sources
 	Gif_Logger.cpp
 	Gif_Unit.cpp
 	GS.cpp
-	Host.cpp
 	Hw.cpp
 	HwRead.cpp
 	HwWrite.cpp

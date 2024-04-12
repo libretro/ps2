@@ -42,10 +42,6 @@ namespace Host
 	/// Reads a resource file file from the resources directory as a string.
 	std::optional<std::string> ReadResourceFileToString(const char* filename);
 
-	/// Displays an asynchronous error on the UI thread, i.e. doesn't block the caller.
-	void ReportErrorAsync(const std::string_view& title, const std::string_view& message);
-	void ReportFormattedErrorAsync(const std::string_view& title, const char* format, ...);
-
 	/// Requests settings reset. Can be called from any thread, will call back and apply on the CPU thread.
 	bool RequestResetSettings(bool folders, bool core, bool controllers, bool hotkeys, bool ui);
 

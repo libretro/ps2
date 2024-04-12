@@ -303,10 +303,8 @@ void FileMemoryCard::Open()
 			// create one automatically.
 
 			if (!Create(fname.c_str(), 8))
-			{
-				Host::ReportFormattedErrorAsync("Memory Card", "Could not create a memory card: \n\n%s\n\n",
+				Console.Error("Could not create a memory card: \n\n%s\n\n",
 					fname.c_str());
-			}
 		}
 
 		// [TODO] : Add memcard size detection and report it to the console log.
@@ -341,7 +339,7 @@ void FileMemoryCard::Open()
 			{
 				const size_t read_result = std::fread(&m_chksum[slot], sizeof(m_chksum[slot]), 1, m_file[slot]);
 				if (read_result == 0)
-					Host::ReportFormattedErrorAsync("Memory Card", "Error reading memcard.\n");
+					Console.Error("Error reading memcard.");
 			}
 		}
 	}

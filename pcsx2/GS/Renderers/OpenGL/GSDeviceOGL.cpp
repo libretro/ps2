@@ -195,7 +195,7 @@ bool GSDeviceOGL::Create()
 		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
 		if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_vertex_uniform_stream_buffer || !m_fragment_uniform_stream_buffer)
 		{
-			Host::ReportErrorAsync("GS", "Failed to create vertex/index/uniform streaming buffers");
+			Console.Error("GS", "Failed to create vertex/index/uniform streaming buffers");
 			return false;
 		}
 
@@ -255,7 +255,7 @@ bool GSDeviceOGL::Create()
 	const auto convert_glsl = Host::ReadResourceFileToString("shaders/opengl/convert.glsl");
 	if (!convert_glsl.has_value())
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/convert.glsl.");
+		Console.Error("GS", "Failed to read shaders/opengl/convert.glsl.");
 		return false;
 	}
 
@@ -311,7 +311,7 @@ bool GSDeviceOGL::Create()
 		const auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
 		if (!shader.has_value())
 		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/present.glsl.");
+			Console.Error("GS", "Failed to read shaders/opengl/present.glsl.");
 			return false;
 		}
 
@@ -344,7 +344,7 @@ bool GSDeviceOGL::Create()
 		const auto shader = Host::ReadResourceFileToString("shaders/opengl/merge.glsl");
 		if (!shader.has_value())
 		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/merge.glsl.");
+			Console.Error("GS", "Failed to read shaders/opengl/merge.glsl.");
 			return false;
 		}
 
@@ -365,7 +365,7 @@ bool GSDeviceOGL::Create()
 		const auto shader = Host::ReadResourceFileToString("shaders/opengl/interlace.glsl");
 		if (!shader.has_value())
 		{
-			Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/interlace.glsl.");
+			Console.Error("GS", "Failed to read shaders/opengl/interlace.glsl.");
 			return false;
 		}
 
@@ -474,7 +474,7 @@ bool GSDeviceOGL::CreateTextureFX()
 	auto fragment_shader = Host::ReadResourceFileToString("shaders/opengl/tfx_fs.glsl");
 	if (!vertex_shader.has_value() || !fragment_shader.has_value())
 	{
-		Host::ReportErrorAsync("GS", "Failed to read shaders/opengl/tfx_{vgs,fs}.glsl.");
+		Console.Error("GS", "Failed to read shaders/opengl/tfx_{vgs,fs}.glsl.");
 		return false;
 	}
 
@@ -490,9 +490,7 @@ bool GSDeviceOGL::CreateTextureFX()
 	// to the mask.
 	glStencilMask(0xFF);
 	for (u32 key = 0; key < std::size(m_om_dss); key++)
-	{
 		m_om_dss[key] = CreateDepthStencil(OMDepthStencilSelector(key));
-	}
 
 	GLProgram::ResetLastProgram();
 	return true;
@@ -1259,7 +1257,7 @@ void GSDeviceOGL::DrawStretchRect(const GSVector4& sRect, const GSVector4& dRect
 	const float top = 1.0f - dRect.y * 2 / ds.y;
 	const float bottom = 1.0f - dRect.w * 2 / ds.y;
 #else
-	// Opengl get some issues with the coordinate
+	// OpenGL got some issues with the coordinate
 	// I flip top/bottom to fix scaling of the internal resolution
 	const float top = -1.0f + dRect.y * 2 / ds.y;
 	const float bottom = -1.0f + dRect.w * 2 / ds.y;
