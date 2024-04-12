@@ -19,10 +19,13 @@
 #include "D3D11ShaderCache.h"
 #include "GS/GS.h"
 
+#include "ShaderCacheVersion.h"
+
 #include "common/FileSystem.h"
 #include "common/Console.h"
 #include "common/MD5Digest.h"
 #include "common/StringUtil.h"
+#include "common/Path.h"
 #include <array>
 
 #include <d3dcompiler.h>
@@ -43,14 +46,14 @@ struct CacheIndexEntry
 };
 #pragma pack(pop)
 
-D3D11::ShaderCache::ShaderCache() = default;
+D3D11ShaderCache::D3D11ShaderCache() = default;
 
-D3D11::ShaderCache::~ShaderCache()
+D3D11ShaderCache::~D3D11ShaderCache()
 {
 	Close();
 }
 
-bool D3D11::ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
+bool D3D11ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
 {
 	return (source_hash_low == key.source_hash_low && source_hash_high == key.source_hash_high &&
 			macro_hash_low == key.macro_hash_low && macro_hash_high == key.macro_hash_high &&
@@ -58,7 +61,7 @@ bool D3D11::ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) con
 			shader_type == key.shader_type && source_length == key.source_length);
 }
 
-bool D3D11::ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
+bool D3D11ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
 {
 	return (source_hash_low != key.source_hash_low || source_hash_high != key.source_hash_high ||
 			macro_hash_low != key.macro_hash_low || macro_hash_high != key.macro_hash_high ||
@@ -66,15 +69,14 @@ bool D3D11::ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) con
 			shader_type != key.shader_type || source_length != key.source_length);
 }
 
-bool D3D11::ShaderCache::Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug)
+bool D3D11ShaderCache::Open(D3D_FEATURE_LEVEL feature_level, bool debug)
 {
 	m_feature_level = feature_level;
-	m_version = version;
-	m_debug = debug;
+	m_debug         = debug;
 
-	if (!base_path.empty())
+	if (!GSConfig.DisableShaderCache)
 	{
-		const std::string base_filename = GetCacheBaseFileName(base_path, feature_level, debug);
+		const std::string base_filename = GetCacheBaseFileName(feature_level, debug);
 		const std::string index_filename = base_filename + ".idx";
 		const std::string blob_filename = base_filename + ".bin";
 
@@ -85,7 +87,7 @@ bool D3D11::ShaderCache::Open(std::string_view base_path, D3D_FEATURE_LEVEL feat
 	return true;
 }
 
-void D3D11::ShaderCache::Close()
+void D3D11ShaderCache::Close()
 {
 	if (m_index_file)
 	{
@@ -99,7 +101,7 @@ void D3D11::ShaderCache::Close()
 	}
 }
 
-bool D3D11::ShaderCache::CreateNew(const std::string& index_filename, const std::string& blob_filename)
+bool D3D11ShaderCache::CreateNew(const std::string& index_filename, const std::string& blob_filename)
 {
 	if (FileSystem::FileExists(index_filename.c_str()))
 	{
@@ -119,9 +121,8 @@ bool D3D11::ShaderCache::CreateNew(const std::string& index_filename, const std:
 		return false;
 	}
 
-	const u32 index_version = FILE_VERSION;
-	if (std::fwrite(&index_version, sizeof(index_version), 1, m_index_file) != 1 ||
-		std::fwrite(&m_version, sizeof(m_version), 1, m_index_file) != 1)
+	const u32 file_version = SHADER_CACHE_VERSION;
+	if (std::fwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1)
 	{
 		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
 		std::fclose(m_index_file);
@@ -143,7 +144,7 @@ bool D3D11::ShaderCache::CreateNew(const std::string& index_filename, const std:
 	return true;
 }
 
-bool D3D11::ShaderCache::ReadExisting(const std::string& index_filename, const std::string& blob_filename)
+bool D3D11ShaderCache::ReadExisting(const std::string& index_filename, const std::string& blob_filename)
 {
 	m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "r+b");
 	if (!m_index_file)
@@ -161,8 +162,7 @@ bool D3D11::ShaderCache::ReadExisting(const std::string& index_filename, const s
 
 	u32 file_version = 0;
 	u32 data_version = 0;
-	if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != FILE_VERSION ||
-		std::fread(&data_version, sizeof(data_version), 1, m_index_file) != 1 || data_version != m_version)
+	if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
 		std::fclose(m_index_file);
@@ -214,11 +214,9 @@ bool D3D11::ShaderCache::ReadExisting(const std::string& index_filename, const s
 	return true;
 }
 
-std::string D3D11::ShaderCache::GetCacheBaseFileName(const std::string_view& base_path, D3D_FEATURE_LEVEL feature_level,
-	bool debug)
+std::string D3D11ShaderCache::GetCacheBaseFileName(D3D_FEATURE_LEVEL feature_level, bool debug)
 {
-	std::string base_filename(base_path);
-	base_filename += FS_OSPATH_SEPARATOR_STR "d3d_shaders_";
+	std::string base_filename = "d3d_shaders_";
 
 	switch (feature_level)
 	{
@@ -239,10 +237,10 @@ std::string D3D11::ShaderCache::GetCacheBaseFileName(const std::string_view& bas
 	if (debug)
 		base_filename += "_debug";
 
-	return base_filename;
+	return Path::Combine(EmuFolders::Cache, base_filename);
 }
 
-D3D11::ShaderCache::CacheIndexKey D3D11::ShaderCache::GetCacheKey(D3D::ShaderType type, const std::string_view& shader_code,
+D3D11ShaderCache::CacheIndexKey D3D11ShaderCache::GetCacheKey(D3D::ShaderType type, const std::string_view& shader_code,
 	const D3D_SHADER_MACRO* macros, const char* entry_point)
 {
 	union
@@ -287,7 +285,7 @@ D3D11::ShaderCache::CacheIndexKey D3D11::ShaderCache::GetCacheKey(D3D::ShaderTyp
 	return key;
 }
 
-wil::com_ptr_nothrow<ID3DBlob> D3D11::ShaderCache::GetShaderBlob(D3D::ShaderType type, const std::string_view& shader_code,
+wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::GetShaderBlob(D3D::ShaderType type, const std::string_view& shader_code,
 	const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
 	const auto key = GetCacheKey(type, shader_code, macros, entry_point);
@@ -300,14 +298,14 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11::ShaderCache::GetShaderBlob(D3D::ShaderType
 	if (FAILED(hr) || std::fseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
 		std::fread(blob->GetBufferPointer(), 1, iter->second.blob_size, m_blob_file) != iter->second.blob_size)
 	{
-		Console.Error("(D3D11::ShaderCache::GetShaderBlob): Read blob from file failed");
+		Console.Error("(GSShaderCache::GetShaderBlob): Read blob from file failed");
 		return {};
 	}
 
 	return blob;
 }
 
-wil::com_ptr_nothrow<ID3D11VertexShader> D3D11::ShaderCache::GetVertexShader(ID3D11Device* device,
+wil::com_ptr_nothrow<ID3D11VertexShader> D3D11ShaderCache::GetVertexShader(ID3D11Device* device,
 	const std::string_view& shader_code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
 	wil::com_ptr_nothrow<ID3DBlob> blob = GetShaderBlob(D3D::ShaderType::Vertex, shader_code, macros, entry_point);
@@ -325,7 +323,7 @@ wil::com_ptr_nothrow<ID3D11VertexShader> D3D11::ShaderCache::GetVertexShader(ID3
 	return shader;
 }
 
-bool D3D11::ShaderCache::GetVertexShaderAndInputLayout(ID3D11Device* device,
+bool D3D11ShaderCache::GetVertexShaderAndInputLayout(ID3D11Device* device,
 	ID3D11VertexShader** vs, ID3D11InputLayout** il,
 	const D3D11_INPUT_ELEMENT_DESC* layout, size_t layout_size, const std::string_view& shader_code,
 	const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
@@ -351,7 +349,7 @@ bool D3D11::ShaderCache::GetVertexShaderAndInputLayout(ID3D11Device* device,
 	return true;
 }
 
-wil::com_ptr_nothrow<ID3D11PixelShader> D3D11::ShaderCache::GetPixelShader(ID3D11Device* device,
+wil::com_ptr_nothrow<ID3D11PixelShader> D3D11ShaderCache::GetPixelShader(ID3D11Device* device,
 	const std::string_view& shader_code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
 	wil::com_ptr_nothrow<ID3DBlob> blob = GetShaderBlob(D3D::ShaderType::Pixel, shader_code, macros, entry_point);
@@ -369,7 +367,7 @@ wil::com_ptr_nothrow<ID3D11PixelShader> D3D11::ShaderCache::GetPixelShader(ID3D1
 	return shader;
 }
 
-wil::com_ptr_nothrow<ID3D11ComputeShader> D3D11::ShaderCache::GetComputeShader(ID3D11Device* device,
+wil::com_ptr_nothrow<ID3D11ComputeShader> D3D11ShaderCache::GetComputeShader(ID3D11Device* device,
 	const std::string_view& shader_code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
 	wil::com_ptr_nothrow<ID3DBlob> blob = GetShaderBlob(D3D::ShaderType::Compute, shader_code, macros, entry_point);
@@ -387,7 +385,7 @@ wil::com_ptr_nothrow<ID3D11ComputeShader> D3D11::ShaderCache::GetComputeShader(I
 	return shader;
 }
 
-wil::com_ptr_nothrow<ID3DBlob> D3D11::ShaderCache::CompileAndAddShaderBlob(const CacheIndexKey& key,
+wil::com_ptr_nothrow<ID3DBlob> D3D11ShaderCache::CompileAndAddShaderBlob(const CacheIndexKey& key,
 	const std::string_view& shader_code, const D3D_SHADER_MACRO* macros, const char* entry_point)
 {
 	wil::com_ptr_nothrow<ID3DBlob> blob = D3D::CompileShader(key.shader_type, m_feature_level, m_debug, shader_code, macros, entry_point);
@@ -417,7 +415,7 @@ wil::com_ptr_nothrow<ID3DBlob> D3D11::ShaderCache::CompileAndAddShaderBlob(const
 		std::fflush(m_blob_file) != 0 || std::fwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
 		std::fflush(m_index_file) != 0)
 	{
-		Console.Error("(D3D11::ShaderCache::CompileAndAddShaderBlob) Failed to write shader blob to file");
+		Console.Error("(D3D11ShaderCache::CompileAndAddShaderBlob) Failed to write shader blob to file");
 		return blob;
 	}
 

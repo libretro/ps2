@@ -218,7 +218,7 @@ private:
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
-	D3D11::ShaderCache m_shader_cache;
+	D3D11ShaderCache m_shader_cache;
 	std::string m_tfx_source;
 
 public:

@@ -27,36 +27,34 @@
 #include <unordered_map>
 #include <vector>
 
-namespace D3D11
+class D3D11ShaderCache
 {
-	class ShaderCache
-	{
 	public:
-		ShaderCache();
-		~ShaderCache();
+		D3D11ShaderCache();
+		~D3D11ShaderCache();
 
 		D3D_FEATURE_LEVEL GetFeatureLevel() const { return m_feature_level; }
 		bool UsingDebugShaders() const { return m_debug; }
 
-		bool Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug);
+		bool Open(D3D_FEATURE_LEVEL feature_level, bool debug);
 		void Close();
 
 		wil::com_ptr_nothrow<ID3DBlob> GetShaderBlob(D3D::ShaderType type, const std::string_view& shader_code,
-			const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 		wil::com_ptr_nothrow<ID3D11VertexShader> GetVertexShader(ID3D11Device* device, const std::string_view& shader_code,
-			const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 		bool GetVertexShaderAndInputLayout(ID3D11Device* device,
-			ID3D11VertexShader** vs, ID3D11InputLayout** il,
-			const D3D11_INPUT_ELEMENT_DESC* layout, size_t layout_size,
-			const std::string_view& shader_code, const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+				ID3D11VertexShader** vs, ID3D11InputLayout** il,
+				const D3D11_INPUT_ELEMENT_DESC* layout, size_t layout_size,
+				const std::string_view& shader_code, const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 		wil::com_ptr_nothrow<ID3D11PixelShader> GetPixelShader(ID3D11Device* device, const std::string_view& shader_code,
-			const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 		wil::com_ptr_nothrow<ID3D11ComputeShader> GetComputeShader(ID3D11Device* device, const std::string_view& shader_code,
-			const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 	private:
 		static constexpr u32 FILE_VERSION = 1;
@@ -82,7 +80,7 @@ namespace D3D11
 			{
 				std::size_t h = 0;
 				HashCombine(h, e.entry_point_low, e.entry_point_high, e.macro_hash_low, e.macro_hash_high,
-					e.source_hash_low, e.source_hash_high, e.source_length, e.shader_type);
+						e.source_hash_low, e.source_hash_high, e.source_length, e.shader_type);
 				return h;
 			}
 		};
@@ -95,16 +93,15 @@ namespace D3D11
 
 		using CacheIndex = std::unordered_map<CacheIndexKey, CacheIndexData, CacheIndexEntryHasher>;
 
-		static std::string GetCacheBaseFileName(const std::string_view& base_path, D3D_FEATURE_LEVEL feature_level,
-			bool debug);
+		static std::string GetCacheBaseFileName(D3D_FEATURE_LEVEL feature_level, bool debug);
 		static CacheIndexKey GetCacheKey(D3D::ShaderType type, const std::string_view& shader_code,
-			const D3D_SHADER_MACRO* macros, const char* entry_point);
+				const D3D_SHADER_MACRO* macros, const char* entry_point);
 
 		bool CreateNew(const std::string& index_filename, const std::string& blob_filename);
 		bool ReadExisting(const std::string& index_filename, const std::string& blob_filename);
 
 		wil::com_ptr_nothrow<ID3DBlob> CompileAndAddShaderBlob(const CacheIndexKey& key, const std::string_view& shader_code,
-			const D3D_SHADER_MACRO* macros, const char* entry_point);
+				const D3D_SHADER_MACRO* macros, const char* entry_point);
 
 		std::FILE* m_index_file = nullptr;
 		std::FILE* m_blob_file = nullptr;
@@ -114,5 +111,4 @@ namespace D3D11
 		D3D_FEATURE_LEVEL m_feature_level = D3D_FEATURE_LEVEL_11_0;
 		u32 m_version = 0;
 		bool m_debug = false;
-	};
-} // namespace D3D11
+};
