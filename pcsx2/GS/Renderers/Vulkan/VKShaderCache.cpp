@@ -39,11 +39,30 @@ std::unique_ptr<Vulkan::ShaderCache> g_vulkan_shader_cache;
 namespace Vulkan::ShaderCompiler
 {
 	// Registers itself for cleanup via atexit
-	bool InitializeGlslang();
-
 	static unsigned s_next_bad_shader_id = 1;
-
 	static bool glslang_initialized = false;
+
+	static bool InitializeGlslang(void)
+	{
+		if (glslang_initialized)
+			return true;
+
+		if (!glslang::InitializeProcess())
+			return false;
+
+		std::atexit(DeinitializeGlslang);
+		glslang_initialized = true;
+		return true;
+	}
+
+	static void DeinitializeGlslang(void)
+	{
+		if (!glslang_initialized)
+			return;
+
+		glslang::FinalizeProcess();
+		glslang_initialized = false;
+	}
 
 	static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 		EShLanguage stage, const char* stage_filename, std::string_view source, bool debug)
@@ -133,43 +152,6 @@ namespace Vulkan::ShaderCompiler
 		return out_code;
 	}
 
-	bool InitializeGlslang()
-	{
-		if (glslang_initialized)
-			return true;
-
-		if (!glslang::InitializeProcess())
-			return false;
-
-		std::atexit(DeinitializeGlslang);
-		glslang_initialized = true;
-		return true;
-	}
-
-	void DeinitializeGlslang()
-	{
-		if (!glslang_initialized)
-			return;
-
-		glslang::FinalizeProcess();
-		glslang_initialized = false;
-	}
-
-	std::optional<SPIRVCodeVector> CompileVertexShader(std::string_view source_code, bool debug)
-	{
-		return CompileShaderToSPV(EShLangVertex, "vs", source_code, debug);
-	}
-
-	std::optional<SPIRVCodeVector> CompileFragmentShader(std::string_view source_code, bool debug)
-	{
-		return CompileShaderToSPV(EShLangFragment, "ps", source_code, debug);
-	}
-
-	std::optional<SPIRVCodeVector> CompileComputeShader(std::string_view source_code, bool debug)
-	{
-		return CompileShaderToSPV(EShLangCompute, "cs", source_code, debug);
-	}
-
 	std::optional<ShaderCompiler::SPIRVCodeVector> CompileShader(Type type, std::string_view source_code, bool debug)
 	{
 		switch (type)
@@ -184,8 +166,9 @@ namespace Vulkan::ShaderCompiler
 				return CompileShaderToSPV(EShLangCompute, "cs", source_code, debug);
 
 			default:
-				return std::nullopt;
+				break;
 		}
+		return std::nullopt;
 	}
 } // namespace Vulkan::ShaderCompiler
 
