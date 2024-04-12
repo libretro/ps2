@@ -93,13 +93,9 @@ void GetValidDrive(std::string& drive)
 #ifdef __APPLE__
 		int fd = open(drive.c_str(), O_RDONLY | O_NONBLOCK);
 		if (fd != -1)
-		{
 			close(fd);
-		}
 		else
-		{
 			drive.clear();
-		}
 #else
 		drive.clear();
 #endif
@@ -110,6 +106,4 @@ void GetValidDrive(std::string& drive)
 		if (!drives.empty())
 			drive = drives.front();
 	}
-	if (!drive.empty())
-		;//DevCon.WriteLn("CDVD: Opening drive '%s'...", drive.c_str());
 }

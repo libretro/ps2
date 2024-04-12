@@ -117,10 +117,6 @@ __fi int psxTestCycle( u32 startCycle, s32 delta )
 
 __fi void PSX_INT( IopEventId n, s32 ecycle )
 {
-	// 19 is CDVD read int, it's supposed to be high.
-	//if (ecycle > 8192 && n != 19)
-	//	DevCon.Warning( "IOP cycles high: %d, n %d", ecycle, n );
-
 	psxRegs.interrupt |= 1 << n;
 
 	psxRegs.sCycle[n] = psxRegs.cycle;

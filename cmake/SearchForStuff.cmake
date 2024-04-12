@@ -24,17 +24,13 @@ else()
 	endif()
 	# On macOS, Mono.framework contains an ancient version of libpng.  We don't want that.
 	# Avoid it by telling cmake to avoid finding frameworks while we search for libpng.
-	if(LIBRETRO AND APPLE)
+	if(APPLE)
 		find_package(ZLIB REQUIRED)
-		add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 	else()
 		set(FIND_FRAMEWORK_BACKUP ${CMAKE_FIND_FRAMEWORK})
 		set(CMAKE_FIND_FRAMEWORK NEVER)
-		find_package(PNG REQUIRED)
-		set(CMAKE_FIND_FRAMEWORK ${FIND_FRAMEWORK_BACKUP})
 	endif()
-	find_package(Vtune)
-
+	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 	find_package(ZLIB REQUIRED)
 
 	## Use pcsx2 package to find module

@@ -84,16 +84,8 @@ void IOCtlSrc::SetSpindleSpeed(bool restore_defaults) const
 	CDROM_SET_SPEED s{CdromSetSpeed, speed, speed, CdromDefaultRotation};
 
 	DWORD unused;
-	if (DeviceIoControl(m_device, IOCTL_CDROM_SET_SPEED, &s, sizeof(s),
-						nullptr, 0, &unused, nullptr))
-	{
-		if (!restore_defaults)
-			printf(" * CDVD: setSpindleSpeed success (%uKB/s)\n", speed);
-	}
-	else
-	{
-		printf(" * CDVD: setSpindleSpeed failed!\n");
-	}
+	DeviceIoControl(m_device, IOCTL_CDROM_SET_SPEED, &s, sizeof(s),
+						nullptr, 0, &unused, nullptr);
 }
 
 u32 IOCtlSrc::GetSectorCount() const
@@ -194,10 +186,6 @@ bool IOCtlSrc::ReadSectors2352(u32 sector, u32 count, u8* buffer) const
 			if (sptd.info.DataTransferLength == 2352)
 				continue;
 		}
-		printf(" * CDVD: SPTI failed reading sector %u; SENSE %u -", current_sector, sptd.info.SenseInfoLength);
-		for (const auto& c : sptd.sense_buffer)
-			printf(" %02X", c);
-		putchar('\n');
 		return false;
 	}
 
@@ -224,17 +212,7 @@ bool IOCtlSrc::ReadDVDInfo()
 
 	if (!DeviceIoControl(m_device, IOCTL_DVD_READ_STRUCTURE, &dvdrs, sizeof(dvdrs),
 						 buffer.data(), buffer.size(), &unused, nullptr))
-	{
-		if ((GetLastError() == ERROR_INVALID_FUNCTION) || (GetLastError() == ERROR_NOT_SUPPORTED))
-		{
-			Console.Warning("IOCTL_DVD_READ_STRUCTURE not supported");
-		}
-		else if(GetLastError() != ERROR_UNRECOGNIZED_MEDIA) // ERROR_UNRECOGNIZED_MEDIA means probably a CD or no disc
-		{
-			Console.Warning("IOCTL Unknown Error %d", GetLastError());
-		}
 		return false;
-	}
 
 	auto& layer = *reinterpret_cast<DVD_LAYER_DESCRIPTOR*>(
 		reinterpret_cast<DVD_DESCRIPTOR_HEADER*>(buffer.data())->Data);

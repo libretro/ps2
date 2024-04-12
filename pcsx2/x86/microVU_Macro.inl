@@ -25,9 +25,6 @@ static VURegs& vu0Regs = vuRegs[0];
 
 using namespace R5900::Dynarec;
 
-#define printCOP2(...) (void)0
-//#define printCOP2 DevCon.Status
-
 // For now, we need to free all XMMs. Because we're not saving the nonvolatile registers when
 // we enter micro mode, they will get overriden otherwise...
 #define FLUSH_FOR_POSSIBLE_MICRO_EXEC (FLUSH_FREE_XMM | FLUSH_FREE_VU0)
@@ -41,7 +38,6 @@ void setupMacroOp(int mode, const char* opName)
 		_freeXMMreg(xmmPQ.Id);
 
 	// Set up MicroVU ready for new op
-	printCOP2(opName);
 	microVU0.cop2 = 1;
 	microVU0.prog.IRinfo.curPC = 0;
 	microVU0.code = cpuRegs.code;
@@ -313,7 +309,6 @@ INTERPRETATE_COP2_FUNC(CALLMSR);
 
 static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
 {
-	printCOP2("COP2 Branch");
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = isLikely ? false : TrySwapDelaySlot(0, 0, 0, false);
 	_eeFlushAllDirty();
@@ -415,8 +410,6 @@ static void TEST_FBRST_RESET(int flagreg, FnType_Void* resetFunct, int vuIndex)
 
 static void recCFC2()
 {
-	printCOP2("CFC2");
-
 	COP2_Interlock(false);
 
 	if (!_Rt_)
@@ -470,8 +463,6 @@ static void recCFC2()
 
 static void recCTC2()
 {
-	printCOP2("CTC2");
-
 	COP2_Interlock(1);
 
 	if (!_Rd_)
@@ -652,9 +643,6 @@ static void recCTC2()
 
 static void recQMFC2()
 {
-
-	printCOP2("QMFC2");
-
 	COP2_Interlock(false);
 
 	if (!_Rt_)
@@ -693,7 +681,6 @@ static void recQMFC2()
 
 static void recQMTC2()
 {
-	printCOP2("QMTC2");
 	COP2_Interlock(true);
 
 	if (!_Rd_)
