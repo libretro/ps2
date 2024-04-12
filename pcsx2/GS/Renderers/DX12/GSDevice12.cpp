@@ -153,12 +153,12 @@ bool D3D12Context::Create(IDXGIFactory5* dxgi_factory, IDXGIAdapter1* adapter, b
 	g_d3d12_context.reset(new D3D12Context());
 	d3d12 = nullptr;
 	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&d3d12) || !d3d12) {
-		printf("Failed to get HW rendering interface!\n");
+		Console.Error("Failed to get HW rendering interface!");
 		return false;
 	}
 
 	if (d3d12->interface_version != RETRO_HW_RENDER_INTERFACE_D3D12_VERSION) {
-		printf("HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, d3d12->interface_version);
+		Console.Error("HW render interface mismatch, expected %u, got %u!", RETRO_HW_RENDER_INTERFACE_D3D12_VERSION, d3d12->interface_version);
 		return false;
 	}
 	if (!g_d3d12_context->CreateDevice(dxgi_factory, adapter, enable_debug_layer) ||

@@ -482,7 +482,6 @@ void GSRendererHW::ConvertSpriteTextureShuffle(bool& write_ba, bool& read_ba)
 				GSVector4i tmp(v[i].XYZ.Y, v[i + 1].XYZ.Y);
 				tmp = GSVector4i(tmp - offset).srl32(1) + offset;
 
-				//fprintf(stderr, "Before %d, After %d\n", v[i + 1].XYZ.Y, tmp.y);
 				v[i].XYZ.Y = static_cast<u16>(tmp.x);
 				v[i].ST.T /= 2.0f;
 				v[i + 1].XYZ.Y = static_cast<u16>(tmp.y);
@@ -1179,11 +1178,6 @@ bool GSRendererHW::CanUseSwSpriteRender()
 template <bool linear>
 void GSRendererHW::RoundSpriteOffset()
 {
-//#define DEBUG_U
-//#define DEBUG_V
-#if defined(DEBUG_V) || defined(DEBUG_U)
-	bool debug = linear;
-#endif
 	const u32 count = m_vertex.next;
 	GSVertex* v = &m_vertex.buff[0];
 
@@ -1200,15 +1194,6 @@ void GSRendererHW::RoundSpriteOffset()
 		const float ax1 = alpha1(Lx, X0, X1);
 		const u16 tx0 = Interpolate_UV(ax0, v[i].U, v[i + 1].U);
 		const u16 tx1 = Interpolate_UV(ax1, v[i].U, v[i + 1].U);
-#ifdef DEBUG_U
-		if (debug)
-		{
-			fprintf(stderr, "u0:%d and u1:%d\n", v[i].U, v[i + 1].U);
-			fprintf(stderr, "a0:%f and a1:%f\n", ax0, ax1);
-			fprintf(stderr, "t0:%d and t1:%d\n", tx0, tx1);
-		}
-#endif
-
 		const int oy = m_context->XYOFFSET.OFY;
 		const int Y0 = v[i].XYZ.Y - oy;
 		const int Y1 = v[i + 1].XYZ.Y - oy;
@@ -1217,24 +1202,6 @@ void GSRendererHW::RoundSpriteOffset()
 		const float ay1 = alpha1(Ly, Y0, Y1);
 		const u16 ty0 = Interpolate_UV(ay0, v[i].V, v[i + 1].V);
 		const u16 ty1 = Interpolate_UV(ay1, v[i].V, v[i + 1].V);
-#ifdef DEBUG_V
-		if (debug)
-		{
-			fprintf(stderr, "v0:%d and v1:%d\n", v[i].V, v[i + 1].V);
-			fprintf(stderr, "a0:%f and a1:%f\n", ay0, ay1);
-			fprintf(stderr, "t0:%d and t1:%d\n", ty0, ty1);
-		}
-#endif
-
-#ifdef DEBUG_U
-		if (debug)
-			fprintf(stderr, "GREP_BEFORE %d => %d\n", v[i].U, v[i + 1].U);
-#endif
-#ifdef DEBUG_V
-		if (debug)
-			fprintf(stderr, "GREP_BEFORE %d => %d\n", v[i].V, v[i + 1].V);
-#endif
-
 #if 1
 		// Use rounded value of the newly computed texture coordinate. It ensures
 		// that sampling will remains inside texture boundary
@@ -1290,14 +1257,6 @@ void GSRendererHW::RoundSpriteOffset()
 		}
 #endif
 
-#ifdef DEBUG_U
-		if (debug)
-			fprintf(stderr, "GREP_AFTER %d => %d\n\n", v[i].U, v[i + 1].U);
-#endif
-#ifdef DEBUG_V
-		if (debug)
-			fprintf(stderr, "GREP_AFTER %d => %d\n\n", v[i].V, v[i + 1].V);
-#endif
 	}
 }
 

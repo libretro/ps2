@@ -759,12 +759,6 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 
 	bool zwrite = zm != 0xffffffff;
 	bool ztest = context->TEST.ZTE && context->TEST.ZTST > ZTST_ALWAYS;
-	/*
-	printf("%05x %d %05x %d %05x %d %dx%d\n",
-		fwrite || ftest ? m_context->FRAME.Block() : 0xfffff, m_context->FRAME.PSM,
-		zwrite || ztest ? m_context->ZBUF.Block() : 0xfffff, m_context->ZBUF.PSM,
-		PRIM->TME ? m_context->TEX0.TBP0 : 0xfffff, m_context->TEX0.PSM, (int)m_context->TEX0.TW, (int)m_context->TEX0.TH);
-	*/
 	if (!fwrite && !zwrite)
 		return false;
 
@@ -1260,15 +1254,9 @@ void GSRendererSW::SharedData::UpdateSource()
 	for (size_t i = 0; m_tex[i].t != NULL; i++)
 	{
 		if (m_tex[i].t->Update(m_tex[i].r))
-		{
 			global.tex[i] = m_tex[i].t->m_buff;
-		}
 		else
-		{
-			printf("GS: out-of-memory, texturing temporarily disabled\n");
-
 			global.sel.tfx = TFX_NONE;
-		}
 	}
 
 }

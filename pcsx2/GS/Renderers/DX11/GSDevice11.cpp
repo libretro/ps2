@@ -77,12 +77,12 @@ bool GSDevice11::Create()
 		return false;
 	retro_hw_render_interface_d3d11 *d3d11 = nullptr;
 	if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&d3d11) || !d3d11) {
-		printf("Failed to get HW rendering interface!\n");
+		Console.Error("Failed to get HW rendering interface!");
 		return false;
 	}
 
 	if (d3d11->interface_version != RETRO_HW_RENDER_INTERFACE_D3D11_VERSION) {
-		printf("HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, d3d11->interface_version);
+		Console.Error("HW render interface mismatch, expected %u, got %u!", RETRO_HW_RENDER_INTERFACE_D3D11_VERSION, d3d11->interface_version);
 		return false;
 	}
 
