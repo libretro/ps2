@@ -108,8 +108,6 @@ s64 x86capabilities::_CPUSpeedHz(u64 time) const
 	if (!hasTimeStampCounter)
 		return 0;
 
-	SingleCoreAffinity affinity_lock;
-
 	// Align the cpu execution to a cpuTick boundary.
 
 	do

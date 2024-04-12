@@ -17,22 +17,3 @@
 
 #include "common/RedtapeWindows.h"
 #include "common/emitter/tools.h"
-
-// --------------------------------------------------------------------------------------
-//  Thread Affinity Lock
-// --------------------------------------------------------------------------------------
-// Assign a single CPU/core for this thread's affinity to ensure rdtsc() accuracy.
-// (rdtsc for each CPU/core can differ, causing skewed results)
-
-class SingleCoreAffinity
-{
-protected:
-#ifdef _WIN32
-	HANDLE s_threadId;
-	DWORD_PTR s_oldmask;
-#endif
-
-public:
-	SingleCoreAffinity();
-	virtual ~SingleCoreAffinity();
-};

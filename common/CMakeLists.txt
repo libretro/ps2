@@ -35,8 +35,6 @@ target_sources(common PRIVATE
 	emitter/legacy_sse.cpp
 	emitter/movs.cpp
 	emitter/simd.cpp
-	emitter/LnxCpuDetect.cpp
-	emitter/WinCpuDetect.cpp
 	emitter/x86emitter.cpp
 	Darwin/DarwinThreads.cpp
 	Darwin/DarwinMisc.cpp
