@@ -49,7 +49,7 @@ void V_Core::Reverb_AdvanceBuffer()
 
 
 
-static constexpr u32 NUM_TAPS = 39;
+#define NUM_TAPS 39
 // 39 tap filter, the 0's could be optimized out
 static constexpr std::array<s32, NUM_TAPS> filter_coefs = {
 	-1,

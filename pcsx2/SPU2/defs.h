@@ -461,18 +461,6 @@ struct V_Core
 	//  DMA Section
 	// --------------------------------------------------------------------------
 
-	// Returns the index of the DMA channel (4 for Core 0, or 7 for Core 1)
-	int GetDmaIndex() const
-	{
-		return (Index == 0) ? 4 : 7;
-	}
-
-	// returns either '4' or '7'
-	char GetDmaIndexChar() const
-	{
-		return 0x30 + GetDmaIndex();
-	}
-
 	__forceinline u16 DmaRead()
 	{
 		const u16 ret = (u16)spu2M_Read(ActiveTSA);
@@ -538,7 +526,7 @@ namespace SPU2Savestate
 // The SPU2 has a dynamic memory range which is used for several internal operations, such as
 // registers, CORE 1/2 mixing, AutoDMAs, and some other fancy stuff.  We exclude this range
 // from the cache here:
-static const s32 SPU2_DYN_MEMLINE = 0x2800;
+#define SPU2_DYN_MEMLINE 0x2800
 
 // 8 short words per encoded PCM block. (as stored in SPU2 ram)
 static const int pcm_WordsPerBlock = 8;

@@ -23,22 +23,22 @@ struct Pcsx2Config;
 
 namespace SPU2
 {
-/// Initialization/cleanup, call at process startup/shutdown.
-bool Initialize();
-void Shutdown();
+	/// Initialization/cleanup, call at process startup/shutdown.
+	bool Initialize();
+	void Shutdown();
 
-/// Open/close, call at VM startup/shutdown.
-bool Open();
-void Close();
+	/// Open/close, call at VM startup/shutdown.
+	bool Open();
+	void Close();
 
-/// Reset, rebooting VM or going into PSX mode.
-void Reset(bool psxmode);
+	/// Reset, rebooting VM or going into PSX mode.
+	void Reset(bool psxmode);
 
-/// Returns true if we're currently running in PSX mode.
-bool IsRunningPSXMode();
+	/// Returns true if we're currently running in PSX mode.
+	bool IsRunningPSXMode();
 
-/// Returns the current sample rate the SPU2 is operating at.
-s32 GetConsoleSampleRate();
+	/// Returns the current sample rate the SPU2 is operating at.
+	s32 GetConsoleSampleRate();
 } // namespace SPU2
 
 void SPU2write(u32 mem, u16 value);

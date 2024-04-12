@@ -141,11 +141,10 @@ void retro_set_audio_sample(retro_audio_sample_t cb)
 	sample_cb = cb;
 }
 
-bool SndBuffer::Init(void)
+void SndBuffer::Init(void)
 {
 	read_pos  = 0;
 	write_pos = 0;
-	return true;
 }
 
 void SndBuffer::Write(StereoOut16 Sample)

@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "SPU2/Global.h"
-#include "SPU2/Debug.h"
 #include "SPU2/spu2.h"
 #include "SPU2/Dma.h"
 #include "R3000A.h"
@@ -34,7 +33,7 @@ int SampleRate = 48000;
 
 u32 lClocks = 0;
 
-s32 SPU2::GetConsoleSampleRate()
+s32 SPU2::GetConsoleSampleRate(void)
 {
 	return s_psxmode ? 44100 : 48000;
 }
@@ -86,8 +85,7 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 
 void SPU2::InitSndBuffer()
 {
-	if (SndBuffer::Init())
-		return;
+	SndBuffer::Init();
 
 	if (SampleRate != GetConsoleSampleRate())
 	{
@@ -95,9 +93,7 @@ void SPU2::InitSndBuffer()
 		const int original_sample_rate = SampleRate;
 		Console.Error("Failed to init SPU2 at adjusted sample rate %u, trying console rate.", SampleRate);
 		SampleRate = GetConsoleSampleRate();
-		if (SndBuffer::Init())
-			return;
-
+		SndBuffer::Init();
 		SampleRate = original_sample_rate;
 	}
 }

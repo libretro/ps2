@@ -27,24 +27,6 @@ static const s32 tbl_XA_Factor[16][2] =
 		{98, -55},
 		{122, -60}};
 
-// Performs a 64-bit multiplication between two values and returns the
-// high 32 bits as a result (discarding the fractional 32 bits).
-// The combined fractional bits of both inputs must be 32 bits for this
-// to work properly.
-//
-// This is meant to be a drop-in replacement for times when the 'div' part
-// of a MulDiv is a constant.  (example: 1<<8, or 4096, etc)
-//
-// [Air] Performance breakdown: This is over 10 times faster than MulDiv in
-//   a *worst case* scenario.  It's also more accurate since it forces the
-//   caller to  extend the inputs so that they make use of all 32 bits of
-//   precision.
-//
-static __forceinline s32 MulShr32(s32 srcval, s32 mulval)
-{
-	return (s64)srcval * mulval >> 32;
-}
-
 __forceinline s32 clamp_mix(s32 x)
 {
 	return std::clamp(x, -0x8000, 0x7fff);
@@ -241,10 +223,23 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, uint voiceidx)
 // Data is expected to be 16 bit signed (typical stuff!).
 // volume is expected to be 32 bit signed (31 bits with reverse phase)
 // Data is shifted up by 1 bit to give the output an effective 16 bit range.
+
+// Performs a 64-bit multiplication between two values and returns the
+// high 32 bits as a result (discarding the fractional 32 bits).
+// The combined fractional bits of both inputs must be 32 bits for this
+// to work properly.
+//
+// This is meant to be a drop-in replacement for times when the 'div' part
+// of a MulDiv is a constant.  (example: 1<<8, or 4096, etc)
+//
+// [Air] Performance breakdown: This is over 10 times faster than MulDiv in
+//   a *worst case* scenario.  It's also more accurate since it forces the
+//   caller to  extend the inputs so that they make use of all 32 bits of
+//   precision.
+//
 static __forceinline s32 ApplyVolume(s32 data, s32 volume)
 {
-	//return (volume * data) >> 15;
-	return MulShr32(data << 1, volume);
+	return (s64)((s32)(data << 1)) * volume >> 32;
 }
 
 static __forceinline StereoOut32 ApplyVolume(const StereoOut32& data, const V_VolumeLR& volume)
@@ -360,10 +355,7 @@ static __forceinline void UpdateNoise(V_Core& thiscore)
 	}
 }
 
-static __forceinline s32 GetNoiseValues(V_Core& thiscore)
-{
-	return (s16)thiscore.NoiseOut;
-}
+#define GetNoiseValues(thiscore) (s16)thiscore.NoiseOut
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -510,12 +502,12 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 
 	// Mix Input, Voice, and External data:
 
-	TW.Left = Input.Left & WetGate.InpL;
-	TW.Right = Input.Right & WetGate.InpR;
+	TW.Left   = Input.Left & WetGate.InpL;
+	TW.Right  = Input.Right & WetGate.InpR;
 
-	TW.Left += Voices.Wet.Left & WetGate.SndL;
+	TW.Left  += Voices.Wet.Left & WetGate.SndL;
 	TW.Right += Voices.Wet.Right & WetGate.SndR;
-	TW.Left += Ext.Left & WetGate.ExtL;
+	TW.Left  += Ext.Left & WetGate.ExtL;
 	TW.Right += Ext.Right & WetGate.ExtR;
 
 	StereoOut32 RV = DoReverb(TW);
@@ -535,15 +527,16 @@ __forceinline
 {
 	// Note: Playmode 4 is SPDIF, which overrides other inputs.
 	StereoOut32 InputData[2] =
-		{
-			// SPDIF is on Core 0:
-			// Fixme:
-			// 1. We do not have an AC3 decoder for the bitstream.
-			// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
-			/*(PlayMode&4) ? StereoOut32::Empty : */ ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol),
+	{
+		// SPDIF is on Core 0:
+		// Fixme:
+		// 1. We do not have an AC3 decoder for the bitstream.
+		// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
+		/*(PlayMode&4) ? StereoOut32::Empty : */ ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol),
 
-			// CDDA is on Core 1:
-			(PlayMode & 8) ? StereoOut32(0, 0) : ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol)};
+		// CDDA is on Core 1:
+		(PlayMode & 8) ? StereoOut32(0, 0) : ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol)
+	};
 
 	// Todo: Replace me with memzero initializer!
 	VoiceMixSet VoiceData[2] = {VoiceMixSet::Empty, VoiceMixSet::Empty}; // mixed voice data for each core.
@@ -564,17 +557,12 @@ __forceinline
 	Ext = ApplyVolume(Ext, Cores[1].ExtVol);
 	StereoOut32 Out(Cores[1].Mix(VoiceData[1], InputData[1], Ext));
 
+	// Experimental CDDA support
+	// The CDDA overrides all other mixer output.  It's a direct feed!
 	if (PlayMode & 8)
-	{
-		// Experimental CDDA support
-		// The CDDA overrides all other mixer output.  It's a direct feed!
-
 		Out = Cores[1].ReadInput_HiFi();
-	}
 	else
-	{
 		Out = ApplyVolume(clamp_mix(Out), Cores[1].MasterVol);
-	}
 
 	// Final clamp, take care not to exceed 16 bits from here on
 	Out = clamp_mix(Out);

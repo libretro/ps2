@@ -112,12 +112,6 @@ struct StereoOut16
 			static_cast<s16>(std::clamp(static_cast<float>(Right) * volume, -32768.0f, 32767.0f))
 		);
 	}
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		Left = src.Left;
-		Right = src.Right;
-	}
 };
 
 struct Stereo21Out16
@@ -125,13 +119,6 @@ struct Stereo21Out16
 	s16 Left;
 	s16 Right;
 	s16 LFE;
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		Left = src.Left;
-		Right = src.Right;
-		LFE = (src.Left + src.Right) >> 1;
-	}
 };
 
 struct Stereo40Out16
@@ -140,14 +127,6 @@ struct Stereo40Out16
 	s16 Right;
 	s16 LeftBack;
 	s16 RightBack;
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		Left = src.Left;
-		Right = src.Right;
-		LeftBack = src.Left;
-		RightBack = src.Right;
-	}
 };
 
 struct Stereo41Out16
@@ -157,15 +136,6 @@ struct Stereo41Out16
 	s16 LFE;
 	s16 LeftBack;
 	s16 RightBack;
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		Left = src.Left;
-		Right = src.Right;
-		LFE = (src.Left + src.Right) >> 1;
-		LeftBack = src.Left;
-		RightBack = src.Right;
-	}
 };
 
 struct Stereo51Out16
@@ -181,16 +151,6 @@ struct Stereo51Out16
 	// This method is simple and sounds nice.  It relies on the speaker/soundcard
 	// systems do to their own low pass / crossover.  Manual lowpass is wasted effort
 	// and can't match solid state results anyway.
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		Left = src.Left;
-		Right = src.Right;
-		Center = (src.Left + src.Right) >> 1;
-		LFE = Center;
-		LeftBack = src.Left >> 1;
-		RightBack = src.Right >> 1;
-	}
 };
 
 struct Stereo51Out16DplII
@@ -201,11 +161,6 @@ struct Stereo51Out16DplII
 	s16 LFE;
 	s16 LeftBack;
 	s16 RightBack;
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		ProcessDplIISample16(src, this);
-	}
 };
 
 struct Stereo51Out32DplII
@@ -216,11 +171,6 @@ struct Stereo51Out32DplII
 	s32 LFE;
 	s32 LeftBack;
 	s32 RightBack;
-
-	__fi void SetFrom(const StereoOut32& src)
-	{
-		ProcessDplIISample32(src, this);
-	}
 };
 
 struct Stereo51Out16Dpl
@@ -231,11 +181,6 @@ struct Stereo51Out16Dpl
 	s16 LFE;
 	s16 LeftBack;
 	s16 RightBack;
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		ProcessDplSample16(src, this);
-	}
 };
 
 struct Stereo51Out32Dpl
@@ -246,11 +191,6 @@ struct Stereo51Out32Dpl
 	s32 LFE;
 	s32 LeftBack;
 	s32 RightBack;
-
-	__fi void SetFrom(const StereoOut32& src)
-	{
-		ProcessDplSample32(src, this);
-	}
 };
 
 struct Stereo71Out16
@@ -263,23 +203,10 @@ struct Stereo71Out16
 	s16 RightBack;
 	s16 LeftSide;
 	s16 RightSide;
-
-	__fi void SetFrom(const StereoOut16& src)
-	{
-		Left = src.Left;
-		Right = src.Right;
-		Center = (src.Left + src.Right) >> 1;
-		LFE = Center;
-		LeftBack = src.Left;
-		RightBack = src.Right;
-
-		LeftSide = src.Left >> 1;
-		RightSide = src.Right >> 1;
-	}
 };
 
 namespace SndBuffer
 {
-	bool Init(void);
+	void Init(void);
 	void Write(StereoOut16 Sample);
 }

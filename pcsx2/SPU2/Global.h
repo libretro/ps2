@@ -26,6 +26,5 @@ struct V_Core;
 #include "defs.h"
 #include "regs.h"
 
-#include "Debug.h"
 #include "Mixer.h"
 #include "SndOut.h"

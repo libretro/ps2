@@ -2099,9 +2099,6 @@
     <ClInclude Include="USB\usb-pad\usb-pad-sdl-ff.h">
       <Filter>System\Ps2\USB\usb-pad</Filter>
     </ClInclude>
-    <ClInclude Include="SPU2\Debug.h">
-      <Filter>System\Ps2\SPU2</Filter>
-    </ClInclude>
     <ClInclude Include="SPU2\Dma.h">
       <Filter>System\Ps2\SPU2</Filter>
     </ClInclude>

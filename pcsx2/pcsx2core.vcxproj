@@ -543,7 +543,6 @@
     <ClInclude Include="Recording\Utilities\InputRecordingLogger.h" />
     <ClInclude Include="ShaderCacheVersion.h" />
     <ClInclude Include="SioTypes.h" />
-    <ClInclude Include="SPU2\Debug.h" />
     <ClInclude Include="SPU2\Dma.h" />
     <ClInclude Include="SPU2\Global.h" />
     <ClInclude Include="SPU2\interpolate_table.h" />
