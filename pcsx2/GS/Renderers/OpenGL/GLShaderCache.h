@@ -43,8 +43,6 @@ class GLShaderCache
 		bool GetComputeProgram(GLProgram* out_program, const std::string_view glsl, const PreLinkCallback& callback = {});
 
 	private:
-		static constexpr u32 FILE_VERSION = 1;
-
 		struct CacheIndexKey
 		{
 			u64 vertex_source_hash_low;

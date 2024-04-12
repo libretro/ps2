@@ -45,10 +45,9 @@ class D3D12ShaderCache
 		~D3D12ShaderCache();
 
 		__fi D3D_FEATURE_LEVEL GetFeatureLevel() const { return m_feature_level; }
-		__fi u32 GetDataVersion() const { return m_data_version; }
 		__fi bool UsingDebugShaders() const { return m_debug; }
 
-		bool Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug);
+		bool Open(D3D_FEATURE_LEVEL feature_level, bool debug);
 		void Close();
 
 		__fi ComPtr<ID3DBlob> GetVertexShader(std::string_view shader_code,
@@ -110,7 +109,7 @@ class D3D12ShaderCache
 
 		using CacheIndex = std::unordered_map<CacheIndexKey, CacheIndexData, CacheIndexEntryHasher>;
 
-		static std::string GetCacheBaseFileName(const std::string_view& base_path, const std::string_view& type,
+		static std::string GetCacheBaseFileName(const std::string_view& type,
 				D3D_FEATURE_LEVEL feature_level, bool debug);
 		static CacheIndexKey GetShaderCacheKey(EntryType type, const std::string_view& shader_code,
 				const D3D_SHADER_MACRO* macros, const char* entry_point);
@@ -131,8 +130,6 @@ class D3D12ShaderCache
 				const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc);
 		bool AddPipelineToBlob(const CacheIndexKey& key, ID3D12PipelineState* pso);
 
-		std::string m_base_path;
-
 		std::FILE* m_shader_index_file = nullptr;
 		std::FILE* m_shader_blob_file = nullptr;
 		CacheIndex m_shader_index;
@@ -142,6 +139,5 @@ class D3D12ShaderCache
 		CacheIndex m_pipeline_index;
 
 		D3D_FEATURE_LEVEL m_feature_level = D3D_FEATURE_LEVEL_11_0;
-		u32 m_data_version = 0;
 		bool m_debug = false;
 };

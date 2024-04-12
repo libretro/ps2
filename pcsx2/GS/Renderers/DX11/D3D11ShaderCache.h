@@ -57,8 +57,6 @@ class D3D11ShaderCache
 				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 	private:
-		static constexpr u32 FILE_VERSION = 1;
-
 		struct CacheIndexKey
 		{
 			u64 source_hash_low;

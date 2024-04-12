@@ -64,8 +64,6 @@ class VKShaderCache
 		VkShaderModule GetComputeShader(std::string_view shader_code);
 
 	private:
-		static constexpr u32 FILE_VERSION = 2;
-
 		struct CacheIndexKey
 		{
 			u64 source_hash_low;

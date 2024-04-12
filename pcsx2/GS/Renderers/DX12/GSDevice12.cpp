@@ -696,18 +696,8 @@ bool GSDevice12::Create()
 		m_tfx_source = std::move(*shader);
 	}
 
-	if (!GSConfig.DisableShaderCache)
-	{
-		if (!m_shader_cache.Open(EmuFolders::Cache, g_d3d12_context->GetFeatureLevel(), SHADER_CACHE_VERSION, GSConfig.UseDebugDevice))
-		{
-			Console.Warning("Shader cache failed to open.");
-		}
-	}
-	else
-	{
-		m_shader_cache.Open({}, g_d3d12_context->GetFeatureLevel(), SHADER_CACHE_VERSION, GSConfig.UseDebugDevice);
-		Console.WriteLn("Not using shader cache.");
-	}
+	if (!m_shader_cache.Open(g_d3d12_context->GetFeatureLevel(), GSConfig.UseDebugDevice))
+		Console.Warning("Shader cache failed to open.");
 
 	// reset stuff in case it was used by a previous device
 	g_d3d12_context->GetSamplerAllocator().Reset();

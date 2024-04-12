@@ -17,9 +17,15 @@
 
 #include "D3D12ShaderCache.h"
 #include "../DX11/D3D.h"
+#include "GS/GS.h"
+
+#include "Config.h"
+#include "ShaderCacheVersion.h"
+
 #include "common/FileSystem.h"
 #include "common/Console.h"
 #include "common/MD5Digest.h"
+#include "common/Path.h"
 
 #include <d3dcompiler.h>
 
@@ -62,38 +68,32 @@ bool D3D12ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
 			type != key.type || source_length != key.source_length);
 }
 
-bool D3D12ShaderCache::Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug)
+bool D3D12ShaderCache::Open(D3D_FEATURE_LEVEL feature_level, bool debug)
 {
-	m_base_path = base_path;
 	m_feature_level = feature_level;
-	m_data_version = version;
 	m_debug = debug;
 
 	bool result = true;
 
-	if (!base_path.empty())
+	if (!GSConfig.DisableShaderCache)
 	{
-		const std::string base_shader_filename = GetCacheBaseFileName(base_path, "shaders", feature_level, debug);
+		const std::string base_shader_filename = GetCacheBaseFileName("shaders", feature_level, debug);
 		const std::string shader_index_filename = base_shader_filename + ".idx";
 		const std::string shader_blob_filename = base_shader_filename + ".bin";
 
 		if (!ReadExisting(shader_index_filename, shader_blob_filename, m_shader_index_file, m_shader_blob_file,
 				m_shader_index))
-		{
 			result = CreateNew(shader_index_filename, shader_blob_filename, m_shader_index_file, m_shader_blob_file);
-		}
 
 		if (result)
 		{
-			const std::string base_pipelines_filename = GetCacheBaseFileName(base_path, "pipelines", feature_level, debug);
+			const std::string base_pipelines_filename = GetCacheBaseFileName("pipelines", feature_level, debug);
 			const std::string pipelines_index_filename = base_pipelines_filename + ".idx";
 			const std::string pipelines_blob_filename = base_pipelines_filename + ".bin";
 
 			if (!ReadExisting(pipelines_index_filename, pipelines_blob_filename, m_pipeline_index_file, m_pipeline_blob_file,
 					m_pipeline_index))
-			{
 				result = CreateNew(pipelines_index_filename, pipelines_blob_filename, m_pipeline_index_file, m_pipeline_blob_file);
-			}
 		}
 	}
 
@@ -122,8 +122,6 @@ void D3D12ShaderCache::Close()
 		std::fclose(m_shader_blob_file);
 		m_shader_blob_file = nullptr;
 	}
-
-	m_base_path = {};
 }
 
 void D3D12ShaderCache::InvalidatePipelineCache()
@@ -141,8 +139,10 @@ void D3D12ShaderCache::InvalidatePipelineCache()
 		m_pipeline_index_file = nullptr;
 	}
 
-	const std::string base_pipelines_filename =
-		GetCacheBaseFileName(m_base_path, "pipelines", m_feature_level, m_debug);
+	if (GSConfig.DisableShaderCache)
+		return;
+
+	const std::string base_pipelines_filename = GetCacheBaseFileName("pipelines", m_feature_level, m_debug);
 	const std::string pipelines_index_filename = base_pipelines_filename + ".idx";
 	const std::string pipelines_blob_filename = base_pipelines_filename + ".bin";
 	CreateNew(pipelines_index_filename, pipelines_blob_filename, m_pipeline_index_file, m_pipeline_blob_file);
@@ -169,9 +169,8 @@ bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::s
 		return false;
 	}
 
-	const u32 index_version = FILE_VERSION;
-	if (std::fwrite(&index_version, sizeof(index_version), 1, index_file) != 1 ||
-		std::fwrite(&m_data_version, sizeof(m_data_version), 1, index_file) != 1)
+	const u32 file_version = SHADER_CACHE_VERSION;
+	if (std::fwrite(&file_version, sizeof(file_version), 1, index_file) != 1)
 	{
 		Console.Error("Failed to write version to index file '%s'", index_filename.c_str());
 		std::fclose(index_file);
@@ -211,9 +210,7 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 	}
 
 	u32 file_version;
-	u32 data_version;
-	if (std::fread(&file_version, sizeof(file_version), 1, index_file) != 1 || file_version != FILE_VERSION ||
-		std::fread(&data_version, sizeof(data_version), 1, index_file) != 1 || data_version != m_data_version)
+	if (std::fread(&file_version, sizeof(file_version), 1, index_file) != 1 || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file version in '%s'", index_filename.c_str());
 		std::fclose(index_file);
@@ -264,11 +261,10 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 	return true;
 }
 
-std::string D3D12ShaderCache::GetCacheBaseFileName(const std::string_view& base_path, const std::string_view& type,
+std::string D3D12ShaderCache::GetCacheBaseFileName(const std::string_view& type,
 	D3D_FEATURE_LEVEL feature_level, bool debug)
 {
-	std::string base_filename(base_path);
-	base_filename += FS_OSPATH_SEPARATOR_STR "d3d12_";
+	std::string base_filename = "d3d12_";
 	base_filename += type;
 	base_filename += "_";
 
@@ -291,7 +287,7 @@ std::string D3D12ShaderCache::GetCacheBaseFileName(const std::string_view& base_
 	if (debug)
 		base_filename += "_debug";
 
-	return base_filename;
+	return Path::Combine(EmuFolders::Cache, base_filename);
 }
 
 union MD5Hash
