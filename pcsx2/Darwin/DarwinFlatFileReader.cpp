@@ -27,7 +27,7 @@
 #warning AIO has been disabled.
 #endif
 
-FlatFileReader::FlatFileReader(bool shareWrite) : shareWrite(shareWrite)
+FlatFileReader::FlatFileReader()
 {
 	m_blocksize = 2048;
 	m_fd = -1;
