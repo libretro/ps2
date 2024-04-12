@@ -19,35 +19,33 @@
 #include <array>
 #include <cstring>
 
-namespace GL
+GLStreamBuffer::GLStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
+	: m_target(target)
+	, m_buffer_id(buffer_id)
+	  , m_size(size)
 {
-	StreamBuffer::StreamBuffer(GLenum target, GLuint buffer_id, u32 size)
-		: m_target(target)
-		, m_buffer_id(buffer_id)
-		, m_size(size)
-	{
-	}
+}
 
-	StreamBuffer::~StreamBuffer()
-	{
-		glDeleteBuffers(1, &m_buffer_id);
-	}
+GLStreamBuffer::~GLStreamBuffer()
+{
+	glDeleteBuffers(1, &m_buffer_id);
+}
 
-	void StreamBuffer::Bind()
-	{
-		glBindBuffer(m_target, m_buffer_id);
-	}
+void GLStreamBuffer::Bind()
+{
+	glBindBuffer(m_target, m_buffer_id);
+}
 
-	void StreamBuffer::Unbind()
-	{
-		glBindBuffer(m_target, 0);
-	}
+void GLStreamBuffer::Unbind()
+{
+	glBindBuffer(m_target, 0);
+}
 
-	namespace detail
+namespace detail
+{
+	// Uses glBufferSubData() to update. Preferred for drivers which don't support {ARB,EXT}_buffer_storage.
+	class BufferSubDataStreamBuffer final : public GLStreamBuffer
 	{
-		// Uses glBufferSubData() to update. Preferred for drivers which don't support {ARB,EXT}_buffer_storage.
-		class BufferSubDataStreamBuffer final : public StreamBuffer
-		{
 		public:
 			~BufferSubDataStreamBuffer() override
 			{
@@ -73,7 +71,7 @@ namespace GL
 				return m_size;
 			}
 
-			static std::unique_ptr<StreamBuffer> Create(GLenum target, u32 size)
+			static std::unique_ptr<GLStreamBuffer> Create(GLenum target, u32 size)
 			{
 				glGetError();
 
@@ -90,22 +88,22 @@ namespace GL
 					return {};
 				}
 
-				return std::unique_ptr<StreamBuffer>(new BufferSubDataStreamBuffer(target, buffer_id, size));
+				return std::unique_ptr<GLStreamBuffer>(new BufferSubDataStreamBuffer(target, buffer_id, size));
 			}
 
 		private:
 			BufferSubDataStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
-				: StreamBuffer(target, buffer_id, size)
+				: GLStreamBuffer(target, buffer_id, size)
 			{
 				m_cpu_buffer = static_cast<u8*>(_aligned_malloc(size, 32));
 			}
 
 			u8* m_cpu_buffer;
-		};
+	};
 
-		// Uses BufferData() to orphan the buffer after every update. Used on Mali where BufferSubData forces a sync.
-		class BufferDataStreamBuffer final : public StreamBuffer
-		{
+	// Uses BufferData() to orphan the buffer after every update. Used on Mali where BufferSubData forces a sync.
+	class BufferDataStreamBuffer final : public GLStreamBuffer
+	{
 		public:
 			~BufferDataStreamBuffer() override
 			{
@@ -131,7 +129,7 @@ namespace GL
 				return m_size;
 			}
 
-			static std::unique_ptr<StreamBuffer> Create(GLenum target, u32 size)
+			static std::unique_ptr<GLStreamBuffer> Create(GLenum target, u32 size)
 			{
 				glGetError();
 
@@ -148,105 +146,105 @@ namespace GL
 					return {};
 				}
 
-				return std::unique_ptr<StreamBuffer>(new BufferDataStreamBuffer(target, buffer_id, size));
+				return std::unique_ptr<GLStreamBuffer>(new BufferDataStreamBuffer(target, buffer_id, size));
 			}
 
 		private:
 			BufferDataStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
-				: StreamBuffer(target, buffer_id, size)
+				: GLStreamBuffer(target, buffer_id, size)
 			{
 				m_cpu_buffer = static_cast<u8*>(_aligned_malloc(size, 32));
 			}
 
 			u8* m_cpu_buffer;
-		};
+	};
 
-		// Base class for implementations which require syncing.
-		class SyncingStreamBuffer : public StreamBuffer
-		{
+	// Base class for implementations which require syncing.
+	class SyncingStreamBuffer : public GLStreamBuffer
+	{
 		public:
-			enum : u32
-			{
-				NUM_SYNC_POINTS = 16
-			};
+enum : u32
+       {
+	       NUM_SYNC_POINTS = 16
+       };
 
-			virtual ~SyncingStreamBuffer() override
-			{
-				for (u32 i = m_available_block_index; i <= m_used_block_index; i++)
-					glDeleteSync(m_sync_objects[i]);
-			}
+       virtual ~SyncingStreamBuffer() override
+       {
+	       for (u32 i = m_available_block_index; i <= m_used_block_index; i++)
+		       glDeleteSync(m_sync_objects[i]);
+       }
 
 		protected:
-			SyncingStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
-				: StreamBuffer(target, buffer_id, size)
-				, m_bytes_per_block((size + (NUM_SYNC_POINTS)-1) / NUM_SYNC_POINTS)
-			{
-			}
-
-			__fi u32 GetSyncIndexForOffset(u32 offset) { return offset / m_bytes_per_block; }
-
-			__fi void AddSyncsForOffset(u32 offset)
-			{
-				const u32 end = GetSyncIndexForOffset(offset);
-				for (; m_used_block_index < end; m_used_block_index++)
-					m_sync_objects[m_used_block_index] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-			}
-
-			__fi void WaitForSync(GLsync& sync)
-			{
-				glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
-				glDeleteSync(sync);
-				sync = nullptr;
-			}
-
-			__fi void EnsureSyncsWaitedForOffset(u32 offset)
-			{
-				const u32 end = std::min<u32>(GetSyncIndexForOffset(offset) + 1, NUM_SYNC_POINTS);
-				for (; m_available_block_index < end; m_available_block_index++)
-					WaitForSync(m_sync_objects[m_available_block_index]);
-			}
-
-			void AllocateSpace(u32 size)
-			{
-				// add sync objects for writes since the last allocation
-				AddSyncsForOffset(m_position);
-
-				// wait for sync objects for the space we want to use
-				EnsureSyncsWaitedForOffset(m_position + size);
-
-				// wrap-around?
-				if ((m_position + size) > m_size)
-				{
-					// current position ... buffer end
-					AddSyncsForOffset(m_size);
-
-					// rewind, and try again
-					m_position = 0;
-
-					// wait for the sync at the start of the buffer
-					WaitForSync(m_sync_objects[0]);
-					m_available_block_index = 1;
-
-					// and however much more we need to satisfy the allocation
-					EnsureSyncsWaitedForOffset(size);
-					m_used_block_index = 0;
-				}
-			}
-
-			u32 GetChunkSize() const override
-			{
-				return m_size / NUM_SYNC_POINTS;
-			}
-
-			u32 m_position = 0;
-			u32 m_used_block_index = 0;
-			u32 m_available_block_index = NUM_SYNC_POINTS;
-			u32 m_bytes_per_block;
-			std::array<GLsync, NUM_SYNC_POINTS> m_sync_objects{};
-		};
-
-		class BufferStorageStreamBuffer : public SyncingStreamBuffer
+       SyncingStreamBuffer(GLenum target, GLuint buffer_id, u32 size)
+	       : GLStreamBuffer(target, buffer_id, size)
+		 , m_bytes_per_block((size + (NUM_SYNC_POINTS)-1) / NUM_SYNC_POINTS)
 		{
+		}
+
+       __fi u32 GetSyncIndexForOffset(u32 offset) { return offset / m_bytes_per_block; }
+
+       __fi void AddSyncsForOffset(u32 offset)
+       {
+	       const u32 end = GetSyncIndexForOffset(offset);
+	       for (; m_used_block_index < end; m_used_block_index++)
+		       m_sync_objects[m_used_block_index] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+       }
+
+       __fi void WaitForSync(GLsync& sync)
+       {
+	       glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+	       glDeleteSync(sync);
+	       sync = nullptr;
+       }
+
+       __fi void EnsureSyncsWaitedForOffset(u32 offset)
+       {
+	       const u32 end = std::min<u32>(GetSyncIndexForOffset(offset) + 1, NUM_SYNC_POINTS);
+	       for (; m_available_block_index < end; m_available_block_index++)
+		       WaitForSync(m_sync_objects[m_available_block_index]);
+       }
+
+       void AllocateSpace(u32 size)
+       {
+	       // add sync objects for writes since the last allocation
+	       AddSyncsForOffset(m_position);
+
+	       // wait for sync objects for the space we want to use
+	       EnsureSyncsWaitedForOffset(m_position + size);
+
+	       // wrap-around?
+	       if ((m_position + size) > m_size)
+	       {
+		       // current position ... buffer end
+		       AddSyncsForOffset(m_size);
+
+		       // rewind, and try again
+		       m_position = 0;
+
+		       // wait for the sync at the start of the buffer
+		       WaitForSync(m_sync_objects[0]);
+		       m_available_block_index = 1;
+
+		       // and however much more we need to satisfy the allocation
+		       EnsureSyncsWaitedForOffset(size);
+		       m_used_block_index = 0;
+	       }
+       }
+
+       u32 GetChunkSize() const override
+       {
+	       return m_size / NUM_SYNC_POINTS;
+       }
+
+       u32 m_position = 0;
+       u32 m_used_block_index = 0;
+       u32 m_available_block_index = NUM_SYNC_POINTS;
+       u32 m_bytes_per_block;
+       std::array<GLsync, NUM_SYNC_POINTS> m_sync_objects{};
+	};
+
+	class BufferStorageStreamBuffer : public SyncingStreamBuffer
+	{
 		public:
 			~BufferStorageStreamBuffer() override
 			{
@@ -278,7 +276,7 @@ namespace GL
 				m_position += used_size;
 			}
 
-			static std::unique_ptr<StreamBuffer> Create(GLenum target, u32 size, bool coherent = true)
+			static std::unique_ptr<GLStreamBuffer> Create(GLenum target, u32 size, bool coherent = true)
 			{
 				glGetError();
 
@@ -302,38 +300,37 @@ namespace GL
 				}
 
 				u8* mapped_ptr = static_cast<u8*>(glMapBufferRange(target, 0, size, map_flags));
-				return std::unique_ptr<StreamBuffer>(new BufferStorageStreamBuffer(target, buffer_id, size, mapped_ptr, coherent));
+				return std::unique_ptr<GLStreamBuffer>(new BufferStorageStreamBuffer(target, buffer_id, size, mapped_ptr, coherent));
 			}
 
 		private:
 			BufferStorageStreamBuffer(GLenum target, GLuint buffer_id, u32 size, u8* mapped_ptr, bool coherent)
 				: SyncingStreamBuffer(target, buffer_id, size)
-				, m_mapped_ptr(mapped_ptr)
-				, m_coherent(coherent)
-			{
-			}
+				  , m_mapped_ptr(mapped_ptr)
+				  , m_coherent(coherent)
+		{
+		}
 
 			u8* m_mapped_ptr;
 			bool m_coherent;
-		};
+	};
 
-	} // namespace detail
+} // namespace detail
 
-	std::unique_ptr<StreamBuffer> StreamBuffer::Create(GLenum target, u32 size)
+std::unique_ptr<GLStreamBuffer> GLStreamBuffer::Create(GLenum target, u32 size)
+{
+	std::unique_ptr<GLStreamBuffer> buf;
+	if (GLAD_GL_VERSION_4_4 || GLAD_GL_ARB_buffer_storage || GLAD_GL_EXT_buffer_storage)
 	{
-		std::unique_ptr<StreamBuffer> buf;
-		if (GLAD_GL_VERSION_4_4 || GLAD_GL_ARB_buffer_storage || GLAD_GL_EXT_buffer_storage)
-		{
-			buf = detail::BufferStorageStreamBuffer::Create(target, size);
-			if (buf)
-				return buf;
-		}
-
-		// BufferSubData is slower on all drivers except NVIDIA...
-		const char* vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-		if (std::strstr(vendor, "NVIDIA"))
-			return detail::BufferSubDataStreamBuffer::Create(target, size);
-		else
-			return detail::BufferDataStreamBuffer::Create(target, size);
+		buf = detail::BufferStorageStreamBuffer::Create(target, size);
+		if (buf)
+			return buf;
 	}
-} // namespace GL
+
+	// BufferSubData is slower on all drivers except NVIDIA...
+	const char* vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+	if (std::strstr(vendor, "NVIDIA"))
+		return detail::BufferSubDataStreamBuffer::Create(target, size);
+	else
+		return detail::BufferDataStreamBuffer::Create(target, size);
+}

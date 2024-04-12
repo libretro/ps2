@@ -36,7 +36,7 @@ static constexpr u32 VERTEX_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
 static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
 static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
 
-static std::unique_ptr<GL::StreamBuffer> s_texture_upload_buffer;
+static std::unique_ptr<GLStreamBuffer> s_texture_upload_buffer;
 
 GSDeviceOGL::GSDeviceOGL() = default;
 
@@ -63,21 +63,15 @@ bool GSDeviceOGL::Create()
 	AcquireWindow();
 
 	// We need at least GL3.3.
-	static constexpr const GL::Context::Version version_list[] = {{GL::Context::Profile::Core, 4, 6},
-		{GL::Context::Profile::Core, 4, 5}, {GL::Context::Profile::Core, 4, 4}, {GL::Context::Profile::Core, 4, 3},
-		{GL::Context::Profile::Core, 4, 2}, {GL::Context::Profile::Core, 4, 1}, {GL::Context::Profile::Core, 4, 0},
-		{GL::Context::Profile::Core, 3, 3}};
-	m_gl_context = GL::Context::Create(m_window_info, version_list);
+	static constexpr const GLContext::Version version_list[] = {{GLContext::Profile::Core, 4, 6},
+		{GLContext::Profile::Core, 4, 5}, {GLContext::Profile::Core, 4, 4}, {GLContext::Profile::Core, 4, 3},
+		{GLContext::Profile::Core, 4, 2}, {GLContext::Profile::Core, 4, 1}, {GLContext::Profile::Core, 4, 0},
+		{GLContext::Profile::Core, 3, 3}};
+	m_gl_context = GLContext::Create(version_list);
 	if (!m_gl_context)
 	{
 		Console.Error("Failed to create any GL context");
 		m_gl_context.reset();
-		return false;
-	}
-
-	if (!m_gl_context->MakeCurrent())
-	{
-		Console.Error("Failed to make GL context current");
 		return false;
 	}
 
@@ -89,7 +83,7 @@ bool GSDeviceOGL::Create()
 
 	if (!GSConfig.DisableShaderCache)
 	{
-		if (!m_shader_cache.Open(false, EmuFolders::Cache, SHADER_CACHE_VERSION))
+		if (!m_shader_cache.Open(false))
 			Console.Warning("Shader cache failed to open.");
 	}
 	else
@@ -197,10 +191,10 @@ bool GSDeviceOGL::Create()
 		glGenVertexArrays(1, &m_vao);
 		IASetVAO(m_vao);
 
-		m_vertex_stream_buffer = GL::StreamBuffer::Create(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE);
-		m_index_stream_buffer = GL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE);
-		m_vertex_uniform_stream_buffer = GL::StreamBuffer::Create(GL_UNIFORM_BUFFER, VERTEX_UNIFORM_BUFFER_SIZE);
-		m_fragment_uniform_stream_buffer = GL::StreamBuffer::Create(GL_UNIFORM_BUFFER, FRAGMENT_UNIFORM_BUFFER_SIZE);
+		m_vertex_stream_buffer = GLStreamBuffer::Create(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE);
+		m_index_stream_buffer = GLStreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE);
+		m_vertex_uniform_stream_buffer = GLStreamBuffer::Create(GL_UNIFORM_BUFFER, VERTEX_UNIFORM_BUFFER_SIZE);
+		m_fragment_uniform_stream_buffer = GLStreamBuffer::Create(GL_UNIFORM_BUFFER, FRAGMENT_UNIFORM_BUFFER_SIZE);
 		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
 		if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_vertex_uniform_stream_buffer || !m_fragment_uniform_stream_buffer)
 		{
@@ -442,7 +436,7 @@ bool GSDeviceOGL::Create()
 	// ****************************************************************
 	if (!GLLoader::buggy_pbo)
 	{
-		s_texture_upload_buffer = GL::StreamBuffer::Create(GL_PIXEL_UNPACK_BUFFER, TEXTURE_UPLOAD_BUFFER_SIZE);
+		s_texture_upload_buffer = GLStreamBuffer::Create(GL_PIXEL_UNPACK_BUFFER, TEXTURE_UPLOAD_BUFFER_SIZE);
 		if (s_texture_upload_buffer)
 		{
 			// Don't keep it bound, we'll re-bind when we need it.
@@ -473,8 +467,6 @@ void GSDeviceOGL::Destroy()
 	if (m_gl_context)
 	{
 		DestroyResources();
-
-		m_gl_context->DoneCurrent();
 		m_gl_context.reset();
 	}
 }
@@ -505,7 +497,7 @@ bool GSDeviceOGL::CreateTextureFX()
 		m_om_dss[key] = CreateDepthStencil(OMDepthStencilSelector(key));
 	}
 
-	GL::Program::ResetLastProgram();
+	GLProgram::ResetLastProgram();
 	return true;
 }
 
@@ -524,22 +516,22 @@ void GSDeviceOGL::DestroyResources()
 	if (m_ps_ss[0] != 0)
 		glDeleteSamplers(std::size(m_ps_ss), m_ps_ss);
 
-	for (GL::Program& prog : m_date.primid_ps)
+	for (GLProgram& prog : m_date.primid_ps)
 		prog.Destroy();
 	delete m_date.dss;
 
-	for (GL::Program& prog : m_present)
+	for (GLProgram& prog : m_present)
 		prog.Destroy();
 
-	for (GL::Program& prog : m_convert.ps)
+	for (GLProgram& prog : m_convert.ps)
 		prog.Destroy();
 	delete m_convert.dss;
 	delete m_convert.dss_write;
 
-	for (GL::Program& prog : m_interlace.ps)
+	for (GLProgram& prog : m_interlace.ps)
 		prog.Destroy();
 
-	for (GL::Program& prog : m_merge_obj.ps)
+	for (GLProgram& prog : m_merge_obj.ps)
 		prog.Destroy();
 
 	m_fragment_uniform_stream_buffer.reset();
@@ -567,9 +559,6 @@ void GSDeviceOGL::DestroyResources()
 
 void GSDeviceOGL::DestroySurface()
 {
-	m_window_info = {};
-	if (!m_gl_context->ChangeSurface(m_window_info))
-		Console.Error("Failed to switch to surfaceless");
 }
 
 GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
@@ -1128,7 +1117,7 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	StretchRect(sTex, sRect, dTex, dRect, m_convert.ps[(int)shader], linear);
 }
 
-void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, const GL::Program& ps, bool linear)
+void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, const GLProgram& ps, bool linear)
 {
 	StretchRect(sTex, sRect, dTex, dRect, ps, false, OMColorMaskSelector(), linear);
 }
@@ -1145,7 +1134,7 @@ void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	StretchRect(sTex, sRect, dTex, dRect, m_convert.ps[(int)ShaderConvert::COPY], false, cms, false);
 }
 
-void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, const GL::Program& ps, bool alpha_blend, OMColorMaskSelector cms, bool linear)
+void GSDeviceOGL::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, const GLProgram& ps, bool alpha_blend, OMColorMaskSelector cms, bool linear)
 {
 	ASSERT(sTex);
 
@@ -1196,7 +1185,7 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 	cb.SetSource(sRect, sTex->GetSize());
 	cb.SetTarget(dRect, ds);
 
-	GL::Program& prog = m_present[0];
+	GLProgram& prog = m_present[0];
 	prog.Bind();
 	prog.Uniform4fv(0, cb.SourceRect.F32);
 	prog.Uniform4fv(1, cb.TargetRect.F32);
@@ -1226,7 +1215,7 @@ void GSDeviceOGL::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture
 void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, GSTexture* dTex, u32 dOffset, u32 dSize)
 {
 	const ShaderConvert shader = (dSize == 16) ? ShaderConvert::CLUT_4 : ShaderConvert::CLUT_8;
-	GL::Program& prog = m_convert.ps[static_cast<int>(shader)];
+	GLProgram& prog = m_convert.ps[static_cast<int>(shader)];
 	prog.Bind();
 	prog.Uniform3ui(0, offsetX, offsetY, dOffset);
 	prog.Uniform1f(1, sScale);
@@ -1246,7 +1235,7 @@ void GSDeviceOGL::UpdateCLUTTexture(GSTexture* sTex, float sScale, u32 offsetX, 
 void GSDeviceOGL::ConvertToIndexedTexture(GSTexture* sTex, float sScale, u32 offsetX, u32 offsetY, u32 SBW, u32 SPSM, GSTexture* dTex, u32 DBW, u32 DPSM)
 {
 	const ShaderConvert shader = ShaderConvert::RGBA_TO_8I;
-	GL::Program& prog = m_convert.ps[static_cast<int>(shader)];
+	GLProgram& prog = m_convert.ps[static_cast<int>(shader)];
 	prog.Bind();
 	prog.Uniform1ui(0, SBW);
 	prog.Uniform1ui(1, DBW);
@@ -1738,7 +1727,7 @@ void GSDeviceOGL::SetScissor(const GSVector4i& scissor)
 	}
 }
 
-__fi static void WriteToStreamBuffer(GL::StreamBuffer* sb, u32 index, u32 align, const void* data, u32 size)
+__fi static void WriteToStreamBuffer(GLStreamBuffer* sb, u32 index, u32 align, const void* data, u32 size)
 {
 	const auto res = sb->Map(align, size);
 	memcpy(res.pointer, data, size);
@@ -1759,7 +1748,7 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
 	const std::string vs(GetVSSource(psel.vs));
 	const std::string ps(GetPSSource(psel.ps));
 
-	GL::Program prog;
+	GLProgram prog;
 	m_shader_cache.GetProgram(&prog, vs, ps);
 	it = m_programs.emplace(psel, std::move(prog)).first;
 	it->second.Bind();
@@ -2125,7 +2114,7 @@ void GSDeviceOGL::DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint 
 	}
 }
 
-GL::StreamBuffer* GSDeviceOGL::GetTextureUploadBuffer()
+GLStreamBuffer* GSDeviceOGL::GetTextureUploadBuffer()
 {
 	return s_texture_upload_buffer.get();
 }

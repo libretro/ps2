@@ -17,23 +17,16 @@
 
 #include "GLContext.h"
 
-namespace GL
+class ContextRetroGL : public GLContext
 {
-	class ContextRetroGL : public Context
-	{
 	public:
-		ContextRetroGL(const WindowInfo& wi);
+		ContextRetroGL();
 		~ContextRetroGL() override;
 
-		static std::unique_ptr<Context> Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try);
+		static std::unique_ptr<GLContext> Create(gsl::span<const Version> versions_to_try);
 
 		void* GetProcAddress(const char* name) override;
-		virtual bool ChangeSurface(const WindowInfo& new_wi) override;
-		virtual void ResizeSurface(u32 new_surface_width = 0, u32 new_surface_height = 0) override;
 		bool SwapBuffers() override;
-		bool MakeCurrent() override;
-		bool DoneCurrent() override;
-		virtual std::unique_ptr<Context> CreateSharedContext(const WindowInfo& wi) override;
-	};
+		virtual std::unique_ptr<GLContext> CreateSharedContext() override;
+};
 
-} // namespace GL

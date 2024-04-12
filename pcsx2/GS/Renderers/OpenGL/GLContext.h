@@ -16,19 +16,17 @@
 #pragma once
 
 #include "common/Pcsx2Defs.h"
-#include "common/WindowInfo.h"
 
 #include <gsl/span>
 #include <array>
 #include <memory>
 #include <vector>
 
-namespace GL {
-	class Context
-	{
+class GLContext
+{
 	public:
-		Context(const WindowInfo& wi);
-		virtual ~Context();
+		GLContext();
+		virtual ~GLContext();
 
 		enum class Profile
 		{
@@ -44,22 +42,12 @@ namespace GL {
 			int minor_version;
 		};
 
-		__fi const WindowInfo& GetWindowInfo() const { return m_wi; }
 		__fi bool IsGLES() const { return (m_version.profile == Profile::ES); }
-		__fi u32 GetSurfaceWidth() const { return m_wi.surface_width; }
-		__fi u32 GetSurfaceHeight() const { return m_wi.surface_height; }
-
 		virtual void* GetProcAddress(const char* name) = 0;
-		virtual bool ChangeSurface(const WindowInfo& new_wi) = 0;
-		virtual void ResizeSurface(u32 new_surface_width = 0, u32 new_surface_height = 0) = 0;
 		virtual bool SwapBuffers() = 0;
-		virtual bool MakeCurrent() = 0;
-		virtual bool DoneCurrent() = 0;
-		virtual std::unique_ptr<Context> CreateSharedContext(const WindowInfo& wi) = 0;
+		virtual std::unique_ptr<GLContext> CreateSharedContext() = 0;
 
-		static std::unique_ptr<Context> Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try);
+		static std::unique_ptr<GLContext> Create(gsl::span<const Version> versions_to_try);
 	protected:
-		WindowInfo m_wi;
 		Version m_version = {};
-	};
-} // namespace GL
+};

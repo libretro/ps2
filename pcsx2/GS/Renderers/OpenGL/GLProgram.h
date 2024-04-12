@@ -19,15 +19,13 @@
 #include <string_view>
 #include <vector>
 
-namespace GL
+class GLProgram
 {
-	class Program
-	{
 	public:
-		Program();
-		Program(const Program&) = delete;
-		Program(Program&& prog);
-		~Program();
+		GLProgram();
+		GLProgram(const GLProgram&) = delete;
+		GLProgram(GLProgram&& prog);
+		~GLProgram();
 
 		static GLuint CompileShader(GLenum type, const std::string_view source);
 		static void ResetLastProgram();
@@ -87,19 +85,16 @@ namespace GL
 		void SetName(const std::string_view& name);
 		void SetFormattedName(const char* format, ...);
 
-		Program& operator=(const Program&) = delete;
-		Program& operator=(Program&& prog);
+		GLProgram& operator=(const GLProgram&) = delete;
+		GLProgram& operator=(GLProgram&& prog);
 
-		__fi bool operator==(const Program& rhs) const { return m_program_id == rhs.m_program_id; }
-		__fi bool operator!=(const Program& rhs) const { return m_program_id != rhs.m_program_id; }
+		__fi bool operator==(const GLProgram& rhs) const { return m_program_id == rhs.m_program_id; }
+		__fi bool operator!=(const GLProgram& rhs) const { return m_program_id != rhs.m_program_id; }
 
 	private:
-		static u32 s_last_program_id;
-
 		GLuint m_program_id = 0;
 		GLuint m_vertex_shader_id = 0;
 		GLuint m_fragment_shader_id = 0;
 
 		std::vector<GLint> m_uniform_locations;
-	};
-} // namespace GL
+};

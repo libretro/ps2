@@ -19,7 +19,6 @@
 #include "GLContextRetroGL.h"
 #include <optional>
 #include <vector>
-#include "common/WindowInfo.h"
 #include "GS/Renderers/Common/GSDevice.h"
 #include "GS/GSVector.h"
 
@@ -27,62 +26,36 @@
 extern retro_video_refresh_t video_cb;
 extern retro_hw_render_callback hw_render;
 
-namespace GL
+ContextRetroGL::ContextRetroGL() : GLContext()
 {
-	ContextRetroGL::ContextRetroGL(const WindowInfo& wi)
-		: Context(wi)
-	{
-	}
+}
 
-	ContextRetroGL::~ContextRetroGL()
-	{
-	}
+ContextRetroGL::~ContextRetroGL()
+{
+}
 
-	std::unique_ptr<Context> ContextRetroGL::Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try)
-	{
-		std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>(wi);
-		return context;
-	}
+std::unique_ptr<GLContext> ContextRetroGL::Create(gsl::span<const Version> versions_to_try)
+{
+	std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>();
+	return context;
+}
 
-	void* ContextRetroGL::GetProcAddress(const char* name)
-	{
-		return reinterpret_cast<void*>(hw_render.get_proc_address(name));
-	}
+void* ContextRetroGL::GetProcAddress(const char* name)
+{
+	return reinterpret_cast<void*>(hw_render.get_proc_address(name));
+}
 
-	bool ContextRetroGL::ChangeSurface(const WindowInfo& new_wi)
-	{
-		return true;
-	}
+bool ContextRetroGL::SwapBuffers()
+{
+	if(g_gs_device->GetCurrent())
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, g_gs_device->GetCurrent()->GetWidth(), g_gs_device->GetCurrent()->GetHeight(), 0);
+	else
+		video_cb(NULL, 0, 0, 0);
+	return true;
+}
 
-	void ContextRetroGL::ResizeSurface(u32 new_surface_width /*= 0*/, u32 new_surface_height /*= 0*/)
-	{
-		m_wi.surface_width = new_surface_width;
-		m_wi.surface_height = new_surface_height;
-	}
-
-	bool ContextRetroGL::SwapBuffers()
-	{
-		if(g_gs_device->GetCurrent())
-			video_cb(RETRO_HW_FRAME_BUFFER_VALID, g_gs_device->GetCurrent()->GetWidth(), g_gs_device->GetCurrent()->GetHeight(), 0);
-		else
-			video_cb(NULL, 0, 0, 0);
-		return true;
-	}
-
-	bool ContextRetroGL::MakeCurrent()
-	{
-		return true;
-	}
-
-	bool ContextRetroGL::DoneCurrent()
-	{
-		return true;
-	}
-
-	std::unique_ptr<Context> ContextRetroGL::CreateSharedContext(const WindowInfo& wi)
-	{
-		std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>(wi);
-		return context;
-	}
-
-} // namespace GL
+std::unique_ptr<GLContext> ContextRetroGL::CreateSharedContext()
+{
+	std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>();
+	return context;
+}

@@ -235,7 +235,7 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 	}
 	else
 	{
-		GL::StreamBuffer* const sb = GSDeviceOGL::GetTextureUploadBuffer();
+		GLStreamBuffer* const sb = GSDeviceOGL::GetTextureUploadBuffer();
 
 		const auto map = sb->Map(TEXTURE_UPLOAD_ALIGNMENT, map_size);
 		StringUtil::StrideMemCpy(map.pointer, preferred_pitch, data, pitch, r.width() << m_int_shift, r.height());
@@ -302,7 +302,7 @@ void GSTextureOGL::Unmap()
 	{
 		const u32 pitch = Common::AlignUpPow2(m_r_w << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 		const u32 upload_size = pitch * m_r_h;
-		GL::StreamBuffer* sb = GSDeviceOGL::GetTextureUploadBuffer();
+		GLStreamBuffer* sb = GSDeviceOGL::GetTextureUploadBuffer();
 		sb->Unmap(upload_size);
 		sb->Bind();
 

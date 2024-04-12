@@ -25,24 +25,22 @@
 #include <unordered_map>
 #include <vector>
 
-namespace GL
+class GLShaderCache
 {
-	class ShaderCache
-	{
 	public:
-		using PreLinkCallback = std::function<void(Program&)>;
+		using PreLinkCallback = std::function<void(GLProgram&)>;
 
-		ShaderCache();
-		~ShaderCache();
+		GLShaderCache();
+		~GLShaderCache();
 
-		bool Open(bool is_gles, std::string_view base_path, u32 version);
+		bool Open(bool is_gles);
 		void Close();
 
-		std::optional<Program> GetProgram(const std::string_view vertex_shader, const std::string_view fragment_shader, const PreLinkCallback& callback = {});
-		bool GetProgram(Program* out_program, const std::string_view vertex_shader, const std::string_view fragment_shader, const PreLinkCallback& callback = {});
+		std::optional<GLProgram> GetProgram(const std::string_view vertex_shader, const std::string_view fragment_shader, const PreLinkCallback& callback = {});
+		bool GetProgram(GLProgram* out_program, const std::string_view vertex_shader, const std::string_view fragment_shader, const PreLinkCallback& callback = {});
 
-		std::optional<Program> GetComputeProgram(const std::string_view glsl, const PreLinkCallback& callback = {});
-		bool GetComputeProgram(Program* out_program, const std::string_view glsl, const PreLinkCallback& callback = {});
+		std::optional<GLProgram> GetComputeProgram(const std::string_view glsl, const PreLinkCallback& callback = {});
+		bool GetComputeProgram(GLProgram* out_program, const std::string_view glsl, const PreLinkCallback& callback = {});
 
 	private:
 		static constexpr u32 FILE_VERSION = 1;
@@ -66,8 +64,8 @@ namespace GL
 			{
 				std::size_t h = 0;
 				HashCombine(h,
-					e.vertex_source_hash_low, e.vertex_source_hash_high, e.vertex_source_length,
-					e.fragment_source_hash_low, e.fragment_source_hash_high, e.fragment_source_length);
+						e.vertex_source_hash_low, e.vertex_source_hash_high, e.vertex_source_length,
+						e.fragment_source_hash_low, e.fragment_source_hash_high, e.fragment_source_length);
 				return h;
 			}
 		};
@@ -92,21 +90,18 @@ namespace GL
 
 		bool WriteToBlobFile(const CacheIndexKey& key, const std::vector<u8>& prog_data, u32 prog_format);
 
-		std::optional<Program> CompileProgram(const std::string_view& vertex_shader,
-			const std::string_view& fragment_shader, const PreLinkCallback& callback,
-			bool set_retrievable);
-		std::optional<Program> CompileAndAddProgram(const CacheIndexKey& key, const std::string_view& vertex_shader,
-			const std::string_view& fragment_shader, const PreLinkCallback& callback);
+		std::optional<GLProgram> CompileProgram(const std::string_view& vertex_shader,
+				const std::string_view& fragment_shader, const PreLinkCallback& callback,
+				bool set_retrievable);
+		std::optional<GLProgram> CompileAndAddProgram(const CacheIndexKey& key, const std::string_view& vertex_shader,
+				const std::string_view& fragment_shader, const PreLinkCallback& callback);
 
-		std::optional<Program> CompileComputeProgram(const std::string_view& glsl, const PreLinkCallback& callback, bool set_retrievable);
-		std::optional<Program> CompileAndAddComputeProgram(const CacheIndexKey& key, const std::string_view& glsl, const PreLinkCallback& callback);
+		std::optional<GLProgram> CompileComputeProgram(const std::string_view& glsl, const PreLinkCallback& callback, bool set_retrievable);
+		std::optional<GLProgram> CompileAndAddComputeProgram(const CacheIndexKey& key, const std::string_view& glsl, const PreLinkCallback& callback);
 
-		std::string m_base_path;
 		std::FILE* m_index_file = nullptr;
 		std::FILE* m_blob_file = nullptr;
 
 		CacheIndex m_index;
-		u32 m_version = 0;
 		bool m_program_binary_supported = false;
-	};
-} // namespace GL
+};

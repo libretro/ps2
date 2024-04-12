@@ -30,80 +30,73 @@
 
 #include "GLContextRetroGL.h"
 
-namespace GL
+static bool ShouldPreferESContext(void)
 {
-	static bool ShouldPreferESContext()
-	{
 #ifndef _MSC_VER
-		const char* value = std::getenv("PREFER_GLES_CONTEXT");
-		return (value && std::strcmp(value, "1") == 0);
+	const char* value = std::getenv("PREFER_GLES_CONTEXT");
+	return (value && std::strcmp(value, "1") == 0);
 #else
-		char buffer[2] = {};
-		size_t buffer_size = sizeof(buffer);
-		getenv_s(&buffer_size, buffer, "PREFER_GLES_CONTEXT");
-		return (std::strcmp(buffer, "1") == 0);
+	char buffer[2] = {};
+	size_t buffer_size = sizeof(buffer);
+	getenv_s(&buffer_size, buffer, "PREFER_GLES_CONTEXT");
+	return (std::strcmp(buffer, "1") == 0);
 #endif
-	}
+}
 
-	Context::Context(const WindowInfo& wi)
-		: m_wi(wi)
+GLContext::GLContext() { }
+GLContext::~GLContext() = default;
+
+std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_to_try)
+{
+	if (ShouldPreferESContext())
 	{
-	}
-
-	Context::~Context() = default;
-
-	std::unique_ptr<GL::Context> Context::Create(const WindowInfo& wi, gsl::span<const Version> versions_to_try)
-	{
-		if (ShouldPreferESContext())
+		// move ES versions to the front
+		Version* new_versions_to_try = static_cast<Version*>(alloca(sizeof(Version) * versions_to_try.size()));
+		size_t count = 0;
+		for (size_t i = 0; i < versions_to_try.size(); i++)
 		{
-			// move ES versions to the front
-			Version* new_versions_to_try = static_cast<Version*>(alloca(sizeof(Version) * versions_to_try.size()));
-			size_t count = 0;
-			for (size_t i = 0; i < versions_to_try.size(); i++)
-			{
-				if (versions_to_try[i].profile == Profile::ES)
-					new_versions_to_try[count++] = versions_to_try[i];
-			}
-			for (size_t i = 0; i < versions_to_try.size(); i++)
-			{
-				if (versions_to_try[i].profile != Profile::ES)
-					new_versions_to_try[count++] = versions_to_try[i];
-			}
-			versions_to_try = gsl::span<const Version>(new_versions_to_try, versions_to_try.size());
+			if (versions_to_try[i].profile == Profile::ES)
+				new_versions_to_try[count++] = versions_to_try[i];
 		}
+		for (size_t i = 0; i < versions_to_try.size(); i++)
+		{
+			if (versions_to_try[i].profile != Profile::ES)
+				new_versions_to_try[count++] = versions_to_try[i];
+		}
+		versions_to_try = gsl::span<const Version>(new_versions_to_try, versions_to_try.size());
+	}
 
-		std::unique_ptr<Context> context;
-		context = ContextRetroGL::Create(wi, versions_to_try);
+	std::unique_ptr<GLContext> context;
+	context = ContextRetroGL::Create(versions_to_try);
 
-		if (!context)
+	if (!context)
+		return nullptr;
+
+	Console.WriteLn("Created an %s context", context->IsGLES() ? "OpenGL ES" : "OpenGL");
+
+	// NOTE: Not thread-safe. But this is okay, since we're not going to be creating more than one context at a time.
+	static GLContext* context_being_created;
+	context_being_created = context.get();
+
+	// load up glad
+	if (!context->IsGLES())
+	{
+		if (!gladLoadGLLoader([](const char* name) { return context_being_created->GetProcAddress(name); }))
+		{
+			Console.Error("Failed to load GL functions for GLAD");
 			return nullptr;
-
-		Console.WriteLn("Created an %s context", context->IsGLES() ? "OpenGL ES" : "OpenGL");
-
-		// NOTE: Not thread-safe. But this is okay, since we're not going to be creating more than one context at a time.
-		static Context* context_being_created;
-		context_being_created = context.get();
-
-		// load up glad
-		if (!context->IsGLES())
-		{
-			if (!gladLoadGLLoader([](const char* name) { return context_being_created->GetProcAddress(name); }))
-			{
-				Console.Error("Failed to load GL functions for GLAD");
-				return nullptr;
-			}
 		}
-		else
-		{
-			if (!gladLoadGLES2Loader([](const char* name) { return context_being_created->GetProcAddress(name); }))
-			{
-				Console.Error("Failed to load GLES functions for GLAD");
-				return nullptr;
-			}
-		}
-
-		context_being_created = nullptr;
-
-		return context;
 	}
-} // namespace GL
+	else
+	{
+		if (!gladLoadGLES2Loader([](const char* name) { return context_being_created->GetProcAddress(name); }))
+		{
+			Console.Error("Failed to load GLES functions for GLAD");
+			return nullptr;
+		}
+	}
+
+	context_being_created = nullptr;
+
+	return context;
+}

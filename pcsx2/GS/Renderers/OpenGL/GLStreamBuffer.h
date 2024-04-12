@@ -20,13 +20,11 @@
 #include <tuple>
 #include <vector>
 
-namespace GL
+/// Provides a buffer for streaming data to the GPU, ideally in write-combined memory.
+class GLStreamBuffer
 {
-	/// Provides a buffer for streaming data to the GPU, ideally in write-combined memory.
-	class StreamBuffer
-	{
 	public:
-		virtual ~StreamBuffer();
+		virtual ~GLStreamBuffer();
 
 		__fi GLuint GetGLBufferId() const { return m_buffer_id; }
 		__fi GLenum GetGLTarget() const { return m_target; }
@@ -49,13 +47,12 @@ namespace GL
 		/// Returns the minimum granularity of blocks which sync objects will be created around.
 		virtual u32 GetChunkSize() const = 0;
 
-		static std::unique_ptr<StreamBuffer> Create(GLenum target, u32 size);
+		static std::unique_ptr<GLStreamBuffer> Create(GLenum target, u32 size);
 
 	protected:
-		StreamBuffer(GLenum target, GLuint buffer_id, u32 size);
+		GLStreamBuffer(GLenum target, GLuint buffer_id, u32 size);
 
 		GLenum m_target;
 		GLuint m_buffer_id;
 		u32 m_size;
-	};
-} // namespace GL
+};
