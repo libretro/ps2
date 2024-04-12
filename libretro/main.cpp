@@ -81,8 +81,19 @@ GfxOption<std::string> renderer("pcsx2_renderer", "Renderer", {"Auto", "OpenGL",
 															   "Software", "Null"});
 
 GfxOption<int> upscale_multiplier("pcsx2_upscale_multiplier", "Internal Resolution",
-								  {{"Native PS2", 1}, {"2x Native ~720p", 2}, {"3x Native ~1080p", 3},{"4x Native ~1440p 2K", 4},
-								   {"5x Native ~1620p 3K", 5}, {"6x Native ~2160p 4K", 6}, {"8x Native ~2880p 5K", 8}});
+								  {
+								  {"Native PS2",              1},
+								  {"2x Native (~720p)",       2},
+								  {"3x Native (~1080p)",      3},
+								  {"4x Native (~1440p/2K)",   4},
+								  {"5x Native (~1800p/3K)",   5},
+								  {"6x Native (~2160p/4K)",   6},
+								  {"7x Native (~2520p)",      7},
+								  {"8x Native (~2880p/5K)",   8},
+								  {"9x Native (~3240p)",      9},
+								  {"10x Native (~3600p)",    10},
+								  {"11x Native (~3960p)",    11},
+								  {"12x Native (~4320p/8K)", 12}   });
 //static GfxOption<int> sw_renderer_threads("pcsx2_sw_renderer_threads", "Software Renderer Threads", 2, 10);
 } // namespace Options
 

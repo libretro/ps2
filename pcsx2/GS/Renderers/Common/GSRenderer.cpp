@@ -208,9 +208,9 @@ float GSRenderer::GetModXYOffset()
 		mod_xy = GetUpscaleMultiplier();
 		switch (static_cast<int>(std::round(mod_xy)))
 		{
-			case 2: case 4: case 6: case 8: mod_xy += 0.2f; break;
-			case 3: case 7:                 mod_xy += 0.1f; break;
-			case 5:                         mod_xy += 0.3f; break;
+			case 2: case 4: case 6: case 8: case 12: mod_xy += 0.2f; break;
+			case 3: case 7: case 11:        mod_xy += 0.1f; break;
+			case 5: case 10:                mod_xy += 0.3f; break;
 			default:                        mod_xy = 0.0f; break;
 		}
 	}
