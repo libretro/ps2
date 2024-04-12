@@ -773,24 +773,6 @@
     <ClCompile Include="IPU\IPUdither.cpp">
       <Filter>System\Ps2\IPU</Filter>
     </ClCompile>
-    <ClCompile Include="CDVD\CDVDdiscReader.cpp">
-      <Filter>System\Ps2\Iop\CDVD</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\CDVDdiscThread.cpp">
-      <Filter>System\Ps2\Iop\CDVD</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\Windows\DriveUtility.cpp">
-      <Filter>System\Ps2\Iop\CDVD\Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\Windows\IOCtlSrc.cpp">
-      <Filter>System\Ps2\Iop\CDVD\Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\Linux\IOCtlSrc.cpp">
-      <Filter>System\Ps2\Iop\CDVD\Linux</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\Linux\DriveUtility.cpp">
-      <Filter>System\Ps2\Iop\CDVD\Linux</Filter>
-    </ClCompile>
     <ClCompile Include="FW.cpp">
       <Filter>System\Ps2\Iop\FW</Filter>
     </ClCompile>

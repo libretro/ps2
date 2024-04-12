@@ -113,8 +113,6 @@
     <!-- Generate Recording GUI Image Headers -->
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CDVD\CDVDdiscReader.cpp" />
-    <ClCompile Include="CDVD\CDVDdiscThread.cpp" />
     <ClCompile Include="CDVD\ChdFileReader.cpp" />
     <ClCompile Include="CDVD\ChunksCache.cpp" />
     <ClCompile Include="CDVD\CompressedFileReader.cpp" />
@@ -122,14 +120,8 @@
     <ClCompile Include="CDVD\GzippedFileReader.cpp" />
     <ClCompile Include="CDVD\OutputIsoFile.cpp" />
     <ClCompile Include="CDVD\ThreadedFileReader.cpp" />
-    <ClCompile Include="CDVD\Linux\DriveUtility.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="CDVD\Linux\IOCtlSrc.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="CDVD\Windows\DriveUtility.cpp" />
-    <ClCompile Include="CDVD\Windows\IOCtlSrc.cpp" />
     <ClCompile Include="DebugTools\DebugInterface.cpp" />
     <ClCompile Include="DebugTools\MIPSAnalyst.cpp" />
     <ClCompile Include="DebugTools\SymbolMap.cpp" />
@@ -445,7 +437,6 @@
   <ItemGroup>
     <ClInclude Include="Achievements.h" />
     <ClInclude Include="AsyncFileReader.h" />
-    <ClInclude Include="CDVD\CDVDdiscReader.h" />
     <ClInclude Include="CDVD\ChunksCache.h" />
     <ClInclude Include="CDVD\CompressedFileReader.h" />
     <ClInclude Include="CDVD\CompressedFileReaderUtils.h" />

@@ -296,7 +296,7 @@ void CDVDsys_ChangeSource(CDVD_SourceType type)
 			break;
 
 		case CDVD_SourceType::Disc:
-			CDVD = &CDVDapi_Disc;
+			/* TODO/FIXME - removed physical CD/DVD code */
 			break;
 
 		case CDVD_SourceType::NoDisc:

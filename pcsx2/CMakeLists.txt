@@ -208,9 +208,7 @@ set(pcsx2CDVDSources
 	CDVD/Ps1CD.cpp
 	CDVD/CDVDcommon.cpp
 	CDVD/CDVD.cpp
-	CDVD/CDVDdiscReader.cpp
 	CDVD/CDVDisoReader.cpp
-	CDVD/CDVDdiscThread.cpp
 	CDVD/InputIsoFile.cpp
 	CDVD/OutputIsoFile.cpp
 	CDVD/ChunksCache.cpp
@@ -230,7 +228,6 @@ set(pcsx2CDVDHeaders
 	CDVD/CDVDcommon.h
 	CDVD/CDVD.h
 	CDVD/CDVD_internal.h
-	CDVD/CDVDdiscReader.h
 	CDVD/ChunksCache.h
 	CDVD/CompressedFileReader.h
 	CDVD/ChdFileReader.h
@@ -740,20 +737,14 @@ list(APPEND pcsx2FrontendHeaders
 
 # Linux sources
 set(pcsx2LinuxSources
-	CDVD/Linux/DriveUtility.cpp
-	CDVD/Linux/IOCtlSrc.cpp
 	Linux/LnxFlatFileReader.cpp
 	)
 
 set(pcsx2OSXSources
-	CDVD/Darwin/DriveUtility.cpp
-	CDVD/Darwin/IOCtlSrc.cpp
 	Darwin/DarwinFlatFileReader.cpp
 	)
 
 set(pcsx2FreeBSDSources
-	CDVD/Darwin/DriveUtility.cpp
-	CDVD/Darwin/IOCtlSrc.cpp
 	Darwin/DarwinFlatFileReader.cpp
 	)
 
@@ -778,8 +769,6 @@ set(pcsx2ps2Headers
 
 # Windows sources
 set(pcsx2WindowsSources
-	CDVD/Windows/DriveUtility.cpp
-	CDVD/Windows/IOCtlSrc.cpp
 	windows/FlatFileReaderWindows.cpp
 	windows/Optimus.cpp
 )
