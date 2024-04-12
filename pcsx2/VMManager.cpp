@@ -96,9 +96,6 @@ static std::atomic<VMState> s_state{VMState::Shutdown};
 static bool s_cpu_implementation_changed = false;
 static Threading::ThreadHandle s_vm_thread_handle;
 
-static std::deque<std::thread> s_save_state_threads;
-static std::mutex s_save_state_threads_mutex;
-
 static std::recursive_mutex s_info_mutex;
 static std::string s_disc_path;
 static u32 s_game_crc;
@@ -709,21 +706,6 @@ void VMManager::Reset()
 	// If we were paused, state won't be resetting, so don't flip back to running.
 	if (s_state.load(std::memory_order_acquire) == VMState::Resetting)
 		s_state.store(VMState::Running, std::memory_order_release);
-}
-
-void VMManager::WaitForSaveStateFlush()
-{
-	std::unique_lock lock(s_save_state_threads_mutex);
-	while (!s_save_state_threads.empty())
-	{
-		// take a thread from the list and join with it. it won't self detatch then, but that's okay,
-		// since we're joining with it here.
-		std::thread save_thread(std::move(s_save_state_threads.front()));
-		s_save_state_threads.pop_front();
-		lock.unlock();
-		save_thread.join();
-		lock.lock();
-	}
 }
 
 bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)

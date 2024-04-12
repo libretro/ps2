@@ -90,7 +90,6 @@ void CommonHost::CPUThreadInitialize()
 void CommonHost::CPUThreadShutdown()
 {
 	InputManager::CloseSources();
-	VMManager::WaitForSaveStateFlush();
 	VMManager::Internal::ReleaseMemory();
 	VMManager::Internal::ReleaseGlobals();
 }
@@ -102,29 +101,14 @@ void CommonHost::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex
 	InputManager::ReloadBindings(si, *binding_si);
 }
 
-void CommonHost::CheckForSettingsChanges(const Pcsx2Config& old_config)
-{
-}
-
-void CommonHost::OnVMStarting()
-{
-}
-
-void CommonHost::OnVMStarted()
-{
-}
-
-void CommonHost::OnVMDestroyed()
-{
-}
-
+void CommonHost::CheckForSettingsChanges(const Pcsx2Config& old_config) { }
+void CommonHost::OnVMStarting() { }
+void CommonHost::OnVMStarted() { }
+void CommonHost::OnVMDestroyed() { }
+void CommonHost::OnVMResumed() { }
 void CommonHost::OnVMPaused()
 {
 	InputManager::PauseVibration();
-}
-
-void CommonHost::OnVMResumed()
-{
 }
 
 static void stub_OnRunningGameChanged(std::string path, std::string serial, u32 crc) { }
