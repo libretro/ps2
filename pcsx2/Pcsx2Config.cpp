@@ -951,7 +951,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapSection("EmuCore");
 
-	SettingsWrapBitBool(CdvdDumpBlocks);
 	SettingsWrapBitBool(CdvdShareWrite);
 	SettingsWrapBitBool(EnablePatches);
 	SettingsWrapBitBool(EnableCheats);
@@ -972,9 +971,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	Gamefixes.LoadSave(wrap);
 
 	SettingsWrapEntry(GzipIsoIndexTemplate);
-
-	// For now, this in the derived config for backwards ini compatibility.
-	SettingsWrapEntryEx(CurrentBlockdump, "BlockDumpSaveDirectory");
 
 	BaseFilenames.LoadSave(wrap);
 	Framerate.LoadSave(wrap);
@@ -1056,7 +1052,6 @@ bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 {
 	UseBOOT2Injection = cfg.UseBOOT2Injection;
-	CurrentBlockdump = std::move(cfg.CurrentBlockdump);
 	CurrentIRX = std::move(cfg.CurrentIRX);
 	CurrentGameArgs = std::move(cfg.CurrentGameArgs);
 	CurrentAspectRatio = cfg.CurrentAspectRatio;

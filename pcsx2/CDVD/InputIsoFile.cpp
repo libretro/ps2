@@ -183,7 +183,6 @@ bool InputIsoFile::Open(std::string srcfile, bool testOnly)
 	Close();
 	m_filename = std::move(srcfile);
 
-	bool isBlockdump = false;
 	bool isCompressed = false;
 
 	// First try using a compressed reader.  If it works, go with it.
@@ -202,24 +201,6 @@ bool InputIsoFile::Open(std::string srcfile, bool testOnly)
 	if (!m_reader->Open(m_filename))
 		return false;
 
-	// It might actually be a blockdump file.
-	// Check that before continuing with the FlatFileReader.
-	isBlockdump = BlockdumpFileReader::DetectBlockdump(m_reader);
-	if (isBlockdump)
-	{
-		delete m_reader;
-
-		BlockdumpFileReader* bdr = new BlockdumpFileReader();
-		bdr->Open(m_filename);
-
-		m_blockofs = bdr->GetBlockOffset();
-		m_blocksize = bdr->GetBlockSize();
-
-		m_reader = bdr;
-
-		ReadUnit = 1;
-	}
-
 	bool detected = Detect();
 
 	if (testOnly)
@@ -235,7 +216,7 @@ bool InputIsoFile::Open(std::string srcfile, bool testOnly)
 		return false;
 	}
 
-	if (!isBlockdump && !isCompressed)
+	if (!isCompressed)
 	{
 		ReadUnit = MaxReadUnit;
 

@@ -16,8 +16,6 @@
 
 #include "PrecompiledHeader.h"
 
-#define ENABLE_TIMESTAMPS
-
 #include <ctype.h>
 #include <time.h>
 #include <exception>
@@ -49,12 +47,6 @@ static int diskTypeCached = -1;
 // used to bridge the gap between the old getBuffer api and the new getBuffer2 api.
 int lastReadSize;
 u32 lastLSN; // needed for block dumping
-
-static OutputIsoFile blockDumpFile;
-
-// Assertion check for CDVD != NULL (in devel and debug builds), because its handier than
-// relying on DEP exceptions -- and a little more reliable too.
-static void CheckNullCDVD(void) { }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Disk Type detection stuff (from cdvdGigaherz)
@@ -252,27 +244,6 @@ static void DetectDiskType()
 
 	switch (baseMediaType)
 	{
-#if 0
-		case CDVD_TYPE_CDDA:
-		case CDVD_TYPE_PSCD:
-		case CDVD_TYPE_PS2CD:
-		case CDVD_TYPE_PSCDDA:
-		case CDVD_TYPE_PS2CDDA:
-			mType = CDVD_TYPE_DETCTCD;
-			break;
-
-		case CDVD_TYPE_DVDV:
-		case CDVD_TYPE_PS2DVD:
-			mType = CDVD_TYPE_DETCTDVDS;
-			break;
-
-		case CDVD_TYPE_DETCTDVDS:
-		case CDVD_TYPE_DETCTDVDD:
-		case CDVD_TYPE_DETCTCD:
-			mType = baseMediaType;
-			break;
-#endif
-
 		case CDVD_TYPE_NODISC:
 			diskTypeCached = CDVD_TYPE_NODISC;
 			return;
@@ -338,8 +309,6 @@ void CDVDsys_ChangeSource(CDVD_SourceType type)
 
 bool DoCDVDopen(void)
 {
-	CheckNullCDVD();
-
 	CDVD->newDiskCB(cdvdNewDiskCB);
 
 	// Win32 Fail: the old CDVD api expects MBCS on Win32 platforms, but generating a MBCS
@@ -355,79 +324,12 @@ bool DoCDVDopen(void)
 	if (ret == -1)
 		return false; // error! (handled by caller)
 
-	int cdtype = DoCDVDdetectDiskType();
-
-	if (!EmuConfig.CdvdDumpBlocks || (cdtype == CDVD_TYPE_NODISC))
-	{
-		blockDumpFile.Close();
-		return true;
-	}
-
-	std::string dump_name(Path::StripExtension(m_SourceFilename[CurrentSourceType]));
-	//FWIW Disc serial availability doesn't seem reliable enough, sometimes it's there and sometime it's just null
-	//Shouldn't the serial be available all time? Potentially need to look into Elfreloadinfo() reliability
-	//TODO: Add extra fallback case for CRC.
-	if (dump_name.empty() && !DiscSerial.empty())
-		dump_name = StringUtil::StdStringFromFormat("Untitled-%s", DiscSerial.c_str());
-	else if (dump_name.empty())
-		dump_name = "Untitled";
-
-	if (EmuConfig.CurrentBlockdump.empty())
-		EmuConfig.CurrentBlockdump = FileSystem::GetWorkingDirectory();
-
-	std::string temp(Path::Combine(EmuConfig.CurrentBlockdump, dump_name));
-
-#ifdef ENABLE_TIMESTAMPS
-	std::time_t curtime_t = std::time(nullptr);
-	struct tm curtime = {};
-#ifdef _MSC_VER
-	localtime_s(&curtime, &curtime_t);
-#else
-	localtime_r(&curtime_t, &curtime);
-#endif
-
-	temp += StringUtil::StdStringFromFormat(" (%04d-%02d-%02d %02d-%02d-%02d)",
-		curtime.tm_year + 1900, curtime.tm_mon + 1, curtime.tm_mday,
-		curtime.tm_hour, curtime.tm_min, curtime.tm_sec);
-#endif
-	temp += ".dump";
-
-	cdvdTD td;
-	CDVD->getTD(0, &td);
-
-	Console.WriteLn("Saving CDVD block dump to '{%s}'.", temp);
-
-	if (blockDumpFile.Create(std::move(temp), 2))
-	{
-		int blockofs = 0;
-		uint blocksize = CD_FRAMESIZE_RAW;
-		uint blocks = td.lsn;
-
-		// hack: Because of limitations of the current cdvd design, we can't query the blocksize
-		// of the underlying media.  So lets make a best guess:
-
-		switch (cdtype)
-		{
-			case CDVD_TYPE_PS2DVD:
-			case CDVD_TYPE_DVDV:
-			case CDVD_TYPE_DETCTDVDS:
-			case CDVD_TYPE_DETCTDVDD:
-				blocksize = 2048;
-				break;
-		}
-		blockDumpFile.WriteHeader(blockofs, blocksize, blocks);
-	}
-
-
+	DoCDVDdetectDiskType();
 	return true;
 }
 
 void DoCDVDclose()
 {
-	CheckNullCDVD();
-
-	blockDumpFile.Close();
-
 	if (CDVD->close != NULL)
 		CDVD->close();
 
@@ -436,30 +338,11 @@ void DoCDVDclose()
 
 s32 DoCDVDreadSector(u8* buffer, u32 lsn, int mode)
 {
-	CheckNullCDVD();
-	int ret = CDVD->readSector(buffer, lsn, mode);
-
-	if (ret == 0 && blockDumpFile.IsOpened())
-	{
-		if (blockDumpFile.GetBlockSize() == CD_FRAMESIZE_RAW && mode != CDVD_MODE_2352)
-		{
-			u8 blockDumpBuffer[CD_FRAMESIZE_RAW];
-			if (CDVD->readSector(blockDumpBuffer, lsn, CDVD_MODE_2352) == 0)
-				blockDumpFile.WriteSector(blockDumpBuffer, lsn);
-		}
-		else
-		{
-			blockDumpFile.WriteSector(buffer, lsn);
-		}
-	}
-
-	return ret;
+	return CDVD->readSector(buffer, lsn, mode);
 }
 
 s32 DoCDVDreadTrack(u32 lsn, int mode)
 {
-	CheckNullCDVD();
-
 	// TODO: The CDVD api only uses the new getBuffer style. Why is this temp?
 	// lastReadSize is needed for block dumps
 	switch (mode)
@@ -483,35 +366,11 @@ s32 DoCDVDreadTrack(u32 lsn, int mode)
 
 s32 DoCDVDgetBuffer(u8* buffer)
 {
-	CheckNullCDVD();
-	const int ret = CDVD->getBuffer(buffer);
-
-	if (ret == 0 && blockDumpFile.IsOpened())
-	{
-		cdvdTD td;
-		CDVD->getTD(0, &td);
-
-		if (lastLSN >= td.lsn)
-			return 0;
-
-		if (blockDumpFile.GetBlockSize() == CD_FRAMESIZE_RAW && lastReadSize != 2352)
-		{
-			u8 blockDumpBuffer[CD_FRAMESIZE_RAW];
-			if (CDVD->readSector(blockDumpBuffer, lastLSN, CDVD_MODE_2352) == 0)
-				blockDumpFile.WriteSector(blockDumpBuffer, lastLSN);
-		}
-		else
-		{
-			blockDumpFile.WriteSector(buffer, lastLSN);
-		}
-	}
-
-	return ret;
+	return CDVD->getBuffer(buffer);
 }
 
 s32 DoCDVDdetectDiskType()
 {
-	CheckNullCDVD();
 	if (diskTypeCached < 0)
 		DetectDiskType();
 	return diskTypeCached;

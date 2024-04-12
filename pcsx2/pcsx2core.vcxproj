@@ -113,7 +113,6 @@
     <!-- Generate Recording GUI Image Headers -->
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CDVD\BlockdumpFileReader.cpp" />
     <ClCompile Include="CDVD\CDVDdiscReader.cpp" />
     <ClCompile Include="CDVD\CDVDdiscThread.cpp" />
     <ClCompile Include="CDVD\ChdFileReader.cpp" />

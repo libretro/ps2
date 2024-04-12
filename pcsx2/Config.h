@@ -865,7 +865,6 @@ struct Pcsx2Config
 
 	BITFIELD32()
 	bool
-		CdvdDumpBlocks : 1, // enables cdvd block dumping
 		CdvdShareWrite : 1, // allows the iso to be modified while it's loaded
 		EnablePatches : 1, // enables patch detection and application
 		EnableCheats : 1, // enables cheat detection and application
@@ -908,7 +907,6 @@ struct Pcsx2Config
 	std::string GzipIsoIndexTemplate; // for quick-access index with gzipped ISO
 
 	// Set at runtime, not loaded from config.
-	std::string CurrentBlockdump;
 	std::string CurrentIRX;
 	std::string CurrentGameArgs;
 	AspectRatioType CurrentAspectRatio = AspectRatioType::RAuto4_3_3_2;
