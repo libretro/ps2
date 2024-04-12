@@ -63,7 +63,6 @@ target_sources(common PRIVATE
 	HeapArray.h
 	MemorySettingsInterface.h
 	MD5Digest.h
-	MRCHelpers.h
 	Path.h
 	PrecompiledHeader.h
 	ReadbackSpinManager.h
