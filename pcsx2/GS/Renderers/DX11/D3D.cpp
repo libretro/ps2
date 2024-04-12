@@ -22,6 +22,9 @@
 #include "common/StringUtil.h"
 
 #include <d3d11.h>
+#include <d3dcompiler.h>
+
+#include <fstream>
 
 wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 {
@@ -226,4 +229,81 @@ GSRendererType D3D::GetPreferredRenderer(void)
 	}
 
 	return GSRendererType::DX11;
+}
+
+static unsigned s_next_bad_shader_id = 1;
+
+wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_LEVEL feature_level, bool debug,
+	const std::string_view& code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
+{
+	const char* target;
+	switch (feature_level)
+	{
+		case D3D_FEATURE_LEVEL_10_0:
+		{
+			static constexpr std::array<const char*, 4> targets = {{"vs_4_0", "ps_4_0", "cs_4_0"}};
+			target = targets[static_cast<int>(type)];
+		}
+		break;
+
+		case D3D_FEATURE_LEVEL_10_1:
+		{
+			static constexpr std::array<const char*, 4> targets = {{"vs_4_1", "ps_4_1", "cs_4_1"}};
+			target = targets[static_cast<int>(type)];
+		}
+		break;
+
+		case D3D_FEATURE_LEVEL_11_0:
+		{
+			static constexpr std::array<const char*, 4> targets = {{"vs_5_0", "ps_5_0", "cs_5_0"}};
+			target = targets[static_cast<int>(type)];
+		}
+		break;
+
+		case D3D_FEATURE_LEVEL_11_1:
+		default:
+		{
+			static constexpr std::array<const char*, 4> targets = {{"vs_5_1", "ps_5_1", "cs_5_1"}};
+			target = targets[static_cast<int>(type)];
+		}
+		break;
+	}
+
+	static constexpr UINT flags_non_debug = D3DCOMPILE_OPTIMIZATION_LEVEL3;
+	static constexpr UINT flags_debug = D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
+
+	wil::com_ptr_nothrow<ID3DBlob> blob;
+	wil::com_ptr_nothrow<ID3DBlob> error_blob;
+	const HRESULT hr =
+		D3DCompile(code.data(), code.size(), "0", macros, nullptr, entry_point, target, debug ? flags_debug : flags_non_debug,
+			0, blob.put(), error_blob.put());
+
+	std::string error_string;
+	if (error_blob)
+	{
+		error_string.append(static_cast<const char*>(error_blob->GetBufferPointer()), error_blob->GetBufferSize());
+		error_blob.reset();
+	}
+
+	if (FAILED(hr))
+	{
+		Console.WriteLn("Failed to compile '%s':\n%s", target, error_string.c_str());
+
+		std::ofstream ofs(StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++).c_str(),
+			std::ofstream::out | std::ofstream::binary);
+		if (ofs.is_open())
+		{
+			ofs << code;
+			ofs << "\n\nCompile as " << target << " failed: " << hr << "\n";
+			ofs.write(error_string.c_str(), error_string.size());
+			ofs.close();
+		}
+
+		return {};
+	}
+
+	if (!error_string.empty())
+		Console.Warning("'%s' compiled with warnings:\n%s", target, error_string.c_str());
+
+	return blob;
 }

@@ -16,7 +16,7 @@
 #include "common/PrecompiledHeader.h"
 
 #include "D3D12ShaderCache.h"
-#include "../DX11/D3D11ShaderCache.h"
+#include "../DX11/D3D.h"
 #include "common/FileSystem.h"
 #include "common/Console.h"
 #include "common/MD5Digest.h"
@@ -517,13 +517,13 @@ ShaderCache::ComPtr<ID3DBlob> ShaderCache::CompileAndAddShaderBlob(const CacheIn
 	switch (key.type)
 	{
 		case EntryType::VertexShader:
-			blob = D3D11::ShaderCompiler::CompileShader(D3D11::ShaderCompiler::Type::Vertex, m_feature_level, m_debug, shader_code, macros, entry_point);
+			blob = D3D::CompileShader(D3D::ShaderType::Vertex, m_feature_level, m_debug, shader_code, macros, entry_point);
 			break;
 		case EntryType::PixelShader:
-			blob = D3D11::ShaderCompiler::CompileShader(D3D11::ShaderCompiler::Type::Pixel, m_feature_level, m_debug, shader_code, macros, entry_point);
+			blob = D3D::CompileShader(D3D::ShaderType::Pixel, m_feature_level, m_debug, shader_code, macros, entry_point);
 			break;
 		case EntryType::ComputeShader:
-			blob = D3D11::ShaderCompiler::CompileShader(D3D11::ShaderCompiler::Type::Compute, m_feature_level, m_debug, shader_code, macros, entry_point);
+			blob = D3D::CompileShader(D3D::ShaderType::Compute, m_feature_level, m_debug, shader_code, macros, entry_point);
 			break;
 		default:
 			break;

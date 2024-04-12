@@ -15,6 +15,7 @@
 
 #pragma once
 #include "common/Pcsx2Defs.h"
+#include "GS/Renderers/DX11/D3D.h"
 #include "common/HashCombine.h"
 #include "common/RedtapeWindows.h"
 #include "common/RedtapeWilCom.h"
@@ -25,33 +26,6 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
-
-namespace D3D11::ShaderCompiler
-{
-	enum class Type
-	{
-		Vertex,
-		Pixel,
-		Compute
-	};
-
-	wil::com_ptr_nothrow<ID3DBlob> CompileShader(Type type, D3D_FEATURE_LEVEL feature_level, bool debug, const std::string_view& code,
-		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
-
-	wil::com_ptr_nothrow<ID3D11VertexShader> CompileAndCreateVertexShader(ID3D11Device* device, bool debug, const std::string_view& code,
-		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
-	wil::com_ptr_nothrow<ID3D11PixelShader> CompileAndCreatePixelShader(ID3D11Device* device, bool debug, const std::string_view& code,
-		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
-	wil::com_ptr_nothrow<ID3D11ComputeShader> CompileAndCreateComputeShader(ID3D11Device* device, bool debug, const std::string_view& code,
-		const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
-
-	wil::com_ptr_nothrow<ID3D11VertexShader> CreateVertexShader(ID3D11Device* device, const void* bytecode, size_t bytecode_length);
-	wil::com_ptr_nothrow<ID3D11VertexShader> CreateVertexShader(ID3D11Device* device, const ID3DBlob* blob);
-	wil::com_ptr_nothrow<ID3D11PixelShader> CreatePixelShader(ID3D11Device* device, const void* bytecode, size_t bytecode_length);
-	wil::com_ptr_nothrow<ID3D11PixelShader> CreatePixelShader(ID3D11Device* device, const ID3DBlob* blob);
-	wil::com_ptr_nothrow<ID3D11ComputeShader> CreateComputeShader(ID3D11Device* device, const void* bytecode, size_t bytecode_length);
-	wil::com_ptr_nothrow<ID3D11ComputeShader> CreateComputeShader(ID3D11Device* device, const ID3DBlob* blob);
-}; // namespace D3D11::ShaderCompiler
 
 namespace D3D11
 {
@@ -67,7 +41,7 @@ namespace D3D11
 		bool Open(std::string_view base_path, D3D_FEATURE_LEVEL feature_level, u32 version, bool debug);
 		void Close();
 
-		wil::com_ptr_nothrow<ID3DBlob> GetShaderBlob(ShaderCompiler::Type type, const std::string_view& shader_code,
+		wil::com_ptr_nothrow<ID3DBlob> GetShaderBlob(D3D::ShaderType type, const std::string_view& shader_code,
 			const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 		wil::com_ptr_nothrow<ID3D11VertexShader> GetVertexShader(ID3D11Device* device, const std::string_view& shader_code,
@@ -96,7 +70,7 @@ namespace D3D11
 			u64 entry_point_low;
 			u64 entry_point_high;
 			u32 source_length;
-			ShaderCompiler::Type shader_type;
+			D3D::ShaderType shader_type;
 
 			bool operator==(const CacheIndexKey& key) const;
 			bool operator!=(const CacheIndexKey& key) const;
@@ -123,7 +97,7 @@ namespace D3D11
 
 		static std::string GetCacheBaseFileName(const std::string_view& base_path, D3D_FEATURE_LEVEL feature_level,
 			bool debug);
-		static CacheIndexKey GetCacheKey(ShaderCompiler::Type type, const std::string_view& shader_code,
+		static CacheIndexKey GetCacheKey(D3D::ShaderType type, const std::string_view& shader_code,
 			const D3D_SHADER_MACRO* macros, const char* entry_point);
 
 		bool CreateNew(const std::string& index_filename, const std::string& blob_filename);
