@@ -409,9 +409,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 		g_gs_device->ResetAPIState();
 		if (BeginPresentFrame(true))
 			EndPresentFrame();
-		g_gs_device->RestoreAPIState();
-		PerformanceMetrics::Update(registers_written, fb_sprite_frame, true);
-		return;
+		goto end;
 	}
 
 	if (!idle_frame)
@@ -431,8 +429,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 
 		EndPresentFrame();
 	}
+
+end:
 	g_gs_device->RestoreAPIState();
-	PerformanceMetrics::Update(registers_written, fb_sprite_frame, false);
+	PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 }
 
 void GSRenderer::PresentCurrentFrame()

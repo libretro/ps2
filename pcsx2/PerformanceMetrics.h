@@ -28,7 +28,7 @@ namespace PerformanceMetrics
 
 	void Clear();
 	void Reset();
-	void Update(bool gs_register_write, bool fb_blit, bool is_skipping_present);
+	void Update(bool gs_register_write, bool fb_blit);
 
 	InternalFPSMethod GetInternalFPSMethod();
 } // namespace PerformanceMetrics

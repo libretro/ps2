@@ -52,7 +52,7 @@ void PerformanceMetrics::Reset()
 	s_last_update_time.Reset();
 }
 
-void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit, bool is_skipping_present)
+void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit)
 {
 	s_gs_privileged_register_writes_since_last_update += static_cast<u32>(gs_register_write);
 	s_gs_framebuffer_blits_since_last_update += static_cast<u32>(fb_blit);
