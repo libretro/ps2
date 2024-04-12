@@ -59,7 +59,7 @@ static bool InitializeGlslang(void)
 	return true;
 }
 
-static void DeinitializeGlslang(void)
+void DeinitializeGlslang(void)
 {
 	if (!glslang_initialized)
 		return;
