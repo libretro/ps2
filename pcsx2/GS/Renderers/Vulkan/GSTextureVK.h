@@ -23,13 +23,13 @@
 class GSTextureVK final : public GSTexture
 {
 public:
-	GSTextureVK(Type type, Format format, Vulkan::Texture texture);
+	GSTextureVK(Type type, Format format, VKTexture texture);
 	~GSTextureVK() override;
 
 	static std::unique_ptr<GSTextureVK> Create(Type type, u32 width, u32 height, u32 levels, Format format, VkFormat vk_format);
 
-	__fi Vulkan::Texture& GetTexture() { return m_texture; }
-	__fi Vulkan::Texture* GetTexturePtr() { return &m_texture; }
+	__fi VKTexture& GetTexture() { return m_texture; }
+	__fi VKTexture* GetTexturePtr() { return &m_texture; }
 	__fi VkFormat GetNativeFormat() const { return m_texture.GetFormat(); }
 	__fi VkImage GetImage() const { return m_texture.GetImage(); }
 	__fi VkImageView GetView() const { return m_texture.GetView(); }
@@ -63,7 +63,7 @@ private:
 	void CopyTextureDataForUpload(void* dst, const void* src, u32 pitch, u32 upload_pitch, u32 height) const;
 	VkBuffer AllocateUploadStagingBuffer(const void* data, u32 pitch, u32 upload_pitch, u32 height) const;
 
-	Vulkan::Texture m_texture;
+	VKTexture m_texture;
 
 	// Contains the fence counter when the texture was last used.
 	// When this matches the current fence counter, the texture was used this command buffer.

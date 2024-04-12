@@ -23,13 +23,11 @@
 #include <optional>
 #include <vector>
 
-namespace Vulkan
+class VKSwapChain
 {
-	class SwapChain
-	{
 	public:
-		SwapChain(const WindowInfo& wi, VkSurfaceKHR surface, VkPresentModeKHR preferred_present_mode);
-		~SwapChain();
+		VKSwapChain(const WindowInfo& wi, VkSurfaceKHR surface, VkPresentModeKHR preferred_present_mode);
+		~VKSwapChain();
 
 		// Creates a vulkan-renderable surface for the specified window handle.
 		static VkSurfaceKHR CreateVulkanSurface(VkInstance instance, VkPhysicalDevice physical_device, WindowInfo* wi);
@@ -38,8 +36,8 @@ namespace Vulkan
 		static void DestroyVulkanSurface(VkInstance instance, WindowInfo* wi, VkSurfaceKHR surface);
 
 		// Create a new swap chain from a pre-existing surface.
-		static std::unique_ptr<SwapChain> Create(const WindowInfo& wi, VkSurfaceKHR surface,
-			VkPresentModeKHR preferred_present_mode);
+		static std::unique_ptr<VKSwapChain> Create(const WindowInfo& wi, VkSurfaceKHR surface,
+				VkPresentModeKHR preferred_present_mode);
 
 		__fi VkSurfaceKHR GetSurface() const { return m_surface; }
 		__fi VkSurfaceFormatKHR GetSurfaceFormat() const { return m_surface_format; }
@@ -54,8 +52,8 @@ namespace Vulkan
 		__fi const u32* GetCurrentImageIndexPtr() const { return &m_current_image; }
 		__fi u32 GetImageCount() const { return static_cast<u32>(m_images.size()); }
 		__fi VkImage GetCurrentImage() const { return m_images[m_current_image].image; }
-		__fi const Texture& GetCurrentTexture() const { return m_images[m_current_image].texture; }
-		__fi Texture& GetCurrentTexture() { return m_images[m_current_image].texture; }
+		__fi const VKTexture& GetCurrentTexture() const { return m_images[m_current_image].texture; }
+		__fi VKTexture& GetCurrentTexture() { return m_images[m_current_image].texture; }
 		__fi VkFramebuffer GetCurrentFramebuffer() const { return m_images[m_current_image].framebuffer; }
 		__fi VkRenderPass GetLoadRenderPass() const { return m_load_render_pass; }
 		__fi VkRenderPass GetClearRenderPass() const { return m_clear_render_pass; }
@@ -93,7 +91,7 @@ namespace Vulkan
 		struct SwapChainImage
 		{
 			VkImage image;
-			Texture texture;
+			VKTexture texture;
 			VkFramebuffer framebuffer;
 		};
 
@@ -119,5 +117,4 @@ namespace Vulkan
 		u32 m_current_image = 0;
 		u32 m_current_semaphore = 0;
 		std::optional<VkResult> m_image_acquire_result;
-	};
-} // namespace Vulkan
+};

@@ -34,636 +34,627 @@
 
 // TODO: store the driver version and stuff in the shader header
 
-std::unique_ptr<Vulkan::ShaderCache> g_vulkan_shader_cache;
+std::unique_ptr<VKShaderCache> g_vulkan_shader_cache;
 
-namespace Vulkan::ShaderCompiler
+// Registers itself for cleanup via atexit
+static unsigned s_next_bad_shader_id = 1;
+static bool glslang_initialized = false;
+
+static bool InitializeGlslang(void)
 {
-	// Registers itself for cleanup via atexit
-	static unsigned s_next_bad_shader_id = 1;
-	static bool glslang_initialized = false;
-
-	static bool InitializeGlslang(void)
-	{
-		if (glslang_initialized)
-			return true;
-
-		if (!glslang::InitializeProcess())
-			return false;
-
-		std::atexit(DeinitializeGlslang);
-		glslang_initialized = true;
+	if (glslang_initialized)
 		return true;
-	}
 
-	static void DeinitializeGlslang(void)
-	{
-		if (!glslang_initialized)
-			return;
+	if (!glslang::InitializeProcess())
+		return false;
 
-		glslang::FinalizeProcess();
-		glslang_initialized = false;
-	}
+	std::atexit(DeinitializeGlslang);
+	glslang_initialized = true;
+	return true;
+}
 
-	static std::optional<SPIRVCodeVector> CompileShaderToSPV(
+static void DeinitializeGlslang(void)
+{
+	if (!glslang_initialized)
+		return;
+
+	glslang::FinalizeProcess();
+	glslang_initialized = false;
+}
+
+static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 		EShLanguage stage, const char* stage_filename, std::string_view source, bool debug)
-	{
-		if (!InitializeGlslang())
-			return std::nullopt;
+{
+	if (!InitializeGlslang())
+		return std::nullopt;
 
-		std::unique_ptr<glslang::TShader> shader = std::make_unique<glslang::TShader>(stage);
-		std::unique_ptr<glslang::TProgram> program;
-		glslang::TShader::ForbidIncluder includer;
-		const EProfile profile = ECoreProfile;
-		const EShMessages messages = static_cast<EShMessages>(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules | (debug ? EShMsgDebugInfo : 0));
-		const int default_version = 450;
+	std::unique_ptr<glslang::TShader> shader = std::make_unique<glslang::TShader>(stage);
+	std::unique_ptr<glslang::TProgram> program;
+	glslang::TShader::ForbidIncluder includer;
+	const EProfile profile = ECoreProfile;
+	const EShMessages messages = static_cast<EShMessages>(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules | (debug ? EShMsgDebugInfo : 0));
+	const int default_version = 450;
 
-		std::string full_source_code;
-		const char* pass_source_code = source.data();
-		int pass_source_code_length = static_cast<int>(source.size());
-		shader->setStringsWithLengths(&pass_source_code, &pass_source_code_length, 1);
+	std::string full_source_code;
+	const char* pass_source_code = source.data();
+	int pass_source_code_length = static_cast<int>(source.size());
+	shader->setStringsWithLengths(&pass_source_code, &pass_source_code_length, 1);
 
-		auto DumpBadShader = [&](const char* msg) {
-			std::string filename = StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++);
-			Console.Error("CompileShaderToSPV: %s, writing to %s", msg, filename.c_str());
+	auto DumpBadShader = [&](const char* msg) {
+		std::string filename = StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++);
+		Console.Error("CompileShaderToSPV: %s, writing to %s", msg, filename.c_str());
 
-			std::ofstream ofs(filename.c_str(), std::ofstream::out | std::ofstream::binary);
-			if (ofs.is_open())
+		std::ofstream ofs(filename.c_str(), std::ofstream::out | std::ofstream::binary);
+		if (ofs.is_open())
+		{
+			ofs << source;
+			ofs << "\n";
+
+			ofs << msg << std::endl;
+			ofs << "Shader Info Log:" << std::endl;
+			ofs << shader->getInfoLog() << std::endl;
+			ofs << shader->getInfoDebugLog() << std::endl;
+			if (program)
 			{
-				ofs << source;
-				ofs << "\n";
-
-				ofs << msg << std::endl;
-				ofs << "Shader Info Log:" << std::endl;
-				ofs << shader->getInfoLog() << std::endl;
-				ofs << shader->getInfoDebugLog() << std::endl;
-				if (program)
-				{
-					ofs << "Program Info Log:" << std::endl;
-					ofs << program->getInfoLog() << std::endl;
-					ofs << program->getInfoDebugLog() << std::endl;
-				}
-
-				ofs.close();
+				ofs << "Program Info Log:" << std::endl;
+				ofs << program->getInfoLog() << std::endl;
+				ofs << program->getInfoDebugLog() << std::endl;
 			}
-		};
 
-		if (!shader->parse(
+			ofs.close();
+		}
+	};
+
+	if (!shader->parse(
 				&glslang::DefaultTBuiltInResource, default_version, profile, false, true, messages, includer))
-		{
-			DumpBadShader("Failed to parse shader");
-			return std::nullopt;
-		}
-
-		// Even though there's only a single shader, we still need to link it to generate SPV
-		program = std::make_unique<glslang::TProgram>();
-		program->addShader(shader.get());
-		if (!program->link(messages))
-		{
-			DumpBadShader("Failed to link program");
-			return std::nullopt;
-		}
-
-		glslang::TIntermediate* intermediate = program->getIntermediate(stage);
-		if (!intermediate)
-		{
-			DumpBadShader("Failed to generate SPIR-V");
-			return std::nullopt;
-		}
-
-		SPIRVCodeVector out_code;
-		spv::SpvBuildLogger logger;
-		glslang::SpvOptions options;
-		options.generateDebugInfo = debug;
-		glslang::GlslangToSpv(*intermediate, out_code, &logger, &options);
-
-		// Write out messages
-		if (std::strlen(shader->getInfoLog()) > 0)
-			Console.Warning("Shader info log: %s", shader->getInfoLog());
-		if (std::strlen(shader->getInfoDebugLog()) > 0)
-			Console.Warning("Shader debug info log: %s", shader->getInfoDebugLog());
-		if (std::strlen(program->getInfoLog()) > 0)
-			Console.Warning("Program info log: %s", program->getInfoLog());
-		if (std::strlen(program->getInfoDebugLog()) > 0)
-			Console.Warning("Program debug info log: %s", program->getInfoDebugLog());
-		std::string spv_messages = logger.getAllMessages();
-		if (!spv_messages.empty())
-			Console.Warning("SPIR-V conversion messages: %s", spv_messages.c_str());
-
-		return out_code;
-	}
-
-	std::optional<ShaderCompiler::SPIRVCodeVector> CompileShader(Type type, std::string_view source_code, bool debug)
 	{
-		switch (type)
-		{
-			case Type::Vertex:
-				return CompileShaderToSPV(EShLangVertex, "vs", source_code, debug);
-
-			case Type::Fragment:
-				return CompileShaderToSPV(EShLangFragment, "ps", source_code, debug);
-
-			case Type::Compute:
-				return CompileShaderToSPV(EShLangCompute, "cs", source_code, debug);
-
-			default:
-				break;
-		}
+		DumpBadShader("Failed to parse shader");
 		return std::nullopt;
 	}
-} // namespace Vulkan::ShaderCompiler
 
-namespace Vulkan
+	// Even though there's only a single shader, we still need to link it to generate SPV
+	program = std::make_unique<glslang::TProgram>();
+	program->addShader(shader.get());
+	if (!program->link(messages))
+	{
+		DumpBadShader("Failed to link program");
+		return std::nullopt;
+	}
+
+	glslang::TIntermediate* intermediate = program->getIntermediate(stage);
+	if (!intermediate)
+	{
+		DumpBadShader("Failed to generate SPIR-V");
+		return std::nullopt;
+	}
+
+	SPIRVCodeVector out_code;
+	spv::SpvBuildLogger logger;
+	glslang::SpvOptions options;
+	options.generateDebugInfo = debug;
+	glslang::GlslangToSpv(*intermediate, out_code, &logger, &options);
+
+	// Write out messages
+	if (std::strlen(shader->getInfoLog()) > 0)
+		Console.Warning("Shader info log: %s", shader->getInfoLog());
+	if (std::strlen(shader->getInfoDebugLog()) > 0)
+		Console.Warning("Shader debug info log: %s", shader->getInfoDebugLog());
+	if (std::strlen(program->getInfoLog()) > 0)
+		Console.Warning("Program info log: %s", program->getInfoLog());
+	if (std::strlen(program->getInfoDebugLog()) > 0)
+		Console.Warning("Program debug info log: %s", program->getInfoDebugLog());
+	std::string spv_messages = logger.getAllMessages();
+	if (!spv_messages.empty())
+		Console.Warning("SPIR-V conversion messages: %s", spv_messages.c_str());
+
+	return out_code;
+}
+
+std::optional<SPIRVCodeVector> CompileShader(ShaderType type, std::string_view source_code, bool debug)
 {
-	using ShaderCompiler::SPIRVCodeType;
-	using ShaderCompiler::SPIRVCodeVector;
+	switch (type)
+	{
+		case ShaderType::Vertex:
+			return CompileShaderToSPV(EShLangVertex, "vs", source_code, debug);
+
+		case ShaderType::Fragment:
+			return CompileShaderToSPV(EShLangFragment, "ps", source_code, debug);
+
+		case ShaderType::Compute:
+			return CompileShaderToSPV(EShLangCompute, "cs", source_code, debug);
+
+		default:
+			break;
+	}
+	return std::nullopt;
+}
 
 #pragma pack(push, 4)
-	struct VK_PIPELINE_CACHE_HEADER
-	{
-		u32 header_length;
-		u32 header_version;
-		u32 vendor_id;
-		u32 device_id;
-		u8 uuid[VK_UUID_SIZE];
-	};
+struct VK_PIPELINE_CACHE_HEADER
+{
+	u32 header_length;
+	u32 header_version;
+	u32 vendor_id;
+	u32 device_id;
+	u8 uuid[VK_UUID_SIZE];
+};
 
-	struct CacheIndexEntry
-	{
-		u64 source_hash_low;
-		u64 source_hash_high;
-		u32 source_length;
-		u32 shader_type;
-		u32 file_offset;
-		u32 blob_size;
-	};
+struct CacheIndexEntry
+{
+	u64 source_hash_low;
+	u64 source_hash_high;
+	u32 source_length;
+	u32 shader_type;
+	u32 file_offset;
+	u32 blob_size;
+};
 #pragma pack(pop)
 
-	static bool ValidatePipelineCacheHeader(const VK_PIPELINE_CACHE_HEADER& header)
+static bool ValidatePipelineCacheHeader(const VK_PIPELINE_CACHE_HEADER& header)
+{
+	if (header.header_length < sizeof(VK_PIPELINE_CACHE_HEADER))
 	{
-		if (header.header_length < sizeof(VK_PIPELINE_CACHE_HEADER))
-		{
-			Console.Error("Pipeline cache failed validation: Invalid header length");
-			return false;
-		}
+		Console.Error("Pipeline cache failed validation: Invalid header length");
+		return false;
+	}
 
-		if (header.header_version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
-		{
-			Console.Error("Pipeline cache failed validation: Invalid header version");
-			return false;
-		}
+	if (header.header_version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
+	{
+		Console.Error("Pipeline cache failed validation: Invalid header version");
+		return false;
+	}
 
-		if (header.vendor_id != g_vulkan_context->GetDeviceProperties().vendorID)
-		{
-			Console.Error("Pipeline cache failed validation: Incorrect vendor ID (file: 0x%X, device: 0x%X)",
+	if (header.vendor_id != g_vulkan_context->GetDeviceProperties().vendorID)
+	{
+		Console.Error("Pipeline cache failed validation: Incorrect vendor ID (file: 0x%X, device: 0x%X)",
 				header.vendor_id, g_vulkan_context->GetDeviceProperties().vendorID);
-			return false;
-		}
+		return false;
+	}
 
-		if (header.device_id != g_vulkan_context->GetDeviceProperties().deviceID)
-		{
-			Console.Error("Pipeline cache failed validation: Incorrect device ID (file: 0x%X, device: 0x%X)",
+	if (header.device_id != g_vulkan_context->GetDeviceProperties().deviceID)
+	{
+		Console.Error("Pipeline cache failed validation: Incorrect device ID (file: 0x%X, device: 0x%X)",
 				header.device_id, g_vulkan_context->GetDeviceProperties().deviceID);
-			return false;
-		}
-
-		if (memcmp(header.uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
-		{
-			Console.Error("Pipeline cache failed validation: Incorrect UUID");
-			return false;
-		}
-
-		return true;
+		return false;
 	}
 
-	static void FillPipelineCacheHeader(VK_PIPELINE_CACHE_HEADER* header)
+	if (memcmp(header.uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
 	{
-		header->header_length = sizeof(VK_PIPELINE_CACHE_HEADER);
-		header->header_version = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
-		header->vendor_id = g_vulkan_context->GetDeviceProperties().vendorID;
-		header->device_id = g_vulkan_context->GetDeviceProperties().deviceID;
-		memcpy(header->uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
+		Console.Error("Pipeline cache failed validation: Incorrect UUID");
+		return false;
 	}
 
-	ShaderCache::ShaderCache() = default;
+	return true;
+}
 
-	ShaderCache::~ShaderCache()
+static void FillPipelineCacheHeader(VK_PIPELINE_CACHE_HEADER* header)
+{
+	header->header_length = sizeof(VK_PIPELINE_CACHE_HEADER);
+	header->header_version = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
+	header->vendor_id = g_vulkan_context->GetDeviceProperties().vendorID;
+	header->device_id = g_vulkan_context->GetDeviceProperties().deviceID;
+	memcpy(header->uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
+}
+
+VKShaderCache::VKShaderCache() = default;
+
+VKShaderCache::~VKShaderCache()
+{
+	CloseShaderCache();
+	FlushPipelineCache();
+	ClosePipelineCache();
+}
+
+bool VKShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
+{
+	return (source_hash_low == key.source_hash_low && source_hash_high == key.source_hash_high &&
+			source_length == key.source_length && shader_type == key.shader_type);
+}
+
+bool VKShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
+{
+	return (source_hash_low != key.source_hash_low || source_hash_high != key.source_hash_high ||
+			source_length != key.source_length || shader_type != key.shader_type);
+}
+
+void VKShaderCache::Create(std::string_view base_path, u32 version, bool debug)
+{
+	g_vulkan_shader_cache.reset(new VKShaderCache());
+	g_vulkan_shader_cache->Open(base_path, version, debug);
+}
+
+void VKShaderCache::Destroy() { g_vulkan_shader_cache.reset(); }
+
+void VKShaderCache::Open(std::string_view directory, u32 version, bool debug)
+{
+	m_version = version;
+	m_debug = debug;
+
+	if (!directory.empty())
 	{
-		CloseShaderCache();
-		FlushPipelineCache();
-		ClosePipelineCache();
-	}
+		m_pipeline_cache_filename = GetPipelineCacheBaseFileName(directory, debug);
 
-	bool ShaderCache::CacheIndexKey::operator==(const CacheIndexKey& key) const
-	{
-		return (source_hash_low == key.source_hash_low && source_hash_high == key.source_hash_high &&
-				source_length == key.source_length && shader_type == key.shader_type);
-	}
+		const std::string base_filename = GetShaderCacheBaseFileName(directory, debug);
+		const std::string index_filename = base_filename + ".idx";
+		const std::string blob_filename = base_filename + ".bin";
 
-	bool ShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
-	{
-		return (source_hash_low != key.source_hash_low || source_hash_high != key.source_hash_high ||
-				source_length != key.source_length || shader_type != key.shader_type);
-	}
+		if (!ReadExistingShaderCache(index_filename, blob_filename))
+			CreateNewShaderCache(index_filename, blob_filename);
 
-	void ShaderCache::Create(std::string_view base_path, u32 version, bool debug)
-	{
-		g_vulkan_shader_cache.reset(new ShaderCache());
-		g_vulkan_shader_cache->Open(base_path, version, debug);
-	}
-
-	void ShaderCache::Destroy() { g_vulkan_shader_cache.reset(); }
-
-	void ShaderCache::Open(std::string_view directory, u32 version, bool debug)
-	{
-		m_version = version;
-		m_debug = debug;
-
-		if (!directory.empty())
-		{
-			m_pipeline_cache_filename = GetPipelineCacheBaseFileName(directory, debug);
-
-			const std::string base_filename = GetShaderCacheBaseFileName(directory, debug);
-			const std::string index_filename = base_filename + ".idx";
-			const std::string blob_filename = base_filename + ".bin";
-
-			if (!ReadExistingShaderCache(index_filename, blob_filename))
-				CreateNewShaderCache(index_filename, blob_filename);
-
-			if (!ReadExistingPipelineCache())
-				CreateNewPipelineCache();
-		}
-		else
-		{
+		if (!ReadExistingPipelineCache())
 			CreateNewPipelineCache();
-		}
+	}
+	else
+	{
+		CreateNewPipelineCache();
+	}
+}
+
+VkPipelineCache VKShaderCache::GetPipelineCache(bool set_dirty /*= true*/)
+{
+	if (m_pipeline_cache == VK_NULL_HANDLE)
+		return VK_NULL_HANDLE;
+
+	m_pipeline_cache_dirty |= set_dirty;
+	return m_pipeline_cache;
+}
+
+bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, const std::string& blob_filename)
+{
+	if (FileSystem::FileExists(index_filename.c_str()))
+	{
+		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
+		FileSystem::DeleteFilePath(index_filename.c_str());
+	}
+	if (FileSystem::FileExists(blob_filename.c_str()))
+	{
+		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
+		FileSystem::DeleteFilePath(blob_filename.c_str());
 	}
 
-	VkPipelineCache ShaderCache::GetPipelineCache(bool set_dirty /*= true*/)
+	m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "wb");
+	if (!m_index_file)
 	{
-		if (m_pipeline_cache == VK_NULL_HANDLE)
-			return VK_NULL_HANDLE;
-
-		m_pipeline_cache_dirty |= set_dirty;
-		return m_pipeline_cache;
+		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
+		return false;
 	}
 
-	bool ShaderCache::CreateNewShaderCache(const std::string& index_filename, const std::string& blob_filename)
-	{
-		if (FileSystem::FileExists(index_filename.c_str()))
-		{
-			Console.Warning("Removing existing index file '%s'", index_filename.c_str());
-			FileSystem::DeleteFilePath(index_filename.c_str());
-		}
-		if (FileSystem::FileExists(blob_filename.c_str()))
-		{
-			Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
-			FileSystem::DeleteFilePath(blob_filename.c_str());
-		}
+	const u32 index_version = FILE_VERSION;
+	VK_PIPELINE_CACHE_HEADER header;
+	FillPipelineCacheHeader(&header);
 
-		m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "wb");
-		if (!m_index_file)
-		{
-			Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
-			return false;
-		}
-
-		const u32 index_version = FILE_VERSION;
-		VK_PIPELINE_CACHE_HEADER header;
-		FillPipelineCacheHeader(&header);
-
-		if (std::fwrite(&index_version, sizeof(index_version), 1, m_index_file) != 1 ||
+	if (std::fwrite(&index_version, sizeof(index_version), 1, m_index_file) != 1 ||
 			std::fwrite(&m_version, sizeof(m_version), 1, m_index_file) != 1 ||
 			std::fwrite(&header, sizeof(header), 1, m_index_file) != 1)
-		{
-			Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
-			std::fclose(m_index_file);
-			m_index_file = nullptr;
-			FileSystem::DeleteFilePath(index_filename.c_str());
-			return false;
-		}
-
-		m_blob_file = FileSystem::OpenCFile(blob_filename.c_str(), "w+b");
-		if (!m_blob_file)
-		{
-			Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
-			std::fclose(m_index_file);
-			m_index_file = nullptr;
-			FileSystem::DeleteFilePath(index_filename.c_str());
-			return false;
-		}
-
-		return true;
+	{
+		Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
+		std::fclose(m_index_file);
+		m_index_file = nullptr;
+		FileSystem::DeleteFilePath(index_filename.c_str());
+		return false;
 	}
 
-	bool ShaderCache::ReadExistingShaderCache(const std::string& index_filename, const std::string& blob_filename)
+	m_blob_file = FileSystem::OpenCFile(blob_filename.c_str(), "w+b");
+	if (!m_blob_file)
 	{
-		m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "r+b");
-		if (!m_index_file)
-		{
-			// special case here: when there's a sharing violation (i.e. two instances running),
-			// we don't want to blow away the cache. so just continue without a cache.
-			if (errno == EACCES)
-			{
-				Console.WriteLn("Failed to open shader cache index with EACCES, are you running two instances?");
-				return true;
-			}
+		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
+		std::fclose(m_index_file);
+		m_index_file = nullptr;
+		FileSystem::DeleteFilePath(index_filename.c_str());
+		return false;
+	}
 
-			return false;
+	return true;
+}
+
+bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, const std::string& blob_filename)
+{
+	m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "r+b");
+	if (!m_index_file)
+	{
+		// special case here: when there's a sharing violation (i.e. two instances running),
+		// we don't want to blow away the cache. so just continue without a cache.
+		if (errno == EACCES)
+		{
+			Console.WriteLn("Failed to open shader cache index with EACCES, are you running two instances?");
+			return true;
 		}
 
-		u32 file_version = 0;
-		u32 data_version = 0;
-		if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != FILE_VERSION ||
+		return false;
+	}
+
+	u32 file_version = 0;
+	u32 data_version = 0;
+	if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != FILE_VERSION ||
 			std::fread(&data_version, sizeof(data_version), 1, m_index_file) != 1 || data_version != m_version)
-		{
-			Console.Error("Bad file/data version in '%s'", index_filename.c_str());
-			std::fclose(m_index_file);
-			m_index_file = nullptr;
-			return false;
-		}
-
-		VK_PIPELINE_CACHE_HEADER header;
-		if (std::fread(&header, sizeof(header), 1, m_index_file) != 1 || !ValidatePipelineCacheHeader(header))
-		{
-			Console.Error("Mismatched pipeline cache header in '%s' (GPU/driver changed?)", index_filename.c_str());
-			std::fclose(m_index_file);
-			m_index_file = nullptr;
-			return false;
-		}
-
-		m_blob_file = FileSystem::OpenCFile(blob_filename.c_str(), "a+b");
-		if (!m_blob_file)
-		{
-			Console.Error("Blob file '%s' is missing", blob_filename.c_str());
-			std::fclose(m_index_file);
-			m_index_file = nullptr;
-			return false;
-		}
-
-		std::fseek(m_blob_file, 0, SEEK_END);
-		const u32 blob_file_size = static_cast<u32>(std::ftell(m_blob_file));
-
-		for (;;)
-		{
-			CacheIndexEntry entry;
-			if (std::fread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
-				(entry.file_offset + entry.blob_size) > blob_file_size)
-			{
-				if (std::feof(m_index_file))
-					break;
-
-				Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
-				m_index.clear();
-				std::fclose(m_blob_file);
-				m_blob_file = nullptr;
-				std::fclose(m_index_file);
-				m_index_file = nullptr;
-				return false;
-			}
-
-			const CacheIndexKey key{entry.source_hash_low, entry.source_hash_high, entry.source_length,
-				static_cast<ShaderCompiler::Type>(entry.shader_type)};
-			const CacheIndexData data{entry.file_offset, entry.blob_size};
-			m_index.emplace(key, data);
-		}
-
-		// ensure we don't write before seeking
-		std::fseek(m_index_file, 0, SEEK_END);
-
-		Console.WriteLn("Read %zu entries from '%s'", m_index.size(), index_filename.c_str());
-		return true;
+	{
+		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
+		std::fclose(m_index_file);
+		m_index_file = nullptr;
+		return false;
 	}
 
-	void ShaderCache::CloseShaderCache()
+	VK_PIPELINE_CACHE_HEADER header;
+	if (std::fread(&header, sizeof(header), 1, m_index_file) != 1 || !ValidatePipelineCacheHeader(header))
 	{
-		if (m_index_file)
+		Console.Error("Mismatched pipeline cache header in '%s' (GPU/driver changed?)", index_filename.c_str());
+		std::fclose(m_index_file);
+		m_index_file = nullptr;
+		return false;
+	}
+
+	m_blob_file = FileSystem::OpenCFile(blob_filename.c_str(), "a+b");
+	if (!m_blob_file)
+	{
+		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
+		std::fclose(m_index_file);
+		m_index_file = nullptr;
+		return false;
+	}
+
+	std::fseek(m_blob_file, 0, SEEK_END);
+	const u32 blob_file_size = static_cast<u32>(std::ftell(m_blob_file));
+
+	for (;;)
+	{
+		CacheIndexEntry entry;
+		if (std::fread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+				(entry.file_offset + entry.blob_size) > blob_file_size)
 		{
-			std::fclose(m_index_file);
-			m_index_file = nullptr;
-		}
-		if (m_blob_file)
-		{
+			if (std::feof(m_index_file))
+				break;
+
+			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
+			m_index.clear();
 			std::fclose(m_blob_file);
 			m_blob_file = nullptr;
+			std::fclose(m_index_file);
+			m_index_file = nullptr;
+			return false;
 		}
+
+		const CacheIndexKey key{entry.source_hash_low, entry.source_hash_high, entry.source_length,
+			static_cast<ShaderType>(entry.shader_type)};
+		const CacheIndexData data{entry.file_offset, entry.blob_size};
+		m_index.emplace(key, data);
 	}
 
-	bool ShaderCache::CreateNewPipelineCache()
+	// ensure we don't write before seeking
+	std::fseek(m_index_file, 0, SEEK_END);
+
+	Console.WriteLn("Read %zu entries from '%s'", m_index.size(), index_filename.c_str());
+	return true;
+}
+
+void VKShaderCache::CloseShaderCache()
+{
+	if (m_index_file)
 	{
-		if (!m_pipeline_cache_filename.empty() && FileSystem::FileExists(m_pipeline_cache_filename.c_str()))
-		{
-			Console.Warning("Removing existing pipeline cache '%s'", m_pipeline_cache_filename.c_str());
-			FileSystem::DeleteFilePath(m_pipeline_cache_filename.c_str());
-		}
+		std::fclose(m_index_file);
+		m_index_file = nullptr;
+	}
+	if (m_blob_file)
+	{
+		std::fclose(m_blob_file);
+		m_blob_file = nullptr;
+	}
+}
 
-		const VkPipelineCacheCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, 0, nullptr};
-		VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
-		if (res != VK_SUCCESS)
-			return false;
-
-		m_pipeline_cache_dirty = true;
-		return true;
+bool VKShaderCache::CreateNewPipelineCache()
+{
+	if (!m_pipeline_cache_filename.empty() && FileSystem::FileExists(m_pipeline_cache_filename.c_str()))
+	{
+		Console.Warning("Removing existing pipeline cache '%s'", m_pipeline_cache_filename.c_str());
+		FileSystem::DeleteFilePath(m_pipeline_cache_filename.c_str());
 	}
 
-	bool ShaderCache::ReadExistingPipelineCache()
+	const VkPipelineCacheCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, 0, nullptr};
+	VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
+	if (res != VK_SUCCESS)
+		return false;
+
+	m_pipeline_cache_dirty = true;
+	return true;
+}
+
+bool VKShaderCache::ReadExistingPipelineCache()
+{
+	std::optional<std::vector<u8>> data = FileSystem::ReadBinaryFile(m_pipeline_cache_filename.c_str());
+	if (!data.has_value())
+		return false;
+
+	if (data->size() < sizeof(VK_PIPELINE_CACHE_HEADER))
 	{
-		std::optional<std::vector<u8>> data = FileSystem::ReadBinaryFile(m_pipeline_cache_filename.c_str());
-		if (!data.has_value())
-			return false;
-
-		if (data->size() < sizeof(VK_PIPELINE_CACHE_HEADER))
-		{
-			Console.Error("Pipeline cache at '%s' is too small", m_pipeline_cache_filename.c_str());
-			return false;
-		}
-
-		VK_PIPELINE_CACHE_HEADER header;
-		memcpy(&header, data->data(), sizeof(header));
-		if (!ValidatePipelineCacheHeader(header))
-			return false;
-
-		const VkPipelineCacheCreateInfo ci{
-			VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, data->size(), data->data()};
-		VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
-		if (res != VK_SUCCESS)
-			return false;
-
-		return true;
+		Console.Error("Pipeline cache at '%s' is too small", m_pipeline_cache_filename.c_str());
+		return false;
 	}
 
-	bool ShaderCache::FlushPipelineCache()
+	VK_PIPELINE_CACHE_HEADER header;
+	memcpy(&header, data->data(), sizeof(header));
+	if (!ValidatePipelineCacheHeader(header))
+		return false;
+
+	const VkPipelineCacheCreateInfo ci{
+		VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, data->size(), data->data()};
+	VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
+	if (res != VK_SUCCESS)
+		return false;
+
+	return true;
+}
+
+bool VKShaderCache::FlushPipelineCache()
+{
+	if (m_pipeline_cache == VK_NULL_HANDLE || !m_pipeline_cache_dirty || m_pipeline_cache_filename.empty())
+		return false;
+
+	size_t data_size;
+	VkResult res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, nullptr);
+	if (res != VK_SUCCESS)
+		return false;
+
+	std::vector<u8> data(data_size);
+	res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, data.data());
+	if (res != VK_SUCCESS)
+		return false;
+
+	data.resize(data_size);
+
+	// Save disk writes if it hasn't changed, think of the poor SSDs.
+	FILESYSTEM_STAT_DATA sd;
+	if (!FileSystem::StatFile(m_pipeline_cache_filename.c_str(), &sd) || sd.Size != static_cast<s64>(data_size))
 	{
-		if (m_pipeline_cache == VK_NULL_HANDLE || !m_pipeline_cache_dirty || m_pipeline_cache_filename.empty())
-			return false;
-
-		size_t data_size;
-		VkResult res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, nullptr);
-		if (res != VK_SUCCESS)
-			return false;
-
-		std::vector<u8> data(data_size);
-		res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, data.data());
-		if (res != VK_SUCCESS)
-			return false;
-
-		data.resize(data_size);
-
-		// Save disk writes if it hasn't changed, think of the poor SSDs.
-		FILESYSTEM_STAT_DATA sd;
-		if (!FileSystem::StatFile(m_pipeline_cache_filename.c_str(), &sd) || sd.Size != static_cast<s64>(data_size))
+		Console.WriteLn("Writing %zu bytes to '%s'", data_size, m_pipeline_cache_filename.c_str());
+		if (!FileSystem::WriteBinaryFile(m_pipeline_cache_filename.c_str(), data.data(), data.size()))
 		{
-			Console.WriteLn("Writing %zu bytes to '%s'", data_size, m_pipeline_cache_filename.c_str());
-			if (!FileSystem::WriteBinaryFile(m_pipeline_cache_filename.c_str(), data.data(), data.size()))
-			{
-				Console.Error("Failed to write pipeline cache to '%s'", m_pipeline_cache_filename.c_str());
-				return false;
-			}
+			Console.Error("Failed to write pipeline cache to '%s'", m_pipeline_cache_filename.c_str());
+			return false;
 		}
-		else
-		{
-			Console.WriteLn(
+	}
+	else
+	{
+		Console.WriteLn(
 				"Skipping updating pipeline cache '%s' due to no changes.", m_pipeline_cache_filename.c_str());
-		}
-
-		m_pipeline_cache_dirty = false;
-		return true;
 	}
 
-	void ShaderCache::ClosePipelineCache()
+	m_pipeline_cache_dirty = false;
+	return true;
+}
+
+void VKShaderCache::ClosePipelineCache()
+{
+	if (m_pipeline_cache == VK_NULL_HANDLE)
+		return;
+
+	vkDestroyPipelineCache(g_vulkan_context->GetDevice(), m_pipeline_cache, nullptr);
+	m_pipeline_cache = VK_NULL_HANDLE;
+}
+
+std::string VKShaderCache::GetShaderCacheBaseFileName(const std::string_view& base_path, bool debug)
+{
+	std::string base_filename(base_path);
+	base_filename += FS_OSPATH_SEPARATOR_STR "vulkan_shaders";
+
+	if (debug)
+		base_filename += "_debug";
+
+	return base_filename;
+}
+
+std::string VKShaderCache::GetPipelineCacheBaseFileName(const std::string_view& base_path, bool debug)
+{
+	std::string base_filename(base_path);
+	base_filename += FS_OSPATH_SEPARATOR_STR "vulkan_pipelines";
+
+	if (debug)
+		base_filename += "_debug";
+
+	base_filename += ".bin";
+	return base_filename;
+}
+
+VKShaderCache::CacheIndexKey VKShaderCache::GetCacheKey(ShaderType type, const std::string_view& shader_code)
+{
+	union HashParts
 	{
-		if (m_pipeline_cache == VK_NULL_HANDLE)
-			return;
-
-		vkDestroyPipelineCache(g_vulkan_context->GetDevice(), m_pipeline_cache, nullptr);
-		m_pipeline_cache = VK_NULL_HANDLE;
-	}
-
-	std::string ShaderCache::GetShaderCacheBaseFileName(const std::string_view& base_path, bool debug)
-	{
-		std::string base_filename(base_path);
-		base_filename += FS_OSPATH_SEPARATOR_STR "vulkan_shaders";
-
-		if (debug)
-			base_filename += "_debug";
-
-		return base_filename;
-	}
-
-	std::string ShaderCache::GetPipelineCacheBaseFileName(const std::string_view& base_path, bool debug)
-	{
-		std::string base_filename(base_path);
-		base_filename += FS_OSPATH_SEPARATOR_STR "vulkan_pipelines";
-
-		if (debug)
-			base_filename += "_debug";
-
-		base_filename += ".bin";
-		return base_filename;
-	}
-
-	ShaderCache::CacheIndexKey ShaderCache::GetCacheKey(ShaderCompiler::Type type, const std::string_view& shader_code)
-	{
-		union HashParts
+		struct
 		{
-			struct
-			{
-				u64 hash_low;
-				u64 hash_high;
-			};
-			u8 hash[16];
+			u64 hash_low;
+			u64 hash_high;
 		};
-		HashParts h;
+		u8 hash[16];
+	};
+	HashParts h;
 
-		MD5Digest digest;
-		digest.Update(shader_code.data(), static_cast<u32>(shader_code.length()));
-		digest.Final(h.hash);
+	MD5Digest digest;
+	digest.Update(shader_code.data(), static_cast<u32>(shader_code.length()));
+	digest.Final(h.hash);
 
-		return CacheIndexKey{h.hash_low, h.hash_high, static_cast<u32>(shader_code.length()), type};
-	}
+	return CacheIndexKey{h.hash_low, h.hash_high, static_cast<u32>(shader_code.length()), type};
+}
 
-	std::optional<ShaderCompiler::SPIRVCodeVector> ShaderCache::GetShaderSPV(
-		ShaderCompiler::Type type, std::string_view shader_code)
-	{
-		const auto key = GetCacheKey(type, shader_code);
-		auto iter = m_index.find(key);
-		if (iter == m_index.end())
-			return CompileAndAddShaderSPV(key, shader_code);
+std::optional<SPIRVCodeVector> VKShaderCache::GetShaderSPV(
+		ShaderType type, std::string_view shader_code)
+{
+	const auto key = GetCacheKey(type, shader_code);
+	auto iter = m_index.find(key);
+	if (iter == m_index.end())
+		return CompileAndAddShaderSPV(key, shader_code);
 
-		SPIRVCodeVector spv(iter->second.blob_size);
-		if (std::fseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
+	SPIRVCodeVector spv(iter->second.blob_size);
+	if (std::fseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
 			std::fread(spv.data(), sizeof(SPIRVCodeType), iter->second.blob_size, m_blob_file) !=
-				iter->second.blob_size)
-		{
-			Console.Error("Read blob from file failed, recompiling");
-			return ShaderCompiler::CompileShader(type, shader_code, m_debug);
-		}
-
-		return spv;
-	}
-
-	VkShaderModule ShaderCache::GetShaderModule(ShaderCompiler::Type type, std::string_view shader_code)
+			iter->second.blob_size)
 	{
-		std::optional<SPIRVCodeVector> spv = GetShaderSPV(type, shader_code);
-		if (!spv.has_value())
-			return VK_NULL_HANDLE;
-
-		const VkShaderModuleCreateInfo ci{
-			VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, nullptr, 0, spv->size() * sizeof(SPIRVCodeType), spv->data()};
-
-		VkShaderModule mod;
-		VkResult res = vkCreateShaderModule(g_vulkan_context->GetDevice(), &ci, nullptr, &mod);
-		if (res != VK_SUCCESS)
-			return VK_NULL_HANDLE;
-
-		return mod;
+		Console.Error("Read blob from file failed, recompiling");
+		return CompileShader(type, shader_code, m_debug);
 	}
 
-	VkShaderModule ShaderCache::GetVertexShader(std::string_view shader_code)
-	{
-		return GetShaderModule(ShaderCompiler::Type::Vertex, std::move(shader_code));
-	}
+	return spv;
+}
 
-	VkShaderModule ShaderCache::GetFragmentShader(std::string_view shader_code)
-	{
-		return GetShaderModule(ShaderCompiler::Type::Fragment, std::move(shader_code));
-	}
+VkShaderModule VKShaderCache::GetShaderModule(ShaderType type, std::string_view shader_code)
+{
+	std::optional<SPIRVCodeVector> spv = GetShaderSPV(type, shader_code);
+	if (!spv.has_value())
+		return VK_NULL_HANDLE;
 
-	VkShaderModule ShaderCache::GetComputeShader(std::string_view shader_code)
-	{
-		return GetShaderModule(ShaderCompiler::Type::Compute, std::move(shader_code));
-	}
+	const VkShaderModuleCreateInfo ci{
+		VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, nullptr, 0, spv->size() * sizeof(SPIRVCodeType), spv->data()};
 
-	std::optional<ShaderCompiler::SPIRVCodeVector> ShaderCache::CompileAndAddShaderSPV(
+	VkShaderModule mod;
+	VkResult res = vkCreateShaderModule(g_vulkan_context->GetDevice(), &ci, nullptr, &mod);
+	if (res != VK_SUCCESS)
+		return VK_NULL_HANDLE;
+
+	return mod;
+}
+
+VkShaderModule VKShaderCache::GetVertexShader(std::string_view shader_code)
+{
+	return GetShaderModule(ShaderType::Vertex, std::move(shader_code));
+}
+
+VkShaderModule VKShaderCache::GetFragmentShader(std::string_view shader_code)
+{
+	return GetShaderModule(ShaderType::Fragment, std::move(shader_code));
+}
+
+VkShaderModule VKShaderCache::GetComputeShader(std::string_view shader_code)
+{
+	return GetShaderModule(ShaderType::Compute, std::move(shader_code));
+}
+
+std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 		const CacheIndexKey& key, std::string_view shader_code)
-	{
-		std::optional<SPIRVCodeVector> spv = ShaderCompiler::CompileShader(key.shader_type, shader_code, m_debug);
-		if (!spv.has_value())
-			return {};
+{
+	std::optional<SPIRVCodeVector> spv = CompileShader(key.shader_type, shader_code, m_debug);
+	if (!spv.has_value())
+		return {};
 
-		if (!m_blob_file || std::fseek(m_blob_file, 0, SEEK_END) != 0)
-			return spv;
+	if (!m_blob_file || std::fseek(m_blob_file, 0, SEEK_END) != 0)
+		return spv;
 
-		CacheIndexData data;
-		data.file_offset = static_cast<u32>(std::ftell(m_blob_file));
-		data.blob_size = static_cast<u32>(spv->size());
+	CacheIndexData data;
+	data.file_offset = static_cast<u32>(std::ftell(m_blob_file));
+	data.blob_size = static_cast<u32>(spv->size());
 
-		CacheIndexEntry entry = {};
-		entry.source_hash_low = key.source_hash_low;
-		entry.source_hash_high = key.source_hash_high;
-		entry.source_length = key.source_length;
-		entry.shader_type = static_cast<u32>(key.shader_type);
-		entry.blob_size = data.blob_size;
-		entry.file_offset = data.file_offset;
+	CacheIndexEntry entry = {};
+	entry.source_hash_low = key.source_hash_low;
+	entry.source_hash_high = key.source_hash_high;
+	entry.source_length = key.source_length;
+	entry.shader_type = static_cast<u32>(key.shader_type);
+	entry.blob_size = data.blob_size;
+	entry.file_offset = data.file_offset;
 
-		if (std::fwrite(spv->data(), sizeof(SPIRVCodeType), entry.blob_size, m_blob_file) != entry.blob_size ||
+	if (std::fwrite(spv->data(), sizeof(SPIRVCodeType), entry.blob_size, m_blob_file) != entry.blob_size ||
 			std::fflush(m_blob_file) != 0 || std::fwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
 			std::fflush(m_index_file) != 0)
-		{
-			Console.Error("Failed to write shader blob to file");
-			return spv;
-		}
-
-		m_index.emplace(key, data);
+	{
+		Console.Error("Failed to write shader blob to file");
 		return spv;
 	}
-} // namespace Vulkan
+
+	m_index.emplace(key, data);
+	return spv;
+}

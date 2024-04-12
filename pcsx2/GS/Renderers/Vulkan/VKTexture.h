@@ -19,18 +19,16 @@
 #include <algorithm>
 #include <memory>
 
-namespace Vulkan
+class VKTexture
 {
-	class Texture
-	{
 	public:
-		Texture();
-		Texture(Texture&& move);
-		Texture(const Texture&) = delete;
-		~Texture();
+		VKTexture();
+		VKTexture(VKTexture&& move);
+		VKTexture(const VKTexture&) = delete;
+		~VKTexture();
 
-		Texture& operator=(Texture&& move);
-		Texture& operator=(const Texture&) = delete;
+		VKTexture& operator=(VKTexture&& move);
+		VKTexture& operator=(const VKTexture&) = delete;
 
 		__fi bool IsValid() const { return (m_image != VK_NULL_HANDLE); }
 
@@ -52,11 +50,11 @@ namespace Vulkan
 		__fi VkImageView GetView() const { return m_view; }
 
 		bool Create(u32 width, u32 height, u32 levels, u32 layers, VkFormat format, VkSampleCountFlagBits samples,
-			VkImageViewType view_type, VkImageTiling tiling, VkImageUsageFlags usage,
-			const VkComponentMapping* swizzle = nullptr);
+				VkImageViewType view_type, VkImageTiling tiling, VkImageUsageFlags usage,
+				const VkComponentMapping* swizzle = nullptr);
 
 		bool Adopt(VkImage existing_image, VkImageViewType view_type, u32 width, u32 height, u32 levels, u32 layers,
-			VkFormat format, VkSampleCountFlagBits samples, const VkComponentMapping* swizzle = nullptr);
+				VkFormat format, VkSampleCountFlagBits samples, const VkComponentMapping* swizzle = nullptr);
 
 		void Destroy(bool defer = true);
 
@@ -67,12 +65,12 @@ namespace Vulkan
 
 		void TransitionToLayout(VkCommandBuffer command_buffer, VkImageLayout new_layout);
 		void TransitionSubresourcesToLayout(VkCommandBuffer command_buffer, u32 start_level, u32 num_levels,
-			u32 start_layer, u32 num_layers, VkImageLayout old_layout, VkImageLayout new_layout);
+				u32 start_layer, u32 num_layers, VkImageLayout old_layout, VkImageLayout new_layout);
 
 		VkFramebuffer CreateFramebuffer(VkRenderPass render_pass);
 
 		void UpdateFromBuffer(VkCommandBuffer cmdbuf, u32 level, u32 layer, u32 x, u32 y, u32 width, u32 height,
-			u32 buffer_height, u32 row_length, VkBuffer buffer, u32 buffer_offset);
+				u32 buffer_height, u32 row_length, VkBuffer buffer, u32 buffer_offset);
 
 	private:
 		u32 m_width = 0;
@@ -87,6 +85,4 @@ namespace Vulkan
 		VkImage m_image = VK_NULL_HANDLE;
 		VmaAllocation m_allocation = VK_NULL_HANDLE;
 		VkImageView m_view = VK_NULL_HANDLE;
-	};
-
-} // namespace Vulkan
+};

@@ -21,18 +21,16 @@
 #include <deque>
 #include <memory>
 
-namespace Vulkan
+class VKStreamBuffer
 {
-	class StreamBuffer
-	{
 	public:
-		StreamBuffer();
-		StreamBuffer(StreamBuffer&& move);
-		StreamBuffer(const StreamBuffer&) = delete;
-		~StreamBuffer();
+		VKStreamBuffer();
+		VKStreamBuffer(VKStreamBuffer&& move);
+		VKStreamBuffer(const VKStreamBuffer&) = delete;
+		~VKStreamBuffer();
 
-		StreamBuffer& operator=(StreamBuffer&& move);
-		StreamBuffer& operator=(const StreamBuffer&) = delete;
+		VKStreamBuffer& operator=(VKStreamBuffer&& move);
+		VKStreamBuffer& operator=(const VKStreamBuffer&) = delete;
 
 		__fi bool IsValid() const { return (m_buffer != VK_NULL_HANDLE); }
 		__fi VkBuffer GetBuffer() const { return m_buffer; }
@@ -67,5 +65,4 @@ namespace Vulkan
 
 		// List of fences and the corresponding positions in the buffer
 		std::deque<std::pair<u64, u32>> m_tracked_fences;
-	};
-} // namespace Vulkan
+};

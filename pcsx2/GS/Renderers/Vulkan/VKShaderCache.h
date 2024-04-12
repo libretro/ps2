@@ -25,31 +25,26 @@
 #include <unordered_map>
 #include <vector>
 
-namespace Vulkan::ShaderCompiler
+// Shader types
+enum class ShaderType
 {
-	// Shader types
-	enum class Type
-	{
-		Vertex,
-		Fragment,
-		Compute
-	};
+	Vertex,
+	Fragment,
+	Compute
+};
 
-	void DeinitializeGlslang();
+void DeinitializeGlslang();
 
-	// SPIR-V compiled code type
-	using SPIRVCodeType = u32;
-	using SPIRVCodeVector = std::vector<SPIRVCodeType>;
+// SPIR-V compiled code type
+using SPIRVCodeType = u32;
+using SPIRVCodeVector = std::vector<SPIRVCodeType>;
 
-	std::optional<SPIRVCodeVector> CompileShader(Type type, std::string_view source_code, bool debug);
-} // namespace Vulkan::ShaderCompiler
+std::optional<SPIRVCodeVector> CompileShader(ShaderType type, std::string_view source_code, bool debug);
 
-namespace Vulkan
+class VKShaderCache
 {
-	class ShaderCache
-	{
 	public:
-		~ShaderCache();
+		~VKShaderCache();
 
 		static void Create(std::string_view directory, u32 version, bool debug);
 		static void Destroy();
@@ -60,9 +55,9 @@ namespace Vulkan
 		/// Writes pipeline cache to file, saving all newly compiled pipelines.
 		bool FlushPipelineCache();
 
-		std::optional<ShaderCompiler::SPIRVCodeVector> GetShaderSPV(
-			ShaderCompiler::Type type, std::string_view shader_code);
-		VkShaderModule GetShaderModule(ShaderCompiler::Type type, std::string_view shader_code);
+		std::optional<SPIRVCodeVector> GetShaderSPV(
+				ShaderType type, std::string_view shader_code);
+		VkShaderModule GetShaderModule(ShaderType type, std::string_view shader_code);
 
 		VkShaderModule GetVertexShader(std::string_view shader_code);
 		VkShaderModule GetFragmentShader(std::string_view shader_code);
@@ -76,7 +71,7 @@ namespace Vulkan
 			u64 source_hash_low;
 			u64 source_hash_high;
 			u32 source_length;
-			ShaderCompiler::Type shader_type;
+			ShaderType shader_type;
 
 			bool operator==(const CacheIndexKey& key) const;
 			bool operator!=(const CacheIndexKey& key) const;
@@ -100,11 +95,11 @@ namespace Vulkan
 
 		using CacheIndex = std::unordered_map<CacheIndexKey, CacheIndexData, CacheIndexEntryHasher>;
 
-		ShaderCache();
+		VKShaderCache();
 
 		static std::string GetShaderCacheBaseFileName(const std::string_view& base_path, bool debug);
 		static std::string GetPipelineCacheBaseFileName(const std::string_view& base_path, bool debug);
-		static CacheIndexKey GetCacheKey(ShaderCompiler::Type type, const std::string_view& shader_code);
+		static CacheIndexKey GetCacheKey(ShaderType type, const std::string_view& shader_code);
 
 		void Open(std::string_view base_path, u32 version, bool debug);
 
@@ -116,8 +111,8 @@ namespace Vulkan
 		bool ReadExistingPipelineCache();
 		void ClosePipelineCache();
 
-		std::optional<ShaderCompiler::SPIRVCodeVector> CompileAndAddShaderSPV(
-			const CacheIndexKey& key, std::string_view shader_code);
+		std::optional<SPIRVCodeVector> CompileAndAddShaderSPV(
+				const CacheIndexKey& key, std::string_view shader_code);
 
 		std::FILE* m_index_file = nullptr;
 		std::FILE* m_blob_file = nullptr;
@@ -129,7 +124,6 @@ namespace Vulkan
 		u32 m_version = 0;
 		bool m_debug = false;
 		bool m_pipeline_cache_dirty = false;
-	};
-} // namespace Vulkan
+};
 
-extern std::unique_ptr<Vulkan::ShaderCache> g_vulkan_shader_cache;
+extern std::unique_ptr<VKShaderCache> g_vulkan_shader_cache;

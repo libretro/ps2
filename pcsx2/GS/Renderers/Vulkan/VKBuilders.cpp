@@ -244,7 +244,7 @@ namespace Vulkan
 
 	void GraphicsPipelineBuilder::SetLineRasterizationMode(VkLineRasterizationModeEXT mode)
 	{
-		Util::AddPointerToChain(&m_rasterization_state, &m_line_rasterization_state);
+		AddPointerToChain(&m_rasterization_state, &m_line_rasterization_state);
 
 		m_line_rasterization_state.lineRasterizationMode = mode;
 	}
@@ -417,7 +417,7 @@ namespace Vulkan
 
 	void GraphicsPipelineBuilder::SetProvokingVertex(VkProvokingVertexModeEXT mode)
 	{
-		Util::AddPointerToChain(&m_rasterization_state, &m_provoking_vertex);
+		AddPointerToChain(&m_rasterization_state, &m_provoking_vertex);
 
 		m_provoking_vertex.provokingVertexMode = mode;
 	}
@@ -566,14 +566,6 @@ namespace Vulkan
 		dw.pImageInfo = &ii;
 	}
 
-
-	void DescriptorSetUpdateBuilder::AddImageDescriptorWrites(VkDescriptorSet set, u32 binding,
-		const VkImageView* views, u32 num_views, VkImageLayout layout /*= VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL*/)
-	{
-		// NOTE: This is deliberately split up - updating multiple descriptors in one write is broken on Adreno.
-		for (u32 i = 0; i < num_views; i++)
-			AddImageDescriptorWrite(set, binding + i, views[i], layout);
-	}
 
 	void DescriptorSetUpdateBuilder::AddSamplerDescriptorWrite(VkDescriptorSet set, u32 binding, VkSampler sampler)
 	{

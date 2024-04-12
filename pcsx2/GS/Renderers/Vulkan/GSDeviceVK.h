@@ -19,15 +19,11 @@
 #include "GS/GSVector.h"
 #include "GS/Renderers/Common/GSDevice.h"
 #include "VKStreamBuffer.h"
+#include "VKSwapChain.h"
 #include "common/HashCombine.h"
 #include "vk_mem_alloc.h"
 #include <array>
 #include <unordered_map>
-
-namespace Vulkan
-{
-class SwapChain;
-}
 
 class GSDeviceVK final : public GSDevice
 {
@@ -108,7 +104,7 @@ public:
 	};
 
 private:
-	std::unique_ptr<Vulkan::SwapChain> m_swap_chain;
+	std::unique_ptr<VKSwapChain> m_swap_chain;
 
 	VkDescriptorSetLayout m_utility_ds_layout = VK_NULL_HANDLE;
 	VkPipelineLayout m_utility_pipeline_layout = VK_NULL_HANDLE;
@@ -118,10 +114,10 @@ private:
 	VkDescriptorSetLayout m_tfx_rt_texture_ds_layout = VK_NULL_HANDLE;
 	VkPipelineLayout m_tfx_pipeline_layout = VK_NULL_HANDLE;
 
-	Vulkan::StreamBuffer m_vertex_stream_buffer;
-	Vulkan::StreamBuffer m_index_stream_buffer;
-	Vulkan::StreamBuffer m_vertex_uniform_stream_buffer;
-	Vulkan::StreamBuffer m_fragment_uniform_stream_buffer;
+	VKStreamBuffer m_vertex_stream_buffer;
+	VKStreamBuffer m_index_stream_buffer;
+	VKStreamBuffer m_vertex_uniform_stream_buffer;
+	VKStreamBuffer m_fragment_uniform_stream_buffer;
 	VkBuffer m_expand_index_buffer = VK_NULL_HANDLE;
 	VmaAllocation m_expand_index_buffer_allocation = VK_NULL_HANDLE;
 
@@ -383,20 +379,20 @@ private:
 	GSVector4i m_scissor = GSVector4i::zero();
 	u8 m_blend_constant_color = 0;
 
-	std::array<const Vulkan::Texture*, NUM_TFX_TEXTURES> m_tfx_textures{};
+	std::array<const VKTexture*, NUM_TFX_TEXTURES> m_tfx_textures{};
 	VkSampler m_tfx_sampler = VK_NULL_HANDLE;
 	u32 m_tfx_sampler_sel = 0;
 	std::array<VkDescriptorSet, NUM_TFX_DESCRIPTOR_SETS> m_tfx_descriptor_sets{};
 	std::array<u32, NUM_TFX_DYNAMIC_OFFSETS> m_tfx_dynamic_offsets{};
 
-	const Vulkan::Texture* m_utility_texture = nullptr;
+	const VKTexture* m_utility_texture = nullptr;
 	VkSampler m_utility_sampler = VK_NULL_HANDLE;
 	VkDescriptorSet m_utility_descriptor_set = VK_NULL_HANDLE;
 
 	PipelineLayout m_current_pipeline_layout = PipelineLayout::Undefined;
 	VkPipeline m_current_pipeline = VK_NULL_HANDLE;
 
-	Vulkan::Texture m_null_texture;
+	VKTexture m_null_texture;
 
 	// current pipeline selector - we save this in the struct to avoid re-zeroing it every draw
 	PipelineSelector m_pipeline_selector = {};

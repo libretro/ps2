@@ -21,7 +21,7 @@
 #include "VKContext.h"
 #include "VKUtil.h"
 
-GSTextureVK::GSTextureVK(Type type, Format format, Vulkan::Texture texture)
+GSTextureVK::GSTextureVK(Type type, Format format, VKTexture texture)
 	: m_texture(std::move(texture))
 {
 	m_type = type;
@@ -74,63 +74,55 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 heigh
 				swizzle = &r8_swizzle;
 			}
 
-			Vulkan::Texture texture;
+			VKTexture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, usage, swizzle))
-			{
 				return {};
-			}
 
-			Vulkan::Util::SetObjectName(
+			SetObjectName(
 				g_vulkan_context->GetDevice(), texture.GetImage(), "%ux%u texture", width, height);
 			return std::make_unique<GSTextureVK>(type, format, std::move(texture));
 		}
 
 		case Type::RenderTarget:
 		{
-			Vulkan::Texture texture;
+			VKTexture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
 					VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 						VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
 						VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
-			{
 				return {};
-			}
 
-			Vulkan::Util::SetObjectName(
+			SetObjectName(
 				g_vulkan_context->GetDevice(), texture.GetImage(), "%ux%u render target", width, height);
 			return std::make_unique<GSTextureVK>(type, format, std::move(texture));
 		}
 
 		case Type::DepthStencil:
 		{
-			Vulkan::Texture texture;
+			VKTexture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
 					VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 						VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT))
-			{
 				return {};
-			}
 
-			Vulkan::Util::SetObjectName(
+			SetObjectName(
 				g_vulkan_context->GetDevice(), texture.GetImage(), "%ux%u depth stencil", width, height);
 			return std::make_unique<GSTextureVK>(type, format, std::move(texture));
 		}
 
 		case Type::RWTexture:
 		{
-			Vulkan::Texture texture;
+			VKTexture texture;
 			if (!texture.Create(width, height, levels, 1, vk_format, VK_SAMPLE_COUNT_1_BIT,
 					VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
 					VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 						VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT))
-			{
 				return {};
-			}
 
-			Vulkan::Util::SetObjectName(
+			SetObjectName(
 				g_vulkan_context->GetDevice(), texture.GetImage(), "%ux%u RW texture", width, height);
 			return std::make_unique<GSTextureVK>(type, format, std::move(texture));
 		}
@@ -140,7 +132,7 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 heigh
 	}
 }
 
-void* GSTextureVK::GetNativeHandle() const { return const_cast<Vulkan::Texture*>(&m_texture); }
+void* GSTextureVK::GetNativeHandle() const { return const_cast<VKTexture*>(&m_texture); }
 
 VkCommandBuffer GSTextureVK::GetCommandBufferForUpdate()
 {
@@ -213,7 +205,7 @@ bool GSTextureVK::Update(const GSVector4i& r, const void* data, int pitch, int l
 	}
 	else
 	{
-		Vulkan::StreamBuffer& sbuffer = g_vulkan_context->GetTextureUploadBuffer();
+		VKStreamBuffer& sbuffer = g_vulkan_context->GetTextureUploadBuffer();
 		if (!sbuffer.ReserveMemory(required_size, g_vulkan_context->GetBufferCopyOffsetAlignment()))
 		{
 			GSDeviceVK::GetInstance()->ExecuteCommandBuffer(
@@ -266,12 +258,12 @@ bool GSTextureVK::Map(GSMap& m, const GSVector4i* r, int layer)
 	m_map_area = r ? *r : GSVector4i(0, 0, m_texture.GetWidth(), m_texture.GetHeight());
 	m_map_level = layer;
 
-	m.pitch = Common::AlignUpPow2(m_map_area.width() * Vulkan::Util::GetTexelSize(m_texture.GetFormat()),
+	m.pitch = Common::AlignUpPow2(m_map_area.width() * GetTexelSize(m_texture.GetFormat()),
 		g_vulkan_context->GetBufferCopyRowPitchAlignment());
 
 	// see note in Update() for the reason why.
 	const u32 required_size = m.pitch * m_map_area.height();
-	Vulkan::StreamBuffer& buffer = g_vulkan_context->GetTextureUploadBuffer();
+	VKStreamBuffer& buffer = g_vulkan_context->GetTextureUploadBuffer();
 	if (required_size >= (buffer.GetCurrentSize() / 2))
 		return false;
 
@@ -292,10 +284,10 @@ void GSTextureVK::Unmap()
 	// TODO: non-tightly-packed formats
 	const u32 width = static_cast<u32>(m_map_area.width());
 	const u32 height = static_cast<u32>(m_map_area.height());
-	const u32 pitch = Common::AlignUpPow2(m_map_area.width() * Vulkan::Util::GetTexelSize(m_texture.GetFormat()),
+	const u32 pitch = Common::AlignUpPow2(m_map_area.width() * GetTexelSize(m_texture.GetFormat()),
 		g_vulkan_context->GetBufferCopyRowPitchAlignment());
 	const u32 required_size = pitch * height;
-	Vulkan::StreamBuffer& buffer = g_vulkan_context->GetTextureUploadBuffer();
+	VKStreamBuffer& buffer = g_vulkan_context->GetTextureUploadBuffer();
 	const u32 buffer_offset = buffer.GetCurrentOffset();
 	buffer.CommitMemory(required_size);
 
@@ -500,7 +492,7 @@ void GSDownloadTextureVK::CopyFromTexture(
 
 	VkBufferImageCopy image_copy = {};
 	const VkImageAspectFlags aspect =
-		Vulkan::Util::IsDepthFormat(static_cast<VkFormat>(vkTex->GetFormat())) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		IsDepthFormat(static_cast<VkFormat>(vkTex->GetFormat())) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	image_copy.bufferOffset = copy_offset;
 	image_copy.bufferRowLength = GSTexture::CalcUploadRowLengthFromPitch(m_format, m_current_pitch);
 	image_copy.bufferImageHeight = 0;
@@ -512,7 +504,7 @@ void GSDownloadTextureVK::CopyFromTexture(
 	vkCmdCopyImageToBuffer(cmdbuf, vkTex->GetTexture().GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_buffer, 1, &image_copy);
 
 	// flush gpu cache
-	Vulkan::Util::BufferMemoryBarrier(cmdbuf, m_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT, 0, copy_size,
+	BufferMemoryBarrier(cmdbuf, m_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT, 0, copy_size,
 		VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT);
 
 	if (old_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
