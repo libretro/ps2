@@ -18,9 +18,15 @@
 #include "VKShaderCache.h"
 #include "VKContext.h"
 #include "VKUtil.h"
+#include "GS/GS.h"
+
+#include "Config.h"
+#include "ShaderCacheVersion.h"
+
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/MD5Digest.h"
+#include "common/Path.h"
 #include "common/StringUtil.h"
 
 #include <cstring>
@@ -260,21 +266,18 @@ bool VKShaderCache::CacheIndexKey::operator!=(const CacheIndexKey& key) const
 void VKShaderCache::Create(std::string_view base_path, u32 version, bool debug)
 {
 	g_vulkan_shader_cache.reset(new VKShaderCache());
-	g_vulkan_shader_cache->Open(base_path, version, debug);
+	g_vulkan_shader_cache->Open();
 }
 
 void VKShaderCache::Destroy() { g_vulkan_shader_cache.reset(); }
 
-void VKShaderCache::Open(std::string_view directory, u32 version, bool debug)
+void VKShaderCache::Open()
 {
-	m_version = version;
-	m_debug = debug;
-
-	if (!directory.empty())
+	if (!GSConfig.DisableShaderCache)
 	{
-		m_pipeline_cache_filename = GetPipelineCacheBaseFileName(directory, debug);
+		m_pipeline_cache_filename = GetPipelineCacheBaseFileName(GSConfig.UseDebugDevice);
 
-		const std::string base_filename = GetShaderCacheBaseFileName(directory, debug);
+		const std::string base_filename = GetShaderCacheBaseFileName(GSConfig.UseDebugDevice);
 		const std::string index_filename = base_filename + ".idx";
 		const std::string blob_filename = base_filename + ".bin";
 
@@ -319,13 +322,12 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 		return false;
 	}
 
-	const u32 index_version = FILE_VERSION;
+	const u32 file_version = SHADER_CACHE_VERSION;
 	VK_PIPELINE_CACHE_HEADER header;
 	FillPipelineCacheHeader(&header);
 
-	if (std::fwrite(&index_version, sizeof(index_version), 1, m_index_file) != 1 ||
-			std::fwrite(&m_version, sizeof(m_version), 1, m_index_file) != 1 ||
-			std::fwrite(&header, sizeof(header), 1, m_index_file) != 1)
+	if (std::fwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1 ||
+		std::fwrite(&header, sizeof(header), 1, m_index_file) != 1)
 	{
 		Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
 		std::fclose(m_index_file);
@@ -365,8 +367,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 
 	u32 file_version = 0;
 	u32 data_version = 0;
-	if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != FILE_VERSION ||
-			std::fread(&data_version, sizeof(data_version), 1, m_index_file) != 1 || data_version != m_version)
+	if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
 		std::fclose(m_index_file);
@@ -530,27 +531,23 @@ void VKShaderCache::ClosePipelineCache()
 	m_pipeline_cache = VK_NULL_HANDLE;
 }
 
-std::string VKShaderCache::GetShaderCacheBaseFileName(const std::string_view& base_path, bool debug)
+std::string VKShaderCache::GetShaderCacheBaseFileName(bool debug)
 {
-	std::string base_filename(base_path);
-	base_filename += FS_OSPATH_SEPARATOR_STR "vulkan_shaders";
+	std::string base_filename = "vulkan_shaders";
 
 	if (debug)
 		base_filename += "_debug";
 
-	return base_filename;
+	return Path::Combine(EmuFolders::Cache, base_filename);
 }
 
-std::string VKShaderCache::GetPipelineCacheBaseFileName(const std::string_view& base_path, bool debug)
+std::string VKShaderCache::GetPipelineCacheBaseFileName(bool debug)
 {
-	std::string base_filename(base_path);
-	base_filename += FS_OSPATH_SEPARATOR_STR "vulkan_pipelines";
-
+	std::string base_filename = "vulkan_pipelines";
 	if (debug)
 		base_filename += "_debug";
-
 	base_filename += ".bin";
-	return base_filename;
+	return Path::Combine(EmuFolders::Cache, base_filename);
 }
 
 VKShaderCache::CacheIndexKey VKShaderCache::GetCacheKey(ShaderType type, const std::string_view& shader_code)
@@ -587,7 +584,7 @@ std::optional<SPIRVCodeVector> VKShaderCache::GetShaderSPV(
 			iter->second.blob_size)
 	{
 		Console.Error("Read blob from file failed, recompiling");
-		return CompileShader(type, shader_code, m_debug);
+		return CompileShader(type, shader_code, GSConfig.UseDebugDevice);
 	}
 
 	return spv;
@@ -628,7 +625,7 @@ VkShaderModule VKShaderCache::GetComputeShader(std::string_view shader_code)
 std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 		const CacheIndexKey& key, std::string_view shader_code)
 {
-	std::optional<SPIRVCodeVector> spv = CompileShader(key.shader_type, shader_code, m_debug);
+	std::optional<SPIRVCodeVector> spv = CompileShader(key.shader_type, shader_code, GSConfig.UseDebugDevice);
 	if (!spv.has_value())
 		return {};
 

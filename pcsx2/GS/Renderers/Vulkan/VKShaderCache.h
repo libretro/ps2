@@ -97,11 +97,11 @@ class VKShaderCache
 
 		VKShaderCache();
 
-		static std::string GetShaderCacheBaseFileName(const std::string_view& base_path, bool debug);
-		static std::string GetPipelineCacheBaseFileName(const std::string_view& base_path, bool debug);
+		static std::string GetShaderCacheBaseFileName(bool debug);
+		static std::string GetPipelineCacheBaseFileName(bool debug);
 		static CacheIndexKey GetCacheKey(ShaderType type, const std::string_view& shader_code);
 
-		void Open(std::string_view base_path, u32 version, bool debug);
+		void Open();
 
 		bool CreateNewShaderCache(const std::string& index_filename, const std::string& blob_filename);
 		bool ReadExistingShaderCache(const std::string& index_filename, const std::string& blob_filename);
@@ -121,8 +121,6 @@ class VKShaderCache
 		CacheIndex m_index;
 
 		VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
-		u32 m_version = 0;
-		bool m_debug = false;
 		bool m_pipeline_cache_dirty = false;
 };
 
