@@ -1055,7 +1055,7 @@ void Host::OnVMDestroyed()
 }
 
 void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
-	const std::string& game_name, u32 game_crc)
+	u32 game_crc)
 {
 }
 

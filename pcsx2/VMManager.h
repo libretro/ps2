@@ -163,7 +163,7 @@ namespace Host
 
 	/// Provided by the host; called when the running executable changes.
 	void OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
-		const std::string& game_name, u32 game_crc);
+		u32 game_crc);
 
 	/// Provided by the host; called once per frame at guest vsync.
 	void CPUThreadVSync();

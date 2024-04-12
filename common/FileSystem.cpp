@@ -373,16 +373,6 @@ std::string_view Path::GetFileName(const std::string_view& path)
 	return path.substr(pos);
 }
 
-std::string_view Path::GetFileTitle(const std::string_view& path)
-{
-	const std::string_view filename(GetFileName(path));
-	const std::string::size_type pos = filename.rfind('.');
-	if (pos == std::string_view::npos)
-		return filename;
-
-	return filename.substr(0, pos);
-}
-
 std::string Path::ChangeFileName(const std::string_view& path, const std::string_view& new_filename)
 {
 	std::string ret;
@@ -537,17 +527,6 @@ std::vector<std::string_view> Path::SplitNativePath(const std::string_view& path
 std::string Path::JoinNativePath(const std::vector<std::string_view>& components)
 {
 	return StringUtil::JoinString(components.begin(), components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
-}
-
-std::string Path::BuildRelativePath(const std::string_view& filename, const std::string_view& new_filename)
-{
-	std::string new_string;
-
-	std::string_view::size_type pos = GetLastSeperatorPosition(filename, true);
-	if (pos != std::string_view::npos)
-		new_string.assign(filename, 0, pos);
-	new_string.append(new_filename);
-	return new_string;
 }
 
 std::string Path::Combine(const std::string_view& base, const std::string_view& next)
@@ -757,18 +736,6 @@ bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t 
 		return false;
 
 	if (data_length > 0 && std::fwrite(data, 1u, data_length, fp.get()) != data_length)
-		return false;
-
-	return true;
-}
-
-bool FileSystem::WriteStringToFile(const char* filename, const std::string_view& sv)
-{
-	ManagedCFilePtr fp = OpenManagedCFile(filename, "wb");
-	if (!fp)
-		return false;
-
-	if (sv.length() > 0 && std::fwrite(sv.data(), 1u, sv.length(), fp.get()) != sv.length())
 		return false;
 
 	return true;
@@ -1317,32 +1284,6 @@ bool FileSystem::DeleteDirectory(const char* path)
 	return RemoveDirectoryW(wpath.c_str());
 }
 
-std::string FileSystem::GetProgramPath()
-{
-	std::wstring buffer;
-	buffer.resize(MAX_PATH);
-
-	// Fall back to the main module if this fails.
-	HMODULE module = nullptr;
-	GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-		reinterpret_cast<LPCWSTR>(&GetProgramPath), &module);
-
-	for (;;)
-	{
-		DWORD nChars = GetModuleFileNameW(module, buffer.data(), static_cast<DWORD>(buffer.size()));
-		if (nChars == static_cast<DWORD>(buffer.size()) && GetLastError() == ERROR_INSUFFICIENT_BUFFER)
-		{
-			buffer.resize(buffer.size() * 2);
-			continue;
-		}
-
-		buffer.resize(nChars);
-		break;
-	}
-
-	return StringUtil::WideStringToUTF8String(buffer);
-}
-
 std::string FileSystem::GetWorkingDirectory()
 {
 	DWORD required_size = GetCurrentDirectoryW(0, nullptr);
@@ -1356,12 +1297,6 @@ std::string FileSystem::GetWorkingDirectory()
 		return {};
 
 	return StringUtil::WideStringToUTF8String(buffer);
-}
-
-bool FileSystem::SetWorkingDirectory(const char* path)
-{
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	return (SetCurrentDirectoryW(wpath.c_str()) == TRUE);
 }
 
 bool FileSystem::SetPathCompression(const char* path, bool enable)
@@ -1806,76 +1741,6 @@ bool FileSystem::DeleteDirectory(const char* path)
 	return (unlink(path) == 0);
 }
 
-std::string FileSystem::GetProgramPath()
-{
-#if defined(__linux__)
-	static const char* exeFileName = "/proc/self/exe";
-
-	int curSize = PATH_MAX;
-	char* buffer = static_cast<char*>(std::realloc(nullptr, curSize));
-	for (;;)
-	{
-		int len = readlink(exeFileName, buffer, curSize);
-		if (len < 0)
-		{
-			std::free(buffer);
-			return {};
-		}
-		else if (len < curSize)
-		{
-			buffer[len] = '\0';
-			std::string ret(buffer, len);
-			std::free(buffer);
-			return ret;
-		}
-
-		curSize *= 2;
-		buffer = static_cast<char*>(std::realloc(buffer, curSize));
-	}
-
-#elif defined(__APPLE__)
-
-	int curSize = PATH_MAX;
-	char* buffer = static_cast<char*>(std::realloc(nullptr, curSize));
-	for (;;)
-	{
-		u32 nChars = curSize - 1;
-		int res = _NSGetExecutablePath(buffer, &nChars);
-		if (res == 0)
-		{
-			buffer[nChars] = 0;
-
-			char* resolvedBuffer = realpath(buffer, nullptr);
-			if (resolvedBuffer == nullptr)
-			{
-				std::free(buffer);
-				return {};
-			}
-
-			std::string ret(buffer);
-			std::free(buffer);
-			return ret;
-		}
-
-		curSize *= 2;
-		buffer = static_cast<char*>(std::realloc(buffer, curSize + 1));
-	}
-
-#elif defined(__FreeBSD__)
-	int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
-	char buffer[PATH_MAX];
-	size_t cb = sizeof(buffer) - 1;
-	int res = sysctl(mib, std::size(mib), buffer, &cb, nullptr, 0);
-	if (res != 0)
-		return {};
-
-	buffer[cb] = '\0';
-	return buffer;
-#else
-	return {};
-#endif
-}
-
 std::string FileSystem::GetWorkingDirectory()
 {
 	std::string buffer;
@@ -1892,46 +1757,8 @@ std::string FileSystem::GetWorkingDirectory()
 	return buffer;
 }
 
-bool FileSystem::SetWorkingDirectory(const char* path)
-{
-	return (chdir(path) == 0);
-}
-
 bool FileSystem::SetPathCompression(const char* path, bool enable)
 {
 	return false;
 }
-
-FileSystem::POSIXLock::POSIXLock(int fd)
-{
-	if (lockf(fd, F_LOCK, 0) == 0)
-	{
-		m_fd = fd;
-	}
-	else
-	{
-		Console.Error("lockf() failed: %d", errno);
-		m_fd = -1;
-	}
-}
-
-FileSystem::POSIXLock::POSIXLock(std::FILE* fp)
-{
-	m_fd = fileno(fp);
-	if (m_fd >= 0)
-	{
-		if (lockf(m_fd, F_LOCK, 0) != 0)
-		{
-			Console.Error("lockf() failed: %d", errno);
-			m_fd = -1;
-		}
-	}
-}
-
-FileSystem::POSIXLock::~POSIXLock()
-{
-	if (m_fd >= 0)
-		lockf(m_fd, F_ULOCK, m_fd);
-}
-
 #endif

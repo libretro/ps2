@@ -104,7 +104,6 @@ static std::string s_disc_path;
 static u32 s_game_crc;
 static u32 s_patches_crc;
 static std::string s_game_serial;
-static std::string s_game_name;
 static std::string s_elf_override;
 static u32 s_active_game_fixes = 0;
 static std::vector<u8> s_widescreen_cheats_data;
@@ -417,24 +416,11 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 		std::unique_lock lock(s_info_mutex);
 		s_game_serial = std::move(new_serial);
 		s_game_crc    = new_crc;
-		s_game_name.clear();
 
 		std::string memcardFilters;
 
 		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial))
-		{
-			if (!s_elf_override.empty())
-				s_game_name = Path::GetFileTitle(s_elf_override);
-			else
-				s_game_name = game->name;
-
 			memcardFilters = game->memcardFiltersAsString();
-		}
-		else
-		{
-			if (s_game_serial.empty() && s_game_crc == 0)
-				s_game_name = "Booting PS2 BIOS...";
-		}
 
 		sioSetGameSerial(memcardFilters.empty() ? s_game_serial : memcardFilters);
 
@@ -445,7 +431,6 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	}
 
 	Console.WriteLn(Color_StrongGreen, "Game Changed:");
-	Console.WriteLn(Color_StrongGreen, fmt::format("  Name: {}", s_game_name));
 	Console.WriteLn(Color_StrongGreen, fmt::format("  Serial: {}", s_game_serial));
 	Console.WriteLn(Color_StrongGreen, fmt::format("  CRC: {:08X}", s_game_crc));
 
@@ -463,7 +448,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 
 	GetMTGS().SendGameCRC(new_crc);
 
-	Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_name, s_game_crc);
+	Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_crc);
 
 	MIPSAnalyst::ScanForFunctions(R5900SymbolMap, ElfTextRange.first, ElfTextRange.first + ElfTextRange.second, true);
 	R5900SymbolMap.UpdateActiveSymbols();
@@ -664,8 +649,7 @@ void VMManager::Shutdown(bool save_resume_state)
 		s_game_crc = 0;
 		s_patches_crc = 0;
 		s_game_serial.clear();
-		s_game_name.clear();
-		Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_name, 0);
+		Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, 0);
 	}
 	s_active_game_fixes = 0;
 	s_active_widescreen_patches = 0;

@@ -27,9 +27,6 @@ namespace Path
 	std::string ToNativePath(const std::string_view& path);
 	void ToNativePath(std::string* path);
 
-	/// Builds a path relative to the specified file
-	std::string BuildRelativePath(const std::string_view& filename, const std::string_view& new_filename);
-
 	/// Joins path components together, producing a new path.
 	std::string Combine(const std::string_view& base, const std::string_view& next);
 
@@ -62,9 +59,6 @@ namespace Path
 
 	/// Returns the filename component of a filename.
 	std::string_view GetFileName(const std::string_view& path);
-
-	/// Returns the file title (less the extension and path) from a filename.
-	std::string_view GetFileTitle(const std::string_view& path);
 
 	/// Changes the filename in a path.
 	std::string ChangeFileName(const std::string_view& path, const std::string_view& new_filename);

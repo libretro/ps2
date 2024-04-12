@@ -127,15 +127,13 @@ void CommonHost::OnVMResumed()
 {
 }
 
-static void stub_OnRunningGameChanged(std::string path, std::string serial, std::string title, u32 crc)
-{
-}
+static void stub_OnRunningGameChanged(std::string path, std::string serial, u32 crc) { }
 
 void CommonHost::OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
-	const std::string& game_name, u32 game_crc)
+	u32 game_crc)
 {
-		GetMTGS().RunOnGSThread([disc_path, game_serial, game_name, game_crc]() {
-			stub_OnRunningGameChanged(std::move(disc_path), std::move(game_serial), std::move(game_name), game_crc);
+		GetMTGS().RunOnGSThread([disc_path, game_serial, game_crc]() {
+			stub_OnRunningGameChanged(std::move(disc_path), std::move(game_serial), game_crc);
 		});
 }
 

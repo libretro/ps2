@@ -126,7 +126,6 @@ namespace FileSystem
 	std::optional<std::string> ReadFileToString(const char* filename);
 	std::optional<std::string> ReadFileToString(std::FILE* fp);
 	bool WriteBinaryFile(const char* filename, const void* data, size_t data_length);
-	bool WriteStringToFile(const char* filename, const std::string_view& sv);
 
 	/// creates a directory in the local filesystem
 	/// if the directory already exists, the return value will be true.
@@ -147,31 +146,11 @@ namespace FileSystem
 	/// Copies one file to another, optionally replacing it if it already exists.
 	bool CopyFilePath(const char* source, const char* destination, bool replace);
 
-	/// Returns the path to the current executable.
-	std::string GetProgramPath();
-
 	/// Retrieves the current working directory.
 	std::string GetWorkingDirectory();
-
-	/// Sets the current working directory. Returns true if successful.
-	bool SetWorkingDirectory(const char* path);
 
 	/// Enables/disables NTFS compression on a file or directory.
 	/// Does not apply the compression flag recursively if called for a directory.
 	/// Does nothing and returns false on non-Windows platforms.
 	bool SetPathCompression(const char* path, bool enable);
-
-	/// Abstracts a POSIX file lock.
-#ifndef _WIN32
-	class POSIXLock
-	{
-	public:
-		POSIXLock(int fd);
-		POSIXLock(std::FILE* fp);
-		~POSIXLock();
-
-	private:
-		int m_fd;
-	};
-#endif
 }; // namespace FileSystem
