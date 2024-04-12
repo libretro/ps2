@@ -72,9 +72,6 @@ namespace FileSystem
 	/// Returns the display name of a filename. Usually this is the same as the path.
 	std::string GetDisplayNameFromPath(const std::string_view& path);
 
-	/// Returns a list of "root directories" (i.e. root/home directories on Linux, drive letters on Windows).
-	std::vector<std::string> GetRootDirectoryList();
-
 	/// Search for files
 	bool FindFiles(const char* path, const char* pattern, u32 flags, FindResultsArray* results);
 

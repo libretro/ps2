@@ -539,34 +539,6 @@ std::string Path::JoinNativePath(const std::vector<std::string_view>& components
 	return StringUtil::JoinString(components.begin(), components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
 }
 
-std::vector<std::string> FileSystem::GetRootDirectoryList()
-{
-	std::vector<std::string> results;
-
-#if defined(_WIN32)
-	char buf[256];
-	const DWORD size = GetLogicalDriveStringsA(sizeof(buf), buf);
-	if (size != 0 && size < (sizeof(buf) - 1))
-	{
-		const char* ptr = buf;
-		while (*ptr != '\0')
-		{
-			const std::size_t len = std::strlen(ptr);
-			results.emplace_back(ptr, len);
-			ptr += len + 1u;
-		}
-	}
-#else
-	const char* home_path = std::getenv("HOME");
-	if (home_path)
-		results.push_back(home_path);
-
-	results.push_back("/");
-#endif
-
-	return results;
-}
-
 std::string Path::BuildRelativePath(const std::string_view& filename, const std::string_view& new_filename)
 {
 	std::string new_string;
