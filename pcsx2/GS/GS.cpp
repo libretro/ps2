@@ -45,13 +45,9 @@
 #endif
 
 #ifdef _WIN32
-
 #include "Renderers/DX11/GSDevice11.h"
 #include "Renderers/DX12/GSDevice12.h"
 #include "GS/Renderers/DX11/D3D.h"
-
-static HRESULT s_hr = E_FAIL;
-
 #endif
 
 #include "Renderers/Null/GSDeviceNull.h"
@@ -226,9 +222,7 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window) ||
 			(recreate_renderer && !OpenGSRenderer(GSConfig.Renderer, basemem)))
 		{
-			Host::AddKeyedOSDMessage(
-				"GSReopenFailed", "Failed to reopen, restoring old configuration.", Host::OSD_CRITICAL_ERROR_DURATION);
-
+			Console.Warning("Failed to reopen, restoring old configuration.");
 			CloseGSDevice(false);
 
 			GSConfig = old_config;

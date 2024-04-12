@@ -187,17 +187,6 @@ void Sio0::SetTxData(u8 value)
 					{
 						SetRxData(0x00);
 						mcd->autoEjectTicks--;
-
-						if (mcd->autoEjectTicks == 0)
-						{
-							Host::AddKeyedFormattedOSDMessage(
-								StringUtil::StdStringFromFormat("AutoEjectSlotClear%u%u", port, slot),
-								10.0f,
-								"Memory card in port %d / slot %d reinserted",
-								port + 1,
-								slot + 1);
-						}
-
 						return;
 					}
 					
@@ -561,17 +550,6 @@ void Sio2::Memcard()
 		}
 
 		mcd->autoEjectTicks--;
-
-		if (mcd->autoEjectTicks == 0)
-		{
-			Host::AddKeyedFormattedOSDMessage(
-				StringUtil::StdStringFromFormat("AutoEjectSlotClear%u%u", port, slot),
-				10.0f,
-				"Memory card in port %d / slot %d reinserted",
-				port + 1,
-				slot + 1);
-		}
-
 		return;
 	}
 

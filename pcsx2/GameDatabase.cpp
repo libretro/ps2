@@ -849,20 +849,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			break;
 
 			case GSHWFixId::RecommendedBlendingLevel:
-			{
-				if (value >= 0 && value <= static_cast<int>(AccBlendLevel::Maximum) && static_cast<int>(EmuConfig.GS.AccurateBlendingUnit) < value)
-				{
-					Host::AddKeyedOSDMessage("HWBlendingWarning",
-						fmt::format(ICON_FA_PAINT_BRUSH " Current Blending Accuracy is {}.\n"
-														"Recommended Blending Accuracy for this game is {}.\n"
-														"You can adjust the blending level in Game Properties to improve\n"
-														"graphical quality, but this will increase system requirements.",
-							Pcsx2Config::GSOptions::BlendingLevelNames[static_cast<int>(EmuConfig.GS.AccurateBlendingUnit)],
-							Pcsx2Config::GSOptions::BlendingLevelNames[value]),
-						Host::OSD_WARNING_DURATION);
-				}
-			}
-			break;
+				break;
 
 			case GSHWFixId::GetSkipCount:
 				config.GetSkipCountFunctionId = static_cast<s16>(value);
@@ -882,14 +869,6 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 
 	// fixup skipdraw range just in case the db has a bad range (but the linter should catch this)
 	config.SkipDrawEnd = std::max(config.SkipDrawStart, config.SkipDrawEnd);
-
-	if (!disabled_fixes.empty())
-	{
-		Host::AddKeyedOSDMessage("HWFixesWarning",
-			fmt::format(ICON_FA_MAGIC " Manual GS hardware renderer fixes are enabled, automatic fixes were not applied:\n{}",
-				disabled_fixes),
-			Host::OSD_ERROR_DURATION);
-	}
 
 	return num_applied_fixes;
 }

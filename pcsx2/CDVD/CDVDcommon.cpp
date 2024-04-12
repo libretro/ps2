@@ -290,21 +290,6 @@ static CDVD_SourceType m_CurrentSourceType = CDVD_SourceType::NoDisc;
 
 void CDVDsys_SetFile(CDVD_SourceType srctype, std::string newfile)
 {
-#ifdef WIN32
-	if (Path::IsAbsolute(newfile))
-	{
-		const auto splitPath = Path::SplitNativePath(newfile);
-		// GetDriveType() Requires trailing backslashes
-		const auto root = fmt::format("{}\\", splitPath.at(0));
-
-		const auto driveType = GetDriveType(StringUtil::UTF8StringToWideString(root).c_str());
-		if (driveType == DRIVE_REMOVABLE)
-		{
-			Host::AddIconOSDMessage("RemovableDriveWarning", ICON_FA_EXCLAMATION_TRIANGLE, "Game disc location is on a removable drive, performance issues such as jittering and freezing may occur.", Host::OSD_WARNING_DURATION);
-		}
-	}
-#endif
-
 	m_SourceFilename[enum_cast(srctype)] = std::move(newfile);
 
 	// look for symbol file
@@ -414,7 +399,7 @@ bool DoCDVDopen(void)
 	cdvdTD td;
 	CDVD->getTD(0, &td);
 
-	Host::AddKeyedOSDMessage("BlockDumpCreate", fmt::format("Saving CDVD block dump to '{}'.", temp), Host::OSD_INFO_DURATION);
+	Console.WriteLn(fmt::format("Saving CDVD block dump to '{}'.", temp));
 
 	if (blockDumpFile.Create(std::move(temp), 2))
 	{

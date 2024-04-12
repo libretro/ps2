@@ -763,10 +763,7 @@ namespace usb_mic
 		}
 
 		if (!s->audsrc[0] && !s->audsrc[1])
-		{
-			Host::AddOSDMessage("USB-Mic: Neither player 1 nor 2 is connected.", Host::OSD_ERROR_DURATION);
 			goto fail;
-		}
 
 		Console.WriteLn("USB-Mic Mode: %s",
 			(s->f.mode == MIC_MODE_SHARED ? "shared" : (s->f.mode == MIC_MODE_SEPARATE ? "separate" : "single")));
@@ -779,10 +776,7 @@ namespace usb_mic
 			{
 				s->buffer[i].resize(BUFFER_FRAMES * s->audsrc[i]->GetChannels());
 				if (!s->audsrc[i]->Start())
-				{
-					Host::AddOSDMessage(fmt::format("USB-Mic: Failed to start player {} audio stream.", i + 1), Host::OSD_ERROR_DURATION);
 					goto fail;
-				}
 			}
 		}
 

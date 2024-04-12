@@ -990,10 +990,6 @@ void retro_cheat_reset(void) { }
 
 void retro_cheat_set(unsigned index, bool enabled, const char* code) { }
 
-void Host::AddOSDMessage(std::string message, float duration) { }
-void Host::AddKeyedOSDMessage(std::string key, std::string message, float duration) { }
-void Host::AddIconOSDMessage(std::string key, const char* icon, const std::string_view& message, float duration) { }
-
 std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
 {
 	const std::string path(Path::Combine(EmuFolders::Resources, filename));
@@ -1012,15 +1008,6 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	return ret;
 }
 
-void Host::AddFormattedOSDMessage(float duration, const char* format, ...)
-{
-
-}
-void Host::AddKeyedFormattedOSDMessage(std::string key, float duration, const char* format, ...)
-{
-
-}
-
 void Host::ReportErrorAsync(const std::string_view& title, const std::string_view& message)
 {
 	if (!title.empty() && !message.empty())
@@ -1034,25 +1021,11 @@ void Host::ReportErrorAsync(const std::string_view& title, const std::string_vie
 	}
 }
 
-void Host::OnVMPaused()
-{
-}
-
-void Host::OnVMResumed()
-{
-}
-
-void Host::OnVMStarting()
-{
-}
-
-void Host::OnVMStarted()
-{
-}
-
-void Host::OnVMDestroyed()
-{
-}
+void Host::OnVMPaused()    { }
+void Host::OnVMResumed()   { }
+void Host::OnVMStarting()  { }
+void Host::OnVMStarted()   { }
+void Host::OnVMDestroyed() { }
 
 void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
 	u32 game_crc)

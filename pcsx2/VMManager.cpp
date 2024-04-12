@@ -388,14 +388,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 	if (show_messages)
 	{
 		if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
-		{
 			message += " are active.";
-			//Host::AddIconOSDMessage("LoadPatches", ICON_FA_FILE_CODE, message, Host::OSD_INFO_DURATION);
-		}
-		else if (show_messages_when_disabled)
-		{
-			//Host::AddIconOSDMessage("LoadPatches", ICON_FA_FILE_CODE, "No cheats or patches (widescreen, compatibility or others) are found / enabled.", Host::OSD_INFO_DURATION);
-		}
 	}
 }
 

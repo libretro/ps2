@@ -95,14 +95,7 @@ namespace usb_printer
 		s->print_filename = Path::Combine(EmuFolders::Snapshots, fmt::format("print_{}.bmp", cur_time_str));
 		s->print_file = FileSystem::OpenCFile(s->print_filename.c_str(), "wb");
 		if (!s->print_file)
-		{
-			Host::AddIconOSDMessage("USBPrinterOpen", ICON_FA_EXCLAMATION_TRIANGLE,
-				fmt::format("Failed to open '{}' for printing.", s->print_filename), Host::OSD_ERROR_DURATION);
 			return;
-		}
-
-		Host::AddIconOSDMessage("USBPrinterOpen", ICON_FA_SAVE,
-			fmt::format("Printer saving to '{}'...", Path::GetFileName(s->print_filename)), Host::OSD_INFO_DURATION);
 
 		BMPHeader header = {0};
 		header.magic = 0x4D42;

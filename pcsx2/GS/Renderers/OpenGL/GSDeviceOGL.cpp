@@ -98,7 +98,7 @@ bool GSDeviceOGL::Create()
 	m_features.framebuffer_fetch = GLAD_GL_EXT_shader_framebuffer_fetch;
 	if (m_features.framebuffer_fetch && GSConfig.DisableFramebufferFetch)
 	{
-		Host::AddOSDMessage("Framebuffer fetch was found but is disabled. This will reduce performance.", Host::OSD_ERROR_DURATION);
+		Console.Warning("Framebuffer fetch was found but is disabled. This will reduce performance.");
 		m_features.framebuffer_fetch = false;
 	}
 
@@ -109,10 +109,7 @@ bool GSDeviceOGL::Create()
 	else
 		m_features.texture_barrier = m_features.framebuffer_fetch || GLAD_GL_ARB_texture_barrier;
 	if (!m_features.texture_barrier)
-	{
-		Host::AddOSDMessage(
-			"GL_ARB_texture_barrier is not supported, blending will not be accurate.", Host::OSD_ERROR_DURATION);
-	}
+		Console.Warning("GL_ARB_texture_barrier is not supported, blending will not be accurate.");
 
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GLAD_GL_EXT_texture_compression_s3tc;
@@ -121,7 +118,7 @@ bool GSDeviceOGL::Create()
 	m_features.dual_source_blend = !GSConfig.DisableDualSourceBlend;
 	m_features.clip_control = GLAD_GL_ARB_clip_control;
 	if (!m_features.clip_control)
-		Host::AddOSDMessage("GL_ARB_clip_control is not supported, this will cause rendering issues.", Host::OSD_ERROR_DURATION);
+		Console.Warning("GL_ARB_clip_control is not supported, this will cause rendering issues.");
 	m_features.stencil_buffer = true;
 	m_features.test_and_sample_depth = m_features.texture_barrier;
 

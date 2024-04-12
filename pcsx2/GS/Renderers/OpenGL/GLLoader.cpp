@@ -159,9 +159,8 @@ namespace GLLoader
 
 		if (!GLAD_GL_ARB_texture_barrier)
 		{
+			Console.Warning("GL_ARB_texture_barrier is not supported, blending will not be accurate.");
 			glTextureBarrier = ReplaceGL::TextureBarrier;
-			Host::AddOSDMessage("GL_ARB_texture_barrier is not supported, blending will not be accurate.",
-				Host::OSD_ERROR_DURATION);
 		}
 
 		if (!GLAD_GL_ARB_direct_state_access)
