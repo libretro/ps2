@@ -60,9 +60,6 @@ public:
 
 	SymbolType GetSymbolType(u32 address) const;
 	bool GetSymbolInfo(SymbolInfo *info, u32 address, SymbolType symmask = ST_FUNCTION) const;
-	u32 GetNextSymbolAddress(u32 address, SymbolType symmask);
-	std::string GetDescription(unsigned int address) const;
-	std::vector<SymbolEntry> GetAllSymbols(SymbolType symmask);
 
 	void UnloadModule(u32 address, u32 size);
 	u32 GetModuleRelativeAddr(u32 address, int moduleIndex = -1) const;

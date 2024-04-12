@@ -219,12 +219,9 @@ void* GSRingHeap::alloc_internal(size_t size, size_t align_mask, size_t prefix_s
 		shift++;
 	} while (total_size > (2ull << shift));
 
+	// If this needs to be >64 mb, we're doing something wrong
 	if (shift > 24 && total_size <= (2ull << (shift - 1)))
-	{
-		// If this needs to be >64 mb, we're doing something wrong
-		fprintf(stderr, "GSRingHeap: Refusing to grow to %umb\n", 4u << (shift - 20));
 		shift--;
-	}
 	Buffer* new_buffer = Buffer::make(shift);
 	orphanBuffer();
 	m_current_buffer = new_buffer;

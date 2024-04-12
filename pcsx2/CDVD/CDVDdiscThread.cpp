@@ -99,7 +99,6 @@ bool cdvdCacheFetch(u32 lsn, u8* data)
 		memcpy(data, Cache[entry].data, 2352 * sectors_per_read);
 		return true;
 	}
-	//printf("NOT IN CACHE\n");
 	return false;
 }
 
@@ -182,7 +181,6 @@ void cdvdThread()
 	u8 buffer[2352 * sectors_per_read];
 	u32 prefetches_left = 0;
 
-	printf(" * CDVD: IO thread started...\n");
 	std::unique_lock<std::mutex> guard(s_notify_lock);
 
 	while (cdvd_is_open)
@@ -260,7 +258,6 @@ void cdvdThread()
 			prefetches_left = std::min((remaining + sectors_per_read - 1) / sectors_per_read, max_prefetches);
 		}
 	}
-	printf(" * CDVD: IO thread finished.\n");
 }
 
 void cdvdStartThread(void)
@@ -427,8 +424,6 @@ s32 cdvdRefreshData()
 			diskTypeName = "No Disc";
 			break;
 	}
-
-	printf(" * CDVD: Disk Type: %s\n", diskTypeName);
 
 	cdvdCacheReset();
 

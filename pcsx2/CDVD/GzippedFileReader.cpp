@@ -295,7 +295,6 @@ bool GzippedFileReader::OkIndex()
 	const s64 prevoffset = FileSystem::FTell64(m_src);
 	Access* index = nullptr;
 	int len = build_index(m_src, GZFILE_SPAN_DEFAULT, &index);
-	printf("\n"); // build_index prints progress without \n's
 	FileSystem::FSeek64(m_src, prevoffset, SEEK_SET);
 
 	if (len >= 0)

@@ -519,15 +519,9 @@ void* GSAllocateWrappedMemory(size_t size, size_t repeat)
 
 	const char* file_name = "/GS.mem";
 	s_shm_fd = shm_open(file_name, O_RDWR | O_CREAT | O_EXCL, 0600);
-	if (s_shm_fd != -1)
-	{
-		shm_unlink(file_name); // file is deleted but descriptor is still open
-	}
-	else
-	{
-		fprintf(stderr, "Failed to open %s due to %s\n", file_name, strerror(errno));
+	if (s_shm_fd == -1)
 		return nullptr;
-	}
+	shm_unlink(file_name); // file is deleted but descriptor is still open
 
 	if (ftruncate(s_shm_fd, repeat * size) < 0)
 		fprintf(stderr, "Failed to reserve memory due to %s\n", strerror(errno));
