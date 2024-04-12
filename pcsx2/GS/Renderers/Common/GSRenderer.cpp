@@ -347,8 +347,6 @@ void GSRenderer::EndPresentFrame()
 
 void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 {
-	Flush(GSFlushReason::VSYNC);
-
 	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
 	const bool fb_sprite_frame = (fb_sprite_blits > 0);
 
