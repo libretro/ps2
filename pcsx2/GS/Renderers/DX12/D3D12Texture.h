@@ -44,12 +44,12 @@ class D3D12Texture final
 		__fi ID3D12Resource* GetResource() const { return m_resource.get(); }
 		__fi const D3D12DescriptorHandle& GetSRVDescriptor() const { return m_srv_descriptor; }
 		__fi const D3D12DescriptorHandle& GetWriteDescriptor() const { return m_write_descriptor; }
-		__fi D3D12_RESOURCE_STATES GetState() const { return m_state; }
+		__fi D3D12_RESOURCE_STATES GetResourceState() const { return m_state; }
 
 		__fi u32 GetWidth() const { return m_width; }
 		__fi u32 GetHeight() const { return m_height; }
 		__fi u32 GetLevels() const { return m_levels; }
-		__fi DXGI_FORMAT GetFormat() const { return m_format; }
+		__fi DXGI_FORMAT GetDXGIFormat() const { return m_dxgi_format; }
 
 		__fi operator ID3D12Resource*() const { return m_resource.get(); }
 		__fi operator bool() const { return static_cast<bool>(m_resource); }
@@ -91,7 +91,7 @@ class D3D12Texture final
 		u32 m_width = 0;
 		u32 m_height = 0;
 		u32 m_levels = 0;
-		DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
+		DXGI_FORMAT m_dxgi_format = DXGI_FORMAT_UNKNOWN;
 
 		D3D12_RESOURCE_STATES m_state = D3D12_RESOURCE_STATE_COMMON;
 

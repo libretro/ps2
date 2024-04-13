@@ -31,9 +31,9 @@ public:
 
 	__fi D3D12Texture& GetTexture() { return m_texture; }
 	__fi const D3D12DescriptorHandle& GetSRVDescriptor() const { return m_texture.GetSRVDescriptor(); }
-	__fi const D3D12DescriptorHandle& GetRTVOrDSVHandle() const { return m_texture.GetWriteDescriptor(); }
-	__fi D3D12_RESOURCE_STATES GetResourceState() const { return m_texture.GetState(); }
-	__fi DXGI_FORMAT GetNativeFormat() const { return m_texture.GetFormat(); }
+	__fi const D3D12DescriptorHandle& GetWriteDescriptor() const { return m_texture.GetWriteDescriptor(); }
+	__fi D3D12_RESOURCE_STATES GetResourceState() const { return m_texture.GetResourceState(); }
+	__fi DXGI_FORMAT GetDXGIFormat() const { return m_texture.GetDXGIFormat(); }
 	__fi ID3D12Resource* GetResource() const { return m_texture.GetResource(); }
 
 	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;

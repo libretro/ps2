@@ -29,10 +29,10 @@ D3D12Texture::D3D12Texture(ID3D12Resource* resource, D3D12_RESOURCE_STATES state
 	: m_resource(std::move(resource))
 {
 	const D3D12_RESOURCE_DESC desc = GetDesc();
-	m_width = static_cast<u32>(desc.Width);
-	m_height = desc.Height;
-	m_levels = desc.MipLevels;
-	m_format = desc.Format;
+	m_width       = static_cast<u32>(desc.Width);
+	m_height      = desc.Height;
+	m_levels      = desc.MipLevels;
+	m_dxgi_format = desc.Format;
 }
 
 D3D12Texture::D3D12Texture(D3D12Texture&& texture)
@@ -43,7 +43,7 @@ D3D12Texture::D3D12Texture(D3D12Texture&& texture)
 	, m_width(texture.m_width)
 	, m_height(texture.m_height)
 	, m_levels(texture.m_levels)
-	, m_format(texture.m_format)
+	, m_dxgi_format(texture.m_dxgi_format)
 	, m_state(texture.m_state)
 	, m_write_descriptor_type(texture.m_write_descriptor_type)
 {
@@ -52,7 +52,7 @@ D3D12Texture::D3D12Texture(D3D12Texture&& texture)
 	texture.m_width = 0;
 	texture.m_height = 0;
 	texture.m_levels = 0;
-	texture.m_format = DXGI_FORMAT_UNKNOWN;
+	texture.m_dxgi_format = DXGI_FORMAT_UNKNOWN;
 	texture.m_state = D3D12_RESOURCE_STATE_COMMON;
 	texture.m_write_descriptor_type = WriteDescriptorType::None;
 }
@@ -72,7 +72,7 @@ D3D12Texture& D3D12Texture::operator=(D3D12Texture&& texture)
 	m_width = texture.m_width;
 	m_height = texture.m_height;
 	m_levels = texture.m_levels;
-	m_format = texture.m_format;
+	m_dxgi_format = texture.m_dxgi_format;
 	m_state = texture.m_state;
 	m_write_descriptor_type = texture.m_write_descriptor_type;
 	texture.m_srv_descriptor = {};
@@ -80,7 +80,7 @@ D3D12Texture& D3D12Texture::operator=(D3D12Texture&& texture)
 	texture.m_width = 0;
 	texture.m_height = 0;
 	texture.m_levels = 0;
-	texture.m_format = DXGI_FORMAT_UNKNOWN;
+	texture.m_dxgi_format = DXGI_FORMAT_UNKNOWN;
 	texture.m_state = D3D12_RESOURCE_STATE_COMMON;
 	texture.m_write_descriptor_type = WriteDescriptorType::None;
 	return *this;
@@ -187,7 +187,7 @@ bool D3D12Texture::Create(u32 width, u32 height, u32 levels, DXGI_FORMAT format,
 	m_width = width;
 	m_height = height;
 	m_levels = levels;
-	m_format = format;
+	m_dxgi_format = format;
 	m_state = state;
 	m_write_descriptor_type = write_descriptor_type;
 	return true;
@@ -242,7 +242,7 @@ bool D3D12Texture::Adopt(ComPtr<ID3D12Resource> texture, DXGI_FORMAT srv_format,
 	m_width = static_cast<u32>(desc.Width);
 	m_height = desc.Height;
 	m_levels = desc.MipLevels;
-	m_format = desc.Format;
+	m_dxgi_format = desc.Format;
 	m_state = state;
 	return true;
 }
@@ -300,7 +300,7 @@ void D3D12Texture::Destroy(bool defer /* = true */)
 	m_width = 0;
 	m_height = 0;
 	m_levels = 0;
-	m_format = DXGI_FORMAT_UNKNOWN;
+	m_dxgi_format = DXGI_FORMAT_UNKNOWN;
 	m_write_descriptor_type = WriteDescriptorType::None;
 }
 

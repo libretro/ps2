@@ -165,7 +165,7 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	srcloc.PlacedFootprint.Footprint.Width = width;
 	srcloc.PlacedFootprint.Footprint.Height = height;
 	srcloc.PlacedFootprint.Footprint.Depth = 1;
-	srcloc.PlacedFootprint.Footprint.Format = m_texture.GetFormat();
+	srcloc.PlacedFootprint.Footprint.Format = m_texture.GetDXGIFormat();
 	srcloc.PlacedFootprint.Footprint.RowPitch = upload_pitch;
 
 	// If the texture is larger than half our streaming buffer size, use a separate buffer.
@@ -201,10 +201,10 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	ID3D12GraphicsCommandList* cmdlist = GetCommandBufferForUpdate();
 
 	// first time the texture is used? don't leave it undefined
-	if (m_texture.GetState() == D3D12_RESOURCE_STATE_COMMON)
+	if (m_texture.GetResourceState() == D3D12_RESOURCE_STATE_COMMON)
 		m_texture.TransitionToState(cmdlist, D3D12_RESOURCE_STATE_COPY_DEST);
-	else if (m_texture.GetState() != D3D12_RESOURCE_STATE_COPY_DEST)
-		m_texture.TransitionSubresourceToState(cmdlist, layer, m_texture.GetState(), D3D12_RESOURCE_STATE_COPY_DEST);
+	else if (m_texture.GetResourceState() != D3D12_RESOURCE_STATE_COPY_DEST)
+		m_texture.TransitionSubresourceToState(cmdlist, layer, m_texture.GetResourceState(), D3D12_RESOURCE_STATE_COPY_DEST);
 
 	// if we're an rt and have been cleared, and the full rect isn't being uploaded, do the clear
 	if (m_type == Type::RenderTarget)
@@ -224,8 +224,8 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 	cmdlist->CopyTextureRegion(&dstloc, Common::AlignDownPow2((u32)r.x, block_size),
 		Common::AlignDownPow2((u32)r.y, block_size), 0, &srcloc, &srcbox);
 
-	if (m_texture.GetState() != D3D12_RESOURCE_STATE_COPY_DEST)
-		m_texture.TransitionSubresourceToState(cmdlist, layer, D3D12_RESOURCE_STATE_COPY_DEST, m_texture.GetState());
+	if (m_texture.GetResourceState() != D3D12_RESOURCE_STATE_COPY_DEST)
+		m_texture.TransitionSubresourceToState(cmdlist, layer, D3D12_RESOURCE_STATE_COPY_DEST, m_texture.GetResourceState());
 
 	if (m_type == Type::Texture)
 		m_needs_mipmaps_generated |= (layer == 0);
@@ -239,7 +239,7 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 		return false;
 
 	// map for writing
-	m_map_area = r ? *r : GSVector4i(0, 0, m_texture.GetWidth(), m_texture.GetHeight());
+	m_map_area = r ? *r : GetRect();
 	m_map_level = layer;
 
 	m.pitch = Common::AlignUpPow2(CalcUploadPitch(m_map_area.width()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
@@ -275,10 +275,10 @@ void GSTexture12::Unmap()
 	ID3D12GraphicsCommandList* cmdlist = GetCommandBufferForUpdate();
 
 	// first time the texture is used? don't leave it undefined
-	if (m_texture.GetState() == D3D12_RESOURCE_STATE_COMMON)
+	if (m_texture.GetResourceState() == D3D12_RESOURCE_STATE_COMMON)
 		m_texture.TransitionToState(cmdlist, D3D12_RESOURCE_STATE_COPY_DEST);
-	else if (m_texture.GetState() != D3D12_RESOURCE_STATE_COPY_DEST)
-		m_texture.TransitionSubresourceToState(cmdlist, m_map_level, m_texture.GetState(), D3D12_RESOURCE_STATE_COPY_DEST);
+	else if (m_texture.GetResourceState() != D3D12_RESOURCE_STATE_COPY_DEST)
+		m_texture.TransitionSubresourceToState(cmdlist, m_map_level, m_texture.GetResourceState(), D3D12_RESOURCE_STATE_COPY_DEST);
 
 	// if we're an rt and have been cleared, and the full rect isn't being uploaded, do the clear
 	if (m_type == Type::RenderTarget)
@@ -296,7 +296,7 @@ void GSTexture12::Unmap()
 	srcloc.PlacedFootprint.Footprint.Width = width;
 	srcloc.PlacedFootprint.Footprint.Height = height;
 	srcloc.PlacedFootprint.Footprint.Depth = 1;
-	srcloc.PlacedFootprint.Footprint.Format = m_texture.GetFormat();
+	srcloc.PlacedFootprint.Footprint.Format = m_texture.GetDXGIFormat();
 	srcloc.PlacedFootprint.Footprint.RowPitch = pitch;
 
 	D3D12_TEXTURE_COPY_LOCATION dstloc;
@@ -307,8 +307,8 @@ void GSTexture12::Unmap()
 	const D3D12_BOX srcbox{0u, 0u, 0u, width, height, 1};
 	cmdlist->CopyTextureRegion(&dstloc, m_map_area.x, m_map_area.y, 0, &srcloc, &srcbox);
 
-	if (m_texture.GetState() != D3D12_RESOURCE_STATE_COPY_DEST)
-		m_texture.TransitionSubresourceToState(cmdlist, m_map_level, D3D12_RESOURCE_STATE_COPY_DEST, m_texture.GetState());
+	if (m_texture.GetResourceState() != D3D12_RESOURCE_STATE_COPY_DEST)
+		m_texture.TransitionSubresourceToState(cmdlist, m_map_level, D3D12_RESOURCE_STATE_COPY_DEST, m_texture.GetResourceState());
 
 	if (m_type == Type::Texture)
 		m_needs_mipmaps_generated |= (m_map_level == 0);
@@ -439,7 +439,7 @@ void GSDownloadTexture12::CopyFromTexture(
 	dstloc.pResource = m_buffer.get();
 	dstloc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 	dstloc.PlacedFootprint.Offset = copy_offset;
-	dstloc.PlacedFootprint.Footprint.Format = tex12->GetNativeFormat();
+	dstloc.PlacedFootprint.Footprint.Format = tex12->GetDXGIFormat();
 	dstloc.PlacedFootprint.Footprint.Width = drc.width();
 	dstloc.PlacedFootprint.Footprint.Height = drc.height();
 	dstloc.PlacedFootprint.Footprint.Depth = 1;

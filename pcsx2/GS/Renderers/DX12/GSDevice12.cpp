@@ -586,11 +586,17 @@ bool D3D12Context::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gp
 	return true;
 }
 
-static bool IsDATMConvertShader(ShaderConvert i) { return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1); }
-static bool IsDATEModePrimIDInit(u32 flag) { return flag == 1 || flag == 2; }
+static bool IsDATMConvertShader(ShaderConvert i)
+{
+	return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1);
+}
+static bool IsDATEModePrimIDInit(u32 flag)
+{
+	return flag == 1 || flag == 2;
+}
 
-static constexpr std::array<D3D12_PRIMITIVE_TOPOLOGY, 3> s_primitive_topology_mapping =
-	{{D3D_PRIMITIVE_TOPOLOGY_POINTLIST, D3D_PRIMITIVE_TOPOLOGY_LINELIST, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST}};
+static constexpr std::array<D3D12_PRIMITIVE_TOPOLOGY, 3> s_primitive_topology_mapping = {
+	{D3D_PRIMITIVE_TOPOLOGY_POINTLIST, D3D_PRIMITIVE_TOPOLOGY_LINELIST, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST}};
 
 static constexpr std::array<float, 4> s_present_clear_color = {};
 
@@ -834,7 +840,10 @@ void GSDevice12::ClearRenderTarget(GSTexture* t, const GSVector4& c)
 	static_cast<GSTexture12*>(t)->SetClearColor(c);
 }
 
-void GSDevice12::ClearRenderTarget(GSTexture* t, u32 c) { ClearRenderTarget(t, GSVector4::rgba32(c) * (1.0f / 255)); }
+void GSDevice12::ClearRenderTarget(GSTexture* t, u32 c)
+{
+	ClearRenderTarget(t, GSVector4::rgba32(c) * (1.0f / 255));
+}
 
 void GSDevice12::InvalidateRenderTarget(GSTexture* t)
 {
@@ -867,25 +876,30 @@ void GSDevice12::ClearStencil(GSTexture* t, u8 c)
 
 	GSTexture12* dxt = static_cast<GSTexture12*>(t);
 	dxt->TransitionToState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
-	g_d3d12_context->GetCommandList()->ClearDepthStencilView(dxt->GetRTVOrDSVHandle(), D3D12_CLEAR_FLAG_STENCIL, 0.0f, c, 0, nullptr);
+	g_d3d12_context->GetCommandList()->ClearDepthStencilView(
+		dxt->GetWriteDescriptor(), D3D12_CLEAR_FLAG_STENCIL, 0.0f, c, 0, nullptr);
 }
 
 void GSDevice12::LookupNativeFormat(GSTexture::Format format, DXGI_FORMAT* d3d_format, DXGI_FORMAT* srv_format, DXGI_FORMAT* rtv_format, DXGI_FORMAT* dsv_format) const
 {
-	static constexpr std::array<std::array<DXGI_FORMAT, 4>, static_cast<int>(GSTexture::Format::BC7) + 1> s_format_mapping = {{
-		{DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // Invalid
-		{DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_UNKNOWN}, // Color
-		{DXGI_FORMAT_R16G16B16A16_UNORM, DXGI_FORMAT_R16G16B16A16_UNORM, DXGI_FORMAT_R16G16B16A16_UNORM, DXGI_FORMAT_UNKNOWN}, // HDRColor
-		{DXGI_FORMAT_D32_FLOAT_S8X24_UINT, DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_D32_FLOAT_S8X24_UINT}, // DepthStencil
-		{DXGI_FORMAT_A8_UNORM, DXGI_FORMAT_A8_UNORM, DXGI_FORMAT_A8_UNORM, DXGI_FORMAT_UNKNOWN}, // UNorm8
-		{DXGI_FORMAT_R16_UINT, DXGI_FORMAT_R16_UINT, DXGI_FORMAT_R16_UINT, DXGI_FORMAT_UNKNOWN}, // UInt16
-		{DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R32_UINT, DXGI_FORMAT_UNKNOWN}, // UInt32
-		{DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_UNKNOWN}, // Int32
-		{DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC1
-		{DXGI_FORMAT_BC2_UNORM, DXGI_FORMAT_BC2_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC2
-		{DXGI_FORMAT_BC3_UNORM, DXGI_FORMAT_BC3_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC3
-		{DXGI_FORMAT_BC7_UNORM, DXGI_FORMAT_BC7_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC7
-	}};
+	static constexpr std::array<std::array<DXGI_FORMAT, 4>, static_cast<int>(GSTexture::Format::BC7) + 1>
+		s_format_mapping = {{
+			{DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // Invalid
+			{DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM,
+				DXGI_FORMAT_UNKNOWN}, // Color
+			{DXGI_FORMAT_R16G16B16A16_UNORM, DXGI_FORMAT_R16G16B16A16_UNORM, DXGI_FORMAT_R16G16B16A16_UNORM,
+				DXGI_FORMAT_UNKNOWN}, // HDRColor
+			{DXGI_FORMAT_D32_FLOAT_S8X24_UINT, DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS, DXGI_FORMAT_UNKNOWN,
+				DXGI_FORMAT_D32_FLOAT_S8X24_UINT}, // DepthStencil
+			{DXGI_FORMAT_A8_UNORM, DXGI_FORMAT_A8_UNORM, DXGI_FORMAT_A8_UNORM, DXGI_FORMAT_UNKNOWN}, // UNorm8
+			{DXGI_FORMAT_R16_UINT, DXGI_FORMAT_R16_UINT, DXGI_FORMAT_R16_UINT, DXGI_FORMAT_UNKNOWN}, // UInt16
+			{DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R32_UINT, DXGI_FORMAT_UNKNOWN}, // UInt32
+			{DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_UNKNOWN}, // Int32
+			{DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC1
+			{DXGI_FORMAT_BC2_UNORM, DXGI_FORMAT_BC2_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC2
+			{DXGI_FORMAT_BC3_UNORM, DXGI_FORMAT_BC3_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC3
+			{DXGI_FORMAT_BC7_UNORM, DXGI_FORMAT_BC7_UNORM, DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN}, // BC7
+		}};
 
 	const auto& mapping = s_format_mapping[static_cast<int>(format)];
 	if (d3d_format)
@@ -903,16 +917,16 @@ GSTexture* GSDevice12::CreateSurface(GSTexture::Type type, int width, int height
 	const u32 clamped_width = static_cast<u32>(std::clamp<int>(width, 1, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
 	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
 
-	DXGI_FORMAT d3d_format, srv_format, rtv_format, dsv_format;
-	LookupNativeFormat(format, &d3d_format, &srv_format, &rtv_format, &dsv_format);
+	DXGI_FORMAT dxgi_format, srv_format, rtv_format, dsv_format;
+	LookupNativeFormat(format, &dxgi_format, &srv_format, &rtv_format, &dsv_format);
 
-	std::unique_ptr<GSTexture12> tex(GSTexture12::Create(type, clamped_width, clamped_height, levels, format, d3d_format, srv_format, rtv_format, dsv_format));
+	std::unique_ptr<GSTexture12> tex(GSTexture12::Create(type, clamped_width, clamped_height, levels, format, dxgi_format, srv_format, rtv_format, dsv_format));
 	if (!tex)
 	{
 		// We're probably out of vram, try flushing the command buffer to release pending textures.
 		PurgePool();
 		ExecuteCommandListAndRestartRenderPass(true, "Couldn't allocate texture.");
-		tex = GSTexture12::Create(type, clamped_width, clamped_height, levels, format, d3d_format, srv_format, rtv_format, dsv_format);
+		tex = GSTexture12::Create(type, clamped_width, clamped_height, levels, format, dxgi_format, srv_format, rtv_format, dsv_format);
 	}
 
 	return tex.release();
@@ -952,13 +966,13 @@ void GSDevice12::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 				if (dTexVK->GetType() != GSTexture::Type::DepthStencil)
 				{
 					dTexVK->TransitionToState(D3D12_RESOURCE_STATE_RENDER_TARGET);
-					g_d3d12_context->GetCommandList()->ClearRenderTargetView(dTexVK->GetRTVOrDSVHandle(),
+					g_d3d12_context->GetCommandList()->ClearRenderTargetView(dTexVK->GetWriteDescriptor(),
 						sTexVK->GetClearColor().v, 0, nullptr);
 				}
 				else
 				{
 					dTexVK->TransitionToState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
-					g_d3d12_context->GetCommandList()->ClearDepthStencilView(dTexVK->GetRTVOrDSVHandle(),
+					g_d3d12_context->GetCommandList()->ClearDepthStencilView(dTexVK->GetWriteDescriptor(),
 						D3D12_CLEAR_FLAG_DEPTH, sTexVK->GetClearDepth(), 0, 0, nullptr);
 				}
 
@@ -2318,11 +2332,9 @@ void GSDevice12::PSSetShaderResource(int i, GSTexture* sr, bool check_state)
 		GSTexture12* dtex = static_cast<GSTexture12*>(sr);
 		if (check_state)
 		{
-			if (dtex->GetTexture().GetState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE && InRenderPass())
-			{
-				// Console.Warning("Ending render pass due to resource transition");
+			/* Ending render pass due to resource transition */
+			if (dtex->GetResourceState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE && InRenderPass())
 				EndRenderPass();
-			}
 
 			dtex->CommitClear();
 			dtex->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -2448,11 +2460,11 @@ void GSDevice12::RenderTextureMipmap(const D3D12Texture& texture,
 		ExecuteCommandList(false);
 
 	// Setup views. This will be a partial view for the SRV.
-	D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {texture.GetFormat(), D3D12_RTV_DIMENSION_TEXTURE2D};
+	D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {texture.GetDXGIFormat(), D3D12_RTV_DIMENSION_TEXTURE2D};
 	rtv_desc.Texture2D = {dst_level, 0u};
 	g_d3d12_context->GetDevice()->CreateRenderTargetView(texture.GetResource(), &rtv_desc, rtv_handle);
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {texture.GetFormat(), D3D12_SRV_DIMENSION_TEXTURE2D, D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING};
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {texture.GetDXGIFormat(), D3D12_SRV_DIMENSION_TEXTURE2D, D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING};
 	srv_desc.Texture2D = {src_level, 1u, 0u, 0.0f};
 	g_d3d12_context->GetDevice()->CreateShaderResourceView(texture.GetResource(), &srv_desc, srv_handle);
 
@@ -2468,10 +2480,10 @@ void GSDevice12::RenderTextureMipmap(const D3D12Texture& texture,
 
 	// *now* we don't have to worry about running out of anything.
 	ID3D12GraphicsCommandList* cmdlist = g_d3d12_context->GetCommandList();
-	if (texture.GetState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-		texture.TransitionSubresourceToState(cmdlist, src_level, texture.GetState(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	if (texture.GetState() != D3D12_RESOURCE_STATE_RENDER_TARGET)
-		texture.TransitionSubresourceToState(cmdlist, dst_level, texture.GetState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	if (texture.GetResourceState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+		texture.TransitionSubresourceToState(cmdlist, src_level, texture.GetResourceState(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	if (texture.GetResourceState() != D3D12_RESOURCE_STATE_RENDER_TARGET)
+		texture.TransitionSubresourceToState(cmdlist, dst_level, texture.GetResourceState(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	// We set the state directly here.
 	constexpr u32 MODIFIED_STATE = DIRTY_FLAG_VIEWPORT | DIRTY_FLAG_SCISSOR | DIRTY_FLAG_RENDER_TARGET;
@@ -2494,10 +2506,10 @@ void GSDevice12::RenderTextureMipmap(const D3D12Texture& texture,
 		GSVector4(0.0f, 0.0f, static_cast<float>(dst_width), static_cast<float>(dst_height)),
 		GSVector2i(dst_width, dst_height));
 
-	if (texture.GetState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-		texture.TransitionSubresourceToState(cmdlist, src_level, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, texture.GetState());
-	if (texture.GetState() != D3D12_RESOURCE_STATE_RENDER_TARGET)
-		texture.TransitionSubresourceToState(cmdlist, dst_level, D3D12_RESOURCE_STATE_RENDER_TARGET, texture.GetState());
+	if (texture.GetResourceState() != D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+		texture.TransitionSubresourceToState(cmdlist, src_level, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, texture.GetResourceState());
+	if (texture.GetResourceState() != D3D12_RESOURCE_STATE_RENDER_TARGET)
+		texture.TransitionSubresourceToState(cmdlist, dst_level, D3D12_RESOURCE_STATE_RENDER_TARGET, texture.GetResourceState());
 
 	// Must destroy after current cmdlist.
 	g_d3d12_context->DeferDescriptorDestruction(g_d3d12_context->GetDescriptorHeapManager(), &srv_handle);
@@ -2529,7 +2541,7 @@ void GSDevice12::BeginRenderPass(
 	D3D12_RENDER_PASS_RENDER_TARGET_DESC rt = {};
 	if (m_current_render_target)
 	{
-		rt.cpuDescriptor = m_current_render_target->GetRTVOrDSVHandle();
+		rt.cpuDescriptor = m_current_render_target->GetWriteDescriptor();
 		rt.EndingAccess.Type = color_end;
 		rt.BeginningAccess.Type = color_begin;
 		if (color_begin == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
@@ -2542,7 +2554,7 @@ void GSDevice12::BeginRenderPass(
 	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC ds = {};
 	if (m_current_depth_target)
 	{
-		ds.cpuDescriptor = m_current_depth_target->GetRTVOrDSVHandle();
+		ds.cpuDescriptor = m_current_depth_target->GetWriteDescriptor();
 		ds.DepthEndingAccess.Type = depth_end;
 		ds.DepthBeginningAccess.Type = depth_begin;
 		if (depth_begin == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
@@ -2639,12 +2651,12 @@ __ri void GSDevice12::ApplyBaseState(u32 flags, ID3D12GraphicsCommandList* cmdli
 	{
 		if (m_current_render_target)
 		{
-			cmdlist->OMSetRenderTargets(1, &m_current_render_target->GetRTVOrDSVHandle().cpu_handle, FALSE,
-				m_current_depth_target ? &m_current_depth_target->GetRTVOrDSVHandle().cpu_handle : nullptr);
+			cmdlist->OMSetRenderTargets(1, &m_current_render_target->GetWriteDescriptor().cpu_handle, FALSE,
+				m_current_depth_target ? &m_current_depth_target->GetWriteDescriptor().cpu_handle : nullptr);
 		}
 		else if (m_current_depth_target)
 		{
-			cmdlist->OMSetRenderTargets(0, nullptr, FALSE, &m_current_depth_target->GetRTVOrDSVHandle().cpu_handle);
+			cmdlist->OMSetRenderTargets(0, nullptr, FALSE, &m_current_depth_target->GetWriteDescriptor().cpu_handle);
 		}
 	}
 }
