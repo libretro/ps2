@@ -20,10 +20,6 @@
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
-#include "fmt/core.h"
-
-#include <errno.h>
-
 OutputIsoFile::OutputIsoFile()
 {
 	_init();
@@ -57,7 +53,6 @@ bool OutputIsoFile::Create(std::string filename, int version)
 	m_outstream = FileSystem::OpenCFile(m_filename.c_str(), "wb");
 	if (!m_outstream)
 	{
-		Console.Error(fmt::format("(OutputIsoFile::Create) Unable to open the file '{}' for writing: {}", m_filename, errno));
 		_init();
 		return false;
 	}

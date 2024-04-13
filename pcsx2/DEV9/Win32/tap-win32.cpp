@@ -19,8 +19,6 @@
 #include "common/RedtapeWilCom.h"
 #include "common/StringUtil.h"
 
-#include "fmt/core.h"
-
 #include <stdio.h>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -359,7 +357,6 @@ bool TAPGetWin32Adapter(const std::string& name, PIP_ADAPTER_ADDRESSES adapter, 
 
 	//We must be bridged
 	Console.WriteLn("DEV9: Current adapter is probably bridged");
-	Console.WriteLn(fmt::format("DEV9: Adapter Display name: {}", StringUtil::WideStringToUTF8String(pAdapterInfo->FriendlyName)));
 
 	//We will need to find the bridge adapter that out adapter is
 	//as the IP information of the tap adapter is null
@@ -410,7 +407,6 @@ bool TAPGetWin32Adapter(const std::string& name, PIP_ADAPTER_ADDRESSES adapter, 
 				PIP_ADAPTER_ADDRESSES potentialAdapter = FindAdapterViaIndex(AdapterInfoReduced.get(), row.HigherLayerInterfaceIndex);
 				if (potentialAdapter != nullptr)
 				{
-					Console.WriteLn(fmt::format("DEV9: {} is possible bridge (Check 1 passed)", StringUtil::WideStringToUTF8String(potentialAdapter->Description)));
 					potentialBridges.push_back(row.HigherLayerInterfaceIndex);
 				}
 				else
@@ -493,8 +489,6 @@ bool TAPGetWin32Adapter(const std::string& name, PIP_ADAPTER_ADDRESSES adapter, 
 								{
 									wil::unique_cotaskmem_string dispName;
 									hr = component->GetDisplayName(dispName.put());
-									if (SUCCEEDED(hr))
-										Console.WriteLn(fmt::format("DEV9: {} is possible bridge (Check 2 passed)", StringUtil::WideStringToUTF8String(dispName.get())));
 
 									//Check if adapter has the ms_bridge component bound to it.
 									auto bindings = bridge.try_query<INetCfgComponentBindings>();
@@ -506,8 +500,6 @@ bool TAPGetWin32Adapter(const std::string& name, PIP_ADAPTER_ADDRESSES adapter, 
 										continue;
 
 									hr = component->GetDisplayName(dispName.put());
-									if (SUCCEEDED(hr))
-										Console.WriteLn(fmt::format("DEV9: {} is bridge (Check 3 passed)", StringUtil::WideStringToUTF8String(dispName.get())));
 
 									bridgeAdapter = cAdapterInfo;
 									break;

@@ -44,8 +44,6 @@
 
 #include "common/Align.h"
 
-#include "fmt/core.h"
-
 using namespace R5900;
 using namespace vtlb_private;
 
@@ -424,15 +422,6 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 	}
 }
 
-// BusError exception: more serious than a TLB miss.  If properly emulated the PS2 kernel
-// itself would invoke a diagnostic/assertion screen that displays the cpu state at the
-// time of the exception.
-static __ri void vtlb_BusError(u32 addr, u32 mode)
-{
-	const std::string message(fmt::format("Bus Error, addr=0x{:x} [{}]", addr, mode ? "store" : "load"));
-	Console.Error(message);
-}
-
 // clang-format off
 template <typename OperandType>
 static OperandType vtlbUnmappedVReadSm(u32 addr) { vtlb_Miss(addr, 0); return 0; }
@@ -443,12 +432,12 @@ static void vtlbUnmappedVWriteSm(u32 addr, OperandType data) { vtlb_Miss(addr, 1
 static void TAKES_R128 vtlbUnmappedVWriteLg(u32 addr, r128 data) { vtlb_Miss(addr, 1); }
 
 template <typename OperandType>
-static OperandType vtlbUnmappedPReadSm(u32 addr) { vtlb_BusError(addr, 0); return 0; }
-static RETURNS_R128 vtlbUnmappedPReadLg(u32 addr) { vtlb_BusError(addr, 0); return r128_zero(); }
+static OperandType vtlbUnmappedPReadSm(u32 addr) { return 0; }
+static RETURNS_R128 vtlbUnmappedPReadLg(u32 addr) { return r128_zero(); }
 
 template <typename OperandType>
-static void vtlbUnmappedPWriteSm(u32 addr, OperandType data) { vtlb_BusError(addr, 1); }
-static void TAKES_R128 vtlbUnmappedPWriteLg(u32 addr, r128 data) { vtlb_BusError(addr, 1); }
+static void vtlbUnmappedPWriteSm(u32 addr, OperandType data) { }
+static void TAKES_R128 vtlbUnmappedPWriteLg(u32 addr, r128 data) { }
 // clang-format on
 
 // --------------------------------------------------------------------------------------

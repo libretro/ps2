@@ -37,7 +37,6 @@ public:
 	IsoDirectory(SectorSource& r, const IsoFileDescriptor& directoryEntry);
 	virtual ~IsoDirectory() = default;
 
-	std::string FStype_ToString() const;
 	SectorSource& GetReader() const { return internalReader; }
 
 	bool Exists(const std::string_view& filePath) const;

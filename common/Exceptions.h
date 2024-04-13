@@ -118,7 +118,7 @@ public: \
 
 	// ---------------------------------------------------------------------------------------
 	// Streaming (file) Exceptions:
-	//   Stream / BadStream / CannotCreateStream / FileNotFound / AccessDenied / EndOfStream
+	//   Stream / BadStream / CannotCreateStream / FileNotFound
 	// ---------------------------------------------------------------------------------------
 
 #define DEFINE_STREAM_EXCEPTION(classname, parent) \
@@ -184,21 +184,6 @@ public: \
 	{
 	public:
 		DEFINE_STREAM_EXCEPTION(FileNotFound, CannotCreateStream)
-	};
-
-	class AccessDenied : public CannotCreateStream
-	{
-	public:
-		DEFINE_STREAM_EXCEPTION(AccessDenied, CannotCreateStream)
-	};
-
-	// EndOfStream can be used either as an error, or used just as a shortcut for manual
-	// feof checks.
-	//
-	class EndOfStream : public BadStream
-	{
-	public:
-		DEFINE_STREAM_EXCEPTION(EndOfStream, BadStream)
 	};
 } // namespace Exception
 

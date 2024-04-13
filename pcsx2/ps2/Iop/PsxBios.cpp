@@ -18,8 +18,6 @@
 #include "R3000A.h"
 #include "IopMem.h"
 
-#include "fmt/core.h"
-
 static std::string psxout_buf;
 
 // This filtering should almost certainly be done in the console classes instead

@@ -19,33 +19,14 @@
 #include "IsoFS.h"
 #include "IsoFile.h"
 
-#include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/StringUtil.h"
 
 #include <memory>
 
 //////////////////////////////////////////////////////////////////////////
 // IsoDirectory
 //////////////////////////////////////////////////////////////////////////
-
-//u8		filesystemType;	// 0x01 = ISO9660, 0x02 = Joliet, 0xFF = NULL
-//u8		volID[5];		// "CD001"
-
-
-std::string IsoDirectory::FStype_ToString() const
-{
-	switch (m_fstype)
-	{
-		case FStype_ISO9660:
-			return "ISO9660";
-		case FStype_Joliet:
-			return "Joliet";
-	}
-
-	return StringUtil::StdStringFromFormat("Unrecognized Code (0x%x)", m_fstype);
-}
 
 // Used to load the Root directory from an image
 IsoDirectory::IsoDirectory(SectorSource& r)
@@ -186,7 +167,7 @@ IsoFileDescriptor IsoDirectory::FindFile(const std::string_view& filePath) const
 	{
 		info = dir->GetEntry(parts[index]);
 		if (info.IsFile())
-			throw Exception::FileNotFound(std::string(filePath));
+			return {};
 
 		deleteme.reset(new IsoDirectory(internalReader, info));
 		dir = deleteme.get();

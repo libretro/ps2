@@ -44,8 +44,6 @@
 #include "common/FileSystem.h"
 #include "common/Path.h"
 
-#include "fmt/core.h"
-
 using namespace x86Emitter;
 
 extern void psxBREAK();

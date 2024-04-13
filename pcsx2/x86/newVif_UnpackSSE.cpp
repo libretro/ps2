@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "newVif_UnpackSSE.h"
-#include "fmt/core.h"
 
 #define xMOV8(regX, loc)   xMOVSSZX(regX, loc)
 #define xMOV16(regX, loc)  xMOVSSZX(regX, loc)

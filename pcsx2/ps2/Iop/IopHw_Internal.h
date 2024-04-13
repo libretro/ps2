@@ -18,8 +18,6 @@
 #include "Common.h"
 #include "IopHw.h"
 
-#include "fmt/core.h"
-
 namespace IopMemory {
 namespace Internal {
 
