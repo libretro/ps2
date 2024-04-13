@@ -30,8 +30,8 @@ else()
 		set(FIND_FRAMEWORK_BACKUP ${CMAKE_FIND_FRAMEWORK})
 		set(CMAKE_FIND_FRAMEWORK NEVER)
 	endif()
-	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 	find_package(ZLIB REQUIRED)
+	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 
 	## Use pcsx2 package to find module
 	include(FindLibc)
