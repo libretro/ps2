@@ -60,12 +60,6 @@ bool ContextRetroGL::SwapBuffers()
 	return true;
 }
 
-std::unique_ptr<GLContext> ContextRetroGL::CreateSharedContext()
-{
-	std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>();
-	return context;
-}
-
 static bool ShouldPreferESContext(void)
 {
 #ifndef _MSC_VER
