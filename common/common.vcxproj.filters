@@ -103,7 +103,6 @@
     <ClCompile Include="MemorySettingsInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="General.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AlignedMalloc.h">

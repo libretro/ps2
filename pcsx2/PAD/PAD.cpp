@@ -30,6 +30,8 @@
 
 #include <array>
 
+#include "fmt/core.h"
+
 const u32 revision = 3;
 const u32 build = 0; // increase that with each version
 #define PAD_SAVE_STATE_VERSION ((revision << 8) | (build << 0))

@@ -15,7 +15,6 @@ target_sources(common PRIVATE
 	Exceptions.cpp
 	FastJmp.cpp
 	FileSystem.cpp
-	General.cpp
 	MemorySettingsInterface.cpp
 	Misc.cpp
 	MD5Digest.cpp

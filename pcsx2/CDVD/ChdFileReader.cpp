@@ -242,10 +242,7 @@ bool ChdFileReader::ParseTOC(u64* out_frame_count)
 		{
 			if (std::sscanf(metadata_str, CDROM_TRACK_METADATA2_FORMAT, &track_num, type_str, subtype_str, &frames,
 				&pregap_frames, pgtype_str, pgsub_str, &postgap_frames) != 8)
-			{
-				Console.Error(fmt::format("Invalid track v2 metadata: '{}'", metadata_str));
 				return false;
-			}
 		}
 		else
 		{
@@ -259,18 +256,12 @@ bool ChdFileReader::ParseTOC(u64* out_frame_count)
 			}
 
 			if (std::sscanf(metadata_str, CDROM_TRACK_METADATA_FORMAT, &track_num, type_str, subtype_str, &frames) != 4)
-			{
-				Console.Error(fmt::format("Invalid track metadata: '{}'", metadata_str));
 				return false;
-			}
 		}
 
 		// PCSX2 doesn't currently support multiple tracks for CDs.
 		if (track_num != 1)
-		{
-			Console.Warning(fmt::format("  Ignoring track {} in CHD.", track_num, frames));
 			continue;
-		}
 
 		total_frames += static_cast<u64>(pregap_frames) + static_cast<u64>(frames) + static_cast<u64>(postgap_frames);
 		max_found_track = std::max(max_found_track, track_num);

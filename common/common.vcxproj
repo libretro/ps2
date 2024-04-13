@@ -60,7 +60,6 @@
     <ClCompile Include="FastJmp.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="General.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="MD5Digest.cpp" />
     <ClCompile Include="MemorySettingsInterface.cpp" />

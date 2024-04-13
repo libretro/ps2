@@ -71,10 +71,7 @@ std::vector<std::string> D3D::GetAdapterNames(IDXGIFactory5* factory)
 			break;
 
 		if (FAILED(hr))
-		{
-			Console.Error(fmt::format("IDXGIFactory2::EnumAdapters() returned %08X", hr));
 			continue;
-		}
 
 		adapter_names.push_back(FixupDuplicateAdapterNames(adapter_names, GetAdapterName(adapter.get())));
 	}
@@ -99,22 +96,14 @@ wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetAdapterByName(IDXGIFactory5* factory
 			break;
 
 		if (FAILED(hr))
-		{
-			Console.Error(fmt::format("IDXGIFactory2::EnumAdapters() returned %08X", hr));
 			continue;
-		}
 
 		std::string adapter_name = FixupDuplicateAdapterNames(adapter_names, GetAdapterName(adapter.get()));
 		if (adapter_name == name)
-		{
-			Console.WriteLn(fmt::format("D3D: Found adapter '{}'", adapter_name));
 			return adapter;
-		}
 
 		adapter_names.push_back(std::move(adapter_name));
 	}
-
-	Console.Warning(fmt::format("Adapter '{}' not found.", name));
 	return {};
 }
 
@@ -122,9 +111,6 @@ wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetFirstAdapter(IDXGIFactory5* factory)
 {
 	wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
 	HRESULT hr = factory->EnumAdapters1(0, adapter.put());
-	if (FAILED(hr))
-		Console.Error(fmt::format("IDXGIFactory2::EnumAdapters() for first adapter returned %08X", hr));
-
 	return adapter;
 }
 
@@ -156,11 +142,7 @@ D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)
 {
 	DXGI_ADAPTER_DESC1 desc;
 	const HRESULT hr = adapter->GetDesc1(&desc);
-	if (FAILED(hr))
-	{
-		Console.Error(fmt::format("IDXGIAdapter1::GetDesc() returned {:08X}", hr));
-	}
-	else
+	if (SUCCEEDED(hr))
 	{
 		switch (desc.VendorId)
 		{

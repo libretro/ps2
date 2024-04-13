@@ -32,10 +32,6 @@
 #include "Config.h"
 #include "Host.h"
 
-#include "svnrev.h"
-
-#include "fmt/core.h"
-
 #define MCD_SIZE 131072 /* Legacy PSX card default size = 1024 * 8 * 16 = 131072 */
 
 #define MC2_MBSIZE 1081344 // Size of a single megabyte of card data = 1024 * 528 * 2 = 1081344
