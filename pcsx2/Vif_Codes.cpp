@@ -139,7 +139,6 @@ vifOp(vifCode_Base)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -184,13 +183,11 @@ __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 
 vifOp(vifCode_Direct)
 {
-	pass3 { }
 	return _vifCode_Direct<idx>(pass, (u8*)data, 0);
 }
 
 vifOp(vifCode_DirectHL)
 {
-	pass3 { }
 	return _vifCode_Direct<idx>(pass, (u8*)data, 1);
 }
 
@@ -218,7 +215,6 @@ vifOp(vifCode_Flush)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -247,7 +243,6 @@ vifOp(vifCode_FlushA)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -268,7 +263,6 @@ vifOp(vifCode_FlushE)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -280,7 +274,6 @@ vifOp(vifCode_ITop)
 		GetVifX.cmd = 0;
 		GetVifX.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -294,7 +287,6 @@ vifOp(vifCode_Mark)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -394,7 +386,6 @@ vifOp(vifCode_MPG)
 			return ret;
 		}
 	}
-	pass3 { }
 	return 0;
 }
 
@@ -425,7 +416,6 @@ vifOp(vifCode_MSCAL)
 			}
 		}
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -454,7 +444,6 @@ vifOp(vifCode_MSCALF)
 		vifX.pass = 0;
 		vifExecQueue(idx);
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -482,7 +471,6 @@ vifOp(vifCode_MSCNT)
 			}
 		}
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -499,7 +487,6 @@ vifOp(vifCode_MskPath3)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -520,7 +507,6 @@ vifOp(vifCode_Nop)
 			}
 		}
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -544,8 +530,6 @@ vifOp(vifCode_Null)
 		if (vifXRegs.code & 0x80000000)
 			vifX.irq = 0;
 	}
-	pass2 { Console.Error("Vif%d bad vifcode! [CMD = %x]", idx, vifX.cmd); }
-	pass3 { }
 	return 1;
 }
 
@@ -560,7 +544,6 @@ vifOp(vifCode_Offset)
 		vif1.cmd = 0;
 		vif1.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -619,7 +602,6 @@ vifOp(vifCode_STCol)
 			vu1Thread.WriteCol(vifX);
 		return ret;
 	}
-	pass3 { }
 	return 0;
 }
 
@@ -640,7 +622,6 @@ vifOp(vifCode_STRow)
 			vu1Thread.WriteRow(vifX);
 		return ret;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -654,7 +635,6 @@ vifOp(vifCode_STCycl)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -674,7 +654,6 @@ vifOp(vifCode_STMask)
 		vifX.cmd = 0;
 		vifX.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -686,7 +665,6 @@ vifOp(vifCode_STMod)
 		GetVifX.cmd = 0;
 		GetVifX.pass = 0;
 	}
-	pass3 { }
 	return 1;
 }
 
@@ -700,9 +678,6 @@ vifOp(vifCode_Unpack)
 	pass2
 	{
 		return nVifUnpack<idx>((u8*)data);
-	}
-	pass3
-	{
 	}
 	return 0;
 }

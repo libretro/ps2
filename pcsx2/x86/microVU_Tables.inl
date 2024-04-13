@@ -217,8 +217,4 @@ mVUop(mVUunknown)
 		if (mVU.code != 0x8000033c)
 			mVUinfo.isBadOp = true;
 	}
-	pass2
-	{
-	}
-	pass3 { }
 }

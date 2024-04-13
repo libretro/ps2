@@ -275,7 +275,6 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 		mVU.regAlloc->clearNeeded(Fs); // Always Clear Written Reg First
 		mVU.regAlloc->clearNeeded(Ft);
 	}
-	pass3 { }
 	pass4
 	{
 		if ((opType != 3) && (opType != 4))
@@ -326,7 +325,6 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(Ft);
 	}
-	pass3 { }
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
 
@@ -362,7 +360,6 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, int clampType)
 		mVU.regAlloc->clearNeeded(Ft);
 		mVU.regAlloc->clearNeeded(ACC);
 	}
-	pass3 { }
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
 
@@ -391,7 +388,6 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, int clampType)
 		mVU.regAlloc->clearNeeded(Ft);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
-	pass3 { }
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
 
@@ -406,9 +402,6 @@ mVUop(mVU_ABS)
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 		xAND.PS(Fs, ptr128[mVUglob.absclip]);
 		mVU.regAlloc->clearNeeded(Fs);
-	}
-	pass3
-	{
 	}
 }
 
@@ -427,9 +420,6 @@ mVUop(mVU_OPMULA)
 		mVU.regAlloc->clearNeeded(Ft);
 		mVUupdateFlags(mVU, Fs);
 		mVU.regAlloc->clearNeeded(Fs);
-	}
-	pass3
-	{
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -452,9 +442,6 @@ mVUop(mVU_OPMSUB)
 		mVU.regAlloc->clearNeeded(Ft);
 		mVUupdateFlags(mVU, ACC);
 		mVU.regAlloc->clearNeeded(ACC);
-	}
-	pass3
-	{
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -487,9 +474,6 @@ static void mVU_FTOIx(mP, const float* addr)
 		mVU.regAlloc->clearNeeded(t1);
 		mVU.regAlloc->clearNeeded(t2);
 	}
-	pass3
-	{
-	}
 }
 
 // ITOF0/ITOF4/ITOF12/ITOF15 Opcodes
@@ -508,9 +492,6 @@ static void mVU_ITOFx(mP, const float* addr)
 		//mVUclamp2(Fs, xmmT1, 15); // Clamp (not sure if this is needed)
 
 		mVU.regAlloc->clearNeeded(Fs);
-	}
-	pass3
-	{
 	}
 }
 
@@ -553,9 +534,6 @@ mVUop(mVU_CLIP)
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(Ft);
 		mVU.regAlloc->clearNeeded(t1);
-	}
-	pass3
-	{
 	}
 }
 
@@ -653,4 +631,4 @@ mVUop(mVU_ITOF0)  { mVU_ITOFx(mX, NULL);      }
 mVUop(mVU_ITOF4)  { mVU_ITOFx(mX, mVUglob.ITOF_4);      }
 mVUop(mVU_ITOF12) { mVU_ITOFx(mX, mVUglob.ITOF_12);     }
 mVUop(mVU_ITOF15) { mVU_ITOFx(mX, mVUglob.ITOF_15);     }
-mVUop(mVU_NOP)    { pass2 { } pass3 { } }
+mVUop(mVU_NOP)    { }
