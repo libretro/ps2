@@ -7,7 +7,6 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/input.cpp
    ${CMAKE_SOURCE_DIR}/libretro/DEV9.cpp
    ${CMAKE_SOURCE_DIR}/libretro/USB.cpp
-   ${CMAKE_SOURCE_DIR}/pcsx2/GS/Renderers/OpenGL/GLContextRetroGL.cpp
 )
 
 target_link_libraries(pcsx2_libretro PRIVATE

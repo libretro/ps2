@@ -271,7 +271,6 @@ bool GSDeviceOGL::Create()
 			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, *convert_glsl));
 			if (!m_shader_cache.GetProgram(&m_convert.ps[i], m_convert.vs, ps))
 				return false;
-			m_convert.ps[i].SetFormattedName("Convert pipe %s", name);
 
 			if (static_cast<ShaderConvert>(i) == ShaderConvert::RGBA_TO_8I)
 			{
@@ -322,7 +321,6 @@ bool GSDeviceOGL::Create()
 			const std::string ps(GetShaderSource("ps_copy", GL_FRAGMENT_SHADER, *shader));
 			if (!m_shader_cache.GetProgram(&m_present[0], present_vs, ps))
 				return false;
-			m_present[0].SetFormattedName("Present pipe ps_copy");
 
 			// This is a bit disgusting, but it saves allocating a UBO when no shaders currently need it.
 			m_present[0].RegisterUniform("u_source_rect");
@@ -353,7 +351,6 @@ bool GSDeviceOGL::Create()
 			const std::string ps(GetShaderSource(fmt::format("ps_main{}", i), GL_FRAGMENT_SHADER, *shader));
 			if (!m_shader_cache.GetProgram(&m_merge_obj.ps[i], m_convert.vs, ps))
 				return false;
-			m_merge_obj.ps[i].SetFormattedName("Merge pipe %zu", i);
 			m_merge_obj.ps[i].RegisterUniform("BGColor");
 		}
 	}
@@ -374,7 +371,6 @@ bool GSDeviceOGL::Create()
 			const std::string ps(GetShaderSource(fmt::format("ps_main{}", i), GL_FRAGMENT_SHADER, *shader));
 			if (!m_shader_cache.GetProgram(&m_interlace.ps[i], m_convert.vs, ps))
 				return false;
-			m_interlace.ps[i].SetFormattedName("Merge pipe %zu", i);
 			m_interlace.ps[i].RegisterUniform("ZrH");
 		}
 	}
@@ -405,7 +401,6 @@ bool GSDeviceOGL::Create()
 				fmt::format("ps_stencil_image_init_{}", i),
 				GL_FRAGMENT_SHADER, *convert_glsl));
 			m_shader_cache.GetProgram(&m_date.primid_ps[i], m_convert.vs, ps);
-			m_date.primid_ps[i].SetFormattedName("PrimID Destination Alpha Init %d", i);
 		}
 	}
 

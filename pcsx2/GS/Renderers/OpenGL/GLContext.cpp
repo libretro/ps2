@@ -22,13 +22,49 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
+#include <vector>
 #ifdef __APPLE__
 #include <stdlib.h>
 #else
 #include <malloc.h>
 #endif
 
-#include "GLContextRetroGL.h"
+#include "GS/Renderers/Common/GSDevice.h"
+#include "GS/GSVector.h"
+
+#include <libretro.h>
+extern retro_video_refresh_t video_cb;
+extern retro_hw_render_callback hw_render;
+
+ContextRetroGL::ContextRetroGL() : GLContext()
+{
+}
+
+ContextRetroGL::~ContextRetroGL()
+{
+}
+
+std::unique_ptr<GLContext> ContextRetroGL::Create(gsl::span<const Version> versions_to_try)
+{
+	std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>();
+	return context;
+}
+
+bool ContextRetroGL::SwapBuffers()
+{
+	if(g_gs_device->GetCurrent())
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, g_gs_device->GetCurrent()->GetWidth(), g_gs_device->GetCurrent()->GetHeight(), 0);
+	else
+		video_cb(NULL, 0, 0, 0);
+	return true;
+}
+
+std::unique_ptr<GLContext> ContextRetroGL::CreateSharedContext()
+{
+	std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>();
+	return context;
+}
 
 static bool ShouldPreferESContext(void)
 {
@@ -45,6 +81,11 @@ static bool ShouldPreferESContext(void)
 
 GLContext::GLContext() { }
 GLContext::~GLContext() = default;
+
+static void *gl_retro_proc_addr(const char *name)
+{
+	return (void*)(hw_render.get_proc_address(name));
+}
 
 std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_to_try)
 {
@@ -74,14 +115,10 @@ std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_t
 
 	Console.WriteLn("Created an %s context", context->IsGLES() ? "OpenGL ES" : "OpenGL");
 
-	// NOTE: Not thread-safe. But this is okay, since we're not going to be creating more than one context at a time.
-	static GLContext* context_being_created;
-	context_being_created = context.get();
-
 	// load up glad
 	if (!context->IsGLES())
 	{
-		if (!gladLoadGLLoader([](const char* name) { return context_being_created->GetProcAddress(name); }))
+		if (!gladLoadGLLoader(gl_retro_proc_addr))
 		{
 			Console.Error("Failed to load GL functions for GLAD");
 			return nullptr;
@@ -89,14 +126,12 @@ std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_t
 	}
 	else
 	{
-		if (!gladLoadGLES2Loader([](const char* name) { return context_being_created->GetProcAddress(name); }))
+		if (!gladLoadGLES2Loader(gl_retro_proc_addr))
 		{
 			Console.Error("Failed to load GLES functions for GLAD");
 			return nullptr;
 		}
 	}
-
-	context_being_created = nullptr;
 
 	return context;
 }

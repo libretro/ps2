@@ -472,25 +472,6 @@ void GLProgram::BindUniformBlock(const char* name, u32 index)
 		glUniformBlockBinding(m_program_id, location, index);
 }
 
-void GLProgram::SetName(const std::string_view& name)
-{
-	if (name.empty())
-		return;
-
-#ifdef _DEBUG
-	glObjectLabel(GL_PROGRAM, m_program_id, name.length(), name.data());
-#endif
-}
-
-void GLProgram::SetFormattedName(const char* format, ...)
-{
-	va_list ap;
-	va_start(ap, format);
-	std::string n = StringUtil::StdStringFromFormatV(format, ap);
-	va_end(ap);
-	SetName(n);
-}
-
 GLProgram& GLProgram::operator=(GLProgram&& prog)
 {
 	Destroy();

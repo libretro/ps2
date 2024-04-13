@@ -36,15 +36,12 @@ class D3D12StreamBuffer
 
 		bool Create(u32 size);
 
-		__fi bool IsValid() const { return static_cast<bool>(m_buffer); }
 		__fi ID3D12Resource* GetBuffer() const { return m_buffer.get(); }
 		__fi D3D12_GPU_VIRTUAL_ADDRESS GetGPUPointer() const { return m_gpu_pointer; }
-		__fi void* GetHostPointer() const { return m_host_pointer; }
 		__fi void* GetCurrentHostPointer() const { return m_host_pointer + m_current_offset; }
 		__fi D3D12_GPU_VIRTUAL_ADDRESS GetCurrentGPUPointer() const { return m_gpu_pointer + m_current_offset; }
 		__fi u32 GetSize() const { return m_size; }
 		__fi u32 GetCurrentOffset() const { return m_current_offset; }
-		__fi u32 GetCurrentSpace() const { return m_current_space; }
 
 		bool ReserveMemory(u32 num_bytes, u32 alignment);
 		void CommitMemory(u32 final_num_bytes);

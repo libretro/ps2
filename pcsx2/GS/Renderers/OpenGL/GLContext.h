@@ -43,11 +43,22 @@ class GLContext
 		};
 
 		__fi bool IsGLES() const { return (m_version.profile == Profile::ES); }
-		virtual void* GetProcAddress(const char* name) = 0;
 		virtual bool SwapBuffers() = 0;
 		virtual std::unique_ptr<GLContext> CreateSharedContext() = 0;
 
 		static std::unique_ptr<GLContext> Create(gsl::span<const Version> versions_to_try);
 	protected:
 		Version m_version = {};
+};
+
+class ContextRetroGL : public GLContext
+{
+	public:
+		ContextRetroGL();
+		~ContextRetroGL() override;
+
+		static std::unique_ptr<GLContext> Create(gsl::span<const Version> versions_to_try);
+
+		bool SwapBuffers() override;
+		virtual std::unique_ptr<GLContext> CreateSharedContext() override;
 };

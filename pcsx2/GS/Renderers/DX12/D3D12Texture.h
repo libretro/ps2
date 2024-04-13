@@ -42,7 +42,6 @@ class D3D12Texture final
 		~D3D12Texture();
 
 		__fi ID3D12Resource* GetResource() const { return m_resource.get(); }
-		__fi D3D12MA::Allocation* GetAllocation() const { return m_allocation.get(); }
 		__fi const D3D12DescriptorHandle& GetSRVDescriptor() const { return m_srv_descriptor; }
 		__fi const D3D12DescriptorHandle& GetWriteDescriptor() const { return m_write_descriptor; }
 		__fi D3D12_RESOURCE_STATES GetState() const { return m_state; }

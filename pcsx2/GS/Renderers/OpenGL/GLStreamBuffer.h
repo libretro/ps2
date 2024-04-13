@@ -27,7 +27,6 @@ class GLStreamBuffer
 		virtual ~GLStreamBuffer();
 
 		__fi GLuint GetGLBufferId() const { return m_buffer_id; }
-		__fi GLenum GetGLTarget() const { return m_target; }
 		__fi u32 GetSize() const { return m_size; }
 
 		void Bind();

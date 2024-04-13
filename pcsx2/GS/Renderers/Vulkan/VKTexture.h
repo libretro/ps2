@@ -32,21 +32,13 @@ class VKTexture
 
 		__fi bool IsValid() const { return (m_image != VK_NULL_HANDLE); }
 
-		/// An image is considered owned/managed if we control the memory.
-		__fi bool IsOwned() const { return (m_allocation != VK_NULL_HANDLE); }
-
 		__fi u32 GetWidth() const { return m_width; }
 		__fi u32 GetHeight() const { return m_height; }
 		__fi u32 GetLevels() const { return m_levels; }
 		__fi u32 GetLayers() const { return m_layers; }
-		__fi u32 GetMipWidth(u32 level) const { return std::max<u32>(m_width >> level, 1u); }
-		__fi u32 GetMipHeight(u32 level) const { return std::max<u32>(m_height >> level, 1u); }
 		__fi VkFormat GetFormat() const { return m_format; }
-		__fi VkSampleCountFlagBits GetSamples() const { return m_samples; }
 		__fi VkImageLayout GetLayout() const { return m_layout; }
-		__fi VkImageViewType GetViewType() const { return m_view_type; }
 		__fi VkImage GetImage() const { return m_image; }
-		__fi VmaAllocation GetAllocation() const { return m_allocation; }
 		__fi VkImageView GetView() const { return m_view; }
 
 		bool Create(u32 width, u32 height, u32 levels, u32 layers, VkFormat format, VkSampleCountFlagBits samples,

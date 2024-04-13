@@ -30,8 +30,6 @@ class GLProgram
 		static GLuint CompileShader(GLenum type, const std::string_view source);
 		static void ResetLastProgram();
 
-		bool IsValid() const { return m_program_id != 0; }
-
 		bool Compile(const std::string_view vertex_shader, const std::string_view fragment_shader);
 
 		bool CompileCompute(const std::string_view glsl);
@@ -81,9 +79,6 @@ class GLProgram
 		void UniformMatrix4fv(int index, const float* v);
 
 		void BindUniformBlock(const char* name, u32 index);
-
-		void SetName(const std::string_view& name);
-		void SetFormattedName(const char* format, ...);
 
 		GLProgram& operator=(const GLProgram&) = delete;
 		GLProgram& operator=(GLProgram&& prog);

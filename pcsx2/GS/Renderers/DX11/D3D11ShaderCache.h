@@ -34,7 +34,6 @@ class D3D11ShaderCache
 		~D3D11ShaderCache();
 
 		D3D_FEATURE_LEVEL GetFeatureLevel() const { return m_feature_level; }
-		bool UsingDebugShaders() const { return m_debug; }
 
 		bool Open(D3D_FEATURE_LEVEL feature_level, bool debug);
 		void Close();
