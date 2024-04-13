@@ -71,18 +71,21 @@ namespace Options
 static Option<std::string> bios("pcsx2_bios", "Bios"); // will be filled in retro_init()
 static Option<bool> fast_boot("pcsx2_fastboot", "Fast Boot", true);
 
-GfxOption<std::string> renderer("pcsx2_renderer", "Renderer", {"Auto", "OpenGL",
+GfxOption<std::string> renderer("pcsx2_renderer", "Renderer", {
+		"Auto",
+		"OpenGL",
 #ifdef _WIN32
-                                                               "D3D11", "D3D12",
+		"D3D11", "D3D12",
 #endif
 #ifdef ENABLE_VULKAN
-															   "Vulkan",
+		"Vulkan",
 #endif
-															   "Software", "Null"});
+		"Software",
+		"Null"});
 
 GfxOption<int> upscale_multiplier("pcsx2_upscale_multiplier", "Internal Resolution",
 								  {
-								  {"Native PS2",              1},
+								  {"1x Native (PS2)",         1},
 								  {"2x Native (~720p)",       2},
 								  {"3x Native (~1080p)",      3},
 								  {"4x Native (~1440p/2K)",   4},
@@ -91,7 +94,7 @@ GfxOption<int> upscale_multiplier("pcsx2_upscale_multiplier", "Internal Resoluti
 								  {"7x Native (~2520p)",      7},
 								  {"8x Native (~2880p/5K)",   8},
 								  {"9x Native (~3240p)",      9},
-								  {"10x Native (~3600p)",    10},
+								  {"10x Native (~3600p/6K)", 10},
 								  {"11x Native (~3960p)",    11},
 								  {"12x Native (~4320p/8K)", 12}   });
 //static GfxOption<int> sw_renderer_threads("pcsx2_sw_renderer_threads", "Software Renderer Threads", 2, 10);
