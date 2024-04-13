@@ -21,6 +21,35 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
+#ifdef __linux__
+#include <sys/syscall.h>
+static int io_setup(unsigned nr, aio_context_t * ctxp)
+{
+   return syscall(__NR_io_setup, nr, ctxp);
+}
+
+static int io_destroy(aio_context_t ctx)
+{
+   return syscall(__NR_io_destroy, ctx);
+}
+
+static int io_submit(aio_context_t ctx, long nr, struct iocb ** cbp)
+{
+   return syscall(__NR_io_submit, ctx, nr, cbp);
+}
+
+static int io_cancel(aio_context_t ctx, struct iocb * iocb, struct io_event * result)
+{
+   return syscall(__NR_io_cancel, ctx, iocb, result);
+}
+
+static int io_getevents(aio_context_t ctx, long min_nr, long nr,
+      struct io_event * events, struct timespec * timeout)
+{
+   return syscall(__NR_io_getevents, ctx, min_nr, nr, events, timeout);
+}
+#endif
+
 FlatFileReader::FlatFileReader()
 {
 	m_blocksize = 2048;

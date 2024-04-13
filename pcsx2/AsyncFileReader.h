@@ -18,7 +18,7 @@
 #ifdef _WIN32
 # include "common/RedtapeWindows.h"
 #elif defined(__linux__)
-#	include <libaio.h>
+#include <linux/aio_abi.h>
 #elif defined(__POSIX__)
 #	include <aio.h>
 #endif
@@ -75,7 +75,7 @@ class FlatFileReader : public AsyncFileReader
 	bool asyncInProgress;
 #elif defined(__linux__)
 	int m_fd; // FIXME don't know if overlap as an equivalent on linux
-	io_context_t m_aio_context;
+	aio_context_t m_aio_context;
 #elif defined(__POSIX__)
 	int m_fd; // TODO OSX don't know if overlap as an equivalent on OSX
 	struct aiocb m_aiocb;
