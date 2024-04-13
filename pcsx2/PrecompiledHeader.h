@@ -42,7 +42,6 @@
 #include <functional>
 #include <optional>
 #include <stack>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
