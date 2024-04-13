@@ -515,7 +515,7 @@ static void executeVM(void)
 	}
 }
 
-void cpu_thread_entry(VMBootParameters boot_params)
+static void cpu_thread_entry(VMBootParameters boot_params)
 {
 	VMManager::Initialize(boot_params);
 	VMManager::SetState(VMState::Running);
@@ -526,8 +526,10 @@ void cpu_thread_entry(VMBootParameters boot_params)
 			executeVM();
 	}
 }
+
 #ifdef ENABLE_VULKAN
-static bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features) {
+static bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features)
+{
 	vk_libretro_init(instance, gpu, required_device_extensions, num_required_device_extensions, required_device_layers, num_required_device_layers, required_features);
 
 	if(gpu != VK_NULL_HANDLE) {
@@ -549,7 +551,8 @@ static bool create_device_vulkan(retro_vulkan_context *context, VkInstance insta
 	return true;
 }
 
-static const VkApplicationInfo *get_application_info_vulkan(void) {
+static const VkApplicationInfo *get_application_info_vulkan(void)
+{
 	static VkApplicationInfo app_info{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	app_info.pApplicationName   = "PCSX2";
 	app_info.applicationVersion = VK_MAKE_VERSION(1, 7, 0);
