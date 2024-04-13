@@ -23,15 +23,6 @@
 
 namespace D3D12
 {
-	static inline void ResourceBarrier(ID3D12GraphicsCommandList* cmdlist, ID3D12Resource* resource,
-		D3D12_RESOURCE_STATES from_state, D3D12_RESOURCE_STATES to_state)
-	{
-		const D3D12_RESOURCE_BARRIER barrier = {D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-			D3D12_RESOURCE_BARRIER_FLAG_NONE,
-			{{resource, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, from_state, to_state}}};
-		cmdlist->ResourceBarrier(1, &barrier);
-	}
-
 	static inline void SetViewport(ID3D12GraphicsCommandList* cmdlist, int x, int y, int width, int height,
 		float min_depth = 0.0f, float max_depth = 1.0f)
 	{
@@ -48,13 +39,6 @@ namespace D3D12
 	{
 		const D3D12_RECT r{x, y, x + width, y + height};
 		cmdlist->RSSetScissorRects(1, &r);
-	}
-
-	static inline void SetViewportAndScissor(ID3D12GraphicsCommandList* cmdlist, int x, int y, int width, int height,
-		float min_depth = 0.0f, float max_depth = 1.0f)
-	{
-		SetViewport(cmdlist, x, y, width, height, min_depth, max_depth);
-		SetScissor(cmdlist, x, y, width, height);
 	}
 
 	void SetDefaultSampler(D3D12_SAMPLER_DESC* desc);

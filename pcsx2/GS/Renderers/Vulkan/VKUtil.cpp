@@ -73,24 +73,6 @@ VkFormat GetLinearFormat(VkFormat format)
 	return format;
 }
 
-VkBlendFactor GetAlphaBlendFactor(VkBlendFactor factor)
-{
-	switch (factor)
-	{
-		case VK_BLEND_FACTOR_SRC_COLOR:
-			return VK_BLEND_FACTOR_SRC_ALPHA;
-		case VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:
-			return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		case VK_BLEND_FACTOR_DST_COLOR:
-			return VK_BLEND_FACTOR_DST_ALPHA;
-		case VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR:
-			return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-		default:
-			break;
-	}
-	return factor;
-}
-
 void SetViewport(VkCommandBuffer command_buffer, int x, int y, int width, int height,
 		float min_depth /*= 0.0f*/, float max_depth /*= 1.0f*/)
 {
@@ -103,11 +85,6 @@ void SetScissor(VkCommandBuffer command_buffer, int x, int y, int width, int hei
 {
 	const VkRect2D scissor{{x, y}, {static_cast<u32>(width), static_cast<u32>(height)}};
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-}
-
-void SetViewportAndScissor(VkCommandBuffer command_buffer, int x, int y, int width, int height,
-		float min_depth /* = 0.0f */, float max_depth /* = 1.0f */)
-{
 }
 
 void SafeDestroyFramebuffer(VkFramebuffer& fb)
