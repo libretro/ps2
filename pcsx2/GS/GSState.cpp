@@ -1409,12 +1409,9 @@ void GSState::FlushPrim()
 					}
 					break;
 				case GS_INVALID:
-					break;
 				default:
-					__assume(0);
+					break;
 			}
-
-			ASSERT((int)unused < GSUtil::GetVertexCount(PRIM->PRIM));
 		}
 
 		m_vt.Update(m_vertex.buff, m_index.buff, m_vertex.tail, m_index.tail, GSUtil::GetPrimClass(PRIM->PRIM));

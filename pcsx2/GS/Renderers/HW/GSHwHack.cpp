@@ -1236,12 +1236,17 @@ s16 GSLookupBeforeDrawFunctionId(const std::string_view& name)
 	return -1;
 }
 
+static CRCHackLevel GetRecommendedCRCHackLevel(GSRendererType type)
+{
+	return (type == GSRendererType::DX11 || type == GSRendererType::DX12) ? CRCHackLevel::Full : CRCHackLevel::Partial;
+}
+
 void GSRendererHW::UpdateCRCHacks()
 {
 	GSRenderer::UpdateCRCHacks();
 
 	const CRCHackLevel real_level = (GSConfig.CRCHack == CRCHackLevel::Automatic) ?
-		GSUtil::GetRecommendedCRCHackLevel(GSConfig.Renderer) : GSConfig.CRCHack;
+		GetRecommendedCRCHackLevel(GSConfig.Renderer) : GSConfig.CRCHack;
 
 	m_nativeres = (GSConfig.UpscaleMultiplier == 1.0f);
 	s_nativeres = m_nativeres;

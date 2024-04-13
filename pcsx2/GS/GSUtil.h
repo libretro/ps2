@@ -24,8 +24,6 @@ public:
 	static void Init();
 
 	static GS_PRIM_CLASS GetPrimClass(u32 prim);
-	static int GetVertexCount(u32 prim);
-	static int GetClassVertexCount(u32 primclass);
 
 	static const u32* HasSharedBitsPtr(u32 dpsm);
 	static bool HasSharedBits(u32 spsm, const u32* ptr);
@@ -35,6 +33,5 @@ public:
 	static bool HasSameSwizzleBits(u32 spsm, u32 dpsm);
 	static u32 GetChannelMask(u32 spsm);
 
-	static CRCHackLevel GetRecommendedCRCHackLevel(GSRendererType type);
 	static GSRendererType GetPreferredRenderer();
 };
