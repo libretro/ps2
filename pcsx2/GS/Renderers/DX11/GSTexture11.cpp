@@ -186,11 +186,6 @@ GSTexture11::operator ID3D11UnorderedAccessView*()
 	return m_uav.get();
 }
 
-bool GSTexture11::Equal(GSTexture11* tex)
-{
-	return tex && m_texture == tex->m_texture;
-}
-
 GSDownloadTexture11::GSDownloadTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> tex, u32 width, u32 height, GSTexture::Format format)
 	: GSDownloadTexture(width, height, format)
 	, m_texture(std::move(tex))
