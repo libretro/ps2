@@ -22,6 +22,36 @@
 static constexpr VkComponentMapping s_identity_swizzle{VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
 	VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
 
+static bool IsDepthFormat(VkFormat format)
+{
+	switch (format)
+	{
+		case VK_FORMAT_D16_UNORM:
+		case VK_FORMAT_D16_UNORM_S8_UINT:
+		case VK_FORMAT_D24_UNORM_S8_UINT:
+		case VK_FORMAT_D32_SFLOAT:
+		case VK_FORMAT_D32_SFLOAT_S8_UINT:
+			return true;
+		default:
+			break;
+	}
+	return false;
+}
+
+static bool IsDepthStencilFormat(VkFormat format)
+{
+	switch (format)
+	{
+		case VK_FORMAT_D16_UNORM_S8_UINT:
+		case VK_FORMAT_D24_UNORM_S8_UINT:
+		case VK_FORMAT_D32_SFLOAT_S8_UINT:
+			return true;
+		default:
+			break;
+	}
+	return false;
+}
+
 VKTexture::VKTexture() = default;
 
 VKTexture::VKTexture(VKTexture&& move)

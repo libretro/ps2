@@ -23,22 +23,6 @@
 #include <cstdarg>
 #include <string_view>
 
-bool IsDepthFormat(VkFormat format);
-bool IsDepthStencilFormat(VkFormat format);
-VkFormat GetLinearFormat(VkFormat format);
-
-// Safe destroy helpers
-void SafeDestroyFramebuffer(VkFramebuffer& fb);
-void SafeDestroyShaderModule(VkShaderModule& sm);
-void SafeDestroyPipeline(VkPipeline& p);
-void SafeDestroyPipelineLayout(VkPipelineLayout& pl);
-void SafeDestroyDescriptorSetLayout(VkDescriptorSetLayout& dsl);
-void SafeDestroyBufferView(VkBufferView& bv);
-void SafeDestroyImageView(VkImageView& iv);
-void SafeDestroySampler(VkSampler& samp);
-void SafeDestroySemaphore(VkSemaphore& sem);
-void SafeFreeGlobalDescriptorSet(VkDescriptorSet& ds);
-
 // Wrapper for creating an barrier on a buffer
 void BufferMemoryBarrier(VkCommandBuffer command_buffer, VkBuffer buffer, VkAccessFlags src_access_mask,
 		VkAccessFlags dst_access_mask, VkDeviceSize offset, VkDeviceSize size, VkPipelineStageFlags src_stage_mask,

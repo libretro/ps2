@@ -59,6 +59,97 @@ enum : u32
 	MAX_DESCRIPTOR_SETS_PER_FRAME = MAX_DRAW_CALLS_PER_FRAME * 2
 };
 
+static void SafeDestroyFramebuffer(VkFramebuffer& fb)
+{
+	if (fb != VK_NULL_HANDLE)
+	{
+		vkDestroyFramebuffer(g_vulkan_context->GetDevice(), fb, nullptr);
+		fb = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroyShaderModule(VkShaderModule& sm)
+{
+	if (sm != VK_NULL_HANDLE)
+	{
+		vkDestroyShaderModule(g_vulkan_context->GetDevice(), sm, nullptr);
+		sm = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroyPipeline(VkPipeline& p)
+{
+	if (p != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline(g_vulkan_context->GetDevice(), p, nullptr);
+		p = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroyPipelineLayout(VkPipelineLayout& pl)
+{
+	if (pl != VK_NULL_HANDLE)
+	{
+		vkDestroyPipelineLayout(g_vulkan_context->GetDevice(), pl, nullptr);
+		pl = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroyDescriptorSetLayout(VkDescriptorSetLayout& dsl)
+{
+	if (dsl != VK_NULL_HANDLE)
+	{
+		vkDestroyDescriptorSetLayout(g_vulkan_context->GetDevice(), dsl, nullptr);
+		dsl = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroyBufferView(VkBufferView& bv)
+{
+	if (bv != VK_NULL_HANDLE)
+	{
+		vkDestroyBufferView(g_vulkan_context->GetDevice(), bv, nullptr);
+		bv = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroyImageView(VkImageView& iv)
+{
+	if (iv != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView(g_vulkan_context->GetDevice(), iv, nullptr);
+		iv = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroySampler(VkSampler& samp)
+{
+	if (samp != VK_NULL_HANDLE)
+	{
+		vkDestroySampler(g_vulkan_context->GetDevice(), samp, nullptr);
+		samp = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeDestroySemaphore(VkSemaphore& sem)
+{
+	if (sem != VK_NULL_HANDLE)
+	{
+		vkDestroySemaphore(g_vulkan_context->GetDevice(), sem, nullptr);
+		sem = VK_NULL_HANDLE;
+	}
+}
+
+static void SafeFreeGlobalDescriptorSet(VkDescriptorSet& ds)
+{
+	if (ds != VK_NULL_HANDLE)
+	{
+		g_vulkan_context->FreeGlobalDescriptorSet(ds);
+		ds = VK_NULL_HANDLE;
+	}
+}
+
+
 VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 	: m_instance(instance)
 	  , m_physical_device(physical_device)
