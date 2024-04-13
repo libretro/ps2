@@ -392,10 +392,10 @@ VkFramebuffer GSTextureVK::GetLinkedFramebuffer(GSTextureVK* depth_texture, bool
 	}
 
 	VkRenderPass rp = g_vulkan_context->GetRenderPass(
-		(m_type != GSTexture::Type::DepthStencil) ? GetNativeFormat() : VK_FORMAT_UNDEFINED,
+		(m_type != GSTexture::Type::DepthStencil) ? GetVkFormat() : VK_FORMAT_UNDEFINED,
 		(m_type != GSTexture::Type::DepthStencil) ?
-            (depth_texture ? depth_texture->GetNativeFormat() : VK_FORMAT_UNDEFINED) :
-            GetNativeFormat(),
+            (depth_texture ? depth_texture->GetVkFormat() : VK_FORMAT_UNDEFINED) :
+            GetVkFormat(),
 		VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_LOAD,
 		VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, feedback_loop);
 	if (!rp)
@@ -471,7 +471,7 @@ void GSDownloadTextureVK::CopyFromTexture(
 
 	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
 
-	VkImageLayout old_layout = vkTex->GetTexture().GetLayout();
+	VkImageLayout old_layout = vkTex->GetLayout();
 	if (old_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		vkTex->GetTexture().TransitionSubresourcesToLayout(cmdbuf, src_level, 1, 0, 1, old_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
@@ -485,7 +485,7 @@ void GSDownloadTextureVK::CopyFromTexture(
 	image_copy.imageExtent          = {static_cast<u32>(src.width()), static_cast<u32>(src.height()), 1u};
 
 	// do the copy
-	vkCmdCopyImageToBuffer(cmdbuf, vkTex->GetTexture().GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_buffer, 1, &image_copy);
+	vkCmdCopyImageToBuffer(cmdbuf, vkTex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_buffer, 1, &image_copy);
 
 	// flush gpu cache
 	BufferMemoryBarrier(cmdbuf, m_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT, 0, copy_size,

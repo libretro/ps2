@@ -355,12 +355,13 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			memcpy(&m_device_features, required_features, sizeof(m_device_features));
 
 		// Enable the features we use.
-		m_device_features.dualSrcBlend = available_features.dualSrcBlend;
-		m_device_features.largePoints = available_features.largePoints;
-		m_device_features.wideLines = available_features.wideLines;
+		m_device_features.dualSrcBlend             = available_features.dualSrcBlend;
+		m_device_features.largePoints              = available_features.largePoints;
+		m_device_features.wideLines                = available_features.wideLines;
 		m_device_features.fragmentStoresAndAtomics = available_features.fragmentStoresAndAtomics;
-		m_device_features.textureCompressionBC = available_features.textureCompressionBC;
-		m_device_features.samplerAnisotropy = available_features.samplerAnisotropy;
+		m_device_features.textureCompressionBC     = available_features.textureCompressionBC;
+		m_device_features.samplerAnisotropy        = available_features.samplerAnisotropy;
+		m_device_features.geometryShader           = available_features.geometryShader;
 
 		return true;
 	}
@@ -824,6 +825,35 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		}
 
 		return true;
+	}
+
+	VkRenderPass VKContext::GetRenderPassForRestarting(VkRenderPass pass)
+	{
+		for (const auto& it : m_render_pass_cache)
+		{
+			if (it.second != pass)
+				continue;
+
+			RenderPassCacheKey modified_key;
+			modified_key.key = it.first;
+			if (modified_key.color_load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+				modified_key.color_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+			if (modified_key.depth_load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+				modified_key.depth_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+			if (modified_key.stencil_load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
+				modified_key.stencil_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+
+			if (modified_key.key == it.first)
+				return pass;
+
+			auto fit = m_render_pass_cache.find(modified_key.key);
+			if (fit != m_render_pass_cache.end())
+				return fit->second;
+
+			return CreateCachedRenderPass(modified_key);
+		}
+
+		return pass;
 	}
 
 	VkCommandBuffer VKContext::GetCurrentInitCommandBuffer()
@@ -2640,7 +2670,7 @@ void GSDeviceVK::BeginRenderPassForStretchRect(
 	else
 	{
 		// integer formats, etc
-		const VkRenderPass rp = g_vulkan_context->GetRenderPass(dTex->GetNativeFormat(), VK_FORMAT_UNDEFINED,
+		const VkRenderPass rp = g_vulkan_context->GetRenderPass(dTex->GetVkFormat(), VK_FORMAT_UNDEFINED,
 			load_op, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE);
 		if (load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
 		{
@@ -2732,8 +2762,8 @@ void GSDeviceVK::BlitRect(GSTexture* sTex, const GSVector4i& sRect, u32 sLevel, 
 	const VkImageBlit ib{{aspect, sLevel, 0u, 1u}, {{sRect.left, sRect.top, 0}, {sRect.right, sRect.bottom, 1}},
 		{aspect, dLevel, 0u, 1u}, {{dRect.left, dRect.top, 0}, {dRect.right, dRect.bottom, 1}}};
 
-	vkCmdBlitImage(g_vulkan_context->GetCurrentCommandBuffer(), sTexVK->GetTexture().GetImage(),
-		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dTexVK->GetTexture().GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+	vkCmdBlitImage(g_vulkan_context->GetCurrentCommandBuffer(), sTexVK->GetImage(),
+		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dTexVK->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
 		&ib, linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
 }
 
@@ -4060,7 +4090,7 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 		OMSetRenderTargets(current_rt, current_ds, scissor, current_feedback_loop);
 
 		// restart render pass
-		BeginRenderPass(render_pass, render_pass_area);
+		BeginRenderPass(g_vulkan_context->GetRenderPassForRestarting(render_pass), render_pass_area);
 	}
 }
 
@@ -4139,7 +4169,7 @@ void GSDeviceVK::PSSetShaderResource(int i, GSTexture* sr, bool check_state)
 		GSTextureVK* vkTex = static_cast<GSTextureVK*>(sr);
 		if (check_state)
 		{
-			if (vkTex->GetTexture().GetLayout() != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && InRenderPass())
+			if (vkTex->GetLayout() != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && InRenderPass())
 				EndRenderPass();
 
 			vkTex->CommitClear();
@@ -4579,7 +4609,7 @@ static void ColorBufferBarrier(GSTextureVK* rt)
 	const VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr,
 		VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
 		VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-		rt->GetTexture().GetImage(), {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u}};
+		rt->GetImage(), {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u}};
 
 	vkCmdPipelineBarrier(g_vulkan_context->GetCurrentCommandBuffer(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 0, nullptr, 1, &barrier);

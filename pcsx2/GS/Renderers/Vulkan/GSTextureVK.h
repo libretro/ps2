@@ -30,7 +30,7 @@ public:
 
 	__fi VKTexture& GetTexture() { return m_texture; }
 	__fi VKTexture* GetTexturePtr() { return &m_texture; }
-	__fi VkFormat GetNativeFormat() const { return m_texture.GetFormat(); }
+	__fi VkFormat GetVkFormat() const { return m_texture.GetFormat(); }
 	__fi VkImage GetImage() const { return m_texture.GetImage(); }
 	__fi VkImageView GetView() const { return m_texture.GetView(); }
 	__fi VkImageLayout GetLayout() const { return m_texture.GetLayout(); }

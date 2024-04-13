@@ -156,8 +156,6 @@ private:
 
 	std::string m_tfx_source;
 
-	VkFormat LookupNativeFormat(GSTexture::Format format) const;
-
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE,
@@ -284,6 +282,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 public:
+	VkFormat LookupNativeFormat(GSTexture::Format format) const;
 	__fi VkFramebuffer GetCurrentFramebuffer() const { return m_current_framebuffer; }
 
 	/// Ends any render pass, executes the command buffer, and invalidates cached state.
