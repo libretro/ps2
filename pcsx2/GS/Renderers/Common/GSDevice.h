@@ -106,7 +106,6 @@ enum class PresentShader
 /// Get the name of a shader
 /// (Can't put methods on an enum class)
 const char* shaderName(ShaderConvert value);
-const char* shaderName(PresentShader value);
 
 enum ChannelFetch
 {
@@ -743,9 +742,6 @@ protected:
 public:
 	GSDevice();
 	virtual ~GSDevice();
-
-	/// Returns a string representing the specified API.
-	static const char* RenderAPIToString(RenderAPI api);
 
 	/// Generates a fixed index buffer for expanding points and sprites. Buffer is assumed to be at least EXPAND_BUFFER_SIZE in size.
 	static void GenerateExpansionIndexBuffer(void* buffer);

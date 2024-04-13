@@ -111,9 +111,8 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 #endif
 		case RenderAPI::None:
 			g_gs_device = std::make_unique<GSDeviceNull>();
-		break;
+			break;
 		default:
-			Console.Error("Unsupported render API %s", GSDevice::RenderAPIToString(new_api));
 			return false;
 	}
 

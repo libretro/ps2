@@ -54,14 +54,9 @@ const char* shaderName(ShaderConvert value)
 		case ShaderConvert::YUV:                    return "ps_yuv";
 			// clang-format on
 		default:
-			ASSERT(0);
-			return "ShaderConvertUnknownShader";
+			break;
 	}
-}
-
-const char* shaderName(PresentShader value)
-{
-	return "ps_copy";
+	return "ShaderConvertUnknownShader";
 }
 
 static int MipmapLevelsForSize(int width, int height)
@@ -75,24 +70,6 @@ GSDevice::GSDevice() = default;
 
 GSDevice::~GSDevice()
 {
-}
-
-const char* GSDevice::RenderAPIToString(RenderAPI api)
-{
-	switch (api)
-	{
-		// clang-format off
-#define CASE(x) case RenderAPI::x: return #x
-		CASE(None);
-		CASE(D3D11);
-		CASE(D3D12);
-		CASE(Vulkan);
-		CASE(OpenGL);
-#undef CASE
-		// clang-format on
-	default:
-		return "Unknown";
-	}
 }
 
 void GSDevice::GenerateExpansionIndexBuffer(void* buffer)
