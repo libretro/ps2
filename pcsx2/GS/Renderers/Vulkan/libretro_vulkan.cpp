@@ -1,10 +1,9 @@
-
 #include <cstring>
 #include <cassert>
 #include <vector>
 
 #define VK_NO_PROTOTYPES
-#include "libretro/libretro_vulkan.h"
+#include <libretro_vulkan.h>
 
 static retro_hw_render_interface_vulkan *vulkan;
 extern retro_log_printf_t log_cb;
