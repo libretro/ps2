@@ -615,7 +615,6 @@ if(WIN32)
 		GS/Renderers/DX12/D3D12DescriptorHeapManager.cpp
 		GS/Renderers/DX12/D3D12ShaderCache.cpp
 		GS/Renderers/DX12/D3D12StreamBuffer.cpp
-		GS/Renderers/DX12/D3D12Texture.cpp
 		GS/Renderers/DX12/D3D12Util.cpp
 	)
 	list(APPEND pcsx2GSHeaders
@@ -630,7 +629,6 @@ if(WIN32)
 		GS/Renderers/DX12/D3D12DescriptorHeapManager.h
 		GS/Renderers/DX12/D3D12ShaderCache.h
 		GS/Renderers/DX12/D3D12StreamBuffer.h
-		GS/Renderers/DX12/D3D12Texture.h
 		GS/Renderers/DX12/D3D12Util.h
 	)
 elseif(Linux)

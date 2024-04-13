@@ -305,7 +305,7 @@ public:
 
 	// Assumes that the previous level has been transitioned to PS resource,
 	// and the current level has been transitioned to RT.
-	void RenderTextureMipmap(const D3D12Texture& texture,
+	void RenderTextureMipmap(GSTexture12 *texture,
 		u32 dst_level, u32 dst_width, u32 dst_height, u32 src_level, u32 src_width, u32 src_height);
 
 	// Ends a render pass if we're currently in one.
@@ -409,7 +409,7 @@ private:
 	RootSignature m_current_root_signature = RootSignature::Undefined;
 	const ID3D12PipelineState* m_current_pipeline = nullptr;
 
-	D3D12Texture m_null_texture;
+	std::unique_ptr<GSTexture12> m_null_texture;
 
 	// current pipeline selector - we save this in the struct to avoid re-zeroing it every draw
 	PipelineSelector m_pipeline_selector = {};
