@@ -49,9 +49,15 @@ static int io_getevents(aio_context_t ctx, long min_nr, long nr,
    return syscall(__NR_io_getevents, ctx, min_nr, nr, events, timeout);
 }
 
-static void io_prep_pread(aio_context_t ctx, int fd, void *buf, size_t count, long long offset)
+static inline void _io_prep_pread(struct iocb *iocb, int fd, void *buf, size_t count, long long offset)
 {
-   return syscall(__NR_io_prep_pread, ctx, fd, buf, count, offset);
+	memset(iocb, 0, sizeof(*iocb));
+	iocb->aio_fildes     = fd;
+	iocb->aio_lio_opcode = IO_CMD_PREAD;
+	iocb->aio_reqprio    = 0;
+	iocb->u.c.buf        = buf;
+	iocb->u.c.nbytes     = count;
+	iocb->u.c.offset     = offset;
 }
 #endif
 
@@ -96,7 +102,7 @@ void FlatFileReader::BeginRead(void* pBuffer, uint sector, uint count)
 	struct iocb iocb;
 	struct iocb* iocbs = &iocb;
 
-	io_prep_pread(&iocb, m_fd, pBuffer, bytesToRead, offset);
+	_io_prep_pread(&iocb, m_fd, pBuffer, bytesToRead, offset);
 	io_submit(m_aio_context, 1, &iocbs);
 }
 
