@@ -37,29 +37,6 @@
 extern retro_video_refresh_t video_cb;
 extern retro_hw_render_callback hw_render;
 
-ContextRetroGL::ContextRetroGL() : GLContext()
-{
-}
-
-ContextRetroGL::~ContextRetroGL()
-{
-}
-
-std::unique_ptr<GLContext> ContextRetroGL::Create(gsl::span<const Version> versions_to_try)
-{
-	std::unique_ptr<ContextRetroGL> context = std::make_unique<ContextRetroGL>();
-	return context;
-}
-
-bool ContextRetroGL::SwapBuffers()
-{
-	if(g_gs_device->GetCurrent())
-		video_cb(RETRO_HW_FRAME_BUFFER_VALID, g_gs_device->GetCurrent()->GetWidth(), g_gs_device->GetCurrent()->GetHeight(), 0);
-	else
-		video_cb(NULL, 0, 0, 0);
-	return true;
-}
-
 static bool ShouldPreferESContext(void)
 {
 #ifndef _MSC_VER
@@ -81,6 +58,16 @@ static void *gl_retro_proc_addr(const char *name)
 	return (void*)(hw_render.get_proc_address(name));
 }
 
+bool GLContext::SwapBuffers()
+{
+	if(g_gs_device->GetCurrent())
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, g_gs_device->GetCurrent()->GetWidth(), g_gs_device->GetCurrent()->GetHeight(), 0);
+	else
+		video_cb(NULL, 0, 0, 0);
+	return true;
+}
+
+
 std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_to_try)
 {
 	if (ShouldPreferESContext())
@@ -101,8 +88,7 @@ std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_t
 		versions_to_try = gsl::span<const Version>(new_versions_to_try, versions_to_try.size());
 	}
 
-	std::unique_ptr<GLContext> context;
-	context = ContextRetroGL::Create(versions_to_try);
+	std::unique_ptr<GLContext> context = std::make_unique<GLContext>();
 
 	if (!context)
 		return nullptr;
