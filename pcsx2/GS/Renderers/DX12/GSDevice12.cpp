@@ -31,7 +31,6 @@
 #include "D3D12Builders.h"
 #include "D3D12Context.h"
 #include "D3D12ShaderCache.h"
-#include "D3D12Util.h"
 
 #include "D3D12MemAlloc.h"
 

@@ -19,7 +19,6 @@
 #include "common/Align.h"
 #include "D3D12Builders.h"
 #include "D3D12Context.h"
-#include "D3D12Util.h"
 #include "common/StringUtil.h"
 #include "D3D12MemAlloc.h"
 
