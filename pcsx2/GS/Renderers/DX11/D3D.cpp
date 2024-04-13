@@ -26,20 +26,6 @@
 
 #include <fstream>
 
-wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
-{
-	UINT flags = 0;
-	if (debug)
-		flags |= DXGI_CREATE_FACTORY_DEBUG;
-
-	wil::com_ptr_nothrow<IDXGIFactory5> factory;
-	const HRESULT hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(factory.put()));
-	if (FAILED(hr))
-		Console.Error("D3D: Failed to create DXGI factory: %08X", hr);
-
-	return factory;
-}
-
 static std::string FixupDuplicateAdapterNames(const std::vector<std::string>& adapter_names, std::string adapter_name)
 {
 	if (std::any_of(adapter_names.begin(), adapter_names.end(),
@@ -59,36 +45,58 @@ static std::string FixupDuplicateAdapterNames(const std::vector<std::string>& ad
 	return adapter_name;
 }
 
-std::vector<std::string> D3D::GetAdapterNames(IDXGIFactory5* factory)
+// Returns a UTF8 string of the specified adapter's name
+static std::string GetAdapterName(IDXGIAdapter1* adapter)
 {
-	std::vector<std::string> adapter_names;
+	std::string ret;
+	DXGI_ADAPTER_DESC1 desc;
+	HRESULT hr = adapter->GetDesc1(&desc);
+	if (SUCCEEDED(hr))
+		ret = StringUtil::WideStringToUTF8String(desc.Description);
 
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
-	for (u32 index = 0;; index++)
+	if (ret.empty())
+		ret = "(Unknown)";
+
+	return ret;
+}
+
+// Returns the adapter specified in the configuration, or the default
+static wil::com_ptr_nothrow<IDXGIAdapter1> GetChosenOrFirstAdapter(IDXGIFactory5* factory, const std::string_view& name)
+{
+	wil::com_ptr_nothrow<IDXGIAdapter1> adapter = D3D::GetAdapterByName(factory, name);
+	if (!adapter)
 	{
-		const HRESULT hr = factory->EnumAdapters1(index, adapter.put());
-		if (hr == DXGI_ERROR_NOT_FOUND)
-			break;
-
-		if (FAILED(hr))
-			continue;
-
-		adapter_names.push_back(FixupDuplicateAdapterNames(adapter_names, GetAdapterName(adapter.get())));
+		wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
+		factory->EnumAdapters1(0, adapter.put());
+		return adapter;
 	}
 
-	return adapter_names;
+	return adapter;
+}
+
+wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
+{
+	UINT flags = 0;
+	if (debug)
+		flags |= DXGI_CREATE_FACTORY_DEBUG;
+
+	wil::com_ptr_nothrow<IDXGIFactory5> factory;
+	const HRESULT hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(factory.put()));
+	if (FAILED(hr))
+		Console.Error("D3D: Failed to create DXGI factory: %08X", hr);
+
+	return factory;
 }
 
 wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetAdapterByName(IDXGIFactory5* factory, const std::string_view& name)
 {
-	if (name.empty())
-		return {};
-
 	// This might seem a bit odd to cache the names.. but there's a method to the madness.
 	// We might have two GPUs with the same name... :)
 	std::vector<std::string> adapter_names;
-
 	wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
+	if (name.empty())
+		return {};
+
 	for (u32 index = 0;; index++)
 	{
 		const HRESULT hr = factory->EnumAdapters1(index, adapter.put());
@@ -105,37 +113,6 @@ wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetAdapterByName(IDXGIFactory5* factory
 		adapter_names.push_back(std::move(adapter_name));
 	}
 	return {};
-}
-
-wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetFirstAdapter(IDXGIFactory5* factory)
-{
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
-	HRESULT hr = factory->EnumAdapters1(0, adapter.put());
-	return adapter;
-}
-
-wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetChosenOrFirstAdapter(IDXGIFactory5* factory, const std::string_view& name)
-{
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter = GetAdapterByName(factory, name);
-	if (!adapter)
-		adapter = GetFirstAdapter(factory);
-
-	return adapter;
-}
-
-std::string D3D::GetAdapterName(IDXGIAdapter1* adapter)
-{
-	std::string ret;
-
-	DXGI_ADAPTER_DESC1 desc;
-	HRESULT hr = adapter->GetDesc1(&desc);
-	if (SUCCEEDED(hr))
-		ret = StringUtil::WideStringToUTF8String(desc.Description);
-
-	if (ret.empty())
-		ret = "(Unknown)";
-
-	return ret;
 }
 
 D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)
@@ -165,7 +142,7 @@ D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)
 GSRendererType D3D::GetPreferredRenderer(void)
 {
 	auto factory = CreateFactory(false);
-	auto adapter = GetChosenOrFirstAdapter(factory.get(), GSConfig.Adapter);
+	wil::com_ptr_nothrow<IDXGIAdapter1> adapter = GetChosenOrFirstAdapter(factory.get(), GSConfig.Adapter);
 
 	// If we somehow can't get a D3D11 device, it's unlikely any of the renderers are going to work.
 	if (adapter)
@@ -218,6 +195,11 @@ static unsigned s_next_bad_shader_id = 1;
 wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_LEVEL feature_level, bool debug,
 	const std::string_view& code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
+	static constexpr UINT flags_non_debug = D3DCOMPILE_OPTIMIZATION_LEVEL3;
+	static constexpr UINT flags_debug     = D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
+	std::string error_string;
+	wil::com_ptr_nothrow<ID3DBlob> blob;
+	wil::com_ptr_nothrow<ID3DBlob> error_blob;
 	const char* target;
 	switch (feature_level)
 	{
@@ -251,16 +233,10 @@ wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_L
 		break;
 	}
 
-	static constexpr UINT flags_non_debug = D3DCOMPILE_OPTIMIZATION_LEVEL3;
-	static constexpr UINT flags_debug = D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
-
-	wil::com_ptr_nothrow<ID3DBlob> blob;
-	wil::com_ptr_nothrow<ID3DBlob> error_blob;
 	const HRESULT hr =
 		D3DCompile(code.data(), code.size(), "0", macros, nullptr, entry_point, target, debug ? flags_debug : flags_non_debug,
 			0, blob.put(), error_blob.put());
 
-	std::string error_string;
 	if (error_blob)
 	{
 		error_string.append(static_cast<const char*>(error_blob->GetBufferPointer()), error_blob->GetBufferSize());
