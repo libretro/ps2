@@ -322,65 +322,6 @@ void D3D12Texture::TransitionSubresourceToState(ID3D12GraphicsCommandList* cmdli
 	cmdlist->ResourceBarrier(1, &barrier);
 }
 
-ID3D12GraphicsCommandList* D3D12Texture::BeginStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, void** out_data, u32* out_data_pitch)
-{
-	const u32 copy_pitch = Common::AlignUpPow2(width * D3D12::GetTexelSize(m_format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	const u32 upload_size = copy_pitch * height;
-
-	if (!g_d3d12_context->GetTextureStreamBuffer().ReserveMemory(upload_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
-	{
-		g_d3d12_context->ExecuteCommandList(D3D12Context::WaitType::None);
-		if (!g_d3d12_context->GetTextureStreamBuffer().ReserveMemory(upload_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
-		{
-			Console.Error("Failed to reserve %u bytes for %ux%u upload", upload_size, width, height);
-			return nullptr;
-		}
-
-		// cmdlist change
-		cmdlist = g_d3d12_context->GetInitCommandList();
-	}
-
-	*out_data = g_d3d12_context->GetTextureStreamBuffer().GetCurrentHostPointer();
-	*out_data_pitch = copy_pitch;
-	return cmdlist;
-}
-
-void D3D12Texture::EndStreamUpdate(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height)
-{
-	const u32 copy_pitch  = Common::AlignUpPow2(width * D3D12::GetTexelSize(m_format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	const u32 upload_size = copy_pitch * height;
-
-	D3D12StreamBuffer& sb = g_d3d12_context->GetTextureStreamBuffer();
-	const u32 sb_offset   = sb.GetCurrentOffset();
-	sb.CommitMemory(upload_size);
-
-	CopyFromBuffer(cmdlist, level, x, y, width, height, copy_pitch, sb.GetBuffer(), sb_offset);
-}
-
-void D3D12Texture::CopyFromBuffer(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, u32 pitch, ID3D12Resource* buffer, u32 buffer_offset)
-{
-	D3D12_TEXTURE_COPY_LOCATION src;
-	src.pResource = buffer;
-	src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	src.PlacedFootprint.Offset = buffer_offset;
-	src.PlacedFootprint.Footprint.Width = width;
-	src.PlacedFootprint.Footprint.Height = height;
-	src.PlacedFootprint.Footprint.Depth = 1;
-	src.PlacedFootprint.Footprint.RowPitch = pitch;
-	src.PlacedFootprint.Footprint.Format = m_format;
-
-	D3D12_TEXTURE_COPY_LOCATION dst;
-	dst.pResource = m_resource.get();
-	dst.SubresourceIndex = level;
-	dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-
-	const D3D12_BOX src_box{0u, 0u, 0u, width, height, 1u};
-	const D3D12_RESOURCE_STATES old_state = m_state;
-	TransitionToState(cmdlist, D3D12_RESOURCE_STATE_COPY_DEST);
-	cmdlist->CopyTextureRegion(&dst, x, y, 0, &src, &src_box);
-	TransitionToState(cmdlist, old_state);
-}
-
 static ID3D12Resource* CreateStagingBuffer(u32 height, const void* data, u32 pitch, u32 upload_pitch, u32 upload_size)
 {
 	wil::com_ptr_nothrow<ID3D12Resource> resource;
@@ -417,31 +358,6 @@ static ID3D12Resource* CreateStagingBuffer(u32 height, const void* data, u32 pit
 
 	// AddRef()'ed by the defer above.
 	return resource.get();
-}
-
-bool D3D12Texture::LoadData(ID3D12GraphicsCommandList* cmdlist, u32 level, u32 x, u32 y, u32 width, u32 height, const void* data, u32 pitch)
-{
-	const u32 texel_size   = D3D12::GetTexelSize(m_format);
-	const u32 upload_pitch = Common::AlignUpPow2(width * texel_size, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-	const u32 upload_size  = upload_pitch * height;
-	if (upload_size >= g_d3d12_context->GetTextureStreamBuffer().GetSize())
-	{
-		ID3D12Resource* staging_buffer = CreateStagingBuffer(height, data, pitch, upload_pitch, upload_size);
-		if (!staging_buffer)
-			return false;
-
-		CopyFromBuffer(cmdlist, level, x, y, width, height, upload_pitch, staging_buffer, 0);
-		return true;
-	}
-
-	void* write_ptr;
-	u32 write_pitch;
-	if (!(cmdlist = BeginStreamUpdate(cmdlist, level, x, y, width, height, &write_ptr, &write_pitch)))
-		return false;
-
-	StringUtil::StrideMemCpy(write_ptr, write_pitch, data, pitch, std::min(pitch, upload_pitch), height);
-	EndStreamUpdate(cmdlist, level, x, y, width, height);
-	return true;
 }
 
 bool D3D12Texture::CreateSRVDescriptor(ID3D12Resource* resource, u32 levels, DXGI_FORMAT format, D3D12DescriptorHandle* dh)

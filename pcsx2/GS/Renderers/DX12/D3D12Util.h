@@ -57,21 +57,5 @@ namespace D3D12
 		SetScissor(cmdlist, x, y, width, height);
 	}
 
-	u32 GetTexelSize(DXGI_FORMAT format);
-
 	void SetDefaultSampler(D3D12_SAMPLER_DESC* desc);
-
-#ifdef _DEBUG
-
-	void SetObjectName(ID3D12Object* object, const char* name);
-	void SetObjectNameFormatted(ID3D12Object* object, const char* format, ...);
-
-#else
-
-	static inline void SetObjectName(ID3D12Object* object, const char* name)
-	{
-	}
-	static inline void SetObjectNameFormatted(ID3D12Object* object, const char* format, ...) {}
-
-#endif
 } // namespace D3D12

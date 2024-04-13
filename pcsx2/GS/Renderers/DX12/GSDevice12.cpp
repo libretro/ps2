@@ -1592,7 +1592,6 @@ bool GSDevice12::CreateNullTexture()
 	}
 
 	m_null_texture.TransitionToState(g_d3d12_context->GetCommandList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	D3D12::SetObjectName(m_null_texture.GetResource(), "Null texture");
 	return true;
 }
 
@@ -1645,7 +1644,6 @@ bool GSDevice12::CreateRootSignatures()
 	rsb.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, NUM_UTILITY_SAMPLERS, D3D12_SHADER_VISIBILITY_PIXEL);
 	if (!(m_utility_root_signature = rsb.Create()))
 		return false;
-	D3D12::SetObjectName(m_utility_root_signature.get(), "Convert root signature");
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw/TFX Pipeline Layout
@@ -1659,7 +1657,6 @@ bool GSDevice12::CreateRootSignatures()
 	rsb.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 2, D3D12_SHADER_VISIBILITY_PIXEL);
 	if (!(m_tfx_root_signature = rsb.Create()))
 		return false;
-	D3D12::SetObjectName(m_tfx_root_signature.get(), "TFX root signature");
 	return true;
 }
 
@@ -1742,8 +1739,6 @@ bool GSDevice12::CompileConvertPipelines()
 		if (!m_convert[index])
 			return false;
 
-		D3D12::SetObjectNameFormatted(m_convert[index].get(), "Convert pipeline %d", i);
-
 		if (i == ShaderConvert::COPY)
 		{
 			// compile color copy pipelines
@@ -1756,10 +1751,6 @@ bool GSDevice12::CompileConvertPipelines()
 				m_color_copy[i] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
 				if (!m_color_copy[i])
 					return false;
-
-				D3D12::SetObjectNameFormatted(m_color_copy[i].get(),
-					"Color copy pipeline (r=%u, g=%u, b=%u, a=%u)", i & 1u, (i >> 1) & 1u, (i >> 2) & 1u,
-					(i >> 3) & 1u);
 			}
 		}
 		else if (i == ShaderConvert::HDR_INIT || i == ShaderConvert::HDR_RESOLVE)
@@ -1773,8 +1764,6 @@ bool GSDevice12::CompileConvertPipelines()
 				arr[ds] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
 				if (!arr[ds])
 					return false;
-
-				D3D12::SetObjectNameFormatted(arr[ds].get(), "HDR %s/copy pipeline (ds=%u)", is_setup ? "setup" : "finish", ds);
 			}
 		}
 	}
@@ -1799,8 +1788,6 @@ bool GSDevice12::CompileConvertPipelines()
 			m_date_image_setup_pipelines[ds][datm] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
 			if (!m_date_image_setup_pipelines[ds][datm])
 				return false;
-
-			D3D12::SetObjectNameFormatted(m_date_image_setup_pipelines[ds][datm].get(), "DATE image clear pipeline (ds=%u, datm=%u)", ds, datm);
 		}
 	}
 
@@ -1840,8 +1827,6 @@ bool GSDevice12::CompilePresentPipelines()
 		m_present[0] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
 		if (!m_present[0])
 			return false;
-
-		D3D12::SetObjectNameFormatted(m_present[0].get(), "Present pipeline 0");
 	}
 
 	return true;
@@ -1876,8 +1861,6 @@ bool GSDevice12::CompileInterlacePipelines()
 		m_interlace[i] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
 		if (!m_interlace[i])
 			return false;
-
-		D3D12::SetObjectNameFormatted(m_convert[i].get(), "Interlace pipeline %d", i);
 	}
 
 	return true;
@@ -1913,8 +1896,6 @@ bool GSDevice12::CompileMergePipelines()
 		m_merge[i] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
 		if (!m_merge[i])
 			return false;
-
-		D3D12::SetObjectNameFormatted(m_convert[i].get(), "Merge pipeline %d", i);
 	}
 
 	return true;
@@ -2167,12 +2148,6 @@ GSDevice12::ComPtr<ID3D12PipelineState> GSDevice12::CreateTFXPipeline(const Pipe
 	}
 
 	ComPtr<ID3D12PipelineState> pipeline(gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache));
-	if (pipeline)
-	{
-		D3D12::SetObjectNameFormatted(
-			pipeline.get(), "TFX Pipeline %08X/%" PRIX64 "%08X", p.vs.key, p.ps.key_hi, p.ps.key_lo);
-	}
-
 	return pipeline;
 }
 

@@ -18,41 +18,6 @@
 #include "D3D12Util.h"
 #include "common/StringUtil.h"
 
-u32 D3D12::GetTexelSize(DXGI_FORMAT format)
-{
-	switch (format)
-	{
-		case DXGI_FORMAT_R32G32B32A32_FLOAT:
-		case DXGI_FORMAT_BC1_UNORM:
-		case DXGI_FORMAT_BC2_UNORM:
-		case DXGI_FORMAT_BC3_UNORM:
-		case DXGI_FORMAT_BC7_UNORM:
-			return 16;
-
-		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_SNORM:
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS:
-		case DXGI_FORMAT_R32_UINT:
-		case DXGI_FORMAT_R32_SINT:
-			return 4;
-
-		case DXGI_FORMAT_B5G5R5A1_UNORM:
-		case DXGI_FORMAT_B5G6R5_UNORM:
-		case DXGI_FORMAT_R16_UINT:
-		case DXGI_FORMAT_R16_SINT:
-			return 2;
-
-		case DXGI_FORMAT_A8_UNORM:
-		case DXGI_FORMAT_R8_UNORM:
-		default:
-			break;
-	}
-	return 1;
-}
-
 void D3D12::SetDefaultSampler(D3D12_SAMPLER_DESC* desc)
 {
 	desc->Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -69,20 +34,3 @@ void D3D12::SetDefaultSampler(D3D12_SAMPLER_DESC* desc)
 	desc->MinLOD = -3.402823466e+38F; // -FLT_MAX
 	desc->MaxLOD = 3.402823466e+38F; // FLT_MAX
 }
-
-#ifdef _DEBUG
-
-void D3D12::SetObjectName(ID3D12Object* object, const char* name)
-{
-	object->SetName(StringUtil::UTF8StringToWideString(name).c_str());
-}
-
-void D3D12::SetObjectNameFormatted(ID3D12Object* object, const char* format, ...)
-{
-	std::va_list ap;
-	va_start(ap, format);
-	SetObjectName(object, StringUtil::StdStringFromFormatV(format, ap).c_str());
-	va_end(ap);
-}
-
-#endif

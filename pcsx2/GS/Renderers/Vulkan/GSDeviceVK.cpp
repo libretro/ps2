@@ -712,8 +712,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			res = vkCreateCommandPool(m_device, &pool_info, nullptr, &resources.command_pool);
 			if (res != VK_SUCCESS)
 				return false;
-			SetObjectName(
-				g_vulkan_context->GetDevice(), resources.command_pool, "Frame Command Pool %u", frame_index);
 
 			VkCommandBufferAllocateInfo buffer_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, nullptr,
 				resources.command_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -722,18 +720,12 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			res = vkAllocateCommandBuffers(m_device, &buffer_info, resources.command_buffers.data());
 			if (res != VK_SUCCESS)
 				return false;
-			for (u32 i = 0; i < resources.command_buffers.size(); i++)
-			{
-				SetObjectName(g_vulkan_context->GetDevice(), resources.command_buffers[i],
-					"Frame %u %sCommand Buffer", frame_index, (i == 0) ? "Init" : "");
-			}
 
 			VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
 
 			res = vkCreateFence(m_device, &fence_info, nullptr, &resources.fence);
 			if (res != VK_SUCCESS)
 				return false;
-			SetObjectName(g_vulkan_context->GetDevice(), resources.fence, "Frame Fence %u", frame_index);
 			// TODO: A better way to choose the number of descriptors.
 			VkDescriptorPoolSize pool_sizes[] = {
 				{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,	MAX_COMBINED_IMAGE_SAMPLER_DESCRIPTORS_PER_FRAME},
@@ -748,8 +740,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &resources.descriptor_pool);
 			if (res != VK_SUCCESS)
 				return false;
-			SetObjectName(
-				g_vulkan_context->GetDevice(), resources.descriptor_pool, "Frame Descriptor Pool %u", frame_index);
 
 			++frame_index;
 		}
@@ -806,7 +796,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		VkResult res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &m_global_descriptor_pool);
 		if (res != VK_SUCCESS)
 			return false;
-		SetObjectName(g_vulkan_context->GetDevice(), m_global_descriptor_pool, "Global Descriptor Pool");
 
 		return true;
 	}
@@ -1505,7 +1494,6 @@ void main()
 		module_create.codeSize = spirv->size() * sizeof(SPIRVCodeType);
 		module_create.pCode    = spirv->data();
 		CHECKED_CREATE(vkCreateShaderModule, &module_create, &shader_module);
-		SetObjectName(m_device, shader_module, "Spin Shader");
 
 		VkComputePipelineCreateInfo pl_create = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 		pl_create.layout       = m_spin_pipeline_layout;
@@ -1517,7 +1505,6 @@ void main()
 		vkDestroyShaderModule(m_device, shader_module, nullptr);
 		if (res != VK_SUCCESS)
 			return false;
-		SetObjectName(m_device, m_spin_pipeline, "Spin Pipeline");
 
 		VmaAllocationCreateInfo buf_vma_create = {};
 		buf_vma_create.usage          = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -1526,7 +1513,6 @@ void main()
 		buf_create.usage              = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		if ((res = vmaCreateBuffer(m_allocator, &buf_create, &buf_vma_create, &m_spin_buffer, &m_spin_buffer_allocation, nullptr)) != VK_SUCCESS)
 			return false;
-		SetObjectName(m_device, m_spin_buffer, "Spin Buffer");
 
 		VkDescriptorSetAllocateInfo desc_set_allocate = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 		desc_set_allocate.descriptorPool     = m_global_descriptor_pool;
@@ -1549,7 +1535,6 @@ void main()
 			VkCommandPoolCreateInfo pool_info = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 			pool_info.queueFamilyIndex = m_spin_queue_family_index;
 			CHECKED_CREATE(vkCreateCommandPool, &pool_info, &resources.command_pool);
-			SetObjectName(m_device, resources.command_pool, "Spin Command Pool %u", index);
 
 			VkCommandBufferAllocateInfo buffer_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 			buffer_info.commandPool        = resources.command_pool;
@@ -1558,18 +1543,15 @@ void main()
 			res = vkAllocateCommandBuffers(m_device, &buffer_info, &resources.command_buffer);
 			if (res != VK_SUCCESS)
 				return false;
-			SetObjectName(m_device, resources.command_buffer, "Spin Command Buffer %u", index);
 
 			VkFenceCreateInfo fence_info = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 			fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 			CHECKED_CREATE(vkCreateFence, &fence_info, &resources.fence);
-			SetObjectName(m_device, resources.fence, "Spin Fence %u", index);
 
 			if (!m_spin_queue_is_graphics_queue)
 			{
 				VkSemaphoreCreateInfo sem_info = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 				CHECKED_CREATE(vkCreateSemaphore, &sem_info, &resources.semaphore);
-				SetObjectName(m_device, resources.semaphore, "Draw to Spin Semaphore %u", index);
 			}
 		}
 
@@ -3139,8 +3121,6 @@ bool GSDeviceVK::CreateNullTexture()
 	m_null_texture.TransitionToLayout(cmdbuf, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	vkCmdClearColorImage(cmdbuf, m_null_texture.GetImage(), m_null_texture.GetLayout(), &ccv, 1, &srr);
 	m_null_texture.TransitionToLayout(cmdbuf, VK_IMAGE_LAYOUT_GENERAL);
-	SetObjectName(g_vulkan_context->GetDevice(), m_null_texture.GetImage(), "Null texture");
-	SetObjectName(g_vulkan_context->GetDevice(), m_null_texture.GetView(), "Null texture view");
 
 	return true;
 }
@@ -3199,13 +3179,11 @@ bool GSDeviceVK::CreatePipelineLayouts()
 	dslb.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, NUM_CONVERT_SAMPLERS, VK_SHADER_STAGE_FRAGMENT_BIT);
 	if ((m_utility_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
-	SetObjectName(dev, m_utility_ds_layout, "Convert descriptor layout");
 
 	plb.AddPushConstants(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, CONVERT_PUSH_CONSTANTS_SIZE);
 	plb.AddDescriptorSet(m_utility_ds_layout);
 	if ((m_utility_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
-	SetObjectName(dev, m_utility_ds_layout, "Convert pipeline layout");
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw/TFX Pipeline Layout
@@ -3217,24 +3195,20 @@ bool GSDeviceVK::CreatePipelineLayouts()
 		dslb.AddBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
 	if ((m_tfx_ubo_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
-	SetObjectName(dev, m_tfx_ubo_ds_layout, "TFX UBO descriptor layout");
 	dslb.AddBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	if ((m_tfx_sampler_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
-	SetObjectName(dev, m_tfx_sampler_ds_layout, "TFX sampler descriptor layout");
 	dslb.AddBinding(0, m_features.texture_barrier ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT : VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	if ((m_tfx_rt_texture_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
-	SetObjectName(dev, m_tfx_rt_texture_ds_layout, "TFX RT texture descriptor layout");
 
 	plb.AddDescriptorSet(m_tfx_ubo_ds_layout);
 	plb.AddDescriptorSet(m_tfx_sampler_ds_layout);
 	plb.AddDescriptorSet(m_tfx_rt_texture_ds_layout);
 	if ((m_tfx_pipeline_layout = plb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
-	SetObjectName(dev, m_tfx_pipeline_layout, "TFX pipeline layout");
 	return true;
 }
 
@@ -3417,8 +3391,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 		if (!m_convert[index])
 			return false;
 
-		SetObjectName(g_vulkan_context->GetDevice(), m_convert[index], "Convert pipeline %d", i);
-
 		if (i == ShaderConvert::COPY)
 		{
 			// compile color copy pipelines
@@ -3432,10 +3404,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 					gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
 				if (!m_color_copy[i])
 					return false;
-
-				SetObjectName(g_vulkan_context->GetDevice(), m_color_copy[i],
-					"Color copy pipeline (r=%u, g=%u, b=%u, a=%u)", i & 1u, (i >> 1) & 1u, (i >> 2) & 1u,
-					(i >> 3) & 1u);
 			}
 		}
 		else if (i == ShaderConvert::HDR_INIT || i == ShaderConvert::HDR_RESOLVE)
@@ -3453,9 +3421,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 					arr[ds][fbl] = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
 					if (!arr[ds][fbl])
 						return false;
-
-					SetObjectName(g_vulkan_context->GetDevice(), arr[ds][fbl],
-						"HDR %s/copy pipeline (ds=%u, fbl=%u)", is_setup ? "setup" : "finish", i, ds, fbl);
 				}
 			}
 		}
@@ -3498,9 +3463,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 				gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
 			if (!m_date_image_setup_pipelines[ds][datm])
 				return false;
-
-			SetObjectName(g_vulkan_context->GetDevice(), m_date_image_setup_pipelines[ds][datm],
-				"DATE image clear pipeline (ds=%u, datm=%u)", ds, datm);
 		}
 	}
 
@@ -3553,8 +3515,6 @@ bool GSDeviceVK::CompilePresentPipelines()
 			gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
 		if (!m_present[0])
 			return false;
-
-		SetObjectName(g_vulkan_context->GetDevice(), m_present[0], "Present pipeline 0");
 	}
 
 	return true;
@@ -3605,8 +3565,6 @@ bool GSDeviceVK::CompileInterlacePipelines()
 		SafeDestroyShaderModule(ps);
 		if (!m_interlace[i])
 			return false;
-
-		SetObjectName(g_vulkan_context->GetDevice(), m_convert[i], "Interlace pipeline %d", i);
 	}
 
 	return true;
@@ -3656,8 +3614,6 @@ bool GSDeviceVK::CompileMergePipelines()
 		SafeDestroyShaderModule(ps);
 		if (!m_merge[i])
 			return false;
-
-		SetObjectName(g_vulkan_context->GetDevice(), m_convert[i], "Merge pipeline %d", i);
 	}
 
 	return true;
@@ -3799,8 +3755,6 @@ VkShaderModule GSDeviceVK::GetTFXVertexShader(GSHWDrawConfig::VSSelector sel)
 	ss << m_tfx_source;
 
 	VkShaderModule mod = g_vulkan_shader_cache->GetVertexShader(ss.str());
-	if (mod)
-		SetObjectName(g_vulkan_context->GetDevice(), mod, "TFX Vertex %08X", sel.key);
 
 	m_tfx_vertex_shaders.emplace(sel.key, mod);
 	return mod;
@@ -3869,8 +3823,6 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	ss << m_tfx_source;
 
 	VkShaderModule mod = g_vulkan_shader_cache->GetFragmentShader(ss.str());
-	if (mod)
-		SetObjectName(g_vulkan_context->GetDevice(), mod, "TFX Fragment %" PRIX64 "%08X", sel.key_hi, sel.key_lo);
 
 	m_tfx_fragment_shaders.emplace(sel, mod);
 	return mod;
@@ -3991,11 +3943,6 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 		gpb.AddBlendFlags(VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT);
 
 	VkPipeline pipeline = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true));
-	if (pipeline)
-	{
-		SetObjectName(
-			g_vulkan_context->GetDevice(), pipeline, "TFX Pipeline %08X/%" PRIX64 "%08X", p.vs.key, p.ps.key_hi, p.ps.key_lo);
-	}
 
 	return pipeline;
 }
@@ -4037,15 +3984,10 @@ void GSDeviceVK::InitializeState()
 
 	m_utility_texture = &m_null_texture;
 
-	m_point_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
-	if (m_point_sampler)
-		SetObjectName(g_vulkan_context->GetDevice(), m_point_sampler, "Point sampler");
-	m_linear_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
-	if (m_linear_sampler)
-		SetObjectName(g_vulkan_context->GetDevice(), m_point_sampler, "Linear sampler");
-
+	m_point_sampler   = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
+	m_linear_sampler  = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
 	m_tfx_sampler_sel = GSHWDrawConfig::SamplerSelector::Point().key;
-	m_tfx_sampler = m_point_sampler;
+	m_tfx_sampler     = m_point_sampler;
 
 	InvalidateCachedState();
 }
@@ -4064,12 +4006,9 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 	dsub.AddBufferDescriptorWrite(m_tfx_descriptor_sets[0], 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
 		m_fragment_uniform_stream_buffer.GetBuffer(), 0, sizeof(GSHWDrawConfig::PSConstantBuffer));
 	if (m_features.vs_expand)
-	{
 		dsub.AddBufferDescriptorWrite(m_tfx_descriptor_sets[0], 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			m_vertex_stream_buffer.GetBuffer(), 0, VERTEX_BUFFER_SIZE);
-	}
 	dsub.Update(dev);
-	SetObjectName(dev, m_tfx_descriptor_sets[0], "Persistent TFX UBO set");
 	return true;
 }
 

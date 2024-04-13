@@ -54,11 +54,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format,
 					DXGI_FORMAT_UNKNOWN, DXGI_FORMAT_UNKNOWN, flags))
-			{
 				return {};
-			}
-
-			D3D12::SetObjectNameFormatted(texture.GetResource(), "%ux%u texture", width, height);
 			return std::make_unique<GSTexture12>(type, format, std::move(texture));
 		}
 
@@ -68,11 +64,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format, rtv_format,
 					DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12MA::ALLOCATION_FLAG_COMMITTED))
-			{
 				return {};
-			}
-
-			D3D12::SetObjectNameFormatted(texture.GetResource(), "%ux%u render target", width, height);
 			return std::make_unique<GSTexture12>(type, format, std::move(texture));
 		}
 
@@ -82,11 +74,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 			if (!texture.Create(width, height, levels, d3d_format, srv_format,
 					DXGI_FORMAT_UNKNOWN, dsv_format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 					D3D12MA::ALLOCATION_FLAG_COMMITTED))
-			{
 				return {};
-			}
-
-			D3D12::SetObjectNameFormatted(texture.GetResource(), "%ux%u depth stencil", width, height);
 			return std::make_unique<GSTexture12>(type, format, std::move(texture));
 		}
 
@@ -95,11 +83,7 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 			D3D12Texture texture;
 			if (!texture.Create(width, height, levels, d3d_format, srv_format, DXGI_FORMAT_UNKNOWN,
 					DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12MA::ALLOCATION_FLAG_COMMITTED))
-			{
 				return {};
-			}
-
-			D3D12::SetObjectNameFormatted(texture.GetResource(), "%ux%u RW texture", width, height);
 			return std::make_unique<GSTexture12>(type, format, std::move(texture));
 		}
 
@@ -260,10 +244,10 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 	m_map_area = r ? *r : GSVector4i(0, 0, m_texture.GetWidth(), m_texture.GetHeight());
 	m_map_level = layer;
 
-	m.pitch = Common::AlignUpPow2(m_map_area.width() * D3D12::GetTexelSize(m_texture.GetFormat()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	m.pitch = Common::AlignUpPow2(CalcUploadPitch(m_map_area.width()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
 	// see note in Update() for the reason why.
-	const u32 required_size = CalcUploadSize(m_map_area.height(), m.pitch);
+	const u32 required_size   = CalcUploadSize(m_map_area.height(), m.pitch);
 	D3D12StreamBuffer& buffer = g_d3d12_context->GetTextureStreamBuffer();
 	if (required_size >= (buffer.GetSize() / 2))
 		return false;
@@ -282,10 +266,9 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 
 void GSTexture12::Unmap()
 {
-	// TODO: non-tightly-packed formats
-	const u32 width           = static_cast<u32>(m_map_area.width());
-	const u32 height          = static_cast<u32>(m_map_area.height());
-	const u32 pitch           = Common::AlignUpPow2(m_map_area.width() * D3D12::GetTexelSize(m_texture.GetFormat()), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const u32 width           = m_map_area.width();
+	const u32 height          = m_map_area.height();
+	const u32 pitch           = Common::AlignUpPow2(CalcUploadPitch(width), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const u32 required_size   = CalcUploadSize(height, pitch);
 	D3D12StreamBuffer& buffer = g_d3d12_context->GetTextureStreamBuffer();
 	const u32 buffer_offset   = buffer.GetCurrentOffset();
