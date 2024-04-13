@@ -35,8 +35,6 @@ public:
 	__fi VkImageView GetView() const { return m_texture.GetView(); }
 	__fi VkImageLayout GetLayout() const { return m_texture.GetLayout(); }
 
-	void* GetNativeHandle() const override;
-
 	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
 	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
 	void Unmap() override;

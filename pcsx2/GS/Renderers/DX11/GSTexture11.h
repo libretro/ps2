@@ -38,8 +38,6 @@ public:
 
 	static DXGI_FORMAT GetDXGIFormat(Format format);
 
-	void* GetNativeHandle() const override;
-
 	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
 	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
 	void Unmap() override;

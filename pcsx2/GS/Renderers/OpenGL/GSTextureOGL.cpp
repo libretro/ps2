@@ -175,11 +175,6 @@ GSTextureOGL::~GSTextureOGL()
 	glDeleteTextures(1, &m_texture_id);
 }
 
-void* GSTextureOGL::GetNativeHandle() const
-{
-	return reinterpret_cast<void*>(static_cast<uintptr_t>(m_texture_id));
-}
-
 void GSTextureOGL::Clear(const void* data)
 {
 	glClearTexImage(m_texture_id, 0, m_int_format, m_int_type, data);

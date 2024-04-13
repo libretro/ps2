@@ -36,8 +36,6 @@ public:
 	__fi DXGI_FORMAT GetNativeFormat() const { return m_texture.GetFormat(); }
 	__fi ID3D12Resource* GetResource() const { return m_texture.GetResource(); }
 
-	void* GetNativeHandle() const override;
-
 	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
 	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
 	void Unmap() override;

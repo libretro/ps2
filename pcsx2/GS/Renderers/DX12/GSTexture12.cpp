@@ -92,8 +92,6 @@ std::unique_ptr<GSTexture12> GSTexture12::Create(Type type, u32 width, u32 heigh
 	}
 }
 
-void* GSTexture12::GetNativeHandle() const { return const_cast<D3D12Texture*>(&m_texture); }
-
 ID3D12GraphicsCommandList* GSTexture12::GetCommandBufferForUpdate()
 {
 	if (m_type != Type::Texture || m_use_fence_counter == g_d3d12_context->GetCurrentFenceValue())

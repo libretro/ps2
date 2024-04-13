@@ -82,9 +82,6 @@ public:
 	GSTexture();
 	virtual ~GSTexture() {}
 
-	// Returns the native handle of a texture.
-	virtual void* GetNativeHandle() const = 0;
-
 	virtual bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) = 0;
 	virtual bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) = 0;
 	virtual void Unmap() = 0;

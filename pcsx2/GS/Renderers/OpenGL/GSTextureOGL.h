@@ -47,8 +47,6 @@ public:
 	__fi GLenum GetIntType() const { return m_int_type; }
 	__fi u32 GetIntShift() const { return m_int_shift; }
 
-	void* GetNativeHandle() const override;
-
 	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) final;
 	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) final;
 	void Unmap() final;

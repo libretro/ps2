@@ -55,11 +55,6 @@ DXGI_FORMAT GSTexture11::GetDXGIFormat(Format format)
 	// clang-format on
 }
 
-void* GSTexture11::GetNativeHandle() const
-{
-	return static_cast<ID3D11ShaderResourceView*>(*const_cast<GSTexture11*>(this));
-}
-
 bool GSTexture11::Update(const GSVector4i& r, const void* data, int pitch, int layer)
 {
 	if (layer >= m_mipmap_levels)

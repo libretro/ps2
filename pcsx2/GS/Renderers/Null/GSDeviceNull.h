@@ -25,7 +25,6 @@ public:
 	GSTextureNull(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format);
 	~GSTextureNull();
 
-	void* GetNativeHandle() const override { return (void*)buffer; }
 	bool Update(const GSVector4i& r, const void* data, int pitch, int layer = 0) override;
 	bool Map(GSMap& m, const GSVector4i* r = NULL, int layer = 0) override;
 	void Unmap() override;

@@ -33,11 +33,6 @@ GSTextureSW::~GSTextureSW()
 	_aligned_free(m_data);
 }
 
-void* GSTextureSW::GetNativeHandle() const
-{
-	return nullptr;
-}
-
 bool GSTextureSW::Update(const GSVector4i& r, const void* data, int pitch, int layer)
 {
 	GSMap m;

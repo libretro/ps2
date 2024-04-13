@@ -120,8 +120,6 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 heigh
 	}
 }
 
-void* GSTextureVK::GetNativeHandle() const { return const_cast<VKTexture*>(&m_texture); }
-
 VkCommandBuffer GSTextureVK::GetCommandBufferForUpdate()
 {
 	if (m_type != Type::Texture || m_use_fence_counter == g_vulkan_context->GetCurrentFenceCounter())
