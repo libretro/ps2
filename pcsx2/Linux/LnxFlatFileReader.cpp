@@ -48,6 +48,11 @@ static int io_getevents(aio_context_t ctx, long min_nr, long nr,
 {
    return syscall(__NR_io_getevents, ctx, min_nr, nr, events, timeout);
 }
+
+static void io_prep_pread(aio_context_t ctx, int fd, void *buf, size_t count, long long offset)
+{
+   return syscall(__NR_io_prep_pread, ctx, fd, buf, count, offset);
+}
 #endif
 
 FlatFileReader::FlatFileReader()
