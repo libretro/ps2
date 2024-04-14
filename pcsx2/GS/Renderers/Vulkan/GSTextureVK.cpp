@@ -31,7 +31,7 @@ GSTextureVK::GSTextureVK(Type type, Format format, VKTexture texture)
 	m_mipmap_levels = m_texture.GetLevels();
 }
 
-GSTextureVK::~GSTextureVK()
+void GSTextureVK::Destroy(bool defer)
 {
 	GSDeviceVK::GetInstance()->UnbindTexture(this);
 
@@ -52,9 +52,18 @@ GSTextureVK::~GSTextureVK()
 				}
 			}
 
-			g_vulkan_context->DeferFramebufferDestruction(fb);
+			if (defer)
+				g_vulkan_context->DeferFramebufferDestruction(fb);
+			else
+				vkDestroyFramebuffer(g_vulkan_context->GetDevice(), fb, nullptr);
+
 		}
 	}
+}
+
+GSTextureVK::~GSTextureVK()
+{
+	Destroy(true);
 }
 
 std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, u32 width, u32 height, u32 levels, Format format, VkFormat vk_format)

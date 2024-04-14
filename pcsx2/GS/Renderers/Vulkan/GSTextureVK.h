@@ -28,6 +28,8 @@ public:
 
 	static std::unique_ptr<GSTextureVK> Create(Type type, u32 width, u32 height, u32 levels, Format format, VkFormat vk_format);
 
+	void Destroy(bool defer);
+
 	__fi VKTexture& GetTexture() { return m_texture; }
 	__fi VKTexture* GetTexturePtr() { return &m_texture; }
 	__fi VkFormat GetVkFormat() const { return m_texture.GetFormat(); }

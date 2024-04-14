@@ -18,7 +18,6 @@
 #include "common/Pcsx2Defs.h"
 #include "common/WindowInfo.h"
 #include "VKTexture.h"
-#include "VKLoader.h"
 #include <memory>
 #include <optional>
 #include <vector>
@@ -55,7 +54,6 @@ class VKSwapChain
 		__fi const VKTexture& GetCurrentTexture() const { return m_images[m_current_image].texture; }
 		__fi VKTexture& GetCurrentTexture() { return m_images[m_current_image].texture; }
 		__fi VkFramebuffer GetCurrentFramebuffer() const { return m_images[m_current_image].framebuffer; }
-		__fi VkRenderPass GetLoadRenderPass() const { return m_load_render_pass; }
 		__fi VkRenderPass GetClearRenderPass() const { return m_clear_render_pass; }
 		__fi VkSemaphore GetImageAvailableSemaphore() const { return m_semaphores[m_current_semaphore].available_semaphore; }
 		__fi const VkSemaphore* GetImageAvailableSemaphorePtr() const { return &m_semaphores[m_current_semaphore].available_semaphore; }
