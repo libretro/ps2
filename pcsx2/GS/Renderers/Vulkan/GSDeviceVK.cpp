@@ -4876,10 +4876,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	{
 		date_image = SetupPrimitiveTrackingDATE(config);
 		if (!date_image)
-		{
-			Console.WriteLn("Failed to allocate DATE image, aborting draw.");
 			return;
-		}
 	}
 
 	// figure out the pipeline
@@ -4909,7 +4906,6 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		hdr_rt = static_cast<GSTextureVK*>(CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::HDRColor, false));
 		if (!hdr_rt)
 		{
-			Console.WriteLn("Failed to allocate HDR render target, aborting draw.");
 			if (date_image)
 				Recycle(date_image);
 			return;
@@ -4985,10 +4981,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 
 	OMSetRenderTargets(draw_rt, draw_ds, config.scissor, static_cast<FeedbackLoopFlag>(pipe.feedback_loop_flags));
 	if (pipe.IsRTFeedbackLoop())
-	{
-		Console.WriteLn("Texture barriers enabled");
 		PSSetShaderResource(2, draw_rt, false);
-	}
 
 	// Begin render pass if new target or out of the area.
 	if (!render_area_okay || !InRenderPass())
