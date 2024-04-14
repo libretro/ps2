@@ -18,11 +18,6 @@
 #include "GS/Renderers/HW/GSHwHack.h"
 
 static bool s_nativeres;
-static CRCHackLevel s_crc_hack_level = CRCHackLevel::Full;
-
-#define CRC_Partial (s_crc_hack_level >= CRCHackLevel::Partial)
-#define CRC_Full (s_crc_hack_level >= CRCHackLevel::Full)
-#define CRC_Aggressive (s_crc_hack_level >= CRCHackLevel::Aggressive)
 
 #define RPRIM r.PRIM
 #define RCONTEXT r.m_context
@@ -62,11 +57,6 @@ bool GSHwHack::GSC_DeathByDegreesTekkenNinaWilliams(GSRendererHW& r, int& skip)
 			// Don't enable hack on native res if crc is below aggressive.
 			// Upscaling issue similar to Tekken 5.
 			skip = 1; // Animation pane
-		}
-		else if (CRC_Aggressive && RFBP == 0x3500 && RTPSM == PSMT8 && RFBMSK == 0xFFFF00FF)
-		{
-			// Needs to be further tested so put it on Aggressive for now, likely channel shuffle.
-			skip = 4; // Underwater white fog
 		}
 	}
 	else
@@ -528,10 +518,6 @@ bool GSHwHack::GSC_SteambotChronicles(GSRendererHW& r, int& skip)
 			else if (RFBP == 0)
 			{
 				skip = 100; // deletes most others(too high deletes the buggy sea completely;c, too low causes glitches to be visible)
-			}
-			else if (CRC_Aggressive && RFBP != 0)
-			{
-				skip = 19; // "speedhack", makes the game very light, vaporized water can disappear when not looked at directly, possibly some interface still, other value to try: 6 breaks menu background, possibly nothing(?) during gameplay, but it's slower, hence not much of a speedhack anymore
 			}
 		}
 	}
@@ -1000,66 +986,62 @@ bool GSHwHack::OI_HauntingGround(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 #undef RZMSK
 #undef RZTST
 
-#undef CRC_Partial
-#undef CRC_Full
-#undef CRC_Aggressive
-
 ////////////////////////////////////////////////////////////////////////////////
 
-#define CRC_F(name, level) { #name, &GSHwHack::name, level }
+#define CRC_F(name) { #name, &GSHwHack::name }
 
 const GSHwHack::Entry<GSRendererHW::GSC_Ptr> GSHwHack::s_get_skip_count_functions[] = {
-	CRC_F(GSC_GodHand, CRCHackLevel::Partial),
-	CRC_F(GSC_KnightsOfTheTemple2, CRCHackLevel::Partial),
-	CRC_F(GSC_Kunoichi, CRCHackLevel::Partial),
-	CRC_F(GSC_Manhunt2, CRCHackLevel::Partial),
-	CRC_F(GSC_MidnightClub3, CRCHackLevel::Partial),
-	CRC_F(GSC_SacredBlaze, CRCHackLevel::Partial),
-	CRC_F(GSC_SakuraTaisen, CRCHackLevel::Partial),
-	CRC_F(GSC_SakuraWarsSoLongMyLove, CRCHackLevel::Partial),
-	CRC_F(GSC_Simple2000Vol114, CRCHackLevel::Partial),
-	CRC_F(GSC_SFEX3, CRCHackLevel::Partial),
-	CRC_F(GSC_TalesOfLegendia, CRCHackLevel::Partial),
-	CRC_F(GSC_TalesofSymphonia, CRCHackLevel::Partial),
-	CRC_F(GSC_UrbanReign, CRCHackLevel::Partial),
-	CRC_F(GSC_ZettaiZetsumeiToshi2, CRCHackLevel::Partial),
-	CRC_F(GSC_BlackAndBurnoutSky, CRCHackLevel::Partial),
-	CRC_F(GSC_BlueTongueGames, CRCHackLevel::Partial),
-	CRC_F(GSC_Battlefield2, CRCHackLevel::Partial),
-	CRC_F(GSC_NFSUndercover, CRCHackLevel::Partial),
-	CRC_F(GSC_PolyphonyDigitalGames, CRCHackLevel::Partial),
+	CRC_F(GSC_GodHand),
+	CRC_F(GSC_KnightsOfTheTemple2),
+	CRC_F(GSC_Kunoichi),
+	CRC_F(GSC_Manhunt2),
+	CRC_F(GSC_MidnightClub3),
+	CRC_F(GSC_SacredBlaze),
+	CRC_F(GSC_SakuraTaisen),
+	CRC_F(GSC_SakuraWarsSoLongMyLove),
+	CRC_F(GSC_Simple2000Vol114),
+	CRC_F(GSC_SFEX3),
+	CRC_F(GSC_TalesOfLegendia),
+	CRC_F(GSC_TalesofSymphonia),
+	CRC_F(GSC_UrbanReign),
+	CRC_F(GSC_ZettaiZetsumeiToshi2),
+	CRC_F(GSC_BlackAndBurnoutSky),
+	CRC_F(GSC_BlueTongueGames),
+	CRC_F(GSC_Battlefield2),
+	CRC_F(GSC_NFSUndercover),
+	CRC_F(GSC_PolyphonyDigitalGames),
 
 	// Channel Effect
-	CRC_F(GSC_GiTS, CRCHackLevel::Partial),
-	CRC_F(GSC_SteambotChronicles, CRCHackLevel::Partial),
+	CRC_F(GSC_GiTS),
+	CRC_F(GSC_SteambotChronicles),
 
 	// Depth Issue
-	CRC_F(GSC_BurnoutGames, CRCHackLevel::Partial),
+	CRC_F(GSC_BurnoutGames),
 
 	// Half Screen bottom issue
-	CRC_F(GSC_Tekken5, CRCHackLevel::Partial),
+	CRC_F(GSC_Tekken5),
 
 	// Texture shuffle
-	CRC_F(GSC_DeathByDegreesTekkenNinaWilliams, CRCHackLevel::Partial), // + Upscaling issues
+	CRC_F(GSC_DeathByDegreesTekkenNinaWilliams), // + Upscaling issues
 
 	// Upscaling hacks
-	CRC_F(GSC_UltramanFightingEvolution, CRCHackLevel::Partial),
+	CRC_F(GSC_UltramanFightingEvolution),
 
 	// Accurate Blending
-	CRC_F(GSC_GetawayGames, CRCHackLevel::Full), // Blending High
+	CRC_F(GSC_GetawayGames), // Blending High
 };
 
 const GSHwHack::Entry<GSRendererHW::OI_Ptr> GSHwHack::s_before_draw_functions[] = {
-	CRC_F(OI_PointListPalette, CRCHackLevel::Minimum),
-	CRC_F(OI_BigMuthaTruckers, CRCHackLevel::Minimum),
-	CRC_F(OI_DBZBTGames, CRCHackLevel::Minimum),
-	CRC_F(OI_FFX, CRCHackLevel::Minimum),
-	CRC_F(OI_RozenMaidenGebetGarden, CRCHackLevel::Minimum),
-	CRC_F(OI_SonicUnleashed, CRCHackLevel::Minimum),
-	CRC_F(OI_ArTonelico2, CRCHackLevel::Minimum),
-	CRC_F(OI_BurnoutGames, CRCHackLevel::Minimum),
-	CRC_F(OI_Battlefield2, CRCHackLevel::Minimum),
-	CRC_F(OI_HauntingGround, CRCHackLevel::Minimum)
+	CRC_F(OI_PointListPalette),
+	CRC_F(OI_BigMuthaTruckers),
+	CRC_F(OI_DBZBTGames),
+	CRC_F(OI_FFX),
+	CRC_F(OI_RozenMaidenGebetGarden),
+	CRC_F(OI_SonicUnleashed),
+	CRC_F(OI_ArTonelico2),
+	CRC_F(OI_BurnoutGames),
+	CRC_F(OI_Battlefield2),
+	CRC_F(OI_HauntingGround)
 };
 
 #undef CRC_F
@@ -1086,37 +1068,26 @@ s16 GSLookupBeforeDrawFunctionId(const std::string_view& name)
 	return -1;
 }
 
-static CRCHackLevel GetRecommendedCRCHackLevel(GSRendererType type)
-{
-	return (type == GSRendererType::DX11 || type == GSRendererType::DX12) ? CRCHackLevel::Full : CRCHackLevel::Partial;
-}
-
 void GSRendererHW::UpdateCRCHacks()
 {
 	GSRenderer::UpdateCRCHacks();
 
-	const CRCHackLevel real_level = (GSConfig.CRCHack == CRCHackLevel::Automatic) ?
-		GetRecommendedCRCHackLevel(GSConfig.Renderer) : GSConfig.CRCHack;
-
 	m_nativeres = (GSConfig.UpscaleMultiplier == 1.0f);
 	s_nativeres = m_nativeres;
-	s_crc_hack_level = real_level;
 
 	m_gsc = nullptr;
 	m_oi = nullptr;
 
-	if (real_level != CRCHackLevel::Off)
+	if (!GSConfig.UserHacks_DisableRenderFixes)
 	{
 		if (GSConfig.GetSkipCountFunctionId >= 0 &&
-			static_cast<size_t>(GSConfig.GetSkipCountFunctionId) < std::size(GSHwHack::s_get_skip_count_functions) &&
-			real_level >= GSHwHack::s_get_skip_count_functions[GSConfig.GetSkipCountFunctionId].level)
+			static_cast<size_t>(GSConfig.GetSkipCountFunctionId) < std::size(GSHwHack::s_get_skip_count_functions))
 		{
 			m_gsc = GSHwHack::s_get_skip_count_functions[GSConfig.GetSkipCountFunctionId].ptr;
 		}
 
 		if (GSConfig.BeforeDrawFunctionId >= 0 &&
-			static_cast<size_t>(GSConfig.BeforeDrawFunctionId) < std::size(GSHwHack::s_before_draw_functions) &&
-			real_level >= GSHwHack::s_before_draw_functions[GSConfig.BeforeDrawFunctionId].level)
+			static_cast<size_t>(GSConfig.BeforeDrawFunctionId) < std::size(GSHwHack::s_before_draw_functions))
 		{
 			m_oi = GSHwHack::s_before_draw_functions[GSConfig.BeforeDrawFunctionId].ptr;
 		}

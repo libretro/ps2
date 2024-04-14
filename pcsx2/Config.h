@@ -272,16 +272,6 @@ enum class HWMipmapLevel : s8
 	Full
 };
 
-enum class CRCHackLevel : s8
-{
-	Automatic = -1,
-	Off,
-	Minimum,
-	Partial,
-	Full,
-	Aggressive
-};
-
 enum class AccBlendLevel : u8
 {
 	Minimum,
@@ -498,6 +488,7 @@ struct Pcsx2Config
 					UserHacks_DisableDepthSupport : 1,
 					UserHacks_DisablePartialInvalidation : 1,
 					UserHacks_DisableSafeFeatures : 1,
+					UserHacks_DisableRenderFixes : 1,
 					UserHacks_MergePPSprite : 1,
 					UserHacks_WildHack : 1,
 					UserHacks_BilinearHack : 1,
@@ -535,7 +526,6 @@ struct Pcsx2Config
 
 		HWMipmapLevel HWMipmap = HWMipmapLevel::Automatic;
 		AccBlendLevel AccurateBlendingUnit = AccBlendLevel::Basic;
-		CRCHackLevel CRCHack = CRCHackLevel::Automatic;
 		BiFiltering TextureFiltering = BiFiltering::PS2;
 		TexturePreloadingLevel TexturePreloading = TexturePreloadingLevel::Full;
 		GSHardwareDownloadMode HWDownloadMode = GSHardwareDownloadMode::Enabled;

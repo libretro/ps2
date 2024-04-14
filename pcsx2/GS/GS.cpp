@@ -376,10 +376,7 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 		return;
 	}
 
-	// This is where we would do finer-grained checks in the future.
-	// For example, flushing the texture cache when mipmap settings change.
-
-	if (       GSConfig.CRCHack                != old_config.CRCHack
+	if (       GSConfig.UserHacks_DisableRenderFixes                != old_config.UserHacks_DisableRenderFixes
 		|| GSConfig.UpscaleMultiplier      != old_config.UpscaleMultiplier
 		|| GSConfig.GetSkipCountFunctionId != old_config.GetSkipCountFunctionId
 		|| GSConfig.BeforeDrawFunctionId   != old_config.BeforeDrawFunctionId)
