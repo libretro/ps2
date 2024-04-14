@@ -114,6 +114,8 @@ PAPX-90202:
 PAPX-90203:
   name: "Gran Turismo 2000 [Trial]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90215:
   name: "Ka [Trial]"
   region: "NTSC-J"
@@ -141,6 +143,8 @@ PAPX-90231:
 PAPX-90504:
   name: "Gran Turismo Concept - Airtrek Turbo Special Edition [Demo]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90505:
   name: "2002 Natsu no Osusume Soft Otameshi Disc"
   region: "NTSC-J"
@@ -158,10 +162,12 @@ PAPX-90512:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
+    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PAPX-90516:
   name: "Jak and Daxter II [Trial]"
   region: "NTSC-J"
@@ -271,6 +277,8 @@ PBPX-95503:
   memcardFilters:
     - "PBPX-95503"
     - "SCUS-97102"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PBPX-95506:
   name: "PlayStation 2 - Demo Disc 2001"
   region: "PAL-M5"
@@ -310,6 +318,7 @@ PBPX-95523:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 PBPX-95524:
   name: "Gran Turismo 4 - Prologue [PlayStation 2 Racing Pack]"
@@ -319,6 +328,7 @@ PBPX-95524:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 PBPX-95601:
   name: "Gran Turismo 4 [PlayStation 2 Racing Pack]"
@@ -330,6 +340,7 @@ PBPX-95601:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -350,6 +361,8 @@ PCPX-96306:
 PCPX-96311:
   name: "Gran Turismo 3 Trial Disk Volume 1"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96317:
   name: "Ka [Trial]"
   region: "NTSC-J"
@@ -389,11 +402,14 @@ PCPX-96649:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96660:
   name: "Tourist Trophy [Demo]"
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-98017:
   name: "Ratchet & Clank - Giri Giri Ginga no Giga Battle [Demo]"
   region: "NTSC-J"
@@ -744,6 +760,7 @@ SCAJ-20066:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -1355,6 +1372,8 @@ SCAJ-20170:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCAJ-20171:
   name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku Tachi"
   region: "NTSC-J"
@@ -1596,6 +1615,7 @@ SCAJ-30006:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -1613,19 +1633,24 @@ SCAJ-30007:
   compat: 5
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
+    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCAJ-30008:
   name: "Gran Turismo 4 [PlayStation 2 The Best]"
   region: "NTSC-Unk"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
+    # Comments from old GameIndex.dbf for this Game.
+    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -1637,7 +1662,6 @@ SCAJ-30008:
     - "SCPS-19304"
     - "SCPS-15009"
     - "SCPS-55007"
-  # Comments from old GameIndex.dbf for this Game.
 SCAJ-30010:
   name: "God of War"
   region: "NTSC-E"
@@ -1733,6 +1757,7 @@ SCCS-60002:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-50041:
   name: "Tekken Tag Tournament [Demo]"
   region: "PAL-E"
@@ -2008,6 +2033,8 @@ SCED-51351:
 SCED-51352:
   name: "Gran Turismo - Nissan Micra Edition [Demo]"
   region: "PAL-E"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-51359:
   name: "Official PlayStation 2 Magazine Demo 27"
   region: "PAL-M5"
@@ -2342,6 +2369,7 @@ SCED-52578:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-52619:
   name: "Official PlayStation 2 Magazine Demo 48"
   region: "PAL-M5"
@@ -2352,6 +2380,7 @@ SCED-52681:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCED-52687:
   name: "Formula One 04 [Demo]"
   region: "PAL-M11"
@@ -2988,6 +3017,8 @@ SCES-50294:
   name: "Gran Turismo 3 - A-Spec"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCES-50295:
   name: "Dark Cloud"
   region: "PAL-M5"
@@ -3220,10 +3251,14 @@ SCES-50810:
 SCES-50850:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "PAL-Unk"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCES-50858:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "PAL-M6"
   compat: 5
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCES-50858"
     - "SCES-50294"
@@ -3572,10 +3607,12 @@ SCES-51719:
   compat: 5
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
+    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCES-51719"
     - "SCES-52438"
@@ -3810,6 +3847,7 @@ SCES-52438:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCES-51719"
     - "SCES-52438"
@@ -4125,6 +4163,8 @@ SCES-53372:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCES-53397:
   name: "SingStar Pop - World Events Code"
   region: "PAL-Unk"
@@ -5090,6 +5130,7 @@ SCKA-20022:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
 SCKA-20023:
   name: "Fatal Frame II"
@@ -5131,6 +5172,8 @@ SCKA-20028:
 SCKA-20029:
   name: "Gran Turismo Concept 2002 Tokyo-Seoul [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCKA-20030:
   name: "Sly Cooper - Jeonseolui Bibeobseoreul Chajaseo"
   region: "NTSC-K"
@@ -5559,6 +5602,7 @@ SCKA-30001:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCKA-30002:
   name: "God of War"
   region: "NTSC-K"
@@ -5582,6 +5626,8 @@ SCPM-85101:
 SCPM-85301:
   name: "Gran Turismo Concept - Copen Special Edition [Demo]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPN-60101:
   name: "PlayStation BB Navigator - Version 0.10 [Prerelease] [Disc 1]"
   region: "NTSC-J"
@@ -5778,10 +5824,14 @@ SCPS-15008:
 SCPS-15009:
   name: "Gran Turismo 3 - A-Spec"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15010:
   name: "Gran Turismo - Concept 2001 Tokyo"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15011:
   name: "Extermination"
   region: "NTSC-J"
@@ -5982,6 +6032,7 @@ SCPS-15055:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -6302,6 +6353,8 @@ SCPS-15105:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15106:
   name: "Siren 2"
   region: "NTSC-J"
@@ -6386,6 +6439,7 @@ SCPS-17001:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -6406,15 +6460,23 @@ SCPS-17002:
 SCPS-17008:
   name: "Nike - Gran Turismo [Limited Edition - 8 inch]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17009:
   name: "Nike - Gran Turismo [Limited Edition - 9 inch]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17010:
   name: "Nike - Gran Turismo [Limited Edition - 10 inch]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17011:
   name: "Nike - Gran Turismo [Limited Edition - 11 inch]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-17013:
   name: "Rogue Galaxy [Director's Cut]"
   region: "NTSC-J"
@@ -6513,6 +6575,8 @@ SCPS-19207:
 SCPS-19208:
   name: "Gran Turismo - Concept 2001 Tokyo [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-19209:
   name: "Boku no Summer Vacation [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -6560,10 +6624,12 @@ SCPS-19252:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
+    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -6610,6 +6676,7 @@ SCPS-19304:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCAJ-20066"
     - "SCAJ-30006"
@@ -6803,6 +6870,8 @@ SCPS-19324:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-19325:
   name: "Ape Escape - Million Monkeys [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -6929,6 +6998,8 @@ SCPS-55004:
 SCPS-55005:
   name: "Gran Turismo - Concept 2001 Tokyo"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55006:
   name: "Wild ARMs - Advanced 3rd"
   region: "NTSC-J"
@@ -6938,6 +7009,8 @@ SCPS-55006:
 SCPS-55007:
   name: "Gran Turismo 3 - A-Spec"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55008:
   name: "Thunderstrike"
   region: "NTSC-J"
@@ -7163,9 +7236,13 @@ SCPS-55901:
 SCPS-55902:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55903:
   name: "Gran Turismo - Concept 2002 Tokyo-Geneva"
   region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-56001:
   name: "ICO"
   region: "NTSC-K"
@@ -7196,6 +7273,8 @@ SCPS-56004:
 SCPS-56005:
   name: "Gran Turismo Concept 2002 Tokyo-Seoul"
   region: "NTSC-K"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-56006:
   name: "Tekken 4"
   region: "NTSC-K"
@@ -7298,6 +7377,8 @@ SCUS-97102:
   name: "Gran Turismo 3 - A-Spec"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97104:
   name: "ATV Offroad Fury"
   region: "NTSC-U"
@@ -7353,6 +7434,8 @@ SCUS-97114:
 SCUS-97115:
   name: "Gran Turismo 3 - A-Spec [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97116:
   name: "Kiosk Demo Disc 2.01"
   region: "NTSC-U"
@@ -7752,6 +7835,8 @@ SCUS-97219:
   memcardFilters:
     - "SCUS-97219"
     - "SCUS-97102"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97220:
   name: "NHL FaceOff 2003"
   region: "NTSC-U"
@@ -8072,6 +8157,7 @@ SCUS-97328:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters: # Allows car imports from GT3 or something.
     - "SCUS-97328"
     - "SCUS-97436"
@@ -8253,6 +8339,8 @@ SCUS-97383:
 SCUS-97384:
   name: "Gran Turismo Special Edition 2004 Toyota [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97392:
   name: "NBA '06 featuring The Life Vol.1 [Demo]"
   region: "NTSC-U"
@@ -8456,6 +8544,7 @@ SCUS-97436:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   memcardFilters:
     - "SCUS-97328"
     - "SCUS-97436"
@@ -8665,6 +8754,7 @@ SCUS-97483:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97484:
   name: "Sly 3 - Honor Among Thieves [E3 Demo]"
   region: "NTSC-U"
@@ -8780,6 +8870,8 @@ SCUS-97502:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97503:
   name: "MLB '06 - The Show [Demo]"
   region: "NTSC-U"
@@ -8824,6 +8916,8 @@ SCUS-97512:
   memcardFilters:
     - "SCUS-97512"
     - "SCUS-97102"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCUS-97513:
   name: "Ratchet & Clank 2 - Going Commando [Greatest Hits]"
   region: "NTSC-U"
