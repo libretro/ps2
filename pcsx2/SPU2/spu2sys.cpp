@@ -30,8 +30,8 @@
 
 #include "spu2.h" // needed until I figure out a nice solution for irqcallback dependencies.
 
-s16* spu2regs = nullptr;
-s16* _spu2mem = nullptr;
+s16 spu2regs[0x010000 / sizeof(s16)];
+s16 _spu2mem[0x200000 / sizeof(s16)];
 
 V_Core Cores[2];
 V_SPDIF Spdif;

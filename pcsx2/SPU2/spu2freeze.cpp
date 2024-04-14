@@ -54,10 +54,8 @@ s32 SPU2Savestate::FreezeIt(DataBlock& spud)
 	spud.spu2id = SAVE_ID;
 	spud.version = SAVE_VERSION;
 
-	if (spu2regs != nullptr)
-		memcpy(spud.unkregs, spu2regs, sizeof(spud.unkregs));
-	if (_spu2mem != nullptr)
-		memcpy(spud.mem, _spu2mem, sizeof(spud.mem));
+	memcpy(spud.unkregs, spu2regs, sizeof(spud.unkregs));
+	memcpy(spud.mem, _spu2mem, sizeof(spud.mem));
 
 	memcpy(spud.Cores, Cores, sizeof(Cores));
 	memcpy(&spud.Spdif, &Spdif, sizeof(Spdif));
@@ -113,10 +111,8 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 	else
 	{
 		// base stuff
-		if (spu2regs)
-			memcpy(spu2regs, spud.unkregs, sizeof(spud.unkregs));
-		if (_spu2mem)
-			memcpy(_spu2mem, spud.mem, sizeof(spud.mem));
+		memcpy(spu2regs, spud.unkregs, sizeof(spud.unkregs));
+		memcpy(_spu2mem, spud.mem, sizeof(spud.mem));
 
 		memcpy(Cores, spud.Cores, sizeof(Cores));
 		memcpy(&Spdif, &spud.Spdif, sizeof(Spdif));
