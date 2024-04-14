@@ -3787,8 +3787,8 @@ void GSDeviceVK::RenderBlankFrame()
 void GSDeviceVK::DestroyResources()
 {
 	g_vulkan_context->ExecuteCommandBuffer(VKContext::WaitType::Sleep);
-	if (m_tfx_descriptor_sets[0] != VK_NULL_HANDLE)
-		g_vulkan_context->FreeGlobalDescriptorSet(m_tfx_descriptor_sets[0]);
+	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
+		g_vulkan_context->FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);
 
 	for (auto& it : m_tfx_pipelines)
 		SafeDestroyPipeline(it.second);
@@ -4119,15 +4119,15 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 	Vulkan::DescriptorSetUpdateBuilder dsub;
 
 	// Allocate UBO descriptor sets for TFX.
-	m_tfx_descriptor_sets[0] = g_vulkan_context->AllocatePersistentDescriptorSet(m_tfx_ubo_ds_layout);
-	if (m_tfx_descriptor_sets[0] == VK_NULL_HANDLE)
+	m_tfx_ubo_descriptor_set = g_vulkan_context->AllocatePersistentDescriptorSet(m_tfx_ubo_ds_layout);
+	if (m_tfx_ubo_descriptor_set == VK_NULL_HANDLE)
 		return false;
-	dsub.AddBufferDescriptorWrite(m_tfx_descriptor_sets[0], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+	dsub.AddBufferDescriptorWrite(m_tfx_ubo_descriptor_set, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
 		m_vertex_uniform_stream_buffer.GetBuffer(), 0, sizeof(GSHWDrawConfig::VSConstantBuffer));
-	dsub.AddBufferDescriptorWrite(m_tfx_descriptor_sets[0], 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+	dsub.AddBufferDescriptorWrite(m_tfx_ubo_descriptor_set, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
 		m_fragment_uniform_stream_buffer.GetBuffer(), 0, sizeof(GSHWDrawConfig::PSConstantBuffer));
 	if (m_features.vs_expand)
-		dsub.AddBufferDescriptorWrite(m_tfx_descriptor_sets[0], 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+		dsub.AddBufferDescriptorWrite(m_tfx_ubo_descriptor_set, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			m_vertex_stream_buffer.GetBuffer(), 0, VERTEX_BUFFER_SIZE);
 	dsub.Update(dev);
 	return true;
@@ -4216,10 +4216,10 @@ void GSDeviceVK::InvalidateCachedState()
 	m_current_depth_target = nullptr;
 	m_current_framebuffer_feedback_loop = FeedbackLoopFlag_None;
 
-	m_current_pipeline_layout = PipelineLayout::Undefined;
-	m_tfx_descriptor_sets[1] = VK_NULL_HANDLE;
-	m_tfx_descriptor_sets[2] = VK_NULL_HANDLE;
-	m_utility_descriptor_set = VK_NULL_HANDLE;
+	m_current_pipeline_layout    = PipelineLayout::Undefined;
+	m_tfx_texture_descriptor_set = VK_NULL_HANDLE;
+	m_tfx_rt_descriptor_set      = VK_NULL_HANDLE;
+	m_utility_descriptor_set     = VK_NULL_HANDLE;
 }
 
 void GSDeviceVK::SetVertexBuffer(VkBuffer buffer, VkDeviceSize offset)
@@ -4535,18 +4535,18 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 
 	Vulkan::DescriptorSetUpdateBuilder dsub;
 
-	u32 dirty_descriptor_set_start = NUM_TFX_DESCRIPTOR_SETS;
-	u32 dirty_descriptor_set_end = 0;
+	std::array<VkDescriptorSet, NUM_TFX_DESCRIPTOR_SETS> dsets;
+	u32 num_dsets = 0;
+	u32 start_dset = 0;
+	const bool layout_changed = (m_current_pipeline_layout != PipelineLayout::TFX);
 
-	if (flags & DIRTY_FLAG_TFX_DYNAMIC_OFFSETS)
-	{
-		dirty_descriptor_set_start = 0;
-	}
+	if (!layout_changed && flags & DIRTY_FLAG_TFX_DYNAMIC_OFFSETS)
+		dsets[num_dsets++] = m_tfx_ubo_descriptor_set;
 
-	if ((flags & DIRTY_FLAG_TFX_SAMPLERS_DS) || m_tfx_descriptor_sets[1] == VK_NULL_HANDLE)
+	if ((flags & DIRTY_FLAG_TFX_SAMPLERS_DS) || m_tfx_texture_descriptor_set == VK_NULL_HANDLE)
 	{
-		VkDescriptorSet ds = g_vulkan_context->AllocateDescriptorSet(m_tfx_sampler_ds_layout);
-		if (ds == VK_NULL_HANDLE)
+		m_tfx_texture_descriptor_set = g_vulkan_context->AllocateDescriptorSet(m_tfx_sampler_ds_layout);
+		if (m_tfx_texture_descriptor_set == VK_NULL_HANDLE)
 		{
 			if (already_execed)
 			{
@@ -4559,19 +4559,22 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		}
 
 		dsub.AddCombinedImageSamplerDescriptorWrite(
-			ds, 0, m_tfx_textures[0]->GetView(), m_tfx_sampler, m_tfx_textures[0]->GetLayout());
-		dsub.AddImageDescriptorWrite(ds, 1, m_tfx_textures[1]->GetView(), m_tfx_textures[1]->GetLayout());
+			m_tfx_texture_descriptor_set, 0, m_tfx_textures[0]->GetView(), m_tfx_sampler, m_tfx_textures[0]->GetLayout());
+		dsub.AddImageDescriptorWrite(m_tfx_texture_descriptor_set, 1, m_tfx_textures[1]->GetView(), m_tfx_textures[1]->GetLayout());
 		dsub.Update(dev);
 
-		m_tfx_descriptor_sets[1] = ds;
-		dirty_descriptor_set_start = std::min(dirty_descriptor_set_start, 1u);
-		dirty_descriptor_set_end = 1u;
+		if (!layout_changed)
+		{
+			start_dset = (num_dsets == 0) ?
+				TFX_DESCRIPTOR_SET_TEXTURES : start_dset;
+			dsets[num_dsets++] = m_tfx_texture_descriptor_set;
+		}
 	}
 
-	if ((flags & DIRTY_FLAG_TFX_RT_TEXTURE_DS) || m_tfx_descriptor_sets[2] == VK_NULL_HANDLE)
+	if ((flags & DIRTY_FLAG_TFX_RT_TEXTURE_DS) || m_tfx_rt_descriptor_set == VK_NULL_HANDLE)
 	{
-		VkDescriptorSet ds = g_vulkan_context->AllocateDescriptorSet(m_tfx_rt_texture_ds_layout);
-		if (ds == VK_NULL_HANDLE)
+		m_tfx_rt_descriptor_set = g_vulkan_context->AllocateDescriptorSet(m_tfx_rt_texture_ds_layout);
+		if (m_tfx_rt_descriptor_set == VK_NULL_HANDLE)
 		{
 			if (already_execed)
 			{
@@ -4586,37 +4589,48 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		if (m_features.texture_barrier)
 		{
 			dsub.AddInputAttachmentDescriptorWrite(
-				ds, 0, m_tfx_textures[NUM_TFX_DRAW_TEXTURES]->GetView(), VK_IMAGE_LAYOUT_GENERAL);
+				m_tfx_rt_descriptor_set, 0, m_tfx_textures[NUM_TFX_DRAW_TEXTURES]->GetView(), VK_IMAGE_LAYOUT_GENERAL);
 		}
 		else
 		{
-			dsub.AddImageDescriptorWrite(ds, 0, m_tfx_textures[NUM_TFX_DRAW_TEXTURES]->GetView(),
+			dsub.AddImageDescriptorWrite(m_tfx_rt_descriptor_set, 0, m_tfx_textures[NUM_TFX_DRAW_TEXTURES]->GetView(),
 				m_tfx_textures[NUM_TFX_DRAW_TEXTURES]->GetLayout());
 		}
-		dsub.AddImageDescriptorWrite(ds, 1, m_tfx_textures[NUM_TFX_DRAW_TEXTURES + 1]->GetView(),
+		dsub.AddImageDescriptorWrite(m_tfx_rt_descriptor_set, 1, m_tfx_textures[NUM_TFX_DRAW_TEXTURES + 1]->GetView(),
 			m_tfx_textures[NUM_TFX_DRAW_TEXTURES + 1]->GetLayout());
 		dsub.Update(dev);
 
-		m_tfx_descriptor_sets[2] = ds;
-		dirty_descriptor_set_start = std::min(dirty_descriptor_set_start, 2u);
-		dirty_descriptor_set_end = 2u;
+		if (!layout_changed)
+		{
+			// need to add textures in, can't leave a gap
+			if (start_dset == TFX_DESCRIPTOR_SET_UBO && num_dsets == 1)
+				dsets[num_dsets++] = m_tfx_texture_descriptor_set;
+			else
+				start_dset = (num_dsets == 0) ? TFX_DESCRIPTOR_SET_RT : start_dset;
+
+			dsets[num_dsets++] = m_tfx_rt_descriptor_set;
+		}
 	}
 
-	if (m_current_pipeline_layout != PipelineLayout::TFX)
+	if (layout_changed)
 	{
 		m_current_pipeline_layout = PipelineLayout::TFX;
 
+		dsets[0] = m_tfx_ubo_descriptor_set;
+		dsets[1] = m_tfx_texture_descriptor_set;
+		dsets[2] = m_tfx_rt_descriptor_set;
+
 		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout, 0,
-			NUM_TFX_DESCRIPTOR_SETS, m_tfx_descriptor_sets.data(), NUM_TFX_DYNAMIC_OFFSETS,
+			NUM_TFX_DESCRIPTOR_SETS, dsets.data(), NUM_TFX_DYNAMIC_OFFSETS,
 			m_tfx_dynamic_offsets.data());
 	}
-	else if (dirty_descriptor_set_start <= dirty_descriptor_set_end)
+	else if (num_dsets > 0)
 	{
 		u32 dynamic_count;
 		const u32* dynamic_offsets;
-		if (dirty_descriptor_set_start == 0)
+		if (start_dset == TFX_DESCRIPTOR_SET_UBO)
 		{
-			dynamic_count = NUM_TFX_DYNAMIC_OFFSETS;
+			dynamic_count   = NUM_TFX_DYNAMIC_OFFSETS;
 			dynamic_offsets = m_tfx_dynamic_offsets.data();
 		}
 		else
@@ -4625,10 +4639,8 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 			dynamic_offsets = nullptr;
 		}
 
-		const u32 count = dirty_descriptor_set_end - dirty_descriptor_set_start + 1;
-
-		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout,
-			dirty_descriptor_set_start, count, &m_tfx_descriptor_sets[dirty_descriptor_set_start], dynamic_count,
+		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout, start_dset, num_dsets,
+			dsets.data(), dynamic_count,
 			dynamic_offsets);
 	}
 

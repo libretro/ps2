@@ -82,7 +82,6 @@ public:
 
 	enum : u32
 	{
-		NUM_TFX_DESCRIPTOR_SETS = 3,
 		NUM_TFX_DYNAMIC_OFFSETS = 2,
 		NUM_TFX_DRAW_TEXTURES = 2,
 		NUM_TFX_RT_TEXTURES = 2,
@@ -95,6 +94,14 @@ public:
 		INDEX_BUFFER_SIZE = 16 * 1024 * 1024,
 		VERTEX_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024,
 		FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024
+	};
+	enum TFX_DESCRIPTOR_SET : u32
+	{
+		TFX_DESCRIPTOR_SET_UBO,
+		TFX_DESCRIPTOR_SET_TEXTURES,
+		TFX_DESCRIPTOR_SET_RT,
+
+		NUM_TFX_DESCRIPTOR_SETS,
 	};
 	enum DATE_RENDER_PASS : u32
 	{
@@ -379,7 +386,9 @@ private:
 	std::array<const VKTexture*, NUM_TFX_TEXTURES> m_tfx_textures{};
 	VkSampler m_tfx_sampler = VK_NULL_HANDLE;
 	u32 m_tfx_sampler_sel = 0;
-	std::array<VkDescriptorSet, NUM_TFX_DESCRIPTOR_SETS> m_tfx_descriptor_sets{};
+	VkDescriptorSet m_tfx_ubo_descriptor_set = VK_NULL_HANDLE;
+	VkDescriptorSet m_tfx_texture_descriptor_set = VK_NULL_HANDLE;
+	VkDescriptorSet m_tfx_rt_descriptor_set = VK_NULL_HANDLE;
 	std::array<u32, NUM_TFX_DYNAMIC_OFFSETS> m_tfx_dynamic_offsets{};
 
 	const VKTexture* m_utility_texture = nullptr;
