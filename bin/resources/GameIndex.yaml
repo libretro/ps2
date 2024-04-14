@@ -7086,7 +7086,6 @@ SCPS-55024:
   clampModes:
     eeClampMode: 2 # Fixes Abnormal AI behavior.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects positioning of reflections on player's AC.
     partialTargetInvalidation: 1 # Fixes broken textures.
   memcardFilters:
     - "SCPS-55024"
@@ -12104,7 +12103,6 @@ SLES-50905:
   clampModes:
     eeClampMode: 2 # Fixes Abnormal AI behavior.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects positioning of reflections on player's AC.
     partialTargetInvalidation: 1 # Fixes broken textures.
   #  Save import option was removed from PAL release.
 SLES-50906:
@@ -38290,7 +38288,6 @@ SLPS-25040:
   clampModes:
     eeClampMode: 2 # Fixes Abnormal AI behavior.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects positioning of reflections on player's AC.
     partialTargetInvalidation: 1 # Fixes broken textures.
   memcardFilters:
     - "SCPS-55024"
@@ -42190,7 +42187,6 @@ SLPS-73411:
   clampModes:
     eeClampMode: 2 # Fixes Abnormal AI behavior.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects positioning of reflections on player's AC.
     partialTargetInvalidation: 1 # Fixes broken textures.
   memcardFilters:
     - "SCPS-55024"
@@ -43273,7 +43269,6 @@ SLUS-20249:
   clampModes:
     eeClampMode: 2 # Fixes Abnormal AI behavior.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects positioning of reflections on player's AC.
     partialTargetInvalidation: 1 # Fixes broken textures.
   memcardFilters: # Can import data from regular Armored Core 2.
     - "SLUS-20249"
