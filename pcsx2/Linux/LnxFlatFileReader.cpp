@@ -52,18 +52,18 @@ static inline void _io_prep_pread(struct iocb *iocb, int fd, void *buf, size_t c
 {
 	memset(iocb, 0, sizeof(*iocb));
 	iocb->aio_fildes     = fd;
-	iocb->aio_lio_opcode = IO_CMD_PREAD;
+	iocb->aio_lio_opcode = IOCB_CMD_PREAD;
 	iocb->aio_reqprio    = 0;
-	iocb->u.c.buf        = buf;
-	iocb->u.c.nbytes     = count;
-	iocb->u.c.offset     = offset;
+	iocb->aio_buf        = __u64(buf);
+	iocb->aio_nbytes     = count;
+	iocb->aio_offset     = offset;
 }
 #endif
 
 FlatFileReader::FlatFileReader()
 {
-	m_blocksize = 2048;
-	m_fd = -1;
+	m_blocksize   = 2048;
+	m_fd          = -1;
 	m_aio_context = 0;
 }
 
