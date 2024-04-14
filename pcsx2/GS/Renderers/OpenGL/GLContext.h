@@ -43,7 +43,6 @@ class GLContext
 		};
 
 		__fi bool IsGLES() const { return (m_version.profile == Profile::ES); }
-		bool SwapBuffers();
 		static std::unique_ptr<GLContext> Create(gsl::span<const Version> versions_to_try);
 	protected:
 		Version m_version = {};

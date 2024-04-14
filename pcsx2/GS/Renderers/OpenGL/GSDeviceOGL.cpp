@@ -27,6 +27,10 @@
 
 #include "common/StringUtil.h"
 
+#include <libretro.h>
+
+extern retro_video_refresh_t video_cb;
+
 static constexpr u32 g_vs_cb_index        = 1;
 static constexpr u32 g_ps_cb_index        = 0;
 
@@ -573,7 +577,10 @@ GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
 
 void GSDeviceOGL::EndPresent()
 {
-	m_gl_context->SwapBuffers();
+	if(m_current)
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, m_current->GetWidth(), m_current->GetHeight(), 0);
+	else
+		video_cb(NULL, 0, 0, 0);
 }
 
 void GSDeviceOGL::ResetAPIState()
@@ -1550,7 +1557,10 @@ void GSDeviceOGL::RenderBlankFrame()
 	glDisable(GL_SCISSOR_TEST);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-	m_gl_context->SwapBuffers();
+	if(m_current)
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, m_current->GetWidth(), m_current->GetHeight(), 0);
+	else
+		video_cb(NULL, 0, 0, 0);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLState::fbo);
 	glEnable(GL_SCISSOR_TEST);
 }

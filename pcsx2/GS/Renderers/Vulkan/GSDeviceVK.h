@@ -206,8 +206,6 @@ public:
 	{
 		return m_tfx_render_pass[rt][ds][hdr][date][fbl][dsp][rt_op][ds_op];
 	}
-	__fi VkSampler GetPointSampler() const { return m_point_sampler; }
-	__fi VkSampler GetLinearSampler() const { return m_linear_sampler; }
 
 	RenderAPI GetRenderAPI() const override;
 

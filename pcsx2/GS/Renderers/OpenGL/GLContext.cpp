@@ -34,7 +34,6 @@
 #include "GS/GSVector.h"
 
 #include <libretro.h>
-extern retro_video_refresh_t video_cb;
 extern retro_hw_render_callback hw_render;
 
 static bool ShouldPreferESContext(void)
@@ -57,16 +56,6 @@ static void *gl_retro_proc_addr(const char *name)
 {
 	return (void*)(hw_render.get_proc_address(name));
 }
-
-bool GLContext::SwapBuffers()
-{
-	if(g_gs_device->GetCurrent())
-		video_cb(RETRO_HW_FRAME_BUFFER_VALID, g_gs_device->GetCurrent()->GetWidth(), g_gs_device->GetCurrent()->GetHeight(), 0);
-	else
-		video_cb(NULL, 0, 0, 0);
-	return true;
-}
-
 
 std::unique_ptr<GLContext> GLContext::Create(gsl::span<const Version> versions_to_try)
 {
