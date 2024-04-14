@@ -15,12 +15,15 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
+#include "GS/Renderers/Vulkan/GSTextureVK.h"
+
 #include "common/WindowInfo.h"
-#include "VKTexture.h"
+
 #include <memory>
 #include <optional>
 #include <vector>
+
+class GSTextureVK;
 
 class VKSwapChain
 {
@@ -51,10 +54,8 @@ class VKSwapChain
 		__fi const u32* GetCurrentImageIndexPtr() const { return &m_current_image; }
 		__fi u32 GetImageCount() const { return static_cast<u32>(m_images.size()); }
 		__fi VkImage GetCurrentImage() const { return m_images[m_current_image].image; }
-		__fi const VKTexture& GetCurrentTexture() const { return m_images[m_current_image].texture; }
-		__fi VKTexture& GetCurrentTexture() { return m_images[m_current_image].texture; }
-		__fi VkFramebuffer GetCurrentFramebuffer() const { return m_images[m_current_image].framebuffer; }
-		__fi VkRenderPass GetClearRenderPass() const { return m_clear_render_pass; }
+		__fi const GSTextureVK* GetCurrentTexture() const { return m_images[m_current_image].texture.get(); }
+		__fi GSTextureVK* GetCurrentTexture() { return m_images[m_current_image].texture.get(); }
 		__fi VkSemaphore GetImageAvailableSemaphore() const { return m_semaphores[m_current_semaphore].available_semaphore; }
 		__fi const VkSemaphore* GetImageAvailableSemaphorePtr() const { return &m_semaphores[m_current_semaphore].available_semaphore; }
 		__fi VkSemaphore GetRenderingFinishedSemaphore() const { return m_semaphores[m_current_semaphore].rendering_finished_semaphore; }
@@ -89,8 +90,7 @@ class VKSwapChain
 		struct SwapChainImage
 		{
 			VkImage image;
-			VKTexture texture;
-			VkFramebuffer framebuffer;
+			std::unique_ptr<GSTextureVK> texture;
 		};
 
 		struct ImageSemaphores

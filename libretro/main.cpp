@@ -825,9 +825,9 @@ void Host::BeginPresentFrame()
 		{
 
 			retro_vulkan_image vkimage;
-			vkimage.image_view = tex->GetView();
-			vkimage.image_layout = tex->GetLayout();
-			vkimage.create_info = {
+			vkimage.image_view   = tex->GetView();
+			vkimage.image_layout = tex->GetVkLayout();
+			vkimage.create_info  = {
 			   VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0,
 			   tex->GetImage(), VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM,
 			   {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,

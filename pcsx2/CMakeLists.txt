@@ -554,7 +554,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/GSDeviceVK.cpp
 		GS/Renderers/Vulkan/GSTextureVK.cpp
 		GS/Renderers/Vulkan/VKShaderCache.cpp
-		GS/Renderers/Vulkan/VKTexture.cpp
 		GS/Renderers/Vulkan/VKLoader.cpp
 		GS/Renderers/Vulkan/VKUtil.cpp
 		GS/Renderers/Vulkan/VKSwapChain.cpp
@@ -567,7 +566,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/GSDeviceVK.h
 		GS/Renderers/Vulkan/GSTextureVK.h
 		GS/Renderers/Vulkan/VKContext.h
-		GS/Renderers/Vulkan/VKTexture.h
 		GS/Renderers/Vulkan/VKSwapChain.h
 		GS/Renderers/Vulkan/VKBuilders.h
 		GS/Renderers/Vulkan/VKStreamBuffer.h

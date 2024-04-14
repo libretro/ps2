@@ -383,7 +383,7 @@ private:
 	GSVector4i m_scissor = GSVector4i::zero();
 	u8 m_blend_constant_color = 0;
 
-	std::array<const VKTexture*, NUM_TFX_TEXTURES> m_tfx_textures{};
+	std::array<const GSTextureVK*, NUM_TFX_TEXTURES> m_tfx_textures{};
 	VkSampler m_tfx_sampler = VK_NULL_HANDLE;
 	u32 m_tfx_sampler_sel = 0;
 	VkDescriptorSet m_tfx_ubo_descriptor_set = VK_NULL_HANDLE;
@@ -391,14 +391,14 @@ private:
 	VkDescriptorSet m_tfx_rt_descriptor_set = VK_NULL_HANDLE;
 	std::array<u32, NUM_TFX_DYNAMIC_OFFSETS> m_tfx_dynamic_offsets{};
 
-	const VKTexture* m_utility_texture = nullptr;
+	const GSTextureVK* m_utility_texture = nullptr;
 	VkSampler m_utility_sampler = VK_NULL_HANDLE;
 	VkDescriptorSet m_utility_descriptor_set = VK_NULL_HANDLE;
 
 	PipelineLayout m_current_pipeline_layout = PipelineLayout::Undefined;
 	VkPipeline m_current_pipeline = VK_NULL_HANDLE;
 
-	VKTexture m_null_texture;
+	std::unique_ptr<GSTextureVK> m_null_texture;
 
 	// current pipeline selector - we save this in the struct to avoid re-zeroing it every draw
 	PipelineSelector m_pipeline_selector = {};
