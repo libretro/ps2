@@ -782,7 +782,6 @@ public:
 	virtual void ClearRenderTarget(GSTexture* t, u32 c) = 0;
 	virtual void InvalidateRenderTarget(GSTexture* t) = 0;
 	virtual void ClearDepth(GSTexture* t) = 0;
-	virtual void ClearStencil(GSTexture* t, u8 c) = 0;
 
 	GSTexture* CreateRenderTarget(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateDepthStencil(int w, int h, GSTexture::Format format, bool clear = true);

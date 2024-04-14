@@ -113,10 +113,7 @@ void GSDeviceNull::ClearDepth(GSTexture* t)
 {
 
 }
-void GSDeviceNull::ClearStencil(GSTexture* t, u8 c)
-{
 
-}
 std::unique_ptr<GSDownloadTexture> GSDeviceNull::CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format)
 {
 	return nullptr;

@@ -247,7 +247,7 @@ public:
 	void ClearRenderTarget(GSTexture* t, u32 c) override;
 	void InvalidateRenderTarget(GSTexture* t) override;
 	void ClearDepth(GSTexture* t) override;
-	void ClearStencil(GSTexture* t, u8 c) override;
+	void ClearStencil(GSTexture* t, u8 c);
 
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 	std::unique_ptr<GSDownloadTexture> CreateDownloadTexture(u32 width, u32 height, GSTexture::Format format) override;
