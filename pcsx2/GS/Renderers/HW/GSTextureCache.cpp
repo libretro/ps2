@@ -3266,7 +3266,7 @@ GSTextureCache::HashCacheEntry* GSTextureCache::LookupHashCache(const GIFRegTEX0
 {
 	// don't bother hashing if we're not replacing.
 	const bool replace = GSConfig.LoadTextureReplacements && GSTextureReplacements::HasAnyReplacementTextures();
-	bool can_cache = CanCacheTextureSize(TEX0.TW, TEX0.TH);
+	bool can_cache = (TEX0.PSM >= PSMT8H && TEX0.PSM <= PSMT4HH) ? CanPreloadTextureSize(TEX0.TW, TEX0.TH) : CanCacheTextureSize(TEX0.TW, TEX0.TH);
 	if (!replace && !can_cache)
 		return nullptr;
 
