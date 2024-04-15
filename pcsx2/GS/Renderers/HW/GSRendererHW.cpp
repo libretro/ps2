@@ -3838,7 +3838,8 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	else
 		m_prim_overlap = PRIM_OVERLAP_UNKNOW;
 
-	EmulateTextureShuffleAndFbmask();
+	if (rt)
+		EmulateTextureShuffleAndFbmask();
 
 	// DATE: selection of the algorithm. Must be done before blending because GL42 is not compatible with blending
 	if (DATE)
