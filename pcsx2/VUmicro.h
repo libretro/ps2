@@ -56,9 +56,6 @@ public:
 
 	virtual ~BaseVUmicroCPU() = default;
 
-	virtual const char* GetShortName() const=0;
-	virtual const char* GetLongName() const=0;
-
 	// returns the number of bytes committed to the working caches for this CPU
 	// provider (typically this refers to recompiled code caches, but could also refer
 	// to other optional growable allocations).
@@ -98,9 +95,6 @@ public:
 	InterpVU0();
 	~InterpVU0() override { Shutdown(); }
 
-	const char* GetShortName() const override { return "intVU0"; }
-	const char* GetLongName() const override { return "VU0 Interpreter"; }
-
 	void Shutdown() override {}
 	void Reset() override;
 
@@ -115,9 +109,6 @@ class InterpVU1 final : public BaseVUmicroCPU
 public:
 	InterpVU1();
 	~InterpVU1() override { Shutdown(); }
-
-	const char* GetShortName() const override { return "intVU1"; }
-	const char* GetLongName() const	override { return "VU1 Interpreter"; }
 
 	void Shutdown() override {}
 	void Reset() override;
@@ -138,9 +129,6 @@ public:
 	recMicroVU0();
 	~recMicroVU0() override { Shutdown(); }
 
-	const char* GetShortName() const override { return "mVU0"; }
-	const char* GetLongName() const override { return "microVU0 Recompiler"; }
-
 	void Reserve();
 	void Shutdown() override;
 
@@ -156,9 +144,6 @@ class recMicroVU1 final : public BaseVUmicroCPU
 public:
 	recMicroVU1();
 	virtual ~recMicroVU1() { Shutdown(); }
-
-	const char* GetShortName() const override { return "mVU1"; }
-	const char* GetLongName() const override { return "microVU1 Recompiler"; }
 
 	void Reserve();
 	void Shutdown() override;
