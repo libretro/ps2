@@ -81,11 +81,6 @@ static __fi bool PERF_ShouldCountEvent( uint evt )
 	return false;
 }
 
-// Diagnostics for event modes that we just ignore for now.  Using these perf units could
-// cause compat issues in some very odd/rare games, so if this msg comes up who knows,
-// might save some debugging effort. :)
-void COP0_DiagnosticPCCR(void) { }
-
 extern int branch;
 __fi void COP0_UpdatePCCR(void)
 {
@@ -365,7 +360,6 @@ void MTC0()
 				// Updates PCRs and sets the PCCR.
 				COP0_UpdatePCCR();
 				cpuRegs.PERF.n.pccr.val = cpuRegs.GPR.r[_Rt_].UL[0];
-				COP0_DiagnosticPCCR();
 			}
 			else if (0 == (_Imm_ & 2)) // MTPC 0, only LSB of register matters
 			{

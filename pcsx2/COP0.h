@@ -30,4 +30,3 @@ extern void UnmapTLB(const tlbs& t, int i);
 extern void MapTLB(const tlbs& t, int i);
 
 extern void COP0_UpdatePCCR(void);
-extern void COP0_DiagnosticPCCR(void);
