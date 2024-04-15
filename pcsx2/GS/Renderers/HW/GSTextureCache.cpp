@@ -93,6 +93,16 @@ void GSTextureCache::RemoveAll()
 	m_surface_offset_cache.clear();
 }
 
+bool GSTextureCache::FullRectDirty(Target* target)
+{
+	RGBAMask rgba;
+	rgba._u32 = GSUtil::GetChannelMask(target->m_TEX0.PSM);
+	// One complete dirty rect, not pieces (Add dirty rect function should be able to join these all together).
+	if (target->m_age > 2 && target->m_dirty.size() == 1 && rgba._u32 == target->m_dirty[0].rgba._u32 && target->m_valid.rintersect(target->m_dirty[0].r).eq(target->m_valid))
+		return true;
+	return false;
+}
+
 void GSTextureCache::AddDirtyRectTarget(Target* target, GSVector4i rect, u32 psm, u32 bw, RGBAMask rgba, bool req_linear)
 {
 	bool skipdirty = false;
@@ -1728,12 +1738,20 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 			{
 				if (!found && GSUtil::HasCompatibleBits(psm, t->m_TEX0.PSM) && bw == std::max(t->m_TEX0.TBW, 1U))
 				{
+					AddDirtyRectTarget(t, r, psm, bw, rgba);
+
+					if (FullRectDirty(t))
+					{
+						i = list.erase(j);
+						delete t;
+						continue;
+					}
+
 					if (eewrite)
 						t->m_age = 0;
-					
-					AddDirtyRectTarget(t, r, psm, bw, rgba);
-					
-					++i;
+
+					i++;
+
 					continue;
 				}
 				else
@@ -1750,6 +1768,14 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 						if (bw == std::max(t->m_TEX0.TBW, 1U) && GSLocalMemory::m_psm[psm].bpp == GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp)
 						{
 							AddDirtyRectTarget(t, rect, psm, bw, rgba);
+
+							if (FullRectDirty(t))
+							{
+								i = list.erase(j);
+								delete t;
+								continue;
+							}
+
 							can_erase = false;
 						}
 						else
@@ -1766,6 +1792,13 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 								if (swizzle_match)
 								{
 									DirtyRectByPage(bp, psm, bw, t, r);
+
+									if (FullRectDirty(t))
+									{
+										i = list.erase(j);
+										delete t;
+										continue;
+									}
 
 									if (eewrite)
 										t->m_age = 0;
@@ -1790,6 +1823,13 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 										new_rect.w = (r.w + (page_size.y - 1)) & ~(page_size.y - 1);
 									}
 									DirtyRectByPage(bp & ~((1 << 5) - 1), psm, bw, t, new_rect);
+
+									if (FullRectDirty(t))
+									{
+										i = list.erase(j);
+										delete t;
+										continue;
+									}
 
 									if (eewrite)
 										t->m_age = 0;
@@ -1869,11 +1909,18 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 
 						if (r.bottom > y)
 						{
-							if (eewrite)
-								t->m_age = 0;
-
 							const GSVector4i dirty_r = GSVector4i(r.left, r.top - y, r.right, r.bottom - y);
 							AddDirtyRectTarget(t, dirty_r, psm, bw, rgba);
+
+							if (FullRectDirty(t))
+							{
+								i = list.erase(j);
+								delete t;
+							}
+
+							if (t && eewrite)
+								t->m_age = 0;
+
 							continue;
 						}
 					}
@@ -1895,11 +1942,18 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 					{
 						const int y = GSLocalMemory::m_psm[psm].pgs.y * offset / rowsize;
 
-						if (eewrite)
-							t->m_age = 0;
-
 						const GSVector4i dirty_r = GSVector4i(r.left, r.top + y, r.right, r.bottom + y);
 						AddDirtyRectTarget(t, dirty_r, psm, bw, rgba);
+
+						if (FullRectDirty(t))
+						{
+							i = list.erase(j);
+							delete t;
+						}
+
+						if (t && eewrite)
+							t->m_age = 0;
+
 						continue;
 					}
 				}
@@ -1944,6 +1998,14 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 						{
 							DirtyRectByPage(bp, psm, bw, t, r);
 
+							if (FullRectDirty(t))
+							{
+								i = list.erase(j);
+								delete t;
+								continue;
+							}
+							
+
 							if (eewrite)
 								t->m_age = 0;
 						}
@@ -1977,10 +2039,17 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 						const SurfaceOffset so = ComputeSurfaceOffset(sok);
 						if (so.is_valid)
 						{
+							AddDirtyRectTarget(t, so.b2a_offset, t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
+
+							if (FullRectDirty(t))
+							{
+								i = list.erase(j);
+								delete t;
+								continue;
+							}
+
 							if (eewrite)
 								t->m_age = 0;
-
-							AddDirtyRectTarget(t, so.b2a_offset, t->m_TEX0.PSM, t->m_TEX0.TBW, rgba);
 						}
 					}
 				}
