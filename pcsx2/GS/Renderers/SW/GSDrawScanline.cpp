@@ -35,8 +35,8 @@ static __forceinline const GSScanlineGlobalData& GlobalFromLocal(const GSScanlin
 }
 
 GSDrawScanline::GSDrawScanline()
-	: m_sp_map("GSSetupPrim")
-	, m_ds_map("GSDrawScanline")
+	: m_sp_map() /* GSSetupPrim */
+	, m_ds_map() /* GSDrawScanline */
 {
 	GSCodeReserve::GetInstance().AllowModification();
 	GSCodeReserve::GetInstance().Reset();

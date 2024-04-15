@@ -19,7 +19,6 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
-#include <string>
 
 // --------------------------------------------------------------------------------------
 //  VirtualMemoryManager: Manages the allocation of PCSX2 VM
@@ -42,7 +41,7 @@ public:
 	// If upper_bounds is nonzero and the OS fails to allocate memory that is below it,
 	// calls to IsOk() will return false and Alloc() will always return null pointers
 	// strict indicates that the allocation should quietly fail if the memory can't be mapped at `base`
-	VirtualMemoryManager(std::string name, const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds = 0, bool strict = false);
+	VirtualMemoryManager(const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds = 0, bool strict = false);
 	~VirtualMemoryManager();
 
 	void* GetFileHandle() const { return m_file_handle; }
@@ -91,7 +90,7 @@ protected:
 	size_t m_size = 0;
 
 public:
-	VirtualMemoryReserve(std::string name);
+	VirtualMemoryReserve();
 	virtual ~VirtualMemoryReserve();
 
 	// Initialize with the given piece of memory
@@ -140,7 +139,7 @@ class RecompiledCodeReserve : public VirtualMemoryReserve
 	typedef VirtualMemoryReserve _parent;
 
 public:
-	RecompiledCodeReserve(std::string name);
+	RecompiledCodeReserve();
 	~RecompiledCodeReserve();
 
 	void Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size);

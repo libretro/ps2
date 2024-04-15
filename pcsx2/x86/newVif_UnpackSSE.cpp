@@ -378,7 +378,7 @@ void VifUnpackSSE_Init()
 
 	Console.WriteLn("Generating SSE-optimized unpacking functions for VIF interpreters...");
 
-	nVifUpkExec = new RecompiledCodeReserve("VIF SSE-optimized Unpacking Functions");
+	nVifUpkExec = new RecompiledCodeReserve();
 	nVifUpkExec->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
 	xSetPtr(*nVifUpkExec);
 

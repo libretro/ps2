@@ -33,15 +33,9 @@ alignas(__pagesize) u8 iopHw[Ps2MemSize::IopHardware];
 // --------------------------------------------------------------------------------------
 //  iopMemoryReserve
 // --------------------------------------------------------------------------------------
-iopMemoryReserve::iopMemoryReserve()
-	: _parent("IOP Main Memory (2mb)")
-{
-}
-
-iopMemoryReserve::~iopMemoryReserve()
-{
-	Release();
-}
+/* IOP Main Memory (2MB) */
+iopMemoryReserve::iopMemoryReserve() : _parent() { }
+iopMemoryReserve::~iopMemoryReserve() { Release(); }
 
 void iopMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
 {

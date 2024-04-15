@@ -37,7 +37,8 @@ void dVifReserve(int idx)
 		return;
 	
 	const size_t offset = idx ? HostMemoryMap::VIF1recOffset : HostMemoryMap::VIF0recOffset;
-	nVif[idx].recReserve = new RecompiledCodeReserve(StringUtil::StdStringFromFormat("VIF%u Unpack Recompiler Cache", idx));
+	/* VIF Unpack Recompiler Cache */
+	nVif[idx].recReserve = new RecompiledCodeReserve();
 	nVif[idx].recReserve->Assign(GetVmMemory().CodeMemory(), offset, 8 * _1mb);
 }
 

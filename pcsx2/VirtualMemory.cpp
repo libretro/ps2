@@ -26,7 +26,7 @@
 //  VirtualMemoryManager  (implementations)
 // --------------------------------------------------------------------------------------
 
-VirtualMemoryManager::VirtualMemoryManager(std::string name, const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds, bool strict)
+VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds, bool strict)
 	: m_file_handle(nullptr)
 	, m_baseptr(0)
 	, m_pageuse(nullptr)
@@ -202,13 +202,8 @@ u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
 // --------------------------------------------------------------------------------------
 //  VirtualMemoryReserve  (implementations)
 // --------------------------------------------------------------------------------------
-VirtualMemoryReserve::VirtualMemoryReserve(std::string name)
-{
-}
-
-VirtualMemoryReserve::~VirtualMemoryReserve()
-{
-}
+VirtualMemoryReserve::VirtualMemoryReserve() { }
+VirtualMemoryReserve::~VirtualMemoryReserve() { }
 
 // Notes:
 //  * This method should be called if the object is already in an released (unreserved) state.
@@ -252,15 +247,8 @@ void VirtualMemoryReserve::Release()
 // Constructor!
 // Parameters:
 //   name - a nice long name that accurately describes the contents of this reserve.
-RecompiledCodeReserve::RecompiledCodeReserve(std::string name)
-	: VirtualMemoryReserve(std::move(name))
-{
-}
-
-RecompiledCodeReserve::~RecompiledCodeReserve()
-{
-	Release();
-}
+RecompiledCodeReserve::RecompiledCodeReserve() : VirtualMemoryReserve() { }
+RecompiledCodeReserve::~RecompiledCodeReserve() { Release(); }
 
 void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {

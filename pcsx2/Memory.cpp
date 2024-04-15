@@ -622,15 +622,9 @@ void memBindConditionalHandlers(void)
 // --------------------------------------------------------------------------------------
 //  eeMemoryReserve  (implementations)
 // --------------------------------------------------------------------------------------
-eeMemoryReserve::eeMemoryReserve()
-	: _parent("EE Main Memory")
-{
-}
-
-eeMemoryReserve::~eeMemoryReserve()
-{
-	Release();
-}
+/* EE Main Memory */
+eeMemoryReserve::eeMemoryReserve() : _parent() { }
+eeMemoryReserve::~eeMemoryReserve() { Release(); }
 
 void eeMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
 {

@@ -1194,10 +1194,7 @@ void vtlb_Core_Free()
 // --------------------------------------------------------------------------------------
 //  VtlbMemoryReserve  (implementations)
 // --------------------------------------------------------------------------------------
-VtlbMemoryReserve::VtlbMemoryReserve(std::string name)
-	: VirtualMemoryReserve(std::move(name))
-{
-}
+VtlbMemoryReserve::VtlbMemoryReserve() : VirtualMemoryReserve() { }
 
 void VtlbMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {

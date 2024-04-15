@@ -24,16 +24,9 @@
 
 alignas(16) VURegs vuRegs[2];
 
-
-vuMemoryReserve::vuMemoryReserve()
-	: _parent("VU0/1 on-chip memory")
-{
-}
-
-vuMemoryReserve::~vuMemoryReserve()
-{
-	Release();
-}
+/* VU0/1 on-chip memory */
+vuMemoryReserve::vuMemoryReserve() : _parent() { }
+vuMemoryReserve::~vuMemoryReserve() { Release(); }
 
 void vuMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
 {

@@ -125,7 +125,7 @@ extern void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value
 class VtlbMemoryReserve : public VirtualMemoryReserve
 {
 public:
-	VtlbMemoryReserve(std::string name);
+	VtlbMemoryReserve();
 
 	void Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size);
 

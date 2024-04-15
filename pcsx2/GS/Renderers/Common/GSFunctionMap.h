@@ -101,16 +101,12 @@ private:
 template <class CG, class KEY, class VALUE>
 class GSCodeGeneratorFunctionMap : public GSFunctionMap<KEY, VALUE>
 {
-	std::string m_name;
 	std::unordered_map<u64, VALUE> m_cgmap;
 
 	enum { MAX_SIZE = 8192 };
 
 public:
-	GSCodeGeneratorFunctionMap(std::string name)
-		: m_name(name)
-	{
-	}
+	GSCodeGeneratorFunctionMap() { }
 
 	~GSCodeGeneratorFunctionMap() = default;
 

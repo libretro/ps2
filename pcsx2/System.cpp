@@ -64,7 +64,7 @@ namespace HostMemoryMap
 } // namespace HostMemoryMap
 
 /// Attempts to find a spot near static variables for the main memory
-static VirtualMemoryManagerPtr makeMemoryManager(const char* name, const char* file_mapping_name, size_t size, size_t offset_from_base)
+static VirtualMemoryManagerPtr makeMemoryManager(const char* file_mapping_name, size_t size, size_t offset_from_base)
 {
 #if defined(_WIN32)
 	// Everything looks nicer when the start of all the sections is a nice round looking number.
@@ -82,20 +82,20 @@ static VirtualMemoryManagerPtr makeMemoryManager(const char* name, const char* f
 		// VTLB will throw a fit if we try to put EE main memory here
 		if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
 			continue;
-		auto mgr = std::make_shared<VirtualMemoryManager>(name, file_mapping_name, base, size, /*upper_bounds=*/0, /*strict=*/true);
+		auto mgr = std::make_shared<VirtualMemoryManager>(file_mapping_name, base, size, /*upper_bounds=*/0, /*strict=*/true);
 		if (mgr->IsOk())
 			return mgr;
 	}
 #endif
-	return std::make_shared<VirtualMemoryManager>(name, file_mapping_name, 0, size);
+	return std::make_shared<VirtualMemoryManager>(file_mapping_name, 0, size);
 }
 
 // --------------------------------------------------------------------------------------
 //  SysReserveVM  (implementations)
 // --------------------------------------------------------------------------------------
 SysMainMemory::SysMainMemory()
-	: m_mainMemory(makeMemoryManager("Main Memory Manager", "pcsx2", HostMemoryMap::MainSize, 0))
-	, m_codeMemory(makeMemoryManager("Code Memory Manager", nullptr, HostMemoryMap::CodeSize, HostMemoryMap::MainSize))
+	: m_mainMemory(makeMemoryManager("pcsx2", HostMemoryMap::MainSize, 0))
+	, m_codeMemory(makeMemoryManager(nullptr, HostMemoryMap::CodeSize, HostMemoryMap::MainSize))
 	, m_bumpAllocator(m_mainMemory, HostMemoryMap::bumpAllocatorOffset, HostMemoryMap::MainSize - HostMemoryMap::bumpAllocatorOffset)
 {
 	uptr main_base = (uptr)MainMemory()->GetBase();

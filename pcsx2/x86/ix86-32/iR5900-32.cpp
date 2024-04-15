@@ -381,16 +381,17 @@ static __ri void ClearRecLUT(BASEBLOCK* base, int memsize)
 		base[i].SetFnptr((uptr)JITCompile);
 }
 
-static void recReserve()
+static void recReserve(void)
 {
 	if (recMem)
 		return;
 
-	recMem = new RecompiledCodeReserve("R5900 Recompiler Cache");
+	/* R5900 Recompiler Cache */
+	recMem = new RecompiledCodeReserve();
 	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::EErecOffset, 64 * _1mb);
 }
 
-static void recAlloc()
+static void recAlloc(void)
 {
 	if (!recRAMCopy)
 		recRAMCopy = (u8*)_aligned_malloc(Ps2MemSize::MainRam, 4096);

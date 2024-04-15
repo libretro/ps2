@@ -787,12 +787,13 @@ static u8* m_recBlockAlloc = NULL;
 static const uint m_recBlockAllocSize =
 	(((Ps2MemSize::IopRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) / 4) * sizeof(BASEBLOCK));
 
-static void recReserve()
+static void recReserve(void)
 {
 	if (recMem)
 		return;
 
-	recMem = new RecompiledCodeReserve("R3000A Recompiler Cache");
+	/* R3000A Recompiler Cache */
+	recMem = new RecompiledCodeReserve();
 	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
 }
 
@@ -826,7 +827,7 @@ static void recAlloc(void)
 	_DynGen_Dispatchers();
 }
 
-void recResetIOP()
+void recResetIOP(void)
 {
 	recAlloc();
 	recMem->Reset();

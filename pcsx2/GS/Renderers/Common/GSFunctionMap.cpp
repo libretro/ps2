@@ -19,11 +19,8 @@
 
 static GSCodeReserve s_instance;
 
-GSCodeReserve::GSCodeReserve()
-	: RecompiledCodeReserve("GS Software Renderer")
-{
-}
-
+/* GS Software Renderer */
+GSCodeReserve::GSCodeReserve() : RecompiledCodeReserve() { }
 GSCodeReserve::~GSCodeReserve() = default;
 
 GSCodeReserve& GSCodeReserve::GetInstance()
