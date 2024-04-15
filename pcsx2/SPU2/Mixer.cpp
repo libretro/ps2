@@ -87,7 +87,7 @@ static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
 // decoded pcm data, used to cache the decoded data so that it needn't be decoded
 // multiple times.  Cache chunks are decoded when the mixer requests the blocks, and
 // invalided when DMA transfers and memory writes are performed.
-PcmCacheEntry pcm_cache_data[pcm_BlockCount];
+PcmCacheEntry pcm_cache_data[PCM_BLOCKCOUNT];
 
 // LOOP/END sets the ENDX bit and sets NAX to LSA, and the voice is muted if LOOP is not set
 // LOOP seems to only have any effect on the block with LOOP/END set, where it prevents muting the voice
@@ -152,9 +152,9 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 			vc.LoopCycle = Cycles;
 		}
 
-		const int cacheIdx = vc.NextA / pcm_WordsPerBlock;
+		const int cacheIdx       = vc.NextA / PCM_WORDSPERBLOCK;
 		PcmCacheEntry& cacheLine = pcm_cache_data[cacheIdx];
-		vc.SBuffer = cacheLine.Sampledata;
+		vc.SBuffer               = cacheLine.Sampledata;
 
 		if (cacheLine.Validated && vc.Prev1 == cacheLine.Prev1 && vc.Prev2 == cacheLine.Prev2)
 		{

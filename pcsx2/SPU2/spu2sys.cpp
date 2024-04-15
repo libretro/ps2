@@ -68,29 +68,24 @@ __forceinline s16* GetMemPtr(u32 addr)
 
 __forceinline s16 spu2M_Read(u32 addr)
 {
-	return *GetMemPtr(addr & 0xfffff);
-}
-
-// writes a signed value to the SPU2 ram
-// Invalidates the ADPCM cache in the process.
-__forceinline void spu2M_Write(u32 addr, s16 value)
-{
-	// Make sure the cache is invalidated:
-	// (note to self : addr address WORDs, not bytes)
-
-	addr &= 0xfffff;
-	if (addr >= SPU2_DYN_MEMLINE)
-	{
-		const int cacheIdx = addr / pcm_WordsPerBlock;
-		pcm_cache_data[cacheIdx].Validated = false;
-	}
-	*GetMemPtr(addr) = value;
+	return *(_spu2mem + (addr & 0xfffff));
 }
 
 // writes an unsigned value to the SPU2 ram
 __forceinline void spu2M_Write(u32 addr, u16 value)
 {
-	spu2M_Write(addr, (s16)value);
+	// Make sure the cache is invalidated:
+	// (note to self : addr address WORDs, not bytes)
+
+	// writes a signed value to the SPU2 ram
+	// Invalidates the ADPCM cache in the process.
+	addr &= 0xfffff;
+	if (addr >= SPU2_DYN_MEMLINE)
+	{
+		const int cacheIdx = addr / PCM_WORDSPERBLOCK;
+		pcm_cache_data[cacheIdx].Validated = false;
+	}
+	*GetMemPtr(addr) = value;
 }
 
 V_VolumeLR V_VolumeLR::Max(0x7FFFFFFF);
@@ -477,9 +472,9 @@ __forceinline void TimeUpdate(u32 cClocks)
 	}
 }
 
-__forceinline void UpdateSpdifMode()
+__forceinline void UpdateSpdifMode(void)
 {
-	int OPM = PlayMode;
+	const int OPM = PlayMode;
 
 	if (Spdif.Out & SPDIF_OUT_BYPASS)
 	{
@@ -491,9 +486,7 @@ __forceinline void UpdateSpdifMode()
 	{
 		PlayMode = 0; //normal processing
 		if (Spdif.Out & SPDIF_OUT_PCM)
-		{
 			PlayMode = 1;
-		}
 	}
 }
 
@@ -516,19 +509,18 @@ static u32 map_spu1to2(u32 addr)
 
 static u32 map_spu2to1(u32 addr)
 {
-	// if (addr >= 0x800 && addr < 0xc0000) oh dear
 	return (addr - (addr >= 0xc0000 ? 0xc0000 : 0)) / 4;
 }
 
 void V_Core::WriteRegPS1(u32 mem, u16 value)
 {
-	u32 reg = mem & 0xffff;
+	const u32 reg = mem & 0xffff;
 
 	if ((reg >= 0x1c00) && (reg < 0x1d80))
 	{
 		//voice values
 		u8 voice = ((reg - 0x1c00) >> 4);
-		u8 vval = reg & 0xf;
+		const u8 vval = reg & 0xf;
 		switch (vval)
 		{
 			case 0x0: //VOLL (Volume L)
@@ -831,19 +823,15 @@ u16 V_Core::ReadRegPS1(u32 mem)
 	if ((reg >= 0x1c00) && (reg < 0x1d80))
 	{
 		//voice values
-		u8 voice = ((reg - 0x1c00) >> 4);
-		u8 vval = reg & 0xf;
+		const u8 voice = ((reg - 0x1c00) >> 4);
+		const u8 vval = reg & 0xf;
 		switch (vval)
 		{
 			case 0x0: //VOLL (Volume L)
-				//value=Voices[voice].VolumeL.Mode;
-				//value=Voices[voice].VolumeL.Value;
 				value = Voices[voice].Volume.Left.Reg_VOL;
 				break;
 
 			case 0x2: //VOLR (Volume R)
-				//value=Voices[voice].VolumeR.Mode;
-				//value=Voices[voice].VolumeR.Value;
 				value = Voices[voice].Volume.Right.Reg_VOL;
 				break;
 
@@ -963,19 +951,6 @@ static __forceinline void SetLoWord(u32& src, u16 value)
 {
 	((u16*)&src)[0] = value;
 }
-
-// Not used
-#if 0
-static __forceinline u16 GetHiWord(u32& src)
-{
-	return ((u16*)&src)[1];
-}
-
-static __forceinline u16 GetLoWord(u32& src)
-{
-	return ((u16*)&src)[0];
-}
-#endif
 
 template <int CoreIdx, int VoiceIdx, int param>
 static void RegWrite_VoiceParams(u16 value)

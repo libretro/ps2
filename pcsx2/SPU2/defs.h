@@ -533,21 +533,22 @@ namespace SPU2Savestate
 // from the cache here:
 #define SPU2_DYN_MEMLINE 0x2800
 
-// 8 short words per encoded PCM block. (as stored in SPU2 ram)
-static const int pcm_WordsPerBlock = 8;
+// 8 short words per encoded PCM block. (as stored in SPU2 RAM)
+#define PCM_WORDSPERBLOCK 8
 
 // number of cachable ADPCM blocks (any blocks above the SPU2_DYN_MEMLINE)
-static const int pcm_BlockCount = 0x100000 / pcm_WordsPerBlock;
+// 0x100000 / PCM_WORDSPERBLOCK
+#define PCM_BLOCKCOUNT 131072
 
 // 28 samples per decoded PCM block (as stored in our cache)
-static const int pcm_DecodedSamplesPerBlock = 28;
+#define PCM_DECODEDSAMPLESPERBLOCK 28
 
 struct PcmCacheEntry
 {
 	bool Validated;
-	s16 Sampledata[pcm_DecodedSamplesPerBlock];
+	s16 Sampledata[PCM_DECODEDSAMPLESPERBLOCK];
 	s32 Prev1;
 	s32 Prev2;
 };
 
-extern PcmCacheEntry pcm_cache_data[pcm_BlockCount];
+extern PcmCacheEntry pcm_cache_data[PCM_BLOCKCOUNT];

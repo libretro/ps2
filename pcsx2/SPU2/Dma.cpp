@@ -148,10 +148,10 @@ void V_Core::FinishDMAwrite()
 		buff1end = 0x100000;
 	}
 
-	const int cacheIdxStart = ActiveTSA / pcm_WordsPerBlock;
-	const int cacheIdxEnd = (buff1end + pcm_WordsPerBlock - 1) / pcm_WordsPerBlock;
+	const int cacheIdxStart  = ActiveTSA / PCM_WORDSPERBLOCK;
+	const int cacheIdxEnd    = (buff1end + PCM_WORDSPERBLOCK - 1) / PCM_WORDSPERBLOCK;
 	PcmCacheEntry* cacheLine = &pcm_cache_data[cacheIdxStart];
-	PcmCacheEntry& cacheEnd = pcm_cache_data[cacheIdxEnd];
+	PcmCacheEntry& cacheEnd  = pcm_cache_data[cacheIdxEnd];
 
 	do
 	{
@@ -379,7 +379,7 @@ void V_Core::DoDMAwrite(u16* pMem, u32 size)
 
 	ActiveTSA = TSA & 0xfffff;
 
-	bool adma_enable = ((AutoDMACtrl & (Index + 1)) == (Index + 1));
+	const bool adma_enable = ((AutoDMACtrl & (Index + 1)) == (Index + 1));
 
 	if (adma_enable)
 	{

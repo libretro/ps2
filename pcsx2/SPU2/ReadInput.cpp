@@ -32,7 +32,7 @@
 //
 StereoOut32 V_Core::ReadInput_HiFi()
 {
-	u16 ReadIndex = (OutPos * 2) & 0x1FF;
+	const u16 ReadIndex = (OutPos * 2) & 0x1FF;
 
 	StereoOut32 retval(
 		(s32&)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex)),

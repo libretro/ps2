@@ -18,20 +18,12 @@
 #include "SPU2/spu2.h" // hopefully temporary, until I resolve lClocks depdendency
 #include "IopMem.h"
 
-namespace SPU2Savestate
-{
-	// Arbitrary ID to identify SPU2 saves.
-	static const u32 SAVE_ID = 0x1227521;
+// Arbitrary ID to identify SPU2 saves.
+#define SAVE_ID 0x1227521
 
-	// versioning for saves.
-	// Increment this when changes to the savestate system are made.
-	static const u32 SAVE_VERSION = 0x000e;
-
-	static void wipe_the_cache()
-	{
-		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
-	}
-} // namespace SPU2Savestate
+// versioning for saves.
+// Increment this when changes to the savestate system are made.
+#define SAVE_VERSION 0x000e
 
 struct SPU2Savestate::DataBlock
 {
@@ -105,8 +97,7 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		// they kinda match the settings for the savestate (IRQ enables and such).
 
 		// adpcm cache : Clear all the cache flags and buffers.
-
-		wipe_the_cache();
+		memset(pcm_cache_data, 0, PCM_BLOCKCOUNT * sizeof(PcmCacheEntry));
 	}
 	else
 	{
@@ -143,7 +134,7 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		lClocks = spud.lClocks;
 		PlayMode = spud.PlayMode;
 
-		wipe_the_cache();
+		memset(pcm_cache_data, 0, PCM_BLOCKCOUNT * sizeof(PcmCacheEntry));
 
 		// Go through the V_Voice structs and recalculate SBuffer pointer from
 		// the NextA setting.
@@ -152,7 +143,7 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		{
 			for (int v = 0; v < 24; v++)
 			{
-				const int cacheIdx = Cores[c].Voices[v].NextA / pcm_WordsPerBlock;
+				const int cacheIdx = Cores[c].Voices[v].NextA / PCM_WORDSPERBLOCK;
 				Cores[c].Voices[v].SBuffer = pcm_cache_data[cacheIdx].Sampledata;
 			}
 		}
