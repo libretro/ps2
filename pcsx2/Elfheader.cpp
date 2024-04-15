@@ -65,38 +65,7 @@ void ElfObject::initElfHeaders(bool isPSXElf)
 		if ((header.e_shoff + sizeof(ELF_SHR)) <= static_cast<u32>(data.GetSizeInBytes()))
 			secthead = reinterpret_cast<ELF_SHR*>(&data[header.e_shoff]);
 	}
-
-	const char* elftype = NULL;
-	switch( header.e_type )
-	{
-		default:
-			break;
-
-		case 0x0: elftype = "no file type";	break;
-		case 0x1: elftype = "relocatable";	break;
-		case 0x2: elftype = "executable";	break;
-	}
-
-	const char* machine = NULL;
-
-	switch(header.e_machine)
-	{
-		case 1: machine = "AT&T WE 32100";	break;
-		case 2: machine = "SPARC";			break;
-		case 3: machine = "Intel 80386";	break;
-		case 4: machine = "Motorola 68000";	break;
-		case 5: machine = "Motorola 88000";	break;
-		case 7: machine = "Intel 80860";	break;
-		case 8: machine = "mips_rs3000";	break;
-
-		default:
-			break;
-	}
 }
-
-bool ElfObject::hasProgramHeaders() { return (proghead != NULL); }
-bool ElfObject::hasSectionHeaders() { return (secthead != NULL); }
-bool ElfObject::hasHeaders() { return (hasProgramHeaders() && hasSectionHeaders()); }
 
 std::pair<u32,u32> ElfObject::getTextRange()
 {

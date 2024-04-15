@@ -137,10 +137,6 @@ class ElfObject
 		void loadSectionHeaders();
 		void loadHeaders();
 
-		bool hasProgramHeaders();
-		bool hasSectionHeaders();
-		bool hasHeaders();
-
 		std::pair<u32,u32> getTextRange();
 		u32 getCRC();
 };
