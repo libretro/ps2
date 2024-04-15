@@ -17,11 +17,9 @@
 #include "MemoryTypes.h"
 #include "SymbolMap.h"
 
-#include <string>
-
 enum
 {
-	EECAT_GPR,
+	EECAT_GPR = 0,
 	EECAT_CP0,
 	EECAT_FPR,
 	EECAT_FCR,
@@ -30,13 +28,14 @@ enum
 	EECAT_GSPRIV,
 	EECAT_COUNT
 };
+
 enum
 {
-	IOPCAT_GPR,
+	IOPCAT_GPR = 0,
 	IOPCAT_COUNT
 };
 
-class DebugInterface
+class R5900DebugInterface
 {
 public:
 	enum RegisterType
@@ -44,50 +43,17 @@ public:
 		NORMAL,
 		SPECIAL
 	};
-
-	virtual u32 read8(u32 address) = 0;
-	virtual u32 read8(u32 address, bool& valid) = 0;
-	virtual u32 read16(u32 address) = 0;
-	virtual u32 read16(u32 address, bool& valid) = 0;
-	virtual u32 read32(u32 address) = 0;
-	virtual u32 read32(u32 address, bool& valid) = 0;
-	virtual u64 read64(u32 address) = 0;
-	virtual u64 read64(u32 address, bool& valid) = 0;
-	virtual u128 read128(u32 address) = 0;
-	virtual void write8(u32 address, u8 value) = 0;
-	virtual void write32(u32 address, u32 value) = 0;
-
-	// register stuff
-	virtual u128 getHI() = 0;
-	virtual u128 getLO() = 0;
-	virtual u32 getPC() = 0;
-	virtual bool getCPCOND0() = 0;
-
-	virtual bool isValidAddress(u32 address) = 0;
-};
-
-class R5900DebugInterface : public DebugInterface
-{
-public:
-	u32 read8(u32 address) override;
-	u32 read8(u32 address, bool& valid) override;
-	u32 read16(u32 address) override;
-	u32 read16(u32 address, bool& valid) override;
-	u32 read32(u32 address) override;
-	u32 read32(u32 address, bool& valid) override;
-	u64 read64(u32 address) override;
-	u64 read64(u32 address, bool& valid) override;
-	u128 read128(u32 address) override;
-	void write8(u32 address, u8 value) override;
-	void write32(u32 address, u32 value) override;
-
-	// register stuff
-	u128 getHI() override;
-	u128 getLO() override;
-	u32 getPC() override;
-	bool getCPCOND0() override;
-
-	bool isValidAddress(u32 address) override;
+	u32 read8(u32 address);
+	u32 read8(u32 address, bool& valid);
+	u32 read16(u32 address);
+	u32 read16(u32 address, bool& valid);
+	u32 read32(u32 address);
+	u32 read32(u32 address, bool& valid);
+	u64 read64(u32 address);
+	u64 read64(u32 address, bool& valid);
+	u128 read128(u32 address);
+	void write8(u32 address, u8 value);
+	void write32(u32 address, u32 value);
 };
 
 

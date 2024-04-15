@@ -19,17 +19,65 @@
 #include "Memory.h"
 #include "R5900.h"
 #include "R5900OpcodeTables.h"
-#include "VU.h"
-#include "GS.h" // Required for gsNonMirroredRead()
 #include "Counters.h"
 
-#include "R3000A.h"
-#include "IopMem.h"
 #include "SymbolMap.h"
 
-#include "common/StringUtil.h"
-
 R5900DebugInterface r5900Debug;
+
+static bool isValidAddress(u32 addr)
+{
+	u32 lopart = addr & 0xfFFffFF;
+
+	// get rid of EE RAM mirrors
+	switch (addr >> 28)
+	{
+		case 0:
+		case 2:
+			// case 3: throw exception (not mapped ?)
+			// [ 0000_8000 - 01FF_FFFF ] RAM
+			// [ 2000_8000 - 21FF_FFFF ] RAM MIRROR
+			// [ 3000_8000 - 31FF_FFFF ] RAM MIRROR
+			if (lopart >= 0x80000 && lopart <= 0x1ffFFff)
+				return !!vtlb_GetPhyPtr(lopart);
+			break;
+		case 1:
+			// [ 1000_0000 - 1000_CFFF ] EE register
+			if (lopart <= 0xcfff)
+				return true;
+
+			// [ 1100_0000 - 1100_FFFF ] VU mem
+			if (lopart >= 0x1000000 && lopart <= 0x100FFff)
+				return true;
+
+			// [ 1200_0000 - 1200_FFFF ] GS regs
+			if (lopart >= 0x2000000 && lopart <= 0x20010ff)
+				return true;
+
+			// [ 1E00_0000 - 1FFF_FFFF ] ROM
+			// if (lopart >= 0xe000000)
+			// 	return true; throw exception (not mapped ?)
+			break;
+		case 7:
+			// [ 7000_0000 - 7000_3FFF ] Scratchpad
+			if (lopart <= 0x3fff)
+				return true;
+			break;
+		case 8:
+		case 9:
+		case 0xA:
+		case 0xB:
+			// [ 8000_0000 - BFFF_FFFF ] kernel
+			return true;
+		case 0xF:
+			// [ 8000_0000 - BFFF_FFFF ] IOP or kernel stack
+			if (lopart >= 0xfff8000)
+				return true;
+			break;
+	}
+
+	return false;
+}
 
 //
 // R5900DebugInterface
@@ -50,7 +98,6 @@ u32 R5900DebugInterface::read8(u32 address, bool& valid)
 
 	return memRead8(address);
 }
-
 
 u32 R5900DebugInterface::read16(u32 address)
 {
@@ -104,102 +151,20 @@ u128 R5900DebugInterface::read128(u32 address)
 {
 	alignas(16) u128 result;
 	if (!isValidAddress(address) || address % 16)
-	{
 		result.hi = result.lo = -1;
-		return result;
-	}
-
-	memRead128(address, result);
+	else
+		memRead128(address, result);
 	return result;
 }
 
 void R5900DebugInterface::write8(u32 address, u8 value)
 {
-	if (!isValidAddress(address))
-		return;
-
-	memWrite8(address, value);
+	if (isValidAddress(address))
+		memWrite8(address, value);
 }
 
 void R5900DebugInterface::write32(u32 address, u32 value)
 {
-	if (!isValidAddress(address))
-		return;
-
-	memWrite32(address, value);
-}
-
-u128 R5900DebugInterface::getHI()
-{
-	return cpuRegs.HI.UQ;
-}
-
-u128 R5900DebugInterface::getLO()
-{
-	return cpuRegs.LO.UQ;
-}
-
-u32 R5900DebugInterface::getPC()
-{
-	return cpuRegs.pc;
-}
-
-// Taken from COP0.cpp
-bool R5900DebugInterface::getCPCOND0()
-{
-	return (((dmacRegs.stat.CIS | ~dmacRegs.pcr.CPC) & 0x3FF) == 0x3ff);
-}
-
-bool R5900DebugInterface::isValidAddress(u32 addr)
-{
-	u32 lopart = addr & 0xfFFffFF;
-
-	// get rid of ee ram mirrors
-	switch (addr >> 28)
-	{
-		case 0:
-		case 2:
-			// case 3: throw exception (not mapped ?)
-			// [ 0000_8000 - 01FF_FFFF ] RAM
-			// [ 2000_8000 - 21FF_FFFF ] RAM MIRROR
-			// [ 3000_8000 - 31FF_FFFF ] RAM MIRROR
-			if (lopart >= 0x80000 && lopart <= 0x1ffFFff)
-				return !!vtlb_GetPhyPtr(lopart);
-			break;
-		case 1:
-			// [ 1000_0000 - 1000_CFFF ] EE register
-			if (lopart <= 0xcfff)
-				return true;
-
-			// [ 1100_0000 - 1100_FFFF ] VU mem
-			if (lopart >= 0x1000000 && lopart <= 0x100FFff)
-				return true;
-
-			// [ 1200_0000 - 1200_FFFF ] GS regs
-			if (lopart >= 0x2000000 && lopart <= 0x20010ff)
-				return true;
-
-			// [ 1E00_0000 - 1FFF_FFFF ] ROM
-			// if (lopart >= 0xe000000)
-			// 	return true; throw exception (not mapped ?)
-			break;
-		case 7:
-			// [ 7000_0000 - 7000_3FFF ] Scratchpad
-			if (lopart <= 0x3fff)
-				return true;
-			break;
-		case 8:
-		case 9:
-		case 0xA:
-		case 0xB:
-			// [ 8000_0000 - BFFF_FFFF ] kernel
-			return true;
-		case 0xF:
-			// [ 8000_0000 - BFFF_FFFF ] IOP or kernel stack
-			if (lopart >= 0xfff8000)
-				return true;
-			break;
-	}
-
-	return false;
+	if (isValidAddress(address))
+		memWrite32(address, value);
 }
