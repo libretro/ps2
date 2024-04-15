@@ -1807,8 +1807,11 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 									SurfaceOffset so = ComputeSurfaceOffset(off, r, t);
 									if (so.is_valid)
 									{
-										AddDirtyRectTarget(t, so.b2a_offset, psm, bw, rgba);
-										can_erase = false;
+										if (!t->m_valid.rintersect(so.b2a_offset).eq(t->m_valid))
+										{
+											AddDirtyRectTarget(t, so.b2a_offset, psm, bw, rgba);
+											can_erase = false;
+										}
 									}
 								}
 							}
