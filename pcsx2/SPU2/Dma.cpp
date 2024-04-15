@@ -174,8 +174,6 @@ void V_Core::FinishDMAwrite()
 
 		// endpoint cache should be irrelevant, since it's almost certainly dynamic
 		// memory below 0x2800 (registers and such)
-		//const u32 endpt2 = (buff2end + roundUp) / indexer_scalar;
-		//memset( pcm_cache_flags, 0, endpt2 );
 		const u32 start = ActiveTSA;
 		TDA = buff1end;
 

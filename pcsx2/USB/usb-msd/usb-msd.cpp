@@ -682,13 +682,6 @@ namespace usb_msd
 					return;
 				}
 
-				//memset(s->f.buf, 0, sizeof(s->f.buf));
-				//Or do actual reading in USB_MSDM_DATAIN?
-				//TODO probably dont set data_len to read length
-				//if(!(s->f.data_len = fread(s->f.buf, 1, /*s->f.data_len*/ xfer_len * LBA_BLOCK_SIZE, s->file))) {
-				//  s->f.result = PHASE_ERROR;
-				//  set_sense(s, SENSE_CODE(UNRECOVERED_READ_ERROR));
-				//}
 				break;
 
 			case WRITE_12:
