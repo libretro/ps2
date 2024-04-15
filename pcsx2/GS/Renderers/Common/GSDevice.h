@@ -84,19 +84,6 @@ static inline bool HasDepthOutput(ShaderConvert shader)
 	return false;
 }
 
-static inline bool HasStencilOutput(ShaderConvert shader)
-{
-	switch (shader)
-	{
-		case ShaderConvert::DATM_0:
-		case ShaderConvert::DATM_1:
-			return true;
-		default:
-			break;
-	}
-	return false;
-}
-
 enum class PresentShader
 {
 	COPY = 0,

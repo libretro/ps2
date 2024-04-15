@@ -20,11 +20,8 @@
 #include <ctime>
 #include <functional>
 #include <string>
-#include <string_view>
 #include <optional>
 #include <vector>
-
-enum class VsyncMode;
 
 namespace Host
 {
