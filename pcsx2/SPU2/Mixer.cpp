@@ -67,23 +67,6 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& pr
 	}
 }
 
-static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
-{
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
-	// Important!  Both cores signal IRQ when an address is read, regardless of
-	// which core actually reads the address.
-
-	for (int i = 0; i < 2; i++)
-	{
-		if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
-			SetIrqCall(i);
-	}
-
-	vc.NextA++;
-	vc.NextA &= 0xFFFFF;
-}
-
 // decoded pcm data, used to cache the decoded data so that it needn't be decoded
 // multiple times.  Cache chunks are decoded when the mixer requests the blocks, and
 // invalided when DMA transfers and memory writes are performed.
@@ -117,7 +100,18 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				vc.PendingLoopStart = false;
 			}
 		}
-		IncrementNextA(thiscore, voiceidx);
+
+		// Important!  Both cores signal IRQ when an address is read, regardless of
+		// which core actually reads the address.
+
+		for (int i = 0; i < 2; i++)
+		{
+			if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
+				SetIrqCall(i);
+		}
+
+		vc.NextA++;
+		vc.NextA &= 0xFFFFF;
 
 		if ((vc.NextA & 7) == 0) // vc.SCurrent == 24 equivalent
 		{
@@ -185,7 +179,17 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, uint voiceidx)
 {
 	V_Voice& vc(thiscore.Voices[voiceidx]);
 
-	IncrementNextA(thiscore, voiceidx);
+	// Important!  Both cores signal IRQ when an address is read, regardless of
+	// which core actually reads the address.
+
+	for (int i = 0; i < 2; i++)
+	{
+		if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
+			SetIrqCall(i);
+	}
+
+	vc.NextA++;
+	vc.NextA &= 0xFFFFF;
 
 	if ((vc.NextA & 7) == 0) // vc.SCurrent == 24 equivalent
 	{
@@ -274,16 +278,6 @@ static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
 	vc.SP += pitch;
 }
 
-__forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
-{
-	s32 out =  (interpTable[i][0] * pv4) >> 15;
-	out += (interpTable[i][1] * pv3) >> 15;
-	out += (interpTable[i][2] * pv2) >> 15;
-	out += (interpTable[i][3] * pv1) >> 15;
-
-	return out;
-}
-
 static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 {
 	V_Voice& vc(thiscore.Voices[voiceidx]);
@@ -298,8 +292,16 @@ static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 	}
 
 	const s32 mu = vc.SP + 0x1000;
+	s32      pv4 = vc.PV4;
+	s32      pv3 = vc.PV3;
+	s32      pv2 = vc.PV2;
+	s32      pv1 = vc.PV1;
+	s32        i = (mu & 0x0ff0) >> 4;
 
-	return GaussianInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, (mu & 0x0ff0) >> 4);
+	return    ((interpTable[i][0] * pv4) >> 15)
+		+ ((interpTable[i][1] * pv3) >> 15)
+		+ ((interpTable[i][2] * pv2) >> 15)
+		+ ((interpTable[i][3] * pv1) >> 15);
 }
 
 // This is Dr. Hell's noise algorithm as implemented in pcsxr
@@ -340,8 +342,6 @@ static __forceinline void UpdateNoise(V_Core& thiscore)
 		thiscore.NoiseOut = (thiscore.NoiseOut << 1) | noise_add[(thiscore.NoiseOut >> 10) & 63];
 	}
 }
-
-#define GetNoiseValues(thiscore) (s16)thiscore.NoiseOut
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -385,7 +385,7 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 	if (vc.ADSR.Phase > 0)
 	{
 		if (vc.Noise)
-			Value = GetNoiseValues(thiscore);
+			Value = (s16)thiscore.NoiseOut;
 		else
 			Value = GetVoiceValues(thiscore, voiceidx);
 
@@ -426,9 +426,9 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 
 		// Note: Results from MixVoice are ranged at 16 bits.
 
-		dest.Dry.Left += VVal.Left & thiscore.VoiceGates[voiceidx].DryL;
+		dest.Dry.Left  += VVal.Left  & thiscore.VoiceGates[voiceidx].DryL;
 		dest.Dry.Right += VVal.Right & thiscore.VoiceGates[voiceidx].DryR;
-		dest.Wet.Left += VVal.Left & thiscore.VoiceGates[voiceidx].WetL;
+		dest.Wet.Left  += VVal.Left  & thiscore.VoiceGates[voiceidx].WetL;
 		dest.Wet.Right += VVal.Right & thiscore.VoiceGates[voiceidx].WetR;
 	}
 }
@@ -442,10 +442,20 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	const VoiceMixSet Voices(clamp_mix(inVoices.Dry), clamp_mix(inVoices.Wet));
 
 	// Write Mixed results To Output Area
-	spu2M_WriteFast(((0 == Index) ? 0x1000 : 0x1800) + OutPos, Voices.Dry.Left);
-	spu2M_WriteFast(((0 == Index) ? 0x1200 : 0x1A00) + OutPos, Voices.Dry.Right);
-	spu2M_WriteFast(((0 == Index) ? 0x1400 : 0x1C00) + OutPos, Voices.Wet.Left);
-	spu2M_WriteFast(((0 == Index) ? 0x1600 : 0x1E00) + OutPos, Voices.Wet.Right);
+	if (Index == 0)
+	{
+		spu2M_WriteFast((0x1000) + OutPos, Voices.Dry.Left);
+		spu2M_WriteFast((0x1200) + OutPos, Voices.Dry.Right);
+		spu2M_WriteFast((0x1400) + OutPos, Voices.Wet.Left);
+		spu2M_WriteFast((0x1600) + OutPos, Voices.Wet.Right);
+	}
+	else
+	{
+		spu2M_WriteFast((0x1800) + OutPos, Voices.Dry.Left);
+		spu2M_WriteFast((0x1A00) + OutPos, Voices.Dry.Right);
+		spu2M_WriteFast((0x1C00) + OutPos, Voices.Wet.Left);
+		spu2M_WriteFast((0x1E00) + OutPos, Voices.Wet.Right);
+	}
 
 	// Mix in the Input data
 
@@ -454,11 +464,11 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 		Input.Right & DryGate.InpR);
 
 	// Mix in the Voice data
-	TD.Left += Voices.Dry.Left & DryGate.SndL;
+	TD.Left  += Voices.Dry.Left  & DryGate.SndL;
 	TD.Right += Voices.Dry.Right & DryGate.SndR;
 
 	// Mix in the External (nothing/core0) data
-	TD.Left += Ext.Left & DryGate.ExtL;
+	TD.Left  += Ext.Left  & DryGate.ExtL;
 	TD.Right += Ext.Right & DryGate.ExtR;
 
 	// ----------------------------------------------------------------------------
