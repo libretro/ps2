@@ -105,13 +105,13 @@ namespace VMManager
 	namespace Internal
 	{
 		/// Performs early global initialization.
-		bool InitializeGlobals();
+		void InitializeGlobals(void);
 
 		/// Releases resources allocated in InitializeGlobals().
-		void ReleaseGlobals();
+		void ReleaseGlobals(void);
 
 		/// Reserves memory for the virtual machines.
-		bool InitializeMemory();
+		void InitializeMemory(void);
 
 		/// Completely releases all memory for the virtual machine.
 		void ReleaseMemory();

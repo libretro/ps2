@@ -25,7 +25,6 @@
 #include "MTVU.h"
 #include "Counters.h"
 #include "Host.h"
-#include "HostSettings.h"
 #include "common/StringUtil.h"
 #include "common/Path.h"
 #include "common/FileSystem.h"
@@ -634,13 +633,8 @@ bool retro_load_game(const struct retro_game_info* game)
 	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
 	EmuFolders::LoadConfig(*bsi);
 	EmuFolders::EnsureFoldersExist(); /* TODO/FIXME - check if this is not duplicate */
-
-	if (!VMManager::Internal::InitializeGlobals() || !VMManager::Internal::InitializeMemory())
-	{
-		log_cb(RETRO_LOG_ERROR, "Failed to allocate memory map");
-		return false;
-	}
-
+	VMManager::Internal::InitializeGlobals();
+	VMManager::Internal::InitializeMemory();
 	VMManager::LoadSettings();
 
 	if (Options::bios.empty())

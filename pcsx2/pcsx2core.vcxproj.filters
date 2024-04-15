@@ -1952,9 +1952,6 @@
     <ClInclude Include="Frontend\XInputSource.h">
       <Filter>Host</Filter>
     </ClInclude>
-    <ClInclude Include="HostSettings.h">
-      <Filter>Host</Filter>
-    </ClInclude>
     <ClInclude Include="VMManager.h">
       <Filter>System</Filter>
     </ClInclude>

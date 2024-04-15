@@ -51,16 +51,13 @@
 
 Pcsx2Config::GSOptions GSConfig;
 
-int GSinit()
+void GSinit(void)
 {
 	GSVertexSW::InitStatic();
-
 	GSUtil::Init();
-
-	return 0;
 }
 
-void GSshutdown()
+void GSshutdown(void)
 {
 	GSclose();
 }

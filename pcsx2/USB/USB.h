@@ -89,16 +89,14 @@ namespace USB
 	bool DoState(StateWrapper& sw);
 } // namespace USB
 
-struct WindowInfo;
-
 // ---------------------------------------------------------------------
 
-s32 USBinit();
+void USBinit(void);
 void USBasync(u32 cycles);
-void USBshutdown();
-void USBclose();
-bool USBopen();
-void USBreset();
+void USBshutdown(void);
+void USBclose(void);
+bool USBopen(void);
+void USBreset(void);
 
 u8 USBread8(u32 addr);
 u16 USBread16(u32 addr);

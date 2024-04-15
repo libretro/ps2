@@ -22,7 +22,7 @@
 #include "common/Pcsx2Defs.h"
 
 #include "Frontend/InputManager.h"
-#include "HostSettings.h"
+#include "../Host.h"
 
 #include "PAD/PAD.h"
 #include "PAD/KeyStatus.h"

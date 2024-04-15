@@ -727,7 +727,6 @@ list(APPEND pcsx2FrontendSources
 )
 list(APPEND pcsx2FrontendHeaders
 	Frontend/LayeredSettingsInterface.h
-	HostSettings.h
 	VMManager.h)
 
 # Linux sources

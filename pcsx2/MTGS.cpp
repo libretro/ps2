@@ -85,12 +85,6 @@ void SysMtgsThread::ShutdownThread()
 
 void SysMtgsThread::ThreadEntryPoint()
 {
-	if (GSinit() != 0)
-	{
-		m_open_or_close_done.Post();
-		return;
-	}
-
 	m_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 
 	for (;;)

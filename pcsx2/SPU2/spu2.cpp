@@ -131,7 +131,7 @@ void SPU2::Reset(bool psxmode)
 	UpdateSampleRate();
 }
 
-bool SPU2::Initialize()
+void SPU2::Initialize(void)
 {
 	// Patch up a copy of regtable that directly maps "nullptrs" to SPU2 memory.
 
@@ -145,7 +145,6 @@ bool SPU2::Initialize()
 	}
 
 	InitADSR();
-	return true;
 }
 
 

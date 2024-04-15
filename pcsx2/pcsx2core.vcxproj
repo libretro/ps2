@@ -512,7 +512,6 @@
     <ClInclude Include="GS\Renderers\Vulkan\GSDeviceVK.h" />
     <ClInclude Include="GS\Renderers\Vulkan\GSTextureVK.h" />
     <ClInclude Include="Host.h" />
-    <ClInclude Include="HostSettings.h" />
     <ClInclude Include="IopGte.h" />
     <ClInclude Include="IPU\mpeg2_vlc.h" />
     <ClInclude Include="MemoryCardProtocol.h" />

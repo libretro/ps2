@@ -17,7 +17,7 @@
 #include "GSCrc.h"
 #include "GSExtra.h"
 #include "GS.h"
-#include "HostSettings.h"
+#include "../Host.h"
 #include "common/StringUtil.h"
 
 const CRC::Game CRC::m_games[] =

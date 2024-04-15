@@ -38,7 +38,6 @@
 #include "GameDatabase.h"
 #include "GS.h"
 #include "Host.h"
-#include "HostSettings.h"
 #include "IopBios.h"
 #include "MTVU.h"
 #include "MemoryCardFile.h"
@@ -157,38 +156,30 @@ std::string VMManager::GetGameSerial()
 	return s_game_serial;
 }
 
-bool VMManager::Internal::InitializeGlobals()
+void VMManager::Internal::InitializeGlobals(void)
 {
 	x86caps.Identify();
 	x86caps.CountCores();
 	x86caps.SIMD_EstablishMXCSRmask();
 	x86caps.CalculateMHz();
 
-	if (GSinit() != 0)
-		return false;
-
-	if (!SPU2::Initialize())
-		return false;
-
-	if (USBinit() != 0)
-		return false;
-
-	return true;
+	GSinit();
+	SPU2::Initialize();
+	USBinit();
 }
 
-void VMManager::Internal::ReleaseGlobals()
+void VMManager::Internal::ReleaseGlobals(void)
 {
 	USBshutdown();
 	SPU2::Shutdown();
 	GSshutdown();
 }
 
-bool VMManager::Internal::InitializeMemory()
+void VMManager::Internal::InitializeMemory(void)
 {
 	s_vm_memory = std::make_unique<SysMainMemory>();
 	s_cpu_provider_pack = std::make_unique<SysCpuProviderPack>();
-
-	return s_vm_memory->Allocate();
+	s_vm_memory->Allocate();
 }
 
 void VMManager::Internal::ReleaseMemory()
@@ -255,10 +246,7 @@ void VMManager::ApplyGameFixes()
 	s_active_game_fixes += game->applyGSHardwareFixes(EmuConfig.GS);
 }
 
-bool VMManager::UpdateGameSettingsLayer()
-{
-	return true;
-}
+bool VMManager::UpdateGameSettingsLayer(void) { return true; }
 
 void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messages, bool show_messages_when_disabled)
 {

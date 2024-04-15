@@ -17,7 +17,6 @@
 #include "GLLoader.h"
 #include "GS/GS.h"
 #include "Host.h"
-#include "HostSettings.h"
 
 #include "glad.h"
 

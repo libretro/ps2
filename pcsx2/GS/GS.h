@@ -64,12 +64,12 @@ extern Pcsx2Config::GSOptions GSConfig;
 s16 GSLookupGetSkipCountFunctionId(const std::string_view& name);
 s16 GSLookupBeforeDrawFunctionId(const std::string_view& name);
 
-int GSinit();
-void GSshutdown();
+void GSinit(void);
+void GSshutdown(void);
 bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* basemem);
 bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::GSOptions& old_config);
 void GSreset(bool hardware_reset);
-void GSclose();
+void GSclose(void);
 void GSgifSoftReset(u32 mask);
 void GSwriteCSR(u32 csr);
 void GSInitAndReadFIFO(u8* mem, u32 size);

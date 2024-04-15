@@ -17,7 +17,6 @@
 #include "GSDevice.h"
 #include "GS/GS.h"
 #include "Host.h"
-#include "HostSettings.h"
 #include "common/Align.h"
 #include "common/StringUtil.h"
 
