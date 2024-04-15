@@ -495,7 +495,9 @@ static void recShutdown(void)
 
 	recRAM = recROM = recROM1 = recROM2 = NULL;
 
-	safe_free(s_pInstCache);
+	if (s_pInstCache)
+		free(s_pInstCache);
+	s_pInstCache     = NULL;
 	s_nInstCacheSize = 0;
 }
 

@@ -890,7 +890,9 @@ static void recShutdown(void)
 
 	safe_aligned_free(m_recBlockAlloc);
 
-	safe_free(s_pInstCache);
+	if (s_pInstCache)
+		free(s_pInstCache);
+	s_pInstCache     = NULL;
 	s_nInstCacheSize = 0;
 }
 

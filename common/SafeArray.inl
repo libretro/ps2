@@ -56,7 +56,9 @@ T* SafeArray<T>::_virtual_realloc(int newsize)
 template <typename T>
 SafeArray<T>::~SafeArray()
 {
-	safe_free(m_ptr);
+	if (m_ptr)
+		free(m_ptr);
+	m_ptr = NULL;
 }
 
 template <typename T>
@@ -82,7 +84,9 @@ template <typename T>
 void SafeArray<T>::Dispose()
 {
 	m_size = 0;
-	safe_free(m_ptr);
+	if (m_ptr)
+		free(m_ptr);
+	m_ptr = NULL;
 }
 
 template <typename T>

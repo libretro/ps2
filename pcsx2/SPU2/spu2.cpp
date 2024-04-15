@@ -134,7 +134,6 @@ void SPU2::Reset(bool psxmode)
 void SPU2::Initialize(void)
 {
 	// Patch up a copy of regtable that directly maps "nullptrs" to SPU2 memory.
-
 	memcpy(regtable, regtable_original, sizeof(regtable));
 
 	for (uint mem = 0; mem < 0x800; mem++)
@@ -143,8 +142,6 @@ void SPU2::Initialize(void)
 		if (!ptr)
 			regtable[mem >> 1] = &(spu2Ru16(mem));
 	}
-
-	InitADSR();
 }
 
 

@@ -159,14 +159,6 @@ static constexpr size_t __pagemask = PCSX2_PAGESIZE - 1;
 #define safe_delete_array(ptr) \
 	((void)(delete[](ptr)), (ptr) = NULL)
 
-// No checks for NULL.
-#define safe_free(ptr) \
-	((void)(free(ptr), !!0), (ptr) = NULL)
-//((void) (( ( (ptr) != NULL ) && (free( ptr ), !!0) ), (ptr) = NULL))
-
-#define safe_fclose(ptr) \
-	((void)((((ptr) != NULL) && (fclose(ptr), !!0)), (ptr) = NULL))
-
 // --------------------------------------------------------------------------------------
 //  ImplementEnumOperators  (macro)
 // --------------------------------------------------------------------------------------
