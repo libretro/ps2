@@ -2284,9 +2284,11 @@ void GSTextureCache::InvalidateLocalMem(const GSOffset& off, const GSVector4i& r
 bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u32 DBW, u32 DPSM, int dx, int dy, int w, int h)
 {
 	if (SBP == DBP && SPSM == DPSM && !GSLocalMemory::m_psm[SPSM].depth && ShuffleMove(SBP, SBW, SPSM, sx, sy, dx, dy, w, h))
-	{
 		return true;
-	}
+
+	if (SPSM == DPSM && SBW == 1 && SBW == DBW && PageMove(SBP, DBP, SBW, SPSM, sx, sy, dx, dy, w, h))
+		return true;
+
 
 	// TODO: In theory we could do channel swapping on the GPU, but we haven't found anything which needs it so far.
 	// Same with SBP == DBP, but this behavior could change based on direction?
@@ -2436,6 +2438,90 @@ bool GSTextureCache::ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx
 	GSRendererHW::GetInstance()->EndHLEHardwareDraw(false);
 	g_gs_device->RenderHW(config);
 	return true;
+}
+
+bool GSTextureCache::PageMove(u32 SBP, u32 DBP, u32 BW, u32 PSM, int sx, int sy, int dx, int dy, int w, int h)
+{
+	const GSVector4i src = GSVector4i(sx, sy, sx + w, sy + h);
+	const GSVector4i drc = GSVector4i(dx, dy, dx + w, dy + h);
+	if (!GSLocalMemory::IsPageAligned(PSM, src) || !GSLocalMemory::IsPageAligned(PSM, drc))
+		return false;
+
+	// How many pages are we dealing with?
+	const GSVector2i& pgs = GSLocalMemory::m_psm[PSM].pgs;
+	const u32 num_pages = (h / pgs.y) * BW;
+	const u32 src_page_offset = ((sy / pgs.y) * BW) + (sx / pgs.x);
+	const u32 src_block_end = SBP + (((src_page_offset + num_pages) * BLOCKS_PER_PAGE) - 1);
+	const u32 dst_page_offset = ((dy / pgs.y) * BW) + (dx / pgs.x);
+	const u32 dst_block_end = DBP + (((dst_page_offset + num_pages) * BLOCKS_PER_PAGE) - 1);
+
+	// Find our targets.
+	Target* stgt = nullptr;
+	Target* dtgt = nullptr;
+	for (int type = 0; type < 2; type++)
+	{
+		for (Target* tgt : m_dst[type])
+		{
+			// We _could_ do compatible bits here maybe?
+			if (tgt->m_TEX0.PSM != PSM)
+				continue;
+
+			// Check that the end block is in range. If it's not, we can't do this, and have to fall back to local memory.
+			const u32 tgt_end = tgt->UnwrappedEndBlock();
+			if (tgt->m_TEX0.TBP0 <= SBP && src_block_end <= tgt_end)
+				stgt = tgt;
+			if (tgt->m_TEX0.TBP0 <= DBP && dst_block_end <= tgt_end)
+				dtgt = tgt;
+
+			if (stgt && dtgt)
+				break;
+		}
+
+		if (stgt && dtgt)
+			break;
+	}
+	if (!stgt || !dtgt)
+		return false;
+
+	// Double-check that we're not copying to a non-page-aligned target.
+	if (((SBP - stgt->m_TEX0.TBP0) % BLOCKS_PER_PAGE) != 0 || ((DBP - dtgt->m_TEX0.TBP0) % BLOCKS_PER_PAGE) != 0)
+		return false;
+
+	// Need to offset based on the target's actual BP.
+	const u32 real_src_offset = ((SBP - stgt->m_TEX0.TBP0) / BLOCKS_PER_PAGE) + src_page_offset;
+	const u32 real_dst_offset = ((DBP - dtgt->m_TEX0.TBP0) / BLOCKS_PER_PAGE) + dst_page_offset;
+	CopyPages(stgt, stgt->m_TEX0.TBW, real_src_offset, dtgt, dtgt->m_TEX0.TBW, real_dst_offset, num_pages);
+	return true;
+}
+
+void GSTextureCache::CopyPages(Target* src, u32 sbw, u32 src_offset, Target* dst, u32 dbw, u32 dst_offset, u32 num_pages, ShaderConvert shader)
+{
+	// Create rectangles for the pages.
+	const GSVector2i& pgs = GSLocalMemory::m_psm[dst->m_TEX0.PSM].pgs;
+	const GSVector4i page_rc = GSVector4i::loadh(pgs);
+	const GSVector4 src_size = GSVector4(src->GetUnscaledSize()).xyxy();
+	const GSVector4 dst_scale = GSVector4(dst->GetScale());
+	GSDevice::MultiStretchRect* rects = static_cast<GSDevice::MultiStretchRect*>(alloca(sizeof(GSDevice::MultiStretchRect) * num_pages));
+	for (u32 i = 0; i < num_pages; i++)
+	{
+		const u32 src_page_num = src_offset + i;
+		const GSVector2i src_offset = GSVector2i((src_page_num % sbw) * pgs.x, (src_page_num / sbw) * pgs.y);
+		const u32 dst_page_num = dst_offset + i;
+		const GSVector2i dst_offset = GSVector2i((dst_page_num % dbw) * pgs.x, (dst_page_num / dbw) * pgs.y);
+
+		const GSVector4i src_rect = page_rc + GSVector4i(src_offset).xyxy();
+		const GSVector4i dst_rect = page_rc + GSVector4i(dst_offset).xyxy();
+
+		GSDevice::MultiStretchRect& rc = rects[i];
+		rc.src = src->m_texture;
+		rc.src_rect = GSVector4(src_rect) / src_size;
+		rc.dst_rect = GSVector4(dst_rect) * dst_scale;
+		rc.linear = false;
+		rc.wmask.wrgba = 0xf;
+	}
+
+	// No need to sort here, it's all from the same texture.
+	g_gs_device->DrawMultiStretchRects(rects, num_pages, dst->m_texture, shader);
 }
 
 GSTextureCache::Target* GSTextureCache::GetExactTarget(u32 BP, u32 BW, int type)
