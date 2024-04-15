@@ -697,9 +697,7 @@ GSVector2i GSRendererHW::GetTargetSize(const GSTextureCache::Source* tex)
 			height /= 2;
 	}
 
-	const GSVector2i size = g_texture_cache->GetTargetSize(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, width, height);
-
-	return size;
+	return g_texture_cache->GetTargetSize(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, width, height);
 }
 
 bool GSRendererHW::IsPossibleChannelShuffle() const
