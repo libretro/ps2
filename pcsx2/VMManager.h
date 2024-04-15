@@ -57,9 +57,6 @@ namespace VMManager
 	/// Returns true if there is an active virtual machine.
 	bool HasValidVM();
 
-	/// Returns the crc of the executable currently running.
-	u32 GetGameCRC();
-
 	/// Returns the serial of the disc/executable currently running.
 	std::string GetGameSerial();
 

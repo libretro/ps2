@@ -144,12 +144,6 @@ bool VMManager::HasValidVM()
 	return (state >= VMState::Running && state <= VMState::Resetting);
 }
 
-u32 VMManager::GetGameCRC()
-{
-	std::unique_lock lock(s_info_mutex);
-	return s_game_crc;
-}
-
 std::string VMManager::GetGameSerial()
 {
 	std::unique_lock lock(s_info_mutex);
@@ -407,10 +401,6 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 		if (game_starting || resetting)
 			AutoEject::ClearAll();
 	}
-
-	Console.WriteLn(Color_StrongGreen, "Game Changed:");
-	Console.WriteLn(Color_StrongGreen, fmt::format("  Serial: {}", s_game_serial));
-	Console.WriteLn(Color_StrongGreen, fmt::format("  CRC: {:08X}", s_game_crc));
 
 	UpdateGameSettingsLayer();
 	ApplySettings();
@@ -706,14 +696,7 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 		CDVDsys_SetFile(source, std::move(path));
 
 	const bool result = DoCDVDopen();
-	if (result)
-	{
-#if 0
-		if (source == CDVD_SourceType::NoDisc) { /* Disc removed */ }
-		else { /* Disc changed to '{}' */ }
-#endif
-	}
-	else
+	if (!result)
 	{
 		/* Failed to open new disc image '{}'. Reverting to old image */
 		CDVDsys_ChangeSource(old_type);
