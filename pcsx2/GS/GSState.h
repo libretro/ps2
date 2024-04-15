@@ -400,10 +400,11 @@ public:
 		{
 			PCRTCDisplays[0].enabled = pmode.EN1;
 			PCRTCDisplays[1].enabled = pmode.EN2;
+			bool is_analogue         = IsAnalogue();
 
-			interlaced = smode2.INT && IsAnalogue();
+			interlaced = smode2.INT && is_analogue;
 			FFMD = smode2.FFMD;
-			toggling_field = smodetoggle && IsAnalogue();
+			toggling_field = smodetoggle && is_analogue;
 		}
 
 		void CheckSameSource()
