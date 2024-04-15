@@ -43,7 +43,7 @@ class GSBlock
 	static const GSVector4i m_uw8hmask3;
 
 #if _M_SSE >= 0x501
-	// Equvialent of `a = *s0; b = *s1; sw128(a, b);`
+	// Equivalent of `a = *s0; b = *s1; sw128(a, b);`
 	// Loads in two halves instead to reduce shuffle instructions
 	// Especially good for Zen/Zen+, as it's replacing a very expensive vperm2i128
 	template <bool Aligned = true>
@@ -128,7 +128,6 @@ public:
 		// for(int j = 0; j < 16; j++) {((u16*)s0)[j] = columnTable16[0][j]; ((u16*)s1)[j] = columnTable16[1][j];}
 
 #if _M_SSE >= 0x501
-
 		GSVector8i v0, v1;
 
 		LoadSW128<false>(v0, v1, s0, s1);
@@ -142,20 +141,17 @@ public:
 
 #else
 
-		GSVector4i v0, v1, v2, v3;
-
 #if FAST_UNALIGNED
-
-		v0 = GSVector4i::load<false>(&s0[0]);
-		v1 = GSVector4i::load<false>(&s0[16]);
-		v2 = GSVector4i::load<false>(&s1[0]);
-		v3 = GSVector4i::load<false>(&s1[16]);
+		GSVector4i v0 = GSVector4i::load<false>(&s0[0]);
+		GSVector4i v1 = GSVector4i::load<false>(&s0[16]);
+		GSVector4i v2 = GSVector4i::load<false>(&s1[0]);
+		GSVector4i v3 = GSVector4i::load<false>(&s1[16]);
 
 		GSVector4i::sw16(v0, v1, v2, v3);
 		GSVector4i::sw64(v0, v1, v2, v3);
 
 #else
-
+		GSVector4i v0, v1, v2, v3;
 		if (alignment != 0)
 		{
 			v0 = GSVector4i::load<true>(&s0[0]);
@@ -1385,12 +1381,10 @@ public:
 		GSVector8i TA0(TEXA.TA0 << 24);
 		GSVector8i mask = GSVector8i::x00ffffff();
 
-		GSVector8i v0, v1, v2, v3;
-
-		v0 = s[0] & mask;
-		v1 = s[1] & mask;
-		v2 = s[2] & mask;
-		v3 = s[3] & mask;
+		GSVector8i v0 = s[0] & mask;
+		GSVector8i v1 = s[1] & mask;
+		GSVector8i v2 = s[2] & mask;
+		GSVector8i v3 = s[3] & mask;
 
 		GSVector8i::sw128(v0, v1);
 		GSVector8i::sw64(v0, v1);

@@ -649,7 +649,6 @@ bool retro_load_game(const struct retro_game_info* game)
 		return false;
 	}
 
-	s_settings_interface.SetBoolValue("EmuCore/GS", "FrameLimitEnable", false);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
 	s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", Options::fast_boot);
 	s_settings_interface.SetStringValue("Filenames", "BIOS", Options::bios.Get().c_str());

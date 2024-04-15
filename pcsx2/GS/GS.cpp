@@ -51,8 +51,6 @@
 
 Pcsx2Config::GSOptions GSConfig;
 
-static u64 s_next_manual_present_time;
-
 int GSinit()
 {
 	GSVertexSW::InitStatic();
@@ -152,7 +150,7 @@ static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 	return true;
 }
 
-static void CloseGSRenderer()
+static void CloseGSRenderer(void)
 {
 	GSTextureReplacements::Shutdown();
 
@@ -347,7 +345,7 @@ int GSfreeze(FreezeAction mode, freezeData* data)
 	return 0;
 }
 
-void GSPresentCurrentFrame()
+void GSPresentCurrentFrame(void)
 {
 	g_gs_renderer->PresentCurrentFrame();
 }
