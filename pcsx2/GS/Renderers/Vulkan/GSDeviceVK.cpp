@@ -2346,7 +2346,8 @@ bool GSDeviceVK::CheckFeatures()
 #ifdef __APPLE__
 	m_features.vs_expand             = false;
 #else
-	m_features.vs_expand             = g_vulkan_context->GetOptionalExtensions().vk_khr_shader_draw_parameters;
+	m_features.vs_expand =
+		!GSConfig.DisableVertexShaderExpand && g_vulkan_context->GetOptionalExtensions().vk_khr_shader_draw_parameters;
 #endif
 
 	if (!m_features.dual_source_blend)

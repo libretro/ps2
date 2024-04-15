@@ -358,6 +358,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	UseDebugDevice = false;
 	DisableShaderCache = false;
 	DisableFramebufferFetch = false;
+	DisableVertexShaderExpand = false;
 	SkipDuplicateFrames = false;
 
 	HWDownloadMode = GSHardwareDownloadMode::Enabled;
@@ -463,6 +464,7 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 		   OpEqu(DisableShaderCache) &&
 		   OpEqu(DisableDualSourceBlend) &&
 		   OpEqu(DisableFramebufferFetch) &&
+		   OpEqu(DisableVertexShaderExpand) &&
 		   OpEqu(OverrideTextureBarriers);
 }
 
@@ -504,6 +506,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
 	GSSettingBool(DisableDualSourceBlend);
 	GSSettingBool(DisableFramebufferFetch);
+	GSSettingBool(DisableVertexShaderExpand);
 	GSSettingBool(SkipDuplicateFrames);
 
 	GSSettingBool(HWSpinGPUForReadbacks);

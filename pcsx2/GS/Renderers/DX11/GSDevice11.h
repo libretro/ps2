@@ -115,10 +115,10 @@ private:
 		MAX_SAMPLERS = 1,
 		VERTEX_BUFFER_SIZE = 32 * 1024 * 1024,
 		INDEX_BUFFER_SIZE = 16 * 1024 * 1024,
-		NUM_TIMESTAMP_QUERIES = 5,
+		NUM_TIMESTAMP_QUERIES = 5
 	};
 
-	void SetFeatures();
+	void SetFeatures(IDXGIAdapter1* adapter);
 
 	bool CreateSwapChain();
 	bool CreateSwapChainRTV();
