@@ -189,8 +189,10 @@ class memSavingState : public SaveStateBase
 	typedef SaveStateBase _parent;
 
 protected:
-	static const int ReallocThreshold		= _1mb / 4;		// 256k reallocation block size.
-	static const int MemoryBaseAllocSize	= _8mb;			// 8 meg base alloc when PS2 main memory is excluded
+	// 256k reallocation block size.
+	static const int ReallocThreshold	= _1mb / 4;
+	// 8 meg base alloc when PS2 main memory is excluded
+	static const int MemoryBaseAllocSize	= _8mb;
 
 public:
 	virtual ~memSavingState() = default;

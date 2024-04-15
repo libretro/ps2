@@ -36,8 +36,6 @@
 #include "Elfheader.h"
 #include "Counters.h"
 #include "Patch.h"
-#include "GS.h"
-#include "GS/GS.h"
 #include "SPU2/spu2.h"
 #include "StateWrapper.h"
 #include "PAD/PAD.h"
@@ -47,8 +45,6 @@
 #include "fmt/core.h"
 
 using namespace R5900;
-
-static tlbs s_tlb_backup[std::size(tlb)];
 
 // --------------------------------------------------------------------------------------
 //  SaveStateBase  (implementations)
@@ -255,23 +251,6 @@ void memLoadingState::FreezeMem(void* data, int size)
 	memcpy(data, src, size);
 }
 
-struct SysState_Component
-{
-	const char* name;
-	int (*freeze)(FreezeAction, freezeData*);
-};
-
-static int SysState_MTGSFreeze(FreezeAction mode, freezeData* fP)
-{
-	MTGS_FreezeData sstate = { fP, 0 };
-	GetMTGS().Freeze(mode, sstate);
-	return sstate.retval;
-}
-
-static constexpr SysState_Component SPU2_{ "SPU2", SPU2freeze };
-static constexpr SysState_Component PAD_{ "PAD", PADfreeze };
-static constexpr SysState_Component GS{ "GS", SysState_MTGSFreeze };
-
 // --------------------------------------------------------------------------------------
 //  BaseSavestateEntry
 // --------------------------------------------------------------------------------------
@@ -279,7 +258,6 @@ class BaseSavestateEntry
 {
 protected:
 	BaseSavestateEntry() = default;
-
 public:
 	virtual ~BaseSavestateEntry() = default;
 };
@@ -289,7 +267,4 @@ class MemorySavestateEntry : public BaseSavestateEntry
 protected:
 	MemorySavestateEntry() {}
 	virtual ~MemorySavestateEntry() = default;
-protected:
-	virtual u8* GetDataPtr() const = 0;
-	virtual u32 GetDataSize() const = 0;
 };

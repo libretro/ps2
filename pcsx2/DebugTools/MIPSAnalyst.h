@@ -17,9 +17,6 @@
 
 #include "SymbolMap.h"
 
-class DebugInterface;
-
-
 #define MIPS_GET_OP(op)   ((op>>26) & 0x3F)
 #define MIPS_GET_FUNC(op) (op & 0x3F)
 #define MIPS_GET_SA(op)   ((op>>6) & 0x1F)

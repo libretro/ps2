@@ -587,11 +587,3 @@ u32 SymbolMap::GetDataSize(u32 startAddress) const {
 		return INVALID_ADDRESS;
 	return it->second.size;
 }
-
-DataType SymbolMap::GetDataType(u32 startAddress) const {
-	std::lock_guard<std::recursive_mutex> guard(m_lock);
-	auto it = activeData.find(startAddress);
-	if (it == activeData.end())
-		return DATATYPE_NONE;
-	return it->second.type;
-}

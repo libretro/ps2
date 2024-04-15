@@ -82,7 +82,6 @@ public:
 	void AddData(u32 address, u32 size, DataType type, int moduleIndex = -1);
 	u32 GetDataStart(u32 address) const;
 	u32 GetDataSize(u32 startAddress) const;
-	DataType GetDataType(u32 startAddress) const;
 
 	static const u32 INVALID_ADDRESS = (u32)-1;
 
