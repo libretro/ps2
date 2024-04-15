@@ -274,20 +274,6 @@ static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
 	vc.SP += pitch;
 }
 
-static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
-{
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
-	if (vc.ADSR.Phase == 0)
-	{
-		vc.ADSR.Value = 0;
-		return;
-	}
-
-	if (!vc.ADSR.Calculate())
-		vc.Stop();
-}
-
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
 {
 	s32 out =  (interpTable[i][0] * pv4) >> 15;
@@ -403,9 +389,12 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 		else
 			Value = GetVoiceValues(thiscore, voiceidx);
 
-		// Update and Apply ADSR  (applies to normal and noise sources)
+		// Update and Apply ADSR (applies to normal and noise sources)
+		if (vc.ADSR.Phase == 0)
+			vc.ADSR.Value = 0;
+		else if (!vc.ADSR.Calculate())
+			vc.Stop();
 
-		CalculateADSR(thiscore, voiceidx);
 		Value    = ApplyVolume(Value, vc.ADSR.Value);
 		vc.OutX  = Value;
 		voiceOut = ApplyVolume(StereoOut32(Value, Value), vc.Volume);
