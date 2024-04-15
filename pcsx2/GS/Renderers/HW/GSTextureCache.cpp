@@ -2355,8 +2355,7 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 
 
 	// TODO: In theory we could do channel swapping on the GPU, but we haven't found anything which needs it so far.
-	// Same with SBP == DBP, but this behavior could change based on direction?
-	if (SPSM != DPSM || ((SBP == DBP) && !(GSVector4i(sx, sy, sx + w, sy + h).rintersect(GSVector4i(dx, dy, dx + w, dy + h))).rempty()))
+	if (SPSM != DPSM)
 		return false;
 
 	// DX11/12 is a bit lame and can't partial copy depth targets. We could do this with a blit instead,
@@ -2443,9 +2442,45 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 	// Make sure the copy doesn't go out of bounds (it shouldn't).
 	if ((scaled_dx + scaled_w) > dst->m_texture->GetWidth() || (scaled_dy + scaled_h) > dst->m_texture->GetHeight())
 		return false;
-	g_gs_device->CopyRect(src->m_texture, dst->m_texture,
-		GSVector4i(scaled_sx, scaled_sy, scaled_sx + scaled_w, scaled_sy + scaled_h),
-		scaled_dx, scaled_dy);
+
+	// If the copies overlap, this is a validation error, so we need to copy to a temporary texture first.
+	if ((SBP == DBP) && !(GSVector4i(sx, sy, sx + w, sy + h).rintersect(GSVector4i(dx, dy, dx + w, dy + h))).rempty())
+	{
+		const GSVector4i src_size = GSVector4i(src->m_texture->GetSize()).xyxy();
+		GSTexture* tmp_texture    = src->m_texture->IsDepthStencil() ?
+				g_gs_device->CreateDepthStencil(src_size.x, src_size.y, src->m_texture->GetFormat(), false) :
+				g_gs_device->CreateRenderTarget(src_size.x, src_size.y, src->m_texture->GetFormat(), false);
+
+		if (!tmp_texture)
+			return false;
+
+		if(tmp_texture->IsDepthStencil())
+		{
+			const GSVector4 src_rect = GSVector4(scaled_sx, scaled_sy, scaled_sx + scaled_w, scaled_sy + scaled_h);
+			const GSVector4 tmp_rect = src_rect / GSVector4(src_size);
+			const GSVector4 dst_rect = GSVector4(scaled_dx, scaled_dy, (scaled_dx + scaled_w), (scaled_dy + scaled_h));
+			g_gs_device->StretchRect(src->m_texture, tmp_rect, tmp_texture, src_rect, ShaderConvert::DEPTH_COPY, false);
+			g_gs_device->StretchRect(tmp_texture, tmp_rect, dst->m_texture, dst_rect, ShaderConvert::DEPTH_COPY, false);
+		}
+		else
+		{
+			const GSVector4i src_rect = GSVector4i(scaled_sx, scaled_sy, scaled_sx + scaled_w, scaled_sy + scaled_h);
+			// Fast memcpy()-like path for color targets.
+			g_gs_device->CopyRect(src->m_texture, tmp_texture,
+				src_rect,
+				scaled_sx, scaled_sy);
+
+			g_gs_device->CopyRect(tmp_texture, dst->m_texture,
+				src_rect,
+				scaled_dx, scaled_dy);
+		}
+
+		g_gs_device->Recycle(tmp_texture);
+	}
+	else
+		g_gs_device->CopyRect(src->m_texture, dst->m_texture,
+			GSVector4i(scaled_sx, scaled_sy, scaled_sx + scaled_w, scaled_sy + scaled_h),
+			scaled_dx, scaled_dy);
 
 	dst->UpdateValidity(GSVector4i(dx, dy, dx + w, dy + h));
 	// Invalidate any sources that overlap with the target (since they're now stale).
