@@ -203,7 +203,6 @@ struct alignas(16) VURegs
 	}
 
 	bool IsVU1() const;
-	bool IsVU0() const;
 
 	VIFregisters& GetVifRegs() const
 	{
@@ -230,7 +229,4 @@ static VURegs& VU0 = vuRegs[0];
 static VURegs& VU1 = vuRegs[1];
 
 // Do not use __fi here because it fires 'multiple definition' error in GCC
-inline bool VURegs::IsVU1() const { return this == &vuRegs[1]; }
-inline bool VURegs::IsVU0() const { return this == &vuRegs[0]; }
-
-extern u32* GET_VU_MEM(VURegs* VU, u32 addr);
+inline bool VURegs::IsVU1() const { return (this == &vuRegs[1]); }

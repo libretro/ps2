@@ -56,14 +56,6 @@ public:
 
 	virtual ~BaseVUmicroCPU() = default;
 
-	// returns the number of bytes committed to the working caches for this CPU
-	// provider (typically this refers to recompiled code caches, but could also refer
-	// to other optional growable allocations).
-	virtual size_t GetCommittedCache() const
-	{
-		return 0;
-	}
-
 	virtual void Shutdown()=0;
 	virtual void Reset()=0;
 	virtual void SetStartPC(u32 startPC)=0;
