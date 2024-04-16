@@ -15,7 +15,6 @@
 
 #pragma once
 #include "microVU.h"
-#include <array>
 
 struct regCycleInfo
 {
@@ -235,8 +234,8 @@ protected:
 	static const int xmmTotal = iREGCNT_XMM - 1; // PQ register is reserved
 	static const int gprTotal = iREGCNT_GPR;
 
-	std::array<microMapXMM, xmmTotal> xmmMap;
-	std::array<microMapGPR, gprTotal> gprMap;
+	microMapXMM xmmMap[xmmTotal];
+	microMapGPR gprMap[gprTotal];
 
 	int         counter; // Current allocation count
 	int         index;   // VU0 or VU1
@@ -340,18 +339,23 @@ protected:
 public:
 	microRegAlloc(int _index)
 	{
+		int i;
 		index = _index;
 
-		// mark gpr registers as usable
-		gprMap.fill({0, 0, false, false, false, false});
-		for (int i = 0; i < gprTotal; i++)
+		// mark GPR registers as usable
+		for (i = 0; i < gprTotal; i++)
 		{
+			gprMap[i].VIreg          = 0;
+			gprMap[i].count          = 0;
+			gprMap[i].isNeeded       = false;
+			gprMap[i].dirty          = false;
+			gprMap[i].isZeroExtended = false;
+			gprMap[i].usable         = false;
+
 			if (i == gprT1.GetId() || i == gprT2.GetId() ||
 				i == gprF0.GetId() || i == gprF1.GetId() || i == gprF2.GetId() || i == gprF3.GetId() ||
 				i == rsp.GetId())
-			{
 				continue;
-			}
 
 			gprMap[i].usable = true;
 		}
