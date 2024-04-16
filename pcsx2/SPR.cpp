@@ -310,7 +310,7 @@ void dmaSPR0(void)   // fromSPR
 
 	if(spr0ch.chcr.MOD == CHAIN_MODE && spr0ch.qwc > 0)
 	{
-		if (spr0ch.chcr.tag().ID == TAG_END) // But not TAG_REFE?
+		if (((tDMA_TAG)spr0ch.chcr._u32).ID == TAG_END) // But not TAG_REFE?
 			spr0finished = true; // correct not REFE, Destination Chain doesnt have REFE!
 	}
 
@@ -439,7 +439,7 @@ void dmaSPR1(void)   // toSPR
 
 	if(spr1ch.chcr.MOD == CHAIN_MODE && spr1ch.qwc > 0)
 	{
-		if ((spr1ch.chcr.tag().ID == TAG_END) || (spr1ch.chcr.tag().ID == TAG_REFE) || (spr1ch.chcr.tag().IRQ && spr1ch.chcr.TIE))
+		if ((((tDMA_TAG)spr1ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)spr1ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)spr1ch.chcr._u32).IRQ && spr1ch.chcr.TIE))
 			spr1finished = true;
 	}
 

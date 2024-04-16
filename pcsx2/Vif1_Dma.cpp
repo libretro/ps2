@@ -420,14 +420,10 @@ void dmaVIF1(void)
 		{
 			vif1.dmamode = VIF_CHAIN_MODE;
 
-			if ((vif1ch.chcr.tag().ID == TAG_REFE) || (vif1ch.chcr.tag().ID == TAG_END) || (vif1ch.chcr.tag().IRQ && vif1ch.chcr.TIE))
-			{
+			if ((((tDMA_TAG)vif1ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)vif1ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)vif1ch.chcr._u32).IRQ && vif1ch.chcr.TIE))
 				vif1.done = true;
-			}
 			else
-			{
 				vif1.done = false;
-			}
 		}
 		else //Assume normal mode for reverse FIFO and Normal.
 		{

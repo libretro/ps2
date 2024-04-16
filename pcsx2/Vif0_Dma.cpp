@@ -252,14 +252,10 @@ void dmaVIF0(void)
 		{
 			vif0.dmamode = VIF_CHAIN_MODE;
 
-			if ((vif0ch.chcr.tag().ID == TAG_REFE) || (vif0ch.chcr.tag().ID == TAG_END) || (vif0ch.chcr.tag().IRQ && vif0ch.chcr.TIE))
-			{
+			if ((((tDMA_TAG)vif0ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)vif0ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)vif0ch.chcr._u32).IRQ && vif0ch.chcr.TIE))
 				vif0.done = true;
-			}
 			else
-			{
 				vif0.done = false;
-			}
 		}
 		else //Assume Normal mode.
 		{

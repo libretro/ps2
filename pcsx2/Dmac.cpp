@@ -85,11 +85,6 @@ tDMA_TAG *DMACh::DMAtransfer(u32 addr, u32 num)
     return tag;
 }
 
-tDMA_TAG DMACh::dma_tag()
-{
-	return chcr.tag();
-}
-
 // Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)
 __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 {

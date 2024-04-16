@@ -95,8 +95,6 @@ union tDMA_TAG {
 	tDMA_TAG() {}
 
 	tDMA_TAG(u32 val) { _u32 = val; }
-	u16 upper() const { return (_u32 >> 16); }
-	u16 lower() const { return (u16)_u32; }
 	void reset() { _u32 = 0; }
 };
 #define DMA_TAG(value) ((tDMA_TAG)(value))
@@ -119,9 +117,6 @@ union tDMA_CHCR {
 
 	void set(u32 value) { _u32 = value; }
 	void reset() { _u32 = 0; }
-	u16 upper() const { return (_u32 >> 16); }
-	u16 lower() const { return (u16)_u32; }
-	tDMA_TAG tag() { return (tDMA_TAG)_u32; }
 };
 
 #define CHCR(value) ((tDMA_CHCR)(value))
@@ -136,7 +131,6 @@ union tDMA_SADR {
 	tDMA_SADR(u32 val) { _u32 = val; }
 
 	void reset() { _u32 = 0; }
-	tDMA_TAG tag() const { return (tDMA_TAG)_u32; }
 };
 
 union tDMA_QWC {
@@ -148,7 +142,6 @@ union tDMA_QWC {
 	tDMA_QWC(u32 val) { _u32 = val; }
 
 	void reset() { _u32 = 0; }
-	tDMA_TAG tag() const { return (tDMA_TAG)_u32; }
 };
 
 struct DMACh {
@@ -168,7 +161,7 @@ struct DMACh {
 
 	void chcrTransfer(tDMA_TAG* ptag)
 	{
-	    chcr.TAG = ptag[0].upper();
+	    chcr.TAG = ptag[0]._u32 >> 16;
 	}
 
 	void qwcTransfer(tDMA_TAG* ptag)
@@ -180,7 +173,6 @@ struct DMACh {
 	void unsafeTransfer(tDMA_TAG* ptag);
 	tDMA_TAG *getAddr(u32 addr, u32 num, bool write);
 	tDMA_TAG *DMAtransfer(u32 addr, u32 num);
-	tDMA_TAG dma_tag();
 };
 
 enum INTCIrqs

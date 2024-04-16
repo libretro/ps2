@@ -207,8 +207,6 @@ union tGS_IMR
 		_u32 = (value & 0x1f00); // Set only the interrupt mask fields.
 		_undefined = 0x3; // These should always be set.
 	}
-
-	bool masked() const { return (SIGMSK || FINISHMSK || HSMSK || VSMSK || EDWMSK); }
 };
 
 // --------------------------------------------------------------------------------------

@@ -438,14 +438,12 @@ void dmaGIF(void)
 {
 	gif.gspath3done = false; // For some reason this doesn't clear? So when the system starts the thread, we will clear it :)
 	CPU_SET_DMASTALL(DMAC_GIF, false);
-	if (gifch.chcr.MOD == NORMAL_MODE)
-	{ // Else it really is a normal transfer and we want to quit, else it gets confused with chains
+	if (gifch.chcr.MOD == NORMAL_MODE) // Else it really is a normal transfer and we want to quit, else it gets confused with chains
 		gif.gspath3done = true;
-	}
 
 	if (gifch.chcr.MOD == CHAIN_MODE && gifch.qwc > 0)
 	{
-		if ((gifch.chcr.tag().ID == TAG_REFE) || (gifch.chcr.tag().ID == TAG_END) || (gifch.chcr.tag().IRQ && gifch.chcr.TIE))
+		if ((((tDMA_TAG)(gifch.chcr._u32)).ID == TAG_REFE) || (((tDMA_TAG)(gifch.chcr._u32)).ID == TAG_END) || (((tDMA_TAG)(gifch.chcr._u32)).IRQ && gifch.chcr.TIE))
 			gif.gspath3done = true;
 	}
 

@@ -292,7 +292,7 @@ __fi void dmaSIF1(void)
 
 	if (sif1ch.chcr.MOD == CHAIN_MODE && sif1ch.qwc > 0)
 	{
-		if ((sif1ch.chcr.tag().ID == TAG_REFE) || (sif1ch.chcr.tag().ID == TAG_END) || (sif1ch.chcr.tag().IRQ && vif1ch.chcr.TIE))
+		if ((((tDMA_TAG)sif1ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)sif1ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)sif1ch.chcr._u32).IRQ && vif1ch.chcr.TIE))
 			sif1.ee.end = true;
 	}
 
