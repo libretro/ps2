@@ -89,20 +89,10 @@ namespace PAD
 	/// Updates vibration and other internal state. Called at the *end* of a frame.
 	void Update();
 
-	/// Returns a list of controller type names. Pair of [name, display name].
-	std::vector<std::pair<std::string, std::string>> GetControllerTypeNames();
-
 	/// Returns the list of binds for the specified controller type.
 	std::vector<std::string> GetControllerBinds(const std::string_view& type);
 
 	/// Returns general information for the specified controller type.
 	const ControllerInfo* GetControllerInfo(ControllerType type);
 	const ControllerInfo* GetControllerInfo(const std::string_view& name);
-
-	/// Performs automatic controller mapping with the provided list of generic mappings.
-	bool MapController(SettingsInterface& si, u32 controller,
-		const std::vector<std::pair<GenericInputBinding, std::string>>& mapping);
-
-	/// Sets the specified bind on a controller to the specified pressure (normalized to 0..1).
-	void SetControllerState(u32 controller, u32 bind, float value);
 } // namespace PAD

@@ -345,15 +345,6 @@ const PAD::ControllerInfo* PAD::GetControllerInfo(const std::string_view& name)
 	return nullptr;
 }
 
-std::vector<std::pair<std::string, std::string>> PAD::GetControllerTypeNames()
-{
-	std::vector<std::pair<std::string, std::string>> ret;
-	for (const ControllerInfo& info : s_controller_info)
-		ret.emplace_back(info.name, info.display_name);
-
-	return ret;
-}
-
 std::vector<std::string> PAD::GetControllerBinds(const std::string_view& type)
 {
 	std::vector<std::string> ret;
@@ -403,54 +394,8 @@ static u32 TryMapGenericMapping(SettingsInterface& si, const std::string& sectio
 		si.SetStringValue(section.c_str(), bind_name, found_mapping->c_str());
 		return 1;
 	}
-	else
-	{
-		si.DeleteValue(section.c_str(), bind_name);
-		return 0;
-	}
-}
-
-
-bool PAD::MapController(SettingsInterface& si, u32 controller,
-	const std::vector<std::pair<GenericInputBinding, std::string>>& mapping)
-{
-	const std::string section(StringUtil::StdStringFromFormat("Pad%u", controller + 1));
-	const std::string type(si.GetStringValue(section.c_str(), "Type", GetDefaultPadType(controller)));
-	const ControllerInfo* info = GetControllerInfo(type);
-	if (!info)
-		return false;
-
-	u32 num_mappings = 0;
-	for (u32 i = 0; i < info->num_bindings; i++)
-	{
-		const InputBindingInfo& bi = info->bindings[i];
-		if (bi.generic_mapping == GenericInputBinding::Unknown)
-			continue;
-
-		num_mappings += TryMapGenericMapping(si, section, mapping, bi.bind_type, bi.generic_mapping, bi.name);
-	}
-	if (info->vibration_caps == VibrationCapabilities::LargeSmallMotors)
-	{
-		num_mappings += TryMapGenericMapping(si, section, mapping, InputBindingInfo::Type::Motor, GenericInputBinding::SmallMotor, "SmallMotor");
-		num_mappings += TryMapGenericMapping(si, section, mapping, InputBindingInfo::Type::Motor, GenericInputBinding::LargeMotor, "LargeMotor");
-	}
-	else if (info->vibration_caps == VibrationCapabilities::SingleMotor)
-	{
-		if (TryMapGenericMapping(si, section, mapping, InputBindingInfo::Type::Motor, GenericInputBinding::LargeMotor, "Motor") == 0)
-			num_mappings += TryMapGenericMapping(si, section, mapping, InputBindingInfo::Type::Motor, GenericInputBinding::SmallMotor, "Motor");
-		else
-			num_mappings++;
-	}
-
-	return (num_mappings > 0);
-}
-
-void PAD::SetControllerState(u32 controller, u32 bind, float value)
-{
-	if (controller >= NUM_CONTROLLER_PORTS || bind > MAX_KEYS)
-		return;
-
-	g_key_status.Set(controller, bind, value);
+	si.DeleteValue(section.c_str(), bind_name);
+	return 0;
 }
 
 void PAD::LoadMacroButtonConfig(const SettingsInterface& si, u32 pad, const std::string_view& type, const std::string& section)
