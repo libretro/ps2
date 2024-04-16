@@ -84,7 +84,6 @@ set(pcsx2Sources
 	FiFo.cpp
 	FPU.cpp
 	Gif.cpp
-	Gif_Logger.cpp
 	Gif_Unit.cpp
 	GS.cpp
 	Hw.cpp

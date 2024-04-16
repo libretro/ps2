@@ -416,7 +416,6 @@ void ERET(void) {
 		cpuRegs.pc = cpuRegs.CP0.n.EPC;
 		cpuRegs.CP0.n.Status.b.EXL = 0;
 	}
-	cpuUpdateOperationMode();
 	cpuSetNextEventDelta(4);
 	intSetBranch();
 }

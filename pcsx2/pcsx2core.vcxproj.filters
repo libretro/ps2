@@ -695,9 +695,6 @@
     <ClCompile Include="Gif_Unit.cpp">
       <Filter>System\Ps2\GS\GIF</Filter>
     </ClCompile>
-    <ClCompile Include="Gif_Logger.cpp">
-      <Filter>System\Ps2\GS</Filter>
-    </ClCompile>
     <ClCompile Include="windows\FlatFileReaderWindows.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>

@@ -371,7 +371,6 @@ extern void cpuReset();
 extern void cpuException(u32 code, u32 bd);
 extern void cpuTlbMissR(u32 addr, u32 bd);
 extern void cpuTlbMissW(u32 addr, u32 bd);
-extern void cpuTestHwInts();
 extern void cpuClearInt(uint n);
 extern void GoemonPreloadTlb();
 extern void GoemonUnloadTlb(u32 key);
@@ -386,7 +385,6 @@ extern void _cpuEventTest_Shared();		// for internal use by the Dynarecs and Int
 
 extern void cpuTestINTCInts();
 extern void cpuTestDMACInts();
-extern void cpuTestTIMRInts();
 
 ////////////////////////////////////////////////////////////////////
 // Exception Codes

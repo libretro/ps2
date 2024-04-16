@@ -184,7 +184,6 @@
     <ClCompile Include="Frontend\SDLInputSource.cpp" />
     <ClCompile Include="Frontend\XInputSource.cpp" />
     <ClCompile Include="GameDatabase.cpp" />
-    <ClCompile Include="Gif_Logger.cpp" />
     <ClCompile Include="Gif_Unit.cpp" />
     <ClCompile Include="GS\Renderers\DX11\D3D.cpp" />
     <ClCompile Include="GS\Renderers\DX12\GSDevice12.cpp" />

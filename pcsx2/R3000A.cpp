@@ -31,8 +31,6 @@
 #include "CDVD/Ps1CD.h"
 #include "CDVD/CDVD.h"
 
-using namespace R3000A;
-
 R3000Acpu *psxCpu;
 
 // used for constant propagation
@@ -62,7 +60,7 @@ void psxReset(void)
 
 	psxHwReset();
 	PSXCLK = 36864000;
-	ioman::reset();
+	R3000A::ioman::reset();
 	psxBiosReset();
 }
 

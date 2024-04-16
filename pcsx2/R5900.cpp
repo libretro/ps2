@@ -39,8 +39,6 @@
 
 #include "R5900OpcodeTables.h"
 
-using namespace R5900;	// for R5900 disasm tools
-
 s32 EEsCycle;		// used to sync the IOP to the EE
 u32 EEoCycle;
 
@@ -64,8 +62,8 @@ but in fast boot mode, the block we use can fit at least 16 argv pointers (varie
 The second EELOAD call during full boot has three built-in arguments ("EELOAD rom0:PS2LOGO <ELF>"),
 meaning that only the first 13 game arguments supplied by the user can be added on and passed through.
 In fast boot mode, 15 arguments can fit because the only call to EELOAD is "<ELF> <<args>>". */
-const int kMaxArgs = 16;
-uptr g_argPtrs[kMaxArgs];
+#define KMAXARGS 16
+uptr g_argPtrs[KMAXARGS];
 
 extern SysMainMemory& GetVmMemory();
 
@@ -152,7 +150,6 @@ __ri void cpuException(u32 code, u32 bd)
 		{
 			//Reset / NMI
 			cpuRegs.pc = 0xBFC00000;
-			cpuUpdateOperationMode();
 			return;
 		}
 		else if((code & 0x38000) == 0x10000)
@@ -182,8 +179,6 @@ __ri void cpuException(u32 code, u32 bd)
 		cpuRegs.pc = 0x80000000 + offset;
 	else
 		cpuRegs.pc = 0xBFC00200 + offset;
-
-	cpuUpdateOperationMode();
 }
 
 void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
@@ -266,7 +261,7 @@ static __fi void TESTINT( u8 n, void (*callback)() )
 
 // [TODO] move this function to Dmac.cpp, and remove most of the DMAC-related headers from
 // being included into R5900.cpp.
-static __fi bool _cpuTestInterrupts()
+static __fi bool _cpuTestInterrupts(void)
 {
 
 	if (!dmacRegs.ctrl.DMAE || (psHu8(DMAC_ENABLER+2) & 1))
@@ -307,7 +302,7 @@ static __fi bool _cpuTestInterrupts()
 	return false;
 }
 
-static __fi void _cpuTestTIMR()
+static __fi void _cpuTestTIMR(void)
 {
 	cpuRegs.CP0.n.Count += cpuRegs.cycle - cpuRegs.lastCOP0Cycle;
 	cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
@@ -348,7 +343,7 @@ static bool cpuIntsEnabled(int Interrupt)
 
 // Shared portion of the branch test, called from both the Interpreter
 // and the recompiler.  (moved here to help alleviate redundant code)
-__fi void _cpuEventTest_Shared()
+__fi void _cpuEventTest_Shared(void)
 {
 	eeEventTestIsActive = true;
 	cpuRegs.nextEventCycle = cpuRegs.cycle + eeWaitCycles;
@@ -481,22 +476,6 @@ __fi void cpuTestDMACInts()
 	}
 }
 
-__fi void cpuTestTIMRInts()
-{
-	if ((cpuRegs.CP0.n.Status.val & 0x10007) == 0x10001)
-	{
-		_cpuTestPERF();
-		_cpuTestTIMR();
-	}
-}
-
-__fi void cpuTestHwInts()
-{
-	cpuTestINTCInts();
-	cpuTestDMACInts();
-	cpuTestTIMRInts();
-}
-
 __fi void CPU_SET_DMASTALL(EE_EventType n, bool set)
 {
 	if (set)
@@ -532,7 +511,7 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 }
 
 // Called from recompilers; define is mandatory.
-void eeGameStarting()
+void eeGameStarting(void)
 {
 	if (!g_GameStarted)
 	{
@@ -548,7 +527,7 @@ void eeGameStarting()
 }
 
 // Count arguments, save their starting locations, and replace the space separators with null terminators so they're separate strings
-int ParseArgumentString(u32 arg_block)
+static int ParseArgumentString(u32 arg_block)
 {
 	if (!arg_block)
 		return 0;
@@ -568,7 +547,7 @@ int ParseArgumentString(u32 arg_block)
 			memset(PSM(arg_block + i), 0, 1);
 		else if (wasSpace) // then we're at a new arg
 		{
-			if (argc < kMaxArgs)
+			if (argc < KMAXARGS)
 			{
 				g_argPtrs[argc] = arg_block + i;
 				argc++;

@@ -20,11 +20,6 @@ struct tlbs;
 extern void WriteCP0Status(u32 value);
 extern void WriteCP0Config(u32 value);
 
-// Updates the CPU's mode of operation (either, Kernel, Supervisor, or User modes).
-// Currently the different modes are not implemented.
-// Given this function is called so much, it's commented out for now. (rama)
-#define cpuUpdateOperationMode() ((void)0)
-
 extern void WriteTLB(int i);
 extern void UnmapTLB(const tlbs& t, int i);
 extern void MapTLB(const tlbs& t, int i);

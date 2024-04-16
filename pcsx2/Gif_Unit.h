@@ -32,8 +32,6 @@ extern void Gif_HandlerAD_MTVU(u8* pMem);
 extern void Gif_AddBlankGSPacket(u32 size, GIF_PATH path);
 extern void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path);
 extern void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path);
-extern void Gif_ParsePacket(u8* data, u32 size, GIF_PATH path);
-extern void Gif_ParsePacket(GS_Packet& gsPack, GIF_PATH path);
 
 struct Gif_Tag
 {
@@ -180,12 +178,6 @@ struct GS_FINISH
 
 	void Reset() { memset(this, 0, sizeof(*this)); }
 };
-
-static __fi void incTag(u32& offset, u32& size, u32 incAmount)
-{
-	size += incAmount;
-	offset += incAmount;
-}
 
 struct Gif_Path_MTVU
 {
@@ -350,8 +342,9 @@ struct Gif_Path
 					return gsPack;
 				}
 
-				incTag(curOffset, gsPack.size, 16); // Tag Size
-				gsPack.cycles += 2 + gifTag.cycles; // Tag + Len ee-cycles
+				gsPack.size   += 16;                /* Tag Size */
+				curOffset     += 16;                /* Tag Size */
+				gsPack.cycles += 2 + gifTag.cycles; /* Tag + Len ee-cycles */
 			}
 
 			if (gifTag.hasAD)
@@ -368,16 +361,18 @@ struct Gif_Path
 						if (!isMTVU())
 							dblSIGNAL = Gif_HandlerAD(&buffer[curOffset]);
 					}
-					incTag(curOffset, gsPack.size, 16); // 1 QWC
+					gsPack.size += 16; /* 1 QWC */
+					curOffset   += 16; /* 1 QWC */
 					gifTag.packedStep();
 				}
 				if (dblSIGNAL && !(gifTag.tag.EOP && !gifTag.nLoop))
-				{
 					return gsPack; // Exit Early
-				}
 			}
 			else
-				incTag(curOffset, gsPack.size, gifTag.len); // Data length
+			{
+				gsPack.size += gifTag.len; /* Data length */
+				curOffset   += gifTag.len; /* Data length */
+			}
 
 			// Reload gif tag next loop
 			gifTag.isValid = false;
@@ -429,7 +424,8 @@ struct Gif_Path
 
 			if (!gifTag.hasAD && curOffset + 16 + gifTag.len > curSize)
 				break;
-			incTag(curOffset, gsPack.size, 16); // Tag Size
+			gsPack.size += 16; /* Tag Size */
+			curOffset   += 16; /* Tag Size */
 
 			if (gifTag.hasAD)
 			{ // Only can be true if GIF_FLG_PACKED
@@ -441,12 +437,16 @@ struct Gif_Path
 					{
 						Gif_HandlerAD_MTVU(&buffer[curOffset]);
 					}
-					incTag(curOffset, gsPack.size, 16); // 1 QWC
+					gsPack.size += 16; /* 1 QWC */
+					curOffset   += 16; /* 1 QWC */
 					gifTag.packedStep();
 				}
 			}
 			else
-				incTag(curOffset, gsPack.size, gifTag.len); // Data length
+			{
+				gsPack.size += gifTag.len; /* Data length */
+				curOffset   += gifTag.len; /* Data length */
+			}
 			if (curOffset >= curSize)
 				break;
 			if (gifTag.tag.EOP)
@@ -558,7 +558,8 @@ struct Gif_Unit
 		for (;;)
 		{
 			Gif_Tag gifTag(&pMem[offset & memMask]);
-			incTag(offset, curSize, 16 + gifTag.len); // Tag + Data length
+			curSize     += 16 + gifTag.len; /* Tag + Data Length */
+			offset      += 16 + gifTag.len; /* Tag + Data Length */
 			if (pathIdx == GIF_PATH_1 && curSize >= 0x4000)
 				return 0; // Bios does this... (Fixed if you delay vu1's xgkick by 103 vu cycles)
 			if (curSize >= size)
