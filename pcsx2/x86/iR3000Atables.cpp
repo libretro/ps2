@@ -54,18 +54,11 @@ extern void psxLWR();
 extern void psxSWL();
 extern void psxSWR();
 
-// TODO(Stenzek): Operate directly on mem when destination register is not live.
-// Do we want aligned targets? Seems wasteful...
-#ifdef PCSX2_DEBUG
-#define x86SetJ32A x86SetJ32
-#endif
-
 static int rpsxAllocRegIfUsed(int reg, int mode)
 {
 	if (EEINST_USEDTEST(reg))
 		return _allocX86reg(X86TYPE_PSX, reg, mode);
-	else
-		return _checkX86reg(X86TYPE_PSX, reg, mode);
+	return _checkX86reg(X86TYPE_PSX, reg, mode);
 }
 
 static void rpsxMoveStoT(int info)
@@ -204,7 +197,7 @@ static void rpsxSLTI_(int info)
 PSXRECOMPILE_CONSTCODE1(SLTI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_NORENAME);
 
 //// SLTIU
-static void rpsxSLTIU_const()
+static void rpsxSLTIU_const(void)
 {
 	g_psxConstRegs[_Rt_] = g_psxConstRegs[_Rs_] < (u32)_Imm_;
 }
@@ -264,7 +257,7 @@ static void rpsxLogicalOpI(u64 info, int op)
 }
 
 //// ANDI
-static void rpsxANDI_const()
+static void rpsxANDI_const(void)
 {
 	g_psxConstRegs[_Rt_] = g_psxConstRegs[_Rs_] & _ImmU_;
 }
@@ -277,7 +270,7 @@ static void rpsxANDI_(int info)
 PSXRECOMPILE_CONSTCODE1(ANDI, XMMINFO_WRITET | XMMINFO_READS);
 
 //// ORI
-static void rpsxORI_const()
+static void rpsxORI_const(void)
 {
 	g_psxConstRegs[_Rt_] = g_psxConstRegs[_Rs_] | _ImmU_;
 }
@@ -991,7 +984,7 @@ static void rpsxDIV_(int info)
 PSXRECOMPILE_CONSTCODE3_PENALTY(DIV, 1, psxInstCycles_Div);
 
 //// DIVU
-void rpsxDIVU_const()
+void rpsxDIVU_const(void)
 {
 	u32 lo, hi;
 
@@ -1033,15 +1026,7 @@ PSXRECOMPILE_CONSTCODE3_PENALTY(DIVU, 1, psxInstCycles_Div);
 
 static u8* rpsxGetConstantAddressOperand(bool store)
 {
-#if 0
-	if (!PSX_IS_CONST1(_Rs_))
-		return nullptr;
-
-	const u32 addr = g_psxConstRegs[_Rs_];
-	return store ? iopVirtMemW<u8>(addr) : const_cast<u8*>(iopVirtMemR<u8>(addr));
-#else
 	return nullptr;
-#endif
 }
 
 static void rpsxCalcAddressOperand()
@@ -1229,7 +1214,7 @@ static void rpsxSW()
 }
 
 //// SLL
-static void rpsxSLL_const()
+static void rpsxSLL_const(void)
 {
 	g_psxConstRegs[_Rd_] = g_psxConstRegs[_Rt_] << _Sa_;
 }

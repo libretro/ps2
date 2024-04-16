@@ -256,10 +256,7 @@ static __fi void _dmaSPR0(void)
 			SPR0chain();
 
 			if (spr0ch.chcr.TIE && ptag->IRQ) // Check TIE bit of CHCR and IRQ bit of tag
-			{
-				//Console.WriteLn("SPR0 TIE");
 				done = true;
-			}
 
 			spr0finished = done;
 			break;

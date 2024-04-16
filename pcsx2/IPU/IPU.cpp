@@ -231,11 +231,8 @@ __fi bool ipuWrite32(u32 mem, u32 value)
 			// CTRL = the first 16 bits of ctrl [0x8000ffff], + value for the next 16 bits,
 			// minus the reserved bits. (18-19; 27-29) [0x47f30000]
 			ipuRegs.ctrl.write(value);
-			if (ipuRegs.ctrl.IDP == 3)
-			{
-				Console.WriteLn("IPU Invalid Intra DC Precision, switching to 9 bits");
+			if (ipuRegs.ctrl.IDP == 3) /* IPU Invalid Intra DC Precision, switching to 9 bits */
 				ipuRegs.ctrl.IDP = 1;
-			}
 
 			if (ipuRegs.ctrl.RST) ipuSoftReset(); // RESET
 
@@ -328,9 +325,6 @@ static void ipuSETTH(u32 val)
 // The actual decoding will be handled by IPUworker.
 __fi void IPUCMD_WRITE(u32 val)
 {
-	// don't process anything if currently busy
-	//if (ipuRegs.ctrl.BUSY) Console.WriteLn("IPU BUSY!"); // wait for thread
-
 	ipuRegs.ctrl.ECD = 0;
 	ipuRegs.ctrl.SCD = 0;
 	ipu_cmd.clear();

@@ -170,10 +170,8 @@ void psxSYSCALL() {
 }
 
 void psxRFE() {
-//	Console.WriteLn("RFE\n");
 	psxRegs.CP0.n.Status = (psxRegs.CP0.n.Status & 0xfffffff0) |
 						  ((psxRegs.CP0.n.Status & 0x3c) >> 2);
-//	Log=0;
 }
 
 /*********************************************************
