@@ -418,7 +418,7 @@ void GSRenderer::PresentCurrentFrame()
 			const GSVector4 src_uv(GSVector4(src_rect) / GSVector4(current->GetSize()).xyxy());
 			const GSVector4 draw_rect(CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
 				src_rect, current->GetSize(), GSDisplayAlignment::Center, g_gs_device->UsesLowerLeftOrigin(),
-				GetVideoMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets)));
+				GetVideoMode() == GSVideoMode::SDTV_480P));
 
 			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
 		}
