@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include <array>
 #include "common/AlignedMalloc.h"
 
 // nVifBlock - Ordered for Hashing; the 'num' and 'upkType' fields are
@@ -50,23 +49,25 @@ union nVifBlock
 // 0x4000 is enough but 0x10000 allow
 // * to skip the compare value of the first double world in lookup
 // * to use a 16 bits move instead of an 'and' mask to compute the hashed key
-#define hSize 0x10000 // [usn*1:mask*1:upk*4:num*8] hash...
+#define HSIZE 0x10000 // [usn*1:mask*1:upk*4:num*8] hash...
 
 // HashBucket is a container which uses a built-in hash function
 // to perform quick searches. It is designed around the nVifBlock structure
 //
 // The hash function is determined by taking the first bytes of data and
-// performing a modulus the size of hSize. So the most diverse-data should
+// performing a modulus the size of HSIZE. So the most diverse-data should
 // be in the first bytes of the struct. (hence why nVifBlock is specifically sorted)
 class HashBucket
 {
 protected:
-	std::array<nVifBlock*, hSize> m_bucket;
+	nVifBlock* m_bucket[HSIZE];
 
 public:
 	HashBucket()
 	{
-		m_bucket.fill(nullptr);
+		int i;
+		for (i = 0; i < HSIZE; i++)
+			m_bucket[i] = nullptr;
 	}
 
 	~HashBucket() { clear(); }
@@ -117,19 +118,24 @@ public:
 
 	void clear()
 	{
-		for (auto& bucket : m_bucket)
-			safe_aligned_free(bucket);
+		int i;
+		for (i = 0; i < HSIZE; i++)
+		{
+			if (m_bucket[i])
+				safe_aligned_free(m_bucket[i]);
+		}
 	}
 
 	void reset()
 	{
+		int i;
 		clear();
 
 		// Allocate an empty cell for all buckets
-		for (auto& bucket : m_bucket)
+		for (i = 0; i < HSIZE; i++)
 		{
-			bucket = (nVifBlock*)_aligned_malloc(sizeof(nVifBlock), 16);
-			memset(bucket, 0, sizeof(nVifBlock));
+			m_bucket[i] = (nVifBlock*)_aligned_malloc(sizeof(nVifBlock), 16);
+			memset(m_bucket[i], 0, sizeof(nVifBlock));
 		}
 	}
 };
