@@ -4523,7 +4523,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 
 	Vulkan::DescriptorSetUpdateBuilder dsub;
 
-	std::array<VkDescriptorSet, NUM_TFX_DESCRIPTOR_SETS> dsets;
+	VkDescriptorSet dsets[NUM_TFX_DESCRIPTOR_SETS];
 	u32 num_dsets = 0;
 	u32 start_dset = 0;
 	const bool layout_changed = (m_current_pipeline_layout != PipelineLayout::TFX);
@@ -4609,7 +4609,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		dsets[2] = m_tfx_rt_descriptor_set;
 
 		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout, 0,
-			NUM_TFX_DESCRIPTOR_SETS, dsets.data(), NUM_TFX_DYNAMIC_OFFSETS,
+			NUM_TFX_DESCRIPTOR_SETS, dsets, NUM_TFX_DYNAMIC_OFFSETS,
 			m_tfx_dynamic_offsets.data());
 	}
 	else if (num_dsets > 0)
@@ -4628,7 +4628,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		}
 
 		vkCmdBindDescriptorSets(cmdbuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tfx_pipeline_layout, start_dset, num_dsets,
-			dsets.data(), dynamic_count,
+			dsets, dynamic_count,
 			dynamic_offsets);
 	}
 
