@@ -398,15 +398,15 @@ void SUBA_S() {
 // These are actually EE opcodes but since they're related to FPU registers and such they
 // seem more appropriately located here.
 
-void LWC1() {
+void LWC1(void) {
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)(cpuRegs.code & 0xffff);	// force sign extension to 32bit
-	if (addr & 0x00000003) { Console.Error( "FPU (LWC1 Opcode): Invalid Unaligned Memory Address" ); return; }  // Should signal an exception?
+	if (addr & 0x00000003) return;  // Should signal an exception?
 	fpuRegs.fpr[_Rt_].UL = memRead32(addr);
 }
 
-void SWC1() {
+void SWC1(void) {
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)(cpuRegs.code & 0xffff);	// force sign extension to 32bit
-	if (addr & 0x00000003) { Console.Error( "FPU (SWC1 Opcode): Invalid Unaligned Memory Address" ); return; }  // Should signal an exception?
+	if (addr & 0x00000003) return;  // Should signal an exception?
 	memWrite32(addr, fpuRegs.fpr[_Rt_].UL);
 }
 
