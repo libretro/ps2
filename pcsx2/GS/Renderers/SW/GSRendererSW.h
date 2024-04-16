@@ -62,7 +62,7 @@ protected:
 	std::unique_ptr<IRasterizer> m_rl;
 	std::unique_ptr<GSTextureCacheSW> m_tc;
 	GSRingHeap m_vertex_heap;
-	std::array<GSTexture*, 3> m_texture = {};
+	GSTexture *m_texture[3] = {};
 	u8* m_output;
 	GSPixelOffset4* m_fzb;
 	GSVector4i m_fzb_bbox;

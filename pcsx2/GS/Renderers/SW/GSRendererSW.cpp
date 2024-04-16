@@ -61,14 +61,16 @@ void GSRendererSW::Reset(bool hardware_reset)
 
 void GSRendererSW::Destroy()
 {
+	int i;
 	// Need to destroy worker queue first to stop any pending thread work
 	m_rl.reset();
 	m_tc.reset();
 
-	for (GSTexture*& tex : m_texture)
+	for (i = 0; i < 3; i++)
 	{
-		delete tex;
-		tex = nullptr;
+		if (m_texture[i])
+			delete m_texture[i];
+		m_texture[i] = nullptr;
 	}
 
 	_aligned_free(m_output);
