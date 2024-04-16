@@ -499,8 +499,8 @@ void GSDevice::SetHWDrawConfigForAlphaPass(GSHWDrawConfig::PSSelector* ps,
 
 // clang-format off
 
-const std::array<u8, 16> GSDevice::m_replaceDualSrcBlendMap =
-{{
+const u8 GSDevice::m_replaceDualSrcBlendMap[16] =
+{
 	SRC_COLOR,        // SRC_COLOR
 	INV_SRC_COLOR,    // INV_SRC_COLOR
 	DST_COLOR,        // DST_COLOR
@@ -517,10 +517,10 @@ const std::array<u8, 16> GSDevice::m_replaceDualSrcBlendMap =
 	INV_CONST_COLOR,  // INV_CONST_COLOR
 	CONST_ONE,        // CONST_ONE
 	CONST_ZERO        // CONST_ZERO
-}};
+};
 
-const std::array<HWBlend, 3*3*3*3> GSDevice::m_blendMap =
-{{
+const HWBlend GSDevice::m_blendMap[81] =
+{
 	{ BLEND_NO_REC             , OP_ADD          , CONST_ONE       , CONST_ZERO}      , // 0000: (Cs - Cs)*As + Cs ==> Cs
 	{ BLEND_CD                 , OP_ADD          , CONST_ZERO      , CONST_ONE}       , // 0001: (Cs - Cs)*As + Cd ==> Cd
 	{ BLEND_NO_REC             , OP_ADD          , CONST_ZERO      , CONST_ZERO}      , // 0002: (Cs - Cs)*As +  0 ==> 0
@@ -602,4 +602,4 @@ const std::array<HWBlend, 3*3*3*3> GSDevice::m_blendMap =
 	{ BLEND_NO_REC             , OP_ADD          , CONST_ONE       , CONST_ZERO}      , // 2220: (0  -  0)*F  + Cs ==> Cs
 	{ BLEND_CD                 , OP_ADD          , CONST_ZERO      , CONST_ONE}       , // 2221: (0  -  0)*F  + Cd ==> Cd
 	{ BLEND_NO_REC             , OP_ADD          , CONST_ZERO      , CONST_ZERO}      , // 2222: (0  -  0)*F  +  0 ==> 0
-}};
+};

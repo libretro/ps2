@@ -279,7 +279,7 @@ public:
 		HashType m_layer_hash[7] = {};
 		// Keep a GSTextureCache::SourceMap::m_map iterator to allow fast erase
 		// Deliberately not initialized to save cycles.
-		std::array<u16, MAX_PAGES> m_erase_it;
+		u16 m_erase_it[MAX_PAGES];
 		GSOffset::PageLooper m_pages;
 
 	public:

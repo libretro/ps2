@@ -684,8 +684,8 @@ public:
 private:
 	std::array<FastList<GSTexture*>, 2> m_pool; // [texture, target]
 
-	static const std::array<HWBlend, 3*3*3*3> m_blendMap;
-	static const std::array<u8, 16> m_replaceDualSrcBlendMap;
+	static const HWBlend m_blendMap[81];
+	static const u8 m_replaceDualSrcBlendMap[16];
 
 protected:
 	static constexpr int NUM_INTERLACE_SHADERS = 5;
@@ -697,7 +697,6 @@ protected:
 	static constexpr u32 EXPAND_BUFFER_SIZE = sizeof(u16) * 65532 * 6;
 
 	WindowInfo m_window_info;
-	VsyncMode m_vsync_mode = VsyncMode::Off;
 
 	GSTexture* m_merge = nullptr;
 	GSTexture* m_weavebob = nullptr;

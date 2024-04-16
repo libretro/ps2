@@ -36,7 +36,7 @@ public:
 		bool m_repeating;
 		std::vector<GSVector2i>* m_p2t;
 		u32 m_valid[MAX_PAGES];
-		std::array<u16, MAX_PAGES> m_erase_it;
+		u16 m_erase_it[MAX_PAGES];
 		const u32* RESTRICT m_sharedbits;
 
 		// m_valid
