@@ -25,7 +25,6 @@
 
 #include "common/General.h"
 #include "common/Align.h"
-#include "common/ScopedGuard.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
 #include "D3D12Builders.h"

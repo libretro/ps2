@@ -19,7 +19,6 @@
 #include <cstring>
 #include <list>
 
-#include "common/ScopedGuard.h"
 #include "common/StringUtil.h"
 
 #include "GS.h"

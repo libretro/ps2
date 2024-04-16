@@ -18,8 +18,6 @@
 #include "common/HashCombine.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/StringUtil.h"
-#include "common/ScopedGuard.h"
 
 #include "Config.h"
 #include "GS/GSLocalMemory.h"

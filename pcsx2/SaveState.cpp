@@ -22,7 +22,6 @@
 
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/ScopedGuard.h"
 #include "common/StringUtil.h"
 
 #include "ps2/BiosTools.h"
