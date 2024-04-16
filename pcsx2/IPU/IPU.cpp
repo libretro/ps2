@@ -349,23 +349,20 @@ __fi void IPUCMD_WRITE(u32 val)
 		case SCE_IPU_IDEC:
 			g_BP.Advance(val & 0x3F);
 			ipuIDEC(val);
-			ipuRegs.SetTopBusy();
+			ipuRegs.topbusy = 0x80000000;
 			break;
 
 		case SCE_IPU_BDEC:
 			g_BP.Advance(val & 0x3F);
 			ipuBDEC(val);
-			ipuRegs.SetTopBusy();
+			ipuRegs.topbusy = 0x80000000;
 			break;
 
 		case SCE_IPU_VDEC:
-			g_BP.Advance(val & 0x3F);
-			ipuRegs.SetDataBusy();
-			break;
-
 		case SCE_IPU_FDEC:
 			g_BP.Advance(val & 0x3F);
-			ipuRegs.SetDataBusy();
+			ipuRegs.cmd.BUSY = 0x80000000;
+			ipuRegs.topbusy  = 0x80000000;
 			break;
 
 		case SCE_IPU_SETIQ:
@@ -375,7 +372,6 @@ __fi void IPUCMD_WRITE(u32 val)
 		case SCE_IPU_SETVQ:
 		case SCE_IPU_CSC:
 		case SCE_IPU_PACK:
-			break;
 		default:
 			break;
 	}

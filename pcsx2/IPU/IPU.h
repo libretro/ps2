@@ -65,9 +65,6 @@ union tIPU_CTRL {
     // minus the reserved bits. (18-19; 27-29) [0x47f30000]
 	void write(u32 value) { _u32 = (value & 0x47f30000) | (_u32 & 0x8000ffff); }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 &= 0x7F33F00; }
 };
 
@@ -155,10 +152,6 @@ union tIPU_CMD_IDEC
 	u32 _u32;
 
 	tIPU_CMD_IDEC( u32 val ) { _u32 = val; }
-
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -179,9 +172,6 @@ union tIPU_CMD_BDEC
 
 	tIPU_CMD_BDEC( u32 val ) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -199,9 +189,6 @@ union tIPU_CMD_CSC
 
 	tIPU_CMD_CSC( u32 val ){ _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -232,18 +219,6 @@ struct IPUregisters {
 	u32			top;
 	u32			topbusy;
 	u32			dummy3[2];
-
-	void SetTopBusy()
-	{
-		topbusy = 0x80000000;
-	}
-
-	void SetDataBusy()
-	{
-		cmd.BUSY = 0x80000000;
-		topbusy = 0x80000000;
-	}
-
 };
 
 union tIPU_cmd

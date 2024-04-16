@@ -85,8 +85,6 @@ union tGIF_CTRL
 
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -104,8 +102,6 @@ union tGIF_MODE
 
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -134,8 +130,6 @@ union tGIF_STAT
 
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -151,8 +145,6 @@ union tGIF_TAG0
 	tGIF_TAG0(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -170,8 +162,6 @@ union tGIF_TAG1
 	tGIF_TAG1(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -190,8 +180,6 @@ union tGIF_CNT
 	tGIF_CNT(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -220,8 +208,6 @@ union tGIF_P3TAG
 	tGIF_P3TAG(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
-	void clear_flags(u32 flags) { _u32 &= ~flags; }
 	void reset() { _u32 = 0; }
 };
 
