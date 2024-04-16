@@ -67,7 +67,7 @@ GSLocalMemory::GSLocalMemory()
 
 	MULTI_ISA_SELECT(GSLocalMemoryPopulateFunctions)(*this);
 
-	for (psm_t& psm : m_psm)
+	for (psm_t& psm : GSLocalMemory::m_psm)
 	{
 		psm.info = GSLocalMemory::swizzle32;
 		psm.rp = &GSLocalMemory::ReadPixel32;
@@ -439,6 +439,22 @@ bool GSLocalMemory::IsPageAligned(u32 psm, const GSVector4i& rc)
 	const psm_t& psm_s = m_psm[psm];
 	const GSVector4i pgmsk = GSVector4i(psm_s.pgs).xyxy() - GSVector4i(1);
 	return (rc & pgmsk).eq(GSVector4i::zero());
+}
+
+u32 GSLocalMemory::GetEndBlockAddress(u32 bp, u32 bw, u32 psm, GSVector4i rect)
+{
+	u32 result = m_psm[psm].info.bn(rect.z - 1, rect.w - 1, bp, bw); // Valid only for color formats
+
+	// If rect is page aligned, we can assume it's the start of the next block-1 as the max block position.
+	// Using real end point for Z formats causes problems because it's a lower value.
+	const GSVector2i page_size = GSLocalMemory::m_psm[psm].pgs;
+	if ((rect.z & (page_size.x - 1)) == 0 && (rect.w & (page_size.y - 1)) == 0)
+	{
+		constexpr u32 page_mask = (1 << 5) - 1;
+		result = (((result + page_mask) & ~page_mask)) - 1;
+	}
+
+	return result;
 }
 
 ///////////////////
