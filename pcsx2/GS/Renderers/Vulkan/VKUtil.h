@@ -16,7 +16,6 @@
 #pragma once
 
 #include "common/Pcsx2Defs.h"
-#include "common/StringUtil.h"
 #include "VKLoader.h"
 #include <algorithm>
 #include <array>

@@ -17,8 +17,6 @@
 
 #include "IopMem.h"
 
-#include "common/StringUtil.h"
-
 static const u32
 	HW_PS1_GPU_START = 0x1F8010A0,
 	HW_PS1_GPU_END   = 0x1F8010B0,

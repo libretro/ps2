@@ -20,7 +20,6 @@
 #include "PrecompiledHeader.h"
 #include "newVif_UnpackSSE.h"
 #include "MTVU.h"
-#include "common/StringUtil.h"
 
 static void recReset(int idx)
 {

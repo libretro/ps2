@@ -21,6 +21,7 @@
 #include "VKContext.h"
 #include "VKUtil.h"
 #include "common/Console.h"
+#include "common/StringUtil.h"
 #include <algorithm>
 
 static constexpr const VkComponentMapping s_identity_swizzle{VK_COMPONENT_SWIZZLE_IDENTITY,

@@ -18,7 +18,7 @@
 #include "GS/GS.h"
 #include "Host.h"
 #include "common/Align.h"
-#include "common/StringUtil.h"
+#include "common/Console.h"
 
 #include <algorithm>
 

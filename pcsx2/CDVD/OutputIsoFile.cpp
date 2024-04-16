@@ -18,7 +18,6 @@
 #include "CDVD/IsoFileFormats.h"
 
 #include "common/FileSystem.h"
-#include "common/StringUtil.h"
 
 OutputIsoFile::OutputIsoFile()
 {

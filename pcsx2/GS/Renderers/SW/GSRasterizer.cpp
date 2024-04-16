@@ -20,7 +20,6 @@
 #include "GS/Renderers/SW/GSDrawScanline.h"
 #include "GS/GSExtra.h"
 #include "common/AlignedMalloc.h"
-#include "common/StringUtil.h"
 #include "VMManager.h"
 
 MULTI_ISA_UNSHARED_IMPL;

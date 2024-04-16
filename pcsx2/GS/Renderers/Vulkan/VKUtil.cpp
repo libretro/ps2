@@ -16,8 +16,6 @@
 #include "VKUtil.h"
 #include "VKContext.h"
 #include "VKShaderCache.h"
-#include "common/Console.h"
-#include "common/StringUtil.h"
 
 #include <cmath>
 

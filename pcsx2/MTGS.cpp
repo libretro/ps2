@@ -19,8 +19,6 @@
 #include <cstring>
 #include <list>
 
-#include "common/StringUtil.h"
-
 #include "GS.h"
 #include "Gif_Unit.h"
 #include "MTVU.h"

@@ -23,7 +23,6 @@
 #include "GSState.h"
 #include "GSUtil.h"
 #include "common/Path.h"
-#include "common/StringUtil.h"
 
 int GSState::s_n = 0;
 int GSState::s_transfer_n = 0;

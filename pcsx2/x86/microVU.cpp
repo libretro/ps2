@@ -22,7 +22,6 @@
 #include "microVU.h"
 
 #include "common/AlignedMalloc.h"
-#include "common/StringUtil.h"
 
 //------------------------------------------------------------------
 // Micro VU - Main Functions

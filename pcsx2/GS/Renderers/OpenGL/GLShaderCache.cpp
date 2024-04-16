@@ -24,9 +24,7 @@
 #include "common/FileSystem.h"
 #include "common/Console.h"
 #include "common/MD5Digest.h"
-#include "common/StringUtil.h"
 #include "common/Path.h"
-#include "common/Timer.h"
 
 #pragma pack(push, 1)
 struct CacheIndexEntry

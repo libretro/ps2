@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include "common/FileSystem.h"
 #include "common/Path.h"
+#include "common/StringUtil.h"
 
 #include <fcntl.h>
 

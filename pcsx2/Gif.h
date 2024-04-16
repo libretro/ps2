@@ -15,8 +15,6 @@
 
 #pragma once
 
-#include "common/StringUtil.h"
-
 enum GIF_PATH {
 	GIF_PATH_1 = 0,
 	GIF_PATH_2,

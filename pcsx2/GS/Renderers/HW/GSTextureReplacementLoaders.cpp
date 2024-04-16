@@ -23,8 +23,8 @@
 #include "common/Align.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/StringUtil.h"
 #include "common/ScopedGuard.h"
+#include "common/StringUtil.h"
 
 #include "GS/Renderers/HW/GSTextureReplacements.h"
 

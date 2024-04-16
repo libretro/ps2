@@ -18,7 +18,6 @@
 #include <cstring> /* memcpy/memset */
 
 #include "GSRendererSW.h"
-#include "common/StringUtil.h"
 
 MULTI_ISA_UNSHARED_IMPL;
 

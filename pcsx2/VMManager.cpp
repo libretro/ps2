@@ -24,7 +24,6 @@
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/ScopedGuard.h"
-#include "common/StringUtil.h"
 #include "common/SettingsWrapper.h"
 #include "common/Timer.h"
 #include "common/Threading.h"

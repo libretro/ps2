@@ -18,8 +18,6 @@
 #include "MemoryTypes.h"
 #include "R5900.h"
 
-#include "common/StringUtil.h"
-
 enum vif0_stat_flags
 {
 	VIF0_STAT_VPS_W 	= (1),

@@ -18,7 +18,6 @@
 #include "GS/GSExtra.h"
 #include "GS/GSUtil.h"
 #include "MultiISA.h"
-#include "common/StringUtil.h"
 
 #ifdef ENABLE_VULKAN
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
