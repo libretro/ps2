@@ -28,7 +28,6 @@
 #include "common/Exceptions.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/StringUtil.h"
 #include "DebugTools/SymbolMap.h"
 #include "Config.h"
 

@@ -17,10 +17,8 @@
 
 #include "common/Pcsx2Defs.h"
 #include "common/RedtapeWindows.h"
-#include "common/StringUtil.h"
 #include "common/Threading.h"
 #include "common/General.h"
-#include "common/WindowInfo.h"
 
 #include <mmsystem.h>
 #include <timeapi.h>

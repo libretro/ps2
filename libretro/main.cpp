@@ -25,7 +25,6 @@
 #include "MTVU.h"
 #include "Counters.h"
 #include "Host.h"
-#include "common/StringUtil.h"
 #include "common/Path.h"
 #include "common/FileSystem.h"
 #include "common/MemorySettingsInterface.h"
