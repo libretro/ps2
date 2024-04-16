@@ -31,10 +31,10 @@ enum tag_id
 	TAG_REFE = 0, 	// Transfer Packet According to ADDR field, clear STR, and end
 	TAG_CNT, 		// Transfer QWC following the tag.
 	TAG_NEXT,		// Transfer QWC following tag. TADR = ADDR
-	TAG_REF,			// Transfer QWC from ADDR field
+	TAG_REF,		// Transfer QWC from ADDR field
 	TAG_REFS,		// Transfer QWC from ADDR field (Stall Control)
 	TAG_CALL,		// Transfer QWC following the tag, save succeeding tag
-	TAG_RET,			// Transfer QWC following the tag, load next tag
+	TAG_RET,		// Transfer QWC following the tag, load next tag
 	TAG_END			// Transfer QWC following the tag
 };
 
@@ -117,9 +117,7 @@ union tDMA_CHCR {
 
 	tDMA_CHCR( u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
 	void set(u32 value) { _u32 = value; }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 	u16 upper() const { return (_u32 >> 16); }
 	u16 lower() const { return (u16)_u32; }
@@ -178,7 +176,7 @@ struct DMACh {
 	    qwc = ptag[0].QWC;
 	}
 
-	bool transfer(const char *s, tDMA_TAG* ptag);
+	bool transfer(tDMA_TAG* ptag);
 	void unsafeTransfer(tDMA_TAG* ptag);
 	tDMA_TAG *getAddr(u32 addr, u32 num, bool write);
 	tDMA_TAG *DMAtransfer(u32 addr, u32 num);
@@ -270,8 +268,6 @@ union tDMAC_CTRL {
 
 	tDMAC_CTRL(u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -293,8 +289,6 @@ union tDMAC_STAT {
 
 	tDMAC_STAT(u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 
 	bool TestForInterrupt() const
@@ -315,8 +309,6 @@ union tDMAC_PCR {
 
 	tDMAC_PCR(u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -331,8 +323,6 @@ union tDMAC_SQWC {
 
 	tDMAC_SQWC(u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -422,8 +412,6 @@ union tINTC_STAT {
 
 	tINTC_STAT(u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -436,8 +424,6 @@ union tINTC_MASK {
 
 	tINTC_MASK(u32 val) { _u32 = val; }
 
-	bool test(u32 flags) const { return !!(_u32 & flags); }
-	void set_flags(u32 flags) { _u32 |= flags; }
 	void reset() { _u32 = 0; }
 };
 
@@ -465,8 +451,6 @@ static DMACh& sif0ch	= (DMACh&)eeHw[0xc000];
 static DMACh& sif1ch	= (DMACh&)eeHw[0xc400];
 static DMACh& sif2dma	= (DMACh&)eeHw[0xc800];
 
-extern void throwBusError(const char *s);
-extern void setDmacStat(u32 num);
 extern tDMA_TAG *SPRdmaGetAddr(u32 addr, bool write);
 extern tDMA_TAG *dmaGetAddr(u32 addr, bool write);
 

@@ -65,7 +65,7 @@ __fi void vif0SetupTransfer()
 
 	ptag = dmaGetAddr(vif0ch.tadr, false); //Set memory pointer to TADR
 
-	if (!(vif0ch.transfer("vif0 Tag", ptag))) return;
+	if (!(vif0ch.transfer(ptag))) return;
 
 	vif0ch.madr = ptag[1]._u32;            //MADR = ADDR field + SPR
 	g_vif0Cycles += 1; // Add 1 g_vifCycles from the QW read for the tag
@@ -85,10 +85,7 @@ __fi void vif0SetupTransfer()
 		masked_tag._u64[1] = *((u64*)ptag + 1);
 
 		if (vif0.irqoffset.enabled)
-		{
 			ret = VIF0transfer((u32*)&masked_tag + vif0.irqoffset.value, 4 - vif0.irqoffset.value, true);  //Transfer Tag on stall
-			//ret = VIF0transfer((u32*)ptag + (2 + vif0.irqoffset), 2 - vif0.irqoffset);  //Transfer Tag on stall
-		}
 		else
 		{
 			// Some games (like killzone) do Tags mid unpack, the nops will just write blank data
@@ -96,7 +93,6 @@ __fi void vif0SetupTransfer()
 			vif0.irqoffset.value = 2;
 			vif0.irqoffset.enabled = true;
 			ret = VIF0transfer((u32*)&masked_tag + 2, 2, true);  //Transfer Tag
-			//ret = VIF0transfer((u32*)ptag + 2, 2);  //Transfer Tag
 		}
 
 		if (!ret && vif0.irqoffset.enabled)

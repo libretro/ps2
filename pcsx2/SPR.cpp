@@ -402,7 +402,7 @@ void _dmaSPR1(void)   // toSPR work function
 
 			ptag = SPRdmaGetAddr(spr1ch.tadr, false); // Set memory pointer to TADR
 
-			if (!spr1ch.transfer("SPR1 Tag", ptag))
+			if (!spr1ch.transfer(ptag))
 			{
 				done = true;
 				spr1finished = done;

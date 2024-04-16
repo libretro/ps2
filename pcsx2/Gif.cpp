@@ -355,11 +355,11 @@ static __fi tDMA_TAG* ReadTag(void)
 {
 	tDMA_TAG* ptag = dmaGetAddr(gifch.tadr, false); // Set memory pointer to TADR
 
-	if (!(gifch.transfer("Gif", ptag)))
+	if (!(gifch.transfer(ptag)))
 		return NULL;
 
-	gifch.madr = ptag[1]._u32; // MADR = ADDR field + SPR
-	gif.gscycles += 2; // Add 1 cycles from the QW read for the tag
+	gifch.madr      = ptag[1]._u32; // MADR = ADDR field + SPR
+	gif.gscycles   += 2; // Add 1 cycles from the QW read for the tag
 
 	gif.gspath3done = hwDmacSrcChainWithStack(gifch, ptag->ID);
 	return ptag;

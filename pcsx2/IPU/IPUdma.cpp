@@ -90,7 +90,7 @@ void IPU1dma(void)
 	{
 		tDMA_TAG* ptag = dmaGetAddr(ipu1ch.tadr, false);  //Set memory pointer to TADR
 
-		if (!ipu1ch.transfer("IPU1", ptag))
+		if (!ipu1ch.transfer(ptag))
 			return;
 		ipu1ch.madr = ptag[1]._u32;
 

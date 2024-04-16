@@ -43,18 +43,16 @@ static __fi int ChannelNumber(u32 addr)
     return 51; // some value
 }
 
-
-bool DMACh::transfer(const char *s, tDMA_TAG* ptag)
+bool DMACh::transfer(tDMA_TAG* ptag)
 {
-	if (ptag == NULL)  					 // Is ptag empty?
+	if (ptag == NULL)  // Is ptag empty?
 	{
-		throwBusError(s);
+		dmacRegs.stat.BEIS = true;
 		return false;
 	}
-    chcrTransfer(ptag);
-
-    qwcTransfer(ptag);
-    return true;
+	chcrTransfer(ptag);
+	qwcTransfer(ptag);
+	return true;
 }
 
 void DMACh::unsafeTransfer(tDMA_TAG* ptag)
@@ -68,8 +66,8 @@ tDMA_TAG *DMACh::getAddr(u32 addr, u32 num, bool write)
 	tDMA_TAG *ptr = dmaGetAddr(addr, write);
 	if (ptr == NULL)
 	{
-		throwBusError("dmaGetAddr");
-		setDmacStat(num);
+		dmacRegs.stat.BEIS  = true;
+		dmacRegs.stat._u32 |= (1 << num);
 		chcr.STR = false;
 	}
 
@@ -90,17 +88,6 @@ tDMA_TAG *DMACh::DMAtransfer(u32 addr, u32 num)
 tDMA_TAG DMACh::dma_tag()
 {
 	return chcr.tag();
-}
-
-__fi void throwBusError(const char *s)
-{
-    Console.Error("%s BUSERR", s);
-    dmacRegs.stat.BEIS = true;
-}
-
-__fi void setDmacStat(u32 num)
-{
-	dmacRegs.stat.set_flags(1 << num);
 }
 
 // Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)

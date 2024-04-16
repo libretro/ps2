@@ -127,7 +127,7 @@ __fi void vif1SetupTransfer()
 
 	ptag = dmaGetAddr(vif1ch.tadr, false); //Set memory pointer to TADR
 
-	if (!(vif1ch.transfer("Vif1 Tag", ptag)))
+	if (!(vif1ch.transfer(ptag)))
 		return;
 
 	vif1ch.madr = ptag[1]._u32; //MADR = ADDR field + SPR
@@ -159,7 +159,6 @@ __fi void vif1SetupTransfer()
 		if (vif1.irqoffset.enabled)
 		{
 			ret = VIF1transfer((u32*)&masked_tag + vif1.irqoffset.value, 4 - vif1.irqoffset.value, true); //Transfer Tag on stall
-			//ret = VIF1transfer((u32*)ptag + (2 + vif1.irqoffset), 2 - vif1.irqoffset);  //Transfer Tag on stall
 		}
 		else
 		{
@@ -168,7 +167,6 @@ __fi void vif1SetupTransfer()
 			vif1.irqoffset.value = 2;
 			vif1.irqoffset.enabled = true;
 			ret = VIF1transfer((u32*)&masked_tag + 2, 2, true); //Transfer Tag
-			//ret = VIF1transfer((u32*)ptag + 2, 2);  //Transfer Tag
 		}
 
 		if (!ret && vif1.irqoffset.enabled)
