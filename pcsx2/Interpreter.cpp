@@ -31,11 +31,10 @@ extern int vu0branch, vu1branch;
 
 static int branch2 = 0;
 static u32 cpuBlockCycles = 0;		// 3 bit fixed point version of cycle count
-static std::string disOut;
 static bool intExitExecution = false;
 static fastjmp_buf intJmpBuf;
 
-static void intEventTest();
+static void intEventTest(void);
 
 // These macros are used to assemble the repassembler functions
 
