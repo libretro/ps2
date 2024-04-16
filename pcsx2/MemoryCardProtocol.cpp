@@ -26,7 +26,7 @@ MemoryCardProtocol g_MemoryCardProtocol;
 // If so, return dead air.
 bool MemoryCardProtocol::PS1Fail()
 {
-	if (mcd->IsPSX() && sio2.commandLength > 0)
+	if (FileMcd_IsPSX(mcd->port, mcd->slot) && sio2.commandLength > 0)
 	{
 		while (fifoOut.size() < sio2.commandLength)
 		{
@@ -44,9 +44,7 @@ bool MemoryCardProtocol::PS1Fail()
 void MemoryCardProtocol::The2bTerminator(size_t length)
 {
 	while (fifoOut.size() < length - 2)
-	{
 		fifoOut.push_back(0x00);
-	}
 
 	fifoOut.push_back(0x2b);
 	fifoOut.push_back(mcd->term);
@@ -116,7 +114,7 @@ void MemoryCardProtocol::SetSector()
 	mcd->sectorAddr = newSector;
 
 	McdSizeInfo info;
-	mcd->GetSizeInfo(info);
+	FileMcd_GetSizeInfo(mcd->port, mcd->slot, &info);
 	mcd->transferAddr = (info.SectorSize + 16) * mcd->sectorAddr;
 
 	The2bTerminator(9);
@@ -127,7 +125,7 @@ void MemoryCardProtocol::GetSpecs()
 	PS1_FAIL();
 	//u8 checksum = 0x00;
 	McdSizeInfo info;
-	mcd->GetSizeInfo(info);
+	FileMcd_GetSizeInfo(mcd->port, mcd->slot, &info);
 	fifoOut.push_back(0x2b);
 	
 	const u8 sectorSizeLSB = (info.SectorSize & 0xff);
@@ -205,7 +203,7 @@ void MemoryCardProtocol::WriteData()
 		fifoOut.push_back(0x00);
 	}
 
-	mcd->Write(buf.data(), buf.size());
+	FileMcd_Save(mcd->port, mcd->slot, buf.data(), mcd->transferAddr, buf.size());
 	fifoOut.push_back(checksum);
 	fifoOut.push_back(mcd->term);
 
@@ -221,7 +219,7 @@ void MemoryCardProtocol::ReadData()
 	fifoOut.push_back(0x2b);
 	std::vector<u8> buf;
 	buf.resize(readLength);
-	mcd->Read(buf.data(), buf.size());
+	FileMcd_Read(mcd->port, mcd->slot, buf.data(), mcd->transferAddr, buf.size());
 	u8 checksum = 0x00;
 
 	for (const u8 readByte : buf)
@@ -279,8 +277,8 @@ u8 MemoryCardProtocol::PS1Read(u8 data)
 			break;
 		case 10:
 			ps1McState.checksum = ps1McState.sectorAddrMSB ^ ps1McState.sectorAddrLSB;
-			mcd->Read(ps1McState.buf.data(), ps1McState.buf.size());
-			[[fallthrough]];
+			FileMcd_Read(mcd->port, mcd->slot, ps1McState.buf.data(), mcd->transferAddr, ps1McState.buf.size());
+			/* fallthrough */
 		default:
 			ret = ps1McState.buf.at(ps1McState.currentByte - 10);
 			ps1McState.checksum ^= ret;
@@ -336,16 +334,12 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 			break;
 		case 137:
 			if (!mcd->goodSector)
-			{
 				ret = 0xff;
-			}
 			else if (ps1McState.expectedChecksum != ps1McState.checksum)
-			{
 				ret = 0x4e;
-			}
 			else
 			{
-				mcd->Write(ps1McState.buf.data(), ps1McState.buf.size());
+				FileMcd_Save(mcd->port, mcd->slot, ps1McState.buf.data(), mcd->transferAddr, ps1McState.buf.size());
 				ret = 0x47;
 				// Clear the "directory unread" bit of the flag byte. Per no$psx, this is cleared
 				// on writes, not reads.
@@ -365,9 +359,7 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 	}
 
 	if (sendAck)
-	{
 		sio0.Acknowledge();
-	}
 
 	ps1McState.currentByte++;
 	return ret;
@@ -388,7 +380,7 @@ void MemoryCardProtocol::ReadWriteEnd()
 void MemoryCardProtocol::EraseBlock()
 {
 	PS1_FAIL();
-	mcd->EraseBlock();
+	FileMcd_EraseBlock(mcd->port, mcd->slot, mcd->transferAddr);
 	The2bTerminator(4);
 }
 
@@ -446,11 +438,9 @@ void MemoryCardProtocol::AuthXor()
 		case 0x10:
 		case 0x12:
 		case 0x14:
-		{
 			// Short + No XOR
 			The2bTerminator(5);
 			break;
-		}
 		// When encountered, the command length in RECV3 is guaranteed to be 14,
 		// and the PS2 is about to send us data, BUT the PS2 does NOT want us
 		// to send the XOR, it wants us to send the 0x2b and terminator as the
@@ -458,13 +448,10 @@ void MemoryCardProtocol::AuthXor()
 		case 0x06:
 		case 0x07:
 		case 0x0b:
-		{
 			// Long + No XOR
 			The2bTerminator(14);
 			break;
-		}
 		default:
-			Console.Warning("%s(queue) Unexpected modeByte (%02X), please report to the PCSX2 team", __FUNCTION__, modeByte);
 			break;
 	}
 }

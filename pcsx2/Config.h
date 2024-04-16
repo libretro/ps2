@@ -452,11 +452,6 @@ struct Pcsx2Config
 		static constexpr float DEFAULT_FRAME_RATE_NTSC = 59.94f;
 		static constexpr float DEFAULT_FRAME_RATE_PAL = 50.00f;
 
-		static constexpr int DEFAULT_VIDEO_CAPTURE_BITRATE = 6000;
-		static constexpr int DEFAULT_VIDEO_CAPTURE_WIDTH = 640;
-		static constexpr int DEFAULT_VIDEO_CAPTURE_HEIGHT = 480;
-		static constexpr int DEFAULT_AUDIO_CAPTURE_BITRATE = 160;
-
 		union
 		{
 			u64 bitset;

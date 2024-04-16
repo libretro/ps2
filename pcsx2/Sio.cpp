@@ -191,7 +191,7 @@ void Sio0::SetTxData(u8 value)
 					
 					// If memcard is missing, not PS1, or auto ejected, do not let SIO0 stage advance,
 					// reply with dead air and no ACK.
-					if (!mcd->IsPresent() || !mcd->IsPSX())
+					if (!FileMcd_IsPresent(mcd->port, mcd->slot) || !FileMcd_IsPSX(mcd->port, mcd->slot))
 					{
 						SetRxData(0x00);
 						return;
@@ -552,11 +552,11 @@ void Sio2::Memcard()
 		return;
 	}
 
-	SetRecv1(mcd->IsPresent() ? Recv1::CONNECTED : Recv1::DISCONNECTED);
+	SetRecv1(FileMcd_IsPresent(mcd->port, mcd->slot) ? Recv1::CONNECTED : Recv1::DISCONNECTED);
 	
 	const u8 commandByte = fifoIn.front();
 	fifoIn.pop_front();
-	const u8 responseByte = mcd->IsPresent() ? 0x00 : 0xff;
+	const u8 responseByte = FileMcd_IsPresent(mcd->port, mcd->slot) ? 0x00 : 0xff;
 	fifoOut.push_back(responseByte);
 	// Technically, the FLAG byte is only for PS1 memcards. However,
 	// since this response byte is still a dud on PS2 memcards, we can
@@ -765,28 +765,27 @@ u8 Sio2::Read()
 		ret = fifoOut.front();
 		fifoOut.pop_front();
 	}
-	else
-	{
-		Console.Warning("%s() fifoOut underflow! Returning 0x00.", __FUNCTION__);
-	}
 	
 	return ret;
 }
 
-void sioNextFrame() {
-	for ( uint port = 0; port < 2; ++port ) {
-		for ( uint slot = 0; slot < 4; ++slot ) {
-			mcds[port][slot].NextFrame();
-		}
+void sioNextFrame(void)
+{
+	for ( uint port = 0; port < 2; ++port )
+	{
+		for ( uint slot = 0; slot < 4; ++slot )
+			FileMcd_NextFrame( port, slot );
 	}
 }
 
-void sioSetGameSerial( const std::string& serial ) {
-	for ( uint port = 0; port < 2; ++port ) {
-		for ( uint slot = 0; slot < 4; ++slot ) {
-			if ( mcds[port][slot].ReIndex( serial ) ) {
+void sioSetGameSerial( const std::string& serial )
+{
+	for ( uint port = 0; port < 2; ++port )
+	{
+		for ( uint slot = 0; slot < 4; ++slot )
+		{
+			if ( FileMcd_ReIndex(port, slot, serial) )
 				AutoEject::Set( port, slot );
-			}
 		}
 	}
 }
@@ -810,7 +809,7 @@ bool SaveStateBase::sio2Freeze()
 		for (u32 port = 0; port < SIO::PORTS; port++)
 		{
 			for (u32 slot = 0; slot < SIO::SLOTS; slot++)
-				mcdCrcs[port][slot] = mcds[port][slot].GetChecksum();
+				mcdCrcs[port][slot] = FileMcd_GetCRC(port, slot);
 		}
 	}
 	Freeze(mcdCrcs);
@@ -824,7 +823,7 @@ bool SaveStateBase::sio2Freeze()
 		{
 			for (u32 slot = 0; slot < SIO::SLOTS; slot++)
 			{
-				if (mcdCrcs[port][slot] != mcds[port][slot].GetChecksum())
+				if (mcdCrcs[port][slot] != FileMcd_GetCRC(port, slot))
 				{
 					AutoEject::SetAll();
 					ejected = true;

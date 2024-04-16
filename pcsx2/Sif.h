@@ -201,7 +201,7 @@ extern void sif0Interrupt();
 extern void sif1Interrupt();
 extern void sif2Interrupt();
 
-extern bool ReadFifoSingleWord();
+extern void ReadFifoSingleWord(void);
 
 #define sif0data sif0.iop.data.data
 #define sif1data sif1.iop.data.data

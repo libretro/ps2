@@ -42,61 +42,6 @@ struct _mcd
 	u8 slot; // and slot for this memcard
 
 	size_t autoEjectTicks;
-
-	void GetSizeInfo(McdSizeInfo &info)
-	{
-		FileMcd_GetSizeInfo(port, slot, &info);
-	}
-
-	bool IsPSX()
-	{
-		return FileMcd_IsPSX(port, slot);
-	}
-
-	void EraseBlock()
-	{
-		FileMcd_EraseBlock(port, slot, transferAddr);
-	}
-
-	// Read from memorycard to dest
-	void Read(u8 *dest, int size)
-	{
-		FileMcd_Read(port, slot, dest, transferAddr, size);
-	}
-
-	// Write to memorycard from src
-	void Write(u8 *src, int size)
-	{
-		FileMcd_Save(port, slot, src,transferAddr, size);
-	}
-
-	bool IsPresent()
-	{
-		return FileMcd_IsPresent(port, slot);
-	}
-
-	u8 DoXor()
-	{
-		u8 ret = msb ^ lsb;
-
-		for (const u8 byte : buf)
-			ret ^= byte;
-
-		return ret;
-	}
-
-	u64 GetChecksum()
-	{
-		return FileMcd_GetCRC(port, slot);
-	}
-
-	void NextFrame() {
-		FileMcd_NextFrame( port, slot );
-	}
-
-	bool ReIndex(const std::string& filter) {
-		return FileMcd_ReIndex(port, slot, filter);
-	}
 };
 
 class Sio0

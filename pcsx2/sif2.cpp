@@ -28,20 +28,19 @@ static bool done = false;
 
 static __fi void Sif2Init(void)
 {
-	done = false;
-	sif2.ee.cycles = 0;
+	done            = false;
+	sif2.ee.cycles  = 0;
 	sif2.iop.cycles = 0;
 }
 
-__fi bool ReadFifoSingleWord(void)
+__fi void ReadFifoSingleWord(void)
 {
 	u32 ptag[4];
 
 	sif2.fifo.read((u32*)&ptag[0], 1);
 	psHu32(0x1000f3e0) = ptag[0];
 	if (sif2.fifo.size == 0) psxHu32(0x1000f300) |= 0x4000000;
-	if (sif2.iop.busy && sif2.fifo.size <= 8)SIF2Dma();
-	return true;
+	if (sif2.iop.busy && sif2.fifo.size <= 8) SIF2Dma();
 }
 
 // Write from Fifo to EE.

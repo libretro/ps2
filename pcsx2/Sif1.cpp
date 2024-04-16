@@ -29,8 +29,8 @@ static bool sif1_dma_stall = false;
 
 static __fi void Sif1Init(void)
 {
-	done = false;
-	sif1.ee.cycles = 0;
+	done            = false;
+	sif1.ee.cycles  = 0;
 	sif1.iop.cycles = 0;
 }
 
@@ -54,7 +54,7 @@ static __fi bool WriteEEtoFifo(void)
 }
 
 // Read from the fifo and write to IOP
-static __fi bool WriteFifoToIOP(void)
+static __fi void WriteFifoToIOP(void)
 {
 	// If we're reading something, continue to do so.
 
@@ -62,11 +62,9 @@ static __fi bool WriteFifoToIOP(void)
 
 	sif1.fifo.read((u32*)iopPhysMem(hw_dma10.madr), readSize);
 	psxCpu->Clear(hw_dma10.madr, readSize);
-	hw_dma10.madr += readSize << 2;
-	sif1.iop.cycles += readSize >> 2;		// fixme: should be >> 4
+	hw_dma10.madr    += readSize << 2;
+	sif1.iop.cycles  += readSize >> 2;		// fixme: should be >> 4
 	sif1.iop.counter -= readSize;
-
-	return true;
 }
 
 // Get a tag and process it.
@@ -92,7 +90,7 @@ static __fi bool ProcessEETag(void)
 }
 
 // Write fifo to data, and put it in IOP.
-static __fi bool SIFIOPReadTag()
+static __fi void SIFIOPReadTag(void)
 {
 	// Read a tag.
 	sif1.fifo.read((u32*)&sif1.iop.data, 4);
@@ -100,17 +98,14 @@ static __fi bool SIFIOPReadTag()
 	// Only use the first 24 bits.
 	hw_dma10.madr = sif1data & 0xffffff;
 
-
 	//Maximum transfer amount 1mb-16 also masking out top part which is a "Mode" cache stuff, we don't care :)
 	sif1.iop.counter = sif1words & 0xFFFFC;
 
 	if (sif1tag.IRQ  || (sif1tag.ID & 4)) sif1.iop.end = true;
-
-	return true;
 }
 
 // Stop processing EE, and signal an interrupt.
-static __fi void EndEE()
+static __fi void EndEE(void)
 {
 	sif1.ee.end = false;
 	sif1.ee.busy = false;
@@ -126,7 +121,7 @@ static __fi void EndEE()
 }
 
 // Stop processing IOP, and signal an interrupt.
-static __fi void EndIOP()
+static __fi void EndIOP(void)
 {
 	sif1data = 0;
 	sif1.iop.end = false;
@@ -143,11 +138,11 @@ static __fi void EndIOP()
 }
 
 // Handle the EE transfer.
-static __fi void HandleEETransfer()
+static __fi void HandleEETransfer(void)
 {
 	if(!sif1ch.chcr.STR)
 	{
-		sif1.ee.end = false;
+		sif1.ee.end  = false;
 		sif1.ee.busy = false;
 		return;
 	}
@@ -191,14 +186,12 @@ static __fi void HandleEETransfer()
 }
 
 // Handle the IOP transfer.
-static __fi void HandleIOPTransfer()
+static __fi void HandleIOPTransfer(void)
 {
 	if (sif1.iop.counter > 0)
 	{
 		if (sif1.fifo.size > 0)
-		{
 			WriteFifoToIOP();
-		}
 	}
 
 	if (sif1.iop.counter <= 0)
@@ -210,7 +203,6 @@ static __fi void HandleIOPTransfer()
 		}
 		else if (sif1.fifo.size >= 4)
 		{
-
 			done = false;
 			SIFIOPReadTag();
 		}

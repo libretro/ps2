@@ -91,7 +91,7 @@ static void memcpy_from_spr(u8* dst, u32 src, size_t size)
 	}
 }
 
-int  _SPR0chain()
+int  _SPR0chain(void)
 {
 	tDMA_TAG *pMem;
 	int partialqwc = 0;
@@ -154,13 +154,13 @@ int  _SPR0chain()
 	return (partialqwc); // Bus is 1/2 the ee speed
 }
 
-__fi void SPR0chain()
+__fi void SPR0chain(void)
 {
 	int cycles = _SPR0chain() * BIAS;
 	CPU_INT(DMAC_FROM_SPR, cycles);
 }
 
-void _SPR0interleave()
+void _SPR0interleave(void)
 {
 	int qwc = spr0ch.qwc;
 	int sqwc = dmacRegs.sqwc.SQWC;
@@ -197,13 +197,11 @@ void _SPR0interleave()
 		spr0ch.madr += (sqwc + spr0ch.qwc) * 16;
 	}
 	if (dmacRegs.ctrl.STS == STS_fromSPR)
-	{
 		dmacRegs.stadr.ADDR = spr0ch.madr; // Copy MADR to DMAC_STADR stall addr register
-	}
 	spr0ch.qwc = 0;
 }
 
-static __fi void _dmaSPR0()
+static __fi void _dmaSPR0(void)
 {
 	// Transfer Dn_QWC from SPR to Dn_MADR
 	switch(spr0ch.chcr.MOD)
@@ -276,9 +274,8 @@ static __fi void _dmaSPR0()
 	}
 }
 
-void SPRFROMinterrupt()
+void SPRFROMinterrupt(void)
 {
-
 	if (!spr0finished || spr0ch.qwc > 0)
 	{
 		_dmaSPR0();
@@ -317,9 +314,7 @@ void dmaSPR0(void)   // fromSPR
 	if(spr0ch.chcr.MOD == CHAIN_MODE && spr0ch.qwc > 0)
 	{
 		if (spr0ch.chcr.tag().ID == TAG_END) // But not TAG_REFE?
-		{									 // correct not REFE, Destination Chain doesnt have REFE!
-			spr0finished = true;
-		}
+			spr0finished = true; // correct not REFE, Destination Chain doesnt have REFE!
 	}
 
 	SPRFROMinterrupt();
@@ -328,18 +323,14 @@ void dmaSPR0(void)   // fromSPR
 __fi static void SPR1transfer(const void* data, int qwc)
 {
 	if ((spr1ch.madr >= 0x11000000) && (spr1ch.madr < 0x11010000))
-	{
 		TestClearVUs(spr1ch.madr, spr1ch.qwc, false);
-	}
 
 	memcpy_to_spr(spr1ch.sadr, (u8*)data, qwc*16);
 	spr1ch.sadr += qwc * 16;
 	spr1ch.sadr &= 0x3FFF; // Limited to 16K
 }
 
-
-
-int  _SPR1chain()
+int  _SPR1chain(void)
 {
 	tDMA_TAG *pMem;
 
@@ -361,18 +352,17 @@ int  _SPR1chain()
 	return (partialqwc);
 }
 
-__fi void SPR1chain()
+__fi void SPR1chain(void)
 {
-	int cycles = 0;
-	cycles =  _SPR1chain() * BIAS;
+	int cycles =  _SPR1chain() * BIAS;
 	CPU_INT(DMAC_TO_SPR, cycles);
 }
 
-void _SPR1interleave()
+void _SPR1interleave(void)
 {
-	int qwc = spr1ch.qwc;
+	int qwc  = spr1ch.qwc;
 	int sqwc = dmacRegs.sqwc.SQWC;
-	int tqwc =  dmacRegs.sqwc.TQWC;
+	int tqwc = dmacRegs.sqwc.TQWC;
 	tDMA_TAG *pMem;
 
 	if (tqwc == 0) tqwc = qwc;
@@ -391,18 +381,15 @@ void _SPR1interleave()
 	spr1ch.qwc = 0;
 }
 
-void _dmaSPR1()   // toSPR work function
+void _dmaSPR1(void)   // toSPR work function
 {
 	switch(spr1ch.chcr.MOD)
 	{
 		case NORMAL_MODE:
-		{
-			//int cycles = 0;
 			// Transfer Dn_QWC from Dn_MADR to SPR1
 			SPR1chain();
 			spr1finished = true;
 			return;
-		}
 		case CHAIN_MODE:
 		{
 			tDMA_TAG *ptag;

@@ -28,8 +28,8 @@ static bool done = false;
 
 static __fi void Sif0Init(void)
 {
-	done = false;
-	sif0.ee.cycles = 0;
+	done            = false;
+	sif0.ee.cycles  = 0;
 	sif0.iop.cycles = 0;
 }
 
@@ -57,24 +57,21 @@ static __fi bool WriteFifoToEE(void)
 }
 
 // Write IOP to Fifo.
-static __fi bool WriteIOPtoFifo()
+static __fi void WriteIOPtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
 	const int writeSize = std::min(sif0.iop.counter, sif0.fifo.sif_free());
 
 	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
-	hw_dma9.madr += writeSize << 2;
+	hw_dma9.madr       += writeSize << 2;
 
 	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
-	sif0.iop.cycles += writeSize; //1 word per cycle
-	sif0.iop.counter -= writeSize;
-
-
-	return true;
+	sif0.iop.cycles    += writeSize; //1 word per cycle
+	sif0.iop.counter   -= writeSize;
 }
 
 // Read Fifo into an ee tag, transfer it to sif0ch, and process it.
-static __fi bool ProcessEETag(void)
+static __fi void ProcessEETag(void)
 {
 	alignas(16) static u32 tag[4];
 	tDMA_TAG& ptag(*(tDMA_TAG*)tag);
@@ -100,11 +97,10 @@ static __fi bool ProcessEETag(void)
 			sif0.ee.end = true;
 			break;
 	}
-	return true;
 }
 
 // Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
-static __fi bool ProcessIOPTag(void)
+static __fi void ProcessIOPTag(void)
 {
 	// Process DMA tag at hw_dma9.tadr
 	sif0.iop.data       = *(sifData *)iopPhysMem(hw_dma9.tadr);
@@ -129,8 +125,6 @@ static __fi bool ProcessIOPTag(void)
 	sif0.iop.writeJunk = (sif0.iop.counter & 0x3) ? (4 - sif0.iop.counter & 0x3) : 0;
 	// IOP tags have an IRQ bit and an End of Transfer bit:
 	if (sif0tag.IRQ  || (sif0tag.ID & 4)) sif0.iop.end = true;
-
-	return true;
 }
 
 // Stop transferring ee, and signal an interrupt.
@@ -248,9 +242,7 @@ static __fi void HandleIOPTransfer()
 	{
 		// Write IOP to Fifo.
 		if (sif0.fifo.sif_free() > 0)
-		{
 			WriteIOPtoFifo();
-		}
 	}
 }
 
@@ -293,18 +285,18 @@ __fi void SIF0Dma(void)
 				HandleEETransfer();
 			}
 		}
-	} while (/*!done && */BusyCheck > 0); // Substituting (sif0.ee.busy || sif0.iop.busy) breaks things.
+	} while (BusyCheck > 0); // Substituting (sif0.ee.busy || sif0.iop.busy) breaks things.
 
 	Sif0End();
 }
 
-__fi void  sif0Interrupt()
+__fi void  sif0Interrupt(void)
 {
 	HW_DMA9_CHCR &= ~0x01000000;
 	psxDmaInterrupt2(2);
 }
 
-__fi void  EEsif0Interrupt()
+__fi void  EEsif0Interrupt(void)
 {
 	hwDmacIrq(DMAC_SIF0);
 	sif0ch.chcr.STR = false;
