@@ -73,7 +73,7 @@ void MemoryCardProtocol::ResetPS1State()
 	ps1McState.sectorAddrLSB = 0;
 	ps1McState.checksum = 0;
 	ps1McState.expectedChecksum = 0;
-	memset(ps1McState.buf.data(), 0, ps1McState.buf.size());
+	memset(ps1McState.buf, 0, sizeof(ps1McState.buf));
 }
 
 void MemoryCardProtocol::Probe()
@@ -277,10 +277,10 @@ u8 MemoryCardProtocol::PS1Read(u8 data)
 			break;
 		case 10:
 			ps1McState.checksum = ps1McState.sectorAddrMSB ^ ps1McState.sectorAddrLSB;
-			FileMcd_Read(mcd->port, mcd->slot, ps1McState.buf.data(), mcd->transferAddr, ps1McState.buf.size());
+			FileMcd_Read(mcd->port, mcd->slot, ps1McState.buf, mcd->transferAddr, sizeof(ps1McState.buf));
 			/* fallthrough */
 		default:
-			ret = ps1McState.buf.at(ps1McState.currentByte - 10);
+			ret = ps1McState.buf[ps1McState.currentByte - 10];
 			ps1McState.checksum ^= ret;
 			break;
 	}
@@ -339,7 +339,7 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 				ret = 0x4e;
 			else
 			{
-				FileMcd_Save(mcd->port, mcd->slot, ps1McState.buf.data(), mcd->transferAddr, ps1McState.buf.size());
+				FileMcd_Save(mcd->port, mcd->slot, ps1McState.buf, mcd->transferAddr, sizeof(ps1McState.buf));
 				ret = 0x47;
 				// Clear the "directory unread" bit of the flag byte. Per no$psx, this is cleared
 				// on writes, not reads.
@@ -352,7 +352,7 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 			ps1McState.checksum = ps1McState.sectorAddrMSB ^ ps1McState.sectorAddrLSB;
 			[[fallthrough]];
 		default:
-			ps1McState.buf.at(ps1McState.currentByte - 6) = data;
+			ps1McState.buf[ps1McState.currentByte - 6] = data;
 			ps1McState.checksum ^= data;
 			ret = 0x00;
 			break;

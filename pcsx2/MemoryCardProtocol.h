@@ -15,8 +15,6 @@
 
 #pragma once
 
-#include <array>
-
 struct PS1MemoryCardState
 {
 	size_t currentByte = 2;
@@ -24,7 +22,7 @@ struct PS1MemoryCardState
 	u8 sectorAddrLSB = 0;
 	u8 checksum = 0;
 	u8 expectedChecksum = 0;
-	std::array<u8, 128> buf;
+	u8 buf[128];
 };
 
 // A global class which contains the behavior of each memory card command.
