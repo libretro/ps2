@@ -28,7 +28,7 @@ namespace SPU2
 	void Shutdown(void);
 
 	/// Open/close, call at VM startup/shutdown.
-	bool Open(void);
+	void Open(void);
 	void Close(void);
 
 	/// Reset, rebooting VM or going into PSX mode.

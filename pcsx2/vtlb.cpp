@@ -805,11 +805,9 @@ static void vtlb_RemoveFastmemMappings(u32 vaddr, u32 size)
 
 static void vtlb_RemoveFastmemMappings()
 {
+	// not initialized yet
 	if (s_fastmem_virtual_mapping.empty())
-	{
-		// not initialized yet
 		return;
-	}
 
 	for (u32 page = 0; page < FASTMEM_PAGE_COUNT; page++)
 	{
@@ -882,7 +880,7 @@ void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode&
 	}
 }
 
-void vtlb_ClearLoadStoreInfo()
+void vtlb_ClearLoadStoreInfo(void)
 {
 	s_fastmem_backpatch_info.clear();
 	s_fastmem_faulting_pcs.clear();
@@ -1053,21 +1051,21 @@ void vtlb_Init(void)
 
 // vtlb_Reset -- Performs a COP0-level reset of the PS2's TLB.
 // This function should probably be part of the COP0 rather than here in VTLB.
-void vtlb_Reset()
+void vtlb_Reset(void)
 {
 	vtlb_RemoveFastmemMappings();
 	for (int i = 0; i < 48; i++)
 		UnmapTLB(tlb[i], i);
 }
 
-void vtlb_Shutdown()
+void vtlb_Shutdown(void)
 {
 	vtlb_RemoveFastmemMappings();
 	s_fastmem_backpatch_info.clear();
 	s_fastmem_faulting_pcs.clear();
 }
 
-void vtlb_ResetFastmem()
+void vtlb_ResetFastmem(void)
 {
 	vtlb_RemoveFastmemMappings();
 	s_fastmem_backpatch_info.clear();

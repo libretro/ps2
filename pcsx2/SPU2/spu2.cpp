@@ -26,7 +26,6 @@ namespace SPU2
 	static void InternalReset(bool psxmode);
 } // namespace SPU2
 
-static double s_device_sample_rate_multiplier = 1.0;
 static bool s_psxmode = false;
 
 int SampleRate = 48000;
@@ -55,7 +54,7 @@ void SPU2writeDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
 	Cores[0].DoDMAwrite(pMem, size);
 }
 
-void SPU2interruptDMA4()
+void SPU2interruptDMA4(void)
 {
 	if (Cores[0].DmaMode)
 		Cores[0].Regs.STATX |= 0x80;
@@ -100,7 +99,7 @@ void SPU2::InitSndBuffer()
 
 void SPU2::UpdateSampleRate()
 {
-	const int new_sample_rate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate()) * s_device_sample_rate_multiplier));
+	const int new_sample_rate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate())));
 	if (SampleRate == new_sample_rate)
 		return;
 
@@ -145,34 +144,20 @@ void SPU2::Initialize(void)
 }
 
 
-bool SPU2::Open()
+void SPU2::Open()
 {
 	lClocks = psxRegs.cycle;
 
 	InternalReset(false);
 
-	SampleRate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate()) * s_device_sample_rate_multiplier));
+	SampleRate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate())));
 	InitSndBuffer();
-	return true;
 }
 
-void SPU2::Close()
-{
-}
-
-void SPU2::Shutdown()
-{
-}
-
-bool SPU2::IsRunningPSXMode()
-{
-	return s_psxmode;
-}
-
-void SPU2async(u32 cycles)
-{
-	TimeUpdate(psxRegs.cycle);
-}
+void SPU2::Close() { }
+void SPU2::Shutdown() { }
+bool SPU2::IsRunningPSXMode() { return s_psxmode; }
+void SPU2async(u32 cycles) { TimeUpdate(psxRegs.cycle); }
 
 u16 SPU2read(u32 rmem)
 {

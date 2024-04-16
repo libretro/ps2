@@ -54,9 +54,9 @@ extern bool vtlb_Core_Alloc();
 extern void vtlb_Core_Free();
 extern void vtlb_Alloc_Ppmap();
 extern void vtlb_Init();
-extern void vtlb_Shutdown();
-extern void vtlb_Reset();
-extern void vtlb_ResetFastmem();
+extern void vtlb_Shutdown(void);
+extern void vtlb_Reset(void);
+extern void vtlb_ResetFastmem(void);
 
 extern vtlbHandler vtlb_NewHandler();
 
@@ -74,9 +74,8 @@ extern void vtlb_ReassignHandler( vtlbHandler rv,
 extern void vtlb_MapHandler(vtlbHandler handler,u32 start,u32 size);
 extern void vtlb_MapBlock(void* base,u32 start,u32 size,u32 blocksize=0);
 extern void* vtlb_GetPhyPtr(u32 paddr);
-//extern void vtlb_Mirror(u32 new_region,u32 start,u32 size); // -> not working yet :(
 extern u32  vtlb_V2P(u32 vaddr);
-extern void vtlb_DynV2P();
+extern void vtlb_DynV2P(void);
 
 //virtual mappings
 extern void vtlb_VMap(u32 vaddr,u32 paddr,u32 sz);
@@ -87,7 +86,7 @@ extern bool vtlb_GetGuestAddress(uptr host_addr, u32* guest_addr);
 extern void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode& prot);
 extern bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address);
 
-extern void vtlb_ClearLoadStoreInfo();
+extern void vtlb_ClearLoadStoreInfo(void);
 extern void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
 extern void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
 extern bool vtlb_IsFaultingPC(u32 guest_pc);
@@ -110,7 +109,7 @@ extern DataType vtlb_ramRead(u32 mem);
 template <typename DataType>
 extern bool vtlb_ramWrite(u32 mem, const DataType& value);
 
-using vtlb_ReadRegAllocCallback = int(*)();
+using vtlb_ReadRegAllocCallback = int(*)(void);
 extern int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
 extern int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
 extern int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);

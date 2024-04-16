@@ -524,8 +524,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		return false;
 	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
 
-	if (!SPU2::Open())
-		return false;
+	SPU2::Open();
 	ScopedGuard close_spu2(&SPU2::Close);
 
 	if (PADinit() != 0 || PADopen() != 0)
@@ -548,8 +547,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		USBclose();
 	};
 
-	if (FWopen() != 0)
-		return false;
+	FWopen();
 	ScopedGuard close_fw = []() { FWclose(); };
 
 	FileMcd_EmuOpen();
@@ -734,8 +732,16 @@ void VMManager::SetPaused(bool paused)
 	if (!HasValidVM())
 		return;
 
-	Console.WriteLn(paused ? "(VMManager) Pausing..." : "(VMManager) Resuming...");
-	SetState(paused ? VMState::Paused : VMState::Running);
+	if (paused)
+	{
+		Console.WriteLn("(VMManager) Pausing...");
+		SetState(VMState::Paused);
+	}
+	else
+	{
+		Console.WriteLn("(VMManager) Resuming...");
+		SetState(VMState::Running);
+	}
 }
 
 const std::string& VMManager::Internal::GetElfOverride()
@@ -801,9 +807,7 @@ void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
 
 	if (EmuConfig.Cpu.AffinityControlMode != old_config.Cpu.AffinityControlMode ||
 		EmuConfig.Speedhacks.vuThread != old_config.Speedhacks.vuThread)
-	{
 		SetEmuThreadAffinities();
-	}
 }
 
 void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
@@ -833,9 +837,7 @@ void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)
 	if (EmuConfig.EnableCheats == old_config.EnableCheats &&
 		EmuConfig.EnableWideScreenPatches == old_config.EnableWideScreenPatches &&
 		EmuConfig.EnablePatches == old_config.EnablePatches)
-	{
 		return;
-	}
 
 	ReloadPatches(true, true);
 }
@@ -909,9 +911,7 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 		if (EmuConfig.EnableCheats != old_config.EnableCheats ||
 			EmuConfig.EnableWideScreenPatches != old_config.EnableWideScreenPatches ||
 			EmuConfig.EnableNoInterlacingPatches != old_config.EnableNoInterlacingPatches)
-		{
 			VMManager::ReloadPatches(true, true);
-		}
 	}
 
 	// For the big picture UI, we still need to update GS settings, since it's running,
@@ -944,11 +944,9 @@ void VMManager::ApplySettings()
 
 void VMManager::SetDefaultSettings(SettingsInterface& si)
 {
-	{
-		Pcsx2Config temp_config;
-		SettingsSaveWrapper ssw(si);
-		temp_config.LoadSave(ssw);
-	}
+	Pcsx2Config temp_config;
+	SettingsSaveWrapper ssw(si);
+	temp_config.LoadSave(ssw);
 
 	// Settings not part of the Pcsx2Config struct.
 	si.SetBoolValue("EmuCore", "EnableFastBoot", true);
@@ -1002,7 +1000,7 @@ static u32 GetProcessorIdForProcessor(const cpuinfo_processor* proc)
 #endif
 }
 
-static void InitializeCPUInfo()
+static void InitializeCPUInfo(void)
 {
 	if (!cpuinfo_initialize())
 	{
@@ -1101,16 +1099,11 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 }
 
 #else
-
-static void InitializeCPUInfo()
+static void InitializeCPUInfo(void)
 {
 	Console.WriteLn("(VMManager) InitializeCPUInfo() not implemented.");
 }
-
-static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
-{
-}
-
+static void SetMTVUAndAffinityControlDefault(SettingsInterface& si) { }
 #endif
 
 void VMManager::EnsureCPUInfoInitialized()
@@ -1122,11 +1115,9 @@ void VMManager::SetEmuThreadAffinities()
 {
 	EnsureCPUInfoInitialized();
 
+	// not supported on this platform
 	if (s_processor_list.empty())
-	{
-		// not supported on this platform
 		return;
-	}
 
 	if (EmuConfig.Cpu.AffinityControlMode == 0 ||
 		s_processor_list.size() < (EmuConfig.Speedhacks.vuThread ? 3 : 2))
@@ -1170,9 +1161,7 @@ void VMManager::SetEmuThreadAffinities()
 		vu1Thread.GetThreadHandle().SetAffinity(vu_affinity);
 	}
 	else
-	{
 		vu1Thread.GetThreadHandle().SetAffinity(0);
-	}
 
 	const u64 gs_affinity = static_cast<u64>(1) << gs_index;
 	Console.WriteLn(Color_StrongGreen, "GS thread is on processor %u (0x%llx)", gs_index, gs_affinity);
