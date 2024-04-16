@@ -12167,7 +12167,8 @@ SLES-50920:
   compat: 5
   gsHWFixes:
     preloadFrameData: 1 # Fixes invisible lava, there is another issue that needs skipdraw 1 for blurry font but it removes much brightness.
-    halfPixelOffset: 2 # Fixes font rendering.
+    cpuSpriteRenderBW: 2 # Fixes sky and lava when upscaling.
+    cpuSpriteRenderLevel: 2 # Needed for above.
     partialTargetInvalidation: 1 # Fixes broken textures.
   patches:
     401F4726:
@@ -38388,7 +38389,8 @@ SLPS-25057:
   region: "NTSC-J"
   gsHWFixes:
     preloadFrameData: 1 # Fixes invisible lava, there is another issue that needs skipdraw 1 for blurry font but it removes much brightness.
-    halfPixelOffset: 2 # Fixes font rendering.
+    cpuSpriteRenderBW: 2 # Fixes sky and lava when upscaling.
+    cpuSpriteRenderLevel: 2 # Needed for above.
     partialTargetInvalidation: 1 # Fixes broken textures.
   patches:
     04C3765E:
@@ -43576,7 +43578,8 @@ SLUS-20318:
   compat: 5
   gsHWFixes:
     preloadFrameData: 1 # Fixes invisible lava, there is another issue that needs skipdraw 1 for blurry font but it removes much brightness.
-    halfPixelOffset: 2 # Fixes font rendering.
+    cpuSpriteRenderBW: 2 # Fixes sky and lava when upscaling.
+    cpuSpriteRenderLevel: 2 # Needed for above.
     partialTargetInvalidation: 1 # Fixes broken textures.
   patches:
     36E02E91:
@@ -43736,7 +43739,8 @@ SLUS-20353:
   region: "NTSC-U"
   gsHWFixes:
     preloadFrameData: 1 # Fixes invisible lava, there is another issue that needs skipdraw 1 for blurry font but it removes much brightness.
-    halfPixelOffset: 2 # Fixes font rendering.
+    cpuSpriteRenderBW: 2 # Fixes sky and lava when upscaling.
+    cpuSpriteRenderLevel: 2 # Needed for above.
     partialTargetInvalidation: 1 # Fixes broken textures.
 SLUS-20354:
   name: "Red Card Soccer 2003"
