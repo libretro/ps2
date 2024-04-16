@@ -25,8 +25,6 @@
 #include "Config.h"
 #include "PAD/PAD.h"
 
-#include "common/Timer.h"
-
 std::deque<u8> fifoIn;
 std::deque<u8> fifoOut;
 

@@ -18,16 +18,9 @@
 #include <vector>
 
 #include "common/Timer.h"
-#include "common/Threading.h"
 
 #include "PerformanceMetrics.h"
 #include "System.h"
-
-#include "GS.h"
-#include "MTVU.h"
-#include "VMManager.h"
-
-static const float UPDATE_INTERVAL = 0.5f;
 
 static Common::Timer s_last_update_time;
 
@@ -60,7 +53,7 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit)
 	const Common::Timer::Value now_ticks = Common::Timer::GetCurrentValue();
 	const Common::Timer::Value ticks_diff = now_ticks - s_last_update_time.GetStartValue();
 	const float time = Common::Timer::ConvertValueToSeconds(ticks_diff);
-	if (time < UPDATE_INTERVAL)
+	if (time < 0.5f)
 		return;
 
 	s_last_update_time.ResetTo(now_ticks);

@@ -23,7 +23,6 @@
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
-#include "common/Timer.h"
 
 #include <sstream>
 #include "ryml_std.hpp"

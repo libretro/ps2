@@ -25,7 +25,6 @@
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
-#include "common/Timer.h"
 
 #include "fmt/core.h"
 #include "ryml_std.hpp"

@@ -25,7 +25,6 @@
 #include "common/FileSystem.h"
 #include "common/ScopedGuard.h"
 #include "common/SettingsWrapper.h"
-#include "common/Timer.h"
 #include "common/Threading.h"
 #include "fmt/core.h"
 
