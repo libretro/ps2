@@ -46,23 +46,6 @@ BIOS
 #include "ps2/BiosTools.h"
 #include "SPU2/spu2.h"
 
-#include "common/AlignedMalloc.h"
-
-
-int MemMode = 0;		// 0 is Kernel Mode, 1 is Supervisor Mode, 2 is User Mode
-
-void memSetKernelMode() {
-	//Do something here
-	MemMode = 0;
-}
-
-void memSetSupervisorMode() {
-}
-
-void memSetUserMode() {
-
-}
-
 u16 ba0R16(u32 mem)
 {
 	if (mem == 0x1a000006) {
@@ -742,7 +725,6 @@ void eeMemoryReserve::Reset()
 	memMapKernelMem();
 	memMapSupervisorMem();
 	memMapUserMem();
-	memSetKernelMode();
 
 	vtlb_VMap(0x00000000,0x00000000,0x20000000);
 	vtlb_VMapUnmap(0x20000000,0x60000000);

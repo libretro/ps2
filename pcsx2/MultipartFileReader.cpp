@@ -101,9 +101,7 @@ void MultipartFileReader::FindParts()
 	if (!pxFileExists_WithExt(nameparts, extbuf))
 		return;
 
-	ConsoleIndentScope indent;
-
-	int bsize = m_parts[0].reader->GetBlockSize();
+	int bsize  = m_parts[0].reader->GetBlockSize();
 	int blocks = m_parts[0].end;
 
 	m_numparts = 1;

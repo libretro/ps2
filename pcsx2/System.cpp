@@ -120,9 +120,6 @@ SysMainMemory::~SysMainMemory()
 bool SysMainMemory::Allocate()
 {
 	Console.WriteLn(Color_StrongBlue, "Allocating host memory for virtual systems...");
-
-	ConsoleIndentScope indent(1);
-
 	m_ee.Assign(MainMemory());
 	m_iop.Assign(MainMemory());
 	m_vu.Assign(MainMemory());
@@ -135,8 +132,6 @@ bool SysMainMemory::Allocate()
 void SysMainMemory::Reset()
 {
 	Console.WriteLn(Color_StrongBlue, "Resetting host memory for virtual systems...");
-	ConsoleIndentScope indent(1);
-
 	m_ee.Reset();
 	m_iop.Reset();
 	m_vu.Reset();
@@ -148,8 +143,6 @@ void SysMainMemory::Reset()
 void SysMainMemory::Release()
 {
 	Console.WriteLn(Color_Blue, "Releasing host memory for virtual systems...");
-	ConsoleIndentScope indent(1);
-
 	hwShutdown();
 
 	vtlb_Core_Free(); // Just to be sure... (calling order could result in it getting missed during Decommit).
@@ -169,8 +162,6 @@ void SysMainMemory::Release()
 SysCpuProviderPack::SysCpuProviderPack()
 {
 	Console.WriteLn(Color_StrongBlue, "Reserving memory for recompilers...");
-	ConsoleIndentScope indent(1);
-
 	recCpu.Reserve();
 	psxRec.Reserve();
 

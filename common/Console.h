@@ -117,32 +117,4 @@ struct IConsoleWriter
 	bool Warning(const std::string& str) const;
 };
 
-// --------------------------------------------------------------------------------------
-//  ConsoleIndentScope
-// --------------------------------------------------------------------------------------
-// Provides a scoped indentation of the IConsoleWriter interface for the current thread.
-// Any console writes performed from this scope will be indented by the specified number
-// of tab characters.
-//
-// Scoped Object Notes:  Like most scoped objects, this is intended to be used as a stack
-// or temporary object only.  Using it in a situation where the object's lifespan out-lives
-// a scope will almost certainly result in unintended /undefined side effects.
-//
-class ConsoleIndentScope
-{
-	DeclareNoncopyableObject(ConsoleIndentScope);
-
-protected:
-	int m_amount;
-	bool m_IsScoped;
-
-public:
-	// Constructor: The specified number of tabs will be appended to the current indentation
-	// setting.  The tabs will be unrolled when the object leaves scope or is destroyed.
-	ConsoleIndentScope(int tabs = 1);
-	virtual ~ConsoleIndentScope();
-	void EnterScope();
-	void LeaveScope();
-};
-
 extern IConsoleWriter Console;

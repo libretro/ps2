@@ -263,32 +263,5 @@ bool IConsoleWriter::Warning(const std::string& str) const
 	return WriteLn(Color_StrongOrange, str);
 }
 
-// --------------------------------------------------------------------------------------
-//  ConsoleIndentScope
-// --------------------------------------------------------------------------------------
-
-ConsoleIndentScope::ConsoleIndentScope(int tabs)
-{
-	m_IsScoped = false;
-	m_amount = tabs;
-	EnterScope();
-}
-
-ConsoleIndentScope::~ConsoleIndentScope()
-{
-	LeaveScope();
-}
-
-void ConsoleIndentScope::EnterScope()
-{
-	m_IsScoped = m_IsScoped || (Console.SetIndent(m_amount), true);
-}
-
-void ConsoleIndentScope::LeaveScope()
-{
-	m_IsScoped = m_IsScoped && (Console.SetIndent(-m_amount), false);
-}
-
-
 IConsoleWriter Console = ConsoleWriter_Libretro;
 const IConsoleWriter* PatchesCon = &ConsoleWriter_Libretro;
