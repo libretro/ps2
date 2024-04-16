@@ -339,14 +339,14 @@ mem32_t iopHwRead32_Page8( u32 addr )
 		if( masked_addr < 0x240 )
 		{
 			const int parm = (masked_addr-0x200) / 4;
-			ret = sio2.send3.at(parm);
+			ret = sio2.send3[parm];
 		}
 		else if( masked_addr < 0x260 )
 		{
 			// SIO2 Send commands alternate registers.  First reg maps to Send1, second
 			// to Send2, third to Send1, etc.  And the following clever code does this:
 			const int parm = (masked_addr-0x240) / 8;
-			ret = (masked_addr & 4) ? sio2.send2.at(parm) : sio2.send1.at(parm);
+			ret = (masked_addr & 4) ? sio2.send2[parm] : sio2.send1[parm];
 		}
 		else if( masked_addr <= 0x280 )
 		{

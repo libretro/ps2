@@ -511,9 +511,9 @@ void iopHwWrite32_Page8( u32 addr, mem32_t val )
 			const int parm = (masked_addr - 0x240) / 8;
 
 			if (masked_addr & 4)
-				sio2.send2.at(parm) = val;
+				sio2.send2[parm] = val;
 			else
-				sio2.send1.at(parm) = val;
+				sio2.send1[parm] = val;
 		}
 		else if( masked_addr <= 0x280 )
 		{

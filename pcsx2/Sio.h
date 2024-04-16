@@ -20,7 +20,6 @@
 
 #include "SioTypes.h"
 #include "MemoryCardFile.h"
-#include <array>
 #include <deque>
 
 struct _mcd
@@ -102,13 +101,13 @@ public:
 class Sio2
 {
 public:
-	std::array<u32, 16> send3;	// 0x1f808200 - 0x1f80823f
+	u32 send3[16];				// 0x1f808200 - 0x1f80823f
 	// SEND1 and SEND2 are an unusual bunch. It's not entirely clear just from
 	// documentation but these registers almost seem like they are the same thing;
 	// when bit 2 is set, SEND2 is being read/written. When bit 2 isn't set, it is
 	// SEND1. Their use is not really known, either.
-	std::array<u32, 4> send1;	// 0x1f808240 - 0x1f80825f
-	std::array<u32, 4> send2;	// 0x1f808240 - 0x1f80825f
+	u32 send1[4];				// 0x1f808240 - 0x1f80825f
+	u32 send2[4];				// 0x1f808240 - 0x1f80825f
 	u32 dataIn;					// 0x1f808260
 	u32 dataOut;				// 0x1f808264
 	u32 ctrl;					// 0x1f808268

@@ -101,7 +101,6 @@ void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 		case Sio0Interrupt::TX_DATA_WRITE:
 			break;
 		default:
-			Console.Error("%s(%d) Invalid parameter", __FUNCTION__, sio0Interrupt);
 			assert(false);
 			break;
 	}
@@ -152,10 +151,7 @@ void Sio0::SetTxData(u8 value)
 	stat |= (SIO0_STAT::RX_FIFO_NOT_EMPTY);
 
 	if (!(ctrl & SIO0_CTRL::TX_ENABLE))
-	{
-		Console.Warning("%s(%02X) CTRL in illegal state, exiting instantly", __FUNCTION__, value);
 		return;
-	}
 
 	txData = value;
 	u8 res = 0;
@@ -230,7 +226,6 @@ void Sio0::SetTxData(u8 value)
 			}
 			else
 			{
-				Console.Error("%s(%02X) Bad SIO command", __FUNCTION__, value);
 				SetRxData(0xff);
 				SoftReset();
 			}
@@ -253,7 +248,6 @@ void Sio0::SetTxData(u8 value)
 					SetRxData(Memcard(value));
 					break;
 				default:
-					Console.Error("%s(%02X) Unhandled SioMode: %02X", __FUNCTION__, value, sioMode);
 					SetRxData(0xff);
 					SoftReset();
 					break;
@@ -261,7 +255,6 @@ void Sio0::SetTxData(u8 value)
 
 			break;
 		default:
-			Console.Error("%s(%02X) Unhandled SioStage: %02X", __FUNCTION__, value, static_cast<u8>(sioStage));
 			SetRxData(0xff);
 			SoftReset();
 			break;
@@ -361,7 +354,6 @@ u8 Sio0::Memcard(u8 value)
 		case MemcardCommand::PS1_POCKETSTATION:
 			return g_MemoryCardProtocol.PS1Pocketstation(value);
 		default:
-			Console.Error("%s(%02X) Unhandled memcard command (%02X)", __FUNCTION__, value, sioCommand);
 			SoftReset();
 			break;
 	}
@@ -400,17 +392,16 @@ void Sio2::SoftReset()
 
 void Sio2::FullReset()
 {
+	size_t i;
 	this->SoftReset();
 
-	for (size_t i = 0; i < send3.size(); i++)
-	{
-		send3.at(i) = 0;
-	}
+	for (i = 0; i < 16; i++)
+		send3[i] = 0;
 
-	for (size_t i = 0; i < send1.size(); i++)
+	for (i = 0; i < 4; i++)
 	{
-		send1.at(i) = 0;
-		send2.at(i) = 0;
+		send1[i] = 0;
+		send2[i] = 0;
 	}
 
 	dataIn = 0;
@@ -464,12 +455,10 @@ void Sio2::SetCtrl(u32 value)
 
 void Sio2::SetSend3(size_t position, u32 value)
 {
-	this->send3.at(position) = value;
+	this->send3[position] = value;
 
 	if (position == 0)
-	{
 		SoftReset();
-	}
 }
 
 void Sio2::SetRecv1(u32 value)
@@ -658,7 +647,6 @@ void Sio2::Memcard()
 			g_MemoryCardProtocol.AuthF7();
 			break;
 		default:
-			Console.Warning("%s() Unhandled memcard command %02X, things are about to break!", __FUNCTION__, commandByte);
 			break;
 	}
 }
@@ -668,13 +656,10 @@ void Sio2::Write(u8 data)
 	if (!send3Read)
 	{
 		// No more SEND3 positions to access, but the game is still sending us SIO2 writes. Lets ignore them.
-		if (send3Position > send3.size())
-		{
-			Console.Warning("%s(%02X) Received data after exhausting all SEND3 values!", __FUNCTION__, data);
+		if (send3Position > 16)
 			return;
-		}
 
-		const u32 currentSend3 = send3.at(send3Position);
+		const u32 currentSend3 = send3[send3Position];
 		port = currentSend3 & Send3::PORT;
 		commandLength = (currentSend3 >> 8) & Send3::COMMAND_LENGTH_MASK;
 		send3Read = true;
@@ -730,7 +715,6 @@ void Sio2::Write(u8 data)
 				this->Memcard();
 				break;
 			default:
-				Console.Error("%s(%02X) Unhandled SIO mode %02X", __FUNCTION__, data, sioMode);
 				fifoOut.push_back(0x00);
 				SetRecv1(Recv1::DISCONNECTED);
 				break;
