@@ -122,9 +122,9 @@ static void recSLTIU_(int info)
 
 	xSETB(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_T)
+	if (dreg.Id != EEREC_T)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_T]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
 		_freeX86reg(EEREC_T);
 	}
 }
@@ -149,9 +149,9 @@ static void recSLTI_(int info)
 
 	xSETL(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_T)
+	if (dreg.Id != EEREC_T)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_T]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
 		_freeX86reg(EEREC_T);
 	}
 }

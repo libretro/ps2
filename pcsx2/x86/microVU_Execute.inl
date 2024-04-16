@@ -139,12 +139,12 @@ void mvuGenerateWaitMTVU(mV)
 
 	for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
 	{
-		if (!xRegister32::IsCallerSaved(i) || i == rsp.GetId())
+		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
 			continue;
 
 		// T1 often contains the address we're loading when waiting for VU1.
 		// T2 isn't used until afterwards, so don't bother saving it.
-		if (i == gprT2.GetId())
+		if (i == gprT2.Id)
 			continue;
 
 		xPUSH(xRegister64(i));
@@ -192,10 +192,10 @@ void mvuGenerateWaitMTVU(mV)
 
 	for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
 	{
-		if (!xRegister32::IsCallerSaved(i) || i == rsp.GetId())
+		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
 			continue;
 
-		if (i == gprT2.GetId())
+		if (i == gprT2.Id)
 			continue;
 
 		xPOP(xRegister64(i));

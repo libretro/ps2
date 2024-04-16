@@ -364,7 +364,7 @@ static void recDIV_const()
 
 static void recDIVsuper(int info, bool sign, bool upper, int process)
 {
-	const xRegister32 divisor((info & PROCESS_EE_T) ? EEREC_T : ecx.GetId());
+	const xRegister32 divisor((info & PROCESS_EE_T) ? EEREC_T : ecx.Id);
 	if (!(info & PROCESS_EE_T))
 	{
 		if (process & PROCESS_CONSTT)

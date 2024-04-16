@@ -28,7 +28,7 @@ using namespace x86Emitter;
 
 static int RETURN_READ_IN_RAX()
 {
-	return rax.GetId();
+	return rax.Id;
 }
 
 namespace R5900::Dynarec::OpcodeImpl
@@ -98,7 +98,7 @@ static void recLoadQuad(u32 bits, bool sign)
 		// force 16 byte alignment on 128 bit reads
 		xAND(arg1regd, ~0x0F);
 
-		xmmreg = vtlb_DynGenReadQuad(bits, arg1regd.GetId(), _Rt_ ? alloc_cb : nullptr);
+		xmmreg = vtlb_DynGenReadQuad(bits, arg1regd.Id, _Rt_ ? alloc_cb : nullptr);
 	}
 
 	// if there was a constant, it should have been invalidated.
@@ -130,7 +130,7 @@ static void recLoad(u32 bits, bool sign)
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
-		x86reg = vtlb_DynGenReadNonQuad(bits, sign, false, arg1regd.GetId(), alloc_cb);
+		x86reg = vtlb_DynGenReadNonQuad(bits, sign, false, arg1regd.Id, alloc_cb);
 	}
 
 	// if there was a constant, it should have been invalidated.
@@ -189,7 +189,7 @@ static void recStore(u32 bits)
 			xAND(arg1regd, ~0x0F);
 
 		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
-		vtlb_DynGenWrite(bits, xmm, arg1regd.GetId(), regt);
+		vtlb_DynGenWrite(bits, xmm, arg1regd.Id, regt);
 	}
 }
 
@@ -278,7 +278,7 @@ void recLWL()
 	xSHL(temp, 3);
 
 	xAND(arg1regd, ~3);
-	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	if (!_Rt_)
 	{
@@ -335,7 +335,7 @@ void recLWR()
 	xMOV(temp, arg1regd);
 
 	xAND(arg1regd, ~3);
-	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	if (!_Rt_)
 	{
@@ -413,7 +413,7 @@ void recSWL()
 	xForwardJE8 skip;
 	xSHL(temp, 3);
 
-	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	// mask read -> arg2
 	xMOV(ecx, temp);
@@ -442,7 +442,7 @@ void recSWL()
 	end.SetTarget();
 
 	_freeX86reg(temp);
-	vtlb_DynGenWrite(32, false, arg1regd.GetId(), arg2regd.GetId());
+	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
 #else
 	iFlushCall(FLUSH_INTERPRETER);
 	_deleteEEreg(_Rs_, 1);
@@ -486,7 +486,7 @@ void recSWR()
 	xForwardJE8 skip;
 	xSHL(temp, 3);
 
-	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	// mask read -> edx
 	xMOV(ecx, 24);
@@ -515,7 +515,7 @@ void recSWR()
 	end.SetTarget();
 
 	_freeX86reg(temp);
-	vtlb_DynGenWrite(32, false, arg1regd.GetId(), arg2regd.GetId());
+	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
 #else
 	iFlushCall(FLUSH_INTERPRETER);
 	_deleteEEreg(_Rs_, 1);
@@ -595,7 +595,7 @@ void recLDL()
 		xMOV(temp1, arg1regd);
 		xAND(arg1regd, ~0x07);
 
-		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 	}
 
 	const xRegister64 treg(_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE));
@@ -680,7 +680,7 @@ void recLDR()
 		xMOV(temp1, arg1regd);
 		xAND(arg1regd, ~0x07);
 
-		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 	}
 
 	const xRegister64 treg(_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE));
@@ -775,7 +775,7 @@ void recSDL()
 			_eeMoveGPRtoR(arg2reg, _Rt_);
 			sdlrhelper_const(shift, xSHL, 64 - shift, xSHR, rax, arg2reg);
 		}
-		vtlb_DynGenWrite_Const(64, false, aligned, arg2regd.GetId());
+		vtlb_DynGenWrite_Const(64, false, aligned, arg2regd.Id);
 	}
 	else
 	{
@@ -808,7 +808,7 @@ void recSDL()
 
 		xForwardJE8 skip;
 		xADD(temp1, 1);
-		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 		//Calculate the shift from top bit to lowest
 		xMOV(edx, 64);
@@ -823,9 +823,9 @@ void recSDL()
 		xAND(arg1regd, ~0x7);
 		skip.SetTarget();
 
-		vtlb_DynGenWrite(64, false, arg1regd.GetId(), temp2.GetId());
-		_freeX86reg(temp2.GetId());
-		_freeX86reg(temp1.GetId());
+		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2.Id);
+		_freeX86reg(temp2.Id);
+		_freeX86reg(temp1.Id);
 	}
 #else
 	iFlushCall(FLUSH_INTERPRETER);
@@ -862,7 +862,7 @@ void recSDR()
 			sdlrhelper_const(64 - shift, xSHR, shift, xSHL, rax, arg2reg);
 		}
 
-		vtlb_DynGenWrite_Const(64, false, aligned, arg2reg.GetId());
+		vtlb_DynGenWrite_Const(64, false, aligned, arg2reg.Id);
 	}
 	else
 	{
@@ -892,7 +892,7 @@ void recSDR()
 			iFlushCall(FLUSH_FULLVTLB);
 
 		xForwardJE8 skip;
-		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.GetId(), RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 		xMOV(edx, 64);
 		xSHL(temp1, 3);
@@ -907,9 +907,9 @@ void recSDR()
 		xMOV(arg2reg, temp2);
 		skip.SetTarget();
 
-		vtlb_DynGenWrite(64, false, arg1regd.GetId(), temp2.GetId());
-		_freeX86reg(temp2.GetId());
-		_freeX86reg(temp1.GetId());
+		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2.Id);
+		_freeX86reg(temp2.Id);
+		_freeX86reg(temp1.Id);
 	}
 #else
 	iFlushCall(FLUSH_INTERPRETER);
@@ -946,7 +946,7 @@ void recLWC1()
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
-		vtlb_DynGenReadNonQuad(32, false, true, arg1regd.GetId(), alloc_cb);
+		vtlb_DynGenReadNonQuad(32, false, true, arg1regd.Id, alloc_cb);
 	}
 #endif
 }
@@ -971,7 +971,7 @@ void recSWC1()
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
-		vtlb_DynGenWrite(32, true, arg1regd.GetId(), regt);
+		vtlb_DynGenWrite(32, true, arg1regd.Id, regt);
 	}
 #endif
 }

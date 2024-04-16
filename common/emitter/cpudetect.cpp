@@ -136,24 +136,6 @@ s64 x86capabilities::_CPUSpeedHz(u64 time) const
 	return (s64)newCycleCount;
 }
 
-const char* x86capabilities::GetTypeName() const
-{
-	switch (TypeID)
-	{
-		case 0:
-			return "Standard OEM";
-		case 1:
-			return "Overdrive";
-		case 2:
-			return "Dual";
-		case 3:
-			return "Reserved";
-		default:
-			break;
-	}
-	return "Unknown";
-}
-
 void x86capabilities::CountCores()
 {
 	Identify();
@@ -299,18 +281,4 @@ u32 x86capabilities::CalculateMHz() const
 	if ((span % 1000) < 400) // helps minimize rounding errors
 		return (u32)(_CPUSpeedHz(span / 1000) / 1000);
 	return (u32)(_CPUSpeedHz(span / 500) / 2000);
-}
-
-u32 x86capabilities::CachedMHz()
-{
-	static std::atomic<u32> cached{0};
-	u32 local = cached.load(std::memory_order_relaxed);
-	if (unlikely(local == 0))
-	{
-		x86capabilities caps;
-		caps.Identify();
-		local = caps.CalculateMHz();
-		cached.store(local, std::memory_order_relaxed);
-	}
-	return local;
 }

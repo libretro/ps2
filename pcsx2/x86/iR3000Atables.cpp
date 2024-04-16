@@ -187,9 +187,9 @@ static void rpsxSLTI_(int info)
 
 	xSETL(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_T)
+	if (dreg.Id != EEREC_T)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_T]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
 		_freeX86reg(EEREC_T);
 	}
 }
@@ -214,9 +214,9 @@ static void rpsxSLTIU_(int info)
 
 	xSETB(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_T)
+	if (dreg.Id != EEREC_T)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_T]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
 		_freeX86reg(EEREC_T);
 	}
 }
@@ -373,7 +373,7 @@ static void rpsxSUBU_consts(int info)
 {
 	// more complex because Rt can be Rd, and we're reversing the op
 	const s32 sval = g_psxConstRegs[_Rs_];
-	const xRegister32 dreg((_Rt_ == _Rd_) ? eax.GetId() : EEREC_D);
+	const xRegister32 dreg((_Rt_ == _Rd_) ? eax.Id : EEREC_D);
 	xMOV(dreg, sval);
 
 	if (info & PROCESS_EE_T)
@@ -411,7 +411,7 @@ static void rpsxSUBU_(int info)
 		else if (EEREC_D == EEREC_T)
 		{
 			// D might equal T
-			const xRegister32 dreg((_Rt_ == _Rd_) ? eax.GetId() : EEREC_D);
+			const xRegister32 dreg((_Rt_ == _Rd_) ? eax.Id : EEREC_D);
 			xMOV(dreg, xRegister32(EEREC_S));
 			xSUB(dreg, xRegister32(EEREC_T));
 			xMOV(xRegister32(EEREC_D), dreg);
@@ -430,7 +430,7 @@ static void rpsxSUBU_(int info)
 	else if (info & PROCESS_EE_T)
 	{
 		// D might equal T
-		const xRegister32 dreg((_Rt_ == _Rd_) ? eax.GetId() : EEREC_D);
+		const xRegister32 dreg((_Rt_ == _Rd_) ? eax.Id : EEREC_D);
 		xMOV(dreg, ptr32[&psxRegs.GPR.r[_Rs_]]);
 		xSUB(dreg, xRegister32(EEREC_T));
 		xMOV(xRegister32(EEREC_D), dreg);
@@ -659,9 +659,9 @@ static void rpsxSLTs_const(int info, int sign, int st)
 		xCMP(ptr32[&psxRegs.GPR.r[st ? _Rs_ : _Rt_]], cval);
 	SET(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_D)
+	if (dreg.Id != EEREC_D)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_D]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_D]);
 		_freeX86reg(EEREC_D);
 	}
 }
@@ -684,9 +684,9 @@ static void rpsxSLTs_(int info, int sign)
 
 	SET(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_D)
+	if (dreg.Id != EEREC_D)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_D]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_D]);
 		_freeX86reg(EEREC_D);
 	}
 }
@@ -1127,7 +1127,7 @@ static void rpsxLoad(int size, bool sign)
 	done.SetTarget();
 
 	const int rt = rpsxAllocRegIfUsed(_Rt_, MODE_WRITE);
-	const xRegister32 dreg((rt < 0) ? eax.GetId() : rt);
+	const xRegister32 dreg((rt < 0) ? eax.Id : rt);
 
 	// sign/zero extend as needed
 	switch (size)

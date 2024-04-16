@@ -45,8 +45,6 @@ namespace x86Emitter
 	extern void xWrite32(u32 val);
 	extern void xWrite64(u64 val);
 
-	extern const char* xGetRegName(int regid, int operandSize);
-
 	//------------------------------------------------------------------
 	// templated version of is_s8 is required, so that u16's get correct sign extension treatment.
 	template <typename T>
@@ -285,11 +283,6 @@ namespace x86Emitter
 		}
 		// return true if the register is a valid YMM register
 		bool IsWideSIMD() const { return GetOperandSize() == 32; }
-
-		// Diagnostics -- returns a string representation of this register.  Return string
-		// is a valid non-null string for any Id, valid or invalid.  No assertions are generated.
-		const char* GetName();
-		int GetId() const { return Id; }
 
 		/// Returns true if the specified register is caller-saved (volatile).
 		static inline bool IsCallerSaved(uint id);

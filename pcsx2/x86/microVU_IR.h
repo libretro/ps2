@@ -352,9 +352,9 @@ public:
 			gprMap[i].isZeroExtended = false;
 			gprMap[i].usable         = false;
 
-			if (i == gprT1.GetId() || i == gprT2.GetId() ||
-				i == gprF0.GetId() || i == gprF1.GetId() || i == gprF2.GetId() || i == gprF3.GetId() ||
-				i == rsp.GetId())
+			if (i == gprT1.Id || i == gprT2.Id ||
+				i == gprF0.Id || i == gprF1.Id || i == gprF2.Id || i == gprF3.Id ||
+				i == rsp.Id)
 				continue;
 
 			gprMap[i].usable = true;
@@ -412,7 +412,7 @@ public:
 			}
 		}
 
-		gprMap[RFASTMEMBASE.GetId()].usable = !cop2mode || !CHECK_FASTMEM;
+		gprMap[RFASTMEMBASE.Id].usable = !cop2mode || !CHECK_FASTMEM;
 	}
 
 	int getXmmCount()
@@ -844,7 +844,7 @@ public:
 		return xmmX;
 	}
 
-	void clearGPR(const xRegisterInt& reg) { clearGPR(reg.GetId()); }
+	void clearGPR(const xRegisterInt& reg) { clearGPR(reg.Id); }
 
 	void clearGPR(int regId)
 	{
@@ -874,7 +874,7 @@ public:
 		if (!regAllocCOP2)
 			return;
 
-		const u32 rn = reg.GetId();
+		const u32 rn     = reg.Id;
 		const bool dirty = (gprMap[rn].VIreg >= 0 && gprMap[rn].dirty);
 		x86regs[rn].reg = gprMap[rn].VIreg;
 		x86regs[rn].counter = gprMap[rn].count;
@@ -884,7 +884,7 @@ public:
 
 	void writeBackReg(const xRegisterInt& reg, bool clearDirty)
 	{
-		microMapGPR& mapX = gprMap[reg.GetId()];
+		microMapGPR& mapX = gprMap[reg.Id];
 		if (mapX.dirty)
 		{
 			if (mapX.VIreg < 16)
@@ -899,10 +899,10 @@ public:
 
 	void clearNeeded(const xRegisterInt& reg)
 	{
-		microMapGPR& clear = gprMap[reg.GetId()];
+		microMapGPR& clear = gprMap[reg.Id];
 		clear.isNeeded = false;
 		if (regAllocCOP2)
-			x86regs[reg.GetId()].needed = false;
+			x86regs[reg.Id].needed = false;
 	}
 
 	void unbindAnyVIAllocations(int reg, bool& backup)

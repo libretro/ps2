@@ -124,7 +124,7 @@ void mVUFreeCOP2GPR(int hostreg)
 bool mVUIsReservedCOP2(int hostreg)
 {
 	// gprF1 through 3 is not correctly used in COP2 mode.
-	return (hostreg == gprT1.GetId() || hostreg == gprT2.GetId() || hostreg == gprF0.GetId());
+	return (hostreg == gprT1.Id || hostreg == gprT2.Id || hostreg == gprF0.Id);
 }
 
 #define REC_COP2_mVU0(f, opName, mode) \
@@ -705,7 +705,7 @@ static void recQMTC2()
 		
 		// NOTE: can't transfer xmm15 to VF, it's reserved for PQ.
 		int vfreg = _checkXMMreg(XMMTYPE_VFREG, _Rd_, MODE_WRITE);
-		if (can_rename && rtreg >= 0 && rtreg != xmmPQ.GetId())
+		if (can_rename && rtreg >= 0 && rtreg != xmmPQ.Id)
 		{
 			// rt is no longer needed, so transfer to VF.
 			if (vfreg >= 0)
@@ -824,7 +824,7 @@ void recLQC2()
 			xADD(arg1regd, _Imm_);
 		xAND(arg1regd, ~0xF);
 
-		xmmreg = vtlb_DynGenReadQuad(128, arg1regd.GetId(), alloc_cb);
+		xmmreg = vtlb_DynGenReadQuad(128, arg1regd.Id, alloc_cb);
 	}
 
 	// toss away if loading to vf00
@@ -858,7 +858,7 @@ void recSQC2()
 			xADD(arg1regd, _Imm_);
 		xAND(arg1regd, ~0xF);
 
-		vtlb_DynGenWrite(128, true, arg1regd.GetId(), ftreg);
+		vtlb_DynGenWrite(128, true, arg1regd.Id, ftreg);
 	}
 
 	if (!_Rt_)

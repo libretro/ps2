@@ -426,7 +426,7 @@ void _clearNeededX86regs()
 
 void _freeX86reg(const x86Emitter::xRegister32& x86reg)
 {
-	_freeX86reg(x86reg.GetId());
+	_freeX86reg(x86reg.Id);
 }
 
 void _freeX86reg(int x86reg)

@@ -323,7 +323,7 @@ static void recDSUB_consts(int info)
 {
 	// gross, because if d == t, we can't destroy t
 	const s64 sval = g_cpuConstRegs[_Rs_].SD[0];
-	const xRegister64 regd((info & PROCESS_EE_T && EEREC_D == EEREC_T) ? rax.GetId() : EEREC_D);
+	const xRegister64 regd((info & PROCESS_EE_T && EEREC_D == EEREC_T) ? rax.Id : EEREC_D);
 	xMOV64(regd, sval);
 
 	if (info & PROCESS_EE_T)
@@ -355,7 +355,7 @@ static void recDSUB_(int info)
 	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
 	{
 		// D might equal T
-		const xRegister64 regd(EEREC_D == EEREC_T ? rax.GetId() : EEREC_D);
+		const xRegister64 regd(EEREC_D == EEREC_T ? rax.Id : EEREC_D);
 		xMOV(regd, xRegister64(EEREC_S));
 		xSUB(regd, xRegister64(EEREC_T));
 		xMOV(xRegister64(EEREC_D), regd);
@@ -368,7 +368,7 @@ static void recDSUB_(int info)
 	else if (info & PROCESS_EE_T)
 	{
 		// D might equal T
-		const xRegister64 regd(EEREC_D == EEREC_T ? rax.GetId() : EEREC_D);
+		const xRegister64 regd(EEREC_D == EEREC_T ? rax.Id : EEREC_D);
 		xMOV(regd, ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
 		xSUB(regd, xRegister64(EEREC_T));
 		xMOV(xRegister64(EEREC_D), regd);
@@ -605,9 +605,9 @@ static void recSLTs_const(int info, int sign, int st)
 		xImm64Op(xCMP, ptr64[&cpuRegs.GPR.r[st ? _Rs_ : _Rt_].UD[0]], rcx, cval);
 	SET(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_D)
+	if (dreg.Id != EEREC_D)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_D]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_D]);
 		_freeX86reg(EEREC_D);
 	}
 }
@@ -630,9 +630,9 @@ static void recSLTs_(int info, int sign)
 
 	SET(xRegister8(dreg));
 
-	if (dreg.GetId() != EEREC_D)
+	if (dreg.Id != EEREC_D)
 	{
-		std::swap(x86regs[dreg.GetId()], x86regs[EEREC_D]);
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_D]);
 		_freeX86reg(EEREC_D);
 	}
 }

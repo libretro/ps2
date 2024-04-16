@@ -115,7 +115,7 @@ namespace vtlb_private
 		{
 			if (sz == 128)
 			{
-				_freeXMMreg(xRegisterSSE::GetArgRegister(1, 0).GetId());
+				_freeXMMreg(xRegisterSSE::GetArgRegister(1, 0).Id);
 				xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg));
 			}
 			else if (xmm)
@@ -371,7 +371,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 
 		if (!xmm)
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.GetId());
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
 			xMOV(xRegister64(x86_dest_reg), rax);
 		}
 		else
@@ -389,7 +389,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 	const xAddressReg x86addr(addr_reg);
 	if (!xmm)
 	{
-		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.GetId());
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
 		codeStart = x86Ptr;
 		const xRegister64 x86reg(x86_dest_reg);
 		switch (bits)
@@ -447,7 +447,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 		auto ppf = vmv.assumePtr(addr_const);
 		if (!xmm)
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.GetId());
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
 			switch (bits)
 			{
 			case 8:
@@ -490,7 +490,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
 		if ((bits == 32) && !EmuConfig.Speedhacks.IntcStat && (paddr == INTC_STAT))
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.GetId());
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
 			if (!xmm)
 			{
 				if (sign)
@@ -510,7 +510,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 
 			if (!xmm)
 			{
-				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.GetId());
+				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
 				switch (bits)
 				{
 					// save REX prefix by using 32bit dest for zext
@@ -548,7 +548,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 	{
 		iFlushCall(FLUSH_FULLVTLB);
 
-		DynGen_PrepRegs(arg1regd.GetId(), -1, bits, true);
+		DynGen_PrepRegs(arg1regd.Id, -1, bits, true);
 		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); },  0, bits);
 
 		const int reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); // Handler returns in xmm0
@@ -569,7 +569,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 
 	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
-		static_cast<u8>(arg1reg.GetId()), static_cast<u8>(reg),
+		static_cast<u8>(arg1reg.Id), static_cast<u8>(reg),
 		static_cast<u8>(bits), false, true, true);
 
 	return reg;
@@ -750,7 +750,7 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 		if (bits == 128)
 		{
 			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
-			_freeXMMreg(argreg.GetId());
+			_freeXMMreg(argreg.Id);
 			xMOVAPS(argreg, xRegisterSSE(value_reg));
 		}
 		else if (xmm)
@@ -804,10 +804,10 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	u32 num_gprs = 0;
 	u32 num_fprs = 0;
 
-	const u32 rbxid = static_cast<u32>(rbx.GetId());
-	const u32 arg1id = static_cast<u32>(arg1reg.GetId());
-	const u32 arg2id = static_cast<u32>(arg2reg.GetId());
-	const u32 arg3id = static_cast<u32>(arg3reg.GetId());
+	const u32 rbxid = static_cast<u32>(rbx.Id);
+	const u32 arg1id = static_cast<u32>(arg1reg.Id);
+	const u32 arg2id = static_cast<u32>(arg2reg.Id);
+	const u32 arg3id = static_cast<u32>(arg3reg.Id);
 
 	for (u32 i = 0; i < iREGCNT_GPR; i++)
 	{
@@ -853,7 +853,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 		if (size_in_bits == 128)
 		{
-			if (data_register != xmm0.GetId())
+			if (data_register != xmm0.Id)
 				xMOVAPS(xRegisterSSE(data_register), xmm0);
 		}
 		else
@@ -864,20 +864,20 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 			}
 			else
 			{
-				if (data_register != eax.GetId())
+				if (data_register != eax.Id)
 					xMOV(xRegister64(data_register), rax);
 			}
 		}
 	}
 	else
 	{
-		if (address_register != arg1reg.GetId())
+		if (address_register != arg1reg.Id)
 			xMOV(arg1regd, xRegister32(address_register));
 
 		if (size_in_bits == 128)
 		{
 			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
-			if (data_register != argreg.GetId())
+			if (data_register != argreg.Id)
 				xMOVAPS(argreg, xRegisterSSE(data_register));
 		}
 		else
@@ -888,7 +888,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 			}
 			else
 			{
-				if (data_register != arg2reg.GetId())
+				if (data_register != arg2reg.Id)
 					xMOV(arg2reg, xRegister64(data_register));
 			}
 		}

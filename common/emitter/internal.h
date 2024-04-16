@@ -132,7 +132,7 @@ namespace x86Emitter
 		else
 			L = reg.IsWideSIMD() ? 4 : 0;
 
-		u8 nv = (param2.IsEmpty() ? 0xF : ((~param2.GetId() & 0xF))) << 3;
+		u8 nv = (param2.IsEmpty() ? 0xF : ((~param2.Id & 0xF))) << 3;
 
 		u8 p =
 			prefix == 0xF2 ? 3 :
@@ -159,7 +159,7 @@ namespace x86Emitter
 		u8 W = (w == -1) ? (reg.GetOperandSize() == 8 ? 0x80 : 0) : // autodetect the size
                            0x80 * w; // take directly the W value
 
-		u8 nv = (~param2.GetId() & 0xF) << 3;
+		u8 nv = (~param2.Id & 0xF) << 3;
 
 		u8 p =
 			prefix == 0xF2 ? 3 :
