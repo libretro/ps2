@@ -48,7 +48,8 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 		m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, (void*)base, reserved_bytes, PageAccess_ReadWrite()));
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
-			SafeSysMunmap(m_baseptr, reserved_bytes);
+			HostSys::Munmap(m_baseptr, reserved_bytes);
+			m_baseptr = 0;
 
 			if (base)
 			{
@@ -64,7 +65,8 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
-			SafeSysMunmap(m_baseptr, reserved_bytes);
+			HostSys::Munmap(m_baseptr, reserved_bytes);
+			m_baseptr = 0;
 
 			if (base)
 			{
@@ -93,7 +95,8 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 		}
 		else
 		{
-			SafeSysMunmap(m_baseptr, reserved_bytes);
+			HostSys::Munmap(m_baseptr, reserved_bytes);
+			m_baseptr = 0;
 		}
 	}
 

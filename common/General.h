@@ -197,11 +197,6 @@ private:
 #endif
 };
 
-
-// Safe version of Munmap -- NULLs the pointer variable immediately after free'ing it.
-#define SafeSysMunmap(ptr, size) \
-	((void)(HostSys::Munmap(ptr, size), (ptr) = 0))
-
 extern void InitCPUTicks();
 extern u64 GetTickFrequency();
 extern u64 GetCPUTicks();
