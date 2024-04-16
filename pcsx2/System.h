@@ -129,10 +129,6 @@ public:
 	void ApplyConfig() const;
 };
 
-// GetCpuProviders - this function is not implemented by PCSX2 core -- it must be
-// implemented by the provisioning interface.
-extern SysCpuProviderPack& GetCpuProviders();
-
 extern void SysClearExecutionCache();	// clears recompiled execution caches!
 
 extern std::string SysGetBiosDiscID();

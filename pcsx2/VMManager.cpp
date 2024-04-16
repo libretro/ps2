@@ -192,11 +192,6 @@ SysMainMemory& GetVmMemory()
 	return *s_vm_memory;
 }
 
-SysCpuProviderPack& GetCpuProviders()
-{
-	return *s_cpu_provider_pack;
-}
-
 void VMManager::LoadSettings()
 {
 	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
