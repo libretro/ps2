@@ -496,15 +496,13 @@ static __fi bool mfifoGIFrbTransfer(void)
 
 	if (needWrap && transferred == MFIFOUntilEnd)
 	{
-		// Need to do second transfer to wrap around
-		u32 transferred2;
-		uint secondTransQWC = qwc - MFIFOUntilEnd;
-
 		src = (u8*)PSM(dmacRegs.rbor.ADDR);
 		if (src == NULL)
 			return false;
 
-		transferred2 = WRITERING_DMA((u32*)src, secondTransQWC); // Second part
+		// Need to do second transfer to wrap around
+		const uint secondTransQWC = qwc - MFIFOUntilEnd;
+		const u32 transferred2 = WRITERING_DMA((u32*)src, secondTransQWC); // Second part
 
 		gif.mfifocycles += (transferred2 + transferred) * 2;
 	}
