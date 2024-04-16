@@ -25,7 +25,6 @@ layout(push_constant) uniform cb10
 	vec2 u_rcp_target_resolution; // 1 / u_target_resolution
 	vec2 u_source_resolution;
 	vec2 u_rcp_source_resolution; // 1 / u_source_resolution
-	vec3 cb0_pad0;
 };
 
 layout(location = 0) in vec2 v_tex;
