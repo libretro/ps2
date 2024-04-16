@@ -15,7 +15,6 @@
 
 #include "PrecompiledHeader.h"
 #include "Global.h"
-#include <array>
 
 __forceinline s32 V_Core::RevbGetIndexer(s32 offset)
 {
@@ -51,7 +50,7 @@ void V_Core::Reverb_AdvanceBuffer()
 
 #define NUM_TAPS 39
 // 39 tap filter, the 0's could be optimized out
-static constexpr std::array<s32, NUM_TAPS> filter_coefs = {
+static s32 filter_coefs[NUM_TAPS] = {
 	-1,
 	0,
 	2,
@@ -99,9 +98,7 @@ s32 __forceinline V_Core::ReverbDownsample(bool right)
 
 	// Skipping the 0 coefs.
 	for (u32 i = 0; i < NUM_TAPS; i += 2)
-	{
 		out += RevbDownBuf[right][((RevbSampleBufPos - NUM_TAPS) + i) & 63] * filter_coefs[i];
-	}
 
 	// We also skipped the middle so add that in.
 	out += RevbDownBuf[right][((RevbSampleBufPos - NUM_TAPS) + 19) & 63] * filter_coefs[19];

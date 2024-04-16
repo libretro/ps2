@@ -27,7 +27,7 @@
 static constexpr const VkComponentMapping s_identity_swizzle{VK_COMPONENT_SWIZZLE_IDENTITY,
 	VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
 
-static constexpr std::array<VkImageLayout, static_cast<u32>(GSTextureVK::Layout::Count)> s_vk_layout_mapping = {{
+static VkImageLayout s_vk_layout_mapping[static_cast<u32>(GSTextureVK::Layout::Count)] = {
 	VK_IMAGE_LAYOUT_UNDEFINED, // Undefined
 	VK_IMAGE_LAYOUT_PREINITIALIZED, // Preinitialized
 	VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, // ColorAttachment
@@ -42,7 +42,7 @@ static constexpr std::array<VkImageLayout, static_cast<u32>(GSTextureVK::Layout:
 	VK_IMAGE_LAYOUT_GENERAL, // ReadWriteImage
 	VK_IMAGE_LAYOUT_GENERAL, // ComputeReadWriteImage
 	VK_IMAGE_LAYOUT_GENERAL, // General
-}};
+};
 
 GSTextureVK::GSTextureVK(Type type, Format format, int width, int height, int levels, VkImage image,
 	VmaAllocation allocation, VkImageView view, VkFormat vk_format)
