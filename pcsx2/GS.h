@@ -380,9 +380,6 @@ public:
 	void PostVsyncStart(bool registers_written);
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
-	void StepFrame();
-	void Flush();
-	void SignalVsync();
 	void MainLoop(bool flush_all = false);
 
 	void RunOnGSThread(AsyncCallType func);
@@ -395,8 +392,6 @@ public:
 	void CloseGS();
 
 protected:
-	void MainLoop();
-
 	void GenericStall(uint size);
 
 	// Used internally by SendSimplePacket type functions

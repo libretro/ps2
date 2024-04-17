@@ -364,22 +364,6 @@ void SysMtgsThread::MainLoop(bool flush_all)
 	m_sem_event.Kill();
 }
 
-void SysMtgsThread::StepFrame()
-{
-	MainLoop(false);
-}
-
-void SysMtgsThread::Flush()
-{
-	MainLoop(true);
-}
-
-void SysMtgsThread::SignalVsync()
-{
-	if (m_VsyncSignalListener.exchange(false))
-		m_sem_Vsync.Post();
-}
-
 void SysMtgsThread::CloseGS()
 {
 	if( m_SignalRingEnable.exchange(false) )
@@ -403,7 +387,7 @@ void SysMtgsThread::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
 {
 	if(std::this_thread::get_id() == m_thread)
 	{
-		GetMTGS().Flush();
+		MainLoop(true);
 		return;
 	}
 	if (!IsOpen())
