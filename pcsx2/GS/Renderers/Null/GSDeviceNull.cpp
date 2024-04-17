@@ -31,19 +31,6 @@ GSTextureNull::~GSTextureNull()
 }
 bool GSTextureNull::Update(const GSVector4i& r, const void* data, int pitch, int layer)
 {
-    u32* src = (u32*) data;
-//    int field = ((GSDeviceNull*)g_gs_device.get())->m_field;
-    int field = (((u32&)RingBuffer.Regs[0x1000]) & 0x2000) ? 0 : 1;
-
-    for(int j = field; j < 448; j+=2)
-        for(int i = 0; i < 640; i++)
-        {
-            u32 col = src[i + (j >> 1) * (pitch >> 2)];
-            buffer[i + j * 640] = (col & 0xFF00FF00) | (col & 0x00FF0000) >> 16  | (col & 0x000000FF) << 16;
-        }
-
-    video_cb(buffer, 640, 448, 640 * 4);
-
     return true;
 }
 bool GSTextureNull::Map(GSMap& m, const GSVector4i* r, int layer)
