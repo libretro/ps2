@@ -639,8 +639,12 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
+	// synchronize regs before loading
+	if (mode == FreezeAction::Load)
+		WaitGS(true);
+
 	SendPointerPacket(GS_RINGTYPE_FREEZE, (int)mode, &data);
-	WaitGS();
+	WaitGS(false);
 }
 
 void MTGS::RunOnGSThread(AsyncCallType func)
