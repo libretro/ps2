@@ -2776,26 +2776,6 @@ void GSTextureCache::InvalidateVideoMemSubTarget(GSTextureCache::Target* rt)
 	}
 }
 
-void GSTextureCache::InvalidateVideoMemTargets(int type, u32 bp, u32 bw, u32 psm, const GSVector4i& r)
-{
-	auto& list = m_dst[type];
-
-	for (auto i = list.begin(); i != list.end();)
-	{
-		GSTextureCache::Target* t = *i;
-		auto ei = i++;
-
-		if (t->m_TEX0.TBP0 != bp && t->Overlaps(bp, bw, psm, r))
-		{
-			// Need to also remove any sources which reference this target.
-			InvalidateSourcesFromTarget(t);
-
-			list.erase(ei);
-			delete t;
-		}
-	}
-}
-
 void GSTextureCache::InvalidateSourcesFromTarget(const Target* t)
 {
 	for (auto it = m_src.m_surfaces.begin(); it != m_src.m_surfaces.end();)
