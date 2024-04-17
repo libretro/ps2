@@ -28980,6 +28980,8 @@ SLPM-65010:
   compat: 5
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
+  gameFixes:
+    - SoftwareRendererFMVHack # Fixes FMVs.
 SLPM-65011:
   name: "GUITAR FREAKS 3rd MIX & drummania 2nd MIX"
   region: "NTSC-J"
