@@ -513,6 +513,8 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	if (!IsBIOSAvailable(EmuConfig.FullpathToBios()))
 		return false;
 
+	FileMcd_EmuOpen();
+
 	if (!DoCDVDopen())
 		return false;
 	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
@@ -543,7 +545,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	FWopen();
 	ScopedGuard close_fw = []() { FWclose(); };
 
-	FileMcd_EmuOpen();
 
 	// Don't close when we return
 	close_fw.Cancel();
