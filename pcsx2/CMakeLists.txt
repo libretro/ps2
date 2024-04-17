@@ -841,9 +841,6 @@ set(pcsx2USBSources)
 set(pcsx2USBHeaders)
 set(pcsx2ZipToolsSources)
 set(pcsx2ZipToolsHeaders)
-LIST(APPEND pcsx2GSSources
-	GS/Renderers/Null/GSDeviceNull.cpp
-	)
 
 # These ones benefit a lot from LTO
 set(pcsx2LTOSources

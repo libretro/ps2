@@ -46,8 +46,6 @@
 #include "GS/Renderers/DX11/D3D.h"
 #endif
 
-#include "Renderers/Null/GSDeviceNull.h"
-
 Pcsx2Config::GSOptions GSConfig;
 
 void GSinit(void)
@@ -104,20 +102,22 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 			break;
 #endif
 		case RenderAPI::None:
-			g_gs_device = std::make_unique<GSDeviceNull>();
 			break;
 		default:
 			return false;
 	}
 
-	bool okay = g_gs_device->Create();
-
-	if (!okay)
+	if (g_gs_device)
 	{
-		g_gs_device->Destroy();
-		g_gs_device.reset();
-		Host::ReleaseRenderWindow();
-		return false;
+		bool okay = g_gs_device->Create();
+
+		if (!okay)
+		{
+			g_gs_device->Destroy();
+			g_gs_device.reset();
+			Host::ReleaseRenderWindow();
+			return false;
+		}
 	}
 
 	return true;
