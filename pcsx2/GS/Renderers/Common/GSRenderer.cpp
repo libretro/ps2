@@ -406,28 +406,6 @@ end:
 	PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 }
 
-void GSRenderer::PresentCurrentFrame()
-{
-	g_gs_device->ResetAPIState();
-	if (BeginPresentFrame(false))
-	{
-		GSTexture* current = g_gs_device->GetCurrent();
-		if (current)
-		{
-			const GSVector4i src_rect(CalculateDrawSrcRect(current));
-			const GSVector4 src_uv(GSVector4(src_rect) / GSVector4(current->GetSize()).xyxy());
-			const GSVector4 draw_rect(CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
-				src_rect, current->GetSize(), GSDisplayAlignment::Center, g_gs_device->UsesLowerLeftOrigin(),
-				GetVideoMode() == GSVideoMode::SDTV_480P));
-
-			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
-		}
-
-		EndPresentFrame();
-	}
-	g_gs_device->RestoreAPIState();
-}
-
 GSTexture* GSRenderer::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVector2i& offset, float* scale, const GSVector2i& size)
 {
 	return nullptr;

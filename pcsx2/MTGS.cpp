@@ -27,7 +27,45 @@
 #include "Host.h"
 #include "VMManager.h"
 
-using namespace Threading;
+union PacketTagType
+{
+	struct
+	{
+		u32 command;
+		u32 data[3];
+	};
+	struct
+	{
+		u32 _command;
+		u32 _data[1];
+		uptr pointer;
+	};
+};
+
+struct RingCmdPacket_Vsync
+{
+	u8 regset1[0x0f0];
+	u32 csr;
+	u32 imr;
+	GSRegSIGBLID siglblid;
+
+	// must be 16 byte aligned
+	u32 registers_written;
+	u32 pad[3];
+};
+
+struct MTGS_BufferedData
+{
+	u128 m_Ring[RingBufferSize];
+	u8 Regs[Ps2MemSize::GSregs];
+
+	MTGS_BufferedData() {}
+
+	u128& operator[](uint idx)
+	{
+		return m_Ring[idx];
+	}
+};
 
 // =====================================================================================================
 //  MTGS Threaded Class Implementation
@@ -68,18 +106,6 @@ void SysMtgsThread::ResetGS(bool hardware_reset)
 	SendSimplePacket(GS_RINGTYPE_RESET, static_cast<int>(hardware_reset), 0, 0);
 	SetEvent();
 }
-
-struct RingCmdPacket_Vsync
-{
-	u8 regset1[0x0f0];
-	u32 csr;
-	u32 imr;
-	GSRegSIGBLID siglblid;
-
-	// must be 16 byte aligned
-	u32 registers_written;
-	u32 pad[3];
-};
 
 void SysMtgsThread::PostVsyncStart(bool registers_written)
 {
@@ -140,21 +166,6 @@ void SysMtgsThread::InitAndReadFIFO(u8* mem, u32 qwc)
 	WaitGS(false, false, false);
 }
 
-union PacketTagType
-{
-	struct
-	{
-		u32 command;
-		u32 data[3];
-	};
-	struct
-	{
-		u32 _command;
-		u32 _data[1];
-		uptr pointer;
-	};
-};
-
 bool SysMtgsThread::TryOpenGS()
 {
 	if(IsOpen())
@@ -187,12 +198,6 @@ void SysMtgsThread::MainLoop(bool flush_all)
 		{
 			if(!m_sem_event.CheckForWork())
 				return;
-		}
-		else
-		if (m_run_idle_flag.load(std::memory_order_acquire) && VMManager::GetState() != VMState::Running)
-		{
-			if (!m_sem_event.CheckForWork())
-				GSPresentCurrentFrame();
 		}
 		else
 		{
@@ -299,11 +304,8 @@ void SysMtgsThread::MainLoop(bool flush_all)
 							break;
 
 						case GS_RINGTYPE_SOFTRESET:
-						{
-							int mask = tag.data[0];
-							GSgifSoftReset(mask);
-						}
-						break;
+							GSgifSoftReset(tag.data[0]);
+							break;
 
 						case GS_RINGTYPE_CRC:
 							GSSetGameCRC(tag.data[0]);
@@ -428,13 +430,9 @@ void SysMtgsThread::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
 			Console.Error("MTGS Thread Died");
 	}
 
-	assert(!(weakWait && syncRegs) && "No synchronization for this!");
-
+	// Completely synchronize GS and MTGS register states.
 	if (syncRegs)
-	{
-		// Completely synchronize GS and MTGS register states.
 		memcpy(RingBuffer.Regs, PS2MEM_GS, sizeof(RingBuffer.Regs));
-	}
 }
 
 // Sets the gsEvent flag and releases a timeslice.
@@ -535,7 +533,7 @@ void SysMtgsThread::GenericStall(uint size)
 			SetEvent();
 			for (;;)
 			{
-				SpinWait();
+				Threading::SpinWait();
 				readpos = m_ReadPos.load(std::memory_order_acquire);
 
 				if (writepos < readpos)
@@ -695,15 +693,4 @@ void SysMtgsThread::ToggleSoftwareRendering()
 {
 	// reading from the GS thread.. but should be okay here
 	SetSoftwareRendering(GSConfig.Renderer != GSRendererType::SW);
-}
-
-void SysMtgsThread::PresentCurrentFrame()
-{
-	// If we're running idle, we're going to re-present anyway.
-	if (m_run_idle_flag.load(std::memory_order_relaxed))
-		return;
-
-	RunOnGSThread([]() {
-		GSPresentCurrentFrame();
-	});
 }

@@ -341,11 +341,6 @@ int GSfreeze(FreezeAction mode, freezeData* data)
 	return 0;
 }
 
-void GSPresentCurrentFrame(void)
-{
-	g_gs_renderer->PresentCurrentFrame();
-}
-
 void GSSetGameCRC(u32 crc)
 {
 	g_gs_renderer->SetGameCRC(crc);
