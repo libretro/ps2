@@ -94,8 +94,8 @@ bool Gif_HandlerAD(u8* pMem)
 void Gif_HandlerAD_MTVU(u8* pMem)
 {
 	// Note: Atomic communication is with MTVU.cpp Get_GSChanges
-	u32 reg = pMem[8];
-	u32* data = (u32*)pMem;
+	const u8 reg    = pMem[8] & 0x7f;
+	const u32* data = (u32*)pMem;
 
 	if (reg == GIF_A_D_REG_SIGNAL)
 	{ // SIGNAL
