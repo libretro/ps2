@@ -836,10 +836,6 @@ std::optional<WindowInfo> Host::AcquireRenderWindow(void)
 	return wi;
 }
 
-void Host::ReleaseRenderWindow()
-{
-}
-
 size_t retro_serialize_size(void)
 {
 	freezeData fP = {0, nullptr};

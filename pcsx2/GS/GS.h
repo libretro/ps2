@@ -93,9 +93,6 @@ namespace Host
 
 	/// Called before drawing the OSD and other display elements.
 	void BeginPresentFrame();
-
-	/// Called when the GS is finished with a render window.
-	void ReleaseRenderWindow();
 }
 
 #include <libretro.h>

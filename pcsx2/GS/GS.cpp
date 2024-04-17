@@ -114,7 +114,6 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 		{
 			g_gs_device->Destroy();
 			g_gs_device.reset();
-			Host::ReleaseRenderWindow();
 			return false;
 		}
 	}
@@ -212,7 +211,6 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 				(recreate_renderer && !OpenGSRenderer(GSConfig.Renderer, basemem)))
 			{
 				Console.Error("Failed to reopen GS on old config");
-				Host::ReleaseRenderWindow();
 				return false;
 			}
 		}
@@ -263,7 +261,6 @@ void GSclose(void)
 {
 	CloseGSRenderer();
 	CloseGSDevice(true);
-	Host::ReleaseRenderWindow();
 }
 
 void GSreset(bool hardware_reset)
