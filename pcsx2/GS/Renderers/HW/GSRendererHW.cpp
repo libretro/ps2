@@ -1489,8 +1489,15 @@ void GSRendererHW::Draw()
 	if (CanUseSwPrimRender(no_rt, no_ds, draw_sprite_tex) && SwPrimRender(*this, true))
 		return;
 
+	// The rectangle of the draw rounded up.
+	const GSVector4 rect = m_vt.m_min.p.upld(m_vt.m_max.p + GSVector4::cxpr(0.5f));
+	m_r = GSVector4i(rect).rintersect(context->scissor.in);
+
+	const bool process_texture = PRIM->TME && !(PRIM->ABE && m_context->ALPHA.IsBlack() && !m_cached_ctx.TEX0.TCC);
+	const u32 frame_end_bp = GSLocalMemory::GetEndBlockAddress(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, m_r);
 	// SW CLUT Render enable.
-	bool force_preload = GSConfig.PreloadFrameWithGSData;
+	bool force_preload   = GSConfig.PreloadFrameWithGSData;
+	bool preload_uploads = false;
 	if (GSConfig.UserHacks_CPUCLUTRender > 0 || GSConfig.UserHacks_GPUTargetCLUTMode != GSGPUTargetCLUTMode::Disabled)
 	{
 		const CLUTDrawTestResult result = (GSConfig.UserHacks_CPUCLUTRender == 2) ? PossibleCLUTDrawAggressive() : PossibleCLUTDraw();
@@ -1510,9 +1517,10 @@ void GSRendererHW::Draw()
 		}
 	}
 
-	// The rectangle of the draw rounded up.
-	const GSVector4 rect = m_vt.m_min.p.upld(m_vt.m_max.p + GSVector4::cxpr(0.5f));
-	m_r = GSVector4i(rect).rintersect(context->scissor.in);
+	else if (((fm & fm_mask) != 0) || // Some channels masked
+		!IsDiscardingDstColor() || !PrimitiveCoversWithoutGaps() || // Using Dst Color or draw has gaps
+		(process_texture && m_cached_ctx.TEX0.TBP0 >= m_cached_ctx.FRAME.Block() && m_cached_ctx.TEX0.TBP0 < frame_end_bp)) // Tex is RT
+		preload_uploads = true;
 
 	if (!m_channel_shuffle && m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 &&
 		IsPossibleChannelShuffle())
@@ -1646,7 +1654,6 @@ void GSRendererHW::Draw()
 	GSTextureCache::Source* src = nullptr;
 	TextureMinMaxResult tmm;
 
-	const bool process_texture = PRIM->TME && !(PRIM->ABE && m_context->ALPHA.IsBlack() && !m_cached_ctx.TEX0.TCC);
 	// Disable texture mapping if the blend is black and using alpha from vertex.
 	if (process_texture)
 	{
@@ -1762,9 +1769,13 @@ void GSRendererHW::Draw()
 
 	// Estimate size based on the scissor rectangle and height cache.
 	const GSVector2i t_size = GetTargetSize(src);
+	const GSVector4i t_size_rect = GSVector4i::loadh(t_size);
 
 	// Ensure draw rect is clamped to framebuffer size. Necessary for updating valid area.
-	m_r = m_r.rintersect(GSVector4i::loadh(t_size));
+	m_r = m_r.rintersect(t_size_rect);
+
+	// Ensure areas not drawn to are filled in by preloads. Test case: Okami
+	preload_uploads |= !m_r.eq(t_size_rect);
 
 	float target_scale = GetTextureScaleFactor();
 
@@ -1793,7 +1804,8 @@ void GSRendererHW::Draw()
 		const bool is_square = (t_size.y == t_size.x) && m_r.w >= 1023 && PrimitiveCoversWithoutGaps();
 		const bool is_clear = is_possible_mem_clear && is_square;
 		rt = g_texture_cache->LookupTarget(FRAME_TEX0, t_size, target_scale, GSTextureCache::RenderTarget, true,
-			fm, false, is_clear, force_preload);
+			fm, false, is_clear, force_preload,
+			preload_uploads);
 
 		// Draw skipped because it was a clear and there was no target.
 		if (!rt)
