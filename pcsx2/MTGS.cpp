@@ -52,32 +52,6 @@ SysMtgsThread::SysMtgsThread()
 
 SysMtgsThread::~SysMtgsThread()
 {
-	ShutdownThread();
-}
-
-void SysMtgsThread::StartThread()
-{
-	if (m_thread != std::thread::id())
-		return;
-
-	m_sem_event.Reset();
-	m_shutdown_flag.store(false, std::memory_order_release);
-	GSinit();
-}
-
-void SysMtgsThread::ShutdownThread()
-{
-	if (m_thread == std::thread::id())
-		return;
-
-	// just go straight to shutdown, don't wait-for-open again
-	m_shutdown_flag.store(true, std::memory_order_release);
-	if (IsOpen())
-		WaitForClose();
-
-	// make sure the thread actually exits
-	m_sem_event.NotifyOfWork();
-	m_thread = {};
 }
 
 void SysMtgsThread::ResetGS(bool hardware_reset)
@@ -670,25 +644,6 @@ void SysMtgsThread::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* da
 void SysMtgsThread::SendGameCRC(u32 crc)
 {
 	SendSimplePacket(GS_RINGTYPE_CRC, crc, 0, 0);
-}
-
-bool SysMtgsThread::WaitForOpen()
-{
-	if (IsOpen())
-		return true;
-
-	StartThread();
-	m_sem_event.NotifyOfWork();
-
-	// wait for it to finish its stuff
-	m_open_or_close_done.Wait();
-
-	// did we succeed?
-	const bool result = m_open_flag.load(std::memory_order_acquire);
-	if (!result)
-		Console.Error("GS failed to open.");
-
-	return result;
 }
 
 void SysMtgsThread::WaitForClose()

@@ -346,7 +346,6 @@ public:
 	std::thread::id m_thread;
 	Threading::ThreadHandle m_thread_handle;
 	std::atomic_bool m_open_flag{false};
-	std::atomic_bool m_shutdown_flag{false};
 	std::atomic_bool m_run_idle_flag{false};
 	Threading::UserspaceSemaphore m_open_or_close_done;
 
@@ -356,12 +355,6 @@ public:
 
 	__fi const Threading::ThreadHandle& GetThreadHandle() const { return m_thread_handle; }
 	__fi bool IsOpen() const { return m_open_flag.load(std::memory_order_acquire); }
-
-	/// Starts the thread, if it hasn't already been started.
-	void StartThread();
-
-	/// Fully stops the thread, closing in the process if needed.
-	void ShutdownThread();
 
 	/// Re-presents the current frame. Call when things like window resizes happen to re-display
 	/// the current frame with the correct proportions. Should only be called from the CPU thread.
@@ -375,7 +368,6 @@ public:
 	void PrepDataPacket(GIF_PATH pathidx, u32 size);
 	void SendDataPacket();
 	void SendGameCRC(u32 crc);
-	bool WaitForOpen();
 	void WaitForClose();
 	void Freeze(FreezeAction mode, MTGS_FreezeData& data);
 
