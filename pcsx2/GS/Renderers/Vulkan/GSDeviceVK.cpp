@@ -2720,7 +2720,7 @@ void GSDeviceVK::DoMultiStretchRects(
 	// Even though we're batching, a cmdbuffer submit could've messed this up.
 	const GSVector4i rc(dTex->GetRect());
 	OMSetRenderTargets(dTex->IsRenderTarget() ? dTex : nullptr, dTex->IsDepthStencil() ? dTex : nullptr, rc);
-	if (!InRenderPass() || !CheckRenderPassArea(rc))
+	if (!InRenderPass())
 		BeginRenderPassForStretchRect(dTex, rc, rc, false);
 	SetUtilityTexture(rects[0].src, rects[0].linear ? m_linear_sampler : m_point_sampler);
 
@@ -2744,7 +2744,7 @@ void GSDeviceVK::BeginRenderPassForStretchRect(
 		else
 			BeginRenderPass((load_op == VK_ATTACHMENT_LOAD_OP_DONT_CARE) ? m_utility_depth_render_pass_discard :
                                                                            m_utility_depth_render_pass_load,
-				dst_rc);
+				dtex_rc);
 	}
 	else if (dTex->GetFormat() == GSTexture::Format::Color)
 	{
@@ -2753,7 +2753,7 @@ void GSDeviceVK::BeginRenderPassForStretchRect(
 		else
 			BeginRenderPass((load_op == VK_ATTACHMENT_LOAD_OP_DONT_CARE) ? m_utility_color_render_pass_discard :
                                                                            m_utility_color_render_pass_load,
-				dst_rc);
+				dtex_rc);
 	}
 	else
 	{
@@ -2766,7 +2766,7 @@ void GSDeviceVK::BeginRenderPassForStretchRect(
 		}
 		else
 		{
-			BeginRenderPass(rp, dst_rc);
+			BeginRenderPass(rp, dtex_rc);
 		}
 	}
 }
@@ -2795,7 +2795,7 @@ void GSDeviceVK::DoStretchRect(GSTextureVK* sTex, const GSVector4& sRect, GSText
 	if (!is_present)
 	{
 		OMSetRenderTargets(depth ? nullptr : dTex, depth ? dTex : nullptr, dst_rc);
-		if (InRenderPass() && (!CheckRenderPassArea(dst_rc) || dTex->GetState() == GSTexture::State::Cleared))
+		if (InRenderPass() && dTex->GetState() == GSTexture::State::Cleared)
 			EndRenderPass();
 	}
 	else
@@ -4383,26 +4383,6 @@ void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, f
 	BeginClearRenderPass(rp, rect, &cv, 1);
 }
 
-bool GSDeviceVK::CheckRenderPassArea(const GSVector4i& rect)
-{
-	if (!InRenderPass())
-		return false;
-
-	// TODO: Is there a way to do this with GSVector?
-	if (rect.left < m_current_render_pass_area.left || rect.top < m_current_render_pass_area.top ||
-		rect.right > m_current_render_pass_area.right || rect.bottom > m_current_render_pass_area.bottom)
-	{
-#ifdef _DEBUG
-		Console.Error("RP check failed: {%d,%d %dx%d} vs {%d,%d %dx%d}", rect.left, rect.top, rect.width(),
-			rect.height(), m_current_render_pass_area.left, m_current_render_pass_area.top,
-			m_current_render_pass_area.width(), m_current_render_pass_area.height());
-#endif
-		return false;
-	}
-
-	return true;
-}
-
 void GSDeviceVK::EndRenderPass()
 {
 	if (m_current_render_pass == VK_NULL_HANDLE)
@@ -4759,7 +4739,7 @@ GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
 		VkClearValue cv[2] = {};
 		cv[1].depthStencil.depth = static_cast<GSTextureVK*>(config.ds)->GetClearDepth();
 		cv[1].depthStencil.stencil = 1;
-		BeginClearRenderPass(m_date_image_setup_render_passes[ds][1], GSVector4i(0, 0, rtsize.x, rtsize.y), cv, 2);
+		BeginClearRenderPass(m_date_image_setup_render_passes[ds][1], GSVector4i::loadh(rtsize), cv, 2);
 	}
 	else
 	{
@@ -4871,15 +4851,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	PipelineSelector& pipe = m_pipeline_selector;
 	UpdateHWPipelineSelector(config, pipe);
 
-	// Align the render area to 128x128, hopefully avoiding render pass restarts for small render area changes (e.g. Ratchet and Clank).
-	const int render_area_alignment = 128 * GSConfig.UpscaleMultiplier;
 	const GSVector2i rtsize(config.rt ? config.rt->GetSize() : config.ds->GetSize());
-	const GSVector4i render_area(
-		config.ps.hdr ? config.drawarea :
-                        GSVector4i(Common::AlignDownPow2(config.scissor.left, render_area_alignment),
-							Common::AlignDownPow2(config.scissor.top, render_area_alignment),
-							std::min(Common::AlignUpPow2(config.scissor.right, render_area_alignment), rtsize.x),
-							std::min(Common::AlignUpPow2(config.scissor.bottom, render_area_alignment), rtsize.y)));
 
 	GSTextureVK* draw_rt = static_cast<GSTextureVK*>(config.rt);
 	GSTextureVK* draw_ds = static_cast<GSTextureVK*>(config.ds);
@@ -4937,11 +4909,13 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		PSSetShaderResource(0, nullptr, false);
 	}
 
-	const bool render_area_okay =
-		(!hdr_rt && DATE_rp != DATE_RENDER_PASS_STENCIL_ONE && CheckRenderPassArea(render_area));
-
 	// render pass restart optimizations
-	if (render_area_okay && (m_current_render_target == draw_rt || m_current_depth_target == draw_ds))
+	if (hdr_rt || DATE_rp == DATE_RENDER_PASS_STENCIL_ONE)
+	{
+		// DATE/HDR require clearing/blitting respectively.
+		EndRenderPass();
+	}
+	else if (InRenderPass() && (m_current_render_target == draw_rt || m_current_depth_target == draw_ds))
 	{
 		// avoid restarting the render pass just to switch from rt+depth to rt and vice versa
 		// keep the depth even if doing HDR draws, because the next draw will probably re-enable depth
@@ -4972,13 +4946,14 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		PSSetShaderResource(2, draw_rt, false);
 
 	// Begin render pass if new target or out of the area.
-	if (!render_area_okay || !InRenderPass())
+	if (!InRenderPass())
 	{
 		const VkAttachmentLoadOp rt_op = GetLoadOpForTexture(draw_rt);
 		const VkAttachmentLoadOp ds_op = GetLoadOpForTexture(draw_ds);
 		const VkRenderPass rp = GetTFXRenderPass(pipe.rt, pipe.ds, pipe.ps.hdr, DATE_rp, pipe.IsRTFeedbackLoop(),
 			pipe.IsTestingAndSamplingDepth(), rt_op, ds_op);
 		const bool is_clearing_rt = (rt_op == VK_ATTACHMENT_LOAD_OP_CLEAR || ds_op == VK_ATTACHMENT_LOAD_OP_CLEAR);
+		const GSVector4i render_area = GSVector4i::loadh(rtsize);
 
 		if (is_clearing_rt || DATE_rp == DATE_RENDER_PASS_STENCIL_ONE)
 		{
@@ -4993,7 +4968,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 				cvs[cv_count++].depthStencil = {draw_ds->GetClearDepth(), 1};
 
 			BeginClearRenderPass(
-				rp, is_clearing_rt ? GSVector4i(0, 0, rtsize.x, rtsize.y) : render_area, cvs, cv_count);
+				rp, render_area, cvs, cv_count);
 		}
 		else
 		{
@@ -5006,9 +4981,10 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	{
 		SetUtilityTexture(static_cast<GSTextureVK*>(config.rt), m_point_sampler);
 		SetPipeline(m_hdr_setup_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
-
-		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
-		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
+		
+		const GSVector4 drawareaf = GSVector4(config.drawarea);
+		const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
+		DrawStretchRect(sRect, drawareaf, rtsize);
 	}
 
 	// VB/IB upload, if we did DATE setup and it's not HDR this has already been done
@@ -5080,7 +5056,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 			BeginClearRenderPass(GetTFXRenderPass(true, pipe.ds, false, DATE_RENDER_PASS_NONE, pipe.IsRTFeedbackLoop(),
 									 pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_CLEAR,
 									 pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
-				GSVector4i(0, 0, draw_rt->GetWidth(), draw_rt->GetHeight()), cvs, cv_count);
+				draw_rt->GetRect(), cvs, cv_count);
 			draw_rt->SetState(GSTexture::State::Dirty);
 		}
 		else
@@ -5088,13 +5064,14 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 			BeginRenderPass(GetTFXRenderPass(true, pipe.ds, false, DATE_RENDER_PASS_NONE, pipe.IsRTFeedbackLoop(),
 								pipe.IsTestingAndSamplingDepth(), VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 								pipe.ds ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE),
-				render_area);
+				draw_rt->GetRect());
 		}
 
-		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
+		const GSVector4 drawareaf = GSVector4(config.drawarea);
+		const GSVector4 sRect(drawareaf / GSVector4(rtsize).xyxy());
 		SetPipeline(m_hdr_finish_pipelines[pipe.ds][pipe.IsRTFeedbackLoop()]);
 		SetUtilityTexture(hdr_rt, m_point_sampler);
-		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
+		DrawStretchRect(sRect, drawareaf, rtsize);
 
 		Recycle(hdr_rt);
 	}
