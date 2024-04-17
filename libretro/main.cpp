@@ -123,19 +123,13 @@ void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_ren
 #endif
 
 static std::thread cpu_thread;
-alignas(16) static SysMtgsThread s_mtgs_thread;
-
-SysMtgsThread& GetMTGS(void)
-{
-	return s_mtgs_thread;
-}
 
 static void cpu_thread_pause(void)
 {
 	VMManager::SetPaused(true);
 	while(cpu_thread_state != VMState::Paused)
-		GetMTGS().MainLoop(true);
-	GetMTGS().MainLoop(true);
+		MTGS::MainLoop(true);
+	MTGS::MainLoop(true);
 }
 
 void retro_set_video_refresh(retro_video_refresh_t cb)
@@ -356,7 +350,7 @@ static void context_reset(void)
 		vk_libretro_set_hwrender_interface(vulkan);
 	}
 #endif
-	GetMTGS().TryOpenGS();
+	MTGS::TryOpenGS();
 
 	if (gs_freeze_data.data)
 	{
@@ -376,7 +370,7 @@ static void context_destroy(void)
 	gs_freeze_data.data = (u8*)malloc(gs_freeze_data.size);
 	g_gs_renderer->Freeze(&gs_freeze_data, false);
 
-	GetMTGS().CloseGS();
+	MTGS::CloseGS();
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		vk_libretro_shutdown();
@@ -537,7 +531,7 @@ static bool create_device_vulkan(retro_vulkan_context *context, VkInstance insta
 		EmuConfig.GS.Adapter = props.deviceName;
 	}
 
-	GetMTGS().TryOpenGS();
+	MTGS::TryOpenGS();
 
 	context->gpu                             = g_vulkan_context->GetPhysicalDevice();
 	context->device                          = g_vulkan_context->GetDevice();
@@ -708,7 +702,7 @@ bool retro_load_game(const struct retro_game_info* game)
 	cpu_thread = std::thread(cpu_thread_entry, boot_params);
 
 	if(hw_render.context_type == RETRO_HW_CONTEXT_NONE)
-		GetMTGS().TryOpenGS();
+		MTGS::TryOpenGS();
 
 	return true;
 }
@@ -721,10 +715,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info* i
 
 void retro_unload_game(void)
 {
-	if(GetMTGS().IsOpen())
+	if(MTGS::IsOpen())
 	{
 		cpu_thread_pause();
-		GetMTGS().CloseGS();
+		MTGS::CloseGS();
 	}
 
 	VMManager::Shutdown(false);
@@ -747,7 +741,6 @@ void retro_unload_game(void)
 	write_pos = 0;
 
 	((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(LayeredSettingsInterface::LAYER_BASE, nullptr);
-	new (&GetMTGS()) SysMtgsThread();
 }
 
 
@@ -765,14 +758,12 @@ void retro_run(void)
 		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 #else
 		environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
-		GetMTGS().ClosePlugin();
-		GetMTGS().OpenPlugin();
 #endif
 	}
 
-	GetMTGS().TryOpenGS();
+	MTGS::TryOpenGS();
 	while (VMManager::GetState() == VMState::Initializing)
-		GetMTGS().MainLoop(false);
+		MTGS::MainLoop(false);
 
 	if (VMManager::GetState() == VMState::Paused)
 		VMManager::SetState(VMState::Running);
@@ -780,7 +771,7 @@ void retro_run(void)
 	RETRO_PERFORMANCE_INIT(pcsx2_run);
 	RETRO_PERFORMANCE_START(pcsx2_run);
 
-	GetMTGS().MainLoop(false);
+	MTGS::MainLoop(false);
 
 	RETRO_PERFORMANCE_STOP(pcsx2_run);
 

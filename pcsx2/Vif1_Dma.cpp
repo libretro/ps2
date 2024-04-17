@@ -56,7 +56,7 @@ void vif1TransferToMemory()
 	// completely and execute the transfer there-after.
 	const u32 size = std::min(vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
 
-	GetMTGS().InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
+	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
 
 	//Some games such as Alex Ferguson's Player Manager 2001 reads less than GSLastDownloadSize by VIF then reads the remainder by FIFO
 	//Clearing the memory is clearing memory it shouldn't be and kills it.

@@ -263,7 +263,7 @@ struct Gif_Path
 			s32 frontFree = offset - getReadAmount();
 			if (frontFree >= sizeToAdd - intersect)
 				break;
-			GetMTGS().WaitGS(false, true, isMTVU());
+			MTGS::WaitGS(false, true, isMTVU());
 		}
 		if (offset < (s32)buffLimit)
 		{ // Needed for correct readAmount values
@@ -295,7 +295,7 @@ struct Gif_Path
 				break; // MTGS is reading in back of curOffset
 			if ((s32)buffLimit + readPos > (s32)curSize + (s32)size)
 				break;      // Enough free front space
-			GetMTGS().WaitGS(false, true, isMTVU()); // Let MTGS run to free up buffer space
+			MTGS::WaitGS(false, true, isMTVU()); // Let MTGS run to free up buffer space
 		}
 		memcpy(&buffer[curSize], pMem, size);
 		curSize += size;

@@ -37,7 +37,7 @@ void gsSetVideoMode(GS_VideoMode mode)
 // Make sure framelimiter options are in sync with GS capabilities.
 void gsReset(void)
 {
-	GetMTGS().ResetGS(true);
+	MTGS::ResetGS(true);
 	gsVideoMode = GS_VideoMode::Uninitialized;
 	memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 	UpdateVSyncRate(true);
@@ -59,7 +59,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 		GSIMR.reset();
 		CSRreg.Reset();
-		GetMTGS().SendSimplePacket(GS_RINGTYPE_RESET, 0, 0, 0);
+		MTGS::SendSimplePacket(GS_RINGTYPE_RESET, 0, 0, 0);
 	}
 
 	if(csr.SIGNAL)
@@ -305,7 +305,7 @@ void gsPostVsyncStart(void)
 {
 	const bool registers_written = s_GSRegistersWritten;
 	s_GSRegistersWritten = false;
-	GetMTGS().PostVsyncStart(registers_written);
+	MTGS::PostVsyncStart(registers_written);
 }
 
 bool SaveStateBase::gsFreeze()

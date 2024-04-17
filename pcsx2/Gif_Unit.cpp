@@ -138,24 +138,6 @@ void Gif_FinishIRQ(void)
 	}
 }
 
-// Used in MTVU mode... MTVU will later complete a real packet
-void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
-{
-	GetMTGS().SendSimpleGSPacket(GS_RINGTYPE_MTVU_GSPACKET, 0, 0, path);
-}
-
-void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
-{
-	gifUnit.gifPath[path].readAmount.fetch_add(gsPack.size);
-	GetMTGS().SendSimpleGSPacket(GS_RINGTYPE_GSPACKET, gsPack.offset, gsPack.size, path);
-}
-
-void Gif_AddBlankGSPacket(u32 size, GIF_PATH path)
-{
-	gifUnit.gifPath[path].readAmount.fetch_add(size);
-	GetMTGS().SendSimpleGSPacket(GS_RINGTYPE_GSPACKET, ~0u, size, path);
-}
-
 bool SaveStateBase::gifPathFreeze(u32 path)
 {
 	Gif_Path& gifPath = gifUnit.gifPath[path];
@@ -182,7 +164,7 @@ bool SaveStateBase::gifPathFreeze(u32 path)
 bool SaveStateBase::gifFreeze(void)
 {
 	bool mtvuMode = THREAD_VU1;
-	GetMTGS().WaitGS();
+	MTGS::WaitGS();
 	if (!(FreezeTag("Gif Unit")))
 		return false;
 

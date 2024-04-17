@@ -348,7 +348,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 			if (EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
 			{
 				EmuConfig.GS.InterlaceMode = GSInterlaceMode::Off;
-				GetMTGS().ApplySettings();
+				MTGS::ApplySettings();
 			}
 		}
 	}
@@ -407,7 +407,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	if (s_patches_crc != s_game_crc)
 		ReloadPatches(game_starting, false);
 
-	GetMTGS().SendGameCRC(new_crc);
+	MTGS::SendGameCRC(new_crc);
 
 	Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_crc);
 
@@ -593,7 +593,7 @@ void VMManager::Shutdown(bool save_resume_state)
 	// sync everything
 	if (THREAD_VU1)
 		vu1Thread.WaitVU();
-	GetMTGS().WaitGS();
+	MTGS::WaitGS();
 
 	{
 		LastELF.clear();
@@ -635,7 +635,7 @@ void VMManager::Shutdown(bool save_resume_state)
 	FWclose();
 	FileMcd_EmuClose();
 
-	GetMTGS().WaitForClose();
+	MTGS::WaitForClose();
 
 	PADshutdown();
 	DEV9shutdown();
@@ -656,6 +656,10 @@ void VMManager::Reset()
 		s_state.store(VMState::Resetting, std::memory_order_release);
 		return;
 	}
+
+	vu1Thread.WaitVU();
+	vu1Thread.Reset();
+	MTGS::WaitGS();
 
 	const bool game_was_started = g_GameStarted;
 
@@ -812,7 +816,7 @@ void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
 
 	gsUpdateFrequency(EmuConfig);
 	UpdateVSyncRate(true);
-	GetMTGS().ApplySettings();
+	MTGS::ApplySettings();
 }
 
 void VMManager::CheckForFramerateConfigChanges(const Pcsx2Config& old_config)
@@ -909,7 +913,7 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 
 	// For the big picture UI, we still need to update GS settings, since it's running,
 	// and we don't update its config when we start the VM.
-	if (HasValidVM() || GetMTGS().IsOpen())
+	if (HasValidVM() || MTGS::IsOpen())
 		CheckForGSConfigChanges(old_config);
 
 	Host::CheckForSettingsChanges(old_config);
@@ -923,7 +927,7 @@ void VMManager::ApplySettings()
 	{
 		if (THREAD_VU1)
 			vu1Thread.WaitVU();
-		GetMTGS().WaitGS(false);
+		MTGS::WaitGS(false);
 	}
 
 	// Reset to a clean Pcsx2Config. Otherwise things which are optional (e.g. gamefixes)
@@ -1118,7 +1122,7 @@ void VMManager::SetEmuThreadAffinities()
 		if (EmuConfig.Cpu.AffinityControlMode != 0)
 			Console.Error("Insufficient processors for affinity control.");
 
-		GetMTGS().GetThreadHandle().SetAffinity(0);
+		MTGS::GetThreadHandle().SetAffinity(0);
 		vu1Thread.GetThreadHandle().SetAffinity(0);
 		s_vm_thread_handle.SetAffinity(0);
 		return;
@@ -1158,7 +1162,7 @@ void VMManager::SetEmuThreadAffinities()
 
 	const u64 gs_affinity = static_cast<u64>(1) << gs_index;
 	Console.WriteLn(Color_StrongGreen, "GS thread is on processor %u (0x%llx)", gs_index, gs_affinity);
-	GetMTGS().GetThreadHandle().SetAffinity(gs_affinity);
+	MTGS::GetThreadHandle().SetAffinity(gs_affinity);
 }
 
 void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)

@@ -43,7 +43,7 @@ void ReadFIFO_VIF1(mem128_t* out)
 	{
 		if (vif1Regs.stat.FQC > 0)
 		{
-			GetMTGS().InitAndReadFIFO(reinterpret_cast<u8*>(out), 1);
+			MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(out), 1);
 			vif1.GSLastDownloadSize--;
 			if (vif1.GSLastDownloadSize <= 16)
 				gifRegs.stat.OPH = false;

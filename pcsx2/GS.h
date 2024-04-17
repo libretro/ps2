@@ -287,51 +287,14 @@ struct MTGS_FreezeData
 };
 
 // --------------------------------------------------------------------------------------
-//  SysMtgsThread
+// MTGS
 // --------------------------------------------------------------------------------------
-class SysMtgsThread
+namespace MTGS
 {
-public:
 	using AsyncCallType = std::function<void()>;
 
-	// note: when m_ReadPos == m_WritePos, the fifo is empty
-	// Threading info: m_ReadPos is updated by the MTGS thread. m_WritePos is updated by the EE thread
-	std::atomic<unsigned int> m_ReadPos; // cur pos gs is reading from
-	std::atomic<unsigned int> m_WritePos; // cur pos ee thread is writing to
-
-	std::atomic<bool> m_SignalRingEnable;
-	std::atomic<int> m_SignalRingPosition;
-
-	std::atomic<int> m_QueuedFrameCount;
-	std::atomic<bool> m_VsyncSignalListener;
-
-	std::mutex m_mtx_RingBufferBusy2; // Gets released on semaXGkick waiting...
-	Threading::WorkSema m_sem_event;
-	Threading::UserspaceSemaphore m_sem_OnRingReset;
-	Threading::UserspaceSemaphore m_sem_Vsync;
-
-	// Used to delay the sending of events.  Performance is better if the ringbuffer
-	// has more than one command in it when the thread is kicked.
-	int m_CopyDataTally;
-
-	// These vars maintain instance data for sending Data Packets.
-	// Only one data packet can be constructed and uploaded at a time.
-
-	uint m_packet_startpos; // size of the packet (data only, ie. not including the 16 byte command!)
-	uint m_packet_size; // size of the packet (data only, ie. not including the 16 byte command!)
-	uint m_packet_writepos; // index of the data location in the ringbuffer.
-
-	std::thread::id m_thread;
-	Threading::ThreadHandle m_thread_handle;
-	std::atomic_bool m_open_flag{false};
-	Threading::UserspaceSemaphore m_open_or_close_done;
-
-public:
-	SysMtgsThread();
-	virtual ~SysMtgsThread();
-
-	__fi const Threading::ThreadHandle& GetThreadHandle() const { return m_thread_handle; }
-	__fi bool IsOpen() const { return m_open_flag.load(std::memory_order_acquire); }
+	const Threading::ThreadHandle& GetThreadHandle();
+	bool IsOpen();
 
 	// Waits for the GS to empty out the entire ring buffer contents.
 	void WaitGS(bool syncRegs=true, bool weakWait=false, bool isMTVU=false);
@@ -362,16 +325,8 @@ public:
 	bool TryOpenGS();
 	void CloseGS();
 
-protected:
 	void GenericStall(uint size);
 };
-
-// GetMTGS() is a required external implementation. This function is *NOT* provided
-// by the PCSX2 core library.  It provides an interface for the linking User Interface
-// apps or DLLs to reference their own instance of SysMtgsThread (also allowing them
-// to extend the class and override virtual methods).
-//
-extern SysMtgsThread& GetMTGS();
 
 /////////////////////////////////////////////////////////////////////////////
 // Generalized GS Functions and Stuff

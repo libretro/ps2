@@ -217,7 +217,7 @@ void Host::Internal::UpdateEmuFolders()
 
 		if (EmuFolders::Textures != old_textures_directory)
 		{
-			GetMTGS().RunOnGSThread([]() {
+			MTGS::RunOnGSThread([]() {
 				if (VMManager::HasValidVM())
 					GSTextureReplacements::ReloadReplacementMap();
 			});

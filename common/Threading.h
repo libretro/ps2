@@ -158,11 +158,6 @@ namespace Threading
 			STATE_FLAG_WAITING_EMPTY = 1 << 30, ///< Flag to indicate that a thread is sleeping on m_empty_sema (can be applied to any STATE_RUNNING)
 		};
 
-		bool IsDead(s32 state)
-		{
-			return state < STATE_SPINNING;
-		}
-
 		bool IsReadyForSleep(s32 state)
 		{
 			s32 waiting_empty_cleared = state & (STATE_FLAG_WAITING_EMPTY - 1);

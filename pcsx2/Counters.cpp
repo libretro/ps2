@@ -444,7 +444,7 @@ static __fi void DoFMVSwitch()
 		RendererSwitched = GSConfig.UseHardwareRenderer();
 
 		// we don't use the sw toggle here, because it'll change back to auto if set to sw
-		GetMTGS().SwitchRenderer(new_fmv_state ? GSRendererType::SW : EmuConfig.GS.Renderer, false);
+		MTGS::SwitchRenderer(new_fmv_state ? GSRendererType::SW : EmuConfig.GS.Renderer, false);
 	}
 	else
 		RendererSwitched = false;

@@ -104,13 +104,13 @@ bool Threading::WorkSema::WaitForEmpty()
 	for (;;)
 	{
 		if (value < 0)
-			return !IsDead(value); // STATE_SLEEPING or STATE_SPINNING, queue is empty!
+			return !(value < STATE_SPINNING); // STATE_SPINNING, queue is empty!
 		// Note: We technically only need memory_order_acquire on *failure* (because that's when we could leave without sleeping), but libstdc++ still asserts on failure < success
 		if (m_state.compare_exchange_weak(value, value | STATE_FLAG_WAITING_EMPTY, std::memory_order_acquire))
 			break;
 	}
 	m_empty_sema.Wait();
-	return !IsDead(m_state.load(std::memory_order_relaxed));
+	return !(m_state.load(std::memory_order_relaxed) < STATE_SPINNING);
 }
 
 bool Threading::WorkSema::WaitForEmptyWithSpin()
@@ -120,14 +120,14 @@ bool Threading::WorkSema::WaitForEmptyWithSpin()
 	for (;;)
 	{
 		if (value < 0)
-			return !IsDead(value); // STATE_SLEEPING or STATE_SPINNING, queue is empty!
+			return !(value < STATE_SPINNING); // STATE_SPINNING, queue is empty!
 		if (waited > SPIN_TIME_NS && m_state.compare_exchange_weak(value, value | STATE_FLAG_WAITING_EMPTY, std::memory_order_acquire))
 			break;
 		waited += ShortSpin();
 		value = m_state.load(std::memory_order_acquire);
 	}
 	m_empty_sema.Wait();
-	return !IsDead(m_state.load(std::memory_order_relaxed));
+	return !(m_state.load(std::memory_order_relaxed) < STATE_SPINNING);
 }
 
 void Threading::WorkSema::Kill()
