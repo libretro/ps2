@@ -59,28 +59,10 @@ namespace
 			ALL_FLAGS = 0xFFF
 		};
 
-		int flags() const
-		{
-			return rawValue & ALL_FLAGS;
-		}
-
-		bool isValid() const  { return rawValue & VALID_FLAG; }
-		bool isDirty() const  { return rawValue & DIRTY_FLAG; }
-		bool lrf() const      { return rawValue & LRF_FLAG; }
-		bool isLocked() const { return rawValue & LOCK_FLAG; }
-
 		bool isDirtyAndValid() const
 		{
 			return (rawValue & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG);
 		}
-
-		void setValid()  { rawValue |= VALID_FLAG; }
-		void setDirty()  { rawValue |= DIRTY_FLAG; }
-		void setLocked() { rawValue |= LOCK_FLAG; }
-		void clearValid()  { rawValue &= ~VALID_FLAG; }
-		void clearDirty()  { rawValue &= ~DIRTY_FLAG; }
-		void clearLocked() { rawValue &= ~LOCK_FLAG; }
-		void toggleLRF() { rawValue ^= LRF_FLAG; }
 
 		uptr addr() const { return rawValue & ~ALL_FLAGS; }
 
@@ -92,7 +74,7 @@ namespace
 
 		bool matches(uptr other) const
 		{
-			return isValid() && addr() == (other & ~ALL_FLAGS);
+			return (rawValue & CacheTag::Flags::VALID_FLAG) && addr() == (other & ~ALL_FLAGS);
 		}
 
 		void clear()
@@ -120,15 +102,15 @@ namespace
 			uptr target = addr();
 
 			*reinterpret_cast<CacheData*>(target) = data;
-			tag.clearDirty();
+			tag.rawValue &= ~CacheTag::Flags::DIRTY_FLAG;
 		}
 
 		void load(uptr ppf)
 		{
 			tag.setAddr(ppf);
 			data = *reinterpret_cast<CacheData*>(ppf & ~0x3FULL);
-			tag.setValid();
-			tag.clearDirty();
+			tag.rawValue |=  CacheTag::Flags::VALID_FLAG;
+			tag.rawValue &= ~CacheTag::Flags::DIRTY_FLAG;
 		}
 
 		void clear()
@@ -191,13 +173,13 @@ static int getFreeCache(u32 mem, int* way)
 
 	if (!findInCache(set, ppf, way))
 	{
-		int newWay     = set.tags[0].lrf() ^ set.tags[1].lrf();
+		int newWay     = (set.tags[0].rawValue & CacheTag::Flags::LRF_FLAG) ^ (set.tags[1].rawValue & CacheTag::Flags::LRF_FLAG);
 		*way           = newWay;
 		CacheLine line = cache.lineAt(setIdx, newWay);
 
 		line.writeBackIfNeeded();
 		line.load(ppf);
-		line.tag.toggleLRF();
+		line.tag.rawValue ^= CacheTag::Flags::LRF_FLAG;
 	}
 
 	return setIdx;
@@ -210,7 +192,7 @@ void* prepareCacheAccess(u32 mem, int* way, int* idx)
 	*idx = getFreeCache(mem, way);
 	CacheLine line = cache.lineAt(*idx, *way);
 	if (Write)
-		line.tag.setDirty();
+		line.tag.rawValue |= CacheTag::Flags::DIRTY_FLAG;
 	u32 aligned = mem & ~(Bytes - 1);
 	return &line.data.bytes[aligned & 0x3f];
 }
@@ -259,7 +241,6 @@ Int readCache(u32 mem)
 	return value;
 }
 
-
 u8 readCache8(u32 mem)
 {
 	return readCache<u8>(mem);
@@ -293,7 +274,7 @@ template <typename Op>
 void doCacheHitOp(u32 addr, const char* name, Op op)
 {
 	const int index = cache.setIdxFor(addr);
-	CacheSet& set = cache.sets[index];
+	CacheSet& set   = cache.sets[index];
 	VTLBVirtual vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	uptr ppf = vmv.assumePtr(addr);
 	int way;
@@ -310,8 +291,7 @@ namespace Interpreter
 namespace OpcodeImpl
 {
 
-extern int Dcache;
-void CACHE()
+void CACHE(void)
 {
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 
@@ -342,8 +322,8 @@ void CACHE()
 		case 0x16: //DXIN (Data Cache Index Invalidate)
 		{
 			const int index = cache.setIdxFor(addr);
-			const int way = addr & 0x1;
-			CacheLine line = cache.lineAt(index, way);
+			const int way   = addr & 0x1;
+			CacheLine line  = cache.lineAt(index, way);
 
 			line.clear();
 			break;
@@ -351,9 +331,9 @@ void CACHE()
 
 		case 0x11: //DXLDT (Data Cache Load Data into TagLo)
 		{
-			const int index = cache.setIdxFor(addr);
-			const int way = addr & 0x1;
-			CacheLine line = cache.lineAt(index, way);
+			const int index     = cache.setIdxFor(addr);
+			const int way       = addr & 0x1;
+			CacheLine line      = cache.lineAt(index, way);
 
 			cpuRegs.CP0.n.TagLo = *reinterpret_cast<u32*>(&line.data.bytes[addr & 0x3C]);
 
@@ -371,7 +351,7 @@ void CACHE()
 			line.writeBackIfNeeded();
 
 			// Our tags don't contain PS2 paddrs (instead they contain x86 addrs)
-			cpuRegs.CP0.n.TagLo = line.tag.flags();
+			cpuRegs.CP0.n.TagLo = line.tag.rawValue & CacheTag::Flags::ALL_FLAGS;
 			break;
 		}
 
