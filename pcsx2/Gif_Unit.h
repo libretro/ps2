@@ -25,7 +25,6 @@
 #include "common/boost_spsc_queue.hpp"
 
 struct GS_Packet;
-extern void Gif_MTGS_Wait(bool isMTVU);
 extern void Gif_FinishIRQ();
 extern bool Gif_HandlerAD(u8* pMem);
 extern void Gif_HandlerAD_MTVU(u8* pMem);
@@ -251,12 +250,6 @@ struct Gif_Path
 	bool hasDataRemaining() const { return curOffset < curSize; }
 	bool isDone() const { return isMTVU() ? !mtvu.fakePackets : (!hasDataRemaining() && (state == GIF_PATH_IDLE || state == GIF_PATH_WAIT)); }
 
-	// Waits on the MTGS to process gs packets
-	void mtgsReadWait()
-	{
-		Gif_MTGS_Wait(isMTVU());
-	}
-
 	// Moves packet data to start of buffer
 	void RealignPacket()
 	{
@@ -270,7 +263,7 @@ struct Gif_Path
 			s32 frontFree = offset - getReadAmount();
 			if (frontFree >= sizeToAdd - intersect)
 				break;
-			mtgsReadWait();
+			GetMTGS().WaitGS(false, true, isMTVU());
 		}
 		if (offset < (s32)buffLimit)
 		{ // Needed for correct readAmount values
@@ -302,7 +295,7 @@ struct Gif_Path
 				break; // MTGS is reading in back of curOffset
 			if ((s32)buffLimit + readPos > (s32)curSize + (s32)size)
 				break;      // Enough free front space
-			mtgsReadWait(); // Let MTGS run to free up buffer space
+			GetMTGS().WaitGS(false, true, isMTVU()); // Let MTGS run to free up buffer space
 		}
 		memcpy(&buffer[curSize], pMem, size);
 		curSize += size;
@@ -610,10 +603,9 @@ struct Gif_Unit
 		}
 		if (tranType == GIF_TRANS_XGKICK)
 		{
+			// We always buffer path1 packets
 			if (!CanDoPath1())
-			{
 				stat.P1Q = 1;
-			} // We always buffer path1 packets
 		}
 		if (tranType == GIF_TRANS_DIRECT)
 		{
@@ -637,25 +629,22 @@ struct Gif_Unit
 		return size;
 	}
 
+	__fi int checkQueued(bool p1, bool p2, bool p3)
+	{
+		return ((p1 && stat.P1Q) << 0)
+		     | ((p2 && stat.P2Q) << 1)
+		     | ((p3 && stat.P3Q) << 2);
+	}
+
 	// Checks path activity for the given paths
 	// Returns an int with a bit enabled if the corresponding
 	// path is not finished (needs more data/processing for an EOP)
 	__fi int checkPaths(bool p1, bool p2, bool p3, bool checkQ = false)
 	{
-		int ret = 0;
-		ret |= (p1 && !gifPath[GIF_PATH_1].isDone()) << 0;
-		ret |= (p2 && !gifPath[GIF_PATH_2].isDone()) << 1;
-		ret |= (p3 && !gifPath[GIF_PATH_3].isDone()) << 2;
+		int ret = ((p1 && !gifPath[GIF_PATH_1].isDone()) << 0)
+		        | ((p2 && !gifPath[GIF_PATH_2].isDone()) << 1)
+			| ((p3 && !gifPath[GIF_PATH_3].isDone()) << 2);
 		return ret | (checkQ ? checkQueued(p1, p2, p3) : 0);
-	}
-
-	__fi int checkQueued(bool p1, bool p2, bool p3)
-	{
-		int ret = 0;
-		ret |= (p1 && stat.P1Q) << 0;
-		ret |= (p2 && stat.P2Q) << 1;
-		ret |= (p3 && stat.P3Q) << 2;
-		return ret;
 	}
 
 	// Send processed GS Primitive(s) to the MTGS thread
@@ -715,7 +704,6 @@ struct Gif_Unit
 							continue;
 						}
 					}
-					//FlushToMTGS();
 					break; // Not finished with GS packet
 				}
 				if (gifPath[curPath].state == GIF_PATH_WAIT || gifPath[curPath].state == GIF_PATH_IDLE)
@@ -769,9 +757,7 @@ struct Gif_Unit
 		//So we look and see if the end of the last tag is all there, if so, stick it in the buffer for the GS :)
 		//(Invisible Screens on Terminator 3 and Growlanser 2/3)
 		if (gifPath[curPath].curOffset == gifPath[curPath].curSize)
-		{
 			FlushToMTGS();
-		}
 
 		Gif_FinishIRQ();
 

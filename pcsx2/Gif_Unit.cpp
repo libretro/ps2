@@ -156,21 +156,14 @@ void Gif_AddBlankGSPacket(u32 size, GIF_PATH path)
 	GetMTGS().SendSimpleGSPacket(GS_RINGTYPE_GSPACKET, ~0u, size, path);
 }
 
-void Gif_MTGS_Wait(bool isMTVU)
-{
-	GetMTGS().WaitGS(false, true, isMTVU);
-}
-
 bool SaveStateBase::gifPathFreeze(u32 path)
 {
 	Gif_Path& gifPath = gifUnit.gifPath[path];
 
-	if (!gifPath.isMTVU())
-	{ // FixMe: savestate freeze bug (Gust games) with MTVU enabled
-		if (IsSaving())
-		{                            // Move all the buffered data to the start of buffer
+	if (!gifPath.isMTVU()) // FixMe: savestate freeze bug (Gust games) with MTVU enabled
+	{ 
+		if (IsSaving()) // Move all the buffered data to the start of buffer
 			gifPath.RealignPacket(); // May add readAmount which we need to clear on load
-		}
 	}
 	u8* bufferPtr = gifPath.buffer; // Backup current buffer ptr
 	Freeze(gifPath.mtvu.fakePackets);
