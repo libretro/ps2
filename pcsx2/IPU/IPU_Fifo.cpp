@@ -65,25 +65,28 @@ void IPU_Fifo::clear()
 	out.clear();
 }
 
-int IPU_Fifo_Input::write(u32* pMem, int size)
+int IPU_Fifo_Input::write(const u32* pMem, int size)
 {
-	int transsize;
-	int firsttrans = std::min(size, 8 - (int)g_BP.IFC);
+	const int transfer_size = std::min(size, 8 - (int)g_BP.IFC);
+	if (!transfer_size) return 0;
 
-	g_BP.IFC += firsttrans;
-	transsize = firsttrans;
+	const int first_words  = std::min((32 - writepos), transfer_size << 2);
+	const int second_words = (transfer_size << 2) - first_words;
 
-	while (transsize-- > 0)
-	{
-		CopyQWC(&data[writepos], pMem);
-		writepos = (writepos + 4) & 31;
-		pMem += 4;
-	}
+	memcpy(&data[writepos], pMem, first_words << 2);
+	pMem += first_words;
+
+	if(second_words)
+		memcpy(&data[0], pMem, second_words << 2);
+
+	writepos = (writepos + (transfer_size << 2)) & 31;
+
+	g_BP.IFC += transfer_size;
 
 	if (g_BP.IFC == 8)
 		IPU1Status.DataRequested = false;
 
-	return firsttrans;
+	return transfer_size;
 }
 
 int IPU_Fifo_Input::read(void *value)
@@ -111,36 +114,40 @@ int IPU_Fifo_Input::read(void *value)
 
 int IPU_Fifo_Output::write(const u32 *value, uint size)
 {
-	uint origsize = size;
-	uint transsize = std::min(size, 8 - (uint)ipuRegs.ctrl.OFC);
-	if(!transsize) return 0;
+	const int transfer_size = std::min(size, 8 - (uint)ipuRegs.ctrl.OFC);
+	if(!transfer_size) return 0;
 
-	ipuRegs.ctrl.OFC += transsize;
-	size -= transsize;
-	while (transsize > 0)
-	{
-		CopyQWC(&data[writepos], value);
-		writepos = (writepos + 4) & 31;
-		value += 4;
-		--transsize;
-	}
+	const int first_words = std::min((32 - writepos), transfer_size << 2);
+	const int second_words = (transfer_size << 2) - first_words;
+
+	memcpy(&data[writepos], value, first_words << 2);
+	value += first_words;
+	if (second_words)
+		memcpy(&data[0], value, second_words << 2);
+
+	writepos = (writepos + (transfer_size << 2)) & 31;
+
+	ipuRegs.ctrl.OFC += transfer_size;
+
 	if(ipu0ch.chcr.STR)
 		IPU_INT_FROM(ipuRegs.ctrl.OFC * BIAS);
-	return origsize - size;
+	return transfer_size;
 }
 
 void IPU_Fifo_Output::read(void *value, uint size)
 {
 	ipuRegs.ctrl.OFC -= size;
 
-	while (size > 0)
-	{
-		CopyQWC(value, &data[readpos]);
+	const int first_words = std::min((32 - readpos), static_cast<int>(size << 2));
+	const int second_words = static_cast<int>(size << 2) - first_words;
 
-		readpos = (readpos + 4) & 31;
-		value = (u128*)value + 1;
-		--size;
-	}
+	memcpy(value, &data[readpos], first_words << 2);
+	value = static_cast<u32*>(value) + first_words;
+
+	if (second_words)
+		memcpy(value, &data[0], second_words << 2);
+
+	readpos = (readpos + static_cast<int>(size << 2)) & 31;
 }
 
 void ReadFIFO_IPUout(mem128_t* out)
@@ -155,7 +162,7 @@ void ReadFIFO_IPUout(mem128_t* out)
 void WriteFIFO_IPUin(const mem128_t* value)
 {
 	//committing every 16 bytes
-	if( ipu_fifo.in.write((u32*)value, 1) == 0 )
+	if( ipu_fifo.in.write(value->_u32, 1) == 0 )
 	{
 		if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
 		{
