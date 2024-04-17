@@ -929,11 +929,8 @@ bool GSHwHack::OI_ArTonelico2(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GST
 
 	const GSVertex* v = &r.m_vertex.buff[0];
 
-	if (r.m_vertex.next == 2 && !RPRIM->TME && RFRAME.FBW == 10 && v->XYZ.Z == 0 && RTEST.ZTST == ZTST_ALWAYS)
-	{
-		/* "OI_ArTonelico2" */
+	if (ds && r.m_vertex.next == 2 && !RPRIM->TME && RFRAME.FBW == 10 && v->XYZ.Z == 0 && RTEST.ZTST == ZTST_ALWAYS)
 		g_gs_device->ClearDepth(ds);
-	}
 
 	return true;
 }
