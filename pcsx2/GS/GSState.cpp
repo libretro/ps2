@@ -571,8 +571,6 @@ __forceinline void GSState::ApplyPRIM(u32 prim)
 
 	UpdateVertexKick();
 
-	ASSERT(m_index.tail == 0 || !g_gs_device->Features().provoking_vertex_last || m_index.buff[m_index.tail - 1] + 1 == m_vertex.next);
-
 	if (m_index.tail == 0)
 		m_vertex.next = 0;
 
@@ -1899,7 +1897,8 @@ void GSState::ReadLocalMemoryUnsync(u8* mem, int qwc, GIFRegBITBLTBUF BITBLTBUF,
 
 void GSState::PurgePool()
 {
-	g_gs_device->PurgePool();
+	if (g_gs_device)
+		g_gs_device->PurgePool();
 }
 
 void GSState::PurgeTextureCache()

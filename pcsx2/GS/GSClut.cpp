@@ -427,12 +427,14 @@ void GSClut::Read32(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 				if (!dst)
 				{
 					// allocate texture lazily
-					dst = g_gs_device->CreateRenderTarget(dst_size, 1, GSTexture::Format::Color, false);
+					if (g_gs_device)
+						dst = g_gs_device->CreateRenderTarget(dst_size, 1, GSTexture::Format::Color, false);
 					is_4bit ? (m_gpu_clut4 = dst) : (m_gpu_clut8 = dst);
 				}
 				if (dst)
 				{
-					g_gs_device->UpdateCLUTTexture(src, scale, offset.x, offset.y, dst, dOffset, dst_size);
+					if (g_gs_device)
+						g_gs_device->UpdateCLUTTexture(src, scale, offset.x, offset.y, dst, dOffset, dst_size);
 					m_current_gpu_clut = dst;
 				}
 			}
