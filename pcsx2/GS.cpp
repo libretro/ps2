@@ -90,7 +90,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 
 static __fi void IMRwrite(u32 value)
 {
-	if (CSRreg.GetInterruptMask() & (~value & GSIMR._u32) >> 8)
+	if ((CSRreg._u32 & 0x1f) & (~value & GSIMR._u32) >> 8)
 		gsIrq();
 
 	GSIMR._u32 = (value & 0x1f00)|0x6000;

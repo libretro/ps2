@@ -144,33 +144,11 @@ union tGS_CSR
 		u32 _unused32; // upper 32 bits (unused -- should probably be 0)
 	};
 
-	void SwapField()
-	{
-		_u32 ^= 0x2000;
-	}
-
-	void SetField()
-	{
-		_u32 |= 0x2000;
-	}
-
 	void Reset()
 	{
 		FIFO = CSR_FIFO_EMPTY;
 		REV = 0x1B; // GS Revision
 		ID = 0x55; // GS ID
-	}
-
-	bool HasAnyInterrupts() const { return (SIGNAL || FINISH || HSINT || VSINT || EDWINT); }
-
-	u32 GetInterruptMask() const
-	{
-		return _u32 & 0x1f;
-	}
-
-	void SetAllInterrupts(bool value = true)
-	{
-		SIGNAL = FINISH = HSINT = VSINT = EDWINT = value;
 	}
 
 	tGS_CSR(u64 val) { _u64 = val; }
@@ -360,7 +338,6 @@ public:
 	void ResetGS(bool hardware_reset);
 
 	void PrepDataPacket(MTGS_RingCommand cmd, u32 size);
-	void PrepDataPacket(GIF_PATH pathidx, u32 size);
 	void SendDataPacket();
 	void SendGameCRC(u32 crc);
 	void WaitForClose();
@@ -370,7 +347,6 @@ public:
 	void SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2);
 	void SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1);
 
-	u8* GetDataPacketPtr() const;
 	void SetEvent();
 	void PostVsyncStart(bool registers_written);
 	void InitAndReadFIFO(u8* mem, u32 qwc);
@@ -388,9 +364,6 @@ public:
 
 protected:
 	void GenericStall(uint size);
-
-	// Used internally by SendSimplePacket type functions
-	void _FinishSimplePacket();
 };
 
 // GetMTGS() is a required external implementation. This function is *NOT* provided

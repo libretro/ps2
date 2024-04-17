@@ -58,13 +58,6 @@ struct MTGS_BufferedData
 {
 	u128 m_Ring[RingBufferSize];
 	u8 Regs[Ps2MemSize::GSregs];
-
-	MTGS_BufferedData() {}
-
-	u128& operator[](uint idx)
-	{
-		return m_Ring[idx];
-	}
 };
 
 // =====================================================================================================
@@ -118,12 +111,12 @@ void SysMtgsThread::PostVsyncStart(bool registers_written)
 	PrepDataPacket(GS_RINGTYPE_VSYNC, packsize);
 	MemCopy_WrappedDest((u128*)PS2MEM_GS, RingBuffer.m_Ring, m_packet_writepos, RingBufferSize, 0xf);
 
-	u32* remainder = (u32*)GetDataPacketPtr();
-	remainder[0] = GSCSRr;
-	remainder[1] = GSIMR._u32;
+	u32* remainder              = (u32*)(u8*)&RingBuffer.m_Ring[m_packet_writepos & RingBufferMask];
+	remainder[0]                = GSCSRr;
+	remainder[1]                = GSIMR._u32;
 	(GSRegSIGBLID&)remainder[2] = GSSIGLBLID;
-	remainder[4] = static_cast<u32>(registers_written);
-	m_packet_writepos = (m_packet_writepos + 2) & RingBufferMask;
+	remainder[4]                = static_cast<u32>(registers_written);
+	m_packet_writepos           = (m_packet_writepos + 2) & RingBufferMask;
 
 	SendDataPacket();
 
@@ -214,7 +207,7 @@ void SysMtgsThread::MainLoop(bool flush_all)
 		while (m_ReadPos.load(std::memory_order_relaxed) != m_WritePos.load(std::memory_order_acquire))
 		{
 			const unsigned int local_ReadPos = m_ReadPos.load(std::memory_order_relaxed);
-			const PacketTagType& tag = (PacketTagType&)RingBuffer[local_ReadPos];
+			const PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[local_ReadPos];
 			u32 ringposinc = 1;
 
 			switch (tag.command)
@@ -264,7 +257,7 @@ void SysMtgsThread::MainLoop(bool flush_all)
 							uint datapos = (local_ReadPos + 1) & RingBufferMask;
 							MemCopy_WrappedSrc(RingBuffer.m_Ring, datapos, RingBufferSize, (u128*)RingBuffer.Regs, 0xf);
 
-							u32* remainder = (u32*)&RingBuffer[datapos];
+							u32* remainder = (u32*)&RingBuffer.m_Ring[datapos];
 							((u32&)RingBuffer.Regs[0x1000]) = remainder[0];
 							((u32&)RingBuffer.Regs[0x1010]) = remainder[1];
 							((GSRegSIGBLID&)RingBuffer.Regs[0x1080]) = (GSRegSIGBLID&)remainder[2];
@@ -443,17 +436,12 @@ void SysMtgsThread::SetEvent()
 	m_CopyDataTally = 0;
 }
 
-u8* SysMtgsThread::GetDataPacketPtr() const
-{
-	return (u8*)&RingBuffer[m_packet_writepos & RingBufferMask];
-}
-
 // Closes the data packet send command, and initiates the gs thread (if needed).
 void SysMtgsThread::SendDataPacket()
 {
-	uint actualSize = ((m_packet_writepos - m_packet_startpos) & RingBufferMask) - 1;
-	PacketTagType& tag = (PacketTagType&)RingBuffer[m_packet_startpos];
-	tag.data[0] = actualSize;
+	uint actualSize    = ((m_packet_writepos - m_packet_startpos) & RingBufferMask) - 1;
+	PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[m_packet_startpos];
+	tag.data[0]        = actualSize;
 
 	m_WritePos.store(m_packet_writepos, std::memory_order_release);
 
@@ -558,25 +546,23 @@ void SysMtgsThread::PrepDataPacket(MTGS_RingCommand cmd, u32 size)
 	// length in SIMDs (128 bits).
 	const unsigned int local_WritePos = m_WritePos.load(std::memory_order_relaxed);
 
-	PacketTagType& tag = (PacketTagType&)RingBuffer[local_WritePos];
-	tag.command = cmd;
-	tag.data[0] = m_packet_size;
-	m_packet_startpos = local_WritePos;
-	m_packet_writepos = (local_WritePos + 1) & RingBufferMask;
+	PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
+	tag.command        = cmd;
+	tag.data[0]        = m_packet_size;
+	m_packet_startpos  = local_WritePos;
+	m_packet_writepos  = (local_WritePos + 1) & RingBufferMask;
 }
 
-// Returns the amount of giftag data processed (in simd128 values).
-// Return value is used by VU1's XGKICK instruction to wrap the data
-// around VU memory instead of having buffer overflow...
-// Parameters:
-//  size - size of the packet data, in smd128's
-void SysMtgsThread::PrepDataPacket(GIF_PATH pathidx, u32 size)
+void SysMtgsThread::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
-	PrepDataPacket((MTGS_RingCommand)pathidx, size);
-}
+	GenericStall(1);
+	PacketTagType& tag   = (PacketTagType&)RingBuffer.m_Ring[m_WritePos.load(std::memory_order_relaxed)];
 
-__fi void SysMtgsThread::_FinishSimplePacket()
-{
+	tag.command          = type;
+	tag.data[0]          = data0;
+	tag.data[1]          = data1;
+	tag.data[2]          = data2;
+
 	uint future_writepos = (m_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
 	m_WritePos.store(future_writepos, std::memory_order_release);
 
@@ -584,19 +570,6 @@ __fi void SysMtgsThread::_FinishSimplePacket()
 		WaitGS();
 	else
 		++m_CopyDataTally;
-}
-
-void SysMtgsThread::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
-{
-	GenericStall(1);
-	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos.load(std::memory_order_relaxed)];
-
-	tag.command = type;
-	tag.data[0] = data0;
-	tag.data[1] = data1;
-	tag.data[2] = data2;
-
-	_FinishSimplePacket();
 }
 
 void SysMtgsThread::SendSimpleGSPacket(MTGS_RingCommand type, u32 offset, u32 size, GIF_PATH path)
@@ -614,13 +587,19 @@ void SysMtgsThread::SendSimpleGSPacket(MTGS_RingCommand type, u32 offset, u32 si
 void SysMtgsThread::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 {
 	GenericStall(1);
-	PacketTagType& tag = (PacketTagType&)RingBuffer[m_WritePos.load(std::memory_order_relaxed)];
+	PacketTagType& tag   = (PacketTagType&)RingBuffer.m_Ring[m_WritePos.load(std::memory_order_relaxed)];
 
-	tag.command = type;
-	tag.data[0] = data0;
-	tag.pointer = (uptr)data1;
+	tag.command          = type;
+	tag.data[0]          = data0;
+	tag.pointer          = (uptr)data1;
 
-	_FinishSimplePacket();
+	uint future_writepos = (m_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
+	m_WritePos.store(future_writepos, std::memory_order_release);
+
+	if (EmuConfig.GS.SynchronousMTGS)
+		WaitGS();
+	else
+		++m_CopyDataTally;
 }
 
 void SysMtgsThread::SendGameCRC(u32 crc)

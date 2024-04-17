@@ -506,9 +506,9 @@ static __fi void GSVSync()
 	// CSR is swapped and GS vBlank IRQ is triggered roughly 3.5 hblanks after VSync Start
 
 	if (IsProgressiveVideoMode())
-		CSRreg.SetField();
+		CSRreg._u32 |= 0x2000; /* SetField  */
 	else
-		CSRreg.SwapField();
+		CSRreg._u32 ^= 0x2000; /* SwapField */
 
 	if (!CSRreg.VSINT)
 	{
