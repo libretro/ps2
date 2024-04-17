@@ -547,6 +547,7 @@ public:
 	std::vector<GSVector2i>* GetPage2TileMap(const GIFRegTEX0& TEX0);
 	static bool IsPageAligned(u32 psm, const GSVector4i& rc);
 	static u32 GetEndBlockAddress(u32 bp, u32 bw, u32 psm, GSVector4i rect);
+	static GSVector4i GetRectForPageOffset(u32 base_bp, u32 offset_bp, u32 bw, u32 psm);
 
 	// address
 
