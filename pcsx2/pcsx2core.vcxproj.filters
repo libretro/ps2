@@ -187,9 +187,6 @@
     <Filter Include="System\Ps2\GS\Renderers\Hardware">
       <UniqueIdentifier>{85d4539e-fc10-4369-98f0-0ee9a6a9cc00}</UniqueIdentifier>
     </Filter>
-    <Filter Include="System\Ps2\GS\Renderers\Null">
-      <UniqueIdentifier>{5be27550-9ed4-4c27-9e69-e5933613c4e8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="System\Ps2\GS\Renderers\Software">
       <UniqueIdentifier>{8a0a142d-a4e0-4e8d-afbf-955fe1697eca}</UniqueIdentifier>
     </Filter>
@@ -1046,9 +1043,6 @@
     <ClCompile Include="GS\Renderers\SW\GSRasterizer.cpp">
       <Filter>System\Ps2\GS\Renderers\Software</Filter>
     </ClCompile>
-    <ClCompile Include="GS\Renderers\Null\GSRendererNull.cpp">
-      <Filter>System\Ps2\GS\Renderers\Null</Filter>
-    </ClCompile>
     <ClCompile Include="GS\Renderers\HW\GSRendererHW.cpp">
       <Filter>System\Ps2\GS\Renderers\Hardware</Filter>
     </ClCompile>
@@ -1869,9 +1863,6 @@
     </ClInclude>
     <ClInclude Include="GS\Renderers\SW\GSRasterizer.h">
       <Filter>System\Ps2\GS\Renderers\Software</Filter>
-    </ClInclude>
-    <ClInclude Include="GS\Renderers\Null\GSRendererNull.h">
-      <Filter>System\Ps2\GS\Renderers\Null</Filter>
     </ClInclude>
     <ClInclude Include="GS\Renderers\HW\GSRendererHW.h">
       <Filter>System\Ps2\GS\Renderers\Hardware</Filter>

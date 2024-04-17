@@ -18,7 +18,6 @@
 #include "GS.h"
 #include "GSUtil.h"
 #include "GSExtra.h"
-#include "Renderers/Null/GSRendererNull.h"
 #include "Renderers/HW/GSRendererHW.h"
 #include "Renderers/HW/GSTextureReplacements.h"
 #include "MultiISA.h"
@@ -134,9 +133,7 @@ static void CloseGSDevice(bool clear_state)
 
 static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 {
-	if (renderer == GSRendererType::Null)
-		g_gs_renderer = std::make_unique<GSRendererNull>();
-	else if (renderer != GSRendererType::SW)
+	if (renderer != GSRendererType::SW)
 		g_gs_renderer = std::make_unique<GSRendererHW>();
 	else
 		g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
