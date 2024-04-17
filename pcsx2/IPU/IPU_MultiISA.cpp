@@ -1091,7 +1091,9 @@ __ri static bool mpeg2sliceIDEC()
 					ipu_dither(rgb32, rgb16, decoder.dte);
 					decoder.SetOutputTo(rgb16);
 				}
-				/* fall-through */
+				ProcessedData += decoder.ipu0_data;
+				ipu_cmd.pos[1] = 2;
+				return false;
 
 			case 2:
 			{
@@ -1471,7 +1473,9 @@ __fi static bool mpeg2_slice()
 		coded_block_pattern = decoder.coded_block_pattern;
 
 		decoder.SetOutputTo(mb16);
-		/* fall-through */
+		ProcessedData += decoder.ipu0_data;
+		ipu_cmd.pos[0] = 3;
+		return false;
 
 	case 3:
 	{

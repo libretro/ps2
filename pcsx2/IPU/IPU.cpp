@@ -93,10 +93,17 @@ void tIPU_cmd::clear()
 	current = 0xffffffff;
 }
 
-__fi void IPUProcessInterrupt()
+__fi void IPUProcessInterrupt(void)
 {
 	if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
 		IPUWorker();
+
+	if (ipuRegs.ctrl.BUSY)
+	{
+		CPU_INT(IPU_PROCESS, ProcessedData ? ProcessedData : 64);
+	}
+	else
+		ProcessedData = 0;
 }
 
 /////////////////////////////////////////////////////////
@@ -325,6 +332,7 @@ static void ipuSETTH(u32 val)
 // The actual decoding will be handled by IPUworker.
 __fi void IPUCMD_WRITE(u32 val)
 {
+	ProcessedData    = 0;
 	ipuRegs.ctrl.ECD = 0;
 	ipuRegs.ctrl.SCD = 0;
 	ipu_cmd.clear();
