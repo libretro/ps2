@@ -80,50 +80,6 @@ void SysMtgsThread::ShutdownThread()
 	m_thread = {};
 }
 
-void SysMtgsThread::ThreadEntryPoint()
-{
-	m_thread_handle = Threading::ThreadHandle::GetForCallingThread();
-
-	for (;;)
-	{
-		// wait until we're actually asked to initialize (and config has been loaded, etc)
-		while (!m_open_flag.load(std::memory_order_acquire))
-		{
-			if (m_shutdown_flag.load(std::memory_order_acquire))
-			{
-				m_sem_event.Kill();
-				m_thread_handle = {};
-				return;
-			}
-
-			m_sem_event.WaitForWork();
-		}
-
-		// try initializing.. this could fail
-		const bool opened = TryOpenGS();
-		m_open_flag.store(opened, std::memory_order_release);
-
-		// notify emu thread that we finished opening (or failed)
-		m_open_or_close_done.Post();
-
-		// are we open?
-		if (!opened)
-		{
-			// wait until we're asked to try again...
-			continue;
-		}
-		// when we come back here, it's because we closed (or shutdown)
-		// that means the emu thread should be blocked, waiting for us to be done
-		CloseGS();
-		m_open_or_close_done.Post();
-
-		// we need to reset sem_event here, because MainLoop() kills it.
-		m_sem_event.Reset();
-	}
-
-	GSshutdown();
-}
-
 void SysMtgsThread::ResetGS(bool hardware_reset)
 {
 	// MTGS Reset process:

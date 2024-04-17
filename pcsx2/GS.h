@@ -403,7 +403,6 @@ public:
 	void CloseGS();
 
 protected:
-	void ThreadEntryPoint();
 	void MainLoop();
 
 	void GenericStall(uint size);
