@@ -1547,6 +1547,7 @@ void GSState::Write(const u8* mem, int len)
 			GSUploadQueue transfer = m_draw_transfers.back();
 			m_draw_transfers.pop_back();
 			transfer.rect = transfer.rect.runion(r);
+			transfer.draw = s_n;
 			m_draw_transfers.push_back(transfer);
 		}
 		else
@@ -1730,6 +1731,7 @@ void GSState::Move()
 		GSUploadQueue transfer = m_draw_transfers.back();
 		m_draw_transfers.pop_back();
 		transfer.rect = transfer.rect.runion(r);
+		transfer.draw = s_n;
 		m_draw_transfers.push_back(transfer);
 	}
 	else
