@@ -266,29 +266,17 @@ void FileMemoryCard::Open()
 		}
 
 		std::string fname(EmuConfig.FullpathToMcd(slot));
-		std::string_view str(fname);
 		bool cont = false;
 
 		if (fname.empty())
-		{
-			str = "[empty filename]";
 			cont = true;
-		}
 
 		if (!EmuConfig.Mcd[slot].Enabled)
-		{
-			str = "[disabled]";
 			cont = true;
-		}
 
 		if (EmuConfig.Mcd[slot].Type != MemoryCardType::File)
-		{
-			str = "[is not memcard file]";
 			cont = true;
-		}
 
-		Console.WriteLn(cont ? Color_Gray : Color_Green, "McdSlot %u [File]: %.*s", slot,
-			static_cast<int>(str.size()), str.data());
 		if (cont)
 			continue;
 
