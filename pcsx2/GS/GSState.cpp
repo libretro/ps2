@@ -1420,7 +1420,12 @@ void GSState::FlushPrim()
 
 		m_vt.Update(m_vertex.buff, m_index.buff, m_vertex.tail, m_index.tail, GSUtil::GetPrimClass(PRIM->PRIM));
 
-		Draw();
+		// Skip draw if Z test is enabled, but set to fail all pixels.
+		const bool skip_draw = (m_context->TEST.ZTE && m_context->TEST.ZTST == ZTST_NEVER);
+
+			if (!skip_draw)
+				Draw();
+
 
 		m_index.tail = 0;
 		m_vertex.head = 0;
