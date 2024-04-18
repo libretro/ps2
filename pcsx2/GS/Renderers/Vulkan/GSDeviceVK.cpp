@@ -4867,8 +4867,10 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 			hdr_rt->SetState(GSTexture::State::Cleared);
 			hdr_rt->SetClearColor(draw_rt->GetClearColor());
 		}
-
-		draw_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+		else if (draw_rt->GetState() == GSTexture::State::Dirty)
+		{
+			draw_rt->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
+		}
 
 		// we're not drawing to the RT, so we can use it as a source
 		if (config.require_one_barrier && !m_features.texture_barrier)

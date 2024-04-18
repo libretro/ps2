@@ -2966,8 +2966,10 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 			hdr_rt->SetState(GSTexture::State::Cleared);
 			hdr_rt->SetClearColor(draw_rt->GetClearColor());
 		}
-
-		draw_rt->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		else if (draw_rt->GetState() == GSTexture::State::Dirty)
+		{
+			draw_rt->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		}
 
 		// we're not drawing to the RT, so we can use it as a source
 		if (config.require_one_barrier)
