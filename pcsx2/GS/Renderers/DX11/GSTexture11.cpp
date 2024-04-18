@@ -60,6 +60,8 @@ bool GSTexture11::Update(const GSVector4i& r, const void* data, int pitch, int l
 	if (layer >= m_mipmap_levels)
 		return false;
 
+	GSDevice11::GetInstance()->CommitClear(this);
+
 	const u32 bs = GetCompressedBlockSize();
 	
 	const D3D11_BOX box = {Common::AlignDownPow2((u32)r.left, bs), Common::AlignDownPow2((u32)r.top, bs), 0U,
@@ -73,34 +75,13 @@ bool GSTexture11::Update(const GSVector4i& r, const void* data, int pitch, int l
 
 bool GSTexture11::Map(GSMap& m, const GSVector4i* r, int layer)
 {
-	if (r != NULL)
-		return false;
-
-	if (layer >= m_mipmap_levels)
-		return false;
-
-	if (m_texture && m_desc.Usage == D3D11_USAGE_STAGING)
-	{
-		D3D11_MAPPED_SUBRESOURCE map;
-		UINT subresource = layer;
-
-		if (SUCCEEDED(GSDevice11::GetInstance()->GetD3DContext()->Map(m_texture.get(), subresource, D3D11_MAP_READ_WRITE, 0, &map)))
-		{
-			m.bits = (u8*)map.pData;
-			m.pitch = (int)map.RowPitch;
-			m_mapped_subresource = layer;
-			return true;
-		}
-	}
-
+	/* Not supported */
 	return false;
 }
 
 void GSTexture11::Unmap()
 {
-	const UINT subresource = m_mapped_subresource;
-	m_needs_mipmaps_generated |= (m_mapped_subresource == 0);
-	GSDevice11::GetInstance()->GetD3DContext()->Unmap(m_texture.get(), subresource);
+	/* Should not be called */
 }
 
 void GSTexture11::GenerateMipmap()

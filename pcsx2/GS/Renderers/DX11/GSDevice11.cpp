@@ -488,38 +488,43 @@ void GSDevice11::DrawIndexedPrimitive(int offset, int count)
 	m_ctx->DrawIndexed(count, m_index.start + offset, m_vertex.start);
 }
 
-void GSDevice11::ClearRenderTarget(GSTexture* t, const GSVector4& c)
-{
-	if (!t)
-		return;
-	m_ctx->ClearRenderTargetView(*(GSTexture11*)t, c.v);
-}
-
 void GSDevice11::ClearRenderTarget(GSTexture* t, u32 c)
 {
-	if (!t)
-		return;
-	const GSVector4 color = GSVector4::rgba32(c) * (1.0f / 255);
-
-	m_ctx->ClearRenderTargetView(*(GSTexture11*)t, color.v);
+	t->SetClearColor(c);
 }
 
 void GSDevice11::InvalidateRenderTarget(GSTexture* t)
 {
-	if (t->IsDepthStencil())
-		m_ctx->DiscardView(static_cast<ID3D11DepthStencilView*>(*static_cast<GSTexture11*>(t)));
-	else
-		m_ctx->DiscardView(static_cast<ID3D11RenderTargetView*>(*static_cast<GSTexture11*>(t)));
+	t->SetState(GSTexture::State::Invalidated);
 }
 
 void GSDevice11::ClearDepth(GSTexture* t, float d)
 {
-	m_ctx->ClearDepthStencilView(*(GSTexture11*)t, D3D11_CLEAR_DEPTH, d, 0);
+	t->SetClearDepth(d);
 }
 
-void GSDevice11::ClearStencil(GSTexture* t, u8 c)
+void GSDevice11::CommitClear(GSTexture* t)
 {
-	m_ctx->ClearDepthStencilView(*(GSTexture11*)t, D3D11_CLEAR_STENCIL, 0, c);
+	GSTexture11* T = static_cast<GSTexture11*>(t);
+	if (!T->IsRenderTargetOrDepthStencil() || T->GetState() == GSTexture::State::Dirty)
+		return;
+
+	if (T->IsDepthStencil())
+	{
+		if (T->GetState() == GSTexture::State::Invalidated)
+			m_ctx->DiscardView(static_cast<ID3D11DepthStencilView*>(*T));
+		else
+			m_ctx->ClearDepthStencilView(*T, D3D11_CLEAR_DEPTH, T->GetClearDepth(), 0);
+	}
+	else
+	{
+		if (T->GetState() == GSTexture::State::Invalidated)
+			m_ctx->DiscardView(static_cast<ID3D11RenderTargetView*>(*T));
+		else
+			m_ctx->ClearRenderTargetView(*T, T->GetUNormClearColor().F32);
+	}
+
+	T->SetState(GSTexture::State::Dirty);
 }
 
 GSTexture* GSDevice11::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
@@ -573,6 +578,9 @@ std::unique_ptr<GSDownloadTexture> GSDevice11::CreateDownloadTexture(u32 width, 
 
 void GSDevice11::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
+	CommitClear(sTex);
+	CommitClear(dTex);
+
 	D3D11_BOX box = {(UINT)r.left, (UINT)r.top, 0U, (UINT)r.right, (UINT)r.bottom, 1U};
 
 	// DX api isn't happy if we pass a box for depth copy
@@ -586,6 +594,8 @@ void GSDevice11::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 
 void GSDevice11::CloneTexture(GSTexture* src, GSTexture** dest, const GSVector4i& rect)
 {
+	CommitClear(src);
+
 	const int w = src->GetWidth();
 	const int h = src->GetHeight();
 
@@ -622,7 +632,7 @@ void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 
 void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ID3D11PixelShader* ps, ID3D11Buffer* ps_cb, ID3D11BlendState* bs, bool linear)
 {
-	ASSERT(sTex);
+	CommitClear(sTex);
 
 	const bool draw_in_depth = dTex && dTex->IsDepthStencil();
 
@@ -694,6 +704,8 @@ void GSDevice11::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 
 void GSDevice11::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
+	CommitClear(sTex);
+
 	ID3D11RenderTargetView *nullView = nullptr;
 	m_ctx->OMSetRenderTargets(1, &nullView, nullptr);
 
@@ -815,6 +827,7 @@ void GSDevice11::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rect
 	IAUnmapIndexBuffer(icount);
 	IASetIndexBuffer(m_ib.get());
 
+	CommitClear(rects[0].src);
 	PSSetShaderResource(0, rects[0].src);
 	PSSetSamplerState(rects[0].linear ? m_convert.ln.get() : m_convert.pt.get());
 
@@ -824,7 +837,7 @@ void GSDevice11::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rect
 }
 
 
-void GSDevice11::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear)
+void GSDevice11::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear)
 {
 	const GSVector4 full_r(0.0f, 0.0f, 1.0f, 1.0f);
 	const bool feedback_write_2 = PMODE.EN2 && sTex[2] != nullptr && EXTBUF.FBIN == 1;
@@ -839,7 +852,7 @@ void GSDevice11::DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, 
 	// Upload constant to select YUV algo, but skip constant buffer update if we don't need it
 	if (feedback_write_2 || feedback_write_1 || sTex[0])
 	{
-		const MergeConstantBuffer cb = {c, EXTBUF.EMODA, EXTBUF.EMODC};
+		const MergeConstantBuffer cb = {GSVector4::unorm8(c), EXTBUF.EMODA, EXTBUF.EMODC};
 		m_ctx->UpdateSubresource(m_merge.cb.get(), 0, nullptr, &cb, 0, 0);
 	}
 
@@ -885,7 +898,7 @@ void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vert
 {
 	// sfex3 (after the capcom logo), vf4 (first menu fading in), ffxii shadows, rumble roses shadows, persona4 shadows
 
-	ClearStencil(ds, 0);
+	m_ctx->ClearDepthStencilView(*static_cast<GSTexture11*>(ds), D3D11_CLEAR_STENCIL, 0.0f, 0);
 
 	// om
 
@@ -1153,8 +1166,16 @@ void GSDevice11::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 	ID3D11RenderTargetView* rtv = nullptr;
 	ID3D11DepthStencilView* dsv = nullptr;
 
-	if (rt) rtv = *(GSTexture11*)rt;
-	if (ds) dsv = *(GSTexture11*)ds;
+	if (rt)
+	{
+		CommitClear(rt);
+		rtv = *static_cast<GSTexture11*>(rt);
+	}
+	if (ds)
+	{
+		CommitClear(ds);
+		dsv = *static_cast<GSTexture11*>(ds);
+	}
 
 	const bool changed = (m_state.rt_view != rtv || m_state.dsv != dsv);
 

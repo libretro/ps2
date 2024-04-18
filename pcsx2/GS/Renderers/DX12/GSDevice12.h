@@ -184,7 +184,7 @@ private:
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE,
-		const GSRegEXTBUF& EXTBUF, const GSVector4& c, const bool linear) final;
+		const GSRegEXTBUF& EXTBUF, u32 c, const bool linear) final;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) final;
 
 	bool GetSampler(D3D12DescriptorHandle* cpu_handle, GSHWDrawConfig::SamplerSelector ss);
@@ -232,7 +232,6 @@ public:
 	void DrawIndexedPrimitive();
 	void DrawIndexedPrimitive(int offset, int count);
 
-	void ClearRenderTarget(GSTexture* t, const GSVector4& c) override;
 	void ClearRenderTarget(GSTexture* t, u32 c) override;
 	void InvalidateRenderTarget(GSTexture* t) override;
 	void ClearDepth(GSTexture* t, float d) override;
@@ -318,7 +317,7 @@ public:
 		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE depth_end = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS,
 		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE stencil_begin = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
 		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE stencil_end = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS,
-		const GSVector4& clear_color = GSVector4::zero(), float clear_depth = 0.0f, u8 clear_stencil = 0);
+		const u32 clear_color = 0, float clear_depth = 0.0f, u8 clear_stencil = 0);
 	void EndRenderPass();
 
 	void SetViewport(const D3D12_VIEWPORT& viewport);

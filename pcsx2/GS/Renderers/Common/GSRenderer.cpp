@@ -182,8 +182,7 @@ bool GSRenderer::Merge(int field)
 		tex[0] = nullptr;
 	}
 
-	GSVector4 c = GSVector4((int)m_regs->BGCOLOR.R, (int)m_regs->BGCOLOR.G, (int)m_regs->BGCOLOR.B, (int)m_regs->PMODE.ALP) / 255;
-
+	const u32 c = (m_regs->BGCOLOR.U32[0] & 0x00FFFFFFu) | (m_regs->PMODE.ALP << 24);
 	g_gs_device->Merge(tex, src_gs_read, dst, fs, m_regs->PMODE, m_regs->EXTBUF, c);
 
 	if (isReallyInterlaced() && GSConfig.InterlaceMode != GSInterlaceMode::Off)
