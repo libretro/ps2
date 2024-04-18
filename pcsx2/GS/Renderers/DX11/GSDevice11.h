@@ -246,7 +246,7 @@ public:
 	void ClearRenderTarget(GSTexture* t, const GSVector4& c) override;
 	void ClearRenderTarget(GSTexture* t, u32 c) override;
 	void InvalidateRenderTarget(GSTexture* t) override;
-	void ClearDepth(GSTexture* t) override;
+	void ClearDepth(GSTexture* t, float d) override;
 	void ClearStencil(GSTexture* t, u8 c);
 
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;

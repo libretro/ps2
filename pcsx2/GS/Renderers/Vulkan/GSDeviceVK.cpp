@@ -2450,7 +2450,7 @@ void GSDeviceVK::InvalidateRenderTarget(GSTexture* t)
 	t->SetState(GSTexture::State::Invalidated);
 }
 
-void GSDeviceVK::ClearDepth(GSTexture* t)
+void GSDeviceVK::ClearDepth(GSTexture* t, float d)
 {
 	if (!t)
 		return;
@@ -2458,7 +2458,7 @@ void GSDeviceVK::ClearDepth(GSTexture* t)
 	if (m_current_depth_target == t)
 		EndRenderPass();
 
-	static_cast<GSTextureVK*>(t)->SetClearDepth(0.0f);
+	static_cast<GSTextureVK*>(t)->SetClearDepth(d);
 }
 
 VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const

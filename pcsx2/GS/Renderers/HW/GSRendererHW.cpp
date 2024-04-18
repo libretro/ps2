@@ -4723,16 +4723,10 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 					return;
 				}
 
-				if (clear_depth)
-				{
-					// Only pure clear are supported for depth
-					ASSERT(color == 0);
-					g_gs_device->ClearDepth(tex);
-				}
+				if (clear_depth) // Only pure clear are supported for depth
+					g_gs_device->ClearDepth(tex, 0.0f);
 				else
-				{
 					g_gs_device->ClearRenderTarget(tex, color);
-				}
 				const GSVector4 drect = GSVector4(target->GetUnscaledRect()) * GSVector4(target->m_scale);
 
 				// Copy channels being masked.
@@ -4747,8 +4741,7 @@ void GSRendererHW::OI_DoubleHalfClear(GSTextureCache::Target*& rt, GSTextureCach
 				if (clear_depth)
 				{
 					// Only pure clear are supported for depth
-					ASSERT(color == 0);
-					g_gs_device->ClearDepth(ds->m_texture);
+					g_gs_device->ClearDepth(ds->m_texture, 0.0f);
 					ds->UpdateValidity(ds->GetUnscaledRect());
 				}
 				else

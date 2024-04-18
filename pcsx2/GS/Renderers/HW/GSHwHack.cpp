@@ -800,9 +800,7 @@ bool GSHwHack::OI_FFX(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTextureCa
 
 	// random battle transition (z buffer written directly, clear it now)
 	if (ds && (FBP == 0x00d00 || FBP == 0x00000) && ZBP == 0x02100 && RPRIM->TME && TBP == 0x01a00 && RTEX0.PSM == PSMCT16S)
-	{
-		g_gs_device->ClearDepth(ds);
-	}
+		g_gs_device->ClearDepth(ds, 0.0f);
 
 	return true;
 }
@@ -842,11 +840,9 @@ bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTextu
 			TEX0.TBW = RFRAME.FBW;
 			TEX0.PSM = RZBUF.PSM;
 
+			/* ZB clear */
 			if (GSTextureCache::Target* tmp_ds = g_texture_cache->LookupTarget(TEX0, r.GetTargetSize(), r.GetTextureScaleFactor(), GSTextureCache::DepthStencil))
-			{
-				/* "OI_RozenMaidenGebetGarden ZB clear" */
-				g_gs_device->ClearDepth(tmp_ds->m_texture);
-			}
+				g_gs_device->ClearDepth(tmp_ds->m_texture, 0.0f);
 
 			return false;
 		}
@@ -932,7 +928,7 @@ bool GSHwHack::OI_ArTonelico2(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GST
 	const GSVertex* v = &r.m_vertex.buff[0];
 
 	if (ds && r.m_vertex.next == 2 && !RPRIM->TME && RFRAME.FBW == 10 && v->XYZ.Z == 0 && RTEST.ZTST == ZTST_ALWAYS)
-		g_gs_device->ClearDepth(ds);
+		g_gs_device->ClearDepth(ds, 0.0f);
 
 	return true;
 }
@@ -967,9 +963,7 @@ bool GSHwHack::GSC_Battlefield2(GSRendererHW& r, int& skip)
 			TEX0.TBW = 8;
 			GSTextureCache::Target* dst = g_texture_cache->LookupTarget(TEX0, r.GetTargetSize(), r.GetTextureScaleFactor(), GSTextureCache::DepthStencil);
 			if (dst)
-			{
-				g_gs_device->ClearDepth(dst->m_texture);
-			}
+				g_gs_device->ClearDepth(dst->m_texture, 0.0f);
 		}
 	}
 
