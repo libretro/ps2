@@ -9571,6 +9571,7 @@ SLAJ-25072:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLAJ-25073:
   name: "Resident Evil 4"
   region: "NTSC-J"
@@ -10041,6 +10042,7 @@ SLED-53845:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLED-53937:
   name: "Black [Demo]"
   region: "PAL-M5"
@@ -18200,6 +18202,7 @@ SLES-53462:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLES-53463:
   name: "NHL '06"
   region: "PAL-E"
@@ -19256,6 +19259,7 @@ SLES-53759:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLES-53760:
   name: "Rugby Challenge 2006"
   region: "PAL-M5"
@@ -25358,6 +25362,7 @@ SLKA-25303:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLKA-25304:
   name: "Burnout Revenge"
   region: "NTSC-K"
@@ -33158,6 +33163,7 @@ SLPM-66177:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLPM-66178:
   name: "pop'n music 7 [Konami The Best]"
   region: "NTSC-J"
@@ -48827,6 +48833,7 @@ SLUS-21273:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
+    autoFlush: 1 # Fixes broken post processing.
 SLUS-21274:
   name: "OutRun 2006 - Coast 2 Coast"
   region: "NTSC-U"
