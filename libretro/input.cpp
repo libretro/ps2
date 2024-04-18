@@ -226,13 +226,6 @@ void PAD::KeyStatus::Set(u32 pad, u32 index, float value)
 {
 }
 
-void InputManager::PollSources()
-{
-}
-void InputManager::CloseSources()
-{
-}
-
 void InputManager::ReloadSources(SettingsInterface& si, std::unique_lock<std::mutex>& settings_lock)
 {
 }

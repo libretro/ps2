@@ -35,12 +35,6 @@ namespace InputManager
 	/// Re-parses the sources part of the config and initializes any backends.
 	void ReloadSources(SettingsInterface& si, std::unique_lock<std::mutex>& settings_lock);
 
-	/// Shuts down any enabled input sources.
-	void CloseSources();
-
-	/// Polls input sources for events (e.g. external controllers).
-	void PollSources();
-
 	/// Internal method used by pads to dispatch vibration updates to input sources.
 	/// Intensity is normalized from 0 to 1.
 	void SetPadVibrationIntensity(u32 pad_index, float large_or_single_motor_intensity, float small_motor_intensity);

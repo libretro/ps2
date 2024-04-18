@@ -84,9 +84,6 @@ namespace VMManager
 	/// Reloads cheats/patches. If verbose is set, the number of patches loaded will be shown in the OSD.
 	void ReloadPatches(bool verbose, bool show_messages_when_disabled);
 
-	/// Waits until all compressing save states have finished saving to disk.
-	void WaitForSaveStateFlush();
-
 	/// Changes the disc in the virtual CD/DVD drive. Passing an empty will remove any current disc.
 	/// Returns false if the new disc can't be opened.
 	bool ChangeDisc(CDVD_SourceType source, std::string path);
@@ -145,23 +142,7 @@ namespace Host
 	/// Called when the VM is resumed after being paused.
 	void OnVMResumed();
 
-	/// Called when performance metrics are updated, approximately once a second.
-	void OnPerformanceMetricsUpdated();
-
-	/// Called when a save state is loading, before the file is processed.
-	void OnSaveStateLoading(const std::string_view& filename);
-
-	/// Called after a save state is successfully loaded. If the save state was invalid, was_successful will be false.
-	void OnSaveStateLoaded(const std::string_view& filename, bool was_successful);
-
-	/// Called when a save state is being created/saved. The compression/write to disk is asynchronous, so this callback
-	/// just signifies that the save has started, not necessarily completed.
-	void OnSaveStateSaved(const std::string_view& filename);
-
 	/// Provided by the host; called when the running executable changes.
 	void OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
 		u32 game_crc);
-
-	/// Provided by the host; called once per frame at guest vsync.
-	void CPUThreadVSync();
 } // namespace Host

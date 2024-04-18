@@ -727,7 +727,6 @@ void retro_unload_game(void)
 	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		Vulkan::UnloadVulkanLibrary();
 #endif
-	InputManager::CloseSources();
 	VMManager::Internal::ReleaseMemory();
 	VMManager::Internal::ReleaseGlobals();
 
@@ -1015,11 +1014,6 @@ void Host::OnVMDestroyed() { }
 void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
 	u32 game_crc)
 {
-}
-
-void Host::CPUThreadVSync()
-{
-	InputManager::PollSources();
 }
 
 void Host::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& lock)

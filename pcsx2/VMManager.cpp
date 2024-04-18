@@ -774,8 +774,6 @@ void VMManager::Internal::VSyncOnCPUThread()
 	// TODO: Move frame limiting here to reduce CPU usage after sleeping...
 	ApplyLoadedPatches(PPT_CONTINUOUSLY);
 	ApplyLoadedPatches(PPT_COMBINED_0_1);
-
-	Host::CPUThreadVSync();
 }
 
 void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
