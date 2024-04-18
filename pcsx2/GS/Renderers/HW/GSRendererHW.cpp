@@ -1487,7 +1487,7 @@ void GSRendererHW::Draw()
 	const bool draw_sprite_tex = PRIM->TME && (m_vt.m_primclass == GS_SPRITE_CLASS);
 
 	// We trigger the sw prim render here super early, to avoid creating superfluous render targets.
-	if (CanUseSwPrimRender(no_rt, no_ds, draw_sprite_tex) && SwPrimRender(*this, true))
+	if (CanUseSwPrimRender(no_rt, no_ds, draw_sprite_tex) && SwPrimRender(*this, true, true))
 		return;
 
 	// The rectangle of the draw rounded up.
@@ -1521,7 +1521,7 @@ void GSRendererHW::Draw()
 		m_mem.m_clut.ClearDrawInvalidity();
 		if (result == CLUTDrawTestResult::CLUTDrawOnCPU && GSConfig.UserHacks_CPUCLUTRender > 0)
 		{
-			if (SwPrimRender(*this, true))
+			if (SwPrimRender(*this, true, true))
 				return;
 		}
 		else if (result != CLUTDrawTestResult::NotCLUTDraw)
