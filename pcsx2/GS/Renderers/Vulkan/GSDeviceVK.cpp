@@ -3424,6 +3424,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 	gpb.SetPipelineLayout(m_utility_pipeline_layout);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
 	gpb.SetNoCullRasterizationState();
 	gpb.SetNoBlendingState();
 	gpb.SetVertexShader(vs);
@@ -3600,6 +3601,7 @@ bool GSDeviceVK::CompilePresentPipelines()
 	gpb.SetPipelineLayout(m_utility_pipeline_layout);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
 	gpb.SetNoCullRasterizationState();
 	gpb.SetNoBlendingState();
 	gpb.SetVertexShader(vs);
@@ -3650,6 +3652,7 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	gpb.SetPipelineLayout(m_utility_pipeline_layout);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
 	gpb.SetNoCullRasterizationState();
 	gpb.SetNoDepthTestState();
 	gpb.SetNoBlendingState();
@@ -3699,6 +3702,7 @@ bool GSDeviceVK::CompileMergePipelines()
 	gpb.SetPipelineLayout(m_utility_pipeline_layout);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
 	gpb.SetNoCullRasterizationState();
 	gpb.SetNoDepthTestState();
 	gpb.SetRenderPass(rp, 0);
@@ -3736,6 +3740,7 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 	gpb.SetPipelineLayout(m_utility_pipeline_layout);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
 	gpb.SetNoCullRasterizationState();
 	gpb.SetNoDepthTestState();
 	gpb.SetNoBlendingState();
@@ -3979,12 +3984,11 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 	}
 	gpb.SetPrimitiveTopology(topology_lookup[p.topology]);
 	gpb.SetRasterizationState(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	if (p.line_width)
-		gpb.SetLineWidth(static_cast<float>(GSConfig.UpscaleMultiplier));
 	if (p.topology == static_cast<u8>(GSHWDrawConfig::Topology::Line) && g_vulkan_context->GetOptionalExtensions().vk_ext_line_rasterization)
 		gpb.SetLineRasterizationMode(VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
 
 	// Shaders
 	gpb.SetVertexShader(vs);
@@ -4187,7 +4191,7 @@ void GSDeviceVK::ExecuteCommandBufferForReadback()
 void GSDeviceVK::InvalidateCachedState()
 {
 	m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS | DIRTY_FLAG_TFX_RT_TEXTURE_DS | DIRTY_FLAG_TFX_DYNAMIC_OFFSETS |
-					 DIRTY_FLAG_UTILITY_TEXTURE | DIRTY_FLAG_BLEND_CONSTANTS | DIRTY_FLAG_VERTEX_BUFFER |
+					 DIRTY_FLAG_UTILITY_TEXTURE | DIRTY_FLAG_BLEND_CONSTANTS | DIRTY_FLAG_LINE_WIDTH | DIRTY_FLAG_VERTEX_BUFFER |
 					 DIRTY_FLAG_INDEX_BUFFER | DIRTY_FLAG_VIEWPORT | DIRTY_FLAG_SCISSOR | DIRTY_FLAG_PIPELINE |
 					 DIRTY_FLAG_VS_CONSTANT_BUFFER | DIRTY_FLAG_PS_CONSTANT_BUFFER;
 	if (m_vertex_buffer != VK_NULL_HANDLE)
@@ -4237,6 +4241,15 @@ void GSDeviceVK::SetBlendConstants(u8 color)
 
 	m_blend_constant_color = color;
 	m_dirty_flags |= DIRTY_FLAG_BLEND_CONSTANTS;
+}
+
+void GSDeviceVK::SetLineWidth(float width)
+{
+	if (m_current_line_width == width)
+		return;
+
+	m_current_line_width = width;
+	m_dirty_flags |= DIRTY_FLAG_LINE_WIDTH;
 }
 
 void GSDeviceVK::PSSetShaderResource(int i, GSTexture* sr, bool check_state)
@@ -4436,6 +4449,9 @@ __ri void GSDeviceVK::ApplyBaseState(u32 flags, VkCommandBuffer cmdbuf)
 		const GSVector4 col(static_cast<float>(m_blend_constant_color) / 128.0f);
 		vkCmdSetBlendConstants(cmdbuf, col.v);
 	}
+
+	if (flags & DIRTY_FLAG_LINE_WIDTH)
+		vkCmdSetLineWidth(cmdbuf, m_current_line_width);
 }
 
 bool GSDeviceVK::ApplyTFXState(bool already_execed)
@@ -4827,6 +4843,9 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 
 	if (config.blend.constant_enable)
 		SetBlendConstants(config.blend.constant);
+
+	if (config.line_expand)
+		SetLineWidth(config.cb_ps.ScaleFactor.z);
 
 	// Primitive ID tracking DATE setup.
 	GSTextureVK* date_image = nullptr;
