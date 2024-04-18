@@ -405,7 +405,7 @@ void GSRendererSW::Sync(int reason)
 	m_rl->Sync();
 }
 
-void GSRendererSW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool eewrite)
+void GSRendererSW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r)
 {
 	GSOffset off = m_mem.GetOffset(BITBLTBUF.DBP, BITBLTBUF.DBW, BITBLTBUF.DPSM);
 	GSOffset::PageLooper pages = off.pageLooperForRect(r);

@@ -969,7 +969,7 @@ bool GSRendererHW::IsTBPFrameOrZ(u32 tbp) const
 }
 
 
-void GSRendererHW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r, bool eewrite)
+void GSRendererHW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r)
 {
 	// This is gross, but if the EE write loops, we need to split it on the 2048 border.
 	GSVector4i rect = r;
