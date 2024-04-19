@@ -105,6 +105,21 @@ void GSDevice::AcquireWindow(void)
 	m_window_info = std::move(wi.value());
 }
 
+void GSDevice::ClearRenderTarget(GSTexture* t, u32 c)
+{
+	t->SetClearColor(c);
+}
+
+void GSDevice::ClearDepth(GSTexture* t, float d)
+{
+	t->SetClearDepth(d);
+}
+
+void GSDevice::InvalidateRenderTarget(GSTexture* t)
+{
+	t->SetState(GSTexture::State::Invalidated);
+}
+
 void GSDevice::ResetAPIState()
 {
 }

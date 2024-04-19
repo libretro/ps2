@@ -764,9 +764,9 @@ public:
 	/// Presents the frame to the display.
 	virtual void EndPresent() = 0;
 
-	virtual void ClearRenderTarget(GSTexture* t, u32 c) = 0;
-	virtual void InvalidateRenderTarget(GSTexture* t) = 0;
-	virtual void ClearDepth(GSTexture* t, float d) = 0;
+	void ClearRenderTarget(GSTexture* t, u32 c);
+	void ClearDepth(GSTexture* t, float d);
+	void InvalidateRenderTarget(GSTexture* t);
 
 	GSTexture* CreateRenderTarget(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateDepthStencil(int w, int h, GSTexture::Format format, bool clear = true);
