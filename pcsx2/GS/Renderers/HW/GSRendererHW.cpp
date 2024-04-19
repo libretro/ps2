@@ -1708,15 +1708,15 @@ void GSRendererHW::Draw()
 		}
 
 		// Try to fix large single-page-wide draws.
-		bool clear_height_valid = m_r.w >= 1024;
-		if (clear_height_valid && m_cached_ctx.FRAME.FBW <= 1 &&
+		bool height_invalid = m_r.w >= 1024;
+		if (height_invalid && m_cached_ctx.FRAME.FBW <= 1 &&
 			TryToResolveSinglePageFramebuffer(m_cached_ctx.FRAME, true))
 		{
 			const GSVector2i& pgs = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].pgs;
 			ReplaceVerticesWithSprite(
 				GetDrawRectForPages(m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, (m_r.w + (pgs.y - 1)) / pgs.y),
 				GSVector2i(1, 1));
-			clear_height_valid = false;
+			height_invalid = false;
 		}
 
 		const bool is_zero_clear = (GetConstantDirectWriteMemClearColor() == 0 && !preserve_rt_color);
@@ -1724,26 +1724,44 @@ void GSRendererHW::Draw()
 
 		// If it's an invalid-sized draw, do the mem clear on the CPU, we don't want to create huge targets.
 		// If clearing to zero, don't bother creating the target. Games tend to clear more than they use, wasting VRAM/bandwidth.
-		if ((is_zero_clear || clear_height_valid) && TryGSMemClear())
+		if (is_zero_clear || height_invalid)
 		{
-			if (!no_rt)
+			// If this is a partial clear of a larger buffer, we can't invalidate the target, since we'll be losing data
+			// which only existed on the GPU. Assume a BW change is a new target, though. Test case: Persona 3 shadows.
+			GSTextureCache::Target* tgt;
+			const bool overwriting_whole_rt =
+				(no_rt || height_invalid ||
+					(tgt = g_texture_cache->GetExactTarget(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW,
+						 GSTextureCache::RenderTarget,
+						 GSLocalMemory::GetEndBlockAddress(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW,
+							 m_cached_ctx.FRAME.PSM, m_r))) == nullptr ||
+					m_r.rintersect(tgt->m_valid).eq(tgt->m_valid));
+			const bool overwriting_whole_ds =
+				(no_ds || height_invalid ||
+					(tgt = g_texture_cache->GetExactTarget(m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW,
+						 GSTextureCache::DepthStencil,
+						 GSLocalMemory::GetEndBlockAddress(m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW,
+							 m_cached_ctx.ZBUF.PSM, m_r))) == nullptr ||
+					m_r.rintersect(tgt->m_valid).eq(tgt->m_valid));
+
+			if (overwriting_whole_rt && overwriting_whole_ds && TryGSMemClear())
 			{
-				/* Clear draw with mem clear and valid clear height, invalidating. */
-				g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, m_cached_ctx.FRAME.Block());
+				if (!no_rt)
+				{
+					g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, m_cached_ctx.FRAME.Block());
+					g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, m_cached_ctx.FRAME.Block());
+					g_texture_cache->InvalidateVideoMem(m_context->offset.fb, m_r, true);
+				}
+				if (!no_ds && m_cached_ctx.ZBUF.ZMSK == 0)
+				{
+					g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, m_cached_ctx.ZBUF.Block());
+					g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, m_cached_ctx.ZBUF.Block());
+					g_texture_cache->InvalidateVideoMem(m_context->offset.zb, m_r, true);
+				}
 
-				g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, m_cached_ctx.FRAME.Block());
-				g_texture_cache->InvalidateVideoMem(m_context->offset.fb, m_r, true);
+				cleanup_draw();
+				return;
 			}
-
-			if (!no_ds && m_cached_ctx.ZBUF.ZMSK == 0)
-			{
-				g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, m_cached_ctx.ZBUF.Block());
-				g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, m_cached_ctx.ZBUF.Block());
-				g_texture_cache->InvalidateVideoMem(m_context->offset.zb, m_r, true);	
-			}
-
-			cleanup_draw();
-			return;
 		}
 	}
 
