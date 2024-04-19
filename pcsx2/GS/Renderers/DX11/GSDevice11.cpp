@@ -898,7 +898,7 @@ void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vert
 	VSSetShader(m_convert.vs.get(), nullptr);
 
 	// ps
-	PSSetShaderResources(0, rt);
+	PSSetShaderResource(0, rt);
 	PSSetSamplerState(m_convert.pt.get());
 	PSSetShader(m_convert.ps[static_cast<int>(datm ? ShaderConvert::DATM_1 : ShaderConvert::DATM_0)].get(), nullptr);
 

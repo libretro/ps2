@@ -23,8 +23,18 @@
 #include "GS/Renderers/Common/GSDevice.h"
 #include "GSTextureOGL.h"
 #include "GLState.h"
-#include "GLLoader.h"
 #include "GS/GS.h"
+
+namespace GLLoader
+{
+	bool check_gl_requirements();
+
+	extern bool vendor_id_amd;
+	extern bool vendor_id_nvidia;
+	extern bool vendor_id_intel;
+	extern bool buggy_pbo;
+	extern bool disable_download_pbo;
+} // namespace GLLoader
 
 class GSDepthStencilOGL
 {

@@ -16,7 +16,6 @@
 #pragma once
 
 #include "GS/Renderers/Common/GSTexture.h"
-#include "GLLoader.h"
 
 class GSTextureOGL final : public GSTexture
 {
