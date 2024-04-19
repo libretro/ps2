@@ -10247,6 +10247,9 @@ SLES-50031:
   name: "X-Squad"
   region: "PAL-E"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-50032:
   name: "Theme Park World"
   region: "PAL-M3"
@@ -26346,6 +26349,12 @@ SLPM-60122:
   region: "NTSC-J"
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+SLPM-60119:
+  name: "Cross Fire [Trial]"
+  region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-60123:
   name: "Gekikuukan Pro Baseball - The End of the Century 1999 [Trial]"
   region: "NTSC-J"
@@ -37144,6 +37153,9 @@ SLPS-20022:
 SLPS-20023:
   name: "Cross Fire"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
+    trilinearFiltering: 1
 SLPS-20024:
   name: "Hresvelgr"
   region: "NTSC-J"
@@ -42983,6 +42995,9 @@ SLUS-20093:
 SLUS-20094:
   name: "X Squad"
   region: "NTSC-U"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-20095:
   name: "SSX"
   region: "NTSC-U"
