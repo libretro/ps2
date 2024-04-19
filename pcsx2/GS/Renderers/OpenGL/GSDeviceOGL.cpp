@@ -1909,6 +1909,11 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		GLState::scissor = config.scissor;
 	}
 
+	if (config.tex)
+		CommitClear(config.tex, true);
+	if (config.pal)
+		CommitClear(config.pal, true);
+
 	GSVector2i rtsize = (config.rt ? config.rt : config.ds)->GetSize();
 
 	GSTexture* primid_texture = nullptr;
