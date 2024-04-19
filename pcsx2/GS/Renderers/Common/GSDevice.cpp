@@ -443,7 +443,8 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 	}
 
 	const GSTexture::Format fmt = orig_tex ? orig_tex->GetFormat() : GSTexture::Format::Color;
-	GSTexture *new_tex = FetchSurface(GSTexture::Type::RenderTarget, w, h, 1, fmt, !preserve_contents, true);
+	const bool really_preserve_contents = (preserve_contents && orig_tex);
+	GSTexture* new_tex = FetchSurface(GSTexture::Type::RenderTarget, w, h, 1, fmt, !really_preserve_contents, true);
 
 	if (!new_tex)
 	{
@@ -451,7 +452,7 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 		return false;
 	}
 
-	if (preserve_contents && orig_tex)
+	if (really_preserve_contents)
 	{
 		constexpr GSVector4 sRect = GSVector4::cxpr(0, 0, 1, 1);
 		const GSVector4 dRect = GSVector4(orig_tex->GetRect());
