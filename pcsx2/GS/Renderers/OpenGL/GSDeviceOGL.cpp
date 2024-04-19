@@ -150,14 +150,11 @@ bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 {
 	bool vendor_id_amd = false;
 	bool vendor_id_nvidia = false;
-	bool vendor_id_intel = false;
 	const char* vendor = (const char*)glGetString(GL_VENDOR);
 	if (strstr(vendor, "Advanced Micro Devices") || strstr(vendor, "ATI Technologies Inc.") || strstr(vendor, "ATI"))
 		vendor_id_amd = true;
 	else if (strstr(vendor, "NVIDIA Corporation"))
 		vendor_id_nvidia = true;
-	else if (strstr(vendor, "Intel"))
-		vendor_id_intel = true;
 
 	GLint major_gl = 0;
 	GLint minor_gl = 0;
