@@ -1720,26 +1720,11 @@ void GSRendererHW::Draw()
 		}
 
 		const bool is_zero_clear = (GetConstantDirectWriteMemClearColor() == 0 && !preserve_rt_color);
-		const bool req_z = m_cached_ctx.FRAME.FBP != m_cached_ctx.ZBUF.ZBP && !m_cached_ctx.ZBUF.ZMSK;
-		bool no_target_found = false;
-
-
-		// This is behind the if just to reduce lookups.
-		if (is_zero_clear && !clear_height_valid)
-		{
-			const u32 fbw = m_cached_ctx.FRAME.FBW;
-			const u32 frame_start = m_cached_ctx.FRAME.Block();
-			const u32 frame_end = GSLocalMemory::GetEndBlockAddress(frame_start, fbw, m_cached_ctx.FRAME.PSM, m_r);
-			no_target_found =
-				!g_texture_cache->GetExactTarget(frame_start, fbw, GSTextureCache::RenderTarget, frame_end) &&
-				!g_texture_cache->GetExactTarget(frame_start, fbw, GSTextureCache::DepthStencil, frame_end);
-		}
 
 
 		// If it's an invalid-sized draw, do the mem clear on the CPU, we don't want to create huge targets.
 		// If clearing to zero, don't bother creating the target. Games tend to clear more than they use, wasting VRAM/bandwidth.
-		if ((is_zero_clear || clear_height_valid) && TryGSMemClear(no_rt, no_ds) &&
-			(clear_height_valid || (!req_z && no_target_found)))
+		if ((is_zero_clear || clear_height_valid) && TryGSMemClear())
 		{
 			if (!no_rt)
 			{
@@ -1923,7 +1908,7 @@ void GSRendererHW::Draw()
 			{
 				/* Clear draw with no target, skipping. */
 				cleanup_cancelled_draw();
-				TryGSMemClear(no_rt, no_ds);
+				TryGSMemClear();
 				return;
 			}
 
@@ -4878,12 +4863,19 @@ bool GSRendererHW::DetectDoubleHalfClear(bool& no_rt, bool& no_ds)
 	const u32 half = clear_depth ? m_cached_ctx.FRAME.FBP : m_cached_ctx.ZBUF.ZBP;
 
 	// Size of the current draw
-	const u32 w_pages = static_cast<u32>(roundf(m_vt.m_max.p.x / frame_psm.pgs.x));
-	const u32 h_pages = static_cast<u32>(roundf(m_vt.m_max.p.y / frame_psm.pgs.y));
+	const u32 w_pages = (m_r.z + (frame_psm.pgs.x - 1)) / frame_psm.pgs.x;
+	const u32 h_pages = (m_r.w + (frame_psm.pgs.y - 1)) / frame_psm.pgs.y;
 	const u32 written_pages = w_pages * h_pages;
 
 	// If both buffers are side by side we can expect a fast clear in on-going
 	if (half != (base + written_pages))
+		return false;
+
+	// Don't allow double half clear to go through when the number of bits written through FRAME and Z are different.
+	// GTA: LCS does this setup, along with a few other games. Thankfully if it's a zero clear, we'll clear both
+	// separately, and the end result is the same because it gets invalidated. That's better than falsely detecting
+	// double half clears, and ending up with 1024 high render targets which really shouldn't be.
+	if (frame_psm.fmt != zbuf_psm.fmt && m_cached_ctx.FRAME.FBMSK != ((zbuf_psm.fmt == 1) ? 0xFF000000u : 0))
 		return false;
 
 	// Try peeking ahead to confirm whether this is a "normal" clear, where the two buffers just happen to be
@@ -4985,7 +4977,7 @@ bool GSRendererHW::TryTargetClear(GSTextureCache::Target* rt, GSTextureCache::Ta
 	return skip;
 }
 
-bool GSRendererHW::TryGSMemClear(bool no_rt, bool no_ds)
+bool GSRendererHW::TryGSMemClear()
 {
 	if (!PrimitiveCoversWithoutGaps())
 		return false;
@@ -4996,14 +4988,18 @@ bool GSRendererHW::TryGSMemClear(bool no_rt, bool no_ds)
 		return false;
 
 	// Don't mem clear one of frame or z, only do both.
-	const u32 fbmsk = (m_cached_ctx.FRAME.FBMSK & GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].fmsk);
-	if ((!no_rt && (fbmsk != 0 || m_vt.m_eq.rgba != 0xFFFF)) ||
-		(!no_ds && (m_cached_ctx.ZBUF.ZMSK != 0 || !m_vt.m_eq.z)))
+	const u32 fmsk = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].fmsk;
+	const u32 fbmsk = (m_cached_ctx.FRAME.FBMSK & fmsk);
+	const bool clear_rt = (fbmsk & fmsk) != fmsk;
+	const bool clear_z = (m_cached_ctx.ZBUF.ZMSK == 0);
+	if ((clear_rt && ((fbmsk != 0 && (m_cached_ctx.FRAME.PSM != PSMCT32 || fbmsk != 0xFF000000u)) ||
+						 m_vt.m_eq.rgba != 0xFFFF)) ||
+		(clear_z && (m_cached_ctx.ZBUF.ZMSK != 0 && !m_vt.m_eq.z)))
 		return false;
 
-	if (!no_rt)
+	if (clear_rt)
 		ClearGSLocalMemory(m_context->offset.fb, m_r, GetConstantDirectWriteMemClearColor());
-	if (!no_ds)
+	if (clear_z)
 		ClearGSLocalMemory(m_context->offset.zb, m_r, m_vertex.buff[1].XYZ.Z);
 	
 	return true;
@@ -5011,7 +5007,8 @@ bool GSRendererHW::TryGSMemClear(bool no_rt, bool no_ds)
 
 void GSRendererHW::ClearGSLocalMemory(const GSOffset& off, const GSVector4i& r, u32 vert_color)
 {
-	const int format = GSLocalMemory::m_psm[off.psm()].fmt;
+	const u32 psm = (off.psm() == PSMCT32 && m_cached_ctx.FRAME.FBMSK == 0xFF000000u) ? PSMCT24 : off.psm();
+	const int format = GSLocalMemory::m_psm[psm].fmt;
 
 	const int left = r.left;
 	const int right = r.right;
@@ -5024,7 +5021,7 @@ void GSRendererHW::ClearGSLocalMemory(const GSOffset& off, const GSVector4i& r, 
 
 	const u32 fbw = m_cached_ctx.FRAME.FBW;
 	const u32 pages_wide = r.z / 64u;
-	const GSVector2i& pgs = GSLocalMemory::m_psm[off.psm()].pgs;
+	const GSVector2i& pgs = GSLocalMemory::m_psm[psm].pgs;
 	if (left == 0 && top == 0 && (right & (pgs.x - 1)) == 0 && pages_wide <= fbw)
 	{
 		const u32 pixels_per_page = pgs.x * pgs.y;
