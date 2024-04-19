@@ -239,7 +239,7 @@ __fi void vif1VUFinish()
 	}
 }
 
-__fi void vif1Interrupt()
+__fi void vif1Interrupt(void)
 {
 	g_vif1Cycles = 0;
 
@@ -293,6 +293,9 @@ __fi void vif1Interrupt()
 		CPU_SET_DMASTALL(DMAC_VIF1, true);
 		return;
 	}
+
+	if (!vif1ch.chcr.STR)
+		return;
 
 	if (vif1.irq && vif1.vifstalled.enabled && vif1.vifstalled.value == VIF_IRQ_STALL)
 	{
