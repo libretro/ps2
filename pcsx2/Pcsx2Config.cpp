@@ -96,34 +96,59 @@ namespace EmuFolders
 	std::string Textures;
 } // namespace EmuFolders
 
-const char* const tbl_SpeedhackNames[] =
+const char* const s_speed_hack_names[] =
 {
 	"mvuFlag",
-	"InstantVU1",
-	"MTVU"
+	"instantVU1",
+	"mtvu",
+	"eeCycleRate",
 };
 
-const char* EnumToString(SpeedhackId id)
+const char* Pcsx2Config::SpeedhackOptions::GetSpeedHackName(SpeedHack id)
 {
-	return tbl_SpeedhackNames[id];
+	return s_speed_hack_names[static_cast<u32>(id)];
 }
 
-void Pcsx2Config::SpeedhackOptions::Set(SpeedhackId id, bool enabled)
+std::optional<SpeedHack> Pcsx2Config::SpeedhackOptions::ParseSpeedHackName(const std::string_view& name)
+{
+	for (u32 i = 0; i < std::size(s_speed_hack_names); i++)
+	{
+		if (name == s_speed_hack_names[i])
+			return static_cast<SpeedHack>(i);
+	}
+
+	return std::nullopt;
+}
+
+void Pcsx2Config::SpeedhackOptions::Set(SpeedHack id, int value)
 {
 	switch (id)
 	{
-		case Speedhack_mvuFlag:
-			vuFlagHack = enabled;
+		case SpeedHack::MVUFlag:
+			vuFlagHack = (value != 0);
 			break;
-		case Speedhack_InstantVU1:
-			vu1Instant = enabled;
+		case SpeedHack::InstantVU1:
+			vu1Instant = (value != 0);
 			break;
-		case Speedhack_MTVU:
-			vuThread = enabled;
+		case SpeedHack::MTVU:
+			vuThread = (value != 0);
+			break;
+		case SpeedHack::EECycleRate:
+			EECycleRate = static_cast<int>(std::clamp<int>(value, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE));
 			break;
 		default:
 			break;
 	}
+}
+
+bool Pcsx2Config::SpeedhackOptions::operator==(const SpeedhackOptions& right) const
+{
+	return OpEqu(bitset) && OpEqu(EECycleRate) && OpEqu(EECycleSkip);
+}
+
+bool Pcsx2Config::SpeedhackOptions::operator!=(const SpeedhackOptions& right) const
+{
+	return !operator==(right);
 }
 
 Pcsx2Config::SpeedhackOptions::SpeedhackOptions()
@@ -158,6 +183,9 @@ void Pcsx2Config::SpeedhackOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(vuFlagHack);
 	SettingsWrapBitBool(vuThread);
 	SettingsWrapBitBool(vu1Instant);
+
+	EECycleRate = std::clamp(EECycleRate, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE);
+	EECycleSkip = std::min(EECycleSkip, MAX_EE_CYCLE_SKIP);
 }
 
 Pcsx2Config::RecompilerOptions::RecompilerOptions()
