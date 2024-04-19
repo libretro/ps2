@@ -2790,6 +2790,7 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 				return false;
 
 			m_channel_shuffle = false;
+			return false;
 		}
 	}
 	else if ((src->m_texture->GetType() == GSTexture::Type::DepthStencil) && !src->m_32_bits_fmt)
@@ -2825,6 +2826,7 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 			return false;
 
 		m_channel_shuffle = false;
+		return false;
 	}
 	else if (m_cached_ctx.CLAMP.WMS == 3 && ((m_cached_ctx.CLAMP.MAXU & 0x8) == 8))
 	{
@@ -2896,14 +2898,40 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 	}
 	else
 	{
-		if (test_only)
+		// We can use the minimum UV to work out which channel it's grabbing.
+		// Used by Ape Escape 2, Everybody's Tennis/Golf, Okage, and Valkyrie Profile 2.
+		// Page align test to limit false detections (there is a few).
+		const GSVector4i min_uv = GSVector4i(m_vt.m_min.t.upld(GSVector4::zero()));
+		ChannelFetch channel = ChannelFetch_NONE;
+		if (GSLocalMemory::IsPageAligned(src->m_TEX0.PSM, m_r) &&
+			m_r.upl64(GSVector4i::zero()).eq(GSVector4i::zero()))
+		{
+			if (min_uv.eq(GSVector4i::cxpr(0, 0, 0, 0)))
+				channel = ChannelFetch_RED;
+			else if (min_uv.eq(GSVector4i::cxpr(0, 2, 0, 0)))
+				channel = ChannelFetch_GREEN;
+			else if (min_uv.eq(GSVector4i::cxpr(8, 0, 0, 0)))
+				channel = ChannelFetch_BLUE;
+			else if (min_uv.eq(GSVector4i::cxpr(8, 2, 0, 0)))
+				channel = ChannelFetch_ALPHA;
+		}
+
+		if (channel != ChannelFetch_NONE)
+		{
+			if (test_only)
+				return true;
+
+			m_conf.ps.channel = channel;
+		}
+		else
+		{
+			if (test_only)
+				return false;
+
+			m_channel_shuffle = false;
 			return false;
-
-		m_channel_shuffle = false;
+		}
 	}
-
-	if (!m_channel_shuffle)
-		return false;
 
 	// Effect is really a channel shuffle effect so let's cheat a little
 	m_conf.tex = src->m_texture;
