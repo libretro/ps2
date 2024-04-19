@@ -90,6 +90,7 @@ static __fi void _rcntSet( int cntidx )
 	// Stopped or special hsync gate?
 	if (!counter.mode.IsCounting || (counter.mode.ClockSource == 0x3) ) return;
 
+	if (!counter.mode.TargetInterrupt && !counter.mode.OverflowInterrupt) return;
 	// check for special cases where the overflow or target has just passed
 	// (we probably missed it because we're doing/checking other things)
 	if( counter.count > 0x10000 || counter.count > counter.target )
