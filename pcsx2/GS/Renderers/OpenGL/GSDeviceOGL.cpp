@@ -216,8 +216,6 @@ namespace GLLoader
 	}
 } // namespace GLLoader
 
-static std::unique_ptr<GLStreamBuffer> s_texture_upload_buffer;
-
 GSDeviceOGL::GSDeviceOGL() = default;
 
 GSDeviceOGL::~GSDeviceOGL()
@@ -616,12 +614,12 @@ bool GSDeviceOGL::Create()
 	// ****************************************************************
 	if (!GLLoader::buggy_pbo)
 	{
-		s_texture_upload_buffer = GLStreamBuffer::Create(GL_PIXEL_UNPACK_BUFFER, TEXTURE_UPLOAD_BUFFER_SIZE);
-		if (s_texture_upload_buffer)
+		m_texture_upload_buffer = GLStreamBuffer::Create(GL_PIXEL_UNPACK_BUFFER, TEXTURE_UPLOAD_BUFFER_SIZE);
+		if (m_texture_upload_buffer)
 		{
 			// Don't keep it bound, we'll re-bind when we need it.
 			// Otherwise non-PBO texture uploads break. Yay for global state.
-			s_texture_upload_buffer->Unbind();
+			m_texture_upload_buffer->Unbind();
 		}
 		else
 		{
@@ -723,7 +721,7 @@ void GSDeviceOGL::DestroyResources()
 
 	m_index_stream_buffer.reset();
 	m_vertex_stream_buffer.reset();
-	s_texture_upload_buffer.reset();
+	m_texture_upload_buffer.reset();
 	if (m_expand_ibo)
 		glDeleteBuffers(1, &m_expand_ibo);
 
@@ -1695,12 +1693,6 @@ void GSDeviceOGL::PSSetShaderResource(int i, GSTexture* sr)
 	}
 }
 
-void GSDeviceOGL::PSSetShaderResources(GSTexture* sr0, GSTexture* sr1)
-{
-	PSSetShaderResource(0, sr0);
-	PSSetShaderResource(1, sr1);
-}
-
 void GSDeviceOGL::PSSetSamplerState(GLuint ss)
 {
 	if (GLState::ps_ss != ss)
@@ -2041,7 +2033,10 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	}
 	IASetPrimitiveTopology(topology);
 
-	PSSetShaderResources(config.tex, config.pal);
+	if (config.tex)
+		PSSetShaderResource(0, config.tex);
+	if (config.pal)
+		PSSetShaderResource(1, config.pal);
 	if (draw_rt_clone)
 		PSSetShaderResource(2, draw_rt_clone);
 	else if (config.require_one_barrier || config.require_full_barrier)
@@ -2286,9 +2281,4 @@ void GSDeviceOGL::DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint 
 	{
 		Console.Error("T:%s\tID:%d\tS:%s\t=> %s", type.c_str(), GSState::s_n, severity.c_str(), message.c_str());
 	}
-}
-
-GLStreamBuffer* GSDeviceOGL::GetTextureUploadBuffer()
-{
-	return s_texture_upload_buffer.get();
 }

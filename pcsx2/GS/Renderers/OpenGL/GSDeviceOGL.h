@@ -165,7 +165,9 @@ private:
 	GLuint m_fbo = 0; // frame buffer container
 	GLuint m_fbo_read = 0; // frame buffer container only for reading
 	GLuint m_fbo_write = 0;	// frame buffer container only for writing
-
+	
+	std::unique_ptr<GLStreamBuffer> m_texture_upload_buffer;
+	
 	std::unique_ptr<GLStreamBuffer> m_vertex_stream_buffer;
 	std::unique_ptr<GLStreamBuffer> m_index_stream_buffer;
 	GLuint m_expand_ibo = 0;
@@ -242,10 +244,9 @@ public:
 	// Used by OpenGL, so the same calling convention is required.
 	static void APIENTRY DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint id, GLenum gl_severity, GLsizei gl_length, const GLchar* gl_message, const void* userParam);
 
-	static GLStreamBuffer* GetTextureUploadBuffer();
-
 	__fi u32 GetFBORead() const { return m_fbo_read; }
 	__fi u32 GetFBOWrite() const { return m_fbo_write; }
+	__fi GLStreamBuffer* GetTextureUploadBuffer() const { return m_texture_upload_buffer.get(); }
 	void CommitClear(GSTexture* t, bool use_write_fbo);
 
 	RenderAPI GetRenderAPI() const override;
@@ -296,7 +297,6 @@ public:
 	void IASetIndexBuffer(const void* index, size_t count);
 
 	void PSSetShaderResource(int i, GSTexture* sr);
-	void PSSetShaderResources(GSTexture* sr0, GSTexture* sr1);
 	void PSSetSamplerState(GLuint ss);
 	void ClearSamplerCache() override;
 
