@@ -414,14 +414,14 @@ __fi void _cpuEventTest_Shared(void)
 	if (EEsCycle > 0)
 		iopEventAction = true;
 
-	iopEventTest();
-
 	if (iopEventAction)
 	{
 		EEsCycle = psxCpu->ExecuteBlock(EEsCycle);
 
 		iopEventAction = false;
 	}
+
+	iopEventTest();
 
 	// ---- VU Sync -------------
 	// We're in a EventTest.  All dynarec registers are flushed
@@ -435,13 +435,12 @@ __fi void _cpuEventTest_Shared(void)
 	// IOP extra timeslices in short order.
 	if (EEsCycle > 192)
 		cpuSetNextEventDelta(48);
-
-	// The IOP could be running ahead/behind of us, so adjust the iop's next branch by its
-	// relative position to the EE (via EEsCycle)
-	cpuSetNextEventDelta(((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
-
-	// Apply the hsync counter's nextCycle
-	cpuSetNextEvent(hsyncCounter.sCycle, hsyncCounter.CycleT);
+	else
+	{
+		// The IOP could be running ahead/behind of us, so adjust the iop's next branch by its
+		// relative position to the EE (via EEsCycle)
+		cpuSetNextEventDelta(((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
+	}
 
 	// Apply vsync and other counter nextCycles
 	cpuSetNextEvent(nextsCounter, nextCounter);
