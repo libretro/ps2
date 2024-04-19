@@ -754,26 +754,31 @@ bool VMManager::Internal::IsExecutionInterrupted()
 
 void VMManager::Internal::EntryPointCompilingOnCPUThread()
 {
+	int i;
 	// Classic chicken and egg problem here. We don't want to update the running game
 	// until the game entry point actually runs, because that can update settings, which
 	// can flush the JIT, etc. But we need to apply patches for games where the entry
 	// point is in the patch (e.g. WRC 4). So. Gross, but the only way to handle it really.
 	LoadPatches(SysGetDiscID(), ElfCRC, true, false);
-	ApplyLoadedPatches(PPT_ONCE_ON_LOAD);
+	for (i = 0; i < Patch.size(); i++)
+	{
+		int _place = Patch[i].placetopatch;
+		if (_place == PPT_ONCE_ON_LOAD)
+			_ApplyPatch(&Patch[i]);
+	}
 }
 
 void VMManager::Internal::GameStartingOnCPUThread()
 {
+	int i;
 	UpdateRunningGame(false, true);
-	ApplyLoadedPatches(PPT_ONCE_ON_LOAD);
-	ApplyLoadedPatches(PPT_COMBINED_0_1);
-}
-
-void VMManager::Internal::VSyncOnCPUThread()
-{
-	// TODO: Move frame limiting here to reduce CPU usage after sleeping...
-	ApplyLoadedPatches(PPT_CONTINUOUSLY);
-	ApplyLoadedPatches(PPT_COMBINED_0_1);
+	for (i = 0; i < Patch.size(); i++)
+	{
+		int _place = Patch[i].placetopatch;
+		if ( (_place == PPT_ONCE_ON_LOAD)
+		  || (_place == PPT_COMBINED_0_1))
+			_ApplyPatch(&Patch[i]);
+	}
 }
 
 void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)

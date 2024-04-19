@@ -32,10 +32,8 @@
 // This is a declaration for PatchMemory.cpp::_ApplyPatch where we're (patch.cpp)
 // the only consumer, so it's not made public via Patch.h
 // Applies a single patch line to emulation memory regardless of its "place" value.
-extern void _ApplyPatch(IniPatch* p);
-extern void _ApplyDynaPatch(const DynamicPatch& patch, u32 address);
 
-static std::vector<IniPatch> Patch;
+std::vector<IniPatch> Patch;
 static std::vector<DynamicPatch> DynaPatch;
 
 struct PatchTextTable
@@ -272,16 +270,6 @@ namespace PatchFunc
 #undef PATCH_ERROR
 	}
 } // namespace PatchFunc
-
-// This is for applying patches directly to memory
-void ApplyLoadedPatches(patch_place_type place)
-{
-	for (auto& i : Patch)
-	{
-		if (i.placetopatch == place)
-			_ApplyPatch(&i);
-	}
-}
 
 void ApplyDynamicPatches(u32 pc)
 {

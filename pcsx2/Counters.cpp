@@ -450,14 +450,6 @@ static __fi void DoFMVSwitch()
 		RendererSwitched = false;
 }
 
-// Convenience function to update UI thread and set patches. 
-static __fi void VSyncUpdateCore()
-{
-	DoFMVSwitch();
-
-	VMManager::Internal::VSyncOnCPUThread();
-}
-
 static __fi void VSyncCheckExit()
 {
 	if (VMManager::Internal::IsExecutionInterrupted())
@@ -466,8 +458,16 @@ static __fi void VSyncCheckExit()
 
 static __fi void VSyncStart(u32 sCycle)
 {
+	int i;
 	// Update vibration at the end of a frame.
-	VSyncUpdateCore();
+	DoFMVSwitch();
+	for (i = 0; i < Patch.size(); i++)
+	{
+		int _place = Patch[i].placetopatch;
+		if ( (_place == PPT_CONTINUOUSLY)
+		  || (_place == PPT_COMBINED_0_1))
+			_ApplyPatch(&Patch[i]);
+	}
 	PAD::Update();
 	gsPostVsyncStart();
 	VSyncCheckExit();

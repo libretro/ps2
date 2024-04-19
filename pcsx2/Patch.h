@@ -37,6 +37,7 @@
 #include "common/Pcsx2Defs.h"
 #include <string>
 #include <string_view>
+#include <vector>
 
 struct IConsoleWriter;
 
@@ -116,6 +117,8 @@ namespace PatchFunc
 	PATCHTABLEFUNC patch;
 }
 
+extern std::vector<IniPatch> Patch;
+
 // The following LoadPatchesFrom* functions:
 // - do not reset/unload previously loaded patches (use ForgetLoadedPatches() for that)
 // - do not actually patch the emulation memory (that happens at ApplyLoadedPatches(...) )
@@ -132,9 +135,6 @@ extern void ApplyDynamicPatches(u32 pc);
 // are enabled (e.g. ws patches, auto game fixes, etc) before calling ApplyLoadedPatches,
 // because on boot or on any configuration change --> all the loaded patches are invalidated,
 // and then it loads only the ones which are enabled according to the current config
-// (this happens at AppCoreThread::ApplySettings(...) )
-extern void ApplyLoadedPatches(patch_place_type place);
-
 // Empties the patches store ("unload" the patches) but doesn't touch the emulation memory.
 // Following ApplyLoadedPatches calls will do nothing until some LoadPatchesFrom* are invoked.
 extern void ForgetLoadedPatches();
@@ -150,3 +150,6 @@ extern const IConsoleWriter *PatchesCon;
 // ex. 01020304 -> 04030201
 // BitLength is length of InputNum in bits, ex. double,64  word,32  short,16
 extern u64 SwapEndian(u64 InputNum, u8 BitLength);
+
+extern void _ApplyPatch(IniPatch* p);
+extern void _ApplyDynaPatch(const DynamicPatch& patch, u32 address);
