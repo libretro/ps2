@@ -203,7 +203,7 @@ bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int 
 		glCompressedTextureSubImage2D(m_texture_id, layer, r.x, r.y, r.width(), r.height(), m_int_format, upload_size, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	}
-	else if (GLLoader::buggy_pbo || map_size > sb->GetChunkSize())
+	else if (!sb || map_size > sb->GetChunkSize())
 	{
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, pitch >> m_int_shift);
 		glTextureSubImage2D(m_texture_id, layer, r.x, r.y, r.width(), r.height(), m_int_format, m_int_type, data);
@@ -252,7 +252,7 @@ bool GSTextureOGL::Map(GSMap& m, const GSVector4i* _r, int layer)
 	{
 		const u32 upload_size = CalcUploadSize(r.height(), pitch);
 		GLStreamBuffer* sb = GSDeviceOGL::GetInstance()->GetTextureUploadBuffer();
-		if (GLLoader::buggy_pbo || upload_size > sb->GetChunkSize())
+		if (!sb || upload_size > sb->GetChunkSize())
 			return false;
 
 		const auto map = sb->Map(TEXTURE_UPLOAD_ALIGNMENT, upload_size);
@@ -352,7 +352,7 @@ std::unique_ptr<GSDownloadTextureOGL> GSDownloadTextureOGL::Create(u32 width, u3
 	const u32 buffer_size = GetBufferSize(width, height, format, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 
 	const bool use_buffer_storage = (GLAD_GL_VERSION_4_4 || GLAD_GL_ARB_buffer_storage || GLAD_GL_EXT_buffer_storage) &&
-									!GLLoader::disable_download_pbo;
+									!GSDeviceOGL::GetInstance()->IsDownloadPBODisabled();
 	if (use_buffer_storage)
 	{
 		GLuint buffer_id;

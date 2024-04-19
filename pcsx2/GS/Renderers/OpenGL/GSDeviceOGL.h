@@ -162,6 +162,8 @@ private:
 
 	std::unique_ptr<GLContext> m_gl_context;
 
+	bool m_disable_download_pbo = false;
+
 	GLuint m_fbo = 0; // frame buffer container
 	GLuint m_fbo_read = 0; // frame buffer container only for reading
 	GLuint m_fbo_write = 0;	// frame buffer container only for writing
@@ -220,6 +222,8 @@ private:
 	std::string m_shader_tfx_vgs;
 	std::string m_shader_tfx_fs;
 
+	bool CheckFeatures(bool& buggy_pbo);
+
 	void DestroyResources();
 
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
@@ -244,6 +248,7 @@ public:
 	// Used by OpenGL, so the same calling convention is required.
 	static void APIENTRY DebugMessageCallback(GLenum gl_source, GLenum gl_type, GLuint id, GLenum gl_severity, GLsizei gl_length, const GLchar* gl_message, const void* userParam);
 
+	__fi bool IsDownloadPBODisabled() const { return m_disable_download_pbo; }
 	__fi u32 GetFBORead() const { return m_fbo_read; }
 	__fi u32 GetFBOWrite() const { return m_fbo_write; }
 	__fi GLStreamBuffer* GetTextureUploadBuffer() const { return m_texture_upload_buffer.get(); }

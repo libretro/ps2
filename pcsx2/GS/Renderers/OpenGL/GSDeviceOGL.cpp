@@ -130,92 +130,6 @@ namespace Emulate_DSA
 	}
 } // namespace Emulate_DSA
 
-namespace GLLoader
-{
-	bool vendor_id_amd = false;
-	bool vendor_id_nvidia = false;
-	bool vendor_id_intel = false;
-	bool buggy_pbo = false;
-	bool disable_download_pbo = false;
-
-	static bool check_gl_version()
-	{
-		const char* vendor = (const char*)glGetString(GL_VENDOR);
-		if (strstr(vendor, "Advanced Micro Devices") || strstr(vendor, "ATI Technologies Inc.") || strstr(vendor, "ATI"))
-			vendor_id_amd = true;
-		else if (strstr(vendor, "NVIDIA Corporation"))
-			vendor_id_nvidia = true;
-		else if (strstr(vendor, "Intel"))
-			vendor_id_intel = true;
-
-		GLint major_gl = 0;
-		GLint minor_gl = 0;
-		glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
-		glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
-		if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
-		{
-			Console.Error("OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
-			return false;
-		}
-
-		return true;
-	}
-
-	static bool check_gl_supported_extension(void)
-	{
-		if (!GLAD_GL_ARB_shading_language_420pack)
-		{
-			Console.Warning(
-				"GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.");
-			return false;
-		}
-
-		if (!GLAD_GL_ARB_viewport_array)
-		{
-			glScissorIndexed = ReplaceGL::ScissorIndexed;
-			glViewportIndexedf = ReplaceGL::ViewportIndexedf;
-			Console.Warning("GL_ARB_viewport_array is not supported! Function pointer will be replaced.");
-		}
-
-		if (!GLAD_GL_ARB_texture_barrier)
-		{
-			Console.Warning("GL_ARB_texture_barrier is not supported, blending will not be accurate.");
-			glTextureBarrier = ReplaceGL::TextureBarrier;
-		}
-
-		if (!GLAD_GL_ARB_direct_state_access)
-		{
-			Console.Warning("GL_ARB_direct_state_access is not supported, this will reduce performance.");
-			Emulate_DSA::Init();
-		}
-
-		// Don't use PBOs when we don't have ARB_buffer_storage, orphaning buffers probably ends up worse than just
-		// using the normal texture update routines and letting the driver take care of it.
-		buggy_pbo = !GLAD_GL_VERSION_4_4 && !GLAD_GL_ARB_buffer_storage && !GLAD_GL_EXT_buffer_storage;
-		if (buggy_pbo)
-			Console.Warning("Not using PBOs for texture uploads because buffer_storage is unavailable.");
-
-		// Give the user the option to disable PBO usage for downloads.
-		// Most drivers seem to be faster with PBO.
-		disable_download_pbo = Host::GetBoolSettingValue("EmuCore/GS", "DisableGLDownloadPBO", false);
-		if (disable_download_pbo)
-			Console.Warning("Not using PBOs for texture downloads, this may reduce performance.");
-
-		return true;
-	}
-
-	bool check_gl_requirements(void)
-	{
-		if (!check_gl_version())
-			return false;
-
-		if (!check_gl_supported_extension())
-			return false;
-
-		return true;
-	}
-} // namespace GLLoader
-
 GSDeviceOGL::GSDeviceOGL() = default;
 
 GSDeviceOGL::~GSDeviceOGL()
@@ -232,45 +146,69 @@ RenderAPI GSDeviceOGL::GetRenderAPI() const
 	return RenderAPI::OpenGL;
 }
 
-bool GSDeviceOGL::Create()
+bool GSDeviceOGL::CheckFeatures(bool& buggy_pbo)
 {
-	if (!GSDevice::Create())
-		return false;
+	bool vendor_id_amd = false;
+	bool vendor_id_nvidia = false;
+	bool vendor_id_intel = false;
+	const char* vendor = (const char*)glGetString(GL_VENDOR);
+	if (strstr(vendor, "Advanced Micro Devices") || strstr(vendor, "ATI Technologies Inc.") || strstr(vendor, "ATI"))
+		vendor_id_amd = true;
+	else if (strstr(vendor, "NVIDIA Corporation"))
+		vendor_id_nvidia = true;
+	else if (strstr(vendor, "Intel"))
+		vendor_id_intel = true;
 
-	// GL is a pain and needs the window super early to create the context.
-	AcquireWindow();
-
-	// We need at least GL3.3.
-	static constexpr const GLContext::Version version_list[] = {{GLContext::Profile::Core, 4, 6},
-		{GLContext::Profile::Core, 4, 5}, {GLContext::Profile::Core, 4, 4}, {GLContext::Profile::Core, 4, 3},
-		{GLContext::Profile::Core, 4, 2}, {GLContext::Profile::Core, 4, 1}, {GLContext::Profile::Core, 4, 0},
-		{GLContext::Profile::Core, 3, 3}};
-	m_gl_context = GLContext::Create(version_list);
-	if (!m_gl_context)
+	GLint major_gl = 0;
+	GLint minor_gl = 0;
+	glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
+	glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
+	if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
 	{
-		Console.Error("Failed to create any GL context");
-		m_gl_context.reset();
+		Console.Error("OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
 		return false;
 	}
 
-	// Render a frame as soon as possible to clear out whatever was previously being displayed.
-	RenderBlankFrame();
-
-	if (!GLLoader::check_gl_requirements())
+	if (!GLAD_GL_ARB_shading_language_420pack)
+	{
+		Console.Warning(
+				"GL_ARB_shading_language_420pack is not supported, this is required for the OpenGL renderer.");
 		return false;
+	}
 
-	if (!GSConfig.DisableShaderCache)
+	if (!GLAD_GL_ARB_viewport_array)
 	{
-		if (!m_shader_cache.Open(false))
-			Console.Warning("Shader cache failed to open.");
+		glScissorIndexed = ReplaceGL::ScissorIndexed;
+		glViewportIndexedf = ReplaceGL::ViewportIndexedf;
+		Console.Warning("GL_ARB_viewport_array is not supported! Function pointer will be replaced.");
 	}
-	else
+
+	if (!GLAD_GL_ARB_texture_barrier)
 	{
-		Console.WriteLn("Not using shader cache.");
+		Console.Warning("GL_ARB_texture_barrier is not supported, blending will not be accurate.");
+		glTextureBarrier = ReplaceGL::TextureBarrier;
 	}
+
+	if (!GLAD_GL_ARB_direct_state_access)
+	{
+		Console.Warning("GL_ARB_direct_state_access is not supported, this will reduce performance.");
+		Emulate_DSA::Init();
+	}
+
+	// Don't use PBOs when we don't have ARB_buffer_storage, orphaning buffers probably ends up worse than just
+	// using the normal texture update routines and letting the driver take care of it.
+	buggy_pbo = !GLAD_GL_VERSION_4_4 && !GLAD_GL_ARB_buffer_storage && !GLAD_GL_EXT_buffer_storage;
+	if (buggy_pbo)
+		Console.Warning("Not using PBOs for texture uploads because buffer_storage is unavailable.");
+
+	// Give the user the option to disable PBO usage for downloads.
+	// Most drivers seem to be faster with PBO.
+	m_disable_download_pbo = Host::GetBoolSettingValue("EmuCore/GS", "DisableGLDownloadPBO", false);
+	if (m_disable_download_pbo)
+		Console.Warning("Not using PBOs for texture downloads, this may reduce performance.");
 
 	// optional features based on context
-	m_features.broken_point_sampler = GLLoader::vendor_id_amd;
+	m_features.broken_point_sampler = vendor_id_amd;
 	m_features.primitive_id = true;
 
 	m_features.framebuffer_fetch = GLAD_GL_EXT_shader_framebuffer_fetch;
@@ -303,7 +241,7 @@ bool GSDeviceOGL::Create()
 	// NVIDIA GPUs prior to Kepler appear to have broken vertex shader buffer loading.
 	// Use bindless textures (introduced in Kepler) to differentiate.
 	const bool buggy_vs_expand =
-		GLLoader::vendor_id_nvidia && (!GLAD_GL_ARB_bindless_texture && !GLAD_GL_NV_bindless_texture);
+		vendor_id_nvidia && (!GLAD_GL_ARB_bindless_texture && !GLAD_GL_NV_bindless_texture);
 	if (buggy_vs_expand)
 		Console.Warning("Disabling vertex shader expand due to broken NVIDIA driver.");
 
@@ -327,6 +265,44 @@ bool GSDeviceOGL::Create()
 		m_features.point_expand ? "hardware" : (m_features.vs_expand ? "vertex expanding" : "UNSUPPORTED"),
 		m_features.line_expand ? "hardware" : (m_features.vs_expand ? "vertex expanding" : "UNSUPPORTED"),
 		m_features.vs_expand ? "vertex expanding" : "CPU");
+
+
+	return true;
+}
+
+bool GSDeviceOGL::Create()
+{
+	if (!GSDevice::Create())
+		return false;
+
+	// GL is a pain and needs the window super early to create the context.
+	AcquireWindow();
+
+	// We need at least GL3.3.
+	static constexpr const GLContext::Version version_list[] = {{GLContext::Profile::Core, 4, 6},
+		{GLContext::Profile::Core, 4, 5}, {GLContext::Profile::Core, 4, 4}, {GLContext::Profile::Core, 4, 3},
+		{GLContext::Profile::Core, 4, 2}, {GLContext::Profile::Core, 4, 1}, {GLContext::Profile::Core, 4, 0},
+		{GLContext::Profile::Core, 3, 3}};
+	m_gl_context = GLContext::Create(version_list);
+	if (!m_gl_context)
+	{
+		Console.Error("Failed to create any GL context");
+		return false;
+	}
+
+	bool buggy_pbo = false;
+	if (!CheckFeatures(buggy_pbo))
+		return false;
+
+	if (!GSConfig.DisableShaderCache)
+	{
+		if (!m_shader_cache.Open(false))
+			Console.Warning("Shader cache failed to open.");
+	}
+	else
+	{
+		Console.WriteLn("Not using shader cache.");
+	}
 
 	// because of fbo bindings below...
 	GLState::Clear();
@@ -612,7 +588,7 @@ bool GSDeviceOGL::Create()
 	// ****************************************************************
 	// Pbo Pool allocation
 	// ****************************************************************
-	if (!GLLoader::buggy_pbo)
+	if (!buggy_pbo)
 	{
 		m_texture_upload_buffer = GLStreamBuffer::Create(GL_PIXEL_UNPACK_BUFFER, TEXTURE_UPLOAD_BUFFER_SIZE);
 		if (m_texture_upload_buffer)
@@ -622,10 +598,7 @@ bool GSDeviceOGL::Create()
 			m_texture_upload_buffer->Unbind();
 		}
 		else
-		{
 			Console.Error("Failed to create texture upload buffer. Using slow path.");
-			GLLoader::buggy_pbo = true;
-		}
 	}
 
 	// Basic to ensure structures are correctly packed
