@@ -1192,10 +1192,6 @@ void GSDeviceOGL::BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2
 // Copy a sub part of a texture into another
 void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
-	ASSERT(sTex && dTex);
-	if (!(sTex && dTex))
-		return;
-
 	const GLuint& sid = static_cast<GSTextureOGL*>(sTex)->GetID();
 	const GLuint& did = static_cast<GSTextureOGL*>(dTex)->GetID();
 	CommitClear(sTex, false);
@@ -1653,16 +1649,11 @@ void GSDeviceOGL::IASetPrimitiveTopology(GLenum topology)
 
 void GSDeviceOGL::PSSetShaderResource(int i, GSTexture* sr)
 {
-	ASSERT(i < static_cast<int>(std::size(GLState::tex_unit)));
-	// Note: Nvidia debgger doesn't support the id 0 (ie the NULL texture)
-	if (sr)
+	const GLuint id = static_cast<GSTextureOGL*>(sr)->GetID();
+	if (GLState::tex_unit[i] != id)
 	{
-		const GLuint id = static_cast<GSTextureOGL*>(sr)->GetID();
-		if (GLState::tex_unit[i] != id)
-		{
-			GLState::tex_unit[i] = id;
-			glBindTextureUnit(i, id);
-		}
+		GLState::tex_unit[i] = id;
+		glBindTextureUnit(i, id);
 	}
 }
 
