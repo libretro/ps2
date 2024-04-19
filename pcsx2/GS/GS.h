@@ -63,6 +63,7 @@ extern Pcsx2Config::GSOptions GSConfig;
 // Returns the ID for the specified function, otherwise -1.
 s16 GSLookupGetSkipCountFunctionId(const std::string_view& name);
 s16 GSLookupBeforeDrawFunctionId(const std::string_view& name);
+s16 GSLookupMoveHandlerFunctionId(const std::string_view& name);
 
 void GSinit(void);
 void GSshutdown(void);

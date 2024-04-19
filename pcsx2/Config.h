@@ -529,6 +529,7 @@ struct Pcsx2Config
 		u8 MaxAnisotropy = 0;
 		s16 GetSkipCountFunctionId = -1;
 		s16 BeforeDrawFunctionId = -1;
+		s16 MoveHandlerFunctionId = -1;
 		int SkipDrawStart = 0;
 		int SkipDrawEnd = 0;
 

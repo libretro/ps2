@@ -431,6 +431,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(TriFilter) &&
 		OpEqu(GetSkipCountFunctionId) &&
 		OpEqu(BeforeDrawFunctionId) &&
+		OpEqu(MoveHandlerFunctionId) &&
 		OpEqu(SkipDrawEnd) &&
 		OpEqu(SkipDrawStart) &&
 
