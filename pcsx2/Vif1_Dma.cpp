@@ -141,6 +141,7 @@ __fi void vif1SetupTransfer()
 		{
 			// stalled
 			hwDmacIrq(DMAC_STALL_SIS);
+			CPU_SET_DMASTALL(DMAC_VIF1, true);
 			return;
 		}
 	}
