@@ -1385,7 +1385,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 GSTextureCache::Target* GSTextureCache::CreateTarget(GIFRegTEX0 TEX0, const GSVector2i& size, float scale, int type,
 	bool used, u32 fbmask, bool is_frame, bool preload, bool preserve_target, const GSVector4i draw_rect)
 {
-	const u32 bp = TEX0.TBP0;
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 
 	Target* dst = CreateTarget(TEX0, size.x, size.y, scale, type, true);
@@ -1939,7 +1938,7 @@ void GSTextureCache::InvalidateVideoMem(const GSOffset& off, const GSVector4i& r
 							else if (GSLocalMemory::IsPageAligned(psm, r))
 							{
 								// Dirty individual pages.
-								off.loopPages(r, [this, psm, rgba, t](u32 page) {
+								off.loopPages(r, [this, rgba, t](u32 page) {
 									const GSVector4i page_rc = GSLocalMemory::GetRectForPageOffset(t->m_TEX0.TBP0, page * BLOCKS_PER_PAGE, t->m_TEX0.TBW, t->m_TEX0.PSM);
 									AddDirtyRectTarget(t, page_rc, t->m_TEX0.PSM, t->m_TEX0.TBW, rgba, false);
 								});

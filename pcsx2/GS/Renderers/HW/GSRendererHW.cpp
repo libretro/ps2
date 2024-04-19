@@ -1010,8 +1010,6 @@ bool GSRendererHW::CheckNextDrawForSplitClear(const GSVector4i& r, u32* pages_co
 
 void GSRendererHW::FinishSplitClear()
 {
-	const u32 start_bp = m_split_clear_start.Block();
-
 	// If this was a tall single-page draw, try to get a better BW from somewhere.
 	if (m_split_clear_start.FBW <= 1 && m_split_clear_pages >= 16) // 1024 high
 		TryToResolveSinglePageFramebuffer(m_split_clear_start, false);
