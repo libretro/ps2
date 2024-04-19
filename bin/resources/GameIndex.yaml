@@ -7551,6 +7551,7 @@ SCUS-97117:
   name: "PlayStation 2 Demo Disc Version 2.1 [Need for Speed - Underground]"
   region: "NTSC-U"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     halfPixelOffset: 2 # Fixes misaligned post-processing.
 SCUS-97118:
   name: "NFL GameDay 2001 [Demo]"
@@ -9838,6 +9839,7 @@ SLED-51975:
   gameFixes:
     - EETimingHack # Fixes broken textures.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     halfPixelOffset: 2 # Fixes misaligned post-processing.
     PCRTCOverscan: 1 # Fixes image alignment.
 SLED-52014:
@@ -14683,6 +14685,7 @@ SLES-51967:
   gameFixes:
     - EETimingHack # Fixes broken textures.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     halfPixelOffset: 2 # Fixes misaligned post-processing.
     PCRTCOverscan: 1 # Fixes image alignment.
 SLES-51968:
@@ -24884,6 +24887,7 @@ SLKA-25136:
   gameFixes:
     - EETimingHack # Fixes broken textures.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     halfPixelOffset: 2 # Fixes misaligned post-processing.
 SLKA-25137:
   name: "Sims, The - Bustin' Out"
@@ -46358,6 +46362,7 @@ SLUS-20811:
   gameFixes:
     - EETimingHack # Broken textures.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     halfPixelOffset: 2 # Fixes misaligned post-processing.
 SLUS-20812:
   name: "Dynasty Warriors 4 - Extreme Edition"
