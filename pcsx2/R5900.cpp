@@ -377,8 +377,6 @@ __fi void _cpuEventTest_Shared(void)
 		_cpuTestPERF();
 	}
 
-	rcntUpdate_hScanline();
-
 	_cpuTestTIMR();
 
 	// ---- Interrupts -------------
