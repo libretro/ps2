@@ -433,12 +433,13 @@ __fi void _cpuEventTest_Shared(void)
 
 	// EE's running way ahead of the IOP still, so we should branch quickly to give the
 	// IOP extra timeslices in short order.
-	if (EEsCycle > 192)
+	const int nextIopEventDeta = ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8);
+	// 8 or more cycles behind and there's an event scheduled
+	if (EEsCycle >= nextIopEventDeta)
 		cpuSetNextEventDelta(48);
 	else
 	{
-		// The IOP could be running ahead/behind of us, so adjust the iop's next branch by its
-		// relative position to the EE (via EEsCycle)
+		// Otherwise IOP is caught up/not doing anything so we can wait for the next event.
 		cpuSetNextEventDelta(((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
 	}
 
