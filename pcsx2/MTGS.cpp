@@ -180,9 +180,6 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 
 bool MTGS::TryOpenGS()
 {
-	if(IsOpen())
-		return true;
-
 	s_thread = std::this_thread::get_id();
 
 	memcpy(RingBuffer.Regs, PS2MEM_GS, sizeof(PS2MEM_GS));

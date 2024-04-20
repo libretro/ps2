@@ -350,7 +350,8 @@ static void context_reset(void)
 		vk_libretro_set_hwrender_interface(vulkan);
 	}
 #endif
-	MTGS::TryOpenGS();
+	if (!MTGS::IsOpen())
+		MTGS::TryOpenGS();
 
 	if (gs_freeze_data.data)
 	{
@@ -531,7 +532,8 @@ static bool create_device_vulkan(retro_vulkan_context *context, VkInstance insta
 		EmuConfig.GS.Adapter = props.deviceName;
 	}
 
-	MTGS::TryOpenGS();
+	if (!MTGS::IsOpen())
+		MTGS::TryOpenGS();
 
 	context->gpu                             = g_vulkan_context->GetPhysicalDevice();
 	context->device                          = g_vulkan_context->GetDevice();
@@ -702,7 +704,8 @@ bool retro_load_game(const struct retro_game_info* game)
 	cpu_thread = std::thread(cpu_thread_entry, boot_params);
 
 	if(hw_render.context_type == RETRO_HW_CONTEXT_NONE)
-		MTGS::TryOpenGS();
+		if (!MTGS::IsOpen())
+			MTGS::TryOpenGS();
 
 	return true;
 }
@@ -760,7 +763,8 @@ void retro_run(void)
 #endif
 	}
 
-	MTGS::TryOpenGS();
+	if (!MTGS::IsOpen())
+		MTGS::TryOpenGS();
 	while (VMManager::GetState() == VMState::Initializing)
 		MTGS::MainLoop(false);
 
