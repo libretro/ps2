@@ -42,14 +42,10 @@ public:
 	bool Exists(const std::string_view& filePath) const;
 	bool IsFile(const std::string_view& filePath) const;
 
-	u32 GetFileSize(const std::string_view& filePath) const;
-
 	IsoFileDescriptor FindFile(const std::string_view& filePath) const;
 
 protected:
 	const IsoFileDescriptor& GetEntry(const std::string_view& fileName) const;
-	const IsoFileDescriptor& GetEntry(int index) const;
 
 	void Init(const IsoFileDescriptor& directoryEntry);
-	int GetIndexOf(const std::string_view& fileName) const;
 };

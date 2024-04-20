@@ -124,25 +124,15 @@ void IsoDirectory::Init(const IsoFileDescriptor& directoryEntry)
 	b[0] = 0;
 }
 
-const IsoFileDescriptor& IsoDirectory::GetEntry(int index) const
-{
-	return files[index];
-}
-
-int IsoDirectory::GetIndexOf(const std::string_view& fileName) const
+const IsoFileDescriptor& IsoDirectory::GetEntry(const std::string_view& fileName) const
 {
 	for (unsigned int i = 0; i < files.size(); i++)
 	{
 		if (files[i].name == fileName)
-			return i;
+			return files[i];
 	}
 
-	return 0;
-}
-
-const IsoFileDescriptor& IsoDirectory::GetEntry(const std::string_view& fileName) const
-{
-	return GetEntry(GetIndexOf(fileName));
+	return files[0];
 }
 
 IsoFileDescriptor IsoDirectory::FindFile(const std::string_view& filePath) const
@@ -182,11 +172,6 @@ bool IsoDirectory::IsFile(const std::string_view& filePath) const
 	if (filePath.empty())
 		return false;
 	return (FindFile(filePath).flags & 2) != 2;
-}
-
-u32 IsoDirectory::GetFileSize(const std::string_view& filePath) const
-{
-	return FindFile(filePath).size;
 }
 
 IsoFileDescriptor::IsoFileDescriptor()
