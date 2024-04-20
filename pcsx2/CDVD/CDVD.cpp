@@ -149,16 +149,13 @@ static void cdvdGetMechaVer(u8* ver)
 		Console.Error("Failed to read from %s. Did only %zu/4 bytes", mecfile.c_str(), ret);
 }
 
-NVMLayout* getNvmLayout()
+NVMLayout* getNvmLayout(void)
 {
 	NVMLayout* nvmLayout = NULL;
 
 	if (nvmlayouts[1].biosVer <= BiosVersion)
-		nvmLayout = &nvmlayouts[1];
-	else
-		nvmLayout = &nvmlayouts[0];
-
-	return nvmLayout;
+		return &nvmlayouts[1];
+	return &nvmlayouts[0];
 }
 
 static void cdvdCreateNewNVM(std::FILE* fp)
