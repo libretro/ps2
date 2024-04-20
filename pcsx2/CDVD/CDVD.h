@@ -18,7 +18,6 @@
 #include "CDVDcommon.h"
 
 #include <string>
-#include <string_view>
 
 #define btoi(b) ((b) / 16 * 10 + (b) % 16) /* BCD to u_char */
 #define itob(i) ((i) / 10 * 16 + (i) % 10) /* u_char to BCD */
@@ -28,14 +27,6 @@ static __fi s32 msf_to_lsn(u8* Time)
 	u32 lsn = Time[2];
 	lsn += (Time[1] - 2) * 75;
 	lsn += Time[0] * 75 * 60;
-	return lsn;
-}
-
-static __fi s32 msf_to_lba(u8 m, u8 s, u8 f)
-{
-	u32 lsn = f;
-	lsn += (s - 2) * 75;
-	lsn += m * 75 * 60;
 	return lsn;
 }
 
@@ -75,7 +66,7 @@ struct cdvdRTC
 
 enum TrayStates
 {
-	CDVD_DISC_ENGAGED,
+	CDVD_DISC_ENGAGED = 0,
 	CDVD_DISC_DETECTING,
 	CDVD_DISC_SEEKING,
 	CDVD_DISC_EJECT,

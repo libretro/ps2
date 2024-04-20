@@ -19,18 +19,11 @@
 #include <string_view>
 #include <vector>
 
-enum IsoFS_Type
-{
-	FStype_ISO9660 = 1,
-	FStype_Joliet = 2
-};
-
 class IsoDirectory
 {
 public:
 	SectorSource& internalReader;
 	std::vector<IsoFileDescriptor> files;
-	IsoFS_Type m_fstype;
 
 public:
 	IsoDirectory(SectorSource& r);
@@ -46,6 +39,5 @@ public:
 
 protected:
 	const IsoFileDescriptor& GetEntry(const std::string_view& fileName) const;
-
 	void Init(const IsoFileDescriptor& directoryEntry);
 };

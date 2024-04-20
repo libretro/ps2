@@ -37,8 +37,6 @@ IsoDirectory::IsoDirectory(SectorSource& r)
 	bool done = false;
 	uint i = 16;
 
-	m_fstype = FStype_ISO9660;
-
 	while (!done)
 	{
 		u8 sector[2048];
@@ -60,7 +58,6 @@ IsoDirectory::IsoDirectory(SectorSource& r)
 
 				case 2:
 					// Probably means Joliet (long filenames support), which PCSX2 doesn't care about.
-					m_fstype = FStype_Joliet;
 					break;
 
 				case 0xff:
@@ -90,7 +87,6 @@ IsoDirectory::IsoDirectory(SectorSource& r)
 IsoDirectory::IsoDirectory(SectorSource& r, const IsoFileDescriptor& directoryEntry)
 	: internalReader(r)
 {
-	m_fstype = FStype_ISO9660;
 	Init(directoryEntry);
 }
 
