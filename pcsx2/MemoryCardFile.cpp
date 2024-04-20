@@ -17,9 +17,7 @@
 
 #include <array>
 #include <cstring> /* memset */
-#include <chrono>
 #include <vector>
-#include <map>
 
 #include "common/FileSystem.h"
 #include "common/Path.h"
@@ -37,9 +35,7 @@
 
 #define MC2_ERASE_SIZE 8448 /* 528 * 16 */
 
-#define S_FOLDER_MEM_CARD_ID_FILE "_pcsx2_superblock"
-
-bool FileMcd_Open = false;
+static bool FileMcd_Open = false;
 
 // ECC code ported from mymc
 // https://sourceforge.net/p/mymc-opl/code/ci/master/tree/ps2mc_ecc.py
@@ -103,9 +99,7 @@ static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 	{
 		if (std::fread(buffer, sizeof(buffer), 1, fin.get()) != 1 ||
 			std::fwrite(buffer, sizeof(buffer), 1, fout.get()) != 1)
-		{
 			return false;
-		}
 
 		for (int j = 0; j < 4; j++)
 		{
@@ -490,11 +484,9 @@ u64 FileMemoryCard::GetCRC(uint slot)
 	std::FILE* mcfp = m_file[slot];
 	if (!mcfp)
 		return 0;
-
-	u64 retval = 0;
-
 	if (m_ispsx[slot])
 	{
+		u64 retval = 0;
 		if (!Seek(mcfp, 0))
 			return 0;
 
@@ -515,13 +507,9 @@ u64 FileMemoryCard::GetCRC(uint slot)
 			for (uint t = 0; t < std::size(buffer); ++t)
 				retval ^= buffer[t];
 		}
+		return retval;
 	}
-	else
-	{
-		retval = m_chksum[slot];
-	}
-
-	return retval;
+	return m_chksum[slot];
 }
 
 // --------------------------------------------------------------------------------------
@@ -569,91 +557,55 @@ void FileMcd_EmuClose(void)
 s32 FileMcd_IsPresent(uint port, uint slot)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			return Mcd::impl.IsPresent(combinedSlot);
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.IsPresent(combinedSlot);
 	return false;
 }
 
 void FileMcd_GetSizeInfo(uint port, uint slot, McdSizeInfo* outways)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			Mcd::impl.GetSizeInfo(combinedSlot, *outways);
-			break;
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		Mcd::impl.GetSizeInfo(combinedSlot, *outways);
 }
 
 bool FileMcd_IsPSX(uint port, uint slot)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			return Mcd::impl.IsPSX(combinedSlot);
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.IsPSX(combinedSlot);
 	return false;
 }
 
 s32 FileMcd_Read(uint port, uint slot, u8* dest, u32 adr, int size)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			return Mcd::impl.Read(combinedSlot, dest, adr, size);
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.Read(combinedSlot, dest, adr, size);
 	return 0;
 }
 
 s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			return Mcd::impl.Save(combinedSlot, src, adr, size);
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.Save(combinedSlot, src, adr, size);
 	return 0;
 }
 
 s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			return Mcd::impl.EraseBlock(combinedSlot, adr);
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.EraseBlock(combinedSlot, adr);
 	return 0;
 }
 
 u64 FileMcd_GetCRC(uint port, uint slot)
 {
 	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		case MemoryCardType::File:
-			return Mcd::impl.GetCRC(combinedSlot);
-		default:
-			break;
-	}
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.GetCRC(combinedSlot);
 	return 0;
 }
 
@@ -839,12 +791,7 @@ bool FileMcd_DeleteCard(const std::string_view& name)
 	if (!FileSystem::StatFile(name_path.c_str(), &sd))
 		return false;
 
-	if (sd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY)
-	{
-		// must be a folder memcard, so do a recursive delete (scary)
-		if (!FileSystem::RecursiveDeleteDirectory(name_path.c_str()))
-			return false;
-	}
+	if (sd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY) { }
 	else
 	{
 		if (!FileSystem::DeleteFilePath(name_path.c_str()))
