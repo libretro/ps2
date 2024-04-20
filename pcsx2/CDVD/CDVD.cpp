@@ -2551,13 +2551,6 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 					break;
 				}
 
-				std::string zoneStr;
-				for (i = 0; i < 8; i++)
-				{
-					if (cdvd.mg_buffer[0x1C] & (1 << i))
-						zoneStr += mg_zones[i];
-				}
-
 				bit_ofs = mg_BIToffset(cdvd.mg_buffer);
 
 				psrc = (u64*)&cdvd.mg_buffer[bit_ofs - 0x20];
