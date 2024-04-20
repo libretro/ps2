@@ -110,26 +110,25 @@ vtlb_private::VTLBVirtual::VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr)
 
 __inline int CheckCache(u32 addr)
 {
-	u32 mask;
-
-	if (((cpuRegs.CP0.n.Config >> 16) & 0x1) == 0)
-		return false;
-
-	for (int i = 1; i < 48; i++)
+	if (((cpuRegs.CP0.n.Config >> 16) & 0x1) != 0)
 	{
-		if (((tlb[i].EntryLo1 & 0x38) >> 3) == 0x3)
+		u32 mask;
+		for (int i = 1; i < 48; i++)
 		{
-			mask = tlb[i].PageMask;
+			if (((tlb[i].EntryLo1 & 0x38) >> 3) == 0x3)
+			{
+				mask = tlb[i].PageMask;
 
-			if ((addr >= tlb[i].PFN1) && (addr <= tlb[i].PFN1 + mask))
-				return true;
-		}
-		if (((tlb[i].EntryLo0 & 0x38) >> 3) == 0x3)
-		{
-			mask = tlb[i].PageMask;
+				if ((addr >= tlb[i].PFN1) && (addr <= tlb[i].PFN1 + mask))
+					return true;
+			}
+			if (((tlb[i].EntryLo0 & 0x38) >> 3) == 0x3)
+			{
+				mask = tlb[i].PageMask;
 
-			if ((addr >= tlb[i].PFN0) && (addr <= tlb[i].PFN0 + mask))
-				return true;
+				if ((addr >= tlb[i].PFN0) && (addr <= tlb[i].PFN0 + mask))
+					return true;
+			}
 		}
 	}
 	return false;
@@ -172,8 +171,6 @@ DataType vtlb_memRead(u32 addr)
 
 	//has to: translate, find function, call function
 	u32 paddr = vmv.assumeHandlerGetPAddr(addr);
-	//Console.WriteLn("Translated 0x%08X to 0x%08X", addr,paddr);
-	//return reinterpret_cast<TemplateHelper<DataSize,false>::HandlerType*>(vtlbdata.RWFT[TemplateHelper<DataSize,false>::sidx][0][hand])(paddr,data);
 
 	switch (DataSize)
 	{
@@ -201,9 +198,7 @@ RETURNS_R128 vtlb_memRead128(u32 mem)
 		if (!CHECK_EEREC)
 		{
 			if (CHECK_CACHE && CheckCache(mem))
-			{
 				return readCache128(mem);
-			}
 		}
 
 		return r128_load(reinterpret_cast<const void*>(vmv.assumePtr(mem)));
@@ -254,7 +249,6 @@ void vtlb_memWrite(u32 addr, DataType data)
 	{
 		//has to: translate, find function, call function
 		u32 paddr = vmv.assumeHandlerGetPAddr(addr);
-		//Console.WriteLn("Translated 0x%08X to 0x%08X", addr,paddr);
 		return vmv.assumeHandler<sizeof(DataType) * 8, true>()(paddr, data);
 	}
 }
@@ -281,8 +275,6 @@ void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value)
 	{
 		//has to: translate, find function, call function
 		u32 paddr = vmv.assumeHandlerGetPAddr(mem);
-		//Console.WriteLn("Translated 0x%08X to 0x%08X", addr,paddr);
-
 		vmv.assumeHandler<128, true>()(paddr, value);
 	}
 }
@@ -345,11 +337,9 @@ template bool vtlb_ramWrite<mem128_t>(u32 mem, const mem128_t& data);
 // memory ops don't flush the PC prior to invoking the indirect handlers.
 
 
-static void GoemonTlbMissDebug()
-{
-}
+static void GoemonTlbMissDebug(void) { }
 
-void GoemonPreloadTlb()
+void GoemonPreloadTlb(void)
 {
 	// 0x3d5580 is the address of the TLB cache table
 	GoemonTlb* tlb = (GoemonTlb*)&eeMem->Main[0x3d5580];
@@ -418,7 +408,6 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 
 		// Exception handled. Current instruction need to be stopped
 		Cpu->CancelInstruction();
-		return;
 	}
 }
 
@@ -447,50 +436,16 @@ static void TAKES_R128 vtlbUnmappedPWriteLg(u32 addr, r128 data) { }
 // properly.  All addressable physical memory should be configured as TLBMiss or Bus Error.
 //
 
-static mem8_t vtlbDefaultPhyRead8(u32 addr)
-{
-	return 0;
-}
-
-static mem16_t vtlbDefaultPhyRead16(u32 addr)
-{
-	return 0;
-}
-
-static mem32_t vtlbDefaultPhyRead32(u32 addr)
-{
-	return 0;
-}
-
-static mem64_t vtlbDefaultPhyRead64(u32 addr)
-{
-	return 0;
-}
-
-static RETURNS_R128 vtlbDefaultPhyRead128(u32 addr)
-{
-	return r128_zero();
-}
-
-static void vtlbDefaultPhyWrite8(u32 addr, mem8_t data)
-{
-}
-
-static void vtlbDefaultPhyWrite16(u32 addr, mem16_t data)
-{
-}
-
-static void vtlbDefaultPhyWrite32(u32 addr, mem32_t data)
-{
-}
-
-static void vtlbDefaultPhyWrite64(u32 addr, mem64_t data)
-{
-}
-
-static void TAKES_R128 vtlbDefaultPhyWrite128(u32 addr, r128 data)
-{
-}
+static mem8_t vtlbDefaultPhyRead8(u32 addr) { return 0; }
+static mem16_t vtlbDefaultPhyRead16(u32 addr) { return 0; }
+static mem32_t vtlbDefaultPhyRead32(u32 addr) { return 0; }
+static mem64_t vtlbDefaultPhyRead64(u32 addr) { return 0; }
+static RETURNS_R128 vtlbDefaultPhyRead128(u32 addr) { return r128_zero(); }
+static void vtlbDefaultPhyWrite8(u32 addr, mem8_t data) { }
+static void vtlbDefaultPhyWrite16(u32 addr, mem16_t data) { }
+static void vtlbDefaultPhyWrite32(u32 addr, mem32_t data) { }
+static void vtlbDefaultPhyWrite64(u32 addr, mem64_t data) { }
+static void TAKES_R128 vtlbDefaultPhyWrite128(u32 addr, r128 data) { }
 
 // ===========================================================================================
 //  VTLB Public API -- Init/Term/RegisterHandler stuff
@@ -521,7 +476,7 @@ __ri void vtlb_ReassignHandler(vtlbHandler rv,
 	vtlbdata.RWFT[4][1][rv] = (void*)((w128 != 0) ? w128 : vtlbDefaultPhyWrite128);
 }
 
-vtlbHandler vtlb_NewHandler()
+vtlbHandler vtlb_NewHandler(void)
 {
 	return vtlbHandlerCount++;
 }
@@ -573,29 +528,16 @@ void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 	while (start <= end)
 	{
 		u32 loopsz = blocksize;
-		sptr ptr = baseint;
+		sptr ptr   = baseint;
 
 		while (loopsz > 0)
 		{
 			vtlbdata.pmap[start >> VTLB_PAGE_BITS] = VTLBPhysical::fromPointer(ptr);
 
-			start += VTLB_PAGE_SIZE;
-			ptr += VTLB_PAGE_SIZE;
+			start  += VTLB_PAGE_SIZE;
+			ptr    += VTLB_PAGE_SIZE;
 			loopsz -= VTLB_PAGE_SIZE;
 		}
-	}
-}
-
-void vtlb_Mirror(u32 new_region, u32 start, u32 size)
-{
-	u32 end = start + (size - VTLB_PAGE_SIZE);
-
-	while (start <= end)
-	{
-		vtlbdata.pmap[start >> VTLB_PAGE_BITS] = vtlbdata.pmap[new_region >> VTLB_PAGE_BITS];
-
-		start += VTLB_PAGE_SIZE;
-		new_region += VTLB_PAGE_SIZE;
 	}
 }
 
@@ -603,57 +545,44 @@ __fi void* vtlb_GetPhyPtr(u32 paddr)
 {
 	if (paddr >= VTLB_PMAP_SZ || vtlbdata.pmap[paddr >> VTLB_PAGE_BITS].isHandler())
 		return NULL;
-	else
-		return reinterpret_cast<void*>(vtlbdata.pmap[paddr >> VTLB_PAGE_BITS].assumePtr() + (paddr & VTLB_PAGE_MASK));
+	return reinterpret_cast<void*>(vtlbdata.pmap[paddr >> VTLB_PAGE_BITS].assumePtr() + (paddr & VTLB_PAGE_MASK));
 }
 
 __fi u32 vtlb_V2P(u32 vaddr)
 {
 	u32 paddr = vtlbdata.ppmap[vaddr >> VTLB_PAGE_BITS];
-	paddr |= vaddr & VTLB_PAGE_MASK;
+	paddr    |= vaddr & VTLB_PAGE_MASK;
 	return paddr;
-}
-
-static constexpr bool vtlb_MismatchedHostPageSize()
-{
-	return (__pagesize != VTLB_PAGE_SIZE);
 }
 
 static bool vtlb_IsHostAligned(u32 paddr)
 {
-	if constexpr (!vtlb_MismatchedHostPageSize())
+	if constexpr (__pagesize == VTLB_PAGE_SIZE)
 		return true;
-
 	return ((paddr & __pagemask) == 0);
 }
 
 static u32 vtlb_HostPage(u32 page)
 {
-	if constexpr (!vtlb_MismatchedHostPageSize())
+	if constexpr (__pagesize == VTLB_PAGE_SIZE)
 		return page;
-
 	return page >> (__pageshift - VTLB_PAGE_BITS);
 }
 
 static u32 vtlb_HostAlignOffset(u32 offset)
 {
-	if constexpr (!vtlb_MismatchedHostPageSize())
+	if constexpr (__pagesize == VTLB_PAGE_SIZE)
 		return offset;
-
 	return offset & ~__pagemask;
 }
 
 static bool vtlb_IsHostCoalesced(u32 page)
 {
-	if constexpr (__pagesize == VTLB_PAGE_SIZE)
-	{
-		return true;
-	}
-	else
+	if constexpr (__pagesize != VTLB_PAGE_SIZE)
 	{
 		static constexpr u32 shift = __pageshift - VTLB_PAGE_BITS;
 		static constexpr u32 count = (1u << shift);
-		static constexpr u32 mask = count - 1;
+		static constexpr u32 mask  = count - 1;
 
 		const u32 base = page & ~mask;
 		const u32 base_offset = s_fastmem_virtual_mapping[base];
@@ -665,9 +594,8 @@ static bool vtlb_IsHostCoalesced(u32 page)
 			if (s_fastmem_virtual_mapping[base + i] != expected_offset)
 				return false;
 		}
-
-		return true;
 	}
+	return true;
 }
 
 static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* mainmem_size, PageProtectionMode* prot)
@@ -730,11 +658,9 @@ static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageP
 {
 	const u32 page = vaddr / VTLB_PAGE_SIZE;
 
+	// current mapping is fine
 	if (s_fastmem_virtual_mapping[page] == mainmem_offset)
-	{
-		// current mapping is fine
 		return;
-	}
 
 	if (s_fastmem_virtual_mapping[page] != NO_FASTMEM_MAPPING)
 	{
@@ -803,7 +729,7 @@ static void vtlb_RemoveFastmemMappings(u32 vaddr, u32 size)
 		vtlb_RemoveFastmemMapping(vaddr);
 }
 
-static void vtlb_RemoveFastmemMappings()
+static void vtlb_RemoveFastmemMappings(void)
 {
 	// not initialized yet
 	if (s_fastmem_virtual_mapping.empty())
@@ -826,26 +752,7 @@ static void vtlb_RemoveFastmemMappings()
 	s_fastmem_physical_mapping.clear();
 }
 
-bool vtlb_ResolveFastmemMapping(uptr* addr)
-{
-	uptr uaddr = *addr;
-	uptr fastmem_start = (uptr)vtlbdata.fastmem_base;
-	uptr fastmem_end = fastmem_start + 0xFFFFFFFFu;
-	if (uaddr < fastmem_start || uaddr > fastmem_end)
-		return false;
-
-	const u32 vaddr = static_cast<u32>(uaddr - fastmem_start);
-
-	const u32 vpage = vaddr / VTLB_PAGE_SIZE;
-	if (s_fastmem_virtual_mapping[vpage] == NO_FASTMEM_MAPPING)
-		return false;
-
-	const u32 mainmem_offset = s_fastmem_virtual_mapping[vpage] + (vaddr & VTLB_PAGE_MASK);
-	*addr = ((uptr)GetVmMemory().MainMemory()->GetBase()) + mainmem_offset;
-	return true;
-}
-
-bool vtlb_GetGuestAddress(uptr host_addr, u32* guest_addr)
+static bool vtlb_GetGuestAddress(uptr host_addr, u32* guest_addr)
 {
 	uptr fastmem_start = (uptr)vtlbdata.fastmem_base;
 	uptr fastmem_end = fastmem_start + 0xFFFFFFFFu;
@@ -856,11 +763,8 @@ bool vtlb_GetGuestAddress(uptr host_addr, u32* guest_addr)
 	return true;
 }
 
-void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode& prot)
+static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode& prot)
 {
-	if (!CHECK_FASTMEM)
-		return;
-
 	u32 mainmem_start, mainmem_size;
 	PageProtectionMode old_prot;
 	if (!vtlb_GetMainMemoryOffset(paddr, &mainmem_start, &mainmem_size, &old_prot))
@@ -896,7 +800,7 @@ void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 g
 	s_fastmem_backpatch_info.emplace(code_address, info);
 }
 
-bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
+static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 {
 	uptr fastmem_start = (uptr)vtlbdata.fastmem_base;
 	uptr fastmem_end = fastmem_start + 0xFFFFFFFFu;
@@ -1079,11 +983,9 @@ void vtlb_ResetFastmem(void)
 	{
 		const VTLBVirtual& vm = vtlbdata.vmap[i];
 		const u32 vaddr = static_cast<u32>(i) << VTLB_PAGE_BITS;
+		// Handlers should be unmapped.
 		if (vm.isHandler(vaddr))
-		{
-			// Handlers should be unmapped.
 			continue;
-		}
 
 		// Check if it's a physical mapping to our main memory area.
 		u32 mainmem_offset, mainmem_size;
@@ -1099,7 +1001,7 @@ static constexpr size_t VMAP_SIZE = sizeof(VTLBVirtual) * VTLB_VMAP_ITEMS;
 // [TODO] basemem - request allocating memory at the specified virtual location, which can allow
 //    for easier debugging and/or 3rd party cheat programs.  If 0, the operating system
 //    default is used.
-bool vtlb_Core_Alloc()
+bool vtlb_Core_Alloc(void)
 {
 	// Can't return regions to the bump allocator
 	static VTLBVirtual* vmap = nullptr;
@@ -1291,7 +1193,8 @@ void mmap_MarkCountedRamPage(u32 paddr)
 
 	m_PageProtectInfo[rampage].Mode = ProtMode_Write;
 	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, PageAccess_ReadOnly());
-	vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadOnly());
+	if (CHECK_FASTMEM)
+		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadOnly());
 }
 
 // offset - offset of address relative to psM.
@@ -1302,7 +1205,8 @@ static __fi void mmap_ClearCpuBlock(uint offset)
 	int rampage = offset >> __pageshift;
 
 	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, PageAccess_ReadWrite());
-	vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadWrite());
+	if (CHECK_FASTMEM)
+		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadWrite());
 	m_PageProtectInfo[rampage].Mode = ProtMode_Manual;
 	Cpu->Clear(m_PageProtectInfo[rampage].ReverseRamMap, __pagesize);
 }
@@ -1342,5 +1246,6 @@ void mmap_ResetBlockTracking(void)
 	memset(m_PageProtectInfo, 0, sizeof(m_PageProtectInfo));
 	if (eeMem)
 		HostSys::MemProtect(eeMem->Main, Ps2MemSize::MainRam, PageAccess_ReadWrite());
-	vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, PageAccess_ReadWrite());
+	if (CHECK_FASTMEM)
+		vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, PageAccess_ReadWrite());
 }
