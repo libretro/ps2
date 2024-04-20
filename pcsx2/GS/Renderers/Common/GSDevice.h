@@ -742,9 +742,6 @@ public:
 
 	void Recycle(GSTexture* t);
 
-	/// Returns true if it's an OpenGL-based renderer.
-	bool UsesLowerLeftOrigin() const;
-
 	virtual bool Create();
 	virtual void Destroy();
 

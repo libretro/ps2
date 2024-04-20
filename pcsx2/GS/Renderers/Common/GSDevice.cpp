@@ -234,12 +234,6 @@ void GSDevice::Recycle(GSTexture* t)
 	}
 }
 
-bool GSDevice::UsesLowerLeftOrigin() const
-{
-	const RenderAPI api = GetRenderAPI();
-	return (api == RenderAPI::OpenGL);
-}
-
 void GSDevice::AgePool()
 {
 	m_frame++;
