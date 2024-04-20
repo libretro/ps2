@@ -552,15 +552,7 @@ void FileMcd_EmuOpen(void)
 		if (EmuConfig.Mcd[slot].Filename.empty())
 			EmuConfig.Mcd[slot].Type = MemoryCardType::Empty;
 		else if (EmuConfig.Mcd[slot].Enabled)
-		{
-			MemoryCardType type = MemoryCardType::File; // default to file if we can't find anything at the path so it gets auto-generated
-
-			const std::string path(EmuConfig.FullpathToMcd(slot));
-			if (FileSystem::DirectoryExists(path.c_str()))
-				type = MemoryCardType::Folder;
-
-			EmuConfig.Mcd[slot].Type = type;
-		}
+			EmuConfig.Mcd[slot].Type = MemoryCardType::File;
 	}
 
 	Mcd::impl.Open();
@@ -775,21 +767,6 @@ std::optional<AvailableMcdInfo> FileMcd_GetCardInfo(const std::string_view& name
 
 bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, MemoryCardFileType file_type)
 {
-	const std::string full_path(Path::Combine(EmuFolders::MemoryCards, name));
-
-	if (type == MemoryCardType::Folder)
-	{
-		if (!FileSystem::CreateDirectoryPath(full_path.c_str(), false))
-			return false;
-
-		// write the superblock
-		auto fp = FileSystem::OpenManagedCFile(Path::Combine(full_path, S_FOLDER_MEM_CARD_ID_FILE).c_str(), "wb");
-		if (!fp)
-			return false;
-
-		return true;
-	}
-
 	if (type == MemoryCardType::File)
 	{
 		if (file_type <= MemoryCardFileType::Unknown || file_type >= MemoryCardFileType::MaxCount)
@@ -802,6 +779,7 @@ bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, Me
 		if (!isPSX && size == 0)
 			return false;
 
+		const std::string full_path(Path::Combine(EmuFolders::MemoryCards, name));
 		auto fp = FileSystem::OpenManagedCFile(full_path.c_str(), "wb");
 		if (!fp)
 			return false;

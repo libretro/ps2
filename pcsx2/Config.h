@@ -204,7 +204,6 @@ enum class MemoryCardType
 {
 	Empty,
 	File,
-	Folder,
 	MaxCount
 };
 
