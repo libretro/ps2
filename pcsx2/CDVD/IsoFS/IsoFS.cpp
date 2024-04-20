@@ -96,6 +96,7 @@ IsoDirectory::IsoDirectory(SectorSource& r, const IsoFileDescriptor& directoryEn
 
 void IsoDirectory::Init(const IsoFileDescriptor& directoryEntry)
 {
+	u8 b[257];
 	// parse directory sector
 	IsoFile dataStream(internalReader, directoryEntry);
 
@@ -103,16 +104,12 @@ void IsoDirectory::Init(const IsoFileDescriptor& directoryEntry)
 
 	uint remainingSize = directoryEntry.size;
 
-	u8 b[257];
-
 	while (remainingSize >= 4) // hm hack :P
 	{
 		b[0] = dataStream.read<u8>();
 
 		if (b[0] == 0)
-		{
 			break; // or continue?
-		}
 
 		remainingSize -= b[0];
 
@@ -224,7 +221,6 @@ void IsoFileDescriptor::Load(const u8* data, int length)
 	else
 	{
 		// copy string and up-convert from ascii to wxChar
-
 		const u8* fnsrc = data + 33;
 		name.assign(reinterpret_cast<const char*>(fnsrc), fileNameLength);
 	}

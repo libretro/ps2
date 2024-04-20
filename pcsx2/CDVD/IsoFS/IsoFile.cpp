@@ -153,9 +153,7 @@ int IsoFile::internalRead(void* dest, int off, int len)
 	{
 		size_t slen = len;
 		if (slen > (maxOffset - currentOffset))
-		{
 			slen = (int)(maxOffset - currentOffset);
-		}
 
 		memcpy((u8*)dest + off, currentSector + sectorOffset, slen);
 
@@ -172,14 +170,12 @@ s32 IsoFile::read(void* dest, s32 len)
 	if (len <= 0)
 		return 0;
 
-	int off = 0;
-
+	int off         = 0;
 	int totalLength = 0;
-
 	int firstSector = internalRead(dest, off, std::min(len, sectorLength - sectorOffset));
-	off += firstSector;
-	len -= firstSector;
-	totalLength += firstSector;
+	off            += firstSector;
+	len            -= firstSector;
+	totalLength    += firstSector;
 
 	// Read whole sectors
 	while ((len >= sectorLength) && (currentOffset < maxOffset))

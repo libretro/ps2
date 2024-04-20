@@ -451,9 +451,7 @@ static std::string ExecutablePathToSerial(const std::string& path)
 	std::string::size_type pos = path.rfind('\\');
 	std::string serial;
 	if (pos != std::string::npos)
-	{
 		serial = path.substr(pos + 1);
-	}
 	else
 	{
 		// cdrom:SCES_123.45;1
@@ -501,7 +499,7 @@ void cdvdReloadElfInfo(std::string elfoverride)
 	// as Linux/GCC)
 	std::string elfpath;
 	u32 discType = GetPS2ElfName(elfpath);
-	DiscSerial = ExecutablePathToSerial(elfpath);
+	DiscSerial   = ExecutablePathToSerial(elfpath);
 
 	// Use the serial from the disc (if any), and the ELF CRC of the override.
 	if (!elfoverride.empty())
@@ -713,29 +711,26 @@ static int cdvdTrayStateDetecting(void)
 
 		if (dualType > 0)
 			return CDVD_TYPE_DETCTDVDD;
-		else
-			return CDVD_TYPE_DETCTDVDS;
+		return CDVD_TYPE_DETCTDVDS;
 	}
 
 	if (cdvd.Type != CDVD_TYPE_NODISC)
 		return CDVD_TYPE_DETCTCD;
-	else
-		return CDVD_TYPE_DETCT; //Detecting any kind of disc existing
+	return CDVD_TYPE_DETCT; //Detecting any kind of disc existing
 }
 
 static u32 cdvdRotationalLatency(CDVD_MODE_TYPE mode)
 {
+	float msPerRotation;
 	// CAV rotation is constant (minimum speed to maintain exact speed on outer dge
 	if (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV)
 	{
 		const float rotationPerSecond = static_cast<float>(((mode == MODE_CDROM) ? CD_MIN_ROTATION_X1 : DVD_MIN_ROTATION_X1) * cdvd.Speed) / 60.0f;
-		const float msPerRotation = 1000.0f / rotationPerSecond;
-
-		return ((PSXCLK / 1000) * msPerRotation);
+		msPerRotation = 1000.0f / rotationPerSecond;
 	}
 	else
 	{
-		int numSectors = 0;
+		int numSectors = 360000; // Pretty much every CD format
 		int offset = 0;
 
 		//CLV adjusts its speed based on where it is on the disc, so we can take the max RPM and use the sector to work it out
@@ -755,23 +750,22 @@ static u32 cdvdRotationalLatency(CDVD_MODE_TYPE mode)
 					offset = layer1Start;
 				break;
 			default: // Pretty much every CD format
-				numSectors = 360000;
 				break;
 		}
 		const float sectorSpeed = (((float)(cdvd.SeekToSector - offset) / numSectors) * 0.60f) + 0.40f;
-
 		const float rotationPerSecond = static_cast<float>(((mode == MODE_CDROM) ? CD_MAX_ROTATION_X1 : DVD_MAX_ROTATION_X1) * cdvd.Speed * sectorSpeed) / 60.0f;
-		const float msPerRotation = 1000.0f / rotationPerSecond;
-		return ((PSXCLK / 1000) * msPerRotation);
+		msPerRotation = 1000.0f / rotationPerSecond;
 	}
+	return ((PSXCLK / 1000) * msPerRotation);
 }
 
 static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 {
+	float cycles;
 	// CAV Read speed is roughly 41% in the centre full speed on outer edge. I imagine it's more logarithmic than this
 	if (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV)
 	{
-		int numSectors = 0;
+		int numSectors = 360000; // Pretty much every CD format
 		int offset = 0;
 
 		// Sector counts are taken from google for Single layer, Dual layer DVD's and for 700MB CD's
@@ -789,20 +783,19 @@ static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 				if (cdvd.SeekToSector >= layer1Start)
 					offset = layer1Start;
 				break;
-			default: // Pretty much every CD format
-				numSectors = 360000;
+			default:
 				break;
 		}
 
 		// 0.40f is the "base" inner track speed.
 		const float sectorSpeed = ((static_cast<float>(cdvd.SeekToSector - offset) / static_cast<float>(numSectors)) * 0.60f) + 0.40f;
-		float cycles = static_cast<float>(PSXCLK) / (static_cast<float>(((mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND) * cdvd.Speed) * sectorSpeed);
-
-		return static_cast<int>(cycles);
+		cycles = static_cast<float>(PSXCLK) / (static_cast<float>(((mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND) * cdvd.Speed) * sectorSpeed);
 	}
-
-	// CLV Read Speed is constant
-	float cycles = static_cast<float>(PSXCLK) / static_cast<float>(((mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND) * cdvd.Speed);
+	else
+	{
+		// CLV Read Speed is constant
+		cycles = static_cast<float>(PSXCLK) / static_cast<float>(((mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND) * cdvd.Speed);
+	}
 
 	return static_cast<int>(cycles);
 }
@@ -2039,12 +2032,6 @@ static __fi void cdvdWrite14(u8 rt)
 	// Tests with ref suggest this register is write only? - Weirdbeard
 }
 
-static __fi void fail_pol_cal(void)
-{
-	Console.Error("[MG] ERROR - Make sure the file is already decrypted!!!");
-	cdvd.SCMDResult[0] = 0x80;
-}
-
 static void cdvdWrite16(u8 rt) // SCOMMAND
 {
 	//	cdvdTN	diskInfo;
@@ -2544,7 +2531,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 				if ((cdvd.mg_maxsize != cdvd.mg_size) || (cdvd.mg_size < 0x20) || (cdvd.mg_size != *(u16*)&cdvd.mg_buffer[0x14]))
 				{
-					fail_pol_cal();
+					cdvd.SCMDResult[0] = 0x80;
 					break;
 				}
 
@@ -2565,7 +2552,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 				if ((cdvd.mg_buffer[bit_ofs + 5] || cdvd.mg_buffer[bit_ofs + 6] || cdvd.mg_buffer[bit_ofs + 7]) ||
 						(cdvd.mg_buffer[bit_ofs + 4] * 16 + bit_ofs + 8 + 16 != *(u16*)&cdvd.mg_buffer[0x14]))
 				{
-					fail_pol_cal();
+					cdvd.SCMDResult[0] = 0x80;
 					break;
 				}
 			}

@@ -22,7 +22,7 @@
 enum IsoFS_Type
 {
 	FStype_ISO9660 = 1,
-	FStype_Joliet = 2,
+	FStype_Joliet = 2
 };
 
 class IsoDirectory
