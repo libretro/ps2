@@ -41,7 +41,6 @@ public:
 
 	bool Exists(const std::string_view& filePath) const;
 	bool IsFile(const std::string_view& filePath) const;
-	bool IsDir(const std::string_view& filePath) const;
 
 	u32 GetFileSize(const std::string_view& filePath) const;
 

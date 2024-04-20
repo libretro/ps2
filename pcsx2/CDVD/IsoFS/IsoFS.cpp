@@ -184,13 +184,6 @@ bool IsoDirectory::IsFile(const std::string_view& filePath) const
 	return (FindFile(filePath).flags & 2) != 2;
 }
 
-bool IsoDirectory::IsDir(const std::string_view& filePath) const
-{
-	if (filePath.empty())
-		return false;
-	return (FindFile(filePath).flags & 2) == 2;
-}
-
 u32 IsoDirectory::GetFileSize(const std::string_view& filePath) const
 {
 	return FindFile(filePath).size;
