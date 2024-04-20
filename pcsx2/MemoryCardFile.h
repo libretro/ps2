@@ -54,7 +54,6 @@ s32 FileMcd_Read(uint port, uint slot, u8* dest, u32 adr, int size);
 s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size);
 s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr);
 u64 FileMcd_GetCRC(uint port, uint slot);
-void FileMcd_NextFrame(uint port, uint slot);
 bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter);
 
 std::vector<AvailableMcdInfo> FileMcd_GetAvailableCards(bool include_in_use_cards);

@@ -1085,9 +1085,6 @@
     <ClCompile Include="MemoryCardFile.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
-    <ClCompile Include="MemoryCardFolder.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
     <ClCompile Include="PerformanceMetrics.cpp">
       <Filter>System</Filter>
     </ClCompile>
@@ -1899,9 +1896,6 @@
     </ClInclude>
     <ClInclude Include="GS\Renderers\DX11\D3D.h">
       <Filter>System\Ps2\GS\Renderers\Direct3D11</Filter>
-    </ClInclude>
-    <ClInclude Include="MemoryCardFolder.h">
-      <Filter>System\Ps2\Iop</Filter>
     </ClInclude>
     <ClInclude Include="MemoryCardFile.h">
       <Filter>System\Ps2\Iop</Filter>

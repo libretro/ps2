@@ -40,8 +40,6 @@ extern u8 psxhblankgate;
 static const uint EECNT_FUTURE_TARGET = 0x10000000;
 static int gates = 0;
 
-static uint g_FrameCount = 0;
-
 // Counter 4 takes care of scanlines - hSync/hBlanks
 // Counter 5 takes care of vSync/vBlanks
 Counter counters[4];
@@ -154,8 +152,6 @@ static __fi void cpuRcntSet(void)
 void rcntInit(void)
 {
 	int i;
-
-	g_FrameCount = 0;
 
 	memset(counters, 0, sizeof(counters));
 
@@ -521,20 +517,9 @@ static __fi void GSVSync()
 
 static __fi void VSyncEnd(u32 sCycle)
 {
-	g_FrameCount++;
-
 	hwIntcIrq(INTC_VBLANK_E);  // HW Irq
 	psxVBlankEnd(); // psxCounters vBlank End
 	if (gates) rcntEndGate(true, sCycle); // Counters End Gate Code
-
-	// FolderMemoryCard needs information on how much time has passed since the last write
-	// Call it every 60 frames
-	if (!(g_FrameCount % 60))
-		sioNextFrame();
-
-	// This doesn't seem to be needed here.  Games only seem to break with regard to the
-	// vsyncstart irq.
-	//cpuRegs.eCycle[30] = 2;
 }
 
 __fi void rcntUpdate_hScanline()

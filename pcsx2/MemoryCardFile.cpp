@@ -26,7 +26,6 @@
 #include "common/StringUtil.h"
 
 #include "MemoryCardFile.h"
-#include "MemoryCardFolder.h"
 
 #include "System.h"
 #include "Config.h"
@@ -531,7 +530,6 @@ u64 FileMemoryCard::GetCRC(uint slot)
 namespace Mcd
 {
 	FileMemoryCard impl; // class-based implementations we refer to when API is invoked
-	FolderMemoryCardAggregator implFolder;
 }; // namespace Mcd
 
 uint FileMcd_ConvertToSlot(uint port, uint slot)
@@ -543,7 +541,7 @@ uint FileMcd_ConvertToSlot(uint port, uint slot)
 	return slot + 4;     // multitap 2
 }
 
-void FileMcd_EmuOpen()
+void FileMcd_EmuOpen(void)
 {
 	if(FileMcd_Open)
 		return;
@@ -566,8 +564,6 @@ void FileMcd_EmuOpen()
 	}
 
 	Mcd::impl.Open();
-	Mcd::implFolder.SetFiltering(EmuConfig.McdFolderAutoManage);
-	Mcd::implFolder.Open();
 }
 
 void FileMcd_EmuClose(void)
@@ -575,7 +571,6 @@ void FileMcd_EmuClose(void)
 	if(!FileMcd_Open)
 		return;
 	FileMcd_Open = false;
-	Mcd::implFolder.Close();
 	Mcd::impl.Close();
 }
 
@@ -586,8 +581,6 @@ s32 FileMcd_IsPresent(uint port, uint slot)
 	{
 		case MemoryCardType::File:
 			return Mcd::impl.IsPresent(combinedSlot);
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.IsPresent(combinedSlot);
 		default:
 			break;
 	}
@@ -602,9 +595,6 @@ void FileMcd_GetSizeInfo(uint port, uint slot, McdSizeInfo* outways)
 		case MemoryCardType::File:
 			Mcd::impl.GetSizeInfo(combinedSlot, *outways);
 			break;
-		case MemoryCardType::Folder:
-			Mcd::implFolder.GetSizeInfo(combinedSlot, *outways);
-			break;
 		default:
 			break;
 	}
@@ -617,8 +607,6 @@ bool FileMcd_IsPSX(uint port, uint slot)
 	{
 		case MemoryCardType::File:
 			return Mcd::impl.IsPSX(combinedSlot);
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.IsPSX(combinedSlot);
 		default:
 			break;
 	}
@@ -632,8 +620,6 @@ s32 FileMcd_Read(uint port, uint slot, u8* dest, u32 adr, int size)
 	{
 		case MemoryCardType::File:
 			return Mcd::impl.Read(combinedSlot, dest, adr, size);
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.Read(combinedSlot, dest, adr, size);
 		default:
 			break;
 	}
@@ -647,8 +633,6 @@ s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size)
 	{
 		case MemoryCardType::File:
 			return Mcd::impl.Save(combinedSlot, src, adr, size);
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.Save(combinedSlot, src, adr, size);
 		default:
 			break;
 	}
@@ -662,8 +646,6 @@ s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr)
 	{
 		case MemoryCardType::File:
 			return Mcd::impl.EraseBlock(combinedSlot, adr);
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.EraseBlock(combinedSlot, adr);
 		default:
 			break;
 	}
@@ -677,45 +659,13 @@ u64 FileMcd_GetCRC(uint port, uint slot)
 	{
 		case MemoryCardType::File:
 			return Mcd::impl.GetCRC(combinedSlot);
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.GetCRC(combinedSlot);
 		default:
 			break;
 	}
 	return 0;
 }
 
-void FileMcd_NextFrame(uint port, uint slot)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		//case MemoryCardType::MemoryCard_File:
-		//	Mcd::impl.NextFrame( combinedSlot );
-		//	break;
-		case MemoryCardType::Folder:
-			Mcd::implFolder.NextFrame(combinedSlot);
-			break;
-		default:
-			break;
-	}
-}
-
-bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	switch (EmuConfig.Mcd[combinedSlot].Type)
-	{
-		//case MemoryCardType::File:
-		//	return Mcd::impl.ReIndex( combinedSlot, filter );
-		//	break;
-		case MemoryCardType::Folder:
-			return Mcd::implFolder.ReIndex(combinedSlot, EmuConfig.McdFolderAutoManage, filter);
-		default:
-			break;
-	}
-	return false;
-}
+bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter) { return false; }
 
 // --------------------------------------------------------------------------------------
 //  Library API Implementations
@@ -734,12 +684,6 @@ static MemoryCardFileType GetMemoryCardFileTypeFromSize(s64 size)
 	else if (size == MCD_SIZE)
 		return MemoryCardFileType::PS1;
 	return MemoryCardFileType::Unknown;
-}
-
-static bool IsMemoryCardFolder(const std::string& path)
-{
-	const std::string superblock_path(Path::Combine(path, S_FOLDER_MEM_CARD_ID_FILE));
-	return FileSystem::FileExists(superblock_path.c_str());
 }
 
 static bool IsMemoryCardFormatted(const std::string& path)
@@ -787,14 +731,7 @@ std::vector<AvailableMcdInfo> FileMcd_GetAvailableCards(bool include_in_use_card
 				continue;
 		}
 
-		if (fd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY)
-		{
-			if (!IsMemoryCardFolder(fd.FileName))
-				continue;
-
-			mcds.push_back({std::move(basename), std::move(fd.FileName), fd.ModificationTime,
-				MemoryCardType::Folder, MemoryCardFileType::Unknown, 0u, true});
-		}
+		if (fd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY) { }
 		else
 		{
 			if (fd.Size < MCD_SIZE)
@@ -821,12 +758,7 @@ std::optional<AvailableMcdInfo> FileMcd_GetCardInfo(const std::string_view& name
 	if (!FileSystem::StatFile(path.c_str(), &sd))
 		return ret;
 
-	if (sd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY)
-	{
-		if (IsMemoryCardFolder(path))
-			ret = {std::move(basename), std::move(path), sd.ModificationTime,
-				MemoryCardType::Folder, MemoryCardFileType::Unknown, 0u, true};
-	}
+	if (sd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY) { }
 	else
 	{
 		if (sd.Size >= MCD_SIZE)

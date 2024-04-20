@@ -751,15 +751,6 @@ u8 Sio2::Read()
 	return ret;
 }
 
-void sioNextFrame(void)
-{
-	for ( uint port = 0; port < 2; ++port )
-	{
-		for ( uint slot = 0; slot < 4; ++slot )
-			FileMcd_NextFrame( port, slot );
-	}
-}
-
 void sioSetGameSerial( const std::string& serial )
 {
 	for ( uint port = 0; port < 2; ++port )

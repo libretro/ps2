@@ -100,7 +100,6 @@ set(pcsx2Sources
 	Mdec.cpp
 	Memory.cpp
 	MemoryCardFile.cpp
-	MemoryCardFolder.cpp
 	MemoryCardProtocol.cpp
 	MMI.cpp
 	MTGS.cpp
@@ -174,7 +173,6 @@ set(pcsx2Headers
 	MTVU.h
 	Memory.h
 	MemoryCardFile.h
-	MemoryCardFolder.h
 	MemoryCardProtocol.h
 	MemoryTypes.h
 	MultitapProtocol.h

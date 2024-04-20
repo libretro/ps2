@@ -164,8 +164,6 @@ extern Sio2 sio2;
 extern _mcd mcds[2][4];
 extern _mcd *mcd;
 
-extern void sioNextFrame();
-
 /// Converts a global pad index to a multitap port and slot.
 extern std::tuple<u32, u32> sioConvertPadToPortAndSlot(u32 index);
 

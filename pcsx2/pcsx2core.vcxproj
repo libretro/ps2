@@ -201,7 +201,6 @@
     <ClCompile Include="PAD\Host\StateManagement.cpp" />
     <ClCompile Include="FW.cpp" />
     <ClCompile Include="MemoryCardFile.cpp" />
-    <ClCompile Include="MemoryCardFolder.cpp" />
     <ClCompile Include="PerformanceMetrics.cpp" />
     <ClCompile Include="Recording\InputRecording.cpp" />
     <ClCompile Include="Recording\InputRecordingControls.cpp" />
@@ -519,7 +518,6 @@
     <ClInclude Include="PAD\Host\StateManagement.h" />
     <ClInclude Include="FW.h" />
     <ClInclude Include="MemoryCardFile.h" />
-    <ClInclude Include="MemoryCardFolder.h" />
     <ClInclude Include="PerformanceMetrics.h" />
     <ClInclude Include="Recording\InputRecording.h" />
     <ClInclude Include="Recording\InputRecordingControls.h" />
