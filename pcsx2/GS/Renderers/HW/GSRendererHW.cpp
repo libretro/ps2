@@ -1941,6 +1941,12 @@ void GSRendererHW::Draw()
 
 			rt = g_texture_cache->CreateTarget(FRAME_TEX0, t_size, target_scale, GSTextureCache::RenderTarget, true,
 				fm, false, force_preload, preserve_rt_color, m_r);
+
+			if (unlikely(!rt))
+			{
+				cleanup_cancelled_draw();
+				return;
+			}
 		}
 	}
 
@@ -1958,6 +1964,12 @@ void GSRendererHW::Draw()
 		if (!ds)
 			ds = g_texture_cache->CreateTarget(ZBUF_TEX0, t_size, target_scale, GSTextureCache::DepthStencil,
 				m_cached_ctx.DepthWrite(), 0, false, force_preload, preserve_depth, m_r);
+
+		if (unlikely(!ds))
+		{
+			cleanup_cancelled_draw();
+			return;
+		}
 	}
 
 	if (process_texture)

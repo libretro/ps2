@@ -1317,7 +1317,9 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 		{
 			calcRescale(dst_match);
 			dst = CreateTarget(TEX0, new_size.x, new_size.y, scale, type, clear);
-			dst->m_32_bits_fmt = dst_match->m_32_bits_fmt;
+			if (!dst)
+				return nullptr;
+			dst->m_32_bits_fmt    = dst_match->m_32_bits_fmt;
 			dst->OffsetHack_modxy = dst_match->OffsetHack_modxy;
 
 			ShaderConvert shader;
