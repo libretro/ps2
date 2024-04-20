@@ -115,11 +115,6 @@ void OutputIsoFile::WriteBuffer(const void* src, size_t size)
 		Close();
 }
 
-bool OutputIsoFile::IsOpened() const
-{
-	return m_outstream != nullptr;
-}
-
 u32 OutputIsoFile::GetBlockSize() const
 {
 	return m_blocksize;

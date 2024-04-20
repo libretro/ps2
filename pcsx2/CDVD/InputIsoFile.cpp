@@ -19,14 +19,11 @@
 #include "CDVD/IsoFileFormats.h"
 #include "Config.h"
 
-#include "fmt/format.h"
-
 int InputIsoFile::ReadSync(u8* dst, uint lsn)
 {
 	if (lsn >= m_blocks)
 	{
-		std::string msg(fmt::format("isoFile error: Block index is past the end of file! ({} >= {}).", lsn, m_blocks));
-		Console.Error(msg.c_str());
+		Console.Error("isoFile error: Block index is past the end of file!");
 		return -1;
 	}
 
@@ -45,11 +42,9 @@ void InputIsoFile::BeginRead2(uint lsn)
 		return;
 	}
 
+	// Already buffered
 	if (lsn >= m_read_lsn && lsn < (m_read_lsn + m_read_count))
-	{
-		// Already buffered
 		return;
-	}
 
 	m_read_lsn = lsn;
 	m_read_count = 1;
@@ -161,20 +156,7 @@ void InputIsoFile::_init()
 	m_reader = NULL;
 }
 
-// Tests the specified filename to see if it is a supported ISO type.  This function typically
-// executes faster than IsoFile::Open since it does not do the following:
-//  * check for multi-part ISOs.  I tests for header info in the main/root ISO only.
-//  * load blockdump indexes.
-//
-// Note that this is a member method, and that it will clobber any existing ISO state.
-// (assertions are generated in debug mode if the object state is not already closed).
-bool InputIsoFile::Test(std::string srcfile)
-{
-	Close();
-	return Open(std::move(srcfile), true);
-}
-
-bool InputIsoFile::Open(std::string srcfile, bool testOnly)
+bool InputIsoFile::Open(std::string srcfile)
 {
 	Close();
 	m_filename = std::move(srcfile);
@@ -194,15 +176,9 @@ bool InputIsoFile::Open(std::string srcfile, bool testOnly)
 
 	bool detected = Detect();
 
-	if (testOnly)
-	{
-		Close();
-		return detected;
-	}
-
 	if (!detected)
 	{
-		Console.Error(fmt::format("Unable to identify the ISO image type for '{}'", m_filename));
+		Console.Error("Unable to identify the ISO image type for %s", m_filename.c_str());
 		Close();
 		return false;
 	}
@@ -229,11 +205,6 @@ void InputIsoFile::Close()
 	m_reader = NULL;
 
 	_init();
-}
-
-bool InputIsoFile::IsOpened() const
-{
-	return m_reader != NULL;
 }
 
 bool InputIsoFile::tryIsoType(u32 _size, s32 _offset, s32 _blockofs)
@@ -263,7 +234,7 @@ bool InputIsoFile::tryIsoType(u32 _size, s32 _offset, s32 _blockofs)
 //
 //
 // Returns true if the image is valid/known/supported, or false if not (type == ISOTYPE_ILLEGAL).
-bool InputIsoFile::Detect(bool readType)
+bool InputIsoFile::Detect(void)
 {
 	m_type = ISOTYPE_ILLEGAL;
 

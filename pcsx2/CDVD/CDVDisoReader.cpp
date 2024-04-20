@@ -35,12 +35,12 @@ static int pmode, cdtype;
 static s32 layer1start = -1;
 static bool layer1searched = false;
 
-void CALLBACK ISOclose()
+static void CALLBACK ISOclose(void)
 {
 	iso.Close();
 }
 
-s32 CALLBACK ISOopen(const char* pTitle)
+static s32 CALLBACK ISOopen(const char* pTitle)
 {
 	ISOclose(); // just in case
 
@@ -72,7 +72,7 @@ s32 CALLBACK ISOopen(const char* pTitle)
 	return 0;
 }
 
-s32 CALLBACK ISOreadSubQ(u32 lsn, cdvdSubQ* subq)
+static s32 CALLBACK ISOreadSubQ(u32 lsn, cdvdSubQ* subq)
 {
 	// fake it
 	u8 min, sec, frm;
@@ -96,7 +96,7 @@ s32 CALLBACK ISOreadSubQ(u32 lsn, cdvdSubQ* subq)
 	return 0;
 }
 
-s32 CALLBACK ISOgetTN(cdvdTN* Buffer)
+static s32 CALLBACK ISOgetTN(cdvdTN* Buffer)
 {
 	Buffer->strack = 1;
 	Buffer->etrack = 1;
@@ -104,7 +104,7 @@ s32 CALLBACK ISOgetTN(cdvdTN* Buffer)
 	return 0;
 }
 
-s32 CALLBACK ISOgetTD(u8 Track, cdvdTD* Buffer)
+static s32 CALLBACK ISOgetTD(u8 Track, cdvdTD* Buffer)
 {
 	if (Track == 0)
 	{
@@ -119,24 +119,23 @@ s32 CALLBACK ISOgetTD(u8 Track, cdvdTD* Buffer)
 	return 0;
 }
 
-static bool testForPrimaryVolumeDescriptor(const std::array<u8, CD_FRAMESIZE_RAW>& buffer)
+static bool testForPrimaryVolumeDescriptor(const u8 *buffer)
 {
 	const std::array<u8, 6> identifier = {1, 'C', 'D', '0', '0', '1'};
-
-	return std::equal(identifier.begin(), identifier.end(), buffer.begin() + iso.GetBlockOffset());
+	return std::equal(identifier.begin(), identifier.end(), buffer + iso.GetBlockOffset());
 }
 
-static void FindLayer1Start()
+static void FindLayer1Start(void)
 {
 	if (layer1searched)
 		return;
 
 	layer1searched = true;
 
-	std::array<u8, CD_FRAMESIZE_RAW> buffer;
+	u8 buffer[CD_FRAMESIZE_RAW];
 
 	// The ISO9660 primary volume descriptor for layer 0 is located at sector 16
-	iso.ReadSync(buffer.data(), 16);
+	iso.ReadSync(buffer, 16);
 	if (!testForPrimaryVolumeDescriptor(buffer))
 	{
 		Console.Error("isoFile: Invalid layer0 Primary Volume Descriptor");
@@ -154,7 +153,7 @@ static void FindLayer1Start()
 	{
 		// The layer 1 start LSN contains the primary volume descriptor for layer 1.
 		// The check might be a bit unnecessary though.
-		if (iso.ReadSync(buffer.data(), blockresult) == -1)
+		if (iso.ReadSync(buffer, blockresult) == -1)
 			return;
 
 		if (!testForPrimaryVolumeDescriptor(buffer))
@@ -168,7 +167,7 @@ static void FindLayer1Start()
 }
 
 // Should return 0 if no error occurred, or -1 if layer detection FAILED.
-s32 CALLBACK ISOgetDualInfo(s32* dualType, u32* _layer1start)
+static s32 CALLBACK ISOgetDualInfo(s32* dualType, u32* _layer1start)
 {
 	FindLayer1Start();
 
@@ -185,14 +184,11 @@ s32 CALLBACK ISOgetDualInfo(s32* dualType, u32* _layer1start)
 	return 0;
 }
 
-s32 CALLBACK ISOgetDiskType()
-{
-	return cdtype;
-}
+static s32 CALLBACK ISOgetDiskType(void) { return cdtype; }
 
-s32 CALLBACK ISOgetTOC(void* toc)
+static s32 CALLBACK ISOgetTOC(void* toc)
 {
-	u8 type = ISOgetDiskType();
+	u8 type     = ISOgetDiskType();
 	u8* tocBuff = (u8*)toc;
 
 	if (type == CDVD_TYPE_DVDV || type == CDVD_TYPE_PS2DVD)
@@ -322,7 +318,7 @@ s32 CALLBACK ISOgetTOC(void* toc)
 	return 0;
 }
 
-s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
+static s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
 {
 	static u8 cdbuffer[CD_FRAMESIZE_RAW] = {0};
 
@@ -368,7 +364,7 @@ s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
 	return 0;
 }
 
-s32 CALLBACK ISOreadTrack(u32 lsn, int mode)
+static s32 CALLBACK ISOreadTrack(u32 lsn, int mode)
 {
 	int _lsn = lsn;
 
@@ -382,58 +378,39 @@ s32 CALLBACK ISOreadTrack(u32 lsn, int mode)
 	return 0;
 }
 
-s32 CALLBACK ISOgetBuffer(u8* buffer)
+static s32 CALLBACK ISOgetBuffer(u8* buffer)
 {
 	return iso.FinishRead3(buffer, pmode);
 }
 
-//u8* CALLBACK ISOgetBuffer()
-//{
-//	iso.FinishRead();
-//	return pbuffer;
-//}
-
-s32 CALLBACK ISOgetTrayStatus()
+static s32 CALLBACK ISOgetTrayStatus(void)
 {
 	return CDVD_TRAY_CLOSE;
 }
 
-s32 CALLBACK ISOctrlTrayOpen()
-{
-	return 0;
-}
-s32 CALLBACK ISOctrlTrayClose()
-{
-	return 0;
-}
-
-s32 CALLBACK ISOdummyS32()
-{
-	return 0;
-}
-
-void CALLBACK ISOnewDiskCB(void (*)())
-{
-}
+static s32 CALLBACK ISOctrlTrayOpen(void)  { return 0; }
+static s32 CALLBACK ISOctrlTrayClose(void) { return 0; }
+static s32 CALLBACK ISOdummyS32(void) { return 0; }
+static void CALLBACK ISOnewDiskCB(void (*)(void)) { }
 
 CDVD_API CDVDapi_Iso =
-	{
-		ISOclose,
+{
+	ISOclose,
 
-		ISOopen,
-		ISOreadTrack,
-		ISOgetBuffer,
-		ISOreadSubQ,
-		ISOgetTN,
-		ISOgetTD,
-		ISOgetTOC,
-		ISOgetDiskType,
-		ISOdummyS32, // trayStatus
-		ISOdummyS32, // trayOpen
-		ISOdummyS32, // trayClose
+	ISOopen,
+	ISOreadTrack,
+	ISOgetBuffer,
+	ISOreadSubQ,
+	ISOgetTN,
+	ISOgetTD,
+	ISOgetTOC,
+	ISOgetDiskType,
+	ISOdummyS32, // trayStatus
+	ISOdummyS32, // trayOpen
+	ISOdummyS32, // trayClose
 
-		ISOnewDiskCB,
+	ISOnewDiskCB,
 
-		ISOreadSector,
-		ISOgetDualInfo,
+	ISOreadSector,
+	ISOgetDualInfo,
 };

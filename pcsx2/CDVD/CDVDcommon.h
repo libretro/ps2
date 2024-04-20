@@ -151,18 +151,16 @@ struct CDVD_API
 extern CDVD_API* CDVD; // currently active CDVD access mode api (either Iso, NoDisc, or Disc)
 
 extern CDVD_API CDVDapi_Iso;
-extern CDVD_API CDVDapi_Disc;
-extern CDVD_API CDVDapi_NoDisc;
 
 extern void CDVDsys_ChangeSource(CDVD_SourceType type);
 extern void CDVDsys_SetFile(CDVD_SourceType srctype, std::string newfile);
 extern const std::string& CDVDsys_GetFile(CDVD_SourceType srctype);
-extern CDVD_SourceType CDVDsys_GetSourceType();
+extern CDVD_SourceType CDVDsys_GetSourceType(void);
 
-extern bool DoCDVDopen();
-extern void DoCDVDclose();
+extern bool DoCDVDopen(void);
+extern void DoCDVDclose(void);
 extern s32 DoCDVDreadSector(u8* buffer, u32 lsn, int mode);
 extern s32 DoCDVDreadTrack(u32 lsn, int mode);
 extern s32 DoCDVDgetBuffer(u8* buffer);
-extern s32 DoCDVDdetectDiskType();
-extern void DoCDVDresetDiskTypeCache();
+extern s32 DoCDVDdetectDiskType(void);
+extern void DoCDVDresetDiskTypeCache(void);

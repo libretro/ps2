@@ -69,8 +69,6 @@ public:
 	InputIsoFile();
 	virtual ~InputIsoFile();
 
-	bool IsOpened() const;
-
 	isoType GetType() const { return m_type; }
 	uint GetBlockCount() const { return m_blocks; }
 	int GetBlockOffset() const { return m_blockofs; }
@@ -80,10 +78,9 @@ public:
 		return m_filename;
 	}
 
-	bool Test(std::string srcfile);
-	bool Open(std::string srcfile, bool testOnly = false);
+	bool Open(std::string srcfile);
 	void Close();
-	bool Detect(bool readType = true);
+	bool Detect(void);
 
 	int ReadSync(u8* dst, uint lsn);
 
@@ -122,7 +119,6 @@ public:
 	OutputIsoFile();
 	virtual ~OutputIsoFile();
 
-	bool IsOpened() const;
 	u32 GetBlockSize() const;
 
 	const std::string& GetFilename() const

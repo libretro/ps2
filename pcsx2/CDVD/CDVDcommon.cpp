@@ -43,9 +43,44 @@ CDVD_API* CDVD = NULL;
 //
 static int diskTypeCached = -1;
 
-// used to bridge the gap between the old getBuffer api and the new getBuffer2 api.
-int lastReadSize;
-u32 lastLSN; // needed for block dumping
+////////////////////////////////////////////////////////
+//
+// CDVD null interface for Run BIOS menu
+static s32 CALLBACK NODISCopen(const char* pTitle) { return 0; }
+static void CALLBACK NODISCclose(void) { }
+static s32 CALLBACK NODISCreadTrack(u32 lsn, int mode) { return -1; }
+static s32 CALLBACK NODISCgetBuffer(u8* buffer) { return -1; }
+static s32 CALLBACK NODISCreadSubQ(u32 lsn, cdvdSubQ* subq) { return -1; }
+static s32 CALLBACK NODISCgetTN(cdvdTN* Buffer) { return -1; }
+static s32 CALLBACK NODISCgetTD(u8 Track, cdvdTD* Buffer) { return -1; }
+static s32 CALLBACK NODISCgetTOC(void* toc) { return -1; }
+static s32 CALLBACK NODISCgetDiskType(void) { return CDVD_TYPE_NODISC; }
+static s32 CALLBACK NODISCgetTrayStatus(void) { return CDVD_TRAY_CLOSE; }
+static s32 CALLBACK NODISCdummyS32(void) { return 0; }
+static void CALLBACK NODISCnewDiskCB(void (*)(void)) { }
+static s32 CALLBACK NODISCreadSector(u8* tempbuffer, u32 lsn, int mode) { return -1; }
+static s32 CALLBACK NODISCgetDualInfo(s32* dualType, u32* _layer1start) { return -1; }
+
+static CDVD_API CDVDapi_NoDisc =
+{
+	NODISCclose,
+	NODISCopen,
+	NODISCreadTrack,
+	NODISCgetBuffer,
+	NODISCreadSubQ,
+	NODISCgetTN,
+	NODISCgetTD,
+	NODISCgetTOC,
+	NODISCgetDiskType,
+	NODISCgetTrayStatus,
+	NODISCdummyS32,
+	NODISCdummyS32,
+
+	NODISCnewDiskCB,
+
+	NODISCreadSector,
+	NODISCgetDualInfo,
+};
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Disk Type detection stuff (from cdvdGigaherz)
@@ -207,9 +242,7 @@ static int FindDiskType(int mType)
 	}
 
 	if (dataTracks > 0)
-	{
 		iCDType = CheckDiskTypeFS(iCDType);
-	}
 
 	if (audioTracks > 0)
 	{
@@ -230,7 +263,7 @@ static int FindDiskType(int mType)
 	return iCDType;
 }
 
-static void DetectDiskType()
+static void DetectDiskType(void)
 {
 	if (CDVD->getTrayStatus() == CDVD_TRAY_OPEN)
 	{
@@ -239,16 +272,11 @@ static void DetectDiskType()
 	}
 
 	int baseMediaType = CDVD->getDiskType();
-	int mType = -1;
 
-	switch (baseMediaType)
-	{
-		case CDVD_TYPE_NODISC:
-			diskTypeCached = CDVD_TYPE_NODISC;
-			return;
-	}
-
-	diskTypeCached = FindDiskType(mType);
+	if (baseMediaType == CDVD_TYPE_NODISC)
+		diskTypeCached = CDVD_TYPE_NODISC;
+	else
+		diskTypeCached = FindDiskType(-1);
 }
 
 static std::string m_SourceFilename[3];
@@ -278,14 +306,14 @@ const std::string& CDVDsys_GetFile(CDVD_SourceType srctype)
 	return m_SourceFilename[enum_cast(srctype)];
 }
 
-CDVD_SourceType CDVDsys_GetSourceType()
+CDVD_SourceType CDVDsys_GetSourceType(void)
 {
 	return m_CurrentSourceType;
 }
 
 void CDVDsys_ChangeSource(CDVD_SourceType type)
 {
-	if (CDVD != NULL)
+	if (CDVD)
 		DoCDVDclose();
 
 	switch (m_CurrentSourceType = type)
@@ -293,14 +321,11 @@ void CDVDsys_ChangeSource(CDVD_SourceType type)
 		case CDVD_SourceType::Iso:
 			CDVD = &CDVDapi_Iso;
 			break;
-
-		case CDVD_SourceType::Disc:
-			/* TODO/FIXME - removed physical CD/DVD code */
-			break;
-
 		case CDVD_SourceType::NoDisc:
 			CDVD = &CDVDapi_NoDisc;
 			break;
+		case CDVD_SourceType::Disc:
+			/* TODO/FIXME - removed physical CD/DVD code */
 		default:
 			break;
 	}
@@ -327,9 +352,9 @@ bool DoCDVDopen(void)
 	return true;
 }
 
-void DoCDVDclose()
+void DoCDVDclose(void)
 {
-	if (CDVD->close != NULL)
+	if (CDVD->close)
 		CDVD->close();
 
 	DoCDVDresetDiskTypeCache();
@@ -342,24 +367,6 @@ s32 DoCDVDreadSector(u8* buffer, u32 lsn, int mode)
 
 s32 DoCDVDreadTrack(u32 lsn, int mode)
 {
-	// TODO: The CDVD api only uses the new getBuffer style. Why is this temp?
-	// lastReadSize is needed for block dumps
-	switch (mode)
-	{
-		case CDVD_MODE_2352:
-			lastReadSize = 2352;
-			break;
-		case CDVD_MODE_2340:
-			lastReadSize = 2340;
-			break;
-		case CDVD_MODE_2328:
-			lastReadSize = 2328;
-			break;
-		case CDVD_MODE_2048:
-			lastReadSize = 2048;
-			break;
-	}
-	lastLSN = lsn;
 	return CDVD->readTrack(lsn, mode);
 }
 
@@ -368,109 +375,14 @@ s32 DoCDVDgetBuffer(u8* buffer)
 	return CDVD->getBuffer(buffer);
 }
 
-s32 DoCDVDdetectDiskType()
+s32 DoCDVDdetectDiskType(void)
 {
 	if (diskTypeCached < 0)
 		DetectDiskType();
 	return diskTypeCached;
 }
 
-void DoCDVDresetDiskTypeCache()
+void DoCDVDresetDiskTypeCache(void)
 {
 	diskTypeCached = -1;
 }
-
-////////////////////////////////////////////////////////
-//
-// CDVD null interface for Run BIOS menu
-
-
-
-s32 CALLBACK NODISCopen(const char* pTitle)
-{
-	return 0;
-}
-
-void CALLBACK NODISCclose()
-{
-}
-
-s32 CALLBACK NODISCreadTrack(u32 lsn, int mode)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCgetBuffer(u8* buffer)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCreadSubQ(u32 lsn, cdvdSubQ* subq)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCgetTN(cdvdTN* Buffer)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCgetTD(u8 Track, cdvdTD* Buffer)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCgetTOC(void* toc)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCgetDiskType()
-{
-	return CDVD_TYPE_NODISC;
-}
-
-s32 CALLBACK NODISCgetTrayStatus()
-{
-	return CDVD_TRAY_CLOSE;
-}
-
-s32 CALLBACK NODISCdummyS32()
-{
-	return 0;
-}
-
-void CALLBACK NODISCnewDiskCB(void (*)())
-{
-}
-
-s32 CALLBACK NODISCreadSector(u8* tempbuffer, u32 lsn, int mode)
-{
-	return -1;
-}
-
-s32 CALLBACK NODISCgetDualInfo(s32* dualType, u32* _layer1start)
-{
-	return -1;
-}
-
-CDVD_API CDVDapi_NoDisc =
-	{
-		NODISCclose,
-		NODISCopen,
-		NODISCreadTrack,
-		NODISCgetBuffer,
-		NODISCreadSubQ,
-		NODISCgetTN,
-		NODISCgetTD,
-		NODISCgetTOC,
-		NODISCgetDiskType,
-		NODISCgetTrayStatus,
-		NODISCdummyS32,
-		NODISCdummyS32,
-
-		NODISCnewDiskCB,
-
-		NODISCreadSector,
-		NODISCgetDualInfo,
-};
