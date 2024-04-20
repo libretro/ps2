@@ -26,6 +26,4 @@ public:
 	virtual ~IsoFSCDVD() = default;
 
 	virtual bool readSector(unsigned char* buffer, int lba);
-
-	virtual int getNumSectors();
 };
