@@ -16,12 +16,6 @@
 #include "PrecompiledHeader.h"
 #include "ChunksCache.h"
 
-void ChunksCache::SetLimit(uint megabytes)
-{
-	m_limit = (s64)megabytes * 1024 * 1024;
-	MatchLimit();
-}
-
 void ChunksCache::MatchLimit(bool removeAll)
 {
 	std::list<CacheEntry*>::reverse_iterator rit;
@@ -38,7 +32,7 @@ void ChunksCache::Take(void* pMallocedSrc, s64 offset, int length, int coverage)
 {
 	m_entries.push_front(new CacheEntry(pMallocedSrc, offset, length, coverage));
 	m_size += length;
-	MatchLimit();
+	MatchLimit(false);
 }
 
 // By design, succeed only if the entire request is in a single cached chunk

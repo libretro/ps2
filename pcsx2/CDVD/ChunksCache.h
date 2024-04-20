@@ -26,7 +26,6 @@ public:
 		, m_size(0)
 		, m_limit(initialLimitMb * 1024 * 1024){};
 	~ChunksCache() { Clear(); };
-	void SetLimit(uint megabytes);
 	void Clear() { MatchLimit(true); };
 
 	void Take(void* pMallocedSrc, s64 offset, int length, int coverage);
@@ -63,7 +62,7 @@ private:
 	};
 
 	std::list<CacheEntry*> m_entries;
-	void MatchLimit(bool removeAll = false);
+	void MatchLimit(bool removeAll);
 	s64 m_size;
 	s64 m_limit;
 };

@@ -107,13 +107,11 @@ static s32 CALLBACK ISOgetTN(cdvdTN* Buffer)
 static s32 CALLBACK ISOgetTD(u8 Track, cdvdTD* Buffer)
 {
 	if (Track == 0)
-	{
-		Buffer->lsn = iso.GetBlockCount();
-	}
+		Buffer->lsn  = iso.GetBlockCount();
 	else
 	{
+		Buffer->lsn  = 0;
 		Buffer->type = CDVD_MODE1_TRACK;
-		Buffer->lsn = 0;
 	}
 
 	return 0;
@@ -173,13 +171,13 @@ static s32 CALLBACK ISOgetDualInfo(s32* dualType, u32* _layer1start)
 
 	if (layer1start < 0)
 	{
-		*dualType = 0;
-		*_layer1start = iso.GetBlockCount();
+		*dualType      = 0;
+		*_layer1start  = iso.GetBlockCount();
 	}
 	else
 	{
-		*dualType = 1;
-		*_layer1start = layer1start;
+		*dualType      = 1;
+		*_layer1start  = layer1start;
 	}
 	return 0;
 }
@@ -202,12 +200,12 @@ static s32 CALLBACK ISOgetTOC(void* toc)
 		if (layer1start < 0)
 		{
 			// Single Layer - Values are fixed.
-			tocBuff[0] = 0x04;
-			tocBuff[1] = 0x02;
-			tocBuff[2] = 0xF2;
-			tocBuff[3] = 0x00;
-			tocBuff[4] = 0x86;
-			tocBuff[5] = 0x72;
+			tocBuff[0]  = 0x04;
+			tocBuff[1]  = 0x02;
+			tocBuff[2]  = 0xF2;
+			tocBuff[3]  = 0x00;
+			tocBuff[4]  = 0x86;
+			tocBuff[5]  = 0x72;
 
 			// These values are fixed on all discs, except position 14 which is the OTP/PTP flags which are 0 in single layer.
 			tocBuff[12] = 0x01;

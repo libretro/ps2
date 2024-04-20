@@ -26,8 +26,6 @@
 #include "IsoFileFormats.h"
 
 #include "common/Exceptions.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
 #include "DebugTools/SymbolMap.h"
 #include "Config.h"
 
@@ -174,9 +172,6 @@ static int FindDiskType(int mType)
 		{
 			if (DoCDVDreadSector(bleh, 16, CDVD_MODE_2048) == 0)
 			{
-				//const cdVolDesc& volDesc = (cdVolDesc&)bleh;
-				//if(volDesc.rootToc.tocSize == 2048)
-
 				//Horrible hack! in CD images position 166 and 171 have block size but not DVD's
 				//It's not always 2048 however (can be 4096)
 				//Test Impossible Mission if thia is changed.
