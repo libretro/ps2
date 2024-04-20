@@ -25,9 +25,7 @@
 
 static __fi s32 msf_to_lsn(u8* Time)
 {
-	u32 lsn;
-
-	lsn = Time[2];
+	u32 lsn = Time[2];
 	lsn += (Time[1] - 2) * 75;
 	lsn += Time[0] * 75 * 60;
 	return lsn;
@@ -35,8 +33,7 @@ static __fi s32 msf_to_lsn(u8* Time)
 
 static __fi s32 msf_to_lba(u8 m, u8 s, u8 f)
 {
-	u32 lsn;
-	lsn = f;
+	u32 lsn = f;
 	lsn += (s - 2) * 75;
 	lsn += m * 75 * 60;
 	return lsn;
@@ -165,19 +162,19 @@ extern cdvdStruct cdvd;
 
 extern void cdvdReadLanguageParams(u8* config);
 
-extern void cdvdReset();
-extern void cdvdVsync();
-extern void cdvdActionInterrupt();
-extern void cdvdSectorReady();
-extern void cdvdReadInterrupt();
+extern void cdvdReset(void);
+extern void cdvdVsync(void);
+extern void cdvdActionInterrupt(void);
+extern void cdvdSectorReady(void);
+extern void cdvdReadInterrupt(void);
 
 // We really should not have a function with the exact same name as a callback except for case!
-extern void cdvdNewDiskCB();
+extern void cdvdNewDiskCB(void);
 extern u8 cdvdRead(u8 key);
 extern void cdvdWrite(u8 key, u8 rt);
 
 extern void cdvdReloadElfInfo(std::string elfoverride = std::string());
-extern s32 cdvdCtrlTrayOpen();
-extern s32 cdvdCtrlTrayClose();
+extern s32 cdvdCtrlTrayOpen(void);
+extern s32 cdvdCtrlTrayClose(void);
 
 extern std::string DiscSerial;
