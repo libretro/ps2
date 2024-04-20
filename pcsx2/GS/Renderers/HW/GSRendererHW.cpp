@@ -1883,6 +1883,12 @@ void GSRendererHW::Draw()
 		const bool possible_shuffle = m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 || IsPossibleChannelShuffle();
 		src = tex_psm.depth ? g_texture_cache->LookupDepthSource(TEX0, env.TEXA, MIP_CLAMP, tmm.coverage, possible_shuffle) :
 								g_texture_cache->LookupSource(TEX0, env.TEXA, MIP_CLAMP, tmm.coverage, (GSConfig.HWMipmap >= HWMipmapLevel::Basic || GSConfig.TriFilter == TriFiltering::Forced) ? &hash_lod_range : nullptr, possible_shuffle);
+
+		if (unlikely(!src))
+		{
+			cleanup_cancelled_draw();
+			return;
+		}
 	}
 
 	// Estimate size based on the scissor rectangle and height cache.
