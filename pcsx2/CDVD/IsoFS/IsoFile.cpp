@@ -21,19 +21,12 @@
 
 #include <cstdio>
 
-IsoFile::IsoFile(SectorSource& reader, const std::string_view& filename)
+IsoFile::IsoFile(SectorSource& reader)
 	: internalReader(reader)
-	, fileEntry(IsoDirectory(reader).FindFile(filename))
 {
-	Init();
 }
 
-IsoFile::IsoFile(const IsoDirectory& dir, const std::string_view& filename)
-	: internalReader(dir.GetReader())
-	, fileEntry(dir.FindFile(filename))
-{
-	Init();
-}
+IsoFile::~IsoFile() = default;
 
 IsoFile::IsoFile(SectorSource& reader, const IsoFileDescriptor& fileEntry)
 	: internalReader(reader)
@@ -51,6 +44,29 @@ void IsoFile::Init()
 
 	if (maxOffset > 0)
 		internalReader.readSector(currentSector, currentSectorNumber);
+}
+
+bool IsoFile::open(const IsoDirectory& dir, const std::string_view& filename)
+{
+	const std::optional<IsoFileDescriptor> fd(dir.FindFile(filename));
+	if (!fd.has_value())
+	{
+		Console.Error("Failed to find file %s", filename);
+		return false;
+	}
+
+	fileEntry = std::move(fd.value());
+	Init();
+	return true;
+}
+
+bool IsoFile::open(const std::string_view& filename)
+{
+	IsoDirectory dir(internalReader);
+	if (!dir.OpenRootDirectory())
+		return false;
+
+	return open(dir, filename);
 }
 
 u32 IsoFile::seek(u32 absoffset)

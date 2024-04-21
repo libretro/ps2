@@ -12,7 +12,6 @@ target_sources(common PRIVATE
 	AlignedMalloc.cpp
 	SafeArray.inl
 	Console.cpp
-	Exceptions.cpp
 	FastJmp.cpp
 	FileSystem.cpp
 	MemorySettingsInterface.cpp
@@ -53,7 +52,6 @@ target_sources(common PRIVATE
 	boost_spsc_queue.hpp
 	Console.h
 	EnumOps.h
-	Exceptions.h
 	FastJmp.h
 	FileSystem.h
 	General.h

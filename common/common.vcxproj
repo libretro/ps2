@@ -56,7 +56,6 @@
     <ClCompile Include="AlignedMalloc.cpp" />
     <ClCompile Include="Console.cpp" />
     <ClCompile Include="CrashHandler.cpp" />
-    <ClCompile Include="Exceptions.cpp" />
     <ClCompile Include="FastJmp.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
@@ -114,7 +113,6 @@
     <ClInclude Include="SettingsInterface.h" />
     <ClInclude Include="SettingsWrapper.h" />
     <ClInclude Include="Console.h" />
-    <ClInclude Include="Exceptions.h" />
     <ClInclude Include="General.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="MemcpyFast.h" />

@@ -190,7 +190,10 @@ int GetPS2ElfName( std::string& name )
 	int retype = 0;
 
 	IsoFSCDVD isofs;
-	IsoFile file( isofs, "SYSTEM.CNF;1");
+	IsoFile file(isofs);
+
+	if (!file.open("SYSTEM.CNF;1"))
+		return 0;
 
 	int size = file.getLength();
 	if( size == 0 ) return 0;

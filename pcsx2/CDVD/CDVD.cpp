@@ -419,7 +419,9 @@ static __fi ElfObject* loadElf(std::string filename, bool isPSXElf)
 	}
 
 	IsoFSCDVD isofs;
-	IsoFile file(isofs, filename);
+	IsoFile file(isofs);
+	if (!file.open(filename))
+		return nullptr;
 	return new ElfObject(std::move(filename), file, isPSXElf);
 }
 

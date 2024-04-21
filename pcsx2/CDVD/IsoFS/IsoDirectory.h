@@ -16,10 +16,11 @@
 #pragma once
 
 #include "common/Pcsx2Defs.h"
+#include <optional>
 #include <string_view>
 #include <vector>
 
-class IsoDirectory
+class IsoDirectory final
 {
 public:
 	SectorSource& internalReader;
@@ -27,17 +28,20 @@ public:
 
 public:
 	IsoDirectory(SectorSource& r);
-	IsoDirectory(SectorSource& r, const IsoFileDescriptor& directoryEntry);
-	virtual ~IsoDirectory() = default;
+	~IsoDirectory();
+
+	bool OpenRootDirectory();
+	bool Open(const IsoFileDescriptor& directoryEntry);
 
 	SectorSource& GetReader() const { return internalReader; }
 
 	bool Exists(const std::string_view& filePath) const;
 	bool IsFile(const std::string_view& filePath) const;
 
-	IsoFileDescriptor FindFile(const std::string_view& filePath) const;
+	std::optional<IsoFileDescriptor> FindFile(const std::string_view& filePath) const;
 
 protected:
-	const IsoFileDescriptor& GetEntry(const std::string_view& fileName) const;
-	void Init(const IsoFileDescriptor& directoryEntry);
+	const IsoFileDescriptor& GetEntry(size_t index) const;
+
+	int GetIndexOf(const std::string_view& fileName) const;
 };
