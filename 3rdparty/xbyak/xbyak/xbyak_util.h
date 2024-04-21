@@ -1,26 +1,8 @@
 #ifndef XBYAK_XBYAK_UTIL_H_
 #define XBYAK_XBYAK_UTIL_H_
 
-#ifdef XBYAK_ONLY_CLASS_CPU
-#include <stdint.h>
-#include <stdlib.h>
-#include <algorithm>
-#include <assert.h>
-#ifndef XBYAK_THROW
-	#define XBYAK_THROW(x) ;
-	#define XBYAK_THROW_RET(x, y) return y;
-#endif
-#else
 #include <string.h>
-
-/**
-	utility class and functions for Xbyak
-	Xbyak::util::Clock ; rdtsc timer
-	Xbyak::util::Cpu ; detect CPU
-	@note this header is UNDER CONSTRUCTION!
-*/
 #include "xbyak.h"
-#endif // XBYAK_ONLY_CLASS_CPU
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 	#define XBYAK_INTEL_CPU_SPECIFIC
@@ -218,23 +200,27 @@ public:
 	int displayModel; // model + extModel
 
 	unsigned int getNumCores(IntelCpuTopologyLevel level) const {
-		if (!x2APIC_supported_) XBYAK_THROW_RET(ERR_X2APIC_IS_NOT_SUPPORTED, 0)
-		switch (level) {
-		case SmtLevel: return numCores_[level - 1];
-		case CoreLevel: return numCores_[level - 1] / numCores_[SmtLevel - 1];
-		default: XBYAK_THROW_RET(ERR_X2APIC_IS_NOT_SUPPORTED, 0)
+		if (x2APIC_supported_)
+		{
+			switch (level)
+			{
+				case SmtLevel: return numCores_[level - 1];
+				case CoreLevel: return numCores_[level - 1] / numCores_[SmtLevel - 1];
+				default: break;
+			}
 		}
+		return 0;
 	}
 
 	unsigned int getDataCacheLevels() const { return dataCacheLevels_; }
 	unsigned int getCoresSharingDataCache(unsigned int i) const
 	{
-		if (i >= dataCacheLevels_) XBYAK_THROW_RET(ERR_BAD_PARAMETER, 0)
+		if (i >= dataCacheLevels_) return 0;
 		return coresSharignDataCache_[i];
 	}
 	unsigned int getDataCacheSize(unsigned int i) const
 	{
-		if (i >= dataCacheLevels_) XBYAK_THROW_RET(ERR_BAD_PARAMETER, 0)
+		if (i >= dataCacheLevels_) return 0;
 		return dataCacheSize_[i];
 	}
 
@@ -490,294 +476,11 @@ public:
 		setNumCores();
 		setCacheHierarchy();
 	}
-	void putFamily() const
-	{
-#ifndef XBYAK_ONLY_CLASS_CPU
-		printf("family=%d, model=%X, stepping=%d, extFamily=%d, extModel=%X\n",
-			family, model, stepping, extFamily, extModel);
-		printf("display:family=%X, model=%X\n", displayFamily, displayModel);
-#endif
-	}
 	bool has(Type type) const
 	{
 		return (type & type_) != 0;
 	}
 };
-
-#ifndef XBYAK_ONLY_CLASS_CPU
-class Clock {
-public:
-	static inline uint64_t getRdtsc()
-	{
-#ifdef XBYAK_INTEL_CPU_SPECIFIC
-	#ifdef _MSC_VER
-		return __rdtsc();
-	#else
-		unsigned int eax, edx;
-		__asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
-		return ((uint64_t)edx << 32) | eax;
-	#endif
-#else
-		// TODO: Need another impl of Clock or rdtsc-equivalent for non-x86 cpu
-		return 0;
-#endif
-	}
-	Clock()
-		: clock_(0)
-		, count_(0)
-	{
-	}
-	void begin()
-	{
-		clock_ -= getRdtsc();
-	}
-	void end()
-	{
-		clock_ += getRdtsc();
-		count_++;
-	}
-	int getCount() const { return count_; }
-	uint64_t getClock() const { return clock_; }
-	void clear() { count_ = 0; clock_ = 0; }
-private:
-	uint64_t clock_;
-	int count_;
-};
-
-#ifdef XBYAK64
-const int UseRCX = 1 << 6;
-const int UseRDX = 1 << 7;
-
-class Pack {
-	static const size_t maxTblNum = 15;
-	const Xbyak::Reg64 *tbl_[maxTblNum];
-	size_t n_;
-public:
-	Pack() : tbl_(), n_(0) {}
-	Pack(const Xbyak::Reg64 *tbl, size_t n) { init(tbl, n); }
-	Pack(const Pack& rhs)
-		: n_(rhs.n_)
-	{
-		for (size_t i = 0; i < n_; i++) tbl_[i] = rhs.tbl_[i];
-	}
-	Pack& operator=(const Pack& rhs)
-	{
-		n_ = rhs.n_;
-		for (size_t i = 0; i < n_; i++) tbl_[i] = rhs.tbl_[i];
-		return *this;
-	}
-	Pack(const Xbyak::Reg64& t0)
-	{ n_ = 1; tbl_[0] = &t0; }
-	Pack(const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 2; tbl_[0] = &t0; tbl_[1] = &t1; }
-	Pack(const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 3; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; }
-	Pack(const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 4; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; }
-	Pack(const Xbyak::Reg64& t4, const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 5; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; tbl_[4] = &t4; }
-	Pack(const Xbyak::Reg64& t5, const Xbyak::Reg64& t4, const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 6; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; tbl_[4] = &t4; tbl_[5] = &t5; }
-	Pack(const Xbyak::Reg64& t6, const Xbyak::Reg64& t5, const Xbyak::Reg64& t4, const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 7; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; tbl_[4] = &t4; tbl_[5] = &t5; tbl_[6] = &t6; }
-	Pack(const Xbyak::Reg64& t7, const Xbyak::Reg64& t6, const Xbyak::Reg64& t5, const Xbyak::Reg64& t4, const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 8; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; tbl_[4] = &t4; tbl_[5] = &t5; tbl_[6] = &t6; tbl_[7] = &t7; }
-	Pack(const Xbyak::Reg64& t8, const Xbyak::Reg64& t7, const Xbyak::Reg64& t6, const Xbyak::Reg64& t5, const Xbyak::Reg64& t4, const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 9; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; tbl_[4] = &t4; tbl_[5] = &t5; tbl_[6] = &t6; tbl_[7] = &t7; tbl_[8] = &t8; }
-	Pack(const Xbyak::Reg64& t9, const Xbyak::Reg64& t8, const Xbyak::Reg64& t7, const Xbyak::Reg64& t6, const Xbyak::Reg64& t5, const Xbyak::Reg64& t4, const Xbyak::Reg64& t3, const Xbyak::Reg64& t2, const Xbyak::Reg64& t1, const Xbyak::Reg64& t0)
-	{ n_ = 10; tbl_[0] = &t0; tbl_[1] = &t1; tbl_[2] = &t2; tbl_[3] = &t3; tbl_[4] = &t4; tbl_[5] = &t5; tbl_[6] = &t6; tbl_[7] = &t7; tbl_[8] = &t8; tbl_[9] = &t9; }
-	Pack& append(const Xbyak::Reg64& t)
-	{
-		if (n_ == maxTblNum) {
-			fprintf(stderr, "ERR Pack::can't append\n");
-			XBYAK_THROW_RET(ERR_BAD_PARAMETER, *this)
-		}
-		tbl_[n_++] = &t;
-		return *this;
-	}
-	void init(const Xbyak::Reg64 *tbl, size_t n)
-	{
-		if (n > maxTblNum) {
-			fprintf(stderr, "ERR Pack::init bad n=%d\n", (int)n);
-			XBYAK_THROW(ERR_BAD_PARAMETER)
-		}
-		n_ = n;
-		for (size_t i = 0; i < n; i++) {
-			tbl_[i] = &tbl[i];
-		}
-	}
-	const Xbyak::Reg64& operator[](size_t n) const
-	{
-		if (n >= n_) {
-			fprintf(stderr, "ERR Pack bad n=%d(%d)\n", (int)n, (int)n_);
-			XBYAK_THROW_RET(ERR_BAD_PARAMETER, rax)
-		}
-		return *tbl_[n];
-	}
-	size_t size() const { return n_; }
-	/*
-		get tbl[pos, pos + num)
-	*/
-	Pack sub(size_t pos, size_t num = size_t(-1)) const
-	{
-		if (num == size_t(-1)) num = n_ - pos;
-		if (pos + num > n_) {
-			fprintf(stderr, "ERR Pack::sub bad pos=%d, num=%d\n", (int)pos, (int)num);
-			XBYAK_THROW_RET(ERR_BAD_PARAMETER, Pack())
-		}
-		Pack pack;
-		pack.n_ = num;
-		for (size_t i = 0; i < num; i++) {
-			pack.tbl_[i] = tbl_[pos + i];
-		}
-		return pack;
-	}
-	void put() const
-	{
-		for (size_t i = 0; i < n_; i++) {
-			printf("%s ", tbl_[i]->toString());
-		}
-		printf("\n");
-	}
-};
-
-class StackFrame {
-#ifdef XBYAK64_WIN
-	static const int noSaveNum = 6;
-	static const int rcxPos = 0;
-	static const int rdxPos = 1;
-#else
-	static const int noSaveNum = 8;
-	static const int rcxPos = 3;
-	static const int rdxPos = 2;
-#endif
-	static const int maxRegNum = 14; // maxRegNum = 16 - rsp - rax
-	Xbyak::CodeGenerator *code_;
-	int pNum_;
-	int tNum_;
-	bool useRcx_;
-	bool useRdx_;
-	int saveNum_;
-	int P_;
-	bool makeEpilog_;
-	Xbyak::Reg64 pTbl_[4];
-	Xbyak::Reg64 tTbl_[maxRegNum];
-	Pack p_;
-	Pack t_;
-	StackFrame(const StackFrame&);
-	void operator=(const StackFrame&);
-public:
-	const Pack& p;
-	const Pack& t;
-	/*
-		make stack frame
-		@param sf [in] this
-		@param pNum [in] num of function parameter(0 <= pNum <= 4)
-		@param tNum [in] num of temporary register(0 <= tNum, with UseRCX, UseRDX) #{pNum + tNum [+rcx] + [rdx]} <= 14
-		@param stackSizeByte [in] local stack size
-		@param makeEpilog [in] automatically call close() if true
-
-		you can use
-		rax
-		gp0, ..., gp(pNum - 1)
-		gt0, ..., gt(tNum-1)
-		rcx if tNum & UseRCX
-		rdx if tNum & UseRDX
-		rsp[0..stackSizeByte - 1]
-	*/
-	StackFrame(Xbyak::CodeGenerator *code, int pNum, int tNum = 0, int stackSizeByte = 0, bool makeEpilog = true)
-		: code_(code)
-		, pNum_(pNum)
-		, tNum_(tNum & ~(UseRCX | UseRDX))
-		, useRcx_((tNum & UseRCX) != 0)
-		, useRdx_((tNum & UseRDX) != 0)
-		, saveNum_(0)
-		, P_(0)
-		, makeEpilog_(makeEpilog)
-		, p(p_)
-		, t(t_)
-	{
-		using namespace Xbyak;
-		if (pNum < 0 || pNum > 4) XBYAK_THROW(ERR_BAD_PNUM)
-		const int allRegNum = pNum + tNum_ + (useRcx_ ? 1 : 0) + (useRdx_ ? 1 : 0);
-		if (tNum_ < 0 || allRegNum > maxRegNum) XBYAK_THROW(ERR_BAD_TNUM)
-		const Reg64& _rsp = code->rsp;
-		saveNum_ = (std::max)(0, allRegNum - noSaveNum);
-		const int *tbl = getOrderTbl() + noSaveNum;
-		for (int i = 0; i < saveNum_; i++) {
-			code->push(Reg64(tbl[i]));
-		}
-		P_ = (stackSizeByte + 7) / 8;
-		if (P_ > 0 && (P_ & 1) == (saveNum_ & 1)) P_++; // (rsp % 16) == 8, then increment P_ for 16 byte alignment
-		P_ *= 8;
-		if (P_ > 0) code->sub(_rsp, P_);
-		int pos = 0;
-		for (int i = 0; i < pNum; i++) {
-			pTbl_[i] = Xbyak::Reg64(getRegIdx(pos));
-		}
-		for (int i = 0; i < tNum_; i++) {
-			tTbl_[i] = Xbyak::Reg64(getRegIdx(pos));
-		}
-		if (useRcx_ && rcxPos < pNum) code_->mov(code_->r10, code_->rcx);
-		if (useRdx_ && rdxPos < pNum) code_->mov(code_->r11, code_->rdx);
-		p_.init(pTbl_, pNum);
-		t_.init(tTbl_, tNum_);
-	}
-	/*
-		make epilog manually
-		@param callRet [in] call ret() if true
-	*/
-	void close(bool callRet = true)
-	{
-		using namespace Xbyak;
-		const Reg64& _rsp = code_->rsp;
-		const int *tbl = getOrderTbl() + noSaveNum;
-		if (P_ > 0) code_->add(_rsp, P_);
-		for (int i = 0; i < saveNum_; i++) {
-			code_->pop(Reg64(tbl[saveNum_ - 1 - i]));
-		}
-
-		if (callRet) code_->ret();
-	}
-	~StackFrame()
-	{
-		if (!makeEpilog_) return;
-		close();
-	}
-private:
-	const int *getOrderTbl() const
-	{
-		using namespace Xbyak;
-		static const int tbl[] = {
-#ifdef XBYAK64_WIN
-			Operand::RCX, Operand::RDX, Operand::R8, Operand::R9, Operand::R10, Operand::R11, Operand::RDI, Operand::RSI,
-#else
-			Operand::RDI, Operand::RSI, Operand::RDX, Operand::RCX, Operand::R8, Operand::R9, Operand::R10, Operand::R11,
-#endif
-			Operand::RBX, Operand::RBP, Operand::R12, Operand::R13, Operand::R14, Operand::R15
-		};
-		return &tbl[0];
-	}
-	int getRegIdx(int& pos) const
-	{
-		assert(pos < maxRegNum);
-		using namespace Xbyak;
-		const int *tbl = getOrderTbl();
-		int r = tbl[pos++];
-		if (useRcx_) {
-			if (r == Operand::RCX) { return Operand::R10; }
-			if (r == Operand::R10) { r = tbl[pos++]; }
-		}
-		if (useRdx_) {
-			if (r == Operand::RDX) { return Operand::R11; }
-			if (r == Operand::R11) { return tbl[pos++]; }
-		}
-		return r;
-	}
-};
-#endif
-
-#endif // XBYAK_ONLY_CLASS_CPU
 
 } } // end of util
 
