@@ -27,9 +27,6 @@
 
 #if defined(__has_include) && __has_include(<version>)
 #include <version>
-#if defined(__cpp_lib_span) && __cpp_lib_span >= 202002L
-#include <span>
-#endif // __cpp_lib_span >= 202002L
 #endif //__has_include(<version>)
 
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -140,15 +137,6 @@ GSL_SUPPRESS(bounds.1) // NO-FORMAT: attribute
     Expects(i >= 0 && i < narrow_cast<index>(cont.size()));
     return *(cont.begin() + i);
 }
-
-#if defined(__cpp_lib_span) && __cpp_lib_span >= 202002L
-template <class T, size_t extent = std::dynamic_extent>
-constexpr auto at(std::span<T, extent> sp, const index i) -> decltype(sp[sp.size()])
-{
-    Expects(i >= 0 && i < narrow_cast<index>(sp.size()));
-    return sp[gsl::narrow_cast<size_t>(i)];
-}
-#endif // __cpp_lib_span >= 202002L
 } // namespace gsl
 
 #if defined(_MSC_VER) && !defined(__clang__)
