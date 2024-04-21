@@ -205,5 +205,3 @@ extern u64 GetCPUTicks();
 extern u32 ShortSpin();
 /// Number of ns to spin for before sleeping a thread
 #define SPIN_TIME_NS 50000
-/// Like C abort() but adds the given message to the crashlog
-[[noreturn]] void AbortWithMessage(const char* msg);
