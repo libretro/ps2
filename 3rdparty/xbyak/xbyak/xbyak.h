@@ -13,14 +13,10 @@
 	#define XBYAK_NO_OP_NAMES
 #endif
 
-#include <stdio.h> // for debug print
 #include <assert.h>
 #include <list>
 #include <string>
 #include <algorithm>
-#ifndef NDEBUG
-#include <iostream>
-#endif
 
 // #define XBYAK_DISABLE_AVX512
 
@@ -1058,9 +1054,6 @@ public:
 		size_t pageSize = sysconf(_SC_PAGESIZE);
 		size_t iaddr = reinterpret_cast<size_t>(addr);
 		size_t roundAddr = iaddr & ~(pageSize - static_cast<size_t>(1));
-#ifndef NDEBUG
-		if (pageSize != 4096) fprintf(stderr, "large page(%zd) is used. not tested enough.\n", pageSize);
-#endif
 		return mprotect(reinterpret_cast<void*>(roundAddr), size + (iaddr - roundAddr), mode) == 0;
 #else
 		return true;
@@ -1295,11 +1288,6 @@ class LabelManager {
 	template<class T>
 	bool hasUndefinedLabel_inner(const T& list) const
 	{
-#ifndef NDEBUG
-		for (typename T::const_iterator i = list.begin(); i != list.end(); ++i) {
-			std::cerr << "undefined label:" << i->first << std::endl;
-		}
-#endif
 		return !list.empty();
 	}
 	// detach all labels linked to LabelManager
@@ -1329,16 +1317,6 @@ public:
 		clabelDefList_.clear();
 		clabelUndefList_.clear();
 		resetLabelPtrList();
-	}
-	void enterLocal()
-	{
-		stateList_.push_back(SlabelState());
-	}
-	void leaveLocal()
-	{
-		if (stateList_.size() <= 2) return;
-		if (hasUndefinedLabel_inner(stateList_.back().undefList)) return;
-		stateList_.pop_back();
 	}
 	void set(CodeArray *base) { base_ = base; }
 	void defineSlabel(std::string label)
@@ -2276,8 +2254,6 @@ public:
 	void L(const std::string& label) { labelMgr_.defineSlabel(label); }
 	void L(Label& label) { labelMgr_.defineClabel(label); }
 	Label L() { Label label; L(label); return label; }
-	void inLocalLabel() { labelMgr_.enterLocal(); }
-	void outLocalLabel() { labelMgr_.leaveLocal(); }
 	/*
 		assign src to dst
 		require

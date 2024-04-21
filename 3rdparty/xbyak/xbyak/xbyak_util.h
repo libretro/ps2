@@ -199,31 +199,6 @@ public:
 	int displayFamily; // family + extFamily
 	int displayModel; // model + extModel
 
-	unsigned int getNumCores(IntelCpuTopologyLevel level) const {
-		if (x2APIC_supported_)
-		{
-			switch (level)
-			{
-				case SmtLevel: return numCores_[level - 1];
-				case CoreLevel: return numCores_[level - 1] / numCores_[SmtLevel - 1];
-				default: break;
-			}
-		}
-		return 0;
-	}
-
-	unsigned int getDataCacheLevels() const { return dataCacheLevels_; }
-	unsigned int getCoresSharingDataCache(unsigned int i) const
-	{
-		if (i >= dataCacheLevels_) return 0;
-		return coresSharignDataCache_[i];
-	}
-	unsigned int getDataCacheSize(unsigned int i) const
-	{
-		if (i >= dataCacheLevels_) return 0;
-		return dataCacheSize_[i];
-	}
-
 	/*
 		data[] = { eax, ebx, ecx, edx }
 	*/
