@@ -684,6 +684,9 @@ void VMManager::Shutdown(bool save_resume_state)
 
 	s_state.store(VMState::Shutdown, std::memory_order_release);
 	Host::OnVMDestroyed();
+
+	// clear out any potentially-incorrect settings from the last game
+	LoadSettings();
 }
 
 void VMManager::Reset()
