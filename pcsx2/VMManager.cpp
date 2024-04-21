@@ -445,15 +445,16 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 		// Check this here, for two cases: dynarec on, and when enable cheats is set per-game.
 		if (s_patches_crc != s_game_crc)
 			ReloadPatches(game_starting, false);
+
+		MIPSAnalyst::ScanForFunctions(R5900SymbolMap, ElfTextRange.first, ElfTextRange.first + ElfTextRange.second, true);
+		R5900SymbolMap.UpdateActiveSymbols();
+		R3000SymbolMap.UpdateActiveSymbols();
 	}
 
 	MTGS::SendGameCRC(new_crc);
 
 	Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_crc);
 
-	MIPSAnalyst::ScanForFunctions(R5900SymbolMap, ElfTextRange.first, ElfTextRange.first + ElfTextRange.second, true);
-	R5900SymbolMap.UpdateActiveSymbols();
-	R3000SymbolMap.UpdateActiveSymbols();
 }
 
 void VMManager::ReloadPatches(bool verbose, bool show_messages_when_disabled)
