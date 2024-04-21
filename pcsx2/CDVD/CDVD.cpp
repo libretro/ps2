@@ -467,7 +467,7 @@ static std::string ExecutablePathToSerial(const std::string& path)
 	else
 	{
 		// cdrom:SCES_123.45;1
-		pos = serial.rfind(':');
+		pos = path.rfind(':');
 		if (pos != std::string::npos)
 			serial = path.substr(pos + 1);
 		else
@@ -481,7 +481,8 @@ static std::string ExecutablePathToSerial(const std::string& path)
 
 	// check that it matches our expected format.
 	// this maintains the old behavior of PCSX2.
-	if (!StringUtil::WildcardMatch(serial.c_str(), "????_???.??*"))
+	if (!StringUtil::WildcardMatch(serial.c_str(), "????_???.??*") &&
+		!StringUtil::WildcardMatch(serial.c_str(), "????""-???.??*")) // double quote because trigraphs
 		serial.clear();
 
 	// SCES_123.45 -> SCES-12345
@@ -506,11 +507,8 @@ static std::string ExecutablePathToSerial(const std::string& path)
 
 void cdvdReloadElfInfo(std::string elfoverride)
 {
-	// called from context of executing VM code (recompilers), so we need to trap exceptions
-	// and route them through the VM's exception handler.  (needed for non-SEH platforms, such
-	// as Linux/GCC)
 	std::string elfpath;
-	u32 discType = GetPS2ElfName(elfpath);
+	const u32 disc_type = GetPS2ElfName(elfpath);
 	DiscSerial   = ExecutablePathToSerial(elfpath);
 
 	// Use the serial from the disc (if any), and the ELF CRC of the override.
@@ -520,7 +518,7 @@ void cdvdReloadElfInfo(std::string elfoverride)
 		return;
 	}
 
-	if (discType == 1)
+	if (disc_type == 1)
 	{
 		// PCSX2 currently only recognizes *.elf executables in proper PS2 format.
 		// To support different PSX titles in the console title and for savestates, this code bypasses all the detection,
@@ -529,7 +527,7 @@ void cdvdReloadElfInfo(std::string elfoverride)
 	}
 
 	// Isn't a disc we recognize?
-	if (discType == 0)
+	if (disc_type == 0)
 		return;
 
 	// Recognized and PS2 (BOOT2).  Good job, user.

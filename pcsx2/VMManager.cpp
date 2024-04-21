@@ -517,7 +517,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	if (!DoCDVDopen())
 		return false;
-	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
+	ScopedGuard close_cdvd = [] { DoCDVDclose(); CDVDsys_ClearFiles(); };
 
 	SPU2::Open();
 	ScopedGuard close_spu2(&SPU2::Close);
@@ -633,6 +633,7 @@ void VMManager::Shutdown(bool save_resume_state)
 	PADclose();
 	DEV9close();
 	DoCDVDclose();
+	CDVDsys_ClearFiles();
 	FWclose();
 	FileMcd_EmuClose();
 

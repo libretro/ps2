@@ -57,6 +57,9 @@ std::string GameDatabaseSchema::GameEntry::memcardFiltersAsString() const
 
 const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 {
+	if (crc == 0)
+		return nullptr;
+
 	Console.WriteLn(fmt::format("[GameDB] Searching for patch with CRC '{:08X}'", crc));
 
 	auto it = patches.find(crc);

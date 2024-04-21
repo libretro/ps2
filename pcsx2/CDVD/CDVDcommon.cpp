@@ -278,6 +278,12 @@ CDVD_SourceType CDVDsys_GetSourceType(void)
 	return m_CurrentSourceType;
 }
 
+void CDVDsys_ClearFiles()
+{
+	for (u32 i = 0; i < std::size(m_SourceFilename); i++)
+		m_SourceFilename[i] = {};
+}
+
 void CDVDsys_ChangeSource(CDVD_SourceType type)
 {
 	if (CDVD)
@@ -301,14 +307,6 @@ void CDVDsys_ChangeSource(CDVD_SourceType type)
 bool DoCDVDopen(void)
 {
 	CDVD->newDiskCB(cdvdNewDiskCB);
-
-	// Win32 Fail: the old CDVD api expects MBCS on Win32 platforms, but generating a MBCS
-	// from unicode is problematic since we need to know the codepage of the text being
-	// converted (which isn't really practical knowledge).  A 'best guess' would be the
-	// default codepage of the user's Windows install, but even that will fail and return
-	// question marks if the filename is another language.
-
-	//TODO_CDVD check if ISO and Disc use UTF8
 
 	auto CurrentSourceType = enum_cast(m_CurrentSourceType);
 	int ret = CDVD->open(!m_SourceFilename[CurrentSourceType].empty() ? m_SourceFilename[CurrentSourceType].c_str() : nullptr);
