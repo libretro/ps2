@@ -273,7 +273,6 @@ inline const char *ConvertErrorToString(int err)
 	return err <= ERR_INTERNAL ? errTbl[err] : "unknown err";
 }
 
-#ifdef XBYAK_NO_EXCEPTION
 namespace local {
 
 inline int& GetErrorRef() {
@@ -296,36 +295,6 @@ inline int GetError() { return local::GetErrorRef(); }
 #define XBYAK_THROW(err) { local::SetError(err); return; }
 #define XBYAK_THROW_RET(err, r) { local::SetError(err); return r; }
 
-#else
-class Error : public std::exception {
-	int err_;
-public:
-	explicit Error(int err) : err_(err)
-	{
-		if (err_ < 0 || err_ > ERR_INTERNAL) {
-			err_ = ERR_INTERNAL;
-		}
-	}
-	operator int() const { return err_; }
-	const char *what() const XBYAK_NOEXCEPT
-	{
-		return ConvertErrorToString(err_);
-	}
-};
-
-// dummy functions
-inline void ClearError() { }
-inline int GetError() { return 0; }
-
-inline const char *ConvertErrorToString(const Error& err)
-{
-	return err.what();
-}
-
-#define XBYAK_THROW(err) { throw Error(err); }
-#define XBYAK_THROW_RET(err, r) { throw Error(err); }
-
-#endif
 
 inline void *AlignedMalloc(size_t size, size_t alignment)
 {
