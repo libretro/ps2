@@ -157,35 +157,6 @@ namespace StringUtil
 		}
 	}
 
-	std::size_t Strlcpy(char* dst, const char* src, std::size_t size)
-	{
-		std::size_t len = strlen(src);
-		if (len < size)
-			memcpy(dst, src, len + 1);
-		else
-		{
-			memcpy(dst, src, size - 1);
-			dst[size - 1] = '\0';
-		}
-		return len;
-	}
-
-	std::size_t Strlcpy(char* dst, const std::string_view& src, std::size_t size)
-	{
-		std::size_t len = src.length();
-		if (len < size)
-		{
-			memcpy(dst, src.data(), len);
-			dst[len] = '\0';
-		}
-		else
-		{
-			memcpy(dst, src.data(), size - 1);
-			dst[size - 1] = '\0';
-		}
-		return len;
-	}
-
 	std::string toLower(const std::string_view& input)
 	{
 		std::string newStr;

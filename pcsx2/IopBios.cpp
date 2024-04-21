@@ -420,13 +420,13 @@ namespace R3000A
 			if (iomanX)
 			{
 				fxio_dirent_t* hostcontent = (fxio_dirent_t*)buf;
-				StringUtil::Strlcpy(hostcontent->name, dir->FileName, sizeof(hostcontent->name));
+				strcpy(hostcontent->name, dir->FileName.c_str());
 				host_stat(host_path(Path::Combine(basedir, dir->FileName), true), &hostcontent->stat);
 			}
 			else
 			{
 				fio_dirent_t* hostcontent = (fio_dirent_t*)buf;
-				StringUtil::Strlcpy(hostcontent->name, dir->FileName, sizeof(hostcontent->name));
+				strcpy(hostcontent->name, dir->FileName.c_str());
 				host_stat(host_path(Path::Combine(basedir, dir->FileName), true), &hostcontent->stat);
 			}
 

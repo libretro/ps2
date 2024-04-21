@@ -65,12 +65,6 @@ namespace StringUtil
 	/// Checks if a wildcard matches a search string.
 	bool WildcardMatch(const char* subject, const char* mask, bool case_sensitive = true);
 
-	/// Safe version of strlcpy.
-	std::size_t Strlcpy(char* dst, const char* src, std::size_t size);
-
-	/// Strlcpy from string_view.
-	std::size_t Strlcpy(char* dst, const std::string_view& src, std::size_t size);
-
 	/// Wrapper around std::from_chars
 	template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 	inline std::optional<T> FromChars(const std::string_view& str, int base = 10)
@@ -134,50 +128,6 @@ namespace StringUtil
 		return value;
 	}
 
-	/// Wrapper around std::to_chars
-	template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-	inline std::string ToChars(T value, int base = 10)
-	{
-		// to_chars() requires macOS 10.15+.
-#if !defined(__APPLE__) || MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_15
-		constexpr size_t MAX_SIZE = 32;
-		char buf[MAX_SIZE];
-		std::string ret;
-
-		const std::to_chars_result result = std::to_chars(buf, buf + MAX_SIZE, value, base);
-		if (result.ec == std::errc())
-			ret.append(buf, result.ptr - buf);
-
-		return ret;
-#else
-		std::ostringstream ss;
-		ss.imbue(std::locale::classic());
-		ss << std::setbase(base) << value;
-		return ss.str();
-#endif
-	}
-
-	template <typename T, std::enable_if_t<std::is_floating_point<T>::value, bool> = true>
-	inline std::string ToChars(T value)
-	{
-		// No to_chars() in older versions of libstdc++/libc++.
-#ifdef _MSC_VER
-		constexpr size_t MAX_SIZE = 64;
-		char buf[MAX_SIZE];
-		std::string ret;
-		const std::to_chars_result result = std::to_chars(buf, buf + MAX_SIZE, value);
-		if (result.ec == std::errc())
-			ret.append(buf, result.ptr - buf);
-		return ret;
-#else
-		std::ostringstream ss;
-		ss.imbue(std::locale::classic());
-		ss << value;
-		return ss.str();
-#endif
-	}
-
-
 	/// Explicit override for booleans
 	template <>
 	inline std::optional<bool> FromChars(const std::string_view& str, int base)
@@ -185,24 +135,12 @@ namespace StringUtil
 		if (Strncasecmp("true", str.data(), str.length()) == 0 || Strncasecmp("yes", str.data(), str.length()) == 0 ||
 			Strncasecmp("on", str.data(), str.length()) == 0 || Strncasecmp("1", str.data(), str.length()) == 0 ||
 			Strncasecmp("enabled", str.data(), str.length()) == 0 || Strncasecmp("1", str.data(), str.length()) == 0)
-		{
 			return true;
-		}
-
 		if (Strncasecmp("false", str.data(), str.length()) == 0 || Strncasecmp("no", str.data(), str.length()) == 0 ||
 			Strncasecmp("off", str.data(), str.length()) == 0 || Strncasecmp("0", str.data(), str.length()) == 0 ||
 			Strncasecmp("disabled", str.data(), str.length()) == 0 || Strncasecmp("0", str.data(), str.length()) == 0)
-		{
 			return false;
-		}
-
 		return std::nullopt;
-	}
-
-	template <>
-	inline std::string ToChars(bool value, int base)
-	{
-		return std::string(value ? "true" : "false");
 	}
 
 	/// starts_with from C++20
