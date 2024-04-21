@@ -13,7 +13,6 @@
 	#define XBYAK_NO_OP_NAMES
 #endif
 
-#include <assert.h>
 #include <list>
 #include <string>
 #include <algorithm>
@@ -111,10 +110,6 @@
 #if (__cplusplus >= 201103) || (defined(_MSC_VER) && _MSC_VER >= 1800)
 	#undef XBYAK_TLS
 	#define XBYAK_TLS thread_local
-	#define XBYAK_VARIADIC_TEMPLATE
-	#define XBYAK_NOEXCEPT noexcept
-#else
-	#define XBYAK_NOEXCEPT throw()
 #endif
 
 // require c++14 or later
@@ -237,11 +232,6 @@ inline void AlignedFree(void *p)
 #endif
 }
 
-template<class To, class From>
-inline const To CastTo(From p) XBYAK_NOEXCEPT
-{
-	return (const To)(size_t)(p);
-}
 namespace inner {
 
 static const size_t ALIGN_PAGE_SIZE = 4096;
@@ -332,7 +322,6 @@ public:
 		if (fd != -1) close(fd);
 #endif
 		if (p == MAP_FAILED) return 0;
-		assert(p);
 		sizeList_[(uintptr_t)p] = size;
 		return (uint8_t*)p;
 	}
@@ -393,7 +382,6 @@ public:
 		, bit_(bit)
 		, zero_(0), mask_(0), rounding_(0)
 	{
-		assert((bit_ & (bit_ - 1)) == 0); // bit must be power of two
 	}
 	XBYAK_CONSTEXPR Kind getKind() const { return static_cast<Kind>(kind_); }
 	XBYAK_CONSTEXPR int getIdx() const { return idx_ & (EXT8BIT - 1); }
@@ -535,7 +523,6 @@ public:
 
 inline const Reg& Operand::getReg() const
 {
-	assert(!isMEM());
 	return static_cast<const Reg&>(*this);
 }
 
@@ -664,19 +651,6 @@ inline Reg64 Reg::cvt64() const
 }
 #endif
 
-#ifndef XBYAK_DISABLE_SEGMENT
-// not derived from Reg
-class Segment {
-	int idx_;
-public:
-	enum {
-		es, cs, ss, ds, fs, gs
-	};
-	explicit XBYAK_CONSTEXPR Segment(int idx) : idx_(idx) { assert(0 <= idx_ && idx_ < 6); }
-	int getIdx() const { return idx_; }
-};
-#endif
-
 class RegExp {
 public:
 #ifdef XBYAK64
@@ -800,7 +774,7 @@ class CodeArray {
 		uint64_t getVal(const uint8_t *top) const
 		{
 			uint64_t disp = (mode == inner::LaddTop) ? jmpAddr + size_t(top) : (mode == inner::LasIs) ? jmpAddr : jmpAddr - size_t(top);
-			if (jmpSize == 4) disp = inner::VerifyInInt32(disp);
+			if (jmpSize == 4) return inner::VerifyInInt32(disp);
 			return disp;
 		}
 	};
@@ -1039,7 +1013,6 @@ private:
 
 inline const Address& Operand::getAddress() const
 {
-	assert(isMEM());
 	return static_cast<const Address&>(*this);
 }
 
@@ -1553,9 +1526,8 @@ private:
 			mod = mod00;
 		} else {
 			if (disp8N == 0) {
-				if (inner::IsInDisp8(disp)) {
+				if (inner::IsInDisp8(disp))
 					mod = mod01;
-				}
 			} else {
 				// disp must be casted to signed
 				uint32_t t = static_cast<uint32_t>(static_cast<int>(disp) / disp8N);
@@ -2150,9 +2122,6 @@ public:
 	const Zmm &zm24, &zm25, &zm26, &zm27, &zm28, &zm29, &zm30, &zm31;
 	const RegRip rip;
 #endif
-#ifndef XBYAK_DISABLE_SEGMENT
-	const Segment es, cs, ss, ds, fs, gs;
-#endif
 private:
 	bool isDefaultJmpNEAR_;
 public:
@@ -2180,18 +2149,6 @@ public:
 	void jmp(const char *label, LabelType type = T_AUTO) { jmp(std::string(label), type); }
 	void jmp(const Label& label, LabelType type = T_AUTO) { opJmp(label, type, 0xEB, 0xE9, 0); }
 	void jmp(const void *addr, LabelType type = T_AUTO) { opJmpAbs(addr, type, 0xEB, 0xE9); }
-
-	void call(const Operand& op) { opR_ModM(op, 16 | i32e, 2, 0xFF, NONE, NONE, true); }
-	// call(string label), not const std::string&
-	void call(std::string label) { opJmp(label, T_NEAR, 0, 0xE8, 0); }
-	void call(const char *label) { call(std::string(label)); }
-	void call(const Label& label) { opJmp(label, T_NEAR, 0, 0xE8, 0); }
-	// call(function pointer)
-#ifdef XBYAK_VARIADIC_TEMPLATE
-	template<class Ret, class... Params>
-	void call(Ret(*func)(Params...)) { call(reinterpret_cast<const void*>(func)); }
-#endif
-	void call(const void *addr) { opJmpAbs(addr, T_NEAR, 0, 0xE8); }
 
 	void test(const Operand& op, const Reg& reg)
 	{
@@ -2325,56 +2282,6 @@ public:
 		opModRM(*p1, *p2, (p1->isREG() && p2->isREG() && (p1->getBit() == p2->getBit())), p2->isMEM(), 0x86 | (p1->isBit(8) ? 0 : 1));
 	}
 
-#ifndef XBYAK_DISABLE_SEGMENT
-	void push(const Segment& seg)
-	{
-		switch (seg.getIdx()) {
-		case Segment::es: db(0x06); break;
-		case Segment::cs: db(0x0E); break;
-		case Segment::ss: db(0x16); break;
-		case Segment::ds: db(0x1E); break;
-		case Segment::fs: db(0x0F); db(0xA0); break;
-		case Segment::gs: db(0x0F); db(0xA8); break;
-		default:
-			assert(0);
-		}
-	}
-	void pop(const Segment& seg)
-	{
-		switch (seg.getIdx()) {
-		case Segment::es: db(0x07); break;
-		case Segment::cs: return;
-		case Segment::ss: db(0x17); break;
-		case Segment::ds: db(0x1F); break;
-		case Segment::fs: db(0x0F); db(0xA1); break;
-		case Segment::gs: db(0x0F); db(0xA9); break;
-		default:
-			assert(0);
-		}
-	}
-	void putSeg(const Segment& seg)
-	{
-		switch (seg.getIdx()) {
-		case Segment::es: db(0x2E); break;
-		case Segment::cs: db(0x36); break;
-		case Segment::ss: db(0x3E); break;
-		case Segment::ds: db(0x26); break;
-		case Segment::fs: db(0x64); break;
-		case Segment::gs: db(0x65); break;
-		default:
-			assert(0);
-		}
-	}
-	void mov(const Operand& op, const Segment& seg)
-	{
-		opModRM(Reg8(seg.getIdx()), op, op.isREG(16|i32e), op.isMEM(), 0x8C);
-	}
-	void mov(const Segment& seg, const Operand& op)
-	{
-		opModRM(Reg8(seg.getIdx()), op.isREG(16|i32e) ? static_cast<const Operand&>(op.getReg().cvt32()) : op, op.isREG(16|i32e), op.isMEM(), 0x8E);
-	}
-#endif
-
 	enum { NONE = 256 };
 	// constructor
 	CodeGenerator(size_t maxSize = DEFAULT_MAX_CODE_SIZE, void *userPtr = 0, Allocator *allocator = 0)
@@ -2425,9 +2332,6 @@ public:
 		, zm16(zmm16), zm17(zmm17), zm18(zmm18), zm19(zmm19), zm20(zmm20), zm21(zmm21), zm22(zmm22), zm23(zmm23)
 		, zm24(zmm24), zm25(zmm25), zm26(zmm26), zm27(zmm27), zm28(zmm28), zm29(zmm29), zm30(zmm30), zm31(zmm31)
 		, rip()
-#endif
-#ifndef XBYAK_DISABLE_SEGMENT
-		, es(Segment::es), cs(Segment::cs), ss(Segment::ss), ds(Segment::ds), fs(Segment::fs), gs(Segment::gs)
 #endif
 		, isDefaultJmpNEAR_(false)
 	{
@@ -2515,7 +2419,6 @@ public:
 template <>
 inline void CodeGenerator::mov(const NativeReg& reg, const char *label) // can't use std::string
 {
-	assert(label);
 	mov_imm(reg, dummyAddr);
 	putL(label);
 }
@@ -2551,9 +2454,6 @@ static const XBYAK_CONSTEXPR Zmm zmm16(16), zmm17(17), zmm18(18), zmm19(19), zmm
 static const XBYAK_CONSTEXPR Zmm zmm24(24), zmm25(25), zmm26(26), zmm27(27), zmm28(28), zmm29(29), zmm30(30), zmm31(31);
 static const XBYAK_CONSTEXPR Zmm tmm0(0), tmm1(1), tmm2(2), tmm3(3), tmm4(4), tmm5(5), tmm6(6), tmm7(7);
 static const XBYAK_CONSTEXPR RegRip rip;
-#endif
-#ifndef XBYAK_DISABLE_SEGMENT
-static const XBYAK_CONSTEXPR Segment es(Segment::es), cs(Segment::cs), ss(Segment::ss), ds(Segment::ds), fs(Segment::fs), gs(Segment::gs);
 #endif
 } // util
 
