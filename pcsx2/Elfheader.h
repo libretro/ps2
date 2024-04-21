@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "common/SafeArray.h"
-#include "common/SafeArray.inl"
+#include <vector>
+
 #include "CDVD/IsoFS/IsoFSCDVD.h"
 #include "CDVD/IsoFS/IsoFS.h"
 
@@ -111,34 +111,43 @@ struct Elf32_Sym {
 	u16	st_shndx;
 };
 
-class ElfObject
+class ElfObject final
 {
+	public:
+		ElfObject();
+		ElfObject(const ElfObject&) = delete;
+		~ElfObject();
+
+		__fi const ELF_HEADER& GetHeader() const { return *reinterpret_cast<const ELF_HEADER*>(data.data()); }
+		__fi u32 GetSize() const { return static_cast<u32>(data.size()); }
+
+		bool OpenFile(std::string srcfile, bool isPSXElf_);
+		bool OpenIsoFile(std::string srcfile, IsoFile& isofile, bool isPSXElf_);
+
+		void LoadHeaders();
+
+		bool HasProgramHeaders() const;
+		bool HasSectionHeaders() const;
+		bool HasHeaders() const;
+
+		std::pair<u32,u32> GetTextRange() const;
+		u32 GetEntryPoint() const;
+		u32 GetCRC() const;
+
 	private:
-		SafeArray<u8> data;
+
+		std::vector<u8> data;
 		ELF_PHR* proghead = nullptr;
 		ELF_SHR* secthead = nullptr;
 		std::string filename;
+		bool isPSXElf;
 
-		void initElfHeaders(bool isPSXElf);
-		void readIso(IsoFile& file);
-		void readFile();
+		bool CheckElfSize(s64 size);
 
-	public:
-		ELF_HEADER& header;
+		void InitElfHeaders();
+		void LoadSectionHeaders();
 
-		// Destructor!
-		// C++ does all the cleanup automagically for us.
-		virtual ~ElfObject() = default;
-
-		ElfObject(std::string srcfile, IsoFile& isofile, bool isPSXElf);
-		ElfObject(std::string srcfile, u32 hdrsize, bool isPSXElf);
-
-		void loadProgramHeaders();
-		void loadSectionHeaders();
-		void loadHeaders();
-
-		std::pair<u32,u32> getTextRange();
-		u32 getCRC();
+		bool HasValidPSXHeader() const;
 };
 
 //-------------------
@@ -148,4 +157,3 @@ extern u32 ElfCRC;
 extern u32 ElfEntry;
 extern std::pair<u32,u32> ElfTextRange;
 extern std::string LastELF;
-extern bool isPSXElf;

@@ -387,42 +387,49 @@ s32 cdvdWriteConfig(const u8* config)
 }
 
 // Sets ElfCRC to the CRC of the game bound to the CDVD source.
-static __fi ElfObject* loadElf(std::string filename, bool isPSXElf)
+bool cdvdLoadElf(ElfObject *elfo, std::string elfpath, bool isPSXElf)
 {
-	if (StringUtil::StartsWith(filename, "host:"))
+	if (StringUtil::StartsWith(elfpath, "host:"))
 	{
-		std::string host_filename(filename.substr(5));
-		s64 host_size = FileSystem::GetPathFileSize(host_filename.c_str());
-		return new ElfObject(std::move(host_filename), static_cast<u32>(std::max<s64>(host_size, 0)), isPSXElf);
+		std::string host_filename(elfpath.substr(5));
+		//s64 host_size = FileSystem::GetPathFileSize(host_filename.c_str());
+		if (!elfo->OpenFile(host_filename, isPSXElf))
+			return false;
 	}
-
-	// Mimic PS2 behavior!
-	// Much trial-and-error with changing the ISOFS and BOOT2 contents of an image have shown that
-	// the PS2 BIOS performs the peculiar task of *ignoring* the version info from the parsed BOOT2
-	// filename *and* the ISOFS, when loading the game's ELF image.  What this means is:
-	//
-	//   1. a valid PS2 ELF can have any version (ISOFS), and the version need not match the one in SYSTEM.CNF.
-	//   2. the version info on the file in the BOOT2 parameter of SYSTEM.CNF can be missing, 10 chars long,
-	//      or anything else.  Its all ignored.
-	//   3. Games loading their own files do *not* exhibit this behavior; likely due to using newer IOP modules
-	//      or lower level filesystem APIs (fortunately that doesn't affect us).
-	//
-	// FIXME: Properly mimicing this behavior is troublesome since we need to add support for "ignoring"
-	// version information when doing file searches.  I'll add this later.  For now, assuming a ;1 should
-	// be sufficient (no known games have their ELF binary as anything but version ;1)
-	const std::string::size_type semi_pos = filename.rfind(';');
-	if (semi_pos != std::string::npos && std::string_view(filename).substr(semi_pos) != ";1")
+	else
 	{
-		Console.WriteLn(Color_Blue, "(LoadELF) Non-conforming version suffix (%s) detected and replaced.", filename.c_str());
-		filename.erase(semi_pos);
-		filename += ";1";
-	}
+		// Mimic PS2 behavior!
+		// Much trial-and-error with changing the ISOFS and BOOT2 contents of an image have shown that
+		// the PS2 BIOS performs the peculiar task of *ignoring* the version info from the parsed BOOT2
+		// filename *and* the ISOFS, when loading the game's ELF image.  What this means is:
+		//
+		//   1. a valid PS2 ELF can have any version (ISOFS), and the version need not match the one in SYSTEM.CNF.
+		//   2. the version info on the file in the BOOT2 parameter of SYSTEM.CNF can be missing, 10 chars long,
+		//      or anything else.  Its all ignored.
+		//   3. Games loading their own files do *not* exhibit this behavior; likely due to using newer IOP modules
+		//      or lower level filesystem APIs (fortunately that doesn't affect us).
+		//
+		// FIXME: Properly mimicing this behavior is troublesome since we need to add support for "ignoring"
+		// version information when doing file searches.  I'll add this later.  For now, assuming a ;1 should
+		// be sufficient (no known games have their ELF binary as anything but version ;1)
+		const std::string::size_type semi_pos = elfpath.rfind(';');
+		if (semi_pos != std::string::npos && std::string_view(elfpath).substr(semi_pos) != ";1")
+		{
+			Console.WriteLn(Color_Blue, "(LoadELF) Non-conforming version suffix (%s) detected and replaced.", elfpath.c_str());
+			elfpath.erase(semi_pos);
+			elfpath += ";1";
+		}
 
-	IsoFSCDVD isofs;
-	IsoFile file(isofs);
-	if (!file.open(filename))
-		return nullptr;
-	return new ElfObject(std::move(filename), file, isPSXElf);
+		// Fix cdrom:path, the iso reader doesn't like it.
+		if (StringUtil::StartsWith(elfpath, "cdrom:") && elfpath[6] != '\\' && elfpath[6] != '/')
+			elfpath.insert(6, 1, '\\');
+
+		IsoFSCDVD isofs;
+		IsoFile file(isofs);
+		if (!file.open(elfpath) || !elfo->OpenIsoFile(elfpath, file, isPSXElf))
+			return false;
+	}
+	return true;
 }
 
 static __fi void _reloadElfInfo(std::string elfpath)
@@ -431,12 +438,15 @@ static __fi void _reloadElfInfo(std::string elfpath)
 	if (elfpath == LastELF)
 		return;
 
-	std::unique_ptr<ElfObject> elfptr(loadElf(elfpath, false));
-	elfptr->loadHeaders();
-	ElfCRC = elfptr->getCRC();
-	ElfEntry = elfptr->header.e_entry;
-	ElfTextRange = elfptr->getTextRange();
-	LastELF = std::move(elfpath);
+	ElfObject elfo;
+	if (!cdvdLoadElf(&elfo, elfpath, false))
+		return;
+
+	elfo.LoadHeaders();
+	ElfCRC       = elfo.GetCRC();
+	ElfEntry     = elfo.GetHeader().e_entry;
+	ElfTextRange = elfo.GetTextRange();
+	LastELF      = std::move(elfpath);
 
 	Console.WriteLn(Color_StrongBlue, "ELF (%s) Game CRC = 0x%08X, EntryPoint = 0x%08X", LastELF.c_str(), ElfCRC, ElfEntry);
 

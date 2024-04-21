@@ -10,7 +10,6 @@ add_library(common)
 # x86emitter sources
 target_sources(common PRIVATE
 	AlignedMalloc.cpp
-	SafeArray.inl
 	Console.cpp
 	FastJmp.cpp
 	FileSystem.cpp
@@ -65,7 +64,6 @@ target_sources(common PRIVATE
 	ReadbackSpinManager.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
-	SafeArray.h
 	ScopedGuard.h
 	SettingsInterface.h
 	SettingsWrapper.h
