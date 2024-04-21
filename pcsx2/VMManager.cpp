@@ -286,7 +286,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 			const std::string* patches = game->findPatch(crc);
 			if (patches && (patch_count = LoadPatchesFromString(*patches)) > 0)
 			{
-				PatchesCon->WriteLn(Color_Green, "(GameDB) Patches Loaded: %d", patch_count);
+				Console.WriteLn(Color_Green, "(GameDB) Patches Loaded: %d", patch_count);
 				fmt::format_to(std::back_inserter(message), "{} game patches", patch_count);
 			}
 
@@ -301,7 +301,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
 		if (cheat_count > 0)
 		{
-			PatchesCon->WriteLn(Color_Green, "Cheats Loaded: %d", cheat_count);
+			Console.WriteLn(Color_Green, "Cheats Loaded: %d", cheat_count);
 			fmt::format_to(std::back_inserter(message), "{}{} cheat patches", (patch_count > 0) ? " and " : "", cheat_count);
 		}
 	}
@@ -326,7 +326,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 			if (!s_widescreen_cheats_data.empty())
 			{
 				s_active_widescreen_patches = LoadPatchesFromZip(crc_string, s_widescreen_cheats_data.data(), s_widescreen_cheats_data.size());
-				PatchesCon->WriteLn(Color_Green, "(Wide Screen Cheats DB) Patches Loaded: %d", s_active_widescreen_patches);
+				Console.WriteLn(Color_Green, "(Wide Screen Cheats DB) Patches Loaded: %d", s_active_widescreen_patches);
 			}
 		}
 
@@ -368,7 +368,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 			if (!s_no_interlacing_cheats_data.empty())
 			{
 				s_active_no_interlacing_patches = LoadPatchesFromZip(crc_string, s_no_interlacing_cheats_data.data(), s_no_interlacing_cheats_data.size());
-				PatchesCon->WriteLn(Color_Green, "(No-Interlacing Cheats DB) Patches Loaded: %u", s_active_no_interlacing_patches);
+				Console.WriteLn(Color_Green, "(No-Interlacing Cheats DB) Patches Loaded: %u", s_active_no_interlacing_patches);
 			}
 		}
 

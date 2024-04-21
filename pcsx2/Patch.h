@@ -139,8 +139,6 @@ extern void ApplyDynamicPatches(u32 pc);
 // Following ApplyLoadedPatches calls will do nothing until some LoadPatchesFrom* are invoked.
 extern void ForgetLoadedPatches();
 
-extern const IConsoleWriter *PatchesCon;
-
 // The following prototypes seem unused in PCSX2, but maybe part of the cheats browser?
 // regardless, they don't seem to have an implementation anywhere.
 // extern int  AddPatch(int Mode, int Place, int Address, int Size, u64 data);

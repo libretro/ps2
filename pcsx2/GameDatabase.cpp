@@ -408,12 +408,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		{
 			if (applyAuto)
 			{
-				PatchesCon->WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
+				Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
 				config.Cpu.sseMXCSR.SetRoundMode(eeRM);
 				num_applied_fixes++;
 			}
 			else
-				PatchesCon->Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
+				Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
 		}
 	}
 
@@ -424,12 +424,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		{
 			if (applyAuto)
 			{
-				PatchesCon->WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+				Console.WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
 				config.Cpu.sseVU0MXCSR.SetRoundMode(vuRM);
 				num_applied_fixes++;
 			}
 			else
-				PatchesCon->Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+				Console.Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
 		}
 	}
 
@@ -440,12 +440,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		{
 			if (applyAuto)
 			{
-				PatchesCon->WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+				Console.WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
 				config.Cpu.sseVU1MXCSR.SetRoundMode(vuRM);
 				num_applied_fixes++;
 			}
 			else
-				PatchesCon->Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+				Console.Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
 		}
 	}
 
@@ -454,14 +454,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		const int clampMode = enum_cast(eeClampMode);
 		if (applyAuto)
 		{
-			PatchesCon->WriteLn("(GameDB) Changing EE/FPU clamp mode [mode=%d]", clampMode);
+			Console.WriteLn("(GameDB) Changing EE/FPU clamp mode [mode=%d]", clampMode);
 			config.Cpu.Recompiler.fpuOverflow = (clampMode >= 1);
 			config.Cpu.Recompiler.fpuExtraOverflow = (clampMode >= 2);
 			config.Cpu.Recompiler.fpuFullMode = (clampMode >= 3);
 			num_applied_fixes++;
 		}
 		else
-			PatchesCon->Warning("[GameDB] Skipping changing EE/FPU clamp mode [mode=%d]", clampMode);
+			Console.Warning("[GameDB] Skipping changing EE/FPU clamp mode [mode=%d]", clampMode);
 	}
 
 	if (vu0ClampMode != GameDatabaseSchema::ClampMode::Undefined)
@@ -469,14 +469,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		const int clampMode = enum_cast(vu0ClampMode);
 		if (applyAuto)
 		{
-			PatchesCon->WriteLn("(GameDB) Changing VU0 clamp mode [mode=%d]", clampMode);
+			Console.WriteLn("(GameDB) Changing VU0 clamp mode [mode=%d]", clampMode);
 			config.Cpu.Recompiler.vu0Overflow = (clampMode >= 1);
 			config.Cpu.Recompiler.vu0ExtraOverflow = (clampMode >= 2);
 			config.Cpu.Recompiler.vu0SignOverflow = (clampMode >= 3);
 			num_applied_fixes++;
 		}
 		else
-			PatchesCon->Warning("[GameDB] Skipping changing VU0 clamp mode [mode=%d]", clampMode);
+			Console.Warning("[GameDB] Skipping changing VU0 clamp mode [mode=%d]", clampMode);
 	}
 
 	if (vu1ClampMode != GameDatabaseSchema::ClampMode::Undefined)
@@ -484,14 +484,14 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		const int clampMode = enum_cast(vu1ClampMode);
 		if (applyAuto)
 		{
-			PatchesCon->WriteLn("(GameDB) Changing VU1 clamp mode [mode=%d]", clampMode);
+			Console.WriteLn("(GameDB) Changing VU1 clamp mode [mode=%d]", clampMode);
 			config.Cpu.Recompiler.vu1Overflow = (clampMode >= 1);
 			config.Cpu.Recompiler.vu1ExtraOverflow = (clampMode >= 2);
 			config.Cpu.Recompiler.vu1SignOverflow = (clampMode >= 3);
 			num_applied_fixes++;
 		}
 		else
-			PatchesCon->Warning("[GameDB] Skipping changing VU1 clamp mode [mode=%d]", clampMode);
+			Console.Warning("[GameDB] Skipping changing VU1 clamp mode [mode=%d]", clampMode);
 	}
 
 	// TODO - config - this could be simplified with maps instead of bitfields and enums
@@ -516,12 +516,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (!applyAuto)
 		{
-			PatchesCon->Warning("[GameDB] Skipping Gamefix: %s", EnumToString(id));
+			Console.Warning("[GameDB] Skipping Gamefix: %s", EnumToString(id));
 			continue;
 		}
 		// if the fix is present, it is said to be enabled
 		config.Gamefixes.Set(id, true);
-		PatchesCon->WriteLn("(GameDB) Enabled Gamefix: %s", EnumToString(id));
+		Console.WriteLn("(GameDB) Enabled Gamefix: %s", EnumToString(id));
 		num_applied_fixes++;
 
 		// The LUT is only used for 1 game so we allocate it only when the gamefix is enabled (save 4MB)
@@ -665,7 +665,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			if (configMatchesHWFix(config, id, value))
 				continue;
 
-			PatchesCon->Warning("[GameDB] Skipping GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
+			Console.Warning("[GameDB] Skipping GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
 			fmt::format_to(std::back_inserter(disabled_fixes), "{} {} = {}", disabled_fixes.empty() ? "  " : "\n  ", getHWFixName(id), value);
 			continue;
 		}
@@ -867,7 +867,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 		}
 
-		PatchesCon->WriteLn("[GameDB] Enabled GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
+		Console.WriteLn("[GameDB] Enabled GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
 		num_applied_fixes++;
 	}
 

@@ -158,7 +158,7 @@ int LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_da
 	if (!pnach_data.has_value())
 		return 0;
 
-	PatchesCon->WriteLn(Color_Green, "Loading patch '%s' from archive.", pnach_filename.c_str());
+	Console.WriteLn(Color_Green, "Loading patch '%s' from archive.", pnach_filename.c_str());
 	return LoadPatchesFromString(pnach_data.value());
 }
 
@@ -180,7 +180,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 
 	if (show_error_when_missing && files.empty())
 	{
-		PatchesCon->WriteLn(Color_Gray, "Not found %s file: %s" FS_OSPATH_SEPARATOR_STR "%s.pnach",
+		Console.WriteLn(Color_Gray, "Not found %s file: %s" FS_OSPATH_SEPARATOR_STR "%s.pnach",
 			friendly_name, folder.c_str(), crc.c_str());
 	}
 
@@ -192,7 +192,7 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 		if (name.length() < crc.length() || Strncasecmp(name.data(), crc.c_str(), crc.size()) != 0)
 			continue;
 
-		PatchesCon->WriteLn(Color_Green, "Found %s file: '%.*s'", friendly_name, static_cast<int>(name.size()), name.data());
+		Console.WriteLn(Color_Green, "Found %s file: '%.*s'", friendly_name, static_cast<int>(name.size()), name.data());
 
 		const std::optional<std::string> pnach_data(FileSystem::ReadFileToString(fd.FileName.c_str()));
 		if (!pnach_data.has_value())
@@ -201,11 +201,11 @@ int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const 
 		const int loaded = LoadPatchesFromString(pnach_data.value());
 		total_loaded += loaded;
 
-		PatchesCon->WriteLn((loaded ? Color_Green : Color_Gray), "Loaded %d %s from '%.*s'.",
+		Console.WriteLn((loaded ? Color_Green : Color_Gray), "Loaded %d %s from '%.*s'.",
 			loaded, friendly_name, static_cast<int>(name.size()), name.data());
 	}
 
-	PatchesCon->WriteLn((total_loaded ? Color_Green : Color_Gray), "Overall %d %s loaded", total_loaded, friendly_name);
+	Console.WriteLn((total_loaded ? Color_Green : Color_Gray), "Overall %d %s loaded", total_loaded, friendly_name);
 	return total_loaded;
 }
 
@@ -214,12 +214,12 @@ namespace PatchFunc
 {
 	void comment(const std::string_view& text1, const std::string_view& text2)
 	{
-		PatchesCon->WriteLn("comment: %.*s", static_cast<int>(text2.length()), text2.data());
+		Console.WriteLn("comment: %.*s", static_cast<int>(text2.length()), text2.data());
 	}
 
 	void author(const std::string_view& text1, const std::string_view& text2)
 	{
-		PatchesCon->WriteLn("Author: %.*s", static_cast<int>(text2.length()), text2.data());
+		Console.WriteLn("Author: %.*s", static_cast<int>(text2.length()), text2.data());
 	}
 
 	void patch(const std::string_view& cmd, const std::string_view& param)

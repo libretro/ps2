@@ -598,7 +598,7 @@ void _ApplyDynaPatch(const DynamicPatch& patch, u32 address)
 			return;
 	}
 
-	PatchesCon->WriteLn("Applying Dynamic Patch to address 0x%08X", address);
+	Console.WriteLn("Applying Dynamic Patch to address 0x%08X", address);
 	// If everything passes, apply the patch.
 	for (const auto& replacement : patch.replacement)
 	{
