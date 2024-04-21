@@ -39,8 +39,6 @@
 #include <string_view>
 #include <vector>
 
-struct IConsoleWriter;
-
 enum patch_cpu_type {
 	NO_CPU = 0,
 	CPU_EE,
@@ -139,15 +137,4 @@ extern void ApplyDynamicPatches(u32 pc);
 // Following ApplyLoadedPatches calls will do nothing until some LoadPatchesFrom* are invoked.
 extern void ForgetLoadedPatches();
 
-// The following prototypes seem unused in PCSX2, but maybe part of the cheats browser?
-// regardless, they don't seem to have an implementation anywhere.
-// extern int  AddPatch(int Mode, int Place, int Address, int Size, u64 data);
-// extern void ResetPatch(void);
-
-// Swaps endianess of InputNum
-// ex. 01020304 -> 04030201
-// BitLength is length of InputNum in bits, ex. double,64  word,32  short,16
-extern u64 SwapEndian(u64 InputNum, u8 BitLength);
-
 extern void _ApplyPatch(IniPatch* p);
-extern void _ApplyDynaPatch(const DynamicPatch& patch, u32 address);

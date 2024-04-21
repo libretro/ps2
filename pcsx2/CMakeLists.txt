@@ -106,7 +106,6 @@ set(pcsx2Sources
 	MultipartFileReader.cpp
 	MultitapProtocol.cpp
 	Patch.cpp
-	Patch_Memory.cpp
 	Pcsx2Config.cpp
 	PerformanceMetrics.cpp
 	PrecompiledHeader.cpp
