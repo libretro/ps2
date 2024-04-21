@@ -81,7 +81,6 @@ static __fi bool PERF_ShouldCountEvent( uint evt )
 	return false;
 }
 
-extern int branch;
 __fi void COP0_UpdatePCCR(void)
 {
 	// Counting and counter exceptions are not performed if we are currently executing a Level 2 exception (ERL)

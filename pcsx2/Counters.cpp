@@ -32,7 +32,6 @@
 
 #include "ps2/HwInternal.h"
 #include "Sio.h"
-#include "SPU2/spu2.h"
 #include "PAD/PAD.h"
 #include "VMManager.h"
 
@@ -43,8 +42,8 @@ static int gates = 0;
 // Counter 4 takes care of scanlines - hSync/hBlanks
 // Counter 5 takes care of vSync/vBlanks
 Counter counters[4];
-SyncCounter hsyncCounter;
-SyncCounter vsyncCounter;
+static SyncCounter hsyncCounter;
+static SyncCounter vsyncCounter;
 
 u32 nextsCounter;	// records the cpuRegs.cycle value of the last call to rcntUpdate()
 s32 nextCounter;	// delta from nextsCounter, in cycles, until the next rcntUpdate()
@@ -59,12 +58,12 @@ static void rcntWtarget(int index, u32 value);
 static void rcntWhold(int index, u32 value);
 
 // For Analog/Double Strike and Interlace modes
-static bool IsInterlacedVideoMode()
+static bool IsInterlacedVideoMode(void)
 {
 	return (gsVideoMode == GS_VideoMode::PAL || gsVideoMode == GS_VideoMode::NTSC || gsVideoMode == GS_VideoMode::DVD_NTSC || gsVideoMode == GS_VideoMode::DVD_PAL || gsVideoMode == GS_VideoMode::HDTV_1080I);
 }
 
-static bool IsProgressiveVideoMode()
+static bool IsProgressiveVideoMode(void)
 {
 	// The FIELD register only flips if the CMOD field in SMODE1 is set to anything but 0 and Front Porch bottom bit in SYNCV is set.
 	// Also see "isReallyInterlaced()" in GSState.cpp

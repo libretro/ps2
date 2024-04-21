@@ -126,8 +126,6 @@ struct SyncCounter
 #define MODE_HBLANK		0x1 //Set for the remaining ~1/6 of 1 Scanline
 
 extern Counter counters[4];
-extern SyncCounter hsyncCounter;
-extern SyncCounter vsyncCounter;
 
 extern s32 nextCounter;		// delta until the next counter event (must be signed)
 extern u32 nextsCounter;
