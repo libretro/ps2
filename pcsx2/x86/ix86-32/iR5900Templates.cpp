@@ -18,14 +18,14 @@
 #include "Common.h"
 #include "Memory.h"
 #include "R5900OpcodeTables.h"
-#include "iR5900.h"
-#include "iMMI.h"
-#include "iFPU.h"
-#include "iCOP0.h"
 #include "VU.h"
 #include "VUmicro.h"
 
 #include "vtlb.h"
+#include "x86/iCOP0.h"
+#include "x86/iFPU.h"
+#include "x86/iMMI.h"
+#include "x86/iR5900.h"
 
 using namespace x86Emitter;
 

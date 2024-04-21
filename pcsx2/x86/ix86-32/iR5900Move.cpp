@@ -18,7 +18,7 @@
 
 #include "Common.h"
 #include "R5900OpcodeTables.h"
-#include "iR5900.h"
+#include "x86/iR5900.h"
 
 using namespace x86Emitter;
 
@@ -55,7 +55,7 @@ REC_FUNC_DEL(MOVN, _Rd_);
 *********************************************************/
 
 //// LUI
-void recLUI()
+void recLUI(void)
 {
 	if (!_Rt_)
 		return;
@@ -258,7 +258,7 @@ void recMTLO1(void)
 
 //// MOVZ
 // if (rt == 0) then rd <- rs
-static void recMOVZtemp_const()
+static void recMOVZtemp_const(void)
 {
 	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0];
 }
@@ -299,7 +299,7 @@ static void recMOVZtemp_(int info)
 // Specify READD here, because we might not write to it, and want to preserve the value.
 static EERECOMPILE_CODERC0(MOVZtemp, XMMINFO_READS | XMMINFO_READT | XMMINFO_READD | XMMINFO_WRITED | XMMINFO_NORENAME);
 
-void recMOVZ()
+void recMOVZ(void)
 {
 	if (_Rs_ == _Rd_)
 		return;
@@ -311,7 +311,7 @@ void recMOVZ()
 }
 
 //// MOVN
-static void recMOVNtemp_const()
+static void recMOVNtemp_const(void)
 {
 	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0];
 }
@@ -351,7 +351,7 @@ static void recMOVNtemp_(int info)
 
 static EERECOMPILE_CODERC0(MOVNtemp, XMMINFO_READS | XMMINFO_READT | XMMINFO_READD | XMMINFO_WRITED | XMMINFO_NORENAME);
 
-void recMOVN()
+void recMOVN(void)
 {
 	if (_Rs_ == _Rd_)
 		return;

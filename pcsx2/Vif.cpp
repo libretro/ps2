@@ -18,13 +18,13 @@
 #include <cstring> /* memset */
 
 #include "Common.h"
-#include "Vif.h"
-#include "Vif_Dma.h"
-#include "newVif.h"
 #include "GS.h"
 #include "Gif.h"
-#include "MTVU.h"
 #include "Gif_Unit.h"
+#include "MTVU.h"
+#include "Vif.h"
+#include "Vif_Dma.h"
+#include "x86/newVif.h"
 
 alignas(16) vifStruct vif0, vif1;
 

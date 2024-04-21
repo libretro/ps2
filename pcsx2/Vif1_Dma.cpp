@@ -14,17 +14,18 @@
  */
 
 #include "PrecompiledHeader.h"
+
 #include "Common.h"
-#include "Vif_Dma.h"
 #include "GS.h"
 #include "Gif_Unit.h"
-#include "VUmicro.h"
-#include "newVif.h"
 #include "MTVU.h"
+#include "VUmicro.h"
+#include "Vif_Dma.h"
+#include "x86/newVif.h"
 
 u32 g_vif1Cycles = 0;
 
-__fi void vif1FLUSH()
+__fi void vif1FLUSH(void)
 {
 	if (VU0.VI[REG_VPU_STAT].UL & 0x500) // T bit stop or Busy
 	{
@@ -35,7 +36,7 @@ __fi void vif1FLUSH()
 	}
 }
 
-void vif1TransferToMemory()
+void vif1TransferToMemory(void)
 {
 	u128* pMem = (u128*)dmaGetAddr(vif1ch.madr, false);
 
@@ -87,7 +88,7 @@ void vif1TransferToMemory()
 	}
 }
 
-bool _VIF1chain()
+bool _VIF1chain(void)
 {
 	u32* pMem;
 
@@ -121,11 +122,9 @@ bool _VIF1chain()
 	return VIF1transfer(pMem, vif1ch.qwc * 4, false);
 }
 
-__fi void vif1SetupTransfer()
+__fi void vif1SetupTransfer(void)
 {
-	tDMA_TAG* ptag;
-
-	ptag = dmaGetAddr(vif1ch.tadr, false); //Set memory pointer to TADR
+	tDMA_TAG* ptag = dmaGetAddr(vif1ch.tadr, false); //Set memory pointer to TADR
 
 	if (!(vif1ch.transfer(ptag)))
 		return;
@@ -194,7 +193,7 @@ __fi void vif1SetupTransfer()
 	}
 }
 
-__fi void vif1VUFinish()
+__fi void vif1VUFinish(void)
 {
 	// Sync up VU1 so we don't errantly wait.
 	while (!THREAD_VU1 && static_cast<int>(cpuRegs.cycle - VU1.cycle) > 0 && (VU0.VI[REG_VPU_STAT].UL & 0x100))

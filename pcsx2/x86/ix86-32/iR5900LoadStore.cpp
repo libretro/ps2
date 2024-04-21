@@ -18,15 +18,15 @@
 
 #include "Common.h"
 #include "R5900OpcodeTables.h"
-#include "iR5900LoadStore.h"
-#include "iR5900.h"
+#include "x86/iR5900.h"
+#include "x86/iR5900LoadStore.h"
 
 using namespace x86Emitter;
 
 #define REC_STORES
 #define REC_LOADS
 
-static int RETURN_READ_IN_RAX()
+static int RETURN_READ_IN_RAX(void)
 {
 	return rax.Id;
 }

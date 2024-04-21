@@ -18,9 +18,8 @@
 
 #include "Common.h"
 #include "vtlb.h"
-
-#include "iCore.h"
-#include "iR5900.h"
+#include "x86/iCore.h"
+#include "x86/iR5900.h"
 
 using namespace vtlb_private;
 using namespace x86Emitter;
@@ -217,8 +216,6 @@ alignas(__pagesize) static u8 m_IndirectDispatchers[__pagesize];
 //
 static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign = 0)
 {
-	assert(mode || operandsize >= 3 ? !sign : true);
-
 	// Each dispatcher is aligned to 64 bytes.  The actual dispatchers are only like
 	// 20-some bytes each, but 64 byte alignment on functions that are called
 	// more frequently than a hot sex hotline at 1:15am is probably a good thing.
@@ -227,7 +224,6 @@ static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign = 0)
 
 	// Gregory: a 32 bytes alignment is likely enough and more cache friendly
 	const int A = 32;
-
 	return &m_IndirectDispatchers[(mode * (8 * A)) + (sign * 5 * A) + (operandsize * A)];
 }
 

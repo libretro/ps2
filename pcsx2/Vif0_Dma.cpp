@@ -17,13 +17,13 @@
 #include "Common.h"
 #include "Vif_Dma.h"
 #include "VUmicro.h"
-#include "newVif.h"
+#include "x86/newVif.h"
 
 u32 g_vif0Cycles = 0;
 
 // Run VU0 until finish, don't add cycles to EE
 // because its vif stalling not the EE core...
-__fi void vif0FLUSH()
+__fi void vif0FLUSH(void)
 {
 	if (VU0.VI[REG_VPU_STAT].UL & 0x5) // T bit stop or Busy
 	{
@@ -35,7 +35,7 @@ __fi void vif0FLUSH()
 	return;
 }
 
-bool _VIF0chain()
+bool _VIF0chain(void)
 {
 	u32 *pMem;
 
@@ -59,11 +59,9 @@ bool _VIF0chain()
 	return VIF0transfer(pMem, vif0ch.qwc * 4);
 }
 
-__fi void vif0SetupTransfer()
+__fi void vif0SetupTransfer(void)
 {
-    tDMA_TAG *ptag;
-
-	ptag = dmaGetAddr(vif0ch.tadr, false); //Set memory pointer to TADR
+	tDMA_TAG *ptag = dmaGetAddr(vif0ch.tadr, false); //Set memory pointer to TADR
 
 	if (!(vif0ch.transfer(ptag))) return;
 
@@ -118,7 +116,7 @@ __fi void vif0SetupTransfer()
 	}
 }
 
-__fi void vif0VUFinish()
+__fi void vif0VUFinish(void)
 {
 	// Sync up VU0 so we don't errantly wait.
 	while (static_cast<int>(cpuRegs.cycle - VU0.cycle) > 0 && (VU0.VI[REG_VPU_STAT].UL & 0x1))
@@ -150,7 +148,7 @@ __fi void vif0VUFinish()
 	}
 }
 
-__fi void vif0Interrupt()
+__fi void vif0Interrupt(void)
 {
 	g_vif0Cycles = 0;
 

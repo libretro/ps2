@@ -28,9 +28,9 @@
 #include "ps2/BiosTools.h"
 #include "GS/Renderers/Common/GSFunctionMap.h"
 
+#ifdef _M_X86
 #include "common/emitter/x86_intrin.h"
-
-#include "svnrev.h"
+#endif
 
 Pcsx2Config EmuConfig;
 
@@ -42,9 +42,7 @@ SSE_MXCSR g_sseVU1MXCSR = {DEFAULT_sseVUMXCSR};
 //
 void SetCPUState(SSE_MXCSR sseMXCSR, SSE_MXCSR sseVU0MXCSR, SSE_MXCSR sseVU1MXCSR)
 {
-	//Msgbox::Alert("SetCPUState: Config.sseMXCSR = %x; Config.sseVUMXCSR = %x \n", Config.sseMXCSR, Config.sseVUMXCSR);
-
-	g_sseMXCSR = sseMXCSR.ApplyReserveMask();
+	g_sseMXCSR    = sseMXCSR.ApplyReserveMask();
 	g_sseVU0MXCSR = sseVU0MXCSR.ApplyReserveMask();
 	g_sseVU1MXCSR = sseVU1MXCSR.ApplyReserveMask();
 

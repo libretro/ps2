@@ -18,12 +18,11 @@
 #include <cstring> /* memset */
 
 #include "Common.h"
-
-#include "Hardware.h"
-#include "newVif.h"
 #include "Gif_Unit.h"
+#include "Hardware.h"
 #include "SPU2/spu2.h"
 #include "USB/USB.h"
+#include "x86/newVif.h"
 
 using namespace R5900;
 
@@ -83,7 +82,7 @@ void hwReset(void)
 	USBreset();
 }
 
-__fi uint intcInterrupt()
+__fi uint intcInterrupt(void)
 {
 	if ((psHu32(INTC_STAT)) == 0)
 		return 0;
@@ -99,7 +98,7 @@ __fi uint intcInterrupt()
 	return 0x400;
 }
 
-__fi uint dmacInterrupt()
+__fi uint dmacInterrupt(void)
 {
 	if( ((psHu16(DMAC_STAT + 2) & psHu16(DMAC_STAT)) == 0 ) &&
 		( psHu16(DMAC_STAT) & 0x8000) == 0 )
@@ -150,17 +149,14 @@ __ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
 	return false;
 }
 
-__ri void hwMFIFOResume(u32 transferred) {
-
+__ri void hwMFIFOResume(u32 transferred)
+{
 	if (transferred == 0)
-	{
 		return; //Nothing got put in the MFIFO, we don't care
-	}
 
 	switch (dmacRegs.ctrl.MFD)
 	{
 		case MFD_VIF1: // Most common case.
-		{
 			if (vif1.inprogress & 0x10)
 			{
 				vif1.inprogress &= ~0x10;
@@ -175,15 +171,12 @@ __ri void hwMFIFOResume(u32 transferred) {
 				//vif1Regs.stat.FQC = 0x10; // FQC=16
 			}
 			break;
-		}
 		case MFD_GIF:
-		{
 			if ((gif.gifstate & GIF_STATE_EMPTY)) {
 				CPU_INT(DMAC_MFIFO_GIF, transferred * BIAS);
 				gif.gifstate = GIF_STATE_READY;
 			}
 			break;
-		}
 		default:
 			break;
 	}
@@ -191,96 +184,97 @@ __ri void hwMFIFOResume(u32 transferred) {
 
 __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {
 	switch (id) {
-		case TAG_REFE: // Refe - Transfer Packet According to ADDR field
+		case TAG_REFE: 
+			// Refe - Transfer Packet According to ADDR field
 			dma.tadr += 16;
-            //End Transfer
+			//End Transfer
 			return true;
 
-		case TAG_CNT: // CNT - Transfer QWC following the tag.
-            // Set MADR to QW afer tag, and set TADR to QW following the data.
+		case TAG_CNT: 
+			// CNT - Transfer QWC following the tag.
+			// Set MADR to QW afer tag, and set TADR to QW following the data.
 			dma.tadr += 16;
 			dma.madr = dma.tadr;
-			//dma.tadr = dma.madr + (dma.qwc << 4);
 			return false;
 
 		case TAG_NEXT: // Next - Transfer QWC following tag. TADR = ADDR
-		{
-		    // Set MADR to QW following the tag, and set TADR to the address formerly in MADR.
-			u32 temp = dma.madr;
-			dma.madr = dma.tadr + 16;
-			dma.tadr = temp;
-			return false;
-		}
+			{
+				// Set MADR to QW following the tag, and set TADR to the address formerly in MADR.
+				u32 temp = dma.madr;
+				dma.madr = dma.tadr + 16;
+				dma.tadr = temp;
+				return false;
+			}
 		case TAG_REF: // Ref - Transfer QWC from ADDR field
 		case TAG_REFS: // Refs - Transfer QWC from ADDR field (Stall Control)
-            //Set TADR to next tag
+			//Set TADR to next tag
 			dma.tadr += 16;
 			return false;
 
 		case TAG_CALL: // Call - Transfer QWC following the tag, save succeeding tag
-		{
-		    // Store the address in MADR in temp, and set MADR to the data following the tag.
-			u32 temp = dma.madr;
-			dma.madr = dma.tadr + 16;
+			{
+				// Store the address in MADR in temp, and set MADR to the data following the tag.
+				u32 temp = dma.madr;
+				dma.madr = dma.tadr + 16;
 
-			// Stash an address on the address stack pointer.
-			switch(dma.chcr.ASP)
-            {
-                case 0: //Check if ASR0 is empty
-                    // Store the succeeding tag in asr0, and mark chcr as having 1 address.
-                    dma.asr0 = dma.madr + (dma.qwc << 4);
-                    dma.chcr.ASP++;
-                    break;
+				// Stash an address on the address stack pointer.
+				switch(dma.chcr.ASP)
+				{
+					case 0: //Check if ASR0 is empty
+						// Store the succeeding tag in asr0, and mark chcr as having 1 address.
+						dma.asr0 = dma.madr + (dma.qwc << 4);
+						dma.chcr.ASP++;
+						break;
 
-                case 1:
-                    // Store the succeeding tag in asr1, and mark chcr as having 2 addresses.
-                    dma.asr1 = dma.madr + (dma.qwc << 4);
-                    dma.chcr.ASP++;
-                    break;
+					case 1:
+						// Store the succeeding tag in asr1, and mark chcr as having 2 addresses.
+						dma.asr1 = dma.madr + (dma.qwc << 4);
+						dma.chcr.ASP++;
+						break;
 
-                default:
-                    Console.Warning("Call Stack Overflow (report if it fixes/breaks anything)");
-                    return true;
+					default:
+						Console.Warning("Call Stack Overflow (report if it fixes/breaks anything)");
+						return true;
+				}
+
+				// Set TADR to the address from MADR we stored in temp.
+				dma.tadr = temp;
+
+				return false;
 			}
 
-			// Set TADR to the address from MADR we stored in temp.
-			dma.tadr = temp;
-
-			return false;
-		}
-
 		case TAG_RET: // Ret - Transfer QWC following the tag, load next tag
-            //Set MADR to data following the tag.
+			//Set MADR to data following the tag.
 			dma.madr = dma.tadr + 16;
 
 			// Snag an address from the address stack pointer.
 			switch(dma.chcr.ASP)
-            {
-                case 2:
-                    // Pull asr1 from the stack, give it to TADR, and decrease the # of addresses.
-                    dma.tadr = dma.asr1;
-                    dma.asr1 = 0;
-                    dma.chcr.ASP--;
-                    break;
+			{
+				case 2:
+					// Pull asr1 from the stack, give it to TADR, and decrease the # of addresses.
+					dma.tadr = dma.asr1;
+					dma.asr1 = 0;
+					dma.chcr.ASP--;
+					break;
 
-                case 1:
-                    // Pull asr0 from the stack, give it to TADR, and decrease the # of addresses.
-                    dma.tadr = dma.asr0;
-                    dma.asr0 = 0;
-                    dma.chcr.ASP--;
-                    break;
+				case 1:
+					// Pull asr0 from the stack, give it to TADR, and decrease the # of addresses.
+					dma.tadr = dma.asr0;
+					dma.asr0 = 0;
+					dma.chcr.ASP--;
+					break;
 
-                case 0:
-                    // There aren't any addresses to pull, so end the transfer.
-                    //dma.tadr += 16;						   //Clear tag address - Kills Klonoa 2
-                    return true;
+				case 0:
+					// There aren't any addresses to pull, so end the transfer.
+					//dma.tadr += 16;						   //Clear tag address - Kills Klonoa 2
+					return true;
 
-                default:
-                    // If ASR1 and ASR0 are messed up, end the transfer.
-                    //Console.Error("TAG_RET: ASR 1 & 0 == 1. This shouldn't happen!");
-                    //dma.tadr += 16;						   //Clear tag address - Kills Klonoa 2
-                    return true;
-            }
+				default:
+					// If ASR1 and ASR0 are messed up, end the transfer.
+					//Console.Error("TAG_RET: ASR 1 & 0 == 1. This shouldn't happen!");
+					//dma.tadr += 16;						   //Clear tag address - Kills Klonoa 2
+					return true;
+			}
 			return false;
 
 		case TAG_END: // End - Transfer QWC following the tag

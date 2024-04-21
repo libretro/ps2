@@ -17,13 +17,14 @@
 
 #include <cstring> /* memset */
 
-#include "System.h"
-#include "iR5900.h"
-#include "Vif.h"
-#include "VU.h"
-#include "common/emitter/x86emitter.h"
 #include "R3000A.h"
+#include "System.h"
+#include "VU.h"
+#include "Vif.h"
 #include "x86/iR3000A.h"
+#include "x86/iR5900.h"
+
+#include "common/emitter/x86emitter.h"
 
 using namespace x86Emitter;
 
