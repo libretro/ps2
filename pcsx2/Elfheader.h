@@ -150,9 +150,6 @@ class ElfObject final
 		bool HasValidPSXHeader() const;
 };
 
-//-------------------
-extern int  GetPS2ElfName( std::string& dest );
-
 extern u32 ElfCRC;
 extern u32 ElfEntry;
 extern std::pair<u32,u32> ElfTextRange;

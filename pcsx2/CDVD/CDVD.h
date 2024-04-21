@@ -167,5 +167,6 @@ extern void cdvdWrite(u8 key, u8 rt);
 extern void cdvdReloadElfInfo(std::string elfoverride = std::string());
 extern s32 cdvdCtrlTrayOpen(void);
 extern s32 cdvdCtrlTrayClose(void);
+int GetPS2ElfName( std::string& name );
 
 extern std::string DiscSerial;
