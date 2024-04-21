@@ -886,41 +886,33 @@ void GameDatabase::initDatabase()
 		throw std::runtime_error(fmt::format("[YAML] Internal Parsing error: {}",
 			msg));
 	});
-	try
+	auto buf = Host::ReadResourceFileToString(GAMEDB_YAML_FILE_NAME);
+	if (!buf.has_value())
 	{
-		auto buf = Host::ReadResourceFileToString(GAMEDB_YAML_FILE_NAME);
-		if (!buf.has_value())
-		{
-			Console.Error("[GameDB] Unable to open GameDB file, file does not exist.");
-			return;
-		}
-
-		ryml::Tree tree = ryml::parse_in_arena(c4::to_csubstr(buf.value()));
-		ryml::NodeRef root = tree.rootref();
-
-		for (const auto& n : root.children())
-		{
-			auto serial = StringUtil::toLower(std::string(n.key().str, n.key().len));
-
-			// Serials and CRCs must be inserted as lower-case, as that is how they are retrieved
-			// this is because the application may pass a lowercase CRC or serial along
-			//
-			// However, YAML's keys are as expected case-sensitive, so we have to explicitly do our own duplicate checking
-			if (s_game_db.count(serial) == 1)
-			{
-				Console.Error(fmt::format("[GameDB] Duplicate serial '{}' found in GameDB. Skipping, Serials are case-insensitive!", serial));
-				continue;
-			}
-			if (n.is_map())
-			{
-				parseAndInsert(serial, n);
-			}
-		}
+		Console.Error("[GameDB] Unable to open GameDB file, file does not exist.");
+		return;
 	}
-	catch (const std::exception& e)
+
+	ryml::Tree tree = ryml::parse_in_arena(c4::to_csubstr(buf.value()));
+	ryml::NodeRef root = tree.rootref();
+
+	for (const auto& n : root.children())
 	{
-		Console.Error(fmt::format("[GameDB] Error occured when initializing GameDB: {}", e.what()));
+		auto serial = StringUtil::toLower(std::string(n.key().str, n.key().len));
+
+		// Serials and CRCs must be inserted as lower-case, as that is how they are retrieved
+		// this is because the application may pass a lowercase CRC or serial along
+		//
+		// However, YAML's keys are as expected case-sensitive, so we have to explicitly do our own duplicate checking
+		if (s_game_db.count(serial) == 1)
+		{
+			Console.Error(fmt::format("[GameDB] Duplicate serial '{}' found in GameDB. Skipping, Serials are case-insensitive!", serial));
+			continue;
+		}
+		if (n.is_map())
+			parseAndInsert(serial, n);
 	}
+
 	ryml::reset_callbacks();
 }
 
