@@ -41,6 +41,7 @@
 #include "Elfheader.h"
 #include "ps2/BiosTools.h"
 #include "Host.h"
+#include "VMManager.h"
 
 // This typically reflects the Sony-assigned serial code for the Disc, if one exists.
 //  (examples:  SLUS-2113, etc).
@@ -1348,6 +1349,12 @@ void cdvdUpdateTrayState(void)
 					cdvd.Tray.trayState = CDVD_DISC_SEEKING;
 					cdvdUpdateStatus(CDVD_STATUS_SEEK);
 					cdvd.Tray.cdvdActionSeconds = 2;
+					// If we're swapping disc, reload the elf, patches etc to reflect the new disc.
+					if (g_GameStarted)
+					{
+						cdvdReloadElfInfo();
+						VMManager::Internal::GameStartingOnCPUThread();
+					}
 					break;
 				case CDVD_DISC_SEEKING:
 					cdvd.Spinning = true;

@@ -78,7 +78,7 @@ namespace VMManager
 	static bool ApplyBootParameters(VMBootParameters params, std::string* state_to_load);
 	static void LoadPatches(const std::string& serial, u32 crc,
 		bool show_messages, bool show_messages_when_disabled);
-	static void UpdateRunningGame(bool resetting, bool game_starting);
+	static void UpdateRunningGame(bool resetting, bool game_starting, bool swapping_disc);
 
 	static void SetTimerResolutionIncreased(bool enabled);
 	static void SetHardwareDependentDefaultSettings(SettingsInterface& si);
@@ -364,7 +364,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 	}
 }
 
-void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
+void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapping_disc)
 {
 	// The CRC can be known before the game actually starts (at the bios), so when
 	// we have the CRC but we're still at the bios and the settings are changed
@@ -385,7 +385,12 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 		std::string memcardFilters;
 
 		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial))
+		{
 			memcardFilters = game->memcardFiltersAsString();
+		}
+		else
+		{
+		}
 
 		sioSetGameSerial(memcardFilters.empty() ? s_game_serial : memcardFilters);
 
@@ -398,14 +403,17 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	UpdateGameSettingsLayer();
 	ApplySettings();
 
-	// Clear the memory card eject notification again when booting for the first time, or starting.
-	// Otherwise, games think the card was removed on boot.
-	if (game_starting || resetting)
-		AutoEject::ClearAll();
+	if (!swapping_disc)
+	{
+		// Clear the memory card eject notification again when booting for the first time, or starting.
+		// Otherwise, games think the card was removed on boot.
+		if (game_starting || resetting)
+			AutoEject::ClearAll();
 
-	// Check this here, for two cases: dynarec on, and when enable cheats is set per-game.
-	if (s_patches_crc != s_game_crc)
-		ReloadPatches(game_starting, false);
+		// Check this here, for two cases: dynarec on, and when enable cheats is set per-game.
+		if (s_patches_crc != s_game_crc)
+			ReloadPatches(game_starting, false);
+	}
 
 	MTGS::SendGameCRC(new_crc);
 
@@ -574,7 +582,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	s_state.store(VMState::Paused, std::memory_order_release);
 	Host::OnVMStarted();
 
-	UpdateRunningGame(true, false);
+	UpdateRunningGame(true, false, false);
 
 	SetEmuThreadAffinities();
 
@@ -676,7 +684,7 @@ void VMManager::Reset()
 
 	// gameid change, so apply settings
 	if (game_was_started)
-		UpdateRunningGame(true, false);
+		UpdateRunningGame(true, false, false);
 
 	// If we were paused, state won't be resetting, so don't flip back to running.
 	if (s_state.load(std::memory_order_acquire) == VMState::Resetting)
@@ -772,7 +780,7 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 void VMManager::Internal::GameStartingOnCPUThread()
 {
 	int i;
-	UpdateRunningGame(false, true);
+	UpdateRunningGame(false, true, false);
 	for (i = 0; i < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;
@@ -780,6 +788,11 @@ void VMManager::Internal::GameStartingOnCPUThread()
 		  || (_place == PPT_COMBINED_0_1))
 			_ApplyPatch(&Patch[i]);
 	}
+}
+
+void VMManager::Internal::SwappingGameOnCPUThread()
+{
+	UpdateRunningGame(false, false, true);
 }
 
 void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)

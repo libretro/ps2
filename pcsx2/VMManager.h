@@ -114,6 +114,7 @@ namespace VMManager
 		bool IsExecutionInterrupted();
 		void EntryPointCompilingOnCPUThread();
 		void GameStartingOnCPUThread();
+		void SwappingGameOnCPUThread();
 		void VSyncOnCPUThread();
 	} // namespace Internal
 } // namespace VMManager
