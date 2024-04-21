@@ -628,8 +628,7 @@ bool retro_load_game(const struct retro_game_info* game)
 	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
 	EmuFolders::LoadConfig(*bsi);
 	EmuFolders::EnsureFoldersExist(); /* TODO/FIXME - check if this is not duplicate */
-	VMManager::Internal::InitializeGlobals();
-	VMManager::Internal::InitializeMemory();
+	VMManager::Internal::CPUThreadInitialize();
 	VMManager::LoadSettings();
 
 	if (Options::bios.empty())
@@ -730,8 +729,7 @@ void retro_unload_game(void)
 	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		Vulkan::UnloadVulkanLibrary();
 #endif
-	VMManager::Internal::ReleaseMemory();
-	VMManager::Internal::ReleaseGlobals();
+	VMManager::Internal::CPUThreadShutdown();
 
 	if (gs_freeze_data.data)
 	{

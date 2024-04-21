@@ -98,17 +98,11 @@ namespace VMManager
 	/// Internal callbacks, implemented in the emu core.
 	namespace Internal
 	{
-		/// Performs early global initialization.
-		void InitializeGlobals(void);
+		/// Initializes common host state, called on the CPU thread.
+		void CPUThreadInitialize(void);
 
-		/// Releases resources allocated in InitializeGlobals().
-		void ReleaseGlobals(void);
-
-		/// Reserves memory for the virtual machines.
-		void InitializeMemory(void);
-
-		/// Completely releases all memory for the virtual machine.
-		void ReleaseMemory();
+		/// Cleans up common host state, called on the CPU thread.
+		void CPUThreadShutdown();
 
 		const std::string& GetElfOverride();
 		bool IsExecutionInterrupted();

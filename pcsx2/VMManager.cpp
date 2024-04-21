@@ -148,7 +148,7 @@ std::string VMManager::GetDiscSerial()
 	return s_game_serial;
 }
 
-void VMManager::Internal::InitializeGlobals(void)
+void VMManager::Internal::CPUThreadInitialize(void)
 {
 	x86caps.Identify();
 	x86caps.CountCores();
@@ -158,31 +158,25 @@ void VMManager::Internal::InitializeGlobals(void)
 	GSinit();
 	SPU2::Initialize();
 	USBinit();
-}
 
-void VMManager::Internal::ReleaseGlobals(void)
-{
-	USBshutdown();
-	SPU2::Shutdown();
-	GSshutdown();
-}
-
-void VMManager::Internal::InitializeMemory(void)
-{
 	s_vm_memory = std::make_unique<SysMainMemory>();
 	s_cpu_provider_pack = std::make_unique<SysCpuProviderPack>();
 	s_vm_memory->Allocate();
 }
 
-void VMManager::Internal::ReleaseMemory()
+void VMManager::Internal::CPUThreadShutdown(void)
 {
 	std::vector<u8>().swap(s_widescreen_cheats_data);
-	s_widescreen_cheats_loaded = false;
 	std::vector<u8>().swap(s_no_interlacing_cheats_data);
+	s_widescreen_cheats_loaded     = false;
 	s_no_interlacing_cheats_loaded = false;
 
 	s_cpu_provider_pack.reset();
 	s_vm_memory.reset();
+
+	USBshutdown();
+	SPU2::Shutdown();
+	GSshutdown();
 }
 
 SysMainMemory& GetVmMemory()
