@@ -35,6 +35,7 @@
 #include "FW.h"
 #include "GameDatabase.h"
 #include "GS.h"
+#include "GS/Renderers/HW/GSTextureReplacements.h"
 #include "Host.h"
 #include "IopBios.h"
 #include "MTVU.h"
@@ -146,6 +147,40 @@ std::string VMManager::GetDiscSerial()
 {
 	std::unique_lock lock(s_info_mutex);
 	return s_game_serial;
+}
+
+void VMManager::Internal::UpdateEmuFolders()
+{
+	const std::string old_cheats_directory(EmuFolders::Cheats);
+	const std::string old_cheats_ws_directory(EmuFolders::CheatsWS);
+	const std::string old_cheats_ni_directory(EmuFolders::CheatsNI);
+	const std::string old_memcards_directory(EmuFolders::MemoryCards);
+	const std::string old_textures_directory(EmuFolders::Textures);
+
+	EmuFolders::LoadConfig(*Host::Internal::GetBaseSettingsLayer());
+	EmuFolders::EnsureFoldersExist();
+
+	if (VMManager::HasValidVM())
+	{
+		if (EmuFolders::Cheats != old_cheats_directory || EmuFolders::CheatsWS != old_cheats_ws_directory ||
+			EmuFolders::CheatsNI != old_cheats_ni_directory)
+			VMManager::ReloadPatches(true, true);
+
+		if (EmuFolders::MemoryCards != old_memcards_directory)
+		{
+			FileMcd_EmuClose();
+			FileMcd_EmuOpen();
+			AutoEject::SetAll();
+		}
+
+		if (EmuFolders::Textures != old_textures_directory)
+		{
+			MTGS::RunOnGSThread([]() {
+				if (VMManager::HasValidVM())
+					GSTextureReplacements::ReloadReplacementMap();
+			});
+		}
+	}
 }
 
 void VMManager::Internal::CPUThreadInitialize(void)

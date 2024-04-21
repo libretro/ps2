@@ -104,6 +104,9 @@ namespace VMManager
 		/// Cleans up common host state, called on the CPU thread.
 		void CPUThreadShutdown();
 
+		/// Updates the variables in the EmuFolders namespace, reloading subsystems if needed.
+		void UpdateEmuFolders();
+
 		const std::string& GetElfOverride();
 		bool IsExecutionInterrupted();
 		void EntryPointCompilingOnCPUThread();

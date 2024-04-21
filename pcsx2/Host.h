@@ -75,8 +75,6 @@ namespace Host
 		/// Sets the base settings layer. Should be called by the host at initialization time.
 		void SetBaseSettingsLayer(SettingsInterface* sif);
 
-		/// Updates the variables in the EmuFolders namespace, reloading subsystems if needed. Must call with the lock held.
-		void UpdateEmuFolders();
 	} // namespace Internal
 	/// Reads a file from the resources directory of the application.
 	/// This may be outside of the "normal" filesystem on platforms such as Mac.

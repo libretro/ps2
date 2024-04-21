@@ -191,36 +191,3 @@ void Host::Internal::SetBaseSettingsLayer(SettingsInterface* sif)
 	s_layered_settings_interface.SetLayer(LayeredSettingsInterface::LAYER_BASE, sif);
 }
 
-void Host::Internal::UpdateEmuFolders()
-{
-	const std::string old_cheats_directory(EmuFolders::Cheats);
-	const std::string old_cheats_ws_directory(EmuFolders::CheatsWS);
-	const std::string old_cheats_ni_directory(EmuFolders::CheatsNI);
-	const std::string old_memcards_directory(EmuFolders::MemoryCards);
-	const std::string old_textures_directory(EmuFolders::Textures);
-
-	EmuFolders::LoadConfig(*GetBaseSettingsLayer());
-	EmuFolders::EnsureFoldersExist();
-
-	if (VMManager::HasValidVM())
-	{
-		if (EmuFolders::Cheats != old_cheats_directory || EmuFolders::CheatsWS != old_cheats_ws_directory ||
-			EmuFolders::CheatsNI != old_cheats_ni_directory)
-			VMManager::ReloadPatches(true, true);
-
-		if (EmuFolders::MemoryCards != old_memcards_directory)
-		{
-			FileMcd_EmuClose();
-			FileMcd_EmuOpen();
-			AutoEject::SetAll();
-		}
-
-		if (EmuFolders::Textures != old_textures_directory)
-		{
-			MTGS::RunOnGSThread([]() {
-				if (VMManager::HasValidVM())
-					GSTextureReplacements::ReloadReplacementMap();
-			});
-		}
-	}
-}
