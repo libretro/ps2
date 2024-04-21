@@ -26,6 +26,7 @@
 
 #include "common/PrecompiledHeader.h"
 
+#include "common/Threading.h"
 #include "common/ThreadPool.h"
 
 #include <cassert>
@@ -133,3 +134,8 @@ void ThreadPool::SetWorkDoneCallback(std::function<void(int)> func) {
 }
 
 }  // namespace cb
+
+void Threading::Thread::SetStackSize(u32 size)
+{
+	m_stack_size = size;
+}

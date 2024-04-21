@@ -99,6 +99,9 @@ namespace Threading
 
 		__fi bool Joinable() const { return (m_native_handle != nullptr); }
 
+		/// Sets the stack size for the thread. Do not call if the thread has already been started.
+		void SetStackSize(u32 size);
+
 		bool Start(EntryPoint func);
 		void Detach();
 		void Join();
