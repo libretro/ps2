@@ -77,8 +77,7 @@ namespace VMManager
 
 	static bool AutoDetectSource(const std::string& filename);
 	static bool ApplyBootParameters(VMBootParameters params, std::string* state_to_load);
-	static void LoadPatches(const std::string& serial, u32 crc,
-		bool show_messages, bool show_messages_when_disabled);
+	static void LoadPatches(const std::string& serial, u32 crc);
 	static void UpdateRunningGame(bool resetting, bool game_starting, bool swapping_disc);
 
 	static void SetTimerResolutionIncreased(bool enabled);
@@ -164,7 +163,7 @@ void VMManager::Internal::UpdateEmuFolders()
 	{
 		if (EmuFolders::Cheats != old_cheats_directory || EmuFolders::CheatsWS != old_cheats_ws_directory ||
 			EmuFolders::CheatsNI != old_cheats_ni_directory)
-			VMManager::ReloadPatches(true, true);
+			VMManager::ReloadPatches();
 
 		if (EmuFolders::MemoryCards != old_memcards_directory)
 		{
@@ -267,7 +266,7 @@ void VMManager::ApplyGameFixes()
 
 bool VMManager::UpdateGameSettingsLayer(void) { return true; }
 
-void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messages, bool show_messages_when_disabled)
+void VMManager::LoadPatches(const std::string& serial, u32 crc)
 {
 	const std::string crc_string(fmt::format("{:08X}", crc));
 	s_patches_crc = crc;
@@ -389,10 +388,10 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 		s_active_no_interlacing_patches = 0;
 	}
 
-	if (show_messages)
+	if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
 	{
-		if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
-			message += " are active.";
+		message += " are active.";
+		Console.WriteLn(message.c_str());
 	}
 }
 
@@ -444,7 +443,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 
 		// Check this here, for two cases: dynarec on, and when enable cheats is set per-game.
 		if (s_patches_crc != s_game_crc)
-			ReloadPatches(game_starting, false);
+			ReloadPatches();
 
 		MIPSAnalyst::ScanForFunctions(R5900SymbolMap, ElfTextRange.first, ElfTextRange.first + ElfTextRange.second, true);
 		R5900SymbolMap.UpdateActiveSymbols();
@@ -457,9 +456,9 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 
 }
 
-void VMManager::ReloadPatches(bool verbose, bool show_messages_when_disabled)
+void VMManager::ReloadPatches()
 {
-	LoadPatches(s_game_serial, s_game_crc, verbose, show_messages_when_disabled);
+	LoadPatches(s_game_serial, s_game_crc);
 }
 
 bool VMManager::AutoDetectSource(const std::string& filename)
@@ -804,7 +803,7 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 	// until the game entry point actually runs, because that can update settings, which
 	// can flush the JIT, etc. But we need to apply patches for games where the entry
 	// point is in the patch (e.g. WRC 4). So. Gross, but the only way to handle it really.
-	LoadPatches(SysGetDiscID(), ElfCRC, true, false);
+	LoadPatches(SysGetDiscID(), ElfCRC);
 	for (i = 0; i < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;
@@ -890,7 +889,7 @@ void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)
 		EmuConfig.EnablePatches == old_config.EnablePatches)
 		return;
 
-	ReloadPatches(true, true);
+	ReloadPatches();
 }
 
 void VMManager::CheckForDEV9ConfigChanges(const Pcsx2Config& old_config)
@@ -962,7 +961,7 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 		if (EmuConfig.EnableCheats != old_config.EnableCheats ||
 			EmuConfig.EnableWideScreenPatches != old_config.EnableWideScreenPatches ||
 			EmuConfig.EnableNoInterlacingPatches != old_config.EnableNoInterlacingPatches)
-			VMManager::ReloadPatches(true, true);
+			VMManager::ReloadPatches();
 	}
 
 	// For the big picture UI, we still need to update GS settings, since it's running,

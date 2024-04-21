@@ -85,7 +85,7 @@ namespace VMManager
 	void ApplySettings();
 
 	/// Reloads cheats/patches. If verbose is set, the number of patches loaded will be shown in the OSD.
-	void ReloadPatches(bool verbose, bool show_messages_when_disabled);
+	void ReloadPatches();
 
 	/// Changes the disc in the virtual CD/DVD drive. Passing an empty will remove any current disc.
 	/// Returns false if the new disc can't be opened.
