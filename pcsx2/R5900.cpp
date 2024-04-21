@@ -54,7 +54,7 @@ bool g_GameLoading; // EELOAD has been called to load the game
 static const uint eeWaitCycles = 3072;
 
 bool eeEventTestIsActive = false;
-EE_intProcessStatus eeRunInterruptScan = INT_NOT_RUNNING;
+static EE_intProcessStatus eeRunInterruptScan = INT_NOT_RUNNING;
 
 u32 g_eeloadMain = 0, g_eeloadExec = 0, g_osdsys_str = 0;
 
@@ -64,7 +64,7 @@ The second EELOAD call during full boot has three built-in arguments ("EELOAD ro
 meaning that only the first 13 game arguments supplied by the user can be added on and passed through.
 In fast boot mode, 15 arguments can fit because the only call to EELOAD is "<ELF> <<args>>". */
 #define KMAXARGS 16
-uptr g_argPtrs[KMAXARGS];
+static uptr g_argPtrs[KMAXARGS];
 
 extern SysMainMemory& GetVmMemory();
 
@@ -117,8 +117,8 @@ void cpuReset()
 
 __ri void cpuException(u32 code, u32 bd)
 {
-	bool errLevel2, checkStatus;
-	u32 offset = 0;
+	bool checkStatus;
+	u32 offset          = 0;
 
 	cpuRegs.branch      = 0; // Tells the interpreter that an exception occurred during a branch.
 	cpuRegs.CP0.n.Cause = code & 0xffff;
@@ -126,7 +126,6 @@ __ri void cpuException(u32 code, u32 bd)
 	if(cpuRegs.CP0.n.Status.b.ERL == 0)
 	{
 		//Error Level 0-1
-		errLevel2 = false;
 		checkStatus = (cpuRegs.CP0.n.Status.b.BEV == 0); //  for TLB/general exceptions
 
 		if (((code & 0x7C) >= 0x8) && ((code & 0x7C) <= 0xC))
@@ -139,7 +138,6 @@ __ri void cpuException(u32 code, u32 bd)
 	else
 	{
 		//Error Level 2
-		errLevel2   = true;
 		checkStatus = (cpuRegs.CP0.n.Status.b.DEV == 0); // for perf/debug exceptions
 
 		if ((code & 0x38000) <= 0x8000 )
@@ -157,16 +155,14 @@ __ri void cpuException(u32 code, u32 bd)
 	if (cpuRegs.CP0.n.Status.b.EXL == 0)
 	{
 		cpuRegs.CP0.n.Status.b.EXL = 1;
+		cpuRegs.CP0.n.EPC          = cpuRegs.pc;
 		if (bd)
 		{
-			cpuRegs.CP0.n.EPC = cpuRegs.pc - 4;
+			cpuRegs.CP0.n.EPC   -= 4;
 			cpuRegs.CP0.n.Cause |= 0x80000000;
 		}
 		else
-		{
-			cpuRegs.CP0.n.EPC = cpuRegs.pc;
 			cpuRegs.CP0.n.Cause &= ~0x80000000;
-		}
 	}
 	else
 		offset = 0x180; //Override the cause
@@ -226,17 +222,16 @@ __fi int cpuTestCycle( u32 startCycle, s32 delta )
 {
 	// typecast the conditional to signed so that things don't explode
 	// if the startCycle is ahead of our current cpu cycle.
-
 	return (int)(cpuRegs.cycle - startCycle) >= delta;
 }
 
 // tells the EE to run the branch test the next time it gets a chance.
-__fi void cpuSetEvent()
+__fi void cpuSetEvent(void)
 {
 	cpuRegs.nextEventCycle = cpuRegs.cycle;
 }
 
-__fi void cpuClearInt( uint i )
+__fi void cpuClearInt(uint i)
 {
 	cpuRegs.interrupt &= ~(1 << i);
 	cpuRegs.dmastall &= ~(1 << i);
@@ -609,8 +604,8 @@ void eeloadHook(void)
 		{
 			// Join all arguments by space characters so they can be processed as one string by ParseArgumentString(), then add the
 			// user's launch arguments onto the end
-			u32 arg_ptr = 0;
-			int arg_len = 0;
+			u32    arg_ptr = 0;
+			size_t arg_len = 0;
 			for (int a = 0; a < argc; a++)
 			{
 				arg_ptr = memRead32(cpuRegs.GPR.n.a1.UD[0] + (a * 4));

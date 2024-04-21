@@ -132,9 +132,7 @@ static bool checkDivideByZero(u32& xReg, u32 yDivisorReg, u32 zDividendReg, u32 
 	for specific instructions... I'm just setting them to clear when the Instruction Set Manual
 	says to... (cottonvibes)
 */
-#define clearFPUFlags(cFlags) {  \
-	_ContVal_ &= ~( cFlags ) ;  \
-}
+#define clearFPUFlags(cFlags) _ContVal_ &= ~(cFlags)
 
 #ifdef comparePrecision
 // This compare discards the least-significant bit(s) in order to solve some rounding issues.
