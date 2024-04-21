@@ -132,26 +132,6 @@ bool SaveStateBase::FreezeInternals()
 	Freeze(g_GameLoading);
 	Freeze(ElfCRC);
 
-	char localDiscSerial[256];
-	StringUtil::Strlcpy(localDiscSerial, DiscSerial.c_str(), sizeof(localDiscSerial));
-	Freeze(localDiscSerial);
-	if (IsLoading())
-	{
-		DiscSerial = localDiscSerial;
-
-		if (ElfCRC != previousCRC)
-		{
-			// HACK: LastELF isn't in the save state... Load it before we go too far into restoring state.
-			// When we next bump save states, we should include it. We need this for achievements, because
-			// we want to load and activate achievements before restoring any of their tracked state.
-			if (const std::string& elf_override = VMManager::Internal::GetElfOverride(); !elf_override.empty())
-				cdvdReloadElfInfo(fmt::format("host:{}", elf_override));
-			else
-				cdvdReloadElfInfo();
-		}
-	}
-
-
 	// Third Block - Cycle Timers and Events
 	// -------------------------------------
 	if (!(FreezeTag( "Cycles" )))

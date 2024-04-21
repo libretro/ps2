@@ -58,7 +58,7 @@ namespace VMManager
 	bool HasValidVM();
 
 	/// Returns the serial of the disc/executable currently running.
-	std::string GetGameSerial();
+	std::string GetDiscSerial();
 
 	/// Loads global settings (i.e. EmuConfig).
 	void LoadSettings();

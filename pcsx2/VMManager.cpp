@@ -142,7 +142,7 @@ bool VMManager::HasValidVM()
 	return (state >= VMState::Running && state <= VMState::Resetting);
 }
 
-std::string VMManager::GetGameSerial()
+std::string VMManager::GetDiscSerial()
 {
 	std::unique_lock lock(s_info_mutex);
 	return s_game_serial;
