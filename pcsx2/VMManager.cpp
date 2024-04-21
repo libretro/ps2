@@ -225,6 +225,9 @@ void VMManager::ApplyGameFixes()
 {
 	s_active_game_fixes = 0;
 
+	if (s_game_crc == 0)
+		return;
+
 	const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial);
 	if (!game)
 		return;
