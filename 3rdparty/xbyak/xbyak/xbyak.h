@@ -920,28 +920,6 @@ public:
 		if (size > maxSize_) return;
 		size_ = size;
 	}
-	void dump() const
-	{
-		const uint8_t *p = getCode();
-		size_t bufSize = getSize();
-		size_t remain = bufSize;
-		for (int i = 0; i < 4; i++) {
-			size_t disp = 16;
-			if (remain < 16) {
-				disp = remain;
-			}
-			for (size_t j = 0; j < 16; j++) {
-				if (j < disp) {
-					printf("%02X", p[i * 16 + j]);
-				}
-			}
-			putchar('\n');
-			remain -= disp;
-			if (remain == 0) {
-				break;
-			}
-		}
-	}
 	/*
 		@param offset [in] offset from top
 		@param disp [in] offset from the next of jmp
@@ -1117,19 +1095,6 @@ public:
 	void clear() { mgr = 0; id = 0; }
 	int getId() const { return id; }
 	const uint8_t *getAddress() const;
-
-	// backward compatibility
-	static inline std::string toStr(int num)
-	{
-		char buf[16];
-#if defined(_MSC_VER) && (_MSC_VER < 1900)
-		_snprintf_s
-#else
-		snprintf
-#endif
-		(buf, sizeof(buf), ".%08x", num);
-		return buf;
-	}
 };
 
 class LabelManager {
@@ -1219,11 +1184,10 @@ class LabelManager {
 		labelPtrList_.erase(label);
 		ClabelDefList::iterator i = clabelDefList_.find(id);
 		if (i == clabelDefList_.end()) return;
-		if (i->second.refCount == 1) {
+		if (i->second.refCount == 1)
 			clabelDefList_.erase(id);
-		} else {
+		else
 			--i->second.refCount;
-		}
 	}
 	template<class T>
 	bool hasUndefinedLabel_inner(const T& list) const
@@ -1233,9 +1197,8 @@ class LabelManager {
 	// detach all labels linked to LabelManager
 	void resetLabelPtrList()
 	{
-		for (LabelPtrList::iterator i = labelPtrList_.begin(), ie = labelPtrList_.end(); i != ie; ++i) {
+		for (LabelPtrList::iterator i = labelPtrList_.begin(), ie = labelPtrList_.end(); i != ie; ++i)
 			(*i)->clear();
-		}
 		labelPtrList_.clear();
 	}
 public:
@@ -1268,11 +1231,12 @@ public:
 			if (i != defList.end()) {
 				defList.erase(i);
 				label = "@b";
-			} else {
+			}
+			else
+			{
 				i = defList.find("@b");
-				if (i != defList.end()) {
+				if (i != defList.end())
 					defList.erase(i);
-				}
 				label = "@f";
 			}
 		}
@@ -1296,15 +1260,17 @@ public:
 	bool getOffset(size_t *offset, std::string& label) const
 	{
 		const SlabelDefList& defList = stateList_.front().defList;
-		if (label == "@b") {
+		if (label == "@b")
+		{
 			if (defList.find("@f") != defList.end())
 				label = "@f";
 			else if (defList.find("@b") == defList.end())
 				return false;
-		} else if (label == "@f") {
-			if (defList.find("@f") != defList.end()) {
+		}
+		else if (label == "@f")
+		{
+			if (defList.find("@f") != defList.end())
 				label = "@b";
-			}
 		}
 		const SlabelState& st = *label.c_str() == '.' ? stateList_.back() : stateList_.front();
 		return getOffset_inner(st.defList, offset, label);
@@ -2139,7 +2105,6 @@ private:
 	}
 #endif
 public:
-	unsigned int getVersion() const { return VERSION; }
 	using CodeArray::db;
 	const Mmx mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7;
 	const Xmm xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
@@ -2489,13 +2454,6 @@ public:
 	}
 	// set read/exec
 	void readyRE() { return ready(PROTECT_RE); }
-#ifdef XBYAK_TEST
-	void dump(bool doClear = true)
-	{
-		CodeArray::dump();
-		if (doClear) size_ = 0;
-	}
-#endif
 
 #ifdef XBYAK_UNDEF_JNL
 	#undef jnl
