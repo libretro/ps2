@@ -63,7 +63,6 @@ struct Gif_Tag
 	}
 
 	__ri void Reset() { memset(this, 0, sizeof(*this)); }
-	__ri u8 curReg() { return regs[nRegIdx & 0xf]; }
 
 	__ri void packedStep()
 	{
@@ -349,7 +348,7 @@ struct Gif_Path
 					{
 						return gsPack; // Exit Early
 					}
-					if (gifTag.curReg() == GIF_REG_A_D)
+					if (gifTag.regs[gifTag.nRegIdx & 0xf] == GIF_REG_A_D)
 					{
 						if (!isMTVU())
 							dblSIGNAL = Gif_HandlerAD(&buffer[curOffset]);
@@ -426,7 +425,7 @@ struct Gif_Path
 				{
 					if (curOffset + 16 > curSize)
 						break; // Exit Early
-					if (gifTag.curReg() == GIF_REG_A_D)
+					if (gifTag.regs[gifTag.nRegIdx & 0xf] == GIF_REG_A_D)
 					{
 						Gif_HandlerAD_MTVU(&buffer[curOffset]);
 					}
