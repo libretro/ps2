@@ -4,8 +4,13 @@
 if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
 	find_package(Git)
 endif()
+if(APPLE)
+	find_package(ZLIB REQUIRED)
+	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
+else()
 	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 	add_subdirectory(3rdparty/zlib EXCLUDE_FROM_ALL)
+endif()
 if (WIN32)
 	# We bundle everything on Windows
 	add_subdirectory(3rdparty/wil EXCLUDE_FROM_ALL)
