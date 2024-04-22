@@ -926,20 +926,11 @@ if(WIN32)
 	target_link_libraries(PCSX2_FLAGS INTERFACE
 		WIL::WIL
 		D3D12MemAlloc
-		setupapi.lib
-		ws2_32.lib
-		shlwapi.lib
-		iphlpapi.lib
-		dxguid.lib
-		hid.lib
-		PowrProf.lib
 		d3dcompiler.lib
 		d3d11.lib
 		d3d12.lib
 		dxgi.lib
-		strmiids.lib
 		opengl32.lib
-		comsuppw.lib
 		OneCore.lib
 	)
 elseif(APPLE)
