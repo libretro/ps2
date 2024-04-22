@@ -461,16 +461,9 @@ void MTGS::SendDataPacket()
 
 	s_WritePos.store(s_packet_writepos, std::memory_order_release);
 
-	if (EmuConfig.GS.SynchronousMTGS)
-	{
-		WaitGS();
-	}
-	else
-	{
-		s_CopyDataTally += s_packet_size;
-		if (s_CopyDataTally > 0x2000)
-			SetEvent();
-	}
+	s_CopyDataTally += s_packet_size;
+	if (s_CopyDataTally > 0x2000)
+		SetEvent();
 
 	s_packet_size = 0;
 }
@@ -582,22 +575,16 @@ void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int dat
 	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
 	s_WritePos.store(future_writepos, std::memory_order_release);
 
-	if (EmuConfig.GS.SynchronousMTGS)
-		WaitGS();
-	else
-		++s_CopyDataTally;
+	++s_CopyDataTally;
 }
 
 void MTGS::SendSimpleGSPacket(MTGS_RingCommand type, u32 offset, u32 size, GIF_PATH path)
 {
 	SendSimplePacket(type, (int)offset, (int)size, (int)path);
 
-	if (!EmuConfig.GS.SynchronousMTGS)
-	{
-		s_CopyDataTally += size / 16;
-		if (s_CopyDataTally > 0x2000)
-			SetEvent();
-	}
+	s_CopyDataTally += size / 16;
+	if (s_CopyDataTally > 0x2000)
+		SetEvent();
 }
 
 void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
@@ -612,10 +599,7 @@ void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
 	s_WritePos.store(future_writepos, std::memory_order_release);
 
-	if (EmuConfig.GS.SynchronousMTGS)
-		WaitGS();
-	else
-		++s_CopyDataTally;
+	++s_CopyDataTally;
 }
 
 void MTGS::SendGameCRC(u32 crc)
