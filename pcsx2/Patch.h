@@ -39,24 +39,6 @@
 #include <string_view>
 #include <vector>
 
-enum patch_cpu_type {
-	NO_CPU = 0,
-	CPU_EE,
-	CPU_IOP
-};
-
-enum patch_data_type {
-	NO_TYPE = 0,
-	BYTE_T,
-	SHORT_T,
-	WORD_T,
-	DOUBLE_T,
-	EXTENDED_T,
-	SHORT_LE_T,
-	WORD_LE_T,
-	DOUBLE_LE_T
-};
-
 // "place" is the first number at a pnach line (patch=<place>,...), e.g.:
 // - patch=1,EE,001110e0,word,00000000 <-- place is 1
 // - patch=0,EE,0010BC88,word,48468800 <-- place is 0
@@ -75,21 +57,18 @@ enum patch_data_type {
 // - There's no "place" value which indicates to apply both once on startup
 //   and then also continuously, however such behavior can be achieved by
 //   duplicating the line where one has a 0 place and the other has a 1 place.
-enum patch_place_type {
-	PPT_ONCE_ON_LOAD = 0,
-	PPT_CONTINUOUSLY = 1,
-	PPT_COMBINED_0_1 = 2,
-
-	_PPT_END_MARKER
-};
+#define PPT_ONCE_ON_LOAD 0
+#define PPT_CONTINUOUSLY 1
+#define PPT_COMBINED_0_1 2
+#define _PPT_END_MARKER  3
 
 typedef void PATCHTABLEFUNC(const std::string_view& text1, const std::string_view& text2);
 
 struct IniPatch
 {
 	int enabled;
-	patch_data_type type;
-	patch_cpu_type cpu;
+	unsigned type;
+	unsigned cpu;
 	int placetopatch;
 	u32 addr;
 	u64 data;
@@ -135,6 +114,6 @@ extern void ApplyDynamicPatches(u32 pc);
 // and then it loads only the ones which are enabled according to the current config
 // Empties the patches store ("unload" the patches) but doesn't touch the emulation memory.
 // Following ApplyLoadedPatches calls will do nothing until some LoadPatchesFrom* are invoked.
-extern void ForgetLoadedPatches();
+extern void ForgetLoadedPatches(void);
 
 extern void _ApplyPatch(IniPatch* p);

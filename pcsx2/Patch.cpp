@@ -31,6 +31,25 @@
 #include <sstream>
 #include <vector>
 
+enum patch_cpu_type {
+	NO_CPU = 0,
+	CPU_EE,
+	CPU_IOP
+};
+
+enum patch_data_type {
+	NO_TYPE = 0,
+	BYTE_T,
+	SHORT_T,
+	WORD_T,
+	DOUBLE_T,
+	EXTENDED_T,
+	SHORT_LE_T,
+	WORD_LE_T,
+	DOUBLE_LE_T
+};
+
+
 static u32 SkipCount          = 0;
 static u32 IterationCount     = 0;
 static u32 IterationIncrement = 0;
@@ -710,7 +729,7 @@ int LoadPatchesFromString(const std::string& patches)
 	return static_cast<int>(Patch.size() - before);
 }
 
-void ForgetLoadedPatches()
+void ForgetLoadedPatches(void)
 {
 	Patch.clear();
 	DynaPatch.clear();
