@@ -4,15 +4,14 @@
 if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
 	find_package(Git)
 endif()
+	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
+	add_subdirectory(3rdparty/zlib EXCLUDE_FROM_ALL)
 if (WIN32)
 	# We bundle everything on Windows
-	add_subdirectory(3rdparty/zlib EXCLUDE_FROM_ALL)
-	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 	add_subdirectory(3rdparty/wil EXCLUDE_FROM_ALL)
 	add_subdirectory(3rdparty/xz EXCLUDE_FROM_ALL)
 	add_subdirectory(3rdparty/D3D12MemAlloc EXCLUDE_FROM_ALL)
 else()
-	find_package(PCAP REQUIRED)
 	find_package(LibLZMA REQUIRED)
 	make_imported_target_if_missing(LibLZMA::LibLZMA LIBLZMA)
 
@@ -25,19 +24,13 @@ else()
 	# On macOS, Mono.framework contains an ancient version of libpng.  We don't want that.
 	# Avoid it by telling cmake to avoid finding frameworks while we search for libpng.
 	if(APPLE)
-		find_package(ZLIB REQUIRED)
 	else()
 		set(FIND_FRAMEWORK_BACKUP ${CMAKE_FIND_FRAMEWORK})
 		set(CMAKE_FIND_FRAMEWORK NEVER)
 	endif()
-	find_package(ZLIB REQUIRED)
-	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
 
 	## Use pcsx2 package to find module
 	include(FindLibc)
-	if(UNIX AND NOT APPLE)
-		find_package(Libbacktrace)
-	endif()
 endif(WIN32)
 
 # Require threads on all OSes.

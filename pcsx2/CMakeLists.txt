@@ -51,10 +51,6 @@ elseif("${PGO}" STREQUAL "use")
 	target_compile_options(PCSX2_FLAGS INTERFACE -fprofile-use)
 endif()
 
-if(USE_LEGACY_USER_DIRECTORY)
-	target_compile_definitions(PCSX2_FLAGS INTERFACE USE_LEGACY_USER_DIRECTORY)
-endif()
-
 if(WIN32)
 	set(MIN_WIN32 0x0A00)
 	target_compile_definitions(PCSX2_FLAGS INTERFACE
@@ -934,9 +930,7 @@ if(WIN32)
 		ws2_32.lib
 		shlwapi.lib
 		iphlpapi.lib
-		dsound.lib
 		dxguid.lib
-		dinput8.lib
 		hid.lib
 		PowrProf.lib
 		d3dcompiler.lib
@@ -949,13 +943,9 @@ if(WIN32)
 		OneCore.lib
 	)
 elseif(APPLE)
-	target_link_libraries(PCSX2_FLAGS INTERFACE
-		PCAP::PCAP
-	)
 else()
 	target_link_libraries(PCSX2_FLAGS INTERFACE
 		OpenGL::GL
-		PCAP::PCAP
 	)
 endif()
 

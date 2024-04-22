@@ -5,10 +5,7 @@ set(PCSX2_DEFS "")
 # Misc option
 #-------------------------------------------------------------------------------
 option(LIBRETRO "Enables building the libretro core" ON)
-set(USE_SYSTEM_LIBS "AUTO" CACHE STRING "Use system libraries instead of bundled libraries.  ON - Always use system and fail if unavailable, OFF - Always use bundled, AUTO - Use system if available, otherwise use bundled.  Default is AUTO")
 set(CMAKE_BUILD_PO FALSE)
-set(BUILD_REPLAY_LOADERS FALSE)
-set(DISABLE_SETCAP TRUE)
 set(USE_SYSTEM_LIBS OFF)
 add_definitions(-D__LIBRETRO__)
 optional_system_library(fmt)
@@ -26,11 +23,6 @@ option(USE_VULKAN "Enable Vulkan GS renderer" ON)
 #-------------------------------------------------------------------------------
 # Path and lib option
 #-------------------------------------------------------------------------------
-if(UNIX AND NOT APPLE)
-	option(ENABLE_SETCAP "Enable networking capability for DEV9" OFF)
-	option(USE_LEGACY_USER_DIRECTORY "Use legacy home/PCSX2 user directory instead of XDG standard" OFF)
-endif()
-
 if(APPLE)
 	option(OSX_USE_DEFAULT_SEARCH_PATH "Don't prioritize system library paths" OFF)
 	option(SKIP_POSTPROCESS_BUNDLE "Skip postprocessing bundle for redistributability" OFF)
