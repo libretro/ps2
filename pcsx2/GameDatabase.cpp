@@ -881,12 +881,12 @@ void GameDatabase::initDatabase()
 {
 	ryml::Callbacks rymlCallbacks = ryml::get_callbacks();
 	rymlCallbacks.m_error = [](const char* msg, size_t msg_len, ryml::Location loc, void*) {
-		throw std::runtime_error(fmt::format("[YAML] Parsing error at {}:{} (bufpos={}): {}",
+		Console.Error(fmt::format("[YAML] Parsing error at {}:{} (bufpos={}): {}",
 			loc.line, loc.col, loc.offset, msg));
 	};
 	ryml::set_callbacks(rymlCallbacks);
 	c4::set_error_callback([](const char* msg, size_t msg_size) {
-		throw std::runtime_error(fmt::format("[YAML] Internal Parsing error: {}",
+		Console.Error(fmt::format("[YAML] Internal Parsing error: {}",
 			msg));
 	});
 	auto buf = Host::ReadResourceFileToString(GAMEDB_YAML_FILE_NAME);
