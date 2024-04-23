@@ -248,9 +248,11 @@ void dmaVIF0(void)
 	{
 		if (vif0ch.chcr.MOD == CHAIN_MODE)
 		{
+			tDMA_TAG tmp;
+			tmp._u32     = vif0ch.chcr._u32;
 			vif0.dmamode = VIF_CHAIN_MODE;
 
-			if ((((tDMA_TAG)vif0ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)vif0ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)vif0ch.chcr._u32).IRQ && vif0ch.chcr.TIE))
+			if ((tmp.ID == TAG_REFE) || (tmp.ID == TAG_END) || (tmp.IRQ && vif0ch.chcr.TIE))
 				vif0.done = true;
 			else
 				vif0.done = false;

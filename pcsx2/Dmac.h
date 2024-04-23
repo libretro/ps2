@@ -91,12 +91,7 @@ union tDMA_TAG {
 		u32 SPR : 1;
 	};
 	u32 _u32;
-
-	tDMA_TAG() {}
-
-	tDMA_TAG(u32 val) { _u32 = val; }
 };
-#define DMA_TAG(value) ((tDMA_TAG)(value))
 
 union tDMA_CHCR {
 	struct {
@@ -111,13 +106,7 @@ union tDMA_CHCR {
 		u32 TAG : 16;		// Maintains upper 16 bits of the most recently read DMAtag.
 	};
 	u32 _u32;
-
-	tDMA_CHCR( u32 val) { _u32 = val; }
-
-	void set(u32 value) { _u32 = value; }
 };
-
-#define CHCR(value) ((tDMA_CHCR)(value))
 
 union tDMA_SADR {
 	struct {
@@ -125,8 +114,6 @@ union tDMA_SADR {
 		u32 reserved2 : 18;
 	};
 	u32 _u32;
-
-	tDMA_SADR(u32 val) { _u32 = val; }
 };
 
 union tDMA_QWC {
@@ -134,8 +121,6 @@ union tDMA_QWC {
 		u32 QWC;
 	};
 	u32 _u32;
-
-	tDMA_QWC(u32 val) { _u32 = val; }
 };
 
 struct DMACh {
@@ -152,16 +137,6 @@ struct DMACh {
 	u32 asr1;
 	u32 _null5[11];
 	u32 sadr;
-
-	void chcrTransfer(tDMA_TAG* ptag)
-	{
-	    chcr.TAG = ptag[0]._u32 >> 16;
-	}
-
-	void qwcTransfer(tDMA_TAG* ptag)
-	{
-	    qwc = ptag[0].QWC;
-	}
 
 	bool transfer(tDMA_TAG* ptag);
 	void unsafeTransfer(tDMA_TAG* ptag);
@@ -203,7 +178,7 @@ enum DMAInter
 	BEISintr = 0x00008000,
 	VIF0intr = 0x00010001,
 	VIF1intr = 0x00020002,
-	GIFintr =  0x00040004,
+	GIFintr  = 0x00040004,
 	IPU0intr = 0x00080008,
 	IPU1intr = 0x00100010,
 	SIF0intr = 0x00200020,
@@ -228,7 +203,7 @@ union tDMAC_QUEUE
 	    u16 SIF1 : 1;
 	    u16 SIF2 : 1;
 	    u16 SPR0 : 1;
-        u16 SPR1 : 1;
+	    u16 SPR1 : 1;
 	    u16 SIS  : 1;
 	    u16 MEIS : 1;
 	    u16 BEIS : 1;
@@ -236,8 +211,6 @@ union tDMAC_QUEUE
 	u16 _u16;
 
 	tDMAC_QUEUE(u16 val) { _u16 = val; }
-	void reset() { _u16 = 0; }
-	bool empty() const { return (_u16 == 0); }
 };
 
 union tDMAC_CTRL {
@@ -251,8 +224,6 @@ union tDMAC_CTRL {
 		u32 _reserved1 : 21;
 	};
 	u32 _u32;
-
-	tDMAC_CTRL(u32 val) { _u32 = val; }
 };
 
 union tDMAC_STAT {
@@ -270,13 +241,6 @@ union tDMAC_STAT {
 	};
 	u32 _u32;
 	u16 _u16[2];
-
-	tDMAC_STAT(u32 val) { _u32 = val; }
-
-	bool TestForInterrupt() const
-	{
-		return ((_u16[0] & _u16[1]) != 0) || BEIS;
-	}
 };
 
 union tDMAC_PCR {
@@ -288,8 +252,6 @@ union tDMAC_PCR {
 		u32 PCE : 1;
 	};
 	u32 _u32;
-
-	tDMAC_PCR(u32 val) { _u32 = val; }
 };
 
 union tDMAC_SQWC {
@@ -300,8 +262,6 @@ union tDMAC_SQWC {
 		u32 _reserved2 : 8;
 	};
 	u32 _u32;
-
-	tDMAC_SQWC(u32 val) { _u32 = val; }
 };
 
 union tDMAC_RBSR {
@@ -310,8 +270,6 @@ union tDMAC_RBSR {
 		u32 _reserved1 : 1;
 	};
 	u32 _u32;
-
-	tDMAC_RBSR(u32 val) { _u32 = val; }
 };
 
 union tDMAC_RBOR {
@@ -320,8 +278,6 @@ union tDMAC_RBOR {
 		u32 _reserved1 : 1;
 	};
 	u32 _u32;
-
-	tDMAC_RBOR(u32 val) { _u32 = val; }
 };
 
 // --------------------------------------------------------------------------------------
@@ -338,21 +294,6 @@ union tDMAC_ADDR
 		u32 SPR : 1;	// Memory/SPR Address (only effective for MADR and TADR of non-SPR DMAs)
 	};
 	u32 _u32;
-
-	tDMAC_ADDR() {}
-	tDMAC_ADDR(u32 val) { _u32 = val; }
-
-	void AssignADDR(uint addr)
-	{
-		ADDR = addr;
-		if (SPR) ADDR &= (Ps2MemSize::Scratch-1);
-	}
-
-	void IncrementQWC(uint incval = 1)
-	{
-		ADDR += incval;
-		if (SPR) ADDR &= (Ps2MemSize::Scratch-1);
-	}
 };
 
 struct DMACregisters
@@ -381,8 +322,6 @@ union tINTC_STAT {
 	    u32 _placeholder : 22;
 	};
 	u32 _u32;
-
-	tINTC_STAT(u32 val) { _u32 = val; }
 };
 
 union tINTC_MASK {
@@ -391,8 +330,6 @@ union tINTC_MASK {
 	    u32 _placeholder:22;
 	};
 	u32 _u32;
-
-	tINTC_MASK(u32 val) { _u32 = val; }
 };
 
 struct INTCregisters

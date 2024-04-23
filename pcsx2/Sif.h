@@ -210,7 +210,3 @@ extern void ReadFifoSingleWord(void);
 #define sif0words sif0.iop.data.words
 #define sif1words sif1.iop.data.words
 #define sif2words sif2.iop.data.words
-
-#define sif0tag DMA_TAG(sif0data)
-#define sif1tag DMA_TAG(sif1data)
-#define sif2tag DMA_TAG(sif2data)

@@ -421,9 +421,11 @@ void dmaVIF1(void)
 		// ignore tag if it's a GS download (Def Jam Fight for NY)
 		if (vif1ch.chcr.MOD == CHAIN_MODE && vif1ch.chcr.DIR)
 		{
+			tDMA_TAG tmp;
+			tmp._u32     = vif1ch.chcr._u32;
 			vif1.dmamode = VIF_CHAIN_MODE;
 
-			if ((((tDMA_TAG)vif1ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)vif1ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)vif1ch.chcr._u32).IRQ && vif1ch.chcr.TIE))
+			if ((tmp.ID == TAG_REFE) || (tmp.ID == TAG_END) || (tmp.IRQ && vif1ch.chcr.TIE))
 				vif1.done = true;
 			else
 				vif1.done = false;

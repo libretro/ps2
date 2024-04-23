@@ -92,6 +92,7 @@ static __fi bool ProcessEETag(void)
 // Write fifo to data, and put it in IOP.
 static __fi void SIFIOPReadTag(void)
 {
+	tDMA_TAG sif1dat_tmp;
 	// Read a tag.
 	sif1.fifo.read((u32*)&sif1.iop.data, 4);
 
@@ -101,7 +102,8 @@ static __fi void SIFIOPReadTag(void)
 	//Maximum transfer amount 1mb-16 also masking out top part which is a "Mode" cache stuff, we don't care :)
 	sif1.iop.counter = sif1words & 0xFFFFC;
 
-	if (sif1tag.IRQ  || (sif1tag.ID & 4)) sif1.iop.end = true;
+	sif1dat_tmp._u32 = sif1data;
+	if (sif1dat_tmp.IRQ  || (sif1dat_tmp.ID & 4)) sif1.iop.end = true;
 }
 
 // Stop processing EE, and signal an interrupt.
@@ -292,7 +294,9 @@ __fi void dmaSIF1(void)
 
 	if (sif1ch.chcr.MOD == CHAIN_MODE && sif1ch.qwc > 0)
 	{
-		if ((((tDMA_TAG)sif1ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)sif1ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)sif1ch.chcr._u32).IRQ && vif1ch.chcr.TIE))
+		tDMA_TAG tmp;
+		tmp._u32 = sif1ch.chcr._u32;
+		if ((tmp.ID == TAG_REFE) || (tmp.ID == TAG_END) || (tmp.IRQ && vif1ch.chcr.TIE))
 			sif1.ee.end = true;
 	}
 

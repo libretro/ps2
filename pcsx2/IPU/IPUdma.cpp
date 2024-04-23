@@ -216,8 +216,10 @@ __fi void dmaIPU1(void) // toIPU
 		}
 		else // Attempting to continue a previous chain
 		{
+			tDMA_TAG tmp;
+			tmp._u32 = ipu1ch.chcr._u32;
 			IPU1Status.InProgress = true;
-			if ((((tDMA_TAG)ipu1ch.chcr._u32).ID == TAG_REFE) || (((tDMA_TAG)ipu1ch.chcr._u32).ID == TAG_END) || (((tDMA_TAG)ipu1ch.chcr._u32).IRQ && ipu1ch.chcr.TIE))
+			if ((tmp.ID == TAG_REFE) || (tmp.ID == TAG_END) || (tmp.IRQ && ipu1ch.chcr.TIE))
 				IPU1Status.DMAFinished = true;
 			else
 				IPU1Status.DMAFinished = false;

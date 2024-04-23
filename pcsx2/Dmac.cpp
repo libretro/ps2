@@ -50,15 +50,15 @@ bool DMACh::transfer(tDMA_TAG* ptag)
 		dmacRegs.stat.BEIS = true;
 		return false;
 	}
-	chcrTransfer(ptag);
-	qwcTransfer(ptag);
+	chcr.TAG = ptag[0]._u32 >> 16;
+	qwc      = ptag[0].QWC;
 	return true;
 }
 
 void DMACh::unsafeTransfer(tDMA_TAG* ptag)
 {
-    chcrTransfer(ptag);
-    qwcTransfer(ptag);
+    chcr.TAG = ptag[0]._u32 >> 16;
+    qwc      = ptag[0].QWC;
 }
 
 tDMA_TAG *DMACh::getAddr(u32 addr, u32 num, bool write)
@@ -80,8 +80,8 @@ tDMA_TAG *DMACh::DMAtransfer(u32 addr, u32 num)
 
 	if (tag == NULL) return NULL;
 
-    chcrTransfer(tag);
-    qwcTransfer(tag);
+    chcr.TAG = tag[0]._u32 >> 16;
+    qwc      = tag[0].QWC;
     return tag;
 }
 
@@ -125,7 +125,9 @@ __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 // Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)
 __ri tDMA_TAG *dmaGetAddr(u32 addr, bool write)
 {
-	if (DMA_TAG(addr).SPR) return (tDMA_TAG*)&eeMem->Scratch[addr & 0x3ff0];
+	tDMA_TAG tmp;
+	tmp._u32 = addr;
+	if (tmp.SPR) return (tDMA_TAG*)&eeMem->Scratch[addr & 0x3ff0];
 
 	// FIXME: Why??? DMA uses physical addresses
 	addr &= 0x1ffffff0;
@@ -159,9 +161,7 @@ static bool QuickDmaExec( void (*func)(), u32 mem)
 	return false;
 }
 
-
 static tDMAC_QUEUE QueuedDMA(0);
-static u32 oldvalue = 0;
 
 static void StartQueuedDMA(void)
 {
@@ -179,8 +179,9 @@ static void StartQueuedDMA(void)
 
 static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 {
+	tDMA_CHCR chcr;
 	DMACh& reg = (DMACh&)psHu32(mem);
-    tDMA_CHCR chcr(value);
+	chcr._u32  = value;
 
 	//It's invalid for the hardware to write a DMA while it is active, not without Suspending the DMAC
 	if (reg.chcr.STR)
@@ -214,7 +215,7 @@ static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 		return;
 	}
 
-	reg.chcr.set(value);
+	reg.chcr._u32 = value;
 
 	//Final Fantasy XII sets the DMA Mode to 3 which doesn't exist. On some channels (like SPR) this will break logic completely. so lets assume they mean chain.
 	if (reg.chcr.MOD == 0x3)
@@ -415,7 +416,7 @@ __fi bool dmacWrite32( u32 mem, mem32_t& value )
 			//Check for DMAS that were started while the DMAC was disabled
 			if (((oldvalue & 0x1) == 0) && ((value & 0x1) == 1))
 			{
-				if (!QueuedDMA.empty()) StartQueuedDMA();
+				if (QueuedDMA._u16 != 0) StartQueuedDMA();
 			}
 			return false;
 		}
@@ -437,17 +438,17 @@ __fi bool dmacWrite32( u32 mem, mem32_t& value )
 
 		case (DMAC_ENABLEW):
 		{
-			oldvalue = psHu8(DMAC_ENABLEW + 2);
+			u32 oldvalue = psHu8(DMAC_ENABLEW + 2);
 			psHu32(DMAC_ENABLEW) = value;
 			psHu32(DMAC_ENABLER) = value;
 			if (((oldvalue & 0x1) == 1) && (((value >> 16) & 0x1) == 0))
 			{
-				if (!QueuedDMA.empty()) StartQueuedDMA();
+				if (QueuedDMA._u16 != 0) StartQueuedDMA();
 			}
 			return false;
 		}
 		default:
-			return true;
+			break;
 	}
 
 	// fall-through: use the default writeback provided by caller.

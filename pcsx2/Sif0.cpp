@@ -124,7 +124,9 @@ static __fi void ProcessIOPTag(void)
 	// Save the number of words we need to write to make up 1QW from this packet. (See "Junk data writing" in Sif.h)
 	sif0.iop.writeJunk = (sif0.iop.counter & 0x3) ? (4 - sif0.iop.counter & 0x3) : 0;
 	// IOP tags have an IRQ bit and an End of Transfer bit:
-	if (sif0tag.IRQ  || (sif0tag.ID & 4)) sif0.iop.end = true;
+	tDMA_TAG sif0dat_tmp;
+	sif0dat_tmp._u32 = sif0data;
+	if (sif0dat_tmp.IRQ  || (sif0dat_tmp.ID & 4)) sif0.iop.end = true;
 }
 
 // Stop transferring ee, and signal an interrupt.

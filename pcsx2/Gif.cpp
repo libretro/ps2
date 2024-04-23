@@ -445,7 +445,9 @@ void dmaGIF(void)
 
 	if (gifch.chcr.MOD == CHAIN_MODE && gifch.qwc > 0)
 	{
-		if ((((tDMA_TAG)(gifch.chcr._u32)).ID == TAG_REFE) || (((tDMA_TAG)(gifch.chcr._u32)).ID == TAG_END) || (((tDMA_TAG)(gifch.chcr._u32)).IRQ && gifch.chcr.TIE))
+		tDMA_TAG tmp;
+		tmp._u32 = gifch.chcr._u32;
+		if ((tmp.ID == TAG_REFE) || (tmp.ID == TAG_END) || (tmp.IRQ && gifch.chcr.TIE))
 			gif.gspath3done = true;
 	}
 
