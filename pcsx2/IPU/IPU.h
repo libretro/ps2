@@ -153,7 +153,6 @@ union tIPU_CMD_IDEC
 	u32 _u32;
 
 	tIPU_CMD_IDEC( u32 val ) { _u32 = val; }
-	void reset() { _u32 = 0; }
 };
 
 union tIPU_CMD_BDEC
@@ -172,8 +171,6 @@ union tIPU_CMD_BDEC
 	u32 _u32;
 
 	tIPU_CMD_BDEC( u32 val ) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tIPU_CMD_CSC
@@ -189,8 +186,6 @@ union tIPU_CMD_CSC
 	u32 _u32;
 
 	tIPU_CMD_CSC( u32 val ){ _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 enum SCE_IPU

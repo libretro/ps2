@@ -95,7 +95,6 @@ union tDMA_TAG {
 	tDMA_TAG() {}
 
 	tDMA_TAG(u32 val) { _u32 = val; }
-	void reset() { _u32 = 0; }
 };
 #define DMA_TAG(value) ((tDMA_TAG)(value))
 
@@ -116,7 +115,6 @@ union tDMA_CHCR {
 	tDMA_CHCR( u32 val) { _u32 = val; }
 
 	void set(u32 value) { _u32 = value; }
-	void reset() { _u32 = 0; }
 };
 
 #define CHCR(value) ((tDMA_CHCR)(value))
@@ -129,8 +127,6 @@ union tDMA_SADR {
 	u32 _u32;
 
 	tDMA_SADR(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tDMA_QWC {
@@ -140,8 +136,6 @@ union tDMA_QWC {
 	u32 _u32;
 
 	tDMA_QWC(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 struct DMACh {
@@ -259,8 +253,6 @@ union tDMAC_CTRL {
 	u32 _u32;
 
 	tDMAC_CTRL(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tDMAC_STAT {
@@ -281,8 +273,6 @@ union tDMAC_STAT {
 
 	tDMAC_STAT(u32 val) { _u32 = val; }
 
-	void reset() { _u32 = 0; }
-
 	bool TestForInterrupt() const
 	{
 		return ((_u16[0] & _u16[1]) != 0) || BEIS;
@@ -300,8 +290,6 @@ union tDMAC_PCR {
 	u32 _u32;
 
 	tDMAC_PCR(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tDMAC_SQWC {
@@ -314,8 +302,6 @@ union tDMAC_SQWC {
 	u32 _u32;
 
 	tDMAC_SQWC(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tDMAC_RBSR {
@@ -326,8 +312,6 @@ union tDMAC_RBSR {
 	u32 _u32;
 
 	tDMAC_RBSR(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tDMAC_RBOR {
@@ -338,8 +322,6 @@ union tDMAC_RBOR {
 	u32 _u32;
 
 	tDMAC_RBOR(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 // --------------------------------------------------------------------------------------
@@ -359,8 +341,6 @@ union tDMAC_ADDR
 
 	tDMAC_ADDR() {}
 	tDMAC_ADDR(u32 val) { _u32 = val; }
-
-	void clear() { _u32 = 0; }
 
 	void AssignADDR(uint addr)
 	{
@@ -403,8 +383,6 @@ union tINTC_STAT {
 	u32 _u32;
 
 	tINTC_STAT(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tINTC_MASK {
@@ -415,8 +393,6 @@ union tINTC_MASK {
 	u32 _u32;
 
 	tINTC_MASK(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 struct INTCregisters

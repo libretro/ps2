@@ -159,22 +159,18 @@ struct GS_Packet
 	u32 size;       // Full size of GS-Packet
 	s32 cycles;     // EE Cycles taken to process this GS packet
 	s32 readAmount; // Dummy read-amount data needed for proper buffer calculations
-	GS_Packet() { Reset(); }
-	void Reset() { offset = 0; size = 0; cycles = 0; readAmount = 0; }
+	GS_Packet() { offset = 0; size = 0; cycles = 0; readAmount = 0; }
 };
 
 struct GS_SIGNAL
 {
 	u32 data[2];
 	bool queued;
-	void Reset() { data[0] = 0; data[1] = 0; queued = false; }
 };
 
 struct GS_FINISH
 {
 	bool gsFINISHFired;
-
-	void Reset() { gsFINISHFired = false; }
 };
 
 struct Gif_Path_MTVU
@@ -190,8 +186,10 @@ struct Gif_Path_MTVU
 	{
 		fakePackets = 0;
 		gsPackQueue.reset();
-		fakePacket.Reset();
-		fakePacket.size = ~0u; // Used to indicate that its a fake packet
+		fakePacket.offset     = 0;
+		fakePacket.size       = ~0u; // Used to indicate that its a fake packet
+		fakePacket.cycles     = 0;
+		fakePacket.readAmount = 0;
 	}
 };
 
@@ -230,9 +228,11 @@ struct Gif_Path
 			if (!isMTVU()) // MTVU Freaks out if you try to reset it, so let's just let it transfer
 			{
 				gifTag.Reset();
-				gsPack.Reset();
-				curSize = curOffset;
-				gsPack.offset = curOffset;
+				gsPack.offset     = curOffset;
+				gsPack.size       = 0;
+				gsPack.cycles     = 0;
+				gsPack.readAmount = 0;
+				curSize           = curOffset;
 			}
 			return;
 		}
@@ -241,7 +241,10 @@ struct Gif_Path
 		curOffset = 0;
 		readAmount = 0;
 		gifTag.Reset();
-		gsPack.Reset();
+		gsPack.offset     = 0;
+		gsPack.size       = 0;
+		gsPack.cycles     = 0;
+		gsPack.readAmount = 0;
 	}
 
 	bool isMTVU() const { return !idx && THREAD_VU1; }
@@ -376,8 +379,11 @@ struct Gif_Path
 
 				dmaRewind = 0;
 
-				gsPack.Reset();
-				gsPack.offset = curOffset;
+				gsPack.offset     = 0;
+				gsPack.size       = 0;
+				gsPack.cycles     = 0;
+				gsPack.readAmount = 0;
+				gsPack.offset     = curOffset;
 				//Path 3 Masking is timing sensitive, we need to simulate its length! (NFSU2/Outrun 2006)
 
 				if ((gifRegs.stat.APATH - 1) == GIF_PATH_3)
@@ -456,8 +462,10 @@ struct Gif_Path
 		while (!mtvu.gsPackQueue.push(gsPack))
 			;
 
-		gsPack.Reset();
-		gsPack.offset = curOffset;
+		gsPack.offset     = curOffset;
+		gsPack.size       = 0;
+		gsPack.cycles     = 0;
+		gsPack.readAmount = 0;
 	}
 
 	// MTVU: Gets called by MTGS thread
@@ -505,32 +513,25 @@ struct Gif_Unit
 	// Enable softReset when resetting during game emulation
 	void Reset(bool softReset = false)
 	{
-		ResetRegs();
-		gsSIGNAL.Reset();
-		gsFINISH.Reset();
+		gifRegs.stat._u32      = 0;
+		gifRegs.ctrl._u32      = 0;
+		gifRegs.mode._u32      = 0;
+		CSRreg.FIFO            = CSR_FIFO_EMPTY; // This is the GIF unit side FIFO, not DMA!
+		gsSIGNAL.data[0]       = 0;
+		gsSIGNAL.data[1]       = 0;
+		gsSIGNAL.queued        = false;
+		gsFINISH.gsFINISHFired = false;
 		gifPath[0].Reset(softReset);
 		gifPath[1].Reset(softReset);
 		gifPath[2].Reset(softReset);
 		if (!softReset)
-		{
 			lastTranType = GIF_TRANS_INVALID;
-		}
 		//If the VIF has paused waiting for PATH3, recheck it after the reset has occurred (Eragon)
 		if (vif1Regs.stat.VGW)
 		{
 			if (!(cpuRegs.interrupt & (1 << DMAC_VIF1)))
 				CPU_INT(DMAC_VIF1, 1);
 		}
-	}
-
-	// Resets Gif HW Regs
-	// Warning: Do not mess with the DMA here, the reset does *NOT* touch this.
-	void ResetRegs()
-	{
-		gifRegs.stat.reset();
-		gifRegs.ctrl.reset();
-		gifRegs.mode.reset();
-		CSRreg.FIFO = CSR_FIFO_EMPTY; // This is the GIF unit side FIFO, not DMA!
 	}
 
 	// Adds a finished GS Packet to the MTGS ring buffer
@@ -693,12 +694,18 @@ struct Gif_Unit
 							if (gsPack.size > 16)
 							{                                                 // Packet had other tags which we already processed
 								u32 subOffset = path.gifTag.isValid ? 16 : 0; // if isValid, image-primitive not finished
-								gsPack.size -= subOffset;                     // Remove the image-tag (should be last thing read)
+								gsPack.size           -= subOffset;           // Remove the image-tag (should be last thing read)
 								AddCompletedGSPacket(gsPack, GIF_PATH_3);     // Consider current packet complete
-								path.gsPack.Reset();                          // Reset gs packet info
-								path.curOffset -= subOffset;                  // Start the next GS packet at the image-tag
-								path.gsPack.offset = path.curOffset;          // Set to image-tag
-								path.gifTag.isValid = false;                  // Reload tag next ExecuteGSPacket()
+													      
+								path.curOffset        -= subOffset;           // Start the next GS packet at the image-tag
+													      
+								// Reset gs packet info
+								path.gsPack.offset     = path.curOffset;      // Set to image-tag
+								path.gsPack.size       = 0;
+								path.gsPack.cycles     = 0;
+								path.gsPack.readAmount = 0;
+
+								path.gifTag.isValid    = false;              // Reload tag next ExecuteGSPacket()
 							}
 							continue;
 						}

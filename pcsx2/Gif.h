@@ -85,7 +85,6 @@ union tGIF_CTRL
 
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_MODE
@@ -102,7 +101,6 @@ union tGIF_MODE
 
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_STAT
@@ -130,7 +128,6 @@ union tGIF_STAT
 
 	void write(u32 val) { _u32 = val; }
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_TAG0
@@ -145,7 +142,6 @@ union tGIF_TAG0
 	tGIF_TAG0(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_TAG1
@@ -162,7 +158,6 @@ union tGIF_TAG1
 	tGIF_TAG1(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_CNT
@@ -180,7 +175,6 @@ union tGIF_CNT
 	tGIF_CNT(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_P3CNT
@@ -192,8 +186,6 @@ union tGIF_P3CNT
 	u32 _u32;
 
 	tGIF_P3CNT(u32 val) { _u32 = val; }
-
-	void reset() { _u32 = 0; }
 };
 
 union tGIF_P3TAG
@@ -208,7 +200,6 @@ union tGIF_P3TAG
 	tGIF_P3TAG(u32 val) { _u32 = val; }
 
 	bool test(u32 flags) { return !!(_u32 & flags); }
-	void reset() { _u32 = 0; }
 };
 
 struct GIFregisters
