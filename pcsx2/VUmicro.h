@@ -170,7 +170,3 @@ extern void vu1ResetRegs();
 extern void vu1ExecMicro(u32 addr);
 extern void vu1Exec(VURegs* VU);
 extern void MTVUInterrupt();
-
-#define IdebugUPPER(VU)
-#define IdebugLOWER(VU)
-#define _vuExecMicroDebug(VU)

@@ -27,8 +27,6 @@
 
 using namespace R5900;		// for OPCODE and OpcodeImpl
 
-extern int vu0branch, vu1branch;
-
 static int branch2 = 0;
 static u32 cpuBlockCycles = 0;		// 3 bit fixed point version of cycle count
 static bool intExitExecution = false;
@@ -94,7 +92,7 @@ void intDoBranch(u32 target)
 	}
 }
 
-void intSetBranch()
+void intSetBranch(void)
 {
 	branch2 = /*cpuRegs.branch =*/ 1;
 }

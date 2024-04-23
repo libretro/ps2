@@ -75,6 +75,5 @@ void vu0ExecMicro(u32 addr)
 	if ((s32)addr != -1) VU0.VI[REG_TPC].UL = addr & 0x1FF;
 
 	CpuVU0->SetStartPC(VU0.VI[REG_TPC].UL << 3);
-	_vuExecMicroDebug(VU0);
 	CpuVU0->ExecuteBlock(1);
 }

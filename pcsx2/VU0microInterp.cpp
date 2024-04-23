@@ -26,25 +26,20 @@ extern void _vuFlushAll(VURegs* VU);
 static void _vu0ExecUpper(VURegs* VU, u32* ptr)
 {
 	VU->code = ptr[1];
-	IdebugUPPER(VU0);
 	VU0_UPPER_OPCODE[VU->code & 0x3f]();
 }
 
 static void _vu0ExecLower(VURegs* VU, u32* ptr)
 {
 	VU->code = ptr[0];
-	IdebugLOWER(VU0);
 	VU0_LOWER_OPCODE[VU->code >> 25]();
 }
 
-int vu0branch = 0;
 static void _vu0Exec(VURegs* VU)
 {
 	_VURegsNum lregs;
 	_VURegsNum uregs;
-	u32* ptr;
-
-	ptr = (u32*)&VU->Micro[VU->VI[REG_TPC].UL];
+	u32* ptr = (u32*)&VU->Micro[VU->VI[REG_TPC].UL];
 	VU->VI[REG_TPC].UL += 8;
 
 	if (ptr[1] & 0x40000000) // E flag
@@ -112,7 +107,6 @@ static void _vu0Exec(VURegs* VU)
 		_vuTestPipes(VU);
 		if (VU->VIBackupCycles > 0)
 			VU->VIBackupCycles -= std::min((u8)(VU0.cycle - cyclesBeforeOp), VU->VIBackupCycles);
-		vu0branch = lregs.pipe == VUPIPE_BRANCH;
 
 		if (uregs.VFwrite)
 		{

@@ -30,18 +30,14 @@ extern void _vuXGKICKFlush(VURegs* VU);
 void _vu1ExecUpper(VURegs* VU, u32* ptr)
 {
 	VU->code = ptr[1];
-	IdebugUPPER(VU1);
 	VU1_UPPER_OPCODE[VU->code & 0x3f]();
 }
 
 void _vu1ExecLower(VURegs* VU, u32* ptr)
 {
 	VU->code = ptr[0];
-	IdebugLOWER(VU1);
 	VU1_LOWER_OPCODE[VU->code >> 25]();
 }
-
-int vu1branch = 0;
 
 static void _vu1Exec(VURegs* VU)
 {
