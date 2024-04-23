@@ -475,38 +475,6 @@ bool select_hw_render(void)
 	return false;
 }
 
-static void executeVM(void)
-{
-	for (;;)
-	{
-		cpu_thread_state = VMManager::GetState();
-		switch (VMManager::GetState())
-		{
-			case VMState::Initializing:
-				Console.Error("Shouldn't be in the starting state state");
-				continue;
-
-			case VMState::Paused:
-				continue;
-
-			case VMState::Running:
-				VMManager::Execute();
-				continue;
-
-			case VMState::Resetting:
-				VMManager::Reset();
-				continue;
-
-			case VMState::Stopping:
-//				VMManager::Shutdown(false);
-				return;
-
-			default:
-				continue;
-		}
-	}
-}
-
 static void cpu_thread_entry(VMBootParameters boot_params)
 {
 	VMManager::Initialize(boot_params);
@@ -515,7 +483,36 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 	while (VMManager::GetState() != VMState::Shutdown)
 	{
 		if (VMManager::HasValidVM())
-			executeVM();
+		{
+			for (;;)
+			{
+				cpu_thread_state = VMManager::GetState();
+				switch (VMManager::GetState())
+				{
+					case VMState::Initializing:
+						MTGS::MainLoop(false);
+						continue;
+
+					case VMState::Paused:
+						continue;
+
+					case VMState::Running:
+						VMManager::Execute();
+						continue;
+
+					case VMState::Resetting:
+						VMManager::Reset();
+						continue;
+
+					case VMState::Stopping:
+						//				VMManager::Shutdown(false);
+						return;
+
+					default:
+						continue;
+				}
+			}
+		}
 	}
 }
 
@@ -762,10 +759,8 @@ void retro_run(void)
 
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
-	while (VMManager::GetState() == VMState::Initializing)
-		MTGS::MainLoop(false);
 
-	if (VMManager::GetState() == VMState::Paused)
+	if (cpu_thread_state == VMState::Paused)
 		VMManager::SetState(VMState::Running);
 
 	RETRO_PERFORMANCE_INIT(pcsx2_run);
