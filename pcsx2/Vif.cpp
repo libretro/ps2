@@ -110,7 +110,7 @@ __fi void vif0FBRST(u32 value)
 		if (vif0Regs.stat.test(VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
 			cancel = true;
 
-		vif0Regs.stat.clear_flags(VIF0_STAT_VSS | VIF0_STAT_VFS | VIF0_STAT_VIS |
+		vif0Regs.stat._u32 &= ~(VIF0_STAT_VSS | VIF0_STAT_VFS | VIF0_STAT_VIS |
 								  VIF0_STAT_INT | VIF0_STAT_ER0 | VIF0_STAT_ER1);
 		if (cancel)
 		{
@@ -146,8 +146,8 @@ __fi void vif0FBRST(u32 value)
 		vif0.cmd = 0;
 		vif0.done = true;
 		vif0ch.chcr.STR = false;
-		vif0Regs.err._u32 = 0;
-		vif0Regs.stat.clear_flags(VIF0_STAT_FQC | VIF0_STAT_INT | VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS | VIF0_STAT_VPS); // FQC=0
+		vif0Regs.err._u32   = 0;
+		vif0Regs.stat._u32 &= ~(VIF0_STAT_FQC | VIF0_STAT_INT | VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS | VIF0_STAT_VPS); // FQC=0
 	}
 }
 
@@ -181,11 +181,9 @@ __fi void vif1FBRST(u32 value)
 		bool cancel = false;
 		// Cancel stall, first check if there is a stall to cancel, and then clear VIF1_STAT VSS|VFS|VIS|INT|ER0|ER1 bits
 		if (vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
-		{
 			cancel = true;
-		}
 
-		vif1Regs.stat.clear_flags(VIF1_STAT_VSS | VIF1_STAT_VFS | VIF1_STAT_VIS |
+		vif1Regs.stat._u32 &= ~(VIF1_STAT_VSS | VIF1_STAT_VFS | VIF1_STAT_VIS |
 								  VIF1_STAT_INT | VIF1_STAT_ER0 | VIF1_STAT_ER1);
 
 		if (cancel)
