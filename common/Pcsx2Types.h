@@ -56,48 +56,10 @@ union u128
 	u32 _u32[4];
 	u16 _u16[8];
 	u8 _u8[16];
-
-	// Explicit conversion from u32. Zero-extends the source through 128 bits.
-	static u128 From32(u32 src)
-	{
-		u128 retval;
-		retval._u32[0] = src;
-		retval._u32[1] = 0;
-		retval.hi = 0;
-		return retval;
-	}
-
-	operator u32() const { return _u32[0]; }
-	operator u16() const { return _u16[0]; }
-	operator u8() const { return _u8[0]; }
-
-	bool operator==(const u128& right) const
-	{
-		return (lo == right.lo) && (hi == right.hi);
-	}
-
-	bool operator!=(const u128& right) const
-	{
-		return (lo != right.lo) || (hi != right.hi);
-	}
 };
 
 struct s128
 {
 	s64 lo;
 	s64 hi;
-
-	operator u32() const { return (s32)lo; }
-	operator u16() const { return (s16)lo; }
-	operator u8() const { return (s8)lo; }
-
-	bool operator==(const s128& right) const
-	{
-		return (lo == right.lo) && (hi == right.hi);
-	}
-
-	bool operator!=(const s128& right) const
-	{
-		return (lo != right.lo) || (hi != right.hi);
-	}
 };

@@ -72,8 +72,10 @@ void _hwWrite32( u32 mem, u32 value )
 			// way to do that --air
 			// Current assumption is that 32-bit and 64-bit writes likely do 128-bit zero-filled
 			// writes (upper 96 bits are 0, lower 32 bits are effective).
-
-			u128 zerofill = u128::From32(0);
+			u128 zerofill;
+			zerofill._u32[0] = 0;
+			zerofill._u32[1] = 0;
+			zerofill.hi      = 0;
 			zerofill._u32[(mem >> 2) & 0x03] = value;
 
 			_hwWrite128<page>(mem & ~0x0f, r128_from_u128(zerofill));
@@ -334,7 +336,10 @@ void _hwWrite64( u32 mem, u64 value )
 		case 0x06:
 		case 0x07:
 		{
-			u128 zerofill = u128::From32(0);
+			u128 zerofill;
+			zerofill._u32[0] = 0;
+			zerofill._u32[1] = 0;
+			zerofill.hi      = 0;
 			zerofill._u64[(mem >> 3) & 0x01] = value;
 			hwWrite128<page>(mem & ~0x0f, r128_from_u128(zerofill));
 		}

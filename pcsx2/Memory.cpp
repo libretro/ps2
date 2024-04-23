@@ -469,7 +469,8 @@ template<int vunum> static void TAKES_R128 vuMicroWrite128(u32 addr, r128 data) 
 		vu1Thread.WriteMicroMem(addr, &udata, sizeof(u128));
 		return;
 	}
-	if ((u128&)vu->Micro[addr]!=udata) {
+	u128 comp = (u128&)vu->Micro[addr];
+	if ((comp.lo != udata.lo) || (comp.hi != udata.hi)) {
 		ClearVuFunc<vunum>(addr, 16);
 		r128_store_unaligned(&vu->Micro[addr],data);
 	}
