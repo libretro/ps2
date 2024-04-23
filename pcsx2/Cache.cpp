@@ -145,11 +145,6 @@ namespace
 
 }
 
-void resetCache(void)
-{
-	memset(&cache, 0, sizeof(cache));
-}
-
 static bool findInCache(const CacheSet& set, uptr ppf, int* way)
 {
 	auto check = [&](int checkWay) -> bool
@@ -186,7 +181,7 @@ static int getFreeCache(u32 mem, int* way)
 }
 
 template <bool Write, int Bytes>
-void* prepareCacheAccess(u32 mem, int* way, int* idx)
+static void* prepareCacheAccess(u32 mem, int* way, int* idx)
 {
 	*way = 0;
 	*idx = getFreeCache(mem, way);
@@ -198,7 +193,7 @@ void* prepareCacheAccess(u32 mem, int* way, int* idx)
 }
 
 template <typename Int>
-void writeCache(u32 mem, Int value)
+static void writeCache(u32 mem, Int value)
 {
 	int way, idx;
 	void* addr = prepareCacheAccess<true, sizeof(Int)>(mem, &way, &idx);
@@ -233,12 +228,11 @@ void writeCache128(u32 mem, const mem128_t* value)
 }
 
 template <typename Int>
-Int readCache(u32 mem)
+static Int readCache(u32 mem)
 {
 	int way, idx;
 	void* addr = prepareCacheAccess<false, sizeof(Int)>(mem, &way, &idx);
-	Int value = *reinterpret_cast<Int*>(addr);
-	return value;
+	return *reinterpret_cast<Int*>(addr);
 }
 
 u8 readCache8(u32 mem)
@@ -271,7 +265,7 @@ RETURNS_R128 readCache128(u32 mem)
 }
 
 template <typename Op>
-void doCacheHitOp(u32 addr, const char* name, Op op)
+static void doCacheHitOp(u32 addr, Op op)
 {
 	const int index = cache.setIdxFor(addr);
 	CacheSet& set   = cache.sets[index];
@@ -279,10 +273,8 @@ void doCacheHitOp(u32 addr, const char* name, Op op)
 	uptr ppf = vmv.assumePtr(addr);
 	int way;
 
-	if (!findInCache(set, ppf, &way))
-		return;
-
-	op(cache.lineAt(index, way));
+	if (findInCache(set, ppf, &way))
+		op(cache.lineAt(index, way));
 }
 
 namespace R5900 {
@@ -298,14 +290,14 @@ void CACHE(void)
 	switch (_Rt_)
 	{
 		case 0x1a: //DHIN (Data Cache Hit Invalidate)
-			doCacheHitOp(addr, "DHIN", [](CacheLine line)
+			doCacheHitOp(addr, [](CacheLine line)
 			{
 				line.clear();
 			});
 			break;
 
 		case 0x18: //DHWBIN (Data Cache Hit WriteBack with Invalidate)
-			doCacheHitOp(addr, "DHWBIN", [](CacheLine line)
+			doCacheHitOp(addr, [](CacheLine line)
 			{
 				line.writeBackIfNeeded();
 				line.clear();
@@ -313,7 +305,7 @@ void CACHE(void)
 			break;
 
 		case 0x1c: //DHWOIN (Data Cache Hit WriteBack Without Invalidate)
-			doCacheHitOp(addr, "DHWOIN", [](CacheLine line)
+			doCacheHitOp(addr, [](CacheLine line)
 			{
 				line.writeBackIfNeeded();
 			});
@@ -388,11 +380,8 @@ void CACHE(void)
 
 		case 0x7: //IXIN (Instruction Cache Index Invalidate)
 			//Not Implemented as we do not have instruction cache
-			break;
-
 		case 0xC: //BFH (BTAC Flush)
 			//Not Implemented as we do not cache Branch Target Addresses.
-			break;
 		default:
 			break;
 	}
