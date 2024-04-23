@@ -98,6 +98,8 @@ static __fi void IMRwrite(u32 value)
 
 __fi void gsWrite8(u32 mem, u8 value)
 {
+	tGS_CSR tmp;
+	tmp._u32 = value;
 	switch (mem)
 	{
 		// CSR 8-bit write handlers.
@@ -109,14 +111,20 @@ __fi void gsWrite8(u32 mem, u8 value)
 		// and change the GS revision or ID portions -- they're all hard wired.) --air
 
 		case GS_CSR: // GS_CSR
-			gsCSRwrite( tGS_CSR((u32)value) );			break;
+			gsCSRwrite(tmp);
+			break;
 		case GS_CSR + 1: // GS_CSR
-			gsCSRwrite( tGS_CSR(((u32)value) <<  8) );	break;
+			tmp._u32 <<= 8;
+			gsCSRwrite(tmp);
+			break;
 		case GS_CSR + 2: // GS_CSR
-			gsCSRwrite( tGS_CSR(((u32)value) << 16) );	break;
+			tmp._u32 <<= 16;
+			gsCSRwrite(tmp);
+			break;
 		case GS_CSR + 3: // GS_CSR
-			gsCSRwrite( tGS_CSR(((u32)value) << 24) );	break;
-
+			tmp._u32 <<= 24;
+			gsCSRwrite(tmp);
+			break;
 		default:
 			*PS2GS_BASE(mem) = value;
 		break;
@@ -128,22 +136,22 @@ __fi void gsWrite8(u32 mem, u8 value)
 
 __fi void gsWrite16(u32 mem, u16 value)
 {
+	tGS_CSR tmp;
+	tmp._u32 = value;
 	switch (mem)
 	{
 		// See note above about CSR 8 bit writes, and handling them as zero'd bits
 		// for all but the written parts.
-
-		case GS_CSR:
-			gsCSRwrite( tGS_CSR((u32)value) );
-		return; // do not write to MTGS memory
-
+		
 		case GS_CSR+2:
-			gsCSRwrite( tGS_CSR(((u32)value) << 16) );
-		return; // do not write to MTGS memory
-
+			tmp._u32 <<= 16;
+			// fallthrough
+		case GS_CSR:
+			gsCSRwrite(tmp);
+			return; // do not write to MTGS memory
 		case GS_IMR:
 			IMRwrite(value);
-		return; // do not write to MTGS memory
+			return; // do not write to MTGS memory
 	}
 
 	*(u16*)PS2GS_BASE(mem) = value;
@@ -154,10 +162,12 @@ __fi void gsWrite16(u32 mem, u16 value)
 
 __fi void gsWrite32(u32 mem, u32 value)
 {
+	tGS_CSR tmp;
 	switch (mem)
 	{
 		case GS_CSR:
-			gsCSRwrite(tGS_CSR(value));
+			tmp._u32 = value;
+			gsCSRwrite(tmp);
 			return;
 
 		case GS_IMR:
@@ -191,6 +201,7 @@ void gsWrite64_page_00( u32 mem, u64 value )
 
 void gsWrite64_page_01( u32 mem, u64 value )
 {
+	tGS_CSR tmp;
 	switch( mem )
 	{
 		case GS_BUSDIR:
@@ -202,15 +213,16 @@ void gsWrite64_page_01( u32 mem, u64 value )
 			}
 
 			gsWrite64_generic( mem, value );
-		return;
+			return;
 
 		case GS_CSR:
-			gsCSRwrite(tGS_CSR(value));
-		return;
+			tmp._u64 = value;
+			gsCSRwrite(tmp);
+			return;
 
 		case GS_IMR:
 			IMRwrite(static_cast<u32>(value));
-		return;
+			return;
 	}
 
 	gsWrite64_generic( mem, value );
@@ -226,15 +238,17 @@ void TAKES_R128 gsWrite128_page_00( u32 mem, r128 value )
 
 void TAKES_R128 gsWrite128_page_01( u32 mem, r128 value )
 {
+	tGS_CSR tmp;
 	switch( mem )
 	{
 		case GS_CSR:
-			gsCSRwrite(r128_to_u32(value));
-		return;
+			tmp._u32 = r128_to_u32(value);
+			gsCSRwrite(tmp);
+			return;
 
 		case GS_IMR:
 			IMRwrite(r128_to_u32(value));
-		return;
+			return;
 	}
 
 	gsWrite128_generic( mem, value );

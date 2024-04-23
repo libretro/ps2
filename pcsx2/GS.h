@@ -151,8 +151,6 @@ union tGS_CSR
 		ID = 0x55; // GS ID
 	}
 
-	tGS_CSR(u64 val) { _u64 = val; }
-	tGS_CSR(u32 val) { _u32 = val; }
 	tGS_CSR() { Reset(); }
 };
 

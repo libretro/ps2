@@ -80,7 +80,7 @@ bool SaveStateBase::vif1Freeze()
 // Vif0/Vif1 Write32
 //------------------------------------------------------------------
 
-__fi void vif0FBRST(u32 value)
+static __fi void vif0FBRST(u32 value)
 {
 	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is it just stops it what its doing
 			  usually accompanied by a reset, but if we find a broken game which falls here, we need to see it! (Refraction) */
@@ -151,12 +151,14 @@ __fi void vif0FBRST(u32 value)
 	}
 }
 
-__fi void vif1FBRST(u32 value)
+static __fi void vif1FBRST(u32 value)
 {
+	tVIF_FBRST tmp;
+	tmp._u32 = value;
 	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is it just stops it what its doing
 			  usually accompanied by a reset, but if we find a broken game which falls here, we need to see it! (Refraction) */
 
-	if (FBRST(value).FBK) // Forcebreak Vif.
+	if (tmp.FBK) // Forcebreak Vif.
 	{
 		/* I guess we should stop the VIF dma here, but not 100% sure (linuz) */
 		vif1Regs.stat.VFS = true;
@@ -166,7 +168,7 @@ __fi void vif1FBRST(u32 value)
 		vif1.vifstalled.value = VIF_IRQ_STALL;
 	}
 
-	if (FBRST(value).STP) // Stop Vif.
+	if (tmp.STP) // Stop Vif.
 	{
 		// Not completely sure about this, can't remember what game used this, but 'draining' the VIF helped it, instead of
 		// just stoppin the VIF (linuz).
@@ -176,7 +178,7 @@ __fi void vif1FBRST(u32 value)
 		vif1.vifstalled.value = VIF_IRQ_STALL;
 	}
 
-	if (FBRST(value).STC) // Cancel Vif Stall.
+	if (tmp.STC) // Cancel Vif Stall.
 	{
 		bool cancel = false;
 		// Cancel stall, first check if there is a stall to cancel, and then clear VIF1_STAT VSS|VFS|VIS|INT|ER0|ER1 bits
@@ -192,26 +194,26 @@ __fi void vif1FBRST(u32 value)
 			// loop necessary for spiderman
 			switch (dmacRegs.ctrl.MFD)
 			{
-			case MFD_VIF1:
-				//MFIFO active and not empty
-				if (vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_FDR))
-					CPU_INT(DMAC_MFIFO_VIF, 0);
-				break;
+				case MFD_VIF1:
+					//MFIFO active and not empty
+					if (vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_FDR))
+						CPU_INT(DMAC_MFIFO_VIF, 0);
+					break;
 
-			case NO_MFD:
-			case MFD_RESERVED:
-			case MFD_GIF: // Wonder if this should be with VIF?
-				// Gets the timing right - Flatout
-				if (vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_FDR))
-					CPU_INT(DMAC_VIF1, 0);
-				break;
+				case NO_MFD:
+				case MFD_RESERVED:
+				case MFD_GIF: // Wonder if this should be with VIF?
+					      // Gets the timing right - Flatout
+					if (vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_FDR))
+						CPU_INT(DMAC_VIF1, 0);
+					break;
 			}
 
 			//vif1ch.chcr.STR = true;
 		}
 	}
 
-	if (FBRST(value).RST) // Reset Vif.
+	if (tmp.RST) // Reset Vif.
 	{
 		u128 SaveCol;
 		u128 SaveRow;
@@ -237,7 +239,7 @@ __fi void vif1FBRST(u32 value)
 	}
 }
 
-__fi void vif1STAT(u32 value)
+static __fi void vif1STAT(u32 value)
 {
 	/* Only FDR bit is writable, so mask the rest */
 	if ((vif1Regs.stat.FDR) ^ ((tVIF_STAT&)value).FDR)
@@ -265,7 +267,9 @@ __fi void vif1STAT(u32 value)
 		//This is actually more important for our handling, else the DMA for reverse fifo doesnt start properly.
 	}
 
-	vif1Regs.stat.FDR = VIF_STAT(value).FDR;
+	tVIF_STAT tmp;
+	tmp._u32 = value;
+	vif1Regs.stat.FDR = tmp.FDR;
 
 	if (vif1Regs.stat.FDR) // Vif transferring to memory.
 	{
@@ -277,7 +281,6 @@ __fi void vif1STAT(u32 value)
 		// was expecting data, the GS should already be sending it over (buffering in the FIFO)
 
 		vif1Regs.stat.FQC = std::min((u32)16, vif1.GSLastDownloadSize);
-		//Console.Warning("Reversing VIF Transfer for %x QWC", vif1.GSLastDownloadSize);
 	}
 	else // Memory transferring to Vif.
 	{

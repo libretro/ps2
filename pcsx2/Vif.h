@@ -90,8 +90,6 @@ enum vif_stallreasons
 };
 
 #define VIF_TEST(a, flags) (!!((a)._u32 & (flags)))
-#define VIF_STAT(value) ((tVIF_STAT)(value))
-#define FBRST(value) ((tVIF_FBRST)(value))
 
 //
 // Bitfield Structure
@@ -115,8 +113,6 @@ union tVIF_STAT {
 		u32 FQC : 5; // Amount of data. Up to 8 qwords on Vif0, 16 on Vif1.
 	};
 	u32 _u32;
-	tVIF_STAT() {}
-	tVIF_STAT(u32 val)                      { _u32 = val; }
 };
 
 union tVIF_FBRST {
@@ -128,8 +124,6 @@ union tVIF_FBRST {
 		u32 _reserved : 28;
 	};
 	u32 _u32;
-
-	tVIF_FBRST(u32 val)					{ _u32 = val; }
 };
 
 union tVIF_ERR {
