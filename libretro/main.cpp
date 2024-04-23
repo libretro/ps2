@@ -128,7 +128,6 @@ static void cpu_thread_pause(void)
 	VMManager::SetPaused(true);
 	while(cpu_thread_state != VMState::Paused)
 		MTGS::MainLoop(true);
-	MTGS::MainLoop(true);
 }
 
 void retro_set_video_refresh(retro_video_refresh_t cb)
