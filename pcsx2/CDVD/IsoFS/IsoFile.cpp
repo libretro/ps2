@@ -40,7 +40,7 @@ void IsoFile::Init()
 	currentSectorNumber = fileEntry.lba;
 	currentOffset = 0;
 	sectorOffset = 0;
-	maxOffset = std::max<u32>(0, fileEntry.size);
+	maxOffset = fileEntry.size;
 
 	if (maxOffset > 0)
 		internalReader.readSector(currentSector, currentSectorNumber);
