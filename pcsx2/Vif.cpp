@@ -107,7 +107,7 @@ __fi void vif0FBRST(u32 value)
 		bool cancel = false;
 
 		/* Cancel stall, first check if there is a stall to cancel, and then clear VIF0_STAT VSS|VFS|VIS|INT|ER0|ER1 bits */
-		if (vif0Regs.stat.test(VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
+		if (VIF_TEST(vif0Regs.stat, VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
 			cancel = true;
 
 		vif0Regs.stat._u32 &= ~(VIF0_STAT_VSS | VIF0_STAT_VFS | VIF0_STAT_VIS |
@@ -180,7 +180,7 @@ __fi void vif1FBRST(u32 value)
 	{
 		bool cancel = false;
 		// Cancel stall, first check if there is a stall to cancel, and then clear VIF1_STAT VSS|VFS|VIS|INT|ER0|ER1 bits
-		if (vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
+		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 			cancel = true;
 
 		vif1Regs.stat._u32 &= ~(VIF1_STAT_VSS | VIF1_STAT_VFS | VIF1_STAT_VIS |
@@ -194,7 +194,7 @@ __fi void vif1FBRST(u32 value)
 			{
 			case MFD_VIF1:
 				//MFIFO active and not empty
-				if (vif1ch.chcr.STR && !vif1Regs.stat.test(VIF1_STAT_FDR))
+				if (vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_FDR))
 					CPU_INT(DMAC_MFIFO_VIF, 0);
 				break;
 
@@ -202,7 +202,7 @@ __fi void vif1FBRST(u32 value)
 			case MFD_RESERVED:
 			case MFD_GIF: // Wonder if this should be with VIF?
 				// Gets the timing right - Flatout
-				if (vif1ch.chcr.STR && !vif1Regs.stat.test(VIF1_STAT_FDR))
+				if (vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_FDR))
 					CPU_INT(DMAC_VIF1, 0);
 				break;
 			}
@@ -244,7 +244,7 @@ __fi void vif1STAT(u32 value)
 	{
 		bool isStalled = false;
 		// different so can't be stalled
-		if (vif1Regs.stat.test(VIF1_STAT_INT | VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
+		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_INT | VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 			isStalled = true;
 
 		//Hack!! Hotwheels seems to leave 1QW in the fifo and expect the DMA to be ready for a reverse FIFO

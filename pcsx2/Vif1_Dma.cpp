@@ -229,7 +229,7 @@ __fi void vif1VUFinish(void)
 	{
 		vif1.waitforvu = false;
 		//Check if VIF is already scheduled to interrupt, if it's waiting, kick it :P
-		if ((cpuRegs.interrupt & ((1 << DMAC_VIF1) | (1 << DMAC_MFIFO_VIF))) == 0 && vif1ch.chcr.STR && !vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
+		if ((cpuRegs.interrupt & ((1 << DMAC_VIF1) | (1 << DMAC_MFIFO_VIF))) == 0 && vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
 			if (dmacRegs.ctrl.MFD == MFD_VIF1)
 				vifMFIFOInterrupt();
@@ -311,7 +311,7 @@ __fi void vif1Interrupt(void)
 		hwIntcIrq(VIF1intc);
 		--vif1.irq;
 
-		if (vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
+		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
 			//vif1Regs.stat.FQC = 0;
 
@@ -453,6 +453,6 @@ void dmaVIF1(void)
 	// Check VIF isn't stalled before starting the loop.
 	// Batman Vengence does something stupid and instead of cancelling a stall it tries to restart VIF, THEN check the stall
 	// However if VIF FIFO is reversed, it can continue
-	if (!vif1ch.chcr.DIR || !vif1Regs.stat.test(VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
+	if (!vif1ch.chcr.DIR || !VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		CPU_INT(DMAC_VIF1, 4);
 }

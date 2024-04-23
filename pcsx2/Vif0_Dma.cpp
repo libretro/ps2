@@ -143,7 +143,7 @@ __fi void vif0VUFinish(void)
 	{
 		vif0.waitforvu = false;
 		//Make sure VIF0 isnt already scheduled to spin.
-		if(!(cpuRegs.interrupt & 0x1) && vif0ch.chcr.STR && !vif0Regs.stat.test(VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
+		if(!(cpuRegs.interrupt & 0x1) && vif0ch.chcr.STR && !VIF_TEST(vif0Regs.stat, VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
 			vif0Interrupt();
 	}
 }
@@ -174,7 +174,7 @@ __fi void vif0Interrupt(void)
 		hwIntcIrq(VIF0intc);
 		--vif0.irq;
 
-		if (vif0Regs.stat.test(VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
+		if (VIF_TEST(vif0Regs.stat, VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
 		{
 			//vif0Regs.stat.FQC = 0;
 
@@ -276,6 +276,6 @@ void dmaVIF0(void)
 	//Using a delay as Beyond Good and Evil does the DMA twice with 2 different TADR's (no checks in the middle, all one block of code),
 	//the first bit it sends isnt required for it to work.
 	//Also being an end chain it ignores the second lot, this causes infinite loops ;p
-	if (!vif0Regs.stat.test(VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
+	if (!VIF_TEST(vif0Regs.stat, VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
 		CPU_INT(DMAC_VIF0, 4);
 }
