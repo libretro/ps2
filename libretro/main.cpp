@@ -486,7 +486,7 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 			for (;;)
 			{
 				cpu_thread_state = VMManager::GetState();
-				switch (VMManager::GetState())
+				switch (cpu_thread_state)
 				{
 					case VMState::Initializing:
 						MTGS::MainLoop(false);
@@ -504,7 +504,9 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 						continue;
 
 					case VMState::Stopping:
-						//				VMManager::Shutdown(false);
+#if 0
+						VMManager::Shutdown(false);
+#endif
 						return;
 
 					default:
