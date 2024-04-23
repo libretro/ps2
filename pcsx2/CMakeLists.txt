@@ -407,12 +407,9 @@ set(pcsx2USBHeaders
 # Host PAD
 set(pcsx2PADSources
 	PAD/PAD.cpp
-	PAD/StateManagement.cpp
 )
 set(pcsx2PADHeaders
-	PAD/KeyStatus.h
 	PAD/PAD.h
-	PAD/StateManagement.h
 )
 
 # GS sources

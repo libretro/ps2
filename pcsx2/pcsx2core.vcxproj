@@ -196,9 +196,7 @@
     <ClCompile Include="IopGte.cpp" />
     <ClCompile Include="MemoryCardProtocol.cpp" />
     <ClCompile Include="MultitapProtocol.cpp" />
-    <ClCompile Include="PAD\Host\KeyStatus.cpp" />
-    <ClCompile Include="PAD\Host\PAD.cpp" />
-    <ClCompile Include="PAD\Host\StateManagement.cpp" />
+    <ClCompile Include="PAD\PAD.cpp" />
     <ClCompile Include="FW.cpp" />
     <ClCompile Include="MemoryCardFile.cpp" />
     <ClCompile Include="PerformanceMetrics.cpp" />
@@ -511,10 +509,7 @@
     <ClInclude Include="IPU\mpeg2_vlc.h" />
     <ClInclude Include="MemoryCardProtocol.h" />
     <ClInclude Include="MultitapProtocol.h" />
-    <ClInclude Include="PAD\Host\Global.h" />
-    <ClInclude Include="PAD\Host\KeyStatus.h" />
-    <ClInclude Include="PAD\Host\PAD.h" />
-    <ClInclude Include="PAD\Host\StateManagement.h" />
+    <ClInclude Include="PAD\PAD.h" />
     <ClInclude Include="FW.h" />
     <ClInclude Include="MemoryCardFile.h" />
     <ClInclude Include="PerformanceMetrics.h" />

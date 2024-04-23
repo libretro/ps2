@@ -17,7 +17,6 @@
 #include "options.h"
 
 #include "GS.h"
-#include "input.h"
 #include "svnrev.h"
 #include "SPU2/Global.h"
 #include "ps2/BiosTools.h"

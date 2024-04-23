@@ -1124,13 +1124,7 @@
     <ClCompile Include="VMManager.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="PAD\Host\KeyStatus.cpp">
-      <Filter>System\Ps2\PAD</Filter>
-    </ClCompile>
-    <ClCompile Include="PAD\Host\PAD.cpp">
-      <Filter>System\Ps2\PAD</Filter>
-    </ClCompile>
-    <ClCompile Include="PAD\Host\StateManagement.cpp">
+    <ClCompile Include="PAD\PAD.cpp">
       <Filter>System\Ps2\PAD</Filter>
     </ClCompile>
     <ClCompile Include="windows\Optimus.cpp">
@@ -1934,16 +1928,7 @@
     <ClInclude Include="VMManager.h">
       <Filter>System</Filter>
     </ClInclude>
-    <ClInclude Include="PAD\Host\KeyStatus.h">
-      <Filter>System\Ps2\PAD</Filter>
-    </ClInclude>
-    <ClInclude Include="PAD\Host\PAD.h">
-      <Filter>System\Ps2\PAD</Filter>
-    </ClInclude>
-    <ClInclude Include="PAD\Host\StateManagement.h">
-      <Filter>System\Ps2\PAD</Filter>
-    </ClInclude>
-    <ClInclude Include="PAD\Host\Global.h">
+    <ClInclude Include="PAD\PAD.h">
       <Filter>System\Ps2\PAD</Filter>
     </ClInclude>
     <ClInclude Include="GS\Renderers\HW\GSTextureReplacements.h">
