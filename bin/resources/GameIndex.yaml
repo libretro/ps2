@@ -20336,6 +20336,7 @@ SLES-54159:
     mipmap: 2 # Cleans up texture detail.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     halfPixelOffset: 2 # Fixes post processing misalignment.
+    recommendedBlendingLevel: 3 # Improves reflection quality.
 SLES-54160:
   name: "Eragon"
   region: "PAL-R"
@@ -20343,6 +20344,7 @@ SLES-54160:
     mipmap: 2 # Cleans up texture detail.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     halfPixelOffset: 2 # Fixes post processing misalignment.
+    recommendedBlendingLevel: 3 # Improves reflection quality.
 SLES-54161:
   name: "Super Dragon Ball Z"
   region: "PAL-E"
@@ -49297,6 +49299,7 @@ SLUS-21322:
     mipmap: 2 # Cleans up texture detail.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     halfPixelOffset: 2 # Fixes post processing misalignment.
+    recommendedBlendingLevel: 3 # Improves reflection quality.
 SLUS-21323:
   name: "Rampage - Total Destruction"
   region: "NTSC-U"
