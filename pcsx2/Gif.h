@@ -157,8 +157,6 @@ union tGIF_P3CNT
 		u32 reserved1 : 17;
 	};
 	u32 _u32;
-
-	tGIF_P3CNT(u32 val) { _u32 = val; }
 };
 
 union tGIF_P3TAG
