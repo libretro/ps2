@@ -160,21 +160,21 @@ struct GS_Packet
 	s32 cycles;     // EE Cycles taken to process this GS packet
 	s32 readAmount; // Dummy read-amount data needed for proper buffer calculations
 	GS_Packet() { Reset(); }
-	void Reset() { memset(this, 0, sizeof(*this)); }
+	void Reset() { offset = 0; size = 0; cycles = 0; readAmount = 0; }
 };
 
 struct GS_SIGNAL
 {
 	u32 data[2];
 	bool queued;
-	void Reset() { memset(this, 0, sizeof(*this)); }
+	void Reset() { data[0] = 0; data[1] = 0; queued = false; }
 };
 
 struct GS_FINISH
 {
 	bool gsFINISHFired;
 
-	void Reset() { memset(this, 0, sizeof(*this)); }
+	void Reset() { gsFINISHFired = false; }
 };
 
 struct Gif_Path_MTVU
