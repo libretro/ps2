@@ -48,15 +48,6 @@ static SyncCounter vsyncCounter;
 u32 nextsCounter;	// records the cpuRegs.cycle value of the last call to rcntUpdate()
 s32 nextCounter;	// delta from nextsCounter, in cycles, until the next rcntUpdate()
 
-// Forward declarations needed because C/C++ both are wimpy single-pass compilers.
-
-static void rcntStartGate(bool mode, u32 sCycle);
-static void rcntEndGate(bool mode, u32 sCycle);
-static void rcntWcount(int index, u32 value);
-static void rcntWmode(int index, u32 value);
-static void rcntWtarget(int index, u32 value);
-static void rcntWhold(int index, u32 value);
-
 // For Analog/Double Strike and Interlace modes
 static bool IsInterlacedVideoMode(void)
 {
@@ -452,6 +443,103 @@ static __fi void VSyncCheckExit()
 		Cpu->ExitExecution();
 }
 
+static __fi void _cpuTestTarget( int i )
+{
+	if (counters[i].count < counters[i].target)
+		return;
+
+	if(counters[i].mode.TargetInterrupt) {
+		if (!counters[i].mode.TargetReached)
+		{
+			counters[i].mode.TargetReached = 1;
+			hwIntcIrq(counters[i].interrupt);
+		}
+	}
+
+	if (counters[i].mode.ZeroReturn)
+		counters[i].count -= counters[i].target; // Reset on target
+	else
+		counters[i].target |= EECNT_FUTURE_TARGET; // OR with future target to prevent a retrigger
+}
+
+static __fi void _cpuTestOverflow( int i )
+{
+	if (counters[i].count <= 0xffff) return;
+
+	if (counters[i].mode.OverflowInterrupt) {
+		if (!counters[i].mode.OverflowReached)
+		{
+			counters[i].mode.OverflowReached = 1;
+			hwIntcIrq(counters[i].interrupt);
+		}
+	}
+
+	// wrap counter back around zero, and enable the future target:
+	counters[i].count -= 0x10000;
+	counters[i].target &= 0xffff;
+}
+
+
+
+// mode - 0 means hblank source, 8 means vblank source.
+static __fi void rcntStartGate(bool isVblank, u32 sCycle)
+{
+	int i;
+
+	for (i=0; i <=3; i++)
+	{
+		//if ((mode == 0) && ((counters[i].mode & 0x83) == 0x83))
+		if (!isVblank && counters[i].mode.IsCounting && (counters[i].mode.ClockSource == 3) )
+		{
+			// Update counters using the hblank as the clock.  This keeps the hblank source
+			// nicely in sync with the counters and serves as an optimization also, since these
+			// counter won't receive special rcntUpdate scheduling.
+
+			// Note: Target and overflow tests must be done here since they won't be done
+			// currectly by rcntUpdate (since it's not being scheduled for these counters)
+
+			counters[i].count += HBLANK_COUNTER_SPEED;
+			_cpuTestOverflow( i );
+			_cpuTestTarget( i );
+		}
+
+		if (!(gates & (1<<i))) continue;
+		if ((!!counters[i].mode.GateSource) != isVblank) continue;
+
+		switch (counters[i].mode.GateMode) {
+			case 0x0: //Count When Signal is low (off)
+
+				// Just set the start cycle (sCycleT) -- counting will be done as needed
+				// for events (overflows, targets, mode changes, and the gate off below)
+
+				counters[i].count = rcntRcount(i);
+				counters[i].mode.IsCounting = 0;
+				counters[i].sCycleT = sCycle;
+				break;
+
+			case 0x2:	// reset and start counting on vsync end
+				// this is the vsync start so do nothing.
+				break;
+
+			case 0x1: //Reset and start counting on Vsync start
+			case 0x3: //Reset and start counting on Vsync start and end
+				counters[i].mode.IsCounting = 1;
+				counters[i].count = 0;
+				counters[i].target &= 0xffff;
+				counters[i].sCycleT = sCycle;
+				break;
+		}
+	}
+
+	// No need to update actual counts here.  Counts are calculated as needed by reads to
+	// rcntRcount().  And so long as sCycleT is set properly, any targets or overflows
+	// will be scheduled and handled.
+
+	// Note: No need to set counters here.  They'll get set when control returns to
+	// rcntUpdate, since we're being called from there anyway.
+}
+
+
 static __fi void VSyncStart(u32 sCycle)
 {
 	int i;
@@ -512,6 +600,42 @@ static __fi void GSVSync()
 		if (!GSIMR.VSMSK)
 			gsIrq();
 	}
+}
+
+// mode - 0 means hblank signal, 8 means vblank signal.
+static __fi void rcntEndGate(bool isVblank , u32 sCycle)
+{
+	int i;
+
+	for(i=0; i <=3; i++) { //Gates for counters
+		if (!(gates & (1<<i))) continue;
+		if ((!!counters[i].mode.GateSource) != isVblank) continue;
+
+		switch (counters[i].mode.GateMode) {
+			case 0x0: //Count When Signal is low (off)
+
+				// Set the count here.  Since the timer is being turned off it's
+				// important to record its count at this point (it won't be counted by
+				// calls to rcntUpdate).
+				counters[i].mode.IsCounting = 1;
+				counters[i].sCycleT = cpuRegs.cycle;
+			break;
+
+			case 0x1:	// Reset and start counting on Vsync start
+				// this is the vsync end so do nothing
+			break;
+
+			case 0x2: //Reset and start counting on Vsync end
+			case 0x3: //Reset and start counting on Vsync start and end
+				counters[i].mode.IsCounting = 1;
+				counters[i].count = 0;
+				counters[i].target &= 0xffff;
+				counters[i].sCycleT = sCycle;
+			break;
+		}
+	}
+	// Note: No need to set counters here.  They'll get set when control returns to
+	// rcntUpdate, since we're being called from there anyway.
 }
 
 static __fi void VSyncEnd(u32 sCycle)
@@ -585,47 +709,10 @@ __fi void rcntUpdate_vSync()
 	}
 }
 
-static __fi void _cpuTestTarget( int i )
-{
-	if (counters[i].count < counters[i].target)
-		return;
-
-	if(counters[i].mode.TargetInterrupt) {
-		if (!counters[i].mode.TargetReached)
-		{
-			counters[i].mode.TargetReached = 1;
-			hwIntcIrq(counters[i].interrupt);
-		}
-	}
-
-	if (counters[i].mode.ZeroReturn)
-		counters[i].count -= counters[i].target; // Reset on target
-	else
-		counters[i].target |= EECNT_FUTURE_TARGET; // OR with future target to prevent a retrigger
-}
-
-static __fi void _cpuTestOverflow( int i )
-{
-	if (counters[i].count <= 0xffff) return;
-
-	if (counters[i].mode.OverflowInterrupt) {
-		if (!counters[i].mode.OverflowReached)
-		{
-			counters[i].mode.OverflowReached = 1;
-			hwIntcIrq(counters[i].interrupt);
-		}
-	}
-
-	// wrap counter back around zero, and enable the future target:
-	counters[i].count -= 0x10000;
-	counters[i].target &= 0xffff;
-}
-
-
 // forceinline note: this method is called from two locations, but one
 // of them is the interpreter, which doesn't count. ;)  So might as
 // well forceinline it!
-__fi void rcntUpdate()
+__fi void rcntUpdate(void)
 {
 	rcntUpdate_vSync();
 	// HBlank after as VSync can do error compensation
@@ -679,100 +766,6 @@ static __fi void _rcntSetGate( int index )
 	}
 
 	gates &= ~(1<<index);
-}
-
-// mode - 0 means hblank source, 8 means vblank source.
-static __fi void rcntStartGate(bool isVblank, u32 sCycle)
-{
-	int i;
-
-	for (i=0; i <=3; i++)
-	{
-		//if ((mode == 0) && ((counters[i].mode & 0x83) == 0x83))
-		if (!isVblank && counters[i].mode.IsCounting && (counters[i].mode.ClockSource == 3) )
-		{
-			// Update counters using the hblank as the clock.  This keeps the hblank source
-			// nicely in sync with the counters and serves as an optimization also, since these
-			// counter won't receive special rcntUpdate scheduling.
-
-			// Note: Target and overflow tests must be done here since they won't be done
-			// currectly by rcntUpdate (since it's not being scheduled for these counters)
-
-			counters[i].count += HBLANK_COUNTER_SPEED;
-			_cpuTestOverflow( i );
-			_cpuTestTarget( i );
-		}
-
-		if (!(gates & (1<<i))) continue;
-		if ((!!counters[i].mode.GateSource) != isVblank) continue;
-
-		switch (counters[i].mode.GateMode) {
-			case 0x0: //Count When Signal is low (off)
-
-				// Just set the start cycle (sCycleT) -- counting will be done as needed
-				// for events (overflows, targets, mode changes, and the gate off below)
-
-				counters[i].count = rcntRcount(i);
-				counters[i].mode.IsCounting = 0;
-				counters[i].sCycleT = sCycle;
-				break;
-
-			case 0x2:	// reset and start counting on vsync end
-				// this is the vsync start so do nothing.
-				break;
-
-			case 0x1: //Reset and start counting on Vsync start
-			case 0x3: //Reset and start counting on Vsync start and end
-				counters[i].mode.IsCounting = 1;
-				counters[i].count = 0;
-				counters[i].target &= 0xffff;
-				counters[i].sCycleT = sCycle;
-				break;
-		}
-	}
-
-	// No need to update actual counts here.  Counts are calculated as needed by reads to
-	// rcntRcount().  And so long as sCycleT is set properly, any targets or overflows
-	// will be scheduled and handled.
-
-	// Note: No need to set counters here.  They'll get set when control returns to
-	// rcntUpdate, since we're being called from there anyway.
-}
-
-// mode - 0 means hblank signal, 8 means vblank signal.
-static __fi void rcntEndGate(bool isVblank , u32 sCycle)
-{
-	int i;
-
-	for(i=0; i <=3; i++) { //Gates for counters
-		if (!(gates & (1<<i))) continue;
-		if ((!!counters[i].mode.GateSource) != isVblank) continue;
-
-		switch (counters[i].mode.GateMode) {
-			case 0x0: //Count When Signal is low (off)
-
-				// Set the count here.  Since the timer is being turned off it's
-				// important to record its count at this point (it won't be counted by
-				// calls to rcntUpdate).
-				counters[i].mode.IsCounting = 1;
-				counters[i].sCycleT = cpuRegs.cycle;
-			break;
-
-			case 0x1:	// Reset and start counting on Vsync start
-				// this is the vsync end so do nothing
-			break;
-
-			case 0x2: //Reset and start counting on Vsync end
-			case 0x3: //Reset and start counting on Vsync start and end
-				counters[i].mode.IsCounting = 1;
-				counters[i].count = 0;
-				counters[i].target &= 0xffff;
-				counters[i].sCycleT = sCycle;
-			break;
-		}
-	}
-	// Note: No need to set counters here.  They'll get set when control returns to
-	// rcntUpdate, since we're being called from there anyway.
 }
 
 static __fi u32 rcntCycle(int index)
@@ -866,23 +859,14 @@ static __fi void rcntWtarget(int index, u32 value)
 	_rcntSet( index );
 }
 
-static __fi void rcntWhold(int index, u32 value)
-{
-	counters[index].hold = value;
-}
+#define rcntWhold(index, value) (counters[(index)].hold = (value))
 
 __fi u32 rcntRcount(int index)
 {
-	u32 ret;
-
 	// only count if the counter is turned on (0x80) and is not an hsync gate (!0x03)
 	if (counters[index].mode.IsCounting && (counters[index].mode.ClockSource != 0x3))
-		ret = counters[index].count + ((cpuRegs.cycle - counters[index].sCycleT) / counters[index].rate);
-	else
-		ret = counters[index].count;
-
-	// Spams the Console.
-	return ret;
+		return counters[index].count + ((cpuRegs.cycle - counters[index].sCycleT) / counters[index].rate);
+	return counters[index].count;
 }
 
 template< uint page >
