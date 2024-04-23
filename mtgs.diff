@@ -103,10 +103,10 @@ index e45b8fd3a..b5b6b8caf 100644
  		return false;
  
 diff --git a/pcsx2/Gif_Unit.h b/pcsx2/Gif_Unit.h
-index caa432284..693d0dcca 100644
+index 8debc65c1..a9cec65a2 100644
 --- a/pcsx2/Gif_Unit.h
 +++ b/pcsx2/Gif_Unit.h
-@@ -262,7 +262,7 @@ struct Gif_Path
+@@ -265,7 +265,7 @@ struct Gif_Path
  			s32 frontFree = offset - getReadAmount();
  			if (frontFree >= sizeToAdd - intersect)
  				break;
@@ -115,7 +115,7 @@ index caa432284..693d0dcca 100644
  		}
  		if (offset < (s32)buffLimit)
  		{ // Needed for correct readAmount values
-@@ -294,7 +294,7 @@ struct Gif_Path
+@@ -297,7 +297,7 @@ struct Gif_Path
  				break; // MTGS is reading in back of curOffset
  			if ((s32)buffLimit + readPos > (s32)curSize + (s32)size)
  				break;      // Enough free front space
@@ -125,10 +125,10 @@ index caa432284..693d0dcca 100644
  		memcpy(&buffer[curSize], pMem, size);
  		curSize += size;
 diff --git a/pcsx2/MTGS.cpp b/pcsx2/MTGS.cpp
-index 7c220f88e..a42b0494d 100644
+index 7c220f88e..0524c1510 100644
 --- a/pcsx2/MTGS.cpp
 +++ b/pcsx2/MTGS.cpp
-@@ -42,18 +42,6 @@ union PacketTagType
+@@ -42,22 +42,9 @@ union PacketTagType
  	};
  };
  
@@ -147,7 +147,11 @@ index 7c220f88e..a42b0494d 100644
  struct MTGS_BufferedData
  {
  	u128 m_Ring[RingBufferSize];
-@@ -88,13 +76,6 @@ namespace MTGS
+-	u8 Regs[Ps2MemSize::GSregs];
+ };
+ 
+ // =====================================================================================================
+@@ -88,13 +75,6 @@ namespace MTGS
  	// has more than one command in it when the thread is kicked.
  	static int s_CopyDataTally                      = 0;
  
@@ -161,7 +165,7 @@ index 7c220f88e..a42b0494d 100644
  	static std::thread::id s_thread;
  	static Threading::ThreadHandle s_thread_handle;
  	static std::atomic_bool s_open_flag{false};
-@@ -111,37 +92,42 @@ void MTGS::ResetGS(bool hardware_reset)
+@@ -111,37 +91,42 @@ void MTGS::ResetGS(bool hardware_reset)
  	//  * Signal a reset.
  	//  * clear the path and byRegs structs (used by GIFtagDummy)
  
@@ -223,7 +227,7 @@ index 7c220f88e..a42b0494d 100644
  
  	// If the MTGS is allowed to queue a lot of frames in advance, it creates input lag.
  	// Use the Queued FrameCount to stall the EE if another vsync (or two) are already queued
-@@ -154,7 +140,7 @@ void MTGS::PostVsyncStart(bool registers_written)
+@@ -154,7 +139,7 @@ void MTGS::PostVsyncStart(bool registers_written)
  	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
  	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
  
@@ -232,7 +236,7 @@ index 7c220f88e..a42b0494d 100644
  		return;
  
  	s_VsyncSignalListener.store(true, std::memory_order_release);
-@@ -174,17 +160,25 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
+@@ -174,17 +159,25 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
  		return;
  	}
  
@@ -263,7 +267,7 @@ index 7c220f88e..a42b0494d 100644
  		return false;
  
  	GSSetGameCRC(ElfCRC);
-@@ -224,115 +218,90 @@ void MTGS::MainLoop(bool flush_all)
+@@ -224,115 +217,90 @@ void MTGS::MainLoop(bool flush_all)
  		{
  			const unsigned int local_ReadPos = s_ReadPos.load(std::memory_order_relaxed);
  			const PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[local_ReadPos];
@@ -445,7 +449,7 @@ index 7c220f88e..a42b0494d 100644
  			s_ReadPos.store(newringpos, std::memory_order_release);
  
  			if(!flush_all && tag.command == GS_RINGTYPE_VSYNC) {
-@@ -343,7 +312,7 @@ void MTGS::MainLoop(bool flush_all)
+@@ -343,7 +311,7 @@ void MTGS::MainLoop(bool flush_all)
  			if (s_SignalRingEnable.load(std::memory_order_acquire))
  			{
  				// The EEcore has requested a signal after some amount of processed data.
@@ -454,7 +458,7 @@ index 7c220f88e..a42b0494d 100644
  				{
  					// Make sure to post the signal after the m_ReadPos has been updated...
  					s_SignalRingEnable.store(false, std::memory_order_release);
-@@ -391,10 +360,9 @@ void MTGS::CloseGS()
+@@ -391,10 +359,9 @@ void MTGS::CloseGS()
  }
  
  // Waits for the GS to empty out the entire ring buffer contents.
@@ -466,7 +470,7 @@ index 7c220f88e..a42b0494d 100644
  {
  	if(std::this_thread::get_id() == s_thread)
  	{
-@@ -407,14 +375,13 @@ void MTGS::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
+@@ -407,14 +374,13 @@ void MTGS::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
  		return;
  	}
  
@@ -482,7 +486,7 @@ index 7c220f88e..a42b0494d 100644
  		// On weakWait we will stop waiting on the MTGS thread if the
  		// MTGS thread has processed a vu1 xgkick packet, or is pending on
  		// its final vu1 xgkick packet (!curP1Packs)...
-@@ -438,10 +405,6 @@ void MTGS::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
+@@ -438,10 +404,6 @@ void MTGS::WaitGS(bool syncRegs, bool weakWait, bool isMTVU)
  		if (!s_sem_event.WaitForEmpty())
  			Console.Error("MTGS Thread Died");
  	}
@@ -493,7 +497,7 @@ index 7c220f88e..a42b0494d 100644
  }
  
  // Sets the gsEvent flag and releases a timeslice.
-@@ -452,23 +415,7 @@ void MTGS::SetEvent()
+@@ -452,23 +414,7 @@ void MTGS::SetEvent()
  	s_CopyDataTally = 0;
  }
  
@@ -518,7 +522,7 @@ index 7c220f88e..a42b0494d 100644
  {
  	// Note on volatiles: s_WritePos is not modified by the GS thread, so there's no need
  	// to use volatile reads here.  We do cache it though, since we know it never changes,
-@@ -478,7 +425,7 @@ void MTGS::GenericStall(uint size)
+@@ -478,7 +424,7 @@ void MTGS::GenericStall(uint size)
  	// generic gs wait/stall.
  	// if the writepos is past the readpos then we're safe.
  	// But if not then we need to make sure the readpos is outside the scope of
@@ -527,7 +531,7 @@ index 7c220f88e..a42b0494d 100644
  
  	uint readpos = s_ReadPos.load(std::memory_order_acquire);
  	uint freeroom;
-@@ -488,7 +435,7 @@ void MTGS::GenericStall(uint size)
+@@ -488,7 +434,7 @@ void MTGS::GenericStall(uint size)
  	else
  		freeroom = RingBufferSize - (writepos - readpos);
  
@@ -536,7 +540,7 @@ index 7c220f88e..a42b0494d 100644
  	{
  		// writepos will overlap readpos if we commit the data, so we need to wait until
  		// readpos is out past the end of the future write pos, or until it wraps around
-@@ -499,8 +446,8 @@ void MTGS::GenericStall(uint size)
+@@ -499,8 +445,8 @@ void MTGS::GenericStall(uint size)
  		// thread to wake up the EE once there's a sizable chunk of the ringbuffer emptied.
  
  		uint somedone = (RingBufferSize - freeroom) / 4;
@@ -547,7 +551,7 @@ index 7c220f88e..a42b0494d 100644
  
  		// FMV Optimization: FMVs typically send *very* little data to the GS, in some cases
  		// every other frame is nothing more than a page swap.  Sleeping the EEcore is a
-@@ -521,7 +468,7 @@ void MTGS::GenericStall(uint size)
+@@ -521,7 +467,7 @@ void MTGS::GenericStall(uint size)
  				else
  					freeroom = RingBufferSize - (writepos - readpos);
  
@@ -556,7 +560,7 @@ index 7c220f88e..a42b0494d 100644
  					break;
  			}
  		}
-@@ -538,63 +485,39 @@ void MTGS::GenericStall(uint size)
+@@ -538,63 +484,39 @@ void MTGS::GenericStall(uint size)
  				else
  					freeroom = RingBufferSize - (writepos - readpos);
  
@@ -636,7 +640,7 @@ index 7c220f88e..a42b0494d 100644
  
  	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
  	s_WritePos.store(future_writepos, std::memory_order_release);
-@@ -602,11 +525,6 @@ void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
+@@ -602,11 +524,6 @@ void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
  	++s_CopyDataTally;
  }
  
@@ -648,7 +652,7 @@ index 7c220f88e..a42b0494d 100644
  void MTGS::WaitForClose()
  {
  	// and kick the thread if it's sleeping
-@@ -622,15 +540,35 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
+@@ -622,15 +539,35 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
  {
  	// synchronize regs before loading
  	if (mode == FreezeAction::Load)
@@ -688,7 +692,7 @@ index 7c220f88e..a42b0494d 100644
  
  	// wake the gs thread in case it's sleeping
  	SetEvent();
-@@ -646,7 +584,7 @@ void MTGS::ApplySettings()
+@@ -646,7 +583,7 @@ void MTGS::ApplySettings()
  	// is unsynchronized, because otherwise we might potentially read in the middle of
  	// the GS renderer being reopened.
  	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
@@ -697,7 +701,7 @@ index 7c220f88e..a42b0494d 100644
  }
  
  void MTGS::SwitchRenderer(GSRendererType renderer, bool display_message /* = true */)
-@@ -657,7 +595,7 @@ void MTGS::SwitchRenderer(GSRendererType renderer, bool display_message /* = tru
+@@ -657,7 +594,7 @@ void MTGS::SwitchRenderer(GSRendererType renderer, bool display_message /* = tru
  
  	// See note in ApplySettings() for reasoning here.
  	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
@@ -706,7 +710,7 @@ index 7c220f88e..a42b0494d 100644
  }
  
  void MTGS::SetSoftwareRendering(bool software, bool display_message /* = true */)
-@@ -681,18 +619,61 @@ void MTGS::ToggleSoftwareRendering()
+@@ -681,18 +618,61 @@ void MTGS::ToggleSoftwareRendering()
  // Used in MTVU mode... MTVU will later complete a real packet
  void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
  {
