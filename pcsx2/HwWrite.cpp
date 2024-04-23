@@ -416,8 +416,6 @@ void TAKES_R128 _hwWrite128(u32 mem, r128 srcval)
 
 	// All upper bits of all non-FIFO 128-bit HW writes are almost certainly disregarded. --air
 	hwWrite64<page>(mem, r128_to_u64(srcval));
-
-	//CopyQWC(&psHu128(mem), srcval);
 }
 
 template< uint page >

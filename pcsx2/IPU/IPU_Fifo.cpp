@@ -105,7 +105,8 @@ int IPU_Fifo_Input::read(void *value)
 		if (g_BP.IFC == 0) return 0;
 	}
 
-	CopyQWC(value, &data[readpos]);
+	const void *src = &data[readpos];
+	CopyQWC(value, src);
 
 	readpos = (readpos + 4) & 31;
 	g_BP.IFC--;

@@ -95,8 +95,9 @@ struct alignas(16) tIPU_BP {
 			{
 				// when BP is over 128 it means we're reading data from the second quadword.  Shift that one
 				// to the front and load the new quadword into the second QWC (its a manualized ringbuffer!)
-
-				CopyQWC(&internal_qwc[0], &internal_qwc[1]);
+				void      *dest = &internal_qwc[0];
+				const void *src = &internal_qwc[1];
+				CopyQWC(dest, src);
 				FP = 1;
 			}
 			else
