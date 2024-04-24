@@ -280,7 +280,6 @@ enum MTGS_RingCommand
 struct MTGS_FreezeData
 {
 	freezeData* fdata;
-	s32 retval; // value returned from the call, valid only after an mtgsWaitGS()
 };
 
 // --------------------------------------------------------------------------------------
@@ -294,7 +293,7 @@ namespace MTGS
 	bool IsOpen();
 
 	// Waits for the GS to empty out the entire ring buffer contents.
-	void WaitGS(bool syncRegs=true, bool weakWait=false, bool isMTVU=false);
+	void WaitGS(bool syncRegs, bool weakWait, bool isMTVU);
 	void ResetGS(bool hardware_reset);
 
 	void PrepDataPacket(MTGS_RingCommand cmd, u32 size);
@@ -350,6 +349,7 @@ extern u16 gsRead16(u32 mem);
 extern u32 gsRead32(u32 mem);
 extern u64 gsRead64(u32 mem);
 extern u128 gsNonMirroredRead(u32 mem);
+extern bool s_GSRegistersWritten;
 
 void gsIrq();
 

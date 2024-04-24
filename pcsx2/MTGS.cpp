@@ -303,7 +303,7 @@ void MTGS::MainLoop(bool flush_all)
 						{
 							MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
 							int mode = tag.data[0];
-							data->retval = GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
+							GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
 						}
 						break;
 
@@ -612,10 +612,10 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
 	// synchronize regs before loading
 	if (mode == FreezeAction::Load)
-		WaitGS(true);
+		WaitGS(true, false, false);
 
 	SendPointerPacket(GS_RINGTYPE_FREEZE, (int)mode, &data);
-	WaitGS(false);
+	WaitGS(false, false, false);
 }
 
 void MTGS::RunOnGSThread(AsyncCallType func)

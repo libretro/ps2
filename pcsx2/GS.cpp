@@ -26,7 +26,7 @@
 using namespace R5900;
 
 alignas(16) u8 g_RealGSMem[Ps2MemSize::GSregs];
-static bool s_GSRegistersWritten = false;
+bool s_GSRegistersWritten = false;
 
 void gsSetVideoMode(GS_VideoMode mode)
 {
