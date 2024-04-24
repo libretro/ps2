@@ -5752,7 +5752,6 @@ SCKA-20090:
   gsHWFixes:
     mergeSprite: 1 # Reduces bloom but fixes blurriness around models + Recommended to use Shadeboost brightness 80.
     halfPixelOffset: 2 # Depth of field effect aligned properly if CRC hack is off + Shifts buildings correctly.
-    getSkipCount: "GSC_GodHand"
 SCKA-20092:
   name: "K-1 World Grand Prix 2006"
   region: "NTSC-K"
@@ -21536,7 +21535,6 @@ SLES-54490:
   gsHWFixes:
     mergeSprite: 1 # Reduces bloom but fixes blurriness around models + Recommended to use Shadeboost brightness 80.
     halfPixelOffset: 2 # Depth of field effect aligned properly if CRC hack is off + Shifts buildings correctly.
-    getSkipCount: "GSC_GodHand"
 SLES-54492:
   name: "Need for Speed - Carbon [Collector's Edition]"
   region: "PAL-E"
@@ -35197,7 +35195,6 @@ SLPM-66550:
   gsHWFixes:
     mergeSprite: 1 # Reduces bloom but fixes blurriness around models + Recommended to use Shadeboost brightness 80.
     halfPixelOffset: 2 # Depth of field effect aligned properly if CRC hack is off + Shifts buildings correctly.
-    getSkipCount: "GSC_GodHand"
 SLPM-66551:
   name: "Appleseed EX"
   region: "NTSC-J"
@@ -37383,7 +37380,6 @@ SLPM-74241:
   gsHWFixes:
     mergeSprite: 1 # Reduces bloom but fixes blurriness around models + Recommended to use Shadeboost brightness 80.
     halfPixelOffset: 2 # Depth of field effect aligned properly if CRC hack is off + Shifts buildings correctly.
-    getSkipCount: "GSC_GodHand"
 SLPM-74242:
   name: "Devil May Cry 3 [Special Edition] [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -50973,7 +50969,6 @@ SLUS-21503:
   gsHWFixes:
     mergeSprite: 1 # Reduces bloom but fixes blurriness around models + Recommended to use Shadeboost brightness 80.
     halfPixelOffset: 2 # Depth of field effect aligned properly if CRC hack is off + Shifts buildings correctly.
-    getSkipCount: "GSC_GodHand"
 SLUS-21536:
   name: "Sims 2, The - Pets"
   region: "NTSC-U"
