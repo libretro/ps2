@@ -55,7 +55,7 @@ struct RingCmdPacket_Vsync
 
 struct MTGS_BufferedData
 {
-	u128 m_Ring[RingBufferSize];
+	u128 m_Ring[RINGBUFFERSIZE];
 	u8 Regs[Ps2MemSize::GSregs];
 };
 
@@ -94,6 +94,23 @@ namespace MTGS
 	static Threading::UserspaceSemaphore s_open_or_close_done;
 };
 
+static inline void MemCopy_WrappedSrc(const u128* srcBase, uint& srcStart, uint srcSize, u128* dest, uint len)
+{
+	uint endpos = srcStart + len;
+	if (endpos < srcSize)
+	{
+		memcpy(dest, &srcBase[srcStart], len * 16);
+		srcStart += len;
+	}
+	else
+	{
+		uint firstcopylen = srcSize - srcStart;
+		memcpy(dest, &srcBase[srcStart], firstcopylen * 16);
+		srcStart = endpos % srcSize;
+		memcpy(dest + firstcopylen, srcBase, srcStart * 16);
+	}
+}
+
 const Threading::ThreadHandle& MTGS::GetThreadHandle() { return s_thread_handle; }
 bool MTGS::IsOpen() { return s_open_flag.load(std::memory_order_acquire); }
 
@@ -127,17 +144,17 @@ void MTGS::PostVsyncStart(bool registers_written)
 	PacketTagType& tag                = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = packet_size;
-	packet_writepos                   = (local_WritePos + 1) & RingBufferMask;
-	MemCopy_WrappedDest((u128*)PS2MEM_GS, RingBuffer.m_Ring, packet_writepos, RingBufferSize, 0xf);
+	packet_writepos                   = (local_WritePos + 1) & RINGBUFFERMASK;
+	MemCopy_WrappedDest((u128*)PS2MEM_GS, RingBuffer.m_Ring, packet_writepos, RINGBUFFERSIZE, 0xf);
 
-	u32* remainder                    = (u32*)(u8*)&RingBuffer.m_Ring[packet_writepos & RingBufferMask];
+	u32* remainder                    = (u32*)(u8*)&RingBuffer.m_Ring[packet_writepos & RINGBUFFERMASK];
 	remainder[0]                      = GSCSRr;
 	remainder[1]                      = GSIMR._u32;
 	(GSRegSIGBLID&)remainder[2]       = GSSIGLBLID;
 	remainder[4]                      = static_cast<u32>(registers_written);
-	packet_writepos                   = (packet_writepos + 2) & RingBufferMask;
+	packet_writepos                   = (packet_writepos + 2) & RINGBUFFERMASK;
 
-	uint actualSize                   = ((packet_writepos - local_WritePos) & RingBufferMask) - 1;
+	uint actualSize                   = ((packet_writepos - local_WritePos) & RINGBUFFERMASK) - 1;
 	tag                               = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
 	tag.data[0]                       = actualSize;
 
@@ -269,8 +286,8 @@ void MTGS::MainLoop(bool flush_all)
 					// This seemingly obtuse system is needed in order to handle cases where the vsync data wraps
 					// around the edge of the ringbuffer.  If not for that I'd just use a struct. >_<
 
-					uint datapos = (local_ReadPos + 1) & RingBufferMask;
-					MemCopy_WrappedSrc(RingBuffer.m_Ring, datapos, RingBufferSize, (u128*)RingBuffer.Regs, 0xf);
+					uint datapos = (local_ReadPos + 1) & RINGBUFFERMASK;
+					MemCopy_WrappedSrc(RingBuffer.m_Ring, datapos, RINGBUFFERSIZE, (u128*)RingBuffer.Regs, 0xf);
 
 					u32* remainder = (u32*)&RingBuffer.m_Ring[datapos];
 					((u32&)RingBuffer.Regs[0x1000]) = remainder[0];
@@ -319,7 +336,7 @@ void MTGS::MainLoop(bool flush_all)
 					break;
 			}
 
-			uint newringpos = (local_ReadPos + ringposinc) & RingBufferMask;
+			uint newringpos = (local_ReadPos + ringposinc) & RINGBUFFERMASK;
 
 			s_ReadPos.store(newringpos, std::memory_order_release);
 
@@ -458,7 +475,7 @@ void MTGS::GenericStall(uint size)
 	if (writepos < readpos)
 		freeroom = readpos - writepos;
 	else
-		freeroom = RingBufferSize - (writepos - readpos);
+		freeroom = RINGBUFFERSIZE - (writepos - readpos);
 
 	if (freeroom <= size)
 	{
@@ -470,7 +487,7 @@ void MTGS::GenericStall(uint size)
 		// the next packet will likely stall up too.  So lets set a condition for the MTGS
 		// thread to wake up the EE once there's a sizable chunk of the ringbuffer emptied.
 
-		uint somedone = (RingBufferSize - freeroom) / 4;
+		uint somedone = (RINGBUFFERSIZE - freeroom) / 4;
 		if (somedone < size + 1)
 			somedone = size + 1;
 
@@ -491,7 +508,7 @@ void MTGS::GenericStall(uint size)
 				if (writepos < readpos)
 					freeroom = readpos - writepos;
 				else
-					freeroom = RingBufferSize - (writepos - readpos);
+					freeroom = RINGBUFFERSIZE - (writepos - readpos);
 
 				if (freeroom > size)
 					break;
@@ -508,7 +525,7 @@ void MTGS::GenericStall(uint size)
 				if (writepos < readpos)
 					freeroom = readpos - writepos;
 				else
-					freeroom = RingBufferSize - (writepos - readpos);
+					freeroom = RINGBUFFERSIZE - (writepos - readpos);
 
 				if (freeroom > size)
 					break;
@@ -527,7 +544,7 @@ void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int dat
 	tag.data[1]          = data1;
 	tag.data[2]          = data2;
 
-	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
+	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RINGBUFFERMASK;
 	s_WritePos.store(future_writepos, std::memory_order_release);
 
 	++s_CopyDataTally;
@@ -542,7 +559,7 @@ void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 	tag.data[0]          = data0;
 	tag.pointer          = (uptr)data1;
 
-	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RingBufferMask;
+	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RINGBUFFERMASK;
 	s_WritePos.store(future_writepos, std::memory_order_release);
 
 	++s_CopyDataTally;
