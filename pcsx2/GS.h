@@ -293,7 +293,7 @@ namespace MTGS
 	bool IsOpen();
 
 	// Waits for the GS to empty out the entire ring buffer contents.
-	void WaitGS(bool syncRegs, bool weakWait, bool isMTVU);
+	void WaitGS(bool weakWait, bool isMTVU);
 	void ResetGS(bool hardware_reset);
 
 	void WaitForClose();

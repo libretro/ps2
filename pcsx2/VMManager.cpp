@@ -632,7 +632,7 @@ void VMManager::Shutdown(bool save_resume_state)
 	// sync everything
 	if (THREAD_VU1)
 		vu1Thread.WaitVU();
-	MTGS::WaitGS(true, false, false);
+	MTGS::WaitGS(false, false);
 
 	{
 		LastELF.clear();
@@ -702,7 +702,7 @@ void VMManager::Reset()
 
 	vu1Thread.WaitVU();
 	vu1Thread.Reset();
-	MTGS::WaitGS(true, false, false);
+	MTGS::WaitGS(false, false);
 
 	const bool game_was_started = g_GameStarted;
 
@@ -978,7 +978,7 @@ void VMManager::ApplySettings()
 	{
 		if (THREAD_VU1)
 			vu1Thread.WaitVU();
-		MTGS::WaitGS(false, false, false);
+		MTGS::WaitGS(false, false);
 	}
 
 	// Reset to a clean Pcsx2Config. Otherwise things which are optional (e.g. gamefixes)
