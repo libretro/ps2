@@ -9607,6 +9607,7 @@ SLAJ-25053:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLAJ-25055:
@@ -10011,6 +10012,7 @@ SLED-52597:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLED-52736:
@@ -14697,6 +14699,7 @@ SLES-51914:
     halfPixelOffset: 2 # Fixes ghosting.
     roundSprite: 2 # Fixes various lines / reduces bars on right edge.
     disablePartialInvalidation: 1 # Fixes textureless graphics ingame.
+    bilinearUpscale: 2 # Gets rid of center vertical line when upscaling.
 SLES-51915:
   name: "Pro Evolution Soccer 3"
   region: "PAL-I"
@@ -16160,6 +16163,7 @@ SLES-52584:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLES-52585:
@@ -16174,6 +16178,7 @@ SLES-52585:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLES-52587:
@@ -25013,6 +25018,7 @@ SLKA-25093:
     halfPixelOffset: 2 # Fixes ghosting.
     roundSprite: 2 # Fixes various lines / reduces bars on right edge.
     disablePartialInvalidation: 1 # Fixes textureless graphics ingame.
+    bilinearUpscale: 2 # Gets rid of center vertical line when upscaling.
 SLKA-25095:
   name: "Madden NFL 2004"
   region: "NTSC-K"
@@ -25342,6 +25348,7 @@ SLKA-25206:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLKA-25207:
@@ -26712,6 +26719,7 @@ SLPM-60246:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLPM-60250:
@@ -30760,6 +30768,7 @@ SLPM-65413:
     halfPixelOffset: 2 # Fixes ghosting.
     roundSprite: 2 # Fixes various lines / reduces bars on right edge.
     disablePartialInvalidation: 1 # Fixes textureless graphics ingame.
+    bilinearUpscale: 2 # Gets rid of center vertical line when upscaling.
 SLPM-65414:
   name: "Simple 2000 Series Vol. 45 - The Koi to Namida to, Tsuioku to..."
   region: "NTSC-J"
@@ -31778,6 +31787,7 @@ SLPM-65719:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLPM-65720:
@@ -32659,6 +32669,7 @@ SLPM-65958:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLPM-65959:
@@ -36562,6 +36573,7 @@ SLPM-66962:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLPM-66963:
@@ -46165,6 +46177,7 @@ SLUS-20694:
     halfPixelOffset: 2 # Fixes ghosting.
     roundSprite: 2 # Fixes various lines / reduces bars on right edge.
     disablePartialInvalidation: 1 # Fixes textureless graphics ingame.
+    bilinearUpscale: 2 # Gets rid of center vertical line when upscaling.
 SLUS-20695:
   name: "Chaos Legion"
   region: "NTSC-U"
@@ -48100,6 +48113,7 @@ SLUS-21050:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLUS-21051:
@@ -53281,6 +53295,7 @@ SLUS-29113:
     mipmap: 2 # Fixes over sharpening.
     trilinearFiltering: 1 # Smoothes out mipmapping.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
 SLUS-29116:
