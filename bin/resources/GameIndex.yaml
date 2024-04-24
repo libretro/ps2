@@ -140,6 +140,9 @@ PAPX-90223:
 PAPX-90231:
   name: "Kaitou Sly Cooper [Demo, Taikenban]"
   region: "NTSC-J"
+PAPX-90503:
+  name: "PoPoLoCrois - Hajimari no Bouken [Fan Gentei Disc]"
+  region: "NTSC-J"
 PAPX-90504:
   name: "Gran Turismo Concept - Airtrek Turbo Special Edition [Demo]"
   region: "NTSC-J"
