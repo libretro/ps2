@@ -1024,6 +1024,8 @@ bool GSHwHack::OI_BurnoutGames(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GS
 	if (!r.CanUseSwSpriteRender())
 		return true;
 
+	if (!r.PRIM->TME)
+		return true;
 	// Render palette via CPU.
 	r.SwSpriteRender();
 
