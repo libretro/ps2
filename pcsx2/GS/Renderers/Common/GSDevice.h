@@ -37,6 +37,7 @@ enum class ShaderConvert
 	FLOAT32_TO_16_BITS,
 	FLOAT32_TO_32_BITS,
 	FLOAT32_TO_RGBA8,
+	FLOAT32_TO_RGB8,
 	FLOAT16_TO_RGB5A1,
 	RGBA8_TO_FLOAT32,
 	RGBA8_TO_FLOAT24,
@@ -82,6 +83,18 @@ static inline bool HasDepthOutput(ShaderConvert shader)
 			break;
 	}
 	return false;
+}
+
+static inline u32 ShaderConvertWriteMask(ShaderConvert shader)
+{
+	switch (shader)
+	{
+		case ShaderConvert::FLOAT32_TO_RGB8:
+			return 0x7;
+		default:
+			break;
+	}
+	return 0xf;
 }
 
 enum class PresentShader

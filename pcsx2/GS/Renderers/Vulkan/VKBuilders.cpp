@@ -341,6 +341,12 @@ namespace Vulkan
 		}
 	}
 
+	void Vulkan::GraphicsPipelineBuilder::SetColorWriteMask(u32 attachment, VkColorComponentFlags write_mask)
+	{
+		VkPipelineColorBlendAttachmentState& bs = m_blend_attachments[attachment];
+		bs.colorWriteMask = write_mask;
+	}
+
 	void GraphicsPipelineBuilder::AddBlendFlags(u32 flags)
 	{
 		m_blend_state.flags |= flags;

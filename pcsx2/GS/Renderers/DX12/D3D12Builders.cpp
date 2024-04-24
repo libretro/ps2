@@ -193,6 +193,11 @@ void GraphicsPipelineBuilder::SetBlendState(u32 rt, bool blend_enable, D3D12_BLE
 		m_desc.BlendState.IndependentBlendEnable = TRUE;
 }
 
+void D3D12::GraphicsPipelineBuilder::SetColorWriteMask(u32 rt, u8 write_mask /* = D3D12_COLOR_WRITE_ENABLE_ALL */)
+{
+	m_desc.BlendState.RenderTarget[rt].RenderTargetWriteMask = write_mask;
+}
+
 void GraphicsPipelineBuilder::SetNoBlendingState()
 {
 	SetBlendState(0, false, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, D3D12_BLEND_ONE, D3D12_BLEND_ZERO,
