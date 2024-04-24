@@ -4232,7 +4232,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		// the output alpha is Coverage (which we force to 128) so DATE will fail/pass guaranteed on second pass.
 		else if (m_conf.colormask.wa && (m_context->FBA.FBA || IsCoverageAlpha()) && features.stencil_buffer)
 			DATE_one = !m_cached_ctx.TEST.DATM;
-		else if (m_conf.colormask.wa && !m_cached_ctx.TEST.ATE)
+		else if (m_conf.colormask.wa && !m_cached_ctx.TEST.ATE && !(m_cached_ctx.FRAME.FBMSK & 0x80000000))
 		{
 			// Performance note: check alpha range with GetAlphaMinMax()
 			// Note: all my dump are already above 120fps, but it seems to reduce GPU load
