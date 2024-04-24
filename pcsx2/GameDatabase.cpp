@@ -723,7 +723,8 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 
 			case GSHWFixId::BilinearUpscale:
-				config.UserHacks_BilinearHack = (value > 0);
+				if (value >= 0 && value < static_cast<int>(GSBilinearDirtyMode::MaxCount))
+					config.UserHacks_BilinearHack = static_cast<GSBilinearDirtyMode>(value);
 				break;
 
 			case GSHWFixId::NativePaletteDraw:

@@ -315,6 +315,14 @@ enum class GSTextureInRtMode : u8
 	MergeTargets,
 };
 
+enum class GSBilinearDirtyMode : u8
+{
+	Automatic,
+	ForceBilinear,
+	ForceNearest,
+	MaxCount
+};
+
 // Template function for casting enumerations to their underlying type
 template <typename Enumeration>
 typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
@@ -483,7 +491,6 @@ struct Pcsx2Config
 					UserHacks_DisableRenderFixes : 1,
 					UserHacks_MergePPSprite : 1,
 					UserHacks_WildHack : 1,
-					UserHacks_BilinearHack : 1,
 					UserHacks_NativePaletteDraw : 1,
 					UserHacks_TargetPartialInvalidation : 1,
 					UserHacks_EstimateTextureRegion : 1,
@@ -536,6 +543,7 @@ struct Pcsx2Config
 		u8 UserHacks_CPUCLUTRender = 0;
 		GSGPUTargetCLUTMode UserHacks_GPUTargetCLUTMode = GSGPUTargetCLUTMode::Disabled;
 		GSTextureInRtMode UserHacks_TextureInsideRt = GSTextureInRtMode::Disabled;
+		GSBilinearDirtyMode UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 		TriFiltering TriFilter = TriFiltering::Automatic;
 		s8 OverrideTextureBarriers = -1;
 

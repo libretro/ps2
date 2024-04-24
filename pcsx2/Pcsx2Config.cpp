@@ -408,7 +408,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	UserHacks_DisableRenderFixes = false;
 	UserHacks_MergePPSprite = false;
 	UserHacks_WildHack = false;
-	UserHacks_BilinearHack = false;
+	UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 	UserHacks_NativePaletteDraw = false;
 
 	LoadTextureReplacements = false;
@@ -473,6 +473,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_CPUCLUTRender) &&
 		OpEqu(UserHacks_GPUTargetCLUTMode) &&
 		OpEqu(UserHacks_TextureInsideRt) &&
+		OpEqu(UserHacks_BilinearHack) &&
 		OpEqu(OverrideTextureBarriers) &&
 		OpEqu(PNGCompressionLevel) &&
 		OpEqu(Adapter)
@@ -553,7 +554,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(UserHacks_DisableRenderFixes, "UserHacks_DisableRenderFixes");
 	GSSettingBoolEx(UserHacks_MergePPSprite, "UserHacks_merge_pp_sprite");
 	GSSettingBoolEx(UserHacks_WildHack, "UserHacks_WildHack");
-	GSSettingBoolEx(UserHacks_BilinearHack, "UserHacks_BilinearHack");
+	GSSettingIntEnumEx(UserHacks_BilinearHack, "UserHacks_BilinearHack");
 	GSSettingBoolEx(UserHacks_NativePaletteDraw, "UserHacks_NativePaletteDraw");
 	GSSettingIntEnumEx(UserHacks_TextureInsideRt, "UserHacks_TextureInsideRt");
 	GSSettingBoolEx(UserHacks_TargetPartialInvalidation, "UserHacks_TargetPartialInvalidation");
@@ -622,7 +623,6 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 	UserHacks_AlignSpriteX = false;
 	UserHacks_MergePPSprite = false;
 	UserHacks_WildHack = false;
-	UserHacks_BilinearHack = false;
 	UserHacks_NativePaletteDraw = false;
 	UserHacks_DisableSafeFeatures = false;
 	UserHacks_DisableRenderFixes = false;
@@ -644,6 +644,7 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 	UserHacks_CPUSpriteRenderLevel = 0;
 	UserHacks_CPUCLUTRender = 0;
 	UserHacks_GPUTargetCLUTMode = GSGPUTargetCLUTMode::Disabled;
+	UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 	SkipDrawStart = 0;
 	SkipDrawEnd = 0;
 }
@@ -656,7 +657,7 @@ void Pcsx2Config::GSOptions::MaskUpscalingHacks()
 	UserHacks_AlignSpriteX = false;
 	UserHacks_MergePPSprite = false;
 	UserHacks_WildHack = false;
-	UserHacks_BilinearHack = false;
+	UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 	UserHacks_NativePaletteDraw = false;
 	UserHacks_HalfPixelOffset = 0;
 	UserHacks_RoundSprite = 0;
