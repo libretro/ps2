@@ -348,10 +348,10 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 	VKContext::~VKContext() = default;
 
-	VkInstance VKContext::CreateVulkanInstance(const WindowInfo& wi, bool enable_debug_utils, bool enable_validation_layer)
+	VkInstance VKContext::CreateVulkanInstance(bool enable_debug_utils, bool enable_validation_layer)
 	{
 		ExtensionList enabled_extensions;
-		if (!SelectInstanceExtensions(&enabled_extensions, wi, enable_debug_utils))
+		if (!SelectInstanceExtensions(&enabled_extensions, enable_debug_utils))
 			return VK_NULL_HANDLE;
 
 		// Remember to manually update this every release. We don't pull in svnrev.h here, because
@@ -392,7 +392,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return instance;
 	}
 
-	bool VKContext::SelectInstanceExtensions(ExtensionList* extension_list, const WindowInfo& wi, bool enable_debug_utils)
+	bool VKContext::SelectInstanceExtensions(ExtensionList* extension_list, bool enable_debug_utils)
 	{
 		u32 extension_count = 0;
 		VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
@@ -2196,7 +2196,7 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 		if (Vulkan::LoadVulkanLibrary())
 		{
 			ScopedGuard lib_guard([]() { Vulkan::UnloadVulkanLibrary(); });
-			instance = VKContext::CreateVulkanInstance(WindowInfo(), false, false);
+			instance = VKContext::CreateVulkanInstance(false, false);
 			if (instance != VK_NULL_HANDLE)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -2452,7 +2452,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	AcquireWindow();
 
 	VkInstance instance =
-		VKContext::CreateVulkanInstance(m_window_info, enable_debug_utils, enable_validation_layer);
+		VKContext::CreateVulkanInstance(enable_debug_utils, enable_validation_layer);
 	if (instance == VK_NULL_HANDLE)
 	{
 		if (enable_debug_utils || enable_validation_layer)
@@ -2461,7 +2461,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 			enable_debug_utils = false;
 			enable_validation_layer = false;
 			instance =
-				VKContext::CreateVulkanInstance(m_window_info, enable_debug_utils, enable_validation_layer);
+				VKContext::CreateVulkanInstance(enable_debug_utils, enable_validation_layer);
 			if (instance == VK_NULL_HANDLE)
 			{
 				Console.Error(
