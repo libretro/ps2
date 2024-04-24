@@ -351,7 +351,6 @@ void MTGS::CloseGS()
 }
 
 // Waits for the GS to empty out the entire ring buffer contents.
-// If syncRegs, then writes pcsx2's gs regs to MTGS's internal copy
 // If weakWait, then this function is allowed to exit after MTGS finished a path1 packet
 // If isMTVU, then this implies this function is being called from the MTVU thread...
 void MTGS::WaitGS(bool weakWait, bool isMTVU)
@@ -367,14 +366,11 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 		return;
 	}
 
-	Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
-
-	// Both s_ReadPos and s_WritePos can be relaxed as we only want to test if the queue is empty but
-	// we don't want to access the content of the queue
-
 	SetEvent();
 	if (weakWait && isMTVU)
 	{
+		Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
+
 		// On weakWait we will stop waiting on the MTGS thread if the
 		// MTGS thread has processed a vu1 xgkick packet, or is pending on
 		// its final vu1 xgkick packet (!curP1Packs)...
