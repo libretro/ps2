@@ -1418,7 +1418,6 @@ SCAJ-20171:
   name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku Tachi"
   region: "NTSC-J"
   gsHWFixes:
-    cpuCLUTRender: 1 # Fixes some shading/shadows.
     getSkipCount: "GSC_ZettaiZetsumeiToshi2"
 SCAJ-20172:
   name: "Final Fantasy XII"
@@ -10883,8 +10882,6 @@ SLES-50192:
   name: "Army Men - Sarge's Heroes 2"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs.
 SLES-50193:
   name: "Silpheed - The Lost Planet"
   region: "PAL-E"
@@ -21754,8 +21751,6 @@ SLES-54586:
 SLES-54587:
   name: "Raw Danger"
   region: "PAL-E"
-  gsHWFixes:
-    cpuCLUTRender: 1 # Fixes some shading/shadows.
 SLES-54588:
   name: "Brunswick Pro Bowling"
   region: "PAL-E"
@@ -26916,11 +26911,15 @@ SLPM-60251:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
-SLPM-60254:
-  name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku-tachi [Trial A]"
+SLPM-60253:
+  name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku-tachi [Taikenban Type-B]"
   region: "NTSC-J"
   gsHWFixes:
-    cpuCLUTRender: 1 # Fixes some shading/shadows.
+    getSkipCount: "GSC_ZettaiZetsumeiToshi2"
+SLPM-60254:
+  name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku-tachi [Taikenban Type-A]"
+  region: "NTSC-J"
+  gsHWFixes:
     getSkipCount: "GSC_ZettaiZetsumeiToshi2"
 SLPM-60255:
   name: "Ponkotsu Roman Daikatsugeki Bumpy Trot [Trial]"
@@ -41256,7 +41255,6 @@ SLPS-25606:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    cpuCLUTRender: 1 # Fixes some shading/shadows.
     getSkipCount: "GSC_ZettaiZetsumeiToshi2"
 SLPS-25607:
   name: "Makai Senki Disgaea 2 [Limited Edition]"
@@ -42218,7 +42216,6 @@ SLPS-25851:
   name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku Tachi [Irem Collection]"
   region: "NTSC-J"
   gsHWFixes:
-    cpuCLUTRender: 1 # Fixes some shading/shadows.
     getSkipCount: "GSC_ZettaiZetsumeiToshi2"
 SLPS-25852:
   name: "Sanyo Pachinko Paradise 13 [Irem Collection]"
@@ -43677,8 +43674,6 @@ SLUS-20132:
   name: "Army Men - Sarge's Heroes 2"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - SoftwareRendererFMVHack # Fixes broken FMVs.
 SLUS-20133:
   name: "High Heat Baseball 2002"
   region: "NTSC-U"
@@ -50967,8 +50962,6 @@ SLUS-21501:
   name: "Raw Danger"
   region: "NTSC-U"
   compat: 5
-  gsHWFixes:
-    cpuCLUTRender: 1 # Fixes some shading/shadows.
 SLUS-21503:
   name: "God Hand"
   region: "NTSC-U"
