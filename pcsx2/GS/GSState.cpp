@@ -2276,7 +2276,7 @@ int GSState::Defrost(const freezeData* fd)
 
 	Flush(GSFlushReason::LOADSTATE);
 
-	Reset(false);
+	Reset(true);
 
 	ReadState(&m_env.PRIM, data);
 
