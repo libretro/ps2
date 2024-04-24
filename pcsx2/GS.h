@@ -302,7 +302,7 @@ namespace MTGS
 	void SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2);
 
 	void SetEvent();
-	void PostVsyncStart(bool registers_written);
+	void PostVsyncStart();
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
 	void MainLoop(bool flush_all = false);

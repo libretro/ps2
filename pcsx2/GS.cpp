@@ -317,9 +317,7 @@ void gsIrq(void) { hwIntcIrq(INTC_GS); }
 //We got away with it before i think due to our awful GS timing, but now we have it right (ish)
 void gsPostVsyncStart(void)
 {
-	const bool registers_written = s_GSRegistersWritten;
-	s_GSRegistersWritten = false;
-	MTGS::PostVsyncStart(registers_written);
+	MTGS::PostVsyncStart();
 }
 
 bool SaveStateBase::gsFreeze()

@@ -116,7 +116,7 @@ void MTGS::ResetGS(bool hardware_reset)
 	SetEvent();
 }
 
-void MTGS::PostVsyncStart(bool registers_written)
+void MTGS::PostVsyncStart()
 {
 	GenericStall(1);
 
