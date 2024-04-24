@@ -16926,7 +16926,8 @@ SLES-52877:
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
+    roundSprite: 1 # Further reduces blurriness.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLES-52882:
   name: "Stolen"
@@ -32472,7 +32473,8 @@ SLPM-65913:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
+    roundSprite: 1 # Further reduces blurriness.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLPM-65914:
   name: "Nana"
@@ -35325,7 +35327,8 @@ SLPM-66638:
   name: "Demento [CapKore]"
   region: "NTSC-J"
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
+    roundSprite: 1 # Further reduces blurriness.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLPM-66639:
   name: "Street Fighter III - 3rd Strike [Capcom the Best]"
@@ -48181,7 +48184,8 @@ SLUS-21075:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
+    roundSprite: 1 # Further reduces blurriness.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLUS-21076:
   name: "Atari Anthology"
