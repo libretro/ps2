@@ -826,6 +826,8 @@ bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTextu
 			{
 				/* "OI_RozenMaidenGebetGarden FB clear" */
 				g_gs_device->ClearRenderTarget(tmp_rt->m_texture, 0);
+				tmp_rt->m_alpha_max = 0;
+				tmp_rt->m_alpha_min = 0;
 			}
 
 			return false;
