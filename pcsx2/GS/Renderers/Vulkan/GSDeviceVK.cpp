@@ -16,6 +16,8 @@
 #include "PrecompiledHeader.h"
 
 #include <cstring>
+#include <cassert>
+#include <vector>
 
 #include "GS/GS.h"
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
@@ -47,6 +49,179 @@
 #endif
 
 std::unique_ptr<VKContext> g_vulkan_context;
+
+#define VK_NO_PROTOTYPES
+#include <libretro_vulkan.h>
+
+static retro_hw_render_interface_vulkan *vulkan;
+extern retro_log_printf_t log_cb;
+
+static struct {
+	VkInstance instance;
+	VkPhysicalDevice gpu;
+	const char **required_device_extensions;
+	unsigned num_required_device_extensions;
+	const char **required_device_layers;
+	unsigned num_required_device_layers;
+	const VkPhysicalDeviceFeatures *required_features;
+} vk_init_info;
+
+extern "C"
+{
+	extern PFN_vkCreateInstance      pcsx2_vkCreateInstance;
+	extern PFN_vkDestroyInstance     pcsx2_vkDestroyInstance;
+	extern PFN_vkGetInstanceProcAddr pcsx2_vkGetInstanceProcAddr;
+	extern PFN_vkGetDeviceProcAddr   pcsx2_vkGetDeviceProcAddr;
+	extern PFN_vkCreateDevice        pcsx2_vkCreateDevice;
+	extern PFN_vkDestroyDevice       pcsx2_vkDestroyDevice;
+	PFN_vkGetInstanceProcAddr        vkGetInstanceProcAddr_org;
+	PFN_vkGetDeviceProcAddr          vkGetDeviceProcAddr_org;
+	PFN_vkCreateDevice               vkCreateDevice_org;
+	PFN_vkDestroyDevice              vkDestroyDevice_org;
+	PFN_vkQueueSubmit                vkQueueSubmit_org;
+	PFN_vkQueueWaitIdle              vkQueueWaitIdle_org;
+}
+
+static VKAPI_ATTR VkResult VKAPI_CALL vkCreateInstance_libretro(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance) {
+	*pInstance = vk_init_info.instance;
+	return VK_SUCCESS;
+}
+
+static void add_name_unique(std::vector<const char *> &list, const char *value) {
+	for (const char *name : list)
+		if (!strcmp(value, name))
+			return;
+
+	list.push_back(value);
+}
+static VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice_libretro(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
+{
+	VkDeviceCreateInfo info = *pCreateInfo;
+	std::vector<const char *> EnabledLayerNames(info.ppEnabledLayerNames, info.ppEnabledLayerNames + info.enabledLayerCount);
+	std::vector<const char *> EnabledExtensionNames(info.ppEnabledExtensionNames, info.ppEnabledExtensionNames + info.enabledExtensionCount);
+	VkPhysicalDeviceFeatures EnabledFeatures = *info.pEnabledFeatures;
+
+	for (unsigned i = 0; i < vk_init_info.num_required_device_layers; i++)
+		add_name_unique(EnabledLayerNames, vk_init_info.required_device_layers[i]);
+
+	for (unsigned i = 0; i < vk_init_info.num_required_device_extensions; i++)
+		add_name_unique(EnabledExtensionNames, vk_init_info.required_device_extensions[i]);
+
+	add_name_unique(EnabledExtensionNames, VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME);
+	for (unsigned i = 0; i < sizeof(VkPhysicalDeviceFeatures) / sizeof(VkBool32); i++)
+	{
+		if (((VkBool32 *)vk_init_info.required_features)[i])
+			((VkBool32 *)&EnabledFeatures)[i] = VK_TRUE;
+	}
+
+	info.enabledLayerCount       = (uint32_t)EnabledLayerNames.size();
+	info.ppEnabledLayerNames     = info.enabledLayerCount ? EnabledLayerNames.data() : nullptr;
+	info.enabledExtensionCount   = (uint32_t)EnabledExtensionNames.size();
+	info.ppEnabledExtensionNames = info.enabledExtensionCount ? EnabledExtensionNames.data() : nullptr;
+	info.pEnabledFeatures        = &EnabledFeatures;
+
+	return vkCreateDevice_org(physicalDevice, &info, pAllocator, pDevice);
+}
+
+static VKAPI_ATTR void VKAPI_CALL vkDestroyInstance_libretro(VkInstance instance, const VkAllocationCallbacks *pAllocator) {}
+static VKAPI_ATTR void VKAPI_CALL vkDestroyDevice_libretro(VkDevice device, const VkAllocationCallbacks *pAllocator) {}
+
+static VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit_libretro(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
+{
+	vulkan->lock_queue(vulkan->handle);
+	VkResult res = vkQueueSubmit_org(queue, submitCount, pSubmits, fence);
+	vulkan->unlock_queue(vulkan->handle);
+	return res;
+}
+
+static VKAPI_ATTR VkResult VKAPI_CALL vkQueueWaitIdle_libretro(VkQueue queue)
+{
+	vulkan->lock_queue(vulkan->handle);
+	VkResult res = vkQueueWaitIdle_org(queue);
+	vulkan->unlock_queue(vulkan->handle);
+	return res;
+}
+
+/* Forward declaration */
+static VKAPI_ATTR PFN_vkVoidFunction enumerate_fptrs(PFN_vkVoidFunction fptr, const char *pName);
+
+static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr_libretro(VkDevice device, const char *pName)
+{
+	PFN_vkVoidFunction fptr = vkGetDeviceProcAddr_org(device, pName);
+	if (!fptr)
+		return fptr;
+	return enumerate_fptrs(fptr, pName);
+}
+
+static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr_libretro(VkInstance instance, const char *pName)
+{
+	PFN_vkVoidFunction fptr = vkGetInstanceProcAddr_org(instance, pName);
+	if (!fptr)
+		return fptr;
+	return enumerate_fptrs(fptr, pName);
+}
+
+static VKAPI_ATTR PFN_vkVoidFunction enumerate_fptrs(PFN_vkVoidFunction fptr, const char *pName)
+{
+	if (!strcmp(pName, "vkGetDeviceProcAddr"))
+	{
+		vkGetDeviceProcAddr_org = (PFN_vkGetDeviceProcAddr)fptr;
+		return (PFN_vkVoidFunction)vkGetDeviceProcAddr_libretro;
+	}
+	if (!strcmp(pName, "vkCreateDevice"))
+	{
+		vkCreateDevice_org = (PFN_vkCreateDevice)fptr;
+		return (PFN_vkVoidFunction)vkCreateDevice_libretro;
+	}
+	if (!strcmp(pName, "vkDestroyDevice"))
+	{
+		vkDestroyDevice_org = (PFN_vkDestroyDevice)fptr;
+		return (PFN_vkVoidFunction)vkDestroyDevice_libretro;
+	}
+	if (!strcmp(pName, "vkQueueSubmit"))
+	{
+		vkQueueSubmit_org = (PFN_vkQueueSubmit)fptr;
+		return (PFN_vkVoidFunction)vkQueueSubmit_libretro;
+	}
+	if (!strcmp(pName, "vkQueueWaitIdle"))
+	{
+		vkQueueWaitIdle_org = (PFN_vkQueueWaitIdle)fptr;
+		return (PFN_vkVoidFunction)vkQueueWaitIdle_libretro;
+	}
+
+	return fptr;
+}
+
+void vk_libretro_init_wraps(void)
+{
+	vkGetInstanceProcAddr_org   = pcsx2_vkGetInstanceProcAddr;
+	pcsx2_vkGetInstanceProcAddr = vkGetInstanceProcAddr_libretro;
+	pcsx2_vkCreateInstance      = vkCreateInstance_libretro;
+	pcsx2_vkDestroyInstance     = vkDestroyInstance_libretro;
+}
+
+void vk_libretro_init(VkInstance instance, VkPhysicalDevice gpu, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features)
+{
+	vk_init_info.instance                       = instance;
+	vk_init_info.gpu                            = gpu;
+	vk_init_info.required_device_extensions     = required_device_extensions;
+	vk_init_info.num_required_device_extensions = num_required_device_extensions;
+	vk_init_info.required_device_layers         = required_device_layers;
+	vk_init_info.num_required_device_layers     = num_required_device_layers;
+	vk_init_info.required_features              = required_features;
+}
+
+
+void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_render_interface)
+{
+   vulkan = (retro_hw_render_interface_vulkan *)hw_render_interface;
+}
+
+void vk_libretro_shutdown(void)
+{
+	memset(&vk_init_info, 0, sizeof(vk_init_info));
+	vulkan = nullptr;
+}
 
 // Tweakables
 enum : u32
