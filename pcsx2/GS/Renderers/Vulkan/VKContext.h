@@ -186,7 +186,7 @@ enum : u32
        // queued and executed. Do not wait for this fence before the buffer is executed.
        u64 GetCurrentFenceCounter() const { return m_frame_resources[m_current_frame].fence_counter; }
 
-       void SubmitCommandBuffer(void* present_swap_chain = nullptr, bool submit_on_thread = false);
+       void SubmitCommandBuffer();
        void MoveToNextCommandBuffer();
 
        enum class WaitType
@@ -197,10 +197,8 @@ enum : u32
        };
 
        void ExecuteCommandBuffer(WaitType wait_for_completion);
-       void WaitForPresentComplete();
 
        // Was the last present submitted to the queue a failure? If so, we must recreate our swapchain.
-       bool CheckLastPresentFail();
        bool CheckLastSubmitFail();
 
        // Schedule a vulkan resource for destruction later on. This will occur when the command buffer
@@ -277,9 +275,7 @@ enum : u32
        void ScanForCommandBufferCompletion();
        void WaitForCommandBufferCompletion(u32 index);
 
-       void DoSubmitCommandBuffer(u32 index, void* present_swap_chain, u32 spin_cycles);
-       void DoPresent(void* present_swap_chain);
-       void WaitForPresentComplete(std::unique_lock<std::mutex>& lock);
+       void DoSubmitCommandBuffer(u32 index, u32 spin_cycles);
 
        bool InitSpinResources();
        void DestroySpinResources();
@@ -363,11 +359,6 @@ enum : u32
        VKStreamBuffer m_texture_upload_buffer;
 
        std::atomic_bool m_last_submit_failed{false};
-       std::atomic_bool m_last_present_failed{false};
-       std::atomic_bool m_present_done{true};
-       std::mutex m_present_mutex;
-       std::condition_variable m_present_queued_cv;
-       std::condition_variable m_present_done_cv;
 
        std::map<u32, VkRenderPass> m_render_pass_cache;
 

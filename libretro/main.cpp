@@ -796,7 +796,7 @@ void Host::BeginPresentFrame()
 #ifdef ENABLE_VULKAN
 	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
-		g_vulkan_context->SubmitCommandBuffer(nullptr, false);
+		g_vulkan_context->SubmitCommandBuffer();
 		g_vulkan_context->MoveToNextCommandBuffer();
 
 		GSTextureVK* tex = (GSTextureVK*)g_gs_device->GetCurrent();

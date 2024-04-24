@@ -1239,7 +1239,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 	void VKContext::WaitForGPUIdle()
 	{
-		WaitForPresentComplete();
 		vkDeviceWaitIdle(m_device);
 	}
 
@@ -1294,9 +1293,8 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		m_completed_fence_counter = now_completed_counter;
 	}
 
-	void VKContext::SubmitCommandBuffer(void *data, bool submit_on_thread)
+	void VKContext::SubmitCommandBuffer()
 	{
-		VKSwapChain* present_swap_chain = (VKSwapChain*)data;
 		FrameResources& resources = m_frame_resources[m_current_frame];
 
 		// End the current command buffer.
@@ -1342,39 +1340,17 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		}
 		m_command_buffer_render_passes = 0;
 
-		if (present_swap_chain != VK_NULL_HANDLE && m_spinning_supported)
-		{
-			m_spin_manager.NextFrame();
-			if (m_spin_timer)
-				m_spin_timer--;
-			// Calibrate a max of once per frame
-			m_wants_new_timestamp_calibration = m_optional_extensions.vk_ext_calibrated_timestamps;
-		}
-
 		if (spin_cycles != 0)
 			WaitForSpinCompletion(m_current_frame);
-
-		std::unique_lock<std::mutex> lock(m_present_mutex);
-		WaitForPresentComplete(lock);
 
 		if (spin_enabled && m_optional_extensions.vk_ext_calibrated_timestamps)
 			resources.submit_timestamp = GetCPUTimestamp();
 
-		if (!submit_on_thread)
-		{
-			DoSubmitCommandBuffer(m_current_frame, present_swap_chain, spin_cycles);
-			if (present_swap_chain)
-				DoPresent(present_swap_chain);
-			return;
-		}
-
-		m_present_done.store(false);
-		m_present_queued_cv.notify_one();
+		DoSubmitCommandBuffer(m_current_frame, spin_cycles);
 	}
 
-	void VKContext::DoSubmitCommandBuffer(u32 index, void *data, u32 spin_cycles)
+	void VKContext::DoSubmitCommandBuffer(u32 index, u32 spin_cycles)
 	{
-		VKSwapChain* present_swap_chain = (VKSwapChain*)data;
 		FrameResources& resources = m_frame_resources[index];
 
 		uint32_t wait_bits = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1383,26 +1359,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		submit_info.commandBufferCount = resources.init_buffer_used ? 2u : 1u;
 		submit_info.pCommandBuffers = resources.init_buffer_used ? resources.command_buffers.data() : &resources.command_buffers[1];
 
-		if (present_swap_chain)
-		{
-			submit_info.pWaitSemaphores = present_swap_chain->GetImageAvailableSemaphorePtr();
-			submit_info.waitSemaphoreCount = 1;
-			submit_info.pWaitDstStageMask = &wait_bits;
-
-			if (spin_cycles != 0)
-			{
-				semas[0] = present_swap_chain->GetRenderingFinishedSemaphore();
-				semas[1] = m_spin_resources[index].semaphore;
-				submit_info.signalSemaphoreCount = 2;
-				submit_info.pSignalSemaphores = semas;
-			}
-			else
-			{
-				submit_info.pSignalSemaphores = present_swap_chain->GetRenderingFinishedSemaphorePtr();
-				submit_info.signalSemaphoreCount = 1;
-			}
-		}
-		else if (spin_cycles != 0)
+		if (spin_cycles != 0)
 		{
 			submit_info.signalSemaphoreCount = 1;
 			submit_info.pSignalSemaphores = &m_spin_resources[index].semaphore;
@@ -1417,46 +1374,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 		if (spin_cycles != 0)
 			SubmitSpinCommand(index, spin_cycles);
-	}
-
-	void VKContext::DoPresent(void *data)
-	{
-		VKSwapChain *present_swap_chain = (VKSwapChain*)data;
-		const VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, nullptr,
-			1, present_swap_chain->GetRenderingFinishedSemaphorePtr(),
-			1, present_swap_chain->GetSwapChainPtr(), present_swap_chain->GetCurrentImageIndexPtr(),
-			nullptr};
-
-		present_swap_chain->ReleaseCurrentImage();
-
-		const VkResult res = vkQueuePresentKHR(m_present_queue, &present_info);
-		if (res != VK_SUCCESS)
-		{
-			m_last_present_failed.store(true, std::memory_order_release);
-			return;
-		}
-
-		// Grab the next image as soon as possible, that way we spend less time blocked on the next
-		// submission. Don't care if it fails, we'll deal with that at the presentation call site.
-		// Credit to dxvk for the idea.
-		present_swap_chain->AcquireNextImage();
-	}
-
-	void VKContext::WaitForPresentComplete()
-	{
-		if (m_present_done.load())
-			return;
-
-		std::unique_lock<std::mutex> lock(m_present_mutex);
-		WaitForPresentComplete(lock);
-	}
-
-	void VKContext::WaitForPresentComplete(std::unique_lock<std::mutex>& lock)
-	{
-		if (m_present_done.load())
-			return;
-
-		m_present_done_cv.wait(lock, [this]() { return m_present_done.load(); });
 	}
 
 	void VKContext::CommandBufferCompleted(u32 index)
@@ -1557,11 +1474,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			}
 			WaitForCommandBufferCompletion(current_frame);
 		}
-	}
-
-	bool VKContext::CheckLastPresentFail()
-	{
-		return m_last_present_failed.exchange(false, std::memory_order_acq_rel);
 	}
 
 	bool VKContext::CheckLastSubmitFail()
@@ -2349,9 +2261,6 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 		return PresentResult::FrameSkipped;
 	}
 
-	// Previous frame needs to be presented before we can acquire the swap chain.
-	g_vulkan_context->WaitForPresentComplete();
-
 	// Check if the device was lost.
 	if (g_vulkan_context->CheckLastSubmitFail())
 		return PresentResult::DeviceLost;
@@ -2420,7 +2329,7 @@ void GSDeviceVK::EndPresent()
 	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
 	m_swap_chain->GetCurrentTexture()->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::PresentSrc);
 
-	g_vulkan_context->SubmitCommandBuffer(m_swap_chain.get(), !m_swap_chain->IsPresentModeSynchronizing());
+	g_vulkan_context->SubmitCommandBuffer();
 	g_vulkan_context->MoveToNextCommandBuffer();
 
 	InvalidateCachedState();
@@ -4038,7 +3947,7 @@ void GSDeviceVK::RenderBlankFrame()
 	vkCmdClearColorImage(cmdbuffer, sctex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &s_present_clear_color.color, 1, &srr);
 
 	m_swap_chain->GetCurrentTexture()->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::PresentSrc);
-	g_vulkan_context->SubmitCommandBuffer(m_swap_chain.get(), !m_swap_chain->IsPresentModeSynchronizing());
+	g_vulkan_context->SubmitCommandBuffer();
 	g_vulkan_context->MoveToNextCommandBuffer();
 
 	InvalidateCachedState();
