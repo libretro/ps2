@@ -299,9 +299,6 @@ namespace MTGS
 	void WaitForClose();
 	void Freeze(FreezeAction mode, MTGS_FreezeData& data);
 
-	void SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2);
-
-	void SetEvent();
 	void PostVsyncStart();
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
@@ -316,8 +313,6 @@ namespace MTGS
 
 	bool TryOpenGS();
 	void CloseGS();
-
-	void GenericStall(uint size);
 };
 
 /////////////////////////////////////////////////////////////////////////////

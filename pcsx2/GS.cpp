@@ -59,7 +59,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 		GSIMR.reset();
 		CSRreg.Reset();
-		MTGS::SendSimplePacket(GS_RINGTYPE_RESET, 0, 0, 0);
+		MTGS::ResetGS(false);
 	}
 
 	if(csr.SIGNAL)

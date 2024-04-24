@@ -55,6 +55,11 @@ static alignas(32) MTGS_BufferedData RingBuffer;
 
 namespace MTGS
 {
+	static void SetEvent();
+	static void GenericStall();
+
+	static void SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2);
+
 	// note: when s_ReadPos == s_WritePos, the fifo is empty
 	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
 	static std::atomic<unsigned int> s_ReadPos      = 0; // cur pos gs is reading from
@@ -107,18 +112,22 @@ void MTGS::ResetGS(bool hardware_reset)
 	//  * clear the ringbuffer.
 	//  * Signal a reset.
 	//  * clear the path and byRegs structs (used by GIFtagDummy)
-
-	s_ReadPos = s_WritePos.load();
-	s_QueuedFrameCount = 0;
-	s_VsyncSignalListener = 0;
+	if (hardware_reset)
+	{
+		s_ReadPos             = s_WritePos.load();
+		s_QueuedFrameCount    = 0;
+		s_VsyncSignalListener = 0;
+	}
 
 	SendSimplePacket(GS_RINGTYPE_RESET, static_cast<int>(hardware_reset), 0, 0);
-	SetEvent();
+
+	if (hardware_reset)
+		SetEvent();
 }
 
 void MTGS::PostVsyncStart()
 {
-	GenericStall(1);
+	GenericStall();
 
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
@@ -165,7 +174,7 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	GenericStall(1);
+	GenericStall();
 	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
@@ -404,8 +413,9 @@ void MTGS::SetEvent()
 	s_CopyDataTally = 0;
 }
 
-void MTGS::GenericStall(uint size)
+void MTGS::GenericStall()
 {
+	const uint size     = 1;
 	// Note on volatiles: s_WritePos is not modified by the GS thread, so there's no need
 	// to use volatile reads here.  We do cache it though, since we know it never changes,
 	// except for calls to RingbufferRestert() -- handled below.
@@ -483,7 +493,7 @@ void MTGS::GenericStall(uint size)
 
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
-	GenericStall(1);
+	GenericStall();
 	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
@@ -509,7 +519,7 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	GenericStall(1);
+	GenericStall();
 	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
@@ -524,7 +534,7 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 
 void MTGS::RunOnGSThread(AsyncCallType func)
 {
-	GenericStall(1);
+	GenericStall();
 	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
