@@ -12834,6 +12834,8 @@ SLES-51054:
 SLES-51055:
   name: "Go Go Golf"
   region: "PAL-E"
+  gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves brightness on terrain textures.
 SLES-51056:
   name: "Fighting Fury"
   region: "PAL-E"
@@ -26774,17 +26776,22 @@ SLPM-60109:
 SLPM-60114:
   name: "Magical Sports - 2000 Koushien [Trial]"
   region: "NTSC-J"
-SLPM-60122:
-  name: "Ring of Red [Taikenban trial]"
+SLPM-60116:
+  name: "Magical Sports Go Go Golf [Taikenban]"
   region: "NTSC-J"
   gsHWFixes:
-    alignSprite: 1 # Fixes vertical lines.
+    recommendedBlendingLevel: 3 # Improves brightness on terrain textures.
 SLPM-60119:
   name: "Cross Fire [Trial]"
   region: "NTSC-J"
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
     trilinearFiltering: 1
+SLPM-60122:
+  name: "Ring of Red [Taikenban trial]"
+  region: "NTSC-J"
+  gsHWFixes:
+    alignSprite: 1 # Fixes vertical lines.
 SLPM-60123:
   name: "Gekikuukan Pro Baseball - The End of the Century 1999 [Trial]"
   region: "NTSC-J"
@@ -37723,6 +37730,8 @@ SLPS-20036:
 SLPS-20037:
   name: "Magical Sports - Go Go Golf"
   region: "NTSC-J"
+  gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves brightness on terrain textures.
 SLPS-20038:
   name: "Grappler Baki - Baki Saidai no Tournament"
   region: "NTSC-J"
@@ -38239,8 +38248,10 @@ SLPS-20240:
   name: "Jissen Pachi-Slot Hisshouhou! Moujuuou S"
   region: "NTSC-J"
 SLPS-20243:
-  name: "New Price Go Go Golf"
+  name: "Magical Sports Go Go Golf [NewPrice]"
   region: "NTSC-J"
+  gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves brightness on terrain textures.
 SLPS-20244:
   name: "Magical Sports - 2000 Koushien [NewPrice]"
   region: "NTSC-J"
