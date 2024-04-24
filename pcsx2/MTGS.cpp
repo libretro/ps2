@@ -176,7 +176,16 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	SendPointerPacket(GS_RINGTYPE_INIT_AND_READ_FIFO, qwc, mem);
+	GenericStall(1);
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
+
+	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
+	tag.data[0]                 = qwc;
+	tag.pointer                 = (uptr)mem;
+
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	++s_CopyDataTally;
 	WaitGS(false, false);
 }
 
@@ -502,20 +511,6 @@ void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int dat
 	++s_CopyDataTally;
 }
 
-void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
-{
-	GenericStall(1);
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
-	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
-
-	tag.command                 = type;
-	tag.data[0]                 = data0;
-	tag.pointer                 = (uptr)data1;
-
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
-	++s_CopyDataTally;
-}
-
 void MTGS::WaitForClose()
 {
 	// and kick the thread if it's sleeping
@@ -529,17 +524,31 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	// synchronize regs before loading
-	if (mode == FreezeAction::Load)
-		WaitGS(false, false);
+	GenericStall(1);
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
-	SendPointerPacket(GS_RINGTYPE_FREEZE, (int)mode, &data);
+	tag.command                 = GS_RINGTYPE_FREEZE;
+	tag.data[0]                 = (int)mode;
+	tag.pointer                 = (uptr)&data;
+
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	++s_CopyDataTally;
 	WaitGS(false, false);
 }
 
 void MTGS::RunOnGSThread(AsyncCallType func)
 {
-	SendPointerPacket(GS_RINGTYPE_ASYNC_CALL, 0, new AsyncCallType(std::move(func)));
+	GenericStall(1);
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
+
+	tag.command                 = GS_RINGTYPE_ASYNC_CALL;
+	tag.data[0]                 = 0;
+	tag.pointer                 = (uptr)new AsyncCallType(std::move(func));
+
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	++s_CopyDataTally;
 
 	// wake the gs thread in case it's sleeping
 	SetEvent();
