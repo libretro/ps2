@@ -20,11 +20,6 @@
 #include "GS/GS.h"
 #include "SingleRegisterTypes.h"
 
-#include <atomic>
-#include <functional>
-#include <mutex>
-#include <thread>
-
 #include "common/Threading.h"
 
 extern double GetVerticalFrequency();
