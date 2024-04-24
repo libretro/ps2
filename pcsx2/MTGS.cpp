@@ -139,12 +139,12 @@ void MTGS::PostVsyncStart(bool registers_written)
 
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
-	const unsigned int local_WritePos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos       = s_WritePos.load(std::memory_order_relaxed);
 
-	PacketTagType& tag                = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
+	PacketTagType& tag                = (PacketTagType&)RingBuffer.m_Ring[writepos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = packet_size;
-	packet_writepos                   = (local_WritePos + 1) & RINGBUFFERMASK;
+	packet_writepos                   = (writepos + 1) & RINGBUFFERMASK;
 	MemCopy_WrappedDest((u128*)PS2MEM_GS, RingBuffer.m_Ring, packet_writepos, RINGBUFFERSIZE, 0xf);
 
 	u32* remainder                    = (u32*)(u8*)&RingBuffer.m_Ring[packet_writepos & RINGBUFFERMASK];
@@ -154,8 +154,8 @@ void MTGS::PostVsyncStart(bool registers_written)
 	remainder[4]                      = static_cast<u32>(registers_written);
 	packet_writepos                   = (packet_writepos + 2) & RINGBUFFERMASK;
 
-	uint actualSize                   = ((packet_writepos - local_WritePos) & RINGBUFFERMASK) - 1;
-	tag                               = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
+	uint actualSize                   = ((packet_writepos - writepos) & RINGBUFFERMASK) - 1;
+	tag                               = (PacketTagType&)RingBuffer.m_Ring[writepos];
 	tag.data[0]                       = actualSize;
 
 	s_WritePos.store(packet_writepos, std::memory_order_release);
@@ -537,15 +537,15 @@ void MTGS::GenericStall(uint size)
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
 	GenericStall(1);
-	PacketTagType& tag   = (PacketTagType&)RingBuffer.m_Ring[s_WritePos.load(std::memory_order_relaxed)];
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
-	tag.command          = type;
-	tag.data[0]          = data0;
-	tag.data[1]          = data1;
-	tag.data[2]          = data2;
+	tag.command                 = type;
+	tag.data[0]                 = data0;
+	tag.data[1]                 = data1;
+	tag.data[2]                 = data2;
 
-	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RINGBUFFERMASK;
-	s_WritePos.store(future_writepos, std::memory_order_release);
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 
 	++s_CopyDataTally;
 }
@@ -553,14 +553,14 @@ void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int dat
 void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 {
 	GenericStall(1);
-	PacketTagType& tag   = (PacketTagType&)RingBuffer.m_Ring[s_WritePos.load(std::memory_order_relaxed)];
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
-	tag.command          = type;
-	tag.data[0]          = data0;
-	tag.pointer          = (uptr)data1;
+	tag.command                 = type;
+	tag.data[0]                 = data0;
+	tag.pointer                 = (uptr)data1;
 
-	uint future_writepos = (s_WritePos.load(std::memory_order_relaxed) + 1) & RINGBUFFERMASK;
-	s_WritePos.store(future_writepos, std::memory_order_release);
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 
 	++s_CopyDataTally;
 }
