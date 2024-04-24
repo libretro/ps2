@@ -2199,11 +2199,6 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 		const int new_w = std::max(t_size.x, std::max(rt ? rt->m_unscaled_size.x : 0, ds ? ds->m_unscaled_size.x : 0));
 		const int new_h = std::max(t_size.y, std::max(rt ? rt->m_unscaled_size.y : 0, ds ? ds->m_unscaled_size.y : 0));
 
-		// Expanding the target means we can't fast clear anymore.
-		const bool growing = (new_w > m_r.z || new_h > m_r.w);
-		preserve_rt_color |= growing;
-		preserve_depth    |= growing;
-
 		if (rt)
 		{
 			const u32 old_end_block = rt->m_end_block;
@@ -2236,11 +2231,10 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 
 					// Invalidate has been moved to after DrawPrims(), because we might kill the current sources' backing.
 					g_gs_device->CopyRect(old_rt->m_texture, rt->m_texture, GSVector4i(0, 0, copy_width, copy_height), 0, old_height);
+					preserve_rt_color = true;
 				}
 				else
-				{
 					old_rt = nullptr;
-				}
 			}
 		}
 		if (ds)
@@ -2272,11 +2266,10 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 					const int copy_height = (old_ds->m_texture->GetHeight()) > (ds->m_texture->GetHeight() - old_height) ? (ds->m_texture->GetHeight() - old_height) : old_ds->m_texture->GetHeight();
 
 					g_gs_device->CopyRect(old_ds->m_texture, ds->m_texture, GSVector4i(0, 0, copy_width, copy_height), 0, old_height);
+					preserve_depth = true;
 				}
 				else
-				{
 					old_ds = nullptr;
-				}
 			}
 		}
 	}
