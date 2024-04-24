@@ -44,7 +44,6 @@ union PacketTagType
 
 struct RingCmdPacket_Vsync
 {
-	u8 regset1[0x0f0];
 	u32 csr;
 	u32 imr;
 	GSRegSIGBLID siglblid;
@@ -88,12 +87,6 @@ namespace MTGS
 	// has more than one command in it when the thread is kicked.
 	static int s_CopyDataTally                      = 0;
 
-	// These vars maintain instance data for sending Data Packets.
-	// Only one data packet can be constructed and uploaded at a time.
-
-	static uint s_packet_startpos   = 0; // size of the packet (data only, ie. not including the 16 byte command!)
-	static uint s_packet_size       = 0; // size of the packet (data only, ie. not including the 16 byte command!)
-	static uint s_packet_writepos   = 0; // index of the data location in the ringbuffer.
 
 	static std::thread::id s_thread;
 	static Threading::ThreadHandle s_thread_handle;
@@ -121,27 +114,39 @@ void MTGS::ResetGS(bool hardware_reset)
 
 void MTGS::PostVsyncStart(bool registers_written)
 {
-	// Optimization note: Typically regset1 isn't needed.  The regs in that area are typically
-	// changed infrequently, usually during video mode changes.  However, on modern systems the
-	// 256-byte copy is only a few dozen cycles -- executed 60 times a second -- so probably
-	// not worth the effort or overhead of trying to selectively avoid it.
+	uint packet_writepos              = 0; // index of the data location in the ringbuffer.
+	uint packsize                     = sizeof(RingCmdPacket_Vsync) / 16;
+	uint packet_size                  = packsize;
+	++packsize; // takes into account our RingCommand QWC.
+	GenericStall(packsize);
 
-	uint packsize = sizeof(RingCmdPacket_Vsync) / 16;
-	PrepDataPacket(GS_RINGTYPE_VSYNC, packsize);
-	MemCopy_WrappedDest((u128*)PS2MEM_GS, RingBuffer.m_Ring, s_packet_writepos, RingBufferSize, 0xf);
+	// Command qword: Low word is the command, and the high word is the packet
+	// length in SIMDs (128 bits).
+	const unsigned int local_WritePos = s_WritePos.load(std::memory_order_relaxed);
 
-	u32* remainder              = (u32*)(u8*)&RingBuffer.m_Ring[s_packet_writepos & RingBufferMask];
-	remainder[0]                = GSCSRr;
-	remainder[1]                = GSIMR._u32;
-	(GSRegSIGBLID&)remainder[2] = GSSIGLBLID;
-	remainder[4]                = static_cast<u32>(registers_written);
-	s_packet_writepos           = (s_packet_writepos + 2) & RingBufferMask;
+	PacketTagType& tag                = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
+	tag.command                       = GS_RINGTYPE_VSYNC;
+	tag.data[0]                       = packet_size;
+	packet_writepos                   = (local_WritePos + 1) & RingBufferMask;
+	MemCopy_WrappedDest((u128*)PS2MEM_GS, RingBuffer.m_Ring, packet_writepos, RingBufferSize, 0xf);
 
-	SendDataPacket();
+	u32* remainder                    = (u32*)(u8*)&RingBuffer.m_Ring[packet_writepos & RingBufferMask];
+	remainder[0]                      = GSCSRr;
+	remainder[1]                      = GSIMR._u32;
+	(GSRegSIGBLID&)remainder[2]       = GSSIGLBLID;
+	remainder[4]                      = static_cast<u32>(registers_written);
+	packet_writepos                   = (packet_writepos + 2) & RingBufferMask;
+
+	uint actualSize                   = ((packet_writepos - local_WritePos) & RingBufferMask) - 1;
+	tag                               = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
+	tag.data[0]                       = actualSize;
+
+	s_WritePos.store(packet_writepos, std::memory_order_release);
+
+	s_CopyDataTally                  += packet_size;
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
-	if (s_CopyDataTally != 0)
-		SetEvent();
+	SetEvent();
 
 	// If the MTGS is allowed to queue a lot of frames in advance, it creates input lag.
 	// Use the Queued FrameCount to stall the EE if another vsync (or two) are already queued
@@ -235,8 +240,8 @@ void MTGS::MainLoop(bool flush_all)
 					if (offset != ~0u)
 						GSgifTransfer((u8*)&path.buffer[offset], size / 16);
 					path.readAmount.fetch_sub(size, std::memory_order_acq_rel);
-					break;
 				}
+					break;
 
 				case GS_RINGTYPE_MTVU_GSPACKET:
 				{
@@ -253,80 +258,68 @@ void MTGS::MainLoop(bool flush_all)
 						GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
 					path.readAmount.fetch_sub(gsPack.size + gsPack.readAmount, std::memory_order_acq_rel);
 					path.PopGSPacketMTVU(); // Should be done last, for proper Gif_MTGS_Wait()
+				}
 					break;
-				}
-
-				default:
+				case GS_RINGTYPE_VSYNC:
 				{
-					switch (tag.command)
-					{
-						case GS_RINGTYPE_VSYNC:
-						{
-							const int qsize = tag.data[0];
-							ringposinc += qsize;
+					const int qsize = tag.data[0];
+					ringposinc += qsize;
 
-							// Mail in the important GS registers.
-							// This seemingly obtuse system is needed in order to handle cases where the vsync data wraps
-							// around the edge of the ringbuffer.  If not for that I'd just use a struct. >_<
+					// Mail in the important GS registers.
+					// This seemingly obtuse system is needed in order to handle cases where the vsync data wraps
+					// around the edge of the ringbuffer.  If not for that I'd just use a struct. >_<
 
-							uint datapos = (local_ReadPos + 1) & RingBufferMask;
-							MemCopy_WrappedSrc(RingBuffer.m_Ring, datapos, RingBufferSize, (u128*)RingBuffer.Regs, 0xf);
+					uint datapos = (local_ReadPos + 1) & RingBufferMask;
+					MemCopy_WrappedSrc(RingBuffer.m_Ring, datapos, RingBufferSize, (u128*)RingBuffer.Regs, 0xf);
 
-							u32* remainder = (u32*)&RingBuffer.m_Ring[datapos];
-							((u32&)RingBuffer.Regs[0x1000]) = remainder[0];
-							((u32&)RingBuffer.Regs[0x1010]) = remainder[1];
-							((GSRegSIGBLID&)RingBuffer.Regs[0x1080]) = (GSRegSIGBLID&)remainder[2];
+					u32* remainder = (u32*)&RingBuffer.m_Ring[datapos];
+					((u32&)RingBuffer.Regs[0x1000]) = remainder[0];
+					((u32&)RingBuffer.Regs[0x1010]) = remainder[1];
+					((GSRegSIGBLID&)RingBuffer.Regs[0x1080]) = (GSRegSIGBLID&)remainder[2];
 
-							// CSR & 0x2000; is the pageflip id.
-							if(!flush_all)
-								GSvsync((((u32&)RingBuffer.Regs[0x1000]) & 0x2000) ? 0 : 1, remainder[4] != 0);
+					// CSR & 0x2000; is the pageflip id.
+					if(!flush_all)
+						GSvsync((((u32&)RingBuffer.Regs[0x1000]) & 0x2000) ? 0 : 1, remainder[4] != 0);
 
-							s_QueuedFrameCount.fetch_sub(1);
-							if (s_VsyncSignalListener.exchange(false))
-								s_sem_Vsync.Post();
+					s_QueuedFrameCount.fetch_sub(1);
+					if (s_VsyncSignalListener.exchange(false))
+						s_sem_Vsync.Post();
 
-							// Do not StateCheckInThread() here
-							// Otherwise we could pause while there's still data in the queue
-							// Which could make the MTVU thread wait forever for it to empty
-						}
-						break;
-
-						case GS_RINGTYPE_ASYNC_CALL:
-							{
-								AsyncCallType* const func = (AsyncCallType*)tag.pointer;
-								(*func)();
-								delete func;
-							}
-							break;
-
-						case GS_RINGTYPE_FREEZE:
-						{
-							MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
-							int mode = tag.data[0];
-							GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
-						}
-						break;
-
-						case GS_RINGTYPE_RESET:
-							GSreset(tag.data[0] != 0);
-							break;
-
-						case GS_RINGTYPE_SOFTRESET:
-							GSgifSoftReset(tag.data[0]);
-							break;
-
-						case GS_RINGTYPE_INIT_AND_READ_FIFO:
-							GSInitAndReadFIFO((u8*)tag.pointer, tag.data[0]);
-							break;
-
-							// Optimized performance in non-Dev builds.
-						default:
-							break;
-					}
+					// Do not StateCheckInThread() here
+					// Otherwise we could pause while there's still data in the queue
+					// Which could make the MTVU thread wait forever for it to empty
 				}
+					break;
+				case GS_RINGTYPE_ASYNC_CALL:
+				{
+					AsyncCallType* const func = (AsyncCallType*)tag.pointer;
+					(*func)();
+					delete func;
+				}
+					break;
+				case GS_RINGTYPE_FREEZE:
+				{
+					MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
+					int mode = tag.data[0];
+					GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
+				}
+					break;
+				case GS_RINGTYPE_RESET:
+					GSreset(tag.data[0] != 0);
+					break;
+
+				case GS_RINGTYPE_SOFTRESET:
+					GSgifSoftReset(tag.data[0]);
+					break;
+				case GS_RINGTYPE_INIT_AND_READ_FIFO:
+					GSInitAndReadFIFO((u8*)tag.pointer, tag.data[0]);
+					break;
+				// Optimized performance in non-Dev builds.
+				default:
+					break;
 			}
 
-			uint newringpos = (s_ReadPos.load(std::memory_order_relaxed) + ringposinc) & RingBufferMask;
+			uint newringpos = (local_ReadPos + ringposinc) & RingBufferMask;
 
 			s_ReadPos.store(newringpos, std::memory_order_release);
 
@@ -447,22 +440,6 @@ void MTGS::SetEvent()
 	s_CopyDataTally = 0;
 }
 
-// Closes the data packet send command, and initiates the gs thread (if needed).
-void MTGS::SendDataPacket()
-{
-	uint actualSize    = ((s_packet_writepos - s_packet_startpos) & RingBufferMask) - 1;
-	PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[s_packet_startpos];
-	tag.data[0]        = actualSize;
-
-	s_WritePos.store(s_packet_writepos, std::memory_order_release);
-
-	s_CopyDataTally += s_packet_size;
-	if (s_CopyDataTally > 0x2000)
-		SetEvent();
-
-	s_packet_size = 0;
-}
-
 void MTGS::GenericStall(uint size)
 {
 	// Note on volatiles: s_WritePos is not modified by the GS thread, so there's no need
@@ -538,23 +515,6 @@ void MTGS::GenericStall(uint size)
 			}
 		}
 	}
-}
-
-void MTGS::PrepDataPacket(MTGS_RingCommand cmd, u32 size)
-{
-	s_packet_size = size;
-	++size; // takes into account our RingCommand QWC.
-	GenericStall(size);
-
-	// Command qword: Low word is the command, and the high word is the packet
-	// length in SIMDs (128 bits).
-	const unsigned int local_WritePos = s_WritePos.load(std::memory_order_relaxed);
-
-	PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[local_WritePos];
-	tag.command        = cmd;
-	tag.data[0]        = s_packet_size;
-	s_packet_startpos  = local_WritePos;
-	s_packet_writepos  = (local_WritePos + 1) & RingBufferMask;
 }
 
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)

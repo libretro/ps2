@@ -296,8 +296,6 @@ namespace MTGS
 	void WaitGS(bool syncRegs, bool weakWait, bool isMTVU);
 	void ResetGS(bool hardware_reset);
 
-	void PrepDataPacket(MTGS_RingCommand cmd, u32 size);
-	void SendDataPacket();
 	void WaitForClose();
 	void Freeze(FreezeAction mode, MTGS_FreezeData& data);
 
