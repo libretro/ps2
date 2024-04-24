@@ -270,7 +270,6 @@ enum MTGS_RingCommand
 	GS_RINGTYPE_FREEZE,
 	GS_RINGTYPE_RESET, // issues a GSreset() command.
 	GS_RINGTYPE_SOFTRESET, // issues a soft reset for the GIF
-	GS_RINGTYPE_CRC,
 	GS_RINGTYPE_GSPACKET,
 	GS_RINGTYPE_MTVU_GSPACKET,
 	GS_RINGTYPE_INIT_AND_READ_FIFO,
@@ -300,7 +299,6 @@ namespace MTGS
 
 	void PrepDataPacket(MTGS_RingCommand cmd, u32 size);
 	void SendDataPacket();
-	void SendGameCRC(u32 crc);
 	void WaitForClose();
 	void Freeze(FreezeAction mode, MTGS_FreezeData& data);
 
@@ -315,6 +313,7 @@ namespace MTGS
 	void MainLoop(bool flush_all = false);
 
 	void RunOnGSThread(AsyncCallType func);
+	void GameChanged();
 	void ApplySettings();
 	void SwitchRenderer(GSRendererType renderer, bool display_message = true);
 	void SetSoftwareRendering(bool software, bool display_message = true);

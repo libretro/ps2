@@ -187,7 +187,6 @@ bool MTGS::TryOpenGS()
 	if (!GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, RingBuffer.Regs))
 		return false;
 
-	GSSetGameCRC(ElfCRC);
 	s_open_flag.store(true, std::memory_order_release);
 	// notify emu thread that we finished opening (or failed)
 	s_open_or_close_done.Post();
@@ -314,10 +313,6 @@ void MTGS::MainLoop(bool flush_all)
 
 						case GS_RINGTYPE_SOFTRESET:
 							GSgifSoftReset(tag.data[0]);
-							break;
-
-						case GS_RINGTYPE_CRC:
-							GSSetGameCRC(tag.data[0]);
 							break;
 
 						case GS_RINGTYPE_INIT_AND_READ_FIFO:
@@ -602,11 +597,6 @@ void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 	++s_CopyDataTally;
 }
 
-void MTGS::SendGameCRC(u32 crc)
-{
-	SendSimplePacket(GS_RINGTYPE_CRC, crc, 0, 0);
-}
-
 void MTGS::WaitForClose()
 {
 	// and kick the thread if it's sleeping
@@ -634,6 +624,11 @@ void MTGS::RunOnGSThread(AsyncCallType func)
 
 	// wake the gs thread in case it's sleeping
 	SetEvent();
+}
+
+void MTGS::GameChanged()
+{
+	RunOnGSThread(GSGameChanged);
 }
 
 void MTGS::ApplySettings()

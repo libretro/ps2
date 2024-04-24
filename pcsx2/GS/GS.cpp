@@ -139,6 +139,7 @@ static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 
 	g_gs_renderer->SetRegsMem(basemem);
 	g_gs_renderer->ResetPCRTC();
+	g_gs_renderer->UpdateRenderFixes();
 	return true;
 }
 
@@ -165,7 +166,6 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		g_gs_renderer->ReadbackTextureCache();
 
 	u8* basemem = g_gs_renderer->GetRegsMem();
-	const u32 gamecrc = g_gs_renderer->GetGameCRC();
 
 	freezeData fd = {};
 	std::unique_ptr<u8[]> fd_data;
@@ -231,8 +231,6 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 			Console.Error("(GSreopen) Failed to defrost");
 			return false;
 		}
-
-		g_gs_renderer->SetGameCRC(gamecrc);
 	}
 
 	return true;
@@ -335,9 +333,10 @@ int GSfreeze(FreezeAction mode, freezeData* data)
 	return 0;
 }
 
-void GSSetGameCRC(u32 crc)
+void GSGameChanged()
 {
-	g_gs_renderer->SetGameCRC(crc);
+	if (GSConfig.UseHardwareRenderer())
+		GSTextureReplacements::GameChanged();
 }
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
@@ -364,7 +363,7 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 		|| GSConfig.GetSkipCountFunctionId != old_config.GetSkipCountFunctionId
 		|| GSConfig.BeforeDrawFunctionId   != old_config.BeforeDrawFunctionId          ||
 		GSConfig.MoveHandlerFunctionId != old_config.MoveHandlerFunctionId)
-		g_gs_renderer->UpdateCRCHacks();
+		g_gs_renderer->UpdateRenderFixes();
 
 	// renderer-specific options (e.g. auto flush, TC offset)
 	g_gs_renderer->UpdateSettings(old_config);

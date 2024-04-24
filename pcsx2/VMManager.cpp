@@ -450,10 +450,8 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 		R3000SymbolMap.UpdateActiveSymbols();
 	}
 
-	MTGS::SendGameCRC(new_crc);
-
+	MTGS::GameChanged();
 	Host::OnGameChanged(s_disc_path, s_elf_override, s_game_serial, s_game_crc);
-
 }
 
 void VMManager::ReloadPatches()

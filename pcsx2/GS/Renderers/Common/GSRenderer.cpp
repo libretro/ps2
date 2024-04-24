@@ -47,6 +47,15 @@ void GSRenderer::Destroy()
 {
 }
 
+void GSRenderer::PurgePool()
+{
+	g_gs_device->PurgePool();
+}
+
+void GSRenderer::UpdateRenderFixes()
+{
+}
+
 bool GSRenderer::Merge(int field)
 {
 	GSVector2i fs(0, 0);

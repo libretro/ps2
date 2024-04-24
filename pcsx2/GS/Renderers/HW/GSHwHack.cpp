@@ -188,8 +188,6 @@ bool GSHwHack::GSC_Tekken5(GSRendererHW& r, int& skip)
 	{
 		if (r.IsPossibleChannelShuffle())
 		{
-			pxAssertMsg((RTBP0 & 31) == 0, "TEX0 should be page aligned");
-
 			GSTextureCache::Target* rt = g_texture_cache->LookupTarget(GIFRegTEX0::Create(RTBP0, RFBW, RFPSM),
 				GSVector2i(1, 1), r.GetTextureScaleFactor(), GSTextureCache::RenderTarget);
 			if (!rt)
@@ -1477,9 +1475,9 @@ s16 GSLookupMoveHandlerFunctionId(const std::string_view& name)
 	return -1;
 }
 
-void GSRendererHW::UpdateCRCHacks()
+void GSRendererHW::UpdateRenderFixes()
 {
-	GSRenderer::UpdateCRCHacks();
+	GSRenderer::UpdateRenderFixes();
 
 	m_nativeres = (GSConfig.UpscaleMultiplier == 1.0f);
 	s_nativeres = m_nativeres;

@@ -24,7 +24,6 @@
 #include "GSUtil.h"
 #include "GSVector.h"
 #include "Renderers/Common/GSDevice.h"
-#include "GSCrc.h"
 #include "GSAlignedClass.h"
 
 class GSState : public GSAlignedClass<32>
@@ -217,8 +216,6 @@ public:
 	const GSDrawingEnvironment* m_draw_env = &m_env;
 	GSDrawingContext* m_context = nullptr;
 	GSVector4i temp_draw_rect = {};
-	u32 m_crc = 0;
-	CRC::Game m_game = {};
 	bool m_scissor_invalid = false;
 	bool m_nativeres = false;
 	bool m_mipmap = false;
@@ -375,7 +372,6 @@ public:
 	bool TestDrawChanged();
 	void FlushWrite();
 	virtual void Draw() = 0;
-	virtual void PurgePool();
 	virtual void PurgeTextureCache();
 	virtual void ReadbackTextureCache();
 	virtual void InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GSVector4i& r) {}
@@ -394,10 +390,6 @@ public:
 	template<int index> void Transfer(const u8* mem, u32 size);
 	int Freeze(freezeData* fd, bool sizeonly);
 	int Defrost(const freezeData* fd);
-
-	u32 GetGameCRC() const { return m_crc; }
-	virtual void SetGameCRC(u32 crc);
-	virtual void UpdateCRCHacks();
 
 	u8* GetRegsMem() const { return reinterpret_cast<u8*>(m_regs); }
 	void SetRegsMem(u8* basemem) { m_regs = reinterpret_cast<GSPrivRegSet*>(basemem); }
