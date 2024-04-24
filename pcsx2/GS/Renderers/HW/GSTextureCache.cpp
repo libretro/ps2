@@ -1182,7 +1182,7 @@ GSVector2i GSTextureCache::ScaleRenderTargetSize(const GSVector2i& sz, float sca
 }
 
 GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVector2i& size, float scale, int type,
-	bool used, u32 fbmask, bool is_frame, bool preload, bool preserve_target, const GSVector4i draw_rect)
+	bool used, u32 fbmask, bool is_frame, bool preload, bool preserve_rgb, bool preserve_alpha, const GSVector4i draw_rect)
 {
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 	const u32 bp = TEX0.TBP0;
@@ -1315,6 +1315,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 		}
 
 		// If our RGB was invalidated, we need to pull it from depth.
+		const bool preserve_target = preserve_rgb || preserve_alpha;
 		if (type == RenderTarget && (preserve_target || !dst->m_valid.rintersect(draw_rect).eq(dst->m_valid)) &&
 			!dst->m_valid_rgb && !FullRectDirty(dst, 0x7) &&
 			(GSLocalMemory::m_psm[TEX0.PSM].trbpp < 24 || fbmask != 0x00FFFFFFu))
@@ -1390,6 +1391,15 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 		if (dst_match)
 		{
 			calcRescale(dst_match);
+
+			// If we don't need A, and the existing target doesn't have valid alpha, don't bother converting it.
+			const bool has_alpha = dst_match->m_valid_alpha_low || dst_match->m_valid_alpha_high;
+			const bool preserve_target = (preserve_rgb || (preserve_alpha && has_alpha)) ||
+										 !draw_rect.rintersect(dst_match->m_valid).eq(dst_match->m_valid);
+
+			// Clear instead of invalidating if there is anything which isn't touched.
+			clear |= (!preserve_target && fbmask != 0);
+
 			dst = Target::Create(TEX0, new_size.x, new_size.y, scale, type, clear);
 			if (!dst)
 				return nullptr;
@@ -1411,8 +1421,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			else
 				shader = (fmt_16_bits) ? ShaderConvert::FLOAT16_TO_RGB5A1 : ShaderConvert::FLOAT32_TO_RGBA8;
 
-			if (!preserve_target && draw_rect.rintersect(dst_match->m_valid).eq(dst_match->m_valid)) { }
-			else
+			if (preserve_target)
 			{
 				// The old target's going to get invalidated (at least until we handle concurrent frame+depth at the same BP),
 				// so just move the dirty rects across.
