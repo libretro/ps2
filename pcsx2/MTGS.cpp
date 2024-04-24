@@ -533,15 +533,6 @@ void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int dat
 	++s_CopyDataTally;
 }
 
-void MTGS::SendSimpleGSPacket(MTGS_RingCommand type, u32 offset, u32 size, GIF_PATH path)
-{
-	SendSimplePacket(type, (int)offset, (int)size, (int)path);
-
-	s_CopyDataTally += size / 16;
-	if (s_CopyDataTally > 0x2000)
-		SetEvent();
-}
-
 void MTGS::SendPointerPacket(MTGS_RingCommand type, u32 data0, void* data1)
 {
 	GenericStall(1);
@@ -636,18 +627,28 @@ void MTGS::ToggleSoftwareRendering()
 // Used in MTVU mode... MTVU will later complete a real packet
 void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
 {
-	MTGS::SendSimpleGSPacket(GS_RINGTYPE_MTVU_GSPACKET, 0, 0, path);
+	MTGS::SendSimplePacket(GS_RINGTYPE_MTVU_GSPACKET, 0, (int)0, (int)path);
+	if (MTGS::s_CopyDataTally > 0x2000)
+		MTGS::SetEvent();
 }
 
 void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
 {
 	gifUnit.gifPath[path].readAmount.fetch_add(gsPack.size);
-	MTGS::SendSimpleGSPacket(GS_RINGTYPE_GSPACKET, gsPack.offset, gsPack.size, path);
+	MTGS::SendSimplePacket(GS_RINGTYPE_GSPACKET, (int)gsPack.offset, (int)gsPack.size, (int)path);
+
+	MTGS::s_CopyDataTally += gsPack.size / 16;
+	if (MTGS::s_CopyDataTally > 0x2000)
+		MTGS::SetEvent();
 }
 
 void Gif_AddBlankGSPacket(u32 size, GIF_PATH path)
 {
 	gifUnit.gifPath[path].readAmount.fetch_add(size);
-	MTGS::SendSimpleGSPacket(GS_RINGTYPE_GSPACKET, ~0u, size, path);
+	MTGS::SendSimplePacket(GS_RINGTYPE_GSPACKET, (int)~0u, (int)size, (int)path);
+
+	MTGS::s_CopyDataTally += -1;
+	if (MTGS::s_CopyDataTally > 0x2000)
+		MTGS::SetEvent();
 }
 
