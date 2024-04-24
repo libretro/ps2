@@ -42,17 +42,6 @@ union PacketTagType
 	};
 };
 
-struct RingCmdPacket_Vsync
-{
-	u32 csr;
-	u32 imr;
-	GSRegSIGBLID siglblid;
-
-	// must be 16 byte aligned
-	u32 registers_written;
-	u32 pad[3];
-};
-
 struct MTGS_BufferedData
 {
 	u128 m_Ring[RINGBUFFERSIZE];
@@ -62,7 +51,7 @@ struct MTGS_BufferedData
 //  MTGS Threaded Class Implementation
 // =====================================================================================================
 
-alignas(32) MTGS_BufferedData RingBuffer;
+static alignas(32) MTGS_BufferedData RingBuffer;
 
 namespace MTGS
 {
