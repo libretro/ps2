@@ -402,6 +402,7 @@ public:
 	u8* GetRegsMem() const { return reinterpret_cast<u8*>(m_regs); }
 	void SetRegsMem(u8* basemem) { m_regs = reinterpret_cast<GSPrivRegSet*>(basemem); }
 
+	bool TrianglesAreQuads() const;
 	PRIM_OVERLAP PrimitiveOverlap();
 	GIFRegTEX0 GetTex0Layer(u32 lod);
 };

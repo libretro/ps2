@@ -93,7 +93,7 @@ private:
 	void HandleTextureHazards(const GSTextureCache::Target* rt, const GSTextureCache::Target* ds,
 		const GSTextureCache::Source* tex, const TextureMinMaxResult& tmm, GSTextureCache::SourceRegion& source_region,
 		bool& target_region, GSVector2i& unscaled_size, float& scale, GSTexture*& src_copy);
-	bool CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextureCache::Source* tex, const TextureMinMaxResult& tmm) const;
+	bool CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextureCache::Source* tex, const TextureMinMaxResult& tmm);
 
 	void EmulateZbuffer(const GSTextureCache::Target* ds);
 	void EmulateATST(float& AREF, GSHWDrawConfig::PSSelector& ps, bool pass_2);
