@@ -2144,7 +2144,18 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 	if (!m_texture_shuffle && !m_channel_shuffle)
 	{
 		if (rt && (!is_possible_mem_clear || rt->m_TEX0.PSM != FRAME_TEX0.PSM))
+		{
+			if (rt->m_TEX0.TBW != FRAME_TEX0.TBW && !m_cached_ctx.ZBUF.ZMSK && (m_cached_ctx.FRAME.FBMSK & 0xFF000000))
+			{
+				// Alpha could be a font, and since the width is changing it's no longer valid.
+				// Be careful of downsize copies or other effects, checking Z MSK should hopefully be enough.. (Okami).
+				if (m_cached_ctx.FRAME.FBMSK & 0x0F000000)
+					rt->m_valid_alpha_low = false;
+				if (m_cached_ctx.FRAME.FBMSK & 0xF0000000)
+					rt->m_valid_alpha_high = false;
+			}
 			rt->m_TEX0 = FRAME_TEX0;
+		}
 
 		if (ds && (!is_possible_mem_clear || ds->m_TEX0.PSM != ZBUF_TEX0.PSM))
 			ds->m_TEX0 = ZBUF_TEX0;
