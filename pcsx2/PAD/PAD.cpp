@@ -208,9 +208,6 @@ void Device::DoRumble(unsigned type, unsigned pad)
 }
 #endif
 
-void InputManager::ReloadSources(SettingsInterface& si, std::unique_lock<std::mutex>& settings_lock) { }
-void InputManager::ReloadBindings(SettingsInterface& si, SettingsInterface& binding_si) { }
-
 //////////////////////////////////////////////////////////////////////
 // Pad implementation
 //////////////////////////////////////////////////////////////////////

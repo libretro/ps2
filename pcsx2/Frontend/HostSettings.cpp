@@ -27,20 +27,9 @@
 static std::mutex s_settings_mutex;
 static LayeredSettingsInterface s_layered_settings_interface;
 
-std::unique_lock<std::mutex> Host::GetSettingsLock()
-{
-	return std::unique_lock<std::mutex>(s_settings_mutex);
-}
-
 SettingsInterface* Host::GetSettingsInterface()
 {
 	return &s_layered_settings_interface;
-}
-
-SettingsInterface* Host::GetSettingsInterfaceForBindings()
-{
-	SettingsInterface* input_layer = s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_INPUT);
-	return input_layer ? input_layer : &s_layered_settings_interface;
 }
 
 std::string Host::GetBaseStringSettingValue(const char* section, const char* key, const char* default_value /*= ""*/)

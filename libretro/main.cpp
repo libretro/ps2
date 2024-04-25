@@ -971,14 +971,3 @@ void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_ov
 	u32 game_crc)
 {
 }
-
-void Host::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& lock)
-{
-	SettingsInterface* binding_si = Host::GetSettingsInterfaceForBindings();
-	InputManager::ReloadSources(si, lock);
-	InputManager::ReloadBindings(si, *binding_si);
-}
-
-void Host::CheckForSettingsChanges(const Pcsx2Config& old_config)
-{
-}

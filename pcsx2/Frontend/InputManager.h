@@ -29,12 +29,6 @@ namespace InputManager
 	/// Retrieves bindings that match the generic bindings for the specified device.
 	using GenericInputBindingMapping = std::vector<std::pair<GenericInputBinding, std::string>>;
 
-	/// Re-parses the config and registers all hotkey and pad bindings.
-	void ReloadBindings(SettingsInterface& si, SettingsInterface& binding_si);
-
-	/// Re-parses the sources part of the config and initializes any backends.
-	void ReloadSources(SettingsInterface& si, std::unique_lock<std::mutex>& settings_lock);
-
 	/// Internal method used by pads to dispatch vibration updates to input sources.
 	/// Intensity is normalized from 0 to 1.
 	void SetPadVibrationIntensity(u32 pad_index, float large_or_single_motor_intensity, float small_motor_intensity);

@@ -36,7 +36,6 @@
 #include "Counters.h"
 #include "Patch.h"
 #include "SPU2/spu2.h"
-#include "StateWrapper.h"
 #include "PAD/PAD.h"
 #include "USB/USB.h"
 #include "VMManager.h"

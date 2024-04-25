@@ -214,12 +214,10 @@ SysMainMemory& GetVmMemory()
 
 void VMManager::LoadSettings()
 {
-	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
 	SettingsInterface* si             = Host::GetSettingsInterface();
 	SettingsLoadWrapper slw(*si);
 	EmuConfig.LoadSave(slw);
 	PAD::LoadConfig(*si);
-	Host::LoadSettings(*si, lock);
 
 	// Remove any user-specified hacks in the config (we don't want stale/conflicting values when it's globally disabled).
 	EmuConfig.GS.MaskUserHacks();
@@ -951,8 +949,6 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 	// and we don't update its config when we start the VM.
 	if (HasValidVM() || MTGS::IsOpen())
 		CheckForGSConfigChanges(old_config);
-
-	Host::CheckForSettingsChanges(old_config);
 }
 
 void VMManager::ApplySettings()

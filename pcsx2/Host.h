@@ -41,12 +41,7 @@ namespace Host
 	double GetDoubleSettingValue(const char* section, const char* key, double default_value = 0.0);
 
 	/// Direct access to settings interface. Must hold the lock when calling GetSettingsInterface() and while using it.
-	std::unique_lock<std::mutex> GetSettingsLock();
 	SettingsInterface* GetSettingsInterface();
-
-	/// Returns the settings interface that controller bindings should be loaded from.
-	/// If an input profile is being used, this will be the input layer, otherwise the layered interface.
-	SettingsInterface* GetSettingsInterfaceForBindings();
 
 	namespace Internal
 	{
