@@ -764,5 +764,5 @@ void GSDownloadTexture12::Flush()
 	if (g_d3d12_context->GetCurrentFenceValue() == m_copy_fence_value)
 		GSDevice12::GetInstance()->ExecuteCommandListForReadback();
 	else
-		g_d3d12_context->WaitForFence(m_copy_fence_value, GSConfig.HWSpinGPUForReadbacks);
+		g_d3d12_context->WaitForFence(m_copy_fence_value, false);
 }

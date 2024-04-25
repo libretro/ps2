@@ -509,8 +509,8 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// Attempt to create the device.
 		if (!g_vulkan_context->CreateDevice(surface, enable_validation_layer, nullptr, 0, nullptr, 0, nullptr) ||
 			!g_vulkan_context->CreateAllocator() || !g_vulkan_context->CreateGlobalDescriptorPool() ||
-			!g_vulkan_context->CreateCommandBuffers() || !g_vulkan_context->CreateTextureStreamBuffer() ||
-			!g_vulkan_context->InitSpinResources())
+			!g_vulkan_context->CreateCommandBuffers() || !g_vulkan_context->CreateTextureStreamBuffer()
+			)
 		{
 			// Since we are destroying the instance, we're also responsible for destroying the surface.
 			if (surface != VK_NULL_HANDLE)
@@ -530,7 +530,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 		g_vulkan_context->m_texture_upload_buffer.Destroy(false);
 
-		g_vulkan_context->DestroySpinResources();
 		g_vulkan_context->DestroyRenderPassCache();
 		g_vulkan_context->DestroyGlobalDescriptorPool();
 		g_vulkan_context->DestroyCommandBuffers();
@@ -595,8 +594,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			SupportsExtension(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME, false);
 		m_optional_extensions.vk_ext_memory_budget =
 			SupportsExtension(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false);
-		m_optional_extensions.vk_ext_calibrated_timestamps =
-			SupportsExtension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME, false);
 		m_optional_extensions.vk_ext_line_rasterization =
 			SupportsExtension(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME, false);
 		m_optional_extensions.vk_ext_rasterization_order_attachment_access =
@@ -836,28 +833,9 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		{
 			vkGetDeviceQueue(m_device, m_present_queue_family_index, 0, &m_present_queue);
 		}
-		m_spinning_supported = m_spin_queue_family_index != queue_family_count &&
-		                       queue_family_properties[m_graphics_queue_family_index].timestampValidBits > 0 &&
-		                       m_device_properties.limits.timestampPeriod > 0;
 		m_spin_queue_is_graphics_queue = m_spin_queue_family_index == m_graphics_queue_family_index && spin_queue_index == 0;
 
 		ProcessDeviceExtensions();
-
-		if (m_spinning_supported)
-		{
-			vkGetDeviceQueue(m_device, m_spin_queue_family_index, spin_queue_index, &m_spin_queue);
-
-			m_spin_timestamp_scale = m_device_properties.limits.timestampPeriod;
-			if (m_optional_extensions.vk_ext_calibrated_timestamps)
-			{
-#ifdef _WIN32
-				LARGE_INTEGER Freq;
-				QueryPerformanceFrequency(&Freq);
-				m_queryperfcounter_to_ns = 1000000000.0 / static_cast < double > (Freq.QuadPart);
-#endif
-				CalibrateSpinTimestamp();
-			}
-		}
 
 		return true;
 	}
@@ -908,46 +886,10 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// query
 		vkGetPhysicalDeviceProperties2(m_physical_device, &properties2);
 
-		// VK_EXT_calibrated_timestamps checking
-		if (m_optional_extensions.vk_ext_calibrated_timestamps)
-		{
-			u32 count = 0;
-			vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(m_physical_device, &count, nullptr);
-			std::unique_ptr<VkTimeDomainEXT[]> time_domains = std::make_unique<VkTimeDomainEXT[]>(count);
-			vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(m_physical_device, &count, time_domains.get());
-			const VkTimeDomainEXT* begin = &time_domains[0];
-			const VkTimeDomainEXT* end = &time_domains[count];
-			if (std::find(begin, end, VK_TIME_DOMAIN_DEVICE_EXT) == end)
-				m_optional_extensions.vk_ext_calibrated_timestamps = false;
-			VkTimeDomainEXT preferred_types[] = {
-#ifdef _WIN32
-				VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_EXT,
-#else
-#ifdef CLOCK_MONOTONIC_RAW
-				VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_EXT,
-#endif
-				VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT,
-#endif
-			};
-			m_calibrated_timestamp_type = VK_TIME_DOMAIN_DEVICE_EXT;
-			for (VkTimeDomainEXT type : preferred_types)
-			{
-				if (std::find(begin, end, type) != end)
-				{
-					m_calibrated_timestamp_type = type;
-					break;
-				}
-			}
-			if (m_calibrated_timestamp_type == VK_TIME_DOMAIN_DEVICE_EXT)
-				m_optional_extensions.vk_ext_calibrated_timestamps = false;
-		}
-
 		Console.WriteLn("VK_EXT_provoking_vertex is %s",
 			m_optional_extensions.vk_ext_provoking_vertex ? "supported" : "NOT supported");
 		Console.WriteLn("VK_EXT_line_rasterization is %s",
 			m_optional_extensions.vk_ext_line_rasterization ? "supported" : "NOT supported");
-		Console.WriteLn("VK_EXT_calibrated_timestamps is %s",
-			m_optional_extensions.vk_ext_calibrated_timestamps ? "supported" : "NOT supported");
 		Console.WriteLn("VK_EXT_rasterization_order_attachment_access is %s",
 			m_optional_extensions.vk_ext_rasterization_order_attachment_access ? "supported" : "NOT supported");
 		Console.WriteLn("VK_EXT_attachment_feedback_loop_layout is %s",
@@ -1086,12 +1028,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 	void VKContext::DestroyGlobalDescriptorPool()
 	{
-		if (m_timestamp_query_pool != VK_NULL_HANDLE)
-		{
-			vkDestroyQueryPool(m_device, m_timestamp_query_pool, nullptr);
-			m_timestamp_query_pool = VK_NULL_HANDLE;
-		}
-
 		if (m_global_descriptor_pool != VK_NULL_HANDLE)
 		{
 			vkDestroyDescriptorPool(m_device, m_global_descriptor_pool, nullptr);
@@ -1242,28 +1178,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		vkDeviceWaitIdle(m_device);
 	}
 
-	void VKContext::ScanForCommandBufferCompletion()
-	{
-		for (u32 check_index = (m_current_frame + 1) % NUM_COMMAND_BUFFERS; check_index != m_current_frame; check_index = (check_index + 1) % NUM_COMMAND_BUFFERS)
-		{
-			FrameResources& resources = m_frame_resources[check_index];
-			if (resources.fence_counter <= m_completed_fence_counter)
-				continue; // Already completed
-			if (vkGetFenceStatus(m_device, resources.fence) != VK_SUCCESS)
-				break; // Fence not signaled, later fences won't be either
-			CommandBufferCompleted(check_index);
-			m_completed_fence_counter = resources.fence_counter;
-		}
-		for (SpinResources& resources : m_spin_resources)
-		{
-			if (!resources.in_progress)
-				continue;
-			if (vkGetFenceStatus(m_device, resources.fence) != VK_SUCCESS)
-				continue;
-			SpinCommandCompleted(&resources - &m_spin_resources[0]);
-		}
-	}
-
 	void VKContext::WaitForCommandBufferCompletion(u32 index)
 	{
 		// Wait for this command buffer to be completed.
@@ -1306,12 +1220,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 				Console.Error("Failed to end command buffer");
 		}
 
-		bool wants_timestamp = m_spin_timer;
-		if (wants_timestamp && resources.timestamp_written)
-		{
-			vkCmdWriteTimestamp(m_current_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, m_current_frame * 2 + 1);
-		}
-
 		res = vkEndCommandBuffer(resources.command_buffers[1]);
 		if (res != VK_SUCCESS)
 			Console.Error("Failed to end command buffer");
@@ -1319,37 +1227,12 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// This command buffer now has commands, so can't be re-used without waiting.
 		resources.needs_fence_wait = true;
 
-		u32 spin_cycles = 0;
-		const bool spin_enabled = m_spin_timer;
-		if (spin_enabled)
-		{
-			ScanForCommandBufferCompletion();
-			auto draw = m_spin_manager.DrawSubmitted(m_command_buffer_render_passes);
-			u32 constant_offset = 400000 * m_spin_manager.SpinsPerUnitTime(); // 400µs, just to be safe since going over gets really bad
-			if (m_optional_extensions.vk_ext_calibrated_timestamps)
-				constant_offset /= 2; // Safety factor isn't as important here, going over just hurts this one submission a bit
-			u32 minimum_spin = 200000 * m_spin_manager.SpinsPerUnitTime();
-			u32 maximum_spin = std::max<u32>(1024, 16000000 * m_spin_manager.SpinsPerUnitTime()); // 16ms
-			if (draw.recommended_spin > minimum_spin + constant_offset)
-				spin_cycles = std::min(draw.recommended_spin - constant_offset, maximum_spin);
-			resources.spin_id = draw.id;
-		}
-		else
-		{
-			resources.spin_id = -1;
-		}
 		m_command_buffer_render_passes = 0;
 
-		if (spin_cycles != 0)
-			WaitForSpinCompletion(m_current_frame);
-
-		if (spin_enabled && m_optional_extensions.vk_ext_calibrated_timestamps)
-			resources.submit_timestamp = GetCPUTimestamp();
-
-		DoSubmitCommandBuffer(m_current_frame, spin_cycles);
+		DoSubmitCommandBuffer(m_current_frame);
 	}
 
-	void VKContext::DoSubmitCommandBuffer(u32 index, u32 spin_cycles)
+	void VKContext::DoSubmitCommandBuffer(u32 index)
 	{
 		FrameResources& resources = m_frame_resources[index];
 
@@ -1359,21 +1242,9 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		submit_info.commandBufferCount = resources.init_buffer_used ? 2u : 1u;
 		submit_info.pCommandBuffers = resources.init_buffer_used ? resources.command_buffers.data() : &resources.command_buffers[1];
 
-		if (spin_cycles != 0)
-		{
-			submit_info.signalSemaphoreCount = 1;
-			submit_info.pSignalSemaphores = &m_spin_resources[index].semaphore;
-		}
-
 		const VkResult res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
 		if (res != VK_SUCCESS)
-		{
 			m_last_submit_failed.store(true, std::memory_order_release);
-			return;
-		}
-
-		if (spin_cycles != 0)
-			SubmitSpinCommand(index, spin_cycles);
 	}
 
 	void VKContext::CommandBufferCompleted(u32 index)
@@ -1383,32 +1254,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		for (auto& it : resources.cleanup_resources)
 			it();
 		resources.cleanup_resources.clear();
-
-		bool wants_timestamps = resources.spin_id >= 0;
-
-		if (wants_timestamps && resources.timestamp_written)
-		{
-			std::array<u64, 2> timestamps;
-			VkResult res = vkGetQueryPoolResults(m_device, m_timestamp_query_pool, index * 2, static_cast<u32>(timestamps.size()),
-				sizeof(u64) * timestamps.size(), timestamps.data(), sizeof(u64), VK_QUERY_RESULT_64_BIT);
-			if (res == VK_SUCCESS)
-			{
-				if (resources.spin_id >= 0)
-				{
-					if (m_optional_extensions.vk_ext_calibrated_timestamps && timestamps[1] > 0)
-					{
-						u64 end = timestamps[1] * m_spin_timestamp_scale + m_spin_timestamp_offset;
-						m_spin_manager.DrawCompleted(resources.spin_id, resources.submit_timestamp, end);
-					}
-					else if (!m_optional_extensions.vk_ext_calibrated_timestamps && timestamps[0] > 0)
-					{
-						u64 begin = timestamps[0] * m_spin_timestamp_scale;
-						u64 end = timestamps[1] * m_spin_timestamp_scale;
-						m_spin_manager.DrawCompleted(resources.spin_id, begin, end);
-					}
-				}
-			}
-		}
 	}
 
 	void VKContext::MoveToNextCommandBuffer() { ActivateCommandBuffer((m_current_frame + 1) % NUM_COMMAND_BUFFERS); }
@@ -1434,16 +1279,8 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// Also can do the same for the descriptor pools
 		vkResetDescriptorPool(m_device, resources.descriptor_pool, 0);
 
-		bool wants_timestamp = m_spin_timer;
-		if (wants_timestamp)
-		{
-			vkCmdResetQueryPool(resources.command_buffers[1], m_timestamp_query_pool, index * 2, 2);
-			vkCmdWriteTimestamp(resources.command_buffers[1], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, index * 2);
-		}
-
 		resources.fence_counter = m_next_fence_counter++;
 		resources.init_buffer_used = false;
-		resources.timestamp_written = wants_timestamp;
 
 		m_current_frame = index;
 		m_current_command_buffer = resources.command_buffers[1];
@@ -1464,9 +1301,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 		if (wait_for_completion != WaitType::None)
 		{
-			// Calibrate while we wait
-			if (m_wants_new_timestamp_calibration)
-				CalibrateSpinTimestamp();
 			if (wait_for_completion == WaitType::Spin)
 			{
 				while (vkGetFenceStatus(m_device, m_frame_resources[current_frame].fence) == VK_NOT_READY)
@@ -1699,322 +1533,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			vkDestroyRenderPass(m_device, it.second, nullptr);
 
 		m_render_pass_cache.clear();
-	}
-
-	static constexpr std::string_view SPIN_SHADER = R"(
-#version 460 core
-
-layout(std430, set=0, binding=0) buffer SpinBuffer { uint spin[]; };
-layout(push_constant) uniform constants { uint cycles; };
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-
-void main()
-{
-	uint value = spin[0];
-	// The compiler doesn't know, but spin[0] == 0, so this loop won't actually go anywhere
-	for (uint i = 0; i < cycles; i++)
-		value = spin[value];
-	// Store the result back to the buffer so the compiler can't optimize it away
-	spin[0] = value;
-}
-)";
-
-	bool VKContext::InitSpinResources()
-	{
-		if (!m_spinning_supported)
-			return true;
-		auto spirv = CompileShader(ShaderType::Compute, SPIN_SHADER, false);
-		if (!spirv.has_value())
-			return false;
-
-		VkResult res;
-#define CHECKED_CREATE(create_fn, create_struct, output_struct) \
-	do { \
-		if ((res = create_fn(m_device, create_struct, nullptr, output_struct)) != VK_SUCCESS) \
-			return false; \
-	} while (0)
-
-		VkDescriptorSetLayoutBinding set_layout_binding = {};
-		set_layout_binding.binding = 0;
-		set_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		set_layout_binding.descriptorCount = 1;
-		set_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		VkDescriptorSetLayoutCreateInfo desc_set_layout_create = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		desc_set_layout_create.bindingCount = 1;
-		desc_set_layout_create.pBindings = &set_layout_binding;
-		CHECKED_CREATE(vkCreateDescriptorSetLayout, &desc_set_layout_create, &m_spin_descriptor_set_layout);
-
-		const VkPushConstantRange push_constant_range = { VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(u32) };
-		VkPipelineLayoutCreateInfo pl_layout_create = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		pl_layout_create.setLayoutCount = 1;
-		pl_layout_create.pSetLayouts = &m_spin_descriptor_set_layout;
-		pl_layout_create.pushConstantRangeCount = 1;
-		pl_layout_create.pPushConstantRanges = &push_constant_range;
-		CHECKED_CREATE(vkCreatePipelineLayout, &pl_layout_create, &m_spin_pipeline_layout);
-
-		VkShaderModule shader_module;
-		VkShaderModuleCreateInfo module_create = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-		module_create.codeSize = spirv->size() * sizeof(SPIRVCodeType);
-		module_create.pCode    = spirv->data();
-		CHECKED_CREATE(vkCreateShaderModule, &module_create, &shader_module);
-
-		VkComputePipelineCreateInfo pl_create = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
-		pl_create.layout       = m_spin_pipeline_layout;
-		pl_create.stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		pl_create.stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-		pl_create.stage.pName  = "main";
-		pl_create.stage.module = shader_module;
-		res                    = vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &pl_create, nullptr, &m_spin_pipeline);
-		vkDestroyShaderModule(m_device, shader_module, nullptr);
-		if (res != VK_SUCCESS)
-			return false;
-
-		VmaAllocationCreateInfo buf_vma_create = {};
-		buf_vma_create.usage          = VMA_MEMORY_USAGE_GPU_ONLY;
-		VkBufferCreateInfo buf_create = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		buf_create.size               = 4;
-		buf_create.usage              = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		if ((res = vmaCreateBuffer(m_allocator, &buf_create, &buf_vma_create, &m_spin_buffer, &m_spin_buffer_allocation, nullptr)) != VK_SUCCESS)
-			return false;
-
-		VkDescriptorSetAllocateInfo desc_set_allocate = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		desc_set_allocate.descriptorPool     = m_global_descriptor_pool;
-		desc_set_allocate.descriptorSetCount = 1;
-		desc_set_allocate.pSetLayouts        = &m_spin_descriptor_set_layout;
-		if ((res = vkAllocateDescriptorSets(m_device, &desc_set_allocate, &m_spin_descriptor_set)) != VK_SUCCESS)
-			return false;
-		const VkDescriptorBufferInfo desc_buffer_info = { m_spin_buffer, 0, VK_WHOLE_SIZE };
-		VkWriteDescriptorSet desc_set_write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		desc_set_write.dstSet               = m_spin_descriptor_set;
-		desc_set_write.dstBinding           = 0;
-		desc_set_write.descriptorCount      = 1;
-		desc_set_write.descriptorType       = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		desc_set_write.pBufferInfo          = &desc_buffer_info;
-		vkUpdateDescriptorSets(m_device, 1, &desc_set_write, 0, nullptr);
-
-		for (SpinResources& resources : m_spin_resources)
-		{
-			u32 index = &resources - &m_spin_resources[0];
-			VkCommandPoolCreateInfo pool_info = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-			pool_info.queueFamilyIndex = m_spin_queue_family_index;
-			CHECKED_CREATE(vkCreateCommandPool, &pool_info, &resources.command_pool);
-
-			VkCommandBufferAllocateInfo buffer_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-			buffer_info.commandPool        = resources.command_pool;
-			buffer_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-			buffer_info.commandBufferCount = 1;
-			res = vkAllocateCommandBuffers(m_device, &buffer_info, &resources.command_buffer);
-			if (res != VK_SUCCESS)
-				return false;
-
-			VkFenceCreateInfo fence_info = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-			fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-			CHECKED_CREATE(vkCreateFence, &fence_info, &resources.fence);
-
-			if (!m_spin_queue_is_graphics_queue)
-			{
-				VkSemaphoreCreateInfo sem_info = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-				CHECKED_CREATE(vkCreateSemaphore, &sem_info, &resources.semaphore);
-			}
-		}
-
-#undef CHECKED_CREATE
-		return true;
-	}
-
-	void VKContext::DestroySpinResources()
-	{
-#define CHECKED_DESTROY(destructor, obj) \
-		do { \
-			if (obj != VK_NULL_HANDLE) \
-			{ \
-				destructor(m_device, obj, nullptr); \
-				obj = VK_NULL_HANDLE; \
-			} \
-		} while (0)
-
-		if (m_spin_buffer)
-		{
-			vmaDestroyBuffer(m_allocator, m_spin_buffer, m_spin_buffer_allocation);
-			m_spin_buffer = VK_NULL_HANDLE;
-			m_spin_buffer_allocation = VK_NULL_HANDLE;
-		}
-		CHECKED_DESTROY(vkDestroyPipeline, m_spin_pipeline);
-		CHECKED_DESTROY(vkDestroyPipelineLayout, m_spin_pipeline_layout);
-		CHECKED_DESTROY(vkDestroyDescriptorSetLayout, m_spin_descriptor_set_layout);
-		if (m_spin_descriptor_set != VK_NULL_HANDLE)
-		{
-			vkFreeDescriptorSets(m_device, m_global_descriptor_pool, 1, &m_spin_descriptor_set);
-			m_spin_descriptor_set = VK_NULL_HANDLE;
-		}
-		for (SpinResources& resources : m_spin_resources)
-		{
-			CHECKED_DESTROY(vkDestroySemaphore, resources.semaphore);
-			CHECKED_DESTROY(vkDestroyFence, resources.fence);
-			if (resources.command_buffer != VK_NULL_HANDLE)
-			{
-				vkFreeCommandBuffers(m_device, resources.command_pool, 1, &resources.command_buffer);
-				resources.command_buffer = VK_NULL_HANDLE;
-			}
-			CHECKED_DESTROY(vkDestroyCommandPool, resources.command_pool);
-		}
-#undef CHECKED_DESTROY
-	}
-
-	void VKContext::WaitForSpinCompletion(u32 index)
-	{
-		SpinResources& resources = m_spin_resources[index];
-		if (!resources.in_progress)
-			return;
-
-		const VkResult res = vkWaitForFences(m_device, 1, &resources.fence, VK_TRUE, UINT64_MAX);
-		if (res != VK_SUCCESS)
-		{
-			m_last_submit_failed.store(true, std::memory_order_release);
-			return;
-		}
-		SpinCommandCompleted(index);
-	}
-
-	void VKContext::SpinCommandCompleted(u32 index)
-	{
-		SpinResources& resources = m_spin_resources[index];
-		resources.in_progress = false;
-		const u32 timestamp_base = (index + NUM_COMMAND_BUFFERS) * 2;
-		std::array<u64, 2> timestamps;
-		const VkResult res = vkGetQueryPoolResults(m_device, m_timestamp_query_pool, timestamp_base, static_cast<u32>(timestamps.size()),
-			sizeof(timestamps), timestamps.data(), sizeof(u64), VK_QUERY_RESULT_64_BIT);
-		if (res == VK_SUCCESS)
-		{
-			u64 begin, end;
-			if (m_optional_extensions.vk_ext_calibrated_timestamps)
-			{
-				begin = timestamps[0] * m_spin_timestamp_scale + m_spin_timestamp_offset;
-				end   = timestamps[1] * m_spin_timestamp_scale + m_spin_timestamp_offset;
-			}
-			else
-			{
-				begin = timestamps[0] * m_spin_timestamp_scale;
-				end   = timestamps[1] * m_spin_timestamp_scale;
-			}
-			m_spin_manager.SpinCompleted(resources.cycles, begin, end);
-		}
-	}
-
-	void VKContext::SubmitSpinCommand(u32 index, u32 cycles)
-	{
-		SpinResources& resources = m_spin_resources[index];
-
-		// Reset fence to unsignaled before starting.
-		vkResetFences(m_device, 1, &resources.fence);
-
-		// Reset command pools to beginning since we can re-use the memory now
-		vkResetCommandPool(m_device, resources.command_pool, 0);
-
-		// Enable commands to be recorded to the two buffers again.
-		VkCommandBufferBeginInfo begin_info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(resources.command_buffer, &begin_info);
-
-		if (!m_spin_buffer_initialized)
-		{
-			m_spin_buffer_initialized = true;
-			vkCmdFillBuffer(resources.command_buffer, m_spin_buffer, 0, VK_WHOLE_SIZE, 0);
-			VkBufferMemoryBarrier barrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-			barrier.srcQueueFamilyIndex = m_spin_queue_family_index;
-			barrier.dstQueueFamilyIndex = m_spin_queue_family_index;
-			barrier.buffer = m_spin_buffer;
-			barrier.offset = 0;
-			barrier.size = VK_WHOLE_SIZE;
-			vkCmdPipelineBarrier(resources.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 1, &barrier, 0, nullptr);
-		}
-
-		if (m_spin_queue_is_graphics_queue)
-			vkCmdPipelineBarrier(resources.command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 0, nullptr);
-
-		const u32 timestamp_base = (index + NUM_COMMAND_BUFFERS) * 2;
-		vkCmdResetQueryPool(resources.command_buffer, m_timestamp_query_pool, timestamp_base, 2);
-		vkCmdWriteTimestamp(resources.command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, timestamp_base);
-		vkCmdPushConstants(resources.command_buffer, m_spin_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(u32), &cycles);
-		vkCmdBindPipeline(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_spin_pipeline);
-		vkCmdBindDescriptorSets(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_spin_pipeline_layout, 0, 1, &m_spin_descriptor_set, 0, nullptr);
-		vkCmdDispatch(resources.command_buffer, 1, 1, 1);
-		vkCmdWriteTimestamp(resources.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_timestamp_query_pool, timestamp_base + 1);
-
-		vkEndCommandBuffer(resources.command_buffer);
-
-		VkSubmitInfo submit_info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-		submit_info.commandBufferCount = 1;
-		submit_info.pCommandBuffers = &resources.command_buffer;
-		VkPipelineStageFlags sema_waits[] = { VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT };
-		if (!m_spin_queue_is_graphics_queue)
-		{
-			submit_info.waitSemaphoreCount = 1;
-			submit_info.pWaitSemaphores = &resources.semaphore;
-			submit_info.pWaitDstStageMask = sema_waits;
-		}
-		vkQueueSubmit(m_spin_queue, 1, &submit_info, resources.fence);
-		resources.in_progress = true;
-		resources.cycles = cycles;
-	}
-
-	void VKContext::NotifyOfReadback()
-	{
-		if (!m_spinning_supported)
-			return;
-		m_spin_timer = 30;
-		m_spin_manager.ReadbackRequested();
-	}
-
-	void VKContext::CalibrateSpinTimestamp()
-	{
-		if (!m_optional_extensions.vk_ext_calibrated_timestamps)
-			return;
-		VkCalibratedTimestampInfoEXT infos[2] = {
-			{ VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr, VK_TIME_DOMAIN_DEVICE_EXT },
-			{ VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr, m_calibrated_timestamp_type },
-		};
-		u64 timestamps[2];
-		u64 maxDeviation;
-		constexpr u64 MAX_MAX_DEVIATION = 100000; // 100µs
-		for (int i = 0; i < 4; i++) // 4 tries to get under MAX_MAX_DEVIATION
-		{
-			const VkResult res = vkGetCalibratedTimestampsEXT(m_device, std::size(infos), infos, timestamps, &maxDeviation);
-			if (res != VK_SUCCESS)
-				return;
-			if (maxDeviation < MAX_MAX_DEVIATION)
-				break;
-		}
-		if (maxDeviation >= MAX_MAX_DEVIATION)
-			Console.Warning("vkGetCalibratedTimestampsEXT returned high max deviation of %lluµs", maxDeviation / 1000);
-		const double gpu_time = timestamps[0] * m_spin_timestamp_scale;
-#ifdef _WIN32
-		const double cpu_time = timestamps[1] * m_queryperfcounter_to_ns;
-#else
-		const double cpu_time = timestamps[1];
-#endif
-		m_spin_timestamp_offset = cpu_time - gpu_time;
-	}
-
-	u64 VKContext::GetCPUTimestamp()
-	{
-#ifdef _WIN32
-		LARGE_INTEGER value = {};
-		QueryPerformanceCounter(&value);
-		return static_cast<u64>(static_cast<double>(value.QuadPart) * m_queryperfcounter_to_ns);
-#else
-#ifdef CLOCK_MONOTONIC_RAW
-		const bool use_raw = m_calibrated_timestamp_type == VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_EXT;
-		const clockid_t clock = use_raw ? CLOCK_MONOTONIC_RAW : CLOCK_MONOTONIC;
-#else
-		const clockid_t clock = CLOCK_MONOTONIC;
-#endif
-		timespec ts = {};
-		clock_gettime(clock, &ts);
-		return static_cast<u64>(ts.tv_sec) * 1000000000 + ts.tv_nsec;
-#endif
 	}
 
 	bool VKContext::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
@@ -4335,13 +3853,6 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 void GSDeviceVK::ExecuteCommandBufferForReadback()
 {
 	ExecuteCommandBuffer(true);
-	if (GSConfig.HWSpinGPUForReadbacks)
-	{
-		g_vulkan_context->NotifyOfReadback();
-		/* Spin GPU During Readbacks is enabled, but calibrated timestamps are unavailable.  This might be really slow */
-		if (!g_vulkan_context->GetOptionalExtensions().vk_ext_calibrated_timestamps && !m_warned_slow_spin)
-			m_warned_slow_spin = true;
-	}
 }
 
 void GSDeviceVK::InvalidateCachedState()

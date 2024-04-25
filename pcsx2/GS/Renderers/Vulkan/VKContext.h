@@ -17,7 +17,6 @@
 
 #include "common/Pcsx2Defs.h"
 
-#include "common/ReadbackSpinManager.h"
 #include "VKLoader.h"
 #include "VKStreamBuffer.h"
 
@@ -45,7 +44,6 @@ enum : u32
        {
 	       bool vk_ext_provoking_vertex : 1;
 	       bool vk_ext_memory_budget : 1;
-	       bool vk_ext_calibrated_timestamps : 1;
 	       bool vk_ext_line_rasterization : 1;
 	       bool vk_ext_rasterization_order_attachment_access : 1;
 	       bool vk_ext_attachment_feedback_loop_layout : 1;
@@ -221,7 +219,6 @@ enum : u32
        void WaitForGPUIdle();
 
        void CountRenderPass() { m_command_buffer_render_passes++; }
-       void NotifyOfReadback();
 
        // Allocates a temporary CPU staging buffer, fires the callback with it to populate, then copies to a GPU buffer.
        bool AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
@@ -272,18 +269,9 @@ enum : u32
 
        void CommandBufferCompleted(u32 index);
        void ActivateCommandBuffer(u32 index);
-       void ScanForCommandBufferCompletion();
        void WaitForCommandBufferCompletion(u32 index);
 
-       void DoSubmitCommandBuffer(u32 index, u32 spin_cycles);
-
-       bool InitSpinResources();
-       void DestroySpinResources();
-       void WaitForSpinCompletion(u32 index);
-       void SpinCommandCompleted(u32 index);
-       void SubmitSpinCommand(u32 index, u32 cycles);
-       void CalibrateSpinTimestamp();
-       u64 GetCPUTimestamp();
+       void DoSubmitCommandBuffer(u32 index);
 
        struct FrameResources
        {
@@ -293,23 +281,10 @@ enum : u32
 	       VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
 	       VkFence fence = VK_NULL_HANDLE;
 	       u64 fence_counter = 0;
-	       s32 spin_id = -1;
-	       u32 submit_timestamp = 0;
 	       bool init_buffer_used = false;
 	       bool needs_fence_wait = false;
-	       bool timestamp_written = false;
 
 	       std::vector<std::function<void()>> cleanup_resources;
-       };
-
-       struct SpinResources
-       {
-	       VkCommandPool command_pool = VK_NULL_HANDLE;
-	       VkCommandBuffer command_buffer = VK_NULL_HANDLE;
-	       VkSemaphore semaphore = VK_NULL_HANDLE;
-	       VkFence fence = VK_NULL_HANDLE;
-	       u32 cycles = 0;
-	       bool in_progress = false;
        };
 
        VkInstance m_instance = VK_NULL_HANDLE;
@@ -326,30 +301,11 @@ enum : u32
        u32 m_graphics_queue_family_index = 0;
        u32 m_present_queue_family_index = 0;
 
-       ReadbackSpinManager m_spin_manager;
        VkQueue m_spin_queue = VK_NULL_HANDLE;
-       VkDescriptorSetLayout m_spin_descriptor_set_layout = VK_NULL_HANDLE;
-       VkPipelineLayout m_spin_pipeline_layout = VK_NULL_HANDLE;
-       VkPipeline m_spin_pipeline = VK_NULL_HANDLE;
-       VkBuffer m_spin_buffer = VK_NULL_HANDLE;
-       VmaAllocation m_spin_buffer_allocation = VK_NULL_HANDLE;
-       VkDescriptorSet m_spin_descriptor_set = VK_NULL_HANDLE;
-       std::array<SpinResources, NUM_COMMAND_BUFFERS> m_spin_resources;
-#ifdef _WIN32
-       double m_queryperfcounter_to_ns = 0;
-#endif
-       double m_spin_timestamp_scale = 0;
-       double m_spin_timestamp_offset = 0;
        u32 m_spin_queue_family_index = 0;
        u32 m_command_buffer_render_passes = 0;
-       u32 m_spin_timer = 0;
        bool m_spinning_supported = false;
        bool m_spin_queue_is_graphics_queue = false;
-       bool m_spin_buffer_initialized = false;
-
-       VkQueryPool m_timestamp_query_pool = VK_NULL_HANDLE;
-       bool m_wants_new_timestamp_calibration = false;
-       VkTimeDomainEXT m_calibrated_timestamp_type = VK_TIME_DOMAIN_DEVICE_EXT;
 
        std::array<FrameResources, NUM_COMMAND_BUFFERS> m_frame_resources;
        u64 m_next_fence_counter = 1;
