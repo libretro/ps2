@@ -1165,27 +1165,6 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 	return src;
 }
 
-// Copy a sub part of texture (same as below but force a conversion)
-void GSDeviceOGL::BlitRect(GSTexture* sTex, const GSVector4i& r, const GSVector2i& dsize, bool at_origin, bool linear)
-{
-	CommitClear(sTex, true);
-	// NOTE: This previously used glCopyTextureSubImage2D(), but this appears to leak memory in
-	// the loading screens of Evolution Snowboarding in Intel/NVIDIA drivers.
-	glDisable(GL_SCISSOR_TEST);
-
-	const GSVector4 float_r(r);
-
-	m_convert.ps[static_cast<int>(ShaderConvert::COPY)].Bind();
-	OMSetDepthStencilState(m_convert.dss);
-	OMSetBlendState();
-	OMSetColorMaskState();
-	PSSetShaderResource(0, sTex);
-	PSSetSamplerState(linear ? m_convert.ln : m_convert.pt);
-	DrawStretchRect(float_r / (GSVector4(sTex->GetSize()).xyxy()), float_r, dsize);
-
-	glEnable(GL_SCISSOR_TEST);
-}
-
 // Copy a sub part of a texture into another
 void GSDeviceOGL::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r, u32 destX, u32 destY)
 {
