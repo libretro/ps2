@@ -507,15 +507,11 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			g_vulkan_context->EnableDebugUtils();
 
 		// Attempt to create the device.
-		if (!g_vulkan_context->CreateDevice(surface, enable_validation_layer, nullptr, 0, nullptr, 0, nullptr) ||
+		if (!g_vulkan_context->CreateDevice(nullptr, enable_validation_layer, nullptr, 0, nullptr, 0, nullptr) ||
 			!g_vulkan_context->CreateAllocator() || !g_vulkan_context->CreateGlobalDescriptorPool() ||
 			!g_vulkan_context->CreateCommandBuffers() || !g_vulkan_context->CreateTextureStreamBuffer()
 			)
 		{
-			// Since we are destroying the instance, we're also responsible for destroying the surface.
-			if (surface != VK_NULL_HANDLE)
-				vkDestroySurfaceKHR(instance, surface, nullptr);
-
 			g_vulkan_context.reset();
 			return false;
 		}
@@ -549,7 +545,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		g_vulkan_context.reset();
 	}
 
-	bool VKContext::SelectDeviceExtensions(ExtensionList* extension_list, bool enable_surface)
+	bool VKContext::SelectDeviceExtensions(ExtensionList* extension_list)
 	{
 		u32 extension_count = 0;
 		VkResult res = vkEnumerateDeviceExtensionProperties(m_physical_device, nullptr, &extension_count, nullptr);
@@ -586,9 +582,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 			return false;
 		};
-
-		if (enable_surface && !SupportsExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true))
-			return false;
 
 		m_optional_extensions.vk_ext_provoking_vertex =
 			SupportsExtension(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME, false);
@@ -662,23 +655,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			{
 				m_graphics_queue_family_index = i;
 				// Quit now, no need for a present queue.
-				if (!surface)
-					break;
-			}
-
-			if (surface)
-			{
-				VkBool32 present_supported;
-				VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(m_physical_device, i, surface, &present_supported);
-				if (res != VK_SUCCESS)
-					return false;
-
-				if (present_supported)
-					m_present_queue_family_index = i;
-
-				// Prefer one queue family index that does both graphics and present.
-				if (graphics_supported && present_supported)
-					break;
+				break;
 			}
 		}
 
@@ -706,12 +683,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			return false;
 		}
 
-		if (surface != VK_NULL_HANDLE && m_present_queue_family_index == queue_family_count)
-		{
-			Console.Error("Vulkan: Failed to find an acceptable present queue.");
-			return false;
-		}
-
 		VkDeviceCreateInfo device_info   = {};
 		device_info.sType                = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		device_info.pNext                = nullptr;
@@ -728,17 +699,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		graphics_queue_info.queueFamilyIndex         = m_graphics_queue_family_index;
 		graphics_queue_info.queueCount               = 1;
 		graphics_queue_info.pQueuePriorities         = queue_priorities;
-
-		if (surface != VK_NULL_HANDLE && m_graphics_queue_family_index != m_present_queue_family_index)
-		{
-			VkDeviceQueueCreateInfo& present_queue_info = queue_infos[device_info.queueCreateInfoCount++];
-			present_queue_info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			present_queue_info.pNext            = nullptr;
-			present_queue_info.flags            = 0;
-			present_queue_info.queueFamilyIndex = m_present_queue_family_index;
-			present_queue_info.queueCount       = 1;
-			present_queue_info.pQueuePriorities = queue_priorities;
-		}
 
 		if (m_spin_queue_family_index == m_graphics_queue_family_index)
 		{
@@ -766,7 +726,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		ExtensionList enabled_extensions;
 		for (u32 i = 0; i < num_required_device_extensions; i++)
 			enabled_extensions.emplace_back(required_device_extensions[i]);
-		if (!SelectDeviceExtensions(&enabled_extensions, surface != VK_NULL_HANDLE))
+		if (!SelectDeviceExtensions(&enabled_extensions))
 			return false;
 
 		device_info.enabledLayerCount       = num_required_device_layers;
@@ -829,10 +789,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 		// Grab the graphics and present queues.
 		vkGetDeviceQueue(m_device, m_graphics_queue_family_index, 0, &m_graphics_queue);
-		if (surface)
-		{
-			vkGetDeviceQueue(m_device, m_present_queue_family_index, 0, &m_present_queue);
-		}
 		m_spin_queue_is_graphics_queue = m_spin_queue_family_index == m_graphics_queue_family_index && spin_queue_index == 0;
 
 		ProcessDeviceExtensions();
@@ -1747,7 +1703,6 @@ void GSDeviceVK::Destroy()
 		DestroyResources();
 
 		g_vulkan_context->WaitForGPUIdle();
-		m_swap_chain.reset();
 
 		VKShaderCache::Destroy();
 		VKContext::Destroy();
@@ -1757,7 +1712,6 @@ void GSDeviceVK::Destroy()
 void GSDeviceVK::DestroySurface()
 {
 	g_vulkan_context->WaitForGPUIdle();
-	m_swap_chain.reset();
 }
 
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
@@ -1770,7 +1724,6 @@ void GSDeviceVK::EndPresent()
 {
 	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
 	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
-	m_swap_chain->GetCurrentTexture()->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::PresentSrc);
 
 	g_vulkan_context->SubmitCommandBuffer();
 	g_vulkan_context->MoveToNextCommandBuffer();
@@ -1862,34 +1815,13 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		Console.WriteLn("No GPU requested, using first (%s)", gpu_names[0].c_str());
 	}
 
-	VkSurfaceKHR surface = VK_NULL_HANDLE;
-	ScopedGuard surface_cleanup = [&instance, &surface]() {
-		if (surface != VK_NULL_HANDLE)
-			vkDestroySurfaceKHR(instance, surface, nullptr);
-	};
-
-	if (!VKContext::Create(instance, surface, gpus[gpu_index], enable_debug_utils, enable_validation_layer
+	if (!VKContext::Create(instance, nullptr, gpus[gpu_index], enable_debug_utils, enable_validation_layer
 			))
 	{
 		Console.Error("Failed to create Vulkan context");
 		return false;
 	}
 
-	// NOTE: This is assigned afterwards, because some platforms can modify the window info (e.g. Metal).
-	if (surface != VK_NULL_HANDLE)
-	{
-		m_swap_chain =
-			VKSwapChain::Create(m_window_info, surface, VK_PRESENT_MODE_IMMEDIATE_KHR);
-		if (!m_swap_chain)
-		{
-			Console.Error("Failed to create swap chain");
-			return false;
-		}
-
-		m_window_info = m_swap_chain->GetWindowInfo();
-	}
-
-	surface_cleanup.Cancel();
 	instance_cleanup.Cancel();
 	library_cleanup.Cancel();
 
@@ -3177,8 +3109,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 bool GSDeviceVK::CompilePresentPipelines()
 {
 	// we may not have a swap chain if running in headless mode.
-	m_swap_chain_render_pass = g_vulkan_context->GetRenderPass(
-		m_swap_chain ? m_swap_chain->GetTextureFormat() : VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED);
+	m_swap_chain_render_pass = g_vulkan_context->GetRenderPass(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED);
 	if (m_swap_chain_render_pass == VK_NULL_HANDLE)
 		return false;
 
@@ -3350,25 +3281,6 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 
 void GSDeviceVK::RenderBlankFrame()
 {
-	VkResult res = m_swap_chain->AcquireNextImage();
-	if (res != VK_SUCCESS)
-	{
-		Console.Error("Failed to acquire image for blank frame present");
-		return;
-	}
-
-	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
-	GSTextureVK* sctex = m_swap_chain->GetCurrentTexture();
-	sctex->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::TransferDst);
-
-	constexpr VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-	vkCmdClearColorImage(cmdbuffer, sctex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &s_present_clear_color.color, 1, &srr);
-
-	m_swap_chain->GetCurrentTexture()->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::PresentSrc);
-	g_vulkan_context->SubmitCommandBuffer();
-	g_vulkan_context->MoveToNextCommandBuffer();
-
-	InvalidateCachedState();
 }
 
 void GSDeviceVK::DestroyResources()

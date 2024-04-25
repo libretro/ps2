@@ -111,8 +111,6 @@ public:
 	};
 
 private:
-	std::unique_ptr<VKSwapChain> m_swap_chain;
-
 	VkDescriptorSetLayout m_utility_ds_layout = VK_NULL_HANDLE;
 	VkPipelineLayout m_utility_pipeline_layout = VK_NULL_HANDLE;
 
