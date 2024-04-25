@@ -325,8 +325,6 @@ static GSVector4i CalculateDrawSrcRect(const GSTexture* src)
 
 bool GSRenderer::BeginPresentFrame(bool frame_skip)
 {
-	Host::BeginPresentFrame();
-
 	const GSDevice::PresentResult res = g_gs_device->BeginPresent(frame_skip);
 	if (res == GSDevice::PresentResult::FrameSkipped)
 		return false;

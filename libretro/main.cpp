@@ -791,10 +791,6 @@ void retro_run(void)
 		video_cb(NULL, 0, 0, 0);
 }
 
-void Host::BeginPresentFrame()
-{
-}
-
 std::optional<WindowInfo> Host::AcquireRenderWindow(void)
 {
 	WindowInfo wi;
