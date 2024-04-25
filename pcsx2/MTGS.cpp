@@ -51,7 +51,7 @@ struct MTGS_BufferedData
 //  MTGS Threaded Class Implementation
 // =====================================================================================================
 
-static alignas(32) MTGS_BufferedData RingBuffer;
+alignas(32) MTGS_BufferedData RingBuffer;
 
 namespace MTGS
 {

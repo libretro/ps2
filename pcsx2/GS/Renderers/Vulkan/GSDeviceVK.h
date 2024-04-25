@@ -19,7 +19,6 @@
 #include "GS/GSVector.h"
 #include "GS/Renderers/Common/GSDevice.h"
 #include "VKStreamBuffer.h"
-#include "VKSwapChain.h"
 #include "common/HashCombine.h"
 #include "vk_mem_alloc.h"
 #include <array>
