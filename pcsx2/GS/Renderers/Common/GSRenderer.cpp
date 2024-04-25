@@ -340,11 +340,6 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 	return false;
 }
 
-void GSRenderer::EndPresentFrame()
-{
-	g_gs_device->EndPresent();
-}
-
 void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 {
 	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
@@ -385,7 +380,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	{
 		g_gs_device->ResetAPIState();
 		if (BeginPresentFrame(true))
-			EndPresentFrame();
+			g_gs_device->EndPresent();
 		goto end;
 	}
 
@@ -404,7 +399,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 			g_gs_device->PresentRect(current, src_uv, nullptr, draw_rect);
 		}
 
-		EndPresentFrame();
+		g_gs_device->EndPresent();
 	}
 
 end:

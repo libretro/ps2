@@ -24,7 +24,6 @@ class GSRenderer : public GSState
 private:
 	bool Merge(int field);
 	bool BeginPresentFrame(bool frame_skip);
-	void EndPresentFrame();
 
 	u32 m_skipped_duplicate_frames = 0;
 
