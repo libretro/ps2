@@ -647,7 +647,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// Find graphics and present queues.
 		m_graphics_queue_family_index = queue_family_count;
 		m_present_queue_family_index  = queue_family_count;
-		u32 spin_queue_index          = 0;
 
 		for (uint32_t i = 0; i < queue_family_count; i++)
 		{
@@ -658,21 +657,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 				// Quit now, no need for a present queue.
 				break;
 			}
-		}
-
-		for (uint32_t i = 0; i < queue_family_count; i++)
-		{
-			// Pick a queue for spinning
-			if (!(queue_family_properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT))
-				continue; // We need compute
-			if (queue_family_properties[i].timestampValidBits == 0)
-				continue; // We need timing
-			const bool queue_is_used = i == m_graphics_queue_family_index || i == m_present_queue_family_index;
-			spin_queue_index = 0;
-			if (queue_is_used && queue_family_properties[i].queueCount > 1)
-				spin_queue_index = 1;
-			if (!(queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
-				break; // Async compute queue, definitely pick this one
 		}
 
 		if (m_graphics_queue_family_index == queue_family_count)
