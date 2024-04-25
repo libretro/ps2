@@ -492,9 +492,6 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 						MTGS::MainLoop(false);
 						continue;
 
-					case VMState::Paused:
-						continue;
-
 					case VMState::Running:
 						VMManager::Execute();
 						continue;
@@ -509,6 +506,7 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 #endif
 						return;
 
+					case VMState::Paused:
 					default:
 						continue;
 				}
@@ -983,9 +981,4 @@ void Host::LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& loc
 
 void Host::CheckForSettingsChanges(const Pcsx2Config& old_config)
 {
-}
-
-void Host::RequestVMShutdown(bool allow_confirm, bool allow_save_state, bool default_save_state)
-{
-	VMManager::SetState(VMState::Stopping);
 }

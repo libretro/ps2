@@ -2205,7 +2205,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 
 		case 0x0F: // sceCdPowerOff (0:1)- Call74 from Xcdvdman
-			Host::RequestVMShutdown(false, false, false);
+			VMManager::SetState(VMState::Stopping);
 			break;
 
 		case 0x12: // sceCdReadILinkId (0:9)

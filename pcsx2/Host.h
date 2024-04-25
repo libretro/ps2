@@ -30,28 +30,10 @@ namespace Host
 {
 	// Base setting retrieval, bypasses layers.
 	std::string GetBaseStringSettingValue(const char* section, const char* key, const char* default_value = "");
-	bool GetBaseBoolSettingValue(const char* section, const char* key, bool default_value = false);
-	int GetBaseIntSettingValue(const char* section, const char* key, int default_value = 0);
-	uint GetBaseUIntSettingValue(const char* section, const char* key, uint default_value = 0);
-	float GetBaseFloatSettingValue(const char* section, const char* key, float default_value = 0.0f);
-	double GetBaseDoubleSettingValue(const char* section, const char* key, double default_value = 0.0);
-	std::vector<std::string> GetBaseStringListSetting(const char* section, const char* key);
 
 	// Allows the emucore to write settings back to the frontend. Use with care.
-	// You should call CommitBaseSettingChanges() after finishing writing, or it may not be written to disk.
-	void SetBaseBoolSettingValue(const char* section, const char* key, bool value);
-	void SetBaseIntSettingValue(const char* section, const char* key, int value);
-	void SetBaseUIntSettingValue(const char* section, const char* key, uint value);
-	void SetBaseFloatSettingValue(const char* section, const char* key, float value);
-	void SetBaseStringSettingValue(const char* section, const char* key, const char* value);
-	void SetBaseStringListSettingValue(const char* section, const char* key, const std::vector<std::string>& values);
-	bool AddBaseValueToStringList(const char* section, const char* key, const char* value);
-	bool RemoveBaseValueFromStringList(const char* section, const char* key, const char* value);
-	void RemoveBaseSettingValue(const char* section, const char* key);
-	void CommitBaseSettingChanges();
-
+	
 	// Settings access, thread-safe.
-	std::string GetStringSettingValue(const char* section, const char* key, const char* default_value = "");
 	bool GetBoolSettingValue(const char* section, const char* key, bool default_value = false);
 	int GetIntSettingValue(const char* section, const char* key, int default_value = 0);
 	uint GetUIntSettingValue(const char* section, const char* key, uint default_value = 0);
@@ -82,13 +64,4 @@ namespace Host
 
 	/// Reads a resource file file from the resources directory as a string.
 	std::optional<std::string> ReadResourceFileToString(const char* filename);
-
-	/// Requests settings reset. Can be called from any thread, will call back and apply on the CPU thread.
-	bool RequestResetSettings(bool folders, bool core, bool controllers, bool hotkeys, bool ui);
-
-	/// Safely executes a function on the VM thread.
-	void RunOnCPUThread(std::function<void()> function, bool block = false);
-
-	/// Requests shut down of the current virtual machine.
-	void RequestVMShutdown(bool allow_confirm, bool allow_save_state, bool default_save_state);
 } // namespace Host
