@@ -187,13 +187,7 @@ enum : u32
        void SubmitCommandBuffer();
        void MoveToNextCommandBuffer();
 
-       enum class WaitType
-       {
-	       None,
-	       Sleep
-       };
-
-       void ExecuteCommandBuffer(WaitType wait_for_completion);
+       void ExecuteCommandBuffer(bool wait_for_completion);
 
        // Was the last present submitted to the queue a failure? If so, we must recreate our swapchain.
        bool CheckLastSubmitFail();
@@ -216,8 +210,6 @@ enum : u32
        void WaitForFenceCounter(u64 fence_counter);
 
        void WaitForGPUIdle();
-
-       void CountRenderPass() { m_command_buffer_render_passes++; }
 
        // Allocates a temporary CPU staging buffer, fires the callback with it to populate, then copies to a GPU buffer.
        bool AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
@@ -299,8 +291,6 @@ enum : u32
        VkQueue m_present_queue = VK_NULL_HANDLE;
        u32 m_graphics_queue_family_index = 0;
        u32 m_present_queue_family_index = 0;
-
-       u32 m_command_buffer_render_passes = 0;
 
        std::array<FrameResources, NUM_COMMAND_BUFFERS> m_frame_resources;
        u64 m_next_fence_counter = 1;

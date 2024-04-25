@@ -1143,8 +1143,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// This command buffer now has commands, so can't be re-used without waiting.
 		resources.needs_fence_wait = true;
 
-		m_command_buffer_render_passes = 0;
-
 		DoSubmitCommandBuffer(m_current_frame);
 	}
 
@@ -1205,7 +1203,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		vmaSetCurrentFrameIndex(m_allocator, static_cast<u32>(m_next_fence_counter));
 	}
 
-	void VKContext::ExecuteCommandBuffer(WaitType wait_for_completion)
+	void VKContext::ExecuteCommandBuffer(bool wait_for_completion)
 	{
 		if (m_last_submit_failed.load(std::memory_order_acquire))
 			return;
@@ -1215,10 +1213,8 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		SubmitCommandBuffer();
 		MoveToNextCommandBuffer();
 
-		if (wait_for_completion != WaitType::None)
-		{
+		if (wait_for_completion)
 			WaitForCommandBufferCompletion(current_frame);
-		}
 	}
 
 	bool VKContext::CheckLastSubmitFail()
@@ -3262,7 +3258,7 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 
 void GSDeviceVK::DestroyResources()
 {
-	g_vulkan_context->ExecuteCommandBuffer(VKContext::WaitType::Sleep);
+	g_vulkan_context->ExecuteCommandBuffer(true);
 	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
 		g_vulkan_context->FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);
 
@@ -3612,17 +3608,10 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 	return true;
 }
 
-static VKContext::WaitType GetWaitType(bool wait)
-{
-	if (!wait)
-		return VKContext::WaitType::None;
-	return VKContext::WaitType::Sleep;
-}
-
 void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion)
 {
 	EndRenderPass();
-	g_vulkan_context->ExecuteCommandBuffer(GetWaitType(wait_for_completion));
+	g_vulkan_context->ExecuteCommandBuffer(wait_for_completion);
 	InvalidateCachedState();
 }
 
@@ -3636,7 +3625,7 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 	const FeedbackLoopFlag current_feedback_loop = m_current_framebuffer_feedback_loop;
 
 	EndRenderPass();
-	g_vulkan_context->ExecuteCommandBuffer(GetWaitType(wait_for_completion));
+	g_vulkan_context->ExecuteCommandBuffer(wait_for_completion);
 	InvalidateCachedState();
 
 	if (render_pass != VK_NULL_HANDLE)
@@ -3818,7 +3807,6 @@ void GSDeviceVK::BeginRenderPass(VkRenderPass rp, const GSVector4i& rect)
 		m_current_framebuffer, {{rect.x, rect.y}, {static_cast<u32>(rect.width()), static_cast<u32>(rect.height())}}, 0,
 		nullptr};
 
-	g_vulkan_context->CountRenderPass();
 	vkCmdBeginRenderPass(g_vulkan_context->GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
