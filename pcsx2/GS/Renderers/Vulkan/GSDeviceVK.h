@@ -359,7 +359,6 @@ private:
 	u32 m_dirty_flags = 0;
 	FeedbackLoopFlag m_current_framebuffer_feedback_loop = FeedbackLoopFlag_None;
 	bool m_has_feedback_loop_layout = false;
-	bool m_warned_slow_spin = false;
 
 	// input assembly
 	VkBuffer m_vertex_buffer = VK_NULL_HANDLE;

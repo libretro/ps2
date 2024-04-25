@@ -1301,11 +1301,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 		if (wait_for_completion != WaitType::None)
 		{
-			if (wait_for_completion == WaitType::Spin)
-			{
-				while (vkGetFenceStatus(m_device, m_frame_resources[current_frame].fence) == VK_NOT_READY)
-					ShortSpin();
-			}
 			WaitForCommandBufferCompletion(current_frame);
 		}
 	}
@@ -3798,19 +3793,17 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 	return true;
 }
 
-static VKContext::WaitType GetWaitType(bool wait, bool spin)
+static VKContext::WaitType GetWaitType(bool wait)
 {
 	if (!wait)
 		return VKContext::WaitType::None;
-	if (spin)
-		return VKContext::WaitType::Spin;
 	return VKContext::WaitType::Sleep;
 }
 
 void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion)
 {
 	EndRenderPass();
-	g_vulkan_context->ExecuteCommandBuffer(GetWaitType(wait_for_completion, GSConfig.HWSpinCPUForReadbacks));
+	g_vulkan_context->ExecuteCommandBuffer(GetWaitType(wait_for_completion));
 	InvalidateCachedState();
 }
 
@@ -3837,7 +3830,7 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 	const FeedbackLoopFlag current_feedback_loop = m_current_framebuffer_feedback_loop;
 
 	EndRenderPass();
-	g_vulkan_context->ExecuteCommandBuffer(GetWaitType(wait_for_completion, GSConfig.HWSpinCPUForReadbacks));
+	g_vulkan_context->ExecuteCommandBuffer(GetWaitType(wait_for_completion));
 	InvalidateCachedState();
 
 	if (render_pass != VK_NULL_HANDLE)

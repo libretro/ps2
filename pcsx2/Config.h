@@ -475,7 +475,6 @@ struct Pcsx2Config
 					SkipDuplicateFrames : 1;
 
 				bool
-					HWSpinCPUForReadbacks : 1,
 					GPUPaletteConversion : 1,
 					AutoFlushSW : 1,
 					PreloadFrameWithGSData : 1,

@@ -394,7 +394,7 @@ bool D3D12Context::ExecuteCommandList(WaitType wait_for_completion)
 
 	MoveToNextCommandList();
 	if (wait_for_completion != WaitType::None)
-		WaitForFence(res.ready_fence_value, wait_for_completion == WaitType::Spin);
+		WaitForFence(res.ready_fence_value, false);
 
 	return true;
 }
@@ -2193,19 +2193,17 @@ void GSDevice12::InitializeSamplers()
 		Console.Error("Failed to initialize samplers");
 }
 
-static D3D12Context::WaitType GetWaitType(bool wait, bool spin)
+static D3D12Context::WaitType GetWaitType(bool wait)
 {
 	if (!wait)
 		return D3D12Context::WaitType::None;
-	if (spin)
-		return D3D12Context::WaitType::Spin;
 	return D3D12Context::WaitType::Sleep;
 }
 
 void GSDevice12::ExecuteCommandList(bool wait_for_completion)
 {
 	EndRenderPass();
-	g_d3d12_context->ExecuteCommandList(GetWaitType(wait_for_completion, GSConfig.HWSpinCPUForReadbacks));
+	g_d3d12_context->ExecuteCommandList(GetWaitType(wait_for_completion));
 	InvalidateCachedState();
 }
 
@@ -2226,7 +2224,7 @@ void GSDevice12::ExecuteCommandListAndRestartRenderPass(bool wait_for_completion
 
 	const bool was_in_render_pass = m_in_render_pass;
 	EndRenderPass();
-	g_d3d12_context->ExecuteCommandList(GetWaitType(wait_for_completion, GSConfig.HWSpinCPUForReadbacks));
+	g_d3d12_context->ExecuteCommandList(GetWaitType(wait_for_completion));
 	InvalidateCachedState();
 
 	if (was_in_render_pass)

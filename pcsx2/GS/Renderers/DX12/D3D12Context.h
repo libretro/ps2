@@ -124,8 +124,7 @@ enum : u32
        enum class WaitType
        {
 	       None,  ///< Don't wait (async)
-	       Sleep, ///< Wait normally
-	       Spin,  ///< Wait by spinning
+	       Sleep ///< Wait normally
        };
 
        /// Executes the current command list.

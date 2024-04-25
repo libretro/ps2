@@ -190,8 +190,7 @@ enum : u32
        enum class WaitType
        {
 	       None,
-	       Sleep,
-	       Spin,
+	       Sleep
        };
 
        void ExecuteCommandBuffer(WaitType wait_for_completion);

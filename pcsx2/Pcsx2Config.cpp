@@ -390,7 +390,6 @@ Pcsx2Config::GSOptions::GSOptions()
 	SkipDuplicateFrames = false;
 
 	HWDownloadMode = GSHardwareDownloadMode::Enabled;
-	HWSpinCPUForReadbacks = false;
 	GPUPaletteConversion = false;
 	AutoFlushSW = true;
 	PreloadFrameWithGSData = false;
@@ -536,7 +535,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBool(DisableVertexShaderExpand);
 	GSSettingBool(SkipDuplicateFrames);
 
-	GSSettingBool(HWSpinCPUForReadbacks);
 	GSSettingBoolEx(GPUPaletteConversion, "paltex");
 	GSSettingBoolEx(AutoFlushSW, "autoflush_sw");
 	GSSettingBoolEx(PreloadFrameWithGSData, "preload_frame_with_gs_data");
