@@ -114,8 +114,6 @@ namespace VMManager
 		bool IsExecutionInterrupted();
 		void EntryPointCompilingOnCPUThread();
 		void GameStartingOnCPUThread();
-		void SwappingGameOnCPUThread();
-		void VSyncOnCPUThread();
 	} // namespace Internal
 } // namespace VMManager
 
@@ -127,21 +125,6 @@ namespace Host
 
 	/// Called after settings are updated.
 	void CheckForSettingsChanges(const Pcsx2Config& old_config);
-
-	/// Called when the VM is starting initialization, but has not been completed yet.
-	void OnVMStarting();
-
-	/// Called when the VM is created.
-	void OnVMStarted();
-
-	/// Called when the VM is shut down or destroyed.
-	void OnVMDestroyed();
-
-	/// Called when the VM is paused.
-	void OnVMPaused();
-
-	/// Called when the VM is resumed after being paused.
-	void OnVMResumed();
 
 	/// Provided by the host; called when the running executable changes.
 	void OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,

@@ -125,11 +125,6 @@ void VMManager::SetState(VMState state)
 		const bool paused = (state == VMState::Paused);
 		if (!paused)
 			PerformanceMetrics::Reset();
-
-		if (state == VMState::Paused)
-			Host::OnVMPaused();
-		else
-			Host::OnVMResumed();
 	}
 	// If stopping, break execution as soon as possible.
 	else if (state == VMState::Stopping && old_state == VMState::Running)
@@ -534,12 +529,10 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 {
 	s_state.store(VMState::Initializing, std::memory_order_release);
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
-	Host::OnVMStarting();
 
 	ScopedGuard close_state = [] {
 		s_vm_thread_handle = {};
 		s_state.store(VMState::Shutdown, std::memory_order_release);
-		Host::OnVMDestroyed();
 	};
 
 	std::string state_to_load;
@@ -609,7 +602,6 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	cpuReset();
 
 	s_state.store(VMState::Paused, std::memory_order_release);
-	Host::OnVMStarted();
 
 	UpdateRunningGame(true, false, false);
 
@@ -680,7 +672,6 @@ void VMManager::Shutdown()
 	DEV9shutdown();
 
 	s_state.store(VMState::Shutdown, std::memory_order_release);
-	Host::OnVMDestroyed();
 
 	// clear out any potentially-incorrect settings from the last game
 	LoadSettings();
@@ -820,11 +811,6 @@ void VMManager::Internal::GameStartingOnCPUThread()
 		  || (_place == PPT_COMBINED_0_1))
 			_ApplyPatch(&Patch[i]);
 	}
-}
-
-void VMManager::Internal::SwappingGameOnCPUThread()
-{
-	UpdateRunningGame(false, false, true);
 }
 
 void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
