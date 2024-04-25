@@ -41,12 +41,15 @@
 #include <array>
 #include <cstring>
 
+#include <libretro.h>
+
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
 #else
 #include <time.h>
 #endif
 
+extern retro_video_refresh_t video_cb;
 std::unique_ptr<VKContext> g_vulkan_context;
 
 #define VK_NO_PROTOTYPES
@@ -1716,13 +1719,37 @@ void GSDeviceVK::DestroySurface()
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 {
 	EndRenderPass();
+	g_vulkan_context->SubmitCommandBuffer();
+	g_vulkan_context->MoveToNextCommandBuffer();
+
+	GSTextureVK* tex = (GSTextureVK*)g_gs_device->GetCurrent();
+	if(tex)
+	{
+
+		retro_vulkan_image vkimage;
+		vkimage.image_view   = tex->GetView();
+		vkimage.image_layout = tex->GetVkLayout();
+		vkimage.create_info  = {
+			VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0,
+			tex->GetImage(), VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_UNORM,
+			{VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+				VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
+			{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
+		};
+		vulkan->set_image(vulkan->handle, &vkimage, 0, nullptr, vulkan->queue_index);
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, tex->GetWidth(), tex->GetHeight(), 0);
+		vulkan->set_image(vulkan->handle, nullptr, 0, nullptr, vulkan->queue_index);
+	}
+	else
+		video_cb(NULL, 0, 0, 0);
+
 	return PresentResult::FrameSkipped;
 }
 
 void GSDeviceVK::EndPresent()
 {
 	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
-	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
+	vkCmdEndRenderPass(cmdbuffer);
 
 	g_vulkan_context->SubmitCommandBuffer();
 	g_vulkan_context->MoveToNextCommandBuffer();
