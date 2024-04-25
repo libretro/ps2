@@ -70,7 +70,7 @@ namespace VMManager
 	bool Initialize(VMBootParameters boot_params);
 
 	/// Destroys all system components.
-	void Shutdown(bool save_resume_state);
+	void Shutdown();
 
 	/// Resets all subsystems to a cold boot.
 	void Reset();

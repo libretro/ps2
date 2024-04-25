@@ -620,7 +620,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	return true;
 }
 
-void VMManager::Shutdown(bool save_resume_state)
+void VMManager::Shutdown()
 {
 	// we'll probably already be stopping (this is how Qt calls shutdown),
 	// but just in case, so any of the stuff we call here knows we don't have a valid VM.

@@ -505,7 +505,7 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 
 					case VMState::Stopping:
 #if 0
-						VMManager::Shutdown(false);
+						VMManager::Shutdown(fals);
 #endif
 						return;
 
@@ -720,7 +720,7 @@ void retro_unload_game(void)
 		MTGS::CloseGS();
 	}
 
-	VMManager::Shutdown(false);
+	VMManager::Shutdown();
 	cpu_thread.join();
 #ifdef ENABLE_VULKAN
 	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
