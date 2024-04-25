@@ -498,7 +498,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return gpu_names;
 	}
 
-	bool VKContext::Create(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical_device,
+	bool VKContext::Create(VkInstance instance, VkPhysicalDevice physical_device,
 		bool enable_debug_utils, bool enable_validation_layer)
 	{
 		if (!g_vulkan_context)
@@ -509,7 +509,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			g_vulkan_context->EnableDebugUtils();
 
 		// Attempt to create the device.
-		if (!g_vulkan_context->CreateDevice(nullptr, enable_validation_layer, nullptr, 0, nullptr, 0, nullptr) ||
+		if (!g_vulkan_context->CreateDevice(enable_validation_layer, nullptr, 0, nullptr, 0, nullptr) ||
 			!g_vulkan_context->CreateAllocator() || !g_vulkan_context->CreateGlobalDescriptorPool() ||
 			!g_vulkan_context->CreateCommandBuffers() || !g_vulkan_context->CreateTextureStreamBuffer()
 			)
@@ -626,7 +626,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return true;
 	}
 
-	bool VKContext::CreateDevice(VkSurfaceKHR surface, bool enable_validation_layer,
+	bool VKContext::CreateDevice(bool enable_validation_layer,
 		const char** required_device_extensions, u32 num_required_device_extensions,
 		const char** required_device_layers, u32 num_required_device_layers,
 		const VkPhysicalDeviceFeatures* required_features)
@@ -1841,7 +1841,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		Console.WriteLn("No GPU requested, using first (%s)", gpu_names[0].c_str());
 	}
 
-	if (!VKContext::Create(instance, nullptr, gpus[gpu_index], enable_debug_utils, enable_validation_layer
+	if (!VKContext::Create(instance, gpus[gpu_index], enable_debug_utils, enable_validation_layer
 			))
 	{
 		Console.Error("Failed to create Vulkan context");

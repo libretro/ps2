@@ -65,7 +65,7 @@ enum : u32
        static GPUNameList EnumerateGPUNames(VkInstance instance);
 
        // Creates a new context and sets it up as global.
-       static bool Create(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDevice physical_device,
+       static bool Create(VkInstance instance, VkPhysicalDevice physical_device,
 		       bool enable_debug_utils, bool enable_validation_layer);
 
        // Destroys context.
@@ -250,7 +250,7 @@ enum : u32
 		       ExtensionList* extension_list, bool enable_debug_utils);
        bool SelectDeviceExtensions(ExtensionList* extension_list);
        bool SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features);
-       bool CreateDevice(VkSurfaceKHR surface, bool enable_validation_layer, const char** required_device_extensions,
+       bool CreateDevice(bool enable_validation_layer, const char** required_device_extensions,
 		       u32 num_required_device_extensions, const char** required_device_layers, u32 num_required_device_layers,
 		       const VkPhysicalDeviceFeatures* required_features);
        void ProcessDeviceExtensions();
