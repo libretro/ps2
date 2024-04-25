@@ -116,6 +116,20 @@ PAPX-90203:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PAPX-90204:
+  name: "TVDJ"
+  region: "NTSC-J"
+PAPX-90205:
+  name: "Dark Cloud"
+  region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Fixes mipmapping.
+    partialTargetInvalidation: 1 # Fixes textures.
+    trilinearFiltering: 1 # Smoothes out mipmapping.
+    halfPixelOffset: 2 # Distance is less blurry, game has reduced LOD so it will still look blurry.
+PAPX-90206:
+  name: "Blood - The Last Vampire"
+  region: "NTSC-J"
 PAPX-90207:
   name: "Gran Turismo 3 - A-Spec - Autobacs Gentei Replay Theater"
   region: "NTSC-J"
@@ -131,11 +145,33 @@ PAPX-90209:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PAPX-90210:
+  name: "Yappa RPG desho."
+  region: "NTSC-J"
+PAPX-90211:
+  name: "Extermination"
+  region: "NTSC-J"
+PAPX-90212:
+  name: "Boku to Maou"
+  region: "NTSC-J"
+PAPX-90213:
+  name: "Phase Paradox"
+  region: "NTSC-J"
 PAPX-90215:
   name: "Ka [Trial]"
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes blurriness.
+PAPX-90216:
+  name: "Bravo Music"
+  region: "NTSC-J"
+PAPX-90218:
+  name: "SkyGunner"
+  region: "NTSC-J"
+  compat: 5
+PAPX-90220:
+  name: "Surveillance - Kanshisha"
+  region: "NTSC-J"
 PAPX-90222:
   name: "Jak x Daxter - Kyuu Sekai no Isan [Demo, Taikenban]"
   region: "NTSC-J"
@@ -156,8 +192,58 @@ PAPX-90223:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
+PAPX-90224:
+  name: "Sidewinder F"
+  region: "NTSC-J"
+PAPX-90225:
+  name: "Legaia - Duel Saga - Special Disc"
+  region: "NTSC-J"
+PAPX-90226:
+  name: "Otostaz"
+  region: "NTSC-J"
+PAPX-90228:
+  name: "Otostaz"
+  region: "NTSC-J"
+PAPX-90229:
+  name: "XI [sÃ¡i] - XI-Go"
+  region: "NTSC-J"
+PAPX-90230:
+  name: "Arc the Lad - Seirei no Tasogare - Premiere Disc"
+  region: "NTSC-J"
 PAPX-90231:
   name: "Kaitou Sly Cooper [Demo, Taikenban]"
+  region: "NTSC-J"
+PAPX-90232:
+  name: "Chain Dive"
+  region: "NTSC-J"
+PAPX-90233:
+  name: "Bakusou Mountain Bikers"
+  region: "NTSC-J"
+PAPX-90234:
+  name: "Katamari Damacy"
+  region: "NTSC-J"
+PAPX-90235:
+  name: "XIII"
+  region: "NTSC-J"
+PAPX-90236:
+  name: "Minna Daisuki Katamari Damacy"
+  region: "NTSC-J"
+PAPX-90330:
+  name: "Saru! Get You! 2 - Ukki Ukki Disc"
+  region: "NTSC-J"
+PAPX-90501:
+  name: "Dark Cloud"
+  region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Fixes mipmapping.
+    partialTargetInvalidation: 1 # Fixes textures.
+    trilinearFiltering: 1 # Smoothes out mipmapping.
+    halfPixelOffset: 2 # Distance is less blurry, game has reduced LOD so it will still look blurry.
+PAPX-90502:
+  name: "The Yamanote-sen - Train Simulator Real"
+  region: "NTSC-J"
+PAPX-90503:
+  name: "PoPoLoCrois - Tsuki no Okite no Bouken"
   region: "NTSC-J"
 PAPX-90503:
   name: "PoPoLoCrois - Hajimari no Bouken [Fan Gentei Disc]"
@@ -179,6 +265,23 @@ PAPX-90506:
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
     partialTargetInvalidation: 1 # Fixes clown suit textures.
+PAPX-90507:
+  name: "Official Disc 2003"
+  region: "NTSC-J"
+PAPX-90508:
+  name: "Gran Turismo 4 - Lupo Cup Training Version"
+  region: "NTSC-J"
+  clampModes:
+    vuClampMode: 2 # Text in GT mode works.
+    # eeClampMode = 3  Text in races works.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PAPX-90511:
+  name: "Siren - Trial Disc"
+  region: "NTSC-J"
 PAPX-90512:
   name: "Gran Turismo 4 - Toyota Prius [Trial]"
   region: "NTSC-J"
@@ -190,6 +293,12 @@ PAPX-90512:
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PAPX-90514:
+  name: "Fuyu no Osusume Soft Otameshi Disc"
+  region: "NTSC-J"
+PAPX-90515:
+  name: "Fuyu no Osusume Soft Otameshi Disc 2003-2004"
+  region: "NTSC-J"
 PAPX-90516:
   name: "Jak and Daxter II [Trial]"
   region: "NTSC-J"
@@ -204,6 +313,29 @@ PAPX-90517:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 2 # Reduces post-processing misalignment.
+PAPX-90519:
+  name: "Doko Demo Issho - Toro to Ippai"
+  region: "NTSC-J"
+PAPX-90521:
+  name: "Waga Ryuu o Miyo - Pride of the Dragon Peace"
+  region: "NTSC-J"
+PAPX-90522:
+  name: "Genji"
+  region: "NTSC-J"
+PAPX-90523:
+  name: "Gran Turismo 4 - Online Test Version"
+  region: "NTSC-J"
+  clampModes:
+    vuClampMode: 2 # Text in GT mode works.
+    # eeClampMode = 3  Text in races works.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PAPX-90524:
+  name: "Wild Arms - The Vth Vanguard"
+  region: "NTSC-J"
 PBGP-0061:
   name: "Suika A.S+ Eternal Name [First Press Limited Edition]"
   region: "NTSC-J"
@@ -275,6 +407,9 @@ PBPX-95224:
 PBPX-95228:
   name: "DVD Player Version 3.00"
   region: "NTSC-J"
+PBPX-95237:
+  name: "HDD Utility Disc"
+  region: "NTSC-U"
 PBPX-95239:
   name: "Online Start-Up Disc v3.0"
   region: "NTSC-U"
@@ -298,6 +433,20 @@ PBPX-95502:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PBPX-95250:
+  name: "Online Start-Up Disc v1.0"
+  region: "NTSC-Unk"
+PBPX-95251:
+  name: "Online Start-Up Disc 4.0 - Broadband Only"
+  region: "NTSC-U"
+PBPX-95501:
+  name: "PS2 Linux Beta Release 1"
+  region: "NTSC-J"
+PBPX-95502:
+  name: "Gran Turismo 3 - A-Spec"
+  region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PBPX-95503:
   name: "Gran Turismo 3 - A-Spec [PS2 Bundle]"
   region: "NTSC-U"
@@ -316,9 +465,18 @@ PBPX-95506:
         comment=You must enable the EETimingHack when playing the WRC demo to avoids random hangs.
         comment=You must change the EE Clamping mode to Full when playing the Klonoa 2 demo to avoids misplaced objects.
         comment=You must change the VU0 Clamping mode to extra + sign when playing the Klonoa 2 demo to fixes reflections issues.
+PBPX-95507:
+  name: "Linux (for PlayStation 2) Release 1.0 (Disc 1) (Runtime Environment)"
+  region: "NTSC-U"
+PBPX-95508:
+  name: "Linux (for PlayStation 2) Release 1.0 (Disc 2) (Software Packages)"
+  region: "NTSC-U"
 PBPX-95509:
   name: "Linux Release 1.0 Runtime Environment [Disc 1]"
   region: "PAL-E"
+PBPX-95510:
+  name: "Linux (for PlayStation 2) Release 1.0 (Disc 2) (Software Packages)"
+  region: "PAL-Unk"
 PBPX-95514:
   name: "PlayStation 2 - Demo Disc 2002"
   region: "PAL-M5"
@@ -335,9 +493,15 @@ PBPX-95516:
 PBPX-95517:
   name: "Network Adapter Start-Up Disc"
   region: "NTSC-U"
+PBPX-95519:
+  name: "Network Adaptor Start-Up Disc v2.0"
+  region: "NTSC-U"
 PBPX-95520:
   name: "PlayStation 2 - Demo Disc 2002"
   region: "PAL-M5"
+PBPX-95522:
+  name: "Kidou Senshi Z Gundam - A.E.U.G. vs. Titans"
+  region: "NTSC-J"
 PBPX-95523:
   name: "Gran Turismo 4 - Prologue [PlayStation 2 Racing Pack]"
   region: "NTSC-J"
@@ -357,6 +521,12 @@ PBPX-95524:
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
   # vuClampMode = 2  Text in GT mode works.
+PBPX-95525:
+  name: "Final Fantasy XII"
+  region: "NTSC-J-K"
+  compat: 5
+  gsHWFixes:
+    partialTargetInvalidation: 1 # Fixes broken textures.
 PBPX-95601:
   name: "Gran Turismo 4 [PlayStation 2 Racing Pack]"
   region: "NTSC-J"
@@ -379,12 +549,31 @@ PBPX-95601:
     - "SCPS-19304"
     - "SCPS-15009"
     - "SCPS-55007"
+PCPX-96301:
+  name: "I.Q Remix+ - Intelligent Qube"
+  region: "NTSC-J"
+PCPX-96302:
+  name: "Fantavision"
+  region: "NTSC-J"
 PCPX-96303:
   name: "6-gatsu Hatsubai Title Promotion Disc (Aconcagua - Boku no Natsuyasumi - TVDJ)"
+  region: "NTSC-J"
+PCPX-96304:
+  name: "Scandal"
+  region: "NTSC-J"
+PCPX-96305:
+  name: "Play-Pre Plus 004 - 2000 June (Disc 2)"
   region: "NTSC-J"
 PCPX-96306:
   name: "Bikkuri Mouse"
   region: "NTSC-J"
+PCPX-96310:
+  name: "X-treme Racing SSX"
+  region: "NTSC-J"
+  roundModes:
+    eeRoundMode: 0 # Fixes riders vanishing into the floor.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes missing lighting.
 PCPX-96311:
   name: "Gran Turismo 3 Trial Disk Volume 1"
   region: "NTSC-J"
@@ -395,14 +584,33 @@ PCPX-96312:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PCPX-96314:
+  name: "The Sky Odyssey"
+  region: "NTSC-J"
+PCPX-96315:
+  name: "Phase Paradox"
+  region: "NTSC-J"
+PCPX-96316:
+  name: "Phase Paradox"
+  region: "NTSC-J"
 PCPX-96317:
   name: "Ka [Trial]"
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes blurriness.
+PCPX-96318:
+  name: "Rimococoron"
+  region: "NTSC-J"
+PCPX-96319:
+  name: "Piposaru 2001"
+  region: "NTSC-J"
+PCPX-96320:
+  name: "PaRappa the Rapper 2"
+  region: "NTSC-J"
 PCPX-96321:
   name: "SkyGunner [Trial]"
   region: "NTSC-J"
+  compat: 5
 PCPX-96322:
   name: "Ico [Trial]"
   region: "NTSC-J"
@@ -413,8 +621,17 @@ PCPX-96322:
     mipmap: 1
     halfPixelOffset: 1 # Fixes effect misalignment.
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
+PCPX-96323:
+  name: "Toro to Kyuujitsu"
+  region: "NTSC-J"
+PCPX-96324:
+  name: "Dual Hearts"
+  region: "NTSC-J"
 PCPX-96328:
   name: "3 Title Special Disc (Saru! Get You! 2 - PoPoLoCrois: Hajimari no Bouken - Boku no Natsuyasumi 2)"
+  region: "NTSC-J"
+PCPX-96330:
+  name: "Arc the Lad - Seirei no Tasogare - Premiere Disc"
   region: "NTSC-J"
 PCPX-96554:
   name: "Games of Our Style - Tokyo Game Show 2003 Disc"
@@ -424,11 +641,124 @@ PCPX-96609:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PCPX-96603:
+  name: "Dark Cloud"
+  region: "NTSC-J"
+  compat: 5
+  gsHWFixes:
+    mipmap: 2 # Fixes mipmapping.
+    partialTargetInvalidation: 1 # Fixes textures.
+    trilinearFiltering: 1 # Smoothes out mipmapping.
+    halfPixelOffset: 2 # Distance is less blurry, game has reduced LOD so it will still look blurry.
+PCPX-96605:
+  name: "MiruMiru 2000-nen 12-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96606:
+  name: "Play-Pre 2 Volume 0 - 2001 February"
+  region: "NTSC-J"
+PCPX-96607:
+  name: "2000-2001 Winter Lineup"
+  region: "NTSC-J"
+PCPX-96608:
+  name: "MiruMiru 2001-nen 1-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96609:
+  name: "Gran Turismo 3 - A-Spec - Tentou Shiyuu Disc Vol. 2"
+  region: "NTSC-J"
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PCPX-96610:
+  name: "MiruMiru 2001-nen 2-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96611:
+  name: "Play-Pre 2 Volume 1 - 2001 April"
+  region: "NTSC-J"
+PCPX-96612:
+  name: "MiruMiru 2001-nen 3-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96613:
+  name: "MiruMiru 2001-nen 4-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96614:
+  name: "MiruMiru 2001-nen 5-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96615:
+  name: "MiruMiru 2001-nen 6-gatsudo Juchuugou"
+  region: "NTSC-J"
 PCPX-96616:
   name: "PurePure 2 Volume 2"
   region: "NTSC-J"
+PCPX-96617:
+  name: "MiruMiru 2001-nen 8-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96618:
+  name: "MiruMiru 2001-nen 7-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96619:
+  name: "Genshi no Kotoba"
+  region: "NTSC-J"
+PCPX-96620:
+  name: "MiruMiru 2001-nen 9-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96621:
+  name: "MiruMiru 2001-nen 10-gatsudo Juchuugou"
+  region: "NTSC-J"
+PCPX-96622:
+  name: "Play-Pre 2 Volume 3 - 2001 December"
+  region: "NTSC-J"
+PCPX-96624:
+  name: "Gran Turismo Concept - 2001 Tokyo"
+  region: "NTSC-J"
+  compat: 5
+  gsHWFixes:
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PCPX-96625:
+  name: "Play-Pre 2 Volume 4 - 2002 April"
+  region: "NTSC-J"
+PCPX-96626:
+  name: "PlayStation Index (DVD-ROM-ban) - PlayStation 2 Official Soft Catalog 2002 April"
+  region: "NTSC-J"
 PCPX-96627:
   name: "2002 Natsu no Osusume Soft Otameshi Disc"
+  region: "NTSC-J"
+PCPX-96628:
+  name: "Play-Pre 2 Volume 5 - 2002 August"
+  region: "NTSC-J"
+PCPX-96629:
+  name: "Fuyu no Osusume Soft Otameshi Disc 2002"
+  region: "NTSC-J"
+PCPX-96630:
+  name: "Play-Pre 2 Volume 6 - 2002 December"
+  region: "NTSC-J"
+PCPX-96631:
+  name: "Koedashite Ikou. Taikenban"
+  region: "NTSC-J"
+PCPX-96632:
+  name: "Play-Pre 2 Volume 7 - 2003 April"
+  region: "NTSC-J"
+PCPX-96633:
+  name: "Play-Pre 2 Volume 7 - 2003 April - CM Collection"
+  region: "NTSC-J"
+PCPX-96634:
+  name: "Gran Turismo - Subaru Driving Simulator Version"
+  region: "NTSC-J"
+PCPX-96635:
+  name: "Play-Pre 2 Volume 8 - 2003 August"
+  region: "NTSC-J"
+PCPX-96636:
+  name: "Siren"
+  region: "NTSC-J"
+PCPX-96638:
+  name: "EyeToy - Play"
+  region: "NTSC-J"
+PCPX-96639:
+  name: "Play-Pre 2 Volume 9 - 2003 December"
+  region: "NTSC-J"
+PCPX-96641:
+  name: "Play-Pre 2 Volume 10 - 2004 April"
+  region: "NTSC-J"
+PCPX-96646:
+  name: "Play-Pre 2 Volume 11 - 2004 August"
   region: "NTSC-J"
 PCPX-96649:
   name: "Gran Turismo 4 [Demo]"
@@ -441,6 +771,26 @@ PCPX-96649:
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+PCPX-96653:
+  name: "Ratchet & Clank 3"
+  region: "NTSC-J"
+  gameFixes:
+    - EETimingHack # Fixes SPR errors while going in-game.
+  gsHWFixes:
+    mipmap: 1 # Fixes garbage textures in the distance.
+    disablePartialInvalidation: 1 # Prevents the situation that a level (Aquatos) doesn't render characters and geometry.
+    partialTargetInvalidation: 1 # Fixes broken pause screen.
+    halfPixelOffset: 2 # Fixes misaligned bloom.
+    autoFlush: 2 # Helps fix misaligned bloom.
+PCPX-96655:
+  name: "Play-Pre 2 Volume 12 - 2004 December"
+  region: "NTSC-J"
+PCPX-96656:
+  name: "Play-Pre 2 Volume 12 - 2004 December - PSP Movie Collection & CM Collection"
+  region: "NTSC-J"
+PCPX-96657:
+  name: "Saru! Get You! 3"
+  region: "NTSC-J"
 PCPX-96660:
   name: "Tourist Trophy [Demo]"
   region: "NTSC-J"
@@ -458,6 +808,12 @@ PCPX-98017:
     partialTargetInvalidation: 1 # Fixes broken pause screen.
     halfPixelOffset: 2 # Fixes misaligned bloom.
     autoFlush: 2 # Helps fix misaligned bloom.
+PCPX-98041:
+  name: "Saru! Get You! Million Monkeys"
+  region: "NTSC-J"
+PCPX-98042:
+  name: "Minna no Tennis"
+  region: "NTSC-J"
 PDPX-99109:
   name: "DVD Player Version 3.04"
   region: "NTSC-J"
@@ -466,6 +822,9 @@ PKP2-00702:
   region: "NTSC-J"
   gameFixes:
     - SoftwareRendererFMVHack # Vertical and horizontal lines in FMV.
+PUPX-93033:
+  name: "PlayStation Seizou Kensa-you Disc 3 CD-ROM US-ban Ver1.1"
+  region: "NTSC-U"
 SCAJ-10001:
   name: "Makai Senki Disgaea"
   region: "NTSC-Unk"
@@ -744,6 +1103,14 @@ SCAJ-20048:
 SCAJ-20050:
   name: "Fatal Frame II - Crimson Butterfly"
   region: "NTSC-Unk"
+SCAJ-20052:
+  name: "Ratchet & Clank 2 - Gagaga! Ginga no Commando-ssu"
+  region: "NTSC-J"
+  gameFixes:
+    - EETimingHack # Fixes SPR errors while going in-game.
+  gsHWFixes:
+    mipmap: 1
+    partialTargetInvalidation: 1 # Fixes broken pause screen.
 SCAJ-20055:
   name: "Battle Gear 3"
   region: "NTSC-Unk"
@@ -1983,6 +2350,12 @@ SCED-50700:
 SCED-50701:
   name: "Official PlayStation 2 Magazine Demo 22" # German
   region: "PAL-E-G"
+SCED-50708:
+  name: "Official PlayStation 2 Magazine Demo 15"
+  region: "PAL-S"
+SCED-50732:
+  name: "Official Demo Disc Retail Edition February 02"
+  region: "PAL-F"
 SCED-50733:
   name: "Play PlayStation 2 Demo Disc playable demos and videos Jan - Feb 2002"
   region: "PAL-E"
@@ -2118,21 +2491,58 @@ SCED-51120:
 SCED-51140:
   name: "PS2 Bonus Demo 03"
   region: "PAL-M5"
+SCED-51146:
+  name: "Selector Demo 03"
+  region: "PAL-Unk"
 SCED-51147:
   name: "Official PlayStation 2 Magazine Demo 24"
   region: "PAL-M5"
 SCED-51148:
   name: "PlayStation Experience [Demo]"
   region: "PAL-E"
+SCED-51161:
+  name: "Das Offizielle PlayStation 2 Magazin - Special Edition 2"
+  region: "PAL-G"
+SCED-51163:
+  name: "Official PlayStation 2 Magazine Demo 23"
+  region: "PAL-S"
+SCED-51165:
+  name: "This Is Football 2003"
+  region: "PAL-Unk"
+SCED-51166:
+  name: "Le Monde des Bleus 2003 - Un Nouveau DÃ©fi"
+  region: "PAL-F"
+SCED-51173:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 09/02"
+  region: "PAL-I"
 SCED-51185:
   name: "Official PlayStation 2 Magazine Demo 24" # German
   region: "PAL-E-G"
+SCED-51187:
+  name: "SCEE Catalogue Video"
+  region: "PAL-Unk"
 SCED-51262:
   name: "Official PlayStation 2 Magazine Demo 25" # German
   region: "PAL-E-G"
+SCED-51269:
+  name: "Selector Demo 04"
+  region: "PAL-Unk"
+SCED-51278:
+  name: "SCEE Catalogue Video 3+"
+  region: "PAL-Unk"
 SCED-51279:
   name: "Official PlayStation 2 Magazine Demo 25"
   region: "PAL-M5"
+SCED-51280:
+  name: "Official PlayStation 2 Magazine-UK Greatest Hits Volume 9 - Special Edition - Buyers Guide"
+  region: "PAL-E"
+SCED-51304:
+  name: "WRC II Extreme - Peugeot Special Demo"
+  region: "PAL-F"
+  gameFixes:
+    - XGKickHack # Fixes SPS.
+  gsHWFixes:
+    halfPixelOffset: 1 # Fixes texture misalignment.
 SCED-51305:
   name: "WRC II Extreme [Press Kit]"
   region: "PAL-E"
@@ -2140,9 +2550,15 @@ SCED-51305:
     - XGKickHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 1 # Fixes texture misalignment.
+SCED-51314:
+  name: "Kingdom Hearts"
+  region: "PAL-Unk"
 SCED-51319:
   name: "Official PlayStation 2 Magazine Demo 27" # German
   region: "PAL-E-G"
+SCED-51321:
+  name: "Official PlayStation 2 Magazine Demo 26"
+  region: "PAL-S"
 SCED-51351:
   name: "Getaway, The [Demo]"
   region: "PAL-E"
@@ -2166,6 +2582,9 @@ SCED-51366:
   gsHWFixes:
     mipmap: 2 # Fixes miptrick texture effects.
     trilinearFiltering: 1 # Fixes miptrick blending.
+SCED-51375:
+  name: "Germany Special Issue 3"
+  region: "PAL-G"
 SCED-51376:
   name: "Official PlayStation 2 Magazine Demo 28" # German
   region: "PAL-E-G"
@@ -2177,18 +2596,42 @@ SCED-51380:
 SCED-51384:
   name: "Official PlayStation 2 Magazine Demo 29"
   region: "PAL-M5"
+SCED-51389:
+  name: "Best PS2 Games Ever 10"
+  region: "PAL-Unk"
+SCED-51405:
+  name: "Space Channel 5 - Part 2 Special Demo"
+  region: "PAL-A"
+SCED-51406:
+  name: "The Mark of Kri"
+  region: "PAL-Unk"
+SCED-51411:
+  name: "Magazine Ufficiale PlayStation 2 Italia 02/03"
+  region: "PAL-I"
 SCED-51432:
   name: "Official PlayStation 2 Magazine Demo 29" # German
   region: "PAL-E-G"
 SCED-51440:
   name: "Official PlayStation 2 Magazine Demo 29"
   region: "PAL-M5"
+SCED-51444:
+  name: "Official PlayStation 2 Magazine-UK - Crime Special"
+  region: "PAL-E"
+SCED-51452:
+  name: "Sly Raccoon"
+  region: "PAL-Unk"
+SCED-51454:
+  name: "Tango - Game On Demo Disc 1"
+  region: "PAL-Unk"
 SCED-51457:
   name: "Official PlayStation 2 Magazine Demo 30"
   region: "PAL-M5"
 SCED-51483:
   name: "Official PlayStation 2 Magazine Demo 30" # German
   region: "PAL-E-G"
+SCED-51484:
+  name: "Primal"
+  region: "PAL-Unk"
 SCED-51485:
   name: "Official PlayStation 2 Magazine Demo 30" # Australian
   region: "PAL-E"
@@ -2198,6 +2641,18 @@ SCED-51486:
 SCED-51489:
   name: "Official PlayStation 2 Magazine Demo 30"
   region: "PAL-M5"
+SCED-51491:
+  name: "Primal + The Mark of Kri"
+  region: "PAL-Unk"
+SCED-51505:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 11 - The World's Best PS2 Games Ever"
+  region: "PAL-E"
+SCED-51506:
+  name: "Primal + The Mark of Kri + War of the Monsters"
+  region: "PAL-Unk"
+SCED-51512:
+  name: "Official PlayStation 2 Magazine Germany Special Edition 2003/01"
+  region: "PAL-G"
 SCED-51529:
   name: "Official PlayStation 2 Magazine Demo 31"
   region: "PAL-M5"
@@ -2234,6 +2689,33 @@ SCED-51539:
 SCED-51540:
   name: "Official PlayStation 2 Magazine Demo 39"
   region: "PAL-M5"
+SCED-51541:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 12 - PlayStation 2 Blockbusters!"
+  region: "PAL-E"
+SCED-51542:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 13 - Girls! Motors! Guns! War! Monsters!"
+  region: "PAL-E"
+SCED-51543:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 14 - The Hit Squad"
+  region: "PAL-E"
+SCED-51544:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 15 - Summer Blockbusters!"
+  region: "PAL-E"
+SCED-51545:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 16 - Buyers Guide"
+  region: "PAL-E"
+SCED-51546:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 17 - The Best Games of 2003!"
+  region: "PAL-E"
+SCED-51549:
+  name: "Official PlayStation 2 Magazine Germany Special Edition 2003/02"
+  region: "PAL-G"
+SCED-51551:
+  name: "Official PlayStation 2 Magazine Germany Special Edition 2003/03"
+  region: "PAL-G"
+SCED-51552:
+  name: "Official PlayStation 2 Magazine Demo 30"
+  region: "PAL-S"
 SCED-51556:
   name: "Official PlayStation 2 Magazine Demo 31"
   region: "PAL-M5"
@@ -2286,6 +2768,21 @@ SCED-51573:
 SCED-51575:
   name: "Official PlayStation 2 Magazine Demo 40" # German
   region: "PAL-E-G"
+SCED-51591:
+  name: "PlayStation 2 Official Demo Disc Edition Pour Revendeurs #5"
+  region: "PAL-F"
+SCED-51596:
+  name: "Selector Demo 06"
+  region: "PAL-Unk"
+SCED-51597:
+  name: "Selector Demo 7"
+  region: "PAL-Unk"
+SCED-51598:
+  name: "Selector Demo 08"
+  region: "PAL-Unk"
+SCED-51601:
+  name: "Shinobi"
+  region: "PAL-Unk"
 SCED-51632:
   name: "WRC II Extreme [Special Demo]"
   region: "PAL-E"
@@ -2293,6 +2790,18 @@ SCED-51632:
     - XGKickHack # Fixes SPS.
   gsHWFixes:
     halfPixelOffset: 1 # Fixes texture misalignment.
+SCED-51643:
+  name: "Tango - Game On Demo Disc 2"
+  region: "PAL-Unk"
+SCED-51644:
+  name: "Tango - Game On Demo Disc 3"
+  region: "PAL-Unk"
+SCED-51652:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 04/03"
+  region: "PAL-I"
+SCED-51656:
+  name: "Official PlayStation 2 Magazine Demo 32"
+  region: "PAL-S"
 SCED-51657:
   name: "Official PlayStation Magazine Demo 33"
   region: "PAL-Unk"
@@ -2301,6 +2810,25 @@ SCED-51657:
     90C0E5F1:
       content: |-
         comment=Must enable FPU Negative Div Hack gamefix for Dakar 2 Demo
+SCED-51669:
+  name: "MotoGP 3"
+  region: "PAL-Unk"
+  compat: 5
+  gsHWFixes:
+    roundSprite: 2 # Fixes lines at the edges of the HUD.
+    mipmap: 2 # Mipmap + trilinear, improves road and grass textures to match sw renderer.
+    trilinearFiltering: 1
+SCED-51677:
+  name: "My Street"
+  region: "PAL-Unk"
+SCED-51683:
+  name: "Selector Demo 05"
+  region: "PAL-Unk"
+SCED-51692:
+  name: "SOCOM - U.S. Navy SEALs"
+  region: "PAL-Unk"
+  clampModes:
+    vuClampMode: 2 # Fixes bad shadows.
 SCED-51700:
   name: "Jak II - Renegade [Demo]"
   region: "PAL-M5"
@@ -2313,9 +2841,30 @@ SCED-51700:
 SCED-51728:
   name: "EverQuest - Online Adventures [Demo]"
   region: "PAL-E"
+SCED-51752:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 06/03"
+  region: "PAL-I"
+SCED-51760:
+  name: "Official PlayStation 2 Magazine Demo 34"
+  region: "PAL-S"
+SCED-51779:
+  name: "EyeToy - Play"
+  region: "PAL-Unk"
+SCED-51836:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 07/03"
+  region: "PAL-I"
+SCED-51880:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 08/03"
+  region: "PAL-I"
+SCED-51894:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 09/03"
+  region: "PAL-I"
 SCED-51899:
   name: "PlayStation Experience [Demo]"
   region: "PAL-E"
+SCED-51905:
+  name: "Amplitude"
+  region: "PAL-Unk"
 SCED-51922:
   name: "Ghosthunter [Demo]"
   region: "PAL-G"
@@ -2362,16 +2911,6 @@ SCED-52054:
 SCED-52057:
   name: "Official PlayStation Magazine Demo Disc 40"
   region: "PAL-IT"
-SCED-52260:
-  name: "Forbidden Siren [Demo]"
-  region: "PAL-M5"
-  gsHWFixes:
-    roundSprite: 1 # Fixes gaps between menu options.
-    cpuSpriteRenderBW: 4 # Fixes sky rendering.
-    cpuSpriteRenderLevel: 2 # Needed for above.
-SCED-52261:
-  name: "Jet Li - Rise to Honor [Demo]"
-  region: "PAL-M5"
 SCED-52068:
   name: "Official PlayStation 2 Magazine Demo 41" # German
   region: "PAL-E-G"
@@ -2387,6 +2926,9 @@ SCED-52080:
 SCED-52081:
   name: "Official PlayStation 2 Magazine Demo 41"
   region: "PAL-M5"
+SCED-52082:
+  name: "Das Offizielle PlayStation 2 Magazin 02/2004 - Uncut Edition"
+  region: "PAL-G"
 SCED-52083:
   name: "Official PlayStation 2 Magazine Demo 43"
   region: "PAL-M5"
@@ -2399,6 +2941,9 @@ SCED-52087:
 SCED-52088:
   name: "Official PlayStation 2 Magazine Demo 48"
   region: "PAL-M5"
+SCED-52089:
+  name: "Das Offizielle PlayStation 2 Magazin 09/2004"
+  region: "PAL-G"
 SCED-52090:
   name: "Official PlayStation 2 Magazine Demo 50" # German
   region: "PAL-E-G"
@@ -2408,6 +2953,20 @@ SCED-52091:
 SCED-52092:
   name: "Official PlayStation 2 Magazine Demo 52" # German
   region: "PAL-E-G"
+SCED-52094:
+  name: "G-Con 2 Competition Demo"
+  region: "PAL-G"
+SCED-52098:
+  name: "Destruction Derby Arenas"
+  region: "PAL-Unk"
+  compat: 5
+  roundModes:
+    vu1RoundMode: 0 # Fixes tyre textures.
+  gsHWFixes:
+    halfPixelOffset: 2 # Corrects shadow position.
+SCED-52119:
+  name: "Official PlayStation 2 Magazine Germany Special Edition 01/2004"
+  region: "PAL-G"
 SCED-52120:
   name: "Official PlayStation 2 Magazine Demo 55" # German
   region: "PAL-E-G"
@@ -2428,6 +2987,12 @@ SCED-52141:
   gsHWFixes:
     roundSprite: 2 # Correct misaligned font, better aligns car shadow.
     autoFlush: 2 # Fixes sun luminosity.
+SCED-52147:
+  name: "EyeToy - Christmas Wishi Washi"
+  region: "PAL-Unk"
+SCED-52158:
+  name: "Official PlayStation 2 Magazine Demo 41"
+  region: "PAL-S"
 SCED-52160:
   name: "Official PlayStation 2 Magazine Demo 45"
   region: "PAL-M5"
@@ -2464,21 +3029,52 @@ SCED-52170:
 SCED-52177:
   name: "Official PlayStation 2 Magazine Demo 41"
   region: "PAL-M5"
+SCED-52183:
+  name: "Magazine Ufficiale PlayStation 2 Platinum Speciale 2003"
+  region: "PAL-I"
 SCED-52185:
   name: "Official PlayStation 2 Magazine Demo 41"
   region: "PAL-M5"
+SCED-52186:
+  name: "Magazine Ufficiale PlayStation 2 Italia 01/04 Demo"
+  region: "PAL-I"
+SCED-52193:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 18 - Hot 100"
+  region: "PAL-E"
+SCED-52194:
+  name: "Official PlayStation 2 Magazine-UK Special Edition 19 - 2004 Classics Hitlist"
+  region: "PAL-E"
 SCED-52196:
   name: "Official PS2 Magazine Demo 22 Special Ed - It's Here" # United Kingdom
   region: "PAL-E"
+SCED-52225:
+  name: "PlayStation 2 Christmas Special 2003"
+  region: "PAL-Unk"
+SCED-52260:
+  name: "Forbidden Siren [Demo]"
+  region: "PAL-M5"
+  gsHWFixes:
+    roundSprite: 1 # Fixes gaps between menu options.
+    cpuSpriteRenderBW: 4 # Fixes sky rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
+SCED-52261:
+  name: "Jet Li - Rise to Honor [Demo]"
+  region: "PAL-M5"
 SCED-52270:
   name: "Official PlayStation 2 Magazine Demo 42"
   region: "PAL-M5"
 SCED-52271:
   name: "Official PlayStation 2 Magazine Demo 42"
   region: "PAL-M5"
+SCED-52272:
+  name: "Magazine Ufficiale PlayStation 2 Italia Demo 02/04"
+  region: "PAL-I"
 SCED-52273:
   name: "Official PlayStation 2 Magazine Demo 42"
   region: "PAL-M5"
+SCED-52311:
+  name: "I-Ninja"
+  region: "PAL-Unk"
 SCED-52354:
   name: "Official PlayStation 2 Magazine Demo 43"
   region: "PAL-M5"
@@ -2498,6 +3094,9 @@ SCED-52391:
   region: "PAL-M5"
   gameFixes:
     - XGKickHack # Fixes SPS for Formula One 2003.
+SCED-52423:
+  name: "Smash Court Tennis - Pro Tournament 2"
+  region: "PAL-A"
 SCED-52436:
   name: "Bonus Demo 7"
   region: "PAL-M5"
@@ -2508,6 +3107,9 @@ SCED-52437:
 SCED-52442:
   name: "Official PlayStation 2 Magazine Demo 45"
   region: "PAL-M5"
+SCED-52443:
+  name: "Magazine Ufficiale PlayStation 2 Italia 05/04"
+  region: "PAL-I"
 SCED-52452:
   name: "Official PlayStation 2 Magazine Demo 45"
   region: "PAL-M5"
@@ -2519,6 +3121,12 @@ SCED-52455:
 SCED-52461:
   name: "SingStar [Press Kit]"
   region: "PAL-E"
+SCED-52491:
+  name: "Athens 2004"
+  region: "PAL-Unk"
+SCED-52497:
+  name: "This Is Football 2004"
+  region: "PAL-Unk"
 SCED-52549:
   name: "Official PlayStation 2 Magazine Demo 47"
   region: "PAL-M5"
@@ -2530,6 +3138,12 @@ SCED-52578:
     trilinearFiltering: 1
     halfPixelOffset: 1 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+SCED-52580:
+  name: "Magazine Ufficiale PlayStation 2 Italia 06/04"
+  region: "PAL-I"
+SCED-52618:
+  name: "Smash Court Tennis - Pro Tournament 2"
+  region: "PAL-A"
 SCED-52619:
   name: "Official PlayStation 2 Magazine Demo 48"
   region: "PAL-M5"
@@ -2563,12 +3177,18 @@ SCED-52785:
 SCED-52786:
   name: "Official PlayStation 2 Magazine Demo 51"
   region: "PAL-M5"
+SCED-52795:
+  name: "Magazine Ufficiale PlayStation 2 Speciale di Corso"
+  region: "PAL-I"
 SCED-52796:
   name: "Official PlayStation 2 Magazine Demo 50"
   region: "PAL-M5"
 SCED-52818:
   name: "EyeToy - Chat [Light]"
   region: "PAL-M11"
+SCED-52841:
+  name: "Jackie Chan Adventures"
+  region: "PAL-Unk"
 SCED-52846:
   name: "Killzone [Demo]"
   region: "PAL-E"
@@ -2587,6 +3207,12 @@ SCED-52847:
     partialTargetInvalidation: 1 # Fixes broken pause screen.
     halfPixelOffset: 2 # Fixes misaligned bloom.
     autoFlush: 2 # Helps fix misaligned bloom.
+SCED-52848:
+  name: "Ratchet & Clank 3 + Sly 2 - Band of Thieves"
+  region: "PAL-Unk"
+SCED-52855:
+  name: "Magazine Ufficiale PlayStation 2 Italia 09/04"
+  region: "PAL-I"
 SCED-52869:
   name: "WRC 4 [Demo]"
   region: "PAL-M5"
@@ -2684,21 +3310,45 @@ SCED-52952:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+SCED-52969:
+  name: "EyeToy - Play 2"
+  region: "PAL-Unk"
 SCED-52970:
   name: "SCEE Hits Demo"
   region: "PAL-M5"
+SCED-52981:
+  name: "Magazine Ufficiale PlayStation 2 Italia 11/04"
+  region: "PAL-I"
 SCED-52990:
   name: "Official PlayStation 2 Magazine Demo 53"
   region: "PAL-M5"
 SCED-52991:
   name: "Official PlayStation 2 Magazine Demo 53" # French
   region: "PAL-M5"
+SCED-52996:
+  name: "Official PlayStation 2 Magazine SpÃ©cial NoÃ«l 2004"
+  region: "PAL-F"
+SCED-52997:
+  name: "Official PlayStation 2 Magazine Sonderausgabe 2004/3"
+  region: "PAL-G"
+SCED-53018:
+  name: "Bonus Demo 8 (Geu)"
+  region: "PAL-G"
+SCED-53043:
+  name: "Magazine Ufficiale PlayStation 2 Speciale Platinum Italia"
+  region: "PAL-I"
 SCED-53056:
   name: "Official PlayStation 2 Magazine Demo 54" # German
   region: "PAL-E-G"
+SCED-53067:
+  name: "Official PlayStation 2 Magazine Demo 54"
+  region: "PAL-S"
 SCED-53068:
   name: "Official PlayStation 2 Magazine Demo 54" # French
   region: "PAL-M5"
+SCED-53070:
+  name: "Magazine Ufficiale PlayStation 2 Demo 2005/01 Ita"
+  region: "PAL-I"
 SCED-53081:
   name: "Ace Combat - Squadron Leader [Demo]"
   region: "PAL-E"
@@ -2725,6 +3375,12 @@ SCED-53115:
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
     cpuCLUTRender: 1 # Fixes sun occlusion.
+SCED-53116:
+  name: "Bonus Demo 9 (You)"
+  region: "PAL-Unk"
+SCED-53117:
+  name: "Bonus Demo 9 (Old)"
+  region: "PAL-Unk"
 SCED-53122:
   name: "Official PlayStation 2 Magazine Demo 56"
   region: "PAL-M5"
@@ -2779,6 +3435,9 @@ SCED-53175:
 SCED-53176:
   name: "Official PlayStation 2 Magazine Demo 56"
   region: "PAL-M5"
+SCED-53177:
+  name: "EyeToy Special Demo"
+  region: "PAL-Unk"
 SCED-53206:
   name: "Official PlayStation 2 Magazine Demo 58" # German
   region: "PAL-G"
@@ -2839,6 +3498,12 @@ SCED-53292:
 SCED-53293:
   name: "Official PlayStation 2 Magazine Demo 63"
   region: "PAL-M5"
+SCED-53294:
+  name: "Magazine Ufficiale PlayStation 2 Italia 10/2005 - Italian Demo"
+  region: "PAL-I"
+SCED-53298:
+  name: "Official PlayStation 2 Magazine Germany Special Edition 2005/01"
+  region: "PAL-G"
 SCED-53316:
   name: "SingStar Pop [Demo]"
   region: "PAL-E"
@@ -2848,6 +3513,16 @@ SCED-53325:
 SCED-53348:
   name: "Official PlayStation 2 Magazine Demo 58" # French
   region: "PAL-F"
+SCED-53349:
+  name: "Roland Garros Virtual Tour"
+  region: "PAL-F"
+SCED-53431:
+  name: "God of War"
+  region: "PAL-A"
+  gsHWFixes:
+    alignSprite: 1 # Fixes water vertical lines.
+    roundSprite: 1 # Fixes vertical lines and minor ghosting.
+    autoFlush: 1 # Fixes sun going through walls.
 SCED-53447:
   name: "Formula One 05 [Press Kit Demo]"
   region: "PAL-E"
@@ -2863,6 +3538,12 @@ SCED-53514:
 SCED-53515:
   name: "Bonus Demo 10"
   region: "PAL-M5"
+SCED-53516:
+  name: "Magazine Ufficiale PlayStation 2 Italian Demo 61 07/05"
+  region: "PAL-I"
+SCED-53522:
+  name: "EyeToy - Kinetic"
+  region: "PAL-Unk"
 SCED-53538:
   name: "Tekken 5 [Demo]"
   region: "PAL-M5"
@@ -2871,6 +3552,12 @@ SCED-53538:
   gsHWFixes:
     alignSprite: 1
     getSkipCount: "GSC_Tekken5"
+SCED-53611:
+  name: "Official PlayStation 2 Magazine - German Kids Special"
+  region: "PAL-G"
+SCED-53613:
+  name: "EyeToy - Play 3 + SpyToy"
+  region: "PAL-Unk"
 SCED-53622:
   name: "24 - The Game [Demo]"
   region: "PAL-M9"
@@ -2882,6 +3569,9 @@ SCED-53622:
 SCED-53660:
   name: "Jak X & Ratchet Gladiator [Demo]"
   region: "PAL"
+SCED-53662:
+  name: "Official PlayStation 2 Magazine Germany Special 2/2005"
+  region: "PAL-G"
 SCED-53674:
   name: "Soul Calibur III [Demo]"
   region: "PAL-E"
@@ -2903,6 +3593,15 @@ SCED-53679:
 SCED-53684:
   name: "SingStar '80s [Demo]"
   region: "PAL-E"
+SCED-53733:
+  name: "Genji Special Demo"
+  region: "PAL-Unk"
+SCED-53792:
+  name: "EyeToy - Antigrav + SpyToy Demo"
+  region: "PAL-Unk"
+SCED-53798:
+  name: "Ufficiale PlayStation 2 Italia Kids Special 2005 Demo"
+  region: "PAL-I"
 SCED-53802:
   name: "Sly 3 - Honour Among Thieves [Demo]"
   region: "PAL-M5"
@@ -43007,7 +43706,7 @@ SLPS-73233:
     - "SLPS-73232"
     - "SLPS-73233"
 SLPS-73234:
-  name: "Kidou Senshi Z-Gundam - AEUG vs. Titans [PlayStation 2 The Best]"
+  name: "Kidou Senshi Z Gundam - AEUG vs. Titans [PlayStation 2 The Best]"
   region: "NTSC-J"
 SLPS-73235:
   name: "Dragon Ball Z 3 [PlayStation 2 The Best]"
