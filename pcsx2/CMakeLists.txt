@@ -118,7 +118,6 @@ set(pcsx2Sources
 	sif2.cpp
 	Sio.cpp
 	SPR.cpp
-	StateWrapper.cpp
 	System.cpp
 	Vif0_Dma.cpp
 	Vif1_Dma.cpp
@@ -183,7 +182,6 @@ set(pcsx2Headers
 	SingleRegisterTypes.h
 	Sio.h
 	SPR.h
-	StateWrapper.h
 	System.h
 	Vif_Dma.h
 	Vif.h

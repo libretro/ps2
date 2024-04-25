@@ -26,7 +26,6 @@
 #include "Config.h"
 
 class SettingsInterface;
-class StateWrapper;
 
 namespace USB
 {
@@ -84,9 +83,6 @@ namespace USB
 
 	/// Reads a device-specific configuration string.
 	std::string GetConfigString(SettingsInterface& si, u32 port, const char* devname, const char* key, const char* default_value = "");
-
-	/// Handles loading/saving save state.
-	bool DoState(StateWrapper& sw);
 } // namespace USB
 
 // ---------------------------------------------------------------------

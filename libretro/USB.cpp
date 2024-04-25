@@ -3,7 +3,6 @@
 #include "SaveState.h"
 
 void USB::CheckForConfigChanges(const Pcsx2Config& old_config) { }
-bool USB::DoState(StateWrapper& sw) { return true; }
 void USBconfigure(void) {}
 void USBinit(void) { }
 void USBasync(u32 cycles) {}

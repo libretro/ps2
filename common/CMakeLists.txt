@@ -55,7 +55,6 @@ target_sources(common PRIVATE
 	General.h
 	HashCombine.h
 	HeterogeneousContainers.h
-	HeapArray.h
 	MemorySettingsInterface.h
 	MD5Digest.h
 	Path.h

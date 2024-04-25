@@ -279,7 +279,6 @@
     <ClCompile Include="GS\Renderers\Common\GSVertexTraceFMM.cpp" />
     <ClCompile Include="GS\GSXXH.cpp" />
     <ClCompile Include="GS\MultiISA.cpp" />
-    <ClCompile Include="StateWrapper.cpp" />
     <ClCompile Include="USB\deviceproxy.cpp" />
     <ClCompile Include="USB\qemu-usb\bus.cpp" />
     <ClCompile Include="USB\qemu-usb\core.cpp" />
@@ -588,7 +587,6 @@
     <ClInclude Include="PCSX2Base.h" />
     <ClInclude Include="PrecompiledHeader.h" />
     <ClInclude Include="ps2\pgif.h" />
-    <ClInclude Include="StateWrapper.h" />
     <ClInclude Include="USB\deviceproxy.h" />
     <ClInclude Include="USB\qemu-usb\desc.h" />
     <ClInclude Include="USB\qemu-usb\hid.h" />

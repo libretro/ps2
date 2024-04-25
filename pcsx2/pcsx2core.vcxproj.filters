@@ -1229,9 +1229,6 @@
     <ClCompile Include="USB\usb-lightgun\guncon2.cpp">
       <Filter>System\Ps2\USB\usb-lightgun</Filter>
     </ClCompile>
-    <ClCompile Include="StateWrapper.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
     <ClCompile Include="USB\usb-mic\audiodev-cubeb.cpp">
       <Filter>System\Ps2\USB\usb-mic</Filter>
     </ClCompile>
@@ -2029,9 +2026,6 @@
     </ClInclude>
     <ClInclude Include="USB\usb-lightgun\guncon2.h">
       <Filter>System\Ps2\USB\usb-lightgun</Filter>
-    </ClInclude>
-    <ClInclude Include="StateWrapper.h">
-      <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="USB\usb-mic\audiodev-cubeb.h">
       <Filter>System\Ps2\USB\usb-mic</Filter>
