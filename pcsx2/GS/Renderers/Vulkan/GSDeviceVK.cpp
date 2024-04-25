@@ -1763,77 +1763,7 @@ void GSDeviceVK::DestroySurface()
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 {
 	EndRenderPass();
-
-	if (frame_skip || !m_swap_chain)
-		return PresentResult::FrameSkipped;
-
-	// If we're running surfaceless, kick the command buffer so we don't run out of descriptors.
-	if (!m_swap_chain)
-	{
-		ExecuteCommandBuffer(false);
-		return PresentResult::FrameSkipped;
-	}
-
-	// Check if the device was lost.
-	if (g_vulkan_context->CheckLastSubmitFail())
-		return PresentResult::DeviceLost;
-
-	VkResult res = m_swap_chain->AcquireNextImage();
-	if (res != VK_SUCCESS)
-	{
-		m_swap_chain->ReleaseCurrentImage();
-
-		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
-			res = m_swap_chain->AcquireNextImage();
-		else if (res == VK_ERROR_SURFACE_LOST_KHR)
-		{
-			Console.Warning("Surface lost, attempting to recreate");
-			if (!m_swap_chain->RecreateSurface(m_window_info))
-			{
-				Console.Error("Failed to recreate surface after loss");
-				ExecuteCommandBuffer(false);
-				return PresentResult::FrameSkipped;
-			}
-
-			res = m_swap_chain->AcquireNextImage();
-		}
-
-		// This can happen when multiple resize events happen in quick succession.
-		// In this case, just wait until the next frame to try again.
-		if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
-		{
-			// Still submit the command buffer, otherwise we'll end up with several frames waiting.
-			ExecuteCommandBuffer(false);
-			return PresentResult::FrameSkipped;
-		}
-	}
-
-	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
-
-	// Swap chain images start in undefined
-	GSTextureVK* swap_chain_texture = m_swap_chain->GetCurrentTexture();
-	swap_chain_texture->OverrideImageLayout(GSTextureVK::Layout::Undefined);
-	swap_chain_texture->TransitionToLayout(cmdbuffer, GSTextureVK::Layout::ColorAttachment);
-
-	const VkFramebuffer fb = swap_chain_texture->GetFramebuffer(false);
-	if (fb == VK_NULL_HANDLE)
-		return GSDevice::PresentResult::FrameSkipped;
-
-	const VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, nullptr,
-		g_vulkan_context->GetRenderPass(swap_chain_texture->GetVkFormat(), VK_FORMAT_UNDEFINED,
-			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE),
-		fb,
-		{{0, 0}, {static_cast<u32>(swap_chain_texture->GetWidth()), static_cast<u32>(swap_chain_texture->GetHeight())}},
-		1u, &s_present_clear_color};
-	vkCmdBeginRenderPass(g_vulkan_context->GetCurrentCommandBuffer(), &rp, VK_SUBPASS_CONTENTS_INLINE);
-
-	const VkViewport vp{0.0f, 0.0f, static_cast<float>(swap_chain_texture->GetWidth()),
-		static_cast<float>(swap_chain_texture->GetHeight()), 0.0f, 1.0f};
-	const VkRect2D scissor{
-		{0, 0}, {static_cast<u32>(swap_chain_texture->GetWidth()), static_cast<u32>(swap_chain_texture->GetHeight())}};
-	vkCmdSetViewport(g_vulkan_context->GetCurrentCommandBuffer(), 0, 1, &vp);
-	vkCmdSetScissor(g_vulkan_context->GetCurrentCommandBuffer(), 0, 1, &scissor);
-	return PresentResult::OK;
+	return PresentResult::FrameSkipped;
 }
 
 void GSDeviceVK::EndPresent()
