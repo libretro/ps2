@@ -14,10 +14,8 @@ target_sources(common PRIVATE
 	FastJmp.cpp
 	FileSystem.cpp
 	MemorySettingsInterface.cpp
-	Misc.cpp
 	MD5Digest.cpp
 	PrecompiledHeader.cpp
-	ReadbackSpinManager.cpp
 	Semaphore.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
@@ -62,7 +60,6 @@ target_sources(common PRIVATE
 	MD5Digest.h
 	Path.h
 	PrecompiledHeader.h
-	ReadbackSpinManager.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
 	ScopedGuard.h

@@ -200,8 +200,3 @@ private:
 extern void InitCPUTicks();
 extern u64 GetTickFrequency();
 extern u64 GetCPUTicks();
-/// Spin for a short period of time (call while spinning waiting for a lock)
-/// Returns the approximate number of ns that passed
-extern u32 ShortSpin();
-/// Number of ns to spin for before sleeping a thread
-#define SPIN_TIME_NS 50000

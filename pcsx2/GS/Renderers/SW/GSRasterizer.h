@@ -49,7 +49,7 @@ private:
 
 		for (;;)
 		{
-			m_sema.WaitForWorkWithSpin();
+			m_sema.WaitForWork();
 			if (m_exit)
 				break;
 			while (m_queue.consume_one(*this))
@@ -91,7 +91,7 @@ public:
 
 	void Wait()
 	{
-		m_sema.WaitForEmptyWithSpin();
+		m_sema.WaitForEmpty();
 		assert(IsEmpty());
 	}
 

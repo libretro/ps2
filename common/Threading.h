@@ -192,14 +192,9 @@ namespace Threading
 		bool CheckForWork();
 		/// Wait for work to be added to the queue
 		void WaitForWork();
-		/// Wait for work to be added to the queue, spinning for a bit before sleeping the thread
-		void WaitForWorkWithSpin();
 		/// Wait for the worker thread to finish processing all entries in the queue or die
 		/// Returns false if the thread is dead
 		bool WaitForEmpty();
-		/// Wait for the worker thread to finish processing all entries in the queue or die, spinning a bit before sleeping the thread
-		/// Returns false if the thread is dead
-		bool WaitForEmptyWithSpin();
 		/// Called by the worker thread to notify others of its death
 		/// Dead threads don't process work, and WaitForEmpty will return instantly even though there may be work in the queue
 		void Kill();
