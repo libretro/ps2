@@ -1652,20 +1652,6 @@ void GSDeviceOGL::ClearSamplerCache()
 	}
 }
 
-void GSDeviceOGL::RenderBlankFrame()
-{
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glDisable(GL_SCISSOR_TEST);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	if(m_current)
-		video_cb(RETRO_HW_FRAME_BUFFER_VALID, m_current->GetWidth(), m_current->GetHeight(), 0);
-	else
-		video_cb(NULL, 0, 0, 0);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLState::fbo);
-	glEnable(GL_SCISSOR_TEST);
-}
-
 void GSDeviceOGL::OMAttachRt(GSTexture* rt)
 {
 	if (GLState::rt == rt)

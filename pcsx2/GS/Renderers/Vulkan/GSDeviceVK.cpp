@@ -3278,10 +3278,6 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 	return true;
 }
 
-void GSDeviceVK::RenderBlankFrame()
-{
-}
-
 void GSDeviceVK::DestroyResources()
 {
 	g_vulkan_context->ExecuteCommandBuffer(VKContext::WaitType::Sleep);

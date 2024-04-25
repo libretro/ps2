@@ -190,8 +190,6 @@ private:
 	bool CompileMergePipelines();
 	bool CompilePostProcessingPipelines();
 
-	void RenderBlankFrame();
-
 	void DestroyResources();
 
 public:
