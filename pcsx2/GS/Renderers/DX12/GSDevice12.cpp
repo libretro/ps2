@@ -325,7 +325,7 @@ void D3D12Context::MoveToNextCommandList()
 
 	// We may have to wait if this command list hasn't finished on the GPU.
 	CommandListResources& res = m_command_lists[m_current_command_list];
-	WaitForFence(res.ready_fence_value, false);
+	WaitForFence(res.ready_fence_value);
 	res.ready_fence_value = m_current_fence_value;
 	res.init_command_list_used = false;
 
@@ -355,7 +355,7 @@ ID3D12GraphicsCommandList4* D3D12Context::GetInitCommandList()
 	return res.command_lists[0].get();
 }
 
-bool D3D12Context::ExecuteCommandList(WaitType wait_for_completion)
+bool D3D12Context::ExecuteCommandList(bool wait_for_completion)
 {
 	CommandListResources& res = m_command_lists[m_current_command_list];
 	HRESULT hr;
@@ -393,8 +393,8 @@ bool D3D12Context::ExecuteCommandList(WaitType wait_for_completion)
 	hr = m_command_queue->Signal(m_fence.get(), res.ready_fence_value);
 
 	MoveToNextCommandList();
-	if (wait_for_completion != WaitType::None)
-		WaitForFence(res.ready_fence_value, false);
+	if (wait_for_completion)
+		WaitForFence(res.ready_fence_value);
 
 	return true;
 }
@@ -459,7 +459,7 @@ void D3D12Context::DestroyResources()
 {
 	if (m_command_queue)
 	{
-		ExecuteCommandList(WaitType::Sleep);
+		ExecuteCommandList(true);
 		WaitForGPUIdle();
 	}
 
@@ -485,29 +485,19 @@ void D3D12Context::DestroyResources()
 	m_device.reset();
 }
 
-void D3D12Context::WaitForFence(u64 fence, bool spin)
+void D3D12Context::WaitForFence(u64 fence)
 {
 	if (m_completed_fence_value >= fence)
 		return;
 
-	if (spin)
+	// Try non-blocking check.
+	m_completed_fence_value = m_fence->GetCompletedValue();
+	if (m_completed_fence_value < fence)
 	{
-		u64 value;
-		while ((value = m_fence->GetCompletedValue()) < fence)
-			ShortSpin();
-		m_completed_fence_value = value;
-	}
-	else
-	{
-		// Try non-blocking check.
+		// Fall back to event.
+		HRESULT hr = m_fence->SetEventOnCompletion(fence, m_fence_event);
+		WaitForSingleObject(m_fence_event, INFINITE);
 		m_completed_fence_value = m_fence->GetCompletedValue();
-		if (m_completed_fence_value < fence)
-		{
-			// Fall back to event.
-			HRESULT hr = m_fence->SetEventOnCompletion(fence, m_fence_event);
-			WaitForSingleObject(m_fence_event, INFINITE);
-			m_completed_fence_value = m_fence->GetCompletedValue();
-		}
 	}
 
 	// Release resources for as many command lists which have completed.
@@ -528,7 +518,7 @@ void D3D12Context::WaitForGPUIdle()
 	u32 index = (m_current_command_list + 1) % NUM_COMMAND_LISTS;
 	for (u32 i = 0; i < (NUM_COMMAND_LISTS - 1); i++)
 	{
-		WaitForFence(m_command_lists[index].ready_fence_value, false);
+		WaitForFence(m_command_lists[index].ready_fence_value);
 		index = (index + 1) % NUM_COMMAND_LISTS;
 	}
 }
@@ -968,7 +958,7 @@ void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 {
 	GSTexture12* texture = (GSTexture12*)sTex;
 	texture->TransitionToState(d3d12->required_state);
-	g_d3d12_context->ExecuteCommandList(D3D12Context::WaitType::None);
+	g_d3d12_context->ExecuteCommandList(false);
 
 	d3d12->set_texture(d3d12->handle, texture->GetResource(), texture->GetResource()->GetDesc().Format);
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, texture->GetWidth(), texture->GetHeight(), 0);
@@ -1891,7 +1881,7 @@ bool GSDevice12::CompilePostProcessingPipelines()
 
 void GSDevice12::DestroyResources()
 {
-	g_d3d12_context->ExecuteCommandList(D3D12Context::WaitType::Sleep);
+	g_d3d12_context->ExecuteCommandList(true);
 
 	m_convert_vs.reset();
 
@@ -2170,29 +2160,11 @@ void GSDevice12::InitializeSamplers()
 		Console.Error("Failed to initialize samplers");
 }
 
-static D3D12Context::WaitType GetWaitType(bool wait)
-{
-	if (!wait)
-		return D3D12Context::WaitType::None;
-	return D3D12Context::WaitType::Sleep;
-}
-
 void GSDevice12::ExecuteCommandList(bool wait_for_completion)
 {
 	EndRenderPass();
-	g_d3d12_context->ExecuteCommandList(GetWaitType(wait_for_completion));
+	g_d3d12_context->ExecuteCommandList(wait_for_completion);
 	InvalidateCachedState();
-}
-
-void GSDevice12::ExecuteCommandList(bool wait_for_completion, const char* reason, ...)
-{
-	std::va_list ap;
-	va_start(ap, reason);
-	const std::string reason_str(StringUtil::StdStringFromFormatV(reason, ap));
-	va_end(ap);
-
-	Console.Warning("D3D12: Executing command buffer due to '%s'", reason_str.c_str());
-	ExecuteCommandList(wait_for_completion);
 }
 
 void GSDevice12::ExecuteCommandListAndRestartRenderPass(bool wait_for_completion, const char* reason)
@@ -2201,7 +2173,7 @@ void GSDevice12::ExecuteCommandListAndRestartRenderPass(bool wait_for_completion
 
 	const bool was_in_render_pass = m_in_render_pass;
 	EndRenderPass();
-	g_d3d12_context->ExecuteCommandList(GetWaitType(wait_for_completion));
+	g_d3d12_context->ExecuteCommandList(wait_for_completion);
 	InvalidateCachedState();
 
 	if (was_in_render_pass)

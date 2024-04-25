@@ -121,17 +121,11 @@ enum : u32
        /// Test for support for the specified texture format.
        bool SupportsTextureFormat(DXGI_FORMAT format);
 
-       enum class WaitType
-       {
-	       None,  ///< Don't wait (async)
-	       Sleep ///< Wait normally
-       };
-
        /// Executes the current command list.
-       bool ExecuteCommandList(WaitType wait_for_completion);
+       bool ExecuteCommandList(bool wait_for_completion);
 
        /// Waits for a specific fence.
-       void WaitForFence(u64 fence, bool spin);
+       void WaitForFence(u64 fence);
 
        /// Waits for any in-flight command buffers to complete.
        void WaitForGPUIdle();

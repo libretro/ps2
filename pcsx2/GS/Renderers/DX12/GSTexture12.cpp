@@ -416,8 +416,7 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 		D3D12StreamBuffer& sbuffer = g_d3d12_context->GetTextureStreamBuffer();
 		if (!sbuffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 		{
-			GSDevice12::GetInstance()->ExecuteCommandList(
-				false, "While waiting for %u bytes in texture upload buffer", required_size);
+			GSDevice12::GetInstance()->ExecuteCommandList(false);
 			if (!sbuffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 			{
 				Console.Error("Failed to reserve texture upload memory (%u bytes).", required_size);
@@ -484,8 +483,7 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 
 	if (!buffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 	{
-		GSDevice12::GetInstance()->ExecuteCommandList(
-			false, "While waiting for %u bytes in texture upload buffer", required_size);
+		GSDevice12::GetInstance()->ExecuteCommandList(false);
 		if (!buffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 			Console.Error("Failed to reserve texture upload memory");
 	}
@@ -764,5 +762,5 @@ void GSDownloadTexture12::Flush()
 	if (g_d3d12_context->GetCurrentFenceValue() == m_copy_fence_value)
 		GSDevice12::GetInstance()->ExecuteCommandListForReadback();
 	else
-		g_d3d12_context->WaitForFence(m_copy_fence_value, false);
+		g_d3d12_context->WaitForFence(m_copy_fence_value);
 }

@@ -265,7 +265,7 @@ bool D3D12StreamBuffer::WaitForClearSpace(u32 num_bytes)
 		return false;
 
 	// Wait until this fence is signaled. This will fire the callback, updating the GPU position.
-	g_d3d12_context->WaitForFence(iter->first, false);
+	g_d3d12_context->WaitForFence(iter->first);
 	m_tracked_fences.erase(m_tracked_fences.begin(), m_current_offset == iter->second ? m_tracked_fences.end() : ++iter);
 	m_current_offset = new_offset;
 	m_current_space = new_space;
