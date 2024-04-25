@@ -300,11 +300,8 @@ enum : u32
        u32 m_graphics_queue_family_index = 0;
        u32 m_present_queue_family_index = 0;
 
-       VkQueue m_spin_queue = VK_NULL_HANDLE;
        u32 m_spin_queue_family_index = 0;
        u32 m_command_buffer_render_passes = 0;
-       bool m_spinning_supported = false;
-       bool m_spin_queue_is_graphics_queue = false;
 
        std::array<FrameResources, NUM_COMMAND_BUFFERS> m_frame_resources;
        u64 m_next_fence_counter = 1;

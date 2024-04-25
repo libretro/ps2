@@ -791,7 +791,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 		// Grab the graphics and present queues.
 		vkGetDeviceQueue(m_device, m_graphics_queue_family_index, 0, &m_graphics_queue);
-		m_spin_queue_is_graphics_queue = m_spin_queue_family_index == m_graphics_queue_family_index && spin_queue_index == 0;
 
 		ProcessDeviceExtensions();
 
