@@ -140,18 +140,22 @@ PAPX-90222:
   name: "Jak x Daxter - Kyuu Sekai no Isan [Demo, Taikenban]"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 PAPX-90223:
   name: "Jak x Daxter - Kyuu Sekai no Isan [Demo, Taikenban]"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 PAPX-90231:
   name: "Kaitou Sly Cooper [Demo, Taikenban]"
   region: "NTSC-J"
@@ -3262,10 +3266,12 @@ SCES-50361:
   region: "PAL-M6"
   compat: 5
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCES-50408:
   name: "PaRappa the Rapper 2"
   region: "PAL-M5"
@@ -3426,10 +3432,12 @@ SCES-50614:
   name: "Jak and Daxter - The Precursor Legacy"
   region: "PAL-Unk"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCES-50759:
   name: "Virtua Fighter 4"
   region: "PAL-M5"
@@ -6139,10 +6147,12 @@ SCPS-15021:
   name: "Jak x Daxter - Kyuusekai no Isan"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCPS-15022:
   name: "Dual Hearts"
   region: "NTSC-J"
@@ -6848,10 +6858,12 @@ SCPS-19210:
   name: "Jak x Daxter - Kyuusekai no Isan [PlayStation 2 The Best]"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCPS-19211:
   name: "Ratchet & Clank [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -7256,10 +7268,12 @@ SCPS-55004:
   name: "Jak x Daxter - Kyuusekai no Isan"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCPS-55005:
   name: "Gran Turismo - Concept 2001 Tokyo"
   region: "NTSC-J"
@@ -7528,10 +7542,12 @@ SCPS-56003:
   name: "Jak and Daxter - The Precursor Legacy"
   region: "NTSC-K"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCPS-56004:
   name: "Otostaz"
   region: "NTSC-K"
@@ -7746,10 +7762,12 @@ SCUS-97124:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCUS-97125:
   name: "Frequency"
   region: "NTSC-U"
@@ -7938,18 +7956,22 @@ SCUS-97170:
   name: "Jak and Daxter - The Precursor Legacy [Cingular Wireless Demo]"
   region: "NTSC-U"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCUS-97171:
   name: "Jak and Daxter - The Precursor Legacy [PS Underground Demo]"
   region: "NTSC-U"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves reflection quality.
     mipmap: 2 # Fixes broken textures.
     trilinearFiltering: 1 # Fixes water textures.
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
+    autoFlush: 2 # Fixes gate warp effect and emissive texture effects.
 SCUS-97172:
   name: "World Tour Soccer 2002"
   region: "NTSC-U"
@@ -16453,7 +16475,9 @@ SLES-52636:
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    autoFlush: 2 # Fixes incorrect colors.
+    recommendedBlendingLevel: 3 # Fixes missing lighting and car reflections.
+    halfPixelOffset: 1 # Fixes 4 split lines in stage intros.
+    autoFlush: 1 # Fixes incorrect colors.
     alignSprite: 1 # Fixes vertical lines such as in FMVs.
 SLES-52637:
   name: "TOCA Racer Driver 2"
