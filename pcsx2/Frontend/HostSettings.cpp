@@ -79,12 +79,6 @@ double Host::GetDoubleSettingValue(const char* section, const char* key, double 
 	return s_layered_settings_interface.GetDoubleValue(section, key, default_value);
 }
 
-std::vector<std::string> Host::GetStringListSetting(const char* section, const char* key)
-{
-	std::unique_lock lock(s_settings_mutex);
-	return s_layered_settings_interface.GetStringList(section, key);
-}
-
 SettingsInterface* Host::Internal::GetBaseSettingsLayer()
 {
 	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE);

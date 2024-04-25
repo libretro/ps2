@@ -39,7 +39,6 @@ namespace Host
 	uint GetUIntSettingValue(const char* section, const char* key, uint default_value = 0);
 	float GetFloatSettingValue(const char* section, const char* key, float default_value = 0.0f);
 	double GetDoubleSettingValue(const char* section, const char* key, double default_value = 0.0);
-	std::vector<std::string> GetStringListSetting(const char* section, const char* key);
 
 	/// Direct access to settings interface. Must hold the lock when calling GetSettingsInterface() and while using it.
 	std::unique_lock<std::mutex> GetSettingsLock();

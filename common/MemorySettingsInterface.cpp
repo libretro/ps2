@@ -154,26 +154,6 @@ void MemorySettingsInterface::SetStringValue(const char* section, const char* ke
 	SetValue(section, key, value);
 }
 
-std::vector<std::pair<std::string, std::string>> MemorySettingsInterface::GetKeyValueList(const char* section) const
-{
-	std::vector<std::pair<std::string, std::string>> output;
-	auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit != m_sections.end())
-	{
-		for (const auto& it : sit->second)
-			output.emplace_back(it.first, it.second);
-	}
-	return output;
-}
-
-void MemorySettingsInterface::SetKeyValueList(const char* section, const std::vector<std::pair<std::string, std::string>>& items)
-{
-	auto sit = UnorderedStringMapFind(m_sections, section);
-	sit->second.clear();
-	for (const auto& [key, value] : items)
-		sit->second.emplace(key, value);
-}
-
 void MemorySettingsInterface::SetValue(const char* section, const char* key, std::string value)
 {
 	auto sit = UnorderedStringMapFind(m_sections, section);
@@ -199,86 +179,6 @@ void MemorySettingsInterface::SetValue(const char* section, const char* key, std
 	}
 }
 
-std::vector<std::string> MemorySettingsInterface::GetStringList(const char* section, const char* key) const
-{
-	std::vector<std::string> ret;
-
-	const auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit != m_sections.end())
-	{
-		const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
-		for (auto iter = range.first; iter != range.second; ++iter)
-			ret.emplace_back(iter->second);
-	}
-
-	return ret;
-}
-
-void MemorySettingsInterface::SetStringList(const char* section, const char* key, const std::vector<std::string>& items)
-{
-	auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit == m_sections.end())
-		sit = m_sections.emplace(std::make_pair(std::string(section), KeyMap())).first;
-
-	const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
-	for (auto iter = range.first; iter != range.second;)
-		sit->second.erase(iter++);
-
-	std::string_view keysv(key);
-	for (const std::string& value : items)
-		sit->second.emplace(keysv, value);
-}
-
-bool MemorySettingsInterface::RemoveFromStringList(const char* section, const char* key, const char* item)
-{
-	auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit == m_sections.end())
-		sit = m_sections.emplace(std::make_pair(std::string(section), KeyMap())).first;
-
-	const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
-	bool result = false;
-	for (auto iter = range.first; iter != range.second;)
-	{
-		if (iter->second == item)
-		{
-			sit->second.erase(iter++);
-			result = true;
-		}
-		else
-		{
-			++iter;
-		}
-	}
-
-	return result;
-}
-
-bool MemorySettingsInterface::AddToStringList(const char* section, const char* key, const char* item)
-{
-	auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit == m_sections.end())
-		sit = m_sections.emplace(std::make_pair(std::string(section), KeyMap())).first;
-
-	const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
-	for (auto iter = range.first; iter != range.second; ++iter)
-	{
-		if (iter->second == item)
-			return false;
-	}
-
-	sit->second.emplace(std::string(key), std::string(item));
-	return true;
-}
-
-bool MemorySettingsInterface::ContainsValue(const char* section, const char* key) const
-{
-	const auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit == m_sections.end())
-		return false;
-
-	return (sit->second.find(key) != sit->second.end());
-}
-
 void MemorySettingsInterface::DeleteValue(const char* section, const char* key)
 {
 	auto sit = UnorderedStringMapFind(m_sections, section);
@@ -288,13 +188,4 @@ void MemorySettingsInterface::DeleteValue(const char* section, const char* key)
 	const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
 	for (auto iter = range.first; iter != range.second;)
 		sit->second.erase(iter++);
-}
-
-void MemorySettingsInterface::ClearSection(const char* section)
-{
-	auto sit = UnorderedStringMapFind(m_sections, section);
-	if (sit == m_sections.end())
-		return;
-
-	m_sections.erase(sit);
 }

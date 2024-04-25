@@ -48,17 +48,7 @@ public:
 	void SetDoubleValue(const char* section, const char* key, double value) override;
 	void SetBoolValue(const char* section, const char* key, bool value) override;
 	void SetStringValue(const char* section, const char* key, const char* value) override;
-	bool ContainsValue(const char* section, const char* key) const override;
 	void DeleteValue(const char* section, const char* key) override;
-	void ClearSection(const char* section) override;
-
-	std::vector<std::string> GetStringList(const char* section, const char* key) const override;
-	void SetStringList(const char* section, const char* key, const std::vector<std::string>& items) override;
-	bool RemoveFromStringList(const char* section, const char* key, const char* item) override;
-	bool AddToStringList(const char* section, const char* key, const char* item) override;
-
-	std::vector<std::pair<std::string, std::string>> GetKeyValueList(const char* section) const override;
-	void SetKeyValueList(const char* section, const std::vector<std::pair<std::string, std::string>>& items) override;
 
 	// default parameter overloads
 	using SettingsInterface::GetBoolValue;
