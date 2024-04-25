@@ -647,7 +647,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		// Find graphics and present queues.
 		m_graphics_queue_family_index = queue_family_count;
 		m_present_queue_family_index  = queue_family_count;
-		m_spin_queue_family_index     = queue_family_count;
 		u32 spin_queue_index          = 0;
 
 		for (uint32_t i = 0; i < queue_family_count; i++)
@@ -669,10 +668,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			if (queue_family_properties[i].timestampValidBits == 0)
 				continue; // We need timing
 			const bool queue_is_used = i == m_graphics_queue_family_index || i == m_present_queue_family_index;
-			if (queue_is_used && m_spin_queue_family_index != queue_family_count)
-				continue; // Found a non-graphics queue to use
 			spin_queue_index = 0;
-			m_spin_queue_family_index = i;
 			if (queue_is_used && queue_family_properties[i].queueCount > 1)
 				spin_queue_index = 1;
 			if (!(queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
@@ -692,7 +688,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		device_info.queueCreateInfoCount = 0;
 
 		static constexpr float queue_priorities[] = {1.0f, 0.0f}; // Low priority for the spin queue
-		std::array<VkDeviceQueueCreateInfo, 3> queue_infos;
+		std::array<VkDeviceQueueCreateInfo, 2> queue_infos;
 
 		VkDeviceQueueCreateInfo& graphics_queue_info = queue_infos[device_info.queueCreateInfoCount++];
 		graphics_queue_info.sType                    = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -702,28 +698,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		graphics_queue_info.queueCount               = 1;
 		graphics_queue_info.pQueuePriorities         = queue_priorities;
 
-		if (m_spin_queue_family_index == m_graphics_queue_family_index)
-		{
-			if (spin_queue_index != 0)
-				graphics_queue_info.queueCount = 2;
-		}
-		else if (m_spin_queue_family_index == m_present_queue_family_index)
-		{
-			if (spin_queue_index != 0)
-				queue_infos[1].queueCount = 2; // present queue
-		}
-		else
-		{
-			VkDeviceQueueCreateInfo& spin_queue_info = queue_infos[device_info.queueCreateInfoCount++];
-			spin_queue_info.sType                    = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			spin_queue_info.pNext                    = nullptr;
-			spin_queue_info.flags                    = 0;
-			spin_queue_info.queueFamilyIndex         = m_spin_queue_family_index;
-			spin_queue_info.queueCount               = 1;
-			spin_queue_info.pQueuePriorities         = queue_priorities + 1;
-		}
-
-		device_info.pQueueCreateInfos = queue_infos.data();
+		device_info.pQueueCreateInfos                = queue_infos.data();
 
 		ExtensionList enabled_extensions;
 		for (u32 i = 0; i < num_required_device_extensions; i++)
