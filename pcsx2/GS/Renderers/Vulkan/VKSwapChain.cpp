@@ -46,7 +46,6 @@ static VkFormat GetLinearFormat(VkFormat format)
 
 VKSwapChain::VKSwapChain(const WindowInfo& wi, VkSurfaceKHR surface, VkPresentModeKHR preferred_present_mode)
 	: m_window_info(wi)
-	, m_surface(surface)
 	  , m_preferred_present_mode(preferred_present_mode)
 {
 }
@@ -55,17 +54,6 @@ VKSwapChain::~VKSwapChain()
 {
 	DestroySwapChainImages();
 	DestroySwapChain();
-	DestroySurface();
-}
-
-VkSurfaceKHR VKSwapChain::CreateVulkanSurface(VkInstance instance, VkPhysicalDevice physical_device, WindowInfo* wi)
-{
-	return VK_NULL_HANDLE;
-}
-
-void VKSwapChain::DestroyVulkanSurface(VkInstance instance, WindowInfo* wi, VkSurfaceKHR surface)
-{
-	vkDestroySurfaceKHR(g_vulkan_context->GetVulkanInstance(), surface, nullptr);
 }
 
 std::unique_ptr<VKSwapChain> VKSwapChain::Create(const WindowInfo& wi, VkSurfaceKHR surface,
@@ -82,13 +70,13 @@ bool VKSwapChain::SelectSurfaceFormat()
 {
 	u32 format_count;
 	VkResult res = vkGetPhysicalDeviceSurfaceFormatsKHR(
-			g_vulkan_context->GetPhysicalDevice(), m_surface, &format_count, nullptr);
+			g_vulkan_context->GetPhysicalDevice(), VK_NULL_HANDLE, &format_count, nullptr);
 	if (res != VK_SUCCESS || format_count == 0)
 		return false;
 
 	std::vector<VkSurfaceFormatKHR> surface_formats(format_count);
 	res = vkGetPhysicalDeviceSurfaceFormatsKHR(
-			g_vulkan_context->GetPhysicalDevice(), m_surface, &format_count, surface_formats.data());
+			g_vulkan_context->GetPhysicalDevice(), VK_NULL_HANDLE, &format_count, surface_formats.data());
 
 	// If there is a single undefined surface format, the device doesn't care, so we'll just use RGBA
 	if (surface_formats[0].format == VK_FORMAT_UNDEFINED)
@@ -117,13 +105,13 @@ bool VKSwapChain::SelectPresentMode()
 	VkResult res;
 	u32 mode_count;
 	res = vkGetPhysicalDeviceSurfacePresentModesKHR(
-			g_vulkan_context->GetPhysicalDevice(), m_surface, &mode_count, nullptr);
+			g_vulkan_context->GetPhysicalDevice(), VK_NULL_HANDLE, &mode_count, nullptr);
 	if (res != VK_SUCCESS || mode_count == 0)
 		return false;
 
 	std::vector<VkPresentModeKHR> present_modes(mode_count);
 	res = vkGetPhysicalDeviceSurfacePresentModesKHR(
-			g_vulkan_context->GetPhysicalDevice(), m_surface, &mode_count, present_modes.data());
+			g_vulkan_context->GetPhysicalDevice(), VK_NULL_HANDLE, &mode_count, present_modes.data());
 
 	// Checks if a particular mode is supported, if it is, returns that mode.
 	auto CheckForMode = [&present_modes](VkPresentModeKHR check_mode) {
@@ -169,7 +157,7 @@ bool VKSwapChain::CreateSwapChain()
 	// Look up surface properties to determine image count and dimensions
 	VkSurfaceCapabilitiesKHR surface_capabilities;
 	VkResult res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-			g_vulkan_context->GetPhysicalDevice(), m_surface, &surface_capabilities);
+			g_vulkan_context->GetPhysicalDevice(), VK_NULL_HANDLE, &surface_capabilities);
 	if (res != VK_SUCCESS)
 		return false;
 
@@ -223,7 +211,7 @@ bool VKSwapChain::CreateSwapChain()
 	m_swap_chain = VK_NULL_HANDLE;
 
 	// Now we can actually create the swap chain
-	VkSwapchainCreateInfoKHR swap_chain_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, nullptr, 0, m_surface,
+	VkSwapchainCreateInfoKHR swap_chain_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, nullptr, 0, VK_NULL_HANDLE,
 		image_count, m_surface_format.format, m_surface_format.colorSpace, size, 1u, image_usage,
 		VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, transform, alpha, m_present_mode,
 		VK_TRUE, old_swap_chain};
@@ -364,74 +352,13 @@ void VKSwapChain::ReleaseCurrentImage()
 	m_image_acquire_result.reset();
 }
 
-bool VKSwapChain::RecreateSwapChain()
-{
-	DestroySwapChainImages();
-
-	if (!CreateSwapChain() || !SetupSwapChainImages())
-	{
-		DestroySwapChainImages();
-		DestroySwapChain();
-		return false;
-	}
-
-	return true;
-}
-
-bool VKSwapChain::SetVSync(VkPresentModeKHR preferred_mode)
-{
-	if (m_preferred_present_mode == preferred_mode)
-		return true;
-
-	// Recreate the swap chain with the new present mode.
-	m_preferred_present_mode = preferred_mode;
-	return RecreateSwapChain();
-}
-
 bool VKSwapChain::RecreateSurface(const WindowInfo& new_wi)
 {
 	// Destroy the old swap chain, images, and surface.
 	DestroySwapChainImages();
 	DestroySwapChain();
-	DestroySurface();
 
 	// Re-create the surface with the new native handle
 	m_window_info = new_wi;
-	m_surface = CreateVulkanSurface(
-			g_vulkan_context->GetVulkanInstance(), g_vulkan_context->GetPhysicalDevice(), &m_window_info);
-	if (m_surface == VK_NULL_HANDLE)
-		return false;
-
-	// The validation layers get angry at us if we don't call this before creating the swapchain.
-	VkBool32 present_supported = VK_TRUE;
-	VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkan_context->GetPhysicalDevice(),
-			g_vulkan_context->GetPresentQueueFamilyIndex(), m_surface, &present_supported);
-	if (res != VK_SUCCESS)
-		return false;
-	if (!present_supported)
-	{
-		Console.Error("Recreated surface does not support presenting.");
-		return false;
-	}
-
-	// Finally re-create the swap chain
-	if (!CreateSwapChain())
-		return false;
-	if (!SetupSwapChainImages())
-	{
-		DestroySwapChain();
-		DestroySurface();
-		return false;
-	}
-
-	return true;
-}
-
-void VKSwapChain::DestroySurface()
-{
-	if (m_surface == VK_NULL_HANDLE)
-		return;
-
-	DestroyVulkanSurface(g_vulkan_context->GetVulkanInstance(), &m_window_info, m_surface);
-	m_surface = VK_NULL_HANDLE;
+	return false;
 }

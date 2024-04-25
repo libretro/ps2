@@ -31,49 +31,21 @@ class VKSwapChain
 		VKSwapChain(const WindowInfo& wi, VkSurfaceKHR surface, VkPresentModeKHR preferred_present_mode);
 		~VKSwapChain();
 
-		// Creates a vulkan-renderable surface for the specified window handle.
-		static VkSurfaceKHR CreateVulkanSurface(VkInstance instance, VkPhysicalDevice physical_device, WindowInfo* wi);
-
-		// Destroys a previously-created surface.
-		static void DestroyVulkanSurface(VkInstance instance, WindowInfo* wi, VkSurfaceKHR surface);
-
 		// Create a new swap chain from a pre-existing surface.
 		static std::unique_ptr<VKSwapChain> Create(const WindowInfo& wi, VkSurfaceKHR surface,
 				VkPresentModeKHR preferred_present_mode);
 
-		__fi VkSurfaceKHR GetSurface() const { return m_surface; }
-		__fi VkSurfaceFormatKHR GetSurfaceFormat() const { return m_surface_format; }
 		__fi VkFormat GetTextureFormat() const { return m_surface_format.format; }
-		__fi VkPresentModeKHR GetPreferredPresentMode() const { return m_preferred_present_mode; }
-		__fi VkSwapchainKHR GetSwapChain() const { return m_swap_chain; }
-		__fi const VkSwapchainKHR* GetSwapChainPtr() const { return &m_swap_chain; }
 		__fi const WindowInfo& GetWindowInfo() const { return m_window_info; }
 		__fi u32 GetWidth() const { return m_window_info.surface_width; }
 		__fi u32 GetHeight() const { return m_window_info.surface_height; }
-		__fi u32 GetCurrentImageIndex() const { return m_current_image; }
-		__fi const u32* GetCurrentImageIndexPtr() const { return &m_current_image; }
-		__fi u32 GetImageCount() const { return static_cast<u32>(m_images.size()); }
 		__fi VkImage GetCurrentImage() const { return m_images[m_current_image].image; }
 		__fi const GSTextureVK* GetCurrentTexture() const { return m_images[m_current_image].texture.get(); }
 		__fi GSTextureVK* GetCurrentTexture() { return m_images[m_current_image].texture.get(); }
-		__fi VkSemaphore GetImageAvailableSemaphore() const { return m_semaphores[m_current_semaphore].available_semaphore; }
-		__fi const VkSemaphore* GetImageAvailableSemaphorePtr() const { return &m_semaphores[m_current_semaphore].available_semaphore; }
-		__fi VkSemaphore GetRenderingFinishedSemaphore() const { return m_semaphores[m_current_semaphore].rendering_finished_semaphore; }
-		__fi const VkSemaphore* GetRenderingFinishedSemaphorePtr() const { return &m_semaphores[m_current_semaphore].rendering_finished_semaphore; }
 		VkResult AcquireNextImage();
 		void ReleaseCurrentImage();
 
 		bool RecreateSurface(const WindowInfo& new_wi);
-		bool RecreateSwapChain();
-
-		// Change vsync enabled state. This may fail as it causes a swapchain recreation.
-		bool SetVSync(VkPresentModeKHR preferred_mode);
-
-		// Returns true if the current present mode is synchronizing (adaptive or hard).
-		bool IsPresentModeSynchronizing() const
-		{
-			return (m_present_mode == VK_PRESENT_MODE_FIFO_KHR || m_present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR);
-		}
 
 	private:
 		bool SelectSurfaceFormat();
@@ -84,8 +56,6 @@ class VKSwapChain
 
 		bool SetupSwapChainImages();
 		void DestroySwapChainImages();
-
-		void DestroySurface();
 
 		struct SwapChainImage
 		{
@@ -101,7 +71,6 @@ class VKSwapChain
 
 		WindowInfo m_window_info;
 
-		VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 		VkSurfaceFormatKHR m_surface_format = {};
 		VkPresentModeKHR m_preferred_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 		VkPresentModeKHR m_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
