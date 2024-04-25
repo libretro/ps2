@@ -110,12 +110,7 @@ public:
 	void Identify();
 	void CountCores();
 
-	u32 CalculateMHz() const;
-
 	void SIMD_EstablishMXCSRmask();
-
-protected:
-	s64 _CPUSpeedHz(u64 time) const;
 };
 
 enum SSE_RoundMode

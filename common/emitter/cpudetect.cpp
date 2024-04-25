@@ -95,47 +95,6 @@ void x86capabilities::SIMD_EstablishMXCSRmask()
 		MXCSR_Mask.bitmask = result;
 }
 
-// Counts the number of cpu cycles executed over the requested number of PerformanceCounter
-// ticks. Returns that exact count.
-// For best results you should pick a period of time long enough to get a reading that won't
-// be prone to rounding error; but short enough that it'll be highly unlikely to be interrupted
-// by the operating system task switches.
-s64 x86capabilities::_CPUSpeedHz(u64 time) const
-{
-	u64 timeStart, timeStop;
-	s64 startCycle, endCycle;
-
-	if (!hasTimeStampCounter)
-		return 0;
-
-	// Align the cpu execution to a cpuTick boundary.
-
-	do
-	{
-		timeStart = GetCPUTicks();
-		startCycle = __rdtsc();
-	} while (GetCPUTicks() == timeStart);
-
-	do
-	{
-		timeStop = GetCPUTicks();
-		endCycle = __rdtsc();
-	} while ((timeStop - timeStart) < time);
-
-	s64 cycleCount = endCycle - startCycle;
-	s64 timeCount = timeStop - timeStart;
-	s64 overrun = timeCount - time;
-	if (!overrun)
-		return cycleCount;
-
-	// interference could cause us to overshoot the target time, compensate:
-
-	double cyclesPerTick = (double)cycleCount / (double)timeCount;
-	double newCycleCount = (double)cycleCount - (cyclesPerTick * overrun);
-
-	return (s64)newCycleCount;
-}
-
 void x86capabilities::CountCores()
 {
 	Identify();
@@ -271,14 +230,4 @@ void x86capabilities::Identify()
 	hasStreamingSIMD4ExtensionsA = (EFlags2 >> 6) & 1; //INSERTQ / EXTRQ / MOVNT
 
 	isIdentified = true;
-}
-
-u32 x86capabilities::CalculateMHz() const
-{
-	InitCPUTicks();
-	u64 span = GetTickFrequency();
-
-	if ((span % 1000) < 400) // helps minimize rounding errors
-		return (u32)(_CPUSpeedHz(span / 1000) / 1000);
-	return (u32)(_CPUSpeedHz(span / 500) / 2000);
 }
