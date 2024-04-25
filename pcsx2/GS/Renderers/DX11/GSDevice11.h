@@ -120,10 +120,6 @@ private:
 
 	void SetFeatures(IDXGIAdapter1* adapter);
 
-	bool CreateSwapChain();
-	bool CreateSwapChainRTV();
-	void DestroySwapChain();
-
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
 
@@ -233,8 +229,6 @@ public:
 	void Destroy() override;
 
 	RenderAPI GetRenderAPI() const override;
-
-	void DestroySurface() override;
 
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;

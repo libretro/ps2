@@ -703,10 +703,6 @@ void GSDeviceOGL::DestroyResources()
 		glDeleteFramebuffers(1, &m_fbo_write);
 }
 
-void GSDeviceOGL::DestroySurface()
-{
-}
-
 GSDevice::PresentResult GSDeviceOGL::BeginPresent(bool frame_skip)
 {
 	if (frame_skip)

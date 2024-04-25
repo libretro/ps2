@@ -1711,11 +1711,6 @@ void GSDeviceVK::Destroy()
 	}
 }
 
-void GSDeviceVK::DestroySurface()
-{
-	g_vulkan_context->WaitForGPUIdle();
-}
-
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 {
 	EndRenderPass();

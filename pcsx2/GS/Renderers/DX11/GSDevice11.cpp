@@ -390,7 +390,6 @@ bool GSDevice11::Create()
 void GSDevice11::Destroy()
 {
 	GSDevice::Destroy();
-	DestroySwapChain();
 
 	m_convert = {};
 	m_present = {};
@@ -452,11 +451,6 @@ void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
 		}
 	}
 }
-
-bool GSDevice11::CreateSwapChain() { return true; }
-bool GSDevice11::CreateSwapChainRTV() { return true; }
-void GSDevice11::DestroySwapChain() { }
-void GSDevice11::DestroySurface() { }
 
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)
 {

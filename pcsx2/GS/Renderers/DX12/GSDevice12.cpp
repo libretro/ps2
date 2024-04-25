@@ -743,31 +743,8 @@ void GSDevice12::Destroy()
 		EndRenderPass();
 		ExecuteCommandList(true);
 		DestroyResources();
-		DestroySwapChain();
 		g_d3d12_context->Destroy();
 	}
-}
-
-bool GSDevice12::CreateSwapChain()
-{
-	return true;
-}
-
-bool GSDevice12::CreateSwapChainRTV()
-{
-	return true;
-}
-
-void GSDevice12::DestroySwapChainRTVs()
-{
-}
-
-void GSDevice12::DestroySwapChain()
-{
-}
-
-void GSDevice12::DestroySurface()
-{
 }
 
 GSDevice::PresentResult GSDevice12::BeginPresent(bool frame_skip)

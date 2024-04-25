@@ -176,11 +176,6 @@ private:
 
 	void LookupNativeFormat(GSTexture::Format format, DXGI_FORMAT* d3d_format, DXGI_FORMAT* srv_format, DXGI_FORMAT* rtv_format, DXGI_FORMAT* dsv_format) const;
 
-	bool CreateSwapChain();
-	bool CreateSwapChainRTV();
-	void DestroySwapChainRTVs();
-	void DestroySwapChain();
-
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE,
@@ -222,8 +217,6 @@ public:
 
 	bool Create() override;
 	void Destroy() override;
-
-	void DestroySurface() override;
 
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;

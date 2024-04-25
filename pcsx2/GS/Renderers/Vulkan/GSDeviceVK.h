@@ -214,8 +214,6 @@ public:
 	bool Create() override;
 	void Destroy() override;
 
-	void DestroySurface() override;
-
 	PresentResult BeginPresent(bool frame_skip) override;
 	void EndPresent() override;
 
