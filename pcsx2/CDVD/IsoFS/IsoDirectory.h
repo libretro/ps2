@@ -33,8 +33,6 @@ public:
 	bool OpenRootDirectory();
 	bool Open(const IsoFileDescriptor& directoryEntry);
 
-	SectorSource& GetReader() const { return internalReader; }
-
 	bool Exists(const std::string_view& filePath) const;
 	bool IsFile(const std::string_view& filePath) const;
 
