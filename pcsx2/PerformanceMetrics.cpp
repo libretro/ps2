@@ -50,9 +50,9 @@ void PerformanceMetrics::Update(bool gs_register_write, bool fb_blit)
 	s_gs_privileged_register_writes_since_last_update += static_cast<u32>(gs_register_write);
 	s_gs_framebuffer_blits_since_last_update += static_cast<u32>(fb_blit);
 
-	const Common::Timer::Value now_ticks = Common::Timer::GetCurrentValue();
-	const Common::Timer::Value ticks_diff = now_ticks - s_last_update_time.GetStartValue();
-	const float time = Common::Timer::ConvertValueToSeconds(ticks_diff);
+	const uint64_t now_ticks  = Common::Timer::GetCurrentValue();
+	const uint64_t ticks_diff = now_ticks - s_last_update_time.GetStartValue();
+	const float time          = Common::Timer::ConvertValueToSeconds(ticks_diff);
 	if (time < 0.5f)
 		return;
 

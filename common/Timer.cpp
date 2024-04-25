@@ -31,7 +31,7 @@ namespace Common
 	static double s_counter_frequency;
 	static bool s_counter_initialized = false;
 
-	Timer::Value Timer::GetCurrentValue()
+	uint64_t Timer::GetCurrentValue()
 	{
 		// even if this races, it should still result in the same value..
 		if (!s_counter_initialized)
@@ -42,24 +42,24 @@ namespace Common
 			s_counter_initialized = true;
 		}
 
-		Timer::Value ReturnValue;
+		uint64_t ReturnValue;
 		QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&ReturnValue));
 		return ReturnValue;
 	}
 
-	double Timer::ConvertValueToSeconds(Timer::Value value)
+	double Timer::ConvertValueToSeconds(uint64_t value)
 	{
 		return ((static_cast<double>(value) / s_counter_frequency) / 1000000000.0);
 	}
 #else
-	Timer::Value Timer::GetCurrentValue()
+	uint64_t Timer::GetCurrentValue()
 	{
 		struct timespec tv;
 		clock_gettime(CLOCK_MONOTONIC, &tv);
-		return ((Value)tv.tv_nsec + (Value)tv.tv_sec * 1000000000);
+		return ((uint64_t)tv.tv_nsec + (uint64_t)tv.tv_sec * 1000000000);
 	}
 
-	double Timer::ConvertValueToSeconds(Timer::Value value)
+	double Timer::ConvertValueToSeconds(uint64_t value)
 	{
 		return (static_cast<double>(value) / 1000000000.0);
 	}

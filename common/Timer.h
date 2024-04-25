@@ -21,18 +21,16 @@ namespace Common
 	class Timer
 	{
 	public:
-		using Value = std::uint64_t;
-
 		Timer();
 
-		static Value GetCurrentValue();
-		static double ConvertValueToSeconds(Value value);
+		static uint64_t GetCurrentValue();
+		static double ConvertValueToSeconds(uint64_t value);
 
 		void Reset();
-		void ResetTo(Value value) { m_tvStartValue = value; }
+		void ResetTo(uint64_t value) { m_tvStartValue = value; }
 
-		Value GetStartValue() const { return m_tvStartValue; }
+		uint64_t GetStartValue() const { return m_tvStartValue; }
 	private:
-		Value m_tvStartValue;
+		uint64_t m_tvStartValue;
 	};
 } // namespace Common
