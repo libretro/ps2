@@ -28,46 +28,6 @@
 #include "common/Threading.h"
 #include "common/WindowInfo.h"
 
-// Darwin (OSX) is a bit different from Linux when requesting properties of
-// the OS because of its BSD/Mach heritage. Helpfully, most of this code
-// should translate pretty well to other *BSD systems. (e.g.: the sysctl(3)
-// interface).
-//
-// For an overview of all of Darwin's sysctls, check:
-// https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man3/sysctl.3.html
-
-static u64 tickfreq;
-static mach_timebase_info_data_t s_timebase_info;
-
-void InitCPUTicks()
-{
-	if (mach_timebase_info(&s_timebase_info) != KERN_SUCCESS)
-		abort();
-	tickfreq = (u64)1e9 * (u64)s_timebase_info.denom / (u64)s_timebase_info.numer;
-}
-
-// returns the performance-counter frequency: ticks per second (Hz)
-//
-// usage:
-//   u64 seconds_passed = GetCPUTicks() / GetTickFrequency();
-//   u64 millis_passed = (GetCPUTicks() * 1000) / GetTickFrequency();
-//
-// NOTE: multiply, subtract, ... your ticks before dividing by
-// GetTickFrequency() to maintain good precision.
-u64 GetTickFrequency()
-{
-	return tickfreq;
-}
-
-// return the number of "ticks" since some arbitrary, fixed time in the
-// past. On OSX x86(-64), this is actually the number of nanoseconds passed,
-// because mach_timebase_info.numer == denom == 1. So "ticks" ==
-// nanoseconds.
-u64 GetCPUTicks()
-{
-	return mach_absolute_time();
-}
-
 void Threading::Sleep(int ms)
 {
 	usleep(1000 * ms);

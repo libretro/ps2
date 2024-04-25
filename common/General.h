@@ -196,7 +196,3 @@ private:
 	PlaceholderMap m_placeholder_ranges;
 #endif
 };
-
-extern void InitCPUTicks();
-extern u64 GetTickFrequency();
-extern u64 GetCPUTicks();

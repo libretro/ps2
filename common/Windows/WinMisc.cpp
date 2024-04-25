@@ -24,25 +24,6 @@
 #include <timeapi.h>
 #include <VersionHelpers.h>
 
-alignas(16) static LARGE_INTEGER lfreq;
-
-void InitCPUTicks()
-{
-	QueryPerformanceFrequency(&lfreq);
-}
-
-u64 GetTickFrequency()
-{
-	return lfreq.QuadPart;
-}
-
-u64 GetCPUTicks()
-{
-	LARGE_INTEGER count;
-	QueryPerformanceCounter(&count);
-	return count.QuadPart;
-}
-
 void Threading::Sleep(int ms)
 {
 	::Sleep(ms);

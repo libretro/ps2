@@ -263,17 +263,15 @@ const xRegister32
 		// no registers? no sibs!
 		// (xIndirectVoid::Reduce always places a register in Index, and optionally leaves
 		// Base empty if only register is specified)
-		if (info.Index.IsEmpty())
-			return false;
-
-		// A scaled register needs a SIB
-		if (info.Scale != 0)
-			return true;
-
-		// two registers needs a SIB
-		if (!info.Base.IsEmpty())
-			return true;
-
+		if (!info.Index.IsEmpty())
+		{
+			// A scaled register needs a SIB
+			if (info.Scale != 0)
+				return true;
+			// two registers needs a SIB
+			if (!info.Base.IsEmpty())
+				return true;
+		}
 		return false;
 	}
 
@@ -287,8 +285,8 @@ const xRegister32
 	{
 		// 3 bits also on x86_64 (so max is 8)
 		// We might need to mask it on x86_64
-		int displacement_size = (info.Displacement == 0) ? 0 :
-                                                           ((info.IsByteSizeDisp()) ? 1 : 2);
+		int displacement_size = (info.Displacement == 0)   ? 0 :
+                                       ((is_s8(info.Displacement)) ? 1 : 2);
 
 		if (!NeedsSibMagic(info))
 		{
@@ -715,8 +713,6 @@ const xRegister32
 
 		switch (Scale)
 		{
-			case 0:
-				break;
 			case 1:
 				Scale = 0;
 				break;
@@ -749,6 +745,7 @@ const xRegister32
 				Base = Index;
 				Scale = 3;
 				break;
+			case 0:
 			default:
 				break;
 		}
@@ -770,8 +767,8 @@ const xRegister32
 	//
 	static void EmitLeaMagic(const xRegisterInt& to, const xIndirectVoid& src, bool preserve_flags)
 	{
-		int displacement_size = (src.Displacement == 0) ? 0 :
-                                                          ((src.IsByteSizeDisp()) ? 1 : 2);
+		int displacement_size = (src.Displacement == 0)    ? 0 :
+                                        ((is_s8(src.Displacement)) ? 1 : 2);
 
 		// See EmitSibMagic for commenting on SIB encoding.
 

@@ -27,20 +27,6 @@
 #include "common/General.h"
 #include "common/Threading.h"
 
-void InitCPUTicks() { }
-
-u64 GetTickFrequency()
-{
-	return 1000000000; // unix measures in nanoseconds
-}
-
-u64 GetCPUTicks()
-{
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return (static_cast<u64>(ts.tv_sec) * 1000000000ULL) + ts.tv_nsec;
-}
-
 void Threading::Sleep(int ms)
 {
 	usleep(1000 * ms);

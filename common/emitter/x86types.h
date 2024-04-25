@@ -24,8 +24,7 @@ static const uint iREGCNT_GPR = 16;
 enum XMMSSEType
 {
 	XMMT_INT = 0, // integer (sse2 only)
-	XMMT_FPS = 1, // floating point
-	//XMMT_FPD = 3, // double
+	XMMT_FPS = 1  // floating point
 };
 
 extern thread_local u8* x86Ptr;
@@ -757,8 +756,6 @@ extern const xRegister32
 		explicit xAddressVoid(sptr displacement = 0);
 
 	public:
-		bool IsByteSizeDisp() const { return is_s8(Displacement); }
-
 		xAddressVoid& Add(sptr imm)
 		{
 			Displacement += imm;
@@ -852,7 +849,6 @@ extern const xRegister32
 		xIndirectVoid(xAddressReg base, xAddressReg index, int scale = 0, sptr displacement = 0);
 		xIndirectVoid& Add(sptr imm);
 
-		bool IsByteSizeDisp() const { return is_s8(Displacement); }
 		bool IsMem() const { return true; }
 		bool IsReg() const { return false; }
 		bool IsExtended() const { return false; } // Non sense but ease template
