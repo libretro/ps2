@@ -679,8 +679,6 @@ bool GSRendererSW::CheckSourcePages(SharedData* sd)
 	return false;
 }
 
-#include "GSTextureSW.h"
-
 bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 {
 	GSScanlineGlobalData& gd = data->global;
