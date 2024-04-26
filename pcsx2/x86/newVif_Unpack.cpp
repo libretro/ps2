@@ -91,10 +91,6 @@ void resetNewVif(int idx)
 		dVifReset(idx);
 }
 
-void releaseNewVif(int idx)
-{
-}
-
 static __fi u8* getVUptr(uint idx, int offset)
 {
 	return (u8*)(vuRegs[idx].Mem + (offset & (idx ? 0x3ff0 : 0xff0)));

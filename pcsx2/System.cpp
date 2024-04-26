@@ -145,9 +145,6 @@ void SysMainMemory::Release()
 
 	vtlb_Core_Free(); // Just to be sure... (calling order could result in it getting missed during Decommit).
 
-	releaseNewVif(0);
-	releaseNewVif(1);
-
 	m_ee.Release();
 	m_iop.Release();
 	m_vu.Release();
