@@ -55,8 +55,7 @@ enum : u32
        ~VKContext();
 
        // Helper method to create a Vulkan instance.
-       static VkInstance CreateVulkanInstance(
-		       bool enable_debug_utils, bool enable_validation_layer);
+       static VkInstance CreateVulkanInstance();
 
        // Returns a list of Vulkan-compatible GPUs.
        using GPUList = std::vector<VkPhysicalDevice>;
@@ -65,15 +64,10 @@ enum : u32
        static GPUNameList EnumerateGPUNames(VkInstance instance);
 
        // Creates a new context and sets it up as global.
-       static bool Create(VkInstance instance, VkPhysicalDevice physical_device,
-		       bool enable_debug_utils, bool enable_validation_layer);
+       static bool Create(VkInstance instance, VkPhysicalDevice physical_device);
 
        // Destroys context.
        static void Destroy();
-
-       // Enable/disable debug message runtime.
-       bool EnableDebugUtils();
-       void DisableDebugUtils();
 
        // Global state accessors
        __fi VkInstance GetVulkanInstance() const { return m_instance; }
@@ -82,8 +76,6 @@ enum : u32
        __fi VmaAllocator GetAllocator() const { return m_allocator; }
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
-       __fi VkQueue GetPresentQueue() const { return m_present_queue; }
-       __fi u32 GetPresentQueueFamilyIndex() const { return m_present_queue_family_index; }
        __fi const VkQueueFamilyProperties& GetGraphicsQueueProperties() const { return m_graphics_queue_properties; }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
        __fi const VkPhysicalDeviceFeatures& GetDeviceFeatures() const { return m_device_features; }
@@ -147,13 +139,8 @@ enum : u32
        // These command buffers are allocated per-frame. They are valid until the command buffer
        // is submitted, after that you should call these functions again.
        __fi u32 GetCurrentCommandBufferIndex() const { return m_current_frame; }
-       __fi VkDescriptorPool GetGlobalDescriptorPool() const { return m_global_descriptor_pool; }
        __fi VkCommandBuffer GetCurrentCommandBuffer() const { return m_current_command_buffer; }
        __fi VKStreamBuffer& GetTextureUploadBuffer() { return m_texture_upload_buffer; }
-       __fi VkDescriptorPool GetCurrentDescriptorPool() const
-       {
-	       return m_frame_resources[m_current_frame].descriptor_pool;
-       }
        VkCommandBuffer GetCurrentInitCommandBuffer();
 
        /// Allocates a descriptor set from the pool reserved for the current frame.
@@ -164,10 +151,6 @@ enum : u32
 
        /// Frees a descriptor set allocated from the global pool.
        void FreeGlobalDescriptorSet(VkDescriptorSet set);
-
-       // Gets the fence that will be signaled when the currently executing command buffer is
-       // queued and executed. Do not wait for this fence before the buffer is executed.
-       __fi VkFence GetCurrentCommandBufferFence() const { return m_frame_resources[m_current_frame].fence; }
 
        // Fence "counters" are used to track which commands have been completed by the GPU.
        // If the last completed fence counter is greater or equal to N, it means that the work
@@ -228,11 +211,10 @@ enum : u32
        };
 
        using ExtensionList = std::vector<const char*>;
-       static bool SelectInstanceExtensions(
-		       ExtensionList* extension_list, bool enable_debug_utils);
+       static bool SelectInstanceExtensions(ExtensionList* extension_list);
        bool SelectDeviceExtensions(ExtensionList* extension_list);
        bool SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features);
-       bool CreateDevice(bool enable_validation_layer, const char** required_device_extensions,
+       bool CreateDevice(const char** required_device_extensions,
 		       u32 num_required_device_extensions, const char** required_device_layers, u32 num_required_device_layers,
 		       const VkPhysicalDeviceFeatures* required_features);
        void ProcessDeviceExtensions();
@@ -275,9 +257,7 @@ enum : u32
        VkDescriptorPool m_global_descriptor_pool = VK_NULL_HANDLE;
 
        VkQueue m_graphics_queue = VK_NULL_HANDLE;
-       VkQueue m_present_queue = VK_NULL_HANDLE;
        u32 m_graphics_queue_family_index = 0;
-       u32 m_present_queue_family_index = 0;
 
        std::array<FrameResources, NUM_COMMAND_BUFFERS> m_frame_resources;
        u64 m_next_fence_counter = 1;
@@ -289,8 +269,6 @@ enum : u32
        std::atomic_bool m_last_submit_failed{false};
 
        std::map<u32, VkRenderPass> m_render_pass_cache;
-
-       VkDebugUtilsMessengerEXT m_debug_messenger_callback = VK_NULL_HANDLE;
 
        VkQueueFamilyProperties m_graphics_queue_properties = {};
        VkPhysicalDeviceFeatures m_device_features = {};

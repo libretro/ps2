@@ -293,15 +293,15 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 	VKContext::~VKContext() = default;
 
-	VkInstance VKContext::CreateVulkanInstance(bool enable_debug_utils, bool enable_validation_layer)
+	VkInstance VKContext::CreateVulkanInstance()
 	{
 		ExtensionList enabled_extensions;
-		if (!SelectInstanceExtensions(&enabled_extensions, enable_debug_utils))
+		if (!SelectInstanceExtensions(&enabled_extensions))
 			return VK_NULL_HANDLE;
 		return vk_init_info.instance;
 	}
 
-	bool VKContext::SelectInstanceExtensions(ExtensionList* extension_list, bool enable_debug_utils)
+	bool VKContext::SelectInstanceExtensions(ExtensionList* extension_list)
 	{
 		u32 extension_count = 0;
 		VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
@@ -332,10 +332,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 			return false;
 		};
-
-		// VK_EXT_debug_utils
-		if (enable_debug_utils && !SupportsExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false))
-			Console.Warning("Vulkan: Debug report requested, but extension is not available.");
 
 		return true;
 	}
@@ -405,18 +401,14 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return gpu_names;
 	}
 
-	bool VKContext::Create(VkInstance instance, VkPhysicalDevice physical_device,
-		bool enable_debug_utils, bool enable_validation_layer)
+	bool VKContext::Create(VkInstance instance, VkPhysicalDevice physical_device)
 	{
 		if (!g_vulkan_context)
 			Console.Warning("Has no current context");
 		g_vulkan_context.reset(new VKContext(instance, physical_device));
 
-		if (enable_debug_utils)
-			g_vulkan_context->EnableDebugUtils();
-
 		// Attempt to create the device.
-		if (!g_vulkan_context->CreateDevice(enable_validation_layer, nullptr, 0, nullptr, 0, nullptr))
+		if (!g_vulkan_context->CreateDevice(nullptr, 0, nullptr, 0, nullptr))
 			goto error;
 
 		// And critical resources
@@ -457,9 +449,6 @@ error:
 
 		if (m_device != VK_NULL_HANDLE)
 			vkDestroyDevice(m_device, nullptr);
-
-		if (g_vulkan_context->m_debug_messenger_callback != VK_NULL_HANDLE)
-			g_vulkan_context->DisableDebugUtils();
 
 		if (g_vulkan_context->m_instance != VK_NULL_HANDLE)
 			vkDestroyInstance(g_vulkan_context->m_instance, nullptr);
@@ -548,7 +537,7 @@ error:
 		return true;
 	}
 
-	bool VKContext::CreateDevice(bool enable_validation_layer,
+	bool VKContext::CreateDevice(
 		const char** required_device_extensions, u32 num_required_device_extensions,
 		const char** required_device_layers, u32 num_required_device_layers,
 		const VkPhysicalDeviceFeatures* required_features)
@@ -568,7 +557,6 @@ error:
 
 		// Find graphics and present queues.
 		m_graphics_queue_family_index = queue_family_count;
-		m_present_queue_family_index  = queue_family_count;
 
 		for (uint32_t i = 0; i < queue_family_count; i++)
 		{
@@ -622,14 +610,6 @@ error:
 			return false;
 
 		device_info.pEnabledFeatures = &m_device_features;
-
-		// Enable debug layer on debug builds
-		if (enable_validation_layer)
-		{
-			static const char* layer_names[] = {"VK_LAYER_LUNARG_standard_validation"};
-			device_info.enabledLayerCount = 1;
-			device_info.ppEnabledLayerNames = layer_names;
-		}
 
 		// provoking vertex
 		VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_feature = {
@@ -1171,69 +1151,6 @@ error:
 		resources.cleanup_resources.push_back([this, sampler]() { vkDestroySampler(m_device, sampler, nullptr); });
 	}
 
-	VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-		void* pUserData)
-	{
-		if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-		{
-			Console.Error("Vulkan debug report: (%s) %s",
-				pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
-		}
-		else if (severity & (VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT))
-		{
-			Console.Warning("Vulkan debug report: (%s) %s",
-				pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
-		}
-		else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
-		{
-			Console.WriteLn("Vulkan debug report: (%s) %s",
-				pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
-		}
-		else
-		{
-			Console.WriteLn("Vulkan debug report: (%s) %s",
-				pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "", pCallbackData->pMessage);
-		}
-
-		return VK_FALSE;
-	}
-
-	bool VKContext::EnableDebugUtils()
-	{
-		// Already enabled?
-		if (m_debug_messenger_callback != VK_NULL_HANDLE)
-			return true;
-
-		// Check for presence of the functions before calling
-		if (!vkCreateDebugUtilsMessengerEXT || !vkDestroyDebugUtilsMessengerEXT || !vkSubmitDebugUtilsMessageEXT)
-			return false;
-
-		VkDebugUtilsMessengerCreateInfoEXT messenger_info = {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-			nullptr, 0,
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-				VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
-			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
-			DebugMessengerCallback, nullptr};
-
-		const VkResult res =
-			vkCreateDebugUtilsMessengerEXT(m_instance, &messenger_info, nullptr, &m_debug_messenger_callback);
-		if (res != VK_SUCCESS)
-			return false;
-
-		return true;
-	}
-
-	void VKContext::DisableDebugUtils()
-	{
-		if (m_debug_messenger_callback != VK_NULL_HANDLE)
-		{
-			vkDestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger_callback, nullptr);
-			m_debug_messenger_callback = VK_NULL_HANDLE;
-		}
-	}
-
 	VkRenderPass VKContext::CreateCachedRenderPass(RenderPassCacheKey key)
 	{
 		VkAttachmentReference color_reference;
@@ -1410,7 +1327,7 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 	{
 		if (Vulkan::LoadVulkanLibrary())
 		{
-			VkInstance instance = VKContext::CreateVulkanInstance(false, false);
+			VkInstance instance = VKContext::CreateVulkanInstance();
 			if (instance != VK_NULL_HANDLE)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -1596,9 +1513,6 @@ void GSDeviceVK::RestoreAPIState()
 
 bool GSDeviceVK::CreateDeviceAndSwapChain()
 {
-	bool enable_debug_utils = GSConfig.UseDebugDevice;
-	bool enable_validation_layer = GSConfig.UseDebugDevice;
-
 	if (!Vulkan::LoadVulkanLibrary())
 	{
 		Console.Error("Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
@@ -1608,26 +1522,12 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	AcquireWindow();
 
 	VkInstance instance =
-		VKContext::CreateVulkanInstance(enable_debug_utils, enable_validation_layer);
+		VKContext::CreateVulkanInstance();
 	if (instance == VK_NULL_HANDLE)
 	{
-		if (enable_debug_utils || enable_validation_layer)
-		{
-			// Try again without the validation layer.
-			enable_debug_utils = false;
-			enable_validation_layer = false;
-			instance =
-				VKContext::CreateVulkanInstance(enable_debug_utils, enable_validation_layer);
-			if (instance == VK_NULL_HANDLE)
-			{
-				Console.Error(
-					"Failed to create Vulkan instance. Does your GPU and/or driver support Vulkan?");
-				Vulkan::UnloadVulkanLibrary();
-				return false;
-			}
-
-			Console.Error("Vulkan validation/debug layers requested but are unavailable. Creating non-debug device.");
-		}
+		Console.Error("Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
+		Vulkan::UnloadVulkanLibrary();
+		return false;
 	}
 
 	if (!Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -1670,8 +1570,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		Console.WriteLn("No GPU requested, using first (%s)", gpu_names[0].c_str());
 	}
 
-	if (!VKContext::Create(instance, gpus[gpu_index], enable_debug_utils, enable_validation_layer
-			))
+	if (!VKContext::Create(instance, gpus[gpu_index]))
 	{
 		Console.Error("Failed to create Vulkan context");
 		vkDestroyInstance(instance, nullptr);
