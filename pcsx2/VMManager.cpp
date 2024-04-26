@@ -23,7 +23,6 @@
 
 #include "common/Console.h"
 #include "common/FileSystem.h"
-#include "common/ScopedGuard.h"
 #include "common/SettingsWrapper.h"
 #include "common/Threading.h"
 #include "fmt/core.h"
@@ -525,63 +524,73 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 
 bool VMManager::Initialize(VMBootParameters boot_params)
 {
+	std::string state_to_load;
 	s_state.store(VMState::Initializing, std::memory_order_release);
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 
-	ScopedGuard close_state = [] {
+	if (!ApplyBootParameters(std::move(boot_params), &state_to_load))
+	{
 		s_vm_thread_handle = {};
 		s_state.store(VMState::Shutdown, std::memory_order_release);
-	};
-
-	std::string state_to_load;
-	if (!ApplyBootParameters(std::move(boot_params), &state_to_load))
 		return false;
+	}
 
 	// early out if we don't have a bios
 	if (!IsBIOSAvailable(EmuConfig.FullpathToBios()))
+	{
+		s_vm_thread_handle = {};
+		s_state.store(VMState::Shutdown, std::memory_order_release);
 		return false;
+	}
 
 	FileMcd_EmuOpen();
 
 	if (!DoCDVDopen())
+	{
+		s_vm_thread_handle = {};
+		s_state.store(VMState::Shutdown, std::memory_order_release);
 		return false;
-	ScopedGuard close_cdvd = [] { DoCDVDclose(); CDVDsys_ClearFiles(); };
+	}
 
 	SPU2::Open();
-	ScopedGuard close_spu2(&SPU2::Close);
 
 	if (PADinit() != 0 || PADopen() != 0)
+	{
+		SPU2::Close();
+		DoCDVDclose();
+		CDVDsys_ClearFiles();
+		s_vm_thread_handle = {};
+		s_state.store(VMState::Shutdown, std::memory_order_release);
 		return false;
-	ScopedGuard close_pad = []() {
-		PADclose();
-		PADshutdown();
-	};
+	}
 
 	if (DEV9init() != 0 || DEV9open() != 0)
+	{
+		PADclose();
+		PADshutdown();
+		SPU2::Close();
+		DoCDVDclose();
+		CDVDsys_ClearFiles();
+		s_vm_thread_handle = {};
+		s_state.store(VMState::Shutdown, std::memory_order_release);
 		return false;
-	ScopedGuard close_dev9 = []() {
-		DEV9close();
-		DEV9shutdown();
-	};
+	}
 
 	if (!USBopen())
+	{
+		DEV9close();
+		DEV9shutdown();
+		PADclose();
+		PADshutdown();
+		SPU2::Close();
+		DoCDVDclose();
+		CDVDsys_ClearFiles();
+		s_vm_thread_handle = {};
+		s_state.store(VMState::Shutdown, std::memory_order_release);
 		return false;
-	ScopedGuard close_usb = []() {
-		USBclose();
-	};
+	}
 
 	FWopen();
-	ScopedGuard close_fw = []() { FWclose(); };
-
-
-	// Don't close when we return
-	close_fw.Cancel();
-	close_usb.Cancel();
-	close_dev9.Cancel();
-	close_pad.Cancel();
-	close_spu2.Cancel();
-	close_cdvd.Cancel();
-	close_state.Cancel();
 
 #if defined(_M_X86)
 	s_mxcsr_saved = _mm_getcsr();

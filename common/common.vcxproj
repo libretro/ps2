@@ -107,7 +107,6 @@
     <ClInclude Include="HeterogeneousContainers.h" />
     <ClInclude Include="MD5Digest.h" />
     <ClInclude Include="MemorySettingsInterface.h" />
-    <ClInclude Include="ScopedGuard.h" />
     <ClInclude Include="StackWalker.h" />
     <ClInclude Include="StringUtil.h" />
     <ClInclude Include="SettingsInterface.h" />

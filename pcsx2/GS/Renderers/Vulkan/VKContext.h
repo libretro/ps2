@@ -85,14 +85,9 @@ enum : u32
        __fi VkQueue GetPresentQueue() const { return m_present_queue; }
        __fi u32 GetPresentQueueFamilyIndex() const { return m_present_queue_family_index; }
        __fi const VkQueueFamilyProperties& GetGraphicsQueueProperties() const { return m_graphics_queue_properties; }
-       __fi const VkPhysicalDeviceMemoryProperties& GetDeviceMemoryProperties() const
-       {
-	       return m_device_memory_properties;
-       }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
        __fi const VkPhysicalDeviceFeatures& GetDeviceFeatures() const { return m_device_features; }
        __fi const VkPhysicalDeviceLimits& GetDeviceLimits() const { return m_device_properties.limits; }
-       __fi const VkPhysicalDeviceDriverProperties& GetDeviceDriverProperties() const { return m_device_driver_properties; }
        __fi const OptionalExtensions& GetOptionalExtensions() const { return m_optional_extensions; }
 
        // The interaction between raster order attachment access and fbfetch is unclear.
@@ -189,15 +184,10 @@ enum : u32
 
        void ExecuteCommandBuffer(bool wait_for_completion);
 
-       // Was the last present submitted to the queue a failure? If so, we must recreate our swapchain.
-       bool CheckLastSubmitFail();
-
        // Schedule a vulkan resource for destruction later on. This will occur when the command buffer
        // is next re-used, and the GPU has finished working with the specified resource.
        void DeferBufferDestruction(VkBuffer object);
        void DeferBufferDestruction(VkBuffer object, VmaAllocation allocation);
-       void DeferBufferViewDestruction(VkBufferView object);
-       void DeferDeviceMemoryDestruction(VkDeviceMemory object);
        void DeferFramebufferDestruction(VkFramebuffer object);
        void DeferImageDestruction(VkImage object);
        void DeferImageDestruction(VkImage object, VmaAllocation allocation);
@@ -248,15 +238,12 @@ enum : u32
        void ProcessDeviceExtensions();
 
        bool CreateAllocator();
-       void DestroyAllocator();
        bool CreateCommandBuffers();
        void DestroyCommandBuffers();
        bool CreateGlobalDescriptorPool();
-       void DestroyGlobalDescriptorPool();
        bool CreateTextureStreamBuffer();
 
        VkRenderPass CreateCachedRenderPass(RenderPassCacheKey key);
-       void DestroyRenderPassCache();
 
        void CommandBufferCompleted(u32 index);
        void ActivateCommandBuffer(u32 index);
@@ -308,7 +295,6 @@ enum : u32
        VkQueueFamilyProperties m_graphics_queue_properties = {};
        VkPhysicalDeviceFeatures m_device_features = {};
        VkPhysicalDeviceProperties m_device_properties = {};
-       VkPhysicalDeviceMemoryProperties m_device_memory_properties = {};
        VkPhysicalDeviceDriverPropertiesKHR m_device_driver_properties = {};
        OptionalExtensions m_optional_extensions = {};
 };

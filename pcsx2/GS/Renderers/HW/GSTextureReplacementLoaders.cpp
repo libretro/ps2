@@ -23,7 +23,6 @@
 #include "common/Align.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
-#include "common/ScopedGuard.h"
 #include "common/StringUtil.h"
 
 #include "GS/Renderers/HW/GSTextureReplacements.h"
@@ -174,16 +173,18 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		return false;
 	}
 
-	ScopedGuard cleanup([&png_ptr, &info_ptr]() {
-		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-	});
-
 	auto fp = FileSystem::OpenManagedCFile(filename.c_str(), "rb");
 	if (!fp)
+	{
+		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
 		return false;
+	}
 
 	if (setjmp(png_jmpbuf(png_ptr)))
+	{
+		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
 		return false;
+	}
 
 	png_init_io(png_ptr, fp.get());
 	png_read_info(png_ptr, info_ptr);
@@ -194,7 +195,10 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	int colorType = -1;
 	if (png_get_IHDR(png_ptr, info_ptr, &width, &height, &bitDepth, &colorType, nullptr, nullptr, nullptr) != 1 ||
 		width == 0 || height == 0)
+	{
+		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
 		return false;
+	}
 
 	const u32 pitch = width * sizeof(u32);
 	tex->width = width;
@@ -228,6 +232,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 			memcpy(out_ptr, row_ptr, pitch);
 	}
 
+	png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
 	return true;
 }
 

@@ -243,13 +243,7 @@
     <ClInclude Include="StringUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ScopedGuard.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ScopedGuard.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HashCombine.h">

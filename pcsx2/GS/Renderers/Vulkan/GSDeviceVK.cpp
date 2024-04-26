@@ -26,7 +26,6 @@
 #include "ShaderCacheVersion.h"
 
 #include "common/Align.h"
-#include "common/ScopedGuard.h"
 #include "common/Console.h"
 #include "common/General.h"
 #include "common/StringUtil.h"
@@ -236,96 +235,32 @@ enum : u32
 	MAX_DESCRIPTOR_SETS_PER_FRAME = MAX_DRAW_CALLS_PER_FRAME * 2
 };
 
-static void SafeDestroyFramebuffer(VkFramebuffer& fb)
-{
-	if (fb != VK_NULL_HANDLE)
-	{
-		vkDestroyFramebuffer(g_vulkan_context->GetDevice(), fb, nullptr);
-		fb = VK_NULL_HANDLE;
-	}
-}
-
-static void SafeDestroyShaderModule(VkShaderModule& sm)
+static void SafeDestroyShaderModule(VkDevice dev, VkShaderModule& sm)
 {
 	if (sm != VK_NULL_HANDLE)
 	{
-		vkDestroyShaderModule(g_vulkan_context->GetDevice(), sm, nullptr);
+		vkDestroyShaderModule(dev, sm, nullptr);
 		sm = VK_NULL_HANDLE;
 	}
 }
 
-static void SafeDestroyPipeline(VkPipeline& p)
-{
-	if (p != VK_NULL_HANDLE)
-	{
-		vkDestroyPipeline(g_vulkan_context->GetDevice(), p, nullptr);
-		p = VK_NULL_HANDLE;
-	}
-}
-
-static void SafeDestroyPipelineLayout(VkPipelineLayout& pl)
+static void SafeDestroyPipelineLayout(VkDevice dev, VkPipelineLayout& pl)
 {
 	if (pl != VK_NULL_HANDLE)
 	{
-		vkDestroyPipelineLayout(g_vulkan_context->GetDevice(), pl, nullptr);
+		vkDestroyPipelineLayout(dev, pl, nullptr);
 		pl = VK_NULL_HANDLE;
 	}
 }
 
-static void SafeDestroyDescriptorSetLayout(VkDescriptorSetLayout& dsl)
+static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& dsl)
 {
 	if (dsl != VK_NULL_HANDLE)
 	{
-		vkDestroyDescriptorSetLayout(g_vulkan_context->GetDevice(), dsl, nullptr);
+		vkDestroyDescriptorSetLayout(dev, dsl, nullptr);
 		dsl = VK_NULL_HANDLE;
 	}
 }
-
-static void SafeDestroyBufferView(VkBufferView& bv)
-{
-	if (bv != VK_NULL_HANDLE)
-	{
-		vkDestroyBufferView(g_vulkan_context->GetDevice(), bv, nullptr);
-		bv = VK_NULL_HANDLE;
-	}
-}
-
-static void SafeDestroyImageView(VkImageView& iv)
-{
-	if (iv != VK_NULL_HANDLE)
-	{
-		vkDestroyImageView(g_vulkan_context->GetDevice(), iv, nullptr);
-		iv = VK_NULL_HANDLE;
-	}
-}
-
-static void SafeDestroySampler(VkSampler& samp)
-{
-	if (samp != VK_NULL_HANDLE)
-	{
-		vkDestroySampler(g_vulkan_context->GetDevice(), samp, nullptr);
-		samp = VK_NULL_HANDLE;
-	}
-}
-
-static void SafeDestroySemaphore(VkSemaphore& sem)
-{
-	if (sem != VK_NULL_HANDLE)
-	{
-		vkDestroySemaphore(g_vulkan_context->GetDevice(), sem, nullptr);
-		sem = VK_NULL_HANDLE;
-	}
-}
-
-static void SafeFreeGlobalDescriptorSet(VkDescriptorSet& ds)
-{
-	if (ds != VK_NULL_HANDLE)
-	{
-		g_vulkan_context->FreeGlobalDescriptorSet(ds);
-		ds = VK_NULL_HANDLE;
-	}
-}
-
 
 VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 	: m_instance(instance)
@@ -333,7 +268,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 {
 	// Read device physical memory properties, we need it for allocating buffers
 	vkGetPhysicalDeviceProperties(physical_device, &m_device_properties);
-	vkGetPhysicalDeviceMemoryProperties(physical_device, &m_device_memory_properties);
 
 	// We need this to be at least 32 byte aligned for AVX2 stores.
 	m_device_properties.limits.minUniformBufferOffsetAlignment =
@@ -509,32 +443,47 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			g_vulkan_context->EnableDebugUtils();
 
 		// Attempt to create the device.
-		if (!g_vulkan_context->CreateDevice(enable_validation_layer, nullptr, 0, nullptr, 0, nullptr) ||
-			!g_vulkan_context->CreateAllocator() || !g_vulkan_context->CreateGlobalDescriptorPool() ||
-			!g_vulkan_context->CreateCommandBuffers() || !g_vulkan_context->CreateTextureStreamBuffer()
-			)
-		{
-			g_vulkan_context.reset();
-			return false;
-		}
+		if (!g_vulkan_context->CreateDevice(enable_validation_layer, nullptr, 0, nullptr, 0, nullptr))
+			goto error;
+
+		// And critical resources
+		if (               !g_vulkan_context->CreateAllocator()
+				|| !g_vulkan_context->CreateGlobalDescriptorPool()
+				|| !g_vulkan_context->CreateCommandBuffers())
+			goto error;
+		if (!g_vulkan_context->CreateTextureStreamBuffer())
+			goto error;
 
 		return true;
+error:
+		g_vulkan_context.reset();
+		return false;
 	}
 
 	void VKContext::Destroy()
 	{
-		if (g_vulkan_context->m_device != VK_NULL_HANDLE)
+		VkDevice m_device = g_vulkan_context->m_device;
+		if (m_device != VK_NULL_HANDLE)
 			g_vulkan_context->WaitForGPUIdle();
 
 		g_vulkan_context->m_texture_upload_buffer.Destroy(false);
 
-		g_vulkan_context->DestroyRenderPassCache();
-		g_vulkan_context->DestroyGlobalDescriptorPool();
-		g_vulkan_context->DestroyCommandBuffers();
-		g_vulkan_context->DestroyAllocator();
+		for (auto& it : g_vulkan_context->m_render_pass_cache)
+			vkDestroyRenderPass(m_device, it.second, nullptr);
+		g_vulkan_context->m_render_pass_cache.clear();
 
-		if (g_vulkan_context->m_device != VK_NULL_HANDLE)
-			vkDestroyDevice(g_vulkan_context->m_device, nullptr);
+		if (g_vulkan_context->m_global_descriptor_pool != VK_NULL_HANDLE)
+			vkDestroyDescriptorPool(m_device, g_vulkan_context->m_global_descriptor_pool, nullptr);
+		g_vulkan_context->m_global_descriptor_pool = VK_NULL_HANDLE;
+
+		g_vulkan_context->DestroyCommandBuffers();
+
+		if (g_vulkan_context->m_allocator != VK_NULL_HANDLE)
+			vmaDestroyAllocator(g_vulkan_context->m_allocator);
+		g_vulkan_context->m_allocator = VK_NULL_HANDLE;
+
+		if (m_device != VK_NULL_HANDLE)
+			vkDestroyDevice(m_device, nullptr);
 
 		if (g_vulkan_context->m_debug_messenger_callback != VK_NULL_HANDLE)
 			g_vulkan_context->DisableDebugUtils();
@@ -831,15 +780,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return true;
 	}
 
-	void VKContext::DestroyAllocator()
-	{
-		if (m_allocator == VK_NULL_HANDLE)
-			return;
-
-		vmaDestroyAllocator(m_allocator);
-		m_allocator = VK_NULL_HANDLE;
-	}
-
 	bool VKContext::CreateCommandBuffers()
 	{
 		VkResult res;
@@ -940,15 +880,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			return false;
 
 		return true;
-	}
-
-	void VKContext::DestroyGlobalDescriptorPool()
-	{
-		if (m_global_descriptor_pool != VK_NULL_HANDLE)
-		{
-			vkDestroyDescriptorPool(m_device, m_global_descriptor_pool, nullptr);
-			m_global_descriptor_pool = VK_NULL_HANDLE;
-		}
 	}
 
 	bool VKContext::CreateTextureStreamBuffer()
@@ -1217,11 +1148,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 			WaitForCommandBufferCompletion(current_frame);
 	}
 
-	bool VKContext::CheckLastSubmitFail()
-	{
-		return m_last_submit_failed.load(std::memory_order_acquire);
-	}
-
 	void VKContext::DeferBufferDestruction(VkBuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
@@ -1233,18 +1159,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back(
 			[this, object, allocation]() { vmaDestroyBuffer(m_allocator, object, allocation); });
-	}
-
-	void VKContext::DeferBufferViewDestruction(VkBufferView object)
-	{
-		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, object]() { vkDestroyBufferView(m_device, object, nullptr); });
-	}
-
-	void VKContext::DeferDeviceMemoryDestruction(VkDeviceMemory object)
-	{
-		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, object]() { vkFreeMemory(m_device, object, nullptr); });
 	}
 
 	void VKContext::DeferFramebufferDestruction(VkFramebuffer object)
@@ -1434,14 +1348,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return pass;
 	}
 
-	void VKContext::DestroyRenderPassCache()
-	{
-		for (auto& it : m_render_pass_cache)
-			vkDestroyRenderPass(m_device, it.second, nullptr);
-
-		m_render_pass_cache.clear();
-	}
-
 	bool VKContext::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
 		VkBufferUsageFlags gpu_usage, const std::function<void(void*)>& fill_callback)
 	{
@@ -1518,10 +1424,9 @@ GSDeviceVK::~GSDeviceVK()
 
 void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 {
-	VkInstance instance;
 	if (g_vulkan_context)
 	{
-		instance = g_vulkan_context->GetVulkanInstance();
+		VkInstance instance = g_vulkan_context->GetVulkanInstance();
 		if (instance != VK_NULL_HANDLE)
 		{
 			if (adapters)
@@ -1532,8 +1437,7 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 	{
 		if (Vulkan::LoadVulkanLibrary())
 		{
-			ScopedGuard lib_guard([]() { Vulkan::UnloadVulkanLibrary(); });
-			instance = VKContext::CreateVulkanInstance(false, false);
+			VkInstance instance = VKContext::CreateVulkanInstance(false, false);
 			if (instance != VK_NULL_HANDLE)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -1541,6 +1445,7 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 
 				vkDestroyInstance(instance, nullptr);
 			}
+			Vulkan::UnloadVulkanLibrary();
 		}
 	}
 }
@@ -1727,8 +1632,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		return false;
 	}
 
-	ScopedGuard library_cleanup(&Vulkan::UnloadVulkanLibrary);
-
 	AcquireWindow();
 
 	VkInstance instance =
@@ -1746,6 +1649,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 			{
 				Console.Error(
 					"Failed to create Vulkan instance. Does your GPU and/or driver support Vulkan?");
+				Vulkan::UnloadVulkanLibrary();
 				return false;
 			}
 
@@ -1753,10 +1657,11 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		}
 	}
 
-	ScopedGuard instance_cleanup = [&instance]() { vkDestroyInstance(instance, nullptr); };
 	if (!Vulkan::LoadVulkanInstanceFunctions(instance))
 	{
 		Console.Error("Failed to load Vulkan instance functions");
+		vkDestroyInstance(instance, nullptr);
+		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
 
@@ -1764,6 +1669,8 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	if (gpus.empty())
 	{
 		Console.Error("No physical devices found. Does your GPU and/or driver support Vulkan?");
+		vkDestroyInstance(instance, nullptr);
+		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
 
@@ -1794,11 +1701,10 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 			))
 	{
 		Console.Error("Failed to create Vulkan context");
+		vkDestroyInstance(instance, nullptr);
+		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
-
-	instance_cleanup.Cancel();
-	library_cleanup.Cancel();
 
 	m_has_feedback_loop_layout = g_vulkan_context->UseFeedbackLoopLayout();
 
@@ -2636,10 +2542,10 @@ void GSDeviceVK::ClearSamplerCache()
 	for (const auto& it : m_samplers)
 		g_vulkan_context->DeferSamplerDestruction(it.second);
 	m_samplers.clear();
-	m_point_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
-	m_linear_sampler = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
+	m_point_sampler   = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
+	m_linear_sampler  = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
 	m_utility_sampler = m_point_sampler;
-	m_tfx_sampler = m_point_sampler;
+	m_tfx_sampler     = m_point_sampler;
 }
 
 static void AddMacro(std::stringstream& ss, const char* name, int value)
@@ -2823,8 +2729,6 @@ bool GSDeviceVK::CreatePipelineLayouts()
 	return true;
 }
 
-bool GSDeviceVK::CreateRenderPasses()
-{
 #define GET(dest, rt, depth, fbl, dsp, opa, opb, opc) \
 	do \
 	{ \
@@ -2844,6 +2748,8 @@ bool GSDeviceVK::CreateRenderPasses()
 			return false; \
 	} while (0)
 
+bool GSDeviceVK::CreateRenderPasses()
+{
 	const VkFormat rt_format = LookupNativeFormat(GSTexture::Format::Color);
 	const VkFormat hdr_rt_format = LookupNativeFormat(GSTexture::Format::HDRColor);
 	const VkFormat depth_format = LookupNativeFormat(GSTexture::Format::DepthStencil);
@@ -2912,6 +2818,7 @@ bool GSDeviceVK::CreateRenderPasses()
 
 bool GSDeviceVK::CompileConvertPipelines()
 {
+	VkDevice m_device = g_vulkan_context->GetDevice();
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/convert.glsl");
 	if (!shader)
 	{
@@ -2922,7 +2829,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 	VkShaderModule vs = GetUtilityVertexShader(*shader);
 	if (vs == VK_NULL_HANDLE)
 		return false;
-	ScopedGuard vs_guard([&vs]() { SafeDestroyShaderModule(vs); });
 
 	Vulkan::GraphicsPipelineBuilder gpb;
 	SetPipelineProvokingVertex(m_features, gpb);
@@ -2938,43 +2844,40 @@ bool GSDeviceVK::CompileConvertPipelines()
 	for (ShaderConvert i = ShaderConvert::COPY; static_cast<int>(i) < static_cast<int>(ShaderConvert::Count);
 		 i = static_cast<ShaderConvert>(static_cast<int>(i) + 1))
 	{
+		VkShaderModule ps;
 		const bool depth = HasDepthOutput(i);
-		const int index = static_cast<int>(i);
+		const int index  = static_cast<int>(i);
 
 		VkRenderPass rp;
 		switch (i)
 		{
 			case ShaderConvert::RGBA8_TO_16_BITS:
 			case ShaderConvert::FLOAT32_TO_16_BITS:
-			{
 				rp = g_vulkan_context->GetRenderPass(LookupNativeFormat(GSTexture::Format::UInt16),
 					VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
-			}
-			break;
+				break;
 			case ShaderConvert::FLOAT32_TO_32_BITS:
-			{
 				rp = g_vulkan_context->GetRenderPass(LookupNativeFormat(GSTexture::Format::UInt32),
 					VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
-			}
-			break;
+				break;
 			case ShaderConvert::DATM_0:
 			case ShaderConvert::DATM_1:
-			{
 				rp = m_date_setup_render_pass;
-			}
-			break;
+				break;
 			default:
-			{
 				rp = g_vulkan_context->GetRenderPass(
 					LookupNativeFormat(depth ? GSTexture::Format::Invalid : GSTexture::Format::Color),
 					LookupNativeFormat(
 						depth ? GSTexture::Format::DepthStencil : GSTexture::Format::Invalid),
 					VK_ATTACHMENT_LOAD_OP_DONT_CARE);
-			}
-			break;
+				break;
 		}
+
 		if (!rp)
+		{
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 
 		gpb.SetRenderPass(rp, 0);
 
@@ -2993,17 +2896,23 @@ bool GSDeviceVK::CompileConvertPipelines()
 
 		gpb.SetColorWriteMask(0, ShaderConvertWriteMask(i));
 
-		VkShaderModule ps = GetUtilityFragmentShader(*shader, shaderName(i));
+		ps = GetUtilityFragmentShader(*shader, shaderName(i));
 		if (ps == VK_NULL_HANDLE)
+		{
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 
-		ScopedGuard ps_guard([&ps]() { SafeDestroyShaderModule(ps); });
 		gpb.SetFragmentShader(ps);
 
 		m_convert[index] =
-			gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
+			gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
 		if (!m_convert[index])
+		{
+			SafeDestroyShaderModule(m_device, ps);
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 
 		if (i == ShaderConvert::COPY)
 		{
@@ -3015,9 +2924,13 @@ bool GSDeviceVK::CompileConvertPipelines()
 				gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
 					VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, static_cast<VkColorComponentFlags>(i));
 				m_color_copy[i] =
-					gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
+					gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
 				if (!m_color_copy[i])
+				{
+					SafeDestroyShaderModule(m_device, ps);
+					SafeDestroyShaderModule(m_device, vs);
 					return false;
+				}
 			}
 		}
 		else if (i == ShaderConvert::HDR_INIT || i == ShaderConvert::HDR_RESOLVE)
@@ -3032,12 +2945,17 @@ bool GSDeviceVK::CompileConvertPipelines()
 						GetTFXRenderPass(true, ds != 0, is_setup, DATE_RENDER_PASS_NONE, fbl != 0, false,
 							VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE),
 						0);
-					arr[ds][fbl] = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
+					arr[ds][fbl] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
 					if (!arr[ds][fbl])
+					{
+						SafeDestroyShaderModule(m_device, ps);
+						SafeDestroyShaderModule(m_device, vs);
 						return false;
+					}
 				}
 			}
 		}
+		SafeDestroyShaderModule(m_device, ps);
 	}
 
 	// date image setup
@@ -3059,9 +2977,11 @@ bool GSDeviceVK::CompileConvertPipelines()
 		VkShaderModule ps =
 			GetUtilityFragmentShader(*shader, datm ? "ps_stencil_image_init_1" : "ps_stencil_image_init_0");
 		if (ps == VK_NULL_HANDLE)
+		{
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 
-		ScopedGuard ps_guard([&ps]() { SafeDestroyShaderModule(ps); });
 		gpb.SetPipelineLayout(m_utility_pipeline_layout);
 		gpb.SetFragmentShader(ps);
 		gpb.SetNoDepthTestState();
@@ -3074,17 +2994,25 @@ bool GSDeviceVK::CompileConvertPipelines()
 		{
 			gpb.SetRenderPass(m_date_image_setup_render_passes[ds][0], 0);
 			m_date_image_setup_pipelines[ds][datm] =
-				gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
+				gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
 			if (!m_date_image_setup_pipelines[ds][datm])
+			{
+				SafeDestroyShaderModule(m_device, ps);
+				SafeDestroyShaderModule(m_device, vs);
 				return false;
+			}
 		}
+		SafeDestroyShaderModule(m_device, ps);
 	}
+
+	SafeDestroyShaderModule(m_device, vs);
 
 	return true;
 }
 
 bool GSDeviceVK::CompilePresentPipelines()
 {
+	VkDevice m_device = g_vulkan_context->GetDevice();
 	// we may not have a swap chain if running in headless mode.
 	m_swap_chain_render_pass = g_vulkan_context->GetRenderPass(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED);
 	if (m_swap_chain_render_pass == VK_NULL_HANDLE)
@@ -3100,7 +3028,6 @@ bool GSDeviceVK::CompilePresentPipelines()
 	VkShaderModule vs = GetUtilityVertexShader(*shader);
 	if (vs == VK_NULL_HANDLE)
 		return false;
-	ScopedGuard vs_guard([&vs]() { SafeDestroyShaderModule(vs); });
 
 	Vulkan::GraphicsPipelineBuilder gpb;
 	SetPipelineProvokingVertex(m_features, gpb);
@@ -3116,26 +3043,27 @@ bool GSDeviceVK::CompilePresentPipelines()
 	gpb.SetNoStencilState();
 	gpb.SetRenderPass(m_swap_chain_render_pass, 0);
 
+	VkShaderModule ps = GetUtilityFragmentShader(*shader, "ps_copy");
+	if (ps == VK_NULL_HANDLE)
 	{
-		VkShaderModule ps = GetUtilityFragmentShader(*shader, "ps_copy");
-		if (ps == VK_NULL_HANDLE)
-			return false;
-
-		ScopedGuard ps_guard([&ps]() { SafeDestroyShaderModule(ps); });
-		gpb.SetFragmentShader(ps);
-
-		m_present[0] =
-			gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
-		if (!m_present[0])
-			return false;
+		SafeDestroyShaderModule(m_device, vs);
+		return false;
 	}
 
+	gpb.SetFragmentShader(ps);
+
+	m_present[0] =
+		gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+	SafeDestroyShaderModule(m_device, ps);
+	SafeDestroyShaderModule(m_device, vs);
+	if (!m_present[0])
+		return false;
 	return true;
 }
 
-
 bool GSDeviceVK::CompileInterlacePipelines()
 {
+	VkDevice m_device = g_vulkan_context->GetDevice();
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/interlace.glsl");
 	if (!shader)
 	{
@@ -3151,7 +3079,6 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	VkShaderModule vs = GetUtilityVertexShader(*shader);
 	if (vs == VK_NULL_HANDLE)
 		return false;
-	ScopedGuard vs_guard([&vs]() { SafeDestroyShaderModule(vs); });
 
 	Vulkan::GraphicsPipelineBuilder gpb;
 	SetPipelineProvokingVertex(m_features, gpb);
@@ -3170,22 +3097,30 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	{
 		VkShaderModule ps = GetUtilityFragmentShader(*shader, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
 		if (ps == VK_NULL_HANDLE)
+		{
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 
 		gpb.SetFragmentShader(ps);
 
 		m_interlace[i] =
-			gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
-		SafeDestroyShaderModule(ps);
+			gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		SafeDestroyShaderModule(m_device, ps);
 		if (!m_interlace[i])
+		{
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 	}
 
+	SafeDestroyShaderModule(m_device, vs);
 	return true;
 }
 
 bool GSDeviceVK::CompileMergePipelines()
 {
+	VkDevice m_device = g_vulkan_context->GetDevice();
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/merge.glsl");
 	if (!shader)
 	{
@@ -3201,7 +3136,6 @@ bool GSDeviceVK::CompileMergePipelines()
 	VkShaderModule vs = GetUtilityVertexShader(*shader);
 	if (vs == VK_NULL_HANDLE)
 		return false;
-	ScopedGuard vs_guard([&vs]() { SafeDestroyShaderModule(vs); });
 
 	Vulkan::GraphicsPipelineBuilder gpb;
 	SetPipelineProvokingVertex(m_features, gpb);
@@ -3225,12 +3159,16 @@ bool GSDeviceVK::CompileMergePipelines()
 		gpb.SetBlendAttachment(0, true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
 			VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD);
 
-		m_merge[i] = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true), false);
-		SafeDestroyShaderModule(ps);
+		m_merge[i] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+		SafeDestroyShaderModule(m_device, ps);
 		if (!m_merge[i])
+		{
+			SafeDestroyShaderModule(m_device, vs);
 			return false;
+		}
 	}
 
+	SafeDestroyShaderModule(m_device, vs);
 	return true;
 }
 
@@ -3258,44 +3196,111 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 
 void GSDeviceVK::DestroyResources()
 {
+	VkDevice m_device = g_vulkan_context->GetDevice();
+
 	g_vulkan_context->ExecuteCommandBuffer(true);
+
 	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
 		g_vulkan_context->FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);
 
 	for (auto& it : m_tfx_pipelines)
-		SafeDestroyPipeline(it.second);
+	{
+		VkPipeline& p = it.second;
+		if (p != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(m_device, p, nullptr);
+			p = VK_NULL_HANDLE;
+		}
+	}
 	for (auto& it : m_tfx_fragment_shaders)
-		SafeDestroyShaderModule(it.second);
+		SafeDestroyShaderModule(m_device, it.second);
 	for (auto& it : m_tfx_vertex_shaders)
-		SafeDestroyShaderModule(it.second);
+		SafeDestroyShaderModule(m_device, it.second);
 	for (VkPipeline& it : m_interlace)
-		SafeDestroyPipeline(it);
+	{
+		VkPipeline& p = it;
+		if (p != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(m_device, p, nullptr);
+			p = VK_NULL_HANDLE;
+		}
+	}
 	for (VkPipeline& it : m_merge)
-		SafeDestroyPipeline(it);
+	{
+		VkPipeline& p = it;
+		if (p != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(m_device, p, nullptr);
+			p = VK_NULL_HANDLE;
+		}
+	}
 	for (VkPipeline& it : m_color_copy)
-		SafeDestroyPipeline(it);
+	{
+		VkPipeline& p = it;
+		if (p != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(m_device, p, nullptr);
+			p = VK_NULL_HANDLE;
+		}
+	}
 	for (VkPipeline& it : m_present)
-		SafeDestroyPipeline(it);
+	{
+		VkPipeline& p = it;
+		if (p != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(m_device, p, nullptr);
+			p = VK_NULL_HANDLE;
+		}
+	}
 	for (VkPipeline& it : m_convert)
-		SafeDestroyPipeline(it);
+	{
+		VkPipeline& p = it;
+		if (p != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline(m_device, p, nullptr);
+			p = VK_NULL_HANDLE;
+		}
+	}
 	for (u32 ds = 0; ds < 2; ds++)
 	{
 		for (u32 fbl = 0; fbl < 2; fbl++)
 		{
-			SafeDestroyPipeline(m_hdr_setup_pipelines[ds][fbl]);
-			SafeDestroyPipeline(m_hdr_finish_pipelines[ds][fbl]);
+			VkPipeline& p = m_hdr_setup_pipelines[ds][fbl];
+			if (p != VK_NULL_HANDLE)
+			{
+				vkDestroyPipeline(m_device, p, nullptr);
+				p = VK_NULL_HANDLE;
+			}
+			p = m_hdr_finish_pipelines[ds][fbl];
+			if (p != VK_NULL_HANDLE)
+			{
+				vkDestroyPipeline(m_device, p, nullptr);
+				p = VK_NULL_HANDLE;
+			}
 		}
 	}
 	for (u32 ds = 0; ds < 2; ds++)
 	{
 		for (u32 datm = 0; datm < 2; datm++)
 		{
-			SafeDestroyPipeline(m_date_image_setup_pipelines[ds][datm]);
+			VkPipeline& p = m_date_image_setup_pipelines[ds][datm];
+			if (p != VK_NULL_HANDLE)
+			{
+				vkDestroyPipeline(m_device, p, nullptr);
+				p = VK_NULL_HANDLE;
+			}
 		}
 	}
 
 	for (auto& it : m_samplers)
-		SafeDestroySampler(it.second);
+	{
+		VkSampler& samp = it.second;
+		if (samp != VK_NULL_HANDLE)
+		{
+			vkDestroySampler(m_device, samp, nullptr);
+			samp = VK_NULL_HANDLE;
+		}
+	}
 
 	m_linear_sampler = VK_NULL_HANDLE;
 	m_point_sampler = VK_NULL_HANDLE;
@@ -3320,12 +3325,12 @@ void GSDeviceVK::DestroyResources()
 		m_expand_index_buffer_allocation = VK_NULL_HANDLE;
 	}
 
-	SafeDestroyPipelineLayout(m_tfx_pipeline_layout);
-	SafeDestroyDescriptorSetLayout(m_tfx_rt_texture_ds_layout);
-	SafeDestroyDescriptorSetLayout(m_tfx_sampler_ds_layout);
-	SafeDestroyDescriptorSetLayout(m_tfx_ubo_ds_layout);
-	SafeDestroyPipelineLayout(m_utility_pipeline_layout);
-	SafeDestroyDescriptorSetLayout(m_utility_ds_layout);
+	SafeDestroyPipelineLayout(m_device, m_tfx_pipeline_layout);
+	SafeDestroyDescriptorSetLayout(m_device, m_tfx_rt_texture_ds_layout);
+	SafeDestroyDescriptorSetLayout(m_device, m_tfx_sampler_ds_layout);
+	SafeDestroyDescriptorSetLayout(m_device, m_tfx_ubo_ds_layout);
+	SafeDestroyPipelineLayout(m_device, m_utility_pipeline_layout);
+	SafeDestroyDescriptorSetLayout(m_device, m_utility_ds_layout);
 
 	if (m_null_texture)
 	{
@@ -3432,6 +3437,7 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 		VK_PRIMITIVE_TOPOLOGY_LINE_LIST, // Line
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, // Triangle
 	}};
+	VkDevice m_device = g_vulkan_context->GetDevice();
 
 	GSHWDrawConfig::BlendState pbs{p.bs};
 	GSHWDrawConfig::PSSelector pps{p.ps};
@@ -3538,7 +3544,7 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 	if (m_features.framebuffer_fetch && p.IsRTFeedbackLoop())
 		gpb.AddBlendFlags(VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT);
 
-	VkPipeline pipeline = gpb.Create(g_vulkan_context->GetDevice(), g_vulkan_shader_cache->GetPipelineCache(true));
+	VkPipeline pipeline = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true));
 
 	return pipeline;
 }
@@ -4264,9 +4270,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 				DATE_rp = DATE_RENDER_PASS_STENCIL;
 			}
 			else
-			{
 				DATE_rp = DATE_RENDER_PASS_STENCIL_ONE;
-			}
 		}
 		break;
 

@@ -60,7 +60,6 @@ target_sources(common PRIVATE
 	PrecompiledHeader.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
-	ScopedGuard.h
 	SettingsInterface.h
 	SettingsWrapper.h
 	StringUtil.h
