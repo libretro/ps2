@@ -390,7 +390,7 @@ void VifUnpackSSE_Init()
 	nVifUpkExec->ForbidModification();
 
 	Console.WriteLn("Unpack function generation complete.  Generated function statistics:");
-	Console.Indent().WriteLn(
+	Console.WriteLn(
 		"Reserved buffer    : %u bytes @ 0x%016" PRIXPTR "\n"
 		"x86 code generated : %u bytes\n",
 		(uint)nVifUpkExec->GetSize(),

@@ -87,23 +87,12 @@ struct IConsoleWriter
 	void(* DoWriteFromStdout)(const char* fmt);
 
 	void(* Newline)();
-	void(* SetTitle)(const char* title);
-
-	// internal value for indentation of individual lines.  Use the Indent() member to invoke.
-	int _imm_indentation;
-
-	// For internal use only.
-	std::string _addIndentation(const std::string& src, int glob_indent) const;
 
 	// ----------------------------------------------------------------------------
 	// Public members; call these to print stuff to console!
 	//
 	// All functions always return false.  Return value is provided only so that we can easily
 	// disable logs at compile time using the "0&&action" macro trick.
-
-	const IConsoleWriter& SetIndent(int tabcount = 1) const;
-
-	IConsoleWriter Indent(int tabcount = 1) const;
 
 	bool FormatV(const char* fmt, va_list args) const;
 	bool WriteLn(ConsoleColors color, const char* fmt, ...) const;

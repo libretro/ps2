@@ -17,9 +17,6 @@
 #include "common/Console.h"
 #include "common/StringUtil.h"
 
-// thread-local console indentation setting.
-static thread_local int conlog_Indent(0);
-
 extern retro_log_printf_t log_cb;
 static ConsoleColors log_color = Color_Default;
 
@@ -69,11 +66,6 @@ static void RetroLog_DoWrite(const char* fmt)
 	}
 
 	log_cb(level, "%s", fmt);
-}
-
-static void RetroLog_SetTitle(const char* title)
-{
-	log_cb(RETRO_LOG_INFO, "%s\n", title);
 }
 
 static void RetroLog_Newline(void)
@@ -128,9 +120,6 @@ static const IConsoleWriter ConsoleWriter_Libretro =
 
 		RetroLog_DoWrite,
 		RetroLog_Newline,
-		RetroLog_SetTitle,
-
-		0, // instance-level indentation (should always be 0)
 };
 
 // =====================================================================================================
@@ -139,61 +128,13 @@ static const IConsoleWriter ConsoleWriter_Libretro =
 // (all non-virtual members that do common work and then pass the result through DoWrite
 //  or DoWriteLn)
 
-// Parameters:
-//   glob_indent - this parameter is used to specify a global indentation setting.  It is used by
-//      WriteLn function, but defaults to 0 for Warning and Error calls.  Local indentation always
-//      applies to all writes.
-std::string IConsoleWriter::_addIndentation(const std::string& src, int glob_indent = 0) const
-{
-	const int indent = glob_indent + _imm_indentation;
-
-	std::string indentStr;
-	for (int i = 0; i < indent; i++)
-		indentStr += '\t';
-
-	std::string result;
-	result.reserve(src.length() + 16 * indent);
-	result.append(indentStr);
-	result.append(src);
-
-	std::string::size_type pos = result.find('\n');
-	while (pos != std::string::npos)
-	{
-		result.insert(pos + 1, indentStr);
-		pos = result.find('\n', pos + 1);
-	}
-
-	return result;
-}
-
-// Sets the indentation to be applied to all WriteLn's.  The indentation is added to the
-// primary write, and to any newlines specified within the write.  Note that this applies
-// to calls to WriteLn *only* -- calls to Write bypass the indentation parser.
-const IConsoleWriter& IConsoleWriter::SetIndent(int tabcount) const
-{
-	conlog_Indent += tabcount;
-	return *this;
-}
-
-IConsoleWriter IConsoleWriter::Indent(int tabcount) const
-{
-	IConsoleWriter retval = *this;
-	retval._imm_indentation = tabcount;
-	return retval;
-}
-
 // --------------------------------------------------------------------------------------
 //  ASCII/UTF8 (char*)
 // --------------------------------------------------------------------------------------
 
 bool IConsoleWriter::FormatV(const char* fmt, va_list args) const
 {
-	// TODO: Make this less rubbish
-	if ((_imm_indentation + conlog_Indent) > 0)
-		DoWriteLn(_addIndentation(StringUtil::StdStringFromFormatV(fmt, args), conlog_Indent).c_str());
-	else
-		DoWriteLn(StringUtil::StdStringFromFormatV(fmt, args).c_str());
-
+	DoWriteLn(StringUtil::StdStringFromFormatV(fmt, args).c_str());
 	return false;
 }
 
@@ -244,12 +185,7 @@ bool IConsoleWriter::WriteLn(ConsoleColors color, const std::string& str) const
 
 bool IConsoleWriter::WriteLn(const std::string& str) const
 {
-	// TODO: Make this less rubbish
-	if ((_imm_indentation + conlog_Indent) > 0)
-		DoWriteLn(_addIndentation(str, conlog_Indent).c_str());
-	else
-		DoWriteLn(str.c_str());
-
+	DoWriteLn(str.c_str());
 	return false;
 }
 
