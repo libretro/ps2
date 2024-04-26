@@ -3608,11 +3608,6 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 	}
 }
 
-void GSDeviceVK::ExecuteCommandBufferForReadback()
-{
-	ExecuteCommandBuffer(true);
-}
-
 void GSDeviceVK::InvalidateCachedState()
 {
 	m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS | DIRTY_FLAG_TFX_RT_TEXTURE_DS | DIRTY_FLAG_TFX_DYNAMIC_OFFSETS |

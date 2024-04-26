@@ -875,7 +875,7 @@ void GSDownloadTextureVK::Flush()
 
 	// Need to execute command buffer.
 	if (g_vulkan_context->GetCurrentFenceCounter() == m_copy_fence_counter)
-		GSDeviceVK::GetInstance()->ExecuteCommandBufferForReadback();
+		GSDeviceVK::GetInstance()->ExecuteCommandBuffer(true);
 	else
 		g_vulkan_context->WaitForFenceCounter(m_copy_fence_counter);
 }
