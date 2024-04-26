@@ -23,6 +23,7 @@
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/GSUtil.h"
 #include "Host.h"
+#include "GS.h"
 #include "ShaderCacheVersion.h"
 
 #include "common/Align.h"
@@ -57,15 +58,7 @@ std::unique_ptr<VKContext> g_vulkan_context;
 static retro_hw_render_interface_vulkan *vulkan;
 extern retro_log_printf_t log_cb;
 
-static struct {
-	VkInstance instance;
-	VkPhysicalDevice gpu;
-	const char **required_device_extensions;
-	unsigned num_required_device_extensions;
-	const char **required_device_layers;
-	unsigned num_required_device_layers;
-	const VkPhysicalDeviceFeatures *required_features;
-} vk_init_info;
+struct vk_init_info_t  vk_init_info;
 
 extern "C"
 {
@@ -80,7 +73,48 @@ extern "C"
 	PFN_vkCreateDevice               vkCreateDevice_org;
 	PFN_vkDestroyDevice              vkDestroyDevice_org;
 	PFN_vkQueueSubmit                vkQueueSubmit_org;
-	PFN_vkQueueWaitIdle              vkQueueWaitIdle_org;
+}
+
+bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features)
+{
+	vk_init_info.instance                       = instance;
+	vk_init_info.gpu                            = gpu;
+	vk_init_info.required_device_extensions     = required_device_extensions;
+	vk_init_info.num_required_device_extensions = num_required_device_extensions;
+	vk_init_info.required_device_layers         = required_device_layers;
+	vk_init_info.num_required_device_layers     = num_required_device_layers;
+	vk_init_info.required_features              = required_features;
+	vk_init_info.vkGetInstanceProcAddr          = get_instance_proc_addr;
+
+	if(gpu != VK_NULL_HANDLE) {
+		VkPhysicalDeviceProperties props = {};
+		vkGetPhysicalDeviceProperties    = (PFN_vkGetPhysicalDeviceProperties)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties");
+		vkGetPhysicalDeviceProperties(gpu, &props);
+		GSConfig.Adapter = props.deviceName;
+	}
+
+	if (!MTGS::IsOpen())
+		MTGS::TryOpenGS();
+
+	context->gpu                             = g_vulkan_context->GetPhysicalDevice();
+	context->device                          = g_vulkan_context->GetDevice();
+	context->queue                           = g_vulkan_context->GetGraphicsQueue();
+	context->queue_family_index              = g_vulkan_context->GetGraphicsQueueFamilyIndex();
+	context->presentation_queue              = context->queue;
+	context->presentation_queue_family_index = context->queue_family_index;
+
+	return true;
+}
+
+const VkApplicationInfo *get_application_info_vulkan(void)
+{
+	static VkApplicationInfo app_info{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
+	app_info.pApplicationName   = "PCSX2";
+	app_info.applicationVersion = VK_MAKE_VERSION(1, 7, 0);
+	app_info.pEngineName        = "PCSX2";
+	app_info.engineVersion      = VK_MAKE_VERSION(1, 7, 0);
+	app_info.apiVersion         = VK_API_VERSION_1_1;
+	return &app_info;
 }
 
 static VKAPI_ATTR VkResult VKAPI_CALL vkCreateInstance_libretro(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance) {
@@ -135,14 +169,6 @@ static VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit_libretro(VkQueue queue, uint
 	return res;
 }
 
-static VKAPI_ATTR VkResult VKAPI_CALL vkQueueWaitIdle_libretro(VkQueue queue)
-{
-	vulkan->lock_queue(vulkan->handle);
-	VkResult res = vkQueueWaitIdle_org(queue);
-	vulkan->unlock_queue(vulkan->handle);
-	return res;
-}
-
 /* Forward declaration */
 static VKAPI_ATTR PFN_vkVoidFunction enumerate_fptrs(PFN_vkVoidFunction fptr, const char *pName);
 
@@ -184,11 +210,6 @@ static VKAPI_ATTR PFN_vkVoidFunction enumerate_fptrs(PFN_vkVoidFunction fptr, co
 		vkQueueSubmit_org = (PFN_vkQueueSubmit)fptr;
 		return (PFN_vkVoidFunction)vkQueueSubmit_libretro;
 	}
-	if (!strcmp(pName, "vkQueueWaitIdle"))
-	{
-		vkQueueWaitIdle_org = (PFN_vkQueueWaitIdle)fptr;
-		return (PFN_vkVoidFunction)vkQueueWaitIdle_libretro;
-	}
 
 	return fptr;
 }
@@ -200,18 +221,6 @@ void vk_libretro_init_wraps(void)
 	pcsx2_vkCreateInstance      = vkCreateInstance_libretro;
 	pcsx2_vkDestroyInstance     = vkDestroyInstance_libretro;
 }
-
-void vk_libretro_init(VkInstance instance, VkPhysicalDevice gpu, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features)
-{
-	vk_init_info.instance                       = instance;
-	vk_init_info.gpu                            = gpu;
-	vk_init_info.required_device_extensions     = required_device_extensions;
-	vk_init_info.num_required_device_extensions = num_required_device_extensions;
-	vk_init_info.required_device_layers         = required_device_layers;
-	vk_init_info.num_required_device_layers     = num_required_device_layers;
-	vk_init_info.required_features              = required_features;
-}
-
 
 void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_render_interface)
 {

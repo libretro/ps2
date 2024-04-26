@@ -515,40 +515,9 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 }
 
 #ifdef ENABLE_VULKAN
-static bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features)
-{
-	vk_libretro_init(instance, gpu, required_device_extensions, num_required_device_extensions, required_device_layers, num_required_device_layers, required_features);
-
-	if(gpu != VK_NULL_HANDLE) {
-		VkPhysicalDeviceProperties props = {};
-		vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties");
-		vkGetPhysicalDeviceProperties(gpu, &props);
-		EmuConfig.GS.Adapter = props.deviceName;
-	}
-
-	if (!MTGS::IsOpen())
-		MTGS::TryOpenGS();
-
-	context->gpu                             = g_vulkan_context->GetPhysicalDevice();
-	context->device                          = g_vulkan_context->GetDevice();
-	context->queue                           = g_vulkan_context->GetGraphicsQueue();
-	context->queue_family_index              = g_vulkan_context->GetGraphicsQueueFamilyIndex();
-	context->presentation_queue              = context->queue;
-	context->presentation_queue_family_index = context->queue_family_index;
-
-	return true;
-}
-
-static const VkApplicationInfo *get_application_info_vulkan(void)
-{
-	static VkApplicationInfo app_info{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
-	app_info.pApplicationName   = "PCSX2";
-	app_info.applicationVersion = VK_MAKE_VERSION(1, 7, 0);
-	app_info.pEngineName        = "PCSX2";
-	app_info.engineVersion      = VK_MAKE_VERSION(1, 7, 0);
-	app_info.apiVersion         = VK_API_VERSION_1_1;
-	return &app_info;
-}
+/* Forward declarations */
+bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features);
+const VkApplicationInfo *get_application_info_vulkan(void);
 #endif
 
 void retro_init(void)

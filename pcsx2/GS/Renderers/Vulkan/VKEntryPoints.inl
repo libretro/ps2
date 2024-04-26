@@ -44,37 +44,6 @@ VULKAN_INSTANCE_ENTRY_POINT(vkCreateDevice, true)
 VULKAN_INSTANCE_ENTRY_POINT(vkEnumerateDeviceExtensionProperties, true)
 VULKAN_INSTANCE_ENTRY_POINT(vkEnumerateDeviceLayerProperties, true)
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceSparseImageFormatProperties, true)
-VULKAN_INSTANCE_ENTRY_POINT(vkDestroySurfaceKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceSurfaceSupportKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceSurfaceFormatsKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceSurfacePresentModesKHR, false)
-
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateWin32SurfaceKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceWin32PresentationSupportKHR, false)
-#endif
-
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateXlibSurfaceKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceXlibPresentationSupportKHR, false)
-#endif
-
-#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateWaylandSurfaceKHR, false)
-#endif
-
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateAndroidSurfaceKHR, false)
-#endif
-
-#if defined(VK_USE_PLATFORM_MACOS_MVK)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateMacOSSurfaceMVK, false)
-#endif
-
-#if defined(VK_USE_PLATFORM_METAL_EXT)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateMetalSurfaceEXT, false)
-#endif
 
 // VK_EXT_debug_utils
 VULKAN_INSTANCE_ENTRY_POINT(vkCmdBeginDebugUtilsLabelEXT, false)
@@ -89,15 +58,11 @@ VULKAN_INSTANCE_ENTRY_POINT(vkSetDebugUtilsObjectNameEXT, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkSetDebugUtilsObjectTagEXT, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkSubmitDebugUtilsMessageEXT, false)
 
-VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceSurfaceCapabilities2KHR, false)
-
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceDisplayPropertiesKHR, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceDisplayPlanePropertiesKHR, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkGetDisplayPlaneSupportedDisplaysKHR, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkGetDisplayModePropertiesKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateDisplayModeKHR, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkGetDisplayPlaneCapabilitiesKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkCreateDisplayPlaneSurfaceKHR, false)
 
 // Vulkan 1.1 functions.
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceFeatures2, true)
@@ -111,7 +76,6 @@ VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceMemoryProperties2, true)
 VULKAN_DEVICE_ENTRY_POINT(vkDestroyDevice, true)
 VULKAN_DEVICE_ENTRY_POINT(vkGetDeviceQueue, true)
 VULKAN_DEVICE_ENTRY_POINT(vkQueueSubmit, true)
-VULKAN_DEVICE_ENTRY_POINT(vkQueueWaitIdle, true)
 VULKAN_DEVICE_ENTRY_POINT(vkDeviceWaitIdle, true)
 VULKAN_DEVICE_ENTRY_POINT(vkAllocateMemory, true)
 VULKAN_DEVICE_ENTRY_POINT(vkFreeMemory, true)
@@ -228,21 +192,11 @@ VULKAN_DEVICE_ENTRY_POINT(vkCmdBeginRenderPass, true)
 VULKAN_DEVICE_ENTRY_POINT(vkCmdNextSubpass, true)
 VULKAN_DEVICE_ENTRY_POINT(vkCmdEndRenderPass, true)
 VULKAN_DEVICE_ENTRY_POINT(vkCmdExecuteCommands, true)
-VULKAN_DEVICE_ENTRY_POINT(vkCreateSwapchainKHR, false)
-VULKAN_DEVICE_ENTRY_POINT(vkDestroySwapchainKHR, false)
-VULKAN_DEVICE_ENTRY_POINT(vkGetSwapchainImagesKHR, false)
-VULKAN_DEVICE_ENTRY_POINT(vkAcquireNextImageKHR, false)
-VULKAN_DEVICE_ENTRY_POINT(vkQueuePresentKHR, false)
 
 // Vulkan 1.1 functions.
 VULKAN_DEVICE_ENTRY_POINT(vkGetBufferMemoryRequirements2, true)
 VULKAN_DEVICE_ENTRY_POINT(vkGetImageMemoryRequirements2, true)
 VULKAN_DEVICE_ENTRY_POINT(vkBindBufferMemory2, true)
 VULKAN_DEVICE_ENTRY_POINT(vkBindImageMemory2, true)
-
-#ifdef SUPPORTS_VULKAN_EXCLUSIVE_FULLSCREEN
-VULKAN_DEVICE_ENTRY_POINT(vkAcquireFullScreenExclusiveModeEXT, false)
-VULKAN_DEVICE_ENTRY_POINT(vkReleaseFullScreenExclusiveModeEXT, false)
-#endif
 
 #endif // VULKAN_DEVICE_ENTRY_POINT

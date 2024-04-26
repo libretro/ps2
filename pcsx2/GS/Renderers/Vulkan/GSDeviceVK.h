@@ -24,6 +24,18 @@
 #include <array>
 #include <unordered_map>
 
+struct vk_init_info_t
+{
+	VkInstance instance;
+	VkPhysicalDevice gpu;
+	const char **required_device_extensions;
+	unsigned num_required_device_extensions;
+	const char **required_device_layers;
+	unsigned num_required_device_layers;
+	const VkPhysicalDeviceFeatures *required_features;
+	PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+};
+
 class GSDeviceVK final : public GSDevice
 {
 public:
@@ -389,3 +401,5 @@ private:
 	// current pipeline selector - we save this in the struct to avoid re-zeroing it every draw
 	PipelineSelector m_pipeline_selector = {};
 };
+
+extern struct vk_init_info_t vk_init_info;

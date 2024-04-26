@@ -49,11 +49,6 @@
 
 #include "vulkan/vulkan.h"
 
-// Currently, exclusive fullscreen is only supported on Windows.
-#if defined(WIN32)
-#define SUPPORTS_VULKAN_EXCLUSIVE_FULLSCREEN 1
-#endif
-
 #if defined(VULKAN_USE_X11)
 
 // This breaks a bunch of our code. They shouldn't be #defines in the first place.
