@@ -289,43 +289,7 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		ExtensionList enabled_extensions;
 		if (!SelectInstanceExtensions(&enabled_extensions, enable_debug_utils))
 			return VK_NULL_HANDLE;
-
-		// Remember to manually update this every release. We don't pull in svnrev.h here, because
-		// it's only the major/minor version, and rebuilding the file every time something else changes
-		// is unnecessary.
-		VkApplicationInfo app_info = {};
-		app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		app_info.pNext = nullptr;
-		app_info.pApplicationName = "PCSX2";
-		app_info.applicationVersion = VK_MAKE_VERSION(1, 7, 0);
-		app_info.pEngineName = "PCSX2";
-		app_info.engineVersion = VK_MAKE_VERSION(1, 7, 0);
-		app_info.apiVersion = VK_API_VERSION_1_1;
-
-		VkInstanceCreateInfo instance_create_info = {};
-		instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		instance_create_info.pNext = nullptr;
-		instance_create_info.flags = 0;
-		instance_create_info.pApplicationInfo = &app_info;
-		instance_create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
-		instance_create_info.ppEnabledExtensionNames = enabled_extensions.data();
-		instance_create_info.enabledLayerCount = 0;
-		instance_create_info.ppEnabledLayerNames = nullptr;
-
-		// Enable debug layer on debug builds
-		if (enable_validation_layer)
-		{
-			static const char* layer_names[] = {"VK_LAYER_KHRONOS_validation"};
-			instance_create_info.enabledLayerCount = 1;
-			instance_create_info.ppEnabledLayerNames = layer_names;
-		}
-
-		VkInstance instance;
-		VkResult res = vkCreateInstance(&instance_create_info, nullptr, &instance);
-		if (res != VK_SUCCESS)
-			return nullptr;
-
-		return instance;
+		return vk_init_info.instance;
 	}
 
 	bool VKContext::SelectInstanceExtensions(ExtensionList* extension_list, bool enable_debug_utils)
