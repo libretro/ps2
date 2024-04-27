@@ -24,11 +24,8 @@
 
 _sif sif2;
 
-static bool done = false;
-
 static __fi void Sif2Init(void)
 {
-	done            = false;
 	sif2.ee.cycles  = 0;
 	sif2.iop.cycles = 0;
 }
@@ -108,7 +105,7 @@ static __fi bool ProcessEETag(void)
 }
 
 // Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
-static __fi bool ProcessIOPTag(void)
+static __fi void ProcessIOPTag(void)
 {
 	//sif2.iop.data = *(sifData *)iopPhysMem(hw_dma2.madr); //comment this out and replace words below
 	// Process DMA tag at hw_dma9.tadr
@@ -130,8 +127,6 @@ static __fi bool ProcessIOPTag(void)
 	else hw_dma2.madr += 2;
 	// IOP tags have an IRQ bit and an End of Transfer bit:
 	if ((sif2data & 0xFFFFFF) == 0xFFFFFF || (HW_DMA2_CHCR & 0x200)) */sif2.iop.end = true;
-
-	return true;
 }
 
 // Stop transferring ee, and signal an interrupt.
@@ -153,7 +148,7 @@ static __fi void EndIOP(void)
 
 	if (sif2.iop.cycles == 0)
 		sif2.iop.cycles = 1;
-	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
+	// IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
 	// So when we're all done, the equation looks like thus:
 	PSX_INT(IopEvt_SIF2, sif2.iop.cycles);
 }
@@ -173,7 +168,6 @@ static __fi void HandleEETransfer(void)
 		if ((sif2dma.chcr.MOD == NORMAL_MODE) || sif2.ee.end)
 		{
 			// Stop transferring ee, and signal an interrupt.
-			done = true;
 			EndEE();
 		}
 		else if (sif2.fifo.size >= 4) // Read a tag
@@ -229,13 +223,12 @@ static __fi void HandleIOPTransfer(void)
 	{
 		if (sif2.iop.end)
 		{
-			// Stop transferring iop, and signal an interrupt.
-			done = true;
+			// Stop transferring IOP, and signal an interrupt.
 			EndIOP();
 		}
 		else
 		{
-			// Read Fifo into an iop tag, and transfer it to hw_dma9.
+			// Read Fifo into an IOP tag, and transfer it to hw_dma9.
 			// And presumably process it.
 			ProcessIOPTag();
 		}
@@ -283,7 +276,7 @@ __fi void SIF2Dma(void)
 				HandleEETransfer();
 			}
 		}
-	} while (/*!done && */BusyCheck > 0); // Substituting (sif2.ee.busy || sif2.iop.busy) breaks things.
+	} while (BusyCheck > 0); // Substituting (sif2.ee.busy || sif2.iop.busy) breaks things.
 
 	Sif2End();
 }
@@ -319,7 +312,7 @@ __fi void dmaSIF2(void)
 
 	//Updated 23/08/2011: The hangs are caused by the EE suspending SIF1 DMA and restarting it when in the middle
 	//of processing a "REFE" tag, so the hangs can be solved by forcing the ee.end to be false
-	// (as it should always be at the beginning of a DMA).  using "if iop is busy" flags breaks Tom Clancy Rainbow Six.
+	// (as it should always be at the beginning of a DMA).  using "if IOP is busy" flags breaks Tom Clancy Rainbow Six.
 	// Legend of Legaia doesn't throw a warning either :)
 	//sif2.ee.end = false;
 

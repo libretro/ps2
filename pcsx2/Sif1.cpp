@@ -24,12 +24,10 @@
 
 _sif sif1;
 
-static bool done = false;
 static bool sif1_dma_stall = false;
 
 static __fi void Sif1Init(void)
 {
-	done            = false;
 	sif1.ee.cycles  = 0;
 	sif1.iop.cycles = 0;
 }
@@ -137,7 +135,7 @@ static __fi void EndIOP(void)
 	//Total cycles over 1024 makes SIF too slow to keep up the sound stream in so3...
 	if (sif1.iop.cycles == 0)
 		sif1.iop.cycles = 1;
-	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
+	// IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
 	PSX_INT(IopEvt_SIF1, /*std::min((*/sif1.iop.cycles/* * 26*//*), 1024)*/);
 }
 
@@ -157,12 +155,10 @@ static __fi void HandleEETransfer(void)
 		// If NORMAL mode or end of CHAIN then stop DMA.
 		if ((sif1ch.chcr.MOD == NORMAL_MODE) || sif1.ee.end)
 		{
-			done = true;
 			EndEE();
 		}
 		else
 		{
-			done = false;
 			if (!ProcessEETag()) return;
 		}
 	}
@@ -202,21 +198,13 @@ static __fi void HandleIOPTransfer(void)
 	{
 		if (sif1.iop.end)
 		{
-			done = true;
 			EndIOP();
 		}
 		else if (sif1.fifo.size >= 4)
 		{
-			done = false;
 			SIFIOPReadTag();
 		}
 	}
-}
-
-static __fi void Sif1End(void)
-{
-	psHu32(SBUS_F240) &= ~0x40;
-	psHu32(SBUS_F240) &= ~0x4000;
 }
 
 // Transfer EE to IOP, putting data in the fifo as an intermediate step.
@@ -257,9 +245,10 @@ __fi void SIF1Dma(void)
 			}
 		}
 
-	} while (/*!done &&*/ BusyCheck > 0);
+	} while (BusyCheck > 0);
 
-	Sif1End();
+	psHu32(SBUS_F240) &= ~0x40;
+	psHu32(SBUS_F240) &= ~0x4000;
 }
 
 __fi void  sif1Interrupt(void)
@@ -268,14 +257,14 @@ __fi void  sif1Interrupt(void)
 	psxDmaInterrupt2(3);
 }
 
-__fi void  EEsif1Interrupt(void)
+__fi void EEsif1Interrupt(void)
 {
 	hwDmacIrq(DMAC_SIF1);
 	sif1ch.chcr.STR = false;
 }
 
 // Do almost exactly the same thing as psxDma10 in IopDma.cpp.
-// Main difference is this checks for iop, where psxDma10 checks for ee.
+// Main difference is this checks for IOP, where psxDma10 checks for ee.
 __fi void dmaSIF1(void)
 {
 	psHu32(SBUS_F240) |= 0x4000;
@@ -290,7 +279,7 @@ __fi void dmaSIF1(void)
 
 	//Updated 23/08/2011: The hangs are caused by the EE suspending SIF1 DMA and restarting it when in the middle
 	//of processing a "REFE" tag, so the hangs can be solved by forcing the ee.end to be false
-	// (as it should always be at the beginning of a DMA).  using "if iop is busy" flags breaks Tom Clancy Rainbow Six.
+	// (as it should always be at the beginning of a DMA).  using "if IOP is busy" flags breaks Tom Clancy Rainbow Six.
 	// Legend of Legaia doesn't throw a warning either :)
 	sif1.ee.end = false;
 

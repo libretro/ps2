@@ -24,16 +24,13 @@
 
 _sif sif0;
 
-static bool done = false;
-
 static __fi void Sif0Init(void)
 {
-	done            = false;
 	sif0.ee.cycles  = 0;
 	sif0.iop.cycles = 0;
 }
 
-// Write from Fifo to EE.
+// Write from FIFO to EE.
 static __fi bool WriteFifoToEE(void)
 {
 	const int readSize = std::min((s32)sif0ch.qwc, sif0.fifo.size >> 2);
@@ -57,7 +54,7 @@ static __fi bool WriteFifoToEE(void)
 	return true;
 }
 
-// Write IOP to Fifo.
+// Write IOP to FIFO.
 static __fi void WriteIOPtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
@@ -67,12 +64,12 @@ static __fi void WriteIOPtoFifo(void)
 		sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
 	hw_dma9.madr       += writeSize << 2;
 
-	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
+	// IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
 	sif0.iop.cycles    += writeSize; //1 word per cycle
 	sif0.iop.counter   -= writeSize;
 }
 
-// Read Fifo into an ee tag, transfer it to sif0ch, and process it.
+// Read FIFO into an ee tag, transfer it to sif0ch, and process it.
 static __fi void ProcessEETag(void)
 {
 	alignas(16) static u32 tag[4];
@@ -101,7 +98,7 @@ static __fi void ProcessEETag(void)
 	}
 }
 
-// Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
+// Read FIFO into an IOP tag, and transfer it to hw_dma9. And presumably process it.
 static __fi void ProcessIOPTag(void)
 {
 	// Process DMA tag at hw_dma9.tadr
@@ -142,7 +139,7 @@ static __fi void EndEE(void)
 	CPU_INT(DMAC_SIF0, sif0.ee.cycles*BIAS);
 }
 
-// Stop transferring iop, and signal an interrupt.
+// Stop transferring IOP, and signal an interrupt.
 static __fi void EndIOP(void)
 {
 	sif0data      = 0;
@@ -175,12 +172,11 @@ static __fi void HandleEETransfer(void)
 		if ((sif0ch.chcr.MOD == NORMAL_MODE) || sif0.ee.end)
 		{
 			// Stop transferring ee, and signal an interrupt.
-			done = true;
 			EndEE();
 		}
 		else if (sif0.fifo.size >= 4) // Read a tag
 		{
-			// Read Fifo into an ee tag, transfer it to sif0ch
+			// Read FIFO into an EE tag, transfer it to sif0ch
 			// and process it.
 			ProcessEETag();
 		}
@@ -188,7 +184,7 @@ static __fi void HandleEETransfer(void)
 
 	if (sif0ch.qwc > 0) // If we're writing something, continue to do so.
 	{
-		// Write from Fifo to EE.
+		// Write from FIFO to EE.
 		if (sif0.fifo.size >= 4)
 		{
 			WriteFifoToEE();
@@ -205,11 +201,11 @@ static __fi void HandleEETransfer(void)
 // SIF - 4 = 0 (pos=4)
 // SIF0 EE read tag: 90000002 935c0 0 0
 // SIF0 EE dest chain tag madr:000935C0 qwc:0002 id:1 irq:1(000935C0_90000002)
-// Write Fifo to EE: ----------- 0 of 8
+// Write FIFO to EE: ----------- 0 of 8
 // SIF - 0 = 0 (pos=4)
-// Write IOP to Fifo: +++++++++++ 8 of 8
+// Write IOP to FIFO: +++++++++++ 8 of 8
 // SIF + 8 = 8 (pos=12)
-// Write Fifo to EE: ----------- 8 of 8
+// Write FIFO to EE: ----------- 8 of 8
 // SIF - 8 = 0 (pos=12)
 // Sif0: End IOP
 // Sif0: End EE
@@ -221,30 +217,29 @@ static __fi void HandleEETransfer(void)
 // ...
 // SIF + 8 = 8 (pos=12)
 // Sif0: End IOP
-// Write Fifo to EE: ----------- 8 of 8
+// Write FIFO to EE: ----------- 8 of 8
 // SIF - 8 = 0 (pos=12)
 // SIF0 DMA end...
 
-static __fi void HandleIOPTransfer()
+static __fi void HandleIOPTransfer(void)
 {
 	if (sif0.iop.counter <= 0) // If there's no more to transfer
 	{
 		if (sif0.iop.end)
 		{
-			// Stop transferring iop, and signal an interrupt.
-			done = true;
+			// Stop transferring IOP, and signal an interrupt.
 			EndIOP();
 		}
 		else
 		{
-			// Read Fifo into an iop tag, and transfer it to hw_dma9.
+			// Read FIFO into an IOP tag, and transfer it to hw_dma9.
 			// And presumably process it.
 			ProcessIOPTag();
 		}
 	}
 	else
 	{
-		// Write IOP to Fifo.
+		// Write IOP to FIFO.
 		if ((FIFO_SIF_W - sif0.fifo.size) > 0)
 			WriteIOPtoFifo();
 	}
@@ -320,7 +315,7 @@ __fi void dmaSIF0(void)
 
 	//Updated 23/08/2011: The hangs are caused by the EE suspending SIF1 DMA and restarting it when in the middle
 	//of processing a "REFE" tag, so the hangs can be solved by forcing the ee.end to be false
-	// (as it should always be at the beginning of a DMA).  using "if iop is busy" flags breaks Tom Clancy Rainbow Six.
+	// (as it should always be at the beginning of a DMA).  using "if IOP is busy" flags breaks Tom Clancy Rainbow Six.
 	// Legend of Legaia doesn't throw a warning either :)
 	sif0.ee.end = false;
 	CPU_SET_DMASTALL(DMAC_SIF0, false);
