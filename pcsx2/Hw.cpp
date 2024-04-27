@@ -266,13 +266,8 @@ __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {
 
 				case 0:
 					// There aren't any addresses to pull, so end the transfer.
-					//dma.tadr += 16;						   //Clear tag address - Kills Klonoa 2
-					return true;
-
 				default:
 					// If ASR1 and ASR0 are messed up, end the transfer.
-					//Console.Error("TAG_RET: ASR 1 & 0 == 1. This shouldn't happen!");
-					//dma.tadr += 16;						   //Clear tag address - Kills Klonoa 2
 					return true;
 			}
 			return false;
@@ -347,7 +342,6 @@ bool hwDmacSrcChain(DMACh& dma, int id)
 			      //Set MADR to data following the tag, and end the transfer.
 			dma.madr = dma.tadr + 16;
 			//Don't Increment tadr; breaks Soul Calibur II and III
-			return true;
 			// Undefined Tag handling ends the DMA, maintaining the bad TADR and Tag in upper CHCR
 			// Some games such as DT racer try to use RET tags on IPU, which it doesn't support
 		default:
