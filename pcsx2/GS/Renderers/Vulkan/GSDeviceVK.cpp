@@ -62,8 +62,6 @@ struct vk_init_info_t  vk_init_info;
 
 extern "C"
 {
-	extern PFN_vkCreateInstance      pcsx2_vkCreateInstance;
-	extern PFN_vkDestroyInstance     pcsx2_vkDestroyInstance;
 	extern PFN_vkGetInstanceProcAddr pcsx2_vkGetInstanceProcAddr;
 	extern PFN_vkGetDeviceProcAddr   pcsx2_vkGetDeviceProcAddr;
 	extern PFN_vkCreateDevice        pcsx2_vkCreateDevice;
@@ -117,11 +115,6 @@ const VkApplicationInfo *get_application_info_vulkan(void)
 	return &app_info;
 }
 
-static VKAPI_ATTR VkResult VKAPI_CALL vkCreateInstance_libretro(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance) {
-	*pInstance = vk_init_info.instance;
-	return VK_SUCCESS;
-}
-
 static void add_name_unique(std::vector<const char *> &list, const char *value) {
 	for (const char *name : list)
 		if (!strcmp(value, name))
@@ -158,7 +151,6 @@ static VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice_libretro(VkPhysicalDevice p
 	return vkCreateDevice_org(physicalDevice, &info, pAllocator, pDevice);
 }
 
-static VKAPI_ATTR void VKAPI_CALL vkDestroyInstance_libretro(VkInstance instance, const VkAllocationCallbacks *pAllocator) {}
 static VKAPI_ATTR void VKAPI_CALL vkDestroyDevice_libretro(VkDevice device, const VkAllocationCallbacks *pAllocator) {}
 
 static VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit_libretro(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
@@ -218,8 +210,6 @@ void vk_libretro_init_wraps(void)
 {
 	vkGetInstanceProcAddr_org   = pcsx2_vkGetInstanceProcAddr;
 	pcsx2_vkGetInstanceProcAddr = vkGetInstanceProcAddr_libretro;
-	pcsx2_vkCreateInstance      = vkCreateInstance_libretro;
-	pcsx2_vkDestroyInstance     = vkDestroyInstance_libretro;
 }
 
 void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_render_interface)
@@ -449,9 +439,6 @@ error:
 
 		if (m_device != VK_NULL_HANDLE)
 			vkDestroyDevice(m_device, nullptr);
-
-		if (g_vulkan_context->m_instance != VK_NULL_HANDLE)
-			vkDestroyInstance(g_vulkan_context->m_instance, nullptr);
 
 		Vulkan::UnloadVulkanLibrary();
 
@@ -1332,8 +1319,6 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
 					*adapters = VKContext::EnumerateGPUNames(instance);
-
-				vkDestroyInstance(instance, nullptr);
 			}
 			Vulkan::UnloadVulkanLibrary();
 		}
@@ -1533,7 +1518,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	if (!Vulkan::LoadVulkanInstanceFunctions(instance))
 	{
 		Console.Error("Failed to load Vulkan instance functions");
-		vkDestroyInstance(instance, nullptr);
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
@@ -1542,7 +1526,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	if (gpus.empty())
 	{
 		Console.Error("No physical devices found. Does your GPU and/or driver support Vulkan?");
-		vkDestroyInstance(instance, nullptr);
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
@@ -1573,7 +1556,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 	if (!VKContext::Create(instance, gpus[gpu_index]))
 	{
 		Console.Error("Failed to create Vulkan context");
-		vkDestroyInstance(instance, nullptr);
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
