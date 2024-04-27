@@ -91,6 +91,44 @@ static void memcpy_from_spr(u8* dst, u32 src, size_t size)
 	}
 }
 
+// Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)
+static __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
+{
+	//For some reason Getaway references SPR Memory from itself using SPR0, oh well, let it i guess...
+	if((addr & 0x70000000) == 0x70000000)
+		return (tDMA_TAG*)&eeMem->Scratch[addr & 0x3ff0];
+
+	// FIXME: Why??? DMA uses physical addresses
+	addr &= 0x1ffffff0;
+
+	if (addr < Ps2MemSize::MainRam)
+		return (tDMA_TAG*)&eeMem->Main[addr];
+	else if (addr < 0x10000000)
+		return (tDMA_TAG*)(write ? eeMem->ZeroWrite : eeMem->ZeroRead);
+	else if ((addr >= 0x11000000) && (addr < 0x11010000))
+	{
+		if (addr >= 0x11008000 && THREAD_VU1)
+			vu1Thread.WaitVU();
+
+		//Access for VU Memory
+
+		if((addr >= 0x1100c000) && (addr < 0x11010000))
+			return (tDMA_TAG*)(VU1.Mem + (addr & 0x3ff0));
+
+		if((addr >= 0x11004000) && (addr < 0x11008000))
+			return (tDMA_TAG*)(VU0.Mem + (addr & 0xff0));
+
+		//Possibly not needed but the manual doesn't say SPR cannot access it.
+		if((addr >= 0x11000000) && (addr < 0x11004000))
+			return (tDMA_TAG*)(VU0.Micro + (addr & 0xff0));
+
+		if((addr >= 0x11008000) && (addr < 0x1100c000))
+			return (tDMA_TAG*)(VU1.Micro + (addr & 0x3ff0));
+	}
+	return NULL;
+}
+
+
 int  _SPR0chain(void)
 {
 	tDMA_TAG *pMem;
