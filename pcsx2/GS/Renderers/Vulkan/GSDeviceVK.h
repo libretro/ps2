@@ -163,7 +163,6 @@ private:
 	VkRenderPass m_utility_depth_render_pass_clear = VK_NULL_HANDLE;
 	VkRenderPass m_utility_depth_render_pass_discard = VK_NULL_HANDLE;
 	VkRenderPass m_date_setup_render_pass = VK_NULL_HANDLE;
-	VkRenderPass m_swap_chain_render_pass = VK_NULL_HANDLE;
 
 	VkRenderPass m_tfx_render_pass[2][2][2][3][2][2][3][3] = {}; // [rt][ds][hdr][date][fbl][dsp][rt_op][ds_op]
 

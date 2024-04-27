@@ -2867,10 +2867,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 bool GSDeviceVK::CompilePresentPipelines()
 {
 	VkDevice m_device = g_vulkan_context->GetDevice();
-	// we may not have a swap chain if running in headless mode.
-	m_swap_chain_render_pass = g_vulkan_context->GetRenderPass(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED);
-	if (m_swap_chain_render_pass == VK_NULL_HANDLE)
-		return false;
 
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/present.glsl");
 	if (!shader)
@@ -2895,7 +2891,6 @@ bool GSDeviceVK::CompilePresentPipelines()
 	gpb.SetVertexShader(vs);
 	gpb.SetDepthState(false, false, VK_COMPARE_OP_ALWAYS);
 	gpb.SetNoStencilState();
-	gpb.SetRenderPass(m_swap_chain_render_pass, 0);
 
 	VkShaderModule ps = GetUtilityFragmentShader(*shader, "ps_copy");
 	if (ps == VK_NULL_HANDLE)
@@ -3166,7 +3161,6 @@ void GSDeviceVK::DestroyResources()
 	m_utility_depth_render_pass_clear = VK_NULL_HANDLE;
 	m_utility_depth_render_pass_discard = VK_NULL_HANDLE;
 	m_date_setup_render_pass = VK_NULL_HANDLE;
-	m_swap_chain_render_pass = VK_NULL_HANDLE;
 
 	m_fragment_uniform_stream_buffer.Destroy(false);
 	m_vertex_uniform_stream_buffer.Destroy(false);
