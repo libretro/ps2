@@ -200,6 +200,7 @@ static unsigned RETRO_CALLCONV get_image_index(void)
 {
 	return image_index;
 }
+
 static bool RETRO_CALLCONV set_image_index(unsigned index)
 {
 	if (get_eject_state())
@@ -210,6 +211,7 @@ static bool RETRO_CALLCONV set_image_index(unsigned index)
 
 	return false;
 }
+
 static unsigned RETRO_CALLCONV get_num_images(void)
 {
 	return disk_images.size();
@@ -332,7 +334,7 @@ void retro_reset(void)
 
 freezeData gs_freeze_data = {};
 
-static void context_reset(void)
+static void libretro_context_reset(void)
 {
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
 	GSConfig.UpscaleMultiplier = Options::upscale_multiplier;
@@ -360,7 +362,7 @@ static void context_reset(void)
 	VMManager::SetPaused(false);
 }
 
-static void context_destroy(void)
+static void libretro_context_destroy(void)
 {
 	cpu_thread_pause();
 
@@ -375,11 +377,11 @@ static void context_destroy(void)
 #endif
 }
 
-static bool set_hw_render(retro_hw_context_type type)
+static bool libretro_set_hw_render(retro_hw_context_type type)
 {
 	hw_render.context_type       = type;
-	hw_render.context_reset      = context_reset;
-	hw_render.context_destroy    = context_destroy;
+	hw_render.context_reset      = libretro_context_reset;
+	hw_render.context_destroy    = libretro_context_destroy;
 	hw_render.bottom_left_origin = true;
 	hw_render.depth              = true;
 	hw_render.cache_context      = false;
@@ -427,48 +429,48 @@ static bool set_hw_render(retro_hw_context_type type)
 	return environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render);
 }
 
-bool select_hw_render(void)
+static bool libretro_select_hw_render(void)
 {
 	if (Options::renderer == "Auto" || Options::renderer == "Software")
 	{
 		retro_hw_context_type context_type = RETRO_HW_CONTEXT_NONE;
 		environ_cb(RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER, &context_type);
-		if (context_type != RETRO_HW_CONTEXT_NONE && set_hw_render(context_type))
+		if (context_type != RETRO_HW_CONTEXT_NONE && libretro_set_hw_render(context_type))
 			return true;
 	}
 #ifdef _WIN32
 	if (Options::renderer == "D3D11")
 	{
 		hw_render.version_major = 11;
-		return set_hw_render(RETRO_HW_CONTEXT_D3D11);
+		return libretro_set_hw_render(RETRO_HW_CONTEXT_D3D11);
 	}
 	if (Options::renderer == "D3D12")
 	{
 		hw_render.version_major = 12;
-		return set_hw_render(RETRO_HW_CONTEXT_D3D12);
+		return libretro_set_hw_render(RETRO_HW_CONTEXT_D3D12);
 	}
 #endif
 #ifdef ENABLE_VULKAN
 	if (Options::renderer == "Vulkan")
-		return set_hw_render(RETRO_HW_CONTEXT_VULKAN);
+		return libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN);
 #endif
 	if (Options::renderer == "Null")
-		return set_hw_render(RETRO_HW_CONTEXT_NONE);
+		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 
-	if (set_hw_render(RETRO_HW_CONTEXT_OPENGL_CORE))
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL_CORE))
 		return true;
-	if (set_hw_render(RETRO_HW_CONTEXT_OPENGL))
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
 		return true;
-	if (set_hw_render(RETRO_HW_CONTEXT_OPENGLES3))
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES3))
 		return true;
 #ifdef _WIN32
-	if (set_hw_render(RETRO_HW_CONTEXT_D3D11))
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_D3D11))
 		return true;
-	if (set_hw_render(RETRO_HW_CONTEXT_D3D12))
+	if (libretro_set_hw_render(RETRO_HW_CONTEXT_D3D12))
 		return true;
 #endif
 	if (Options::renderer == "Software")
-		return set_hw_render(RETRO_HW_CONTEXT_NONE);
+		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 
 	return false;
 }
@@ -611,7 +613,7 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	Options::renderer.UpdateAndLock(); // disallow changes to Options::renderer outside of retro_load_game.
 
-	if(!select_hw_render())
+	if(!libretro_select_hw_render())
 		return false;
 
 	if(Options::renderer == "Software")
