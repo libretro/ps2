@@ -41,7 +41,8 @@ static __fi bool WriteFifoToEE(void)
 	if (ptag == NULL)
 		return false;
 
-	sif0.fifo.read((u32*)ptag, readSize << 2);
+	if ((readSize << 2) > 0)
+		sif0.fifo.read((u32*)ptag, readSize << 2);
 
 	sif0ch.madr    += readSize << 4;
 	sif0.ee.cycles += readSize;	// fixme : BIAS is factored in above
@@ -60,9 +61,10 @@ static __fi bool WriteFifoToEE(void)
 static __fi void WriteIOPtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
-	const int writeSize = std::min(sif0.iop.counter, sif0.fifo.sif_free());
+	const int writeSize = std::min(sif0.iop.counter, FIFO_SIF_W - sif0.fifo.size);
 
-	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
+	if (writeSize > 0)
+		sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
 	hw_dma9.madr       += writeSize << 2;
 
 	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
@@ -243,7 +245,7 @@ static __fi void HandleIOPTransfer()
 	else
 	{
 		// Write IOP to Fifo.
-		if (sif0.fifo.sif_free() > 0)
+		if ((FIFO_SIF_W - sif0.fifo.size) > 0)
 			WriteIOPtoFifo();
 	}
 }
@@ -265,15 +267,16 @@ __fi void SIF0Dma(void)
 		//I realise this is very hacky in a way but its an easy way of checking if both are doing something
 		BusyCheck = 0;
 
-		if (sif0.iop.counter == 0 && sif0.iop.writeJunk && sif0.fifo.sif_free() >= sif0.iop.writeJunk)
+		if (sif0.iop.counter == 0 && sif0.iop.writeJunk && (FIFO_SIF_W - sif0.fifo.size) >= sif0.iop.writeJunk)
 		{
-			sif0.fifo.writeJunk(sif0.iop.writeJunk);
+			if (sif0.iop.writeJunk > 0)
+				sif0.fifo.writeJunk(sif0.iop.writeJunk);
 			sif0.iop.writeJunk = 0;
 		}
 
 		if (sif0.iop.busy)
 		{
-			if(sif0.fifo.sif_free() > 0 || (sif0.iop.end && sif0.iop.counter == 0))
+			if((FIFO_SIF_W - sif0.fifo.size) > 0 || (sif0.iop.end && sif0.iop.counter == 0))
 			{
 				BusyCheck++;
 				HandleIOPTransfer();

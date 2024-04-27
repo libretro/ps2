@@ -40,24 +40,16 @@ struct sifFifo
 	s32 writePos;
 	s32 size;
 
-	s32 sif_free()
-	{
-		return FIFO_SIF_W - size;
-	}
-
 	void write(u32 *from, int words)
 	{
-		if (words > 0)
-		{
-			const int wP0 = std::min((FIFO_SIF_W - writePos), words);
-			const int wP1 = words - wP0;
+		const int wP0 = std::min((FIFO_SIF_W - writePos), words);
+		const int wP1 = words - wP0;
 
-			memcpy(&data[writePos], from, wP0 << 2);
-			memcpy(&data[0], &from[wP0], wP1 << 2);
+		memcpy(&data[writePos], from, wP0 << 2);
+		memcpy(&data[0], &from[wP0], wP1 << 2);
 
-			writePos = (writePos + words) & (FIFO_SIF_W - 1);
-			size += words;
-		}
+		writePos = (writePos + words) & (FIFO_SIF_W - 1);
+		size += words;
 	}
 
 	// Junk data writing
@@ -96,45 +88,40 @@ struct sifFifo
 
 	void writeJunk(int words)
 	{
-		if (words > 0)
-		{
-			// Get the start position of the previously completed whole QW.
-			// Position is in word (32bit) units.
-			const int transferredWords = 4 - words;
-			const int prevQWPos = (writePos - (4 + transferredWords)) & (FIFO_SIF_W - 1);
+		// Get the start position of the previously completed whole QW.
+		// Position is in word (32bit) units.
+		const int transferredWords = 4 - words;
+		const int prevQWPos = (writePos - (4 + transferredWords)) & (FIFO_SIF_W - 1);
 
-			// Read the old data in to our junk array in case of wrapping.
-			const int rP0 = std::min((FIFO_SIF_W - prevQWPos), 4);
-			const int rP1 = 4 - rP0;
-			memcpy(&junk[0], &data[prevQWPos], rP0 << 2);
-			memcpy(&junk[rP0], &data[0], rP1 << 2);
+		// Read the old data in to our junk array in case of wrapping.
+		const int rP0 = std::min((FIFO_SIF_W - prevQWPos), 4);
+		const int rP1 = 4 - rP0;
+		memcpy(&junk[0], &data[prevQWPos], rP0 << 2);
+		memcpy(&junk[rP0], &data[0], rP1 << 2);
 
-			// Fill the missing words to fill the QW.
-			const int wP0 = std::min((FIFO_SIF_W - writePos), words);
-			const int wP1 = words - wP0;
+		// Fill the missing words to fill the QW.
+		const int wP0 = std::min((FIFO_SIF_W - writePos), words);
+		const int wP1 = words - wP0;
 
-			memcpy(&data[writePos], &junk[4-wP0], wP0 << 2);
-			memcpy(&data[0], &junk[wP0], wP1 << 2);
+		memcpy(&data[writePos], &junk[4-wP0], wP0 << 2);
+		memcpy(&data[0], &junk[wP0], wP1 << 2);
 
-			writePos = (writePos + words) & (FIFO_SIF_W - 1);
-			size += words;
-		}
+		writePos = (writePos + words) & (FIFO_SIF_W - 1);
+		size += words;
 	}
 
 	void read(u32 *to, int words)
 	{
-		if (words > 0)
-		{
-			const int wP0 = std::min((FIFO_SIF_W - readPos), words);
-			const int wP1 = words - wP0;
+		const int wP0 = std::min((FIFO_SIF_W - readPos), words);
+		const int wP1 = words - wP0;
 
-			memcpy(to, &data[readPos], wP0 << 2);
-			memcpy(&to[wP0], &data[0], wP1 << 2);
+		memcpy(to, &data[readPos], wP0 << 2);
+		memcpy(&to[wP0], &data[0], wP1 << 2);
 
-			readPos = (readPos + words) & (FIFO_SIF_W - 1);
-			size -= words;
-		}
+		readPos = (readPos + words) & (FIFO_SIF_W - 1);
+		size -= words;
 	}
+
 	void clear()
 	{
 		memset(data, 0, sizeof(data));

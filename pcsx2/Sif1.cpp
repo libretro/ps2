@@ -38,12 +38,13 @@ static __fi void Sif1Init(void)
 static __fi bool WriteEEtoFifo(void)
 {
 	// There's some data ready to transfer into the fifo..
-	const int writeSize = std::min((s32)sif1ch.qwc, sif1.fifo.sif_free() >> 2);
+	const int writeSize = std::min((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
 	tDMA_TAG *ptag      = sif1ch.getAddr(sif1ch.madr, DMAC_SIF1, false);
 	if (!ptag)
 		return false;
 
-	sif1.fifo.write((u32*)ptag, writeSize << 2);
+	if ((writeSize << 2) > 0)
+		sif1.fifo.write((u32*)ptag, writeSize << 2);
 
 	sif1ch.madr += writeSize << 4;
 	hwDmacSrcTadrInc(sif1ch);
@@ -60,7 +61,8 @@ static __fi void WriteFifoToIOP(void)
 
 	const int readSize = std::min(sif1.iop.counter, sif1.fifo.size);
 
-	sif1.fifo.read((u32*)iopPhysMem(hw_dma10.madr), readSize);
+	if (readSize > 0)
+		sif1.fifo.read((u32*)iopPhysMem(hw_dma10.madr), readSize);
 	psxCpu->Clear(hw_dma10.madr, readSize);
 	hw_dma10.madr    += readSize << 2;
 	sif1.iop.cycles  += readSize >> 2;		// fixme: should be >> 4
@@ -170,7 +172,7 @@ static __fi void HandleEETransfer(void)
 		{
 			if ((sif1ch.chcr.MOD == NORMAL_MODE) || ((sif1ch.chcr.TAG >> 28) & 0x7) == TAG_REFS)
 			{
-				const int writeSize = std::min((s32)sif1ch.qwc, sif1.fifo.sif_free() >> 2);
+				const int writeSize = std::min((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
 				if ((sif1ch.madr + (writeSize * 16)) > dmacRegs.stadr.ADDR)
 				{
 					hwDmacIrq(DMAC_STALL_SIS);
@@ -180,7 +182,7 @@ static __fi void HandleEETransfer(void)
 				}
 			}
 		}
-		if (sif1.fifo.sif_free() > 0)
+		if ((FIFO_SIF_W - sif1.fifo.size) > 0)
 		{
 			WriteEEtoFifo();
 		}
@@ -224,7 +226,7 @@ __fi void SIF1Dma(void)
 
 	if (sif1_dma_stall)
 	{
-		const int writeSize = std::min((s32)sif1ch.qwc, sif1.fifo.sif_free() >> 2);
+		const int writeSize = std::min((s32)sif1ch.qwc, (FIFO_SIF_W - sif1.fifo.size) >> 2);
 		if ((sif1ch.madr + (writeSize * 16)) > dmacRegs.stadr.ADDR)
 			return;
 	}
@@ -239,7 +241,7 @@ __fi void SIF1Dma(void)
 
 		if (sif1.ee.busy && !sif1_dma_stall)
 		{
-			if(sif1.fifo.sif_free() > 0 || (sif1.ee.end && sif1ch.qwc == 0))
+			if((FIFO_SIF_W - sif1.fifo.size) > 0 || (sif1.ee.end && sif1ch.qwc == 0))
 			{
 				BusyCheck++;
 				HandleEETransfer();
