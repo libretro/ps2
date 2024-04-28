@@ -65,11 +65,9 @@ extern "C"
 	extern PFN_vkGetInstanceProcAddr pcsx2_vkGetInstanceProcAddr;
 	extern PFN_vkGetDeviceProcAddr   pcsx2_vkGetDeviceProcAddr;
 	extern PFN_vkCreateDevice        pcsx2_vkCreateDevice;
-	extern PFN_vkDestroyDevice       pcsx2_vkDestroyDevice;
 	PFN_vkGetInstanceProcAddr        vkGetInstanceProcAddr_org;
 	PFN_vkGetDeviceProcAddr          vkGetDeviceProcAddr_org;
 	PFN_vkCreateDevice               vkCreateDevice_org;
-	PFN_vkDestroyDevice              vkDestroyDevice_org;
 	PFN_vkQueueSubmit                vkQueueSubmit_org;
 }
 
@@ -151,8 +149,6 @@ static VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice_libretro(VkPhysicalDevice p
 	return vkCreateDevice_org(physicalDevice, &info, pAllocator, pDevice);
 }
 
-static VKAPI_ATTR void VKAPI_CALL vkDestroyDevice_libretro(VkDevice device, const VkAllocationCallbacks *pAllocator) {}
-
 static VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit_libretro(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
 {
 	vulkan->lock_queue(vulkan->handle);
@@ -191,11 +187,6 @@ static VKAPI_ATTR PFN_vkVoidFunction enumerate_fptrs(PFN_vkVoidFunction fptr, co
 	{
 		vkCreateDevice_org = (PFN_vkCreateDevice)fptr;
 		return (PFN_vkVoidFunction)vkCreateDevice_libretro;
-	}
-	if (!strcmp(pName, "vkDestroyDevice"))
-	{
-		vkDestroyDevice_org = (PFN_vkDestroyDevice)fptr;
-		return (PFN_vkVoidFunction)vkDestroyDevice_libretro;
 	}
 	if (!strcmp(pName, "vkQueueSubmit"))
 	{
@@ -436,9 +427,6 @@ error:
 		if (g_vulkan_context->m_allocator != VK_NULL_HANDLE)
 			vmaDestroyAllocator(g_vulkan_context->m_allocator);
 		g_vulkan_context->m_allocator = VK_NULL_HANDLE;
-
-		if (m_device != VK_NULL_HANDLE)
-			vkDestroyDevice(m_device, nullptr);
 
 		Vulkan::UnloadVulkanLibrary();
 

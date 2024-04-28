@@ -20,6 +20,8 @@
 #include <cstring>
 #include <string>
 
+#include "Common/Console.h"
+
 #include "VKLoader.h"
 
 #ifndef _WIN32
@@ -72,7 +74,7 @@ namespace Vulkan
 		vulkan_module = LoadLibraryA("vulkan-1.dll");
 		if (!vulkan_module)
 		{
-			std::fprintf(stderr, "Failed to load vulkan-1.dll\n");
+			Console.Error("Failed to load vulkan-1.dll");
 			return false;
 		}
 
@@ -81,7 +83,7 @@ namespace Vulkan
 			*func_ptr = GetProcAddress(vulkan_module, name);
 			if (!(*func_ptr) && is_required)
 			{
-				std::fprintf(stderr, "Vulkan: Failed to load required module function %s\n", name);
+				Console.Error("Vulkan: Failed to load required module function %s", name);
 				required_functions_missing = true;
 			}
 		};
@@ -175,7 +177,7 @@ namespace Vulkan
 
 		if (!vulkan_module)
 		{
-			std::fprintf(stderr, "Failed to load or locate libvulkan.so\n");
+			Console.Error("Failed to load or locate libvulkan.so");
 			return false;
 		}
 
@@ -184,7 +186,7 @@ namespace Vulkan
 			*func_ptr = dlsym(vulkan_module, name);
 			if (!(*func_ptr) && is_required)
 			{
-				std::fprintf(stderr, "Vulkan: Failed to load required module function %s\n", name);
+				Console.Error(stderr, "Vulkan: Failed to load required module function %s", name);
 				required_functions_missing = true;
 			}
 		};
@@ -224,7 +226,7 @@ namespace Vulkan
 			*func_ptr = vkGetInstanceProcAddr(instance, name);
 			if (!(*func_ptr) && is_required)
 			{
-				std::fprintf(stderr, "Vulkan: Failed to load required instance function %s\n", name);
+				Console.Error("Vulkan: Failed to load required instance function %s", name);
 				required_functions_missing = true;
 			}
 		};
@@ -244,7 +246,7 @@ namespace Vulkan
 			*func_ptr = vkGetDeviceProcAddr(device, name);
 			if (!(*func_ptr) && is_required)
 			{
-				std::fprintf(stderr, "Vulkan: Failed to load required device function %s\n", name);
+				Console.Error("Vulkan: Failed to load required device function %s", name);
 				required_functions_missing = true;
 			}
 		};
