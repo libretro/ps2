@@ -208,7 +208,7 @@ enum : u32
 
        using ExtensionList = std::vector<const char*>;
        bool SelectDeviceExtensions(ExtensionList* extension_list);
-       bool SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features);
+       void SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features);
        bool CreateDevice(const char** required_device_extensions,
 		       u32 num_required_device_extensions, const char** required_device_layers, u32 num_required_device_layers,
 		       const VkPhysicalDeviceFeatures* required_features);

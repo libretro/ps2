@@ -428,7 +428,7 @@ error:
 		return true;
 	}
 
-	bool VKContext::SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features)
+	void VKContext::SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features)
 	{
 		VkPhysicalDeviceFeatures available_features;
 		vkGetPhysicalDeviceFeatures(m_physical_device, &available_features);
@@ -444,8 +444,6 @@ error:
 		m_device_features.textureCompressionBC     = available_features.textureCompressionBC;
 		m_device_features.samplerAnisotropy        = available_features.samplerAnisotropy;
 		m_device_features.geometryShader           = available_features.geometryShader;
-
-		return true;
 	}
 
 	bool VKContext::CreateDevice(
@@ -517,8 +515,7 @@ error:
 		device_info.ppEnabledExtensionNames = enabled_extensions.data();
 
 		// Check for required features before creating.
-		if (!SelectDeviceFeatures(required_features))
-			return false;
+		SelectDeviceFeatures(required_features);
 
 		device_info.pEnabledFeatures = &m_device_features;
 
