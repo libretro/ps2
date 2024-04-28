@@ -274,27 +274,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 	VKContext::~VKContext() = default;
 
-	VKContext::GPUList VKContext::EnumerateGPUs(VkInstance instance)
-	{
-		u32 gpu_count = 0;
-		VkResult res = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
-		if ((res != VK_SUCCESS && res != VK_INCOMPLETE) || gpu_count == 0)
-			return {};
-
-		GPUList gpus;
-		gpus.resize(gpu_count);
-
-		res = vkEnumeratePhysicalDevices(instance, &gpu_count, gpus.data());
-		if (res != VK_SUCCESS)
-			return {};
-
-		// Maybe we lost a GPU?
-		if (gpu_count < gpus.size())
-			gpus.resize(gpu_count);
-
-		return gpus;
-	}
-
 	VKContext::GPUNameList VKContext::EnumerateGPUNames(VkInstance instance)
 	{
 		u32 gpu_count = 0;
@@ -1466,38 +1445,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		return false;
 	}
 
-	VKContext::GPUList gpus = VKContext::EnumerateGPUs(instance);
-	if (gpus.empty())
-	{
-		Console.Error("No physical devices found. Does your GPU and/or driver support Vulkan?");
-		Vulkan::UnloadVulkanLibrary();
-		return false;
-	}
-
-	u32 gpu_index = 0;
-	VKContext::GPUNameList gpu_names = VKContext::EnumerateGPUNames(instance);
-	if (!GSConfig.Adapter.empty())
-	{
-		for (; gpu_index < static_cast<u32>(gpu_names.size()); gpu_index++)
-		{
-			Console.WriteLn(fmt::format("GPU {}: {}", gpu_index, gpu_names[gpu_index]));
-			if (gpu_names[gpu_index] == GSConfig.Adapter)
-				break;
-		}
-
-		if (gpu_index == static_cast<u32>(gpu_names.size()))
-		{
-			Console.Warning(
-				fmt::format("Requested GPU '{}' not found, using first ({})", GSConfig.Adapter, gpu_names[0]));
-			gpu_index = 0;
-		}
-	}
-	else
-	{
-		Console.WriteLn("No GPU requested, using first (%s)", gpu_names[0].c_str());
-	}
-
-	if (!VKContext::Create(instance, gpus[gpu_index]))
+	if (!VKContext::Create(instance, vk_init_info.gpu))
 	{
 		Console.Error("Failed to create Vulkan context");
 		Vulkan::UnloadVulkanLibrary();

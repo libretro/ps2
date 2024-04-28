@@ -57,7 +57,6 @@ enum : u32
        // Returns a list of Vulkan-compatible GPUs.
        using GPUList = std::vector<VkPhysicalDevice>;
        using GPUNameList = std::vector<std::string>;
-       static GPUList EnumerateGPUs(VkInstance instance);
        static GPUNameList EnumerateGPUNames(VkInstance instance);
 
        // Creates a new context and sets it up as global.
