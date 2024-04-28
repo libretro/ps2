@@ -22,7 +22,6 @@
 #ifdef VULKAN_MODULE_ENTRY_POINT
 
 VULKAN_MODULE_ENTRY_POINT(vkGetInstanceProcAddr, true)
-VULKAN_MODULE_ENTRY_POINT(vkEnumerateInstanceExtensionProperties, true)
 
 #endif // VULKAN_MODULE_ENTRY_POINT
 

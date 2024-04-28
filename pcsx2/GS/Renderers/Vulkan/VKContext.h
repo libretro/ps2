@@ -54,9 +54,6 @@ enum : u32
 
        ~VKContext();
 
-       // Helper method to create a Vulkan instance.
-       static VkInstance CreateVulkanInstance();
-
        // Returns a list of Vulkan-compatible GPUs.
        using GPUList = std::vector<VkPhysicalDevice>;
        using GPUNameList = std::vector<std::string>;
@@ -211,7 +208,6 @@ enum : u32
        };
 
        using ExtensionList = std::vector<const char*>;
-       static bool SelectInstanceExtensions(ExtensionList* extension_list);
        bool SelectDeviceExtensions(ExtensionList* extension_list);
        bool SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features);
        bool CreateDevice(const char** required_device_extensions,

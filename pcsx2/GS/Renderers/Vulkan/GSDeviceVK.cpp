@@ -274,49 +274,6 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 
 	VKContext::~VKContext() = default;
 
-	VkInstance VKContext::CreateVulkanInstance()
-	{
-		ExtensionList enabled_extensions;
-		if (!SelectInstanceExtensions(&enabled_extensions))
-			return VK_NULL_HANDLE;
-		return vk_init_info.instance;
-	}
-
-	bool VKContext::SelectInstanceExtensions(ExtensionList* extension_list)
-	{
-		u32 extension_count = 0;
-		VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-		if (res != VK_SUCCESS)
-			return false;
-
-		if (extension_count == 0)
-		{
-			Console.Error("Vulkan: No extensions supported by instance.");
-			return false;
-		}
-
-		std::vector<VkExtensionProperties> available_extension_list(extension_count);
-		res = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, available_extension_list.data());
-
-		auto SupportsExtension = [&](const char* name, bool required) {
-			if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
-					[&](const VkExtensionProperties& properties) { return !strcmp(name, properties.extensionName); }) !=
-				available_extension_list.end())
-			{
-				Console.WriteLn("Enabling extension: %s", name);
-				extension_list->push_back(name);
-				return true;
-			}
-
-			if (required)
-				Console.Error("Vulkan: Missing required extension %s.", name);
-
-			return false;
-		};
-
-		return true;
-	}
-
 	VKContext::GPUList VKContext::EnumerateGPUs(VkInstance instance)
 	{
 		u32 gpu_count = 0;
@@ -1302,7 +1259,7 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 	{
 		if (Vulkan::LoadVulkanLibrary())
 		{
-			VkInstance instance = VKContext::CreateVulkanInstance();
+			VkInstance instance = vk_init_info.instance;
 			if (instance != VK_NULL_HANDLE)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -1494,8 +1451,7 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	AcquireWindow();
 
-	VkInstance instance =
-		VKContext::CreateVulkanInstance();
+	VkInstance instance = vk_init_info.instance;
 	if (instance == VK_NULL_HANDLE)
 	{
 		Console.Error("Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");

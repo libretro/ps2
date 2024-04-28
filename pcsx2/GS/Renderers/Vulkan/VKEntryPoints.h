@@ -36,7 +36,6 @@ extern "C" {
 #endif
 
 #define vkGetInstanceProcAddr pcsx2_vkGetInstanceProcAddr
-#define vkEnumerateInstanceExtensionProperties pcsx2_vkEnumerateInstanceExtensionProperties
 
 #define vkGetDeviceProcAddr pcsx2_vkGetDeviceProcAddr
 #define vkEnumeratePhysicalDevices pcsx2_vkEnumeratePhysicalDevices
