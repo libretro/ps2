@@ -21,12 +21,8 @@
 
 #ifdef VULKAN_MODULE_ENTRY_POINT
 
-VULKAN_MODULE_ENTRY_POINT(vkCreateInstance, true)
 VULKAN_MODULE_ENTRY_POINT(vkGetInstanceProcAddr, true)
 VULKAN_MODULE_ENTRY_POINT(vkEnumerateInstanceExtensionProperties, true)
-VULKAN_MODULE_ENTRY_POINT(vkEnumerateInstanceLayerProperties, true)
-VULKAN_MODULE_ENTRY_POINT(vkEnumerateInstanceVersion, false)
-VULKAN_MODULE_ENTRY_POINT(vkDestroyInstance, true)
 
 #endif // VULKAN_MODULE_ENTRY_POINT
 
@@ -60,9 +56,6 @@ VULKAN_INSTANCE_ENTRY_POINT(vkSubmitDebugUtilsMessageEXT, false)
 
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceDisplayPropertiesKHR, false)
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceDisplayPlanePropertiesKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetDisplayPlaneSupportedDisplaysKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetDisplayModePropertiesKHR, false)
-VULKAN_INSTANCE_ENTRY_POINT(vkGetDisplayPlaneCapabilitiesKHR, false)
 
 // Vulkan 1.1 functions.
 VULKAN_INSTANCE_ENTRY_POINT(vkGetPhysicalDeviceFeatures2, true)

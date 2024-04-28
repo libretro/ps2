@@ -35,14 +35,10 @@ extern "C" {
 }
 #endif
 
-#define vkCreateInstance pcsx2_vkCreateInstance
 #define vkGetInstanceProcAddr pcsx2_vkGetInstanceProcAddr
 #define vkEnumerateInstanceExtensionProperties pcsx2_vkEnumerateInstanceExtensionProperties
-#define vkEnumerateInstanceLayerProperties pcsx2_vkEnumerateInstanceLayerProperties
-#define vkEnumerateInstanceVersion pcsx2_vkEnumerateInstanceVersion
 
 #define vkGetDeviceProcAddr pcsx2_vkGetDeviceProcAddr
-#define vkDestroyInstance pcsx2_vkDestroyInstance
 #define vkEnumeratePhysicalDevices pcsx2_vkEnumeratePhysicalDevices
 #define vkGetPhysicalDeviceFeatures pcsx2_vkGetPhysicalDeviceFeatures
 #define vkGetPhysicalDeviceFormatProperties pcsx2_vkGetPhysicalDeviceFormatProperties
@@ -70,9 +66,6 @@ extern "C" {
 
 #define vkGetPhysicalDeviceDisplayPropertiesKHR pcsx2_vkGetPhysicalDeviceDisplayPropertiesKHR
 #define vkGetPhysicalDeviceDisplayPlanePropertiesKHR pcsx2_vkGetPhysicalDeviceDisplayPlanePropertiesKHR
-#define vkGetDisplayPlaneSupportedDisplaysKHR pcsx2_vkGetDisplayPlaneSupportedDisplaysKHR
-#define vkGetDisplayModePropertiesKHR pcsx2_vkGetDisplayModePropertiesKHR
-#define vkGetDisplayPlaneCapabilitiesKHR pcsx2_vkGetDisplayPlaneCapabilitiesKHR
 
 // Vulkan 1.1 functions.
 #define vkGetPhysicalDeviceFeatures2 pcsx2_vkGetPhysicalDeviceFeatures2
