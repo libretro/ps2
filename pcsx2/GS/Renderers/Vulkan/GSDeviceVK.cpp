@@ -92,7 +92,7 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	context->gpu                             = g_vulkan_context->GetPhysicalDevice();
+	context->gpu                             = vk_init_info.gpu;
 	context->device                          = g_vulkan_context->GetDevice();
 	context->queue                           = g_vulkan_context->GetGraphicsQueue();
 	context->queue_family_index              = g_vulkan_context->GetGraphicsQueueFamilyIndex();
@@ -252,12 +252,10 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	}
 }
 
-VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
-	: m_instance(instance)
-	  , m_physical_device(physical_device)
+VKContext::VKContext()
 {
 	// Read device physical memory properties, we need it for allocating buffers
-	vkGetPhysicalDeviceProperties(physical_device, &m_device_properties);
+	vkGetPhysicalDeviceProperties(vk_init_info.gpu, &m_device_properties);
 
 	// We need this to be at least 32 byte aligned for AVX2 stores.
 	m_device_properties.limits.minUniformBufferOffsetAlignment =
@@ -318,11 +316,11 @@ VKContext::VKContext(VkInstance instance, VkPhysicalDevice physical_device)
 		return gpu_names;
 	}
 
-	bool VKContext::Create(VkInstance instance, VkPhysicalDevice physical_device)
+	bool VKContext::Create()
 	{
 		if (!g_vulkan_context)
 			Console.Warning("Has no current context");
-		g_vulkan_context.reset(new VKContext(instance, physical_device));
+		g_vulkan_context.reset(new VKContext());
 
 		// Attempt to create the device.
 		if (!g_vulkan_context->CreateDevice(nullptr, 0, nullptr, 0, nullptr))
@@ -372,7 +370,7 @@ error:
 	bool VKContext::SelectDeviceExtensions(ExtensionList* extension_list)
 	{
 		u32 extension_count = 0;
-		VkResult res = vkEnumerateDeviceExtensionProperties(m_physical_device, nullptr, &extension_count, nullptr);
+		VkResult res = vkEnumerateDeviceExtensionProperties(vk_init_info.gpu, nullptr, &extension_count, nullptr);
 		if (res != VK_SUCCESS)
 			return false;
 
@@ -384,7 +382,7 @@ error:
 
 		std::vector<VkExtensionProperties> available_extension_list(extension_count);
 		res = vkEnumerateDeviceExtensionProperties(
-			m_physical_device, nullptr, &extension_count, available_extension_list.data());
+			vk_init_info.gpu, nullptr, &extension_count, available_extension_list.data());
 
 		auto SupportsExtension = [&](const char* name, bool required) {
 			if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
@@ -431,7 +429,7 @@ error:
 	void VKContext::SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features)
 	{
 		VkPhysicalDeviceFeatures available_features;
-		vkGetPhysicalDeviceFeatures(m_physical_device, &available_features);
+		vkGetPhysicalDeviceFeatures(vk_init_info.gpu, &available_features);
 
 		if (required_features)
 			memcpy(&m_device_features, required_features, sizeof(m_device_features));
@@ -452,7 +450,7 @@ error:
 		const VkPhysicalDeviceFeatures* required_features)
 	{
 		u32 queue_family_count;
-		vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, nullptr);
+		vkGetPhysicalDeviceQueueFamilyProperties(vk_init_info.gpu, &queue_family_count, nullptr);
 		if (queue_family_count == 0)
 		{
 			Console.Error("No queue families found on specified vulkan physical device.");
@@ -461,7 +459,7 @@ error:
 
 		std::vector<VkQueueFamilyProperties> queue_family_properties(queue_family_count);
 		vkGetPhysicalDeviceQueueFamilyProperties(
-			m_physical_device, &queue_family_count, queue_family_properties.data());
+			vk_init_info.gpu, &queue_family_count, queue_family_properties.data());
 		Console.WriteLn("%u vulkan queue families", queue_family_count);
 
 		// Find graphics and present queues.
@@ -550,7 +548,7 @@ error:
 			AddPointerToChain(&device_info, &attachment_feedback_loop_feature);
 		}
 
-		VkResult res = vkCreateDevice(m_physical_device, &device_info, nullptr, &m_device);
+		VkResult res = vkCreateDevice(vk_init_info.gpu, &device_info, nullptr, &m_device);
 		if (res != VK_SUCCESS)
 			return false;
 
@@ -590,7 +588,7 @@ error:
 			AddPointerToChain(&features2, &attachment_feedback_loop_feature);
 
 		// query
-		vkGetPhysicalDeviceFeatures2(m_physical_device, &features2);
+		vkGetPhysicalDeviceFeatures2(vk_init_info.gpu, &features2);
 
 		// confirm we actually support it
 		m_optional_extensions.vk_ext_provoking_vertex &= (provoking_vertex_features.provokingVertexLast == VK_TRUE);
@@ -610,7 +608,7 @@ error:
 		}
 
 		// query
-		vkGetPhysicalDeviceProperties2(m_physical_device, &properties2);
+		vkGetPhysicalDeviceProperties2(vk_init_info.gpu, &properties2);
 
 		Console.WriteLn("VK_EXT_provoking_vertex is %s",
 			m_optional_extensions.vk_ext_provoking_vertex ? "supported" : "NOT supported");
@@ -625,11 +623,11 @@ error:
 	bool VKContext::CreateAllocator()
 	{
 		VmaAllocatorCreateInfo ci = {};
-		ci.vulkanApiVersion = VK_API_VERSION_1_1;
-		ci.flags = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
-		ci.physicalDevice = m_physical_device;
-		ci.device = m_device;
-		ci.instance = m_instance;
+		ci.vulkanApiVersion       = VK_API_VERSION_1_1;
+		ci.flags                  = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+		ci.physicalDevice         = vk_init_info.gpu;
+		ci.device                 = m_device;
+		ci.instance               = vk_init_info.instance;
 
 		if (m_optional_extensions.vk_ext_memory_budget)
 			ci.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
@@ -1222,9 +1220,9 @@ GSDeviceVK::~GSDeviceVK()
 
 void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 {
+	VkInstance instance = vk_init_info.instance;
 	if (g_vulkan_context)
 	{
-		VkInstance instance = g_vulkan_context->GetVulkanInstance();
 		if (instance != VK_NULL_HANDLE)
 		{
 			if (adapters)
@@ -1235,7 +1233,6 @@ void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 	{
 		if (Vulkan::LoadVulkanLibrary())
 		{
-			VkInstance instance = vk_init_info.instance;
 			if (instance != VK_NULL_HANDLE)
 			{
 				if (Vulkan::LoadVulkanInstanceFunctions(instance))
@@ -1427,22 +1424,14 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 
 	AcquireWindow();
 
-	VkInstance instance = vk_init_info.instance;
-	if (instance == VK_NULL_HANDLE)
-	{
-		Console.Error("Failed to load Vulkan library. Does your GPU and/or driver support Vulkan?");
-		Vulkan::UnloadVulkanLibrary();
-		return false;
-	}
-
-	if (!Vulkan::LoadVulkanInstanceFunctions(instance))
+	if (!Vulkan::LoadVulkanInstanceFunctions(vk_init_info.instance))
 	{
 		Console.Error("Failed to load Vulkan instance functions");
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
 
-	if (!VKContext::Create(instance, vk_init_info.gpu))
+	if (!VKContext::Create())
 	{
 		Console.Error("Failed to create Vulkan context");
 		Vulkan::UnloadVulkanLibrary();
@@ -1499,7 +1488,7 @@ bool GSDeviceVK::CheckFeatures()
 	// Test for D32S8 support.
 	{
 		VkFormatProperties props = {};
-		vkGetPhysicalDeviceFormatProperties(g_vulkan_context->GetPhysicalDevice(), VK_FORMAT_D32_SFLOAT_S8_UINT, &props);
+		vkGetPhysicalDeviceFormatProperties(vk_init_info.gpu, VK_FORMAT_D32_SFLOAT_S8_UINT, &props);
 		m_features.stencil_buffer = ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
 	}
 
@@ -1532,7 +1521,7 @@ bool GSDeviceVK::CheckFeatures()
 		                                   (VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
 
 		VkFormatProperties props = {};
-		vkGetPhysicalDeviceFormatProperties(g_vulkan_context->GetPhysicalDevice(), vkfmt, &props);
+		vkGetPhysicalDeviceFormatProperties(vk_init_info.gpu, vkfmt, &props);
 		if ((props.optimalTilingFeatures & bits) != bits)
 		{
 			Console.Error("Vulkan Renderer Unavailable",

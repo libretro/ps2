@@ -60,14 +60,12 @@ enum : u32
        static GPUNameList EnumerateGPUNames(VkInstance instance);
 
        // Creates a new context and sets it up as global.
-       static bool Create(VkInstance instance, VkPhysicalDevice physical_device);
+       static bool Create();
 
        // Destroys context.
        static void Destroy();
 
        // Global state accessors
-       __fi VkInstance GetVulkanInstance() const { return m_instance; }
-       __fi VkPhysicalDevice GetPhysicalDevice() const { return m_physical_device; }
        __fi VkDevice GetDevice() const { return m_device; }
        __fi VmaAllocator GetAllocator() const { return m_allocator; }
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
@@ -94,14 +92,6 @@ enum : u32
        __fi u32 GetTexelBufferAlignment() const
        {
 	       return static_cast<u32>(m_device_properties.limits.minTexelBufferOffsetAlignment);
-       }
-       __fi u32 GetStorageBufferAlignment() const
-       {
-	       return static_cast<u32>(m_device_properties.limits.minStorageBufferOffsetAlignment);
-       }
-       __fi u32 GetBufferImageGranularity() const
-       {
-	       return static_cast<u32>(m_device_properties.limits.bufferImageGranularity);
        }
        __fi u32 GetBufferCopyOffsetAlignment() const
        {
@@ -185,7 +175,7 @@ enum : u32
 		       VkBufferUsageFlags gpu_usage, const std::function<void(void*)>& fill_callback);
 
 	private:
-       VKContext(VkInstance instance, VkPhysicalDevice physical_device);
+       VKContext();
 
        union RenderPassCacheKey
        {
@@ -242,8 +232,6 @@ enum : u32
 	       std::vector<std::function<void()>> cleanup_resources;
        };
 
-       VkInstance m_instance = VK_NULL_HANDLE;
-       VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
        VkDevice m_device = VK_NULL_HANDLE;
        VmaAllocator m_allocator = VK_NULL_HANDLE;
 
