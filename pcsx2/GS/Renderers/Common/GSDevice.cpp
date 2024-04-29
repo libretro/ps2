@@ -406,26 +406,6 @@ void GSDevice::Interlace(const GSVector2i& ds, int field, int mode, float yoffse
 	}
 }
 
-void GSDevice::Resize(int width, int height)
-{
-	GSTexture*& dTex = (m_current == m_target_tmp) ? m_merge : m_target_tmp;
-	GSVector2i s = m_current->GetSize();
-	int multiplier = 1;
-
-	while (width > s.x || height > s.y)
-	{
-		s = m_current->GetSize() * GSVector2i(++multiplier);
-	}
-
-	if (ResizeRenderTarget(&dTex, s.x, s.y, false, false))
-	{
-		const GSVector4 sRect(0, 0, 1, 1);
-		const GSVector4 dRect(0, 0, s.x, s.y);
-		StretchRect(m_current, sRect, dTex, dRect, ShaderConvert::COPY, false);
-		m_current = dTex;
-	}
-}
-
 bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle)
 {
 	GSTexture* orig_tex = *t;
