@@ -323,7 +323,12 @@ VKContext::VKContext()
 		g_vulkan_context.reset(new VKContext());
 
 		// Attempt to create the device.
-		if (!g_vulkan_context->CreateDevice(nullptr, 0, nullptr, 0, nullptr))
+		if (!g_vulkan_context->CreateDevice(
+					vk_init_info.required_device_extensions,
+					vk_init_info.num_required_device_extensions,
+					vk_init_info.required_device_layers,
+					vk_init_info.num_required_device_layers,
+					vk_init_info.required_features))
 			goto error;
 
 		// And critical resources
