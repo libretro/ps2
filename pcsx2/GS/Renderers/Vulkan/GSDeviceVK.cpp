@@ -322,27 +322,22 @@ VKContext::VKContext()
 			Console.Warning("Has no current context");
 		g_vulkan_context.reset(new VKContext());
 
-		// Attempt to create the device.
-		if (!g_vulkan_context->CreateDevice(
+		// Attempt to create the device and critical resources
+		if (               !g_vulkan_context->CreateDevice(
 					vk_init_info.required_device_extensions,
 					vk_init_info.num_required_device_extensions,
 					vk_init_info.required_device_layers,
 					vk_init_info.num_required_device_layers,
-					vk_init_info.required_features))
-			goto error;
-
-		// And critical resources
-		if (               !g_vulkan_context->CreateAllocator()
+					vk_init_info.required_features)
+		                || !g_vulkan_context->CreateAllocator()
 				|| !g_vulkan_context->CreateGlobalDescriptorPool()
-				|| !g_vulkan_context->CreateCommandBuffers())
-			goto error;
-		if (!g_vulkan_context->CreateTextureStreamBuffer())
-			goto error;
-
+				|| !g_vulkan_context->CreateCommandBuffers()
+				|| !g_vulkan_context->CreateTextureStreamBuffer())
+		{
+			g_vulkan_context.reset();
+			return false;
+		}
 		return true;
-error:
-		g_vulkan_context.reset();
-		return false;
 	}
 
 	void VKContext::Destroy()
@@ -652,8 +647,6 @@ error:
 
 		for (FrameResources& resources : m_frame_resources)
 		{
-			resources.needs_fence_wait = false;
-
 			VkCommandPoolCreateInfo pool_info = {
 				VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr, 0, m_graphics_queue_family_index};
 			res = vkCreateCommandPool(m_device, &pool_info, nullptr, &resources.command_pool);
@@ -938,8 +931,6 @@ error:
 			Console.Error("Failed to end command buffer");
 
 		// This command buffer now has commands, so can't be re-used without waiting.
-		resources.needs_fence_wait = true;
-
 		DoSubmitCommandBuffer(m_current_frame);
 	}
 

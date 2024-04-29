@@ -222,7 +222,6 @@ enum : u32
 	       VkFence fence = VK_NULL_HANDLE;
 	       u64 fence_counter = 0;
 	       bool init_buffer_used = false;
-	       bool needs_fence_wait = false;
 
 	       std::vector<std::function<void()>> cleanup_resources;
        };
