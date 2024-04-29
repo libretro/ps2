@@ -938,13 +938,11 @@ error:
 
 	void VKContext::DoSubmitCommandBuffer(u32 index)
 	{
-		FrameResources& resources = m_frame_resources[index];
+		FrameResources& resources      = m_frame_resources[index];
 
-		uint32_t wait_bits = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		VkSemaphore semas[2];
-		VkSubmitInfo submit_info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		VkSubmitInfo submit_info       = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		submit_info.commandBufferCount = resources.init_buffer_used ? 2u : 1u;
-		submit_info.pCommandBuffers = resources.init_buffer_used ? resources.command_buffers.data() : &resources.command_buffers[1];
+		submit_info.pCommandBuffers    = resources.init_buffer_used ? resources.command_buffers.data() : &resources.command_buffers[1];
 
 		const VkResult res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
 		if (res != VK_SUCCESS)

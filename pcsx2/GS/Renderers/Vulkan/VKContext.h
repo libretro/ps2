@@ -70,7 +70,6 @@ enum : u32
        __fi VmaAllocator GetAllocator() const { return m_allocator; }
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
-       __fi const VkQueueFamilyProperties& GetGraphicsQueueProperties() const { return m_graphics_queue_properties; }
        __fi const VkPhysicalDeviceProperties& GetDeviceProperties() const { return m_device_properties; }
        __fi const VkPhysicalDeviceFeatures& GetDeviceFeatures() const { return m_device_features; }
        __fi const VkPhysicalDeviceLimits& GetDeviceLimits() const { return m_device_properties.limits; }
@@ -253,7 +252,6 @@ enum : u32
 
        std::map<u32, VkRenderPass> m_render_pass_cache;
 
-       VkQueueFamilyProperties m_graphics_queue_properties = {};
        VkPhysicalDeviceFeatures m_device_features = {};
        VkPhysicalDeviceProperties m_device_properties = {};
        VkPhysicalDeviceDriverPropertiesKHR m_device_driver_properties = {};
