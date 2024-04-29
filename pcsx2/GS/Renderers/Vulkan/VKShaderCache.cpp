@@ -450,7 +450,7 @@ bool VKShaderCache::CreateNewPipelineCache()
 	}
 
 	const VkPipelineCacheCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, 0, nullptr};
-	VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
+	VkResult res = vkCreatePipelineCache(vk_init_info.device, &ci, nullptr, &m_pipeline_cache);
 	if (res != VK_SUCCESS)
 		return false;
 
@@ -477,7 +477,7 @@ bool VKShaderCache::ReadExistingPipelineCache()
 
 	const VkPipelineCacheCreateInfo ci{
 		VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, nullptr, 0, data->size(), data->data()};
-	VkResult res = vkCreatePipelineCache(g_vulkan_context->GetDevice(), &ci, nullptr, &m_pipeline_cache);
+	VkResult res = vkCreatePipelineCache(vk_init_info.device, &ci, nullptr, &m_pipeline_cache);
 	if (res != VK_SUCCESS)
 		return false;
 
@@ -490,12 +490,12 @@ bool VKShaderCache::FlushPipelineCache()
 		return false;
 
 	size_t data_size;
-	VkResult res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, nullptr);
+	VkResult res = vkGetPipelineCacheData(vk_init_info.device, m_pipeline_cache, &data_size, nullptr);
 	if (res != VK_SUCCESS)
 		return false;
 
 	std::vector<u8> data(data_size);
-	res = vkGetPipelineCacheData(g_vulkan_context->GetDevice(), m_pipeline_cache, &data_size, data.data());
+	res = vkGetPipelineCacheData(vk_init_info.device, m_pipeline_cache, &data_size, data.data());
 	if (res != VK_SUCCESS)
 		return false;
 
@@ -527,7 +527,7 @@ void VKShaderCache::ClosePipelineCache()
 	if (m_pipeline_cache == VK_NULL_HANDLE)
 		return;
 
-	vkDestroyPipelineCache(g_vulkan_context->GetDevice(), m_pipeline_cache, nullptr);
+	vkDestroyPipelineCache(vk_init_info.device, m_pipeline_cache, nullptr);
 	m_pipeline_cache = VK_NULL_HANDLE;
 }
 
@@ -600,7 +600,7 @@ VkShaderModule VKShaderCache::GetShaderModule(ShaderType type, std::string_view 
 		VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, nullptr, 0, spv->size() * sizeof(SPIRVCodeType), spv->data()};
 
 	VkShaderModule mod;
-	VkResult res = vkCreateShaderModule(g_vulkan_context->GetDevice(), &ci, nullptr, &mod);
+	VkResult res = vkCreateShaderModule(vk_init_info.device, &ci, nullptr, &mod);
 	if (res != VK_SUCCESS)
 		return VK_NULL_HANDLE;
 

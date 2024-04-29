@@ -93,7 +93,7 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 		MTGS::TryOpenGS();
 
 	context->gpu                             = vk_init_info.gpu;
-	context->device                          = g_vulkan_context->GetDevice();
+	context->device                          = vk_init_info.device;
 	context->queue                           = g_vulkan_context->GetGraphicsQueue();
 	context->queue_family_index              = g_vulkan_context->GetGraphicsQueueFamilyIndex();
 	context->presentation_queue              = context->queue;
@@ -342,7 +342,7 @@ error:
 
 	void VKContext::Destroy()
 	{
-		VkDevice m_device = g_vulkan_context->m_device;
+		VkDevice m_device = vk_init_info.device;
 		if (m_device != VK_NULL_HANDLE)
 			g_vulkan_context->WaitForGPUIdle();
 
@@ -548,16 +548,16 @@ error:
 			AddPointerToChain(&device_info, &attachment_feedback_loop_feature);
 		}
 
-		VkResult res = vkCreateDevice(vk_init_info.gpu, &device_info, nullptr, &m_device);
+		VkResult res = vkCreateDevice(vk_init_info.gpu, &device_info, nullptr, &vk_init_info.device);
 		if (res != VK_SUCCESS)
 			return false;
 
 		// With the device created, we can fill the remaining entry points.
-		if (!Vulkan::LoadVulkanDeviceFunctions(m_device))
+		if (!Vulkan::LoadVulkanDeviceFunctions(vk_init_info.device))
 			return false;
 
 		// Grab the graphics and present queues.
-		vkGetDeviceQueue(m_device, m_graphics_queue_family_index, 0, &m_graphics_queue);
+		vkGetDeviceQueue(vk_init_info.device, m_graphics_queue_family_index, 0, &m_graphics_queue);
 
 		ProcessDeviceExtensions();
 
@@ -626,7 +626,7 @@ error:
 		ci.vulkanApiVersion       = VK_API_VERSION_1_1;
 		ci.flags                  = VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
 		ci.physicalDevice         = vk_init_info.gpu;
-		ci.device                 = m_device;
+		ci.device                 = vk_init_info.device;
 		ci.instance               = vk_init_info.instance;
 
 		if (m_optional_extensions.vk_ext_memory_budget)
@@ -642,8 +642,9 @@ error:
 	bool VKContext::CreateCommandBuffers()
 	{
 		VkResult res;
-
 		uint32_t frame_index = 0;
+		VkDevice m_device    = vk_init_info.device;
+
 		for (FrameResources& resources : m_frame_resources)
 		{
 			resources.needs_fence_wait = false;
@@ -691,6 +692,7 @@ error:
 
 	void VKContext::DestroyCommandBuffers()
 	{
+		VkDevice m_device    = vk_init_info.device;
 		for (FrameResources& resources : m_frame_resources)
 		{
 			for (auto& it : resources.cleanup_resources)
@@ -734,7 +736,7 @@ error:
 								1024, // TODO: tweak this
 								static_cast<u32>(std::size(pool_sizes)), pool_sizes};
 
-		VkResult res = vkCreateDescriptorPool(m_device, &pool_create_info, nullptr, &m_global_descriptor_pool);
+		VkResult res = vkCreateDescriptorPool(vk_init_info.device, &pool_create_info, nullptr, &m_global_descriptor_pool);
 		if (res != VK_SUCCESS)
 			return false;
 
@@ -835,7 +837,7 @@ error:
 								 &set_layout};
 
 		VkDescriptorSet descriptor_set;
-		VkResult res = vkAllocateDescriptorSets(m_device, &allocate_info, &descriptor_set);
+		VkResult res = vkAllocateDescriptorSets(vk_init_info.device, &allocate_info, &descriptor_set);
 		// Failing to allocate a descriptor set is not a fatal error, we can
 		// recover by moving to the next command buffer.
 		if (res != VK_SUCCESS)
@@ -849,7 +851,7 @@ error:
 			VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr, m_global_descriptor_pool, 1, &set_layout};
 
 		VkDescriptorSet descriptor_set;
-		VkResult res = vkAllocateDescriptorSets(m_device, &allocate_info, &descriptor_set);
+		VkResult res = vkAllocateDescriptorSets(vk_init_info.device, &allocate_info, &descriptor_set);
 		if (res != VK_SUCCESS)
 			return VK_NULL_HANDLE;
 
@@ -858,7 +860,7 @@ error:
 
 	void VKContext::FreeGlobalDescriptorSet(VkDescriptorSet set)
 	{
-		vkFreeDescriptorSets(m_device, m_global_descriptor_pool, 1, &set);
+		vkFreeDescriptorSets(vk_init_info.device, m_global_descriptor_pool, 1, &set);
 	}
 
 	void VKContext::WaitForFenceCounter(u64 fence_counter)
@@ -881,13 +883,13 @@ error:
 
 	void VKContext::WaitForGPUIdle()
 	{
-		vkDeviceWaitIdle(m_device);
+		vkDeviceWaitIdle(vk_init_info.device);
 	}
 
 	void VKContext::WaitForCommandBufferCompletion(u32 index)
 	{
 		// Wait for this command buffer to be completed.
-		const VkResult res = vkWaitForFences(m_device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
+		const VkResult res = vkWaitForFences(vk_init_info.device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
 		if (res != VK_SUCCESS)
 		{
 			m_last_submit_failed.store(true, std::memory_order_release);
@@ -962,6 +964,7 @@ error:
 
 	void VKContext::ActivateCommandBuffer(u32 index)
 	{
+		VkDevice m_device         = vk_init_info.device;
 		FrameResources& resources = m_frame_resources[index];
 
 		// Wait for the GPU to finish with all resources for this command buffer.
@@ -1008,7 +1011,7 @@ error:
 	void VKContext::DeferBufferDestruction(VkBuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, object]() { vkDestroyBuffer(m_device, object, nullptr); });
+		resources.cleanup_resources.push_back([this, object]() { vkDestroyBuffer(vk_init_info.device, object, nullptr); });
 	}
 
 	void VKContext::DeferBufferDestruction(VkBuffer object, VmaAllocation allocation)
@@ -1021,13 +1024,13 @@ error:
 	void VKContext::DeferFramebufferDestruction(VkFramebuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, object]() { vkDestroyFramebuffer(m_device, object, nullptr); });
+		resources.cleanup_resources.push_back([this, object]() { vkDestroyFramebuffer(vk_init_info.device, object, nullptr); });
 	}
 
 	void VKContext::DeferImageDestruction(VkImage object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, object]() { vkDestroyImage(m_device, object, nullptr); });
+		resources.cleanup_resources.push_back([this, object]() { vkDestroyImage(vk_init_info.device, object, nullptr); });
 	}
 
 	void VKContext::DeferImageDestruction(VkImage object, VmaAllocation allocation)
@@ -1040,19 +1043,19 @@ error:
 	void VKContext::DeferImageViewDestruction(VkImageView object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, object]() { vkDestroyImageView(m_device, object, nullptr); });
+		resources.cleanup_resources.push_back([this, object]() { vkDestroyImageView(vk_init_info.device, object, nullptr); });
 	}
 
 	void VKContext::DeferPipelineDestruction(VkPipeline pipeline)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, pipeline]() { vkDestroyPipeline(m_device, pipeline, nullptr); });
+		resources.cleanup_resources.push_back([this, pipeline]() { vkDestroyPipeline(vk_init_info.device, pipeline, nullptr); });
 	}
 
 	void VKContext::DeferSamplerDestruction(VkSampler sampler)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, sampler]() { vkDestroySampler(m_device, sampler, nullptr); });
+		resources.cleanup_resources.push_back([this, sampler]() { vkDestroySampler(vk_init_info.device, sampler, nullptr); });
 	}
 
 	VkRenderPass VKContext::CreateCachedRenderPass(RenderPassCacheKey key)
@@ -1134,7 +1137,7 @@ error:
 			subpass_dependency_ptr};
 
 		VkRenderPass pass;
-		const VkResult res = vkCreateRenderPass(m_device, &pass_info, nullptr, &pass);
+		const VkResult res = vkCreateRenderPass(vk_init_info.device, &pass_info, nullptr, &pass);
 		if (res != VK_SUCCESS)
 			return VK_NULL_HANDLE;
 
@@ -1574,8 +1577,9 @@ VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const
 
 GSTexture* GSDeviceVK::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
-	const u32 clamped_width = static_cast<u32>(std::clamp<int>(width, 1, g_vulkan_context->GetMaxImageDimension2D()));
-	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, g_vulkan_context->GetMaxImageDimension2D()));
+	u32 max_img_dim          = g_vulkan_context->GetMaxImageDimension2D();
+	const u32 clamped_width  = static_cast<u32>(std::clamp<int>(width, 1, max_img_dim));
+	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, max_img_dim));
 
 	std::unique_ptr<GSTexture> tex(GSTextureVK::Create(type, format, clamped_width, clamped_height, levels));
 	if (!tex)
@@ -2261,7 +2265,7 @@ VkSampler GSDeviceVK::GetSampler(GSHWDrawConfig::SamplerSelector ss)
 		VK_FALSE // unnormalized coordinates
 	};
 	VkSampler sampler = VK_NULL_HANDLE;
-	vkCreateSampler(g_vulkan_context->GetDevice(), &ci, nullptr, &sampler);
+	vkCreateSampler(vk_init_info.device, &ci, nullptr, &sampler);
 
 	m_samplers.emplace(ss.key, sampler);
 	return sampler;
@@ -2411,7 +2415,7 @@ bool GSDeviceVK::CreateBuffers()
 
 bool GSDeviceVK::CreatePipelineLayouts()
 {
-	VkDevice dev = g_vulkan_context->GetDevice();
+	VkDevice dev = vk_init_info.device;
 	Vulkan::DescriptorSetLayoutBuilder dslb;
 	Vulkan::PipelineLayoutBuilder plb;
 
@@ -2548,7 +2552,7 @@ bool GSDeviceVK::CreateRenderPasses()
 
 bool GSDeviceVK::CompileConvertPipelines()
 {
-	VkDevice m_device = g_vulkan_context->GetDevice();
+	VkDevice m_device = vk_init_info.device;
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/convert.glsl");
 	if (!shader)
 	{
@@ -2742,7 +2746,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 
 bool GSDeviceVK::CompilePresentPipelines()
 {
-	VkDevice m_device = g_vulkan_context->GetDevice();
+	VkDevice m_device = vk_init_info.device;
 
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/present.glsl");
 	if (!shader)
@@ -2788,7 +2792,8 @@ bool GSDeviceVK::CompilePresentPipelines()
 
 bool GSDeviceVK::CompileInterlacePipelines()
 {
-	VkDevice m_device = g_vulkan_context->GetDevice();
+	VkDevice m_device = vk_init_info.device;
+
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/interlace.glsl");
 	if (!shader)
 	{
@@ -2845,7 +2850,8 @@ bool GSDeviceVK::CompileInterlacePipelines()
 
 bool GSDeviceVK::CompileMergePipelines()
 {
-	VkDevice m_device = g_vulkan_context->GetDevice();
+	VkDevice m_device = vk_init_info.device;
+
 	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/merge.glsl");
 	if (!shader)
 	{
@@ -2921,7 +2927,7 @@ bool GSDeviceVK::CompilePostProcessingPipelines()
 
 void GSDeviceVK::DestroyResources()
 {
-	VkDevice m_device = g_vulkan_context->GetDevice();
+	VkDevice m_device = vk_init_info.device;
 
 	g_vulkan_context->ExecuteCommandBuffer(true);
 
@@ -3161,7 +3167,6 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 		VK_PRIMITIVE_TOPOLOGY_LINE_LIST, // Line
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, // Triangle
 	}};
-	VkDevice m_device = g_vulkan_context->GetDevice();
 
 	GSHWDrawConfig::BlendState pbs{p.bs};
 	GSHWDrawConfig::PSSelector pps{p.ps};
@@ -3268,9 +3273,7 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 	if (m_features.framebuffer_fetch && p.IsRTFeedbackLoop())
 		gpb.AddBlendFlags(VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT);
 
-	VkPipeline pipeline = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true));
-
-	return pipeline;
+	return gpb.Create(vk_init_info.device, g_vulkan_shader_cache->GetPipelineCache(true));
 }
 
 VkPipeline GSDeviceVK::GetTFXPipeline(const PipelineSelector& p)
@@ -3320,7 +3323,6 @@ void GSDeviceVK::InitializeState()
 
 bool GSDeviceVK::CreatePersistentDescriptorSets()
 {
-	const VkDevice dev = g_vulkan_context->GetDevice();
 	Vulkan::DescriptorSetUpdateBuilder dsub;
 
 	// Allocate UBO descriptor sets for TFX.
@@ -3334,7 +3336,7 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 	if (m_features.vs_expand)
 		dsub.AddBufferDescriptorWrite(m_tfx_ubo_descriptor_set, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			m_vertex_stream_buffer.GetBuffer(), 0, VERTEX_BUFFER_SIZE);
-	dsub.Update(dev);
+	dsub.Update(vk_init_info.device);
 	return true;
 }
 
@@ -3638,7 +3640,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 	if (m_current_pipeline_layout == PipelineLayout::TFX && m_dirty_flags == 0)
 		return true;
 
-	const VkDevice dev = g_vulkan_context->GetDevice();
+	const VkDevice dev           = vk_init_info.device;
 	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
 	u32 flags = m_dirty_flags;
 	m_dirty_flags &= ~(DIRTY_TFX_STATE | DIRTY_CONSTANT_BUFFER_STATE | DIRTY_FLAG_TFX_DYNAMIC_OFFSETS);
@@ -3811,12 +3813,12 @@ bool GSDeviceVK::ApplyUtilityState(bool already_execed)
 	if (m_current_pipeline_layout == PipelineLayout::Utility && m_dirty_flags == 0)
 		return true;
 
-	const VkDevice dev = g_vulkan_context->GetDevice();
+	const VkDevice dev           = vk_init_info.device;
 	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
-	u32 flags = m_dirty_flags;
-	m_dirty_flags &= ~DIRTY_UTILITY_STATE;
+	u32 flags                    = m_dirty_flags;
+	m_dirty_flags               &= ~DIRTY_UTILITY_STATE;
 
-	bool rebind = (m_current_pipeline_layout != PipelineLayout::Utility);
+	bool rebind                  = (m_current_pipeline_layout != PipelineLayout::Utility);
 
 	if ((flags & DIRTY_FLAG_UTILITY_TEXTURE) || m_utility_descriptor_set == VK_NULL_HANDLE)
 	{

@@ -28,6 +28,7 @@ struct vk_init_info_t
 {
 	VkInstance instance;
 	VkPhysicalDevice gpu;
+	VkDevice device;
 	const char **required_device_extensions;
 	unsigned num_required_device_extensions;
 	const char **required_device_layers;

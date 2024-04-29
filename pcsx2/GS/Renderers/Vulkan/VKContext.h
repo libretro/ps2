@@ -18,6 +18,7 @@
 #include "common/Pcsx2Defs.h"
 
 #include "VKLoader.h"
+#include "GSDeviceVK.h"
 #include "VKStreamBuffer.h"
 
 #include <array>
@@ -66,7 +67,6 @@ enum : u32
        static void Destroy();
 
        // Global state accessors
-       __fi VkDevice GetDevice() const { return m_device; }
        __fi VmaAllocator GetAllocator() const { return m_allocator; }
        __fi VkQueue GetGraphicsQueue() const { return m_graphics_queue; }
        __fi u32 GetGraphicsQueueFamilyIndex() const { return m_graphics_queue_family_index; }
@@ -87,10 +87,6 @@ enum : u32
        __fi u32 GetUniformBufferAlignment() const
        {
 	       return static_cast<u32>(m_device_properties.limits.minUniformBufferOffsetAlignment);
-       }
-       __fi u32 GetTexelBufferAlignment() const
-       {
-	       return static_cast<u32>(m_device_properties.limits.minTexelBufferOffsetAlignment);
        }
        __fi u32 GetBufferCopyOffsetAlignment() const
        {
@@ -231,7 +227,6 @@ enum : u32
 	       std::vector<std::function<void()>> cleanup_resources;
        };
 
-       VkDevice m_device = VK_NULL_HANDLE;
        VmaAllocator m_allocator = VK_NULL_HANDLE;
 
        VkCommandBuffer m_current_command_buffer = VK_NULL_HANDLE;

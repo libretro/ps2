@@ -158,7 +158,7 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Create(Type type, Format format, int w
 
 	VkImageView view = VK_NULL_HANDLE;
 	vci.image = image;
-	res = vkCreateImageView(g_vulkan_context->GetDevice(), &vci, nullptr, &view);
+	res = vkCreateImageView(vk_init_info.device, &vci, nullptr, &view);
 	if (res != VK_SUCCESS)
 	{
 		Console.Error("vkCreateImageView failed: ");
@@ -182,7 +182,7 @@ std::unique_ptr<GSTextureVK> GSTextureVK::Adopt(
 
 	// Memory is managed by the owner of the image.
 	VkImageView view = VK_NULL_HANDLE;
-	VkResult res = vkCreateImageView(g_vulkan_context->GetDevice(), &view_info, nullptr, &view);
+	VkResult res = vkCreateImageView(vk_init_info.device, &view_info, nullptr, &view);
 	if (res != VK_SUCCESS)
 	{
 		Console.Error("vkCreateImageView failed: ");
@@ -217,7 +217,7 @@ void GSTextureVK::Destroy(bool defer)
 			if (defer)
 				g_vulkan_context->DeferFramebufferDestruction(fb);
 			else
-				vkDestroyFramebuffer(g_vulkan_context->GetDevice(), fb, nullptr);
+				vkDestroyFramebuffer(vk_init_info.device, fb, nullptr);
 
 		}
 		m_framebuffers.clear();
@@ -228,7 +228,7 @@ void GSTextureVK::Destroy(bool defer)
 		if (defer)
 			g_vulkan_context->DeferImageViewDestruction(m_view);
 		else
-			vkDestroyImageView(g_vulkan_context->GetDevice(), m_view, nullptr);
+			vkDestroyImageView(vk_init_info.device, m_view, nullptr);
 		m_view = VK_NULL_HANDLE;
 	}
 
@@ -751,7 +751,7 @@ VkFramebuffer GSTextureVK::GetLinkedFramebuffer(GSTextureVK* depth_texture, bool
 	fbb.SetSize(m_size.x, m_size.y, 1);
 	fbb.SetRenderPass(rp);
 
-	VkFramebuffer fb = fbb.Create(g_vulkan_context->GetDevice());
+	VkFramebuffer fb = fbb.Create(vk_init_info.device);
 	if (!fb)
 		return VK_NULL_HANDLE;
 
