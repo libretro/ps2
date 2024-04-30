@@ -48,9 +48,6 @@ include(GNUInstallDirs)
 include(BuildParameters)
 include(SearchForStuff)
 
-# Must be done after SearchForStuff
-get_git_version_info()
-
 # make common
 add_subdirectory(common)
 
