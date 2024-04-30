@@ -17,7 +17,6 @@
 #include <thread>
 
 #include "GS.h"
-#include "svnrev.h"
 #include "SPU2/Global.h"
 #include "ps2/BiosTools.h"
 #include "CDVD/CDVD.h"
@@ -512,17 +511,8 @@ void retro_deinit(void)
 
 void retro_get_system_info(retro_system_info* info)
 {
-#ifdef GIT_REV
-	info->library_version = GIT_REV;
-#else
-	static char version[]  = "#.#.#";
-	version[0]             = '0' + PCSX2_VersionHi;
-	version[2]             = '0' + PCSX2_VersionMid;
-	version[4]             = '0' + PCSX2_VersionLo;
-	info->library_version  = version;
-#endif
-
-	info->library_name     = "pcsx2";
+	info->library_version  = "1";
+	info->library_name     = "LRPS2";
 	info->valid_extensions = "elf|iso|ciso|cue|bin|gz|chd|cso";
 	info->need_fullpath    = true;
 	info->block_extract    = true;

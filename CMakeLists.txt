@@ -50,7 +50,6 @@ include(SearchForStuff)
 
 # Must be done after SearchForStuff
 get_git_version_info()
-write_svnrev_h()
 
 # make common
 add_subdirectory(common)

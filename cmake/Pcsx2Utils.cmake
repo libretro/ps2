@@ -86,39 +86,6 @@ function(get_git_version_info)
 	set(PCSX2_VERSION_SHORT "${PCSX2_VERSION_SHORT}" PARENT_SCOPE)
 endfunction()
 
-function(write_svnrev_h)
-	if(PCSX2_GIT_TAG)
-		if ("${PCSX2_GIT_TAG}" MATCHES "^v([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
-			file(WRITE ${CMAKE_BINARY_DIR}/common/include/svnrev.h
-				"#define SVN_REV ${PCSX2_WC_TIME}ll\n"
-				"#define GIT_TAG \"${PCSX2_GIT_TAG}\"\n"
-				"#define GIT_TAGGED_COMMIT 1\n"
-				"#define GIT_TAG_HI  ${CMAKE_MATCH_1}\n"
-				"#define GIT_TAG_MID ${CMAKE_MATCH_2}\n"
-				"#define GIT_TAG_LO  ${CMAKE_MATCH_3}\n"
-				"#define GIT_REV \"\"\n"
-				"#define GIT_HASH \"${PCSX2_GIT_HASH}\"\n"
-			)
-		else()
-			file(WRITE ${CMAKE_BINARY_DIR}/common/include/svnrev.h
-				"#define SVN_REV ${PCSX2_WC_TIME}ll\n"
-				"#define GIT_TAG \"${PCSX2_GIT_TAG}\"\n"
-				"#define GIT_TAGGED_COMMIT 1\n"
-				"#define GIT_REV \"\"\n"
-				"#define GIT_HASH \"${PCSX2_GIT_HASH}\"\n"
-			)
-		endif()
-	else()
-		file(WRITE ${CMAKE_BINARY_DIR}/common/include/svnrev.h 
-			"#define SVN_REV ${PCSX2_WC_TIME}ll\n"
-			"#define GIT_TAG \"${PCSX2_GIT_TAG}\"\n"
-			"#define GIT_TAGGED_COMMIT 0\n"
-			"#define GIT_REV \"${PCSX2_GIT_REV}\"\n"
-			"#define GIT_HASH \"${PCSX2_GIT_HASH}\"\n"
-		)
-	endif()
-endfunction()
-
 function(check_compiler_version version_warn version_err)
 	if(CMAKE_COMPILER_IS_GNUCXX)
 		execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
