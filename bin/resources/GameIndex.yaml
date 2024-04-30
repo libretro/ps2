@@ -721,6 +721,9 @@ PCPX-96624:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96625:
   name: "Play-Pre 2 Volume 4 - 2002 April"
@@ -6981,6 +6984,9 @@ SCPS-15010:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-15011:
   name: "Extermination"
@@ -7738,6 +7744,9 @@ SCPS-19208:
   name: "Gran Turismo - Concept 2001 Tokyo [PlayStation 2 The Best]"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-19209:
   name: "Boku no Summer Vacation [PlayStation 2 The Best]"
@@ -8166,6 +8175,9 @@ SCPS-55005:
   name: "Gran Turismo - Concept 2001 Tokyo"
   region: "NTSC-J"
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves banding in car showcase as well as car brightness and sheen.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCPS-55006:
   name: "Wild ARMs - Advanced 3rd"
@@ -14535,17 +14547,6 @@ SLES-51341:
 SLES-51343:
   name: "Galerians - Ash"
   region: "PAL-M5"
-  patches:
-    1AE08CF5:
-      content: |-
-        author=kozarovv
-        // Floats workaround to make HW GSDX mode working.
-        // There is still overflow on GS, but this time GSDX can handle it just fine in HW mode.
-        patch=1,EE,001e7130,word,3c017e00
-        patch=1,EE,001e7138,word,44812800
-        patch=1,EE,001e7150,word,44813000
-        patch=1,EE,001e7160,word,44813800
-        patch=1,EE,001e7170,word,44810000
 SLES-51344:
   name: "Guilty Gear X2"
   region: "PAL-E"
@@ -47272,17 +47273,6 @@ SLUS-20560:
   name: "Galerians - Ash"
   region: "NTSC-U"
   compat: 5
-  patches:
-    B506C936:
-      content: |-
-        author=kozarovv
-        // Floats workaround to make HW GSDX mode working.
-        // There is still overflow on GS, but this time GSDX can handle it just fine in HW mode.
-        patch=1,EE,001e12a8,word,3c017e00
-        patch=1,EE,001e12b0,word,44812800
-        patch=1,EE,001e12c8,word,44813000
-        patch=1,EE,001e12d8,word,44813800
-        patch=1,EE,001e12e8,word,44810000
 SLUS-20561:
   name: "Disaster Report"
   region: "NTSC-U"
@@ -48989,10 +48979,6 @@ SLUS-20894:
   name: "Worms 3D"
   region: "NTSC-U"
   compat: 5
-  patches:
-    default:
-      content: |-
-        comment=You need to set the EE cycle speed to -1 to be able to load the game.
 SLUS-20895:
   name: "Bujingai - The Forsaken City"
   region: "NTSC-U"
