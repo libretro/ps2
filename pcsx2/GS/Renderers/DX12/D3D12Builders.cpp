@@ -16,7 +16,7 @@
 #include "common/PrecompiledHeader.h"
 
 #include "D3D12Builders.h"
-#include "D3D12Context.h"
+#include "GSDevice12.h"
 #include "D3D12ShaderCache.h"
 #include "common/Console.h"
 
@@ -295,7 +295,8 @@ void RootSignatureBuilder::Clear()
 
 wil::com_ptr_nothrow<ID3D12RootSignature> RootSignatureBuilder::Create(bool clear /*= true*/)
 {
-	wil::com_ptr_nothrow<ID3D12RootSignature> rs = g_d3d12_context->CreateRootSignature(&m_desc);
+	GSDevice12* const dev = GSDevice12::GetInstance();
+	wil::com_ptr_nothrow<ID3D12RootSignature> rs = dev->CreateRootSignature(&m_desc);
 	if (!rs)
 		return {};
 

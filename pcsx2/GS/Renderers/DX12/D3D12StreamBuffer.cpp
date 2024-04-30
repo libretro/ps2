@@ -16,7 +16,7 @@
 #include "common/PrecompiledHeader.h"
 
 #include "D3D12StreamBuffer.h"
-#include "D3D12Context.h"
+#include "GSDevice12.h"
 #include "common/Align.h"
 #include "common/Console.h"
 #include "D3D12MemAlloc.h"
@@ -33,6 +33,7 @@ D3D12StreamBuffer::~D3D12StreamBuffer()
 
 bool D3D12StreamBuffer::Create(u32 size)
 {
+	GSDevice12* const dev = GSDevice12::GetInstance();
 	const D3D12_RESOURCE_DESC resource_desc = {
 		D3D12_RESOURCE_DIMENSION_BUFFER, 0, size, 1, 1, 1, DXGI_FORMAT_UNKNOWN, {1, 0}, D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
 		D3D12_RESOURCE_FLAG_NONE};
@@ -43,7 +44,7 @@ bool D3D12StreamBuffer::Create(u32 size)
 
 	wil::com_ptr_nothrow<ID3D12Resource> buffer;
 	wil::com_ptr_nothrow<D3D12MA::Allocation> allocation;
-	HRESULT hr = g_d3d12_context->GetAllocator()->CreateResource(&allocationDesc,
+	HRESULT hr = dev->GetAllocator()->CreateResource(&allocationDesc,
 		&resource_desc, D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr, allocation.put(), IID_PPV_ARGS(buffer.put()));
 	if (FAILED(hr))
@@ -141,6 +142,7 @@ void D3D12StreamBuffer::CommitMemory(u32 final_num_bytes)
 
 void D3D12StreamBuffer::Destroy(bool defer)
 {
+	GSDevice12* const dev = GSDevice12::GetInstance();
 	if (m_host_pointer)
 	{
 		const D3D12_RANGE written_range = {0, m_size};
@@ -149,7 +151,7 @@ void D3D12StreamBuffer::Destroy(bool defer)
 	}
 
 	if (m_buffer && defer)
-		g_d3d12_context->DeferResourceDestruction(m_allocation.get(), m_buffer.get());
+		dev->DeferResourceDestruction(m_allocation.get(), m_buffer.get());
 	m_buffer.reset();
 	m_allocation.reset();
 
@@ -166,7 +168,8 @@ void D3D12StreamBuffer::UpdateCurrentFencePosition()
 		return;
 
 	// Has the offset changed since the last fence?
-	const u64 fence = g_d3d12_context->GetCurrentFenceValue();
+	GSDevice12* const dev = GSDevice12::GetInstance();
+	const u64 fence = dev->GetCurrentFenceValue();
 	if (!m_tracked_fences.empty() && m_tracked_fences.back().first == fence)
 	{
 		// Still haven't executed a command buffer, so just update the offset.
@@ -183,7 +186,8 @@ void D3D12StreamBuffer::UpdateGPUPosition()
 	auto start = m_tracked_fences.begin();
 	auto end = start;
 
-	const u64 completed_counter = g_d3d12_context->GetCompletedFenceValue();
+	GSDevice12* const dev = GSDevice12::GetInstance();
+	const u64 completed_counter = dev->GetCompletedFenceValue();
 	while (end != m_tracked_fences.end() && completed_counter >= end->first)
 	{
 		m_current_gpu_position = end->second;
@@ -199,6 +203,7 @@ bool D3D12StreamBuffer::WaitForClearSpace(u32 num_bytes)
 	u32 new_offset = 0;
 	u32 new_space = 0;
 	u32 new_gpu_position = 0;
+	GSDevice12* const dev = GSDevice12::GetInstance();
 
 	auto iter = m_tracked_fences.begin();
 	for (; iter != m_tracked_fences.end(); ++iter)
@@ -261,11 +266,11 @@ bool D3D12StreamBuffer::WaitForClearSpace(u32 num_bytes)
 
 	// Did any fences satisfy this condition?
 	// Has the command buffer been executed yet? If not, the caller should execute it.
-	if (iter == m_tracked_fences.end() || iter->first == g_d3d12_context->GetCurrentFenceValue())
+	if (iter == m_tracked_fences.end() || iter->first == dev->GetCurrentFenceValue())
 		return false;
 
 	// Wait until this fence is signaled. This will fire the callback, updating the GPU position.
-	g_d3d12_context->WaitForFence(iter->first);
+	dev->WaitForFence(iter->first);
 	m_tracked_fences.erase(m_tracked_fences.begin(), m_current_offset == iter->second ? m_tracked_fences.end() : ++iter);
 	m_current_offset = new_offset;
 	m_current_space = new_space;
