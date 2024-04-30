@@ -15,7 +15,6 @@
 
 #include "VKStreamBuffer.h"
 #include "GSDeviceVK.h"
-#include "VKUtil.h"
 #include "common/Align.h"
 #include "common/Console.h"
 

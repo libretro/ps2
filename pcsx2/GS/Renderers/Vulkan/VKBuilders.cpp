@@ -16,10 +16,23 @@
 #include <limits>
 
 #include "VKBuilders.h"
-#include "VKUtil.h"
 
 namespace Vulkan
 {
+	void AddPointerToChain(void* head, const void* ptr)
+	{
+		VkBaseInStructure* last_st = static_cast<VkBaseInStructure*>(head);
+		while (last_st->pNext)
+		{
+			if (last_st->pNext == ptr)
+				return;
+
+			last_st = const_cast<VkBaseInStructure*>(last_st->pNext);
+		}
+
+		last_st->pNext = static_cast<const VkBaseInStructure*>(ptr);
+	}
+
 	DescriptorSetLayoutBuilder::DescriptorSetLayoutBuilder() { Clear(); }
 
 	void DescriptorSetLayoutBuilder::Clear()
@@ -244,7 +257,7 @@ namespace Vulkan
 
 	void GraphicsPipelineBuilder::SetLineRasterizationMode(VkLineRasterizationModeEXT mode)
 	{
-		AddPointerToChain(&m_rasterization_state, &m_line_rasterization_state);
+		Vulkan::AddPointerToChain(&m_rasterization_state, &m_line_rasterization_state);
 
 		m_line_rasterization_state.lineRasterizationMode = mode;
 	}
@@ -423,7 +436,7 @@ namespace Vulkan
 
 	void GraphicsPipelineBuilder::SetProvokingVertex(VkProvokingVertexModeEXT mode)
 	{
-		AddPointerToChain(&m_rasterization_state, &m_provoking_vertex);
+		Vulkan::AddPointerToChain(&m_rasterization_state, &m_provoking_vertex);
 
 		m_provoking_vertex.provokingVertexMode = mode;
 	}

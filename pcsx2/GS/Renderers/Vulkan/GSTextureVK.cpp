@@ -18,7 +18,6 @@
 #include "GSTextureVK.h"
 #include "common/Align.h"
 #include "VKBuilders.h"
-#include "VKUtil.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
 #include <algorithm>
@@ -830,8 +829,19 @@ void GSDownloadTextureVK::CopyFromTexture(
 	vkCmdCopyImageToBuffer(cmdbuf, vkTex->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_buffer, 1, &image_copy);
 
 	// flush gpu cache
-	BufferMemoryBarrier(cmdbuf, m_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT, 0, copy_size,
-		VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT);
+	const VkBufferMemoryBarrier buffer_info = {
+		VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, // VkStructureType    sType
+		nullptr, // const void*        pNext
+		VK_ACCESS_TRANSFER_WRITE_BIT, // VkAccessFlags      srcAccessMask
+		VK_ACCESS_HOST_READ_BIT, // VkAccessFlags      dstAccessMask
+		VK_QUEUE_FAMILY_IGNORED, // uint32_t           srcQueueFamilyIndex
+		VK_QUEUE_FAMILY_IGNORED, // uint32_t           dstQueueFamilyIndex
+		m_buffer, // VkBuffer           buffer
+		0, // VkDeviceSize       offset
+		copy_size // VkDeviceSize       size
+	};
+	vkCmdPipelineBarrier(
+			cmdbuf, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &buffer_info, 0, nullptr);
 
 	if (old_layout != GSTextureVK::Layout::TransferSrc )
 	{

@@ -20,6 +20,9 @@
 
 namespace Vulkan
 {
+	// Adds a structure to a chain.
+	void AddPointerToChain(void* head, const void* ptr);
+
 	class DescriptorSetLayoutBuilder
 	{
 	public:

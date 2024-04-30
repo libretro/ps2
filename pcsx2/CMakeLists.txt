@@ -532,7 +532,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/GSTextureVK.cpp
 		GS/Renderers/Vulkan/VKShaderCache.cpp
 		GS/Renderers/Vulkan/VKLoader.cpp
-		GS/Renderers/Vulkan/VKUtil.cpp
 		GS/Renderers/Vulkan/VKStreamBuffer.cpp
 		GS/Renderers/Vulkan/VKBuilders.cpp
 		GS/Renderers/Vulkan/vk_mem_alloc.cpp
@@ -545,7 +544,6 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/VKShaderCache.h
 		GS/Renderers/Vulkan/VKEntryPoints.h
 		GS/Renderers/Vulkan/VKLoader.h
-		GS/Renderers/Vulkan/VKUtil.h
 	)
 	target_link_libraries(common PUBLIC
 		Vulkan-Headers glslang

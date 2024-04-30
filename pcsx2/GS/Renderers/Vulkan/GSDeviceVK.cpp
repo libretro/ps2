@@ -32,7 +32,6 @@
 #include "common/StringUtil.h"
 #include "VKBuilders.h"
 #include "VKShaderCache.h"
-#include "VKUtil.h"
 
 #include <sstream>
 #include <limits>
@@ -457,22 +456,22 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		if (m_optional_extensions.vk_ext_provoking_vertex)
 		{
 			provoking_vertex_feature.provokingVertexLast = VK_TRUE;
-			AddPointerToChain(&device_info, &provoking_vertex_feature);
+			Vulkan::AddPointerToChain(&device_info, &provoking_vertex_feature);
 		}
 		if (m_optional_extensions.vk_ext_line_rasterization)
 		{
 			line_rasterization_feature.bresenhamLines = VK_TRUE;
-			AddPointerToChain(&device_info, &line_rasterization_feature);
+			Vulkan::AddPointerToChain(&device_info, &line_rasterization_feature);
 		}
 		if (m_optional_extensions.vk_ext_rasterization_order_attachment_access)
 		{
 			rasterization_order_access_feature.rasterizationOrderColorAttachmentAccess = VK_TRUE;
-			AddPointerToChain(&device_info, &rasterization_order_access_feature);
+			Vulkan::AddPointerToChain(&device_info, &rasterization_order_access_feature);
 		}
 		if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
 		{
 			attachment_feedback_loop_feature.attachmentFeedbackLoopLayout = VK_TRUE;
-			AddPointerToChain(&device_info, &attachment_feedback_loop_feature);
+			Vulkan::AddPointerToChain(&device_info, &attachment_feedback_loop_feature);
 		}
 
 		VkResult res = vkCreateDevice(vk_init_info.gpu, &device_info, nullptr, &vk_init_info.device);
@@ -506,13 +505,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		// add in optional feature structs
 		if (m_optional_extensions.vk_ext_provoking_vertex)
-			AddPointerToChain(&features2, &provoking_vertex_features);
+			Vulkan::AddPointerToChain(&features2, &provoking_vertex_features);
 		if (m_optional_extensions.vk_ext_line_rasterization)
-			AddPointerToChain(&features2, &line_rasterization_feature);
+			Vulkan::AddPointerToChain(&features2, &line_rasterization_feature);
 		if (m_optional_extensions.vk_ext_rasterization_order_attachment_access)
-			AddPointerToChain(&features2, &rasterization_order_access_feature);
+			Vulkan::AddPointerToChain(&features2, &rasterization_order_access_feature);
 		if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
-			AddPointerToChain(&features2, &attachment_feedback_loop_feature);
+			Vulkan::AddPointerToChain(&features2, &attachment_feedback_loop_feature);
 
 		// query
 		vkGetPhysicalDeviceFeatures2(vk_init_info.gpu, &features2);

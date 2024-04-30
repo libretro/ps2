@@ -17,7 +17,6 @@
 
 #include "VKShaderCache.h"
 #include "GSDeviceVK.h"
-#include "VKUtil.h"
 #include "GS/GS.h"
 
 #include "Config.h"
