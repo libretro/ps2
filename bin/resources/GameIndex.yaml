@@ -14916,6 +14916,8 @@ SLES-51511:
   region: "PAL-M6"
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
+  clampModes:
+    vu1ClampMode: 3 # Fixes missing vertices on ramps.
 SLES-51522:
   name: "Return to Castle Wolfenstein - Operation Resurrection"
   region: "PAL-S"
@@ -32986,6 +32988,8 @@ SLPM-65579:
 SLPM-65580:
   name: "Crash Bandicoot - Bakuso! Nitro Kart"
   region: "NTSC-J"
+  clampModes:
+    vu1ClampMode: 3 # Fixes missing vertices on ramps.
 SLPM-65581:
   name: "Haunted Mansion"
   region: "NTSC-J"
@@ -34741,6 +34745,16 @@ SLPM-66064:
 SLPM-66065:
   name: "Pop'n music 11"
   region: "NTSC-J"
+SLPM-66066:
+  name: "Yu-Gi-Oh! Capsule Monster Coliseum"
+  region: "NTSC-J"
+SLPM-66067:
+  name: "Crash Bandicoot - Bakusou! Nitro Kart"
+  region: "NTSC-J"
+  gameFixes:
+    - BlitInternalFPSHack # Fixes internal FPS detection.
+  clampModes:
+    vu1ClampMode: 3 # Fixes missing vertices on ramps.
 SLPM-66068:
   name: "Richard Burns Rally"
   region: "NTSC-J"
@@ -47739,6 +47753,8 @@ SLUS-20649:
   compat: 5
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
+  clampModes:
+    vu1ClampMode: 3 # Fixes missing vertices on ramps.
 SLUS-20650:
   name: "MVP Baseball 2003"
   region: "NTSC-U"
@@ -54960,6 +54976,8 @@ SLUS-29068:
   region: "NTSC-U"
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
+  clampModes:
+    vu1ClampMode: 3 # Fixes missing vertices on ramps.
 SLUS-29069:
   name: "Prince of Persia - The Sands of Time [Demo]"
   region: "NTSC-U"
