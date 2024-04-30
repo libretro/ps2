@@ -1900,6 +1900,8 @@ SCAJ-20190:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+    mipmap: 2 # Mipmap + trilinear, fixes miptrick textures to match sw renderer.
+    trilinearFiltering: 1
 SCAJ-20191:
   name: "Super Robot Taisen OG - Original Generations Gaiden [Limited Edition]"
   region: "NTSC-Unk"
@@ -2098,6 +2100,8 @@ SCAJ-30011:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+    mipmap: 2 # Mipmap + trilinear, fixes miptrick textures to match sw renderer.
+    trilinearFiltering: 1
 SCCS-40001:
   name: "Ape Escape 2"
   region: "NTSC-C"
@@ -5361,6 +5365,8 @@ SCES-54206:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+    mipmap: 2 # Mipmap + trilinear, fixes miptrick textures to match sw renderer.
+    trilinearFiltering: 1
 SCES-54219:
   name: "Buzz! Junior - Jungle Party"
   region: "PAL-M7"
@@ -9938,6 +9944,8 @@ SCUS-97481:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+    mipmap: 2 # Mipmap + trilinear, fixes miptrick textures to match sw renderer.
+    trilinearFiltering: 1
 SCUS-97482:
   name: "God of War II - The Colossus Battle [Demo]"
   region: "NTSC-U"
@@ -9946,6 +9954,8 @@ SCUS-97482:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+    mipmap: 2 # Mipmap + trilinear, fixes miptrick textures to match sw renderer.
+    trilinearFiltering: 1
 SCUS-97483:
   name: "Gran Turismo 4 MX-5 Edition [Demo]"
   region: "NTSC-U"
@@ -38444,6 +38454,8 @@ SLPM-67013:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+    mipmap: 2 # Mipmap + trilinear, fixes miptrick textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-67015:
   name: "School Days LxH"
   region: "NTSC-J"
