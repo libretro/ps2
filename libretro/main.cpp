@@ -78,16 +78,16 @@ static VMState cpu_thread_state;
 static MemorySettingsInterface s_settings_interface;
 static std::thread cpu_thread;
 
+enum OptionsGroups
+{
+	OPTIONS_BASE,
+	OPTIONS_GFX,
+	OPTIONS_EMU,
+	OPTIONS_GROUPS_MAX
+};
+
 namespace Options
 {
-
-	enum Groups
-	{
-		OPTIONS_BASE,
-		OPTIONS_GFX,
-		OPTIONS_EMU,
-		OPTIONS_GROUPS_MAX
-	};
 
 	class OptionBase
 	{
@@ -97,7 +97,7 @@ namespace Options
 			virtual bool empty() = 0;
 
 		protected:
-			OptionBase(const char* id, const char* name, Groups group)
+			OptionBase(const char* id, const char* name, OptionsGroups group)
 				: m_id(id)
 				  , m_name(name)
 		{
@@ -112,10 +112,10 @@ namespace Options
 			std::string m_options;
 
 		private:
-			void Register(Groups group);
+			void Register(OptionsGroups group);
 	};
 
-	template <typename T, Groups group = OPTIONS_BASE>
+	template <typename T, OptionsGroups group = OPTIONS_BASE>
 		class Option : public OptionBase
 	{
 		static_assert(group < OPTIONS_GROUPS_MAX, "invalid option group index");
@@ -266,14 +266,14 @@ namespace Options
 	template <typename T>
 		using GfxOption = Option<T, OPTIONS_GFX>;
 
-	static std::vector<OptionBase*>& GetOptionGroup(Groups group)
+	static std::vector<OptionBase*>& GetOptionGroup(OptionsGroups group)
 	{
 		/* this garentees that 'list' is constructed first before being accessed other global constructors.*/
 		static std::vector<OptionBase*> list[OPTIONS_GROUPS_MAX];
 		return list[group];
 	}
 
-	void OptionBase::Register(Groups group)
+	void OptionBase::Register(OptionsGroups group)
 	{
 		GetOptionGroup(group).push_back(this);
 	}
@@ -282,7 +282,7 @@ namespace Options
 	{
 		std::vector<retro_variable> vars;
 		for (int grp = 0; grp < OPTIONS_GROUPS_MAX; grp++)
-			for (OptionBase* option : GetOptionGroup((Groups)grp))
+			for (OptionBase* option : GetOptionGroup((OptionsGroups)grp))
 				if (!option->empty())
 					vars.push_back(option->getVariable());
 
@@ -291,17 +291,6 @@ namespace Options
 
 		vars.push_back({});
 		environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars.data());
-	}
-
-	void CheckVariables()
-	{
-		bool updated = false;
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && !updated)
-			return;
-
-		for (int grp = 0; grp < OPTIONS_GROUPS_MAX; grp++)
-			for (OptionBase* option : GetOptionGroup((Groups)grp))
-				option->SetDirty();
 	}
 
 	extern GfxOption<int> upscale_multiplier;
@@ -927,7 +916,13 @@ void retro_unload_game(void)
 
 void retro_run(void)
 {
-	Options::CheckVariables();
+	bool updated = false;
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+	{
+		for (int grp = 0; grp < OPTIONS_GROUPS_MAX; grp++)
+			for (Options::OptionBase* option : Options::GetOptionGroup((OptionsGroups)grp))
+				option->SetDirty();
+	}
 
 	Input::Update();
 
