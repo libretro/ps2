@@ -29,7 +29,7 @@
 #include "pcsx2/GS/Renderers/Common/GSRenderer.h"
 #ifdef ENABLE_VULKAN
 #include "GS/Renderers/Vulkan/VKLoader.h"
-#include "GS/Renderers/Vulkan/VKContext.h"
+#include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/Renderers/Vulkan/GSTextureVK.h"
 #include <libretro_vulkan.h>
 #endif

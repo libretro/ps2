@@ -16,7 +16,7 @@
 #include <cstring>
 
 #include "VKShaderCache.h"
-#include "VKContext.h"
+#include "GSDeviceVK.h"
 #include "VKUtil.h"
 #include "GS/GS.h"
 
@@ -210,21 +210,21 @@ static bool ValidatePipelineCacheHeader(const VK_PIPELINE_CACHE_HEADER& header)
 		return false;
 	}
 
-	if (header.vendor_id != g_vulkan_context->GetDeviceProperties().vendorID)
+	if (header.vendor_id != GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID)
 	{
 		Console.Error("Pipeline cache failed validation: Incorrect vendor ID (file: 0x%X, device: 0x%X)",
-				header.vendor_id, g_vulkan_context->GetDeviceProperties().vendorID);
+				header.vendor_id, GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID);
 		return false;
 	}
 
-	if (header.device_id != g_vulkan_context->GetDeviceProperties().deviceID)
+	if (header.device_id != GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID)
 	{
 		Console.Error("Pipeline cache failed validation: Incorrect device ID (file: 0x%X, device: 0x%X)",
-				header.device_id, g_vulkan_context->GetDeviceProperties().deviceID);
+				header.device_id, GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID);
 		return false;
 	}
 
-	if (memcmp(header.uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
+	if (memcmp(header.uuid, GSDeviceVK::GetInstance()->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE) != 0)
 	{
 		Console.Error("Pipeline cache failed validation: Incorrect UUID");
 		return false;
@@ -237,9 +237,9 @@ static void FillPipelineCacheHeader(VK_PIPELINE_CACHE_HEADER* header)
 {
 	header->header_length = sizeof(VK_PIPELINE_CACHE_HEADER);
 	header->header_version = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
-	header->vendor_id = g_vulkan_context->GetDeviceProperties().vendorID;
-	header->device_id = g_vulkan_context->GetDeviceProperties().deviceID;
-	memcpy(header->uuid, g_vulkan_context->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
+	header->vendor_id = GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID;
+	header->device_id = GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID;
+	memcpy(header->uuid, GSDeviceVK::GetInstance()->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
 }
 
 VKShaderCache::VKShaderCache() = default;

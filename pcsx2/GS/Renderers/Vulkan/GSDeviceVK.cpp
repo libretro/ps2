@@ -31,7 +31,6 @@
 #include "common/General.h"
 #include "common/StringUtil.h"
 #include "VKBuilders.h"
-#include "VKContext.h"
 #include "VKShaderCache.h"
 #include "VKUtil.h"
 
@@ -50,7 +49,6 @@
 #endif
 
 extern retro_video_refresh_t video_cb;
-std::unique_ptr<VKContext> g_vulkan_context;
 
 #define VK_NO_PROTOTYPES
 #include <libretro_vulkan.h>
@@ -94,8 +92,8 @@ bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, Vk
 
 	context->gpu                             = vk_init_info.gpu;
 	context->device                          = vk_init_info.device;
-	context->queue                           = g_vulkan_context->GetGraphicsQueue();
-	context->queue_family_index              = g_vulkan_context->GetGraphicsQueueFamilyIndex();
+	context->queue                           = GSDeviceVK::GetInstance()->GetGraphicsQueue();
+	context->queue_family_index              = GSDeviceVK::GetInstance()->GetGraphicsQueueFamilyIndex();
 	context->presentation_queue              = context->queue;
 	context->presentation_queue_family_index = context->queue_family_index;
 
@@ -252,27 +250,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 	}
 }
 
-VKContext::VKContext()
-{
-	// Read device physical memory properties, we need it for allocating buffers
-	vkGetPhysicalDeviceProperties(vk_init_info.gpu, &m_device_properties);
-
-	// We need this to be at least 32 byte aligned for AVX2 stores.
-	m_device_properties.limits.minUniformBufferOffsetAlignment =
-		std::max(m_device_properties.limits.minUniformBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
-	m_device_properties.limits.minTexelBufferOffsetAlignment =
-		std::max(m_device_properties.limits.minTexelBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
-	m_device_properties.limits.optimalBufferCopyOffsetAlignment =
-		std::max(m_device_properties.limits.optimalBufferCopyOffsetAlignment, static_cast<VkDeviceSize>(32));
-	m_device_properties.limits.optimalBufferCopyRowPitchAlignment =
-		Common::NextPow2(std::max(m_device_properties.limits.optimalBufferCopyRowPitchAlignment, static_cast<VkDeviceSize>(32)));
-	m_device_properties.limits.bufferImageGranularity =
-		std::max(m_device_properties.limits.bufferImageGranularity, static_cast<VkDeviceSize>(32));
-}
-
-	VKContext::~VKContext() = default;
-
-	VKContext::GPUNameList VKContext::EnumerateGPUNames(VkInstance instance)
+	GSDeviceVK::GPUNameList GSDeviceVK::EnumerateGPUNames(VkInstance instance)
 	{
 		u32 gpu_count = 0;
 		VkResult res = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
@@ -316,58 +294,7 @@ VKContext::VKContext()
 		return gpu_names;
 	}
 
-	bool VKContext::Create()
-	{
-		if (!g_vulkan_context)
-			Console.Warning("Has no current context");
-		g_vulkan_context.reset(new VKContext());
-
-		// Attempt to create the device and critical resources
-		if (               !g_vulkan_context->CreateDevice(
-					vk_init_info.required_device_extensions,
-					vk_init_info.num_required_device_extensions,
-					vk_init_info.required_device_layers,
-					vk_init_info.num_required_device_layers,
-					vk_init_info.required_features)
-		                || !g_vulkan_context->CreateAllocator()
-				|| !g_vulkan_context->CreateGlobalDescriptorPool()
-				|| !g_vulkan_context->CreateCommandBuffers()
-				|| !g_vulkan_context->CreateTextureStreamBuffer())
-		{
-			g_vulkan_context.reset();
-			return false;
-		}
-		return true;
-	}
-
-	void VKContext::Destroy()
-	{
-		VkDevice m_device = vk_init_info.device;
-		if (m_device != VK_NULL_HANDLE)
-			g_vulkan_context->WaitForGPUIdle();
-
-		g_vulkan_context->m_texture_upload_buffer.Destroy(false);
-
-		for (auto& it : g_vulkan_context->m_render_pass_cache)
-			vkDestroyRenderPass(m_device, it.second, nullptr);
-		g_vulkan_context->m_render_pass_cache.clear();
-
-		if (g_vulkan_context->m_global_descriptor_pool != VK_NULL_HANDLE)
-			vkDestroyDescriptorPool(m_device, g_vulkan_context->m_global_descriptor_pool, nullptr);
-		g_vulkan_context->m_global_descriptor_pool = VK_NULL_HANDLE;
-
-		g_vulkan_context->DestroyCommandBuffers();
-
-		if (g_vulkan_context->m_allocator != VK_NULL_HANDLE)
-			vmaDestroyAllocator(g_vulkan_context->m_allocator);
-		g_vulkan_context->m_allocator = VK_NULL_HANDLE;
-
-		Vulkan::UnloadVulkanLibrary();
-
-		g_vulkan_context.reset();
-	}
-
-	bool VKContext::SelectDeviceExtensions(ExtensionList* extension_list)
+	bool GSDeviceVK::SelectDeviceExtensions(ExtensionList* extension_list)
 	{
 		u32 extension_count = 0;
 		VkResult res = vkEnumerateDeviceExtensionProperties(vk_init_info.gpu, nullptr, &extension_count, nullptr);
@@ -426,7 +353,7 @@ VKContext::VKContext()
 		return true;
 	}
 
-	void VKContext::SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features)
+	void GSDeviceVK::SelectDeviceFeatures(const VkPhysicalDeviceFeatures* required_features)
 	{
 		VkPhysicalDeviceFeatures available_features;
 		vkGetPhysicalDeviceFeatures(vk_init_info.gpu, &available_features);
@@ -444,7 +371,7 @@ VKContext::VKContext()
 		m_device_features.geometryShader           = available_features.geometryShader;
 	}
 
-	bool VKContext::CreateDevice(
+	bool GSDeviceVK::CreateDevice(
 		const char** required_device_extensions, u32 num_required_device_extensions,
 		const char** required_device_layers, u32 num_required_device_layers,
 		const VkPhysicalDeviceFeatures* required_features)
@@ -564,7 +491,7 @@ VKContext::VKContext()
 		return true;
 	}
 
-	void VKContext::ProcessDeviceExtensions()
+	void GSDeviceVK::ProcessDeviceExtensions()
 	{
 		// advanced feature checks
 		VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
@@ -620,7 +547,7 @@ VKContext::VKContext()
 		m_optional_extensions.vk_ext_attachment_feedback_loop_layout ? "supported" : "NOT supported");
 	}
 
-	bool VKContext::CreateAllocator()
+	bool GSDeviceVK::CreateAllocator()
 	{
 		VmaAllocatorCreateInfo ci = {};
 		ci.vulkanApiVersion       = VK_API_VERSION_1_1;
@@ -639,7 +566,7 @@ VKContext::VKContext()
 		return true;
 	}
 
-	bool VKContext::CreateCommandBuffers()
+	bool GSDeviceVK::CreateCommandBuffers()
 	{
 		VkResult res;
 		uint32_t frame_index = 0;
@@ -688,7 +615,7 @@ VKContext::VKContext()
 		return true;
 	}
 
-	void VKContext::DestroyCommandBuffers()
+	void GSDeviceVK::DestroyCommandBuffers()
 	{
 		VkDevice m_device    = vk_init_info.device;
 		for (FrameResources& resources : m_frame_resources)
@@ -721,7 +648,7 @@ VKContext::VKContext()
 		}
 	}
 
-	bool VKContext::CreateGlobalDescriptorPool()
+	bool GSDeviceVK::CreateGlobalDescriptorPool()
 	{
 		static constexpr const VkDescriptorPoolSize pool_sizes[] = {
 			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 2},
@@ -741,7 +668,7 @@ VKContext::VKContext()
 		return true;
 	}
 
-	bool VKContext::CreateTextureStreamBuffer()
+	bool GSDeviceVK::CreateTextureStreamBuffer()
 	{
 		if (!m_texture_upload_buffer.Create(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, TEXTURE_BUFFER_SIZE))
 		{
@@ -752,7 +679,7 @@ VKContext::VKContext()
 		return true;
 	}
 
-	VkRenderPass VKContext::GetRenderPass(
+	VkRenderPass GSDeviceVK::GetRenderPass(
 			VkFormat color_format,
 			VkFormat depth_format,
 			VkAttachmentLoadOp color_load_op,
@@ -783,7 +710,7 @@ VKContext::VKContext()
 		return CreateCachedRenderPass(key);
 	}
 
-	VkRenderPass VKContext::GetRenderPassForRestarting(VkRenderPass pass)
+	VkRenderPass GSDeviceVK::GetRenderPassForRestarting(VkRenderPass pass)
 	{
 		for (const auto& it : m_render_pass_cache)
 		{
@@ -812,7 +739,7 @@ VKContext::VKContext()
 		return pass;
 	}
 
-	VkCommandBuffer VKContext::GetCurrentInitCommandBuffer()
+	VkCommandBuffer GSDeviceVK::GetCurrentInitCommandBuffer()
 	{
 		FrameResources& res = m_frame_resources[m_current_frame];
 		VkCommandBuffer buf = res.command_buffers[0];
@@ -826,7 +753,7 @@ VKContext::VKContext()
 		return buf;
 	}
 
-	VkDescriptorSet VKContext::AllocateDescriptorSet(VkDescriptorSetLayout set_layout)
+	VkDescriptorSet GSDeviceVK::AllocateDescriptorSet(VkDescriptorSetLayout set_layout)
 	{
 		VkDescriptorSetAllocateInfo allocate_info = 	{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 								 nullptr,
@@ -843,7 +770,7 @@ VKContext::VKContext()
 		return descriptor_set;
 	}
 
-	VkDescriptorSet VKContext::AllocatePersistentDescriptorSet(VkDescriptorSetLayout set_layout)
+	VkDescriptorSet GSDeviceVK::AllocatePersistentDescriptorSet(VkDescriptorSetLayout set_layout)
 	{
 		VkDescriptorSetAllocateInfo allocate_info = {
 			VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr, m_global_descriptor_pool, 1, &set_layout};
@@ -856,12 +783,12 @@ VKContext::VKContext()
 		return descriptor_set;
 	}
 
-	void VKContext::FreeGlobalDescriptorSet(VkDescriptorSet set)
+	void GSDeviceVK::FreeGlobalDescriptorSet(VkDescriptorSet set)
 	{
 		vkFreeDescriptorSets(vk_init_info.device, m_global_descriptor_pool, 1, &set);
 	}
 
-	void VKContext::WaitForFenceCounter(u64 fence_counter)
+	void GSDeviceVK::WaitForFenceCounter(u64 fence_counter)
 	{
 		if (m_completed_fence_counter >= fence_counter)
 			return;
@@ -879,12 +806,12 @@ VKContext::VKContext()
 		WaitForCommandBufferCompletion(index);
 	}
 
-	void VKContext::WaitForGPUIdle()
+	void GSDeviceVK::WaitForGPUIdle()
 	{
 		vkDeviceWaitIdle(vk_init_info.device);
 	}
 
-	void VKContext::WaitForCommandBufferCompletion(u32 index)
+	void GSDeviceVK::WaitForCommandBufferCompletion(u32 index)
 	{
 		// Wait for this command buffer to be completed.
 		const VkResult res = vkWaitForFences(vk_init_info.device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
@@ -913,7 +840,7 @@ VKContext::VKContext()
 		m_completed_fence_counter = now_completed_counter;
 	}
 
-	void VKContext::SubmitCommandBuffer()
+	void GSDeviceVK::SubmitCommandBuffer()
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 
@@ -934,7 +861,7 @@ VKContext::VKContext()
 		DoSubmitCommandBuffer(m_current_frame);
 	}
 
-	void VKContext::DoSubmitCommandBuffer(u32 index)
+	void GSDeviceVK::DoSubmitCommandBuffer(u32 index)
 	{
 		FrameResources& resources      = m_frame_resources[index];
 
@@ -947,7 +874,7 @@ VKContext::VKContext()
 			m_last_submit_failed.store(true, std::memory_order_release);
 	}
 
-	void VKContext::CommandBufferCompleted(u32 index)
+	void GSDeviceVK::CommandBufferCompleted(u32 index)
 	{
 		FrameResources& resources = m_frame_resources[index];
 
@@ -956,9 +883,9 @@ VKContext::VKContext()
 		resources.cleanup_resources.clear();
 	}
 
-	void VKContext::MoveToNextCommandBuffer() { ActivateCommandBuffer((m_current_frame + 1) % NUM_COMMAND_BUFFERS); }
+	void GSDeviceVK::MoveToNextCommandBuffer() { ActivateCommandBuffer((m_current_frame + 1) % NUM_COMMAND_BUFFERS); }
 
-	void VKContext::ActivateCommandBuffer(u32 index)
+	void GSDeviceVK::ActivateCommandBuffer(u32 index)
 	{
 		VkDevice m_device         = vk_init_info.device;
 		FrameResources& resources = m_frame_resources[index];
@@ -990,71 +917,45 @@ VKContext::VKContext()
 		vmaSetCurrentFrameIndex(m_allocator, static_cast<u32>(m_next_fence_counter));
 	}
 
-	void VKContext::ExecuteCommandBuffer(bool wait_for_completion)
-	{
-		if (m_last_submit_failed.load(std::memory_order_acquire))
-			return;
-
-		// If we're waiting for completion, don't bother waking the worker thread.
-		const u32 current_frame = m_current_frame;
-		SubmitCommandBuffer();
-		MoveToNextCommandBuffer();
-
-		if (wait_for_completion)
-			WaitForCommandBufferCompletion(current_frame);
-	}
-
-	void VKContext::DeferBufferDestruction(VkBuffer object)
+	void GSDeviceVK::DeferBufferDestruction(VkBuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back([this, object]() { vkDestroyBuffer(vk_init_info.device, object, nullptr); });
 	}
 
-	void VKContext::DeferBufferDestruction(VkBuffer object, VmaAllocation allocation)
+	void GSDeviceVK::DeferBufferDestruction(VkBuffer object, VmaAllocation allocation)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back(
 			[this, object, allocation]() { vmaDestroyBuffer(m_allocator, object, allocation); });
 	}
 
-	void VKContext::DeferFramebufferDestruction(VkFramebuffer object)
+	void GSDeviceVK::DeferFramebufferDestruction(VkFramebuffer object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back([this, object]() { vkDestroyFramebuffer(vk_init_info.device, object, nullptr); });
 	}
 
-	void VKContext::DeferImageDestruction(VkImage object)
+	void GSDeviceVK::DeferImageDestruction(VkImage object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back([this, object]() { vkDestroyImage(vk_init_info.device, object, nullptr); });
 	}
 
-	void VKContext::DeferImageDestruction(VkImage object, VmaAllocation allocation)
+	void GSDeviceVK::DeferImageDestruction(VkImage object, VmaAllocation allocation)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back(
 			[this, object, allocation]() { vmaDestroyImage(m_allocator, object, allocation); });
 	}
 
-	void VKContext::DeferImageViewDestruction(VkImageView object)
+	void GSDeviceVK::DeferImageViewDestruction(VkImageView object)
 	{
 		FrameResources& resources = m_frame_resources[m_current_frame];
 		resources.cleanup_resources.push_back([this, object]() { vkDestroyImageView(vk_init_info.device, object, nullptr); });
 	}
 
-	void VKContext::DeferPipelineDestruction(VkPipeline pipeline)
-	{
-		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, pipeline]() { vkDestroyPipeline(vk_init_info.device, pipeline, nullptr); });
-	}
-
-	void VKContext::DeferSamplerDestruction(VkSampler sampler)
-	{
-		FrameResources& resources = m_frame_resources[m_current_frame];
-		resources.cleanup_resources.push_back([this, sampler]() { vkDestroySampler(vk_init_info.device, sampler, nullptr); });
-	}
-
-	VkRenderPass VKContext::CreateCachedRenderPass(RenderPassCacheKey key)
+	VkRenderPass GSDeviceVK::CreateCachedRenderPass(RenderPassCacheKey key)
 	{
 		VkAttachmentReference color_reference;
 		VkAttachmentReference* color_reference_ptr = nullptr;
@@ -1141,7 +1042,7 @@ VKContext::VKContext()
 		return pass;
 	}
 
-	bool VKContext::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
+	bool GSDeviceVK::AllocatePreinitializedGPUBuffer(u32 size, VkBuffer* gpu_buffer, VmaAllocation* gpu_allocation,
 		VkBufferUsageFlags gpu_usage, const std::function<void(void*)>& fill_callback)
 	{
 		// Try to place the fixed index buffer in GPU local memory.
@@ -1218,25 +1119,14 @@ GSDeviceVK::~GSDeviceVK()
 void GSDeviceVK::GetAdapters(std::vector<std::string>* adapters)
 {
 	VkInstance instance = vk_init_info.instance;
-	if (g_vulkan_context)
+	if (Vulkan::LoadVulkanLibrary())
 	{
 		if (instance != VK_NULL_HANDLE)
 		{
-			if (adapters)
-				*adapters = VKContext::EnumerateGPUNames(instance);
+			if (adapters && Vulkan::LoadVulkanInstanceFunctions(instance))
+				*adapters = EnumerateGPUNames(instance);
 		}
-	}
-	else
-	{
-		if (Vulkan::LoadVulkanLibrary())
-		{
-			if (instance != VK_NULL_HANDLE)
-			{
-				if (Vulkan::LoadVulkanInstanceFunctions(instance))
-					*adapters = VKContext::EnumerateGPUNames(instance);
-			}
-			Vulkan::UnloadVulkanLibrary();
-		}
+		Vulkan::UnloadVulkanLibrary();
 	}
 }
 
@@ -1347,24 +1237,42 @@ void GSDeviceVK::Destroy()
 {
 	GSDevice::Destroy();
 
-	if (g_vulkan_context)
+	EndRenderPass();
+	if (GetCurrentCommandBuffer() != VK_NULL_HANDLE)
 	{
-		EndRenderPass();
-		ExecuteCommandBuffer(true);
-		DestroyResources();
-
-		g_vulkan_context->WaitForGPUIdle();
-
-		VKShaderCache::Destroy();
-		VKContext::Destroy();
+		ExecuteCommandBuffer(false);
+		WaitForGPUIdle();
 	}
+
+	DestroyResources();
+	VKShaderCache::Destroy();
+
+	VkDevice m_device = vk_init_info.device;
+
+	m_texture_upload_buffer.Destroy(false);
+
+	for (auto& it : m_render_pass_cache)
+		vkDestroyRenderPass(m_device, it.second, nullptr);
+	m_render_pass_cache.clear();
+
+	if (m_global_descriptor_pool != VK_NULL_HANDLE)
+		vkDestroyDescriptorPool(m_device, m_global_descriptor_pool, nullptr);
+	m_global_descriptor_pool = VK_NULL_HANDLE;
+
+	DestroyCommandBuffers();
+
+	if (m_allocator != VK_NULL_HANDLE)
+		vmaDestroyAllocator(m_allocator);
+	m_allocator = VK_NULL_HANDLE;
+
+	Vulkan::UnloadVulkanLibrary();
 }
 
 GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 {
 	EndRenderPass();
-	g_vulkan_context->SubmitCommandBuffer();
-	g_vulkan_context->MoveToNextCommandBuffer();
+	SubmitCommandBuffer();
+	MoveToNextCommandBuffer();
 
 	GSTextureVK* tex = (GSTextureVK*)g_gs_device->GetCurrent();
 	if(tex)
@@ -1392,11 +1300,11 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 
 void GSDeviceVK::EndPresent()
 {
-	VkCommandBuffer cmdbuffer = g_vulkan_context->GetCurrentCommandBuffer();
+	VkCommandBuffer cmdbuffer = GetCurrentCommandBuffer();
 	vkCmdEndRenderPass(cmdbuffer);
 
-	g_vulkan_context->SubmitCommandBuffer();
-	g_vulkan_context->MoveToNextCommandBuffer();
+	SubmitCommandBuffer();
+	MoveToNextCommandBuffer();
 
 	InvalidateCachedState();
 }
@@ -1419,6 +1327,21 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		return false;
 	}
 
+	// Read device physical memory properties, we need it for allocating buffers
+	vkGetPhysicalDeviceProperties(vk_init_info.gpu, &m_device_properties);
+
+	// We need this to be at least 32 byte aligned for AVX2 stores.
+	m_device_properties.limits.minUniformBufferOffsetAlignment =
+		std::max(m_device_properties.limits.minUniformBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
+	m_device_properties.limits.minTexelBufferOffsetAlignment =
+		std::max(m_device_properties.limits.minTexelBufferOffsetAlignment, static_cast<VkDeviceSize>(32));
+	m_device_properties.limits.optimalBufferCopyOffsetAlignment =
+		std::max(m_device_properties.limits.optimalBufferCopyOffsetAlignment, static_cast<VkDeviceSize>(32));
+	m_device_properties.limits.optimalBufferCopyRowPitchAlignment =
+		Common::NextPow2(std::max(m_device_properties.limits.optimalBufferCopyRowPitchAlignment, static_cast<VkDeviceSize>(32)));
+	m_device_properties.limits.bufferImageGranularity =
+		std::max(m_device_properties.limits.bufferImageGranularity, static_cast<VkDeviceSize>(32));
+
 	AcquireWindow();
 
 	if (!Vulkan::LoadVulkanInstanceFunctions(vk_init_info.instance))
@@ -1428,49 +1351,57 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		return false;
 	}
 
-	if (!VKContext::Create())
+	// Attempt to create the device and critical resources
+	if (               !CreateDevice(
+				vk_init_info.required_device_extensions,
+				vk_init_info.num_required_device_extensions,
+				vk_init_info.required_device_layers,
+				vk_init_info.num_required_device_layers,
+				vk_init_info.required_features)
+			|| !CreateAllocator()
+			|| !CreateGlobalDescriptorPool()
+			|| !CreateCommandBuffers()
+			|| !CreateTextureStreamBuffer())
 	{
 		Console.Error("Failed to create Vulkan context");
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
 
-	m_has_feedback_loop_layout = g_vulkan_context->UseFeedbackLoopLayout();
+	m_has_feedback_loop_layout = UseFeedbackLoopLayout();
 
 	return true;
 }
 
 bool GSDeviceVK::CheckFeatures()
 {
-	const VkPhysicalDeviceProperties& properties = g_vulkan_context->GetDeviceProperties();
-	const VkPhysicalDeviceFeatures& features     = g_vulkan_context->GetDeviceFeatures();
-	const VkPhysicalDeviceLimits& limits         = g_vulkan_context->GetDeviceLimits();
-	const u32 vendorID              = properties.vendorID;
+	const VkPhysicalDeviceLimits& limits         = GetDeviceLimits();
+	const u32 vendorID              = m_device_properties.vendorID;
 	const bool isAMD                = (vendorID == 0x1002 || vendorID == 0x1022);
 	// const bool isNVIDIA          = (vendorID == 0x10DE);
 
-	m_features.framebuffer_fetch    = g_vulkan_context->GetOptionalExtensions().vk_ext_rasterization_order_attachment_access && !GSConfig.DisableFramebufferFetch;
+	m_features.framebuffer_fetch    = m_optional_extensions.vk_ext_rasterization_order_attachment_access && !GSConfig.DisableFramebufferFetch;
 	m_features.texture_barrier      = GSConfig.OverrideTextureBarriers != 0;
 	m_features.broken_point_sampler = isAMD;
 
 	// geometryShader is needed because gl_PrimitiveID is part of the Geometry SPIR-V Execution Model.
-	m_features.primitive_id = g_vulkan_context->GetDeviceFeatures().geometryShader;
+	m_features.primitive_id         = m_device_features.geometryShader;
 
 #ifdef __APPLE__
 	// On Metal (MoltenVK), primid is sometimes available, but broken on some older GPUs and MacOS versions.
 	// Officially, it's available on GPUs that support barycentric coordinates (Newer AMD and Apple)
 	// Unofficially, it seems to work on older Intel GPUs (but breaks other things on newer Intel GPUs)
-	m_features.primitive_id         &= g_vulkan_context->GetOptionalExtensions().vk_khr_fragment_shader_barycentric;
+	m_features.primitive_id         &= m_optional_extensions.vk_khr_fragment_shader_barycentric;
 #endif
 	m_features.prefer_new_textures   = true;
-	m_features.provoking_vertex_last = g_vulkan_context->GetOptionalExtensions().vk_ext_provoking_vertex;
-	m_features.dual_source_blend     = features.dualSrcBlend && !GSConfig.DisableDualSourceBlend;
+	m_features.provoking_vertex_last = m_optional_extensions.vk_ext_provoking_vertex;
+	m_features.dual_source_blend     = m_device_features.dualSrcBlend && !GSConfig.DisableDualSourceBlend;
 	m_features.clip_control          = true;
 #ifdef __APPLE__
 	m_features.vs_expand             = false;
 #else
 	m_features.vs_expand =
-		!GSConfig.DisableVertexShaderExpand && g_vulkan_context->GetOptionalExtensions().vk_khr_shader_draw_parameters;
+		!GSConfig.DisableVertexShaderExpand && m_optional_extensions.vk_khr_shader_draw_parameters;
 #endif
 
 	if (!m_features.dual_source_blend)
@@ -1479,7 +1410,7 @@ bool GSDeviceVK::CheckFeatures()
 	if (!m_features.texture_barrier)
 		Console.Warning("Texture buffers are disabled. This may break some graphical effects.");
 
-	if (!g_vulkan_context->GetOptionalExtensions().vk_ext_line_rasterization)
+	if (!m_optional_extensions.vk_ext_line_rasterization)
 		Console.WriteLn("VK_EXT_line_rasterization or the BRESENHAM mode is not supported, this may cause rendering inaccuracies.");
 
 	// Test for D32S8 support.
@@ -1501,9 +1432,9 @@ bool GSDeviceVK::CheckFeatures()
 	// whether we can do point/line expand depends on the range of the device
 	const float f_upscale = static_cast<float>(GSConfig.UpscaleMultiplier);
 	m_features.point_expand =
-		(features.largePoints && limits.pointSizeRange[0] <= f_upscale && limits.pointSizeRange[1] >= f_upscale);
+		(m_device_features.largePoints && limits.pointSizeRange[0] <= f_upscale && limits.pointSizeRange[1] >= f_upscale);
 	m_features.line_expand =
-		(features.wideLines && limits.lineWidthRange[0] <= f_upscale && limits.lineWidthRange[1] >= f_upscale);
+		(m_device_features.wideLines && limits.lineWidthRange[0] <= f_upscale && limits.lineWidthRange[1] >= f_upscale);
 
 	Console.WriteLn("Using %s for point expansion and %s for line expansion.",
 		m_features.point_expand ? "hardware" : "vertex expanding",
@@ -1528,25 +1459,25 @@ bool GSDeviceVK::CheckFeatures()
 		}
 	}
 
-	m_features.dxt_textures = g_vulkan_context->GetDeviceFeatures().textureCompressionBC;
-	m_features.bptc_textures = g_vulkan_context->GetDeviceFeatures().textureCompressionBC;
+	m_features.dxt_textures  = m_device_features.textureCompressionBC;
+	m_features.bptc_textures = m_device_features.textureCompressionBC;
 
 	return true;
 }
 
 void GSDeviceVK::DrawPrimitive()
 {
-	vkCmdDraw(g_vulkan_context->GetCurrentCommandBuffer(), m_vertex.count, 1, m_vertex.start, 0);
+	vkCmdDraw(GetCurrentCommandBuffer(), m_vertex.count, 1, m_vertex.start, 0);
 }
 
 void GSDeviceVK::DrawIndexedPrimitive()
 {
-	vkCmdDrawIndexed(g_vulkan_context->GetCurrentCommandBuffer(), m_index.count, 1, m_index.start, m_vertex.start, 0);
+	vkCmdDrawIndexed(GetCurrentCommandBuffer(), m_index.count, 1, m_index.start, m_vertex.start, 0);
 }
 
 void GSDeviceVK::DrawIndexedPrimitive(int offset, int count)
 {
-	vkCmdDrawIndexed(g_vulkan_context->GetCurrentCommandBuffer(), count, 1, m_index.start + offset, m_vertex.start, 0);
+	vkCmdDrawIndexed(GetCurrentCommandBuffer(), count, 1, m_index.start + offset, m_vertex.start, 0);
 }
 
 VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const
@@ -1573,7 +1504,7 @@ VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const
 
 GSTexture* GSDeviceVK::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
-	u32 max_img_dim          = g_vulkan_context->GetMaxImageDimension2D();
+	u32 max_img_dim          = GetMaxImageDimension2D();
 	const u32 clamped_width  = static_cast<u32>(std::clamp<int>(width, 1, max_img_dim));
 	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, max_img_dim));
 
@@ -1646,7 +1577,7 @@ void GSDeviceVK::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 			ca.colorAttachment = 0;
 
 			const VkClearRect cr = { {{0, 0}, {static_cast<u32>(r.width()), static_cast<u32>(r.height())}}, 0u, 1u };
-			vkCmdClearAttachments(g_vulkan_context->GetCurrentCommandBuffer(), 1, &ca, 1, &cr);
+			vkCmdClearAttachments(GetCurrentCommandBuffer(), 1, &ca, 1, &cr);
 			return;
 		}
 
@@ -1668,14 +1599,14 @@ void GSDeviceVK::CopyRect(GSTexture* sTex, GSTexture* dTex, const GSVector4i& r,
 
 	EndRenderPass();
 
-	sTexVK->m_use_fence_counter = g_vulkan_context->GetCurrentFenceCounter();
-	dTexVK->m_use_fence_counter = g_vulkan_context->GetCurrentFenceCounter();
+	sTexVK->m_use_fence_counter = GetCurrentFenceCounter();
+	dTexVK->m_use_fence_counter = GetCurrentFenceCounter();
 	sTexVK->TransitionToLayout(
 		(dTexVK == sTexVK) ? GSTextureVK::Layout::TransferSelf : GSTextureVK::Layout::TransferSrc);
 	dTexVK->TransitionToLayout(
 		(dTexVK == sTexVK) ? GSTextureVK::Layout::TransferSelf : GSTextureVK::Layout::TransferDst);
 
-	vkCmdCopyImage(g_vulkan_context->GetCurrentCommandBuffer(), sTexVK->GetImage(),
+	vkCmdCopyImage(GetCurrentCommandBuffer(), sTexVK->GetImage(),
 		sTexVK->GetVkLayout(), dTexVK->GetImage(), dTexVK->GetVkLayout(), 1, &ic);
 
 	dTexVK->SetState(GSTexture::State::Dirty);
@@ -1848,7 +1779,7 @@ void GSDeviceVK::BeginRenderPassForStretchRect(
 	else
 	{
 		// integer formats, etc
-		const VkRenderPass rp = g_vulkan_context->GetRenderPass(dTex->GetVkFormat(), VK_FORMAT_UNDEFINED,
+		const VkRenderPass rp = GetRenderPass(dTex->GetVkFormat(), VK_FORMAT_UNDEFINED,
 			load_op, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE);
 		if (load_op == VK_ATTACHMENT_LOAD_OP_CLEAR)
 		{
@@ -2188,7 +2119,7 @@ void GSDeviceVK::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 		{
 			const GSVector2i size = vkRt ? vkRt->GetSize() : vkDs->GetSize();
 			const VkClearRect cr = {{{0, 0}, {static_cast<u32>(size.x), static_cast<u32>(size.y)}}, 0u, 1u};
-			vkCmdClearAttachments(g_vulkan_context->GetCurrentCommandBuffer(), num_ca, cas.data(), 1, &cr);
+			vkCmdClearAttachments(GetCurrentCommandBuffer(), num_ca, cas.data(), 1, &cr);
 		}
 	}
 
@@ -2203,7 +2134,7 @@ void GSDeviceVK::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 			// NVIDIA drivers appear to return random garbage when sampling the RT via a feedback loop, if the load op for
 			// the render pass is CLEAR. Using vkCmdClearAttachments() doesn't work, so we have to clear the image instead.
 			if (feedback_loop & FeedbackLoopFlag_ReadAndWriteRT && vkRt->GetState() == GSTexture::State::Cleared &&
-				g_vulkan_context->IsDeviceNVIDIA())
+				IsDeviceNVIDIA())
 				vkRt->CommitClear();
 
 			vkRt->TransitionToLayout((feedback_loop & FeedbackLoopFlag_ReadAndWriteRT) ?
@@ -2236,7 +2167,7 @@ VkSampler GSDeviceVK::GetSampler(GSHWDrawConfig::SamplerSelector ss)
 	if (it != m_samplers.end())
 		return it->second;
 
-	const bool aniso = (ss.aniso && GSConfig.MaxAnisotropy > 1 && g_vulkan_context->GetDeviceFeatures().samplerAnisotropy);
+	const bool aniso = (ss.aniso && GSConfig.MaxAnisotropy > 1 && m_device_features.samplerAnisotropy);
 
 	// See https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkSamplerCreateInfo.html#_description
 	// for the reasoning behind 0.25f here.
@@ -2269,8 +2200,13 @@ VkSampler GSDeviceVK::GetSampler(GSHWDrawConfig::SamplerSelector ss)
 
 void GSDeviceVK::ClearSamplerCache()
 {
+	VkDevice m_device = vk_init_info.device;
+	ExecuteCommandBuffer(true);
 	for (const auto& it : m_samplers)
-		g_vulkan_context->DeferSamplerDestruction(it.second);
+	{
+		if (it.second != VK_NULL_HANDLE)
+			vkDestroySampler(m_device, it.second, nullptr);
+	}
 	m_samplers.clear();
 	m_point_sampler   = GetSampler(GSHWDrawConfig::SamplerSelector::Point());
 	m_linear_sampler  = GetSampler(GSHWDrawConfig::SamplerSelector::Linear());
@@ -2297,7 +2233,7 @@ static void AddShaderHeader(std::stringstream& ss)
 		ss << "#define DISABLE_TEXTURE_BARRIER 1\n";
 	if (!features.dual_source_blend)
 		ss << "#define DISABLE_DUAL_SOURCE 1\n";
-	if (features.texture_barrier && g_vulkan_context->UseFeedbackLoopLayout())
+	if (features.texture_barrier && GSDeviceVK::GetInstance()->UseFeedbackLoopLayout())
 		ss << "#define HAS_FEEDBACK_LOOP_LAYOUT 1\n";
 }
 
@@ -2358,7 +2294,7 @@ bool GSDeviceVK::CreateNullTexture()
 	if (!m_null_texture)
 		return false;
 
-	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
+	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
 	const VkImageSubresourceRange srr{VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u};
 	const VkClearColorValue ccv{};
 	m_null_texture->TransitionToLayout(cmdbuf, GSTextureVK::Layout::ClearDst);
@@ -2398,7 +2334,7 @@ bool GSDeviceVK::CreateBuffers()
 
 	SetVertexBuffer(m_vertex_stream_buffer.GetBuffer(), 0);
 
-	if (!g_vulkan_context->AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer,
+	if (!AllocatePreinitializedGPUBuffer(EXPAND_BUFFER_SIZE, &m_expand_index_buffer,
 			&m_expand_index_buffer_allocation, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			&GSDevice::GenerateExpansionIndexBuffer))
 	{
@@ -2462,7 +2398,7 @@ bool GSDeviceVK::CreatePipelineLayouts()
 #define GET(dest, rt, depth, fbl, dsp, opa, opb, opc) \
 	do \
 	{ \
-		dest = g_vulkan_context->GetRenderPass( \
+		dest = GetRenderPass( \
 			(rt), (depth), ((rt) != VK_FORMAT_UNDEFINED) ? (opa) : VK_ATTACHMENT_LOAD_OP_DONT_CARE, /* color load */ \
 			((rt) != VK_FORMAT_UNDEFINED) ? VK_ATTACHMENT_STORE_OP_STORE : \
                                             VK_ATTACHMENT_STORE_OP_DONT_CARE, /* color store */ \
@@ -2534,7 +2470,7 @@ bool GSDeviceVK::CreateRenderPasses()
 	GET(m_utility_depth_render_pass_discard, VK_FORMAT_UNDEFINED, depth_format, false, false,
 		VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
 
-	m_date_setup_render_pass = g_vulkan_context->GetRenderPass(VK_FORMAT_UNDEFINED, depth_format,
+	m_date_setup_render_pass = GetRenderPass(VK_FORMAT_UNDEFINED, depth_format,
 		VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
 		m_features.stencil_buffer ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 		m_features.stencil_buffer ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE);
@@ -2583,11 +2519,11 @@ bool GSDeviceVK::CompileConvertPipelines()
 		{
 			case ShaderConvert::RGBA8_TO_16_BITS:
 			case ShaderConvert::FLOAT32_TO_16_BITS:
-				rp = g_vulkan_context->GetRenderPass(LookupNativeFormat(GSTexture::Format::UInt16),
+				rp = GetRenderPass(LookupNativeFormat(GSTexture::Format::UInt16),
 					VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
 				break;
 			case ShaderConvert::FLOAT32_TO_32_BITS:
-				rp = g_vulkan_context->GetRenderPass(LookupNativeFormat(GSTexture::Format::UInt32),
+				rp = GetRenderPass(LookupNativeFormat(GSTexture::Format::UInt32),
 					VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
 				break;
 			case ShaderConvert::DATM_0:
@@ -2595,7 +2531,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 				rp = m_date_setup_render_pass;
 				break;
 			default:
-				rp = g_vulkan_context->GetRenderPass(
+				rp = GetRenderPass(
 					LookupNativeFormat(depth ? GSTexture::Format::Invalid : GSTexture::Format::Color),
 					LookupNativeFormat(
 						depth ? GSTexture::Format::DepthStencil : GSTexture::Format::Invalid),
@@ -2694,7 +2630,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 		for (u32 clear = 0; clear < 2; clear++)
 		{
 			m_date_image_setup_render_passes[ds][clear] =
-				g_vulkan_context->GetRenderPass(LookupNativeFormat(GSTexture::Format::PrimID),
+				GetRenderPass(LookupNativeFormat(GSTexture::Format::PrimID),
 					ds ? LookupNativeFormat(GSTexture::Format::DepthStencil) : VK_FORMAT_UNDEFINED,
 					VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
 					ds ? (clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD) : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -2797,7 +2733,7 @@ bool GSDeviceVK::CompileInterlacePipelines()
 		return false;
 	}
 
-	VkRenderPass rp = g_vulkan_context->GetRenderPass(
+	VkRenderPass rp = GetRenderPass(
 		LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
 	if (!rp)
 		return false;
@@ -2855,7 +2791,7 @@ bool GSDeviceVK::CompileMergePipelines()
 		return false;
 	}
 
-	VkRenderPass rp = g_vulkan_context->GetRenderPass(
+	VkRenderPass rp = GetRenderPass(
 		LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
 	if (!rp)
 		return false;
@@ -2901,7 +2837,7 @@ bool GSDeviceVK::CompileMergePipelines()
 
 bool GSDeviceVK::CompilePostProcessingPipelines()
 {
-	VkRenderPass rp = g_vulkan_context->GetRenderPass(
+	VkRenderPass rp = GetRenderPass(
 		LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
 	if (!rp)
 		return false;
@@ -2925,10 +2861,10 @@ void GSDeviceVK::DestroyResources()
 {
 	VkDevice m_device = vk_init_info.device;
 
-	g_vulkan_context->ExecuteCommandBuffer(true);
+	ExecuteCommandBuffer(true);
 
 	if (m_tfx_ubo_descriptor_set != VK_NULL_HANDLE)
-		g_vulkan_context->FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);
+		FreeGlobalDescriptorSet(m_tfx_ubo_descriptor_set);
 
 	for (auto& it : m_tfx_pipelines)
 	{
@@ -3046,7 +2982,7 @@ void GSDeviceVK::DestroyResources()
 	m_vertex_stream_buffer.Destroy(false);
 	if (m_expand_index_buffer != VK_NULL_HANDLE)
 	{
-		vmaDestroyBuffer(g_vulkan_context->GetAllocator(), m_expand_index_buffer, m_expand_index_buffer_allocation);
+		vmaDestroyBuffer(GetAllocator(), m_expand_index_buffer, m_expand_index_buffer_allocation);
 		m_expand_index_buffer = VK_NULL_HANDLE;
 		m_expand_index_buffer_allocation = VK_NULL_HANDLE;
 	}
@@ -3199,7 +3135,7 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 	}
 	gpb.SetPrimitiveTopology(topology_lookup[p.topology]);
 	gpb.SetRasterizationState(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	if (p.topology == static_cast<u8>(GSHWDrawConfig::Topology::Line) && g_vulkan_context->GetOptionalExtensions().vk_ext_line_rasterization)
+	if (p.topology == static_cast<u8>(GSHWDrawConfig::Topology::Line) && GetOptionalExtensions().vk_ext_line_rasterization)
 		gpb.SetLineRasterizationMode(VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT);
 	gpb.SetDynamicViewportAndScissorState();
 	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
@@ -3322,7 +3258,7 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 	Vulkan::DescriptorSetUpdateBuilder dsub;
 
 	// Allocate UBO descriptor sets for TFX.
-	m_tfx_ubo_descriptor_set = g_vulkan_context->AllocatePersistentDescriptorSet(m_tfx_ubo_ds_layout);
+	m_tfx_ubo_descriptor_set = AllocatePersistentDescriptorSet(m_tfx_ubo_ds_layout);
 	if (m_tfx_ubo_descriptor_set == VK_NULL_HANDLE)
 		return false;
 	dsub.AddBufferDescriptorWrite(m_tfx_ubo_descriptor_set, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
@@ -3339,7 +3275,16 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion)
 {
 	EndRenderPass();
-	g_vulkan_context->ExecuteCommandBuffer(wait_for_completion);
+	if (!m_last_submit_failed.load(std::memory_order_acquire))
+	{
+		// If we're waiting for completion, don't bother waking the worker thread.
+		const u32 current_frame = m_current_frame;
+		SubmitCommandBuffer();
+		MoveToNextCommandBuffer();
+
+		if (wait_for_completion)
+			WaitForCommandBufferCompletion(current_frame);
+	}
 	InvalidateCachedState();
 }
 
@@ -3353,7 +3298,7 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 	const FeedbackLoopFlag current_feedback_loop = m_current_framebuffer_feedback_loop;
 
 	EndRenderPass();
-	g_vulkan_context->ExecuteCommandBuffer(wait_for_completion);
+	ExecuteCommandBuffer(wait_for_completion);
 	InvalidateCachedState();
 
 	if (render_pass != VK_NULL_HANDLE)
@@ -3362,7 +3307,7 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 		OMSetRenderTargets(current_rt, current_ds, scissor, current_feedback_loop);
 
 		// restart render pass
-		BeginRenderPass(g_vulkan_context->GetRenderPassForRestarting(render_pass), render_pass_area);
+		BeginRenderPass(GetRenderPassForRestarting(render_pass), render_pass_area);
 	}
 }
 
@@ -3443,7 +3388,7 @@ void GSDeviceVK::PSSetShaderResource(int i, GSTexture* sr, bool check_state)
 			vkTex->CommitClear();
 			vkTex->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
 		}
-		vkTex->m_use_fence_counter = g_vulkan_context->GetCurrentFenceCounter();
+		vkTex->m_use_fence_counter = GetCurrentFenceCounter();
 	}
 	else
 		vkTex = m_null_texture.get();
@@ -3473,7 +3418,7 @@ void GSDeviceVK::SetUtilityTexture(GSTexture* tex, VkSampler sampler)
 	{
 		vkTex->CommitClear();
 		vkTex->TransitionToLayout(GSTextureVK::Layout::ShaderReadOnly);
-		vkTex->m_use_fence_counter = g_vulkan_context->GetCurrentFenceCounter();
+		vkTex->m_use_fence_counter = GetCurrentFenceCounter();
 	}
 	else
 		vkTex = m_null_texture.get();
@@ -3488,7 +3433,7 @@ void GSDeviceVK::SetUtilityTexture(GSTexture* tex, VkSampler sampler)
 
 void GSDeviceVK::SetUtilityPushConstants(const void* data, u32 size)
 {
-	vkCmdPushConstants(g_vulkan_context->GetCurrentCommandBuffer(), m_utility_pipeline_layout,
+	vkCmdPushConstants(GetCurrentCommandBuffer(), m_utility_pipeline_layout,
 		VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, size, data);
 }
 
@@ -3530,7 +3475,7 @@ void GSDeviceVK::BeginRenderPass(VkRenderPass rp, const GSVector4i& rect)
 		m_current_framebuffer, {{rect.x, rect.y}, {static_cast<u32>(rect.width()), static_cast<u32>(rect.height())}}, 0,
 		nullptr};
 
-	vkCmdBeginRenderPass(g_vulkan_context->GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, const VkClearValue* cv, u32 cv_count)
@@ -3545,7 +3490,7 @@ void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, c
 		m_current_framebuffer, {{rect.x, rect.y}, {static_cast<u32>(rect.width()), static_cast<u32>(rect.height())}},
 		cv_count, cv};
 
-	vkCmdBeginRenderPass(g_vulkan_context->GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(GetCurrentCommandBuffer(), &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void GSDeviceVK::BeginClearRenderPass(VkRenderPass rp, const GSVector4i& rect, u32 clear_color)
@@ -3570,7 +3515,7 @@ void GSDeviceVK::EndRenderPass()
 
 	m_current_render_pass = VK_NULL_HANDLE;
 
-	vkCmdEndRenderPass(g_vulkan_context->GetCurrentCommandBuffer());
+	vkCmdEndRenderPass(GetCurrentCommandBuffer());
 }
 
 void GSDeviceVK::SetViewport(const VkViewport& viewport)
@@ -3637,7 +3582,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		return true;
 
 	const VkDevice dev           = vk_init_info.device;
-	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
+	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
 	u32 flags = m_dirty_flags;
 	m_dirty_flags &= ~(DIRTY_TFX_STATE | DIRTY_CONSTANT_BUFFER_STATE | DIRTY_FLAG_TFX_DYNAMIC_OFFSETS);
 
@@ -3645,7 +3590,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 	if (flags & DIRTY_FLAG_VS_CONSTANT_BUFFER)
 	{
 		if (!m_vertex_uniform_stream_buffer.ReserveMemory(
-				sizeof(m_vs_cb_cache), g_vulkan_context->GetUniformBufferAlignment()))
+				sizeof(m_vs_cb_cache), GetUniformBufferAlignment()))
 		{
 			if (already_execed)
 			{
@@ -3667,7 +3612,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 	if (flags & DIRTY_FLAG_PS_CONSTANT_BUFFER)
 	{
 		if (!m_fragment_uniform_stream_buffer.ReserveMemory(
-				sizeof(m_ps_cb_cache), g_vulkan_context->GetUniformBufferAlignment()))
+				sizeof(m_ps_cb_cache), GetUniformBufferAlignment()))
 		{
 			if (already_execed)
 			{
@@ -3698,7 +3643,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 
 	if ((flags & DIRTY_FLAG_TFX_SAMPLERS_DS) || m_tfx_texture_descriptor_set == VK_NULL_HANDLE)
 	{
-		m_tfx_texture_descriptor_set = g_vulkan_context->AllocateDescriptorSet(m_tfx_sampler_ds_layout);
+		m_tfx_texture_descriptor_set = AllocateDescriptorSet(m_tfx_sampler_ds_layout);
 		if (m_tfx_texture_descriptor_set == VK_NULL_HANDLE)
 		{
 			if (already_execed)
@@ -3727,7 +3672,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 
 	if ((flags & DIRTY_FLAG_TFX_RT_TEXTURE_DS) || m_tfx_rt_descriptor_set == VK_NULL_HANDLE)
 	{
-		m_tfx_rt_descriptor_set = g_vulkan_context->AllocateDescriptorSet(m_tfx_rt_texture_ds_layout);
+		m_tfx_rt_descriptor_set = AllocateDescriptorSet(m_tfx_rt_texture_ds_layout);
 		if (m_tfx_rt_descriptor_set == VK_NULL_HANDLE)
 		{
 			if (already_execed)
@@ -3810,7 +3755,7 @@ bool GSDeviceVK::ApplyUtilityState(bool already_execed)
 		return true;
 
 	const VkDevice dev           = vk_init_info.device;
-	const VkCommandBuffer cmdbuf = g_vulkan_context->GetCurrentCommandBuffer();
+	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
 	u32 flags                    = m_dirty_flags;
 	m_dirty_flags               &= ~DIRTY_UTILITY_STATE;
 
@@ -3818,7 +3763,7 @@ bool GSDeviceVK::ApplyUtilityState(bool already_execed)
 
 	if ((flags & DIRTY_FLAG_UTILITY_TEXTURE) || m_utility_descriptor_set == VK_NULL_HANDLE)
 	{
-		m_utility_descriptor_set = g_vulkan_context->AllocateDescriptorSet(m_utility_ds_layout);
+		m_utility_descriptor_set = AllocateDescriptorSet(m_utility_ds_layout);
 		if (m_utility_descriptor_set == VK_NULL_HANDLE)
 		{
 			if (already_execed)
@@ -4334,7 +4279,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 
 		for (; n < draw_list_size; n++)
 		{
-			vkCmdPipelineBarrier(g_vulkan_context->GetCurrentCommandBuffer(),
+			vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
 				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags, 0,
 				nullptr, 0, nullptr, 1, &barrier);
 
@@ -4364,7 +4309,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 
 			for (; p < config.nindices; p += indices_per_prim)
 			{
-				vkCmdPipelineBarrier(g_vulkan_context->GetCurrentCommandBuffer(),
+				vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
 					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags,
 					0, nullptr, 0, nullptr, 1, &barrier);
 
@@ -4376,7 +4321,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 
 		if (config.require_one_barrier && !skip_first_barrier)
 		{
-			vkCmdPipelineBarrier(g_vulkan_context->GetCurrentCommandBuffer(),
+			vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
 				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags, 0,
 				nullptr, 0, nullptr, 1, &barrier);
 		}

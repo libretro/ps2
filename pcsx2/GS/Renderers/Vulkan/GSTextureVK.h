@@ -16,8 +16,8 @@
 #pragma once
 
 #include "GS/GS.h"
+#include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/Renderers/Common/GSTexture.h"
-#include "GS/Renderers/Vulkan/VKContext.h"
 #include "GS/Renderers/Vulkan/VKLoader.h"
 
 class GSTextureVK final : public GSTexture

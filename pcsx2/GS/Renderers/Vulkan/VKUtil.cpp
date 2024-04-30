@@ -14,7 +14,6 @@
  */
 
 #include "VKUtil.h"
-#include "VKContext.h"
 #include "VKShaderCache.h"
 
 #include <cmath>

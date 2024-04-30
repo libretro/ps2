@@ -14,7 +14,7 @@
  */
 
 #include "VKStreamBuffer.h"
-#include "VKContext.h"
+#include "GSDeviceVK.h"
 #include "VKUtil.h"
 #include "common/Align.h"
 #include "common/Console.h"
@@ -75,7 +75,7 @@ bool VKStreamBuffer::Create(VkBufferUsageFlags usage, u32 size)
 	VmaAllocationInfo ai = {};
 	VkBuffer new_buffer = VK_NULL_HANDLE;
 	VmaAllocation new_allocation = VK_NULL_HANDLE;
-	VkResult res = vmaCreateBuffer(g_vulkan_context->GetAllocator(), &bci, &aci, &new_buffer, &new_allocation, &ai);
+	VkResult res = vmaCreateBuffer(GSDeviceVK::GetInstance()->GetAllocator(), &bci, &aci, &new_buffer, &new_allocation, &ai);
 	if (res != VK_SUCCESS)
 		return false;
 
@@ -98,9 +98,9 @@ void VKStreamBuffer::Destroy(bool defer)
 	if (m_buffer != VK_NULL_HANDLE)
 	{
 		if (defer)
-			g_vulkan_context->DeferBufferDestruction(m_buffer, m_allocation);
+			GSDeviceVK::GetInstance()->DeferBufferDestruction(m_buffer, m_allocation);
 		else
-			vmaDestroyBuffer(g_vulkan_context->GetAllocator(), m_buffer, m_allocation);
+			vmaDestroyBuffer(GSDeviceVK::GetInstance()->GetAllocator(), m_buffer, m_allocation);
 	}
 
 	m_size = 0;
@@ -183,7 +183,7 @@ bool VKStreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
 void VKStreamBuffer::CommitMemory(u32 final_num_bytes)
 {
 	// For non-coherent mappings, flush the memory range
-	vmaFlushAllocation(g_vulkan_context->GetAllocator(), m_allocation, m_current_offset, final_num_bytes);
+	vmaFlushAllocation(GSDeviceVK::GetInstance()->GetAllocator(), m_allocation, m_current_offset, final_num_bytes);
 
 	m_current_offset += final_num_bytes;
 	m_current_space -= final_num_bytes;
@@ -193,7 +193,7 @@ void VKStreamBuffer::CommitMemory(u32 final_num_bytes)
 void VKStreamBuffer::UpdateCurrentFencePosition()
 {
 	// Has the offset changed since the last fence?
-	const u64 counter = g_vulkan_context->GetCurrentFenceCounter();
+	const u64 counter = GSDeviceVK::GetInstance()->GetCurrentFenceCounter();
 	if (!m_tracked_fences.empty() && m_tracked_fences.back().first == counter)
 	{
 		// Still haven't executed a command buffer, so just update the offset.
@@ -210,7 +210,7 @@ void VKStreamBuffer::UpdateGPUPosition()
 	auto start = m_tracked_fences.begin();
 	auto end = start;
 
-	const u64 completed_counter = g_vulkan_context->GetCompletedFenceCounter();
+	const u64 completed_counter = GSDeviceVK::GetInstance()->GetCompletedFenceCounter();
 	while (end != m_tracked_fences.end() && completed_counter >= end->first)
 	{
 		m_current_gpu_position = end->second;
@@ -297,11 +297,11 @@ bool VKStreamBuffer::WaitForClearSpace(u32 num_bytes)
 
 	// Did any fences satisfy this condition?
 	// Has the command buffer been executed yet? If not, the caller should execute it.
-	if (iter == m_tracked_fences.end() || iter->first == g_vulkan_context->GetCurrentFenceCounter())
+	if (iter == m_tracked_fences.end() || iter->first == GSDeviceVK::GetInstance()->GetCurrentFenceCounter())
 		return false;
 
 	// Wait until this fence is signaled. This will fire the callback, updating the GPU position.
-	g_vulkan_context->WaitForFenceCounter(iter->first);
+	GSDeviceVK::GetInstance()->WaitForFenceCounter(iter->first);
 	m_tracked_fences.erase(
 			m_tracked_fences.begin(), m_current_offset == iter->second ? m_tracked_fences.end() : ++iter);
 	m_current_offset = new_offset;
