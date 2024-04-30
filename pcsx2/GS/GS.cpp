@@ -45,6 +45,10 @@
 #include "GS/Renderers/DX11/D3D.h"
 #endif
 
+#include <libretro.h>
+
+extern retro_hw_render_callback hw_render;
+
 Pcsx2Config::GSOptions GSConfig;
 
 void GSinit(void)

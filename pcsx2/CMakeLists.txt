@@ -575,6 +575,9 @@ if(WIN32)
 		USB/usb-eyetoy/cam-windows.h
 	)
 
+target_compile_options(PCSX2_FLAGS INTERFACE "-DHAVE_D3D11")
+target_compile_options(PCSX2_FLAGS INTERFACE "-DHAVE_D3D12")
+
 	list(APPEND pcsx2GSSources
 		GS/Renderers/DX11/D3D.cpp
 		GS/Renderers/DX11/GSDevice11.cpp

@@ -42,6 +42,7 @@
 
 #include <libretro_d3d.h>
 retro_hw_render_interface_d3d12 *d3d12;
+extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
 std::unique_ptr<D3D12Context> g_d3d12_context;
 
