@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2023 The RetroArch team
+/* Copyright (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------------
  * The following license statement only applies to this libretro API header (libretro_d3d.h)
@@ -29,6 +29,8 @@
 
 #include "libretro.h"
 
+#ifdef HAVE_D3D11
+
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
@@ -51,6 +53,10 @@ struct retro_hw_render_interface_d3d11
   D3D_FEATURE_LEVEL featureLevel;
   pD3DCompile D3DCompile;
 };
+
+#endif
+
+#ifdef HAVE_D3D12
 
 #include <d3d12.h>
 #include <d3dcompiler.h>
@@ -76,5 +82,6 @@ struct retro_hw_render_interface_d3d12
   void (*set_texture)(void* handle, ID3D12Resource* texture, DXGI_FORMAT format);
 };
 
+#endif
 
 #endif /* LIBRETRO_DIRECT3D_H__ */
