@@ -199,12 +199,6 @@ namespace StringUtil
 	/// Parses an assignment string (Key = Value) into its two components.
 	bool ParseAssignmentString(const std::string_view& str, std::string_view* key, std::string_view* value);
 
-	/// Appends a UTF-16/UTF-32 codepoint to a UTF-8 string.
-	void AppendUTF16CharacterToUTF8(std::string& s, u16 ch);
-
-	/// Appends a UTF-16/UTF-32 codepoint to a UTF-8 string.
-	void EncodeAndAppendUTF8(std::string& s, char32_t ch);
-
 	/// Decodes UTF-8 to a single codepoint, updating the position parameter.
 	/// Returns the number of bytes the codepoint took in the original string.
 	size_t DecodeUTF8(const void* bytes, size_t length, char32_t* ch);
@@ -231,30 +225,9 @@ namespace StringUtil
 		}
 	}
 
-	static inline int StrideMemCmp(const void* p1, std::size_t p1_stride, const void* p2, std::size_t p2_stride,
-		std::size_t copy_size, std::size_t count)
-	{
-		if (p1_stride == p2_stride && p1_stride == copy_size)
-			return memcmp(p1, p2, p1_stride * count);
-
-		const u8* p1_ptr = static_cast<const u8*>(p1);
-		const u8* p2_ptr = static_cast<const u8*>(p2);
-		for (std::size_t i = 0; i < count; i++)
-		{
-			int result = memcmp(p1_ptr, p2_ptr, copy_size);
-			if (result != 0)
-				return result;
-			p2_ptr += p2_stride;
-			p1_ptr += p1_stride;
-		}
-
-		return 0;
-	}
-
 	std::string toLower(const std::string_view& str);
 	std::string toUpper(const std::string_view& str);
 	bool compareNoCase(const std::string_view& str1, const std::string_view& str2);
-	std::vector<std::string> splitOnNewLine(const std::string& str);
 
 #ifdef _WIN32
 	/// Converts the specified UTF-8 string to a wide string.
@@ -265,8 +238,4 @@ namespace StringUtil
 	std::string WideStringToUTF8String(const std::wstring_view& str);
 	bool WideStringToUTF8String(std::string& dest, const std::wstring_view& str);
 #endif
-
-	/// Converts unsigned 128-bit data to string.
-	std::string U128ToString(const u128& u);
-	std::string& AppendU128ToString(const u128& u, std::string& s);
 } // namespace StringUtil

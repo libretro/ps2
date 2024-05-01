@@ -182,18 +182,6 @@ namespace StringUtil
 		return Strncasecmp(str1.data(), str2.data(), str1.length()) == 0;
 	}
 
-	std::vector<std::string> splitOnNewLine(const std::string& str)
-	{
-		std::vector<std::string> lines;
-		std::istringstream stream(str);
-		std::string line;
-		while (std::getline(stream, line))
-		{
-			lines.push_back(line);
-		}
-		return lines;
-	}
-
 	std::string_view StripWhitespace(const std::string_view& str)
 	{
 		std::string_view::size_type start = 0;
@@ -291,57 +279,6 @@ namespace StringUtil
 			*value = std::string_view();
 
 		return true;
-	}
-
-	void AppendUTF16CharacterToUTF8(std::string& s, u16 ch)
-	{
-		if (ch & 0xf800)
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(0xe0 | static_cast<u8>(ch >> 12))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>(((ch >> 6) & 0x3f)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>((ch & 0x3f)))));
-		}
-		else if (ch & 0xff80)
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(0xc0 | static_cast<u8>((ch >> 6)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>((ch & 0x3f)))));
-		}
-		else
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(ch)));
-		}
-	}
-
-	void EncodeAndAppendUTF8(std::string& s, char32_t ch)
-	{
-		if (ch <= 0x7F)
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(ch)));
-		}
-		else if (ch <= 0x07FF)
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(0xc0 | static_cast<u8>((ch >> 6) & 0x1f))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>((ch & 0x3f)))));
-		}
-		else if (ch <= 0xFFFF)
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(0xe0 | static_cast<u8>(((ch >> 12) & 0x0f)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>(((ch >> 6) & 0x3f)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>((ch & 0x3f)))));
-		}
-		else if (ch <= 0x10FFFF)
-		{
-			s.push_back(static_cast<char>(static_cast<u8>(0xf0 | static_cast<u8>(((ch >> 18) & 0x07)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>(((ch >> 12) & 0x3f)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>(((ch >> 6) & 0x3f)))));
-			s.push_back(static_cast<char>(static_cast<u8>(0x80 | static_cast<u8>((ch & 0x3f)))));
-		}
-		else
-		{
-			s.push_back(static_cast<char>(0xefu));
-			s.push_back(static_cast<char>(0xbfu));
-			s.push_back(static_cast<char>(0xbdu));
-		}
 	}
 
 	size_t DecodeUTF8(const void* bytes, size_t length, char32_t* ch)
