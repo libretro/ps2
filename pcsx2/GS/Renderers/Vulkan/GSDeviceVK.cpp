@@ -2220,7 +2220,8 @@ static void AddMacro(std::stringstream& ss, const char* name, int value)
 
 static void AddShaderHeader(std::stringstream& ss)
 {
-	const GSDevice::FeatureSupport features(g_gs_device->Features());
+	const GSDeviceVK* dev = GSDeviceVK::GetInstance();
+	const GSDevice::FeatureSupport features = dev->Features();
 
 	ss << "#version 460 core\n";
 	ss << "#extension GL_EXT_samplerless_texture_functions : require\n";
@@ -2232,7 +2233,7 @@ static void AddShaderHeader(std::stringstream& ss)
 		ss << "#define DISABLE_TEXTURE_BARRIER 1\n";
 	if (!features.dual_source_blend)
 		ss << "#define DISABLE_DUAL_SOURCE 1\n";
-	if (features.texture_barrier && GSDeviceVK::GetInstance()->UseFeedbackLoopLayout())
+	if (features.texture_barrier && dev->UseFeedbackLoopLayout())
 		ss << "#define HAS_FEEDBACK_LOOP_LAYOUT 1\n";
 }
 
