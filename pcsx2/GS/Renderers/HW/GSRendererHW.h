@@ -103,7 +103,8 @@ private:
 	void SetTCOffset();
 
 	bool IsPossibleChannelShuffle() const;
-	bool IsSplitTextureShuffle();
+	bool NextDrawMatchesShuffle() const;
+	bool IsSplitTextureShuffle(u32 rt_tbw);
 	GSVector4i GetSplitTextureShuffleDrawRect() const;
 	u32 GetEffectiveTextureShuffleFbmsk() const;
 
@@ -154,6 +155,7 @@ private:
 	u32 m_split_texture_shuffle_pages_high = 0;
 	u32 m_split_texture_shuffle_start_FBP = 0;
 	u32 m_split_texture_shuffle_start_TBP = 0;
+	u32 m_split_texture_shuffle_fbw = 0;
 
 	u32 m_last_channel_shuffle_fbmsk = 0;
 
