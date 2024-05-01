@@ -476,7 +476,6 @@ void MTGS::GenericStall()
 			SetEvent();
 			for (;;)
 			{
-				Threading::SpinWait();
 				readpos = s_ReadPos.load(std::memory_order_acquire);
 
 				if (writepos < readpos)

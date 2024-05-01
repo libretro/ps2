@@ -33,14 +33,11 @@ target_sources(common PRIVATE
 	emitter/simd.cpp
 	emitter/x86emitter.cpp
 	Darwin/DarwinThreads.cpp
-	Darwin/DarwinMisc.cpp
 	Darwin/DarwinSemaphore.cpp
 	Linux/LnxHostSys.cpp
 	Linux/LnxThreads.cpp
-	Linux/LnxMisc.cpp
 	Windows/WinThreads.cpp
 	Windows/WinHostSys.cpp
-	Windows/WinMisc.cpp
 )
 
 # x86emitter headers

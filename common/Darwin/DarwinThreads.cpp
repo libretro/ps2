@@ -25,19 +25,6 @@
 #include "common/PrecompiledHeader.h"
 #include "common/Threading.h"
 
-// For use in spin/wait loops, acts as a hint to Intel CPUs and should, in theory
-// improve performance and reduce cpu power consumption.
-__forceinline void Threading::SpinWait()
-{
-	// If this doesn't compile you can just comment it out (it only serves as a
-	// performance hint and isn't required).
-#if defined(_M_X86)
-	__asm__("pause");
-#elif defined(_M_ARM64)
-	__asm__ __volatile__("isb");
-#endif
-}
-
 Threading::ThreadHandle::ThreadHandle() = default;
 
 Threading::ThreadHandle::ThreadHandle(const ThreadHandle& handle)

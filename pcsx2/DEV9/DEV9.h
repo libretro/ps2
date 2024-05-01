@@ -23,16 +23,11 @@
 #include "ATA/ATA.h"
 
 #ifdef _WIN32
-
-#define usleep(x) Sleep(x / 1000)
 #include "common/RedtapeWindows.h"
 #include <windowsx.h>
 #include <winioctl.h>
-
 #else
-
 #define __inline inline
-
 #endif
 
 void rx_process(NetPacket* pk);

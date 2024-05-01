@@ -35,12 +35,6 @@ namespace Threading
 	// The following set of documented functions have Linux/Win32 specific implementations,
 	// which are found in WinThreads.cpp and LnxThreads.cpp
 
-	// For use in spin/wait loops.
-	extern void SpinWait();
-
-	// sleeps the current thread for the given number of milliseconds.
-	extern void Sleep(int ms);
-
 	// --------------------------------------------------------------------------------------
 	//  ThreadHandle
 	// --------------------------------------------------------------------------------------

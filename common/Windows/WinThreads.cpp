@@ -21,17 +21,6 @@
 #include <process.h>
 #include <timeapi.h>
 
-// For use in spin/wait loops,  Acts as a hint to Intel CPUs and should, in theory
-// improve performance and reduce cpu power consumption.
-__fi void Threading::SpinWait()
-{
-#ifdef _M_X86
-	_mm_pause();
-#else
-	YieldProcessor();
-#endif
-}
-
 Threading::ThreadHandle::ThreadHandle() = default;
 
 Threading::ThreadHandle::ThreadHandle(const ThreadHandle& handle)

@@ -1120,12 +1120,7 @@ __fi void cdvdReadInterrupt(void)
 	{
 		if (cdvd.RErr == 0)
 		{
-			while ((cdvd.RErr = DoCDVDgetBuffer(cdr.Transfer)), cdvd.RErr == -2)
-			{
-				// not finished yet ... block on the read until it finishes.
-				Threading::Sleep(0);
-				Threading::SpinWait();
-			}
+			while ((cdvd.RErr = DoCDVDgetBuffer(cdr.Transfer)), cdvd.RErr == -2) { }
 		}
 
 		if (cdvd.RErr == -1)
@@ -1137,8 +1132,6 @@ __fi void cdvdReadInterrupt(void)
 				cdvd.RErr = DoCDVDreadTrack(cdvd.Sector, cdvd.ReadMode);
 				CDVDREAD_INT(cdvd.ReadTime);
 			}
-			else
-				Console.Error("CDVD READ ERROR, sector = 0x%08x", cdvd.Sector);
 
 			return;
 		}

@@ -576,12 +576,7 @@ void cdrReadInterrupt()
 
 	if (cdr.RErr == 0)
 	{
-		while ((cdr.RErr = DoCDVDgetBuffer(cdr.Transfer)), cdr.RErr == -2)
-		{
-			// not finished yet ... block on the read until it finishes.
-			Threading::Sleep(0);
-			Threading::SpinWait();
-		}
+		while ((cdr.RErr = DoCDVDgetBuffer(cdr.Transfer)), cdr.RErr == -2) { }
 	}
 
 	if (cdr.RErr == -1)
