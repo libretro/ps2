@@ -50,9 +50,8 @@ public:
 
 private:
 	using KeyMap = UnorderedStringMultimap<std::string>;
-	using SectionMap = UnorderedStringMap<KeyMap>;
 
 	void SetValue(const char* section, const char* key, std::string value);
 
-	SectionMap m_sections;
+	std::unordered_map<std::string, KeyMap> m_sections;
 };

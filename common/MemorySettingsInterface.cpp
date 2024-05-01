@@ -22,7 +22,7 @@ MemorySettingsInterface::~MemorySettingsInterface() = default;
 
 bool MemorySettingsInterface::GetIntValue(const char* section, const char* key, s32* value) const
 {
-	const auto sit = UnorderedStringMapFind(m_sections, section);
+	const auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return false;
 
@@ -40,11 +40,11 @@ bool MemorySettingsInterface::GetIntValue(const char* section, const char* key, 
 
 bool MemorySettingsInterface::GetUIntValue(const char* section, const char* key, u32* value) const
 {
-	const auto sit = UnorderedStringMapFind(m_sections, section);
+	const auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return false;
 
-	const auto iter = UnorderedStringMultiMapFind(sit->second, key);
+	const auto iter = sit->second.find(key);
 	if (iter == sit->second.end())
 		return false;
 
@@ -58,11 +58,11 @@ bool MemorySettingsInterface::GetUIntValue(const char* section, const char* key,
 
 bool MemorySettingsInterface::GetFloatValue(const char* section, const char* key, float* value) const
 {
-	const auto sit = UnorderedStringMapFind(m_sections, section);
+	const auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return false;
 
-	const auto iter = UnorderedStringMultiMapFind(sit->second, key);
+	const auto iter = sit->second.find(key);
 	if (iter == sit->second.end())
 		return false;
 
@@ -76,11 +76,11 @@ bool MemorySettingsInterface::GetFloatValue(const char* section, const char* key
 
 bool MemorySettingsInterface::GetDoubleValue(const char* section, const char* key, double* value) const
 {
-	const auto sit = UnorderedStringMapFind(m_sections, section);
+	const auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return false;
 
-	const auto iter = UnorderedStringMultiMapFind(sit->second, key);
+	const auto iter = sit->second.find(key);
 	if (iter == sit->second.end())
 		return false;
 
@@ -94,11 +94,11 @@ bool MemorySettingsInterface::GetDoubleValue(const char* section, const char* ke
 
 bool MemorySettingsInterface::GetBoolValue(const char* section, const char* key, bool* value) const
 {
-	const auto sit = UnorderedStringMapFind(m_sections, section);
+	const auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return false;
 
-	const auto iter = UnorderedStringMultiMapFind(sit->second, key);
+	const auto iter = sit->second.find(key);
 	if (iter == sit->second.end())
 		return false;
 
@@ -112,11 +112,11 @@ bool MemorySettingsInterface::GetBoolValue(const char* section, const char* key,
 
 bool MemorySettingsInterface::GetStringValue(const char* section, const char* key, std::string* value) const
 {
-	const auto sit = UnorderedStringMapFind(m_sections, section);
+	const auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return false;
 
-	const auto iter = UnorderedStringMultiMapFind(sit->second, key);
+	const auto iter = sit->second.find(key);
 	if (iter == sit->second.end())
 		return false;
 
@@ -156,11 +156,11 @@ void MemorySettingsInterface::SetStringValue(const char* section, const char* ke
 
 void MemorySettingsInterface::SetValue(const char* section, const char* key, std::string value)
 {
-	auto sit = UnorderedStringMapFind(m_sections, section);
+	auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		sit = m_sections.emplace(std::make_pair(std::string(section), KeyMap())).first;
 
-	const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
+	const auto range = sit->second.equal_range(key);
 	if (range.first == sit->second.end())
 	{
 		sit->second.emplace(std::string(key), std::move(value));
@@ -181,11 +181,11 @@ void MemorySettingsInterface::SetValue(const char* section, const char* key, std
 
 void MemorySettingsInterface::DeleteValue(const char* section, const char* key)
 {
-	auto sit = UnorderedStringMapFind(m_sections, section);
+	auto sit = m_sections.find(section);
 	if (sit == m_sections.end())
 		return;
 
-	const auto range = UnorderedStringMultiMapEqualRange(sit->second, key);
+	const auto range = sit->second.equal_range(key);
 	for (auto iter = range.first; iter != range.second;)
 		sit->second.erase(iter++);
 }
