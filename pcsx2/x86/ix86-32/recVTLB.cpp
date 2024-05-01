@@ -322,13 +322,17 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 //
 void vtlb_dynarec_init(void)
 {
+	PageProtectionMode mode;
 	static bool hasBeenCalled = false;
 	if (hasBeenCalled)
 		return;
 	hasBeenCalled = true;
 
+	mode.m_read   = true;
+	mode.m_write  = true;
+	mode.m_exec   = false;
 	// In case init gets called multiple times:
-	HostSys::MemProtectStatic(m_IndirectDispatchers, PageAccess_ReadWrite());
+	HostSys::MemProtectStatic(m_IndirectDispatchers, mode);
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(m_IndirectDispatchers, 0xcc, __pagesize);
@@ -346,7 +350,9 @@ void vtlb_dynarec_init(void)
 		}
 	}
 
-	HostSys::MemProtectStatic(m_IndirectDispatchers, PageAccess_ExecOnly());
+	mode.m_write  = false;
+	mode.m_exec   = true;
+	HostSys::MemProtectStatic(m_IndirectDispatchers, mode);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

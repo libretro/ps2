@@ -41,78 +41,12 @@
 // --------------------------------------------------------------------------------------
 //  PageProtectionMode
 // --------------------------------------------------------------------------------------
-class PageProtectionMode
+struct PageProtectionMode
 {
-protected:
 	bool m_read;
 	bool m_write;
 	bool m_exec;
-
-public:
-	PageProtectionMode()
-	{
-		All(false);
-	}
-
-	PageProtectionMode& Read(bool allow = true)
-	{
-		m_read = allow;
-		return *this;
-	}
-
-	PageProtectionMode& Write(bool allow = true)
-	{
-		m_write = allow;
-		return *this;
-	}
-
-	PageProtectionMode& Execute(bool allow = true)
-	{
-		m_exec = allow;
-		return *this;
-	}
-
-	PageProtectionMode& All(bool allow = true)
-	{
-		m_read = m_write = m_exec = allow;
-		return *this;
-	}
-
-	bool CanRead() const { return m_read; }
-	bool CanWrite() const { return m_write; }
-	bool CanExecute() const { return m_exec && m_read; }
-	bool IsNone() const { return !m_read && !m_write; }
 };
-
-static __fi PageProtectionMode PageAccess_None()
-{
-	return PageProtectionMode();
-}
-
-static __fi PageProtectionMode PageAccess_ReadOnly()
-{
-	return PageProtectionMode().Read();
-}
-
-static __fi PageProtectionMode PageAccess_WriteOnly()
-{
-	return PageProtectionMode().Write();
-}
-
-static __fi PageProtectionMode PageAccess_ReadWrite()
-{
-	return PageAccess_ReadOnly().Write();
-}
-
-static __fi PageProtectionMode PageAccess_ExecOnly()
-{
-	return PageAccess_ReadOnly().Execute();
-}
-
-static __fi PageProtectionMode PageAccess_Any()
-{
-	return PageProtectionMode().All();
-}
 
 struct PageFaultInfo
 {
@@ -129,15 +63,15 @@ namespace HostSys
 {
 	// Maps a block of memory for use as a recompiled code buffer.
 	// Returns NULL on allocation failure.
-	extern void* Mmap(void* base, size_t size, const PageProtectionMode& mode);
+	extern void* Mmap(void* base, size_t size, const PageProtectionMode mode);
 
 	// Unmaps a block allocated by SysMmap
 	extern void Munmap(void* base, size_t size);
 
-	extern void MemProtect(void* baseaddr, size_t size, const PageProtectionMode& mode);
+	extern void MemProtect(void* baseaddr, size_t size, const PageProtectionMode mode);
 
 	template <uint size>
-	void MemProtectStatic(u8 (&arr)[size], const PageProtectionMode& mode)
+	void MemProtectStatic(u8 (&arr)[size], const PageProtectionMode mode)
 	{
 		MemProtect(arr, size, mode);
 	}
@@ -145,7 +79,7 @@ namespace HostSys
 	extern std::string GetFileMappingName(const char* prefix);
 	extern void* CreateSharedMemory(const char* name, size_t size);
 	extern void DestroySharedMemory(void* ptr);
-	extern void* MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode& mode);
+	extern void* MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode mode);
 	extern void UnmapSharedMemory(void* baseaddr, size_t size);
 
 	/// Installs the specified page fault handler. Only one handler can be active at once.
@@ -177,7 +111,7 @@ public:
 	__fi u8* OffsetPointer(size_t offset) const { return m_base_ptr + offset; }
 	__fi u8* PagePointer(size_t page) const { return m_base_ptr + __pagesize * page; }
 
-	u8* Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode& mode);
+	u8* Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode mode);
 	bool Unmap(void* map_base, size_t map_size);
 
 private:

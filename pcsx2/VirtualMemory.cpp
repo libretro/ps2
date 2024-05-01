@@ -40,40 +40,44 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 
 	if (file_mapping_name && file_mapping_name[0])
 	{
+		PageProtectionMode mode;
+		mode.m_read  = true;
+		mode.m_write = true;
+		mode.m_exec  = false;
 		std::string real_file_mapping_name(HostSys::GetFileMappingName(file_mapping_name));
 		m_file_handle = HostSys::CreateSharedMemory(real_file_mapping_name.c_str(), reserved_bytes);
 		if (!m_file_handle)
 			return;
 
-		m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, (void*)base, reserved_bytes, PageAccess_ReadWrite()));
+		m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, (void*)base, reserved_bytes, mode));
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
 			HostSys::Munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
+			// Let's try again at an OS-picked memory area, and then hope it meets needed
+			// boundschecking criteria below.
 			if (base)
-			{
-				// Let's try again at an OS-picked memory area, and then hope it meets needed
-				// boundschecking criteria below.
-				m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, nullptr, reserved_bytes, PageAccess_ReadWrite()));
-			}
+				m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, nullptr, reserved_bytes, mode));
 		}
 	}
 	else
 	{
-		m_baseptr = static_cast<u8*>(HostSys::Mmap((void*)base, reserved_bytes, PageAccess_Any()));
+		PageProtectionMode mode;
+		mode.m_read  = true;
+		mode.m_write = true;
+		mode.m_exec  = true;
+		m_baseptr    = static_cast<u8*>(HostSys::Mmap((void*)base, reserved_bytes, mode));
 
 		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
 			HostSys::Munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
+			// Let's try again at an OS-picked memory area, and then hope it meets needed
+			// boundschecking criteria below.
 			if (base)
-			{
-				// Let's try again at an OS-picked memory area, and then hope it meets needed
-				// boundschecking criteria below.
-				m_baseptr = static_cast<u8*>(HostSys::Mmap(0, reserved_bytes, PageAccess_Any()));
-			}
+				m_baseptr = static_cast<u8*>(HostSys::Mmap(0, reserved_bytes, mode));
 		}
 	}
 
@@ -272,10 +276,18 @@ void RecompiledCodeReserve::Reset()
 
 void RecompiledCodeReserve::AllowModification()
 {
-	HostSys::MemProtect(m_baseptr, m_size, PageAccess_Any());
+	PageProtectionMode pg;
+	pg.m_read  = true;
+	pg.m_exec  = true;
+	pg.m_write = true;
+	HostSys::MemProtect(m_baseptr, m_size, pg);
 }
 
 void RecompiledCodeReserve::ForbidModification()
 {
-	HostSys::MemProtect(m_baseptr, m_size, PageProtectionMode().Read().Execute());
+	PageProtectionMode pg;
+	pg.m_read  = true;
+	pg.m_exec  = true;
+	pg.m_write = false;
+	HostSys::MemProtect(m_baseptr, m_size, pg);
 }

@@ -69,7 +69,7 @@ void mVUinit(microVU& mVU, uint vuIndex)
 // Resets Rec Data
 void mVUreset(microVU& mVU, bool resetReserve)
 {
-
+	PageProtectionMode mode;
 	if (THREAD_VU1)
 	{
 		// If MTVU is toggled on during gameplay we need to flush the running VU1 program, else it gets in a mess
@@ -83,7 +83,10 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	if (resetReserve)
 		mVU.cache_reserve->Reset();
 
-	HostSys::MemProtect(mVU.dispCache, mVUdispCacheSize, PageAccess_ReadWrite());
+	mode.m_read  = true;
+	mode.m_write = true;
+	mode.m_exec  = false;
+	HostSys::MemProtect(mVU.dispCache, mVUdispCacheSize, mode);
 	memset(mVU.dispCache, 0xcc, mVUdispCacheSize);
 
 	x86SetPtr(mVU.dispCache);
@@ -126,7 +129,9 @@ void mVUreset(microVU& mVU, bool resetReserve)
 		mVU.prog.quick[i].prog = NULL;
 	}
 
-	HostSys::MemProtect(mVU.dispCache, mVUdispCacheSize, PageAccess_ExecOnly());
+	mode.m_write = false;
+	mode.m_exec  = true;
+	HostSys::MemProtect(mVU.dispCache, mVUdispCacheSize, mode);
 }
 
 // Free Allocated Resources

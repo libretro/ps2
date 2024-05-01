@@ -607,10 +607,12 @@ static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* 
 	if (ptr >= (uptr)eeMem->Main && page_end <= (uptr)eeMem->ZeroRead)
 	{
 		const u32 eemem_offset = static_cast<u32>(ptr - (uptr)eeMem->Main);
-		const bool writeable = ((eemem_offset < Ps2MemSize::MainRam) ? (mmap_GetRamPageInfo(eemem_offset) != ProtMode_Write) : true);
-		*mainmem_offset = (eemem_offset + HostMemoryMap::EEmemOffset);
-		*mainmem_size = (offsetof(EEVM_MemoryAllocMess, ZeroRead) - eemem_offset);
-		*prot = PageProtectionMode().Read().Write(writeable);
+		const bool writeable   = ((eemem_offset < Ps2MemSize::MainRam) ? (mmap_GetRamPageInfo(eemem_offset) != ProtMode_Write) : true);
+		*mainmem_offset        = (eemem_offset + HostMemoryMap::EEmemOffset);
+		*mainmem_size          = (offsetof(EEVM_MemoryAllocMess, ZeroRead) - eemem_offset);
+		prot->m_read           = true;
+		prot->m_write          = writeable;
+		prot->m_exec           = false;
 		return true;
 	}
 
@@ -620,7 +622,9 @@ static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* 
 		const u32 iopmem_offset = static_cast<u32>(ptr - (uptr)iopMem->Main);
 		*mainmem_offset = iopmem_offset + HostMemoryMap::IOPmemOffset;
 		*mainmem_size = (offsetof(IopVM_MemoryAllocMess, P) - iopmem_offset);
-		*prot = PageProtectionMode().Read().Write();
+		prot->m_read  = true;
+		prot->m_write = true;
+		prot->m_exec  = false;
 		return true;
 	}
 
@@ -629,9 +633,11 @@ static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* 
 	if (ptr >= (uptr)vmmem.VUMemory().GetPtr() && page_end <= (uptr)vmmem.VUMemory().GetPtrEnd())
 	{
 		const u32 vumem_offset = static_cast<u32>(ptr - (uptr)vmmem.VUMemory().GetPtr());
-		*mainmem_offset = vumem_offset + HostMemoryMap::VUmemOffset;
-		*mainmem_size = vmmem.VUMemory().GetSize() - vumem_offset;
-		*prot = PageProtectionMode().Read().Write();
+		*mainmem_offset        = vumem_offset + HostMemoryMap::VUmemOffset;
+		*mainmem_size          = vmmem.VUMemory().GetSize() - vumem_offset;
+		prot->m_read  = true;
+		prot->m_write = true;
+		prot->m_exec  = false;
 		return true;
 	}
 
@@ -654,7 +660,7 @@ static bool vtlb_GetMainMemoryOffset(u32 paddr, u32* mainmem_offset, u32* mainme
 	return vtlb_GetMainMemoryOffsetFromPtr(vm.raw(), mainmem_offset, mainmem_size, prot);
 }
 
-static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageProtectionMode& mode)
+static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageProtectionMode mode)
 {
 	const u32 page = vaddr / VTLB_PAGE_SIZE;
 
@@ -763,7 +769,7 @@ static bool vtlb_GetGuestAddress(uptr host_addr, u32* guest_addr)
 	return true;
 }
 
-static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode& prot)
+static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtectionMode prot)
 {
 	u32 mainmem_start, mainmem_size;
 	PageProtectionMode old_prot;
@@ -879,9 +885,12 @@ void vtlb_VMapBuffer(u32 vaddr, void* buffer, u32 size)
 	{
 		if (buffer == eeMem->Scratch && size == Ps2MemSize::Scratch)
 		{
-			u32 fm_vaddr = vaddr;
+			PageProtectionMode mode;
+			u32 fm_vaddr      = vaddr;
 			u32 fm_hostoffset = HostMemoryMap::EEmemOffset + offsetof(EEVM_MemoryAllocMess, Scratch);
-			PageProtectionMode mode = PageProtectionMode().Read().Write();
+			mode.m_read       = true;
+			mode.m_write      = true;
+			mode.m_exec       = false;
 			for (u32 i = 0; i < (Ps2MemSize::Scratch / VTLB_PAGE_SIZE); i++, fm_vaddr += VTLB_PAGE_SIZE, fm_hostoffset += VTLB_PAGE_SIZE)
 				vtlb_CreateFastmemMapping(fm_vaddr, fm_hostoffset, mode);
 		}
@@ -1017,7 +1026,11 @@ bool vtlb_Core_Alloc(void)
 
 	if (!vtlbdata.vmap)
 	{
-		HostSys::MemProtect(vmap, VMAP_SIZE, PageProtectionMode().Read().Write());
+		PageProtectionMode mode;
+		mode.m_read  = true;
+		mode.m_write = true;
+		mode.m_exec  = false;
+		HostSys::MemProtect(vmap, VMAP_SIZE, mode);
 		vtlbdata.vmap = vmap;
 	}
 
@@ -1049,8 +1062,9 @@ static constexpr size_t PPMAP_SIZE = sizeof(*vtlbdata.ppmap) * VTLB_VMAP_ITEMS;
 
 // The LUT is only used for 1 game so we allocate it only when the gamefix is enabled (save 4MB)
 // However automatic gamefix is done after the standard init so a new init function was done.
-void vtlb_Alloc_Ppmap()
+void vtlb_Alloc_Ppmap(void)
 {
+	PageProtectionMode mode;
 	if (vtlbdata.ppmap)
 		return;
 
@@ -1059,7 +1073,10 @@ void vtlb_Alloc_Ppmap()
 	if (!ppmap)
 		ppmap = (u32*)GetVmMemory().BumpAllocator().Alloc(PPMAP_SIZE);
 
-	HostSys::MemProtect(ppmap, PPMAP_SIZE, PageProtectionMode().Read().Write());
+	mode.m_read    = true;
+	mode.m_write   = true;
+	mode.m_exec    = false;
+	HostSys::MemProtect(ppmap, PPMAP_SIZE, mode);
 	vtlbdata.ppmap = ppmap;
 
 	// By default a 1:1 virtual to physical mapping
@@ -1067,18 +1084,23 @@ void vtlb_Alloc_Ppmap()
 		vtlbdata.ppmap[i] = i << VTLB_PAGE_BITS;
 }
 
-void vtlb_Core_Free()
+void vtlb_Core_Free(void)
 {
+	PageProtectionMode mode;
 	HostSys::RemovePageFaultHandler(&vtlb_private::PageFaultHandler);
+
+	mode.m_read  = false;
+	mode.m_write = false;
+	mode.m_exec  = false;
 
 	if (vtlbdata.vmap)
 	{
-		HostSys::MemProtect(vtlbdata.vmap, VMAP_SIZE, PageProtectionMode());
+		HostSys::MemProtect(vtlbdata.vmap, VMAP_SIZE, mode);
 		vtlbdata.vmap = nullptr;
 	}
 	if (vtlbdata.ppmap)
 	{
-		HostSys::MemProtect(vtlbdata.ppmap, PPMAP_SIZE, PageProtectionMode());
+		HostSys::MemProtect(vtlbdata.ppmap, PPMAP_SIZE, mode);
 		vtlbdata.ppmap = nullptr;
 	}
 
@@ -1099,13 +1121,9 @@ VtlbMemoryReserve::VtlbMemoryReserve() : VirtualMemoryReserve() { }
 void VtlbMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {
 	// Anything passed to the memory allocator must be page aligned.
-	size = Common::PageAlign(size);
-
+	size     = Common::PageAlign(size);
 	// Since the memory has already been allocated as part of the main memory map, this should never fail.
 	u8* base = allocator->Alloc(offset, size);
-	if (!base)
-		Console.WriteLn("(VtlbMemoryReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
-
 	VirtualMemoryReserve::Assign(std::move(allocator), base, size);
 }
 
@@ -1178,6 +1196,7 @@ vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr)
 // paddr - physically mapped PS2 address
 void mmap_MarkCountedRamPage(u32 paddr)
 {
+	PageProtectionMode mode;
 	paddr &= ~__pagemask;
 
 	uptr ptr = (uptr)PSM(paddr);
@@ -1192,9 +1211,12 @@ void mmap_MarkCountedRamPage(u32 paddr)
 		return; // skip town if we're already protected.
 
 	m_PageProtectInfo[rampage].Mode = ProtMode_Write;
-	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, PageAccess_ReadOnly());
+	mode.m_read  = true;
+	mode.m_write = false;
+	mode.m_exec  = false;
+	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, mode);
 	if (CHECK_FASTMEM)
-		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadOnly());
+		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
 }
 
 // offset - offset of address relative to psM.
@@ -1202,11 +1224,15 @@ void mmap_MarkCountedRamPage(u32 paddr)
 // from code residing in this page will use manual protection.
 static __fi void mmap_ClearCpuBlock(uint offset)
 {
+	PageProtectionMode mode;
 	int rampage = offset >> __pageshift;
 
-	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, PageAccess_ReadWrite());
+	mode.m_read  = true;
+	mode.m_write = true;
+	mode.m_exec  = false;
+	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, mode);
 	if (CHECK_FASTMEM)
-		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, PageAccess_ReadWrite());
+		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
 	m_PageProtectInfo[rampage].Mode = ProtMode_Manual;
 	Cpu->Clear(m_PageProtectInfo[rampage].ReverseRamMap, __pagesize);
 }
@@ -1243,9 +1269,13 @@ bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 //  (this function is called by default from the eerecReset).
 void mmap_ResetBlockTracking(void)
 {
+	PageProtectionMode mode;
+	mode.m_read  = true;
+	mode.m_write = true;
+	mode.m_exec  = false;
 	memset(m_PageProtectInfo, 0, sizeof(m_PageProtectInfo));
 	if (eeMem)
-		HostSys::MemProtect(eeMem->Main, Ps2MemSize::MainRam, PageAccess_ReadWrite());
+		HostSys::MemProtect(eeMem->Main, Ps2MemSize::MainRam, mode);
 	if (CHECK_FASTMEM)
-		vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, PageAccess_ReadWrite());
+		vtlb_UpdateFastmemProtection(0, Ps2MemSize::MainRam, mode);
 }

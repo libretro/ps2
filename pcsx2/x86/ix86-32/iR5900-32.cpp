@@ -344,10 +344,14 @@ static DynGenFunc* _DynGen_DispatchPageReset()
 	return (DynGenFunc*)retval;
 }
 
-static void _DynGen_Dispatchers()
+static void _DynGen_Dispatchers(void)
 {
+	PageProtectionMode mode;
+	mode.m_read  = true;
+	mode.m_write = true;
+	mode.m_exec  = false;
 	// In case init gets called multiple times:
-	HostSys::MemProtectStatic(eeRecDispatchers, PageAccess_ReadWrite());
+	HostSys::MemProtectStatic(eeRecDispatchers, mode);
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(eeRecDispatchers, 0xcc, __pagesize);
@@ -365,7 +369,9 @@ static void _DynGen_Dispatchers()
 	DispatchBlockDiscard = _DynGen_DispatchBlockDiscard();
 	DispatchPageReset = _DynGen_DispatchPageReset();
 
-	HostSys::MemProtectStatic(eeRecDispatchers, PageAccess_ExecOnly());
+	mode.m_write = false;
+	mode.m_exec  = true;
+	HostSys::MemProtectStatic(eeRecDispatchers, mode);
 
 	recBlocks.SetJITCompile(JITCompile);
 }

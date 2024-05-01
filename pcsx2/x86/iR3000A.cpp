@@ -188,8 +188,12 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 
 static void _DynGen_Dispatchers(void)
 {
+	PageProtectionMode mode;
+	mode.m_read  = true;
+	mode.m_write = true;
+	mode.m_exec  = false;
 	// In case init gets called multiple times:
-	HostSys::MemProtectStatic(iopRecDispatchers, PageAccess_ReadWrite());
+	HostSys::MemProtectStatic(iopRecDispatchers, mode);
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(iopRecDispatchers, 0xcc, __pagesize);
@@ -206,7 +210,9 @@ static void _DynGen_Dispatchers(void)
 	iopJITCompileInBlock = _DynGen_JITCompileInBlock();
 	iopEnterRecompiledCode = _DynGen_EnterRecompiledCode();
 
-	HostSys::MemProtectStatic(iopRecDispatchers, PageAccess_ExecOnly());
+	mode.m_write = false;
+	mode.m_exec  = true;
+	HostSys::MemProtectStatic(iopRecDispatchers, mode);
 
 	recBlocks.SetJITCompile(iopJITCompile);
 }

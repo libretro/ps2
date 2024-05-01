@@ -193,23 +193,26 @@ void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 #endif
 }
 
-static __ri uint LinuxProt(const PageProtectionMode& mode)
+static __ri uint LinuxProt(const PageProtectionMode mode)
 {
 	u32 lnxmode = 0;
 
-	if (mode.CanWrite())
-		lnxmode |= PROT_WRITE;
-	if (mode.CanRead())
+	if (mode.m_read)
+	{
 		lnxmode |= PROT_READ;
-	if (mode.CanExecute())
-		lnxmode |= PROT_EXEC | PROT_READ;
+		if (mode.m_exec)
+			lnxmode |= PROT_EXEC;
+	}
+
+	if (mode.m_write)
+		lnxmode |= PROT_WRITE;
 
 	return lnxmode;
 }
 
-void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode& mode)
+void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode mode)
 {
-	if (mode.IsNone())
+	if (!mode.m_read && !mode.m_write)
 		return nullptr;
 
 	const u32 prot = LinuxProt(mode);
@@ -219,7 +222,7 @@ void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode& mode)
 		flags |= MAP_FIXED;
 
 #if defined(__APPLE__) && defined(_M_ARM64)
-	if (mode.CanExecute())
+	if (mode.m_read && mode.m_exec)
 		flags |= MAP_JIT;
 #endif
 
@@ -238,7 +241,7 @@ void HostSys::Munmap(void* base, size_t size)
 	munmap((void*)base, size);
 }
 
-void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode& mode)
+void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode mode)
 {
 	const u32 lnxmode = LinuxProt(mode);
 	mprotect(baseaddr, size, lnxmode);
@@ -286,12 +289,11 @@ void HostSys::DestroySharedMemory(void* ptr)
 	close(static_cast<int>(reinterpret_cast<intptr_t>(ptr)));
 }
 
-void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode& mode)
+void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode mode)
 {
 	const uint lnxmode = LinuxProt(mode);
-
-	const int flags = (baseaddr != nullptr) ? (MAP_SHARED | MAP_FIXED) : MAP_SHARED;
-	void* ptr = mmap(baseaddr, size, lnxmode, flags, static_cast<int>(reinterpret_cast<intptr_t>(handle)), static_cast<off_t>(offset));
+	const int flags    = (baseaddr != nullptr) ? (MAP_SHARED | MAP_FIXED) : MAP_SHARED;
+	void* ptr          = mmap(baseaddr, size, lnxmode, flags, static_cast<int>(reinterpret_cast<intptr_t>(handle)), static_cast<off_t>(offset));
 	if (ptr == MAP_FAILED)
 		return nullptr;
 
@@ -333,10 +335,10 @@ std::unique_ptr<SharedMemoryMappingArea> SharedMemoryMappingArea::Create(size_t 
 	return std::unique_ptr<SharedMemoryMappingArea>(new SharedMemoryMappingArea(static_cast<u8*>(alloc), size, size / __pagesize));
 }
 
-u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode& mode)
+u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode mode)
 {
 	const uint lnxmode = LinuxProt(mode);
-	void* const ptr = mmap(map_base, map_size, lnxmode, MAP_SHARED | MAP_FIXED,
+	void* const ptr    = mmap(map_base, map_size, lnxmode, MAP_SHARED | MAP_FIXED,
 		static_cast<int>(reinterpret_cast<intptr_t>(file_handle)), static_cast<off_t>(file_offset));
 	if (ptr == MAP_FAILED)
 		return nullptr;

@@ -90,29 +90,25 @@ void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 	}
 }
 
-static DWORD ConvertToWinApi(const PageProtectionMode& mode)
+static DWORD ConvertToWinApi(const PageProtectionMode mode)
 {
-	DWORD winmode = PAGE_NOACCESS;
-
 	// Windows has some really bizarre memory protection enumeration that uses bitwise
 	// numbering (like flags) but is in fact not a flag value.  *Someone* from the early
 	// microsoft days wasn't a very good coder, me thinks.  --air
 
-	if (mode.CanExecute())
+	if (mode.m_read)
 	{
-		winmode = mode.CanWrite() ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
-	}
-	else if (mode.CanRead())
-	{
-		winmode = mode.CanWrite() ? PAGE_READWRITE : PAGE_READONLY;
+		if (mode.m_exec)
+			return mode.m_write ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
+		return mode.m_write ? PAGE_READWRITE : PAGE_READONLY;
 	}
 
-	return winmode;
+	return PAGE_NOACCESS;
 }
 
-void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode& mode)
+void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode mode)
 {
-	if (mode.IsNone())
+	if (!mode.m_read && !mode.m_write)
 		return nullptr;
 
 	return VirtualAlloc(base, size, MEM_RESERVE | MEM_COMMIT, ConvertToWinApi(mode));
@@ -126,7 +122,7 @@ void HostSys::Munmap(void* base, size_t size)
 	VirtualFree((void*)base, 0, MEM_RELEASE);
 }
 
-void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode& mode)
+void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode mode)
 {
 	DWORD OldProtect; // enjoy my uselessness, yo!
 	VirtualProtect(baseaddr, size, ConvertToWinApi(mode), &OldProtect);
@@ -149,7 +145,7 @@ void HostSys::DestroySharedMemory(void* ptr)
 	CloseHandle(static_cast<HANDLE>(ptr));
 }
 
-void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode& mode)
+void* HostSys::MapSharedMemory(void* handle, size_t offset, void* baseaddr, size_t size, const PageProtectionMode mode)
 {
 	void* ret = MapViewOfFileEx(static_cast<HANDLE>(handle), FILE_MAP_READ | FILE_MAP_WRITE,
 		static_cast<DWORD>(offset >> 32), static_cast<DWORD>(offset), size, baseaddr);
@@ -229,7 +225,7 @@ std::unique_ptr<SharedMemoryMappingArea> SharedMemoryMappingArea::Create(size_t 
 	return std::unique_ptr<SharedMemoryMappingArea>(new SharedMemoryMappingArea(static_cast<u8*>(alloc), size, size / __pagesize));
 }
 
-u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode& mode)
+u8* SharedMemoryMappingArea::Map(void* file_handle, size_t file_offset, void* map_base, size_t map_size, const PageProtectionMode mode)
 {
 	const size_t map_offset = static_cast<u8*>(map_base) - m_base_ptr;
 	// should be a placeholder. unless there's some other mapping we didn't free.
