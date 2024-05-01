@@ -133,60 +133,6 @@ static inline void PathAppendString(std::string& dst, const T& src)
 	}
 }
 
-std::string Path::SanitizeFileName(const std::string_view& str, bool strip_slashes /* = true */)
-{
-	std::string ret;
-	ret.reserve(str.length());
-
-	size_t pos = 0;
-	while (pos < str.length())
-	{
-		char32_t ch;
-		pos += StringUtil::DecodeUTF8(str, pos, &ch);
-		ch = FileSystemCharacterIsSane(ch, strip_slashes) ? ch : U'_';
-		StringUtil::EncodeAndAppendUTF8(ret, ch);
-	}
-
-#ifdef _WIN32
-	// Windows: Can't end filename with a period.
-	if (ret.length() > 0 && ret.back() == '.')
-		ret.back() = '_';
-#endif
-
-	return ret;
-}
-
-void Path::SanitizeFileName(std::string* str, bool strip_slashes /* = true */)
-{
-	const size_t len = str->length();
-
-	char small_buf[128];
-	std::unique_ptr<char[]> large_buf;
-	char* str_copy = small_buf;
-	if (len >= std::size(small_buf))
-	{
-		large_buf = std::make_unique<char[]>(len + 1);
-		str_copy = large_buf.get();
-	}
-	memcpy(str_copy, str->c_str(), sizeof(char) * (len + 1));
-	str->clear();
-
-	size_t pos = 0;
-	while (pos < len)
-	{
-		char32_t ch;
-		pos += StringUtil::DecodeUTF8(str_copy + pos, pos - len, &ch);
-		ch = FileSystemCharacterIsSane(ch, strip_slashes) ? ch : U'_';
-		StringUtil::EncodeAndAppendUTF8(*str, ch);
-	}
-
-#ifdef _WIN32
-	// Windows: Can't end filename with a period.
-	if (str->length() > 0 && str->back() == '.')
-		str->back() = '_';
-#endif
-}
-
 bool Path::IsAbsolute(const std::string_view& path)
 {
 #ifdef _WIN32
@@ -741,83 +687,7 @@ bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t 
 	return true;
 }
 
-bool FileSystem::EnsureDirectoryExists(const char* path, bool recursive)
-{
-	if (FileSystem::DirectoryExists(path))
-		return true;
-
-	// if it fails to create, we're not going to be able to use it anyway
-	return FileSystem::CreateDirectoryPath(path, recursive);
-}
-
-bool FileSystem::RecursiveDeleteDirectory(const char* path)
-{
-	FindResultsArray results;
-	if (FindFiles(path, "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_FOLDERS | FILESYSTEM_FIND_HIDDEN_FILES, &results))
-	{
-		for (const FILESYSTEM_FIND_DATA& fd : results)
-		{
-			if (fd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY)
-			{
-				if (!RecursiveDeleteDirectory(fd.FileName.c_str()))
-					return false;
-			}
-			else
-			{
-				if (!DeleteFilePath(fd.FileName.c_str()))
-					return false;
-			}
-		}
-	}
-
-	return DeleteDirectory(path);
-}
-
-bool FileSystem::CopyFilePath(const char* source, const char* destination, bool replace)
-{
-#ifndef _WIN32
-	// TODO: There's technically a race here between checking and opening the file..
-	// But fopen doesn't specify any way to say "don't create if it exists"...
-	if (!replace && FileExists(destination))
-		return false;
-
-	auto in_fp = OpenManagedCFile(source, "rb");
-	if (!in_fp)
-		return false;
-
-	auto out_fp = OpenManagedCFile(destination, "wb");
-	if (!out_fp)
-		return false;
-
-	u8 buf[4096];
-	while (!std::feof(in_fp.get()))
-	{
-		size_t bytes_in = std::fread(buf, 1, sizeof(buf), in_fp.get());
-		if ((bytes_in == 0 && !std::feof(in_fp.get())) ||
-			(bytes_in > 0 && std::fwrite(buf, 1, bytes_in, out_fp.get()) != bytes_in))
-		{
-			out_fp.reset();
-			DeleteFilePath(destination);
-			return false;
-		}
-	}
-
-	if (std::fflush(out_fp.get()) != 0)
-	{
-		out_fp.reset();
-		DeleteFilePath(destination);
-		return false;
-	}
-
-	return true;
-#else
-	return CopyFileW(StringUtil::UTF8StringToWideString(source).c_str(),
-		StringUtil::UTF8StringToWideString(destination).c_str(), !replace);
-#endif
-}
-
 #ifdef _WIN32
-
 static u32 TranslateWin32Attributes(u32 Win32Attributes)
 {
 	u32 r = 0;
@@ -1284,21 +1154,6 @@ bool FileSystem::DeleteDirectory(const char* path)
 	return RemoveDirectoryW(wpath.c_str());
 }
 
-std::string FileSystem::GetWorkingDirectory()
-{
-	DWORD required_size = GetCurrentDirectoryW(0, nullptr);
-	if (!required_size)
-		return {};
-
-	std::wstring buffer;
-	buffer.resize(required_size - 1);
-
-	if (!GetCurrentDirectoryW(static_cast<DWORD>(buffer.size() + 1), buffer.data()))
-		return {};
-
-	return StringUtil::WideStringToUTF8String(buffer);
-}
-
 bool FileSystem::SetPathCompression(const char* path, bool enable)
 {
 	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
@@ -1739,22 +1594,6 @@ bool FileSystem::DeleteDirectory(const char* path)
 		return false;
 
 	return (unlink(path) == 0);
-}
-
-std::string FileSystem::GetWorkingDirectory()
-{
-	std::string buffer;
-	buffer.resize(PATH_MAX);
-	while (!getcwd(buffer.data(), buffer.size()))
-	{
-		if (errno != ERANGE)
-			return {};
-
-		buffer.resize(buffer.size() * 2);
-	}
-
-	buffer.resize(std::strlen(buffer.c_str())); // Remove excess nulls
-	return buffer;
 }
 
 bool FileSystem::SetPathCompression(const char* path, bool enable)

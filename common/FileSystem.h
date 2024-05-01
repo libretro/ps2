@@ -133,21 +133,8 @@ namespace FileSystem
 	/// if they do not exist.
 	bool CreateDirectoryPath(const char* path, bool recursive);
 
-	/// Creates a directory if it doesn't already exist.
-	/// Returns false if it does not exist and creation failed.
-	bool EnsureDirectoryExists(const char* path, bool recursive);
-
 	/// Removes a directory.
 	bool DeleteDirectory(const char* path);
-
-	/// Recursively removes a directory and all subdirectories/files.
-	bool RecursiveDeleteDirectory(const char* path);
-
-	/// Copies one file to another, optionally replacing it if it already exists.
-	bool CopyFilePath(const char* source, const char* destination, bool replace);
-
-	/// Retrieves the current working directory.
-	std::string GetWorkingDirectory();
 
 	/// Enables/disables NTFS compression on a file or directory.
 	/// Does not apply the compression flag recursively if called for a directory.
