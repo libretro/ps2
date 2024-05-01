@@ -255,9 +255,6 @@
     <ClInclude Include="ZipHelpers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ThreadPool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="HeterogeneousContainers.h">
       <Filter>Header Files</Filter>
     </ClInclude>

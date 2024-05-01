@@ -21,7 +21,6 @@ target_sources(common PRIVATE
 	StringUtil.cpp
 	TextureDecompress.cpp
 	Timer.cpp
-	ThreadPool.cpp
 	emitter/avx.cpp
 	emitter/cpudetect.cpp
 	emitter/fpu.cpp
@@ -63,7 +62,6 @@ target_sources(common PRIVATE
 	Timer.h
 	TextureDecompress.h
 	Threading.h
-	ThreadPool.h
 	WindowInfo.h
 	emitter/cpudetect_internal.h
 	emitter/implement/dwshift.h
