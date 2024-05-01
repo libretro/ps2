@@ -953,16 +953,17 @@ __ri static bool slice_non_intra_DCT(s16 * const dest, const int stride, const b
 	return true;
 }
 
-__fi static void finishmpeg2sliceIDEC()
+__fi static void finishmpeg2sliceIDEC(void)
 {
 	ipuRegs.ctrl.SCD = 0;
 	coded_block_pattern = decoder.coded_block_pattern;
 }
 
-__ri static bool mpeg2sliceIDEC()
+__ri static bool mpeg2sliceIDEC(void)
 {
 	u16 code;
 
+	static bool ready_to_decode = true;
 	switch (ipu_cmd.pos[0])
 	{
 	case 0:
@@ -984,6 +985,13 @@ __ri static bool mpeg2sliceIDEC()
 		ipu_cmd.pos[0] = 2;
 		for (;;)
 		{
+			if (ready_to_decode == true)
+			{
+				ready_to_decode = false;
+				CPU_INT(IPU_PROCESS, 64); // Should probably be much higher, but myst 3 doesn't like it right now.
+				ipu_cmd.pos[0] = 2;
+				return false;
+			}
 			// IPU0 isn't ready for data, so let's wait for it to be
 			if ((!ipu0ch.chcr.STR || ipuRegs.ctrl.OFC || ipu0ch.qwc == 0) && ipu_cmd.pos[1] <= 2)
 				return false;
@@ -1091,13 +1099,13 @@ __ri static bool mpeg2sliceIDEC()
 					ipu_dither(rgb32, rgb16, decoder.dte);
 					decoder.SetOutputTo(rgb16);
 				}
-				ProcessedData += decoder.ipu0_data;
 				ipu_cmd.pos[1] = 2;
-				return false;
+
+				/* fallthrough */
 
 			case 2:
 			{
-
+				ready_to_decode = true;
 				uint read = ipu_fifo.out.write((u32*)decoder.GetIpuDataPtr(), decoder.ipu0_data);
 				decoder.AdvanceIpuDataBy(read);
 
@@ -1178,6 +1186,7 @@ __ri static bool mpeg2sliceIDEC()
 
 			ipu_cmd.pos[1] = 0;
 			ipu_cmd.pos[2] = 0;
+			ready_to_decode = true;
 		}
 
 finish_idec:
@@ -1239,9 +1248,10 @@ finish_idec:
 	return true;
 }
 
-__fi static bool mpeg2_slice()
+__fi static bool mpeg2_slice(void)
 {
 	int DCT_offset, DCT_stride;
+	static bool ready_to_decode = true;
 
 	macroblock_8& mb8 = decoder.mb8;
 	macroblock_16& mb16 = decoder.mb16;
@@ -1273,11 +1283,15 @@ __fi static bool mpeg2_slice()
 	case 2:
 		ipu_cmd.pos[0] = 2;
 
-		// IPU0 isn't ready for data, so let's wait for it to be
-		if ((!ipu0ch.chcr.STR || ipuRegs.ctrl.OFC || ipu0ch.qwc == 0) && ipu_cmd.pos[0] <= 3)
+		if (ready_to_decode == true)
 		{
+			ready_to_decode = false;
+			CPU_INT(IPU_PROCESS, 64); // Should probably be much higher, but myst 3 doesn't like it right now.
 			return false;
 		}
+		// IPU0 isn't ready for data, so let's wait for it to be
+		if ((!ipu0ch.chcr.STR || ipuRegs.ctrl.OFC || ipu0ch.qwc == 0) && ipu_cmd.pos[0] <= 3)
+			return false;
 
 		if (decoder.macroblock_modes & DCT_TYPE_INTERLACED)
 		{
@@ -1379,7 +1393,7 @@ __fi static bool mpeg2_slice()
 		{
 			if (decoder.macroblock_modes & MACROBLOCK_PATTERN)
 			{
-				switch(ipu_cmd.pos[1])
+				switch (ipu_cmd.pos[1])
 				{
 				case 0:
 					{
@@ -1473,12 +1487,12 @@ __fi static bool mpeg2_slice()
 		coded_block_pattern = decoder.coded_block_pattern;
 
 		decoder.SetOutputTo(mb16);
-		ProcessedData += decoder.ipu0_data;
-		ipu_cmd.pos[0] = 3;
-		return false;
+
+		/* fallthrough */
 
 	case 3:
 	{
+		ready_to_decode = true;
 		uint read = ipu_fifo.out.write((u32*)decoder.GetIpuDataPtr(), decoder.ipu0_data);
 		decoder.AdvanceIpuDataBy(read);
 
@@ -1548,9 +1562,9 @@ __fi static bool mpeg2_slice()
 		break;
 	}
 
+	ready_to_decode = true;
 	return true;
 }
-
 
 //////////////////////////////////////////////////////
 // IPU Commands (exec on worker thread only)

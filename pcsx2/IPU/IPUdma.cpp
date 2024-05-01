@@ -131,12 +131,6 @@ void IPU1dma(void)
 			IPU_INT_TO(totalqwc * BIAS);
 		}
 	}
-
-	if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
-	{
-		CommandExecuteQueued = true;
-		CPU_INT(IPU_PROCESS, totalqwc * BIAS);
-	}
 }
 
 void IPU0dma(void)
@@ -166,13 +160,14 @@ void IPU0dma(void)
 	if (dmacRegs.ctrl.STS == STS_fromIPU)   // STS == fromIPU
 		dmacRegs.stadr.ADDR = ipu0ch.madr;
 
-	IPU_INT_FROM( readsize * BIAS );
+	if (!ipu0ch.qwc)
+		IPU_INT_FROM(readsize * BIAS);
 
 	if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
 	{
-		CommandExecuteQueued = true;
+		CommandExecuteQueued = false;
 		CPU_SET_DMASTALL(DMAC_FROM_IPU, true);
-		CPU_INT(IPU_PROCESS, readsize * BIAS);
+		IPUProcessInterrupt();
 	}
 }
 
