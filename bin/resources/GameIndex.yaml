@@ -12953,7 +12953,7 @@ SLES-50726:
   patches:
     9E159E95:
       content: |-
-         // Waits for IPU command to finish.
+        // Waits for IPU command to finish.
         // Replaces wait loop that had a very short wait period.
         patch=0,EE,001f02A0,word,3C021000
         patch=0,EE,001f02A4,word,34422010
