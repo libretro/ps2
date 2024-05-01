@@ -33,6 +33,7 @@ class VKStreamBuffer
 		VKStreamBuffer& operator=(const VKStreamBuffer&) = delete;
 
 		__fi bool IsValid() const { return (m_buffer != VK_NULL_HANDLE); }
+		__fi const VkBuffer* GetBufferPtr() const { return &m_buffer; }
 		__fi VkBuffer GetBuffer() const { return m_buffer; }
 		__fi u8* GetCurrentHostPointer() const { return m_host_pointer + m_current_offset; }
 		__fi u32 GetCurrentSize() const { return m_size; }
