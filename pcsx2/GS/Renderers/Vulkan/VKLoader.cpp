@@ -186,7 +186,7 @@ namespace Vulkan
 			*func_ptr = dlsym(vulkan_module, name);
 			if (!(*func_ptr) && is_required)
 			{
-				Console.Error(stderr, "Vulkan: Failed to load required module function %s", name);
+				Console.Error("Vulkan: Failed to load required module function %s", name);
 				required_functions_missing = true;
 			}
 		};
