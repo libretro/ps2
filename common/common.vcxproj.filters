@@ -255,9 +255,6 @@
     <ClInclude Include="ZipHelpers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="HeterogeneousContainers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MemorySettingsInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -14,8 +14,8 @@
  */
 
 #pragma once
-#include "HeterogeneousContainers.h"
 #include "SettingsInterface.h"
+#include <unordered_map>
 #include <string>
 
 class MemorySettingsInterface final : public SettingsInterface
@@ -49,7 +49,7 @@ public:
 	using SettingsInterface::GetUIntValue;
 
 private:
-	using KeyMap = UnorderedStringMultimap<std::string>;
+	using KeyMap = std::unordered_multimap<std::string, std::string>;
 
 	void SetValue(const char* section, const char* key, std::string value);
 
