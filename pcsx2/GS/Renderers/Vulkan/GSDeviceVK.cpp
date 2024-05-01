@@ -1307,8 +1307,6 @@ void GSDeviceVK::EndPresent()
 
 	SubmitCommandBuffer();
 	MoveToNextCommandBuffer();
-
-	InvalidateCachedState();
 }
 
 void GSDeviceVK::ResetAPIState()
