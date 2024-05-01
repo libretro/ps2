@@ -163,11 +163,8 @@ SysCpuProviderPack::SysCpuProviderPack()
 	CpuMicroVU0.Reserve();
 	CpuMicroVU1.Reserve();
 
-	if constexpr (newVifDynaRec)
-	{
-		dVifReserve(0);
-		dVifReserve(1);
-	}
+	dVifReserve(0);
+	dVifReserve(1);
 
 	GSCodeReserve::GetInstance().Assign(GetVmMemory().CodeMemory());
 }
@@ -176,11 +173,8 @@ SysCpuProviderPack::~SysCpuProviderPack()
 {
 	GSCodeReserve::GetInstance().Release();
 
-	if (newVifDynaRec)
-	{
-		dVifRelease(1);
-		dVifRelease(0);
-	}
+	dVifRelease(1);
+	dVifRelease(0);
 
 	CpuMicroVU1.Shutdown();
 	CpuMicroVU0.Shutdown();
@@ -224,11 +218,8 @@ void SysClearExecutionCache()
 	CpuVU0->Reset();
 	CpuVU1->Reset();
 
-	if (newVifDynaRec)
-	{
-		dVifReset(0);
-		dVifReset(1);
-	}
+	dVifReset(0);
+	dVifReset(1);
 }
 
 // This function returns part of EXTINFO data of the BIOS rom

@@ -87,8 +87,7 @@ void resetNewVif(int idx)
 	nVif[idx].bSize = 0;
 	memset(nVif[idx].buffer, 0, sizeof(nVif[idx].buffer));
 
-	if (newVifDynaRec)
-		dVifReset(idx);
+	dVifReset(idx);
 }
 
 static __fi u8* getVUptr(uint idx, int offset)
@@ -125,10 +124,7 @@ _vifT int nVifUnpack(const u8* data)
 
 		if (!idx || !THREAD_VU1)
 		{
-			if (newVifDynaRec)
-				dVifUnpack<idx>(data, isFill);
-			else
-				_nVifUnpack(idx, data, vifRegs.mode, isFill);
+			dVifUnpack<idx>(data, isFill);
 		}
 		else
 			vu1Thread.VifUnpack(vif, vifRegs, (u8*)data, (size + 4) & ~0x3);
@@ -285,6 +281,5 @@ __ri void _nVifUnpackLoop(const u8* data)
 
 __fi void _nVifUnpack(int idx, const u8* data, uint mode, bool isFill)
 {
-
 	UnpackLoopTable[idx][!!mode][isFill](data);
 }
