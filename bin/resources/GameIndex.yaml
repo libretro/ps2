@@ -994,7 +994,7 @@ SCAJ-20019:
   region: "NTSC-J"
 SCAJ-20020:
   name: "Drag-on Dragoon"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
   clampModes:
     eeClampMode: 3 # Characters are visible in-game.
   gsHWFixes:
@@ -1330,7 +1330,7 @@ SCAJ-20087:
     - "SLPS-73224"
 SCAJ-20088:
   name: "Yu Zi - Qiang Jiu Shui Tang Da Zuo Zhan"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
 SCAJ-20089:
   name: "Athens 2004"
   region: "NTSC-Unk"
@@ -1375,7 +1375,7 @@ SCAJ-20099:
     moveHandler: "MV_Ico" # Fixes depth buffer post-processing.
 SCAJ-20100:
   name: "Tenchu Kurenai"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
 SCAJ-20101:
   name: "EyeToy - Saru"
   region: "NTSC-Unk"
@@ -1453,7 +1453,7 @@ SCAJ-20115:
     partialTargetInvalidation: 1 # Fixes broken textures.
 SCAJ-20116:
   name: "Death by Degrees - Tekken - Nina Williams"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
   gsHWFixes:
     alignSprite: 1 # Fixes FMV lines.
     getSkipCount: "GSC_DeathByDegreesTekkenNinaWilliams"
@@ -1635,7 +1635,7 @@ SCAJ-20143:
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
 SCAJ-20144:
   name: "Zhuo Hou La 3"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     mipmap: 2 # Fixes miptrick texture effects.
@@ -1651,7 +1651,7 @@ SCAJ-20145:
     getSkipCount: "GSC_TalesOfLegendia"
 SCAJ-20146:
   name: "Wang Da Yu Ju Xiang"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   compat: 5
   gsHWFixes:
     mipmap: 1
@@ -1724,7 +1724,7 @@ SCAJ-20158:
     halfPixelOffset: 2 # Fixes misaligned lighting and bloom.
 SCAJ-20159:
   name: "Soul Calibur III"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
   clampModes:
@@ -1793,7 +1793,7 @@ SCAJ-20169:
     autoFlush: 2 # Fixes lighting.
 SCAJ-20170:
   name: "Tourist Trophy"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes SPS in TT Mode menu caused by the moving tooltips.
@@ -1913,7 +1913,7 @@ SCAJ-20192:
   region: "NTSC-Unk"
 SCAJ-20193:
   name: "Tales of Destiny [Director's Cut] [Premium Box]"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
   gameFixes:
     - FpuMulHack
 SCAJ-20194:
@@ -1921,7 +1921,7 @@ SCAJ-20194:
   region: "NTSC-Unk"
 SCAJ-20195:
   name: "Ape Escape 3 [PlayStation 2 The Best]"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   gsHWFixes:
     preloadFrameData: 1 # Fixes black background in the pause menu.
     mipmap: 2 # Fixes miptrick texture effects.
@@ -1930,7 +1930,7 @@ SCAJ-20195:
     autoFlush: 2 # Fixes corruption in cutscenes and brightens the image.
 SCAJ-20196:
   name: "Wang Da Yu Ju Xiang [PlayStation 2 The Best]"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   gsHWFixes:
     mipmap: 1
     halfPixelOffset: 1 # Fixes misalignments and borders on side.
@@ -8308,7 +8308,7 @@ SCPS-55031:
   region: "NTSC-J"
 SCPS-55032:
   name: "Fantavision - For You and Me"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
 SCPS-55035:
   name: "Ape Escape 2"
   region: "NTSC-J"
@@ -10584,7 +10584,7 @@ SLAJ-25027:
   region: "NTSC-Unk"
 SLAJ-25031:
   name: "Kunoichi - Shinobu"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
   gsHWFixes:
     getSkipCount: "GSC_Kunoichi"
 SLAJ-25033:
@@ -10615,13 +10615,13 @@ SLAJ-25042:
   region: "NTSC-Unk"
 SLAJ-25045:
   name: "Yinghua Dazhan V Episode 0 - Huangye de Shaonu Wushi"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
 SLAJ-25046:
   name: "NBA Live 2005"
   region: "NTSC-Unk"
 SLAJ-25047:
   name: "Dororo"
-  region: "NTSC-Ch-J"
+  region: "NTSC-C-J"
   gsHWFixes:
     minimumBlendingLevel: 2 # Fixes dark font to more bright like software mode.
 SLAJ-25048:
@@ -10632,7 +10632,7 @@ SLAJ-25049:
   region: "NTSC-Unk"
 SLAJ-25051:
   name: "Lord of the Rings, The - The Third Age"
-  region: "NTSC-Ch"
+  region: "NTSC-C"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes ghosting.
 SLAJ-25052:
@@ -19035,6 +19035,8 @@ SLES-53234:
   name: "Samurai Western"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes line across the middle of the screen and offset blur.
 SLES-53235:
   name: "Syberia II"
   region: "PAL-R"
@@ -28552,6 +28554,11 @@ SLPM-61098:
   region: "NTSC-J"
   gsHWFixes:
     partialTargetInvalidation: 1 # Fixes menu corruption.
+SLPM-61104:
+  name: "Samurai Western - Katsugeki Samurai-dou"
+  region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes line across the middle of the screen and offset blur.
 SLPM-61110:
   name: "Enthusia - Professional Racing [Trial]"
   region: "NTSC-J"
@@ -33623,6 +33630,8 @@ SLPM-65754:
 SLPM-65755:
   name: "Samurai Western - Katsugeki Samurai-dou"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes line across the middle of the screen and offset blur.
 SLPM-65756:
   name: "Tennis no Oji-Sama - Rush & Dream"
   region: "NTSC-J"
@@ -50565,6 +50574,8 @@ SLUS-21187:
   name: "Samurai Western"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes line across the middle of the screen and offset blur.
 SLUS-21188:
   name: "America's Army - Rise of a Soldier"
   region: "NTSC-U"
