@@ -524,13 +524,11 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		(attachment_feedback_loop_feature.attachmentFeedbackLoopLayout == VK_TRUE);
 
 		VkPhysicalDeviceProperties2 properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-		void** pNext = &properties2.pNext;
 
 		if (m_optional_extensions.vk_khr_driver_properties)
 		{
 			m_device_driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
-			*pNext = &m_device_driver_properties;
-			pNext = &m_device_driver_properties.pNext;
+			Vulkan::AddPointerToChain(&properties2, &m_device_driver_properties);
 		}
 
 		// query
