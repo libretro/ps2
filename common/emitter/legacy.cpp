@@ -80,7 +80,7 @@ emitterT void x86SetPtr(u8* ptr)
 // I don't auto-inline these because of the console logging in case of error, which tends
 // to cause quite a bit of code bloat.
 //
-void x86SetJ8(u8* j8)
+emitterT void x86SetJ8(u8* j8)
 {
 	*j8      = (u8)((x86Ptr - j8) - 1);
 }
