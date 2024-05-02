@@ -26,7 +26,6 @@
 extern u32 pc;             // recompiler pc
 extern int g_branch;       // set for branch
 extern u32 target;         // branch target
-extern u32 s_nBlockCycles; // cycles of current block recompiling
 extern bool s_nBlockInterlocked; // Current block has VU0 interlocking
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -76,9 +75,9 @@ void SetBranchReg(u32 reg);
 void SetBranchImm(u32 imm);
 
 void iFlushCall(int flushtype);
-void recBranchCall(void (*func)());
-void recCall(void (*func)());
-u32 scaleblockcycles_clear();
+void recBranchCall(void (*func)(void));
+void recCall(void (*func)(void));
+u32 scaleblockcycles_clear(void);
 
 namespace R5900
 {
@@ -117,7 +116,7 @@ void _eeMoveGPRtoR(const x86Emitter::xRegister32& to, int fromgpr, bool allow_pr
 void _eeMoveGPRtoR(const x86Emitter::xRegister64& to, int fromgpr, bool allow_preload = true);
 void _eeMoveGPRtoM(uptr to, int fromgpr); // 32-bit only
 
-void _eeFlushAllDirty();
+void _eeFlushAllDirty(void);
 void _eeOnWriteReg(int reg, int signext);
 
 // totally deletes from const, xmm, and mmx entries

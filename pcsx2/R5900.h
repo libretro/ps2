@@ -257,37 +257,15 @@ struct R5900cpu
 	// the virtual cpu provider.  Allocating additional heap memory from this method is
 	// NOT recommended.  Heap allocations should be performed by Reset only.  This
 	// maximizes the likeliness of reservations claiming addresses they prefer.
-	//
-	// Thread Affinity:
-	//   Called from the main/UI thread only.  Cpu execution status is guaranteed to
-	//   be inactive.  No locking is necessary.
-	//
-	// Exception Throws:
-	//   HardwareDeficiency - The host machine's hardware does not support this CPU provider.
-	//   OutOfMemory - Not enough memory, or the memory areas required were already
-	//                 reserved.
 	void (*Reserve)();
 
 	// Deallocates ram allocated by Allocate, Reserve, and/or by runtime code execution.
-	//
-	// Thread Affinity:
-	//   Called from the main/UI thread only.  Cpu execution status is guaranteed to
-	//   be inactive.  No locking is necessary.
-	//
-	// Exception Throws:  None.  This function is a destructor, and should not throw.
 	//
 	void (*Shutdown)();
 
 	// Initializes / Resets code execution states. Typically implementation is only
 	// needed for recompilers, as interpreters have no internal execution states and
 	// rely on the CPU/VM states almost entirely.
-	//
-	// Thread Affinity:
-	//   Can be called from any thread.  CPU execution status is indeterminate and may
-	//   already be in progress.  Implementations should be sure to queue and execute
-	//   resets at the earliest safe convenience (typically right before recompiling a
-	//   new block of code, or after a vsync event).
-	//
 	//
 	void (*Reset)();
 
@@ -322,11 +300,6 @@ struct R5900cpu
 	// Also: the calls from COP0's TLB remap code should be replaced with full recompiler
 	// resets, since TLB remaps affect more than just the code they contain (code that
 	// may reference the remapped blocks via memory loads/stores, for example).
-	//
-	// Thread Affinity Rule:
-	//   Can be called from any thread (namely for being called from debugging threads)
-	//
-	//
 	void (*Clear)(u32 Addr, u32 Size);
 };
 
@@ -388,10 +361,10 @@ extern int  cpuTestCycle( u32 startCycle, s32 delta );
 extern void cpuSetEvent();
 extern int cpuGetCycles(int interrupt);
 
-extern void _cpuEventTest_Shared();		// for internal use by the Dynarecs and Ints inside R5900:
+extern void _cpuEventTest_Shared(void);	// for internal use by the Dynarecs and Ints inside R5900:
 
-extern void cpuTestINTCInts();
-extern void cpuTestDMACInts();
+extern void cpuTestINTCInts(void);
+extern void cpuTestDMACInts(void);
 
 ////////////////////////////////////////////////////////////////////
 // Exception Codes

@@ -54,7 +54,7 @@ alignas(16) static u32 hwLUT[_64kb];
 
 static __fi u32 HWADDR(u32 mem) { return hwLUT[mem >> 16] + mem; }
 
-u32 s_nBlockCycles = 0; // cycles of current block recompiling
+static u32 s_nBlockCycles = 0; // cycles of current block recompiling
 bool s_nBlockInterlocked = false; // Block is VU0 interlocked
 u32 pc; // recompiler pc
 int g_branch; // set for branch
@@ -80,7 +80,7 @@ static BASEBLOCK* recROM2 = NULL; // also here
 
 static BaseBlocks recBlocks;
 static u8* recPtr = NULL;
-EEINST* s_pInstCache = NULL;
+static EEINST* s_pInstCache = NULL;
 static u32 s_nInstCacheSize = 0;
 
 static BASEBLOCK* s_pCurBlock = NULL;
@@ -90,15 +90,15 @@ static u32 s_branchTo;
 static bool s_nBlockFF;
 
 // save states for branches
-GPR_reg64 s_saveConstRegs[32];
+static GPR_reg64 s_saveConstRegs[32];
 static u32 s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
 static EEINST* s_psaveInstInfo = NULL;
 
 static u32 s_savenBlockCycles = 0;
 
-static void iBranchTest(u32 newpc = 0xffffffff);
+static void iBranchTest(u32 newpc);
 static void ClearRecLUT(BASEBLOCK* base, int count);
-static u32 scaleblockcycles();
+static u32 scaleblockcycles(void);
 
 void _eeFlushAllDirty(void)
 {
@@ -464,7 +464,6 @@ static void recAlloc(void)
 	_DynGen_Dispatchers();
 }
 
-alignas(16) static u16 manual_page[Ps2MemSize::MainRam >> 12];
 alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
 
 ////////////////////////////////////////////////////
@@ -510,7 +509,7 @@ static void recShutdown(void)
 	s_nInstCacheSize = 0;
 }
 
-void recStep(void) { }
+static void recStep(void) { }
 
 static void recSafeExitExecution(void)
 {
@@ -608,7 +607,7 @@ void R5900::Dynarec::OpcodeImpl::recBREAK(void)
 }
 
 // Size is in dwords (4 bytes)
-void recClear(u32 addr, u32 size)
+static void recClear(u32 addr, u32 size)
 {
 	if ((addr) >= maxrecmem || !(recLUT[(addr) >> 16] + (addr & ~0xFFFFUL)))
 		return;
@@ -667,29 +666,12 @@ void recClear(u32 addr, u32 size)
 		ClearRecLUT(PC_GETBLOCK(lowerextent), upperextent - lowerextent);
 }
 
-
 void SetBranchReg(u32 reg)
 {
 	g_branch = 1;
 
 	if (reg != 0xffffffff)
 	{
-		//		if (GPR_IS_CONST1(reg))
-		//			xMOV(ptr32[&cpuRegs.pc], g_cpuConstRegs[reg].UL[0]);
-		//		else
-		//		{
-		//			int mmreg;
-		//
-		//			if ((mmreg = _checkXMMreg(XMMTYPE_GPRREG, reg, MODE_READ)) >= 0)
-		//			{
-		//				xMOVSS(ptr[&cpuRegs.pc], xRegisterSSE(mmreg));
-		//			}
-		//			else
-		//			{
-		//				xMOV(eax, ptr[(void*)((int)&cpuRegs.GPR.r[reg].UL[0])]);
-		//				xMOV(ptr[&cpuRegs.pc], eax);
-		//			}
-		//		}
 		const bool swap = EmuConfig.Gamefixes.GoemonTlbHack ? false : TrySwapDelaySlot(reg, 0, 0, true);
 		if (!swap)
 		{
@@ -731,14 +713,9 @@ void SetBranchReg(u32 reg)
 		}
 	}
 
-	//	xCMP(ptr32[&cpuRegs.pc], 0);
-	//	j8Ptr[5] = JNE8(0);
-	//	xFastCall((void*)(uptr)tempfn);
-	//	x86SetJ8(j8Ptr[5]);
-
 	iFlushCall(FLUSH_EVERYTHING);
 
-	iBranchTest();
+	iBranchTest(0xffffffff);
 }
 
 void SetBranchImm(u32 imm)
@@ -773,7 +750,6 @@ u8* recEndThunk(void)
 
 bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 {
-#if 1
 	if (g_recompilingDelaySlot)
 		return false;
 
@@ -947,7 +923,7 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 						goto is_unsafe;
 					}
 				}
-					[[fallthrough]];
+					/* fallthrough */
 
 				case 20: // W
 				break;
@@ -1013,11 +989,10 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 	recompileNextInstruction(true, true);
 	return true;
 is_unsafe:
-#endif
 	return false;
 }
 
-void SaveBranchState()
+void SaveBranchState(void)
 {
 	s_savenBlockCycles = s_nBlockCycles;
 	memcpy(s_saveConstRegs, g_cpuConstRegs, sizeof(g_cpuConstRegs));
@@ -1028,7 +1003,7 @@ void SaveBranchState()
 	memcpy(s_saveXMMregs, xmmregs, sizeof(xmmregs));
 }
 
-void LoadBranchState()
+void LoadBranchState(void)
 {
 	s_nBlockCycles = s_savenBlockCycles;
 
@@ -1530,7 +1505,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 // Called when a block under manual protection fails it's pre-execution integrity check.
 // (meaning the actual code area has been modified -- ie dynamic modules being loaded or,
 //  less likely, self-modifying code)
-void dyna_block_discard(u32 start, u32 sz)
+static void dyna_block_discard(u32 start, u32 sz)
 {
 	recClear(start, sz);
 }
@@ -1538,7 +1513,7 @@ void dyna_block_discard(u32 start, u32 sz)
 // called when a page under manual protection has been run enough times to be a candidate
 // for being reset under the faster vtlb write protection.  All blocks in the page are cleared
 // and the block is re-assigned for write protection.
-void dyna_page_reset(u32 start, u32 sz)
+static void dyna_page_reset(u32 start, u32 sz)
 {
 	recClear(start & ~0xfffUL, 0x400);
 	manual_counter[start >> 12]++;
@@ -1547,6 +1522,8 @@ void dyna_page_reset(u32 start, u32 sz)
 
 static void memory_protect_recompiled_code(u32 startpc, u32 size)
 {
+	alignas(16) static u16 manual_page[Ps2MemSize::MainRam >> 12];
+
 	u32 inpage_ptr = HWADDR(startpc);
 	u32 inpage_sz = size * 4;
 
@@ -1638,7 +1615,7 @@ static bool skipMPEG_By_Pattern(u32 sPC)
 		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[1]], 0);
 		xMOV(eax, ptr32[&cpuRegs.GPR.n.ra.UL[0]]);
 		xMOV(ptr32[&cpuRegs.pc], eax);
-		iBranchTest();
+		iBranchTest(0xffffffff);
 		g_branch = 1;
 		pc = s_nEndBlock;
 		return 1;
@@ -2123,7 +2100,7 @@ StartRecomp:
 		// for actual branching instructions.
 
 		iFlushCall(FLUSH_EVERYTHING);
-		iBranchTest();
+		iBranchTest(0xffffffff);
 	}
 	else
 	{
@@ -2168,4 +2145,5 @@ R5900cpu recCpu = {
 
 	recSafeExitExecution,
 	recCancelInstruction,
-	recClear};
+	recClear
+};

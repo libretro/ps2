@@ -483,7 +483,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 		int szidx = 0;
 		switch (bits)
 		{
-			case  8: szidx = 0; break;
+			case  8: break;
 			case 16: szidx = 1; break;
 			case 32: szidx = 2; break;
 			case 64: szidx = 3; break;
@@ -729,7 +729,6 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 		switch (bits)
 		{
 			case 8:
-				szidx = 0;
 				break;
 			case 16:
 				szidx = 1;
