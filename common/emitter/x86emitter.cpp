@@ -365,20 +365,8 @@ const xRegister32
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	__emitinline static void EmitRex(bool w, bool r, bool x, bool b, bool ext8bit = false)
-	{
-		const u8 rex = 0x40 | (w << 3) | (r << 2) | (x << 1) | (u8)b;
-		if (rex != 0x40 || ext8bit)
-			xWrite8(rex);
-	}
-
 	void EmitRex(uint regfield, const void* address)
 	{
-		bool w = false;
-		bool r = false;
-		bool x = false;
-		bool b = false;
-		EmitRex(w, r, x, b);
 	}
 
 	void EmitRex(uint regfield, const xIndirectVoid& info)
@@ -392,34 +380,40 @@ const xRegister32
 			b = x;
 			x = false;
 		}
-		EmitRex(w, r, x, b);
+		const u8 rex = 0x40 | (w << 3) | (r << 2) | (x << 1) | (u8)b;
+		if (rex != 0x40)
+			xWrite8(rex);
 	}
 
 	void EmitRex(uint reg1, const xRegisterBase& reg2)
 	{
-		bool w = reg2.IsWide();
-		bool r = false;
-		bool x = false;
-		bool b = reg2.IsExtended();
-		EmitRex(w, r, x, b, reg2.IsExtended8Bit());
+		bool w       = reg2.IsWide();
+		bool b       = reg2.IsExtended();
+		bool ext8bit = reg2.IsExtended8Bit();
+		const u8 rex = 0x40 | (w << 3) | (u8)b;
+		if (rex != 0x40 || ext8bit)
+			xWrite8(rex);
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const xRegisterBase& reg2)
 	{
-		bool w = reg1.IsWide() || reg2.IsWide();
-		bool r = reg1.IsExtended();
-		bool x = false;
-		bool b = reg2.IsExtended();
-		EmitRex(w, r, x, b, reg2.IsExtended8Bit());
+		bool w       = reg1.IsWide() || reg2.IsWide();
+		bool r       = reg1.IsExtended();
+		bool b       = reg2.IsExtended();
+		const u8 rex = 0x40 | (w << 3) | (r << 2) | (u8)b;
+		bool ext8bit = reg2.IsExtended8Bit();
+		if (rex != 0x40 || ext8bit)
+			xWrite8(rex);
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const void* src)
 	{
-		bool w = reg1.IsWide();
-		bool r = reg1.IsExtended();
-		bool x = false;
-		bool b = false; // FIXME src.IsExtended();
-		EmitRex(w, r, x, b, reg1.IsExtended8Bit());
+		bool w       = reg1.IsWide();
+		bool r       = reg1.IsExtended();
+		const u8 rex = 0x40 | (w << 3) | (r << 2);
+		bool ext8bit = reg1.IsExtended8Bit();
+		if (rex != 0x40 || ext8bit)
+			xWrite8(rex);
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const xIndirectVoid& sib)
@@ -433,23 +427,22 @@ const xRegister32
 			b = x;
 			x = false;
 		}
-		EmitRex(w, r, x, b, reg1.IsExtended8Bit());
+		const u8 rex = 0x40 | (w << 3) | (r << 2) | (x << 1) | (u8)b;
+		bool ext8bit = reg1.IsExtended8Bit();
+		if (rex != 0x40 || ext8bit)
+			xWrite8(rex);
 	}
 
 	// For use by instructions that are implicitly wide
 	void EmitRexImplicitlyWide(const xRegisterBase& reg)
 	{
-		bool w = false;
-		bool r = false;
-		bool x = false;
-		bool b = reg.IsExtended();
-		EmitRex(w, r, x, b);
+		const u8 rex = 0x40 | (u8)reg.IsExtended();
+		if (rex != 0x40)
+			xWrite8(rex);
 	}
 
 	void EmitRexImplicitlyWide(const xIndirectVoid& sib)
 	{
-		bool w = false;
-		bool r = false;
 		bool x = sib.Index.IsExtended();
 		bool b = sib.Base.IsExtended();
 		if (!NeedsSibMagic(sib))
@@ -457,7 +450,9 @@ const xRegister32
 			b = x;
 			x = false;
 		}
-		EmitRex(w, r, x, b);
+		const u8 rex = 0x40 | (x << 1) | (u8)b;
+		if (rex != 0x40)
+			xWrite8(rex);
 	}
 
 

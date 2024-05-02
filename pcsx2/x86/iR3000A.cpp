@@ -173,7 +173,7 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 	u8* retval = xGetPtr();
 
 	{ // Properly scope the frame prologue/epilogue
-		xScopedStackFrame frame(false, true);
+		xScopedStackFrame frame(false, true, 0);
 
 		xJMP((void*)iopDispatcherReg);
 

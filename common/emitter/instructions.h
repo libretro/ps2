@@ -185,7 +185,7 @@ namespace x86Emitter
 		int m_offset;
 
 	public:
-		xScopedStackFrame(bool base_frame, bool save_base_pointer = false, int offset = 0);
+		xScopedStackFrame(bool base_frame, bool save_base_pointer, int offset);
 		~xScopedStackFrame();
 	};
 
