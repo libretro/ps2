@@ -26,8 +26,6 @@
 //------------------------------------------------------------------
 
 #include "common/emitter/legacy_internal.h"
-#include "common/Console.h"
-#include <cassert>
 
 emitterT void ModRM(uint mod, uint reg, uint rm)
 {
@@ -84,25 +82,12 @@ emitterT void x86SetPtr(u8* ptr)
 //
 void x86SetJ8(u8* j8)
 {
-	u32 jump = (x86Ptr - j8) - 1;
-
-	if (jump > 0x7f)
-	{
-		Console.Error("j8 greater than 0x7f!!");
-		assert(0);
-	}
-	*j8 = (u8)jump;
+	*j8      = (u8)((x86Ptr - j8) - 1);
 }
 
 void x86SetJ8A(u8* j8)
 {
 	u32 jump = (x86Ptr - j8) - 1;
-
-	if (jump > 0x7f)
-	{
-		Console.Error("j8 greater than 0x7f!!");
-		assert(0);
-	}
 
 	if (((uptr)x86Ptr & 0xf) > 4)
 	{
@@ -158,7 +143,6 @@ emitterT u8* JMP8(u8 to)
 /* jmp rel32 */
 emitterT u32* JMP32(uptr to)
 {
-	assert((sptr)to <= 0x7fffffff && (sptr)to >= -0x7fffffff);
 	xWrite8(0xE9);
 	xWrite32(to);
 	return (u32*)(x86Ptr - 4);
