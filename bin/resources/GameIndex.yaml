@@ -18536,7 +18536,7 @@ SLES-53038:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLES-53039:
   name: "Champions - Return to Arms" # aka "Champions of Norrath 2"
@@ -21692,7 +21692,7 @@ SLES-54186:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLES-54187:
   name: "Real World Golf 2007"
@@ -26867,7 +26867,7 @@ SLKA-25265:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLKA-25266:
   name: "Sangokushi IX [PlayStation 2 - Big Hit Series]"
@@ -27391,7 +27391,7 @@ SLKA-25402:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLKA-25404:
   name: "NBA Live 08"
@@ -28371,7 +28371,7 @@ SLPM-60251:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLPM-60253:
   name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku-tachi [Taikenban Type-B]"
@@ -34075,7 +34075,7 @@ SLPM-65880:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLPM-65881:
   name: "SmackDown vs. Raw - Exciting Professional Wrestling 6"
@@ -35155,7 +35155,7 @@ SLPM-66160:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLPM-66163:
   name: "Fuuraiki 2"
@@ -38930,7 +38930,7 @@ SLPM-74242:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLPM-74243:
   name: "True Crime - New York City [PlayStation 2 The Best]"
@@ -49364,7 +49364,7 @@ SLUS-20964:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLUS-20965:
   name: "Tony Hawk's Underground 2"
@@ -51695,7 +51695,7 @@ SLUS-21361:
   roundModes:
     eeRoundMode: 0 # Fixes inability to enter door in Mission 18.
   gsHWFixes:
-    halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
+    halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
 SLUS-21362:
   name: "Onimusha - Dawn of Dreams [Disc 2 of 2]"
