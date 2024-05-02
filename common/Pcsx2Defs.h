@@ -149,16 +149,6 @@ static constexpr size_t __pagemask = PCSX2_PAGESIZE - 1;
 
 #define ASSERT assert
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Safe deallocation macros -- checks pointer validity (non-null) when needed, and sets
-// pointer to null after deallocation.
-
-#define safe_delete(ptr) \
-	((void)(delete (ptr)), (ptr) = NULL)
-
-#define safe_delete_array(ptr) \
-	((void)(delete[](ptr)), (ptr) = NULL)
-
 // --------------------------------------------------------------------------------------
 //  ImplementEnumOperators  (macro)
 // --------------------------------------------------------------------------------------

@@ -371,7 +371,7 @@ static void nVifGen(int usn, int mask, int curCycle)
 	}
 }
 
-void VifUnpackSSE_Init()
+void VifUnpackSSE_Init(void)
 {
 	if (nVifUpkExec)
 		return;
@@ -399,7 +399,8 @@ void VifUnpackSSE_Init()
 	);
 }
 
-void VifUnpackSSE_Destroy()
+void VifUnpackSSE_Destroy(void)
 {
-	safe_delete(nVifUpkExec);
+	delete nVifUpkExec;
+	nVifUpkExec = NULL;
 }

@@ -138,7 +138,8 @@ void mVUreset(microVU& mVU, bool resetReserve)
 void mVUclose(microVU& mVU)
 {
 
-	safe_delete(mVU.cache_reserve);
+	delete mVU.cache_reserve;
+	mVU.cache_reserve = NULL;
 
 	// Delete Programs and Block Managers
 	for (u32 i = 0; i < (mVU.progSize / 2); i++)
@@ -147,10 +148,9 @@ void mVUclose(microVU& mVU)
 			continue;
 		std::deque<microProgram*>::iterator it(mVU.prog.prog[i]->begin());
 		for (; it != mVU.prog.prog[i]->end(); ++it)
-		{
 			mVUdeleteProg(mVU, it[0]);
-		}
-		safe_delete(mVU.prog.prog[i]);
+		delete mVU.prog.prog[i];
+		mVU.prog.prog[i] = NULL;
 	}
 }
 
@@ -178,9 +178,11 @@ __ri void mVUdeleteProg(microVU& mVU, microProgram*& prog)
 {
 	for (u32 i = 0; i < (mVU.progSize / 2); i++)
 	{
-		safe_delete(prog->block[i]);
+		delete prog->block[i];
+		prog->block[i] = NULL;
 	}
-	safe_delete(prog->ranges);
+	delete prog->ranges;
+	prog->ranges = NULL;
 	safe_aligned_free(prog);
 }
 

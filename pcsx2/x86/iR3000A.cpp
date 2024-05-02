@@ -894,7 +894,8 @@ void recResetIOP(void)
 
 static void recShutdown(void)
 {
-	safe_delete(recMem);
+	delete recMem;
+	recMem = NULL;
 
 	safe_aligned_free(m_recBlockAlloc);
 

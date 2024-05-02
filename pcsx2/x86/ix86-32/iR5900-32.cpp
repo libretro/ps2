@@ -495,7 +495,8 @@ static void recResetRaw(void)
 
 static void recShutdown(void)
 {
-	safe_delete(recMem);
+	delete recMem;
+	recMem = NULL;
 	safe_aligned_free(recRAMCopy);
 	safe_aligned_free(recLutReserve_RAM);
 

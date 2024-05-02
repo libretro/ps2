@@ -55,7 +55,8 @@ void dVifClose(int idx)
 void dVifRelease(int idx)
 {
 	dVifClose(idx);
-	safe_delete(nVif[idx].recReserve);
+	delete nVif[idx].recReserve;
+	nVif[idx].recReserve = NULL;
 }
 
 VifUnpackSSE_Dynarec::VifUnpackSSE_Dynarec(const nVifStruct& vif_, const nVifBlock& vifBlock_)
