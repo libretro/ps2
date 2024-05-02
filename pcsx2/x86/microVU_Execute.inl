@@ -34,7 +34,7 @@ void mVUdispatcherAB(mV)
 	mVU.startFunct = x86Ptr;
 
 	{
-		xScopedStackFrame frame(false, true, 0);
+		xScopedStackFrame frame;
 
 		// = The caller has already put the needed parameters in ecx/edx:
 		if (!isVU1) xFastCall((void*)mVUexecuteVU0, arg1reg, arg2reg);
@@ -99,7 +99,7 @@ void mVUdispatcherCD(mV)
 	mVU.startFunctXG = x86Ptr;
 
 	{
-		xScopedStackFrame frame(false, true, 0);
+		xScopedStackFrame frame;
 
 		// Load VU's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))

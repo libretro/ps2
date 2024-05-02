@@ -180,24 +180,10 @@ namespace x86Emitter
 	// Helper object to handle the various functions ABI
 	class xScopedStackFrame
 	{
-		bool m_base_frame;
-		bool m_save_base_pointer;
 		int m_offset;
-
 	public:
-		xScopedStackFrame(bool base_frame, bool save_base_pointer, int offset);
+		xScopedStackFrame();
 		~xScopedStackFrame();
-	};
-
-	//////////////////////////////////////////////////////////////////////////////////////////
-	/// Helper object to save some temporary registers before the call
-	class xScopedSavedRegisters
-	{
-		std::vector<std::reference_wrapper<const xAddressReg>> regs;
-
-	public:
-		xScopedSavedRegisters(std::initializer_list<std::reference_wrapper<const xAddressReg>> regs);
-		~xScopedSavedRegisters();
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////

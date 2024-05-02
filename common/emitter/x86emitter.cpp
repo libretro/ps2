@@ -1075,26 +1075,13 @@ const xRegister32
 		ALIGN_STACK(needed);
 	}
 
-	xScopedStackFrame::xScopedStackFrame(bool base_frame, bool save_base_pointer, int offset)
+	xScopedStackFrame::xScopedStackFrame()
 	{
-		m_base_frame = base_frame;
-		m_save_base_pointer = save_base_pointer;
-		m_offset = offset;
-
-		m_offset += sizeof(void*); // Call stores the return address (4 bytes)
+		m_offset = sizeof(void*); // Call stores the return address (4 bytes)
 
 		// Note rbp can surely be optimized in 64 bits
-		if (m_base_frame)
-		{
-			xPUSH(rbp);
-			xMOV(rbp, rsp);
-			m_offset += sizeof(void*);
-		}
-		else if (m_save_base_pointer)
-		{
-			xPUSH(rbp);
-			m_offset += sizeof(void*);
-		}
+		xPUSH(rbp);
+		m_offset += sizeof(void*);
 
 		xPUSH(rbx);
 		xPUSH(r12);
@@ -1128,36 +1115,7 @@ const xRegister32
 		xPOP(r12);
 		xPOP(rbx);
 
-		// Destroy the frame
-		if (m_base_frame)
-		{
-			xLEAVE();
-		}
-		else if (m_save_base_pointer)
-		{
-			xPOP(rbp);
-		}
-	}
-
-	xScopedSavedRegisters::xScopedSavedRegisters(std::initializer_list<std::reference_wrapper<const xAddressReg>> regs)
-		: regs(regs)
-	{
-		for (auto reg : regs)
-		{
-			const xAddressReg& regRef = reg;
-			xPUSH(regRef);
-		}
-		stackAlign(regs.size() * wordsize, true);
-	}
-
-	xScopedSavedRegisters::~xScopedSavedRegisters()
-	{
-		stackAlign(regs.size() * wordsize, false);
-		for (auto it = regs.rbegin(); it < regs.rend(); ++it)
-		{
-			const xAddressReg& regRef = *it;
-			xPOP(regRef);
-		}
+		xPOP(rbp);
 	}
 
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
