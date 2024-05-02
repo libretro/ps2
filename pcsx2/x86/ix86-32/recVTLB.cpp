@@ -320,7 +320,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 // One-time initialization procedure.  Multiple subsequent calls during the lifespan of the
 // process will be ignored.
 //
-void vtlb_dynarec_init(void)
+void vtlb_DynGenDispatchers(void)
 {
 	PageProtectionMode mode;
 	static bool hasBeenCalled = false;

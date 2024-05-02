@@ -134,7 +134,7 @@ void mVUdispatcherCD(mV)
 	xRET();
 }
 
-void mvuGenerateWaitMTVU(mV)
+static void mVUGenerateWaitMTVU(mV)
 {
 	xAlignCallTarget();
 	mVU.waitMTVU = x86Ptr;
@@ -208,7 +208,7 @@ void mvuGenerateWaitMTVU(mV)
 	xRET();
 }
 
-void mvuGenerateCopyPipelineState(mV)
+static void mVUGenerateCopyPipelineState(mV)
 {
 	xAlignCallTarget();
 	mVU.copyPLState = x86Ptr;
@@ -240,6 +240,71 @@ void mvuGenerateCopyPipelineState(mV)
 		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 48u], xmm3);
 		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 64u], xmm4);
 		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 80u], xmm5);
+	}
+
+	xRET();
+}
+
+//------------------------------------------------------------------
+// Micro VU - Custom Quick Search
+//------------------------------------------------------------------
+
+// Generates a custom optimized block-search function
+// Note: Structs must be 16-byte aligned! (GCC doesn't guarantee this)
+static void mVUGenerateCompareState(mV)
+{
+	mVU.compareStateF = xGetAlignedCallTarget();
+
+	if (!x86caps.hasAVX2)
+	{
+		xMOVAPS  (xmm0, ptr32[arg1reg]);
+		xPCMP.EQD(xmm0, ptr32[arg2reg]);
+		xMOVAPS  (xmm1, ptr32[arg1reg + 0x10]);
+		xPCMP.EQD(xmm1, ptr32[arg2reg + 0x10]);
+		xPAND    (xmm0, xmm1);
+
+		xMOVMSKPS(eax, xmm0);
+		xXOR     (eax, 0xf);
+		xForwardJNZ8 exitPoint;
+
+		xMOVAPS  (xmm0, ptr32[arg1reg + 0x20]);
+		xPCMP.EQD(xmm0, ptr32[arg2reg + 0x20]);
+		xMOVAPS  (xmm1, ptr32[arg1reg + 0x30]);
+		xPCMP.EQD(xmm1, ptr32[arg2reg + 0x30]);
+		xPAND    (xmm0, xmm1);
+
+		xMOVAPS  (xmm1, ptr32[arg1reg + 0x40]);
+		xPCMP.EQD(xmm1, ptr32[arg2reg + 0x40]);
+		xMOVAPS  (xmm2, ptr32[arg1reg + 0x50]);
+		xPCMP.EQD(xmm2, ptr32[arg2reg + 0x50]);
+		xPAND    (xmm1, xmm2);
+		xPAND    (xmm0, xmm1);
+
+		xMOVMSKPS(eax, xmm0);
+		xXOR(eax, 0xf);
+
+		exitPoint.SetTarget();
+	}
+	else
+	{
+		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
+		xVMOVUPS(ymm0, ptr[arg1reg]);
+		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg]);
+		xVPMOVMSKB(eax, ymm0);
+		xXOR(eax, 0xffffffff);
+		xForwardJNZ8 exitPoint;
+
+		xVMOVUPS(ymm0, ptr[arg1reg + 0x20]);
+		xVMOVUPS(ymm1, ptr[arg1reg + 0x40]);
+		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg + 0x20]);
+		xVPCMP.EQD(ymm1, ymm1, ptr[arg2reg + 0x40]);
+		xVPAND(ymm0, ymm0, ymm1);
+
+		xVPMOVMSKB(eax, ymm0);
+		xNOT(eax);
+
+		exitPoint.SetTarget();
+		xVZEROUPPER();
 	}
 
 	xRET();
