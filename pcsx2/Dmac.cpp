@@ -182,12 +182,7 @@ static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 
 	//Final Fantasy XII sets the DMA Mode to 3 which doesn't exist. On some channels (like SPR) this will break logic completely. so lets assume they mean chain.
 	if (reg.chcr.MOD == 0x3)
-	{
-		static bool warned; //Check if the warning has already been output to console, to prevent constant spam.
-		if (!warned)
-			warned = true;
 		reg.chcr.MOD = 0x1;
-	}
 
 	// As tested on hardware, if NORMAL mode is started with 0 QWC it will actually transfer 1 QWC then underflows and transfer another 0xFFFF QWC's
 	// The easiest way to handle this is to just say 0x10000 QWC
