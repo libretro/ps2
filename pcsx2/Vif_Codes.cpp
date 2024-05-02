@@ -23,7 +23,7 @@
 #include "Vif_Dma.h"
 #include "x86/newVif.h"
 
-#define vifOp(vifCodeName) _vifT int vifCodeName(int pass, const u32* data)
+#define vifOp(vifCodeName) _vifT static int vifCodeName(int pass, const u32* data)
 #define pass1 if (pass == 0)
 #define pass2 if (pass == 1)
 #define pass3 if (pass == 2)
@@ -144,7 +144,7 @@ vifOp(vifCode_Base)
 }
 
 template <int idx>
-__fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
+static __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 {
 	vif1Only();
 	pass1
@@ -559,13 +559,13 @@ static __fi int _vifCode_STColRow(const u32* data, u32* pmem2)
 	{
 		case 4:
 			pmem2[3] = data[3];
-			[[fallthrough]];
+			/* fallthrough */
 		case 3:
 			pmem2[2] = data[2];
-			[[fallthrough]];
+			/* fallthrough */
 		case 2:
 			pmem2[1] = data[1];
-			[[fallthrough]];
+			/* fallthrough */
 		case 1:
 			pmem2[0] = data[0];
 			break;
