@@ -90,12 +90,6 @@ void resetNewVif(int idx)
 	dVifReset(idx);
 }
 
-static __fi u8* getVUptr(uint idx, int offset)
-{
-	return (u8*)(vuRegs[idx].Mem + (offset & (idx ? 0x3ff0 : 0xff0)));
-}
-
-
 _vifT int nVifUnpack(const u8* data)
 {
 	nVifStruct&   v       = nVif[idx];
@@ -243,7 +237,7 @@ __ri void _nVifUnpackLoop(const u8* data)
 
 	do
 	{
-		u8* dest = getVUptr(idx, vif.tag.addr);
+		u8* dest = (u8*)(vuRegs[idx].Mem + (vif.tag.addr & (idx ? 0x3ff0 : 0xff0)));
 
 		if (doMode)
 		{

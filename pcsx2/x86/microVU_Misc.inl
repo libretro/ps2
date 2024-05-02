@@ -574,7 +574,7 @@ void mVUcustomSearch(void)
 	mode.m_read  = true;
 	mode.m_write = true;
 	mode.m_exec  = false;
-	HostSys::MemProtectStatic(mVUsearchXMM, mode);
+	HostSys::MemProtect(mVUsearchXMM, __pagesize, mode);
 	memset(mVUsearchXMM, 0xcc, __pagesize);
 	xSetPtr(mVUsearchXMM);
 
@@ -635,5 +635,5 @@ void mVUcustomSearch(void)
 	xRET();
 	mode.m_write = false;
 	mode.m_exec  = true;
-	HostSys::MemProtectStatic(mVUsearchXMM, mode);
+	HostSys::MemProtect(mVUsearchXMM, __pagesize, mode);
 }

@@ -128,7 +128,7 @@ static void recSetBranchL(int ltz)
 }
 
 //// BEQ
-static void recBEQ_const()
+static void recBEQ_const(void)
 {
 	u32 branchTo;
 
@@ -178,7 +178,7 @@ static void recBEQ_process(int process)
 	}
 }
 
-void recBEQ()
+void recBEQ(void)
 {
 	// prefer using the host register over an immediate, it'll be smaller code.
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
@@ -192,7 +192,7 @@ void recBEQ()
 }
 
 //// BNE
-static void recBNE_const()
+static void recBNE_const(void)
 {
 	u32 branchTo;
 
@@ -241,7 +241,7 @@ static void recBNE_process(int process)
 	SetBranchImm(pc);
 }
 
-void recBNE()
+void recBNE(void)
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 		recBNE_const();
@@ -254,7 +254,7 @@ void recBNE()
 }
 
 //// BEQL
-static void recBEQL_const()
+static void recBEQL_const(void)
 {
 	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
 	{
@@ -283,7 +283,7 @@ static void recBEQL_process(int process)
 	SetBranchImm(pc);
 }
 
-void recBEQL()
+void recBEQL(void)
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 		recBEQL_const();
@@ -296,7 +296,7 @@ void recBEQL()
 }
 
 //// BNEL
-static void recBNEL_const()
+static void recBNEL_const(void)
 {
 	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
 	{

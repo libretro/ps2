@@ -193,7 +193,7 @@ static void _DynGen_Dispatchers(void)
 	mode.m_write = true;
 	mode.m_exec  = false;
 	// In case init gets called multiple times:
-	HostSys::MemProtectStatic(iopRecDispatchers, mode);
+	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(iopRecDispatchers, 0xcc, __pagesize);
@@ -212,7 +212,7 @@ static void _DynGen_Dispatchers(void)
 
 	mode.m_write = false;
 	mode.m_exec  = true;
-	HostSys::MemProtectStatic(iopRecDispatchers, mode);
+	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
 
 	recBlocks.SetJITCompile(iopJITCompile);
 }

@@ -23,7 +23,6 @@
 // Register containing a pointer to our fastmem (4GB) area
 #define RFASTMEMBASE x86Emitter::rbp
 
-extern u32 maxrecmem;
 extern u32 pc;             // recompiler pc
 extern int g_branch;       // set for branch
 extern u32 target;         // branch target

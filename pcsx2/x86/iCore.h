@@ -106,8 +106,7 @@ struct _x86regs
 extern _x86regs x86regs[iREGCNT_GPR], s_saveX86regs[iREGCNT_GPR];
 
 bool _isAllocatableX86reg(int x86reg);
-void _initX86regs();
-int _getFreeX86reg(int mode);
+void _initX86regs(void);
 int _allocX86reg(int type, int reg, int mode);
 int _checkX86reg(int type, int reg, int mode);
 bool _hasX86reg(int type, int reg, int required_mode = 0);

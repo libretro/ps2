@@ -252,7 +252,7 @@ void recSQ(void)
 
 ////////////////////////////////////////////////////
 
-void recLWL()
+void recLWL(void)
 {
 #ifdef REC_LOADS
 	_freeX86reg(eax);
@@ -750,7 +750,7 @@ static void sdlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift
 	xOR(rt, maskamt64);
 }
 
-void recSDL()
+void recSDL(void)
 {
 #ifdef REC_STORES
 	// avoid flushing and immediately reading back
@@ -836,7 +836,7 @@ void recSDL()
 }
 
 ////////////////////////////////////////////////////
-void recSDR()
+void recSDR(void)
 {
 #ifdef REC_STORES
 	// avoid flushing and immediately reading back
@@ -927,7 +927,7 @@ void recSDR()
 
 ////////////////////////////////////////////////////
 
-void recLWC1()
+void recLWC1(void)
 {
 #ifndef FPU_RECOMPILE
 	recCall(::R5900::Interpreter::OpcodeImpl::LWC1);
@@ -953,7 +953,7 @@ void recLWC1()
 
 //////////////////////////////////////////////////////
 
-void recSWC1()
+void recSWC1(void)
 {
 #ifndef FPU_RECOMPILE
 	recCall(::R5900::Interpreter::OpcodeImpl::SWC1);

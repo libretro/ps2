@@ -85,7 +85,7 @@ static void recMoveTtoD64(int info)
 }
 
 //// ADD
-static void recADD_const()
+static void recADD_const(void)
 {
 	g_cpuConstRegs[_Rd_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] + g_cpuConstRegs[_Rt_].UL[0]));
 }

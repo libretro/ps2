@@ -44,7 +44,7 @@ void _initX86regs(void)
 	g_x86checknext = 0;
 }
 
-int _getFreeX86reg(int mode)
+static int _getFreeX86reg(int mode)
 {
 	int tempi = -1;
 	u32 bestcount = 0x10000;
@@ -412,7 +412,7 @@ void _addNeededX86reg(int type, int reg)
 	}
 }
 
-void _clearNeededX86regs()
+void _clearNeededX86regs(void)
 {
 	for (uint i = 0; i < iREGCNT_GPR; i++)
 	{
@@ -449,13 +449,7 @@ void _freeX86regWithoutWriteback(int x86reg)
 		mVUFreeCOP2GPR(x86reg);
 }
 
-void _freeX86regs()
-{
-	for (uint i = 0; i < iREGCNT_GPR; i++)
-		_freeX86reg(i);
-}
-
-void _flushX86regs()
+void _flushX86regs(void)
 {
 	for (u32 i = 0; i < iREGCNT_GPR; ++i)
 	{

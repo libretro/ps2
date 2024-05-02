@@ -96,13 +96,11 @@ int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
 	return fromx86;
 }
 
-
 static bool FitsInImmediate(int reg, int fprinfo)
 {
 	if (fprinfo & XMMINFO_64BITOP)
 		return (s32)g_cpuConstRegs[reg].SD[0] == g_cpuConstRegs[reg].SD[0];
-	else
-		return true; // all 32bit ops fit
+	return true; // all 32bit ops fit
 }
 
 void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900FNPTR_INFO consttcode, R5900FNPTR_INFO noconstcode, int xmminfo)
@@ -147,9 +145,7 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 	{
 		regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 		if (regs < 0 && (!s_is_const || !FitsInImmediate(_Rs_, xmminfo)) && (s_is_used || s_in_xmm || ((xmminfo & XMMINFO_WRITED) && _Rd_ == _Rs_) || (xmminfo & XMMINFO_FORCEREGS)))
-		{
 			regs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
-		}
 		if (regs >= 0)
 			info |= PROCESS_EE_SET_S(regs);
 	}
@@ -158,9 +154,7 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 	{
 		regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
 		if (regt < 0 && (!t_is_const || !FitsInImmediate(_Rt_, xmminfo)) && (t_is_used || t_in_xmm || ((xmminfo & XMMINFO_WRITED) && _Rd_ == _Rt_) || (xmminfo & XMMINFO_FORCEREGT)))
-		{
 			regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
-		}
 		if (regt >= 0)
 			info |= PROCESS_EE_SET_T(regt);
 	}
@@ -277,27 +271,24 @@ int eeRecompileCodeXMM(int xmminfo)
 		_addNeededGPRtoXMMreg(XMMGPR_LO);
 	if (xmminfo & (XMMINFO_READHI | XMMINFO_WRITEHI))
 		_addNeededGPRtoXMMreg(XMMGPR_HI);
-	if (xmminfo & XMMINFO_READS)
-		_addNeededGPRtoXMMreg(_Rs_);
-	if (xmminfo & XMMINFO_READT)
-		_addNeededGPRtoXMMreg(_Rt_);
-	if (xmminfo & XMMINFO_WRITED)
-		_addNeededGPRtoXMMreg(_Rd_);
 
 	// TODO: we could do memory operands here if not live. but the MMI implementations aren't hooked up to that at the moment.
 	if (xmminfo & XMMINFO_READS)
 	{
+		_addNeededGPRtoXMMreg(_Rs_);
 		const int reg = _allocGPRtoXMMreg(_Rs_, MODE_READ);
 		info |= PROCESS_EE_SET_S(reg);
 	}
 	if (xmminfo & XMMINFO_READT)
 	{
+		_addNeededGPRtoXMMreg(_Rt_);
 		const int reg = _allocGPRtoXMMreg(_Rt_, MODE_READ);
 		info |= PROCESS_EE_SET_T(reg);
 	}
 
 	if (xmminfo & XMMINFO_WRITED)
 	{
+		_addNeededGPRtoXMMreg(_Rd_);
 		int readd = MODE_WRITE | ((xmminfo & XMMINFO_READD) ? MODE_READ : 0);
 
 		int regd = _checkXMMreg(XMMTYPE_GPRREG, _Rd_, readd);
@@ -350,10 +341,6 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 	int mmregs = -1, mmregt = -1, mmregd = -1, mmregacc = -1;
 	int info = PROCESS_EE_XMM;
 
-	if (xmminfo & XMMINFO_READS)
-		_addNeededFPtoXMMreg(_Fs_);
-	if (xmminfo & XMMINFO_READT)
-		_addNeededFPtoXMMreg(_Ft_);
 	if (xmminfo & (XMMINFO_WRITED | XMMINFO_READD))
 		_addNeededFPtoXMMreg(_Fd_);
 	if (xmminfo & (XMMINFO_WRITEACC | XMMINFO_READACC))
@@ -361,6 +348,7 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 
 	if (xmminfo & XMMINFO_READT)
 	{
+		_addNeededFPtoXMMreg(_Ft_);
 		if (g_pCurInstInfo->fpuregs[_Ft_] & EEINST_LASTUSE)
 			mmregt = _checkXMMreg(XMMTYPE_FPREG, _Ft_, MODE_READ);
 		else
@@ -369,10 +357,9 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 
 	if (xmminfo & XMMINFO_READS)
 	{
+		_addNeededFPtoXMMreg(_Fs_);
 		if ((!(xmminfo & XMMINFO_READT) || (mmregt >= 0)) && (g_pCurInstInfo->fpuregs[_Fs_] & EEINST_LASTUSE))
-		{
 			mmregs = _checkXMMreg(XMMTYPE_FPREG, _Fs_, MODE_READ);
-		}
 		else
 		{
 			mmregs = _allocFPtoXMMreg(_Fs_, MODE_READ);

@@ -48,7 +48,7 @@ static bool g_resetEeScalingStats = false;
 
 #define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
 
-u32 maxrecmem = 0;
+static u32 maxrecmem = 0;
 alignas(16) static uptr recLUT[_64kb];
 alignas(16) static u32 hwLUT[_64kb];
 
@@ -85,8 +85,8 @@ static u32 s_nInstCacheSize = 0;
 
 static BASEBLOCK* s_pCurBlock = NULL;
 static BASEBLOCKEX* s_pCurBlockEx = NULL;
-u32 s_nEndBlock = 0; // what pc the current block ends
-u32 s_branchTo;
+static u32 s_nEndBlock = 0; // what pc the current block ends
+static u32 s_branchTo;
 static bool s_nBlockFF;
 
 // save states for branches
@@ -99,9 +99,8 @@ static u32 s_savenBlockCycles = 0;
 static void iBranchTest(u32 newpc = 0xffffffff);
 static void ClearRecLUT(BASEBLOCK* base, int count);
 static u32 scaleblockcycles();
-static void recExitExecution();
 
-void _eeFlushAllDirty()
+void _eeFlushAllDirty(void)
 {
 	_flushXMMregs();
 	_flushX86regs();
@@ -240,14 +239,16 @@ static DynGenFunc* EnterRecompiledCode = NULL;
 static DynGenFunc* DispatchBlockDiscard = NULL;
 static DynGenFunc* DispatchPageReset = NULL;
 
-static void recEventTest()
+static fastjmp_buf m_SetJmp_StateCheck;
+
+static void recEventTest(void)
 {
 	_cpuEventTest_Shared();
 
 	if (eeRecExitRequested)
 	{
 		eeRecExitRequested = false;
-		recExitExecution();
+		fastjmp_jmp(&m_SetJmp_StateCheck, 1);
 	}
 }
 
@@ -280,7 +281,7 @@ static DynGenFunc* _DynGen_JITCompileInBlock(void)
 }
 
 // called when jumping to variable pc address
-static DynGenFunc* _DynGen_DispatcherReg()
+static DynGenFunc* _DynGen_DispatcherReg(void)
 {
 	u8* retval = xGetPtr(); // fallthrough target, can't align it!
 
@@ -297,7 +298,7 @@ static DynGenFunc* _DynGen_DispatcherReg()
 	return (DynGenFunc*)retval;
 }
 
-static DynGenFunc* _DynGen_DispatcherEvent()
+static DynGenFunc* _DynGen_DispatcherEvent(void)
 {
 	u8* retval = xGetPtr();
 
@@ -306,7 +307,7 @@ static DynGenFunc* _DynGen_DispatcherEvent()
 	return (DynGenFunc*)retval;
 }
 
-static DynGenFunc* _DynGen_EnterRecompiledCode()
+static DynGenFunc* _DynGen_EnterRecompiledCode(void)
 {
 	u8* retval = xGetAlignedCallTarget();
 
@@ -330,7 +331,7 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 	return (DynGenFunc*)retval;
 }
 
-static DynGenFunc* _DynGen_DispatchBlockDiscard()
+static DynGenFunc* _DynGen_DispatchBlockDiscard(void)
 {
 	u8* retval = xGetPtr();
 	xFastCall((void*)dyna_block_discard);
@@ -338,7 +339,7 @@ static DynGenFunc* _DynGen_DispatchBlockDiscard()
 	return (DynGenFunc*)retval;
 }
 
-static DynGenFunc* _DynGen_DispatchPageReset()
+static DynGenFunc* _DynGen_DispatchPageReset(void)
 {
 	u8* retval = xGetPtr();
 	xFastCall((void*)dyna_page_reset);
@@ -353,7 +354,7 @@ static void _DynGen_Dispatchers(void)
 	mode.m_write = true;
 	mode.m_exec  = false;
 	// In case init gets called multiple times:
-	HostSys::MemProtectStatic(eeRecDispatchers, mode);
+	HostSys::MemProtect(eeRecDispatchers, __pagesize, mode);
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(eeRecDispatchers, 0xcc, __pagesize);
@@ -373,7 +374,7 @@ static void _DynGen_Dispatchers(void)
 
 	mode.m_write = false;
 	mode.m_exec  = true;
-	HostSys::MemProtectStatic(eeRecDispatchers, mode);
+	HostSys::MemProtect(eeRecDispatchers, __pagesize, mode);
 
 	recBlocks.SetJITCompile(JITCompile);
 }
@@ -510,14 +511,7 @@ static void recShutdown(void)
 
 void recStep(void) { }
 
-static fastjmp_buf m_SetJmp_StateCheck;
-
-static void recExitExecution(void)
-{
-	fastjmp_jmp(&m_SetJmp_StateCheck, 1);
-}
-
-static void recSafeExitExecution()
+static void recSafeExitExecution(void)
 {
 	// If we're currently processing events, we can't safely jump out of the recompiler here, because we'll
 	// leave things in an inconsistent state. So instead, we flag it for exiting once cpuEventTest() returns.
@@ -541,7 +535,7 @@ static void recSafeExitExecution()
 	}
 }
 
-static void recResetEE()
+static void recResetEE(void)
 {
 	if (eeCpuExecuting)
 	{
@@ -588,7 +582,7 @@ static void recExecute(void)
 }
 
 ////////////////////////////////////////////////////
-void R5900::Dynarec::OpcodeImpl::recSYSCALL()
+void R5900::Dynarec::OpcodeImpl::recSYSCALL(void)
 {
 	if (GPR_IS_CONST1(3))
 	{
@@ -606,7 +600,7 @@ void R5900::Dynarec::OpcodeImpl::recSYSCALL()
 }
 
 ////////////////////////////////////////////////////
-void R5900::Dynarec::OpcodeImpl::recBREAK()
+void R5900::Dynarec::OpcodeImpl::recBREAK(void)
 {
 	recCall(R5900::Interpreter::OpcodeImpl::BREAK);
 	g_branch = 2; // Indirect branch with event check.
@@ -664,29 +658,14 @@ void recClear(u32 addr, u32 size)
 	}
 
 	if (toRemoveLast != blockidx)
-	{
 		recBlocks.Remove((blockidx + 1), toRemoveLast);
-	}
 
 	upperextent = std::min(upperextent, ceiling);
-
-	for (int i = 0; (pexblock = recBlocks[i]); i++)
-	{
-		if (s_pCurBlock == PC_GETBLOCK(pexblock->startpc))
-			continue;
-		u32 blockend = pexblock->startpc + pexblock->size * 4;
-		if ((pexblock->startpc >= addr && pexblock->startpc < addr + size * 4) || (pexblock->startpc < addr && blockend > addr))
-		{
-			Console.Error("[EE] Impossible block clearing failure");
-		}
-	}
 
 	if (upperextent > lowerextent)
 		ClearRecLUT(PC_GETBLOCK(lowerextent), upperextent - lowerextent);
 }
 
-
-static int* s_pCode;
 
 void SetBranchReg(u32 reg)
 {
@@ -1128,7 +1107,7 @@ void iFlushCall(int flushtype)
 
 #define DEFAULT_SCALED_BLOCKS() (s_nBlockCycles >> 3)
 
-static u32 scaleblockcycles_calculation()
+static u32 scaleblockcycles_calculation(void)
 {
 	bool lowcycles = (s_nBlockCycles <= 40);
 	s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
@@ -1161,8 +1140,7 @@ static u32 scaleblockcycles(void)
 
 u32 scaleblockcycles_clear(void)
 {
-	u32 scaled = scaleblockcycles_calculation();
-
+	u32 scaled   = scaleblockcycles_calculation();
 	s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
 
 	if (cyclerate > 1)
@@ -1197,8 +1175,6 @@ static void iBranchTest(u32 newpc)
 		xCMP(eax, ptr32[&cpuRegs.cycle]);
 		xCMOVS(eax, ptr32[&cpuRegs.cycle]);
 		xMOV(ptr32[&cpuRegs.cycle], eax);
-
-		xJMP((void*)DispatcherEvent);
 	}
 	else
 	{
@@ -1211,9 +1187,8 @@ static void iBranchTest(u32 newpc)
 			xJS(DispatcherReg);
 		else
 			recBlocks.Link(HWADDR(newpc), xJcc32(Jcc_Signed));
-
-		xJMP((void*)DispatcherEvent);
 	}
+	xJMP((void*)DispatcherEvent);
 }
 
 // opcode 'code' modifies:
@@ -1244,11 +1219,11 @@ int cop2flags(u32 code)
 						return 0;
 					if ((code & 3) == 3) // CLIP
 						return 4;
-					return 3;
+					break;
 				case 11: // SUBA, MSUBA, OPMULA, NOP
 					if ((code & 3) == 3) // NOP
 						return 0;
-					return 3;
+					break;
 				case 14: // DIV, SQRT, RSQRT, WAITQ
 					if ((code & 3) == 3) // WAITQ
 						return 0;
@@ -1266,22 +1241,22 @@ int cop2flags(u32 code)
 		case 7:
 			if ((code & 1) == 1) // MAXi, MINIi
 				return 0;
-			return 3;
+			break;
 		case 10:
 			if ((code & 3) == 3) // MAX
 				return 0;
-			return 3;
+			break;
 		case 11:
 			if ((code & 3) == 3) // MINI
 				return 0;
-			return 3;
+			break;
 		default:
 			break;
 	}
 	return 3;
 }
 
-int COP2DivUnitTimings(u32 code)
+static int COP2DivUnitTimings(u32 code)
 {
 	// Note: Cycles are off by 1 since the check ignores the actual op, so they are off by 1
 	switch (code & 0x3FF)
@@ -1292,41 +1267,43 @@ int COP2DivUnitTimings(u32 code)
 		case 0x3BE: // RSQRT
 			return 12;
 		default:
-			return 0; // Used mainly for WAITQ
+			break;
 	}
+	return 0; // Used mainly for WAITQ
 }
 
-bool COP2IsQOP(u32 code)
+static bool COP2IsQOP(u32 code)
 {
-	if (_Opcode_ != 022) // Not COP2 operation
-		return false;
-
-	if ((code & 0x3f) == 0x20) // VADDq
-		return true;
-	if ((code & 0x3f) == 0x21) // VMADDq
-		return true;
-	if ((code & 0x3f) == 0x24) // VSUBq
-		return true;
-	if ((code & 0x3f) == 0x25) // VMSUBq
-		return true;
-	if ((code & 0x3f) == 0x1C) // VMULq
-		return true;
-	if ((code & 0x7FF) == 0x1FC) // VMULAq
-		return true;
-	if ((code & 0x7FF) == 0x23C) // VADDAq
-		return true;
-	if ((code & 0x7FF) == 0x23D) // VMADDAq
-		return true;
-	if ((code & 0x7FF) == 0x27C) // VSUBAq
-		return true;
-	if ((code & 0x7FF) == 0x27D) // VMSUBAq
-		return true;
+	if (_Opcode_ == 022) // Not COP2 operation
+	{
+		if ((code & 0x3f) == 0x20) // VADDq
+			return true;
+		if ((code & 0x3f) == 0x21) // VMADDq
+			return true;
+		if ((code & 0x3f) == 0x24) // VSUBq
+			return true;
+		if ((code & 0x3f) == 0x25) // VMSUBq
+			return true;
+		if ((code & 0x3f) == 0x1C) // VMULq
+			return true;
+		if ((code & 0x7FF) == 0x1FC) // VMULAq
+			return true;
+		if ((code & 0x7FF) == 0x23C) // VADDAq
+			return true;
+		if ((code & 0x7FF) == 0x23D) // VMADDAq
+			return true;
+		if ((code & 0x7FF) == 0x27C) // VSUBAq
+			return true;
+		if ((code & 0x7FF) == 0x27D) // VMSUBAq
+			return true;
+	}
 
 	return false;
 }
 
 void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 {
+	static int* s_pCode;
 	u32 i;
 	int count;
 
@@ -1515,10 +1492,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 					break;
 
 				else if (COP2IsQOP(cpuRegs.code))
-				{
-					Console.Warning("Possible incorrect Q value used in COP2. If the game is broken, please report to http://github.com/pcsx2/pcsx2.");
 					break;
-				}
 			}
 		}
 		else
@@ -1532,10 +1506,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 				if (_Opcode_ == 022 && _Rs_ == 2) // CFC2
 					// rd is fs
 					if ((_Rd_ == 16 && s & 1) || (_Rd_ == 17 && s & 2) || (_Rd_ == 18 && s & 4))
-					{
-						Console.Warning("Possible old value used in COP2 code. If the game is broken, please report to http://github.com/pcsx2/pcsx2.");
 						break;
-					}
 				s &= ~cop2flags(cpuRegs.code);
 				all_count++;
 				if (_Opcode_ == 022 && _Rs_ == 8) // COP2 branch, handled incorrectly like most things
@@ -1650,7 +1621,6 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 // Skip MPEG Game-Fix
 static bool skipMPEG_By_Pattern(u32 sPC)
 {
-
 	if (!CHECK_SKIPMPEGHACK)
 		return 0;
 

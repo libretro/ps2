@@ -38,7 +38,7 @@ static u32 GetAllocatedGPRBitmask(void)
 	return mask;
 }
 
-static u32 GetAllocatedXMMBitmask()
+static u32 GetAllocatedXMMBitmask(void)
 {
 	u32 mask = 0;
 	for (u32 i = 0; i < iREGCNT_XMM; i++)
@@ -332,7 +332,7 @@ void vtlb_dynarec_init(void)
 	mode.m_write  = true;
 	mode.m_exec   = false;
 	// In case init gets called multiple times:
-	HostSys::MemProtectStatic(m_IndirectDispatchers, mode);
+	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
 
 	// clear the buffer to 0xcc (easier debugging).
 	memset(m_IndirectDispatchers, 0xcc, __pagesize);
@@ -352,7 +352,7 @@ void vtlb_dynarec_init(void)
 
 	mode.m_write  = false;
 	mode.m_exec   = true;
-	HostSys::MemProtectStatic(m_IndirectDispatchers, mode);
+	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

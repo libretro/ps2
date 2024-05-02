@@ -197,7 +197,7 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 }
 
 //// MULT
-static void recMULT_const()
+static void recMULT_const(void)
 {
 	s64 res = (s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0];
 
@@ -259,7 +259,7 @@ static void recMULT_constt(int info)
 EERECOMPILE_CODERC0(MULT, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
 
 //// MULTU
-static void recMULTU_const()
+static void recMULTU_const(void)
 {
 	const u64 res = (u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0];
 
@@ -285,7 +285,7 @@ static void recMULTU_constt(int info)
 EERECOMPILE_CODERC0(MULTU, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
 
 ////////////////////////////////////////////////////
-static void recMULT1_const()
+static void recMULT1_const(void)
 {
 	s64 res = (s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0];
 
@@ -310,7 +310,7 @@ static void recMULT1_constt(int info)
 EERECOMPILE_CODERC0(MULT1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
 
 ////////////////////////////////////////////////////
-static void recMULTU1_const()
+static void recMULTU1_const(void)
 {
 	u64 res = (u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0];
 
@@ -338,26 +338,23 @@ EERECOMPILE_CODERC0(MULTU1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRIT
 
 static void recDIVconst(int upper)
 {
-	s32 quot, rem;
+	s32 quot, rem = 0;
 	if (g_cpuConstRegs[_Rs_].UL[0] == 0x80000000 && g_cpuConstRegs[_Rt_].SL[0] == -1)
-	{
 		quot = (s32)0x80000000;
-		rem = 0;
-	}
 	else if (g_cpuConstRegs[_Rt_].SL[0] != 0)
 	{
 		quot = g_cpuConstRegs[_Rs_].SL[0] / g_cpuConstRegs[_Rt_].SL[0];
-		rem = g_cpuConstRegs[_Rs_].SL[0] % g_cpuConstRegs[_Rt_].SL[0];
+		rem  = g_cpuConstRegs[_Rs_].SL[0] % g_cpuConstRegs[_Rt_].SL[0];
 	}
 	else
 	{
 		quot = (g_cpuConstRegs[_Rs_].SL[0] < 0) ? 1 : -1;
-		rem = g_cpuConstRegs[_Rs_].SL[0];
+		rem  = g_cpuConstRegs[_Rs_].SL[0];
 	}
 	recWritebackConstHILO((u64)quot | ((u64)rem << 32), 0, upper);
 }
 
-static void recDIV_const()
+static void recDIV_const(void)
 {
 	recDIVconst(0);
 }
@@ -463,7 +460,7 @@ static void recDIVUconst(int upper)
 	recWritebackConstHILO((u64)quot | ((u64)rem << 32), 0, upper);
 }
 
-static void recDIVU_const()
+static void recDIVU_const(void)
 {
 	recDIVUconst(0);
 }
@@ -485,7 +482,7 @@ static void recDIVU_constt(int info)
 
 EERECOMPILE_CODERC0(DIVU, /*XMMINFO_READS |*/ XMMINFO_READT);
 
-static void recDIV1_const()
+static void recDIV1_const(void)
 {
 	recDIVconst(1);
 }
@@ -708,8 +705,6 @@ void recMADDU1()
 
 	addEaxEdxAndWriteBackToHiLoRd(1);
 }
-
-
 #endif
 
 } // namespace R5900::Dynarec::OpcodeImpl
