@@ -326,7 +326,7 @@ static DynGenFunc* _DynGen_EnterRecompiledCode(void)
 	if (CHECK_FASTMEM)
 		xMOV(RFASTMEMBASE, ptrNative[&vtlb_private::vtlbdata.fastmem_base]);
 
-	xJMP(DispatcherReg);
+	xJMP((void*)DispatcherReg);
 
 	return (DynGenFunc*)retval;
 }
@@ -335,7 +335,7 @@ static DynGenFunc* _DynGen_DispatchBlockDiscard(void)
 {
 	u8* retval = xGetPtr();
 	xFastCall((void*)dyna_block_discard);
-	xJMP(DispatcherReg);
+	xJMP((void*)DispatcherReg);
 	return (DynGenFunc*)retval;
 }
 
@@ -343,7 +343,7 @@ static DynGenFunc* _DynGen_DispatchPageReset(void)
 {
 	u8* retval = xGetPtr();
 	xFastCall((void*)dyna_page_reset);
-	xJMP(DispatcherReg);
+	xJMP((void*)DispatcherReg);
 	return (DynGenFunc*)retval;
 }
 
