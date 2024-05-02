@@ -173,12 +173,14 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 	u8* retval = xGetPtr();
 
 	{ // Properly scope the frame prologue/epilogue
-		xScopedStackFrame frame;
+		int m_offset;
+		SCOPED_STACK_FRAME_BEGIN(m_offset);
 
 		xJMP((void*)iopDispatcherReg);
 
 		// Save an exit point
 		iopExitRecompiledCode = (DynGenFunc*)xGetPtr();
+		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
 	xRET();

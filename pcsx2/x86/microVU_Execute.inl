@@ -34,7 +34,8 @@ void mVUdispatcherAB(mV)
 	mVU.startFunct = x86Ptr;
 
 	{
-		xScopedStackFrame frame;
+		int m_offset;
+		SCOPED_STACK_FRAME_BEGIN(m_offset);
 
 		// = The caller has already put the needed parameters in ecx/edx:
 		if (!isVU1) xFastCall((void*)mVUexecuteVU0, arg1reg, arg2reg);
@@ -88,6 +89,7 @@ void mVUdispatcherAB(mV)
 		//              all other arguments are passed right to left.
 		if (!isVU1) xFastCall((void*)mVUcleanUpVU0);
 		else        xFastCall((void*)mVUcleanUpVU1);
+		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
 	xRET();
@@ -99,7 +101,8 @@ void mVUdispatcherCD(mV)
 	mVU.startFunctXG = x86Ptr;
 
 	{
-		xScopedStackFrame frame;
+		int m_offset;
+		SCOPED_STACK_FRAME_BEGIN(m_offset);
 
 		// Load VU's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -125,6 +128,7 @@ void mVUdispatcherCD(mV)
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
 			xLDMXCSR(g_sseMXCSR);
+		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
 	xRET();

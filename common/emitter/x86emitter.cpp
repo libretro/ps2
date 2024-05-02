@@ -1061,63 +1061,6 @@ const xRegister32
 		xMOVDQA(dest, ptr[&xmm_data[dest.Id * 2]]);
 	}
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Helper object to handle ABI frame
-// All x86-64 calling conventions ensure/require stack to be 16 bytes aligned
-// I couldn't find documentation on when, but compilers would indicate it's before the call: https://gcc.godbolt.org/z/KzTfsz
-#define ALIGN_STACK(v) xADD(rsp, v)
-
-	static void stackAlign(int offset, bool moveDown)
-	{
-		int needed = (16 - (offset % 16)) % 16;
-		if (moveDown)
-			needed = -needed;
-		ALIGN_STACK(needed);
-	}
-
-	xScopedStackFrame::xScopedStackFrame()
-	{
-		m_offset = sizeof(void*); // Call stores the return address (4 bytes)
-
-		// Note rbp can surely be optimized in 64 bits
-		xPUSH(rbp);
-		m_offset += sizeof(void*);
-
-		xPUSH(rbx);
-		xPUSH(r12);
-		xPUSH(r13);
-		xPUSH(r14);
-		xPUSH(r15);
-		m_offset += 40;
-#ifdef _WIN32
-		xPUSH(rdi);
-		xPUSH(rsi);
-		xSUB(rsp, 32); // Windows calling convention specifies additional space for the callee to spill registers
-		m_offset += 48;
-#endif
-
-		stackAlign(m_offset, true);
-	}
-
-	xScopedStackFrame::~xScopedStackFrame()
-	{
-		stackAlign(m_offset, false);
-
-		// Restore the register context
-#ifdef _WIN32
-		xADD(rsp, 32);
-		xPOP(rsi);
-		xPOP(rdi);
-#endif
-		xPOP(r15);
-		xPOP(r14);
-		xPOP(r13);
-		xPOP(r12);
-		xPOP(rbx);
-
-		xPOP(rbp);
-	}
-
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{
 		if ((sptr)base == (s32)(sptr)base)

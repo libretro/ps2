@@ -49,3 +49,59 @@
 // once most code is no longer dependent on them.
 #include "common/emitter/legacy_types.h"
 #include "common/emitter/legacy_instructions.h"
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Helper object to handle ABI frame
+// All x86-64 calling conventions ensure/require stack to be 16 bytes aligned
+// I couldn't find documentation on when, but compilers would indicate it's before the call: https://gcc.godbolt.org/z/KzTfsz
+
+#ifdef _WIN32
+#define SCOPED_STACK_FRAME_BEGIN(m_offset) \
+	(m_offset) = sizeof(void*); \
+	xPUSH(rbp); \
+	(m_offset) += sizeof(void*); \
+	xPUSH(rbx); \
+	xPUSH(r12); \
+	xPUSH(r13); \
+	xPUSH(r14); \
+	xPUSH(r15); \
+	m_offset += 40; \
+	xPUSH(rdi); \
+	xPUSH(rsi); \
+	xSUB(rsp, 32); \
+	m_offset += 48; \
+	xADD(rsp, (-((16 - ((m_offset) % 16)) % 16)))
+
+#define SCOPED_STACK_FRAME_END(m_offset) \
+	xADD(rsp, ((16 - ((m_offset) % 16)) % 16)); \
+	xADD(rsp, 32); \
+	xPOP(rsi); \
+	xPOP(rdi); \
+	xPOP(r15); \
+	xPOP(r14); \
+	xPOP(r13); \
+	xPOP(r12); \
+	xPOP(rbx); \
+	xPOP(rbp)
+#else
+#define SCOPED_STACK_FRAME_BEGIN(m_offset) \
+	(m_offset) = sizeof(void*); \
+	xPUSH(rbp); \
+	(m_offset) += sizeof(void*); \
+	xPUSH(rbx); \
+	xPUSH(r12); \
+	xPUSH(r13); \
+	xPUSH(r14); \
+	xPUSH(r15); \
+	m_offset += 40; \
+	xADD(rsp, (-((16 - ((m_offset) % 16)) % 16)))
+
+#define SCOPED_STACK_FRAME_END(m_offset) \
+	xADD(rsp, ((16 - ((m_offset) % 16)) % 16)); \
+	xPOP(r15); \
+	xPOP(r14); \
+	xPOP(r13); \
+	xPOP(r12); \
+	xPOP(rbx); \
+	xPOP(rbp)
+#endif

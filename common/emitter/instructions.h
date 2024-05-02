@@ -177,16 +177,6 @@ namespace x86Emitter
 	extern void xINTO();
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	// Helper object to handle the various functions ABI
-	class xScopedStackFrame
-	{
-		int m_offset;
-	public:
-		xScopedStackFrame();
-		~xScopedStackFrame();
-	};
-
-	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to calculate base+offset taking into account the limitations of x86-64's RIP-relative addressing
 	/// (Will either return `base+offset` or LEA `base` into `tmpRegister` and return `tmpRegister+offset`)
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset);
