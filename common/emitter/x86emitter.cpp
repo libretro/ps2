@@ -66,31 +66,28 @@ thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
 
 namespace x86Emitter
 {
-
-	template void xWrite<u8>(u8 val);
-	template void xWrite<u16>(u16 val);
-	template void xWrite<u32>(u32 val);
-	template void xWrite<u64>(u64 val);
-	template void xWrite<u128>(u128 val);
-
 	__fi void xWrite8(u8 val)
 	{
-		xWrite(val);
+		*(u8*)x86Ptr = val;
+		x86Ptr += sizeof(u8);
 	}
 
 	__fi void xWrite16(u16 val)
 	{
-		xWrite(val);
+		*(u16*)x86Ptr = val;
+		x86Ptr += sizeof(u16);
 	}
 
 	__fi void xWrite32(u32 val)
 	{
-		xWrite(val);
+		*(u32*)x86Ptr = val;
+		x86Ptr += sizeof(u32);
 	}
 
 	__fi void xWrite64(u64 val)
 	{
-		xWrite(val);
+		*(u64*)x86Ptr = val;
+		x86Ptr += sizeof(u64);
 	}
 
 	// Empty initializers are due to frivolously pointless GCC errors (it demands the
@@ -252,7 +249,8 @@ const xRegister32
 			SibSB(0, Sib_EIZ, Sib_UseDisp32);
 		}
 
-		xWrite<s32>((s32)displacement);
+		*(s32*)x86Ptr = (s32)displacement;
+		x86Ptr       += sizeof(s32);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -320,7 +318,8 @@ const xRegister32
 			{
 				ModRM(0, regfield, ModRm_UseSib);
 				SibSB(info.Scale, info.Index.Id, Sib_UseDisp32);
-				xWrite<s32>(info.Displacement);
+				*(s32*)x86Ptr = info.Displacement;
+				x86Ptr += sizeof(s32);
 				return;
 			}
 			else
@@ -336,9 +335,15 @@ const xRegister32
 		if (displacement_size != 0)
 		{
 			if (displacement_size == 1)
-				xWrite<s8>(info.Displacement);
+			{
+				*(s8*)x86Ptr = info.Displacement;
+				x86Ptr += sizeof(s8);
+			}
 			else
-				xWrite<s32>(info.Displacement);
+			{
+				*(s32*)x86Ptr = info.Displacement;
+				x86Ptr += sizeof(s32);
+			}
 		}
 	}
 

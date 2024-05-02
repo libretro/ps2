@@ -929,7 +929,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	recEndThunk();
 
 	// backpatch to a jump to the slowmem handler
-	x86Ptr = (u8*)code_address;
+	xSetPtr((u8*)code_address);
 	xJMP(thunk);
 
 	// fill the rest of it with nops, if any

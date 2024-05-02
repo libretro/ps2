@@ -63,8 +63,8 @@ extern bool s_nBlockInterlocked; // Current block has VU0 interlocking
 extern bool g_recompilingDelaySlot;
 
 // Used for generating backpatch thunks for fastmem.
-u8* recBeginThunk();
-u8* recEndThunk();
+u8* recBeginThunk(void);
+u8* recEndThunk(void);
 
 // used when processing branches
 bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore);

@@ -52,9 +52,6 @@ namespace x86Emitter
 		return (s8)imm == (typename std::make_signed<T>::type)imm;
 	}
 
-	template <typename T>
-	void xWrite(T val);
-
 // --------------------------------------------------------------------------------------
 //  ALWAYS_USE_MOVAPS [define] / AlwaysUseMovaps [const]
 // --------------------------------------------------------------------------------------

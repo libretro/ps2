@@ -750,7 +750,7 @@ void SetBranchImm(u32 imm)
 	iBranchTest(imm);
 }
 
-u8* recBeginThunk()
+u8* recBeginThunk(void)
 {
 	// if recPtr reached the mem limit reset whole mem
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
@@ -758,12 +758,11 @@ u8* recBeginThunk()
 
 	xSetPtr(recPtr);
 	recPtr = xGetAlignedCallTarget();
-
-	x86Ptr = recPtr;
+	xSetPtr(recPtr);
 	return recPtr;
 }
 
-u8* recEndThunk()
+u8* recEndThunk(void)
 {
 	u8* block_end = x86Ptr;
 

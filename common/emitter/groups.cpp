@@ -46,7 +46,8 @@ namespace x86Emitter
 		{
 			xOpWrite(sibdest.GetPrefix16(), 0x80, InstType, sibdest, 1);
 
-			xWrite<s8>(imm);
+			*(s8*)x86Ptr = imm;
+			x86Ptr += sizeof(s8);
 		}
 		else
 		{
@@ -54,7 +55,10 @@ namespace x86Emitter
 			xOpWrite(sibdest.GetPrefix16(), opcode, InstType, sibdest, is_s8(imm) ? 1 : sibdest.GetImmSize());
 
 			if (is_s8(imm))
-				xWrite<s8>(imm);
+			{
+				*(s8*)x86Ptr = imm;
+				x86Ptr += sizeof(s8);
+			}
 			else
 				sibdest.xWriteImm(imm);
 		}
@@ -83,7 +87,8 @@ namespace x86Emitter
 		if (!to.Is8BitOp() && is_s8(imm))
 		{
 			xOpWrite(to.GetPrefix16(), 0x83, InstType, to);
-			xWrite<s8>(imm);
+			*(s8*)x86Ptr = imm;
+			x86Ptr += sizeof(s8);
 		}
 		else
 		{

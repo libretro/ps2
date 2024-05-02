@@ -168,7 +168,8 @@ namespace x86Emitter
 			xWrite8(0x0f);
 			xWrite8(0x80 | comparison);
 		}
-		xWrite<s32>(displacement);
+		*(s32*)x86Ptr = displacement;
+		x86Ptr += sizeof(s32);
 
 		return ((s32*)xGetPtr()) - 1;
 	}
@@ -180,7 +181,8 @@ namespace x86Emitter
 	__emitinline s8* xJcc8(JccComparisonType comparison, s8 displacement)
 	{
 		xWrite8((comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison));
-		xWrite<s8>(displacement);
+		*(s8*)x86Ptr = displacement;
+		x86Ptr += sizeof(s8);
 		return (s8*)xGetPtr() - 1;
 	}
 
