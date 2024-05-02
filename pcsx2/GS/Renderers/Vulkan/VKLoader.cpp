@@ -20,7 +20,7 @@
 #include <cstring>
 #include <string>
 
-#include "Common/Console.h"
+#include "common/Console.h"
 
 #include "VKLoader.h"
 
