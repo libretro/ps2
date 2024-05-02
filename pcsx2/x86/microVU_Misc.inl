@@ -568,7 +568,7 @@ alignas(__pagesize) u8 mVUsearchXMM[__pagesize];
 
 // Generates a custom optimized block-search function
 // Note: Structs must be 16-byte aligned! (GCC doesn't guarantee this)
-void mVUcustomSearch(void)
+static void mVUcustomSearch(void)
 {
 	PageProtectionMode mode;
 	mode.m_read  = true;

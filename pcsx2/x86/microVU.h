@@ -180,9 +180,9 @@ public:
 		fBlockEnd = fBlockList = nullptr;
 		quickLookup.clear();
 	};
-	microBlock* add(microBlock* pBlock)
+	microBlock* add(microVU& mVU, microBlock* pBlock)
 	{
-		microBlock* thisBlock = search(&pBlock->pState);
+		microBlock* thisBlock = search(mVU, &pBlock->pState);
 		if (!thisBlock)
 		{
 			u8 fullCmp = pBlock->pState.needExactMatch;
@@ -208,7 +208,7 @@ public:
 		}
 		return thisBlock;
 	}
-	__ri microBlock* search(microRegInfo* pState)
+	__ri microBlock* search(microVU& mVU, microRegInfo* pState)
 	{
 		if (pState->needExactMatch) // Needs Detailed Search (Exact Match of Pipeline State)
 		{

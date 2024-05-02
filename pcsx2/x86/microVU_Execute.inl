@@ -255,7 +255,28 @@ static void mVUGenerateCompareState(mV)
 {
 	mVU.compareStateF = xGetAlignedCallTarget();
 
-	if (!x86caps.hasAVX2)
+	if (x86caps.hasAVX2)
+	{
+		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
+		xVMOVUPS(ymm0, ptr[arg1reg]);
+		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg]);
+		xVPMOVMSKB(eax, ymm0);
+		xXOR(eax, 0xffffffff);
+		xForwardJNZ8 exitPoint;
+
+		xVMOVUPS(ymm0, ptr[arg1reg + 0x20]);
+		xVMOVUPS(ymm1, ptr[arg1reg + 0x40]);
+		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg + 0x20]);
+		xVPCMP.EQD(ymm1, ymm1, ptr[arg2reg + 0x40]);
+		xVPAND(ymm0, ymm0, ymm1);
+
+		xVPMOVMSKB(eax, ymm0);
+		xNOT(eax);
+
+		exitPoint.SetTarget();
+		xVZEROUPPER();
+	}
+	else
 	{
 		xMOVAPS  (xmm0, ptr32[arg1reg]);
 		xPCMP.EQD(xmm0, ptr32[arg2reg]);
@@ -284,27 +305,6 @@ static void mVUGenerateCompareState(mV)
 		xXOR(eax, 0xf);
 
 		exitPoint.SetTarget();
-	}
-	else
-	{
-		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
-		xVMOVUPS(ymm0, ptr[arg1reg]);
-		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg]);
-		xVPMOVMSKB(eax, ymm0);
-		xXOR(eax, 0xffffffff);
-		xForwardJNZ8 exitPoint;
-
-		xVMOVUPS(ymm0, ptr[arg1reg + 0x20]);
-		xVMOVUPS(ymm1, ptr[arg1reg + 0x40]);
-		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg + 0x20]);
-		xVPCMP.EQD(ymm1, ymm1, ptr[arg2reg + 0x40]);
-		xVPAND(ymm0, ymm0, ymm1);
-
-		xVPMOVMSKB(eax, ymm0);
-		xNOT(eax);
-
-		exitPoint.SetTarget();
-		xVZEROUPPER();
 	}
 
 	xRET();
