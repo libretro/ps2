@@ -2876,9 +2876,6 @@ __forceinline void GSState::HandleAutoFlush()
 		// Crossed page since last draw end
 		if (!tex_page.eq(last_tex_page) || m_texflush_flag)
 		{
-			const u32 frame_mask = GSLocalMemory::m_psm[m_context->TEX0.PSM].fmsk;
-			const bool frame_hit = (m_context->FRAME.Block() == m_context->TEX0.TBP0) && !(m_context->TEST.ATE && m_context->TEST.ATST == 0 && m_context->TEST.AFAIL == 2) && ((m_context->FRAME.FBMSK & frame_mask) != frame_mask);
-			const u32 frame_z_psm = frame_hit ? m_context->FRAME.PSM : m_context->ZBUF.PSM;
 			// Make sure the format matches, otherwise the coordinates aren't gonna match, so the draws won't intersect.
 			if (tex_psm.bpp == frame_psm.bpp && (m_context->FRAME.FBW == m_context->TEX0.TBW))
 			{
