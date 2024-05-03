@@ -321,7 +321,6 @@ static const char* s_gs_hw_fix_names[] = {
 	"disableDepthSupport",
 	"preloadFrameData",
 	"disablePartialInvalidation",
-	"partialTargetInvalidation",
 	"textureInsideRT",
 	"alignSprite",
 	"mergeSprite",
@@ -554,9 +553,6 @@ bool GameDatabaseSchema::GameEntry::configMatchesHWFix(const Pcsx2Config::GSOpti
 		case GSHWFixId::DisablePartialInvalidation:
 			return (static_cast<int>(config.UserHacks_DisablePartialInvalidation) == value);
 
-		case GSHWFixId::TargetPartialInvalidation:
-			return (static_cast<int>(config.UserHacks_TargetPartialInvalidation) == value);
-
 		case GSHWFixId::TextureInsideRT:
 			return (static_cast<int>(config.UserHacks_TextureInsideRt) == value);
 
@@ -694,10 +690,6 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 
 			case GSHWFixId::DisablePartialInvalidation:
 				config.UserHacks_DisablePartialInvalidation = (value > 0);
-				break;
-
-			case GSHWFixId::TargetPartialInvalidation:
-				config.UserHacks_TargetPartialInvalidation = (value > 0);
 				break;
 
 			case GSHWFixId::TextureInsideRT:
