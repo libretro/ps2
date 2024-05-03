@@ -20636,6 +20636,10 @@ SLES-53761:
 SLES-53763:
   name: "Tom Clancy's Ghost Recon - Advanced Warfighter"
   region: "PAL-M5"
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes building and ground colours.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-53764:
   name: "Atelier Iris - Eternal Mana"
   region: "PAL-E"
@@ -27197,6 +27201,10 @@ SLKA-25343:
 SLKA-25344:
   name: "Tom Clancy's Ghost Recon - Advanced Warfighter"
   region: "NTSC-K"
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes building and ground colours.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLKA-25345:
   name: "Disney's Chicken Little"
   region: "NTSC-K"
@@ -36406,6 +36414,10 @@ SLPM-66460:
 SLPM-66461:
   name: "Tom Clancy's Ghost Recon - Advanced Warfighter"
   region: "NTSC-J"
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes  building and ground colours.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-66462:
   name: "Disney-Pixar's Cars"
   region: "NTSC-J"
@@ -37797,6 +37809,10 @@ SLPM-66807:
 SLPM-66808:
   name: "Tom Clancy's Ghost Recon - Advanced Warfighter [Ubisoft the Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes  building and ground colours.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-66809:
   name: "Saishu Shiken Kujira - Alive"
   region: "NTSC-J"
@@ -52094,6 +52110,10 @@ SLUS-21422:
   name: "Tom Clancy's Ghost Recon - Advanced Warfighter"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes  building and ground colours.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-21423:
   name: "Grand Theft Auto - Liberty City Stories"
   region: "NTSC-U"
