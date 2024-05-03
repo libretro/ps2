@@ -931,16 +931,11 @@ PS_OUTPUT ps_main(PS_INPUT input)
 		if (PS_SHUFFLE_SAME)
 		{
 			if (PS_READ_BA)
-			{
-				C.ga = (float2)(float((denorm_c.b & 0x7Fu) | (denorm_c.a & 0x80u)));
-				C.rb = C.ga;
-			}
+				C = (float4)(float((denorm_c.b & 0x7Fu) | (denorm_c.a & 0x80u)));
 			else
-			{
 				C.ga = C.rg;
-				C.rb = C.ga;
-			}
 		}
+		// Copy of a 16bit source in to this target
 		else if (PS_READ16_SRC)
 		{
 			C.rb = (float2)float((denorm_c.r >> 3) | (((denorm_c.g >> 3) & 0x7u) << 5));
@@ -949,28 +944,22 @@ PS_OUTPUT ps_main(PS_INPUT input)
 			else
 				C.ga = (float2)float((denorm_c.g >> 6) | ((denorm_c.b >> 3) << 2) | (denorm_TA.x & 0x80u));
 		}
+		// Write RB part. Mask will take care of the correct destination
+		else if (PS_READ_BA)
+		{
+			C.rb = C.bb;
+			if (denorm_c.a & 0x80u)
+				C.ga = (float2)(float((denorm_c.a & 0x7Fu) | (denorm_TA.y & 0x80u)));
+			else
+				C.ga = (float2)(float((denorm_c.a & 0x7Fu) | (denorm_TA.x & 0x80u)));
+		}
 		else
 		{
-			// Mask will take care of the correct destination
-			if (PS_READ_BA)
-				C.rb = C.bb;
+			C.rb = C.rr;
+			if (denorm_c.g & 0x80u)
+				C.ga = (float2)(float((denorm_c.g & 0x7Fu) | (denorm_TA.y & 0x80u)));
 			else
-				C.rb = C.rr;
-
-			if (PS_READ_BA)
-			{
-				if (denorm_c.a & 0x80u)
-					C.ga = (float2)(float((denorm_c.a & 0x7Fu) | (denorm_TA.y & 0x80u)));
-				else
-					C.ga = (float2)(float((denorm_c.a & 0x7Fu) | (denorm_TA.x & 0x80u)));
-			}
-			else
-			{
-				if (denorm_c.g & 0x80u)
-					C.ga = (float2)(float((denorm_c.g & 0x7Fu) | (denorm_TA.y & 0x80u)));
-				else
-					C.ga = (float2)(float((denorm_c.g & 0x7Fu) | (denorm_TA.x & 0x80u)));
-			}
+				C.ga = (float2)(float((denorm_c.g & 0x7Fu) | (denorm_TA.x & 0x80u)));
 		}
 	}
 
