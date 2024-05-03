@@ -591,6 +591,8 @@ PCPX-96312:
 PCPX-96314:
   name: "The Sky Odyssey"
   region: "NTSC-J"
+  clampModes:
+    vu0ClampMode: 3 # Fixes runway line thickness on minimap.
 PCPX-96315:
   name: "Phase Paradox"
   region: "NTSC-J"
@@ -3869,6 +3871,8 @@ SCES-50034:
 SCES-50105:
   name: "Sky Odyssey"
   region: "PAL-M5"
+  clampModes:
+    vu0ClampMode: 3 # Fixes runway line thickness on minimap.
 SCES-50139:
   name: "World Rally Championship"
   region: "PAL-M7"
@@ -6881,6 +6885,8 @@ SCPS-15002:
 SCPS-15003:
   name: "Sky Odyssey"
   region: "NTSC-J"
+  clampModes:
+    vu0ClampMode: 3 # Fixes runway line thickness on minimap.
 SCPS-15004:
   name: "Dark Cloud"
   region: "NTSC-J"
@@ -44953,6 +44959,8 @@ SLUS-20134:
   name: "Sky Odyssey"
   region: "NTSC-U"
   compat: 5
+  clampModes:
+    vu0ClampMode: 3 # Fixes runway line thickness on minimap.
 SLUS-20136:
   name: "Barbarian"
   region: "NTSC-U"
