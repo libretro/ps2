@@ -25089,8 +25089,10 @@ SLES-55481:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
+    vu0ClampMode: 3 # Fixes bad dialog backgrounds.
     vu1ClampMode: 3 # Fixes SPS on characters.
 SLES-55482:
   name: "Naruto Shippuden - Ultimate Ninja 4"
@@ -25098,8 +25100,10 @@ SLES-55482:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
+    vu0ClampMode: 3 # Fixes bad dialog backgrounds.
     vu1ClampMode: 3 # Fixes SPS on characters.
 SLES-55483:
   name: "Guilty Gear XX Accent Core Plus"
@@ -25350,7 +25354,7 @@ SLES-55605:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects post processing position.
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
     vu0ClampMode: 3 # Fixes bad dialog backgrounds.
@@ -28700,8 +28704,10 @@ SLPM-61157:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
+    vu0ClampMode: 3 # Fixes bad dialog backgrounds.
     vu1ClampMode: 3 # Fixes SPS on characters.
 SLPM-62001:
   name: "Drum Mania"
@@ -38737,7 +38743,7 @@ SLPM-68019:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects post processing position.
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
     vu0ClampMode: 3 # Fixes bad dialog backgrounds.
@@ -43544,8 +43550,10 @@ SLPS-25768:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
+    vu0ClampMode: 3 # Fixes bad dialog backgrounds.
     vu1ClampMode: 3 # Fixes SPS on characters.
 SLPS-25769:
   name: "Netsu Chu! Pro Baseball 2007"
@@ -43783,7 +43791,7 @@ SLPS-25837:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
-    halfPixelOffset: 1 # Corrects post processing position.
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
     vu0ClampMode: 3 # Fixes bad dialog backgrounds.
@@ -54213,8 +54221,10 @@ SLUS-21862:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes vertical lines in FMVs.
   gsHWFixes:
+    roundSprite: 2 # Corrects post processing position + fixes subsequent runs of starter FMV vertical lines.
     cpuCLUTRender: 1 # Reduces the bloomy blur of characters.
   clampModes:
+    vu0ClampMode: 3 # Fixes bad dialog backgrounds.
     vu1ClampMode: 3 # Fixes SPS on characters.
 SLUS-21863:
   name: "Suzuki TT Superbikes - Real Road Racing Championship"
