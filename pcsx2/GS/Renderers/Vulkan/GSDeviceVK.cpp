@@ -1141,7 +1141,7 @@ bool GSDeviceVK::IsSuitableDefaultRenderer()
 
 	// Check the first GPU, should be enough.
 	const std::string& name = adapters.front();
-	Console.WriteLn(fmt::format("Using Vulkan GPU '{}' for automatic renderer check.", name));
+	Console.WriteLn("Using Vulkan GPU '{%s}' for automatic renderer check.", name);
 
 	// Any software rendering (LLVMpipe, SwiftShader).
 	if (       StringUtil::StartsWithNoCase(name, "llvmpipe")

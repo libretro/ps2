@@ -118,7 +118,6 @@ static const IConsoleWriter ConsoleWriter_Libretro =
 		RetroLog_DoWriteLn,
 		RetroLog_DoSetColor,
 
-		RetroLog_DoWrite,
 		RetroLog_Newline,
 };
 
@@ -176,27 +175,6 @@ bool IConsoleWriter::Warning(const char* fmt, ...) const
 	va_end(args);
 
 	return false;
-}
-
-bool IConsoleWriter::WriteLn(ConsoleColors color, const std::string& str) const
-{
-	return WriteLn(str);
-}
-
-bool IConsoleWriter::WriteLn(const std::string& str) const
-{
-	DoWriteLn(str.c_str());
-	return false;
-}
-
-bool IConsoleWriter::Error(const std::string& str) const
-{
-	return WriteLn(Color_StrongRed, str);
-}
-
-bool IConsoleWriter::Warning(const std::string& str) const
-{
-	return WriteLn(Color_StrongOrange, str);
 }
 
 IConsoleWriter Console = ConsoleWriter_Libretro;

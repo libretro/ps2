@@ -456,7 +456,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 	{
 		if (!FileSystem::FileExists(filename.c_str()))
 		{
-			Console.Error(fmt::format("Requested filename '{}' does not exist.", filename));
+			Console.Error("Requested filename '{%s}' does not exist.", filename);
 			return false;
 		}
 
@@ -487,7 +487,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	{
 		if (params.source_type.value() == CDVD_SourceType::Iso && !FileSystem::FileExists(params.filename.c_str()))
 		{
-			Console.Error(fmt::format("Requested filename '{}' does not exist.", params.filename));
+			Console.Error("Requested filename '{%s}' does not exist.", params.filename);
 			return false;
 		}
 
@@ -507,7 +507,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	{
 		if (!FileSystem::FileExists(s_elf_override.c_str()))
 		{
-			Console.Error(fmt::format("Requested boot ELF '{}' does not exist.", s_elf_override));
+			Console.Error("Requested boot ELF '{%s}' does not exist.", s_elf_override);
 			return false;
 		}
 
@@ -1091,7 +1091,7 @@ static void InitializeCPUInfo(void)
 
 		s_processor_list.push_back(procid);
 	}
-	Console.WriteLn(ss.str());
+	Console.WriteLn(ss.str().c_str());
 }
 
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)

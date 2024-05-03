@@ -25,7 +25,6 @@
 #include "DebugTools/SymbolMap.h"
 
 #include <ctype.h>
-#include <fmt/format.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "common/FileSystem.h"
@@ -182,9 +181,9 @@ namespace R3000A
 				!StringUtil::StartsWith(canonicalized_path, hostRoot) || // and start with the host root,
 				canonicalized_path[hostRoot.length()] != FS_OSPATH_SEPARATOR_CHARACTER) // and we can't access a sibling.
 			{
-				Console.Error(fmt::format(
-					"IopHLE: Denying access to path outside of ELF directory. Requested path: '{}', Resolved path: '{}', ELF directory: '{}'",
-					path, new_path, hostRoot));
+				Console.Error(
+					"IopHLE: Denying access to path outside of ELF directory. Requested path: '{%s}', Resolved path: '{%s}', ELF directory: '{%s}'",
+					path, new_path, hostRoot);
 				new_path.clear();
 			}
 		}

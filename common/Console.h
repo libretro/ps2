@@ -17,8 +17,6 @@
 
 #include "Pcsx2Defs.h"
 
-#include <string>
-
 enum ConsoleColors
 {
 	Color_Current = -1,
@@ -81,11 +79,6 @@ struct IConsoleWriter
 	// SetColor implementation for internal use only.
 	void(* DoSetColor)(ConsoleColors color);
 
-	// Special implementation of DoWrite that's pretty much for MSVC use only.
-	// All implementations should map to DoWrite, except Stdio which should map to Null.
-	// (This avoids circular/recursive stdio output)
-	void(* DoWriteFromStdout)(const char* fmt);
-
 	void(* Newline)();
 
 	// ----------------------------------------------------------------------------
@@ -99,11 +92,6 @@ struct IConsoleWriter
 	bool WriteLn(const char* fmt, ...) const;
 	bool Error(const char* fmt, ...) const;
 	bool Warning(const char* fmt, ...) const;
-
-	bool WriteLn(ConsoleColors color, const std::string& str) const;
-	bool WriteLn(const std::string& str) const;
-	bool Error(const std::string& str) const;
-	bool Warning(const std::string& str) const;
 };
 
 extern IConsoleWriter Console;

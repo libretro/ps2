@@ -60,12 +60,12 @@ const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 	if (crc == 0)
 		return nullptr;
 
-	Console.WriteLn(fmt::format("[GameDB] Searching for patch with CRC '{:08X}'", crc));
+	Console.WriteLn(fmt::format("[GameDB] Searching for patch with CRC '{:08X}'", crc).c_str());
 
 	auto it = patches.find(crc);
 	if (it != patches.end())
 	{
-		Console.WriteLn(fmt::format("[GameDB] Found patch with CRC '{:08X}'", crc));
+		Console.WriteLn(fmt::format("[GameDB] Found patch with CRC '{:08X}'", crc).c_str());
 		return &it->second;
 	}
 
@@ -179,7 +179,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 
 			if (!fixValidated)
 			{
-				Console.Error(fmt::format("[GameDB] Invalid gamefix: '{}', specified for serial: '{}'. Dropping!", fix, serial));
+				Console.Error("[GameDB] Invalid gamefix: '{%s}', specified for serial: '{%s}'. Dropping!", fix, serial);
 			}
 		}
 	}
@@ -201,7 +201,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			}
 			else
 			{
-				Console.Error(fmt::format("[GameDB] Invalid speedhack: '{}', specified for serial: '{}'. Dropping!", id_view, value_view));
+				Console.Error("[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%s}'. Dropping!", id_view, value_view);
 			}
 		}
 	}
@@ -227,7 +227,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 
 				if (value.value_or(-1) < 0)
 				{
-					Console.Error(fmt::format("[GameDB] Invalid GS HW Fix Value for '{}' in '{}': '{}'", id_name, serial, str_value));
+					Console.Error("[GameDB] Invalid GS HW Fix Value for '{%s}' in '{%s}': '{%s}'", id_name, serial, str_value);
 					continue;
 				}
 			}
@@ -237,7 +237,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			}
 			if (!id.has_value() || !value.has_value())
 			{
-				Console.Error(fmt::format("[GameDB] Invalid GS HW Fix: '{}' specified for serial '{}'. Dropping!", id_name, serial));
+				Console.Error("[GameDB] Invalid GS HW Fix: '{%s}' specified for serial '{%s}'. Dropping!", id_name, serial);
 				continue;
 			}
 
@@ -266,12 +266,12 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			const std::optional<u32> crc = (StringUtil::compareNoCase(crc_str, "default")) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
 			if (!crc.has_value())
 			{
-				Console.Error(fmt::format("[GameDB] Invalid CRC '{}' found for serial: '{}'. Skipping!", crc_str, serial));
+				Console.Error("[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!", crc_str, serial);
 				continue;
 			}
 			if (gameEntry.patches.find(crc.value()) != gameEntry.patches.end())
 			{
-				Console.Error(fmt::format("[GameDB] Duplicate CRC '{}' found for serial: '{}'. Skipping, CRCs are case-insensitive!", crc_str, serial));
+				Console.Error("[GameDB] Duplicate CRC '{%s}' found for serial: '{%s}'. Skipping, CRCs are case-insensitive!", crc_str, serial);
 				continue;
 			}
 
@@ -867,13 +867,13 @@ void GameDatabase::initDatabase()
 {
 	ryml::Callbacks rymlCallbacks = ryml::get_callbacks();
 	rymlCallbacks.m_error = [](const char* msg, size_t msg_len, ryml::Location loc, void*) {
-		Console.Error(fmt::format("[YAML] Parsing error at {}:{} (bufpos={}): {}",
-			loc.line, loc.col, loc.offset, msg));
+		Console.Error("[YAML] Parsing error at {%s}:{%s} (bufpos={%s}): {%s}",
+			loc.line, loc.col, loc.offset, msg);
 	};
 	ryml::set_callbacks(rymlCallbacks);
 	c4::set_error_callback([](const char* msg, size_t msg_size) {
-		Console.Error(fmt::format("[YAML] Internal Parsing error: {}",
-			msg));
+		Console.Error("[YAML] Internal Parsing error: {%s}",
+			msg);
 	});
 	auto buf = Host::ReadResourceFileToString(GAMEDB_YAML_FILE_NAME);
 	if (!buf.has_value())
@@ -895,7 +895,7 @@ void GameDatabase::initDatabase()
 		// However, YAML's keys are as expected case-sensitive, so we have to explicitly do our own duplicate checking
 		if (s_game_db.count(serial) == 1)
 		{
-			Console.Error(fmt::format("[GameDB] Duplicate serial '{}' found in GameDB. Skipping, Serials are case-insensitive!", serial));
+			Console.Error("[GameDB] Duplicate serial '{%s}' found in GameDB. Skipping, Serials are case-insensitive!", serial);
 			continue;
 		}
 		if (n.is_map())
@@ -908,7 +908,7 @@ void GameDatabase::initDatabase()
 void GameDatabase::ensureLoaded()
 {
 	std::call_once(s_load_once_flag, []() {
-		Console.WriteLn(fmt::format("[GameDB] Has not been initialized yet, initializing..."));
+		Console.WriteLn("[GameDB] Has not been initialized yet, initializing...");
 		initDatabase();
 		Console.WriteLn("[GameDB] %zu games on record", s_game_db.size());
 	});
