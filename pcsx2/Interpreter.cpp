@@ -384,13 +384,13 @@ static void intSafeExitExecution()
 		fastjmp_jmp(&intJmpBuf, 1);
 }
 
-static void intCancelInstruction()
+static void intCancelInstruction(void)
 {
 	// See execute function.
 	fastjmp_jmp(&intJmpBuf, 0);
 }
 
-static void intExecute()
+static void intExecute(void)
 {
 	enum ExecuteState {
 		RESET,
@@ -441,52 +441,37 @@ static void intExecute()
 					}
 				}
 				else if (cpuRegs.pc == g_eeloadExec)
-				{
 					eeloadHook2();
-				}
 
 				if (!g_GameLoading)
 					break;
 
 				state = GAME_LOADING;
-				[[fallthrough]];
+				// fallthrough
 			}
 
 		case GAME_LOADING:
+			if (ElfEntry != 0xFFFFFFFF)
 			{
-				if (ElfEntry != 0xFFFFFFFF)
+				do
 				{
-					do
-					{
-						execI();
-					} while (cpuRegs.pc != ElfEntry);
-					eeGameStarting();
-				}
-				state = GAME_RUNNING;
-				[[fallthrough]];
+					execI();
+				} while (cpuRegs.pc != ElfEntry);
+				eeGameStarting();
 			}
+			state = GAME_RUNNING;
+			// fallthrough
 
 		case GAME_RUNNING:
-			{
-				for (;;)
-					execI();
-			}
+			for (;;)
+				execI();
 			break;
 		}
 	}
 }
 
-static void intStep()
-{
-	execI();
-}
-
-static void intClear(u32 Addr, u32 Size)
-{
-}
-
-static void intShutdown() {
-}
+static void intClear(u32 Addr, u32 Size) { }
+static void intShutdown(void) { }
 
 R5900cpu intCpu =
 {
@@ -494,7 +479,6 @@ R5900cpu intCpu =
 	intShutdown,
 
 	intReset,
-	intStep,
 	intExecute,
 
 	intSafeExitExecution,

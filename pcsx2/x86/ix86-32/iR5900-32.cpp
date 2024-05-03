@@ -509,8 +509,6 @@ static void recShutdown(void)
 	s_nInstCacheSize = 0;
 }
 
-static void recStep(void) { }
-
 static void recSafeExitExecution(void)
 {
 	// If we're currently processing events, we can't safely jump out of the recompiler here, because we'll
@@ -2140,7 +2138,6 @@ R5900cpu recCpu = {
 	recShutdown,
 
 	recResetEE,
-	recStep,
 	recExecute,
 
 	recSafeExitExecution,

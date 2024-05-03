@@ -244,12 +244,6 @@ void InterpVU1::SetStartPC(u32 startPC)
 	VU1.start_pc = startPC;
 }
 
-void InterpVU1::Step()
-{
-	VU1.VI[REG_TPC].UL &= VU1_PROGMASK;
-	vu1Exec(&VU1);
-}
-
 void InterpVU1::Execute(u32 cycles)
 {
 	const int originalRounding = fegetround();
@@ -269,7 +263,8 @@ void InterpVU1::Execute(u32 cycles)
 			}
 			break;
 		}
-		Step();
+		VU1.VI[REG_TPC].UL &= VU1_PROGMASK;
+		vu1Exec(&VU1);
 	}
 	VU1.VI[REG_TPC].UL >>= 3;
 	VU1.nextBlockCycles = (VU1.cycle - cpuRegs.cycle) + 1;

@@ -61,7 +61,6 @@ public:
 	virtual void SetStartPC(u32 startPC)=0;
 	virtual void Execute(u32 cycles)=0;
 
-	virtual void Step()=0;
 	virtual void Clear(u32 Addr, u32 Size)=0;
 
 	// Executes a Block based on EE delta time (see VUmicro.cpp)
@@ -90,7 +89,6 @@ public:
 	void Shutdown() override {}
 	void Reset() override;
 
-	void Step() override;
 	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override {}
@@ -106,7 +104,6 @@ public:
 	void Reset() override;
 
 	void SetStartPC(u32 startPC) override;
-	void Step() override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override {}
 	void ResumeXGkick() override {}
@@ -125,7 +122,6 @@ public:
 	void Shutdown() override;
 
 	void Reset() override;
-	void Step() override;
 	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override;
@@ -140,7 +136,6 @@ public:
 	void Reserve();
 	void Shutdown() override;
 	void Reset() override;
-	void Step() override;
 	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override;

@@ -234,11 +234,6 @@ void InterpVU0::SetStartPC(u32 startPC)
 	VU0.start_pc = startPC;
 }
 
-void InterpVU0::Step()
-{
-	vu0Exec(&VU0);
-}
-
 void InterpVU0::Execute(u32 cycles)
 {
 	const int originalRounding = fegetround();

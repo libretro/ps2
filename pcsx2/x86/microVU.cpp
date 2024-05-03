@@ -355,10 +355,6 @@ void recMicroVU0::Reset()
 	mVUreset(microVU0, true);
 }
 
-void recMicroVU0::Step()
-{
-}
-
 void recMicroVU1::Reset()
 {
 	vu1Thread.WaitVU();
@@ -391,10 +387,6 @@ void recMicroVU0::Execute(u32 cycles)
 void recMicroVU1::SetStartPC(u32 startPC)
 {
 	VU1.start_pc = startPC;
-}
-
-void recMicroVU1::Step()
-{
 }
 
 void recMicroVU1::Execute(u32 cycles)
