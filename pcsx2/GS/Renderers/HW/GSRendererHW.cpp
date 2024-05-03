@@ -1674,7 +1674,7 @@ void GSRendererHW::Draw()
 			    (tex_is_rt && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].trbpp != 24)));
 	bool preserve_rt_color = preserve_rt_rgb || preserve_rt_alpha;
 	bool preserve_depth =
-		preserve_rt_color || (!no_ds && (!all_depth_tests_pass || !m_cached_ctx.DepthWrite() || m_cached_ctx.TEST.ATE));
+		not_writing_to_all || (!no_ds && (!all_depth_tests_pass || !m_cached_ctx.DepthWrite() || m_cached_ctx.TEST.ATE));
 
 	// SW CLUT Render enable.
 	bool force_preload   = GSConfig.PreloadFrameWithGSData;
@@ -1791,12 +1791,13 @@ void GSRendererHW::Draw()
 			height_invalid = false;
 		}
 
-		const bool is_zero_clear = (GetConstantDirectWriteMemClearColor() == 0 && !preserve_rt_color);
+		const bool is_zero_color_clear = (GetConstantDirectWriteMemClearColor() == 0 && !preserve_rt_color);
+		const bool is_zero_depth_clear = (GetConstantDirectWriteMemClearDepth() == 0 && !preserve_depth);
 
 
 		// If it's an invalid-sized draw, do the mem clear on the CPU, we don't want to create huge targets.
 		// If clearing to zero, don't bother creating the target. Games tend to clear more than they use, wasting VRAM/bandwidth.
-		if (is_zero_clear || height_invalid)
+		if (is_zero_color_clear || is_zero_depth_clear || height_invalid)
 		{
 			const u32 rt_end_bp = GSLocalMemory::GetUnwrappedEndBlockAddress(
 				m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, m_r);
@@ -1816,34 +1817,10 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 			GSTextureCache::DepthStencil, ds_end_bp)) == nullptr ||			 
 					m_r.rintersect(tgt->m_valid).eq(tgt->m_valid));
 
-			if (overwriting_whole_rt && overwriting_whole_ds && TryGSMemClear())
+			if (overwriting_whole_rt && overwriting_whole_ds &&
+				TryGSMemClear(no_rt, preserve_rt_color, is_zero_color_clear, rt_end_bp,
+					no_ds, preserve_depth, is_zero_depth_clear, ds_end_bp))
 			{
-				if (!no_rt)
-				{
-					g_texture_cache->InvalidateVideoMem(m_context->offset.fb, m_r, false);
-					g_texture_cache->InvalidateContainedTargets(GSLocalMemory::GetStartBlockAddress(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, m_r), rt_end_bp, m_cached_ctx.FRAME.PSM);
-				}
-
-				if (!no_ds && m_cached_ctx.ZBUF.ZMSK == 0)
-				{
-					g_texture_cache->InvalidateVideoMem(m_context->offset.zb, m_r, false);
-					g_texture_cache->InvalidateContainedTargets(
-						GSLocalMemory::GetStartBlockAddress(
-							m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.ZBUF.PSM, m_r),
-						ds_end_bp, m_cached_ctx.ZBUF.PSM);
-				}
-
-				if (!no_rt && is_zero_clear)
-				{
-					GSUploadQueue clear_queue;
-					clear_queue.draw = s_n;
-					clear_queue.rect = m_r;
-					clear_queue.blit.DBP = m_cached_ctx.FRAME.Block();
-					clear_queue.blit.DBW = m_cached_ctx.FRAME.FBW;
-					clear_queue.blit.DPSM = m_cached_ctx.FRAME.PSM;
-					clear_queue.zero_clear = true;
-					m_draw_transfers.push_back(clear_queue);
-				}
 				CleanupDraw(false);
 				return;
 			}
@@ -2065,8 +2042,15 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 			if (is_clear)
 			{
 				/* Clear draw with no target, skipping. */
+				const bool is_zero_color_clear = (GetConstantDirectWriteMemClearColor() == 0 && !preserve_rt_color);
+				const bool is_zero_depth_clear = (GetConstantDirectWriteMemClearDepth() == 0 && !preserve_depth);
+				const u32 rt_end_bp = GSLocalMemory::GetUnwrappedEndBlockAddress(
+					m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, m_r);
+				const u32 ds_end_bp = GSLocalMemory::GetUnwrappedEndBlockAddress(
+					m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.ZBUF.PSM, m_r);
+				TryGSMemClear(no_rt, preserve_rt_color, is_zero_color_clear, rt_end_bp,
+					no_ds, preserve_depth, is_zero_depth_clear, ds_end_bp);
 				CleanupDraw(true);
-				TryGSMemClear();
 				return;
 			}
 
@@ -5357,7 +5341,8 @@ bool GSRendererHW::TryTargetClear(GSTextureCache::Target* rt, GSTextureCache::Ta
 	return skip;
 }
 
-bool GSRendererHW::TryGSMemClear()
+bool GSRendererHW::TryGSMemClear(bool no_rt, bool preserve_rt, bool invalidate_rt, u32 rt_end_bp,
+	bool no_ds, bool preserve_z, bool invalidate_z, u32 ds_end_bp)
 {
 	if (!PrimitiveCoversWithoutGaps())
 		return false;
@@ -5367,22 +5352,44 @@ bool GSRendererHW::TryGSMemClear()
 	if (m_r.width() < ((static_cast<int>(m_cached_ctx.FRAME.FBW) - 1) * 64))
 		return false;
 
-	// Don't mem clear one of frame or z, only do both.
-	const u32 fmsk = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].fmsk;
-	const u32 fbmsk = (m_cached_ctx.FRAME.FBMSK & fmsk);
-	const bool clear_rt = (fbmsk & fmsk) != fmsk;
-	const bool clear_z = (m_cached_ctx.ZBUF.ZMSK == 0);
-	if ((clear_rt && ((fbmsk != 0 && (m_cached_ctx.FRAME.PSM != PSMCT32 || fbmsk != 0xFF000000u)) ||
-						 m_vt.m_eq.rgba != 0xFFFF)) ||
-		(clear_z && (m_cached_ctx.ZBUF.ZMSK != 0 && !m_vt.m_eq.z)))
-		return false;
-
-	if (clear_rt)
+	if (!no_rt && !preserve_rt)
+	{
 		ClearGSLocalMemory(m_context->offset.fb, m_r, GetConstantDirectWriteMemClearColor());
-	if (clear_z)
+
+		if (invalidate_rt)
+		{
+			g_texture_cache->InvalidateVideoMem(m_context->offset.fb, m_r, false);
+			g_texture_cache->InvalidateContainedTargets(
+				GSLocalMemory::GetStartBlockAddress(
+					m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM, m_r),
+				rt_end_bp, m_cached_ctx.FRAME.PSM);
+
+			GSUploadQueue clear_queue;
+			clear_queue.draw = s_n;
+			clear_queue.rect = m_r;
+			clear_queue.blit.DBP = m_cached_ctx.FRAME.Block();
+			clear_queue.blit.DBW = m_cached_ctx.FRAME.FBW;
+			clear_queue.blit.DPSM = m_cached_ctx.FRAME.PSM;
+			clear_queue.zero_clear = true;
+			m_draw_transfers.push_back(clear_queue);
+		}
+	}
+
+	if (!no_ds && !preserve_z)
+	{
 		ClearGSLocalMemory(m_context->offset.zb, m_r, m_vertex.buff[1].XYZ.Z);
-	
-	return true;
+
+		if (invalidate_z)
+		{
+			g_texture_cache->InvalidateVideoMem(m_context->offset.zb, m_r, false);
+			g_texture_cache->InvalidateContainedTargets(
+				GSLocalMemory::GetStartBlockAddress(
+					m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.ZBUF.PSM, m_r),
+				ds_end_bp, m_cached_ctx.ZBUF.PSM);
+		}
+	}
+
+	return ((invalidate_rt || no_rt) && (invalidate_z || no_ds));	
 }
 
 void GSRendererHW::ClearGSLocalMemory(const GSOffset& off, const GSVector4i& r, u32 vert_color)
@@ -5696,6 +5703,12 @@ u32 GSRendererHW::GetConstantDirectWriteMemClearColor() const
 		vert_color &= 0x80F8F8F8u;
 
 	return vert_color;
+}
+
+u32 GSRendererHW::GetConstantDirectWriteMemClearDepth() const
+{
+	const u32 max_z = (0xFFFFFFFF >> (GSLocalMemory::m_psm[m_cached_ctx.ZBUF.PSM].fmt * 8));
+	return std::min(m_vertex.buff[1].XYZ.Z, max_z);
 }
 
 bool GSRendererHW::IsReallyDithered() const
