@@ -1770,18 +1770,12 @@ void GSRendererHW::Draw()
 			m_context->offset.zb = m_mem.GetOffset(m_context->ZBUF.Block(), m_context->FRAME.FBW, m_context->ZBUF.PSM);
 	};
 
-	const auto cleanup_cancelled_draw = [&]() {
-		// Remove any RT source.
-		g_texture_cache->InvalidateTemporarySource();
-		cleanup_draw();
-	};
-
 	if (!GSConfig.UserHacks_DisableSafeFeatures && is_possible_mem_clear)
 	{
 		// We'll finish things off later.
 		if (IsStartingSplitClear())
 		{
-			cleanup_draw();
+			CleanupDraw(false);
 			return;
 		}
 
@@ -1839,7 +1833,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 						ds_end_bp, m_cached_ctx.ZBUF.PSM);
 				}
 
-				cleanup_draw();
+				CleanupDraw(false);
 				return;
 			}
 		}
@@ -1982,7 +1976,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 
 		if (unlikely(!src))
 		{
-			cleanup_cancelled_draw();
+			CleanupDraw(true);
 			return;
 		}
 
@@ -2005,7 +1999,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 				no_ds = no_ds || (zm != 0 && all_depth_tests_pass);
 				if (no_rt && no_ds)
 				{
-					cleanup_cancelled_draw();
+					CleanupDraw(true);
 					return;
 				}
 			}
@@ -2057,7 +2051,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 			if (is_clear)
 			{
 				/* Clear draw with no target, skipping. */
-				cleanup_cancelled_draw();
+				CleanupDraw(true);
 				TryGSMemClear();
 				return;
 			}
@@ -2067,7 +2061,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 
 			if (unlikely(!rt))
 			{
-				cleanup_cancelled_draw();
+				CleanupDraw(true);
 				return;
 			}
 		}
@@ -2090,7 +2084,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 
 		if (unlikely(!ds))
 		{
-			cleanup_cancelled_draw();
+			CleanupDraw(true);
 			return;
 		}
 	}
@@ -2154,7 +2148,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 			if (m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0)
 				g_texture_cache->InvalidateVideoMem(context->offset.fb, m_r, false);
 
-			cleanup_cancelled_draw();
+			CleanupDraw(true);
 			return;
 		}
 
@@ -2423,13 +2417,13 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 
 	if (m_oi && !m_oi(*this, rt ? rt->m_texture : nullptr, ds ? ds->m_texture : nullptr, src))
 	{
-		cleanup_cancelled_draw();
+		CleanupDraw(true);
 		return;
 	}
 
 	if (!OI_BlitFMV(rt, src, m_r))
 	{
-		cleanup_cancelled_draw();
+		CleanupDraw(true);
 		return;
 	}
 
@@ -2538,9 +2532,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 		g_texture_cache->Read(rt, m_r);
 #endif
 
-	//
-
-	cleanup_draw();
+	CleanupDraw(false);
 }
 
 /// Verifies assumptions we expect to hold about indices
@@ -4294,6 +4286,19 @@ void GSRendererHW::EmulateATST(float& AREF, GSHWDrawConfig::PSSelector& ps, bool
 	}
 }
 
+void GSRendererHW::CleanupDraw(bool invalidate_temp_src)
+{
+	// Remove any RT source.
+	if (invalidate_temp_src)
+		g_texture_cache->InvalidateTemporarySource();
+
+	// Restore offsets.
+	if ((m_context->FRAME.U32[0] ^ m_cached_ctx.FRAME.U32[0]) & 0x3f3f01ff)
+		m_context->offset.fb = m_mem.GetOffset(m_context->FRAME.Block(), m_context->FRAME.FBW, m_context->FRAME.PSM);
+	if ((m_context->ZBUF.U32[0] ^ m_cached_ctx.ZBUF.U32[0]) & 0x3f0001ff)
+		m_context->offset.zb = m_mem.GetOffset(m_context->ZBUF.Block(), m_context->FRAME.FBW, m_context->ZBUF.PSM);
+}
+
 void GSRendererHW::ResetStates()
 {
 	// We don't want to zero out the constant buffers, since fields used by the current draw could result in redundant uploads.
@@ -4822,7 +4827,10 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	if (!ate_first_pass)
 	{
 		if (!m_conf.alpha_second_pass.enable)
+		{
+			CleanupDraw(true);
 			return;
+		}
 
 		// RenderHW always renders first pass, replace first pass with second
 		memcpy(&m_conf.ps,        &m_conf.alpha_second_pass.ps,        sizeof(m_conf.ps));
