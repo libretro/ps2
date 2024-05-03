@@ -122,7 +122,7 @@ private:
 	
 	// We modify some of the context registers to optimize away unnecessary operations.
 	// Instead of messing with the real context, we copy them and use those instead.
-	struct
+	struct HWCachedCtx
 	{
 		GIFRegTEX0 TEX0;
 		GIFRegCLAMP CLAMP;
@@ -142,7 +142,7 @@ private:
 
 			return ZBUF.ZMSK == 0 && TEST.ZTE != 0; // ZTE == 0 is bug on the real hardware, write is blocked then
 		}
-	} m_cached_ctx;
+	};
 
 	// CRC Hacks
 	bool IsBadFrame();
@@ -173,6 +173,7 @@ private:
 	GSVector2i m_lod = {}; // Min & Max level of detail
 
 	GSHWDrawConfig m_conf = {};
+	HWCachedCtx m_cached_ctx;
 
 	// software sprite renderer state
 	std::vector<GSVertexSW> m_sw_vertex_buffer;
@@ -185,6 +186,7 @@ public:
 
 	__fi static GSRendererHW* GetInstance() { return static_cast<GSRendererHW*>(g_gs_renderer.get()); }
 
+	__fi HWCachedCtx* GetCachedCtx() { return &m_cached_ctx; }
 	void Destroy() override;
 
 	void UpdateRenderFixes() override;

@@ -2282,7 +2282,7 @@ GSTextureCache::RenderTarget, rt_end_bp)) == nullptr ||
 			rt->m_TEX0 = FRAME_TEX0;
 		}
 
-		if (ds && (!is_possible_mem_clear || ds->m_TEX0.PSM != ZBUF_TEX0.PSM))
+		if (ds && (!is_possible_mem_clear || ds->m_TEX0.PSM != ZBUF_TEX0.PSM || (rt && ds->m_TEX0.TBW != rt->m_TEX0.TBW)))
 			ds->m_TEX0 = ZBUF_TEX0;
 	}
 	else if (!m_texture_shuffle)
