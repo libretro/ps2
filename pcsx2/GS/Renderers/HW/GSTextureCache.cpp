@@ -1273,6 +1273,14 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 
 			if (bp == t->m_TEX0.TBP0)
 			{
+				// if It's an old target and it's being completely overwritten, kill it.
+				if (!preserve_rgb && !preserve_alpha && TEX0.TBW != t->m_TEX0.TBW && TEX0.TBW > 1 && t->m_age >= 1)
+				{
+					InvalidateSourcesFromTarget(t);
+					i = list.erase(i);
+					delete t;
+					continue;
+				}
 				list.MoveFront(i.Index());
 
 				dst = t;
