@@ -2327,7 +2327,7 @@ const int first_x = (v[0].XYZ.X + 8) >> 4;
 		// We need to adjust the size if it's a texture shuffle as we could end up making the RT twice the size.
 		if (rt && m_texture_shuffle && m_split_texture_shuffle_pages == 0)
 		{
-			if (new_size.x > rt->m_valid.z || new_size.y > rt->m_valid.w)
+			if ((new_size.x > rt->m_valid.z && m_vt.m_max.p.x == new_size.x) || (new_size.y > rt->m_valid.w && m_vt.m_max.p.y == new_size.y))
 			{
 				if (new_size.y <= rt->m_valid.w && (rt->m_TEX0.TBW != m_cached_ctx.FRAME.FBW))
 					new_size.x /= 2;
