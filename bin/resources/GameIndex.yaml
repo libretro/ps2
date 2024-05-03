@@ -18519,6 +18519,7 @@ SLES-53028:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues.
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLES-53029:
   name: "Hitman - Blood Money"
@@ -18526,6 +18527,7 @@ SLES-53029:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues.
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLES-53030:
   name: "Hitman - Blood Money"
@@ -18533,6 +18535,7 @@ SLES-53030:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues.
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLES-53031:
   name: "Hitman - Blood Money"
@@ -18540,6 +18543,7 @@ SLES-53031:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues.
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLES-53032:
   name: "Hitman - Blood Money"
@@ -18547,6 +18551,7 @@ SLES-53032:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues.
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLES-53035:
   name: "Masters of the Universe - He-Man - Defender of Greyskull"
@@ -50292,6 +50297,7 @@ SLUS-21108:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLUS-21109:
   name: "Drive to Survive"
@@ -55560,6 +55566,7 @@ SLUS-29191:
   clampModes:
     vuClampMode: 0 # Fixes bump mapping issues
   gsHWFixes:
+    textureInsideRT: 1 # Fixes post processing.
     getSkipCount: "GSC_HitmanBloodMoney"
 SLUS-29192:
   name: "Test Drive Unlimited [Public Beta Vol.1.0]"
