@@ -10918,6 +10918,12 @@ SLED-51186:
 SLED-51211:
   name: "Burnout 2 - Point of Impact [Demo]"
   region: "PAL-E"
+  compat: 5
+  gsHWFixes:
+    gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
+    autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
+    halfPixelOffset: 2 # Aligns bloom effect a little bit better when upscaled.
+    bilinearUpscale: 2 # Reduces color banding of the sun glare.
   roundModes:
     vu1RoundMode: 1 # Bright lights in cars.
 SLED-51212:
@@ -13748,6 +13754,11 @@ SLES-51044:
   name: "Burnout 2 - Point of Impact"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
+    autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
+    halfPixelOffset: 2 # Aligns bloom effect a little bit better when upscaled.
+    bilinearUpscale: 2 # Reduces color banding of the sun glare.
   roundModes:
     vu1RoundMode: 1 # Bright lights in cars.
 SLES-51045:
@@ -18295,6 +18306,11 @@ SLES-52968:
   name: "Burnout 2 - Point of Impact"
   region: "PAL-E"
   compat: 5
+  gsHWFixes:
+    gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
+    autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
+    halfPixelOffset: 2 # Aligns bloom effect a little bit better when upscaled.
+    bilinearUpscale: 2 # Reduces color banding of the sun glare.
   roundModes:
     vu1RoundMode: 1 # Bright lights in cars.
 SLES-52973:
@@ -26047,6 +26063,12 @@ SLKA-25038:
 SLKA-25039:
   name: "Burnout 2 - Point of Impact"
   region: "NTSC-K"
+  compat: 5
+  gsHWFixes:
+    gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
+    autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
+    halfPixelOffset: 2 # Aligns bloom effect a little bit better when upscaled.
+    bilinearUpscale: 2 # Reduces color banding of the sun glare.
   roundModes:
     vu1RoundMode: 1 # Bright lights in cars.
 SLKA-25041:
@@ -41896,6 +41918,12 @@ SLPS-25350:
 SLPS-25351:
   name: "Burnout 2 - Point of Impact"
   region: "NTSC-J"
+  compat: 5
+  gsHWFixes:
+    gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
+    autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
+    halfPixelOffset: 2 # Aligns bloom effect a little bit better when upscaled.
+    bilinearUpscale: 2 # Reduces color banding of the sun glare.
   roundModes:
     vu1RoundMode: 1 # Bright lights in cars.
 SLPS-25352:
@@ -47009,6 +47037,11 @@ SLUS-20497:
   name: "Burnout 2 - Point of Impact"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
+    autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
+    halfPixelOffset: 2 # Aligns bloom effect a little bit better when upscaled.
+    bilinearUpscale: 2 # Reduces color banding of the sun glare.
   roundModes:
     vu1RoundMode: 1 # Bright lights in cars.
 SLUS-20498:
