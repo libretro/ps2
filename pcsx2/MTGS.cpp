@@ -86,23 +86,6 @@ namespace MTGS
 	static Threading::UserspaceSemaphore s_open_or_close_done;
 };
 
-static inline void MemCopy_WrappedSrc(const u128* srcBase, uint& srcStart, uint srcSize, u128* dest, uint len)
-{
-	uint endpos = srcStart + len;
-	if (endpos < srcSize)
-	{
-		memcpy(dest, &srcBase[srcStart], len * 16);
-		srcStart += len;
-	}
-	else
-	{
-		uint firstcopylen = srcSize - srcStart;
-		memcpy(dest, &srcBase[srcStart], firstcopylen * 16);
-		srcStart = endpos % srcSize;
-		memcpy(dest + firstcopylen, srcBase, srcStart * 16);
-	}
-}
-
 const Threading::ThreadHandle& MTGS::GetThreadHandle() { return s_thread_handle; }
 bool MTGS::IsOpen() { return s_open_flag.load(std::memory_order_acquire); }
 
