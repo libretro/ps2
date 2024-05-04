@@ -15,7 +15,6 @@
 
 #pragma once
 #include "VU.h"
-#include "VUflags.h"
 
 #define float_to_int4(x)	((float)x * (1.0f / 0.0625f))
 #define float_to_int12(x)	((float)x * (1.0f / 0.000244140625f))

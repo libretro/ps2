@@ -1,18 +1,3 @@
-/*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2010  PCSX2 Dev Team
- *
- *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
- *  of the GNU Lesser General Public License as published by the Free Software Found-
- *  ation, either version 3 of the License, or (at your option) any later version.
- *
- *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- *  PURPOSE.  See the GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along with PCSX2.
- *  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include "PrecompiledHeader.h"
 #include "Common.h"
 #include "VUops.h"
@@ -21,6 +6,7 @@
 #include "MTVU.h"
 
 #include <cmath>
+#include <float.h>
 //Lower/Upper instructions can use that..
 #define _Ft_ ((VU->code >> 16) & 0x1F)  // The rt part of the instruction register
 #define _Fs_ ((VU->code >> 11) & 0x1F)  // The rd part of the instruction register
@@ -46,6 +32,59 @@
 
 alignas(16) static VECTOR RDzero;
 
+/*****************************************/
+/*          NEW FLAGS                    */ //By asadr. Thnkx F|RES :p
+/*****************************************/
+
+static __ri u32 VU_MAC_UPDATE( int shift, VURegs * VU, float f )
+{
+	u32 v = *(u32*)&f;
+	int exp = (v >> 23) & 0xff;
+	u32 s = v & 0x80000000;
+
+	if (s)
+		VU->macflag |= 0x0010<<shift;
+	else
+		VU->macflag &= ~(0x0010<<shift);
+
+	if( f == 0 )
+		VU->macflag = (VU->macflag & ~(0x1100<<shift)) | (0x0001<<shift);
+	else
+	{
+		switch(exp)
+		{
+			case 0:
+				VU->macflag = (VU->macflag&~(0x1000<<shift)) | (0x0101<<shift);
+				return s;
+			case 255:
+				VU->macflag = (VU->macflag&~(0x0101<<shift)) | (0x1000<<shift);
+				if (CHECK_VU_OVERFLOW((VU == &VU1) ? 1 : 0))
+					return s | 0x7f7fffff; /* max allowed */
+				break;
+			default:
+				VU->macflag = (VU->macflag & ~(0x1101<<shift));
+				break;
+		}
+	}
+	return v;
+}
+
+#define VU_MACx_UPDATE(VU, x) VU_MAC_UPDATE(3, VU, x)
+#define VU_MACy_UPDATE(VU, y) VU_MAC_UPDATE(2, VU, y)
+#define VU_MACz_UPDATE(VU, z) VU_MAC_UPDATE(1, VU, z)
+#define VU_MACw_UPDATE(VU, w) VU_MAC_UPDATE(0, VU, w)
+#define VU_MACx_CLEAR(VU) ((VU)->macflag &= ~(0x1111<<3))
+#define VU_MACy_CLEAR(VU) ((VU)->macflag &= ~(0x1111<<2))
+#define VU_MACz_CLEAR(VU) ((VU)->macflag &= ~(0x1111<<1))
+#define VU_MACw_CLEAR(VU) ((VU)->macflag &= ~(0x1111<<0))
+
+#define VU_STAT_UPDATE(VU) \
+	VU->statusflag = 0; \
+	if (VU->macflag & 0x000F) VU->statusflag = 0x1; \
+	if (VU->macflag & 0x00F0) VU->statusflag |= 0x2; \
+	if (VU->macflag & 0x0F00) VU->statusflag |= 0x4; \
+	if (VU->macflag & 0xF000) VU->statusflag |= 0x8
+
 static __ri bool _vuFMACflush(VURegs* VU)
 {
 	bool didflush = false;
@@ -53,7 +92,7 @@ static __ri bool _vuFMACflush(VURegs* VU)
 	for (int i = VU->fmacreadpos; VU->fmaccount > 0; i = (i + 1) & 3)
 	{
 		if ((VU->cycle - VU->fmac[i].sCycle) < VU->fmac[i].Cycle)
-			return didflush;
+			break;
 
 		// Clip flags (Affected by CLIP instruction)
 		if (VU->fmac[i].flagreg & (1 << REG_CLIP_FLAG))
@@ -83,7 +122,7 @@ static __ri bool _vuIALUflush(VURegs* VU)
 	for (int i = VU->ialureadpos; VU->ialucount > 0; i = (i + 1) & 3)
 	{
 		if ((VU->cycle - VU->ialu[i].sCycle) < VU->ialu[i].Cycle)
-			return didflush;
+			break;
 
 		VU->ialureadpos = (VU->ialureadpos + 1) & 3;
 		VU->ialucount--;
