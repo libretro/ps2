@@ -353,7 +353,7 @@ u16 ATA::Read16(u32 addr)
 			//DevCon.WriteLn("DEV9: *ATA_R_STATUS (Fallthough to ATA_R_ALT_STATUS)");
 			//Clear irqcause
 			dev9.irqcause &= ~ATA_INTR_INTRQ;
-			[[fallthrough]];
+			//fallthrough
 		case ATA_R_ALT_STATUS:
 			//DevCon.WriteLn("DEV9: *ATA_R_ALT_STATUS 16bit read at address % x, value % x, Active %s", addr, regStatus, (GetSelectedDevice() == 0) ? " True " : " False ");
 			//raise IRQ?

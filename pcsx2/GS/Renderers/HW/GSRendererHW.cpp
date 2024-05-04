@@ -2541,7 +2541,7 @@ bool GSRendererHW::VerifyIndices()
 		case GS_SPRITE_CLASS:
 			if (m_index.tail % 2 != 0)
 				return false;
-			[[fallthrough]];
+			//fallthrough
 		case GS_POINT_CLASS:
 			// Expect indices to be flat increasing
 			for (u32 i = 0; i < m_index.tail; i++)
@@ -3347,13 +3347,13 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 					clr_blend1_2 = false;
 					sw_blending |= true;
 				}
-				[[fallthrough]];
+				// fallthrough */
 			case AccBlendLevel::Full:
 				sw_blending |= ((m_conf.ps.blend_c == 1 || (blend_mix && (alpha_c2_high_one || alpha_c0_high_max_one))) && (m_prim_overlap == PRIM_OVERLAP_NO));
-				[[fallthrough]];
+				// fallthrough */
 			case AccBlendLevel::High:
 				sw_blending |= (!(clr_blend || blend_mix) && (m_prim_overlap == PRIM_OVERLAP_NO));
-				[[fallthrough]];
+				// fallthrough */
 			case AccBlendLevel::Medium:
 				// If prims don't overlap prefer full sw blend on blend_ad_alpha_masked cases.
 				if (blend_ad_alpha_masked && m_prim_overlap == PRIM_OVERLAP_NO)
@@ -3361,7 +3361,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 					accumulation_blend = false;
 					sw_blending |= true;
 				}
-				[[fallthrough]];
+				// fallthrough */
 			case AccBlendLevel::Basic:
 				// Disable accumulation blend when there is fbmask with no overlap, will be faster.
 				color_dest_blend   &= !fbmask_no_overlap;
@@ -3383,7 +3383,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 				sw_blending |= blend_mix;
 				// Disable dithering on blend mix.
 				m_conf.ps.dither &= !blend_mix;
-				[[fallthrough]];
+				// fallthrough */
 			case AccBlendLevel::Minimum:
 				break;
 		}

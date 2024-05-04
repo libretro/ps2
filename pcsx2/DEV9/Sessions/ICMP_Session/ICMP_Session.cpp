@@ -139,7 +139,7 @@ namespace Sessions
 				DevCon.WriteLn("DEV9: ICMP: Failed To Open ICMP Socket");
 				icmpConnectionKind = ICMP_Session::Ping::PingType::RAW;
 
-				[[fallthrough]];
+				//fallthrough
 
 			case (PingType::RAW):
 				icmpSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -156,7 +156,7 @@ namespace Sessions
 				}
 
 				DevCon.WriteLn("DEV9: ICMP: Failed To Open RAW Socket");
-				[[fallthrough]];
+				//fallthrough
 #endif
 			default:
 				Console.Error("DEV9: ICMP: Failed To Ping");

@@ -250,13 +250,11 @@ __fi bool dmacWrite32( u32 mem, mem32_t& value )
 						cpuRegs.interrupt &= ~(1 << DMAC_GIF);
 						break;
 					case 0xB0: // IPUFROM
-						[[fallthrough]];
+						//fallthrough
 					case 0xB4: // IPUTO
 						if ((mem & 0xff) == 0x20)
 							goto allow_write; // I'm so sorry
-						else
-							return false;
-						break;
+						return false;
 					case 0xD0: // SPRFROM
 						SPRFROMinterrupt();
 						cpuRegs.interrupt &= ~(1 << DMAC_FROM_SPR);

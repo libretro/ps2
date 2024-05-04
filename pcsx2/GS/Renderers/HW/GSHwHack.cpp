@@ -310,7 +310,7 @@ bool GSHwHack::GSC_BurnoutGames(GSRendererHW& r, int& skip)
 			// That way we don't risk confusing any other targets.
 			g_texture_cache->InvalidateVideoMemType(GSTextureCache::RenderTarget, bloom_fb.TBP0);
 			state = 4;
-			[[fallthrough]];
+			//fallthrough
 		}
 
 		case 4: // Skip until it's downsampled again.

@@ -350,7 +350,7 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 			break;
 		case 6:
 			ps1McState.checksum = ps1McState.sectorAddrMSB ^ ps1McState.sectorAddrLSB;
-			[[fallthrough]];
+			/* fallthrough */
 		default:
 			ps1McState.buf[ps1McState.currentByte - 6] = data;
 			ps1McState.checksum ^= data;

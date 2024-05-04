@@ -324,7 +324,7 @@ void MFC0()
 				cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
 				if( !_Rt_ ) break;
 			}
-			[[fallthrough]];
+			//fallthrough
 
 		default:
 			cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.CP0.r[_Rd_];
