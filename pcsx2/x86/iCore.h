@@ -300,8 +300,6 @@ static __fi bool FPUINST_RENAMETEST(u32 reg)
 
 extern _xmmregs xmmregs[iREGCNT_XMM], s_saveXMMregs[iREGCNT_XMM];
 
-extern thread_local u8* j8Ptr[32];   // depreciated item.  use local u8* vars instead.
-
 extern u16 g_x86AllocCounter;
 
 // allocates only if later insts use this register

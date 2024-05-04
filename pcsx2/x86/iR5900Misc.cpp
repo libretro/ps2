@@ -66,21 +66,6 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelay
 
 namespace OpcodeImpl {
 
-////////////////////////////////////////////////////
-//static void recCACHE() {
-//	xMOV(ptr32[&cpuRegs.code], cpuRegs.code );
-//	xMOV(ptr32[&cpuRegs.pc], pc );
-//	iFlushCall(FLUSH_EVERYTHING);
-//	xFastCall((void*)(uptr)CACHE );
-//	//branch = 2;
-//
-//	xCMP(ptr32[(u32*)((int)&cpuRegs.pc)], pc);
-//	j8Ptr[0] = JE8(0);
-//	xRET();
-//	x86SetJ8(j8Ptr[0]);
-//}
-
-
 void recPREF()
 {
 }

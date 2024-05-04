@@ -1118,19 +1118,19 @@ void rpsxSYSCALL(void)
 	xFastCall((void*)psxException, 0x20, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	j8Ptr[0] = JE8(0);
+	u8 *j8Ptr = JE8(0);
 
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
 
 	// jump target for skipping blockCycle updates
-	x86SetJ8(j8Ptr[0]);
+	x86SetJ8(j8Ptr);
 
 	//if (!psxbranch) psxbranch = 2;
 }
 
-void rpsxBREAK()
+void rpsxBREAK(void)
 {
 	xMOV(ptr32[&psxRegs.code], psxRegs.code);
 	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
@@ -1141,11 +1141,11 @@ void rpsxBREAK()
 	xFastCall((void*)psxException, 0x24, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	j8Ptr[0] = JE8(0);
+	u8 *j8Ptr = JE8(0);
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
-	x86SetJ8(j8Ptr[0]);
+	x86SetJ8(j8Ptr);
 
 	//if (!psxbranch) psxbranch = 2;
 }

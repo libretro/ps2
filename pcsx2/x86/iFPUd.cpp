@@ -350,6 +350,7 @@ FPURECOMPILE_CONSTCODE(ABS_S, XMMINFO_WRITED | XMMINFO_READS);
 //------------------------------------------------------------------
 void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten, they are floats
 {
+	u8 *j8Ptr0, *j8Ptr1, *j8Ptr2, *j8Ptr3, *j8Ptr4, *j8Ptr5, *j8Ptr6;
 	const int xmmtemp = _allocTempXMMreg(XMMT_FPS); //temporary for anding with regd/regt
 	xMOVD(ecx, xRegisterSSE(tempd)); //receives regd
 	xMOVD(eax, xRegisterSSE(tempt)); //receives regt
@@ -362,12 +363,12 @@ void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten, they a
 
 	xSUB(ecx, eax); //tempecx = exponent difference
 	xCMP(ecx, 25);
-	j8Ptr[0] = JGE8(0);
+	j8Ptr0 = JGE8(0);
 	xCMP(ecx, 0);
-	j8Ptr[1] = JG8(0);
-	j8Ptr[2] = JE8(0);
+	j8Ptr1 = JG8(0);
+	j8Ptr2 = JE8(0);
 	xCMP(ecx, -25);
-	j8Ptr[3] = JLE8(0);
+	j8Ptr3 = JLE8(0);
 
 	//diff = -24 .. -1 , expd < expt
 	xNEG(ecx);
@@ -376,32 +377,32 @@ void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten, they a
 	xSHL(eax, cl); //temp2 = 0xffffffff << tempecx
 	xMOVDZX(xRegisterSSE(xmmtemp), eax);
 	xAND.PS(xRegisterSSE(tempd), xRegisterSSE(xmmtemp));
-	j8Ptr[4] = JMP8(0);
+	j8Ptr4 = JMP8(0);
 
-	x86SetJ8(j8Ptr[0]);
+	x86SetJ8(j8Ptr0);
 	//diff = 25 .. 255 , expt < expd
 	xAND.PS(xRegisterSSE(tempt), ptr[s_const.neg]);
-	j8Ptr[5] = JMP8(0);
+	j8Ptr5 = JMP8(0);
 
-	x86SetJ8(j8Ptr[1]);
+	x86SetJ8(j8Ptr1);
 	//diff = 1 .. 24, expt < expd
 	xDEC(ecx);
 	xMOV(eax, 0xffffffff);
 	xSHL(eax, cl); //temp2 = 0xffffffff << tempecx
 	xMOVDZX(xRegisterSSE(xmmtemp), eax);
 	xAND.PS(xRegisterSSE(tempt), xRegisterSSE(xmmtemp));
-	j8Ptr[6] = JMP8(0);
+	j8Ptr6 = JMP8(0);
 
-	x86SetJ8(j8Ptr[3]);
+	x86SetJ8(j8Ptr3);
 	//diff = -255 .. -25, expd < expt
 	xAND.PS(xRegisterSSE(tempd), ptr[s_const.neg]);
 
-	x86SetJ8(j8Ptr[2]);
+	x86SetJ8(j8Ptr2);
 	//diff == 0
 
-	x86SetJ8(j8Ptr[4]);
-	x86SetJ8(j8Ptr[5]);
-	x86SetJ8(j8Ptr[6]);
+	x86SetJ8(j8Ptr4);
+	x86SetJ8(j8Ptr5);
+	x86SetJ8(j8Ptr6);
 
 	_freeXMMreg(xmmtemp);
 }
@@ -502,42 +503,45 @@ void recCMP(int info)
 //------------------------------------------------------------------
 void recC_EQ_xmm(int info)
 {
+	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr[0] = JZ8(0);
-		xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-		j8Ptr[1] = JMP8(0);
-	x86SetJ8(j8Ptr[0]);
-		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
-	x86SetJ8(j8Ptr[1]);
+	j8Ptr0 = JZ8(0);
+	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	j8Ptr1 = JMP8(0);
+	x86SetJ8(j8Ptr0);
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+	x86SetJ8(j8Ptr1);
 }
 
 FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
 
 void recC_LE_xmm(int info)
 {
+	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr[0] = JBE8(0);
-		xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-		j8Ptr[1] = JMP8(0);
-	x86SetJ8(j8Ptr[0]);
-		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
-	x86SetJ8(j8Ptr[1]);
+	j8Ptr0 = JBE8(0);
+	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	j8Ptr1 = JMP8(0);
+	x86SetJ8(j8Ptr0);
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+	x86SetJ8(j8Ptr1);
 }
 
 FPURECOMPILE_CONSTCODE(C_LE, XMMINFO_READS | XMMINFO_READT);
 
 void recC_LT_xmm(int info)
 {
+	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr[0] = JB8(0);
-		xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-		j8Ptr[1] = JMP8(0);
-	x86SetJ8(j8Ptr[0]);
-		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
-	x86SetJ8(j8Ptr[1]);
+	j8Ptr0 = JB8(0);
+	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	j8Ptr1 = JMP8(0);
+	x86SetJ8(j8Ptr0);
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+	x86SetJ8(j8Ptr1);
 }
 
 FPURECOMPILE_CONSTCODE(C_LT, XMMINFO_READS | XMMINFO_READT);
