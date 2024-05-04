@@ -183,7 +183,7 @@ namespace R3000A
 			{
 				Console.Error(
 					"IopHLE: Denying access to path outside of ELF directory. Requested path: '{%s}', Resolved path: '{%s}', ELF directory: '{%s}'",
-					path, new_path, hostRoot);
+					path.c_str(), new_path.c_str(), hostRoot.c_str());
 				new_path.clear();
 			}
 		}
