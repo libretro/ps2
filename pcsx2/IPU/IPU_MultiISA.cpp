@@ -1102,7 +1102,7 @@ __ri static bool mpeg2sliceIDEC(void)
 				{
 					ready_to_decode = false;
 					CPU_INT(IPU_PROCESS, 64); // Should probably be much higher, but myst 3 doesn't like it right now.
-					ipu_cmd.pos[0] = 2;
+					ipu_cmd.pos[1] = 2;
 					return false;
 				}
 
@@ -1488,6 +1488,7 @@ __fi static bool mpeg2_slice(void)
 	{
 		if (ready_to_decode == true)
 		{
+			ipu_cmd.pos[0]  = 3;
 			ready_to_decode = false;
 			CPU_INT(IPU_PROCESS, 64); // Should probably be much higher, but myst 3 doesn't like it right now.
 			return false;
