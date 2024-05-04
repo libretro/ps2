@@ -1899,6 +1899,10 @@ GSTextureCache::Target* GSTextureCache::CreateTarget(GIFRegTEX0 TEX0, const GSVe
 {
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 
+	// Avoid making garbage targets (usually PCRTC).
+	if (GSVector4i::loadh(size).rempty())
+		return nullptr;
+
 	Target* dst = Target::Create(TEX0, size.x, size.y, scale, type, true);
 
 	const bool was_clear = PreloadTarget(TEX0, size, valid_size, is_frame, preload, preserve_target, draw_rect, dst, src);
@@ -4950,6 +4954,7 @@ GSTextureCache::Target::Target(GIFRegTEX0 TEX0, int type, const GSVector2i& unsc
 	, m_valid(GSVector4i::zero())
 {
 	m_TEX0 = TEX0;
+	m_end_block = m_TEX0.TBP0;
 	m_unscaled_size = unscaled_size;
 	m_scale = scale;
 	m_texture = texture;
