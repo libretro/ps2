@@ -951,19 +951,6 @@ bool GSHwHack::OI_DBZBTGames(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTe
 	return false; // Skip current draw
 }
 
-bool GSHwHack::OI_FFX(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)
-{
-	const u32 FBP = RFRAME.Block();
-	const u32 ZBP = RZBUF.Block();
-	const u32 TBP = RTEX0.TBP0;
-
-	// random battle transition (z buffer written directly, clear it now)
-	if (ds && (FBP == 0x00d00 || FBP == 0x00000) && ZBP == 0x02100 && RPRIM->TME && TBP == 0x01a00 && RTEX0.PSM == PSMCT16S)
-		g_gs_device->ClearDepth(ds, 0.0f);
-
-	return true;
-}
-
 bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTexture* ds, GSTextureCache::Source* t)
 {
 	if (!RPRIM->TME)
@@ -1439,7 +1426,6 @@ const GSHwHack::Entry<GSRendererHW::GSC_Ptr> GSHwHack::s_get_skip_count_function
 const GSHwHack::Entry<GSRendererHW::OI_Ptr> GSHwHack::s_before_draw_functions[] = {
 	CRC_F(OI_PointListPalette),
 	CRC_F(OI_DBZBTGames),
-	CRC_F(OI_FFX),
 	CRC_F(OI_RozenMaidenGebetGarden),
 	CRC_F(OI_SonicUnleashed),
 	CRC_F(OI_ArTonelico2),
