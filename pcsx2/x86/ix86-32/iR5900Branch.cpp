@@ -19,8 +19,6 @@
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
 
-static thread_local u32* j32Ptr;
-
 using namespace x86Emitter;
 
 namespace R5900::Dynarec::OpcodeImpl
@@ -150,8 +148,7 @@ static void recBEQ_process(int process)
 	else
 	{
 		const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
-
-		j32Ptr = recSetBranchEQ(0, process);
+		u32 *j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
 		{
@@ -215,7 +212,7 @@ static void recBNE_process(int process)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
 
-	j32Ptr = recSetBranchEQ(1, process);
+	u32 *j32Ptr = recSetBranchEQ(1, process);
 
 	if (!swap)
 	{
@@ -268,7 +265,7 @@ static void recBEQL_const(void)
 static void recBEQL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	j32Ptr = recSetBranchEQ(0, process);
+	u32 *j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -311,7 +308,7 @@ static void recBNEL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
-	j32Ptr = recSetBranchEQ(0, process);
+	u32 *j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	SetBranchImm(pc + 4);
@@ -360,7 +357,7 @@ void recBLTZAL(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 
-	j32Ptr = recSetBranchL(1);
+	u32 *j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -407,7 +404,7 @@ void recBGEZAL(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 
-	j32Ptr = recSetBranchL(0);
+	u32 *j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -454,7 +451,7 @@ void recBLTZALL(void)
 		return;
 	}
 
-	j32Ptr = recSetBranchL(1);
+	u32 *j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -490,7 +487,7 @@ void recBGEZALL(void)
 		return;
 	}
 
-	j32Ptr = recSetBranchL(0);
+	u32 *j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -527,7 +524,7 @@ void recBLEZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr = JG32(0);
+	u32 *j32Ptr = JG32(0);
 
 	if (!swap)
 	{
@@ -574,7 +571,7 @@ void recBGTZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr = JLE32(0);
+	u32 *j32Ptr = JLE32(0);
 
 	if (!swap)
 	{
@@ -614,7 +611,7 @@ void recBLTZ(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 	_eeFlushAllDirty();
-	j32Ptr = recSetBranchL(1);
+	u32 *j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -655,7 +652,7 @@ void recBGEZ(void)
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 	_eeFlushAllDirty();
 
-	j32Ptr = recSetBranchL(0);
+	u32 *j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -696,7 +693,7 @@ void recBLTZL(void)
 	}
 
 	_eeFlushAllDirty();
-	j32Ptr = recSetBranchL(1);
+	u32 *j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -727,7 +724,7 @@ void recBGEZL(void)
 	}
 
 	_eeFlushAllDirty();
-	j32Ptr = recSetBranchL(0);
+	u32 *j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -771,7 +768,7 @@ void recBLEZL(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr = JG32(0);
+	u32 *j32Ptr = JG32(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -809,7 +806,7 @@ void recBGTZL(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr = JLE32(0);
+	u32 *j32Ptr = JLE32(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
