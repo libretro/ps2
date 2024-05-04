@@ -2515,9 +2515,14 @@ GSState::PRIM_OVERLAP GSState::PrimitiveOverlap()
 	if (m_vertex.next < 4)
 		return PRIM_OVERLAP_NO;
 
+/*
+        // TEMPORARY HACK FOR WORKING AROUND ISSUE INTRODUCED IN COMMIT
+	// Backport GS/HW: Assume primitive does not overlap if it is a single quad
+	// - Without this, God of War first level would output green, and P4 blending on
+	// title screen would not be correct 
 	if (m_vt.m_primclass == GS_SPRITE_CLASS)
 		return (m_index.tail == 6 && TrianglesAreQuads()) ? PRIM_OVERLAP_NO : PRIM_OVERLAP_UNKNOW;
-	else if (m_vt.m_primclass != GS_SPRITE_CLASS)
+	else*/ if (m_vt.m_primclass != GS_SPRITE_CLASS)
 		return PRIM_OVERLAP_UNKNOW; // maybe, maybe not
 
 	// Check intersection of sprite primitive only
