@@ -908,7 +908,7 @@ static void recShutdown(void)
 static void iopClearRecLUT(BASEBLOCK* base, int count)
 {
 	for (int i = 0; i < count; i++)
-		base[i].SetFnptr((uptr)iopJITCompile);
+		base[i].m_pFnptr = ((uptr)iopJITCompile);
 }
 
 static __noinline s32 recExecuteBlock(s32 eeCycles)
@@ -943,8 +943,7 @@ static __fi u32 psxRecClearMem(u32 pc)
 	BASEBLOCK* pblock;
 
 	pblock = PSX_GETBLOCK(pc);
-	// if ((u8*)iopJITCompile == pblock->GetFnptr())
-	if (pblock->GetFnptr() == (uptr)iopJITCompile)
+	if (pblock->m_pFnptr == (uptr)iopJITCompile)
 		return 4;
 
 	pc = HWADDR(pc);
@@ -1212,7 +1211,7 @@ static void iopRecRecompile(const u32 startpc)
 
 	psxbranch = 0;
 
-	s_pCurBlock->SetFnptr((uptr)x86Ptr);
+	s_pCurBlock->m_pFnptr = ((uptr)x86Ptr);
 	s_psxBlockCycles = 0;
 
 	// reset recomp state variables
@@ -1236,7 +1235,7 @@ static void iopRecRecompile(const u32 startpc)
 	for (;;)
 	{
 		BASEBLOCK* pblock = PSX_GETBLOCK(i);
-		if (i != startpc && pblock->GetFnptr() != (uptr)iopJITCompile && pblock->GetFnptr() != (uptr)iopJITCompileInBlock)
+		if (i != startpc && pblock->m_pFnptr != (uptr)iopJITCompile && pblock->m_pFnptr != (uptr)iopJITCompileInBlock)
 		{
 			// branch = 3
 			willbranch3 = 1;
@@ -1345,8 +1344,8 @@ StartRecomp:
 
 	for (i = 1; i < (u32)s_pCurBlockEx->size; ++i)
 	{
-		if (s_pCurBlock[i].GetFnptr() == (uptr)iopJITCompile)
-			s_pCurBlock[i].SetFnptr((uptr)iopJITCompileInBlock);
+		if (s_pCurBlock[i].m_pFnptr == (uptr)iopJITCompile)
+			s_pCurBlock[i].m_pFnptr = ((uptr)iopJITCompileInBlock);
 	}
 
 	if (!(psxpc & 0x10000000))

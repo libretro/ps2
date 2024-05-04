@@ -386,7 +386,7 @@ static void _DynGen_Dispatchers(void)
 static __ri void ClearRecLUT(BASEBLOCK* base, int memsize)
 {
 	for (int i = 0; i < memsize / (int)sizeof(uptr); i++)
-		base[i].SetFnptr((uptr)JITCompile);
+		base[i].m_pFnptr = ((uptr)JITCompile);
 }
 
 static void recReserve(void)
@@ -650,7 +650,7 @@ static void recClear(u32 addr, u32 size)
 		upperextent = std::max(upperextent, blockend);
 		// This might end up inside a block that doesn't contain the clearing range,
 		// so set it to recompile now.  This will become JITCompile if we clear it.
-		pblock->SetFnptr((uptr)JITCompileInBlock);
+		pblock->m_pFnptr = ((uptr)JITCompileInBlock);
 
 		blockidx--;
 	}
@@ -1794,7 +1794,7 @@ static void recRecompile(const u32 startpc)
 				break;
 			}
 
-			if (pblock->GetFnptr() != (uptr)JITCompile && pblock->GetFnptr() != (uptr)JITCompileInBlock)
+			if (pblock->m_pFnptr != (uptr)JITCompile && pblock->m_pFnptr != (uptr)JITCompileInBlock)
 			{
 				willbranch3 = 1;
 				s_nEndBlock = i;
@@ -2078,12 +2078,12 @@ StartRecomp:
 		memcpy(&recRAMCopy[HWADDR(startpc) / 4], PSM(startpc), pc - startpc);
 	}
 
-	s_pCurBlock->SetFnptr((uptr)recPtr);
+	s_pCurBlock->m_pFnptr = ((uptr)recPtr);
 
 	for (i = 1; i < (u32)s_pCurBlockEx->size; i++)
 	{
-		if ((uptr)JITCompile == s_pCurBlock[i].GetFnptr())
-			s_pCurBlock[i].SetFnptr((uptr)JITCompileInBlock);
+		if ((uptr)JITCompile == s_pCurBlock[i].m_pFnptr)
+			s_pCurBlock[i].m_pFnptr = (uptr)JITCompileInBlock;
 	}
 
 	if (!(pc & 0x10000000))
