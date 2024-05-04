@@ -19,6 +19,8 @@
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
 
+static thread_local u32* j32Ptr;
+
 using namespace x86Emitter;
 
 namespace R5900::Dynarec::OpcodeImpl
@@ -92,9 +94,9 @@ static void recSetBranchEQ(int bne, int process)
 	}
 
 	if (bne)
-		j32Ptr[0] = JE32(0);
+		j32Ptr = JE32(0);
 	else
-		j32Ptr[0] = JNE32(0);
+		j32Ptr = JNE32(0);
 }
 
 static void recSetBranchL(int ltz)
@@ -109,9 +111,9 @@ static void recSetBranchL(int ltz)
 		xTEST(al, 2);
 
 		if (ltz)
-			j32Ptr[0] = JZ32(0);
+			j32Ptr = JZ32(0);
 		else
-			j32Ptr[0] = JNZ32(0);
+			j32Ptr = JNZ32(0);
 
 		return;
 	}
@@ -122,9 +124,9 @@ static void recSetBranchL(int ltz)
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
 	if (ltz)
-		j32Ptr[0] = JGE32(0);
+		j32Ptr = JGE32(0);
 	else
-		j32Ptr[0] = JL32(0);
+		j32Ptr = JL32(0);
 }
 
 //// BEQ
@@ -164,7 +166,7 @@ static void recBEQ_process(int process)
 
 		SetBranchImm(branchTo);
 
-		x86SetJ32(j32Ptr[0]);
+		x86SetJ32(j32Ptr);
 
 		if (!swap)
 		{
@@ -228,7 +230,7 @@ static void recBNE_process(int process)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -277,7 +279,7 @@ static void recBEQL_process(int process)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -319,7 +321,7 @@ static void recBNEL_process(int process)
 	SaveBranchState();
 	SetBranchImm(pc + 4);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	// recopy the next inst
 	LoadBranchState();
@@ -373,7 +375,7 @@ void recBLTZAL(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -420,7 +422,7 @@ void recBGEZAL(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -463,7 +465,7 @@ void recBLTZALL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -499,7 +501,7 @@ void recBGEZALL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -530,7 +532,7 @@ void recBLEZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr[0] = JG32(0);
+	j32Ptr = JG32(0);
 
 	if (!swap)
 	{
@@ -540,7 +542,7 @@ void recBLEZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -577,7 +579,7 @@ void recBGTZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr[0] = JLE32(0);
+	j32Ptr = JLE32(0);
 
 	if (!swap)
 	{
@@ -587,7 +589,7 @@ void recBGTZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -627,7 +629,7 @@ void recBLTZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -668,7 +670,7 @@ void recBGEZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	if (!swap)
 	{
@@ -705,7 +707,7 @@ void recBLTZL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -736,7 +738,7 @@ void recBGEZL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -774,13 +776,13 @@ void recBLEZL(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr[0] = JG32(0);
+	j32Ptr = JG32(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -812,13 +814,13 @@ void recBGTZL(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	j32Ptr[0] = JLE32(0);
+	j32Ptr = JLE32(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr[0]);
+	x86SetJ32(j32Ptr);
 
 	LoadBranchState();
 	SetBranchImm(pc);
