@@ -52,7 +52,7 @@ REC_SYS_DEL(BGEZALL, 31);
 
 #else
 
-static void recSetBranchEQ(int bne, int process)
+static u32 *recSetBranchEQ(int bne, int process)
 {
 	// TODO(Stenzek): This is suboptimal if the registers are in XMMs.
 	// If the constant register is already in a host register, we don't need the immediate...
@@ -94,12 +94,11 @@ static void recSetBranchEQ(int bne, int process)
 	}
 
 	if (bne)
-		j32Ptr = JE32(0);
-	else
-		j32Ptr = JNE32(0);
+		return JE32(0);
+	return JNE32(0);
 }
 
-static void recSetBranchL(int ltz)
+static u32 *recSetBranchL(int ltz)
 {
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	const int regsxmm = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
@@ -111,11 +110,8 @@ static void recSetBranchL(int ltz)
 		xTEST(al, 2);
 
 		if (ltz)
-			j32Ptr = JZ32(0);
-		else
-			j32Ptr = JNZ32(0);
-
-		return;
+			return JZ32(0);
+		return JNZ32(0);
 	}
 
 	if (regs >= 0)
@@ -124,9 +120,8 @@ static void recSetBranchL(int ltz)
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
 	if (ltz)
-		j32Ptr = JGE32(0);
-	else
-		j32Ptr = JL32(0);
+		return JGE32(0);
+	return JL32(0);
 }
 
 //// BEQ
@@ -156,7 +151,7 @@ static void recBEQ_process(int process)
 	{
 		const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
 
-		recSetBranchEQ(0, process);
+		j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
 		{
@@ -220,7 +215,7 @@ static void recBNE_process(int process)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
 
-	recSetBranchEQ(1, process);
+	j32Ptr = recSetBranchEQ(1, process);
 
 	if (!swap)
 	{
@@ -273,7 +268,7 @@ static void recBEQL_const(void)
 static void recBEQL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	recSetBranchEQ(0, process);
+	j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -316,7 +311,7 @@ static void recBNEL_process(int process)
 {
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
-	recSetBranchEQ(0, process);
+	j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	SetBranchImm(pc + 4);
@@ -365,7 +360,7 @@ void recBLTZAL(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 
-	recSetBranchL(1);
+	j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -412,7 +407,7 @@ void recBGEZAL(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 
-	recSetBranchL(0);
+	j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -459,7 +454,7 @@ void recBLTZALL(void)
 		return;
 	}
 
-	recSetBranchL(1);
+	j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -495,7 +490,7 @@ void recBGEZALL(void)
 		return;
 	}
 
-	recSetBranchL(0);
+	j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -619,7 +614,7 @@ void recBLTZ(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 	_eeFlushAllDirty();
-	recSetBranchL(1);
+	j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -660,7 +655,7 @@ void recBGEZ(void)
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 	_eeFlushAllDirty();
 
-	recSetBranchL(0);
+	j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -701,7 +696,7 @@ void recBLTZL(void)
 	}
 
 	_eeFlushAllDirty();
-	recSetBranchL(1);
+	j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -732,7 +727,7 @@ void recBGEZL(void)
 	}
 
 	_eeFlushAllDirty();
-	recSetBranchL(0);
+	j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
