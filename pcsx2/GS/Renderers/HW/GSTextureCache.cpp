@@ -2082,8 +2082,8 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 			AddDirtyRectTarget(dst, newrect, TEX0.PSM, TEX0.TBW, rgba, GSLocalMemory::m_psm[TEX0.PSM].trbpp >= 16);
 		}
 	}
-	else
-		dst->UpdateValidity(GSVector4i::loadh(valid_size));
+
+	dst->UpdateValidity(GSVector4i::loadh(valid_size));
 
 	for (int type = 0; type < 2; type++)
 	{
