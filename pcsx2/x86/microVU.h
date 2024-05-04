@@ -273,18 +273,6 @@ extern void* mVUexecuteVU1(u32 startPC, u32 cycles);
 typedef void (*mVUrecCall)(u32, u32);
 typedef void (*mVUrecCallXG)(void);
 
-template <typename T>
-void makeUnique(T& v)
-{ // Removes Duplicates
-	v.erase(unique(v.begin(), v.end()), v.end());
-}
-
-template <typename T>
-void sortVector(T& v)
-{
-	sort(v.begin(), v.end());
-}
-
 // Include all the *.inl files (microVU compiles as 1 Translation Unit)
 #include "microVU_Clamp.inl"
 #include "microVU_Misc.inl"

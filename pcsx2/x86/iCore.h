@@ -303,7 +303,6 @@ extern _xmmregs xmmregs[iREGCNT_XMM], s_saveXMMregs[iREGCNT_XMM];
 extern thread_local u8* j8Ptr[32];   // depreciated item.  use local u8* vars instead.
 
 extern u16 g_x86AllocCounter;
-extern u16 g_xmmAllocCounter;
 
 // allocates only if later insts use this register
 int _allocIfUsedGPRtoX86(int gprreg, int mode);

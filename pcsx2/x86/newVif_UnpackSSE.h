@@ -144,12 +144,4 @@ protected:
 	virtual void doMaskWrite(const xRegisterSSE& regX) const;
 	void SetMasks(int cS) const;
 	void writeBackRow() const;
-
-	static VifUnpackSSE_Dynarec FillingWrite(const VifUnpackSSE_Dynarec& src)
-	{
-		VifUnpackSSE_Dynarec fillingWrite(src);
-		fillingWrite.doMask = true;
-		fillingWrite.doMode = 0;
-		return fillingWrite;
-	}
 };

@@ -27,7 +27,7 @@ using namespace x86Emitter;
 thread_local u8* j8Ptr[32];
 
 u16 g_x86AllocCounter = 0;
-u16 g_xmmAllocCounter = 0;
+static u16 g_xmmAllocCounter = 0;
 
 EEINST* g_pCurInstInfo = NULL;
 

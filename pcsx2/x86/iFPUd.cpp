@@ -138,8 +138,7 @@ alignas(32) static const FPUd_Globals s_const =
 
 
 // ToDouble : converts single-precision PS2 float to double-precision IEEE float
-
-void ToDouble(int reg)
+static void ToDouble(int reg)
 {
 	xUCOMI.SS(xRegisterSSE(reg), ptr[s_const.pos_inf]); // Sets ZF if reg is equal or incomparable to pos_inf
 	u8* to_complex = JE8(0); // Complex conversion if positive infinity or NaN
@@ -176,8 +175,7 @@ void ToDouble(int reg)
 // converts really large normal numbers to PS2 signed max
 // converts really small normal numbers to zero (flush)
 // doesn't handle inf/nan/denormal
-
-void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
+static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
 {
 	if (flags)
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO | FPUflagU));
@@ -252,7 +250,7 @@ void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
 		x86SetJ8(end4);
 }
 
-void ToPS2FPU(int reg, bool flags, int absreg, bool acc, bool addsub = false)
+static void ToPS2FPU(int reg, bool flags, int absreg, bool acc, bool addsub = false)
 {
 	if (FPU_RESULT)
 		ToPS2FPU_Full(reg, flags, absreg, acc, addsub);
@@ -265,7 +263,7 @@ void ToPS2FPU(int reg, bool flags, int absreg, bool acc, bool addsub = false)
 }
 
 //sets the maximum (positive or negative) value into regd.
-void SetMaxValue(int regd)
+static void SetMaxValue(int regd)
 {
 	if (FPU_RESULT)
 		xOR.PS(xRegisterSSE(regd), ptr[&s_const.pos[0]]); // set regd to maximum
@@ -450,7 +448,7 @@ void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 static void (*recFPUOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
 	SSE2_ADDSD_XMM_to_XMM, SSE2_SUBSD_XMM_to_XMM};
 
-void recFPUOp(int info, int regd, int op, bool acc)
+static void recFPUOp(int info, int regd, int op, bool acc)
 {
 	int sreg, treg;
 	ALLOC_S(sreg); ALLOC_T(treg);
@@ -792,14 +790,14 @@ FPURECOMPILE_CONSTCODE(MADDA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_REA
 // MAX / MIN XMM
 //------------------------------------------------------------------
 
-alignas(16) static const u32 minmax_mask[8] =
-{
-	0xffffffff, 0x80000000, 0, 0,
-	0,          0x40000000, 0, 0,
-};
 // FPU's MAX/MIN work with all numbers (including "denormals"). Check VU's logical min max for more info.
-void recMINMAX(int info, bool ismin)
+static void recMINMAX(int info, bool ismin)
 {
+	alignas(16) static const u32 minmax_mask[8] =
+	{
+		0xffffffff, 0x80000000, 0, 0,
+		0,          0x40000000, 0, 0,
+	};
 	int sreg, treg;
 	ALLOC_S(sreg); ALLOC_T(treg);
 
