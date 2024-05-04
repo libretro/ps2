@@ -576,8 +576,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingIntEnumEx(HWDownloadMode, "HWDownloadMode");
 	GSSettingIntEx(Dithering, "dithering_ps2");
 	GSSettingIntEx(MaxAnisotropy, "MaxAnisotropy");
-	GSSettingIntEx(SWExtraThreads, "extrathreads");
-	GSSettingIntEx(SWExtraThreadsHeight, "extrathreads_height");
 	GSSettingIntEx(SkipDrawStart, "UserHacks_SkipDraw_Start");
 	GSSettingIntEx(SkipDrawEnd, "UserHacks_SkipDraw_End");
 	SkipDrawEnd = std::max(SkipDrawStart, SkipDrawEnd);

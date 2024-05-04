@@ -1097,30 +1097,8 @@ static void InitializeCPUInfo(void)
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 {
 	VMManager::EnsureCPUInfoInitialized();
-
-	const u32 core_count = cpuinfo_get_cores_count();
-	if (core_count == 0)
-	{
-		Console.Error("Invalid CPU count returned");
-		return;
-	}
-
-	Console.WriteLn("CPU Cores count: %d", core_count);
-
-	if (core_count >= 3)
-	{
-		Console.WriteLn("  Enabling MTVU.");
-		si.SetBoolValue("EmuCore/Speedhacks", "vuThread", true);
-	}
-	else
-	{
-		Console.WriteLn("  Disabling MTVU.");
-		si.SetBoolValue("EmuCore/Speedhacks", "vuThread", false);
-	}
-
-	const int extra_threads = (core_count > 3) ? 3 : 2;
-	Console.WriteLn("  Setting Extra Software Rendering Threads to %d.", extra_threads);
-	si.SetIntValue("EmuCore/GS", "extrathreads", extra_threads);
+	Console.WriteLn("  Enabling MTVU.");
+	si.SetBoolValue("EmuCore/Speedhacks", "vuThread", true);
 }
 
 #else
