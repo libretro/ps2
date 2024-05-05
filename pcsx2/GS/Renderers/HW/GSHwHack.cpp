@@ -15,7 +15,8 @@
 
 #include "PrecompiledHeader.h"
 #include "GS/Renderers/HW/GSRendererHW.h"
-#include "GS/Renderers/HW/GSHwHack.h"
+#include "GSHwHack.h"
+#include "../../GSUtil.h"
 
 static bool s_nativeres;
 

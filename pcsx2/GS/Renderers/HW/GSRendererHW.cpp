@@ -19,6 +19,7 @@
 
 #include "GSRendererHW.h"
 #include "GSTextureReplacements.h"
+#include "../../GSUtil.h"
 #include "common/Align.h"
 
 GSRendererHW::GSRendererHW()

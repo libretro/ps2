@@ -480,8 +480,6 @@ void GSState::GIFPackedRegHandlerNOP(const GIFPackedReg* RESTRICT r)
 template <u32 prim, bool auto_flush, bool index_swap>
 void GSState::GIFPackedRegHandlerSTQRGBAXYZF2(const GIFPackedReg* RESTRICT r, u32 size)
 {
-	ASSERT(size > 0 && size % 3 == 0);
-
 	CheckFlushes();
 
 	const GIFPackedReg* RESTRICT r_end = r + size;
@@ -514,8 +512,6 @@ void GSState::GIFPackedRegHandlerSTQRGBAXYZF2(const GIFPackedReg* RESTRICT r, u3
 template <u32 prim, bool auto_flush, bool index_swap>
 void GSState::GIFPackedRegHandlerSTQRGBAXYZ2(const GIFPackedReg* RESTRICT r, u32 size)
 {
-	ASSERT(size > 0 && size % 3 == 0);
-
 	CheckFlushes();
 
 	const GIFPackedReg* RESTRICT r_end = r + size;
@@ -665,6 +661,7 @@ void GSState::ApplyTEX0(GIFRegTEX0& TEX0)
 			m_mem.m_clut.ClearDrawInvalidity();
 			CLUTAutoFlush(PRIM->PRIM);
 		}
+
 		Flush(GSFlushReason::CLUTCHANGE);
 
 		// Abort any channel shuffle skipping, since this is likely part of a new shuffle.
@@ -1181,7 +1178,6 @@ void GSState::GIFRegHandlerBITBLTBUF(const GIFReg* RESTRICT r)
 	// in TEX0 later as 4 and 10 respectively). However I can find no
 	// documentation on this problem, nothing in the game to suggest
 	// it is broken and the code here for it was likely incorrect to begin with.
-
 	if (r->BITBLTBUF != m_env.BITBLTBUF)
 		FlushWrite();
 
@@ -1206,7 +1202,6 @@ void GSState::GIFRegHandlerTRXREG(const GIFReg* RESTRICT r)
 
 void GSState::GIFRegHandlerTRXDIR(const GIFReg* RESTRICT r)
 {
-
 	FlushWrite();
 
 	m_env.TRXDIR = r->TRXDIR;
@@ -1393,7 +1388,6 @@ void GSState::FlushPrim()
 			switch (PRIM->PRIM)
 			{
 				case GS_POINTLIST:
-					ASSERT(0);
 					break;
 				case GS_LINELIST:
 				case GS_LINESTRIP:
@@ -1416,19 +1410,22 @@ void GSState::FlushPrim()
 					}
 					break;
 				case GS_INVALID:
+					break;
 				default:
 					break;
 			}
 		}
+
+		// If the PSM format of Z is invalid, but it is masked (no write) and ZTST is set to ALWAYS pass (no test, just allow)
+		// we can ignore the Z format, since it won't be used in the draw (Star Ocean 3 transitions)
 
 		m_vt.Update(m_vertex.buff, m_index.buff, m_vertex.tail, m_index.tail, GSUtil::GetPrimClass(PRIM->PRIM));
 
 		// Skip draw if Z test is enabled, but set to fail all pixels.
 		const bool skip_draw = (m_context->TEST.ZTE && m_context->TEST.ZTST == ZTST_NEVER);
 
-			if (!skip_draw)
-				Draw();
-
+		if (!skip_draw)
+			Draw();
 
 		m_index.tail = 0;
 		m_vertex.head = 0;
@@ -1462,7 +1459,6 @@ void GSState::FlushPrim()
 		}
 	}
 }
-
 GSVector4i GSState::GetTEX0Rect()
 {
 	GSVector4i ret = GSVector4i::zero();
@@ -1537,23 +1533,23 @@ void GSState::CheckWriteOverlap(bool req_write, bool req_read)
 					case 6:
 						if (GSLocalMemory::HasOverlap(blit.DBP, blit.DBW, blit.DPSM, write_rect, prev_ctx.MIPTBP2.TBP6, prev_ctx.MIPTBP2.TBW6, prev_ctx.TEX0.PSM, GSVector4i(tex_rect.x >> 6, tex_rect.y >> 6, tex_rect.z >> 6, tex_rect.w >> 6)))
 							Flush(GSFlushReason::UPLOADDIRTYTEX);
-						/* fallthrough */
+						// fallthrough
 					case 5:
 						if (GSLocalMemory::HasOverlap(blit.DBP, blit.DBW, blit.DPSM, write_rect, prev_ctx.MIPTBP2.TBP5, prev_ctx.MIPTBP2.TBW5, prev_ctx.TEX0.PSM, GSVector4i(tex_rect.x >> 5, tex_rect.y >> 5, tex_rect.z >> 5, tex_rect.w >> 5)))
 							Flush(GSFlushReason::UPLOADDIRTYTEX);
-						/* fallthrough */
+						// fallthrough
 					case 4:
 						if (GSLocalMemory::HasOverlap(blit.DBP, blit.DBW, blit.DPSM, write_rect, prev_ctx.MIPTBP2.TBP4, prev_ctx.MIPTBP2.TBW4, prev_ctx.TEX0.PSM, GSVector4i(tex_rect.x >> 4, tex_rect.y >> 4, tex_rect.z >> 4, tex_rect.w >> 4)))
 							Flush(GSFlushReason::UPLOADDIRTYTEX);
-						/* fallthrough */
+						// fallthrough
 					case 3:
 						if (GSLocalMemory::HasOverlap(blit.DBP, blit.DBW, blit.DPSM, write_rect, prev_ctx.MIPTBP1.TBP3, prev_ctx.MIPTBP1.TBW3, prev_ctx.TEX0.PSM, GSVector4i(tex_rect.x >> 3, tex_rect.y >> 3, tex_rect.z >> 3, tex_rect.w >> 3)))
 							Flush(GSFlushReason::UPLOADDIRTYTEX);
-						/* fallthrough */
+						// fallthrough
 					case 2:
 						if (GSLocalMemory::HasOverlap(blit.DBP, blit.DBW, blit.DPSM, write_rect, prev_ctx.MIPTBP1.TBP2, prev_ctx.MIPTBP1.TBW2, prev_ctx.TEX0.PSM, GSVector4i(tex_rect.x >> 2, tex_rect.y >> 2, tex_rect.z >> 2, tex_rect.w >> 2)))
 							Flush(GSFlushReason::UPLOADDIRTYTEX);
-						/* fallthrough */
+						// fallthrough
 					case 1:
 						if (GSLocalMemory::HasOverlap(blit.DBP, blit.DBW, blit.DPSM, write_rect, prev_ctx.MIPTBP1.TBP1, prev_ctx.MIPTBP1.TBW1, prev_ctx.TEX0.PSM, GSVector4i(tex_rect.x >> 1, tex_rect.y >> 1, tex_rect.z >> 1, tex_rect.w >> 1)))
 							Flush(GSFlushReason::UPLOADDIRTYTEX);
@@ -1643,7 +1639,6 @@ void GSState::Write(const u8* mem, int len)
 			m_tr.start = m_tr.end = m_tr.total;
 
 			s_transfer_n++;
-
 			m_env.TRXDIR.XDIR = 3;
 			return;
 		}
@@ -2020,8 +2015,6 @@ void GSState::Transfer(const u8* mem, u32 size)
 			{
 				m_q = 1.0f;
 
-				// ASSERT(!(path.tag.PRE && path.tag.FLG == GIF_FLG_REGLIST)); // kingdom hearts
-
 				if (path.tag.PRE && path.tag.FLG == GIF_FLG_PACKED)
 					ApplyPRIM(path.tag.PRIM);
 			}
@@ -2392,6 +2385,7 @@ int GSState::Defrost(const freezeData* fd)
 	}
 
 	UpdateScissor();
+
 	ResetPCRTC();
 
 	return 0;
@@ -2401,8 +2395,6 @@ int GSState::Defrost(const freezeData* fd)
 
 void GSState::UpdateContext()
 {
-	const bool ctx_switch = (m_context != &m_draw_env->CTXT[PRIM->CTXT]);
-
 	m_context = const_cast<GSDrawingContext*>(&m_draw_env->CTXT[PRIM->CTXT]);
 
 	UpdateScissor();
@@ -2412,8 +2404,8 @@ void GSState::UpdateScissor()
 {
 	m_scissor_cull_min = m_context->scissor.cull.xyxy();
 	m_scissor_cull_max = m_context->scissor.cull.zwzw();
-	m_xyof             = m_context->scissor.xyof;
-	m_scissor_invalid  = !m_context->scissor.in.gt32(m_context->scissor.in.zwzw()).allfalse();
+	m_xyof = m_context->scissor.xyof;
+	m_scissor_invalid = !m_context->scissor.in.gt32(m_context->scissor.in.zwzw()).allfalse();
 }
 
 void GSState::UpdateVertexKick()
@@ -2445,12 +2437,14 @@ void GSState::GrowVertexBuffer()
 	if (m_vertex.buff)
 	{
 		memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);
+
 		_aligned_free(m_vertex.buff);
 	}
 
 	if (m_index.buff)
 	{
 		memcpy(index, m_index.buff, sizeof(u16) * m_index.tail);
+
 		_aligned_free(m_index.buff);
 	}
 
@@ -2515,18 +2509,9 @@ GSState::PRIM_OVERLAP GSState::PrimitiveOverlap()
 	if (m_vertex.next < 4)
 		return PRIM_OVERLAP_NO;
 
-#if 0
-	// Stub this out for now
-	// FIXME/TODO (LIBRETRO) -
-        // TEMPORARY HACK FOR WORKING AROUND ISSUE INTRODUCED IN COMMIT
-	// Backport GS/HW: Assume primitive does not overlap if it is a single quad
-	// - Without this, God of War first level would output green, and P4 blending on
-	// title screen would not be correct 
-	if (m_vt.m_primclass == GS_SPRITE_CLASS)
+	if (m_vt.m_primclass == GS_TRIANGLE_CLASS)
 		return (m_index.tail == 6 && TrianglesAreQuads()) ? PRIM_OVERLAP_NO : PRIM_OVERLAP_UNKNOW;
-	else
-#endif
-	if (m_vt.m_primclass != GS_SPRITE_CLASS)
+	else if (m_vt.m_primclass != GS_SPRITE_CLASS)
 		return PRIM_OVERLAP_UNKNOW; // maybe, maybe not
 
 	// Check intersection of sprite primitive only
@@ -2555,17 +2540,8 @@ GSState::PRIM_OVERLAP GSState::PrimitiveOverlap()
 			GSVector4i sprite = GSVector4i(v[j].m[1]).upl16(GSVector4i(v[j + 1].m[1])).upl16().xzyw();
 			sprite = sprite.xyxy().blend(sprite.zwzw(), sprite > sprite.zwxy());
 
-			// Be sure to get vertex in good order, otherwise .r* function doesn't
-			// work as expected.
-			ASSERT(sprite.x <= sprite.z);
-			ASSERT(sprite.y <= sprite.w);
-			ASSERT(all.x <= all.z);
-			ASSERT(all.y <= all.w);
-
 			if (all.rintersect(sprite).rempty())
-			{
 				all = all.runion_ordered(sprite);
-			}
 			else
 			{
 				overlap = PRIM_OVERLAP_YES;
@@ -2638,7 +2614,7 @@ __forceinline bool GSState::IsAutoFlushDraw(u32 prim)
 
 	if ((frame_hit || zbuf_hit) && GSUtil::HasSharedBits(frame_z_bp, frame_z_psm, m_context->TEX0.TBP0, m_context->TEX0.PSM))
 		return true;
-	
+
 	return false;
 }
 
@@ -2753,7 +2729,7 @@ __forceinline void GSState::HandleAutoFlush()
 
 		GSVector4i tex_rect = tex_coord.xyxy();
 
-		const GSLocalMemory::psm_t tex_psm   = GSLocalMemory::m_psm[m_context->TEX0.PSM];
+		const GSLocalMemory::psm_t tex_psm = GSLocalMemory::m_psm[m_context->TEX0.PSM];
 		const GSLocalMemory::psm_t frame_psm = GSLocalMemory::m_psm[m_context->FRAME.PSM];
 		// Get the rest of the rect.
 		for (int i = 0; i < (n - 1); i++)
@@ -2902,6 +2878,7 @@ __forceinline void GSState::HandleAutoFlush()
 							tex_coord.x += 1;
 							tex_coord.y += 1;
 						}
+
 						if (i == (current_draw_end - 1))
 						{
 							old_draw_rect = tex_coord.xyxy();
@@ -2940,7 +2917,7 @@ __forceinline void GSState::HandleAutoFlush()
 					//We know we've changed page, so let's set the dimension to cover the page they're in (for different pixel orders)
 					tex_rect &= tex_page_mask;
 					tex_rect = GSVector4i(tex_rect.x / tex_psm.pgs.x, tex_rect.y / tex_psm.pgs.y, tex_rect.z / tex_psm.pgs.x, tex_rect.w / tex_psm.pgs.y);
-
+					
 					const int frame_page_mask_x = ~(frame_psm.pgs.x - 1);
 					const int frame_page_mask_y = ~(frame_psm.pgs.y - 1);
 					const GSVector4i frame_page_mask = { frame_page_mask_x, frame_page_mask_y, frame_page_mask_x, frame_page_mask_y };
@@ -3010,8 +2987,6 @@ __forceinline void GSState::VertexKick(u32 skip)
 	constexpr u32 n = NumIndicesForPrim(prim);
 	static_assert(n > 0);
 
-	ASSERT(m_vertex.tail < m_vertex.maxcount + 3);
-
 	if (auto_flush && skip == 0 && m_index.tail > 0 && ((m_vertex.tail + 1) - m_vertex.head) >= n)
 	{
 		HandleAutoFlush<prim, index_swap>();
@@ -3053,6 +3028,7 @@ __forceinline void GSState::VertexKick(u32 skip)
 	if (m < n)
 		return;
 
+
 	// Skip draws when scissor is out of range (i.e. bottom-right is less than top-left), since everything will get clipped.
 	skip |= static_cast<u32>(m_scissor_invalid);
 
@@ -3093,14 +3069,14 @@ __forceinline void GSState::VertexKick(u32 skip)
 			case GS_TRIANGLESTRIP:
 			case GS_TRIANGLEFAN:
 			case GS_SPRITE:
-				{
-					// Discard degenerate triangles which don't cover at least one pixel. Since the vertices are in native
-					// resolution space, we can use the integer locations. When upscaling, we can't, because a primitive which
-					// does not span a single pixel at 1x may span multiple pixels at higher resolutions.
-					const GSVector4i degen_test = pmin.eq32(pmax);
-					test |= m_nativeres ? degen_test.zwzw() : degen_test;
-				}
-				break;
+			{
+				// Discard degenerate triangles which don't cover at least one pixel. Since the vertices are in native
+				// resolution space, we can use the integer locations. When upscaling, we can't, because a primitive which
+				// does not span a single pixel at 1x may span multiple pixels at higher resolutions.
+				const GSVector4i degen_test = pmin.eq32(pmax);
+				test |= m_nativeres ? degen_test.zwzw() : degen_test;
+			}
+			break;
 			default:
 				break;
 		}
@@ -3134,13 +3110,13 @@ __forceinline void GSState::VertexKick(u32 skip)
 			case GS_LINESTRIP:
 			case GS_TRIANGLESTRIP:
 				m_vertex.head = head + 1;
-				/* fallthrough */
+				// fallthrough
 			case GS_TRIANGLEFAN:
 				if (tail >= m_vertex.maxcount)
 					GrowVertexBuffer(); // in case too many vertices were skipped
 				break;
 			default:
-				__assume(0);
+				break;
 		}
 
 		return;
@@ -3241,7 +3217,6 @@ __forceinline void GSState::VertexKick(u32 skip)
 		default:
 			__assume(0);
 	}
-
 
 	// Update rectangle for the current draw. We can use the re-integer coordinates from min/max here.
 	const GSVector4i draw_min = pmin.zwzw();
@@ -3388,7 +3363,7 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 		if (linear)
 		{
 			st += GSVector4(-0.5f, 0.5f).xxyy();
-
+			
 			// If it's the start of the texture and our little adjustment is all that pushed it over, clamp it to 0.
 			// This stops the border check failing when using repeat but needed less than the full texture
 			// since this was making it take the full texture even though it wasn't needed.
@@ -3901,7 +3876,6 @@ bool GSState::GSTransferBuffer::Update(int tw, int th, int bpp, int& len)
 
 	if (len > remaining)
 		len = remaining;
-
 	return len > 0;
 }
 
@@ -3962,14 +3936,14 @@ GSVector2i GSState::GSPCRTCRegs::NearestToZeroOffset()
 	}
 
 	if (abs(PCRTCDisplays[0].displayOffset.x - VideoModeOffsets[videomode].z) <
-			abs(PCRTCDisplays[1].displayOffset.x - VideoModeOffsets[videomode].z))
+		abs(PCRTCDisplays[1].displayOffset.x - VideoModeOffsets[videomode].z))
 		returnValue.x = 0;
 
 	// When interlaced, the vertical base offset is doubled
 	const int verticalOffset = VideoModeOffsets[videomode].w * (1 << interlaced);
 
 	if (abs(PCRTCDisplays[0].displayOffset.y - verticalOffset) <
-			abs(PCRTCDisplays[1].displayOffset.y - verticalOffset))
+		abs(PCRTCDisplays[1].displayOffset.y - verticalOffset))
 		returnValue.y = 0;
 
 	return returnValue;
@@ -3985,11 +3959,10 @@ void GSState::GSPCRTCRegs::EnableDisplays(GSRegPMODE pmode, GSRegSMODE2 smode2, 
 {
 	PCRTCDisplays[0].enabled = pmode.EN1;
 	PCRTCDisplays[1].enabled = pmode.EN2;
-	bool is_analogue         = IsAnalogue();
 
-	interlaced               = smode2.INT && is_analogue;
-	FFMD                     = smode2.FFMD;
-	toggling_field           = smodetoggle && is_analogue;
+	interlaced = smode2.INT && IsAnalogue();
+	FFMD = smode2.FFMD;
+	toggling_field = smodetoggle && IsAnalogue();
 }
 
 void GSState::GSPCRTCRegs::CheckSameSource()
@@ -4001,10 +3974,10 @@ void GSState::GSPCRTCRegs::CheckSameSource()
 	}
 
 	PCRTCSameSrc = PCRTCDisplays[0].FBP == PCRTCDisplays[1].FBP &&
-		PCRTCDisplays[0].FBW == PCRTCDisplays[1].FBW &&
-		GSUtil::HasCompatibleBits(PCRTCDisplays[0].PSM, PCRTCDisplays[1].PSM);
+	PCRTCDisplays[0].FBW == PCRTCDisplays[1].FBW &&
+	GSUtil::HasCompatibleBits(PCRTCDisplays[0].PSM, PCRTCDisplays[1].PSM);
 }
-
+		
 bool GSState::GSPCRTCRegs::FrameWrap()
 {
 	const GSVector4i combined_rect = GSVector4i(PCRTCDisplays[0].framebufferRect.runion(PCRTCDisplays[1].framebufferRect));
@@ -4236,7 +4209,7 @@ void GSState::GSPCRTCRegs::CalculateFramebufferOffset(bool scanmask)
 		}
 
 		if (abs(fb1.y - fb0.y) == 1
-				&& PCRTCDisplays[0].displayRect.y == PCRTCDisplays[1].displayRect.y)
+			&& PCRTCDisplays[0].displayRect.y == PCRTCDisplays[1].displayRect.y)
 		{
 			if (fb1.y < fb0.y)
 				PCRTCDisplays[0].framebufferOffsets.y = fb1.y;
@@ -4244,7 +4217,7 @@ void GSState::GSPCRTCRegs::CalculateFramebufferOffset(bool scanmask)
 				PCRTCDisplays[1].framebufferOffsets.y = fb0.y;
 		}
 		if (abs(fb1.x - fb0.x) == 1
-				&& PCRTCDisplays[0].displayRect.x == PCRTCDisplays[1].displayRect.x)
+			&& PCRTCDisplays[0].displayRect.x == PCRTCDisplays[1].displayRect.x)
 		{
 			if (fb1.x < fb0.x)
 				PCRTCDisplays[0].framebufferOffsets.x = fb1.x;
@@ -4273,11 +4246,15 @@ void GSState::GSPCRTCRegs::RemoveFramebufferOffset(int display)
 		{
 			if (PCRTCDisplays[display].framebufferRect.z >= 2048)
 			{
+				PCRTCDisplays[display].displayRect.x += 2048 - PCRTCDisplays[display].framebufferRect.x;
+				PCRTCDisplays[display].displayRect.z += 2048 - PCRTCDisplays[display].framebufferRect.x;
 				PCRTCDisplays[display].framebufferRect.x = 0;
 				PCRTCDisplays[display].framebufferRect.z -= 2048;
 			}
 			if (PCRTCDisplays[display].framebufferRect.w >= 2048)
 			{
+				PCRTCDisplays[display].displayRect.y += 2048 - PCRTCDisplays[display].framebufferRect.y;
+				PCRTCDisplays[display].displayRect.w += 2048 - PCRTCDisplays[display].framebufferRect.y;
 				PCRTCDisplays[display].framebufferRect.y = 0;
 				PCRTCDisplays[display].framebufferRect.w -= 2048;
 			}

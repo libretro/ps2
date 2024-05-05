@@ -21,10 +21,8 @@
 #include "GSDrawingEnvironment.h"
 #include "Renderers/Common/GSVertex.h"
 #include "Renderers/Common/GSVertexTrace.h"
-#include "GSUtil.h"
-#include "GSVector.h"
 #include "Renderers/Common/GSDevice.h"
-#include "GSAlignedClass.h"
+#include "GSVector.h"
 
 class GSState : public GSAlignedClass<32>
 {
@@ -125,7 +123,7 @@ private:
 		bool write = false;
 
 		GSTransferBuffer();
-		virtual ~GSTransferBuffer();
+		~GSTransferBuffer();
 
 		void Init(int tx, int ty, const GIFRegBITBLTBUF& blit, bool write);
 		bool Update(int tw, int th, int bpp, int& len);
@@ -185,8 +183,8 @@ protected:
 			USES_BOUNDARY_TOP    = 1 << 1,
 			USES_BOUNDARY_RIGHT  = 1 << 2,
 			USES_BOUNDARY_BOTTOM = 1 << 3,
-			USES_BOUNDARY_U      = USES_BOUNDARY_LEFT | USES_BOUNDARY_RIGHT,
-			USES_BOUNDARY_V      = USES_BOUNDARY_TOP | USES_BOUNDARY_BOTTOM
+			USES_BOUNDARY_U = USES_BOUNDARY_LEFT | USES_BOUNDARY_RIGHT,
+			USES_BOUNDARY_V = USES_BOUNDARY_TOP | USES_BOUNDARY_BOTTOM,
 		};
 		GSVector4i coverage; ///< Part of the texture used
 		u8 uses_boundary;    ///< Whether or not the usage touches the left, top, right, or bottom edge (and therefore needs wrap modes preserved)
@@ -260,29 +258,29 @@ public:
 
 	enum GSFlushReason
 	{
-		UNKNOWN 	 = 1 << 0,
-		RESET 		 = 1 << 1,
-		CONTEXTCHANGE	 = 1 << 2,
-		CLUTCHANGE 	 = 1 << 3,
-		GSTRANSFER 	 = 1 << 4,
-		UPLOADDIRTYTEX   = 1 << 5,
+		UNKNOWN = 1 << 0,
+		RESET = 1 << 1,
+		CONTEXTCHANGE = 1 << 2,
+		CLUTCHANGE = 1 << 3,
+		GSTRANSFER = 1 << 4,
+		UPLOADDIRTYTEX = 1 << 5,
 		UPLOADDIRTYFRAME = 1 << 6,
-		UPLOADDIRTYZBUF  = 1 << 7,
+		UPLOADDIRTYZBUF = 1 << 7,
 		LOCALTOLOCALMOVE = 1 << 8,
-		DOWNLOADFIFO     = 1 << 9,
-		SAVESTATE        = 1 << 10,
-		LOADSTATE        = 1 << 11,
-		AUTOFLUSH        = 1 << 12,
-		VSYNC            = 1 << 13,
-		GSREOPEN         = 1 << 14,
-		VERTEXCOUNT      = 1 << 15
+		DOWNLOADFIFO = 1 << 9,
+		SAVESTATE = 1 << 10,
+		LOADSTATE = 1 << 11,
+		AUTOFLUSH = 1 << 12,
+		VSYNC  = 1 << 13,
+		GSREOPEN = 1 << 14,
+		VERTEXCOUNT = 1 << 15,
 	};
 
 	GSFlushReason m_state_flush_reason = UNKNOWN;
 
 	enum PRIM_OVERLAP
 	{
-		PRIM_OVERLAP_UNKNOW = 0,
+		PRIM_OVERLAP_UNKNOW,
 		PRIM_OVERLAP_YES,
 		PRIM_OVERLAP_NO
 	};
@@ -307,7 +305,7 @@ public:
 			GSVector2i framebufferOffsets;
 			GSVector4i framebufferRect;
 
-			__fi int Block() { return FBP << 5; }
+			__fi int Block() const { return FBP << 5; }
 		};
 
 		int videomode = 0;
@@ -321,17 +319,23 @@ public:
 
 		// Calculates which display is closest to matching zero offsets in either direction.
 		GSVector2i NearestToZeroOffset();
+
 		void SetVideoMode(GSVideoMode videoModeIn);
 
 		// Enable each of the displays.
 		void EnableDisplays(GSRegPMODE pmode, GSRegSMODE2 smode2, bool smodetoggle);
+
 		void CheckSameSource();
+		
 		bool FrameWrap();
 
 		// If the start point of both frames match, we can do a single read
 		bool FrameRectMatch();
+
 		GSVector2i GetResolution();
+
 		GSVector4i GetFramebufferRect(int display);
+
 		int GetFramebufferBitDepth();
 
 		GSVector2i GetFramebufferSize(int display);
