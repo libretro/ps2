@@ -99,7 +99,8 @@ private:
 	void HandleTextureHazards(const GSTextureCache::Target* rt, const GSTextureCache::Target* ds,
 		const GSTextureCache::Source* tex, const TextureMinMaxResult& tmm, GSTextureCache::SourceRegion& source_region,
 		bool& target_region, GSVector2i& unscaled_size, float& scale, GSTexture*& src_copy);
-	bool CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextureCache::Source* tex, const TextureMinMaxResult& tmm);
+	bool CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextureCache::Source* tex,
+		const TextureMinMaxResult& tmm);
 
 	void EmulateZbuffer(const GSTextureCache::Target* ds);
 	void EmulateATST(float& AREF, GSHWDrawConfig::PSSelector& ps, bool pass_2);
@@ -164,7 +165,7 @@ private:
 	u32 m_last_channel_shuffle_fbmsk = 0;
 
 	GIFRegFRAME m_split_clear_start = {};
-	GIFRegFRAME m_split_clear_start_Z = {};
+	GIFRegZBUF m_split_clear_start_Z = {};
 	u32 m_split_clear_pages = 0; // if zero, inactive
 	u32 m_split_clear_color = 0;
 
@@ -188,7 +189,6 @@ public:
 	virtual ~GSRendererHW() override;
 
 	__fi static GSRendererHW* GetInstance() { return static_cast<GSRendererHW*>(g_gs_renderer.get()); }
-
 	__fi HWCachedCtx* GetCachedCtx() { return &m_cached_ctx; }
 	void Destroy() override;
 
