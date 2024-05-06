@@ -369,11 +369,10 @@ void UpdateVSyncRate(bool force)
 
 		vSyncInfoCalc(&vSyncInfo, frames_per_second, total_scanlines);
 
-		hsyncCounter.CycleT = vSyncInfo.hRender; // Amount of cycles before the counter will be updated
-		vsyncCounter.CycleT = vSyncInfo.Render;  // Amount of cycles before the counter will be updated
-		hsyncCounter.sCycle = cpuRegs.cycle;
-		vsyncCounter.sCycle = cpuRegs.cycle;
-		vsyncCounter.Mode = MODE_VRENDER;
+		hsyncCounter.CycleT = (hsyncCounter.Mode == MODE_HBLANK) ? vSyncInfo.hBlank : vSyncInfo.hRender;
+		vsyncCounter.CycleT = (vsyncCounter.Mode == MODE_GSBLANK) ?
+								  vSyncInfo.GSBlank :
+								  ((vsyncCounter.Mode == MODE_VSYNC) ? vSyncInfo.Blank : vSyncInfo.Render);
 		cpuRcntSet();
 	}
 }
@@ -649,8 +648,7 @@ __fi void rcntUpdate_hScanline()
 {
 	if( !cpuTestCycle( hsyncCounter.sCycle, hsyncCounter.CycleT ) ) return;
 
-	//iopEventAction = 1;
-	if (hsyncCounter.Mode & MODE_HBLANK) { //HBLANK Start
+	if (hsyncCounter.Mode == MODE_HBLANK) { //HBLANK Start
 		rcntStartGate(false, hsyncCounter.sCycle);
 		psxCheckStartGate16(0);
 
