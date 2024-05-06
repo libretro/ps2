@@ -524,11 +524,6 @@ public:
 
 	void IncAge();
 
-	const char* to_string(int type)
-	{
-		return (type == DepthStencil) ? "Depth" : "Color";
-	}
-
 	void AttachPaletteToSource(Source* s, u16 pal, bool need_gs_texture);
 	void AttachPaletteToSource(Source* s, GSTexture* gpu_clut);
 	SurfaceOffset ComputeSurfaceOffset(const GSOffset& off, const GSVector4i& r, const Target* t);

@@ -931,8 +931,6 @@ void GSLocalMemoryFunctions::ReadImageX(const GSLocalMemory& mem, int& tx, int& 
 
 	GSOffset off = mem.GetOffset(bp, bw, BITBLTBUF.SPSM);
 
-	// printf("spsm=%d x=%d ex=%d y=%d len=%d\n", BITBLTBUF.SPSM, x, ex, y, len);
-
 	switch (BITBLTBUF.SPSM)
 	{
 		case PSMCT32:
