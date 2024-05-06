@@ -33,7 +33,7 @@ enum class FreezeAction
 // NOTICE: When updating g_SaveVersion, please make sure you add the following line to your commit message somewhere:
 // [SAVEVERSION+]
 
-static const u32 g_SaveVersion = (0x9A42 << 16) | 0x0000;
+static const u32 g_SaveVersion = (0x9A43 << 16) | 0x0000;
 
 
 // the freezing data between submodules and core
