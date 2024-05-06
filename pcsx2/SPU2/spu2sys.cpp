@@ -107,7 +107,6 @@ void V_Core::Init(int index)
 	InputPosWrite = 0x100;
 	InputDataProgress = 0;
 	InputDataTransferred = 0;
-	ReverbX = 0;
 	LastEffect.Left = 0;
 	LastEffect.Right = 0;
 	CoreEnabled = 0;
@@ -148,8 +147,6 @@ void V_Core::Init(int index)
 	Regs.VMIXER = 0xFFFFFF;
 	EffectsStartA = c ? 0xFFFF8 : 0xEFFF8;
 	EffectsEndA = c ? 0xFFFFF : 0xEFFFF;
-	ExtEffectsStartA = EffectsStartA;
-	ExtEffectsEndA = EffectsEndA;
 
 	FxEnable = false; // Uninitialized it's 0 for both cores. Resetting libs however may set this to 0 or 1.
 	// These are real PS2 values, mainly constant apart from a few bits: 0x3220EAA4, 0x40505E9C.
@@ -187,74 +184,9 @@ void V_Core::Init(int index)
 	Regs.STATX = 0x80;
 	Regs.ENDX = 0xffffff; // PS2 confirmed
 
-	RevBuffers.NeedsUpdated = true;
 	RevbSampleBufPos = 0;
 	memset(RevbDownBuf, 0, sizeof(RevbDownBuf));
 	memset(RevbUpBuf, 0, sizeof(RevbUpBuf));
-
-	UpdateEffectsBufferSize();
-}
-
-s32 V_Core::EffectsBufferIndexer(s32 offset) const
-{
-	// Should offsets be multipled by 4 or not?  Reverse-engineering of IOP code reveals
-	// that it *4's all addresses before upping them to the SPU2 -- so our buffers are
-	// already x4'd.  It doesn't really make sense that we should x4 them again, and this
-	// seems to work. (feedback-free in bios and DDS)  --air
-
-	// Need to use modulus here, because games can and will drop the buffer size
-	// without notice, and it leads to offsets several times past the end of the buffer.
-
-	if ((u32)offset >= (u32)EffectsBufferSize)
-		return EffectsStartA + (offset % EffectsBufferSize) + (offset < 0 ? EffectsBufferSize : 0);
-	return EffectsStartA + offset;
-}
-
-void V_Core::UpdateEffectsBufferSize(void)
-{
-	const s32 newbufsize    = EffectsEndA - EffectsStartA + 1;
-
-	RevBuffers.NeedsUpdated = false;
-	EffectsBufferSize       = newbufsize;
-	EffectsBufferStart      = EffectsStartA;
-
-	if (EffectsBufferSize <= 0)
-		return;
-
-	// Rebuild buffer indexers.
-	RevBuffers.COMB1_L_SRC = EffectsBufferIndexer(Revb.COMB1_L_SRC);
-	RevBuffers.COMB1_R_SRC = EffectsBufferIndexer(Revb.COMB1_R_SRC);
-	RevBuffers.COMB2_L_SRC = EffectsBufferIndexer(Revb.COMB2_L_SRC);
-	RevBuffers.COMB2_R_SRC = EffectsBufferIndexer(Revb.COMB2_R_SRC);
-	RevBuffers.COMB3_L_SRC = EffectsBufferIndexer(Revb.COMB3_L_SRC);
-	RevBuffers.COMB3_R_SRC = EffectsBufferIndexer(Revb.COMB3_R_SRC);
-	RevBuffers.COMB4_L_SRC = EffectsBufferIndexer(Revb.COMB4_L_SRC);
-	RevBuffers.COMB4_R_SRC = EffectsBufferIndexer(Revb.COMB4_R_SRC);
-
-	RevBuffers.SAME_L_DST = EffectsBufferIndexer(Revb.SAME_L_DST);
-	RevBuffers.SAME_R_DST = EffectsBufferIndexer(Revb.SAME_R_DST);
-	RevBuffers.DIFF_L_DST = EffectsBufferIndexer(Revb.DIFF_L_DST);
-	RevBuffers.DIFF_R_DST = EffectsBufferIndexer(Revb.DIFF_R_DST);
-
-	RevBuffers.SAME_L_SRC = EffectsBufferIndexer(Revb.SAME_L_SRC);
-	RevBuffers.SAME_R_SRC = EffectsBufferIndexer(Revb.SAME_R_SRC);
-	RevBuffers.DIFF_L_SRC = EffectsBufferIndexer(Revb.DIFF_L_SRC);
-	RevBuffers.DIFF_R_SRC = EffectsBufferIndexer(Revb.DIFF_R_SRC);
-
-	RevBuffers.APF1_L_DST = EffectsBufferIndexer(Revb.APF1_L_DST);
-	RevBuffers.APF1_R_DST = EffectsBufferIndexer(Revb.APF1_R_DST);
-	RevBuffers.APF2_L_DST = EffectsBufferIndexer(Revb.APF2_L_DST);
-	RevBuffers.APF2_R_DST = EffectsBufferIndexer(Revb.APF2_R_DST);
-
-	RevBuffers.SAME_L_PRV = EffectsBufferIndexer(Revb.SAME_L_DST - 1);
-	RevBuffers.SAME_R_PRV = EffectsBufferIndexer(Revb.SAME_R_DST - 1);
-	RevBuffers.DIFF_L_PRV = EffectsBufferIndexer(Revb.DIFF_L_DST - 1);
-	RevBuffers.DIFF_R_PRV = EffectsBufferIndexer(Revb.DIFF_R_DST - 1);
-
-	RevBuffers.APF1_L_SRC = EffectsBufferIndexer(Revb.APF1_L_DST - Revb.APF1_SIZE);
-	RevBuffers.APF1_R_SRC = EffectsBufferIndexer(Revb.APF1_R_DST - Revb.APF1_SIZE);
-	RevBuffers.APF2_L_SRC = EffectsBufferIndexer(Revb.APF2_L_DST - Revb.APF2_SIZE);
-	RevBuffers.APF2_R_SRC = EffectsBufferIndexer(Revb.APF2_R_DST - Revb.APF2_SIZE);
 }
 
 void V_Voice::Start()
@@ -634,12 +566,8 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				break;
 
 			case 0x1da2: //         Reverb work area start
-			{
 				EffectsStartA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
-				Cores[0].RevBuffers.NeedsUpdated = true;
-				ReverbX = 0;
-			}
-			break;
+				break;
 
 			case 0x1da4:
 				IRQA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
@@ -1069,7 +997,7 @@ static void RegWrite_Core(u16 value)
 		{
 			bool irqe = thiscore.IRQEnable;
 			int bit0 = thiscore.AttrBit0;
-			bool fxenable = thiscore.FxEnable;
+			bool oldFXenable = thiscore.FxEnable;
 			u8 oldDmaMode = thiscore.DmaMode;
 
 			thiscore.AttrBit0 = (value >> 0) & 0x01;  //1 bit
@@ -1083,14 +1011,6 @@ static void RegWrite_Core(u16 value)
 			//thiscore.CoreEnabled=(value>>15) & 0x01; //1 bit
 			// no clue
 			thiscore.Regs.ATTR = value & 0xffff;
-
-			if (fxenable && !thiscore.FxEnable && (thiscore.EffectsStartA != thiscore.ExtEffectsStartA || thiscore.EffectsEndA != thiscore.ExtEffectsEndA))
-			{
-				thiscore.EffectsStartA = thiscore.ExtEffectsStartA;
-				thiscore.EffectsEndA = thiscore.ExtEffectsEndA;
-				thiscore.ReverbX = 0;
-				thiscore.RevBuffers.NeedsUpdated = true;
-			}
 
 			if (!thiscore.DmaMode && !(thiscore.Regs.STATX & 0x400))
 				thiscore.Regs.STATX &= ~0x80;
@@ -1231,48 +1151,6 @@ static void RegWrite_Core(u16 value)
 			thiscore.Regs.ENDX &= 0xffff;
 			break;
 
-		// Reverb Start and End Address Writes!
-		//  * These regs are only writable when Effects are *DISABLED* (FxEnable is false).
-		//    Writes while enabled should be ignored.
-		//    NOTE: Above is false by testing but there are references saying this, so for
-		//    now we think that writing is allowed but the internal register doesn't reflect
-		//    the value until effects area writing is disabled.
-		//  * Yes, these are backwards from all the volumes -- the hiword comes FIRST (wtf!)
-		//  * End position is a hiword only!  Loword is always ffff.
-		//  * The Reverb buffer position resets on writes to StartA.  It probably resets
-		//    on writes to End too.  Docs don't say, but they're for PSX, which couldn't
-		//    change the end address anyway.
-		//
-		case REG_A_ESA:
-			SetHiWord(thiscore.ExtEffectsStartA, value & 0xF);
-			if (!thiscore.FxEnable)
-			{
-				thiscore.EffectsStartA = thiscore.ExtEffectsStartA;
-				thiscore.ReverbX = 0;
-				thiscore.RevBuffers.NeedsUpdated = true;
-			}
-			break;
-
-		case (REG_A_ESA + 2):
-			SetLoWord(thiscore.ExtEffectsStartA, value);
-			if (!thiscore.FxEnable)
-			{
-				thiscore.EffectsStartA = thiscore.ExtEffectsStartA;
-				thiscore.ReverbX = 0;
-				thiscore.RevBuffers.NeedsUpdated = true;
-			}
-			break;
-
-		case REG_A_EEA:
-			thiscore.ExtEffectsEndA = ((u32)(value & 0xF) << 16) | 0xFFFF;
-			if (!thiscore.FxEnable)
-			{
-				thiscore.EffectsEndA = thiscore.ExtEffectsEndA;
-				thiscore.ReverbX = 0;
-				thiscore.RevBuffers.NeedsUpdated = true;
-			}
-			break;
-
 		case REG_S_ADMAS:
 			// hack for ps1driver which writes -1 (and never turns the adma off after psxlogo).
 			// adma isn't available in psx mode either
@@ -1282,12 +1160,6 @@ static void RegWrite_Core(u16 value)
 				Cores[1].FxEnable = 0;
 				Cores[1].EffectsStartA = 0x7FFF8; // park core1 effect area in inaccessible mem
 				Cores[1].EffectsEndA = 0x7FFFF;
-				Cores[1].ExtEffectsStartA = 0x7FFF8;
-				Cores[1].ExtEffectsEndA = 0x7FFFF;
-				Cores[1].ReverbX = 0;
-				Cores[1].RevBuffers.NeedsUpdated = true;
-				Cores[0].ReverbX = 0;
-				Cores[0].RevBuffers.NeedsUpdated = true;
 				for (uint v = 0; v < 24; ++v)
 				{
 					Cores[1].Voices[v].Volume = V_VolumeSlideLR(0, 0); // V_VolumeSlideLR::Max;

@@ -95,8 +95,8 @@ u16 const* const regtable_original[0x401] =
 		PVCA(0, 12), PVCA(0, 13), PVCA(0, 14), PVCA(0, 15), PVCA(0, 16), PVCA(0, 17),
 		PVCA(0, 18), PVCA(0, 19), PVCA(0, 20), PVCA(0, 21), PVCA(0, 22), PVCA(0, 23),
 
-		PCORE(0, ExtEffectsStartA) + 1,
-		PCORE(0, ExtEffectsStartA),
+		PCORE(0, EffectsStartA) + 1,
+		PCORE(0, EffectsStartA),
 
 		PREVB_REG(0, APF1_SIZE),
 		PREVB_REG(0, APF2_SIZE),
@@ -121,8 +121,8 @@ u16 const* const regtable_original[0x401] =
 		PREVB_REG(0, APF2_L_DST),
 		PREVB_REG(0, APF2_R_DST),
 
-		PCORE(0, ExtEffectsEndA) + 1,
-		PCORE(0, ExtEffectsEndA),
+		PCORE(0, EffectsEndA) + 1,
+		PCORE(0, EffectsEndA),
 
 		PCORE(0, Regs.ENDX),
 		PCORE(0, Regs.ENDX) + 1,
@@ -198,8 +198,8 @@ u16 const* const regtable_original[0x401] =
 		PVCA(1, 12), PVCA(1, 13), PVCA(1, 14), PVCA(1, 15), PVCA(1, 16), PVCA(1, 17),
 		PVCA(1, 18), PVCA(1, 19), PVCA(1, 20), PVCA(1, 21), PVCA(1, 22), PVCA(1, 23),
 
-		PCORE(1, ExtEffectsStartA) + 1,
-		PCORE(1, ExtEffectsStartA),
+		PCORE(1, EffectsStartA) + 1,
+		PCORE(1, EffectsStartA),
 
 		PREVB_REG(1, APF1_SIZE),
 		PREVB_REG(1, APF2_SIZE),
@@ -224,8 +224,8 @@ u16 const* const regtable_original[0x401] =
 		PREVB_REG(1, APF2_L_DST),
 		PREVB_REG(1, APF2_R_DST),
 
-		PCORE(1, ExtEffectsEndA) + 1,
-		PCORE(1, ExtEffectsEndA),
+		PCORE(1, EffectsEndA) + 1,
+		PCORE(1, EffectsEndA),
 
 		PCORE(1, Regs.ENDX),
 		PCORE(1, Regs.ENDX) + 1,
