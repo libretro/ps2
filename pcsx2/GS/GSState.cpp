@@ -2468,16 +2468,6 @@ void GSState::GrowVertexBuffer()
 	// Worst case index list is a list of points with vs expansion, 6 indices per point
 	u16* index = static_cast<u16*>(_aligned_malloc(sizeof(u16) * maxcount * 6, 32));
 
-	if (!vertex || !index)
-	{
-		const u32 vert_byte_count = sizeof(GSVertex) * maxcount;
-		const u32 idx_byte_count = sizeof(u16) * maxcount * 3;
-
-		Console.Error("GS: failed to allocate %zu bytes for vertices and %zu for indices.",
-			vert_byte_count, idx_byte_count);
-		pxFailRel("Memory allocation failed");
-	}
-
 	if (m_vertex.buff)
 	{
 		memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);
