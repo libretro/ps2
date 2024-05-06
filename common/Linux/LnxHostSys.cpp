@@ -235,10 +235,8 @@ void* HostSys::Mmap(void* base, size_t size, const PageProtectionMode mode)
 
 void HostSys::Munmap(void* base, size_t size)
 {
-	if (!base)
-		return;
-
-	munmap((void*)base, size);
+	if (base)
+		munmap((void*)base, size);
 }
 
 void HostSys::MemProtect(void* baseaddr, size_t size, const PageProtectionMode mode)
@@ -269,11 +267,10 @@ void* HostSys::CreateSharedMemory(const char* name, size_t size)
 
 	// ensure it's the correct size
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
-	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0)
+	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0) return nullptr;
 #else
-	if (ftruncate(fd, static_cast<off_t>(size)) < 0)
+	if (ftruncate(fd, static_cast<off_t>(size)) < 0) return nullptr;
 #endif
-		return nullptr;
 
 	return reinterpret_cast<void*>(static_cast<intptr_t>(fd));
 }

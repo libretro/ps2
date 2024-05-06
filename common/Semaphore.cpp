@@ -19,6 +19,18 @@
 #include "common/RedtapeWindows.h"
 #endif
 
+#if defined(__APPLE__)
+
+#include <cstdio>
+#include <pthread.h> // pthread_setcancelstate()
+#include <sys/time.h> // gettimeofday()
+#include <mach/mach.h>
+#include <mach/task.h> // semaphore_create() and semaphore_destroy()
+#include <mach/semaphore.h> // semaphore_*()
+#include <mach/mach_error.h> // mach_error_string()
+#include <mach/mach_time.h> // mach_absolute_time()
+#endif
+
 #include <limits>
 
 // --------------------------------------------------------------------------------------
@@ -95,12 +107,12 @@ void Threading::WorkSema::Reset()
 	m_state = STATE_RUNNING_0;
 }
 
-#if !defined(__APPLE__) // macOS implementations are in DarwinSemaphore
-
 Threading::KernelSemaphore::KernelSemaphore()
 {
-#ifdef _WIN32
+#if defined(_WIN32)
 	m_sema = CreateSemaphore(nullptr, 0, LONG_MAX, nullptr);
+#elif defined(__APPLE__)
+	semaphore_create(mach_task_self(), &m_sema, SYNC_POLICY_FIFO, 0);
 #else
 	sem_init(&m_sema, false, 0);
 #endif
@@ -108,8 +120,10 @@ Threading::KernelSemaphore::KernelSemaphore()
 
 Threading::KernelSemaphore::~KernelSemaphore()
 {
-#ifdef _WIN32
+#if defined(_WIN32)
 	CloseHandle(m_sema);
+#elif defined(__APPLE__)
+	semaphore_destroy(mach_task_self(), m_sema);
 #else
 	sem_destroy(&m_sema);
 #endif
@@ -117,8 +131,10 @@ Threading::KernelSemaphore::~KernelSemaphore()
 
 void Threading::KernelSemaphore::Post()
 {
-#ifdef _WIN32
+#if defined(_WIN32)
 	ReleaseSemaphore(m_sema, 1, nullptr);
+#elif defined(__APPLE__)
+	semaphore_signal(m_sema);
 #else
 	sem_post(&m_sema);
 #endif
@@ -126,8 +142,10 @@ void Threading::KernelSemaphore::Post()
 
 void Threading::KernelSemaphore::Wait()
 {
-#ifdef _WIN32
+#if defined(_WIN32)
 	WaitForSingleObject(m_sema, INFINITE);
+#elif defined(__APPLE__)
+	semaphore_wait(m_sema);
 #else
 	sem_wait(&m_sema);
 #endif
@@ -135,11 +153,17 @@ void Threading::KernelSemaphore::Wait()
 
 bool Threading::KernelSemaphore::TryWait()
 {
-#ifdef _WIN32
-	return WaitForSingleObject(m_sema, 0) == WAIT_OBJECT_0;
+#if defined(_WIN32)
+	if (WaitForSingleObject(m_sema, 0) != WAIT_OBJECT_0)
+		return false;
+#elif defined(__APPLE__)
+	mach_timespec_t time = {};
+	kern_return_t res = semaphore_timedwait(m_sema, time);
+	if (res == KERN_OPERATION_TIMED_OUT)
+		return false;
 #else
-	return sem_trywait(&m_sema) == 0;
+	if (sem_trywait(&m_sema) != 0)
+		return false;
 #endif
+	return true;
 }
-
-#endif

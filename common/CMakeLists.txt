@@ -32,7 +32,6 @@ target_sources(common PRIVATE
 	emitter/simd.cpp
 	emitter/x86emitter.cpp
 	Darwin/DarwinThreads.cpp
-	Darwin/DarwinSemaphore.cpp
 	Linux/LnxHostSys.cpp
 	Linux/LnxThreads.cpp
 	Windows/WinThreads.cpp
