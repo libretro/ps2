@@ -388,7 +388,6 @@ static s32 CALLBACK ISOgetTrayStatus(void)
 
 static s32 CALLBACK ISOctrlTrayOpen(void)  { return 0; }
 static s32 CALLBACK ISOctrlTrayClose(void) { return 0; }
-static s32 CALLBACK ISOdummyS32(void) { return 0; }
 static void CALLBACK ISOnewDiskCB(void (*)(void)) { }
 
 CDVD_API CDVDapi_Iso =
@@ -403,9 +402,9 @@ CDVD_API CDVDapi_Iso =
 	ISOgetTD,
 	ISOgetTOC,
 	ISOgetDiskType,
-	ISOdummyS32, // trayStatus
-	ISOdummyS32, // trayOpen
-	ISOdummyS32, // trayClose
+	ISOgetTrayStatus, // trayStatus
+	ISOctrlTrayOpen, // trayOpen
+	ISOctrlTrayClose, // trayClose
 
 	ISOnewDiskCB,
 
