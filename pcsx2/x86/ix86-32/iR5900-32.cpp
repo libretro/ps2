@@ -1082,9 +1082,9 @@ void iFlushCall(int flushtype)
 
 static u32 scaleblockcycles_calculation(void)
 {
-	bool lowcycles = (s_nBlockCycles <= 40);
-	s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
-	u32 scale_cycles = 0;
+	const bool lowcycles = (s_nBlockCycles <= 40);
+	const s8 cyclerate   = EmuConfig.Speedhacks.EECycleRate;
+	u32 scale_cycles     = 0;
 
 	if (cyclerate == 0 || lowcycles || cyclerate < -99 || cyclerate > 3)
 		scale_cycles = DEFAULT_SCALED_BLOCKS();
@@ -1113,8 +1113,8 @@ static u32 scaleblockcycles(void)
 
 u32 scaleblockcycles_clear(void)
 {
-	u32 scaled   = scaleblockcycles_calculation();
-	s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
+	const u32 scaled   = scaleblockcycles_calculation();
+	s8 cyclerate       = EmuConfig.Speedhacks.EECycleRate;
 
 	if (cyclerate > 1)
 		s_nBlockCycles &= (0x1 << (cyclerate + 2)) - 1;
@@ -1277,8 +1277,6 @@ static bool COP2IsQOP(u32 code)
 void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 {
 	static int* s_pCode;
-	u32 i;
-	int count;
 
 	if (EmuConfig.EnablePatches)
 		ApplyDynamicPatches(pc);
@@ -1307,6 +1305,8 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 	// pc might be past s_nEndBlock if the last instruction in the block is a DI.
 	if (pc <= s_nEndBlock)
 	{
+		u32 i;
+		int count;
 		for (i = 0; i < iREGCNT_GPR; ++i)
 		{
 			if (x86regs[i].inuse)
@@ -1708,10 +1708,10 @@ static void recRecompile(const u32 startpc)
 		{
 			// There are four known versions of EELOAD, identifiable by the location of the 'jal' to the EELOAD function which
 			// calls ExecPS2(). The function itself is at the same address in all BIOSs after v1.00-v1.10.
-			u32 typeAexecjump = memRead32(EELOAD_START + 0x470); // v1.00, v1.01?, v1.10?
-			u32 typeBexecjump = memRead32(EELOAD_START + 0x5B0); // v1.20, v1.50, v1.60 (3000x models)
-			u32 typeCexecjump = memRead32(EELOAD_START + 0x618); // v1.60 (3900x models)
-			u32 typeDexecjump = memRead32(EELOAD_START + 0x600); // v1.70, v1.90, v2.00, v2.20, v2.30
+			const u32 typeAexecjump = memRead32(EELOAD_START + 0x470); // v1.00, v1.01?, v1.10?
+			const u32 typeBexecjump = memRead32(EELOAD_START + 0x5B0); // v1.20, v1.50, v1.60 (3000x models)
+			const u32 typeCexecjump = memRead32(EELOAD_START + 0x618); // v1.60 (3900x models)
+			const u32 typeDexecjump = memRead32(EELOAD_START + 0x600); // v1.70, v1.90, v2.00, v2.20, v2.30
 			if ((typeBexecjump >> 26 == 3) || (typeCexecjump >> 26 == 3) || (typeDexecjump >> 26 == 3)) // JAL to 0x822B8
 				g_eeloadExec = EELOAD_START + 0x2B8;
 			else if (typeAexecjump >> 26 == 3) // JAL to 0x82170
@@ -2039,7 +2039,7 @@ StartRecomp:
 	memory_protect_recompiled_code(startpc, (s_nEndBlock - startpc) >> 2);
 
 	// Skip Recompilation if sceMpegIsEnd Pattern detected
-	bool doRecompilation = !skipMPEG_By_Pattern(startpc) && !recSkipTimeoutLoop(timeout_reg, is_timeout_loop);
+	const bool doRecompilation = !skipMPEG_By_Pattern(startpc) && !recSkipTimeoutLoop(timeout_reg, is_timeout_loop);
 
 	if (doRecompilation)
 	{
@@ -2113,7 +2113,7 @@ StartRecomp:
 			// case can result in very short blocks which should not issue branch tests for
 			// performance reasons.
 
-			int numinsts = (pc - startpc) / 4;
+			const int numinsts = (pc - startpc) / 4;
 			if (numinsts > 6)
 				SetBranchImm(pc);
 			else
