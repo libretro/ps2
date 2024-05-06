@@ -508,19 +508,6 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	return TD + ApplyVolume(RV, FxVol);
 }
 
-static StereoOut32 DCFilter(StereoOut32 input) {
-	// A simple DC blocking high-pass filter
-	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
-	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
-	StereoOut32 output;
-	output.Left = (input.Left - DCFilterIn.Left + clamp_mix((0x7f5c * DCFilterOut.Left) >> 15));
-	output.Right = (input.Right - DCFilterIn.Right + clamp_mix((0x7f5c * DCFilterOut.Right) >> 15));
-
-	DCFilterIn = input;
-	DCFilterOut = output;
-	return output;
-}
-
 // Gcc does not want to inline it when lto is enabled because some functions growth too much.
 // The function is big enough to see any speed impact. -- Gregory
 #ifndef __POSIX__
@@ -569,7 +556,6 @@ __forceinline
 		Out = ApplyVolume(clamp_mix(Out), Cores[1].MasterVol);
 
 	// Final clamp, take care not to exceed 16 bits from here on
-	Out = DCFilter(Out);
 	Out = clamp_mix(Out);
 
 	SndBuffer::Write(StereoOut16(Out));
