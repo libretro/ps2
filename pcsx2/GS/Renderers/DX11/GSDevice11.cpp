@@ -1116,16 +1116,16 @@ void GSDevice11::OMSetDepthStencilState(ID3D11DepthStencilState* dss, u8 sref)
 	}
 }
 
-void GSDevice11::OMSetBlendState(ID3D11BlendState* bs, float bf)
+void GSDevice11::OMSetBlendState(ID3D11BlendState* bs, u8 bf)
 {
 	if (m_state.bs != bs || m_state.bf != bf)
 	{
 		m_state.bs = bs;
 		m_state.bf = bf;
 
-		const float BlendFactor[] = {bf, bf, bf, 0};
+		const GSVector4 col(static_cast<float>(bf) / 128.0f);
 
-		m_ctx->OMSetBlendState(bs, BlendFactor, 0xffffffff);
+		m_ctx->OMSetBlendState(bs, col.v, 0xffffffff);
 	}
 }
 
@@ -1469,8 +1469,8 @@ void GSDevice11::RestoreAPIState()
 
 	m_ctx->OMSetDepthStencilState(m_state.dss, m_state.sref);
 
-	const float blend_factors[4] = { m_state.bf, m_state.bf, m_state.bf, m_state.bf };
-	m_ctx->OMSetBlendState(m_state.bs, blend_factors, 0xFFFFFFFFu);
+	const GSVector4 col(static_cast<float>(m_state.bf) / 128.0f);
+	m_ctx->OMSetBlendState(m_state.bs, col.v, 0xFFFFFFFFu);
 
 	PSUpdateShaderState();
 
@@ -1791,5 +1791,5 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 		j = m_om_bs.try_emplace(bsel, std::move(bs)).first;
 	}
 
-	OMSetBlendState(j->second.get(), (float)(int)afix / 0x80);
+	OMSetBlendState(j->second.get(), afix);
 }
