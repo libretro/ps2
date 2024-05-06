@@ -27018,6 +27018,8 @@ SLKA-25296:
 SLKA-25297:
   name: "Taito Memories - Joukan [Special Package]"
   region: "NTSC-K"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLKA-25298:
   name: "Winning Eleven 9"
   region: "NTSC-K"
@@ -27725,6 +27727,16 @@ SLPM-55015:
 SLPM-55016:
   name: "Yotsunoha - A Journey of Sincerity"
   region: "NTSC-J"
+SLPM-55017:
+  name: "Taito Memories II - Joukan [Eternal Hits]"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
+SLPM-55018:
+  name: "Taito Memories II - Gekan [Eternal Hits]"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-55022:
   name: "Final Fantasy XII [Ultimate Hits]"
   region: "NTSC-J"
@@ -34842,9 +34854,11 @@ SLPM-66056:
   region: "NTSC-J"
   compat: 5
 SLPM-66057:
-  name: "Taito Memories Vol.1"
+  name: "Taito Memories - Joukan"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66058:
   name: "Sengoku Basara"
   region: "NTSC-J"
@@ -34981,6 +34995,8 @@ SLPM-66091:
 SLPM-66092:
   name: "Taito Memories Gekan"
   region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66093:
   name: "Kessen II [Koei Selection Series]"
   region: "NTSC-J"
@@ -35687,6 +35703,8 @@ SLPM-66250:
 SLPM-66251:
   name: "EX Jinsei Game II [Takara Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66253:
   name: "Finalist [Limited First Edition]"
   region: "NTSC-J"
@@ -36251,8 +36269,10 @@ SLPM-66401:
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
 SLPM-66402:
-  name: "Taito Memories Vol.1 [Taito The Best]"
+  name: "Taito Memories - Joukan [Taito The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66404:
   name: "Ultimate Spider-Man"
   region: "NTSC-J"
@@ -37225,6 +37245,8 @@ SLPM-66649:
   name: "Taito Memories II - Joukan"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66651:
   name: "Battlefield 2 - Modern Combat [EA Best Hits]"
   region: "NTSC-J"
@@ -37516,9 +37538,11 @@ SLPM-66712:
   gsHWFixes:
     beforeDraw: "OI_RozenMaidenGebetGarden"
 SLPM-66713:
-  name: "Taito Memories Vol.2 Gekan"
+  name: "Taito Memories II - Gekan"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66714:
   name: "Wrestle Kingdom 2 - Pro Wrestling Sekai Taisen"
   region: "NTSC-J"
@@ -37766,11 +37790,15 @@ SLPM-66774:
   name: "Energy Airforce - AimStrike! [Taito Best]"
   region: "NTSC-J"
 SLPM-66775:
-  name: "Taito Memories Joukan [Taito Best]"
+  name: "Taito Memories - Joukan [Taito Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66776:
   name: "Taito Memories Gekan [Taito Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 SLPM-66777:
   name: "Jikkyou Powerful Pro Yakyuu 14"
   region: "NTSC-J"
@@ -55669,12 +55697,22 @@ TCPS-10113:
 TCPS-10114:
   name: "Matantei Loki Ragnarok Mayoukaku"
   region: "NTSC-J"
+TCPS-10115:
+  name: "Taito Memories - Joukan"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 TCPS-10117:
   name: "Mushihime-sama [Limited Edition]"
   region: "NTSC-J"
 TCPS-10123:
   name: "Langrisser III"
   region: "NTSC-J"
+TCPS-10124:
+  name: "Taito Memories Gekan"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 TCPS-10125:
   name: "Raiden III"
   region: "NTSC-J"
@@ -55731,6 +55769,16 @@ TCPS-10158:
 TCPS-10159:
   name: "Suzuki TT Super Bikes - Real Road Racing"
   region: "NTSC-J"
+TCPS-10160:
+  name: "Taito Memories - Joukan [Taito The Best]"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
+TCPS-10164:
+  name: "Taito Memories Gekan [Taito The Best]"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 TCPS-10166:
   name: "Wizardry Gaiden - Sentou no Kangoku - Prisoners of the Battles"
   region: "NTSC-J"
@@ -55740,6 +55788,11 @@ TCPS-10168:
 TCPS-10172:
   name: "Homura [Taito the Best]"
   region: "NTSC-J"
+TCPS-10178:
+  name: "Taito Memories II - Joukan [Taito The Best]"
+  region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 TCPS-10182:
   name: "Rozen Maiden - Gebetgarten [Limited Edition]"
   region: "NTSC-J"
@@ -55748,6 +55801,8 @@ TCPS-10182:
 TCPS-10183:
   name: "Taito Memories II - Gekan"
   region: "NTSC-J"
+  gsHWFixes:
+    roundSprite: 1 # Fixes vertical and horizontal lines.
 TCPS-10184:
   name: "Rozen Maiden - Duellwalzer [Taito the Best]"
   region: "NTSC-J"
