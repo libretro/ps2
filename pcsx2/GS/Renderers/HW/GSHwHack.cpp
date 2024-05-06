@@ -1038,8 +1038,8 @@ bool GSHwHack::OI_SonicUnleashed(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 			GSVector2i new_size = GSVector2i(std::max(rt_again->m_unscaled_size.x, src->m_unscaled_size.x), std::max(rt_again->m_unscaled_size.y, src->m_unscaled_size.y));
 			rt_again->ResizeTexture(new_size.x, new_size.y);
 			rt = rt_again->m_texture;
-			rt_size = new_size;
-			rt_again->UpdateDrawn(GSVector4i::loadh(rt_size));
+			rt_size = new_size * GSVector2i(src->GetScale());
+			rt_again->UpdateDrawn(GSVector4i::loadh(new_size));
 		}
 	}
 
