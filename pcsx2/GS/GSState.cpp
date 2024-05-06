@@ -346,10 +346,9 @@ GSVideoMode GSState::GetVideoMode()
 		case 3:
 			return GSVideoMode::PAL;
 		default:
-			return GSVideoMode::Unknown;
+			break;
 	}
-
-	__assume(0); // unreachable
+	return GSVideoMode::Unknown;
 }
 
 float GSState::GetTvRefreshRate()
@@ -369,11 +368,10 @@ float GSState::GetTvRefreshRate()
 		case GSVideoMode::HDTV_1080I:
 			return 60;
 		default:
-			Console.Error("GS: Unknown video mode. Please report: https://github.com/PCSX2/pcsx2/issues");
-			return 0;
+			break;
 	}
 
-	__assume(0); // unreachable
+	return 0;
 }
 
 __inline void GSState::CheckFlushes()
@@ -678,20 +676,20 @@ void GSState::ApplyTEX0(GIFRegTEX0& TEX0)
 	// extremely broken for the same reasons as MLB Power Pros in that it spams TEX0 with
 	// complete garbage making for a nice 1G heap of GSOffset.
 
+	if ((TEX0.PSM & 0x7) >= 3 && TEX0.CLD)
+	{
+		m_mem.m_clut.ClearDrawInvalidity();
+		m_mem.m_clut.SetNextCLUTTEX0(TEX0.U64);
+		CheckCLUTValidity(m_prev_env.PRIM.PRIM);
+	}
+
 	// Even if TEX0 did not change, a new palette may have been uploaded and will overwrite the currently queued for drawing.
 	const bool wt = m_mem.m_clut.WriteTest(TEX0, m_env.TEXCLUT);
 
 	// No need to flush on CLUT if we aren't texture mapping.
 	if (wt)
 	{
-		m_mem.m_clut.SetNextCLUTTEX0(TEX0.U64);
-		if (TEX0.CBP != m_mem.m_clut.GetCLUTCBP())
-		{
-			m_mem.m_clut.ClearDrawInvalidity(true);
-			CLUTAutoFlush(m_prev_env.PRIM.PRIM);
-		}
-
-		if ((m_prev_env.PRIM.TME && (m_prev_env.CTXT[m_prev_env.PRIM.CTXT].TEX0.PSM & 0x7) >= 3) || m_mem.m_clut.IsInvalid())
+		if ((m_prev_env.PRIM.TME && (m_prev_env.CTXT[m_prev_env.PRIM.CTXT].TEX0.PSM & 0x7) >= 3) || (m_mem.m_clut.IsInvalid() & 2))
 			Flush(GSFlushReason::CLUTCHANGE);
 		else
 			FlushWrite();
@@ -753,7 +751,10 @@ void GSState::ApplyTEX0(GIFRegTEX0& TEX0)
 		m_mem.m_clut.Write(m_env.CTXT[i].TEX0, m_env.TEXCLUT);
 	}
 
-	constexpr u64 mask = 0x1f78001fffffffffull; // TBP0 TBW PSM TW TH TCC TFX CPSM CSA
+	u64 mask = 0x1fffffffffull; // TBP0 TBW PSM TW TH TCC TFX
+	if ((TEX0.PSM & 0x7) >= 3)
+		mask |= 0x1f78000000000000ull; // CPSM CSA
+
 	if (i == m_prev_env.PRIM.CTXT)
 	{
 		if ((m_prev_env.CTXT[i].TEX0.U64 ^ m_env.CTXT[i].TEX0.U64) & mask)
@@ -1210,6 +1211,7 @@ void GSState::GIFRegHandlerBITBLTBUF(const GIFReg* RESTRICT r)
 	// in TEX0 later as 4 and 10 respectively). However I can find no
 	// documentation on this problem, nothing in the game to suggest
 	// it is broken and the code here for it was likely incorrect to begin with.
+
 	if (r->BITBLTBUF != m_env.BITBLTBUF)
 		FlushWrite();
 
@@ -1272,6 +1274,9 @@ void GSState::Flush(GSFlushReason reason)
 	if (m_index.tail > 0)
 	{
 		m_state_flush_reason = reason;
+
+		// Used to prompt the current draw that it's modifying its own CLUT.
+		CheckCLUTValidity(m_prev_env.PRIM.PRIM);
 
 		if (m_dirty_gs_regs)
 		{
@@ -1362,7 +1367,7 @@ inline bool GSState::TestDrawChanged()
 		return true;
 
 	const int context = m_prev_env.PRIM.CTXT;
-	const GSDrawingContext ctx = m_prev_env.CTXT[context];
+	const GSDrawingContext& ctx = m_prev_env.CTXT[context];
 	// If the frame is getting updated check the FRAME, otherwise, we can ignore it
 	if ((ctx.TEST.ATST != ATST_NEVER) || !ctx.TEST.ATE || (ctx.TEST.AFAIL & 1) || ctx.TEST.DATE)
 	{
@@ -1442,14 +1447,11 @@ void GSState::FlushPrim()
 					}
 					break;
 				case GS_INVALID:
-					break;
 				default:
 					break;
 			}
-		}
 
-		// If the PSM format of Z is invalid, but it is masked (no write) and ZTST is set to ALWAYS pass (no test, just allow)
-		// we can ignore the Z format, since it won't be used in the draw (Star Ocean 3 transitions)
+		}
 
 		m_vt.Update(m_vertex.buff, m_index.buff, m_vertex.tail, m_index.tail, GSUtil::GetPrimClass(PRIM->PRIM));
 
@@ -1754,8 +1756,8 @@ void GSState::Read(u8* mem, int len)
 
 void GSState::Move()
 {
-	// FFXII uses this to move the top/bottom of the scrolling menus offscreen and then blends them back over the text to create a shading effect
-	// Guitar Hero copies the far end of the board to do a similar blend too
+	// ffxii uses this to move the top/bottom of the scrolling menus offscreen and then blends them back over the text to create a shading effect
+	// guitar hero copies the far end of the board to do a similar blend too
 	s_transfer_n++;
 
 	if (m_env.TRXDIR.XDIR == 3)
@@ -2116,7 +2118,7 @@ void GSState::Transfer(const u8* mem, u32 size)
 
 								break;
 							default:
-								__assume(0);
+								break;
 						}
 
 						path.nloop = 0;
@@ -2183,7 +2185,7 @@ void GSState::Transfer(const u8* mem, u32 size)
 					break;
 				}
 				default:
-					__assume(0);
+					break;
 			}
 		}
 
@@ -2466,6 +2468,16 @@ void GSState::GrowVertexBuffer()
 	// Worst case index list is a list of points with vs expansion, 6 indices per point
 	u16* index = static_cast<u16*>(_aligned_malloc(sizeof(u16) * maxcount * 6, 32));
 
+	if (!vertex || !index)
+	{
+		const u32 vert_byte_count = sizeof(GSVertex) * maxcount;
+		const u32 idx_byte_count = sizeof(u16) * maxcount * 3;
+
+		Console.Error("GS: failed to allocate %zu bytes for vertices and %zu for indices.",
+			vert_byte_count, idx_byte_count);
+		pxFailRel("Memory allocation failed");
+	}
+
 	if (m_vertex.buff)
 	{
 		memcpy(vertex, m_vertex.buff, sizeof(GSVertex) * m_vertex.tail);
@@ -2502,7 +2514,6 @@ bool GSState::TrianglesAreQuads() const
 			if (vert.XYZ != m_vertex.buff[prev_tri[0]].XYZ && vert.XYZ != m_vertex.buff[prev_tri[1]].XYZ && vert.XYZ != m_vertex.buff[prev_tri[2]].XYZ)
 				return false;
 		}
-
 		// Degenerate triangles should've been culled already, so we can check indices.
 		u32 extra_verts = 0;
 		for (u32 j = 3; j < 6; j++)
@@ -2659,62 +2670,72 @@ __forceinline bool GSState::IsAutoFlushDraw(u32 prim)
 	return false;
 }
 
-__forceinline void GSState::CLUTAutoFlush(u32 prim)
+static constexpr u32 NumIndicesForPrim(u32 prim)
+{
+	switch (prim)
+	{
+		case GS_POINTLIST:
+		case GS_INVALID:
+			return 1;
+		case GS_LINELIST:
+		case GS_SPRITE:
+		case GS_LINESTRIP:
+			return 2;
+		case GS_TRIANGLELIST:
+		case GS_TRIANGLESTRIP:
+		case GS_TRIANGLEFAN:
+			return 3;
+		default:
+			return 0;
+	}
+}
+
+static constexpr u32 MaxVerticesForPrim(u32 prim)
+{
+	switch (prim)
+	{
+		// Four indices per 1 vertex.
+		case GS_POINTLIST:
+		case GS_INVALID:
+
+		// Indices are shifted left by 2 to form quads.
+		case GS_LINELIST:
+		case GS_LINESTRIP:
+			return (std::numeric_limits<u16>::max() / 4) - 4;
+
+		// Four indices per two vertices.
+		case GS_SPRITE:
+			return (std::numeric_limits<u16>::max() / 2) - 2;
+
+		case GS_TRIANGLELIST:
+		case GS_TRIANGLESTRIP:
+		case GS_TRIANGLEFAN:
+		default:
+			return (std::numeric_limits<u16>::max() - 3);
+	}
+}
+
+__forceinline void GSState::CheckCLUTValidity(u32 prim)
 {
 	if (m_mem.m_clut.IsInvalid() & 2)
 		return;
 
-	u32 n = 1;
+	u32 n = NumIndicesForPrim(prim);
 
-	switch (prim)
+	const GSDrawingContext& ctx = m_prev_env.CTXT[m_prev_env.PRIM.CTXT];
+	if ((m_index.tail > 0 || (m_vertex.tail == n - 1)) && (GSLocalMemory::m_psm[ctx.TEX0.PSM].pal == 0 || !m_prev_env.PRIM.TME))
 	{
-		case GS_POINTLIST:
-			n = 1;
-			break;
-		case GS_LINELIST:
-		case GS_LINESTRIP:
-		case GS_SPRITE:
-			n = 2;
-			break;
-		case GS_TRIANGLELIST:
-		case GS_TRIANGLESTRIP:
-			n = 3;
-			break;
-		case GS_TRIANGLEFAN:
-			n = 3;
-			break;
-		case GS_INVALID:
-		default:
-			break;
-	}
-
-	const int ctx = m_prev_env.PRIM.CTXT;
-	if ((m_index.tail > 0 || (m_vertex.tail == n - 1)) && (GSLocalMemory::m_psm[m_prev_env.CTXT[ctx].TEX0.PSM].pal == 0 || !m_prev_env.PRIM.TME))
-	{
-		const GSLocalMemory::psm_t& fpsm = GSLocalMemory::m_psm[m_prev_env.CTXT[ctx].FRAME.PSM];
-
-		if ((m_prev_env.CTXT[ctx].FRAME.FBMSK & fpsm.fmsk) != fpsm.fmsk && GSLocalMemory::m_psm[m_mem.m_clut.GetCLUTCPSM()].bpp == fpsm.bpp)
+		const GSLocalMemory::psm_t& fpsm = GSLocalMemory::m_psm[ctx.FRAME.PSM];
+		const bool frame_needed = !(ctx.TEST.ATE && ctx.TEST.ATST == 0 && ctx.TEST.AFAIL == 2) && ((ctx.FRAME.FBMSK & fpsm.fmsk) != fpsm.fmsk);
+		if (frame_needed && GSLocalMemory::m_psm[m_mem.m_clut.GetCLUTCPSM()].bpp == fpsm.bpp)
 		{
-			const u32 startbp = fpsm.info.bn(temp_draw_rect.x, temp_draw_rect.y, m_prev_env.CTXT[ctx].FRAME.Block(), m_prev_env.CTXT[ctx].FRAME.FBW);
+			const u32 startbp = fpsm.info.bn(temp_draw_rect.x, temp_draw_rect.y, ctx.FRAME.Block(), ctx.FRAME.FBW);
 
 			// If it's a point, then we only have one coord, so the address for start and end will be the same, which is bad for the following check.
 			u32 endbp = startbp;
 			// otherwise calculate the end.
 			if (prim != GS_POINTLIST || (m_index.tail > 1))
-				endbp = fpsm.info.bn(temp_draw_rect.z - 1, temp_draw_rect.w - 1, m_prev_env.CTXT[ctx].FRAME.Block(), m_prev_env.CTXT[ctx].FRAME.FBW);
-
-			m_mem.m_clut.InvalidateRange(startbp, endbp, true);
-		}
-
-		const GSLocalMemory::psm_t& zpsm = GSLocalMemory::m_psm[m_prev_env.CTXT[ctx].ZBUF.PSM];
-		if (!m_prev_env.CTXT[ctx].ZBUF.ZMSK && GSLocalMemory::m_psm[m_mem.m_clut.GetCLUTCPSM()].bpp == zpsm.bpp)
-		{
-			const u32 startbp = zpsm.info.bn(temp_draw_rect.x, temp_draw_rect.y, m_prev_env.CTXT[ctx].ZBUF.Block(), m_prev_env.CTXT[ctx].FRAME.FBW);
-			// If it's a point, then we only have one coord, so the address for start and end will be the same, which is bad for the following check.
-			u32 endbp = startbp;
-			// otherwise calculate the end.
-			if (prim != GS_POINTLIST || (m_index.tail > 1))
-				endbp = zpsm.info.bn(temp_draw_rect.z - 1, temp_draw_rect.w - 1, m_prev_env.CTXT[ctx].ZBUF.Block(), m_prev_env.CTXT[ctx].FRAME.FBW);
+				endbp = fpsm.info.bn(temp_draw_rect.z - 1, temp_draw_rect.w - 1, ctx.FRAME.Block(), ctx.FRAME.FBW);
 
 			m_mem.m_clut.InvalidateRange(startbp, endbp, true);
 		}
@@ -2991,51 +3012,6 @@ __forceinline void GSState::HandleAutoFlush()
 	}
 }
 
-static constexpr u32 NumIndicesForPrim(u32 prim)
-{
-	switch (prim)
-	{
-		case GS_POINTLIST:
-		case GS_INVALID:
-			return 1;
-		case GS_LINELIST:
-		case GS_SPRITE:
-		case GS_LINESTRIP:
-			return 2;
-		case GS_TRIANGLELIST:
-		case GS_TRIANGLESTRIP:
-		case GS_TRIANGLEFAN:
-			return 3;
-		default:
-			return 0;
-	}
-}
-
-static constexpr u32 MaxVerticesForPrim(u32 prim)
-{
-	switch (prim)
-	{
-			// Four indices per 1 vertex.
-		case GS_POINTLIST:
-		case GS_INVALID:
-
-			// Indices are shifted left by 2 to form quads.
-		case GS_LINELIST:
-		case GS_LINESTRIP:
-			return (std::numeric_limits<u16>::max() / 4) - 4;
-
-			// Four indices per two vertices.
-		case GS_SPRITE:
-			return (std::numeric_limits<u16>::max() / 2) - 2;
-
-		case GS_TRIANGLELIST:
-		case GS_TRIANGLESTRIP:
-		case GS_TRIANGLEFAN:
-		default:
-			return (std::numeric_limits<u16>::max() - 3);
-	}
-}
-
 template <u32 prim, bool auto_flush, bool index_swap>
 __forceinline void GSState::VertexKick(u32 skip)
 {
@@ -3269,7 +3245,7 @@ __forceinline void GSState::VertexKick(u32 skip)
 			m_vertex.tail = head;
 			return;
 		default:
-			__assume(0);
+			break;
 	}
 
 	// Update rectangle for the current draw. We can use the re-integer coordinates from min/max here.
@@ -3280,8 +3256,6 @@ __forceinline void GSState::VertexKick(u32 skip)
 	else
 		temp_draw_rect = draw_min.blend32<12>(draw_max);
 	temp_draw_rect = temp_draw_rect.rintersect(m_context->scissor.in);
-
-	CLUTAutoFlush(prim);
 
 	constexpr u32 max_vertices = MaxVerticesForPrim(prim);
 	if (max_vertices != 0 && m_vertex.tail >= max_vertices)
@@ -3373,7 +3347,7 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 			vr.z = (maxu | minu) + 1;
 			break;
 		default:
-			__assume(0);
+			break;
 	}
 
 	switch (wmt)
@@ -3391,7 +3365,7 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 			vr.w = (maxv | minv) + 1;
 			break;
 		default:
-			__assume(0);
+			break;
 	}
 
 	// Software renderer fixes TEX0 so that TW/TH contain MAXU/MAXV.
@@ -3620,7 +3594,7 @@ void GSState::CalcAlphaMinMax(const int tex_alpha_min, const int tex_alpha_max)
 					m_mem.m_clut.GetAlphaMinMax32(a.y, a.w);
 					break;
 				default:
-					__assume(0);
+					break;
 			}
 
 			switch (context->TEX0.TFX)
@@ -3650,7 +3624,7 @@ void GSState::CalcAlphaMinMax(const int tex_alpha_min, const int tex_alpha_max)
 					a.z = a.w;
 					break;
 				default:
-					__assume(0);
+					break;
 			}
 		}
 		min = a.x;
@@ -3690,7 +3664,7 @@ bool GSState::TryAlphaTest(u32& fm, u32& zm)
 				return true;
 			break;
 		default:
-			__assume(0);
+			break;
 	}
 
 	bool pass = true;
@@ -3764,7 +3738,7 @@ bool GSState::TryAlphaTest(u32& fm, u32& zm)
 					return false;
 				break;
 			default:
-				__assume(0);
+				break;
 		}
 	}
 
@@ -3786,7 +3760,7 @@ bool GSState::TryAlphaTest(u32& fm, u32& zm)
 				zm = 0xffffffff;
 				break;
 			default:
-				__assume(0);
+				break;
 		}
 	}
 
