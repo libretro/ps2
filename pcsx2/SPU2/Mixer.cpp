@@ -569,8 +569,8 @@ __forceinline
 		Out = ApplyVolume(clamp_mix(Out), Cores[1].MasterVol);
 
 	// Final clamp, take care not to exceed 16 bits from here on
-	Out = clamp_mix(Out);
 	Out = DCFilter(Out);
+	Out = clamp_mix(Out);
 
 	SndBuffer::Write(StereoOut16(Out));
 
