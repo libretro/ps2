@@ -118,11 +118,8 @@ enum ChannelFetch
 	ChannelFetch_GXBY  = 6
 };
 
-#pragma pack(push, 1)
-
-class DisplayConstantBuffer
+struct alignas(16) DisplayConstantBuffer
 {
-public:
 	GSVector4 SourceRect; // +0,xyzw
 	GSVector4 TargetRect; // +16,xyzw
 	GSVector2 SourceSize; // +32,xy
@@ -150,9 +147,8 @@ public:
 	}
 };
 
-class MergeConstantBuffer
+struct alignas(16) MergeConstantBuffer
 {
-public:
 	GSVector4 BGColor;
 	u32 EMODA;
 	u32 EMODC;
@@ -160,13 +156,10 @@ public:
 	float ScaleFactor;
 };
 
-class InterlaceConstantBuffer
+struct alignas(16) InterlaceConstantBuffer
 {
-public:
 	GSVector4 ZrH; // data passed to the shader
 };
-
-#pragma pack(pop)
 
 enum HWBlendFlags
 {
