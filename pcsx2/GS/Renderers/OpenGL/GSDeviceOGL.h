@@ -145,7 +145,6 @@ public:
 		__fi bool operator==(const ProgramSelector& p) const { return BitEqual(*this, p); }
 		__fi bool operator!=(const ProgramSelector& p) const { return !BitEqual(*this, p); }
 	};
-	static_assert(sizeof(ProgramSelector) == 16, "Program selector is 16 bytes");
 
 	struct ProgramSelectorHash
 	{

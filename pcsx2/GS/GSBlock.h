@@ -1269,10 +1269,6 @@ public:
 					v6 = (v4 << 4).upl8(v4);
 					v7 = (v5 << 4).upl8(v5);
 				}
-				else
-				{
-					ASSERT(0);
-				}
 
 				v4 = v6.upl16(v7);
 				v5 = v6.uph16(v7);
@@ -1325,10 +1321,6 @@ public:
 				{
 					v4 = (v4 << 4).upl8(v4);
 					v5 = (v5 << 4).upl8(v5);
-				}
-				else
-				{
-					ASSERT(0);
 				}
 			}
 

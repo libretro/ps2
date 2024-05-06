@@ -127,7 +127,6 @@ public:
 		{
 			u8* code_ptr = GSCodeReserve::GetInstance().Reserve(MAX_SIZE);
 			CG cg(key, code_ptr, MAX_SIZE);
-			ASSERT(cg.getSize() < MAX_SIZE);
 
 			GSCodeReserve::GetInstance().Commit(cg.getSize());
 

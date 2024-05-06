@@ -456,15 +456,12 @@ void GSRendererSW::UsePages(const GSOffset::PageLooper& pages, const int type)
 		switch (type)
 		{
 			case 0:
-				ASSERT((m_fzb_pages[page] & 0xFFFF) < USHRT_MAX);
 				m_fzb_pages[page] += 1;
 				break;
 			case 1:
-				ASSERT((m_fzb_pages[page] >> 16) < USHRT_MAX);
 				m_fzb_pages[page] += 0x10000;
 				break;
 			case 2:
-				ASSERT(m_tex_pages[page] < USHRT_MAX);
 				m_tex_pages[page] += 1;
 				break;
 			default:
@@ -480,15 +477,12 @@ void GSRendererSW::ReleasePages(const GSOffset::PageLooper& pages, const int typ
 		switch (type)
 		{
 			case 0:
-				ASSERT((m_fzb_pages[page] & 0xFFFF) > 0);
 				m_fzb_pages[page] -= 1;
 				break;
 			case 1:
-				ASSERT((m_fzb_pages[page] >> 16) > 0);
 				m_fzb_pages[page] -= 0x10000;
 				break;
 			case 2:
-				ASSERT(m_tex_pages[page] > 0);
 				m_tex_pages[page] -= 1;
 				break;
 			default:
@@ -808,10 +802,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 			GSTextureCacheSW::Texture* t = m_tc->Lookup(TEX0, env.TEXA);
 
 			if (t == NULL)
-			{
-				ASSERT(0);
 				return false;
-			}
 
 			data->SetSource(t, r, 0);
 
@@ -851,17 +842,10 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 				}
 
 				if (gd.sel.mmin == 2)
-				{
 					mxl--; // don't sample beyond the last level (TODO: add a dummy level instead?)
-				}
 
 				if (gd.sel.fst)
-				{
-					ASSERT(gd.sel.lcm == 1);
-					ASSERT(((m_vt.m_min.t.uph(m_vt.m_max.t) == GSVector4::zero()).mask() & 3) == 3); // ratchet and clank (menu)
-
 					gd.sel.lcm = 1;
-				}
 
 				if (gd.sel.lcm)
 				{
@@ -904,10 +888,7 @@ bool GSRendererSW::GetScanlineGlobalData(SharedData* data)
 					GSTextureCacheSW::Texture* t = m_tc->Lookup(MIP_TEX0, env.TEXA, gd.sel.tw + 3);
 
 					if (t == NULL)
-					{
-						ASSERT(0);
 						return false;
-					}
 
 					GSVector4i r = GetTextureMinMax(MIP_TEX0, MIP_CLAMP, gd.sel.ltf, true).coverage;
 
@@ -1240,8 +1221,6 @@ void GSRendererSW::SharedData::ReleasePages()
 
 void GSRendererSW::SharedData::SetSource(GSTextureCacheSW::Texture* t, const GSVector4i& r, int level)
 {
-	ASSERT(m_tex[level].t == NULL);
-
 	m_tex[level].t = t;
 	m_tex[level].r = r;
 

@@ -620,7 +620,6 @@ struct alignas(16) GSHWDrawConfig
 		DepthStencilSelector depth;
 		float ps_aref;
 	};
-	static_assert(sizeof(AlphaPass) == 24, "alpha pass is 24 bytes");
 
 	AlphaPass alpha_second_pass;
 

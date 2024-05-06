@@ -130,9 +130,6 @@ namespace Vulkan
 
 #if defined(__APPLE__)
 		// Check if a path to a specific Vulkan library has been specified.
-		char* libvulkan_env = getenv("LIBVULKAN_PATH");
-		if (libvulkan_env)
-			vulkan_module = dlopen(libvulkan_env, RTLD_NOW);
 		if (!vulkan_module)
 		{
 			unsigned path_size = 0;

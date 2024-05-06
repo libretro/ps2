@@ -480,8 +480,6 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 		steps = pixels - vlen;
 	}
 
-	ASSERT((left & (vlen - 1)) == 0);
-
 	const GSVector2i* fza_base = &global.fzbr[top];
 	const GSVector2i* fza_offset = &global.fzbc[left >> 2];
 
@@ -1834,9 +1832,6 @@ __ri static void DrawRectT(const GSOffset& off, const GSVector4i& r, u32 c, u32 
 	color = color.andnot(mask);
 	c = c & (~m);
 
-	if (masked)
-		ASSERT(mask.U32[0] != 0);
-
 	GSVector4i br = r.ralign<Align_Inside>(GSVector2i(8 * 4 / sizeof(T), 8));
 
 	if (!br.rempty())
@@ -1861,8 +1856,6 @@ __ri static void DrawRectT(const GSOffset& off, const GSVector4i& r, u32 c, u32 
 void GSDrawScanline::DrawRect(const GSVector4i& r, const GSVertexSW& v, GSScanlineLocalData& local)
 {
 	const GSScanlineGlobalData& global = GlobalFromLocal(local);
-	ASSERT(r.y >= 0);
-	ASSERT(r.w >= 0);
 
 	// FIXME: sometimes the frame and z buffer may overlap, the outcome is undefined
 

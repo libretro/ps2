@@ -147,7 +147,7 @@ GSTextureOGL::GSTextureOGL(Type type, int width, int height, int levels, Format 
 			m_int_format = 0;
 			m_int_type = 0;
 			m_int_shift = 0;
-			ASSERT(0);
+			break;
 	}
 
 	// Only 32 bits input texture will be supported for mipmap
@@ -183,8 +183,6 @@ GSTextureOGL::~GSTextureOGL()
 
 bool GSTextureOGL::Update(const GSVector4i& r, const void* data, int pitch, int layer)
 {
-	ASSERT(m_type != Type::DepthStencil);
-
 	if (layer >= m_mipmap_levels)
 		return true;
 
@@ -247,10 +245,6 @@ bool GSTextureOGL::Map(GSMap& m, const GSVector4i* _r, int layer)
 
 	GSVector4i r = _r ? *_r : GSVector4i(0, 0, m_size.x, m_size.y);
 
-	// Will need some investigation
-	ASSERT(r.width() != 0);
-	ASSERT(r.height() != 0);
-
 	const u32 pitch = Common::AlignUpPow2(r.width() << m_int_shift, TEXTURE_UPLOAD_PITCH_ALIGNMENT);
 	m.pitch = pitch;
 
@@ -306,7 +300,6 @@ void GSTextureOGL::Unmap()
 
 void GSTextureOGL::GenerateMipmap()
 {
-	ASSERT(m_mipmap_levels > 1);
 	GSDeviceOGL::GetInstance()->CommitClear(this, true);
 	glGenerateTextureMipmap(m_texture_id);
 }

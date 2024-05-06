@@ -17,7 +17,6 @@
 
 #include "common/Pcsx2Defs.h"
 
-#include <gsl/span>
 #include <array>
 #include <memory>
 #include <vector>
@@ -43,7 +42,7 @@ class GLContext
 		};
 
 		__fi bool IsGLES() const { return (m_version.profile == Profile::ES); }
-		static std::unique_ptr<GLContext> Create(gsl::span<const Version> versions_to_try);
+		static std::unique_ptr<GLContext> Create();
 	protected:
 		Version m_version = {};
 };

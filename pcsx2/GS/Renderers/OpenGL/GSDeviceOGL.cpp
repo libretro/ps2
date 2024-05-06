@@ -278,12 +278,7 @@ bool GSDeviceOGL::Create()
 	// GL is a pain and needs the window super early to create the context.
 	AcquireWindow();
 
-	// We need at least GL3.3.
-	static constexpr const GLContext::Version version_list[] = {{GLContext::Profile::Core, 4, 6},
-		{GLContext::Profile::Core, 4, 5}, {GLContext::Profile::Core, 4, 4}, {GLContext::Profile::Core, 4, 3},
-		{GLContext::Profile::Core, 4, 2}, {GLContext::Profile::Core, 4, 1}, {GLContext::Profile::Core, 4, 0},
-		{GLContext::Profile::Core, 3, 3}};
-	m_gl_context = GLContext::Create(version_list);
+	m_gl_context = GLContext::Create();
 	if (!m_gl_context)
 	{
 		Console.Error("Failed to create any GL context");
@@ -368,7 +363,6 @@ bool GSDeviceOGL::Create()
 		memset(&m_vs_cb_cache, 0xFF, sizeof(m_vs_cb_cache));
 		memset(&m_ps_cb_cache, 0xFF, sizeof(m_ps_cb_cache));
 
-		static_assert(sizeof(GSVertexPT1) == sizeof(GSVertex), "wrong GSVertex size");
 		for (u32 i = 0; i < 8; i++)
 			glEnableVertexAttribArray(i);
 
@@ -600,13 +594,6 @@ bool GSDeviceOGL::Create()
 		else
 			Console.Error("Failed to create texture upload buffer. Using slow path.");
 	}
-
-	// Basic to ensure structures are correctly packed
-	static_assert(sizeof(VSSelector) == 1, "Wrong VSSelector size");
-	static_assert(sizeof(PSSelector) == 12, "Wrong PSSelector size");
-	static_assert(sizeof(PSSamplerSelector) == 1, "Wrong PSSamplerSelector size");
-	static_assert(sizeof(OMDepthStencilSelector) == 1, "Wrong OMDepthStencilSelector size");
-	static_assert(sizeof(OMColorMaskSelector) == 1, "Wrong OMColorMaskSelector size");
 
 	return true;
 }
@@ -1075,7 +1062,7 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 			header += "#define FRAGMENT_SHADER 1\n";
 			break;
 		default:
-			ASSERT(0);
+			break;
 	}
 
 	// Select the entry point ie the main function

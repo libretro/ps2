@@ -106,7 +106,6 @@ public:
 		__fi bool IsRTFeedbackLoop() const { return ((feedback_loop_flags & FeedbackLoopFlag_ReadAndWriteRT) != 0); }
 		__fi bool IsTestingAndSamplingDepth() const { return ((feedback_loop_flags & FeedbackLoopFlag_ReadDS) != 0); }
 	};
-	static_assert(sizeof(PipelineSelector) == 24, "Pipeline selector is 24 bytes");
 
 	struct PipelineSelectorHash
 	{

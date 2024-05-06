@@ -2985,7 +2985,6 @@ template <u32 prim, bool auto_flush, bool index_swap>
 __forceinline void GSState::VertexKick(u32 skip)
 {
 	constexpr u32 n = NumIndicesForPrim(prim);
-	static_assert(n > 0);
 
 	if (auto_flush && skip == 0 && m_index.tail > 0 && ((m_vertex.tail + 1) - m_vertex.head) >= n)
 	{

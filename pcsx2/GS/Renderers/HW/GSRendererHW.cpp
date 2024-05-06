@@ -471,7 +471,6 @@ void GSRendererHW::ConvertSpriteTextureShuffle(bool& write_ba, bool& read_ba, GS
 				GSVector4i tmp(v[i].XYZ.Y, v[i + 1].XYZ.Y);
 				tmp = GSVector4i(tmp - offset).srl32(1) + offset;
 
-				//fprintf(stderr, "Before %d, After %d\n", v[i + 1].XYZ.Y, tmp.y);
 				v[i].XYZ.Y = static_cast<u16>(tmp.x);
 				v[i + 1].XYZ.Y = static_cast<u16>(tmp.y);
 

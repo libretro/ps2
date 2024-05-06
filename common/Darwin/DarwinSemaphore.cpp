@@ -16,7 +16,6 @@
 #if defined(__APPLE__)
 
 #include <cstdio>
-#include <cassert> // assert
 #include <pthread.h> // pthread_setcancelstate()
 #include <sys/time.h> // gettimeofday()
 #include <mach/mach.h>
@@ -40,33 +39,24 @@
 //
 // --------------------------------------------------------------------------------------
 
-static void MACH_CHECK(kern_return_t mach_retval)
-{
-	if (mach_retval != KERN_SUCCESS)
-	{
-		fprintf(stderr, "mach error: %s", mach_error_string(mach_retval));
-		assert(mach_retval == KERN_SUCCESS);
-	}
-}
-
 Threading::KernelSemaphore::KernelSemaphore()
 {
-	MACH_CHECK(semaphore_create(mach_task_self(), &m_sema, SYNC_POLICY_FIFO, 0));
+	semaphore_create(mach_task_self(), &m_sema, SYNC_POLICY_FIFO, 0);
 }
 
 Threading::KernelSemaphore::~KernelSemaphore()
 {
-	MACH_CHECK(semaphore_destroy(mach_task_self(), m_sema));
+	semaphore_destroy(mach_task_self(), m_sema);
 }
 
 void Threading::KernelSemaphore::Post()
 {
-	MACH_CHECK(semaphore_signal(m_sema));
+	semaphore_signal(m_sema);
 }
 
 void Threading::KernelSemaphore::Wait()
 {
-	MACH_CHECK(semaphore_wait(m_sema));
+	semaphore_wait(m_sema);
 }
 
 bool Threading::KernelSemaphore::TryWait()
@@ -75,7 +65,6 @@ bool Threading::KernelSemaphore::TryWait()
 	kern_return_t res = semaphore_timedwait(m_sema, time);
 	if (res == KERN_OPERATION_TIMED_OUT)
 		return false;
-	MACH_CHECK(res);
 	return true;
 }
 

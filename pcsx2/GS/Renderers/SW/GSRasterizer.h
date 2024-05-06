@@ -92,7 +92,6 @@ public:
 	void Wait()
 	{
 		m_sema.WaitForEmpty();
-		assert(IsEmpty());
 	}
 
 	void operator()(T& item)

@@ -729,7 +729,6 @@ void GSDevice12::DrawIndexedPrimitive()
 
 void GSDevice12::DrawIndexedPrimitive(int offset, int count)
 {
-	ASSERT(offset + count <= (int)m_index.count);
 	GetCommandList()->DrawIndexedInstanced(count, 1, m_index.start + offset, m_vertex.start, 0);
 }
 

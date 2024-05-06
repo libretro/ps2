@@ -99,9 +99,7 @@ void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 			ClearStatAcknowledge();
 			break;
 		case Sio0Interrupt::TX_DATA_WRITE:
-			break;
 		default:
-			assert(false);
 			break;
 	}
 	

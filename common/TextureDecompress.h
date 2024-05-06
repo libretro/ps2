@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <algorithm>
 #include <math.h>
-#include <assert.h>
 
 enum BC4Mode
 {
@@ -59,24 +58,30 @@ public:
 		};
 	};
 
-	inline color_rgba()
-	{
-		static_assert(sizeof(*this) == 4, "sizeof(*this) != 4");
-	}
+	inline color_rgba() { }
 
 	inline color_rgba(int y)
 	{
-		set(y);
+		m_comps[0] = static_cast<uint8_t>(clamp<int>(y, 0, 255));
+		m_comps[1] = m_comps[0];
+		m_comps[2] = m_comps[0];
+		m_comps[3] = 255;
 	}
 
 	inline color_rgba(int y, int na)
 	{
-		set(y, na);
+		m_comps[0] = static_cast<uint8_t>(clamp<int>(y, 0, 255));
+		m_comps[1] = m_comps[0];
+		m_comps[2] = m_comps[0];
+		m_comps[3] = static_cast<uint8_t>(clamp<int>(na, 0, 255));
 	}
 
 	inline color_rgba(int sr, int sg, int sb, int sa)
 	{
-		set(sr, sg, sb, sa);
+		m_comps[0] = static_cast<uint8_t>(clamp<int>(sr, 0, 255));
+		m_comps[1] = static_cast<uint8_t>(clamp<int>(sg, 0, 255));
+		m_comps[2] = static_cast<uint8_t>(clamp<int>(sb, 0, 255));
+		m_comps[3] = static_cast<uint8_t>(clamp<int>(sa, 0, 255));
 	}
 
 	inline color_rgba(eNoClamp, int sr, int sg, int sb, int sa)
@@ -145,8 +150,8 @@ public:
 		return *this;
 	}
 
-	inline const uint8_t &operator[] (uint32_t index) const { assert(index < 4); return m_comps[index]; }
-	inline uint8_t &operator[] (uint32_t index) { assert(index < 4); return m_comps[index]; }
+	inline const uint8_t &operator[] (uint32_t index) const { return m_comps[index]; }
+	inline uint8_t &operator[] (uint32_t index) { return m_comps[index]; }
 		
 	inline void clear()
 	{

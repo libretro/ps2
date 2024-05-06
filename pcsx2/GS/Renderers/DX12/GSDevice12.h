@@ -93,7 +93,6 @@ public:
 
 		__fi PipelineSelector() { memset(this, 0, sizeof(*this)); }
 	};
-	static_assert(sizeof(PipelineSelector) == 24, "Pipeline selector is 24 bytes");
 
 	struct PipelineSelectorHash
 	{

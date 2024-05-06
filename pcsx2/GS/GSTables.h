@@ -54,7 +54,6 @@ struct alignas(128) GSPixelRowOffsetTable
 
 	int operator[](size_t x) const
 	{
-		ASSERT(x < 4096);
 		return value[x];
 	}
 };

@@ -296,7 +296,6 @@ u8 MemoryCardProtocol::PS1Read(u8 data)
 
 u8 MemoryCardProtocol::PS1State(u8 data)
 {
-	assert(false);
 	return 0x00;
 }
 

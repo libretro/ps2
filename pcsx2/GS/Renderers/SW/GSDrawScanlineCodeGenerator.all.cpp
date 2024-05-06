@@ -96,8 +96,6 @@ GSDrawScanlineCodeGenerator2::GSDrawScanlineCodeGenerator2(Xbyak::CodeGenerator*
 	// Free: r14, r15, rbp, to use, remember to save them.
 	m_sel.key = key;
 	use_lod = m_sel.mmin;
-	if (isYmm)
-		ASSERT(hasAVX2);
 }
 
 // MARK: - Helpers
@@ -3279,8 +3277,6 @@ void GSDrawScanlineCodeGenerator2::ReadTexelImplSSE4(
 
 void GSDrawScanlineCodeGenerator2::ReadTexelImpl(const Xmm& dst, const Xmm& addr, u8 i, bool texInRBX, bool preserveDst)
 {
-	ASSERT(i < 4);
-
 	AddressReg clut = _m_local__gd__clut;
 	AddressReg tex = texInRBX ? rbx : _m_local__gd__tex;
 	Address src = m_sel.tlu ? ptr[clut + rax * 4] : ptr[tex + rax * 4];

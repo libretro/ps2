@@ -25,52 +25,22 @@ static Xbyak::util::Cpu s_cpu;
 
 static ProcessorFeatures::VectorISA getCurrentISA()
 {
-	// For debugging
-	if (const char* over = getenv("OVERRIDE_VECTOR_ISA"))
-	{
-		if (strcasecmp(over, "avx2") == 0)
-		{
-			fprintf(stderr, "Vector ISA Override: AVX2\n");
-			return ProcessorFeatures::VectorISA::AVX2;
-		}
-		if (strcasecmp(over, "avx") == 0)
-		{
-			fprintf(stderr, "Vector ISA Override: AVX\n");
-			return ProcessorFeatures::VectorISA::AVX;
-		}
-		if (strcasecmp(over, "sse4") == 0)
-		{
-			fprintf(stderr, "Vector ISA Override: SSE4\n");
-			return ProcessorFeatures::VectorISA::SSE4;
-		}
-	}
 	if (s_cpu.has(Xbyak::util::Cpu::tAVX2) && s_cpu.has(Xbyak::util::Cpu::tBMI1) && s_cpu.has(Xbyak::util::Cpu::tBMI2))
 		return ProcessorFeatures::VectorISA::AVX2;
 	else if (s_cpu.has(Xbyak::util::Cpu::tAVX))
 		return ProcessorFeatures::VectorISA::AVX;
 	else if (s_cpu.has(Xbyak::util::Cpu::tSSE41))
 		return ProcessorFeatures::VectorISA::SSE4;
-	else
-		return ProcessorFeatures::VectorISA::None;
+	return ProcessorFeatures::VectorISA::None;
 }
 
 static ProcessorFeatures getProcessorFeatures()
 {
 	ProcessorFeatures features = {};
-	features.vectorISA = getCurrentISA();
-	features.hasFMA = s_cpu.has(Xbyak::util::Cpu::tFMA);
-	if (const char* over = getenv("OVERRIDE_FMA"))
-	{
-		features.hasFMA = over[0] == 'Y' || over[0] == 'y' || over[0] == '1';
-		fprintf(stderr, "Processor FMA override: %s\n", features.hasFMA ? "Supported" : "Unsupported");
-	}
-	features.hasSlowGather = false;
-	if (const char* over = getenv("OVERRIDE_SLOW_GATHER")) // Easy override for comparing on vs off
-	{
-		features.hasSlowGather = over[0] == 'Y' || over[0] == 'y' || over[0] == '1';
-		fprintf(stderr, "Processor gather override: %s\n", features.hasSlowGather ? "Slow" : "Fast");
-	}
-	else if (features.vectorISA == ProcessorFeatures::VectorISA::AVX2)
+	features.vectorISA         = getCurrentISA();
+	features.hasFMA            = s_cpu.has(Xbyak::util::Cpu::tFMA);
+	features.hasSlowGather     = false;
+	if (features.vectorISA == ProcessorFeatures::VectorISA::AVX2)
 	{
 		if (s_cpu.has(Xbyak::util::Cpu::tINTEL))
 		{

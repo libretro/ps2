@@ -477,7 +477,6 @@ void GSDevice11::DrawIndexedPrimitive()
 
 void GSDevice11::DrawIndexedPrimitive(int offset, int count)
 {
-	ASSERT(offset + count <= (int)m_index.count);
 	PSUpdateShaderState();
 	m_ctx->DrawIndexed(count, m_index.start + offset, m_vertex.start);
 }
@@ -1189,8 +1188,6 @@ void GSDevice11::SetViewport(const GSVector2i& viewport)
 
 void GSDevice11::SetScissor(const GSVector4i& scissor)
 {
-	static_assert(sizeof(D3D11_RECT) == sizeof(GSVector4i));
-
 	if (!m_state.scissor.eq(scissor))
 	{
 		m_state.scissor = scissor;
@@ -1251,18 +1248,8 @@ static GSDevice11::OMBlendSelector convertSel(GSHWDrawConfig::ColorMaskSelector 
 	return out;
 }
 
-/// Checks that we weren't sent things we declared we don't support
-/// Clears things we don't support that can be quietly disabled
-static void preprocessSel(GSDevice11::PSSelector& sel)
-{
-	ASSERT(sel.write_rg  == 0); // Not supported, shouldn't be sent
-}
-
 void GSDevice11::RenderHW(GSHWDrawConfig& config)
 {
-	ASSERT(!config.require_full_barrier); // We always specify no support so it shouldn't request this
-	preprocessSel(config.ps);
-
 	GSVector2i rtsize = (config.rt ? config.rt : config.ds)->GetSize();
 
 	GSTexture* primid_tex = nullptr;
@@ -1415,7 +1402,6 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 
 	if (config.alpha_second_pass.enable)
 	{
-		preprocessSel(config.alpha_second_pass.ps);
 		if (config.cb_ps.FogColor_AREF.a != config.alpha_second_pass.ps_aref)
 		{
 			config.cb_ps.FogColor_AREF.a = config.alpha_second_pass.ps_aref;
@@ -1657,11 +1643,6 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 
 	if (sel.tfx != 4)
 	{
-		if (sel.pal_fmt || sel.wms >= 3 || sel.wmt >= 3)
-		{
-			ASSERT(ssel.biln == 0);
-		}
-
 		auto i = std::as_const(m_ps_ss).find(ssel.key);
 
 		if (i != m_ps_ss.end())

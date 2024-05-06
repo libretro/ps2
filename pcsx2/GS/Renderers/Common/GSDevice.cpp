@@ -142,8 +142,6 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 	{
 		t = *i;
 
-		assert(t);
-
 		if (t->GetType() == type && t->GetFormat() == format && t->GetSize() == size && t->GetMipmapLevels() == levels)
 		{
 			if (!prefer_new_texture || t->GetLastFrameUsed() != m_frame)

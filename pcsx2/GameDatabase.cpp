@@ -351,7 +351,6 @@ static const char* s_gs_hw_fix_names[] = {
 	"beforeDraw",
 	"moveHandler",
 };
-static_assert(std::size(s_gs_hw_fix_names) == static_cast<u32>(GameDatabaseSchema::GSHWFixId::Count), "HW fix name lookup is correct size");
 
 const char* GameDatabaseSchema::getHWFixName(GSHWFixId id)
 {

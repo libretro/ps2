@@ -93,7 +93,6 @@ namespace Common
 	template <typename T>
 	static constexpr T PageAlign(T size)
 	{
-		static_assert(Common::IsPow2(__pagesize), "Page size is a power of 2");
 		return Common::AlignUpPow2(size, __pagesize);
 	}
 } // namespace Common

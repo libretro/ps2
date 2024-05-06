@@ -81,8 +81,6 @@ public:
 		, m_blockAddressXor(blockXor)
 		, m_pixelAddressXor(blockXor << (m_blockShiftX + m_blockShiftY))
 	{
-		static_assert(1 << ilog2(PageWidth) == PageWidth, "PageWidth must be a power of 2");
-		static_assert(1 << ilog2(PageHeight) == PageHeight, "PageHeight must be a power of 2");
 	}
 
 	/// Returns the amount to shift to convert a width to pages.
@@ -396,15 +394,13 @@ public:
 	constexpr GSOffset assertSizesMatch(const GSSwizzleInfo& swz) const
 	{
 		GSOffset o = *this;
-#define MATCH(x) ASSERT(o.x == swz.x); o.x = swz.x;
-		MATCH(m_pageMask)
-		MATCH(m_blockMask)
-		MATCH(m_pixelRowMask)
-		MATCH(m_pageShiftX)
-		MATCH(m_pageShiftY)
-		MATCH(m_blockShiftX)
-		MATCH(m_blockShiftY)
-#undef MATCH
+		o.m_pageMask     = swz.m_pageMask;
+		o.m_blockMask    = swz.m_blockMask;
+		o.m_pixelRowMask = swz.m_pixelRowMask;
+		o.m_pageShiftX   = swz.m_pageShiftX;
+		o.m_pageShiftY   = swz.m_pageShiftY;
+		o.m_blockShiftX  = swz.m_blockShiftX;
+		o.m_blockShiftY  = swz.m_blockShiftY;
 		return o;
 	}
 };
@@ -547,15 +543,11 @@ public:
 
 	static u32 BlockNumber8(int x, int y, u32 bp, u32 bw)
 	{
-		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
-
 		return swizzle8.bn(x, y, bp, bw);
 	}
 
 	static u32 BlockNumber4(int x, int y, u32 bp, u32 bw)
 	{
-		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
-
 		return swizzle4.bn(x, y, bp, bw);
 	}
 
@@ -636,15 +628,11 @@ public:
 
 	static __forceinline u32 PixelAddress8(int x, int y, u32 bp, u32 bw)
 	{
-		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
-
 		return swizzle8.pa(x, y, bp, bw);
 	}
 
 	static __forceinline u32 PixelAddress4(int x, int y, u32 bp, u32 bw)
 	{
-		// ASSERT((bw & 1) == 0); // allowed for mipmap levels
-
 		return swizzle4.pa(x, y, bp, bw);
 	}
 

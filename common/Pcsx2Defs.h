@@ -147,8 +147,6 @@ static constexpr size_t __pagemask = PCSX2_PAGESIZE - 1;
 	#define CONSTINIT
 #endif
 
-#define ASSERT assert
-
 // --------------------------------------------------------------------------------------
 //  ImplementEnumOperators  (macro)
 // --------------------------------------------------------------------------------------

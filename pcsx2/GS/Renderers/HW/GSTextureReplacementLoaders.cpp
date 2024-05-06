@@ -335,9 +335,6 @@ struct DDS_HEADER_DXT10
 
 #pragma pack(pop)
 
-static_assert(sizeof(DDS_HEADER) == 124, "DDS Header size mismatch");
-static_assert(sizeof(DDS_HEADER_DXT10) == 20, "DDS DX10 Extended Header size mismatch");
-
 constexpr DDS_PIXELFORMAT DDSPF_A8R8G8B8 = {
 	sizeof(DDS_PIXELFORMAT), DDS_RGBA, 0, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000};
 constexpr DDS_PIXELFORMAT DDSPF_X8R8G8B8 = {

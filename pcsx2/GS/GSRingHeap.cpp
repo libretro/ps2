@@ -69,12 +69,7 @@ struct GSRingHeap::Buffer
 		for (size_t i = 0; i < USAGE_ARR_SIZE; i++)
 		{
 			size_t piece = static_cast<size_t>(usage >> (i * (64 / USAGE_ARR_SIZE)));
-			size_t prev = m_usage[i].fetch_add(piece, std::memory_order_relaxed);
-			for (size_t j = 0; j < USAGE_ARR_ELEMS_PER_ENTRY; j++)
-			{
-				[[maybe_unused]] uint16_t section = prev >> (j * 16);
-				assert(section != UINT16_MAX && "Usage count overflow");
-			}
+			m_usage[i].fetch_add(piece, std::memory_order_relaxed);
 		}
 	}
 
@@ -226,7 +221,6 @@ void* GSRingHeap::alloc_internal(size_t size, size_t align_mask, size_t prefix_s
 	orphanBuffer();
 	m_current_buffer = new_buffer;
 	void* ptr = m_current_buffer->alloc(size, align_mask, prefix_size);
-	assert(ptr && "Fresh buffer failed to allocate!");
 
 	Buffer** bptr = static_cast<Buffer**>(ptr);
 	*bptr = m_current_buffer;

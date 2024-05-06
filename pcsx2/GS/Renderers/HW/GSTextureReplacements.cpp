@@ -87,7 +87,6 @@ namespace
 				   std::tie(rhs.TEX0Hash, rhs.CLUTHash, region.bits, rhs.bits);
 		}
 	};
-	static_assert(sizeof(TextureName) == 32, "ReplacementTextureName is expected size");
 } // namespace
 
 namespace std

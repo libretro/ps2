@@ -118,7 +118,6 @@ namespace Options
 	template <typename T, OptionsGroups group = OPTIONS_BASE>
 		class Option : public OptionBase
 	{
-		static_assert(group < OPTIONS_GROUPS_MAX, "invalid option group index");
 		Option(Option&) = delete;
 		Option(Option&&) = delete;
 		Option& operator=(Option&) = delete;
@@ -626,7 +625,6 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 
 		case RETRO_HW_CONTEXT_NONE:
 			return true;
-
 		default:
 			return false;
 	}

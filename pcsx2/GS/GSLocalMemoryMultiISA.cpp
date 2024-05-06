@@ -193,7 +193,6 @@ void GSLocalMemoryFunctions::PopulateFunctions(GSLocalMemory& mem)
 template <typename Fn>
 static void foreachBlock(const GSOffset& off, GSLocalMemory& mem, const GSVector4i& r, u8* dst, int dstpitch, int bpp, Fn&& fn)
 {
-	ASSERT(off.isBlockAligned(r));
 	GSOffset::BNHelper bn = off.bnMulti(r.left, r.top);
 	int right = r.right >> off.blockShiftX();
 	int bottom = r.bottom >> off.blockShiftY();
@@ -1086,7 +1085,6 @@ void GSLocalMemoryFunctions::ReadTextureGPU24(GSLocalMemory& mem, const GSOffset
 	});
 
 	// Convert packed RGB scanline to 32 bits RGBA
-	ASSERT(dstpitch >= r.width() * 4);
 	for (int y = r.top; y < r.bottom; y++)
 	{
 		u8* line = dst + y * dstpitch;

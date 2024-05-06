@@ -445,8 +445,6 @@ void GSClut::GetAlphaMinMax32(int& amin_out, int& amax_out)
 {
 	// call only after Read32
 
-	ASSERT(!m_read.dirty);
-
 	if (m_read.adirty)
 	{
 		m_read.adirty = false;
@@ -479,8 +477,6 @@ void GSClut::GetAlphaMinMax32(int& amin_out, int& amax_out)
 			}
 			else
 			{
-				ASSERT(GSLocalMemory::m_psm[m_read.TEX0.PSM].pal == 16);
-
 				GSVector4i v0 = (p[0] >> 24).ps32(p[1] >> 24);
 				GSVector4i v1 = (p[2] >> 24).ps32(p[3] >> 24);
 				GSVector4i v2 = v0.pu16(v1);
@@ -805,8 +801,6 @@ CONSTINIT const GSVector4i GSClut::m_rm = GSVector4i::cxpr(0x0000001f);
 
 void GSClut::Expand16(const u16* RESTRICT src, u32* RESTRICT dst, int w, const GIFRegTEXA& TEXA)
 {
-	ASSERT((w & 7) == 0);
-
 	const GSVector4i rm = m_rm;
 	const GSVector4i gm = m_gm;
 	const GSVector4i bm = m_bm;
