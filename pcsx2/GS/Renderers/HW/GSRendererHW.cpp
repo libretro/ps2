@@ -147,6 +147,9 @@ GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)
 	GSPCRTCRegs::PCRTCDisplay& curFramebuffer = PCRTCDisplays.PCRTCDisplays[index];
 	const GSVector2i framebufferSize(PCRTCDisplays.GetFramebufferSize(i));
 
+	if (curFramebuffer.framebufferRect.rempty() || curFramebuffer.FBW == 0)
+		return nullptr;
+
 	PCRTCDisplays.RemoveFramebufferOffset(i);
 
 	GSTexture* t = nullptr;
