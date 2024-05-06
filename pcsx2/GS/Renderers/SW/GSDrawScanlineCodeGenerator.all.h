@@ -19,8 +19,6 @@
 #include "GSNewCodeGenerator.h"
 #include "GS/MultiISA.h"
 
-#undef _t // Conflict with wx, hopefully no one needs this
-
 #if _M_SSE >= 0x501
 	#define DRAW_SCANLINE_VECTOR_REGISTER Xbyak::Ymm
 	#define DRAW_SCANLINE_USING_XMM 0
