@@ -69,15 +69,6 @@ public:
 		return static_cast<T*>(ptr.release());
 	}
 
-	/// Allocate and default-initialize `count` `T`s
-	template <typename T>
-	T* make_array(size_t count)
-	{
-		std::unique_ptr<void, void(*)(void*)> ptr(alloc(sizeof(T) * count, alignof(T)), GSRingHeap::free);
-		new (ptr.get()) T[count]();
-		return static_cast<T*>(ptr.release());
-	}
-
 	/// Free a pointer allocated with `alloc`
 	static void free(void* ptr)
 	{
@@ -90,17 +81,6 @@ public:
 	static void destroy(T* ptr)
 	{
 		ptr->~T();
-		free(ptr);
-	}
-
-	/// Deinitialize and free an array allocated with `make_array`
-	template <typename T>
-	static void destroy_array(T* ptr)
-	{
-		size_t* header = const_cast<size_t*>(reinterpret_cast<const size_t*>(ptr)) - 1;
-		size_t size = (*header - sizeof(size_t)) / sizeof(T);
-		for (size_t i = 0; i < size; i++)
-			ptr[i].~T();
 		free(ptr);
 	}
 
@@ -180,7 +160,6 @@ public:
 			}
 		}
 
-		T& operator*() const { return *m_ptr; }
 		T* operator->() const { return m_ptr; }
 		T* get() const { return m_ptr; }
 
@@ -220,61 +199,4 @@ public:
 		guard.release();
 		return SharedPtr<T>(tptr);
 	}
-
-	template <typename T>
-	struct Deleter
-	{
-		void operator()(T* t)
-		{
-			if (t)
-				destroy(t);
-		}
-	};
-
-	template <typename T>
-	struct Deleter<T[]>
-	{
-		void operator()(T* t)
-		{
-			if (t)
-				destroy_array(t);
-		}
-	};
-
-	template <typename T>
-	using UniquePtr = std::unique_ptr<T, Deleter<T>>;
-
-	template <typename T>
-	struct _unique_if
-	{
-		typedef UniquePtr<T> _unique_single;
-	};
-
-	template <typename T>
-	struct _unique_if<T[]>
-	{
-		typedef UniquePtr<T[]> _unique_array_unknown_bound;
-	};
-
-	template <typename T, size_t N>
-	struct _unique_if<T[N]>
-	{
-		typedef void _unique_array_known_bound;
-	};
-
-	template <typename T, typename... Args>
-	typename _unique_if<T>::_unique_single make_unique(Args&&... args)
-	{
-		return UniquePtr<T>(make<T>(std::forward<Args>(args)...));
-	}
-
-	template <typename T>
-	typename _unique_if<T>::_unique_array_unknown_bound make_unique(size_t count)
-	{
-		typedef typename std::remove_extent<T>::type Base;
-		return UniquePtr<T>(make_array<Base>(count));
-	}
-
-	template <class T, class... _Args>
-	typename _unique_if<T>::_unique_array_known_bound make_unique(_Args&&...) = delete;
 };

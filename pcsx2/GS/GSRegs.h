@@ -215,7 +215,7 @@ enum GS_AFAIL
 	AFAIL_RGB_ONLY = 3,
 };
 
-enum class GS_MIN_FILTER : uint8_t
+enum GS_MIN_FILTER : uint8_t
 {
 	Nearest                = 0,
 	Linear                 = 1,
