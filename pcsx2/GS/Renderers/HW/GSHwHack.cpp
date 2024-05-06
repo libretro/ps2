@@ -973,6 +973,7 @@ bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTextu
 			{
 				/* "OI_RozenMaidenGebetGarden FB clear" */
 				g_gs_device->ClearRenderTarget(tmp_rt->m_texture, 0);
+				tmp_rt->UpdateDrawn(tmp_rt->m_valid);
 				tmp_rt->m_alpha_max = 0;
 				tmp_rt->m_alpha_min = 0;
 			}
@@ -1035,9 +1036,10 @@ bool GSHwHack::OI_SonicUnleashed(GSRendererHW& r, GSTexture* rt, GSTexture* ds, 
 		if (rt_again->m_unscaled_size.x < src->m_unscaled_size.x || rt_again->m_unscaled_size.y < src->m_unscaled_size.y)
 		{
 			GSVector2i new_size = GSVector2i(std::max(rt_again->m_unscaled_size.x, src->m_unscaled_size.x), std::max(rt_again->m_unscaled_size.y, src->m_unscaled_size.y));
-			rt_again->ResizeTexture(new_size.x,	new_size.y);
+			rt_again->ResizeTexture(new_size.x, new_size.y);
 			rt = rt_again->m_texture;
 			rt_size = new_size;
+			rt_again->UpdateDrawn(GSVector4i::loadh(rt_size));
 		}
 	}
 
@@ -1272,6 +1274,9 @@ static bool GetMoveTargetPair(GSRendererHW& r, GSTextureCache::Target** src, GIF
 
 	*src = tsrc;
 	*dst = tdst;
+
+	tdst->UpdateDrawn(tdst->m_valid);
+
 	return true;
 }
 
