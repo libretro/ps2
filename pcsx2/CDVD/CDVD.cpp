@@ -135,19 +135,14 @@ static void cdvdGetMechaVer(u8* ver)
 		fp.reset();
 		fp = FileSystem::OpenManagedCFile(mecfile.c_str(), "w+b");
 		if (!fp)
-		{
-			Console.Error("Failed to read/write NVM/MEC file. Check your BIOS setup/permission settings.");
 			return;
-		}
 
 		u8 version[4] = {0x3, 0x6, 0x2, 0x0};
 		std::fwrite(version, sizeof(version), 1, fp.get());
 		FileSystem::FSeek64(fp.get(), 0, SEEK_SET);
 	}
 
-	auto ret = std::fread(ver, 1, 4, fp.get());
-	if (ret != 4)
-		Console.Error("Failed to read from %s. Did only %zu/4 bytes", mecfile.c_str(), ret);
+	std::fread(ver, 1, 4, fp.get());
 }
 
 NVMLayout* getNvmLayout(void)
@@ -237,15 +232,10 @@ static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 
 	std::fseek(fp.get(), offset, SEEK_SET);
 
-	size_t ret;
 	if (read)
-		ret = std::fread(buffer, 1, bytes, fp.get());
+		std::fread(buffer, 1, bytes, fp.get());
 	else
-		ret = std::fwrite(buffer, 1, bytes, fp.get());
-
-	if (ret != bytes)
-		Console.Error("Failed to %s %s. Did only %zu/%zu bytes",
-					  read ? "read from" : "write to", nvmfile.c_str(), ret, bytes);
+		std::fwrite(buffer, 1, bytes, fp.get());
 }
 
 static void cdvdReadNVM(u8* dst, int offset, int bytes)
@@ -1701,7 +1691,6 @@ static void cdvdWrite04(u8 rt)
 				cdvd.SpindlCtrl = (cdvd.NCMDParam[9] & 0x80) | (cdvdIsDVD() ? 3 : 5); // Max speed for DVD/CD
 
 			bool ParamError = false;
-			const int oldSpeed = cdvd.Speed;
 
 			switch (cdvd.SpindlCtrl & CDVD_SPINDLE_SPEED)
 			{
@@ -1731,7 +1720,6 @@ static void cdvdWrite04(u8 rt)
 						cdvd.Speed = 24;
 					break;
 				default:
-					Console.Error("Unknown CDVD Read Speed SpindleCtrl=%x", cdvd.SpindlCtrl);
 					ParamError = true;
 					break;
 			}
@@ -1818,7 +1806,6 @@ static void cdvdWrite04(u8 rt)
 				cdvd.SpindlCtrl = (cdvd.NCMDParam[9] & 0x80) | 5; // Max speed for CD
 
 			bool ParamError = false;
-			const int oldSpeed = cdvd.Speed;
 
 			switch (cdvd.SpindlCtrl & CDVD_SPINDLE_SPEED)
 			{
@@ -1838,7 +1825,6 @@ static void cdvdWrite04(u8 rt)
 					cdvd.Speed = 24;
 					break;
 				default:
-					Console.Error("Unknown CDVD Read Speed SpindleCtrl=%x", cdvd.SpindlCtrl);
 					ParamError = true;
 					break;
 			}
@@ -1908,7 +1894,6 @@ static void cdvdWrite04(u8 rt)
 				cdvd.SpindlCtrl = (cdvd.NCMDParam[9] & 0x80) | 3; // Max speed for DVD
 
 			bool ParamError = false;
-			const int oldSpeed = cdvd.Speed;
 
 			switch (cdvd.SpindlCtrl & CDVD_SPINDLE_SPEED)
 			{
@@ -1922,7 +1907,6 @@ static void cdvdWrite04(u8 rt)
 					cdvd.Speed = 4;
 					break;
 				default:
-					Console.Error("Unknown CDVD Read Speed SpindleCtrl=%x", cdvd.SpindlCtrl);
 					ParamError = true;
 					break;
 			}
@@ -2787,10 +2771,7 @@ int GetPS2ElfName( std::string& name )
 	}
 
 	if( retype == 0 )
-	{
-		Console.Error("(GetElfName) Disc image is *not* a PlayStation or PS2 game!");
 		return 0;
-	}
 
 	return retype;
 }
