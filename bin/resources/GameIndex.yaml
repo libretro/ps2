@@ -11191,11 +11191,9 @@ SLED-53731:
   name: "Battlefield 2 - Modern Combat [Demo]"
   region: "PAL-E"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLED-53732:
@@ -20527,22 +20525,18 @@ SLES-53729:
   name: "Battlefield 2 - Modern Combat"
   region: "PAL-M4"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLES-53730:
   name: "Battlefield 2 - Modern Combat"
   region: "PAL-M3"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLES-53734:
@@ -27683,6 +27677,15 @@ SLPM-55024:
 SLPM-55033:
   name: "J. League Winning Eleven 2008 - Club Championship"
   region: "NTSC-J"
+SLPM-55034:
+  name: "Battlefield 2 - Modern Combat [EASY 1980]"
+  region: "NTSC-J"
+  gsHWFixes:
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
+    halfPixelOffset: 2 # Offset post-processing.
+    getSkipCount: "GSC_Battlefield2" # Depth clear.
+    beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLPM-55036:
   name: "Burnout Dominator (EASY 1980)"
   region: "NTSC-J"
@@ -35361,11 +35364,9 @@ SLPM-66206:
   name: "Battlefield 2 - Modern Combat"
   region: "NTSC-J"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLPM-66207:
@@ -37122,11 +37123,9 @@ SLPM-66651:
   name: "Battlefield 2 - Modern Combat [EA Best Hits]"
   region: "NTSC-J"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLPM-66652:
@@ -49661,11 +49660,9 @@ SLUS-21026:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLUS-21027:
@@ -55044,11 +55041,9 @@ SLUS-29117:
   name: "Battlefield 2 - Modern Combat [Public Beta Vol.1.0]"
   region: "NTSC-U"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLUS-29118:
@@ -55174,11 +55169,9 @@ SLUS-29152:
   name: "Battlefield 2 - Modern Combat [Regular Demo]"
   region: "NTSC-U"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLUS-29153:
@@ -55272,11 +55265,9 @@ SLUS-29172:
   name: "Battlefield 2 - Modern Combat [Demo]"
   region: "NTSC-U"
   gsHWFixes:
-    autoFlush: 2 # Post-processing.
+    minimumBlendingLevel: 4 # Fixes ground texture rendering.
+    autoFlush: 1 # Post-processing.
     halfPixelOffset: 2 # Offset post-processing.
-    texturePreloading: 1 # Spikes all over the place otherwise.
-    textureInsideRT: 1 # Fixes light shinging through objects.
-    cpuCLUTRender: 1 # Fixes light shining through objects.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
 SLUS-29173:
