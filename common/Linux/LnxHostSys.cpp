@@ -364,7 +364,6 @@ void HostSys::BeginCodeWrite()
 
 void HostSys::EndCodeWrite()
 {
-	pxAssert(s_code_write_depth > 0);
 	if ((--s_code_write_depth) == 0)
 		pthread_jit_write_protect_np(1);
 }
