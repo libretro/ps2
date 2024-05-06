@@ -36,6 +36,7 @@ s16 _spu2mem[0x200000 / sizeof(s16)];
 V_Core Cores[2];
 V_SPDIF Spdif;
 
+StereoOut16 DCFilterIn, DCFilterOut;
 u16 OutPos;
 u16 InputPos;
 u32 Cycles;
@@ -115,6 +116,8 @@ void V_Core::Init(int index)
 	DMAPtr = nullptr;
 	KeyOn = 0;
 	OutPos = 0;
+	DCFilterIn = {};
+	DCFilterOut = {};
 
 	psxmode = false;
 	psxSoundDataTransferControl = 0;
