@@ -1223,12 +1223,6 @@ bool GSDeviceVK::Create()
 		return false;
 	}
 
-	if (!CompilePresentPipelines())
-	{
-		Console.Error("Failed to compile present pipelines");
-		return false;
-	}
-
 	if (!CompileInterlacePipelines())
 	{
 		Console.Error("Failed to compile interlace pipelines");
@@ -1638,7 +1632,7 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	ShaderConvert shader /* = ShaderConvert::COPY */, bool linear /* = true */)
 {
 	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
-		dTex ? m_convert[static_cast<int>(shader)] : m_present[0], linear,
+		m_convert[static_cast<int>(shader)], linear,
 		ShaderConvertWriteMask(shader) == 0xf);
 }
 
@@ -1653,13 +1647,6 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 
 void GSDeviceVK::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect)
 {
-	DisplayConstantBuffer cb;
-	cb.SetSource(sRect, sTex->GetSize());
-	cb.SetTarget(dRect, dTex ? dTex->GetSize() : GSVector2i(GetWindowWidth(), GetWindowHeight()));
-	SetUtilityPushConstants(&cb, sizeof(cb));
-
-	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect,
-		m_present[0], false, true);
 }
 
 void GSDeviceVK::DrawMultiStretchRects(
@@ -2698,52 +2685,6 @@ bool GSDeviceVK::CompileConvertPipelines()
 	return true;
 }
 
-bool GSDeviceVK::CompilePresentPipelines()
-{
-	VkDevice m_device = vk_init_info.device;
-
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/present.glsl");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/vulkan/present.glsl.");
-		return false;
-	}
-
-	VkShaderModule vs = GetUtilityVertexShader(*shader);
-	if (vs == VK_NULL_HANDLE)
-		return false;
-
-	Vulkan::GraphicsPipelineBuilder gpb;
-	SetPipelineProvokingVertex(m_features, gpb);
-	AddUtilityVertexAttributes(gpb);
-	gpb.SetPipelineLayout(m_utility_pipeline_layout);
-	gpb.SetDynamicViewportAndScissorState();
-	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
-	gpb.SetNoCullRasterizationState();
-	gpb.SetNoBlendingState();
-	gpb.SetVertexShader(vs);
-	gpb.SetDepthState(false, false, VK_COMPARE_OP_ALWAYS);
-	gpb.SetNoStencilState();
-
-	VkShaderModule ps = GetUtilityFragmentShader(*shader, "ps_copy");
-	if (ps == VK_NULL_HANDLE)
-	{
-		SafeDestroyShaderModule(m_device, vs);
-		return false;
-	}
-
-	gpb.SetFragmentShader(ps);
-
-	m_present[0] =
-		gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
-	SafeDestroyShaderModule(m_device, ps);
-	SafeDestroyShaderModule(m_device, vs);
-	if (!m_present[0])
-		return false;
-	return true;
-}
-
 bool GSDeviceVK::CompileInterlacePipelines()
 {
 	VkDevice m_device = vk_init_info.device;
@@ -2920,15 +2861,6 @@ void GSDeviceVK::DestroyResources()
 		}
 	}
 	for (VkPipeline& it : m_color_copy)
-	{
-		VkPipeline& p = it;
-		if (p != VK_NULL_HANDLE)
-		{
-			vkDestroyPipeline(m_device, p, nullptr);
-			p = VK_NULL_HANDLE;
-		}
-	}
-	for (VkPipeline& it : m_present)
 	{
 		VkPipeline& p = it;
 		if (p != VK_NULL_HANDLE)

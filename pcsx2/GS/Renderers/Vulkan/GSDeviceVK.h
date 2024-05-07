@@ -352,7 +352,6 @@ private:
 	std::unordered_map<u32, VkSampler> m_samplers;
 
 	std::array<VkPipeline, static_cast<int>(ShaderConvert::Count)> m_convert{};
-	std::array<VkPipeline, static_cast<int>(PresentShader::Count)> m_present{};
 	std::array<VkPipeline, 16> m_color_copy{};
 	std::array<VkPipeline, 2> m_merge{};
 	std::array<VkPipeline, NUM_INTERLACE_SHADERS> m_interlace{};
@@ -405,7 +404,6 @@ private:
 	bool CreateRenderPasses();
 
 	bool CompileConvertPipelines();
-	bool CompilePresentPipelines();
 	bool CompileInterlacePipelines();
 	bool CompileMergePipelines();
 	bool CompilePostProcessingPipelines();
