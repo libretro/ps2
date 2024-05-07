@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2020  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -21,14 +21,14 @@
 
 
 #include "PrecompiledHeader.h"
-#include "Global.h"
-#include "Dma.h"
-#include "IopDma.h"
-#include "IopCounters.h"
-#include "R3000A.h"
-#include "IopHw.h"
 
-#include "spu2.h" // needed until I figure out a nice solution for irqcallback dependencies.
+#include "IopCounters.h"
+#include "IopDma.h"
+#include "IopHw.h"
+#include "R3000A.h"
+#include "SPU2/Dma.h"
+#include "SPU2/Global.h"
+#include "SPU2/spu2.h"
 
 s16 spu2regs[0x010000 / sizeof(s16)];
 s16 _spu2mem[0x200000 / sizeof(s16)];
@@ -36,6 +36,7 @@ s16 _spu2mem[0x200000 / sizeof(s16)];
 V_Core Cores[2];
 V_SPDIF Spdif;
 
+StereoOut32 DCFilterIn, DCFilterOut;
 u16 OutPos;
 u16 InputPos;
 u32 Cycles;
@@ -68,31 +69,33 @@ __forceinline s16* GetMemPtr(u32 addr)
 
 __forceinline s16 spu2M_Read(u32 addr)
 {
-	return *(_spu2mem + (addr & 0xfffff));
+	return *GetMemPtr(addr & 0xfffff);
 }
 
-// writes an unsigned value to the SPU2 ram
-__forceinline void spu2M_Write(u32 addr, u16 value)
+// writes a signed value to the SPU2 ram
+// Invalidates the ADPCM cache in the process.
+__forceinline void spu2M_Write(u32 addr, s16 value)
 {
 	// Make sure the cache is invalidated:
 	// (note to self : addr address WORDs, not bytes)
 
-	// writes a signed value to the SPU2 ram
-	// Invalidates the ADPCM cache in the process.
 	addr &= 0xfffff;
 	if (addr >= SPU2_DYN_MEMLINE)
 	{
-		const int cacheIdx = addr / PCM_WORDSPERBLOCK;
+		const int cacheIdx = addr / pcm_WordsPerBlock;
 		pcm_cache_data[cacheIdx].Validated = false;
 	}
 	*GetMemPtr(addr) = value;
 }
 
-V_VolumeLR V_VolumeLR::Max(0x7FFFFFFF);
-V_VolumeSlideLR V_VolumeSlideLR::Max(0x3FFF, 0x7FFFFFFF);
+// writes an unsigned value to the SPU2 ram
+__forceinline void spu2M_Write(u32 addr, u16 value)
+{
+	spu2M_Write(addr, (s16)value);
+}
 
-V_Core::V_Core(int coreidx) : Index(coreidx) { }
-V_Core::~V_Core() throw() { }
+V_VolumeLR V_VolumeLR::Max(0x7FFF);
+V_VolumeSlideLR V_VolumeSlideLR::Max(0x3FFF, 0x7FFF);
 
 void V_Core::Init(int index)
 {
@@ -115,6 +118,8 @@ void V_Core::Init(int index)
 	DMAPtr = nullptr;
 	KeyOn = 0;
 	OutPos = 0;
+	DCFilterIn = {};
+	DCFilterOut = {};
 
 	psxmode = false;
 	psxSoundDataTransferControl = 0;
@@ -170,6 +175,7 @@ void V_Core::Init(int index)
 		Voices[v].Volume = V_VolumeSlideLR(0, 0); // V_VolumeSlideLR::Max;
 		Voices[v].SCurrent = 28;
 
+		Voices[v].ADSR.Counter = 0;
 		Voices[v].ADSR.Value = 0;
 		Voices[v].ADSR.Phase = 0;
 		Voices[v].Pitch = 0x3FFF;
@@ -199,13 +205,11 @@ void V_Voice::Start()
 void V_Voice::Stop()
 {
 	ADSR.Value = 0;
-	ADSR.Phase = 0;
+	ADSR.Phase = V_ADSR::PHASE_STOPPED;
 }
 
-#define TICKINTERVAL 768
-#define SANITYINTERVAL 4800
-/* TICKINTERVAL * SANITYINTERVAL = 768 * 4800 */
-#define TICKINTERVAL_MUL_SANITYINTERVAL 3686400
+uint TickInterval = 768;
+static const int SanityInterval = 4800;
 
 __forceinline bool StartQueuedVoice(uint coreidx, uint voiceidx)
 {
@@ -217,16 +221,13 @@ __forceinline bool StartQueuedVoice(uint coreidx, uint voiceidx)
 	if (vc.StartA & 7)
 		vc.StartA = (vc.StartA + 0xFFFF8) + 0x8;
 
-	vc.ADSR.Releasing = false;
-	vc.ADSR.Value = 1;
-	vc.ADSR.Phase = 1;
+	vc.ADSR.Attack();
 	vc.SCurrent = 28;
 	vc.LoopMode = 0;
 
 	// When SP >= 0 the next sample will be grabbed, we don't want this to happen
 	// instantly because in the case of pitch being 0 we want to delay getting
-	// the next block header. This is a hack to work around the fact that unlike
-	// the HW we don't update the block header on every cycle.
+	// the next block header.
 	vc.SP = -1;
 
 	vc.LoopFlags = 0;
@@ -256,14 +257,16 @@ __forceinline void TimeUpdate(u32 cClocks)
 	//  timings from PCSX2), just mix out a little bit, skip the rest, and hope the ship
 	//  "rights" itself later on.
 
-	if (dClocks > (u32)(TICKINTERVAL_MUL_SANITYINTERVAL))
+	if (dClocks > static_cast<u32>(TickInterval * SanityInterval))
 	{
-		dClocks = TICKINTERVAL_MUL_SANITYINTERVAL;
+		dClocks = TickInterval * SanityInterval;
 		lClocks = cClocks - dClocks;
 	}
 
+	TickInterval = 768; // Reset to default, in case the user hotswitched from async to something else.
+
 	//Update Mixing Progress
-	while (dClocks >= TICKINTERVAL)
+	while (dClocks >= TickInterval)
 	{
 		for (int i = 0; i < 2; i++)
 		{
@@ -278,8 +281,8 @@ __forceinline void TimeUpdate(u32 cClocks)
 			}
 		}
 
-		dClocks -= TICKINTERVAL;
-		lClocks += TICKINTERVAL;
+		dClocks -= TickInterval;
+		lClocks += TickInterval;
 		Cycles++;
 
 		// Start Queued Voices, they start after 2T (Tested on real HW)
@@ -398,9 +401,15 @@ __forceinline void TimeUpdate(u32 cClocks)
 	}
 }
 
-__forceinline void UpdateSpdifMode(void)
+__forceinline void UpdateSpdifMode()
 {
 	const int OPM = PlayMode;
+
+	if (Spdif.Out & 0x4) // use 24/32bit PCM data streaming
+	{
+		PlayMode = 8;
+		return;
+	}
 
 	if (Spdif.Out & SPDIF_OUT_BYPASS)
 	{
@@ -416,9 +425,9 @@ __forceinline void UpdateSpdifMode(void)
 	}
 }
 
-void V_VolumeSlide::RegSet(u16 src)
+static u32 map_spu1to2(u32 addr)
 {
-	Value = (((s32)src) << 16) | ((src << 1) & 0xffff);
+	return addr * 4 + (addr >= 0x200 ? 0xc0000 : 0);
 }
 
 static u32 map_spu2to1(u32 addr)
@@ -441,71 +450,55 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 			case 0x2: //VOLR (Volume R)
 			{
 				V_VolumeSlide& thisvol = vval == 0 ? Voices[voice].Volume.Left : Voices[voice].Volume.Right;
-				thisvol.Reg_VOL = value;
-
-				if (value & 0x8000) // +Lin/-Lin/+Exp/-Exp
-				{
-					thisvol.Mode = (value & 0xF000) >> 12;
-					thisvol.Increment = (value & 0x7F);
-					// We're not sure slides work 100%
-				}
-				else
-				{
-					// Constant Volume mode (no slides or envelopes)
-					// Volumes range from 0x3fff to 0x7fff, with 0x4000 serving as
-					// the "sign" bit, so a simple bitwise extension will do the trick:
-
-					thisvol.RegSet(value << 1);
-					thisvol.Mode = 0;
-					thisvol.Increment = 0;
-				}
+				thisvol.RegSet(value);
 				break;
 			}
 			case 0x4:
 				Voices[voice].Pitch = value;
 				break;
 			case 0x6:
-				Voices[voice].StartA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
+				Voices[voice].StartA = map_spu1to2(value);
 				break;
 
 			case 0x8: // ADSR1 (Envelope)
 				Voices[voice].ADSR.regADSR1 = value;
+				Voices[voice].ADSR.UpdateCache();
 				break;
 
 			case 0xa: // ADSR2 (Envelope)
 				Voices[voice].ADSR.regADSR2 = value;
+				Voices[voice].ADSR.UpdateCache();
 				break;
 			case 0xc: // Voice 0..23 ADSR Current Volume
 				// not commonly set by games
-				Voices[voice].ADSR.Value = value * 0x10001U;
+				Voices[voice].ADSR.Value = value;
 				break;
 			case 0xe:
-				Voices[voice].LoopStartA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
+				Voices[voice].LoopStartA = map_spu1to2(value);
 				break;
+
 			default:
 				break;
 		}
 	}
+
 	else
-	{
 		switch (reg)
 		{
 			case 0x1d80: //         Mainvolume left
-				MasterVol.Left.Mode = 0;
 				MasterVol.Left.RegSet(value);
 				break;
 
 			case 0x1d82: //         Mainvolume right
-				MasterVol.Right.Mode = 0;
 				MasterVol.Right.RegSet(value);
 				break;
 
 			case 0x1d84: //         Reverberation depth left
-				FxVol.Left = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+				FxVol.Left = (s16)(value);
 				break;
 
 			case 0x1d86: //         Reverberation depth right
-				FxVol.Right = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+				FxVol.Right = (s16)(value);
 				break;
 
 			case 0x1d88: //         Voice ON  (0-15)
@@ -560,21 +553,20 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 			//	SPU2_FastWrite(REG_S_VMIXL+2,value);
 			//	SPU2_FastWrite(REG_S_VMIXR+2,value);
 			//break;
-			
 			case 0x1d9c: // Voice 0..15 ON/OFF (status) (ENDX) (R) // writeable but hw overrides it shortly after
 			case 0x1d9e: //         // Voice 15..23 ON/OFF (status) (ENDX) (R) // writeable but hw overrides it shortly after
 				break;
 
 			case 0x1da2: //         Reverb work area start
-				EffectsStartA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
-				break;
+				EffectsStartA = map_spu1to2(value);
+			break;
 
 			case 0x1da4:
-				IRQA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
+				IRQA = map_spu1to2(value);
 				break;
 
 			case 0x1da6:
-				TSA = (value * 4 + (value >= 0x200 ? 0xc0000 : 0));
+				TSA = map_spu1to2(value);
 				break;
 
 			case 0x1da8: // Spu Write to Memory
@@ -601,15 +593,16 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 						 //Regs.STATX = value;
 				break;
 
-			case 0x1DB0: // 1F801DB0h 4  CD Volume Left/Right - cd left?
-			case 0x1DB2: // cd right ?
-			case 0x1DB4: // 1F801DB4h 4  Extern Volume Left / Right - Extern left ?
-			case 0x1DB6: // Extern right ?
-			case 0x1DB8: // 1F801DB8h 4  Current Main Volume Left/Right - Current left ?
-			case 0x1DBA: // Current right?
+			case 0x1DB0: // 1F801DB0h 4  CD Volume Left/Right
+			case 0x1DB2:
+			case 0x1DB4: // 1F801DB4h 4  Extern Volume Left / Right
+			case 0x1DB6:
+			case 0x1DB8: // 1F801DB8h 4  Current Main Volume Left/Right
+			case 0x1DBA:
 			case 0x1DBC: // 1F801DBCh 4  Unknown? (R/W)
 			case 0x1DBE:
 				break;
+
 			case 0x1DC0:
 				Revb.APF1_SIZE = value * 4;
 				break;
@@ -707,7 +700,6 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				Revb.IN_COEF_R = value;
 				break;
 		}
-	}
 
 	spu2Ru16(mem) = value;
 }
@@ -715,7 +707,8 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 u16 V_Core::ReadRegPS1(u32 mem)
 {
 	u16 value = spu2Ru16(mem);
-	u32 reg   = mem & 0xffff;
+
+	const u32 reg = mem & 0xffff;
 
 	if ((reg >= 0x1c00) && (reg < 0x1d80))
 	{
@@ -737,7 +730,7 @@ u16 V_Core::ReadRegPS1(u32 mem)
 			case 0xa:
 				return Voices[voice].ADSR.regADSR2;
 			case 0xc:                                   // Voice 0..23 ADSR Current Volume
-				return (Voices[voice].ADSR.Value >> 16); // no clue
+				return Voices[voice].ADSR.Value;
 			case 0xe:
 				return map_spu2to1(Voices[voice].LoopStartA);
 			default:
@@ -745,27 +738,27 @@ u16 V_Core::ReadRegPS1(u32 mem)
 		}
 	}
 	else
-	{
 		switch (reg)
 		{
 			case 0x1d80:
-				value = MasterVol.Left.Value >> 16;
+				value = MasterVol.Left.Value;
 				break;
 			case 0x1d82:
-				value = MasterVol.Right.Value >> 16;
+				value = MasterVol.Right.Value;
 				break;
 			case 0x1d84:
-				value = FxVol.Left >> 16;
+				value = FxVol.Left;
 				break;
 			case 0x1d86:
-				value = FxVol.Right >> 16;
+				value = FxVol.Right;
 				break;
 
-			case 0x1d88: // Voice 0..23 Key ON(Start Attack / Decay / Sustain) (W)
+			case 0x1d88:
 			case 0x1d8a:
-			case 0x1d8c: // Voice 0..23 Key OFF (Start Release) (W)
+			case 0x1d8c:
 			case 0x1d8e:
 				return 0;
+
 			case 0x1d90:
 				value = Regs.PMON & 0xFFFF;
 				break; // Voice 0..23 Channel FM(pitch lfo) mode(R / W)
@@ -787,7 +780,7 @@ u16 V_Core::ReadRegPS1(u32 mem)
 				value = Regs.VMIXEL >> 16;
 				break;
 				/*case 0x1d9c: value = Regs.VMIXL&0xFFFF;  break;*/ // this is wrong?
-				/*case 0x1d9e: value = Regs.VMIXL >> 16;   break;*/
+			/*case 0x1d9e: value = Regs.VMIXL >> 16;   break;*/
 			case 0x1d9c:
 				value = Regs.ENDX & 0xFFFF;
 				break; // Voice 0..23 Channel ON / OFF(status) (R) (ENDX)
@@ -813,7 +806,6 @@ u16 V_Core::ReadRegPS1(u32 mem)
 			case 0x1dae:
 				return Cores[0].Regs.STATX;
 		}
-	}
 
 	return value;
 }
@@ -843,24 +835,7 @@ static void RegWrite_VoiceParams(u16 value)
 		case 1: //VOLR (Volume R)
 		{
 			V_VolumeSlide& thisvol = (param == 0) ? thisvoice.Volume.Left : thisvoice.Volume.Right;
-			thisvol.Reg_VOL = value;
-
-			if (value & 0x8000) // +Lin/-Lin/+Exp/-Exp
-			{
-				thisvol.Mode = (value & 0xF000) >> 12;
-				thisvol.Increment = (value & 0x7F);
-				// We're not sure slides work 100%
-			}
-			else
-			{
-				// Constant Volume mode (no slides or envelopes)
-				// Volumes range from 0x3fff to 0x7fff, with 0x4000 serving as
-				// the "sign" bit, so a simple bitwise extension will do the trick:
-
-				thisvol.RegSet(value << 1);
-				thisvol.Mode = 0;
-				thisvol.Increment = 0;
-			}
+			thisvol.RegSet(value);
 		}
 		break;
 
@@ -870,19 +845,22 @@ static void RegWrite_VoiceParams(u16 value)
 
 		case 3: // ADSR1 (Envelope)
 			thisvoice.ADSR.regADSR1 = value;
+			thisvoice.ADSR.UpdateCache();
 			break;
 
 		case 4: // ADSR2 (Envelope)
 			thisvoice.ADSR.regADSR2 = value;
+			thisvoice.ADSR.UpdateCache();
 			break;
 
-			// REG_VP_ENVX, REG_VP_VOLXL and REG_VP_VOLXR have been confirmed to not be allowed to be written to, so code has been commented out.
+			// REG_VP_ENVX, REG_VP_VOLXL and REG_VP_VOLXR are all writable, only ENVX has any effect when written to.
 			// Colin McRae Rally 2005 triggers case 5 (ADSR), but it doesn't produce issues enabled or disabled.
 
-		case 5: /* ADSR Value */
-		case 6: /* LEFT RegSet */
-		case 7: /* RIGHT RegSet */
+		case 5:
+			thisvoice.ADSR.Value = value;
 			break;
+		case 6:
+		case 7:
 		default:
 			break;
 	}
@@ -942,12 +920,14 @@ static void RegWrite_VoiceAddr(u16 value)
 			}
 			break;
 
-			// NAX is confirmed to be writable on hardware (decoder will start decoding at new location).
-			//
-			// Example games:
-			// FlatOut
-			// Soul Reaver 2
-			// Wallace And Gromit: Curse Of The Were-Rabbit.
+			// Note that there's no proof that I know of that writing to NextA is
+			// even allowed or handled by the SPU2 (it might be disabled or ignored,
+			// for example).  Tests should be done to find games that write to this
+			// reg, and see if they're buggy or not. --air
+
+			// FlatOut & Soul Reaver 2 trigger these cases, but don't produce issues enabled or disabled.
+			// Wallace And Gromit: Curse Of The Were-Rabbit triggers case 4 and 5 to produce proper sound,
+			// without it some sound effects get cut off so we need the two NextA cases enabled.
 
 		case 4:
 			thisvoice.NextA = ((u32)(value & 0x0F) << 16) | (thisvoice.NextA & 0xFFF8) | 1;
@@ -1219,47 +1199,32 @@ static void RegWrite_CoreExt(u16 value)
 		case REG_P_MVOLR:
 		{
 			V_VolumeSlide& thisvol = (addr == REG_P_MVOLL) ? thiscore.MasterVol.Left : thiscore.MasterVol.Right;
-
-			if (value & 0x8000) // +Lin/-Lin/+Exp/-Exp
-			{
-				thisvol.Mode = (value & 0xF000) >> 12;
-				thisvol.Increment = (value & 0x7F);
-			}
-			else
-			{
-				// Constant Volume mode (no slides or envelopes)
-				// Volumes range from 0x3fff to 0x7fff, with 0x4000 serving as
-				// the "sign" bit, so a simple bitwise extension will do the trick:
-				thisvol.Value     = ((((s32)(value << 1)) << 16) | (((value << 1) << 1) & 0xffff));
-				thisvol.Mode      = 0;
-				thisvol.Increment = 0;
-			}
-			thisvol.Reg_VOL = value;
+			thisvol.RegSet(value);
 		}
 		break;
 
 		case REG_P_EVOLL:
-			thiscore.FxVol.Left = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+			thiscore.FxVol.Left = (s16)(value);
 			break;
 
 		case REG_P_EVOLR:
-			thiscore.FxVol.Right = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+			thiscore.FxVol.Right = (s16)(value);
 			break;
 
 		case REG_P_AVOLL:
-			thiscore.ExtVol.Left = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+			thiscore.ExtVol.Left = (s16)(value);
 			break;
 
 		case REG_P_AVOLR:
-			thiscore.ExtVol.Right = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+			thiscore.ExtVol.Right = (s16)(value);
 			break;
 
 		case REG_P_BVOLL:
-			thiscore.InpVol.Left = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+			thiscore.InpVol.Left = (s16)(value);
 			break;
 
 		case REG_P_BVOLR:
-			thiscore.InpVol.Right = ((((s32)value) << 16) | ((value << 1) & 0xffff));
+			thiscore.InpVol.Right = (s16)(value);
 			break;
 
 			// MVOLX has been confirmed to not be allowed to be written to, so cases have been added as a no-op.
@@ -1278,6 +1243,21 @@ static void RegWrite_CoreExt(u16 value)
 	}
 }
 
+
+template <int core, int addr>
+static void RegWrite_Reverb(u16 value)
+{
+	// Signal to the Reverb code that the effects buffers need to be re-aligned.
+	// This is both simple, efficient, and safe, since we only want to re-align
+	// buffers after both hi and lo words have been written.
+
+	// Update: This may have been written when it wasn't yet known that games
+	// have to disable the Reverb Engine to change settings.
+	// As such we only need to update buffers and parameters when we see
+	// the FxEnable bit go down, then high again. (rama)
+	*(regtable[addr >> 1]) = value;
+	//Cores[core].RevBuffers.NeedsUpdated = true; // See update above
+}
 
 template <int addr>
 static void RegWrite_SPDIF(u16 value)
@@ -1322,6 +1302,9 @@ static void RegWrite_Null(u16 value)
 #define CoreParamsPair(core, omem) \
 	RegWrite_Core<core, omem>, RegWrite_Core<core, ((omem) + 2)>
 
+#define ReverbPair(core, mem) \
+	RegWrite_Reverb<core, mem>, RegWrite_Core<core, ((mem) + 2)>
+
 #define REGRAW(addr) RegWrite_Raw<addr>
 
 // --------------------------------------------------------------------------------------
@@ -1364,28 +1347,28 @@ static RegWriteHandler* const tbl_reg_writes[0x401] =
 
 		CoreParamsPair(0, REG_A_ESA),
 
-		CoreParamsPair(0, R_APF1_SIZE),   //       0x02E4		// Feedback Source A
-		CoreParamsPair(0, R_APF2_SIZE),   //       0x02E8		// Feedback Source B
-		CoreParamsPair(0, R_SAME_L_DST),  //    0x02EC
-		CoreParamsPair(0, R_SAME_R_DST),  //    0x02F0
-		CoreParamsPair(0, R_COMB1_L_SRC), //     0x02F4
-		CoreParamsPair(0, R_COMB1_R_SRC), //     0x02F8
-		CoreParamsPair(0, R_COMB2_L_SRC), //     0x02FC
-		CoreParamsPair(0, R_COMB2_R_SRC), //     0x0300
-		CoreParamsPair(0, R_SAME_L_SRC),  //     0x0304
-		CoreParamsPair(0, R_SAME_R_SRC),  //     0x0308
-		CoreParamsPair(0, R_DIFF_L_DST),  //    0x030C
-		CoreParamsPair(0, R_DIFF_R_DST),  //    0x0310
-		CoreParamsPair(0, R_COMB3_L_SRC), //     0x0314
-		CoreParamsPair(0, R_COMB3_R_SRC), //     0x0318
-		CoreParamsPair(0, R_COMB4_L_SRC), //     0x031C
-		CoreParamsPair(0, R_COMB4_R_SRC), //     0x0320
-		CoreParamsPair(0, R_DIFF_L_SRC),  //     0x0324
-		CoreParamsPair(0, R_DIFF_R_SRC),  //     0x0328
-		CoreParamsPair(0, R_APF1_L_DST),  //    0x032C
-		CoreParamsPair(0, R_APF1_R_DST),  //    0x0330
-		CoreParamsPair(0, R_APF2_L_DST),  //    0x0334
-		CoreParamsPair(0, R_APF2_R_DST),  //    0x0338
+		ReverbPair(0, R_APF1_SIZE),   //       0x02E4		// Feedback Source A
+		ReverbPair(0, R_APF2_SIZE),   //       0x02E8		// Feedback Source B
+		ReverbPair(0, R_SAME_L_DST),  //    0x02EC
+		ReverbPair(0, R_SAME_R_DST),  //    0x02F0
+		ReverbPair(0, R_COMB1_L_SRC), //     0x02F4
+		ReverbPair(0, R_COMB1_R_SRC), //     0x02F8
+		ReverbPair(0, R_COMB2_L_SRC), //     0x02FC
+		ReverbPair(0, R_COMB2_R_SRC), //     0x0300
+		ReverbPair(0, R_SAME_L_SRC),  //     0x0304
+		ReverbPair(0, R_SAME_R_SRC),  //     0x0308
+		ReverbPair(0, R_DIFF_L_DST),  //    0x030C
+		ReverbPair(0, R_DIFF_R_DST),  //    0x0310
+		ReverbPair(0, R_COMB3_L_SRC), //     0x0314
+		ReverbPair(0, R_COMB3_R_SRC), //     0x0318
+		ReverbPair(0, R_COMB4_L_SRC), //     0x031C
+		ReverbPair(0, R_COMB4_R_SRC), //     0x0320
+		ReverbPair(0, R_DIFF_L_SRC),  //     0x0324
+		ReverbPair(0, R_DIFF_R_SRC),  //     0x0328
+		ReverbPair(0, R_APF1_L_DST),  //    0x032C
+		ReverbPair(0, R_APF1_R_DST),  //    0x0330
+		ReverbPair(0, R_APF2_L_DST),  //    0x0334
+		ReverbPair(0, R_APF2_R_DST),  //    0x0338
 
 		RegWrite_Core<0, REG_A_EEA>, RegWrite_Null,
 
@@ -1454,28 +1437,28 @@ static RegWriteHandler* const tbl_reg_writes[0x401] =
 
 		CoreParamsPair(1, REG_A_ESA),
 
-		CoreParamsPair(1, R_APF1_SIZE),   //       0x02E4		// Feedback Source A
-		CoreParamsPair(1, R_APF2_SIZE),   //       0x02E8		// Feedback Source B
-		CoreParamsPair(1, R_SAME_L_DST),  //    0x02EC
-		CoreParamsPair(1, R_SAME_R_DST),  //    0x02F0
-		CoreParamsPair(1, R_COMB1_L_SRC), //     0x02F4
-		CoreParamsPair(1, R_COMB1_R_SRC), //     0x02F8
-		CoreParamsPair(1, R_COMB2_L_SRC), //     0x02FC
-		CoreParamsPair(1, R_COMB2_R_SRC), //     0x0300
-		CoreParamsPair(1, R_SAME_L_SRC),  //     0x0304
-		CoreParamsPair(1, R_SAME_R_SRC),  //     0x0308
-		CoreParamsPair(1, R_DIFF_L_DST),  //    0x030C
-		CoreParamsPair(1, R_DIFF_R_DST),  //    0x0310
-		CoreParamsPair(1, R_COMB3_L_SRC), //     0x0314
-		CoreParamsPair(1, R_COMB3_R_SRC), //     0x0318
-		CoreParamsPair(1, R_COMB4_L_SRC), //     0x031C
-		CoreParamsPair(1, R_COMB4_R_SRC), //     0x0320
-		CoreParamsPair(1, R_DIFF_R_SRC),  //     0x0324
-		CoreParamsPair(1, R_DIFF_L_SRC),  //     0x0328
-		CoreParamsPair(1, R_APF1_L_DST),  //    0x032C
-		CoreParamsPair(1, R_APF1_R_DST),  //    0x0330
-		CoreParamsPair(1, R_APF2_L_DST),  //    0x0334
-		CoreParamsPair(1, R_APF2_R_DST),  //    0x0338
+		ReverbPair(1, R_APF1_SIZE),   //       0x02E4		// Feedback Source A
+		ReverbPair(1, R_APF2_SIZE),   //       0x02E8		// Feedback Source B
+		ReverbPair(1, R_SAME_L_DST),  //    0x02EC
+		ReverbPair(1, R_SAME_R_DST),  //    0x02F0
+		ReverbPair(1, R_COMB1_L_SRC), //     0x02F4
+		ReverbPair(1, R_COMB1_R_SRC), //     0x02F8
+		ReverbPair(1, R_COMB2_L_SRC), //     0x02FC
+		ReverbPair(1, R_COMB2_R_SRC), //     0x0300
+		ReverbPair(1, R_SAME_L_SRC),  //     0x0304
+		ReverbPair(1, R_SAME_R_SRC),  //     0x0308
+		ReverbPair(1, R_DIFF_L_DST),  //    0x030C
+		ReverbPair(1, R_DIFF_R_DST),  //    0x0310
+		ReverbPair(1, R_COMB3_L_SRC), //     0x0314
+		ReverbPair(1, R_COMB3_R_SRC), //     0x0318
+		ReverbPair(1, R_COMB4_L_SRC), //     0x031C
+		ReverbPair(1, R_COMB4_R_SRC), //     0x0320
+		ReverbPair(1, R_DIFF_R_SRC),  //     0x0324
+		ReverbPair(1, R_DIFF_L_SRC),  //     0x0328
+		ReverbPair(1, R_APF1_L_DST),  //    0x032C
+		ReverbPair(1, R_APF1_R_DST),  //    0x0330
+		ReverbPair(1, R_APF2_L_DST),  //    0x0334
+		ReverbPair(1, R_APF2_R_DST),  //    0x0338
 
 		RegWrite_Core<1, REG_A_EEA>, RegWrite_Null,
 
@@ -1601,6 +1584,6 @@ void StopVoices(int core, u32 value)
 		if (Cycles - Cores[core].Voices[vc].PlayCycle < 2)
 			continue;
 
-		Cores[core].Voices[vc].ADSR.Releasing = true;
+		Cores[core].Voices[vc].ADSR.Release();
 	}
 }

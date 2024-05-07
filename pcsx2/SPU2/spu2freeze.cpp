@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2020  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -18,12 +18,15 @@
 #include "SPU2/spu2.h" // hopefully temporary, until I resolve lClocks depdendency
 #include "IopMem.h"
 
-// Arbitrary ID to identify SPU2 saves.
-#define SAVE_ID 0x1227521
+namespace SPU2Savestate
+{
+	// Arbitrary ID to identify SPU2 saves.
+	static constexpr u32 SAVE_ID = 0x1227521;
 
-// versioning for saves.
-// Increment this when changes to the savestate system are made.
-#define SAVE_VERSION 0x000e
+	// versioning for saves.
+	// Increment this when changes to the savestate system are made.
+	static constexpr u32 SAVE_VERSION = 0x000e;
+} // namespace SPU2Savestate
 
 struct SPU2Savestate::DataBlock
 {
@@ -56,13 +59,9 @@ s32 SPU2Savestate::FreezeIt(DataBlock& spud)
 	// We use -1 for null, and anything else as an offset from iop memory.
 #define FIX_POINTER(x) \
 	if (!(x)) \
-	{ \
 		x = reinterpret_cast<decltype(x)>(-1); \
-	} \
 	else \
-	{ \
-		x = reinterpret_cast<decltype(x)>(reinterpret_cast<const u8*>((x)) - iopPhysMem(0)); \
-	}
+		x = reinterpret_cast<decltype(x)>(reinterpret_cast<const u8*>((x)) - iopPhysMem(0))
 
 	for (u32 i = 0; i < 2; i++)
 	{
@@ -97,11 +96,13 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		// they kinda match the settings for the savestate (IRQ enables and such).
 
 		// adpcm cache : Clear all the cache flags and buffers.
-		memset(pcm_cache_data, 0, PCM_BLOCKCOUNT * sizeof(PcmCacheEntry));
+		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
 	}
 	else
 	{
-		// base stuff
+		//TODO/FIXME - implement this?
+		//SndBuffer::ClearContents();
+
 		memcpy(spu2regs, spud.unkregs, sizeof(spud.unkregs));
 		memcpy(_spu2mem, spud.mem, sizeof(spud.mem));
 
@@ -111,13 +112,9 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		// Reverse the pointer offset from above.
 #define FIX_POINTER(x) \
 	if ((x) == reinterpret_cast<decltype(x)>(-1)) \
-	{ \
 		x = nullptr; \
-	} \
 	else \
-	{ \
-		x = reinterpret_cast<decltype(x)>(iopPhysMem(0) + reinterpret_cast<size_t>((x))); \
-	}
+		x = reinterpret_cast<decltype(x)>(iopPhysMem(0) + reinterpret_cast<size_t>((x)))
 
 		for (u32 i = 0; i < 2; i++)
 		{
@@ -134,7 +131,7 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		lClocks = spud.lClocks;
 		PlayMode = spud.PlayMode;
 
-		memset(pcm_cache_data, 0, PCM_BLOCKCOUNT * sizeof(PcmCacheEntry));
+		memset(pcm_cache_data, 0, pcm_BlockCount * sizeof(PcmCacheEntry));
 
 		// Go through the V_Voice structs and recalculate SBuffer pointer from
 		// the NextA setting.
@@ -143,7 +140,7 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		{
 			for (int v = 0; v < 24; v++)
 			{
-				const int cacheIdx = Cores[c].Voices[v].NextA / PCM_WORDSPERBLOCK;
+				const int cacheIdx = Cores[c].Voices[v].NextA / pcm_WordsPerBlock;
 				Cores[c].Voices[v].SBuffer = pcm_cache_data[cacheIdx].Sampledata;
 			}
 		}

@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2020  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -14,357 +14,145 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "Global.h"
 
-#define ADSR_MAX_VOL 0x7fffffff
+#include "SPU2/Global.h"
 
-static const int InvExpOffsets[] = {0, 4, 6, 8, 9, 10, 11, 12};
-static u32 PsxRates[160] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	1,
-	1,
-	2,
-	2,
-	3,
-	3,
-	4,
-	5,
-	6,
-	7,
-	8,
-	10,
-	12,
-	14,
-	16,
-	20,
-	24,
-	28,
-	32,
-	40,
-	48,
-	56,
-	64,
-	80,
-	96,
-	112,
-	128,
-	160,
-	192,
-	224,
-	256,
-	320,
-	384,
-	448,
-	512,
-	640,
-	768,
-	896,
-	1024,
-	1280,
-	1536,
-	1792,
-	2048,
-	2560,
-	3072,
-	3584,
-	4096,
-	5120,
-	6144,
-	7168,
-	8192,
-	10240,
-	12288,
-	14336,
-	16384,
-	20480,
-	24576,
-	28672,
-	32768,
-	40960,
-	49152,
-	57344,
-	65536,
-	81920,
-	98304,
-	114688,
-	131072,
-	163840,
-	196608,
-	229376,
-	262144,
-	327680,
-	393216,
-	458752,
-	524288,
-	655360,
-	786432,
-	917504,
-	1048576,
-	1310720,
-	1572864,
-	1835008,
-	2097152,
-	2621440,
-	3145728,
-	3670016,
-	4194304,
-	5242880,
-	6291456,
-	7340032,
-	8388608,
-	10485760,
-	12582912,
-	14680064,
-	16777216,
-	20971520,
-	25165824,
-	29360128,
-	33554432,
-	41943040,
-	50331648,
-	58720256,
-	67108864,
-	83886080,
-	100663296,
-	117440512,
-	134217728,
-	167772160,
-	201326592,
-	234881024,
-	268435456,
-	335544320,
-	402653184,
-	469762048,
-	536870912,
-	671088640,
-	805306368,
-	939524096,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824,
-	1073741824
-};
+static constexpr s32 ADSR_MAX_VOL = 0x7fff;
 
-bool V_ADSR::Calculate()
+void V_ADSR::UpdateCache()
 {
-	if (Releasing && (Phase < 5))
-		Phase = 5;
+	CachedPhases[PHASE_ATTACK].Decr = false;
+	CachedPhases[PHASE_ATTACK].Exp = AttackMode;
+	CachedPhases[PHASE_ATTACK].Shift = AttackShift;
+	CachedPhases[PHASE_ATTACK].Step = 7 - AttackStep;
+	CachedPhases[PHASE_ATTACK].Target = ADSR_MAX_VOL;
 
-	switch (Phase)
-	{
-		case 1: // attack
-			if (Value == ADSR_MAX_VOL)
-			{
-				// Already maxed out.  Progress phase and nothing more:
-				Phase++;
-				break;
-			}
+	CachedPhases[PHASE_DECAY].Decr = true;
+	CachedPhases[PHASE_DECAY].Exp = true;
+	CachedPhases[PHASE_DECAY].Shift = DecayShift;
+	CachedPhases[PHASE_DECAY].Step = -8;
+	CachedPhases[PHASE_DECAY].Target = (SustainLevel + 1) << 11;
 
-			// Case 1 below is for pseudo exponential below 75%.
-			// Pseudo Exp > 75% and Linear are the same.
+	CachedPhases[PHASE_SUSTAIN].Decr = SustainDir;
+	CachedPhases[PHASE_SUSTAIN].Exp = SustainMode;
+	CachedPhases[PHASE_SUSTAIN].Shift = SustainShift;
+	CachedPhases[PHASE_SUSTAIN].Step = 7 - SustainStep;
 
-			if (AttackMode && (Value >= 0x60000000))
-				Value += PsxRates[(AttackRate ^ 0x7f) - 0x18 + 32];
-			else
-				Value += PsxRates[(AttackRate ^ 0x7f) - 0x10 + 32];
+	if (CachedPhases[PHASE_SUSTAIN].Decr)
+		CachedPhases[PHASE_SUSTAIN].Step = ~CachedPhases[PHASE_SUSTAIN].Step;
 
-			if (Value < 0)
-			{
-				// We hit the ceiling.
-				Phase++;
-				Value = ADSR_MAX_VOL;
-			}
-			break;
+	CachedPhases[PHASE_SUSTAIN].Target = 0;
 
-		case 2: // decay
-		{
-			const u32 off = InvExpOffsets[(Value >> 28) & 7];
-			Value -= PsxRates[((DecayRate ^ 0x1f) * 4) - 0x18 + off + 32];
-
-			// calculate sustain level as a factor of the ADSR maximum volume.
-
-			s32 suslev = ((0x80000000 / 0x10) * (SustainLevel + 1)) - 1;
-
-			if (Value <= suslev)
-			{
-				if (Value < 0)
-					Value = 0;
-				Phase++;
-			}
-		}
-		break;
-
-		case 3: // sustain
-		{
-			// 0x7f disables sustain (infinite sustain)
-			if (SustainRate == 0x7f)
-				return true;
-
-			if (SustainMode & 2) // decreasing
-			{
-				if (SustainMode & 4) // exponential
-				{
-					const u32 off = InvExpOffsets[(Value >> 28) & 7];
-					Value -= PsxRates[(SustainRate ^ 0x7f) - 0x1b + off + 32];
-				}
-				else // linear
-					Value -= PsxRates[(SustainRate ^ 0x7f) - 0xf + 32];
-
-				if (Value <= 0)
-				{
-					Value = 0;
-					Phase++;
-				}
-			}
-			else
-			{ // increasing
-				if ((SustainMode & 4) && (Value >= 0x60000000))
-					Value += PsxRates[(SustainRate ^ 0x7f) - 0x18 + 32];
-				else
-					// linear / Pseudo below 75% (they're the same)
-					Value += PsxRates[(SustainRate ^ 0x7f) - 0x10 + 32];
-
-				if (Value < 0)
-				{
-					Value = ADSR_MAX_VOL;
-					Phase++;
-				}
-			}
-		}
-		break;
-
-		case 4: // sustain end
-			Value = (SustainMode & 2) ? 0 : ADSR_MAX_VOL;
-			if (Value == 0)
-				Phase = 6;
-			break;
-
-		case 5:              // release
-			if (ReleaseMode) // exponential
-			{
-				const u32 off = InvExpOffsets[(Value >> 28) & 7];
-				Value -= PsxRates[((ReleaseRate ^ 0x1f) * 4) - 0x18 + off + 32];
-			}
-			else
-			{ // linear
-				//Value-=PsxRates[((ReleaseRate^0x1f)*4)-0xc+32];
-				if (ReleaseRate != 0x1f)
-					Value -= (1 << (0x1f - ReleaseRate));
-			}
-
-			if (Value <= 0)
-			{
-				Value = 0;
-				Phase++;
-			}
-			break;
-
-		case 6: // release end
-			Value = 0;
-			break;
-		default:
-			break;
-	}
-
-	// returns true if the voice is active, or false if it's stopping.
-	return Phase != 6;
+	CachedPhases[PHASE_RELEASE].Decr = true;
+	CachedPhases[PHASE_RELEASE].Exp = ReleaseMode;
+	CachedPhases[PHASE_RELEASE].Shift = ReleaseShift;
+	CachedPhases[PHASE_RELEASE].Step = -8;
+	CachedPhases[PHASE_RELEASE].Target = 0;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////
-//                                                                                     //
+bool V_ADSR::Calculate(int voiceidx)
+{
+	auto& p = CachedPhases.at(Phase);
 
-#define VOLFLAG_REVERSE_PHASE (1ul << 0)
-#define VOLFLAG_DECREMENT (1ul << 1)
-#define VOLFLAG_EXPONENTIAL (1ul << 2)
-#define VOLFLAG_SLIDE_ENABLE (1ul << 3)
+	// maybe not correct for the "infinite" settings
+	u32 counter_inc = 0x8000 >> std::max(0, p.Shift - 11);
+	s32 level_inc = p.Step << std::max(0, 11 - p.Shift);
+
+	if (p.Exp)
+	{
+		if (!p.Decr && Value > 0x6000)
+			counter_inc >>= 2;
+
+		if (p.Decr)
+			level_inc = (s16)((level_inc * Value) >> 15);
+	}
+
+	counter_inc = std::max<u32>(1, counter_inc);
+	Counter += counter_inc;
+
+	if (Counter >= 0x8000)
+	{
+		Counter = 0;
+		Value = std::clamp<s32>(Value + level_inc, 0, INT16_MAX);
+	}
+
+	// Stay in sustain until key off or silence
+	if (Phase == PHASE_SUSTAIN)
+		return Value != 0;
+
+	// Check if target is reached to advance phase
+	if ((!p.Decr && Value >= p.Target) || (p.Decr && Value <= p.Target))
+		Phase++;
+
+	// All phases done, stop the voice
+	if (Phase > PHASE_RELEASE)
+		return false;
+
+	return true;
+}
+
+void V_ADSR::Attack()
+{
+	Phase = PHASE_ATTACK;
+	Counter = 0;
+	Value = 0;
+}
+
+void V_ADSR::Release()
+{
+	if (Phase != PHASE_STOPPED)
+	{
+		Phase = PHASE_RELEASE;
+		Counter = 0;
+	}
+}
+
+void V_VolumeSlide::RegSet(u16 src)
+{
+	Reg_VOL = src;
+	if (!Enable)
+		Value = (s16)(src << 1);
+}
 
 void V_VolumeSlide::Update()
 {
-	if (!(Mode & VOLFLAG_SLIDE_ENABLE))
+	if (!Enable)
 		return;
 
-	// Volume slides use the same basic logic as ADSR, but simplified (single-stage
-	// instead of multi-stage)
+	s32 step_size = 7 - Step;
 
-	if (Increment == 0x7f)
-		return;
+	if (Decr)
+		step_size = ~step_size;
 
-	s32 value = abs(Value);
+	u32 counter_inc = 0x8000 >> std::max(0, Shift - 11);
+	s32 level_inc = step_size << std::max(0, 11 - Shift);
 
-	if (Mode & VOLFLAG_DECREMENT)
+	if (Exp)
 	{
-		// Decrement
+		if (!Decr && Value > 0x6000)
+			counter_inc >>= 2;
 
-		if (Mode & VOLFLAG_EXPONENTIAL)
-		{
-			u32 off = InvExpOffsets[(value >> 28) & 7];
-			value -= PsxRates[(Increment ^ 0x7f) - 0x1b + off + 32];
-		}
-		else
-			value -= PsxRates[(Increment ^ 0x7f) - 0xf + 32];
-
-		if (value < 0)
-		{
-			value = 0;
-			Mode = 0; // disable slide
-		}
-	}
-	else
-	{
-		// Increment
-		// Pseudo-exponential increments, as done by the SPU2 (really!)
-		// Above 75% slides slow, below 75% slides fast.  It's exponential, pseudo'ly speaking.
-
-		if ((Mode & VOLFLAG_EXPONENTIAL) && (value >= 0x60000000))
-			value += PsxRates[(Increment ^ 0x7f) - 0x18 + 32];
-		else
-			// linear / Pseudo below 75% (they're the same)
-			value += PsxRates[(Increment ^ 0x7f) - 0x10 + 32];
-
-		if (value < 0) // wrapped around the "top"?
-		{
-			value = 0x7fffffff;
-			Mode = 0; // disable slide
-		}
+		if (Decr)
+			level_inc = (s16)((level_inc * Value) >> 15);
 	}
 
-	Value = (Value < 0) ? -value : value;
+	counter_inc = std::max<u32>(1, counter_inc);
+	Counter += counter_inc;
+
+	// If negative phase "increase" to -0x8000 or "decrease" towards 0
+	level_inc = Phase ? -level_inc : level_inc;
+
+	if (Counter >= 0x8000)
+	{
+		Counter = 0;
+
+		if (!Decr)
+			Value = std::clamp<s32>(Value + level_inc, INT16_MIN, INT16_MAX);
+		else
+		{
+			s32 low = Phase ? INT16_MIN : 0;
+			s32 high = Phase ? 0 : INT16_MAX;
+			Value = std::clamp<s32>(Value + level_inc, low, high);
+		}
+	}
 }

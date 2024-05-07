@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2020  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -15,10 +15,12 @@
 
 #include "PrecompiledHeader.h"
 #include "Global.h"
+#include <array>
 
-#define NUM_TAPS 39
+
+static constexpr u32 NUM_TAPS = 39;
 // 39 tap filter, the 0's could be optimized out
-static s32 filter_coefs[NUM_TAPS] = {
+static constexpr std::array<s32, NUM_TAPS> filter_coefs = {
 	-1,
 	0,
 	2,
@@ -145,7 +147,7 @@ StereoOut32 V_Core::DoReverb(const StereoOut32& Input)
 	const u32 comb3_src = RevbGetIndexer(R ? Revb.COMB3_R_SRC : Revb.COMB3_L_SRC);
 	const u32 comb4_src = RevbGetIndexer(R ? Revb.COMB4_R_SRC : Revb.COMB4_L_SRC);
 
-	const u32 apf1_src = RevbGetIndexer(R ? (Revb.APF1_R_DST	- Revb.APF1_SIZE) : (Revb.APF1_L_DST - Revb.APF1_SIZE));
+	const u32 apf1_src = RevbGetIndexer(R ? (Revb.APF1_R_DST - Revb.APF1_SIZE) : (Revb.APF1_L_DST - Revb.APF1_SIZE));
 	const u32 apf1_dst = RevbGetIndexer(R ? Revb.APF1_R_DST : Revb.APF1_L_DST);
 	const u32 apf2_src = RevbGetIndexer(R ? (Revb.APF2_R_DST - Revb.APF2_SIZE) : (Revb.APF2_L_DST - Revb.APF2_SIZE));
 	const u32 apf2_dst = RevbGetIndexer(R ? Revb.APF2_R_DST : Revb.APF2_L_DST);

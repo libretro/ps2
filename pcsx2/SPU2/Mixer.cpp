@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2021  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -67,10 +67,27 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& pr
 	}
 }
 
+static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
+{
+	V_Voice& vc(thiscore.Voices[voiceidx]);
+
+	// Important!  Both cores signal IRQ when an address is read, regardless of
+	// which core actually reads the address.
+
+	for (int i = 0; i < 2; i++)
+	{
+		if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
+			SetIrqCall(i);
+	}
+
+	vc.NextA++;
+	vc.NextA &= 0xFFFFF;
+}
+
 // decoded pcm data, used to cache the decoded data so that it needn't be decoded
 // multiple times.  Cache chunks are decoded when the mixer requests the blocks, and
 // invalided when DMA transfers and memory writes are performed.
-PcmCacheEntry pcm_cache_data[PCM_BLOCKCOUNT];
+PcmCacheEntry pcm_cache_data[pcm_BlockCount];
 
 // LOOP/END sets the ENDX bit and sets NAX to LSA, and the voice is muted if LOOP is not set
 // LOOP seems to only have any effect on the block with LOOP/END set, where it prevents muting the voice
@@ -100,18 +117,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				vc.PendingLoopStart = false;
 			}
 		}
-
-		// Important!  Both cores signal IRQ when an address is read, regardless of
-		// which core actually reads the address.
-
-		for (int i = 0; i < 2; i++)
-		{
-			if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
-				SetIrqCall(i);
-		}
-
-		vc.NextA++;
-		vc.NextA &= 0xFFFFF;
+		IncrementNextA(thiscore, voiceidx);
 
 		if ((vc.NextA & 7) == 0) // vc.SCurrent == 24 equivalent
 		{
@@ -146,9 +152,9 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 			vc.LoopCycle = Cycles;
 		}
 
-		const int cacheIdx       = vc.NextA / PCM_WORDSPERBLOCK;
+		const int cacheIdx = vc.NextA / pcm_WordsPerBlock;
 		PcmCacheEntry& cacheLine = pcm_cache_data[cacheIdx];
-		vc.SBuffer               = cacheLine.Sampledata;
+		vc.SBuffer = cacheLine.Sampledata;
 
 		if (cacheLine.Validated && vc.Prev1 == cacheLine.Prev1 && vc.Prev2 == cacheLine.Prev2)
 		{
@@ -179,17 +185,7 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, uint voiceidx)
 {
 	V_Voice& vc(thiscore.Voices[voiceidx]);
 
-	// Important!  Both cores signal IRQ when an address is read, regardless of
-	// which core actually reads the address.
-
-	for (int i = 0; i < 2; i++)
-	{
-		if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
-			SetIrqCall(i);
-	}
-
-	vc.NextA++;
-	vc.NextA &= 0xFFFFF;
+	IncrementNextA(thiscore, voiceidx);
 
 	if ((vc.NextA & 7) == 0) // vc.SCurrent == 24 equivalent
 	{
@@ -224,26 +220,9 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, uint voiceidx)
 /////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                     //
 
-// Data is expected to be 16 bit signed (typical stuff!).
-// volume is expected to be 32 bit signed (31 bits with reverse phase)
-// Data is shifted up by 1 bit to give the output an effective 16 bit range.
-
-// Performs a 64-bit multiplication between two values and returns the
-// high 32 bits as a result (discarding the fractional 32 bits).
-// The combined fractional bits of both inputs must be 32 bits for this
-// to work properly.
-//
-// This is meant to be a drop-in replacement for times when the 'div' part
-// of a MulDiv is a constant.  (example: 1<<8, or 4096, etc)
-//
-// [Air] Performance breakdown: This is over 10 times faster than MulDiv in
-//   a *worst case* scenario.  It's also more accurate since it forces the
-//   caller to  extend the inputs so that they make use of all 32 bits of
-//   precision.
-//
 static __forceinline s32 ApplyVolume(s32 data, s32 volume)
 {
-	return (s64)((s32)(data << 1)) * volume >> 32;
+	return (volume * data) >> 15;
 }
 
 static __forceinline StereoOut32 ApplyVolume(const StereoOut32& data, const V_VolumeLR& volume)
@@ -278,6 +257,31 @@ static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
 	vc.SP += pitch;
 }
 
+static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
+{
+	V_Voice& vc(thiscore.Voices[voiceidx]);
+
+	if (vc.ADSR.Phase == V_ADSR::PHASE_STOPPED)
+	{
+		vc.ADSR.Value = 0;
+		return;
+	}
+
+	if (!vc.ADSR.Calculate(thiscore.Index | (voiceidx << 1)))
+		vc.Stop();
+}
+
+__forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
+{
+	s32 out = 0;
+	out =  (interpTable[0x0FF - i] * pv4) >> 15;
+	out += (interpTable[0x1FF - i] * pv3) >> 15;
+	out += (interpTable[0x100 + i] * pv2) >> 15;
+	out += (interpTable[0x000 + i] * pv1) >> 15;
+
+	return out;
+}
+
 static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 {
 	V_Voice& vc(thiscore.Voices[voiceidx]);
@@ -292,16 +296,8 @@ static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
 	}
 
 	const s32 mu = vc.SP + 0x1000;
-	s32      pv4 = vc.PV4;
-	s32      pv3 = vc.PV3;
-	s32      pv2 = vc.PV2;
-	s32      pv1 = vc.PV1;
-	s32        i = (mu & 0x0ff0) >> 4;
 
-	return    ((interpTable[i][0] * pv4) >> 15)
-		+ ((interpTable[i][1] * pv3) >> 15)
-		+ ((interpTable[i][2] * pv2) >> 15)
-		+ ((interpTable[i][3] * pv1) >> 15);
+	return GaussianInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, (mu & 0x0ff0) >> 4);
 }
 
 // This is Dr. Hell's noise algorithm as implemented in pcsxr
@@ -382,21 +378,24 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 	StereoOut32 voiceOut(0, 0);
 	s32 Value = 0;
 
-	if (vc.ADSR.Phase > 0)
+	if (vc.ADSR.Phase > V_ADSR::PHASE_STOPPED)
 	{
 		if (vc.Noise)
 			Value = (s16)thiscore.NoiseOut;
 		else
 			Value = GetVoiceValues(thiscore, voiceidx);
 
-		// Update and Apply ADSR (applies to normal and noise sources)
-		if (vc.ADSR.Phase == 0)
-			vc.ADSR.Value = 0;
-		else if (!vc.ADSR.Calculate())
-			vc.Stop();
+		// Update and Apply ADSR  (applies to normal and noise sources)
+		//
+		// Note!  It's very important that ADSR stay as accurate as possible.  By the way
+		// it is used, various sound effects can end prematurely if we truncate more than
+		// one or two bits.  Best result comes from no truncation at all, which is why we
+		// use a full 64-bit multiply/result here.
 
-		Value    = ApplyVolume(Value, vc.ADSR.Value);
-		vc.OutX  = Value;
+		CalculateADSR(thiscore, voiceidx);
+		Value = ApplyVolume(Value, vc.ADSR.Value);
+		vc.OutX = Value;
+
 		voiceOut = ApplyVolume(StereoOut32(Value, Value), vc.Volume);
 	}
 	else
@@ -426,9 +425,9 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 
 		// Note: Results from MixVoice are ranged at 16 bits.
 
-		dest.Dry.Left  += VVal.Left  & thiscore.VoiceGates[voiceidx].DryL;
+		dest.Dry.Left += VVal.Left & thiscore.VoiceGates[voiceidx].DryL;
 		dest.Dry.Right += VVal.Right & thiscore.VoiceGates[voiceidx].DryR;
-		dest.Wet.Left  += VVal.Left  & thiscore.VoiceGates[voiceidx].WetL;
+		dest.Wet.Left += VVal.Left & thiscore.VoiceGates[voiceidx].WetL;
 		dest.Wet.Right += VVal.Right & thiscore.VoiceGates[voiceidx].WetR;
 	}
 }
@@ -438,24 +437,15 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	MasterVol.Update();
 	UpdateNoise(*this);
 
+
 	// Saturate final result to standard 16 bit range.
 	const VoiceMixSet Voices(clamp_mix(inVoices.Dry), clamp_mix(inVoices.Wet));
 
 	// Write Mixed results To Output Area
-	if (Index == 0)
-	{
-		spu2M_WriteFast((0x1000) + OutPos, Voices.Dry.Left);
-		spu2M_WriteFast((0x1200) + OutPos, Voices.Dry.Right);
-		spu2M_WriteFast((0x1400) + OutPos, Voices.Wet.Left);
-		spu2M_WriteFast((0x1600) + OutPos, Voices.Wet.Right);
-	}
-	else
-	{
-		spu2M_WriteFast((0x1800) + OutPos, Voices.Dry.Left);
-		spu2M_WriteFast((0x1A00) + OutPos, Voices.Dry.Right);
-		spu2M_WriteFast((0x1C00) + OutPos, Voices.Wet.Left);
-		spu2M_WriteFast((0x1E00) + OutPos, Voices.Wet.Right);
-	}
+	spu2M_WriteFast(((0 == Index) ? 0x1000 : 0x1800) + OutPos, Voices.Dry.Left);
+	spu2M_WriteFast(((0 == Index) ? 0x1200 : 0x1A00) + OutPos, Voices.Dry.Right);
+	spu2M_WriteFast(((0 == Index) ? 0x1400 : 0x1C00) + OutPos, Voices.Wet.Left);
+	spu2M_WriteFast(((0 == Index) ? 0x1600 : 0x1E00) + OutPos, Voices.Wet.Right);
 
 	// Mix in the Input data
 
@@ -464,11 +454,11 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 		Input.Right & DryGate.InpR);
 
 	// Mix in the Voice data
-	TD.Left  += Voices.Dry.Left  & DryGate.SndL;
+	TD.Left += Voices.Dry.Left & DryGate.SndL;
 	TD.Right += Voices.Dry.Right & DryGate.SndR;
 
 	// Mix in the External (nothing/core0) data
-	TD.Left  += Ext.Left  & DryGate.ExtL;
+	TD.Left += Ext.Left & DryGate.ExtL;
 	TD.Right += Ext.Right & DryGate.ExtR;
 
 	// ----------------------------------------------------------------------------
@@ -493,12 +483,12 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 
 	// Mix Input, Voice, and External data:
 
-	TW.Left   = Input.Left & WetGate.InpL;
-	TW.Right  = Input.Right & WetGate.InpR;
+	TW.Left = Input.Left & WetGate.InpL;
+	TW.Right = Input.Right & WetGate.InpR;
 
-	TW.Left  += Voices.Wet.Left & WetGate.SndL;
+	TW.Left += Voices.Wet.Left & WetGate.SndL;
 	TW.Right += Voices.Wet.Right & WetGate.SndR;
-	TW.Left  += Ext.Left & WetGate.ExtL;
+	TW.Left += Ext.Left & WetGate.ExtL;
 	TW.Right += Ext.Right & WetGate.ExtR;
 
 	StereoOut32 RV = DoReverb(TW);
@@ -508,8 +498,21 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	return TD + ApplyVolume(RV, FxVol);
 }
 
+static StereoOut32 DCFilter(StereoOut32 input) {
+	// A simple DC blocking high-pass filter
+	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
+	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
+	StereoOut32 output;
+	output.Left = (input.Left - DCFilterIn.Left + clamp_mix((0x7f5c * DCFilterOut.Left) >> 15));
+	output.Right = (input.Right - DCFilterIn.Right + clamp_mix((0x7f5c * DCFilterOut.Right) >> 15));
+
+	DCFilterIn = input;
+	DCFilterOut = output;
+	return output;
+}
+
 // Gcc does not want to inline it when lto is enabled because some functions growth too much.
-// The function is big enough to see any speed impact. -- Gregory
+// The function is big enought to see any speed impact. -- Gregory
 #ifndef __POSIX__
 __forceinline
 #endif
@@ -518,16 +521,15 @@ __forceinline
 {
 	// Note: Playmode 4 is SPDIF, which overrides other inputs.
 	StereoOut32 InputData[2] =
-	{
-		// SPDIF is on Core 0:
-		// Fixme:
-		// 1. We do not have an AC3 decoder for the bitstream.
-		// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
-		/*(PlayMode&4) ? StereoOut32::Empty : */ ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol),
+		{
+			// SPDIF is on Core 0:
+			// Fixme:
+			// 1. We do not have an AC3 decoder for the bitstream.
+			// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
+			ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol),
 
-		// CDDA is on Core 1:
-		(PlayMode & 8) ? StereoOut32(0, 0) : ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol)
-	};
+			// CDDA is on Core 1:
+			(PlayMode & 8) ? StereoOut32(0,0) : ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol)};
 
 	// Todo: Replace me with memzero initializer!
 	VoiceMixSet VoiceData[2] = {VoiceMixSet::Empty, VoiceMixSet::Empty}; // mixed voice data for each core.
@@ -554,6 +556,8 @@ __forceinline
 		Out = Cores[1].ReadInput_HiFi();
 	else
 		Out = ApplyVolume(clamp_mix(Out), Cores[1].MasterVol);
+
+	Out = DCFilter(Out);
 
 	// Final clamp, take care not to exceed 16 bits from here on
 	Out = clamp_mix(Out);

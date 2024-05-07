@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2020  PCSX2 Dev Team
+ *  Copyright (C) 2002-2023  PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -148,10 +148,10 @@ void V_Core::FinishDMAwrite()
 		buff1end = 0x100000;
 	}
 
-	const int cacheIdxStart  = ActiveTSA / PCM_WORDSPERBLOCK;
-	const int cacheIdxEnd    = (buff1end + PCM_WORDSPERBLOCK - 1) / PCM_WORDSPERBLOCK;
+	const int cacheIdxStart = ActiveTSA / pcm_WordsPerBlock;
+	const int cacheIdxEnd = (buff1end + pcm_WordsPerBlock - 1) / pcm_WordsPerBlock;
 	PcmCacheEntry* cacheLine = &pcm_cache_data[cacheIdxStart];
-	PcmCacheEntry& cacheEnd  = pcm_cache_data[cacheIdxEnd];
+	PcmCacheEntry& cacheEnd = pcm_cache_data[cacheIdxEnd];
 
 	do
 	{
