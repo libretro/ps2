@@ -1217,11 +1217,33 @@ bool GSDeviceVK::Create()
 	if (!CreateBuffers())
 		return false;
 
-	if (!CompileConvertPipelines() || !CompilePresentPipelines() ||
-		!CompileInterlacePipelines() || !CompileMergePipelines() ||
-		!CompilePostProcessingPipelines())
+	if (!CompileConvertPipelines())
 	{
-		Console.Error("Failed to compile utility pipelines");
+		Console.Error("Failed to compile convert pipelines");
+		return false;
+	}
+
+	if (!CompilePresentPipelines())
+	{
+		Console.Error("Failed to compile present pipelines");
+		return false;
+	}
+
+	if (!CompileInterlacePipelines())
+	{
+		Console.Error("Failed to compile interlace pipelines");
+		return false;
+	}
+
+	if (!CompileMergePipelines())
+	{
+		Console.Error("Failed to compile merge pipelines");
+		return false;
+	}
+
+	if (!CompilePostProcessingPipelines())
+	{
+		Console.Error("Failed to compile postprocessing pipelines");
 		return false;
 	}
 
