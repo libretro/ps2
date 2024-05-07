@@ -18,7 +18,6 @@
 #include <cstring> /* memset/memcpy */
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
-#include <bit> /* bit_cast */
 
 #include "GSPerfMon.h"
 #include "GSState.h"
@@ -28,6 +27,14 @@
 int GSState::s_n = 0;
 int GSState::s_last_transfer_draw_n = 0;
 int GSState::s_transfer_n = 0;
+
+/* Provide this to avoid C++20 bit_cast */
+template <class T2, class T1>
+static T2 cpp11_bit_cast(T1 t1) {
+  T2 t2;
+  std::memcpy( std::addressof(t2), std::addressof(t1), sizeof(T1) );
+  return t2;
+}
 
 static __fi bool IsAutoFlushEnabled()
 {
@@ -1481,9 +1488,9 @@ void GSState::FlushPrim()
 					if (!(i & 1) && is_sprite)
 						v->RGBAQ.Q = m_vertex.buff[m_index.buff[i + 1]].RGBAQ.Q;
 
-					int T = std::bit_cast<int>(v->ST.T);
-					int Q = std::bit_cast<int>(v->RGBAQ.Q);
-					int S = std::bit_cast<int>(v->ST.S);
+					int T = cpp11_bit_cast<int>(v->ST.T);
+					int Q = cpp11_bit_cast<int>(v->RGBAQ.Q);
+					int S = cpp11_bit_cast<int>(v->ST.S);
 					const int expS = (S >> 23) & 0xff;
 					const int expT = (T >> 23) & 0xff;
 					const int expQ = (Q >> 23) & 0xff;
@@ -1491,15 +1498,15 @@ void GSState::FlushPrim()
 
 					u32 mask = CalcMask(expS, max_exp);
 					S &= ~mask;
-					v->ST.S = std::bit_cast<float>(S);
+					v->ST.S = cpp11_bit_cast<float>(S);
 					max_exp = std::max(expT, expQ);
 					mask = CalcMask(expT, max_exp);
 					T &= ~mask;
-					v->ST.T = std::bit_cast<float>(T);
+					v->ST.T = cpp11_bit_cast<float>(T);
 					Q &= ~0xff;
 
 					if (!is_sprite || (i & 1))
-						v->RGBAQ.Q = std::bit_cast<float>(Q);
+						v->RGBAQ.Q = cpp11_bit_cast<float>(Q);
 
 					m_vt.m_min.t.x = std::min(m_vt.m_min.t.x, (v->ST.S / v->RGBAQ.Q) * (1 << m_context->TEX0.TW));
 					m_vt.m_min.t.y = std::min(m_vt.m_min.t.y, (v->ST.T / v->RGBAQ.Q) * (1 << m_context->TEX0.TH));
