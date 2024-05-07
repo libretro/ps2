@@ -462,16 +462,7 @@ void psxRcntUpdate()
 
 		_rcntTestOverflow(i);
 		_rcntTestTarget(i);
-
-		// perform second target test because if we overflowed above it's possible we
-		// already shot past our target if it was very near zero.
-
-		//if( psxCounters[i].count >= psxCounters[i].target ) _rcntTestTarget( i );
 	}
-
-
-	const s32 difference = psxRegs.cycle - psxCounters[6].sCycleT;
-	s32 c = psxCounters[6].CycleT;
 
 	const u32 spu2_delta = (psxRegs.cycle - lClocks) % 768;
 	psxCounters[6].sCycleT = psxRegs.cycle;
