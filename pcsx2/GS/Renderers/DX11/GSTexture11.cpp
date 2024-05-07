@@ -22,7 +22,6 @@ GSTexture11::GSTexture11(wil::com_ptr_nothrow<ID3D11Texture2D> texture, const D3
 	GSTexture::Type type, GSTexture::Format format)
 	: m_texture(std::move(texture))
 	, m_desc(desc)
-	, m_mapped_subresource(0)
 {
 	m_size.x = static_cast<int>(desc.Width);
 	m_size.y = static_cast<int>(desc.Height);
@@ -96,7 +95,6 @@ void GSTexture11::Swap(GSTexture* tex)
 	std::swap(m_srv, static_cast<GSTexture11*>(tex)->m_srv);
 	std::swap(m_rtv, static_cast<GSTexture11*>(tex)->m_rtv);
 	std::swap(m_desc, static_cast<GSTexture11*>(tex)->m_desc);
-	std::swap(m_mapped_subresource, static_cast<GSTexture11*>(tex)->m_mapped_subresource);
 }
 
 GSTexture11::operator ID3D11Texture2D*()
