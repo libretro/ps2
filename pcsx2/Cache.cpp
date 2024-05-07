@@ -31,15 +31,11 @@ namespace
 	union alignas(64) CacheData
 	{
 		u8 bytes[64];
-
-		constexpr CacheData(): bytes{0} {}
 	};
 
 	struct CacheTag
 	{
-		uptr rawValue = 0;
-
-		CacheTag() = default;
+		uptr rawValue;
 
 		// The lower parts of a cache tags structure is as follows:
 		// 31 - 12: The physical address cache tag.
@@ -108,7 +104,7 @@ namespace
 		void load(uptr ppf)
 		{
 			tag.setAddr(ppf);
-			data = *reinterpret_cast<CacheData*>(ppf & ~0x3FULL);
+			std::memcpy(&data, reinterpret_cast<void*>(ppf & ~0x3FULL), sizeof(data));
 			tag.rawValue |=  CacheTag::Flags::VALID_FLAG;
 			tag.rawValue &= ~CacheTag::Flags::DIRTY_FLAG;
 		}
@@ -116,7 +112,7 @@ namespace
 		void clear()
 		{
 			tag.clear();
-			data = CacheData();
+			std::memset(&data, 0, sizeof(data));
 		}
 	};
 
@@ -141,7 +137,7 @@ namespace
 		}
 	};
 
-	static Cache cache;
+	static Cache cache = {};
 
 }
 
