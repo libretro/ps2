@@ -4063,6 +4063,7 @@ SCES-50410:
     gpuTargetCLUT: 1 # Fixes broken sun.
     cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
     cpuSpriteRenderLevel: 2 # Needed for above.
+    estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCES-50411:
   name: "Vampire Night"
   region: "PAL-M5"
@@ -28625,6 +28626,7 @@ SLPM-60149:
     gpuTargetCLUT: 1 # Fixes broken sun.
     cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
     cpuSpriteRenderLevel: 2 # Needed for above.
+    estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPM-60172:
   name: "Itadaki Street 3 - Okuman Chouja ni Shiteageru"
   region: "NTSC-J"
@@ -41263,6 +41265,7 @@ SLPS-25052:
     gpuTargetCLUT: 1 # Fixes broken sun.
     cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
     cpuSpriteRenderLevel: 2 # Needed for above.
+    estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-25053:
   name: "Eikan wa Kimi ni - Koushien no Hasha"
   region: "NTSC-J"
@@ -44724,6 +44727,7 @@ SLPS-73205:
     gpuTargetCLUT: 1 # Fixes broken sun.
     cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
     cpuSpriteRenderLevel: 2 # Needed for above.
+    estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-73206:
   name: "Super Robot Taisen Alpha 2nd [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -45143,6 +45147,7 @@ SLPS-73410:
     gpuTargetCLUT: 1 # Fixes broken sun.
     cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
     cpuSpriteRenderLevel: 2 # Needed for above.
+    estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-73411:
   name: "Armored Core 2 - Another Age [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -45805,6 +45810,7 @@ SLUS-20152:
     gpuTargetCLUT: 1 # Fixes broken sun.
     cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
     cpuSpriteRenderLevel: 2 # Needed for above.
+    estimateTextureRegion: 1 # Improves performance and reduces HC size.
   patches:
     A32F7CD0:
       content: |-
