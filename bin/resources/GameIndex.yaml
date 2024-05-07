@@ -11030,6 +11030,8 @@ SLED-50117:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLED-50286:
   name: "Red Faction [Demo]"
@@ -12470,6 +12472,8 @@ SLES-50383:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLES-50384:
   name: "Metal Gear Solid 2 - Sons of Liberty"
@@ -12477,6 +12481,8 @@ SLES-50384:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLES-50385:
   name: "Metal Gear Solid 2 - Sons of Liberty"
@@ -12484,6 +12490,8 @@ SLES-50385:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLES-50386:
   name: "Crash Bandicoot - The Wrath of Cortex"
@@ -25757,6 +25765,7 @@ SLES-82009:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLES-82010:
   name: "Metal Gear Solid 2, Document of"
@@ -27862,6 +27871,10 @@ SLKA-25470:
 SLKA-25471:
   name: "Metal Gear Solid 2 - Sons of Liberty"
   region: "NTSC-K"
+  gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
+    recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLKA-25472:
   name: "Metal Gear Solid 3 - Snake Eater"
   region: "NTSC-K"
@@ -27904,6 +27917,7 @@ SLKA-35001:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLKA-35003:
   name: "Sakura Taisen - Atsuki Chishioni"
@@ -29127,6 +29141,8 @@ SLPM-62043:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-62044:
   name: "RC Revenge Pro"
@@ -31665,6 +31681,8 @@ SLPM-65077:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
   memcardFilters:
     - "SLPM-65078"
@@ -31675,6 +31693,8 @@ SLPM-65078:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
   memcardFilters:
     - "SLPM-65078"
@@ -34024,6 +34044,8 @@ SLPM-65754:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-65755:
   name: "Samurai Western - Katsugeki Samurai-dou"
@@ -37003,6 +37025,8 @@ SLPM-66503:
   gameFixes:
     - DMABusyHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-66504:
   name: "Onimusha 2 [Mega Hits]"
@@ -38158,6 +38182,8 @@ SLPM-66792:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-66793:
   name: "Metal Gear Solid 2 - Sons of Liberty [20th Anniversary Edition] [Disc 2 of 2]"
@@ -38165,6 +38191,8 @@ SLPM-66793:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-66794:
   name: "Metal Gear Solid 3 - Snake Eater [20th Anniversary Edition]"
@@ -38840,6 +38868,7 @@ SLPM-67002:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-67003:
   name: "Sakura Taisen - Atsuki Chishioni"
@@ -38868,6 +38897,7 @@ SLPM-67008:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-67009:
   name: "Sakura Taisen V - Saraba Itoshiki Hito Yo"
@@ -38971,6 +39001,8 @@ SLPM-67515:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-67516:
   name: "Soul Reaver 2"
@@ -39118,6 +39150,8 @@ SLPM-68503:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-68504:
   name: "Tokimeki Memorial 3 - Special Sound Track"
@@ -39445,6 +39479,8 @@ SLPM-74255:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-74256:
   name: "Metal Gear Solid 2 - Sons of Liberty [PlayStation 2 The Best] [Disc 2 of 2]"
@@ -39452,6 +39488,8 @@ SLPM-74256:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-74259:
   name: "Odin Sphere [PlayStation 2 The Best]"
@@ -39560,6 +39598,7 @@ SLPM-74901:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLPM-84075:
   name: "Anubis Zone of Enders Special Edition [Konami Dendou Selection]"
@@ -45680,6 +45719,8 @@ SLUS-20144:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLUS-20145:
   name: "Ring of Red"
@@ -47643,6 +47684,7 @@ SLUS-20554:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLUS-20555:
   name: "Reel Fishing 3"
@@ -55202,6 +55244,8 @@ SLUS-29003:
   gameFixes:
     - InstantDMAHack # Fixes broken half-bottom artifacts.
   gsHWFixes:
+    roundSprite: 2 # Fixes font artifacts.
+    autoFlush: 1 # Fixes depth of field blur.
     recommendedBlendingLevel: 3 # Fixes broken skin colour on Vlad and others.
 SLUS-29004:
   name: "Unison & Dead or Alive 2 Hardcore [Demo]"
