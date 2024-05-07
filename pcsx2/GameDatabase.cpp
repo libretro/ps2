@@ -592,7 +592,7 @@ bool GameDatabaseSchema::GameEntry::configMatchesHWFix(const Pcsx2Config::GSOpti
 			return (config.SkipDrawEnd == value);
 
 		case GSHWFixId::HalfPixelOffset:
-			return (config.UpscaleMultiplier <= 1.0f || config.UserHacks_HalfPixelOffset == value);
+			return (config.UpscaleMultiplier <= 1.0f || config.UserHacks_HalfPixelOffset == static_cast<GSHalfPixelOffset>(value));
 
 		case GSHWFixId::RoundSprite:
 			return (config.UpscaleMultiplier <= 1.0f || config.UserHacks_RoundSprite == value);
@@ -764,7 +764,8 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 
 			case GSHWFixId::HalfPixelOffset:
-				config.UserHacks_HalfPixelOffset = value;
+				if (value >= 0 && value < static_cast<int>(GSHalfPixelOffset::MaxCount))
+					config.UserHacks_HalfPixelOffset = static_cast<GSHalfPixelOffset>(value);
 				break;
 
 			case GSHWFixId::RoundSprite:
