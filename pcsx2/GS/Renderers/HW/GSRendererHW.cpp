@@ -2746,7 +2746,7 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 	if (m_texture_shuffle)
 	{
 		m_conf.ps.shuffle = 1;
-		m_conf.ps.dfmt = 0;
+		m_conf.ps.dst_fmt = 0;
 
 		bool write_ba;
 		bool read_ba;
@@ -2836,7 +2836,7 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 	}
 	else
 	{
-		m_conf.ps.dfmt = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].fmt;
+		m_conf.ps.dst_fmt = GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].fmt;
 
 		// Don't allow only unused bits on 16bit format to enable fbmask,
 		// let's set the mask to 0 in such cases.
@@ -3068,7 +3068,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 		// PABE: Check condition early as an optimization.
 		const bool PABE = PRIM->ABE && m_draw_env->PABE.PABE && (GetAlphaMinMax().max < 128);
 		// FBMASK: Color is not written, no need to do blending.
-		const u32 temp_fbmask = m_conf.ps.dfmt == 2 ? 0x00F8F8F8 : 0x00FFFFFF;
+		const u32 temp_fbmask = m_conf.ps.dst_fmt == 2 ? 0x00F8F8F8 : 0x00FFFFFF;
 		const bool FBMASK = (m_cached_ctx.FRAME.FBMSK & temp_fbmask) == temp_fbmask;
 
 		// No blending or coverage anti-aliasing so early exit
@@ -3112,7 +3112,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 			m_conf.ps.blend_c = 2;
 		}
 		// 24 bits doesn't have an alpha channel so use 128 (1.0f) fix factor as equivalent.
-		else if (m_conf.ps.dfmt == 1)
+		else if (m_conf.ps.dst_fmt == 1)
 		{
 			AFIX = 128;
 			m_conf.ps.blend_c = 2;
@@ -4498,9 +4498,9 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	}
 
 	// Before emulateblending, dither will be used
-	m_conf.ps.dither = GSConfig.Dithering > 0 && m_conf.ps.dfmt == 2 && env.DTHE.DTHE;
+	m_conf.ps.dither = GSConfig.Dithering > 0 && m_conf.ps.dst_fmt == 2 && env.DTHE.DTHE;
 
-	if (m_conf.ps.dfmt == 1)
+	if (m_conf.ps.dst_fmt == 1)
 	{
 		// Disable writing of the alpha channel
 		m_conf.colormask.wa = 0;
