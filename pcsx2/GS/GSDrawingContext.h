@@ -50,8 +50,6 @@ public:
 		GSPixelOffset4* fzb4;
 	} offset;
 
-	GSDrawingContext();
-
 	void Reset();
 
 	void UpdateScissor();
