@@ -22835,6 +22835,10 @@ SLES-54549:
   compat: 5
   gameFixes:
     - FpuNegDivHack # Fixes black fade effects and some overlays texts in the menus.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves road and grass textures to match sw renderer.
+    trilinearFiltering: 1
+    deinterlace: 9 # Fixes disorderly interlacing lines.
 SLES-54550:
   name: "White Van Racer"
   region: "PAL-E"
@@ -41494,8 +41498,10 @@ SLPS-25165:
   name: "Gunvari Collection + Time Crisis"
   region: "NTSC-J"
 SLPS-25166:
-  name: "Ingot 79"
+  name: "Kinkoumyaku Tansa Simulation - Ingot 79"
   region: "NTSC-J"
+  gsHWFixes:
+    minimumBlendingLevel: 3 # Fixes character heads being translucent.
 SLPS-25169:
   name: "Armored Core 3 - Silent Line"
   region: "NTSC-J"
@@ -53353,6 +53359,10 @@ SLUS-21634:
   compat: 5
   gameFixes:
     - FpuNegDivHack # Fixes black fade effects and some overlays texts in the menus.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves road and grass textures to match sw renderer.
+    trilinearFiltering: 1
+    deinterlace: 9 # Fixes disorderly interlacing lines.
 SLUS-21635:
   name: "Monster Jam"
   region: "NTSC-U"
