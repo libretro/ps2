@@ -25287,7 +25287,7 @@ SLES-55444:
   roundModes:
     eeRoundMode: 0 # Fixes "Fall through floor" bug when approaching chests.
   gsHWFixes:
-    roundSprite: 1 # Fixes textboxes and character portraits.
+    roundSprite: 2 # Fixes textboxes and character portraits.
     beforeDraw: "OI_ArTonelico2"
 SLES-55448:
   name: "Indiana Jones and the Staff of Kings"
@@ -44109,7 +44109,7 @@ SLPS-25819:
   roundModes:
     eeRoundMode: 0 # Fixes "Fall through floor" bug when approaching chests.
   gsHWFixes:
-    roundSprite: 1 # Fixes textboxes and character portraits.
+    roundSprite: 2 # Fixes textboxes and character portraits.
     beforeDraw: "OI_ArTonelico2"
 SLPS-25820:
   name: "Kateikyoushi Hitman Reborn!! Let's Ansatsu! Nerawareta 10 Daime!"
@@ -45077,7 +45077,7 @@ SLPS-73263:
   roundModes:
     eeRoundMode: 0 # Fixes "Fall through floor" bug when approaching chests.
   gsHWFixes:
-    roundSprite: 1 # Fixes textboxes and character portraits.
+    roundSprite: 2 # Fixes textboxes and character portraits.
     beforeDraw: "OI_ArTonelico2"
 SLPS-73269:
   name: "Kidou Senshi Gundam SEED - Rengou vs. Z.A.F.T."
@@ -54332,7 +54332,7 @@ SLUS-21788:
   roundModes:
     eeRoundMode: 0 # Fixes "Fall through floor" bug when approaching chests.
   gsHWFixes:
-    roundSprite: 1 # Fixes textboxes and character portraits.
+    roundSprite: 2 # Fixes textboxes and character portraits.
     beforeDraw: "OI_ArTonelico2"
 SLUS-21789:
   name: "Cabela's Legendary Adventures"
