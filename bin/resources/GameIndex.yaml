@@ -13820,6 +13820,8 @@ SLES-50927:
 SLES-50930:
   name: "Dino Stalker"
   region: "PAL-E"
+  clampModes:
+    vu1ClampMode: 3 # Fixes flashing in some scenes.
 SLES-50932:
   name: "Smash Court Tennis - Pro Tournament"
   region: "PAL-M5"
@@ -14157,9 +14159,13 @@ SLES-51094:
 SLES-51095:
   name: "Dino Stalker"
   region: "PAL-F"
+  clampModes:
+    vu1ClampMode: 3 # Fixes flashing in some scenes.
 SLES-51096:
   name: "Dino Stalker"
   region: "PAL-G"
+  clampModes:
+    vu1ClampMode: 3 # Fixes flashing in some scenes.
 SLES-51100:
   name: "Club Football - Liverpool FC"
   region: "PAL-M6"
@@ -32099,6 +32105,8 @@ SLPM-65139:
   name: "Gun Survivor 3 - Dino Crisis"
   region: "NTSC-J"
   compat: 5
+  clampModes:
+    vu1ClampMode: 3 # Fixes flashing in some scenes.
 SLPM-65140:
   name: "Jojo no Kimyou na Bouken - Ougon no Kaze"
   region: "NTSC-J"
@@ -39314,6 +39322,8 @@ SLPM-67528:
 SLPM-67529:
   name: "Gun Survivor 3 Dino Crisis"
   region: "NTSC-K"
+  clampModes:
+    vu1ClampMode: 3 # Fixes flashing in some scenes.
 SLPM-67530:
   name: "NHL 2003"
   region: "NTSC-K"
@@ -47648,6 +47658,8 @@ SLUS-20485:
   name: "Dino Stalker"
   region: "NTSC-U"
   compat: 5
+  clampModes:
+    vu1ClampMode: 3 # Fixes flashing in some scenes.
 SLUS-20486:
   name: "Marvel vs. Capcom 2"
   region: "NTSC-U"
