@@ -549,7 +549,7 @@ void MTGS::ApplySettings()
 		WaitGS(false, false);
 }
 
-void MTGS::SwitchRenderer(GSRendererType renderer, bool display_message /* = true */)
+void MTGS::SwitchRenderer(GSRendererType renderer)
 {
 	RunOnGSThread([renderer]() {
 		GSSwitchRenderer(renderer);
@@ -560,7 +560,7 @@ void MTGS::SwitchRenderer(GSRendererType renderer, bool display_message /* = tru
 		WaitGS(false, false);
 }
 
-void MTGS::SetSoftwareRendering(bool software, bool display_message /* = true */)
+void MTGS::SetSoftwareRendering(bool software)
 {
 	// for hardware, use the chosen api in the base config, or auto if base is set to sw
 	GSRendererType new_renderer;
@@ -569,7 +569,7 @@ void MTGS::SetSoftwareRendering(bool software, bool display_message /* = true */
 	else
 		new_renderer = GSRendererType::SW;
 
-	SwitchRenderer(new_renderer, display_message);
+	SwitchRenderer(new_renderer);
 }
 
 void MTGS::ToggleSoftwareRendering()

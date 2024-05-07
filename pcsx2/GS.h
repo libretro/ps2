@@ -302,8 +302,8 @@ namespace MTGS
 	void RunOnGSThread(AsyncCallType func);
 	void GameChanged();
 	void ApplySettings();
-	void SwitchRenderer(GSRendererType renderer, bool display_message = true);
-	void SetSoftwareRendering(bool software, bool display_message = true);
+	void SwitchRenderer(GSRendererType renderer);
+	void SetSoftwareRendering(bool software);
 	void ToggleSoftwareRendering();
 
 	bool TryOpenGS();
