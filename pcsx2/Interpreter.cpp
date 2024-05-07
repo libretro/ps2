@@ -34,6 +34,16 @@ static fastjmp_buf intJmpBuf;
 
 static void intEventTest(void);
 
+u32 intGetCycles(void)
+{
+	return cpuBlockCycles;
+}
+
+void intSetCycles(u32 cycles)
+{
+	cpuBlockCycles = cycles;
+}
+
 // These macros are used to assemble the repassembler functions
 
 static void execI(void)
@@ -52,7 +62,7 @@ static void execI(void)
 	cpuRegs.code = memRead32( pc );
 
 	const OPCODE& opcode = GetCurrentInstruction();
-	cpuBlockCycles += opcode.cycles;
+	cpuBlockCycles += opcode.cycles * (2 - ((cpuRegs.CP0.n.Config >> 18) & 0x1));
 
 	opcode.interpret();
 }
