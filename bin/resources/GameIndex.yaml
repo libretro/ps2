@@ -24061,7 +24061,7 @@ SLES-54903:
   name: "Sims 2, The - Castaway"
   region: "PAL-M13"
   gsHWFixes:
-    halfPixelOffset: 1 # Removes horizontal and vertical lines on the ground, trees and the sky.
+    halfPixelOffset: 4 # Removes horizontal and vertical lines on the ground, trees and the sky.
 SLES-54904:
   name: "Simpsons Game, The"
   region: "PAL-M4"
@@ -54026,7 +54026,7 @@ SLUS-21664:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    halfPixelOffset: 1 # Removes horizontal and vertical lines on the ground, trees and the sky.
+    halfPixelOffset: 4 # Removes horizontal and vertical lines on the ground, trees and the sky.
 SLUS-21665:
   name: "Simpsons Game, The"
   region: "NTSC-U"
