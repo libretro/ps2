@@ -549,10 +549,10 @@ void MTGS::ApplySettings()
 		WaitGS(false, false);
 }
 
-void MTGS::SwitchRenderer(GSRendererType renderer)
+void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 {
-	RunOnGSThread([renderer]() {
-		GSSwitchRenderer(renderer);
+	RunOnGSThread([renderer, interlace]() {
+		GSSwitchRenderer(renderer, interlace);
 	});
 
 	// See note in ApplySettings() for reasoning here.
@@ -569,7 +569,7 @@ void MTGS::SetSoftwareRendering(bool software)
 	else
 		new_renderer = GSRendererType::SW;
 
-	SwitchRenderer(new_renderer);
+	SwitchRenderer(new_renderer, EmuConfig.GS.InterlaceMode);
 }
 
 void MTGS::ToggleSoftwareRendering()

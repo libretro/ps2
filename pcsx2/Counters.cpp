@@ -430,7 +430,7 @@ static __fi void DoFMVSwitch()
 		RendererSwitched = GSConfig.UseHardwareRenderer();
 
 		// we don't use the sw toggle here, because it'll change back to auto if set to sw
-		MTGS::SwitchRenderer(new_fmv_state ? GSRendererType::SW : EmuConfig.GS.Renderer);
+		MTGS::SwitchRenderer(new_fmv_state ? GSRendererType::SW : EmuConfig.GS.Renderer, new_fmv_state ? GSInterlaceMode::AdaptiveTFF : EmuConfig.GS.InterlaceMode);
 	}
 	else
 		RendererSwitched = false;

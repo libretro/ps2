@@ -84,7 +84,7 @@ int GSfreeze(FreezeAction mode, freezeData* data);
 void GSGameChanged(void);
 
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
-void GSSwitchRenderer(GSRendererType new_renderer);
+void GSSwitchRenderer(GSRendererType new_renderer, GSInterlaceMode new_interlace);
 
 namespace Host
 {

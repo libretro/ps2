@@ -302,7 +302,7 @@ namespace MTGS
 	void RunOnGSThread(AsyncCallType func);
 	void GameChanged();
 	void ApplySettings();
-	void SwitchRenderer(GSRendererType renderer);
+	void SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace);
 	void SetSoftwareRendering(bool software);
 	void ToggleSoftwareRendering();
 
