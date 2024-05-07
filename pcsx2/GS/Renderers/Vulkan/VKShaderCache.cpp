@@ -92,18 +92,20 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 		std::ofstream ofs(filename.c_str(), std::ofstream::out | std::ofstream::binary);
 		if (ofs.is_open())
 		{
+			const char *info_log_msg     = shader->getInfoLog();
+			const char *info_log_dbg_msg = shader->getInfoDebugLog();
 			ofs << source;
 			ofs << "\n";
 
 			ofs << msg << std::endl;
 			ofs << "Shader Info Log:" << std::endl;
-			ofs << shader->getInfoLog() << std::endl;
-			ofs << shader->getInfoDebugLog() << std::endl;
+			ofs << info_log_msg << std::endl;
+			ofs << info_log_dbg_msg << std::endl;
 			if (program)
 			{
 				ofs << "Program Info Log:" << std::endl;
-				ofs << program->getInfoLog() << std::endl;
-				ofs << program->getInfoDebugLog() << std::endl;
+				ofs << info_log_msg     << std::endl;
+				ofs << info_log_dbg_msg << std::endl;
 			}
 
 			ofs.close();
@@ -140,14 +142,18 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 	glslang::GlslangToSpv(*intermediate, out_code, &logger, &options);
 
 	// Write out messages
-	if (std::strlen(shader->getInfoLog()) > 0)
-		Console.Warning("Shader info log: %s", shader->getInfoLog());
-	if (std::strlen(shader->getInfoDebugLog()) > 0)
-		Console.Warning("Shader debug info log: %s", shader->getInfoDebugLog());
-	if (std::strlen(program->getInfoLog()) > 0)
-		Console.Warning("Program info log: %s", program->getInfoLog());
-	if (std::strlen(program->getInfoDebugLog()) > 0)
-		Console.Warning("Program debug info log: %s", program->getInfoDebugLog());
+	const char *info_log_msg     = shader->getInfoLog();
+	const char *info_dbg_log_msg = shader->getInfoDebugLog();
+	size_t info_log_size         = std::strlen(info_log_msg);
+	size_t info_dbg_log_size     = std::strlen(info_dbg_log_msg);
+	if (info_log_size > 0)
+		Console.Warning("Shader info log: %s", info_log_msg);
+	if (info_dbg_log_size > 0)
+		Console.Warning("Shader debug info log: %s", info_dbg_log_msg);
+	if (info_log_size > 0)
+		Console.Warning("Program info log: %s", info_log_msg);
+	if (info_dbg_log_size > 0)
+		Console.Warning("Program debug info log: %s", info_dbg_log_msg);
 	std::string spv_messages = logger.getAllMessages();
 	if (!spv_messages.empty())
 		Console.Warning("SPIR-V conversion messages: %s", spv_messages.c_str());
