@@ -14839,6 +14839,8 @@ SLES-51459:
 SLES-51460:
   name: "Football Manager 2004"
   region: "PAL-I"
+  clampModes:
+    vu1ClampMode: 3 # Fixes 3D rendering.
 SLES-51461:
   name: "Manager de Liga 2004"
   region: "PAL-S"
@@ -16046,6 +16048,8 @@ SLES-52021:
 SLES-52022:
   name: "Total Club Manager 2004"
   region: "PAL-M4"
+  clampModes:
+    vu1ClampMode: 3 # Fixes 3D rendering.
 SLES-52023:
   name: "Manhunt"
   region: "PAL-M5"
@@ -17573,6 +17577,11 @@ SLES-52671:
 SLES-52673:
   name: "NHL 2005"
   region: "PAL-M5"
+  clampModes:
+    vu1ClampMode: 3 # Fixes 3D rendering.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-52674:
   name: "Fussball Manager 2005"
   region: "PAL-M5"
