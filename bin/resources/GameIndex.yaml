@@ -4006,7 +4006,6 @@ SCES-50408:
     mipmap: 2 # Fixes missing floor texture.
     trilinearFiltering: 1 # Fixes fog effect.
     wildArmsHack: 1 # Fixes misaligment depth of field effect.
-    roundSprite: 2 # Fixes misaligment depth of field effect even more.
 SCES-50409:
   name: "MotoGP 2"
   region: "PAL-M5"
@@ -7053,7 +7052,6 @@ SCPS-15017:
     mipmap: 2 # Fixes missing floor texture.
     trilinearFiltering: 1 # Fixes fog effect.
     wildArmsHack: 1 # Fixes misaligment depth of field effect.
-    roundSprite: 2 # Fixes misaligment depth of field effect even more.
 SCPS-15018:
   name: "Train Simulator Real, The - Yamanote Sen"
   region: "NTSC-J"
@@ -7763,7 +7761,6 @@ SCPS-19201:
     mipmap: 2 # Fixes missing floor texture.
     trilinearFiltering: 1 # Fixes fog effect.
     wildArmsHack: 1 # Fixes misaligment depth of field effect.
-    roundSprite: 2 # Fixes misaligment depth of field effect even more.
 SCPS-19202:
   name: "Extermination [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -8891,7 +8888,6 @@ SCUS-97167:
     mipmap: 2 # Fixes missing floor texture.
     trilinearFiltering: 1 # Fixes fog effect.
     wildArmsHack: 1 # Fixes misaligment depth of field effect.
-    roundSprite: 2 # Fixes misaligment depth of field effect even more.
 SCUS-97169:
   name: "Drakan - The Ancients' Gates [Demo]"
   region: "NTSC-U"
