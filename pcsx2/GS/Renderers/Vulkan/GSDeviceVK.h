@@ -406,7 +406,6 @@ private:
 	bool CompileConvertPipelines();
 	bool CompileInterlacePipelines();
 	bool CompileMergePipelines();
-	bool CompilePostProcessingPipelines();
 
 	void DestroyResources();
 

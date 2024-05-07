@@ -1235,12 +1235,6 @@ bool GSDeviceVK::Create()
 		return false;
 	}
 
-	if (!CompilePostProcessingPipelines())
-	{
-		Console.Error("Failed to compile postprocessing pipelines");
-		return false;
-	}
-
 	if (!CreatePersistentDescriptorSets())
 	{
 		Console.Error("Failed to create persistent descriptor sets");
@@ -2795,28 +2789,6 @@ bool GSDeviceVK::CompileMergePipelines()
 	}
 
 	SafeDestroyShaderModule(m_device, vs);
-	return true;
-}
-
-bool GSDeviceVK::CompilePostProcessingPipelines()
-{
-	VkRenderPass rp = GetRenderPass(
-		LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
-	if (!rp)
-		return false;
-
-	Vulkan::GraphicsPipelineBuilder gpb;
-	SetPipelineProvokingVertex(m_features, gpb);
-	AddUtilityVertexAttributes(gpb);
-	gpb.SetPipelineLayout(m_utility_pipeline_layout);
-	gpb.SetDynamicViewportAndScissorState();
-	gpb.AddDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-	gpb.AddDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
-	gpb.SetNoCullRasterizationState();
-	gpb.SetNoDepthTestState();
-	gpb.SetNoBlendingState();
-	gpb.SetRenderPass(rp, 0);
-
 	return true;
 }
 
