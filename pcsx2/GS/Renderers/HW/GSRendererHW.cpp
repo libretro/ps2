@@ -110,7 +110,7 @@ void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
 	{
 		// If it did draws very recently, we should keep the recent stuff in case it hasn't been preloaded/used yet.
 		// Rocky Legend does this with the main menu FMV's.
-		if (s_last_transfer_draw_n > (s_n - 5) && s_last_transfer_draw_n >= GetLastVSyncDraw())
+		if (s_last_transfer_draw_n > (s_n - 5))
 		{
 			for (auto iter = m_draw_transfers.rbegin(); iter != m_draw_transfers.rend(); iter++)
 			{
@@ -5567,11 +5567,11 @@ bool GSRendererHW::OI_BlitFMV(GSTextureCache::Target* _rt, GSTextureCache::Sourc
 		{
 			// sRect is the top of texture
 			const GSVector4 sRect(m_vt.m_min.t.x / tw, m_vt.m_min.t.y / th, m_vt.m_max.t.x / tw, m_vt.m_max.t.y / th);
-			const GSVector4 dRect(r_texture);
+			const GSVector4 dRect = GSVector4(r_texture) + GSVector4(0.5f);
 			const GSVector4i r_full(0, 0, tw, th);
 
 			g_gs_device->CopyRect(tex->m_texture, rt, r_full, 0, 0);
-			g_gs_device->StretchRect(tex->m_texture, sRect, rt, dRect);
+			g_gs_device->StretchRect(tex->m_texture, sRect, rt, dRect, ShaderConvert::COPY, m_vt.IsRealLinear());
 			g_gs_device->CopyRect(rt, tex->m_texture, r_full, 0, 0);
 
 			g_gs_device->Recycle(rt);
