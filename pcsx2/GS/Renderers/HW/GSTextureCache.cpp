@@ -1134,7 +1134,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 					{
 						for (auto& dirty : t->m_dirty)
 						{
-							GSVector4i dirty_rect = dirty.GetDirtyRect(t->m_TEX0);
+							GSVector4i dirty_rect = dirty.GetDirtyRect(t->m_TEX0, true);
 							if (!dirty_rect.rintersect(new_rect).rempty())
 							{
 								rect_clean = false;
@@ -1882,7 +1882,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 
 				// Don't bother copying the old target in if the whole thing is dirty.
 				if (dst->m_dirty.empty() || (~dst->m_dirty.GetDirtyChannels() & GSUtil::GetChannelMask(TEX0.PSM)) != 0 ||
-					!dst->m_dirty.GetDirtyRect(0, TEX0, dst->GetUnscaledRect()).eq(dst->GetUnscaledRect()))
+					!dst->m_dirty.GetDirtyRect(0, TEX0, dst->GetUnscaledRect(), false).eq(dst->GetUnscaledRect()))
 				{
 					// If the old target was cleared, simply propagate that through.
 					if (dst_match->m_texture->GetState() == GSTexture::State::Cleared)
@@ -2353,7 +2353,7 @@ bool GSTextureCache::CopyRGBFromDepthToColor(Target* dst, Target* depth_src)
 	for (u32 i = 0; i < dst->m_dirty.size(); i++)
 	{
 		GSDirtyRect& dr = dst->m_dirty[i];
-		const GSVector4i drc = dr.GetDirtyRect(dst->m_TEX0);
+		const GSVector4i drc = dr.GetDirtyRect(dst->m_TEX0, false);
 		if (!drc.rintersect(clear_dirty_rc).rempty())
 		{
 			if ((dr.rgba._u32 &= ~0x7) == 0)
@@ -4390,7 +4390,7 @@ GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVec
 			bool is_dirty = false;
 			for (GSDirtyRect& dirty : t->m_dirty)
 			{
-				if (!dirty.GetDirtyRect(t->m_TEX0).rintersect(clut_rc).rempty())
+				if (!dirty.GetDirtyRect(t->m_TEX0, false).rintersect(clut_rc).rempty())
 				{
 					is_dirty = true;
 					break;
@@ -4992,7 +4992,7 @@ void GSTextureCache::Target::Update()
 	const GSOffset off(g_gs_renderer->m_mem.GetOffset(m_TEX0.TBP0, m_TEX0.TBW, m_TEX0.PSM));
 	for (size_t i = 0; i < m_dirty.size(); i++)
 	{
-		const GSVector4i r(m_dirty.GetDirtyRect(i, m_TEX0, total_rect));
+		const GSVector4i r(m_dirty.GetDirtyRect(i, m_TEX0, total_rect, true));
 		if (r.rempty())
 			continue;
 
@@ -5069,7 +5069,7 @@ void GSTextureCache::Target::UpdateIfDirtyIntersects(const GSVector4i& rc)
 
 	for (auto& dirty : m_dirty)
 	{
-		const GSVector4i dirty_rc(dirty.GetDirtyRect(m_TEX0));
+		const GSVector4i dirty_rc(dirty.GetDirtyRect(m_TEX0, false));
 		if (dirty_rc.rintersect(rc).rempty())
 			continue;
 
