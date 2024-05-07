@@ -20368,6 +20368,8 @@ SLES-53563:
 SLES-53564:
   name: "Darkwatch"
   region: "PAL-M5"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes blood vision bloom
 SLES-53566:
   name: "London Taxi - Rush Hour"
   region: "PAL-E"
@@ -50496,6 +50498,8 @@ SLUS-21042:
   name: "Darkwatch"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes blood vision bloom
 SLUS-21043:
   name: "Backyard Wrestling 2 - There Goes the Neighborhood"
   region: "NTSC-U"
