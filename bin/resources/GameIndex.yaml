@@ -28730,6 +28730,11 @@ SLPM-60275:
 SLPM-60277:
   name: "Jissen Pachi-Slot Hisshouhou! Hokuto no Ken Special Edition [Trial]"
   region: "NTSC-J"
+SLPM-60279:
+  name: "Kamen Rider Kabuto"
+  region: "NTSC-J"
+  gsHWFixes:
+    autoFlush: 1 # Fixes garbage corruptions on the bottom of the screen.
 SLPM-60282:
   name: "Lucky Star - RAvish Romance [Trial]"
   region: "NTSC-J"
@@ -40805,6 +40810,8 @@ SLPS-20482:
 SLPS-20483:
   name: "Kamen Rider Kabuto"
   region: "NTSC-J"
+  gsHWFixes:
+    autoFlush: 1 # Fixes garbage corruptions on the bottom of the screen.
 SLPS-20484:
   name: "Simple 2000 Series Ultimate Vol. 34 - Sakigake!! Otokojuku"
   region: "NTSC-J"
