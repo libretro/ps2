@@ -76,7 +76,7 @@
 // If we have an infinity value, then Overflow has occured.
 static bool checkOverflow(u32& xReg, u32 cFlagsToSet)
 {
-	if ( (xReg & ~0x80000000) == PosInfinity ) {
+	if ((xReg & ~0x80000000) == PosInfinity) {
 		xReg = (xReg & 0x80000000) | posFmax;
 		_ContVal_ |= (cFlagsToSet);
 		return true;
@@ -239,7 +239,7 @@ void C_LT() {
 }
 
 void CFC1() {
-	if ( !_Rt_ ) return;
+	if (!_Rt_) return;
 
 	if (_Fs_ == 31)
 		cpuRegs.GPR.r[_Rt_].SD[0] = (s32)fpuRegs.fprc[31];	// force sign extension to 64 bit
