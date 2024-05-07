@@ -956,8 +956,6 @@ static void RegWrite_Core(u16 value)
 		case REG_C_ATTR:
 		{
 			bool irqe = thiscore.IRQEnable;
-			int bit0 = thiscore.AttrBit0;
-			bool oldFXenable = thiscore.FxEnable;
 			u8 oldDmaMode = thiscore.DmaMode;
 
 			thiscore.AttrBit0 = (value >> 0) & 0x01;  //1 bit
@@ -966,9 +964,7 @@ static void RegWrite_Core(u16 value)
 			thiscore.IRQEnable = (value >> 6) & 0x01; //1 bit
 			thiscore.FxEnable = (value >> 7) & 0x01;  //1 bit
 			thiscore.NoiseClk = (value >> 8) & 0x3f;  //6 bits
-			//thiscore.Mute		=(value>>14) & 0x01; //1 bit
 			thiscore.Mute = 0;
-			//thiscore.CoreEnabled=(value>>15) & 0x01; //1 bit
 			// no clue
 			thiscore.Regs.ATTR = value & 0xffff;
 
