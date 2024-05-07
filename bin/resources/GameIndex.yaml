@@ -1781,6 +1781,8 @@ SCAJ-20167:
 SCAJ-20168:
   name: "Rule of Rose"
   region: "NTSC-Unk"
+  gsHWFixes:
+    preloadFrameData: 1 # Fixes Black FMV's.
 SCAJ-20169:
   name: "Dirge of Cerberus - Final Fantasy VII"
   region: "NTSC-Unk"
@@ -7563,6 +7565,8 @@ SCPS-15093:
   name: "Rule of Rose"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    preloadFrameData: 1 # Fixes Black FMV's.
 SCPS-15094:
   name: "EyeToy - Play 2 [Game Only]"
   region: "NTSC-J"
@@ -22061,7 +22065,9 @@ SLES-54217:
   region: "PAL-E"
 SLES-54218:
   name: "Rule of Rose"
-  region: "PAL-F"
+  region: "PAL-M5"
+  gsHWFixes:
+    preloadFrameData: 1 # Fixes Black FMV's.
 SLES-54221:
   name: "LEGO Star Wars II - The Original Trilogy"
   region: "PAL-M6"
@@ -52704,6 +52710,8 @@ SLUS-21448:
   name: "Rule of Rose"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    preloadFrameData: 1 # Fixes Black FMV's.
 SLUS-21449:
   name: "Fast and the Furious, The"
   region: "NTSC-U"
@@ -55225,6 +55233,8 @@ SLUS-28062:
 SLUS-28063:
   name: "Rule of Rose [Trade Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    preloadFrameData: 1 # Fixes Black FMV's.
 SLUS-28064:
   name: "Shin Megami Tensei - Devil Summoner [Trade Demo]"
   region: "NTSC-U"
