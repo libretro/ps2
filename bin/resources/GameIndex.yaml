@@ -2346,6 +2346,7 @@ SCED-50642:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCED-50660:
@@ -2472,6 +2473,7 @@ SCED-50907:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCED-50916:
@@ -4092,6 +4094,7 @@ SCES-50490:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCES-50491:
@@ -4101,6 +4104,7 @@ SCES-50491:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCES-50492:
@@ -4113,6 +4117,7 @@ SCES-50492:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCES-50493:
@@ -4124,6 +4129,7 @@ SCES-50493:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCES-50494:
@@ -4133,6 +4139,7 @@ SCES-50494:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SCES-50499:
@@ -27056,6 +27063,7 @@ SLKA-25214:
   region: "NTSC-K"
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -31913,6 +31921,7 @@ SLPM-65115:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -35563,6 +35572,7 @@ SLPM-66124:
     - SoftwareRendererFMVHack # Fixes interlacing.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -37826,6 +37836,7 @@ SLPM-66677:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -39108,6 +39119,7 @@ SLPM-67513:
   region: "NTSC-K"
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -41350,6 +41362,7 @@ SLPS-25050:
     - SoftwareRendererFMVHack # Fixes interlacing.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -41500,6 +41513,7 @@ SLPS-25088:
   compat: 5
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts.
 SLPS-25089:
@@ -44744,6 +44758,7 @@ SLPS-72501:
     - SoftwareRendererFMVHack # Fixes interlacing.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
@@ -46640,6 +46655,7 @@ SLUS-20312:
     - SoftwareRendererFMVHack # Fixes interlacing.
   clampModes:
     eeClampMode: 3 # Fixes animations.
+    vu0ClampMode: 3 # Fixes character flickering caused by EE clamp full.
   roundModes:
     eeRoundMode: 1 # Fixes reverse control and boss in some places.
   gsHWFixes:
