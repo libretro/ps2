@@ -1792,7 +1792,9 @@ SCAJ-20169:
   name: "Dirge of Cerberus - Final Fantasy VII"
   region: "NTSC-Unk"
   gsHWFixes:
-    autoFlush: 2 # Fixes lighting.
+    autoFlush: 1 # Fixes lighting.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SCAJ-20170:
   name: "Tourist Trophy"
   region: "NTSC-C"
@@ -6389,6 +6391,8 @@ SCKA-20050:
   region: "NTSC-K"
   compat: 5
   gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
+  gsHWFixes:
     getSkipCount: "GSC_TalesOfLegendia"
 SCKA-20051:
   name: "Minna Daisuki Katamari Damacy"
@@ -6817,6 +6821,14 @@ SCKA-20134:
 SCKA-20135:
   name: "Minna Daisuki Katamari Damacy"
   region: "NTSC-K"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
+  roundModes:
+    vu1RoundMode: 0 # Fixes SPS.
+  clampModes:
+    vu1ClampMode: 3 # Fixes SPS.
+  speedHacks:
+    mvuFlag: 0 # Fixes performance and falling through floor and other gameplay.
 SCKA-20137:
   name: "Evangelion - Jo"
   region: "NTSC-K"
@@ -11273,6 +11285,7 @@ SLED-52736:
   region: "PAL-E"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLED-52852:
   name: "Forgotten Realms - Demon Stone [Demo]"
   region: "PAL-E"
@@ -17926,6 +17939,7 @@ SLES-52725:
   compat: 5
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLES-52726:
   name: "NBA Live 2005"
   region: "PAL-F"
@@ -21110,6 +21124,8 @@ SLES-53827:
 SLES-53828:
   name: "We Love Katamari"
   region: "PAL-M4"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
   roundModes:
     vu1RoundMode: 0 # Fixes SPS.
   clampModes:
@@ -22004,7 +22020,9 @@ SLES-54185:
   region: "PAL-M5"
   compat: 5
   gsHWFixes:
-    autoFlush: 2 # Fixes lighting.
+    autoFlush: 1 # Fixes lighting.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54186:
   name: "Devil May Cry 3 - Dante's Awakening [Special Edition]"
   region: "PAL-M5"
@@ -24692,6 +24710,8 @@ SLES-55191:
   region: "PAL-E"
   roundModes:
     vu1RoundMode: 0 # Fixes VU size spam and potential graphical issues with GH3 engine.
+  gsHWFixes:
+    textureInsideRT: 1 # Crowd textures.
 SLES-55192:
   name: "Steam Express"
   region: "PAL-M5"
@@ -24745,6 +24765,8 @@ SLES-55200:
   region: "PAL-M4"
   roundModes:
     vu1RoundMode: 0 # Fixes VU size spam and potential graphical issues with GH3 engine.
+  gsHWFixes:
+    textureInsideRT: 1 # Crowd textures.
 SLES-55201:
   name: "Riding Star"
   region: "PAL-M4"
@@ -27119,6 +27141,7 @@ SLKA-25241:
   region: "NTSC-K"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLKA-25242:
   name: "Fight Night Round 2"
   region: "NTSC-K"
@@ -28749,6 +28772,7 @@ SLPM-60250:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLPM-60251:
   name: "Devil May Cry 3 [Trial Version]"
   region: "NTSC-J"
@@ -28802,6 +28826,17 @@ SLPM-60266:
 SLPM-60267:
   name: "Garouden Breakblow [Taikenban]"
   region: "NTSC-J"
+SLPM-60268:
+  name: "Minna Daisuki Katamari Damacy"
+  region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
+  roundModes:
+    vu1RoundMode: 0 # Fixes SPS.
+  clampModes:
+    vu1ClampMode: 3 # Fixes SPS.
+  speedHacks:
+    mvuFlag: 0 # Fixes performance and falling through floor and other gameplay.
 SLPM-60270:
   name: "D1 Professional Drift Grand Prix Series 2005 [Trial]"
   region: "NTSC-J"
@@ -34150,6 +34185,7 @@ SLPM-65766:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLPM-65767:
   name: "NBA Starting Five 2005"
   region: "NTSC-J"
@@ -35176,6 +35212,7 @@ SLPM-66051:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLPM-66052:
   name: "Miko Mai - Eien no Omoi"
   region: "NTSC-J"
@@ -36132,7 +36169,9 @@ SLPM-66271:
   region: "NTSC-J"
   compat: 5
   gsHWFixes:
-    autoFlush: 2 # Fixes lighting.
+    autoFlush: 1 # Fixes lighting.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-66272:
   name: "I-O"
   region: "NTSC-J"
@@ -37539,7 +37578,9 @@ SLPM-66629:
   name: "Dirge of Cerberus - Final Fantasy VII International"
   region: "NTSC-J"
   gsHWFixes:
-    autoFlush: 2 # Fixes lighting.
+    autoFlush: 1 # Fixes lighting.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-66630:
   name: "Melheaven - Arm Fight Dream [Konami the Best]"
   region: "NTSC-J"
@@ -38778,6 +38819,7 @@ SLPM-66960:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLPM-66961:
   name: "Black [EA-SY! 1980]"
   region: "NTSC-J"
@@ -39176,6 +39218,13 @@ SLPM-68005:
 SLPM-68008:
   name: "Virtua Fighter - 10th Anniversary Edition"
   region: "NTSC-J"
+SLPM-68016:
+  name: "Dirge of Cerberus - Final Fantasy VII Beta Version"
+  region: "NTSC-J"
+  gsHWFixes:
+    autoFlush: 1 # Fixes lighting.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-68017:
   name: "Shin Onimusha - Dawn of Dreams [Saikyou Save Data]"
   region: "NTSC-J"
@@ -42850,6 +42899,8 @@ SLPS-25467:
   name: "Minna Daisuki Katamari Damacy"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
   roundModes:
     vu1RoundMode: 0 # Fixes SPS.
   clampModes:
@@ -44383,6 +44434,8 @@ SLPS-25886:
   region: "NTSC-J"
   roundModes:
     vu1RoundMode: 0 # Fixes VU size spam and potential graphical issues with GH3 engine.
+  gsHWFixes:
+    textureInsideRT: 1 # Crowd textures.
 SLPS-25887:
   name: "Super Robot Taisen Z"
   region: "NTSC-J"
@@ -44403,6 +44456,8 @@ SLPS-25889:
   region: "NTSC-J"
   roundModes:
     vu1RoundMode: 0 # Fixes VU size spam and potential graphical issues with GH3 engine.
+  gsHWFixes:
+    textureInsideRT: 1 # Crowd textures.
 SLPS-25890:
   name: "Guitar Hero III - Legends of Rock"
   region: "NTSC-J"
@@ -44994,6 +45049,8 @@ SLPS-73240:
 SLPS-73241:
   name: "Minna Daisuki Katamari Damacy [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
   roundModes:
     vu1RoundMode: 0 # Fixes SPS.
   clampModes:
@@ -50486,6 +50543,7 @@ SLUS-21065:
   compat: 5
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLUS-21066:
   name: "Urbz, The - Sims in the City"
   region: "NTSC-U"
@@ -51352,6 +51410,8 @@ SLUS-21230:
   name: "We Love Katamari"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes right edge artifact.
   roundModes:
     vu1RoundMode: 0 # Fixes SPS.
   clampModes:
@@ -52607,7 +52667,9 @@ SLUS-21419:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    autoFlush: 2 # Fixes lighting.
+    autoFlush: 1 # Fixes lighting.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-21420:
   name: "Disney's Chicken Little - Ace in Action"
   region: "NTSC-U"
@@ -54135,6 +54197,8 @@ SLUS-21740:
   compat: 5
   roundModes:
     vu1RoundMode: 0 # Fixes VU size spam and potential graphical issues with GH3 engine.
+  gsHWFixes:
+    textureInsideRT: 1 # Crowd textures.
 SLUS-21741:
   name: "Sea Monsters - A Prehistoric Adventure"
   region: "NTSC-U"
@@ -55694,6 +55758,7 @@ SLUS-29118:
   region: "NTSC-U"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
+    halfPixelOffset: 2 # Fixes depth lines.
 SLUS-29123:
   name: "Ghost in the Shell - Stand Alone Complex [Demo]"
   region: "NTSC-U"
