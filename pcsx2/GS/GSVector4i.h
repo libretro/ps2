@@ -55,10 +55,7 @@ public:
 		__m128i m;
 	};
 
-	__forceinline constexpr GSVector4i()
-		: x(0), y(0), z(0), w(0)
-	{
-	}
+	GSVector4i() = default;
 
 	constexpr static GSVector4i cxpr(int x, int y, int z, int w)
 	{
@@ -100,11 +97,6 @@ public:
 	{
 	}
 
-	__forceinline GSVector4i(const GSVector4i& v)
-	{
-		m = v.m;
-	}
-
 	__forceinline explicit GSVector4i(const GSVector2i& v)
 	{
 		m = _mm_loadl_epi64((__m128i*)&v);
@@ -136,11 +128,6 @@ public:
 	__forceinline static GSVector4i cast(const GSVector8i& v);
 
 #endif
-
-	__forceinline void operator=(const GSVector4i& v)
-	{
-		m = v.m;
-	}
 
 	__forceinline void operator=(int i)
 	{

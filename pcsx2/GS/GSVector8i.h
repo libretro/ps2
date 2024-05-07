@@ -104,8 +104,6 @@ public:
 #endif
 	}
 
-	GSVector8i(const GSVector8i& v) = default;
-
 	__forceinline explicit GSVector8i(int i)
 	{
 		*this = i;
@@ -119,11 +117,6 @@ public:
 	__forceinline constexpr explicit GSVector8i(__m256i m)
 		: m(m)
 	{
-	}
-
-	__forceinline void operator=(const GSVector8i& v)
-	{
-		m = v.m;
 	}
 
 	__forceinline void operator=(int i)

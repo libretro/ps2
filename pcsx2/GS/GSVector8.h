@@ -129,8 +129,6 @@ public:
 #endif
 	}
 
-	constexpr GSVector8(const GSVector8& v) = default;
-
 	__forceinline explicit GSVector8(float f)
 	{
 		*this = f;
@@ -176,11 +174,6 @@ public:
 
 	__forceinline static GSVector8 cast(const GSVector4& v);
 	__forceinline static GSVector8 cast(const GSVector4i& v);
-
-	__forceinline void operator=(const GSVector8& v)
-	{
-		m = v.m;
-	}
 
 	__forceinline void operator=(float f)
 	{
