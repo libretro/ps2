@@ -11425,6 +11425,7 @@ SLED-53723:
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLED-53731:
   name: "Battlefield 2 - Modern Combat [Demo]"
   region: "PAL-E"
@@ -20724,18 +20725,21 @@ SLES-53703:
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLES-53704:
   name: "King Kong, Peter Jackson's - The Official Game of the Movie"
   region: "PAL-R"
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLES-53705:
   name: "King Kong, Peter Jackson's - The Official Game of the Movie"
   region: "PAL-PL-E"
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLES-53706:
   name: "Chronicles of Narnia, The - The Lion, The Witch and The Wardrobe"
   region: "PAL-E"
@@ -27537,6 +27541,7 @@ SLKA-25337:
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLKA-25338:
   name: "Godfather, The"
   region: "NTSC-K"
@@ -35917,6 +35922,7 @@ SLPM-66211:
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLPM-66212:
   name: "Sega Rally 2006"
   region: "NTSC-J"
@@ -51978,6 +51984,7 @@ SLUS-21311:
   gsHWFixes:
     recommendedBlendingLevel: 2 # Increases image brightness.
     autoFlush: 1 # Corrects vignette to match software.
+    estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
 SLUS-21312:
   name: "Wallace & Gromit - The Curse of the Were-Rabbit"
   region: "NTSC-U"
