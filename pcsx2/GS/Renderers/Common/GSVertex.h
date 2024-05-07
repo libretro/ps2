@@ -20,8 +20,6 @@
 #include "GS/Renderers/HW/GSVertexHW.h"
 #include "GS/Renderers/SW/GSVertexSW.h"
 
-#pragma pack(push, 1)
-
 struct alignas(32) GSVertex
 {
 	union
@@ -63,11 +61,6 @@ struct alignas(32) GSVertex
 #endif
 };
 
-struct GSVertexP
-{
-	GSVector4 p;
-};
-
 struct alignas(32) GSVertexPT1
 {
 	GSVector4 p;
@@ -75,11 +68,3 @@ struct alignas(32) GSVertexPT1
 	char pad[4];
 	union { u32 c; struct { u8 r, g, b, a; }; };
 };
-
-struct GSVertexPT2
-{
-	GSVector4 p;
-	GSVector2 t[2];
-};
-
-#pragma pack(pop)
