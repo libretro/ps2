@@ -43,50 +43,10 @@
 #endif
 
 #if defined(__APPLE__)
-// #define VK_USE_PLATFORM_MACOS_MVK
 #define VK_USE_PLATFORM_METAL_EXT
 #endif
 
 #include "vulkan/vulkan.h"
-
-#if defined(VULKAN_USE_X11)
-
-// This breaks a bunch of our code. They shouldn't be #defines in the first place.
-#ifdef None
-#undef None
-#endif
-#ifdef Status
-#undef Status
-#endif
-#ifdef CursorShape
-#undef CursorShape
-#endif
-#ifdef KeyPress
-#undef KeyPress
-#endif
-#ifdef KeyRelease
-#undef KeyRelease
-#endif
-#ifdef FocusIn
-#undef FocusIn
-#endif
-#ifdef FocusOut
-#undef FocusOut
-#endif
-#ifdef FontChange
-#undef FontChange
-#endif
-#ifdef Expose
-#undef Expose
-#endif
-#ifdef Unsorted
-#undef Unsorted
-#endif
-#ifdef Bool
-#undef Bool
-#endif
-
-#endif
 
 #include "VKEntryPoints.h"
 
