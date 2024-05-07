@@ -148,7 +148,7 @@ void SPU2::Open()
 void SPU2::Close() { }
 void SPU2::Shutdown() { }
 bool SPU2::IsRunningPSXMode() { return s_psxmode; }
-void SPU2async(u32 cycles) { TimeUpdate(psxRegs.cycle); }
+void SPU2async(void) { TimeUpdate(psxRegs.cycle); }
 
 u16 SPU2read(u32 rmem)
 {

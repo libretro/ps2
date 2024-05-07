@@ -35,9 +35,9 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 	const char dmaNum = spuCore ? 7 : 4;
 	const int size = (bcr >> 16) * (bcr & 0xFFFF);
 
-	// Update the spu2 to the current cycle before initiating the DMA
+	// Update the SPU2 to the current cycle before initiating the DMA
 
-	SPU2async(psxRegs.cycle - psxCounters[6].sCycleT);
+	SPU2async();
 
 	psxCounters[6].sCycleT = psxRegs.cycle;
 	psxCounters[6].CycleT = size * 4;
