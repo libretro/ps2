@@ -25573,6 +25573,7 @@ SLES-82013:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurry characters.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25598,6 +25599,7 @@ SLES-82024:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurry characters.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25607,6 +25609,7 @@ SLES-82026:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurry characters.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25656,6 +25659,7 @@ SLES-82032:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurry characters.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25718,6 +25722,7 @@ SLES-82042:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25728,6 +25733,7 @@ SLES-82043:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25740,6 +25746,7 @@ SLES-82044:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25750,6 +25757,7 @@ SLES-82045:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25762,6 +25770,7 @@ SLES-82046:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25772,6 +25781,7 @@ SLES-82047:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25784,6 +25794,7 @@ SLES-82048:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25794,6 +25805,7 @@ SLES-82049:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25806,6 +25818,7 @@ SLES-82050:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25818,6 +25831,7 @@ SLES-82051:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25830,6 +25844,7 @@ SLES-82052:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -25842,6 +25857,7 @@ SLES-82053:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -26877,6 +26893,7 @@ SLKA-25251:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurriness.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -27276,6 +27293,7 @@ SLKA-25353:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -27287,6 +27305,7 @@ SLKA-25354:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurrines.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -27300,6 +27319,7 @@ SLKA-25355:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -33895,6 +33915,7 @@ SLPM-65789:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurriness.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -33904,6 +33925,7 @@ SLPM-65790:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurriness.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35130,6 +35152,7 @@ SLPM-66117:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35140,6 +35163,7 @@ SLPM-66118:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35150,6 +35174,7 @@ SLPM-66119:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35560,6 +35585,7 @@ SLPM-66220:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35572,6 +35598,7 @@ SLPM-66221:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35584,6 +35611,7 @@ SLPM-66222:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -35608,6 +35636,7 @@ SLPM-66224:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -37900,6 +37929,7 @@ SLPM-66794:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurriness.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -38856,6 +38886,7 @@ SLPM-68516:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurriness.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -49174,6 +49205,7 @@ SLUS-20915:
   gameFixes:
     - BlitInternalFPSHack # Fixes internal FPS detection.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     halfPixelOffset: 2 # Fixes blurriness.
     autoFlush: 2 # Fixes lens flare.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -51029,6 +51061,7 @@ SLUS-21243:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -51764,6 +51797,7 @@ SLUS-21359:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -51774,6 +51808,7 @@ SLUS-21360:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
@@ -55865,6 +55900,7 @@ TLES-82043:
     - BlitInternalFPSHack # Fixes internal FPS detection.
     - InstantDMAHack # Fixes missing letters in text such as E.
   gsHWFixes:
+    recommendedBlendingLevel: 3 # Fixes skin colour and banding.
     autoFlush: 2 # Fixes lens flare.
     halfPixelOffset: 2 # Fixes blurriness.
 VW067-J1:
