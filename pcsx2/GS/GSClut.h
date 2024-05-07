@@ -113,6 +113,7 @@ public:
 	void ClearDrawInvalidity();
 	u32 GetCLUTCBP();
 	u32 GetCLUTCPSM();
+	bool CanLoadCLUT(const GIFRegTEX0& TEX0, const bool update_CBP = false);
 	void SetNextCLUTTEX0(u64 CBP);
 	bool WriteTest(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT);
 	void Write(const GIFRegTEX0& TEX0, const GIFRegTEXCLUT& TEXCLUT);

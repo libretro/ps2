@@ -676,7 +676,7 @@ void GSState::ApplyTEX0(GIFRegTEX0& TEX0)
 	// extremely broken for the same reasons as MLB Power Pros in that it spams TEX0 with
 	// complete garbage making for a nice 1G heap of GSOffset.
 
-	if ((TEX0.PSM & 0x7) >= 3 && TEX0.CLD)
+	if ((TEX0.PSM & 0x7) >= 3 && m_mem.m_clut.CanLoadCLUT(TEX0))
 	{
 		m_mem.m_clut.ClearDrawInvalidity();
 		m_mem.m_clut.SetNextCLUTTEX0(TEX0.U64);
