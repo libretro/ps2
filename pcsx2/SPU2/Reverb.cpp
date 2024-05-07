@@ -15,100 +15,9 @@
 
 #include "PrecompiledHeader.h"
 #include "Global.h"
+#include "GS/GSVector.h"
+
 #include <array>
-
-
-static constexpr u32 NUM_TAPS = 39;
-// 39 tap filter, the 0's could be optimized out
-static constexpr std::array<s32, NUM_TAPS> filter_coefs = {
-	-1,
-	0,
-	2,
-	0,
-	-10,
-	0,
-	35,
-	0,
-	-103,
-	0,
-	266,
-	0,
-	-616,
-	0,
-	1332,
-	0,
-	-2960,
-	0,
-	10246,
-	16384,
-	10246,
-	0,
-	-2960,
-	0,
-	1332,
-	0,
-	-616,
-	0,
-	266,
-	0,
-	-103,
-	0,
-	35,
-	0,
-	-10,
-	0,
-	2,
-	0,
-	-1,
-};
-
-s32 __forceinline V_Core::ReverbDownsample(bool right)
-{
-	s32 out = 0;
-
-	// Skipping the 0 coefs.
-	for (u32 i = 0; i < NUM_TAPS; i += 2)
-		out += RevbDownBuf[right][((RevbSampleBufPos - NUM_TAPS) + i) & 63] * filter_coefs[i];
-
-	// We also skipped the middle so add that in.
-	out += RevbDownBuf[right][((RevbSampleBufPos - NUM_TAPS) + 19) & 63] * filter_coefs[19];
-
-	out >>= 15;
-	out = std::clamp<s32>(out, INT16_MIN, INT16_MAX);
-
-	return out;
-}
-
-
-StereoOut32 __forceinline V_Core::ReverbUpsample(bool phase)
-{
-	s32 ls = 0, rs = 0;
-
-	if (phase)
-	{
-		ls += RevbUpBuf[0][(((RevbSampleBufPos - NUM_TAPS) >> 1) + 9) & 63] * filter_coefs[19];
-		rs += RevbUpBuf[1][(((RevbSampleBufPos - NUM_TAPS) >> 1) + 9) & 63] * filter_coefs[19];
-	}
-	else
-	{
-
-		for (u32 i = 0; i < (NUM_TAPS >> 1) + 1; i++)
-		{
-			ls += RevbUpBuf[0][(((RevbSampleBufPos - NUM_TAPS) >> 1) + i) & 63] * filter_coefs[i * 2];
-		}
-		for (u32 i = 0; i < (NUM_TAPS >> 1) + 1; i++)
-		{
-			rs += RevbUpBuf[1][(((RevbSampleBufPos - NUM_TAPS) >> 1) + i) & 63] * filter_coefs[i * 2];
-		}
-	}
-
-	ls >>= 14;
-	ls = std::clamp<s32>(ls, INT16_MIN, INT16_MAX);
-	rs >>= 14;
-	rs = std::clamp<s32>(rs, INT16_MIN, INT16_MAX);
-
-	return {ls, rs};
-}
 
 __forceinline s32 V_Core::RevbGetIndexer(s32 offset)
 {
@@ -122,13 +31,17 @@ __forceinline s32 V_Core::RevbGetIndexer(s32 offset)
 	return x & 0xf'ffff;
 }
 
-StereoOut32 V_Core::DoReverb(const StereoOut32& Input)
+StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 {
 	if (EffectsStartA >= EffectsEndA)
 		return StereoOut32(0, 0);
 
-	RevbDownBuf[0][RevbSampleBufPos & 63] = Input.Left;
-	RevbDownBuf[1][RevbSampleBufPos & 63] = Input.Right;
+	Input = clamp_mix(Input);
+
+	RevbDownBuf[0][RevbSampleBufPos] = Input.Left;
+	RevbDownBuf[1][RevbSampleBufPos] = Input.Right;
+	RevbDownBuf[0][RevbSampleBufPos | 64] = Input.Left;
+	RevbDownBuf[1][RevbSampleBufPos | 64] = Input.Right;
 
 	bool R = Cycles & 1;
 
@@ -174,9 +87,7 @@ StereoOut32 V_Core::DoReverb(const StereoOut32& Input)
 
 				(Cores[i].IRQA == apf1_dst) || (Cores[i].IRQA == apf1_src) ||
 				(Cores[i].IRQA == apf2_dst) || (Cores[i].IRQA == apf2_src))
-			{
 				SetIrqCall(i);
-			}
 		}
 	}
 
@@ -186,7 +97,7 @@ StereoOut32 V_Core::DoReverb(const StereoOut32& Input)
 	s32 in, same, diff, apf1, apf2, out;
 
 #define MUL(x, y) ((x) * (y) >> 15)
-	in = MUL(R ? Revb.IN_COEF_R : Revb.IN_COEF_L, ReverbDownsample(R));
+	in = MUL(R ? Revb.IN_COEF_R : Revb.IN_COEF_L, ReverbDownsample(*this, R));
 
 	same = MUL(Revb.IIR_VOL, in + MUL(Revb.WALL_VOL, _spu2mem[same_src]) - _spu2mem[same_prv]) + _spu2mem[same_prv];
 	diff = MUL(Revb.IIR_VOL, in + MUL(Revb.WALL_VOL, _spu2mem[diff_src]) - _spu2mem[diff_prv]) + _spu2mem[diff_prv];
@@ -207,9 +118,15 @@ StereoOut32 V_Core::DoReverb(const StereoOut32& Input)
 		_spu2mem[apf2_dst] = clamp_mix(apf2);
 	}
 
-	RevbUpBuf[R][(RevbSampleBufPos >> 1) & 63] = clamp_mix(out);
+	out = clamp_mix(out);
 
-	RevbSampleBufPos++;
+	RevbUpBuf[R][RevbSampleBufPos] = out;
+	RevbUpBuf[!R][RevbSampleBufPos] = 0;
 
-	return ReverbUpsample(RevbSampleBufPos & 1);
+	RevbUpBuf[R][RevbSampleBufPos | 64] = out;
+	RevbUpBuf[!R][RevbSampleBufPos | 64] = 0;
+
+	RevbSampleBufPos = (RevbSampleBufPos + 1) & 63;
+
+	return ReverbUpsample(*this);
 }

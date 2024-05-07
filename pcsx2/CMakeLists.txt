@@ -240,6 +240,7 @@ set(pcsx2SPU2Sources
 	SPU2/ReadInput.cpp
 	SPU2/RegTable.cpp
 	SPU2/Reverb.cpp
+	SPU2/ReverbResample.cpp
 	SPU2/spu2freeze.cpp
 	SPU2/spu2sys.cpp
 )

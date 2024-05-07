@@ -15,9 +15,11 @@
 
 #include "PrecompiledHeader.h"
 
-#include "SPU2/Global.h"
-#include "SPU2/spu2.h"
-#include "SPU2/interpolate_table.h"
+#include <algorithm>
+
+#include "Global.h"
+#include "spu2.h"
+#include "interpolate_table.h"
 
 static const s32 tbl_XA_Factor[16][2] =
 	{
@@ -26,16 +28,6 @@ static const s32 tbl_XA_Factor[16][2] =
 		{115, -52},
 		{98, -55},
 		{122, -60}};
-
-__forceinline s32 clamp_mix(s32 x)
-{
-	return std::clamp(x, -0x8000, 0x7fff);
-}
-
-__forceinline StereoOut32 clamp_mix(StereoOut32 sample)
-{
-	return StereoOut32(clamp_mix(sample.Left), clamp_mix(sample.Right));
-}
 
 static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& prev1, s32& prev2)
 {
@@ -274,10 +266,10 @@ static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
 {
 	s32 out = 0;
-	out =  (interpTable[0x0FF - i] * pv4) >> 15;
-	out += (interpTable[0x1FF - i] * pv3) >> 15;
-	out += (interpTable[0x100 + i] * pv2) >> 15;
-	out += (interpTable[0x000 + i] * pv1) >> 15;
+	out =  (interpTable[i][0] * pv4) >> 15;
+	out += (interpTable[i][1] * pv3) >> 15;
+	out += (interpTable[i][2] * pv2) >> 15;
+	out += (interpTable[i][3] * pv1) >> 15;
 
 	return out;
 }
@@ -386,11 +378,6 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 			Value = GetVoiceValues(thiscore, voiceidx);
 
 		// Update and Apply ADSR  (applies to normal and noise sources)
-		//
-		// Note!  It's very important that ADSR stay as accurate as possible.  By the way
-		// it is used, various sound effects can end prematurely if we truncate more than
-		// one or two bits.  Best result comes from no truncation at all, which is why we
-		// use a full 64-bit multiply/result here.
 
 		CalculateADSR(thiscore, voiceidx);
 		Value = ApplyVolume(Value, vc.ADSR.Value);

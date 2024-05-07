@@ -134,9 +134,7 @@ void V_Core::PlainDMAWrite(u16* pMem, u32 size)
 void V_Core::FinishDMAwrite()
 {
 	if (DMAPtr == nullptr)
-	{
 		DMAPtr = (u16*)iopPhysMem(MADR);
-	}
 
 	DMAICounter = ReadSize;
 
@@ -286,9 +284,7 @@ void V_Core::FinishDMAread()
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > start || Cores[i].IRQA < TDA))
-			{
 				SetIrqCallDMA(i);
-			}
 		}
 	}
 	else
@@ -304,9 +300,7 @@ void V_Core::FinishDMAread()
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > ActiveTSA && Cores[i].IRQA < TDA))
-			{
 				SetIrqCallDMA(i);
-			}
 		}
 	}
 
@@ -369,7 +363,6 @@ void V_Core::DoDMAwrite(u16* pMem, u32 size)
 	if (size < 2)
 	{
 		Regs.STATX &= ~0x80;
-		//Regs.ATTR |= 0x30;
 		DMAICounter = 1 * 4;
 		LastClock = psxRegs.cycle;
 		return;

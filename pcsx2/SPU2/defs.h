@@ -19,6 +19,8 @@
 #include "SPU2/SndOut.h"
 #include "SPU2/Global.h"
 
+#include "GS/MultiISA.h"
+
 #include <array>
 
 // --------------------------------------------------------------------------------------
@@ -37,6 +39,21 @@ extern s16* GetMemPtr(u32 addr);
 extern s16 spu2M_Read(u32 addr);
 extern void spu2M_Write(u32 addr, s16 value);
 extern void spu2M_Write(u32 addr, u16 value);
+
+static __forceinline s16 SignExtend16(u16 v)
+{
+	return (s16)v;
+}
+
+static __forceinline s32 clamp_mix(s32 x)
+{
+	return std::clamp(x, -0x8000, 0x7fff);
+}
+
+static __forceinline StereoOut32 clamp_mix(StereoOut32 sample)
+{
+	return StereoOut32(clamp_mix(sample.Left), clamp_mix(sample.Right));
+}
 
 struct V_VolumeLR
 {
@@ -378,8 +395,8 @@ struct V_Core
 
 	V_Reverb Revb; // Reverb Registers
 
-	s32 RevbDownBuf[2][64]; // Downsample buffer for reverb, one for each channel
-	s32 RevbUpBuf[2][64]; // Upsample buffer for reverb, one for each channel
+	s16 RevbDownBuf[2][64 * 2]; // Downsample buffer for reverb, one for each channel
+	s16 RevbUpBuf[2][64 * 2]; // Upsample buffer for reverb, one for each channel
 	u32 RevbSampleBufPos;
 	u32 EffectsStartA;
 	u32 EffectsEndA;
@@ -439,11 +456,8 @@ struct V_Core
 	// --------------------------------------------------------------------------------------
 
 	StereoOut32 Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, const StereoOut32& Ext);
-	StereoOut32 DoReverb(const StereoOut32& Input);
+	StereoOut32 DoReverb(StereoOut32 Input);
 	s32 RevbGetIndexer(s32 offset);
-
-	s32 ReverbDownsample(bool right);
-	StereoOut32 ReverbUpsample(bool phase);
 
 	StereoOut32 ReadInput();
 	StereoOut32 ReadInput_HiFi();
@@ -478,6 +492,14 @@ struct V_Core
 	void PlainDMAWrite(u16* pMem, u32 sz);
 	void FinishDMAwrite();
 };
+
+MULTI_ISA_DEF(
+	StereoOut32 ReverbUpsample(V_Core& core);
+	s32 ReverbDownsample(V_Core& core, bool right);
+)
+
+extern StereoOut32 (*ReverbUpsample)(V_Core& core);
+extern s32 (*ReverbDownsample)(V_Core& core, bool right);
 
 extern V_Core Cores[2];
 extern V_SPDIF Spdif;

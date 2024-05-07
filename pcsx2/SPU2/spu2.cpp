@@ -62,7 +62,7 @@ void SPU2interruptDMA4(void)
 	Cores[0].TSA = Cores[0].ActiveTSA;
 }
 
-void SPU2interruptDMA7()
+void SPU2interruptDMA7(void)
 {
 	if (Cores[1].DmaMode)
 		Cores[1].Regs.STATX |= 0x80;
