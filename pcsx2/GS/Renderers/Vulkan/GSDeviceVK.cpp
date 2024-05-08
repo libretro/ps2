@@ -2136,23 +2136,39 @@ void GSDeviceVK::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVector
 		{
 			// NVIDIA drivers appear to return random garbage when sampling the RT via a feedback loop, if the load op for
 			// the render pass is CLEAR. Using vkCmdClearAttachments() doesn't work, so we have to clear the image instead.
-			if (feedback_loop & FeedbackLoopFlag_ReadAndWriteRT && vkRt->GetState() == GSTexture::State::Cleared &&
-				IsDeviceNVIDIA())
-				vkRt->CommitClear();
+			if (feedback_loop & FeedbackLoopFlag_ReadAndWriteRT)
+			{
+				if (vkRt->GetState() == GSTexture::State::Cleared && IsDeviceNVIDIA())
+					vkRt->CommitClear();
 
-			vkRt->TransitionToLayout((feedback_loop & FeedbackLoopFlag_ReadAndWriteRT) ?
-										 GSTextureVK::Layout::FeedbackLoop :
-										 GSTextureVK::Layout::ColorAttachment);
+				if (vkRt->GetLayout() != GSTextureVK::Layout::FeedbackLoop)
+				{
+					// need to update descriptors to reflect the new layout
+					m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS;
+					vkRt->TransitionToLayout(GSTextureVK::Layout::FeedbackLoop);
+				}
+			}
+			else
+			{
+				vkRt->TransitionToLayout(GSTextureVK::Layout::ColorAttachment);
+			}
 		}
 		if (vkDs)
 		{
 			// need to update descriptors to reflect the new layout
-			if ((feedback_loop & FeedbackLoopFlag_ReadDS) && vkDs->GetLayout() != GSTextureVK::Layout::FeedbackLoop)
-				m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS;
+			if ((feedback_loop & FeedbackLoopFlag_ReadDS))
+			{
+				if (vkDs->GetLayout() != GSTextureVK::Layout::FeedbackLoop)
+				{
+					m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS;
+					vkDs->TransitionToLayout(GSTextureVK::Layout::FeedbackLoop);
+				}
+			}
+			else
+			{
+				vkDs->TransitionToLayout(GSTextureVK::Layout::DepthStencilAttachment);
+			}
 
-			vkDs->TransitionToLayout((feedback_loop & FeedbackLoopFlag_ReadDS) ?
-										 GSTextureVK::Layout::FeedbackLoop :
-										 GSTextureVK::Layout::DepthStencilAttachment);
 		}
 	}
 
