@@ -86,6 +86,8 @@ target_sources(common PRIVATE
 	emitter/x86types.h
 )
 
+set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
+
 if(WIN32)
 	enable_language(ASM_MASM)
 	target_sources(common PRIVATE FastJmp.asm)

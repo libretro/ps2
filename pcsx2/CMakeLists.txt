@@ -930,6 +930,8 @@ target_include_directories(PCSX2_FLAGS INTERFACE
 	"${FFMPEG_INCLUDE_DIRS}"
 )
 
+set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
+
 if(COMMAND target_precompile_headers AND NOT CCACHE_FOUND)
 	message("Using precompiled headers.")
 	target_precompile_headers(PCSX2_FLAGS INTERFACE PrecompiledHeader.h)
