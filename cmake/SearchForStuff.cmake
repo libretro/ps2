@@ -1,9 +1,6 @@
 #-------------------------------------------------------------------------------
 #                       Search all libraries on the system
 #-------------------------------------------------------------------------------
-if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
-	find_package(Git)
-endif()
 if(APPLE)
 	find_package(ZLIB REQUIRED)
 	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
