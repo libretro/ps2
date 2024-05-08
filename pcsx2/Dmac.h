@@ -209,8 +209,6 @@ union tDMAC_QUEUE
 	    u16 BEIS : 1;
 	};
 	u16 _u16;
-
-	tDMAC_QUEUE(u16 val) { _u16 = val; }
 };
 
 union tDMAC_CTRL {

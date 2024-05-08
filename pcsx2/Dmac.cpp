@@ -124,7 +124,7 @@ static bool QuickDmaExec( void (*func)(), u32 mem)
 	return false;
 }
 
-static tDMAC_QUEUE QueuedDMA(0);
+static tDMAC_QUEUE QueuedDMA;
 
 static void StartQueuedDMA(void)
 {

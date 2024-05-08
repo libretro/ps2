@@ -698,7 +698,7 @@ GSOffset::PageLooper GSOffset::pageLooperForRect(const GSVector4i& rect) const
 	{
 		for (int y = y1; y < y2; y++)
 			for (int x = x1; x < x2; x++)
-				if ((m_blockSwizzle->lookup(x, y) < invBlockOff) == lowPage)
+				if ((m_blockSwizzle->value[y & 7][x & 7] < invBlockOff) == lowPage)
 					return true;
 		return false;
 	};

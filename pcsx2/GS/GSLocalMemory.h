@@ -172,7 +172,7 @@ public:
 		/// Get the current block number without wrapping at MAX_BLOCKS
 		u32 valueNoWrap() const
 		{
-			return (m_bp + m_blockSwizzle->lookup(m_blkX, m_blkY)) ^ m_xor;
+			return (m_bp + m_blockSwizzle->value[m_blkY & 7][m_blkX & 7]) ^ m_xor;
 		}
 
 		/// Get the current block number

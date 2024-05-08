@@ -20,11 +20,6 @@ struct alignas(64) GSBlockSwizzleTable
 {
 	// Some swizzles are 4x8 and others are 8x4.  An 8x8 table can store either at the cost of 2x size
 	u8 value[8][8];
-
-	constexpr u8 lookup(int x, int y) const
-	{
-		return value[y & 7][x & 7];
-	}
 };
 
 /// Adds sizes to GSBlockSwizzleTable for to feel better about not making mistakes
