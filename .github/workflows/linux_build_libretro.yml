@@ -1,0 +1,35 @@
+name: LRPS2-libretro Linux x86_64
+
+on:
+  pull_request:
+    branches: [libretroization]
+  push:
+    branches: [libretroization]
+  watch: # this is a hack that lets repo owners trigger a build by starring
+    types: [started]
+    if: github.actor == github.event.repository.owner.login
+
+jobs:
+  Windows:
+    name: Build for Linux
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install needed packages
+      run: sudo apt install wget git build-essential liblzma-dev libgl-dev zlib1g-dev
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Build libretro core
+      run: |
+        mkdir build && cd build && cmake .. && make -j8
+#        wget https://raw.githubusercontent.com/libretro/libretro-super/master/retrolink.sh && chmod +x retrolink.sh && ./retrolink.sh bin/pcsx2_libretro.so
+#        zip -9 pcsx2_libretro.so.zip bin/pcsx2_libretro.so
+#    - name: Create new release
+#      uses: svenstaro/upload-release-action@v2
+#      with:
+#        repo_token: ${{ secrets.GITHUB_TOKEN }}
+#        tag: Linux_64-bit
+#        file: pcsx2_libretro.so.zip
+#        overwrite: true 
