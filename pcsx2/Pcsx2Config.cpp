@@ -26,6 +26,10 @@
 #include "MemoryCardFile.h"
 #include "USB/USB.h"
 
+// This macro is actually useful for about any and every possible application of C++
+// equality operators.
+#define OpEqu(field) (field == right.field)
+
 const char* SettingInfo::StringDefaultValue() const
 {
 	return default_value ? default_value : "";

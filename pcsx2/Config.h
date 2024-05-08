@@ -22,6 +22,20 @@
 #include <string>
 #include <vector>
 
+// Macro used for removing some of the redtape involved in defining bitfield/union helpers.
+//
+#define BITFIELD32() \
+	union \
+	{ \
+		u32 bitset; \
+		struct \
+		{
+
+#define BITFIELD_END \
+		}; \
+	};
+
+
 class SettingsInterface;
 class SettingsWrapper;
 
@@ -400,12 +414,12 @@ struct Pcsx2Config
 
 		bool operator==(const RecompilerOptions& right) const
 		{
-			return OpEqu(bitset);
+			return bitset == right.bitset;
 		}
 
 		bool operator!=(const RecompilerOptions& right) const
 		{
-			return !OpEqu(bitset);
+			return !(bitset == right.bitset);
 		}
 
 		u32 GetEEClampMode() const
@@ -445,7 +459,11 @@ struct Pcsx2Config
 
 		bool operator==(const CpuOptions& right) const
 		{
-			return OpEqu(sseMXCSR) && OpEqu(sseVU0MXCSR) && OpEqu(sseVU1MXCSR) && OpEqu(AffinityControlMode) && OpEqu(Recompiler);
+			return     (sseMXCSR    == right.sseMXCSR) 
+				&& (sseVU0MXCSR == right.sseVU0MXCSR)
+				&& (sseVU1MXCSR == right.sseVU1MXCSR)
+				&& (AffinityControlMode == right.AffinityControlMode)
+				&& (Recompiler  == right.Recompiler);
 		}
 
 		bool operator!=(const CpuOptions& right) const
@@ -613,10 +631,10 @@ struct Pcsx2Config
 
 			bool operator==(const HostEntry& right) const
 			{
-				return OpEqu(Url) &&
-					   OpEqu(Desc) &&
-					   (*(int*)Address == *(int*)right.Address) &&
-					   OpEqu(Enabled);
+				return     (Url  == right.Url)
+					&& (Desc == right.Desc)
+					&& (*(int*)Address == *(int*)right.Address)
+					&& (Enabled == right.Enabled);
 			}
 
 			bool operator!=(const HostEntry& right) const
@@ -658,27 +676,23 @@ struct Pcsx2Config
 
 		bool operator==(const DEV9Options& right) const
 		{
-			return OpEqu(EthEnable) &&
-				   OpEqu(EthApi) &&
-				   OpEqu(EthDevice) &&
-				   OpEqu(EthLogDNS) &&
-
-				   OpEqu(InterceptDHCP) &&
-				   (*(int*)PS2IP == *(int*)right.PS2IP) &&
-				   (*(int*)Gateway == *(int*)right.Gateway) &&
-				   (*(int*)DNS1 == *(int*)right.DNS1) &&
-				   (*(int*)DNS2 == *(int*)right.DNS2) &&
-
-				   OpEqu(AutoMask) &&
-				   OpEqu(AutoGateway) &&
-				   OpEqu(ModeDNS1) &&
-				   OpEqu(ModeDNS2) &&
-
-				   OpEqu(EthHosts) &&
-
-				   OpEqu(HddEnable) &&
-				   OpEqu(HddFile) &&
-				   OpEqu(HddSizeSectors);
+			return     (EthEnable == right.EthEnable)
+				&& (EthApi    == right.EthApi)
+				&& (EthDevice == right.EthDevice)
+				&& (EthLogDNS == right.EthLogDNS)
+				&& (InterceptDHCP == right.InterceptDHCP)
+				&& (*(int*)PS2IP == *(int*)right.PS2IP)
+				&& (*(int*)Gateway == *(int*)right.Gateway)
+				&& (*(int*)DNS1 == *(int*)right.DNS1)
+				&& (*(int*)DNS2 == *(int*)right.DNS2)
+				&& (AutoMask    == right.AutoMask)
+				&& (AutoGateway == right.AutoGateway)
+				&& (ModeDNS1    == right.ModeDNS1)
+				&& (ModeDNS2    == right.ModeDNS2)
+				&& (EthHosts    == right.EthHosts)
+				&& (HddEnable   == right.HddEnable)
+				&& (HddFile     == right.HddFile)
+				&& (HddSizeSectors == right.HddSizeSectors);
 		}
 
 		bool operator!=(const DEV9Options& right) const
@@ -728,12 +742,12 @@ struct Pcsx2Config
 
 		bool operator==(const GamefixOptions& right) const
 		{
-			return OpEqu(bitset);
+			return (bitset == right.bitset);
 		}
 
 		bool operator!=(const GamefixOptions& right) const
 		{
-			return !OpEqu(bitset);
+			return !(bitset == right.bitset);
 		}
 	};
 
@@ -780,7 +794,9 @@ struct Pcsx2Config
 
 		bool operator==(const FramerateOptions& right) const
 		{
-			return OpEqu(NominalScalar) && OpEqu(TurboScalar) && OpEqu(SlomoScalar);
+			return     (NominalScalar == right.NominalScalar) 
+				&& (TurboScalar   == right.TurboScalar) 
+				&& (SlomoScalar   == right.SlomoScalar);
 		}
 
 		bool operator!=(const FramerateOptions& right) const
@@ -801,7 +817,7 @@ struct Pcsx2Config
 
 		bool operator==(const FilenameOptions& right) const
 		{
-			return OpEqu(Bios);
+			return (Bios == right.Bios);
 		}
 
 		bool operator!=(const FilenameOptions& right) const
