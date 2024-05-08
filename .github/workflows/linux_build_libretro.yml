@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - name: Install needed packages
-      run: sudo apt install wget git build-essential
+      run: sudo apt install wget git build-essential liblzma-dev libgl-dev zlib1g-dev
     - name: Checkout Repository
       uses: actions/checkout@v3
       with:
