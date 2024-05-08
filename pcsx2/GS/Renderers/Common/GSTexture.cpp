@@ -22,17 +22,6 @@
 
 GSTexture::GSTexture() = default;
 
-void GSTexture::Swap(GSTexture* tex)
-{
-	std::swap(m_size, tex->m_size);
-	std::swap(m_mipmap_levels, tex->m_mipmap_levels);
-	std::swap(m_type, tex->m_type);
-	std::swap(m_format, tex->m_format);
-	std::swap(m_state, tex->m_state);
-	std::swap(m_needs_mipmaps_generated, tex->m_needs_mipmaps_generated);
-	std::swap(m_last_frame_used, tex->m_last_frame_used);
-}
-
 u32 GSTexture::GetCompressedBytesPerBlock(Format format)
 {
 	static constexpr u32 bytes_per_block[] = {

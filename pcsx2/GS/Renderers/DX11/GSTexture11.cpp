@@ -91,15 +91,6 @@ void GSTexture11::GenerateMipmap()
 	GSDevice11::GetInstance()->GetD3DContext()->GenerateMips(operator ID3D11ShaderResourceView*());
 }
 
-void GSTexture11::Swap(GSTexture* tex)
-{
-	GSTexture::Swap(tex);
-	std::swap(m_texture, static_cast<GSTexture11*>(tex)->m_texture);
-	std::swap(m_srv, static_cast<GSTexture11*>(tex)->m_srv);
-	std::swap(m_rtv, static_cast<GSTexture11*>(tex)->m_rtv);
-	std::swap(m_desc, static_cast<GSTexture11*>(tex)->m_desc);
-}
-
 GSTexture11::operator ID3D11Texture2D*()
 {
 	return m_texture.get();
