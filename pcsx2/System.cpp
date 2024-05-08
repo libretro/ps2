@@ -42,9 +42,9 @@ SSE_MXCSR g_sseVU1MXCSR = {DEFAULT_sseVUMXCSR};
 //
 void SetCPUState(SSE_MXCSR sseMXCSR, SSE_MXCSR sseVU0MXCSR, SSE_MXCSR sseVU1MXCSR)
 {
-	g_sseMXCSR    = sseMXCSR.ApplyReserveMask();
-	g_sseVU0MXCSR = sseVU0MXCSR.ApplyReserveMask();
-	g_sseVU1MXCSR = sseVU1MXCSR.ApplyReserveMask();
+	g_sseMXCSR    = sseMXCSR;
+	g_sseVU0MXCSR = sseVU0MXCSR;
+	g_sseVU1MXCSR = sseVU1MXCSR;
 
 	_mm_setcsr(g_sseMXCSR.bitmask);
 }

@@ -109,8 +109,6 @@ public:
 
 	void Identify();
 	void CountCores();
-
-	void SIMD_EstablishMXCSRmask();
 };
 
 enum SSE_RoundMode
@@ -156,9 +154,6 @@ union SSE_MXCSR
 			UnderflowFlag : 1,
 			PrecisionFlag : 1,
 
-			// This bit is supported only on SSE2 or better CPUs.  Setting it to 1 on
-			// SSE1 cpus will result in an invalid instruction exception when executing
-			// LDMXSCR.
 			DenormalsAreZero : 1,
 
 			InvalidOpMask : 1,
@@ -180,8 +175,6 @@ union SSE_MXCSR
 	SSE_MXCSR& ClearExceptionFlags();
 	SSE_MXCSR& DisableExceptions();
 
-	SSE_MXCSR& ApplyReserveMask();
-
 	bool operator==(const SSE_MXCSR& right) const
 	{
 		return bitmask == right.bitmask;
@@ -194,7 +187,5 @@ union SSE_MXCSR
 
 	operator x86Emitter::xIndirect32() const;
 };
-
-extern SSE_MXCSR MXCSR_Mask;
 
 alignas(16) extern x86capabilities x86caps;

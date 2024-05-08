@@ -180,7 +180,6 @@ void VMManager::Internal::CPUThreadInitialize(void)
 {
 	x86caps.Identify();
 	x86caps.CountCores();
-	x86caps.SIMD_EstablishMXCSRmask();
 
 	GSinit();
 	SPU2::Initialize();
