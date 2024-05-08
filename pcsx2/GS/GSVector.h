@@ -14,7 +14,7 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "GSIntrin.h"
+#include "common/VectorIntrin.h"
 #include <cstring>
 
 #pragma once
