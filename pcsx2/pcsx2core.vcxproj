@@ -234,7 +234,6 @@
     <ClCompile Include="sif2.cpp" />
     <ClCompile Include="GS\Renderers\OpenGL\GLState.cpp" />
     <ClCompile Include="GS\GS.cpp" />
-    <ClCompile Include="GS\GSAlignedClass.cpp" />
     <ClCompile Include="GS\GSBlock.cpp" />
     <ClCompile Include="GS\GSCapture.cpp" />
     <ClCompile Include="GS\GSClut.cpp" />
@@ -247,7 +246,6 @@
     <ClCompile Include="GS\Renderers\SW\GSDrawScanline.cpp" />
     <ClCompile Include="GS\Renderers\SW\GSDrawScanlineCodeGenerator.cpp" />
     <ClCompile Include="GS\Renderers\SW\GSDrawScanlineCodeGenerator.all.cpp" />
-    <ClCompile Include="GS\Renderers\SW\GSNewCodeGenerator.cpp" />
     <ClCompile Include="GS\Renderers\Common\GSFunctionMap.cpp" />
     <ClCompile Include="GS\Renderers\HW\GSHwHack.cpp" />
     <ClCompile Include="GS\GSLocalMemory.cpp" />
@@ -272,7 +270,6 @@
     <ClCompile Include="GS\Renderers\DX11\GSTextureFX11.cpp" />
     <ClCompile Include="GS\GSUtil.cpp" />
     <ClCompile Include="GS\GSVector.cpp" />
-    <ClCompile Include="GS\Renderers\SW\GSVertexSW.cpp" />
     <ClCompile Include="GS\Renderers\Common\GSVertexTrace.cpp" />
     <ClCompile Include="GS\Renderers\Common\GSVertexTraceFMM.cpp" />
     <ClCompile Include="GS\GSXXH.cpp" />
@@ -357,7 +354,6 @@
     <ClCompile Include="x86\iFPUd.cpp" />
     <ClCompile Include="x86\iMMI.cpp" />
     <ClCompile Include="x86\iR5900Misc.cpp" />
-    <ClCompile Include="x86\ir5900tables.cpp" />
     <ClCompile Include="x86\ix86-32\iR5900-32.cpp" />
     <ClCompile Include="x86\ix86-32\iR5900Arit.cpp" />
     <ClCompile Include="x86\ix86-32\iR5900AritImm.cpp" />

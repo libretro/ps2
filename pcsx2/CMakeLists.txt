@@ -425,7 +425,6 @@ set(pcsx2GSSourcesUnshared
 
 set(pcsx2GSSources
 	GS/GS.cpp
-	GS/GSAlignedClass.cpp
 	GS/GSClut.cpp
 	GS/GSDrawingContext.cpp
 	GS/GSLocalMemory.cpp
@@ -447,7 +446,6 @@ set(pcsx2GSSources
 	GS/Renderers/HW/GSTextureCache.cpp
 	GS/Renderers/HW/GSTextureReplacementLoaders.cpp
 	GS/Renderers/HW/GSTextureReplacements.cpp
-	GS/Renderers/SW/GSNewCodeGenerator.cpp
 	GS/Renderers/SW/GSTextureCacheSW.cpp
 	)
 
@@ -747,7 +745,6 @@ set(pcsx2x86Sources
 	x86/iR3000Atables.cpp
 	x86/iR5900Analysis.cpp
 	x86/iR5900Misc.cpp
-	x86/ir5900tables.cpp
 	x86/ix86-32/iCore-32.cpp
 	x86/ix86-32/iR5900-32.cpp
 	x86/ix86-32/iR5900Arit.cpp

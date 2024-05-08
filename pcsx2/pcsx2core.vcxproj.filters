@@ -503,9 +503,6 @@
     <ClCompile Include="x86\iR5900Misc.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
-    <ClCompile Include="x86\ir5900tables.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
-    </ClCompile>
     <ClCompile Include="x86\ix86-32\iR5900-32.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
     </ClCompile>
@@ -932,9 +929,6 @@
     <ClCompile Include="GS\GS.cpp">
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
-    <ClCompile Include="GS\GSAlignedClass.cpp">
-      <Filter>System\Ps2\GS</Filter>
-    </ClCompile>
     <ClCompile Include="GS\GSBlock.cpp">
       <Filter>System\Ps2\GS</Filter>
     </ClCompile>
@@ -1013,9 +1007,6 @@
     <ClCompile Include="GS\Renderers\SW\GSDrawScanlineCodeGenerator.all.cpp">
       <Filter>System\Ps2\GS\Renderers\Software</Filter>
     </ClCompile>
-    <ClCompile Include="GS\Renderers\SW\GSNewCodeGenerator.cpp">
-      <Filter>System\Ps2\GS\Renderers\Software</Filter>
-    </ClCompile>
     <ClCompile Include="GS\Renderers\SW\GSRendererSW.cpp">
       <Filter>System\Ps2\GS\Renderers\Software</Filter>
     </ClCompile>
@@ -1029,9 +1020,6 @@
       <Filter>System\Ps2\GS\Renderers\Software</Filter>
     </ClCompile>
     <ClCompile Include="GS\Renderers\SW\GSTextureSW.cpp">
-      <Filter>System\Ps2\GS\Renderers\Software</Filter>
-    </ClCompile>
-    <ClCompile Include="GS\Renderers\SW\GSVertexSW.cpp">
       <Filter>System\Ps2\GS\Renderers\Software</Filter>
     </ClCompile>
     <ClCompile Include="GS\Renderers\SW\GSRasterizer.cpp">
