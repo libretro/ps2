@@ -12860,6 +12860,8 @@ SLES-50539:
   region: "PAL-M6"
   clampModes:
     vuClampMode: 2 # Fixes corrupt textures.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes lighting
 SLES-50540:
   name: "Simpsons Road Rage"
   region: "PAL-E"
@@ -39280,6 +39282,8 @@ SLPM-67505:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes corrupt textures.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes lighting
 SLPM-67507:
   name: "Onimusha - Warlords"
   region: "NTSC-K"
@@ -46632,6 +46636,8 @@ SLUS-20265:
   compat: 5
   clampModes:
     vuClampMode: 2 # Fixes corrupt textures.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes lighting
 SLUS-20266:
   name: "NASCAR - Thunder 2002"
   region: "NTSC-U"
