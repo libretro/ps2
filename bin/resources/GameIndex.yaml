@@ -1395,13 +1395,12 @@ SCAJ-20104:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCAJ-20105:
   name: "Armored Core - Nine breaker"
@@ -1600,13 +1599,12 @@ SCAJ-20136:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCAJ-20137:
   name: "Musashiden II - Blademaster"
@@ -1823,14 +1821,12 @@ SCAJ-20173:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Better aligns main menu strips, improving font readability.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   memcardFilters:
     - "SCAJ-20173"
@@ -3399,13 +3395,12 @@ SCED-53081:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCED-53115:
   name: "Ace Combat - Squadron Leader [Demo]"
@@ -3413,13 +3408,12 @@ SCED-53115:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCED-53116:
   name: "Bonus Demo 9 (You)"
@@ -4070,14 +4064,13 @@ SCES-50410:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    gpuTargetCLUT: 1 # Fixes broken sun.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
+    cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
+    cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCES-50411:
   name: "Vampire Night"
@@ -4836,13 +4829,12 @@ SCES-52424:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   patches:
     1D54FEA9:
@@ -5405,14 +5397,12 @@ SCES-54041:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Better aligns main menu strips, improving font readability.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   memcardFilters: # Reads AC4 and 5 saves for bonus unlockables.
     - "SCES-54041"
@@ -6346,13 +6336,12 @@ SCKA-20042:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCKA-20043:
   name: "Magna Carta"
@@ -6547,14 +6536,12 @@ SCKA-20070:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Better aligns main menu strips, improving font readability.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   patches:
     2799A4E5:
@@ -6617,13 +6604,12 @@ SCKA-20082:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SCKA-20084:
   name: "Monster House"
@@ -28859,14 +28845,13 @@ SLPM-60149:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    gpuTargetCLUT: 1 # Fixes broken sun.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
+    cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
+    cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPM-60172:
   name: "Itadaki Street 3 - Okuman Chouja ni Shiteageru"
@@ -41581,14 +41566,13 @@ SLPS-25052:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    gpuTargetCLUT: 1 # Fixes broken sun.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
+    cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
+    cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-25053:
   name: "Eikan wa Kimi ni - Koushien no Hasha"
@@ -42949,13 +42933,12 @@ SLPS-25418:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   patches:
     86089F31:
@@ -43698,14 +43681,12 @@ SLPS-25629:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Better aligns main menu strips, improving font readability.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   memcardFilters:
     - "SCAJ-20173"
@@ -45062,14 +45043,13 @@ SLPS-73205:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled
     mipmap: 1
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    gpuTargetCLUT: 1 # Fixes broken sun.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
+    cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
+    cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-73206:
   name: "Super Robot Taisen Alpha 2nd [PlayStation 2 The Best]"
@@ -45135,13 +45115,12 @@ SLPS-73218:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-73219:
   name: "Tales of Destiny 2 [PlayStation 2 The Best]"
@@ -45364,14 +45343,12 @@ SLPS-73250:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Better aligns main menu strips, improving font readability.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   memcardFilters:
     - "SCAJ-20173"
@@ -45486,14 +45463,13 @@ SLPS-73410:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    gpuTargetCLUT: 1 # Fixes broken sun.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
+    cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
+    cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
 SLPS-73411:
   name: "Armored Core 2 - Another Age [PlayStation 2 The Best]"
@@ -46158,9 +46134,8 @@ SLUS-20152:
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    gpuTargetCLUT: 1 # Fixes broken sun.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
+    cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
+    cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   patches:
     A32F7CD0:
@@ -49552,13 +49527,12 @@ SLUS-20851:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes font and HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
-    cpuCLUTRender: 1 # Fixes sun occlusion.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   patches:
     39B574F0:
@@ -52446,14 +52420,12 @@ SLUS-21346:
   gameFixes:
     - SoftwareRendererFMVHack # Fixes FMVs disabling hash cache.
   gsHWFixes:
-    recommendedBlendingLevel: 3
+    recommendedBlendingLevel: 2 # Helps banding when dithering is enabled.
     mipmap: 1
     halfPixelOffset: 3 # Fixes ghosting in foggy maps.
     roundSprite: 1 # Fixes HUD artifacts.
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Better aligns main menu strips, improving font readability.
-    cpuSpriteRenderBW: 2 # Fixes broken terrain rendering (See #10271 for details).
-    cpuSpriteRenderLevel: 2 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
   memcardFilters:
     - "SLUS-21346"
