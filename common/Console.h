@@ -16,6 +16,7 @@
 #pragma once
 
 #include "Pcsx2Defs.h"
+#include <stdarg.h>
 
 enum ConsoleColors
 {

@@ -16,6 +16,7 @@
 #pragma once
 
 #include "GS/GSLocalMemory.h"
+#include <vector>
 
 union RGBAMask
 {

@@ -15,6 +15,7 @@
 
 #include "PrecompiledHeader.h"
 #include "AsyncFileReader.h"
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include <unistd.h>
 #include <fcntl.h>
