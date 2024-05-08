@@ -1815,7 +1815,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 						continue;
 
 					dst->m_was_dst_matched = true;
-
 					dst->m_TEX0.TBW = dst_match->m_TEX0.TBW;
 					dst->UpdateValidity(dst->m_valid);
 					if (!CopyRGBFromDepthToColor(dst, dst_match))
@@ -1854,16 +1853,32 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 		// Drop dirty rect if we're overwriting the whole target.
 		if (!preserve_target && draw_rect.rintersect(dst->m_valid).eq(dst->m_valid))
 		{
-			if (!dst->m_dirty.empty())
-				dst->m_dirty.clear();
+			// Preserve alpha if this is a 32-bit target being used as 24-bit.
+			const bool dont_invalidate_alpha = (dst->HasValidAlpha() && (psm_s.fmt == GSLocalMemory::PSM_FMT_24 || (fbmask & 0xFF000000u) != 0));
+			if (dont_invalidate_alpha)
+			{
+				// We can still toss all dirty RGB writes though. Gotta save those uploads.
+				if (!dst->m_dirty.empty())
+				{
+					for (s32 i = static_cast<s32>(dst->m_dirty.size()) - 1; i >= 0; i--)
+					{
+						if (!dst->m_dirty[i].rgba.c.a)
+							dst->m_dirty.erase(dst->m_dirty.begin() + static_cast<size_t>(i));
+					}
+				}
+			}
+			else
+			{
+				if (!dst->m_dirty.empty())
+					dst->m_dirty.clear();
 
-			// And invalidate the target, we're drawing over it so we don't care what's there.
-			g_gs_device->InvalidateRenderTarget(dst->m_texture);
+				// And invalidate the target, we're drawing over it so we don't care what's there.
+				g_gs_device->InvalidateRenderTarget(dst->m_texture);
+			}
 		}
 	}
 	else if (!is_frame && !GSConfig.UserHacks_DisableDepthSupport)
 	{
-
 		const int rev_type = (type == DepthStencil) ? RenderTarget : DepthStencil;
 
 		// Depth stencil/RT can be an older RT/DS but only check recent RT/DS to avoid to pick
@@ -1920,7 +1935,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			calcRescale(dst_match);
 
 			// If we don't need A, and the existing target doesn't have valid alpha, don't bother converting it.
-			const bool has_alpha = dst_match->m_valid_alpha_low || dst_match->m_valid_alpha_high;
+			const bool has_alpha = dst_match->HasValidAlpha();
 			const bool preserve_target = (preserve_rgb || (preserve_alpha && has_alpha)) ||
 										 !draw_rect.rintersect(dst_match->m_valid).eq(dst_match->m_valid);
 
@@ -1977,10 +1992,10 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			if (preserve_target)
 			{
 				// The old target's going to get invalidated (at least until we handle concurrent frame+depth at the same BP),
-				// so just move the dirty rects across, unless the format is different, in which case we need to update it.
+				// so just move the dirty rects across, unless the format is diffent, in which case we need to update it.
 				if (dst->m_TEX0.PSM != dst_match->m_TEX0.PSM)
 					dst_match->Update();
-				
+
 				dst->m_dirty = std::move(dst_match->m_dirty);
 				dst_match->m_dirty = {};
 				dst->m_alpha_max = dst_match->m_alpha_max;
