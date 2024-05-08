@@ -283,7 +283,6 @@ PAPX-90508:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -297,7 +296,6 @@ PAPX-90512:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -337,7 +335,6 @@ PAPX-90523:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -2078,7 +2075,6 @@ SCAJ-30007:
   compat: 5
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -2089,7 +2085,6 @@ SCAJ-30008:
   region: "NTSC-Unk"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -3167,7 +3162,6 @@ SCED-52455:
     trilinearFiltering: 1
     halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
-  # eeClampMode = 3  Text in races works.
   # vuClampMode = 2  Text in GT mode works.
 SCED-52461:
   name: "SingStar [Press Kit]"
@@ -4643,7 +4637,6 @@ SCES-51719:
   compat: 5
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -8019,7 +8012,6 @@ SCPS-19252:
   region: "NTSC-J"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
@@ -8782,7 +8774,6 @@ SCUS-90682:
   region: "NTSC-U"
   clampModes:
     vuClampMode: 2 # Text in GT mode works.
-    # eeClampMode = 3  Text in races works.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
