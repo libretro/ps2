@@ -8329,6 +8329,10 @@ SCPS-51011:
   compat: 5
   gsHWFixes:
     deinterlace: 7 # Fixes blurriness.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    autoFlush: 2 # Fixes DOF effect.
 SCPS-51012:
   name: "Gigantic Drive"
   region: "NTSC-J"
@@ -12138,6 +12142,10 @@ SLES-50211:
   name: "Gauntlet - Dark Legacy"
   region: "PAL-M3"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 5 # Corrects lighting to match software.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-50212:
   name: "Paris-Dakar Rally"
   region: "PAL-E"
@@ -14367,7 +14375,7 @@ SLES-51192:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14378,7 +14386,7 @@ SLES-51193:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14389,7 +14397,7 @@ SLES-51194:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14400,7 +14408,7 @@ SLES-51195:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14411,7 +14419,7 @@ SLES-51196:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14467,7 +14475,7 @@ SLES-51214:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14478,7 +14486,7 @@ SLES-51215:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14489,7 +14497,7 @@ SLES-51216:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14500,7 +14508,7 @@ SLES-51217:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14511,7 +14519,7 @@ SLES-51218:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -14522,7 +14530,7 @@ SLES-51219:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     texturePreloading: 0 # Performs better on certain areas like mid-game in and around the castle as the hash goes easily to 200 MB.
@@ -17516,7 +17524,6 @@ SLES-52567:
     recommendedBlendingLevel: 4 # Fixes bloom.
     autoFlush: 1 # Fixes ghosting.
     textureInsideRT: 1 # Required for offset RTs/textures for post-processing.
-    roundSprite: 2 # Fixes misaligned post-processing.
 SLES-52568:
   name: "Crash Twinsanity"
   region: "PAL-M5"
@@ -29607,6 +29614,10 @@ SLPM-62124:
 SLPM-62125:
   name: "Gauntlet - Dark Legacy"
   region: "NTSC-J"
+  gsHWFixes:
+    recommendedBlendingLevel: 5 # Corrects lighting to match software.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLPM-62126:
   name: "Hyper Sports 2002 Winter"
   region: "NTSC-J"
@@ -29820,6 +29831,10 @@ SLPM-62207:
 SLPM-62209:
   name: "Gigantic Drive"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    autoFlush: 2 # Fixes DOF effect.
 SLPM-62211:
   name: "18 Wheeler - American Pro Trucker"
   region: "NTSC-J"
@@ -29917,7 +29932,7 @@ SLPM-62241:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-62244:
@@ -30726,7 +30741,7 @@ SLPM-62513:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-62514:
@@ -31590,7 +31605,7 @@ SLPM-64528:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPM-64532:
@@ -32264,6 +32279,13 @@ SLPM-65179:
 SLPM-65180:
   name: "Baseball 2003, The - Battle Ball Park Sengen - Perfect Play Pro Yakyuu"
   region: "NTSC-J"
+SLPM-65181:
+  name: "Need for Speed - Hot Pursuit 2"
+  region: "NTSC-C"
+  clampModes:
+    vuClampMode: 2 # White textures.
+  gsHWFixes:
+    halfPixelOffset: 1 # Fixes blurriness.
 SLPM-65183:
   name: "Auto Modellista"
   region: "NTSC-J"
@@ -40592,7 +40614,7 @@ SLPS-20234:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLPS-20239:
@@ -42350,9 +42372,13 @@ SLPS-25263:
 SLPS-25264:
   name: "RahXephon [Limited Edition]"
   region: "NTSC-J"
+  gsHWFixes:
+    autoFlush: 2 # Fixes DOF effect.
 SLPS-25265:
   name: "RahXephon"
   region: "NTSC-J"
+  gsHWFixes:
+    autoFlush: 2 # Fixes DOF effect.
 SLPS-25266:
   name: "King of Fighters 2001, The"
   region: "NTSC-J"
@@ -45750,6 +45776,10 @@ SLUS-20047:
   name: "Gauntlet - Dark Legacy"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 5 # Corrects lighting to match software.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-20048:
   name: "Legion - The Legend of Excalibur"
   region: "NTSC-U"
@@ -47533,6 +47563,10 @@ SLUS-20445:
   name: "Robot Alchemic Drive - RAD"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    autoFlush: 2 # Fixes DOF effect.
 SLUS-20446:
   name: "Agassi Tennis Generation"
   region: "NTSC-U"
@@ -48186,7 +48220,7 @@ SLUS-20576:
     - EETimingHack # Fixes flickering textures.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting effects.
-    mipmap: 1 # Fixes blurry textures. Full would be ideal here but causes broken face textures on Harry.
+    mipmap: 2 # Fixes blurry textures.
     trilinearFiltering: 1 # Fixes blurry textures.
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
 SLUS-20577:
@@ -50367,7 +50401,6 @@ SLUS-20992:
     recommendedBlendingLevel: 4 # Fixes bloom.
     autoFlush: 1 # Fixes ghosting.
     textureInsideRT: 1 # Required for offset RTs/textures for post-processing.
-    roundSprite: 2 # Fixes misaligned post-processing.
 SLUS-20993:
   name: "Ghosthunter"
   region: "NTSC-U"
@@ -55752,6 +55785,10 @@ SLUS-29022:
 SLUS-29025:
   name: "R.A.D. - Robot Alchemic Drive [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    autoFlush: 2 # Fixes DOF effect.
 SLUS-29026:
   name: "MX SuperFly [Demo]"
   region: "NTSC-U"
