@@ -1095,7 +1095,7 @@ void recDIV_S_xmm(int info)
 
 			roundmode_neg = g_sseMXCSR;
 			roundmode_neg.SetRoundMode(SSEround_NegInf);
-			xLDMXCSR(roundmode_neg);
+			xLDMXCSR(ptr32[&roundmode_neg.bitmask]);
 			roundmodeFlag = true;
 		}
 	}
@@ -1107,7 +1107,7 @@ void recDIV_S_xmm(int info)
 
 			roundmode_nearest = g_sseMXCSR;
 			roundmode_nearest.SetRoundMode(SSEround_Nearest);
-			xLDMXCSR(roundmode_nearest);
+			xLDMXCSR(ptr32[&roundmode_nearest.bitmask]);
 			roundmodeFlag = true;
 		}
 	}
@@ -1170,7 +1170,7 @@ void recDIV_S_xmm(int info)
 			break;
 	}
 	if (roundmodeFlag)
-		xLDMXCSR(g_sseMXCSR);
+		xLDMXCSR(ptr32[&g_sseMXCSR.bitmask]);
 	_freeXMMreg(t0reg);
 }
 
@@ -1689,7 +1689,6 @@ void recSUBop(int info, int regd)
 			}
 			break;
 		default:
-			Console.Warning("FPU: SUB case 4");
 			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
 			xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
 			recSUBhelper(regd, t0reg);
@@ -1729,7 +1728,7 @@ void recSQRT_S_xmm(int info)
 		// Set roundmode to nearest if it isn't already
 		roundmode_nearest = g_sseMXCSR;
 		roundmode_nearest.SetRoundMode(SSEround_Nearest);
-		xLDMXCSR(roundmode_nearest);
+		xLDMXCSR(ptr32[&roundmode_nearest.bitmask]);
 		roundmodeFlag = true;
 	}
 
@@ -1760,7 +1759,7 @@ void recSQRT_S_xmm(int info)
 		ClampValues(EEREC_D);
 
 	if (roundmodeFlag)
-		xLDMXCSR(g_sseMXCSR);
+		xLDMXCSR(ptr32[&g_sseMXCSR.bitmask]);
 }
 
 FPURECOMPILE_CONSTCODE(SQRT_S, XMMINFO_WRITED | XMMINFO_READT);

@@ -15,8 +15,6 @@
 
 #pragma once
 
-using namespace x86Emitter;
-
 #include <deque>
 #include <algorithm>
 #include <cstring> /* memset/memcpy */
