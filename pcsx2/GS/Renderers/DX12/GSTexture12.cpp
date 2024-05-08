@@ -14,12 +14,15 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include "common/Align.h"
+#include "common/Console.h"
+#include "common/StringUtil.h"
+
+#include "D3D12Builders.h"
+#include "D3D12MemAlloc.h"
 #include "GSDevice12.h"
 #include "GSTexture12.h"
-#include "common/Align.h"
-#include "D3D12Builders.h"
-#include "common/StringUtil.h"
-#include "D3D12MemAlloc.h"
 
 GSTexture12::GSTexture12(Type type, Format format, int width, int height, int levels, DXGI_FORMAT dxgi_format,
 	wil::com_ptr_nothrow<ID3D12Resource> resource, wil::com_ptr_nothrow<D3D12MA::Allocation> allocation,

@@ -18,6 +18,8 @@
 
 #include <cstring> /* memset/memcpy */
 
+#include "common/Console.h"
+
 #include "GS.h"
 #include "Gif_Unit.h"
 #include "Vif_Dma.h"

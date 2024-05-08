@@ -19,6 +19,7 @@
 #include <cstring> /* memset */
 #include <vector>
 
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"

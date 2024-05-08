@@ -19,6 +19,7 @@
 #include "IsoFS.h"
 #include "IsoFile.h"
 
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 

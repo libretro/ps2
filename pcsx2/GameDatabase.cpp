@@ -20,17 +20,19 @@
 #include "Host.h"
 #include "vtlb.h"
 
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
 #include <sstream>
+#include <fstream>
+#include <optional>
+
 #include "ryml_std.hpp"
 #include "ryml.hpp"
 #include "fmt/core.h"
 #include "fmt/ranges.h"
-#include <fstream>
-#include <optional>
 
 namespace GameDatabaseSchema
 {

@@ -16,10 +16,12 @@
 
 #include "PrecompiledHeader.h"
 
+#include <algorithm> /* std::min */
+
 #include "IsoFS.h"
 #include "IsoFile.h"
 
-#include <cstdio>
+#include "common/Console.h"
 
 IsoFile::IsoFile(SectorSource& reader)
 	: internalReader(reader)

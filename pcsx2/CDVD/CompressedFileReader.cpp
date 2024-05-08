@@ -14,14 +14,17 @@
 */
 
 #include "PrecompiledHeader.h"
+
+#include <algorithm>
+#include <cctype>
+
+#include "common/FileSystem.h"
+
 #include "AsyncFileReader.h"
 #include "CompressedFileReader.h"
 #include "ChdFileReader.h"
 #include "CsoFileReader.h"
 #include "GzippedFileReader.h"
-#include "common/FileSystem.h"
-#include <algorithm>
-#include <cctype>
 
 // CompressedFileReader factory.
 AsyncFileReader* CompressedFileReader::GetNewReader(const std::string& fileName)

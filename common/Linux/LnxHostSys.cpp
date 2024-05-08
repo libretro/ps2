@@ -39,7 +39,6 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#include <cerrno>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>

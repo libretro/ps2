@@ -23,10 +23,12 @@
 #include "Elfheader.h"
 
 #include "common/Align.h"
+#include "common/Console.h"
 #include "common/StringUtil.h"
+
 #include "CDVD/CDVD.h"
-#include "ps2/BiosTools.h"
 #include "GS/Renderers/Common/GSFunctionMap.h"
+#include "ps2/BiosTools.h"
 
 Pcsx2Config EmuConfig;
 

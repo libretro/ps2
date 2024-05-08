@@ -14,9 +14,12 @@
 */
 
 #include "PrecompiledHeader.h"
+
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
+
 #include "ChunksCache.h"
 #include "GzippedFileReader.h"
 #include "zlib_indexed.h"

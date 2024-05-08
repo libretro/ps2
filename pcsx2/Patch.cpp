@@ -17,6 +17,7 @@
 
 #define _PC_ // disables MIPS opcode macros.
 
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"

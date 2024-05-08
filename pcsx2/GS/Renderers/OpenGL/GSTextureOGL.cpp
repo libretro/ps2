@@ -372,7 +372,6 @@ std::unique_ptr<GSDownloadTextureOGL> GSDownloadTextureOGL::Create(u32 width, u3
 
 		if (!buffer_map)
 		{
-			Console.Error("Failed to map persistent download buffer");
 			glDeleteBuffers(1, &buffer_id);
 			return {};
 		}

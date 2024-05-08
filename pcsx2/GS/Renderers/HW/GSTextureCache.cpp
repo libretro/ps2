@@ -28,7 +28,9 @@
 #include "GS/GSState.h"
 #include "GS/GSUtil.h"
 #include "GS/GSXXH.h"
+
 #include "common/Align.h"
+#include "common/Console.h"
 #include "common/HashCombine.h"
 
 std::unique_ptr<GSTextureCache> g_texture_cache;

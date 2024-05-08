@@ -51,7 +51,6 @@ bool Gif_HandlerAD(u8* pMem)
 					bpp = 8;
 					break;
 				default: // 4 is 4 bit but this is forbidden
-					Console.Error("Illegal format for GS upload: SPSM=0%02o", vif1.BITBLTBUF.SPSM);
 					break;
 			}
 			// qwords, rounded down; any extra bits are lost
@@ -99,16 +98,13 @@ void Gif_HandlerAD_MTVU(u8* pMem)
 
 	if (reg == GIF_A_D_REG_SIGNAL)
 	{ // SIGNAL
-		if (vu1Thread.mtvuInterrupts.load(std::memory_order_acquire) & VU_Thread::InterruptFlagSignal)
-			Console.Error("GIF Handler MTVU - Double SIGNAL Not Handled");
+		if (vu1Thread.mtvuInterrupts.load(std::memory_order_acquire) & VU_Thread::InterruptFlagSignal) { }
 		vu1Thread.gsSignal.store(((u64)data[1] << 32) | data[0], std::memory_order_relaxed);
 		vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagSignal, std::memory_order_release);
 	}
 	else if (reg == GIF_A_D_REG_FINISH)
 	{ // FINISH
 		u32 old = vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagFinish, std::memory_order_relaxed);
-		if (old & VU_Thread::InterruptFlagFinish)
-			Console.Error("GIF Handler MTVU - Double FINISH Not Handled");
 	}
 	else if (reg == GIF_A_D_REG_LABEL)
 	{ // LABEL

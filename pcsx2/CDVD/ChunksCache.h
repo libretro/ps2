@@ -16,6 +16,8 @@
 #pragma once
 
 #include "common/Pcsx2Types.h"
+
+#include <algorithm> /* std::clamp, std::max */
 #include <list>
 
 class ChunksCache

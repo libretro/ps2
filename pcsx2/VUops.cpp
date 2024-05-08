@@ -4611,42 +4611,32 @@ alignas(16) const FNTYPE PREFIX##_UPPER_OPCODE[64] = { \
 } \
 
 _vuTablesPre(VU0, VU0)
-_vuTablesMess(VU0, Fnptr_Void)
+_vuTablesMess(VU0, FnPtr_VuVoid)
 _vuTablesPost(VU0, VU0)
 
 _vuTablesPre(VU1, VU1)
-_vuTablesMess(VU1, Fnptr_Void)
+_vuTablesMess(VU1, FnPtr_VuVoid)
 _vuTablesPost(VU1, VU1)
 
-_vuRegsTables(VU0, VU0regs, Fnptr_VuRegsN)
-_vuRegsTables(VU1, VU1regs, Fnptr_VuRegsN)
+_vuRegsTables(VU0, VU0regs, FnPtr_VuRegsN)
+_vuRegsTables(VU1, VU1regs, FnPtr_VuRegsN)
 
 
 // --------------------------------------------------------------------------------------
 //  VU0macro (COP2)
 // --------------------------------------------------------------------------------------
 
-static __fi void SYNCMSFLAGS()
-{
-	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0xFC0) | (VU0.statusflag & 0xF) | ((VU0.statusflag & 0xF) << 6);
-	VU0.VI[REG_MAC_FLAG].UL = VU0.macflag;
-}
+#define SYNCMSFLAGS() \
+	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0xFC0) | (VU0.statusflag & 0xF) | ((VU0.statusflag & 0xF) << 6); \
+	VU0.VI[REG_MAC_FLAG].UL = VU0.macflag
 
-static __fi void SYNCCLIPFLAG()
-{
-	VU0.VI[REG_CLIP_FLAG].UL = VU0.clipflag;
-}
+#define SYNCCLIPFLAG() VU0.VI[REG_CLIP_FLAG].UL = VU0.clipflag
 
-static __fi void SYNCSTATUSFLAG()
-{
-	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0xFC0) | (VU0.statusflag & 0xF) | ((VU0.statusflag & 0xF) << 6);
-}
+#define SYNCSTATUSFLAG() VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0xFC0) | (VU0.statusflag & 0xF) | ((VU0.statusflag & 0xF) << 6)
 
-static __fi void SYNCFDIV()
-{
-	VU0.VI[REG_Q].UL = VU0.q.UL;
-	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0x3CF) | (VU0.statusflag & 0x30) | ((VU0.statusflag & 0x30) << 6);
-}
+#define SYNCFDIV() \
+	VU0.VI[REG_Q].UL = VU0.q.UL; \
+	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0x3CF) | (VU0.statusflag & 0x30) | ((VU0.statusflag & 0x30) << 6)
 
 void VABS()  { VU0.code = cpuRegs.code; _vuABS(&VU0); }
 void VADD()  { VU0.code = cpuRegs.code; _vuADD(&VU0); SYNCMSFLAGS(); }

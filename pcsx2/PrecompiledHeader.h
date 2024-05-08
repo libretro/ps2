@@ -26,49 +26,18 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 // Include the STL that's actually handy.
 
-#include <algorithm>
-#include <cassert>
 #include <cinttypes>	// Printf format
-#include <condition_variable>
 #include <climits>
 #include <cstring>		// string.h under c++
 #include <cstdio>		// stdio.h under c++
 #include <cstdlib>
 #include <cmath>
-#include <list>
 #include <memory>
-#include <mutex>
-#include <functional>
-#include <optional>
-#include <stack>
-#include <string>
-#include <string_view>
-#include <thread>
-#include <vector>
-
-// ... and include some ANSI/POSIX C libs that are useful too, just for good measure.
-// (these compile lightning fast with or without PCH, but they never change so
-// might as well add them here)
-
-#include <stddef.h>
-#include <sys/stat.h>
-
-// We use fmt a fair bit now.
-#include "fmt/core.h"
-
-#include "common/Console.h"
-#include "common/General.h"
-#include "common/emitter/tools.h"
-
-typedef void FnType_Void();
-typedef FnType_Void* Fnptr_Void;
-
-// --------------------------------------------------------------------------------------
-//  Compiler/OS specific macros and defines
-// --------------------------------------------------------------------------------------
 
 #if !defined(_MSC_VER) /* must be GCC or Clang */
 #include <sys/types.h>
 #endif
+
+#include <stddef.h>
 
 #endif

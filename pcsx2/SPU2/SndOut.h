@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <algorithm> /* std::clamp */
 #include <vector>
 
 // Samplerate of the SPU2. For accurate playback we need to match this

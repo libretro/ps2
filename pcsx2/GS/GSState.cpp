@@ -19,10 +19,12 @@
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
 
+#include "common/Console.h"
+#include "common/Path.h"
+
 #include "GSPerfMon.h"
 #include "GSState.h"
 #include "GSUtil.h"
-#include "common/Path.h"
 
 int GSState::s_n = 0;
 int GSState::s_last_transfer_draw_n = 0;

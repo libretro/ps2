@@ -15,6 +15,11 @@
 
 #include "PrecompiledHeader.h"
 
+#include "common/Align.h"
+#include "common/Console.h"
+#include "common/Path.h"
+#include "common/StringUtil.h"
+
 #include "GS.h"
 #include "GSDevice11.h"
 #include "GS/Renderers/DX11/D3D.h"
@@ -23,14 +28,11 @@
 #include "Host.h"
 #include "ShaderCacheVersion.h"
 
-#include "common/Align.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
-
 #include <VersionHelpers.h>
 #include <d3dcompiler.h>
 
 #include <libretro_d3d.h>
+
 extern retro_environment_t environ_cb;
 
 static bool SupportsTextureFormat(ID3D11Device* dev, DXGI_FORMAT format)

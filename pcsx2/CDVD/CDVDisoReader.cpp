@@ -21,12 +21,15 @@
  */
 
 #include "PrecompiledHeader.h"
-#include "IsoFileFormats.h"
-#include "AsyncFileReader.h"
-#include "CDVD/CDVD.h"
 
 #include <cstring>
 #include <array>
+
+#include "common/Console.h"
+
+#include "IsoFileFormats.h"
+#include "AsyncFileReader.h"
+#include "CDVD.h"
 
 static InputIsoFile iso;
 

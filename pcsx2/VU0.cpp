@@ -190,14 +190,8 @@ void CTC2() {
 			break;
 		case REG_FBRST:
 			VU0.VI[REG_FBRST].UL = cpuRegs.GPR.r[_Rt_].UL[0] & 0x0C0C;
-			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x1) { // VU0 Force Break
-				Console.Error("fixme: VU0 Force Break");
-			}
 			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x2) { // VU0 Reset
 				vu0ResetRegs();
-			}
-			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x100) { // VU1 Force Break
-				Console.Error("fixme: VU1 Force Break");
 			}
 			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x200) { // VU1 Reset
 				vu1ResetRegs();

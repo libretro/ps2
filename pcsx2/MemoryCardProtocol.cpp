@@ -15,10 +15,10 @@
 
 #include "PrecompiledHeader.h"
 
+#include "common/Console.h"
+
 #include "MemoryCardProtocol.h"
 #include "Sio.h"
-
-#define PS1_FAIL() if (this->PS1Fail()) return;
 
 MemoryCardProtocol g_MemoryCardProtocol;
 
@@ -78,19 +78,19 @@ void MemoryCardProtocol::ResetPS1State()
 
 void MemoryCardProtocol::Probe()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::UnknownWriteDeleteEnd()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::SetSector()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	const u8 sectorLSB = fifoIn.front();
 	fifoIn.pop_front();
 	const u8 sector2nd = fifoIn.front();
@@ -122,8 +122,7 @@ void MemoryCardProtocol::SetSector()
 
 void MemoryCardProtocol::GetSpecs()
 {
-	PS1_FAIL();
-	//u8 checksum = 0x00;
+	if (this->PS1Fail()) return;
 	McdSizeInfo info;
 	FileMcd_GetSizeInfo(mcd->port, mcd->slot, &info);
 	fifoOut.push_back(0x2b);
@@ -166,7 +165,7 @@ void MemoryCardProtocol::GetSpecs()
 
 void MemoryCardProtocol::SetTerminator()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	const u8 newTerminator = fifoIn.front();
 	fifoIn.pop_front();
 	const u8 oldTerminator = mcd->term;
@@ -178,7 +177,7 @@ void MemoryCardProtocol::SetTerminator()
 
 void MemoryCardProtocol::GetTerminator()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	fifoOut.push_back(0x2b);
 	fifoOut.push_back(mcd->term);
 	fifoOut.push_back(static_cast<u8>(Terminator::DEFAULT));
@@ -186,7 +185,7 @@ void MemoryCardProtocol::GetTerminator()
 
 void MemoryCardProtocol::WriteData()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	fifoOut.push_back(0x00);
 	fifoOut.push_back(0x2b);
 	const u8 writeLength = fifoIn.front();
@@ -212,7 +211,7 @@ void MemoryCardProtocol::WriteData()
 
 void MemoryCardProtocol::ReadData()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	const u8 readLength = fifoIn.front();
 	fifoIn.pop_front();
 	fifoOut.push_back(0x00);
@@ -372,26 +371,26 @@ u8 MemoryCardProtocol::PS1Pocketstation(u8 data)
 
 void MemoryCardProtocol::ReadWriteEnd()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::EraseBlock()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	FileMcd_EraseBlock(mcd->port, mcd->slot, mcd->transferAddr);
 	The2bTerminator(4);
 }
 
 void MemoryCardProtocol::UnknownBoot()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	The2bTerminator(5);
 }
 
 void MemoryCardProtocol::AuthXor()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	const u8 modeByte = fifoIn.front();
 	fifoIn.pop_front();
 
@@ -457,12 +456,12 @@ void MemoryCardProtocol::AuthXor()
 
 void MemoryCardProtocol::AuthF3()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	The2bTerminator(5);
 }
 
 void MemoryCardProtocol::AuthF7()
 {
-	PS1_FAIL();
+	if (this->PS1Fail()) return;
 	The2bTerminator(5);
 }

@@ -32,7 +32,40 @@ bool iopIsDelaySlot = false;
 static bool branch2 = 0;
 static u32 branchPC;
 
-static void doBranch(s32 tar);	// forward declared prototype
+static __fi void execI(void)
+{
+	// Inject IRX hack
+	if (psxRegs.pc == 0x1630 && EmuConfig.CurrentIRX.length() > 3)
+	{
+		// FIXME do I need to increase the module count (0x1F -> 0x20)
+		if (iopMemRead32(0x20018) == 0x1F)
+			iopMemWrite32(0x20094, 0xbffc0000);
+	}
+
+	psxRegs.code = iopMemRead32(psxRegs.pc);
+
+	psxRegs.pc+= 4;
+	psxRegs.cycle++;
+
+	//One of the Iop to EE delta clocks to be set in PS1 mode.
+	if ((psxHu32(HW_ICFG) & (1 << 3)))
+		psxRegs.iopCycleEE -= 9;
+	else //default ps2 mode value
+		psxRegs.iopCycleEE -= 8;
+	psxBSC[psxRegs.code >> 26]();
+}
+
+static void doBranch(s32 tar)
+{
+	branch2 = iopIsDelaySlot = true;
+	branchPC = tar;
+	execI();
+	iopIsDelaySlot = false;
+	psxRegs.pc = branchPC;
+
+	iopEventTest();
+}
+
 
 /*********************************************************
 * Register branch logic                                  *
@@ -95,7 +128,7 @@ void psxBNE()   // Branch if Rs != Rt
 * Jump to target                                         *
 * Format:  OP target                                     *
 *********************************************************/
-void psxJ()
+void psxJ(void)
 {
 	// check for iop module import table magic
 	u32 delayslot = iopMemRead32(psxRegs.pc);
@@ -105,7 +138,7 @@ void psxJ()
 	doBranch(_JumpTarget_);
 }
 
-void psxJAL()
+void psxJAL(void)
 {
 	_SetLink(31);
 	doBranch(_JumpTarget_);
@@ -115,12 +148,12 @@ void psxJAL()
 * Register jump                                          *
 * Format:  OP rs, rd                                     *
 *********************************************************/
-void psxJR()
+void psxJR(void)
 {
 	doBranch(_u32(_rRs_));
 }
 
-void psxJALR()
+void psxJALR(void)
 {
 	if (_Rd_)
 	{
@@ -129,55 +162,11 @@ void psxJALR()
 	doBranch(_u32(_rRs_));
 }
 
-///////////////////////////////////////////
-// These macros are used to assemble the repassembler functions
-
-static __fi void execI(void)
-{
-	// Inject IRX hack
-	if (psxRegs.pc == 0x1630 && EmuConfig.CurrentIRX.length() > 3) {
-		if (iopMemRead32(0x20018) == 0x1F) {
-			// FIXME do I need to increase the module count (0x1F -> 0x20)
-			iopMemWrite32(0x20094, 0xbffc0000);
-		}
-	}
-
-	psxRegs.code = iopMemRead32(psxRegs.pc);
-
-	psxRegs.pc+= 4;
-	psxRegs.cycle++;
-
-	if ((psxHu32(HW_ICFG) & (1 << 3)))
-	{
-		//One of the Iop to EE delta clocks to be set in PS1 mode.
-		psxRegs.iopCycleEE -= 9;
-	}
-	else
-	{   //default ps2 mode value
-		psxRegs.iopCycleEE -= 8;
-	}
-	psxBSC[psxRegs.code >> 26]();
-}
-
-static void doBranch(s32 tar) {
-	branch2 = iopIsDelaySlot = true;
-	branchPC = tar;
-	execI();
-	iopIsDelaySlot = false;
-	psxRegs.pc = branchPC;
-
-	iopEventTest();
-}
-
-static void intReserve() {
-}
-
-static void intAlloc() {
-}
-
-static void intReset() {
-	intAlloc();
-}
+static void intReserve(void) { }
+static void intAlloc(void) { }
+static void intReset(void) { intAlloc(); }
+static void intClear(u32 Addr, u32 Size) { }
+static void intShutdown(void) { }
 
 static s32 intExecuteBlock( s32 eeCycles )
 {
@@ -195,12 +184,6 @@ static s32 intExecuteBlock( s32 eeCycles )
 	}
 
 	return psxRegs.iopBreak + psxRegs.iopCycleEE;
-}
-
-static void intClear(u32 Addr, u32 Size) {
-}
-
-static void intShutdown() {
 }
 
 R3000Acpu psxInt = {

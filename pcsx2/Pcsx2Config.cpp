@@ -772,7 +772,6 @@ void Pcsx2Config::DEV9Options::LoadIPHelper(u8* field, const std::string& settin
 {
 	if (4 == sscanf(setting.c_str(), "%hhu.%hhu.%hhu.%hhu", &field[0], &field[1], &field[2], &field[3]))
 		return;
-	Console.Error("Invalid IP address in settings file");
 	std::fill(field, field + 4, 0);
 }
 std::string Pcsx2Config::DEV9Options::SaveIPHelper(u8* field)

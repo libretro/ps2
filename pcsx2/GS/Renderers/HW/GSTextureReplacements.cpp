@@ -15,16 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/HashCombine.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/TextureDecompress.h"
-
-#include "Config.h"
-#include "GS/GSLocalMemory.h"
-#include "GS/Renderers/HW/GSTextureReplacements.h"
-#include "VMManager.h"
-
 #include <cinttypes>
 #include <cstring>
 #include <functional>
@@ -34,6 +24,18 @@
 #include <queue>
 #include <tuple>
 #include <thread>
+
+
+#include "common/Console.h"
+#include "common/HashCombine.h"
+#include "common/FileSystem.h"
+#include "common/Path.h"
+#include "common/TextureDecompress.h"
+
+#include "Config.h"
+#include "GS/GSLocalMemory.h"
+#include "GS/Renderers/HW/GSTextureReplacements.h"
+#include "VMManager.h"
 
 // this is a #define instead of a variable to avoid warnings from non-literal format strings
 #define TEXTURE_FILENAME_FORMAT_STRING "%" PRIx64 "-%08x"

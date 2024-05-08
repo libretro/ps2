@@ -17,9 +17,10 @@
 
 #include "MemoryTypes.h"
 
+#include <string>
+
 extern uptr *psxMemWLUT;
 extern const uptr *psxMemRLUT;
-
 
 // Obtains a writable pointer into the IOP's memory, with TLB address translation.
 // If the address maps to read-only memory, NULL is returned.

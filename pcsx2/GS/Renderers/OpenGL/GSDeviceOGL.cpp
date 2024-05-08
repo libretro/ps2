@@ -18,17 +18,21 @@
 #include <cinttypes>
 #include <cstring>
 
+#include <libretro.h>
+
+#include "common/Console.h"
+#include "common/StringUtil.h"
+
+#include "fmt/core.h"
+
+#include "glad.h"
+
 #include "GS/GSState.h"
 #include "GS/GSUtil.h"
 #include "GSDeviceOGL.h"
 #include "GLState.h"
 #include "Host.h"
 #include "ShaderCacheVersion.h"
-
-#include "common/StringUtil.h"
-#include "glad.h"
-
-#include <libretro.h>
 
 #define GL_DEFAULT_FRAMEBUFFER hw_render.get_current_framebuffer()
 

@@ -21,6 +21,7 @@
 #include <png.h>
 
 #include "common/Align.h"
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"

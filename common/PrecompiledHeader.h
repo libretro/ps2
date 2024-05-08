@@ -13,8 +13,3 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <memory>
-#include <atomic>
-#include <csignal>
-#include <cerrno>
-#include <cstdio>

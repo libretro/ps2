@@ -14,12 +14,16 @@
 */
 
 #include "PrecompiledHeader.h"
-#include "AsyncFileReader.h"
-#include "CsoFileReader.h"
+
+#include <zlib.h>
+
 #include "common/Pcsx2Types.h"
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
-#include <zlib.h>
+
+#include "AsyncFileReader.h"
+#include "CsoFileReader.h"
 
 // Implementation of CSO compressed ISO reading, based on:
 // https://github.com/unknownbrackets/maxcso/blob/master/README_CSO.md

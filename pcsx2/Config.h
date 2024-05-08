@@ -16,11 +16,14 @@
 #pragma once
 
 #include "PrecompiledHeader.h"
-#include "common/emitter/tools.h"
-#include "common/General.h"
+
 #include <array>
 #include <string>
+#include <optional>
 #include <vector>
+
+#include "common/emitter/tools.h"
+#include "common/General.h"
 
 // Macro used for removing some of the redtape involved in defining bitfield/union helpers.
 //

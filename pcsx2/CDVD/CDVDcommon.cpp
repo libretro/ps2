@@ -21,6 +21,8 @@
 #include <exception>
 #include <memory>
 
+#include "common/Console.h"
+
 #include "IsoFS/IsoFS.h"
 #include "IsoFS/IsoFSCDVD.h"
 #include "IsoFileFormats.h"

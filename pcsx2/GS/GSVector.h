@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 #include "common/VectorIntrin.h"
+
+#include <algorithm> /* std::min, std::max */
 #include <cstring>
 
 #pragma once

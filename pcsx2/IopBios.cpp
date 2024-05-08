@@ -15,21 +15,10 @@
 
 
 #include "PrecompiledHeader.h"
-#include "R3000A.h"
-#include "Common.h"
-#include "R5900.h" // for g_GameStarted
-#include "IopBios.h"
-#include "IopMem.h"
-#include "iR3000A.h"
-#include "ps2/BiosTools.h"
-#include "DebugTools/SymbolMap.h"
 
 #include <ctype.h>
 #include <string.h>
 #include <sys/stat.h>
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
 
 #include <fcntl.h>
 
@@ -38,6 +27,20 @@
 #else
 #include <unistd.h>
 #endif
+
+#include "common/Console.h"
+#include "common/FileSystem.h"
+#include "common/Path.h"
+#include "common/StringUtil.h"
+
+#include "Common.h"
+#include "R3000A.h"
+#include "R5900.h" // for g_GameStarted
+#include "IopBios.h"
+#include "IopMem.h"
+#include "iR3000A.h"
+#include "ps2/BiosTools.h"
+#include "DebugTools/SymbolMap.h"
 
 #if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
 #define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)

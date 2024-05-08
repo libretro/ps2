@@ -79,7 +79,6 @@ void GSDrawScanline::BeginDraw(const GSRasterizerData& data, GSScanlineLocalData
 
 void GSDrawScanline::ResetCodeCache()
 {
-	Console.Warning("GS Software JIT cache overflow, resetting.");
 	m_sp_map.Clear();
 	m_ds_map.Clear();
 	GSCodeReserve::GetInstance().Reset();

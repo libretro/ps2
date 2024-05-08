@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include "common/Console.h"
+
 #include "newVif_UnpackSSE.h"
 
 #define xMOV8(regX, loc)   xMOVSSZX(regX, loc)

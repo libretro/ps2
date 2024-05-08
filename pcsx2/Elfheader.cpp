@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 #include "Common.h"
+
+#include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
@@ -77,10 +79,7 @@ bool ElfObject::OpenIsoFile(std::string srcfile, IsoFile& isofile, bool isPSXElf
 
 	const s32 rsize = isofile.read(data.data(), static_cast<s32>(length));
 	if (rsize < static_cast<s32>(length))
-	{
-		Console.Error("Failed to read ELF from ISO");
 		return false;
-	}
 
 	filename = std::move(srcfile);
 	isPSXElf = isPSXElf_;
@@ -93,20 +92,14 @@ bool ElfObject::OpenFile(std::string srcfile, bool isPSXElf_)
 	auto fp = FileSystem::OpenManagedCFile(srcfile.c_str(), "rb");
 	FILESYSTEM_STAT_DATA sd;
 	if (!fp || !FileSystem::StatFile(fp.get(), &sd))
-	{
-		Console.Error("Failed to read ELF from %s", srcfile.c_str());
 		return false;
-	}
 
 	if (!isPSXElf_ && !CheckElfSize(sd.Size))
 		return false;
 
 	data.resize(static_cast<size_t>(sd.Size));
 	if (std::fread(data.data(), data.size(), 1, fp.get()) != 1)
-	{
-		Console.Error("Failed to read ELF from %s", srcfile.c_str());
 		return false;
-	}
 
 	filename = std::move(srcfile);
 	isPSXElf = isPSXElf_;
@@ -137,19 +130,10 @@ bool ElfObject::HasValidPSXHeader() const
 {
 	if (data.size() < sizeof(PSXEXEHeader))
 		return false;
-
-	const PSXEXEHeader* header = reinterpret_cast<const PSXEXEHeader*>(data.data());
-
+	const PSXEXEHeader* header          = reinterpret_cast<const PSXEXEHeader*>(data.data());
 	static constexpr char expected_id[] = {'P', 'S', '-', 'X', ' ', 'E', 'X', 'E'};
 	if (std::memcmp(header->id, expected_id, sizeof(expected_id)) != 0)
 		return false;
-
-	if ((header->file_size + sizeof(PSXEXEHeader)) > data.size())
-	{
-		Console.Warning("Incorrect file size in PS-EXE header: %u bytes should not be greater than %u bytes",
-			header->file_size, static_cast<unsigned>(data.size() - sizeof(PSXEXEHeader)));
-	}
-
 	return true;
 }
 

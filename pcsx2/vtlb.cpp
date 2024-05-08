@@ -34,6 +34,9 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include "common/Align.h"
+#include "common/Console.h"
+
 #include "Common.h"
 #include "vtlb.h"
 #include "COP0.h"
@@ -41,8 +44,6 @@
 #include "IopMem.h"
 #include "Host.h"
 #include "VMManager.h"
-
-#include "common/Align.h"
 
 using namespace R5900;
 using namespace vtlb_private;
@@ -207,7 +208,6 @@ RETURNS_R128 vtlb_memRead128(u32 mem)
 	{
 		//has to: translate, find function, call function
 		u32 paddr = vmv.assumeHandlerGetPAddr(mem);
-		//Console.WriteLn("Translated 0x%08X to 0x%08X", addr,paddr);
 		return vmv.assumeHandler<128, false>()(paddr);
 	}
 }

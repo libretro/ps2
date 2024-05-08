@@ -15,6 +15,8 @@
 
 #include "PrecompiledHeader.h"
 
+#include "common/Console.h"
+
 #include <cstring> /* memset */
 
 #include "Common.h"

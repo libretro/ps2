@@ -42,10 +42,7 @@ void GSVertexTrace::Update(const void* vertex, const u16* index, int v_count, in
 	// Note: If Q is too big, 1/Q will end up as 0. 1e30 is a random number
 	// that feel big enough.
 	if (!fst && !m_accurate_stq && m_min.t.z > 1e30)
-	{
-		Console.Warning("Vertex Trace: float overflow detected ! min %e max %e", m_min.t.z, m_max.t.z);
 		m_accurate_stq = true;
-	}
 
 	m_eq.value = (m_min.c == m_max.c).mask() | ((m_min.p == m_max.p).mask() << 16) | ((m_min.t == m_max.t).mask() << 20);
 

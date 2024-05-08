@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <cerrno>
 #include <limits>
 
 #ifdef __APPLE__

@@ -16,7 +16,9 @@
 
 #include "PrecompiledHeader.h"
 
-#include "CDVD/IsoFileFormats.h"
+#include "common/Console.h"
+
+#include "IsoFileFormats.h"
 #include "Config.h"
 
 int InputIsoFile::ReadSync(u8* dst, uint lsn)

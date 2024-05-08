@@ -312,8 +312,7 @@ void psxCTC2() { _c2dRd_ = _u32(_rRt_); };
 * Unknown instruction (would generate an exception)       *
 * Format:  ?                                             *
 *********************************************************/
-void psxNULL() {
-Console.Warning("psx: Unimplemented op %x", psxRegs.code);
+void psxNULL(void) {
 }
 
 void psxSPECIAL() {

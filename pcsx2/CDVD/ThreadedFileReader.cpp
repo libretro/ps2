@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include <algorithm> /* std::max, std::min */
+
 #include "ThreadedFileReader.h"
 
 #include "common/Threading.h"

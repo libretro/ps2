@@ -20,6 +20,8 @@
 #include <cmath>
 #include <cstring> /* memset/memcpy */
 
+#include "common/Console.h"
+
 #include "Common.h"
 #include "R3000A.h"
 #include "Counters.h"

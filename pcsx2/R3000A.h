@@ -181,7 +181,6 @@ extern u32 EEoCycle;
 extern s32 psxNextCounter;
 extern u32 psxNextsCounter;
 extern bool iopEventAction;
-extern bool iopEventTestIsActive;
 
 // Branching status used when throwing exceptions.
 extern bool iopIsDelaySlot;

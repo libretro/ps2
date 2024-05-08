@@ -313,7 +313,6 @@ void MTGS::MainLoop(bool flush_all)
 		// parallel to this handler aren't accidentally blocked.
 		if (s_SignalRingEnable.exchange(false))
 		{
-			//Console.Warning( "(MTGS Thread) Dangling RingSignal on empty buffer!  signalpos=0x%06x", s_SignalRingPosition.exchange(0) ) );
 			s_SignalRingPosition.store(0, std::memory_order_release);
 			s_sem_OnRingReset.Post();
 		}
@@ -331,7 +330,6 @@ void MTGS::CloseGS()
 {
 	if( s_SignalRingEnable.exchange(false) )
 	{
-		//Console.Warning( "(MTGS Thread) Dangling RingSignal on empty buffer!  signalpos=0x%06x", s_SignalRingPosition.exchange(0) ) );
 		s_SignalRingPosition.store(0, std::memory_order_release);
 		s_sem_OnRingReset.Post();
 	}
@@ -352,11 +350,8 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 		MainLoop(true);
 		return;
 	}
-	if (!IsOpen())
-	{
-		Console.Error("MTGS Warning!  WaitGS issued on a closed thread.");
+	if (!IsOpen()) /* WaitGS issued on a closed thread! */
 		return;
-	}
 
 	SetEvent();
 	if (weakWait && isMTVU)
@@ -383,8 +378,8 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 	}
 	else
 	{
-		if (!s_sem_event.WaitForEmpty())
-			Console.Error("MTGS Thread Died");
+		/* if it returns false, MTGS thread died */
+		if (!s_sem_event.WaitForEmpty()) { }
 	}
 }
 
