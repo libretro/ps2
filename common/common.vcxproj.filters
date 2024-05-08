@@ -228,6 +228,12 @@
     <ClInclude Include="Align.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SingleRegisterTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VectorIntrin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="WindowInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>

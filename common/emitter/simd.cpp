@@ -15,6 +15,7 @@
 
 #include "common/emitter/internal.h"
 #include "common/emitter/tools.h"
+#include "common/VectorIntrin.h"
 
 const char* EnumToString(SSE_RoundMode sse)
 {

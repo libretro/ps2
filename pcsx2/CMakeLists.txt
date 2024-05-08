@@ -169,7 +169,6 @@ set(pcsx2Headers
 	MemoryTypes.h
 	MultitapProtocol.h
 	Patch.h
-	PCSX2Base.h
 	PerformanceMetrics.h
 	PrecompiledHeader.h
 	R3000A.h
@@ -178,7 +177,6 @@ set(pcsx2Headers
 	SaveState.h
 	ShaderCacheVersion.h
 	Sif.h
-	SingleRegisterTypes.h
 	Sio.h
 	SPR.h
 	System.h

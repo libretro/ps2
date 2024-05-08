@@ -28,13 +28,9 @@
 #include "ps2/BiosTools.h"
 #include "GS/Renderers/Common/GSFunctionMap.h"
 
-#ifdef _M_X86
-#include "common/emitter/x86_intrin.h"
-#endif
-
 Pcsx2Config EmuConfig;
 
-SSE_MXCSR g_sseMXCSR = {DEFAULT_sseMXCSR};
+SSE_MXCSR g_sseMXCSR    = {DEFAULT_sseMXCSR};
 SSE_MXCSR g_sseVU0MXCSR = {DEFAULT_sseVUMXCSR};
 SSE_MXCSR g_sseVU1MXCSR = {DEFAULT_sseVUMXCSR};
 

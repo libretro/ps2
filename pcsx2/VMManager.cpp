@@ -52,10 +52,6 @@
 
 #include "DebugTools/MIPSAnalyst.h"
 
-#ifdef _M_X86
-#include "common/emitter/x86_intrin.h"
-#endif
-
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
 #include <objbase.h>

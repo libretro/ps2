@@ -16,7 +16,7 @@
 #pragma once
 
 #include "Common.h"
-#include "SingleRegisterTypes.h"
+#include "common/SingleRegisterTypes.h"
 
 void writeCache8(u32 mem, u8 value);
 void writeCache16(u32 mem, u16 value);

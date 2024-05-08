@@ -15,15 +15,7 @@
 
 #pragma once
 
-#include <xmmintrin.h>
-#include <emmintrin.h>
-
-#include <tmmintrin.h>
-#include <smmintrin.h>
-
-#if _M_SSE >= 0x500
-	#include <immintrin.h>
-#endif
+#include "common/VectorIntrin.h"
 
 #if !defined(_MSC_VER)
 // http://svn.reactos.org/svn/reactos/trunk/reactos/include/crt/mingw32/intrin_x86.h?view=markup

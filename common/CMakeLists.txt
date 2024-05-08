@@ -59,6 +59,7 @@ target_sources(common PRIVATE
 	Timer.h
 	TextureDecompress.h
 	Threading.h
+	VectorIntrin.h
 	WindowInfo.h
 	emitter/implement/dwshift.h
 	emitter/implement/group1.h

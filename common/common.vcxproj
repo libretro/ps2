@@ -110,6 +110,8 @@
     <ClInclude Include="SettingsInterface.h" />
     <ClInclude Include="SettingsWrapper.h" />
     <ClInclude Include="Console.h" />
+    <ClInclude Include="SingleRegisterTypes.h" />
+    <ClInclude Include="VectorIntrin.h" />
     <ClInclude Include="General.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="MemcpyFast.h" />

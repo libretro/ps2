@@ -18,22 +18,52 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
+#if defined(_M_X86)
 
 #if defined(__AVX2__)
-	#define _M_SSE 0x501
+#define _M_SSE 0x501
 #elif defined(__AVX__)
-	#define _M_SSE 0x500
+#define _M_SSE 0x500
 #elif defined(__SSE4_1__)
-	#define _M_SSE 0x401
+#define _M_SSE 0x401
 #else
-	#error PCSX2 requires compiling for at least SSE 4.1
+#error PCSX2 requires compiling for at least SSE 4.1
 #endif
 
 // Starting with AVX, processors have fast unaligned loads
 // Reduce code duplication by not compiling multiple versions
 #if _M_SSE >= 0x500
-	#define FAST_UNALIGNED 1
+#define FAST_UNALIGNED 1
 #else
-	#define FAST_UNALIGNED 0
+#define FAST_UNALIGNED 0
+#endif
+
+#include <xmmintrin.h>
+#include <emmintrin.h>
+#include <tmmintrin.h>
+#include <smmintrin.h>
+#if _M_SSE >= 0x500
+#include <immintrin.h>
+#endif
+
+#ifndef _MM_MK_INSERTPS_NDX
+#define _MM_MK_INSERTPS_NDX(srcField, dstField, zeroMask) (((srcField) << 6) | ((dstField) << 4) | (zeroMask))
+#endif
+
+#elif defined(_M_ARM64)
+#if defined(_MSC_VER) && !defined(__clang__)
+#include <arm64_neon.h>
+#else
+#include <arm_neon.h>
+#endif
+#endif
+
+#ifdef __APPLE__
+#include <stdlib.h> // alloca
+#else
+#include <malloc.h> // alloca
 #endif

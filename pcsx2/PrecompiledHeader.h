@@ -57,13 +57,6 @@
 // We use fmt a fair bit now.
 #include "fmt/core.h"
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Begin Pcsx2 Includes: Add items here that are local to Pcsx2 but stay relatively
-// unchanged for long periods of time, or happen to be used by almost everything, so they
-// need a full recompile anyway, when modified (etc)
-
-#include "PCSX2Base.h"
-
 #include "common/Console.h"
 #include "common/General.h"
 #include "common/emitter/tools.h"

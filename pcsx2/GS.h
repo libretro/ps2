@@ -18,8 +18,8 @@
 #include "Common.h"
 #include "Gif.h"
 #include "GS/GS.h"
-#include "SingleRegisterTypes.h"
 
+#include "common/SingleRegisterTypes.h"
 #include "common/Threading.h"
 
 extern double GetVerticalFrequency();

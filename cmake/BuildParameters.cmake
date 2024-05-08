@@ -107,6 +107,12 @@ if(${PCSX2_TARGET_ARCHITECTURES} MATCHES "x86_64")
 	list(APPEND PCSX2_DEFS _ARCH_64=1 _M_X86=1)
 	set(_ARCH_64 1)
 	set(_M_X86 1)
+
+	# SSE4.1 is not set by MSVC, it uses _M_SSE instead.
+	# TODO/FIXME (LIBRETRO) - we want to make this runtime optional in the future instead of compile time
+	if(MSVC)
+		list(APPEND PCSX2_DEFS __SSE4_1__=1)
+	endif()
 else()
 	message(FATAL_ERROR "Unsupported architecture: ${PCSX2_TARGET_ARCHITECTURES}")
 endif()

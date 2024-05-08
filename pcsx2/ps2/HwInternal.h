@@ -16,8 +16,7 @@
 #pragma once
 
 #include "Hw.h"
-#include "SingleRegisterTypes.h"
-
+#include "common/SingleRegisterTypes.h"
 
 // hw read functions
 template< uint page > extern mem8_t  hwRead8  (u32 mem);
