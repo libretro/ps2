@@ -764,7 +764,7 @@ __ri static GSTextureCache::Source* FindSourceInMap(const GIFRegTEX0& TEX0, cons
 	return nullptr;
 }
 
-GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const bool possible_shuffle, const bool linear, const u32 frame_fbp, bool req_color, bool req_alpha, bool palette)
+GSTextureCache::Source* GSTextureCache::LookupDepthSource(const bool is_depth, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const bool possible_shuffle, const bool linear, const u32 frame_fbp, bool req_color, bool req_alpha, bool palette)
 {
 	if (GSConfig.UserHacks_DisableDepthSupport)
 		return nullptr;
@@ -792,7 +792,7 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 
 	for (auto t : m_dst[DepthStencil])
 	{
-		if (!t->m_used || !t->m_dirty.empty())
+		if (!t->m_used || (!t->m_dirty.empty() && !is_depth))
 			continue;
 		
 		if (GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0, t->m_TEX0.PSM))
@@ -885,7 +885,7 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 		}
 	}
 
-	if (!dst)
+	if (!dst && is_depth)
 	{
 		// Retry on the render target (Silent Hill 4)
 		for (auto t : m_dst[RenderTarget])
@@ -940,13 +940,13 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 	else
 	{
 		// This is a bit of a worry, since it could load junk from local memory... but it's better than skipping the draw.
-		return LookupSource(TEX0, TEXA, CLAMP, r, nullptr, possible_shuffle, linear, frame_fbp, req_color, req_alpha);
+		return is_depth ? LookupSource(false, TEX0, TEXA, CLAMP, r, nullptr, possible_shuffle, linear, frame_fbp, req_color, req_alpha) : nullptr;
 	}
 
 	return src;
 }
 
-GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const GSVector2i* lod, const bool possible_shuffle, const bool linear, const u32 frame_fbp, bool req_color, bool req_alpha)
+GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, const GIFRegCLAMP& CLAMP, const GSVector4i& r, const GSVector2i* lod, const bool possible_shuffle, const bool linear, const u32 frame_fbp, bool req_color, bool req_alpha)
 {
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 	//const GSLocalMemory::psm_t& cpsm = psm.pal > 0 ? GSLocalMemory::m_psm[TEX0.CPSM] : psm;
@@ -976,7 +976,6 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 	if (!src)
 		src = FindSourceInMap(TEX0, TEXA, psm_s, clut, gpu_clut, compare_lod, region, is_fixed_tex0, m_src.m_map[lookup_page]);
 
-
 	Target* dst = nullptr;
 	bool half_right = false;
 	int x_offset = 0;
@@ -991,6 +990,14 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 		const u32 bp = TEX0.TBP0;
 		const u32 psm = TEX0.PSM;
 		const u32 bw = TEX0.TBW;
+
+		GSVector4i req_rect = r;
+		// The read area might be offset but the start of the texture is at the beginning of the space.
+		req_rect.x = 0;
+		req_rect.y = 0;
+
+		if (region.HasX() || region.HasY())
+			req_rect = req_rect + region.GetOffset(req_rect.z, req_rect.w);
 
 		// Arc the Lad finds the wrong surface here when looking for a depth stencil.
 		// Since we're currently not caching depth stencils (check ToDo in CreateSource) we should not look for it here.
@@ -1012,10 +1019,10 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 				if (((bp & (BLOCKS_PER_PAGE - 1)) != (t->m_TEX0.TBP0 & (BLOCKS_PER_PAGE - 1))) && (bp & (BLOCKS_PER_PAGE - 1)))
 					continue;
 
-				const bool overlaps = t->Overlaps(bp, bw, psm, r);
+				const bool overlaps = t->Overlaps(bp, bw, psm, req_rect);
 
 				// Try to make sure the target has available what we need, be careful of self referencing frames with font in the alpha.
-				if (overlaps && !t->HasValidBitsForFormat(psm, req_color, req_alpha) && !(possible_shuffle && GSLocalMemory::m_psm[psm].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32))
+				if (!overlaps || (overlaps && !t->HasValidBitsForFormat(psm, req_color, req_alpha) && !(possible_shuffle && GSLocalMemory::m_psm[psm].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32)))
 					continue;
 
 				const bool width_match = (std::max(64U, bw * 64U) >> GSLocalMemory::m_psm[psm].info.pageShiftX()) ==
@@ -1033,7 +1040,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 
 						for (iter = GSRendererHW::GetInstance()->m_draw_transfers.rbegin(); iter != GSRendererHW::GetInstance()->m_draw_transfers.rend(); )
 						{
-							if (TEX0.TBP0 == iter->blit.DBP && GSUtil::HasCompatibleBits(iter->blit.DPSM, TEX0.PSM) && r.rintersect(iter->rect).eq(r))
+							if (TEX0.TBP0 == iter->blit.DBP && GSUtil::HasCompatibleBits(iter->blit.DPSM, TEX0.PSM) && req_rect.rintersect(iter->rect).eq(req_rect))
 							{
 								can_use = false;
 								break;
@@ -1070,7 +1077,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 				const bool real_fmt_match = (GSLocalMemory::m_psm[psm].trbpp == 16) == (t->m_32_bits_fmt == false);
 				if (rect_clean && tex_overlaps && !t->m_dirty.empty() && width_match)
 				{
-					GSVector4i new_rect = r;
+					GSVector4i new_rect = req_rect;
 
 					if (linear)
 					{
@@ -1174,14 +1181,14 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 					rect_clean = t->m_dirty.empty();
 					if (!possible_shuffle && rect_clean && bp == t->m_TEX0.TBP0 && t && GSUtil::HasCompatibleBits(psm, t->m_TEX0.PSM) && width_match && real_fmt_match)
 					{
-						if (t->Overlaps(bp, bw, psm, r))
-							ResizeTarget(t, r, bp, psm, bw);
+						if (!tex_merge_rt && t->Overlaps(bp, bw, psm, req_rect))
+							ResizeTarget(t, req_rect, bp, psm, bw);
 					}
 				}
 
-				if (t->m_TEX0.TBP0 != frame_fbp && !possible_shuffle && bp > t->m_TEX0.TBP0 && t->Overlaps(bp, bw, psm, r) && GSUtil::GetChannelMask(psm) == GSUtil::GetChannelMask(t->m_TEX0.PSM) && !width_match)
+				if (t->m_TEX0.TBP0 != frame_fbp && !possible_shuffle && bp > t->m_TEX0.TBP0 && t->Overlaps(bp, bw, psm, req_rect) && GSUtil::GetChannelMask(psm) == GSUtil::GetChannelMask(t->m_TEX0.PSM) && !width_match)
 				{
-					GSVector4i new_rect = r;
+					GSVector4i new_rect = req_rect;
 
 					if (linear)
 					{
@@ -1210,12 +1217,27 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 						}
 					}
 				}
-				const bool t_clean = ((t->m_dirty.GetDirtyChannels() & GSUtil::GetChannelMask(psm)) == 0) || rect_clean;
 
+				bool overlapping_dirty = true;
+
+				if (!rect_clean)
+				{
+					const u32 read_start = GSLocalMemory::GetStartBlockAddress(bp, bw, psm, req_rect);
+					const u32 read_end = GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, req_rect);
+					const GSVector4i dirty_rect = t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size);
+					const u32 dirty_start = GSLocalMemory::GetStartBlockAddress(t->m_TEX0.TBP0, t->m_TEX0.TBW, t->m_TEX0.PSM, dirty_rect);
+					const u32 dirty_end = GSLocalMemory::GetUnwrappedEndBlockAddress(t->m_TEX0.TBP0, t->m_TEX0.TBW, t->m_TEX0.PSM, dirty_rect);
+
+					overlapping_dirty = read_start <= dirty_end && read_end >= dirty_start;
+				}
+
+				const bool t_clean = ((t->m_dirty.GetDirtyChannels() & GSUtil::GetChannelMask(psm)) == 0) || rect_clean;
 				const u32 color_psm = ((psm & 0x30) == 0x30) ? (psm & ~0x30) : psm;
 				const u32 tex_color_psm = ((t->m_TEX0.PSM & 0x30) == 0x30) ? (t->m_TEX0.PSM & ~0x30) : t->m_TEX0.PSM;
+				const bool can_convert = (GSUtil::HasCompatibleBits(psm, t_psm) && ((bw == t->m_TEX0.TBW) || (bw <= 1 && req_rect.w < GSLocalMemory::m_psm[psm].pgs.y))) ||
+										(possible_shuffle && ((bw == t->m_TEX0.TBW) || (bw == (t->m_TEX0.TBW * 2) || bw <= 2)) && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32);
 				// Match if we haven't already got a tex in rt
-				if (t_clean && GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0, t_psm))
+				if (((!t_clean && can_convert) || t_clean || !overlapping_dirty) && GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0, t_psm))
 				{
 					bool match = true;
 					if (found_t && (bw != t->m_TEX0.TBW || t->m_TEX0.PSM != psm))
@@ -1244,24 +1266,33 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 						{
 							// We don't have a shader for this.
 							if (!possible_shuffle && TEX0.PSM == PSMT8 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp != 32)
-							{
 								continue;
-							}
 							else
 							{
+								if (!t_clean)
+									t->Update();
+
 								dst = t;
 
 								found_t = true;
-								tex_merge_rt = false;
 								x_offset = 0;
 								y_offset = 0;
-								break;
+
+								if (GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::MergeTargets && GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, req_rect) > dst->m_end_block)
+									continue;
+								else
+								{
+									tex_merge_rt = false;
+									break;
+								}
 							}
 						}
 					}
 				}
-				else if (t_clean && (t->m_TEX0.TBW >= 16) && GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0 + t->m_TEX0.TBW * 0x10, t->m_TEX0.PSM))
+				else if ((t->m_TEX0.TBW >= 16) && GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0 + t->m_TEX0.TBW * 0x10, t->m_TEX0.PSM))
 				{
+					if (!t_clean)
+						t->Update();
 					// Detect half of the render target (fix snow engine game)
 					// Target Page (8KB) have always a width of 64 pixels
 					// Half of the Target is TBW/2 pages * 8KB / (1 block * 256B) = 0x10
@@ -1277,13 +1308,13 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 				// Also check BP >= TBP, create source isn't equpped to expand it backwards and all data comes from the target. (GH3)
 				else if (GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::InsideTargets && color_psm >= PSMCT32 &&
 					color_psm <= PSMCT16S && (GSUtil::HasCompatibleBits(tex_color_psm, color_psm) ||
-					(possible_shuffle && tex_color_psm <= PSMCT24 && ((((t->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 1) + t->m_TEX0.TBP0) == bp)) &&	
-					(t->Overlaps(bp, bw, psm, r) || t->Wraps()) &&
+					(possible_shuffle && tex_color_psm <= PSMCT24 && ((((t->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 1) + t->m_TEX0.TBP0) == bp)) &&
+					(t->Overlaps(bp, bw, psm, req_rect) || t->Wraps()) &&
 					t->m_age <= 1 && (!found_t || dst->m_TEX0.TBW < bw))
 				{
 					// PSM equality needed because CreateSource does not handle PSM conversion.
 					// Only inclusive hit to limit false hits.
-					GSVector4i rect = r;
+					GSVector4i rect = req_rect;
 					int src_bw = bw;
 					int src_psm = psm;
 
@@ -1400,7 +1431,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 								// Keep looking, just in case there is an exact match (Situation: Target frame drawn inside target frame, current makes a separate texture)
 								if (dst->m_TEX0.TBP0 == frame_fbp && possible_shuffle)
 									break;
-								continue;
+								else
+									continue;
 							}
 						}
 					}
@@ -1428,7 +1460,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 							found_t = true;
 							if (dst->m_TEX0.TBP0 == frame_fbp && possible_shuffle)
 								break;
-							continue;
+							else
+								continue;
 						}
 
 						// Strictly speaking this path is no longer needed, but I'm leaving it here for now because Guitar
@@ -1444,7 +1477,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 							found_t = false;
 							if (dst->m_TEX0.TBP0 == frame_fbp && possible_shuffle)
 								break;
-							continue;
+							else
+								continue;
 						}
 					}
 				}
@@ -1461,7 +1495,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 
 		if (!found_t && !dst && !GSConfig.UserHacks_DisableDepthSupport)
 		{
-			GSVector4i new_rect = r;
+			GSVector4i new_rect = req_rect;
 
 			// Just in case the TextureMinMax trolls us as it does, when checking if inside the target.
 			new_rect.z -= 2;
@@ -1471,24 +1505,38 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 			// Unfortunately, I don't have any Arc the Lad testcase
 			//
 			// 1/ Check only current frame, I guess it is only used as a postprocessing effect
-			for (auto t : m_dst[DepthStencil])
+			if (is_color)
 			{
-				if (t->m_age <= 1 && t->m_used && t->m_dirty.empty() && GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0, t->m_TEX0.PSM) && t->Inside(bp, bw, psm, new_rect))
+				for (auto t : m_dst[DepthStencil])
 				{
-					// Let's fetch a depth format texture. Rational, it will avoid the texture allocation and the
-					// rescaling of the current function.
-					if (psm_s.bpp > 8)
+					if (t->m_age <= 1 && t->m_used && t->m_dirty.empty() && GSUtil::HasSharedBits(bp, psm, t->m_TEX0.TBP0, t->m_TEX0.PSM) && t->Inside(bp, bw, psm, new_rect))
 					{
-						GIFRegTEX0 depth_TEX0;
-						depth_TEX0.U32[0] = TEX0.U32[0] | (0x30u << 20u);
-						depth_TEX0.U32[1] = TEX0.U32[1];
-						return LookupDepthSource(depth_TEX0, TEXA, CLAMP, r, possible_shuffle, linear, frame_fbp, req_color, req_alpha);
-					}
-					else
-					{
-						if (!possible_shuffle && TEX0.PSM == PSMT8 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp != 32)
-							continue;
-						return LookupDepthSource(TEX0, TEXA, CLAMP, r, possible_shuffle, linear, frame_fbp, req_color, req_alpha, true);
+						// Let's fetch a depth format texture. Rational, it will avoid the texture allocation and the
+						// rescaling of the current function.
+						if (psm_s.bpp > 8)
+						{
+							GIFRegTEX0 depth_TEX0;
+							depth_TEX0.U32[0] = TEX0.U32[0] | (0x30u << 20u);
+							depth_TEX0.U32[1] = TEX0.U32[1];
+							src = LookupDepthSource(false, depth_TEX0, TEXA, CLAMP, req_rect, possible_shuffle, linear, frame_fbp, req_color, req_alpha);
+
+							if(src != nullptr)
+								return src;
+						}
+						else
+						{
+							if (!possible_shuffle && TEX0.PSM == PSMT8 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp != 32)
+							{
+								continue;
+							}
+							else
+							{
+								src = LookupDepthSource(false, TEX0, TEXA, CLAMP, req_rect, possible_shuffle, linear, frame_fbp, req_color, req_alpha, true);
+
+								if (src != nullptr)
+									return src;
+							}
+						}
 					}
 				}
 			}
@@ -1499,7 +1547,9 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const GIFRegTEX0& TEX0, con
 	}
 
 	if (!src)
+	{
 		src = CreateSource(TEX0, TEXA, dst, half_right, x_offset, y_offset, lod, &r, gpu_clut, region);
+	}
 	else
 	{
 		if (gpu_clut)
@@ -1880,7 +1930,10 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			if (preserve_target)
 			{
 				// The old target's going to get invalidated (at least until we handle concurrent frame+depth at the same BP),
-				// so just move the dirty rects across.
+				// so just move the dirty rects across, unless the format is different, in which case we need to update it.
+				if (dst->m_TEX0.PSM != dst_match->m_TEX0.PSM)
+					dst_match->Update();
+				
 				dst->m_dirty = std::move(dst_match->m_dirty);
 				dst_match->m_dirty = {};
 				dst->m_alpha_max = dst_match->m_alpha_max;
