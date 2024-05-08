@@ -22,6 +22,7 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <thread>
 
 #include "GS/Renderers/SW/GSVertexSW.h"
 #include "GS/Renderers/SW/GSDrawScanline.h"
