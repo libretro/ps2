@@ -1234,7 +1234,7 @@ void GSRendererSW::SharedData::SetSource(GSTextureCacheSW::Texture* t, const GSV
 
 void GSRendererSW::SharedData::UpdateSource()
 {
-	for (size_t i = 0; m_tex[i].t != NULL; i++)
+	for (size_t i = 0; m_tex[i].t; i++)
 	{
 		if (m_tex[i].t->Update(m_tex[i].r))
 			global.tex[i] = m_tex[i].t->m_buff;
