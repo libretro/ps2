@@ -376,10 +376,6 @@ __fi void fpuFloat2(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -I
 	}
 }
 
-void ClampValues(int regd)
-{
-	fpuFloat(regd);
-}
 //------------------------------------------------------------------
 
 
@@ -662,14 +658,14 @@ int recCommutativeOp(int info, int regd, int op)
 //------------------------------------------------------------------
 void recADD_S_xmm(int info)
 {
-	ClampValues(recCommutativeOp(info, EEREC_D, 0));
+	fpuFloat(recCommutativeOp(info, EEREC_D, 0));
 }
 
 FPURECOMPILE_CONSTCODE(ADD_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recADDA_S_xmm(int info)
 {
-	ClampValues(recCommutativeOp(info, EEREC_ACC, 0));
+	fpuFloat(recCommutativeOp(info, EEREC_ACC, 0));
 }
 
 FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
@@ -1067,7 +1063,7 @@ void recDIVhelper1(int regd, int regt) // Sets flags
 	if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(regt); }
 	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(regt));
 
-	ClampValues(regd);
+	fpuFloat(regd);
 	x86SetJ32(bjmp32);
 
 	_freeXMMreg(t1reg);
@@ -1077,7 +1073,7 @@ void recDIVhelper2(int regd, int regt) // Doesn't sets flags
 {
 	if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(regt); }
 	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(regt));
-	ClampValues(regd);
+	fpuFloat(regd);
 }
 
 alignas(16) static SSE_MXCSR roundmode_nearest, roundmode_neg;
@@ -1368,7 +1364,7 @@ void recMADDtemp(int info, int regd)
 			break;
 	}
 
-	ClampValues(regd);
+	fpuFloat(regd);
 	_freeXMMreg(t0reg);
 }
 
@@ -1579,7 +1575,7 @@ void recMSUBtemp(int info, int regd)
 			break;
 	}
 
-	ClampValues(regd);
+	fpuFloat(regd);
 	_freeXMMreg(t0reg);
 }
 
@@ -1604,14 +1600,14 @@ FPURECOMPILE_CONSTCODE(MSUBA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_REA
 //------------------------------------------------------------------
 void recMUL_S_xmm(int info)
 {
-	ClampValues(recCommutativeOp(info, EEREC_D, 1));
+	fpuFloat(recCommutativeOp(info, EEREC_D, 1));
 }
 
 FPURECOMPILE_CONSTCODE(MUL_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 void recMULA_S_xmm(int info)
 {
-	ClampValues(recCommutativeOp(info, EEREC_ACC, 1));
+	fpuFloat(recCommutativeOp(info, EEREC_ACC, 1));
 }
 
 FPURECOMPILE_CONSTCODE(MULA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
@@ -1695,7 +1691,7 @@ void recSUBop(int info, int regd)
 			break;
 	}
 
-	ClampValues(regd);
+	fpuFloat(regd);
 	_freeXMMreg(t0reg);
 }
 
@@ -1756,7 +1752,7 @@ void recSQRT_S_xmm(int info)
 		xMIN.SS(xRegisterSSE(EEREC_D), ptr[&g_maxvals[0]]);
 	xSQRT.SS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_D));
 	if (CHECK_FPU_EXTRA_OVERFLOW) // Shouldn't need to clamp again since SQRT of a number will always be smaller than the original number, doing it just incase :/
-		ClampValues(EEREC_D);
+		fpuFloat(EEREC_D);
 
 	if (roundmodeFlag)
 		xLDMXCSR(ptr32[&g_sseMXCSR.bitmask]);
@@ -1819,7 +1815,7 @@ void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function when re
 	xSQRT.SS(xRegisterSSE(t0reg), xRegisterSSE(t0reg));
 	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
 
-	ClampValues(regd);
+	fpuFloat(regd);
 	x86SetJ32(pjmp32);
 
 	_freeXMMreg(t1reg);
@@ -1835,7 +1831,7 @@ void recRSQRThelper2(int regd, int t0reg) // Preforms the RSQRT function when re
 	}
 	xSQRT.SS(xRegisterSSE(t0reg), xRegisterSSE(t0reg));
 	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
-	ClampValues(regd);
+	fpuFloat(regd);
 }
 
 void recRSQRT_S_xmm(int info)
