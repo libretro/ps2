@@ -19,6 +19,8 @@
 
 #include <cstring> /* memset */
 
+#include <cpuinfo.h>
+
 #include "microVU.h"
 
 #include "common/AlignedMalloc.h"

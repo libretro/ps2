@@ -136,7 +136,6 @@ void mVUdispatcherCD(mV)
 
 static void mVUGenerateWaitMTVU(mV)
 {
-	xAlignCallTarget();
 	mVU.waitMTVU = x86Ptr;
 
 	int num_xmms = 0, num_gprs = 0;
@@ -210,10 +209,9 @@ static void mVUGenerateWaitMTVU(mV)
 
 static void mVUGenerateCopyPipelineState(mV)
 {
-	xAlignCallTarget();
 	mVU.copyPLState = x86Ptr;
 
-	if (x86caps.hasAVX2)
+	if (cpuinfo_has_x86_avx2())
 	{
 		xVMOVAPS(ymm0, ptr[rax]);
 		xVMOVAPS(ymm1, ptr[rax + 32u]);
@@ -255,7 +253,7 @@ static void mVUGenerateCompareState(mV)
 {
 	mVU.compareStateF = xGetAlignedCallTarget();
 
-	if (x86caps.hasAVX2)
+	if (cpuinfo_has_x86_avx2())
 	{
 		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
 		xVMOVUPS(ymm0, ptr[arg1reg]);

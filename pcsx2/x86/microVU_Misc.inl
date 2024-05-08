@@ -578,7 +578,7 @@ static void mVUcustomSearch(void)
 	memset(mVUsearchXMM, 0xcc, __pagesize);
 	xSetPtr(mVUsearchXMM);
 
-	if (x86caps.hasAVX2)
+	if (cpuinfo_has_x86_avx2())
 	{
 		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
 		xVMOVUPS(ymm0, ptr[arg1reg]);

@@ -178,9 +178,6 @@ void VMManager::Internal::UpdateEmuFolders()
 
 void VMManager::Internal::CPUThreadInitialize(void)
 {
-	x86caps.Identify();
-	x86caps.CountCores();
-
 	GSinit();
 	SPU2::Initialize();
 	USBinit();

@@ -152,7 +152,6 @@ namespace x86Emitter
 	extern void xSetPtr(void* ptr);
 	extern void xAlignPtr(uint bytes);
 	extern void xAdvancePtr(uint bytes);
-	extern void xAlignCallTarget();
 
 	extern u8* xGetPtr();
 	extern u8* xGetAlignedCallTarget();

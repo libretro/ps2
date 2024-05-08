@@ -21,6 +21,8 @@
 
 #include "PrecompiledHeader.h"
 
+#include <cpuinfo.h>
+
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "iR5900.h"
@@ -2487,7 +2489,7 @@ void recPSRAVW(void)
 		xPSRA.D(xRegisterSSE(t1reg), xRegisterSSE(t0reg));
 
 		// merge & sign extend
-		if (x86caps.hasStreamingSIMD4Extensions)
+		if (cpuinfo_has_x86_sse4_1())
 		{
 			xPUNPCK.LDQ(xRegisterSSE(EEREC_D), xRegisterSSE(t1reg));
 			xPMOVSX.DQ(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_D));
@@ -2603,7 +2605,7 @@ void recPMULTUW(void)
 		}
 
 		// interleave & sign extend
-		if (x86caps.hasStreamingSIMD4Extensions)
+		if (cpuinfo_has_x86_sse4_1())
 		{
 			xPSHUF.D(xRegisterSSE(EEREC_LO), xRegisterSSE(EEREC_HI), 0x88);
 			xPSHUF.D(xRegisterSSE(EEREC_HI), xRegisterSSE(EEREC_HI), 0xdd);
@@ -2667,7 +2669,7 @@ void recPMADDUW(void)
 		xPADD.Q(xRegisterSSE(EEREC_HI), xRegisterSSE(EEREC_LO));
 
 	// interleave & sign extend
-	if (x86caps.hasStreamingSIMD4Extensions)
+	if (cpuinfo_has_x86_sse4_1())
 	{
 		xPSHUF.D(xRegisterSSE(EEREC_LO), xRegisterSSE(EEREC_HI), 0x88);
 		xPSHUF.D(xRegisterSSE(EEREC_HI), xRegisterSSE(EEREC_HI), 0xdd);

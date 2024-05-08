@@ -81,7 +81,6 @@
     <ClCompile Include="Semaphore.cpp" />
     <ClCompile Include="emitter\avx.cpp" />
     <ClCompile Include="emitter\bmi.cpp" />
-    <ClCompile Include="emitter\cpudetect.cpp" />
     <ClCompile Include="emitter\fpu.cpp" />
     <ClCompile Include="emitter\groups.cpp" />
     <ClCompile Include="emitter\jmp.cpp" />
@@ -124,7 +123,6 @@
     <ClInclude Include="Threading.h" />
     <ClInclude Include="emitter\implement\avx.h" />
     <ClInclude Include="emitter\implement\bmi.h" />
-    <ClInclude Include="emitter\cpudetect_internal.h" />
     <ClInclude Include="emitter\instructions.h" />
     <ClInclude Include="emitter\internal.h" />
     <ClInclude Include="emitter\legacy_instructions.h" />

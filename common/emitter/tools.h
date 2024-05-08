@@ -106,9 +106,6 @@ public:
 	};
 public:
 	x86capabilities();
-
-	void Identify();
-	void CountCores();
 };
 
 enum SSE_RoundMode
@@ -187,5 +184,3 @@ union SSE_MXCSR
 
 	operator x86Emitter::xIndirect32() const;
 };
-
-alignas(16) extern x86capabilities x86caps;

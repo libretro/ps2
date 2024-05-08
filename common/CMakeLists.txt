@@ -22,7 +22,6 @@ target_sources(common PRIVATE
 	TextureDecompress.cpp
 	Timer.cpp
 	emitter/avx.cpp
-	emitter/cpudetect.cpp
 	emitter/fpu.cpp
 	emitter/groups.cpp
 	emitter/jmp.cpp
@@ -61,7 +60,6 @@ target_sources(common PRIVATE
 	TextureDecompress.h
 	Threading.h
 	WindowInfo.h
-	emitter/cpudetect_internal.h
 	emitter/implement/dwshift.h
 	emitter/implement/group1.h
 	emitter/implement/group2.h
