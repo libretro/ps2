@@ -11109,6 +11109,7 @@ SLED-50359:
     vuClampMode: 3 # Fixes out of place polys (COP2).
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLED-50439:
   name: "MX 2002 featuring Ricky Carmichael [Demo]"
   region: "PAL-E"
@@ -12499,6 +12500,7 @@ SLES-50358:
   compat: 5
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLES-50362:
   name: "Jonny Moseley Mad Trix"
   region: "PAL-E"
@@ -29082,6 +29084,7 @@ SLPM-61008:
   region: "NTSC-J"
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-61009:
   name: "Silent Hill 2 (Red Ribbon) [Trial]"
   region: "NTSC-J"
@@ -29089,10 +29092,11 @@ SLPM-61009:
     instantVU1: 0 # Fixes hang on FMV's when CDVD timing is accurate.
     mtvu: 0
 SLPM-61010:
-  name: "Devil May Cry [Trial Version]"
+  name: "Devil May Cry [Trial Edition Ver 2]"
   region: "NTSC-J"
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-61011:
   name: "Silent Hill 2 (Black Ribbon) [Video Trial]"
   region: "NTSC-J"
@@ -31762,6 +31766,7 @@ SLPM-65023:
   region: "NTSC-J"
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-65024:
   name: "BioHazard - 5th Anniversary Package - Nightmare Returns [Disc 1 of 2]"
   region: "NTSC-J"
@@ -31806,6 +31811,7 @@ SLPM-65038:
   compat: 5
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-65039:
   name: "Densha de Go! Shinkansen"
   region: "NTSC-J"
@@ -37352,6 +37358,7 @@ SLPM-66502:
   region: "NTSC-J"
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-66503:
   name: "Metal Gear Solid 2 [Mega Hits]"
   region: "NTSC-J"
@@ -39293,6 +39300,7 @@ SLPM-67502:
   compat: 5
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-67503:
   name: "FIFA 2002"
   region: "NTSC-K"
@@ -39699,6 +39707,7 @@ SLPM-74230:
   region: "NTSC-J"
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLPM-74231:
   name: "Kessen III [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -46450,6 +46459,7 @@ SLUS-20216:
   compat: 5
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
   patches:
     79B8A95F:
       content: |-
@@ -55743,6 +55753,7 @@ SLUS-29009:
   region: "NTSC-U"
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes corrupt textures.
+    halfPixelOffset: 2 # Alleviates blur from upscaling.
 SLUS-29010:
   name: "Crash Bandicoot - The Wrath of Cortex [Demo]"
   region: "NTSC-U"
