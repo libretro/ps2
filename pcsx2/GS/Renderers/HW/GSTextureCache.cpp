@@ -66,6 +66,16 @@ void GSTextureCache::ReadbackAll()
 	}
 }
 
+
+void GSTextureCache::SourceMap::SwapTexture(GSTexture* old_tex, GSTexture* new_tex)
+{
+	for (auto s : m_surfaces)
+	{
+		if (s->m_texture == old_tex)
+			s->m_texture = new_tex;
+	}
+}
+
 void GSTextureCache::RemoveAll()
 {
 	m_src.RemoveAll();
@@ -5717,6 +5727,7 @@ void GSTextureCache::InjectHashCacheTexture(const HashCacheKey& key, GSTexture* 
 		m_hash_cache_replacement_memory_usage -= it->second.texture->GetMemUsage();
 
 	it->second.is_replacement = true;
+	m_src.SwapTexture(it->second.texture, tex);
 	g_gs_device->Recycle(it->second.texture);
 	it->second.texture = tex;
 }
