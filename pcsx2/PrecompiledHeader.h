@@ -19,7 +19,6 @@
 // Disable some pointless warnings...
 #ifdef _MSC_VER
 #	pragma warning(disable:4250) //'class' inherits 'method' via dominance
-#	pragma warning(disable:4996) //ignore the stricmp deprecated warning
 #endif
 
 #include "common/Pcsx2Defs.h"
@@ -68,15 +67,8 @@ typedef FnType_Void* Fnptr_Void;
 //  Compiler/OS specific macros and defines
 // --------------------------------------------------------------------------------------
 
-#if defined(_MSC_VER)
-
-#	define strnicmp _strnicmp
-#	define stricmp _stricmp
-
-#else	// must be GCC or Clang
-
+#if !defined(_MSC_VER) /* must be GCC or Clang */
 #include <sys/types.h>
-
 #endif
 
 #endif

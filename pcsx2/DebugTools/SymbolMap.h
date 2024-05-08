@@ -54,30 +54,20 @@ class SymbolMap {
 public:
 	SymbolMap() {}
 	void Clear();
-	void SortSymbols();
 
 	bool LoadNocashSym(const char *ilename);
 
-	SymbolType GetSymbolType(u32 address) const;
 	bool GetSymbolInfo(SymbolInfo *info, u32 address, SymbolType symmask = ST_FUNCTION) const;
 
-	void UnloadModule(u32 address, u32 size);
 	u32 GetModuleRelativeAddr(u32 address, int moduleIndex = -1) const;
-	u32 GetModuleAbsoluteAddr(u32 relative, int moduleIndex) const;
 	int GetModuleIndex(u32 address) const;
 	bool IsModuleActive(int moduleIndex) const;
 
 	void AddFunction(const char* name, u32 address, u32 size, int moduleIndex = -1);
 	u32 GetFunctionStart(u32 address) const;
-	int GetFunctionNum(u32 address) const;
 	u32 GetFunctionSize(u32 startAddress) const;
-	bool SetFunctionSize(u32 startAddress, u32 newSize);
-	bool RemoveFunction(u32 startAddress, bool removeName);
 
 	void AddLabel(const char* name, u32 address, int moduleIndex = -1);
-	std::string GetLabelString(u32 address) const;
-	void SetLabelName(const char* name, u32 address, bool updateImmediately = true);
-	bool GetLabelValue(const char* name, u32& dest);
 
 	void AddData(u32 address, u32 size, DataType type, int moduleIndex = -1);
 	u32 GetDataStart(u32 address) const;
@@ -89,8 +79,6 @@ public:
 	bool IsEmpty() const { return activeFunctions.empty() && activeLabels.empty() && activeData.empty(); };
 private:
 	void AssignFunctionIndices();
-	const char *GetLabelName(u32 address) const;
-	const char *GetLabelNameRel(u32 relAddress, int moduleIndex) const;
 
 	struct FunctionEntry {
 		u32 start;
