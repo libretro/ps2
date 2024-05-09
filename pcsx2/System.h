@@ -117,21 +117,4 @@ public:
 	void Release();
 };
 
-// --------------------------------------------------------------------------------------
-//  SysCpuProviderPack
-// --------------------------------------------------------------------------------------
-class SysCpuProviderPack
-{
-public:
-	SysCpuProviderPack();
-	~SysCpuProviderPack();
-
-	void ApplyConfig() const;
-};
-
-extern void SysClearExecutionCache();	// clears recompiled execution caches!
-
-extern std::string SysGetBiosDiscID();
-extern std::string SysGetDiscID();
-
 extern SysMainMemory& GetVmMemory();
