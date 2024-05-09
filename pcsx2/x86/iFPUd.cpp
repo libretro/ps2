@@ -348,7 +348,7 @@ FPURECOMPILE_CONSTCODE(ABS_S, XMMINFO_WRITED | XMMINFO_READS);
 // The difference of the exponents = the amount that the smaller operand will be shifted right by.
 // Modification - the PS2 uses a single guard bit? (Coded by Nneeve)
 //------------------------------------------------------------------
-void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten, they are floats
+static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten, they are floats
 {
 	u8 *j8Ptr0, *j8Ptr1, *j8Ptr2, *j8Ptr3, *j8Ptr4, *j8Ptr5, *j8Ptr6;
 	const int xmmtemp = _allocTempXMMreg(XMMT_FPS); //temporary for anding with regd/regt
@@ -571,7 +571,7 @@ void recCVT_S_xmm(int info)
 
 FPURECOMPILE_CONSTCODE(CVT_S, XMMINFO_WRITED | XMMINFO_READS);
 
-void recCVT_W() //called from iFPU.cpp's recCVT_W
+void recCVT_W(void) //called from iFPU.cpp's recCVT_W
 {
 	int regs = _checkXMMreg(XMMTYPE_FPREG, _Fs_, MODE_READ);
 
@@ -605,7 +605,7 @@ void recCVT_W() //called from iFPU.cpp's recCVT_W
 //------------------------------------------------------------------
 // DIV XMM
 //------------------------------------------------------------------
-void recDIVhelper1(int regd, int regt) // Sets flags
+static void recDIVhelper1(int regd, int regt) // Sets flags
 {
 	u8 *pjmp1, *pjmp2;
 	u32 *ajmp32, *bjmp32;
@@ -651,7 +651,7 @@ void recDIVhelper1(int regd, int regt) // Sets flags
 	_freeXMMreg(t1reg);
 }
 
-void recDIVhelper2(int regd, int regt) // Doesn't sets flags
+static void recDIVhelper2(int regd, int regt) // Doesn't sets flags
 {
 	ToDouble(regd); ToDouble(regt);
 
@@ -721,7 +721,7 @@ FPURECOMPILE_CONSTCODE(DIV_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 // For example,   { adda.s -MAX, 0.0 ; madd.s fd, MAX, 1.0 } -> fd = 0
 // while          { adda.s -MAX, -MAX ; madd.s fd, MAX, 1.0 } -> fd = -MAX
 // (where MAX is 0x7fffffff and -MAX is 0xffffffff)
-void recMaddsub(int info, int regd, int op, bool acc)
+static void recMaddsub(int info, int regd, int op, bool acc)
 {
 	int sreg, treg;
 	ALLOC_S(sreg); ALLOC_T(treg);
@@ -803,7 +803,8 @@ static void recMINMAX(int info, bool ismin)
 		0,          0x40000000, 0, 0,
 	};
 	int sreg, treg;
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
 	CLEAR_OU_FLAGS;
 
@@ -990,7 +991,7 @@ FPURECOMPILE_CONSTCODE(SQRT_S, XMMINFO_WRITED | XMMINFO_READT);
 //------------------------------------------------------------------
 // RSQRT XMM
 //------------------------------------------------------------------
-void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function when regd <- Fs and regt <- Ft (Sets correct flags)
+static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function when regd <- Fs and regt <- Ft (Sets correct flags)
 {
 	u8 *pjmp1, *pjmp2;
 	u8 *qjmp1, *qjmp2;
@@ -1041,7 +1042,7 @@ void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function when reg
 	_freeXMMreg(t1reg);
 }
 
-void recRSQRThelper2(int regd, int regt) // Preforms the RSQRT function when regd <- Fs and regt <- Ft (Doesn't set flags)
+static void recRSQRThelper2(int regd, int regt) // Preforms the RSQRT function when regd <- Fs and regt <- Ft (Doesn't set flags)
 {
 	xAND.PS(xRegisterSSE(regt), ptr[&s_const.pos[0]]); // Make regt Positive
 

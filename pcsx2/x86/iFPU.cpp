@@ -139,7 +139,7 @@ void recCFC1(void)
 	}
 }
 
-void recCTC1()
+void recCTC1(void)
 {
 	if (_Fs_ != 31)
 		return;
@@ -176,7 +176,7 @@ void recCTC1()
 // MFC1
 //------------------------------------------------------------------
 
-void recMFC1()
+void recMFC1(void)
 {
 	if (!_Rt_)
 		return;
@@ -343,7 +343,7 @@ static void fpuFreeIfTemp(int xmmreg)
 		_freeXMMreg(xmmreg);
 }
 
-__fi void fpuFloat3(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -Inf -> -fMax
+static __fi void fpuFloat3(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -Inf -> -fMax
 {
 #if defined(__SSE4_1__)
 	xPMIN.SD(xRegisterSSE(regd), ptr128[&g_maxvals[0]]);
@@ -359,7 +359,7 @@ __fi void fpuFloat3(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -I
 #endif
 }
 
-__fi void fpuFloat(int regd) // +/-NaN -> +fMax, +Inf -> +fMax, -Inf -> -fMax
+static __fi void fpuFloat(int regd) // +/-NaN -> +fMax, +Inf -> +fMax, -Inf -> -fMax
 {
 	if (CHECK_FPU_OVERFLOW)
 	{
@@ -368,7 +368,7 @@ __fi void fpuFloat(int regd) // +/-NaN -> +fMax, +Inf -> +fMax, -Inf -> -fMax
 	}
 }
 
-__fi void fpuFloat2(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -Inf -> -fMax
+static __fi void fpuFloat2(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -Inf -> -fMax
 {
 	if (CHECK_FPU_OVERFLOW)
 	{
@@ -410,7 +410,7 @@ FPURECOMPILE_CONSTCODE(ABS_S, XMMINFO_WRITED | XMMINFO_READS);
 // The difference of the exponents = the amount that the smaller operand will be shifted right by.
 // Modification - the PS2 uses a single guard bit? (Coded by Nneeve)
 //------------------------------------------------------------------
-void FPU_ADD_SUB(int regd, int regt, int issub)
+static void FPU_ADD_SUB(int regd, int regt, int issub)
 {
 	u8 *j8Ptr0, *j8Ptr1, *j8Ptr2, *j8Ptr3;
 	u8 *j8Ptr4, *j8Ptr5, *j8Ptr6, *j8Ptr7;
@@ -1023,7 +1023,7 @@ void recCVT_W()
 //------------------------------------------------------------------
 // DIV XMM
 //------------------------------------------------------------------
-void recDIVhelper1(int regd, int regt) // Sets flags
+static void recDIVhelper1(int regd, int regt) // Sets flags
 {
 	u8 *pjmp1, *pjmp2;
 	u32 *ajmp32, *bjmp32;
@@ -1069,7 +1069,7 @@ void recDIVhelper1(int regd, int regt) // Sets flags
 	_freeXMMreg(t1reg);
 }
 
-void recDIVhelper2(int regd, int regt) // Doesn't sets flags
+static void recDIVhelper2(int regd, int regt) // Doesn't sets flags
 {
 	if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(regt); }
 	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(regt));
@@ -1638,13 +1638,13 @@ FPURECOMPILE_CONSTCODE(NEG_S, XMMINFO_WRITED | XMMINFO_READS);
 //------------------------------------------------------------------
 // SUB XMM
 //------------------------------------------------------------------
-void recSUBhelper(int regd, int regt)
+static void recSUBhelper(int regd, int regt)
 {
 	if (CHECK_FPU_EXTRA_OVERFLOW /*&& !CHECK_FPUCLAMPHACK*/) { fpuFloat2(regd); fpuFloat2(regt); }
 	FPU_SUB(regd, regt);
 }
 
-void recSUBop(int info, int regd)
+static void recSUBop(int info, int regd)
 {
 	int t0reg = _allocTempXMMreg(XMMT_FPS);
 
@@ -1765,7 +1765,7 @@ FPURECOMPILE_CONSTCODE(SQRT_S, XMMINFO_WRITED | XMMINFO_READT);
 //------------------------------------------------------------------
 // RSQRT XMM
 //------------------------------------------------------------------
-void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function when regd <- Fs and t0reg <- Ft (Sets correct flags)
+static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function when regd <- Fs and t0reg <- Ft (Sets correct flags)
 {
 	u8 *pjmp1, *pjmp2;
 	u32 *pjmp32;
@@ -1821,7 +1821,7 @@ void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function when re
 	_freeXMMreg(t1reg);
 }
 
-void recRSQRThelper2(int regd, int t0reg) // Preforms the RSQRT function when regd <- Fs and t0reg <- Ft (Doesn't set flags)
+static void recRSQRThelper2(int regd, int t0reg) // Preforms the RSQRT function when regd <- Fs and t0reg <- Ft (Doesn't set flags)
 {
 	xAND.PS(xRegisterSSE(t0reg), ptr[&s_pos[0]]); // Make t0reg Positive
 	if (CHECK_FPU_EXTRA_OVERFLOW)
