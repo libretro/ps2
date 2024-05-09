@@ -24,7 +24,7 @@
 
 using namespace R5900;
 
-static __fi void IntCHackCheck()
+static __fi void IntCHackCheck(void)
 {
 	// Sanity check: To protect from accidentally "rewinding" the cyclecount
 	// on the few times nextBranchCycle can be behind our current cycle.
@@ -32,255 +32,8 @@ static __fi void IntCHackCheck()
 	if (diff > 0 && (cpuRegs.cycle - cpuRegs.lastEventCycle) > 8) cpuRegs.cycle = cpuRegs.nextEventCycle;
 }
 
-template< uint page > RETURNS_R128 _hwRead128(u32 mem);
-
-template< uint page, bool intcstathack >
-mem32_t _hwRead32(u32 mem)
-{
-	switch( page )
-	{
-		case 0x00:	return rcntRead32<0x00>( mem );
-		case 0x01:	return rcntRead32<0x01>( mem );
-
-		case 0x02:	return ipuRead32( mem );
-
-		case 0x03:
-			if (mem >= EEMemoryMap::VIF0_Start)
-			{
-				if(mem >= EEMemoryMap::VIF1_Start)
-					return vifRead32<1>(mem);
-				else
-					return vifRead32<0>(mem);
-			}
-			return dmacRead32<0x03>( mem );
-
-		case 0x04:
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		{
-			// [Ps2Confirm] Reading from FIFOs using non-128 bit reads is a complete mystery.
-			// No game is known to attempt such a thing (yay!), so probably nothing for us to
-			// worry about.  Chances are, though, doing so is "legal" and yields some sort
-			// of reproducible behavior.  Candidate for real hardware testing.
-			// Current assumption: Reads 128 bits and discards the unused portion.
-
-			r128 out128 = _hwRead128<page>(mem & ~0x0f);
-			return reinterpret_cast<u32*>(&out128)[(mem >> 2) & 0x3];
-		}
-		break;
-
-		case 0x0f:
-		{
-			// INTC_STAT shortcut for heavy spinning.
-			// Performance Note: Visual Studio handles this best if we just manually check for it here,
-			// outside the context of the switch statement below.  This is likely fixed by PGO also,
-			// but it's an easy enough conditional to account for anyways.
-
-			if (mem == INTC_STAT)
-			{
-				// Disable INTC hack when in PS1 mode as it seems to break games.
-				if (intcstathack && !(psxHu32(HW_ICFG) & (1 << 3))) IntCHackCheck();
-				return psHu32(INTC_STAT);
-			}
-
-			// todo: psx mode: this is new
-			if (((mem & 0x1FFFFFFF) >= EEMemoryMap::SBUS_PS1_Start) && ((mem & 0x1FFFFFFF) < EEMemoryMap::SBUS_PS1_End))
-				return PGIFr((mem & 0x1FFFFFFF));
-
-			// WARNING: this code is never executed anymore due to previous condition.
-			// It requires investigation of what to do.
-			if ((mem & 0x1000ff00) == 0x1000f300)
-			{
-				int ret = 0;
-				u32 sif2fifosize = std::min(sif2.fifo.size, 7);
-
-				switch (mem & 0xf0)
-				{
-				case 0x00:
-					ret = psxHu32(0x1f801814);
-					break;
-				case 0x80:
-					ret = psHu32(mem) | (sif2fifosize << 16);
-					if (sif2.fifo.size > 0) ret |= 0x80000000;
-					break;
-				case 0xc0:
-					ReadFifoSingleWord();
-					ret = psHu32(mem);
-					break;
-				case 0xe0:
-					//ret = 0xa000e1ec;
-					if (sif2.fifo.size > 0)
-					{
-						ReadFifoSingleWord();
-						ret = psHu32(mem);
-					}
-					else ret = 0;
-					break;
-				}
-				return ret;
-
-
-			}
-			switch( mem )
-			{
-				case SIO_ISR:
-
-				case 0x1000f410:
-				case MCH_RICM:
-					return 0;
-
-				case SBUS_F240:
-					return psHu32(SBUS_F240) | 0xF0000102;
-				case SBUS_F260:
-					return psHu32(SBUS_F260);
-				case MCH_DRD:
-					if( !((psHu32(MCH_RICM) >> 6) & 0xF) )
-					{
-						switch ((psHu32(MCH_RICM)>>16) & 0xFFF)
-						{
-							//MCH_RICM: x:4|SA:12|x:5|SDEV:1|SOP:4|SBC:1|SDEV:5
-
-							case 0x21://INIT
-								if(rdram_sdevid < rdram_devices)
-								{
-									rdram_sdevid++;
-									return 0x1F;
-								}
-							return 0;
-
-							case 0x23://CNFGA
-								return 0x0D0D;	//PVER=3 | MVER=16 | DBL=1 | REFBIT=5
-
-							case 0x24://CNFGB
-								//0x0110 for PSX  SVER=0 | CORG=8(5x9x7) | SPT=1 | DEVTYP=0 | BYTE=0
-								return 0x0090;	//SVER=0 | CORG=4(5x9x6) | SPT=1 | DEVTYP=0 | BYTE=0
-
-							case 0x40://DEVID
-								return psHu32(MCH_RICM) & 0x1F;	// =SDEV
-						}
-					}
-				return 0;
-			}
-		}
-		break;
-		default: break;
-	}
-	//Hack for Transformers and Test Drive Unlimited to simulate filling the VIF FIFO
-	//It actually stalls VIF a few QW before the end of the transfer, so we need to pretend its all gone
-	//else itll take aaaaaaaaages to boot.
-	if(mem == (D1_CHCR + 0x10) && CHECK_VIFFIFOHACK)
-		return psHu32(mem) + (vif1ch.qwc * 16);
-
-	/*if((mem == GIF_CHCR) && !vif1ch.chcr.STR && gifRegs.stat.M3P && gifRegs.stat.APATH != 3)
-	{
-		//Hack for Wallace and Gromit Curse Project Zoo - Enabled the mask, then starts a new
-		//GIF DMA, the mask never comes off and it won't proceed until this is unset.
-		//Unsetting it works too but messes up other PATH3 games.
-		//If STR is already unset, it won't make the slightest difference.
-		return (psHu32(mem) & ~0x100);
-	}*/
-	return psHu32(mem);
-}
-
 template< uint page >
-mem32_t hwRead32(u32 mem)
-{
-	return _hwRead32<page,false>(mem);
-}
-
-mem32_t hwRead32_page_0F_INTC_HACK(u32 mem)
-{
-	return _hwRead32<0x0f,true>(mem);
-}
-
-// --------------------------------------------------------------------------------------
-//  hwRead8 / hwRead16 / hwRead64 / hwRead128
-// --------------------------------------------------------------------------------------
-
-template< uint page >
-mem8_t _hwRead8(u32 mem)
-{
-	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
-	return ((u8*)&ret32)[mem & 0x03];
-}
-
-template< uint page >
-mem8_t hwRead8(u32 mem)
-{
-	return _hwRead8<page>(mem);
-}
-
-template< uint page >
-mem16_t _hwRead16(u32 mem)
-{
-	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
-	return ((u16*)&ret32)[(mem>>1) & 0x01];
-}
-
-template< uint page >
-mem16_t hwRead16(u32 mem)
-{
-	return _hwRead16<page>(mem);
-}
-
-mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
-{
-	u32 ret32 = _hwRead32<0x0f, true>(mem & ~0x03);
-	return ((u16*)&ret32)[(mem>>1) & 0x01];
-}
-
-template< uint page >
-static u64 _hwRead64(u32 mem)
-{
-	switch (page)
-	{
-		case 0x02:
-			return ipuRead64(mem);
-
-		case 0x04:
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		{
-			// [Ps2Confirm] Reading from FIFOs using non-128 bit reads is a complete mystery.
-			// No game is known to attempt such a thing (yay!), so probably nothing for us to
-			// worry about.  Chances are, though, doing so is "legal" and yields some sort
-			// of reproducible behavior.  Candidate for real hardware testing.
-
-			// Current assumption: Reads 128 bits and discards the unused portion.
-
-			uint wordpart = (mem >> 3) & 0x1;
-			r128 full = _hwRead128<page>(mem & ~0x0f);
-			return *(reinterpret_cast<u64*>(&full) + wordpart);
-		}
-		case 0x0F:
-			if ((mem & 0xffffff00) == 0x1000f300)
-			{
-				if (mem == 0x1000f3E0)
-				{
-
-					ReadFifoSingleWord();
-					u32 lo = psHu32(0x1000f3E0);
-					ReadFifoSingleWord();
-					u32 hi = psHu32(0x1000f3E0);
-					return static_cast<u64>(lo) | (static_cast<u64>(hi) << 32);
-				}
-			}
-		default: break;
-	}
-
-	return static_cast<u64>(_hwRead32<page, false>(mem));
-}
-
-template< uint page >
-mem64_t hwRead64(u32 mem)
-{
-	return _hwRead64<page>(mem);
-}
-
-template< uint page >
-RETURNS_R128 _hwRead128(u32 mem)
+RETURNS_R128 hwRead128(u32 mem)
 {
 	alignas(16) mem128_t result;
 
@@ -297,8 +50,7 @@ RETURNS_R128 _hwRead128(u32 mem)
 		case 0x07:
 			if (mem & 0x10)
 				return r128_zero(); // IPUin is write-only
-			else
-				ReadFIFO_IPUout(&result);
+			ReadFIFO_IPUout(&result);
 			break;
 
 		case 0x04:
@@ -336,15 +88,227 @@ RETURNS_R128 _hwRead128(u32 mem)
 			break;
 
 		default:
-			return r128_from_u64_dup(_hwRead64<page>(mem));
+			return r128_from_u64_dup(hwRead64<page>(mem));
 	}
 	return r128_load(&result);
 }
 
-template< uint page >
-RETURNS_R128 hwRead128(u32 mem)
+
+template< uint page, bool intcstathack >
+mem32_t _hwRead32(u32 mem)
 {
-	return _hwRead128<page>(mem);
+	switch( page )
+	{
+		case 0x00:	return rcntRead32<0x00>( mem );
+		case 0x01:	return rcntRead32<0x01>( mem );
+
+		case 0x02:	return ipuRead32( mem );
+
+		case 0x03:
+			if (mem >= EEMemoryMap::VIF0_Start)
+			{
+				if(mem >= EEMemoryMap::VIF1_Start)
+					return vifRead32<1>(mem);
+				return vifRead32<0>(mem);
+			}
+			return dmacRead32<0x03>( mem );
+
+		case 0x04:
+		case 0x05:
+		case 0x06:
+		case 0x07:
+		{
+			// [Ps2Confirm] Reading from FIFOs using non-128 bit reads is a complete mystery.
+			// No game is known to attempt such a thing (yay!), so probably nothing for us to
+			// worry about.  Chances are, though, doing so is "legal" and yields some sort
+			// of reproducible behavior.  Candidate for real hardware testing.
+			// Current assumption: Reads 128 bits and discards the unused portion.
+
+			r128 out128 = hwRead128<page>(mem & ~0x0f);
+			return reinterpret_cast<u32*>(&out128)[(mem >> 2) & 0x3];
+		}
+		break;
+
+		case 0x0f:
+		{
+			// INTC_STAT shortcut for heavy spinning.
+			// Performance Note: Visual Studio handles this best if we just manually check for it here,
+			// outside the context of the switch statement below.  This is likely fixed by PGO also,
+			// but it's an easy enough conditional to account for anyways.
+
+			if (mem == INTC_STAT)
+			{
+				// Disable INTC hack when in PS1 mode as it seems to break games.
+				if (intcstathack && !(psxHu32(HW_ICFG) & (1 << 3)))
+					IntCHackCheck();
+				return psHu32(INTC_STAT);
+			}
+
+			// todo: psx mode: this is new
+			if (((mem & 0x1FFFFFFF) >= EEMemoryMap::SBUS_PS1_Start) && ((mem & 0x1FFFFFFF) < EEMemoryMap::SBUS_PS1_End))
+				return PGIFr((mem & 0x1FFFFFFF));
+
+			// WARNING: this code is never executed anymore due to previous condition.
+			// It requires investigation of what to do.
+			if ((mem & 0x1000ff00) == 0x1000f300)
+			{
+				int ret = 0;
+				u32 sif2fifosize = std::min(sif2.fifo.size, 7);
+
+				switch (mem & 0xf0)
+				{
+					case 0x00:
+						return psxHu32(0x1f801814);
+					case 0x80:
+						ret = psHu32(mem) | (sif2fifosize << 16);
+						if (sif2.fifo.size > 0)
+							ret |= 0x80000000;
+						return ret;
+					case 0xc0:
+						ReadFifoSingleWord();
+						return psHu32(mem);
+					case 0xe0:
+						//ret = 0xa000e1ec;
+						if (sif2.fifo.size > 0)
+						{
+							ReadFifoSingleWord();
+							return psHu32(mem);
+						}
+						break;
+				}
+				return 0;
+
+
+			}
+			switch( mem )
+			{
+				case SIO_ISR:
+
+				case 0x1000f410:
+				case MCH_RICM:
+					return 0;
+
+				case SBUS_F240:
+					return psHu32(SBUS_F240) | 0xF0000102;
+				case SBUS_F260:
+					return psHu32(SBUS_F260);
+				case MCH_DRD:
+					if( !((psHu32(MCH_RICM) >> 6) & 0xF) )
+					{
+						switch ((psHu32(MCH_RICM)>>16) & 0xFFF)
+						{
+							//MCH_RICM: x:4|SA:12|x:5|SDEV:1|SOP:4|SBC:1|SDEV:5
+
+							case 0x21: /* INIT */
+								if (rdram_sdevid < rdram_devices)
+								{
+									rdram_sdevid++;
+									return 0x1F;
+								}
+								return 0;
+
+							case 0x23: /* CNFGA */
+								return 0x0D0D;	//PVER=3 | MVER=16 | DBL=1 | REFBIT=5
+
+							case 0x24: /* CNFGB */
+								//0x0110 for PSX  SVER=0 | CORG=8(5x9x7) | SPT=1 | DEVTYP=0 | BYTE=0
+								return 0x0090;	//SVER=0 | CORG=4(5x9x6) | SPT=1 | DEVTYP=0 | BYTE=0
+
+							case 0x40://DEVID
+								return psHu32(MCH_RICM) & 0x1F;	// =SDEV
+						}
+					}
+					return 0;
+			}
+		}
+		break;
+		default: break;
+	}
+	//Hack for Transformers and Test Drive Unlimited to simulate filling the VIF FIFO
+	//It actually stalls VIF a few QW before the end of the transfer, so we need to pretend its all gone
+	//else itll take aaaaaaaaages to boot.
+	if(mem == (D1_CHCR + 0x10) && CHECK_VIFFIFOHACK)
+		return psHu32(mem) + (vif1ch.qwc * 16);
+
+	return psHu32(mem);
+}
+
+template< uint page >
+mem32_t hwRead32(u32 mem)
+{
+	return _hwRead32<page,false>(mem);
+}
+
+mem32_t hwRead32_page_0F_INTC_HACK(u32 mem)
+{
+	return _hwRead32<0x0f,true>(mem);
+}
+
+// --------------------------------------------------------------------------------------
+//  hwRead8 / hwRead16 / hwRead64 / hwRead128
+// --------------------------------------------------------------------------------------
+
+template< uint page >
+mem8_t hwRead8(u32 mem)
+{
+	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
+	return ((u8*)&ret32)[mem & 0x03];
+}
+
+template< uint page >
+mem16_t hwRead16(u32 mem)
+{
+	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
+	return ((u16*)&ret32)[(mem>>1) & 0x01];
+}
+
+mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
+{
+	u32 ret32 = _hwRead32<0x0f, true>(mem & ~0x03);
+	return ((u16*)&ret32)[(mem>>1) & 0x01];
+}
+
+template< uint page >
+mem64_t hwRead64(u32 mem)
+{
+	switch (page)
+	{
+		case 0x02:
+			return ipuRead64(mem);
+
+		case 0x04:
+		case 0x05:
+		case 0x06:
+		case 0x07:
+		{
+			// [Ps2Confirm] Reading from FIFOs using non-128 bit reads is a complete mystery.
+			// No game is known to attempt such a thing (yay!), so probably nothing for us to
+			// worry about.  Chances are, though, doing so is "legal" and yields some sort
+			// of reproducible behavior.  Candidate for real hardware testing.
+
+			// Current assumption: Reads 128 bits and discards the unused portion.
+
+			uint wordpart = (mem >> 3) & 0x1;
+			r128 full = hwRead128<page>(mem & ~0x0f);
+			return *(reinterpret_cast<u64*>(&full) + wordpart);
+		}
+		case 0x0F:
+			if ((mem & 0xffffff00) == 0x1000f300)
+			{
+				if (mem == 0x1000f3E0)
+				{
+
+					ReadFifoSingleWord();
+					u32 lo = psHu32(0x1000f3E0);
+					ReadFifoSingleWord();
+					u32 hi = psHu32(0x1000f3E0);
+					return static_cast<u64>(lo) | (static_cast<u64>(hi) << 32);
+				}
+			}
+		default: break;
+	}
+
+	return static_cast<u64>(_hwRead32<page, false>(mem));
 }
 
 #define InstantizeHwRead(pageidx) \
