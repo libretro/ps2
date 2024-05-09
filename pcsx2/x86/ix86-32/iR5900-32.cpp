@@ -458,10 +458,6 @@ static void recAlloc(void)
 		s_nInstCacheSize = 128;
 		s_pInstCache = (EEINST*)malloc(sizeof(EEINST) * s_nInstCacheSize);
 	}
-
-	// No errors.. Proceed with initialization:
-
-	_DynGen_Dispatchers();
 }
 
 alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
@@ -472,6 +468,8 @@ static void recResetRaw(void)
 	recAlloc();
 
 	recMem->Reset();
+	_DynGen_Dispatchers();
+	vtlb_DynGenDispatchers();
 	ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize);
 	memset(recRAMCopy, 0, Ps2MemSize::MainRam);
 
