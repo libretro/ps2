@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "GSVector.h"
 #include <cfloat>
+#include <iterator> /* std::size() - TODO/FIXME - C++17 */
 
 CONSTINIT const GSVector4i GSVector4i::m_xff[17] =
 {
@@ -189,10 +190,10 @@ GSVector4i GSVector4i::fit(int arx, int ary) const
 	return r;
 }
 
-static const int s_ar[][2] = {{0, 0}, {4, 3}, {16, 9}};
 
 GSVector4i GSVector4i::fit(int preset) const
 {
+	static const int s_ar[][2] = {{0, 0}, {4, 3}, {16, 9}};
 	GSVector4i r;
 
 	if (preset > 0 && preset < (int)std::size(s_ar))

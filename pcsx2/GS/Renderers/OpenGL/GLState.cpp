@@ -14,6 +14,7 @@
  */
 
 #include "PrecompiledHeader.h"
+#include <iterator> /* std::begin(), std::end() */
 #include "GLState.h"
 
 namespace GLState
