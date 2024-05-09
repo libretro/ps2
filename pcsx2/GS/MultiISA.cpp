@@ -17,10 +17,6 @@
 #include "MultiISA.h"
 #include <xbyak/xbyak_util.h>
 
-#ifdef _WIN32
-#define strcasecmp _stricmp
-#endif
-
 static Xbyak::util::Cpu s_cpu;
 
 static ProcessorFeatures::VectorISA getCurrentISA()
