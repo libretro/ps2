@@ -90,8 +90,6 @@ void cpuReset()
 	psxReset();
 	pgifInit();
 
-	hwReset();
-
 	extern void Deci2Reset();		// lazy, no good header for it yet.
 	Deci2Reset();
 

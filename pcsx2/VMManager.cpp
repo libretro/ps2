@@ -643,7 +643,9 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	ForgetLoadedPatches();
 	gsUpdateFrequency(EmuConfig);
+
 	cpuReset();
+	hwReset();
 
 	s_state.store(VMState::Paused, std::memory_order_release);
 
@@ -743,7 +745,9 @@ void VMManager::Reset()
 	Internal::ClearCPUExecutionCaches();
 	memBindConditionalHandlers();
 	UpdateVSyncRate(true);
+
 	cpuReset();
+	hwReset();
 
 	// gameid change, so apply settings
 	if (game_was_started)

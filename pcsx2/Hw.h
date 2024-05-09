@@ -363,7 +363,7 @@ enum GSRegisterAddresses
 	GS_SIGLBLID		=	0x12001080
 };
 
-extern void hwReset();
+void hwReset(void);
 
 extern const int rdram_devices;
 extern int rdram_sdevid;

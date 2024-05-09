@@ -59,17 +59,18 @@ void hwReset(void)
 
 __fi uint intcInterrupt(void)
 {
-	if ((psHu32(INTC_STAT)) == 0)
+	u32 intc_stat = psHu32(INTC_STAT);
+	if (intc_stat == 0)
 		return 0;
-	if ((psHu32(INTC_STAT) & psHu32(INTC_MASK)) == 0)
+	if ((intc_stat & psHu32(INTC_MASK)) == 0)
 		return 0;
 
-	if(psHu32(INTC_STAT) & 0x2){
+	if (intc_stat & 0x2)
+	{
 		counters[0].hold = rcntRcount(0);
 		counters[1].hold = rcntRcount(1);
 	}
 
-	//cpuException(0x400, cpuRegs.branch);
 	return 0x400;
 }
 
@@ -82,7 +83,6 @@ __fi uint dmacInterrupt(void)
 	if (!dmacRegs.ctrl.DMAE || psHu8(DMAC_ENABLER+2) == 1)
 		return 0;
 
-	//cpuException(0x800, cpuRegs.branch);
 	return 0x800;
 }
 
