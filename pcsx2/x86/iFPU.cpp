@@ -515,8 +515,7 @@ static void FPU_SUB(int regd, int regt)
 // The PS2's result mantissa is either equal to x86's rounding to zero result mantissa
 // or SMALLER (by 0x1). (this means that x86's other rounding modes are only less similar to PS2's mul)
 //------------------------------------------------------------------
-
-void FPU_MUL(int regd, int regt, bool reverseOperands)
+static void FPU_MUL(int regd, int regt, bool reverseOperands)
 {
 	u8 *endMul = nullptr;
 
@@ -549,28 +548,25 @@ void FPU_MUL(int regd, int regt, bool reverseOperands)
 		x86SetJ8(endMul);
 }
 
-void FPU_MUL(int regd, int regt) { FPU_MUL(regd, regt, false); }
-void FPU_MUL_REV(int regd, int regt) { FPU_MUL(regd, regt, true); } //reversed operands
+static void FPU_MUL_WRAP(int regd, int regt) { FPU_MUL(regd, regt, false); }
+static void FPU_MUL_WRAP_REV(int regd, int regt) { FPU_MUL(regd, regt, true); } //reversed operands
 
 //------------------------------------------------------------------
 // CommutativeOp XMM (used for ADD, MUL, MAX, and MIN opcodes)
 //------------------------------------------------------------------
 #ifdef FPU_CORRECT_ADD_SUB
 static void (*recComOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
-	FPU_ADD_WRAP, FPU_MUL,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+	FPU_ADD_WRAP, FPU_MUL_WRAP,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
 static void (*recComOpXMM_to_XMM_REV[])(x86SSERegType, x86SSERegType) = { //reversed operands
-	FPU_ADD_WRAP, FPU_MUL_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+	FPU_ADD_WRAP, FPU_MUL_WRAP_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
 #else
 static void (*recComOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
-	FPU_ADD, FPU_MUL,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+	FPU_ADD, FPU_MUL_WRAP,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
 static void (*recComOpXMM_to_XMM_REV[])(x86SSERegType, x86SSERegType) = { //reversed operands
-	FPU_ADD, FPU_MUL_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+	FPU_ADD, FPU_MUL_WRAP_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
 #endif
 
-//static void (*recComOpM32_to_XMM[] )(x86SSERegType, uptr) = {
-//	SSE_ADDSS_M32_to_XMM, SSE_MULSS_M32_to_XMM, SSE_MAXSS_M32_to_XMM, SSE_MINSS_M32_to_XMM };
-
-int recCommutativeOp(int info, int regd, int op)
+static int recCommutativeOp(int info, int regd, int op)
 {
 	int t0reg = _allocTempXMMreg(XMMT_FPS);
 
@@ -681,7 +677,7 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 // BC1x XMM
 //------------------------------------------------------------------
 
-static void _setupBranchTest()
+static void _setupBranchTest(void)
 {
 	_eeFlushAllDirty();
 
@@ -1044,24 +1040,24 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	xAND(eax, 1); //Check sign (if regt == zero, sign will be set)
 	ajmp32 = JZ32(0); //Skip if not set
 
-		/*--- Check for 0/0 ---*/
-		xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
-		xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
-		xMOVMSKPS(eax, xRegisterSSE(t1reg));
-		xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
-		pjmp1 = JZ8(0); //Skip if not set
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-			pjmp2 = JMP8(0);
-		x86SetJ8(pjmp1); //x/0 but not 0/0
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
-		x86SetJ8(pjmp2);
+	/*--- Check for 0/0 ---*/
+	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
+	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
+	xMOVMSKPS(eax, xRegisterSSE(t1reg));
+	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
+	pjmp1 = JZ8(0); //Skip if not set
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
+	pjmp2 = JMP8(0);
+	x86SetJ8(pjmp1); //x/0 but not 0/0
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
+	x86SetJ8(pjmp2);
 
-		/*--- Make regd +/- Maximum ---*/
-		xXOR.PS(xRegisterSSE(regd), xRegisterSSE(regt)); // Make regd Positive or Negative
-		xAND.PS(xRegisterSSE(regd), ptr[&s_neg[0]]); // Get the sign bit
-		xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum
-		//xMOVSSZX(xRegisterSSE(regd), ptr[&g_maxvals[0]]);
-		bjmp32 = JMP32(0);
+	/*--- Make regd +/- Maximum ---*/
+	xXOR.PS(xRegisterSSE(regd), xRegisterSSE(regt)); // Make regd Positive or Negative
+	xAND.PS(xRegisterSSE(regd), ptr[&s_neg[0]]); // Get the sign bit
+	xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum
+	//xMOVSSZX(xRegisterSSE(regd), ptr[&g_maxvals[0]]);
+	bjmp32 = JMP32(0);
 
 	x86SetJ32(ajmp32);
 
