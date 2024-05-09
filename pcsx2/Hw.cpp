@@ -15,8 +15,6 @@
 
 #include "PrecompiledHeader.h"
 
-#include "common/Console.h"
-
 #include <cstring> /* memset */
 
 #include "Common.h"
@@ -24,7 +22,6 @@
 #include "Hardware.h"
 #include "SPU2/spu2.h"
 #include "USB/USB.h"
-#include "x86/newVif.h"
 
 using namespace R5900;
 
@@ -98,7 +95,7 @@ void hwDmacIrq(int n)
 	if(psHu16(DMAC_STAT+2) & (1<<n))cpuTestDMACInts();
 }
 
-void FireMFIFOEmpty()
+void FireMFIFOEmpty(void)
 {
 	hwDmacIrq(DMAC_MFIFO_EMPTY);
 
@@ -142,8 +139,6 @@ __ri void hwMFIFOResume(u32 transferred)
 					CPU_INT(DMAC_MFIFO_VIF, transferred * BIAS);
 				}
 
-				//Apparently this is bad, i guess so, the data is going to memory rather than the FIFO
-				//vif1Regs.stat.FQC = 0x10; // FQC=16
 			}
 			break;
 		case MFD_GIF:
@@ -170,7 +165,7 @@ __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {
 			// Set MADR to QW afer tag, and set TADR to QW following the data.
 			dma.tadr += 16;
 			dma.madr = dma.tadr;
-			return false;
+			break;
 
 		case TAG_NEXT: // Next - Transfer QWC following tag. TADR = ADDR
 			{
@@ -178,13 +173,13 @@ __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {
 				u32 temp = dma.madr;
 				dma.madr = dma.tadr + 16;
 				dma.tadr = temp;
-				return false;
 			}
+			break;
 		case TAG_REF: // Ref - Transfer QWC from ADDR field
 		case TAG_REFS: // Refs - Transfer QWC from ADDR field (Stall Control)
 			//Set TADR to next tag
 			dma.tadr += 16;
-			return false;
+			break;
 
 		case TAG_CALL: // Call - Transfer QWC following the tag, save succeeding tag
 			{
@@ -208,7 +203,6 @@ __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {
 						break;
 
 					default:
-						Console.Warning("Call Stack Overflow (report if it fixes/breaks anything)");
 						return true;
 				}
 
@@ -245,7 +239,7 @@ __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {
 					// If ASR1 and ASR0 are messed up, end the transfer.
 					return true;
 			}
-			return false;
+			break;
 
 		case TAG_END: // End - Transfer QWC following the tag
             //Set MADR to data following the tag, and end the transfer.
