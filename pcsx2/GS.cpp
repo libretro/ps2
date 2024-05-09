@@ -51,8 +51,6 @@ void gsUpdateFrequency(Pcsx2Config& config)
 static __fi void gsCSRwrite( const tGS_CSR& csr )
 {
 	if (csr.RESET) {
-		//Console.Warning( "csr.RESET" );
-		//gifUnit.Reset(true); // Don't think gif should be reset...
 		gifUnit.gsSIGNAL.queued = false;
 		gifUnit.gsFINISH.gsFINISHFired = true;
 		// Privilage registers also reset.

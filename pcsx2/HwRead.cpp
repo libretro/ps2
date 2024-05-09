@@ -85,9 +85,8 @@ mem32_t _hwRead32(u32 mem)
 			}
 
 			// todo: psx mode: this is new
-			if (((mem & 0x1FFFFFFF) >= EEMemoryMap::SBUS_PS1_Start) && ((mem & 0x1FFFFFFF) < EEMemoryMap::SBUS_PS1_End)) {
+			if (((mem & 0x1FFFFFFF) >= EEMemoryMap::SBUS_PS1_Start) && ((mem & 0x1FFFFFFF) < EEMemoryMap::SBUS_PS1_End))
 				return PGIFr((mem & 0x1FFFFFFF));
-			}
 
 			// WARNING: this code is never executed anymore due to previous condition.
 			// It requires investigation of what to do.

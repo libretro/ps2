@@ -18,8 +18,6 @@
 
 #include <cstring> /* memset/memcpy */
 
-#include "common/Console.h"
-
 #include "GS.h"
 #include "Gif_Unit.h"
 #include "Vif_Dma.h"
@@ -265,7 +263,6 @@ __fi void gifInterrupt(void)
 	{
 		if (!dmacRegs.ctrl.DMAE)
 		{
-			Console.Warning("gs dma masked, re-scheduling...");
 			// Re-raise the int shortly in the future
 			GifDMAInt(64);
 			CPU_SET_DMASTALL(DMAC_GIF, true);
@@ -334,7 +331,6 @@ static __fi void GIFchain(void)
 		// Must increment madr and clear qwc, else it loops
 		gifch.madr += gifch.qwc * 16;
 		gifch.qwc = 0;
-		Console.Warning("Hackfix - NULL GIFchain");
 		return;
 	}
 

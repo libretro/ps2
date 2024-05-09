@@ -157,7 +157,7 @@ void intDoBranch(u32 target)
 
 void intSetBranch(void)
 {
-	branch2 = /*cpuRegs.branch =*/ 1;
+	branch2 = 1;
 }
 
 ////////////////////////////////////////////////////////////////////

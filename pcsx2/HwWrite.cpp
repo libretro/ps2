@@ -375,21 +375,21 @@ void TAKES_R128 _hwWrite128(u32 mem, r128 srcval)
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_VIF0(&usrcval);
 			}
-		return;
+			return;
 
 		case 0x05:
 			{
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_VIF1(&usrcval);
 			}
-		return;
+			return;
 
 		case 0x06:
 			{
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_GIF(&usrcval);
 			}
-		return;
+			return;
 
 		case 0x07:
 			if (mem & 0x10)
@@ -397,16 +397,7 @@ void TAKES_R128 _hwWrite128(u32 mem, r128 srcval)
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_IPUin(&usrcval);
 			}
-			else
-			{
-				// [Ps2Confirm] Most likely writes to IPUout will be silently discarded.  A test
-				// to confirm such would be easy -- just dump some data to FIFO_IPUout and see
-				// if the program causes BUSERR or something on the PS2.
-
-				//WriteFIFO_IPUout(srcval);
-			}
-
-		return;
+			return;
 
 		case 0x0F:
 			// todo: psx mode: this is new
@@ -419,7 +410,6 @@ void TAKES_R128 _hwWrite128(u32 mem, r128 srcval)
 		default: break;
 	}
 
-	// All upper bits of all non-FIFO 128-bit HW writes are almost certainly disregarded. --air
 	hwWrite64<page>(mem, r128_to_u64(srcval));
 }
 
