@@ -1198,9 +1198,8 @@ static void iopRecRecompile(const u32 startpc)
 		recResetIOP();
 	}
 
-	x86SetPtr(recPtr);
-	x86Align(16);
-	recPtr = x86Ptr;
+	xSetPtr(recPtr);
+	recPtr = xGetAlignedCallTarget();
 
 	s_pCurBlock = PSX_GETBLOCK(startpc);
 

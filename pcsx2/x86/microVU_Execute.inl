@@ -34,7 +34,7 @@ static bool mvuNeedsFPCRUpdate(mV)
 // Generates the code for entering/exit recompiled blocks
 void mVUdispatcherAB(mV)
 {
-	mVU.startFunct = x86Ptr;
+	mVU.startFunct = xGetAlignedCallTarget();
 
 	{
 		int m_offset;
@@ -82,7 +82,7 @@ void mVUdispatcherAB(mV)
 		// Jump to Recompiled Code Block
 		xJMP(rax);
 
-		mVU.exitFunct = x86Ptr;
+		mVU.exitFunct = xGetAlignedCallTarget();
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -101,7 +101,7 @@ void mVUdispatcherAB(mV)
 // Generates the code for resuming/exit xgkick
 void mVUdispatcherCD(mV)
 {
-	mVU.startFunctXG = x86Ptr;
+	mVU.startFunctXG = xGetAlignedCallTarget();
 
 	{
 		int m_offset;
@@ -120,7 +120,7 @@ void mVUdispatcherCD(mV)
 		// Jump to Recompiled Code Block
 		xJMP(ptrNative[&mVU.resumePtrXG]);
 
-		mVU.exitFunctXG = x86Ptr;
+		mVU.exitFunctXG = xGetAlignedCallTarget();
 
 		// Backup Status Flag (other regs were backed up on xgkick)
 		xMOV(ptr32[&mVU.regs().micro_statusflags[0]], gprF0);
@@ -139,7 +139,7 @@ void mVUdispatcherCD(mV)
 
 static void mVUGenerateWaitMTVU(mV)
 {
-	mVU.waitMTVU = x86Ptr;
+	mVU.waitMTVU = xGetAlignedCallTarget();
 
 	int num_xmms = 0, num_gprs = 0;
 
@@ -212,7 +212,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 static void mVUGenerateCopyPipelineState(mV)
 {
-	mVU.copyPLState = x86Ptr;
+	mVU.copyPLState = xGetAlignedCallTarget();
 
 	if (cpuinfo_has_x86_avx2())
 	{
@@ -332,11 +332,11 @@ _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 // Cleanup Functions
 //------------------------------------------------------------------
 
-_mVUt void mVUcleanUp()
+_mVUt void mVUcleanUp(void)
 {
 	microVU& mVU = mVUx;
 
-	mVU.prog.x86ptr = x86Ptr;
+	mVU.prog.x86ptr = xGetAlignedCallTarget();
 
 	if ((xGetPtr() < mVU.prog.x86start) || (xGetPtr() >= mVU.prog.x86end))
 		mVUreset(mVU, false);

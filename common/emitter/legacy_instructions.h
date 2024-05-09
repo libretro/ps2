@@ -31,7 +31,6 @@ ATTR_DEP extern void x86SetJ16(u16* j16);
 ATTR_DEP extern void x86SetJ16A(u16* j16);
 ATTR_DEP extern void x86SetJ32(u32* j32);
 ATTR_DEP extern void x86SetJ32A(u32* j32);
-ATTR_DEP extern void x86Align(int bytes);
 //------------------------------------------------------------------
 
 ////////////////////////////////////
