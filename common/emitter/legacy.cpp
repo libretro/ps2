@@ -79,25 +79,6 @@ emitterT void x86SetJ8(u8* j8)
 	*j8      = (u8)((x86Ptr - j8) - 1);
 }
 
-void x86SetJ8A(u8* j8)
-{
-	u32 jump = (x86Ptr - j8) - 1;
-
-	if (((uptr)x86Ptr & 0xf) > 4)
-	{
-
-		uptr newjump = jump + 16 - ((uptr)x86Ptr & 0xf);
-
-		if (newjump <= 0x7f)
-		{
-			jump = newjump;
-			while ((uptr)x86Ptr & 0xf)
-				*x86Ptr++ = 0x90;
-		}
-	}
-	*j8 = (u8)jump;
-}
-
 ////////////////////////////////////////////////////
 emitterT void x86SetJ32(u32* j32)
 {

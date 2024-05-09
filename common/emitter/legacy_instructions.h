@@ -25,9 +25,6 @@
 // legacy jump/align functions
 //------------------------------------------------------------------
 ATTR_DEP extern void x86SetJ8(u8* j8);
-ATTR_DEP extern void x86SetJ8A(u8* j8);
-ATTR_DEP extern void x86SetJ16(u16* j16);
-ATTR_DEP extern void x86SetJ16A(u16* j16);
 ATTR_DEP extern void x86SetJ32(u32* j32);
 ATTR_DEP extern void x86SetJ32A(u32* j32);
 //------------------------------------------------------------------
@@ -86,17 +83,6 @@ ATTR_DEP extern u8* JNLE8(u8 to);
 ATTR_DEP extern u8* JO8(u8 to);
 // jno rel8
 ATTR_DEP extern u8* JNO8(u8 to);
-
-/*
-// jb rel16
-ATTR_DEP extern u16*  JA16( u16 to );
-// jb rel16
-ATTR_DEP extern u16*  JB16( u16 to );
-// je rel16
-ATTR_DEP extern u16*  JE16( u16 to );
-// jz rel16
-ATTR_DEP extern u16*  JZ16( u16 to );
-*/
 
 // jns rel32
 ATTR_DEP extern u32* JNS32(u32 to);

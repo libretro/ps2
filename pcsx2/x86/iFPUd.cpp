@@ -178,9 +178,11 @@ static void ToDouble(int reg)
 static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
 {
 	if (flags)
+	{
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO | FPUflagU));
-	if (flags && acc)
-		xAND(ptr32[&fpuRegs.ACCflag], ~1);
+		if (acc)
+			xAND(ptr32[&fpuRegs.ACCflag], ~1);
+	}
 
 	xMOVAPS(xRegisterSSE(absreg), xRegisterSSE(reg));
 	xAND.PD(xRegisterSSE(absreg), ptr[&s_const.dbl_s_pos]);
@@ -208,15 +210,20 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	x86SetJ8(to_overflow);
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg));
 	xOR.PS(xRegisterSSE(reg), ptr[&s_const.pos]); //clamp
-	if (flags && FPU_FLAGS_OVERFLOW)
+#ifdef FPU_FLAGS_OVERFLOW
+	if (flags)
+	{
 		xOR(ptr32[&fpuRegs.fprc[31]], (FPUflagO | FPUflagSO));
-	if (flags && FPU_FLAGS_OVERFLOW && acc)
-		xOR(ptr32[&fpuRegs.ACCflag], 1);
+		if (acc)
+			xOR(ptr32[&fpuRegs.ACCflag], 1);
+	}
+#endif
 	u8* end3 = JMP8(0);
 
 	x86SetJ8(to_underflow);
 	u8* end4 = nullptr;
-	if (flags && FPU_FLAGS_UNDERFLOW) //set underflow flags if not zero
+#ifdef FPU_FLAGS_UNDERFLOW
+	if (flags) //set underflow flags if not zero
 	{
 		xXOR.PD(xRegisterSSE(absreg), xRegisterSSE(absreg));
 		xUCOMI.SD(xRegisterSSE(reg), xRegisterSSE(absreg));
@@ -239,6 +246,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 		x86SetJ8(is_zero);
 	}
+#endif
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg));
 	xAND.PS(xRegisterSSE(reg), ptr[s_const.neg]); //flush to zero
 
@@ -246,33 +254,31 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	x86SetJ32(end2);
 
 	x86SetJ8(end3);
-	if (flags && FPU_FLAGS_UNDERFLOW && addsub)
+#ifdef FPU_FLAGS_UNDERFLOW
+	if (flags && addsub)
 		x86SetJ8(end4);
+#endif
 }
 
-static void ToPS2FPU(int reg, bool flags, int absreg, bool acc, bool addsub = false)
+#ifdef FPU_RESULT
+#define ToPS2FPU ToPS2FPU_Full
+//sets the maximum (positive or negative) value into regd.
+#define SetMaxValue(regd) xOR.PS(xRegisterSSE((regd)), ptr[&s_const.pos[0]])
+#else
+static void ToPS2FPU(int reg, bool flags, int absreg, bool acc, bool addsub)
 {
-	if (FPU_RESULT)
-		ToPS2FPU_Full(reg, flags, absreg, acc, addsub);
-	else
-	{
-		xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //clamp
-		xMIN.SS(xRegisterSSE(reg), ptr[&g_maxvals[0]]);
-		xMAX.SS(xRegisterSSE(reg), ptr[&g_minvals[0]]);
-	}
+	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //clamp
+	xMIN.SS(xRegisterSSE(reg), ptr[&g_maxvals[0]]);
+	xMAX.SS(xRegisterSSE(reg), ptr[&g_minvals[0]]);
 }
 
 //sets the maximum (positive or negative) value into regd.
 static void SetMaxValue(int regd)
 {
-	if (FPU_RESULT)
-		xOR.PS(xRegisterSSE(regd), ptr[&s_const.pos[0]]); // set regd to maximum
-	else
-	{
-		xAND.PS(xRegisterSSE(regd), ptr[&s_const.neg[0]]); // Get the sign bit
-		xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum  (CLAMP)!
-	}
+	xAND.PS(xRegisterSSE(regd), ptr[&s_const.neg[0]]); // Get the sign bit
+	xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum  (CLAMP)!
 }
+#endif
 
 #define GET_S(sreg) \
 	do { \
@@ -434,9 +440,10 @@ void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 		x86SetJ8(noHack);
 	}
 
-	ToDouble(sreg); ToDouble(treg);
+	ToDouble(sreg);
+	ToDouble(treg);
 	xMUL.SD(xRegisterSSE(sreg), xRegisterSSE(treg));
-	ToPS2FPU(sreg, true, treg, acc);
+	ToPS2FPU(sreg, true, treg, acc, false);
 	xMOVSS(xRegisterSSE(regd), xRegisterSSE(sreg));
 
 	if (CHECK_FPUMULHACK)
@@ -452,12 +459,15 @@ static void (*recFPUOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
 static void recFPUOp(int info, int regd, int op, bool acc)
 {
 	int sreg, treg;
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
-	if (FPU_CORRECT_ADD_SUB)
-		FPU_ADD_SUB(sreg, treg);
+#ifdef FPU_CORRECT_ADD_SUB
+	FPU_ADD_SUB(sreg, treg);
+#endif
 
-	ToDouble(sreg); ToDouble(treg);
+	ToDouble(sreg);
+	ToDouble(treg);
 
 	recFPUOpXMM_to_XMM[op](sreg, treg);
 
@@ -490,8 +500,10 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 void recCMP(int info)
 {
 	int sreg, treg;
-	ALLOC_S(sreg); ALLOC_T(treg);
-	ToDouble(sreg); ToDouble(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
+	ToDouble(sreg);
+	ToDouble(treg);
 
 	xUCOMI.SD(xRegisterSSE(sreg), xRegisterSSE(treg));
 
@@ -626,10 +638,10 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 		xMOVMSKPS(eax, xRegisterSSE(t1reg));
 		xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
 		pjmp1 = JZ8(0); //Skip if not set
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-			pjmp2 = JMP8(0);
+		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
+		pjmp2 = JMP8(0);
 		x86SetJ8(pjmp1); //x/0 but not 0/0
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
+		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
 		x86SetJ8(pjmp2);
 
 		//--- Make regd +/- Maximum ---
@@ -640,11 +652,12 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	x86SetJ32(ajmp32);
 
 	//--- Normal Divide ---
-	ToDouble(regd); ToDouble(regt);
+	ToDouble(regd);
+	ToDouble(regt);
 
 	xDIV.SD(xRegisterSSE(regd), xRegisterSSE(regt));
 
-	ToPS2FPU(regd, false, regt, false);
+	ToPS2FPU(regd, false, regt, false, false);
 
 	x86SetJ32(bjmp32);
 
@@ -653,11 +666,12 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 
 static void recDIVhelper2(int regd, int regt) // Doesn't sets flags
 {
-	ToDouble(regd); ToDouble(regt);
+	ToDouble(regd);
+	ToDouble(regt);
 
 	xDIV.SD(xRegisterSSE(regd), xRegisterSSE(regt));
 
-	ToPS2FPU(regd, false, regt, false);
+	ToPS2FPU(regd, false, regt, false, false);
 }
 
 alignas(16) static FPControlRegister roundmode_nearest, roundmode_neg;
@@ -693,7 +707,8 @@ void recDIV_S_xmm(int info)
 
 	int sreg, treg;
 
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
 	if (FPU_FLAGS_ID)
 		recDIVhelper1(sreg, treg);
@@ -725,14 +740,16 @@ FPURECOMPILE_CONSTCODE(DIV_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 static void recMaddsub(int info, int regd, int op, bool acc)
 {
 	int sreg, treg;
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
 	FPU_MUL(info, sreg, sreg, treg, false);
 
 	GET_ACC(treg);
 
-	if (FPU_CORRECT_ADD_SUB)
-		FPU_ADD_SUB(treg, sreg); //might be problematic for something!!!!
+#ifdef FPU_CORRECT_ADD_SUB
+	FPU_ADD_SUB(treg, sreg); //might be problematic for something!!!!
+#endif
 
 	//          TEST FOR ACC/MUL OVERFLOWS, PROPOGATE THEM IF THEY OCCUR
 
@@ -753,10 +770,11 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	x86SetJ8(accovf);
 	SetMaxValue(treg); //just in case... I think it has to be a MaxValue already here
 	CLEAR_OU_FLAGS; //clear U flag
-	if (FPU_FLAGS_OVERFLOW)
-		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagO | FPUflagSO);
-	if (FPU_FLAGS_OVERFLOW && acc)
+#ifdef FPU_FLAGS_OVERFLOW
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagO | FPUflagSO);
+	if (acc)
 		xOR(ptr32[&fpuRegs.ACCflag], 1);
+#endif
 	u32* skipall = JMP32(0);
 
 	//			PERFORM THE ACCUMULATION AND TEST RESULT. CONVERT TO SINGLE
@@ -878,7 +896,8 @@ FPURECOMPILE_CONSTCODE(MSUBA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_REA
 void recMUL_S_xmm(int info)
 {
 	int sreg, treg;
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
 	FPU_MUL(info, EEREC_D, sreg, treg, false);
 	_freeXMMreg(sreg); _freeXMMreg(treg);
@@ -889,7 +908,8 @@ FPURECOMPILE_CONSTCODE(MUL_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 void recMULA_S_xmm(int info)
 {
 	int sreg, treg;
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
 	FPU_MUL(info, EEREC_ACC, sreg, treg, true);
 	_freeXMMreg(sreg); _freeXMMreg(treg);
@@ -977,7 +997,7 @@ void recSQRT_S_xmm(int info)
 
 	xSQRT.SD(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_D));
 
-	ToPS2FPU(EEREC_D, false, t1reg, false);
+	ToPS2FPU(EEREC_D, false, t1reg, false, false);
 
 	if (roundmodeFlag == 1)
 		xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUFPCR.bitmask]);
@@ -1005,8 +1025,8 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xMOVMSKPS(eax, xRegisterSSE(regt));
 	xAND(eax, 1); //Check sign
 	pjmp2 = JZ8(0); //Skip if not set
-		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
-		xAND.PS(xRegisterSSE(regt), ptr[&s_const.pos[0]]); // Make regt Positive
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
+	xAND.PS(xRegisterSSE(regt), ptr[&s_const.pos[0]]); // Make regt Positive
 	x86SetJ8(pjmp2);
 
 	//--- Check for zero ---
@@ -1016,28 +1036,29 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xAND(eax, 1); //Check sign (if regt == zero, sign will be set)
 	pjmp1 = JZ8(0); //Skip if not set
 
-		//--- Check for 0/0 ---
-		xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
-		xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
-		xMOVMSKPS(eax, xRegisterSSE(t1reg));
-		xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
-		qjmp1 = JZ8(0); //Skip if not set
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-			qjmp2 = JMP8(0);
-		x86SetJ8(qjmp1); //x/0 but not 0/0
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
-		x86SetJ8(qjmp2);
+	//--- Check for 0/0 ---
+	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
+	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
+	xMOVMSKPS(eax, xRegisterSSE(t1reg));
+	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
+	qjmp1 = JZ8(0); //Skip if not set
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
+	qjmp2 = JMP8(0);
+	x86SetJ8(qjmp1); //x/0 but not 0/0
+	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
+	x86SetJ8(qjmp2);
 
-		SetMaxValue(regd); //clamp to max
-		pjmp32 = JMP32(0);
+	SetMaxValue(regd); //clamp to max
+	pjmp32 = JMP32(0);
 	x86SetJ8(pjmp1);
 
-	ToDouble(regt); ToDouble(regd);
+	ToDouble(regt);
+	ToDouble(regd);
 
 	xSQRT.SD(xRegisterSSE(regt), xRegisterSSE(regt));
 	xDIV.SD(xRegisterSSE(regd), xRegisterSSE(regt));
 
-	ToPS2FPU(regd, false, regt, false);
+	ToPS2FPU(regd, false, regt, false, false);
 	x86SetJ32(pjmp32);
 
 	_freeXMMreg(t1reg);
@@ -1047,12 +1068,13 @@ static void recRSQRThelper2(int regd, int regt) // Preforms the RSQRT function w
 {
 	xAND.PS(xRegisterSSE(regt), ptr[&s_const.pos[0]]); // Make regt Positive
 
-	ToDouble(regt); ToDouble(regd);
+	ToDouble(regt);
+	ToDouble(regd);
 
 	xSQRT.SD(xRegisterSSE(regt), xRegisterSSE(regt));
 	xDIV.SD(xRegisterSSE(regd), xRegisterSSE(regt));
 
-	ToPS2FPU(regd, false, regt, false);
+	ToPS2FPU(regd, false, regt, false, false);
 }
 
 void recRSQRT_S_xmm(int info)
@@ -1073,7 +1095,8 @@ void recRSQRT_S_xmm(int info)
 		roundmodeFlag = true;
 	}
 
-	ALLOC_S(sreg); ALLOC_T(treg);
+	ALLOC_S(sreg);
+	ALLOC_T(treg);
 
 	if (FPU_FLAGS_ID)
 		recRSQRThelper1(sreg, treg);

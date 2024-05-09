@@ -493,21 +493,21 @@ static void FPU_ADD_SUB(int regd, int regt, int issub)
 	_freeXMMreg(xmmtemp);
 }
 
-void FPU_ADD(int regd, int regt)
+#ifdef FPU_CORRECT_ADD_SUB
+static void FPU_ADD_WRAP(int regd, int regt) { FPU_ADD_SUB(regd, regt, 0); }
+#define FPU_ADD(a, b) FPU_ADD_SUB(a, b, 0)
+#define FPU_SUB(a, b) FPU_ADD_SUB(a, b, 1)
+#else
+static void FPU_ADD(int regd, int regt)
 {
-	if (FPU_CORRECT_ADD_SUB)
-		FPU_ADD_SUB(regd, regt, 0);
-	else
-		xADD.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+	xADD.SS(xRegisterSSE(regd), xRegisterSSE(regt));
 }
 
-void FPU_SUB(int regd, int regt)
+static void FPU_SUB(int regd, int regt)
 {
-	if (FPU_CORRECT_ADD_SUB)
-		FPU_ADD_SUB(regd, regt, 1);
-	else
-		xSUB.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+	xSUB.SS(xRegisterSSE(regd), xRegisterSSE(regt));
 }
+#endif
 
 //------------------------------------------------------------------
 // Note: PS2's multiplication uses some variant of booth multiplication with wallace trees:
@@ -555,11 +555,17 @@ void FPU_MUL_REV(int regd, int regt) { FPU_MUL(regd, regt, true); } //reversed o
 //------------------------------------------------------------------
 // CommutativeOp XMM (used for ADD, MUL, MAX, and MIN opcodes)
 //------------------------------------------------------------------
+#ifdef FPU_CORRECT_ADD_SUB
+static void (*recComOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
+	FPU_ADD_WRAP, FPU_MUL,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+static void (*recComOpXMM_to_XMM_REV[])(x86SSERegType, x86SSERegType) = { //reversed operands
+	FPU_ADD_WRAP, FPU_MUL_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+#else
 static void (*recComOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
 	FPU_ADD, FPU_MUL,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
-
 static void (*recComOpXMM_to_XMM_REV[])(x86SSERegType, x86SSERegType) = { //reversed operands
 	FPU_ADD, FPU_MUL_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
+#endif
 
 //static void (*recComOpM32_to_XMM[] )(x86SSERegType, uptr) = {
 //	SSE_ADDSS_M32_to_XMM, SSE_MULSS_M32_to_XMM, SSE_MAXSS_M32_to_XMM, SSE_MINSS_M32_to_XMM };
