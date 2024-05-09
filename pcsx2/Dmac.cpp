@@ -149,8 +149,6 @@ static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 	//It's invalid for the hardware to write a DMA while it is active, not without Suspending the DMAC
 	if (reg.chcr.STR)
 	{
-		const uint channel = ChannelNumber(mem);
-
 		//As the manual states "Fields other than STR can only be written to when the DMA is stopped"
 		//Also "The DMA may not stop properly just by writing 0 to STR"
 		//So the presumption is that STR can be written to (ala force stop the DMA) but nothing else
@@ -158,6 +156,8 @@ static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 		//it will not work before or during this event.
 		if(chcr.STR == 0)
 		{
+			const uint channel = ChannelNumber(mem);
+
 			reg.chcr.STR = 0;
 			//We need to clear any existing DMA loops that are in progress else they will continue!
 
@@ -180,7 +180,8 @@ static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 
 	reg.chcr._u32 = value;
 
-	//Final Fantasy XII sets the DMA Mode to 3 which doesn't exist. On some channels (like SPR) this will break logic completely. so lets assume they mean chain.
+	//Final Fantasy XII sets the DMA Mode to 3 which doesn't exist. 
+	//On some channels (like SPR) this will break logic completely. so lets assume they mean chain.
 	if (reg.chcr.MOD == 0x3)
 		reg.chcr.MOD = 0x1;
 
