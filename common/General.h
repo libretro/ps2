@@ -65,6 +65,17 @@ namespace HostSys
 	/// Removes the page fault handler. handler is only specified to check against the active callback.
 	void RemovePageFaultHandler(PageFaultHandler handler);
 
+	/// JIT write protect for Apple Silicon. Needs to be called prior to writing to any RWX pages.
+#if !defined(__APPLE__) || !defined(_M_ARM64)
+	// clang-format -off
+	__fi static void BeginCodeWrite() {}
+	__fi static void EndCodeWrite() {}
+	// clang-format on
+#else
+	void BeginCodeWrite();
+	void EndCodeWrite();
+#endif
+
 	/// Flushes the instruction cache on the host for the specified range.
 	/// Only needed on ARM64, X86 has coherent D/I cache.
 #ifdef _M_X86

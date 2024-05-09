@@ -23,6 +23,7 @@
 
 #include "common/Console.h"
 #include "common/FileSystem.h"
+#include "common/FPControl.h"
 #include "common/SettingsWrapper.h"
 #include "common/Threading.h"
 #include "fmt/core.h"
@@ -205,6 +206,11 @@ SysMainMemory& GetVmMemory()
 
 void VMManager::LoadSettings()
 {
+	// Switch the rounding mode back to the system default for loading settings.
+	// We might have a different mode, because this can be called during setting updates while a VM is active,
+	// and the rounding mode has an impact on the conversion of floating-point values to/from strings.
+	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+
 	SettingsInterface* si             = Host::GetSettingsInterface();
 	SettingsLoadWrapper slw(*si);
 	EmuConfig.LoadSave(slw);
@@ -584,15 +590,9 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	FWopen();
 
-#if defined(_M_X86)
-	s_mxcsr_saved = _mm_getcsr();
-#elif defined(_M_ARM64)
-	s_mxcsr_saved = static_cast<u32>(a64_getfpcr());
-#endif
-
 	s_cpu_implementation_changed = false;
 	s_cpu_provider_pack->ApplyConfig();
-	SetCPUState(EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVU0MXCSR, EmuConfig.Cpu.sseVU1MXCSR);
+	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
 	SysClearExecutionCache();
 	memBindConditionalHandlers();
 
@@ -647,11 +647,7 @@ void VMManager::Shutdown()
 
 	std::string().swap(s_elf_override);
 
-#ifdef _M_X86
-	_mm_setcsr(s_mxcsr_saved);
-#elif defined(_M_ARM64)
-	a64_setfpcr(s_mxcsr_saved);
-#endif
+	FPControlRegister::SetCurrent(FPControlRegister::GetDefault());
 
 	ForgetLoadedPatches();
 	R3000A::ioman::reset();
@@ -821,7 +817,7 @@ void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
 		return;
 
 	Console.WriteLn("Updating CPU configuration...");
-	SetCPUState(EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVU0MXCSR, EmuConfig.Cpu.sseVU1MXCSR);
+	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
 	SysClearExecutionCache();
 	memBindConditionalHandlers();
 
@@ -974,6 +970,8 @@ void VMManager::ApplySettings()
 
 void VMManager::SetDefaultSettings(SettingsInterface& si)
 {
+	FPControlRegisterBackup fpcr_backup(FPControlRegister::GetDefault());
+
 	Pcsx2Config temp_config;
 	SettingsSaveWrapper ssw(si);
 	temp_config.LoadSave(ssw);
@@ -1032,6 +1030,9 @@ static u32 GetProcessorIdForProcessor(const cpuinfo_processor* proc)
 
 static void InitializeCPUInfo(void)
 {
+	// Use the default rounding mode, just in case it differs on some platform.
+	FPControlRegister::SetCurrent(FPControlRegister::GetDefault());
+
 	if (!cpuinfo_initialize())
 	{
 		Console.Error("Failed to initialize cpuinfo");

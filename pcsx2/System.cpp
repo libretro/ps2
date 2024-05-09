@@ -32,21 +32,6 @@
 
 Pcsx2Config EmuConfig;
 
-SSE_MXCSR g_sseMXCSR    = {DEFAULT_sseMXCSR};
-SSE_MXCSR g_sseVU0MXCSR = {DEFAULT_sseVUMXCSR};
-SSE_MXCSR g_sseVU1MXCSR = {DEFAULT_sseVUMXCSR};
-
-// SetCPUState -- for assignment of SSE roundmodes and clampmodes.
-//
-void SetCPUState(SSE_MXCSR sseMXCSR, SSE_MXCSR sseVU0MXCSR, SSE_MXCSR sseVU1MXCSR)
-{
-	g_sseMXCSR    = sseMXCSR;
-	g_sseVU0MXCSR = sseVU0MXCSR;
-	g_sseVU1MXCSR = sseVU1MXCSR;
-
-	_mm_setcsr(g_sseMXCSR.bitmask);
-}
-
 namespace HostMemoryMap
 {
 	// For debuggers

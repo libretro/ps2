@@ -30,6 +30,18 @@
 // equality operators.
 #define OpEqu(field) (field == right.field)
 
+// Default EE/VU control registers have exceptions off, DaZ/FTZ, and the rounding mode set to Chop/Zero.
+static constexpr FPControlRegister DEFAULT_FPU_FP_CONTROL_REGISTER = FPControlRegister::GetDefault()
+																		 .DisableExceptions()
+																		 .SetDenormalsAreZero(true)
+																		 .SetFlushToZero(true)
+																		 .SetRoundMode(FPRoundMode::ChopZero);
+static constexpr FPControlRegister DEFAULT_VU_FP_CONTROL_REGISTER = FPControlRegister::GetDefault()
+																		.DisableExceptions()
+																		.SetDenormalsAreZero(true)
+																		.SetFlushToZero(true)
+																		.SetRoundMode(FPRoundMode::ChopZero);
+
 const char* SettingInfo::StringDefaultValue() const
 {
 	return default_value ? default_value : "";
@@ -306,17 +318,14 @@ bool Pcsx2Config::CpuOptions::CpusChanged(const CpuOptions& right) const
 
 Pcsx2Config::CpuOptions::CpuOptions()
 {
-	sseMXCSR.bitmask = DEFAULT_sseMXCSR;
-	sseVU0MXCSR.bitmask = DEFAULT_sseVUMXCSR;
-	sseVU1MXCSR.bitmask = DEFAULT_sseVUMXCSR;
+	FPUFPCR = DEFAULT_FPU_FP_CONTROL_REGISTER;
+	VU0FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
+	VU1FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
 	AffinityControlMode = 0;
 }
 
 void Pcsx2Config::CpuOptions::ApplySanityCheck()
 {
-	sseMXCSR.ClearExceptionFlags().DisableExceptions();
-	sseVU0MXCSR.ClearExceptionFlags().DisableExceptions();
-	sseVU1MXCSR.ClearExceptionFlags().DisableExceptions();
 	AffinityControlMode = std::min<u32>(AffinityControlMode, 6);
 
 	Recompiler.ApplySanityCheck();
@@ -326,17 +335,41 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 {
 	SettingsWrapSection("EmuCore/CPU");
 
-	SettingsWrapBitBoolEx(sseMXCSR.DenormalsAreZero, "FPU.DenormalsAreZero");
-	SettingsWrapBitBoolEx(sseMXCSR.FlushToZero, "FPU.FlushToZero");
-	SettingsWrapBitfieldEx(sseMXCSR.RoundingControl, "FPU.Roundmode");
-	SettingsWrapEntry(AffinityControlMode);
+	{
+		FPUFPCR.SetDenormalsAreZero(wrap.EntryBitBool("FPU", "FPU.DenormalsAreZero",
+			FPUFPCR.GetDenormalsAreZero(), FPUFPCR.GetDenormalsAreZero()));
+		FPUFPCR.SetFlushToZero(wrap.EntryBitBool(CURRENT_SETTINGS_SECTION, "FPU.DenormalsAreZero",
+			FPUFPCR.GetFlushToZero(), FPUFPCR.GetFlushToZero()));
 
-	SettingsWrapBitBoolEx(sseVU0MXCSR.DenormalsAreZero, "VU0.DenormalsAreZero");
-	SettingsWrapBitBoolEx(sseVU0MXCSR.FlushToZero, "VU0.FlushToZero");
-	SettingsWrapBitfieldEx(sseVU0MXCSR.RoundingControl, "VU0.Roundmode");
-	SettingsWrapBitBoolEx(sseVU1MXCSR.DenormalsAreZero, "VU1.DenormalsAreZero");
-	SettingsWrapBitBoolEx(sseVU1MXCSR.FlushToZero, "VU1.FlushToZero");
-	SettingsWrapBitfieldEx(sseVU1MXCSR.RoundingControl, "VU1.Roundmode");
+		uint round_mode = static_cast<uint>(FPUFPCR.GetRoundMode());
+		wrap.Entry("FPU", "FPU.Roundmode", round_mode, round_mode);
+		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		FPUFPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
+	}
+	{
+		VU0FPCR.SetDenormalsAreZero(wrap.EntryBitBool("VU0", "VU0.DenormalsAreZero",
+			VU0FPCR.GetDenormalsAreZero(), VU0FPCR.GetDenormalsAreZero()));
+		VU0FPCR.SetFlushToZero(wrap.EntryBitBool(CURRENT_SETTINGS_SECTION, "VU0.DenormalsAreZero",
+			VU0FPCR.GetFlushToZero(), VU0FPCR.GetFlushToZero()));
+
+		uint round_mode = static_cast<uint>(VU0FPCR.GetRoundMode());
+		wrap.Entry("VU0", "VU0.Roundmode", round_mode, round_mode);
+		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		VU0FPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
+	}
+	{
+		VU1FPCR.SetDenormalsAreZero(wrap.EntryBitBool("VU1", "VU1.DenormalsAreZero",
+			VU1FPCR.GetDenormalsAreZero(), VU1FPCR.GetDenormalsAreZero()));
+		VU1FPCR.SetFlushToZero(wrap.EntryBitBool(CURRENT_SETTINGS_SECTION, "VU1.DenormalsAreZero",
+			VU1FPCR.GetFlushToZero(), VU1FPCR.GetFlushToZero()));
+
+		uint round_mode = static_cast<uint>(VU1FPCR.GetRoundMode());
+		wrap.Entry("VU1", "VU1.Roundmode", round_mode, round_mode);
+		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		VU1FPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
+	}
+
+	SettingsWrapEntry(AffinityControlMode);
 
 	Recompiler.LoadSave(wrap);
 }
@@ -959,11 +992,6 @@ Pcsx2Config::Pcsx2Config()
 
 void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 {
-	// Switch the rounding mode back to the system default for loading settings.
-	// That way, we'll get exactly the same values as what we loaded when we first started.
-	const SSE_MXCSR prev_mxcsr(SSE_MXCSR::GetCurrent());
-	SSE_MXCSR::SetCurrent(SSE_MXCSR{SYSTEM_sseMXCSR});
-
 	SettingsWrapSection("EmuCore");
 
 	SettingsWrapBitBool(EnablePatches);
@@ -998,8 +1026,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	{
 		CurrentAspectRatio = GS.AspectRatio;
 	}
-
-	SSE_MXCSR::SetCurrent(prev_mxcsr);
 }
 
 void Pcsx2Config::LoadSaveMemcards(SettingsWrapper& wrap)

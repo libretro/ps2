@@ -17,6 +17,9 @@
 
 #include "Config.h"
 #include "Patch.h"
+
+#include "common/FPControl.h"
+
 #include <optional>
 #include <string>
 #include <string_view>
@@ -38,22 +41,14 @@ namespace GameDatabaseSchema
 		Perfect
 	};
 
-	enum class RoundMode
-	{
-		Undefined = -1,
-		Nearest = 0,
-		NegativeInfinity,
-		PositiveInfinity,
-		ChopZero
-	};
-
 	enum class ClampMode
 	{
 		Undefined = -1,
 		Disabled = 0,
 		Normal,
 		Extra,
-		Full
+		Full,
+		Count
 	};
 
 	enum class GSHWFixId : u32
@@ -105,9 +100,9 @@ namespace GameDatabaseSchema
 		std::string name;
 		std::string region;
 		Compatibility compat = Compatibility::Unknown;
-		RoundMode eeRoundMode = RoundMode::Undefined;
-		RoundMode vu0RoundMode = RoundMode::Undefined;
-		RoundMode vu1RoundMode = RoundMode::Undefined;
+		FPRoundMode eeRoundMode = FPRoundMode::MaxCount;
+		FPRoundMode vu0RoundMode = FPRoundMode::MaxCount;
+		FPRoundMode vu1RoundMode = FPRoundMode::MaxCount;
 		ClampMode eeClampMode = ClampMode::Undefined;
 		ClampMode vu0ClampMode = ClampMode::Undefined;
 		ClampMode vu1ClampMode = ClampMode::Undefined;

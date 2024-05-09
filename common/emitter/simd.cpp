@@ -14,60 +14,7 @@
  */
 
 #include "common/emitter/internal.h"
-#include "common/emitter/tools.h"
 #include "common/VectorIntrin.h"
-
-const char* EnumToString(SSE_RoundMode sse)
-{
-	switch (sse)
-	{
-		case SSEround_Nearest:
-			return "Nearest";
-		case SSEround_NegInf:
-			return "NegativeInfinity";
-		case SSEround_PosInf:
-			return "PositiveInfinity";
-		case SSEround_Chop:
-			return "Chop";
-		default:
-			return "Invalid";
-	}
-}
-
-SSE_MXCSR SSE_MXCSR::GetCurrent()
-{
-	SSE_MXCSR ret;
-	ret.bitmask = _mm_getcsr();
-	return ret;
-}
-
-void SSE_MXCSR::SetCurrent(const SSE_MXCSR& value)
-{
-	_mm_setcsr(value.bitmask);
-}
-
-SSE_RoundMode SSE_MXCSR::GetRoundMode() const
-{
-	return (SSE_RoundMode)RoundingControl;
-}
-
-SSE_MXCSR& SSE_MXCSR::SetRoundMode(SSE_RoundMode mode)
-{
-	RoundingControl = (u32)mode;
-	return *this;
-}
-
-SSE_MXCSR& SSE_MXCSR::ClearExceptionFlags()
-{
-	bitmask &= ~0x3f;
-	return *this;
-}
-
-SSE_MXCSR& SSE_MXCSR::DisableExceptions()
-{
-	bitmask |= 0x3f << 7;
-	return *this;
-}
 
 namespace x86Emitter
 {

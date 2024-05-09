@@ -246,8 +246,7 @@ void InterpVU1::SetStartPC(u32 startPC)
 
 void InterpVU1::Execute(u32 cycles)
 {
-	const int originalRounding = fegetround();
-	fesetround(g_sseVU1MXCSR.RoundingControl << 8);
+	const FPControlRegisterBackup fpcr_backup(EmuConfig.Cpu.VU1FPCR);
 
 	VU1.VI[REG_TPC].UL <<= 3;
 	u32 startcycles = VU1.cycle;
@@ -268,5 +267,4 @@ void InterpVU1::Execute(u32 cycles)
 	}
 	VU1.VI[REG_TPC].UL >>= 3;
 	VU1.nextBlockCycles = (VU1.cycle - cpuRegs.cycle) + 1;
-	fesetround(originalRounding);
 }

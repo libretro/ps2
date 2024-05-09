@@ -104,26 +104,32 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 		{
 			int eeVal = -1;
 			node["roundModes"]["eeRoundMode"] >> eeVal;
-			gameEntry.eeRoundMode = static_cast<GameDatabaseSchema::RoundMode>(eeVal);
+			if (eeVal >= 0 && eeVal < static_cast<int>(FPRoundMode::MaxCount))
+				gameEntry.eeRoundMode = static_cast<FPRoundMode>(eeVal);
 		}
 		if (node["roundModes"].has_child("vuRoundMode"))
 		{
 			int vuVal = -1;
 			node["roundModes"]["vuRoundMode"] >> vuVal;
-			gameEntry.vu0RoundMode = static_cast<GameDatabaseSchema::RoundMode>(vuVal);
-			gameEntry.vu1RoundMode = static_cast<GameDatabaseSchema::RoundMode>(vuVal);
+			if (vuVal >= 0 && vuVal < static_cast<int>(FPRoundMode::MaxCount))
+			{
+				gameEntry.vu0RoundMode = static_cast<FPRoundMode>(vuVal);
+				gameEntry.vu1RoundMode = static_cast<FPRoundMode>(vuVal);
+			}
 		}
 		if (node["roundModes"].has_child("vu0RoundMode"))
 		{
 			int vuVal = -1;
 			node["roundModes"]["vu0RoundMode"] >> vuVal;
-			gameEntry.vu0RoundMode = static_cast<GameDatabaseSchema::RoundMode>(vuVal);
+			if (vuVal >= 0 && vuVal < static_cast<int>(FPRoundMode::MaxCount))
+				gameEntry.vu0RoundMode = static_cast<FPRoundMode>(vuVal);
 		}
 		if (node["roundModes"].has_child("vu1RoundMode"))
 		{
 			int vuVal = -1;
 			node["roundModes"]["vu1RoundMode"] >> vuVal;
-			gameEntry.vu1RoundMode = static_cast<GameDatabaseSchema::RoundMode>(vuVal);
+			if (vuVal >= 0 && vuVal < static_cast<int>(FPRoundMode::MaxCount))
+				gameEntry.vu1RoundMode = static_cast<FPRoundMode>(vuVal);
 		}
 	}
 	if (node.has_child("clampModes"))
@@ -316,6 +322,13 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 	s_game_db.emplace(std::move(serial), std::move(gameEntry));
 }
 
+static const char* s_round_modes[static_cast<u32>(FPRoundMode::MaxCount)] = {
+	"Nearest",
+	"NegativeInfinity",
+	"PositiveInfinity",
+	"Chop"
+};
+
 static const char* s_gs_hw_fix_names[] = {
 	"autoFlush",
 	"cpuFramebufferConversion",
@@ -401,52 +414,37 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 
 	u32 num_applied_fixes = 0;
 
-	if (eeRoundMode != GameDatabaseSchema::RoundMode::Undefined)
+	if (eeRoundMode < FPRoundMode::MaxCount)
 	{
-		const SSE_RoundMode eeRM = (SSE_RoundMode)enum_cast(eeRoundMode);
-		if (EnumIsValid(eeRM))
+		if (applyAuto)
 		{
-			if (applyAuto)
-			{
-				Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
-				config.Cpu.sseMXCSR.SetRoundMode(eeRM);
-				num_applied_fixes++;
-			}
-			else
-				Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRM, EnumToString(eeRM));
+			Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			config.Cpu.FPUFPCR.SetRoundMode(eeRoundMode);
 		}
+		else
+			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 	}
 
-	if (vu0RoundMode != GameDatabaseSchema::RoundMode::Undefined)
+	if (vu0RoundMode < FPRoundMode::MaxCount)
 	{
-		const SSE_RoundMode vuRM = (SSE_RoundMode)enum_cast(vu0RoundMode);
-		if (EnumIsValid(vuRM))
+		if (applyAuto)
 		{
-			if (applyAuto)
-			{
-				Console.WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
-				config.Cpu.sseVU0MXCSR.SetRoundMode(vuRM);
-				num_applied_fixes++;
-			}
-			else
-				Console.Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+			Console.WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
+			config.Cpu.VU0FPCR.SetRoundMode(vu0RoundMode);
 		}
+		else
+			Console.Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
 	}
 
-	if (vu1RoundMode != GameDatabaseSchema::RoundMode::Undefined)
+	if (vu1RoundMode < FPRoundMode::MaxCount)
 	{
-		const SSE_RoundMode vuRM = (SSE_RoundMode)enum_cast(vu1RoundMode);
-		if (EnumIsValid(vuRM))
+		if (applyAuto)
 		{
-			if (applyAuto)
-			{
-				Console.WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
-				config.Cpu.sseVU1MXCSR.SetRoundMode(vuRM);
-				num_applied_fixes++;
-			}
-			else
-				Console.Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", vuRM, EnumToString(vuRM));
+			Console.WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
+			config.Cpu.VU1FPCR.SetRoundMode(vu1RoundMode);
 		}
+		else
+			Console.Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
 	}
 
 	if (eeClampMode != GameDatabaseSchema::ClampMode::Undefined)

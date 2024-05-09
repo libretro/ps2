@@ -22,8 +22,8 @@
 #include <optional>
 #include <vector>
 
-#include "common/emitter/tools.h"
 #include "common/General.h"
+#include "common/FPControl.h"
 
 // Macro used for removing some of the redtape involved in defining bitfield/union helpers.
 //
@@ -359,11 +359,6 @@ typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
 
 ImplementEnumOperators(GamefixId);
 
-//------------ DEFAULT sseMXCSR VALUES ---------------
-#define DEFAULT_sseMXCSR 0xffc0 //FPU rounding > DaZ, FtZ, "chop"
-#define DEFAULT_sseVUMXCSR 0xffc0 //VU  rounding > DaZ, FtZ, "chop"
-#define SYSTEM_sseMXCSR 0x1f80
-
 // --------------------------------------------------------------------------------------
 //  Pcsx2Config class
 // --------------------------------------------------------------------------------------
@@ -448,9 +443,9 @@ struct Pcsx2Config
 	{
 		RecompilerOptions Recompiler;
 
-		SSE_MXCSR sseMXCSR;
-		SSE_MXCSR sseVU0MXCSR;
-		SSE_MXCSR sseVU1MXCSR;
+		FPControlRegister FPUFPCR;
+		FPControlRegister VU0FPCR;
+		FPControlRegister VU1FPCR;
 
 		u32 AffinityControlMode;
 
@@ -462,9 +457,9 @@ struct Pcsx2Config
 
 		bool operator==(const CpuOptions& right) const
 		{
-			return     (sseMXCSR    == right.sseMXCSR) 
-				&& (sseVU0MXCSR == right.sseVU0MXCSR)
-				&& (sseVU1MXCSR == right.sseVU1MXCSR)
+			return     (FPUFPCR    == right.FPUFPCR) 
+				&& (VU0FPCR == right.VU0FPCR)
+				&& (VU1FPCR == right.VU1FPCR)
 				&& (AffinityControlMode == right.AffinityControlMode)
 				&& (Recompiler  == right.Recompiler);
 		}
