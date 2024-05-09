@@ -91,7 +91,7 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	HostSys::MemProtect(mVU.dispCache, mVUdispCacheSize, mode);
 	memset(mVU.dispCache, 0xcc, mVUdispCacheSize);
 
-	x86SetPtr(mVU.dispCache);
+	xSetPtr(mVU.dispCache);
 	mVUdispatcherAB(mVU);
 	mVUdispatcherCD(mVU);
 	mVUGenerateWaitMTVU(mVU);
