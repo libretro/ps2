@@ -160,6 +160,8 @@ namespace Vulkan
 			vulkan_module = dlopen("libvulkan.dylib", RTLD_NOW);
 			if (!vulkan_module)
 				vulkan_module = dlopen("libMoltenVK.dylib", RTLD_NOW);
+			if (!vulkan_module)
+				vulkan_module = dlopen("MoltenVK", RTLD_NOW);
 		}
 #else
 		// Names of libraries to search. Desktop should use libvulkan.so.1 or libvulkan.so.
