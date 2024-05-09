@@ -46,9 +46,10 @@ BIOS
 #include "ps2/BiosTools.h"
 #include "SPU2/spu2.h"
 
-u16 ba0R16(u32 mem)
+static u16 ba0R16(u32 mem)
 {
-	if (mem == 0x1a000006) {
+	if (mem == 0x1a000006)
+	{
 		static int ba6;
 		ba6++;
 		if (ba6 == 3) ba6 = 0;

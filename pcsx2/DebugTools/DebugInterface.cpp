@@ -153,7 +153,7 @@ u128 R5900DebugInterface::read128(u32 address)
 	if (!isValidAddress(address) || address % 16)
 		result.hi = result.lo = -1;
 	else
-		memRead128(address, result);
+		memRead128(address, &result);
 	return result;
 }
 

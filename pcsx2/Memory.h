@@ -46,10 +46,5 @@ extern void memMapVUmicro(void);
 #define memWrite32 vtlb_memWrite<mem32_t>
 #define memWrite64 vtlb_memWrite<mem64_t>
 
-static __fi void memRead128(u32 mem, mem128_t* out) { r128_store(out, vtlb_memRead128(mem)); }
-static __fi void memRead128(u32 mem, mem128_t& out) { memRead128(mem, &out); }
-
-static __fi void memWrite128(u32 mem, const mem128_t* val)	{ vtlb_memWrite128(mem, r128_load(val)); }
-static __fi void memWrite128(u32 mem, const mem128_t& val)	{ vtlb_memWrite128(mem, r128_load(&val)); }
-
-extern u16 ba0R16(u32 mem);
+static __fi void memRead128(u32 mem, mem128_t* out)        { r128_store(out, vtlb_memRead128(mem)); }
+static __fi void memWrite128(u32 mem, const mem128_t* val) { vtlb_memWrite128(mem, r128_load(val)); }

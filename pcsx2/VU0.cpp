@@ -104,14 +104,18 @@ namespace R5900 {
 namespace Interpreter{
 namespace OpcodeImpl
 {
-	void LQC2() {
+	void LQC2(void)
+	{
 		vu0Sync();
 		u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + (s16)cpuRegs.code;
-		if (_Ft_) {
-			memRead128(addr, VU0.VF[_Ft_].UQ);
-		} else {
+		if (_Ft_)
+		{
+			memRead128(addr, &VU0.VF[_Ft_].UQ);
+		}
+		else
+		{
 			u128 val;
- 			memRead128(addr, val);
+ 			memRead128(addr, &val);
 		}
 	}
 
@@ -121,7 +125,7 @@ namespace OpcodeImpl
 	void SQC2() {
 		vu0Sync();
 		u32 addr = _Imm_ + cpuRegs.GPR.r[_Rs_].UL[0];
-		memWrite128(addr, VU0.VF[_Ft_].UQ);
+		memWrite128(addr, &VU0.VF[_Ft_].UQ);
 	}
 }}}
 
