@@ -17,6 +17,7 @@
 
 #include "PrecompiledHeader.h"
 #include <cstddef>
+#include <iterator> /* std::size() TODO/FIXME - C++17, find way to downgrade */
 #include "GSTables.h"
 
 template <int Width, int Height>
