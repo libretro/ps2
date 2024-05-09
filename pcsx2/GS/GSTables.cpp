@@ -16,6 +16,7 @@
 // clang-format off
 
 #include "PrecompiledHeader.h"
+#include <cstddef>
 #include "GSTables.h"
 
 template <int Width, int Height>

@@ -21,6 +21,7 @@
 #include "MultiISA.h"
 #include <array>
 #include <unordered_map>
+#include <vector>
 
 struct GSPixelOffset
 {
