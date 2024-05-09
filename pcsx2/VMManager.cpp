@@ -794,6 +794,8 @@ void VMManager::InitializeCPUProviders()
 	dVifReserve(1);
 
 	GSCodeReserve::GetInstance().Assign(GetVmMemory().CodeMemory());
+
+	VifUnpackSSE_Init();
 }
 
 void VMManager::ShutdownCPUProviders()
@@ -803,11 +805,14 @@ void VMManager::ShutdownCPUProviders()
 	dVifRelease(1);
 	dVifRelease(0);
 
+	VifUnpackSSE_Destroy();
+
 	CpuMicroVU1.Shutdown();
 	CpuMicroVU0.Shutdown();
 
 	psxRec.Shutdown();
 	recCpu.Shutdown();
+
 }
 
 void VMManager::UpdateCPUImplementations()

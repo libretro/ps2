@@ -122,7 +122,6 @@ void SysMainMemory::Reset()
 void SysMainMemory::Release()
 {
 	Console.WriteLn(Color_Blue, "Releasing host memory for virtual systems...");
-	hwShutdown();
 
 	vtlb_Core_Free(); // Just to be sure... (calling order could result in it getting missed during Decommit).
 
