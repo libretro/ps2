@@ -157,7 +157,7 @@ void memMapPhy()
 }
 
 //Why is this required ?
-void memMapKernelMem()
+static void memMapKernelMem(void)
 {
 	//lower 512 mb: direct map
 	//vtlb_VMap(0x00000000,0x00000000,0x20000000);
@@ -167,45 +167,18 @@ void memMapKernelMem()
 	vtlb_VMap(0xA0000000, 0x00000000, _1mb*512);
 }
 
-//what do do with these ?
-void memMapSupervisorMem()
-{
-}
-
-void memMapUserMem()
-{
-}
-
-static mem8_t nullRead8(u32 mem) {
-	return 0;
-}
-static mem16_t nullRead16(u32 mem) {
-	return 0;
-}
-static mem32_t nullRead32(u32 mem) {
-	return 0;
-}
-static mem64_t nullRead64(u32 mem) {
-	return 0;
-}
+static mem8_t  nullRead8(u32 mem)  { return 0; }
+static mem16_t nullRead16(u32 mem) { return 0; }
+static mem32_t nullRead32(u32 mem) { return 0; }
+static mem64_t nullRead64(u32 mem) { return 0; }
 static RETURNS_R128 nullRead128(u32 mem) {
 	return r128_zero();
 }
-static void nullWrite8(u32 mem, mem8_t value)
-{
-}
-static void nullWrite16(u32 mem, mem16_t value)
-{
-}
-static void nullWrite32(u32 mem, mem32_t value)
-{
-}
-static void nullWrite64(u32 mem, mem64_t value)
-{
-}
-static void TAKES_R128 nullWrite128(u32 mem, r128 value)
-{
-}
+static void nullWrite8(u32 mem, mem8_t value)   { }
+static void nullWrite16(u32 mem, mem16_t value) { }
+static void nullWrite32(u32 mem, mem32_t value) { }
+static void nullWrite64(u32 mem, mem64_t value) { }
+static void TAKES_R128 nullWrite128(u32 mem, r128 value) { }
 
 template<int p>
 static mem8_t _ext_memRead8 (u32 mem)
@@ -268,13 +241,6 @@ static mem32_t _ext_memRead32(u32 mem)
 template<int p>
 static u64 _ext_memRead64(u32 mem)
 {
-	switch (p)
-	{
-		case 6: // gsm
-			return gsRead64(mem);
-		default: break;
-	}
-
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
@@ -282,15 +248,8 @@ static u64 _ext_memRead64(u32 mem)
 template<int p>
 static RETURNS_R128 _ext_memRead128(u32 mem)
 {
-	switch (p)
-	{
-		//case 1: // hwm
-		//	return hwRead128(mem & ~0xa0000000);
-		case 6: // gsm
-			return r128_load(PS2GS_BASE(mem));
-		default: break;
-	}
-
+	if (p == 6) /* GSM */
+		return r128_load(PS2GS_BASE(mem));
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return r128_zero();
 }
@@ -701,31 +660,23 @@ void eeMemoryReserve::Reset()
 	// GS Optimized Mappings
 
 	tlb_fallback_6 = vtlb_RegisterHandler(
-		_ext_memRead8<6>, _ext_memRead16<6>, _ext_memRead32<6>, _ext_memRead64<6>, _ext_memRead128<6>,
-		_ext_memWrite8<6>, _ext_memWrite16<6>, _ext_memWrite32<6>, gsWrite64_generic, gsWrite128_generic
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsWrite8, gsWrite16, gsWrite32, gsWrite64_generic, gsWrite128_generic
 	);
 
 	gs_page_0 = vtlb_RegisterHandler(
-		_ext_memRead8<6>, _ext_memRead16<6>, _ext_memRead32<6>, _ext_memRead64<6>, _ext_memRead128<6>,
-		_ext_memWrite8<6>, _ext_memWrite16<6>, _ext_memWrite32<6>, gsWrite64_page_00, gsWrite128_page_00
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsWrite8, gsWrite16, gsWrite32, gsWrite64_page_00, gsWrite128_page_00
 	);
 
 	gs_page_1 = vtlb_RegisterHandler(
-		_ext_memRead8<6>, _ext_memRead16<6>, _ext_memRead32<6>, _ext_memRead64<6>, _ext_memRead128<6>,
-		_ext_memWrite8<6>, _ext_memWrite16<6>, _ext_memWrite32<6>, gsWrite64_page_01, gsWrite128_page_01
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsWrite8, gsWrite16, gsWrite32, gsWrite64_page_01, gsWrite128_page_01
 	);
-
-	//vtlb_Reset();
-
-	// reset memLUT (?)
-	//vtlb_VMap(0x00000000,0x00000000,0x20000000);
-	//vtlb_VMapUnmap(0x20000000,0x60000000);
 
 	memMapPhy();
 	memMapVUmicro();
 	memMapKernelMem();
-	memMapSupervisorMem();
-	memMapUserMem();
 
 	vtlb_VMap(0x00000000,0x00000000,0x20000000);
 	vtlb_VMapUnmap(0x20000000,0x60000000);
