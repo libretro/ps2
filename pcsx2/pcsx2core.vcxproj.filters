@@ -371,9 +371,6 @@
     <ClCompile Include="SaveState.cpp">
       <Filter>System</Filter>
     </ClCompile>
-    <ClCompile Include="System.cpp">
-      <Filter>System</Filter>
-    </ClCompile>
     <ClCompile Include="Elfheader.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>

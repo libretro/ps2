@@ -19,8 +19,6 @@
 #include "VirtualMemory.h"
 #include "vtlb.h"
 
-class BaseVUmicroCPU;
-
 // This is a table of default virtual map addresses for ps2vm components.  These locations
 // are provided and used to assist in debugging and possibly hacking; as it makes it possible
 // for a programmer to know exactly where to look (consistently!) for the base address of
@@ -108,8 +106,6 @@ public:
 
 	VirtualMemoryBumpAllocator& BumpAllocator() { return m_bumpAllocator; }
 
-	const eeMemoryReserve& EEMemory() const { return m_ee; }
-	const iopMemoryReserve& IOPMemory() const { return m_iop; }
 	const vuMemoryReserve& VUMemory() const { return m_vu; }
 
 	bool Allocate();

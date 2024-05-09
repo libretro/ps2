@@ -118,7 +118,6 @@ set(pcsx2Sources
 	sif2.cpp
 	Sio.cpp
 	SPR.cpp
-	System.cpp
 	Vif0_Dma.cpp
 	Vif1_Dma.cpp
 	Vif1_MFIFO.cpp
