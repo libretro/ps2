@@ -18,7 +18,6 @@
 #include "GS/GSExtra.h"
 #include "GS/Renderers/SW/GSScanlineEnvironment.h"
 #include "VirtualMemory.h"
-#include "common/emitter/tools.h"
 
 template <class KEY, class VALUE>
 class GSFunctionMap
