@@ -1065,7 +1065,7 @@ bool retro_unserialize(const void* data, size_t size)
 	loadme.FreezeBios();
 	loadme.FreezeInternals();
 
-	SysClearExecutionCache();
+	VMManager::Internal::ClearCPUExecutionCaches();
 	loadme.FreezeMem(eeMem->Main, sizeof(eeMem->Main));
 	loadme.FreezeMem(iopMem->Main, sizeof(iopMem->Main));
 	loadme.FreezeMem(eeHw, sizeof(eeHw));

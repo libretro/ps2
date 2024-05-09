@@ -30,8 +30,6 @@
 #include "GS/Renderers/Common/GSFunctionMap.h"
 #include "ps2/BiosTools.h"
 
-Pcsx2Config EmuConfig;
-
 namespace HostMemoryMap
 {
 	// For debuggers
@@ -134,76 +132,11 @@ void SysMainMemory::Release()
 }
 
 
-// --------------------------------------------------------------------------------------
-//  SysCpuProviderPack  (implementations)
-// --------------------------------------------------------------------------------------
-SysCpuProviderPack::SysCpuProviderPack()
-{
-	Console.WriteLn(Color_StrongBlue, "Reserving memory for recompilers...");
-	recCpu.Reserve();
-	psxRec.Reserve();
-
-	CpuMicroVU0.Reserve();
-	CpuMicroVU1.Reserve();
-
-	dVifReserve(0);
-	dVifReserve(1);
-
-	GSCodeReserve::GetInstance().Assign(GetVmMemory().CodeMemory());
-}
-
-SysCpuProviderPack::~SysCpuProviderPack()
-{
-	GSCodeReserve::GetInstance().Release();
-
-	dVifRelease(1);
-	dVifRelease(0);
-
-	CpuMicroVU1.Shutdown();
-	CpuMicroVU0.Shutdown();
-
-	psxRec.Shutdown();
-	recCpu.Shutdown();
-}
-
-BaseVUmicroCPU* CpuVU0 = nullptr;
-BaseVUmicroCPU* CpuVU1 = nullptr;
-
-void SysCpuProviderPack::ApplyConfig() const
-{
-	Cpu    = CHECK_EEREC ? &recCpu : &intCpu;
-	psxCpu = CHECK_IOPREC ? &psxRec : &psxInt;
-
-	CpuVU0 = &CpuIntVU0;
-	CpuVU1 = &CpuIntVU1;
-
-	if (EmuConfig.Cpu.Recompiler.EnableVU0)
-		CpuVU0 = &CpuMicroVU0;
-
-	if (EmuConfig.Cpu.Recompiler.EnableVU1)
-		CpuVU1 = &CpuMicroVU1;
-}
-
 // Resets all PS2 cpu execution caches, which does not affect that actual PS2 state/condition.
 // This can be called at any time outside the context of a Cpu->Execute() block without
 // bad things happening (recompilers will slow down for a brief moment since rec code blocks
 // are dumped).
 // Use this method to reset the recs when important global pointers like the MTGS are re-assigned.
-void SysClearExecutionCache()
-{
-	Cpu->Reset();
-	psxCpu->Reset();
-
-	// mVU's VU0 needs to be properly initialized for macro mode even if it's not used for micro mode!
-	if (CHECK_EEREC && !EmuConfig.Cpu.Recompiler.EnableVU0)
-		CpuMicroVU0.Reset();
-
-	CpuVU0->Reset();
-	CpuVU1->Reset();
-
-	dVifReset(0);
-	dVifReset(1);
-}
 
 // This function returns part of EXTINFO data of the BIOS rom
 // This module contains information about Sony build environment at offst 0x10

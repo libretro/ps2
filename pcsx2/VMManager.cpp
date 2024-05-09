@@ -43,6 +43,9 @@
 #include "Patch.h"
 #include "PerformanceMetrics.h"
 #include "SaveState.h"
+#include "R3000A.h"
+#include "VUmicro.h"
+#include "newVif.h"
 #include "R5900.h"
 #include "SPU2/spu2.h"
 #include "DEV9/DEV9.h"
@@ -61,6 +64,10 @@
 
 namespace VMManager
 {
+	static void InitializeCPUProviders();
+	static void ShutdownCPUProviders();
+	static void UpdateCPUImplementations();
+
 	static void ApplyGameFixes();
 	static bool UpdateGameSettingsLayer();
 	static void CheckForConfigChanges(const Pcsx2Config& old_config);
@@ -83,7 +90,6 @@ namespace VMManager
 } // namespace VMManager
 
 static std::unique_ptr<SysMainMemory> s_vm_memory;
-static std::unique_ptr<SysCpuProviderPack> s_cpu_provider_pack;
 
 static std::atomic<VMState> s_state{VMState::Shutdown};
 static bool s_cpu_implementation_changed = false;
@@ -180,7 +186,9 @@ void VMManager::Internal::CPUThreadInitialize(void)
 	USBinit();
 
 	s_vm_memory = std::make_unique<SysMainMemory>();
-	s_cpu_provider_pack = std::make_unique<SysCpuProviderPack>();
+
+	InitializeCPUProviders();
+
 	s_vm_memory->Allocate();
 }
 
@@ -191,7 +199,7 @@ void VMManager::Internal::CPUThreadShutdown(void)
 	s_widescreen_cheats_loaded     = false;
 	s_no_interlacing_cheats_loaded = false;
 
-	s_cpu_provider_pack.reset();
+	ShutdownCPUProviders();
 	s_vm_memory.reset();
 
 	USBshutdown();
@@ -591,9 +599,9 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	FWopen();
 
 	s_cpu_implementation_changed = false;
-	s_cpu_provider_pack->ApplyConfig();
+	UpdateCPUImplementations();
+	Internal::ClearCPUExecutionCaches();
 	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
-	SysClearExecutionCache();
 	memBindConditionalHandlers();
 
 	ForgetLoadedPatches();
@@ -695,7 +703,7 @@ void VMManager::Reset()
 	s_active_widescreen_patches = 0;
 	s_active_no_interlacing_patches = 0;
 
-	SysClearExecutionCache();
+	Internal::ClearCPUExecutionCaches();
 	memBindConditionalHandlers();
 	UpdateVSyncRate(true);
 	cpuReset();
@@ -737,14 +745,73 @@ bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 	return result;
 }
 
+void VMManager::InitializeCPUProviders()
+{
+	recCpu.Reserve();
+	psxRec.Reserve();
+
+	CpuMicroVU0.Reserve();
+	CpuMicroVU1.Reserve();
+
+	dVifReserve(0);
+	dVifReserve(1);
+
+	GSCodeReserve::GetInstance().Assign(GetVmMemory().CodeMemory());
+}
+
+void VMManager::ShutdownCPUProviders()
+{
+	GSCodeReserve::GetInstance().Release();
+
+	dVifRelease(1);
+	dVifRelease(0);
+
+	CpuMicroVU1.Shutdown();
+	CpuMicroVU0.Shutdown();
+
+	psxRec.Shutdown();
+	recCpu.Shutdown();
+}
+
+void VMManager::UpdateCPUImplementations()
+{
+	Cpu    = CHECK_EEREC ? &recCpu : &intCpu;
+	psxCpu = CHECK_IOPREC ? &psxRec : &psxInt;
+
+	CpuVU0 = &CpuIntVU0;
+	CpuVU1 = &CpuIntVU1;
+
+	if (EmuConfig.Cpu.Recompiler.EnableVU0)
+		CpuVU0 = &CpuMicroVU0;
+
+	if (EmuConfig.Cpu.Recompiler.EnableVU1)
+		CpuVU1 = &CpuMicroVU1;
+}
+
+void VMManager::Internal::ClearCPUExecutionCaches()
+{
+	Cpu->Reset();
+	psxCpu->Reset();
+
+	// mVU's VU0 needs to be properly initialized for macro mode even if it's not used for micro mode!
+	if (CHECK_EEREC && !EmuConfig.Cpu.Recompiler.EnableVU0)
+		CpuMicroVU0.Reset();
+
+	CpuVU0->Reset();
+	CpuVU1->Reset();
+
+	dVifReset(0);
+	dVifReset(1);
+}
+
 void VMManager::Execute()
 {
 	// Check for interpreter<->recompiler switches.
 	if (std::exchange(s_cpu_implementation_changed, false))
 	{
 		// We need to switch the cpus out, and reset the new ones if so.
-		s_cpu_provider_pack->ApplyConfig();
-		SysClearExecutionCache();
+		UpdateCPUImplementations();
+		Internal::ClearCPUExecutionCaches();
 		vtlb_ResetFastmem();
 	}
 
@@ -818,7 +885,7 @@ void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
 
 	Console.WriteLn("Updating CPU configuration...");
 	FPControlRegister::SetCurrent(EmuConfig.Cpu.FPUFPCR);
-	SysClearExecutionCache();
+	Internal::ClearCPUExecutionCaches();
 	memBindConditionalHandlers();
 
 	if (EmuConfig.Cpu.Recompiler.EnableFastmem != old_config.Cpu.Recompiler.EnableFastmem)

@@ -111,6 +111,9 @@ namespace VMManager
 		/// Updates the variables in the EmuFolders namespace, reloading subsystems if needed.
 		void UpdateEmuFolders();
 
+		/// Resets/clears all execution/code caches.
+		void ClearCPUExecutionCaches();
+
 		const std::string& GetElfOverride();
 		bool IsExecutionInterrupted();
 		void EntryPointCompilingOnCPUThread();
