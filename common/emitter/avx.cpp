@@ -14,7 +14,6 @@
  */
 
 #include "common/emitter/internal.h"
-#include "common/emitter/tools.h"
 
 // warning: suggest braces around initialization of subobject [-Wmissing-braces]
 #ifdef __clang__

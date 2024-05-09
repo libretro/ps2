@@ -29,8 +29,6 @@
  */
 
 #include "common/emitter/internal.h"
-#include "common/emitter/tools.h"
-#include <functional>
 
 // ------------------------------------------------------------------------
 // Notes on Thread Local Storage:

@@ -42,7 +42,6 @@
 #pragma once
 
 #include "common/emitter/x86types.h"
-#include "common/emitter/tools.h"
 #include "common/emitter/instructions.h"
 
 // Including legacy items for now, but these should be removed eventually,
