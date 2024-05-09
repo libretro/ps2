@@ -109,14 +109,12 @@ static void iopRecRecompile(const u32 startpc);
 // Recompiled code buffer for EE recompiler dispatchers!
 alignas(__pagesize) static u8 iopRecDispatchers[__pagesize];
 
-typedef void DynGenFunc();
-
-static DynGenFunc* iopDispatcherEvent = NULL;
-static DynGenFunc* iopDispatcherReg = NULL;
-static DynGenFunc* iopJITCompile = NULL;
-static DynGenFunc* iopJITCompileInBlock = NULL;
-static DynGenFunc* iopEnterRecompiledCode = NULL;
-static DynGenFunc* iopExitRecompiledCode = NULL;
+static const void* iopDispatcherEvent = NULL;
+static const void* iopDispatcherReg = NULL;
+static const void* iopJITCompile = NULL;
+static const void* iopJITCompileInBlock = NULL;
+static const void* iopEnterRecompiledCode = NULL;
+static const void* iopExitRecompiledCode = NULL;
 
 static void recEventTest(void)
 {
@@ -125,11 +123,11 @@ static void recEventTest(void)
 
 // The address for all cleared blocks.  It recompiles the current pc and then
 // dispatches to the recompiled block address.
-static DynGenFunc* _DynGen_JITCompile(void)
+static const void* _DynGen_JITCompile(void)
 {
 	u8* retval = xGetPtr();
 
-	xFastCall((void*)iopRecRecompile, ptr32[&psxRegs.pc]);
+	xFastCall((const void*)iopRecRecompile, ptr32[&psxRegs.pc]);
 
 	xMOV(eax, ptr[&psxRegs.pc]);
 	xMOV(ebx, eax);
@@ -137,18 +135,18 @@ static DynGenFunc* _DynGen_JITCompile(void)
 	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
 	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
-static DynGenFunc* _DynGen_JITCompileInBlock()
+static const void* _DynGen_JITCompileInBlock(void)
 {
 	u8* retval = xGetPtr();
-	xJMP((void*)iopJITCompile);
-	return (DynGenFunc*)retval;
+	xJMP((const void*)iopJITCompile);
+	return retval;
 }
 
 // called when jumping to variable pc address
-static DynGenFunc* _DynGen_DispatcherReg()
+static const void* _DynGen_DispatcherReg(void)
 {
 	u8* retval = xGetPtr();
 
@@ -158,13 +156,13 @@ static DynGenFunc* _DynGen_DispatcherReg()
 	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
 	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
 // --------------------------------------------------------------------------------------
 //  EnterRecompiledCode  - dynamic compilation stub!
 // --------------------------------------------------------------------------------------
-static DynGenFunc* _DynGen_EnterRecompiledCode()
+static const void* _DynGen_EnterRecompiledCode(void)
 {
 	// Optimization: The IOP never uses stack-based parameter invocation, so we can avoid
 	// allocating any room on the stack for it (which is important since the IOP's entry
@@ -176,16 +174,16 @@ static DynGenFunc* _DynGen_EnterRecompiledCode()
 		int m_offset;
 		SCOPED_STACK_FRAME_BEGIN(m_offset);
 
-		xJMP((void*)iopDispatcherReg);
+		xJMP((const void*)iopDispatcherReg);
 
 		// Save an exit point
-		iopExitRecompiledCode = (DynGenFunc*)xGetPtr();
+		iopExitRecompiledCode = xGetPtr();
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
 	xRET();
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
 static void _DynGen_Dispatchers(void)
@@ -204,8 +202,8 @@ static void _DynGen_Dispatchers(void)
 
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
-	iopDispatcherEvent = (DynGenFunc*)xGetPtr();
-	xFastCall((void*)recEventTest);
+	iopDispatcherEvent = xGetPtr();
+	xFastCall((const void*)recEventTest);
 	iopDispatcherReg = _DynGen_DispatcherReg();
 
 	iopJITCompile = _DynGen_JITCompile();
@@ -612,21 +610,17 @@ static void psxRecompileIrxImport(void)
 
 	const std::string libname = iopMemReadString(import_table + 12, 8);
 	irxHLE hle                = irxImportHLE(libname, index);
-	const irxDEBUG debug      = 0;
 
-	if (!hle && !debug)
+	if (!hle)
 		return;
 
 	xMOV(ptr32[&psxRegs.code], psxRegs.code);
 	xMOV(ptr32[&psxRegs.pc], psxpc);
 	_psxFlushCall(FLUSH_NODESTROY);
 
-	if (debug)
-		xFastCall((void*)debug);
-
 	if (hle)
 	{
-		xFastCall((void*)hle);
+		xFastCall((const void*)hle);
 		xTEST(eax, eax);
 		xJNZ(iopDispatcherReg);
 	}
@@ -932,7 +926,7 @@ static __noinline s32 recExecuteBlock(s32 eeCycles)
 	// 	mov         edx,dword ptr [iopCycleEE (832A84h)]
 	// 	lea         eax,[edx+ecx]
 
-	iopEnterRecompiledCode();
+	((void(*)())iopEnterRecompiledCode)();
 
 	return psxRegs.iopBreak + psxRegs.iopCycleEE;
 }
@@ -940,9 +934,7 @@ static __noinline s32 recExecuteBlock(s32 eeCycles)
 // Returns the offset to the next instruction after any cleared memory
 static __fi u32 psxRecClearMem(u32 pc)
 {
-	BASEBLOCK* pblock;
-
-	pblock = PSX_GETBLOCK(pc);
+	BASEBLOCK* pblock = PSX_GETBLOCK(pc);
 	if (pblock->m_pFnptr == (uptr)iopJITCompile)
 		return 4;
 
@@ -1073,7 +1065,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 		xSUB(ptr32[&psxRegs.iopCycleEE], eax);
 		xJLE(iopExitRecompiledCode);
 
-		xFastCall((void*)iopEventTest);
+		xFastCall((const void*)iopEventTest);
 
 		if (newpc != 0xffffffff)
 		{
@@ -1095,7 +1087,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 		xSUB(eax, ptr32[&psxRegs.iopNextEventCycle]);
 		xForwardJS<u8> nointerruptpending;
 
-		xFastCall((void*)iopEventTest);
+		xFastCall((const void*)iopEventTest);
 
 		if (newpc != 0xffffffff)
 		{
@@ -1115,7 +1107,7 @@ void rpsxSYSCALL(void)
 
 	//xMOV( ecx, 0x20 );			// exception code
 	//xMOV( edx, psxbranch==1 );	// branch delay slot?
-	xFastCall((void*)psxException, 0x20, psxbranch == 1);
+	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
 	u8 *j8Ptr = JE8(0);
@@ -1138,7 +1130,7 @@ void rpsxBREAK(void)
 
 	//xMOV( ecx, 0x24 );			// exception code
 	//xMOV( edx, psxbranch==1 );	// branch delay slot?
-	xFastCall((void*)psxException, 0x24, psxbranch == 1);
+	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
 	u8 *j8Ptr = JE8(0);
@@ -1221,7 +1213,7 @@ static void iopRecRecompile(const u32 startpc)
 
 	if ((psxHu32(HW_ICFG) & 8) && (HWADDR(startpc) == 0xa0 || HWADDR(startpc) == 0xb0 || HWADDR(startpc) == 0xc0))
 	{
-		xFastCall((void*)psxBiosCall);
+		xFastCall((const void*)psxBiosCall);
 		xTEST(al, al);
 		xJNZ(iopDispatcherReg);
 	}

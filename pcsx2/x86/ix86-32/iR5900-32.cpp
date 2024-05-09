@@ -215,7 +215,7 @@ void recBranchCall(void (*func)())
 void recCall(void (*func)())
 {
 	iFlushCall(FLUSH_INTERPRETER);
-	xFastCall((void*)func);
+	xFastCall((const void*)func);
 }
 
 // =====================================================================================================
@@ -229,15 +229,13 @@ static void dyna_page_reset(u32 start, u32 sz);
 // Recompiled code buffer for EE recompiler dispatchers!
 alignas(__pagesize) static u8 eeRecDispatchers[__pagesize];
 
-typedef void DynGenFunc();
-
-static DynGenFunc* DispatcherEvent = NULL;
-static DynGenFunc* DispatcherReg = NULL;
-static DynGenFunc* JITCompile = NULL;
-static DynGenFunc* JITCompileInBlock = NULL;
-static DynGenFunc* EnterRecompiledCode = NULL;
-static DynGenFunc* DispatchBlockDiscard = NULL;
-static DynGenFunc* DispatchPageReset = NULL;
+static const void* DispatcherEvent = NULL;
+static const void* DispatcherReg = NULL;
+static const void* JITCompile = NULL;
+static const void* JITCompileInBlock = NULL;
+static const void* EnterRecompiledCode = NULL;
+static const void* DispatchBlockDiscard = NULL;
+static const void* DispatchPageReset = NULL;
 
 static fastjmp_buf m_SetJmp_StateCheck;
 
@@ -254,11 +252,11 @@ static void recEventTest(void)
 
 // The address for all cleared blocks.  It recompiles the current pc and then
 // dispatches to the recompiled block address.
-static DynGenFunc* _DynGen_JITCompile(void)
+static const void* _DynGen_JITCompile(void)
 {
 	u8* retval = xGetAlignedCallTarget();
 
-	xFastCall((void*)recRecompile, ptr32[&cpuRegs.pc]);
+	xFastCall((const void*)recRecompile, ptr32[&cpuRegs.pc]);
 
 	// C equivalent:
 	// u32 addr = cpuRegs.pc;
@@ -270,18 +268,18 @@ static DynGenFunc* _DynGen_JITCompile(void)
 	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
 	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
-static DynGenFunc* _DynGen_JITCompileInBlock(void)
+static const void* _DynGen_JITCompileInBlock(void)
 {
 	u8* retval = xGetAlignedCallTarget();
-	xJMP((void*)JITCompile);
-	return (DynGenFunc*)retval;
+	xJMP((const void*)JITCompile);
+	return retval;
 }
 
 // called when jumping to variable pc address
-static DynGenFunc* _DynGen_DispatcherReg(void)
+static const void* _DynGen_DispatcherReg(void)
 {
 	u8* retval = xGetPtr(); // fallthrough target, can't align it!
 
@@ -295,19 +293,19 @@ static DynGenFunc* _DynGen_DispatcherReg(void)
 	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
 	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
-static DynGenFunc* _DynGen_DispatcherEvent(void)
+static const void* _DynGen_DispatcherEvent(void)
 {
 	u8* retval = xGetPtr();
 
-	xFastCall((void*)recEventTest);
+	xFastCall((const void*)recEventTest);
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
-static DynGenFunc* _DynGen_EnterRecompiledCode(void)
+static const void* _DynGen_EnterRecompiledCode(void)
 {
 	u8* retval = xGetAlignedCallTarget();
 
@@ -326,25 +324,25 @@ static DynGenFunc* _DynGen_EnterRecompiledCode(void)
 	if (CHECK_FASTMEM)
 		xMOV(RFASTMEMBASE, ptrNative[&vtlb_private::vtlbdata.fastmem_base]);
 
-	xJMP((void*)DispatcherReg);
+	xJMP((const void*)DispatcherReg);
 
-	return (DynGenFunc*)retval;
+	return retval;
 }
 
-static DynGenFunc* _DynGen_DispatchBlockDiscard(void)
+static const void* _DynGen_DispatchBlockDiscard(void)
 {
 	u8* retval = xGetPtr();
-	xFastCall((void*)dyna_block_discard);
-	xJMP((void*)DispatcherReg);
-	return (DynGenFunc*)retval;
+	xFastCall((const void*)dyna_block_discard);
+	xJMP((const void*)DispatcherReg);
+	return retval;
 }
 
-static DynGenFunc* _DynGen_DispatchPageReset(void)
+static const void* _DynGen_DispatchPageReset(void)
 {
 	u8* retval = xGetPtr();
-	xFastCall((void*)dyna_page_reset);
-	xJMP((void*)DispatcherReg);
-	return (DynGenFunc*)retval;
+	xFastCall((const void*)dyna_page_reset);
+	xJMP((const void*)DispatcherReg);
+	return retval;
 }
 
 static void _DynGen_Dispatchers(void)
@@ -573,12 +571,7 @@ static void recExecute(void)
 	{
 		eeCpuExecuting = true;
 
-		// Important! Most of the console logging and such has cancel points in it.  This is great
-		// in Windows, where SEH lets us safely kill a thread from anywhere we want.  This is bad
-		// in Linux, which cannot have a C++ exception cross the recompiler.  Hence the changing
-		// of the cancelstate here!
-
-		EnterRecompiledCode();
+		((void(*)())EnterRecompiledCode)();
 
 		// Generally unreachable code here ...
 	}
@@ -1168,7 +1161,7 @@ static void iBranchTest(u32 newpc)
 		else
 			recBlocks.Link(HWADDR(newpc), xJcc32(Jcc_Signed));
 	}
-	xJMP((void*)DispatcherEvent);
+	xJMP((const void*)DispatcherEvent);
 }
 
 // opcode 'code' modifies:
@@ -1654,7 +1647,7 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	xForwardJB8 not_dispatcher;
 	xADD(ebx, 8);
 	xMOV(ptr32[&cpuRegs.cycle], ebx);
-	xJMP((void*)DispatcherEvent);
+	xJMP((const void*)DispatcherEvent);
 	not_dispatcher.SetTarget();
 
 	xMOV(edx, ptr32[&cpuRegs.GPR.r[reg].UL[0]]); // eax = v0
@@ -1710,7 +1703,7 @@ static void recRecompile(const u32 startpc)
 
 	if (g_eeloadMain && HWADDR(startpc) == HWADDR(g_eeloadMain))
 	{
-		xFastCall((void*)eeloadHook);
+		xFastCall((const void*)eeloadHook);
 		if (g_SkipBiosHack)
 		{
 			// There are four known versions of EELOAD, identifiable by the location of the 'jal' to the EELOAD function which
@@ -1727,12 +1720,12 @@ static void recRecompile(const u32 startpc)
 	}
 
 	if (g_eeloadExec && HWADDR(startpc) == HWADDR(g_eeloadExec))
-		xFastCall((void*)eeloadHook2);
+		xFastCall((const void*)eeloadHook2);
 
 	// this is the only way patches get applied, doesn't depend on a hack
 	if (g_GameLoading && HWADDR(startpc) == ElfEntry)
 	{
-		xFastCall((void*)eeGameStarting);
+		xFastCall((const void*)eeGameStarting);
 		VMManager::Internal::EntryPointCompilingOnCPUThread();
 	}
 
@@ -1752,14 +1745,14 @@ static void recRecompile(const u32 startpc)
 		if (pc == 0x33ad48 || pc == 0x35060c)
 		{
 			// 0x33ad48 and 0x35060c are the return address of the function (0x356250) that populate the TLB cache
-			xFastCall((void*)GoemonPreloadTlb);
+			xFastCall((const void*)GoemonPreloadTlb);
 		}
 		else if (pc == 0x3563b8)
 		{
 			// Game will unmap some virtual addresses. If a constant address were hardcoded in the block, we would be in a bad situation.
 			eeRecNeedsReset = true;
 			// 0x3563b8 is the start address of the function that invalidate entry in TLB cache
-			xFastCall((void*)GoemonUnloadTlb, ptr32[&cpuRegs.GPR.n.a0.UL[0]]);
+			xFastCall((const void*)GoemonUnloadTlb, ptr32[&cpuRegs.GPR.n.a0.UL[0]]);
 		}
 	}
 
