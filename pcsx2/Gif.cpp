@@ -46,15 +46,14 @@ static __fi void GifDMAInt(int cycles)
 	}
 }
 
-//I suspect this is GS side which should really be handled by GS which also doesn't current have a fifo, but we can guess from our fifo
-static __fi void CalculateFIFOCSR(void)
+//I suspect this is GS side which should really be handled by GS which also doesn't current have a fifo, but we can guess from our FIFO
+static unsigned CalculateFIFOCSR(void)
 {
 	if (gifRegs.stat.FQC >= 15)
-		CSRreg.FIFO = CSR_FIFO_FULL;
+		return CSR_FIFO_FULL;
 	else if (gifRegs.stat.FQC == 0)
-		CSRreg.FIFO = CSR_FIFO_EMPTY;
-	else
-		CSRreg.FIFO = CSR_FIFO_NORMAL;
+		return CSR_FIFO_EMPTY;
+	return CSR_FIFO_NORMAL;
 }
 
 static bool CheckPaths(void)
@@ -98,7 +97,7 @@ int GIF_Fifo::write_fifo(u32* pMem, int size)
 	fifoSize += transferSize;
 
 	gifRegs.stat.FQC = fifoSize;
-	CalculateFIFOCSR();
+	CSRreg.FIFO      = CalculateFIFOCSR();
 
 	return transferSize;
 }
@@ -108,7 +107,7 @@ int GIF_Fifo::read_fifo()
 	if (!fifoSize || !gifUnit.CanDoPath3())
 	{
 		gifRegs.stat.FQC = fifoSize;
-		CalculateFIFOCSR();
+		CSRreg.FIFO      = CalculateFIFOCSR();
 		if (fifoSize)
 			GifDMAInt(128);
 		return 0;
@@ -138,7 +137,7 @@ int GIF_Fifo::read_fifo()
 		fifoSize = 0;
 
 	gifRegs.stat.FQC = fifoSize;
-	CalculateFIFOCSR();
+	CSRreg.FIFO      = CalculateFIFOCSR();
 
 	return sizeRead;
 }
@@ -276,7 +275,7 @@ __fi void gifInterrupt(void)
 	gif.gscycles = 0;
 	gifch.chcr.STR = false;
 	gifRegs.stat.FQC = gif_fifo.fifoSize;
-	CalculateFIFOCSR();
+	CSRreg.FIFO      = CalculateFIFOCSR();
 	hwDmacIrq(DMAC_GIF);
 
 	if (gif_fifo.fifoSize)
@@ -398,7 +397,7 @@ void GIFdma(void)
 			if (ptag == NULL)
 				return;
 			gifRegs.stat.FQC = std::min((u32)0x10, gifch.qwc);
-			CalculateFIFOCSR();
+			CSRreg.FIFO      = CalculateFIFOCSR();
 
 			if (dmacRegs.ctrl.STD == STD_GIF)
 			{
@@ -562,10 +561,7 @@ static __fi void mfifoGIFchain(void)
 	return;
 }
 
-static u32 qwctag(u32 mask)
-{
-	return (dmacRegs.rbor.ADDR + (mask & dmacRegs.rbsr.RMSK));
-}
+#define QWCTAG(mask) (dmacRegs.rbor.ADDR + ((mask) & dmacRegs.rbsr.RMSK))
 
 static void mfifoGifMaskMem(int id)
 {
@@ -577,10 +573,9 @@ static void mfifoGifMaskMem(int id)
 		case TAG_CALL:
 		case TAG_RET:
 		case TAG_END:
-			if (gifch.madr < dmacRegs.rbor.ADDR) // Probably not needed but we will check anyway.
-				gifch.madr = qwctag(gifch.madr);
-			else if (gifch.madr > (dmacRegs.rbor.ADDR + (u32)dmacRegs.rbsr.RMSK)) // Usual scenario is the tag is near the end (Front Mission 4)
-				gifch.madr = qwctag(gifch.madr);
+			if (   (gifch.madr < dmacRegs.rbor.ADDR)
+			    || (gifch.madr > (dmacRegs.rbor.ADDR + (u32)dmacRegs.rbsr.RMSK)))
+				gifch.madr = QWCTAG(gifch.madr);
 			break;
 		default:
 			// Do nothing as the MADR could be outside
@@ -593,8 +588,8 @@ void mfifoGIFtransfer(void)
 	tDMA_TAG* ptag;
 	gif.mfifocycles = 0;
 
-	if (gifRegs.ctrl.PSE)
-	{ // Temporarily stop
+	if (gifRegs.ctrl.PSE) // Temporarily stop
+	{
 		CPU_INT(DMAC_MFIFO_GIF, 16);
 		CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
 		return;
@@ -602,7 +597,7 @@ void mfifoGIFtransfer(void)
 
 	if (gifch.qwc == 0)
 	{
-		gifch.tadr = qwctag(gifch.tadr);
+		gifch.tadr = QWCTAG(gifch.tadr);
 
 		if (QWCinGIFMFIFO(gifch.tadr) == 0)
 		{
@@ -612,20 +607,20 @@ void mfifoGIFtransfer(void)
 			return;
 		}
 
-		ptag = dmaGetAddr(gifch.tadr, false);
+		ptag             = dmaGetAddr(gifch.tadr, false);
 		gifch.unsafeTransfer(ptag);
-		gifch.madr = ptag[1]._u32;
+		gifch.madr       = ptag[1]._u32;
 
 		gifRegs.stat.FQC = std::min((u32)0x10, gifch.qwc);
-		CalculateFIFOCSR();
+		CSRreg.FIFO      = CalculateFIFOCSR();
 
 		gif.mfifocycles += 2;
 
-		gif.gspath3done = hwDmacSrcChainWithStack(gifch, ptag->ID);
+		gif.gspath3done  = hwDmacSrcChainWithStack(gifch, ptag->ID);
 
 		mfifoGifMaskMem(ptag->ID);
 
-		gifch.tadr = qwctag(gifch.tadr);
+		gifch.tadr = QWCTAG(gifch.tadr);
 
 		if ((gifch.chcr.TIE) && (ptag->IRQ))
 			gif.gspath3done = true;
@@ -640,8 +635,8 @@ void gifMFIFOInterrupt(void)
 {
 	gif.mfifocycles = 0;
 
-	if (dmacRegs.ctrl.MFD != MFD_GIF)
-	{ // GIF not in MFIFO anymore, come out.
+	if (dmacRegs.ctrl.MFD != MFD_GIF) // GIF not in MFIFO anymore, come out.
+	{
 		gifInterrupt();
 		CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
 		return;
@@ -717,12 +712,12 @@ void gifMFIFOInterrupt(void)
 		return;
 	}
 
-	gif.gscycles = 0;
+	gif.gscycles     = 0;
 
-	gifch.chcr.STR = false;
-	gif.gifstate = GIF_STATE_READY;
+	gifch.chcr.STR   = false;
+	gif.gifstate     = GIF_STATE_READY;
 	gifRegs.stat.FQC = gif_fifo.fifoSize;
-	CalculateFIFOCSR();
+	CSRreg.FIFO      = CalculateFIFOCSR();
 	hwDmacIrq(DMAC_GIF);
 	CPU_SET_DMASTALL(DMAC_MFIFO_GIF, false);
 	if (gif_fifo.fifoSize)
