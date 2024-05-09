@@ -1255,9 +1255,6 @@
     <ClInclude Include="SaveState.h">
       <Filter>System\Include</Filter>
     </ClInclude>
-    <ClInclude Include="System.h">
-      <Filter>System\Include</Filter>
-    </ClInclude>
     <ClInclude Include="Counters.h">
       <Filter>System\Ps2\EmotionEngine</Filter>
     </ClInclude>

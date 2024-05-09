@@ -15,7 +15,7 @@
 
 #include "PrecompiledHeader.h"
 #include "GS/Renderers/Common/GSFunctionMap.h"
-#include "System.h"
+#include "Memory.h"
 
 static GSCodeReserve s_instance;
 

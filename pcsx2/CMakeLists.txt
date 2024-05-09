@@ -178,7 +178,6 @@ set(pcsx2Headers
 	Sif.h
 	Sio.h
 	SPR.h
-	System.h
 	Vif_Dma.h
 	Vif.h
 	Vif_Unpack.h

@@ -19,8 +19,8 @@
 
 #include "common/Timer.h"
 
+#include "Config.h"
 #include "PerformanceMetrics.h"
-#include "System.h"
 
 static Common::Timer s_last_update_time;
 

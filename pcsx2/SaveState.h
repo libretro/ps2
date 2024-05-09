@@ -19,7 +19,7 @@
 #include <memory>
 #include <vector>
 
-#include "System.h"
+#include "Memory.h"
 
 enum class FreezeAction
 {

@@ -26,9 +26,9 @@
 
 #include "MemoryCardFile.h"
 
-#include "System.h"
 #include "Config.h"
 #include "Host.h"
+#include "Memory.h"
 
 #define MCD_SIZE 131072 /* Legacy PSX card default size = 1024 * 8 * 16 = 131072 */
 

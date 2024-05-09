@@ -16,7 +16,7 @@
 
 #include "PrecompiledHeader.h"
 
-#include "System.h"
+#include "Memory.h"
 #include "iR5900.h"
 #include "Vif.h"
 #include "VU.h"

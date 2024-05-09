@@ -18,7 +18,7 @@
 #include <cstring> /* memset */
 
 #include "R3000A.h"
-#include "System.h"
+#include "Memory.h"
 #include "VU.h"
 #include "Vif.h"
 #include "x86/iR3000A.h"
