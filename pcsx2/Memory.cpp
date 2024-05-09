@@ -187,7 +187,7 @@ static vtlbHandler
 	iopHw_by_page_08;
 
 
-void memMapVUmicro()
+static void memMapVUmicro(void)
 {
 	// VU0/VU1 micro mem (instructions)
 	// (Like IOP memory, these are generally only used by the EE Bios kernel during
@@ -212,7 +212,7 @@ void memMapVUmicro()
 	else               vtlb_MapBlock  (VU1.Mem,     0x1100c000,0x00004000);
 }
 
-void memMapPhy()
+static void memMapPhy(void)
 {
 	// Main memory
 	vtlb_MapBlock(eeMem->Main,	0x00000000,Ps2MemSize::MainRam);//mirrored on first 256 mb ?
@@ -272,9 +272,7 @@ static mem8_t  nullRead8(u32 mem)  { return 0; }
 static mem16_t nullRead16(u32 mem) { return 0; }
 static mem32_t nullRead32(u32 mem) { return 0; }
 static mem64_t nullRead64(u32 mem) { return 0; }
-static RETURNS_R128 nullRead128(u32 mem) {
-	return r128_zero();
-}
+static RETURNS_R128 nullRead128(u32 mem) { return r128_zero(); }
 static void nullWrite8(u32 mem, mem8_t value)   { }
 static void nullWrite16(u32 mem, mem16_t value) { }
 static void nullWrite32(u32 mem, mem32_t value) { }
@@ -422,41 +420,58 @@ static void TAKES_R128 _ext_memWrite128(u32 mem, r128 value)
 
 typedef void ClearFunc_t( u32 addr, u32 qwc );
 
-template<int vunum> static __fi void ClearVuFunc(u32 addr, u32 size) {
-	if (vunum) CpuVU1->Clear(addr, size);
-	else       CpuVU0->Clear(addr, size);
+template<int vunum> static __fi void ClearVuFunc(u32 addr, u32 size)
+{
+	if (vunum)
+		CpuVU1->Clear(addr, size);
+	else
+		CpuVU0->Clear(addr, size);
 }
 
 // VU Micro Memory Reads...
-template<int vunum> static mem8_t vuMicroRead8(u32 addr) {
+template<int vunum>
+static mem8_t vuMicroRead8(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return vu->Micro[addr];
 }
-template<int vunum> static mem16_t vuMicroRead16(u32 addr) {
+
+template<int vunum>
+static mem16_t vuMicroRead16(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return *(u16*)&vu->Micro[addr];
 }
-template<int vunum> static mem32_t vuMicroRead32(u32 addr) {
+
+template<int vunum>
+static mem32_t vuMicroRead32(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return *(u32*)&vu->Micro[addr];
 }
-template<int vunum> static mem64_t vuMicroRead64(u32 addr) {
+
+template<int vunum>
+static mem64_t vuMicroRead64(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return *(u64*)&vu->Micro[addr];
 }
-template<int vunum> static RETURNS_R128 vuMicroRead128(u32 addr) {
+
+template<int vunum>
+static RETURNS_R128 vuMicroRead128(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
@@ -466,102 +481,143 @@ template<int vunum> static RETURNS_R128 vuMicroRead128(u32 addr) {
 
 // Profiled VU writes: Happen very infrequently, with exception of BIOS initialization (at most twice per
 //   frame in-game, and usually none at all after BIOS), so cpu clears aren't much of a big deal.
-template<int vunum> static void vuMicroWrite8(u32 addr,mem8_t data) {
+template<int vunum>
+static void vuMicroWrite8(u32 addr,mem8_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteMicroMem(addr, &data, sizeof(u8));
 		return;
 	}
-	if (vu->Micro[addr]!=data) {     // Clear before writing new data
+
+	if (vu->Micro[addr] != data) // Clear before writing new data
+	{
 		ClearVuFunc<vunum>(addr, 8); //(clearing 8 bytes because an instruction is 8 bytes) (cottonvibes)
 		vu->Micro[addr] =data;
 	}
 }
-template<int vunum> static void vuMicroWrite16(u32 addr, mem16_t data) {
+
+template<int vunum>
+static void vuMicroWrite16(u32 addr, mem16_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteMicroMem(addr, &data, sizeof(u16));
 		return;
 	}
-	if (*(u16*)&vu->Micro[addr]!=data) {
+
+	if (*(u16*)&vu->Micro[addr] != data)
+	{
 		ClearVuFunc<vunum>(addr, 8);
 		*(u16*)&vu->Micro[addr] =data;
 	}
 }
-template<int vunum> static void vuMicroWrite32(u32 addr, mem32_t data) {
+
+template<int vunum>
+static void vuMicroWrite32(u32 addr, mem32_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteMicroMem(addr, &data, sizeof(u32));
 		return;
 	}
-	if (*(u32*)&vu->Micro[addr]!=data) {
+
+	if (*(u32*)&vu->Micro[addr] != data)
+	{
 		ClearVuFunc<vunum>(addr, 8);
 		*(u32*)&vu->Micro[addr] =data;
 	}
 }
-template<int vunum> static void vuMicroWrite64(u32 addr, mem64_t data) {
+
+template<int vunum>
+static void vuMicroWrite64(u32 addr, mem64_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteMicroMem(addr, &data, sizeof(u64));
 		return;
 	}
 
-	if (*(u64*)&vu->Micro[addr]!=data) {
+	if (*(u64*)&vu->Micro[addr] != data)
+	{
 		ClearVuFunc<vunum>(addr, 8);
 		*(u64*)&vu->Micro[addr] =data;
 	}
 }
-template<int vunum> static void TAKES_R128 vuMicroWrite128(u32 addr, r128 data) {
+
+template<int vunum>
+static void TAKES_R128 vuMicroWrite128(u32 addr, r128 data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 
 	const u128 udata = r128_to_u128(data);
 
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteMicroMem(addr, &udata, sizeof(u128));
 		return;
 	}
 	u128 comp = (u128&)vu->Micro[addr];
-	if ((comp.lo != udata.lo) || (comp.hi != udata.hi)) {
+	if ((comp.lo != udata.lo) || (comp.hi != udata.hi))
+	{
 		ClearVuFunc<vunum>(addr, 16);
 		r128_store_unaligned(&vu->Micro[addr],data);
 	}
 }
 
 // VU Data Memory Reads...
-template<int vunum> static mem8_t vuDataRead8(u32 addr) {
+template<int vunum>
+static mem8_t vuDataRead8(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return vu->Mem[addr];
 }
-template<int vunum> static mem16_t vuDataRead16(u32 addr) {
+
+template<int vunum>
+static mem16_t vuDataRead16(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return *(u16*)&vu->Mem[addr];
 }
-template<int vunum> static mem32_t vuDataRead32(u32 addr) {
+
+template<int vunum>
+static mem32_t vuDataRead32(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return *(u32*)&vu->Mem[addr];
 }
-template<int vunum> static mem64_t vuDataRead64(u32 addr) {
+
+template<int vunum>
+static mem64_t vuDataRead64(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
 	return *(u64*)&vu->Mem[addr];
 }
-template<int vunum> static RETURNS_R128 vuDataRead128(u32 addr) {
+
+template<int vunum>
+static RETURNS_R128 vuDataRead128(u32 addr)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
@@ -569,46 +625,64 @@ template<int vunum> static RETURNS_R128 vuDataRead128(u32 addr) {
 }
 
 // VU Data Memory Writes...
-template<int vunum> static void vuDataWrite8(u32 addr, mem8_t data) {
+template<int vunum>
+static void vuDataWrite8(u32 addr, mem8_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u8));
 		return;
 	}
 	vu->Mem[addr] = data;
 }
-template<int vunum> static void vuDataWrite16(u32 addr, mem16_t data) {
+
+template<int vunum>
+static void vuDataWrite16(u32 addr, mem16_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u16));
 		return;
 	}
 	*(u16*)&vu->Mem[addr] = data;
 }
-template<int vunum> static void vuDataWrite32(u32 addr, mem32_t data) {
+
+template<int vunum>
+static void vuDataWrite32(u32 addr, mem32_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u32));
 		return;
 	}
 	*(u32*)&vu->Mem[addr] = data;
 }
-template<int vunum> static void vuDataWrite64(u32 addr, mem64_t data) {
+
+template<int vunum>
+static void vuDataWrite64(u32 addr, mem64_t data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u64));
 		return;
 	}
 	*(u64*)&vu->Mem[addr] = data;
 }
-template<int vunum> static void TAKES_R128 vuDataWrite128(u32 addr, r128 data) {
+
+template<int vunum> static void TAKES_R128 vuDataWrite128(u32 addr, r128 data)
+{
 	VURegs* vu = vunum ?  &VU1 :  &VU0;
 	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) {
+	if (vunum && THREAD_VU1)
+	{
 		alignas(16) const u128 udata = r128_to_u128(data);
 		vu1Thread.WriteDataMem(addr, &udata, sizeof(u128));
 		return;
@@ -616,11 +690,9 @@ template<int vunum> static void TAKES_R128 vuDataWrite128(u32 addr, r128 data) {
 	r128_store_unaligned(&vu->Mem[addr], data);
 }
 
-
 void memSetPageAddr(u32 vaddr, u32 paddr)
 {
 	vtlb_VMap(vaddr,paddr,0x1000);
-
 }
 
 void memClearPageAddr(u32 vaddr)
@@ -642,10 +714,9 @@ void memBindConditionalHandlers(void)
 	{
 		vtlbMemR16FP* page0F16(hwRead16_page_0F_INTC_HACK);
 		vtlbMemR32FP* page0F32(hwRead32_page_0F_INTC_HACK);
-		//vtlbMemR64FP* page0F64(hwRead64_generic_INTC_HACK);
 
 		vtlb_ReassignHandler( hw_by_page[0xf],
-			hwRead8<0x0f>,	page0F16,			page0F32,			hwRead64<0x0f>,		hwRead128<0x0f>,
+			hwRead8<0x0f>,	page0F16,		page0F32,		hwRead64<0x0f>,		hwRead128<0x0f>,
 			hwWrite8<0x0f>,	hwWrite16<0x0f>,	hwWrite32<0x0f>,	hwWrite64<0x0f>,	hwWrite128<0x0f>
 		);
 	}
@@ -653,10 +724,9 @@ void memBindConditionalHandlers(void)
 	{
 		vtlbMemR16FP* page0F16(hwRead16<0x0f>);
 		vtlbMemR32FP* page0F32(hwRead32<0x0f>);
-		//vtlbMemR64FP* page0F64(hwRead64<0x0f>);
 
 		vtlb_ReassignHandler( hw_by_page[0xf],
-			hwRead8<0x0f>,	page0F16,			page0F32,			hwRead64<0x0f>,		hwRead128<0x0f>,
+			hwRead8<0x0f>,	page0F16,		page0F32,		hwRead64<0x0f>,		hwRead128<0x0f>,
 			hwWrite8<0x0f>,	hwWrite16<0x0f>,	hwWrite32<0x0f>,	hwWrite64<0x0f>,	hwWrite128<0x0f>
 		);
 	}

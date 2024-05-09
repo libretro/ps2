@@ -34,8 +34,6 @@ extern void memSetPageAddr(u32 vaddr, u32 paddr);
 extern void memClearPageAddr(u32 vaddr);
 extern void memBindConditionalHandlers(void);
 
-extern void memMapVUmicro(void);
-
 #define memRead8 vtlb_memRead<mem8_t>
 #define memRead16 vtlb_memRead<mem16_t>
 #define memRead32 vtlb_memRead<mem32_t>
