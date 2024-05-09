@@ -142,7 +142,6 @@
     <ClInclude Include="emitter\implement\jmpcall.h" />
     <ClInclude Include="emitter\implement\movs.h" />
     <ClInclude Include="emitter\implement\test.h" />
-    <ClInclude Include="emitter\implement\xchg.h" />
     <ClInclude Include="emitter\implement\simd_arithmetic.h" />
     <ClInclude Include="emitter\implement\simd_comparisons.h" />
     <ClInclude Include="emitter\implement\simd_helpers.h" />

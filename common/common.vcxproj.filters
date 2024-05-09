@@ -207,9 +207,6 @@
     <ClInclude Include="emitter\x86types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="emitter\implement\xchg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="FastJmp.h">
       <Filter>Header Files</Filter>
     </ClInclude>

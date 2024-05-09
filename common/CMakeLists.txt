@@ -75,13 +75,11 @@ target_sources(common PRIVATE
 	emitter/implement/simd_shufflepack.h
 	emitter/implement/simd_templated_helpers.h
 	emitter/implement/test.h
-	emitter/implement/xchg.h
 	emitter/instructions.h
 	emitter/internal.h
 	emitter/legacy_instructions.h
 	emitter/legacy_internal.h
 	emitter/legacy_types.h
-	emitter/tools.h
 	emitter/x86emitter.h
 	emitter/x86types.h
 )

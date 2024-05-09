@@ -23,7 +23,7 @@ emitterT void FLD32(u32 from)
 {
 	xWrite8(0xD9);
 	ModRM(0, 0x0, DISP32);
-	xWrite32(MEMADDR(from, 4));
+	xWrite32(from);
 }
 
 // fld st(i)
@@ -36,7 +36,7 @@ emitterT void FSTP32(u32 to)
 {
 	xWrite8(0xD9);
 	ModRM(0, 0x3, DISP32);
-	xWrite32(MEMADDR(to, 4));
+	xWrite32(to);
 }
 
 // fstp st(i)
@@ -68,5 +68,5 @@ emitterT void FMUL32(u32 from)
 {
 	xWrite8(0xD8);
 	ModRM(0, 0x1, DISP32);
-	xWrite32(MEMADDR(from, 4));
+	xWrite32(from);
 }

@@ -36,38 +36,6 @@ namespace x86Emitter
 		void operator()(const xIndirect64orLess& dest, sptr imm) const;
 		void operator()(const xRegisterInt& to, sptr imm, bool preserve_flags = false) const;
 
-#if 0
-	template< typename T > __noinline void operator()( const ModSibBase& to, const xImmReg<T>& immOrReg ) const
-	{
-		_DoI_helpermess( *this, to, immOrReg );
-	}
-
-	template< typename T > __noinline void operator()( const xDirectOrIndirect<T>& to, const xImmReg<T>& immOrReg ) const
-	{
-		_DoI_helpermess( *this, to, immOrReg );
-	}
-
-	template< typename T > __noinline void operator()( const xDirectOrIndirect<T>& to, int imm ) const
-	{
-		_DoI_helpermess( *this, to, imm );
-	}
-
-	template< typename T > __noinline void operator()( const xDirectOrIndirect<T>& to, const xDirectOrIndirect<T>& from ) const
-	{
-		if( to == from ) return;
-		_DoI_helpermess( *this, to, from );
-	}
-
-	/*template< typename T > __noinline void operator()( const xRegister<T>& to, const xDirectOrIndirect<T>& from ) const
-	{
-		_DoI_helpermess( *this, xDirectOrIndirect<T>( to ), from );
-	}
-
-	template< typename T > __noinline void operator()( const xDirectOrIndirect<T>& to, const xRegister<T>& from ) const
-	{
-		_DoI_helpermess( *this, to, xDirectOrIndirect<T>( from ) );
-	}*/
-#endif
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -111,8 +79,6 @@ namespace x86Emitter
 
 		void operator()(const xRegister8& to) const;
 		void operator()(const xIndirect8& dest) const;
-
-		//void operator()( const xDirectOrIndirect8& dest ) const;
 	};
 
 
@@ -131,10 +97,6 @@ namespace x86Emitter
 		void operator()(const xRegister32or64& to, const xIndirect16& sibsrc) const;
 		void operator()(const xRegister64& to, const xRegister32& from) const;
 		void operator()(const xRegister64& to, const xIndirect32& sibsrc) const;
-
-		//void operator()( const xRegister32& to, const xDirectOrIndirect16& src ) const;
-		//void operator()( const xRegister16or32& to, const xDirectOrIndirect8& src ) const;
-		//void operator()( const xRegister16& to, const xDirectOrIndirect8& src ) const;
 	};
 
 } // End namespace x86Emitter
