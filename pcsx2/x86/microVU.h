@@ -142,6 +142,10 @@ struct microVU
 	{
 		return (index && THREAD_VU1) ? vu1Thread.vifRegs : regs().GetVifRegs();
 	}
+
+	__fi u32 compareState(microRegInfo* lhs, microRegInfo* rhs) const {
+		return reinterpret_cast<u32(*)(void*, void*)>(compareStateF)(lhs, rhs);
+	}
 };
 
 class microBlockManager
@@ -215,7 +219,7 @@ public:
 			microBlockLink* prevI = nullptr;
 			for (microBlockLink* linkI = fBlockList; linkI != nullptr; prevI = linkI, linkI = linkI->next)
 			{
-				if (mVUquickSearch(pState, &linkI->block.pState, sizeof(microRegInfo)))
+				if (mVU.compareState(pState, &linkI->block.pState) == 0)
 				{
 					if (linkI != fBlockList)
 					{
