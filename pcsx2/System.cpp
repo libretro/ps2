@@ -35,9 +35,9 @@ namespace HostMemoryMap
 	// For debuggers
 	extern "C" {
 #ifdef _WIN32
-	_declspec(dllexport) uptr EEmem, IOPmem, VUmem, EErec, IOPrec, VIF0rec, VIF1rec, mVU0rec, mVU1rec, SWjit, bumpAllocator;
+	uptr EEmem, IOPmem, VUmem, EErec, IOPrec, VIF0rec, VIF1rec, mVU0rec, mVU1rec, SWjit, bumpAllocator;
 #else
-	__attribute__((visibility("default"), used)) uptr EEmem, IOPmem, VUmem, EErec, IOPrec, VIF0rec, VIF1rec, mVU0rec, mVU1rec, SWjit, bumpAllocator;
+	uptr EEmem, IOPmem, VUmem, EErec, IOPrec, VIF0rec, VIF1rec, mVU0rec, mVU1rec, SWjit, bumpAllocator;
 #endif
 	}
 } // namespace HostMemoryMap
