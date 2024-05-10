@@ -72,10 +72,7 @@ VifUnpackSSE_Dynarec::VifUnpackSSE_Dynarec(const nVifStruct& vif_, const nVifBlo
 	vCL       = 0;
 }
 
-__fi void makeMergeMask(u32& x)
-{
-	x = ((x & 0x40) >> 6) | ((x & 0x10) >> 3) | (x & 4) | ((x & 1) << 3);
-}
+#define makeMergeMask(x) ((((x) & 0x40) >> 6) | (((x) & 0x10) >> 3) | ((x) & 4) | (((x) & 1) << 3))
 
 __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 {
@@ -99,7 +96,6 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 		if ((cS >= 4) && (m3 & 0xff000000)) xPSHUF.D(xmmCol3, xmmCol0, _v3);
 		if ((cS >= 1) && (m3 & 0x000000ff)) xPSHUF.D(xmmCol0, xmmCol0, _v0);
 	}
-	//if (doMask||doMode) loadRowCol((nVifStruct&)v);
 }
 
 void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
@@ -110,9 +106,9 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 	u32 m2 = (m0 & 0x55) & (~m0 >> 1); // all the lower bits (rows)cancelling out any write protects 0x04
 	u32 m4 = (m0 & ~((m3 << 1) | m2)) & 0x55; //  = 0xC0 & 0x55 = 0x40 (for merge mask)
 
-	makeMergeMask(m2);
-	makeMergeMask(m3);
-	makeMergeMask(m4);
+	m2     = makeMergeMask(m2);
+	m3     = makeMergeMask(m3);
+	m4     = makeMergeMask(m4);
 
 	if (doMask && m2) // Merge MaskRow
 	{
@@ -395,9 +391,7 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill)
 	// Seach in cache before trying to compile the block
 	nVifBlock* b = v.vifBlocks.find(block);
 	if (unlikely(b == nullptr))
-	{
 		b = dVifCompile<idx>(block, isFill);
-	}
 
 	{ // Execute the block
 		const VURegs& VU = vuRegs[idx];
