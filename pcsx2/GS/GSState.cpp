@@ -2075,7 +2075,7 @@ void GSState::ReadLocalMemoryUnsync(u8* mem, int qwc, GIFRegBITBLTBUF BITBLTBUF,
 	}
 }
 
-void GSState::PurgeTextureCache()
+void GSState::PurgeTextureCache(bool sources, bool targets, bool hash_cache)
 {
 }
 

@@ -54,25 +54,13 @@ GSRendererHW::~GSRendererHW()
 
 void GSRendererHW::Destroy()
 {
-#if 0
 	g_texture_cache->RemoveAll(true, true, true);
-#else
-	g_texture_cache->RemoveAll();
-#endif
 	GSRenderer::Destroy();
 }
 
-#if 0
 void GSRendererHW::PurgeTextureCache(bool sources, bool targets, bool hash_cache)
-#else
-void GSRendererHW::PurgeTextureCache()
-#endif
 {
-#if 0
 	g_texture_cache->RemoveAll(sources, targets, hash_cache);
-#else
-	g_texture_cache->RemoveAll();
-#endif
 }
 
 void GSRendererHW::ReadbackTextureCache()
@@ -101,11 +89,7 @@ void GSRendererHW::Reset(bool hardware_reset)
 	if (!hardware_reset)
 		g_texture_cache->ReadbackAll();
 
-#if 0
 	g_texture_cache->RemoveAll(true, true, true);
-#else
-	g_texture_cache->RemoveAll();
-#endif
 
 	GSRenderer::Reset(hardware_reset);
 }
@@ -145,11 +129,7 @@ void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
 
 	if (g_texture_cache->GetHashCacheMemoryUsage() > 1024 * 1024 * 1024)
 	{
-#if 0
 		g_texture_cache->RemoveAll(true, false, true);
-#else
-		g_texture_cache->RemoveAll();
-#endif
 		g_gs_device->PurgePool();
 		GSConfig.TexturePreloading = TexturePreloadingLevel::Partial;
 	}
