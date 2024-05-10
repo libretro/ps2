@@ -41,9 +41,6 @@ union tPGIF_CTRL
 	}bits;
 
 	u32 _u32;
-	tPGIF_CTRL( u32 val ) { _u32 = val; }
-	void write(u32 value) { _u32 = value; }
-	u32 get() { return _u32; }
 };
 
 union tPGIF_IMM
@@ -61,7 +58,6 @@ union tPGIF_IMM
 		u32 dummy4[3];
 
 	}reg;
-	void reset() { reg.e2 = reg.e3 = reg.e4 = reg.e5 = 0; }
 };
 
 struct PGIFregisters
@@ -108,9 +104,6 @@ union tPGPU_REGS
 	}bits;
 
 	u32 _u32;
-	tPGPU_REGS( u32 val ) { _u32 = val; }
-	void write(u32 value) { _u32 = value; }
-	u32 get() { return _u32; }
 };
 
 struct PGPUregisters
@@ -171,9 +164,6 @@ union tCHCR_DMA
 		u32 resv5	: 1;
 	}bits;
 	u32 _u32;
-	tCHCR_DMA( u32 val ) { _u32 = val; }
-	void write(u32 value) { _u32 = value; }
-	u32 get() { return _u32; }
 };
 
 union tBCR_DMA
@@ -182,23 +172,14 @@ union tBCR_DMA
 	{
 		u32 block_size : 16;
 		u32 block_amount : 16;
-	}bit;
+	} bit;
 
 	u32 _u32;
-	tBCR_DMA( u32 val ) { _u32 = val; }
-	u32 get_block_amount()  { return bit.block_amount ? bit.block_amount : 0x10000; }
-	u32 get_block_size()  { return bit.block_size; }
-	void write(u32 value) { _u32 = value; }
-	u32 get() { return _u32; }
 };
 
 union tMADR_DMA
 {
 	u32 address;
-
-	tMADR_DMA( u32 val ) { address = val; }
-	void write(u32 value) { address = value; }
-	u32 get() { return address; }
 };
 
 struct DMAregisters

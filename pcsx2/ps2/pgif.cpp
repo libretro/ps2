@@ -104,15 +104,14 @@ void pgifInit()
 	rb_gp0.size = PGIF_DAT_RB_SIZE;
 	ringBufferClear(&rb_gp0);
 
-	pgpu.stat.write(0);
-	pgif.ctrl.write(0);
-	old_gp0_value = 0;
+	pgpu.stat._u32 = 0;
+	pgif.ctrl._u32 = 0;
+	old_gp0_value  = 0;
 
 
 	dmaRegs.madr.address = 0;
-	dmaRegs.bcr.write(0);
-	dmaRegs.chcr.write(0);
-	//pgpuDmaTadr = 0;
+	dmaRegs.bcr._u32     = 0;
+	dmaRegs.chcr._u32    = 0;
 
 	dma.state.ll_active = 0;
 	dma.state.to_gpu_active = 0;
@@ -241,28 +240,28 @@ void handleGp1Command(u32 cmd)
 	}
 }
 
-u32 getUpdPgpuStatReg()
+static u32 getUpdPgpuStatReg(void)
 {
 	//PS1DRV does set bit RSEND on (probably - took from command print) GP0(C0h), should we do something?
 	//The PS1 program pools this bit to determine if there is data in the FIFO, it can get. Then starts DMA to get it.
 
 	//The PS1 program will not send the DMA direction command (GP1(04h)) and will not start DMA until this bit (27) becomes set.
 	pgpu.stat.bits.RSEND = pgif.ctrl.bits.data_from_gpu_ready;
-	return pgpu.stat.get();
+	return pgpu.stat._u32;
 }
 
-u8 getGP0RbC_Count()
+static u8 getGP0RbC_Count(void)
 {
 	//Returns "correct" element-in-FIFO count, even if extremely large buffer is used.
 	return std::min(rb_gp0.count, 0x1F);
 }
 
-u32 getUpdPgifCtrlReg()
+static u32 getUpdPgifCtrlReg(void)
 {
 	//Update fifo counts before returning register value
 	pgif.ctrl.bits.GP0_fifo_count = getGP0RbC_Count();
 	pgif.ctrl.bits.GP1_fifo_count = rb_gp1.count;
-	return pgif.ctrl.get();
+	return pgif.ctrl._u32;
 }
 
 
@@ -333,10 +332,10 @@ void PGIFw(int addr, u32 data)
 	switch (addr)
 	{
 		case PGPU_STAT:
-			pgpu.stat.write(data); //Should all bits be writable?
+			pgpu.stat._u32 = data; //Should all bits be writable?
 			break;
 		case PGIF_CTRL:
-			pgif.ctrl.write(data);
+			pgif.ctrl._u32 = data;
 			fillFifoOnDrain(); //Now this checks the 0x8 bit of the PGIF_CTRL reg, so  it here too,
 			break; 				//so that it gets updated immediately once it is set.
 		case IMM_E2:
@@ -369,7 +368,7 @@ u32 PGIFr(int addr)
 	switch (addr)
 	{
 		case PGPU_STAT:
-			data = pgpu.stat.get();
+			data = pgpu.stat._u32;
 			break;
 		case PGIF_CTRL:
 			data = getUpdPgifCtrlReg();
@@ -585,8 +584,9 @@ void processPgpuDma(void)
 		return;
 	}
 	dma.normal.current_word = 0;
-	dma.normal.address = dmaRegs.madr.address & 0x1FFFFFFF; // Sould we allow whole range? Maybe for psx SPR?
-	dma.normal.total_words = (dmaRegs.bcr.bit.block_size * dmaRegs.bcr.get_block_amount());
+	dma.normal.address      = dmaRegs.madr.address & 0x1FFFFFFF; // Sould we allow whole range? Maybe for psx SPR?
+	u32 block_amt           = dmaRegs.bcr.bit.block_amount ? dmaRegs.bcr.bit.block_amount : 0x10000;
+	dma.normal.total_words  = block_amt;
 
 	if (dmaRegs.chcr.bits.DIR) // to gpu
 	{
@@ -602,26 +602,21 @@ void processPgpuDma(void)
 
 u32 psxDma2GpuR(u32 addr)
 {
-	u32 data = 0;
 	addr &= 0x1FFFFFFF;
 	switch (addr)
 	{
 		case PGPU_DMA_MADR:
-			data = dmaRegs.madr.address;
-			break;
+			return dmaRegs.madr.address;
 		case PGPU_DMA_BCR:
-			data = dmaRegs.bcr.get();
-			break;
+			return dmaRegs.bcr._u32;
 		case PGPU_DMA_CHCR:
-			data = dmaRegs.chcr.get();
-			break;
+			return dmaRegs.chcr._u32;
 		case PGPU_DMA_TADR:
-			data = pgpuDmaTadr;
-			break;
+			return pgpuDmaTadr;
 		default:
 			break;
 	}
-	return data;
+	return 0;
 }
 
 void psxDma2GpuW(u32 addr, u32 data)
@@ -633,14 +628,12 @@ void psxDma2GpuW(u32 addr, u32 data)
 			dmaRegs.madr.address = (data & 0x00FFFFFF);
 			break;
 		case PGPU_DMA_BCR:
-			dmaRegs.bcr.write(data);
+			dmaRegs.bcr._u32     = data;
 			break;
 		case PGPU_DMA_CHCR:
-			dmaRegs.chcr.write(data);
+			dmaRegs.chcr._u32    = data;
 			if (dmaRegs.chcr.bits.BUSY)
-			{
 				processPgpuDma();
-			}
 			break;
 		case PGPU_DMA_TADR:
 			pgpuDmaTadr = data;
