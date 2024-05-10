@@ -1838,11 +1838,21 @@ __noinline void IPUWorker(void)
 			break;
 
 		case SCE_IPU_CSC:
-			if (!ipuCSC(ipu_cmd.current)) return;
+			{
+				tIPU_CMD_CSC _val;
+				_val._u32 = ipu_cmd.current;
+				if (!ipuCSC(_val))
+					return;
+			}
 			break;
 
 		case SCE_IPU_PACK:
-			if (!ipuPACK(ipu_cmd.current)) return;
+			{
+				tIPU_CMD_CSC _val;
+				_val._u32 = ipu_cmd.current;
+				if (!ipuPACK(_val))
+					return;
+			}
 			break;
 		default:
 			break;

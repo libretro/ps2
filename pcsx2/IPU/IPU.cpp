@@ -213,7 +213,7 @@ void ipuSoftReset(void)
 	g_ipu_thresh[0] = 0;
 	g_ipu_thresh[1] = 0;
 
-	ipuRegs.ctrl.reset();
+	ipuRegs.ctrl._u32 &= 0x7F33F00;
 	ipuRegs.top = 0;
 	ipu_cmd.clear();
 	ipuRegs.cmd.BUSY = 0;
@@ -230,18 +230,18 @@ __fi bool ipuWrite32(u32 mem, u32 value)
 	{
 		ipucase(IPU_CMD): // IPU_CMD
 			IPUCMD_WRITE(value);
-		return false;
+			return false;
 
 		ipucase(IPU_CTRL): // IPU_CTRL
 			// CTRL = the first 16 bits of ctrl [0x8000ffff], + value for the next 16 bits,
 			// minus the reserved bits. (18-19; 27-29) [0x47f30000]
-			ipuRegs.ctrl.write(value);
+			ipuRegs.ctrl._u32 = (value & 0x47f30000) | (ipuRegs.ctrl._u32 & 0x8000ffff);
 			if (ipuRegs.ctrl.IDP == 3) /* IPU Invalid Intra DC Precision, switching to 9 bits */
 				ipuRegs.ctrl.IDP = 1;
 
-			if (ipuRegs.ctrl.RST) ipuSoftReset(); // RESET
-
-		return false;
+			if (ipuRegs.ctrl.RST)
+				ipuSoftReset(); // RESET
+			return false;
 	}
 	return true;
 }
@@ -352,15 +352,23 @@ __fi void IPUCMD_WRITE(u32 val)
 			return;
 
 		case SCE_IPU_IDEC:
-			g_BP.Advance(val & 0x3F);
-			ipuIDEC(val);
-			ipuRegs.topbusy = 0x80000000;
+			{
+				tIPU_CMD_IDEC _val;
+				g_BP.Advance(val & 0x3F);
+				_val._u32       = val;
+				ipuIDEC(_val);
+				ipuRegs.topbusy = 0x80000000;
+			}
 			break;
 
 		case SCE_IPU_BDEC:
-			g_BP.Advance(val & 0x3F);
-			ipuBDEC(val);
-			ipuRegs.topbusy = 0x80000000;
+			{
+				tIPU_CMD_BDEC _val;
+				g_BP.Advance(val & 0x3F);
+				_val._u32       = val;
+				ipuBDEC(_val);
+				ipuRegs.topbusy = 0x80000000;
+			}
 			break;
 
 		case SCE_IPU_VDEC:

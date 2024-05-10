@@ -60,14 +60,6 @@ union tIPU_CTRL {
 		u32 BUSY : 1;	// Busy
 	};
 	u32 _u32;
-
-	tIPU_CTRL( u32 val ) { _u32 = val; }
-
-    // CTRL = the first 16 bits of ctrl [0x8000ffff], + value for the next 16 bits,
-    // minus the reserved bits. (18-19; 27-29) [0x47f30000]
-	void write(u32 value) { _u32 = (value & 0x47f30000) | (_u32 & 0x8000ffff); }
-
-	void reset() { _u32 &= 0x7F33F00; }
 };
 
 struct alignas(16) tIPU_BP {
@@ -152,10 +144,7 @@ union tIPU_CMD_IDEC
 		u32 OFM : 1;
 		u32 cmd : 4;
 	};
-
 	u32 _u32;
-
-	tIPU_CMD_IDEC( u32 val ) { _u32 = val; }
 };
 
 union tIPU_CMD_BDEC
@@ -172,8 +161,6 @@ union tIPU_CMD_BDEC
 		u32 cmd : 4;
 	};
 	u32 _u32;
-
-	tIPU_CMD_BDEC( u32 val ) { _u32 = val; }
 };
 
 union tIPU_CMD_CSC
@@ -187,8 +174,6 @@ union tIPU_CMD_CSC
 		u32 cmd : 4;
 	};
 	u32 _u32;
-
-	tIPU_CMD_CSC( u32 val ){ _u32 = val; }
 };
 
 enum SCE_IPU
@@ -207,17 +192,17 @@ enum SCE_IPU
 
 struct IPUregisters {
 	tIPU_CMD	cmd;
-	u32			dummy0[2];
+	u32		dummy0[2];
 
 	tIPU_CTRL	ctrl;
-	u32			dummy1[3];
+	u32		dummy1[3];
 
-	u32			ipubp;
-	u32			dummy2[3];
+	u32		ipubp;
+	u32		dummy2[3];
 
-	u32			top;
-	u32			topbusy;
-	u32			dummy3[2];
+	u32		top;
+	u32		topbusy;
+	u32		dummy3[2];
 };
 
 union tIPU_cmd
