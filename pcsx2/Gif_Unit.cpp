@@ -78,13 +78,13 @@ bool Gif_HandlerAD(u8* pMem)
 			CSRreg.SIGNAL = true;
 		}
 	}
-	else if (reg == GIF_A_D_REG_FINISH)
-	{ // FINISH
-		CSRreg.FINISH = true;
+	else if (reg == GIF_A_D_REG_FINISH) /* FINISH */
+	{
 		gifUnit.gsFINISH.gsFINISHFired = false;
+		gifUnit.gsFINISH.gsFINISHPending = true;
 	}
-	else if (reg == GIF_A_D_REG_LABEL)
-	{ // LABEL
+	else if (reg == GIF_A_D_REG_LABEL) /* LABEL */
+	{
 		GSSIGLBLID.LBLID = (GSSIGLBLID.LBLID & ~data[1]) | (data[0] & data[1]);
 	}
 	return false;
@@ -127,6 +127,11 @@ void Gif_HandlerAD_MTVU(u8* pMem)
 
 void Gif_FinishIRQ(void)
 {
+	if (gifUnit.gsFINISH.gsFINISHPending)
+	{
+		CSRreg.FINISH = true;
+		gifUnit.gsFINISH.gsFINISHPending = false;
+	}
 	if (CSRreg.FINISH && !GSIMR.FINISHMSK && !gifUnit.gsFINISH.gsFINISHFired)
 	{
 		gsIrq();

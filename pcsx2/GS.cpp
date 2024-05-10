@@ -53,6 +53,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 	if (csr.RESET) {
 		gifUnit.gsSIGNAL.queued = false;
 		gifUnit.gsFINISH.gsFINISHFired = true;
+		gifUnit.gsFINISH.gsFINISHPending = false;
 		// Privilage registers also reset.
 		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 		GSIMR.reset();
@@ -80,6 +81,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 	if (csr.FINISH)	{
 		CSRreg.FINISH = false;
 		gifUnit.gsFINISH.gsFINISHFired = false; //Clear the previously fired FINISH (YS, Indiecar 2005, MGS3)
+		gifUnit.gsFINISH.gsFINISHPending = false;
 	}
 	if(csr.HSINT)	CSRreg.HSINT	= false;
 	if(csr.VSINT)	CSRreg.VSINT	= false;

@@ -171,6 +171,7 @@ struct GS_SIGNAL
 struct GS_FINISH
 {
 	bool gsFINISHFired;
+	bool gsFINISHPending;
 };
 
 struct Gif_Path_MTVU
@@ -766,6 +767,8 @@ struct Gif_Unit
 			FlushToMTGS();
 
 		Gif_FinishIRQ();
+		if(!checkPaths(true, true, true, true))
+			Gif_FinishIRQ();
 
 		//Path3 can rewind the DMA, so we send back the amount we go back!
 		if (isPath3)
