@@ -2306,11 +2306,13 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 						// The new texture is behind it but engulfs the whole thing, shrink the new target so it grows in the HW Draw resize.
 						else if (((((dst->UnwrappedEndBlock() + 1) - dst->m_TEX0.TBP0) >> 1) + dst->m_TEX0.TBP0) == t->m_TEX0.TBP0)
 						{
-							int overlapping_pages = ((dst->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5;
-							int y_reduction = (overlapping_pages / dst->m_TEX0.TBW) * GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.y;
+							const int rt_pages = ((t->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5;
+							const int overlapping_pages = std::min(rt_pages, static_cast<int>((dst->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5);
+							const int overlapping_pages_height = (overlapping_pages / dst->m_TEX0.TBW) * GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.y;
 
-							if (y_reduction == 0 || (overlapping_pages % dst->m_TEX0.TBW))
+							if (overlapping_pages_height == 0 || (overlapping_pages % dst->m_TEX0.TBW))
 							{
+								// No overlap top copy or the widths don't match.
 								i++;
 								continue;
 							}
@@ -2318,8 +2320,8 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 							if (preserve_target || preload)
 							{
 								const int copy_width = (t->m_texture->GetWidth()) > (dst->m_texture->GetWidth()) ? (dst->m_texture->GetWidth()) : t->m_texture->GetWidth();
-								const int copy_height = y_reduction * t->m_scale;
-								const int old_height = (dst->m_valid.w - y_reduction) * dst->m_scale;
+								const int copy_height = overlapping_pages_height * t->m_scale;
+								const int dst_offset = (dst->m_valid.w - overlapping_pages_height) * dst->m_scale;
 
 								// Clear the dirty first
 								dst->Update();
@@ -2327,22 +2329,23 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 								if (!t->m_valid_rgb || !(t->m_valid_alpha_high || t->m_valid_alpha_low))
 								{
 									const GSVector4 src_rect = GSVector4(0, 0, copy_width, copy_height) / (GSVector4(t->m_texture->GetSize()).xyxy());
-									const GSVector4 dst_rect = GSVector4(0, old_height, copy_width, copy_height);
+									const GSVector4 dst_rect = GSVector4(0, dst_offset, copy_width, copy_height);
 									g_gs_device->StretchRect(t->m_texture, src_rect, dst->m_texture, dst_rect, t->m_valid_rgb, t->m_valid_rgb, t->m_valid_rgb, t->m_valid_alpha_high || t->m_valid_alpha_low);
 								}
 								else
 								{
 									// Invalidate has been moved to after DrawPrims(), because we might kill the current sources' backing.
-									g_gs_device->CopyRect(t->m_texture, dst->m_texture, GSVector4i(0, 0, copy_width, copy_height), 0, old_height);
+									g_gs_device->CopyRect(t->m_texture, dst->m_texture, GSVector4i(0, 0, copy_width, copy_height), 0, dst_offset);
 								}
 							}
-							if (src && src->m_target && src->m_from_target == t)
+
+							if ((overlapping_pages < rt_pages) || (src && src->m_target && src->m_from_target == t))
 							{
 								// This should never happen as we're making a new target so the src should never be something it overlaps, but just incase..
 								GSVector4i new_valid = t->m_valid;
-								new_valid.y = std::max(new_valid.y - y_reduction, 0);
-								new_valid.w = std::max(new_valid.w - y_reduction, 0);
-								t->m_TEX0.TBP0 += (y_reduction / GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.y) << 5;
+								new_valid.y = std::max(new_valid.y - overlapping_pages_height, 0);
+								new_valid.w = std::max(new_valid.w - overlapping_pages_height, 0);
+								t->m_TEX0.TBP0 += (overlapping_pages_height / GSLocalMemory::m_psm[t->m_TEX0.PSM].pgs.y) << 5;
 								t->ResizeValidity(new_valid);
 							}
 							else
