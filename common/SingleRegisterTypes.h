@@ -56,6 +56,7 @@ __forceinline static void r128_store_unaligned(void* ptr, r128 val)
 /* Expects that r64 came from r64-handling code, and not from a recompiler or something */
 #define r128_from_u64_dup(val) _mm_set1_epi64x((val))
 #define r128_from_u64_zext(val) _mm_set_epi64x(0, (val))
+#define r128_from_u32_dup(val) _mm_set1_epi32((val))
 #define r128_from_u32x4(lo0, lo1, hi0, hi1) _mm_setr_epi32(lo0, lo1, hi0, hi1)
 #define r128_to_u32(val) _mm_cvtsi128_si32((val))
 #define r128_to_u64(val) _mm_cvtsi128_si64((val))
@@ -122,6 +123,7 @@ __forceinline static void r128_store_unaligned(void* ptr, r128 value)
 #define r128_to_u64(val) vgetq_lane_u64(vreinterpretq_u64_u32((val)), 0)
 
 #define r128_from_u64_zext(val) vreinterpretq_u32_u64(vcombine_u64(vcreate_u64((val)), vcreate_u64(0)))
+#define r128_from_u32_dup(val) vdupq_n_u32((val))
 
 __forceinline static r128 r128_from_u32x4(u32 lo0, u32 lo1, u32 hi0, u32 hi1)
 {
