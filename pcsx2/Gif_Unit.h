@@ -17,6 +17,8 @@
 #include <deque>
 #include <cstring> /* memset */
 
+#include "common/VectorIntrin.h"
+
 #include "Gif.h"
 #include "Vif.h"
 #include "GS.h"
@@ -113,7 +115,7 @@ struct Gif_Tag
 
 	__ri void analyzeTag(void)
 	{
-#if (defined(_M_AMD64) || defined(_M_X64) || defined(_M_X86) || defined(__SSE2__))
+#if _M_SSE >= 0x200
 		/* SSE2 implementation */
 
 		// zero out bits for registers which shouldn't be tested

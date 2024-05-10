@@ -22,7 +22,7 @@
 #include <intrin.h>
 #endif
 
-#if defined(_M_X86)
+#if defined(_M_X86) || defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64)
 
 #if defined(__AVX2__)
 #define _M_SSE 0x501
@@ -30,8 +30,10 @@
 #define _M_SSE 0x500
 #elif defined(__SSE4_1__)
 #define _M_SSE 0x401
+#elif defined(__SSE2__)
+#define _M_SSE 0x200
 #else
-#error PCSX2 requires compiling for at least SSE 4.1
+#error PCSX2 requires compiling for at least SSE2, SSE 4.1 recommended
 #endif
 
 // Starting with AVX, processors have fast unaligned loads

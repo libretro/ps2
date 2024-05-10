@@ -27,7 +27,7 @@
 
 #include <cstring>
 
-#if defined(_M_X86)
+#if defined(_M_X86) || defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64)
 
 /* Can't stick them in structs because it breaks calling convention things, yay */
 using r128 = __m128i;

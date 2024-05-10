@@ -24,6 +24,8 @@
 
 #include <cstring>
 
+#include "common/VectorIntrin.h"
+
 #include "IPU/IPU.h"
 #include "IPU/IPUdma.h"
 #include "IPU/yuv2rgb.h"
@@ -1290,7 +1292,7 @@ __fi static bool mpeg2_slice(void)
 					//Y  bias	- 16 * 16
 					//Cr bias	- 8 * 8
 					//Cb bias	- 8 * 8
-#if (defined(_M_AMD64) || defined(_M_X64) || defined(__SSE2__)) /* SSE2 codepath */
+#if _M_SSE >= 0x200 /* SSE2 codepath */
 					// Manually inlined due to MSVC refusing to inline the SSE-optimized version.
 					__m128i zeroreg    = _mm_setzero_si128();
 

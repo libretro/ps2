@@ -19,6 +19,8 @@
 
 #include "PrecompiledHeader.h"
 
+#include "common/VectorIntrin.h"
+
 #include "Common.h"
 #include "IPU/IPU.h"
 #include "IPU/IPU_MultiISA.h"
@@ -38,34 +40,13 @@
 
 MULTI_ISA_UNSHARED_START
 
-// Reference C version */
-void yuv2rgb_reference(void)
+void yuv2rgb(void)
 {
-	const macroblock_8& mb8 = decoder.mb8;
-	macroblock_rgb32& rgb32 = decoder.rgb32;
-
-	for (int y = 0; y < 16; y++)
-		for (int x = 0; x < 16; x++)
-		{
-			s32 lum = (IPU_Y_COEFF * (std::max(0, (s32)mb8.Y[y][x] - IPU_Y_BIAS))) >> 6;
-			s32 rcr = (IPU_RCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
-			s32 gcr = (IPU_GCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
-			s32 gcb = (IPU_GCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
-			s32 bcb = (IPU_BCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
-
-			rgb32.c[y][x].r = std::max(0, std::min(255, (lum + rcr + 1) >> 1));
-			rgb32.c[y][x].g = std::max(0, std::min(255, (lum + gcr + gcb + 1) >> 1));
-			rgb32.c[y][x].b = std::max(0, std::min(255, (lum + bcb + 1) >> 1));
-			rgb32.c[y][x].a = 0x80; // the norm to save doing this on the alpha pass
-		}
-}
-
-// Suikoden Tactics FMV speed results: Reference - ~72fps, SSE2 - ~120fps
-// An AVX2 version is only slightly faster than an SSE2 version (+2-3fps)
-// (or I'm a poor optimiser), though it might be worth attempting again
-// once we've ported to 64 bits (the extra registers should help).
-__ri void yuv2rgb_vector(void)
-{
+#if _M_SSE >= 0x200 /* SSE2 codepath */
+	// Suikoden Tactics FMV speed results: Reference - ~72fps, SSE2 - ~120fps
+	// An AVX2 version is only slightly faster than an SSE2 version (+2-3fps)
+	// (or I'm a poor optimiser), though it might be worth attempting again
+	// once we've ported to 64 bits (the extra registers should help).
 	const __m128i c_bias = _mm_set1_epi8(s8(IPU_C_BIAS));
 	const __m128i y_bias = _mm_set1_epi8(IPU_Y_BIAS);
 	const __m128i y_mask = _mm_set1_epi16(s16(0xFF00));
@@ -150,8 +131,25 @@ __ri void yuv2rgb_vector(void)
 			_mm_store_si128(reinterpret_cast<__m128i*>(&decoder.rgb32.c[n * 2 + m][12]), rgba_hh);
 		}
 	}
-}
+#else /* Reference C implementation */
+	const macroblock_8& mb8 = decoder.mb8;
+	macroblock_rgb32& rgb32 = decoder.rgb32;
 
-void yuv2rgb(void) { yuv2rgb_vector(); }
+	for (int y = 0; y < 16; y++)
+		for (int x = 0; x < 16; x++)
+		{
+			s32 lum = (IPU_Y_COEFF * (std::max(0, (s32)mb8.Y[y][x] - IPU_Y_BIAS))) >> 6;
+			s32 rcr = (IPU_RCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
+			s32 gcr = (IPU_GCR_COEFF * ((s32)mb8.Cr[y>>1][x>>1] - 128)) >> 6;
+			s32 gcb = (IPU_GCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
+			s32 bcb = (IPU_BCB_COEFF * ((s32)mb8.Cb[y>>1][x>>1] - 128)) >> 6;
+
+			rgb32.c[y][x].r = std::max(0, std::min(255, (lum + rcr + 1) >> 1));
+			rgb32.c[y][x].g = std::max(0, std::min(255, (lum + gcr + gcb + 1) >> 1));
+			rgb32.c[y][x].b = std::max(0, std::min(255, (lum + bcb + 1) >> 1));
+			rgb32.c[y][x].a = 0x80; // the norm to save doing this on the alpha pass
+		}
+#endif
+}
 
 MULTI_ISA_UNSHARED_END

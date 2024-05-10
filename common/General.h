@@ -77,10 +77,10 @@ namespace HostSys
 #endif
 
 	/// Flushes the instruction cache on the host for the specified range.
-	/// Only needed on ARM64, X86 has coherent D/I cache.
-#ifdef _M_X86
+#if defined(_M_X86) || defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64)
 	__fi static void FlushInstructionCache(void* address, u32 size) {}
 #else
+	/// Only needed on ARM64, X86 has coherent D/I cache.
 	void FlushInstructionCache(void* address, u32 size);
 #endif
 }

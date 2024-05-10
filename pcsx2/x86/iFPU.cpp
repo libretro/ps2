@@ -16,6 +16,8 @@
 
 #include "PrecompiledHeader.h"
 
+#include "common/VectorIntrin.h"
+
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "iR5900.h"
@@ -345,10 +347,12 @@ static void fpuFreeIfTemp(int xmmreg)
 
 static __fi void fpuFloat3(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +fMax, -Inf -> -fMax
 {
-#if defined(__SSE4_1__)
+	/* SSE4 codepath */
+#if _M_SSE >= 0x401
 	xPMIN.SD(xRegisterSSE(regd), ptr128[&g_maxvals[0]]);
 	xPMIN.UD(xRegisterSSE(regd), ptr128[&g_minvals[0]]);
-#elif (defined(_M_AMD64) || defined(_M_X64) || defined(__SSE2__)) /* SSE2 codepath */
+	/* SSE2 codepath */
+#elif _M_SSE >= 0x200
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
 	xMOVSS(xRegisterSSE(t1reg), xRegisterSSE(regd));
 	xAND.PS(xRegisterSSE(t1reg), ptr[&s_neg[0]]);

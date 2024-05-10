@@ -14,6 +14,9 @@
  */
 
 #include "PrecompiledHeader.h"
+
+#include "common/VectorIntrin.h"
+
 #include "Common.h"
 
 #include "IPU/IPU.h"
@@ -25,8 +28,7 @@ MULTI_ISA_UNSHARED_START
 
 __ri void ipu_dither(const macroblock_rgb32 &rgb32, macroblock_rgb16 &rgb16, const int dte)
 {
-#if (defined(_M_AMD64) || defined(_M_X64) || defined(__SSE2__)) /* SSE2 codepath */
-	/* SSE2 codepath */
+#if _M_SSE >= 0x200 /* SSE2 codepath */
 	const __m128i alpha_test = _mm_set1_epi16(0x40);
 	if (dte)
 	{
@@ -117,8 +119,7 @@ __ri void ipu_dither(const macroblock_rgb32 &rgb32, macroblock_rgb16 &rgb16, con
 			}
 		}
 	}
-#else
-	/* Reference C version */
+#else /* Reference C implementation */
 	if (dte)
 	{
 		// I'm guessing values are rounded down when clamping.

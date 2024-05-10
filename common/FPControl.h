@@ -20,7 +20,7 @@ enum class FPRoundMode : u8
 
 struct FPControlRegister
 {
-#ifdef _M_X86
+#if defined(_M_X86) || defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64)
 	u32 bitmask;
 
 	static constexpr u32 EXCEPTION_MASK = (0x3Fu << 7);
