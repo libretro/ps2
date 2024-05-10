@@ -299,7 +299,9 @@ void GSTextureVK::UpdateFromBuffer(VkCommandBuffer cmdbuf, int level, int layer,
 		u32 buffer_height, u32 row_length, VkBuffer buffer, u32 buffer_offset)
 {
 	const Layout old_layout = m_layout;
-	if (old_layout != Layout::TransferDst)
+	if (old_layout == Layout::Undefined)
+		TransitionToLayout(cmdbuf, Layout::TransferDst);
+	else if (old_layout != Layout::TransferDst)
 		TransitionSubresourcesToLayout(
 				cmdbuf, level, 1, old_layout, Layout::TransferDst);
 
@@ -309,7 +311,7 @@ void GSTextureVK::UpdateFromBuffer(VkCommandBuffer cmdbuf, int level, int layer,
 
 	vkCmdCopyBufferToImage(cmdbuf, buffer, m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bic);
 
-	if (old_layout != Layout::TransferDst)
+	if (old_layout != Layout::TransferDst && old_layout != Layout::Undefined)
 		TransitionSubresourcesToLayout(
 				cmdbuf, level, 1, Layout::TransferDst, old_layout);
 }
@@ -450,6 +452,9 @@ void GSTextureVK::Unmap()
 void GSTextureVK::GenerateMipmap()
 {
 	const VkCommandBuffer cmdbuf = GetCommandBufferForUpdate();
+
+	if (m_layout == Layout::Undefined)
+		TransitionToLayout(cmdbuf, Layout::TransferSrc);
 
 	for (int dst_level = 1; dst_level < m_mipmap_levels; dst_level++)
 	{
@@ -798,7 +803,9 @@ void GSDownloadTextureVK::CopyFromTexture(
 	const VkCommandBuffer cmdbuf = GSDeviceVK::GetInstance()->GetCurrentCommandBuffer();
 
 	GSTextureVK::Layout old_layout = vkTex->GetLayout();
-	if (old_layout != GSTextureVK::Layout::TransferSrc)
+	if (old_layout == GSTextureVK::Layout::Undefined)
+		vkTex->TransitionToLayout(cmdbuf, GSTextureVK::Layout::TransferSrc);
+	else if (old_layout != GSTextureVK::Layout::TransferSrc)
 		vkTex->TransitionSubresourcesToLayout(cmdbuf, src_level, 1, old_layout, GSTextureVK::Layout::TransferSrc);
 
 	VkBufferImageCopy image_copy    = {};
@@ -828,10 +835,8 @@ void GSDownloadTextureVK::CopyFromTexture(
 	vkCmdPipelineBarrier(
 			cmdbuf, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &buffer_info, 0, nullptr);
 
-	if (old_layout != GSTextureVK::Layout::TransferSrc )
-	{
+	if (old_layout != GSTextureVK::Layout::TransferSrc && old_layout != GSTextureVK::Layout::Undefined)
 		vkTex->TransitionSubresourcesToLayout(cmdbuf, src_level, 1, GSTextureVK::Layout::TransferSrc, old_layout);
-	}
 
 	m_copy_fence_counter     = GSDeviceVK::GetInstance()->GetCurrentFenceCounter();
 	m_needs_cache_invalidate = true;
