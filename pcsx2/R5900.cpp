@@ -278,7 +278,7 @@ static __fi bool _cpuTestInterrupts(void)
 
 			TESTINT(DMAC_FROM_IPU, ipu0Interrupt);
 			TESTINT(DMAC_TO_IPU, ipu1Interrupt);
-			TESTINT(IPU_PROCESS, ipuCMDProcess);
+			TESTINT(IPU_PROCESS, IPUProcessInterrupt);
 
 			TESTINT(DMAC_FROM_SPR, SPRFROMinterrupt);
 			TESTINT(DMAC_TO_SPR, SPRTOinterrupt);

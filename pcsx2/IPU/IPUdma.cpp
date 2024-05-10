@@ -21,7 +21,7 @@
 
 IPUDMAStatus IPU1Status;
 
-void ipuDmaReset()
+void ipuDmaReset(void)
 {
 	IPU1Status.InProgress	= false;
 	IPU1Status.DMAFinished	= true;
@@ -37,28 +37,26 @@ bool SaveStateBase::ipuDmaFreeze()
 	return IsOkay();
 }
 
-static __fi int IPU1chain(void) {
+static __fi int IPU1chain(void)
+{
+	u32 *pMem = (u32*)dmaGetAddr(ipu1ch.madr, false);
 
-	int totalqwc = 0;
-	int qwc      = ipu1ch.qwc;
-	u32 *pMem    = (u32*)dmaGetAddr(ipu1ch.madr, false);
+	if (pMem)
+	{
+		//Write our data to the FIFO
+		int qwc      = ipu_fifo.in.write(pMem, ipu1ch.qwc);
+		ipu1ch.madr += qwc << 4;
+		ipu1ch.qwc  -= qwc;
 
-	if (pMem == NULL)
-		return totalqwc;
+		//Update TADR etc
+		hwDmacSrcTadrInc(ipu1ch);
 
-	//Write our data to the fifo
-	qwc = ipu_fifo.in.write(pMem, qwc);
-	ipu1ch.madr += qwc << 4;
-	ipu1ch.qwc -= qwc;
-	totalqwc += qwc;
+		if (!ipu1ch.qwc)
+			IPU1Status.InProgress = false;
+		return qwc;
+	}
 
-	//Update TADR etc
-	hwDmacSrcTadrInc(ipu1ch);
-
-	if (!ipu1ch.qwc)
-		IPU1Status.InProgress = false;
-
-	return totalqwc;
+	return 0;
 }
 
 void IPU1dma(void)
@@ -72,7 +70,7 @@ void IPU1dma(void)
 		return;
 	}
 
-	if (IPUCoreStatus.DataRequested == false)
+	if (!IPUCoreStatus.DataRequested)
 	{
 		// IPU isn't expecting any data, so put it in to wait mode.
 		cpuRegs.eCycle[4] = 0x9999;
@@ -233,16 +231,11 @@ __fi void dmaIPU1(void) // toIPU
 	}
 	else // Normal Mode
 	{
-			IPU1Status.InProgress = true;
-			IPU1Status.DMAFinished = true;
+		IPU1Status.InProgress = true;
+		IPU1Status.DMAFinished = true;
 	}
 
 	IPU1dma();
-}
-
-void ipuCMDProcess(void)
-{
-	IPUProcessInterrupt();
 }
 
 void ipu0Interrupt(void)

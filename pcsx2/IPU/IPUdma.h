@@ -28,7 +28,6 @@ struct IPUStatus {
 	bool WaitingOnIPUTo;
 };
 
-extern void ipuCMDProcess();
 extern void ipu0Interrupt();
 extern void ipu1Interrupt();
 

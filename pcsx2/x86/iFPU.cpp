@@ -348,7 +348,7 @@ static __fi void fpuFloat3(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +f
 #if defined(__SSE4_1__)
 	xPMIN.SD(xRegisterSSE(regd), ptr128[&g_maxvals[0]]);
 	xPMIN.UD(xRegisterSSE(regd), ptr128[&g_minvals[0]]);
-#elif defined(__SSE2__)
+#elif (defined(_M_AMD64) || defined(_M_X64) || defined(__SSE2__)) /* SSE2 codepath */
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
 	xMOVSS(xRegisterSSE(t1reg), xRegisterSSE(regd));
 	xAND.PS(xRegisterSSE(t1reg), ptr[&s_neg[0]]);

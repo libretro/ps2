@@ -17,7 +17,6 @@
 
 #include "GS/MultiISA.h"
 
-MULTI_ISA_DEF(extern void yuv2rgb_reference();)
-
-#define yuv2rgb yuv2rgb_sse2
-MULTI_ISA_DEF(extern void yuv2rgb_sse2();)
+MULTI_ISA_DEF(extern void yuv2rgb_reference(void);)
+MULTI_ISA_DEF(extern void yuv2rgb_vector(void);)
+MULTI_ISA_DEF(extern void yuv2rgb(void);)
