@@ -19,16 +19,12 @@
 #include "IPU/IPUdma.h"
 #include "IPU/IPU_MultiISA.h"
 
-IPUStatus IPU1Status;
-bool CommandExecuteQueued;
-u32 ProcessedData;
+IPUDMAStatus IPU1Status;
 
 void ipuDmaReset()
 {
 	IPU1Status.InProgress	= false;
 	IPU1Status.DMAFinished	= true;
-	CommandExecuteQueued	= false;
-	ProcessedData           = 0;
 }
 
 bool SaveStateBase::ipuDmaFreeze()
@@ -37,7 +33,6 @@ bool SaveStateBase::ipuDmaFreeze()
 		return false;
 
 	Freeze(IPU1Status);
-	Freeze(CommandExecuteQueued);
 
 	return IsOkay();
 }
@@ -77,11 +72,18 @@ void IPU1dma(void)
 		return;
 	}
 
-	if (IPU1Status.DataRequested == false)
+	if (IPUCoreStatus.DataRequested == false)
 	{
 		// IPU isn't expecting any data, so put it in to wait mode.
 		cpuRegs.eCycle[4] = 0x9999;
 		CPU_SET_DMASTALL(DMAC_TO_IPU, true);
+
+		// Shouldn't Happen.
+		if (IPUCoreStatus.WaitingOnIPUTo)
+		{
+			IPUCoreStatus.WaitingOnIPUTo = false;
+			CPU_INT(IPU_PROCESS, 4 * BIAS);
+		}
 		return;
 	}
 
@@ -110,26 +112,22 @@ void IPU1dma(void)
 	if (IPU1Status.InProgress)
 		totalqwc += IPU1chain();
 
-	//Do this here to prevent double settings on Chain DMA's
-	if((totalqwc == 0 && g_BP.IFC < 8) || (IPU1Status.DMAFinished && !IPU1Status.InProgress))
+	// Nothing has been processed except maybe a tag, or the DMA is ending
+	if(totalqwc == 0 || (IPU1Status.DMAFinished && !IPU1Status.InProgress) || IPUCoreStatus.DataRequested)
 	{
 		totalqwc = std::max(4, totalqwc) + tagcycles;
 		IPU_INT_TO(totalqwc * BIAS);
 	}
 	else
 	{
-		IPU1Status.DataRequested = false;
+		cpuRegs.eCycle[4] = 0x9999;
+		CPU_SET_DMASTALL(DMAC_TO_IPU, true);
+	}
 
-		if (!(IPU1Status.DMAFinished && !IPU1Status.InProgress))
-		{
-			cpuRegs.eCycle[4] = 0x9999;//IPU_INT_TO(2048);
-			CPU_SET_DMASTALL(DMAC_TO_IPU, true);
-		}
-		else
-		{
-			totalqwc = std::max(4, totalqwc) + tagcycles;
-			IPU_INT_TO(totalqwc * BIAS);
-		}
+	if (IPUCoreStatus.WaitingOnIPUTo && g_BP.IFC >= 1)
+	{
+		IPUCoreStatus.WaitingOnIPUTo = false;
+		CPU_INT(IPU_PROCESS, totalqwc * BIAS);
 	}
 }
 
@@ -137,8 +135,12 @@ void IPU0dma(void)
 {
 	if(!ipuRegs.ctrl.OFC)
 	{
-		if(!CommandExecuteQueued)
+		/* This shouldn't happen. */
+		if (IPUCoreStatus.WaitingOnIPUFrom)
+		{
+			IPUCoreStatus.WaitingOnIPUFrom = false;
 			IPUProcessInterrupt();
+		}
 		CPU_SET_DMASTALL(DMAC_FROM_IPU, true);
 		return;
 	}
@@ -147,7 +149,15 @@ void IPU0dma(void)
 	tDMA_TAG* pMem;
 
 	if ((!(ipu0ch.chcr.STR) || (cpuRegs.interrupt & (1 << DMAC_FROM_IPU))) || (ipu0ch.qwc == 0))
+	{
+		// This shouldn't happen.
+		if (IPUCoreStatus.WaitingOnIPUFrom)
+		{
+			IPUCoreStatus.WaitingOnIPUFrom = false;
+			CPU_INT(IPU_PROCESS, ipuRegs.ctrl.OFC * BIAS);
+		}
 		return;
+	}
 
 	pMem = dmaGetAddr(ipu0ch.madr, true);
 
@@ -163,11 +173,12 @@ void IPU0dma(void)
 	if (!ipu0ch.qwc)
 		IPU_INT_FROM(readsize * BIAS);
 
-	if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
+	CPU_SET_DMASTALL(DMAC_FROM_IPU, true);
+
+	if (ipuRegs.ctrl.BUSY && IPUCoreStatus.WaitingOnIPUFrom)
 	{
-		CommandExecuteQueued = false;
-		CPU_SET_DMASTALL(DMAC_FROM_IPU, true);
-		IPUProcessInterrupt();
+		IPUCoreStatus.WaitingOnIPUFrom = false;
+		CPU_INT(IPU_PROCESS, readsize * BIAS);
 	}
 }
 
@@ -219,28 +230,18 @@ __fi void dmaIPU1(void) // toIPU
 			else
 				IPU1Status.DMAFinished = false;
 		}
-
-		if(IPU1Status.DataRequested)
-			IPU1dma();
-		else
-			cpuRegs.eCycle[4] = 0x9999;
 	}
 	else // Normal Mode
 	{
 			IPU1Status.InProgress = true;
 			IPU1Status.DMAFinished = true;
-
-			if (IPU1Status.DataRequested)
-				IPU1dma();
-			else
-				cpuRegs.eCycle[4] = 0x9999;
 	}
+
+	IPU1dma();
 }
 
 void ipuCMDProcess(void)
 {
-	CommandExecuteQueued = false;
-	ProcessedData        = 0;
 	IPUProcessInterrupt();
 }
 

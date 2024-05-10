@@ -43,7 +43,7 @@ void IPU_Fifo_Input::clear()
 	writepos = 0;
 
 	// Because the FIFO is drained it will request more data immediately
-	IPU1Status.DataRequested = true;
+	IPUCoreStatus.DataRequested = true;
 
 	if (ipu1ch.chcr.STR && cpuRegs.eCycle[4] == 0x9999)
 	{
@@ -84,9 +84,7 @@ int IPU_Fifo_Input::write(const u32* pMem, int size)
 	g_BP.IFC += transfer_size;
 
 	if (g_BP.IFC == 8)
-		IPU1Status.DataRequested = false;
-
-	CPU_INT(IPU_PROCESS, transfer_size * BIAS);
+		IPUCoreStatus.DataRequested = false;
 
 	return transfer_size;
 }
@@ -97,7 +95,7 @@ int IPU_Fifo_Input::read(void *value)
 	if (g_BP.IFC <= 1)
 	{
 		// IPU FIFO is empty and DMA is waiting so lets tell the DMA we are ready to put data in the FIFO
-		IPU1Status.DataRequested = true;
+		IPUCoreStatus.DataRequested = true;
 
 		if(ipu1ch.chcr.STR && cpuRegs.eCycle[4] == 0x9999)
 		{
@@ -133,7 +131,7 @@ int IPU_Fifo_Output::write(const u32 *value, uint size)
 	ipuRegs.ctrl.OFC += transfer_size;
 
 	if(ipu0ch.chcr.STR)
-		IPU_INT_FROM(ipuRegs.ctrl.OFC * BIAS);
+		IPU_INT_FROM(1);
 	return transfer_size;
 }
 
@@ -165,12 +163,13 @@ void ReadFIFO_IPUout(mem128_t* out)
 void WriteFIFO_IPUin(const mem128_t* value)
 {
 	//committing every 16 bytes
-	if( ipu_fifo.in.write(value->_u32, 1) == 0 )
+	if(ipu_fifo.in.write(value->_u32, 1) > 0)
 	{
-		if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
+		if (ipuRegs.ctrl.BUSY && IPUCoreStatus.WaitingOnIPUTo)
 		{
-			CommandExecuteQueued = false;
-			CPU_INT(IPU_PROCESS, 8);
+			IPUCoreStatus.WaitingOnIPUFrom = false;
+			IPUCoreStatus.WaitingOnIPUTo = false;
+			CPU_INT(IPU_PROCESS, 2 * BIAS);
 		}
 	}
 }

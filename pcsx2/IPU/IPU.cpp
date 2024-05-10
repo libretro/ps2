@@ -30,6 +30,7 @@
 alignas(16) tIPU_cmd ipu_cmd;
 alignas(16) tIPU_BP g_BP;
 alignas(16) decoder_t decoder;
+IPUStatus IPUCoreStatus;
 
 static void (*IPUWorker)(void);
 
@@ -95,15 +96,8 @@ void tIPU_cmd::clear()
 
 __fi void IPUProcessInterrupt(void)
 {
-	if (ipuRegs.ctrl.BUSY && !CommandExecuteQueued)
+	if (ipuRegs.ctrl.BUSY)
 		IPUWorker();
-
-	if (ipuRegs.ctrl.BUSY && !IPU1Status.DataRequested && !(cpuRegs.interrupt & 1 << IPU_PROCESS))
-	{
-		CPU_INT(IPU_PROCESS, ProcessedData ? ProcessedData : 64);
-	}
-	else
-		ProcessedData = 0;
 }
 
 /////////////////////////////////////////////////////////
@@ -115,6 +109,9 @@ void ipuReset(void)
 	memset(&ipuRegs, 0, sizeof(ipuRegs));
 	memset(&g_BP, 0, sizeof(g_BP));
 	memset(&decoder, 0, sizeof(decoder));
+	IPUCoreStatus.DataRequested = false;
+	IPUCoreStatus.WaitingOnIPUFrom= false;
+	IPUCoreStatus.WaitingOnIPUTo = false;
 
 	decoder.picture_structure = FRAME_PICTURE;      //default: progressive...my guess:P
 
@@ -137,6 +134,7 @@ bool SaveStateBase::ipuFreeze(void)
 	Freeze(coded_block_pattern);
 	Freeze(decoder);
 	Freeze(ipu_cmd);
+	Freeze(IPUCoreStatus);
 
 	return IsOkay();
 }
@@ -332,7 +330,6 @@ static void ipuSETTH(u32 val)
 // The actual decoding will be handled by IPUworker.
 __fi void IPUCMD_WRITE(u32 val)
 {
-	ProcessedData    = 0;
 	ipuRegs.ctrl.ECD = 0;
 	ipuRegs.ctrl.SCD = 0;
 	ipu_cmd.clear();
@@ -388,9 +385,10 @@ __fi void IPUCMD_WRITE(u32 val)
 
 	// Have a short delay immitating the time it takes to run IDEC/BDEC, other commands are near instant.
 	// Mana Khemia/Metal Saga start IDEC then change IPU0 expecting there to be a delay before IDEC sends data.
-	if (!CommandExecuteQueued && (ipu_cmd.CMD == SCE_IPU_IDEC || ipu_cmd.CMD == SCE_IPU_BDEC))
+	if (ipu_cmd.CMD == SCE_IPU_IDEC || ipu_cmd.CMD == SCE_IPU_BDEC)
 	{
-		CommandExecuteQueued = true;
+		IPUCoreStatus.WaitingOnIPUFrom = false;
+		IPUCoreStatus.WaitingOnIPUTo = false;
 		CPU_INT(IPU_PROCESS, 64);
 	}
 	else
