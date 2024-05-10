@@ -265,12 +265,6 @@ void ConvertVertexBuffer(const GSDrawingContext* RESTRICT ctx, GSVertexSW* RESTR
 		}
 
 		dst->t = t;
-
-#if 0 //_M_SSE >= 0x501
-
-		dst->_pad = GSVector4::zero();
-
-#endif
 	}
 }
 
