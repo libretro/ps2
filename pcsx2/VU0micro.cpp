@@ -40,14 +40,12 @@ static __fi u32 vu0DenormalizeMicroStatus(u32 nstatus)
 	return ((nstatus >> 3) & 0x18u) | ((nstatus >> 11) & 0x1800u) | ((nstatus >> 14) & 0x3cf0000u);
 }
 
-static __fi void vu0SetMicroFlags(u32* flags, u32 value)
-{
-#ifdef _M_X86
-	_mm_store_si128(reinterpret_cast<__m128i*>(flags), _mm_set1_epi32(value));
+#if 1
+#define vu0SetMicroFlags(flags, value) r128_store((flags), r128_from_u32_dup((value)))
 #else
-	flags[0] = flags[1] = flags[2] = flags[3] = value;
+/* C fallback version */
+#define vu0SetMicroFlags(flags, value) (flags)[0] = (flags)[1] = (flags)[2] = (flags)[3] = (value)
 #endif
-}
 
 void vu0ExecMicro(u32 addr)
 {

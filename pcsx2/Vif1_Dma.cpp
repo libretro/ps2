@@ -59,21 +59,8 @@ void vif1TransferToMemory(void)
 
 	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
 
-	//Some games such as Alex Ferguson's Player Manager 2001 reads less than GSLastDownloadSize by VIF then reads the remainder by FIFO
-	//Clearing the memory is clearing memory it shouldn't be and kills it.
-	//The only scenario where this could be used is the transfer size really is less than QWC, not the other way around as it was doing
-	//That said, I think this is pointless and a waste of cycles and could cause more problems than good. We will alert this situation below anyway.
-	/*if (vif1.GSLastDownloadSize < vif1ch.qwc) {
-		if (pMem < pMemEnd) {
-			__m128 zeroreg = _mm_setzero_ps();
-			do {
-				_mm_store_ps((float*)pMem, zeroreg);
-			} while (++pMem < pMemEnd);
-		}
-	}*/
-
 	g_vif1Cycles += size * 2;
-	vif1ch.madr += size * 16; // mgs3 scene changes
+	vif1ch.madr += size * 16; // MGS3 scene changes
 	if (vif1.GSLastDownloadSize >= vif1ch.qwc)
 	{
 		vif1.GSLastDownloadSize -= vif1ch.qwc;
