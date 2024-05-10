@@ -137,7 +137,7 @@ void MTGS::PostVsyncStart()
 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
 
-	if ((s_QueuedFrameCount.fetch_add(1) < 0))
+	if ((s_QueuedFrameCount.fetch_add(1) < EmuConfig.GS.VsyncQueueSize))
 		return;
 
 	s_VsyncSignalListener.store(true, std::memory_order_release);
