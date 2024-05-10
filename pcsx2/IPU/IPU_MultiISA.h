@@ -152,7 +152,7 @@ alignas(16) extern decoder_t decoder;
 alignas(16) extern tIPU_BP g_BP;
 
 MULTI_ISA_DEF(
-	extern void ipu_dither(const macroblock_rgb32& rgb32, macroblock_rgb16& rgb16, int dte);
+	extern void ipu_dither(const macroblock_rgb32& rgb32, macroblock_rgb16& rgb16, const int dte);
 
 	void IPUWorker();
 )
