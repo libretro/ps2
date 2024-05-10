@@ -113,7 +113,9 @@ struct Gif_Tag
 
 	__ri void analyzeTag(void)
 	{
-#ifdef _M_X86
+#if (defined(_M_AMD64) || defined(_M_X64) || defined(_M_X86) || defined(__SSE2__))
+		/* SSE2 implementation */
+
 		// zero out bits for registers which shouldn't be tested
 		__m128i vregs = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(tag.REGS));
 		vregs = _mm_and_si128(vregs, _mm_srli_epi64(_mm_set1_epi32(0xFFFFFFFFu), (64 - nRegs * 4)));
