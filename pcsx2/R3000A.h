@@ -204,7 +204,6 @@ extern R3000Acpu psxRec;
 extern void psxReset(void);
 extern void psxException(u32 code, u32 step);
 extern void iopEventTest(void);
-extern void psxMemReset(void);
 
 // Subsets
 extern void (*psxBSC[64])();

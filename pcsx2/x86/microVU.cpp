@@ -31,7 +31,7 @@
 alignas(__pagesize) static u8 vu0_RecDispatchers[mVUdispCacheSize];
 alignas(__pagesize) static u8 vu1_RecDispatchers[mVUdispCacheSize];
 
-void mVUreserveCache(microVU& mVU)
+static void mVUreserveCache(microVU& mVU)
 {
 	/* Micro VU Recompiler Cache */
 	mVU.cache_reserve = new RecompiledCodeReserve();
@@ -76,9 +76,7 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	{
 		// If MTVU is toggled on during gameplay we need to flush the running VU1 program, else it gets in a mess
 		if (VU0.VI[REG_VPU_STAT].UL & 0x100)
-		{
 			CpuVU1->Execute(vu1RunCycles);
-		}
 		VU0.VI[REG_VPU_STAT].UL &= ~0x100;
 	}
 	// Restore reserve to uncommitted state
