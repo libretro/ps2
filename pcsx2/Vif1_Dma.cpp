@@ -196,8 +196,14 @@ __fi void vif1SetupTransfer(void)
 __fi void vif1VUFinish(void)
 {
 	// Sync up VU1 so we don't errantly wait.
-	while (!THREAD_VU1 && static_cast<int>(cpuRegs.cycle - VU1.cycle) > 0 && (VU0.VI[REG_VPU_STAT].UL & 0x100))
+	while (!THREAD_VU1 && (VU0.VI[REG_VPU_STAT].UL & 0x100))
+	{
+		const int cycle_diff = static_cast<int>(cpuRegs.cycle - VU1.cycle);
+
+		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < VU1.nextBlockCycles) || cycle_diff <= 0)
+			break;
 		CpuVU1->ExecuteBlock();
+	}
 
 	if (VU0.VI[REG_VPU_STAT].UL & 0x500)
 	{
