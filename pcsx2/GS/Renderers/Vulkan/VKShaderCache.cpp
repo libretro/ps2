@@ -29,7 +29,6 @@
 #include "common/StringUtil.h"
 
 #include <cstring>
-#include <fstream>
 #include <memory>
 
 // glslang includes
@@ -37,12 +36,9 @@
 #include "StandAlone/ResourceLimits.h"
 #include "glslang/Public/ShaderLang.h"
 
-// TODO: store the driver version and stuff in the shader header
-
 std::unique_ptr<VKShaderCache> g_vulkan_shader_cache;
 
 // Registers itself for cleanup via atexit
-static unsigned s_next_bad_shader_id = 1;
 static bool glslang_initialized = false;
 
 static bool InitializeGlslang(void)
@@ -70,52 +66,25 @@ void DeinitializeGlslang(void)
 static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 		EShLanguage stage, const char* stage_filename, std::string_view source, bool debug)
 {
+	std::unique_ptr<glslang::TProgram> program;
+	glslang::TShader::ForbidIncluder includer;
+	std::string full_source_code;
 	if (!InitializeGlslang())
 		return std::nullopt;
 
 	std::unique_ptr<glslang::TShader> shader = std::make_unique<glslang::TShader>(stage);
-	std::unique_ptr<glslang::TProgram> program;
-	glslang::TShader::ForbidIncluder includer;
-	const EProfile profile = ECoreProfile;
-	const EShMessages messages = static_cast<EShMessages>(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules | (debug ? EShMsgDebugInfo : 0));
-	const int default_version = 450;
+	const EProfile profile       = ECoreProfile;
+	const EShMessages messages   = static_cast<EShMessages>(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules | (debug ? EShMsgDebugInfo : 0));
+	const int default_version    = 450;
 
-	std::string full_source_code;
 	const char* pass_source_code = source.data();
-	int pass_source_code_length = static_cast<int>(source.size());
+	int pass_source_code_length  = static_cast<int>(source.size());
 	shader->setStringsWithLengths(&pass_source_code, &pass_source_code_length, 1);
 
-	auto DumpBadShader = [&](const char* msg) {
-		std::string filename = StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++);
-		Console.Error("CompileShaderToSPV: %s, writing to %s", msg, filename.c_str());
-
-		std::ofstream ofs(filename.c_str(), std::ofstream::out | std::ofstream::binary);
-		if (ofs.is_open())
-		{
-			const char *info_log_msg     = shader->getInfoLog();
-			const char *info_log_dbg_msg = shader->getInfoDebugLog();
-			ofs << source;
-			ofs << "\n";
-
-			ofs << msg << std::endl;
-			ofs << "Shader Info Log:" << std::endl;
-			ofs << info_log_msg << std::endl;
-			ofs << info_log_dbg_msg << std::endl;
-			if (program)
-			{
-				ofs << "Program Info Log:" << std::endl;
-				ofs << info_log_msg     << std::endl;
-				ofs << info_log_dbg_msg << std::endl;
-			}
-
-			ofs.close();
-		}
-	};
-
-	if (!shader->parse(
-				&glslang::DefaultTBuiltInResource, default_version, profile, false, true, messages, includer))
+	if (!shader->parse(&glslang::DefaultTBuiltInResource,
+		default_version, profile, false, true, messages, includer))
 	{
-		DumpBadShader("Failed to parse shader");
+		Console.Error("Failed to parse shader");
 		return std::nullopt;
 	}
 
@@ -124,14 +93,14 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 	program->addShader(shader.get());
 	if (!program->link(messages))
 	{
-		DumpBadShader("Failed to link program");
+		Console.Error("Failed to link program");
 		return std::nullopt;
 	}
 
 	glslang::TIntermediate* intermediate = program->getIntermediate(stage);
 	if (!intermediate)
 	{
-		DumpBadShader("Failed to generate SPIR-V");
+		Console.Error("Failed to generate SPIR-V");
 		return std::nullopt;
 	}
 
@@ -240,10 +209,10 @@ static bool ValidatePipelineCacheHeader(const VK_PIPELINE_CACHE_HEADER& header)
 
 static void FillPipelineCacheHeader(VK_PIPELINE_CACHE_HEADER* header)
 {
-	header->header_length = sizeof(VK_PIPELINE_CACHE_HEADER);
+	header->header_length  = sizeof(VK_PIPELINE_CACHE_HEADER);
 	header->header_version = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
-	header->vendor_id = GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID;
-	header->device_id = GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID;
+	header->vendor_id      = GSDeviceVK::GetInstance()->GetDeviceProperties().vendorID;
+	header->device_id      = GSDeviceVK::GetInstance()->GetDeviceProperties().deviceID;
 	memcpy(header->uuid, GSDeviceVK::GetInstance()->GetDeviceProperties().pipelineCacheUUID, VK_UUID_SIZE);
 }
 

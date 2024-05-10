@@ -1,5 +1,5 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2021 PCSX2 Dev Team
+ *  Copyright (C) 2002-2023 PCSX2 Dev Team
  *
  *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
  *  of the GNU Lesser General Public License as published by the Free Software Found-
@@ -450,7 +450,7 @@ void GSRendererSW::InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GS
 
 void GSRendererSW::UsePages(const GSOffset::PageLooper& pages, const int type)
 {
-	pages.loopPages([=](u32 page)
+	pages.loopPages([this, type](u32 page)
 	{
 		switch (type)
 		{
@@ -471,7 +471,7 @@ void GSRendererSW::UsePages(const GSOffset::PageLooper& pages, const int type)
 
 void GSRendererSW::ReleasePages(const GSOffset::PageLooper& pages, const int type)
 {
-	pages.loopPages([=](u32 page)
+	pages.loopPages([this, type](u32 page)
 	{
 		switch (type)
 		{
@@ -492,23 +492,23 @@ void GSRendererSW::ReleasePages(const GSOffset::PageLooper& pages, const int typ
 
 bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const GSOffset::PageLooper* zb_pages, const GSVector4i& r)
 {
-	bool synced = m_rl->IsSynced();
+	const bool synced = m_rl->IsSynced();
 
-	bool fb = fb_pages != NULL;
-	bool zb = zb_pages != NULL;
+	const bool fb = fb_pages != NULL;
+	const bool zb = zb_pages != NULL;
 
 	GSOffset::PageLooper _fb_pages, _zb_pages;
-	auto requirePages = [&]
+	const auto requirePages = [this, &fb_pages, &zb_pages, &r, &_fb_pages, &_zb_pages]
 	{
-		if (fb_pages == NULL)
+		if (!fb_pages)
 		{
 			_fb_pages = m_context->offset.fb.pageLooperForRect(r);
-			fb_pages = &_fb_pages;
+			fb_pages  = &_fb_pages;
 		}
-		if (zb_pages == NULL)
+		if (!zb_pages)
 		{
 			_zb_pages = m_context->offset.zb.pageLooperForRect(r);
-			zb_pages = &_zb_pages;
+			zb_pages  = &_zb_pages;
 		}
 	};
 
@@ -527,10 +527,10 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 
 		requirePages();
 
-		fb_pages->loopPages([&](u32 i)
+		fb_pages->loopPages([this, &used](u32 i)
 		{
-			u32 row = i >> 5;
-			u32 col = 1 << (i & 31);
+			const u32 row = i >> 5;
+			const u32 col = 1 << (i & 31);
 
 			m_fzb_cur_pages[row] |= col;
 
@@ -538,10 +538,10 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 			used |= m_tex_pages[i];
 		});
 
-		zb_pages->loopPages([&](u32 i)
+		zb_pages->loopPages([this, &used](u32 i)
 		{
-			u32 row = i >> 5;
-			u32 col = 1 << (i & 31);
+			const u32 row = i >> 5;
+			const u32 col = 1 << (i & 31);
 
 			m_fzb_cur_pages[row] |= col;
 
@@ -559,9 +559,9 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 	{
 		// same target, only check new areas and cross-rendering between frame and z-buffer
 
-		GSVector4i bbox = m_fzb_bbox.runion(r);
+		const GSVector4i bbox = m_fzb_bbox.runion(r);
 
-		bool check = !m_fzb_bbox.eq(bbox);
+		const bool check = !m_fzb_bbox.eq(bbox);
 
 		m_fzb_bbox = bbox;
 
@@ -573,7 +573,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 
 			u32 used = 0;
 
-			fb_pages->loopPages([&](u32 i)
+			fb_pages->loopPages([this, &used](u32 i)
 			{
 				u32 row = i >> 5;
 				u32 col = 1 << (i & 31);
@@ -586,7 +586,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 				}
 			});
 
-			zb_pages->loopPages([&](u32 i)
+			zb_pages->loopPages([this, &used](u32 i)
 			{
 				u32 row = i >> 5;
 				u32 col = 1 << (i & 31);
@@ -613,7 +613,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 
 			if (fb && !res)
 			{
-				fb_pages->loopPagesWithBreak([&](u32 page)
+				fb_pages->loopPagesWithBreak([this, &res](u32 page)
 				{
 					if (m_fzb_pages[page] & 0xffff0000)
 					{
@@ -627,7 +627,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 
 			if (zb && !res)
 			{
-				zb_pages->loopPagesWithBreak([&](u32 page)
+				zb_pages->loopPagesWithBreak([this, &res](u32 page)
 				{
 					if (m_fzb_pages[page] & 0x0000ffff)
 					{
@@ -653,7 +653,7 @@ bool GSRendererSW::CheckSourcePages(SharedData* sd)
 			GSOffset::PageLooper pages = sd->m_tex[i].t->m_offset.pageLooperForRect(sd->m_tex[i].r);
 
 			bool ret = false;
-			pages.loopPagesWithBreak([&](u32 pages)
+			pages.loopPagesWithBreak([this, &ret](u32 pages)
 			{
 				// TODO: 8H 4HL 4HH texture at the same place as the render target (24 bit, or 32-bit where the alpha channel is masked, Valkyrie Profile 2)
 

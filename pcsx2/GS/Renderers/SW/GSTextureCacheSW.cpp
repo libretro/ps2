@@ -61,7 +61,7 @@ GSTextureCacheSW::Texture* GSTextureCacheSW::Lookup(const GIFRegTEX0& TEX0, cons
 
 	m_textures.insert(t);
 
-	t->m_pages.loopPages([&](u32 page)
+	t->m_pages.loopPages([this, t](u32 page)
 	{
 		t->m_erase_it[page] = m_map[page].InsertFront(t);
 	});
@@ -71,7 +71,7 @@ GSTextureCacheSW::Texture* GSTextureCacheSW::Lookup(const GIFRegTEX0& TEX0, cons
 
 void GSTextureCacheSW::InvalidatePages(const GSOffset::PageLooper& pages, u32 psm)
 {
-	pages.loopPages([&](u32 page)
+	pages.loopPages([this, psm](u32 page)
 	{
 		for (Texture* t : m_map[page])
 		{
@@ -82,14 +82,10 @@ void GSTextureCacheSW::InvalidatePages(const GSOffset::PageLooper& pages, u32 ps
 				if (t->m_repeating)
 				{
 					for (const GSVector2i& j : t->m_p2t[page])
-					{
 						valid[j.x] &= j.y;
-					}
 				}
 				else
-				{
 					valid[page] = 0;
-				}
 
 				t->m_complete = false;
 			}
@@ -114,13 +110,13 @@ void GSTextureCacheSW::IncAge()
 {
 	for (auto i = m_textures.begin(); i != m_textures.end();)
 	{
-		Texture* t = *i;
+		Texture* const t = *i;
 
 		if (++t->m_age > 10)
 		{
 			i = m_textures.erase(i);
 
-			t->m_pages.loopPages([&](u32 page)
+			t->m_pages.loopPages([this, t](u32 page)
 			{
 				m_map[page].EraseIndex(t->m_erase_it[page]);
 			});
@@ -139,16 +135,14 @@ void GSTextureCacheSW::IncAge()
 GSTextureCacheSW::Texture::Texture(u32 tw0, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
 	: m_TEX0(TEX0)
 	, m_TEXA(TEXA)
-	, m_buff(NULL)
+	, m_buff(nullptr)
 	, m_tw(tw0)
 	, m_age(0)
 	, m_complete(false)
-	, m_p2t(NULL)
+	, m_p2t(nullptr)
 {
 	if (m_tw == 0)
-	{
 		m_tw = std::max<int>(m_TEX0.TW, GSLocalMemory::m_psm[m_TEX0.PSM].pal == 0 ? 3 : 5); // makes one row 32 bytes at least, matches the smallest block size that is allocated for m_buff
-	}
 
 	memset(m_valid, 0, sizeof(m_valid));
 
@@ -160,17 +154,13 @@ GSTextureCacheSW::Texture::Texture(u32 tw0, const GIFRegTEX0& TEX0, const GIFReg
 	m_repeating = m_TEX0.IsRepeating(); // repeating mode always works, it is just slightly slower
 
 	if (m_repeating)
-	{
 		m_p2t = g_gs_renderer->m_mem.GetPage2TileMap(m_TEX0);
-	}
 }
 
 GSTextureCacheSW::Texture::~Texture()
 {
 	if (m_buff)
-	{
 		_aligned_free(m_buff);
-	}
 }
 
 void GSTextureCacheSW::Texture::Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA)
@@ -178,20 +168,18 @@ void GSTextureCacheSW::Texture::Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIF
 	if (m_buff && (m_TEX0.TW != TEX0.TW || m_TEX0.TH != TEX0.TH))
 	{
 		_aligned_free(m_buff);
-		m_buff = NULL;
+		m_buff = nullptr;
 	}
 
-	m_tw = tw0;
-	m_age = 0;
+	m_tw       = tw0;
+	m_age      = 0;
 	m_complete = false;
-	m_p2t = NULL;
-	m_TEX0 = TEX0;
-	m_TEXA = TEXA;
+	m_p2t      = nullptr;
+	m_TEX0     = TEX0;
+	m_TEXA     = TEXA;
 
 	if (m_tw == 0)
-	{
 		m_tw = std::max<int>(m_TEX0.TW, GSLocalMemory::m_psm[m_TEX0.PSM].pal == 0 ? 3 : 5); // makes one row 32 bytes at least, matches the smallest block size that is allocated for m_buff
-	}
 
 	memset(m_valid, 0, sizeof(m_valid));
 
@@ -203,17 +191,13 @@ void GSTextureCacheSW::Texture::Reset(u32 tw0, const GIFRegTEX0& TEX0, const GIF
 	m_repeating = m_TEX0.IsRepeating(); // repeating mode always works, it is just slightly slower
 
 	if (m_repeating)
-	{
 		m_p2t = g_gs_renderer->m_mem.GetPage2TileMap(m_TEX0);
-	}
 }
 
 bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 {
 	if (m_complete)
-	{
 		return true;
-	}
 
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[m_TEX0.PSM];
 
@@ -229,11 +213,9 @@ bool GSTextureCacheSW::Texture::Update(const GSVector4i& rect)
 	r = r.ralign<Align_Outside>(bs);
 
 	if (r.eq(GSVector4i(0, 0, tw, th)))
-	{
 		m_complete = true; // lame, but better than nothing
-	}
 
-	if (m_buff == NULL)
+	if (!m_buff)
 	{
 		const u32 pitch = (1 << m_tw) << shift;
 

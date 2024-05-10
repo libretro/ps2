@@ -310,13 +310,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		res = vkEnumerateDeviceExtensionProperties(
 			vk_init_info.gpu, nullptr, &extension_count, available_extension_list.data());
 
-		auto SupportsExtension = [&](const char* name, bool required) {
+		auto SupportsExtension = [&available_extension_list, extension_list](const char* name, bool required) {
 			if (std::find_if(available_extension_list.begin(), available_extension_list.end(),
-					[&](const VkExtensionProperties& properties) { return !strcmp(name, properties.extensionName); }) !=
+					[name](const VkExtensionProperties& properties) { return !strcmp(name, properties.extensionName); }) !=
 				available_extension_list.end())
 			{
 				if (std::none_of(extension_list->begin(), extension_list->end(),
-						[&](const char* existing_name) { return (std::strcmp(existing_name, name) == 0); }))
+						[name](const char* existing_name) { return (std::strcmp(existing_name, name) == 0); }))
 				{
 					Console.WriteLn("Enabling extension: %s", name);
 					extension_list->push_back(name);
