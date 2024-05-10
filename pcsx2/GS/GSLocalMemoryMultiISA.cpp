@@ -19,6 +19,8 @@
 #include "GSBlock.h"
 #include "GSExtra.h"
 
+#include <cpuinfo.h>
+
 class CURRENT_ISA::GSLocalMemoryFunctions
 {
 	template <int psm, int bsx, int bsy, int alignment>
@@ -76,12 +78,10 @@ class CURRENT_ISA::GSLocalMemoryFunctions
 	static void ReadTextureBlock4HLP(const GSLocalMemory& mem, u32 bp, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
 	static void ReadTextureBlock4HHP(const GSLocalMemory& mem, u32 bp, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
 
-#if _M_SSE == 0x501
 	static void ReadTexture8HSW(GSLocalMemory& mem, const GSOffset& off, const GSVector4i& r, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
 	static void ReadTexture8HHSW(GSLocalMemory& mem, const GSOffset& off, const GSVector4i& r, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
 	static void ReadTextureBlock8HSW(const GSLocalMemory& mem, u32 bp, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
 	static void ReadTextureBlock8HHSW(const GSLocalMemory& mem, u32 bp, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
-#endif
 
 	template <typename T>
 	static void ReadTexture(GSLocalMemory& mem, const GSOffset& off, const GSVector4i& r, u8* dst, int dstpitch, const GIFRegTEXA& TEXA);
@@ -179,15 +179,26 @@ void GSLocalMemoryFunctions::PopulateFunctions(GSLocalMemory& mem)
 	mem.m_psm[PSMZ16].rtxbP = ReadTextureBlock16;
 	mem.m_psm[PSMZ16S].rtxbP = ReadTextureBlock16;
 
-#if _M_SSE == 0x501
-	if (g_cpu.hasSlowGather)
+	if (cpuinfo_has_x86_avx2())
 	{
-		mem.m_psm[PSMT8].rtx = ReadTexture8HSW;
-		mem.m_psm[PSMT8H].rtx = ReadTexture8HHSW;
-		mem.m_psm[PSMT8].rtxb = ReadTextureBlock8HSW;
-		mem.m_psm[PSMT8H].rtxb = ReadTextureBlock8HHSW;
+		const struct cpuinfo_core *cpu = cpuinfo_get_cores();
+
+		bool has_slow_gather = true;
+
+		/* Gather is only fast on Broadwell and above, starts
+		 * truly coming into its own on Skylake */
+		if (       cpu->vendor == cpuinfo_vendor_intel
+	        	&& cpu->uarch >= cpuinfo_uarch_broadwell)
+			has_slow_gather = false;
+
+		if (has_slow_gather)
+		{
+			mem.m_psm[PSMT8].rtx = ReadTexture8HSW;
+			mem.m_psm[PSMT8H].rtx = ReadTexture8HHSW;
+			mem.m_psm[PSMT8].rtxb = ReadTextureBlock8HSW;
+			mem.m_psm[PSMT8H].rtxb = ReadTextureBlock8HHSW;
+		}
 	}
-#endif
 }
 
 template <typename Fn>
@@ -1142,7 +1153,6 @@ void GSLocalMemoryFunctions::ReadTexture8H(GSLocalMemory& mem, const GSOffset& o
 	});
 }
 
-#if _M_SSE == 0x501
 void GSLocalMemoryFunctions::ReadTexture8HSW(GSLocalMemory& mem, const GSOffset& off, const GSVector4i& r, u8* dst, int dstpitch, const GIFRegTEXA& TEXA)
 {
 	const u32* pal = mem.m_clut;
@@ -1162,7 +1172,6 @@ void GSLocalMemoryFunctions::ReadTexture8HHSW(GSLocalMemory& mem, const GSOffset
 		GSBlock::ReadAndExpandBlock8H_32HSW(src, read_dst, dstpitch, pal);
 	});
 }
-#endif
 
 void GSLocalMemoryFunctions::ReadTexture4HL(GSLocalMemory& mem, const GSOffset& off, const GSVector4i& r, u8* dst, int dstpitch, const GIFRegTEXA& TEXA)
 {
@@ -1242,7 +1251,6 @@ void GSLocalMemoryFunctions::ReadTextureBlock8H(const GSLocalMemory& mem, u32 bp
 	GSBlock::ReadAndExpandBlock8H_32(mem.BlockPtr(bp), dst, dstpitch, mem.m_clut);
 }
 
-#if _M_SSE == 0x501
 void GSLocalMemoryFunctions::ReadTextureBlock8HSW(const GSLocalMemory& mem, u32 bp, u8* dst, int dstpitch, const GIFRegTEXA& TEXA)
 {
 	ALIGN_STACK(32);
@@ -1256,7 +1264,6 @@ void GSLocalMemoryFunctions::ReadTextureBlock8HHSW(const GSLocalMemory& mem, u32
 
 	GSBlock::ReadAndExpandBlock8H_32HSW(mem.BlockPtr(bp), dst, dstpitch, mem.m_clut);
 }
-#endif
 
 void GSLocalMemoryFunctions::ReadTextureBlock4HL(const GSLocalMemory& mem, u32 bp, u8* dst, int dstpitch, const GIFRegTEXA& TEXA)
 {

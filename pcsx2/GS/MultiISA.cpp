@@ -14,48 +14,8 @@
  */
 
 #include "PrecompiledHeader.h"
+
 #include "MultiISA.h"
-#include <xbyak/xbyak_util.h>
-
-static Xbyak::util::Cpu s_cpu;
-
-static ProcessorFeatures::VectorISA getCurrentISA()
-{
-	if (s_cpu.has(Xbyak::util::Cpu::tAVX2) && s_cpu.has(Xbyak::util::Cpu::tBMI1) && s_cpu.has(Xbyak::util::Cpu::tBMI2))
-		return ProcessorFeatures::VectorISA::AVX2;
-	else if (s_cpu.has(Xbyak::util::Cpu::tAVX))
-		return ProcessorFeatures::VectorISA::AVX;
-	else if (s_cpu.has(Xbyak::util::Cpu::tSSE41))
-		return ProcessorFeatures::VectorISA::SSE4;
-	return ProcessorFeatures::VectorISA::None;
-}
-
-static ProcessorFeatures getProcessorFeatures()
-{
-	ProcessorFeatures features = {};
-	features.vectorISA         = getCurrentISA();
-	features.hasFMA            = s_cpu.has(Xbyak::util::Cpu::tFMA);
-	features.hasSlowGather     = false;
-	if (features.vectorISA == ProcessorFeatures::VectorISA::AVX2)
-	{
-		if (s_cpu.has(Xbyak::util::Cpu::tINTEL))
-		{
-			// Slow on Haswell
-			// CPUID data from https://en.wikichip.org/wiki/intel/cpuid
-			features.hasSlowGather = s_cpu.displayModel == 0x46 || s_cpu.displayModel == 0x45 || s_cpu.displayModel == 0x3c;
-		}
-		else
-		{
-			// Currently no Zen CPUs with fast VPGATHERDD
-			// Check https://uops.info/table.html as new CPUs come out for one that doesn't split it into like 40 µops
-			// Doing it manually is about 28 µops (8x xmm -> gpr, 6x extr, 8x load, 6x insr)
-			features.hasSlowGather = true;
-		}
-	}
-	return features;
-}
-
-const ProcessorFeatures g_cpu = getProcessorFeatures();
 
 // Keep init order by defining these here
 

@@ -18,6 +18,8 @@
 #include "common/Pcsx2Defs.h"
 #include "common/VectorIntrin.h"
 
+#include <cpuinfo.h>
+
 // For multiple-isa compilation
 #ifdef MULTI_ISA_UNSHARED_COMPILATION
 	// Preprocessor should have MULTI_ISA_UNSHARED_COMPILATION defined to `isa_sse4`, `isa_avx`, or `isa_avx2`
@@ -54,16 +56,6 @@
 	#define MULTI_ISA_UNSHARED_END
 #endif
 
-struct ProcessorFeatures
-{
-	enum class VectorISA { None, SSE4, AVX, AVX2 };
-	VectorISA vectorISA;
-	bool hasFMA;
-	bool hasSlowGather;
-};
-
-extern const ProcessorFeatures g_cpu;
-
 #if defined(MULTI_ISA_UNSHARED_COMPILATION) || defined(MULTI_ISA_SHARED_COMPILATION)
 	#define MULTI_ISA_DEF(...) \
 		namespace isa_sse4 { __VA_ARGS__ } \
@@ -76,9 +68,8 @@ extern const ProcessorFeatures g_cpu;
 		friend class isa_avx2::klass;
 
 	#define MULTI_ISA_SELECT(fn) (\
-		::g_cpu.vectorISA == ProcessorFeatures::VectorISA::AVX2 ? isa_avx2::fn : \
-		::g_cpu.vectorISA == ProcessorFeatures::VectorISA::AVX  ? isa_avx ::fn : \
-		                                                          isa_sse4::fn)
+		cpuinfo_has_x86_avx2() ? isa_avx2::fn : \
+		cpuinfo_has_x86_avx()  ? isa_avx ::fn : isa_sse4::fn)
 #else
 	#define MULTI_ISA_DEF(...) namespace isa_native { __VA_ARGS__ }
 	#define MULTI_ISA_FRIEND(klass) friend class isa_native::klass;

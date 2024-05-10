@@ -25,5 +25,5 @@ GSDrawScanlineCodeGenerator::GSDrawScanlineCodeGenerator(u64 key, void* code, si
 {
 	m_sel.key = key;
 
-	GSDrawScanlineCodeGenerator2(this, g_cpu, m_sel.key).Generate();
+	GSDrawScanlineCodeGenerator2(this, m_sel.key).Generate();
 }

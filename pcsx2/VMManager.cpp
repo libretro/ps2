@@ -145,7 +145,6 @@ static std::vector<u8> s_no_interlacing_cheats_data;
 static bool s_no_interlacing_cheats_loaded = false;
 static s32 s_active_widescreen_patches = 0;
 static u32 s_active_no_interlacing_patches = 0;
-static u32 s_mxcsr_saved;
 
 VMState VMManager::GetState()
 {
@@ -1053,12 +1052,9 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 			EmuConfig.EnableWideScreenPatches != old_config.EnableWideScreenPatches ||
 			EmuConfig.EnableNoInterlacingPatches != old_config.EnableNoInterlacingPatches)
 			VMManager::ReloadPatches();
-	}
 
-	// For the big picture UI, we still need to update GS settings, since it's running,
-	// and we don't update its config when we start the VM.
-	if (HasValidVM() || MTGS::IsOpen())
 		CheckForGSConfigChanges(old_config);
+	}
 }
 
 void VMManager::ApplySettings()

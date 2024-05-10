@@ -29,5 +29,5 @@ GSSetupPrimCodeGenerator::GSSetupPrimCodeGenerator(u64 key, void* code, size_t m
 	m_en.t = m_sel.fb && m_sel.tfx != TFX_NONE ? 1 : 0;
 	m_en.c = m_sel.fb && !(m_sel.tfx == TFX_DECAL && m_sel.tcc) ? 1 : 0;
 
-	GSSetupPrimCodeGenerator2(this, g_cpu, key).Generate();
+	GSSetupPrimCodeGenerator2(this, key).Generate();
 }

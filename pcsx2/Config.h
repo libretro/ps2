@@ -111,7 +111,7 @@ struct InputBindingInfo
 };
 
 /// Generic input bindings. These roughly match a DualShock 4 or XBox One controller.
-/// They are used for automatic binding to PS2 controller types, and for big picture mode navigation.
+/// They are used for automatic binding to PS2 controller types.
 enum class GenericInputBinding : u8
 {
 	Unknown,

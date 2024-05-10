@@ -82,7 +82,7 @@ class GSDrawScanlineCodeGenerator2 : public GSNewCodeGenerator
 	const XYm _z, _f, _s, _t, _q, _f_rb, _f_ga;
 
 public:
-	GSDrawScanlineCodeGenerator2(Xbyak::CodeGenerator* base, const ProcessorFeatures& cpu, u64 key);
+	GSDrawScanlineCodeGenerator2(Xbyak::CodeGenerator* base, u64 key);
 	void Generate();
 
 private:

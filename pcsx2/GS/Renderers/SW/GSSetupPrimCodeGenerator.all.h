@@ -54,7 +54,7 @@ class GSSetupPrimCodeGenerator2 : public GSNewCodeGenerator
 	const AddressReg _64_vertex, _index, _dscan, _m_local, t1;
 
 public:
-	GSSetupPrimCodeGenerator2(Xbyak::CodeGenerator* base, const ProcessorFeatures& cpu, u64 key);
+	GSSetupPrimCodeGenerator2(Xbyak::CodeGenerator* base, u64 key);
 	void Generate();
 
 private:

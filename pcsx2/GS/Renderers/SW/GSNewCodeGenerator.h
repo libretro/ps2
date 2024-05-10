@@ -17,6 +17,8 @@
 
 #define XBYAK_NO_OP_NAMES
 
+#include <cpuinfo.h>
+
 #include "xbyak/xbyak.h"
 #include "xbyak/xbyak_util.h"
 #include "GS/MultiISA.h"
@@ -65,11 +67,11 @@ public:
 	const RipType rip{};
 	const Xbyak::AddressFrame ptr{0}, byte{8}, word{16}, dword{32}, qword{64}, xword{128}, yword{256}, zword{512};
 
-	GSNewCodeGenerator(Xbyak::CodeGenerator* actual, const ProcessorFeatures& cpu)
+	GSNewCodeGenerator(Xbyak::CodeGenerator* actual)
 		: actual(*actual)
-		, hasAVX(cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX)
-		, hasAVX2(cpu.vectorISA >= ProcessorFeatures::VectorISA::AVX2)
-		, hasFMA(cpu.hasFMA)
+		, hasAVX(cpuinfo_has_x86_avx())
+		, hasAVX2(cpuinfo_has_x86_avx2())
+		, hasFMA(cpuinfo_has_x86_fma3() || cpuinfo_has_x86_fma4())
 	{
 	}
 
