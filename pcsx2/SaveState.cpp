@@ -40,8 +40,6 @@
 #include "USB/USB.h"
 #include "VMManager.h"
 
-#include "fmt/core.h"
-
 using namespace R5900;
 
 // --------------------------------------------------------------------------------------

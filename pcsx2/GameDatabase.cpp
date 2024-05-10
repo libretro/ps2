@@ -15,24 +15,24 @@
 
 #include "PrecompiledHeader.h"
 
-#include "GameDatabase.h"
-#include "GS/GS.h"
-#include "Host.h"
-#include "vtlb.h"
+#include <sstream>
+#include <fstream>
+#include <optional>
+
+#include <fmt/format.h>
+
+#include "ryml_std.hpp"
+#include "ryml.hpp"
 
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
-#include <sstream>
-#include <fstream>
-#include <optional>
-
-#include "ryml_std.hpp"
-#include "ryml.hpp"
-#include "fmt/core.h"
-#include "fmt/ranges.h"
+#include "GameDatabase.h"
+#include "GS/GS.h"
+#include "Host.h"
+#include "vtlb.h"
 
 namespace GameDatabaseSchema
 {

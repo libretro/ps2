@@ -21,13 +21,14 @@
 #include <sstream>
 #include <mutex>
 
+#include <fmt/format.h>
+
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/FPControl.h"
 #include "common/SettingsWrapper.h"
 #include "common/StringUtil.h" /* StdStringFromFormat */
 #include "common/Threading.h"
-#include "fmt/core.h"
 
 #include "Counters.h"
 #include "CDVD/CDVD.h"
@@ -301,15 +302,14 @@ bool VMManager::UpdateGameSettingsLayer(void) { return true; }
 
 void VMManager::LoadPatches(const std::string& serial, u32 crc)
 {
+	std::string message;
+	int patch_count = 0;
 	const std::string crc_string(fmt::format("{:08X}", crc));
-	s_patches_crc = crc;
-	s_active_widescreen_patches = 0;
+	s_patches_crc                   = crc;
+	s_active_widescreen_patches     = 0;
 	s_active_no_interlacing_patches = 0;
 	ForgetLoadedPatches();
 
-	std::string message;
-
-	int patch_count = 0;
 	if (EmuConfig.EnablePatches)
 	{
 		const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(serial);

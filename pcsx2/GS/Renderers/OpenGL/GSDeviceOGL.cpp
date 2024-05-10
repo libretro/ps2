@@ -20,10 +20,10 @@
 
 #include <libretro.h>
 
+#include <fmt/format.h>
+
 #include "common/Console.h"
 #include "common/StringUtil.h"
-
-#include "fmt/core.h"
 
 #include "glad.h"
 
@@ -506,9 +506,11 @@ bool GSDeviceOGL::Create()
 			return false;
 		}
 
-		for (size_t i = 0; i < std::size(m_merge_obj.ps); i++)
+		for (unsigned i = 0; i < std::size(m_merge_obj.ps); i++)
 		{
-			const std::string ps(GetShaderSource(fmt::format("ps_main{}", i), GL_FRAGMENT_SHADER, *shader));
+			char entry[32];
+			snprintf(entry, sizeof(entry), "ps_main%d", i);
+			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, *shader));
 			if (!m_shader_cache.GetProgram(&m_merge_obj.ps[i], m_convert.vs, ps))
 				return false;
 			m_merge_obj.ps[i].RegisterUniform("BGColor");
@@ -526,9 +528,11 @@ bool GSDeviceOGL::Create()
 			return false;
 		}
 
-		for (size_t i = 0; i < std::size(m_interlace.ps); i++)
+		for (unsigned i = 0; i < std::size(m_interlace.ps); i++)
 		{
-			const std::string ps(GetShaderSource(fmt::format("ps_main{}", i), GL_FRAGMENT_SHADER, *shader));
+			char entry[32];
+			snprintf(entry, sizeof(entry), "ps_main%d", i);
+			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, *shader));
 			if (!m_shader_cache.GetProgram(&m_interlace.ps[i], m_convert.vs, ps))
 				return false;
 			m_interlace.ps[i].RegisterUniform("ZrH");
@@ -555,11 +559,11 @@ bool GSDeviceOGL::Create()
 		m_date.dss->EnableStencil();
 		m_date.dss->SetStencil(GL_ALWAYS, GL_REPLACE);
 
-		for (size_t i = 0; i < std::size(m_date.primid_ps); i++)
+		for (unsigned i = 0; i < std::size(m_date.primid_ps); i++)
 		{
-			const std::string ps(GetShaderSource(
-				fmt::format("ps_stencil_image_init_{}", i),
-				GL_FRAGMENT_SHADER, *convert_glsl));
+			char entry[32];
+			snprintf(entry, sizeof(entry), "ps_stencil_image_init_%d", i);
+			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, *convert_glsl));
 			m_shader_cache.GetProgram(&m_date.primid_ps[i], m_convert.vs, ps);
 		}
 	}

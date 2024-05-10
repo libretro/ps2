@@ -29,8 +29,6 @@
 #include "pcsx2/Counters.h"
 #include "pcsx2/GS.h"
 
-#include "fmt/format.h"
-
 #ifdef ENABLE_OPENGL
 #include "Renderers/OpenGL/GSDeviceOGL.h"
 #endif

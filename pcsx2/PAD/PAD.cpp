@@ -32,8 +32,6 @@
 
 #include "PAD/PAD.h"
 
-#include "fmt/core.h"
-
 #define TEST_BIT(value, bit) ((value) & (1 << (bit)))
 
 static KeyStatus g_key_status;
@@ -769,8 +767,8 @@ void PAD::LoadConfig(const SettingsInterface& si)
 	// This is where we would load controller types, if onepad supported them.
 	for (u32 i = 0; i < NUM_CONTROLLER_PORTS; i++)
 	{
-		const std::string section(fmt::format("Pad{}", i + 1));
-		const char *section_c              = section.c_str();
+		char section_c[32];
+		snprintf(section_c, sizeof(section_c), "Pad%d", i + 1);
 		const std::string type(si.GetStringValue(section_c, "Type", (i == 0) ? "DualShock2" : "None"));
 
 		const ControllerInfo* ci           = GetControllerInfo(type);
