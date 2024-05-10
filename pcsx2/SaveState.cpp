@@ -105,9 +105,8 @@ bool SaveStateBase::FreezeBios()
 
 bool SaveStateBase::FreezeInternals()
 {
-	const u32 previousCRC = ElfCRC;
-
 #if 0
+	const u32 previousCRC = ElfCRC;
 	if (!vmFreeze())
 		return false;
 #endif
