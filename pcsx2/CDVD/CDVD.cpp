@@ -54,15 +54,11 @@ cdvdStruct cdvd;
 
 s64 PSXCLK = 36864000;
 
-static u8 monthmap[13] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-static u8 cdvdParamLength[16] = { 0, 0, 0, 0, 0, 4, 11, 11, 11, 1, 255, 255, 7, 2, 11, 1 };
-
 static __fi void SetSCMDResultSize(u8 size)
 {
-	cdvd.SCMDResultCnt = size;
-	cdvd.SCMDResultPos = 0;
-	cdvd.sDataIn &= ~0x40;
+	cdvd.SCMDResultCnt  = size;
+	cdvd.SCMDResultPos  = 0;
+	cdvd.sDataIn       &= ~0x40;
 	memset(&cdvd.SCMDResultBuff[0], 0, size);
 }
 
@@ -127,18 +123,18 @@ static int mg_BIToffset(u8* buffer)
 
 static void cdvdGetMechaVer(u8* ver)
 {
-	std::string mecfile(Path::ReplaceExtension(BiosPath, "mec"));
-	auto fp = FileSystem::OpenManagedCFile(mecfile.c_str(), "rb");
+	const char * mecfile = Path::ReplaceExtension(BiosPath, "mec").c_str();
+	std::unique_ptr<std::FILE, void (*)(std::FILE*)> fp = FileSystem::OpenManagedCFile(mecfile, "rb");
 	if (!fp || FileSystem::FSize64(fp.get()) < 4)
 	{
+		u8 version[4] = {0x3, 0x6, 0x2, 0x0};
 		Console.Warning("MEC File Not Found, creating substitute...");
 
 		fp.reset();
-		fp = FileSystem::OpenManagedCFile(mecfile.c_str(), "w+b");
+		fp = FileSystem::OpenManagedCFile(mecfile, "w+b");
 		if (!fp)
 			return;
 
-		u8 version[4] = {0x3, 0x6, 0x2, 0x0};
 		std::fwrite(version, sizeof(version), 1, fp.get());
 		FileSystem::FSeek64(fp.get(), 0, SEEK_SET);
 	}
@@ -193,12 +189,12 @@ static void cdvdCreateNewNVM(std::FILE* fp)
 
 static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 {
-	std::string nvmfile(Path::ReplaceExtension(BiosPath, "nvm"));
-	auto fp = FileSystem::OpenManagedCFile(nvmfile.c_str(), "r+b");
+	const char *nvmfile = Path::ReplaceExtension(BiosPath, "nvm").c_str();
+	std::unique_ptr<std::FILE, void (*)(std::FILE*)> fp = FileSystem::OpenManagedCFile(nvmfile, "r+b");
 	if (!fp || FileSystem::FSize64(fp.get()) < 1024)
 	{
 		fp.reset();
-		fp = FileSystem::OpenManagedCFile(nvmfile.c_str(), "w+b");
+		fp = FileSystem::OpenManagedCFile(nvmfile, "w+b");
 		if (!fp)
 		{
 			if (read)
@@ -238,11 +234,6 @@ static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 		std::fwrite(buffer, 1, bytes, fp.get());
 }
 
-static void cdvdReadNVM(u8* dst, int offset, int bytes)
-{
-	cdvdNVM(dst, offset, bytes, true);
-}
-
 static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 {
 	cdvdNVM(const_cast<u8*>(src), offset, bytes, false);
@@ -252,8 +243,8 @@ static void getNvmData(u8* buffer, s32 offset, s32 size, s32 fmtOffset)
 {
 	// find the correct bios version
 	NVMLayout* nvmLayout = getNvmLayout();
-	// get data from eeprom
-	cdvdReadNVM(buffer, *reinterpret_cast<s32*>((reinterpret_cast<u8*>(nvmLayout)) + fmtOffset) + offset, size);
+	// get data from EEPROM
+	cdvdNVM(buffer, *reinterpret_cast<s32*>((reinterpret_cast<u8*>(nvmLayout)) + fmtOffset) + offset, size, true);
 }
 
 static void setNvmData(const u8* buffer, s32 offset, s32 size, s32 fmtOffset)
@@ -263,56 +254,6 @@ static void setNvmData(const u8* buffer, s32 offset, s32 size, s32 fmtOffset)
 
 	// set data in eeprom
 	cdvdWriteNVM(buffer, *(s32*)(((u8*)nvmLayout) + fmtOffset) + offset, size);
-}
-
-static void cdvdReadConsoleID(u8* id)
-{
-	getNvmData(id, 0, 8, offsetof(NVMLayout, consoleId));
-}
-
-static void cdvdWriteConsoleID(const u8* id)
-{
-	setNvmData(id, 0, 8, offsetof(NVMLayout, consoleId));
-}
-
-static void cdvdReadILinkID(u8* id)
-{
-	getNvmData(id, 0, 8, offsetof(NVMLayout, ilinkId));
-}
-
-static void cdvdWriteILinkID(const u8* id)
-{
-	setNvmData(id, 0, 8, offsetof(NVMLayout, ilinkId));
-}
-
-static void cdvdReadModelNumber(u8* num, s32 part)
-{
-	getNvmData(num, part, 8, offsetof(NVMLayout, modelNum));
-}
-
-static void cdvdWriteModelNumber(const u8* num, s32 part)
-{
-	setNvmData(num, part, 8, offsetof(NVMLayout, modelNum));
-}
-
-static void cdvdReadRegionParams(u8* num)
-{
-	getNvmData(num, 0, 8, offsetof(NVMLayout, regparams));
-}
-
-static void cdvdWriteRegionParams(const u8* num)
-{
-	setNvmData(num, 0, 8, offsetof(NVMLayout, regparams));
-}
-
-static void cdvdReadMAC(u8* num)
-{
-	getNvmData(num, 0, 8, offsetof(NVMLayout, mac));
-}
-
-static void cdvdWriteMAC(const u8* num)
-{
-	setNvmData(num, 0, 8, offsetof(NVMLayout, mac));
 }
 
 void cdvdReadLanguageParams(u8* config)
@@ -356,7 +297,8 @@ static s32 cdvdReadConfig(u8* config)
 	}
 	return 0;
 }
-s32 cdvdWriteConfig(const u8* config)
+
+static s32 cdvdWriteConfig(const u8* config)
 {
 	// make sure its in write mode && the block index is in bounds
 	if ((cdvd.CReadWrite != 1) || (cdvd.CBlockIndex >= cdvd.CNumBlocks))
@@ -389,7 +331,6 @@ static bool cdvdLoadElf(ElfObject *elfo, std::string elfpath, bool isPSXElf)
 	if (StringUtil::StartsWith(elfpath, "host:"))
 	{
 		std::string host_filename(elfpath.substr(5));
-		//s64 host_size = FileSystem::GetPathFileSize(host_filename.c_str());
 		if (!elfo->OpenFile(host_filename, isPSXElf))
 			return false;
 	}
@@ -594,14 +535,6 @@ static void cdvdReadKey(u8, u16, u32 arg2, u8* key)
 	}
 }
 
-static s32 cdvdGetToc(void* toc)
-{
-	s32 ret = CDVD->getTOC(toc);
-	if (ret != -1)
-		return ret;
-	return 0x80;
-}
-
 static s32 cdvdReadSubQ(s32 lsn, cdvdSubQ* subq)
 {
 	s32 ret = CDVD->readSubQ(lsn, subq);
@@ -679,22 +612,6 @@ s32 cdvdCtrlTrayClose(void)
 	return 0; // needs to be 0 for success according to homebrew test "CDVD"
 }
 
-// check whether disc is single or dual layer
-// if its dual layer, check what the disctype is and what sector number
-// layer1 starts at
-//
-// args:    gets value for dvd type (0=single layer, 1=ptp, 2=otp)
-//          gets value for start lsn of layer1
-// returns: 1 if on dual layer disc
-//          0 if not on dual layer disc
-static s32 cdvdReadDvdDualInfo(s32* dualType, u32* layer1Start)
-{
-	*dualType = 0;
-	*layer1Start = 0;
-
-	return CDVD->getDualInfo(dualType, layer1Start);
-}
-
 static bool cdvdIsDVD(void)
 {
 	if (               cdvd.DiscType == CDVD_TYPE_DETCTDVDS 
@@ -711,10 +628,9 @@ static int cdvdTrayStateDetecting(void)
 	{
 		if (cdvdIsDVD())
 		{
-			u32 layer1Start;
-			s32 dualType;
-
-			cdvdReadDvdDualInfo(&dualType, &layer1Start);
+			u32 layer1Start = 0;
+			s32 dualType    = 0;
+			CDVD->getDualInfo(&dualType, &layer1Start);
 
 			if (dualType > 0)
 				return CDVD_TYPE_DETCTDVDD;
@@ -741,8 +657,10 @@ static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 	}
 	else
 	{
-		int numSectors = 360000; // Pretty much every CD format
-		int offset = 0;
+		u32 layer1Start = 0;
+		s32 dualType    = 0;
+		int numSectors  = 360000; // Pretty much every CD format
+		int offset      = 0;
 
 		//CLV adjusts its speed based on where it is on the disc, so we can take the max RPM and use the sector to work it out
 		// Sector counts are taken from google for Single layer, Dual layer DVD's and for 700MB CD's
@@ -751,12 +669,9 @@ static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 			case CDVD_TYPE_DETCTDVDS:
 			case CDVD_TYPE_PS2DVD:
 			case CDVD_TYPE_DETCTDVDD:
-				numSectors = 2298496;
-
-				u32 layer1Start;
-				s32 dualType;
+				numSectors      = 2298496;
 				// Layer 1 needs an offset as it goes back to the middle of the disc
-				cdvdReadDvdDualInfo(&dualType, &layer1Start);
+				CDVD->getDualInfo(&dualType, &layer1Start);
 				if (cdvd.SeekToSector >= layer1Start)
 					offset = layer1Start;
 				break;
@@ -781,22 +696,17 @@ static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 		int offset = 0;
 
 		// Sector counts are taken from google for Single layer, Dual layer DVD's and for 700MB CD's
-		switch (cdvd.DiscType)
+		if (       (cdvd.DiscType == CDVD_TYPE_DETCTDVDS)
+			|| (cdvd.DiscType == CDVD_TYPE_PS2DVD)
+			|| (cdvd.DiscType == CDVD_TYPE_DETCTDVDD))
 		{
-			case CDVD_TYPE_DETCTDVDS:
-			case CDVD_TYPE_PS2DVD:
-			case CDVD_TYPE_DETCTDVDD:
-				numSectors = 2298496;
-				u32 layer1Start;
-				s32 dualType;
-
-				// Layer 1 needs an offset as it goes back to the middle of the disc
-				cdvdReadDvdDualInfo(&dualType, &layer1Start);
-				if (cdvd.SeekToSector >= layer1Start)
-					offset = layer1Start;
-				break;
-			default:
-				break;
+			numSectors       = 2298496;
+			u32 layer1Start  = 0;
+			s32 dualType     = 0;
+			// Layer 1 needs an offset as it goes back to the middle of the disc
+			CDVD->getDualInfo(&dualType, &layer1Start);
+			if (cdvd.SeekToSector >= layer1Start)
+				offset = layer1Start;
 		}
 
 		// 0.40f is the "base" inner track speed.
@@ -939,12 +849,12 @@ int cdvdReadSector(void)
 	if (cdvd.BlockSize == 2064)
 	{
 		// get info on dvd type and layer1 start
-		u32 layer1Start;
-		s32 dualType;
-		s32 layerNum;
-		u32 lsn = cdvd.CurrentSector;
+		s32 layerNum    = 0;
+		u32 layer1Start = 0;
+		s32 dualType    = 0;
+		u32 lsn         = cdvd.CurrentSector;
 
-		cdvdReadDvdDualInfo(&dualType, &layer1Start);
+		CDVD->getDualInfo(&dualType, &layer1Start);
 
 		if ((dualType == 1) && (lsn >= layer1Start))
 		{
@@ -1381,6 +1291,8 @@ void cdvdUpdateTrayState(void)
 
 void cdvdVsync(void)
 {
+	static u8 monthmap[13] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
 	cdvd.RTCcount++;
 	if (cdvd.RTCcount < GetVerticalFrequency())
 		return;
@@ -1574,6 +1486,8 @@ static bool cdvdReadErrorHandler(void)
 
 static bool cdvdCommandErrorHandler(void)
 {
+	static u8 cdvdParamLength[16] = { 0, 0, 0, 0, 0, 4, 11, 11, 11, 1, 255, 255, 7, 2, 11, 1 };
+
 	if (cdvd.nCommand > N_CD_NOP) // Command needs a disc, so check the tray is closed
 	{
 		if ((cdvd.Status & CDVD_STATUS_TRAY_OPEN) || (cdvd.DiscType == CDVD_TYPE_NODISC))
@@ -1606,7 +1520,6 @@ static bool cdvdCommandErrorHandler(void)
 
 static void cdvdWrite04(u8 rt) /* NCOMMAND */
 {
-
 	if (!(cdvd.Ready & CDVD_DRIVE_READY))
 	{
 		cdvd.Error = 0x13; // Not Ready
@@ -1949,7 +1862,7 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 		}
 		case N_CD_GET_TOC: // CdGetToc & cdvdman_call19
 			//Param[0] is 0 for CdGetToc and any value for cdvdman_call19
-			cdvdGetToc(iopPhysMem(HW_DMA3_MADR));
+			CDVD->getTOC(iopPhysMem(HW_DMA3_MADR));
 			cdvdSetIrq();
 			HW_DMA3_CHCR &= ~0x01000000;
 			psxDmaInterrupt(3);
@@ -2045,12 +1958,12 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 					break;
 				case 0x44: // write console ID (9:1)
 					SetSCMDResultSize(1);
-					cdvdWriteConsoleID(&cdvd.SCMDParamBuff[1]);
+					setNvmData(&cdvd.SCMDParamBuff[1], 0, 8, offsetof(NVMLayout, consoleId));
 					break;
 
 				case 0x45: // read console ID (1:9)
 					SetSCMDResultSize(9);
-					cdvdReadConsoleID(&cdvd.SCMDResultBuff[1]);
+					getNvmData(&cdvd.SCMDResultBuff[1], 0, 8, offsetof(NVMLayout, consoleId));
 					break;
 
 				case 0xFD: // _sceCdReadRenewalDate (1:6) BCD
@@ -2126,7 +2039,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 			if (address < 512)
 			{
 				SetSCMDResultSize(3);
-				cdvdReadNVM(&cdvd.SCMDResultBuff[1], address * 2, 2);
+				cdvdNVM(&cdvd.SCMDResultBuff[1], address * 2, 2, true);
 				// swap bytes around
 				tmp = cdvd.SCMDResultBuff[1];
 				cdvd.SCMDResultBuff[1] = cdvd.SCMDResultBuff[2];
@@ -2165,7 +2078,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x12: // sceCdReadILinkId (0:9)
 			SetSCMDResultSize(9);
-			cdvdReadILinkID(&cdvd.SCMDResultBuff[1]);
+			getNvmData(&cdvd.SCMDResultBuff[1], 0, 8, offsetof(NVMLayout, ilinkId));
 			if ((!cdvd.SCMDResultBuff[3]) && (!cdvd.SCMDResultBuff[4])) // nvm file is missing correct iLinkId, return hardcoded one
 			{
 				cdvd.SCMDResultBuff[0] = 0x00;
@@ -2182,7 +2095,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x13: // sceCdWriteILinkID (8:1)
 			SetSCMDResultSize(1);
-			cdvdWriteILinkID(&cdvd.SCMDParamBuff[1]);
+			setNvmData(&cdvd.SCMDParamBuff[1], 0, 8, offsetof(NVMLayout, ilinkId));
 			break;
 
 		case 0x14: // CdCtrlAudioDigitalOut (1:1)
@@ -2203,12 +2116,12 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x17: // CdReadModelNumber (1:9) - from xcdvdman
 			SetSCMDResultSize(9);
-			cdvdReadModelNumber(&cdvd.SCMDResultBuff[1], cdvd.SCMDParamBuff[0]);
+			getNvmData(&cdvd.SCMDResultBuff[1], cdvd.SCMDParamBuff[0], 8, offsetof(NVMLayout, modelNum));
 			break;
 
 		case 0x18: // CdWriteModelNumber (9:1) - from xcdvdman
 			SetSCMDResultSize(1);
-			cdvdWriteModelNumber(&cdvd.SCMDParamBuff[1], cdvd.SCMDParamBuff[0]);
+			setNvmData(&cdvd.SCMDParamBuff[1], cdvd.SCMDParamBuff[0], 8, offsetof(NVMLayout, modelNum));
 			break;
 
 			//		case 0x19: // sceCdForbidRead (0:1) - from xcdvdman
@@ -2340,7 +2253,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 			SetSCMDResultSize(15);
 
 			cdvdGetMechaVer(&cdvd.SCMDResultBuff[1]);
-			cdvdReadRegionParams(&cdvd.SCMDResultBuff[3]); //size==8
+			getNvmData(&cdvd.SCMDResultBuff[3], 0, 8, offsetof(NVMLayout, regparams)); //size==8
 			cdvd.SCMDResultBuff[1] = 1 << cdvd.SCMDResultBuff[1]; //encryption zone; see offset 0x1C in encrypted headers
 								      //////////////////////////////////////////
 			cdvd.SCMDResultBuff[2] = 0; //??
@@ -2361,17 +2274,17 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x37: //called from EECONF [sceCdReadMAC - made up name] (0:9)
 			SetSCMDResultSize(9);
-			cdvdReadMAC(&cdvd.SCMDResultBuff[1]);
+			getNvmData(&cdvd.SCMDResultBuff[1], 0, 8, offsetof(NVMLayout, mac));
 			break;
 
 		case 0x38: //used to fix the MAC back after accidentally trashed it :D [sceCdWriteMAC - made up name] (8:1)
 			SetSCMDResultSize(1);
-			cdvdWriteMAC(&cdvd.SCMDParamBuff[0]);
+			setNvmData(&cdvd.SCMDParamBuff[0], 0, 8, offsetof(NVMLayout, mac));
 			break;
 
 		case 0x3E: //[__sceCdWriteRegionParams - made up name] (15:1) [Florin: hum, i was expecting 14:1]
 			SetSCMDResultSize(1);
-			cdvdWriteRegionParams(&cdvd.SCMDParamBuff[2]);
+			setNvmData(&cdvd.SCMDParamBuff[2], 0, 8, offsetof(NVMLayout, regparams));
 			break;
 
 		case 0x40: // CdOpenConfig (3:1)

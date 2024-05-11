@@ -109,6 +109,15 @@ typedef s32(CALLBACK* _CDVDgetTrayStatus)();
 typedef s32(CALLBACK* _CDVDctrlTrayOpen)();
 typedef s32(CALLBACK* _CDVDctrlTrayClose)();
 typedef s32(CALLBACK* _CDVDreadSector)(u8* buffer, u32 lsn, int mode);
+
+// check whether disc is single or dual layer
+// if its dual layer, check what the disctype is and what sector number
+// layer1 starts at
+//
+// args:    gets value for dvd type (0=single layer, 1=ptp, 2=otp)
+//          gets value for start lsn of layer1
+// returns: 1 if on dual layer disc
+//          0 if not on dual layer disc
 typedef s32(CALLBACK* _CDVDgetDualInfo)(s32* dualType, u32* _layer1start);
 
 typedef void(CALLBACK* _CDVDnewDiskCB)(void (*callback)());
