@@ -40,7 +40,7 @@
     <ClCompile Include="Linux\LnxMisc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Linux\LnxThreads.cpp">
+    <ClCompile Include="Threads.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="emitter\movs.cpp">
@@ -68,9 +68,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Windows\WinMisc.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\WinThreads.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="emitter\x86emitter.cpp">

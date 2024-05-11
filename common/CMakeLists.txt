@@ -30,10 +30,8 @@ target_sources(common PRIVATE
 	emitter/movs.cpp
 	emitter/simd.cpp
 	emitter/x86emitter.cpp
-	Darwin/DarwinThreads.cpp
 	Linux/LnxHostSys.cpp
-	Linux/LnxThreads.cpp
-	Windows/WinThreads.cpp
+	Threads.cpp
 	Windows/WinHostSys.cpp
 )
 
