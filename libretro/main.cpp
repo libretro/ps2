@@ -1133,7 +1133,7 @@ std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
 	const std::string path(Path::Combine(EmuFolders::Resources, filename));
 	std::optional<std::vector<u8>> ret(FileSystem::ReadBinaryFile(path.c_str()));
 	if (!ret.has_value())
-		log_cb(RETRO_LOG_ERROR, "Failed to read resource file '%s'\n", filename);
+		log_cb(RETRO_LOG_ERROR, "Failed to read resource file '%s', path '%s'\n", filename, path.c_str());
 	return ret;
 }
 
@@ -1142,7 +1142,7 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	const std::string path(Path::Combine(EmuFolders::Resources, filename));
 	std::optional<std::string> ret(FileSystem::ReadFileToString(path.c_str()));
 	if (!ret.has_value())
-		log_cb(RETRO_LOG_ERROR, "Failed to read resource file to string '%s'\n", filename);
+		log_cb(RETRO_LOG_ERROR, "Failed to read resource file to string '%s', path '%s'\n", filename, path.c_str());
 	return ret;
 }
 
