@@ -83,7 +83,7 @@ public:
 	int curCycle;
 
 public:
-	VifUnpackSSE_Simple(bool usn_, bool domask_, int curCycle_);
+	VifUnpackSSE_Simple() = default;
 	virtual ~VifUnpackSSE_Simple() = default;
 
 	virtual bool IsWriteProtectedOp() const { return false; }

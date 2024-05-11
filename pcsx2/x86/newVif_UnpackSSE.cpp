@@ -19,12 +19,6 @@
 
 #include "newVif_UnpackSSE.h"
 
-#define xMOV8(regX, loc)   xMOVSSZX(regX, loc)
-#define xMOV16(regX, loc)  xMOVSSZX(regX, loc)
-#define xMOV32(regX, loc)  xMOVSSZX(regX, loc)
-#define xMOV64(regX, loc)  xMOVUPS (regX, loc)
-#define xMOV128(regX, loc) xMOVUPS (regX, loc)
-
 //alignas(__pagesize) static u8 nVifUpkExec[__pagesize*4];
 static RecompiledCodeReserve* nVifUpkExec = NULL;
 
@@ -57,8 +51,8 @@ void VifUnpackSSE_Base::xMovDest() const
 
 void VifUnpackSSE_Base::xShiftR(const xRegisterSSE& regX, int n) const
 {
-	if (usn) { xPSRL.D(regX, n); }
-	else     { xPSRA.D(regX, n); }
+	if (usn) xPSRL.D(regX, n);
+	else     xPSRA.D(regX, n);
 }
 
 void VifUnpackSSE_Base::xPMOVXX8(const xRegisterSSE& regX) const
@@ -75,75 +69,72 @@ void VifUnpackSSE_Base::xPMOVXX16(const xRegisterSSE& regX) const
 
 void VifUnpackSSE_Base::xUPK_S_32() const
 {
-	if (UnpkLoopIteration == 0)
-		xMOV128(workReg, ptr32[srcIndirect]);
-
-	if (IsInputMasked())
-		return;
-
 	switch (UnpkLoopIteration)
 	{
 		case 0:
-			xPSHUF.D(destReg, workReg, _v0);
+			xMOVUPS(workReg, ptr32[srcIndirect]);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v0);
 			break;
 		case 1:
-			xPSHUF.D(destReg, workReg, _v1);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v1);
 			break;
 		case 2:
-			xPSHUF.D(destReg, workReg, _v2);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v2);
 			break;
 		case 3:
-			xPSHUF.D(destReg, workReg, _v3);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v3);
 			break;
 	}
 }
 
 void VifUnpackSSE_Base::xUPK_S_16() const
 {
-	if (UnpkLoopIteration == 0)
-		xPMOVXX16(workReg);
-
-	if (IsInputMasked())
-		return;
-	
 	switch (UnpkLoopIteration)
 	{
 		case 0:
-			xPSHUF.D(destReg, workReg, _v0);
+			xPMOVXX16(workReg);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v0);
 			break;
 		case 1:
-			xPSHUF.D(destReg, workReg, _v1);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v1);
 			break;
 		case 2:
-			xPSHUF.D(destReg, workReg, _v2);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v2);
 			break;
 		case 3:
-			xPSHUF.D(destReg, workReg, _v3);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v3);
 			break;
 	}
 }
 
 void VifUnpackSSE_Base::xUPK_S_8() const
 {
-	if (UnpkLoopIteration == 0)
-		xPMOVXX8(workReg);
-
-	if (IsInputMasked())
-		return;
-
 	switch (UnpkLoopIteration)
 	{
 		case 0:
-			xPSHUF.D(destReg, workReg, _v0);
+			xPMOVXX8(workReg);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v0);
 			break;
 		case 1:
-			xPSHUF.D(destReg, workReg, _v1);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v1);
 			break;
 		case 2:
-			xPSHUF.D(destReg, workReg, _v2);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v2);
 			break;
 		case 3:
-			xPSHUF.D(destReg, workReg, _v3);
+			if (!IsInputMasked())
+				xPSHUF.D(destReg, workReg, _v3);
 			break;
 	}
 }
@@ -157,24 +148,19 @@ void VifUnpackSSE_Base::xUPK_V2_32() const
 {
 	if (UnpkLoopIteration == 0)
 	{
-		xMOV128(workReg, ptr32[srcIndirect]);
-
+		xMOVUPS(workReg, ptr32[srcIndirect]);
 		if (IsInputMasked())
 			return;
-
 		xPSHUF.D(destReg, workReg, 0x44); //v1v0v1v0
-		if (IsAligned)
-			xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
 	}
 	else
 	{
 		if (IsInputMasked())
 			return;
-
 		xPSHUF.D(destReg, workReg, 0xEE); //v3v2v3v2
-		if (IsAligned)
-			xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
 	}
+	if (IsAligned)
+		xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
 }
 
 void VifUnpackSSE_Base::xUPK_V2_16() const
@@ -222,7 +208,7 @@ void VifUnpackSSE_Base::xUPK_V3_32() const
 	if (IsInputMasked())
 		return;
 
-	xMOV128(destReg, ptr128[srcIndirect]);
+	xMOVUPS(destReg, ptr128[srcIndirect]);
 	if (UnpkLoopIteration != IsAligned)
 		xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
 }
@@ -256,26 +242,20 @@ void VifUnpackSSE_Base::xUPK_V3_8() const
 
 void VifUnpackSSE_Base::xUPK_V4_32() const
 {
-	if (IsInputMasked())
-		return;
-
-	xMOV128(destReg, ptr32[srcIndirect]);
+	if (!IsInputMasked())
+		xMOVUPS(destReg, ptr32[srcIndirect]);
 }
 
 void VifUnpackSSE_Base::xUPK_V4_16() const
 {
-	if (IsInputMasked())
-		return;
-
-	xPMOVXX16(destReg);
+	if (!IsInputMasked())
+		xPMOVXX16(destReg);
 }
 
 void VifUnpackSSE_Base::xUPK_V4_8() const
 {
-	if (IsInputMasked())
-		return;
-
-	xPMOVXX8(destReg);
+	if (!IsInputMasked())
+		xPMOVXX8(destReg);
 }
 
 void VifUnpackSSE_Base::xUPK_V4_5() const
@@ -283,7 +263,7 @@ void VifUnpackSSE_Base::xUPK_V4_5() const
 	if (IsInputMasked())
 		return;
 
-	xMOV16      (workReg, ptr32[srcIndirect]);
+	xMOVSSZX    (workReg, ptr32[srcIndirect]);
 	xPSHUF.D    (workReg, workReg, _v0);
 	xPSLL.D     (workReg, 3);           // ABG|R5.000
 	xMOVAPS     (destReg, workReg);     // x|x|x|R
@@ -332,14 +312,6 @@ void VifUnpackSSE_Base::xUnpack(int upknum) const
 //  VifUnpackSSE_Simple
 // =====================================================================================================
 
-VifUnpackSSE_Simple::VifUnpackSSE_Simple(bool usn_, bool domask_, int curCycle_)
-{
-	curCycle  = curCycle_;
-	usn       = usn_;
-	doMask    = domask_;
-	IsAligned = true;
-}
-
 void VifUnpackSSE_Simple::doMaskWrite(const xRegisterSSE& regX) const
 {
 	xMOVAPS(xmm7, ptr[dstIndirect]);
@@ -354,10 +326,14 @@ void VifUnpackSSE_Simple::doMaskWrite(const xRegisterSSE& regX) const
 // ecx = dest, edx = src
 static void nVifGen(int usn, int mask, int curCycle)
 {
-	int usnpart  = usn * 2 * 16;
-	int maskpart = mask * 16;
+	VifUnpackSSE_Simple vpugen;
+	int usnpart      = usn * 2 * 16;
+	int maskpart     = mask * 16;
 
-	VifUnpackSSE_Simple vpugen(!!usn, !!mask, curCycle);
+	vpugen.usn       = !!usn;
+	vpugen.doMask    = !!mask;
+	vpugen.curCycle  = curCycle;
+	vpugen.IsAligned = true;
 
 	for (int i = 0; i < 16; ++i)
 	{
@@ -378,8 +354,6 @@ void VifUnpackSSE_Init(void)
 	if (nVifUpkExec)
 		return;
 
-	Console.WriteLn("Generating SSE-optimized unpacking functions for VIF interpreters...");
-
 	nVifUpkExec = new RecompiledCodeReserve();
 	nVifUpkExec->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
 	xSetPtr(*nVifUpkExec);
@@ -391,14 +365,7 @@ void VifUnpackSSE_Init(void)
 
 	nVifUpkExec->ForbidModification();
 
-	Console.WriteLn("Unpack function generation complete.  Generated function statistics:");
-	Console.WriteLn(
-		"Reserved buffer    : %u bytes @ 0x%016" PRIXPTR "\n"
-		"x86 code generated : %u bytes\n",
-		(uint)nVifUpkExec->GetSize(),
-		nVifUpkExec->GetPtr(),
-		(uint)(xGetPtr() - nVifUpkExec->GetPtr())
-	);
+	Console.WriteLn("[VIF] SSE-optimized unpack function generation complete.");
 }
 
 void VifUnpackSSE_Destroy(void)
