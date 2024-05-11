@@ -34,7 +34,7 @@
     <ClCompile Include="emitter\avx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Linux\LnxHostSys.cpp">
+    <ClCompile Include="HostSys.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Linux\LnxMisc.cpp">
@@ -62,9 +62,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="emitter\WinCpuDetect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Windows\WinHostSys.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Windows\WinMisc.cpp">

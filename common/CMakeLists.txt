@@ -30,9 +30,8 @@ target_sources(common PRIVATE
 	emitter/movs.cpp
 	emitter/simd.cpp
 	emitter/x86emitter.cpp
-	Linux/LnxHostSys.cpp
 	Threads.cpp
-	Windows/WinHostSys.cpp
+	HostSys.cpp
 )
 
 # x86emitter headers
