@@ -116,7 +116,7 @@ struct cdvdStruct
 
 	u32 CurrentSector;
 	int SectorCnt;
-	int Readed;  // change to bool. --arcum42
+	int SeekCompleted;  // change to bool. --arcum42
 	int Reading; // same here.
 	int WaitingDMA;
 	int ReadMode;

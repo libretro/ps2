@@ -776,11 +776,11 @@ bool SaveStateBase::cdvdFreeze()
 	if (IsLoading())
 	{
 		// Make sure the Cdvd source has the expected track loaded into the buffer.
-		// If cdvd.Readed is cleared it means we need to load the SeekToSector (ie, a
+		// If cdvd.SeekCompleted is cleared it means we need to load the SeekToSector (ie, a
 		// seek is in progress!)
 
 		if (cdvd.Reading)
-			cdvd.ReadErr = DoCDVDreadTrack(cdvd.Readed ? cdvd.CurrentSector : cdvd.SeekToSector, cdvd.ReadMode);
+			cdvd.ReadErr = DoCDVDreadTrack(cdvd.SeekCompleted ? cdvd.CurrentSector : cdvd.SeekToSector, cdvd.ReadMode);
 	}
 
 	return true;
@@ -938,7 +938,6 @@ __fi void cdvdActionInterrupt(void)
 			cdvdUpdateReady(CDVD_DRIVE_READY);
 			cdvd.CurrentSector = cdvd.SeekToSector;
 			cdvdUpdateStatus(CDVD_STATUS_PAUSE);
-			cdvd.nextSectorsBuffered = 0;
 			CDVDSECTORREADY_INT(cdvd.ReadTime);
 			break;
 
@@ -976,7 +975,7 @@ __fi void cdvdSectorReady(void)
 
 	if (cdvd.nextSectorsBuffered < 16)
 		CDVDSECTORREADY_INT(cdvd.ReadTime);
-	else
+	else if (!cdvd.Reading)
 		cdvdUpdateStatus(CDVD_STATUS_PAUSE);
 }
 
@@ -987,7 +986,7 @@ __fi void cdvdReadInterrupt(void)
 	cdvdUpdateStatus(CDVD_STATUS_READ);
 	cdvd.WaitingDMA = false;
 
-	if (!cdvd.Readed)
+	if (!cdvd.SeekCompleted)
 	{
 		// Seeking finished.  Process the track we requested before, and
 		// then schedule another CDVD read int for when the block read finishes.
@@ -995,11 +994,11 @@ __fi void cdvdReadInterrupt(void)
 		// NOTE: The first CD track was read when the seek was initiated, so no need
 		// to call CDVDReadTrack here.
 
-		cdvd.Spinning = true;
+		cdvd.Spinning        = true;
 		cdvd.CurrentRetryCnt = 0;
-		cdvd.Reading = 1;
-		cdvd.Readed = 1;
-		cdvd.CurrentSector = cdvd.SeekToSector;
+		cdvd.Reading         = 1;
+		cdvd.SeekCompleted   = 1;
+		cdvd.CurrentSector   = cdvd.SeekToSector;
 	}
 
 	if (cdvd.AbortRequested)
@@ -1074,10 +1073,11 @@ __fi void cdvdReadInterrupt(void)
 		if (--cdvd.SectorCnt <= 0)
 		{
 			// Setting the data ready flag fixes a black screen loading issue in
-			// Street Fighter Ex3 (NTSC-J version).
+			// Street Fighter EX3 (NTSC-J version).
 			cdvdSetIrq();
 			cdvdUpdateReady(CDVD_DRIVE_READY);
 
+			cdvd.Reading = 0;
 			if (cdvd.nextSectorsBuffered < 16)
 			{
 				cdvdUpdateStatus(CDVD_STATUS_READ);
@@ -1106,7 +1106,10 @@ __fi void cdvdReadInterrupt(void)
 			cdvdUpdateStatus(CDVD_STATUS_PAUSE);
 			return;
 		}
-		CDVDREAD_INT((cdvd.BlockSize / 4) * 12);
+		if (cdvd.nextSectorsBuffered)
+			CDVDREAD_INT((cdvd.BlockSize / 4) * 12);
+		else
+			CDVDREAD_INT(psxRemainingCycles(IopEvt_CdvdSectorReady) + ((cdvd.BlockSize / 4) * 12));
 		return;
 	}
 
@@ -1116,7 +1119,7 @@ __fi void cdvdReadInterrupt(void)
 	if (cdvd.nextSectorsBuffered)
 		CDVDREAD_INT((cdvd.BlockSize / 4) * 12);
 	else
-		CDVDREAD_INT((psxRegs.cycle - psxRegs.sCycle[IopEvt_CdvdSectorReady]) + ((cdvd.BlockSize / 4) * 12));
+		CDVDREAD_INT(psxRemainingCycles(IopEvt_CdvdSectorReady) + ((cdvd.BlockSize / 4) * 12));
 }
 
 // Returns the number of IOP cycles until the event completes.
@@ -1124,13 +1127,13 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 {
 	cdvd.SeekToSector = newsector;
 
-	uint delta        = abs((s32)(cdvd.SeekToSector - cdvd.CurrentSector));
-	uint seektime     = 0;
-	bool isSeeking    = cdvd.nCommand == N_CD_SEEK;
+	uint delta = abs(static_cast<s32>(cdvd.SeekToSector - cdvd.CurrentSector));
+	uint seektime = 0;
+	bool isSeeking = cdvd.nCommand == N_CD_SEEK;
 
 	cdvdUpdateReady(CDVD_DRIVE_BUSY);
 	cdvd.Reading = 1;
-	cdvd.Readed = 0;
+	cdvd.SeekCompleted = 0;
 	// Okay so let's explain this, since people keep messing with it in the past and just poking it.
 	// So when the drive is spinning, bit 0x2 is set on the Status, and bit 0x8 is set when the drive is not reading.
 	// So In the case where it's seeking to data it will be Spinning (0x2) not reading (0x8) and Seeking (0x10, but because seeking is also spinning 0x2 is also set))
@@ -1144,13 +1147,13 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 
 	if (cdvd.Spinning && transition_to_CLV)
 	{
-		const float old_rpm = (static_cast<float>(PSXCLK) / static_cast<float>(old_rotspeed)) * 60.0f;
-		const float new_rpm = (static_cast<float>(PSXCLK) / static_cast<float>(cdvd.RotSpeed)) * 60.0f;
+		const float psx_clk_cycles = static_cast<float>(PSXCLK);
+		const float old_rpm = (psx_clk_cycles / static_cast<float>(old_rotspeed)) * 60.0f;
+		const float new_rpm = (psx_clk_cycles / static_cast<float>(cdvd.RotSpeed)) * 60.0f;
 		// A rough cycles per RPM change based on 333ms for a full spin up.
-		drive_speed_change_cycles = (PSXCLK / 1000) * (0.054950495049505f * std::abs(new_rpm - old_rpm));
+		drive_speed_change_cycles = (psx_clk_cycles / 1000.0f) * (0.054950495049505f * std::abs(new_rpm - old_rpm));
 		psxRegs.interrupt &= ~(1 << IopEvt_CdvdSectorReady);
 	}
-
 	cdvdUpdateStatus(CDVD_STATUS_SEEK);
 
 	if (!cdvd.Spinning)
@@ -1175,41 +1178,43 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 	else if(!drive_speed_change_cycles)
 	{
 		// if delta > 0 it will read a new sector so the readInterrupt will account for this.
-
+		
 		isSeeking = false;
 
-		if (delta == 0)
+		if (cdvd.Action != cdvdAction_Seek)
 		{
-			cdvdUpdateStatus(CDVD_STATUS_READ);
-			cdvd.Readed = 1; // Note: 1, not 0, as implied by the next comment. Need to look into this. --arcum42
-			cdvd.Reading = 1; // We don't need to wait for it to read a sector as it's already queued up, or we adjust for it here.
-			cdvd.CurrentRetryCnt = 0;
-
-			// setting Readed to 0 skips the seek logic, which means the next call to
-			// cdvdReadInterrupt will load a block.  So make sure it's properly scheduled
-			// based on sector read speeds:
-
-			//seektime = cdvd.ReadTime;
-
-			if (!cdvd.nextSectorsBuffered)//Buffering time hasn't completed yet so cancel it and simulate the remaining time
+			if (delta == 0)
 			{
-				if (psxRegs.interrupt & (1 << IopEvt_CdvdSectorReady))
-					seektime = (psxRegs.cycle - psxRegs.sCycle[IopEvt_CdvdSectorReady]) + ((cdvd.BlockSize / 4) * 12);
+				//cdvd.Status = CDVD_STATUS_PAUSE;
+				cdvdUpdateStatus(CDVD_STATUS_READ);
+				cdvd.SeekCompleted = 1; // Note: 1, not 0, as implied by the next comment. Need to look into this. --arcum42
+				cdvd.Reading = 1; // We don't need to wait for it to read a sector as it's already queued up, or we adjust for it here.
+				cdvd.CurrentRetryCnt = 0;
+
+				// setting SeekCompleted to 0 skips the seek logic, which means the next call to
+				// cdvdReadInterrupt will load a block.  So make sure it's properly scheduled
+				// based on sector read speeds:
+
+				if (!cdvd.nextSectorsBuffered)//Buffering time hasn't completed yet so cancel it and simulate the remaining time
+				{
+					if (psxRegs.interrupt & (1 << IopEvt_CdvdSectorReady))
+						seektime = psxRemainingCycles(IopEvt_CdvdSectorReady) + ((cdvd.BlockSize / 4) * 12);
+					else
+						delta = 1; // Forces it to use the rotational delay since we have no sectors buffered and it isn't buffering any.
+				}
 				else
-					delta = 1; // Forces it to use the rotational delay since we have no sectors buffered and it isn't buffering any.
+					return (cdvd.BlockSize / 4) * 12;
 			}
 			else
-				return (cdvd.BlockSize / 4) * 12;
-		}
-		else
-		{
-			if (delta >= cdvd.nextSectorsBuffered)
 			{
-				psxRegs.interrupt &= ~(1 << IopEvt_CdvdSectorReady);
-				cdvd.nextSectorsBuffered = 0;
+				if (delta >= cdvd.nextSectorsBuffered)
+				{
+					psxRegs.interrupt &= ~(1 << IopEvt_CdvdSectorReady);
+					cdvd.nextSectorsBuffered = 0;
+				}
+				else
+					cdvd.nextSectorsBuffered -= delta;
 			}
-			else
-				cdvd.nextSectorsBuffered -= delta;
 		}
 	}
 
@@ -1218,7 +1223,7 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 	// Only do this on reads, the seek kind of accounts for this and then it reads the sectors after
 	if ((delta || cdvd.Action == cdvdAction_Seek) && !isSeeking && !cdvd.nextSectorsBuffered)
 	{
-		const u32 rotationalLatency = cdvdRotationTime((CDVD_MODE_TYPE)cdvdIsDVD()) / 2; // Half it to average the rotational latency.
+		const u32 rotationalLatency = cdvdRotationTime(static_cast<CDVD_MODE_TYPE>(cdvdIsDVD())) / 2; // Half it to average the rotational latency.
 		seektime += rotationalLatency + cdvd.ReadTime;
 		CDVDSECTORREADY_INT(seektime);
 		seektime += (cdvd.BlockSize / 4) * 12;
@@ -1236,7 +1241,6 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 	{
 		CDVDSECTORREADY_INT(seektime);
 	}
-
 	// Clear the action on the following command, so we can rotate after seek.
 	if (cdvd.nCommand != N_CD_SEEK)
 		cdvd.Action = cdvdAction_None;
@@ -1246,7 +1250,6 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 
 void cdvdUpdateTrayState(void)
 {
-//#ifndef __LIBRETRO__
 	if (cdvd.Tray.cdvdActionSeconds > 0)
 	{
 		if (--cdvd.Tray.cdvdActionSeconds == 0)
@@ -1286,7 +1289,6 @@ void cdvdUpdateTrayState(void)
 			}
 		}
 	}
-//#endif
 }
 
 void cdvdVsync(void)
@@ -1587,9 +1589,9 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 
 		case N_CD_SEEK: // CdSeek
 			cdvdUpdateReady(CDVD_DRIVE_BUSY);
+			cdvd.Action = cdvdAction_Seek; // Have to do this first, the StartSeek relies on it
 			CDVD_INT(cdvdStartSeek(*reinterpret_cast<uint*>(cdvd.NCMDParamBuff + 0), static_cast<CDVD_MODE_TYPE>(cdvdIsDVD()), false));
 			cdvdUpdateStatus(CDVD_STATUS_SEEK);
-			cdvd.Action = cdvdAction_Seek;
 			break;
 
 		case N_CD_READ: // CdRead
@@ -1686,7 +1688,7 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 			// (ie, not using the hard drive)
 			cdvd.ReadErr = DoCDVDreadTrack(cdvd.SeekToSector, cdvd.ReadMode);
 
-			// Set the reading block flag.  If a seek is pending then Readed will
+			// Set the reading block flag.  If a seek is pending then SeekCompleted will
 			// take priority in the handler anyway.  If the read is contiguous then
 			// this'll skip the seek delay.
 			cdvd.Reading = 1;
@@ -1771,7 +1773,7 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 			// (ie, not using the hard drive)
 			cdvd.ReadErr = DoCDVDreadTrack(cdvd.SeekToSector, cdvd.ReadMode);
 
-			// Set the reading block flag.  If a seek is pending then Readed will
+			// Set the reading block flag.  If a seek is pending then SeekCompleted will
 			// take priority in the handler anyway.  If the read is contiguous then
 			// this'll skip the seek delay.
 			cdvd.Reading = 1;
@@ -1854,7 +1856,7 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 			// (ie, not using the hard drive)
 			cdvd.ReadErr = DoCDVDreadTrack(cdvd.SeekToSector, cdvd.ReadMode);
 
-			// Set the reading block flag.  If a seek is pending then Readed will
+			// Set the reading block flag.  If a seek is pending then SeekCompleted will
 			// take priority in the handler anyway.  If the read is contiguous then
 			// this'll skip the seek delay.
 			cdvd.Reading = 1;
