@@ -48,13 +48,8 @@ BIOS
 
 namespace HostMemoryMap
 {
-	// For debuggers
 	extern "C" {
-#ifdef _WIN32
-	uptr EEmem, IOPmem, VUmem, EErec, IOPrec, VIF0rec, VIF1rec, mVU0rec, mVU1rec, SWjit, bumpAllocator;
-#else
-	uptr EEmem, IOPmem, VUmem, EErec, IOPrec, VIF0rec, VIF1rec, mVU0rec, mVU1rec, SWjit, bumpAllocator;
-#endif
+	uptr EEmem, IOPmem, VUmem, bumpAllocator;
 	}
 } // namespace HostMemoryMap
 
@@ -98,12 +93,6 @@ SysMainMemory::SysMainMemory()
 	HostMemoryMap::EEmem = main_base + HostMemoryMap::EEmemOffset;
 	HostMemoryMap::IOPmem = main_base + HostMemoryMap::IOPmemOffset;
 	HostMemoryMap::VUmem = main_base + HostMemoryMap::VUmemOffset;
-	HostMemoryMap::EErec = code_base + HostMemoryMap::EErecOffset;
-	HostMemoryMap::IOPrec = code_base + HostMemoryMap::IOPrecOffset;
-	HostMemoryMap::VIF0rec = code_base + HostMemoryMap::VIF0recOffset;
-	HostMemoryMap::VIF1rec = code_base + HostMemoryMap::VIF1recOffset;
-	HostMemoryMap::mVU0rec = code_base + HostMemoryMap::mVU0recOffset;
-	HostMemoryMap::mVU1rec = code_base + HostMemoryMap::mVU1recOffset;
 	HostMemoryMap::bumpAllocator = main_base + HostMemoryMap::bumpAllocatorOffset;
 }
 
