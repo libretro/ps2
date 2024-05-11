@@ -52,7 +52,7 @@ void mVUinit(microVU& mVU, uint vuIndex)
 	mVU.microMemSize = (mVU.index ? 0x4000 : 0x1000);
 	mVU.progSize     = (mVU.index ? 0x4000 : 0x1000) / 4;
 	mVU.progMemMask  =  mVU.progSize-1;
-	mVU.cacheSize    =  mVUcacheReserve;
+	mVU.cacheSize    = 64; /* mVU0, mVU1 Reserve Cache Size (in megabytes) */
 	mVU.cache        = NULL;
 	mVU.dispCache    = NULL;
 	mVU.startFunct   = NULL;

@@ -18,17 +18,18 @@
 
 namespace Ps2MemSize
 {
-	static const uint MainRam	= _32mb;			// 32 MB main memory!
-	static const uint Rom		= _1mb * 4;			// 4 MB main rom
-	static const uint Rom1		= _1mb * 4;			// DVD player
-	static const uint Rom2		= 0x00080000;		// Chinese rom extension
+	static const uint MainRam	= _32mb;	// 32 MB main memory.
+	static const uint ExtraRam	= _1mb * 96;	// 32+96 MB devkit memory.
+	static const uint Rom		= _1mb * 4;	// 4 MB main ROM
+	static const uint Rom1		= _1mb * 4;	// DVD player
+	static const uint Rom2		= 0x00080000;	// Chinese ROM extension
 	static const uint Hardware	= _64kb;
 	static const uint Scratch	= _16kb;
 
-	static const uint IopRam	= _1mb * 2;			// 2MB main ram on the IOP.
+	static const uint IopRam	= _1mb * 2;	// 2MB main RAM on the IOP.
 	static const uint IopHardware = _64kb;
 
-	static const uint GSregs = 0x00002000;			// 8k for the GS registers and stuff.
+	static const uint GSregs = 0x00002000; // 8k for the GS registers and stuff.
 }
 
 typedef u8 mem8_t;
@@ -39,15 +40,19 @@ typedef u128 mem128_t;
 
 struct EEVM_MemoryAllocMess
 {
-	u8 Main[Ps2MemSize::MainRam];			// Main memory (hard-wired to 32MB)
-	u8 Scratch[Ps2MemSize::Scratch];		// Scratchpad!
-	u8 ROM[Ps2MemSize::Rom];				// Boot rom (4MB)
-	u8 ROM1[Ps2MemSize::Rom1];				// DVD player (4MB)
-	u8 ROM2[Ps2MemSize::Rom2];				// Chinese extensions
+	u8 Main[Ps2MemSize::MainRam];	   // Main memory (hard-wired to 32MB)
+	u8 ExtraMemory[Ps2MemSize::ExtraRam]; // Extra memory (32MB up to 128MB => 96MB).
+	u8 Scratch[Ps2MemSize::Scratch];   // Scratchpad!
+	u8 ROM[Ps2MemSize::Rom];	   // Boot rom (4MB)
+	u8 ROM1[Ps2MemSize::Rom1];	   // DVD player (4MB)
+	u8 ROM2[Ps2MemSize::Rom2];	   // Chinese extensions
 
-	// Two 1 megabyte (max DMA) buffers for reading and writing to high memory (>32MB).
-	// Such accesses are not documented as causing bus errors but as the memory does
-	// not exist, reads should continue to return 0 and writes should be discarded.
+	// Two 1 megabyte (max DMA) buffers for 
+	// reading and writing to high memory (>32MB).
+	// Such accesses are not documented as 
+	// causing bus errors but as the memory does
+	// not exist, reads should continue to 
+	// return 0 and writes should be discarded.
 	// Probably.
 
 	u8 ZeroRead[_1mb];
@@ -56,9 +61,10 @@ struct EEVM_MemoryAllocMess
 
 struct IopVM_MemoryAllocMess
 {
-	u8 Main[Ps2MemSize::IopRam];			// Main memory (hard-wired to 2MB)
-	u8 P[_64kb];							// I really have no idea what this is... --air
-	u8 Sif[0x100];							// a few special SIF/SBUS registers (likely not needed)
+	u8 Main[Ps2MemSize::IopRam];	// Main memory (hard-wired to 2MB)
+	u8 P[_64kb];	
+	u8 Sif[0x100];			// A few special SIF/SBUS registers 
+					// (likely not needed)
 };
 
 

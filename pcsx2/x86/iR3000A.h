@@ -34,9 +34,6 @@ static const int psxInstCycles_Load = 0;
 
 extern uptr psxRecLUT[];
 
-void _psxFlushConstReg(int reg);
-void _psxFlushConstRegs();
-
 void _psxDeleteReg(int reg, int flush);
 void _psxFlushCall(int flushtype);
 void _psxFlushAllDirty();
