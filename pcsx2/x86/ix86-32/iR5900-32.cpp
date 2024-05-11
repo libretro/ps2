@@ -250,6 +250,70 @@ static void recEventTest(void)
 	}
 }
 
+// Size is in dwords (4 bytes)
+// When called from _DynGen_DispatchBlockDiscard, called when a block under manual protection fails it's pre-execution integrity check.
+// (meaning the actual code area has been modified -- ie 
+// dynamic modules being loaded or, less likely, self-modifying code)
+static void recClear(u32 addr, u32 size)
+{
+	if ((addr) >= maxrecmem || !(recLUT[(addr) >> 16] + (addr & ~0xFFFFUL)))
+		return;
+	addr = HWADDR(addr);
+
+	int blockidx = recBlocks.LastIndex(addr + size * 4 - 4);
+
+	if (blockidx == -1)
+		return;
+
+	u32 lowerextent = (u32)-1, upperextent = 0, ceiling = (u32)-1;
+
+	BASEBLOCKEX* pexblock = recBlocks[blockidx + 1];
+	if (pexblock)
+		ceiling = pexblock->startpc;
+
+	int toRemoveLast = blockidx;
+
+	while ((pexblock = recBlocks[blockidx]))
+	{
+		u32 blockstart = pexblock->startpc;
+		u32 blockend = pexblock->startpc + pexblock->size * 4;
+		BASEBLOCK* pblock = PC_GETBLOCK(blockstart);
+
+		if (pblock == s_pCurBlock)
+		{
+			if (toRemoveLast != blockidx)
+			{
+				recBlocks.Remove((blockidx + 1), toRemoveLast);
+			}
+			toRemoveLast = --blockidx;
+			continue;
+		}
+
+		if (blockend <= addr)
+		{
+			lowerextent = std::max(lowerextent, blockend);
+			break;
+		}
+
+		lowerextent = std::min(lowerextent, blockstart);
+		upperextent = std::max(upperextent, blockend);
+		// This might end up inside a block that doesn't contain the clearing range,
+		// so set it to recompile now.  This will become JITCompile if we clear it.
+		pblock->m_pFnptr = ((uptr)JITCompileInBlock);
+
+		blockidx--;
+	}
+
+	if (toRemoveLast != blockidx)
+		recBlocks.Remove((blockidx + 1), toRemoveLast);
+
+	upperextent = std::min(upperextent, ceiling);
+
+	if (upperextent > lowerextent)
+		ClearRecLUT(PC_GETBLOCK(lowerextent), upperextent - lowerextent);
+}
+
+
 // The address for all cleared blocks.  It recompiles the current pc and then
 // dispatches to the recompiled block address.
 static const void* _DynGen_JITCompile(void)
@@ -332,7 +396,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 static const void* _DynGen_DispatchBlockDiscard(void)
 {
 	u8* retval = xGetPtr();
-	xFastCall((const void*)dyna_block_discard);
+	xFastCall((const void*)recClear);
 	xJMP((const void*)DispatcherReg);
 	return retval;
 }
@@ -604,66 +668,6 @@ void R5900::Dynarec::OpcodeImpl::recBREAK(void)
 	g_branch = 2; // Indirect branch with event check.
 }
 
-// Size is in dwords (4 bytes)
-static void recClear(u32 addr, u32 size)
-{
-	if ((addr) >= maxrecmem || !(recLUT[(addr) >> 16] + (addr & ~0xFFFFUL)))
-		return;
-	addr = HWADDR(addr);
-
-	int blockidx = recBlocks.LastIndex(addr + size * 4 - 4);
-
-	if (blockidx == -1)
-		return;
-
-	u32 lowerextent = (u32)-1, upperextent = 0, ceiling = (u32)-1;
-
-	BASEBLOCKEX* pexblock = recBlocks[blockidx + 1];
-	if (pexblock)
-		ceiling = pexblock->startpc;
-
-	int toRemoveLast = blockidx;
-
-	while ((pexblock = recBlocks[blockidx]))
-	{
-		u32 blockstart = pexblock->startpc;
-		u32 blockend = pexblock->startpc + pexblock->size * 4;
-		BASEBLOCK* pblock = PC_GETBLOCK(blockstart);
-
-		if (pblock == s_pCurBlock)
-		{
-			if (toRemoveLast != blockidx)
-			{
-				recBlocks.Remove((blockidx + 1), toRemoveLast);
-			}
-			toRemoveLast = --blockidx;
-			continue;
-		}
-
-		if (blockend <= addr)
-		{
-			lowerextent = std::max(lowerextent, blockend);
-			break;
-		}
-
-		lowerextent = std::min(lowerextent, blockstart);
-		upperextent = std::max(upperextent, blockend);
-		// This might end up inside a block that doesn't contain the clearing range,
-		// so set it to recompile now.  This will become JITCompile if we clear it.
-		pblock->m_pFnptr = ((uptr)JITCompileInBlock);
-
-		blockidx--;
-	}
-
-	if (toRemoveLast != blockidx)
-		recBlocks.Remove((blockidx + 1), toRemoveLast);
-
-	upperextent = std::min(upperextent, ceiling);
-
-	if (upperextent > lowerextent)
-		ClearRecLUT(PC_GETBLOCK(lowerextent), upperextent - lowerextent);
-}
-
 void SetBranchReg(u32 reg)
 {
 	g_branch = 1;
@@ -773,11 +777,9 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 		case 14: // XORI
 		case 24: // DADDI
 		case 25: // DADDIU
-		{
 			if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
-				goto is_unsafe;
-		}
-		break;
+				return false;
+			break;
 
 		case 26: // LDL
 		case 27: // LDR
@@ -800,19 +802,15 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 		case 46: // SWR
 		case 55: // LD
 		case 63: // SD
-		{
-			// We can't allow loadstore swaps for BC0x/BC2x, since they could affect the condition.
+			 // We can't allow loadstore swaps for BC0x/BC2x, since they could affect the condition.
 			if (!allow_loadstore || (rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
-				goto is_unsafe;
-		}
-		break;
+				return false;
+			break;
 
 		case 15: // LUI
-		{
 			if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && rd == opcode_rt))
-				goto is_unsafe;
-		}
-		break;
+				return false;
+			break;
 
 		case 49: // LWC1
 		case 57: // SWC1
@@ -821,7 +819,6 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 			break;
 
 		case 0: // SPECIAL
-		{
 			switch (opcode_encoded & 0x3F)
 			{
 				case 0: // SLL
@@ -857,11 +854,9 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 				case 60: // DSLL32
 				case 62: // DSRL31
 				case 64: // DSRA32
-				{
 					if ((rs != 0 && rs == opcode_rd) || (rt != 0 && rt == opcode_rd) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
-						goto is_unsafe;
-				}
-				break;
+						return false;
+					break;
 
 				case 15: // SYNC
 				case 26: // DIV
@@ -869,22 +864,18 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 					break;
 
 				default:
-					goto is_unsafe;
+					return false;
 			}
-		}
-		break;
+			break;
 
 		case 16: // COP0
-		{
 			switch ((opcode_encoded >> 21) & 0x1F)
 			{
 				case 0: // MFC0
 				case 2: // CFC0
-				{
 					if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && rd == opcode_rt))
-						goto is_unsafe;
-				}
-				break;
+						return false;
+					break;
 
 				case 4: // MTC0
 				case 6: // CTC0
@@ -892,69 +883,55 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 
 				case 16: // TLB (technically would be safe, but we don't use it anyway)
 				default:
-					goto is_unsafe;
+					return false;
 			}
 			break;
-		}
-		break;
-
 		case 17: // COP1
-		{
 			switch ((opcode_encoded >> 21) & 0x1F)
 			{
 				case 0: // MFC1
 				case 2: // CFC1
-				{
 					if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && rd == opcode_rt))
-						goto is_unsafe;
-				}
-				break;
+						return false;
+					break;
 
 				case 4: // MTC1
 				case 6: // CTC1
 				case 16: // S
-				{
-					const u32 funct = (opcode_encoded & 0x3F);
-					if (funct == 50 || funct == 52 || funct == 54) // C.EQ, C.LT, C.LE
 					{
+						const u32 funct = (opcode_encoded & 0x3F);
 						// affects flags that we're comparing
-						goto is_unsafe;
+						if (funct == 50 || funct == 52 || funct == 54) // C.EQ, C.LT, C.LE
+							return false;
 					}
-				}
 					/* fallthrough */
 
 				case 20: // W
-				break;
+					break;
 
 				default:
-					goto is_unsafe;
+					return false;
 			}
-		}
-		break;
+			break;
 
 		case 18: // COP2
-		{
 			switch ((opcode_encoded >> 21) & 0x1F)
 			{
 				case 8: // BC2XX
-					goto is_unsafe;
+					return false;
 
 				case 1: // QMFC2
 				case 2: // CFC2
-				{
 					if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && rd == opcode_rt))
-						goto is_unsafe;
-				}
-				break;
+						return false;
+					break;
 
 				default:
 					break;
 			}
-		}
-		break;
+			break;
 
 		case 28: // MMI
-		{
 			switch (opcode_encoded & 0x3F)
 			{
 				case 8: // MMI0
@@ -968,26 +945,21 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 				case 60: // PSLLW
 				case 62: // PSRLW
 				case 63: // PSRAW
-				{
 					if ((rs != 0 && rs == opcode_rd) || (rt != 0 && rt == opcode_rd) || (rd != 0 && rd == opcode_rd))
-						goto is_unsafe;
-				}
-				break;
+						return false;
+					break;
 
 				default:
-					goto is_unsafe;
+					return false;
 			}
-		}
-		break;
+			break;
 
 		default:
-			goto is_unsafe;
+			return false;
 	}
 
 	recompileNextInstruction(true, true);
 	return true;
-is_unsafe:
-	return false;
 }
 
 void SaveBranchState(void)
@@ -1500,13 +1472,6 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 	}
 }
 
-// Called when a block under manual protection fails it's pre-execution integrity check.
-// (meaning the actual code area has been modified -- ie dynamic modules being loaded or,
-//  less likely, self-modifying code)
-static void dyna_block_discard(u32 start, u32 sz)
-{
-	recClear(start, sz);
-}
 
 // called when a page under manual protection has been run enough times to be a candidate
 // for being reset under the faster vtlb write protection.  All blocks in the page are cleared
@@ -1822,9 +1787,7 @@ static void recRecompile(const u32 startpc)
 					is_timeout_loop = false;
 			}
 			else if (cpuRegs.code != 0)
-			{
 				is_timeout_loop = false;
-			}
 		}
 
 		switch (cpuRegs.code >> 26)
@@ -1986,9 +1949,7 @@ StartRecomp:
 			}
 			// mfc*, cfc*
 			else if ((_Opcode_ & 074) == 020 && _Rs_ < 4)
-			{
 				loads |= 1 << _Rt_;
-			}
 			else
 			{
 				s_nBlockFF = false;
