@@ -28,9 +28,7 @@ public:
 	bool usn;    // unsigned flag
 	bool doMask; // masking write enable flag
 	int  UnpkLoopIteration;
-	int  UnpkNoOfIterations;
 	int  IsAligned;
-
 
 protected:
 	xAddressVoid dstIndirect;
@@ -139,5 +137,4 @@ public:
 protected:
 	virtual void doMaskWrite(const xRegisterSSE& regX) const;
 	void SetMasks(int cS) const;
-	void writeBackRow() const;
 };

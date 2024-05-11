@@ -21,15 +21,6 @@
 #include "newVif_UnpackSSE.h"
 #include "MTVU.h"
 
-static void recReset(int idx)
-{
-	nVif[idx].vifBlocks.reset();
-
-	nVif[idx].recReserve->Reset();
-
-	nVif[idx].recWritePtr = nVif[idx].recReserve->GetPtr();
-}
-
 void dVifReserve(int idx)
 {
 	if (nVif[idx].recReserve)
@@ -43,18 +34,17 @@ void dVifReserve(int idx)
 
 void dVifReset(int idx)
 {
-	recReset(idx);
-}
+	nVif[idx].vifBlocks.reset();
 
-void dVifClose(int idx)
-{
-	if (nVif[idx].recReserve)
-		nVif[idx].recReserve->Reset();
+	nVif[idx].recReserve->Reset();
+
+	nVif[idx].recWritePtr = nVif[idx].recReserve->GetPtr();
 }
 
 void dVifRelease(int idx)
 {
-	dVifClose(idx);
+	if (nVif[idx].recReserve)
+		nVif[idx].recReserve->Reset();
 	delete nVif[idx].recReserve;
 	nVif[idx].recReserve = NULL;
 }
@@ -162,12 +152,6 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 		xMOVAPS(ptr32[dstIndirect], regX);
 }
 
-void VifUnpackSSE_Dynarec::writeBackRow() const
-{
-	const int idx = v.idx;
-	xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmmRow);
-}
-
 static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& modReg)
 {
 	// Shifts the displacement factor of a given indirect address, so that the address
@@ -178,7 +162,7 @@ static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& mod
 	while (addr.Displacement >= 0x80)
 	{
 		addImm += 0xf0;
-		addr -= 0xf0;
+		addr   -= 0xf0;
 	}
 	if (addImm)
 		xADD(modReg, addImm);
@@ -186,7 +170,6 @@ static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& mod
 
 void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
 {
-
 	switch (upknum)
 	{
 		case 0:
@@ -202,13 +185,6 @@ void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
 		case 4:
 		case 5:
 		case 6:
-			if (PostOp)
-			{
-				UnpkLoopIteration++;
-				UnpkLoopIteration = UnpkLoopIteration & 0x1;
-			}
-			break;
-
 		case 8:
 			if (PostOp)
 			{
@@ -217,9 +193,6 @@ void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
 			}
 			break;
 		case 9:
-			if (!PostOp)
-				UnpkLoopIteration++;
-			break;
 		case 10:
 			if (!PostOp)
 				UnpkLoopIteration++;
@@ -266,7 +239,6 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 
 	uint vNum = vB.num ? vB.num : 256;
 	doMode    = (upkNum == 0xf) ? 0 : doMode; // V4_5 has no mode feature.
-	UnpkNoOfIterations = 0;
 
 	// Value passed determines # of col regs we need to load
 	SetMasks(isFill ? blockSize : cycleSize);
@@ -278,9 +250,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	while (vNum)
 	{
 		ShiftDisplacementWindow(dstIndirect, arg1reg);
-
-		if (UnpkNoOfIterations == 0)
-			ShiftDisplacementWindow(srcIndirect, arg2reg); //Don't need to do this otherwise as we arent reading the source.
+		ShiftDisplacementWindow(srcIndirect, arg2reg); //Don't need to do this otherwise as we arent reading the source.
 		
 		// Determine if reads/processing can be skipped.
 		ProcessMasks();
@@ -291,8 +261,6 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 			xUnpack(upkNum);
 			xMovDest();
 			ModUnpack(upkNum, true);
-
-
 
 			dstIndirect += 16;
 			srcIndirect += vift;
@@ -321,7 +289,10 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	}
 
 	if (doMode >= 2)
-		writeBackRow();
+	{
+		const int idx = v.idx;
+		xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmmRow);
+	}
 
 	xRET();
 }

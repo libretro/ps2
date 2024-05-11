@@ -34,7 +34,6 @@ extern void  mVUsaveReg(const xRegisterSSE& reg, xAddressVoid ptr, int xyzw, boo
 extern void _nVifUnpack  (int idx, const u8* data, uint mode, bool isFill);
 extern void  dVifReserve (int idx);
 extern void  dVifReset   (int idx);
-extern void  dVifClose   (int idx);
 extern void  dVifRelease (int idx);
 extern void  VifUnpackSSE_Init();
 extern void  VifUnpackSSE_Destroy();
