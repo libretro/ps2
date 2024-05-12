@@ -107,6 +107,13 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			if (eeVal >= 0 && eeVal < static_cast<int>(FPRoundMode::MaxCount))
 				gameEntry.eeRoundMode = static_cast<FPRoundMode>(eeVal);
 		}
+		if (node["roundModes"].has_child("eeDivRoundMode"))
+		{
+			int eeVal = -1;
+			node["roundModes"]["eeDivRoundMode"] >> eeVal;
+			if (eeVal >= 0 && eeVal < static_cast<int>(FPRoundMode::MaxCount))
+				gameEntry.eeDivRoundMode = static_cast<FPRoundMode>(eeVal);
+		}
 		if (node["roundModes"].has_child("vuRoundMode"))
 		{
 			int vuVal = -1;
@@ -413,6 +420,19 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 		Console.Warning("[GameDB] Game Fixes are disabled");
 
 	u32 num_applied_fixes = 0;
+
+	if (eeDivRoundMode < FPRoundMode::MaxCount)
+	{
+		if (applyAuto)
+		{
+			Console.WriteLn("(GameDB) Changing EE/FPU divison roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeDivRoundMode)]);
+			config.Cpu.FPUDivFPCR.SetRoundMode(eeDivRoundMode);
+		}
+		else
+		{
+			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+		}
+	}
 
 	if (eeRoundMode < FPRoundMode::MaxCount)
 	{

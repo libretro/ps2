@@ -1089,30 +1089,8 @@ void recDIV_S_xmm(int info)
 	bool roundmodeFlag = false;
 	int t0reg = _allocTempXMMreg(XMMT_FPS);
 
-	if (CHECK_FPUNEGDIVHACK)
-	{
-		if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::NegativeInfinity)
-		{
-			// Set roundmode to nearest since it isn't already
-
-			roundmode_neg = EmuConfig.Cpu.FPUFPCR;
-			roundmode_neg.SetRoundMode(FPRoundMode::NegativeInfinity);
-			xLDMXCSR(ptr32[&roundmode_neg.bitmask]);
-			roundmodeFlag = true;
-		}
-	}
-	else
-	{
-		if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::Nearest)
-		{
-			// Set roundmode to nearest since it isn't already
-
-			roundmode_nearest = EmuConfig.Cpu.FPUFPCR;
-			roundmode_nearest.SetRoundMode(FPRoundMode::Nearest);
-			xLDMXCSR(ptr32[&roundmode_nearest.bitmask]);
-			roundmodeFlag = true;
-		}
-	}
+	if (EmuConfig.Cpu.FPUFPCR.bitmask != EmuConfig.Cpu.FPUDivFPCR.bitmask)
+		xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUDivFPCR.bitmask]);
 
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{
@@ -1171,7 +1149,8 @@ void recDIV_S_xmm(int info)
 				recDIVhelper2(EEREC_D, t0reg);
 			break;
 	}
-	if (roundmodeFlag)
+
+	if (EmuConfig.Cpu.FPUFPCR.bitmask != EmuConfig.Cpu.FPUDivFPCR.bitmask)
 		xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUFPCR.bitmask]);
 	_freeXMMreg(t0reg);
 }
@@ -1842,10 +1821,8 @@ static void recRSQRThelper2(int regd, int t0reg) // Preforms the RSQRT function 
 
 void recRSQRT_S_xmm(int info)
 {
-	// iFPUd (Full mode) sets roundmode to nearest for rSQRT.
-	// Should this do the same, or should Full mode leave roundmode alone? --air
-
-	int t0reg = _allocTempXMMreg(XMMT_FPS);
+	// RSQRT doesn't change the round mode, because RSQRTSS ignores the rounding mode in MXCSR.
+	const int t0reg = _allocTempXMMreg(XMMT_FPS);
 
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{

@@ -32,15 +32,15 @@
 
 // Default EE/VU control registers have exceptions off, DaZ/FTZ, and the rounding mode set to Chop/Zero.
 static constexpr FPControlRegister DEFAULT_FPU_FP_CONTROL_REGISTER = FPControlRegister::GetDefault()
-																		 .DisableExceptions()
-																		 .SetDenormalsAreZero(true)
-																		 .SetFlushToZero(true)
-																		 .SetRoundMode(FPRoundMode::ChopZero);
+	.DisableExceptions()
+	.SetDenormalsAreZero(true)
+.SetFlushToZero(true)
+	.SetRoundMode(FPRoundMode::ChopZero);
 static constexpr FPControlRegister DEFAULT_VU_FP_CONTROL_REGISTER = FPControlRegister::GetDefault()
-																		.DisableExceptions()
-																		.SetDenormalsAreZero(true)
-																		.SetFlushToZero(true)
-																		.SetRoundMode(FPRoundMode::ChopZero);
+	.DisableExceptions()
+	.SetDenormalsAreZero(true)
+.SetFlushToZero(true)
+	.SetRoundMode(FPRoundMode::ChopZero);
 
 
 Pcsx2Config EmuConfig;
@@ -322,6 +322,11 @@ bool Pcsx2Config::CpuOptions::CpusChanged(const CpuOptions& right) const
 Pcsx2Config::CpuOptions::CpuOptions()
 {
 	FPUFPCR = DEFAULT_FPU_FP_CONTROL_REGISTER;
+
+	// Rounding defaults to nearest to match old behavior.
+	// TODO: Make it default to the same as the rest of the FPU operations, at some point.
+	FPUDivFPCR = FPControlRegister(DEFAULT_FPU_FP_CONTROL_REGISTER).SetRoundMode(FPRoundMode::Nearest);
+
 	VU0FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
 	VU1FPCR = DEFAULT_VU_FP_CONTROL_REGISTER;
 	AffinityControlMode = 0;
@@ -348,6 +353,17 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 		wrap.Entry("FPU", "FPU.Roundmode", round_mode, round_mode);
 		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
 		FPUFPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
+	}
+	{
+		FPUDivFPCR.SetDenormalsAreZero(wrap.EntryBitBool("FPUDiv", "FPUDiv.DenormalsAreZero",
+			FPUDivFPCR.GetDenormalsAreZero(), FPUDivFPCR.GetDenormalsAreZero()));
+		FPUDivFPCR.SetFlushToZero(wrap.EntryBitBool(CURRENT_SETTINGS_SECTION, "FPUDiv.DenormalsAreZero",
+			FPUDivFPCR.GetFlushToZero(), FPUDivFPCR.GetFlushToZero()));
+
+		uint round_mode = static_cast<uint>(FPUDivFPCR.GetRoundMode());
+		wrap.Entry("FPUDiv", "FPUDiv.Roundmode", round_mode, round_mode);
+		round_mode = std::min(round_mode, static_cast<uint>(FPRoundMode::MaxCount) - 1u);
+		FPUDivFPCR.SetRoundMode(static_cast<FPRoundMode>(round_mode));
 	}
 	{
 		VU0FPCR.SetDenormalsAreZero(wrap.EntryBitBool("VU0", "VU0.DenormalsAreZero",
@@ -818,7 +834,6 @@ std::string Pcsx2Config::DEV9Options::SaveIPHelper(u8* field)
 static const char* const tbl_GamefixNames[] =
 {
 	"FpuMul",
-	"FpuNegDiv",
 	"GoemonTlb",
 	"SoftwareRendererFMV",
 	"SkipMPEG",
@@ -861,7 +876,6 @@ void Pcsx2Config::GamefixOptions::Set(GamefixId id, bool enabled)
 	{
 		case Fix_VuAddSub:            VuAddSubHack            = enabled; break;
 		case Fix_FpuMultiply:         FpuMulHack              = enabled; break;
-		case Fix_FpuNegDiv:           FpuNegDivHack           = enabled; break;
 		case Fix_XGKick:              XgKickHack              = enabled; break;
 		case Fix_EETiming:            EETimingHack            = enabled; break;
 		case Fix_InstantDMA:          InstantDMAHack          = enabled; break;
@@ -889,7 +903,6 @@ bool Pcsx2Config::GamefixOptions::Get(GamefixId id) const
 	{
 		case Fix_VuAddSub:            return VuAddSubHack;
 		case Fix_FpuMultiply:         return FpuMulHack;
-		case Fix_FpuNegDiv:           return FpuNegDivHack;
 		case Fix_XGKick:              return XgKickHack;
 		case Fix_EETiming:            return EETimingHack;
 		case Fix_InstantDMA:          return InstantDMAHack;
@@ -918,7 +931,6 @@ void Pcsx2Config::GamefixOptions::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapBitBool(VuAddSubHack);
 	SettingsWrapBitBool(FpuMulHack);
-	SettingsWrapBitBool(FpuNegDivHack);
 	SettingsWrapBitBool(XgKickHack);
 	SettingsWrapBitBool(EETimingHack);
 	SettingsWrapBitBool(InstantDMAHack);

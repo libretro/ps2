@@ -13742,8 +13742,8 @@ SLES-50879:
   name: "Paris-Dakar 2"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - FpuNegDivHack # Fixes sky being shown over the 3D.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes sky being shown over the 3D.
 SLES-50880:
   name: "BMX XXX"
   region: "PAL-M4"
@@ -16032,8 +16032,8 @@ SLES-51897:
   name: "Simpsons, The - Hit & Run"
   region: "PAL-M4"
   compat: 5
-  gameFixes:
-    - FpuNegDivHack # Lens flare appears even when behind objects.
+  roundModes:
+    eeDivRoundMode: 1 # Lens flare appears even when behind objects.
   gsHWFixes:
     autoFlush: 2 # Fixes missing lens flare.
 SLES-51903:
@@ -21164,8 +21164,8 @@ SLES-53804:
 SLES-53805:
   name: "Cocoto Funfair"
   region: "PAL-M5"
-  gameFixes:
-    - FpuNegDivHack # Fixes the cursor not being visible.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes the cursor not being visible.
 SLES-53809:
   name: "K-1 Premium Dynamite!!"
   region: "PAL-E"
@@ -23097,8 +23097,8 @@ SLES-54549:
   name: "Crazy Frog Racer 2"
   region: "PAL-M5"
   compat: 5
-  gameFixes:
-    - FpuNegDivHack # Fixes black fade effects and some overlays texts in the menus.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes black fade effects and some overlays texts in the menus.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves road and grass textures to match sw renderer.
     trilinearFiltering: 1
@@ -24786,8 +24786,8 @@ SLES-55170:
 SLES-55172:
   name: "Code Lyoko - Quest for Infinity"
   region: "PAL-M4"
-  gameFixes:
-    - FpuNegDivHack # Fixes missing texts on in-game textboxes.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes missing texts on in-game textboxes.
   gsHWFixes:
     deinterlace: 9 # Game requires adaptive bff de-interlacing instead of auto for the UI at native.
     halfPixelOffset: 1 # Reduces ghosting effects.
@@ -26363,8 +26363,7 @@ SLKA-15018:
   region: "NTSC-K"
   roundModes:
     eeRoundMode: 1 # Fixes camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fixes target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
 SLKA-15019:
   name: "F1 Career Challenge"
   region: "NTSC-K"
@@ -26999,8 +26998,7 @@ SLKA-25165:
   region: "NTSC-K"
   roundModes:
     eeRoundMode: 1 # Fixes camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fixes target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
 SLKA-25166:
   name: "Sengoku Musou"
   region: "NTSC-K"
@@ -27582,8 +27580,7 @@ SLKA-25314:
   region: "NTSC-K"
   roundModes:
     eeRoundMode: 1 # Fixes camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fixes target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
 SLKA-25315:
   name: "NBA Live 06"
   region: "NTSC-K"
@@ -43037,8 +43034,8 @@ SLPS-25429:
 SLPS-25430:
   name: "Lupin III - Columbus no Isan wa Akenisomaru"
   region: "NTSC-J"
-  gameFixes:
-    - FpuNegDivHack # Fixes game softlock after prison level.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes game softlock after prison level.
 SLPS-25432:
   name: "Majo-musume A La Mode [Magical Box]"
   region: "NTSC-J"
@@ -43507,8 +43504,7 @@ SLPS-25569:
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 1 # Fixes camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fixes target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
 SLPS-25570:
   name: "Kino no Tabi 2 - The Beautiful World"
   region: "NTSC-J"
@@ -44116,8 +44112,7 @@ SLPS-25718:
   compat: 5
   roundModes:
     eeRoundMode: 1 # Fix camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fix target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
   patches:
     F616C207:
       content: |-
@@ -44781,8 +44776,8 @@ SLPS-25912:
 SLPS-25914:
   name: "Kidou Senshi Gundam - Giren no Yabou - Axis no Kyoui V"
   region: "NTSC-J"
-  gameFixes:
-    - FpuNegDivHack
+  roundModes:
+    eeDivRoundMode: 1
 SLPS-25915:
   name: "King of Fighters 2002, The - Unlimited Match"
   region: "NTSC-J"
@@ -44871,15 +44866,14 @@ SLPS-25956:
 SLPS-25959:
   name: "Kidou Senshi Gundam - Giren no Yabou - Axis no Kyoui V"
   region: "NTSC-J"
-  gameFixes:
-    - FpuNegDivHack
+  roundModes:
+    eeDivRoundMode: 1
 SLPS-25961:
   name: "Kidou Senshi Gundam SEED - Rengou vs. Z.A.F.T."
   region: "NTSC-K"
   roundModes:
     eeRoundMode: 1 # Fixes camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fixes target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
 SLPS-25978:
   name: "Shin Master of Monsters Final EX"
   region: "NTSC-J"
@@ -45445,8 +45439,7 @@ SLPS-73269:
   region: "NTSC-K"
   roundModes:
     eeRoundMode: 1 # Fixes camera issue.
-  gameFixes:
-    - FpuNegDivHack # Fixes target loss issue.
+    eeDivRoundMode: 1 # Fixes target loss issue.
 SLPS-73270:
   name: "Super Robot Taisen Z [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -48456,8 +48449,8 @@ SLUS-20624:
   name: "Simpsons, The - Hit & Run"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - FpuNegDivHack # Lens flare appears even when behind objects.
+  roundModes:
+    eeDivRoundMode: 1 # Lens flare appears even when behind objects.
   gsHWFixes:
     autoFlush: 2 # Fixes missing lens flare.
 SLUS-20625:
@@ -53981,8 +53974,8 @@ SLUS-21634:
   name: "Crazy Frog Racer 2"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - FpuNegDivHack # Fixes black fade effects and some overlays texts in the menus.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes black fade effects and some overlays texts in the menus.
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves road and grass textures to match sw renderer.
     trilinearFiltering: 1
@@ -54522,8 +54515,8 @@ SLUS-21743:
   name: "Code Lyoko - Quest for Infinity"
   region: "NTSC-U"
   compat: 5
-  gameFixes:
-    - FpuNegDivHack # Fixes missing texts on in-game textboxes.
+  roundModes:
+    eeDivRoundMode: 1 # Fixes missing texts on in-game textboxes.
   gsHWFixes:
     deinterlace: 9 # Game requires adaptive bff de-interlacing instead of auto for the UI at native.
     halfPixelOffset: 1 # Reduces ghosting effects.
