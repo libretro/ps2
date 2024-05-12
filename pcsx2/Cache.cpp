@@ -104,7 +104,7 @@ namespace
 		void load(uptr ppf)
 		{
 			tag.setAddr(ppf);
-			std::memcpy(&data, reinterpret_cast<void*>(ppf & ~0x3FULL), sizeof(data));
+			memcpy(&data, reinterpret_cast<void*>(ppf & ~0x3FULL), sizeof(data));
 			tag.rawValue |=  CacheTag::Flags::VALID_FLAG;
 			tag.rawValue &= ~CacheTag::Flags::DIRTY_FLAG;
 		}
@@ -112,7 +112,7 @@ namespace
 		void clear()
 		{
 			tag.clear();
-			std::memset(&data, 0, sizeof(data));
+			memset(&data, 0, sizeof(data));
 		}
 	};
 
