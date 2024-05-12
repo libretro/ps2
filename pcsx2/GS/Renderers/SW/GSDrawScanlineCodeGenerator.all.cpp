@@ -724,7 +724,7 @@ void GSDrawScanlineCodeGenerator2::Init()
 	{
 		if (m_sel.edge)
 		{
-			// m_local.temp.cov = GSVector8i::broadcast16(GSVector4i::cast(scan.p)).srl16(9);
+			// m_local.temp.cov = GSVector8i::broadcast16(GSVector4i::cast(scan.p)).srl16<9>();
 
 			if (hasAVX2)
 			{
@@ -1194,7 +1194,7 @@ void GSDrawScanlineCodeGenerator2::SampleTexture()
 	{
 		const XYm& vf = xym7;
 
-		// GSVector4i uf = u.xxzzlh().srl16(12);
+		// GSVector4i uf = u.xxzzlh().srl16<12>();
 
 		pshuflw(xym4, xym2, _MM_SHUFFLE(2, 2, 0, 0));
 		pshufhw(xym4, xym4, _MM_SHUFFLE(2, 2, 0, 0));
@@ -1202,7 +1202,7 @@ void GSDrawScanlineCodeGenerator2::SampleTexture()
 
 		if (m_sel.prim != GS_SPRITE_CLASS)
 		{
-			// GSVector4i vf = v.xxzzlh().srl16(12);
+			// GSVector4i vf = v.xxzzlh().srl16<12>();
 
 			pshuflw(vf, xym3, _MM_SHUFFLE(2, 2, 0, 0));
 			pshufhw(vf, vf, _MM_SHUFFLE(2, 2, 0, 0));
@@ -1803,13 +1803,13 @@ void GSDrawScanlineCodeGenerator2::SampleTextureLOD()
 		psubd(xym2, xym4);
 		psubd(xym3, xym4);
 
-		// GSVector4i uf = u.xxzzlh().srl16(1);
+		// GSVector4i uf = u.xxzzlh().srl16<1>();
 
 		pshuflw(xym4, xym2, _MM_SHUFFLE(2, 2, 0, 0));
 		pshufhw(xym4, xym4, _MM_SHUFFLE(2, 2, 0, 0));
 		psrlw(xym4, 12);
 
-		// GSVector4i vf = v.xxzzlh().srl16(1);
+		// GSVector4i vf = v.xxzzlh().srl16<1>();
 
 		pshuflw(vf, xym3, _MM_SHUFFLE(2, 2, 0, 0));
 		pshufhw(vf, vf, _MM_SHUFFLE(2, 2, 0, 0));
@@ -1885,13 +1885,13 @@ void GSDrawScanlineCodeGenerator2::SampleTextureLOD()
 			psubd(xym2, xym4);
 			psubd(xym3, xym4);
 
-			// GSVector4i uf = u.xxzzlh().srl16(1);
+			// GSVector4i uf = u.xxzzlh().srl16<1>();
 
 			pshuflw(xym4, xym2, _MM_SHUFFLE(2, 2, 0, 0));
 			pshufhw(xym4, xym4, _MM_SHUFFLE(2, 2, 0, 0));
 			psrlw(xym4, 12);
 
-			// GSVector4i vf = v.xxzzlh().srl16(1);
+			// GSVector4i vf = v.xxzzlh().srl16<1>();
 
 			pshuflw(vf, xym3, _MM_SHUFFLE(2, 2, 0, 0));
 			pshufhw(vf, vf, _MM_SHUFFLE(2, 2, 0, 0));
@@ -2091,7 +2091,7 @@ void GSDrawScanlineCodeGenerator2::AlphaTFX()
 
 			clamp16(_ga, tmp);
 
-			// if(!tcc) gat = gat.mix16(ga.srl16(7));
+			// if(!tcc) gat = gat.mix16(ga.srl16<7>());
 
 			if (!m_sel.tcc)
 			{
@@ -2104,7 +2104,7 @@ void GSDrawScanlineCodeGenerator2::AlphaTFX()
 
 		case TFX_DECAL:
 
-			// if(!tcc) gat = gat.mix16(ga.srl16(7));
+			// if(!tcc) gat = gat.mix16(ga.srl16<7>());
 			if (!m_sel.tcc)
 			{
 				// GSVector4i ga = iip ? gaf : m_local.c.ga;
@@ -2119,7 +2119,7 @@ void GSDrawScanlineCodeGenerator2::AlphaTFX()
 		case TFX_HIGHLIGHT:
 
 			// GSVector4i ga = iip ? gaf : m_local.c.ga;
-			// gat = gat.mix16(!tcc ? ga.srl16(7) : gat.addus8(ga.srl16(7)));
+			// gat = gat.mix16(!tcc ? ga.srl16<7>() : gat.addus8(ga.srl16<7>()));
 
 			MOVE_IF_64(psrlw, tmpga, f_ga, 7);
 
@@ -2134,7 +2134,7 @@ void GSDrawScanlineCodeGenerator2::AlphaTFX()
 
 		case TFX_HIGHLIGHT2:
 
-			// if(!tcc) gat = gat.mix16(ga.srl16(7));
+			// if(!tcc) gat = gat.mix16(ga.srl16<7>());
 
 			if (!m_sel.tcc)
 			{
@@ -2149,7 +2149,7 @@ void GSDrawScanlineCodeGenerator2::AlphaTFX()
 
 		case TFX_NONE:
 
-			// gat = iip ? ga.srl16(7) : ga;
+			// gat = iip ? ga.srl16<7>() : ga;
 
 			if (m_sel.iip)
 			{
@@ -2361,7 +2361,7 @@ void GSDrawScanlineCodeGenerator2::ColorTFX()
 
 		case TFX_NONE:
 
-			// rbt = iip ? rb.srl16(7) : rb;
+			// rbt = iip ? rb.srl16<7>() : rb;
 
 			if (m_sel.iip)
 			{

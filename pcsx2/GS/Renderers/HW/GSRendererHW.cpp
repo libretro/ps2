@@ -1364,7 +1364,7 @@ void GSRendererHW::SwSpriteRender()
 
 				// Apply TFX
 				if (tex0_tfx == 0)
-					sc = sc.mul16l(vc).srl16(7).clamp8(); // clamp((sc * vc) >> 7, 0, 255), srl16 is ok because 16 bit values are unsigned
+					sc = sc.mul16l(vc).srl16<7>().clamp8(); // clamp((sc * vc) >> 7, 0, 255), srl16 is ok because 16 bit values are unsigned
 
 				if (tex0_tcc == 0)
 					sc = sc.blend(vc, a_mask);

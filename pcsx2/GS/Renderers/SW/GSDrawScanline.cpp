@@ -323,7 +323,7 @@ void GSDrawScanline::CSetupPrim(const GSVertexSW* vertex, const u16* index, cons
 			c = c.upl16(c.zwxy());
 
 			if (sel.tfx == TFX_NONE)
-				c = c.srl16(7);
+				c = c.srl16<7>();
 
 			local.c.rb = c.xxxx();
 			local.c.ga = c.zzzz();
@@ -514,9 +514,9 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 		if (sel.edge)
 		{
 #if _M_SSE >= 0x501
-			cov = GSVector8i::broadcast16(GSVector4i::cast(scan.p)).srl16(9);
+			cov = GSVector8i::broadcast16(GSVector4i::cast(scan.p)).srl16<9>();
 #else
-			cov = GSVector4i::cast(scan.p).xxxxl().xxxx().srl16(9);
+			cov = GSVector4i::cast(scan.p).xxxxl().xxxx().srl16<9>();
 #endif
 		}
 
@@ -535,7 +535,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 				}
 				else if (sel.ltf)
 				{
-					vf = v.xxzzlh().srl16(12);
+					vf = v.xxzzlh().srl16<12>();
 				}
 
 				s = VectorF::cast(u);
@@ -785,8 +785,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						u -= 0x8000;
 						v -= 0x8000;
 
-						uf = u.xxzzlh().srl16(12);
-						vf = v.xxzzlh().srl16(12);
+						uf = u.xxzzlh().srl16<12>();
+						vf = v.xxzzlh().srl16<12>();
 					}
 
 					VectorI uv0 = u.sra32(16).ps32(v.sra32(16));
@@ -898,16 +898,16 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						u = uv[0].sra32(1);
 						v = uv[1].sra32(1);
 
-						minuv = minuv.srl16(1);
-						maxuv = maxuv.srl16(1);
+						minuv = minuv.srl16<1>();
+						maxuv = maxuv.srl16<1>();
 
 						if (sel.ltf)
 						{
 							u -= 0x8000;
 							v -= 0x8000;
 
-							uf = u.xxzzlh().srl16(12);
-							vf = v.xxzzlh().srl16(12);
+							uf = u.xxzzlh().srl16<12>();
+							vf = v.xxzzlh().srl16<12>();
 						}
 
 						VectorI uv0 = u.sra32(16).ps32(v.sra32(16));
@@ -1013,7 +1013,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						if (sel.lcm)
 							lodf = global.lod.f;
 
-						lodf = lodf.srl16(1);
+						lodf = lodf.srl16<1>();
 
 						rb = rb.lerp16<0>(rb2, lodf);
 						ga = ga.lerp16<0>(ga2, lodf);
@@ -1040,11 +1040,11 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 
 					if (sel.ltf)
 					{
-						uf = u.xxzzlh().srl16(12);
+						uf = u.xxzzlh().srl16<12>();
 
 						if (sel.prim != GS_SPRITE_CLASS)
 						{
-							vf = v.xxzzlh().srl16(12);
+							vf = v.xxzzlh().srl16<12>();
 						}
 					}
 
@@ -1150,21 +1150,21 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 					case TFX_MODULATE:
 						ga = ga.modulate16<1>(gaf).clamp8();
 						if (!sel.tcc)
-							ga = ga.mix16(gaf.srl16(7));
+							ga = ga.mix16(gaf.srl16<7>());
 						break;
 					case TFX_DECAL:
 						if (!sel.tcc)
-							ga = ga.mix16(gaf.srl16(7));
+							ga = ga.mix16(gaf.srl16<7>());
 						break;
 					case TFX_HIGHLIGHT:
-						ga = ga.mix16(!sel.tcc ? gaf.srl16(7) : ga.addus8(gaf.srl16(7)));
+						ga = ga.mix16(!sel.tcc ? gaf.srl16<7>() : ga.addus8(gaf.srl16<7>()));
 						break;
 					case TFX_HIGHLIGHT2:
 						if (!sel.tcc)
-							ga = ga.mix16(gaf.srl16(7));
+							ga = ga.mix16(gaf.srl16<7>());
 						break;
 					case TFX_NONE:
-						ga = sel.iip ? gaf.srl16(7) : gaf;
+						ga = sel.iip ? gaf.srl16<7>() : gaf;
 						break;
 				}
 
@@ -1217,12 +1217,12 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						break;
 					case TFX_HIGHLIGHT:
 					case TFX_HIGHLIGHT2:
-						af = gaf.yywwlh().srl16(7);
+						af = gaf.yywwlh().srl16<7>();
 						rb = rb.modulate16<1>(rbf).add16(af).clamp8();
 						ga = ga.modulate16<1>(gaf).add16(af).clamp8().mix16(ga);
 						break;
 					case TFX_NONE:
-						rb = sel.iip ? rbf.srl16(7) : rbf;
+						rb = sel.iip ? rbf.srl16<7>() : rbf;
 						break;
 				}
 			}
@@ -1247,12 +1247,12 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 				ga = fga.lerp16<0>(ga, fog).mix16(ga);
 
 				/*
-				fog = fog.srl16(7);
+				fog = fog.srl16<7>();
 
 				VectorI ifog = VectorI::x00ff().sub16(fog);
 
-				rb = rb.mul16l(fog).add16(frb.mul16l(ifog)).srl16(8);
-				ga = ga.mul16l(fog).add16(fga.mul16l(ifog)).srl16(8).mix16(ga);
+				rb = rb.mul16l(fog).add16(frb.mul16l(ifog)).srl16<8>();
+				ga = ga.mul16l(fog).add16(fga.mul16l(ifog)).srl16<8>().mix16(ga);
 				*/
 			}
 
