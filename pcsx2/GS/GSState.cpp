@@ -19,9 +19,6 @@
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
 
-#include "common/Console.h"
-#include "common/Path.h"
-
 #include "GSPerfMon.h"
 #include "GSState.h"
 #include "GSUtil.h"
@@ -1424,9 +1421,7 @@ void GSState::FlushPrim()
 			const u32 FRAME_FBP = m_context->FRAME.FBP;
 			if ((m_regs->DISP[0].DISPFB.FBP == FRAME_FBP && m_regs->PMODE.EN1) ||
 				(m_regs->DISP[1].DISPFB.FBP == FRAME_FBP && m_regs->PMODE.EN2))
-			{
 				g_perfmon.AddDisplayFramebufferSpriteBlit();
-			}
 		}
 
 		GSVertex buff[2];
@@ -2357,10 +2352,7 @@ int GSState::Defrost(const freezeData* fd)
 	ReadState(&version, data);
 
 	if (version > STATE_VERSION)
-	{
-		Console.Error("GS: Savestate version is incompatible.  Load aborted.");
 		return -1;
-	}
 
 	Flush(GSFlushReason::LOADSTATE);
 
@@ -3880,7 +3872,7 @@ GIFRegTEX0 GSState::GetTex0Layer(u32 lod)
 			TEX0.TBW = m_context->MIPTBP2.TBW6;
 			break;
 		default:
-			Console.Error("GS: Invalid guest lod setting. Please report: https://github.com/PCSX2/pcsx2/issues");
+			break;
 	}
 
 	// Correct the texture size
@@ -3924,7 +3916,6 @@ void GSState::GSTransferBuffer::Init(int tx, int ty, const GIFRegBITBLTBUF& blit
 bool GSState::GSTransferBuffer::Update(int tw, int th, int bpp, int& len)
 {
 	int tex_size = (((tw * th * bpp) + 7) >> 3); // Round to nearest byte
-	int packet_size = (tex_size + 15) & ~0xF; // Round up to the nearest quadword
 
 	if (total == 0)
 		total = std::min<int>(tex_size, 1024 * 1024 * 4);
