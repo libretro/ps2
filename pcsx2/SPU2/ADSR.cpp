@@ -136,11 +136,16 @@ void V_VolumeSlide::Update()
 			level_inc = (s16)((level_inc * Value) >> 15);
 	}
 
-	counter_inc = std::max<u32>(1, counter_inc);
+	// Allow counter_inc to be zero only in when all bits
+	// of the rate field are set
+	if (Step != 3 && Shift != 0x1f)
+		counter_inc = std::max<u32>(1, counter_inc);
 	Counter += counter_inc;
 
 	// If negative phase "increase" to -0x8000 or "decrease" towards 0
-	level_inc = Phase ? -level_inc : level_inc;
+	// Unless in Exp + Decr modes
+	if (!(Exp && Decr))
+		level_inc = Phase ? -level_inc : level_inc;
 
 	if (Counter >= 0x8000)
 	{
@@ -150,8 +155,13 @@ void V_VolumeSlide::Update()
 			Value = std::clamp<s32>(Value + level_inc, INT16_MIN, INT16_MAX);
 		else
 		{
-			s32 low = Phase ? INT16_MIN : 0;
+			s32 low  = Phase ? INT16_MIN : 0;
 			s32 high = Phase ? 0 : INT16_MAX;
+			if (Exp)
+			{
+				low  = 0;
+				high = INT16_MAX;
+			}
 			Value = std::clamp<s32>(Value + level_inc, low, high);
 		}
 	}
