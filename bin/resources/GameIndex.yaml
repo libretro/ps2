@@ -41512,6 +41512,8 @@ SLPS-25033:
 SLPS-25034:
   name: "Flower, Sun and Rain"
   region: "NTSC-J"
+  gsHWFixes:
+    textureInsideRT: 1 # Fixes some of the many graphical issues.
 SLPS-25035:
   name: "Monster Farm 3"
   region: "NTSC-J"
@@ -41968,6 +41970,8 @@ SLPS-25151:
 SLPS-25154:
   name: "Flower, Sun and Rain [Victor The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    textureInsideRT: 1 # Fixes some of the many graphical issues.
 SLPS-25155:
   name: "Ultraman Fighting Evolution 2"
   region: "NTSC-J"
@@ -43095,6 +43099,8 @@ SLPS-25450:
 SLPS-25451:
   name: "Hana to Taiyou to Ame to [Super Best Collection]"
   region: "NTSC-J"
+  gsHWFixes:
+    textureInsideRT: 1 # Fixes some of the many graphical issues.
 SLPS-25452:
   name: "Kino no Tabi - The Beautiful World [MediaWorks Best]"
   region: "NTSC-J"
