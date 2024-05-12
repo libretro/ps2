@@ -165,7 +165,7 @@ public:
 	{
 		GSVector4i v((int)u);
 
-		*this = GSVector4(v) + (m_x4f800000 & GSVector4::cast(v.sra32(31)));
+		*this = GSVector4(v) + (m_x4f800000 & GSVector4::cast(v.sra32<31>()));
 	}
 
 	__forceinline explicit GSVector4(const GSVector4i& v);
@@ -579,7 +579,7 @@ public:
 	{
 		GSVector4i v = GSVector4i::load((int)u);
 
-		return GSVector4(v) + (m_x4f800000 & GSVector4::cast(v.sra32(31)));
+		return GSVector4(v) + (m_x4f800000 & GSVector4::cast(v.sra32<31>()));
 	}
 
 	template <bool aligned>

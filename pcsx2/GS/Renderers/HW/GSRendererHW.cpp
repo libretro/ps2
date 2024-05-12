@@ -298,7 +298,7 @@ void GSRendererHW::ExpandLineIndices()
 		read -= 1;
 		write -= expansion_factor;
 
-		const GSVector4i in = read->sll16(2);
+		const GSVector4i in = read->sll16<2>();
 		write[0] = in.shuffle8(mask0) | low0;
 		write[1] = in.shuffle8(mask1) | low1;
 		write[2] = in.shuffle8(mask2) | low2;
@@ -344,7 +344,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(bool& write_ba, bool& read_ba, GS
 		const GSVector4i dr = m_r;
 		const GSVector4i r = dr.blend32<9>(dr.sra32(1));
 
-		const GSVector4i fpr = r.sll32(4);
+		const GSVector4i fpr = r.sll32<4>();
 		v[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + fpr.x);
 		v[0].XYZ.Y = static_cast<u16>(m_context->XYOFFSET.OFY + fpr.y);
 
@@ -1358,7 +1358,7 @@ void GSRendererHW::SwSpriteRender()
 				                                                             .ps32()    // 0x00AA00AA00aa00aa00AA00AA00aa00aa
 				                                                             .xxyy();   // 0x00AA00AA00AA00AA00aa00aa00aa00aa
 				const GSVector4i D = alpha_d == 0 ? sc : alpha_d == 1 ? dc0 : GSVector4i::zero();
-				dc = A.sub16(B).mul16l(C).sra16(7).add16(D); // (((A - B) * C) >> 7) + D, must use sra16 due to signed 16 bit values.
+				dc = A.sub16(B).mul16l(C).sra16<7>().add16(D); // (((A - B) * C) >> 7) + D, must use sra16 due to signed 16 bit values.
 				// dc alpha channels (dc.u16[3], dc.u16[7]) dirty
 			}
 			else
@@ -1370,7 +1370,7 @@ void GSRendererHW::SwSpriteRender()
 			if (m_draw_env->COLCLAMP.CLAMP)
 				dc = dc.clamp8(); // clamp(dc, 0, 255)
 			else
-				dc = dc.sll16(8).srl16(8); // Mask, lower 8 bits enabled per channel
+				dc = dc.sll16<8>().srl16<8>(); // Mask, lower 8 bits enabled per channel
 
 			// No Alpha Correction
 			dc = dc.blend(sc, a_mask);
@@ -5944,8 +5944,8 @@ bool GSRendererHW::IsReallyDithered() const
 void GSRendererHW::ReplaceVerticesWithSprite(const GSVector4i& unscaled_rect, const GSVector4i& unscaled_uv_rect,
 	const GSVector2i& unscaled_size, const GSVector4i& scissor)
 {
-	const GSVector4i fpr = unscaled_rect.sll32(4);
-	const GSVector4i fpuv = unscaled_uv_rect.sll32(4);
+	const GSVector4i fpr = unscaled_rect.sll32<4>();
+	const GSVector4i fpuv = unscaled_uv_rect.sll32<4>();
 	GSVertex* v = m_vertex.buff;
 
 	v[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + fpr.x);
@@ -6038,7 +6038,7 @@ GSHWDrawConfig& GSRendererHW::BeginHLEHardwareDraw(
 		vertices[i].V = v; \
 	} while (0)
 
-	const GSVector4i fp_rect = unscaled_rect.sll32(4);
+	const GSVector4i fp_rect = unscaled_rect.sll32<4>();
 	V(0, fp_rect.x, fp_rect.y, fp_rect.x, fp_rect.y); // top-left
 	V(1, fp_rect.z, fp_rect.y, fp_rect.z, fp_rect.y); // top-right
 	V(2, fp_rect.x, fp_rect.w, fp_rect.x, fp_rect.w); // bottom-left

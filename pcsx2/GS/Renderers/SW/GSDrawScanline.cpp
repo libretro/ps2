@@ -647,8 +647,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 
 					switch (sel.zpsm)
 					{
-						case 1: zdo = zdo.sll32( 8).srl32( 8); break;
-						case 2: zdo = zdo.sll32(16).srl32(16); break;
+						case 1: zdo = zdo.sll32<8>().srl32<8>(); break;
+						case 2: zdo = zdo.sll32<16>().srl32<16>(); break;
 						default: break;
 					}
 
@@ -847,18 +847,18 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							}
 						}
 
-						VectorI rb00 = c00.sll16(8).srl16(8);
-						VectorI ga00 = c00.srl16(8);
-						VectorI rb01 = c01.sll16(8).srl16(8);
-						VectorI ga01 = c01.srl16(8);
+						VectorI rb00 = c00.sll16<8>().srl16<8>();
+						VectorI ga00 = c00.srl16<8>();
+						VectorI rb01 = c01.sll16<8>().srl16<8>();
+						VectorI ga01 = c01.srl16<8>();
 
 						rb00 = rb00.lerp16_4(rb01, uf);
 						ga00 = ga00.lerp16_4(ga01, uf);
 
-						VectorI rb10 = c10.sll16(8).srl16(8);
-						VectorI ga10 = c10.srl16(8);
-						VectorI rb11 = c11.sll16(8).srl16(8);
-						VectorI ga11 = c11.srl16(8);
+						VectorI rb10 = c10.sll16<8>().srl16<8>();
+						VectorI ga10 = c10.srl16<8>();
+						VectorI rb11 = c11.sll16<8>().srl16<8>();
+						VectorI ga11 = c11.srl16<8>();
 
 						rb10 = rb10.lerp16_4(rb11, uf);
 						ga10 = ga10.lerp16_4(ga11, uf);
@@ -885,8 +885,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							}
 						}
 
-						rb = c00.sll16(8).srl16(8);
-						ga = c00.srl16(8);
+						rb = c00.sll16<8>().srl16<8>();
+						ga = c00.srl16<8>();
 					}
 
 					if (sel.mmin != 1) // !round-off mode
@@ -968,18 +968,18 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 								}
 							}
 
-							VectorI rb00 = c00.sll16(8).srl16(8);
-							VectorI ga00 = c00.srl16(8);
-							VectorI rb01 = c01.sll16(8).srl16(8);
-							VectorI ga01 = c01.srl16(8);
+							VectorI rb00 = c00.sll16<8>().srl16<8>();
+							VectorI ga00 = c00.srl16<8>();
+							VectorI rb01 = c01.sll16<8>().srl16<8>();
+							VectorI ga01 = c01.srl16<8>();
 
 							rb00 = rb00.lerp16_4(rb01, uf);
 							ga00 = ga00.lerp16_4(ga01, uf);
 
-							VectorI rb10 = c10.sll16(8).srl16(8);
-							VectorI ga10 = c10.srl16(8);
-							VectorI rb11 = c11.sll16(8).srl16(8);
-							VectorI ga11 = c11.srl16(8);
+							VectorI rb10 = c10.sll16<8>().srl16<8>();
+							VectorI ga10 = c10.srl16<8>();
+							VectorI rb11 = c11.sll16<8>().srl16<8>();
+							VectorI ga11 = c11.srl16<8>();
 
 							rb10 = rb10.lerp16_4(rb11, uf);
 							ga10 = ga10.lerp16_4(ga11, uf);
@@ -1006,8 +1006,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 								}
 							}
 
-							rb2 = c00.sll16(8).srl16(8);
-							ga2 = c00.srl16(8);
+							rb2 = c00.sll16<8>().srl16<8>();
+							ga2 = c00.srl16<8>();
 						}
 
 						if (sel.lcm)
@@ -1103,18 +1103,18 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							c11 = addr11.gather32_32(tex);
 						}
 
-						VectorI rb00 = c00.sll16(8).srl16(8);
-						VectorI ga00 = c00.srl16(8);
-						VectorI rb01 = c01.sll16(8).srl16(8);
-						VectorI ga01 = c01.srl16(8);
+						VectorI rb00 = c00.sll16<8>().srl16<8>();
+						VectorI ga00 = c00.srl16<8>();
+						VectorI rb01 = c01.sll16<8>().srl16<8>();
+						VectorI ga01 = c01.srl16<8>();
 
 						rb00 = rb00.lerp16_4(rb01, uf);
 						ga00 = ga00.lerp16_4(ga01, uf);
 
-						VectorI rb10 = c10.sll16(8).srl16(8);
-						VectorI ga10 = c10.srl16(8);
-						VectorI rb11 = c11.sll16(8).srl16(8);
-						VectorI ga11 = c11.srl16(8);
+						VectorI rb10 = c10.sll16<8>().srl16<8>();
+						VectorI ga10 = c10.srl16<8>();
+						VectorI rb11 = c11.sll16<8>().srl16<8>();
+						VectorI ga11 = c11.srl16<8>();
 
 						rb10 = rb10.lerp16_4(rb11, uf);
 						ga10 = ga10.lerp16_4(ga11, uf);
@@ -1135,8 +1135,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							c00 = addr00.gather32_32((const u32*)global.tex[0]);
 						}
 
-						rb = c00.sll16(8).srl16(8);
-						ga = c00.srl16(8);
+						rb = c00.sll16<8>().srl16<8>();
+						ga = c00.srl16<8>();
 					}
 				}
 			}
@@ -1180,7 +1180,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 					}
 					else
 					{
-						ga = ga.blend8(a, ga.eq16(x00800080).srl32(16).sll32(16));
+						ga = ga.blend8(a, ga.eq16(x00800080).srl32<16>().sll32<16>());
 					}
 				}
 			}
@@ -1283,18 +1283,18 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 					if (sel.fpsm == 2)
 					{
 						// test |= fd.srl32(15) == VectorI::zero();
-						test |= fd.sll32(16).sra32(31) == VectorI::zero();
+						test |= fd.sll32<16>().sra32<31>() == VectorI::zero();
 					}
 					else
 					{
-						test |= (~fd).sra32(31);
+						test |= (~fd).sra32<31>();
 					}
 				}
 				else
 				{
 					if (sel.fpsm == 2)
 					{
-						test |= fd.sll32(16).sra32(31); // == VectorI::xffffffff();
+						test |= fd.sll32<16>().sra32<31>(); // == VectorI::xffffffff();
 					}
 					else
 					{
@@ -1417,8 +1417,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 					{
 						case 0:
 						case 1:
-							rbd = fd.sll16(8).srl16(8);
-							gad = fd.srl16(8);
+							rbd = fd.sll16<8>().srl16<8>();
+							gad = fd.srl16<8>();
 							break;
 						case 2:
 							rbd = ((fd & 0x7c00) << 9) | ((fd & 0x001f) << 3);
@@ -1447,8 +1447,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 					{
 						switch(sel.abc)
 						{
-							case 0: a = gas.yywwlh().sll16(7); break;
-							case 1: a = gad.yywwlh().sll16(7); break;
+							case 0: a = gas.yywwlh().sll16<7>(); break;
+							case 1: a = gad.yywwlh().sll16<7>(); break;
 							case 2: a = global.afix; break;
 						}
 
