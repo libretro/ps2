@@ -219,16 +219,18 @@ static __forceinline s32 ApplyVolume(s32 data, s32 volume)
 
 static __forceinline StereoOut32 ApplyVolume(const StereoOut32& data, const V_VolumeLR& volume)
 {
-	return StereoOut32(
-		ApplyVolume(data.Left, volume.Left),
-		ApplyVolume(data.Right, volume.Right));
+	StereoOut32 val;
+	val.Left  = ApplyVolume(data.Left, volume.Left);
+	val.Right = ApplyVolume(data.Right, volume.Right);
+	return val;
 }
 
 static __forceinline StereoOut32 ApplyVolume(const StereoOut32& data, const V_VolumeSlideLR& volume)
 {
-	return StereoOut32(
-		ApplyVolume(data.Left, volume.Left.Value),
-		ApplyVolume(data.Right, volume.Right.Value));
+	StereoOut32 val;
+	val.Left  = ApplyVolume(data.Left, volume.Left.Value);
+	val.Right = ApplyVolume(data.Right, volume.Right.Value);
+	return val;
 }
 
 static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
@@ -350,9 +352,11 @@ static __forceinline void spu2M_WriteFast(u32 addr, s16 value)
 }
 
 
-static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
+static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint voiceidx)
 {
-	V_Core& thiscore(Cores[coreidx]);
+	StereoOut32 voiceOut;
+	s32 Value      = 0;
+
 	V_Voice& vc(thiscore.Voices[voiceidx]);
 
 	// Most games don't use much volume slide effects.  So only call the UpdateVolume
@@ -367,11 +371,12 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 
 	UpdatePitch(coreidx, voiceidx);
 
-	StereoOut32 voiceOut(0, 0);
-	s32 Value = 0;
+	voiceOut.Left  = 0;
+	voiceOut.Right = 0;
 
 	if (vc.ADSR.Phase > V_ADSR::PHASE_STOPPED)
 	{
+		StereoOut32 val;
 		if (vc.Noise)
 			Value = (s16)thiscore.NoiseOut;
 		else
@@ -380,10 +385,12 @@ static __forceinline StereoOut32 MixVoice(uint coreidx, uint voiceidx)
 		// Update and Apply ADSR  (applies to normal and noise sources)
 
 		CalculateADSR(thiscore, voiceidx);
-		Value = ApplyVolume(Value, vc.ADSR.Value);
-		vc.OutX = Value;
+		Value     = ApplyVolume(Value, vc.ADSR.Value);
+		vc.OutX   = Value;
 
-		voiceOut = ApplyVolume(StereoOut32(Value, Value), vc.Volume);
+		val.Left  = Value;
+		val.Right = Value;
+		voiceOut  = ApplyVolume(val, vc.Volume);
 	}
 	else
 	{
@@ -408,19 +415,20 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 
 	for (uint voiceidx = 0; voiceidx < V_Core::NumVoices; ++voiceidx)
 	{
-		StereoOut32 VVal(MixVoice(coreidx, voiceidx));
+		StereoOut32 VVal(MixVoice(thiscore, coreidx, voiceidx));
 
 		// Note: Results from MixVoice are ranged at 16 bits.
 
-		dest.Dry.Left += VVal.Left & thiscore.VoiceGates[voiceidx].DryL;
+		dest.Dry.Left  += VVal.Left  & thiscore.VoiceGates[voiceidx].DryL;
 		dest.Dry.Right += VVal.Right & thiscore.VoiceGates[voiceidx].DryR;
-		dest.Wet.Left += VVal.Left & thiscore.VoiceGates[voiceidx].WetL;
+		dest.Wet.Left  += VVal.Left  & thiscore.VoiceGates[voiceidx].WetL;
 		dest.Wet.Right += VVal.Right & thiscore.VoiceGates[voiceidx].WetR;
 	}
 }
 
 StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, const StereoOut32& Ext)
 {
+	StereoOut32 TD;
 	MasterVol.Update();
 	UpdateNoise(*this);
 
@@ -435,17 +443,15 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	spu2M_WriteFast(((0 == Index) ? 0x1600 : 0x1E00) + OutPos, Voices.Wet.Right);
 
 	// Mix in the Input data
-
-	StereoOut32 TD(
-		Input.Left & DryGate.InpL,
-		Input.Right & DryGate.InpR);
+	TD.Left   = Input.Left & DryGate.InpL;
+	TD.Right  = Input.Right & DryGate.InpR;
 
 	// Mix in the Voice data
-	TD.Left += Voices.Dry.Left & DryGate.SndL;
+	TD.Left  += Voices.Dry.Left & DryGate.SndL;
 	TD.Right += Voices.Dry.Right & DryGate.SndR;
 
 	// Mix in the External (nothing/core0) data
-	TD.Left += Ext.Left & DryGate.ExtL;
+	TD.Left  += Ext.Left & DryGate.ExtL;
 	TD.Right += Ext.Right & DryGate.ExtR;
 
 	// ----------------------------------------------------------------------------
@@ -478,11 +484,14 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	TW.Left += Ext.Left & WetGate.ExtL;
 	TW.Right += Ext.Right & WetGate.ExtR;
 
-	StereoOut32 RV = DoReverb(TW);
+	StereoOut32 RV  = DoReverb(TW);
+	StereoOut32 tmp = ApplyVolume(RV, FxVol);
 
 	// Mix Dry + Wet
 	// (master volume is applied later to the result of both outputs added together).
-	return TD + ApplyVolume(RV, FxVol);
+	TD.Left  += tmp.Left;
+	TD.Right += tmp.Right;
+	return TD;
 }
 
 static StereoOut32 DCFilter(StereoOut32 input) {
@@ -506,27 +515,37 @@ __forceinline
 	void
 	Mix()
 {
+	StereoOut32 Out;
+	StereoOut16 OutS16;
+	StereoOut32 empty;
+	StereoOut32 Ext;
 	// Note: Playmode 4 is SPDIF, which overrides other inputs.
-	StereoOut32 InputData[2] =
-		{
-			// SPDIF is on Core 0:
-			// Fixme:
-			// 1. We do not have an AC3 decoder for the bitstream.
-			// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
-			ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol),
+	StereoOut32 InputData[2];
+	// SPDIF is on Core 0:
+	// Fixme:
+	// 1. We do not have an AC3 decoder for the bitstream.
+	// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
+	StereoOut32 tmp0 = ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol);
+	StereoOut32 tmp1;
 
-			// CDDA is on Core 1:
-			(PlayMode & 8) ? StereoOut32(0,0) : ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol)};
+	empty.Left = empty.Right = 0;
+	if (PlayMode & 8)
+		tmp1 = empty;
+	else
+		tmp1 = ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol);
+
+	InputData[0] = tmp0;
+	InputData[1] = tmp1;
 
 	// Todo: Replace me with memzero initializer!
 	VoiceMixSet VoiceData[2] = {VoiceMixSet::Empty, VoiceMixSet::Empty}; // mixed voice data for each core.
 	MixCoreVoices(VoiceData[0], 0);
 	MixCoreVoices(VoiceData[1], 1);
 
-	StereoOut32 Ext(Cores[0].Mix(VoiceData[0], InputData[0], StereoOut32(0, 0)));
+	Ext = Cores[0].Mix(VoiceData[0], InputData[0], empty);
 
 	if ((PlayMode & 4) || (Cores[0].Mute != 0))
-		Ext = StereoOut32(0, 0);
+		Ext = empty;
 	else
 		Ext = ApplyVolume(clamp_mix(Ext), Cores[0].MasterVol);
 
@@ -535,7 +554,7 @@ __forceinline
 	spu2M_WriteFast(0xA00 + OutPos, Ext.Right);
 
 	Ext = ApplyVolume(Ext, Cores[1].ExtVol);
-	StereoOut32 Out(Cores[1].Mix(VoiceData[1], InputData[1], Ext));
+	Out = Cores[1].Mix(VoiceData[1], InputData[1], Ext);
 
 	// Experimental CDDA support
 	// The CDDA overrides all other mixer output.  It's a direct feed!
@@ -549,7 +568,10 @@ __forceinline
 	// Final clamp, take care not to exceed 16 bits from here on
 	Out = clamp_mix(Out);
 
-	SndBuffer::Write(StereoOut16(Out));
+	OutS16.Left  = (s16)Out.Left;
+	OutS16.Right = (s16)Out.Right;
+
+	SndBuffer::Write(OutS16);
 
 	// Update AutoDMA output positioning
 	OutPos++;

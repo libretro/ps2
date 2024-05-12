@@ -22,19 +22,19 @@
 __forceinline s32 V_Core::RevbGetIndexer(s32 offset)
 {
 	u32 start = EffectsStartA & 0x3f'ffff;
-	u32 end = (EffectsEndA & 0x3f'ffff) | 0xffff;
-
-	u32 x = ((Cycles >> 1) + offset) % ((end - start) + 1);
-
-	x += start;
-
-	return x & 0xf'ffff;
+	u32 end   = (EffectsEndA & 0x3f'ffff) | 0xffff;
+	u32 x     = ((Cycles >> 1) + offset) % ((end - start) + 1);
+	return ((x + start) & 0xf'ffff);
 }
 
 StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 {
 	if (EffectsStartA >= EffectsEndA)
-		return StereoOut32(0, 0);
+	{
+		StereoOut32 ret;
+		ret.Left = ret.Right = 0;
+		return ret;
+	}
 
 	Input = clamp_mix(Input);
 

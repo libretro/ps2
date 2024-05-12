@@ -32,11 +32,11 @@
 //
 StereoOut32 V_Core::ReadInput_HiFi()
 {
+	StereoOut32 retval;
 	const u16 ReadIndex = (OutPos * 2) & 0x1FF;
 
-	StereoOut32 retval(
-		(s32&)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex)),
-		(s32&)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex)));
+	retval.Left  = (s32&)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex));
+	retval.Right = (s32&)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex));
 
 	if (Index == 1)
 	{
@@ -94,9 +94,8 @@ StereoOut32 V_Core::ReadInput()
 	// PlayMode & 2 is Bypass Mode, so it doesn't go through the SPU
 	if ((Index == 1) || !(Index == 0 && (PlayMode & 2) != 0))
 	{
-		retval = StereoOut32(
-			(s32)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex)),
-			(s32)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex)));
+		retval.Left  = (s32)(*GetMemPtr(0x2000 + (Index << 10) + ReadIndex));
+		retval.Right = (s32)(*GetMemPtr(0x2200 + (Index << 10) + ReadIndex));
 	}
 
 	// Simulate MADR increase, GTA VC tracks the MADR address for calculating a certain point in the buffer

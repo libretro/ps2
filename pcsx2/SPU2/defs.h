@@ -52,7 +52,10 @@ static __forceinline s32 clamp_mix(s32 x)
 
 static __forceinline StereoOut32 clamp_mix(StereoOut32 sample)
 {
-	return StereoOut32(clamp_mix(sample.Left), clamp_mix(sample.Right));
+	StereoOut32 val;
+	val.Left  = clamp_mix(sample.Left);
+	val.Right = clamp_mix(sample.Right);
+	return val;
 }
 
 struct V_VolumeLR

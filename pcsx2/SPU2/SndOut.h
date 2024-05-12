@@ -40,71 +40,14 @@ extern void ProcessDplSample32(const StereoOut16& src, Stereo51Out32Dpl* s);
 struct StereoOut32
 {
 	static const StereoOut32 Empty;
-
 	s32 Left;
 	s32 Right;
-
-	StereoOut32() = default;
-
-	StereoOut32(s32 left, s32 right)
-		: Left(left)
-		, Right(right)
-	{
-	}
-
-	StereoOut32 operator*(const int& factor) const
-	{
-		return StereoOut32(
-			Left * factor,
-			Right * factor);
-	}
-
-	StereoOut32& operator*=(const int& factor)
-	{
-		Left *= factor;
-		Right *= factor;
-		return *this;
-	}
-
-	StereoOut32 operator+(const StereoOut32& right) const
-	{
-		return StereoOut32(
-			Left + right.Left,
-			Right + right.Right);
-	}
-
-	StereoOut32 operator/(int src) const
-	{
-		return StereoOut32(Left / src, Right / src);
-	}
 };
 
 struct StereoOut16
 {
 	s16 Left;
 	s16 Right;
-
-	StereoOut16() = default;
-
-	__fi StereoOut16(const StereoOut32& src)
-		: Left((s16)src.Left)
-		, Right((s16)src.Right)
-	{
-	}
-
-	__fi StereoOut16(s16 left, s16 right)
-		: Left(left)
-		, Right(right)
-	{
-	}
-
-	__fi StereoOut16 ApplyVolume(float volume)
-	{
-		return StereoOut16(
-			static_cast<s16>(std::clamp(static_cast<float>(Left) * volume, -32768.0f, 32767.0f)),
-			static_cast<s16>(std::clamp(static_cast<float>(Right) * volume, -32768.0f, 32767.0f))
-		);
-	}
 };
 
 struct Stereo21Out16
