@@ -54,38 +54,41 @@ namespace HostMemoryMap
 } // namespace HostMemoryMap
 
 /// Attempts to find a spot near static variables for the main memory
-static VirtualMemoryManagerPtr makeMemoryManager(const char* file_mapping_name, size_t size, size_t offset_from_base)
+static VirtualMemoryManagerPtr AllocateVirtualMemory(const char* name, size_t size, size_t offset_from_base)
 {
 #if defined(_WIN32)
 	// Everything looks nicer when the start of all the sections is a nice round looking number.
 	// Also reduces the variation in the address due to small changes in code.
 	// Breaks ASLR but so does anything else that tries to make addresses constant for our debugging pleasure
-	uptr codeBase = (uptr)(void*)makeMemoryManager / (1 << 28) * (1 << 28);
+	uptr codeBase = (uptr)(void*)AllocateVirtualMemory / (1 << 28) * (1 << 28);
 
-	// The allocation is ~640mb in size, slighly under 3*2^28.
-	// We'll hope that the code generated for the PCSX2 executable stays under 512mb (which is likely)
-	// On x86-64, code can reach 8*2^28 from its address [-6*2^28, 4*2^28] is the region that allows for code in the 640mb allocation to reach 512mb of code that either starts at codeBase or 256mb before it.
-	// We start high and count down because on macOS code starts at the beginning of useable address space, so starting as far ahead as possible reduces address variations due to code size.  Not sure about other platforms.  Obviously this only actually affects what shows up in a debugger and won't affect performance or correctness of anything.
+	// The allocation is ~640MB in size, slighly under 3*2^28.
+	// We'll hope that the code generated for the PCSX2 executable stays under 512MB (which is likely)
+	// On x86-64, code can reach 8*2^28 from its address [-6*2^28, 4*2^28] is the region that allows for code in the 640MB allocation 
+	// to reach 512MB of code that either starts at codeBase or 256MB before it.
+	// We start high and count down because on macOS code starts at the beginning of useable address space, so starting as far ahead 
+	// as possible reduces address variations due to code size.  Not sure about other platforms.  Obviously this only actually 
+	// affects what shows up in a debugger and won't affect performance or correctness of anything.
 	for (int offset = 4; offset >= -6; offset--)
 	{
 		uptr base = codeBase + (offset << 28) + offset_from_base;
 		// VTLB will throw a fit if we try to put EE main memory here
 		if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
 			continue;
-		auto mgr = std::make_shared<VirtualMemoryManager>(file_mapping_name, base, size, /*upper_bounds=*/0, /*strict=*/true);
+		VirtualMemoryManagerPtr mgr = std::make_shared<VirtualMemoryManager>(name, base, size, /*upper_bounds=*/0, /*strict=*/true);
 		if (mgr->IsOk())
 			return mgr;
 	}
 #endif
-	return std::make_shared<VirtualMemoryManager>(file_mapping_name, 0, size);
+	return std::make_shared<VirtualMemoryManager>(name, 0, size);
 }
 
 // --------------------------------------------------------------------------------------
 //  SysReserveVM  (implementations)
 // --------------------------------------------------------------------------------------
 SysMainMemory::SysMainMemory()
-	: m_mainMemory(makeMemoryManager("pcsx2", HostMemoryMap::MainSize, 0))
-	, m_codeMemory(makeMemoryManager(nullptr, HostMemoryMap::CodeSize, HostMemoryMap::MainSize))
+	: m_mainMemory(AllocateVirtualMemory("pcsx2", HostMemoryMap::MainSize, 0))
+	, m_codeMemory(AllocateVirtualMemory(nullptr, HostMemoryMap::CodeSize, HostMemoryMap::MainSize))
 	, m_bumpAllocator(m_mainMemory, HostMemoryMap::bumpAllocatorOffset, HostMemoryMap::MainSize - HostMemoryMap::bumpAllocatorOffset)
 {
 	uptr main_base = (uptr)MainMemory()->GetBase();
