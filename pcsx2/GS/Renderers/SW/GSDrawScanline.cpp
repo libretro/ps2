@@ -703,7 +703,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							lod += 0x8000;
 						}
 
-						lodi = lod.srl32(16);
+						lodi = lod.srl32<16>();
 
 						if (sel.mmin == 2) // trilinear mode
 						{
@@ -1282,7 +1282,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 				{
 					if (sel.fpsm == 2)
 					{
-						// test |= fd.srl32(15) == VectorI::zero();
+						// test |= fd.srl32<15>() == VectorI::zero();
 						test |= fd.sll32<16>().sra32<31>() == VectorI::zero();
 					}
 					else

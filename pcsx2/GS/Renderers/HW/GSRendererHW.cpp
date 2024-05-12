@@ -457,7 +457,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(bool& write_ba, bool& read_ba, GS
 				const GSVector4i offset(o.OFY, tex_offset, o.OFY, tex_offset);
 
 				GSVector4i tmp(v[i].XYZ.Y, v[i].V, v[i + 1].XYZ.Y, v[i + 1].V);
-				tmp = GSVector4i(tmp - offset).srl32(1) + offset;
+				tmp = GSVector4i(tmp - offset).srl32<1>() + offset;
 
 				v[i].XYZ.Y = static_cast<u16>(tmp.x);
 				v[i + 1].XYZ.Y = static_cast<u16>(tmp.z);
@@ -494,7 +494,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(bool& write_ba, bool& read_ba, GS
 				const GSVector4i offset(o.OFY, o.OFY);
 
 				GSVector4i tmp(v[i].XYZ.Y, v[i + 1].XYZ.Y);
-				tmp = GSVector4i(tmp - offset).srl32(1) + offset;
+				tmp = GSVector4i(tmp - offset).srl32<1>() + offset;
 
 				v[i].XYZ.Y = static_cast<u16>(tmp.x);
 				v[i + 1].XYZ.Y = static_cast<u16>(tmp.y);
@@ -1390,7 +1390,7 @@ void GSRendererHW::SwSpriteRender()
 				const GSVector4i B = alpha_b == 0 ? sc : alpha_b == 1 ? dc0 : GSVector4i::zero();
 				const GSVector4i C = alpha_c == 2 ? GSVector4i(alpha_fix).xxxx().ps32()
 				                                  : (alpha_c == 0 ? sc : dc0).yyww()    // 0x00AA00BB00AA00BB00aa00bb00aa00bb
-				                                                             .srl32(16) // 0x000000AA000000AA000000aa000000aa
+				                                                             .srl32<16>() // 0x000000AA000000AA000000aa000000aa
 				                                                             .ps32()    // 0x00AA00AA00aa00aa00AA00AA00aa00aa
 				                                                             .xxyy();   // 0x00AA00AA00AA00AA00aa00aa00aa00aa
 				const GSVector4i D = alpha_d == 0 ? sc : alpha_d == 1 ? dc0 : GSVector4i::zero();
