@@ -167,9 +167,26 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	if (GSConfig.UserHacks_ReadTCOnClose)
 		g_gs_renderer->ReadbackTextureCache();
 
+	u8* basemem = g_gs_renderer->GetRegsMem();
 
+	freezeData fd = {};
+	std::unique_ptr<u8[]> fd_data;
 	if (recreate_renderer)
 	{
+		if (g_gs_renderer->Freeze(&fd, true) != 0)
+		{
+			Console.Error("(GSreopen) Failed to get GS freeze size");
+			return false;
+		}
+
+		fd_data = std::make_unique<u8[]>(fd.size);
+		fd.data = fd_data.get();
+		if (g_gs_renderer->Freeze(&fd, false) != 0)
+		{
+			Console.Error("(GSreopen) Failed to freeze GS");
+			return false;
+		}
+
 		CloseGSRenderer();
 	}
 	else
@@ -182,7 +199,6 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	if (recreate_device)
 	{
 		// We need a new render window when changing APIs.
-		u8* basemem = g_gs_renderer->GetRegsMem();
 		const bool recreate_window = (g_gs_device->GetRenderAPI() != GetAPIForRenderer(GSConfig.Renderer));
 		CloseGSDevice(false);
 
@@ -203,10 +219,18 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	}
 	else if (recreate_renderer)
 	{
-		u8* basemem = g_gs_renderer->GetRegsMem();
 		if (!OpenGSRenderer(GSConfig.Renderer, basemem))
 		{
 			Console.Error("(GSreopen) Failed to create new renderer");
+			return false;
+		}
+	}
+
+	if (recreate_renderer)
+	{
+		if (g_gs_renderer->Defrost(&fd) != 0)
+		{
+			Console.Error("(GSreopen) Failed to defrost");
 			return false;
 		}
 	}
