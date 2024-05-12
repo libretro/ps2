@@ -536,6 +536,8 @@ void retro_reset(void)
 	VMManager::SetPaused(false);
 }
 
+freezeData gs_freeze_data = {};
+
 static void libretro_context_reset(void)
 {
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
@@ -554,12 +556,23 @@ static void libretro_context_reset(void)
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
+	if (gs_freeze_data.data)
+	{
+		g_gs_renderer->Defrost(&gs_freeze_data);
+		free(gs_freeze_data.data);
+		gs_freeze_data = {};
+	}
+
 	VMManager::SetPaused(false);
 }
 
 static void libretro_context_destroy(void)
 {
 	cpu_thread_pause();
+
+	g_gs_renderer->Freeze(&gs_freeze_data, true);
+	gs_freeze_data.data = (u8*)malloc(gs_freeze_data.size);
+	g_gs_renderer->Freeze(&gs_freeze_data, false);
 
 	MTGS::CloseGS();
 #ifdef ENABLE_VULKAN
@@ -885,6 +898,12 @@ void retro_unload_game(void)
 		Vulkan::UnloadVulkanLibrary();
 #endif
 	VMManager::Internal::CPUThreadShutdown();
+
+	if (gs_freeze_data.data)
+	{
+		free(gs_freeze_data.data);
+		gs_freeze_data = {};
+	}
 
 	read_pos  = 0;
 	write_pos = 0;
