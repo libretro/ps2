@@ -1097,12 +1097,17 @@ unsigned retro_api_version(void)
 
 size_t retro_get_memory_size(unsigned id)
 {
+	if (RETRO_MEMORY_SYSTEM_RAM == id)
+		/* this only works because Scratch comes right after Main in eeMem */
+		return Ps2MemSize::MainRam + Ps2MemSize::Scratch;
 	return 0;
 }
 
 void* retro_get_memory_data(unsigned id)
 {
-	return NULL;
+	if (RETRO_MEMORY_SYSTEM_RAM == id)
+		return eeMem->Main;
+	return 0;
 }
 
 void retro_cheat_reset(void) { }
