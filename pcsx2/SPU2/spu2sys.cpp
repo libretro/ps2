@@ -97,9 +97,6 @@ __forceinline void spu2M_Write(u32 addr, u16 value)
 	spu2M_Write(addr, (s16)value);
 }
 
-//V_VolumeLR V_VolumeLR::Max(0x7FFF);
-V_VolumeSlideLR V_VolumeSlideLR::Max(0x3FFF, 0x7FFF);
-
 void V_Core::Init(int index)
 {
 	ReverbDownsample = MULTI_ISA_SELECT(ReverbDownsample);
@@ -141,7 +138,12 @@ void V_Core::Init(int index)
 	InpVol.Right = 0x7FFF;
 	FxVol.Left   = 0;
 	FxVol.Right  = 0;
-	MasterVol    = V_VolumeSlideLR(0, 0);
+	MasterVol.Left.Reg_VOL = 0;
+	MasterVol.Left.Counter = 0;
+	MasterVol.Left.Value   = 0;
+	MasterVol.Right.Reg_VOL = 0;
+	MasterVol.Right.Counter = 0;
+	MasterVol.Right.Value   = 0;
 
 	memset(&DryGate, -1, sizeof(DryGate));
 	memset(&WetGate, -1, sizeof(WetGate));
@@ -180,7 +182,12 @@ void V_Core::Init(int index)
 		VoiceGates[v].WetL = -1;
 		VoiceGates[v].WetR = -1;
 
-		Voices[v].Volume = V_VolumeSlideLR(0, 0); // V_VolumeSlideLR::Max;
+		Voices[v].Volume.Left.Reg_VOL = 0;
+		Voices[v].Volume.Left.Counter = 0;
+		Voices[v].Volume.Left.Value   = 0;
+		Voices[v].Volume.Right.Reg_VOL = 0;
+		Voices[v].Volume.Right.Counter = 0;
+		Voices[v].Volume.Right.Value   = 0;
 		Voices[v].SCurrent = 28;
 
 		Voices[v].ADSR.Counter = 0;
@@ -1166,7 +1173,12 @@ static void RegWrite_Core(u16 value)
 				Cores[1].EffectsEndA = 0x7FFFF;
 				for (uint v = 0; v < 24; ++v)
 				{
-					Cores[1].Voices[v].Volume = V_VolumeSlideLR(0, 0); // V_VolumeSlideLR::Max;
+					Cores[1].Voices[v].Volume.Left.Reg_VOL  = 0;
+					Cores[1].Voices[v].Volume.Left.Counter  = 0;
+					Cores[1].Voices[v].Volume.Left.Value    = 0;
+					Cores[1].Voices[v].Volume.Right.Reg_VOL = 0;
+					Cores[1].Voices[v].Volume.Right.Counter = 0;
+					Cores[1].Voices[v].Volume.Right.Value   = 0;
 					Cores[1].Voices[v].SCurrent = 28;
 
 					Cores[1].Voices[v].ADSR.Value = 0;

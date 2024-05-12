@@ -83,37 +83,14 @@ struct V_VolumeSlide
 	s32 Value;
 
 public:
-	V_VolumeSlide() = default;
-	V_VolumeSlide(s16 regval, s32 fullvol)
-		: Reg_VOL(regval)
-		, Value(fullvol)
-	{
-	}
-
 	void Update();
 	void RegSet(u16 src); // used to set the volume from a register source
 };
 
 struct V_VolumeSlideLR
 {
-	static V_VolumeSlideLR Max;
-
 	V_VolumeSlide Left;
 	V_VolumeSlide Right;
-
-public:
-	V_VolumeSlideLR() = default;
-	V_VolumeSlideLR(s16 regval, s32 bothval)
-		: Left(regval, bothval)
-		, Right(regval, bothval)
-	{
-	}
-
-	void Update()
-	{
-		Left.Update();
-		Right.Update();
-	}
 };
 
 struct V_ADSR

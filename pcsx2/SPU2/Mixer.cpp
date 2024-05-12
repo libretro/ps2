@@ -363,7 +363,8 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint v
 	// methods when needed by checking the flag outside the method here...
 	// (Note: Ys 6 : Ark of Nephistm uses these effects)
 
-	vc.Volume.Update();
+	vc.Volume.Left.Update();
+	vc.Volume.Right.Update();
 
 	// SPU2 Note: The spu2 continues to process voices for eternity, always, so we
 	// have to run through all the motions of updating the voice regardless of it's
@@ -428,7 +429,8 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 {
 	StereoOut32 TD;
 	VoiceMixSet Voices;
-	MasterVol.Update();
+	MasterVol.Left.Update();
+	MasterVol.Right.Update();
 	UpdateNoise(*this);
 
 
