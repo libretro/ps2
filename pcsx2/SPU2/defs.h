@@ -84,7 +84,6 @@ struct V_VolumeSlide
 
 public:
 	void Update();
-	void RegSet(u16 src); // used to set the volume from a register source
 };
 
 struct V_VolumeSlideLR

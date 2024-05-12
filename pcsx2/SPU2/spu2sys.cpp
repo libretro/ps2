@@ -469,12 +469,15 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 		switch (vval)
 		{
 			case 0x0: //VOLL (Volume L)
-			case 0x2: //VOLR (Volume R)
-			{
-				V_VolumeSlide& thisvol = vval == 0 ? Voices[voice].Volume.Left : Voices[voice].Volume.Right;
-				thisvol.RegSet(value);
+				Voices[voice].Volume.Left.Reg_VOL = value;
+				if (!Voices[voice].Volume.Left.Enable)
+					Voices[voice].Volume.Left.Value = (s16)(value << 1);
 				break;
-			}
+			case 0x2: //VOLR (Volume R)
+				Voices[voice].Volume.Right.Reg_VOL = value;
+				if (!Voices[voice].Volume.Right.Enable)
+					Voices[voice].Volume.Right.Value = (s16)(value << 1);
+				break;
 			case 0x4:
 				Voices[voice].Pitch = value;
 				break;
@@ -507,11 +510,15 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 		switch (reg)
 		{
 			case 0x1d80: //         Mainvolume left
-				MasterVol.Left.RegSet(value);
+				MasterVol.Left.Reg_VOL = value;
+				if (!MasterVol.Left.Enable)
+					MasterVol.Left.Value = (s16)(value << 1);
 				break;
 
 			case 0x1d82: //         Mainvolume right
-				MasterVol.Right.RegSet(value);
+				MasterVol.Right.Reg_VOL = value;
+				if (!MasterVol.Right.Enable)
+					MasterVol.Right.Value = (s16)(value << 1);
 				break;
 
 			case 0x1d84: //         Reverberation depth left
@@ -868,12 +875,16 @@ static void RegWrite_VoiceParams(u16 value)
 	switch (param)
 	{
 		case 0: //VOLL (Volume L)
+			thisvoice.Volume.Left.Reg_VOL = value;
+			if (!thisvoice.Volume.Left.Enable)
+				thisvoice.Volume.Left.Value = (s16)(value << 1);
+			break;
+		
 		case 1: //VOLR (Volume R)
-		{
-			V_VolumeSlide& thisvol = (param == 0) ? thisvoice.Volume.Left : thisvoice.Volume.Right;
-			thisvol.RegSet(value);
-		}
-		break;
+			thisvoice.Volume.Right.Reg_VOL = value;
+			if (!thisvoice.Volume.Right.Enable)
+				thisvoice.Volume.Right.Value = (s16)(value << 1);
+			break;
 
 		case 2:
 			thisvoice.Pitch = value;
@@ -1232,12 +1243,15 @@ static void RegWrite_CoreExt(u16 value)
 			// Master Volume Address Write!
 
 		case REG_P_MVOLL:
+			thiscore.MasterVol.Left.Reg_VOL = value;
+			if (!thiscore.MasterVol.Left.Enable)
+				thiscore.MasterVol.Left.Value = (s16)(value << 1);
+			break;
 		case REG_P_MVOLR:
-		{
-			V_VolumeSlide& thisvol = (addr == REG_P_MVOLL) ? thiscore.MasterVol.Left : thiscore.MasterVol.Right;
-			thisvol.RegSet(value);
-		}
-		break;
+			thiscore.MasterVol.Right.Reg_VOL = value;
+			if (!thiscore.MasterVol.Right.Enable)
+				thiscore.MasterVol.Right.Value = (s16)(value << 1);
+			break;
 
 		case REG_P_EVOLL:
 			thiscore.FxVol.Left = (s16)(value);

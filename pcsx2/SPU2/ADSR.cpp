@@ -107,13 +107,6 @@ void V_ADSR::Release()
 	}
 }
 
-void V_VolumeSlide::RegSet(u16 src)
-{
-	Reg_VOL = src;
-	if (!Enable)
-		Value = (s16)(src << 1);
-}
-
 void V_VolumeSlide::Update()
 {
 	if (!Enable)
