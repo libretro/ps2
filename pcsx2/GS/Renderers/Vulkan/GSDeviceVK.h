@@ -278,7 +278,7 @@ private:
        bool CreateDevice(const char** required_device_extensions,
 		       u32 num_required_device_extensions, const char** required_device_layers, u32 num_required_device_layers,
 		       const VkPhysicalDeviceFeatures* required_features);
-       void ProcessDeviceExtensions();
+       bool ProcessDeviceExtensions();
 
        bool CreateAllocator();
        bool CreateCommandBuffers();

@@ -197,3 +197,4 @@ extern "C" {
 #define vkGetImageMemoryRequirements2 pcsx2_vkGetImageMemoryRequirements2
 #define vkBindBufferMemory2 pcsx2_vkBindBufferMemory2
 #define vkBindImageMemory2 pcsx2_vkBindImageMemory2
+#define vkCmdPushDescriptorSetKHR pcsx2_vkCmdPushDescriptorSetKHR

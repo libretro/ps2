@@ -191,4 +191,7 @@ VULKAN_DEVICE_ENTRY_POINT(vkGetImageMemoryRequirements2, true)
 VULKAN_DEVICE_ENTRY_POINT(vkBindBufferMemory2, true)
 VULKAN_DEVICE_ENTRY_POINT(vkBindImageMemory2, true)
 
+// VK_KHR_push_descriptor
+VULKAN_DEVICE_ENTRY_POINT(vkCmdPushDescriptorSetKHR, false)
+
 #endif // VULKAN_DEVICE_ENTRY_POINT

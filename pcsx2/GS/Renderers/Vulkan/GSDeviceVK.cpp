@@ -331,6 +331,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			return false;
 		};
 
+		// Required extensions.
+		if (!SupportsExtension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, true))
+		{
+			Console.WriteLn("Does not support VK_KHR_push_descriptor extension");
+			//return false;
+		}
+
 		m_optional_extensions.vk_ext_provoking_vertex =
 			SupportsExtension(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME, false);
 		m_optional_extensions.vk_ext_memory_budget =
@@ -485,12 +492,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		// Grab the graphics and present queues.
 		vkGetDeviceQueue(vk_init_info.device, m_graphics_queue_family_index, 0, &m_graphics_queue);
 
-		ProcessDeviceExtensions();
+		if (!(ProcessDeviceExtensions()))
+			return false;
 
 		return true;
 	}
 
-	void GSDeviceVK::ProcessDeviceExtensions()
+	bool GSDeviceVK::ProcessDeviceExtensions()
 	{
 		// advanced feature checks
 		VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
@@ -531,8 +539,26 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			Vulkan::AddPointerToChain(&properties2, &m_device_driver_properties);
 		}
 
+		VkPhysicalDevicePushDescriptorPropertiesKHR push_descriptor_properties = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR};
+		Vulkan::AddPointerToChain(&properties2, &push_descriptor_properties);
+
 		// query
 		vkGetPhysicalDeviceProperties2(vk_init_info.gpu, &properties2);
+
+		// confirm we actually support push descriptor extension
+		if (push_descriptor_properties.maxPushDescriptors < 4 /*NUM_TFX_TEXTURES */)
+		{
+			Console.Error("maxPushDescriptors (%u) is below required (%u)", push_descriptor_properties.maxPushDescriptors,
+					NUM_TFX_TEXTURES);
+			Console.WriteLn("VK_KHR_push_descriptor is NOT supported");
+			//return false;
+		}
+		else
+		{
+			Console.WriteLn("VK_KHR_push_descriptor is supported");
+		}
+
 
 		Console.WriteLn("VK_EXT_provoking_vertex is %s",
 			m_optional_extensions.vk_ext_provoking_vertex ? "supported" : "NOT supported");
@@ -542,6 +568,8 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			m_optional_extensions.vk_ext_rasterization_order_attachment_access ? "supported" : "NOT supported");
 		Console.WriteLn("VK_EXT_attachment_feedback_loop_layout is %s",
 		m_optional_extensions.vk_ext_attachment_feedback_loop_layout ? "supported" : "NOT supported");
+
+		return true;
 	}
 
 	bool GSDeviceVK::CreateAllocator()

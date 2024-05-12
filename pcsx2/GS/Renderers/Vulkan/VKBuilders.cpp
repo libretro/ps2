@@ -44,6 +44,11 @@ namespace Vulkan
 		m_ci.bindingCount = 0;
 	}
 
+	void Vulkan::DescriptorSetLayoutBuilder::SetPushFlag()
+	{
+		m_ci.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+	}
+
 	VkDescriptorSetLayout DescriptorSetLayoutBuilder::Create(VkDevice device)
 	{
 		VkDescriptorSetLayout layout;
@@ -563,6 +568,15 @@ namespace Vulkan
 	void DescriptorSetUpdateBuilder::Update(VkDevice device, bool clear /*= true*/)
 	{
 		vkUpdateDescriptorSets(device, m_num_writes, (m_num_writes > 0) ? m_writes.data() : nullptr, 0, nullptr);
+
+		if (clear)
+			Clear();
+	}
+
+	void Vulkan::DescriptorSetUpdateBuilder::PushUpdate(
+	VkCommandBuffer cmdbuf, VkPipelineBindPoint bind_point, VkPipelineLayout layout, u32 set, bool clear /*= true*/)
+	{
+		vkCmdPushDescriptorSetKHR(cmdbuf, bind_point, layout, set, m_num_writes, m_writes.data());
 
 		if (clear)
 			Clear();
