@@ -97,7 +97,7 @@ __forceinline void spu2M_Write(u32 addr, u16 value)
 	spu2M_Write(addr, (s16)value);
 }
 
-V_VolumeLR V_VolumeLR::Max(0x7FFF);
+//V_VolumeLR V_VolumeLR::Max(0x7FFF);
 V_VolumeSlideLR V_VolumeSlideLR::Max(0x3FFF, 0x7FFF);
 
 void V_Core::Init(int index)
@@ -131,15 +131,17 @@ void V_Core::Init(int index)
 	psxSoundDataTransferControl = 0;
 	psxSPUSTAT = 0;
 
-	const int c = Index = index;
+	const int c  = Index = index;
 
-	Regs.STATX = 0;
-	Regs.ATTR = 0;
-	ExtVol = V_VolumeLR::Max;
-	InpVol = V_VolumeLR::Max;
-	FxVol = V_VolumeLR(0);
-
-	MasterVol = V_VolumeSlideLR(0, 0);
+	Regs.STATX   = 0;
+	Regs.ATTR    = 0;
+	ExtVol.Left  = 0x7FFF;
+	ExtVol.Right = 0x7FFF;
+	InpVol.Left  = 0x7FFF;
+	InpVol.Right = 0x7FFF;
+	FxVol.Left   = 0;
+	FxVol.Right  = 0;
+	MasterVol    = V_VolumeSlideLR(0, 0);
 
 	memset(&DryGate, -1, sizeof(DryGate));
 	memset(&WetGate, -1, sizeof(WetGate));
@@ -214,13 +216,13 @@ void V_Voice::Stop()
 	ADSR.Phase = V_ADSR::PHASE_STOPPED;
 }
 
-uint TickInterval = 768;
-static const int SanityInterval = 4800;
+#define TICKINTERVAL 768
+#define SANITYINTERVAL 4800
+/* TICKINTERVAL * SANITYINTERVAL = 3686400 */
+#define SAMPLECOUNT 3686400 
 
-__forceinline bool StartQueuedVoice(uint coreidx, uint voiceidx)
+__forceinline bool StartQueuedVoice(uint coreidx, V_Voice& vc, uint voiceidx)
 {
-	V_Voice& vc(Cores[coreidx].Voices[voiceidx]);
-
 	if ((Cycles - vc.PlayCycle) < 2)
 		return false;
 
@@ -264,16 +266,14 @@ __forceinline void TimeUpdate(u32 cClocks)
 	//  timings from PCSX2), just mix out a little bit, skip the rest, and hope the ship
 	//  "rights" itself later on.
 
-	if (dClocks > static_cast<u32>(TickInterval * SanityInterval))
+	if (dClocks > SAMPLECOUNT)
 	{
-		dClocks = TickInterval * SanityInterval;
+		dClocks = SAMPLECOUNT;
 		lClocks = cClocks - dClocks;
 	}
 
-	TickInterval = 768; // Reset to default, in case the user hotswitched from async to something else.
-
 	//Update Mixing Progress
-	while (dClocks >= TickInterval)
+	while (dClocks >= TICKINTERVAL)
 	{
 		for (int i = 0; i < 2; i++)
 		{
@@ -288,16 +288,25 @@ __forceinline void TimeUpdate(u32 cClocks)
 			}
 		}
 
-		dClocks -= TickInterval;
-		lClocks += TickInterval;
+		dClocks -= TICKINTERVAL;
+		lClocks += TICKINTERVAL;
 		Cycles++;
 
 		// Start Queued Voices, they start after 2T (Tested on real HW)
 		for(int c = 0; c < 2; c++)
+		{
 			for (int v = 0; v < 24; v++)
+			{
 				if(Cores[c].KeyOn & (1 << v))
-					if(StartQueuedVoice(c, v))
+				{
+					V_Voice& vc(Cores[c].Voices[v]);
+					if(StartQueuedVoice(c, vc, v))
+					{
 						Cores[c].KeyOn &= ~(1 << v);
+					}
+				}
+			}
+		}
 		Mix();
 	}
 
@@ -800,6 +809,45 @@ static __forceinline void SetHiWord(u32& src, u16 value)
 static __forceinline void SetLoWord(u32& src, u16 value)
 {
 	((u16*)&src)[0] = value;
+}
+
+static void StartVoices(int core, u32 value)
+{
+	// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
+	// this loop if value is zero.
+	if (value == 0)
+		return;
+
+	Cores[core].KeyOn |= value;
+	Cores[core].Regs.ENDX &= ~value;
+
+	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
+	{
+		if (!((value >> vc) & 1))
+			continue;
+
+		if ((Cycles - Cores[core].Voices[vc].PlayCycle) < 2)
+			continue;
+
+		Cores[core].Voices[vc].Start();
+	}
+}
+
+static void StopVoices(int core, u32 value)
+{
+	if (value == 0)
+		return;
+
+	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
+	{
+		if (!((value >> vc) & 1))
+			continue;
+
+		if (Cycles - Cores[core].Voices[vc].PlayCycle < 2)
+			continue;
+
+		Cores[core].Voices[vc].ADSR.Release();
+	}
 }
 
 template <int CoreIdx, int VoiceIdx, int param>
@@ -1503,44 +1551,4 @@ static RegWriteHandler* const tbl_reg_writes[0x401] =
 void SPU2_FastWrite(u32 rmem, u16 value)
 {
 	tbl_reg_writes[(rmem & 0x7ff) / 2](value);
-}
-
-
-void StartVoices(int core, u32 value)
-{
-	// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
-	// this loop if value is zero.
-	if (value == 0)
-		return;
-
-	Cores[core].KeyOn |= value;
-	Cores[core].Regs.ENDX &= ~value;
-
-	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
-	{
-		if (!((value >> vc) & 1))
-			continue;
-
-		if ((Cycles - Cores[core].Voices[vc].PlayCycle) < 2)
-			continue;
-
-		Cores[core].Voices[vc].Start();
-	}
-}
-
-void StopVoices(int core, u32 value)
-{
-	if (value == 0)
-		return;
-
-	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
-	{
-		if (!((value >> vc) & 1))
-			continue;
-
-		if (Cycles - Cores[core].Voices[vc].PlayCycle < 2)
-			continue;
-
-		Cores[core].Voices[vc].ADSR.Release();
-	}
 }

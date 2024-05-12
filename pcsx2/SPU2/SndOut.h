@@ -39,7 +39,6 @@ extern void ProcessDplSample32(const StereoOut16& src, Stereo51Out32Dpl* s);
 
 struct StereoOut32
 {
-	static const StereoOut32 Empty;
 	s32 Left;
 	s32 Right;
 };

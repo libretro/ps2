@@ -407,8 +407,6 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint v
 	return voiceOut;
 }
 
-const VoiceMixSet VoiceMixSet::Empty((StereoOut32()), (StereoOut32())); // Don't use SteroOut32::Empty because C++ doesn't make any dep/order checks on global initializers.
-
 static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 {
 	V_Core& thiscore(Cores[coreidx]);
@@ -429,12 +427,14 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, const StereoOut32& Ext)
 {
 	StereoOut32 TD;
+	VoiceMixSet Voices;
 	MasterVol.Update();
 	UpdateNoise(*this);
 
 
 	// Saturate final result to standard 16 bit range.
-	const VoiceMixSet Voices(clamp_mix(inVoices.Dry), clamp_mix(inVoices.Wet));
+	Voices.Dry = clamp_mix(inVoices.Dry);
+	Voices.Wet = clamp_mix(inVoices.Wet);
 
 	// Write Mixed results To Output Area
 	spu2M_WriteFast(((0 == Index) ? 0x1000 : 0x1800) + OutPos, Voices.Dry.Left);
@@ -538,7 +538,15 @@ __forceinline
 	InputData[1] = tmp1;
 
 	// Todo: Replace me with memzero initializer!
-	VoiceMixSet VoiceData[2] = {VoiceMixSet::Empty, VoiceMixSet::Empty}; // mixed voice data for each core.
+	VoiceMixSet VoiceData[2]; // mixed voice data for each core.
+	VoiceData[0].Dry.Left    = 0;
+	VoiceData[0].Dry.Right   = 0;
+	VoiceData[0].Wet.Left    = 0;
+	VoiceData[0].Wet.Right   = 0;
+	VoiceData[1].Dry.Left    = 0;
+	VoiceData[1].Dry.Right   = 0;
+	VoiceData[1].Wet.Left    = 0;
+	VoiceData[1].Wet.Right   = 0;
 	MixCoreVoices(VoiceData[0], 0);
 	MixCoreVoices(VoiceData[1], 1);
 

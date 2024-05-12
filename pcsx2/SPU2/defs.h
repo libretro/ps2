@@ -40,11 +40,6 @@ extern s16 spu2M_Read(u32 addr);
 extern void spu2M_Write(u32 addr, s16 value);
 extern void spu2M_Write(u32 addr, u16 value);
 
-static __forceinline s16 SignExtend16(u16 v)
-{
-	return (s16)v;
-}
-
 static __forceinline s32 clamp_mix(s32 x)
 {
 	return std::clamp(x, -0x8000, 0x7fff);
@@ -60,17 +55,8 @@ static __forceinline StereoOut32 clamp_mix(StereoOut32 sample)
 
 struct V_VolumeLR
 {
-	static V_VolumeLR Max;
-
 	s32 Left;
 	s32 Right;
-
-	V_VolumeLR() = default;
-	V_VolumeLR(s32 both)
-		: Left(both)
-		, Right(both)
-	{
-	}
 };
 
 struct V_VolumeSlide
@@ -344,15 +330,7 @@ struct V_CoreGates
 
 struct VoiceMixSet
 {
-	static const VoiceMixSet Empty;
 	StereoOut32 Dry, Wet;
-
-	VoiceMixSet() {}
-	VoiceMixSet(const StereoOut32& dry, const StereoOut32& wet)
-		: Dry(dry)
-		, Wet(wet)
-	{
-	}
 };
 
 struct V_Core
@@ -430,11 +408,6 @@ struct V_Core
 	u16 psxSoundDataTransferControl;
 	u16 psxSPUSTAT;
 
-	// HACK -- This is a temp buffer which is (or isn't?) used to circumvent some memory
-	// corruption that originates elsewhere. >_<  The actual ADMA buffer
-	// is an area mapped to SPU2 main memory.
-	//s16				ADMATempBuffer[0x1000];
-
 	// ----------------------------------------------------------------------------------
 	//  V_Core Methods
 	// ----------------------------------------------------------------------------------
@@ -445,7 +418,6 @@ struct V_Core
 		, DMAPtr(nullptr)
 	{
 	}
-	V_Core(int idx) : Index(idx) {};
 
 	void Init(int index);
 	void UpdateEffectsBufferSize();
@@ -522,10 +494,6 @@ extern int PlayMode;
 
 extern void SetIrqCall(int core);
 extern void SetIrqCallDMA(int core);
-extern void StartVoices(int core, u32 value);
-extern void StopVoices(int core, u32 value);
-extern void CalculateADSR(V_Voice& vc);
-extern void UpdateSpdifMode();
 
 namespace SPU2Savestate
 {
