@@ -145,7 +145,24 @@ void GSState::Reset(bool hardware_reset)
 	memset(&m_path, 0, sizeof(m_path));
 	memset(&m_v, 0, sizeof(m_v));
 
-	m_env.Reset();
+	memset(&m_env.PRIM, 0, sizeof(m_env.PRIM));
+	memset(&m_env.PRMODE, 0, sizeof(m_env.PRMODE));
+	memset(&m_env.PRMODECONT, 0, sizeof(m_env.PRMODECONT));
+	memset(&m_env.TEXCLUT, 0, sizeof(m_env.TEXCLUT));
+	memset(&m_env.SCANMSK, 0, sizeof(m_env.SCANMSK));
+	memset(&m_env.TEXA, 0, sizeof(m_env.TEXA));
+	memset(&m_env.FOGCOL, 0, sizeof(m_env.FOGCOL));
+	memset(&m_env.DIMX, 0, sizeof(m_env.DIMX));
+	memset(&m_env.DTHE, 0, sizeof(m_env.DTHE));
+	memset(&m_env.COLCLAMP, 0, sizeof(m_env.COLCLAMP));
+	memset(&m_env.PABE, 0, sizeof(m_env.PABE));
+	memset(&m_env.BITBLTBUF, 0, sizeof(m_env.BITBLTBUF));
+	memset(&m_env.TRXDIR, 0, sizeof(m_env.TRXDIR));
+	memset(&m_env.TRXPOS, 0, sizeof(m_env.TRXPOS));
+	memset(&m_env.TRXREG, 0, sizeof(m_env.TRXREG));
+
+	m_env.CTXT[0].Reset();
+	m_env.CTXT[1].Reset();
 
 	PRIM = &m_env.PRIM;
 
