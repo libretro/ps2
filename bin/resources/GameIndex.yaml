@@ -20157,7 +20157,7 @@ SLES-53523:
     mipmap: 2 # Mipmap + trilinear, improves ground textures and water textures and reflections.
     trilinearFiltering: 1
     textureInsideRT: 1 # Fixes rainbow artifacting around edges of screen.
-    halfPixelOffset: 2 # Fixes misalgined bloom.
+    halfPixelOffset: 4 # Fixes misaligned bloom and character shadows.
     autoFlush: 2 # Fixes missing bloom intensity and alignment.
 SLES-53524:
   name: "Mortal Kombat - Shaolin Monks"
@@ -20677,7 +20677,7 @@ SLES-53647:
     mipmap: 2 # Mipmap + trilinear, improves ground textures and water textures and reflections.
     trilinearFiltering: 1
     textureInsideRT: 1 # Fixes rainbow artifacting around edges of screen.
-    halfPixelOffset: 2 # Fixes misalgined bloom.
+    halfPixelOffset: 4 # Fixes misaligned bloom and character shadows.
     autoFlush: 2 # Fixes missing bloom intensity and alignment.
 SLES-53651:
   name: "WWII - Soldier"
@@ -23255,7 +23255,7 @@ SLES-54616:
   name: "Fantastic Four - Rise of the Silver Surfer"
   region: "PAL-M5"
   gsHWFixes:
-    roundSprite: 2 # Fixes edge depth bleeding during power attacks and misalgined bloom.
+    roundSprite: 2 # Fixes edge depth bleeding during power attacks and misaligned bloom.
 SLES-54617:
   name: "Action Man A.T.O.M. - Alpha Teens on Machines"
   region: "PAL-M9"
@@ -23724,7 +23724,7 @@ SLES-54776:
   name: "Fantastic Four - Rise of the Silver Surfer"
   region: "PAL-E-I"
   gsHWFixes:
-    roundSprite: 2 # Fixes edge depth bleeding during power attacks and misalgined bloom.
+    roundSprite: 2 # Fixes edge depth bleeding during power attacks and misaligned bloom.
 SLES-54778:
   name: "Harry Potter and the Order of the Phoenix"
   region: "PAL-E"
@@ -51214,7 +51214,7 @@ SLUS-21139:
     mipmap: 2 # Mipmap + trilinear, improves ground textures and water textures and reflections.
     trilinearFiltering: 1
     textureInsideRT: 1 # Fixes rainbow artifacting around edges of screen.
-    halfPixelOffset: 2 # Fixes misalgined bloom.
+    halfPixelOffset: 4 # Fixes misaligned bloom and character shadows.
     autoFlush: 2 # Fixes missing bloom intensity and alignment.
 SLUS-21140:
   name: "Mobile Suit Gundam Seed - Never Ending Tomorrow"
@@ -53509,7 +53509,7 @@ SLUS-21544:
   region: "NTSC-U"
   compat: 5
   gsHWFixes:
-    roundSprite: 2 # Fixes edge depth bleeding during power attacks and misalgined bloom.
+    roundSprite: 2 # Fixes edge depth bleeding during power attacks and misaligned bloom.
 SLUS-21545:
   name: "Pirates of the Caribbean - At World's End"
   region: "NTSC-U"
