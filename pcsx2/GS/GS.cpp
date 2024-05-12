@@ -291,22 +291,7 @@ void GSReadLocalMemoryUnsync(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 T
 
 void GSgifTransfer(const u8* mem, u32 size)
 {
-	g_gs_renderer->Transfer<3>(mem, size);
-}
-
-void GSgifTransfer1(u8* mem, u32 addr)
-{
-	g_gs_renderer->Transfer<0>(const_cast<u8*>(mem) + addr, (0x4000 - addr) / 16);
-}
-
-void GSgifTransfer2(u8* mem, u32 size)
-{
-	g_gs_renderer->Transfer<1>(const_cast<u8*>(mem), size);
-}
-
-void GSgifTransfer3(u8* mem, u32 size)
-{
-	g_gs_renderer->Transfer<2>(const_cast<u8*>(mem), size);
+	g_gs_renderer->Transfer(mem, size);
 }
 
 void GSvsync(u32 field, bool registers_written)

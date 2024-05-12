@@ -2083,17 +2083,11 @@ void GSState::ReadbackTextureCache()
 {
 }
 
-template void GSState::Transfer<0>(const u8* mem, u32 size);
-template void GSState::Transfer<1>(const u8* mem, u32 size);
-template void GSState::Transfer<2>(const u8* mem, u32 size);
-template void GSState::Transfer<3>(const u8* mem, u32 size);
-
-template <int index>
 void GSState::Transfer(const u8* mem, u32 size)
 {
 	const u8* start = mem;
 
-	GIFPath& path = m_path[index];
+	GIFPath& path = m_path[3];
 
 	while (size > 0)
 	{
@@ -2248,24 +2242,6 @@ void GSState::Transfer(const u8* mem, u32 size)
 				default:
 					break;
 			}
-		}
-
-		if (index == 0)
-		{
-			if (path.tag.EOP && path.nloop == 0)
-				break;
-		}
-	}
-
-	if (index == 0)
-	{
-		if (size == 0 && path.nloop > 0)
-		{
-			// Hackfix for BIOS, which sends an incomplete packet when it does an XGKICK without
-			// having an EOP specified anywhere in VU1 memory.  Needed until PCSX2 is fixed to
-			// handle it more properly (ie, without looping infinitely).
-
-			path.nloop = 0;
 		}
 	}
 }
