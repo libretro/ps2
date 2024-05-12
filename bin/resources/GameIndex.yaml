@@ -1850,7 +1850,8 @@ SCAJ-20177:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SCAJ-20178:
@@ -1955,7 +1956,8 @@ SCAJ-20197:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SCAJ-20198:
@@ -6582,7 +6584,8 @@ SCKA-20079:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SCKA-20081:
@@ -23337,7 +23340,8 @@ SLES-54644:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLES-54645:
@@ -23346,7 +23350,8 @@ SLES-54645:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLES-54646:
@@ -23356,7 +23361,8 @@ SLES-54646:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLES-54647:
@@ -23366,7 +23372,8 @@ SLES-54647:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLES-54648:
@@ -23375,7 +23382,8 @@ SLES-54648:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLES-54653:
@@ -23394,6 +23402,9 @@ SLES-54658:
   name: "Star Wars - The Force Unleashed"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 2 # Fixes player shadow definition and color banding.
+    autoFlush: 1 # Fixes player shadow.
   patches:
     87109051:
       content: |-
@@ -23406,6 +23417,9 @@ SLES-54659:
   name: "Star Wars - The Force Unleashed"
   region: "PAL-M4"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 2 # Fixes player shadow definition and color banding.
+    autoFlush: 1 # Fixes player shadow.
   patches:
     DAF2145C:
       content: |-
@@ -36974,7 +36988,8 @@ SLPM-66419:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLPM-66420:
@@ -38488,7 +38503,8 @@ SLPM-66782:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLPM-66783:
@@ -44729,6 +44745,9 @@ SLPS-25888:
   name: "Star Wars - The Force Unleashed"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 2 # Fixes player shadow definition and color banding.
+    autoFlush: 1 # Fixes player shadow.
   patches:
     CC9BFDE3:
       content: |-
@@ -53181,7 +53200,8 @@ SLUS-21452:
   gameFixes:
     - VuAddSubHack
   gsHWFixes:
-    halfPixelOffset: 4 # Reduces bloom misalignment.
+    halfPixelOffset: 2 # Reduces bloom misalignment.
+    roundSprite: 1 # Fixes area transition vertical lines and lessens red forest vertical lines.
     textureInsideRT: 1 # Required for swirl battle transition.
     nativePaletteDraw: 1
 SLUS-21453:
@@ -53881,6 +53901,9 @@ SLUS-21614:
   name: "Star Wars - The Force Unleashed"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 2 # Fixes player shadow definition and color banding.
+    autoFlush: 1 # Fixes player shadow.
   patches:
     879CDA5E:
       content: |-
