@@ -3924,7 +3924,6 @@ void GSState::GSTransferBuffer::Init(int tx, int ty, const GIFRegBITBLTBUF& blit
 bool GSState::GSTransferBuffer::Update(int tw, int th, int bpp, int& len)
 {
 	int tex_size = (((tw * th * bpp) + 7) >> 3); // Round to nearest byte
-	int packet_size = (tex_size + 15) & ~0xF; // Round up to the nearest quadword
 
 	if (total == 0)
 		total = std::min<int>(tex_size, 1024 * 1024 * 4);
