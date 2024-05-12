@@ -161,10 +161,15 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	Console.WriteLn("Reopening GS with %s device and %s renderer", recreate_device ? "new" : "existing",
 		recreate_renderer ? "new" : "existing");
 
-	if (recreate_renderer)
-		g_gs_renderer->Flush(GSState::GSFlushReason::GSREOPEN);
+	g_gs_renderer->Flush(GSState::GSFlushReason::GSREOPEN);
 
-	if (GSConfig.UserHacks_ReadTCOnClose)
+	if (recreate_device && !recreate_renderer)
+	{
+		// Keeping the renderer around, make sure nothing is left over.
+		g_gs_renderer->PurgeTextureCache(true, true, true);
+		g_gs_renderer->PurgePool();
+	}
+	else if (GSConfig.UserHacks_ReadTCOnClose)
 		g_gs_renderer->ReadbackTextureCache();
 
 	u8* basemem = g_gs_renderer->GetRegsMem();
@@ -174,26 +179,14 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	if (recreate_renderer)
 	{
 		if (g_gs_renderer->Freeze(&fd, true) != 0)
-		{
-			Console.Error("(GSreopen) Failed to get GS freeze size");
 			return false;
-		}
 
 		fd_data = std::make_unique<u8[]>(fd.size);
 		fd.data = fd_data.get();
 		if (g_gs_renderer->Freeze(&fd, false) != 0)
-		{
-			Console.Error("(GSreopen) Failed to freeze GS");
 			return false;
-		}
 
 		CloseGSRenderer();
-	}
-	else
-	{
-		// Make sure nothing is left over.
-		g_gs_renderer->PurgeTextureCache(true, true, true);
-		g_gs_renderer->PurgePool();
 	}
 
 	if (recreate_device)
@@ -202,32 +195,28 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 		const bool recreate_window = (g_gs_device->GetRenderAPI() != GetAPIForRenderer(GSConfig.Renderer));
 		CloseGSDevice(false);
 
-		if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window) ||
-			(recreate_renderer && !OpenGSRenderer(GSConfig.Renderer, basemem)))
+		if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window))
 		{
 			Console.Warning("Failed to reopen, restoring old configuration.");
 			CloseGSDevice(false);
 
 			GSConfig = old_config;
-			if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window) ||
-				(recreate_renderer && !OpenGSRenderer(GSConfig.Renderer, basemem)))
+			if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window))
 			{
 				Console.Error("Failed to reopen GS on old config");
 				return false;
 			}
 		}
 	}
-	else if (recreate_renderer)
+
+	if (recreate_renderer)
 	{
 		if (!OpenGSRenderer(GSConfig.Renderer, basemem))
 		{
 			Console.Error("(GSreopen) Failed to create new renderer");
 			return false;
 		}
-	}
 
-	if (recreate_renderer)
-	{
 		if (g_gs_renderer->Defrost(&fd) != 0)
 		{
 			Console.Error("(GSreopen) Failed to defrost");
