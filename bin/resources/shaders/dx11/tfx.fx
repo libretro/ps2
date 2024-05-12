@@ -486,7 +486,7 @@ float4 sample_depth(float2 st, float2 pos)
 	}
 	else if (PS_AEM_FMT == FMT_16)
 	{
-		t.a = t.a >= 128.0f ? 255.0f * TA.y : ((PS_AEM == 0) || any(bool3(t.rgb))) ? 255.0f * TA.x : 0.0f;
+		c[i].a = c[i].a >= 0.5 ? TA.y : !PS_AEM || any(int3(c[i].rgb * 255.0f) & 0xF8) ? TA.x : 0;
 	}
 
 	return t;
