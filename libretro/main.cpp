@@ -501,7 +501,7 @@ void retro_get_system_info(retro_system_info* info)
 {
 	info->library_version  = "1";
 	info->library_name     = "LRPS2";
-	info->valid_extensions = "elf|iso|ciso|cue|bin|gz|chd|cso";
+	info->valid_extensions = "elf|iso|ciso|cue|bin|gz|chd|cso|zso";
 	info->need_fullpath    = true;
 	info->block_extract    = true;
 }

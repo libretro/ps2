@@ -76,6 +76,7 @@ add_library(fast_float INTERFACE)
 target_include_directories(fast_float INTERFACE 3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include)
 
 add_subdirectory(3rdparty/cpuinfo EXCLUDE_FROM_ALL)
+add_subdirectory(3rdparty/lz4 EXCLUDE_FROM_ALL)
 
 if(USE_OPENGL)
 	add_subdirectory(3rdparty/glad EXCLUDE_FROM_ALL)

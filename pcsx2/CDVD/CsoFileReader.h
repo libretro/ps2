@@ -77,6 +77,7 @@ private:
 	u32 m_frameSize;
 	u8 m_frameShift;
 	u8 m_indexShift;
+	bool m_uselz4 = false; // flag to enable LZ4 decompression (ZSO files)
 	u8* m_readBuffer;
 	u32* m_index;
 	u64 m_totalSize;

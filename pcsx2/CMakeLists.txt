@@ -894,6 +894,7 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	libzip::zip
 	cpuinfo
 	ZLIB::ZLIB
+	LZ4::LZ4
 	PNG::PNG
 	LibLZMA::LibLZMA
 	Zstd::Zstd
