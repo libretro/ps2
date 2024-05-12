@@ -789,7 +789,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						vf = v.xxzzlh().srl16<12>();
 					}
 
-					VectorI uv0 = u.sra32(16).ps32(v.sra32(16));
+					VectorI uv0 = u.sra32<16>().ps32(v.sra32<16>());
 					VectorI uv1 = uv0;
 
 					{
@@ -895,8 +895,8 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 
 						lodi += VectorI::x00000001();
 
-						u = uv[0].sra32(1);
-						v = uv[1].sra32(1);
+						u = uv[0].sra32<1>();
+						v = uv[1].sra32<1>();
 
 						minuv = minuv.srl16<1>();
 						maxuv = maxuv.srl16<1>();
@@ -910,7 +910,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 							vf = v.xxzzlh().srl16<12>();
 						}
 
-						VectorI uv0 = u.sra32(16).ps32(v.sra32(16));
+						VectorI uv0 = u.sra32<16>().ps32(v.sra32<16>());
 						VectorI uv1 = uv0;
 
 						{
@@ -1048,7 +1048,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 						}
 					}
 
-					VectorI uv0 = u.sra32(16).ps32(v.sra32(16));
+					VectorI uv0 = u.sra32<16>().ps32(v.sra32<16>());
 					VectorI uv1 = uv0;
 
 					VectorI tmin = VectorI::broadcast128(global.t.min);
@@ -1298,7 +1298,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 					}
 					else
 					{
-						test |= fd.sra32(31);
+						test |= fd.sra32<31>();
 					}
 				}
 
@@ -1474,7 +1474,7 @@ __ri void GSDrawScanline::CDrawScanline(int pixels, int left, int top, const GSV
 
 				if (sel.pabe)
 				{
-					mask = (gas << 8).sra32(31);
+					mask = (gas << 8).sra32<31>();
 
 					rb = rbs.blend8(rb, mask);
 				}

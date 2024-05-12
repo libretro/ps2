@@ -342,7 +342,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(bool& write_ba, bool& read_ba, GS
 		// for some reason... unhandled clears, maybe, it won't have been halved correctly.
 		// So, halve it ourselves.
 		const GSVector4i dr = m_r;
-		const GSVector4i r = dr.blend32<9>(dr.sra32(1));
+		const GSVector4i r = dr.blend32<9>(dr.sra32<1>());
 
 		const GSVector4i fpr = r.sll32<4>();
 		v[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + fpr.x);

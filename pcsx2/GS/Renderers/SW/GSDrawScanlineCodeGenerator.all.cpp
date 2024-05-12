@@ -1216,7 +1216,7 @@ void GSDrawScanlineCodeGenerator2::SampleTexture()
 		}
 	}
 
-	// GSVector4i uv0 = u.sra32(16).ps32(v.sra32(16));
+	// GSVector4i uv0 = u.sra32<16>().ps32(v.sra32<16>());
 
 	psrad(xym2, 16);
 	psrad(xym3, 16);
@@ -1818,7 +1818,7 @@ void GSDrawScanlineCodeGenerator2::SampleTextureLOD()
 			movdqa(_rip_local(temp.vf), vf);
 	}
 
-	// GSVector4i uv0 = u.sra32(16).ps32(v.sra32(16));
+	// GSVector4i uv0 = u.sra32<16>().ps32(v.sra32<16>());
 
 	psrad(xym2, 16);
 	psrad(xym3, 16);
@@ -1900,7 +1900,7 @@ void GSDrawScanlineCodeGenerator2::SampleTextureLOD()
 				movdqa(_rip_local(temp.vf), vf);
 		}
 
-		// GSVector4i uv0 = u.sra32(16).ps32(v.sra32(16));
+		// GSVector4i uv0 = u.sra32<16>().ps32(v.sra32<16>());
 
 		psrad(xym2, 16);
 		psrad(xym3, 16);
@@ -2427,7 +2427,7 @@ void GSDrawScanlineCodeGenerator2::TestDestAlpha()
 		return;
 	}
 
-	// test |= ((fd [<< 16]) ^ m_local.gd->datm).sra32(31);
+	// test |= ((fd [<< 16]) ^ m_local.gd->datm).sra32<31>();
 
 	if (m_sel.datm)
 	{
@@ -2710,7 +2710,7 @@ void GSDrawScanlineCodeGenerator2::AlphaBlend()
 
 	if (m_sel.pabe)
 	{
-		// mask = (c[1] << 8).sra32(31);
+		// mask = (c[1] << 8).sra32<31>();
 
 		THREEARG(pslld, xym0, _ga, 8);
 		psrad(xym0, 31);
