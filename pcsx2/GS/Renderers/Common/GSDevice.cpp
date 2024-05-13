@@ -59,11 +59,6 @@ const char* shaderName(ShaderConvert value)
 	return "ShaderConvertUnknownShader";
 }
 
-static int MipmapLevelsForSize(int width, int height)
-{
-	return std::min(static_cast<int>(std::log2(std::max(width, height))) + 1, MAXIMUM_TEXTURE_MIPMAP_LEVELS);
-}
-
 std::unique_ptr<GSDevice> g_gs_device;
 
 GSDevice::GSDevice() = default;
@@ -87,6 +82,11 @@ void GSDevice::GenerateExpansionIndexBuffer(void* buffer)
 		*(idx_buffer++) = base + 2;
 		*(idx_buffer++) = base + 3;
 	}
+}
+
+int GSDevice::GetMipmapLevelsForSize(int width, int height)
+{
+	return std::min(static_cast<int>(std::log2(std::max(width, height))) + 1, MAXIMUM_TEXTURE_MIPMAP_LEVELS);
 }
 
 bool GSDevice::Create()
@@ -277,7 +277,7 @@ GSTexture* GSDevice::CreateDepthStencil(int w, int h, GSTexture::Format format, 
 
 GSTexture* GSDevice::CreateTexture(int w, int h, int mipmap_levels, GSTexture::Format format, bool prefer_reuse /* = false */)
 {
-	const int levels = mipmap_levels < 0 ? MipmapLevelsForSize(w, h) : mipmap_levels;
+	const int levels = mipmap_levels < 0 ? GetMipmapLevelsForSize(w, h) : mipmap_levels;
 	return FetchSurface(GSTexture::Type::Texture, w, h, levels, format, false, prefer_reuse);
 }
 

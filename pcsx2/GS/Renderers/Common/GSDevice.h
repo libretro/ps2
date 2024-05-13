@@ -738,6 +738,9 @@ public:
 	/// Generates a fixed index buffer for expanding points and sprites. Buffer is assumed to be at least EXPAND_BUFFER_SIZE in size.
 	static void GenerateExpansionIndexBuffer(void* buffer);
 
+	/// Returns the maximum number of mipmap levels for a given texture size.
+	static int GetMipmapLevelsForSize(int width, int height);
+
 	__fi FeatureSupport Features() const { return m_features; }
 
 	__fi s32 GetWindowWidth() const { return static_cast<s32>(m_window_info.surface_width); }
