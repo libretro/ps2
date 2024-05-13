@@ -4952,6 +4952,8 @@ SCES-52529:
 SCES-52530:
   name: "Crisis Zone"
   region: "PAL-M5"
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Grassmarket district boss model.
 SCES-52564:
   name: "SingStar"
   region: "PAL-F"
@@ -6352,6 +6354,8 @@ SCKA-20037:
 SCKA-20038:
   name: "Time Crisis - Crisis Zone"
   region: "NTSC-K"
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Grassmarket district boss model.
 SCKA-20039:
   name: "Tekken Nina Williams In Death By Degree"
   region: "NTSC-K"
@@ -13388,10 +13392,12 @@ SLES-50731:
   name: "Need for Speed - Hot Pursuit 2"
   region: "PAL-M6"
   compat: 5
+  speedHacks:
+    eeCycleRate: 3 # Fixes intro audio desync.
   clampModes:
     vuClampMode: 2 # White textures.
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Fixes depth line and blur.
 SLES-50735:
   name: "Jade Cocoon 2"
   region: "PAL-E"
@@ -18571,6 +18577,7 @@ SLES-52877:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
     roundSprite: 1 # Further reduces blurriness.
+    bilinearUpscale: 1 # Smooths out fire textures.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLES-52882:
   name: "Stolen"
@@ -20610,6 +20617,8 @@ SLES-53561:
   gsHWFixes:
     halfPixelOffset: 4 # Reduces ghosting.
     roundSprite: 2 # Reduces ghosting.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-53563:
   name: "Nickelodeon SpongeBob SquarePants and Friends Unite!"
   region: "PAL-M6"
@@ -35295,6 +35304,7 @@ SLPM-65913:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
     roundSprite: 1 # Further reduces blurriness.
+    bilinearUpscale: 1 # Smooths out fire textures.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLPM-65914:
   name: "Nana"
@@ -38239,6 +38249,7 @@ SLPM-66638:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
     roundSprite: 1 # Further reduces blurriness.
+    bilinearUpscale: 1 # Smooths out fire textures.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLPM-66639:
   name: "Street Fighter III - 3rd Strike [Capcom the Best]"
@@ -39783,10 +39794,12 @@ SLPM-67527:
   name: "Need for Speed - Hot Pursuit 2"
   region: "NTSC-K"
   compat: 5
+  speedHacks:
+    eeCycleRate: 3 # Fixes intro audio desync.
   clampModes:
     vuClampMode: 2 # White textures.
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Fixes depth line and blur.
 SLPM-67528:
   name: "Hajime no Ippo - Victorious Boxers [Championship Edition]"
   region: "NTSC-K"
@@ -45080,6 +45093,8 @@ SLPS-25879:
   gsHWFixes:
     halfPixelOffset: 4 # Reduces ghosting.
     roundSprite: 2 # Reduces ghosting.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLPS-25880:
   name: "True Fortune"
   region: "NTSC-J"
@@ -45280,8 +45295,20 @@ SLPS-25950:
   clampModes:
     eeClampMode: 3 # Fixes the inability to take the bottle in the trophy case in Chapter 2: Hattrick vs Galloway.
   gsHWFixes:
-    wildArmsHack: 1 # Reduces depth ghosting.
-    roundSprite: 2 # Reduces depth ghosting.
+    recommendedBlendingLevel: 2 # Fixes door transitions.
+    halfPixelOffset: 4 # Reduces ghosting.
+    roundSprite: 2 # Reduces ghosting.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
+SLPS-25953:
+  name: "Daisenryaku VII - Exceed"
+  region: "NTSC-J"
+SLPS-25954:
+  name: "A Taiheiyou no Arashi - Senkan Yamatokatsuki ni Shutsugeki su!"
+  region: "NTSC-J"
+SLPS-25955:
+  name: "Moe Moe 2-Ji Taisen (Ryaku) 2"
+  region: "NTSC-J"
 SLPS-25956:
   name: "Moe Moe 2-ji Taisen Ryoku 2"
   region: "NTSC-J"
@@ -47541,10 +47568,12 @@ SLUS-20362:
   name: "Need for Speed - Hot Pursuit 2"
   region: "NTSC-U"
   compat: 5
+  speedHacks:
+    eeCycleRate: 3 # Fixes intro audio desync.
   clampModes:
     vuClampMode: 2 # White textures.
   gsHWFixes:
-    halfPixelOffset: 1 # Fixes blurriness.
+    halfPixelOffset: 2 # Fixes depth line and blur.
 SLUS-20363:
   name: "Sled Storm"
   region: "NTSC-U"
@@ -50476,6 +50505,8 @@ SLUS-20927:
   name: "Time Crisis - Crisis Zone"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Grassmarket district boss model.
 SLUS-20928:
   name: "Echo Night - Beyond"
   region: "NTSC-U"
@@ -51333,6 +51364,7 @@ SLUS-21075:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces blurriness. Normal Vertex works better, but causes some lights to disappear.
     roundSprite: 1 # Further reduces blurriness.
+    bilinearUpscale: 1 # Smooths out fire textures.
     beforeDraw: "OI_HauntingGround" # Fix bloom.
 SLUS-21076:
   name: "Atari Anthology"
@@ -52459,6 +52491,8 @@ SLUS-21269:
   gsHWFixes:
     halfPixelOffset: 4 # Reduces ghosting.
     roundSprite: 2 # Reduces ghosting.
+    mipmap: 2 # Mipmap + trilinear, improves building textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-21270:
   name: "MS Saga - A New Dawn"
   region: "NTSC-U"
@@ -55455,6 +55489,8 @@ SLUS-21834:
   name: "Goosebumps Horrorland - Happy Halloween"
   region: "NTSC-U"
   compat: 5
+  clampModes:
+    vuClampMode: 3 # Needs both vu0 and vu1 extra+sign clamping to fix crash on flume ride.
 SLUS-21835:
   name: "History Channel - Civil War Secret Mission"
   region: "NTSC-U"
