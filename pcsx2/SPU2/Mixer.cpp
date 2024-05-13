@@ -351,6 +351,57 @@ static __forceinline void spu2M_WriteFast(u32 addr, s16 value)
 	*GetMemPtr(addr) = value;
 }
 
+static void V_VolumeSlide_Update(V_VolumeSlide &vs)
+{
+	if (!vs.Enable)
+		return;
+
+	s32 step_size = 7 - vs.Step;
+
+	if (vs.Decr)
+		step_size = ~step_size;
+
+	u32 counter_inc = 0x8000 >> std::max(0, vs.Shift - 11);
+	s32 level_inc = step_size << std::max(0, 11 - vs.Shift);
+
+	if (vs.Exp)
+	{
+		if (vs.Decr)
+			level_inc = (s16)((level_inc * vs.Value) >> 15);
+		else if (vs.Value > 0x6000)
+			counter_inc >>= 2;
+	}
+
+	// Allow counter_inc to be zero only in when all bits
+	// of the rate field are set
+	if (vs.Step != 3 && vs.Shift != 0x1f)
+		counter_inc = std::max<u32>(1, counter_inc);
+	vs.Counter += counter_inc;
+
+	// If negative phase "increase" to -0x8000 or "decrease" towards 0
+	// Unless in Exp + Decr modes
+	if (!(vs.Exp && vs.Decr) && vs.Phase)
+		level_inc = -level_inc;
+
+	if (vs.Counter >= 0x8000)
+	{
+		vs.Counter = 0;
+
+		if (!vs.Decr)
+			vs.Value = std::clamp<s32>(vs.Value + level_inc, INT16_MIN, INT16_MAX);
+		else
+		{
+			s32 low  = vs.Phase ? INT16_MIN : 0;
+			s32 high = vs.Phase ? 0 : INT16_MAX;
+			if (vs.Exp)
+			{
+				low  = 0;
+				high = INT16_MAX;
+			}
+			vs.Value = std::clamp<s32>(vs.Value + level_inc, low, high);
+		}
+	}
+}
 
 static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint voiceidx)
 {
@@ -362,9 +413,9 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint v
 	// Most games don't use much volume slide effects.  So only call the UpdateVolume
 	// methods when needed by checking the flag outside the method here...
 	// (Note: Ys 6 : Ark of Nephistm uses these effects)
-
-	vc.Volume.Left.Update();
-	vc.Volume.Right.Update();
+	
+	V_VolumeSlide_Update(vc.Volume.Left);
+	V_VolumeSlide_Update(vc.Volume.Right);
 
 	// SPU2 Note: The spu2 continues to process voices for eternity, always, so we
 	// have to run through all the motions of updating the voice regardless of it's
@@ -429,8 +480,8 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 {
 	StereoOut32 TD;
 	VoiceMixSet Voices;
-	MasterVol.Left.Update();
-	MasterVol.Right.Update();
+	V_VolumeSlide_Update(MasterVol.Left);
+	V_VolumeSlide_Update(MasterVol.Right);
 	UpdateNoise(*this);
 
 
@@ -501,8 +552,8 @@ static StereoOut32 DCFilter(StereoOut32 input) {
 	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
 	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
 	StereoOut32 output;
-	output.Left = (input.Left - DCFilterIn.Left + clamp_mix((0x7f5c * DCFilterOut.Left) >> 15));
-	output.Right = (input.Right - DCFilterIn.Right + clamp_mix((0x7f5c * DCFilterOut.Right) >> 15));
+	output.Left  = (input.Left - DCFilterIn.Left   + std::clamp((0x7f5c * DCFilterOut.Left) >> 15, -0x8000, 0x7fff));
+	output.Right = (input.Right - DCFilterIn.Right + std::clamp((0x7f5c * DCFilterOut.Right) >> 15, -0x8000, 0x7fff));
 
 	DCFilterIn = input;
 	DCFilterOut = output;
@@ -576,7 +627,7 @@ __forceinline
 	Out = DCFilter(Out);
 
 	// Final clamp, take care not to exceed 16 bits from here on
-	Out = clamp_mix(Out);
+	Out          = clamp_mix(Out);
 
 	OutS16.Left  = (s16)Out.Left;
 	OutS16.Right = (s16)Out.Right;

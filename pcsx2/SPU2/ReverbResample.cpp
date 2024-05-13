@@ -71,7 +71,7 @@ s32 __forceinline ReverbDownsample_reference(V_Core& core, bool right)
 
 	out >>= 15;
 
-	return clamp_mix(out);
+	return std::clamp(out, -0x8000, 0x7fff);
 }
 
 #if _M_SSE >= 0x501
@@ -143,6 +143,7 @@ s32 ReverbDownsample(V_Core& core, bool right)
 
 StereoOut32 __forceinline ReverbUpsample_reference(V_Core& core)
 {
+	StereoOut32 val;
 	int index = (core.RevbSampleBufPos - NUM_TAPS) & 63;
 	s32 l = 0, r = 0;
 
@@ -155,7 +156,9 @@ StereoOut32 __forceinline ReverbUpsample_reference(V_Core& core)
 	l >>= 15;
 	r >>= 15;
 
-	return {clamp_mix(l), clamp_mix(r)};
+	val.Left  = std::clamp(l, -0x8000, 0x7fff);
+	val.Right = std::clamp(r, -0x8000, 0x7fff);
+	return val;
 }
 
 #if _M_SSE >= 0x501

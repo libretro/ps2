@@ -40,16 +40,11 @@ extern s16 spu2M_Read(u32 addr);
 extern void spu2M_Write(u32 addr, s16 value);
 extern void spu2M_Write(u32 addr, u16 value);
 
-static __forceinline s32 clamp_mix(s32 x)
-{
-	return std::clamp(x, -0x8000, 0x7fff);
-}
-
 static __forceinline StereoOut32 clamp_mix(StereoOut32 sample)
 {
 	StereoOut32 val;
-	val.Left  = clamp_mix(sample.Left);
-	val.Right = clamp_mix(sample.Right);
+	val.Left  = std::clamp(sample.Left, -0x8000, 0x7fff);
+	val.Right = std::clamp(sample.Right, -0x8000, 0x7fff);
 	return val;
 }
 
@@ -81,9 +76,6 @@ struct V_VolumeSlide
 
 	u32 Counter;
 	s32 Value;
-
-public:
-	void Update();
 };
 
 struct V_VolumeSlideLR

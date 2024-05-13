@@ -112,13 +112,13 @@ StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 	// According to no$psx the effects always run but don't always write back, see check in V_Core::Mix
 	if (FxEnable)
 	{
-		_spu2mem[same_dst] = clamp_mix(same);
-		_spu2mem[diff_dst] = clamp_mix(diff);
-		_spu2mem[apf1_dst] = clamp_mix(apf1);
-		_spu2mem[apf2_dst] = clamp_mix(apf2);
+		_spu2mem[same_dst] = std::clamp(same, -0x8000, 0x7fff);
+		_spu2mem[diff_dst] = std::clamp(diff, -0x8000, 0x7fff);
+		_spu2mem[apf1_dst] = std::clamp(apf1, -0x8000, 0x7fff);
+		_spu2mem[apf2_dst] = std::clamp(apf2, -0x8000, 0x7fff);
 	}
 
-	out = clamp_mix(out);
+	out = std::clamp(out, -0x8000, 0x7fff);
 
 	RevbUpBuf[R][RevbSampleBufPos] = out;
 	RevbUpBuf[!R][RevbSampleBufPos] = 0;
