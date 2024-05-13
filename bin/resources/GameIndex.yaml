@@ -209,6 +209,9 @@ PAPX-90229:
 PAPX-90230:
   name: "Arc the Lad - Seirei no Tasogare - Premiere Disc"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 PAPX-90231:
   name: "Kaitou Sly Cooper [Demo, Taikenban]"
   region: "NTSC-J"
@@ -643,6 +646,9 @@ PCPX-96328:
 PCPX-96330:
   name: "Arc the Lad - Seirei no Tasogare - Premiere Disc"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 PCPX-96554:
   name: "Games of Our Style - Tokyo Game Show 2003 Disc"
   region: "NTSC-J"
@@ -997,6 +1003,9 @@ SCAJ-20018:
 SCAJ-20019:
   name: "Arc the Lad - Twilight of the Spirits"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCAJ-20020:
   name: "Drag-on Dragoon"
   region: "NTSC-C-J"
@@ -1077,6 +1086,9 @@ SCAJ-20037:
 SCAJ-20038:
   name: "Arc the Lad - Twilight of the Spirits"
   region: "NTSC-Unk"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCAJ-20039:
   name: "Sidewinder V"
   region: "NTSC-Unk"
@@ -1421,6 +1433,9 @@ SCAJ-20107:
 SCAJ-20108:
   name: "Arc the Lad - Generation"
   region: "NTSC-Unk"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCAJ-20109:
   name: "Ratchet & Clank 3 - Up your Arsenal"
   region: "NTSC-Unk"
@@ -2159,6 +2174,9 @@ SCCS-40006:
 SCCS-40007:
   name: "Arc the Lad - Seirei no Tasogare"
   region: "NTSC-C"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCCS-40009:
   name: "Dragon Ball Z 2"
   region: "NTSC-C"
@@ -6164,6 +6182,9 @@ SCKA-20011:
 SCKA-20012:
   name: "Arc the Lad - Jeongryeongui Hwanghon"
   region: "NTSC-K"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCKA-20013:
   name: "SOCOM - U.S. Navy SEALs"
   region: "NTSC-K"
@@ -6921,6 +6942,38 @@ SCKA-30006:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+SCKA-30007:
+  name: "God of War II"
+  region: "NTSC-K"
+  gsHWFixes:
+    alignSprite: 1 # Fixes water vertical lines.
+    halfPixelOffset: 2 # Fixes misaligned bloom.
+    roundSprite: 1 # Fixes chromatic effect.
+    autoFlush: 1 # Fixes sun occlusion.
+SCKA-90002:
+  name: "Jeolche Jeolmyeong Dosi"
+  region: "NTSC-K"
+SCKA-90003:
+  name: "XI5 - Aqui Ohyeongje"
+  region: "NTSC-K"
+SCKA-90004:
+  name: "Sly Cooper - Jeonseolui Bibeobseoreul Chajaseo"
+  region: "NTSC-K"
+SCKA-90009:
+  name: "R-Type Final"
+  region: "NTSC-K"
+SCKA-90010:
+  name: "SOCOM - U.S. Navy SEALs"
+  region: "NTSC-K"
+SCKA-90011:
+  name: "Arc the Lad - Jeongryeongui Hwanghon - Premiere Disc"
+  region: "NTSC-K"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
+SCKA-90016:
+  name: "Goehon - Gulryeora! Wangjanim!"
+  region: "NTSC-K"
 SCPM-85101:
   name: "McDonald's Original Happy Disc"
   region: "NTSC-J"
@@ -7302,9 +7355,15 @@ SCPS-15039:
 SCPS-15040:
   name: "Arc the Lad - Twilight of the Spirits [Limited Edition]"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCPS-15041:
   name: "Arc the Lad - Seirei no Koukon"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCPS-15042:
   name: "Deka Voice [with Microphone]"
   region: "NTSC-J"
@@ -7401,6 +7460,9 @@ SCPS-15057:
 SCPS-15058:
   name: "Arc the Lad - Generation"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCPS-15059:
   name: "Minna no Golf 4"
   region: "NTSC-J"
@@ -9335,6 +9397,9 @@ SCUS-97231:
   name: "Arc the Lad - Twilight of the Spirits"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCUS-97232:
   name: "Getaway [Demo]"
   region: "NTSC-U"
@@ -9536,6 +9601,9 @@ SCUS-97281:
 SCUS-97282:
   name: "Arc the Lad - Twilight of the Spirits [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SCUS-97292:
   name: "Amplitude [Demo]"
   region: "NTSC-U"
@@ -51536,6 +51604,9 @@ SLUS-21165:
   name: "Arc the Lad - End of Darkness"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, corrects the depth of field effect.
+    trilinearFiltering: 1
 SLUS-21166:
   name: "Full Metal Alchemist 2 - Curse of the Crimson Elixir"
   region: "NTSC-U"
