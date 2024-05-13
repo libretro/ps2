@@ -25,11 +25,7 @@
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
-#include <d3dcommon.h>
-#include <dxgi.h>
-#include <VersionHelpers.h>
 #include "GS/Renderers/DX11/D3D.h"
-#include <wil/com.h>
 #endif
 
 static class GSUtilMaps
