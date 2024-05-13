@@ -3712,9 +3712,21 @@ SCED-53916:
 SCED-53932:
   name: "Official PlayStation 2 Magazine Demo 67" # Spanish
   region: "PAL-M5"
+SCED-53933:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 01/2006"
+  region: "PAL-I"
+SCED-53938:
+  name: "Official PlayStation 2 Magazine Germany Special 3/2005"
+  region: "PAL-G"
 SCED-53939:
   name: "Official PlayStation 2 Magazine Demo 67" # Australian
   region: "PAL-E"
+SCED-53946:
+  name: "Ufficiale PlayStation 2 Special Platinum 2006"
+  region: "PAL-I"
+SCED-53947:
+  name: "Magazine Ufficiale PlayStation 2 Italia Demo Speciale Horror"
+  region: "PAL-I"
 SCED-53962:
   name: "Shadow of the Colossus [Demo]"
   region: "PAL-M5"
@@ -3795,12 +3807,21 @@ SCED-54058:
 SCED-54059:
   name: "Official PlayStation 2 Magazine Demo 80" # German
   region: "PAL-M5"
+SCED-54069:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia Special Racing"
+  region: "PAL-I"
 SCED-54070:
   name: "Official PlayStation 2 Magazine Demo 71" # Spanish/Portuguese
   region: "PAL-M5"
 SCED-54079:
   name: "Official PlayStation 2 Magazine Demo 71" # French
   region: "PAL-M5"
+SCED-54088:
+  name: "Roland Garros Virtual Tour '06"
+  region: "PAL-F"
+SCED-54090:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 03/2006"
+  region: "PAL-I"
 SCED-54099:
   name: "Official PlayStation 2 Magazine Demo 71" # Australian
   region: "PAL-M5"
@@ -3816,21 +3837,39 @@ SCED-54105:
 SCED-54134:
   name: "EyeToy - Play Sports"
   region: "PAL-M5"
+SCED-54134:
+  name: "EyeToy - Play Sports"
+  region: "PAL-Unk"
 SCED-54144:
   name: "Official PlayStation 2 Magazine Demo 72" # French
   region: "PAL-M5"
+SCED-54149:
+  name: "Magazine Ufficiale PlayStation 2 Italia 04/2006"
+  region: "PAL-I"
 SCED-54176:
   name: "Official PlayStation 2 Magazine Demo 73" # BeNeLux
   region: "PAL-M5"
+SCED-54180:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 05/2006"
+  region: "PAL-I"
+SCED-54192:
+  name: "AFL Premiership 2006"
+  region: "PAL-A"
 SCED-54202:
   name: "Official PlayStation 2 Magazine Demo 74"
   region: "PAL-M5"
 SCED-54207:
   name: "Formula One 06 [Demo]"
   region: "PAL-E"
+SCED-54208:
+  name: "Magazine Ufficiale PlayStation 2 Italia 06/2006"
+  region: "PAL-I"
 SCED-54238:
   name: "Buzz! The Sports Quiz"
-  region: "PAL-E"
+  region: "PAL-Unk"
+SCED-54314:
+  name: "Magazine Ufficiale PlayStation 2 Demo Italia 07-2006"
+  region: "PAL-I"
 SCED-54338:
   name: "Bonus Demo 11"
   region: "PAL-M5"
@@ -3849,6 +3888,21 @@ SCED-54398:
 SCED-54399:
   name: "Bonus Demo 12"
   region: "PAL-M5"
+SCED-54345:
+  name: "Buzz! Junior - Jungle Party"
+  region: "PAL-Unk"
+SCED-54363:
+  name: "Buzz! The Sports Quiz"
+  region: "PAL-Unk"
+SCED-54397:
+  name: "Bonus Demo 12 (You)"
+  region: "PAL-Unk"
+SCED-54398:
+  name: "Bonus Demo 12m"
+  region: "PAL-Unk"
+SCED-54399:
+  name: "Bonus Demo 12"
+  region: "PAL-Unk"
 SCED-54403:
   name: "Official PlayStation 2 Magazine Demo 78"
   region: "PAL-M5"
@@ -3903,12 +3957,33 @@ SCED-54480:
 SCED-54481:
   name: "Official PlayStation 2 Magazine Demo 79" # French
   region: "PAL-M5"
+SCED-54495:
+  name: "EyeToy - Kinetic Combat"
+  region: "PAL-Unk"
+SCED-54523:
+  name: "Magazine Ufficiale PlayStation 2 Italia Speciale Kids"
+  region: "PAL-I"
+SCED-54543:
+  name: "Magazine Ufficiale PlayStation 2 Demo Special Cinema"
+  region: "PAL-I"
+SCED-54558:
+  name: "Official PlayStation 2 Magazine Germany Winter 2006"
+  region: "PAL-G"
 SCED-54567:
   name: "Official PlayStation 2 Magazine Demo 80" # Spanish/Portuguese
   region: "PAL-M5"
+SCED-54602:
+  name: "Magazine Ufficiale PlayStation 2 Italia Speciale Wrestling"
+  region: "PAL-I"
+SCED-54603:
+  name: "Official PlayStation 2 Magazine Demo 81"
+  region: "PAL-S-P"
 SCED-54605:
   name: "Official PlayStation 2 Magazine Demo 81" # German
   region: "PAL-G"
+SCED-54640:
+  name: "PlayStation 2 Magazine Ufficiale Italia Presenta - Speciale Sport"
+  region: "PAL-I"
 SCED-54642:
   name: "Official PlayStation 2 Magazine Demo 82" # German
   region: "PAL-M5"
@@ -3926,6 +4001,12 @@ SCED-54682:
 SCED-54692:
   name: "Official PlayStation 2 Magazine Demo 83" # German
   region: "PAL-E-G"
+SCED-54693:
+  name: "Official PlayStation 2 Magazine Germany Special Edition 2007-1"
+  region: "PAL-G"
+SCED-54730:
+  name: "Ufficiale PlayStation 2 Speciale Racing 2007"
+  region: "PAL-I"
 SCED-54758:
   name: "Official PlayStation 2 Magazine Demo 84" # German
   region: "PAL-G"
@@ -4550,6 +4631,9 @@ SCES-51248:
   gsHWFixes:
     roundSprite: 1 # Fix lines in the sky.
     halfPixelOffset: 2 # Fixes double image.
+SCES-51407:
+  name: "Exclusive PlayStation 2 Summer Sample Disc"
+  region: "PAL-A"
 SCES-51426:
   name: "Getaway, The"
   region: "PAL-M5"
@@ -5636,12 +5720,24 @@ SCES-54496:
 SCES-54497:
   name: "Buzz! Le Mega Quiz"
   region: "PAL-F"
+SCES-54498:
+  name: "Buzz! The Mega Quiz"
+  region: "PAL-I"
 SCES-54499:
   name: "Buzz! Das Mega-Quiz"
   region: "PAL-G"
 SCES-54500:
   name: "Buzz! El Mega Concurso"
   region: "PAL-S"
+SCES-54501:
+  name: "Buzz! The Mega Quiz"
+  region: "PAL-A"
+SCES-54503:
+  name: "Buzz! Megavisa"
+  region: "PAL-FI"
+SCES-54504:
+  name: "Buzz! O Mega Quiz"
+  region: "PAL-P"
 SCES-54505:
   name: "Buzz! The Mega Quiz"
   region: "PAL-M3"
@@ -5651,6 +5747,9 @@ SCES-54507:
 SCES-54524:
   name: "Buzz! Junior - Jungle Party"
   region: "PAL-SW" # Austria + Switzerland
+SCES-54526:
+  name: "The Big! Sports Quiz"
+  region: "PAL-M"
 SCES-54535:
   name: "Everybody's Tennis"
   region: "PAL-M11"
@@ -5671,6 +5770,9 @@ SCES-54552:
         author=kozarovv
         // Fixes Vedan Myna area out of bounds glitch.
         patch=1,EE,00124898,word,3442fffe
+SCES-54556:
+  name: "The Big! Mega Quiz"
+  region: "PAL-G"
 SCES-54570:
   name: "SingStar Pop Hits"
   region: "PAL-E"
@@ -5731,12 +5833,21 @@ SCES-54676:
 SCES-54688:
   name: "ATV Offroad Fury 4"
   region: "PAL-M12"
+SCES-54689:
+  name: "Buzz! The Maha Quiz"
+  region: "PAL-IN"
+SCES-54690:
+  name: "Buzz! Mega Quiz"
+  region: "PAL-PL"
 SCES-54701:
   name: "Buzz! Junior - RoboJam"
-  region: "PAL-M8"
+  region: "PAL-Unk"
 SCES-54703:
   name: "Buzz! Junior - Monster Rumble"
-  region: "PAL-M9"
+  region: "PAL-Unk"
+SCES-54704:
+  name: "Monsterspass"
+  region: "PAL-M"
 SCES-54741:
   name: "SingStar Deutsch Rock-Pop Vol. 2"
   region: "PAL-G"
@@ -5849,6 +5960,9 @@ SCES-55058:
 SCES-55059:
   name: "SingStar Italian Greatest Hits"
   region: "PAL-I"
+SCES-55060:
+  name: "SingStar Summer Party"
+  region: "PAL-D"
 SCES-55061:
   name: "SingStar Wakacyjna Impreza!"
   region: "PAL-PL"
@@ -5870,12 +5984,21 @@ SCES-55094:
 SCES-55095:
   name: "Buzz! The Pop Quiz"
   region: "PAL-P-S"
+SCES-55096:
+  name: "Buzz! The Pop Quiz"
+  region: "PAL-SC"
 SCES-55097:
   name: "Buzz! The Pop Quiz"
   region: "PAL-FI"
 SCES-55098:
   name: "Buzz! The Pop Quiz"
   region: "PAL-M3"
+SCES-55100:
+  name: "Buzz! The Pop Quiz"
+  region: "PAL-A"
+SCES-55107:
+  name: "Buzz! Pop Quiz"
+  region: "PAL-PL"
 SCES-55127:
   name: "SingStar Summer Party"
   region: "PAL-NL"
@@ -5918,6 +6041,9 @@ SCES-55183:
 SCES-55210:
   name: "Buzz! Junior - Ace Racers"
   region: "PAL-M6"
+SCES-55211:
+  name: "Buzz! Junior - Ace Racers"
+  region: "PAL-Unk"
 SCES-55213:
   name: "Buzz! Escuela de Talentos"
   region: "PAL-S"
@@ -5969,12 +6095,30 @@ SCES-55387:
 SCES-55388:
   name: "Buzz! Brain of Spain-Portugal"
   region: "PAL-M2"
+SCES-55389:
+  name: "Buzz! Il Quizzone Nazionale"
+  region: "PAL-I"
 SCES-55401:
   name: "SingStar Zingt met Disney"
   region: "PAL-NL"
+SCES-55419:
+  name: "Buzz! Brain of Oz"
+  region: "PAL-A"
+SCES-55420:
+  name: "Buzz! De Slimste van Nederland"
+  region: "PAL-BE"
+SCES-55421:
+  name: "Buzz! Brain of Switzerland"
+  region: "PAL-M"
 SCES-55423:
   name: "Buzz! Brain of the World"
-  region: "PAL-D-E-NW"
+  region: "PAL-Unk"
+SCES-55424:
+  name: "Buzz! Brain of the World"
+  region: "PAL-Unk"
+SCES-55425:
+  name: "Buzz! Brain of the World"
+  region: "PAL-SC"
 SCES-55435:
   name: "SingStar ABBA"
   region: "PAL-E"
@@ -6018,6 +6162,9 @@ SCES-55496:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom.
+SCES-55497:
+  name: "Medical and Engineering Joint Entrance Quiz"
+  region: "PAL-IN"
 SCES-55510:
   name: "Jak and Daxter - The Lost Frontier"
   region: "PAL-M12"
@@ -6096,6 +6243,9 @@ SCES-55573:
   region: "PAL-M14"
   clampModes:
     vu1ClampMode: 3 # Fixes bad polys in menu.
+SCES-55590:
+  name: "SingStar Store DrÃ¸mme"
+  region: "PAL-D"
 SCES-55591:
   name: "Street Cricket Champions"
   region: "PAL-IN"
@@ -6181,8 +6331,14 @@ SCKA-10007:
 SCKA-10008:
   name: "Come on Baby"
   region: "NTSC-K"
+SCKA-14001:
+  name: "Gangcheol Gigap Sadan - Online Battlefield"
+  region: "NTSC-K"
 SCKA-20001:
   name: "XI Go"
+  region: "NTSC-K"
+SCKA-20002:
+  name: "Time Crisis II"
   region: "NTSC-K"
 SCKA-20003:
   name: "War of the Monsters"
@@ -6238,6 +6394,8 @@ SCKA-20012:
 SCKA-20013:
   name: "SOCOM - U.S. Navy SEALs"
   region: "NTSC-K"
+  gameFixes:
+    - InstantDMAHack # Fixes texture corruption.
   clampModes:
     vuClampMode: 2 # Fixes bad shadows.
 SCKA-20014:
@@ -6345,6 +6503,9 @@ SCKA-20029:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 SCKA-20030:
   name: "Sly Cooper - Jeonseolui Bibeobseoreul Chajaseo"
+  region: "NTSC-K"
+SCKA-20031:
+  name: "Athens 2004"
   region: "NTSC-K"
 SCKA-20032:
   name: "Syphon Filter - The Omega Virus"
@@ -6736,6 +6897,9 @@ SCKA-20090:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Depth of field effect aligned properly if CRC hack is off + Shifts buildings correctly.
+SCKA-20091:
+  name: "MLB 07 - The Show"
+  region: "NTSC-K"
 SCKA-20092:
   name: "K-1 World Grand Prix 2006"
   region: "NTSC-K"
@@ -6810,6 +6974,9 @@ SCKA-20106:
     mipmap: 2 # Fixes Water with Trilinear.
     trilinearFiltering: 1 # Fixes Water with Mipmap (Full).
     halfPixelOffset: 1 # Fixes misalignments and borders on side.
+SCKA-20105:
+  name: "Everybody's Golf 4"
+  region: "NTSC-K"
 SCKA-20107:
   name: "Odin Sphere"
   region: "NTSC-K"
@@ -6923,6 +7090,9 @@ SCKA-20135:
     vu1ClampMode: 3 # Fixes SPS.
   speedHacks:
     mvuFlag: 0 # Fixes performance and falling through floor and other gameplay.
+SCKA-20136:
+  name: "Super Robot Taisen Z - Special Disc"
+  region: "NTSC-J-K"
 SCKA-20137:
   name: "Evangelion - Jo"
   region: "NTSC-K"
@@ -6959,6 +7129,9 @@ SCKA-24008:
     - InstantDMAHack # Fixes texture corruption.
   clampModes:
     vuClampMode: 2 # Fixes bad shadows.
+SCKA-24012:
+  name: "EyeToy - Groove"
+  region: "NTSC-K"
 SCKA-30001:
   name: "Gran Turismo 4"
   region: "NTSC-K"
@@ -6985,6 +7158,9 @@ SCKA-30004:
   region: "NTSC-K"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+SCKA-30005:
+  name: "Rogue Galaxy"
+  region: "NTSC-K"
 SCKA-30006:
   name: "God of War 2"
   region: "NTSC-K"
@@ -7017,6 +7193,10 @@ SCKA-90009:
 SCKA-90010:
   name: "SOCOM - U.S. Navy SEALs"
   region: "NTSC-K"
+  gameFixes:
+    - InstantDMAHack # Fixes texture corruption.
+  clampModes:
+    vuClampMode: 2 # Fixes bad shadows.
 SCKA-90011:
   name: "Arc the Lad - Jeongryeongui Hwanghon - Premiere Disc"
   region: "NTSC-K"
@@ -7041,6 +7221,12 @@ SCPM-85301:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+SCPM-85302:
+  name: "Minna no Golf Online"
+  region: "NTSC-J"
+SCPM-85303:
+  name: "SpeSaru Disc 2003"
+  region: "NTSC-J"
 SCPM-85304:
   name: "Gran Turismo 4 - First Preview"
   region: "NTSC-J"
@@ -7051,6 +7237,9 @@ SCPN-60101:
   region: "NTSC-J"
 SCPN-60103:
   name: "PlayStation BB Navigator - Version 0.10 [Prerelease] [Disc 2]"
+  region: "NTSC-J"
+SCPN-60110:
+  name: "PlayStation BB Navigator - Version 0.10 (Prerelease) (Disc 2)"
   region: "NTSC-J"
 SCPN-60111:
   name: "PlayStation BB Navigator - Version 0.10 [Prerelease] [Disc 2]"
@@ -8004,6 +8193,12 @@ SCPS-17013:
         author=kozarovv
         // Fixes Vedan Myna out of bounds glitch.
         patch=1,EE,00124898,word,3442fffe
+SCPS-17501:
+  name: "Linux for PlayStation 2 - Release 1.0 (Disc 1) (Runtime Environment)"
+  region: "NTSC-J"
+SCPS-17502:
+  name: "Linux for PlayStation 2 - Release 1.0 (Disc 2) (Software Packages)"
+  region: "NTSC-J"
 SCPS-19101:
   name: "Mosquito [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -8350,12 +8545,6 @@ SCPS-19320:
     - "SCPS-19103"
     - "SCPS-19151"
     - "SCPS-55001"
-SCPS-19335:
-  name: "Wanda to Kyozou [PlayStation 2 The Best Reprint]"
-  region: "NTSC-J"
-  gsHWFixes:
-    mipmap: 1
-    halfPixelOffset: 1 # Fixes misalignments and borders on side.
 SCPS-19321:
   name: "Ratchet & Clank 4th - GiriGiri Ginga no Giga Battle [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -8461,6 +8650,15 @@ SCPS-19332:
   region: "NTSC-J"
   roundModes:
     vu1RoundMode: 1 # Fixes the display of scores and text ingame.
+SCPS-19333:
+  name: "Wild Arms - The Vth Vanguard"
+  region: "NTSC-J"
+SCPS-19335:
+  name: "Wanda to Kyozou [PlayStation 2 The Best Reprint]"
+  region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 1
+    halfPixelOffset: 1 # Fixes misalignments and borders on side.
 SCPS-51001:
   name: "MotoGP 2"
   region: "NTSC-J"
@@ -8840,6 +9038,9 @@ SCPS-56006:
   compat: 5
   gsHWFixes:
     alignSprite: 1
+SCPS-56007:
+  name: "Hot Shots Golf 3"
+  region: "NTSC-K"
 SCPS-56008:
   name: "Fatal Frame"
   region: "NTSC-K"
@@ -8899,6 +9100,15 @@ SCPS-72001:
   region: "NTSC-J"
   gsHWFixes:
     getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+SCPS-72002:
+  name: "Minna no Golf 3"
+  region: "NTSC-J"
+SCUS-10380:
+  name: "LEGO Batman - The Videogame"
+  region: "NTSC-U"
+SCUS-21052:
+  name: "Disney/Pixar Monsters, Inc."
+  region: "NTSC-U"
 SCUS-21295:
   name: "Tony Hawk's American Wasteland Collector's Edition"
   region: "NTSC-U"
@@ -8944,6 +9154,9 @@ SCUS-94346:
   region: "NTSC-U"
 SCUS-94677:
   name: "989 Sports 2003 Demo Disc"
+  region: "NTSC-U"
+SCUS-97095:
+  name: "Network Adaptor Start-Up Disc v2.0"
   region: "NTSC-U"
 SCUS-97097:
   name: "Network Adapter Start-Up Disc"
@@ -9272,6 +9485,9 @@ SCUS-97177:
   name: "Downhill Domination"
   region: "NTSC-U"
   compat: 5
+SCUS-97178:
+  name: "NFL GameDay 2002"
+  region: "NTSC-U"
 SCUS-97179:
   name: "Twisted Metal Black"
   region: "NTSC-U"
@@ -9883,6 +10099,9 @@ SCUS-97369:
   name: "ATV Offroad Fury 2"
   region: "NTSC-U"
   compat: 5
+SCUS-97370:
+  name: "NCAA Final Four 2004"
+  region: "NTSC-U"
 SCUS-97372:
   name: "Jet Li-Rise to Honor [Demo]"
   region: "NTSC-U"
@@ -9946,6 +10165,9 @@ SCUS-97395:
   region: "NTSC-U"
 SCUS-97396:
   name: "World Tour Soccer 2005 [Demo]"
+  region: "NTSC-U"
+SCUS-97397:
+  name: "Syphon Filter - The Omega Strain"
   region: "NTSC-U"
 SCUS-97398:
   name: "Siren [Demo]"
@@ -10678,6 +10900,9 @@ SCUS-97548:
     trilinearFiltering: 1 # Fixes miptrick blending.
     halfPixelOffset: 2 # Fixes misaligned blur.
     autoFlush: 2 # Fixes corruption in cutscenes and brightens the image.
+SCUS-97553:
+  name: "ATV Offroad Fury 4"
+  region: "NTSC-U"
 SCUS-97554:
   name: "NBA '07 featuring The Life Vol.2 [Demo]"
   region: "NTSC-U"
@@ -10719,6 +10944,27 @@ SCUS-97560:
     vuClampMode: 3 # Fixes SPS ingame and prevents flickering or invisible characters.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Mitigates grayer text font in bottom left but stuff in front can lower or increase opacity.
+SCUS-97563:
+  name: "Gran Turismo 4"
+  region: "NTSC-U"
+  clampModes:
+    vuClampMode: 2 # Text in GT mode works.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes weird edge shadows and depth bleed which happens on the edge as well.
+    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
+  memcardFilters:
+    - "SCAJ-20066"
+    - "SCAJ-30006"
+    - "SCAJ-30007"
+    - "SCAJ-30008"
+    - "SCPS-15055"
+    - "SCPS-17001"
+    - "SCPS-19252"
+    - "SCPS-19304"
+    - "SCPS-15009"
+    - "SCPS-55007"
 SCUS-97564:
   name: "Jampack Demo Disc Vol.15 [T-Rated]"
   region: "NTSC-U"
@@ -10759,6 +11005,9 @@ SCUS-97579:
 SCUS-97580:
   name: "SingStar Pop"
   region: "NTSC-U"
+SCUS-97582:
+  name: "Kiosk Disc 2.23"
+  region: "NTSC-U"
 SCUS-97583:
   name: "MLB '08 - The Show"
   region: "NTSC-U"
@@ -10794,6 +11043,9 @@ SCUS-97597:
   name: "Buzz! Jr. RoboJam [Bundle]"
   region: "NTSC-U"
   compat: 5
+SCUS-97600:
+  name: "EyeToy"
+  region: "NTSC-U"
 SCUS-97601:
   name: "Buzz! The Mega Quiz [Game Only]"
   region: "NTSC-U"
@@ -10824,6 +11076,9 @@ SCUS-97616:
   compat: 3
 SCUS-97618:
   name: "SingStar 80's"
+  region: "NTSC-U"
+SCUS-97619:
+  name: "Hot Shots Tennis"
   region: "NTSC-U"
 SCUS-97620:
   name: "Syphon Filter - Dark Mirror [Demo]"
@@ -10931,6 +11186,13 @@ SCUS-97859:
     - InstantDMAHack # Fixes texture corruption.
   clampModes:
     vuClampMode: 2 # Fixes bad shadows.
+SCUS-97859:
+  name: "SOCOM - U.S. Navy SEALs"
+  region: "NTSC-U"
+  gameFixes:
+    - InstantDMAHack # Fixes texture corruption.
+  clampModes:
+    vuClampMode: 2 # Fixes bad shadows.
 SCUS-97869:
   name: "Amplitude P.O.D. [Demo]"
   region: "NTSC-U"
@@ -10972,9 +11234,17 @@ SLAJ-25014:
   region: "NTSC-Unk"
   gsHWFixes:
     cpuCLUTRender: 2 # Fixes CLUT colours.
+SLAJ-25015:
+  name: "Enter the Matrix"
+  region: "NTSC-J"
+  gameFixes:
+    - EETimingHack # Fixes various VIF errors.
 SLAJ-25016:
   name: "Sangokushi Senki 2"
   region: "NTSC-Unk"
+SLAJ-25017:
+  name: "Harry Potter and the Philosopher's Stone"
+  region: "NTSC-Ch"
 SLAJ-25018:
   name: "Shutokou Battle 01"
   region: "NTSC-HK"
@@ -10983,6 +11253,9 @@ SLAJ-25018:
     alignSprite: 1 # Fixes vertical lines.
     wildArmsHack: 1 # Improves visual clarity whilst upscaling.
     roundSprite: 1 # Reduces graphics garbage on UI whilst upscaling.
+SLAJ-25019:
+  name: "The Lord of the Rings - The Return of the King"
+  region: "NTSC-Ch"
 SLAJ-25023:
   name: "Shin Sangoku Musou 3 - Mushoden"
   region: "NTSC-Unk"
@@ -10994,6 +11267,12 @@ SLAJ-25026:
 SLAJ-25027:
   name: "Sonic Heroes"
   region: "NTSC-Unk"
+SLAJ-25028:
+  name: "The Sims - Bustin' Out"
+  region: "NTSC-Ch"
+SLAJ-25030:
+  name: "Medal of Honor - Rising Sun"
+  region: "NTSC-Ch"
 SLAJ-25031:
   name: "Kunoichi - Shinobu"
   region: "NTSC-C-J"
@@ -11008,6 +11287,9 @@ SLAJ-25034:
 SLAJ-25035:
   name: "Sengoku Musou"
   region: "NTSC-Unk"
+SLAJ-25036:
+  name: "Zhen Sanguo Wushuang 2"
+  region: "NTSC-Ch"
 SLAJ-25037:
   name: "Astro Boy Atom"
   region: "NTSC-Unk"
@@ -11022,6 +11304,9 @@ SLAJ-25039:
 SLAJ-25040:
   name: "Shin Sangoku Musou 3 - Empires"
   region: "NTSC-Unk"
+SLAJ-25041:
+  name: "Harry Potter and the Prisoner of Azkaban"
+  region: "NTSC-Ch"
 SLAJ-25042:
   name: "Virtua Fighter - Cyber Generation"
   region: "NTSC-Unk"
@@ -11266,6 +11551,21 @@ SLAJ-25099:
   gsHWFixes:
     cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
     cpuSpriteRenderLevel: 2 # Needed for above.
+SLAJ-25103:
+  name: "Musou Orochi - Maou Sairin"
+  region: "NTSC-J"
+SLAJ-25104:
+  name: "Shin Sangoku Musou 5 Special (Disc 1)"
+  region: "NTSC-J"
+SLAJ-25105:
+  name: "Shin Sangoku Musou 5 Special (Disc 2)"
+  region: "NTSC-J"
+SLAJ-25111:
+  name: "World Soccer Winning Eleven 2009"
+  region: "NTSC-J"
+SLAJ-25114:
+  name: "World Soccer Winning Eleven 2010"
+  region: "NTSC-J"
 SLAJ-25115:
   name: "World Soccer Winning Eleven 2011"
   region: "NTSC-Unk"
@@ -11275,6 +11575,9 @@ SLAJ-35001:
 SLAJ-35003:
   name: "Sakura Taisen - Atsuki Chishio Ni"
   region: "NTSC-CH"
+SLAJ-35007:
+  name: "Zhen San Guo Wu Shuang 5 Special"
+  region: "NTSC-Ch"
 SLED-50117:
   name: "Metal Gear Solid 2 - Sons of Liberty [Demo] [Zone of the Enders Bonus Disc]"
   region: "PAL-E"
@@ -11331,14 +11634,46 @@ SLED-50884:
 SLED-50895:
   name: "Medal of Honor - Frontline [Demo]"
   region: "PAL-E"
+SLED-50904:
+  name: "Dynasty Warriors 3"
+  region: "PAL-Unk"
+  compat: 5
+  patches:
+    4A35E19F:
+      content: |-
+        comment=COP2 flag instance patch by refraction
+        // A mac flag check after running another vsub op which is irrelevant, rearranging
+        patch=0,EE,00273230,word,48438800
+        patch=0,EE,0027323c,word,4BE521AC
+SLED-50980:
+  name: "Gitaroo Man"
+  region: "PAL-Unk"
 SLED-51012:
   name: "Stuntman [Demo]"
   region: "PAL-E"
   gsHWFixes:
     cpuSpriteRenderBW: 4 # Fixes textures.
+SLED-51047:
+  name: "Red Faction II"
+  region: "PAL-Unk"
+SLED-51048:
+  name: "Red Faction II"
+  region: "PAL-Unk"
 SLED-51062:
   name: "Fireblade [Demo]"
   region: "PAL-E"
+SLED-51074:
+  name: "Aggressive Inline"
+  region: "PAL-Unk"
+SLED-51091:
+  name: "Summoner 2"
+  region: "PAL-Unk"
+SLED-51127:
+  name: "MX SuperFly"
+  region: "PAL-Unk"
+SLED-51178:
+  name: "TOCA Race Driver"
+  region: "PAL-Unk"
 SLED-51186:
   name: "Mat Hoffman's Pro BMX 2 [Demo]"
   region: "PAL-M5"
@@ -11361,12 +11696,18 @@ SLED-51212:
 SLED-51225:
   name: "Rayman 3 [Demo]"
   region: "PAL-E"
+SLED-51264:
+  name: "Pro Evolution Soccer 2"
+  region: "PAL-Unk"
 SLED-51281:
   name: "Haven - Call of the King [Demo]"
   region: "PAL-E"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes ghosting.
     alignSprite: 1 # Fixes vertical lines.
+SLED-51338:
+  name: "Tom Clancy's Ghost Recon"
+  region: "PAL-Unk"
 SLED-51342:
   name: "FIFA Soccer 2003 [Demo]"
   region: "PAL-E"
@@ -11390,11 +11731,20 @@ SLED-51472:
 SLED-51645:
   name: "Def Jam - Vendetta [Demo]"
   region: "PAL-E"
+SLED-51651:
+  name: "Starsky & Hutch"
+  region: "PAL-Unk"
 SLED-51676:
   name: "Warhammer 40,000 - Fire Warrior [Demo]"
   region: "PAL"
   gameFixes:
     - XGKickHack # Fixes corrupted graphics.
+SLED-51807:
+  name: "Summer Heat Beach Volleyball"
+  region: "PAL-Unk"
+SLED-51832:
+  name: "Sphinx and the Cursed Mummy"
+  region: "PAL-F"
 SLED-51901:
   name: "Soul Calibur II [Demo]"
   region: "PAL-E"
@@ -11425,6 +11775,9 @@ SLED-51961:
   region: "PAL-E"
   gsHWFixes:
     autoFlush: 2 # Reduces post-processing misalignment.
+SLED-51962:
+  name: "Nordic Fall 2003 Demo"
+  region: "PAL-SC"
 SLED-51975:
   name: "Need for Speed - Underground [Demo]"
   region: "PAL-E"
@@ -11434,9 +11787,30 @@ SLED-51975:
     recommendedBlendingLevel: 3 # Improves reflection quality.
     halfPixelOffset: 2 # Fixes misaligned post-processing.
     PCRTCOverscan: 1 # Fixes image alignment.
+SLED-51987:
+  name: "Kya - Dark Lineage"
+  region: "PAL-Unk"
+SLED-51992:
+  name: "Pro Evolution Soccer 3"
+  region: "PAL-Unk"
+SLED-51993:
+  name: "Pro Evolution Soccer 3"
+  region: "PAL-I"
+SLED-51994:
+  name: "Pro Evolution Soccer 3"
+  region: "PAL-Unk"
 SLED-52014:
   name: "XIII [Demo]"
   region: "PAL-E"
+SLED-52031:
+  name: "Beyond Good & Evil"
+  region: "PAL-Unk"
+SLED-52304:
+  name: "Tom Clancy's Rainbow Six 3"
+  region: "PAL-Unk"
+SLED-52325:
+  name: "Downhill Domination"
+  region: "PAL-Unk"
 SLED-52326:
   name: "007 - Everything or Nothing [Demo]"
   region: "PAL-E"
@@ -11526,6 +11900,9 @@ SLED-52736:
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves reflection quality and map opacity.
     halfPixelOffset: 2 # Fixes depth lines.
+SLED-52851:
+  name: "TOCA Race Driver 2"
+  region: "PAL-Unk"
 SLED-52852:
   name: "Forgotten Realms - Demon Stone [Demo]"
   region: "PAL-E"
@@ -11534,9 +11911,15 @@ SLED-52852:
   gsHWFixes:
     halfPixelOffset: 1 # Reduces ghosting.
     roundSprite: 1 # Reduces ghosting even more.
+SLED-52873:
+  name: "Pro Evolution Soccer 4"
+  region: "PAL-Unk"
 SLED-52875:
   name: "Sega Superstars [Demo]"
   region: "PAL-E"
+SLED-52879:
+  name: "Pro Evolution Soccer 4"
+  region: "PAL-I"
 SLED-52890:
   name: "FIFA 2005 [Demo]"
   region: "PAL-M7"
@@ -11544,6 +11927,9 @@ SLED-52890:
     - GIFFIFOHack # Partially fixes graphical issues also needs EE cycle rate + 3.
   speedHacks:
     eeCycleRate: 3 # Fixes player uniforms.
+SLED-52891:
+  name: "Rocky Legends"
+  region: "PAL-Unk"
 SLED-52899:
   name: "Killzone [Bonus Disc]"
   region: "PAL-M5"
@@ -11557,6 +11943,14 @@ SLED-52929:
   compat: 5
   gsHWFixes:
     autoFlush: 2 # Reduces post-processing misalignment.
+SLED-52979:
+  name: "Mercenaries"
+  region: "PAL-Unk"
+SLED-53066:
+  name: "TimeSplitters - Future Perfect"
+  region: "PAL-Unk"
+  gsHWFixes:
+    halfPixelOffset: 2 # Removes ghosting of distant objects.
 SLED-53083:
   name: "Monster Hunter [Demo]"
   region: "PAL-M5"
@@ -11581,6 +11975,17 @@ SLED-53109:
     autoFlush: 1 # Fixes headlight brightness.
     cpuCLUTRender: 1 # Fixes broken headlights.
     minimumBlendingLevel: 3
+SLED-53137:
+  name: "Stolen"
+  region: "PAL-Unk"
+  compat: 4
+  gsHWFixes:
+    disablePartialInvalidation: 1 # Improves performance.
+    halfPixelOffset: 2 # Fixes misaligned bloom effects.
+    texturePreloading: 1 # Performs much better with partial preload.
+SLED-53198:
+  name: "Rugby 2005"
+  region: "PAL-Unk"
 SLED-53327:
   name: "Cold Winter [Demo]"
   region: "PAL-E"
@@ -11596,6 +12001,15 @@ SLED-53330:
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
     - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
+SLED-53359:
+  name: "LEGO Star Wars - The Video Game"
+  region: "PAL-Unk"
+SLED-53365:
+  name: "Brian Lara International Cricket 2005"
+  region: "PAL-Unk"
+SLED-53440:
+  name: "Area 51"
+  region: "PAL-Unk"
 SLED-53442:
   name: "Crash Tag Team Racing [Demo]"
   region: "PAL-E"
@@ -11631,9 +12045,41 @@ SLED-53537:
   gsHWFixes:
     autoFlush: 2 # Softens bloom on objects and cars.
     halfPixelOffset: 2 # Fixes misaligned bloom on objects and cars.
+SLED-53543:
+  name: "Tiger Woods PGA Tour 06"
+  region: "PAL-Unk"
 SLED-53591:
   name: "Fahrenheit [Demo]"
   region: "PAL-E"
+SLED-53619:
+  name: "Tom Clancy's Rainbow Six - Lockdown"
+  region: "PAL-Unk"
+SLED-53625:
+  name: "SSX On Tour"
+  region: "PAL-Unk"
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
+SLED-53627:
+  name: "The Suffering - Ties that Bind"
+  region: "PAL-Unk"
+SLED-53637:
+  name: "Burnout Revenge"
+  region: "PAL-Unk"
+  clampModes:
+    vuClampMode: 0 # Fixes buggy lighting in the garage.
+  gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves car reflections.
+    halfPixelOffset: 2 # Fixes depth lines.
+    autoFlush: 2 # Fixes blur and obscures sun behind objects.
+    mipmap: 2 # Fixes over sharpening.
+    trilinearFiltering: 1 # Smoothes out mipmapping.
+    gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
+    getSkipCount: "GSC_BurnoutGames"
+    beforeDraw: "OI_BurnoutGames"
 SLED-53650:
   name: "Need for Speed - Most Wanted"
   region: "PAL-E"
@@ -11642,6 +12088,9 @@ SLED-53650:
     halfPixelOffset: 2 # Fixes blurriness.
     cpuCLUTRender: 1 # Final colour adjustment LUT.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+SLED-53664:
+  name: "FIFA 06 - Demo Pre-Release Version"
+  region: "PAL-Unk"
 SLED-53673:
   name: "007 - From Russia with Love [Demo]"
   region: "PAL-E"
@@ -11655,6 +12104,9 @@ SLED-53681:
     halfPixelOffset: 2 # Fixes blurriness.
     textureInsideRT: 1 # Required for complex offset shuffles.
     recommendedBlendingLevel: 4 # Fixes lighting.
+SLED-53711:
+  name: "Brothers in Arms - Earned in Blood"
+  region: "PAL-A"
 SLED-53719:
   name: "Pro Evolution Soccer 5 [Demo]"
   region: "PAL-E"
@@ -11696,6 +12148,9 @@ SLED-53845:
     trilinearFiltering: 1
     halfPixelOffset: 2 # Fix effects upscaling.
     autoFlush: 1 # Fixes broken post processing.
+SLED-53888:
+  name: "TOCA Race Driver 3 + V8 Supercars Australia 3"
+  region: "PAL-A"
 SLED-53937:
   name: "Black [Demo]"
   region: "PAL-M5"
@@ -11732,6 +12187,9 @@ SLED-53954:
     cpuCLUTRender: 1 # Fixes the rest of the bad textures.
     roundSprite: 1 # Reduces misaligned bloom.
     mergeSprite: 1 # Removes bloom explosion around electrical lights and other light sources such as moon/sun.
+SLED-53977:
+  name: "Dragon Quest - The Journey of the Cursed King"
+  region: "PAL-Unk"
 SLED-53980:
   name: "Urban Chaos - Riot Response [Demo]"
   region: "PAL-E"
@@ -11759,6 +12217,9 @@ SLED-54032:
 SLED-54035:
   name: "Play the Best Demos from Atari [Demo]"
   region: "PAL-M5"
+SLED-54103:
+  name: "FIFA World Cup Germany 2006"
+  region: "PAL-Unk"
 SLED-54312:
   name: "Need for Speed - Carbon [Demo]"
   region: "PAL-E"
@@ -11768,6 +12229,12 @@ SLED-54312:
     recommendedBlendingLevel: 3 # Improves car colour and reflection quality.
     halfPixelOffset: 2 # Fixes blurriness.
     roundSprite: 2 # Fixes blurriness.
+SLED-54315:
+  name: "LEGO Star Wars II - The Original Trilogy"
+  region: "PAL-Unk"
+SLED-54327:
+  name: "FIFA 07"
+  region: "PAL-Unk"
 SLED-54328:
   name: "NBA Live 07 [Demo]"
   region: "PAL-Unk"
@@ -11793,6 +12260,15 @@ SLED-54509:
   region: "PAL-M5"
   roundModes:
     vu1RoundMode: 0 # Massages the Z on the score meter for hardware mode, software doesn't really need this.
+SLED-54925:
+  name: "FIFA 08"
+  region: "PAL-Unk"
+SLED-55022:
+  name: "PES 2008 - Pro Evolution Soccer"
+  region: "PAL-Unk"
+SLED-55602:
+  name: "PES 2010 - Pro Evolution Soccer"
+  region: "PAL-Unk"
 SLES-50003:
   name: "Swap Magic DVD Disc v2.0"
   region: "PAL-Unk"
@@ -12129,6 +12605,9 @@ SLES-50120:
   name: "Rumble Racing"
   region: "PAL-M3"
   compat: 5
+SLES-50121:
+  name: "Rumble Racing"
+  region: "PAL-Unk"
 SLES-50126:
   name: "Quake III - Revolution"
   region: "PAL-M3"
@@ -13278,6 +13757,14 @@ SLES-50641:
   name: "Dynasty Warriors 3"
   region: "PAL-M3"
   compat: 5
+  compat: 5
+  patches:
+    4A35E19F:
+      content: |-
+        comment=COP2 flag instance patch by refraction
+        // A mac flag check after running another vsub op which is irrelevant, rearranging
+        patch=0,EE,00273230,word,48438800
+        patch=0,EE,0027323c,word,4BE521AC
 SLES-50643:
   name: "Shifters"
   region: "PAL-F-G"
@@ -14998,6 +15485,9 @@ SLES-51296:
 SLES-51298:
   name: "Jimmy Neutron - Boy Genius"
   region: "PAL-E"
+SLES-51300:
+  name: "Nickelodeon Jimmy Neutron - Der mutige Erfinder"
+  region: "PAL-G"
 SLES-51301:
   name: "SOS - The Final Escape"
   region: "PAL-M3"
@@ -18220,6 +18710,9 @@ SLES-52696:
 SLES-52697:
   name: "Manager de Liga 2005"
   region: "PAL-S"
+SLES-52698:
+  name: "Manchester United Manager 2005"
+  region: "PAL-E"
 SLES-52700:
   name: "Adventures of Jimmy Neutron, The - Boy Genius - Attack of the Twonkies"
   region: "PAL-E"
@@ -19557,6 +20050,9 @@ SLES-53147:
 SLES-53148:
   name: "Fruitfall"
   region: "PAL-E"
+SLES-53149:
+  name: "LMA Manager 2005"
+  region: "PAL-Unk"
 SLES-53150:
   name: "10 Pin - Champions Alley"
   region: "PAL-M6"
@@ -19953,6 +20449,9 @@ SLES-53351:
   region: "PAL-E"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLES-53353:
   name: "Shounen Jump's Shaman King - Power of Spirit"
   region: "PAL-M3"
@@ -20379,6 +20878,9 @@ SLES-53498:
 SLES-53499:
   name: "Nickelodeon SpongeBob SquarePants - Licht uit, Camera aan!"
   region: "PAL-NL"
+SLES-53500:
+  name: "Nickelodeon Svampbob Fyrkant - Tystnad, Tagning, TvÃ¤ttsvamp!"
+  region: "PAL-SW"
 SLES-53501:
   name: "Star Wars - Battlefront II"
   region: "PAL-M3"
@@ -20687,11 +21189,17 @@ SLES-53551:
   region: "PAL-E"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLES-53552:
   name: "SSX On Tour"
   region: "PAL-M8"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLES-53553:
   name: "007 - From Russia with Love"
   region: "PAL-M7"
@@ -23087,6 +23595,9 @@ SLES-54402:
     recommendedBlendingLevel: 3 # Improves car colour and reflection quality.
     halfPixelOffset: 2 # Fixes blurriness.
     roundSprite: 2 # Fixes blurriness.
+SLES-54410:
+  name: "Monster Trux Arenas - Special Edition"
+  region: "PAL-Unk"
 SLES-54420:
   name: "Arthur and the Minimoys"
   region: "PAL-M7"
@@ -23133,6 +23644,9 @@ SLES-54432:
   compat: 5
 SLES-54433:
   name: "Dr. Dolittle"
+  region: "PAL-A"
+SLES-54434:
+  name: "Babe"
   region: "PAL-A"
 SLES-54435:
   name: "Babe"
@@ -23901,6 +24415,12 @@ SLES-54711:
   compat: 5
   gsHWFixes:
     roundSprite: 2 # Fixes font artifacts and reduces text box artifacts.
+SLES-54712:
+  name: "Action Man A.T.O.M. - Alpha Teens on Machines"
+  region: "PAL-PL"
+SLES-54713:
+  name: "Pajeczyna Charlotty"
+  region: "PAL-PL"
 SLES-54714:
   name: "Tony Hawk's Downhill Jam"
   region: "PAL-E"
@@ -25004,6 +25524,9 @@ SLES-55064:
 SLES-55069:
   name: "7 Wonders of the Ancient World"
   region: "PAL-M5"
+SLES-55074:
+  name: "Casper's Scare School"
+  region: "PAL-SC"
 SLES-55075:
   name: "Speed Racer"
   region: "PAL-M6"
@@ -25823,6 +26346,9 @@ SLES-55383:
 SLES-55384:
   name: "Warriors Orochi 2"
   region: "PAL-G"
+SLES-55390:
+  name: "DreamWorks Madagaskar 2"
+  region: "PAL-SW"
 SLES-55392:
   name: "Disney Sing It!"
   region: "PAL-M6"
@@ -28060,6 +28586,9 @@ SLKA-25325:
   region: "NTSC-K"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLKA-25327:
   name: "Harry Potter and the Goblet of Fire"
   region: "NTSC-K"
@@ -36613,6 +37142,9 @@ SLPM-66189:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLPM-66190:
   name: "Star Wars - Battlefront II"
   region: "NTSC-J"
@@ -38304,6 +38836,9 @@ SLPM-66601:
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLPM-66602:
   name: "Ryu ga Gotoku 2 [Disc 1 of 2]"
   region: "NTSC-J"
