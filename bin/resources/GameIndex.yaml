@@ -13167,6 +13167,8 @@ SLES-50677:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes invisible characters in various scenes.
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Post and transition effects.
 SLES-50679:
   name: "Tenchu 3 - Wrath of Heaven"
   region: "PAL-E"
@@ -13568,6 +13570,8 @@ SLES-50822:
   region: "PAL-M3"
   clampModes:
     eeClampMode: 3 # Fixes invisible characters in various scenes.
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Post and transition effects.
 SLES-50826:
   name: "Star Wars - Clone Wars"
   region: "PAL-E"
@@ -28983,6 +28987,20 @@ SLPM-60167:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces blurriness.
     alignSprite: 1 # Fixes vertical lines on hidden ghosts.
+SLPM-60145:
+  name: "Shadow Hearts"
+  region: "NTSC-J"
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Post and transition effects.
+SLPM-60146:
+  name: "Tetsu One - Densha de Battle!"
+  region: "NTSC-J"
+SLPM-60147:
+  name: "Bokujou Monogatari 3 - Heart ni Hi o Tsukete"
+  region: "NTSC-J"
+SLPM-60148:
+  name: "Yanya! Caballista featuring Gawoo"
+  region: "NTSC-J"
 SLPM-60149:
   name: "Ace Combat 04 - Shattered Skies [Trial]"
   region: "NTSC-J"
@@ -41686,6 +41704,8 @@ SLPS-25041:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 3 # Fixes invisible characters in various scenes.
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Post and transition effects.
 SLPS-25042:
   name: "Maken Shao [Limited Edition]"
   region: "NTSC-J"
@@ -47215,6 +47235,8 @@ SLUS-20347:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes invisible characters in various scenes.
+  gsHWFixes:
+    textureInsideRT: 2 # Fixes Post and transition effects.
   patches:
     default:
       content: |-
