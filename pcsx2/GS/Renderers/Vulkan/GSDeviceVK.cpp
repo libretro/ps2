@@ -1020,7 +1020,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 					input_reference_ptr        = &input_reference;
 				}
 
-				if (!m_optional_extensions.vk_ext_rasterization_order_attachment_access)
+				if (!m_features.framebuffer_fetch)
 				{
 					// don't need the framebuffer-local dependency when we have rasterization order attachment access
 					subpass_dependency.srcSubpass = 0;
