@@ -11705,6 +11705,9 @@ SLED-53953:
     - GIFFIFOHack # Fixes flag corruptions.
   speedHacks:
     eeCycleRate: 3 # Fixes corrupted graphics.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken icons on HUD.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLED-53954:
   name: "Driver - Parallel Lines [Demo]"
   region: "PAL-E"
@@ -21458,6 +21461,9 @@ SLES-53796:
     - GIFFIFOHack # Fixes flag corruptions.
   speedHacks:
     eeCycleRate: 3 # Fixes corrupted graphics.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken icons on HUD.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLES-53797:
   name: "FIFA Street 2"
   region: "PAL-M6"
@@ -21465,6 +21471,9 @@ SLES-53797:
     - GIFFIFOHack # Fixes flag corruptions.
   speedHacks:
     eeCycleRate: 3 # Fixes corrupted graphics.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken icons on HUD.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLES-53799:
   name: "Matrix, The - Path of Neo"
   region: "PAL-M4"
@@ -28260,6 +28269,9 @@ SLKA-25374:
     - GIFFIFOHack # Fixes flag corruptions.
   speedHacks:
     eeCycleRate: 3 # Fixes corrupted graphics.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken icons on HUD.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLKA-25375:
   name: "Transformers - The Game"
   region: "NTSC-K"
@@ -37619,6 +37631,9 @@ SLPM-66443:
     - GIFFIFOHack # Fixes flag corruptions.
   speedHacks:
     eeCycleRate: 3 # Fixes corrupted graphics.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken icons on HUD.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLPM-66444:
   name: "Spartan - Kodai Greece Eiyuuden"
   region: "NTSC-J"
@@ -53367,6 +53382,9 @@ SLUS-21369:
     - GIFFIFOHack # Fixes flag corruptions.
   speedHacks:
     eeCycleRate: 3 # Fixes corrupted graphics.
+  gsHWFixes:
+    cpuSpriteRenderBW: 2 # Fixes broken icons on HUD.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SLUS-21370:
   name: "Mega Man X Collection"
   region: "NTSC-U"
