@@ -488,6 +488,10 @@ float4 sample_depth(float2 st, float2 pos)
 	{
 		c[i].a = c[i].a >= 0.5 ? TA.y : !PS_AEM || any(int3(c[i].rgb * 255.0f) & 0xF8) ? TA.x : 0;
 	}
+	else if (PS_PAL_FMT != 0 && !PS_TALES_OF_ABYSS_HLE && !PS_URBAN_CHAOS_HLE)
+	{
+		t = trunc(sample_4p(uint4(t.aaaa))[0] * 255.0f + 0.05f);
+	}
 
 	return t;
 }
