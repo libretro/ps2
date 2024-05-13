@@ -1534,6 +1534,7 @@ SCAJ-20125:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCAJ-20126:
   name: "Tekken 5"
@@ -1542,6 +1543,7 @@ SCAJ-20126:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCAJ-20127:
   name: "EyeToy - Play 2 [with Camera]"
@@ -1970,6 +1972,7 @@ SCAJ-20199:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCAJ-25002:
   name: "Shinobi"
@@ -3589,6 +3592,7 @@ SCED-53538:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCED-53611:
   name: "Official PlayStation 2 Magazine - German Kids Special"
@@ -5077,6 +5081,7 @@ SCES-53202:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCES-53247:
   name: "WRC Rally Evolved"
@@ -6387,6 +6392,7 @@ SCKA-20049:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCKA-20050:
   name: "Tales of Legendia"
@@ -6595,6 +6601,7 @@ SCKA-20081:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SCKA-20082:
   name: "Ace Combat 5 - The Unsung War [PlayStation 2 Big Hit Series]"
@@ -43378,6 +43385,7 @@ SLPS-25510:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SLPS-25511:
   name: "Rasetsu Alternative"
@@ -45256,6 +45264,7 @@ SLPS-73223:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SLPS-73224:
   name: "Xenosaga Episode II - Jenseits von Gut und Bose [PlayStation 2 The Best] [Disc 1 of 2]"
@@ -50896,6 +50905,7 @@ SLUS-21059:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SLUS-21060:
   name: "WWE SmackDown! vs. RAW"
@@ -51399,6 +51409,7 @@ SLUS-21160:
     eeClampMode: 2 # Fixes camera and stops constant coin noises on Pirates Cove.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 4 # Align post.
     getSkipCount: "GSC_Tekken5"
 SLUS-21161:
   name: "Fight Night - Round 2"
