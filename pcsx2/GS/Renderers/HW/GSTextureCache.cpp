@@ -5363,10 +5363,7 @@ void GSTextureCache::Target::Update()
 	// This'll leave undefined data in pixels that we're not reading from... shouldn't hurt anything.
 	GSTexture* const t = g_gs_device->CreateTexture(t_size.z, t_size.w, 1, GSTexture::Format::Color);
 	if (!t)
-	{
-		Console.Error("Failed to allocate %dx%d for update source", t_size.z, t_size.w);
 		return;
-	}
 
 	GSTexture::GSMap m;
 	const bool mapped = t->Map(m);
@@ -5387,30 +5384,56 @@ void GSTextureCache::Target::Update()
 	u32 ndrects = 0;
 
 	const GSOffset off(g_gs_renderer->m_mem.GetOffset(m_TEX0.TBP0, m_TEX0.TBW, m_TEX0.PSM));
+	std::pair<u8, u8> alpha_minmax = {255, 0};
+
 	for (size_t i = 0; i < m_dirty.size(); i++)
 	{
-		const GSVector4i r(m_dirty.GetDirtyRect(i, m_TEX0, total_rect, true));
-		if (r.rempty())
+		// Don't align the area we write to the target to the block size. If the format matches, the writes don't need
+		// to be block aligned. We still read the whole thing in, because that's the granularity that ReadTexture
+		// operates at, but discard those pixels when updating the framebuffer. Onimusha 2 does this dance where it
+		// uploads the left 4 pixels to the middle of the image, then moves it to the left, and because we process
+		// the move in hardware, local memory never gets updated, and thus is stale.
+		const GSVector4i update_r = m_dirty.GetDirtyRect(i, m_TEX0, total_rect, false);
+		if (update_r.rempty())
 			continue;
 
-		const GSVector4i t_r(r - t_offset);
+		const GSVector4i read_r = m_dirty.GetDirtyRect(i, m_TEX0, total_rect, true);
+		const GSVector4i t_r(read_r - t_offset);
 		if (mapped)
 		{
+			if (m_32_bits_fmt && (m_TEX0.PSM & 0xf) != PSMCT24)
+			{
+				// TODO: Only read once in 32bit and copy to the mapped texture. Bit out of scope of this PR and not a huge impact.
+				const int pitch = VectorAlign(read_r.width() * sizeof(u32));
+				g_gs_renderer->m_mem.ReadTexture(off, read_r, s_unswizzle_buffer, pitch, TEXA);
+
+				std::pair<u8, u8> new_alpha_minmax = GSGetRGBA8AlphaMinMax(s_unswizzle_buffer, read_r.width(), read_r.height(), pitch);
+				alpha_minmax.first = std::min(alpha_minmax.first, new_alpha_minmax.first);
+				alpha_minmax.second = std::max(alpha_minmax.second, new_alpha_minmax.second);
+			}
+
 			g_gs_renderer->m_mem.ReadTexture(
-				off, r, m.bits + t_r.y * static_cast<u32>(m.pitch) + (t_r.x * sizeof(u32)), m.pitch, TEXA);
+				off, read_r, m.bits + t_r.y * static_cast<u32>(m.pitch) + (t_r.x * sizeof(u32)), m.pitch, TEXA);
 		}
 		else
 		{
-			const int pitch = VectorAlign(r.width() * sizeof(u32));
-			g_gs_renderer->m_mem.ReadTexture(off, r, s_unswizzle_buffer, pitch, TEXA);
+			const int pitch = VectorAlign(read_r.width() * sizeof(u32));
+			g_gs_renderer->m_mem.ReadTexture(off, read_r, s_unswizzle_buffer, pitch, TEXA);
+
+			if (m_32_bits_fmt && (m_TEX0.PSM & 0xf) != PSMCT24)
+			{
+				std::pair<u8, u8> new_alpha_minmax = GSGetRGBA8AlphaMinMax(s_unswizzle_buffer, read_r.width(), read_r.height(), pitch);
+				alpha_minmax.first = std::min(alpha_minmax.first, new_alpha_minmax.first);
+				alpha_minmax.second = std::max(alpha_minmax.second, new_alpha_minmax.second);
+			}
 
 			t->Update(t_r, s_unswizzle_buffer, pitch);
 		}
 
 		GSDevice::MultiStretchRect& drect = drects[ndrects++];
 		drect.src = t;
-		drect.src_rect = GSVector4(r - t_offset) / t_sizef;
-		drect.dst_rect = GSVector4(r) * GSVector4(m_scale);
+		drect.src_rect = GSVector4(update_r - t_offset) / t_sizef;
+		drect.dst_rect = GSVector4(update_r) * GSVector4(m_scale);
 		drect.linear = linear && (m_dirty[i].req_linear || override_linear);
 
 		// Copy the new GS memory content into the destination texture.
@@ -5442,7 +5465,8 @@ void GSTextureCache::Target::Update()
 		}
 
 		// No need to sort here, it's all the one texture.
-		const ShaderConvert shader = (m_type == RenderTarget) ? ShaderConvert::COPY : depth_shader;	
+		const ShaderConvert shader = (m_type == RenderTarget) ? ShaderConvert::COPY : depth_shader;
+
 		g_gs_device->DrawMultiStretchRects(drects, ndrects, m_texture, shader);
 	}
 
@@ -5453,8 +5477,24 @@ void GSTextureCache::Target::Update()
 	}
 	else
 	{
-		m_alpha_min = 0;
-		m_alpha_max = m_32_bits_fmt ? 255 : 128;
+		if (m_32_bits_fmt)
+		{
+			if (!total_rect.eq(m_valid))
+			{
+				m_alpha_min = std::min(static_cast<int>(alpha_minmax.first), m_alpha_min);
+				m_alpha_max = std::max(static_cast<int>(alpha_minmax.second), m_alpha_max);
+			}
+			else
+			{
+				m_alpha_min = alpha_minmax.first;
+				m_alpha_max = alpha_minmax.second;
+			}
+		}
+		else
+		{
+			m_alpha_min = 0;
+			m_alpha_max = 128;
+		}
 	}
 	g_gs_device->Recycle(t);
 	m_dirty.clear();
