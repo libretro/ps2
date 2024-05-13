@@ -22893,9 +22893,13 @@ SLES-54454:
 SLES-54455:
   name: "Thrillville"
   region: "PAL-E"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned bloom effects.
     mergeSprite: 1 # Fixes blurriness but removes bloom + Recommended to use Shadeboost brightness 80.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54456:
   name: "Beverly Hills Cop"
   region: "PAL-M11"
@@ -23061,15 +23065,23 @@ SLES-54513:
 SLES-54516:
   name: "Thrillville"
   region: "PAL-F-G"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned bloom effects.
     mergeSprite: 1 # Fixes blurriness but removes bloom + Recommended to use Shadeboost brightness 80.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54517:
   name: "Thrillville"
   region: "PAL-M3"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned bloom effects.
     mergeSprite: 1 # Fixes blurriness but removes bloom + Recommended to use Shadeboost brightness 80.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54518:
   name: "Clumsy Shumsy"
   region: "PAL-E"
@@ -23866,13 +23878,21 @@ SLES-54805:
 SLES-54806:
   name: "Thrillville - Off the Rails"
   region: "PAL-E"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54807:
   name: "Thrillville - Off the Rails"
   region: "PAL-F"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54809:
   name: "Charlotte's Web"
   region: "PAL-A"
@@ -24104,8 +24124,12 @@ SLES-54886:
 SLES-54887:
   name: "Thrillville - Verrückte Achterbahn"
   region: "PAL-G"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-54888:
   name: "Pro Biker 2"
   region: "PAL-E"
@@ -24499,13 +24523,21 @@ SLES-55008:
 SLES-55010:
   name: "Thrillville - Fuori dai Binari"
   region: "PAL-I"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-55011:
   name: "Thrillville - Fuera de Control"
   region: "PAL-S"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-55012:
   name: "Golden Compass, The"
   region: "PAL-M5"
@@ -27788,6 +27820,12 @@ SLKA-25342:
 SLKA-25343:
   name: "Thrillville - Off the Rails"
   region: "NTSC-K"
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
+  gsHWFixes:
+    halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLKA-25344:
   name: "Tom Clancy's Ghost Recon - Advanced Warfighter"
   region: "NTSC-K"
@@ -53023,9 +53061,13 @@ SLUS-21413:
   name: "Thrillville"
   region: "NTSC-U"
   compat: 5
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned bloom effects.
     mergeSprite: 1 # Fixes blurriness but removes bloom + Recommended to use Shadeboost brightness 80.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-21414:
   name: "Delta Force - Black Hawk Down - Team Sabre"
   region: "NTSC-U"
@@ -53966,8 +54008,12 @@ SLUS-21611:
   name: "Thrillville - Off the Rails"
   region: "NTSC-U"
   compat: 5
+  clampModes:
+    vu1ClampMode: 3 # Fixes texture corruption light shimmering and reflective surfaces.
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned bloom effects, 1 is technically more correct compared to software but looks worse.
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-21612:
   name: "Legend of the Dragon"
   region: "NTSC-U"
