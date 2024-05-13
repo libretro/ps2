@@ -59,10 +59,8 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& pr
 	}
 }
 
-static void __forceinline IncrementNextA(V_Core& thiscore, uint voiceidx)
+static void __forceinline IncrementNextA(V_Core& thiscore, V_Voice& vc, uint voiceidx)
 {
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
 	// Important!  Both cores signal IRQ when an address is read, regardless of
 	// which core actually reads the address.
 
@@ -90,10 +88,8 @@ PcmCacheEntry pcm_cache_data[pcm_BlockCount];
 #define XAFLAG_LOOP (1ul << 1)
 #define XAFLAG_LOOP_START (1ul << 2)
 
-static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
+static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, V_Voice& vc, uint voiceidx)
 {
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
 	if ((vc.SCurrent & 3) == 0)
 	{
 		if (vc.PendingLoopStart)
@@ -109,7 +105,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				vc.PendingLoopStart = false;
 			}
 		}
-		IncrementNextA(thiscore, voiceidx);
+		IncrementNextA(thiscore, vc, voiceidx);
 
 		if ((vc.NextA & 7) == 0) // vc.SCurrent == 24 equivalent
 		{
@@ -118,7 +114,10 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 				thiscore.Regs.ENDX |= (1 << voiceidx);
 				vc.NextA = vc.LoopStartA | 1;
 				if (!(vc.LoopFlags & XAFLAG_LOOP))
-					vc.Stop();
+				{
+					vc.ADSR.Value = 0;
+					vc.ADSR.Phase = V_ADSR::PHASE_STOPPED;
+				}
 			}
 			else
 				vc.NextA++; // no, don't IncrementNextA here.  We haven't read the header yet.
@@ -173,11 +172,9 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, uint voiceidx)
 	return vc.SBuffer[vc.SCurrent++];
 }
 
-static __forceinline void GetNextDataDummy(V_Core& thiscore, uint voiceidx)
+static __forceinline void GetNextDataDummy(V_Core& thiscore, V_Voice& vc, uint voiceidx)
 {
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
-	IncrementNextA(thiscore, voiceidx);
+	IncrementNextA(thiscore, vc, voiceidx);
 
 	if ((vc.NextA & 7) == 0) // vc.SCurrent == 24 equivalent
 	{
@@ -251,41 +248,34 @@ static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
 	vc.SP += pitch;
 }
 
-static __forceinline void CalculateADSR(V_Core& thiscore, uint voiceidx)
+static __forceinline void CalculateADSR(V_Core& thiscore, V_Voice& vc, uint voiceidx)
 {
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
 	if (vc.ADSR.Phase == V_ADSR::PHASE_STOPPED)
+		vc.ADSR.Value = 0;
+	else if (!vc.ADSR.Calculate(thiscore.Index | (voiceidx << 1)))
 	{
 		vc.ADSR.Value = 0;
-		return;
+		vc.ADSR.Phase = V_ADSR::PHASE_STOPPED;
 	}
-
-	if (!vc.ADSR.Calculate(thiscore.Index | (voiceidx << 1)))
-		vc.Stop();
 }
 
 __forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
 {
-	s32 out = 0;
-	out =  (interpTable[i][0] * pv4) >> 15;
-	out += (interpTable[i][1] * pv3) >> 15;
-	out += (interpTable[i][2] * pv2) >> 15;
-	out += (interpTable[i][3] * pv1) >> 15;
-
-	return out;
+	return (s32)(
+	   ((interpTable[i][0] * pv4) >> 15)
+	 + ((interpTable[i][1] * pv3) >> 15)
+	 + ((interpTable[i][2] * pv2) >> 15)
+	 + ((interpTable[i][3] * pv1) >> 15));
 }
 
-static __forceinline s32 GetVoiceValues(V_Core& thiscore, uint voiceidx)
+static __forceinline s32 GetVoiceValues(V_Core& thiscore, V_Voice& vc, uint voiceidx)
 {
-	V_Voice& vc(thiscore.Voices[voiceidx]);
-
 	while (vc.SP >= 0)
 	{
 		vc.PV4 = vc.PV3;
 		vc.PV3 = vc.PV2;
 		vc.PV2 = vc.PV1;
-		vc.PV1 = GetNextDataBuffered(thiscore, voiceidx);
+		vc.PV1 = GetNextDataBuffered(thiscore, vc, voiceidx);
 		vc.SP -= 0x1000;
 	}
 
@@ -353,9 +343,6 @@ static __forceinline void spu2M_WriteFast(u32 addr, s16 value)
 
 static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 {
-	if (!vs.Enable)
-		return;
-
 	s32 step_size = 7 - vs.Step;
 
 	if (vs.Decr)
@@ -403,19 +390,19 @@ static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 	}
 }
 
-static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint voiceidx)
+static __forceinline StereoOut32 MixVoice(V_Core& thiscore, V_Voice& vc, uint coreidx, uint voiceidx)
 {
 	StereoOut32 voiceOut;
 	s32 Value      = 0;
-
-	V_Voice& vc(thiscore.Voices[voiceidx]);
 
 	// Most games don't use much volume slide effects.  So only call the UpdateVolume
 	// methods when needed by checking the flag outside the method here...
 	// (Note: Ys 6 : Ark of Nephistm uses these effects)
 	
-	V_VolumeSlide_Update(vc.Volume.Left);
-	V_VolumeSlide_Update(vc.Volume.Right);
+	if (vc.Volume.Left.Enable)
+		V_VolumeSlide_Update(vc.Volume.Left);
+	if (vc.Volume.Right.Enable)
+		V_VolumeSlide_Update(vc.Volume.Right);
 
 	// SPU2 Note: The spu2 continues to process voices for eternity, always, so we
 	// have to run through all the motions of updating the voice regardless of it's
@@ -432,11 +419,11 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint v
 		if (vc.Noise)
 			Value = (s16)thiscore.NoiseOut;
 		else
-			Value = GetVoiceValues(thiscore, voiceidx);
+			Value = GetVoiceValues(thiscore, vc, voiceidx);
 
 		// Update and Apply ADSR  (applies to normal and noise sources)
 
-		CalculateADSR(thiscore, voiceidx);
+		CalculateADSR(thiscore, vc, voiceidx);
 		Value     = ApplyVolume(Value, vc.ADSR.Value);
 		vc.OutX   = Value;
 
@@ -447,7 +434,7 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, uint coreidx, uint v
 	else
 	{
 		while (vc.SP >= 0)
-			GetNextDataDummy(thiscore, voiceidx); // Dummy is enough
+			GetNextDataDummy(thiscore, vc, voiceidx); // Dummy is enough
 	}
 
 	// Write-back of raw voice data (post ADSR applied)
@@ -465,7 +452,8 @@ static __forceinline void MixCoreVoices(VoiceMixSet& dest, const uint coreidx)
 
 	for (uint voiceidx = 0; voiceidx < V_Core::NumVoices; ++voiceidx)
 	{
-		StereoOut32 VVal(MixVoice(thiscore, coreidx, voiceidx));
+		V_Voice& vc(thiscore.Voices[voiceidx]);
+		StereoOut32 VVal(MixVoice(thiscore, vc, coreidx, voiceidx));
 
 		// Note: Results from MixVoice are ranged at 16 bits.
 
@@ -480,8 +468,10 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 {
 	StereoOut32 TD;
 	VoiceMixSet Voices;
-	V_VolumeSlide_Update(MasterVol.Left);
-	V_VolumeSlide_Update(MasterVol.Right);
+	if (MasterVol.Left.Enable)
+		V_VolumeSlide_Update(MasterVol.Left);
+	if (MasterVol.Right.Enable)
+		V_VolumeSlide_Update(MasterVol.Right);
 	UpdateNoise(*this);
 
 

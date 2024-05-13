@@ -202,10 +202,6 @@ struct V_Voice
 
 	// sample position within the current decoded packet.
 	s32 SCurrent;
-
-	// it takes a few ticks for voices to start on the real SPU2?
-	void Start();
-	void Stop();
 };
 
 struct V_Reverb

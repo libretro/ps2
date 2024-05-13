@@ -210,19 +210,6 @@ void V_Core::Init(int index)
 	memset(RevbUpBuf, 0, sizeof(RevbUpBuf));
 }
 
-void V_Voice::Start()
-{
-	PlayCycle = Cycles;
-	LoopCycle = Cycles - 1; // Get it out of the start range as to not confuse it
-	PendingLoopStart = false;
-}
-
-void V_Voice::Stop()
-{
-	ADSR.Value = 0;
-	ADSR.Phase = V_ADSR::PHASE_STOPPED;
-}
-
 #define TICKINTERVAL 768
 #define SANITYINTERVAL 4800
 /* TICKINTERVAL * SANITYINTERVAL = 3686400 */
@@ -843,7 +830,9 @@ static void StartVoices(int core, u32 value)
 		if ((Cycles - Cores[core].Voices[vc].PlayCycle) < 2)
 			continue;
 
-		Cores[core].Voices[vc].Start();
+		Cores[core].Voices[vc].PlayCycle        = Cycles;
+		Cores[core].Voices[vc].LoopCycle        = Cycles - 1; // Get it out of the start range as to not confuse it
+		Cores[core].Voices[vc].PendingLoopStart = false;
 	}
 }
 
