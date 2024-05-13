@@ -988,10 +988,6 @@ Pcsx2Config::Pcsx2Config()
 	EnablePatches = true;
 	EnableGameFixes = true;
 
-#ifdef _WIN32
-	McdCompressNTFS = true;
-#endif
-
 	// To be moved to FileMemoryCard pluign (someday)
 	for (uint slot = 0; slot < 8; ++slot)
 	{
@@ -1032,10 +1028,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	BaseFilenames.LoadSave(wrap);
 	Framerate.LoadSave(wrap);
 	LoadSaveMemcards(wrap);
-
-#ifdef _WIN32
-	SettingsWrapEntry(McdCompressNTFS);
-#endif
 
 	if (wrap.IsLoading())
 	{
