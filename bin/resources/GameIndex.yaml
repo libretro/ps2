@@ -14852,11 +14852,13 @@ SLES-51286:
   region: "PAL-E"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes upscaling lines.
+    autoFlush: 2 # Fixes sun penetration.
 SLES-51287:
   name: "X-Men 2 - Wolverine's Revenge"
   region: "PAL-F"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes upscaling lines.
+    autoFlush: 2 # Fixes sun penetration.
 SLES-51289:
   name: "Gunfighter 2 - Legend of Jesse James"
   region: "PAL-M5"
@@ -15382,6 +15384,7 @@ SLES-51548:
   region: "PAL-M3"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes upscaling lines.
+    autoFlush: 2 # Fixes sun penetration.
 SLES-51553:
   name: "Chaos Legion"
   region: "PAL-M5"
@@ -47456,6 +47459,7 @@ SLUS-20337:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes upscaling lines.
+    autoFlush: 2 # Fixes sun penetration.
 SLUS-20339:
   name: "Bass Fishing Duel - Sega Sports"
   region: "NTSC-U"
