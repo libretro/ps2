@@ -19,90 +19,83 @@
 
 static constexpr s32 ADSR_MAX_VOL = 0x7fff;
 
-void V_ADSR::UpdateCache()
+void ADSR_UpdateCache(V_ADSR &v)
 {
-	CachedPhases[PHASE_ATTACK].Decr = false;
-	CachedPhases[PHASE_ATTACK].Exp = AttackMode;
-	CachedPhases[PHASE_ATTACK].Shift = AttackShift;
-	CachedPhases[PHASE_ATTACK].Step = 7 - AttackStep;
-	CachedPhases[PHASE_ATTACK].Target = ADSR_MAX_VOL;
+	v.CachedPhases[PHASE_ATTACK].Decr   = false;
+	v.CachedPhases[PHASE_ATTACK].Exp    = v.AttackMode;
+	v.CachedPhases[PHASE_ATTACK].Shift  = v.AttackShift;
+	v.CachedPhases[PHASE_ATTACK].Step   = 7 - v.AttackStep;
+	v.CachedPhases[PHASE_ATTACK].Target = ADSR_MAX_VOL;
 
-	CachedPhases[PHASE_DECAY].Decr = true;
-	CachedPhases[PHASE_DECAY].Exp = true;
-	CachedPhases[PHASE_DECAY].Shift = DecayShift;
-	CachedPhases[PHASE_DECAY].Step = -8;
-	CachedPhases[PHASE_DECAY].Target = (SustainLevel + 1) << 11;
+	v.CachedPhases[PHASE_DECAY].Decr    = true;
+	v.CachedPhases[PHASE_DECAY].Exp     = true;
+	v.CachedPhases[PHASE_DECAY].Shift   = v.DecayShift;
+	v.CachedPhases[PHASE_DECAY].Step    = -8;
+	v.CachedPhases[PHASE_DECAY].Target  = (v.SustainLevel + 1) << 11;
 
-	CachedPhases[PHASE_SUSTAIN].Decr = SustainDir;
-	CachedPhases[PHASE_SUSTAIN].Exp = SustainMode;
-	CachedPhases[PHASE_SUSTAIN].Shift = SustainShift;
-	CachedPhases[PHASE_SUSTAIN].Step = 7 - SustainStep;
+	v.CachedPhases[PHASE_SUSTAIN].Decr  = v.SustainDir;
+	v.CachedPhases[PHASE_SUSTAIN].Exp   = v.SustainMode;
+	v.CachedPhases[PHASE_SUSTAIN].Shift = v.SustainShift;
+	v.CachedPhases[PHASE_SUSTAIN].Step  = 7 - v.SustainStep;
 
-	if (CachedPhases[PHASE_SUSTAIN].Decr)
-		CachedPhases[PHASE_SUSTAIN].Step = ~CachedPhases[PHASE_SUSTAIN].Step;
+	if (v.CachedPhases[PHASE_SUSTAIN].Decr)
+		v.CachedPhases[PHASE_SUSTAIN].Step = ~v.CachedPhases[PHASE_SUSTAIN].Step;
 
-	CachedPhases[PHASE_SUSTAIN].Target = 0;
+	v.CachedPhases[PHASE_SUSTAIN].Target = 0;
 
-	CachedPhases[PHASE_RELEASE].Decr = true;
-	CachedPhases[PHASE_RELEASE].Exp = ReleaseMode;
-	CachedPhases[PHASE_RELEASE].Shift = ReleaseShift;
-	CachedPhases[PHASE_RELEASE].Step = -8;
-	CachedPhases[PHASE_RELEASE].Target = 0;
+	v.CachedPhases[PHASE_RELEASE].Decr   = true;
+	v.CachedPhases[PHASE_RELEASE].Exp    = v. ReleaseMode;
+	v.CachedPhases[PHASE_RELEASE].Shift  = v.ReleaseShift;
+	v.CachedPhases[PHASE_RELEASE].Step   = -8;
+	v.CachedPhases[PHASE_RELEASE].Target = 0;
 }
 
-bool V_ADSR::Calculate(int voiceidx)
+bool ADSR_Calculate(V_ADSR &v, int voiceidx)
 {
-	auto& p = CachedPhases.at(Phase);
+	auto& p = v.CachedPhases.at(v.Phase);
 
 	// maybe not correct for the "infinite" settings
 	u32 counter_inc = 0x8000 >> std::max(0, p.Shift - 11);
-	s32 level_inc = p.Step << std::max(0, 11 - p.Shift);
+	s32 level_inc   = p.Step << std::max(0, 11 - p.Shift);
 
 	if (p.Exp)
 	{
-		if (!p.Decr && Value > 0x6000)
+		if (!p.Decr && v.Value > 0x6000)
 			counter_inc >>= 2;
 
 		if (p.Decr)
-			level_inc = (s16)((level_inc * Value) >> 15);
+			level_inc = (s16)((level_inc * v.Value) >> 15);
 	}
 
 	counter_inc = std::max<u32>(1, counter_inc);
-	Counter += counter_inc;
+	v.Counter  += counter_inc;
 
-	if (Counter >= 0x8000)
+	if (v.Counter >= 0x8000)
 	{
-		Counter = 0;
-		Value = std::clamp<s32>(Value + level_inc, 0, INT16_MAX);
+		v.Counter = 0;
+		v.Value   = std::clamp<s32>(v.Value + level_inc, 0, INT16_MAX);
 	}
 
 	// Stay in sustain until key off or silence
-	if (Phase == PHASE_SUSTAIN)
-		return Value != 0;
+	if (v.Phase == PHASE_SUSTAIN)
+		return v.Value != 0;
 
 	// Check if target is reached to advance phase
-	if ((!p.Decr && Value >= p.Target) || (p.Decr && Value <= p.Target))
-		Phase++;
+	if ((!p.Decr && v.Value >= p.Target) || (p.Decr && v.Value <= p.Target))
+		v.Phase++;
 
 	// All phases done, stop the voice
-	if (Phase > PHASE_RELEASE)
+	if (v.Phase > PHASE_RELEASE)
 		return false;
 
 	return true;
 }
 
-void V_ADSR::Attack()
+void ADSR_Release(V_ADSR &v)
 {
-	Phase = PHASE_ATTACK;
-	Counter = 0;
-	Value = 0;
-}
-
-void V_ADSR::Release()
-{
-	if (Phase != PHASE_STOPPED)
+	if (v.Phase != PHASE_STOPPED)
 	{
-		Phase = PHASE_RELEASE;
-		Counter = 0;
+		v.Phase   = PHASE_RELEASE;
+		v.Counter = 0;
 	}
 }

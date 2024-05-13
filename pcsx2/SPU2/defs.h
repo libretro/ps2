@@ -84,6 +84,14 @@ struct V_VolumeSlideLR
 	V_VolumeSlide Right;
 };
 
+#define ADSR_PHASES 5
+
+#define PHASE_STOPPED 0
+#define PHASE_ATTACK 1
+#define PHASE_DECAY 2
+#define PHASE_SUSTAIN 3
+#define PHASE_RELEASE 4
+
 struct V_ADSR
 {
 	union
@@ -113,13 +121,6 @@ struct V_ADSR
 		};
 	};
 
-	static constexpr int ADSR_PHASES = 5;
-
-	static constexpr int PHASE_STOPPED = 0;
-	static constexpr int PHASE_ATTACK = 1;
-	static constexpr int PHASE_DECAY = 2;
-	static constexpr int PHASE_SUSTAIN = 3;
-	static constexpr int PHASE_RELEASE = 4;
 
 	struct CachedADSR
 	{
@@ -135,14 +136,11 @@ struct V_ADSR
 	u32 Counter;
 	s32 Value; // Ranges from 0 to 0x7fff (signed values are clamped to 0) [Reg_ENVX]
 	u8 Phase; // monitors current phase of ADSR envelope
-
-public:
-	void UpdateCache();
-	bool Calculate(int voiceidx);
-	void Attack();
-	void Release();
 };
 
+void ADSR_Release(V_ADSR &v);
+bool ADSR_Calculate(V_ADSR &v, int voiceidx);
+void ADSR_UpdateCache(V_ADSR &v);
 
 struct V_Voice
 {

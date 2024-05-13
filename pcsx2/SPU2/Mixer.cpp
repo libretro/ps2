@@ -116,7 +116,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, V_Voice& vc, uint
 				if (!(vc.LoopFlags & XAFLAG_LOOP))
 				{
 					vc.ADSR.Value = 0;
-					vc.ADSR.Phase = V_ADSR::PHASE_STOPPED;
+					vc.ADSR.Phase = PHASE_STOPPED;
 				}
 			}
 			else
@@ -250,12 +250,12 @@ static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
 
 static __forceinline void CalculateADSR(V_Core& thiscore, V_Voice& vc, uint voiceidx)
 {
-	if (vc.ADSR.Phase == V_ADSR::PHASE_STOPPED)
+	if (vc.ADSR.Phase == PHASE_STOPPED)
 		vc.ADSR.Value = 0;
-	else if (!vc.ADSR.Calculate(thiscore.Index | (voiceidx << 1)))
+	else if (!ADSR_Calculate(vc.ADSR, thiscore.Index | (voiceidx << 1)))
 	{
 		vc.ADSR.Value = 0;
-		vc.ADSR.Phase = V_ADSR::PHASE_STOPPED;
+		vc.ADSR.Phase = PHASE_STOPPED;
 	}
 }
 
@@ -413,7 +413,7 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, V_Voice& vc, uint co
 	voiceOut.Left  = 0;
 	voiceOut.Right = 0;
 
-	if (vc.ADSR.Phase > V_ADSR::PHASE_STOPPED)
+	if (vc.ADSR.Phase > PHASE_STOPPED)
 	{
 		StereoOut32 val;
 		if (vc.Noise)
@@ -473,7 +473,6 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	if (MasterVol.Right.Enable)
 		V_VolumeSlide_Update(MasterVol.Right);
 	UpdateNoise(*this);
-
 
 	// Saturate final result to standard 16 bit range.
 	Voices.Dry = clamp_mix(inVoices.Dry);

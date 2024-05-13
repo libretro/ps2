@@ -223,9 +223,12 @@ __forceinline bool StartQueuedVoice(uint coreidx, V_Voice& vc, uint voiceidx)
 	if (vc.StartA & 7)
 		vc.StartA = (vc.StartA + 0xFFFF8) + 0x8;
 
-	vc.ADSR.Attack();
-	vc.SCurrent = 28;
-	vc.LoopMode = 0;
+	vc.ADSR.Phase   = PHASE_ATTACK;
+	vc.ADSR.Counter = 0;
+	vc.ADSR.Value   = 0;
+
+	vc.SCurrent     = 28;
+	vc.LoopMode     = 0;
 
 	// When SP >= 0 the next sample will be grabbed, we don't want this to happen
 	// instantly because in the case of pitch being 0 we want to delay getting
@@ -474,12 +477,12 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 
 			case 0x8: // ADSR1 (Envelope)
 				Voices[voice].ADSR.regADSR1 = value;
-				Voices[voice].ADSR.UpdateCache();
+				ADSR_UpdateCache(Voices[voice].ADSR);
 				break;
 
 			case 0xa: // ADSR2 (Envelope)
 				Voices[voice].ADSR.regADSR2 = value;
-				Voices[voice].ADSR.UpdateCache();
+				ADSR_UpdateCache(Voices[voice].ADSR);
 				break;
 			case 0xc: // Voice 0..23 ADSR Current Volume
 				// not commonly set by games
@@ -812,44 +815,41 @@ static __forceinline void SetLoWord(u32& src, u16 value)
 	((u16*)&src)[0] = value;
 }
 
-static void StartVoices(int core, u32 value)
+static void StartVoices(V_Core& thiscore, int core, u32 value)
 {
 	// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
 	// this loop if value is zero.
 	if (value == 0)
 		return;
 
-	Cores[core].KeyOn |= value;
-	Cores[core].Regs.ENDX &= ~value;
+	thiscore.KeyOn |= value;
+	thiscore.Regs.ENDX &= ~value;
 
 	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
 	{
 		if (!((value >> vc) & 1))
 			continue;
 
-		if ((Cycles - Cores[core].Voices[vc].PlayCycle) < 2)
+		if ((Cycles - thiscore.Voices[vc].PlayCycle) < 2)
 			continue;
 
-		Cores[core].Voices[vc].PlayCycle        = Cycles;
-		Cores[core].Voices[vc].LoopCycle        = Cycles - 1; // Get it out of the start range as to not confuse it
-		Cores[core].Voices[vc].PendingLoopStart = false;
+		thiscore.Voices[vc].PlayCycle        = Cycles;
+		thiscore.Voices[vc].LoopCycle        = Cycles - 1; // Get it out of the start range as to not confuse it
+		thiscore.Voices[vc].PendingLoopStart = false;
 	}
 }
 
-static void StopVoices(int core, u32 value)
+static void StopVoices(V_Core& thiscore, int core, u32 value)
 {
-	if (value == 0)
-		return;
-
 	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
 	{
 		if (!((value >> vc) & 1))
 			continue;
 
-		if (Cycles - Cores[core].Voices[vc].PlayCycle < 2)
+		if (Cycles - thiscore.Voices[vc].PlayCycle < 2)
 			continue;
 
-		Cores[core].Voices[vc].ADSR.Release();
+		ADSR_Release(thiscore.Voices[vc].ADSR);
 	}
 }
 
@@ -881,12 +881,12 @@ static void RegWrite_VoiceParams(u16 value)
 
 		case 3: // ADSR1 (Envelope)
 			thisvoice.ADSR.regADSR1 = value;
-			thisvoice.ADSR.UpdateCache();
+			ADSR_UpdateCache(thisvoice.ADSR);
 			break;
 
 		case 4: // ADSR2 (Envelope)
 			thisvoice.ADSR.regADSR2 = value;
-			thisvoice.ADSR.UpdateCache();
+			ADSR_UpdateCache(thisvoice.ADSR);
 			break;
 
 			// REG_VP_ENVX, REG_VP_VOLXL and REG_VP_VOLXR are all writable, only ENVX has any effect when written to.
@@ -1135,22 +1135,24 @@ static void RegWrite_Core(u16 value)
 		break;
 
 		case (REG_S_KON + 2):
-			StartVoices(core, ((u32)value) << 16);
+			StartVoices(thiscore, core, ((u32)value) << 16);
 			spu2regs[omem >> 1 | core * 0x200] = value;
 			break;
 
 		case REG_S_KON:
-			StartVoices(core, ((u32)value));
+			StartVoices(thiscore, core, ((u32)value));
 			spu2regs[omem >> 1 | core * 0x200] = value;
 			break;
 
 		case (REG_S_KOFF + 2):
-			StopVoices(core, ((u32)value) << 16);
+			if ((((u32)value) << 16) != 0)
+				StopVoices(thiscore, core, ((u32)value) << 16);
 			spu2regs[omem >> 1 | core * 0x200] = value;
 			break;
 
 		case REG_S_KOFF:
-			StopVoices(core, ((u32)value));
+			if (((u32)value) != 0)
+				StopVoices(thiscore, core, ((u32)value));
 			spu2regs[omem >> 1 | core * 0x200] = value;
 			break;
 
