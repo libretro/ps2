@@ -2198,7 +2198,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 	// but normally few RT are miss so it must remain reasonable.
 	const GSLocalMemory::psm_t& psm_s = GSLocalMemory::m_psm[TEX0.PSM];
 	const bool supported_fmt = !GSConfig.UserHacks_DisableDepthSupport || psm_s.depth == 0;
-	bool hw_clear = false;
+	std::optional<bool> hw_clear;
 
 	if (TEX0.TBW > 0 && supported_fmt)
 	{
@@ -2213,11 +2213,11 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 		{
 			if ((preserve_target || !draw_rect.eq(dst->m_valid)) && GSRendererHW::GetInstance()->m_draw_transfers.size() > 0)
 			{
-				std::vector<GSState::GSUploadQueue>::reverse_iterator iter;
+				auto& transfers = GSRendererHW::GetInstance()->m_draw_transfers;
+				const int last_draw = transfers.back().draw;
 				GSVector4i eerect = GSVector4i::zero();
-				const int last_draw = GSRendererHW::GetInstance()->m_draw_transfers.back().draw;
 
-				for (iter = GSRendererHW::GetInstance()->m_draw_transfers.rbegin(); iter != GSRendererHW::GetInstance()->m_draw_transfers.rend(); )
+				for (auto iter = transfers.rbegin(); iter != transfers.rend(); ++iter)
 				{
 					// Would be nice to make this 100, but B-Boy seems to rely on data uploaded ~200 draws ago. Making it bigger for now to be safe.
 					if (last_draw - iter->draw > 500)
@@ -2280,19 +2280,22 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 						else
 							eerect = eerect.runion(targetr);
 
-						if (iter->zero_clear && iter->draw == last_draw)
-							hw_clear |= true;
+						// Later writes might be partial over a previously cleared area. We want to upload in these cases.
+						hw_clear = hw_clear.has_value() ? (hw_clear.value() && iter->zero_clear) : iter->zero_clear;
 
-						if (iter->blit.DBP == TEX0.TBP0 && transfer_end == rect_end)
-							iter = std::vector<GSState::GSUploadQueue>::reverse_iterator(GSRendererHW::GetInstance()->m_draw_transfers.erase(iter.base() - 1));
-						else
-							++iter;
+						// When the write covers the entire target, don't bother checking any earlier writes.
+						if (iter->blit.DBP <= TEX0.TBP0 && transfer_end >= rect_end)
+						{
+							// Some games clear RT and Z at the same time, only erase if it's specifically this target.
+							if (iter->blit.DBP == TEX0.TBP0 && transfer_end == rect_end)
+								transfers.erase(iter.base() - 1);
+
+							break;
+						}
 
 						if (eerect.rintersect(newrect).eq(newrect))
 							break;
 					}
-					else
-						++iter;
 				}
 
 				if (!eerect.rempty())
@@ -2339,7 +2342,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 							GSVector4i new_valid = t->m_valid;
 							new_valid.w /= 2;
 							t->ResizeValidity(new_valid);
-							return hw_clear;
+							return hw_clear.value_or(false);
 						}
 						// The new texture is behind it but engulfs the whole thing, shrink the new target so it grows in the HW Draw resize.
 						else if (((((dst->UnwrappedEndBlock() + 1) - dst->m_TEX0.TBP0) >> 1) + dst->m_TEX0.TBP0) == t->m_TEX0.TBP0)
@@ -2392,7 +2395,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 								i = list.erase(j);
 								delete t;
 							}
-							return hw_clear;
+							return hw_clear.value_or(false);
 						}
 					}
 				i++;
@@ -2400,7 +2403,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 		}
 	}
 
-	return hw_clear;
+	return hw_clear.value_or(false);
 }
 
 GSTextureCache::Target* GSTextureCache::LookupDisplayTarget(GIFRegTEX0 TEX0, const GSVector2i& size, float scale, bool is_feedback)
