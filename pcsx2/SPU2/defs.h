@@ -382,8 +382,6 @@ struct V_Core
 	}
 
 	void Init(int index);
-	void UpdateEffectsBufferSize();
-	void AnalyzeReverbPreset();
 
 	void WriteRegPS1(u32 mem, u16 value);
 	u16 ReadRegPS1(u32 mem);
