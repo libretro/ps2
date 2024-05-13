@@ -1067,7 +1067,7 @@ static u32 scaleblockcycles_calculation(void)
 	else if (cyclerate == 1)
 		scale_cycles = DEFAULT_SCALED_BLOCKS() / 1.3f; // Adds a mild 30% increase in clockspeed for value 1.
 
-	else if (cyclerate == -1) // the mildest value which is also used by the "balanced" preset.
+	else if (cyclerate == -1) // the mildest value.
 		// These values were manually tuned to yield mild speedup with high compatibility
 		scale_cycles = (s_nBlockCycles <= 80 || s_nBlockCycles > 168 ? 5 : 7) * s_nBlockCycles / 32;
 
