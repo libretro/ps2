@@ -482,7 +482,7 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 
 bool GSHWDrawConfig::BlendState::IsEffective(ColorMaskSelector colormask) const
 {
-	return enable && ((colormask.key & 7u) || src_factor_alpha != GSDevice::CONST_ZERO || dst_factor_alpha != GSDevice::CONST_ONE);
+	return enable && (((colormask.key & 7u) && (src_factor != GSDevice::CONST_ONE || dst_factor != GSDevice::CONST_ZERO)) || ((colormask.key & 8u) && (src_factor_alpha != GSDevice::CONST_ONE || dst_factor_alpha != GSDevice::CONST_ZERO)));
 }
 
 // clang-format off
