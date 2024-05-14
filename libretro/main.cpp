@@ -925,6 +925,8 @@ void retro_run(void)
 	RETRO_PERFORMANCE_INIT(pcsx2_run);
 	RETRO_PERFORMANCE_START(pcsx2_run);
 
+	PAD::Update();
+
 	MTGS::MainLoop(false);
 
 	RETRO_PERFORMANCE_STOP(pcsx2_run);

@@ -33,8 +33,6 @@
 #include "Patch.h"
 
 #include "ps2/HwInternal.h"
-#include "Sio.h"
-#include "PAD/PAD.h"
 #include "VMManager.h"
 
 extern u8 psxhblankgate;
@@ -569,7 +567,6 @@ static __fi void VSyncStart(u32 sCycle)
 		  || (_place == PPT_COMBINED_0_1))
 			_ApplyPatch(&Patch[i]);
 	}
-	PAD::Update();
 	gsPostVsyncStart();
 	VSyncCheckExit();
 
