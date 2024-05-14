@@ -295,8 +295,6 @@ struct alignas(16) GSHWDrawConfig
 				u32 pabe           : 1;
 				u32 no_color       : 1; // disables color output entirely (depth only)
 				u32 no_color1      : 1; // disables second color output (when unnecessary)
-				u32 no_ablend      : 1; // output alpha blend in col0 (for no-DSB)
-				u32 only_alpha     : 1; // don't bother computing RGB
 
 				// Others ways to fetch the texture
 				u32 channel : 3;
@@ -620,8 +618,6 @@ struct alignas(16) GSHWDrawConfig
 	DestinationAlphaMode destination_alpha;
 	SetDATM datm : 2;
 	bool line_expand : 1;
-	bool separate_alpha_pass : 1;
-	bool second_separate_alpha_pass : 1;
 
 	struct AlphaPass
 	{
@@ -709,7 +705,6 @@ private:
 	std::array<FastList<GSTexture*>, 2> m_pool; // [texture, target]
 
 	static const HWBlend m_blendMap[81];
-	static const u8 m_replaceDualSrcBlendMap[16];
 
 protected:
 	static constexpr int NUM_INTERLACE_SHADERS = 5;
@@ -843,28 +838,8 @@ public:
 
 	// Convert the GS blend equations to HW blend factors/ops
 	// Index is computed as ((((A * 3 + B) * 3) + C) * 3) + D. A, B, C, D taken from ALPHA register.
-	__ri static HWBlend GetBlend(u32 index, bool replace_dual_src)
-	{
-		HWBlend ret = m_blendMap[index];
-		if (replace_dual_src)
-		{
-			ret.src = m_replaceDualSrcBlendMap[ret.src];
-			ret.dst = m_replaceDualSrcBlendMap[ret.dst];
-		}
-		return ret;
-	}
+	__ri static HWBlend GetBlend(u32 index) { return m_blendMap[index]; }
 	__ri static u16 GetBlendFlags(u32 index) { return m_blendMap[index].flags; }
-	__fi static bool IsDualSourceBlend(u32 index)
-	{
-		return (IsDualSourceBlendFactor(m_blendMap[index].src) ||
-				IsDualSourceBlendFactor(m_blendMap[index].dst));
-	}
-
-	/// Alters the pipeline configuration for drawing the separate alpha pass.
-	static void SetHWDrawConfigForAlphaPass(GSHWDrawConfig::PSSelector* ps,
-		GSHWDrawConfig::ColorMaskSelector* cms,
-		GSHWDrawConfig::BlendState* bs,
-		GSHWDrawConfig::DepthStencilSelector* dss);
 };
 
 template <>

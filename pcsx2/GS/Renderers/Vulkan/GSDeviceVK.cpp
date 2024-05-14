@@ -1437,7 +1437,7 @@ bool GSDeviceVK::CheckFeatures()
 #endif
 	m_features.prefer_new_textures   = true;
 	m_features.provoking_vertex_last = m_optional_extensions.vk_ext_provoking_vertex;
-	m_features.dual_source_blend     = m_device_features.dualSrcBlend && !GSConfig.DisableDualSourceBlend;
+	m_features.dual_source_blend     = m_device_features.dualSrcBlend;
 	m_features.clip_control          = true;
 #ifdef __APPLE__
 	m_features.vs_expand             = false;
@@ -3127,8 +3127,6 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	AddMacro(ss, "PS_TEX_IS_FB", sel.tex_is_fb);
 	AddMacro(ss, "PS_NO_COLOR", sel.no_color);
 	AddMacro(ss, "PS_NO_COLOR1", sel.no_color1);
-	AddMacro(ss, "PS_NO_ABLEND", sel.no_ablend);
-	AddMacro(ss, "PS_ONLY_ALPHA", sel.only_alpha);
 	ss << m_tfx_source;
 
 	VkShaderModule mod = g_vulkan_shader_cache->GetFragmentShader(ss.str());
@@ -4158,15 +4156,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 
 	// now we can do the actual draw
 	if (BindDrawPipeline(pipe))
-	{
 		SendHWDraw(config, draw_rt, skip_first_barrier);
-		if (config.separate_alpha_pass)
-		{
-			SetHWDrawConfigForAlphaPass(&pipe.ps, &pipe.cms, &pipe.bs, &pipe.dss);
-			if (BindDrawPipeline(pipe))
-				SendHWDraw(config, draw_rt, false);
-		}
-	}
 
 	// and the alpha pass
 	if (config.alpha_second_pass.enable)
@@ -4183,15 +4173,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		pipe.dss = config.alpha_second_pass.depth;
 		pipe.bs = config.blend;
 		if (BindDrawPipeline(pipe))
-		{
 			SendHWDraw(config, draw_rt, false);
-			if (config.second_separate_alpha_pass)
-			{
-				SetHWDrawConfigForAlphaPass(&pipe.ps, &pipe.cms, &pipe.bs, &pipe.dss);
-				if (BindDrawPipeline(pipe))
-					SendHWDraw(config, draw_rt, false);
-			}
-		}
 	}
 
 	if (draw_rt_clone)

@@ -495,7 +495,6 @@ struct Pcsx2Config
 					PCRTCOverscan : 1,
 					UseDebugDevice : 1,
 					DisableShaderCache : 1,
-					DisableDualSourceBlend : 1,
 					DisableFramebufferFetch : 1,
 					DisableVertexShaderExpand : 1,
 					SkipDuplicateFrames : 1;

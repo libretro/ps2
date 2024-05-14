@@ -544,7 +544,6 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 		   OpEqu(Adapter) &&
 		   OpEqu(UseDebugDevice) &&
 		   OpEqu(DisableShaderCache) &&
-		   OpEqu(DisableDualSourceBlend) &&
 		   OpEqu(DisableFramebufferFetch) &&
 		   OpEqu(DisableVertexShaderExpand) &&
 		   OpEqu(OverrideTextureBarriers);
@@ -585,7 +584,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	GSSettingBoolEx(PCRTCOverscan, "pcrtc_overscan");
 	GSSettingBool(UseDebugDevice);
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
-	GSSettingBool(DisableDualSourceBlend);
 	GSSettingBool(DisableFramebufferFetch);
 	GSSettingBool(DisableVertexShaderExpand);
 	GSSettingBool(SkipDuplicateFrames);
