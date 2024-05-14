@@ -1170,6 +1170,9 @@ SCAJ-20057:
 SCAJ-20058:
   name: "Terminator 3 - Rise of the Machines"
   region: "NTSC-Unk"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SCAJ-20059:
   name: "Minna no Golf 4"
   region: "NTSC-Unk"
@@ -17165,6 +17168,9 @@ SLES-51956:
 SLES-51957:
   name: "Terminator 3 - Rise of the Machines"
   region: "PAL-F"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLES-51958:
   name: "Whiplash"
   region: "PAL-M5"
@@ -17376,9 +17382,15 @@ SLES-52036:
 SLES-52038:
   name: "Terminator 3 - Rebellion der Maschinen"
   region: "PAL-G"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLES-52039:
   name: "Terminator 3 - Rise Of The Machines"
   region: "PAL-S"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLES-52041:
   name: "Detonator"
   region: "PAL-E"
@@ -17596,9 +17608,15 @@ SLES-52150:
 SLES-52151:
   name: "Terminator 3 - Le Macchine Ribelli"
   region: "PAL-I"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLES-52152:
   name: "Terminator 3 - Rise of the Machines"
   region: "PAL-E"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLES-52153:
   name: "Driv3r"
   region: "PAL-E-S"
@@ -17869,6 +17887,9 @@ SLES-52282:
 SLES-52283:
   name: "Terminator 3 - The Redemption"
   region: "PAL-M5"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLES-52284:
   name: "Deadly Skies III"
   region: "PAL-M5"
@@ -18597,6 +18618,9 @@ SLES-52573:
   region: "PAL-M5"
   roundModes:
     eeRoundMode: 2 # Fixes abnormal character behaviour.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLES-52576:
   name: "Yu-Gi-Oh! Capsule Monster Coliseum"
   region: "PAL-M5"
@@ -35876,6 +35900,9 @@ SLPM-65441:
 SLPM-65442:
   name: "Terminator 3, The - Rise of the Machines"
   region: "NTSC-J"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLPM-65443:
   name: "Front Mission 4"
   region: "NTSC-J"
@@ -37320,6 +37347,9 @@ SLPM-65836:
 SLPM-65837:
   name: "Terminator 3 - Redemption"
   region: "NTSC-J"
+  compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLPM-65838:
   name: "Hanjuku Hero 4 [Limited Edition]"
   region: "NTSC-J"
@@ -52381,6 +52411,8 @@ SLUS-20799:
   name: "Terminator 3 - Rise of the Machines"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    autoFlush: 2 # Fixes environment lights visible through player model.
 SLUS-20800:
   name: "Taiko Drum Master"
   region: "NTSC-U"
@@ -54447,6 +54479,9 @@ SLUS-21172:
   compat: 5
   roundModes:
     eeRoundMode: 2 # Fixes abnormal character behaviour.
+  gsHWFixes:
+    mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
+    trilinearFiltering: 1
 SLUS-21173:
   name: "Dora the Explorer - To the Purple Planet"
   region: "NTSC-U"
