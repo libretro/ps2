@@ -870,7 +870,7 @@ void GSDevice11::DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	StretchRect(sTex, sRect, dTex, dRect, m_interlace.ps[static_cast<int>(shader)].get(), m_interlace.cb.get(), linear);
 }
 
-void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, bool datm)
+void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vertices, SetDATM datm)
 {
 	// sfex3 (after the capcom logo), vf4 (first menu fading in), ffxii shadows, rumble roses shadows, persona4 shadows
 	
@@ -898,7 +898,7 @@ void GSDevice11::SetupDATE(GSTexture* rt, GSTexture* ds, const GSVertexPT1* vert
 	// ps
 	PSSetShaderResource(0, rt);
 	PSSetSamplerState(m_convert.pt.get());
-	PSSetShader(m_convert.ps[static_cast<int>(datm ? ShaderConvert::DATM_1 : ShaderConvert::DATM_0)].get(), nullptr);
+	PSSetShader(m_convert.ps[SetDATMShader(datm)].get(), nullptr);
 
 	//
 
@@ -1262,7 +1262,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			return;
 
 		StretchRect(config.rt, GSVector4(config.drawarea) / GSVector4(rtsize).xyxy(),
-			primid_tex, GSVector4(config.drawarea), m_date.primid_init_ps[config.datm].get(), nullptr, false);
+			primid_tex, GSVector4(config.drawarea),
+			m_date.primid_init_ps[static_cast<u8>(config.datm)].get(), nullptr, false);
 	}
 	else if (config.destination_alpha != GSHWDrawConfig::DestinationAlphaMode::Off)
 	{
@@ -1612,6 +1613,8 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 		sm.AddMacro("PS_DEPTH_FMT", sel.depth_fmt);
 		sm.AddMacro("PS_PAL_FMT", sel.pal_fmt);
 		sm.AddMacro("PS_HDR", sel.hdr);
+		sm.AddMacro("PS_RTA_CORRECTION", sel.rta_correction);
+		sm.AddMacro("PS_RTA_SRC_CORRECTION", sel.rta_source_correction);
 		sm.AddMacro("PS_COLCLIP", sel.colclip);
 		sm.AddMacro("PS_BLEND_A", sel.blend_a);
 		sm.AddMacro("PS_BLEND_B", sel.blend_b);

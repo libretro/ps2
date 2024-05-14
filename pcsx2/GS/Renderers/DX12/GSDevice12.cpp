@@ -475,7 +475,7 @@ bool GSDevice12::AllocatePreinitializedGPUBuffer(u32 size, ID3D12Resource** gpu_
 
 static bool IsDATMConvertShader(ShaderConvert i)
 {
-	return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1);
+	return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1 || i == ShaderConvert::DATM_0_RTA_CORRECTION || i == ShaderConvert::DATM_1_RTA_CORRECTION);
 }
 static bool IsDATEModePrimIDInit(u32 flag)
 {
@@ -1604,6 +1604,8 @@ bool GSDevice12::CompileConvertPipelines()
 			break;
 			case ShaderConvert::DATM_0:
 			case ShaderConvert::DATM_1:
+			case ShaderConvert::DATM_0_RTA_CORRECTION:
+			case ShaderConvert::DATM_1_RTA_CORRECTION:
 			{
 				gpb.ClearRenderTargets();
 				gpb.SetDepthStencilFormat(DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
@@ -1671,9 +1673,11 @@ bool GSDevice12::CompileConvertPipelines()
 		}
 	}
 
-	for (u32 datm = 0; datm < 2; datm++)
+	for (u32 datm = 0; datm < 4; datm++)
 	{
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, datm ? "ps_stencil_image_init_1" : "ps_stencil_image_init_0"));
+		char var[64];
+		snprintf(var, sizeof(var), "ps_stencil_image_init_%d", datm);
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, var));
 		if (!ps)
 			return false;
 
@@ -1944,6 +1948,8 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_DEPTH_FMT", sel.depth_fmt);
 	sm.AddMacro("PS_PAL_FMT", sel.pal_fmt);
 	sm.AddMacro("PS_HDR", sel.hdr);
+	sm.AddMacro("PS_RTA_CORRECTION", sel.rta_correction);
+	sm.AddMacro("PS_RTA_SRC_CORRECTION", sel.rta_source_correction);
 	sm.AddMacro("PS_COLCLIP", sel.colclip);
 	sm.AddMacro("PS_BLEND_A", sel.blend_a);
 	sm.AddMacro("PS_BLEND_B", sel.blend_b);
@@ -2705,7 +2711,7 @@ void GSDevice12::SetPSConstantBuffer(const GSHWDrawConfig::PSConstantBuffer& cb)
 		m_dirty_flags |= DIRTY_FLAG_PS_CONSTANT_BUFFER;
 }
 
-void GSDevice12::SetupDATE(GSTexture* rt, GSTexture* ds, bool datm, const GSVector4i& bbox)
+void GSDevice12::SetupDATE(GSTexture* rt, GSTexture* ds, SetDATM datm, const GSVector4i& bbox)
 {
 	const GSVector2i size(ds->GetSize());
 	const GSVector4 src = GSVector4(bbox) / GSVector4(size).xyxy();
@@ -2723,7 +2729,7 @@ void GSDevice12::SetupDATE(GSTexture* rt, GSTexture* ds, bool datm, const GSVect
 	OMSetRenderTargets(nullptr, ds, bbox);
 	IASetVertexBuffer(vertices, sizeof(vertices[0]), 4);
 	SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	SetPipeline(m_convert[static_cast<int>(datm ? ShaderConvert::DATM_1 : ShaderConvert::DATM_0)].get());
+	SetPipeline(m_convert[SetDATMShader(datm)].get());
 	SetStencilRef(1);
 	BeginRenderPass(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS,
 		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE, D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE,
@@ -2773,7 +2779,7 @@ GSTexture12* GSDevice12::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config, Pipe
 	};
 	SetUtilityRootSignature();
 	SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	SetPipeline(m_date_image_setup_pipelines[pipe.ds][config.datm].get());
+	SetPipeline(m_date_image_setup_pipelines[pipe.ds][static_cast<u8>(config.datm)].get());
 	IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
 	if (ApplyUtilityState())
 		DrawPrimitive();

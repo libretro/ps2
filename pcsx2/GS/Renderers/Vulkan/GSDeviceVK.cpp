@@ -1116,7 +1116,11 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		return true;
 	}
 
-static bool IsDATMConvertShader(ShaderConvert i) { return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1); }
+static bool IsDATMConvertShader(ShaderConvert i)
+{
+	return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1 || i == ShaderConvert::DATM_0_RTA_CORRECTION || i == ShaderConvert::DATM_1_RTA_CORRECTION);
+}
+
 static bool IsDATEModePrimIDInit(u32 flag) { return flag == 1 || flag == 2; }
 
 static VkAttachmentLoadOp GetLoadOpForTexture(GSTextureVK* tex)
@@ -2611,6 +2615,8 @@ bool GSDeviceVK::CompileConvertPipelines()
 				break;
 			case ShaderConvert::DATM_0:
 			case ShaderConvert::DATM_1:
+			case ShaderConvert::DATM_0_RTA_CORRECTION:
+			case ShaderConvert::DATM_1_RTA_CORRECTION:
 				rp = m_date_setup_render_pass;
 				break;
 			default:
@@ -2721,10 +2727,11 @@ bool GSDeviceVK::CompileConvertPipelines()
 		}
 	}
 
-	for (u32 datm = 0; datm < 2; datm++)
+	for (u32 datm = 0; datm < 4; datm++)
 	{
-		VkShaderModule ps =
-			GetUtilityFragmentShader(*shader, datm ? "ps_stencil_image_init_1" : "ps_stencil_image_init_0");
+		char val[64];
+		snprintf(val, sizeof(val), "ps_stencil_image_init_%d", datm);
+		VkShaderModule ps = GetUtilityFragmentShader(*shader, val);
 		if (ps == VK_NULL_HANDLE)
 		{
 			SafeDestroyShaderModule(m_device, vs);
@@ -2950,7 +2957,7 @@ void GSDeviceVK::DestroyResources()
 	}
 	for (u32 ds = 0; ds < 2; ds++)
 	{
-		for (u32 datm = 0; datm < 2; datm++)
+		for (u32 datm = 0; datm < 4; datm++)
 		{
 			VkPipeline& p = m_date_image_setup_pipelines[ds][datm];
 			if (p != VK_NULL_HANDLE)
@@ -3082,6 +3089,8 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	AddMacro(ss, "PS_WRITE_RG", sel.write_rg);
 	AddMacro(ss, "PS_FBMASK", sel.fbmask);
 	AddMacro(ss, "PS_HDR", sel.hdr);
+	AddMacro(ss, "PS_RTA_CORRECTION", sel.rta_correction);
+	AddMacro(ss, "PS_RTA_SRC_CORRECTION", sel.rta_source_correction);
 	AddMacro(ss, "PS_DITHER", sel.dither);
 	AddMacro(ss, "PS_DITHER_ADJUST", sel.dither_adjust);
 	AddMacro(ss, "PS_ZCLAMP", sel.zclamp);
@@ -3797,7 +3806,7 @@ void GSDeviceVK::SetPSConstantBuffer(const GSHWDrawConfig::PSConstantBuffer& cb)
 		m_dirty_flags |= DIRTY_FLAG_PS_CONSTANT_BUFFER;
 }
 
-void GSDeviceVK::SetupDATE(GSTexture* rt, GSTexture* ds, bool datm, const GSVector4i& bbox)
+void GSDeviceVK::SetupDATE(GSTexture* rt, GSTexture* ds, SetDATM datm, const GSVector4i& bbox)
 {
 	const GSVector2i size(ds->GetSize());
 	const GSVector4 src = GSVector4(bbox) / GSVector4(size).xyxy();
@@ -3814,7 +3823,7 @@ void GSDeviceVK::SetupDATE(GSTexture* rt, GSTexture* ds, bool datm, const GSVect
 	SetUtilityTexture(rt, m_point_sampler);
 	OMSetRenderTargets(nullptr, ds, bbox);
 	IASetVertexBuffer(vertices, sizeof(vertices[0]), 4);
-	SetPipeline(m_convert[static_cast<int>(datm ? ShaderConvert::DATM_1 : ShaderConvert::DATM_0)]);
+	SetPipeline(m_convert[SetDATMShader(datm)]);
 	BeginClearRenderPass(m_date_setup_render_pass, bbox, 0.0f, 0);
 	if (ApplyUtilityState())
 		DrawPrimitive();
@@ -3866,7 +3875,7 @@ GSTextureVK* GSDeviceVK::SetupPrimitiveTrackingDATE(GSHWDrawConfig& config)
 		{GSVector4(dst.x, -dst.w, 0.5f, 1.0f), GSVector2(src.x, src.w)},
 		{GSVector4(dst.z, -dst.w, 0.5f, 1.0f), GSVector2(src.z, src.w)},
 	};
-	const VkPipeline pipeline = m_date_image_setup_pipelines[ds][config.datm];
+	const VkPipeline pipeline = m_date_image_setup_pipelines[ds][static_cast<u8>(config.datm)];
 	SetPipeline(pipeline);
 	IASetVertexBuffer(vertices, sizeof(vertices[0]), std::size(vertices));
 	if (ApplyUtilityState())

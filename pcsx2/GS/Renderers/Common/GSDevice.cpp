@@ -22,6 +22,23 @@
 
 #include <algorithm>
 
+int SetDATMShader(SetDATM datm)
+{
+	switch (datm)
+	{
+		case SetDATM::DATM1_RTA_CORRECTION:
+			return static_cast<int>(ShaderConvert::DATM_1_RTA_CORRECTION);
+		case SetDATM::DATM0_RTA_CORRECTION:
+			return static_cast<int>(ShaderConvert::DATM_0_RTA_CORRECTION);
+		case SetDATM::DATM1:
+			return static_cast<int>(ShaderConvert::DATM_1);
+		case SetDATM::DATM0:
+		default:
+			break;
+	}
+	return static_cast<int>(ShaderConvert::DATM_0);
+}
+
 const char* shaderName(ShaderConvert value)
 {
 	switch (value)
@@ -31,8 +48,12 @@ const char* shaderName(ShaderConvert value)
 		case ShaderConvert::RGBA8_TO_16_BITS:       return "ps_convert_rgba8_16bits";
 		case ShaderConvert::DATM_1:                 return "ps_datm1";
 		case ShaderConvert::DATM_0:                 return "ps_datm0";
+		case ShaderConvert::DATM_1_RTA_CORRECTION:  return "ps_datm1_rta_correction";
+		case ShaderConvert::DATM_0_RTA_CORRECTION:  return "ps_datm0_rta_correction";
 		case ShaderConvert::HDR_INIT:               return "ps_hdr_init";
 		case ShaderConvert::HDR_RESOLVE:            return "ps_hdr_resolve";
+		case ShaderConvert::RTA_CORRECTION:         return "ps_rta_correction";
+		case ShaderConvert::RTA_DECORRECTION:       return "ps_rta_decorrection";
 		case ShaderConvert::TRANSPARENCY_FILTER:    return "ps_filter_transparency";
 		case ShaderConvert::FLOAT32_TO_16_BITS:     return "ps_convert_float32_32bits";
 		case ShaderConvert::FLOAT32_TO_32_BITS:     return "ps_convert_float32_32bits";

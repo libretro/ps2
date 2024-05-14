@@ -2749,10 +2749,13 @@ void GSRendererHW::Draw()
 			GSTextureCache::RenderTarget, m_cached_ctx.ZBUF.Block(), m_cached_ctx.ZBUF.PSM, zm);
 	}
 
-#ifdef DISABLE_HW_TEXTURE_CACHE
 	if (rt)
+	{
+		rt->m_last_draw = s_n;
+#ifdef DISABLE_HW_TEXTURE_CACHE
 		g_texture_cache->Read(rt, m_r);
 #endif
+	}
 
 	CleanupDraw(false);
 }
@@ -3301,7 +3304,7 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 	return true;
 }
 
-void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DATE_PRIMID, bool& DATE_BARRIER, bool& blending_alpha_pass)
+void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DATE_PRIMID, bool& DATE_BARRIER, bool& blending_alpha_pass, GSTextureCache::Target* rt)
 {
 	{
 		// AA1: Blending needs to be enabled on draw.
@@ -3460,7 +3463,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 	const bool one_barrier = m_conf.require_one_barrier || blend_ad_alpha_masked;
 
 	// Blend can be done on hw. As and F cases should be accurate.
-	// BLEND_HW_CLR1 with Ad, BLEND_HW_CLR3  Cs > 0.5f will require sw blend.
+	// BLEND_HW_CLR1 with Ad, BLEND_HW_CLR3 might require sw blend.
 	// BLEND_HW_CLR1 with As/F and BLEND_HW_CLR2 can be done in hw.
 	const bool clr_blend = !!(blend_flag & (BLEND_HW_CLR1 | BLEND_HW_CLR2 | BLEND_HW_CLR3));
 	bool clr_blend1_2 = (blend_flag & (BLEND_HW_CLR1 | BLEND_HW_CLR2)) && (m_conf.ps.blend_c != 1) // Make sure it isn't an Ad case
@@ -3849,6 +3852,15 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 		m_conf.ps.blend_b = 0;
 		m_conf.ps.blend_d = 0;
 
+		const bool rta_decorrection = m_channel_shuffle || m_texture_shuffle || (std::max(rt_alpha_max, rt->m_alpha_max) > 128) || m_conf.ps.fbmask || m_conf.ps.tex_is_fb;
+		const bool rta_correction = !rta_decorrection && !blend_ad_alpha_masked && m_conf.ps.blend_c == 1 && !(blend_flag & BLEND_A_MAX);
+		if (rta_correction)
+		{
+			rt->RTACorrect(rt);
+			m_conf.ps.rta_correction = rt->m_rt_alpha_scale;
+			m_conf.rt = rt->m_texture;
+		}
+
 		// Care for hw blend value, 6 is for hw/sw, sw blending used.
 		if (blend_flag & BLEND_HW_CLR1)
 		{
@@ -3861,7 +3873,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 
 			m_conf.ps.blend_hw = 2;
 		}
-		else if (blend_flag & BLEND_HW_CLR3)
+		else if (!rta_correction && (blend_flag & BLEND_HW_CLR3))
 		{
 			m_conf.ps.blend_hw = 3;
 		}
@@ -3931,6 +3943,9 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	GSVector2i unscaled_size = target_region ? tex->GetRegionSize() : tex->GetUnscaledSize();
 	float scale = tex->GetScale();
 	HandleTextureHazards(rt, ds, tex, tmm, source_region, target_region, unscaled_size, scale, src_copy);
+
+	if (tex->m_target && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale)
+		m_conf.ps.rta_source_correction = 1;
 
 	// Warning fetch the texture PSM format rather than the context format. The latter could have been corrected in the texture cache for depth.
 	//const GSLocalMemory::psm_t &psm = GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM];
@@ -4757,10 +4772,76 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		}
 	}
 
+	// If we Correct/Decorrect and tex is rt, we will need to update the texture reference
+	const bool req_src_update = tex && rt && tex->m_target && tex->m_target_direct && tex->m_texture == rt->m_texture;
+
+	if (rt)
+	{
+		const bool rta_decorrection = m_channel_shuffle || m_texture_shuffle || std::max(blend_alpha_max, rt->m_alpha_max) > 128 || m_conf.ps.fbmask || m_conf.ps.tex_is_fb;
+
+		if (rta_decorrection)
+		{
+			if (m_texture_shuffle)
+			{
+				if (m_conf.ps.read_ba)
+				{
+					rt->RTADecorrect(rt);
+					m_conf.rt = rt->m_texture;
+
+					if (req_src_update)
+						tex->m_texture = rt->m_texture;
+				}
+				else if (m_conf.colormask.wa)
+				{
+					if (!(m_cached_ctx.FRAME.FBMSK & 0xFFFC0000))
+					{
+						rt->m_rt_alpha_scale = false;
+					}
+					else if (m_cached_ctx.FRAME.FBMSK & 0xFFFC0000)
+					{
+						rt->RTADecorrect(rt);
+						m_conf.rt = rt->m_texture;
+
+						if (req_src_update)
+							tex->m_texture = rt->m_texture;
+					}
+				}
+			}
+			else if (m_channel_shuffle)
+			{
+				if (m_conf.ps.tales_of_abyss_hle || (tex && tex->m_from_target && tex->m_from_target == rt && m_conf.ps.channel == ChannelFetch_ALPHA) || ((m_cached_ctx.FRAME.FBMSK & 0xFF000000) != 0xFF000000))
+				{
+					rt->RTADecorrect(rt);
+					m_conf.rt = rt->m_texture;
+
+					if (req_src_update)
+						tex->m_texture = rt->m_texture;
+				}
+			}
+			else if (rt->m_last_draw == s_n)
+			{
+				rt->m_rt_alpha_scale = false;
+			}
+			else
+			{
+				rt->RTADecorrect(rt);
+				m_conf.rt = rt->m_texture;
+
+				if (req_src_update)
+					tex->m_texture = rt->m_texture;
+			}
+		}
+
+		m_conf.ps.rta_correction = rt->m_rt_alpha_scale;
+	}
+
 	bool blending_alpha_pass = false;
 	if ((!IsOpaque() || m_context->ALPHA.IsBlack()) && rt && ((m_conf.colormask.wrgba & 0x7) || (m_texture_shuffle && !m_copy_16bit_to_target_shuffle && !m_same_group_texture_shuffle)))
 	{
-		EmulateBlending(blend_alpha_min, blend_alpha_max, DATE_PRIMID, DATE_BARRIER, blending_alpha_pass);
+		EmulateBlending(blend_alpha_min, blend_alpha_max, DATE_PRIMID, DATE_BARRIER, blending_alpha_pass, rt);
+
+		if (req_src_update && tex->m_texture != rt->m_texture)
+			tex->m_texture = rt->m_texture;
 	}
 	else
 	{
@@ -4792,7 +4873,10 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	else if (features.stencil_buffer)
 		m_conf.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::Stencil;
 
-	m_conf.datm = m_cached_ctx.TEST.DATM;
+	if (m_conf.ps.rta_correction)
+		m_conf.datm = static_cast<SetDATM>(m_cached_ctx.TEST.DATM + 2);
+	else
+		m_conf.datm = static_cast<SetDATM>(m_cached_ctx.TEST.DATM);
 
 	// If we're doing stencil DATE and we don't have a depth buffer, we need to allocate a temporary one.
 	GSTexture* temp_ds = nullptr;
@@ -5632,7 +5716,24 @@ bool GSRendererHW::TryTargetClear(GSTextureCache::Target* rt, GSTextureCache::Ta
 		if (!preserve_rt_color && !IsReallyDithered() && m_r.rintersect(rt->m_valid).eq(rt->m_valid))
 		{
 			const u32 c = GetConstantDirectWriteMemClearColor();
-			g_gs_device->ClearRenderTarget(rt->m_texture, c);
+			u32 clear_c = c;
+			const bool alpha_one_or_less = (c >> 24) <= 0x80;
+
+			if (rt->m_rt_alpha_scale || alpha_one_or_less)
+			{
+				if (alpha_one_or_less)
+				{
+					const u32 new_alpha = std::min((c >> 24) * 2U, 255U);
+					clear_c = (clear_c & 0xFFFFFF) | (new_alpha << 24);
+					rt->m_rt_alpha_scale = true;
+				}
+				else
+				{
+					rt->m_rt_alpha_scale = false;
+				}
+			}
+
+			g_gs_device->ClearRenderTarget(rt->m_texture, clear_c);
 
 			if (GSLocalMemory::m_psm[rt->m_TEX0.PSM].trbpp != 24)
 			{
@@ -6262,7 +6363,7 @@ GSHWDrawConfig& GSRendererHW::BeginHLEHardwareDraw(
 	config.require_one_barrier = false;
 	config.require_full_barrier = false;
 	config.destination_alpha = GSHWDrawConfig::DestinationAlphaMode::Off;
-	config.datm = false;
+	config.datm = SetDATM::DATM0;
 	config.line_expand = false;
 	config.separate_alpha_pass = false;
 	config.second_separate_alpha_pass = false;

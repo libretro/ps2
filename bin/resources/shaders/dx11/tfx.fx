@@ -47,6 +47,8 @@
 #define PS_TALES_OF_ABYSS_HLE 0
 #define PS_URBAN_CHAOS_HLE 0
 #define PS_HDR 0
+#define PS_RTA_CORRECTION 0
+#define PS_RTA_SRC_CORRECTION 0
 #define PS_COLCLIP 0
 #define PS_BLEND_A 0
 #define PS_BLEND_B 0
@@ -326,7 +328,16 @@ uint4 sample_4_index(float4 uv, float uv_w)
 	c.w = sample_c(uv.zw, uv_w).a;
 
 	// Denormalize value
-	uint4 i = uint4(c * 255.5f);
+	uint4 i;
+
+	if (PS_RTA_SRC_CORRECTION)
+	{
+		i = uint4(c * 128.25f); // Denormalize value
+	}
+	else
+	{
+		i = uint4(c * 255.5f); // Denormalize value
+	}
 
 	if (PS_PAL_FMT == 1)
 	{
@@ -646,6 +657,9 @@ float4 sample_color(float2 st, float uv_w)
 		t = c[0];
 	}
 
+	if (PS_AEM_FMT == FMT_32 && PS_PAL_FMT == 0 && PS_RTA_SRC_CORRECTION)
+		t.a = t.a * (128.5f / 255.0f);
+
 	return trunc(t * 255.0f + 0.05f);
 }
 
@@ -844,11 +858,10 @@ void ps_blend(inout float4 Color, inout float4 As_rgba, float2 pos_xy)
 				return;
 		}
 
-		float4 RT = SW_BLEND_NEEDS_RT ? trunc(RtTexture.Load(int3(pos_xy, 0)) * 255.0f + 0.1f) : (float4)0.0f;
+		float4 RT = SW_BLEND_NEEDS_RT ? RtTexture.Load(int3(pos_xy, 0)) : (float4)0.0f;
 
-		float Ad = RT.a / 128.0f;
-
-		float3 Cd = RT.rgb;
+		float Ad = PS_RTA_CORRECTION ? trunc(RT.a * 128.0f + 0.1f) / 128.0f : trunc(RT.a * 255.0f + 0.1f) / 128.0f;
+		float3 Cd = trunc(RT.rgb * 255.0f + 0.1f);
 		float3 Cs = Color.rgb;
 
 		float3 A = (PS_BLEND_A == 0) ? Cs : ((PS_BLEND_A == 1) ? Cd : (float3)0.0f);
@@ -927,7 +940,7 @@ void ps_blend(inout float4 Color, inout float4 As_rgba, float2 pos_xy)
 			Color.rgb = max((float3)0.0f, (Alpha - (float3)1.0f));
 			Color.rgb *= (float3)255.0f;
 		}
-		else if (PS_BLEND_HW == 3)
+		else if (PS_BLEND_HW == 3 && PS_RTA_CORRECTION == 0)
 		{
 			// Needed for Cs*Ad, Cs*Ad + Cd, Cd - Cs*Ad
 			// Multiply Color.rgb by (255/128) to compensate for wrong Ad/255 value when rgb are below 128.
@@ -962,10 +975,10 @@ PS_OUTPUT ps_main(PS_INPUT input)
 		C.a = 128.0f;
 	}
 
-	float4 alpha_blend;
+	float4 alpha_blend = (float4)0.0f;
 	if (SW_AD_TO_HW)
 	{
-		float4 RT = trunc(RtTexture.Load(int3(input.p.xy, 0)) * 255.0f + 0.1f);
+		float4 RT = PS_RTA_CORRECTION ? trunc(RtTexture.Load(int3(input.p.xy, 0)) * 128.0f + 0.1f) : trunc(RtTexture.Load(int3(input.p.xy, 0)) * 255.0f + 0.1f);
 		alpha_blend = (float4)(RT.a / 128.0f);
 	}
 	else
@@ -1075,7 +1088,8 @@ PS_OUTPUT ps_main(PS_INPUT input)
 	ps_fbmask(C, input.p.xy);
 
 #if !PS_NO_COLOR
-	output.c0 = PS_HDR ? float4(C.rgb / 65535.0f, C.a / 255.0f) : C / 255.0f;
+	output.c0.a = PS_RTA_CORRECTION ? C.a / 128.0f : C.a / 255.0f;
+	output.c0.rgb = PS_HDR ? float3(C.rgb / 65535.0f) : C.rgb / 255.0f;
 #if !PS_NO_COLOR1
 	output.c1 = alpha_blend;
 #endif

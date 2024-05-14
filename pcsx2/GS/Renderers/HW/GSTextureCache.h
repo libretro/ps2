@@ -227,6 +227,8 @@ public:
 		bool m_valid_alpha_low = false;
 		bool m_valid_alpha_high = false;
 		bool m_valid_rgb = false;
+		bool m_rt_alpha_scale = false;
+		int m_last_draw = 0;
 
 		bool m_is_frame = false;
 		bool m_used = false;
@@ -249,6 +251,9 @@ public:
 		void UpdateDrawn(const GSVector4i& rect, bool can_resize = true);
 		void ResizeValidity(const GSVector4i& rect);
 		void UpdateValidity(const GSVector4i& rect, bool can_resize = true);
+
+		void RTACorrect(Target* rt);
+		void RTADecorrect(Target* rt);
 
 		void Update();
 
@@ -286,6 +291,7 @@ public:
 		u8 m_valid_hashes = 0;
 		u8 m_complete_layers = 0;
 		bool m_target = false;
+		bool m_target_direct = false;
 		bool m_repeating = false;
 		std::pair<u8, u8> m_alpha_minmax = {0u, 255u};
 		std::vector<GSVector2i>* m_p2t = nullptr;

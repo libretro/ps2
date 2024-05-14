@@ -1386,6 +1386,9 @@ bool GSHwHack::MV_Ico(GSRendererHW& r)
 	dst->UpdateValidChannels(PSMCT32, 0);
 	dst->UpdateValidity(draw_rc);
 
+	if (dst->m_rt_alpha_scale)
+		dst->RTADecorrect(dst);
+
 	GSHWDrawConfig& config = GSRendererHW::GetInstance()->BeginHLEHardwareDraw(
 		dst->GetTexture(), nullptr, dst->GetScale(), src->GetTexture(), src->GetScale(), draw_rc);
 	config.pal = palette->GetPaletteGSTexture();
