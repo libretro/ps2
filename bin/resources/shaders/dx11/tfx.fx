@@ -498,7 +498,7 @@ float4 sample_depth(float2 st, float2 pos)
 	}
 	else if (PS_AEM_FMT == FMT_16)
 	{
-		c[i].a = c[i].a >= 0.5 ? TA.y : !PS_AEM || any(int3(c[i].rgb * 255.0f) & 0xF8) ? TA.x : 0;
+		t.a = t.a >= 0.5 ? TA.y : !PS_AEM || any(int3(t.rgb * 255.0f) & 0xF8) ? TA.x : 0;
 	}
 	else if (PS_PAL_FMT != 0 && !PS_TALES_OF_ABYSS_HLE && !PS_URBAN_CHAOS_HLE)
 	{
