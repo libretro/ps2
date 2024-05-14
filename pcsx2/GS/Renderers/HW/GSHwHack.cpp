@@ -722,6 +722,7 @@ bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
 			dst->m_alpha_min = 0;
 			dst->m_alpha_max = 255;
 
+			dst->m_alpha_range = true;
 			dst->UpdateValidChannels(PSMCT32, fbmsk);
 			dst->UpdateValidity(GSVector4i::loadh(size));
 
@@ -1001,6 +1002,7 @@ bool GSHwHack::OI_RozenMaidenGebetGarden(GSRendererHW& r, GSTexture* rt, GSTextu
 				tmp_rt->UpdateDrawn(tmp_rt->m_valid);
 				tmp_rt->m_alpha_max = 0;
 				tmp_rt->m_alpha_min = 0;
+				tmp_rt->m_alpha_range = false;
 			}
 
 			return false;

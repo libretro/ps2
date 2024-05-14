@@ -912,6 +912,10 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const bool is_depth, c
 					CopyRGBFromDepthToColor(t, dst);
 
 				dst = t;
+
+				if (GSUtil::GetChannelMask(TEX0.PSM) & 0x8)
+					t->RTADecorrect(t);
+
 				inside_target = false;
 				break;
 			}
@@ -2506,19 +2510,23 @@ void GSTextureCache::Target::RTACorrect(Target* rt)
 {
 	if (rt && !rt->m_rt_alpha_scale && rt->m_type == RenderTarget)
 	{
-		const GSVector2i rtsize(rt->m_texture->GetSize());
-		const GSVector4i valid_rect = GSVector4i(GSVector4(rt->m_valid) * GSVector4(rt->m_scale));
-
-		if (GSTexture* temp_rt = g_gs_device->CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::Color, !GSVector4i::loadh(rtsize).eq(valid_rect)))
+		if (rt->m_alpha_max > 0)
 		{
-			// Only copy up the valid area, since there's no point in "correcting" nothing.
-			const GSVector4 dRect(rt->m_texture->GetRect().rintersect(valid_rect));
-			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
-			g_gs_device->StretchRect(rt->m_texture, sRect, temp_rt, dRect, ShaderConvert::RTA_CORRECTION, false);
-			g_gs_device->Recycle(rt->m_texture);
-			rt->m_texture = temp_rt;
-			rt->m_rt_alpha_scale = true;
+			const GSVector2i rtsize(rt->m_texture->GetSize());
+			const GSVector4i valid_rect = GSVector4i(GSVector4(rt->m_valid) * GSVector4(rt->m_scale));
+
+			if (GSTexture* temp_rt = g_gs_device->CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::Color, !GSVector4i::loadh(rtsize).eq(valid_rect)))
+			{
+				// Only copy up the valid area, since there's no point in "correcting" nothing.
+				const GSVector4 dRect(rt->m_texture->GetRect().rintersect(valid_rect));
+				const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
+				g_gs_device->StretchRect(rt->m_texture, sRect, temp_rt, dRect, ShaderConvert::RTA_CORRECTION, false);
+				g_gs_device->Recycle(rt->m_texture);
+				rt->m_texture = temp_rt;
+			}
 		}
+
+		rt->m_rt_alpha_scale = true;
 	}
 }
 
@@ -2526,19 +2534,23 @@ void GSTextureCache::Target::RTADecorrect(Target* rt)
 {
 	if (rt->m_rt_alpha_scale && rt->m_type == RenderTarget)
 	{
-		const GSVector2i rtsize(rt->m_texture->GetSize());
-		const GSVector4i valid_rect = GSVector4i(GSVector4(rt->m_valid) * GSVector4(rt->m_scale));
-
-		if (GSTexture* temp_rt = g_gs_device->CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::Color, !GSVector4i::loadh(rtsize).eq(valid_rect)))
+		if (rt->m_alpha_max > 0)
 		{
-			// Only copy up the valid area, since there's no point in "correcting" nothing.
-			const GSVector4 dRect(rt->m_texture->GetRect().rintersect(valid_rect));
-			const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
-			g_gs_device->StretchRect(rt->m_texture, sRect, temp_rt, dRect, ShaderConvert::RTA_DECORRECTION, false);
-			g_gs_device->Recycle(rt->m_texture);
-			rt->m_texture = temp_rt;
-			rt->m_rt_alpha_scale = false;
+			const GSVector2i rtsize(rt->m_texture->GetSize());
+			const GSVector4i valid_rect = GSVector4i(GSVector4(rt->m_valid) * GSVector4(rt->m_scale));
+
+			if (GSTexture* temp_rt = g_gs_device->CreateRenderTarget(rtsize.x, rtsize.y, GSTexture::Format::Color, !GSVector4i::loadh(rtsize).eq(valid_rect)))
+			{
+				// Only copy up the valid area, since there's no point in "correcting" nothing.
+				const GSVector4 dRect(rt->m_texture->GetRect().rintersect(valid_rect));
+				const GSVector4 sRect = dRect / GSVector4(rtsize.x, rtsize.y).xyxy();
+				g_gs_device->StretchRect(rt->m_texture, sRect, temp_rt, dRect, ShaderConvert::RTA_DECORRECTION, false);
+				g_gs_device->Recycle(rt->m_texture);
+				rt->m_texture = temp_rt;
+			}
 		}
+
+		rt->m_rt_alpha_scale = false;
 	}
 }
 
@@ -3540,6 +3552,7 @@ bool GSTextureCache::Move(u32 SBP, u32 SBW, u32 SPSM, int sx, int sy, u32 DBP, u
 			dst->m_valid_alpha_high |= src->m_valid_alpha_high;
 		dst->m_alpha_max = src->m_alpha_max;
 		dst->m_alpha_min = src->m_alpha_min;
+		dst->m_alpha_range |= src->m_alpha_range;
 	}	
 
 	if (GSLocalMemory::IsPageAligned(src->m_TEX0.PSM, GSVector4i(sx, sy, sx + w, sy + h)) && (w == GSLocalMemory::m_psm[src->m_TEX0.PSM].pgs.x || h == GSLocalMemory::m_psm[src->m_TEX0.PSM].pgs.y))
@@ -3639,6 +3652,7 @@ bool GSTextureCache::ShuffleMove(u32 BP, u32 BW, u32 PSM, int sx, int sy, int dx
 		// Because we don't know the new alpha value which came from green, just go full paranoid.
 		tgt->m_alpha_min = 0;
 		tgt->m_alpha_max = 255;
+		tgt->m_alpha_range = true;
 	}
 
 	return true;
@@ -4907,6 +4921,9 @@ GSTexture* GSTextureCache::LookupPaletteSource(u32 CBP, u32 CPSM, u32 CBW, GSVec
 
 		offset = this_offset;
 		*scale = t->m_scale;
+
+		t->RTADecorrect(t);
+
 		return t->m_texture;
 	}
 
@@ -5015,10 +5032,7 @@ void GSTextureCache::Read(Target* t, const GSVector4i& r)
 			g_gs_device->Recycle(tmp);
 		}
 		else
-		{
-			Console.Error("Failed to allocate temporary %dx%d target for read.", drc.z, drc.w);
 			return;
-		}
 	}
 
 	dltex->get()->Flush();
@@ -5624,6 +5638,8 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 			m_alpha_min = alpha_minmax.first;
 			m_alpha_max = alpha_minmax.second;
 		}
+
+		m_alpha_range |= alpha_minmax.first != alpha_minmax.second;
 	}
 	g_gs_device->Recycle(t);
 	m_dirty.clear();
