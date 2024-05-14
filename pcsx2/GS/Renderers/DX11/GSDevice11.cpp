@@ -1235,21 +1235,6 @@ D3D_SHADER_MACRO* GSDevice11::ShaderMacro::GetPtr(void)
 	return (D3D_SHADER_MACRO*)mout.data();
 }
 
-static GSDevice11::OMBlendSelector convertSel(GSHWDrawConfig::ColorMaskSelector cm, GSHWDrawConfig::BlendState blend)
-{
-	GSDevice11::OMBlendSelector out;
-	out.wrgba = cm.wrgba;
-	if (blend.enable)
-	{
-		out.blend_enable = true;
-		out.blend_src_factor = blend.src_factor;
-		out.blend_dst_factor = blend.dst_factor;
-		out.blend_op = blend.op;
-	}
-
-	return out;
-}
-
 void GSDevice11::RenderHW(GSHWDrawConfig& config)
 {
 	GSVector2i rtsize = (config.rt ? config.rt : config.ds)->GetSize();
@@ -1373,13 +1358,8 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 	{
 		OMDepthStencilSelector dss = config.depth;
 		dss.zwe = 0;
-		OMBlendSelector blend;
-		blend.wrgba = 0;
-		blend.wr = 1;
-		blend.blend_enable = 1;
-		blend.blend_src_factor = CONST_ONE;
-		blend.blend_dst_factor = CONST_ONE;
-		blend.blend_op = 3; // MIN
+		const OMBlendSelector blend(GSHWDrawConfig::ColorMaskSelector(1),
+			GSHWDrawConfig::BlendState(true, CONST_ONE, CONST_ONE, 3 /* MIN */, CONST_ONE, CONST_ZERO, false, 0));
 		SetupOM(dss, blend, 0);
 		OMSetRenderTargets(primid_tex, config.ds, &config.scissor);
 		DrawIndexedPrimitive();
@@ -1390,7 +1370,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 		PSSetShaderResource(3, primid_tex);
 	}
 
-	SetupOM(config.depth, convertSel(config.colormask, config.blend), config.blend.constant);
+	SetupOM(config.depth, OMBlendSelector(config.colormask, config.blend), config.blend.constant);
 	OMSetRenderTargets(hdr_rt ? hdr_rt : config.rt, config.ds, &config.scissor);
 	DrawIndexedPrimitive();
 
@@ -1407,7 +1387,7 @@ void GSDevice11::RenderHW(GSHWDrawConfig& config)
 			SetupPS(config.alpha_second_pass.ps, nullptr, config.sampler);
 		}
 
-		SetupOM(config.alpha_second_pass.depth, convertSel(config.alpha_second_pass.colormask, config.blend), config.blend.constant);
+		SetupOM(config.alpha_second_pass.depth, OMBlendSelector(config.alpha_second_pass.colormask, config.blend), config.blend.constant);
 		DrawIndexedPrimitive();
 	}
 
@@ -1730,10 +1710,10 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 		{
 			static const D3D11_COMPARISON_FUNC ztst[] =
 			{
-				D3D11_COMPARISON_NEVER,
-				D3D11_COMPARISON_ALWAYS,
-				D3D11_COMPARISON_GREATER_EQUAL,
-				D3D11_COMPARISON_GREATER
+					D3D11_COMPARISON_NEVER,
+					D3D11_COMPARISON_ALWAYS,
+					D3D11_COMPARISON_GREATER_EQUAL,
+					D3D11_COMPARISON_GREATER
 			};
 
 			dsd.DepthEnable = true;
@@ -1749,7 +1729,7 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 
 	OMSetDepthStencilState(i->second.get(), 1);
 
-	auto j = std::as_const(m_om_bs).find(bsel);
+	auto j = std::as_const(m_om_bs).find(bsel.key);
 
 	if (j == m_om_bs.end())
 	{
@@ -1757,26 +1737,42 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 
 		memset(&bd, 0, sizeof(bd));
 
-		if (bsel.blend_enable && (bsel.wrgba & 0x7))
+		if (bsel.blend.IsEffective(bsel.colormask))
 		{
+			// clang-format off
+			static constexpr std::array<D3D11_BLEND, 16> s_d3d11_blend_factors = { {
+				D3D11_BLEND_SRC_COLOR, D3D11_BLEND_INV_SRC_COLOR, D3D11_BLEND_DEST_COLOR, D3D11_BLEND_INV_DEST_COLOR,
+				D3D11_BLEND_SRC1_COLOR, D3D11_BLEND_INV_SRC1_COLOR, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA,
+				D3D11_BLEND_DEST_ALPHA, D3D11_BLEND_INV_DEST_ALPHA, D3D11_BLEND_SRC1_ALPHA, D3D11_BLEND_INV_SRC1_ALPHA,
+				D3D11_BLEND_BLEND_FACTOR, D3D11_BLEND_INV_BLEND_FACTOR, D3D11_BLEND_ONE, D3D11_BLEND_ZERO
+			} };
+			static constexpr std::array<D3D11_BLEND_OP, 4> s_d3d11_blend_ops = { {
+				D3D11_BLEND_OP_ADD, D3D11_BLEND_OP_SUBTRACT, D3D11_BLEND_OP_REV_SUBTRACT, D3D11_BLEND_OP_MIN
+			} };
+			// clang-format on
+
 			bd.RenderTarget[0].BlendEnable = TRUE;
-			bd.RenderTarget[0].BlendOp = s_d3d11_blend_ops[bsel.blend_op];
-			bd.RenderTarget[0].SrcBlend = s_d3d11_blend_factors[bsel.blend_src_factor];
-			bd.RenderTarget[0].DestBlend = s_d3d11_blend_factors[bsel.blend_dst_factor];
+			bd.RenderTarget[0].BlendOp = s_d3d11_blend_ops[bsel.blend.op];
+			bd.RenderTarget[0].SrcBlend = s_d3d11_blend_factors[bsel.blend.src_factor];
+			bd.RenderTarget[0].DestBlend = s_d3d11_blend_factors[bsel.blend.dst_factor];
 			bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-			bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-			bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+			bd.RenderTarget[0].SrcBlendAlpha = s_d3d11_blend_factors[bsel.blend.src_factor_alpha];
+			bd.RenderTarget[0].DestBlendAlpha = s_d3d11_blend_factors[bsel.blend.dst_factor_alpha];
 		}
 
-		if (bsel.wr) bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_RED;
-		if (bsel.wg) bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_GREEN;
-		if (bsel.wb) bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_BLUE;
-		if (bsel.wa) bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_ALPHA;
+		if (bsel.colormask.wr)
+			bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_RED;
+		if (bsel.colormask.wg)
+			bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_GREEN;
+		if (bsel.colormask.wb)
+			bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_BLUE;
+		if (bsel.colormask.wa)
+			bd.RenderTarget[0].RenderTargetWriteMask |= D3D11_COLOR_WRITE_ENABLE_ALPHA;
 
 		wil::com_ptr_nothrow<ID3D11BlendState> bs;
 		m_dev->CreateBlendState(&bd, bs.put());
 
-		j = m_om_bs.try_emplace(bsel, std::move(bs)).first;
+		j = m_om_bs.try_emplace(bsel.key, std::move(bs)).first;
 	}
 
 	OMSetBlendState(j->second.get(), afix);

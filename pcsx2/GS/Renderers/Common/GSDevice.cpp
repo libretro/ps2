@@ -480,6 +480,11 @@ bool GSDevice::ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_con
 #pragma GCC diagnostic pop
 #endif
 
+bool GSHWDrawConfig::BlendState::IsEffective(ColorMaskSelector colormask) const
+{
+	return enable && ((colormask.key & 7u) || src_factor_alpha != GSDevice::CONST_ZERO || dst_factor_alpha != GSDevice::CONST_ONE);
+}
+
 // clang-format off
 
 const HWBlend GSDevice::m_blendMap[81] =

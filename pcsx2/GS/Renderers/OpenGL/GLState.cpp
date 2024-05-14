@@ -31,6 +31,8 @@ namespace GLState
 	u16 eq_RGB;
 	u16 f_sRGB;
 	u16 f_dRGB;
+	u16 f_sA;
+	u16 f_dA;
 	u8 bf;
 	u8 wrgba;
 
@@ -60,6 +62,8 @@ namespace GLState
 		eq_RGB = GL_FUNC_ADD;
 		f_sRGB = GL_ONE;
 		f_dRGB = GL_ZERO;
+		f_sA = GL_ONE;
+		f_dA = GL_ZERO;
 		bf = 0;
 		wrgba = 0xF;
 
