@@ -101,7 +101,8 @@ public:
 		HashType TEX0Hash, CLUTHash;
 		GIFRegTEX0 TEX0;
 		GIFRegTEXA TEXA;
-		SourceRegion region;
+		u32 region_width;
+		u32 region_height;
 
 		HashCacheKey();
 

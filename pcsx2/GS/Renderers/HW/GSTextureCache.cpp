@@ -6382,6 +6382,8 @@ void GSTextureCache::PreloadTexture(const GIFRegTEX0& TEX0, const GIFRegTEXA& TE
 GSTextureCache::HashCacheKey::HashCacheKey()
 	: TEX0Hash(0)
 	, CLUTHash(0)
+	, region_width(0)
+	, region_height(0)
 {
 	TEX0.U64 = 0;
 	TEXA.U64 = 0;
@@ -6392,10 +6394,11 @@ GSTextureCache::HashCacheKey GSTextureCache::HashCacheKey::Create(const GIFRegTE
 	const GSLocalMemory::psm_t& psm = GSLocalMemory::m_psm[TEX0.PSM];
 
 	HashCacheKey ret;
-	ret.TEX0.U64 = TEX0.U64 & 0x00000007FFF00000ULL;
+	ret.TEX0.U64 = TEX0.U64 & 0x00000003FFFFC000ULL; // TBW, PSM, TW, TH
 	ret.TEXA.U64 = (psm.pal == 0 && psm.fmt > 0) ? (TEXA.U64 & 0x000000FF000080FFULL) : 0;
 	ret.CLUTHash = clut ? GSTextureCache::PaletteKeyHash{}({clut, psm.pal}) : 0;
-	ret.region = region;
+	ret.region_width = static_cast<u16>(region.GetWidth());
+	ret.region_height = static_cast<u16>(region.GetHeight());
 
 	BlockHashState hash_st;
 	BlockHashReset(hash_st);
@@ -6435,6 +6438,7 @@ void GSTextureCache::HashCacheKey::RemoveCLUTHash()
 u64 GSTextureCache::HashCacheKeyHash::operator()(const HashCacheKey& key) const
 {
 	std::size_t h = 0;
-	HashCombine(h, key.TEX0Hash, key.CLUTHash, key.TEX0.U64, key.TEXA.U64, key.region.bits);
+	HashCombine(h, key.TEX0Hash, key.CLUTHash, key.TEX0.U64, key.TEXA.U64,
+		static_cast<u64>(key.region_width) | (static_cast<u64>(key.region_height) << 16));
 	return h;
 }
