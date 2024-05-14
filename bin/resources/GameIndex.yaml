@@ -12229,6 +12229,8 @@ SLED-53543:
 SLED-53591:
   name: "Fahrenheit [Demo]"
   region: "PAL-E"
+  gsHWFixes:
+    halfPixelOffset: 1 # Slight lighting misalignment.
 SLED-53619:
   name: "Tom Clancy's Rainbow Six - Lockdown"
   region: "PAL-Unk"
@@ -26825,6 +26827,9 @@ SLES-55448:
   region: "PAL-M5"
   gsHWFixes:
     halfPixelOffset: 1 # Fixes ghosting.
+SLES-55450:
+  name: "PES 2009 - Pro Evolution Soccer"
+  region: "PAL-I"
 SLES-55451:
   name: "Rock Band 2"
   region: "PAL-M5"
@@ -27795,6 +27800,9 @@ SLKA-15045:
 SLKA-15051:
   name: "Yokushin - GigaWing Generations"
   region: "NTSC-K"
+SLKA-15054:
+  name: "Simple 2000 Series - The Daemiin"
+  region: "NTSC-K"`
 SLKA-15055:
   name: "Raiden III"
   region: "NTSC-K"
@@ -27871,6 +27879,9 @@ SLKA-25021:
   compat: 5
 SLKA-25024:
   name: "Disney's Stitch - Experiment 626"
+  region: "NTSC-K"
+SLKA-25025:
+  name: "World Soccer Winning Eleven 6 - International"
   region: "NTSC-K"
 SLKA-25026:
   name: "Chaos Legion"
@@ -27959,6 +27970,9 @@ SLKA-25046:
   region: "NTSC-K"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes lines when powering up.
+SLKA-25047:
+  name: "Shin Combat Choro Q"
+  region: "NTSC-K"
 SLKA-25048:
   name: "Makai Senki Disgaea" # Disgaea - Hour of Darkness
   region: "NTSC-K"
@@ -28199,6 +28213,9 @@ SLKA-25112:
 SLKA-25113:
   name: "Jin Samguk Mussang 2"
   region: "NTSC-K"
+SLKA-25114:
+  name: "Jin Samguk Mussang 2 - Maengjangjeon"
+  region: "NTSC-K"
 SLKA-25115:
   name: "Rockman X7"
   region: "NTSC-K"
@@ -28323,6 +28340,9 @@ SLKA-25146:
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
     wildArmsHack: 1 # De-blurs the 3D image.
+SLKA-25148:
+  name: "MVP Baseball 2004"
+  region: "NTSC-K"
 SLKA-25149:
   name: "Silent Hill 4 - The Room"
   region: "NTSC-K"
@@ -28416,6 +28436,9 @@ SLKA-25172:
     mipmap: 1
     cpuFramebufferConversion: 1 # Fixes right side of the screen from garbage textures.
     halfPixelOffset: 2 # Aligns mirror reflections, removes some bloom-related ghosting.
+SLKA-25173:
+  name: "Tom Clancy's Rainbow Six 3"
+  region: "NTSC-K"
 SLKA-25174:
   name: "dot hack - Quarantine"
   region: "NTSC-K"
@@ -28464,6 +28487,15 @@ SLKA-25186:
   region: "NTSC-K"
 SLKA-25187:
   name: "Jin Samguk Mussang 3 - Empires"
+  region: "NTSC-K"
+SLKA-25188:
+  name: "Virtua Fighter 4 - Evolution"
+  region: "NTSC-K"
+SLKA-25192:
+  name: "Need for Speed - Underground"
+  region: "NTSC-K"
+SLKA-25193:
+  name: "Gwimuja 2"
   region: "NTSC-K"
 SLKA-25196:
   name: "Driv3r"
@@ -28765,6 +28797,21 @@ SLKA-25258:
 SLKA-25259:
   name: "Swords of Destiny"
   region: "NTSC-K"
+SLKA-25260:
+  name: "Burnout Dominator"
+  region: "NTSC-K"
+  clampModes:
+    vuClampMode: 3 # Fixes buggy lighting in the garage.
+  gsHWFixes:
+    recommendedBlendingLevel: 3 # Improves car reflections.
+    halfPixelOffset: 2 # Fixes depth lines.
+    autoFlush: 2 # Fixes blur and obscures sun behind objects.
+    mipmap: 2 # Fixes over sharpening.
+    trilinearFiltering: 1 # Smoothes out mipmapping.
+    gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
+    bilinearUpscale: 2 # Smooths out sun glare textures like native.
+    getSkipCount: "GSC_BurnoutGames"
+    beforeDraw: "OI_BurnoutGames"
 SLKA-25261:
   name: "Tsukiyo ni Saraba"
   region: "NTSC-K"
@@ -28811,6 +28858,14 @@ SLKA-25271:
 SLKA-25272:
   name: "Tak 2 - The Staff of Dreams"
   region: "NTSC-K"
+SLKA-25271:
+  name: "Harry Potter and the Order of the Phoenix"
+  region: "NTSC-K"
+  compat: 5
+  gsHWFixes:
+    mipmap: 1
+    halfPixelOffset: 1 # Fixes ghosting.
+    alignSprite: 1 # Fixes vertical lines.
 SLKA-25274:
   name: "Princess Maker 4"
   region: "NTSC-K"
@@ -28968,6 +29023,14 @@ SLKA-25308:
     vu1RoundMode: 0 # Prevents only backgrounds from appearing in Sonic R's multiplayer modes.
   gsHWFixes:
     cpuCLUTRender: 2 # Fixes CLUT colour in Sonic Fighters.
+SLKA-25309:
+  name: "Indigo Prophecy"
+  region: "NTSC-K"
+  gsHWFixes:
+    halfPixelOffset: 1 # Slight lighting misalignment.
+SLKA-25310:
+  name: "Musou Orochi"
+  region: "NTSC-J"
 SLKA-25311:
   name: "Marvel Nemesis - Rise of the Imperfects"
   region: "NTSC-K"
@@ -29305,6 +29368,9 @@ SLKA-25378:
 SLKA-25379:
   name: "Jeonguk Mussang 2"
   region: "NTSC-K"
+SLKA-25380:
+  name: "WinBack 2 - Project Poseidon"
+  region: "NTSC-K"
 SLKA-25381:
   name: "Winning Eleven 10"
   region: "NTSC-K"
@@ -29347,6 +29413,9 @@ SLKA-25393:
 SLKA-25394:
   name: "King of Fighters, The - Maximum Impact 2"
   region: "NTSC-K"
+SLKA-25395:
+  name: "NBA Live 07"
+  region: "NTSC-K"
 SLKA-25396:
   name: "FIFA '07"
   region: "NTSC-K"
@@ -29384,6 +29453,9 @@ SLKA-25402:
 SLKA-25404:
   name: "NBA Live 08"
   region: "NTSC-K"
+SLKA-25405:
+  name: "GrimGrimoire"
+  region: "NTSC-J-K"
 SLKA-25406:
   name: "King of Fighters, The - Maximum Impact - Regulation A"
   region: "NTSC-K"
@@ -29508,6 +29580,9 @@ SLKA-25443:
   name: "Musou Orochi Maou Sairin"
   region: "NTSC-K"
   compat: 5
+SLKA-25444:
+  name: "Dragon Ball Z - Infinite World"
+  region: "NTSC-J-K"
 SLKA-25446:
   name: "Need for Speed - Undercover"
   region: "NTSC-K"
@@ -29661,6 +29736,15 @@ SLKA-35004:
 SLKA-35005:
   name: "Jin Samguk Mussang 5 - Special"
   region: "NTSC-K"
+SLKA-90502:
+  name: "SSX 3"
+  region: "NTSC-K"
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
+    textureInsideRT: 1 # Fixes rainbow effect in the pause menu before a jump.
+    halfPixelOffset: 2 # Fixes depth lines.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
 SLKA-90503:
   name: "Need for Speed - Underground"
   region: "NTSC-K"
@@ -29677,6 +29761,9 @@ SLPM-20436:
   name: "Sakigake!! Otokojuku"
   region: "NTSC-J"
   compat: 5
+SLPM-55002:
+  name: "Medal of Honor - Rising Sun"
+  region: "NTSC-J"
 SLPM-55003:
   name: "Need for Speed - Most Wanted [EASY 1980]"
   region: "NTSC-J"
@@ -29714,6 +29801,15 @@ SLPM-55008:
   name: "Sengoku Basara X"
   region: "NTSC-J"
   compat: 5
+SLPM-55009:
+  name: "L no Kisetsu 2 - Invisible Memories"
+  region: "NTSC-J"
+SLPM-55010:
+  name: "LoveDrops"
+  region: "NTSC-J"
+SLPM-55012:
+  name: "Ppoi! Hito Natsu no Keiken!?"
+  region: "NTSC-J"
 SLPM-55013:
   name: "Sorayume"
   region: "NTSC-J"
@@ -29751,8 +29847,23 @@ SLPM-55021:
 SLPM-55022:
   name: "Final Fantasy XII [Ultimate Hits]"
   region: "NTSC-J"
+SLPM-55023:
+  name: "Dragon Quest & Final Fantasy in Itadaki Street Special"
+  region: "NTSC-J"
 SLPM-55024:
   name: "Jikkyou Powerful Pro Yakyuu 15"
+  region: "NTSC-J"
+SLPM-55028:
+  name: "Secret Game - Killer Queen"
+  region: "NTSC-J"
+SLPM-55029:
+  name: "Galaxy Angel II - Zettai Ryouiki no Tobira"
+  region: "NTSC-J"
+SLPM-55031:
+  name: "Majin Tantei Nougami Neuro - Battle da yo! Hannin Shuugou!"
+  region: "NTSC-J"
+SLPM-55032:
+  name: "Piyo-tan - Oyashiki Sennyuu Daisakusen"
   region: "NTSC-J"
 SLPM-55033:
   name: "J. League Winning Eleven 2008 - Club Championship"
@@ -29767,6 +29878,9 @@ SLPM-55034:
     texturePreloading: 1 # Improves performance.
     getSkipCount: "GSC_Battlefield2" # Depth clear.
     beforeDraw: "OI_Battlefield2" # Framebuffer copy, fixes rendering for bottom part of screen.
+SLPM-55035:
+  name: "Fight Night Round 2"
+  region: "NTSC-J"
 SLPM-55036:
   name: "Burnout Dominator (EASY 1980)"
   region: "NTSC-J"
@@ -29824,8 +29938,23 @@ SLPM-55046:
 SLPM-55047:
   name: "Sugar+Spice! - Anoko no Suteki na Nanimokamo"
   region: "NTSC-J"
+SLPM-55048:
+  name: "Shin Sangoku Musou 4 - Empires"
+  region: "NTSC-J"
 SLPM-55051:
   name: "Will o' Wisp - Easter no Kiseki"
+  region: "NTSC-J"
+SLPM-55052:
+  name: "Triggerheart Exelica Enhanced"
+  region: "NTSC-J"
+SLPM-55053:
+  name: "Shi no Homura"
+  region: "NTSC-J"
+SLPM-55054:
+  name: "Kanuchi - Shiroki Tsubasa no Shou"
+  region: "NTSC-J"
+SLPM-55055:
+  name: "Kanuchi - Shiroki Tsubasa no Shou"
   region: "NTSC-J"
 SLPM-55056:
   name: "Wrestle Angels Survivor 2 [Limited Edition]"
@@ -29874,6 +30003,9 @@ SLPM-55065:
         // Game does weird stack manipulation, causing data sent to the IOP to be corrupted unless EE data cache is enabled.
         // This patch skips over the stack code, allowing the game to boot.
         patch=1,EE,00131A64,word,10000003
+SLPM-55067:
+  name: "Koi-hime Musou - Doki Otome Darake no Sangokushi Engi"
+  region: "NTSC-J"
 SLPM-55069:
   name: "Saishuu Shiken Kujira - Alive [Sweet So Sweet]"
   region: "NTSC-J"
@@ -29882,6 +30014,9 @@ SLPM-55070:
   region: "NTSC-J"
 SLPM-55071:
   name: "Yumemi Hakusho - Second Dream"
+  region: "NTSC-J"
+SLPM-55072:
+  name: "GI Jockey 4 2008"
   region: "NTSC-J"
 SLPM-55076:
   name: "Medal of Honor - Vanguard"
@@ -29892,8 +30027,6 @@ SLPM-55076:
     mergeSprite: 1 # Removes occasional vertical lines.
 SLPM-55077:
   name: SSX3 [EASY 1980]
-  name-sort: SSX3 [EASY 1980]
-  name-en: "SSX 3 [EASY 1980]"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes missing lighting and makes snow not look like snow sludge.
@@ -29901,6 +30034,9 @@ SLPM-55077:
     halfPixelOffset: 2 # Fixes depth lines.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
+SLPM-55079:
+  name: "Scarlet - Nichijou no Kyoukaisen"
+  region: "NTSC-J"
 SLPM-55080:
   name: "Drag-on Dragoon [Ultimate Hits]"
   region: "NTSC-J"
@@ -29920,6 +30056,12 @@ SLPM-55081:
     halfPixelOffset: 1 # Fixes ghosting characters.
     mergeSprite: 1 # Align sprite fixes FMVs but not garbage in-game, so needs merge sprite instead.
     texturePreloading: 1 # Performs better with partial preload because it is slow on locations outside gameplay foremost.
+SLPM-55082:
+  name: "Shin Sangoku Musou 5 Special (Disc 1)"
+  region: "NTSC-J"
+SLPM-55083:
+  name: "Shin Sangoku Musou 5 Special (Disc 2)"
+  region: "NTSC-J"
 SLPM-55086:
   name: "Ever17 The Out of Infinity [Renai Game Selection]"
   region: "NTSC-J"
@@ -29928,6 +30070,9 @@ SLPM-55087:
   region: "NTSC-J"
 SLPM-55088:
   name: "Never7 The Age of Infinity [Renai Game Selection]"
+  region: "NTSC-J"
+SLPM-55089:
+  name: "Naxat Soft Reach Mania Vol. 1 - CR Galaxy Angel"
   region: "NTSC-J"
 SLPM-55090:
   name: "DanceDanceRevolution X"
@@ -29939,10 +30084,25 @@ SLPM-55092:
     eeClampMode: 2 # Fixes Game freezes during "Reuniting The Families" mission.
   gsHWFixes:
     autoFlush: 1 # Fixes post processing.
+SLPM-55093:
+  name: "Galaxy Angel II - Mugen Kairou no Kagi (Disc 1)"
+  region: "NTSC-J"
+SLPM-55094:
+  name: "Galaxy Angel II - Mugen Kairou no Kagi (Disc 2)"
+  region: "NTSC-J"
+SLPM-55095:
+  name: "Shinkyoku Soukai Polyphonica - The Black - Episode 1 & 2 CS Edition"
+  region: "NTSC-J"
 SLPM-55096:
   name: "ThunderForce VI"
   region: "NTSC-J"
   compat: 5
+SLPM-55097:
+  name: "NBA Live 09"
+  region: "NTSC-J"
+SLPM-55098:
+  name: "Koi suru Otome to Shugo no Tate - The Shield of AIGIS"
+  region: "NTSC-J"
 SLPM-55101:
   name: "Memories Off Duet - 1st and 2nd Stories [Renai Game Selection]"
   region: "NTSC-J"
@@ -29951,8 +30111,14 @@ SLPM-55102:
   region: "NTSC-J"
   gsHWFixes:
     beforeDraw: "OI_PointListPalette"
+SLPM-55103:
+  name: "Monochrome Factor - Cross Road"
+  region: "NTSC-J"
 SLPM-55104:
   name: "Real Rode"
+  region: "NTSC-J"
+SLPM-55106:
+  name: "Arcana Heart"
   region: "NTSC-J"
 SLPM-55108:
   name: "Fate - Unlimited Codes"
@@ -29960,8 +30126,17 @@ SLPM-55108:
   compat: 5
   roundModes:
     eeRoundMode: 0 # Fixes bow porjectile trajectories.
+SLPM-55109:
+  name: "Major League Baseball 2K8"
+  region: "NTSC-J"
 SLPM-55110:
   name: "Mercenaries 2 - World in Flames"
+  region: "NTSC-J"
+SLPM-55112:
+  name: "Sangokushi 11 with Power-Up Kit"
+  region: "NTSC-J"
+SLPM-55113:
+  name: "WinBack 2 - Project Poseidon"
   region: "NTSC-J"
 SLPM-55114:
   name: "Mana Khemia 2 - Ochita Gakuen to Renkinjutsushi Tachi"
@@ -29970,6 +30145,9 @@ SLPM-55114:
     roundSprite: 1 # Fixes lines in sprites but still some lines left.
   speedHacks:
     mvuFlag: 0 # Fixes missing graphical effects.
+SLPM-55115:
+  name: "Dokapon Kingdom"
+  region: "NTSC-J"
 SLPM-55117:
   name: "Beatmania IIDX 15 - DJ Troopers"
   region: "NTSC-J"
@@ -29992,6 +30170,9 @@ SLPM-55121:
 SLPM-55122:
   name: "Gundam Musou 2"
   region: "NTSC-J"
+SLPM-55125:
+  name: "Hakarena Heart - Kimi ga Tame ni Kagayaki o"
+  region: "NTSC-J"
 SLPM-55127:
   name: "Need for Speed - Undercover"
   region: "NTSC-J"
@@ -30002,6 +30183,12 @@ SLPM-55127:
     mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
     trilinearFiltering: 1
     getSkipCount: "GSC_NFSUndercover"
+SLPM-55128:
+  name: "Rugby 08"
+  region: "NTSC-J"
+SLPM-55130:
+  name: "Pro Yakyuu Spirits 5 - Kanzenban"
+  region: "NTSC-J"
 SLPM-55131:
   name: "World Soccer Winning Eleven 2009"
   region: "NTSC-J"
@@ -30027,6 +30214,9 @@ SLPM-55137:
 SLPM-55138:
   name: "Harukanaru Toki no Naka de - Yume no Ukihashi Special"
   region: "NTSC-J"
+SLPM-55139:
+  name: "Drift Nights - Juiced 2"
+  region: "NTSC-J"
 SLPM-55140:
   name: "Silent Hill 4 - The Room [Konami Dendou Selection]"
   region: "NTSC-J"
@@ -30045,12 +30235,18 @@ SLPM-55141:
     mergeSprite: 1 # Fixes misaligned bloom.
     halfPixelOffset: 2 # Fixes misaligned bloom.
     autoFlush: 2 # Fixes sun occlusion and brightness.
+SLPM-55143:
+  name: "Biohazard - Code - Veronica - Kanzenban"
+  region: "NTSC-J"
 SLPM-55144:
   name: "NBA Live 08"
   region: "NTSC-J"
   gsHWFixes:
     cpuSpriteRenderBW: 2 # Fixes broken sprite rendering and crowd rendering.
     cpuSpriteRenderLevel: 2 # Needed for above.
+SLPM-55145:
+  name: "Akudaikan 3"
+  region: "NTSC-J"
 SLPM-55146:
   name: "Jikkyou Powerful Pro Yakyuu 2009"
   region: "NTSC-J"
@@ -30146,6 +30342,9 @@ SLPM-55177:
 SLPM-55182:
   name: "J. League Winning Eleven 2009 - Club Championship"
   region: "NTSC-J"
+SLPM-55183:
+  name: "Melty Blood - Actress Again"
+  region: "NTSC-J"
 SLPM-55184:
   name: "Melty Blood - Actress Again"
   region: "NTSC-J"
@@ -30165,6 +30364,9 @@ SLPM-55188:
 SLPM-55189:
   name: "Rosario to Vampire Capu 2 - Koi to Yume no Rapsodia"
   region: "NTSC-J"
+SLPM-55190:
+  name: "L2 - Love x Loop"
+  region: "NTSC-J"
 SLPM-55191:
   name: "L2 - Love x Loop"
   region: "NTSC-J"
@@ -30175,11 +30377,32 @@ SLPM-55191:
         // Game does weird stack manipulation, causing data sent to the IOP to be corrupted unless EE data cache is enabled.
         // This patch skips over the stack code, allowing the game to boot.
         patch=1,EE,001B4828,word,10000008
+SLPM-55192:
+  name: "Nuga-Cel! Nurture Garment Celebration"
+  region: "NTSC-J"
 SLPM-55193:
   name: "Nuga-Cel! Nurture Garment Celebration"
   region: "NTSC-J"
+SLPM-55194:
+  name: "Luxury & Beauty - Lucian Bee's - Resurrection Supernova"
+  region: "NTSC-J"
+SLPM-55195:
+  name: "Princess Lover! Eternal Love for My Lady"
+  region: "NTSC-J"
+SLPM-55197:
+  name: "Memories Off 6 - Next Relation"
+  region: "NTSC-J"
+SLPM-55200:
+  name: "Touka Gettan - Koufuu no Ryouou"
+  region: "NTSC-J"
+SLPM-55201:
+  name: "Shirogane no Soleil - Contract to the Future - Mirai e no Keiyaku"
+  region: "NTSC-J"
 SLPM-55202:
   name: "Shuumatsu Shoujo Gensou Alicematic Apocalypse [Russel Games Best]"
+  region: "NTSC-J"
+SLPM-55203:
+  name: "Little Busters! Converted Edition"
   region: "NTSC-J"
 SLPM-55205:
   name: "S.Y.K Shinsetsu Saiyuuki [Limited Edition]"
@@ -30208,11 +30431,20 @@ SLPM-55212:
 SLPM-55213:
   name: "Jigoku Shoujo Mioyosuga"
   region: "NTSC-J"
+SLPM-55214:
+  name: "Hiiro no Kakera - Shin Tamayori-hime Denshou"
+  region: "NTSC-J"
 SLPM-55215:
   name: "Hiiro no Kakera - Shin Tamayori-hime Denshou"
   region: "NTSC-J"
 SLPM-55216:
   name: "Hiiro no Kakera - Tamayori-hime Kitan [Aizou-ban]"
+  region: "NTSC-J"
+SLPM-55217:
+  name: "Shin Hisui no Shizuku - Hiiro no Kakera 2"
+  region: "NTSC-J"
+SLPM-55218:
+  name: "Sengoku-hime - Senran ni Mau Otome-tachi"
   region: "NTSC-J"
 SLPM-55219:
   name: "Osouji Sentai Clean Keeper H [Limited Edition]"
@@ -30230,8 +30462,29 @@ SLPM-55221:
 SLPM-55222:
   name: "Beatmania IIDX 16 Empress + Premium Best [Disc 2 of 2 - Premium Best Disc]"
   region: "NTSC-J"
+SLPM-55223:
+  name: "NadePro!! Kisama mo Seiyuu Yatte Miro!"
+  region: "NTSC-J"
 SLPM-55226:
   name: "FIFA 10 - World Class Soccer"
+  region: "NTSC-J"
+SLPM-55227:
+  name: "Sekirei - Mirai kara no Okurimono"
+  region: "NTSC-J"
+SLPM-55228:
+  name: "Slotter Up Mania 11 - 2027 vs. 2027 II"
+  region: "NTSC-J"
+SLPM-55229:
+  name: "Final Fantasy XI - Vana'diel Collection 2"
+  region: "NTSC-J"
+SLPM-55231:
+  name: "Silent Hill - Shattered Memories"
+  region: "NTSC-J"
+SLPM-55233:
+  name: "Kin'iro no Corda"
+  region: "NTSC-J"
+SLPM-55234:
+  name: "Zill O'll Infinite"
   region: "NTSC-J"
 SLPM-55236:
   name: "Metal Gear Solid 3 - Subsistence (Disc 1) (Subsistence)"
@@ -30246,11 +30499,20 @@ SLPM-55236:
     mipmap: 2 # Mipmap + trilinear, improves ground textures to match sw renderer.
     trilinearFiltering: 1
     getSkipCount: "GSC_MetalGearSolid3" # Fixes depth of field blur.
+SLPM-55237:
+  name: "Metal Gear & Metal Gear 2 - Solid Snake"
+  region: "NTSC-J"
 SLPM-55239:
   name: "Death Connection"
   region: "NTSC-J"
 SLPM-55240:
   name: "ef - A Fairy Tale of the Two. [Shokai Gentei Tokubetsu Doukonban]"
+  region: "NTSC-J"
+SLPM-55241:
+  name: "ef - A Fairy Tale of the Two."
+  region: "NTSC-J"
+SLPM-55242:
+  name: "Gundam Musou 2"
   region: "NTSC-J"
 SLPM-55243:
   name: "Suzunone Seven - Rebirth Knot"
@@ -30274,14 +30536,29 @@ SLPM-55246:
 SLPM-55247:
   name: "S.Y.K Renshouden"
   region: "NTSC-J"
+SLPM-55248:
+  name: "Kin'iro no Corda 3"
+  region: "NTSC-J"
+SLPM-55250:
+  name: "Warship Gunner 2 - Kurogane no Houkou"
+  region: "NTSC-J"
 SLPM-55251:
   name: "WWE SmackDown vs. Raw 2009"
   region: "NTSC-J"
 SLPM-55252:
   name: "Pro Yakyuu Spirits 2010"
   region: "NTSC-J"
+SLPM-55253:
+  name: "Winning Post World 2010"
+  region: "NTSC-J"
 SLPM-55255:
   name: "Clover no Kuni no Alice - Wonderful Wonder World"
+  region: "NTSC-J"
+SLPM-55256:
+  name: "Luxury & Beauty - Lucian Bee's - Justice Yellow"
+  region: "NTSC-J"
+SLPM-55257:
+  name: "Luxury & Beauty - Lucian Bee's - Evil Violet"
   region: "NTSC-J"
 SLPM-55258:
   name: "World Soccer Winning Eleven 2010 - Aoki Samurai no Chousen"
@@ -30326,8 +30603,14 @@ SLPM-55273:
 SLPM-55274:
   name: "Uragiri wa Boku no Namae o Shitteiru - Tasogare ni Ochita Inori"
   region: "NTSC-J"
+SLPM-55275:
+  name: "Slotter Up Core 12 - Ping Pong"
+  region: "NTSC-J"
 SLPM-55276:
   name: "World Soccer Winning Eleven 2011"
+  region: "NTSC-J"
+SLPM-55277:
+  name: "Sengoku-hime 2 - En - Hyakka, Senran Tatsukaze no Gotoku"
   region: "NTSC-J"
 SLPM-55280:
   name: "King of Fighters '98 Ultimate Match, The"
@@ -30344,8 +30627,20 @@ SLPM-55283:
 SLPM-55285:
   name: "Crimson Empire"
   region: "NTSC-J"
+SLPM-55287:
+  name: "Moujuutsukai to Oujisama - Snow Bride"
+  region: "NTSC-J"
 SLPM-55288:
   name: "Shin Koihime Musou - Otome Ryouran - Sangokushi Engi"
+  region: "NTSC-J"
+SLPM-55289:
+  name: "Sangoku Rensenki - Otome no Heihou!"
+  region: "NTSC-J"
+SLPM-55290:
+  name: "Scared Rider Xechs - Stardust Lovers"
+  region: "NTSC-J"
+SLPM-55291:
+  name: "Grand Theft Auto - Vice City"
   region: "NTSC-J"
 SLPM-55292:
   name: "Grand Theft Auto - San Andreas [Rockstar Classics]"
@@ -30354,6 +30649,9 @@ SLPM-55292:
     eeClampMode: 2 # Fixes Game freezes during "Reuniting The Families" mission.
   gsHWFixes:
     autoFlush: 1 # Fixes post processing.
+SLPM-55293:
+  name: "Grand Theft Auto III"
+  region: "NTSC-J"
 SLPM-55294:
   name: "World Soccer Winning Eleven 2012"
   region: "NTSC-J"
@@ -30394,20 +30692,41 @@ SLPM-60109:
     roundSprite: 1 # Fixes ui and hud alignment.
     gpuPaletteConversion: 2 # Lots of CLUTs in large textures.
     cpuCLUTRender: 1 # Fixes car textures.
+SLPM-60112:
+  name: "Hresvelgr"
+  region: "NTSC-J"
+SLPM-60113:
+  name: "Sorcerous Stabber Orphen"
+  region: "NTSC-J"
 SLPM-60114:
   name: "Magical Sports - 2000 Koushien [Trial]"
+  region: "NTSC-J"
+SLPM-60115:
+  name: "Super Puzzle Bobble"
   region: "NTSC-J"
 SLPM-60116:
   name: "Magical Sports Go Go Golf [Taikenban]"
   region: "NTSC-J"
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves brightness on terrain textures.
+SLPM-60117:
+  name: "Shin Sangoku Musou"
+  region: "NTSC-J"
+SLPM-60118:
+  name: "Surfroid - Densetsu no Surfer"
+  region: "NTSC-J"
 SLPM-60119:
   name: "Cross Fire [Trial]"
   region: "NTSC-J"
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves textures to match sw renderer.
     trilinearFiltering: 1
+SLPM-60120:
+  name: "Greatest Striker"
+  region: "NTSC-J"
+SLPM-60121:
+  name: "Gungriffon Blaze & Silpheed - The Lost Planet"
+  region: "NTSC-J"
 SLPM-60122:
   name: "Ring of Red [Taikenban trial]"
   region: "NTSC-J"
@@ -30430,6 +30749,30 @@ SLPM-60127:
   region: "NTSC-J"
   speedHacks:
     mtvu: 0 # Prevents broken textures and graphics.
+SLPM-60128:
+  name: "Sidewinder Max"
+  region: "NTSC-J"
+SLPM-60129:
+  name: "Lake Masters EX"
+  region: "NTSC-J"
+SLPM-60130:
+  name: "Truck Kyousoukyoku - Ai to Kanashimi no Rodeo"
+  region: "NTSC-J"
+SLPM-60132:
+  name: "Shutokou Battle 0"
+  region: "NTSC-J"
+SLPM-60133:
+  name: "Zeonic Front - Kidou Senshi Gundam 0079"
+  region: "NTSC-J"
+SLPM-60134:
+  name: "Technictix"
+  region: "NTSC-J"
+SLPM-60135:
+  name: "Shadow of Memories"
+  region: "NTSC-J"
+SLPM-60136:
+  name: "Bloody Roar 3"
+  region: "NTSC-J"
 SLPM-60138:
   name: "Klonoa 2 - Lunatea's Veil [Trial]"
   region: "NTSC-J"
@@ -30440,12 +30783,18 @@ SLPM-60138:
     - EETimingHack # Fixes flickering graphics.
   gsHWFixes:
     cpuCLUTRender: 1 # Fixes shadows, object and enemy colours, platform transitions.
-SLPM-60167:
-  name: "Zero [Trial]"
+SLPM-60140:
+  name: "Lilie no Atelier - Salburg no Renkinjutsushi 3"
   region: "NTSC-J"
-  gsHWFixes:
-    halfPixelOffset: 2 # Reduces blurriness.
-    alignSprite: 1 # Fixes vertical lines on hidden ghosts.
+SLPM-60141:
+  name: "Golful Golf"
+  region: "NTSC-J"
+SLPM-60142:
+  name: "Densha de Go! 3 - Tsuukin-hen"
+  region: "NTSC-J"
+SLPM-60143:
+  name: "Tekkouki Mikazuki"
+  region: "NTSC-J"
 SLPM-60145:
   name: "Shadow Hearts"
   region: "NTSC-J"
@@ -30474,6 +30823,54 @@ SLPM-60149:
     cpuSpriteRenderBW: 1 # Fixes missing sun sprite.
     cpuSpriteRenderLevel: 0 # Needed for above.
     estimateTextureRegion: 1 # Improves performance and reduces HC size.
+SLPM-60150:
+  name: "Tamamayu Monogatari 2 - Horobi no Mushi"
+  region: "NTSC-J"
+SLPM-60152:
+  name: "NBA Street"
+  region: "NTSC-J"
+SLPM-60153:
+  name: "Garakuta Meisaku Gekijou - Rakugaki Oukoku"
+  region: "NTSC-J"
+SLPM-60154:
+  name: "Touge 3"
+  region: "NTSC-J"
+SLPM-60157:
+  name: "BuileBaku"
+  region: "NTSC-J"
+SLPM-60158:
+  name: "Hippa Linda"
+  region: "NTSC-J"
+SLPM-60159:
+  name: "Dengeki PS2 PlayStation D47"
+  region: "NTSC-J"
+SLPM-60162:
+  name: "Guilty Gear X Plus"
+  region: "NTSC-J"
+SLPM-60165:
+  name: "Maximo"
+  region: "NTSC-J"
+SLPM-60166:
+  name: "Jet de Go! 2"
+  region: "NTSC-J"
+SLPM-60167:
+  name: "Zero [Trial]"
+  region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2 # Reduces blurriness.
+    alignSprite: 1 # Fixes vertical lines on hidden ghosts.
+SLPM-60169:
+  name: "Exciting Pro Wres 3"
+  region: "NTSC-J"
+SLPM-60171:
+  name: "Soul Reaver 2"
+  region: "NTSC-J"
+SLPM-60167:
+  name: "Zero [Trial]"
+  region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2 # Reduces blurriness.
+    alignSprite: 1 # Fixes vertical lines on hidden ghosts.
 SLPM-60172:
   name: "Itadaki Street 3 - Okuman Chouja ni Shiteageru"
   region: "NTSC-J"
@@ -30488,6 +30885,18 @@ SLPM-60174:
 SLPM-60175:
   name: "Wangan Midnight [Taikenban]"
   region: "NTSC-J"
+SLPM-60176:
+  name: "U - Underwater Unit"
+  region: "NTSC-J"
+SLPM-60177:
+  name: "Kengou 2"
+  region: "NTSC-J"
+SLPM-60178:
+  name: "Nihon Daihyou Senshu ni Narou!"
+  region: "NTSC-J"
+SLPM-60179:
+  name: "Densha de Go! Ryojou-hen"
+  region: "NTSC-J"
 SLPM-60180:
   name: "Disney Golf Classics [Trial]"
   region: "NTSC-J"
@@ -30496,8 +30905,35 @@ SLPM-60180:
   gsHWFixes:
     mipmap: 2 # Mipmap + trilinear, improves grass rendering to match software.
     trilinearFiltering: 1
+SLPM-60181:
+  name: "Street Golfer"
+  region: "NTSC-J"
+SLPM-60182:
+  name: "Zoku Segare Ijiri - Henchin Tama Segare"
+  region: "NTSC-J"
 SLPM-60183:
   name: "Energy Airforce [Trial]"
+  region: "NTSC-J"
+SLPM-60184:
+  name: "Gungrave"
+  region: "NTSC-J"
+SLPM-60188:
+  name: "Marvel vs. Capcom 2 - New Age of Heroes"
+  region: "NTSC-J"
+SLPM-60189:
+  name: "Dengeki PS2 PlayStation D54"
+  region: "NTSC-J"
+SLPM-60190:
+  name: "Ultraman - Fighting Evolution 2"
+  region: "NTSC-J"
+SLPM-60192:
+  name: "Shinobi"
+  region: "NTSC-J"
+SLPM-60193:
+  name: "Guilty Gear XX - The Midnight Carnival"
+  region: "NTSC-J"
+SLPM-60194:
+  name: "Kotoba no Puzzle - Mojipittan"
   region: "NTSC-J"
 SLPM-60195:
   name: "Kaido Battle - Nikko, Haruna, Rokko, Hakone [Taikenban]"
@@ -30515,6 +30951,21 @@ SLPM-60198:
     roundSprite: 2 # Fixes lines at the edges of the HUD.
     mipmap: 2 # Mipmap + trilinear, improves road and grass textures to match sw renderer.
     trilinearFiltering: 1
+SLPM-60199:
+  name: "Dengeki PS2 PlayStation D58"
+  region: "NTSC-J"
+SLPM-60200:
+  name: "Anubis - Zone of the Enders"
+  region: "NTSC-J"
+SLPM-60202:
+  name: "R-Type Final"
+  region: "NTSC-J"
+SLPM-60204:
+  name: "Initial D - Special Stage"
+  region: "NTSC-J"
+SLPM-60205:
+  name: "Initial D - Special Stage"
+  region: "NTSC-J"
 SLPM-60206:
   name: "Shutokou Battle 01 [Taikenban]"
   region: "NTSC-J"
@@ -30530,6 +30981,21 @@ SLPM-60207:
     eeClampMode: 3 # For camera issues in some scenes.
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes black screens.
+SLPM-60199:
+  name: "Dengeki PS2 PlayStation D58"
+  region: "NTSC-J"
+SLPM-60200:
+  name: "Anubis - Zone of the Enders"
+  region: "NTSC-J"
+SLPM-60202:
+  name: "R-Type Final"
+  region: "NTSC-J"
+SLPM-60204:
+  name: "Initial D - Special Stage"
+  region: "NTSC-J"
+SLPM-60205:
+  name: "Initial D - Special Stage"
+  region: "NTSC-J"
 SLPM-60213:
   name: "Katamari Damacy [Demo]"
   region: "NTSC-J"
@@ -30539,6 +31005,12 @@ SLPM-60213:
     vu1ClampMode: 3 # Fixes SPS.
   speedHacks:
     mvuFlag: 0 # Fixes performance and falling through floor and other gameplay.
+SLPM-60214:
+  name: "Shadow Hearts II"
+  region: "NTSC-J"
+SLPM-60215:
+  name: "Dengeki PS2 PlayStation D63"
+  region: "NTSC-J"
 SLPM-60216:
   name: "R - Racing Evolution [Trial]"
   region: "NTSC-J"
@@ -30549,12 +31021,30 @@ SLPM-60217:
   region: "NTSC-J"
   gsHWFixes:
     texturePreloading: 0 # Performs much better with no preload.
+SLPM-60218:
+  name: "Gungrave O.D."
+  region: "NTSC-J"
+SLPM-60219:
+  name: "Shadow Hearts II"
+  region: "NTSC-J"
+SLPM-60220:
+  name: "Hajime no Ippo 2 - Victorious Road"
+  region: "NTSC-J"
+SLPM-60225:
+  name: "Fuuun Shinsengumi"
+  region: "NTSC-J"
+SLPM-60226:
+  name: "Shadow Hearts II"
+  region: "NTSC-J"
 SLPM-60228:
   name: "Kaido Battle 2 - Chain Reaction [Taikenban]"
   region: "NTSC-J"
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
     wildArmsHack: 1 # De-blurs the 3D image.
+SLPM-60237:
+  name: "Densha de Go! Final"
+  region: "NTSC-J"
 SLPM-60239:
   name: "Katamari Damacy [Trial]"
   region: "NTSC-J"
@@ -30564,8 +31054,20 @@ SLPM-60239:
     vu1ClampMode: 3 # Fixes SPS.
   speedHacks:
     mvuFlag: 0 # Fixes performance and falling through floor and other gameplay problems.
+SLPM-60240:
+  name: "Dengeki PS2 PlayStation D67"
+  region: "NTSC-J"
+SLPM-60241:
+  name: "Sakurazaka Shouboutai"
+  region: "NTSC-J"
+SLPM-60242:
+  name: "Virtua Fighter - Cyber Generation - Judgment Six no Yabou"
+  region: "NTSC-J"
 SLPM-60243:
   name: "Full House Kiss [Trial]"
+  region: "NTSC-J"
+SLPM-60245:
+  name: "Virtua Fighter - Cyber Generation - Judgment Six no Yabou"
   region: "NTSC-J"
 SLPM-60246:
   name: "Burnout 3 - Takedown [Trial]"
@@ -30582,6 +31084,9 @@ SLPM-60246:
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
     getSkipCount: "GSC_BurnoutGames"
     beforeDraw: "OI_BurnoutGames"
+SLPM-60247:
+  name: "Gradius V"
+  region: "NTSC-J"
 SLPM-60248:
   name: "Dororo [Trial]"
   region: "NTSC-J"
@@ -30601,6 +31106,9 @@ SLPM-60251:
   gsHWFixes:
     halfPixelOffset: 2 # Reduces ghosting but still an issue compared to native.
     roundSprite: 2 # Clears up much of the blurring that HPO Special does not.
+SLPM-60252:
+  name: "Futakoi"
+  region: "NTSC-J"
 SLPM-60253:
   name: "Zettai Zetsumei Toshi 2 - Itetsuita Kioku-tachi [Taikenban Type-B]"
   region: "NTSC-J"
@@ -30626,6 +31134,12 @@ SLPM-60257:
   gsHWFixes:
     alignSprite: 1 # Fixes FMV lines.
     getSkipCount: "GSC_DeathByDegreesTekkenNinaWilliams"
+SLPM-60258:
+  name: "The Typing of the Dead - Zombie Panic"
+  region: "NTSC-J"
+SLPM-60259:
+  name: "Jissen Pachi-Slot Hisshouhou! Hokuto no Ken Premium Disc"
+  region: "NTSC-J"
 SLPM-60260:
   name: "D1 Professional Drift Grand Prix Series [Taikenban]"
   region: "NTSC-J"
@@ -30633,6 +31147,12 @@ SLPM-60260:
     eeClampMode: 3 # Fixes black void.
 SLPM-60262:
   name: "10th Anniversary Memorial Save Data [Disc 2]"
+  region: "NTSC-J"
+SLPM-60263:
+  name: "Dengeki PS2 PlayStation D78"
+  region: "NTSC-J"
+SLPM-60264:
+  name: "Shadow Hearts - From the New World"
   region: "NTSC-J"
 SLPM-60265:
   name: "10th Anniversary PlayStation & PlayStation 2 All-Soft Catalogue Special SaveData Collection [PS2 Disc]"
@@ -30690,19 +31210,40 @@ SLPM-60275:
 SLPM-60277:
   name: "Jissen Pachi-Slot Hisshouhou! Hokuto no Ken Special Edition [Trial]"
   region: "NTSC-J"
+SLPM-60278:
+  name: "Wrestle Kingdom"
+  region: "NTSC-J"
 SLPM-60279:
   name: "Kamen Rider Kabuto"
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1 # Fixes garbage corruptions on the bottom of the screen.
+SLPM-60280:
+  name: "Dengeki PS2 - PlayStation 2 Save Data Collection 2007"
+  region: "NTSC-J"
+SLPM-60281:
+  name: "Dengeki PS2 PlayStation D94"
+  region: "NTSC-J"
 SLPM-60282:
   name: "Lucky Star - RAvish Romance [Trial]"
+  region: "NTSC-J"
+SLPM-60283:
+  name: "Dengeki PS2 PlayStation D95"
+  region: "NTSC-J"
+SLPM-60284:
+  name: "Dengeki PS2 - PlayStation 2 Save Data Collection 2008"
   region: "NTSC-J"
 SLPM-61001:
   name: "Onimusha [Trial]"
   region: "NTSC-J"
   gsHWFixes:
     texturePreloading: 1 # Performs much better with partial preload.
+SLPM-61002:
+  name: "Dengeki PlayStation D40 - Konami Fan Book"
+  region: "NTSC-J"
+SLPM-61004:
+  name: "Shadow of Memories / Zone of the Enders - Z.O.E - Tentou Houei-you Movie-ban"
+  region: "NTSC-J"
 SLPM-61007:
   name: "Maken Shao [Trial]"
   region: "NTSC-J"
@@ -30734,6 +31275,12 @@ SLPM-61011:
     eeCycleRate: 1 # Fixes FMV hangs.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Fixes menu transparancy and effects.
+SLPM-61012:
+  name: "Dengeki PS2 PlayStation D46"
+  region: "NTSC-J"
+SLPM-61013:
+  name: "Time Crisis 2 & Vampire Night"
+  region: "NTSC-J"
 SLPM-61018:
   name: "Abarenbou Princess [Trial]"
   region: "NTSC-J"
@@ -30789,6 +31336,12 @@ SLPM-61034:
 SLPM-61035:
   name: "Anubis - Zone of the Enders [Trial]"
   region: "NTSC-J"
+SLPM-61036:
+  name: "Argus no Senshi"
+  region: "NTSC-J"
+SLPM-61037:
+  name: "Devil May Cry 2"
+  region: "NTSC-J"
 SLPM-61038:
   name: "Dengeki PS2 PlayStation D57"
   region: "NTSC-J"
@@ -30800,6 +31353,18 @@ SLPM-61039:
     alignSprite: 1 # Fixes vertical lines.
     roundSprite: 2 # Fixes font artifacts.
     mergeSprite: 1 # Fixes flame-like bleeding.
+SLPM-61041:
+  name: "Virtua Fighter 4 - Evolution"
+  region: "NTSC-J"
+SLPM-61042:
+  name: "The Baseball 2003 - Battle Ball Park Sengen - Perfect Play Pro Yakyuu"
+  region: "NTSC-J"
+SLPM-61043:
+  name: "Devil May Cry 2"
+  region: "NTSC-J"
+SLPM-61044:
+  name: "Dengeki PS2 PlayStation D59"
+  region: "NTSC-J"
 SLPM-61046:
   name: "Dennou Senki - Virtual-On Marz [Trial]"
   region: "NTSC-J"
@@ -30807,8 +31372,38 @@ SLPM-61046:
     cpuSpriteRenderBW: 1 # Fixes CLUT colours.
     cpuSpriteRenderLevel: 2 # Needed for above.
     gpuPaletteConversion: 2 # Improves FPS and reduces HC size.
+SLPM-61048:
+  name: "Dengeki PS2 PlayStation D60"
+  region: "NTSC-J"
+SLPM-61050:
+  name: "Hanjuku Hero tai 3D"
+  region: "NTSC-J"
 SLPM-61051:
   name: "Dengeki PS2 PlayStation D61"
+  region: "NTSC-J"
+SLPM-61052:
+  name: "Gekitou Pro Yakyuu - Mizushima Shinji All Stars vs. Pro Yakyuu"
+  region: "NTSC-J"
+SLPM-61053:
+  name: "Jikkyou Powerful Pro Yakyuu 10"
+  region: "NTSC-J"
+SLPM-61054:
+  name: "Sidewinder V"
+  region: "NTSC-J"
+SLPM-61055:
+  name: "Gregory Horror Show - Soul Collector"
+  region: "NTSC-J"
+SLPM-61056:
+  name: "NHK Tensai Bit-kun - Glamon Battle"
+  region: "NTSC-J"
+SLPM-61058:
+  name: "Dengeki PS2 PlayStation D62"
+  region: "NTSC-J"
+SLPM-61059:
+  name: "Kunoichi"
+  region: "NTSC-J"
+SLPM-61060:
+  name: "Busin 0 - Wizardry Alternative Neo"
   region: "NTSC-J"
 SLPM-61062:
   name: "Castlevania [Demo]"
@@ -30818,13 +31413,58 @@ SLPM-61062:
 SLPM-61065:
   name: "Dengeki PS2 PlayStation D64"
   region: "NTSC-J"
+SLPM-61066:
+  name: "Dengeki PS2 PlayStation D65"
+  region: "NTSC-J"
 SLPM-61067:
   name: "Gako Zouryuu - Crouching Tiger, Hidden Dragon"
   region: "NTSC-J"
   gameFixes:
     - InstantDMAHack # Fixes FMVs to be visible.
+SLPM-61070:
+  name: "Dengeki PS2 PlayStation D66"
+  region: "NTSC-J"
+SLPM-61072:
+  name: "Puyo Puyo Fever"
+  region: "NTSC-J"
+SLPM-61073:
+  name: "Galaxy Angel - Moonlit Lovers"
+  region: "NTSC-J"
+SLPM-61074:
+  name: "Konjiki no Gashbell!! Yuujou Tag Battle"
+  region: "NTSC-J"
+SLPM-61076:
+  name: "Panzer Front Ausf.B"
+  region: "NTSC-J"
+SLPM-61077:
+  name: "Sega Ages 2500 Taikenban"
+  region: "NTSC-J"
+SLPM-61079:
+  name: "Dengeki PS2 PlayStation D68"
+  region: "NTSC-J"
+SLPM-61080:
+  name: "Ultraman"
+  region: "NTSC-J"
+SLPM-61081:
+  name: "Dengeki PS2 PlayStation D69"
+  region: "NTSC-J"
+SLPM-61082:
+  name: "TV Magazine Ultraman Special Disc"
+  region: "NTSC-J"
+SLPM-61083:
+  name: "Dengeki PS2 PlayStation D70"
+  region: "NTSC-J"
+SLPM-61084:
+  name: "Meiwaku Seijin - Panic Maker"
+  region: "NTSC-J"
+SLPM-61086:
+  name: "Kengou 3"
+  region: "NTSC-J"
 SLPM-61087:
   name: "Fullmetal Alchemist 2 - Curse of the Crimson Elixir [Trial]"
+  region: "NTSC-J"
+SLPM-61089:
+  name: "Dengeki PS2 PlayStation D72"
   region: "NTSC-J"
 SLPM-61090:
   name: "Tim Burton's The Nightmare Before Christmas [Trial]"
@@ -30832,6 +31472,9 @@ SLPM-61090:
   gsHWFixes:
     wildArmsHack: 1 # Fixes blurriness.
     mergeSprite: 1 # Fixes misaligned lights.
+SLPM-61091:
+  name: "Berserk - Millennium Falcon-hen - Seima Senki no Shou"
+  region: "NTSC-J"
 SLPM-61092:
   name: "Driv3r [Trial]"
   region: "NTSC-J"
@@ -30848,14 +31491,50 @@ SLPM-61092:
     cpuSpriteRenderBW: 4 # Alleviates text and sky rendering issues.
     cpuSpriteRenderLevel: 2 # Needed for above.
     recommendedBlendingLevel: 2 # Fixes car and bike exhaust smoke rendering.
+SLPM-61093:
+  name: "Ultraman - Fighting Evolution 3"
+  region: "NTSC-J"
+SLPM-61094:
+  name: "Viewtiful Joe 2 - Black Film no Nazo"
+  region: "NTSC-J"
+SLPM-61095:
+  name: "Dengeki PS2 PlayStation D74"
+  region: "NTSC-J"
+SLPM-61096:
+  name: "Fuuun Bakumatsuden"
+  region: "NTSC-J"
+SLPM-61097:
+  name: "Dengeki PS2 PlayStation D75"
+  region: "NTSC-J"
 SLPM-61098:
   name: "Exciting Pro Wres 6 - WWE SmackDown! vs. Raw"
+  region: "NTSC-J"
+SLPM-61100:
+  name: "Juuouki - Project Altered Beast"
+  region: "NTSC-J"
+SLPM-61101:
+  name: "Shinsengumi Gunrouden"
+  region: "NTSC-J"
+SLPM-61102:
+  name: "Tsukiyo ni Saraba"
+  region: "NTSC-J"
+SLPM-61103:
+  name: "Kessen III"
   region: "NTSC-J"
 SLPM-61104:
   name: "Samurai Western - Katsugeki Samurai-dou"
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes line across the middle of the screen and offset blur.
+SLPM-61105:
+  name: "Hajime no Ippo All Stars"
+  region: "NTSC-J"
+SLPM-61106:
+  name: "Rumble Roses"
+  region: "NTSC-J"
+SLPM-61107:
+  name: "Dengeki PS2 PlayStation D76"
+  region: "NTSC-J"
 SLPM-61109:
   name: "Shadow of Rome [Trial]"
   region: "NTSC-J"
@@ -30872,6 +31551,12 @@ SLPM-61110:
     textureInsideRT: 1 # Fixes reflections.
   gameFixes:
     - SoftwareRendererFMVHack # Fixes upscale lines in FMVs.
+SLPM-61111:
+  name: "Dragon Ball Z 3"
+  region: "NTSC-J"
+SLPM-61112:
+  name: "Tensei - Swords of Destiny"
+  region: "NTSC-J"
 SLPM-61113:
   name: "Dengeki PlayStation D77"
   region: "NTSC-J"
@@ -30886,6 +31571,9 @@ SLPM-61115:
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
     wildArmsHack: 1 # De-blurs the 3D image.
+SLPM-61116:
+  name: "Bouken-ou Beet - Darkness Century"
+  region: "NTSC-J"
 SLPM-61117:
   name: "Musashiden II - Blademaster [Trial]"
   region: "NTSC-J"
@@ -30918,6 +31606,9 @@ SLPM-61121:
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
     wildArmsHack: 1 # De-blurs the 3D image.
+SLPM-61122:
+  name: "Dengeki PS2 PlayStation D81"
+  region: "NTSC-J"
 SLPM-61123:
   name: "Naruto - Uzumaki Ninden [Trial]"
   region: "NTSC-J"
@@ -30925,8 +31616,20 @@ SLPM-61123:
     - OPHFlagHack
   gsHWFixes:
     mergeSprite: 1 # Reduces bloom but fixes blurriness around models + Recommended to use Shadeboost brightness 80.
+SLPM-61124:
+  name: "Ookami - Fude-hajime no Maki"
+  region: "NTSC-J"
+SLPM-61125:
+  name: "Tokyo Game Show Bandai Namco Booth Distribution Disc 2005"
+  region: "NTSC-J"
+SLPM-61126:
+  name: "Dengeki PS2 PlayStation D84"
+  region: "NTSC-J"
 SLPM-61127:
   name: "FlatOut [Trial]"
+  region: "NTSC-J"
+SLPM-61129:
+  name: "Famitsu PS2 Special Disc - Capcom Game Collection"
   region: "NTSC-J"
 SLPM-61130:
   name: "Ikusa Gami [Trial Version]"
@@ -30936,6 +31639,9 @@ SLPM-61130:
   gsHWFixes:
     autoFlush: 2 # Fixes missing bloom effects.
     halfPixelOffset: 2 # Fixes misaligned lighting and bloom.
+SLPM-61131:
+  name: "Dengeki PS2 PlayStation D85"
+  region: "NTSC-J"
 SLPM-61132:
   name: "Ikusa Gami [Trial Version]"
   region: "NTSC-J"
@@ -30955,6 +31661,9 @@ SLPM-61133:
     alignSprite: 1 # Fixes vertical lines.
     halfPixelOffset: 3 # Fixes blurriness. (normal vertex causes vertical lines).
     recommendedBlendingLevel: 3 # Fixes menu transparency.
+SLPM-61134:
+  name: "Kidou Senshi Gundam Seed - Rengou vs. Z.A.F.T."
+  region: "NTSC-J"
 SLPM-61135:
   name: "Naruto - Narutimett Hero 3 [Trial Version]"
   region: "NTSC-J"
@@ -30978,6 +31687,9 @@ SLPM-61140:
   region: "NTSC-J"
   gameFixes:
     - EETimingHack # Fixes flickering.
+SLPM-61141:
+  name: "Dengeki PS2 PlayStation D87"
+  region: "NTSC-J"
 SLPM-61142:
   name: "Shin Onimusha - Dawn of Dreams / Ookami"
   region: "NTSC-J"
@@ -31000,8 +31712,20 @@ SLPM-61148:
   region: "NTSC-J"
   gsHWFixes:
     moveHandler: "MV_Growlanser" # Fixes precomputed depth buffer.
+SLPM-61149:
+  name: "Dengeki PS2 PlayStation D91"
+  region: "NTSC-J"
+SLPM-61150:
+  name: "Kinnikuman - Muscle Grand Prix Max"
+  region: "NTSC-J"
+SLPM-61152:
+  name: "Dragon Ball Z - Sparking! Neo"
+  region: "NTSC-J"
 SLPM-61153:
   name: "Dengeki PS2 PlayStation D92"
+  region: "NTSC-J"
+SLPM-61154:
+  name: "Ryuu ga Gotoku 2"
   region: "NTSC-J"
 SLPM-61155:
   name: "Lara Croft Tomb Raider - Legend [Trial]"
@@ -31013,6 +31737,9 @@ SLPM-61155:
     textureInsideRT: 1 # Needed for post processing effects.
     autoFlush: 1 # Fixes bloom intensity.
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
+SLPM-61156:
+  name: "Dengeki PS2 PlayStation D93"
+  region: "NTSC-J"
 SLPM-61157:
   name: "Naruto Shippuuden - Narutimate Accel [Trial]"
   region: "NTSC-J"
@@ -31024,6 +31751,9 @@ SLPM-61157:
   clampModes:
     vu0ClampMode: 3 # Fixes bad dialog backgrounds.
     vu1ClampMode: 3 # Fixes SPS on characters.
+SLPM-61158:
+  name: "Saint Seiya - Meiou Hades Juunikyuu-hen"
+  region: "NTSC-J"
 SLPM-61161:
   name: "God of War II - The End Begins [Trial]"
   region: "NTSC-J"
@@ -31032,6 +31762,9 @@ SLPM-61161:
     halfPixelOffset: 2 # Fixes misaligned bloom.
     roundSprite: 1 # Fixes chromatic effect.
     autoFlush: 1 # Fixes sun occlusion.
+SLPM-61162:
+  name: "Dragon Ball Z - Sparking! Meteor"
+  region: "NTSC-J"
 SLPM-61163:
   name: "Seaman 2 - Pekin Genjin Ikusei Kit"
   region: "NTSC-J"
@@ -31045,6 +31778,9 @@ SLPM-62002:
   name: "Live World Soccer 2000"
   region: "NTSC-J"
   compat: 5
+SLPM-62003:
+  name: "Mahjong Taikai III - Millennium League"
+  region: "NTSC-J"
 SLPM-62004:
   name: "Mahjong Yarouze! 2"
   region: "NTSC-J"
@@ -31086,6 +31822,9 @@ SLPM-62016:
   name: "Super Bust-A-Move"
   region: "NTSC-J"
   compat: 5
+SLPM-62019:
+  name: "Winning Post 4 Maximum"
+  region: "NTSC-J"
 SLPM-62020:
   name: "GI Jockey 2"
   region: "NTSC-J"
@@ -31121,6 +31860,9 @@ SLPM-62029:
   compat: 5
   gsHWFixes:
     gpuPaletteConversion: 2 # Improves FPS drastically and reduces HC size massively.
+SLPM-62030:
+  name: "Mahjong Sengen - Saken de Ron!"
+  region: "NTSC-J"
 SLPM-62031:
   name: "Primal Image for Printer"
   region: "NTSC-J"
@@ -31139,6 +31881,9 @@ SLPM-62036:
 SLPM-62037:
   name: "Chou Kousoku Igo"
   region: "NTSC-J"
+SLPM-62038:
+  name: "Chou Kousoku Mahjong"
+  region: "NTSC-J"
 SLPM-62039:
   name: "Chou Kousoku Shougi"
   region: "NTSC-J"
@@ -31147,6 +31892,9 @@ SLPM-62040:
   region: "NTSC-J"
 SLPM-62041:
   name: "ESPN National Hockey Night"
+  region: "NTSC-J"
+SLPM-62042:
+  name: "Kurogane no Houkou - Warship Commander"
   region: "NTSC-J"
 SLPM-62043:
   name: "Metal Gear Solid 2 - Sons of Liberty [Trial version]"
@@ -46373,7 +47121,7 @@ SLPS-25770:
   name: "Rakushou! Pachi-Slot Sengen 5"
   region: "NTSC-J"
 SLPS-25771:
-  name: "Grim Grimoire"
+  name: "GrimGrimoire"
   region: "NTSC-J"
   compat: 5
 SLPS-25773:
@@ -53715,6 +54463,8 @@ SLUS-21196:
   name: "Indigo Prophecy"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1 # Slight lighting misalignment.
 SLUS-21197:
   name: "Shrek Superslam"
   region: "NTSC-U"
