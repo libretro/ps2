@@ -257,9 +257,6 @@ PAPX-90502:
   name: "The Yamanote-sen - Train Simulator Real"
   region: "NTSC-J"
 PAPX-90503:
-  name: "PoPoLoCrois - Tsuki no Okite no Bouken"
-  region: "NTSC-J"
-PAPX-90503:
   name: "PoPoLoCrois - Hajimari no Bouken [Fan Gentei Disc]"
   region: "NTSC-J"
 PAPX-90504:
@@ -444,11 +441,6 @@ PBPX-95247:
 PBPX-95248:
   name: "Online Start-Up Disc 4.0 - Broadband Only"
   region: "NTSC-U"
-PBPX-95502:
-  name: "Gran Turismo 3 - A-Spec"
-  region: "NTSC-J"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PBPX-95250:
   name: "Online Start-Up Disc v1.0"
   region: "NTSC-Unk"
@@ -664,11 +656,6 @@ PCPX-96330:
 PCPX-96554:
   name: "Games of Our Style - Tokyo Game Show 2003 Disc"
   region: "NTSC-J"
-PCPX-96609:
-  name: "Gran Turismo 3 - A-Spec - Tentou Shiyuu Disc Vol. 2"
-  region: "NTSC-J"
-  gsHWFixes:
-    getSkipCount: "GSC_PolyphonyDigitalGames" # Fixes post processing.
 PCPX-96603:
   name: "Dark Cloud"
   region: "NTSC-J"
@@ -3870,9 +3857,6 @@ SCED-54105:
 SCED-54134:
   name: "EyeToy - Play Sports"
   region: "PAL-M5"
-SCED-54134:
-  name: "EyeToy - Play Sports"
-  region: "PAL-Unk"
 SCED-54144:
   name: "Official PlayStation 2 Magazine Demo 72" # French
   region: "PAL-M5"
@@ -3921,21 +3905,6 @@ SCED-54398:
 SCED-54399:
   name: "Bonus Demo 12"
   region: "PAL-M5"
-SCED-54345:
-  name: "Buzz! Junior - Jungle Party"
-  region: "PAL-Unk"
-SCED-54363:
-  name: "Buzz! The Sports Quiz"
-  region: "PAL-Unk"
-SCED-54397:
-  name: "Bonus Demo 12 (You)"
-  region: "PAL-Unk"
-SCED-54398:
-  name: "Bonus Demo 12m"
-  region: "PAL-Unk"
-SCED-54399:
-  name: "Bonus Demo 12"
-  region: "PAL-Unk"
 SCED-54403:
   name: "Official PlayStation 2 Magazine Demo 78"
   region: "PAL-M5"
@@ -11325,13 +11294,6 @@ SCUS-97657:
 SCUS-97660:
   name: "SingStar Latino"
   region: "NTSC-U"
-SCUS-97859:
-  name: "SOCOM - U.S. Navy SEALs"
-  region: "NTSC-U"
-  gameFixes:
-    - InstantDMAHack # Fixes texture corruption.
-  clampModes:
-    vuClampMode: 2 # Fixes bad shadows.
 SCUS-97859:
   name: "SOCOM - U.S. Navy SEALs"
   region: "NTSC-U"
@@ -28858,14 +28820,6 @@ SLKA-25271:
 SLKA-25272:
   name: "Tak 2 - The Staff of Dreams"
   region: "NTSC-K"
-SLKA-25271:
-  name: "Harry Potter and the Order of the Phoenix"
-  region: "NTSC-K"
-  compat: 5
-  gsHWFixes:
-    mipmap: 1
-    halfPixelOffset: 1 # Fixes ghosting.
-    alignSprite: 1 # Fixes vertical lines.
 SLKA-25274:
   name: "Princess Maker 4"
   region: "NTSC-K"
@@ -30865,12 +30819,6 @@ SLPM-60169:
 SLPM-60171:
   name: "Soul Reaver 2"
   region: "NTSC-J"
-SLPM-60167:
-  name: "Zero [Trial]"
-  region: "NTSC-J"
-  gsHWFixes:
-    halfPixelOffset: 2 # Reduces blurriness.
-    alignSprite: 1 # Fixes vertical lines on hidden ghosts.
 SLPM-60172:
   name: "Itadaki Street 3 - Okuman Chouja ni Shiteageru"
   region: "NTSC-J"
@@ -30981,21 +30929,6 @@ SLPM-60207:
     eeClampMode: 3 # For camera issues in some scenes.
   gsHWFixes:
     disablePartialInvalidation: 1 # Fixes black screens.
-SLPM-60199:
-  name: "Dengeki PS2 PlayStation D58"
-  region: "NTSC-J"
-SLPM-60200:
-  name: "Anubis - Zone of the Enders"
-  region: "NTSC-J"
-SLPM-60202:
-  name: "R-Type Final"
-  region: "NTSC-J"
-SLPM-60204:
-  name: "Initial D - Special Stage"
-  region: "NTSC-J"
-SLPM-60205:
-  name: "Initial D - Special Stage"
-  region: "NTSC-J"
 SLPM-60213:
   name: "Katamari Damacy [Demo]"
   region: "NTSC-J"
