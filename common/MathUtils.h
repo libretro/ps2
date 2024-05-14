@@ -19,18 +19,8 @@
 
 #include "common/Pcsx2Defs.h"
 
-// On GCC >= 4.7, this is equivalent to __builtin_clrsb(n);
-inline u32 count_leading_sign_bits(s32 n)
+inline u32 count_leading_zero(s32 n)
 {
-	// If the sign bit is 1, we invert the bits to 0 for count-leading-zero.
-	if (n < 0)
-		n = ~n;
-
-	// If BSR is used directly, it would have an undefined value for 0.
-	if (n == 0)
-		return 32;
-
-// Perform our count leading zero.
 #ifdef _MSC_VER
 	unsigned long ret;
 	_BitScanReverse(&ret, n);
@@ -38,4 +28,17 @@ inline u32 count_leading_sign_bits(s32 n)
 #else
 	return __builtin_clz(n);
 #endif
+}
+
+// On GCC >= 4.7, this is equivalent to __builtin_clrsb(n);
+inline u32 count_leading_sign_bits(s32 n)
+{
+	// If the sign bit is 1, we invert the bits to 0 for count-leading-zero.
+	if (n < 0)
+		n = ~n;
+	// If BSR is used directly, it would have an undefined value for 0.
+	if (n == 0)
+		return 32;
+	// Perform our count leading zero.
+	return count_leading_zero(n);
 }
