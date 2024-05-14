@@ -4541,6 +4541,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		blend_alpha_max = rt->m_alpha_max;
 
 		const bool is_24_bit = (GSLocalMemory::m_psm[rt->m_TEX0.PSM].trbpp == 24);
+		const u32 alpha_mask = GSLocalMemory::m_psm[rt->m_TEX0.PSM].fmsk & 0xFF000000;
 		if (is_24_bit)
 		{
 			// C24/Z24 - alpha is 1.
@@ -4548,10 +4549,10 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			blend_alpha_max = 128;
 		}
 
-		if (!m_channel_shuffle && !m_texture_shuffle)
+		if (GSUtil::GetChannelMask(m_cached_ctx.FRAME.PSM) & 0x8 && !m_channel_shuffle && !m_texture_shuffle)
 		{
 			const int fba_value = m_prev_env.CTXT[m_prev_env.PRIM.CTXT].FBA.FBA * 128;
-			if ((m_cached_ctx.FRAME.FBMSK & 0xff000000) == 0)
+			if ((m_cached_ctx.FRAME.FBMSK & alpha_mask) == 0)
 			{
 				if (rt->m_valid.rintersect(m_r).eq(rt->m_valid) && PrimitiveCoversWithoutGaps() && !(m_cached_ctx.TEST.DATE || m_cached_ctx.TEST.ATE || m_cached_ctx.TEST.ZTST != ZTST_ALWAYS))
 				{
@@ -4564,22 +4565,13 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 					rt->m_alpha_min = std::min(GetAlphaMinMax().min | fba_value, rt->m_alpha_min);
 				}
 			}
-			else if ((m_cached_ctx.FRAME.FBMSK & 0xff000000) != 0xff000000) // We can't be sure of the alpha if it's partially masked.
+			else if ((m_cached_ctx.FRAME.FBMSK & alpha_mask) != alpha_mask) // We can't be sure of the alpha if it's partially masked.
 			{
 				rt->m_alpha_max |= std::max(GetAlphaMinMax().max | fba_value, rt->m_alpha_max);
 				rt->m_alpha_min = std::min(GetAlphaMinMax().min | fba_value, rt->m_alpha_min);
 			}
-			else if (!is_24_bit)
-			{
-				// If both are zero then we probably don't know what the alpha is.
-				if (rt->m_alpha_max == 0 && rt->m_alpha_min == 0)
-				{
-					rt->m_alpha_max = 255;
-					rt->m_alpha_min = 0;
-				}
-			}
 		}
-		else if ((m_texture_shuffle && m_conf.ps.write_rg == false) || m_channel_shuffle)
+		else if ((m_texture_shuffle && m_conf.colormask.wa) || (m_channel_shuffle && (m_cached_ctx.FRAME.FBMSK & alpha_mask) != alpha_mask))
 		{
 			rt->m_alpha_max = 255;
 			rt->m_alpha_min = 0;
@@ -5567,8 +5559,12 @@ bool GSRendererHW::TryTargetClear(GSTextureCache::Target* rt, GSTextureCache::Ta
 		{
 			const u32 c = GetConstantDirectWriteMemClearColor();
 			g_gs_device->ClearRenderTarget(rt->m_texture, c);
-			rt->m_alpha_max = c >> 24;
-			rt->m_alpha_min = c >> 24;
+
+			if (GSLocalMemory::m_psm[rt->m_TEX0.PSM].trbpp != 24)
+			{
+				rt->m_alpha_max = c >> 24;
+				rt->m_alpha_min = c >> 24;
+			}
 
 			if (!rt->m_32_bits_fmt)
 			{
