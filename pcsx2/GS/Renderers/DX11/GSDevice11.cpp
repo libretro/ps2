@@ -60,7 +60,6 @@ GSDevice11::GSDevice11()
 	m_features.dxt_textures = false;
 	m_features.bptc_textures = false;
 	m_features.framebuffer_fetch = false;
-	m_features.dual_source_blend = true;
 	m_features.stencil_buffer = true;
 	m_features.clip_control = true;
 	m_features.test_and_sample_depth = false;

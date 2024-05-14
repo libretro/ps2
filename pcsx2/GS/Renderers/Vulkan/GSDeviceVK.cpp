@@ -1437,7 +1437,6 @@ bool GSDeviceVK::CheckFeatures()
 #endif
 	m_features.prefer_new_textures   = true;
 	m_features.provoking_vertex_last = m_optional_extensions.vk_ext_provoking_vertex;
-	m_features.dual_source_blend     = m_device_features.dualSrcBlend;
 	m_features.clip_control          = true;
 #ifdef __APPLE__
 	m_features.vs_expand             = false;
@@ -1445,9 +1444,6 @@ bool GSDeviceVK::CheckFeatures()
 	m_features.vs_expand =
 		!GSConfig.DisableVertexShaderExpand && m_optional_extensions.vk_khr_shader_draw_parameters;
 #endif
-
-	if (!m_features.dual_source_blend)
-		Console.Warning("Vulkan driver is missing dual-source blending. This will have an impact on performance.");
 
 	if (!m_features.texture_barrier)
 		Console.Warning("Texture buffers are disabled. This may break some graphical effects.");
@@ -2324,8 +2320,6 @@ static void AddShaderHeader(std::stringstream& ss)
 
 	if (!features.texture_barrier)
 		ss << "#define DISABLE_TEXTURE_BARRIER 1\n";
-	if (!features.dual_source_blend)
-		ss << "#define DISABLE_DUAL_SOURCE 1\n";
 	if (features.texture_barrier && dev->UseFeedbackLoopLayout())
 		ss << "#define HAS_FEEDBACK_LOOP_LAYOUT 1\n";
 }
