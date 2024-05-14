@@ -4555,9 +4555,6 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	bool DATE_BARRIER = false;
 	bool DATE_one = false;
 
-	const bool ate_first_pass = m_cached_ctx.TEST.DoFirstPass();
-	const bool ate_second_pass = m_cached_ctx.TEST.DoSecondPass();
-
 	ResetStates();
 
 	const float scale_factor = rt ? rt->GetScale() : ds->GetScale();
@@ -4922,6 +4919,72 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		}
 	}
 
+	// Warning must be done after EmulateZbuffer
+	// Depth test is always true so it can be executed in 2 passes (no order required) unlike color.
+	// The idea is to compute first the color which is independent of the alpha test. And then do a 2nd
+	// pass to handle the depth based on the alpha test.
+	const bool ate_first_pass = m_cached_ctx.TEST.DoFirstPass();
+	bool ate_second_pass = m_cached_ctx.TEST.DoSecondPass();
+	bool ate_RGBA_then_Z = false;
+	bool ate_RGB_then_Z = false;
+	if (ate_first_pass && ate_second_pass)
+	{
+		const bool commutative_depth = (m_conf.depth.ztst == ZTST_GEQUAL && m_vt.m_eq.z) || (m_conf.depth.ztst == ZTST_ALWAYS) || !m_conf.depth.zwe;
+		const bool commutative_alpha = (m_context->ALPHA.C != 1) || !m_conf.colormask.wa; // when either Alpha Src or a constant, or not updating A
+		const u32 afail = m_cached_ctx.TEST.GetAFAIL(m_cached_ctx.FRAME.PSM);
+
+		ate_RGBA_then_Z = (afail == AFAIL_FB_ONLY) && commutative_depth;
+		ate_RGB_then_Z = (afail == AFAIL_RGB_ONLY) && commutative_depth && commutative_alpha;
+	}
+
+	if (ate_RGBA_then_Z)
+	{
+		// Render all color but don't update depth
+		// ATE is disabled here
+		m_conf.depth.zwe = false;
+	}
+	else
+	{
+		float aref = m_conf.cb_ps.FogColor_AREF.a;
+		EmulateATST(aref, m_conf.ps, false);
+
+		// avoid redundant cbuffer updates
+		m_conf.cb_ps.FogColor_AREF.a = aref;
+		m_conf.alpha_second_pass.ps_aref = aref;
+
+		if (ate_RGB_then_Z)
+		{
+			// Blending might be off, ensure it's enabled.
+			// We write the alpha pass/fail to SRC1_ALPHA, which is used to update A.
+			m_conf.ps.afail = AFAIL_RGB_ONLY;
+			m_conf.ps.no_color1 = false;
+			if (!m_conf.blend.enable)
+			{
+				m_conf.blend = GSHWDrawConfig::BlendState(true, GSDevice::CONST_ONE, GSDevice::CONST_ZERO,
+					GSDevice::OP_ADD, GSDevice::SRC1_ALPHA, GSDevice::INV_SRC1_ALPHA, false, 0);
+			}
+			else
+			{
+				m_conf.blend.src_factor_alpha = GSDevice::SRC1_ALPHA;
+				m_conf.blend.dst_factor_alpha = GSDevice::INV_SRC1_ALPHA;
+			}
+
+			// If Z writes are on, unfortunately we can't single pass it.
+			// But we can write Z in the second pass instead.
+			ate_RGBA_then_Z = m_conf.depth.zwe;
+			ate_second_pass &= ate_RGBA_then_Z;
+			m_conf.depth.zwe = false;
+
+			// Swap stencil DATE for PrimID DATE, for both Z on and off cases.
+			// Because we're making some pixels pass, but not update A, the stencil won't be synced.
+			if (DATE && !DATE_BARRIER && features.primitive_id)
+			{
+				DATE_one = false;
+				DATE_PRIMID = true;
+			}
+		}
+	}
+
 	// No point outputting colours if we're just writing depth.
 	// We might still need the framebuffer for DATE, though.
 	if (!rt || m_conf.colormask.wrgba == 0)
@@ -5058,44 +5121,6 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		m_conf.cb_ps.FogColor_AREF = fc.blend32<8>(m_conf.cb_ps.FogColor_AREF);
 	}
 
-	// Warning must be done after EmulateZbuffer
-	// Depth test is always true so it can be executed in 2 passes (no order required) unlike color.
-	// The idea is to compute first the color which is independent of the alpha test. And then do a 2nd
-	// pass to handle the depth based on the alpha test.
-	bool ate_RGBA_then_Z = false;
-	bool ate_RGB_then_ZA = false;
-	if (ate_first_pass && ate_second_pass)
-	{
-		const bool commutative_depth = (m_conf.depth.ztst == ZTST_GEQUAL && m_vt.m_eq.z) || (m_conf.depth.ztst == ZTST_ALWAYS);
-		const bool commutative_alpha = (m_context->ALPHA.C != 1); // when either Alpha Src or a constant
-
-		ate_RGBA_then_Z = m_cached_ctx.TEST.GetAFAIL(m_cached_ctx.FRAME.PSM) == AFAIL_FB_ONLY && commutative_depth;
-		ate_RGB_then_ZA = m_cached_ctx.TEST.GetAFAIL(m_cached_ctx.FRAME.PSM) == AFAIL_RGB_ONLY && commutative_depth && commutative_alpha;
-	}
-
-	if (ate_RGBA_then_Z)
-	{
-		// Render all color but don't update depth
-		// ATE is disabled here
-		m_conf.depth.zwe = false;
-	}
-	else if (ate_RGB_then_ZA)
-	{
-		// Render RGB color but don't update depth/alpha
-		// ATE is disabled here
-		m_conf.depth.zwe = false;
-		m_conf.colormask.wa = false;
-	}
-	else
-	{
-		float aref = m_conf.cb_ps.FogColor_AREF.a;
-		EmulateATST(aref, m_conf.ps, false);
-
-		// avoid redundant cbuffer updates
-		m_conf.cb_ps.FogColor_AREF.a = aref;
-		m_conf.alpha_second_pass.ps_aref = aref;
-	}
-
 	GSTexture* tex_copy = nullptr;
 	if (tex)
 	{
@@ -5137,7 +5162,10 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		memcpy(&m_conf.alpha_second_pass.colormask, &m_conf.colormask, sizeof(m_conf.colormask));
 		memcpy(&m_conf.alpha_second_pass.depth,     &m_conf.depth,     sizeof(m_conf.depth));
 
-		if (ate_RGBA_then_Z || ate_RGB_then_ZA)
+		// Not doing single pass AFAIL.
+		m_conf.alpha_second_pass.ps.afail = AFAIL_KEEP;
+
+		if (ate_RGBA_then_Z)
 		{
 			// Enable ATE as first pass to update the depth
 			// of pixels that passed the alpha test
@@ -5172,12 +5200,6 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		{
 			z = !m_cached_ctx.ZBUF.ZMSK;
 			r = g = b = a = false;
-		}
-		else if (ate_RGB_then_ZA)
-		{
-			z = !m_cached_ctx.ZBUF.ZMSK;
-			a = (m_cached_ctx.FRAME.FBMSK & 0xFF000000) != 0xFF000000;
-			r = g = b = false;
 		}
 
 		if (z || r || g || b || a)
