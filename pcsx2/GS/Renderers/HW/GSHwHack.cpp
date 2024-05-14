@@ -674,8 +674,6 @@ bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
 	const u32 fbmsk = RFBMSK;
 	if (RFBMSK != 0x00FFFFFFu)
 	{
-		src->m_alpha_max = 255;
-		src->m_alpha_min = 0;
 		GSHWDrawConfig& config = r.BeginHLEHardwareDraw(
 			src->GetTexture(), nullptr, src->GetScale(), src->GetTexture(), src->GetScale(), src->GetUnscaledRect());
 		config.pal = palette->GetPaletteGSTexture();
@@ -719,6 +717,7 @@ bool GSHwHack::GSC_PolyphonyDigitalGames(GSRendererHW& r, int& skip)
 			// Need the alpha channel.
 			dst->m_TEX0.PSM = PSMCT32;
 
+			dst->m_rt_alpha_scale = false;
 			// Alpha is unknown, since it comes from RGB.
 			dst->m_alpha_min = 0;
 			dst->m_alpha_max = 255;

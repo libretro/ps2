@@ -1663,11 +1663,12 @@ void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 }
 
 void GSDeviceVK::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
-	bool green, bool blue, bool alpha)
+	bool green, bool blue, bool alpha, ShaderConvert shader)
 {
 	const u32 index = (red ? 1 : 0) | (green ? 2 : 0) | (blue ? 4 : 0) | (alpha ? 8 : 0);
 	const bool allow_discard = (index == 0xf);
-	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect, m_color_copy[index],
+	int rta_offset = (shader == ShaderConvert::RTA_CORRECTION) ? 16 : 0;
+	DoStretchRect(static_cast<GSTextureVK*>(sTex), sRect, static_cast<GSTextureVK*>(dTex), dRect, m_color_copy[index + rta_offset],
 		false, allow_discard);
 }
 
@@ -1780,7 +1781,9 @@ void GSDeviceVK::DoMultiStretchRects(
 		BeginRenderPassForStretchRect(dTex, rc, rc, false);
 	SetUtilityTexture(rects[0].src, rects[0].linear ? m_linear_sampler : m_point_sampler);
 
-	SetPipeline((rects[0].wmask.wrgba != 0xf) ? m_color_copy[rects[0].wmask.wrgba] : m_convert[static_cast<int>(shader)]);
+	int rta_offset = (shader == ShaderConvert::RTA_CORRECTION) ? 16 : 0;
+	SetPipeline(
+		(rects[0].wmask.wrgba != 0xf) ? m_color_copy[rects[0].wmask.wrgba + rta_offset] : m_convert[static_cast<int>(shader)]);
 
 	if (ApplyUtilityState())
 		DrawIndexedPrimitive();
@@ -2673,14 +2676,38 @@ bool GSDeviceVK::CompileConvertPipelines()
 		{
 			// compile color copy pipelines
 			gpb.SetRenderPass(m_utility_color_render_pass_discard, 0);
-			for (u32 i = 0; i < 16; i++)
+			for (u32 j = 0; j < 16; j++)
 			{
 				gpb.ClearBlendAttachments();
 				gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-					VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, static_cast<VkColorComponentFlags>(i));
-				m_color_copy[i] =
-					gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
-				if (!m_color_copy[i])
+					VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, static_cast<VkColorComponentFlags>(j));
+				m_color_copy[j] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+				if (!m_color_copy[j])
+				{
+					SafeDestroyShaderModule(m_device, ps);
+					SafeDestroyShaderModule(m_device, vs);
+					return false;
+				}
+			}
+		}
+		else if (i == ShaderConvert::RTA_CORRECTION)
+		{
+			// compile color copy pipelines
+			gpb.SetRenderPass(m_utility_color_render_pass_discard, 0);
+			VkShaderModule ps = GetUtilityFragmentShader(*shader, shaderName(i));
+			if (ps == VK_NULL_HANDLE)
+				return false;
+
+			gpb.SetFragmentShader(ps);
+
+			for (u32 j = 16; j < 32; j++)
+			{
+				gpb.ClearBlendAttachments();
+
+				gpb.SetBlendAttachment(0, false, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+					VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, static_cast<VkColorComponentFlags>(j - 16));
+				m_color_copy[j] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
+				if (!m_color_copy[j])
 				{
 					SafeDestroyShaderModule(m_device, ps);
 					SafeDestroyShaderModule(m_device, vs);
@@ -2691,14 +2718,13 @@ bool GSDeviceVK::CompileConvertPipelines()
 		else if (i == ShaderConvert::HDR_INIT || i == ShaderConvert::HDR_RESOLVE)
 		{
 			const bool is_setup = i == ShaderConvert::HDR_INIT;
-			VkPipeline (&arr)[2][2] = *(is_setup ? &m_hdr_setup_pipelines : &m_hdr_finish_pipelines);
+			VkPipeline(&arr)[2][2] = *(is_setup ? &m_hdr_setup_pipelines : &m_hdr_finish_pipelines);
 			for (u32 ds = 0; ds < 2; ds++)
 			{
 				for (u32 fbl = 0; fbl < 2; fbl++)
 				{
-					gpb.SetRenderPass(
-						GetTFXRenderPass(true, ds != 0, is_setup, false, fbl != 0, false,
-							VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE),
+					gpb.SetRenderPass(GetTFXRenderPass(true, ds != 0, is_setup, false, fbl != 0, false,
+										  VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_DONT_CARE),
 						0);
 					arr[ds][fbl] = gpb.Create(m_device, g_vulkan_shader_cache->GetPipelineCache(true), false);
 					if (!arr[ds][fbl])

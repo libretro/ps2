@@ -255,7 +255,7 @@ public:
 		void RTACorrect(Target* rt);
 		void RTADecorrect(Target* rt);
 
-		void Update();
+		void Update(bool cannot_scale = false);
 
 		/// Updates the target, if the dirty area intersects with the specified rectangle.
 		void UpdateIfDirtyIntersects(const GSVector4i& rc);

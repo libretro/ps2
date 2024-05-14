@@ -884,7 +884,7 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 }
 
 void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
-	bool green, bool blue, bool alpha)
+	bool green, bool blue, bool alpha, ShaderConvert shader)
 {
 	const u32 index = (red ? 1 : 0) | (green ? 2 : 0) | (blue ? 4 : 0) | (alpha ? 8 : 0);
 	const bool allow_discard = (index == 0xf);
@@ -1051,8 +1051,8 @@ void GSDevice12::DoMultiStretchRects(
 	SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	SetUtilityTexture(rects[0].src, rects[0].linear ? m_linear_sampler_cpu : m_point_sampler_cpu);
 
-	SetPipeline((rects[0].wmask.wrgba != 0xf) ? m_color_copy[rects[0].wmask.wrgba].get() :
-												m_convert[static_cast<int>(shader)].get());
+	int rta_offset = (shader == ShaderConvert::RTA_CORRECTION) ? 16 : 0;
+	SetPipeline((rects[0].wmask.wrgba != 0xf) ? m_color_copy[rects[0].wmask.wrgba + rta_offset].get() : m_convert[static_cast<int>(shader)].get());
 
 	if (ApplyUtilityState())
 		DrawIndexedPrimitive();
@@ -1649,12 +1649,32 @@ bool GSDevice12::CompileConvertPipelines()
 			// compile color copy pipelines
 			gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
 			gpb.SetDepthStencilFormat(DXGI_FORMAT_UNKNOWN);
-			for (u32 i = 0; i < 16; i++)
+			for (u32 j = 0; j < 16; j++)
 			{
-				gpb.SetBlendState(0, false, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-					D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, static_cast<u8>(i));
-				m_color_copy[i] = gpb.Create(m_device.get(), m_shader_cache, false);
-				if (!m_color_copy[i])
+				gpb.SetBlendState(0, false, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, static_cast<u8>(j));
+				m_color_copy[j] = gpb.Create(m_device.get(), m_shader_cache, false);
+				if (!m_color_copy[j])
+					return false;
+			}
+		}
+		else if (i == ShaderConvert::RTA_CORRECTION)
+		{
+			// compile color copy pipelines
+			gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
+			gpb.SetDepthStencilFormat(DXGI_FORMAT_UNKNOWN);
+
+			ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, shaderName(i)));
+			if (!ps)
+				return false;
+
+			gpb.SetPixelShader(ps.get());
+
+			for (u32 j = 16; j < 32; j++)
+			{
+				gpb.SetBlendState(0, false, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, D3D12_BLEND_ONE,
+					D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD, static_cast<u8>(j - 16));
+				m_color_copy[j] = gpb.Create(m_device.get(), m_shader_cache, false);
+				if (!m_color_copy[j])
 					return false;
 			}
 		}
