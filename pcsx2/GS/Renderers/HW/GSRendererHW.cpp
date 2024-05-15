@@ -3928,9 +3928,19 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 		const bool rta_correction = m_can_correct_alpha && !blend_ad_alpha_masked && m_conf.ps.blend_c == 1 && !(blend_flag & BLEND_A_MAX);
 		if (rta_correction)
 		{
-			rt->RTACorrect();
+			const bool afail_always_fb_alpha = m_cached_ctx.TEST.AFAIL == AFAIL_FB_ONLY || (m_cached_ctx.TEST.AFAIL == AFAIL_RGB_ONLY && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].trbpp != 32);
+			const bool always_passing_alpha = !m_cached_ctx.TEST.ATE || afail_always_fb_alpha || (m_cached_ctx.TEST.ATE && m_cached_ctx.TEST.ATST == ATST_ALWAYS);
+			const bool full_cover = (rt->m_valid.rintersect(m_r).eq(rt->m_valid) && PrimitiveCoversWithoutGaps() && !(DATE_PRIMID || DATE_BARRIER || !always_passing_alpha || (m_cached_ctx.TEST.ZTE && m_cached_ctx.TEST.ZTST != ZTST_ALWAYS)) || m_channel_shuffle);
+
+			if (!full_cover)
+			{
+				rt->RTACorrect();
+				m_conf.rt = rt->m_texture;
+			}
+			else
+				rt->m_rt_alpha_scale = true;
+
 			m_conf.ps.rta_correction = rt->m_rt_alpha_scale;
-			m_conf.rt = rt->m_texture;
 		}
 
 		// Care for hw blend value, 6 is for hw/sw, sw blending used.
@@ -4010,7 +4020,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	float scale = tex->GetScale();
 	HandleTextureHazards(rt, ds, tex, tmm, source_region, target_region, unscaled_size, scale, src_copy);
 
-	if (tex->m_target && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale)
+	if ((m_conf.ps.tex_is_fb && rt->m_rt_alpha_scale) || (tex->m_target && tex->m_from_target && tex->m_target_direct && tex->m_from_target->m_rt_alpha_scale))
 		m_conf.ps.rta_source_correction = 1;
 
 	// Warning fetch the texture PSM format rather than the context format. The latter could have been corrected in the texture cache for depth.
@@ -4676,10 +4686,14 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 
 	// Blend
 	int blend_alpha_min = 0, blend_alpha_max = 255;
+	int rt_new_alpha_min = 0, rt_new_alpha_max = 255;
 	if (rt)
 	{
-		blend_alpha_min = rt->m_alpha_min;
-		blend_alpha_max = rt->m_alpha_max;
+		rt_new_alpha_min = rt->m_alpha_min;
+		rt_new_alpha_max = rt->m_alpha_max;
+
+		blend_alpha_min = rt_new_alpha_min;
+		blend_alpha_max = rt_new_alpha_max;
 
 		const bool is_24_bit = (GSLocalMemory::m_psm[rt->m_TEX0.PSM].trbpp == 24);
 		// On DX FBMask emulation can be missing on lower blend levels, so we'll do whatever the API does.
@@ -4698,6 +4712,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		{
 			const int s_alpha_max = GetAlphaMinMax().max | fba_value;
 			const int s_alpha_min = GetAlphaMinMax().min | fba_value;
+
 			const bool afail_always_fb_alpha = m_cached_ctx.TEST.AFAIL == AFAIL_FB_ONLY || (m_cached_ctx.TEST.AFAIL == AFAIL_RGB_ONLY && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].trbpp != 32);
 			const bool always_passing_alpha = !m_cached_ctx.TEST.ATE || afail_always_fb_alpha || (m_cached_ctx.TEST.ATE && m_cached_ctx.TEST.ATST == ATST_ALWAYS);
 			const bool full_cover = (rt->m_valid.rintersect(m_r).eq(rt->m_valid) && PrimitiveCoversWithoutGaps() && !(DATE || !always_passing_alpha || (m_cached_ctx.TEST.ZTE && m_cached_ctx.TEST.ZTST != ZTST_ALWAYS)) || m_channel_shuffle);
@@ -4706,26 +4721,26 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			{
 				if (full_cover)
 				{
-					rt->m_alpha_max = s_alpha_max;
-					rt->m_alpha_min = s_alpha_min;
+					rt_new_alpha_max = s_alpha_max;
+					rt_new_alpha_min = s_alpha_min;
 				}
 				else
 				{
-					rt->m_alpha_max = std::max(s_alpha_max, rt->m_alpha_max);
-					rt->m_alpha_min = std::min(s_alpha_min, rt->m_alpha_min);
+					rt_new_alpha_max = std::max(s_alpha_max, rt_new_alpha_max);
+					rt_new_alpha_min = std::min(s_alpha_min, rt_new_alpha_min);
 				}
 			}
 			else if ((fb_mask & alpha_mask) != alpha_mask) // We can't be sure of the alpha if it's partially masked.
 			{
 				// Any number of bits could be set, so let's be paranoid about it
 				const u32 new_max_alpha = (s_alpha_max != s_alpha_min) ? (std::min(s_alpha_max, ((1 << (32 - count_leading_zero(static_cast<u32>(s_alpha_max)))) - 1)) & ~fb_mask) : (s_alpha_max & ~fb_mask);
-				const u32 curr_max = (rt->m_alpha_max != rt->m_alpha_min && rt->m_alpha_range) ? (((1 << (32 - count_leading_zero(static_cast<u32>(rt->m_alpha_max)))) - 1) & fb_mask) : ((rt->m_alpha_max | rt->m_alpha_min) & fb_mask);
+				const u32 curr_max = (rt_new_alpha_max != rt_new_alpha_min && rt->m_alpha_range) ? (((1 << (32 - count_leading_zero(static_cast<u32>(rt_new_alpha_max)))) - 1) & fb_mask) : ((rt_new_alpha_max | rt_new_alpha_min) & fb_mask);
 				if (full_cover)
-					rt->m_alpha_max = new_max_alpha | curr_max;
+					rt_new_alpha_max = new_max_alpha | curr_max;
 				else
-					rt->m_alpha_max = std::max(static_cast<int>(new_max_alpha | curr_max), rt->m_alpha_max);
+					rt_new_alpha_max = std::max(static_cast<int>(new_max_alpha | curr_max), rt_new_alpha_max);
 
-				rt->m_alpha_min = std::min(s_alpha_min, rt->m_alpha_min);
+				rt_new_alpha_min = std::min(s_alpha_min, rt_new_alpha_min);
 			}
 			if (full_cover && (fb_mask & alpha_mask) == 0)
 				rt->m_alpha_range = s_alpha_max != s_alpha_min;
@@ -4738,13 +4753,13 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			const GSVector4i shuffle_rect = GSVector4i(m_vt.m_min.p.x, m_vt.m_min.p.y, m_vt.m_max.p.x, m_vt.m_max.p.y);
 			if (!rt->m_valid.rintersect(shuffle_rect).eq(rt->m_valid) || (m_cached_ctx.FRAME.FBMSK & 0xFFFC0000))
 			{
-				rt->m_alpha_max = std::max(static_cast<int>((std::max(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80) + 127), rt->m_alpha_max) | fba_value;
-				rt->m_alpha_min = std::min(static_cast<int>(std::min(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80), rt->m_alpha_min);
+				rt_new_alpha_max = std::max(static_cast<int>((std::max(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80) + 127), rt_new_alpha_max) | fba_value;
+				rt_new_alpha_min = std::min(static_cast<int>(std::min(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80), rt_new_alpha_min);
 			}
 			else
 			{
-				rt->m_alpha_max = (std::max(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80) + 127 | fba_value;
-				rt->m_alpha_min = (std::min(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80) | fba_value;
+				rt_new_alpha_max = (std::max(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80) + 127 | fba_value;
+				rt_new_alpha_min = (std::min(m_draw_env->TEXA.TA1, m_draw_env->TEXA.TA0) & 0x80) | fba_value;
 			}
 			rt->m_alpha_range = true;
 		}
@@ -4753,16 +4768,16 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		if (m_prim_overlap != PRIM_OVERLAP_NO)
 		{
 			// Otherwise, it may be a mix of the old/new values.
-			blend_alpha_min = std::min(blend_alpha_min, rt->m_alpha_min);
-			blend_alpha_max = std::max(blend_alpha_max, rt->m_alpha_max);
+			blend_alpha_min = std::min(blend_alpha_min, rt_new_alpha_min);
+			blend_alpha_max = std::max(blend_alpha_max, rt_new_alpha_max);
 		}
 
 		if (!rt->m_32_bits_fmt)
 		{
-			rt->m_alpha_max &= 128;
-			rt->m_alpha_min &= 128;
+			rt_new_alpha_max &= 128;
+			rt_new_alpha_min &= 128;
 
-			if (rt->m_alpha_max == rt->m_alpha_min)
+			if (rt_new_alpha_max == rt_new_alpha_min)
 				rt->m_alpha_range = false;
 		}
 	}
@@ -4780,7 +4795,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			blend_alpha_min = std::min(blend_alpha_min, 127);
 			blend_alpha_max = std::min(blend_alpha_max, 127);
 		}
-		
+
 		// It is way too complex to emulate texture shuffle with DATE, so use accurate path.
 		// No overlap should be triggered on gl/vk only as they support DATE_BARRIER.
 		if (features.framebuffer_fetch)
@@ -4872,12 +4887,12 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	// If we Correct/Decorrect and tex is rt, we will need to update the texture reference
 	const bool req_src_update = tex && rt && tex->m_target && tex->m_target_direct && tex->m_texture == rt->m_texture;
 
-	m_can_correct_alpha = !needs_ad && (GSUtil::GetChannelMask(m_cached_ctx.FRAME.PSM) & 0x8);
+	m_can_correct_alpha = !needs_ad && (GSUtil::GetChannelMask(m_cached_ctx.FRAME.PSM) & 0x8) && rt_new_alpha_max <= 128;
 
 	if (rt)
 	{
 		const bool partial_fbmask = (m_conf.ps.fbmask && m_conf.cb_ps.FbMask.a != 0xFF && m_conf.cb_ps.FbMask.a != 0);
-		const bool rta_decorrection = m_channel_shuffle || m_texture_shuffle || (m_conf.colormask.wa && (rt->m_alpha_max > 128 || partial_fbmask));
+		const bool rta_decorrection = m_channel_shuffle || m_texture_shuffle || (m_conf.colormask.wa && (rt_new_alpha_max > 128 || partial_fbmask));
 
 		if (rta_decorrection)
 		{
@@ -4913,7 +4928,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			}
 			else if (m_channel_shuffle)
 			{
-				if (m_conf.ps.tales_of_abyss_hle || (tex && tex->m_from_target && tex->m_from_target == rt && m_conf.ps.channel == ChannelFetch_ALPHA) || partial_fbmask || rt->m_alpha_max > 128)
+				if (m_conf.ps.tales_of_abyss_hle || (tex && tex->m_from_target && tex->m_from_target == rt && m_conf.ps.channel == ChannelFetch_ALPHA) || partial_fbmask || rt_new_alpha_max > 128)
 				{
 					m_can_correct_alpha = false;
 					rt->RTADecorrect();
@@ -4939,7 +4954,7 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			}
 		}
 		else if (!rt->m_rt_alpha_scale)
-			m_can_correct_alpha = rt->m_alpha_max <= 128 && m_can_correct_alpha;
+			m_can_correct_alpha = m_can_correct_alpha;
 
 		m_conf.ps.rta_correction = rt->m_rt_alpha_scale;
 	}
@@ -4947,9 +4962,6 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 	if ((!IsOpaque() || m_context->ALPHA.IsBlack()) && rt && ((m_conf.colormask.wrgba & 0x7) || (m_texture_shuffle && !m_copy_16bit_to_target_shuffle && !m_same_group_texture_shuffle)))
 	{
 		EmulateBlending(blend_alpha_min, blend_alpha_max, DATE_PRIMID, DATE_BARRIER, rt);
-
-		if (req_src_update && tex->m_texture != rt->m_texture)
-			tex->m_texture = rt->m_texture;
 	}
 	else
 	{
@@ -4957,11 +4969,11 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		m_conf.ps.no_color1 = true;
 
 		// Try to avoid palette draws
-		if (rt && m_can_correct_alpha && !rt->m_rt_alpha_scale && rt->m_alpha_max == rt->m_alpha_min)
+		if (rt && m_can_correct_alpha && !rt->m_rt_alpha_scale && rt->m_alpha_max == rt->m_alpha_min )
 		{
 			const bool afail_always_fb_alpha = m_cached_ctx.TEST.AFAIL == AFAIL_FB_ONLY || (m_cached_ctx.TEST.AFAIL == AFAIL_RGB_ONLY && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].trbpp != 32);
 			const bool always_passing_alpha = !m_cached_ctx.TEST.ATE || afail_always_fb_alpha || (m_cached_ctx.TEST.ATE && m_cached_ctx.TEST.ATST == ATST_ALWAYS);
-			const bool full_cover = (rt->m_valid.rintersect(m_r).eq(rt->m_valid) && PrimitiveCoversWithoutGaps() && !(DATE || !always_passing_alpha || (m_cached_ctx.TEST.ZTE && m_cached_ctx.TEST.ZTST != ZTST_ALWAYS)) || m_channel_shuffle);
+			const bool full_cover = rt->m_valid.rintersect(m_r).eq(rt->m_valid) && PrimitiveCoversWithoutGaps() && !(DATE || !always_passing_alpha || (m_cached_ctx.TEST.ZTE && m_cached_ctx.TEST.ZTST != ZTST_ALWAYS));
 
 			if (!full_cover)
 			{
@@ -4975,6 +4987,14 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		}
 	}
 
+	if (req_src_update && tex->m_texture != rt->m_texture)
+		tex->m_texture = rt->m_texture;
+
+	if (rt)
+	{
+		rt->m_alpha_max = rt_new_alpha_max;
+		rt->m_alpha_min = rt_new_alpha_min;
+	}
 	// Warning must be done after EmulateZbuffer
 	// Depth test is always true so it can be executed in 2 passes (no order required) unlike color.
 	// The idea is to compute first the color which is independent of the alpha test. And then do a 2nd
@@ -5214,9 +5234,9 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 
 	if (ate_second_pass)
 	{
-		memcpy(&m_conf.alpha_second_pass.ps,        &m_conf.ps,        sizeof(m_conf.ps));
+		memcpy(&m_conf.alpha_second_pass.ps, &m_conf.ps, sizeof(m_conf.ps));
 		memcpy(&m_conf.alpha_second_pass.colormask, &m_conf.colormask, sizeof(m_conf.colormask));
-		memcpy(&m_conf.alpha_second_pass.depth,     &m_conf.depth,     sizeof(m_conf.depth));
+		memcpy(&m_conf.alpha_second_pass.depth, &m_conf.depth, sizeof(m_conf.depth));
 
 		// Not doing single pass AFAIL.
 		m_conf.alpha_second_pass.ps.afail = AFAIL_KEEP;
@@ -5233,7 +5253,6 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			// the alpha test
 			EmulateATST(m_conf.alpha_second_pass.ps_aref, m_conf.alpha_second_pass.ps, true);
 		}
-
 
 		bool z = m_conf.depth.zwe;
 		bool r = m_conf.colormask.wr;
@@ -5283,9 +5302,9 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 		}
 
 		// RenderHW always renders first pass, replace first pass with second
-		memcpy(&m_conf.ps,        &m_conf.alpha_second_pass.ps,        sizeof(m_conf.ps));
+		memcpy(&m_conf.ps, &m_conf.alpha_second_pass.ps, sizeof(m_conf.ps));
 		memcpy(&m_conf.colormask, &m_conf.alpha_second_pass.colormask, sizeof(m_conf.colormask));
-		memcpy(&m_conf.depth,     &m_conf.alpha_second_pass.depth,     sizeof(m_conf.depth));
+		memcpy(&m_conf.depth, &m_conf.alpha_second_pass.depth, sizeof(m_conf.depth));
 		m_conf.cb_ps.FogColor_AREF.a = m_conf.alpha_second_pass.ps_aref;
 		m_conf.alpha_second_pass.enable = false;
 	}
