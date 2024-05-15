@@ -4213,6 +4213,7 @@ SCES-50360:
     recommendedBlendingLevel: 4 # Fixes menu text brightness.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCES-50361:
   name: "Jak and Daxter - The Precursor Legacy"
   region: "PAL-M6"
@@ -4712,6 +4713,7 @@ SCES-51480:
     recommendedBlendingLevel: 4 # Fixes menu text brightness.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCES-51513:
   name: "EyeToy - Play"
   region: "PAL-M11"
@@ -9347,6 +9349,7 @@ SCUS-97101:
     recommendedBlendingLevel: 4 # Fixes menu text brightness.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCUS-97102:
   name: "Gran Turismo 3 - A-Spec"
   region: "NTSC-U"
@@ -9612,6 +9615,12 @@ SCUS-97163:
 SCUS-97164:
   name: "Twisted Metal Black [Demo]"
   region: "NTSC-U"
+  compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCUS-97165:
   name: "Official U.S. PlayStation Magazine Demo Disc 051"
   region: "NTSC-U"
@@ -9682,6 +9691,11 @@ SCUS-97179:
   name: "Twisted Metal Black"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCUS-97181:
   name: "Official U.S. PlayStation Magazine Demo Disc 055"
   region: "NTSC-U"
@@ -9724,10 +9738,21 @@ SCUS-97194:
 SCUS-97195:
   name: "Twisted Metal Black - Online"
   region: "NTSC-U"
+  compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCUS-97196:
   name: "Twisted Metal Black - Online [Demo]"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    halfPixelOffset: 4 # Fixes misaligned blur during Darkside special.
 SCUS-97197:
   name: "War of the Monsters"
   region: "NTSC-U"
