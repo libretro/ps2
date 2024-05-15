@@ -1302,12 +1302,10 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 
 							// We don't have a shader for this.
 							if (!possible_shuffle && TEX0.PSM == PSMT8 && ((GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp != 32) || outside_target))
-							{
 								continue;
-							}
-							else
+
 							{
-								if ((psm == PSMT4 || psm == PSMT8) && t->m_was_dst_matched && !t->m_valid_rgb)
+								if (req_color && t->m_was_dst_matched && !t->m_valid_rgb)
 								{
 									for (Target* dst_match : m_dst[DepthStencil])
 									{
@@ -1889,8 +1887,6 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 					dst->m_was_dst_matched = true;
 					dst->m_TEX0.TBW = dst_match->m_TEX0.TBW;
 					dst->UpdateValidity(dst->m_valid);
-
-					dst->m_rt_alpha_scale = false;
 
 					if (!CopyRGBFromDepthToColor(dst, dst_match))
 					{
