@@ -17,11 +17,11 @@
 
 #include <cinttypes>
 #include <cstring>
+#include <deque>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
-#include <queue>
 #include <tuple>
 #include <thread>
 
@@ -120,7 +120,7 @@ namespace GSTextureReplacements
 
 	static void StartWorkerThread();
 	static void StopWorkerThread();
-	static void QueueWorkerThreadItem(std::function<void()> fn);
+	static void QueueWorkerThreadItem(std::function<void()> fn, bool high_priority);
 	static void WorkerThreadEntryPoint();
 	static void SyncWorkerThread();
 	static void CancelPendingLoadsAndDumps();
@@ -148,7 +148,7 @@ namespace GSTextureReplacements
 	static std::thread s_worker_thread;
 	static std::mutex s_worker_thread_mutex;
 	static std::condition_variable s_worker_thread_cv;
-	static std::queue<std::function<void()>> s_worker_thread_queue;
+	static std::deque<std::pair<std::function<void()>, bool>> s_worker_thread_queue;
 	static bool s_worker_thread_running = false;
 }; // namespace GSTextureReplacements
 
@@ -536,8 +536,14 @@ void GSTextureReplacements::QueueAsyncReplacementTextureLoad(const TextureName& 
 	auto it = s_pending_async_load_textures.find(name);
 	if (it != s_pending_async_load_textures.end())
 	{
-		it->second &= cache_only;
-		return;
+		// remove from queue if it's cache-only, so we bump it to the front of the work items
+		if (!cache_only && it->second)
+			s_pending_async_load_textures.erase(it);
+		else
+		{
+			it->second &= cache_only;
+			return;
+		}
 	}
 
 	s_pending_async_load_textures.emplace(name, cache_only);
@@ -569,7 +575,7 @@ void GSTextureReplacements::QueueAsyncReplacementTextureLoad(const TextureName& 
 			// loading failed, so clear it from the pending list
 			s_pending_async_load_textures.erase(name);
 		}
-	});
+	}, !cache_only);
 }
 
 void GSTextureReplacements::PrecacheReplacementTextures()
@@ -704,10 +710,40 @@ void GSTextureReplacements::StopWorkerThread()
 	CancelPendingLoadsAndDumps();
 }
 
-void GSTextureReplacements::QueueWorkerThreadItem(std::function<void()> fn)
+void GSTextureReplacements::QueueWorkerThreadItem(std::function<void()> fn, bool high_priority)
 {
 	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
-	s_worker_thread_queue.push(std::move(fn));
+
+	if (!high_priority)
+	{
+		// Low priority => throw on end.
+		s_worker_thread_queue.emplace_back(std::move(fn), false);
+	}
+	else
+	{
+		auto iter = s_worker_thread_queue.rbegin();
+		for (; iter != s_worker_thread_queue.rend(); ++iter)
+		{
+			// Found our first high priority item?
+			if (iter->second)
+			{
+				// Insert after here!
+				break;
+			}
+		}
+
+		if (iter != s_worker_thread_queue.rend())
+		{
+			// Insert after the last high priority item. Remember base() points to the next element.
+			s_worker_thread_queue.insert(iter.base(), std::make_pair(std::move(fn), true));
+		}
+		else
+		{
+			// All low-priority => insert at beginning.
+			s_worker_thread_queue.emplace_front(std::move(fn), true);
+		}
+	}
+
 	s_worker_thread_cv.notify_one();
 }
 
@@ -722,8 +758,8 @@ void GSTextureReplacements::WorkerThreadEntryPoint()
 			continue;
 		}
 
-		std::function<void()> fn = std::move(s_worker_thread_queue.front());
-		s_worker_thread_queue.pop();
+		std::function<void()> fn = std::move(s_worker_thread_queue.front().first);
+		s_worker_thread_queue.pop_front();
 		lock.unlock();
 		fn();
 		lock.lock();
@@ -752,7 +788,7 @@ void GSTextureReplacements::CancelPendingLoadsAndDumps()
 {
 	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
 	while (!s_worker_thread_queue.empty())
-		s_worker_thread_queue.pop();
+		s_worker_thread_queue.pop_back();
 	s_async_loaded_textures.clear();
 	s_pending_async_load_textures.clear();
 }
