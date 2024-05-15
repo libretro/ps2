@@ -1450,11 +1450,16 @@ SCAJ-20104:
     alignSprite: 1 # Fixes vertical lines.
     mergeSprite: 1 # Fixes vertical lines.
 SCAJ-20105:
-  name: "Armored Core - Nine breaker"
+  name: "Armored Core - Nine Breaker"
   region: "NTSC-Unk"
+  compat: 5
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned blur.
     recommendedBlendingLevel: 3 # Fixes level brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    cpuSpriteRenderBW: 2 # Fixes broken water on "Upper Sea" level.
+    cpuSpriteRenderLevel: 2 # Needed for above.
 SCAJ-20107:
   name: "Bakufuu Slash! Kizna Arashi"
   region: "NTSC-Unk"
@@ -1695,6 +1700,9 @@ SCAJ-20143:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SCAJ-20144:
   name: "Zhuo Hou La 3"
   region: "NTSC-C"
@@ -4200,6 +4208,11 @@ SCES-50354:
 SCES-50360:
   name: "Twisted Metal - Black"
   region: "PAL-M5"
+  compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
 SCES-50361:
   name: "Jak and Daxter - The Precursor Legacy"
   region: "PAL-M6"
@@ -4694,6 +4707,11 @@ SCES-51463:
 SCES-51480:
   name: "Twisted Metal - Black - Online"
   region: "PAL-M5"
+  compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
 SCES-51513:
   name: "EyeToy - Play"
   region: "PAL-M11"
@@ -6675,9 +6693,14 @@ SCKA-20046:
 SCKA-20047:
   name: "Armored Core - Nine Breaker"
   region: "NTSC-K"
+  compat: 5
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned blur.
     recommendedBlendingLevel: 3 # Fixes level brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    cpuSpriteRenderBW: 2 # Fixes broken water on "Upper Sea" level.
+    cpuSpriteRenderLevel: 2 # Needed for above.
   memcardFilters:
     - "SCKA-20047"
     - "SLKA-25201"
@@ -9320,6 +9343,10 @@ SCUS-97101:
   name: "Twisted Metal - Black"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Fixes menu text brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
 SCUS-97102:
   name: "Gran Turismo 3 - A-Spec"
   region: "NTSC-U"
@@ -22545,9 +22572,14 @@ SLES-53813:
 SLES-53819:
   name: "Armored Core - Nine Breaker"
   region: "PAL-E"
+  compat: 5
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned blur.
     recommendedBlendingLevel: 3 # Fixes level brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    cpuSpriteRenderBW: 2 # Fixes broken water on "Upper Sea" level.
+    cpuSpriteRenderLevel: 2 # Needed for above.
   memcardFilters:
     - "SLES-53819"
     - "SLES-82036"
@@ -22558,6 +22590,9 @@ SLES-53820:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SLES-53821:
   name: "Radio Helicopter II"
   region: "PAL-E"
@@ -31862,12 +31897,18 @@ SLPM-61118:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SLPM-61119:
   name: "Armored Core - Last Raven [Trial]"
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SLPM-61120:
   name: "Drag-on Dragoon 2 - Fuuin no Aka, Haitoku no Kuro [Trial Version]"
   region: "NTSC-J"
@@ -42616,6 +42657,9 @@ SLPM-68520:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SLPM-68521:
   name: "Dot Hack Fraegment [Senkou Release-ban]"
   region: "NTSC-J"
@@ -46092,8 +46136,14 @@ SLPS-25407:
 SLPS-25408:
   name: "Armored Core - Nine Breaker"
   region: "NTSC-J"
+  compat: 5
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned blur..
+    recommendedBlendingLevel: 3 # Fixes level brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    cpuSpriteRenderBW: 2 # Fixes broken water on "Upper Sea" level.
+    cpuSpriteRenderLevel: 2 # Needed for above.
   memcardFilters:
     - "SLPS-25408"
     - "SCAJ-20076"
@@ -46306,6 +46356,9 @@ SLPS-25462:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
   memcardFilters:
     - "SLPS-25338"
     - "SLPS-25339"
@@ -47346,6 +47399,9 @@ SLPS-25730:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SLPS-25731:
   name: "Armored Core 2 [Machine Side Box]"
   region: "NTSC-J"
@@ -48581,6 +48637,9 @@ SLPS-73247:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
   memcardFilters:
     - "SLPS-25338"
     - "SLPS-25339"
@@ -54948,6 +55007,10 @@ SLUS-21200:
   gsHWFixes:
     halfPixelOffset: 1 # Fixes misaligned blur.
     recommendedBlendingLevel: 3 # Fixes level brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    cpuSpriteRenderBW: 2 # Fixes broken water on "Upper Sea" level.
+    cpuSpriteRenderLevel: 2 # Needed for above.
   memcardFilters: # Can import data from AC:Nexus.
     - "SLUS-21200"
     - "SLUS-20986"
@@ -55926,6 +55989,9 @@ SLUS-21338:
   gsHWFixes:
     halfPixelOffset: 2 # Corrects shadow alignment and reduces blurriness.
     recommendedBlendingLevel: 3 # Fixes level and map menu brightness.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
+    preloadFrameData: 1 # Fixes glowing emblems.
 SLUS-21339:
   name: "Puzzle Collection - Crosswords & More!"
   region: "NTSC-U"
