@@ -307,6 +307,7 @@ void GSRendererHW::ExpandLineIndices()
 	}
 }
 
+// Fix the vertex position/tex_coordinate from 16 bits color to 32 bits color
 void GSRendererHW::ConvertSpriteTextureShuffle(u32& process_rg, u32& process_ba, bool& shuffle_across, GSTextureCache::Target* rt, GSTextureCache::Source* tex)
 {
 	const u32 count = m_vertex.next;
@@ -404,7 +405,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(u32& process_rg, u32& process_ba,
 		// So, halve it ourselves.
 
 		const GSVector4i dr = m_r;
-		const GSVector4i r = half_bottom_vert ? dr.blend32<0xA>(dr.sra32<1>()) : dr.blend32<5>(dr.sra32<1>()); // Half Y : Half X
+		const GSVector4i r = half_bottom_vert ? dr.blend32<0xA>(dr.sra32(1)) : dr.blend32<5>(dr.sra32(1)); // Half Y : Half X
 
 		const GSVector4i fpr = r.sll32<4>();
 		v[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + fpr.x);
@@ -443,7 +444,6 @@ void GSRendererHW::ConvertSpriteTextureShuffle(u32& process_rg, u32& process_ba,
 				GSVector4::storeh(&v[1].ST.S, st);
 			}
 		}
-
 		m_r = fpr;
 		m_vertex.head = m_vertex.tail = m_vertex.next = 2;
 		m_index.tail = 2;
@@ -989,8 +989,6 @@ bool GSRendererHW::IsSplitTextureShuffle(GSTextureCache::Target* rt)
 	if (next_ctx.FRAME.FBP != expected_next_FBP && next_ctx.FRAME.FBP != m_cached_ctx.FRAME.FBP && next_ctx.FRAME.FBP != potential_expected_next_FBP && next_ctx.FRAME.FBP != rt_half)
 		return false;
 
-	// Great, everything lines up, so skip 'em.
-
 	if (m_split_texture_shuffle_pages == 0)
 	{
 		m_split_texture_shuffle_start_FBP = m_cached_ctx.FRAME.FBP;
@@ -1305,7 +1303,7 @@ bool GSRendererHW::IsTBPFrameOrZ(u32 tbp)
 	const u32 max_z = (0xFFFFFFFF >> (GSLocalMemory::m_psm[m_cached_ctx.ZBUF.PSM].fmt * 8));
 	const bool no_rt = (!IsRTWritten() && !m_cached_ctx.TEST.DATE);
 	const bool no_ds = (
-			// Depth is always pass/fail (no read) and write are discarded.
+						   // Depth is always pass/fail (no read) and write are discarded.
 						   (zm != 0 && m_cached_ctx.TEST.ZTST <= ZTST_ALWAYS) ||
 						   // Depth test will always pass
 						   (zm != 0 && m_cached_ctx.TEST.ZTST == ZTST_GEQUAL && m_vt.m_eq.z && std::min(m_vertex.buff[0].XYZ.Z, max_z) == max_z) ||
@@ -1547,7 +1545,7 @@ void GSRendererHW::SwSpriteRender()
 				const GSVector4i B = alpha_b == 0 ? sc : alpha_b == 1 ? dc0 : GSVector4i::zero();
 				const GSVector4i C = alpha_c == 2 ? GSVector4i(alpha_fix).xxxx().ps32()
 				                                  : (alpha_c == 0 ? sc : dc0).yyww()    // 0x00AA00BB00AA00BB00aa00bb00aa00bb
-				                                                             .srl32<16>() // 0x000000AA000000AA000000aa000000aa
+				                                                             .srl32(16) // 0x000000AA000000AA000000aa000000aa
 				                                                             .ps32()    // 0x00AA00AA00aa00aa00AA00AA00aa00aa
 				                                                             .xxyy();   // 0x00AA00AA00AA00AA00aa00aa00aa00aa
 				const GSVector4i D = alpha_d == 0 ? sc : alpha_d == 1 ? dc0 : GSVector4i::zero();
@@ -1724,6 +1722,7 @@ void GSRendererHW::RoundSpriteOffset()
 			}
 		}
 #endif
+
 	}
 }
 
@@ -1830,8 +1829,8 @@ void GSRendererHW::Draw()
 	bool no_rt = (!IsRTWritten() && !m_cached_ctx.TEST.DATE);
 	const bool all_depth_tests_pass = IsDepthAlwaysPassing();
 	bool no_ds = (zm != 0 && all_depth_tests_pass) ||
-		// No color or Z being written.
-		(no_rt && zm != 0);
+				 // No color or Z being written.
+				 (no_rt && zm != 0);
 
 	// No Z test if no z buffer.
 	if (no_ds || all_depth_tests_pass)
@@ -2094,9 +2093,6 @@ void GSRendererHW::Draw()
 				else
 				{
 					// On GS lod is a fixed float number 7:4 (4 bit for the frac part)
-#if 0
-					m_lod.x = std::max<int>(static_cast<int>(round(m_vt.m_lod.x + 0.0625)), 0);
-#else
 					// Same as above with a bigger margin on rounding
 					// The goal is to avoid 1 undrawn pixels around the edge which trigger the load of the big
 					// layer.
@@ -2104,7 +2100,6 @@ void GSRendererHW::Draw()
 						m_lod.x = std::max<int>(static_cast<int>(round(m_vt.m_lod.x + 0.0625 + 0.01)), 0);
 					else
 						m_lod.x = std::max<int>(static_cast<int>(round(m_vt.m_lod.x + 0.0625)), 0);
-#endif
 				}
 
 				m_lod.y = std::max<int>(static_cast<int>(ceil(m_vt.m_lod.y)), 0);
@@ -2206,7 +2201,7 @@ void GSRendererHW::Draw()
 				g_texture_cache->LookupSource(true, TEX0, env.TEXA, MIP_CLAMP, tmm.coverage, (GSConfig.HWMipmap >= HWMipmapLevel::Basic || GSConfig.TriFilter == TriFiltering::Forced) ? &hash_lod_range : nullptr,
 					possible_shuffle, m_vt.IsLinear(), m_cached_ctx.FRAME.Block(), req_color, req_alpha);
 
-			if (unlikely(!src))
+			if (!src)
 			{
 				CleanupDraw(true);
 				return;
@@ -2233,10 +2228,10 @@ void GSRendererHW::Draw()
 					zm = new_zm;
 					no_rt = no_rt || (!IsRTWritten() && !m_cached_ctx.TEST.DATE);
 					no_ds = no_ds || (zm != 0 && all_depth_tests_pass) ||
-						// Depth will be written through the RT
-						(!no_rt && m_cached_ctx.FRAME.FBP == m_cached_ctx.ZBUF.ZBP && !PRIM->TME && zm == 0 && (fm & fm_mask) == 0 && m_cached_ctx.TEST.ZTE) ||
-						// No color or Z being written.
-						(no_rt && zm != 0);
+									// Depth will be written through the RT
+									(!no_rt && m_cached_ctx.FRAME.FBP == m_cached_ctx.ZBUF.ZBP && !PRIM->TME && zm == 0 && (fm & fm_mask) == 0 && m_cached_ctx.TEST.ZTE) ||
+									// No color or Z being written.
+									(no_rt && zm != 0);
 					if (no_rt && no_ds)
 					{
 						CleanupDraw(true);
@@ -2318,7 +2313,7 @@ void GSRendererHW::Draw()
 
 			rt = g_texture_cache->CreateTarget(FRAME_TEX0, t_size, GetValidSize(src), target_scale, GSTextureCache::RenderTarget, true,
 				fm, false, force_preload, preserve_rt_color, m_r, src);
-			if (unlikely(!rt))
+			if (!rt)
 			{
 				CleanupDraw(true);
 				return;
@@ -2347,7 +2342,7 @@ void GSRendererHW::Draw()
 		{
 			ds = g_texture_cache->CreateTarget(ZBUF_TEX0, t_size, GetValidSize(src), target_scale, GSTextureCache::DepthStencil,
 				true, 0, false, force_preload, preserve_depth, m_r, src);
-			if (unlikely(!ds))
+			if (!ds)
 			{
 				CleanupDraw(true);
 				return;
@@ -2432,25 +2427,6 @@ void GSRendererHW::Draw()
 		{
 			m_channel_shuffle = false;
 		}
-#if 0
-		// FIXME: We currently crop off the rightmost and bottommost pixel when upscaling clamps,
-		// until the issue is properly solved we should keep this disabled as it breaks many games when upscaling.
-		// See #5387, #5853, #5851 on GH for more details.
-		// 
-		// Texture clamp optimizations (try to move everything to sampler hardware)
-		if (m_cached_ctx.CLAMP.WMS == CLAMP_REGION_CLAMP && MIP_CLAMP.MINU == 0 && MIP_CLAMP.MAXU == tw - 1)
-			m_cached_ctx.CLAMP.WMS = CLAMP_CLAMP;
-		else if (m_cached_ctx.CLAMP.WMS == CLAMP_REGION_REPEAT && MIP_CLAMP.MINU == tw - 1 && MIP_CLAMP.MAXU == 0)
-			m_cached_ctx.CLAMP.WMS = CLAMP_REPEAT;
-		else if ((m_cached_ctx.CLAMP.WMS & 2) && !(tmm.uses_boundary & TextureMinMaxResult::USES_BOUNDARY_U))
-			m_cached_ctx.CLAMP.WMS = CLAMP_CLAMP;
-		if (m_cached_ctx.CLAMP.WMT == CLAMP_REGION_CLAMP && MIP_CLAMP.MINV == 0 && MIP_CLAMP.MAXV == th - 1)
-			m_cached_ctx.CLAMP.WMT = CLAMP_CLAMP;
-		else if (m_cached_ctx.CLAMP.WMT == CLAMP_REGION_REPEAT && MIP_CLAMP.MINV == th - 1 && MIP_CLAMP.MAXV == 0)
-			m_cached_ctx.CLAMP.WMT = CLAMP_REPEAT;
-		else if ((m_cached_ctx.CLAMP.WMT & 2) && !(tmm.uses_boundary & TextureMinMaxResult::USES_BOUNDARY_V))
-			m_cached_ctx.CLAMP.WMT = CLAMP_CLAMP;
-#endif
 		const int tw = 1 << TEX0.TW;
 		const int th = 1 << TEX0.TH;
 		const bool is_shuffle = m_channel_shuffle || m_texture_shuffle;
@@ -2574,7 +2550,6 @@ void GSRendererHW::Draw()
 				m_index.tail = 2;
 			}
 		}
-
 		const bool blending_cd = PRIM->ABE && !m_context->ALPHA.IsOpaque();
 		if (rt && ((!is_possible_mem_clear || blending_cd) || rt->m_TEX0.PSM != FRAME_TEX0.PSM))
 		{
@@ -2870,12 +2845,12 @@ void GSRendererHW::Draw()
 	}
 
 	if (rt)
-	{
 		rt->m_last_draw = s_n;
+
 #ifdef DISABLE_HW_TEXTURE_CACHE
+	if (rt)
 		g_texture_cache->Read(rt, m_r);
 #endif
-	}
 
 	CleanupDraw(false);
 }
@@ -2888,7 +2863,7 @@ bool GSRendererHW::VerifyIndices()
 		case GS_SPRITE_CLASS:
 			if (m_index.tail % 2 != 0)
 				return false;
-			// fallthrough
+			/* fallthrough */
 		case GS_POINT_CLASS:
 			// Expect indices to be flat increasing
 			for (u32 i = 0; i < m_index.tail; i++)
@@ -3030,7 +3005,7 @@ void GSRendererHW::SetupIA(float target_scale, float sx, float sy)
 			break;
 
 		default:
-			__assume(0);
+			break;
 	}
 
 	m_conf.verts = m_vertex.buff;
@@ -3149,6 +3124,7 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 		{
 			if (process_ba & SHUFFLE_WRITE)
 				m_conf.colormask.wb = 1;
+
 			if (process_rg & SHUFFLE_WRITE)
 				m_conf.colormask.wr = 1;
 			if (rb_ga_mask.r)
@@ -3159,6 +3135,7 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 		{
 			if (process_ba & SHUFFLE_WRITE)
 				m_conf.colormask.wa = 1;
+
 			if (process_rg & SHUFFLE_WRITE)
 				m_conf.colormask.wg = 1;
 			if (rb_ga_mask.g)
@@ -3172,7 +3149,6 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 			m_conf.cb_ps.FbMask.b = rb_ga_mask.r;
 			m_conf.cb_ps.FbMask.a = rb_ga_mask.g;
 
-			// No need for full barrier on fbmask with shuffle.
 			m_conf.require_one_barrier = true;
 		}
 		else
@@ -3245,8 +3221,10 @@ void GSRendererHW::EmulateTextureShuffleAndFbmask(GSTextureCache::Target* rt, GS
 			if (!PRIM->ABE || !(~ff_fbmask & ~zero_fbmask & 0x7) || !g_gs_device->Features().texture_barrier)
 				m_conf.require_one_barrier = true;
 			else
+			{
 				// The safe and accurate path (but slow)
 				m_conf.require_full_barrier = true;
+			}
 		}
 	}
 }
@@ -3305,6 +3283,7 @@ __ri bool GSRendererHW::EmulateChannelShuffle(GSTextureCache::Target* src, bool 
 			return true;
 
 		ChannelFetch channel_select = ((m_cached_ctx.CLAMP.WMT != 3 && (m_vertex.buff[m_index.buff[0]].V & 0x20) == 0) || (m_cached_ctx.CLAMP.WMT == 3 && ((m_cached_ctx.CLAMP.MAXV & 0x2) == 0))) ? ChannelFetch_BLUE : ChannelFetch_ALPHA;
+
 		m_conf.ps.channel = channel_select;
 	}
 	else if (m_cached_ctx.CLAMP.WMS == 3 && ((m_cached_ctx.CLAMP.MINU & 0x8) == 0))
@@ -3547,7 +3526,8 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 	const bool blend_ad = m_conf.ps.blend_c == 1;
 	const bool alpha_mask = (m_cached_ctx.FRAME.FBMSK & 0xFF000000) == 0xFF000000;
 	bool blend_ad_alpha_masked = blend_ad && alpha_mask;
-	if (((GSConfig.AccurateBlendingUnit >= AccBlendLevel::Basic) || (COLCLAMP.CLAMP == 0)) && features.texture_barrier && blend_ad_alpha_masked)
+	const bool is_basic_blend = GSConfig.AccurateBlendingUnit >= AccBlendLevel::Basic;
+	if ((is_basic_blend || (COLCLAMP.CLAMP == 0)) && features.texture_barrier && blend_ad_alpha_masked)
 	{
 		// Swap Ad with As for hw blend.
 		m_conf.ps.a_masked = 1;
@@ -3566,6 +3546,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 
 	u8 blend_index = static_cast<u8>(((m_conf.ps.blend_a * 3 + m_conf.ps.blend_b) * 3 + m_conf.ps.blend_c) * 3 + m_conf.ps.blend_d);
 	const HWBlend blend_preliminary = GSDevice::GetBlend(blend_index);
+	HWBlend blend = GSDevice::GetBlend(blend_index);
 	const int blend_flag = blend_preliminary.flags;
 
 	// Re set alpha, it was modified, must be done after index calculation
@@ -3587,14 +3568,24 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 	const bool blend_non_recursive = !!(blend_flag & BLEND_NO_REC);
 
 	// BLEND MIX selection, use a mix of hw/sw blending
-	const bool blend_mix1 = !!(blend_flag & BLEND_MIX1) && !(m_conf.ps.blend_b == m_conf.ps.blend_d && (alpha_c0_high_min_one || alpha_c2_high_one));
+	const bool blend_mix1 = !!(blend_flag & BLEND_MIX1);
 	const bool blend_mix2 = !!(blend_flag & BLEND_MIX2);
 	const bool blend_mix3 = !!(blend_flag & BLEND_MIX3);
 	bool blend_mix = (blend_mix1 || blend_mix2 || blend_mix3) && COLCLAMP.CLAMP;
 
-	const bool one_barrier = m_conf.require_one_barrier || blend_ad_alpha_masked;
 	// Primitives don't overlap.
 	const bool no_prim_overlap = (m_prim_overlap == PRIM_OVERLAP_NO);
+
+	// HW blend can be done in multiple passes when there's no overlap.
+	// Blend second pass is only useful when texture barriers aren't supported.
+	// Speed wise Texture barriers > blend second pass > texture copies.
+	// TODO: 24bit and 32bit formats on clamp 1 can always prefer blend second pass depending on the blend equations.
+	const bool blend_second_pass_support = !features.texture_barrier && no_prim_overlap && is_basic_blend;
+	const bool bmix1_second_pass = blend_second_pass_support && blend_mix1 && (alpha_c0_high_max_one || alpha_c2_high_one) && m_conf.ps.blend_d == 2;
+	// We don't want to enable blend mix if we are doing a second pass, it's useless.
+	blend_mix &= !bmix1_second_pass;
+
+	const bool one_barrier = m_conf.require_one_barrier || blend_ad_alpha_masked;
 	// Condition 1: Require full sw blend for full barrier.
 	// Condition 2: One barrier is already enabled, prims don't overlap so let's use sw blend instead.
 	// Condition 3: A shuffle is unlikely to overlap, so when a barrier is enabled like from fbmask we can prefer full sw blend.
@@ -3603,9 +3594,9 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 							|| accumulation_blend; // Mix of hw/sw blending
 
 	// Blend can be done on hw. As and F cases should be accurate.
-	// BLEND_HW_CLR1 with Ad, BLEND_HW_CLR3 might require sw blend.
-	// BLEND_HW_CLR1 with As/F and BLEND_HW_CLR2 can be done in hw.
-	bool clr_blend1_2 = (blend_flag & (BLEND_HW_CLR1 | BLEND_HW_CLR2)) && (m_conf.ps.blend_c != 1) // As or Af cases only.
+	// BLEND_HW1 with Ad, BLEND_HW3 might require sw blend.
+	// BLEND_HW1 with As/F and BLEND_HW2 can be done in hw.
+	bool clr_blend1_2 = (blend_flag & (BLEND_HW1 | BLEND_HW2)) && (m_conf.ps.blend_c != 1) // As or Af cases only.
 						&& !(m_draw_env->PABE.PABE && GetAlphaMinMax().min < 128) // No PABE as it will require sw blending.
 						&& (COLCLAMP.CLAMP) // Let's add a colclamp check too, hw blend will clamp to 0-1.
 						&& !prefer_sw_blend; // Don't run if sw blend is preferred.
@@ -3811,7 +3802,6 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 		if (m_conf.ps.blend_c == 2)
 			m_conf.cb_ps.TA_MaxDepth_Af.a = static_cast<float>(AFIX) / 128.0f;
 
-		const HWBlend blend = GSDevice::GetBlend(blend_index);
 		if (accumulation_blend)
 		{
 			// Keep HW blending to do the addition/subtraction
@@ -3864,29 +3854,21 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 				m_conf.ps.dither_adjust = can_dither;
 			}
 
-			// For mixed blend, the source blend is done in the shader (so we use CONST_ONE as a factor).
-			m_conf.blend = {true, GSDevice::CONST_ONE, blend.dst, blend.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO,m_conf.ps.blend_c == 2, AFIX};
-			m_conf.ps.blend_mix = (blend.op == GSDevice::OP_REV_SUBTRACT) ? 2 : 1;
-
-			// Elide DSB colour output if not used by dest.
-			m_conf.ps.no_color1 |= !GSDevice::IsDualSourceBlendFactor(blend.dst);
-
 			if (blend_mix1)
 			{
 				if (m_conf.ps.blend_b == m_conf.ps.blend_d && (alpha_c0_high_min_one || alpha_c1_high_min_one || alpha_c2_high_one))
 				{
+					// Alpha is guaranteed to be > 128.
 					// Replace Cs*Alpha + Cd*(1 - Alpha) with Cs*Alpha - Cd*(Alpha - 1).
-					// Alpha - 1 subtraction is only done for the dual source output (hw blending part) since we are changing the equation.
-					// Af will be replaced with As in shader and send it to dual source output.
-					m_conf.blend = {true, GSDevice::CONST_ONE, GSDevice::SRC1_COLOR, GSDevice::OP_SUBTRACT, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, false, 0};
-					// blend hw 1 will disable alpha clamp, we can reuse the old bits.
+					blend.dst = GSDevice::SRC1_COLOR;
+					blend.op = GSDevice::OP_SUBTRACT;
 					m_conf.ps.blend_hw = 1;
-					// DSB output will always be used.
-					m_conf.ps.no_color1 = false;
 				}
 				else if (m_conf.ps.blend_a == m_conf.ps.blend_d)
 				{
-					// Compensate slightly for Cd*(Alpha + 1) - Cs*Alpha.
+					// Cd*(Alpha + 1) - Cs*Alpha will always be wrong.
+					// Let's cheat a little and divide blended Cs by Alpha.
+					// Result will still be wrong but closer to what we want.
 					m_conf.ps.blend_hw = 2;
 				}
 
@@ -3896,11 +3878,10 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 			}
 			else if (blend_mix2)
 			{
-				// Allow to compensate when Cs*(Alpha + 1) overflows, to compensate we change
-				// the alpha output value for Cd*Alpha.
-				m_conf.blend = {true, GSDevice::CONST_ONE, GSDevice::SRC1_COLOR, blend.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO,false, 0};
+				// Allow to compensate when Cs*(Alpha + 1) overflows,
+				// to compensate we change the alpha output value for Cd*Alpha.
+				blend.dst = GSDevice::SRC1_COLOR;
 				m_conf.ps.blend_hw = 3;
-				m_conf.ps.no_color1 = false;
 
 				m_conf.ps.blend_a = 0;
 				m_conf.ps.blend_b = 2;
@@ -3912,6 +3893,13 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 				m_conf.ps.blend_b = 0;
 				m_conf.ps.blend_d = 0;
 			}
+
+			// Elide DSB colour output if not used by dest.
+			m_conf.ps.no_color1 = !GSDevice::IsDualSourceBlendFactor(blend.dst);
+
+			// For mixed blend, the source blend is done in the shader (so we use CONST_ONE as a factor).
+			m_conf.blend = {true, GSDevice::CONST_ONE, blend.dst, blend.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, m_conf.ps.blend_c == 2, AFIX};
+			m_conf.ps.blend_mix = (blend.op == GSDevice::OP_REV_SUBTRACT) ? 2 : 1;
 		}
 		else
 		{
@@ -3950,33 +3938,88 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 			}
 			else
 				rt->m_rt_alpha_scale = true;
-
+			
 			m_conf.ps.rta_correction = rt->m_rt_alpha_scale;
 		}
 
-		// Care for hw blend value, 6 is for hw/sw, sw blending used.
-		if (blend_flag & BLEND_HW_CLR1)
+		if (blend_second_pass_support)
+		{
+			const HWBlend blend_second_pass = GSDevice::GetBlend(blend_index);
+			if (bmix1_second_pass)
+			{
+				// Alpha = As or Af.
+				// Cs*Alpha - Cd*Alpha, Cd*Alpha - Cs*Alpha.
+				// Render pass 1: Do (Cd - Cs) or (Cs - Cd) on first pass.
+				blend.src = GSDevice::CONST_ONE;
+				blend.dst = GSDevice::CONST_ONE;
+				// Render pass 2: Blend the result (Cd) from render pass 1 with alpha range of 0-2.
+				m_conf.blend_second_pass.enable = true;
+				m_conf.blend_second_pass.blend_hw = 2;
+				m_conf.blend_second_pass.blend = {true, GSDevice::DST_COLOR, (m_conf.ps.blend_c == 2) ? GSDevice::CONST_COLOR : GSDevice::SRC1_COLOR, GSDevice::OP_ADD, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, m_conf.ps.blend_c == 2, AFIX};
+			}
+			else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW3))
+			{
+				// Alpha = Ad.
+				// Cs*Alpha, Cs*Alpha + Cd, Cd - Cs*Alpha.
+				// Render pass 1: Do Cs*Alpha, Cs*Alpha + Cd or Cd - Cs*Alpha on first pass.
+				// Render pass 2: Take result (Cd) from render pass 1 and either add or rev subtract Cs*Alpha based on the blend operation.
+				m_conf.blend_second_pass.enable = true;
+				m_conf.blend_second_pass.blend = {true, blend_second_pass.src, GSDevice::CONST_ONE, blend_second_pass.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, false, 0};
+			}
+			else if ((alpha_c0_high_max_one || alpha_c2_high_one) && (blend_flag & BLEND_HW4))
+			{
+				// Alpha = As or Af.
+				// Cs + Cd*Alpha, Cs - Cd*Alpha.
+				// Render pass 1: Calculate Cd*Alpha with an alpha range of 0-2.
+				m_conf.ps.blend_hw = 2;
+				blend.src = GSDevice::DST_COLOR;
+				blend.dst = (m_conf.ps.blend_c == 2) ? GSDevice::CONST_COLOR : GSDevice::SRC1_COLOR;
+				blend.op = GSDevice::OP_ADD;
+				// Render pass 2: Add or subtract result of render pass 1(Cd) from Cs.
+				m_conf.blend_second_pass.enable = true;
+				m_conf.blend_second_pass.blend_hw = 0;
+				m_conf.blend_second_pass.blend = {true, blend_second_pass.src, GSDevice::CONST_ONE, blend_second_pass.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, false, 0};
+			}
+			else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW5))
+			{
+				// Alpha = Ad.
+				// Cd*Alpha - Cs*Alpha, Cs*Alpha - Cd*Alpha.
+				// Render pass 1: Do (Cd - Cs)*Alpha, (Cs - Cd)*Alpha or Cd*Alpha on first pass.
+				// Render pass 2: Take result (Cd) from render pass 1 and double it.
+				m_conf.blend_second_pass.enable = true;
+				m_conf.blend_second_pass.blend_hw = 1;
+				m_conf.blend_second_pass.blend = {true, GSDevice::DST_COLOR, GSDevice::CONST_ONE, GSDevice::OP_ADD, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, false, 0};
+			}
+
+			if (m_conf.ps.blend_c == 2 && m_conf.blend_second_pass.enable)
+				m_conf.cb_ps.TA_MaxDepth_Af.a = static_cast<float>(AFIX) / 128.0f;
+		}
+
+		if (blend_flag & BLEND_HW1)
 		{
 			m_conf.ps.blend_hw = 1;
 		}
-		else if (blend_flag & BLEND_HW_CLR2)
+		else if (blend_flag & BLEND_HW2)
 		{
 			if (m_conf.ps.blend_c == 2)
 				m_conf.cb_ps.TA_MaxDepth_Af.a = static_cast<float>(AFIX) / 128.0f;
 
 			m_conf.ps.blend_hw = 2;
 		}
-		else if (!rta_correction && (blend_flag & BLEND_HW_CLR3))
+		else if (!m_conf.blend_second_pass.enable && alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW3))
 		{
 			m_conf.ps.blend_hw = 3;
 		}
 
-		const HWBlend blend = GSDevice::GetBlend(blend_index);
-		m_conf.blend = {true, blend.src, blend.dst, blend.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO,m_conf.ps.blend_c == 2, AFIX};
+		const GSDevice::BlendFactor src_factor_alpha = m_conf.blend_second_pass.enable ? GSDevice::CONST_ZERO : GSDevice::CONST_ONE;
+		const GSDevice::BlendFactor dst_factor_alpha = m_conf.blend_second_pass.enable ? GSDevice::CONST_ONE : GSDevice::CONST_ZERO;
+		m_conf.blend = {true, blend.src, blend.dst, blend.op, src_factor_alpha, dst_factor_alpha, m_conf.ps.blend_c == 2, AFIX};
 
 		// Remove second color output when unused. Works around bugs in some drivers (e.g. Intel).
-		m_conf.ps.no_color1 |= !GSDevice::IsDualSourceBlendFactor(m_conf.blend.src_factor) &&
-							   !GSDevice::IsDualSourceBlendFactor(m_conf.blend.dst_factor);
+		m_conf.ps.no_color1 = !GSDevice::IsDualSourceBlendFactor(m_conf.blend.src_factor) &&
+							  !GSDevice::IsDualSourceBlendFactor(m_conf.blend.dst_factor) &&
+							  !GSDevice::IsDualSourceBlendFactor(m_conf.blend_second_pass.blend.src_factor) &&
+							  !GSDevice::IsDualSourceBlendFactor(m_conf.blend_second_pass.blend.dst_factor);
 	}
 
 	// Notify the shader that it needs to invert rounding
@@ -4094,7 +4137,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	// Depth + bilinear filtering isn't done yet. But if the game has just set a Z24 swizzle on a colour texture, we can
 	// just pretend it's not a depth format, since in the texture cache, it's not.
 	// Other games worth testing: Area 51, Burnout
-	// (psm.depth && m_vt.IsLinear() && tex->GetTexture()->IsDepthStencil())
+	// if (psm.depth && m_vt.IsLinear() && tex->GetTexture()->IsDepthStencil())
 
 	// Performance note:
 	// 1/ Don't set 0 as it is the default value
@@ -4127,9 +4170,6 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 		const GSVector4 half_pixel = RealignTargetTextureCoordinate(tex);
 		m_conf.cb_vs.texture_offset = GSVector2(half_pixel.x, half_pixel.y);
-
-		if (m_vt.m_primclass == GS_SPRITE_CLASS && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].pal > 0 && (tex->m_from_target_TEX0.PSM & 0x30) == 0x30 && m_index.tail >= 4)
-			HandleManualDeswizzle();
 	}
 	else if (tex->m_target)
 	{
@@ -4180,6 +4220,9 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 
 		const GSVector4 half_pixel = RealignTargetTextureCoordinate(tex);
 		m_conf.cb_vs.texture_offset = GSVector2(half_pixel.x, half_pixel.y);
+
+		if (m_vt.m_primclass == GS_SPRITE_CLASS && GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].pal > 0 && (tex->m_from_target_TEX0.PSM & 0x30) == 0x30 && m_index.tail >= 4)
+			HandleManualDeswizzle();
 	}
 	else if (tex->m_palette)
 	{
@@ -4470,6 +4513,7 @@ __ri void GSRendererHW::HandleTextureHazards(const GSTextureCache::Target* rt, c
 		m_conf.ps.tfx = 4;
 		return;
 	}
+
 	g_gs_device->CopyRect(
 		src_target->m_texture, src_copy, scaled_copy_range, scaled_copy_dst_offset.x, scaled_copy_dst_offset.y);
 	m_conf.tex = src_copy;
@@ -4488,6 +4532,7 @@ bool GSRendererHW::CanUseTexIsFB(const GSTextureCache::Target* rt, const GSTextu
 		// We can't do tex is FB if the source and destination aren't pointing to the same bit of texture.
 		if (m_texture_shuffle && (floor(abs(m_vt.m_min.t.y) + tex->m_region.GetMinY()) != floor(abs(m_vt.m_min.p.y))))
 			return false;
+
 		return true;
 	}
 
@@ -5056,8 +5101,16 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
 			}
 			else
 			{
-				m_conf.blend.src_factor_alpha = GSDevice::SRC1_ALPHA;
-				m_conf.blend.dst_factor_alpha = GSDevice::INV_SRC1_ALPHA;
+				if (m_conf.blend_second_pass.enable)
+				{
+					m_conf.blend_second_pass.blend.src_factor_alpha = GSDevice::SRC1_ALPHA;
+					m_conf.blend_second_pass.blend.dst_factor_alpha = GSDevice::INV_SRC1_ALPHA;
+				}
+				else
+				{
+					m_conf.blend.src_factor_alpha = GSDevice::SRC1_ALPHA;
+					m_conf.blend.dst_factor_alpha = GSDevice::INV_SRC1_ALPHA;
+				}
 			}
 
 			// If Z writes are on, unfortunately we can't single pass it.
@@ -5707,6 +5760,7 @@ bool GSRendererHW::DetectDoubleHalfClear(bool& no_rt, bool& no_ds)
 				g_texture_cache->InvalidateVideoMemType(GSTextureCache::DepthStencil, half * BLOCKS_PER_PAGE);
 			}
 		}
+
 		return false;
 	}
 
@@ -5734,7 +5788,7 @@ bool GSRendererHW::DetectDoubleHalfClear(bool& no_rt, bool& no_ds)
 	// Likely a misdetection.
 	if (next_draw_match && !possible_next_clear)
 		return false;
-	else
+
 	{
 		// Check for a target matching the starting point. It might be in Z or FRAME...
 		GSTextureCache::Target* tgt = g_texture_cache->GetTargetWithSharedBits(
