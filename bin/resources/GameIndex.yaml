@@ -15684,6 +15684,9 @@ SLES-51252:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLES-51253:
@@ -15691,6 +15694,9 @@ SLES-51253:
   region: "PAL-F"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLES-51254:
@@ -15698,6 +15704,9 @@ SLES-51254:
   region: "PAL-G"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLES-51255:
@@ -15705,6 +15714,9 @@ SLES-51255:
   region: "PAL-I"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLES-51256:
@@ -15713,6 +15725,9 @@ SLES-51256:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLES-51257:
@@ -35330,6 +35345,9 @@ SLPM-65212:
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fixes white shiny weapons.
 SLPM-65213:
@@ -42339,6 +42357,9 @@ SLPM-67005:
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLPM-67006:
@@ -42589,6 +42610,9 @@ SLPM-67546:
   region: "NTSC-K"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLPM-67550:
@@ -48253,6 +48277,9 @@ SLPS-29003:
   region: "NTSC-J"
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLPS-29004:
@@ -48261,6 +48288,9 @@ SLPS-29004:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLPS-29005:
@@ -51605,6 +51635,9 @@ SLUS-20578:
   compat: 5
   gsHWFixes:
     halfPixelOffset: 2 # Fixes misaligned lighting and other effects.
+    cpuSpriteRenderBW: 1 # Fixes flickering textures caused by mipmapping.
+    mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
+    trilinearFiltering: 1
   clampModes:
     vuClampMode: 3 # Fix white shiny weapons.
 SLUS-20579:
