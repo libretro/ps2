@@ -674,6 +674,7 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 	UserHacks_HalfPixelOffset = GSHalfPixelOffset::Off;
 	UserHacks_RoundSprite = 0;
 	UserHacks_AutoFlush = GSHWAutoFlushLevel::Disabled;
+	GPUPaletteConversion = false;
 	PreloadFrameWithGSData = false;
 	UserHacks_DisablePartialInvalidation = false;
 	UserHacks_DisableDepthSupport = false;
