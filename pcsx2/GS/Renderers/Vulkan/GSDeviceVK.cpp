@@ -353,8 +353,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			SupportsExtension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME, false);
 		m_optional_extensions.vk_khr_shader_draw_parameters =
 			SupportsExtension(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME, false);
-		m_optional_extensions.vk_ext_attachment_feedback_loop_layout =
-			SupportsExtension(VK_EXT_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_EXTENSION_NAME, false);
 
 		return true;
 	}
@@ -457,8 +455,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_FEATURES_EXT};
 		VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_feature = {
 			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
-		VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT attachment_feedback_loop_feature = {
-		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT};
 
 		if (m_optional_extensions.vk_ext_provoking_vertex)
 		{
@@ -474,11 +470,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		{
 			rasterization_order_access_feature.rasterizationOrderColorAttachmentAccess = VK_TRUE;
 			Vulkan::AddPointerToChain(&device_info, &rasterization_order_access_feature);
-		}
-		if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
-		{
-			attachment_feedback_loop_feature.attachmentFeedbackLoopLayout = VK_TRUE;
-			Vulkan::AddPointerToChain(&device_info, &attachment_feedback_loop_feature);
 		}
 
 		VkResult res = vkCreateDevice(vk_init_info.gpu, &device_info, nullptr, &vk_init_info.device);
@@ -508,8 +499,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
 		VkPhysicalDeviceRasterizationOrderAttachmentAccessFeaturesEXT rasterization_order_access_feature = {
 			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_FEATURES_EXT};
-		VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT attachment_feedback_loop_feature = {
-		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT};
 
 		// add in optional feature structs
 		if (m_optional_extensions.vk_ext_provoking_vertex)
@@ -518,8 +507,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			Vulkan::AddPointerToChain(&features2, &line_rasterization_feature);
 		if (m_optional_extensions.vk_ext_rasterization_order_attachment_access)
 			Vulkan::AddPointerToChain(&features2, &rasterization_order_access_feature);
-		if (m_optional_extensions.vk_ext_attachment_feedback_loop_layout)
-			Vulkan::AddPointerToChain(&features2, &attachment_feedback_loop_feature);
 
 		// query
 		vkGetPhysicalDeviceFeatures2(vk_init_info.gpu, &features2);
@@ -528,8 +515,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		m_optional_extensions.vk_ext_provoking_vertex &= (provoking_vertex_features.provokingVertexLast == VK_TRUE);
 		m_optional_extensions.vk_ext_rasterization_order_attachment_access &= (rasterization_order_access_feature.rasterizationOrderColorAttachmentAccess == VK_TRUE);
 		m_optional_extensions.vk_ext_line_rasterization &= (line_rasterization_feature.bresenhamLines == VK_TRUE);
-		m_optional_extensions.vk_ext_attachment_feedback_loop_layout &=
-		(attachment_feedback_loop_feature.attachmentFeedbackLoopLayout == VK_TRUE);
 
 		VkPhysicalDeviceProperties2 properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
 
@@ -566,8 +551,6 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			m_optional_extensions.vk_ext_line_rasterization ? "supported" : "NOT supported");
 		Console.WriteLn("VK_EXT_rasterization_order_attachment_access is %s",
 			m_optional_extensions.vk_ext_rasterization_order_attachment_access ? "supported" : "NOT supported");
-		Console.WriteLn("VK_EXT_attachment_feedback_loop_layout is %s",
-		m_optional_extensions.vk_ext_attachment_feedback_loop_layout ? "supported" : "NOT supported");
 
 		return true;
 	}
@@ -999,10 +982,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		u32 num_attachments = 0;
 		if (key.color_format != VK_FORMAT_UNDEFINED)
 		{
-			const VkImageLayout layout =
-			key.color_feedback_loop ? (UseFeedbackLoopLayout() ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT :
-																 VK_IMAGE_LAYOUT_GENERAL) :
-									  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			const VkImageLayout layout = key.color_feedback_loop ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			attachments[num_attachments] = {0, static_cast<VkFormat>(key.color_format), VK_SAMPLE_COUNT_1_BIT,
 				static_cast<VkAttachmentLoadOp>(key.color_load_op),
 				static_cast<VkAttachmentStoreOp>(key.color_store_op),
@@ -1013,12 +993,9 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 			if (key.color_feedback_loop)
 			{
-				if (!UseFeedbackLoopLayout())
-				{
-					input_reference.attachment = num_attachments;
-					input_reference.layout     = layout;
-					input_reference_ptr        = &input_reference;
-				}
+				input_reference.attachment = num_attachments;
+				input_reference.layout     = layout;
+				input_reference_ptr        = &input_reference;
 
 				if (!m_features.framebuffer_fetch)
 				{
@@ -1029,8 +1006,8 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 					subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 					subpass_dependency.srcAccessMask =
 						VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-					subpass_dependency.dstAccessMask = UseFeedbackLoopLayout() ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-					subpass_dependency.dependencyFlags = UseFeedbackLoopLayout() ? (VK_DEPENDENCY_BY_REGION_BIT | VK_DEPENDENCY_FEEDBACK_LOOP_BIT_EXT) : VK_DEPENDENCY_BY_REGION_BIT;
+					subpass_dependency.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+					subpass_dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 					subpass_dependency_ptr = &subpass_dependency;
 				}
 			}
@@ -1039,7 +1016,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		}
 		if (key.depth_format != VK_FORMAT_UNDEFINED)
 		{
-			const VkImageLayout layout = key.depth_sampling ? (UseFeedbackLoopLayout() ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT : VK_IMAGE_LAYOUT_GENERAL) : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			const VkImageLayout layout = key.depth_sampling ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			attachments[num_attachments] = {0, static_cast<VkFormat>(key.depth_format), VK_SAMPLE_COUNT_1_BIT,
 				static_cast<VkAttachmentLoadOp>(key.depth_load_op),
 				static_cast<VkAttachmentStoreOp>(key.depth_store_op),
@@ -1409,8 +1386,6 @@ bool GSDeviceVK::CreateDeviceAndSwapChain()
 		Vulkan::UnloadVulkanLibrary();
 		return false;
 	}
-
-	m_has_feedback_loop_layout = UseFeedbackLoopLayout();
 
 	return true;
 }
@@ -2320,8 +2295,6 @@ static void AddShaderHeader(std::stringstream& ss)
 
 	if (!features.texture_barrier)
 		ss << "#define DISABLE_TEXTURE_BARRIER 1\n";
-	if (features.texture_barrier && dev->UseFeedbackLoopLayout())
-		ss << "#define HAS_FEEDBACK_LOOP_LAYOUT 1\n";
 }
 
 static void AddShaderStageMacro(std::stringstream& ss, bool vs, bool gs, bool fs)
@@ -2465,7 +2438,7 @@ bool GSDeviceVK::CreatePipelineLayouts()
 	if ((m_tfx_sampler_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
 	dslb.AddBinding(0,
-		(m_features.texture_barrier && !m_has_feedback_loop_layout) 
+		m_features.texture_barrier
 		? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT 
 		: VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 		1, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -3706,7 +3679,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 			return ApplyTFXState(true);
 		}
 
-		if (m_features.texture_barrier && !m_has_feedback_loop_layout)
+		if (m_features.texture_barrier)
 		{
 			dsub.AddInputAttachmentDescriptorWrite(
 				m_tfx_rt_descriptor_set, 0, m_tfx_textures[NUM_TFX_DRAW_TEXTURES]->GetView(), VK_IMAGE_LAYOUT_GENERAL);
@@ -4291,19 +4264,10 @@ void GSDeviceVK::UploadHWDrawVerticesAndIndices(const GSHWDrawConfig& config)
 
 VkImageMemoryBarrier GSDeviceVK::GetColorBufferBarrier(GSTextureVK* rt) const
 {
-	const VkImageLayout layout =
-		m_has_feedback_loop_layout ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT : VK_IMAGE_LAYOUT_GENERAL;
-	const VkAccessFlags dst_access =
-		m_has_feedback_loop_layout ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
 	return {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr,
-		VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, dst_access, layout, layout,
+		VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		VK_ACCESS_INPUT_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
 		VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, rt->GetImage(), {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u}};
-}
-
-VkDependencyFlags GSDeviceVK::GetColorBufferBarrierFlags() const
-{
-	return m_has_feedback_loop_layout ? (VK_DEPENDENCY_BY_REGION_BIT | VK_DEPENDENCY_FEEDBACK_LOOP_BIT_EXT) :
-										VK_DEPENDENCY_BY_REGION_BIT;
 }
 
 void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, bool skip_first_barrier)
@@ -4313,7 +4277,6 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 		const u32 indices_per_prim = config.indices_per_prim;
 		const u32 draw_list_size = static_cast<u32>(config.drawlist->size());
 		const VkImageMemoryBarrier barrier = GetColorBufferBarrier(draw_rt);
-		const VkDependencyFlags barrier_flags = GetColorBufferBarrierFlags();
 		u32 p = 0;
 		u32 n = 0;
 
@@ -4328,7 +4291,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 		for (; n < draw_list_size; n++)
 		{
 			vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags, 0,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0,
 				nullptr, 0, nullptr, 1, &barrier);
 
 			const u32 count = (*config.drawlist)[n] * indices_per_prim;
@@ -4342,7 +4305,6 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 	if (m_features.texture_barrier && m_pipeline_selector.ps.IsFeedbackLoop())
 	{
 		const VkImageMemoryBarrier barrier    = GetColorBufferBarrier(draw_rt);
-		const VkDependencyFlags barrier_flags = GetColorBufferBarrierFlags();
 
 		if (config.require_full_barrier)
 		{
@@ -4358,7 +4320,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 			for (; p < config.nindices; p += indices_per_prim)
 			{
 				vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
-					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags,
+					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT,
 					0, nullptr, 0, nullptr, 1, &barrier);
 
 				DrawIndexedPrimitive(p, indices_per_prim);
@@ -4370,7 +4332,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt, 
 		if (config.require_one_barrier && !skip_first_barrier)
 		{
 			vkCmdPipelineBarrier(GetCurrentCommandBuffer(),
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier_flags, 0,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0,
 				nullptr, 0, nullptr, 1, &barrier);
 		}
 	}
