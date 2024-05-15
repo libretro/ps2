@@ -23,6 +23,13 @@
 #include <vector>
 #include <sys/stat.h>
 
+#ifndef stat64
+#define stat64 stat
+#endif
+#ifndef fstat64
+#define fstat64 fstat
+#endif
+
 #ifdef _WIN32
 #define FS_OSPATH_SEPARATOR_CHARACTER '\\'
 #define FS_OSPATH_SEPARATOR_STR "\\"

@@ -26,6 +26,13 @@
 #include <unistd.h>
 #endif
 
+#ifndef ftruncate64
+#define ftruncate64 ftruncate
+#endif
+#ifndef off64_t
+#define off64_t off_t
+#endif
+
 #include <mutex>
 
 #include <fmt/format.h>
