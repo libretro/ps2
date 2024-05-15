@@ -1040,6 +1040,11 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 		req_rect.x = region.HasX() ? region.GetMinX() : 0;
 		req_rect.y = region.HasY() ? region.GetMinY() : 0;
 
+		GSVector4i block_boundary_rect = req_rect;
+		// Round up to the nearst block boundary for lookup to avoid problems due to bilinear and inclusive rects.
+		block_boundary_rect.z = std::max(req_rect.x + 1, (block_boundary_rect.z + (psm_s.bs.x - 2)) & ~(psm_s.bs.x - 1));
+		block_boundary_rect.w = std::max(req_rect.y + 1, (block_boundary_rect.w + (psm_s.bs.y - 2)) & ~(psm_s.bs.y - 1));
+
 		// Arc the Lad finds the wrong surface here when looking for a depth stencil.
 		// Since we're currently not caching depth stencils (check ToDo in CreateSource) we should not look for it here.
 
@@ -1060,7 +1065,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				if (((bp & (BLOCKS_PER_PAGE - 1)) != (t->m_TEX0.TBP0 & (BLOCKS_PER_PAGE - 1))) && (bp & (BLOCKS_PER_PAGE - 1)))
 					continue;
 
-				const bool overlaps = t->Overlaps(bp, bw, psm, req_rect);
+				const bool overlaps = t->Overlaps(bp, bw, psm, block_boundary_rect);
 
 				// Try to make sure the target has available what we need, be careful of self referencing frames with font in the alpha.
 				if (!overlaps)
@@ -1192,7 +1197,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 							if (!dirty_rect.rintersect(new_rect).rempty())
 							{
 								rect_clean = false;
-								partial |= !new_rect.rintersect(dirty_rect).eq(new_rect);
+								partial |= !new_rect.rintersect(dirty_rect).eq(new_rect) || dirty_rect.eq(new_rect);
 								break;
 							}
 						}
@@ -1209,7 +1214,10 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 					}
 					// If not all channels are clean/dirty or only part of the rect is dirty, we need to update the target.
 					if (((channels & channel_mask) != channel_mask || partial))
+					{
 						t->Update();
+						rect_clean = true;
+					}
 
 					if (linear)
 					{
@@ -1263,8 +1271,8 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 
 				if (!rect_clean)
 				{
-					const u32 read_start = GSLocalMemory::GetStartBlockAddress(bp, bw, psm, req_rect);
-					const u32 read_end = GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, req_rect);
+					const u32 read_start = GSLocalMemory::GetStartBlockAddress(bp, bw, psm, block_boundary_rect);
+					const u32 read_end = GSLocalMemory::GetUnwrappedEndBlockAddress(bp, bw, psm, block_boundary_rect);
 					const GSVector4i dirty_rect = t->m_dirty.GetTotalRect(t->m_TEX0, t->m_unscaled_size);
 					const u32 dirty_start = GSLocalMemory::GetStartBlockAddress(t->m_TEX0.TBP0, t->m_TEX0.TBW, t->m_TEX0.PSM, dirty_rect);
 					const u32 dirty_end = GSLocalMemory::GetUnwrappedEndBlockAddress(t->m_TEX0.TBP0, t->m_TEX0.TBW, t->m_TEX0.PSM, dirty_rect);
@@ -1371,12 +1379,9 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				// Make sure the texture actually is INSIDE the RT, it's possibly not valid if it isn't.
 				// Also check BP >= TBP, create source isn't equpped to expand it backwards and all data comes from the target. (GH3)
 				else if (GSConfig.UserHacks_TextureInsideRt >= GSTextureInRtMode::InsideTargets && color_psm >= PSMCT32 &&
-					color_psm <= PSMCT16S && (GSUtil::HasCompatibleBits(tex_color_psm, color_psm) ||
-					(possible_shuffle && tex_color_psm <= PSMCT24 && ((((t->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 1) + t->m_TEX0.TBP0) == bp)) &&
-					(t->Overlaps(bp, bw, psm, req_rect) || t->Wraps()) &&
-					t->m_age <= 1 && (!found_t || dst->m_TEX0.TBW < bw))
+						color_psm <= PSMCT16S && t->m_age <= 1 && (!found_t || t->m_last_draw > dst->m_last_draw) && CanTranslate(bp, bw, psm, block_boundary_rect, t->m_TEX0.TBP0, t->m_TEX0.PSM, t->m_TEX0.TBW))
 				{
-					if (overlaps && !t->HasValidBitsForFormat(psm, req_color, req_alpha) && !(possible_shuffle && GSLocalMemory::m_psm[psm].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32))
+					if (!t->HasValidBitsForFormat(psm, req_color, req_alpha) && !(possible_shuffle && GSLocalMemory::m_psm[psm].bpp == 16 && GSLocalMemory::m_psm[t->m_TEX0.PSM].bpp == 32))
 						continue;
 
 					// PSM equality needed because CreateSource does not handle PSM conversion.
@@ -1754,7 +1759,8 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 
 				if (can_use)
 				{
-					list.MoveFront(i.Index());
+					if (used)
+						list.MoveFront(i.Index());
 
 					dst = t;
 
@@ -2382,7 +2388,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 							return hw_clear.value_or(false);
 						}
 						// The new texture is behind it but engulfs the whole thing, shrink the new target so it grows in the HW Draw resize.
-						else if (((((dst->UnwrappedEndBlock() + 1) - dst->m_TEX0.TBP0) >> 1) + dst->m_TEX0.TBP0) == t->m_TEX0.TBP0)
+						else if (dst->m_TEX0.TBP0 < t->m_TEX0.TBP0 && (dst->UnwrappedEndBlock() + 1) > t->m_TEX0.TBP0 && dst->m_TEX0.TBP0 < (t->UnwrappedEndBlock() + 1))
 						{
 							const int rt_pages = ((t->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5;
 							const int overlapping_pages = std::min(rt_pages, static_cast<int>((dst->UnwrappedEndBlock() + 1) - t->m_TEX0.TBP0) >> 5);
@@ -5099,8 +5105,9 @@ bool GSTextureCache::Surface::Inside(u32 bp, u32 bw, u32 psm, const GSVector4i& 
 {
 	// Valid only for color formats.
 	const GSOffset off(GSLocalMemory::m_psm[psm].info, bp, bw, psm);
+	const u32 start_block = off.bnNoWrap(rect.x, rect.y);
 	const u32 end_block = off.bnNoWrap(rect.z - 1, rect.w - 1);
-	return bp >= m_TEX0.TBP0 && end_block <= UnwrappedEndBlock();
+	return start_block >= m_TEX0.TBP0 && end_block <= UnwrappedEndBlock();
 }
 
 bool GSTextureCache::Surface::Overlaps(u32 bp, u32 bw, u32 psm, const GSVector4i& rect)
