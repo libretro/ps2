@@ -2042,6 +2042,24 @@ void GSRendererHW::Draw()
 				TryGSMemClear(no_rt, preserve_rt_color, is_zero_color_clear, rt_end_bp,
 					no_ds, preserve_depth, is_zero_depth_clear, ds_end_bp))
 			{
+				// Since we're not creating a target here, if this is the first draw to the target, it's not going
+				// to be in the height cache, and we might create a smaller size target. We also need to record
+				// it for HW moves (e.g. Devil May Cry subtitles).
+				if (!height_invalid)
+				{
+					const GSVector2i target_size = GetValidSize(nullptr);
+					if (!no_rt && is_zero_color_clear)
+					{
+						g_texture_cache->GetTargetSize(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.FRAME.PSM,
+							target_size.x, target_size.y);
+					}
+					if (!no_ds && is_zero_depth_clear)
+					{
+						g_texture_cache->GetTargetSize(m_cached_ctx.ZBUF.Block(), m_cached_ctx.FRAME.FBW, m_cached_ctx.ZBUF.PSM,
+							target_size.x, target_size.y);
+					}
+				}
+
 				CleanupDraw(false);
 				return;
 			}
