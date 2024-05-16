@@ -649,6 +649,7 @@ struct alignas(16) GSHWDrawConfig
 	{
 		BlendState blend;
 		u8 blend_hw;
+		u8 dither;
 		bool enable;
 	};
 
