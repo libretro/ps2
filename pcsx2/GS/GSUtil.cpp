@@ -19,8 +19,6 @@
 #include "GS/GSUtil.h"
 #include "MultiISA.h"
 
-#include "common/Console.h"
-
 #ifdef ENABLE_VULKAN
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #endif
@@ -30,123 +28,84 @@
 #include "GS/Renderers/DX11/D3D.h"
 #endif
 
-static struct GSUtilMaps
+static class GSUtilMaps
 {
 public:
+	u8 PrimClassField[8];
 	u32 CompatibleBitsField[64][2];
-	u32 SharedBitsField[64][2] =    {
-						{0, 0}, /* 0   */
-						{1, 4098}, /* 1   */
-						{0, 0}, /* 2   */
-						{0, 0}, /* 3   */
-						{0, 0}, /* 4   */
-						{0, 0}, /* 5   */
-						{0, 0}, /* 6   */
-						{0, 0}, /* 7   */
-						{0, 0}, /* 8   */
-						{0, 0}, /* 9   */
-						{0, 0}, /* 10  */
-						{0, 0}, /* 11  */
-						{0, 0}, /* 12  */
-						{0, 0}, /* 13  */
-						{0, 0}, /* 14  */
-						{0, 0}, /* 15  */
-						{0, 0}, /* 16  */
-						{0, 0}, /* 17  */
-						{0, 0}, /* 18  */
-						{0, 0}, /* 19  */
-						{0, 0}, /* 20  */
-						{0, 0}, /* 21  */
-						{0, 0}, /* 22  */
-						{0, 0}, /* 23  */
-						{0, 0}, /* 24  */
-						{0, 0}, /* 25  */
-						{0, 0}, /* 26  */
-						{2, 131072}, /* 27  */
-						{0, 0}, /* 28  */
-						{0, 0}, /* 29  */
-						{0, 0}, /* 30  */
-						{0, 0}, /* 31  */
-						{0, 0}, /* 32  */
-						{0, 0}, /* 33  */
-						{0, 0}, /* 34  */
-						{0, 0}, /* 35  */
-						{2, 135168}, /* 36  */
-						{0, 0}, /* 37  */
-						{0, 0}, /* 38  */
-						{0, 0}, /* 39  */
-						{0, 0}, /* 40  */
-						{0, 0}, /* 41  */
-						{0, 0}, /* 42  */
-						{0, 0}, /* 43  */
-						{2, 131074}, /* 44  */
-						{0, 0}, /* 45  */
-						{0, 0}, /* 46  */
-						{0, 0}, /* 47  */
-						{0, 0}, /* 48  */
-						{134217728, 4112}, /* 49  */
-						{0, 0}, /* 50  */
-						{0, 0}, /* 51  */
-						{0, 0}, /* 52  */
-						{0, 0}, /* 53  */
-						{0, 0}, /* 54  */
-						{0, 0}, /* 55  */
-						{0, 0}, /* 56  */
-						{0, 0}, /* 57  */
-						{0, 0}, /* 58  */
-						{0, 0}, /* 59  */
-						{0, 0}, /* 60  */
-						{0, 0}, /* 61  */
-						{0, 0}, /* 62  */
-						{0, 0}, /* 63  */
-					};
- 	u32 SwizzleField[64][2];
+	u32 SharedBitsField[64][2];
+	u32 SwizzleField[64][2];
+
+	// Defer init to avoid AVX2 illegal instructions
+	void Init()
+	{
+		PrimClassField[GS_POINTLIST] = GS_POINT_CLASS;
+		PrimClassField[GS_LINELIST] = GS_LINE_CLASS;
+		PrimClassField[GS_LINESTRIP] = GS_LINE_CLASS;
+		PrimClassField[GS_TRIANGLELIST] = GS_TRIANGLE_CLASS;
+		PrimClassField[GS_TRIANGLESTRIP] = GS_TRIANGLE_CLASS;
+		PrimClassField[GS_TRIANGLEFAN] = GS_TRIANGLE_CLASS;
+		PrimClassField[GS_SPRITE] = GS_SPRITE_CLASS;
+		PrimClassField[GS_INVALID] = GS_INVALID_CLASS;
+
+		memset(CompatibleBitsField, 0, sizeof(CompatibleBitsField));
+
+		for (int i = 0; i < 64; i++)
+			CompatibleBitsField[i][i >> 5] |= 1U << (i & 0x1f);
+
+		CompatibleBitsField[PSMCT32][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
+		CompatibleBitsField[PSMCT24][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
+		CompatibleBitsField[PSMCT16][PSMCT16S >> 5] |= 1 << (PSMCT16S & 0x1f);
+		CompatibleBitsField[PSMCT16S][PSMCT16 >> 5] |= 1 << (PSMCT16 & 0x1f);
+		CompatibleBitsField[PSMZ32][PSMZ24 >> 5] |= 1 << (PSMZ24 & 0x1f);
+		CompatibleBitsField[PSMZ24][PSMZ32 >> 5] |= 1 << (PSMZ32 & 0x1f);
+		CompatibleBitsField[PSMZ16][PSMZ16S >> 5] |= 1 << (PSMZ16S & 0x1f);
+		CompatibleBitsField[PSMZ16S][PSMZ16 >> 5] |= 1 << (PSMZ16 & 0x1f);
+
+		memset(SwizzleField, 0, sizeof(SwizzleField));
+
+		for (int i = 0; i < 64; i++)
+			SwizzleField[i][i >> 5] |= 1U << (i & 0x1f);
+
+		SwizzleField[PSMCT32][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
+		SwizzleField[PSMCT24][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
+		SwizzleField[PSMT8H][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
+		SwizzleField[PSMCT32][PSMT8H >> 5] |= 1 << (PSMT8H & 0x1f);
+		SwizzleField[PSMT4HL][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
+		SwizzleField[PSMCT32][PSMT4HL >> 5] |= 1 << (PSMT4HL & 0x1f);
+		SwizzleField[PSMT4HH][PSMCT32 >> 5] |= 1 << (PSMCT32 & 0x1f);
+		SwizzleField[PSMCT32][PSMT4HH >> 5] |= 1 << (PSMT4HH & 0x1f);
+		SwizzleField[PSMZ32][PSMZ24 >> 5] |= 1 << (PSMZ24 & 0x1f);
+		SwizzleField[PSMZ24][PSMZ32 >> 5] |= 1 << (PSMZ32 & 0x1f);
+
+		memset(SharedBitsField, 0, sizeof(SharedBitsField));
+
+		SharedBitsField[PSMCT24][PSMT8H >> 5] |= 1 << (PSMT8H & 0x1f);
+		SharedBitsField[PSMCT24][PSMT4HL >> 5] |= 1 << (PSMT4HL & 0x1f);
+		SharedBitsField[PSMCT24][PSMT4HH >> 5] |= 1 << (PSMT4HH & 0x1f);
+		SharedBitsField[PSMZ24][PSMT8H >> 5] |= 1 << (PSMT8H & 0x1f);
+		SharedBitsField[PSMZ24][PSMT4HL >> 5] |= 1 << (PSMT4HL & 0x1f);
+		SharedBitsField[PSMZ24][PSMT4HH >> 5] |= 1 << (PSMT4HH & 0x1f);
+		SharedBitsField[PSMT8H][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
+		SharedBitsField[PSMT8H][PSMZ24 >> 5] |= 1 << (PSMZ24 & 0x1f);
+		SharedBitsField[PSMT4HL][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
+		SharedBitsField[PSMT4HL][PSMZ24 >> 5] |= 1 << (PSMZ24 & 0x1f);
+		SharedBitsField[PSMT4HL][PSMT4HH >> 5] |= 1 << (PSMT4HH & 0x1f);
+		SharedBitsField[PSMT4HH][PSMCT24 >> 5] |= 1 << (PSMCT24 & 0x1f);
+		SharedBitsField[PSMT4HH][PSMZ24 >> 5] |= 1 << (PSMZ24 & 0x1f);
+		SharedBitsField[PSMT4HH][PSMT4HL >> 5] |= 1 << (PSMT4HL & 0x1f);
+	}
+
 } s_maps;
 
 void GSUtil::Init()
 {
-	memset(s_maps.CompatibleBitsField, 0, sizeof(s_maps.CompatibleBitsField));
-	memset(s_maps.SwizzleField, 0, sizeof(s_maps.SwizzleField));
-
-	for (int i = 0; i < 64; i++)
-	{
-		s_maps.CompatibleBitsField[i][i >> 5] |= 1U << (i & 0x1f);
-		s_maps.SwizzleField       [i][i >> 5] |= 1U << (i & 0x1f);
-	}
-
-	s_maps.CompatibleBitsField[PSMCT32][PSMCT24 >> 5]  |= 1 << (PSMCT24 & 0x1f);
-	s_maps.CompatibleBitsField[PSMCT24][PSMCT32 >> 5]  |= 1 << (PSMCT32 & 0x1f);
-	s_maps.CompatibleBitsField[PSMCT16][PSMCT16S >> 5] |= 1 << (PSMCT16S & 0x1f);
-	s_maps.CompatibleBitsField[PSMCT16S][PSMCT16 >> 5] |= 1 << (PSMCT16 & 0x1f);
-	s_maps.CompatibleBitsField[PSMZ32][PSMZ24 >> 5]    |= 1 << (PSMZ24 & 0x1f);
-	s_maps.CompatibleBitsField[PSMZ24][PSMZ32 >> 5]    |= 1 << (PSMZ32 & 0x1f);
-	s_maps.CompatibleBitsField[PSMZ16][PSMZ16S >> 5]   |= 1 << (PSMZ16S & 0x1f);
-	s_maps.CompatibleBitsField[PSMZ16S][PSMZ16 >> 5]   |= 1 << (PSMZ16 & 0x1f);
-
-	s_maps.SwizzleField[PSMCT32][PSMCT24 >> 5]         |= 1 << (PSMCT24 & 0x1f);
-	s_maps.SwizzleField[PSMCT24][PSMCT32 >> 5]         |= 1 << (PSMCT32 & 0x1f);
-	s_maps.SwizzleField[PSMT8H][PSMCT32 >> 5]          |= 1 << (PSMCT32 & 0x1f);
-	s_maps.SwizzleField[PSMCT32][PSMT8H >> 5]          |= 1 << (PSMT8H & 0x1f);
-	s_maps.SwizzleField[PSMT4HL][PSMCT32 >> 5]         |= 1 << (PSMCT32 & 0x1f);
-	s_maps.SwizzleField[PSMCT32][PSMT4HL >> 5]         |= 1 << (PSMT4HL & 0x1f);
-	s_maps.SwizzleField[PSMT4HH][PSMCT32 >> 5]         |= 1 << (PSMCT32 & 0x1f);
-	s_maps.SwizzleField[PSMCT32][PSMT4HH >> 5]         |= 1 << (PSMT4HH & 0x1f);
-	s_maps.SwizzleField[PSMZ32][PSMZ24 >> 5]           |= 1 << (PSMZ24 & 0x1f);
-	s_maps.SwizzleField[PSMZ24][PSMZ32 >> 5]           |= 1 << (PSMZ32 & 0x1f);
+	s_maps.Init();
 }
 
 GS_PRIM_CLASS GSUtil::GetPrimClass(u32 prim)
 {
-	static u8 PrimClassField[8] = {	GS_POINT_CLASS, 
-					GS_LINE_CLASS,
-					GS_LINE_CLASS,
-					GS_TRIANGLE_CLASS,
-					GS_TRIANGLE_CLASS,
-					GS_TRIANGLE_CLASS,
-					GS_SPRITE_CLASS,
-					GS_INVALID_CLASS
-					};
-	return (GS_PRIM_CLASS)PrimClassField[prim];
+	return (GS_PRIM_CLASS)s_maps.PrimClassField[prim];
 }
 
 const u32* GSUtil::HasSharedBitsPtr(u32 dpsm)
