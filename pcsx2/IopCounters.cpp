@@ -506,6 +506,8 @@ void psxRcntWcount16(int index, u16 value)
 		const u32 change = (psxRegs.cycle - psxCounters[index].sCycleT) / psxCounters[index].rate;
 		psxCounters[index].sCycleT += change * psxCounters[index].rate;
 	}
+	else
+		psxCounters[index].sCycleT = psxRegs.cycle;
 
 	psxCounters[index].count = value & 0xffff;
 
@@ -532,6 +534,8 @@ void psxRcntWcount32(int index, u32 value)
 		const u32 change = (psxRegs.cycle - psxCounters[index].sCycleT) / psxCounters[index].rate;
 		psxCounters[index].sCycleT += change * psxCounters[index].rate;
 	}
+	else
+		psxCounters[index].sCycleT = psxRegs.cycle;
 
 	psxCounters[index].count = value;
 
