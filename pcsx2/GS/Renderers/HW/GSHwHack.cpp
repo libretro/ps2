@@ -575,22 +575,6 @@ bool GSHwHack::GSC_SteambotChronicles(GSRendererHW& r, int& skip)
 	return true;
 }
 
-bool GSHwHack::GSC_GetawayGames(GSRendererHW& r, int& skip)
-{
-	if (GSConfig.AccurateBlendingUnit >= AccBlendLevel::High)
-		return true;
-
-	if (skip == 0)
-	{
-		if ((RFBP == 0 || RFBP == 0x1180 || RFBP == 0x1400) && RTPSM == PSMT8H && RFBMSK == 0)
-		{
-			skip = 1; // Removes fog wall.
-		}
-	}
-
-	return true;
-}
-
 bool GSHwHack::GSC_NFSUndercover(GSRendererHW& r, int& skip)
 {
 	// NFS Undercover does a weird texture shuffle by page, which really isn't supported by our TC.
@@ -1456,9 +1440,6 @@ const GSHwHack::Entry<GSRendererHW::GSC_Ptr> GSHwHack::s_get_skip_count_function
 
 	// Upscaling hacks
 	CRC_F(GSC_UltramanFightingEvolution),
-
-	// Accurate Blending
-	CRC_F(GSC_GetawayGames), // Blending High
 };
 
 const GSHwHack::Entry<GSRendererHW::OI_Ptr> GSHwHack::s_before_draw_functions[] = {
