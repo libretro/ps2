@@ -20,8 +20,6 @@
 #include <cmath>
 #include <cstring> /* memset/memcpy */
 
-#include "common/Console.h"
-
 #include "Common.h"
 #include "R3000A.h"
 #include "Counters.h"
@@ -34,6 +32,23 @@
 
 #include "ps2/HwInternal.h"
 #include "VMManager.h"
+
+struct vSyncTimingInfo
+{
+	double Framerate;       // frames per second (8 bit fixed)
+	GS_VideoMode VideoMode; // used to detect change (interlaced/progressive)
+	u32 Render;             // time from vblank end to vblank start (cycles)
+	u32 Blank;              // time from vblank start to vblank end (cycles)
+
+	u32 GSBlank;            // GS CSR is swapped roughly 3.5 hblank's after vblank start
+
+	u32 hSyncError;         // rounding error after the duration of a rendered frame (cycles)
+	u32 hRender;            // time from hblank end to hblank start (cycles)
+	u32 hBlank;             // time from hblank start to hblank end (cycles)
+	u32 hScanlinesPerFrame; // number of scanlines per frame (525/625 for NTSC/PAL)
+};
+
+static vSyncTimingInfo vSyncInfo;
 
 extern u8 psxhblankgate;
 static const uint EECNT_FUTURE_TARGET = 0x10000000;
@@ -169,30 +184,6 @@ void rcntInit(void)
 	cpuRcntSet();
 }
 
-
-#ifndef _WIN32
-#include <sys/time.h>
-#endif
-
-struct vSyncTimingInfo
-{
-	double Framerate;       // frames per second (8 bit fixed)
-	GS_VideoMode VideoMode; // used to detect change (interlaced/progressive)
-	u32 Render;             // time from vblank end to vblank start (cycles)
-	u32 Blank;              // time from vblank start to vblank end (cycles)
-
-	u32 GSBlank;            // GS CSR is swapped roughly 3.5 hblank's after vblank start
-
-	u32 hSyncError;         // rounding error after the duration of a rendered frame (cycles)
-	u32 hRender;            // time from hblank end to hblank start (cycles)
-	u32 hBlank;             // time from hblank start to hblank end (cycles)
-	u32 hScanlinesPerFrame; // number of scanlines per frame (525/625 for NTSC/PAL)
-};
-
-
-static vSyncTimingInfo vSyncInfo;
-
-
 static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 scansPerFrame)
 {
 	constexpr double clock = static_cast<double>(PS2CLK);
@@ -305,8 +296,9 @@ double GetVerticalFrequency(void)
 			return 60.00;
 		default:
 			// Pass NTSC vertical frequency value when unknown video mode is detected.
-			return FRAMERATE_NTSC * 2;
+			break;
 	}
+	return FRAMERATE_NTSC * 2;
 }
 
 void UpdateVSyncRate(bool force)
@@ -324,7 +316,6 @@ void UpdateVSyncRate(bool force)
 	if (vSyncInfo.Framerate != frames_per_second || vSyncInfo.VideoMode != gsVideoMode || force)
 	{
 		u32 total_scanlines = 0;
-		bool custom = false;
 
 		switch (gsVideoMode)
 		{
@@ -336,7 +327,6 @@ void UpdateVSyncRate(bool force)
 				break;
 			case GS_VideoMode::PAL:
 			case GS_VideoMode::DVD_PAL:
-				custom = (EmuConfig.GS.FrameratePAL != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL);
 				if (gsIsInterlaced)
 					total_scanlines = SCANLINES_TOTAL_PAL_I;
 				else
@@ -344,7 +334,6 @@ void UpdateVSyncRate(bool force)
 				break;
 			case GS_VideoMode::NTSC:
 			case GS_VideoMode::DVD_NTSC:
-				custom = (EmuConfig.GS.FramerateNTSC != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC);
 				if (gsIsInterlaced)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
@@ -366,7 +355,6 @@ void UpdateVSyncRate(bool force)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
-				Console.Error("PCSX2-Counters: Unknown video mode detected");
 		}
 
 		const bool video_mode_initialized = gsVideoMode != GS_VideoMode::Uninitialized;
@@ -446,12 +434,6 @@ static __fi void DoFMVSwitch()
 		RendererSwitched = false;
 }
 
-static __fi void VSyncCheckExit()
-{
-	if (VMManager::Internal::IsExecutionInterrupted())
-		Cpu->ExitExecution();
-}
-
 static __fi void _cpuTestTarget(int i)
 {
 	if (counters[i].count < counters[i].target)
@@ -490,8 +472,6 @@ static __fi void _cpuTestOverflow(int i)
 	counters[i].count -= 0x10000;
 	counters[i].target &= 0xffff;
 }
-
-
 
 // mode - 0 means hblank source, 8 means vblank source.
 static __fi void rcntStartGate(bool isVblank, u32 sCycle)
@@ -568,7 +548,8 @@ static __fi void VSyncStart(u32 sCycle)
 			_ApplyPatch(&Patch[i]);
 	}
 	gsPostVsyncStart();
-	VSyncCheckExit();
+	if (VMManager::Internal::IsExecutionInterrupted())
+		Cpu->ExitExecution();
 
 	hwIntcIrq(INTC_VBLANK_S);
 	psxVBlankStart();
@@ -600,7 +581,7 @@ static __fi void VSyncStart(u32 sCycle)
 	// Refraction
 }
 
-static __fi void GSVSync()
+static __fi void GSVSync(void)
 {
 	// CSR is swapped and GS vBlank IRQ is triggered roughly 3.5 hblanks after VSync Start
 
@@ -666,11 +647,8 @@ static __fi void VSyncEnd(u32 sCycle)
 		rcntEndGate(true, sCycle); // Counters End Gate Code
 }
 
-__fi void rcntUpdate_hScanline()
+static __fi void rcntUpdate_hScanline(void)
 {
-	if (!cpuTestCycle(hsyncCounter.sCycle, hsyncCounter.CycleT))
-		return;
-
 	if (hsyncCounter.Mode == MODE_HBLANK) // HBLANK Start
 	{
 		// Setup the hRender's start and end cycle information:
@@ -702,11 +680,8 @@ __fi void rcntUpdate_hScanline()
 	}
 }
 
-__fi void rcntUpdate_vSync()
+static __fi void rcntUpdate_vSync(void)
 {
-	if (!cpuTestCycle(vsyncCounter.sCycle, vsyncCounter.CycleT))
-		return;
-
 	if (vsyncCounter.Mode == MODE_VSYNC)
 	{
 		vsyncCounter.sCycle += vSyncInfo.Blank;
@@ -741,9 +716,11 @@ __fi void rcntUpdate_vSync()
 // well forceinline it!
 __fi void rcntUpdate(void)
 {
-	rcntUpdate_vSync();
+	if (cpuTestCycle(vsyncCounter.sCycle, vsyncCounter.CycleT))
+		rcntUpdate_vSync();
 	// HBlank after as VSync can do error compensation
-	rcntUpdate_hScanline();
+	if (cpuTestCycle(hsyncCounter.sCycle, hsyncCounter.CycleT))
+		rcntUpdate_hScanline();
 
 	// Update counters so that we can perform overflow and target tests.
 

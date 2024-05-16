@@ -200,12 +200,6 @@ __fi void cpuSetNextEvent( u32 startCycle, s32 delta )
 		cpuRegs.nextEventCycle = startCycle + delta;
 }
 
-// sets a branch to occur some time from the current cycle
-__fi void cpuSetNextEventDelta( s32 delta )
-{
-	cpuSetNextEvent( cpuRegs.cycle, delta );
-}
-
 __fi int cpuGetCycles(int interrupt)
 {
 	if(interrupt == VU_MTVU_BUSY && (!THREAD_VU1 || INSTANT_VU1))
@@ -429,11 +423,11 @@ __fi void _cpuEventTest_Shared(void)
 	const int nextIopEventDeta = ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8);
 	// 8 or more cycles behind and there's an event scheduled
 	if (EEsCycle >= nextIopEventDeta)
-		cpuSetNextEventDelta(48);
+		cpuSetNextEvent(cpuRegs.cycle, 48);
 	else
 	{
 		// Otherwise IOP is caught up/not doing anything so we can wait for the next event.
-		cpuSetNextEventDelta(((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
+		cpuSetNextEvent(cpuRegs.cycle, ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
 	}
 
 	// Apply vsync and other counter nextCycles
@@ -452,7 +446,7 @@ __ri void cpuTestINTCInts()
 	if ((psHu32(INTC_STAT) & psHu32(INTC_MASK)) == 0)
 		return;
 
-	cpuSetNextEventDelta(4);
+	cpuSetNextEvent(cpuRegs.cycle, 4);
 	if (eeEventTestIsActive && (psxRegs.iopCycleEE > 0))
 	{
 		psxRegs.iopBreak += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
@@ -471,7 +465,7 @@ __fi void cpuTestDMACInts()
 		((psHu16(0xe010) & 0x8000) == 0))
 		return;
 
-	cpuSetNextEventDelta(4);
+	cpuSetNextEvent(cpuRegs.cycle, 4);
 	if (eeEventTestIsActive && (psxRegs.iopCycleEE > 0))
 	{
 		psxRegs.iopBreak += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
@@ -521,7 +515,7 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 		psxRegs.iopCycleEE = 0;
 	}
 
-	cpuSetNextEventDelta(cpuRegs.eCycle[n]);
+	cpuSetNextEvent(cpuRegs.cycle, cpuRegs.eCycle[n]);
 }
 
 // Called from recompilers; define is mandatory.

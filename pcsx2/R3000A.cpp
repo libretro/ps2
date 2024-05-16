@@ -136,7 +136,7 @@ __fi void PSX_INT( IopEventId n, s32 ecycle )
 	if (psxRegs.iopCycleEE < iopDelta)
 	{
 		// The EE called this int, so inform it to branch as needed:
-		cpuSetNextEventDelta(iopDelta - psxRegs.iopCycleEE);
+		cpuSetNextEvent(cpuRegs.cycle, iopDelta - psxRegs.iopCycleEE);
 	}
 }
 
@@ -237,7 +237,7 @@ void iopTestIntc(void)
 		// An iop exception has occurred while the EE is running code.
 		// Inform the EE to branch so the IOP can handle it promptly:
 
-		cpuSetNextEventDelta( 16 );
+		cpuSetNextEvent(cpuRegs.cycle, 16);
 		iopEventAction = true;
 		//Console.Error( "** IOP Needs an EE EventText, kthx **  %d", iopCycleEE );
 

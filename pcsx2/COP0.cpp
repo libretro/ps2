@@ -22,7 +22,7 @@ void WriteCP0Status(u32 value)
 {
 	COP0_UpdatePCCR();
 	cpuRegs.CP0.n.Status.val = value;
-	cpuSetNextEventDelta(4);
+	cpuSetNextEvent(cpuRegs.cycle, 4);
 }
 
 void WriteCP0Config(u32 value)
@@ -459,7 +459,7 @@ namespace COP0 {
 			cpuRegs.pc = cpuRegs.CP0.n.EPC;
 			cpuRegs.CP0.n.Status.b.EXL = 0;
 		}
-		cpuSetNextEventDelta(4);
+		cpuSetNextEvent(cpuRegs.cycle, 4);
 		intSetBranch();
 	}
 
@@ -467,11 +467,7 @@ namespace COP0 {
 	{
 		if (cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL ||
 			cpuRegs.CP0.n.Status.b.ERL || (cpuRegs.CP0.n.Status.b.KSU == 0))
-		{
 			cpuRegs.CP0.n.Status.b.EIE = 0;
-			// IRQs are disabled so no need to do a cpu exception/event test...
-			//cpuSetNextEventDelta();
-		}
 	}
 
 	void EI()
@@ -481,7 +477,7 @@ namespace COP0 {
 		{
 			cpuRegs.CP0.n.Status.b.EIE = 1;
 			// schedule an event test, which will check for and raise pending IRQs.
-			cpuSetNextEventDelta(4);
+			cpuSetNextEvent(cpuRegs.cycle, 4);
 		}
 	}
 
