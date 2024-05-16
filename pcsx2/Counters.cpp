@@ -653,7 +653,7 @@ __fi void rcntUpdate_hScanline(void)
 	if (hsyncCounter.Mode == MODE_HBLANK) // HBLANK Start
 	{
 		rcntStartGate(false, hsyncCounter.sCycle);
-		psxHBlankStart();
+		psxCheckStartGate16(0);
 
 		// Setup the hRender's start and end cycle information:
 		hsyncCounter.sCycle += vSyncInfo.hBlank; // start  (absolute cycle value)
