@@ -358,30 +358,6 @@ __fi void _cpuEventTest_Shared(void)
 	if (cpuIntsEnabled(mask))
 		cpuException(mask, cpuRegs.branch);
 
-	// ---- IOP -------------
-	// * It's important to run a iopEventTest before calling ExecuteBlock. This
-	//   is because the IOP does not always perform branch tests before returning
-	//   (during the prev branch) and also so it can act on the state the EE has
-	//   given it before executing any code.
-	//
-	// * The IOP cannot always be run.  If we run IOP code every time through the
-	//   cpuEventTest, the IOP generally starts to run way ahead of the EE.
-
-	EEsCycle += cpuRegs.cycle - EEoCycle;
-	EEoCycle = cpuRegs.cycle;
-
-	if (EEsCycle > 0)
-		iopEventAction = true;
-
-	if (iopEventAction)
-	{
-		EEsCycle = psxCpu->ExecuteBlock(EEsCycle);
-
-		iopEventAction = false;
-	}
-
-	iopEventTest();
-
 
 	// ---- Counters -------------
 	// Important: the vsync counter must be the first to be checked.  It includes emulation
@@ -415,6 +391,30 @@ __fi void _cpuEventTest_Shared(void)
 			_cpuTestInterrupts();
 	}
 
+
+	// ---- IOP -------------
+	// * It's important to run a iopEventTest before calling ExecuteBlock. This
+	//   is because the IOP does not always perform branch tests before returning
+	//   (during the prev branch) and also so it can act on the state the EE has
+	//   given it before executing any code.
+	//
+	// * The IOP cannot always be run.  If we run IOP code every time through the
+	//   cpuEventTest, the IOP generally starts to run way ahead of the EE.
+
+	EEsCycle += cpuRegs.cycle - EEoCycle;
+	EEoCycle = cpuRegs.cycle;
+
+	if (EEsCycle > 0)
+		iopEventAction = true;
+
+	if (iopEventAction)
+	{
+		EEsCycle = psxCpu->ExecuteBlock(EEsCycle);
+
+		iopEventAction = false;
+	}
+
+	iopEventTest();
 
 	// ---- VU Sync -------------
 	// We're in a EventTest.  All dynarec registers are flushed

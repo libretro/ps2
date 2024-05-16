@@ -20,6 +20,8 @@
 #include <cmath>
 #include <cstring> /* memset/memcpy */
 
+#include "common/Console.h"
+
 #include "Common.h"
 #include "R3000A.h"
 #include "Counters.h"
@@ -33,7 +35,9 @@
 #include "ps2/HwInternal.h"
 #include "VMManager.h"
 
+extern u8 psxhblankgate;
 static const uint EECNT_FUTURE_TARGET = 0x10000000;
+static int gates = 0;
 
 // Counter 4 takes care of scanlines - hSync/hBlanks
 // Counter 5 takes care of vSync/vBlanks
@@ -73,7 +77,7 @@ static __fi void _rcntSet(int cntidx)
 	const Counter& counter = counters[cntidx];
 
 	// Stopped or special hsync gate?
-	if (!rcntCanCount(cntidx) || (counter.mode.ClockSource == 0x3))
+	if (!counter.mode.IsCounting || (counter.mode.ClockSource == 0x3))
 		return;
 
 	if (!counter.mode.TargetInterrupt && !counter.mode.OverflowInterrupt)
@@ -106,12 +110,14 @@ static __fi void _rcntSet(int cntidx)
 	if (counter.target & EECNT_FUTURE_TARGET)
 		return;
 
-	c = ((counter.target - counter.count) * counter.rate) - (cpuRegs.cycle - counter.sCycleT);
-	c += cpuRegs.cycle - nextsCounter; // adjust for time passed since last rcntUpdate();
-	if (c < nextCounter)
 	{
-		nextCounter = c;
-		cpuSetNextEvent(nextsCounter, nextCounter); // Need to update on counter resets/target changes
+		c = ((counter.target - counter.count) * counter.rate) - (cpuRegs.cycle - counter.sCycleT);
+		c += cpuRegs.cycle - nextsCounter; // adjust for time passed since last rcntUpdate();
+		if (c < nextCounter)
+		{
+			nextCounter = c;
+			cpuSetNextEvent(nextsCounter, nextCounter); // Need to update on counter resets/target changes
+		}
 	}
 }
 
@@ -318,6 +324,7 @@ void UpdateVSyncRate(bool force)
 	if (vSyncInfo.Framerate != frames_per_second || vSyncInfo.VideoMode != gsVideoMode || force)
 	{
 		u32 total_scanlines = 0;
+		bool custom = false;
 
 		switch (gsVideoMode)
 		{
@@ -329,6 +336,7 @@ void UpdateVSyncRate(bool force)
 				break;
 			case GS_VideoMode::PAL:
 			case GS_VideoMode::DVD_PAL:
+				custom = (EmuConfig.GS.FrameratePAL != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_PAL);
 				if (gsIsInterlaced)
 					total_scanlines = SCANLINES_TOTAL_PAL_I;
 				else
@@ -336,6 +344,7 @@ void UpdateVSyncRate(bool force)
 				break;
 			case GS_VideoMode::NTSC:
 			case GS_VideoMode::DVD_NTSC:
+				custom = (EmuConfig.GS.FramerateNTSC != Pcsx2Config::GSOptions::DEFAULT_FRAME_RATE_NTSC);
 				if (gsIsInterlaced)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
@@ -357,6 +366,7 @@ void UpdateVSyncRate(bool force)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
+				Console.Error("PCSX2-Counters: Unknown video mode detected");
 		}
 
 		const bool video_mode_initialized = gsVideoMode != GS_VideoMode::Uninitialized;
@@ -488,9 +498,10 @@ static __fi void rcntStartGate(bool isVblank, u32 sCycle)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i <= 3; i++)
 	{
-		if (!isVblank && (counters[i].mode.ClockSource == 3) && rcntCanCount(i))
+		//if ((mode == 0) && ((counters[i].mode & 0x83) == 0x83))
+		if (!isVblank && counters[i].mode.IsCounting && (counters[i].mode.ClockSource == 3))
 		{
 			// Update counters using the hblank as the clock.  This keeps the hblank source
 			// nicely in sync with the counters and serves as an optimization also, since these
@@ -504,31 +515,33 @@ static __fi void rcntStartGate(bool isVblank, u32 sCycle)
 			_cpuTestTarget(i);
 		}
 
-		if (!counters[i].mode.EnableGate)
+		if (!(gates & (1 << i)))
 			continue;
-
 		if ((!!counters[i].mode.GateSource) != isVblank)
 			continue;
 
 		switch (counters[i].mode.GateMode)
 		{
-			case 0x0: //Count When Signal is low (V_RENDER_ONLY)
+			case 0x0: //Count When Signal is low (off)
 
 				// Just set the start cycle (sCycleT) -- counting will be done as needed
 				// for events (overflows, targets, mode changes, and the gate off below)
 
-				counters[i].count   = rcntRcount(i);
+				counters[i].count = rcntRcount(i);
+				counters[i].mode.IsCounting = 0;
 				counters[i].sCycleT = sCycle;
 				break;
 
-			case 0x2: // Reset on Vsync end
-				// This is the vsync start so do nothing.
+			case 0x2:	// reset and start counting on vsync end
+				// this is the vsync start so do nothing.
 				break;
 
-			case 0x1: //Reset on Vsync start
-			case 0x3: //Reset on Vsync start and end
+			case 0x1: //Reset and start counting on Vsync start
+			case 0x3: //Reset and start counting on Vsync start and end
+				counters[i].mode.IsCounting = 1;
 				counters[i].count = 0;
 				counters[i].target &= 0xffff;
+				counters[i].sCycleT = sCycle;
 				break;
 		}
 	}
@@ -560,7 +573,8 @@ static __fi void VSyncStart(u32 sCycle)
 	hwIntcIrq(INTC_VBLANK_S);
 	psxVBlankStart();
 
-	rcntStartGate(true, sCycle); // Counters Start Gate code
+	if (gates)
+		rcntStartGate(true, sCycle); // Counters Start Gate code
 
 	// INTC - VB Blank Start Hack --
 	// Hack fix!  This corrects a freezeup in Granda 2 where it decides to spin
@@ -586,7 +600,7 @@ static __fi void VSyncStart(u32 sCycle)
 	// Refraction
 }
 
-static __fi void GSVSync(void)
+static __fi void GSVSync()
 {
 	// CSR is swapped and GS vBlank IRQ is triggered roughly 3.5 hblanks after VSync Start
 
@@ -611,26 +625,32 @@ static __fi void rcntEndGate(bool isVblank, u32 sCycle)
 	for (i = 0; i <= 3; i++)
 	{
 		//Gates for counters
-		if (!counters[i].mode.EnableGate)
+		if (!(gates & (1 << i)))
 			continue;
-
 		if ((!!counters[i].mode.GateSource) != isVblank)
 			continue;
 
 		switch (counters[i].mode.GateMode)
 		{
-			case 0x0: //Count When Signal is low (V_RENDER_ONLY)
-				counters[i].sCycleT = sCycle;
+			case 0x0: //Count When Signal is low (off)
+
+				// Set the count here.  Since the timer is being turned off it's
+				// important to record its count at this point (it won't be counted by
+				// calls to rcntUpdate).
+				counters[i].mode.IsCounting = 1;
+				counters[i].sCycleT = cpuRegs.cycle;
 				break;
 
-			case 0x1: // Reset on Vsync start
-				  // This is the vsync end so do nothing
+			case 0x1: // Reset and start counting on Vsync start
+				  // this is the vsync end so do nothing
 				break;
 
-			case 0x2: //Reset on Vsync end
-			case 0x3: //Reset on Vsync start and end
+			case 0x2: //Reset and start counting on Vsync end
+			case 0x3: //Reset and start counting on Vsync start and end
+				counters[i].mode.IsCounting = 1;
 				counters[i].count = 0;
 				counters[i].target &= 0xffff;
+				counters[i].sCycleT = sCycle;
 				break;
 		}
 	}
@@ -642,26 +662,27 @@ static __fi void VSyncEnd(u32 sCycle)
 {
 	hwIntcIrq(INTC_VBLANK_E); // HW Irq
 	psxVBlankEnd(); // psxCounters vBlank End
-	rcntEndGate(true, sCycle); // Counters End Gate Code
+	if (gates)
+		rcntEndGate(true, sCycle); // Counters End Gate Code
 }
 
-__fi void rcntUpdate_hScanline(void)
+__fi void rcntUpdate_hScanline()
 {
 	if (!cpuTestCycle(hsyncCounter.sCycle, hsyncCounter.CycleT))
 		return;
 
 	if (hsyncCounter.Mode == MODE_HBLANK) // HBLANK Start
 	{
-		rcntStartGate(false, hsyncCounter.sCycle);
-		psxCheckStartGate16(0);
-
 		// Setup the hRender's start and end cycle information:
 		hsyncCounter.sCycle += vSyncInfo.hBlank; // start  (absolute cycle value)
 		hsyncCounter.CycleT = vSyncInfo.hRender; // endpoint (delta from start value)
 		hsyncCounter.Mode = MODE_HRENDER;
+
+		rcntStartGate(false, hsyncCounter.sCycle);
+		psxCheckStartGate16(0);
 	}
-	else //HBLANK END / HRENDER Begin
-	{ 
+	else
+	{ //HBLANK END / HRENDER Begin
 		if (!CSRreg.HSINT)
 		{
 			CSRreg.HSINT = true;
@@ -669,28 +690,30 @@ __fi void rcntUpdate_hScanline(void)
 				gsIrq();
 		}
 
-		rcntEndGate(false, hsyncCounter.sCycle + hsyncCounter.CycleT);
-		psxHBlankEnd();
-
 		// set up the hblank's start and end cycle information:
 		hsyncCounter.sCycle += vSyncInfo.hRender; // start (absolute cycle value)
 		hsyncCounter.CycleT = vSyncInfo.hBlank;	// endpoint (delta from start value)
 		hsyncCounter.Mode = MODE_HBLANK;
 
+		if (gates)
+			rcntEndGate(false, hsyncCounter.sCycle);
+		if (psxhblankgate)
+			psxCheckEndGate16(0);
 	}
 }
 
-__fi void rcntUpdate_vSync(void)
+__fi void rcntUpdate_vSync()
 {
 	if (!cpuTestCycle(vsyncCounter.sCycle, vsyncCounter.CycleT))
 		return;
 
 	if (vsyncCounter.Mode == MODE_VSYNC)
 	{
-		VSyncEnd(vsyncCounter.sCycle);
-
 		vsyncCounter.sCycle += vSyncInfo.Blank;
 		vsyncCounter.CycleT = vSyncInfo.Render;
+		vsyncCounter.Mode = MODE_VRENDER;
+
+		VSyncEnd(vsyncCounter.sCycle);
 	}
 	else if (vsyncCounter.Mode == MODE_GSBLANK) // GS CSR Swap and interrupt
 	{
@@ -700,30 +723,17 @@ __fi void rcntUpdate_vSync(void)
 		// Don't set the start cycle, makes it easier to calculate the correct Vsync End time
 		vsyncCounter.CycleT = vSyncInfo.Blank;
 	}
-	else	// VSYNC Start
+	else	// VSYNC end / VRENDER begin
 	{
-		VSyncStart(vsyncCounter.sCycle + vsyncCounter.CycleT);
-
 		vsyncCounter.sCycle += vSyncInfo.Render;
 		vsyncCounter.CycleT = vSyncInfo.GSBlank;
 		vsyncCounter.Mode = MODE_GSBLANK;
 
 		// Accumulate hsync rounding errors:
 		hsyncCounter.sCycle += vSyncInfo.hSyncError;
+
+		VSyncStart(vsyncCounter.sCycle);
 	}
-}
-
-__fi bool rcntCanCount(int i)
-{
-	if (!counters[i].mode.IsCounting)
-		return false;
-
-	if (!counters[i].mode.EnableGate)
-		return true;
-
-	// If we're in gate mode, we can only count if it's not both gated and counting on HBLANK or GateMode is not 0 (Count only when low) or the signal is low.
-	return ((counters[i].mode.GateSource == 0 && counters[i].mode.ClockSource != 3 && (hsyncCounter.Mode == MODE_HRENDER || counters[i].mode.GateMode != 0)) ||
-			(counters[i].mode.GateSource == 1 && (vsyncCounter.Mode == MODE_VRENDER || counters[i].mode.GateMode != 0)));
 }
 
 // forceinline note: this method is called from two locations, but one
@@ -739,7 +749,10 @@ __fi void rcntUpdate(void)
 
 	for (int i = 0; i <= 3; i++)
 	{
-		if (!rcntCanCount(i))
+		// We want to count gated counters (except the hblank which exclude below, and are
+		// counted by the hblank timer instead)
+
+		if (!counters[i].mode.IsCounting)
 			continue;
 
 		if (counters[i].mode.ClockSource != 0x3) // don't count hblank sources
@@ -760,9 +773,28 @@ __fi void rcntUpdate(void)
 	cpuRcntSet();
 }
 
+static __fi void _rcntSetGate(int index)
+{
+	if (counters[index].mode.EnableGate)
+	{
+		// If the Gate Source is hblank and the clock selection is also hblank
+		// then the gate is disabled and the counter acts as a normal hblank source.
+
+		if (!(counters[index].mode.GateSource == 0 && counters[index].mode.ClockSource == 3))
+		{
+			gates |= (1 << index);
+			// FIXME: Test required - should the counter be stopped here? I feel like it should only stop and reset on the gate signal happening.
+			counters[index].mode.IsCounting = 0;
+			return;
+		}
+	}
+
+	gates &= ~(1 << index);
+}
+
 static __fi void rcntWmode(int index, u32 value)
 {
-	if (rcntCanCount(index))
+	if (counters[index].mode.IsCounting)
 	{
 		if (counters[index].mode.ClockSource != 0x3)
 		{
@@ -789,13 +821,14 @@ static __fi void rcntWmode(int index, u32 value)
 		case 3: counters[index].rate = vSyncInfo.hBlank+vSyncInfo.hRender; break;
 	}
 
+	_rcntSetGate(index);
 	_rcntSet(index);
 }
 
 static __fi void rcntWcount(int index, u32 value)
 {
 	// re-calculate the start cycle of the counter based on elapsed time since the last counter update:
-	if (rcntCanCount(index))
+	if (counters[index].mode.IsCounting)
 	{
 		if (counters[index].mode.ClockSource != 0x3)
 		{
@@ -825,7 +858,7 @@ static __fi void rcntWtarget(int index, u32 value)
 	// If the target is behind the current count, set it up so that the counter must
 	// overflow first before the target fires:
 
-	if (rcntCanCount(index))
+	if (counters[index].mode.IsCounting)
 	{
 		if (counters[index].mode.ClockSource != 0x3)
 		{
@@ -846,7 +879,7 @@ static __fi void rcntWtarget(int index, u32 value)
 __fi u32 rcntRcount(int index)
 {
 	// only count if the counter is turned on (0x80) and is not an hsync gate (!0x03)
-	if (rcntCanCount(index) && (counters[index].mode.ClockSource != 0x3))
+	if (counters[index].mode.IsCounting && (counters[index].mode.ClockSource != 0x3))
 		return counters[index].count + ((cpuRegs.cycle - counters[index].sCycleT) / counters[index].rate);
 	return counters[index].count;
 }
@@ -959,6 +992,7 @@ bool SaveStateBase::rcntFreeze()
 	Freeze(vSyncInfo);
 	Freeze(gsVideoMode);
 	Freeze(gsIsInterlaced);
+	Freeze(gates);
 
 	if (IsLoading())
 		cpuRcntSet();
