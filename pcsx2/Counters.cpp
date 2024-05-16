@@ -783,8 +783,8 @@ static __fi void _rcntSetGate(int index)
 		if (!(counters[index].mode.GateSource == 0 && counters[index].mode.ClockSource == 3))
 		{
 			gates |= (1 << index);
+			// FIXME: Test required - should the counter be stopped here? I feel like it should only stop and reset on the gate signal happening.
 			counters[index].mode.IsCounting = 0;
-			rcntReset(index);
 			return;
 		}
 	}
