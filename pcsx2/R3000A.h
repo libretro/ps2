@@ -178,8 +178,8 @@ extern u32 EEoCycle;
 
 #endif
 
-extern s32 psxNextCounter;
-extern u32 psxNextsCounter;
+extern s32 psxNextDeltaCounter;
+extern u32 psxNextStartCounter;
 extern bool iopEventAction;
 
 // Branching status used when throwing exceptions.

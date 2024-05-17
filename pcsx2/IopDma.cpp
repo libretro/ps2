@@ -42,13 +42,13 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 	psxCounters[6].startCycle  = psxRegs.cycle;
 	psxCounters[6].deltaCycles = size * 4;
 
-	psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
-	psxNextsCounter = psxRegs.cycle;
-	if (psxCounters[6].deltaCycles < psxNextCounter)
-		psxNextCounter = psxCounters[6].deltaCycles;
+	psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+	psxNextStartCounter  = psxRegs.cycle;
+	if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+		psxNextDeltaCounter = psxCounters[6].deltaCycles;
 
-	if ((psxRegs.iopNextEventCycle - psxNextsCounter) > (u32)psxNextCounter)
-		psxRegs.iopNextEventCycle = psxNextsCounter + psxNextCounter;
+	if ((psxRegs.iopNextEventCycle - psxNextStartCounter) > (u32)psxNextDeltaCounter)
+		psxRegs.iopNextEventCycle = psxNextStartCounter + psxNextDeltaCounter;
 
 	switch (chcr)
 	{

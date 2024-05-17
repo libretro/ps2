@@ -228,10 +228,10 @@ void V_Core::FinishDMAwrite()
 		psxCounters[6].startCycle = psxRegs.cycle;
 		psxCounters[6].deltaCycles = DMAICounter;
 
-		psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
-		psxNextsCounter = psxRegs.cycle;
-		if (psxCounters[6].deltaCycles < psxNextCounter)
-			psxNextCounter = psxCounters[6].deltaCycles;
+		psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+		psxNextStartCounter = psxRegs.cycle;
+		if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+			psxNextDeltaCounter = psxCounters[6].deltaCycles;
 	}
 
 	ActiveTSA = TDA;
@@ -318,10 +318,10 @@ void V_Core::FinishDMAread()
 		psxCounters[6].startCycle = psxRegs.cycle;
 		psxCounters[6].deltaCycles = DMAICounter;
 
-		psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
-		psxNextsCounter = psxRegs.cycle;
-		if (psxCounters[6].deltaCycles < psxNextCounter)
-			psxNextCounter = psxCounters[6].deltaCycles;
+		psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+		psxNextStartCounter = psxRegs.cycle;
+		if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+			psxNextDeltaCounter = psxCounters[6].deltaCycles;
 	}
 
 	ActiveTSA = TDA;
@@ -349,10 +349,10 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 		psxCounters[6].startCycle  = psxRegs.cycle;
 		psxCounters[6].deltaCycles = DMAICounter;
 
-		psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
-		psxNextsCounter = psxRegs.cycle;
-		if (psxCounters[6].deltaCycles < psxNextCounter)
-			psxNextCounter = psxCounters[6].deltaCycles;
+		psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+		psxNextStartCounter = psxRegs.cycle;
+		if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+			psxNextDeltaCounter = psxCounters[6].deltaCycles;
 	}
 }
 

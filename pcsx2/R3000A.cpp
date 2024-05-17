@@ -197,7 +197,7 @@ __ri void iopEventTest(void)
 {
 	psxRegs.iopNextEventCycle = psxRegs.cycle + iopWaitCycles;
 
-	if (psxTestCycle(psxNextsCounter, psxNextCounter))
+	if (psxTestCycle(psxNextStartCounter, psxNextDeltaCounter))
 	{
 		psxRcntUpdate();
 		iopEventAction = true;
@@ -206,8 +206,8 @@ __ri void iopEventTest(void)
 	{
 		// start the next branch at the next counter event by default
 		// the interrupt code below will assign nearer branches if needed.
-		if (psxNextCounter < (psxRegs.iopNextEventCycle - psxNextsCounter))
-			psxRegs.iopNextEventCycle = psxNextsCounter + psxNextCounter;
+		if (psxNextDeltaCounter < (psxRegs.iopNextEventCycle - psxNextStartCounter))
+			psxRegs.iopNextEventCycle = psxNextStartCounter + psxNextDeltaCounter;
 	}
 
 	if (psxRegs.interrupt)

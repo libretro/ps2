@@ -352,10 +352,10 @@ __forceinline void TimeUpdate(u32 cClocks)
 				psxCounters[6].startCycle  = psxRegs.cycle;
 				psxCounters[6].deltaCycles = Cores[0].DMAICounter;
 
-				psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
-				psxNextsCounter = psxRegs.cycle;
-				if (psxCounters[6].deltaCycles < psxNextCounter)
-					psxNextCounter = psxCounters[6].deltaCycles;
+				psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+				psxNextStartCounter = psxRegs.cycle;
+				if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+					psxNextDeltaCounter = psxCounters[6].deltaCycles;
 			}
 		}
 	}
@@ -404,10 +404,10 @@ __forceinline void TimeUpdate(u32 cClocks)
 				psxCounters[6].startCycle  = psxRegs.cycle;
 				psxCounters[6].deltaCycles = Cores[1].DMAICounter;
 
-				psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
-				psxNextsCounter = psxRegs.cycle;
-				if (psxCounters[6].deltaCycles < psxNextCounter)
-					psxNextCounter = psxCounters[6].deltaCycles;
+				psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+				psxNextStartCounter = psxRegs.cycle;
+				if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+					psxNextDeltaCounter = psxCounters[6].deltaCycles;
 			}
 		}
 	}
