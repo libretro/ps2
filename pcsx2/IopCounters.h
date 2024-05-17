@@ -15,12 +15,13 @@
 
 #pragma once
 
-struct psxCounter {
+struct psxCounter
+{
 	u64 count, target;
-    u32 mode;
+	u32 mode;
 	u32 rate, interrupt;
-	u32 sCycleT;
-	s32 CycleT;
+	u32 startCycle;
+	s32 deltaCycles;
 };
 
 #define NUM_COUNTERS 8

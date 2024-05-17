@@ -358,7 +358,7 @@ __fi void _cpuEventTest_Shared(void)
 	// escape/suspend hooks, and it's really a good idea to suspend/resume emulation before
 	// doing any actual meaningful branchtest logic.
 
-	if (cpuTestCycle(nextsCounter, nextCounter))
+	if (cpuTestCycle(nextStartCounter, nextDeltaCounter))
 	{
 		rcntUpdate();
 		_cpuTestPERF();
@@ -430,8 +430,8 @@ __fi void _cpuEventTest_Shared(void)
 		cpuSetNextEvent(cpuRegs.cycle, ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
 	}
 
-	// Apply vsync and other counter nextCycles
-	cpuSetNextEvent(nextsCounter, nextCounter);
+	// Apply vsync and other counter nextDeltaCycles
+	cpuSetNextEvent(nextStartCounter, nextDeltaCounter);
 
 	eeEventTestIsActive = false;
 }

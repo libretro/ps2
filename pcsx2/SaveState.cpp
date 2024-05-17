@@ -132,8 +132,8 @@ bool SaveStateBase::FreezeInternals()
 		return false;
 	Freeze(EEsCycle);
 	Freeze(EEoCycle);
-	Freeze(nextCounter);
-	Freeze(nextsCounter);
+	Freeze(nextDeltaCounter);
+	Freeze(nextStartCounter);
 	Freeze(psxNextsCounter);
 	Freeze(psxNextCounter);
 

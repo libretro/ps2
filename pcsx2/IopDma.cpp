@@ -39,13 +39,13 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 
 	SPU2async();
 
-	psxCounters[6].sCycleT = psxRegs.cycle;
-	psxCounters[6].CycleT = size * 4;
+	psxCounters[6].startCycle  = psxRegs.cycle;
+	psxCounters[6].deltaCycles = size * 4;
 
 	psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
 	psxNextsCounter = psxRegs.cycle;
-	if (psxCounters[6].CycleT < psxNextCounter)
-		psxNextCounter = psxCounters[6].CycleT;
+	if (psxCounters[6].deltaCycles < psxNextCounter)
+		psxNextCounter = psxCounters[6].deltaCycles;
 
 	if ((psxRegs.iopNextEventCycle - psxNextsCounter) > (u32)psxNextCounter)
 		psxRegs.iopNextEventCycle = psxNextsCounter + psxNextCounter;

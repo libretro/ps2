@@ -223,15 +223,15 @@ void V_Core::FinishDMAwrite()
 
 	DMAICounter = (DMAICounter - ReadSize) * 4;
 
-	if (((psxCounters[6].sCycleT + psxCounters[6].CycleT) - psxRegs.cycle) > (u32)DMAICounter)
+	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)DMAICounter)
 	{
-		psxCounters[6].sCycleT = psxRegs.cycle;
-		psxCounters[6].CycleT = DMAICounter;
+		psxCounters[6].startCycle = psxRegs.cycle;
+		psxCounters[6].deltaCycles = DMAICounter;
 
 		psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
 		psxNextsCounter = psxRegs.cycle;
-		if (psxCounters[6].CycleT < psxNextCounter)
-			psxNextCounter = psxCounters[6].CycleT;
+		if (psxCounters[6].deltaCycles < psxNextCounter)
+			psxNextCounter = psxCounters[6].deltaCycles;
 	}
 
 	ActiveTSA = TDA;
@@ -313,15 +313,15 @@ void V_Core::FinishDMAread()
 	else
 		DMAICounter = 4;
 
-	if (((psxCounters[6].sCycleT + psxCounters[6].CycleT) - psxRegs.cycle) > (u32)DMAICounter)
+	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)DMAICounter)
 	{
-		psxCounters[6].sCycleT = psxRegs.cycle;
-		psxCounters[6].CycleT = DMAICounter;
+		psxCounters[6].startCycle = psxRegs.cycle;
+		psxCounters[6].deltaCycles = DMAICounter;
 
 		psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
 		psxNextsCounter = psxRegs.cycle;
-		if (psxCounters[6].CycleT < psxNextCounter)
-			psxNextCounter = psxCounters[6].CycleT;
+		if (psxCounters[6].deltaCycles < psxNextCounter)
+			psxNextCounter = psxCounters[6].deltaCycles;
 	}
 
 	ActiveTSA = TDA;
@@ -344,15 +344,15 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 	//Regs.ATTR |= 0x30;
 	TADR = MADR + (size << 1);
 
-	if (((psxCounters[6].sCycleT + psxCounters[6].CycleT) - psxRegs.cycle) > (u32)DMAICounter)
+	if (((psxCounters[6].startCycle + psxCounters[6].deltaCycles) - psxRegs.cycle) > (u32)DMAICounter)
 	{
-		psxCounters[6].sCycleT = psxRegs.cycle;
-		psxCounters[6].CycleT = DMAICounter;
+		psxCounters[6].startCycle  = psxRegs.cycle;
+		psxCounters[6].deltaCycles = DMAICounter;
 
 		psxNextCounter -= (psxRegs.cycle - psxNextsCounter);
 		psxNextsCounter = psxRegs.cycle;
-		if (psxCounters[6].CycleT < psxNextCounter)
-			psxNextCounter = psxCounters[6].CycleT;
+		if (psxCounters[6].deltaCycles < psxNextCounter)
+			psxNextCounter = psxCounters[6].deltaCycles;
 	}
 }
 
