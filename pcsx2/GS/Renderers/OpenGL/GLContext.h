@@ -17,9 +17,7 @@
 
 #include "common/Pcsx2Defs.h"
 
-#include <array>
 #include <memory>
-#include <vector>
 
 class GLContext
 {

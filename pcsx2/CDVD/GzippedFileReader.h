@@ -47,7 +47,7 @@ private:
 
 	Access* m_index = nullptr; // Quick access index
 
-	std::FILE* m_src = nullptr;
+	RFILE* m_src = nullptr;
 
 	zstate m_z_state = {};
 };

@@ -130,22 +130,22 @@ static int mg_BIToffset(u8* buffer)
 static void cdvdGetMechaVer(u8* ver)
 {
 	const char * mecfile = Path::ReplaceExtension(BiosPath, "mec").c_str();
-	std::unique_ptr<std::FILE, void (*)(std::FILE*)> fp = FileSystem::OpenManagedCFile(mecfile, "rb");
-	if (!fp || FileSystem::FSize64(fp.get()) < 4)
+	RFILE *fp = FileSystem::OpenRFile(mecfile, "rb");
+	if (!fp || FileSystem::RFSize64(fp) < 4)
 	{
 		u8 version[4] = {0x3, 0x6, 0x2, 0x0};
 		Console.Warning("MEC File Not Found, creating substitute...");
 
-		fp.reset();
-		fp = FileSystem::OpenManagedCFile(mecfile, "w+b");
+		fp = FileSystem::OpenRFile(mecfile, "w+b");
 		if (!fp)
 			return;
 
-		std::fwrite(version, sizeof(version), 1, fp.get());
-		FileSystem::FSeek64(fp.get(), 0, SEEK_SET);
+		rfwrite(version, sizeof(version), 1, fp);
+		FileSystem::RFSeek64(fp, 0, SEEK_SET);
 	}
 
-	std::fread(ver, 1, 4, fp.get());
+	rfread(ver, 1, 4, fp);
+	filestream_close(fp);
 }
 
 static NVMLayout* getNvmLayout(void)
@@ -155,10 +155,10 @@ static NVMLayout* getNvmLayout(void)
 	return &nvmlayouts[0];
 }
 
-static void cdvdCreateNewNVM(std::FILE* fp)
+static void cdvdCreateNewNVM(RFILE* fp)
 {
 	u8 zero[1024] = {};
-	std::fwrite(&zero[0], sizeof(zero), 1, fp);
+	rfwrite(&zero[0], sizeof(zero), 1, fp);
 
 	// Write NVM ILink area with dummy data (Age of Empires 2)
 	// Also write language data defaulting to English (Guitar Hero 2)
@@ -170,44 +170,44 @@ static void cdvdCreateNewNVM(std::FILE* fp)
 	{
 		u8 RegParams[12];
 		memcpy(&RegParams[0], &PStwoRegionDefaults[BiosRegion][0], 12);
-		std::fseek(fp, nvmLayout->regparams, SEEK_SET);
-		std::fwrite(&RegParams[0], sizeof(RegParams), 1, fp);
+		rfseek(fp, nvmLayout->regparams, SEEK_SET);
+		rfwrite(&RegParams[0], sizeof(RegParams), 1, fp);
 	}
 
 	const u8 ILinkID_Data[8] = {0x00, 0xAC, 0xFF, 0xFF, 0xFF, 0xFF, 0xB9, 0x86};
-	std::fseek(fp, nvmLayout->ilinkId, SEEK_SET);
-	std::fwrite(&ILinkID_Data[0], sizeof(ILinkID_Data), 1, fp);
+	rfseek(fp, nvmLayout->ilinkId, SEEK_SET);
+	rfwrite(&ILinkID_Data[0], sizeof(ILinkID_Data), 1, fp);
 	if (nvmlayouts[1].biosVer <= BiosVersion)
 	{
 		const u8 ILinkID_checksum[2] = {0x00, 0x18};
-		std::fseek(fp, nvmLayout->ilinkId + 0x08, SEEK_SET);
-		std::fwrite(&ILinkID_checksum[0], sizeof(ILinkID_checksum), 1, fp);
+		rfseek(fp, nvmLayout->ilinkId + 0x08, SEEK_SET);
+		rfwrite(&ILinkID_checksum[0], sizeof(ILinkID_checksum), 1, fp);
 	}
 
 	u8 biosLanguage[16];
 	memcpy(&biosLanguage[0], &biosLangDefaults[BiosRegion][0], 16);
 	// Config sections first 16 bytes are generally blank expect the last byte which is PS1 mode stuff
 	// So let's ignore that and just write the PS2 mode stuff
-	std::fseek(fp, nvmLayout->config1 + 0x10, SEEK_SET);
-	std::fwrite(&biosLanguage[0], sizeof(biosLanguage), 1, fp);
+	rfseek(fp, nvmLayout->config1 + 0x10, SEEK_SET);
+	rfwrite(&biosLanguage[0], sizeof(biosLanguage), 1, fp);
 }
 
 static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 {
 	const char *nvmfile = Path::ReplaceExtension(BiosPath, "nvm").c_str();
-	std::unique_ptr<std::FILE, void (*)(std::FILE*)> fp = FileSystem::OpenManagedCFile(nvmfile, "r+b");
-	if (!fp || FileSystem::FSize64(fp.get()) < 1024)
+	RFILE *fp = FileSystem::OpenRFile(nvmfile, "r+b");
+	if (!fp || FileSystem::RFSize64(fp) < 1024)
 	{
-		fp.reset();
-		fp = FileSystem::OpenManagedCFile(nvmfile, "w+b");
+		fp = FileSystem::OpenRFile(nvmfile, "w+b");
 		if (!fp)
 		{
 			if (read)
 				memset(buffer, 0, bytes);
+			filestream_close(fp);
 			return;
 		}
 
-		cdvdCreateNewNVM(fp.get());
+		cdvdCreateNewNVM(fp);
 	}
 	else
 	{
@@ -216,27 +216,29 @@ static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 		u8 RegParams[12]      = {0};
 		NVMLayout* nvmLayout  = getNvmLayout();
 
-		if (std::fseek(fp.get(), nvmLayout->config1 + 0x10, SEEK_SET) != 0 ||
-			std::fread(&LanguageParams[0], 16, 1, fp.get()) != 1 ||
-			std::memcmp(&LanguageParams[0], zero, sizeof(LanguageParams)) == 0 ||
-			(((BiosVersion >> 8) == 2) && ((BiosVersion & 0xff) != 10) &&
-				(std::fseek(fp.get(), nvmLayout->regparams, SEEK_SET) != 0 ||
-					std::fread(&RegParams[0], 12, 1, fp.get()) != 1 ||
+		if (
+			   rfseek(fp, nvmLayout->config1 + 0x10, SEEK_SET) != 0
+			|| rfread(&LanguageParams[0], 16, 1, fp) != 1
+			|| std::memcmp(&LanguageParams[0], zero, sizeof(LanguageParams)) == 0
+			|| (((BiosVersion >> 8) == 2) && ((BiosVersion & 0xff) != 10) &&
+				(rfseek(fp, nvmLayout->regparams, SEEK_SET) != 0 ||
+					rfread(&RegParams[0], 12, 1, fp) != 1 ||
 					std::memcmp(&RegParams[0], zero, sizeof(RegParams)) == 0)))
 		{
 			Console.Warning("Language or Region Parameters missing, filling in defaults");
 
-			FileSystem::FSeek64(fp.get(), 0, SEEK_SET);
-			cdvdCreateNewNVM(fp.get());
+			FileSystem::RFSeek64(fp, 0, SEEK_SET);
+			cdvdCreateNewNVM(fp);
 		}
 	}
 
-	std::fseek(fp.get(), offset, SEEK_SET);
+	rfseek(fp, offset, SEEK_SET);
 
 	if (read)
-		std::fread(buffer, 1, bytes, fp.get());
+		rfread(buffer, 1, bytes, fp);
 	else
-		std::fwrite(buffer, 1, bytes, fp.get());
+		rfwrite(buffer, 1, bytes, fp);
+	filestream_close(fp);
 }
 
 static void cdvdWriteNVM(const u8* src, int offset, int bytes)

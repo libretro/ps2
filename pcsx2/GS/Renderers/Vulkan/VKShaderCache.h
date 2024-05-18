@@ -15,9 +15,9 @@
 
 #pragma once
 #include "common/Pcsx2Defs.h"
+#include "common/FileSystem.h"
 #include "common/HashCombine.h"
 #include "VKLoader.h"
-#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>
@@ -112,8 +112,8 @@ class VKShaderCache
 		std::optional<SPIRVCodeVector> CompileAndAddShaderSPV(
 				const CacheIndexKey& key, std::string_view shader_code);
 
-		std::FILE* m_index_file = nullptr;
-		std::FILE* m_blob_file = nullptr;
+		RFILE* m_index_file = nullptr;
+		RFILE* m_blob_file = nullptr;
 		std::string m_pipeline_cache_filename;
 
 		CacheIndex m_index;

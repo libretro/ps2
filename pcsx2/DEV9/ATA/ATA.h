@@ -21,6 +21,7 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "common/FileSystem.h"
 #include "common/RedtapeWindows.h"
 #include "common/Path.h"
 
@@ -36,7 +37,7 @@ public:
 private:
 	const bool lba48Supported = false;
 
-	std::FILE* hddImage = nullptr;
+	RFILE* hddImage = nullptr;
 	u64 hddImageSize;
 
 	bool hddSparse = false;

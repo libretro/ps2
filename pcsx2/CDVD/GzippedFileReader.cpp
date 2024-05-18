@@ -36,53 +36,63 @@
 // - [rest] the indexed data points (should be allocated, index->list should then point to it)
 static Access* ReadIndexFromFile(const char* filename)
 {
-	auto fp = FileSystem::OpenManagedCFile(filename, "rb");
+	s64 size;
+	RFILE *fp = FileSystem::OpenRFile(filename, "rb");
 	if (!fp)
 		return nullptr;
 
-	s64 size;
-	if ((size = FileSystem::FSize64(fp.get())) <= 0)
+	if ((size = FileSystem::RFSize64(fp)) <= 0)
+	{
+		filestream_close(fp);
 		return nullptr;
+	}
 
 	char fileId[GZIP_ID_LEN + 1] = {0};
-	if (std::fread(fileId, GZIP_ID_LEN, 1, fp.get()) != 1 || std::memcmp(fileId, GZIP_ID, 4) != 0)
+	if (rfread(fileId, GZIP_ID_LEN, 1, fp) != 1 || std::memcmp(fileId, GZIP_ID, 4) != 0)
+	{
+		filestream_close(fp);
 		return nullptr;
+	}
 
 	Access* const index = static_cast<Access*>(std::malloc(sizeof(Access)));
 	const s64 datasize = size - GZIP_ID_LEN - sizeof(Access);
-	if (std::fread(index, sizeof(Access), 1, fp.get()) != 1 ||
+	if (rfread(index, sizeof(Access), 1, fp) != 1 ||
 		datasize != static_cast<s64>(index->have) * static_cast<s64>(sizeof(Point)))
 	{
+		filestream_close(fp);
 		std::free(index);
 		return 0;
 	}
 
 	char* buffer = static_cast<char*>(std::malloc(datasize));
-	if (std::fread(buffer, datasize, 1, fp.get()) != 1)
+	if (rfread(buffer, datasize, 1, fp) != 1)
 	{
+		filestream_close(fp);
 		std::free(buffer);
 		std::free(index);
 		return 0;
 	}
 
 	index->list = reinterpret_cast<Point*>(buffer); // adjust list pointer
+	filestream_close(fp);
 	return index;
 }
 
 static void WriteIndexToFile(Access* index, const char* filename)
 {
-	auto fp = FileSystem::OpenManagedCFile(filename, "wb");
+	RFILE *fp = FileSystem::OpenRFile(filename, "wb");
 	if (!fp)
 		return;
 
-	bool success = (std::fwrite(GZIP_ID, GZIP_ID_LEN, 1, fp.get()) == 1);
+	bool success = (rfwrite(GZIP_ID, GZIP_ID_LEN, 1, fp) == 1);
 
 	Point* tmp = index->list;
 	index->list = 0; // current pointer is useless on disk, normalize it as 0.
-	std::fwrite((char*)index, sizeof(Access), 1, fp.get());
+	rfwrite((char*)index, sizeof(Access), 1, fp);
 	index->list = tmp;
 
-	success = success && (std::fwrite((char*)index->list, sizeof(Point) * index->have, 1, fp.get()) == 1);
+	success = success && (rfwrite((char*)index->list, sizeof(Point) * index->have, 1, fp) == 1);
+	filestream_close(fp);
 }
 
 static const char* INDEX_TEMPLATE_KEY = "$(f)";
@@ -135,25 +145,21 @@ bool GzippedFileReader::LoadOrCreateIndex()
 {
 	// Try to read index from disk
 	const std::string indexfile(iso2indexname(m_filename));
+	// iso2indexname(...) will set errors if it can't apply the template
 	if (indexfile.empty())
-	{
-		// iso2indexname(...) will set errors if it can't apply the template
 		return false;
-	}
 
 	if ((m_index = ReadIndexFromFile(indexfile.c_str())) != nullptr)
-	{
 		return true;
-	}
 
 	// No valid index file. Generate an index
 	Console.Warning("This may take a while (but only once). Scanning compressed file to generate a quick access index...");
 
-	const s64 prevoffset = FileSystem::FTell64(m_src);
+	const s64 prevoffset = FileSystem::RFTell64(m_src);
 	Access* index = nullptr;
 	int len = build_index(m_src, GZFILE_SPAN_DEFAULT, &index);
 	printf("\n"); // build_index prints progress without \n's
-	FileSystem::FSeek64(m_src, prevoffset, SEEK_SET);
+	FileSystem::RFSeek64(m_src, prevoffset, SEEK_SET);
 
 	if (len >= 0)
 	{
@@ -174,7 +180,7 @@ bool GzippedFileReader::Open2(std::string filename)
 	Close();
 
 	m_filename = std::move(filename);
-	if (!(m_src = FileSystem::OpenCFile(m_filename.c_str(), "rb")) || !LoadOrCreateIndex())
+	if (!(m_src = FileSystem::OpenRFile(m_filename.c_str(), "rb")) || !LoadOrCreateIndex())
 	{
 		Close();
 		return false;
@@ -193,7 +199,7 @@ void GzippedFileReader::Close2()
 
 	if (m_src)
 	{
-		std::fclose(m_src);
+		filestream_close(m_src);
 		m_src = nullptr;
 	}
 

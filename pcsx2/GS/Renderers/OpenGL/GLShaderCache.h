@@ -15,9 +15,10 @@
 
 #pragma once
 #include "common/Pcsx2Defs.h"
+#include "common/FileSystem.h"
 #include "common/HashCombine.h"
+
 #include "GLProgram.h"
-#include <cstdio>
 #include <functional>
 #include <optional>
 #include <string>
@@ -97,8 +98,8 @@ class GLShaderCache
 		std::optional<GLProgram> CompileComputeProgram(const std::string_view& glsl, const PreLinkCallback& callback, bool set_retrievable);
 		std::optional<GLProgram> CompileAndAddComputeProgram(const CacheIndexKey& key, const std::string_view& glsl, const PreLinkCallback& callback);
 
-		std::FILE* m_index_file = nullptr;
-		std::FILE* m_blob_file = nullptr;
+		RFILE* m_index_file = nullptr;
+		RFILE* m_blob_file = nullptr;
 
 		CacheIndex m_index;
 		bool m_program_binary_supported = false;

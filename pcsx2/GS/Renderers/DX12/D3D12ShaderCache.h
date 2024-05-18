@@ -20,11 +20,12 @@
 #include "common/RedtapeWindows.h"
 #include "common/RedtapeWilCom.h"
 
-#include <cstdio>
 #include <d3d12.h>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+
+#include <streams/file_stream.h>
 
 class D3D12ShaderCache
 {
@@ -115,10 +116,10 @@ class D3D12ShaderCache
 		static CacheIndexKey GetPipelineCacheKey(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& gpdesc);
 		static CacheIndexKey GetPipelineCacheKey(const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc);
 
-		bool CreateNew(const std::string& index_filename, const std::string& blob_filename, std::FILE*& index_file,
-				std::FILE*& blob_file);
-		bool ReadExisting(const std::string& index_filename, const std::string& blob_filename, std::FILE*& index_file,
-				std::FILE*& blob_file, CacheIndex& index);
+		bool CreateNew(const std::string& index_filename, const std::string& blob_filename, RFILE*& index_file,
+				RFILE*& blob_file);
+		bool ReadExisting(const std::string& index_filename, const std::string& blob_filename, RFILE*& index_file,
+				RFILE*& blob_file, CacheIndex& index);
 		void InvalidatePipelineCache();
 
 		ComPtr<ID3DBlob> CompileAndAddShaderBlob(const CacheIndexKey& key, std::string_view shader_code,
@@ -129,12 +130,12 @@ class D3D12ShaderCache
 				const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc);
 		bool AddPipelineToBlob(const CacheIndexKey& key, ID3D12PipelineState* pso);
 
-		std::FILE* m_shader_index_file = nullptr;
-		std::FILE* m_shader_blob_file = nullptr;
+		RFILE* m_shader_index_file = nullptr;
+		RFILE* m_shader_blob_file = nullptr;
 		CacheIndex m_shader_index;
 
-		std::FILE* m_pipeline_index_file = nullptr;
-		std::FILE* m_pipeline_blob_file = nullptr;
+		RFILE* m_pipeline_index_file = nullptr;
+		RFILE* m_pipeline_blob_file = nullptr;
 		CacheIndex m_pipeline_index;
 
 		D3D_FEATURE_LEVEL m_feature_level = D3D_FEATURE_LEVEL_11_0;

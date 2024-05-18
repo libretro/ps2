@@ -16,11 +16,11 @@
 #pragma once
 #include "common/Pcsx2Defs.h"
 #include "GS/Renderers/DX11/D3D.h"
+#include "common/FileSystem.h"
 #include "common/HashCombine.h"
 #include "common/RedtapeWindows.h"
 #include "common/RedtapeWilCom.h"
 
-#include <cstdio>
 #include <d3d11.h>
 #include <string_view>
 #include <type_traits>
@@ -100,8 +100,8 @@ class D3D11ShaderCache
 		wil::com_ptr_nothrow<ID3DBlob> CompileAndAddShaderBlob(const CacheIndexKey& key, const std::string_view& shader_code,
 				const D3D_SHADER_MACRO* macros, const char* entry_point);
 
-		std::FILE* m_index_file = nullptr;
-		std::FILE* m_blob_file = nullptr;
+		RFILE* m_index_file = nullptr;
+		RFILE* m_blob_file = nullptr;
 
 		CacheIndex m_index;
 

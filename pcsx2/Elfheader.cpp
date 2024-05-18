@@ -89,17 +89,30 @@ bool ElfObject::OpenIsoFile(std::string srcfile, IsoFile& isofile, bool isPSXElf
 
 bool ElfObject::OpenFile(std::string srcfile, bool isPSXElf_)
 {
-	auto fp = FileSystem::OpenManagedCFile(srcfile.c_str(), "rb");
 	FILESYSTEM_STAT_DATA sd;
-	if (!fp || !FileSystem::StatFile(fp.get(), &sd))
+	RFILE *fp = FileSystem::OpenRFile(srcfile.c_str(), "rb");
+	if (!fp)
 		return false;
+	if (!FileSystem::StatFile(srcfile.c_str(), &sd))
+	{
+		filestream_close(fp);
+		return false;
+	}
 
 	if (!isPSXElf_ && !CheckElfSize(sd.Size))
+	{
+		filestream_close(fp);
 		return false;
+	}
 
 	data.resize(static_cast<size_t>(sd.Size));
-	if (std::fread(data.data(), data.size(), 1, fp.get()) != 1)
+	if (rfread(data.data(), data.size(), 1, fp) != 1)
+	{
+		filestream_close(fp);
 		return false;
+	}
+
+	filestream_close(fp);
 
 	filename = std::move(srcfile);
 	isPSXElf = isPSXElf_;

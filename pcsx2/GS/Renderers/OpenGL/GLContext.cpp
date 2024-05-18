@@ -19,19 +19,13 @@
 #include "GLContext.h"
 #include "glad.h"
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <optional>
-#include <vector>
 #ifdef __APPLE__
 #include <stdlib.h>
 #else
 #include <malloc.h>
 #endif
-
-#include "GS/Renderers/Common/GSDevice.h"
-#include "GS/GSVector.h"
 
 #include <libretro.h>
 extern retro_hw_render_callback hw_render;

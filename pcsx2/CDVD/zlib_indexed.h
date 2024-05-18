@@ -217,7 +217,7 @@ static inline struct access* addpoint(struct access* index, int bits,
    returns the number of access points on success (>= 1), Z_MEM_ERROR for out
    of memory, Z_DATA_ERROR for an error in the input file, or Z_ERRNO for a
    file read error.  On success, *built points to the resulting index. */
-static inline int build_index(FILE* in, s64 span, struct access** built)
+static inline int build_index(RFILE* in, s64 span, struct access** built)
 {
 	int ret;
 	s64 totin, totout, totPrinted; /* our own total counters to avoid 4GB limit */
@@ -246,8 +246,8 @@ static inline int build_index(FILE* in, s64 span, struct access** built)
 	do
 	{
 		/* get some compressed data from input file */
-		strm.avail_in = fread(input, 1, CHUNK, in);
-		if (ferror(in))
+		strm.avail_in = rfread(input, 1, CHUNK, in);
+		if (rferror(in))
 		{
 			ret = Z_ERRNO;
 			goto build_index_error;
@@ -352,7 +352,7 @@ static inline s64 getInOffset(zstate* state)
    should not return a data error unless the file was modified since the index
    was generated.  extract() may also return Z_ERRNO if there is an error on
    reading or seeking the input file. */
-static inline int extract(FILE* in, struct access* index, s64 offset,
+static inline int extract(RFILE* in, struct access* index, s64 offset,
 				  unsigned char* buf, int len, zstate* state)
 {
 	int ret, skip;
@@ -376,7 +376,7 @@ static inline int extract(FILE* in, struct access* index, s64 offset,
 	if (state->isValid)
 	{
 		state->isValid = 0; // we took control over strm. revalidate when/if we give it back
-		FileSystem::FSeek64(in, state->in_offset, SEEK_SET);
+		FileSystem::RFSeek64(in, state->in_offset, SEEK_SET);
 		state->strm.avail_in = 0;
 		offset = 0;
 		skip = 1;
@@ -398,15 +398,15 @@ static inline int extract(FILE* in, struct access* index, s64 offset,
 		ret = inflateInit2(&state->strm, -15); /* raw inflate */
 		if (ret != Z_OK)
 			return ret;
-		ret = FileSystem::FSeek64(in, here->in - (here->bits ? 1 : 0), SEEK_SET);
+		ret = FileSystem::RFSeek64(in, here->in - (here->bits ? 1 : 0), SEEK_SET);
 		if (ret == -1)
 			goto extract_ret;
 		if (here->bits)
 		{
-			ret = getc(in);
+			ret = rfgetc(in);
 			if (ret == -1)
 			{
-				ret = ferror(in) ? Z_ERRNO : Z_DATA_ERROR;
+				ret = rferror(in) ? Z_ERRNO : Z_DATA_ERROR;
 				goto extract_ret;
 			}
 			inflatePrime(&state->strm, here->bits, ret >> (8 - here->bits));
@@ -446,9 +446,9 @@ static inline int extract(FILE* in, struct access* index, s64 offset,
 		{
 			if (state->strm.avail_in == 0)
 			{
-				state->in_offset = FileSystem::FTell64(in);
-				state->strm.avail_in = fread(input, 1, CHUNK, in);
-				if (ferror(in))
+				state->in_offset = FileSystem::RFTell64(in);
+				state->strm.avail_in = rfread(input, 1, CHUNK, in);
+				if (rferror(in))
 				{
 					ret = Z_ERRNO;
 					goto extract_ret;

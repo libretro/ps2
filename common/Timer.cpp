@@ -16,7 +16,6 @@
 #include "PrecompiledHeader.h"
 
 #include "Timer.h"
-#include <cstdio>
 #include <cstdlib>
 
 #if defined(_WIN32)

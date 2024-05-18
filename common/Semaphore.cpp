@@ -20,8 +20,6 @@
 #endif
 
 #if defined(__APPLE__)
-
-#include <cstdio>
 #include <pthread.h> // pthread_setcancelstate()
 #include <sys/time.h> // gettimeofday()
 #include <mach/mach.h>

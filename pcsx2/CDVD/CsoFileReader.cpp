@@ -92,7 +92,7 @@ bool CsoFileReader::Open2(std::string fileName)
 {
 	Close2();
 	m_filename = std::move(fileName);
-	m_src = FileSystem::OpenCFile(m_filename.c_str(), "rb");
+	m_src = FileSystem::OpenRFile(m_filename.c_str(), "rb");
 
 	bool success = false;
 	if (m_src && ReadFileHeader() && InitializeBuffers())
@@ -112,7 +112,7 @@ bool CsoFileReader::ReadFileHeader()
 {
 	CsoHeader hdr = {};
 
-	if (FileSystem::FSeek64(m_src, m_dataoffset, SEEK_SET) != 0 || std::fread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
+	if (FileSystem::RFSeek64(m_src, m_dataoffset, SEEK_SET) != 0 || rfread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
 	{
 		Console.Error("Failed to read CSO file header.");
 		return false;
@@ -157,7 +157,7 @@ bool CsoFileReader::InitializeBuffers()
 
 	const u32 indexSize = numFrames + 1;
 	m_index = new u32[indexSize];
-	if (fread(m_index, sizeof(u32), indexSize, m_src) != indexSize)
+	if (rfread(m_index, sizeof(u32), indexSize, m_src) != indexSize)
 	{
 		Console.Error("Unable to read index data from CSO.");
 		return false;
@@ -186,7 +186,7 @@ void CsoFileReader::Close2()
 
 	if (m_src)
 	{
-		fclose(m_src);
+		rfclose(m_src);
 		m_src = NULL;
 	}
 	if (m_z_stream)
@@ -242,23 +242,23 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	if (!compressed)
 	{
 		// Just read directly, easy.
-		if (FileSystem::FSeek64(m_src, frameRawPos, SEEK_SET) != 0)
+		if (FileSystem::RFSeek64(m_src, frameRawPos, SEEK_SET) != 0)
 		{
 			Console.Error("Unable to seek to uncompressed CSO data.");
 			return 0;
 		}
-		return fread(dst, 1, m_frameSize, m_src);
+		return rfread(dst, 1, m_frameSize, m_src);
 	}
 	else
 	{
-		if (FileSystem::FSeek64(m_src, frameRawPos, SEEK_SET) != 0)
+		if (FileSystem::RFSeek64(m_src, frameRawPos, SEEK_SET) != 0)
 		{
 			Console.Error("Unable to seek to compressed CSO data.");
 			return 0;
 		}
 		// This might be less bytes than frameRawSize in case of padding on the last frame.
 		// This is because the index positions must be aligned.
-		const u32 readRawBytes = fread(m_readBuffer, 1, frameRawSize, m_src);
+		const u32 readRawBytes = rfread(m_readBuffer, 1, frameRawSize, m_src);
 		bool success = false;
 
 		if (m_uselz4)

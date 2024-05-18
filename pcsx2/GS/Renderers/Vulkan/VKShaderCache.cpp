@@ -289,7 +289,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 		FileSystem::DeleteFilePath(blob_filename.c_str());
 	}
 
-	m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "wb");
+	m_index_file = FileSystem::OpenRFile(index_filename.c_str(), "wb");
 	if (!m_index_file)
 	{
 		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
@@ -300,21 +300,21 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 	VK_PIPELINE_CACHE_HEADER header;
 	FillPipelineCacheHeader(&header);
 
-	if (std::fwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1 ||
-		std::fwrite(&header, sizeof(header), 1, m_index_file) != 1)
+	if (rfwrite(&file_version, sizeof(file_version), 1, m_index_file) != 1 ||
+		rfwrite(&header, sizeof(header), 1, m_index_file) != 1)
 	{
 		Console.Error("Failed to write header to index file '%s'", index_filename.c_str());
-		std::fclose(m_index_file);
+		rfclose(m_index_file);
 		m_index_file = nullptr;
 		FileSystem::DeleteFilePath(index_filename.c_str());
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenCFile(blob_filename.c_str(), "w+b");
+	m_blob_file = FileSystem::OpenRFile(blob_filename.c_str(), "w+b");
 	if (!m_blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
-		std::fclose(m_index_file);
+		rfclose(m_index_file);
 		m_index_file = nullptr;
 		FileSystem::DeleteFilePath(index_filename.c_str());
 		return false;
@@ -325,7 +325,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 
 bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, const std::string& blob_filename)
 {
-	m_index_file = FileSystem::OpenCFile(index_filename.c_str(), "r+b");
+	m_index_file = FileSystem::OpenRFile(index_filename.c_str(), "r+b");
 	if (!m_index_file)
 	{
 		// special case here: when there's a sharing violation (i.e. two instances running),
@@ -341,49 +341,49 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 
 	u32 file_version = 0;
 	u32 data_version = 0;
-	if (std::fread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
+	if (rfread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
-		std::fclose(m_index_file);
+		rfclose(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
 	VK_PIPELINE_CACHE_HEADER header;
-	if (std::fread(&header, sizeof(header), 1, m_index_file) != 1 || !ValidatePipelineCacheHeader(header))
+	if (rfread(&header, sizeof(header), 1, m_index_file) != 1 || !ValidatePipelineCacheHeader(header))
 	{
 		Console.Error("Mismatched pipeline cache header in '%s' (GPU/driver changed?)", index_filename.c_str());
-		std::fclose(m_index_file);
+		rfclose(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenCFile(blob_filename.c_str(), "a+b");
+	m_blob_file = FileSystem::OpenRFile(blob_filename.c_str(), "a+b");
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
-		std::fclose(m_index_file);
+		rfclose(m_index_file);
 		m_index_file = nullptr;
 		return false;
 	}
 
-	std::fseek(m_blob_file, 0, SEEK_END);
-	const u32 blob_file_size = static_cast<u32>(std::ftell(m_blob_file));
+	rfseek(m_blob_file, 0, SEEK_END);
+	const u32 blob_file_size = static_cast<u32>(rftell(m_blob_file));
 
 	for (;;)
 	{
 		CacheIndexEntry entry;
-		if (std::fread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+		if (rfread(&entry, sizeof(entry), 1, m_index_file) != 1 ||
 				(entry.file_offset + entry.blob_size) > blob_file_size)
 		{
-			if (std::feof(m_index_file))
+			if (filestream_eof(m_index_file))
 				break;
 
 			Console.Error("Failed to read entry from '%s', corrupt file?", index_filename.c_str());
 			m_index.clear();
-			std::fclose(m_blob_file);
+			rfclose(m_blob_file);
 			m_blob_file = nullptr;
-			std::fclose(m_index_file);
+			rfclose(m_index_file);
 			m_index_file = nullptr;
 			return false;
 		}
@@ -395,7 +395,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	}
 
 	// ensure we don't write before seeking
-	std::fseek(m_index_file, 0, SEEK_END);
+	rfseek(m_index_file, 0, SEEK_END);
 
 	Console.WriteLn("Read %zu entries from '%s'", m_index.size(), index_filename.c_str());
 	return true;
@@ -405,12 +405,12 @@ void VKShaderCache::CloseShaderCache()
 {
 	if (m_index_file)
 	{
-		std::fclose(m_index_file);
+		rfclose(m_index_file);
 		m_index_file = nullptr;
 	}
 	if (m_blob_file)
 	{
-		std::fclose(m_blob_file);
+		rfclose(m_blob_file);
 		m_blob_file = nullptr;
 	}
 }
@@ -553,8 +553,8 @@ std::optional<SPIRVCodeVector> VKShaderCache::GetShaderSPV(
 		return CompileAndAddShaderSPV(key, shader_code);
 
 	SPIRVCodeVector spv(iter->second.blob_size);
-	if (std::fseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
-			std::fread(spv.data(), sizeof(SPIRVCodeType), iter->second.blob_size, m_blob_file) !=
+	if (rfseek(m_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
+			rfread(spv.data(), sizeof(SPIRVCodeType), iter->second.blob_size, m_blob_file) !=
 			iter->second.blob_size)
 	{
 		Console.Error("Read blob from file failed, recompiling");
@@ -603,11 +603,11 @@ std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 	if (!spv.has_value())
 		return {};
 
-	if (!m_blob_file || std::fseek(m_blob_file, 0, SEEK_END) != 0)
+	if (!m_blob_file || rfseek(m_blob_file, 0, SEEK_END) != 0)
 		return spv;
 
 	CacheIndexData data;
-	data.file_offset = static_cast<u32>(std::ftell(m_blob_file));
+	data.file_offset = static_cast<u32>(rftell(m_blob_file));
 	data.blob_size = static_cast<u32>(spv->size());
 
 	CacheIndexEntry entry = {};
@@ -618,9 +618,9 @@ std::optional<SPIRVCodeVector> VKShaderCache::CompileAndAddShaderSPV(
 	entry.blob_size = data.blob_size;
 	entry.file_offset = data.file_offset;
 
-	if (std::fwrite(spv->data(), sizeof(SPIRVCodeType), entry.blob_size, m_blob_file) != entry.blob_size ||
-			std::fflush(m_blob_file) != 0 || std::fwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
-			std::fflush(m_index_file) != 0)
+	if (rfwrite(spv->data(), sizeof(SPIRVCodeType), entry.blob_size, m_blob_file) != entry.blob_size ||
+			filestream_flush(m_blob_file) != 0 || rfwrite(&entry, sizeof(entry), 1, m_index_file) != 1 ||
+			filestream_flush(m_index_file) != 0)
 	{
 		Console.Error("Failed to write shader blob to file");
 		return spv;

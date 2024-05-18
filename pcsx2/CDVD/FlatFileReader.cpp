@@ -6,22 +6,24 @@
 #include "common/FileSystem.h"
 
 #include <algorithm> /* std::min */
-#include <cerrno>
 #include <cstring>
 
 static constexpr size_t CHUNK_SIZE = 128 * 1024;
 
 FlatFileReader::FlatFileReader() = default;
 
-FlatFileReader::~FlatFileReader() { }
+FlatFileReader::~FlatFileReader()
+{
+	Close2();
+}
 
 bool FlatFileReader::Open2(std::string filename)
 {
 	m_filename = std::move(filename);
-	if (!(m_file = FileSystem::OpenCFile(m_filename.c_str(), "rb")))
+	if (!(m_file = FileSystem::OpenRFile(m_filename.c_str(), "rb")))
 		return false;
 
-	const s64 filesize = FileSystem::FSize64(m_file);
+	const s64 filesize = FileSystem::RFSize64(m_file);
 	if (filesize <= 0)
 	{
 		Close2();
@@ -53,12 +55,12 @@ int FlatFileReader::ReadChunk(void* dst, s64 blockID)
 		return -1;
 
 	const u64 file_offset = static_cast<u64>(blockID) * CHUNK_SIZE;
-	if (FileSystem::FSeek64(m_file, file_offset, SEEK_SET) != 0)
+	if (FileSystem::RFSeek64(m_file, file_offset, SEEK_SET) != 0)
 		return -1;
 
 	const u32 read_size = static_cast<u32>(std::min<u64>(m_file_size - file_offset, CHUNK_SIZE));
 
-	return (std::fread(dst, read_size, 1, m_file) == 1) ? static_cast<int>(read_size) : 0;
+	return (rfread(dst, read_size, 1, m_file) == 1) ? static_cast<int>(read_size) : 0;
 }
 
 void FlatFileReader::Close2()
@@ -66,7 +68,7 @@ void FlatFileReader::Close2()
 	if (!m_file)
 		return;
 
-	std::fclose(m_file);
+	filestream_close(m_file);
 	m_file = nullptr;
 	m_file_size = 0;
 }

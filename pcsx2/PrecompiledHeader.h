@@ -29,7 +29,6 @@
 #include <cinttypes>	// Printf format
 #include <climits>
 #include <cstring>		// string.h under c++
-#include <cstdio>		// stdio.h under c++
 #include <cstdlib>
 #include <cmath>
 #include <memory>

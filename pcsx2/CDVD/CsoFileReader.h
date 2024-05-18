@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/FileSystem.h"
+
 #include "ThreadedFileReader.h"
 #include <zlib.h>
 
@@ -60,6 +62,6 @@ private:
 	u32* m_index;
 	u64 m_totalSize;
 	// The actual source cso file handle.
-	FILE* m_src;
+	RFILE* m_src;
 	z_stream* m_z_stream;
 };

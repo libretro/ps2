@@ -15,7 +15,6 @@
 
 #pragma once
 #include "Pcsx2Defs.h"
-#include <cstdio>
 #include <ctime>
 #include <memory>
 #include <optional>
@@ -145,3 +144,14 @@ namespace FileSystem
 	/// Removes a directory.
 	bool DeleteDirectory(const char* path);
 }; // namespace FileSystem
+   
+int rferror(RFILE* stream);
+RFILE* rfopen(const char *path, const char *mode);
+int rfclose(RFILE* stream);
+int64_t rftell(RFILE* stream);
+int64_t rfseek(RFILE* stream, int64_t offset, int origin);
+int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int rfgetc(RFILE* stream);

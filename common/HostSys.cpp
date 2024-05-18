@@ -18,7 +18,6 @@
 #endif
 
 #if !defined(_WIN32)
-#include <cstdio>
 #include <sys/mman.h>
 #include <signal.h>
 #include <errno.h>

@@ -5,15 +5,15 @@
 
 #include "common/Pcsx2Defs.h"
 
-#include "CDVD/ThreadedFileReader.h"
+#include "common/FileSystem.h"
 
-#include <cstdio>
+#include "CDVD/ThreadedFileReader.h"
 
 class FlatFileReader final : public ThreadedFileReader
 {
 	DeclareNoncopyableObject(FlatFileReader);
 
-	std::FILE* m_file = nullptr;
+	RFILE* m_file = nullptr;
 	u64 m_file_size = 0;
 
 public:
