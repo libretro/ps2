@@ -65,7 +65,7 @@ void ThreadedFileReader::Loop()
 {
 	std::unique_lock<std::mutex> lock(m_mtx);
 
-	for (;;)
+	while (true)
 	{
 		while (!m_requestSize && !m_quit)
 			m_condition.wait(lock);
@@ -257,13 +257,13 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, co
 	return allDone;
 }
 
-bool ThreadedFileReader::Open(std::string fileName)
+bool ThreadedFileReader::Open(std::string filename)
 {
 	CancelAndWaitUntilStopped();
-	return Open2(std::move(fileName));
+	return Open2(std::move(filename));
 }
 
-int ThreadedFileReader::ReadSync(void* pBuffer, uint sector, uint count)
+int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
 {
 	u32 blocksize = InternalBlockSize();
 	u64 offset = (u64)sector * (u64)blocksize + m_dataoffset;
@@ -317,7 +317,7 @@ void ThreadedFileReader::CancelAndWaitUntilStopped(void)
 		m_condition.wait(lock);
 }
 
-void ThreadedFileReader::BeginRead(void* pBuffer, uint sector, uint count)
+void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
 {
 	s32 blocksize = InternalBlockSize();
 	u64 offset = (u64)sector * (u64)blocksize + m_dataoffset;
@@ -372,12 +372,12 @@ void ThreadedFileReader::Close(void)
 	Close2();
 }
 
-void ThreadedFileReader::SetBlockSize(uint bytes)
+void ThreadedFileReader::SetBlockSize(u32 bytes)
 {
 	m_blocksize = bytes;
 }
 
-void ThreadedFileReader::SetDataOffset(int bytes)
+void ThreadedFileReader::SetDataOffset(u32 bytes)
 {
 	m_dataoffset = bytes;
 }

@@ -13,9 +13,12 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* SPDX-FileCopyrightText: 2002-2024 PCSX2 Dev Team
+ * SPDX-License-Identifier: LGPL-3.0+ */
+
 #pragma once
 
-#include "AsyncFileReader.h"
+#include "common/Pcsx2Defs.h"
 
 #include <thread>
 #include <mutex>
@@ -24,10 +27,15 @@
 
 /// A file reader for use with compressed formats
 /// Calls decompression code on a separate thread to make a synchronous decompression API async
-class ThreadedFileReader : public AsyncFileReader
+class ThreadedFileReader
 {
 	ThreadedFileReader(ThreadedFileReader&&) = delete;
 protected:
+	std::string m_filename;
+
+	u32 m_dataoffset = 0;
+	u32 m_blocksize = 2048;
+
 	struct Chunk
 	{
 		/// Negative block IDs indicate invalid blocks
@@ -46,12 +54,11 @@ protected:
 	/// Synchronously read the given block into `dst`
 	virtual int ReadChunk(void* dst, s64 chunkID) = 0;
 	/// AsyncFileReader open but ThreadedFileReader needs prep work first
-	virtual bool Open2(std::string fileName) = 0;
+	virtual bool Open2(std::string filename) = 0;
 	/// AsyncFileReader close but ThreadedFileReader needs prep work first
-	virtual void Close2(void) = 0;
+	virtual void Close2() = 0;
 
 	ThreadedFileReader();
-	~ThreadedFileReader();
 
 private:
 	int m_amtRead;
@@ -108,12 +115,19 @@ private:
 	bool TryCachedRead(void*& buffer, u64& offset, u32& size, const std::lock_guard<std::mutex>&);
 
 public:
-	bool Open(std::string fileName) final override;
-	int ReadSync(void* pBuffer, uint sector, uint count) final override;
-	void BeginRead(void* pBuffer, uint sector, uint count) final override;
-	int FinishRead(void) final override;
-	void CancelRead(void) final override;
-	void Close(void) final override;
-	void SetBlockSize(uint bytes) final override;
-	void SetDataOffset(int bytes) final override;
+	virtual ~ThreadedFileReader();
+
+	const std::string& GetFilename() const { return m_filename; }
+	u32 GetBlockSize() const { return m_blocksize; }
+
+	virtual u32 GetBlockCount() const = 0;
+
+	bool Open(std::string filename);
+	int ReadSync(void* pBuffer, u32 sector, u32 count);
+	void BeginRead(void* pBuffer, u32 sector, u32 count);
+	int FinishRead();
+	void CancelRead();
+	void Close();
+	void SetBlockSize(u32 bytes);
+	void SetDataOffset(u32 bytes);
 };

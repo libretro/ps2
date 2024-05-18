@@ -680,16 +680,10 @@
     <ClCompile Include="Gif_Unit.cpp">
       <Filter>System\Ps2\GS\GIF</Filter>
     </ClCompile>
-    <ClCompile Include="windows\FlatFileReaderWindows.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
-    <ClCompile Include="Darwin\DarwinFlatFileReader.cpp">
+    <ClCompile Include="CDVD\FlatFileReader.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\InputIsoFile.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\OutputIsoFile.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="DebugTools\SymbolMap.cpp">
@@ -710,9 +704,6 @@
     <ClCompile Include="sif2.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
     </ClCompile>
-    <ClCompile Include="CDVD\CompressedFileReader.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
     <ClCompile Include="DebugTools\MipsAssemblerTables.cpp">
       <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
@@ -732,9 +723,6 @@
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\GzippedFileReader.cpp">
-      <Filter>System\ISO</Filter>
-    </ClCompile>
-    <ClCompile Include="CDVD\ChunksCache.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>
     <ClCompile Include="IopGte.cpp">
@@ -1243,6 +1231,9 @@
     <ClInclude Include="CDVD\IsoFileFormats.h">
       <Filter>System\ISO</Filter>
     </ClInclude>
+    <ClCompile Include="CDVD\FlatFileReader.h">
+      <Filter>System\ISO</Filter>
+    </ClCompile>
     <ClInclude Include="Common.h">
       <Filter>System\Include</Filter>
     </ClInclude>
@@ -1471,9 +1462,6 @@
     <ClInclude Include="Gif_Unit.h">
       <Filter>System\Ps2\GS\GIF</Filter>
     </ClInclude>
-    <ClInclude Include="AsyncFileReader.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
     <ClInclude Include="DebugTools\SymbolMap.h">
       <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
@@ -1513,16 +1501,7 @@
     <ClInclude Include="CDVD\CsoFileReader.h">
       <Filter>System\ISO</Filter>
     </ClInclude>
-    <ClInclude Include="CDVD\CompressedFileReader.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
     <ClInclude Include="CDVD\GzippedFileReader.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
-    <ClInclude Include="CDVD\ChunksCache.h">
-      <Filter>System\ISO</Filter>
-    </ClInclude>
-    <ClInclude Include="CDVD\CompressedFileReaderUtils.h">
       <Filter>System\ISO</Filter>
     </ClInclude>
     <ClInclude Include="IopGte.h">

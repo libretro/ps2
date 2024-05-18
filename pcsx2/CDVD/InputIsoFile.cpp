@@ -17,9 +17,31 @@
 #include "PrecompiledHeader.h"
 
 #include "common/Console.h"
+#include "common/Path.h"
+#include "common/StringUtil.h"
 
+#include "ChdFileReader.h"
+#include "CsoFileReader.h"
+#include "FlatFileReader.h"
+#include "GzippedFileReader.h"
 #include "IsoFileFormats.h"
 #include "Config.h"
+
+static std::unique_ptr<ThreadedFileReader> GetFileReader(const std::string& path)
+{
+	const std::string_view extension = Path::GetExtension(path);
+
+	if (StringUtil::compareNoCase(extension, "chd"))
+		return std::make_unique<ChdFileReader>();
+
+	if (StringUtil::compareNoCase(extension, "cso") || StringUtil::compareNoCase(extension, "zso"))
+		return std::make_unique<CsoFileReader>();
+
+	if (StringUtil::compareNoCase(extension, "gz"))
+		return std::make_unique<GzippedFileReader>();
+
+	return std::make_unique<FlatFileReader>();
+}
 
 int InputIsoFile::ReadSync(u8* dst, uint lsn)
 {
@@ -44,17 +66,13 @@ void InputIsoFile::BeginRead2(uint lsn)
 		return;
 	}
 
-	// Already buffered
-	if (lsn >= m_read_lsn && lsn < (m_read_lsn + m_read_count))
+	// same sector?
+	if (lsn == m_read_lsn)
 		return;
 
 	m_read_lsn = lsn;
-	m_read_count = 1;
 
-	if (ReadUnit > 1)
-		m_read_count = std::min(ReadUnit, m_blocks - m_read_lsn);
-
-	m_reader->BeginRead(m_readbuffer, m_read_lsn, m_read_count);
+	m_reader->BeginRead(m_readbuffer, m_read_lsn, 1);
 	m_read_inprogress = true;
 }
 
@@ -75,7 +93,6 @@ int InputIsoFile::FinishRead3(u8* dst, uint mode)
 		if (ret < 0)
 		{
 			m_read_lsn = -1;
-			m_read_count = 0;
 			return -1;
 		}
 	}
@@ -122,8 +139,7 @@ int InputIsoFile::FinishRead3(u8* dst, uint mode)
 
 	length = end - _offset;
 
-	uint read_offset = (m_current_lsn - m_read_lsn) * m_blocksize;
-	memcpy(dst + diff, m_readbuffer + ndiff + read_offset, length);
+	memcpy(dst + diff, m_readbuffer + ndiff, length);
 
 	if (m_type == ISOTYPE_CD && diff >= 12)
 	{
@@ -155,11 +171,10 @@ void InputIsoFile::_init()
 	m_blocks = 0;
 
 	m_read_inprogress = false;
-	m_read_count = 0;
-	ReadUnit = 0;
 	m_current_lsn = -1;
 	m_read_lsn = -1;
-	m_reader = NULL;
+
+	m_reader.reset();
 }
 
 bool InputIsoFile::Open(std::string srcfile)
@@ -167,34 +182,15 @@ bool InputIsoFile::Open(std::string srcfile)
 	Close();
 	m_filename = std::move(srcfile);
 
-	bool isCompressed = false;
-
-	// First try using a compressed reader.  If it works, go with it.
-	m_reader = CompressedFileReader::GetNewReader(m_filename);
-	isCompressed = m_reader != NULL;
-
-	// If it wasn't compressed, let's open it has a FlatFileReader.
-	if (!isCompressed)
-		m_reader = new FlatFileReader();
-
+	m_reader = GetFileReader(m_filename);
 	if (!m_reader->Open(m_filename))
 		return false;
 
-	bool detected = Detect();
-
-	if (!detected)
+	if (!Detect())
 	{
 		Console.Error("Unable to identify the ISO image type for %s", m_filename.c_str());
 		Close();
 		return false;
-	}
-
-	if (!isCompressed)
-	{
-		ReadUnit = MaxReadUnit;
-
-		m_reader->SetDataOffset(m_offset);
-		m_reader->SetBlockSize(m_blocksize);
 	}
 
 	m_blocks = m_reader->GetBlockCount();
@@ -204,8 +200,11 @@ bool InputIsoFile::Open(std::string srcfile)
 
 void InputIsoFile::Close()
 {
-	delete m_reader;
-	m_reader = NULL;
+	if (m_reader)
+	{
+		m_reader->Close();
+		m_reader.reset();
+	}
 
 	_init();
 }
@@ -241,13 +240,11 @@ bool InputIsoFile::Detect(void)
 {
 	m_type = ISOTYPE_ILLEGAL;
 
-	AsyncFileReader* headpart = m_reader;
-
 	// First sanity check: no sane CD image has less than 16 sectors, since that's what
 	// we need simply to contain a TOC.  So if the file size is not large enough to
 	// accommodate that, it is NOT a CD image --->
 
-	int sectors = headpart->GetBlockCount();
+	int sectors = m_reader->GetBlockCount();
 
 	if (sectors < 17)
 		return false;

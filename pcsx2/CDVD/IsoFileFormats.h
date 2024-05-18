@@ -16,8 +16,7 @@
 #pragma once
 
 #include "CDVD.h"
-#include "AsyncFileReader.h"
-#include "CompressedFileReader.h"
+#include "ThreadedFileReader.h"
 #include <memory>
 #include <string>
 
@@ -39,14 +38,9 @@ class InputIsoFile
 {
 	DeclareNoncopyableObject(InputIsoFile);
 
-	static const uint MaxReadUnit = 128;
-
-protected:
-	uint ReadUnit;
-
 protected:
 	std::string m_filename;
-	AsyncFileReader* m_reader;
+	std::unique_ptr<ThreadedFileReader> m_reader;
 
 	u32 m_current_lsn;
 
@@ -62,8 +56,7 @@ protected:
 
 	bool m_read_inprogress;
 	uint m_read_lsn;
-	uint m_read_count;
-	u8 m_readbuffer[MaxReadUnit * CD_FRAMESIZE_RAW];
+	u8 m_readbuffer[CD_FRAMESIZE_RAW];
 
 public:
 	InputIsoFile();

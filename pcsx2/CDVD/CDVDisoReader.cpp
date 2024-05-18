@@ -28,7 +28,6 @@
 #include "common/Console.h"
 
 #include "IsoFileFormats.h"
-#include "AsyncFileReader.h"
 #include "CDVD.h"
 
 static InputIsoFile iso;

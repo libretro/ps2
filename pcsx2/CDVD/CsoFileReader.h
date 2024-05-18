@@ -15,17 +15,7 @@
 
 #pragma once
 
-// Based on testing, the overhead of using this cache is high.
-//
-// The test was done with CSO files using a block size of 16KB.
-// Cache hit rates were observed in the range of 25%.
-// Cache overhead added 35% to the overall read time.
-//
-// For this reason, it's currently disabled.
-#define CSO_USE_CHUNKSCACHE 0
-
 #include "ThreadedFileReader.h"
-#include "ChunksCache.h"
 #include <zlib.h>
 
 struct CsoHeader;
@@ -38,20 +28,8 @@ class CsoFileReader : public ThreadedFileReader
 	DeclareNoncopyableObject(CsoFileReader);
 
 public:
-	CsoFileReader(void)
-		: m_frameSize(0)
-		, m_frameShift(0)
-		, m_indexShift(0)
-		, m_readBuffer(0)
-		, m_index(0)
-		, m_totalSize(0)
-		, m_src(0)
-		, m_z_stream(0)
-	{
-		m_blocksize = 2048;
-	};
-
-	~CsoFileReader(void) { Close(); };
+	CsoFileReader();
+	~CsoFileReader() override;
 
 	static bool CanHandle(const std::string& fileName, const std::string& displayName);
 	bool Open2(std::string fileName) override;

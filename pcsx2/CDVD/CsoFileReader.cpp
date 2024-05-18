@@ -23,7 +23,6 @@
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
-#include "AsyncFileReader.h"
 #include "CsoFileReader.h"
 
 // Implementation of CSO compressed ISO reading, based on:
@@ -40,6 +39,10 @@ struct CsoHeader
 };
 
 static const u32 CSO_READ_BUFFER_SIZE = 256 * 1024;
+
+CsoFileReader::CsoFileReader() = default;
+
+CsoFileReader::~CsoFileReader() { }
 
 bool CsoFileReader::CanHandle(const std::string& fileName, const std::string& displayName)
 {

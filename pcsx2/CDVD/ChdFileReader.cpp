@@ -30,18 +30,10 @@
 #pragma clang diagnostic pop
 #endif
 
-ChdFileReader::ChdFileReader()
-{
-	m_blocksize = 2048;
-	ChdFile = nullptr;
-}
+ChdFileReader::ChdFileReader() = default;
 
 ChdFileReader::~ChdFileReader()
 {
-	Close();
-
-	for (std::FILE* fp : m_files)
-		std::fclose(fp);
 }
 
 bool ChdFileReader::CanHandle(const std::string& fileName, const std::string& displayName)

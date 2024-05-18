@@ -136,7 +136,6 @@ set(pcsx2Sources
 
 # Main pcsx2 header
 set(pcsx2Headers
-	AsyncFileReader.h
 	Cache.h
 	Common.h
 	Config.h
@@ -190,9 +189,8 @@ set(pcsx2CDVDSources
 	CDVD/CDVDcommon.cpp
 	CDVD/CDVD.cpp
 	CDVD/CDVDisoReader.cpp
+	CDVD/FlatFileReader.cpp
 	CDVD/InputIsoFile.cpp
-	CDVD/ChunksCache.cpp
-	CDVD/CompressedFileReader.cpp
 	CDVD/ChdFileReader.cpp
 	CDVD/CsoFileReader.cpp
 	CDVD/GzippedFileReader.cpp
@@ -208,10 +206,9 @@ set(pcsx2CDVDHeaders
 	CDVD/CDVDcommon.h
 	CDVD/CDVD.h
 	CDVD/CDVD_internal.h
-	CDVD/ChunksCache.h
-	CDVD/CompressedFileReader.h
 	CDVD/ChdFileReader.h
 	CDVD/CsoFileReader.h
+	CDVD/FlatFileReader.h
 	CDVD/GzippedFileReader.h
 	CDVD/ThreadedFileReader.h
 	CDVD/IsoFileFormats.h
@@ -693,15 +690,12 @@ list(APPEND pcsx2FrontendHeaders
 
 # Linux sources
 set(pcsx2LinuxSources
-	Linux/LnxFlatFileReader.cpp
 	)
 
 set(pcsx2OSXSources
-	Darwin/DarwinFlatFileReader.cpp
 	)
 
 set(pcsx2FreeBSDSources
-	Darwin/DarwinFlatFileReader.cpp
 	)
 
 # Linux headers
@@ -725,7 +719,6 @@ set(pcsx2ps2Headers
 
 # Windows sources
 set(pcsx2WindowsSources
-	windows/FlatFileReaderWindows.cpp
 	windows/Optimus.cpp
 )
 
