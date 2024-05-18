@@ -150,7 +150,6 @@ static void cdvdGetMechaVer(u8* ver)
 
 static NVMLayout* getNvmLayout(void)
 {
-	NVMLayout* nvmLayout = NULL;
 	if (nvmlayouts[1].biosVer <= BiosVersion)
 		return &nvmlayouts[1];
 	return &nvmlayouts[0];
@@ -1300,6 +1299,7 @@ void cdvdUpdateTrayState(void)
 					break;
 				case CDVD_DISC_SEEKING:
 					cdvd.Spinning = true;
+					/* fallthrough */
 				case CDVD_DISC_ENGAGED:
 					cdvd.Tray.trayState = CDVD_DISC_ENGAGED;
 					cdvdUpdateReady(CDVD_DRIVE_READY);

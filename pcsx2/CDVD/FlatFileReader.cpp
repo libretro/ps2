@@ -3,7 +3,6 @@
 
 #include "FlatFileReader.h"
 
-#include "common/Console.h"
 #include "common/FileSystem.h"
 
 #include <algorithm> /* std::min */
@@ -14,9 +13,7 @@ static constexpr size_t CHUNK_SIZE = 128 * 1024;
 
 FlatFileReader::FlatFileReader() = default;
 
-FlatFileReader::~FlatFileReader()
-{
-}
+FlatFileReader::~FlatFileReader() { }
 
 bool FlatFileReader::Open2(std::string filename)
 {
@@ -39,9 +36,7 @@ ThreadedFileReader::Chunk FlatFileReader::ChunkForOffset(u64 offset)
 {
 	ThreadedFileReader::Chunk chunk = {};
 	if (offset >= m_file_size)
-	{
 		chunk.chunkID = -1;
-	}
 	else
 	{
 		chunk.chunkID = offset / CHUNK_SIZE;

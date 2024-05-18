@@ -23,6 +23,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <string>
 #include <condition_variable>
 
 /// A file reader for use with compressed formats
