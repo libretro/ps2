@@ -102,7 +102,7 @@ void SPU2::InitSndBuffer()
 
 void SPU2::UpdateSampleRate()
 {
-	const int new_sample_rate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate())));
+	const int new_sample_rate = GetConsoleSampleRate();
 	if (SampleRate == new_sample_rate)
 		return;
 
@@ -143,7 +143,7 @@ void SPU2::Open()
 
 	InternalReset(false);
 
-	SampleRate = static_cast<int>(std::round(static_cast<double>(GetConsoleSampleRate())));
+	SampleRate = GetConsoleSampleRate();
 	InitSndBuffer();
 }
 
