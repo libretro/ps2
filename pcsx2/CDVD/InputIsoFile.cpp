@@ -73,7 +73,11 @@ int InputIsoFile::FinishRead3(u8* dst, uint mode)
 		m_read_inprogress = false;
 
 		if (ret < 0)
-			return ret;
+		{
+			m_read_lsn = -1;
+			m_read_count = 0;
+			return -1;
+		}
 	}
 
 	int _offset = 0;
