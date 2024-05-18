@@ -37,15 +37,8 @@ namespace Path
 	/// Returns true if the specified path is an absolute path (C:\Path on Windows or /path on Unix).
 	bool IsAbsolute(const std::string_view& path);
 
-	/// Makes the specified path relative to another (e.g. /a/b/c, /a/b -> ../c).
-	/// Both paths must be relative, otherwise this function will just return the input path.
-	std::string MakeRelative(const std::string_view& path, const std::string_view& relative_to);
-
 	/// Returns a view of the extension of a filename.
 	std::string_view GetExtension(const std::string_view& path);
-
-	/// Removes the extension of a filename.
-	std::string_view StripExtension(const std::string_view& path);
 
 	/// Replaces the extension of a filename with another.
 	std::string ReplaceExtension(const std::string_view& path, const std::string_view& new_extension);
@@ -66,7 +59,6 @@ namespace Path
 
 	/// Splits a path into its components, handling both Windows and Unix separators.
 	std::vector<std::string_view> SplitWindowsPath(const std::string_view& path);
-	std::string JoinWindowsPath(const std::vector<std::string_view>& components);
 
 	/// Splits a path into its components, only handling native separators.
 	std::vector<std::string_view> SplitNativePath(const std::string_view& path);

@@ -23,6 +23,8 @@
 #include <vector>
 #include <sys/stat.h>
 
+#include <streams/file_stream.h>
+
 #ifndef stat64
 #define stat64 stat
 #endif
@@ -76,9 +78,6 @@ namespace FileSystem
 {
 	using FindResultsArray = std::vector<FILESYSTEM_FIND_DATA>;
 
-	/// Returns the display name of a filename. Usually this is the same as the path.
-	std::string GetDisplayNameFromPath(const std::string_view& path);
-
 	/// Search for files
 	bool FindFiles(const char* path, const char* pattern, u32 flags, FindResultsArray* results);
 
@@ -95,9 +94,6 @@ namespace FileSystem
 	/// Directory exists?
 	bool DirectoryExists(const char* path);
 
-	/// Directory does not contain any files?
-	bool DirectoryIsEmpty(const char* path);
-
 	/// Delete file
 	bool DeleteFilePath(const char* path);
 
@@ -107,10 +103,16 @@ namespace FileSystem
 	/// open files
 	using ManagedCFilePtr = std::unique_ptr<std::FILE, void (*)(std::FILE*)>;
 	ManagedCFilePtr OpenManagedCFile(const char* filename, const char* mode);
+
 	std::FILE* OpenCFile(const char* filename, const char* mode);
 	int FSeek64(std::FILE* fp, s64 offset, int whence);
 	s64 FTell64(std::FILE* fp);
 	s64 FSize64(std::FILE* fp);
+
+	RFILE *OpenRFile(const char* filename, const char* mode);
+	int RFSeek64(RFILE* fp, s64 offset, int whence);
+	s64 RFTell64(RFILE* fp);
+	s64 RFSize64(RFILE* fp);
 
 	int OpenFDFile(const char* filename, int flags, int mode);
 
@@ -142,9 +144,4 @@ namespace FileSystem
 
 	/// Removes a directory.
 	bool DeleteDirectory(const char* path);
-
-	/// Enables/disables NTFS compression on a file or directory.
-	/// Does not apply the compression flag recursively if called for a directory.
-	/// Does nothing and returns false on non-Windows platforms.
-	bool SetPathCompression(const char* path, bool enable);
 }; // namespace FileSystem
