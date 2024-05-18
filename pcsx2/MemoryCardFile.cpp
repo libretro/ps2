@@ -83,68 +83,107 @@ static u32 CalculateECC(u8* buf)
 	return column_parity | (line_parity_0 << 8) | (line_parity_1 << 16);
 }
 
+static int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream)
+{
+   if (!stream || (elem_size == 0) || (elem_count == 0))
+      return 0;
+
+   return (filestream_read(stream, buffer, elem_size * elem_count) / elem_size);
+}
+
+static int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream)
+{
+   if (!stream || (elem_size == 0) || (elem_count == 0))
+      return 0;
+
+   return (filestream_write(stream, buffer, elem_size * elem_count) / elem_size);
+}
+
 static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 {
-	auto fin = FileSystem::OpenManagedCFile(file_in, "rb");
+	u8 buffer[512];
+	RFILE *fin = FileSystem::OpenRFile(file_in, "rb");
 	if (!fin)
 		return false;
 
-	auto fout = FileSystem::OpenManagedCFile(file_out, "wb");
+	RFILE *fout = FileSystem::OpenRFile(file_out, "wb");
 	if (!fout)
+	{
+		filestream_close(fin);
 		return false;
+	}
 
-	const s64 size = FileSystem::FSize64(fin.get());
-	u8 buffer[512];
+	const s64 size = FileSystem::RFSize64(fin);
 
 	for (s64 i = 0; i < (size / 512); i++)
 	{
-		if (std::fread(buffer, sizeof(buffer), 1, fin.get()) != 1 ||
-			std::fwrite(buffer, sizeof(buffer), 1, fout.get()) != 1)
+		if (rfread(buffer, sizeof(buffer), 1, fin) != 1 ||
+			rfwrite(buffer, sizeof(buffer), 1, fout) != 1)
+		{
+			filestream_close(fin);
+			filestream_close(fout);
 			return false;
+		}
 
 		for (int j = 0; j < 4; j++)
 		{
 			u32 checksum = CalculateECC(&buffer[j * 128]);
-			if (std::fwrite(&checksum, 3, 1, fout.get()) != 1)
+			if (rfwrite(&checksum, 3, 1, fout) != 1)
+			{
+				filestream_close(fin);
+				filestream_close(fout);
 				return false;
+			}
 		}
 
 		u32 nullbytes = 0;
-		if (std::fwrite(&nullbytes, sizeof(nullbytes), 1, fout.get()) != 1)
+		if (rfwrite(&nullbytes, sizeof(nullbytes), 1, fout) != 1)
+		{
+			filestream_close(fin);
+			filestream_close(fout);
 			return false;
+		}
 	}
 
-	if (std::fflush(fout.get()) != 0)
+	filestream_close(fin);
+	if (filestream_flush(fout) != 0)
 		return false;
-
+	filestream_close(fout);
 	return true;
 }
 
 static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
 {
-	auto fin = FileSystem::OpenManagedCFile(file_in, "rb");
+	u8 buffer[512];
+	u8 checksum[16];
+	RFILE *fin = FileSystem::OpenRFile(file_in, "rb");
 	if (!fin)
 		return false;
 
-	auto fout = FileSystem::OpenManagedCFile(file_out, "wb");
+	RFILE *fout = FileSystem::OpenRFile(file_out, "wb");
 	if (!fout)
 		return false;
 
-	const s64 size = FileSystem::FSize64(fin.get());
-	u8 buffer[512];
-	u8 checksum[16];
+	const s64 size = FileSystem::RFSize64(fin);
 
 	for (s64 i = 0; i < (size / 528); i++)
 	{
-		if (std::fread(buffer, sizeof(buffer), 1, fin.get()) != 1 ||
-			std::fwrite(buffer, sizeof(buffer), 1, fout.get()) != 1 ||
-			std::fread(checksum, sizeof(checksum), 1, fin.get()) != 1)
+		if (rfread(buffer, sizeof(buffer), 1, fin) != 1 ||
+			rfwrite(buffer, sizeof(buffer), 1, fout) != 1 ||
+			rfread(checksum, sizeof(checksum), 1, fin) != 1)
+		{
+			filestream_close(fin);
+			filestream_close(fout);
 			return false;
+		}
 	}
 
-	if (std::fflush(fout.get()) != 0)
+	filestream_close(fin);
+	if (filestream_flush(fout) != 0)
 		return false;
-
+	filestream_close(fout);
 	return true;
 }
 
@@ -366,7 +405,7 @@ bool FileMemoryCard::Seek(std::FILE* f, u32 adr)
 bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 {
 	u8 buf[MC2_ERASE_SIZE];
-	auto fp = FileSystem::OpenManagedCFile(mcdFile, "wb");
+	RFILE *fp = FileSystem::OpenRFile(mcdFile, "wb");
 	if (!fp)
 		return false;
 
@@ -374,9 +413,13 @@ bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 
 	for (uint i = 0; i < (MC2_MBSIZE * sizeInMB) / sizeof(buf); i++)
 	{
-		if (std::fwrite(buf, sizeof(buf), 1, fp.get()) != 1)
+		if (rfwrite(buf, sizeof(buf), 1, fp) != 1)
+		{
+			filestream_close(fp);
 			return false;
+		}
 	}
+	filestream_close(fp);
 	return true;
 }
 
@@ -629,20 +672,20 @@ static MemoryCardFileType GetMemoryCardFileTypeFromSize(s64 size)
 
 static bool IsMemoryCardFormatted(const std::string& path)
 {
-	auto fp = FileSystem::OpenManagedSharedCFile(path.c_str(), "rb", FileSystem::FileShareMode::DenyNone);
-	if (!fp)
-		return false;
-
 	static const char formatted_psx[] = "MC";
 	static const char formatted_string[] = "Sony PS2 Memory Card Format";
 	static constexpr size_t read_length = sizeof(formatted_string) - 1;
-
 	u8 data[read_length];
-	if (std::fread(data, read_length, 1, fp.get()) != 1)
+	RFILE *fp = FileSystem::OpenRFile(path.c_str(), "rb");
+	if (!fp)
 		return false;
 
-	return (std::memcmp(data, formatted_string, sizeof(formatted_string) - 1) == 0 ||
-			std::memcmp(data, formatted_psx, sizeof(formatted_psx) - 1) == 0);
+	int64_t ret = rfread(data, read_length, 1, fp);
+	filestream_close(fp);
+	if (ret != 1)
+		return false;
+	return (   std::memcmp(data, formatted_string, sizeof(formatted_string) - 1) == 0
+		|| std::memcmp(data, formatted_psx, sizeof(formatted_psx) - 1) == 0);
 }
 
 std::vector<AvailableMcdInfo> FileMcd_GetAvailableCards(bool include_in_use_cards)

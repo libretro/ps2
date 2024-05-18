@@ -18,6 +18,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <streams/file_stream.h>
+
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
@@ -57,6 +59,15 @@ std::string BiosSerial;
 std::string BiosPath;
 BiosDebugInformation CurrentBiosInformation;
 
+static int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream)
+{
+   if (!stream || (elem_size == 0) || (elem_count == 0))
+      return 0;
+
+   return (filestream_read(stream, buffer, elem_size * elem_count) / elem_size);
+}
+
 static bool LoadBiosVersion(std::FILE* fp, u32& version, std::string& description, u32& region, std::string& zone, std::string& serial)
 {
 	romdir rd;
@@ -83,9 +94,7 @@ static bool LoadBiosVersion(std::FILE* fp, u32& version, std::string& descriptio
 			s64 pos = FileSystem::FTell64(fp);
 			if (FileSystem::FSeek64(fp, fileOffset + 0x10, SEEK_SET) != 0 ||
 				std::fread(extinfo, 15, 1, fp) != 1 || FileSystem::FSeek64(fp, pos, SEEK_SET) != 0)
-			{
 				break;
-			}
 			serial = extinfo;
 		}
 
@@ -95,9 +104,7 @@ static bool LoadBiosVersion(std::FILE* fp, u32& version, std::string& descriptio
 			s64 pos = FileSystem::FTell64(fp);
 			if (FileSystem::FSeek64(fp, fileOffset, SEEK_SET) != 0 ||
 				std::fread(romver, 14, 1, fp) != 1 || FileSystem::FSeek64(fp, pos, SEEK_SET) != 0)
-			{
 				break;
-			}
 
 			foundRomVer = true;
 		}
@@ -177,7 +184,7 @@ static bool LoadBiosVersion(std::FILE* fp, u32& version, std::string& descriptio
 }
 
 template <size_t _size>
-void ChecksumIt(u32& result, const u8 (&srcdata)[_size])
+static void ChecksumIt(u32& result, const u8 (&srcdata)[_size])
 {
 	for (size_t i = 0; i < _size / 4; ++i)
 		result ^= ((u32*)srcdata)[i];
@@ -188,7 +195,7 @@ void ChecksumIt(u32& result, const u8 (&srcdata)[_size])
 // the base.
 //
 // Parameters:
-//   ext - extension of the sub-component to load. Valid options are rom1 and rom2.
+//   ext - extension of the sub-component to load. Valid options are ROM1 and ROM2.
 //
 template <size_t _size>
 static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
@@ -214,26 +221,27 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 		Console.Warning("BIOS Warning: %s could not be read (permission denied?)", ext);
 		return;
 	}
-	// Checksum for ROM1, ROM2?  Rama says no, Gigaherz says yes.  I'm not sure either way.  --air
-	//ChecksumIt( BiosChecksum, dest );
 }
 
 static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 {
-	auto fp = FileSystem::OpenManagedCFile(filename.c_str(), "rb");
-	if (fp)
+	RFILE *fp = FileSystem::OpenRFile(filename.c_str(), "rb");
+	if (!fp)
+		return;
+
+	const s64 filesize = FileSystem::RFSize64(fp);
+	const s64 readSize = std::min(filesize, static_cast<s64>(maxSize));
+	if (rfread(dest, readSize, 1, fp) == 1)
 	{
-		const s64 filesize = FileSystem::FSize64(fp.get());
-		const s64 readSize = std::min(filesize, static_cast<s64>(maxSize));
-		if (std::fread(dest, readSize, 1, fp.get()) == 1)
-			return;
+		filestream_close(fp);
+		return;
 	}
 
 	Console.Warning("IRX Warning: %s could not be read", filename.c_str());
-	return;
+	filestream_close(fp);
 }
 
-static std::string FindBiosImage()
+static std::string FindBiosImage(void)
 {
 	Console.WriteLn("Searching for a BIOS image in '%s'...", EmuFolders::Bios.c_str());
 
@@ -259,15 +267,15 @@ static std::string FindBiosImage()
 	return std::string();
 }
 
-// Loads the configured bios rom file into PS2 memory.  PS2 memory must be allocated prior to
+// Loads the configured BIOS ROM file into PS2 memory.  PS2 memory must be allocated prior to
 // this method being called.
 //
 // Remarks:
-//   This function does not fail if rom1 or rom2 files are missing, since none are
+//   This function does not fail if ROM1 or ROM2 files are missing, since none are
 //   explicitly required for most emulation tasks.
 //
 // Exceptions:
-//   BadStream - Thrown if the primary bios file (usually .bin) is not found, corrupted, etc.
+//   BadStream - Thrown if the primary BIOS file (usually .bin) is not found, corrupted, etc.
 //
 bool LoadBIOS(void)
 {
@@ -275,10 +283,8 @@ bool LoadBIOS(void)
 	if (path.empty() || !FileSystem::FileExists(path.c_str()))
 	{
 		if (!path.empty())
-		{
 			Console.Warning("Configured BIOS '%s' does not exist, trying to find an alternative.",
 				EmuConfig.BaseFilenames.Bios.c_str());
-		}
 
 		path = FindBiosImage();
 		if (path.empty())
@@ -298,9 +304,7 @@ bool LoadBIOS(void)
 
 	if (FileSystem::FSeek64(fp.get(), 0, SEEK_SET) ||
 		std::fread(eeMem->ROM, static_cast<size_t>(std::min<s64>(Ps2MemSize::Rom, filesize)), 1, fp.get()) != 1)
-	{
 		return false;
-	}
 
 	// If file is less than 2mb it doesn't have an OSD (Devel consoles)
 	// So skip HLEing OSDSys Param stuff
@@ -312,8 +316,6 @@ bool LoadBIOS(void)
 	BiosChecksum = 0;
 	ChecksumIt(BiosChecksum, eeMem->ROM);
 	BiosPath = std::move(path);
-
-	//injectIRX("host.irx");	//not fully tested; still buggy
 
 	LoadExtraRom("rom1", eeMem->ROM1);
 	LoadExtraRom("rom2", eeMem->ROM2);
@@ -333,7 +335,6 @@ bool IsBIOS(const char* filename, u32& version, std::string& description, u32& r
 		return false;
 
 	// FPS2BIOS is smaller and of variable size
-	//if (inway.Length() < 512*1024) return false;
 	return LoadBiosVersion(fp.get(), version, description, region, zone, serial);
 }
 

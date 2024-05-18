@@ -461,13 +461,11 @@ void cdvdReloadElfInfo(std::string elfoverride)
 		return;
 	}
 
+	// PCSX2 currently only recognizes *.elf executables in proper PS2 format.
+	// To support different PSX titles in the console title and for savestates, this code bypasses all the detection,
+	// simply using the exe name, stripped of problematic characters.
 	if (disc_type == 1)
-	{
-		// PCSX2 currently only recognizes *.elf executables in proper PS2 format.
-		// To support different PSX titles in the console title and for savestates, this code bypasses all the detection,
-		// simply using the exe name, stripped of problematic characters.
 		return;
-	}
 
 	// Isn't a disc we recognize?
 	if (disc_type == 0)
