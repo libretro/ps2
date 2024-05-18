@@ -98,7 +98,6 @@ set(pcsx2Sources
 	MMI.cpp
 	MTGS.cpp
 	MTVU.cpp
-	MultipartFileReader.cpp
 	MultitapProtocol.cpp
 	Patch.cpp
 	Pcsx2Config.cpp
