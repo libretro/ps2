@@ -455,8 +455,6 @@ struct Pcsx2Config
 	// ------------------------------------------------------------------------
 	struct GSOptions
 	{
-		static const char* GetRendererName(GSRendererType type);
-
 		static constexpr float DEFAULT_FRAME_RATE_NTSC = 59.94f;
 		static constexpr float DEFAULT_FRAME_RATE_PAL = 50.00f;
 
@@ -748,18 +746,14 @@ struct Pcsx2Config
 	// ------------------------------------------------------------------------
 	struct FramerateOptions
 	{
-		float NominalScalar{1.0f};
 		float TurboScalar{2.0f};
-		float SlomoScalar{0.5f};
 
 		void LoadSave(SettingsWrapper& wrap);
 		void SanityCheck();
 
 		bool operator==(const FramerateOptions& right) const
 		{
-			return     (NominalScalar == right.NominalScalar) 
-				&& (TurboScalar   == right.TurboScalar) 
-				&& (SlomoScalar   == right.SlomoScalar);
+			return (TurboScalar == right.TurboScalar);
 		}
 
 		bool operator!=(const FramerateOptions& right) const

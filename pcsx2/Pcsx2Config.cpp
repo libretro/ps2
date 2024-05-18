@@ -393,21 +393,6 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 	Recompiler.LoadSave(wrap);
 }
 
-const char* Pcsx2Config::GSOptions::GetRendererName(GSRendererType type)
-{
-	switch (type)
-	{
-		case GSRendererType::Auto:  return "Auto";
-		case GSRendererType::DX11:  return "Direct3D 11";
-		case GSRendererType::DX12:  return "Direct3D 12";
-		case GSRendererType::OGL:   return "OpenGL";
-		case GSRendererType::VK:    return "Vulkan";
-		case GSRendererType::SW:    return "Software";
-		case GSRendererType::Null:  return "Null";
-		default:                    return "";
-	}
-}
-
 Pcsx2Config::GSOptions::GSOptions()
 {
 	bitset = 0;
@@ -896,18 +881,14 @@ void Pcsx2Config::FramerateOptions::SanityCheck()
 {
        // Ensure Conformation of various options...
 
-       NominalScalar = std::clamp(NominalScalar, 0.05f, 10.0f);
        TurboScalar = std::clamp(TurboScalar, 0.05f, 10.0f);
-       SlomoScalar = std::clamp(SlomoScalar, 0.05f, 10.0f);
 }
 
 void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)
 {
        SettingsWrapSection("Framerate");
 
-       SettingsWrapEntry(NominalScalar);
        SettingsWrapEntry(TurboScalar);
-       SettingsWrapEntry(SlomoScalar);
 }
 
 
