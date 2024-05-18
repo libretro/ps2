@@ -19,16 +19,13 @@
 // This module contains (most!) stuff which is directly related to SPU2 emulation.
 // Contents should be cross-platform compatible whenever possible.
 
-
-#include "PrecompiledHeader.h"
-
-#include "IopCounters.h"
-#include "IopDma.h"
-#include "IopHw.h"
-#include "R3000A.h"
-#include "SPU2/Dma.h"
-#include "SPU2/Global.h"
-#include "SPU2/spu2.h"
+#include "../IopCounters.h"
+#include "../IopDma.h"
+#include "../IopHw.h"
+#include "../R3000A.h"
+#include "Dma.h"
+#include "Global.h"
+#include "spu2.h"
 
 s16 spu2regs[0x010000 / sizeof(s16)];
 s16 _spu2mem[0x200000 / sizeof(s16)];

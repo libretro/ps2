@@ -15,9 +15,11 @@
 
 // clang-format off
 
-#include "PrecompiledHeader.h"
+#include "common/Pcsx2Defs.h"
+
 #include <cstddef>
 #include <iterator> /* std::size() TODO/FIXME - C++17, find way to downgrade */
+
 #include "GSTables.h"
 
 template <int Width, int Height>

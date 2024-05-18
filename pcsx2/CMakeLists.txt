@@ -102,7 +102,6 @@ set(pcsx2Sources
 	Patch.cpp
 	Pcsx2Config.cpp
 	PerformanceMetrics.cpp
-	PrecompiledHeader.cpp
 	R3000A.cpp
 	R3000AInterpreter.cpp
 	R3000AOpcodeTables.cpp
@@ -166,7 +165,6 @@ set(pcsx2Headers
 	MultitapProtocol.h
 	Patch.h
 	PerformanceMetrics.h
-	PrecompiledHeader.h
 	R3000A.h
 	R5900.h
 	R5900OpcodeTables.h
@@ -719,7 +717,6 @@ set(pcsx2ps2Headers
 
 # Windows sources
 set(pcsx2WindowsSources
-	windows/Optimus.cpp
 )
 
 # x86 sources
@@ -918,13 +915,6 @@ target_include_directories(PCSX2_FLAGS INTERFACE
 	"${CMAKE_SOURCE_DIR}/3rdparty/xbyak/"
 	"${FFMPEG_INCLUDE_DIRS}"
 )
-
-set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-
-if(COMMAND target_precompile_headers AND NOT CCACHE_FOUND)
-	message("Using precompiled headers.")
-	target_precompile_headers(PCSX2_FLAGS INTERFACE PrecompiledHeader.h)
-endif()
 
 if (NOT APPLE)
 	set_target_properties(PCSX2 PROPERTIES

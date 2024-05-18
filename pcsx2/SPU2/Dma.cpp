@@ -13,13 +13,12 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "SPU2/Global.h"
-#include "SPU2/Dma.h"
-#include "SPU2/spu2.h"
-#include "R3000A.h"
-#include "IopHw.h"
-#include "Config.h"
+#include "Global.h"
+#include "Dma.h"
+#include "spu2.h"
+#include "../R3000A.h"
+#include "../IopHw.h"
+#include "../Config.h"
 
 void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not split stereo
 {

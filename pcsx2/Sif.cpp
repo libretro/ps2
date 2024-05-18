@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
 #include <cstring> /* memset */
 
 #define _PC_	/* disables MIPS opcode macros. */

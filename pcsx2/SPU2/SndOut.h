@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Types.h"
+
 #include <algorithm> /* std::clamp */
 #include <vector>
 

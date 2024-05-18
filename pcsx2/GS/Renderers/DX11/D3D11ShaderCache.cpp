@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/PrecompiledHeader.h"
 #include "D3D.h"
 
 #include "D3D11ShaderCache.h"

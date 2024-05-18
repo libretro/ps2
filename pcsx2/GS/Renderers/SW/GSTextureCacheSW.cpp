@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
 #include "GSTextureCacheSW.h"
 #include "../../GSExtra.h"
 #include "../../GSUtil.h"

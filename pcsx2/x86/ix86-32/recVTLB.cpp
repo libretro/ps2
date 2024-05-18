@@ -13,13 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include "PrecompiledHeader.h"
-
-#include "Common.h"
-#include "vtlb.h"
-#include "x86/iCore.h"
-#include "x86/iR5900.h"
+#include "../../Common.h"
+#include "../../vtlb.h"
+#include "../iCore.h"
+#include "../iR5900.h"
 
 using namespace vtlb_private;
 using namespace x86Emitter;

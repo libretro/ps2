@@ -13,10 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "SPU2/Global.h"
-#include "SPU2/spu2.h" // hopefully temporary, until I resolve lClocks depdendency
-#include "IopMem.h"
+#include "Global.h"
+#include "spu2.h" // hopefully temporary, until I resolve lClocks depdendency
+#include "../IopMem.h"
 
 namespace SPU2Savestate
 {

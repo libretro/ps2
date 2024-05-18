@@ -17,8 +17,6 @@
 // authors: cottonvibes(@gmail.com)
 //			Jake.Stine (@gmail.com)
 
-#include "PrecompiledHeader.h"
-
 #include <cstring>
 
 #include "Common.h"

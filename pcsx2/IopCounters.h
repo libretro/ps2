@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Types.h"
+
 struct psxCounter
 {
 	u64 count, target;

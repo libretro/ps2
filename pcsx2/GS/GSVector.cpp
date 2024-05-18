@@ -13,10 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GSVector.h"
 #include <cfloat>
+
 #include <iterator> /* std::size() - TODO/FIXME - C++17 */
+
+#include "GSVector.h"
 
 CONSTINIT const GSVector4i GSVector4i::m_xff[17] =
 {

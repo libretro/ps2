@@ -13,10 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
-#include <vector>
-
 #include "common/Timer.h"
 
 #include "Config.h"

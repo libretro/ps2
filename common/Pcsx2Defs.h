@@ -145,6 +145,8 @@ static constexpr size_t __pagemask = PCSX2_PAGESIZE - 1;
 	#define CONSTINIT
 #endif
 
+#ifdef __cplusplus
+
 // --------------------------------------------------------------------------------------
 //  ImplementEnumOperators  (macro)
 // --------------------------------------------------------------------------------------
@@ -222,6 +224,8 @@ static const pxEnumEnd_t pxEnumEnd = {};
 public: \
 	classname(const classname&) = delete; \
 	classname& operator=(const classname&) = delete
+#endif
+
 #endif
 
 // --------------------------------------------------------------------------------------

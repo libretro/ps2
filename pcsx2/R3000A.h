@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <stdio.h>
+#include "common/Pcsx2Types.h"
 
 union GPRRegs {
 	struct {

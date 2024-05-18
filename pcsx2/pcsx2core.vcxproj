@@ -52,9 +52,7 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\rcheevos\rcheevos\include;$(SolutionDir)3rdparty\rainterface</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\discord-rpc\include</AdditionalIncludeDirectories>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>PrecompiledHeader.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>PrecompiledHeader.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
       <AdditionalOptions Condition="!$(Configuration.Contains(Clang))">/Zc:externConstexpr %(AdditionalOptions)</AdditionalOptions>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;ZIP_STATIC;LZMA_API_STATIC;BUILD_DX=1;ENABLE_OPENGL;ENABLE_VULKAN;SPU2X_CUBEB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -222,9 +220,6 @@
     <ClCompile Include="IPU\IPUdither.cpp" />
     <ClCompile Include="Mdec.cpp" />
     <ClCompile Include="Patch.cpp" />
-    <ClCompile Include="PrecompiledHeader.cpp">
-      <PrecompiledHeader>Create</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="ps2\Iop\PsxBios.cpp" />
     <ClCompile Include="ps2\pgif.cpp" />
     <ClCompile Include="Dmac.cpp" />
@@ -565,7 +560,6 @@
     <ClInclude Include="IPU\IPUdma.h" />
     <ClInclude Include="Mdec.h" />
     <ClInclude Include="Patch.h" />
-    <ClInclude Include="PrecompiledHeader.h" />
     <ClInclude Include="ps2\pgif.h" />
     <ClInclude Include="USB\deviceproxy.h" />
     <ClInclude Include="USB\qemu-usb\desc.h" />

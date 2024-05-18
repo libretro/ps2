@@ -13,11 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 // IPU-correct yuv conversions by Pseudonym
 // SSE2 Implementation by Pseudonym
-
-#include "PrecompiledHeader.h"
 
 #include "common/VectorIntrin.h"
 

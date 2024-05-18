@@ -13,9 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
 #include "GSDrawScanlineCodeGenerator.all.h"
-#include "GS/Renderers/Common/GSFunctionMap.h"
+#include "../Common/GSFunctionMap.h"
 #include "GSVertexSW.h"
 
 MULTI_ISA_UNSHARED_IMPL;

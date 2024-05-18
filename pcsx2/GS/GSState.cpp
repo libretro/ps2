@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
 #include <cstring> /* memset/memcpy */
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
@@ -3568,7 +3566,7 @@ GSState::TextureMinMaxResult GSState::GetTextureMinMax(GIFRegTEX0 TEX0, GIFRegCL
 			// This stops the border check failing when using repeat but needed less than the full texture
 			// since this was making it take the full texture even though it wasn't needed.
 			if (!clamp_to_tsize && ((m_vt.m_min.t.floor() == GSVector4::zero()).mask() & 0x3) == 0x3)
-				st = st.max(GSVector4::zero());
+				st = st._max(GSVector4::zero());
 		}
 		else
 		{

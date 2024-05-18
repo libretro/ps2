@@ -13,14 +13,14 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GSDevice.h"
-#include "GS/GS.h"
-#include "Host.h"
+#include <algorithm>
+
 #include "common/Align.h"
 #include "common/Console.h"
 
-#include <algorithm>
+#include "GSDevice.h"
+#include "GS/GS.h"
+#include "Host.h"
 
 int SetDATMShader(SetDATM datm)
 {

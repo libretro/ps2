@@ -13,9 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include "PrecompiledHeader.h"
-
 #include <time.h>
 #include <cmath>
 #include <cstring> /* memset/memcpy */

@@ -356,9 +356,6 @@
     <ClCompile Include="Patch.cpp">
       <Filter>Misc</Filter>
     </ClCompile>
-    <ClCompile Include="PrecompiledHeader.cpp">
-      <Filter>Misc</Filter>
-    </ClCompile>
     <ClInclude Include="resource.h">
       <Filter>Misc</Filter>
     </ClInclude>
@@ -1220,9 +1217,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
-      <Filter>Misc</Filter>
-    </ClInclude>
-    <ClInclude Include="PrecompiledHeader.h">
       <Filter>Misc</Filter>
     </ClInclude>
     <ClInclude Include="Elfheader.h">

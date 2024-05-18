@@ -433,17 +433,17 @@ public:
 		return sat(zero(), GSVector4(scale));
 	}
 
-	__forceinline GSVector4 clamp(const float scale = 255) const
-	{
-		return min(GSVector4(scale));
-	}
-
-	__forceinline GSVector4 min(const GSVector4& a) const
+	__forceinline GSVector4 _min(const GSVector4& a) const
 	{
 		return GSVector4(_mm_min_ps(m, a));
 	}
 
-	__forceinline GSVector4 max(const GSVector4& a) const
+	__forceinline GSVector4 clamp(const float scale = 255) const
+	{
+		return _min(GSVector4(scale));
+	}
+
+	__forceinline GSVector4 _max(const GSVector4& a) const
 	{
 		return GSVector4(_mm_max_ps(m, a));
 	}

@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
 #include "GS/Renderers/HW/GSRendererHW.h"
 #include "GSHwHack.h"
 #include "../../GSUtil.h"

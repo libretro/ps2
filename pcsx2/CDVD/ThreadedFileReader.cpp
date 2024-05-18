@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
 #include <algorithm> /* std::max, std::min */
 
 #include "ThreadedFileReader.h"

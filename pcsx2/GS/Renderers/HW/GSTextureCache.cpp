@@ -1707,7 +1707,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 	{
 		// TODO Possible optimization: rescale only the validity rectangle of the old target texture into the new one.
 		clear = (size.x > tgt->m_unscaled_size.x || size.y > tgt->m_unscaled_size.y);
-		new_size = size.max(tgt->m_unscaled_size);
+		new_size = size._max(tgt->m_unscaled_size);
 		new_scaled_size = ScaleRenderTargetSize(new_size, scale);
 		dRect = (GSVector4(GSVector4i::loadh(tgt->m_unscaled_size)) * GSVector4(scale)).ceil();
 	};
@@ -2682,7 +2682,7 @@ u32 GSTextureCache::ConvertDepthToColor(float d, ShaderConvert convert)
 bool GSTextureCache::CopyRGBFromDepthToColor(Target* dst, Target* depth_src)
 {
 	// The depth target might be larger (Driv3r).
-	const GSVector2i new_size = depth_src->GetUnscaledSize().max(dst->GetUnscaledSize());
+	const GSVector2i new_size = depth_src->GetUnscaledSize()._max(dst->GetUnscaledSize());
 	const GSVector2i new_scaled_size = ScaleRenderTargetSize(new_size, dst->GetScale());
 	const bool needs_new_tex = (new_size != dst->m_unscaled_size);
 	GSTexture* tex = dst->m_texture;
@@ -5823,7 +5823,7 @@ bool GSTextureCache::Target::ResizeTexture(int new_unscaled_width, int new_unsca
 	// Only need to copy if it's been written to.
 	if (m_texture->GetState() == GSTexture::State::Dirty)
 	{
-		const GSVector4i rc = GSVector4i::loadh(size.min(new_size));
+		const GSVector4i rc = GSVector4i::loadh(size._min(new_size));
 		if (tex->IsDepthStencil())
 		{
 			// Can't do partial copies in DirectX for depth textures, and it's probably not ideal in other

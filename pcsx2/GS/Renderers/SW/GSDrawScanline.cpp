@@ -13,11 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GS/Renderers/SW/GSDrawScanline.h"
-#include "GS/Renderers/SW/GSTextureCacheSW.h"
-#include "GS/Renderers/SW/GSScanlineEnvironment.h"
-#include "GS/Renderers/SW/GSRasterizer.h"
+#include "GSDrawScanline.h"
+#include "GSTextureCacheSW.h"
+#include "GSScanlineEnvironment.h"
+#include "GSRasterizer.h"
 
 // Comment to disable all dynamic code generation.
 #define ENABLE_JIT_RASTERIZER

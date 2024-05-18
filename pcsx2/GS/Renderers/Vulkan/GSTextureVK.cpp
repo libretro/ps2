@@ -13,14 +13,15 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GSDeviceVK.h"
-#include "GSTextureVK.h"
+#include <algorithm>
+
 #include "common/Align.h"
-#include "VKBuilders.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
-#include <algorithm>
+
+#include "GSDeviceVK.h"
+#include "GSTextureVK.h"
+#include "VKBuilders.h"
 
 static constexpr const VkComponentMapping s_identity_swizzle{VK_COMPONENT_SWIZZLE_IDENTITY,
 	VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};

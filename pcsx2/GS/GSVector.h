@@ -13,11 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "common/VectorIntrin.h"
-
-#include <algorithm> /* std::min, std::max */
 #include <cstring>
+#include <algorithm> /* std::min, std::max */
+
+#include "common/VectorIntrin.h"
 
 #pragma once
 
@@ -84,12 +83,12 @@ public:
 		return { x / v.x, y / v.y };
 	}
 
-	GSVector2T min(const GSVector2T& v) const
+	GSVector2T _min(const GSVector2T& v) const
 	{
 		return { std::min(x, v.x), std::min(y, v.y) };
 	}
 
-	GSVector2T max(const GSVector2T& v) const
+	GSVector2T _max(const GSVector2T& v) const
 	{
 		return { std::max(x, v.x), std::max(y, v.y) };
 	}

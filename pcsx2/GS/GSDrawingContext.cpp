@@ -13,9 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GSDrawingContext.h"
 #include "GS.h"
+#include "GSDrawingContext.h"
 
 static int findmax(int tl, int br, int limit, int wm, int minuv, int maxuv)
 {

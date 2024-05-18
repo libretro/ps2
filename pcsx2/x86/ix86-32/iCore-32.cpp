@@ -13,16 +13,14 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
 #include <cstring> /* memset */
 
-#include "R3000A.h"
-#include "Memory.h"
-#include "VU.h"
-#include "Vif.h"
-#include "x86/iR3000A.h"
-#include "x86/iR5900.h"
+#include "../../R3000A.h"
+#include "../../Memory.h"
+#include "../../VU.h"
+#include "../../Vif.h"
+#include "../iR3000A.h"
+#include "../iR5900.h"
 
 #include "common/emitter/x86emitter.h"
 

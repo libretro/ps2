@@ -15,6 +15,9 @@
 
 #pragma once
 
+#include "common/Pcsx2Defs.h"
+#include "common/Pcsx2Types.h"
+
 class GSPerfMon
 {
 protected:

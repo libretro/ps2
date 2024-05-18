@@ -16,6 +16,9 @@
 #pragma once
 #include <string>
 
+#include "common/Pcsx2Defs.h"
+#include "common/Pcsx2Types.h"
+
 typedef struct _cdvdSubQ
 {
 	u8 ctrl : 4;   // control and mode bits
@@ -82,7 +85,6 @@ typedef struct _cdvdTN
 
 #define CDVD_AUDIO_MASK 0x00
 #define CDVD_DATA_MASK 0x40
-//	CDROM_DATA_TRACK	0x04	//do not enable this! (from linux kernel)
 
 // CDVD
 // NOTE: The read/write functions CANNOT use XMM/MMX regs

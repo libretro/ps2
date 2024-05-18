@@ -15,7 +15,6 @@ target_sources(common PRIVATE
 	FileSystem.cpp
 	MemorySettingsInterface.cpp
 	MD5Digest.cpp
-	PrecompiledHeader.cpp
 	Semaphore.cpp
 	SettingsWrapper.cpp
 	StringUtil.cpp
@@ -47,7 +46,6 @@ target_sources(common PRIVATE
 	MemorySettingsInterface.h
 	MD5Digest.h
 	Path.h
-	PrecompiledHeader.h
 	RedtapeWilCom.h
 	RedtapeWindows.h
 	SettingsInterface.h
@@ -80,8 +78,6 @@ target_sources(common PRIVATE
 	emitter/x86emitter.h
 	emitter/x86types.h
 )
-
-set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 
 if(WIN32)
 	enable_language(ASM_MASM)
@@ -122,7 +118,3 @@ target_compile_features(common PUBLIC cxx_std_17)
 target_include_directories(common PUBLIC ../3rdparty/include ../)
 target_compile_definitions(common PUBLIC "${PCSX2_DEFS}")
 target_compile_options(common PRIVATE "${PCSX2_WARNINGS}")
-
-if(COMMAND target_precompile_headers AND NOT CCACHE_FOUND)
-	target_precompile_headers(common PRIVATE PrecompiledHeader.h)
-endif()

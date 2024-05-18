@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
 #include "MultiISA.h"
 
 #define XXH_STATIC_LINKING_ONLY 1

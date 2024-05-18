@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/PrecompiledHeader.h"
-
 #include "D3D12StreamBuffer.h"
 #include "GSDevice12.h"
 #include "common/Align.h"

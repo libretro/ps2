@@ -13,13 +13,12 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/PrecompiledHeader.h"
+#include <array>
+#include <fstream>
 
 #include "GLProgram.h"
 #include "common/Console.h"
 #include "common/StringUtil.h"
-#include <array>
-#include <fstream>
 
 static u32 s_last_program_id = 0;
 static GLuint s_next_bad_shader_id = 1;

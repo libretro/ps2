@@ -1,4 +1,4 @@
-#include "GS/GSVector.h"
+#include "../GS/GSVector.h"
 #include "Global.h"
 
 MULTI_ISA_UNSHARED_START

@@ -39,9 +39,6 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\libpng</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <ForcedIncludeFiles>PrecompiledHeader.h</ForcedIncludeFiles>
-      <PrecompiledHeaderFile>PrecompiledHeader.h</PrecompiledHeaderFile>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="!$(Configuration.Contains(AVX2))">_M_SSE=0x401;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="$(Configuration.Contains(AVX2))">_M_SSE=0x501;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -68,9 +65,6 @@
     <ClCompile Include="SettingsWrapper.cpp" />
     <ClCompile Include="TextureDecompress.cpp" />
     <ClCompile Include="Timer.cpp" />
-    <ClCompile Include="PrecompiledHeader.cpp">
-      <PrecompiledHeader>Create</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="HostSys.cpp" />
     <ClCompile Include="Linux\LnxMisc.cpp" />
     <ClCompile Include="Windows\WinMisc.cpp" />
@@ -115,7 +109,6 @@
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="MemcpyFast.h" />
     <ClInclude Include="Path.h" />
-    <ClInclude Include="PrecompiledHeader.h" />
     <ClInclude Include="ReadbackSpinManager.h" />
     <ClInclude Include="RedtapeWindows.h" />
     <ClInclude Include="TextureDecompress.h" />

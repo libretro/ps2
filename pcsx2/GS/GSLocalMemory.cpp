@@ -13,11 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GS/GS.h"
-#include "GS/GSLocalMemory.h"
-#include "GS/GSExtra.h"
 #include <unordered_set>
+
+#include "GS.h"
+#include "GSLocalMemory.h"
+#include "GSExtra.h"
 
 template <typename Fn>
 static void foreachBlock(const GSOffset& off, GSLocalMemory* mem, const GSVector4i& r, u8* dst, int dstpitch, int bpp, Fn&& fn)

@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
 #include "common/RedtapeWindows.h"
 #include "common/RedtapeWilCom.h"
 #include "common/StringUtil.h"

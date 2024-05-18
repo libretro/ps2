@@ -13,7 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
+#include "common/Console.h"
+#include "common/FileSystem.h"
+#include "common/Path.h"
 
 #include "GS.h"
 #include "GSUtil.h"
@@ -22,12 +24,9 @@
 #include "Renderers/HW/GSTextureReplacements.h"
 #include "MultiISA.h"
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "pcsx2/Config.h"
-#include "pcsx2/Counters.h"
-#include "pcsx2/GS.h"
+#include "../Config.h"
+#include "../Counters.h"
+#include "../GS.h"
 
 #ifdef ENABLE_OPENGL
 #include "Renderers/OpenGL/GSDeviceOGL.h"
@@ -39,8 +38,8 @@
 
 #ifdef _WIN32
 #include "Renderers/DX11/GSDevice11.h"
+#include "Renderers/DX11/D3D.h"
 #include "Renderers/DX12/GSDevice12.h"
-#include "GS/Renderers/DX11/D3D.h"
 #endif
 
 #include <libretro.h>

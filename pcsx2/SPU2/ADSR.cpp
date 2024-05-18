@@ -13,9 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
-#include "SPU2/Global.h"
+#include "Global.h"
 
 static constexpr s32 ADSR_MAX_VOL = 0x7fff;
 

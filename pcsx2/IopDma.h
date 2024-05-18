@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Types.h"
+
 extern void psxDma2(u32 madr, u32 bcr, u32 chcr);
 extern void psxDma3(u32 madr, u32 bcr, u32 chcr);
 extern void psxDma6(u32 madr, u32 bcr, u32 chcr);

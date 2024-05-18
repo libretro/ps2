@@ -15,9 +15,8 @@
 
 // TODO: JIT Draw* (flags: depth, texture, color (+iip), scissor)
 
-#include "PrecompiledHeader.h"
-#include "GS/Renderers/SW/GSRasterizer.h"
-#include "GS/Renderers/SW/GSDrawScanline.h"
+#include "GSRasterizer.h"
+#include "GSDrawScanline.h"
 #include "GS/GSExtra.h"
 #include "common/AlignedMalloc.h"
 #include "VMManager.h"
@@ -310,8 +309,8 @@ void GSRasterizer::DrawLine(const GSVertexSW* vertex, const u16* index)
 			if (m_scissor.top <= p.y && p.y < m_scissor.bottom && IsOneOfMyScanlines(p.y))
 			{
 				GSVector4 lrf = scan.p.upl(v1.p.blend32(v0.p, mask)).ceil();
-				GSVector4 l = lrf.max(m_fscissor_x);
-				GSVector4 r = lrf.min(m_fscissor_x);
+				GSVector4 l = lrf._max(m_fscissor_x);
+				GSVector4 r = lrf._min(m_fscissor_x);
 				GSVector4i lr = GSVector4i(l.xxyy(r));
 
 				int left = lr.extract32<0>();
@@ -420,8 +419,8 @@ void GSRasterizer::DrawTriangle(const GSVertexSW* vertex, const u16* index)
 		return;
 
 	GSVector4 tbf = y0011.xzxz(y1221).ceil();
-	GSVector4 tbmax = tbf.max(m_fscissor_y);
-	GSVector4 tbmin = tbf.min(m_fscissor_y);
+	GSVector4 tbmax = tbf._max(m_fscissor_y);
+	GSVector4 tbmin = tbf._min(m_fscissor_y);
 	GSVector4i tb = GSVector4i(tbmax.xzyw(tbmin)); // max(y0, t) max(y1, t) min(y1, b) min(y2, b)
 
 	GSVertexSW2 dv0 = v1 - v0;
@@ -592,8 +591,8 @@ void GSRasterizer::DrawTriangle(const GSVertexSW* vertex, const u16* index)
 		return; // y0 == y1 == y2
 
 	GSVector4 tbf    = y0011.xzxz(y1221).ceil();
-	GSVector4 tbmax  = tbf.max(m_fscissor_y);
-	GSVector4 tbmin  = tbf.min(m_fscissor_y);
+	GSVector4 tbmax  = tbf._max(m_fscissor_y);
+	GSVector4 tbmin  = tbf._min(m_fscissor_y);
 	GSVector4i tb    = GSVector4i(tbmax.xzyw(tbmin)); // max(y0, t) max(y1, t) min(y1, b) min(y2, b)
 
 	GSVertexSW dv0   = v1 - v0;
@@ -697,8 +696,8 @@ void GSRasterizer::DrawTriangleSection(int top, int bottom, GSVertexSW& RESTRICT
 		GSVector4 xy   = GSVector4::loadl(&edge.p) + GSVector4::loadl(&dedge.p) * dy;
 
 		GSVector4 lrf  = xy.ceil();
-		GSVector4 l    = lrf.max(scissor);
-		GSVector4 r    = lrf.min(scissor);
+		GSVector4 l    = lrf._max(scissor);
+		GSVector4 r    = lrf._min(scissor);
 		GSVector4i lr  = GSVector4i(l.xxyy(r));
 
 		int left       = lr.extract32<0>();
@@ -835,8 +834,8 @@ void GSRasterizer::DrawEdge(const GSVertexSW& v0, const GSVertexSW& v1, const GS
 	if (orientation)
 	{
 		GSVector4 tbf = v0.p.yyyy(v1.p).ceil(); // t t b b
-		GSVector4 tbmax = tbf.max(m_fscissor_y); // max(t, st) max(t, sb) max(b, st) max(b, sb)
-		GSVector4 tbmin = tbf.min(m_fscissor_y); // min(t, st) min(t, sb) min(b, st) min(b, sb)
+		GSVector4 tbmax = tbf._max(m_fscissor_y); // max(t, st) max(t, sb) max(b, st) max(b, sb)
+		GSVector4 tbmin = tbf._min(m_fscissor_y); // min(t, st) min(t, sb) min(b, st) min(b, sb)
 		GSVector4i tb = GSVector4i(tbmax.xzyw(tbmin)); // max(t, st) max(b, sb) min(t, st) min(b, sb)
 
 		int top, bottom;
@@ -925,8 +924,8 @@ void GSRasterizer::DrawEdge(const GSVertexSW& v0, const GSVertexSW& v1, const GS
 	else
 	{
 		GSVector4 lrf = v0.p.xxxx(v1.p).ceil(); // l l r r
-		GSVector4 lrmax = lrf.max(m_fscissor_x); // max(l, sl) max(l, sr) max(r, sl) max(r, sr)
-		GSVector4 lrmin = lrf.min(m_fscissor_x); // min(l, sl) min(l, sr) min(r, sl) min(r, sr)
+		GSVector4 lrmax = lrf._max(m_fscissor_x); // max(l, sl) max(l, sr) max(r, sl) max(r, sr)
+		GSVector4 lrmin = lrf._min(m_fscissor_x); // min(l, sl) min(l, sr) min(r, sl) min(r, sr)
 		GSVector4i lr = GSVector4i(lrmax.xzyw(lrmin)); // max(l, sl) max(r, sl) min(l, sr) min(r, sr)
 
 		int left, right;

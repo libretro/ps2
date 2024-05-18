@@ -15,8 +15,6 @@
 
 #pragma once
 
-#include "PrecompiledHeader.h"
-
 #include <array>
 #include <string>
 #include <optional>

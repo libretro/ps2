@@ -17,9 +17,6 @@
 // and added reg caching, const propagation, block analysis Jun06
 // zerofrog(@gmail.com)
 
-
-#include "PrecompiledHeader.h"
-
 #include "iR3000A.h"
 #include "R3000A.h"
 #include "BaseblockEx.h"

@@ -15,8 +15,6 @@
 
 #pragma once
 
-#include "PrecompiledHeader.h"
-
 struct StereoOut16;
 struct StereoOut32;
 struct StereoOutFloat;

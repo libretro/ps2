@@ -151,8 +151,8 @@ void GSVertexTraceFMM::FindMinMax(GSVertexTrace& vt, const void* vertex, const u
 				stq0 = st.xyww(primclass == GS_SPRITE_CLASS ? stq1 : stq0);
 				stq1 = st.zwww(stq1);
 
-				tmin = tmin.min(stq0.min(stq1));
-				tmax = tmax.max(stq0.max(stq1));
+				tmin = tmin._min(stq0._min(stq1));
+				tmax = tmax._max(stq0._max(stq1));
 			}
 			else
 			{
@@ -162,8 +162,8 @@ void GSVertexTraceFMM::FindMinMax(GSVertexTrace& vt, const void* vertex, const u
 				GSVector4 st0 = GSVector4(uv0.uph16()).xyxy();
 				GSVector4 st1 = GSVector4(uv1.uph16()).xyxy();
 
-				tmin = tmin.min(st0.min(st1));
-				tmax = tmax.max(st0.max(st1));
+				tmin = tmin._min(st0._min(st1));
+				tmax = tmax._max(st0._max(st1));
 			}
 		}
 

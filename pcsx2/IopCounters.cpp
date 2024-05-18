@@ -13,12 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 // Note on INTC usage: All counters code is always called from inside the context of an
 // event test, so instead of using the iopTestIntc we just set the 0x1070 flags directly.
 // The EventText function will pick it up.
 
-#include "PrecompiledHeader.h"
 #include "IopCounters.h"
 #include "R3000A.h"
 #include "Common.h"

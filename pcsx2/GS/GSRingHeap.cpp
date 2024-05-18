@@ -13,11 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GSRingHeap.h"
-#include "GS.h"
-#include "GSExtra.h"
 #include "common/AlignedMalloc.h"
+
+#include "GS.h"
+#include "GSRingHeap.h"
+#include "GSExtra.h"
 
 namespace
 {

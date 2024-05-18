@@ -13,10 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
-#include "common/Console.h"
-
 #include "newVif_UnpackSSE.h"
 
 //alignas(__pagesize) static u8 nVifUpkExec[__pagesize*4];
@@ -364,8 +360,6 @@ void VifUnpackSSE_Init(void)
 				nVifGen(a, b, c);
 
 	nVifUpkExec->ForbidModification();
-
-	Console.WriteLn("[VIF] SSE-optimized unpack function generation complete.");
 }
 
 void VifUnpackSSE_Destroy(void)

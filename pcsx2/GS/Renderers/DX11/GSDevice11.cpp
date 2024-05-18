@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-
 #include "common/Align.h"
 #include "common/Console.h"
 #include "common/Path.h"

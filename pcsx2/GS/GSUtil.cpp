@@ -13,19 +13,18 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "GS/GS.h"
-#include "GS/GSExtra.h"
-#include "GS/GSUtil.h"
+#include "GS.h"
+#include "GSExtra.h"
+#include "GSUtil.h"
 #include "MultiISA.h"
 
 #ifdef ENABLE_VULKAN
-#include "GS/Renderers/Vulkan/GSDeviceVK.h"
+#include "Renderers/Vulkan/GSDeviceVK.h"
 #endif
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
-#include "GS/Renderers/DX11/D3D.h"
+#include "Renderers/DX11/D3D.h"
 #endif
 
 static class GSUtilMaps

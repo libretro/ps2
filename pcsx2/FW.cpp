@@ -13,9 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PrecompiledHeader.h"
-#include "IopDma.h"
 #include <stdlib.h>
+#include <string.h> /* memset */
+
+#include "IopDma.h"
 
 #include "FW.h"
 

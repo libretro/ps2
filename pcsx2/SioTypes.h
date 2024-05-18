@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "common/Pcsx2Types.h"
+
 enum class SioStage
 {
 	IDLE = 0,

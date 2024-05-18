@@ -13,9 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include "PrecompiledHeader.h"
-
 #include "Memory.h"
 #include "iR5900.h"
 #include "Vif.h"
