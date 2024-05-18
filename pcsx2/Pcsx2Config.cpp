@@ -407,15 +407,6 @@ const char* Pcsx2Config::GSOptions::FMVAspectRatioSwitchNames[] = {
 	"16:9",
 	nullptr};
 
-const char* Pcsx2Config::GSOptions::BlendingLevelNames[] = {
-	"Minimum",
-	"Basic",
-	"Medium",
-	"High",
-	"Full",
-	"Maximum",
-	nullptr};
-
 const char* Pcsx2Config::GSOptions::GetRendererName(GSRendererType type)
 {
 	switch (type)
@@ -528,7 +519,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_TextureInsideRt) &&
 		OpEqu(UserHacks_BilinearHack) &&
 		OpEqu(OverrideTextureBarriers) &&
-		OpEqu(PNGCompressionLevel) &&
 		OpEqu(Adapter)
 		);
 }
@@ -566,98 +556,72 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntryEx(Crop[2], "CropRight");
 	SettingsWrapEntryEx(Crop[3], "CropBottom");
 
-#define GSSettingInt(var) SettingsWrapBitfield(var)
-#define GSSettingIntEx(var, name) SettingsWrapBitfieldEx(var, name)
-#define GSSettingBool(var) SettingsWrapBitBool(var)
-#define GSSettingBoolEx(var, name) SettingsWrapBitBoolEx(var, name)
-#define GSSettingFloat(var) SettingsWrapEntry(var)
-#define GSSettingFloatEx(var, name) SettingsWrapEntryEx(var, name)
-#define GSSettingIntEnumEx(var, name) SettingsWrapIntEnumEx(var, name)
-#define GSSettingString(var) SettingsWrapEntry(var)
-#define GSSettingStringEx(var, name) SettingsWrapEntryEx(var, name)
-
 	// Unfortunately, because code in the GS still reads the setting by key instead of
 	// using these variables, we need to use the old names. Maybe post 2.0 we can change this.
-	GSSettingBoolEx(PCRTCAntiBlur, "pcrtc_antiblur");
-	GSSettingBoolEx(DisableInterlaceOffset, "disable_interlace_offset");
-	GSSettingBoolEx(PCRTCOffsets, "pcrtc_offsets");
-	GSSettingBoolEx(PCRTCOverscan, "pcrtc_overscan");
-	GSSettingBool(UseDebugDevice);
-	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
-	GSSettingBool(DisableFramebufferFetch);
-	GSSettingBool(DisableVertexShaderExpand);
-	GSSettingBool(SkipDuplicateFrames);
+	SettingsWrapBitBoolEx(PCRTCAntiBlur, "pcrtc_antiblur");
+	SettingsWrapBitBoolEx(DisableInterlaceOffset, "disable_interlace_offset");
+	SettingsWrapBitBoolEx(PCRTCOffsets, "pcrtc_offsets");
+	SettingsWrapBitBoolEx(PCRTCOverscan, "pcrtc_overscan");
+	SettingsWrapBitBool(UseDebugDevice);
+	SettingsWrapBitBoolEx(DisableShaderCache, "disable_shader_cache");
+	SettingsWrapBitBool(DisableFramebufferFetch);
+	SettingsWrapBitBool(DisableVertexShaderExpand);
+	SettingsWrapBitBool(SkipDuplicateFrames);
 
-	GSSettingBoolEx(GPUPaletteConversion, "paltex");
-	GSSettingBoolEx(AutoFlushSW, "autoflush_sw");
-	GSSettingBoolEx(PreloadFrameWithGSData, "preload_frame_with_gs_data");
-	GSSettingBoolEx(Mipmap, "mipmap");
-	GSSettingBoolEx(ManualUserHacks, "UserHacks");
-	GSSettingBoolEx(UserHacks_AlignSpriteX, "UserHacks_align_sprite_X");
-	GSSettingIntEnumEx(UserHacks_AutoFlush, "UserHacks_AutoFlushLevel");
-	GSSettingBoolEx(UserHacks_CPUFBConversion, "UserHacks_CPU_FB_Conversion");
-	GSSettingBoolEx(UserHacks_ReadTCOnClose, "UserHacks_ReadTCOnClose");
-	GSSettingBoolEx(UserHacks_DisableDepthSupport, "UserHacks_DisableDepthSupport");
-	GSSettingBoolEx(UserHacks_DisablePartialInvalidation, "UserHacks_DisablePartialInvalidation");
-	GSSettingBoolEx(UserHacks_DisableSafeFeatures, "UserHacks_Disable_Safe_Features");
-	GSSettingBoolEx(UserHacks_DisableRenderFixes, "UserHacks_DisableRenderFixes");
-	GSSettingBoolEx(UserHacks_MergePPSprite, "UserHacks_merge_pp_sprite");
-	GSSettingBoolEx(UserHacks_WildHack, "UserHacks_WildHack");
-	GSSettingIntEnumEx(UserHacks_BilinearHack, "UserHacks_BilinearHack");
-	GSSettingBoolEx(UserHacks_NativePaletteDraw, "UserHacks_NativePaletteDraw");
-	GSSettingIntEnumEx(UserHacks_TextureInsideRt, "UserHacks_TextureInsideRt");
-	GSSettingBoolEx(UserHacks_EstimateTextureRegion, "UserHacks_EstimateTextureRegion");
-	GSSettingBoolEx(SaveRT, "save");
-	GSSettingBoolEx(SaveFrame, "savef");
-	GSSettingBoolEx(SaveTexture, "savet");
-	GSSettingBoolEx(SaveDepth, "savez");
-	GSSettingBool(LoadTextureReplacements);
-	GSSettingBool(LoadTextureReplacementsAsync);
-	GSSettingBool(PrecacheTextureReplacements);
+	SettingsWrapBitBoolEx(GPUPaletteConversion, "paltex");
+	SettingsWrapBitBoolEx(AutoFlushSW, "autoflush_sw");
+	SettingsWrapBitBoolEx(PreloadFrameWithGSData, "preload_frame_with_gs_data");
+	SettingsWrapBitBoolEx(Mipmap, "mipmap");
+	SettingsWrapBitBoolEx(ManualUserHacks, "UserHacks");
+	SettingsWrapBitBoolEx(UserHacks_AlignSpriteX, "UserHacks_align_sprite_X");
+	SettingsWrapIntEnumEx(UserHacks_AutoFlush, "UserHacks_AutoFlushLevel");
+	SettingsWrapBitBoolEx(UserHacks_CPUFBConversion, "UserHacks_CPU_FB_Conversion");
+	SettingsWrapBitBoolEx(UserHacks_ReadTCOnClose, "UserHacks_ReadTCOnClose");
+	SettingsWrapBitBoolEx(UserHacks_DisableDepthSupport, "UserHacks_DisableDepthSupport");
+	SettingsWrapBitBoolEx(UserHacks_DisablePartialInvalidation, "UserHacks_DisablePartialInvalidation");
+	SettingsWrapBitBoolEx(UserHacks_DisableSafeFeatures, "UserHacks_Disable_Safe_Features");
+	SettingsWrapBitBoolEx(UserHacks_DisableRenderFixes, "UserHacks_DisableRenderFixes");
+	SettingsWrapBitBoolEx(UserHacks_MergePPSprite, "UserHacks_merge_pp_sprite");
+	SettingsWrapBitBoolEx(UserHacks_WildHack, "UserHacks_WildHack");
+	SettingsWrapIntEnumEx(UserHacks_BilinearHack, "UserHacks_BilinearHack");
+	SettingsWrapBitBoolEx(UserHacks_NativePaletteDraw, "UserHacks_NativePaletteDraw");
+	SettingsWrapIntEnumEx(UserHacks_TextureInsideRt, "UserHacks_TextureInsideRt");
+	SettingsWrapBitBoolEx(UserHacks_EstimateTextureRegion, "UserHacks_EstimateTextureRegion");
+	SettingsWrapBitBool(LoadTextureReplacements);
+	SettingsWrapBitBool(LoadTextureReplacementsAsync);
+	SettingsWrapBitBool(PrecacheTextureReplacements);
 
-	GSSettingIntEnumEx(InterlaceMode, "deinterlace_mode");
+	SettingsWrapIntEnumEx(InterlaceMode, "deinterlace_mode");
 
-	GSSettingIntEnumEx(Renderer, "Renderer");
-	GSSettingFloatEx(UpscaleMultiplier, "upscale_multiplier");
+	SettingsWrapIntEnumEx(Renderer, "Renderer");
+	SettingsWrapEntryEx(UpscaleMultiplier, "upscale_multiplier");
 
 	// ~51x would the upper bound here for 32768x32768 textures, but you'll run out VRAM long before then.
 	UpscaleMultiplier = std::clamp(UpscaleMultiplier, 0.5f, 50.0f);
 
-	GSSettingIntEnumEx(HWMipmap, "mipmap_hw");
-	GSSettingIntEnumEx(AccurateBlendingUnit, "accurate_blending_unit");
-	GSSettingIntEnumEx(TextureFiltering, "filter");
-	GSSettingIntEnumEx(TexturePreloading, "texture_preloading");
-	GSSettingIntEnumEx(HWDownloadMode, "HWDownloadMode");
-	GSSettingIntEx(Dithering, "dithering_ps2");
-	GSSettingIntEx(MaxAnisotropy, "MaxAnisotropy");
-	GSSettingIntEx(SkipDrawStart, "UserHacks_SkipDraw_Start");
-	GSSettingIntEx(SkipDrawEnd, "UserHacks_SkipDraw_End");
+	SettingsWrapIntEnumEx(HWMipmap, "mipmap_hw");
+	SettingsWrapIntEnumEx(AccurateBlendingUnit, "accurate_blending_unit");
+	SettingsWrapIntEnumEx(TextureFiltering, "filter");
+	SettingsWrapIntEnumEx(TexturePreloading, "texture_preloading");
+	SettingsWrapIntEnumEx(HWDownloadMode, "HWDownloadMode");
+	SettingsWrapBitfieldEx(Dithering, "dithering_ps2");
+	SettingsWrapBitfieldEx(MaxAnisotropy, "MaxAnisotropy");
+	SettingsWrapBitfieldEx(SkipDrawStart, "UserHacks_SkipDraw_Start");
+	SettingsWrapBitfieldEx(SkipDrawEnd, "UserHacks_SkipDraw_End");
 	SkipDrawEnd = std::max(SkipDrawStart, SkipDrawEnd);
 
-	GSSettingIntEnumEx(UserHacks_HalfPixelOffset, "UserHacks_HalfPixelOffset");
-	GSSettingIntEx(UserHacks_RoundSprite, "UserHacks_round_sprite_offset");
-	GSSettingIntEx(UserHacks_TCOffsetX, "UserHacks_TCOffsetX");
-	GSSettingIntEx(UserHacks_TCOffsetY, "UserHacks_TCOffsetY");
-	GSSettingIntEx(UserHacks_CPUSpriteRenderBW, "UserHacks_CPUSpriteRenderBW");
-	GSSettingIntEx(UserHacks_CPUSpriteRenderLevel, "UserHacks_CPUSpriteRenderLevel");
-	GSSettingIntEx(UserHacks_CPUCLUTRender, "UserHacks_CPUCLUTRender");
-	GSSettingIntEnumEx(UserHacks_GPUTargetCLUTMode, "UserHacks_GPUTargetCLUTMode");
-	GSSettingIntEnumEx(TriFilter, "TriFilter");
-	GSSettingIntEx(OverrideTextureBarriers, "OverrideTextureBarriers");
+	SettingsWrapIntEnumEx(UserHacks_HalfPixelOffset, "UserHacks_HalfPixelOffset");
+	SettingsWrapBitfieldEx(UserHacks_RoundSprite, "UserHacks_round_sprite_offset");
+	SettingsWrapBitfieldEx(UserHacks_TCOffsetX, "UserHacks_TCOffsetX");
+	SettingsWrapBitfieldEx(UserHacks_TCOffsetY, "UserHacks_TCOffsetY");
+	SettingsWrapBitfieldEx(UserHacks_CPUSpriteRenderBW, "UserHacks_CPUSpriteRenderBW");
+	SettingsWrapBitfieldEx(UserHacks_CPUSpriteRenderLevel, "UserHacks_CPUSpriteRenderLevel");
+	SettingsWrapBitfieldEx(UserHacks_CPUCLUTRender, "UserHacks_CPUCLUTRender");
+	SettingsWrapIntEnumEx(UserHacks_GPUTargetCLUTMode, "UserHacks_GPUTargetCLUTMode");
+	SettingsWrapIntEnumEx(TriFilter, "TriFilter");
+	SettingsWrapBitfieldEx(OverrideTextureBarriers, "OverrideTextureBarriers");
 
-	GSSettingIntEx(PNGCompressionLevel, "png_compression_level");
-
-	GSSettingString(Adapter);
-
-#undef GSSettingInt
-#undef GSSettingIntEx
-#undef GSSettingBool
-#undef GSSettingBoolEx
-#undef GSSettingFloat
-#undef GSSettingEnumEx
-#undef GSSettingIntEnumEx
-#undef GSSettingString
-#undef GSSettingStringEx
+	SettingsWrapEntry(Adapter);
 }
 
 void Pcsx2Config::GSOptions::MaskUserHacks()

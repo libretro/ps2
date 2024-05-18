@@ -475,7 +475,6 @@ struct Pcsx2Config
 	{
 		static const char* AspectRatioNames[];
 		static const char* FMVAspectRatioSwitchNames[];
-		static const char* BlendingLevelNames[];
 
 		static const char* GetRendererName(GSRendererType type);
 
@@ -516,10 +515,6 @@ struct Pcsx2Config
 					UserHacks_WildHack : 1,
 					UserHacks_NativePaletteDraw : 1,
 					UserHacks_EstimateTextureRegion : 1,
-					SaveRT : 1,
-					SaveFrame : 1,
-					SaveTexture : 1,
-					SaveDepth : 1,
 					LoadTextureReplacements : 1,
 					LoadTextureReplacementsAsync : 1,
 					PrecacheTextureReplacements : 1;
@@ -567,8 +562,6 @@ struct Pcsx2Config
 		GSBilinearDirtyMode UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 		TriFiltering TriFilter = TriFiltering::Automatic;
 		s8 OverrideTextureBarriers = -1;
-
-		u8 PNGCompressionLevel = 1;
 
 		u16 SWExtraThreads = 2;
 		u16 SWExtraThreadsHeight = 4;
