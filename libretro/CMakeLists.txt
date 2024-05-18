@@ -5,6 +5,13 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/main.cpp
    ${CMAKE_SOURCE_DIR}/libretro/DEV9.cpp
    ${CMAKE_SOURCE_DIR}/libretro/USB.cpp
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_strl.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_posix_string.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/fopen_utf8.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_utf.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/string/stdstring.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/file_stream.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/vfs/vfs_implementation.c
 )
 
 target_link_libraries(pcsx2_libretro PRIVATE
@@ -21,22 +28,21 @@ if(APPLE)
 endif()
 
 target_include_directories(PCSX2_FLAGS INTERFACE
-	"${CMAKE_SOURCE_DIR}/libretro"
+	"${CMAKE_SOURCE_DIR}/libretro/libretro-common/include"
 )
 
 target_include_directories(common PUBLIC
-	"${CMAKE_SOURCE_DIR}/libretro"
+	"${CMAKE_SOURCE_DIR}/libretro/libretro-common/include"
 )
 
 target_include_directories(pcsx2_libretro PRIVATE
 	"${CMAKE_SOURCE_DIR}"
-	"${CMAKE_SOURCE_DIR}/libretro"
+	"${CMAKE_SOURCE_DIR}/libretro/libretro-common/include"
 	"${CMAKE_SOURCE_DIR}/common/include"
 	"${CMAKE_SOURCE_DIR}/3rdparty/include"
 	"${CMAKE_SOURCE_DIR}/pcsx2"
 )
 
-#include_directories(. ${CMAKE_SOURCE_DIR}/libretro ${CMAKE_SOURCE_DIR}/common)
 set_target_properties(pcsx2_libretro PROPERTIES
    LIBRARY_OUTPUT_NAME pcsx2_libretro
    PREFIX ""

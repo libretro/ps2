@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <libretro.h>
+#include <streams/file_stream.h>
 #include <string>
 #include <vector>
 #include <type_traits>
@@ -372,12 +373,19 @@ void SndBuffer::Write(StereoOut16 Sample)
 
 void retro_set_environment(retro_environment_t cb)
 {
-	environ_cb = cb;
+	struct retro_vfs_interface_info vfs_iface_info;
 	bool no_game = true;
+
+	environ_cb = cb;
 	environ_cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &no_game);
 #ifdef PERF_TEST
 	environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb);
 #endif
+
+	vfs_iface_info.required_interface_version = 1;
+	vfs_iface_info.iface                      = NULL;
+	if (cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
+		filestream_vfs_init(&vfs_iface_info);
 }
 
 static std::vector<std::string> disk_images;
