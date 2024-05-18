@@ -198,24 +198,6 @@ enum class VsyncMode
 	Adaptive,
 };
 
-enum class AspectRatioType : u8
-{
-	Stretch,
-	RAuto4_3_3_2,
-	R4_3,
-	R16_9,
-	MaxCount
-};
-
-enum class FMVAspectRatioSwitchType : u8
-{
-	Off,
-	RAuto4_3_3_2,
-	R4_3,
-	R16_9,
-	MaxCount
-};
-
 enum class MemoryCardType
 {
 	Empty,
@@ -473,9 +455,6 @@ struct Pcsx2Config
 	// ------------------------------------------------------------------------
 	struct GSOptions
 	{
-		static const char* AspectRatioNames[];
-		static const char* FMVAspectRatioSwitchNames[];
-
 		static const char* GetRendererName(GSRendererType type);
 
 		static constexpr float DEFAULT_FRAME_RATE_NTSC = 59.94f;
@@ -526,12 +505,7 @@ struct Pcsx2Config
 		float FramerateNTSC = DEFAULT_FRAME_RATE_NTSC;
 		float FrameratePAL = DEFAULT_FRAME_RATE_PAL;
 
-		AspectRatioType AspectRatio = AspectRatioType::RAuto4_3_3_2;
-		FMVAspectRatioSwitchType FMVAspectRatioSwitch = FMVAspectRatioSwitchType::Off;
 		GSInterlaceMode InterlaceMode = GSInterlaceMode::Automatic;
-
-		float StretchY = 100.0f;
-		int Crop[4] = {};
 
 		GSRendererType Renderer = GSRendererType::Auto;
 		float UpscaleMultiplier = 1.0f;
@@ -897,7 +871,6 @@ struct Pcsx2Config
 	// Set at runtime, not loaded from config.
 	std::string CurrentIRX;
 	std::string CurrentGameArgs;
-	AspectRatioType CurrentAspectRatio = AspectRatioType::RAuto4_3_3_2;
 
 	Pcsx2Config();
 	void LoadSave(SettingsWrapper& wrap);

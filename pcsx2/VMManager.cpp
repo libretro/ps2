@@ -270,13 +270,9 @@ void VMManager::LoadSettings()
 		EmuConfig.GS.InterlaceMode = GSInterlaceMode::Off;
 
 	// Switch to 16:9 if widescreen patches are enabled, and AR is auto.
-	if (s_active_widescreen_patches > 0 && EmuConfig.GS.AspectRatio == AspectRatioType::RAuto4_3_3_2)
+	if (s_active_widescreen_patches > 0)
 	{
-		// Don't change when reloading settings in the middle of a FMV with switch.
-		if (EmuConfig.CurrentAspectRatio == EmuConfig.GS.AspectRatio)
-			EmuConfig.CurrentAspectRatio = AspectRatioType::R16_9;
-
-		EmuConfig.GS.AspectRatio = AspectRatioType::R16_9;
+		/* TODO/FIXME - implement */
 	}
 
 	if (HasValidVM())
@@ -367,14 +363,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 			fmt::format_to(std::back_inserter(message), "{}{} widescreen patches", (patch_count > 0 || cheat_count > 0) ? " and " : "", s_active_widescreen_patches);
 
 			// Switch to 16:9 if widescreen patches are enabled, and AR is auto.
-			if (EmuConfig.GS.AspectRatio == AspectRatioType::RAuto4_3_3_2)
-			{
-				// Don't change when reloading settings in the middle of a FMV with switch.
-				if (EmuConfig.CurrentAspectRatio == EmuConfig.GS.AspectRatio)
-					EmuConfig.CurrentAspectRatio = AspectRatioType::R16_9;
-
-				EmuConfig.GS.AspectRatio = AspectRatioType::R16_9;
-			}
+			// TODO/FIXME - implement
 		}
 	}
 

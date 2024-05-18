@@ -393,20 +393,6 @@ void Pcsx2Config::CpuOptions::LoadSave(SettingsWrapper& wrap)
 	Recompiler.LoadSave(wrap);
 }
 
-const char* Pcsx2Config::GSOptions::AspectRatioNames[] = {
-	"Stretch",
-	"Auto 4:3/3:2",
-	"4:3",
-	"16:9",
-	nullptr};
-
-const char* Pcsx2Config::GSOptions::FMVAspectRatioSwitchNames[] = {
-	"Off",
-	"Auto 4:3/3:2",
-	"4:3",
-	"16:9",
-	nullptr};
-
 const char* Pcsx2Config::GSOptions::GetRendererName(GSRendererType type)
 {
 	switch (type)
@@ -469,9 +455,6 @@ bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
 		OpEqu(FramerateNTSC) &&
 		OpEqu(FrameratePAL) &&
 
-		OpEqu(AspectRatio) &&
-		OpEqu(FMVAspectRatioSwitch) &&
-
 		OptionsAreEqual(right));
 }
 
@@ -481,12 +464,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(bitset) &&
 
 		OpEqu(InterlaceMode) &&
-
-		OpEqu(StretchY) &&
-		OpEqu(Crop[0]) &&
-		OpEqu(Crop[1]) &&
-		OpEqu(Crop[2]) &&
-		OpEqu(Crop[3]) &&
 
 		OpEqu(Renderer) &&
 		OpEqu(UpscaleMultiplier) &&
@@ -547,14 +524,6 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapEntry(FramerateNTSC);
 	SettingsWrapEntry(FrameratePAL);
-
-	SettingsWrapEnumEx(AspectRatio, "AspectRatio", AspectRatioNames);
-	SettingsWrapEnumEx(FMVAspectRatioSwitch, "FMVAspectRatioSwitch", FMVAspectRatioSwitchNames);
-	SettingsWrapEntry(StretchY);
-	SettingsWrapEntryEx(Crop[0], "CropLeft");
-	SettingsWrapEntryEx(Crop[1], "CropTop");
-	SettingsWrapEntryEx(Crop[2], "CropRight");
-	SettingsWrapEntryEx(Crop[3], "CropBottom");
 
 	// Unfortunately, because code in the GS still reads the setting by key instead of
 	// using these variables, we need to use the old names. Maybe post 2.0 we can change this.
@@ -991,11 +960,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	BaseFilenames.LoadSave(wrap);
 	Framerate.LoadSave(wrap);
 	LoadSaveMemcards(wrap);
-
-	if (wrap.IsLoading())
-	{
-		CurrentAspectRatio = GS.AspectRatio;
-	}
 }
 
 void Pcsx2Config::LoadSaveMemcards(SettingsWrapper& wrap)
@@ -1064,7 +1028,6 @@ void Pcsx2Config::CopyRuntimeConfig(Pcsx2Config& cfg)
 	UseBOOT2Injection = cfg.UseBOOT2Injection;
 	CurrentIRX = std::move(cfg.CurrentIRX);
 	CurrentGameArgs = std::move(cfg.CurrentGameArgs);
-	CurrentAspectRatio = cfg.CurrentAspectRatio;
 
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
 	{

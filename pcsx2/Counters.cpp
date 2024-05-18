@@ -383,7 +383,7 @@ extern bool EnableFMV;
 static bool RendererSwitched = false;
 static bool s_last_fmv_state = false;
 
-static __fi void DoFMVSwitch()
+static __fi void DoFMVSwitch(void)
 {
 	bool new_fmv_state = s_last_fmv_state;
 	if (EnableFMV)
@@ -405,23 +405,6 @@ static __fi void DoFMVSwitch()
 		return;
 
 	s_last_fmv_state = new_fmv_state;
-
-	switch (EmuConfig.GS.FMVAspectRatioSwitch)
-	{
-		case FMVAspectRatioSwitchType::Off:
-			break;
-		case FMVAspectRatioSwitchType::RAuto4_3_3_2:
-			EmuConfig.CurrentAspectRatio = new_fmv_state ? AspectRatioType::RAuto4_3_3_2 : EmuConfig.GS.AspectRatio;
-			break;
-		case FMVAspectRatioSwitchType::R4_3:
-			EmuConfig.CurrentAspectRatio = new_fmv_state ? AspectRatioType::R4_3 : EmuConfig.GS.AspectRatio;
-			break;
-		case FMVAspectRatioSwitchType::R16_9:
-			EmuConfig.CurrentAspectRatio = new_fmv_state ? AspectRatioType::R16_9 : EmuConfig.GS.AspectRatio;
-			break;
-		default:
-			break;
-	}
 
 	if (EmuConfig.Gamefixes.SoftwareRendererFMVHack && (GSConfig.UseHardwareRenderer() || (RendererSwitched && GSConfig.Renderer == GSRendererType::SW)))
 	{
