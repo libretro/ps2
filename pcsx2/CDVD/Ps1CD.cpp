@@ -68,21 +68,8 @@ enum cdrom_registers
 	/* don't set 255, it's reserved */
 };
 
-const char* CmdName[0x100] = {
-	"CdlSync", "CdlNop", "CdlSetloc", "CdlPlay",
-	"CdlForward", "CdlBackward", "CdlReadN", "CdlStandby",
-	"CdlStop", "CdlPause", "CdlInit", "CdlMute",
-	"CdlDemute", "CdlSetfilter", "CdlSetmode", "CdlGetparam",
-	"CdlGetlocL", "CdlGetlocP", "Cdl18", "CdlGetTN",
-	"CdlGetTD", "CdlSeekL", "CdlSeekP", NULL,
-	NULL, "CdlTest", "CdlID", "CdlReadS",
-	"CdlReset", NULL, "CDlReadToc", NULL};
-
 cdrStruct cdr;
-s32 LoadCdBios;
 
-u8 Test04[] = {0};
-u8 Test05[] = {0};
 u8 Test20[] = {0x98, 0x06, 0x10, 0xC3};
 u8 Test22[] = {0x66, 0x6F, 0x72, 0x20, 0x45, 0x75, 0x72, 0x6F};
 u8 Test23[] = {0x43, 0x58, 0x44, 0x32, 0x39, 0x34, 0x30, 0x51};
@@ -126,23 +113,15 @@ u8 Test23[] = {0x43, 0x58, 0x44, 0x32, 0x39, 0x34, 0x30, 0x51};
 // 1x = 75 sectors per second
 // PSXCLK = 1 sec in the ps
 // so (PSXCLK / 75) / BIAS = cdr read time (linuzappz)
-u32 cdReadTime; // = ((PSXCLK / 75) / BIAS);
+static u32 cdReadTime; // = ((PSXCLK / 75) / BIAS);
 
 #define CDR_INT(eCycle) PSX_INT(IopEvt_Cdrom, eCycle)
 #define CDREAD_INT(eCycle) PSX_INT(IopEvt_CdromRead, eCycle)
 
-const uint shortSectorSeekReadDelay = 1000; // delay for reads/seeks that may or may not have a seek action preceeding it
-uint sectorSeekReadDelay = 0x800;           // for calculated seek delays
+static const uint shortSectorSeekReadDelay = 1000; // delay for reads/seeks that may or may not have a seek action preceeding it
+static uint sectorSeekReadDelay = 0x800;    // for calculated seek delays
 
 static void AddIrqQueue(u8 irq, u32 ecycle);
-
-#if 0
-// Unused
-static __fi int GetCDSpeed()
-{
-	return 1 + ((cdr.Mode >> 7) & 0x1);
-}
-#endif
 
 static __fi void StartReading(u32 type)
 {
@@ -155,7 +134,7 @@ static __fi void StartReading(u32 type)
 	sectorSeekReadDelay = shortSectorSeekReadDelay;
 }
 
-static __fi void StopReading()
+static __fi void StopReading(void)
 {
 	if (cdr.Reading)
 	{
@@ -164,7 +143,7 @@ static __fi void StopReading()
 	}
 }
 
-static __fi void StopCdda()
+static __fi void StopCdda(void)
 {
 	if (cdr.Play)
 	{
@@ -192,9 +171,7 @@ static void AddIrqQueue(u8 irq, u32 ecycle)
 {
 	cdr.Irq = irq;
 	if (cdr.Stat)
-	{
 		cdr.eCycle = ecycle;
-	}
 	else
 	{
 		CDR_INT(ecycle);
@@ -483,10 +460,9 @@ void cdrInterrupt()
 			cdr.Result[0] = 0x00; // 0x08 and cdr.Result[1]|0x10 : audio cd, enters cd player
 			cdr.Result[1] = 0x00; // 0x80 leads to the menu in the bios, else loads CD
 
-			if (!LoadCdBios)
-				cdr.Result[1] |= 0x80;
-			cdr.Result[2] = 0x00;
-			cdr.Result[3] = 0x00;
+			cdr.Result[1] |= 0x80;
+			cdr.Result[2]  = 0x00;
+			cdr.Result[3]  = 0x00;
 			strncpy((char*)&cdr.Result[4], "PCSX", 4);
 			cdr.Stat = Complete;
 			break;
@@ -541,7 +517,6 @@ void cdrInterrupt()
 			break;
 
 		case REPPLAY:
-			//if ((cdr.Mode & 5) != 5) break;
 			break;
 
 		case 0xff:
@@ -556,9 +531,8 @@ void cdrInterrupt()
 		psxHu32(0x1070) |= 0x4;
 }
 
-void cdrReadInterrupt()
+void cdrReadInterrupt(void)
 {
-
 	if (!cdr.Reading)
 		return;
 
@@ -670,9 +644,7 @@ void cdrWrite0(u8 rt)
 
 void setPs1CDVDSpeed(int speed)
 {
-	//Console.Warning(L"SPEED: %dX", speed);
 	cdReadTime = (PSXCLK / (75 * speed));
-	//Console.Warning(L"cdReadTime: %d", unsigned(cdReadTime));
 }
 
 u8 cdrRead1(void)
@@ -714,32 +686,30 @@ void cdrWrite1(u8 rt)
 			break;
 
 		case CdlSetloc:
-		{
-			//StopReading();
-			// Setloc is memorizing the wanted target, and marks it as unprocessed, and has no other effect
-			// (it doesn't start reading or seeking, and doesn't interrupt or redirect any active reads).
-			// But it does set the seek target. This is used to set the target then seperately start the seek after setloc
-			int oldSector = msf_to_lsn(cdr.SetSector);
-			for (i = 0; i < 3; i++)
-				cdr.SetSector[i] = btoi(cdr.Param[i]);
-			cdr.SetSector[3] = 0;
-			if ((cdr.SetSector[0] | cdr.SetSector[1] | cdr.SetSector[2]) == 0)
 			{
-				*(u32*)cdr.SetSector = *(u32*)cdr.SetSectorSeek;
+				//StopReading();
+				// Setloc is memorizing the wanted target, and marks it as unprocessed, and has no other effect
+				// (it doesn't start reading or seeking, and doesn't interrupt or redirect any active reads).
+				// But it does set the seek target. This is used to set the target then seperately start the seek after setloc
+				int oldSector = msf_to_lsn(cdr.SetSector);
+				for (i = 0; i < 3; i++)
+					cdr.SetSector[i] = btoi(cdr.Param[i]);
+				cdr.SetSector[3] = 0;
+				if ((cdr.SetSector[0] | cdr.SetSector[1] | cdr.SetSector[2]) == 0)
+					*(u32*)cdr.SetSector = *(u32*)cdr.SetSectorSeek;
+				int newSector = msf_to_lsn(cdr.SetSector);
+
+				// sectorSeekReadDelay should lead to sensible random seek results in QA (Aging Disk) test
+				sectorSeekReadDelay = abs(newSector - oldSector) * 100;
+				if (sectorSeekReadDelay < shortSectorSeekReadDelay)
+					sectorSeekReadDelay = shortSectorSeekReadDelay;
+
+				cdr.Ctrl |= 0x80;
+				cdr.Stat = NoIntr;
+				cdr.SetlocPending = 1;
+				AddIrqQueue(cdr.Cmd, 0x800); // the seek delay occurs on the next read / seek command (CdlReadS, CdlSeekL, etc)
 			}
-			int newSector = msf_to_lsn(cdr.SetSector);
-
-			// sectorSeekReadDelay should lead to sensible random seek results in QA (Aging Disk) test
-			sectorSeekReadDelay = abs(newSector - oldSector) * 100;
-			if (sectorSeekReadDelay < shortSectorSeekReadDelay)
-				sectorSeekReadDelay = shortSectorSeekReadDelay;
-
-			cdr.Ctrl |= 0x80;
-			cdr.Stat = NoIntr;
-			cdr.SetlocPending = 1;
-			AddIrqQueue(cdr.Cmd, 0x800); // the seek delay occurs on the next read / seek command (CdlReadS, CdlSeekL, etc)
-		}
-		break;
+			break;
 		case CdlPlay:
 			if (cdr.SetlocPending)
 			{
@@ -928,14 +898,10 @@ void cdrWrite1(u8 rt)
 
 u8 cdrRead2(void)
 {
-	u8 ret;
-
 	if (cdr.Readed == 0)
 		return 0;
 
-	ret = *cdr.pTransfer++;
-
-	return ret;
+	return *cdr.pTransfer++;
 }
 
 void cdrWrite2(u8 rt)
