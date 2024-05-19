@@ -201,7 +201,6 @@ static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 		{
 			if (read)
 				memset(buffer, 0, bytes);
-			filestream_close(fp);
 			return;
 		}
 
