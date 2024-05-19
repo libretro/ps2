@@ -9,8 +9,10 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_posix_string.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/fopen_utf8.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_utf.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/file/file_path.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/string/stdstring.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/file_stream.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/time/rtime.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/vfs/vfs_implementation.c
 )
 
