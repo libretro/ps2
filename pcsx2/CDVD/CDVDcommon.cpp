@@ -17,6 +17,7 @@
 #include <time.h>
 #include <exception>
 #include <memory>
+#include <cstring>
 
 #include "common/Console.h"
 

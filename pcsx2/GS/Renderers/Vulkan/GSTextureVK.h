@@ -19,6 +19,7 @@
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/Renderers/Common/GSTexture.h"
 #include "GS/Renderers/Vulkan/VKLoader.h"
+#include <climits>
 
 class GSTextureVK final : public GSTexture
 {

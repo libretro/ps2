@@ -14,6 +14,8 @@
  */
 
 #include <algorithm> /* std::min */
+#include <cstring>
+#include <climits>
 
 #include "IsoFS.h"
 #include "IsoFile.h"

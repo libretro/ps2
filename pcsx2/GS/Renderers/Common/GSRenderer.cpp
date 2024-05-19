@@ -25,6 +25,7 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#include <cmath>
 
 std::unique_ptr<GSRenderer> g_gs_renderer;
 

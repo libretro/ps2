@@ -16,6 +16,7 @@
 #pragma once
 #include <stdlib.h>
 #include <string>
+#include <cstring>
 
 #include <functional>
 #include <thread>

@@ -526,8 +526,8 @@ void GSRasterizer::DrawTriangleSection(int top, int bottom, GSVertexSW2& RESTRIC
 		GSVector4 xy   = GSVector4::loadl(&edge.p) + GSVector4::loadl(&dedge.p) * dyv.extract<0>();
 
 		GSVector4 lrf  = xy.ceil();
-		GSVector4 l    = lrf.max(scissor);
-		GSVector4 r    = lrf.min(scissor);
+		GSVector4 l    = lrf._max(scissor);
+		GSVector4 r    = lrf._min(scissor);
 		GSVector4i lr  = GSVector4i(l.xxyy(r));
 
 		int left       = lr.extract32<0>();

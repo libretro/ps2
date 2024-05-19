@@ -17,6 +17,7 @@
 
 #include "common/Pcsx2Defs.h"
 #include "common/Pcsx2Types.h"
+#include <cstring>
 
 #include <map> // used by BaseBlockEx
 

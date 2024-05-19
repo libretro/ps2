@@ -14,6 +14,7 @@
  */
 
 #include <algorithm> /* std::max, std::min */
+#include <cstring>
 
 #include "ThreadedFileReader.h"
 

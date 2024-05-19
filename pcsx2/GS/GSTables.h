@@ -16,6 +16,7 @@
 #pragma once
 
 #include "common/Pcsx2Types.h"
+#include <cstddef>
 
 /// Table for storing swizzling of blocks within a page
 struct alignas(64) GSBlockSwizzleTable

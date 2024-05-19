@@ -14,6 +14,7 @@
  */
 
 #include <cstring> /* memset/memcpy */
+#include <cmath>
 
 #include "common/Align.h"
 #include "common/MathUtils.h"

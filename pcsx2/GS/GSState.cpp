@@ -16,6 +16,7 @@
 #include <cstring> /* memset/memcpy */
 #include <algorithm> /* clamp */
 #include <cfloat> /* FLT_MAX */
+#include <cmath>
 
 #include "common/Console.h"
 #include "common/Path.h"

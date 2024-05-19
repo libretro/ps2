@@ -15,6 +15,7 @@
 
 #include "GSDirtyRect.h"
 #include <vector>
+#include <climits>
 
 GSDirtyRect::GSDirtyRect() :
 	r(GSVector4i::zero()),

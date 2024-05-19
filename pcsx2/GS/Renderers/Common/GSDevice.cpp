@@ -14,6 +14,7 @@
  */
 
 #include <algorithm>
+#include <cmath>
 
 #include "common/Align.h"
 #include "common/Console.h"

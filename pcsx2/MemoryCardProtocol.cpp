@@ -14,6 +14,7 @@
  */
 
 #include "common/Console.h"
+#include <cstring>
 
 #include "MemoryCardProtocol.h"
 #include "Sio.h"

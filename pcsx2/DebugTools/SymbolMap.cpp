@@ -17,6 +17,7 @@
 
 #include "SymbolMap.h"
 #include <algorithm>
+#include <cstring>
 
 SymbolMap R5900SymbolMap;
 SymbolMap R3000SymbolMap;
