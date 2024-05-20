@@ -13,8 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
-
 #include "Global.h"
 #include "spu2.h"
 #include "Dma.h"
@@ -92,7 +90,6 @@ void SPU2::InitSndBuffer()
 	{
 		// It'll get stretched instead..
 		const int original_sample_rate = SampleRate;
-		Console.Error("Failed to init SPU2 at adjusted sample rate %u, trying console rate.", SampleRate);
 		SampleRate = GetConsoleSampleRate();
 		SndBuffer::Init();
 

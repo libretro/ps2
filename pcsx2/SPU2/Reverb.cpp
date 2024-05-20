@@ -35,7 +35,8 @@ StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 		return ret;
 	}
 
-	Input = clamp_mix(Input);
+	Input.Left  = std::clamp(Input.Left, -0x8000, 0x7fff);
+	Input.Right = std::clamp(Input.Right, -0x8000, 0x7fff);
 
 	RevbDownBuf[0][RevbSampleBufPos] = Input.Left;
 	RevbDownBuf[1][RevbSampleBufPos] = Input.Right;

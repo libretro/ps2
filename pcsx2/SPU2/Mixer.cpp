@@ -19,16 +19,16 @@
 #include "spu2.h"
 #include "interpolate_table.h"
 
-static const s32 tbl_XA_Factor[16][2] =
+
+static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& prev1, s32& prev2)
+{
+	static const s32 tbl_XA_Factor[16][2] =
 	{
 		{0, 0},
 		{60, 0},
 		{115, -52},
 		{98, -55},
 		{122, -60}};
-
-static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& prev1, s32& prev2)
-{
 	const s32 header = *block;
 	const s32 shift = (header & 0xF) + 16;
 	const int id = header >> 4 & 0xF;
@@ -203,47 +203,20 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, V_Voice& vc, uint v
 	vc.SCurrent += 4 - (vc.SCurrent & 3);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////
-//                                                                                     //
-
-static __forceinline s32 ApplyVolume(s32 data, s32 volume)
+static void __forceinline UpdatePitch(V_Voice& vc, uint coreidx, uint voiceidx)
 {
-	return (volume * data) >> 15;
-}
-
-static __forceinline StereoOut32 ApplyVolume(const StereoOut32& data, const V_VolumeLR& volume)
-{
-	StereoOut32 val;
-	val.Left  = ApplyVolume(data.Left, volume.Left);
-	val.Right = ApplyVolume(data.Right, volume.Right);
-	return val;
-}
-
-static __forceinline StereoOut32 ApplyVolume(const StereoOut32& data, const V_VolumeSlideLR& volume)
-{
-	StereoOut32 val;
-	val.Left  = ApplyVolume(data.Left, volume.Left.Value);
-	val.Right = ApplyVolume(data.Right, volume.Right.Value);
-	return val;
-}
-
-static void __forceinline UpdatePitch(uint coreidx, uint voiceidx)
-{
-	V_Voice& vc(Cores[coreidx].Voices[voiceidx]);
 	s32 pitch;
-
 	// [Air] : re-ordered comparisons: Modulated is much more likely to be zero than voice,
 	//   and so the way it was before it's have to check both voice and modulated values
 	//   most of the time.  Now it'll just check Modulated and short-circuit past the voice
 	//   check (not that it amounts to much, but eh every little bit helps).
 	if ((vc.Modulated == 0) || (voiceidx == 0))
-		pitch = vc.Pitch;
+		pitch     = vc.Pitch;
 	else
-		pitch = std::clamp((vc.Pitch * (32768 + Cores[coreidx].Voices[voiceidx - 1].OutX)) >> 15, 0, 0x3fff);
+		pitch     = std::clamp((vc.Pitch * (32768 + Cores[coreidx].Voices[voiceidx - 1].OutX)) >> 15, 0, 0x3fff);
 
-	pitch = std::min(pitch, 0x3FFF);
-	vc.SP += pitch;
+	pitch     = std::min(pitch, 0x3FFF);
+	vc.SP    += pitch;
 }
 
 static __forceinline void CalculateADSR(V_Core& thiscore, V_Voice& vc, uint voiceidx)
@@ -255,15 +228,6 @@ static __forceinline void CalculateADSR(V_Core& thiscore, V_Voice& vc, uint voic
 		vc.ADSR.Value = 0;
 		vc.ADSR.Phase = PHASE_STOPPED;
 	}
-}
-
-__forceinline static s32 GaussianInterpolate(s32 pv4, s32 pv3, s32 pv2, s32 pv1, s32 i)
-{
-	return (s32)(
-	   ((interpTable[i][0] * pv4) >> 15)
-	 + ((interpTable[i][1] * pv3) >> 15)
-	 + ((interpTable[i][2] * pv2) >> 15)
-	 + ((interpTable[i][3] * pv1) >> 15));
 }
 
 static __forceinline s32 GetVoiceValues(V_Core& thiscore, V_Voice& vc, uint voiceidx)
@@ -278,8 +242,17 @@ static __forceinline s32 GetVoiceValues(V_Core& thiscore, V_Voice& vc, uint voic
 	}
 
 	const s32 mu = vc.SP + 0x1000;
+	s32 pv4      = vc.PV4;
+	s32 pv3      = vc.PV3;
+	s32 pv2      = vc.PV2;
+	s32 pv1      = vc.PV1;
+	s32   i      = (mu & 0x0ff0) >> 4;
 
-	return GaussianInterpolate(vc.PV4, vc.PV3, vc.PV2, vc.PV1, (mu & 0x0ff0) >> 4);
+	return (s32)(
+	   ((interpTable[i][0] * pv4) >> 15)
+	 + ((interpTable[i][1] * pv3) >> 15)
+	 + ((interpTable[i][2] * pv2) >> 15)
+	 + ((interpTable[i][3] * pv1) >> 15));
 }
 
 // This is Dr. Hell's noise algorithm as implemented in pcsxr
@@ -406,14 +379,13 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, V_Voice& vc, uint co
 	// have to run through all the motions of updating the voice regardless of it's
 	// audible status.  Otherwise IRQs might not trigger and emulation might fail.
 
-	UpdatePitch(coreidx, voiceidx);
+	UpdatePitch(vc, coreidx, voiceidx);
 
 	voiceOut.Left  = 0;
 	voiceOut.Right = 0;
 
 	if (vc.ADSR.Phase > PHASE_STOPPED)
 	{
-		StereoOut32 val;
 		if (vc.Noise)
 			Value = (s16)thiscore.NoiseOut;
 		else
@@ -422,12 +394,11 @@ static __forceinline StereoOut32 MixVoice(V_Core& thiscore, V_Voice& vc, uint co
 		// Update and Apply ADSR  (applies to normal and noise sources)
 
 		CalculateADSR(thiscore, vc, voiceidx);
-		Value     = ApplyVolume(Value, vc.ADSR.Value);
+		Value     = (Value * vc.ADSR.Value) >> 15;
 		vc.OutX   = Value;
 
-		val.Left  = Value;
-		val.Right = Value;
-		voiceOut  = ApplyVolume(val, vc.Volume);
+		voiceOut.Left   = (Value * vc.Volume.Left.Value)  >> 15;
+		voiceOut.Right  = (Value * vc.Volume.Right.Value) >> 15;
 	}
 	else
 	{
@@ -473,8 +444,10 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	UpdateNoise(*this);
 
 	// Saturate final result to standard 16 bit range.
-	Voices.Dry = clamp_mix(inVoices.Dry);
-	Voices.Wet = clamp_mix(inVoices.Wet);
+	Voices.Dry.Left  = std::clamp(inVoices.Dry.Left, -0x8000, 0x7fff);
+	Voices.Dry.Right = std::clamp(inVoices.Dry.Right, -0x8000, 0x7fff);
+	Voices.Wet.Left  = std::clamp(inVoices.Wet.Left, -0x8000, 0x7fff);
+	Voices.Wet.Right = std::clamp(inVoices.Wet.Right, -0x8000, 0x7fff);
 
 	// Write Mixed results To Output Area
 	spu2M_WriteFast(((0 == Index) ? 0x1000 : 0x1800) + OutPos, Voices.Dry.Left);
@@ -525,26 +498,12 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	TW.Right += Ext.Right & WetGate.ExtR;
 
 	StereoOut32 RV  = DoReverb(TW);
-	StereoOut32 tmp = ApplyVolume(RV, FxVol);
 
 	// Mix Dry + Wet
 	// (master volume is applied later to the result of both outputs added together).
-	TD.Left  += tmp.Left;
-	TD.Right += tmp.Right;
+	TD.Left  += (RV.Left  * FxVol.Left)  >> 15;
+	TD.Right += (RV.Right * FxVol.Right) >> 15;
 	return TD;
-}
-
-static StereoOut32 DCFilter(StereoOut32 input) {
-	// A simple DC blocking high-pass filter
-	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
-	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
-	StereoOut32 output;
-	output.Left  = (input.Left - DCFilterIn.Left   + std::clamp((0x7f5c * DCFilterOut.Left) >> 15, -0x8000, 0x7fff));
-	output.Right = (input.Right - DCFilterIn.Right + std::clamp((0x7f5c * DCFilterOut.Right) >> 15, -0x8000, 0x7fff));
-
-	DCFilterIn = input;
-	DCFilterOut = output;
-	return output;
 }
 
 // Gcc does not want to inline it when lto is enabled because some functions growth too much.
@@ -565,17 +524,21 @@ __forceinline
 	// Fixme:
 	// 1. We do not have an AC3 decoder for the bitstream.
 	// 2. Games usually provide a normal ADMA stream as well and want to see it getting read!
-	StereoOut32 tmp0 = ApplyVolume(Cores[0].ReadInput(), Cores[0].InpVol);
-	StereoOut32 tmp1;
 
 	empty.Left = empty.Right = 0;
 	if (PlayMode & 8)
-		tmp1 = empty;
+		InputData[1] = empty;
 	else
-		tmp1 = ApplyVolume(Cores[1].ReadInput(), Cores[1].InpVol);
-
-	InputData[0] = tmp0;
-	InputData[1] = tmp1;
+	{
+		const StereoOut32& data = Cores[1].ReadInput();
+		InputData[1].Left  = (data.Left  * Cores[1].InpVol.Left)  >> 15;
+		InputData[1].Right = (data.Right * Cores[1].InpVol.Right) >> 15;
+	}
+	{
+		const StereoOut32& data = Cores[0].ReadInput();
+		InputData[0].Left  = (data.Left  * Cores[0].InpVol.Left)  >> 15;
+		InputData[0].Right = (data.Right * Cores[0].InpVol.Right) >> 15;
+	}
 
 	// Todo: Replace me with memzero initializer!
 	VoiceMixSet VoiceData[2]; // mixed voice data for each core.
@@ -595,29 +558,50 @@ __forceinline
 	if ((PlayMode & 4) || (Cores[0].Mute != 0))
 		Ext = empty;
 	else
-		Ext = ApplyVolume(clamp_mix(Ext), Cores[0].MasterVol);
+	{
+		Ext.Left  = std::clamp(Ext.Left, -0x8000, 0x7fff);
+		Ext.Right = std::clamp(Ext.Right, -0x8000, 0x7fff);
+		Ext.Left  = (Ext.Left  * Cores[0].MasterVol.Left.Value)  >> 15;
+		Ext.Right = (Ext.Right * Cores[0].MasterVol.Right.Value) >> 15;
+	}
 
 	// Commit Core 0 output to ram before mixing Core 1:
 	spu2M_WriteFast(0x800 + OutPos, Ext.Left);
 	spu2M_WriteFast(0xA00 + OutPos, Ext.Right);
 
-	Ext = ApplyVolume(Ext, Cores[1].ExtVol);
-	Out = Cores[1].Mix(VoiceData[1], InputData[1], Ext);
+	Ext.Left  = (Ext.Left  * Cores[1].ExtVol.Left)  >> 15;
+	Ext.Right = (Ext.Right * Cores[1].ExtVol.Right) >> 15;
+	Out       = Cores[1].Mix(VoiceData[1], InputData[1], Ext);
 
 	// Experimental CDDA support
 	// The CDDA overrides all other mixer output.  It's a direct feed!
 	if (PlayMode & 8)
 		Out = Cores[1].ReadInput_HiFi();
 	else
-		Out = ApplyVolume(clamp_mix(Out), Cores[1].MasterVol);
+	{
+		Out.Left  = std::clamp(Out.Left,  -0x8000, 0x7fff);
+		Out.Right = std::clamp(Out.Right, -0x8000, 0x7fff);
+		Out.Left  = (Out.Left  * Cores[1].MasterVol.Left.Value)  >> 15;
+		Out.Right = (Out.Right * Cores[1].MasterVol.Right.Value) >> 15;
+	}
 
-	Out = DCFilter(Out);
+	// A simple DC blocking high-pass filter
+	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
+	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
+	DCFilterOut.Left  = (Out.Left - DCFilterIn.Left   + std::clamp((0x7f5c * DCFilterOut.Left)  >> 15, -0x8000, 0x7fff));
+	DCFilterOut.Right = (Out.Right - DCFilterIn.Right + std::clamp((0x7f5c * DCFilterOut.Right) >> 15, -0x8000, 0x7fff));
+	DCFilterIn.Left   = Out.Left;
+	DCFilterIn.Right  = Out.Right;
+
+	Out.Left          = DCFilterOut.Left;
+	Out.Right         = DCFilterOut.Right;
 
 	// Final clamp, take care not to exceed 16 bits from here on
-	Out          = clamp_mix(Out);
+	Out.Left          = std::clamp(Out.Left, -0x8000, 0x7fff);
+	Out.Right         = std::clamp(Out.Right, -0x8000, 0x7fff);
 
-	OutS16.Left  = (s16)Out.Left;
-	OutS16.Right = (s16)Out.Right;
+	OutS16.Left       = (s16)Out.Left;
+	OutS16.Right      = (s16)Out.Right;
 
 	SndBuffer::Write(OutS16);
 
