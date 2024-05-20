@@ -37,7 +37,7 @@ public:
 private:
 	const bool lba48Supported = false;
 
-	RFILE* hddImage = nullptr;
+	FILE* hddImage = nullptr;
 	u64 hddImageSize;
 
 	bool hddSparse = false;
