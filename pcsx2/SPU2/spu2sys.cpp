@@ -62,16 +62,6 @@ void SetIrqCallDMA(int core)
 	has_to_call_irq_dma[core] = true;
 }
 
-__forceinline s16* GetMemPtr(u32 addr)
-{
-	return (_spu2mem + addr);
-}
-
-__forceinline s16 spu2M_Read(u32 addr)
-{
-	return *GetMemPtr(addr & 0xfffff);
-}
-
 // writes a signed value to the SPU2 ram
 // Invalidates the ADPCM cache in the process.
 __forceinline void spu2M_Write(u32 addr, s16 value)
@@ -86,12 +76,6 @@ __forceinline void spu2M_Write(u32 addr, s16 value)
 		pcm_cache_data[cacheIdx].Validated = false;
 	}
 	*GetMemPtr(addr) = value;
-}
-
-// writes an unsigned value to the SPU2 ram
-__forceinline void spu2M_Write(u32 addr, u16 value)
-{
-	spu2M_Write(addr, (s16)value);
 }
 
 void V_Core::Init(int index)
@@ -457,15 +441,8 @@ __forceinline void UpdateSpdifMode()
 	}
 }
 
-static u32 map_spu1to2(u32 addr)
-{
-	return addr * 4 + (addr >= 0x200 ? 0xc0000 : 0);
-}
-
-static u32 map_spu2to1(u32 addr)
-{
-	return (addr - (addr >= 0xc0000 ? 0xc0000 : 0)) / 4;
-}
+#define map_spu1to2(addr) ((addr) * 4 + ((addr) >= 0x200 ? 0xc0000 : 0))
+#define map_spu2to1(addr) (((addr) - ((addr) >= 0xc0000 ? 0xc0000 : 0)) / 4)
 
 void V_Core::WriteRegPS1(u32 mem, u16 value)
 {
@@ -824,17 +801,6 @@ u16 V_Core::ReadRegPS1(u32 mem)
 	return value;
 }
 
-// Ah the joys of endian-specific code! :D
-static __forceinline void SetHiWord(u32& src, u16 value)
-{
-	((u16*)&src)[1] = value;
-}
-
-static __forceinline void SetLoWord(u32& src, u16 value)
-{
-	((u16*)&src)[0] = value;
-}
-
 static void StartVoices(V_Core& thiscore, int core, u32 value)
 {
 	// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
@@ -1061,25 +1027,25 @@ static void RegWrite_Core(u16 value)
 		case REG_S_PMON:
 			for (int vc = 1; vc < 16; ++vc)
 				thiscore.Voices[vc].Modulated = (value >> vc) & 1;
-			SetLoWord(thiscore.Regs.PMON, value);
+			((u16*)&thiscore.Regs.PMON)[0] = value;
 			break;
 
 		case (REG_S_PMON + 2):
 			for (int vc = 0; vc < 8; ++vc)
 				thiscore.Voices[vc + 16].Modulated = (value >> vc) & 1;
-			SetHiWord(thiscore.Regs.PMON, value);
+			((u16*)&thiscore.Regs.PMON)[1] = value;
 			break;
 
 		case REG_S_NON:
 			for (int vc = 0; vc < 16; ++vc)
 				thiscore.Voices[vc].Noise = (value >> vc) & 1;
-			SetLoWord(thiscore.Regs.NON, value);
+			((u16*)&thiscore.Regs.NON)[0] = value;
 			break;
 
 		case (REG_S_NON + 2):
 			for (int vc = 0; vc < 8; ++vc)
 				thiscore.Voices[vc + 16].Noise = (value >> vc) & 1;
-			SetHiWord(thiscore.Regs.NON, value);
+			((u16*)&thiscore.Regs.NON)[1] = value;
 			break;
 
 // Games like to repeatedly write these regs over and over with the same value, hence
@@ -1087,10 +1053,10 @@ static void RegWrite_Core(u16 value)
 #define vx_SetSomeBits(reg_out, mask_out, hiword)                       \
 	{                                                                   \
 		const u32 result = thiscore.Regs.reg_out;                       \
-		if (hiword)                                                     \
-			SetHiWord(thiscore.Regs.reg_out, value);                    \
-		else                                                            \
-			SetLoWord(thiscore.Regs.reg_out, value);                    \
+		if (hiword) \
+			((u16*)&thiscore.Regs.reg_out)[1] = value; \
+		else \
+			((u16*)&thiscore.Regs.reg_out)[0] = value; \
 		if (result == thiscore.Regs.reg_out)                            \
 			break;                                                      \
                                                                         \

@@ -23,6 +23,76 @@
 
 #include <array>
 
+struct V_SPDIF
+{
+	u16 Out;
+	u16 Info;
+	u16 Unknown1;
+	u16 Mode;
+	u16 Media;
+	u16 Unknown2;
+	u16 Protection;
+};
+
+struct V_CoreRegs
+{
+	u32 PMON;
+	u32 NON;
+	u32 VMIXL;
+	u32 VMIXR;
+	u32 VMIXEL;
+	u32 VMIXER;
+	u32 ENDX;
+
+	u16 MMIX;
+	u16 STATX;
+	u16 ATTR;
+	u16 _1AC;
+};
+
+struct V_VoiceGates
+{
+	s32 DryL; // 'AND Gate' for Direct Output to Left Channel
+	s32 DryR; // 'AND Gate' for Direct Output for Right Channel
+	s32 WetL; // 'AND Gate' for Effect Output for Left Channel
+	s32 WetR; // 'AND Gate' for Effect Output for Right Channel
+};
+
+struct V_CoreGates
+{
+	s32 InpL; // Sound Data Input to Direct Output (Left)
+	s32 InpR; // Sound Data Input to Direct Output (Right)
+	s32 SndL; // Voice Data to Direct Output (Left)
+	s32 SndR; // Voice Data to Direct Output (Right)
+	s32 ExtL; // External Input to Direct Output (Left)
+	s32 ExtR; // External Input to Direct Output (Right)
+};
+
+struct VoiceMixSet
+{
+	StereoOut32 Dry, Wet;
+};
+
+
+extern V_Core Cores[2];
+extern V_SPDIF Spdif;
+
+// Output Buffer Writing Position (the same for all data);
+extern u16 OutPos;
+// Input Buffer Reading Position (the same for all data);
+extern u16 InputPos;
+// SPU Mixing Cycles ("Ticks mixed" counter)
+extern u32 Cycles;
+// DC Filter state
+extern StereoOut32 DCFilterIn, DCFilterOut;
+
+extern s16 spu2regs[0x010000 / sizeof(s16)];
+extern s16 _spu2mem[0x200000 / sizeof(s16)];
+extern int PlayMode;
+
+#define GetMemPtr(addr) (_spu2mem + (addr))
+#define spu2M_Read(addr) (*GetMemPtr((addr) & 0xfffff))
+
 // --------------------------------------------------------------------------------------
 //  SPU2 Register Table LUT
 // --------------------------------------------------------------------------------------
@@ -35,10 +105,7 @@ extern const std::array<u16*, 0x401> regtable;
 #define spu2Rs16(mmem) (*(s16*)((s8*)spu2regs + ((mmem)&0x1fff)))
 #define spu2Ru16(mmem) (*(u16*)((s8*)spu2regs + ((mmem)&0x1fff)))
 
-extern s16* GetMemPtr(u32 addr);
-extern s16 spu2M_Read(u32 addr);
 extern void spu2M_Write(u32 addr, s16 value);
-extern void spu2M_Write(u32 addr, u16 value);
 
 struct V_VolumeLR
 {
@@ -237,56 +304,6 @@ struct V_Reverb
 	u32 APF2_R_DST;
 };
 
-struct V_SPDIF
-{
-	u16 Out;
-	u16 Info;
-	u16 Unknown1;
-	u16 Mode;
-	u16 Media;
-	u16 Unknown2;
-	u16 Protection;
-};
-
-struct V_CoreRegs
-{
-	u32 PMON;
-	u32 NON;
-	u32 VMIXL;
-	u32 VMIXR;
-	u32 VMIXEL;
-	u32 VMIXER;
-	u32 ENDX;
-
-	u16 MMIX;
-	u16 STATX;
-	u16 ATTR;
-	u16 _1AC;
-};
-
-struct V_VoiceGates
-{
-	s32 DryL; // 'AND Gate' for Direct Output to Left Channel
-	s32 DryR; // 'AND Gate' for Direct Output for Right Channel
-	s32 WetL; // 'AND Gate' for Effect Output for Left Channel
-	s32 WetR; // 'AND Gate' for Effect Output for Right Channel
-};
-
-struct V_CoreGates
-{
-	s32 InpL; // Sound Data Input to Direct Output (Left)
-	s32 InpR; // Sound Data Input to Direct Output (Right)
-	s32 SndL; // Voice Data to Direct Output (Left)
-	s32 SndR; // Voice Data to Direct Output (Right)
-	s32 ExtL; // External Input to Direct Output (Left)
-	s32 ExtR; // External Input to Direct Output (Right)
-};
-
-struct VoiceMixSet
-{
-	StereoOut32 Dry, Wet;
-};
-
 struct V_Core
 {
 	static const uint NumVoices = 24;
@@ -427,22 +444,6 @@ MULTI_ISA_DEF(
 
 extern StereoOut32 (*ReverbUpsample)(V_Core& core);
 extern s32 (*ReverbDownsample)(V_Core& core, bool right);
-
-extern V_Core Cores[2];
-extern V_SPDIF Spdif;
-
-// Output Buffer Writing Position (the same for all data);
-extern u16 OutPos;
-// Input Buffer Reading Position (the same for all data);
-extern u16 InputPos;
-// SPU Mixing Cycles ("Ticks mixed" counter)
-extern u32 Cycles;
-// DC Filter state
-extern StereoOut32 DCFilterIn, DCFilterOut;
-
-extern s16 spu2regs[0x010000 / sizeof(s16)];
-extern s16 _spu2mem[0x200000 / sizeof(s16)];
-extern int PlayMode;
 
 extern void SetIrqCall(int core);
 extern void SetIrqCallDMA(int core);
