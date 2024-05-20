@@ -6,6 +6,6 @@ add_library(chdr-static STATIC
   libchdr/src/libchdr_huffman.c
 )
 
-target_include_directories(chdr-static PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libchdr/include")
+target_include_directories(chdr-static PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/libchdr/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../libretro/libretro-common/include" )
 target_link_libraries(chdr-static PRIVATE ZLIB::ZLIB LZMA::LZMA)
 target_compile_options(chdr-static PRIVATE "-w")

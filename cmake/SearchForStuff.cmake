@@ -64,7 +64,7 @@ endif()
 find_optional_system_library(libzip 3rdparty/libzip 1.8.0)
 
 add_subdirectory(3rdparty/lzma EXCLUDE_FROM_ALL)
-add_subdirectory(3rdparty/libchdr EXCLUDE_FROM_ALL)
+add_subdirectory(3rdparty/chdr EXCLUDE_FROM_ALL)
 
 # rapidyaml includes fast_float as a submodule, saves us pulling it in directly.
 # Normally, we'd just pull in the cmake project, and link to it, but... it seems to enable
