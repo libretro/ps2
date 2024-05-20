@@ -19,6 +19,8 @@
 
 #include <fcntl.h>
 
+#include <file/file_path.h>
+
 #ifdef _WIN32
 #include <io.h>
 #else
@@ -400,7 +402,7 @@ namespace R3000A
 			std::string relativePath = full_path.substr(full_path.find(':') + 1);
 			std::string path = host_path(relativePath, true);
 
-			if (!FileSystem::DirectoryExists(path.c_str()))
+			if (!path_is_directory(path.c_str()))
 				return -IOP_ENOENT; // Should return ENOTDIR if path is a file?
 			
 			FileSystem::FindResultsArray results;
@@ -793,7 +795,7 @@ namespace R3000A
 			{
 				const std::string path = full_path.substr(full_path.find(':') + 1);
 				const std::string folder_path(host_path(path, false)); // NOTE: Don't allow creating the ELF directory.
-				const bool succeeded = FileSystem::CreateDirectoryPath(folder_path.c_str(), false);
+				const bool succeeded = path_mkdir(folder_path.c_str());
 				if (!succeeded)
 					Console.Warning("IOPHLE mkdir_HLE failed for '%s'", folder_path.c_str());
 				v0 = succeeded ? 0 : -IOP_EIO;

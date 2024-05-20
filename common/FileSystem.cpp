@@ -24,6 +24,8 @@
 #include <cerrno>
 #include <limits>
 
+#include <file/file_path.h>
+
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #include <stdlib.h>
@@ -297,7 +299,7 @@ std::string Path::Canonicalize(const std::string_view& path)
 		}
 	}
 
-	return Path::JoinNativePath(new_components);
+	return StringUtil::JoinString(new_components.begin(), new_components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
 }
 
 void Path::Canonicalize(std::string* path)
@@ -427,11 +429,6 @@ std::vector<std::string_view> Path::SplitNativePath(const std::string_view& path
 
 	return parts;
 #endif
-}
-
-std::string Path::JoinNativePath(const std::vector<std::string_view>& components)
-{
-	return StringUtil::JoinString(components.begin(), components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
 }
 
 std::string Path::Combine(const std::string_view& base, const std::string_view& next)
@@ -638,21 +635,6 @@ std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 	return res;
 }
 
-std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(std::FILE* fp)
-{
-	std::fseek(fp, 0, SEEK_END);
-	const long size = std::ftell(fp);
-	std::fseek(fp, 0, SEEK_SET);
-	if (size < 0)
-		return std::nullopt;
-
-	std::vector<u8> res(static_cast<size_t>(size));
-	if (size > 0 && std::fread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
-		return std::nullopt;
-
-	return res;
-}
-
 std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 {
 	RFILE *fp = OpenRFile(filename, "rb");
@@ -676,23 +658,6 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 		return std::nullopt;
 	}
 	rfclose(fp);
-	return res;
-}
-
-std::optional<std::string> FileSystem::ReadFileToString(std::FILE* fp)
-{
-	std::fseek(fp, 0, SEEK_END);
-	const long size = std::ftell(fp);
-	std::fseek(fp, 0, SEEK_SET);
-	if (size < 0)
-		return std::nullopt;
-
-	std::string res;
-	res.resize(static_cast<size_t>(size));
-	// NOTE - assumes mode 'rb', for example, this will fail over missing Windows carriage return bytes
-	if (size > 0 && std::fread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
-		return std::nullopt;
-
 	return res;
 }
 
@@ -949,125 +914,6 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 	return true;
 }
 
-bool FileSystem::FileExists(const char* path)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-	// convert to wide string
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	if (wpath.empty())
-		return false;
-
-	// determine attributes for the path. if it's a directory, things have to be handled differently..
-	DWORD fileAttributes = GetFileAttributesW(wpath.c_str());
-	if (fileAttributes == INVALID_FILE_ATTRIBUTES)
-		return false;
-	if (fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		return false;
-	return true;
-}
-
-bool FileSystem::DirectoryExists(const char* path)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-	// convert to wide string
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	if (wpath.empty())
-		return false;
-
-	// determine attributes for the path. if it's a directory, things have to be handled differently..
-	DWORD fileAttributes = GetFileAttributesW(wpath.c_str());
-	if (fileAttributes == INVALID_FILE_ATTRIBUTES)
-		return false;
-
-	if (fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		return true;
-	return false;
-}
-
-bool FileSystem::CreateDirectoryPath(const char* Path, bool Recursive)
-{
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(Path));
-
-	// has a path
-	if (wpath.empty())
-		return false;
-
-	// try just flat-out, might work if there's no other segments that have to be made
-	if (CreateDirectoryW(wpath.c_str(), nullptr))
-		return true;
-
-	if (!Recursive)
-		return false;
-
-	// check error
-	DWORD lastError = GetLastError();
-	if (lastError == ERROR_ALREADY_EXISTS)
-	{
-		// check the attributes
-		u32 Attributes = GetFileAttributesW(wpath.c_str());
-		if (Attributes != INVALID_FILE_ATTRIBUTES && Attributes & FILE_ATTRIBUTE_DIRECTORY)
-			return true;
-		else
-			return false;
-	}
-	else if (lastError == ERROR_PATH_NOT_FOUND)
-	{
-		// part of the path does not exist, so we'll create the parent folders, then
-		// the full path again.
-		const size_t pathLength = wpath.size();
-		std::wstring tempPath;
-		tempPath.reserve(pathLength);
-
-		// create directories along the path
-		for (size_t i = 0; i < pathLength; i++)
-		{
-			if (wpath[i] == L'\\' || wpath[i] == L'/')
-			{
-				const BOOL result = CreateDirectoryW(tempPath.c_str(), nullptr);
-				if (!result)
-				{
-					lastError = GetLastError();
-					if (lastError != ERROR_ALREADY_EXISTS) // fine, continue to next path segment
-						return false;
-				}
-
-				// replace / with \.
-				tempPath.push_back('\\');
-			}
-			else
-			{
-				tempPath.push_back(wpath[i]);
-			}
-		}
-
-		// re-create the end if it's not a separator, check / as well because windows can interpret them
-		if (wpath[pathLength - 1] != L'\\' && wpath[pathLength - 1] != L'/')
-		{
-			const BOOL result = CreateDirectoryW(wpath.c_str(), nullptr);
-			if (!result)
-			{
-				lastError = GetLastError();
-				if (lastError != ERROR_ALREADY_EXISTS)
-					return false;
-			}
-		}
-
-		// ok
-		return true;
-	}
-	else
-	{
-		// unhandled error
-		return false;
-	}
-}
-
 bool FileSystem::DeleteFilePath(const char* path)
 {
 	if (path[0] == '\0')
@@ -1285,119 +1131,6 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 	return true;
 }
 
-bool FileSystem::FileExists(const char* path)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-		// stat file
-#if defined(__HAIKU__) || defined(__APPLE__) || defined(__FreeBSD__)
-	struct stat sysStatData;
-	if (stat(path, &sysStatData) < 0)
-#else
-	struct stat64 sysStatData;
-	if (stat64(path, &sysStatData) < 0)
-#endif
-		return false;
-
-	if (S_ISDIR(sysStatData.st_mode))
-		return false;
-	else
-		return true;
-}
-
-bool FileSystem::DirectoryExists(const char* path)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-		// stat file
-#if defined(__HAIKU__) || defined(__APPLE__) || defined(__FreeBSD__)
-	struct stat sysStatData;
-	if (stat(path, &sysStatData) < 0)
-#else
-	struct stat64 sysStatData;
-	if (stat64(path, &sysStatData) < 0)
-#endif
-		return false;
-
-	if (S_ISDIR(sysStatData.st_mode))
-		return true;
-	else
-		return false;
-}
-
-bool FileSystem::CreateDirectoryPath(const char* path, bool recursive)
-{
-	// has a path
-	const size_t pathLength = std::strlen(path);
-	if (pathLength == 0)
-		return false;
-
-	// try just flat-out, might work if there's no other segments that have to be made
-	if (mkdir(path, 0777) == 0)
-		return true;
-
-	if (!recursive)
-		return false;
-
-	// check error
-	int lastError = errno;
-	if (lastError == EEXIST)
-	{
-		// check the attributes
-		struct stat sysStatData;
-		if (stat(path, &sysStatData) == 0 && S_ISDIR(sysStatData.st_mode))
-			return true;
-		else
-			return false;
-	}
-	else if (lastError == ENOENT)
-	{
-		// part of the path does not exist, so we'll create the parent folders, then
-		// the full path again.
-		std::string tempPath;
-		tempPath.reserve(pathLength);
-
-		// create directories along the path
-		for (size_t i = 0; i < pathLength; i++)
-		{
-			if (i > 0 && path[i] == '/')
-			{
-				if (mkdir(tempPath.c_str(), 0777) < 0)
-				{
-					lastError = errno;
-					if (lastError != EEXIST) // fine, continue to next path segment
-						return false;
-				}
-			}
-
-			tempPath.push_back(path[i]);
-		}
-
-		// re-create the end if it's not a separator, check / as well because windows can interpret them
-		if (path[pathLength - 1] != '/')
-		{
-			if (mkdir(path, 0777) < 0)
-			{
-				lastError = errno;
-				if (lastError != EEXIST)
-					return false;
-			}
-		}
-
-		// ok
-		return true;
-	}
-	else
-	{
-		// unhandled error
-		return false;
-	}
-}
-
 bool FileSystem::DeleteFilePath(const char* path)
 {
 	if (path[0] == '\0')
@@ -1436,3 +1169,14 @@ bool FileSystem::DeleteDirectory(const char* path)
 	return (unlink(path) == 0);
 }
 #endif
+
+bool FileSystem::FileExists(const char* path)
+{
+	// has a path
+	if (path[0] == '\0')
+		return false;
+	if (path_is_directory(path))
+		return false;
+	return true;
+}
+

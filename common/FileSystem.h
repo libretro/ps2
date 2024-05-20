@@ -87,9 +87,6 @@ namespace FileSystem
 	/// File exists?
 	bool FileExists(const char* path);
 
-	/// Directory exists?
-	bool DirectoryExists(const char* path);
-
 	/// Delete file
 	bool DeleteFilePath(const char* path);
 
@@ -110,16 +107,8 @@ namespace FileSystem
 	int OpenFDFile(const char* filename, int flags, int mode);
 
 	std::optional<std::vector<u8>> ReadBinaryFile(const char* filename);
-	std::optional<std::vector<u8>> ReadBinaryFile(std::FILE* fp);
 	std::optional<std::string> ReadFileToString(const char* filename);
-	std::optional<std::string> ReadFileToString(std::FILE* fp);
 	bool WriteBinaryFile(const char* filename, const void* data, size_t data_length);
-
-	/// creates a directory in the local filesystem
-	/// if the directory already exists, the return value will be true.
-	/// if Recursive is specified, all parent directories will be created
-	/// if they do not exist.
-	bool CreateDirectoryPath(const char* path, bool recursive);
 
 	/// Removes a directory.
 	bool DeleteDirectory(const char* path);

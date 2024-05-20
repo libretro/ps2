@@ -189,7 +189,6 @@ void VMManager::Internal::UpdateEmuFolders()
 	const std::string old_textures_directory(EmuFolders::Textures);
 
 	EmuFolders::LoadConfig(*Host::Internal::GetBaseSettingsLayer());
-	EmuFolders::EnsureFoldersExist();
 
 	if (VMManager::HasValidVM())
 	{

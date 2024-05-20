@@ -24,6 +24,8 @@
 #include "MemoryCardFile.h"
 #include "USB/USB.h"
 
+#include <file/file_path.h>
+
 // This macro is actually useful for about any and every possible application of C++
 // equality operators.
 #define OpEqu(field) (field == right.field)
@@ -1044,14 +1046,20 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Textures    = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
 }
 
-bool EmuFolders::EnsureFoldersExist()
+void EmuFolders::EnsureFoldersExist()
 {
-	bool result = FileSystem::CreateDirectoryPath(Bios.c_str(), false);
-	result = FileSystem::CreateDirectoryPath(MemoryCards.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Cheats.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(CheatsWS.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(CheatsNI.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Cache.c_str(), false) && result;
-	result = FileSystem::CreateDirectoryPath(Textures.c_str(), false) && result;
-	return result;
+	if (!path_is_valid(Bios.c_str()))
+		path_mkdir(Bios.c_str());
+	if (!path_is_valid(MemoryCards.c_str()))
+		path_mkdir(MemoryCards.c_str());
+	if (!path_is_valid(Cheats.c_str()))
+		path_mkdir(Cheats.c_str());
+	if (!path_is_valid(CheatsWS.c_str()))
+		path_mkdir(CheatsWS.c_str());
+	if (!path_is_valid(CheatsNI.c_str()))
+		path_mkdir(CheatsNI.c_str());
+	if (!path_is_valid(Cache.c_str()))
+		path_mkdir(Cache.c_str());
+	if (!path_is_valid(Textures.c_str()))
+		path_mkdir(Textures.c_str());
 }

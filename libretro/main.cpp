@@ -775,7 +775,6 @@ bool retro_load_game(const struct retro_game_info* game)
 	EmuFolders::AppRoot   = Path::Combine(system_base, "pcsx2");
 	EmuFolders::Resources = Path::Combine(EmuFolders::AppRoot, "resources");
 	EmuFolders::DataRoot  = EmuFolders::AppRoot;
-	FileSystem::DirectoryExists(EmuFolders::Resources.c_str());
 
 	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
 	EmuFolders::SetDefaults(s_settings_interface);
@@ -783,7 +782,7 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	SettingsInterface* bsi = Host::Internal::GetBaseSettingsLayer();
 	EmuFolders::LoadConfig(*bsi);
-	EmuFolders::EnsureFoldersExist(); /* TODO/FIXME - check if this is not duplicate */
+	EmuFolders::EnsureFoldersExist();
 	VMManager::Internal::CPUThreadInitialize();
 	VMManager::LoadSettings();
 

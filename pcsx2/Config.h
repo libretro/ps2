@@ -901,7 +901,7 @@ namespace EmuFolders
 	// Assumes that AppRoot and DataRoot have been initialized.
 	void SetDefaults(SettingsInterface& si);
 	void LoadConfig(SettingsInterface& si);
-	bool EnsureFoldersExist();
+	void EnsureFoldersExist();
 } // namespace EmuFolders
 
 /////////////////////////////////////////////////////////////////////////////////////////

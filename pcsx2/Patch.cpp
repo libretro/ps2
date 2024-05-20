@@ -30,6 +30,8 @@
 #include <sstream>
 #include <vector>
 
+#include <file/file_path.h>
+
 enum patch_cpu_type {
 	NO_CPU = 0,
 	CPU_EE,
@@ -760,7 +762,7 @@ int LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_da
 // Note: does not reset previously loaded patches (use ForgetLoadedPatches() for that)
 int LoadPatchesFromDir(const std::string& crc, const std::string& folder, const char* friendly_name, bool show_error_when_missing)
 {
-	if (!FileSystem::DirectoryExists(folder.c_str()))
+	if (!path_is_directory(folder.c_str()))
 	{
 		Console.WriteLn(Color_Red, "The %s folder ('%s') is inaccessible. Skipping...", friendly_name, folder.c_str());
 		return 0;

@@ -54,5 +54,4 @@ namespace Path
 
 	/// Splits a path into its components, only handling native separators.
 	std::vector<std::string_view> SplitNativePath(const std::string_view& path);
-	std::string JoinNativePath(const std::vector<std::string_view>& components);
 } // namespace Path
