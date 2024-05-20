@@ -84,9 +84,6 @@ namespace FileSystem
 	bool StatFile(const char* path, struct stat* st);
 	bool StatFile(const char* path, FILESYSTEM_STAT_DATA* pStatData);
 
-	/// File exists?
-	bool FileExists(const char* path);
-
 	/// Delete file
 	bool DeleteFilePath(const char* path);
 

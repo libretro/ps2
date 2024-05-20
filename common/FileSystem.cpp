@@ -1169,14 +1169,3 @@ bool FileSystem::DeleteDirectory(const char* path)
 	return (unlink(path) == 0);
 }
 #endif
-
-bool FileSystem::FileExists(const char* path)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-	if (path_is_directory(path))
-		return false;
-	return true;
-}
-

@@ -19,6 +19,8 @@
 #include "ATA.h"
 #include "DEV9/DEV9.h"
 
+#include <file/file_path.h>
+
 #if _WIN32
 #include "pathcch.h"
 #include <io.h>
@@ -54,7 +56,7 @@ int ATA::Open(const std::string& hddPath)
 	CreateHDDinfo(EmuConfig.DEV9.HddSizeSectors);
 
 	//Open File
-	if (!FileSystem::FileExists(hddPath.c_str()))
+	if (!path_is_valid(hddPath.c_str()))
 		return -1;
 
 	hddImage = FileSystem::OpenCFile(hddPath.c_str(), "r+b");

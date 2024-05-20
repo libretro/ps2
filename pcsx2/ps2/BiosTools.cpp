@@ -267,7 +267,7 @@ static std::string FindBiosImage(void)
 bool LoadBIOS(void)
 {
 	std::string path = EmuConfig.FullpathToBios();
-	if (path.empty() || !FileSystem::FileExists(path.c_str()))
+	if (path.empty() || !path_is_valid(path.c_str()))
 	{
 		if (!path.empty())
 			Console.Warning("Configured BIOS '%s' does not exist, trying to find an alternative.",
@@ -337,10 +337,10 @@ bool IsBIOS(const char* filename, u32& version, std::string& description, u32& r
 bool IsBIOSAvailable(const std::string& full_path)
 {
 	// We can't use EmuConfig here since it may not be loaded yet.
-	if (!full_path.empty() && FileSystem::FileExists(full_path.c_str()))
+	if (!full_path.empty() && path_is_valid(full_path.c_str()))
 		return true;
 
 	// No bios configured or the configured name is missing, check for one in the BIOS directory.
 	const std::string auto_path(FindBiosImage());
-	return !auto_path.empty() && FileSystem::FileExists(auto_path.c_str());
+	return !auto_path.empty() && path_is_valid(auto_path.c_str());
 }

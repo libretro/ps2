@@ -16,6 +16,9 @@
 #include "common/FileSystem.h"
 
 #include <fmt/format.h>
+
+#include <file/file_path.h>
+
 #include "HddCreate.h"
 
 #if _WIN32
@@ -42,7 +45,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 	constexpr int buffsize = 4 * 1024;
 	u8 buff[buffsize] = {0}; // 4kb.
 
-	if (FileSystem::FileExists(hddPath.c_str()))
+	if (path_is_valid(hddPath.c_str()))
 	{
 		errored.store(true);
 		SetError();

@@ -21,6 +21,8 @@
 
 #include <fmt/format.h>
 
+#include <file/file_path.h>
+
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/FPControl.h"
@@ -482,7 +484,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 {
 	if (!filename.empty())
 	{
-		if (!FileSystem::FileExists(filename.c_str()))
+		if (!path_is_valid(filename.c_str()))
 		{
 			Console.Error("Requested filename '{%s}' does not exist.", filename.c_str());
 			return false;
@@ -513,7 +515,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 	// resolve source type
 	if (params.source_type.has_value())
 	{
-		if (params.source_type.value() == CDVD_SourceType::Iso && !FileSystem::FileExists(params.filename.c_str()))
+		if (params.source_type.value() == CDVD_SourceType::Iso && !path_is_valid(params.filename.c_str()))
 		{
 			Console.Error("Requested filename '{%s}' does not exist.", params.filename.c_str());
 			return false;
@@ -533,7 +535,7 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 
 	if (!s_elf_override.empty())
 	{
-		if (!FileSystem::FileExists(s_elf_override.c_str()))
+		if (!path_is_valid(s_elf_override.c_str()))
 		{
 			Console.Error("Requested boot ELF '{%s}' does not exist.", s_elf_override.c_str());
 			return false;

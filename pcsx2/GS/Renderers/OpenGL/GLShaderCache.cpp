@@ -25,6 +25,8 @@
 #include "common/MD5Digest.h"
 #include "common/Path.h"
 
+#include <file/file_path.h>
+
 #pragma pack(push, 1)
 struct CacheIndexEntry
 {
@@ -97,12 +99,12 @@ bool GLShaderCache::Open(bool is_gles)
 
 bool GLShaderCache::CreateNew(const std::string& index_filename, const std::string& blob_filename)
 {
-	if (FileSystem::FileExists(index_filename.c_str()))
+	if (path_is_valid(index_filename.c_str()))
 	{
 		Console.Warning("Removing existing index file '%s'", index_filename.c_str());
 		FileSystem::DeleteFilePath(index_filename.c_str());
 	}
-	if (FileSystem::FileExists(blob_filename.c_str()))
+	if (path_is_valid(blob_filename.c_str()))
 	{
 		Console.Warning("Removing existing blob file '%s'", blob_filename.c_str());
 		FileSystem::DeleteFilePath(blob_filename.c_str());
