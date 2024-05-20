@@ -69,13 +69,15 @@ bool ADSR_Calculate(V_ADSR &v, int voiceidx)
 			level_inc = (s16)((level_inc * v.Value) >> 15);
 	}
 
-	counter_inc = std::max<u32>(1, counter_inc);
+	if (1 > counter_inc)
+		counter_inc = 1;
 	v.Counter  += counter_inc;
 
 	if (v.Counter >= 0x8000)
 	{
 		v.Counter = 0;
-		v.Value   = std::clamp<s32>(v.Value + level_inc, 0, INT16_MAX);
+		s32 a     = static_cast<s32>(std::max(v.Value + level_inc, 0));
+		v.Value   = static_cast<s32>(std::min(a, (s32)INT16_MAX));
 	}
 
 	// Stay in sustain until key off or silence
