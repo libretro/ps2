@@ -13,9 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
+
+#include <file/file_path.h>
 
 #include "ChdFileReader.h"
 #include "CsoFileReader.h"
@@ -24,23 +25,23 @@
 #include "IsoFileFormats.h"
 #include "Config.h"
 
-static std::unique_ptr<ThreadedFileReader> GetFileReader(const std::string& path)
+static std::unique_ptr<ThreadedFileReader> GetFileReader(const char *path)
 {
-	const std::string_view extension = Path::GetExtension(path);
-	size_t ext_length = extension.length();
+	const char *extension = path_get_extension(path);
+	size_t ext_length     = strlen(extension);
 
 	if (ext_length == 3)
 	{
-		if (Strncasecmp(extension.data(), "chd", 3) == 0)
+		if (Strncasecmp(extension, "chd", 3) == 0)
 			return std::make_unique<ChdFileReader>();
 
-		if (       (Strncasecmp(extension.data(), "cso", 3) == 0) 
-			|| (Strncasecmp(extension.data(), "zso", 3) == 0))
+		if (       (Strncasecmp(extension, "cso", 3) == 0) 
+			|| (Strncasecmp(extension, "zso", 3) == 0))
 			return std::make_unique<CsoFileReader>();
 	}
 	else if (ext_length == 2)
 	{
-		if (Strncasecmp(extension.data(), "gz", 2))
+		if (Strncasecmp(extension, "gz", 2))
 			return std::make_unique<GzippedFileReader>();
 	}
 
@@ -51,11 +52,7 @@ static std::unique_ptr<ThreadedFileReader> GetFileReader(const std::string& path
 int InputIsoFile::ReadSync(u8* dst, uint lsn)
 {
 	if (lsn >= m_blocks)
-	{
-		Console.Error("isoFile error: Block index is past the end of file!");
 		return -1;
-	}
-
 	return m_reader->ReadSync(dst + m_blockofs, lsn, 1);
 }
 
@@ -63,13 +60,11 @@ void InputIsoFile::BeginRead2(uint lsn)
 {
 	m_current_lsn = lsn;
 
+	// While this usually indicates that the ISO is corrupted, 
+	// some games do attempt to read past the end of the disc, 
+	// so don't error here.
 	if (lsn >= m_blocks)
-	{
-		// While this usually indicates that the ISO is corrupted, some games do attempt
-		// to read past the end of the disc, so don't error here.
-		Console.WriteLn("isoFile error: Block index is past the end of file! (%u >= %u).", lsn, m_blocks);
 		return;
-	}
 
 	// same sector?
 	if (lsn == m_read_lsn)
@@ -187,13 +182,12 @@ bool InputIsoFile::Open(std::string srcfile)
 	Close();
 	m_filename = std::move(srcfile);
 
-	m_reader = GetFileReader(m_filename);
+	m_reader = GetFileReader(m_filename.c_str());
 	if (!m_reader->Open(m_filename))
 		return false;
 
 	if (!Detect())
 	{
-		Console.Error("Unable to identify the ISO image type for %s", m_filename.c_str());
 		Close();
 		return false;
 	}
