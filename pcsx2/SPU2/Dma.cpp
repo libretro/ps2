@@ -137,13 +137,19 @@ void V_Core::PlainDMAWrite(u16* pMem, u32 size)
 
 void V_Core::FinishDMAwrite()
 {
-	if (DMAPtr == nullptr)
+	if (!DMAPtr)
 		DMAPtr = (u16*)iopPhysMem(MADR);
 
 	DMAICounter = ReadSize;
 
-	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + std::abs(DMAICounter / 4));
 	u32 buff2end = 0;
+	u32 buff1end = ActiveTSA;
+	u32 tmp      = (u32)0x100 + std::abs(DMAICounter / 4);
+	if (tmp < ReadSize)
+		buff1end += tmp;
+	else
+		buff1end += ReadSize;
+
 	if (buff1end > 0x100000)
 	{
 		buff2end = buff1end - 0x100000;
@@ -245,8 +251,13 @@ void V_Core::FinishDMAwrite()
 
 void V_Core::FinishDMAread()
 {
-	u32 buff1end = ActiveTSA + std::min(ReadSize, (u32)0x100 + std::abs(DMAICounter / 4));
 	u32 buff2end = 0;
+	u32 buff1end = ActiveTSA;
+	u32 tmp      = (u32)0x100 + std::abs(DMAICounter / 4);
+	if (tmp < ReadSize)
+		buff1end += tmp;
+	else
+		buff1end += ReadSize;
 
 	if (buff1end > 0x100000)
 	{
@@ -313,7 +324,12 @@ void V_Core::FinishDMAread()
 
 	// DMA Reads are done AFTER the delay, so to get the timing right we need to scheule one last DMA to catch IRQ's
 	if (ReadSize)
-		DMAICounter = std::min(ReadSize, (u32)0x100) * 4;
+	{
+		if ((u32)0x100 < ReadSize)
+			DMAICounter = 1024;
+		else
+			DMAICounter = 4 * ReadSize;
+	}
 	else
 		DMAICounter = 4;
 
@@ -342,7 +358,12 @@ void V_Core::DoDMAread(u16* pMem, u32 size)
 	ReadSize = size;
 	IsDMARead = true;
 	LastClock = psxRegs.cycle;
-	DMAICounter = std::min(ReadSize, (u32)0x100) * 4;
+
+	if ((u32)0x100 < ReadSize)
+		DMAICounter = 1024;
+	else
+		DMAICounter = 4 * ReadSize;
+
 	Regs.STATX &= ~0x80;
 	Regs.STATX |= 0x400;
 	//Regs.ATTR |= 0x30;

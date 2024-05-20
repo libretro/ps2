@@ -53,7 +53,8 @@ static constexpr std::array<s16, 48> make_up_coefs()
 
 	for (u32 i = 0; i < NUM_TAPS; i++)
 	{
-		ret[i] = static_cast<s16>(std::clamp<s32>(filter_down_coefs[i] * 2, INT16_MIN, INT16_MAX));
+		s32 a  = static_cast<s32>(std::max(filter_down_coefs[i] * 2, INT16_MIN));
+		ret[i] = static_cast<s16>(INT16_MAX < a ? INT16_MAX : a);
 	}
 
 	return ret;
@@ -71,7 +72,7 @@ s32 __forceinline ReverbDownsample_reference(V_Core& core, bool right)
 
 	out >>= 15;
 
-	return std::clamp(out, -0x8000, 0x7fff);
+	return std::min(std::max(out, -0x8000), 0x7fff);
 }
 
 #if _M_SSE >= 0x501
@@ -156,8 +157,8 @@ StereoOut32 __forceinline ReverbUpsample_reference(V_Core& core)
 	l >>= 15;
 	r >>= 15;
 
-	val.Left  = std::clamp(l, -0x8000, 0x7fff);
-	val.Right = std::clamp(r, -0x8000, 0x7fff);
+	val.Left  = std::min(std::max(l, -0x8000), 0x7fff);
+	val.Right = std::min(std::max(r, -0x8000), 0x7fff);
 	return val;
 }
 

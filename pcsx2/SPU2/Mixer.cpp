@@ -43,13 +43,13 @@ static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& pr
 		s32 data = ((*blockbytes) << 28) & 0xF0000000;
 		s32 pcm = (data >> shift) + (((pred1 * prev1) + (pred2 * prev2) + 32) >> 6);
 
-		pcm = std::clamp<s32>(pcm, -0x8000, 0x7fff);
+		pcm         = (s32)std::min(std::max(pcm, -0x8000), 0x7fff);
 		*(buffer++) = pcm;
 
 		data = ((*blockbytes) << 24) & 0xF0000000;
 		s32 pcm2 = (data >> shift) + (((pred1 * pcm) + (pred2 * prev1) + 32) >> 6);
 
-		pcm2 = std::clamp<s32>(pcm2, -0x8000, 0x7fff);
+		pcm2        = (s32)std::min(std::max(pcm2, -0x8000), 0x7fff);
 		*(buffer++) = pcm2;
 
 		prev2 = pcm;
@@ -213,7 +213,7 @@ static void __forceinline UpdatePitch(V_Voice& vc, uint coreidx, uint voiceidx)
 	if ((vc.Modulated == 0) || (voiceidx == 0))
 		pitch     = vc.Pitch;
 	else
-		pitch     = std::clamp((vc.Pitch * (32768 + Cores[coreidx].Voices[voiceidx - 1].OutX)) >> 15, 0, 0x3fff);
+		pitch     = std::min(std::max((vc.Pitch * (32768 + Cores[coreidx].Voices[voiceidx - 1].OutX)) >> 15, 0), 0x3fff);
 
 	if (0x3FFF < pitch)
 		pitch = 0x3FFF;
@@ -351,7 +351,11 @@ static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 		vs.Counter = 0;
 
 		if (!vs.Decr)
-			vs.Value = std::clamp<s32>(vs.Value + level_inc, INT16_MIN, INT16_MAX);
+		{
+			s32 a    = (((vs.Value + level_inc) < INT16_MIN) ? (vs.Value + level_inc) : INT16_MIN);
+			s32 b    = INT16_MAX;
+			vs.Value = static_cast<s32>(std::min(a, b));
+		}
 		else
 		{
 			s32 low  = vs.Phase ? INT16_MIN : 0;
@@ -361,7 +365,7 @@ static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 				low  = 0;
 				high = INT16_MAX;
 			}
-			vs.Value = std::clamp<s32>(vs.Value + level_inc, low, high);
+			vs.Value = (s32)std::min(std::max(vs.Value + level_inc, low), high);
 		}
 	}
 }
@@ -449,10 +453,10 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	UpdateNoise(*this);
 
 	// Saturate final result to standard 16 bit range.
-	Voices.Dry.Left  = std::clamp(inVoices.Dry.Left, -0x8000, 0x7fff);
-	Voices.Dry.Right = std::clamp(inVoices.Dry.Right, -0x8000, 0x7fff);
-	Voices.Wet.Left  = std::clamp(inVoices.Wet.Left, -0x8000, 0x7fff);
-	Voices.Wet.Right = std::clamp(inVoices.Wet.Right, -0x8000, 0x7fff);
+	Voices.Dry.Left  = std::min(std::max(inVoices.Dry.Left, -0x8000), 0x7fff);
+	Voices.Dry.Right = std::min(std::max(inVoices.Dry.Right, -0x8000), 0x7fff);
+	Voices.Wet.Left  = std::min(std::max(inVoices.Wet.Left, -0x8000), 0x7fff);
+	Voices.Wet.Right = std::min(std::max(inVoices.Wet.Right, -0x8000), 0x7fff);
 
 	// Write Mixed results To Output Area
 	spu2M_WriteFast(((0 == Index) ? 0x1000 : 0x1800) + OutPos, Voices.Dry.Left);
@@ -564,8 +568,8 @@ __forceinline
 		Ext = empty;
 	else
 	{
-		Ext.Left  = std::clamp(Ext.Left, -0x8000, 0x7fff);
-		Ext.Right = std::clamp(Ext.Right, -0x8000, 0x7fff);
+		Ext.Left  = std::min(std::max(Ext.Left,  -0x8000), 0x7fff);
+		Ext.Right = std::min(std::max(Ext.Right, -0x8000), 0x7fff);
 		Ext.Left  = (Ext.Left  * Cores[0].MasterVol.Left.Value)  >> 15;
 		Ext.Right = (Ext.Right * Cores[0].MasterVol.Right.Value) >> 15;
 	}
@@ -584,8 +588,8 @@ __forceinline
 		Out = Cores[1].ReadInput_HiFi();
 	else
 	{
-		Out.Left  = std::clamp(Out.Left,  -0x8000, 0x7fff);
-		Out.Right = std::clamp(Out.Right, -0x8000, 0x7fff);
+		Out.Left  = std::min(std::max(Out.Left,  -0x8000), 0x7fff);
+		Out.Right = std::min(std::max(Out.Right, -0x8000), 0x7fff);
 		Out.Left  = (Out.Left  * Cores[1].MasterVol.Left.Value)  >> 15;
 		Out.Right = (Out.Right * Cores[1].MasterVol.Right.Value) >> 15;
 	}
@@ -593,8 +597,8 @@ __forceinline
 	// A simple DC blocking high-pass filter
 	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
 	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
-	DCFilterOut.Left  = (Out.Left - DCFilterIn.Left   + std::clamp((0x7f5c * DCFilterOut.Left)  >> 15, -0x8000, 0x7fff));
-	DCFilterOut.Right = (Out.Right - DCFilterIn.Right + std::clamp((0x7f5c * DCFilterOut.Right) >> 15, -0x8000, 0x7fff));
+	DCFilterOut.Left  = (Out.Left - DCFilterIn.Left   + std::min(std::max((0x7f5c * DCFilterOut.Left)  >> 15, -0x8000), 0x7fff));
+	DCFilterOut.Right = (Out.Right - DCFilterIn.Right + std::min(std::max((0x7f5c * DCFilterOut.Right) >> 15, -0x8000), 0x7fff));
 	DCFilterIn.Left   = Out.Left;
 	DCFilterIn.Right  = Out.Right;
 
@@ -602,8 +606,8 @@ __forceinline
 	Out.Right         = DCFilterOut.Right;
 
 	// Final clamp, take care not to exceed 16 bits from here on
-	Out.Left          = std::clamp(Out.Left, -0x8000, 0x7fff);
-	Out.Right         = std::clamp(Out.Right, -0x8000, 0x7fff);
+	Out.Left          = std::min(std::max(Out.Left, -0x8000), 0x7fff);
+	Out.Right         = std::min(std::max(Out.Right, -0x8000), 0x7fff);
 
 	OutS16.Left       = (s16)Out.Left;
 	OutS16.Right      = (s16)Out.Right;
