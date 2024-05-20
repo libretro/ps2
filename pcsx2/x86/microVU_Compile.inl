@@ -261,7 +261,6 @@ __ri void eBitWarning(mV)
 //------------------------------------------------------------------
 __fi u8 optimizeReg(u8 rState) { return (rState == 1) ? 0 : rState; }
 __fi u8 calcCycles(u8 reg, u8 x) { return ((reg > x) ? (reg - x) : 0); }
-__fi u8 tCycles(u8 dest, u8 src) { return std::max(dest, src); }
 __fi void incP(mV) { mVU.p ^= 1; }
 __fi void incQ(mV) { mVU.q ^= 1; }
 
@@ -365,21 +364,21 @@ void mVUsetCycles(mV)
 		cmpVFregs(mVUlow.VF_write, mVUup.VF_read[1], mVUinfo.backupVF);
 	}
 
-	mVUregs.VF[mVUregsTemp.VFreg[0]].x = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].x, mVUregsTemp.VF[0].x);
-	mVUregs.VF[mVUregsTemp.VFreg[0]].y = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].y, mVUregsTemp.VF[0].y);
-	mVUregs.VF[mVUregsTemp.VFreg[0]].z = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].z, mVUregsTemp.VF[0].z);
-	mVUregs.VF[mVUregsTemp.VFreg[0]].w = tCycles(mVUregs.VF[mVUregsTemp.VFreg[0]].w, mVUregsTemp.VF[0].w);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].x = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].x, mVUregsTemp.VF[0].x);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].y = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].y, mVUregsTemp.VF[0].y);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].z = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].z, mVUregsTemp.VF[0].z);
+	mVUregs.VF[mVUregsTemp.VFreg[0]].w = std::max(mVUregs.VF[mVUregsTemp.VFreg[0]].w, mVUregsTemp.VF[0].w);
 
-	mVUregs.VF[mVUregsTemp.VFreg[1]].x = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].x, mVUregsTemp.VF[1].x);
-	mVUregs.VF[mVUregsTemp.VFreg[1]].y = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].y, mVUregsTemp.VF[1].y);
-	mVUregs.VF[mVUregsTemp.VFreg[1]].z = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].z, mVUregsTemp.VF[1].z);
-	mVUregs.VF[mVUregsTemp.VFreg[1]].w = tCycles(mVUregs.VF[mVUregsTemp.VFreg[1]].w, mVUregsTemp.VF[1].w);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].x = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].x, mVUregsTemp.VF[1].x);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].y = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].y, mVUregsTemp.VF[1].y);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].z = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].z, mVUregsTemp.VF[1].z);
+	mVUregs.VF[mVUregsTemp.VFreg[1]].w = std::max(mVUregs.VF[mVUregsTemp.VFreg[1]].w, mVUregsTemp.VF[1].w);
 
-	mVUregs.VI[mVUregsTemp.VIreg]  = tCycles(mVUregs.VI[mVUregsTemp.VIreg], mVUregsTemp.VI);
-	mVUregs.q                      = tCycles(mVUregs.q,                     mVUregsTemp.q);
-	mVUregs.p                      = tCycles(mVUregs.p,                     mVUregsTemp.p);
-	mVUregs.r                      = tCycles(mVUregs.r,                     mVUregsTemp.r);
-	mVUregs.xgkick                 = tCycles(mVUregs.xgkick,                mVUregsTemp.xgkick);
+	mVUregs.VI[mVUregsTemp.VIreg]  = std::max(mVUregs.VI[mVUregsTemp.VIreg], mVUregsTemp.VI);
+	mVUregs.q                      = std::max(mVUregs.q,                     mVUregsTemp.q);
+	mVUregs.p                      = std::max(mVUregs.p,                     mVUregsTemp.p);
+	mVUregs.r                      = std::max(mVUregs.r,                     mVUregsTemp.r);
+	mVUregs.xgkick                 = std::max(mVUregs.xgkick,                mVUregsTemp.xgkick);
 }
 
 // Test cycles to see if we need to exit-early...
@@ -683,13 +682,9 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 			incPC(1);
 		}
 		if (curI & _Dbit_)
-		{
 			mVUup.dBit = true;
-		}
 		if (curI & _Tbit_)
-		{
 			mVUup.tBit = true;
-		}
 		mVUsetCycles(mVU);
 		// Update XGKick information
 		if (!mVUlow.isKick)
