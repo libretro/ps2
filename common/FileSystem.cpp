@@ -805,7 +805,6 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 				outData.FileName = utf8_filename;
 		}
 
-		outData.CreationTime = ConvertFileTimeToUnixTime(wfd.ftCreationTime);
 		outData.ModificationTime = ConvertFileTimeToUnixTime(wfd.ftLastWriteTime);
 		outData.Size = (static_cast<u64>(wfd.nFileSizeHigh) << 32) | static_cast<u64>(wfd.nFileSizeLow);
 
@@ -908,7 +907,6 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 
 	// fill in the stat data
 	sd->Attributes = TranslateWin32Attributes(bhfi.dwFileAttributes);
-	sd->CreationTime = ConvertFileTimeToUnixTime(bhfi.ftCreationTime);
 	sd->ModificationTime = ConvertFileTimeToUnixTime(bhfi.ftLastWriteTime);
 	sd->Size = static_cast<s64>(((u64)bhfi.nFileSizeHigh) << 32 | (u64)bhfi.nFileSizeLow);
 	return true;
@@ -1040,7 +1038,6 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 		}
 
 		outData.Size = static_cast<u64>(sDir.st_size);
-		outData.CreationTime = sDir.st_ctime;
 		outData.ModificationTime = sDir.st_mtime;
 
 		// match the filename
@@ -1115,7 +1112,6 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 		return false;
 
 	// parse attributes
-	sd->CreationTime = sysStatData.st_ctime;
 	sd->ModificationTime = sysStatData.st_mtime;
 	sd->Attributes = 0;
 	if (S_ISDIR(sysStatData.st_mode))
