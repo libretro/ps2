@@ -49,14 +49,6 @@ namespace Path
 	/// Returns the filename component of a filename.
 	std::string_view GetFileName(const std::string_view& path);
 
-	/// Changes the filename in a path.
-	std::string ChangeFileName(const std::string_view& path, const std::string_view& new_filename);
-	void ChangeFileName(std::string* path, const std::string_view& new_filename);
-
-	/// Appends a directory to a path.
-	std::string AppendDirectory(const std::string_view& path, const std::string_view& new_dir);
-	void AppendDirectory(std::string* path, const std::string_view& new_dir);
-
 	/// Splits a path into its components, handling both Windows and Unix separators.
 	std::vector<std::string_view> SplitWindowsPath(const std::string_view& path);
 

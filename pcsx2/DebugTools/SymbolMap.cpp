@@ -41,13 +41,13 @@ void SymbolMap::Clear() {
 
 bool SymbolMap::LoadNocashSym(const char *filename) {
 	std::lock_guard<std::recursive_mutex> guard(m_lock);
-	FILE *f = FileSystem::OpenCFile(filename, "r");
+	RFILE *f = FileSystem::OpenRFile(filename, "r");
 	if (!f)
 		return false;
 
-	while (!feof(f)) {
+	while (!rfeof(f)) {
 		char line[256], value[256] = {0};
-		char *p = fgets(line, 256, f);
+		char *p = rfgets(line, 256, f);
 		if (p == NULL)
 			break;
 
@@ -97,7 +97,7 @@ bool SymbolMap::LoadNocashSym(const char *filename) {
 		}
 	}
 
-	fclose(f);
+	rfclose(f);
 	return true;
 }
 

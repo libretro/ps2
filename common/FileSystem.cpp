@@ -105,6 +105,19 @@ RFILE* rfopen(const char *path, const char *mode)
    return output;
 }
 
+int rfeof(RFILE* stream)
+{
+   return filestream_eof(stream);
+}
+
+char *rfgets(char *buffer, int maxCount, RFILE* stream)
+{
+   if (!stream)
+      return NULL;
+
+   return filestream_gets(stream, buffer, maxCount);
+}
+
 int rfclose(RFILE* stream)
 {
    if (!stream)
@@ -341,85 +354,6 @@ std::string_view Path::GetFileName(const std::string_view& path)
 	return path.substr(pos);
 }
 
-std::string Path::ChangeFileName(const std::string_view& path, const std::string_view& new_filename)
-{
-	std::string ret;
-	PathAppendString(ret, path);
-
-	const std::string_view::size_type pos = GetLastSeperatorPosition(ret, true);
-	if (pos == std::string_view::npos)
-	{
-		ret.clear();
-		PathAppendString(ret, new_filename);
-	}
-	else
-	{
-		if (!new_filename.empty())
-		{
-			ret.erase(pos);
-			PathAppendString(ret, new_filename);
-		}
-		else
-		{
-			ret.erase(pos - 1);
-		}
-	}
-
-	return ret;
-}
-
-void Path::ChangeFileName(std::string* path, const std::string_view& new_filename)
-{
-	*path = ChangeFileName(*path, new_filename);
-}
-
-std::string Path::AppendDirectory(const std::string_view& path, const std::string_view& new_dir)
-{
-	std::string ret;
-	if (!new_dir.empty())
-	{
-		const std::string_view::size_type pos = GetLastSeperatorPosition(path, true);
-
-		ret.reserve(path.length() + new_dir.length() + 1);
-		if (pos != std::string_view::npos)
-			PathAppendString(ret, path.substr(0, pos));
-
-		while (!ret.empty() && ret.back() == FS_OSPATH_SEPARATOR_CHARACTER)
-			ret.pop_back();
-
-		if (!ret.empty())
-			ret += FS_OSPATH_SEPARATOR_CHARACTER;
-
-		PathAppendString(ret, new_dir);
-
-		if (pos != std::string_view::npos)
-		{
-			const std::string_view filepart(path.substr(pos));
-			if (!filepart.empty())
-			{
-				ret += FS_OSPATH_SEPARATOR_CHARACTER;
-				PathAppendString(ret, filepart);
-			}
-		}
-		else if (!path.empty())
-		{
-			ret += FS_OSPATH_SEPARATOR_CHARACTER;
-			PathAppendString(ret, path);
-		}
-	}
-	else
-	{
-		PathAppendString(ret, path);
-	}
-
-	return ret;
-}
-
-void Path::AppendDirectory(std::string* path, const std::string_view& new_dir)
-{
-	*path = AppendDirectory(*path, new_dir);
-}
-
 std::vector<std::string_view> Path::SplitWindowsPath(const std::string_view& path)
 {
 	std::vector<std::string_view> parts;
@@ -592,47 +526,6 @@ FileSystem::ManagedCFilePtr FileSystem::OpenManagedCFile(const char* filename, c
 	return ManagedCFilePtr(OpenCFile(filename, mode), [](std::FILE* fp) { std::fclose(fp); });
 }
 
-std::FILE* FileSystem::OpenSharedCFile(const char* filename, const char* mode, FileShareMode share_mode)
-{
-#ifdef _WIN32
-	const std::wstring wfilename(StringUtil::UTF8StringToWideString(filename));
-	const std::wstring wmode(StringUtil::UTF8StringToWideString(mode));
-	if (wfilename.empty() || wmode.empty())
-		return nullptr;
-
-	int share_flags = 0;
-	switch (share_mode)
-	{
-		case FileShareMode::DenyNone:
-			share_flags = _SH_DENYNO;
-			break;
-		case FileShareMode::DenyRead:
-			share_flags = _SH_DENYRD;
-			break;
-		case FileShareMode::DenyWrite:
-			share_flags = _SH_DENYWR;
-			break;
-		case FileShareMode::DenyReadWrite:
-		default:
-			share_flags = _SH_DENYRW;
-			break;
-	}
-
-	std::FILE* fp = _wfsopen(wfilename.c_str(), wmode.c_str(), share_flags);
-	if (fp)
-		return fp;
-
-	return nullptr;
-#else
-	return std::fopen(filename, mode);
-#endif
-}
-
-FileSystem::ManagedCFilePtr FileSystem::OpenManagedSharedCFile(const char* filename, const char* mode, FileShareMode share_mode)
-{
-	return ManagedCFilePtr(OpenSharedCFile(filename, mode, share_mode), [](std::FILE* fp) { std::fclose(fp); });
-}
-
 int FileSystem::FSeek64(std::FILE* fp, s64 offset, int whence)
 {
 #ifdef _WIN32
@@ -729,11 +622,26 @@ s64 FileSystem::GetPathFileSize(const char* Path)
 
 std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 {
-	ManagedCFilePtr fp = OpenManagedCFile(filename, "rb");
+	RFILE *fp = OpenRFile(filename, "rb");
 	if (!fp)
 		return std::nullopt;
+	rfseek(fp, 0, SEEK_END);
+	int64_t size = rftell(fp);
+	rfseek(fp, 0, SEEK_SET);
+	if (size < 0)
+	{
+		rfclose(fp);
+		return std::nullopt;
+	}
 
-	return ReadBinaryFile(fp.get());
+	std::vector<u8> res(static_cast<size_t>(size));
+	if (size > 0 && rfread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
+	{
+		rfclose(fp);
+		return std::nullopt;
+	}
+	rfclose(fp);
+	return res;
 }
 
 std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(std::FILE* fp)
@@ -753,11 +661,28 @@ std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(std::FILE* fp)
 
 std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 {
-	ManagedCFilePtr fp = OpenManagedCFile(filename, "rb");
+	RFILE *fp = OpenRFile(filename, "rb");
 	if (!fp)
 		return std::nullopt;
+	rfseek(fp, 0, SEEK_END);
+	int64_t size = rftell(fp);
+	rfseek(fp, 0, SEEK_SET);
+	if (size < 0)
+	{
+		rfclose(fp);
+		return std::nullopt;
+	}
 
-	return ReadFileToString(fp.get());
+	std::string res;
+	res.resize(static_cast<size_t>(size));
+	// NOTE - assumes mode 'rb', for example, this will fail over missing Windows carriage return bytes
+	if (size > 0 && rfread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
+	{
+		rfclose(fp);
+		return std::nullopt;
+	}
+	rfclose(fp);
+	return res;
 }
 
 std::optional<std::string> FileSystem::ReadFileToString(std::FILE* fp)
@@ -779,13 +704,15 @@ std::optional<std::string> FileSystem::ReadFileToString(std::FILE* fp)
 
 bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t data_length)
 {
-	ManagedCFilePtr fp = OpenManagedCFile(filename, "wb");
+	RFILE *fp = OpenRFile(filename, "wb");
 	if (!fp)
 		return false;
-
-	if (data_length > 0 && std::fwrite(data, 1u, data_length, fp.get()) != data_length)
+	if (data_length > 0 && rfwrite(data, 1u, data_length, fp) != data_length)
+	{
+		rfclose(fp);
 		return false;
-
+	}
+	rfclose(fp);
 	return true;
 }
 
