@@ -20,6 +20,8 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
+#include <streams/file_stream.h>
+
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -43,9 +45,9 @@ bool ChdFileReader::CanHandle(const std::string& fileName, const std::string& di
 	return true;
 }
 
-static chd_error chd_open_wrapper(const char* filename, std::FILE** fp, int mode, chd_file* parent, chd_file** chd)
+static chd_error chd_open_wrapper(const char* filename, RFILE** fp, int mode, chd_file* parent, chd_file** chd)
 {
-	*fp = FileSystem::OpenCFile(filename, "rb");
+	*fp = FileSystem::OpenRFile(filename, "rb");
 	if (!*fp)
 		return CHDERR_FILE_NOT_FOUND;
 
@@ -53,7 +55,7 @@ static chd_error chd_open_wrapper(const char* filename, std::FILE** fp, int mode
 	if (err == CHDERR_NONE)
 		return err;
 
-	std::fclose(*fp);
+	rfclose(*fp);
 	*fp = nullptr;
 	return err;
 }
@@ -66,7 +68,7 @@ bool ChdFileReader::Open2(std::string fileName)
 
 	chd_file* child = nullptr;
 	chd_file* parent = nullptr;
-	std::FILE* fp = nullptr;
+	RFILE* fp = nullptr;
 	chd_header header;
 	chd_header parent_header;
 

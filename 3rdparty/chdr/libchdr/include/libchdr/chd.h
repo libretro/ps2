@@ -49,6 +49,8 @@ extern "C" {
 #include <libchdr/coretypes.h>
 #include <libchdr/chdconfig.h>
 
+#include <streams/file_stream.h>
+
 /***************************************************************************
 
     Compressed Hunks of Data header format. All numbers are stored in
@@ -374,7 +376,7 @@ struct _chd_verify_result
 
 /* open an existing CHD file */
 CHD_EXPORT chd_error chd_open_core_file(core_file *file, int mode, chd_file *parent, chd_file **chd);
-CHD_EXPORT chd_error chd_open_file(FILE *file, int mode, chd_file *parent, chd_file **chd);
+CHD_EXPORT chd_error chd_open_file(RFILE *file, int mode, chd_file *parent, chd_file **chd);
 CHD_EXPORT chd_error chd_open(const char *filename, int mode, chd_file *parent, chd_file **chd);
 
 /* precache underlying file */

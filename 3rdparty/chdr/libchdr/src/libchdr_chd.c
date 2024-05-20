@@ -1507,7 +1507,7 @@ static inline void map_extract_old(const UINT8 *base, map_entry *entry, UINT32 h
     chd_open_file - open a CHD file for access
 -------------------------------------------------*/
 
-CHD_EXPORT chd_error chd_open_file(FILE *file, int mode, chd_file *parent, chd_file **chd) {
+CHD_EXPORT chd_error chd_open_file(RFILE *file, int mode, chd_file *parent, chd_file **chd) {
 	core_file *stream = malloc(sizeof(core_file));
 	if (!stream)
 		return CHDERR_OUT_OF_MEMORY;
@@ -2954,7 +2954,7 @@ static core_file *core_stdio_fopen(char const *path) {
 	core_file *file = malloc(sizeof(core_file));
 	if (!file)
 		return NULL;
-	if (!(file->argp = fopen(path, "rb"))) {
+	if (!(file->argp = rfopen(path, "rb"))) {
 		free(file);
 		return NULL;
 	}
@@ -2970,30 +2970,12 @@ static core_file *core_stdio_fopen(char const *path) {
 	getting file size with stdio
 -------------------------------------------------*/
 static UINT64 core_stdio_fsize(core_file *file) {
-#if defined USE_LIBRETRO_VFS
-	#define core_stdio_fseek_impl fseek
-	#define core_stdio_ftell_impl ftell
-#elif defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(__WIN64__)
-	#define core_stdio_fseek_impl _fseeki64
-	#define core_stdio_ftell_impl _ftelli64
-#elif defined(_LARGEFILE_SOURCE) && defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64
-	#define core_stdio_fseek_impl fseeko64
-	#define core_stdio_ftell_impl ftello64
-#elif defined(__PS3__) && !defined(__PSL1GHT__) || defined(__SWITCH__) || defined(__vita__)
-	#define core_stdio_fseek_impl(x,y,z) fseek(x,(off_t)y,z)
-	#define core_stdio_ftell_impl(x) (off_t)ftell(x)
-#else
-	#define core_stdio_fseek_impl fseeko
-	#define core_stdio_ftell_impl ftello
-#endif
-	FILE *fp;
-	UINT64 p, rv;
-	fp = (FILE*)file->argp;
-
-	p = core_stdio_ftell_impl(fp);
-	core_stdio_fseek_impl(fp, 0, SEEK_END);
-	rv = core_stdio_ftell_impl(fp);
-	core_stdio_fseek_impl(fp, p, SEEK_SET);
+	UINT64 rv;
+	RFILE *fp = (RFILE*)file->argp;
+	UINT64 p = rftell(fp);
+	rfseek(fp, 0, SEEK_END);
+	rv = rftell(fp);
+	rfseek(fp, p, SEEK_SET);
 	return rv;
 }
 
@@ -3001,14 +2983,14 @@ static UINT64 core_stdio_fsize(core_file *file) {
 	core_stdio_fread - core_file wrapper over fread
 -------------------------------------------------*/
 static size_t core_stdio_fread(void *ptr, size_t size, size_t nmemb, core_file *file) {
-	return fread(ptr, size, nmemb, (FILE*)file->argp);
+	return rfread(ptr, size, nmemb, (RFILE*)file->argp);
 }
 
 /*-------------------------------------------------
 	core_stdio_fclose - core_file wrapper over fclose
 -------------------------------------------------*/
 static int core_stdio_fclose(core_file *file) {
-	int err = fclose((FILE*)file->argp);
+	int err = rfclose((RFILE*)file->argp);
 	if (err == 0)
 		free(file);
 	return err;
@@ -3028,5 +3010,5 @@ static int core_stdio_fclose_nonowner(core_file *file) {
 	core_stdio_fseek - core_file wrapper over fclose
 -------------------------------------------------*/
 static int core_stdio_fseek(core_file* file, INT64 offset, int whence) {
-	return core_stdio_fseek_impl((FILE*)file->argp, offset, whence);
+	return rfseek((RFILE*)file->argp, offset, whence);
 }

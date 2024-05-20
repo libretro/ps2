@@ -100,9 +100,6 @@ namespace FileSystem
 	bool RenamePath(const char* OldPath, const char* NewPath);
 
 	/// open files
-	using ManagedCFilePtr = std::unique_ptr<std::FILE, void (*)(std::FILE*)>;
-	ManagedCFilePtr OpenManagedCFile(const char* filename, const char* mode);
-
 	std::FILE* OpenCFile(const char* filename, const char* mode);
 	int FSeek64(std::FILE* fp, s64 offset, int whence);
 	s64 FTell64(std::FILE* fp);
@@ -131,6 +128,10 @@ namespace FileSystem
 	bool DeleteDirectory(const char* path);
 }; // namespace FileSystem
    
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int rferror(RFILE* stream);
 RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
@@ -143,3 +144,7 @@ int64_t rfread(void* buffer,
 int rfgetc(RFILE* stream);
 int rfeof(RFILE* stream);
 char *rfgets(char *buffer, int maxCount, RFILE* stream);
+
+#ifdef __cplusplus
+}
+#endif

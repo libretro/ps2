@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ThreadedFileReader.h"
+#include <streams/file_stream.h>
 #include <vector>
 
 typedef struct _chd_file chd_file;
@@ -43,5 +44,5 @@ private:
 	chd_file* ChdFile = nullptr;
 	u64 file_size = 0;
 	u32 hunk_size = 0;
-	std::vector<std::FILE*> m_files;
+	std::vector<RFILE*> m_files;
 };

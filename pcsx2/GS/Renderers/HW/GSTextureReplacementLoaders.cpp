@@ -172,7 +172,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		return false;
 	}
 
-	auto fp = FileSystem::OpenManagedCFile(filename.c_str(), "rb");
+	auto fp = FileSystem::OpenCFile(filename.c_str(), "rb");
 	if (!fp)
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
@@ -182,10 +182,11 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	if (setjmp(png_jmpbuf(png_ptr)))
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+		std::fclose(fp);
 		return false;
 	}
 
-	png_init_io(png_ptr, fp.get());
+	png_init_io(png_ptr, fp);
 	png_read_info(png_ptr, info_ptr);
 
 	png_uint_32 width = 0;
@@ -196,6 +197,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		width == 0 || height == 0)
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+		std::fclose(fp);
 		return false;
 	}
 
@@ -232,6 +234,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	}
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+	std::fclose(fp);
 	return true;
 }
 

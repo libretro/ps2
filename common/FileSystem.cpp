@@ -51,6 +51,10 @@
 
 #include <streams/file_stream.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int rferror(RFILE* stream)
 {
    return filestream_error(stream);
@@ -174,6 +178,10 @@ int64_t rfwrite(void const* buffer,
 
    return (filestream_write(stream, buffer, elem_size * elem_count) / elem_size);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef _WIN32
 static std::time_t ConvertFileTimeToUnixTime(const FILETIME& ft)
@@ -519,11 +527,6 @@ RFILE* FileSystem::OpenRFile(const char *filename, const char *mode)
       filestream_seek(output, 0, RETRO_VFS_SEEK_POSITION_END);
 
    return output;
-}
-
-FileSystem::ManagedCFilePtr FileSystem::OpenManagedCFile(const char* filename, const char* mode)
-{
-	return ManagedCFilePtr(OpenCFile(filename, mode), [](std::FILE* fp) { std::fclose(fp); });
 }
 
 int FileSystem::FSeek64(std::FILE* fp, s64 offset, int whence)

@@ -4,8 +4,27 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#ifdef USE_LIBRETRO_VFS
-#include <streams/file_stream_transforms.h>
+#include <streams/file_stream.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int rferror(RFILE* stream);
+RFILE* rfopen(const char *path, const char *mode);
+int rfclose(RFILE* stream);
+int64_t rftell(RFILE* stream);
+int64_t rfseek(RFILE* stream, int64_t offset, int origin);
+int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int rfgetc(RFILE* stream);
+int rfeof(RFILE* stream);
+char *rfgets(char *buffer, int maxCount, RFILE* stream);
+
+#ifdef __cplusplus
+}
 #endif
 
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(x[0]))
