@@ -15,6 +15,7 @@
 
 #include <cstring>
 
+#include <file/file_path.h>
 #include <streams/file_stream.h>
 
 #include "common/Console.h"
@@ -192,11 +193,11 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 	std::string Bios1(StringUtil::StdStringFromFormat("%s.%s", BiosPath.c_str(), ext));
 
 	s64 filesize;
-	if ((filesize = FileSystem::GetPathFileSize(Bios1.c_str())) <= 0)
+	if ((filesize = path_get_size(Bios1.c_str())) <= 0)
 	{
 		// Try the name properly extensioned next (name.rom1)
 		Bios1 = Path::ReplaceExtension(BiosPath, ext);
-		if ((filesize = FileSystem::GetPathFileSize(Bios1.c_str())) <= 0)
+		if ((filesize = path_get_size(Bios1.c_str())) <= 0)
 		{
 			Console.WriteLn(Color_Gray, "BIOS %s module not found, skipping...", ext);
 			return;

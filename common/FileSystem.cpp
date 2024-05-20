@@ -614,15 +614,6 @@ s64 FileSystem::FSize64(std::FILE* fp)
 	return -1;
 }
 
-s64 FileSystem::GetPathFileSize(const char* Path)
-{
-	FILESYSTEM_STAT_DATA sd;
-	if (!StatFile(Path, &sd))
-		return -1;
-
-	return sd.Size;
-}
-
 std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 {
 	RFILE *fp = OpenRFile(filename, "rb");
@@ -910,20 +901,6 @@ bool FileSystem::StatFile(const char* path, struct stat* st)
 	return true;
 }
 
-bool FileSystem::StatFile(std::FILE* fp, struct stat* st)
-{
-	const int fd = _fileno(fp);
-	if (fd < 0)
-		return false;
-
-	struct _stat64 st64;
-	if (_fstat64(fd, &st64) != 0)
-		return false;
-
-	TranslateStat64(st, st64);
-	return true;
-}
-
 bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 {
 	// has a path
@@ -969,32 +946,6 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 	sd->CreationTime = ConvertFileTimeToUnixTime(bhfi.ftCreationTime);
 	sd->ModificationTime = ConvertFileTimeToUnixTime(bhfi.ftLastWriteTime);
 	sd->Size = static_cast<s64>(((u64)bhfi.nFileSizeHigh) << 32 | (u64)bhfi.nFileSizeLow);
-	return true;
-}
-
-bool FileSystem::StatFile(std::FILE* fp, FILESYSTEM_STAT_DATA* sd)
-{
-	const int fd = _fileno(fp);
-	if (fd < 0)
-		return false;
-
-	struct _stat64 st;
-	if (_fstat64(fd, &st) != 0)
-		return false;
-
-	// parse attributes
-	sd->CreationTime = st.st_ctime;
-	sd->ModificationTime = st.st_mtime;
-	sd->Attributes = 0;
-	if ((st.st_mode & _S_IFMT) == _S_IFDIR)
-		sd->Attributes |= FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY;
-
-	// parse size
-	if ((st.st_mode & _S_IFMT) == _S_IFREG)
-		sd->Size = st.st_size;
-	else
-		sd->Size = 0;
-
 	return true;
 }
 
@@ -1301,15 +1252,6 @@ bool FileSystem::StatFile(const char* path, struct stat* st)
 	return stat(path, st) == 0;
 }
 
-bool FileSystem::StatFile(std::FILE* fp, struct stat* st)
-{
-	const int fd = fileno(fp);
-	if (fd < 0)
-		return false;
-
-	return fstat(fd, st) == 0;
-}
-
 bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 {
 	// has a path
@@ -1323,39 +1265,6 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 #else
 	struct stat64 sysStatData;
 	if (stat64(path, &sysStatData) < 0)
-#endif
-		return false;
-
-	// parse attributes
-	sd->CreationTime = sysStatData.st_ctime;
-	sd->ModificationTime = sysStatData.st_mtime;
-	sd->Attributes = 0;
-	if (S_ISDIR(sysStatData.st_mode))
-		sd->Attributes |= FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY;
-
-	// parse size
-	if (S_ISREG(sysStatData.st_mode))
-		sd->Size = sysStatData.st_size;
-	else
-		sd->Size = 0;
-
-	// ok
-	return true;
-}
-
-bool FileSystem::StatFile(std::FILE* fp, FILESYSTEM_STAT_DATA* sd)
-{
-	const int fd = fileno(fp);
-	if (fd < 0)
-		return false;
-
-		// stat file
-#if defined(__HAIKU__) || defined(__APPLE__) || defined(__FreeBSD__)
-	struct stat sysStatData;
-	if (fstat(fd, &sysStatData) < 0)
-#else
-	struct stat64 sysStatData;
-	if (fstat64(fd, &sysStatData) < 0)
 #endif
 		return false;
 

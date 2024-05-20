@@ -15,6 +15,8 @@
 
 #include "Common.h"
 
+#include <file/file_path.h>
+
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
@@ -88,23 +90,19 @@ bool ElfObject::OpenIsoFile(std::string srcfile, IsoFile& isofile, bool isPSXElf
 
 bool ElfObject::OpenFile(std::string srcfile, bool isPSXElf_)
 {
-	FILESYSTEM_STAT_DATA sd;
-	RFILE *fp = FileSystem::OpenRFile(srcfile.c_str(), "rb");
+	RFILE *fp;
+	int32_t sd_size = path_get_size(srcfile.c_str());
+	if (sd_size == -1)
+		return false;
+
+	if (!isPSXElf_ && !CheckElfSize(sd_size))
+		return false;
+
+	fp = FileSystem::OpenRFile(srcfile.c_str(), "rb");
 	if (!fp)
 		return false;
-	if (!FileSystem::StatFile(srcfile.c_str(), &sd))
-	{
-		filestream_close(fp);
-		return false;
-	}
 
-	if (!isPSXElf_ && !CheckElfSize(sd.Size))
-	{
-		filestream_close(fp);
-		return false;
-	}
-
-	data.resize(static_cast<size_t>(sd.Size));
+	data.resize(static_cast<size_t>(sd_size));
 	if (rfread(data.data(), data.size(), 1, fp) != 1)
 	{
 		filestream_close(fp);

@@ -17,6 +17,8 @@
 #include <cstring> /* memset */
 #include <vector>
 
+#include <file/file_path.h>
+
 #include "common/Console.h"
 #include "common/FileSystem.h"
 #include "common/Path.h"
@@ -293,7 +295,7 @@ void FileMemoryCard::Open()
 		if (cont)
 			continue;
 
-		if (FileSystem::GetPathFileSize(fname.c_str()) <= 0)
+		if (path_get_size(fname.c_str()) <= 0)
 		{
 			// FIXME : Ideally this should prompt the user for the size of the
 			// memory card file they would like to create, instead of trying to
@@ -800,8 +802,7 @@ bool FileMcd_RenameCard(const std::string_view& name, const std::string_view& ne
 {
 	const std::string name_path(Path::Combine(EmuFolders::MemoryCards, name));
 	const std::string new_name_path(Path::Combine(EmuFolders::MemoryCards, new_name));
-	FILESYSTEM_STAT_DATA sd, new_sd;
-	if (!FileSystem::StatFile(name_path.c_str(), &sd) || FileSystem::StatFile(new_name_path.c_str(), &new_sd))
+	if (!path_is_valid(name_path.c_str()) || !path_is_valid(new_name_path.c_str()))
 		return false;
 	if (!FileSystem::RenamePath(name_path.c_str(), new_name_path.c_str()))
 		return false;
@@ -812,12 +813,7 @@ bool FileMcd_DeleteCard(const std::string_view& name)
 {
 	const std::string name_path(Path::Combine(EmuFolders::MemoryCards, name));
 
-	FILESYSTEM_STAT_DATA sd;
-	if (!FileSystem::StatFile(name_path.c_str(), &sd))
-		return false;
-
-	if (sd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY) { }
-	else
+	if (!path_is_directory(name_path.c_str()))
 	{
 		if (!FileSystem::DeleteFilePath(name_path.c_str()))
 			return false;

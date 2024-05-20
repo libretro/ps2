@@ -82,10 +82,7 @@ namespace FileSystem
 
 	/// Stat file
 	bool StatFile(const char* path, struct stat* st);
-	bool StatFile(std::FILE* fp, struct stat* st);
 	bool StatFile(const char* path, FILESYSTEM_STAT_DATA* pStatData);
-	bool StatFile(std::FILE* fp, FILESYSTEM_STAT_DATA* pStatData);
-	s64 GetPathFileSize(const char* path);
 
 	/// File exists?
 	bool FileExists(const char* path);
