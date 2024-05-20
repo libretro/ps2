@@ -153,11 +153,6 @@ namespace StringUtil
 	{
 		return (!str.empty() && Strncasecmp(str.data(), prefix.data(), prefix.length()) == 0);
 	}
-	static inline bool EndsWithNoCase(const std::string_view& str, const std::string_view& suffix)
-	{
-		const std::size_t suffix_length = suffix.length();
-		return (str.length() >= suffix_length && Strncasecmp(str.data() + (str.length() - suffix_length), suffix.data(), suffix_length) == 0);
-	}
 
 	/// Strip whitespace from the start/end of the string.
 	std::string_view StripWhitespace(const std::string_view& str);
@@ -175,18 +170,6 @@ namespace StringUtil
 		{
 			if (it != start)
 				ret += delimiter;
-			ret.append(*it);
-		}
-		return ret;
-	}
-	template <typename T>
-	static inline std::string JoinString(const T& start, const T& end, const std::string_view& delimiter)
-	{
-		std::string ret;
-		for (auto it = start; it != end; ++it)
-		{
-			if (it != start)
-				ret.append(delimiter);
 			ret.append(*it);
 		}
 		return ret;
@@ -227,7 +210,6 @@ namespace StringUtil
 
 	std::string toLower(const std::string_view& str);
 	std::string toUpper(const std::string_view& str);
-	bool compareNoCase(const std::string_view& str1, const std::string_view& str2);
 
 #ifdef _WIN32
 	/// Converts the specified UTF-8 string to a wide string.

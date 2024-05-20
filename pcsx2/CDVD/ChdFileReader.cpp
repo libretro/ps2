@@ -20,7 +20,9 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
+#include <file/file_path.h>
 #include <streams/file_stream.h>
+#include <string/stdstring.h>
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -101,8 +103,8 @@ bool ChdFileReader::Open2(std::string fileName)
 		{
 			for (const FILESYSTEM_FIND_DATA& fd : results)
 			{
-				const std::string_view extension(Path::GetExtension(fd.FileName));
-				if (extension.empty() || Strncasecmp(extension.data(), "chd", 3) != 0)
+				const char *extension = path_get_extension(fd.FileName.c_str());
+				if (string_is_empty(extension) || Strncasecmp(extension, "chd", 3) != 0)
 					continue;
 
 				if (chd_read_header(fd.FileName.c_str(), &parent_header) == CHDERR_NONE &&

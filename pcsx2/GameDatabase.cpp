@@ -276,7 +276,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 		{
 			// use a crc of 0 for default patches
 			const std::string_view crc_str(n.key().str, n.key().len);
-			const std::optional<u32> crc = (StringUtil::compareNoCase(crc_str, "default")) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
+			const std::optional<u32> crc = ((crc_str.length() == 7) && (Strncasecmp(crc_str.data(), "default", 7) == 0)) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
 			if (!crc.has_value())
 			{
 				Console.Error("[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!", std::string(crc_str).c_str(), std::string(serial).c_str());

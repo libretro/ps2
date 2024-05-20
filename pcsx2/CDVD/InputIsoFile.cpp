@@ -27,15 +27,23 @@
 static std::unique_ptr<ThreadedFileReader> GetFileReader(const std::string& path)
 {
 	const std::string_view extension = Path::GetExtension(path);
+	size_t ext_length = extension.length();
 
-	if (StringUtil::compareNoCase(extension, "chd"))
-		return std::make_unique<ChdFileReader>();
+	if (ext_length == 3)
+	{
+		if (Strncasecmp(extension.data(), "chd", 3) == 0)
+			return std::make_unique<ChdFileReader>();
 
-	if (StringUtil::compareNoCase(extension, "cso") || StringUtil::compareNoCase(extension, "zso"))
-		return std::make_unique<CsoFileReader>();
+		if (       (Strncasecmp(extension.data(), "cso", 3) == 0) 
+			|| (Strncasecmp(extension.data(), "zso", 3) == 0))
+			return std::make_unique<CsoFileReader>();
+	}
+	else if (ext_length == 2)
+	{
+		if (Strncasecmp(extension.data(), "gz", 2))
+			return std::make_unique<GzippedFileReader>();
+	}
 
-	if (StringUtil::compareNoCase(extension, "gz"))
-		return std::make_unique<GzippedFileReader>();
 
 	return std::make_unique<FlatFileReader>();
 }

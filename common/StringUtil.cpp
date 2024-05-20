@@ -171,15 +171,6 @@ namespace StringUtil
 		return newStr;
 	}
 
-	bool compareNoCase(const std::string_view& str1, const std::string_view& str2)
-	{
-		if (str1.length() != str2.length())
-		{
-			return false;
-		}
-		return Strncasecmp(str1.data(), str2.data(), str1.length()) == 0;
-	}
-
 	std::string_view StripWhitespace(const std::string_view& str)
 	{
 		std::string_view::size_type start = 0;
