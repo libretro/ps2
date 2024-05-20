@@ -30,9 +30,14 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 
 	AutoDMACtrl &= 0x3;
 
-	int size = std::min(InputDataLeft, (u32)0x200);
+	int size = InputDataLeft;
+	if (0x200 < InputDataLeft)
+		size = 0x200;
 	if (!leftbuffer)
-		size = std::min(size, 0x100);
+	{
+		if (0x100 < size)
+			size = 0x100;
+	}
 	// HACKFIX!! DMAPtr can be invalid after a savestate load, so the savestate just forces it
 	// to nullptr and we ignore it here.  (used to work in old VM editions of PCSX2 with fixed
 	// addressing, but new PCSX2s have dynamic memory addressing).

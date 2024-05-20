@@ -215,7 +215,8 @@ static void __forceinline UpdatePitch(V_Voice& vc, uint coreidx, uint voiceidx)
 	else
 		pitch     = std::clamp((vc.Pitch * (32768 + Cores[coreidx].Voices[voiceidx - 1].OutX)) >> 15, 0, 0x3fff);
 
-	pitch     = std::min(pitch, 0x3FFF);
+	if (0x3FFF < pitch)
+		pitch = 0x3FFF;
 	vc.SP    += pitch;
 }
 
@@ -319,8 +320,12 @@ static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 	if (vs.Decr)
 		step_size = ~step_size;
 
-	u32 counter_inc = 0x8000 >> std::max(0, vs.Shift - 11);
-	s32 level_inc = step_size << std::max(0, 11 - vs.Shift);
+	u32 counter_inc = 0x8000;
+	if (0 < (vs.Shift - 11))
+		counter_inc >>= (vs.Shift - 11);
+	s32 level_inc = step_size;
+	if (0 < (11 - vs.Shift))
+		level_inc <<= (11 - vs.Shift);
 
 	if (vs.Exp)
 	{
@@ -333,7 +338,7 @@ static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 	// Allow counter_inc to be zero only in when all bits
 	// of the rate field are set
 	if (vs.Step != 3 && vs.Shift != 0x1f)
-		counter_inc = std::max<u32>(1, counter_inc);
+		counter_inc = (1 < counter_inc) ? counter_inc : 1;
 	vs.Counter += counter_inc;
 
 	// If negative phase "increase" to -0x8000 or "decrease" towards 0
