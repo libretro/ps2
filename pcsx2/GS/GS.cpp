@@ -46,17 +46,21 @@
 
 extern retro_hw_render_callback hw_render;
 
+int m_disp_fb_sprite_blits = 0;
+
 Pcsx2Config::GSOptions GSConfig;
 
 void GSinit(void)
 {
 	GSVertexSW::InitStatic();
 	GSUtil::Init();
+	m_disp_fb_sprite_blits = 0;
 }
 
 void GSshutdown(void)
 {
 	GSclose();
+	m_disp_fb_sprite_blits = 0;
 }
 
 static GSRendererType GSsetRenderer(enum retro_hw_context_type api)

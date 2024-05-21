@@ -83,3 +83,5 @@ namespace Host
 	/// This could also be fullscreen transition.
 	std::optional<WindowInfo> AcquireRenderWindow(void);
 }
+
+extern int m_disp_fb_sprite_blits;

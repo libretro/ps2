@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GS/GSPerfMon.h"
 #include "GS/Renderers/Common/GSRenderer.h"
 #include "Host.h"
 #include "PerformanceMetrics.h"
@@ -244,13 +243,15 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 
 void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 {
-	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
+	bool is_unique_frame       = false;
+	const int fb_sprite_blits  = m_disp_fb_sprite_blits;
 	const bool fb_sprite_frame = (fb_sprite_blits > 0);
+	bool skip_frame            = false;
 
-	bool skip_frame = false;
+	m_disp_fb_sprite_blits     = 0;
+
 	if (GSConfig.SkipDuplicateFrames)
 	{
-		bool is_unique_frame;
 		switch (PerformanceMetrics::GetInternalFPSMethod())
 		{
 		case PerformanceMetrics::InternalFPSMethod::GSPrivilegedRegister:

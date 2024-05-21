@@ -21,7 +21,6 @@
 #include "common/Console.h"
 #include "common/Path.h"
 
-#include "GSPerfMon.h"
 #include "GSState.h"
 #include "GSUtil.h"
 
@@ -1449,9 +1448,7 @@ void GSState::FlushPrim()
 			const u32 FRAME_FBP = m_context->FRAME.FBP;
 			if ((m_regs->DISP[0].DISPFB.FBP == FRAME_FBP && m_regs->PMODE.EN1) ||
 				(m_regs->DISP[1].DISPFB.FBP == FRAME_FBP && m_regs->PMODE.EN2))
-			{
-				g_perfmon.AddDisplayFramebufferSpriteBlit();
-			}
+				m_disp_fb_sprite_blits++;
 		}
 
 		GSVertex buff[2];

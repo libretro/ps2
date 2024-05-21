@@ -243,7 +243,6 @@
     <ClCompile Include="GS\Renderers\HW\GSHwHack.cpp" />
     <ClCompile Include="GS\GSLocalMemory.cpp" />
     <ClCompile Include="GS\GSLocalMemoryMultiISA.cpp" />
-    <ClCompile Include="GS\GSPerfMon.cpp" />
     <ClCompile Include="GS\GSPng.cpp" />
     <ClCompile Include="GS\GSRingHeap.cpp" />
     <ClCompile Include="GS\Renderers\SW\GSRasterizer.cpp" />
@@ -528,7 +527,6 @@
     <ClInclude Include="GS\Renderers\Common\GSFastList.h" />
     <ClInclude Include="GS\Renderers\Common\GSFunctionMap.h" />
     <ClInclude Include="GS\GSLocalMemory.h" />
-    <ClInclude Include="GS\GSPerfMon.h" />
     <ClInclude Include="GS\GSPng.h" />
     <ClInclude Include="GS\GSRingHeap.h" />
     <ClInclude Include="GS\Renderers\SW\GSRasterizer.h" />
