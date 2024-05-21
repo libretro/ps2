@@ -18,15 +18,6 @@
 #include "GSUtil.h"
 #include "MultiISA.h"
 
-#ifdef ENABLE_VULKAN
-#include "Renderers/Vulkan/GSDeviceVK.h"
-#endif
-
-#ifdef _WIN32
-#include "common/RedtapeWindows.h"
-#include "Renderers/DX11/D3D.h"
-#endif
-
 static class GSUtilMaps
 {
 public:
