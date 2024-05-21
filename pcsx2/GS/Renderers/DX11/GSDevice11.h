@@ -105,7 +105,6 @@ private:
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
 
-	wil::com_ptr_nothrow<IDXGIFactory5> m_dxgi_factory;
 	wil::com_ptr_nothrow<ID3D11Device1> m_dev;
 	wil::com_ptr_nothrow<ID3D11DeviceContext1> m_ctx;
 

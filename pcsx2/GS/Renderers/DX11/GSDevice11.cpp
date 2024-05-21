@@ -421,7 +421,6 @@ void GSDevice11::Destroy()
 
 	m_ctx.reset();
 	m_dev.reset();
-	m_dxgi_factory.reset();
 }
 
 void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
