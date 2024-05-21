@@ -25,40 +25,6 @@
 
 #include <fstream>
 
-static std::string FixupDuplicateAdapterNames(const std::vector<std::string>& adapter_names, std::string adapter_name)
-{
-	if (std::any_of(adapter_names.begin(), adapter_names.end(),
-			[&adapter_name](const std::string& other) { return (adapter_name == other); }))
-	{
-		std::string original_adapter_name = std::move(adapter_name);
-
-		u32 current_extra = 2;
-		do
-		{
-			adapter_name = StringUtil::StdStringFromFormat("%s (%u)", original_adapter_name.c_str(), current_extra);
-			current_extra++;
-		} while (std::any_of(adapter_names.begin(), adapter_names.end(),
-			[&adapter_name](const std::string& other) { return (adapter_name == other); }));
-	}
-
-	return adapter_name;
-}
-
-// Returns a UTF8 string of the specified adapter's name
-static std::string GetAdapterName(IDXGIAdapter1* adapter)
-{
-	std::string ret;
-	DXGI_ADAPTER_DESC1 desc;
-	HRESULT hr = adapter->GetDesc1(&desc);
-	if (SUCCEEDED(hr))
-		ret = StringUtil::WideStringToUTF8String(desc.Description);
-
-	if (ret.empty())
-		ret = "(Unknown)";
-
-	return ret;
-}
-
 wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 {
 	UINT flags = 0;
@@ -71,33 +37,6 @@ wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 		Console.Error("D3D: Failed to create DXGI factory: %08X", hr);
 
 	return factory;
-}
-
-wil::com_ptr_nothrow<IDXGIAdapter1> D3D::GetAdapterByName(IDXGIFactory5* factory, const std::string_view& name)
-{
-	// This might seem a bit odd to cache the names.. but there's a method to the madness.
-	// We might have two GPUs with the same name... :)
-	std::vector<std::string> adapter_names;
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
-	if (name.empty())
-		return {};
-
-	for (u32 index = 0;; index++)
-	{
-		const HRESULT hr = factory->EnumAdapters1(index, adapter.put());
-		if (hr == DXGI_ERROR_NOT_FOUND)
-			break;
-
-		if (FAILED(hr))
-			continue;
-
-		std::string adapter_name = FixupDuplicateAdapterNames(adapter_names, GetAdapterName(adapter.get()));
-		if (adapter_name == name)
-			return adapter;
-
-		adapter_names.push_back(std::move(adapter_name));
-	}
-	return {};
 }
 
 D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)

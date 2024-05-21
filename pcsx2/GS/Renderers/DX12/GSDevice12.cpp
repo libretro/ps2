@@ -558,8 +558,6 @@ bool GSDevice12::Create()
 	if (!m_dxgi_factory)
 		return false;
 
-	ComPtr<IDXGIAdapter1> dxgi_adapter = D3D::GetAdapterByName(m_dxgi_factory.get(), GSConfig.Adapter);
-
 	if (!LoadD3D12Library())
 	{
 		Console.Error("Failed to load D3D12 library");

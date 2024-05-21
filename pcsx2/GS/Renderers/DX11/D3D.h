@@ -31,9 +31,6 @@ namespace D3D
 	// create a dxgi factory
 	wil::com_ptr_nothrow<IDXGIFactory5> CreateFactory(bool debug);
 
-	// get an adapter based on name
-	wil::com_ptr_nothrow<IDXGIAdapter1> GetAdapterByName(IDXGIFactory5* factory, const std::string_view& name);
-
 	// this is sort of a legacy thing that doesn't have much to do with d3d (just the easiest way)
 	// checks to see if the adapter at 0 is NV and thus we should prefer OpenGL
 	enum class VendorID
