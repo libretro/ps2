@@ -25,6 +25,8 @@
 #include <limits>
 
 #include <file/file_path.h>
+#include <encodings/utf.h>
+#include <string/stdstring.h>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -451,21 +453,22 @@ std::string Path::Combine(const std::string_view& base, const std::string_view& 
 std::FILE* FileSystem::OpenCFile(const char* filename, const char* mode)
 {
 #ifdef _WIN32
-	const std::wstring wfilename(StringUtil::UTF8StringToWideString(filename));
-	const std::wstring wmode(StringUtil::UTF8StringToWideString(mode));
-	if (!wfilename.empty() && !wmode.empty())
-	{
-		std::FILE* fp;
-		if (_wfopen_s(&fp, wfilename.c_str(), wmode.c_str()) != 0)
-			return nullptr;
-
-		return fp;
-	}
-
 	std::FILE* fp;
-	if (fopen_s(&fp, filename, mode) != 0)
+	wchar_t *wfilename = NULL;
+	wchar_t *wmode     = NULL;
+	if (   string_is_empty(filename)
+	    || string_is_empty(mode))
 		return nullptr;
-
+	wfilename = utf8_to_utf16_string_alloc(filename);
+	wmode     = utf8_to_utf16_string_alloc(mode);
+	if (_wfopen_s(&fp, wfilename, wmode) != 0)
+	{
+		free(wfilename);
+		free(wmode);
+		return nullptr;
+	}
+	free(wfilename);
+	free(wmode);
 	return fp;
 #else
 	return std::fopen(filename, mode);
@@ -475,11 +478,12 @@ std::FILE* FileSystem::OpenCFile(const char* filename, const char* mode)
 int FileSystem::OpenFDFile(const char* filename, int flags, int mode)
 {
 #ifdef _WIN32
-	const std::wstring wfilename(StringUtil::UTF8StringToWideString(filename));
-	if (!wfilename.empty())
-		return _wopen(wfilename.c_str(), flags, mode);
-
-	return -1;
+	if (string_is_empty(filename))
+		return -1;
+	wchar_t *wfilename = utf8_to_utf16_string_alloc(filename);
+	int ret = _wopen(wfilename, flags, mode);
+	free(wfilename);
+	return ret;
 #else
 	return open(filename, flags, mode);
 #endif
@@ -710,8 +714,9 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 	WIN32_FIND_DATAW wfd;
 	std::string utf8_filename;
 	utf8_filename.reserve((sizeof(wfd.cFileName) / sizeof(wfd.cFileName[0])) * 2);
-
-	HANDLE hFind = FindFirstFileW(StringUtil::UTF8StringToWideString(tempStr).c_str(), &wfd);
+	wchar_t *path_wide = utf8_to_utf16_string_alloc((tempStr).c_str());
+	HANDLE hFind = FindFirstFileW(path_wide, &wfd);
+	free(path_wide);
 	if (hFind == INVALID_HANDLE_VALUE)
 		return 0;
 
@@ -848,47 +853,48 @@ static void TranslateStat64(struct stat* st, const struct _stat64& st64)
 
 bool FileSystem::StatFile(const char* path, struct stat* st)
 {
+	struct _stat64 st64;
 	// has a path
 	if (path[0] == '\0')
 		return false;
-
 	// convert to wide string
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	if (wpath.empty())
+	wchar_t *wpath = utf8_to_utf16_string_alloc(path);
+	if (_wstat64(wpath, &st64) != 0)
+	{
+		free(wpath);
 		return false;
-
-	struct _stat64 st64;
-	if (_wstat64(wpath.c_str(), &st64) != 0)
-		return false;
-
+	}
+	free(wpath);
 	TranslateStat64(st, st64);
 	return true;
 }
 
 bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 {
+	HANDLE hFile;
+
 	// has a path
 	if (path[0] == '\0')
 		return false;
 
 	// convert to wide string
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	if (wpath.empty())
-		return false;
-
+	wchar_t *wpath       = utf8_to_utf16_string_alloc(path);
 	// determine attributes for the path. if it's a directory, things have to be handled differently..
-	DWORD fileAttributes = GetFileAttributesW(wpath.c_str());
+	DWORD fileAttributes = GetFileAttributesW(wpath);
 	if (fileAttributes == INVALID_FILE_ATTRIBUTES)
+	{
+		free(wpath);
 		return false;
+	}
 
 	// test if it is a directory
-	HANDLE hFile;
 	if (fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		hFile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+		hFile = CreateFileW(wpath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
 			OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
 	else
-		hFile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+		hFile = CreateFileW(wpath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
 			OPEN_EXISTING, 0, nullptr);
+	free(wpath);
 
 	// createfile succeded?
 	if (hFile == INVALID_HANDLE_VALUE)
@@ -916,33 +922,42 @@ bool FileSystem::DeleteFilePath(const char* path)
 {
 	if (path[0] == '\0')
 		return false;
-
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	const DWORD fileAttributes = GetFileAttributesW(wpath.c_str());
+	wchar_t *wpath             = utf8_to_utf16_string_alloc(path);
+	const DWORD fileAttributes = GetFileAttributesW(wpath);
 	if (fileAttributes == INVALID_FILE_ATTRIBUTES || fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		free(wpath);
 		return false;
-
-	return (DeleteFileW(wpath.c_str()) == TRUE);
+	}
+	bool ret = (DeleteFileW(wpath) == TRUE);
+	free(wpath);
+	return ret;
 }
 
 bool FileSystem::RenamePath(const char* old_path, const char* new_path)
 {
-	const std::wstring old_wpath(StringUtil::UTF8StringToWideString(old_path));
-	const std::wstring new_wpath(StringUtil::UTF8StringToWideString(new_path));
+	wchar_t *old_wpath         = utf8_to_utf16_string_alloc(old_path);
+	wchar_t *new_wpath         = utf8_to_utf16_string_alloc(new_path);
 
-	if (!MoveFileExW(old_wpath.c_str(), new_wpath.c_str(), MOVEFILE_REPLACE_EXISTING))
+	if (!MoveFileExW(old_wpath, new_wpath, MOVEFILE_REPLACE_EXISTING))
 	{
+		free(old_wpath);
+		free(new_wpath);
 		Console.Error("MoveFileEx('%s', '%s') failed: %08X", old_path, new_path, GetLastError());
 		return false;
 	}
 
+	free(old_wpath);
+	free(new_wpath);
 	return true;
 }
 
 bool FileSystem::DeleteDirectory(const char* path)
 {
-	const std::wstring wpath(StringUtil::UTF8StringToWideString(path));
-	return RemoveDirectoryW(wpath.c_str());
+	wchar_t *wpath = utf8_to_utf16_string_alloc(path);
+	bool ret       = RemoveDirectoryW(wpath);
+	free(wpath);
+	return ret;
 }
 #else
 static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, const char* Path, const char* Pattern,

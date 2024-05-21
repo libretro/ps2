@@ -36,6 +36,8 @@
 
 #include <fmt/format.h>
 
+#include <encodings/utf.h>
+
 #include "common/Align.h"
 #include "common/AlignedMalloc.h"
 #include "common/Console.h"
@@ -346,8 +348,11 @@ std::string HostSys::GetFileMappingName(const char* prefix)
 void* HostSys::CreateSharedMemory(const char* name, size_t size)
 {
 #ifdef _WIN32
-	return static_cast<void*>(CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
-		static_cast<DWORD>(size >> 32), static_cast<DWORD>(size), StringUtil::UTF8StringToWideString(name).c_str()));
+	wchar_t *wstr = utf8_to_utf16_string_alloc(name);
+	void *ptr     = static_cast<void*>(CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+			static_cast<DWORD>(size >> 32), static_cast<DWORD>(size), wstr));
+	free(wstr);
+	return ptr;
 #else
 	const int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, 0600);
 	if (fd < 0)
@@ -358,11 +363,13 @@ void* HostSys::CreateSharedMemory(const char* name, size_t size)
 
 	// ensure it's the correct size
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
-	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0) return nullptr;
+	if (ftruncate64(fd, static_cast<off64_t>(size)) < 0)
+		return nullptr;
 #else
-	if (ftruncate(fd, static_cast<off_t>(size)) < 0) return nullptr;
+	if (ftruncate(fd, static_cast<off_t>(size)) < 0)
+		return nullptr;
 #endif
-	return reinterpret_cast<void*>(static_cast<intptr_t>(fd));
+	return  reinterpret_cast<void*>(static_cast<intptr_t>(fd));
 #endif
 }
 

@@ -20,6 +20,7 @@
 #include "DEV9/DEV9.h"
 
 #include <file/file_path.h>
+#include <encodings/utf.h>
 
 #if _WIN32
 #include "pathcch.h"
@@ -89,9 +90,10 @@ void ATA::InitSparseSupport(const std::string& hddPath)
 #ifdef _WIN32
 	hddSparse = false;
 
-	const std::wstring wHddPath(StringUtil::UTF8StringToWideString(hddPath));
-	const DWORD fileAttributes = GetFileAttributes(wHddPath.c_str());
+	wchar_t *wHddPath = utf8_to_utf16_string_alloc(hddPath.c_str());
+	const DWORD fileAttributes = GetFileAttributes(wHddPath);
 	hddSparse = fileAttributes & FILE_ATTRIBUTE_SPARSE_FILE;
+	free(wHddPath);
 
 	if (!hddSparse)
 		return;

@@ -17,7 +17,6 @@
 
 #include <condition_variable>
 #include <functional>
-#include <optional>
 #include <string>
 #include <vector>
 #include <optional>
