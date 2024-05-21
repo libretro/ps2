@@ -41,7 +41,7 @@ namespace GameDatabaseSchema
 
 namespace GameDatabase
 {
-	static void parseAndInsert(const std::string_view& serial, const c4::yml::NodeRef& node);
+	static void parseAndInsert(const char *serial, const c4::yml::NodeRef& node);
 	static void initDatabase();
 } // namespace GameDatabase
 
@@ -79,17 +79,13 @@ const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 	return nullptr;
 }
 
-void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml::NodeRef& node)
+void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& node)
 {
 	GameDatabaseSchema::GameEntry gameEntry;
 	if (node.has_child("name"))
-	{
 		node["name"] >> gameEntry.name;
-	}
 	if (node.has_child("region"))
-	{
 		node["region"] >> gameEntry.region;
-	}
 	if (node.has_child("compat"))
 	{
 		int val = 0;
@@ -191,9 +187,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			}
 
 			if (!fixValidated)
-			{
-				Console.Error("[GameDB] Invalid gamefix: '{%s}', specified for serial: '{%s}'. Dropping!", fix.c_str(), std::string(serial).c_str());
-			}
+				Console.Error("[GameDB] Invalid gamefix: '{%s}', specified for serial: '{%s}'. Dropping!", fix.c_str(), serial);
 		}
 	}
 
@@ -209,13 +203,9 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			if (id.has_value() && value.has_value() &&
 				std::none_of(gameEntry.speedHacks.begin(), gameEntry.speedHacks.end(),
 					[&id](const auto& it) { return it.first == id.value(); }))
-			{
 				gameEntry.speedHacks.emplace_back(id.value(), value.value());
-			}
 			else
-			{
 				Console.Error("[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%s}'. Dropping!", std::string(id_view).c_str(), value_view);
-			}
 		}
 	}
 
@@ -240,17 +230,16 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 
 				if (value.value_or(-1) < 0)
 				{
-					Console.Error("[GameDB] Invalid GS HW Fix Value for '{%s}' in '{%s}': '{%s}'", std::string(id_name).c_str(), std::string(serial).c_str(), std::string(str_value).c_str());
+					Console.Error("[GameDB] Invalid GS HW Fix Value for '{%s}' in '{%s}': '{%s}'", std::string(id_name).c_str(), serial, std::string(str_value).c_str());
 					continue;
 				}
 			}
 			else
-			{
 				value = n.has_val() ? StringUtil::FromChars<s32>(std::string_view(n.val().data(), n.val().size())) : 1;
-			}
+
 			if (!id.has_value() || !value.has_value())
 			{
-				Console.Error("[GameDB] Invalid GS HW Fix: '{%s}' specified for serial '{%s}'. Dropping!", std::string(id_name).c_str(), std::string(serial).c_str());
+				Console.Error("[GameDB] Invalid GS HW Fix: '{%s}' specified for serial '{%s}'. Dropping!", std::string(id_name).c_str(), serial);
 				continue;
 			}
 
@@ -279,7 +268,7 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 			const std::optional<u32> crc = ((crc_str.length() == 7) && (Strncasecmp(crc_str.data(), "default", 7) == 0)) ? std::optional<u32>(0) : StringUtil::FromChars<u32>(crc_str, 16);
 			if (!crc.has_value())
 			{
-				Console.Error("[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!", std::string(crc_str).c_str(), std::string(serial).c_str());
+				Console.Error("[GameDB] Invalid CRC '{%s}' found for serial: '{%s}'. Skipping!", std::string(crc_str).c_str(), serial);
 				continue;
 			}
 			if (gameEntry.patches.find(crc.value()) != gameEntry.patches.end())
@@ -917,7 +906,7 @@ void GameDatabase::initDatabase()
 			continue;
 		}
 		if (n.is_map())
-			parseAndInsert(serial, n);
+			parseAndInsert(serial.c_str(), n);
 	}
 
 	ryml::reset_callbacks();

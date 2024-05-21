@@ -182,12 +182,6 @@ namespace StringUtil
 	/// Parses an assignment string (Key = Value) into its two components.
 	bool ParseAssignmentString(const std::string_view& str, std::string_view* key, std::string_view* value);
 
-	/// Decodes UTF-8 to a single codepoint, updating the position parameter.
-	/// Returns the number of bytes the codepoint took in the original string.
-	size_t DecodeUTF8(const void* bytes, size_t length, char32_t* ch);
-	size_t DecodeUTF8(const std::string_view& str, size_t offset, char32_t* ch);
-	size_t DecodeUTF8(const std::string& str, size_t offset, char32_t* ch);
-
 	/// Strided memcpy/memcmp.
 	static inline void StrideMemCpy(void* dst, std::size_t dst_stride, const void* src, std::size_t src_stride,
 		std::size_t copy_size, std::size_t count)
