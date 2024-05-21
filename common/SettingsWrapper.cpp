@@ -79,7 +79,7 @@ void SettingsLoadWrapper::Entry(const char* section, const char* var, std::strin
 void SettingsLoadWrapper::_EnumEntry(const char* section, const char* var, int& value, const char* const* enumArray, int defvalue)
 {
 	const int cnt = _calcEnumLength(enumArray);
-	defvalue = std::clamp(defvalue, 0, cnt);
+	defvalue = std::min(std::max(defvalue, 0), cnt);
 
 	const std::string retval(m_si.GetStringValue(section, var, enumArray[defvalue]));
 

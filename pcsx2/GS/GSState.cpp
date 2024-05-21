@@ -813,8 +813,10 @@ void GSState::GIFRegHandlerTEX0(const GIFReg* RESTRICT r)
 	// Sets TW/TH to 0
 	// there used to be a case to force this to 10
 	// but GetSizeFixedTEX0 sorts this now
-	TEX0.TW = std::clamp<u32>(TEX0.TW, 0, 15);
-	TEX0.TH = std::clamp<u32>(TEX0.TH, 0, 15);
+	u32 a   = (TEX0.TW < 0) ? 0 : TEX0.TW;
+	u32 b   = (TEX0.TH < 0) ? 0 : TEX0.TH;
+	TEX0.TW = (15 < a) ? 15 : a;
+	TEX0.TH = (15 < b) ? 15 : b;
 
 	// MTBA loads are triggered by writes to TEX0 (but not TEX2!)
 	// Textures MUST be a minimum width of 32 pixels
@@ -1065,10 +1067,14 @@ void GSState::GIFRegHandlerALPHA(const GIFReg* RESTRICT r)
 
 	// value of 3 is not allowed by the spec
 	// acts like 2 on real hw, so just clamp it
-	m_env.CTXT[i].ALPHA.A = std::clamp<u32>(r->ALPHA.A, 0, 2);
-	m_env.CTXT[i].ALPHA.B = std::clamp<u32>(r->ALPHA.B, 0, 2);
-	m_env.CTXT[i].ALPHA.C = std::clamp<u32>(r->ALPHA.C, 0, 2);
-	m_env.CTXT[i].ALPHA.D = std::clamp<u32>(r->ALPHA.D, 0, 2);
+	u32 alpha_a           = (r->ALPHA.A < 0) ? 0 : r->ALPHA.A;
+	u32 alpha_b           = (r->ALPHA.B < 0) ? 0 : r->ALPHA.B;
+	u32 alpha_c           = (r->ALPHA.C < 0) ? 0 : r->ALPHA.C;
+	u32 alpha_d           = (r->ALPHA.D < 0) ? 0 : r->ALPHA.D;
+	m_env.CTXT[i].ALPHA.A = (2 < alpha_a) ? 2 : alpha_a;
+	m_env.CTXT[i].ALPHA.B = (2 < alpha_b) ? 2 : alpha_b;
+	m_env.CTXT[i].ALPHA.C = (2 < alpha_c) ? 2 : alpha_c;
+	m_env.CTXT[i].ALPHA.D = (2 < alpha_d) ? 2 : alpha_d;
 
 	if (i == m_prev_env.PRIM.CTXT)
 	{
@@ -1152,7 +1158,7 @@ void GSState::GIFRegHandlerFRAME(const GIFReg* RESTRICT r)
 {
 	GIFRegFRAME NewFrame = r->FRAME;
 	// FBW is clamped to 32
-	NewFrame.FBW = std::min(NewFrame.FBW, 32U);
+	NewFrame.FBW = (32U < NewFrame.FBW) ? 32U : NewFrame.FBW;
 
 	if ((NewFrame.PSM & 0x30) == 0x30)
 		m_env.CTXT[i].ZBUF.PSM &= ~0x30;
