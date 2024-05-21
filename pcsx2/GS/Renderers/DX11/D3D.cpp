@@ -59,20 +59,6 @@ static std::string GetAdapterName(IDXGIAdapter1* adapter)
 	return ret;
 }
 
-// Returns the adapter specified in the configuration, or the default
-static wil::com_ptr_nothrow<IDXGIAdapter1> GetChosenOrFirstAdapter(IDXGIFactory5* factory, const std::string_view& name)
-{
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter = D3D::GetAdapterByName(factory, name);
-	if (!adapter)
-	{
-		wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
-		factory->EnumAdapters1(0, adapter.put());
-		return adapter;
-	}
-
-	return adapter;
-}
-
 wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 {
 	UINT flags = 0;
@@ -136,57 +122,6 @@ D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)
 		}
 	}
 	return VendorID::Unknown;
-}
-
-GSRendererType D3D::GetPreferredRenderer(void)
-{
-	auto factory = CreateFactory(false);
-	wil::com_ptr_nothrow<IDXGIAdapter1> adapter = GetChosenOrFirstAdapter(factory.get(), GSConfig.Adapter);
-
-	// If we somehow can't get a D3D11 device, it's unlikely any of the renderers are going to work.
-	if (adapter)
-	{
-		D3D_FEATURE_LEVEL feature_level;
-
-		static const D3D_FEATURE_LEVEL check[] = {
-			D3D_FEATURE_LEVEL_12_0,
-			D3D_FEATURE_LEVEL_11_0,
-		};
-
-		const HRESULT hr = D3D11CreateDevice(adapter.get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, std::data(check),
-				std::size(check), D3D11_SDK_VERSION, nullptr, &feature_level, nullptr);
-
-		if (SUCCEEDED(hr))
-		{
-			switch (GetVendorID(adapter.get()))
-			{
-				case VendorID::Nvidia:
-					if (feature_level == D3D_FEATURE_LEVEL_12_0)
-						return GSRendererType::VK;
-					else if (feature_level == D3D_FEATURE_LEVEL_11_0)
-						return GSRendererType::OGL;
-					break;
-
-				case VendorID::AMD:
-					if (feature_level == D3D_FEATURE_LEVEL_12_0)
-						return GSRendererType::VK;
-					break;
-
-				case VendorID::Intel:
-					// Older Intel GPUs prior to Xe seem to have broken OpenGL drivers which choke
-					// on some of our shaders, causing what appears to be GPU timeouts+device removals.
-					// Vulkan has broken barriers, also prior to Xe. So just fall back to DX11 everywhere,
-					// unless we have Arc, which is easy to identify.
-					if (StringUtil::StartsWith(GetAdapterName(adapter.get()), "Intel(R) Arc(TM) "))
-						return GSRendererType::VK;
-					break;
-				default:
-					break;
-			}
-		}
-	}
-
-	return GSRendererType::DX11;
 }
 
 static unsigned s_next_bad_shader_id = 1;

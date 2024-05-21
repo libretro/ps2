@@ -18,6 +18,8 @@
 #include <cstring>
 #include <list>
 
+#include <libretro.h>
+
 #include "GS.h"
 #include "Gif_Unit.h"
 #include "MTVU.h"
@@ -51,6 +53,8 @@ struct MTGS_BufferedData
 // =====================================================================================================
 
 alignas(32) MTGS_BufferedData RingBuffer;
+
+extern struct retro_hw_render_callback hw_render;
 
 namespace MTGS
 {
@@ -173,7 +177,7 @@ bool MTGS::TryOpenGS()
 {
 	s_thread = std::this_thread::get_id();
 
-	if (!GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, PS2MEM_GS))
+	if (!GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS))
 		return false;
 
 	s_open_flag.store(true, std::memory_order_release);
@@ -533,7 +537,7 @@ void MTGS::GameChanged()
 void MTGS::ApplySettings()
 {
 	RunOnGSThread([opts = EmuConfig.GS]() {
-		GSUpdateConfig(opts);
+		GSUpdateConfig(opts, hw_render.context_type);
 	});
 
 	// We need to synchronize the thread when changing any settings when the download mode
@@ -546,7 +550,7 @@ void MTGS::ApplySettings()
 void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 {
 	RunOnGSThread([renderer, interlace]() {
-		GSSwitchRenderer(renderer, interlace);
+		GSSwitchRenderer(renderer, hw_render.context_type, interlace);
 	});
 
 	// See note in ApplySettings() for reasoning here.

@@ -59,49 +59,62 @@ void GSshutdown(void)
 	GSclose();
 }
 
-static RenderAPI GetAPIForRenderer(GSRendererType renderer)
+static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
+{
+	switch (api)
+	{
+		case RETRO_HW_CONTEXT_OPENGL:
+		case RETRO_HW_CONTEXT_OPENGL_CORE:
+		case RETRO_HW_CONTEXT_OPENGLES2:        /* TODO/FIXME */
+		case RETRO_HW_CONTEXT_OPENGLES3:        /* TODO/FIXME */
+		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
+			return GSRendererType::OGL;
+		case RETRO_HW_CONTEXT_VULKAN:
+			return GSRendererType::VK;
+		case RETRO_HW_CONTEXT_D3D11:
+			return GSRendererType::DX11;
+		case RETRO_HW_CONTEXT_D3D12:
+			return GSRendererType::DX12;
+#if 0
+		case RETRO_HW_CONTEXT_D3D10: 
+		case RETRO_HW_CONTEXT_D3D9: 
+#endif
+		case RETRO_HW_CONTEXT_NONE:
+		default:
+			break;
+	}
+	return  GSRendererType::SW;
+}
+
+static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 {
 	switch(hw_render.context_type)
 	{
-	case RETRO_HW_CONTEXT_D3D11:
-		return RenderAPI::D3D11;
-	case RETRO_HW_CONTEXT_D3D12:
-		return RenderAPI::D3D12;
-	case RETRO_HW_CONTEXT_VULKAN:
-		return RenderAPI::Vulkan;
-	case RETRO_HW_CONTEXT_NONE:
-		return RenderAPI::None;
-	default:
-		break;
-	}
-	return RenderAPI::OpenGL;
-}
-
-static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool recreate_window)
-{
-	const RenderAPI new_api = GetAPIForRenderer(renderer);
-	switch (new_api)
-	{
+		case RETRO_HW_CONTEXT_D3D11:
 #ifdef _WIN32
-		case RenderAPI::D3D11:
 			g_gs_device = std::make_unique<GSDevice11>();
+#endif
 			break;
-		case RenderAPI::D3D12:
+		case RETRO_HW_CONTEXT_D3D12:
+#ifdef _WIN32
 			g_gs_device = std::make_unique<GSDevice12>();
-			break;
 #endif
-#ifdef ENABLE_OPENGL
-		case RenderAPI::OpenGL:
-			g_gs_device = std::make_unique<GSDeviceOGL>();
 			break;
-#endif
-
+		case RETRO_HW_CONTEXT_VULKAN:
 #ifdef ENABLE_VULKAN
-		case RenderAPI::Vulkan:
 			g_gs_device = std::make_unique<GSDeviceVK>();
-			break;
 #endif
-		case RenderAPI::None:
+			break;
+		case RETRO_HW_CONTEXT_OPENGL:
+		case RETRO_HW_CONTEXT_OPENGL_CORE:
+		case RETRO_HW_CONTEXT_OPENGLES2:        /* TODO/FIXME */
+		case RETRO_HW_CONTEXT_OPENGLES3:        /* TODO/FIXME */
+		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
+#ifdef ENABLE_OPENGL
+			g_gs_device = std::make_unique<GSDeviceOGL>();
+#endif
+			break;
+		case RETRO_HW_CONTEXT_NONE:
 			break;
 		default:
 			return false;
@@ -109,9 +122,7 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail, bool
 
 	if (g_gs_device)
 	{
-		bool okay = g_gs_device->Create();
-
-		if (!okay)
+		if (!g_gs_device->Create())
 		{
 			g_gs_device->Destroy();
 			g_gs_device.reset();
@@ -191,16 +202,15 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	if (recreate_device)
 	{
 		// We need a new render window when changing APIs.
-		const bool recreate_window = (g_gs_device->GetRenderAPI() != GetAPIForRenderer(GSConfig.Renderer));
 		CloseGSDevice(false);
 
-		if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window))
+		if (!OpenGSDevice(GSConfig.Renderer, false))
 		{
 			Console.Warning("Failed to reopen, restoring old configuration.");
 			CloseGSDevice(false);
 
 			GSConfig = old_config;
-			if (!OpenGSDevice(GSConfig.Renderer, false, recreate_window))
+			if (!OpenGSDevice(GSConfig.Renderer, false))
 			{
 				Console.Error("Failed to reopen GS on old config");
 				return false;
@@ -226,21 +236,17 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	return true;
 }
 
-bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* basemem)
+bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum retro_hw_context_type api, u8* basemem)
 {
 	if (renderer == GSRendererType::Auto)
-		renderer = GSUtil::GetPreferredRenderer();
+		renderer = GSsetRenderer(api);
 
-	GSConfig = config;
+	GSConfig          = config;
 	GSConfig.Renderer = renderer;
 
-	bool res = OpenGSDevice(renderer, true, false);
-	if (res)
-	{
-		res = OpenGSRenderer(renderer, basemem);
-		if (!res)
+	if (OpenGSDevice(renderer, true))
+		if (!OpenGSRenderer(renderer, basemem))
 			CloseGSDevice(true);
-	}
 
 	return true;
 }
@@ -314,11 +320,12 @@ void GSGameChanged()
 		GSTextureReplacements::GameChanged();
 }
 
-void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
+void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_context_type api)
 {
 	Pcsx2Config::GSOptions old_config(std::move(GSConfig));
 	GSConfig = new_config;
-	GSConfig.Renderer = (GSConfig.Renderer == GSRendererType::Auto) ? GSUtil::GetPreferredRenderer() : GSConfig.Renderer;
+	if (GSConfig.Renderer == GSRendererType::Auto)
+		GSConfig.Renderer = GSsetRenderer(api);
 	if (!g_gs_renderer)
 		return;
 
@@ -378,10 +385,10 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 		g_gs_renderer->PurgeTextureCache(true, false, true);
 }
 
-void GSSwitchRenderer(GSRendererType new_renderer, GSInterlaceMode new_interlace)
+void GSSwitchRenderer(GSRendererType new_renderer, enum retro_hw_context_type api, GSInterlaceMode new_interlace)
 {
 	if (new_renderer == GSRendererType::Auto)
-		new_renderer = GSUtil::GetPreferredRenderer();
+		new_renderer = GSsetRenderer(api);
 
 	if (!g_gs_renderer || GSConfig.Renderer == new_renderer)
 		return;

@@ -170,26 +170,3 @@ u32 GSUtil::GetChannelMask(u32 spsm, u32 fbmsk)
 	mask &= ((fbmsk & 0xFF000000) == 0xFF000000) ? (~0x8 & 0xf) : 0xf;
 	return mask;
 }
-
-GSRendererType GSUtil::GetPreferredRenderer()
-{
-#if defined(_WIN32)
-	// Use D3D device info to select renderer.
-	return D3D::GetPreferredRenderer();
-#else
-	// Linux: Prefer Vulkan if the driver isn't buggy.
-#if defined(ENABLE_VULKAN)
-	if (GSDeviceVK::IsSuitableDefaultRenderer())
-		return GSRendererType::VK;
-#endif
-
-	// Otherwise, whatever is available.
-#if defined(ENABLE_OPENGL)
-	return GSRendererType::OGL;
-#elif defined(ENABLE_VULKAN)
-	return GSRendererType::VK;
-#else
-	return GSRendererType::SW;
-#endif
-#endif
-}

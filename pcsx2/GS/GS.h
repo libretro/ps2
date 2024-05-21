@@ -23,6 +23,8 @@
 #include <string>
 #include <string_view>
 
+#include <libretro.h>
+
 enum class RenderAPI
 {
 	None,
@@ -59,7 +61,7 @@ s16 GSLookupMoveHandlerFunctionId(const std::string_view& name);
 
 void GSinit(void);
 void GSshutdown(void);
-bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* basemem);
+bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum retro_hw_context_type api, u8* basemem);
 bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::GSOptions& old_config);
 void GSreset(bool hardware_reset);
 void GSclose(void);
@@ -72,8 +74,8 @@ void GSvsync(u32 field, bool registers_written);
 int GSfreeze(FreezeAction mode, freezeData* data);
 void GSGameChanged(void);
 
-void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config);
-void GSSwitchRenderer(GSRendererType new_renderer, GSInterlaceMode new_interlace);
+void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_context_type api);
+void GSSwitchRenderer(GSRendererType new_renderer, enum retro_hw_context_type api, GSInterlaceMode new_interlace);
 
 namespace Host
 {

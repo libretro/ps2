@@ -45,7 +45,6 @@ namespace D3D
 	};
 
 	VendorID GetVendorID(IDXGIAdapter1* adapter);
-	GSRendererType GetPreferredRenderer();
 
 	/* D3DCompiler wrapper */
 	enum class ShaderType
