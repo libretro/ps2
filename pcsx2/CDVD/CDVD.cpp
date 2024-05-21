@@ -128,18 +128,18 @@ static int mg_BIToffset(u8* buffer)
 static void cdvdGetMechaVer(u8* ver)
 {
 	const char * mecfile = Path::ReplaceExtension(BiosPath, "mec").c_str();
-	RFILE *fp = FileSystem::OpenRFile(mecfile, "rb");
-	if (!fp || FileSystem::RFSize64(fp) < 4)
+	RFILE *fp = FileSystem::OpenFile(mecfile, "rb");
+	if (!fp || FileSystem::FSize64(fp) < 4)
 	{
 		u8 version[4] = {0x3, 0x6, 0x2, 0x0};
 		Console.Warning("MEC File Not Found, creating substitute...");
 
-		fp = FileSystem::OpenRFile(mecfile, "w+b");
+		fp = FileSystem::OpenFile(mecfile, "w+b");
 		if (!fp)
 			return;
 
 		rfwrite(version, sizeof(version), 1, fp);
-		FileSystem::RFSeek64(fp, 0, SEEK_SET);
+		FileSystem::FSeek64(fp, 0, SEEK_SET);
 	}
 
 	rfread(ver, 1, 4, fp);
@@ -193,10 +193,10 @@ static void cdvdCreateNewNVM(RFILE* fp)
 static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 {
 	const char *nvmfile = Path::ReplaceExtension(BiosPath, "nvm").c_str();
-	RFILE *fp = FileSystem::OpenRFile(nvmfile, "r+b");
-	if (!fp || FileSystem::RFSize64(fp) < 1024)
+	RFILE *fp = FileSystem::OpenFile(nvmfile, "r+b");
+	if (!fp || FileSystem::FSize64(fp) < 1024)
 	{
-		fp = FileSystem::OpenRFile(nvmfile, "w+b");
+		fp = FileSystem::OpenFile(nvmfile, "w+b");
 		if (!fp)
 		{
 			if (read)
@@ -224,7 +224,7 @@ static void cdvdNVM(u8* buffer, int offset, size_t bytes, bool read)
 		{
 			Console.Warning("Language or Region Parameters missing, filling in defaults");
 
-			FileSystem::RFSeek64(fp, 0, SEEK_SET);
+			FileSystem::FSeek64(fp, 0, SEEK_SET);
 			cdvdCreateNewNVM(fp);
 		}
 	}

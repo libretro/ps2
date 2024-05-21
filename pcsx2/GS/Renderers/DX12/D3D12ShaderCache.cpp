@@ -162,7 +162,7 @@ bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::s
 		FileSystem::DeleteFilePath(blob_filename.c_str());
 	}
 
-	index_file = FileSystem::OpenRFile(index_filename.c_str(), "wb");
+	index_file = FileSystem::OpenFile(index_filename.c_str(), "wb");
 	if (!index_file)
 	{
 		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
@@ -179,7 +179,7 @@ bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::s
 		return false;
 	}
 
-	blob_file = FileSystem::OpenRFile(blob_filename.c_str(), "w+b");
+	blob_file = FileSystem::OpenFile(blob_filename.c_str(), "w+b");
 	if (!blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
@@ -195,7 +195,7 @@ bool D3D12ShaderCache::CreateNew(const std::string& index_filename, const std::s
 bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std::string& blob_filename,
 	RFILE*& index_file, RFILE*& blob_file, CacheIndex& index)
 {
-	index_file = FileSystem::OpenRFile(index_filename.c_str(), "r+b");
+	index_file = FileSystem::OpenFile(index_filename.c_str(), "r+b");
 	if (!index_file)
 	{
 		// special case here: when there's a sharing violation (i.e. two instances running),
@@ -218,7 +218,7 @@ bool D3D12ShaderCache::ReadExisting(const std::string& index_filename, const std
 		return false;
 	}
 
-	blob_file = FileSystem::OpenRFile(blob_filename.c_str(), "a+b");
+	blob_file = FileSystem::OpenFile(blob_filename.c_str(), "a+b");
 	if (!blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());

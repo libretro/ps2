@@ -20,10 +20,10 @@ FlatFileReader::~FlatFileReader()
 bool FlatFileReader::Open2(std::string filename)
 {
 	m_filename = std::move(filename);
-	if (!(m_file = FileSystem::OpenRFile(m_filename.c_str(), "rb")))
+	if (!(m_file = FileSystem::OpenFile(m_filename.c_str(), "rb")))
 		return false;
 
-	const s64 filesize = FileSystem::RFSize64(m_file);
+	const s64 filesize = FileSystem::FSize64(m_file);
 	if (filesize <= 0)
 	{
 		Close2();
@@ -55,7 +55,7 @@ int FlatFileReader::ReadChunk(void* dst, s64 blockID)
 		return -1;
 
 	const u64 file_offset = static_cast<u64>(blockID) * CHUNK_SIZE;
-	if (FileSystem::RFSeek64(m_file, file_offset, SEEK_SET) != 0)
+	if (FileSystem::FSeek64(m_file, file_offset, SEEK_SET) != 0)
 		return -1;
 
 	const u32 read_size = static_cast<u32>(std::min<u64>(m_file_size - file_offset, CHUNK_SIZE));

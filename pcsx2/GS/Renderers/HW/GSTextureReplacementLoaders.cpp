@@ -183,7 +183,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		return false;
 	}
 
-	RFILE *fp = FileSystem::OpenRFile(filename.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(filename.c_str(), "rb");
 	if (!fp)
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
@@ -535,7 +535,7 @@ static bool ParseDDSHeader(RFILE* fp, DDSLoadInfo* info)
 
 	// Check for truncated or corrupted files.
 	info->base_image_offset = sizeof(magic) + header_size;
-	if (info->base_image_offset >= FileSystem::RFSize64(fp))
+	if (info->base_image_offset >= FileSystem::FSize64(fp))
 		return false;
 
 	return true;
@@ -568,7 +568,7 @@ static bool ReadDDSMipLevel(RFILE* fp, const std::string& filename, u32 mip_leve
 
 bool DDSLoader(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image)
 {
-	RFILE *fp = FileSystem::OpenRFile(filename.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(filename.c_str(), "rb");
 	if (!fp)
 		return false;
 
@@ -580,7 +580,7 @@ bool DDSLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	}
 
 	// always load the base image
-	if (FileSystem::RFSeek64(fp, info.base_image_offset, SEEK_SET) != 0)
+	if (FileSystem::FSeek64(fp, info.base_image_offset, SEEK_SET) != 0)
 	{
 		filestream_close(fp);
 		return false;

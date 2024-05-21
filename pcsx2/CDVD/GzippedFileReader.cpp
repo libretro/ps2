@@ -35,11 +35,11 @@
 static Access* ReadIndexFromFile(const char* filename)
 {
 	s64 size;
-	RFILE *fp = FileSystem::OpenRFile(filename, "rb");
+	RFILE *fp = FileSystem::OpenFile(filename, "rb");
 	if (!fp)
 		return nullptr;
 
-	if ((size = FileSystem::RFSize64(fp)) <= 0)
+	if ((size = FileSystem::FSize64(fp)) <= 0)
 	{
 		filestream_close(fp);
 		return nullptr;
@@ -78,7 +78,7 @@ static Access* ReadIndexFromFile(const char* filename)
 
 static void WriteIndexToFile(Access* index, const char* filename)
 {
-	RFILE *fp = FileSystem::OpenRFile(filename, "wb");
+	RFILE *fp = FileSystem::OpenFile(filename, "wb");
 	if (!fp)
 		return;
 
@@ -153,11 +153,11 @@ bool GzippedFileReader::LoadOrCreateIndex()
 	// No valid index file. Generate an index
 	Console.Warning("This may take a while (but only once). Scanning compressed file to generate a quick access index...");
 
-	const s64 prevoffset = FileSystem::RFTell64(m_src);
+	const s64 prevoffset = FileSystem::FTell64(m_src);
 	Access* index = nullptr;
 	int len = build_index(m_src, GZFILE_SPAN_DEFAULT, &index);
 	printf("\n"); // build_index prints progress without \n's
-	FileSystem::RFSeek64(m_src, prevoffset, SEEK_SET);
+	FileSystem::FSeek64(m_src, prevoffset, SEEK_SET);
 
 	if (len >= 0)
 	{
@@ -178,7 +178,7 @@ bool GzippedFileReader::Open2(std::string filename)
 	Close();
 
 	m_filename = std::move(filename);
-	if (!(m_src = FileSystem::OpenRFile(m_filename.c_str(), "rb")) || !LoadOrCreateIndex())
+	if (!(m_src = FileSystem::OpenFile(m_filename.c_str(), "rb")) || !LoadOrCreateIndex())
 	{
 		Close();
 		return false;

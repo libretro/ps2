@@ -70,7 +70,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 	}
 
 	s64 fileOffset = 0;
-	s64 fileSize = FileSystem::RFSize64(fp);
+	s64 fileSize = FileSystem::FSize64(fp);
 	bool foundRomVer = false;
 	char romver[14 + 1] = {}; // ascii version loaded from disk.
 	char extinfo[15 + 1] = {}; // ascii version loaded from disk.
@@ -80,9 +80,9 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 	{
 		if (std::strncmp(rd.fileName, "EXTINFO", sizeof(rd.fileName)) == 0)
 		{
-			s64 pos = FileSystem::RFTell64(fp);
-			if (FileSystem::RFSeek64(fp, fileOffset + 0x10, SEEK_SET) != 0 ||
-				rfread(extinfo, 15, 1, fp) != 1 || FileSystem::RFSeek64(fp, pos, SEEK_SET) != 0)
+			s64 pos = FileSystem::FTell64(fp);
+			if (FileSystem::FSeek64(fp, fileOffset + 0x10, SEEK_SET) != 0 ||
+				rfread(extinfo, 15, 1, fp) != 1 || FileSystem::FSeek64(fp, pos, SEEK_SET) != 0)
 				break;
 			serial = extinfo;
 		}
@@ -90,9 +90,9 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 		if (std::strncmp(rd.fileName, "ROMVER", sizeof(rd.fileName)) == 0)
 		{
 
-			s64 pos = FileSystem::RFTell64(fp);
-			if (FileSystem::RFSeek64(fp, fileOffset, SEEK_SET) != 0 ||
-				rfread(romver, 14, 1, fp) != 1 || FileSystem::RFSeek64(fp, pos, SEEK_SET) != 0)
+			s64 pos = FileSystem::FTell64(fp);
+			if (FileSystem::FSeek64(fp, fileOffset, SEEK_SET) != 0 ||
+				rfread(romver, 14, 1, fp) != 1 || FileSystem::FSeek64(fp, pos, SEEK_SET) != 0)
 				break;
 
 			foundRomVer = true;
@@ -204,7 +204,7 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 		}
 	}
 
-	RFILE *fp = FileSystem::OpenRFile(Bios1.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(Bios1.c_str(), "rb");
 	if (!fp || rfread(dest, static_cast<size_t>(std::min<s64>(_size, filesize)), 1, fp) != 1)
 		Console.Warning("BIOS Warning: %s could not be read (permission denied?)", ext);
 	filestream_close(fp);
@@ -212,11 +212,11 @@ static void LoadExtraRom(const char* ext, u8 (&dest)[_size])
 
 static void LoadIrx(const std::string& filename, u8* dest, size_t maxSize)
 {
-	RFILE *fp = FileSystem::OpenRFile(filename.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(filename.c_str(), "rb");
 	if (!fp)
 		return;
 
-	const s64 filesize = FileSystem::RFSize64(fp);
+	const s64 filesize = FileSystem::FSize64(fp);
 	const s64 readSize = std::min(filesize, static_cast<s64>(maxSize));
 	if (rfread(dest, readSize, 1, fp) == 1)
 	{
@@ -278,11 +278,11 @@ bool LoadBIOS(void)
 			return false;
 	}
 
-	RFILE *fp = FileSystem::OpenRFile(path.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(path.c_str(), "rb");
 	if (!fp)
 		return false;
 
-	const s64 filesize = FileSystem::RFSize64(fp);
+	const s64 filesize = FileSystem::FSize64(fp);
 	if (filesize <= 0)
 	{
 		filestream_close(fp);
@@ -293,7 +293,7 @@ bool LoadBIOS(void)
 
 	LoadBiosVersion(fp, BiosVersion, BiosDescription, BiosRegion, zone, BiosSerial);
 
-	if (FileSystem::RFSeek64(fp, 0, SEEK_SET) ||
+	if (FileSystem::FSeek64(fp, 0, SEEK_SET) ||
 		rfread(eeMem->ROM, static_cast<size_t>(std::min<s64>(Ps2MemSize::Rom, filesize)), 1, fp) != 1)
 	{
 		filestream_close(fp);
@@ -325,7 +325,7 @@ bool LoadBIOS(void)
 bool IsBIOS(const char* filename, u32& version, std::string& description, u32& region, std::string& zone)
 {
 	std::string serial;
-	RFILE *fp = FileSystem::OpenRFile(filename, "rb");
+	RFILE *fp = FileSystem::OpenFile(filename, "rb");
 	if (!fp)
 		return false;
 	// FPS2BIOS is smaller and of variable size

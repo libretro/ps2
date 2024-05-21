@@ -456,7 +456,7 @@ int FileSystem::OpenFDFile(const char* filename, int flags, int mode)
 #endif
 }
 
-RFILE* FileSystem::OpenRFile(const char *filename, const char *mode)
+RFILE* FileSystem::OpenFile(const char *filename, const char *mode)
 {
    RFILE          *output  = NULL;
    unsigned int retro_mode = RETRO_VFS_FILE_ACCESS_READ;
@@ -497,23 +497,7 @@ RFILE* FileSystem::OpenRFile(const char *filename, const char *mode)
    return output;
 }
 
-int FileSystem::FSeek64(std::FILE* fp, s64 offset, int whence)
-{
-#ifdef _WIN32
-	return _fseeki64(fp, offset, whence);
-#else
-	// Prevent truncation on platforms which don't have a 64-bit off_t.
-	if constexpr (sizeof(off_t) != sizeof(s64))
-	{
-		if (offset < std::numeric_limits<off_t>::min() || offset > std::numeric_limits<off_t>::max())
-			return -1;
-	}
-
-	return fseeko(fp, static_cast<off_t>(offset), whence);
-#endif
-}
-
-int FileSystem::RFSeek64(RFILE* fp, s64 offset, int whence)
+int FileSystem::FSeek64(RFILE* fp, s64 offset, int whence)
 {
    int seek_position = -1;
 
@@ -536,21 +520,12 @@ int FileSystem::RFSeek64(RFILE* fp, s64 offset, int whence)
    return filestream_seek(fp, offset, seek_position);
 }
 
-s64 FileSystem::FTell64(std::FILE* fp)
-{
-#ifdef _WIN32
-	return static_cast<s64>(_ftelli64(fp));
-#else
-	return static_cast<s64>(ftello(fp));
-#endif
-}
-
-s64 FileSystem::RFTell64(RFILE* fp)
+s64 FileSystem::FTell64(RFILE* fp)
 {
 	return filestream_tell(fp);
 }
 
-s64 FileSystem::RFSize64(RFILE* fp)
+s64 FileSystem::FSize64(RFILE* fp)
 {
 	const s64 pos = filestream_tell(fp);
 	if (pos >= 0)
@@ -566,25 +541,9 @@ s64 FileSystem::RFSize64(RFILE* fp)
 	return -1;
 }
 
-s64 FileSystem::FSize64(std::FILE* fp)
-{
-	const s64 pos = FTell64(fp);
-	if (pos >= 0)
-	{
-		if (FSeek64(fp, 0, SEEK_END) == 0)
-		{
-			const s64 size = FTell64(fp);
-			if (FSeek64(fp, pos, SEEK_SET) == 0)
-				return size;
-		}
-	}
-
-	return -1;
-}
-
 std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 {
-	RFILE *fp = OpenRFile(filename, "rb");
+	RFILE *fp = OpenFile(filename, "rb");
 	if (!fp)
 		return std::nullopt;
 	rfseek(fp, 0, SEEK_END);
@@ -608,7 +567,7 @@ std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 
 std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 {
-	RFILE *fp = OpenRFile(filename, "rb");
+	RFILE *fp = OpenFile(filename, "rb");
 	if (!fp)
 		return std::nullopt;
 	rfseek(fp, 0, SEEK_END);
@@ -634,7 +593,7 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 
 bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t data_length)
 {
-	RFILE *fp = OpenRFile(filename, "wb");
+	RFILE *fp = OpenFile(filename, "wb");
 	if (!fp)
 		return false;
 	if (data_length > 0 && rfwrite(data, 1u, data_length, fp) != data_length)

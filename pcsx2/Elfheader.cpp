@@ -98,7 +98,7 @@ bool ElfObject::OpenFile(std::string srcfile, bool isPSXElf_)
 	if (!isPSXElf_ && !CheckElfSize(sd_size))
 		return false;
 
-	fp = FileSystem::OpenRFile(srcfile.c_str(), "rb");
+	fp = FileSystem::OpenFile(srcfile.c_str(), "rb");
 	if (!fp)
 		return false;
 

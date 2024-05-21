@@ -376,7 +376,7 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 	if (state->isValid)
 	{
 		state->isValid = 0; // we took control over strm. revalidate when/if we give it back
-		FileSystem::RFSeek64(in, state->in_offset, SEEK_SET);
+		FileSystem::FSeek64(in, state->in_offset, SEEK_SET);
 		state->strm.avail_in = 0;
 		offset = 0;
 		skip = 1;
@@ -398,7 +398,7 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 		ret = inflateInit2(&state->strm, -15); /* raw inflate */
 		if (ret != Z_OK)
 			return ret;
-		ret = FileSystem::RFSeek64(in, here->in - (here->bits ? 1 : 0), SEEK_SET);
+		ret = FileSystem::FSeek64(in, here->in - (here->bits ? 1 : 0), SEEK_SET);
 		if (ret == -1)
 			goto extract_ret;
 		if (here->bits)
@@ -446,7 +446,7 @@ static inline int extract(RFILE* in, struct access* index, s64 offset,
 		{
 			if (state->strm.avail_in == 0)
 			{
-				state->in_offset = FileSystem::RFTell64(in);
+				state->in_offset = FileSystem::FTell64(in);
 				state->strm.avail_in = rfread(input, 1, CHUNK, in);
 				if (rferror(in))
 				{

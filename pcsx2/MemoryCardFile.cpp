@@ -86,18 +86,18 @@ static u32 CalculateECC(u8* buf)
 static bool ConvertNoECCtoRAW(const char* file_in, const char* file_out)
 {
 	u8 buffer[512];
-	RFILE *fin = FileSystem::OpenRFile(file_in, "rb");
+	RFILE *fin = FileSystem::OpenFile(file_in, "rb");
 	if (!fin)
 		return false;
 
-	RFILE *fout = FileSystem::OpenRFile(file_out, "wb");
+	RFILE *fout = FileSystem::OpenFile(file_out, "wb");
 	if (!fout)
 	{
 		filestream_close(fin);
 		return false;
 	}
 
-	const s64 size = FileSystem::RFSize64(fin);
+	const s64 size = FileSystem::FSize64(fin);
 
 	for (s64 i = 0; i < (size / 512); i++)
 	{
@@ -140,15 +140,15 @@ static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
 {
 	u8 buffer[512];
 	u8 checksum[16];
-	RFILE *fin = FileSystem::OpenRFile(file_in, "rb");
+	RFILE *fin = FileSystem::OpenFile(file_in, "rb");
 	if (!fin)
 		return false;
 
-	RFILE *fout = FileSystem::OpenRFile(file_out, "wb");
+	RFILE *fout = FileSystem::OpenFile(file_out, "wb");
 	if (!fout)
 		return false;
 
-	const s64 size = FileSystem::RFSize64(fin);
+	const s64 size = FileSystem::FSize64(fin);
 
 	for (s64 i = 0; i < (size / 528); i++)
 	{
@@ -319,18 +319,18 @@ void FileMemoryCard::Open()
 			}
 
 			// store the original filename
-			m_file[slot] = FileSystem::OpenRFile(newname.c_str(), "r+b");
+			m_file[slot] = FileSystem::OpenFile(newname.c_str(), "r+b");
 		}
 		else
-			m_file[slot] = FileSystem::OpenRFile(fname.c_str(), "r+b");
+			m_file[slot] = FileSystem::OpenFile(fname.c_str(), "r+b");
 
 		if (m_file[slot]) // Load checksum
 		{
 			m_filenames[slot] = std::move(fname);
-			m_ispsx[slot] = FileSystem::RFSize64(m_file[slot]) == 0x20000;
+			m_ispsx[slot] = FileSystem::FSize64(m_file[slot]) == 0x20000;
 			m_chkaddr = 0x210;
 
-			if (!m_ispsx[slot] && FileSystem::RFSeek64(m_file[slot], m_chkaddr, SEEK_SET) == 0)
+			if (!m_ispsx[slot] && FileSystem::FSeek64(m_file[slot], m_chkaddr, SEEK_SET) == 0)
 			{
 				const size_t read_result = rfread(&m_chksum[slot], sizeof(m_chksum[slot]), 1, m_file[slot]);
 				if (read_result == 0)
@@ -348,7 +348,7 @@ void FileMemoryCard::Close()
 			continue;
 
 		// Store checksum
-		if (!m_ispsx[slot] && FileSystem::RFSeek64(m_file[slot], m_chkaddr, SEEK_SET) == 0)
+		if (!m_ispsx[slot] && FileSystem::FSeek64(m_file[slot], m_chkaddr, SEEK_SET) == 0)
 			rfwrite(&m_chksum[slot], sizeof(m_chksum[slot]), 1, m_file[slot]);
 
 		rfclose(m_file[slot]);
@@ -368,7 +368,7 @@ void FileMemoryCard::Close()
 // Returns FALSE if the seek failed (is outside the bounds of the file).
 bool FileMemoryCard::Seek(RFILE* f, u32 adr)
 {
-	const s64 size = FileSystem::RFSize64(f);
+	const s64 size = FileSystem::FSize64(f);
 
 	// If anyone knows why this filesize logic is here (it appears to be related to legacy PSX
 	// cards, perhaps hacked support for some special emulator-specific memcard formats that
@@ -380,14 +380,14 @@ bool FileMemoryCard::Seek(RFILE* f, u32 adr)
 		offset = 64;
 	else if (size == MCD_SIZE + 3904)
 		offset = 3904;
-	return (FileSystem::RFSeek64(f, adr + offset, SEEK_SET) == 0);
+	return (FileSystem::FSeek64(f, adr + offset, SEEK_SET) == 0);
 }
 
 // returns FALSE if an error occurred (either permission denied or disk full)
 bool FileMemoryCard::Create(const char* mcdFile, uint sizeInMB)
 {
 	u8 buf[MC2_ERASE_SIZE];
-	RFILE *fp = FileSystem::OpenRFile(mcdFile, "wb");
+	RFILE *fp = FileSystem::OpenFile(mcdFile, "wb");
 	if (!fp)
 		return false;
 
@@ -417,7 +417,7 @@ void FileMemoryCard::GetSizeInfo(uint slot, McdSizeInfo& outways)
 	outways.Xor = 18;                     // 0x12, XOR 02 00 00 10
 
 	if (m_file[slot])
-		outways.McdSizeInSectors = static_cast<u32>(FileSystem::RFSize64(m_file[slot])) / (outways.SectorSize + outways.EraseBlockSizeInSectors);
+		outways.McdSizeInSectors = static_cast<u32>(FileSystem::FSize64(m_file[slot])) / (outways.SectorSize + outways.EraseBlockSizeInSectors);
 	else
 		outways.McdSizeInSectors = 0x4000;
 
@@ -512,7 +512,7 @@ u64 FileMemoryCard::GetCRC(uint slot)
 		if (!Seek(mcfp, 0))
 			return 0;
 
-		const s64 mcfpsize = FileSystem::RFSize64(mcfp);
+		const s64 mcfpsize = FileSystem::FSize64(mcfp);
 		if (mcfpsize < 0)
 			return 0;
 
@@ -658,7 +658,7 @@ static bool IsMemoryCardFormatted(const std::string& path)
 	static const char formatted_string[] = "Sony PS2 Memory Card Format";
 	static constexpr size_t read_length = sizeof(formatted_string) - 1;
 	u8 data[read_length];
-	RFILE *fp = FileSystem::OpenRFile(path.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenFile(path.c_str(), "rb");
 	if (!fp)
 		return false;
 
@@ -754,7 +754,7 @@ bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, Me
 			return false;
 
 		const std::string full_path(Path::Combine(EmuFolders::MemoryCards, name));
-		RFILE *fp = FileSystem::OpenRFile(full_path.c_str(), "wb");
+		RFILE *fp = FileSystem::OpenFile(full_path.c_str(), "wb");
 		if (!fp)
 			return false;
 

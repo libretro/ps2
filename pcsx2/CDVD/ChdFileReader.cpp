@@ -49,7 +49,7 @@ bool ChdFileReader::CanHandle(const std::string& fileName, const std::string& di
 
 static chd_error chd_open_wrapper(const char* filename, RFILE** fp, int mode, chd_file* parent, chd_file** chd)
 {
-	*fp = FileSystem::OpenRFile(filename, "rb");
+	*fp = FileSystem::OpenFile(filename, "rb");
 	if (!*fp)
 		return CHDERR_FILE_NOT_FOUND;
 

@@ -48,7 +48,7 @@ bool CsoFileReader::CanHandle(const std::string& fileName, const std::string& di
 	if (StringUtil::EndsWith(displayName, ".cso") || StringUtil::EndsWith(displayName, ".zso"))
 	{
 		CsoHeader hdr;
-		RFILE* fp = FileSystem::OpenRFile(fileName.c_str(), "rb");
+		RFILE* fp = FileSystem::OpenFile(fileName.c_str(), "rb");
 		if (fp)
 		{
 			if (rfread(&hdr, 1, sizeof(hdr), fp) == sizeof(hdr))
@@ -88,7 +88,7 @@ bool CsoFileReader::Open2(std::string fileName)
 {
 	Close2();
 	m_filename = std::move(fileName);
-	m_src = FileSystem::OpenRFile(m_filename.c_str(), "rb");
+	m_src = FileSystem::OpenFile(m_filename.c_str(), "rb");
 
 	bool success = false;
 	if (m_src && ReadFileHeader() && InitializeBuffers())
@@ -108,7 +108,7 @@ bool CsoFileReader::ReadFileHeader()
 {
 	CsoHeader hdr = {};
 
-	if (FileSystem::RFSeek64(m_src, m_dataoffset, SEEK_SET) != 0 || rfread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
+	if (FileSystem::FSeek64(m_src, m_dataoffset, SEEK_SET) != 0 || rfread(&hdr, 1, sizeof(hdr), m_src) != sizeof(hdr))
 	{
 		Console.Error("Failed to read CSO file header.");
 		return false;
@@ -238,7 +238,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	if (!compressed)
 	{
 		// Just read directly, easy.
-		if (FileSystem::RFSeek64(m_src, frameRawPos, SEEK_SET) != 0)
+		if (FileSystem::FSeek64(m_src, frameRawPos, SEEK_SET) != 0)
 		{
 			Console.Error("Unable to seek to uncompressed CSO data.");
 			return 0;
@@ -247,7 +247,7 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 	}
 	else
 	{
-		if (FileSystem::RFSeek64(m_src, frameRawPos, SEEK_SET) != 0)
+		if (FileSystem::FSeek64(m_src, frameRawPos, SEEK_SET) != 0)
 		{
 			Console.Error("Unable to seek to compressed CSO data.");
 			return 0;

@@ -291,7 +291,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 		FileSystem::DeleteFilePath(blob_filename.c_str());
 	}
 
-	m_index_file = FileSystem::OpenRFile(index_filename.c_str(), "wb");
+	m_index_file = FileSystem::OpenFile(index_filename.c_str(), "wb");
 	if (!m_index_file)
 	{
 		Console.Error("Failed to open index file '%s' for writing", index_filename.c_str());
@@ -312,7 +312,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenRFile(blob_filename.c_str(), "w+b");
+	m_blob_file = FileSystem::OpenFile(blob_filename.c_str(), "w+b");
 	if (!m_blob_file)
 	{
 		Console.Error("Failed to open blob file '%s' for writing", blob_filename.c_str());
@@ -327,7 +327,7 @@ bool VKShaderCache::CreateNewShaderCache(const std::string& index_filename, cons
 
 bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, const std::string& blob_filename)
 {
-	m_index_file = FileSystem::OpenRFile(index_filename.c_str(), "r+b");
+	m_index_file = FileSystem::OpenFile(index_filename.c_str(), "r+b");
 	if (!m_index_file)
 	{
 		// special case here: when there's a sharing violation (i.e. two instances running),
@@ -360,7 +360,7 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 		return false;
 	}
 
-	m_blob_file = FileSystem::OpenRFile(blob_filename.c_str(), "a+b");
+	m_blob_file = FileSystem::OpenFile(blob_filename.c_str(), "a+b");
 	if (!m_blob_file)
 	{
 		Console.Error("Blob file '%s' is missing", blob_filename.c_str());
