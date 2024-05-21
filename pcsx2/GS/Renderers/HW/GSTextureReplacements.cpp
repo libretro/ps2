@@ -310,7 +310,7 @@ void GSTextureReplacements::ReloadReplacementMap()
 	{
 		// file format we can handle?
 		filename = Path::GetFileName(fd.FileName);
-		if (!GetLoader(filename))
+		if (!GetLoader(filename.c_str()))
 			continue;
 
 		// parse the name if it's valid
@@ -512,7 +512,7 @@ void GSTextureReplacements::SetReplacementTextureAlphaMinMax(ReplacementTexture&
 
 std::optional<GSTextureReplacements::ReplacementTexture> GSTextureReplacements::LoadReplacementTexture(const TextureName& name, const std::string& filename, bool only_base_image)
 {
-	ReplacementTextureLoader loader = GetLoader(filename);
+	ReplacementTextureLoader loader = GetLoader(filename.c_str());
 	if (!loader)
 		return std::nullopt;
 

@@ -57,5 +57,5 @@ namespace GSTextureReplacements
 
 	/// Loader will take a filename and interpret the format (e.g. DDS, PNG, etc).
 	using ReplacementTextureLoader = bool (*)(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image);
-	ReplacementTextureLoader GetLoader(const std::string_view& filename);
+	ReplacementTextureLoader GetLoader(const char *filename);
 } // namespace GSTextureReplacements

@@ -60,7 +60,7 @@ int ATA::Open(const std::string& hddPath)
 	if (!path_is_valid(hddPath.c_str()))
 		return -1;
 
-	hddImage = FileSystem::OpenCFile(hddPath.c_str(), "r+b");
+	hddImage = fopen(hddPath.c_str(), "r+b");
 	const s64 size = hddImage ? FileSystem::FSize64(hddImage) : -1;
 	if (!hddImage || size < 0)
 	{

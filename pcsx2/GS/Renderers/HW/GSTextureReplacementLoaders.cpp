@@ -18,6 +18,9 @@
 
 #include <png.h>
 
+#include <file/file_path.h>
+#include <string/stdstring.h>
+
 #include "common/Align.h"
 #include "common/Console.h"
 #include "common/FileSystem.h"
@@ -41,18 +44,17 @@ static constexpr LoaderDefinition s_loaders[] = {
 };
 
 
-GSTextureReplacements::ReplacementTextureLoader GSTextureReplacements::GetLoader(const std::string_view& filename)
+GSTextureReplacements::ReplacementTextureLoader GSTextureReplacements::GetLoader(const char *filename)
 {
-	const std::string_view extension(Path::GetExtension(filename));
-	if (extension.empty())
+	const char *extension = path_get_extension(filename);
+	if (string_is_empty(extension))
 		return nullptr;
 
-	for (const LoaderDefinition& defn : s_loaders)
+	for (int i = 0; i < 2; i++)
 	{
-		if (Strncasecmp(extension.data(), defn.extension, extension.size()) == 0)
-			return defn.loader;
+		if (string_is_equal(extension, s_loaders[i].extension))
+			return s_loaders[i].loader;
 	}
-
 	return nullptr;
 }
 
@@ -158,6 +160,15 @@ static void ConvertTexture_R8G8B8(u32 width, u32 height, std::vector<u8>& data, 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PNG Handlers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///
+static void png_rfile_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
+{
+   RFILE *fp           = (RFILE*)(png_get_io_ptr(png_ptr));
+   /* fread() returns 0 on error, so it is OK to store this in a png_size_t
+    * instead of an int, which is what fread() actually returns.
+    */
+   rfread(data, 1, length, fp);
+}
 
 bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image)
 {
@@ -172,7 +183,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		return false;
 	}
 
-	auto fp = FileSystem::OpenCFile(filename.c_str(), "rb");
+	RFILE *fp = FileSystem::OpenRFile(filename.c_str(), "rb");
 	if (!fp)
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
@@ -182,11 +193,11 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	if (setjmp(png_jmpbuf(png_ptr)))
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-		std::fclose(fp);
+		rfclose(fp);
 		return false;
 	}
 
-	png_init_io(png_ptr, fp);
+	png_set_read_fn(png_ptr, fp, png_rfile_read_data);
 	png_read_info(png_ptr, info_ptr);
 
 	png_uint_32 width = 0;
@@ -197,7 +208,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 		width == 0 || height == 0)
 	{
 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-		std::fclose(fp);
+		rfclose(fp);
 		return false;
 	}
 
@@ -234,7 +245,7 @@ bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTe
 	}
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-	std::fclose(fp);
+	rfclose(fp);
 	return true;
 }
 

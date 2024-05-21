@@ -89,7 +89,6 @@ namespace FileSystem
 	bool RenamePath(const char* OldPath, const char* NewPath);
 
 	/// open files
-	std::FILE* OpenCFile(const char* filename, const char* mode);
 	int FSeek64(std::FILE* fp, s64 offset, int whence);
 	s64 FTell64(std::FILE* fp);
 	s64 FSize64(std::FILE* fp);

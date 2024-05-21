@@ -37,9 +37,6 @@ namespace Path
 	/// Returns true if the specified path is an absolute path (C:\Path on Windows or /path on Unix).
 	bool IsAbsolute(const std::string_view& path);
 
-	/// Returns a view of the extension of a filename.
-	std::string_view GetExtension(const std::string_view& path);
-
 	/// Replaces the extension of a filename with another.
 	std::string ReplaceExtension(const std::string_view& path, const std::string_view& new_extension);
 

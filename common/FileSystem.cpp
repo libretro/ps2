@@ -309,14 +309,6 @@ void Path::Canonicalize(std::string* path)
 	*path = Canonicalize(*path);
 }
 
-std::string_view Path::GetExtension(const std::string_view& path)
-{
-	const std::string_view::size_type pos = path.rfind('.');
-	if (pos == std::string_view::npos)
-		return std::string_view();
-	return path.substr(pos + 1);
-}
-
 std::string Path::ReplaceExtension(const std::string_view& path, const std::string_view& new_extension)
 {
 	const std::string_view::size_type pos = path.rfind('.');
@@ -448,31 +440,6 @@ std::string Path::Combine(const std::string_view& base, const std::string_view& 
 		ret.pop_back();
 
 	return ret;
-}
-
-std::FILE* FileSystem::OpenCFile(const char* filename, const char* mode)
-{
-#ifdef _WIN32
-	std::FILE* fp;
-	wchar_t *wfilename = NULL;
-	wchar_t *wmode     = NULL;
-	if (   string_is_empty(filename)
-	    || string_is_empty(mode))
-		return nullptr;
-	wfilename = utf8_to_utf16_string_alloc(filename);
-	wmode     = utf8_to_utf16_string_alloc(mode);
-	if (_wfopen_s(&fp, wfilename, wmode) != 0)
-	{
-		free(wfilename);
-		free(wmode);
-		return nullptr;
-	}
-	free(wfilename);
-	free(wmode);
-	return fp;
-#else
-	return std::fopen(filename, mode);
-#endif
 }
 
 int FileSystem::OpenFDFile(const char* filename, int flags, int mode)
