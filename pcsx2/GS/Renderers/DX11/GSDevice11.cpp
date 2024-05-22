@@ -98,19 +98,13 @@ bool GSDevice11::Create()
 	D3D11_RASTERIZER_DESC rd;
 	D3D11_BLEND_DESC bsd;
 
-	D3D_FEATURE_LEVEL level;
+	m_feature_level = m_dev->GetFeatureLevel();
 
-	level = m_dev->GetFeatureLevel();
-	const bool support_feature_level_11_0 = (level >= D3D_FEATURE_LEVEL_11_0);
-
-	if (!m_shader_cache.Open(m_dev->GetFeatureLevel(), GSConfig.UseDebugDevice))
+	if (!m_shader_cache.Open(m_feature_level, GSConfig.UseDebugDevice))
 		Console.Warning("Shader cache failed to open.");
 
 	// Set maximum texture size limit based on supported feature level.
-	if (support_feature_level_11_0)
-		m_d3d_texsize = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-	else
-		m_d3d_texsize = D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+	m_d3d_texsize = GetMaxTextureSize();
 
 	{
 		// HACK: check AMD
@@ -432,7 +426,7 @@ void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
 
 	m_features.bptc_textures = SupportsTextureFormat(m_dev.get(), DXGI_FORMAT_BC7_UNORM);
 
-	const D3D_FEATURE_LEVEL feature_level = m_dev->GetFeatureLevel();
+	const D3D_FEATURE_LEVEL feature_level = m_feature_level;
 	m_features.vs_expand = (!GSConfig.DisableVertexShaderExpand && feature_level >= D3D_FEATURE_LEVEL_11_0);
 
 	// NVIDIA GPUs prior to Kepler appear to have broken vertex shader buffer loading.
@@ -448,6 +442,13 @@ void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
 			m_features.vs_expand = false;
 		}
 	}
+}
+
+int GSDevice11::GetMaxTextureSize() const
+{
+	return (m_feature_level >= D3D_FEATURE_LEVEL_11_0) ?
+			   D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION :
+			   D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 }
 
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)

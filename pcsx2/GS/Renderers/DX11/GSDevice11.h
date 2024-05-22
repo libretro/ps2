@@ -101,6 +101,7 @@ private:
 	};
 
 	void SetFeatures(IDXGIAdapter1* adapter);
+	int GetMaxTextureSize() const;
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, u32 c, const bool linear) override;
 	void DoInterlace(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, ShaderInterlace shader, bool linear, const InterlaceConstantBuffer& cb) override;
@@ -113,6 +114,8 @@ private:
 	wil::com_ptr_nothrow<ID3D11Buffer> m_expand_vb;
 	wil::com_ptr_nothrow<ID3D11Buffer> m_expand_ib;
 	wil::com_ptr_nothrow<ID3D11ShaderResourceView> m_expand_vb_srv;
+
+	D3D_FEATURE_LEVEL m_feature_level = D3D_FEATURE_LEVEL_10_0;
 	u32 m_vb_pos = 0; // bytes
 	u32 m_ib_pos = 0; // indices/sizeof(u32)
 	u32 m_structured_vb_pos = 0; // bytes
@@ -120,8 +123,8 @@ private:
 
 	struct
 	{
-		ID3D11InputLayout* layout;
 		D3D11_PRIMITIVE_TOPOLOGY topology;
+		ID3D11InputLayout* layout;
 		ID3D11Buffer* index_buffer;
 		ID3D11VertexShader* vs;
 		ID3D11Buffer* vs_cb;
