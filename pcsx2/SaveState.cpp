@@ -41,9 +41,8 @@
 // --------------------------------------------------------------------------------------
 //  SaveStateBase  (implementations)
 // --------------------------------------------------------------------------------------
-SaveStateBase::SaveStateBase( VmStateBuffer& memblock )
+SaveStateBase::SaveStateBase( std::vector<u8>& memblock )
 	: m_memory(memblock)
-	, m_version(g_SaveVersion)
 {
 }
 
@@ -182,10 +181,7 @@ bool SaveStateBase::FreezeInternals()
 // --------------------------------------------------------------------------------------
 // uncompressed to/from memory state saves implementation
 
-memSavingState::memSavingState( VmStateBuffer& save_to )
-	: SaveStateBase( save_to )
-{
-}
+memSavingState::memSavingState( std::vector<u8>& save_to ) : SaveStateBase( save_to ) { }
 
 // Saving of state data
 void memSavingState::FreezeMem(void* data, int size)
@@ -203,10 +199,8 @@ void memSavingState::FreezeMem(void* data, int size)
 // --------------------------------------------------------------------------------------
 //  memLoadingState  (implementations)
 // --------------------------------------------------------------------------------------
-memLoadingState::memLoadingState( const VmStateBuffer& load_from )
-	: SaveStateBase( const_cast<VmStateBuffer&>(load_from) )
-{
-}
+memLoadingState::memLoadingState( const std::vector<u8>& load_from )
+	: SaveStateBase( const_cast<std::vector<u8>&>(load_from) ) { }
 
 // Loading of state data from a memory buffer...
 void memLoadingState::FreezeMem(void* data, int size)

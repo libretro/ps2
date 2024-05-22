@@ -56,19 +56,15 @@ struct freezeData
 // states), and memLoadingState, memSavingState (uncompressed memory states).
 class SaveStateBase
 {
-public:
-	using VmStateBuffer = std::vector<u8>;
 protected:
-	VmStateBuffer& m_memory;
+	std::vector<u8>& m_memory;
 	char m_tagspace[32];
-
-	u32 m_version;		// version of the savestate being loaded.
 
 	int m_idx = 0;			// current read/write index of the allocation
 	bool m_error = false; // error occurred while reading/writing
 
 public:
-	SaveStateBase( VmStateBuffer& memblock );
+	SaveStateBase( std::vector<u8>& memblock );
 	virtual ~SaveStateBase() { }
 
 	__fi bool IsOkay() const { return !m_error; }
@@ -151,7 +147,7 @@ public:
 	bool gsFreeze();
 
 protected:
-	void Init( VmStateBuffer* memblock );
+	void Init( std::vector<u8>* memblock );
 
 	// Load/Save functions for the various components of our glorious emulator!
 	//bool vmFreeze();
@@ -196,7 +192,7 @@ protected:
 
 public:
 	virtual ~memSavingState() = default;
-	memSavingState( VmStateBuffer& save_to );
+	memSavingState( std::vector<u8>& save_to );
 
 	void FreezeMem( void* data, int size );
 
@@ -207,7 +203,7 @@ class memLoadingState : public SaveStateBase
 {
 public:
 	virtual ~memLoadingState() = default;
-	memLoadingState( const VmStateBuffer& load_from );
+	memLoadingState( const std::vector<u8>& load_from );
 
 	void FreezeMem( void* data, int size );
 
