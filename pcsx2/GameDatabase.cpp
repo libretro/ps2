@@ -86,12 +86,6 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 		node["name"] >> gameEntry.name;
 	if (node.has_child("region"))
 		node["region"] >> gameEntry.region;
-	if (node.has_child("compat"))
-	{
-		int val = 0;
-		node["compat"] >> val;
-		gameEntry.compat = static_cast<GameDatabaseSchema::Compatibility>(val);
-	}
 	if (node.has_child("roundModes"))
 	{
 		if (node["roundModes"].has_child("eeRoundMode"))

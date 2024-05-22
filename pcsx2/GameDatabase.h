@@ -30,17 +30,6 @@ enum GamefixId;
 
 namespace GameDatabaseSchema
 {
-	enum class Compatibility
-	{
-		Unknown = 0,
-		Nothing,
-		Intro,
-		Menu,
-		InGame,
-		Playable,
-		Perfect
-	};
-
 	enum class ClampMode
 	{
 		Undefined = -1,
@@ -99,7 +88,6 @@ namespace GameDatabaseSchema
 	{
 		std::string name;
 		std::string region;
-		Compatibility compat = Compatibility::Unknown;
 		FPRoundMode eeRoundMode = FPRoundMode::MaxCount;
 		FPRoundMode eeDivRoundMode = FPRoundMode::MaxCount;
 		FPRoundMode vu0RoundMode = FPRoundMode::MaxCount;
