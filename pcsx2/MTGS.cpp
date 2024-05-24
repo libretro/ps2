@@ -173,12 +173,11 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 	WaitGS(false, false);
 }
 
-bool MTGS::TryOpenGS()
+bool MTGS::TryOpenGS(void)
 {
 	s_thread = std::this_thread::get_id();
 
-	if (!GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS))
-		return false;
+	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
 	s_open_flag.store(true, std::memory_order_release);
 	// notify emu thread that we finished opening (or failed)
@@ -329,7 +328,7 @@ void MTGS::MainLoop(bool flush_all)
 	s_sem_event.Kill();
 }
 
-void MTGS::CloseGS()
+void MTGS::CloseGS(void)
 {
 	if( s_SignalRingEnable.exchange(false) )
 	{

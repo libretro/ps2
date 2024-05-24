@@ -92,21 +92,39 @@ static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
 
 static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 {
-	switch(hw_render.context_type)
+	switch (hw_render.context_type)
 	{
 		case RETRO_HW_CONTEXT_D3D11:
 #ifdef _WIN32
 			g_gs_device = std::make_unique<GSDevice11>();
+			if (!g_gs_device->Create())
+			{
+				g_gs_device->Destroy();
+				g_gs_device.reset();
+				return false;
+			}
 #endif
 			break;
 		case RETRO_HW_CONTEXT_D3D12:
 #ifdef _WIN32
 			g_gs_device = std::make_unique<GSDevice12>();
+			if (!g_gs_device->Create())
+			{
+				g_gs_device->Destroy();
+				g_gs_device.reset();
+				return false;
+			}
 #endif
 			break;
 		case RETRO_HW_CONTEXT_VULKAN:
 #ifdef ENABLE_VULKAN
 			g_gs_device = std::make_unique<GSDeviceVK>();
+			if (!g_gs_device->Create())
+			{
+				g_gs_device->Destroy();
+				g_gs_device.reset();
+				return false;
+			}
 #endif
 			break;
 		case RETRO_HW_CONTEXT_OPENGL:
@@ -116,22 +134,18 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
 #ifdef ENABLE_OPENGL
 			g_gs_device = std::make_unique<GSDeviceOGL>();
+			if (!g_gs_device->Create())
+			{
+				g_gs_device->Destroy();
+				g_gs_device.reset();
+				return false;
+			}
 #endif
 			break;
 		case RETRO_HW_CONTEXT_NONE:
 			break;
 		default:
 			return false;
-	}
-
-	if (g_gs_device)
-	{
-		if (!g_gs_device->Create())
-		{
-			g_gs_device->Destroy();
-			g_gs_device.reset();
-			return false;
-		}
 	}
 
 	return true;
@@ -240,10 +254,10 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	return true;
 }
 
-bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum retro_hw_context_type api, u8* basemem)
+void GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum retro_hw_context_type api, u8* basemem)
 {
 	if (renderer == GSRendererType::Auto)
-		renderer = GSsetRenderer(api);
+		renderer  = GSsetRenderer(api);
 
 	GSConfig          = config;
 	GSConfig.Renderer = renderer;
@@ -251,8 +265,6 @@ bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum 
 	if (OpenGSDevice(renderer, true))
 		if (!OpenGSRenderer(renderer, basemem))
 			CloseGSDevice(true);
-
-	return true;
 }
 
 void GSclose(void)
