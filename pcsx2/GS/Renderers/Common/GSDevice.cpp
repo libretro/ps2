@@ -151,6 +151,11 @@ void GSDevice::RestoreAPIState()
 {
 }
 
+void GSDevice::TextureRecycleDeleter::operator()(GSTexture* const tex)
+{
+	g_gs_device->Recycle(tex);
+}
+
 GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format, bool clear, bool prefer_reuse)
 {
 	const GSVector2i size(width, height);
