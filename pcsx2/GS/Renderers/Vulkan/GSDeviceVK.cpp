@@ -3572,7 +3572,6 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 	if (m_current_pipeline_layout == PipelineLayout::TFX && m_dirty_flags == 0)
 		return true;
 
-	const VkDevice dev           = vk_init_info.device;
 	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
 	u32 flags = m_dirty_flags;
 	m_dirty_flags &= ~(DIRTY_TFX_STATE | DIRTY_CONSTANT_BUFFER_STATE | DIRTY_FLAG_TFX_UBO);
@@ -3651,7 +3650,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		dsub.AddCombinedImageSamplerDescriptorWrite(
 			m_tfx_texture_descriptor_set, 0, m_tfx_textures[0]->GetView(), m_tfx_sampler, m_tfx_textures[0]->GetVkLayout());
 		dsub.AddImageDescriptorWrite(m_tfx_texture_descriptor_set, 1, m_tfx_textures[1]->GetView(), m_tfx_textures[1]->GetVkLayout());
-		dsub.Update(dev);
+		dsub.Update(vk_init_info.device);
 
 		if (!layout_changed)
 		{
@@ -3689,7 +3688,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		}
 		dsub.AddImageDescriptorWrite(m_tfx_rt_descriptor_set, 1, m_tfx_textures[NUM_TFX_DRAW_TEXTURES + 1]->GetView(),
 			m_tfx_textures[NUM_TFX_DRAW_TEXTURES + 1]->GetVkLayout());
-		dsub.Update(dev);
+		dsub.Update(vk_init_info.device);
 
 		if (!layout_changed)
 		{
