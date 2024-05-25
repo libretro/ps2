@@ -63,6 +63,12 @@ void GSshutdown(void)
 	m_disp_fb_sprite_blits = 0;
 }
 
+bool GSIsHardwareRenderer(void)
+{
+	// Null gets flagged as hw.
+	return (GSConfig.Renderer != GSRendererType::SW);
+}
+
 static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
 {
 	switch (api)

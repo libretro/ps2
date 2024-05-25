@@ -61,6 +61,7 @@ s16 GSLookupMoveHandlerFunctionId(const std::string_view& name);
 
 void GSinit(void);
 void GSshutdown(void);
+bool GSIsHardwareRenderer(void);
 void GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, enum retro_hw_context_type api, u8* basemem);
 bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::GSOptions& old_config);
 void GSreset(bool hardware_reset);
