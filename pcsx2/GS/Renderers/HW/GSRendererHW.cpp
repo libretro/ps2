@@ -5652,6 +5652,7 @@ bool GSRendererHW::CanUseSwPrimRender(bool no_rt, bool no_ds, bool draw_sprite_t
 	// Master enable.
 	const int bw = GSConfig.UserHacks_CPUSpriteRenderBW;
 	const int level = GSConfig.UserHacks_CPUSpriteRenderLevel;
+
 	if (bw == 0)
 		return false;
 
@@ -5708,7 +5709,7 @@ bool GSRendererHW::CanUseSwPrimRender(bool no_rt, bool no_ds, bool draw_sprite_t
 		}
 	}
 
-	if (PRIM->ABE && m_vt.m_eq.rgba == 0xffff)
+	if (PRIM->ABE && m_vt.m_eq.rgba == 0xffff && !m_context->ALPHA.IsOpaque(GetAlphaMinMax().min, GetAlphaMinMax().max))
 	{
 		GSTextureCache::Target* rt = g_texture_cache->GetTargetWithSharedBits(m_cached_ctx.FRAME.Block(), m_cached_ctx.FRAME.PSM);
 
