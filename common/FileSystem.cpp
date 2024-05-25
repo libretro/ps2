@@ -543,11 +543,12 @@ s64 FileSystem::FSize64(RFILE* fp)
 
 std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 {
+	int64_t size;
 	RFILE *fp = OpenFile(filename, "rb");
 	if (!fp)
 		return std::nullopt;
 	rfseek(fp, 0, SEEK_END);
-	int64_t size = rftell(fp);
+	size = rftell(fp);
 	rfseek(fp, 0, SEEK_SET);
 	if (size < 0)
 	{
@@ -567,11 +568,13 @@ std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 
 std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 {
+	int64_t size;
+	std::string res;
 	RFILE *fp = OpenFile(filename, "rb");
 	if (!fp)
 		return std::nullopt;
 	rfseek(fp, 0, SEEK_END);
-	int64_t size = rftell(fp);
+	size = rftell(fp);
 	rfseek(fp, 0, SEEK_SET);
 	if (size < 0)
 	{
@@ -579,7 +582,6 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 		return std::nullopt;
 	}
 
-	std::string res;
 	res.resize(static_cast<size_t>(size));
 	// NOTE - assumes mode 'rb', for example, this will fail over missing Windows carriage return bytes
 	if (size > 0 && rfread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
@@ -634,7 +636,7 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 	bool hasWildCards = false;
 	bool wildCardMatchAll = false;
 	u32 nFiles = 0;
-	if (std::strpbrk(pattern, "*?") != nullptr)
+	if (std::strpbrk(pattern, "*?"))
 	{
 		hasWildCards = true;
 		wildCardMatchAll = !(std::strcmp(pattern, "*"));
@@ -663,7 +665,7 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 			if (flags & FILESYSTEM_FIND_RECURSIVE)
 			{
 				// recurse into this directory
-				if (parent_path != nullptr)
+				if (parent_path)
 				{
 					const std::string recurseDir = StringUtil::StdStringFromFormat("%s\\%s", parent_path, path);
 					nFiles += RecursiveFindFiles(origin_path, recurseDir.c_str(), utf8_filename.c_str(), pattern, flags, results);
@@ -702,19 +704,19 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 		// TODO string formatter, clean this mess..
 		if (!(flags & FILESYSTEM_FIND_RELATIVE_PATHS))
 		{
-			if (parent_path != nullptr)
+			if (parent_path)
 				outData.FileName =
 					StringUtil::StdStringFromFormat("%s\\%s\\%s\\%s", origin_path, parent_path, path, utf8_filename.c_str());
-			else if (path != nullptr)
+			else if (path)
 				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s\\%s", origin_path, path, utf8_filename.c_str());
 			else
 				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s", origin_path, utf8_filename.c_str());
 		}
 		else
 		{
-			if (parent_path != nullptr)
+			if (parent_path)
 				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s\\%s", parent_path, path, utf8_filename.c_str());
-			else if (path != nullptr)
+			else if (path)
 				outData.FileName = StringUtil::StdStringFromFormat("%s\\%s", path, utf8_filename.c_str());
 			else
 				outData.FileName = utf8_filename;
@@ -836,7 +838,7 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 
 	// iterate results
 	struct dirent* pDirEnt;
-	while ((pDirEnt = readdir(pDir)) != nullptr)
+	while ((pDirEnt = readdir(pDir)))
 	{
 		if (pDirEnt->d_name[0] == '.')
 		{
@@ -848,9 +850,9 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 		}
 
 		std::string full_path;
-		if (ParentPath != nullptr)
+		if (ParentPath)
 			full_path = StringUtil::StdStringFromFormat("%s/%s/%s/%s", OriginPath, ParentPath, Path, pDirEnt->d_name);
-		else if (Path != nullptr)
+		else if (Path)
 			full_path = StringUtil::StdStringFromFormat("%s/%s/%s", OriginPath, Path, pDirEnt->d_name);
 		else
 			full_path = StringUtil::StdStringFromFormat("%s/%s", OriginPath, pDirEnt->d_name);
@@ -874,7 +876,7 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 			if (Flags & FILESYSTEM_FIND_RECURSIVE)
 			{
 				// recurse into this directory
-				if (ParentPath != nullptr)
+				if (ParentPath)
 				{
 					std::string recursiveDir = StringUtil::StdStringFromFormat("%s/%s", ParentPath, Path);
 					nFiles += RecursiveFindFiles(OriginPath, recursiveDir.c_str(), pDirEnt->d_name, Pattern, Flags, pResults);
