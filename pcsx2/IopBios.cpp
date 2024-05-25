@@ -218,18 +218,12 @@ namespace R3000A
 		host_stats->mode = (file_stats.st_mode & (stat.IROTH | stat.IWOTH | stat.IXOTH));
 #ifndef _WIN32
 		if (S_ISLNK(file_stats.st_mode))
-		{
 			host_stats->mode |= stat.IFLNK;
-		}
 #endif
 		if (S_ISREG(file_stats.st_mode))
-		{
 			host_stats->mode |= stat.IFREG;
-		}
 		if (S_ISDIR(file_stats.st_mode))
-		{
 			host_stats->mode |= stat.IFDIR;
-		}
 
 		// Convert the creation time.
 		struct tm* loctime;

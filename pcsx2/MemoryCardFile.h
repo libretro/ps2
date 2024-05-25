@@ -16,9 +16,7 @@
 #pragma once
 #include "Config.h"
 #include <ctime>
-#include <optional>
 #include <string>
-#include <vector>
 
 struct McdSizeInfo
 {
@@ -55,9 +53,3 @@ s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size);
 s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr);
 u64 FileMcd_GetCRC(uint port, uint slot);
 bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter);
-
-std::vector<AvailableMcdInfo> FileMcd_GetAvailableCards(bool include_in_use_cards);
-std::optional<AvailableMcdInfo> FileMcd_GetCardInfo(const std::string_view& name);
-bool FileMcd_CreateNewCard(const std::string_view& name, MemoryCardType type, MemoryCardFileType file_type);
-bool FileMcd_RenameCard(const std::string_view& name, const std::string_view& new_name);
-bool FileMcd_DeleteCard(const std::string_view& name);

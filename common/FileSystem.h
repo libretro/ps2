@@ -56,13 +56,6 @@ enum FILESYSTEM_FIND_FLAGS
 	FILESYSTEM_FIND_KEEP_ARRAY = (1 << 5),
 };
 
-struct FILESYSTEM_STAT_DATA
-{
-	std::time_t ModificationTime;
-	s64 Size;
-	u32 Attributes;
-};
-
 struct FILESYSTEM_FIND_DATA
 {
 	std::time_t ModificationTime;
@@ -80,7 +73,6 @@ namespace FileSystem
 
 	/// Stat file
 	bool StatFile(const char* path, struct stat* st);
-	bool StatFile(const char* path, FILESYSTEM_STAT_DATA* pStatData);
 
 	/// Delete file
 	bool DeleteFilePath(const char* path);

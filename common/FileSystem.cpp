@@ -606,20 +606,6 @@ bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t 
 }
 
 #ifdef _WIN32
-static u32 TranslateWin32Attributes(u32 Win32Attributes)
-{
-	u32 r = 0;
-
-	if (Win32Attributes & FILE_ATTRIBUTE_DIRECTORY)
-		r |= FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY;
-	if (Win32Attributes & FILE_ATTRIBUTE_READONLY)
-		r |= FILESYSTEM_FILE_ATTRIBUTE_READ_ONLY;
-	if (Win32Attributes & FILE_ATTRIBUTE_COMPRESSED)
-		r |= FILESYSTEM_FILE_ATTRIBUTE_COMPRESSED;
-
-	return r;
-}
-
 static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, const char* path, const char* pattern,
 	u32 flags, FileSystem::FindResultsArray* results)
 {
@@ -632,9 +618,7 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 			tempStr = StringUtil::StdStringFromFormat("%s\\%s\\*", origin_path, path);
 	}
 	else
-	{
 		tempStr = StringUtil::StdStringFromFormat("%s\\*", origin_path);
-	}
 
 	// holder for utf-8 conversion
 	WIN32_FIND_DATAW wfd;
@@ -747,21 +731,6 @@ static u32 RecursiveFindFiles(const char* origin_path, const char* parent_path, 
 	return nFiles;
 }
 
-bool FileSystem::FindFiles(const char* path, const char* pattern, u32 flags, FindResultsArray* results)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-	// clear result array
-	if (!(flags & FILESYSTEM_FIND_KEEP_ARRAY))
-		results->clear();
-
-	// enter the recursive function
-	return (RecursiveFindFiles(path, nullptr, nullptr, pattern, flags, results) > 0);
-}
-
-
 static void TranslateStat64(struct stat* st, const struct _stat64& st64)
 {
 	static constexpr __int64 MAX_SIZE = static_cast<__int64>(std::numeric_limits<decltype(st->st_size)>::max());
@@ -792,55 +761,6 @@ bool FileSystem::StatFile(const char* path, struct stat* st)
 	}
 	free(wpath);
 	TranslateStat64(st, st64);
-	return true;
-}
-
-bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
-{
-	HANDLE hFile;
-
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-	// convert to wide string
-	wchar_t *wpath       = utf8_to_utf16_string_alloc(path);
-	// determine attributes for the path. if it's a directory, things have to be handled differently..
-	DWORD fileAttributes = GetFileAttributesW(wpath);
-	if (fileAttributes == INVALID_FILE_ATTRIBUTES)
-	{
-		free(wpath);
-		return false;
-	}
-
-	// test if it is a directory
-	if (fileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		hFile = CreateFileW(wpath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-			OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
-	else
-		hFile = CreateFileW(wpath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-			OPEN_EXISTING, 0, nullptr);
-	free(wpath);
-
-	// createfile succeded?
-	if (hFile == INVALID_HANDLE_VALUE)
-		return false;
-
-	// use GetFileInformationByHandle
-	BY_HANDLE_FILE_INFORMATION bhfi;
-	if (GetFileInformationByHandle(hFile, &bhfi) == FALSE)
-	{
-		CloseHandle(hFile);
-		return false;
-	}
-
-	// close handle
-	CloseHandle(hFile);
-
-	// fill in the stat data
-	sd->Attributes = TranslateWin32Attributes(bhfi.dwFileAttributes);
-	sd->ModificationTime = ConvertFileTimeToUnixTime(bhfi.ftLastWriteTime);
-	sd->Size = static_cast<s64>(((u64)bhfi.nFileSizeHigh) << 32 | (u64)bhfi.nFileSizeLow);
 	return true;
 }
 
@@ -898,9 +818,7 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 			tempStr = StringUtil::StdStringFromFormat("%s/%s", OriginPath, Path);
 	}
 	else
-	{
 		tempStr = StringUtil::StdStringFromFormat("%s", OriginPath);
-	}
 
 	DIR* pDir = opendir(tempStr.c_str());
 	if (pDir == nullptr)
@@ -962,9 +880,7 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 					nFiles += RecursiveFindFiles(OriginPath, recursiveDir.c_str(), pDirEnt->d_name, Pattern, Flags, pResults);
 				}
 				else
-				{
 					nFiles += RecursiveFindFiles(OriginPath, Path, pDirEnt->d_name, Pattern, Flags, pResults);
-				}
 			}
 
 			if (!(Flags & FILESYSTEM_FIND_FOLDERS))
@@ -996,14 +912,12 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 		// add file to list
 		// TODO string formatter, clean this mess..
 		if (!(Flags & FILESYSTEM_FIND_RELATIVE_PATHS))
-		{
 			outData.FileName = std::move(full_path);
-		}
 		else
 		{
-			if (ParentPath != nullptr)
+			if (ParentPath)
 				outData.FileName = StringUtil::StdStringFromFormat("%s/%s/%s", ParentPath, Path, pDirEnt->d_name);
-			else if (Path != nullptr)
+			else if (Path)
 				outData.FileName = StringUtil::StdStringFromFormat("%s/%s", Path, pDirEnt->d_name);
 			else
 				outData.FileName = pDirEnt->d_name;
@@ -1017,66 +931,17 @@ static u32 RecursiveFindFiles(const char* OriginPath, const char* ParentPath, co
 	return nFiles;
 }
 
-bool FileSystem::FindFiles(const char* Path, const char* Pattern, u32 Flags, FindResultsArray* pResults)
-{
-	// has a path
-	if (Path[0] == '\0')
-		return false;
-
-	// clear result array
-	if (!(Flags & FILESYSTEM_FIND_KEEP_ARRAY))
-		pResults->clear();
-
-	// enter the recursive function
-	return (RecursiveFindFiles(Path, nullptr, nullptr, Pattern, Flags, pResults) > 0);
-}
-
 bool FileSystem::StatFile(const char* path, struct stat* st)
 {
 	return stat(path, st) == 0;
-}
-
-bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
-{
-	// has a path
-	if (path[0] == '\0')
-		return false;
-
-		// stat file
-#if defined(__HAIKU__) || defined(__APPLE__) || defined(__FreeBSD__)
-	struct stat sysStatData;
-	if (stat(path, &sysStatData) < 0)
-#else
-	struct stat64 sysStatData;
-	if (stat64(path, &sysStatData) < 0)
-#endif
-		return false;
-
-	// parse attributes
-	sd->ModificationTime = sysStatData.st_mtime;
-	sd->Attributes = 0;
-	if (S_ISDIR(sysStatData.st_mode))
-		sd->Attributes |= FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY;
-
-	// parse size
-	if (S_ISREG(sysStatData.st_mode))
-		sd->Size = sysStatData.st_size;
-	else
-		sd->Size = 0;
-
-	// ok
-	return true;
 }
 
 bool FileSystem::DeleteFilePath(const char* path)
 {
 	if (path[0] == '\0')
 		return false;
-
-	struct stat sysStatData;
-	if (stat(path, &sysStatData) != 0 || S_ISDIR(sysStatData.st_mode))
+	if (path_is_directory(path))
 		return false;
-
 	return (unlink(path) == 0);
 }
 
@@ -1098,11 +963,22 @@ bool FileSystem::DeleteDirectory(const char* path)
 {
 	if (path[0] == '\0')
 		return false;
-
-	struct stat sysStatData;
-	if (stat(path, &sysStatData) != 0 || !S_ISDIR(sysStatData.st_mode))
+	if (!path_is_directory(path))
 		return false;
-
 	return (unlink(path) == 0);
 }
 #endif
+
+bool FileSystem::FindFiles(const char* Path, const char* Pattern, u32 Flags, FindResultsArray* pResults)
+{
+	// has a path
+	if (Path[0] == '\0')
+		return false;
+
+	// clear result array
+	if (!(Flags & FILESYSTEM_FIND_KEEP_ARRAY))
+		pResults->clear();
+
+	// enter the recursive function
+	return (RecursiveFindFiles(Path, nullptr, nullptr, Pattern, Flags, pResults) > 0);
+}
