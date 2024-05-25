@@ -3317,7 +3317,7 @@ void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completi
 
 void GSDeviceVK::InvalidateCachedState()
 {
-	m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS | DIRTY_FLAG_TFX_RT_TEXTURE_DS | DIRTY_FLAG_TFX_DYNAMIC_OFFSETS |
+	m_dirty_flags |= DIRTY_FLAG_TFX_SAMPLERS_DS | DIRTY_FLAG_TFX_RT_TEXTURE_DS | DIRTY_FLAG_TFX_UBO |
 					 DIRTY_FLAG_UTILITY_TEXTURE | DIRTY_FLAG_BLEND_CONSTANTS | DIRTY_FLAG_LINE_WIDTH |
 					 DIRTY_FLAG_INDEX_BUFFER | DIRTY_FLAG_VIEWPORT | DIRTY_FLAG_SCISSOR | DIRTY_FLAG_PIPELINE |
 					 DIRTY_FLAG_VS_CONSTANT_BUFFER | DIRTY_FLAG_PS_CONSTANT_BUFFER;
@@ -3575,7 +3575,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 	const VkDevice dev           = vk_init_info.device;
 	const VkCommandBuffer cmdbuf = GetCurrentCommandBuffer();
 	u32 flags = m_dirty_flags;
-	m_dirty_flags &= ~(DIRTY_TFX_STATE | DIRTY_CONSTANT_BUFFER_STATE | DIRTY_FLAG_TFX_DYNAMIC_OFFSETS);
+	m_dirty_flags &= ~(DIRTY_TFX_STATE | DIRTY_CONSTANT_BUFFER_STATE | DIRTY_FLAG_TFX_UBO);
 
 	// do cbuffer first, because it's the most likely to cause an exec
 	if (flags & DIRTY_FLAG_VS_CONSTANT_BUFFER)
@@ -3597,7 +3597,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		memcpy(m_vertex_uniform_stream_buffer.GetCurrentHostPointer(), &m_vs_cb_cache, sizeof(m_vs_cb_cache));
 		m_tfx_dynamic_offsets[0] = m_vertex_uniform_stream_buffer.GetCurrentOffset();
 		m_vertex_uniform_stream_buffer.CommitMemory(sizeof(m_vs_cb_cache));
-		flags |= DIRTY_FLAG_TFX_DYNAMIC_OFFSETS;
+		flags |= DIRTY_FLAG_TFX_UBO;
 	}
 
 	if (flags & DIRTY_FLAG_PS_CONSTANT_BUFFER)
@@ -3619,7 +3619,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 		memcpy(m_fragment_uniform_stream_buffer.GetCurrentHostPointer(), &m_ps_cb_cache, sizeof(m_ps_cb_cache));
 		m_tfx_dynamic_offsets[1] = m_fragment_uniform_stream_buffer.GetCurrentOffset();
 		m_fragment_uniform_stream_buffer.CommitMemory(sizeof(m_ps_cb_cache));
-		flags |= DIRTY_FLAG_TFX_DYNAMIC_OFFSETS;
+		flags |= DIRTY_FLAG_TFX_UBO;
 	}
 
 	Vulkan::DescriptorSetUpdateBuilder dsub;
@@ -3629,7 +3629,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 	u32 start_dset = 0;
 	const bool layout_changed = (m_current_pipeline_layout != PipelineLayout::TFX);
 
-	if (!layout_changed && flags & DIRTY_FLAG_TFX_DYNAMIC_OFFSETS)
+	if (!layout_changed && flags & DIRTY_FLAG_TFX_UBO)
 		dsets[num_dsets++] = m_tfx_ubo_descriptor_set;
 
 	if ((flags & DIRTY_FLAG_TFX_SAMPLERS_DS) || m_tfx_texture_descriptor_set == VK_NULL_HANDLE)
