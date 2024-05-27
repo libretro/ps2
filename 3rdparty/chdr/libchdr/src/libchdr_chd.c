@@ -1507,7 +1507,7 @@ static inline void map_extract_old(const UINT8 *base, map_entry *entry, UINT32 h
     chd_open_file - open a CHD file for access
 -------------------------------------------------*/
 
-CHD_EXPORT chd_error chd_open_file(RFILE *file, int mode, chd_file *parent, chd_file **chd) {
+CHD_EXPORT chd_error chd_open_file(core_file *file, int mode, chd_file *parent, chd_file **chd) {
 	core_file *stream = malloc(sizeof(core_file));
 	if (!stream)
 		return CHDERR_OUT_OF_MEMORY;
@@ -2971,7 +2971,7 @@ static core_file *core_stdio_fopen(char const *path) {
 -------------------------------------------------*/
 static UINT64 core_stdio_fsize(core_file *file) {
 	UINT64 rv;
-	RFILE *fp = (RFILE*)file->argp;
+	core_file *fp = (core_file*)file->argp;
 	UINT64 p = rftell(fp);
 	rfseek(fp, 0, SEEK_END);
 	rv = rftell(fp);

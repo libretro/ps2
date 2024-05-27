@@ -823,7 +823,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		const VkResult res = vkWaitForFences(vk_init_info.device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
 		if (res != VK_SUCCESS)
 		{
-			m_last_submit_failed.store(true, std::memory_order_release);
+			m_last_submit_failed = true;
 			return;
 		}
 
@@ -877,7 +877,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 
 		const VkResult res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
 		if (res != VK_SUCCESS)
-			m_last_submit_failed.store(true, std::memory_order_release);
+			m_last_submit_failed = true;
 	}
 
 	void GSDeviceVK::CommandBufferCompleted(u32 index)
@@ -1292,6 +1292,10 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 	EndRenderPass();
 	SubmitCommandBuffer();
 	MoveToNextCommandBuffer();
+
+	// Check if the device was lost.
+	if (m_last_submit_failed)
+		return PresentResult::DeviceLost;
 
 	GSTextureVK* tex = (GSTextureVK*)g_gs_device->GetCurrent();
 	if(tex)
@@ -3281,16 +3285,14 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion)
 {
 	EndRenderPass();
-	if (!m_last_submit_failed.load(std::memory_order_acquire))
-	{
-		// If we're waiting for completion, don't bother waking the worker thread.
-		const u32 current_frame = m_current_frame;
-		SubmitCommandBuffer();
-		MoveToNextCommandBuffer();
+	if (m_last_submit_failed)
+		return;
 
-		if (wait_for_completion)
-			WaitForCommandBufferCompletion(current_frame);
-	}
+	SubmitCommandBuffer();
+	MoveToNextCommandBuffer();
+
+	if (wait_for_completion)
+		WaitForCommandBufferCompletion(m_current_frame);
 }
 
 void GSDeviceVK::ExecuteCommandBufferAndRestartRenderPass(bool wait_for_completion)
