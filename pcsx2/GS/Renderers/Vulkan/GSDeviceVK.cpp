@@ -823,7 +823,7 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 		const VkResult res = vkWaitForFences(vk_init_info.device, 1, &m_frame_resources[index].fence, VK_TRUE, UINT64_MAX);
 		if (res != VK_SUCCESS)
 		{
-			m_last_submit_failed.store(true, std::memory_order_release);
+			m_last_submit_failed = true;
 			return;
 		}
 
@@ -864,20 +864,13 @@ static void SafeDestroyDescriptorSetLayout(VkDevice dev, VkDescriptorSetLayout& 
 			Console.Error("Failed to end command buffer");
 
 		// This command buffer now has commands, so can't be re-used without waiting.
-		DoSubmitCommandBuffer(m_current_frame);
-	}
-
-	void GSDeviceVK::DoSubmitCommandBuffer(u32 index)
-	{
-		FrameResources& resources      = m_frame_resources[index];
-
 		VkSubmitInfo submit_info       = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		submit_info.commandBufferCount = resources.init_buffer_used ? 2u : 1u;
 		submit_info.pCommandBuffers    = resources.init_buffer_used ? resources.command_buffers.data() : &resources.command_buffers[1];
 
-		const VkResult res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
+		res = vkQueueSubmit(m_graphics_queue, 1, &submit_info, resources.fence);
 		if (res != VK_SUCCESS)
-			m_last_submit_failed.store(true, std::memory_order_release);
+			m_last_submit_failed = true;
 	}
 
 	void GSDeviceVK::CommandBufferCompleted(u32 index)
@@ -3281,7 +3274,10 @@ bool GSDeviceVK::CreatePersistentDescriptorSets()
 void GSDeviceVK::ExecuteCommandBuffer(bool wait_for_completion)
 {
 	EndRenderPass();
-	if (!m_last_submit_failed.load(std::memory_order_acquire))
+
+	if (m_last_submit_failed)
+		return;
+
 	{
 		// If we're waiting for completion, don't bother waking the worker thread.
 		const u32 current_frame = m_current_frame;

@@ -22,7 +22,6 @@
 #include "common/HashCombine.h"
 #include "vk_mem_alloc.h"
 #include <array>
-#include <atomic>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -280,8 +279,6 @@ private:
        void ActivateCommandBuffer(u32 index);
        void WaitForCommandBufferCompletion(u32 index);
 
-       void DoSubmitCommandBuffer(u32 index);
-
        struct FrameResources
        {
 	       // [0] - Init (upload) command buffer, [1] - draw command buffer
@@ -311,7 +308,7 @@ private:
 
        VKStreamBuffer m_texture_upload_buffer;
 
-       std::atomic_bool m_last_submit_failed{false};
+       bool m_last_submit_failed = false;
 
        std::map<u32, VkRenderPass> m_render_pass_cache;
 
