@@ -22,6 +22,7 @@
 #include "common/HashCombine.h"
 #include "vk_mem_alloc.h"
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -310,7 +311,7 @@ private:
 
        VKStreamBuffer m_texture_upload_buffer;
 
-       bool m_last_submit_failed = false;
+       std::atomic_bool m_last_submit_failed{false};
 
        std::map<u32, VkRenderPass> m_render_pass_cache;
 
