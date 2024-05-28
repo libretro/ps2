@@ -2682,7 +2682,7 @@ u32 GSTextureCache::ConvertDepthToColor(float d, ShaderConvert convert)
 bool GSTextureCache::CopyRGBFromDepthToColor(Target* dst, Target* depth_src)
 {
 	// The depth target might be larger (Driv3r).
-	const GSVector2i new_size = depth_src->GetUnscaledSize()._max(dst->GetUnscaledSize());
+	const GSVector2i new_size = dst->GetUnscaledSize()._max(GSVector2i(depth_src->m_valid.z, depth_src->m_valid.w));
 	const GSVector2i new_scaled_size = ScaleRenderTargetSize(new_size, dst->GetScale());
 	const bool needs_new_tex = (new_size != dst->m_unscaled_size);
 	GSTexture* tex = dst->m_texture;
@@ -2694,6 +2694,9 @@ bool GSTextureCache::CopyRGBFromDepthToColor(Target* dst, Target* depth_src)
 			return false;
 
 		m_target_memory_usage = (m_target_memory_usage - dst->m_texture->GetMemUsage()) + tex->GetMemUsage();
+
+		// Inject new size into hash cache to avoid future resizes.
+		GetTargetSize(dst->m_TEX0.TBP0, dst->m_TEX0.TBW, dst->m_TEX0.PSM, new_size.x, new_size.y);
 	}
 
 	// Remove any dirty rectangles contained by this update, we don't want to pull from local memory.
