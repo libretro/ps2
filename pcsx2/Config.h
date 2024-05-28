@@ -511,7 +511,7 @@ struct Pcsx2Config
 		BiFiltering TextureFiltering = BiFiltering::PS2;
 		TexturePreloadingLevel TexturePreloading = TexturePreloadingLevel::Full;
 		GSHardwareDownloadMode HWDownloadMode = GSHardwareDownloadMode::Enabled;
-		u8 Dithering = 2;
+		u8 Dithering = 3;
 		u8 MaxAnisotropy = 0;
 		s16 GetSkipCountFunctionId = -1;
 		s16 BeforeDrawFunctionId = -1;
