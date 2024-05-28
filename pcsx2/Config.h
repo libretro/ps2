@@ -319,9 +319,9 @@ enum class GSBilinearDirtyMode : u8
 	MaxCount
 };
 
-enum class GSHalfPixelOffset : u8
+enum GSHalfPixelOffset
 {
-	Off,
+	Off = 0,
 	Normal,
 	Special,
 	SpecialAggressive,

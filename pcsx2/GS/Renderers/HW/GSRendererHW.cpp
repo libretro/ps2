@@ -704,9 +704,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(u32& process_rg, u32& process_ba,
 
 GSVector4 GSRendererHW::RealignTargetTextureCoordinate(const GSTextureCache::Source* tex)
 {
-	if (GSConfig.UserHacks_HalfPixelOffset <= GSHalfPixelOffset::Normal ||
-		GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Native ||
-		GetUpscaleMultiplier() == 1.0f)
+	if (GSConfig.UserHacks_HalfPixelOffset <= 1 || GSConfig.UserHacks_HalfPixelOffset >= 4 || GetUpscaleMultiplier() == 1.0f)
 		return GSVector4(0.0f);
 
 	const GSVertex* v = &m_vertex.buff[0];
