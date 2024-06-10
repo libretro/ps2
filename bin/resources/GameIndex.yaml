@@ -48594,6 +48594,8 @@ SLPS-25476:
 SLPS-25478:
   name: "Mobile Suit Gundam - One Year War"
   region: "NTSC-J"
+  gsHWFixes:
+    textureInsideRT: 1 # Fixes cut off screens.
 SLPS-25479:
   name: "Gold Gashbell - Friendship Tag Battle 2"
   region: "NTSC-J"
