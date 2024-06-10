@@ -55,6 +55,9 @@ s64 PSXCLK = 36864000;
 static constexpr size_t NVRAM_SIZE = 1024;
 static u8 s_nvram[NVRAM_SIZE];
 
+static constexpr u32 DEFAULT_MECHA_VERSION = 0x00020603;
+static u32 s_mecha_version = 0;
+
 static __fi void SetSCMDResultSize(u8 size)
 {
 	cdvd.SCMDResultCnt  = size;
@@ -130,23 +133,6 @@ static int mg_BIToffset(u8* buffer)
 
 static void cdvdGetMechaVer(u8* ver)
 {
-	const char * mecfile = Path::ReplaceExtension(BiosPath, "mec").c_str();
-	RFILE *fp = FileSystem::OpenFile(mecfile, "rb");
-	if (!fp || FileSystem::FSize64(fp) < 4)
-	{
-		u8 version[4] = {0x3, 0x6, 0x2, 0x0};
-		Console.Warning("MEC File Not Found, creating substitute...");
-
-		fp = FileSystem::OpenFile(mecfile, "w+b");
-		if (!fp)
-			return;
-
-		rfwrite(version, sizeof(version), 1, fp);
-		FileSystem::FSeek64(fp, 0, SEEK_SET);
-	}
-
-	rfread(ver, 1, 4, fp);
-	filestream_close(fp);
 }
 
 const NVMLayout* getNvmLayout(void)
@@ -210,6 +196,18 @@ void cdvdLoadNVRAM(void)
 			cdvdCreateNewNVM();
 		}
 	}
+
+	const char * mecfile = Path::ReplaceExtension(BiosPath, "mec").c_str();
+	fp = FileSystem::OpenFile(mecfile, "rb");
+	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
+	{
+		s_mecha_version = DEFAULT_MECHA_VERSION;
+		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile);
+		fp = FileSystem::OpenFile(mecfile, "w+b");
+		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
+			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
+	}
+	filestream_close(fp);
 }
 
 void cdvdSaveNVRAM(void)
@@ -1989,7 +1987,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 			{
 				case 0x00: // get mecha version (1:4)
 					SetSCMDResultSize(4);
-					cdvdGetMechaVer(&cdvd.SCMDResultBuff[0]);
+					memcpy(&cdvd.SCMDResultBuff[0], &s_mecha_version, sizeof(u32));
 					break;
 				case 0x30:
 					SetSCMDResultSize(2);
@@ -2293,7 +2291,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 		case 0x36: //cdvdman_call189 [__sceCdReadRegionParams - made up name] (0:15) i think it is 16, not 15
 			SetSCMDResultSize(15);
 
-			cdvdGetMechaVer(&cdvd.SCMDResultBuff[1]);
+			memcpy(&cdvd.SCMDResultBuff[1], &s_mecha_version, sizeof(u32));
 			getNvmData(&cdvd.SCMDResultBuff[3], 0, 8, offsetof(NVMLayout, regparams)); //size==8
 			cdvd.SCMDResultBuff[1] = 1 << cdvd.SCMDResultBuff[1]; //encryption zone; see offset 0x1C in encrypted headers
 								      //////////////////////////////////////////
