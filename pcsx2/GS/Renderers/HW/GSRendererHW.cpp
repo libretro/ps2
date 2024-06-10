@@ -404,7 +404,7 @@ void GSRendererHW::ConvertSpriteTextureShuffle(u32& process_rg, u32& process_ba,
 		// So, halve it ourselves.
 
 		const GSVector4i dr = m_r;
-		const GSVector4i r = half_bottom_vert ? dr.blend32<0xA>(dr.sra32(1)) : dr.blend32<5>(dr.sra32(1)); // Half Y : Half X
+		const GSVector4i r = half_bottom_vert ? dr.blend32<0xA>(dr.sra32<1>()) : dr.blend32<5>(dr.sra32<1>()); // Half Y : Half X
 
 		const GSVector4i fpr = r.sll32<4>();
 		v[0].XYZ.X = static_cast<u16>(m_context->XYOFFSET.OFX + fpr.x);
@@ -1599,7 +1599,7 @@ void GSRendererHW::SwSpriteRender()
 				const GSVector4i B = alpha_b == 0 ? sc : alpha_b == 1 ? dc0 : GSVector4i::zero();
 				const GSVector4i C = alpha_c == 2 ? GSVector4i(alpha_fix).xxxx().ps32()
 				                                  : (alpha_c == 0 ? sc : dc0).yyww()    // 0x00AA00BB00AA00BB00aa00bb00aa00bb
-				                                                             .srl32(16) // 0x000000AA000000AA000000aa000000aa
+				                                                             .srl32<16>() // 0x000000AA000000AA000000aa000000aa
 				                                                             .ps32()    // 0x00AA00AA00aa00aa00AA00AA00aa00aa
 				                                                             .xxyy();   // 0x00AA00AA00AA00AA00aa00aa00aa00aa
 				const GSVector4i D = alpha_d == 0 ? sc : alpha_d == 1 ? dc0 : GSVector4i::zero();
