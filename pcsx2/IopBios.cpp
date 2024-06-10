@@ -33,7 +33,6 @@
 #include "common/StringUtil.h"
 
 #include "Common.h"
-#include "R3000A.h"
 #include "R5900.h" // for g_GameStarted
 #include "IopBios.h"
 #include "IopMem.h"

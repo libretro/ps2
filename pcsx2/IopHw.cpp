@@ -16,7 +16,6 @@
 #include "R3000A.h"
 #include "Common.h"
 
-#include "iR5900.h"
 #include "Sio.h"
 #include "Mdec.h"
 #include "IopCounters.h"
@@ -33,7 +32,7 @@ void psxHwReset(void) {
 
 	memset(iopHw, 0, 0x10000);
 
-	mdecInit(); //initialize mdec decoder
+	mdecInit(); // Initialize MDEC decoder
 	cdrReset();
 	cdvdReset();
 	psxRcntInit();
