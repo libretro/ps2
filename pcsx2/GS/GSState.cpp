@@ -2665,7 +2665,7 @@ GSState::PRIM_OVERLAP GSState::PrimitiveOverlap()
 			sprite = sprite.xyxy().blend(sprite.zwzw(), sprite > sprite.zwxy());
 
 			if (all.rintersect(sprite).rempty())
-				all = all.runion_ordered(sprite);
+				all = all.runion(sprite);
 			else
 			{
 				overlap = PRIM_OVERLAP_YES;
