@@ -52,6 +52,7 @@
 #include "SPU2/spu2.h"
 #include "DEV9/DEV9.h"
 #include "USB/USB.h"
+#include "Vif_Dynarec.h"
 #include "PAD/PAD.h"
 #include "Sio.h"
 #include "ps2/BiosTools.h"

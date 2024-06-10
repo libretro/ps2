@@ -176,6 +176,8 @@ set(pcsx2Headers
 	Vif_Dma.h
 	Vif.h
 	Vif_Unpack.h
+	Vif_Dynarec.h
+	Vif_HashBucket.h
 	VirtualMemory.h
 	vtlb.h
 	VUmicro.h
@@ -780,7 +782,6 @@ set(pcsx2x86Headers
 	x86/microVU_Tables.inl
 	x86/microVU_Upper.inl
 	x86/newVif.h
-	x86/newVif_HashBucket.h
 	x86/newVif_UnpackSSE.h
 	)
 

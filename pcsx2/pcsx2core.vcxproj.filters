@@ -1294,7 +1294,10 @@
     <ClInclude Include="x86\newVif.h">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif</Filter>
     </ClInclude>
-    <ClInclude Include="x86\newVif_HashBucket.h">
+    <ClInclude Include="Vif_Dynarec.h">
+      <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif</Filter>
+    </ClInclude>
+    <ClInclude Include="Vif_HashBucket.h">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif\Unpack\newVif</Filter>
     </ClInclude>
     <ClInclude Include="x86\newVif_UnpackSSE.h">
