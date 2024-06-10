@@ -39,6 +39,7 @@ BIOS
 #include "VUmicro.h"
 #include "MTVU.h"
 #include "DEV9/DEV9.h"
+#include "CDVD/CDVD.h"
 
 #include "ps2/HwInternal.h"
 #include "ps2/BiosTools.h"
@@ -844,6 +845,9 @@ void eeMemoryReserve::Reset()
 
 	if (!LoadBIOS())
 		Console.Error("Failed to load BIOS");
+
+	// Must happen after BIOS load, depends on BIOS version.
+	cdvdLoadNVRAM();
 }
 
 void eeMemoryReserve::Release()

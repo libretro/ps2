@@ -690,6 +690,9 @@ void VMManager::Shutdown()
 	SPU2::Close();
 	PADclose();
 	DEV9close();
+
+	cdvdSaveNVRAM();
+
 	DoCDVDclose();
 	CDVDsys_ClearFiles();
 	FWclose();
