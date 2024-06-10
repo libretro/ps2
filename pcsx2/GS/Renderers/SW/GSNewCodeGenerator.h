@@ -20,7 +20,6 @@
 #include <cpuinfo.h>
 
 #include "xbyak/xbyak.h"
-#include "xbyak/xbyak_util.h"
 #include "GS/MultiISA.h"
 
 #include "common/Console.h"
