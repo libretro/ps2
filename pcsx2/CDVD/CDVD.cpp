@@ -27,6 +27,7 @@
 
 #include "common/Console.h"
 #include "common/FileSystem.h"
+#include "common/MemorySettingsInterface.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
 #include "common/Threading.h"
@@ -41,6 +42,9 @@
 #include "ps2/BiosTools.h"
 #include "Host.h"
 #include "VMManager.h"
+
+/* TODO/FIXME - forward declaration */
+extern MemorySettingsInterface s_settings_interface;
 
 // This typically reflects the Sony-assigned serial code for the Disc, if one exists.
 //  (examples:  SLUS-2113, etc).
@@ -305,7 +309,16 @@ static s32 cdvdReadConfig(u8* config)
 			cdvdReadNVM(config, nvmLayout->config2 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 		default:
-			cdvdReadNVM(config, nvmLayout->config1 + ((cdvd.CBlockIndex++) * 16), 16);
+			{
+				cdvdReadNVM(config, nvmLayout->config1 + (cdvd.CBlockIndex * 16), 16);
+				if (cdvd.CBlockIndex == 1 && (NoOSD || s_settings_interface.GetBoolValue("EmuCore", "EnableFastBoot", false)))
+				{
+					// HACK: Set the "initialized" flag when fast booting, otherwise some games crash (e.g. Jak 1).
+					config[2] |= 0x80;
+				}
+
+				cdvd.CBlockIndex++;
+			}
 			break;
 	}
 	return 0;

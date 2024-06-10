@@ -69,7 +69,7 @@ static int read_pos = 0;
 static s16 snd_buffer[SOUND_BUFFER_SIZE];
 
 static VMState cpu_thread_state;
-static MemorySettingsInterface s_settings_interface;
+MemorySettingsInterface s_settings_interface;
 static std::thread cpu_thread;
 
 enum OptionsGroups
