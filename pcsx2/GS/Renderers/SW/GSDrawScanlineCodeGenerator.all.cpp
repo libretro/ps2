@@ -2652,7 +2652,7 @@ void GSDrawScanlineCodeGenerator2::AlphaBlend()
 
 		if (!(m_sel.fpsm == 1 && m_sel.abc == 1))
 		{
-			// GSVector4i a = abc < 2 ? c[abc * 2 + 1].yywwlh().sll16(7) : m_local.gd->afix;
+			// GSVector4i a = abc < 2 ? c[abc * 2 + 1].yywwlh().sll16<7>() : m_local.gd->afix;
 
 			switch (m_sel.abc)
 			{

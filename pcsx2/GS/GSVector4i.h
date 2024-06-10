@@ -180,6 +180,16 @@ public:
 		return sat_i32(a);
 	}
 
+	__forceinline bool rintersects(const GSVector4i& v) const
+	{
+		return !rintersect(v).rempty();
+	}
+
+	__forceinline bool rcontains(const GSVector4i& v) const
+	{
+		return rintersect(v).eq(v);
+	}
+
 	template <Align_Mode mode>
 	GSVector4i _ralign_helper(const GSVector4i& mask) const
 	{
