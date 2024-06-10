@@ -852,7 +852,6 @@ public:
 		if (isOK) return true;
 		return false;
 	}
-	bool setProtectModeRE(bool throwException = true) { return setProtectMode(PROTECT_RE, throwException); }
 	bool setProtectModeRW(bool throwException = true) { return setProtectMode(PROTECT_RW, throwException); }
 	void resetSize()
 	{
@@ -2344,20 +2343,6 @@ public:
 		labelMgr_.set(this);
 	}
 	bool hasUndefinedLabel() const { return labelMgr_.hasUndefSlabel() || labelMgr_.hasUndefClabel(); }
-	/*
-		MUST call ready() to complete generating code if you use AutoGrow mode.
-		It is not necessary for the other mode if hasUndefinedLabel() is true.
-	*/
-	void ready(ProtectMode mode = PROTECT_RWE)
-	{
-		if (hasUndefinedLabel()) return;
-		if (isAutoGrow()) {
-			calcJmpAddress();
-			if (useProtect()) setProtectMode(mode);
-		}
-	}
-	// set read/exec
-	void readyRE() { return ready(PROTECT_RE); }
 
 #ifdef XBYAK_UNDEF_JNL
 	#undef jnl

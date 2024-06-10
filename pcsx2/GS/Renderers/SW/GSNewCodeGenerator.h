@@ -178,7 +178,6 @@ public:
 
 #define FORWARD_JUMP(name) \
 	void name(const void *addr) { actual.name(addr); } \
-	void name(const Label& label, Xbyak::CodeGenerator::LabelType type = Xbyak::CodeGenerator::T_AUTO) { actual.name(label, type); } \
 	void name(const char *label, Xbyak::CodeGenerator::LabelType type = Xbyak::CodeGenerator::T_AUTO) { actual.name(label, type); }
 
 #define ADD_ONE_2 3
