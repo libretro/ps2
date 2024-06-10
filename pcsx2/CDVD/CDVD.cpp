@@ -268,26 +268,9 @@ static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 		memcpy(&s_nvram[offset], src, to_write);
 }
 
-static void getNvmData(u8* buffer, s32 offset, s32 size, s32 fmtOffset)
-{
-	// find the correct bios version
-	const NVMLayout* nvmLayout = getNvmLayout();
-	// get data from EEPROM
-	cdvdReadNVM(buffer, *reinterpret_cast<const s32*>((reinterpret_cast<const u8*>(nvmLayout)) + fmtOffset) + offset, size);
-}
-
-static void setNvmData(const u8* buffer, s32 offset, s32 size, s32 fmtOffset)
-{
-	// find the correct bios version
-	const NVMLayout* nvmLayout = getNvmLayout();
-
-	// set data in eeprom
-	cdvdWriteNVM(buffer, *(s32*)(((u8*)nvmLayout) + fmtOffset) + offset, size);
-}
-
 void cdvdReadLanguageParams(u8* config)
 {
-	getNvmData(config, 0xF, 16, offsetof(NVMLayout, config1));
+	cdvdReadNVM(config, getNvmLayout()->config1 + 0xF, 16);
 }
 
 static s32 cdvdReadConfig(u8* config)
@@ -312,16 +295,17 @@ static s32 cdvdReadConfig(u8* config)
 	}
 
 	// get config data
+	const NVMLayout* nvmLayout = getNvmLayout();
 	switch (cdvd.COffset)
 	{
 		case 0:
-			getNvmData(config, (cdvd.CBlockIndex++) * 16, 16, offsetof(NVMLayout, config0));
+			cdvdReadNVM(config, nvmLayout->config0 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 		case 2:
-			getNvmData(config, (cdvd.CBlockIndex++) * 16, 16, offsetof(NVMLayout, config2));
+			cdvdReadNVM(config, nvmLayout->config2 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 		default:
-			getNvmData(config, (cdvd.CBlockIndex++) * 16, 16, offsetof(NVMLayout, config1));
+			cdvdReadNVM(config, nvmLayout->config1 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 	}
 	return 0;
@@ -339,16 +323,17 @@ static s32 cdvdWriteConfig(const u8* config)
 		return 0;
 
 	// get config data
+	const NVMLayout* nvmLayout = getNvmLayout();
 	switch (cdvd.COffset)
 	{
 		case 0:
-			setNvmData(config, (cdvd.CBlockIndex++) * 16, 16, offsetof(NVMLayout, config0));
+			cdvdWriteNVM(config, nvmLayout->config0 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 		case 2:
-			setNvmData(config, (cdvd.CBlockIndex++) * 16, 16, offsetof(NVMLayout, config2));
+			cdvdWriteNVM(config, nvmLayout->config2 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 		default:
-			setNvmData(config, (cdvd.CBlockIndex++) * 16, 16, offsetof(NVMLayout, config1));
+			cdvdWriteNVM(config, nvmLayout->config1 + ((cdvd.CBlockIndex++) * 16), 16);
 			break;
 	}
 	return 0;
@@ -1997,12 +1982,12 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 					break;
 				case 0x44: // write console ID (9:1)
 					SetSCMDResultSize(1);
-					setNvmData(&cdvd.SCMDParamBuff[1], 0, 8, offsetof(NVMLayout, consoleId));
+					cdvdWriteNVM(&cdvd.SCMDParamBuff[1], getNvmLayout()->consoleId, 8);
 					break;
 
 				case 0x45: // read console ID (1:9)
 					SetSCMDResultSize(9);
-					getNvmData(&cdvd.SCMDResultBuff[1], 0, 8, offsetof(NVMLayout, consoleId));
+					cdvdReadNVM(&cdvd.SCMDResultBuff[1], getNvmLayout()->consoleId, 8);
 					break;
 
 				case 0xFD: // _sceCdReadRenewalDate (1:6) BCD
@@ -2117,7 +2102,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x12: // sceCdReadILinkId (0:9)
 			SetSCMDResultSize(9);
-			getNvmData(&cdvd.SCMDResultBuff[1], 0, 8, offsetof(NVMLayout, ilinkId));
+			cdvdReadNVM(&cdvd.SCMDResultBuff[1], getNvmLayout()->ilinkId, 8);
 			if ((!cdvd.SCMDResultBuff[3]) && (!cdvd.SCMDResultBuff[4])) // nvm file is missing correct iLinkId, return hardcoded one
 			{
 				cdvd.SCMDResultBuff[0] = 0x00;
@@ -2134,7 +2119,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x13: // sceCdWriteILinkID (8:1)
 			SetSCMDResultSize(1);
-			setNvmData(&cdvd.SCMDParamBuff[1], 0, 8, offsetof(NVMLayout, ilinkId));
+			cdvdWriteNVM(&cdvd.SCMDResultBuff[1], getNvmLayout()->ilinkId, 8);
 			break;
 
 		case 0x14: // CdCtrlAudioDigitalOut (1:1)
@@ -2155,12 +2140,12 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x17: // CdReadModelNumber (1:9) - from xcdvdman
 			SetSCMDResultSize(9);
-			getNvmData(&cdvd.SCMDResultBuff[1], cdvd.SCMDParamBuff[0], 8, offsetof(NVMLayout, modelNum));
+			cdvdReadNVM(&cdvd.SCMDResultBuff[1], getNvmLayout()->modelNum + cdvd.SCMDResultBuff[0], 8);
 			break;
 
 		case 0x18: // CdWriteModelNumber (9:1) - from xcdvdman
 			SetSCMDResultSize(1);
-			setNvmData(&cdvd.SCMDParamBuff[1], cdvd.SCMDParamBuff[0], 8, offsetof(NVMLayout, modelNum));
+			cdvdWriteNVM(&cdvd.SCMDParamBuff[1], getNvmLayout()->modelNum + cdvd.SCMDResultBuff[0], 8);
 			break;
 
 			//		case 0x19: // sceCdForbidRead (0:1) - from xcdvdman
@@ -2292,7 +2277,7 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 			SetSCMDResultSize(15);
 
 			memcpy(&cdvd.SCMDResultBuff[1], &s_mecha_version, sizeof(u32));
-			getNvmData(&cdvd.SCMDResultBuff[3], 0, 8, offsetof(NVMLayout, regparams)); //size==8
+			cdvdReadNVM(&cdvd.SCMDResultBuff[3], getNvmLayout()->regparams, 8);
 			cdvd.SCMDResultBuff[1] = 1 << cdvd.SCMDResultBuff[1]; //encryption zone; see offset 0x1C in encrypted headers
 								      //////////////////////////////////////////
 			cdvd.SCMDResultBuff[2] = 0; //??
@@ -2313,17 +2298,17 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 		case 0x37: //called from EECONF [sceCdReadMAC - made up name] (0:9)
 			SetSCMDResultSize(9);
-			getNvmData(&cdvd.SCMDResultBuff[1], 0, 8, offsetof(NVMLayout, mac));
+			cdvdReadNVM(&cdvd.SCMDResultBuff[1], getNvmLayout()->mac, 8);
 			break;
 
 		case 0x38: //used to fix the MAC back after accidentally trashed it :D [sceCdWriteMAC - made up name] (8:1)
 			SetSCMDResultSize(1);
-			setNvmData(&cdvd.SCMDParamBuff[0], 0, 8, offsetof(NVMLayout, mac));
+			cdvdWriteNVM(&cdvd.SCMDResultBuff[0], getNvmLayout()->mac, 8);
 			break;
 
 		case 0x3E: //[__sceCdWriteRegionParams - made up name] (15:1) [Florin: hum, i was expecting 14:1]
 			SetSCMDResultSize(1);
-			setNvmData(&cdvd.SCMDParamBuff[2], 0, 8, offsetof(NVMLayout, regparams));
+			cdvdWriteNVM(&cdvd.SCMDParamBuff[2], getNvmLayout()->regparams, 8);
 			break;
 
 		case 0x40: // CdOpenConfig (3:1)
