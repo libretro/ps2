@@ -145,16 +145,13 @@ static void recStore(u32 bits)
 	// allocation -- simpler code and just as fast)
 
 	int regt;
-	bool xmm;
+	bool xmm = false;
 	if (bits < 128)
-	{
 		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
-		xmm = false;
-	}
 	else
 	{
 		regt = _allocGPRtoXMMreg(_Rt_, MODE_READ);
-		xmm = true;
+		xmm  = true;
 	}
 
 	// Load ECX with the destination address, or issue a direct optimized write

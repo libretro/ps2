@@ -27,8 +27,6 @@
 #include "VirtualMemory.h"
 #include "VMManager.h"
 
-#include <time.h>
-
 #ifndef _WIN32
 #include <sys/types.h>
 #endif

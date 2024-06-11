@@ -52,13 +52,18 @@ bool _isAllocatableX86reg(int x86reg)
 	if (x86reg == arg1reg.Id || x86reg == arg2reg.Id)
 		return false;
 
-	// arg3reg is also used for dispatching without fastmem
-	if (!CHECK_FASTMEM && x86reg == arg3reg.Id)
-		return false;
-
-	// rbp is used as the fastmem base
-	if (CHECK_FASTMEM && x86reg == 5)
-		return false;
+	if (CHECK_FASTMEM)
+	{
+		// rbp is used as the fastmem base
+		if (x86reg == 5)
+			return false;
+	}
+	else
+	{
+		// arg3reg is also used for dispatching without fastmem
+		if (x86reg == arg3reg.Id)
+			return false;
+	}
 
 	// rsp is never allocatable..
 	if (x86reg == 4)
@@ -72,9 +77,7 @@ bool _hasX86reg(int type, int reg, int required_mode /*= 0*/)
 	for (uint i = 0; i < iREGCNT_GPR; i++)
 	{
 		if (x86regs[i].inuse && x86regs[i].type == type && x86regs[i].reg == reg)
-		{
 			return ((x86regs[i].mode & required_mode) == required_mode);
-		}
 	}
 
 	return false;
@@ -113,24 +116,18 @@ int _getFreeXMMreg(u32 maxreg)
 			switch (xmmregs[i].type)
 			{
 				case XMMTYPE_GPRREG:
-				{
-					if (EEINST_USEDTEST(xmmregs[i].reg))
-						continue;
-				}
+				if (EEINST_USEDTEST(xmmregs[i].reg))
+					continue;
 				break;
 
 				case XMMTYPE_FPREG:
-				{
-					if (FPUINST_USEDTEST(xmmregs[i].reg))
-						continue;
-				}
+				if (FPUINST_USEDTEST(xmmregs[i].reg))
+					continue;
 				break;
 
 				case XMMTYPE_VFREG:
-				{
-					if (EEINST_VFUSEDTEST(xmmregs[i].reg))
-						continue;
-				}
+				if (EEINST_VFUSEDTEST(xmmregs[i].reg))
+					continue;
 				break;
 			}
 
@@ -191,15 +188,13 @@ int _checkXMMreg(int type, int reg, int mode)
 	{
 		if (xmmregs[i].inuse && (xmmregs[i].type == (type & 0xff)) && (xmmregs[i].reg == reg))
 		{
+			// go through the alloc path instead, because we might need to invalidate a gpr.
 			if (type == XMMTYPE_GPRREG && (mode & MODE_WRITE))
-			{
-				// go through the alloc path instead, because we might need to invalidate a gpr.
 				return _allocGPRtoXMMreg(reg, mode);
-			}
 
-			xmmregs[i].mode |= mode;
+			xmmregs[i].mode   |= mode;
 			xmmregs[i].counter = g_xmmAllocCounter++; // update counter
-			xmmregs[i].needed = 1;
+			xmmregs[i].needed  = 1;
 			return i;
 		}
 	}
@@ -212,9 +207,7 @@ bool _hasXMMreg(int type, int reg, int required_mode /*= 0*/)
 	for (uint i = 0; i < iREGCNT_XMM; i++)
 	{
 		if (xmmregs[i].inuse && xmmregs[i].type == type && xmmregs[i].reg == reg)
-		{
 			return ((xmmregs[i].mode & required_mode) == required_mode);
-		}
 	}
 
 	return false;
@@ -277,19 +270,20 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 		if (!xmmregs[i].inuse || xmmregs[i].type != XMMTYPE_GPRREG || xmmregs[i].reg != gprreg)
 			continue;
 
-		if (mode & MODE_WRITE && hostx86reg >= 0)
-			x86regs[hostx86reg].inuse = 0;
-
 		if (mode & MODE_WRITE)
 		{
-			if (GPR_IS_CONST1(gprreg))
-			{
-				GPR_DEL_CONST(gprreg);
-			}
 			if (hostx86reg >= 0)
 			{
+				x86regs[hostx86reg].inuse = 0;
+				if (GPR_IS_CONST1(gprreg))
+					g_cpuHasConstReg &= ~(1 << (gprreg));
 				// x86 register should be up to date, because if it was written, it should've been invalidated
 				_freeX86regWithoutWriteback(hostx86reg);
+			}
+			else
+			{
+				if (GPR_IS_CONST1(gprreg))
+					g_cpuHasConstReg &= ~(1 << (gprreg));
 			}
 		}
 
@@ -350,13 +344,14 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 		}
 	}
 
-	if (mode & MODE_WRITE && gprreg < 32 && GPR_IS_CONST1(gprreg))
+	if (mode & MODE_WRITE)
 	{
-		GPR_DEL_CONST(gprreg);
-	}
-	if (mode & MODE_WRITE && hostx86reg >= 0)
-	{
-		_freeX86regWithoutWriteback(hostx86reg);
+		if (GPR_IS_CONST1(gprreg))
+			g_cpuHasConstReg &= ~(1 << (gprreg));
+		if (hostx86reg >= 0)
+		{
+			_freeX86regWithoutWriteback(hostx86reg);
+		}
 	}
 
 	return xmmreg;
