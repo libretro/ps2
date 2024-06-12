@@ -69,10 +69,6 @@ namespace MTGS
 	static Threading::WorkSema s_sem_event;
 	static Threading::UserspaceSemaphore s_sem_Vsync;
 
-	// Used to delay the sending of events.  Performance is better if the ringbuffer
-	// has more than one command in it when the thread is kicked.
-	static int s_CopyDataTally                      = 0;
-
 	static std::thread::id s_thread;
 	static volatile bool s_open_flag = false;
 	static Threading::UserspaceSemaphore s_open_or_close_done;
@@ -101,13 +97,9 @@ void MTGS::ResetGS(bool hardware_reset)
 	tag.data[2]                 = 0;
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-	++s_CopyDataTally;
 
 	if (hardware_reset)
-	{
 		s_sem_event.NotifyOfWork();
-		s_CopyDataTally = 0;
-	}
 }
 
 void MTGS::PostVsyncStart()
@@ -122,7 +114,6 @@ void MTGS::PostVsyncStart()
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
 	s_sem_event.NotifyOfWork();
-	s_CopyDataTally = 0;
 
 	// If the MTGS is allowed to queue a lot of frames in advance, it creates input lag.
 	// Use the Queued FrameCount to stall the EE if another vsync (or two) are already queued
@@ -162,7 +153,6 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 	tag.pointer                 = (uptr)mem;
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-	++s_CopyDataTally;
 	WaitGS(false);
 }
 
@@ -306,7 +296,6 @@ void MTGS::WaitGS(bool isMTVU)
 		return;
 
 	s_sem_event.NotifyOfWork();
-	s_CopyDataTally = 0;
 	if (isMTVU)
 	{
 		Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
@@ -356,7 +345,6 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 	tag.pointer                 = (uptr)&data;
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-	++s_CopyDataTally;
 	WaitGS(false);
 }
 
@@ -401,16 +389,10 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 		tag.data[1]                 = (int)_gsPack.size;
 
 		gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
-		MTGS::s_CopyDataTally      += _gsPack.size / 16;
 	}
 	tag.data[2]                         = (int)_path;
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
-	++MTGS::s_CopyDataTally;
-	if (MTGS::s_CopyDataTally > 0x2000)
-	{
-		MTGS::s_sem_event.NotifyOfWork();
-		MTGS::s_CopyDataTally = 0;
-	}
+	MTGS::s_sem_event.NotifyOfWork();
 }
 
 void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
@@ -424,10 +406,6 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	tag.data[2]                 = (int)_path;
 
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
-	if (MTGS::s_CopyDataTally > 0x2000)
-	{
-		MTGS::s_sem_event.NotifyOfWork();
-		MTGS::s_CopyDataTally = 0;
-	}
+	MTGS::s_sem_event.NotifyOfWork();
 }
 
