@@ -272,10 +272,6 @@ void MTGS::MainLoop(bool flush_all)
 				case GS_RINGTYPE_RESET:
 					GSreset(tag.data[0] != 0);
 					break;
-
-				case GS_RINGTYPE_SOFTRESET:
-					GSgifSoftReset(tag.data[0]);
-					break;
 				case GS_RINGTYPE_INIT_AND_READ_FIFO:
 					GSInitAndReadFIFO((u8*)tag.pointer, tag.data[0]);
 					break;
