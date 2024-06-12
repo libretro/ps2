@@ -192,9 +192,7 @@ int _allocX86reg(int type, int reg, int mode)
 				if (mode & MODE_WRITE)
 				{
 					if (GPR_IS_CONST1(reg))
-					{
-						GPR_DEL_CONST(reg);
-					}
+						g_cpuHasConstReg &= ~(1 << (reg));
 
 					if (hostXMMreg >= 0)
 					{
@@ -315,10 +313,8 @@ int _allocX86reg(int type, int reg, int mode)
 
 	if (type == X86TYPE_GPR && (mode & MODE_WRITE))
 	{
-		if (reg < 32 && GPR_IS_CONST1(reg))
-		{
-			GPR_DEL_CONST(reg);
-		}
+		if (GPR_IS_CONST1(reg))
+			g_cpuHasConstReg &= ~(1 << (reg));
 		if (hostXMMreg >= 0)
 		{
 			// writing, so kill the xmm allocation. gotta ensure the upper bits gets stored first.
@@ -327,10 +323,8 @@ int _allocX86reg(int type, int reg, int mode)
 	}
 	else if (type == X86TYPE_PSX && (mode & MODE_WRITE))
 	{
-		if (reg < 32 && PSX_IS_CONST1(reg))
-		{
-			PSX_DEL_CONST(reg);
-		}
+		if (PSX_IS_CONST1(reg))
+			g_psxHasConstReg &= ~(1 << (reg));
 	}
 
 	return regnum;
