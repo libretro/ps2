@@ -57,8 +57,6 @@ extern struct retro_hw_render_callback hw_render;
 
 namespace MTGS
 {
-	static void SetEvent();
-
 	// note: when s_ReadPos == s_WritePos, the fifo is empty
 	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
 	static volatile unsigned int s_ReadPos      = 0; // cur pos gs is reading from
@@ -108,7 +106,10 @@ void MTGS::ResetGS(bool hardware_reset)
 	++s_CopyDataTally;
 
 	if (hardware_reset)
-		SetEvent();
+	{
+		s_sem_event.NotifyOfWork();
+		s_CopyDataTally = 0;
+	}
 }
 
 void MTGS::PostVsyncStart()
@@ -120,10 +121,10 @@ void MTGS::PostVsyncStart()
 	tag.data[0]                       = 0;
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-	++s_CopyDataTally;
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
-	SetEvent();
+	s_sem_event.NotifyOfWork();
+	s_CopyDataTally = 0;
 
 	// If the MTGS is allowed to queue a lot of frames in advance, it creates input lag.
 	// Use the Queued FrameCount to stall the EE if another vsync (or two) are already queued
@@ -318,7 +319,8 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 	if (!s_open_flag) /* WaitGS issued on a closed thread! */
 		return;
 
-	SetEvent();
+	s_sem_event.NotifyOfWork();
+	s_CopyDataTally = 0;
 	if (weakWait && isMTVU)
 	{
 		Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
@@ -346,14 +348,6 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 		/* if it returns false, MTGS thread died */
 		if (!s_sem_event.WaitForEmpty()) { }
 	}
-}
-
-// Sets the gsEvent flag and releases a timeslice.
-// For use in loops that wait on the GS thread to do certain things.
-void MTGS::SetEvent()
-{
-	s_sem_event.NotifyOfWork();
-	s_CopyDataTally = 0;
 }
 
 void MTGS::WaitForClose()
@@ -389,10 +383,10 @@ void MTGS::RunOnGSThread(AsyncCallType func)
 	tag.pointer                 = (uptr)new AsyncCallType(std::move(func));
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-	++s_CopyDataTally;
 
-	// wake the gs thread in case it's sleeping
-	SetEvent();
+	// wake the GS thread in case it's sleeping
+	s_sem_event.NotifyOfWork();
+	s_CopyDataTally = 0;
 }
 
 void MTGS::GameChanged()
@@ -455,7 +449,10 @@ void Gif_AddGSPacketMTVU(GIF_PATH _path)
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	++MTGS::s_CopyDataTally;
 	if (MTGS::s_CopyDataTally > 0x2000)
-		MTGS::SetEvent();
+	{
+		MTGS::s_sem_event.NotifyOfWork();
+		MTGS::s_CopyDataTally = 0;
+	}
 }
 
 void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
@@ -472,7 +469,10 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 	++MTGS::s_CopyDataTally;
 	MTGS::s_CopyDataTally += _gsPack.size / 16;
 	if (MTGS::s_CopyDataTally > 0x2000)
-		MTGS::SetEvent();
+	{
+		MTGS::s_sem_event.NotifyOfWork();
+		MTGS::s_CopyDataTally = 0;
+	}
 }
 
 void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
@@ -487,6 +487,9 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	if (MTGS::s_CopyDataTally > 0x2000)
-		MTGS::SetEvent();
+	{
+		MTGS::s_sem_event.NotifyOfWork();
+		MTGS::s_CopyDataTally = 0;
+	}
 }
 
