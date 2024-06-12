@@ -31,7 +31,7 @@ extern void Gif_FinishIRQ();
 extern bool Gif_HandlerAD(u8* pMem);
 extern void Gif_HandlerAD_MTVU(u8* pMem);
 extern void Gif_AddBlankGSPacket(u32 size, GIF_PATH path);
-extern void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path);
+extern void Gif_AddGSPacketMTVU(GIF_PATH path);
 extern void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path);
 
 struct Gif_Tag
@@ -559,7 +559,7 @@ struct Gif_Unit
 	__fi void AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
 	{
 		if (gsPack.size == ~0u)
-			Gif_AddGSPacketMTVU(gsPack, path);
+			Gif_AddGSPacketMTVU(path);
 		else
 			Gif_AddCompletedGSPacket(gsPack, path);
 	}

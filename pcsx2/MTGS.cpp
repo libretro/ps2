@@ -443,14 +443,14 @@ void MTGS::ToggleSoftwareRendering()
 }
 
 // Used in MTVU mode... MTVU will later complete a real packet
-void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
+void Gif_AddGSPacketMTVU(GIF_PATH _path)
 {
 	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
 
 	tag.command                 = GS_RINGTYPE_MTVU_GSPACKET;
 	tag.data[0]                 = 0;
 	tag.data[1]                 = (int)0;
-	tag.data[2]                 = (int)path;
+	tag.data[2]                 = (int)_path;
 
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	++MTGS::s_CopyDataTally;
@@ -458,32 +458,32 @@ void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
 		MTGS::SetEvent();
 }
 
-void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
+void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 {
-	gifUnit.gifPath[path].readAmount.fetch_add(gsPack.size);
+	gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
 
 	tag.command                 = GS_RINGTYPE_GSPACKET;
-	tag.data[0]                 = (int)gsPack.offset;
-	tag.data[1]                 = (int)gsPack.size;
-	tag.data[2]                 = (int)path;
+	tag.data[0]                 = (int)_gsPack.offset;
+	tag.data[1]                 = (int)_gsPack.size;
+	tag.data[2]                 = (int)_path;
 
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	++MTGS::s_CopyDataTally;
-	MTGS::s_CopyDataTally += gsPack.size / 16;
+	MTGS::s_CopyDataTally += _gsPack.size / 16;
 	if (MTGS::s_CopyDataTally > 0x2000)
 		MTGS::SetEvent();
 }
 
-void Gif_AddBlankGSPacket(u32 size, GIF_PATH path)
+void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 {
-	gifUnit.gifPath[path].readAmount.fetch_add(size);
+	gifUnit.gifPath[_path].readAmount.fetch_add(_size);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
 
 	tag.command                 = GS_RINGTYPE_GSPACKET;
 	tag.data[0]                 = (int)~0u;
-	tag.data[1]                 = (int)size;
-	tag.data[2]                 = (int)path;
+	tag.data[1]                 = (int)_size;
+	tag.data[2]                 = (int)_path;
 
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	if (MTGS::s_CopyDataTally > 0x2000)
