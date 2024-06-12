@@ -745,13 +745,10 @@ static void vtlb_RemoveFastmemMappings(void)
 		if (s_fastmem_virtual_mapping[page] == NO_FASTMEM_MAPPING)
 			continue;
 
+		if (vtlb_IsHostCoalesced(page))
+			s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize);
+
 		s_fastmem_virtual_mapping[page] = NO_FASTMEM_MAPPING;
-
-		if (!vtlb_IsHostAligned(page << VTLB_PAGE_BITS))
-			continue;
-
-		if (!s_fastmem_area->Unmap(s_fastmem_area->PagePointer(vtlb_HostPage(page)), __pagesize))
-			Console.Error("Failed to unmap vaddr %08X", page * __pagesize);
 	}
 
 	s_fastmem_physical_mapping.clear();

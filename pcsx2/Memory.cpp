@@ -695,7 +695,7 @@ void memClearPageAddr(u32 vaddr)
 // PS2 Memory Init / Reset / Shutdown
 
 EEVM_MemoryAllocMess* eeMem = NULL;
-alignas(__pagesize) u8 eeHw[Ps2MemSize::Hardware];
+alignas(__pagealignsize) u8 eeHw[Ps2MemSize::Hardware];
 
 void memBindConditionalHandlers(void)
 {

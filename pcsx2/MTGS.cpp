@@ -52,7 +52,7 @@ struct MTGS_BufferedData
 //  MTGS Threaded Class Implementation
 // =====================================================================================================
 
-alignas(32) MTGS_BufferedData RingBuffer;
+alignas(__cachelinesize) MTGS_BufferedData RingBuffer;
 
 extern struct retro_hw_render_callback hw_render;
 
@@ -65,8 +65,8 @@ namespace MTGS
 
 	// note: when s_ReadPos == s_WritePos, the fifo is empty
 	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
-	static std::atomic<unsigned int> s_ReadPos      = 0; // cur pos gs is reading from
-	static std::atomic<unsigned int> s_WritePos     = 0; // cur pos ee thread is writing to
+	alignas(__cachelinesize) static std::atomic<unsigned int> s_ReadPos      = 0; // cur pos gs is reading from
+	alignas(__cachelinesize) static std::atomic<unsigned int> s_WritePos     = 0; // cur pos ee thread is writing to
 
 	static std::atomic<bool> s_SignalRingEnable     = false;
 	static std::atomic<int> s_SignalRingPosition    = 0;

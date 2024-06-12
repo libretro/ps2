@@ -37,12 +37,22 @@
 // Use this in those situations
 #define OFFSETOF(a, b) (reinterpret_cast<size_t>(&(static_cast<a*>(0)->b)))
 
-// Defines the memory page size for the target platform at compilation.  All supported platforms
-// (which means Intel only right now) have a 4k granularity.
-#define PCSX2_PAGESIZE 0x1000
-static constexpr int __pagesize = PCSX2_PAGESIZE;
-static constexpr int __pageshift = 12;
-static constexpr size_t __pagemask = PCSX2_PAGESIZE - 1;
+#if defined(_M_ARM64)
+/* Apple Silicon uses 16KB pages and 128 byte cache lines. */
+#define __pagesize 0x4000
+#define __pageshift 14
+#define __cachelinesize 128
+#else
+// X86 uses a 4KB granularity and 64 byte cache lines.
+#define __pagesize 0x1000
+#define __pageshift 12
+#define __cachelinesize 64
+#endif
+#define __pagemask (__pagesize - 1)
+
+// We use 4KB alignment for globals for both Apple and x86 platforms, since computing the
+// address on ARM64 is a single instruction (adrp).
+#define __pagealignsize 0x1000
 
 // --------------------------------------------------------------------------------------
 //  Microsoft Visual Studio
