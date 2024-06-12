@@ -4269,6 +4269,8 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	{
 		const GIFRegTEXA& TEXA = m_draw_env->TEXA;
 
+		m_conf.ps.aem = TEXA.AEM;
+
 		// Require a float conversion if the texure is a depth otherwise uses Integral scaling
 		if (psm.depth)
 			m_conf.ps.depth_fmt = (tex->m_texture->GetType() != GSTexture::Type::DepthStencil) ? 3 : tex->m_32_bits_fmt ? 1 : 2;
@@ -4276,16 +4278,10 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 		// Shuffle is a 16 bits format, so aem is always required
 		if (m_cached_ctx.TEX0.TCC)
 		{
-			m_conf.ps.aem = TEXA.AEM;
 			GSVector4 ta(TEXA & GSVector4i::x000000ff());
 			ta /= 255.0f;
 			m_conf.cb_ps.TA_MaxDepth_Af.x = ta.x;
 			m_conf.cb_ps.TA_MaxDepth_Af.y = ta.y;
-		}
-		else
-		{
-			m_conf.cb_ps.TA_MaxDepth_Af.x = 0;
-			m_conf.cb_ps.TA_MaxDepth_Af.y = 1.0f;
 		}
 
 		// The purpose of texture shuffle is to move color channel. Extra interpolation is likely a bad idea.
