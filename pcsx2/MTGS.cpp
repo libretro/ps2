@@ -109,13 +109,11 @@ void MTGS::PostVsyncStart()
 {
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
-	const unsigned int writepos       = s_WritePos;
-
-	PacketTagType& tag                = (PacketTagType&)m_Ring[writepos];
+	PacketTagType& tag                = (PacketTagType&)m_Ring[s_WritePos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = 0;
 
-	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
+	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
@@ -152,14 +150,13 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
 
 	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
 	tag.data[0]                 = qwc;
 	tag.pointer                 = (uptr)mem;
 
-	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
+	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 	WaitGS(false, false);
 }
@@ -355,15 +352,14 @@ void MTGS::SetEvent()
 
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
-	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
 
 	tag.command                 = type;
 	tag.data[0]                 = data0;
 	tag.data[1]                 = data1;
 	tag.data[2]                 = data2;
 
-	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
+	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 }
 
@@ -380,28 +376,26 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
 
 	tag.command                 = GS_RINGTYPE_FREEZE;
 	tag.data[0]                 = (int)mode;
 	tag.pointer                 = (uptr)&data;
 
-	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
+	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 	WaitGS(false, false);
 }
 
 void MTGS::RunOnGSThread(AsyncCallType func)
 {
-	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
 
 	tag.command                 = GS_RINGTYPE_ASYNC_CALL;
 	tag.data[0]                 = 0;
 	tag.pointer                 = (uptr)new AsyncCallType(std::move(func));
 
-	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
+	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 
 	// wake the gs thread in case it's sleeping
