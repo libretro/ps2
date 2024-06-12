@@ -165,7 +165,7 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
-	WaitGS(false, false);
+	WaitGS(false);
 }
 
 void MTGS::TryOpenGS(void)
@@ -302,9 +302,9 @@ void MTGS::CloseGS(void)
 }
 
 // Waits for the GS to empty out the entire ring buffer contents.
-// If weakWait, then this function is allowed to exit after MTGS finished a path1 packet
+// This function is allowed to exit after MTGS finished a path1 packet.
 // If isMTVU, then this implies this function is being called from the MTVU thread...
-void MTGS::WaitGS(bool weakWait, bool isMTVU)
+void MTGS::WaitGS(bool isMTVU)
 {
 	if(std::this_thread::get_id() == s_thread)
 	{
@@ -316,11 +316,11 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 
 	s_sem_event.NotifyOfWork();
 	s_CopyDataTally = 0;
-	if (weakWait && isMTVU)
+	if (isMTVU)
 	{
 		Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
 
-		// On weakWait we will stop waiting on the MTGS thread if the
+		// We will stop waiting on the MTGS thread if the
 		// MTGS thread has processed a vu1 xgkick packet, or is pending on
 		// its final vu1 xgkick packet (!curP1Packs)...
 		// Note: s_WritePos doesn't seem to have proper atomic write
@@ -366,7 +366,7 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
-	WaitGS(false, false);
+	WaitGS(false);
 }
 
 void MTGS::RunOnGSThread(AsyncCallType func)
@@ -399,7 +399,7 @@ void MTGS::ApplySettings()
 	// is unsynchronized, because otherwise we might potentially read in the middle of
 	// the GS renderer being reopened.
 	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
-		WaitGS(false, false);
+		WaitGS(false);
 }
 
 void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
@@ -410,7 +410,7 @@ void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 
 	// See note in ApplySettings() for reasoning here.
 	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
-		WaitGS(false, false);
+		WaitGS(false);
 }
 
 // Adds a finished GS Packet to the MTGS ring buffer
