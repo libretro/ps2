@@ -59,8 +59,6 @@ namespace MTGS
 {
 	static void SetEvent();
 
-	static void SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2);
-
 	// note: when s_ReadPos == s_WritePos, the fifo is empty
 	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
 	static volatile unsigned int s_ReadPos      = 0; // cur pos gs is reading from
@@ -99,7 +97,15 @@ void MTGS::ResetGS(bool hardware_reset)
 		s_VsyncSignalListener = 0;
 	}
 
-	SendSimplePacket(GS_RINGTYPE_RESET, static_cast<int>(hardware_reset), 0, 0);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
+
+	tag.command                 = GS_RINGTYPE_RESET;
+	tag.data[0]                 = static_cast<int>(hardware_reset);
+	tag.data[1]                 = 0;
+	tag.data[2]                 = 0;
+
+	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
+	++s_CopyDataTally;
 
 	if (hardware_reset)
 		SetEvent();
@@ -350,19 +356,6 @@ void MTGS::SetEvent()
 	s_CopyDataTally = 0;
 }
 
-void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
-{
-	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
-
-	tag.command                 = type;
-	tag.data[0]                 = data0;
-	tag.data[1]                 = data1;
-	tag.data[2]                 = data2;
-
-	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-	++s_CopyDataTally;
-}
-
 void MTGS::WaitForClose()
 {
 	// and kick the thread if it's sleeping
@@ -452,7 +445,15 @@ void MTGS::ToggleSoftwareRendering()
 // Used in MTVU mode... MTVU will later complete a real packet
 void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
 {
-	MTGS::SendSimplePacket(GS_RINGTYPE_MTVU_GSPACKET, 0, (int)0, (int)path);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
+
+	tag.command                 = GS_RINGTYPE_MTVU_GSPACKET;
+	tag.data[0]                 = 0;
+	tag.data[1]                 = (int)0;
+	tag.data[2]                 = (int)path;
+
+	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
+	++MTGS::s_CopyDataTally;
 	if (MTGS::s_CopyDataTally > 0x2000)
 		MTGS::SetEvent();
 }
@@ -460,8 +461,15 @@ void Gif_AddGSPacketMTVU(GS_Packet& gsPack, GIF_PATH path)
 void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
 {
 	gifUnit.gifPath[path].readAmount.fetch_add(gsPack.size);
-	MTGS::SendSimplePacket(GS_RINGTYPE_GSPACKET, (int)gsPack.offset, (int)gsPack.size, (int)path);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
 
+	tag.command                 = GS_RINGTYPE_GSPACKET;
+	tag.data[0]                 = (int)gsPack.offset;
+	tag.data[1]                 = (int)gsPack.size;
+	tag.data[2]                 = (int)path;
+
+	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
+	++MTGS::s_CopyDataTally;
 	MTGS::s_CopyDataTally += gsPack.size / 16;
 	if (MTGS::s_CopyDataTally > 0x2000)
 		MTGS::SetEvent();
@@ -470,9 +478,14 @@ void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
 void Gif_AddBlankGSPacket(u32 size, GIF_PATH path)
 {
 	gifUnit.gifPath[path].readAmount.fetch_add(size);
-	MTGS::SendSimplePacket(GS_RINGTYPE_GSPACKET, (int)~0u, (int)size, (int)path);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
 
-	MTGS::s_CopyDataTally += -1;
+	tag.command                 = GS_RINGTYPE_GSPACKET;
+	tag.data[0]                 = (int)~0u;
+	tag.data[1]                 = (int)size;
+	tag.data[2]                 = (int)path;
+
+	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	if (MTGS::s_CopyDataTally > 0x2000)
 		MTGS::SetEvent();
 }
