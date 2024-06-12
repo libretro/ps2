@@ -3310,8 +3310,13 @@ __forceinline void GSState::VertexKick(u32 skip)
 				break;
 		}
 
+#ifdef _M_ARM64
+		// mask() is slow on ARM, so just pull the bits out instead, thankfully we only care about the first 4 bytes.
+		skip |= (static_cast<u64>(test.extract64<0>()) & UINT64_C(0x8080808080808080)) != 0;
+#else
 		// We only care about the xy passing the skip test. zw is the offset coordinates for native culling.
 		skip |= test.mask() & 0xff;
+#endif
 	}
 
 	if (skip != 0)
