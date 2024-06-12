@@ -334,10 +334,6 @@ template bool vtlb_ramWrite<mem128_t>(u32 mem, const mem128_t& data);
 //
 // Important recompiler note: Mid-block Exception handling isn't reliable *yet* because
 // memory ops don't flush the PC prior to invoking the indirect handlers.
-
-
-static void GoemonTlbMissDebug(void) { }
-
 void GoemonPreloadTlb(void)
 {
 	// 0x3d5580 is the address of the TLB cache table
@@ -394,9 +390,6 @@ void GoemonUnloadTlb(u32 key)
 // Generates a tlbMiss Exception
 static __ri void vtlb_Miss(u32 addr, u32 mode)
 {
-	if (EmuConfig.Gamefixes.GoemonTlbHack)
-		GoemonTlbMissDebug();
-
 	// Hack to handle expected tlb miss by some games.
 	if (Cpu == &intCpu)
 	{
