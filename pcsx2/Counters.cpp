@@ -536,29 +536,6 @@ static __fi void VSyncStart(u32 sCycle)
 
 	if (gates)
 		rcntStartGate(true, sCycle); // Counters Start Gate code
-
-	// INTC - VB Blank Start Hack --
-	// Hack fix!  This corrects a freezeup in Granda 2 where it decides to spin
-	// on the INTC_STAT register after the exception handler has already cleared
-	// it.  But be warned!  Set the value to larger than 4 and it breaks Dark
-	// Cloud and other games. -_-
-
-	// How it works: Normally the INTC raises exceptions immediately at the end of the
-	// current branch test.  But in the case of Grandia 2, the game's code is spinning
-	// on the INTC status, and the exception handler (for some reason?) clears the INTC
-	// before returning *and* returns to a location other than EPC.  So the game never
-	// gets to the point where it sees the INTC Irq set true.
-
-	// (I haven't investigated why Dark Cloud freezes on larger values)
-	// (all testing done using the recompiler -- dunno how the ints respond yet)
-
-	//cpuRegs.eCycle[30] = 2;
-
-	// Update 08/2021: The only game I know to require this kind of thing as of 1.7.0 is Penny Racers/Gadget Racers (which has a patch to avoid the problem and others)
-	// These games have a tight loop checking INTC_STAT waiting for the VBLANK Start, however the game also has a VBLANK Hander which clears it.
-	// Therefore, there needs to be some delay in order for it to see the interrupt flag before the interrupt is acknowledged, likely helped on real hardware by the pipelines.
-	// Without the patch and fixing this, the games have other issues, so I'm not going to rush to fix it.
-	// Refraction
 }
 
 static __fi void GSVSync(void)
