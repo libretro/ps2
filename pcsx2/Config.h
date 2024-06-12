@@ -329,6 +329,14 @@ enum GSHalfPixelOffset
 	MaxCount
 };
 
+enum GSNativeScaling
+{
+	NativeScaling_Normal = 0,
+	NativeScaling_Aggressive,
+	NativeScaling_Off,
+	NativeScaling_MaxCount
+};
+
 // Template function for casting enumerations to their underlying type
 template <typename Enumeration>
 typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
@@ -522,6 +530,7 @@ struct Pcsx2Config
 		GSHWAutoFlushLevel UserHacks_AutoFlush = GSHWAutoFlushLevel::Disabled;
 		GSHalfPixelOffset UserHacks_HalfPixelOffset = GSHalfPixelOffset::Off;
 		s8 UserHacks_RoundSprite = 0;
+		GSNativeScaling UserHacks_NativeScaling = GSNativeScaling::NativeScaling_Normal;
 		s32 UserHacks_TCOffsetX = 0;
 		s32 UserHacks_TCOffsetY = 0;
 		u8 UserHacks_CPUSpriteRenderBW = 0;

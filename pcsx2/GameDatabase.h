@@ -67,6 +67,7 @@ namespace GameDatabaseSchema
 		HalfBottomOverride,
 		HalfPixelOffset,
 		RoundSprite,
+		NativeScaling,
 		TexturePreloading,
 		Deinterlace,
 		CPUSpriteRenderBW,
