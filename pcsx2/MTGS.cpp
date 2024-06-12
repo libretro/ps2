@@ -65,14 +65,14 @@ namespace MTGS
 
 	// note: when s_ReadPos == s_WritePos, the fifo is empty
 	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
-	alignas(__cachelinesize) static std::atomic<unsigned int> s_ReadPos      = 0; // cur pos gs is reading from
-	alignas(__cachelinesize) static std::atomic<unsigned int> s_WritePos     = 0; // cur pos ee thread is writing to
+	static volatile unsigned int s_ReadPos      = 0; // cur pos gs is reading from
+	static volatile unsigned int s_WritePos     = 0; // cur pos ee thread is writing to
 
-	static std::atomic<bool> s_SignalRingEnable     = false;
-	static std::atomic<int> s_SignalRingPosition    = 0;
+	static volatile bool s_SignalRingEnable     = false;
+	static volatile int s_SignalRingPosition    = 0;
 
-	static std::atomic<int> s_QueuedFrameCount      = 0;
-	static std::atomic<bool> s_VsyncSignalListener  = false;
+	static volatile int  s_QueuedFrameCount      = 0;
+	static volatile bool s_VsyncSignalListener  = false;
 
 	static std::mutex s_mtx_RingBufferBusy2; // Gets released on semaXGkick waiting...
 	static Threading::WorkSema s_sem_event;
@@ -85,12 +85,12 @@ namespace MTGS
 
 	static std::thread::id s_thread;
 	static Threading::ThreadHandle s_thread_handle;
-	static std::atomic_bool s_open_flag{false};
+	static volatile bool s_open_flag = false;
 	static Threading::UserspaceSemaphore s_open_or_close_done;
 };
 
 const Threading::ThreadHandle& MTGS::GetThreadHandle() { return s_thread_handle; }
-bool MTGS::IsOpen() { return s_open_flag.load(std::memory_order_acquire); }
+bool MTGS::IsOpen() { return s_open_flag; }
 
 void MTGS::ResetGS(bool hardware_reset)
 {
@@ -100,7 +100,7 @@ void MTGS::ResetGS(bool hardware_reset)
 	//  * clear the path and byRegs structs (used by GIFtagDummy)
 	if (hardware_reset)
 	{
-		s_ReadPos             = s_WritePos.load();
+		s_ReadPos             = s_WritePos;
 		s_QueuedFrameCount    = 0;
 		s_VsyncSignalListener = 0;
 	}
@@ -117,13 +117,13 @@ void MTGS::PostVsyncStart()
 
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
-	const unsigned int writepos       = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos       = s_WritePos;
 
 	PacketTagType& tag                = (PacketTagType&)RingBuffer.m_Ring[writepos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = 0;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
@@ -140,10 +140,10 @@ void MTGS::PostVsyncStart()
 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
 
-	if ((s_QueuedFrameCount.fetch_add(1) < EmuConfig.GS.VsyncQueueSize))
+	if ((s_QueuedFrameCount++ < EmuConfig.GS.VsyncQueueSize))
 		return;
 
-	s_VsyncSignalListener.store(true, std::memory_order_release);
+	s_VsyncSignalListener = true;
 
 	s_sem_Vsync.Wait();
 }
@@ -161,14 +161,14 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 	}
 
 	GenericStall();
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
 	tag.data[0]                 = qwc;
 	tag.pointer                 = (uptr)mem;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 	WaitGS(false, false);
 }
@@ -179,7 +179,7 @@ bool MTGS::TryOpenGS(void)
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
-	s_open_flag.store(true, std::memory_order_release);
+	s_open_flag = true;
 	// notify emu thread that we finished opening (or failed)
 	s_open_or_close_done.Post();
 	return true;
@@ -206,14 +206,14 @@ void MTGS::MainLoop(bool flush_all)
 			mtvu_lock.lock();
 		}
 
-		if (!s_open_flag.load(std::memory_order_acquire))
+		if (!s_open_flag)
 			break;
 
 		// note: s_ReadPos is intentionally not volatile, because it should only
 		// ever be modified by this thread.
-		while (s_ReadPos.load(std::memory_order_relaxed) != s_WritePos.load(std::memory_order_acquire))
+		while (s_ReadPos != s_WritePos)
 		{
-			const unsigned int local_ReadPos = s_ReadPos.load(std::memory_order_relaxed);
+			const unsigned int local_ReadPos = s_ReadPos;
 			const PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[local_ReadPos];
 
 			switch (tag.command)
@@ -252,9 +252,12 @@ void MTGS::MainLoop(bool flush_all)
 						GSvsync((((u32&)PS2MEM_GS[0x1000]) & 0x2000) ? 0 : 1, s_GSRegistersWritten);
 					s_GSRegistersWritten = false;
 
-					s_QueuedFrameCount.fetch_sub(1);
-					if (s_VsyncSignalListener.exchange(false))
+					s_QueuedFrameCount--;
+					if (s_VsyncSignalListener)
+					{
 						s_sem_Vsync.Post();
+						s_VsyncSignalListener = false;
+					}
 					break;
 				case GS_RINGTYPE_ASYNC_CALL:
 				{
@@ -287,20 +290,21 @@ void MTGS::MainLoop(bool flush_all)
 
 			uint newringpos = (local_ReadPos + 1) & RINGBUFFERMASK;
 
-			s_ReadPos.store(newringpos, std::memory_order_release);
+			s_ReadPos = newringpos;
 
-			if(!flush_all && tag.command == GS_RINGTYPE_VSYNC) {
+			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
+			{
 				s_sem_event.NotifyOfWork();
 				return;
 			}
 
-			if (s_SignalRingEnable.load(std::memory_order_acquire))
+			if (s_SignalRingEnable)
 			{
 				// The EEcore has requested a signal after some amount of processed data.
-				if (s_SignalRingPosition.fetch_sub(1) <= 0)
+				if (s_SignalRingPosition-- <= 0)
 				{
 					// Make sure to post the signal after the m_ReadPos has been updated...
-					s_SignalRingEnable.store(false, std::memory_order_release);
+					s_SignalRingEnable = false;
 					s_sem_OnRingReset.Post();
 					continue;
 				}
@@ -313,32 +317,40 @@ void MTGS::MainLoop(bool flush_all)
 		// won't sleep the eternity, even if SignalRingPosition didn't reach 0 for some reason.
 		// Important: Need to unlock the MTGS busy signal PRIOR, so that EEcore SetEvent() calls
 		// parallel to this handler aren't accidentally blocked.
-		if (s_SignalRingEnable.exchange(false))
+		if (s_SignalRingEnable)
 		{
-			s_SignalRingPosition.store(0, std::memory_order_release);
+			s_SignalRingEnable   = false;
+			s_SignalRingPosition = 0;
 			s_sem_OnRingReset.Post();
 		}
 
-		if (s_VsyncSignalListener.exchange(false))
+		if (s_VsyncSignalListener)
+		{
+			s_VsyncSignalListener = false;
 			s_sem_Vsync.Post();
+		}
 	}
 
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
-	s_ReadPos.store(s_WritePos.load(std::memory_order_acquire), std::memory_order_relaxed);
+	s_ReadPos = s_WritePos;
 	s_sem_event.Kill();
 }
 
 void MTGS::CloseGS(void)
 {
-	if( s_SignalRingEnable.exchange(false) )
+	if (s_SignalRingEnable)
 	{
-		s_SignalRingPosition.store(0, std::memory_order_release);
+		s_SignalRingEnable   = false;
+		s_SignalRingPosition = 0;
 		s_sem_OnRingReset.Post();
 	}
-	if (s_VsyncSignalListener.exchange(false))
+	if (s_VsyncSignalListener)
+	{
+		s_VsyncSignalListener = false;
 		s_sem_Vsync.Post();
+	}
 	GSclose();
-	s_open_flag.store(false, std::memory_order_release);
+	s_open_flag = false;
 	s_open_or_close_done.Post();
 }
 
@@ -352,7 +364,7 @@ void MTGS::WaitGS(bool weakWait, bool isMTVU)
 		MainLoop(true);
 		return;
 	}
-	if (!IsOpen()) /* WaitGS issued on a closed thread! */
+	if (!s_open_flag) /* WaitGS issued on a closed thread! */
 		return;
 
 	SetEvent();
@@ -399,14 +411,14 @@ void MTGS::GenericStall()
 	// Note on volatiles: s_WritePos is not modified by the GS thread, so there's no need
 	// to use volatile reads here.  We do cache it though, since we know it never changes,
 	// except for calls to RingbufferRestert() -- handled below.
-	const uint writepos = s_WritePos.load(std::memory_order_relaxed);
+	const uint writepos = s_WritePos;
 
 	// generic gs wait/stall.
 	// if the writepos is past the readpos then we're safe.
 	// But if not then we need to make sure the readpos is outside the scope of
 	// the block about to be written (writepos + size)
 
-	uint readpos = s_ReadPos.load(std::memory_order_acquire);
+	uint readpos = s_ReadPos;
 	uint freeroom;
 
 	if (writepos < readpos)
@@ -434,14 +446,14 @@ void MTGS::GenericStall()
 
 		if (somedone > 0x80)
 		{
-			s_SignalRingPosition.store(somedone, std::memory_order_release);
+			s_SignalRingPosition = somedone;
 
 			for (;;)
 			{
-				s_SignalRingEnable.store(true, std::memory_order_release);
+				s_SignalRingEnable = true;
 				SetEvent();
 				s_sem_OnRingReset.Wait();
-				readpos = s_ReadPos.load(std::memory_order_acquire);
+				readpos = s_ReadPos;
 				if (writepos < readpos)
 					freeroom = readpos - writepos;
 				else
@@ -456,7 +468,7 @@ void MTGS::GenericStall()
 			SetEvent();
 			for (;;)
 			{
-				readpos = s_ReadPos.load(std::memory_order_acquire);
+				readpos = s_ReadPos;
 
 				if (writepos < readpos)
 					freeroom = readpos - writepos;
@@ -473,7 +485,7 @@ void MTGS::GenericStall()
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
 	GenericStall();
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
 	tag.command                 = type;
@@ -481,7 +493,7 @@ void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int dat
 	tag.data[1]                 = data1;
 	tag.data[2]                 = data2;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 }
 
@@ -499,14 +511,14 @@ void MTGS::WaitForClose()
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
 	GenericStall();
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_FREEZE;
 	tag.data[0]                 = (int)mode;
 	tag.pointer                 = (uptr)&data;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 	WaitGS(false, false);
 }
@@ -514,14 +526,14 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 void MTGS::RunOnGSThread(AsyncCallType func)
 {
 	GenericStall();
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_ASYNC_CALL;
 	tag.data[0]                 = 0;
 	tag.pointer                 = (uptr)new AsyncCallType(std::move(func));
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	s_WritePos = (writepos + 1) & RINGBUFFERMASK;
 	++s_CopyDataTally;
 
 	// wake the gs thread in case it's sleeping
