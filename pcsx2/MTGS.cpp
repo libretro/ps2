@@ -71,7 +71,6 @@ namespace MTGS
 
 	static std::thread::id s_thread;
 	static volatile bool s_open_flag = false;
-	static Threading::UserspaceSemaphore s_open_or_close_done;
 };
 
 bool MTGS::IsOpen() { return s_open_flag; }
@@ -163,8 +162,6 @@ void MTGS::TryOpenGS(void)
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
 	s_open_flag = true;
-	// notify emu thread that we finished opening (or failed)
-	s_open_or_close_done.Post();
 }
 
 void MTGS::MainLoop(bool flush_all)
@@ -279,7 +276,6 @@ void MTGS::CloseGS(void)
 	}
 	GSclose();
 	s_open_flag = false;
-	s_open_or_close_done.Post();
 }
 
 // Waits for the GS to empty out the entire ring buffer contents.
@@ -329,9 +325,6 @@ void MTGS::WaitForClose()
 {
 	// and kick the thread if it's sleeping
 	s_sem_event.NotifyOfWork();
-
-	// and wait for it to finish up..
-	s_open_or_close_done.Wait();
 
 	s_thread = {};
 }
