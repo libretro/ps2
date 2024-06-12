@@ -68,15 +68,11 @@ namespace MTGS
 	static volatile unsigned int s_ReadPos      = 0; // cur pos gs is reading from
 	static volatile unsigned int s_WritePos     = 0; // cur pos ee thread is writing to
 
-	static volatile bool s_SignalRingEnable     = false;
-	static volatile int s_SignalRingPosition    = 0;
-
 	static volatile int  s_QueuedFrameCount      = 0;
 	static volatile bool s_VsyncSignalListener  = false;
 
 	static std::mutex s_mtx_RingBufferBusy2; // Gets released on semaXGkick waiting...
 	static Threading::WorkSema s_sem_event;
-	static Threading::UserspaceSemaphore s_sem_OnRingReset;
 	static Threading::UserspaceSemaphore s_sem_Vsync;
 
 	// Used to delay the sending of events.  Performance is better if the ringbuffer
@@ -297,32 +293,9 @@ void MTGS::MainLoop(bool flush_all)
 				s_sem_event.NotifyOfWork();
 				return;
 			}
-
-			if (s_SignalRingEnable)
-			{
-				// The EEcore has requested a signal after some amount of processed data.
-				if (s_SignalRingPosition-- <= 0)
-				{
-					// Make sure to post the signal after the m_ReadPos has been updated...
-					s_SignalRingEnable = false;
-					s_sem_OnRingReset.Post();
-					continue;
-				}
-			}
 		}
 
 		// TODO: With the new race-free WorkSema do we still need these?
-
-		// Safety valve in case standard signals fail for some reason -- this ensures the EEcore
-		// won't sleep the eternity, even if SignalRingPosition didn't reach 0 for some reason.
-		// Important: Need to unlock the MTGS busy signal PRIOR, so that EEcore SetEvent() calls
-		// parallel to this handler aren't accidentally blocked.
-		if (s_SignalRingEnable)
-		{
-			s_SignalRingEnable   = false;
-			s_SignalRingPosition = 0;
-			s_sem_OnRingReset.Post();
-		}
 
 		if (s_VsyncSignalListener)
 		{
@@ -338,12 +311,6 @@ void MTGS::MainLoop(bool flush_all)
 
 void MTGS::CloseGS(void)
 {
-	if (s_SignalRingEnable)
-	{
-		s_SignalRingEnable   = false;
-		s_SignalRingPosition = 0;
-		s_sem_OnRingReset.Post();
-	}
 	if (s_VsyncSignalListener)
 	{
 		s_VsyncSignalListener = false;
@@ -446,13 +413,9 @@ void MTGS::GenericStall()
 
 		if (somedone > 0x80)
 		{
-			s_SignalRingPosition = somedone;
-
 			for (;;)
 			{
-				s_SignalRingEnable = true;
 				SetEvent();
-				s_sem_OnRingReset.Wait();
 				readpos = s_ReadPos;
 				if (writepos < readpos)
 					freeroom = readpos - writepos;
