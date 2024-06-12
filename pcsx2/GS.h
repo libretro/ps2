@@ -241,7 +241,6 @@ struct MTGS_FreezeData
 // --------------------------------------------------------------------------------------
 namespace MTGS
 {
-	const Threading::ThreadHandle& GetThreadHandle();
 	bool IsOpen();
 
 	// Waits for the GS to empty out the entire ring buffer contents.

@@ -74,12 +74,10 @@ namespace MTGS
 	static int s_CopyDataTally                      = 0;
 
 	static std::thread::id s_thread;
-	static Threading::ThreadHandle s_thread_handle;
 	static volatile bool s_open_flag = false;
 	static Threading::UserspaceSemaphore s_open_or_close_done;
 };
 
-const Threading::ThreadHandle& MTGS::GetThreadHandle() { return s_thread_handle; }
 bool MTGS::IsOpen() { return s_open_flag; }
 
 void MTGS::ResetGS(bool hardware_reset)

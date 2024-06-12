@@ -1217,7 +1217,6 @@ void VMManager::SetEmuThreadAffinities()
 		if (EmuConfig.Cpu.AffinityControlMode != 0)
 			Console.Error("Insufficient processors for affinity control.");
 
-		MTGS::GetThreadHandle().SetAffinity(0);
 		vu1Thread.GetThreadHandle().SetAffinity(0);
 		s_vm_thread_handle.SetAffinity(0);
 		return;
@@ -1254,10 +1253,6 @@ void VMManager::SetEmuThreadAffinities()
 	}
 	else
 		vu1Thread.GetThreadHandle().SetAffinity(0);
-
-	const u64 gs_affinity = static_cast<u64>(1) << gs_index;
-	Console.WriteLn(Color_StrongGreen, "GS thread is on processor %u (0x%llx)", gs_index, gs_affinity);
-	MTGS::GetThreadHandle().SetAffinity(gs_affinity);
 }
 
 void VMManager::SetHardwareDependentDefaultSettings(SettingsInterface& si)
