@@ -413,56 +413,29 @@ void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 		WaitGS(false, false);
 }
 
-void MTGS::SetSoftwareRendering(bool software)
-{
-	// for hardware, use the chosen api in the base config, or auto if base is set to sw
-	GSRendererType new_renderer;
-	if (!software)
-		new_renderer = EmuConfig.GS.UseHardwareRenderer() ? EmuConfig.GS.Renderer : GSRendererType::Auto;
-	else
-		new_renderer = GSRendererType::SW;
-
-	SwitchRenderer(new_renderer, EmuConfig.GS.InterlaceMode);
-}
-
-void MTGS::ToggleSoftwareRendering()
-{
-	// reading from the GS thread.. but should be okay here
-	SetSoftwareRendering(GSConfig.Renderer != GSRendererType::SW);
-}
-
-// Used in MTVU mode... MTVU will later complete a real packet
-void Gif_AddGSPacketMTVU(GIF_PATH _path)
-{
-	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
-
-	tag.command                 = GS_RINGTYPE_MTVU_GSPACKET;
-	tag.data[0]                 = 0;
-	tag.data[1]                 = (int)0;
-	tag.data[2]                 = (int)_path;
-
-	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
-	++MTGS::s_CopyDataTally;
-	if (MTGS::s_CopyDataTally > 0x2000)
-	{
-		MTGS::s_sem_event.NotifyOfWork();
-		MTGS::s_CopyDataTally = 0;
-	}
-}
-
+// Adds a finished GS Packet to the MTGS ring buffer
 void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 {
-	gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
+	if (_gsPack.size == ~0u)
+	{
+		// Used in MTVU mode... MTVU will later complete a real packet
+		tag.command                 = GS_RINGTYPE_MTVU_GSPACKET;
+		tag.data[0]                 = 0;
+		tag.data[1]                 = (int)0;
+	}
+	else
+	{
+		tag.command                 = GS_RINGTYPE_GSPACKET;
+		tag.data[0]                 = (int)_gsPack.offset;
+		tag.data[1]                 = (int)_gsPack.size;
 
-	tag.command                 = GS_RINGTYPE_GSPACKET;
-	tag.data[0]                 = (int)_gsPack.offset;
-	tag.data[1]                 = (int)_gsPack.size;
-	tag.data[2]                 = (int)_path;
-
+		gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
+		MTGS::s_CopyDataTally      += _gsPack.size / 16;
+	}
+	tag.data[2]                         = (int)_path;
 	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
 	++MTGS::s_CopyDataTally;
-	MTGS::s_CopyDataTally += _gsPack.size / 16;
 	if (MTGS::s_CopyDataTally > 0x2000)
 	{
 		MTGS::s_sem_event.NotifyOfWork();

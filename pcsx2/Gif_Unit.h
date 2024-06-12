@@ -31,7 +31,6 @@ extern void Gif_FinishIRQ();
 extern bool Gif_HandlerAD(u8* pMem);
 extern void Gif_HandlerAD_MTVU(u8* pMem);
 extern void Gif_AddBlankGSPacket(u32 size, GIF_PATH path);
-extern void Gif_AddGSPacketMTVU(GIF_PATH path);
 extern void Gif_AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path);
 
 struct Gif_Tag
@@ -555,15 +554,6 @@ struct Gif_Unit
 		}
 	}
 
-	// Adds a finished GS Packet to the MTGS ring buffer
-	__fi void AddCompletedGSPacket(GS_Packet& gsPack, GIF_PATH path)
-	{
-		if (gsPack.size == ~0u)
-			Gif_AddGSPacketMTVU(path);
-		else
-			Gif_AddCompletedGSPacket(gsPack, path);
-	}
-
 	// Returns GS Packet Size in bytes
 	u32 GetGSPacketSize(GIF_PATH pathIdx, u8* pMem, u32 offset = 0, u32 size = ~0u, bool flush = false)
 	{
@@ -678,7 +668,7 @@ struct Gif_Unit
 		Gif_Path& path = gifPath[stat.APATH - 1];
 		if (path.gsPack.size && !path.gifTag.isValid)
 		{
-			AddCompletedGSPacket(path.gsPack, (GIF_PATH)(stat.APATH - 1));
+			Gif_AddCompletedGSPacket(path.gsPack, (GIF_PATH)(stat.APATH - 1));
 			path.gsPack.offset = path.curOffset;
 			path.gsPack.size = 0;
 		}
@@ -716,7 +706,7 @@ struct Gif_Unit
 							{                                                 // Packet had other tags which we already processed
 								u32 subOffset = path.gifTag.isValid ? 16 : 0; // if isValid, image-primitive not finished
 								gsPack.size           -= subOffset;           // Remove the image-tag (should be last thing read)
-								AddCompletedGSPacket(gsPack, GIF_PATH_3);     // Consider current packet complete
+								Gif_AddCompletedGSPacket(gsPack, GIF_PATH_3);     // Consider current packet complete
 													      
 								path.curOffset        -= subOffset;           // Start the next GS packet at the image-tag
 													      
@@ -735,7 +725,7 @@ struct Gif_Unit
 				}
 				if (gifPath[curPath].state == GIF_PATH_WAIT || gifPath[curPath].state == GIF_PATH_IDLE)
 				{
-					AddCompletedGSPacket(gsPack, (GIF_PATH)(stat.APATH - 1));
+					Gif_AddCompletedGSPacket(gsPack, (GIF_PATH)(stat.APATH - 1));
 				}
 			}
 			if (!gsSIGNAL.queued && !gifPath[0].isDone())

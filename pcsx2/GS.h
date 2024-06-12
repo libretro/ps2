@@ -263,8 +263,6 @@ namespace MTGS
 	void GameChanged();
 	void ApplySettings();
 	void SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace);
-	void SetSoftwareRendering(bool software);
-	void ToggleSoftwareRendering();
 
 	void TryOpenGS(void);
 	void CloseGS(void);
