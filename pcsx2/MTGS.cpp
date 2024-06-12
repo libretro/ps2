@@ -28,6 +28,10 @@
 #include "Host.h"
 #include "VMManager.h"
 
+// Mask to apply to ring buffer indices to wrap the pointer from end to
+// start (the wrapping is what makes it a ringbuffer, yo!)
+static const unsigned int RINGBUFFERMASK = RINGBUFFERSIZE - 1;
+
 union PacketTagType
 {
 	struct
@@ -43,16 +47,11 @@ union PacketTagType
 	};
 };
 
-struct MTGS_BufferedData
-{
-	u128 m_Ring[RINGBUFFERSIZE];
-};
-
 // =====================================================================================================
 //  MTGS Threaded Class Implementation
 // =====================================================================================================
 
-alignas(__cachelinesize) MTGS_BufferedData RingBuffer;
+alignas(__cachelinesize) static u128 m_Ring[RINGBUFFERSIZE];
 
 extern struct retro_hw_render_callback hw_render;
 
@@ -112,7 +111,7 @@ void MTGS::PostVsyncStart()
 	// length in SIMDs (128 bits).
 	const unsigned int writepos       = s_WritePos;
 
-	PacketTagType& tag                = (PacketTagType&)RingBuffer.m_Ring[writepos];
+	PacketTagType& tag                = (PacketTagType&)m_Ring[writepos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = 0;
 
@@ -154,7 +153,7 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 	}
 
 	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
 	tag.data[0]                 = qwc;
@@ -205,16 +204,15 @@ void MTGS::MainLoop(bool flush_all)
 		// ever be modified by this thread.
 		while (s_ReadPos != s_WritePos)
 		{
-			const unsigned int local_ReadPos = s_ReadPos;
-			const PacketTagType& tag = (PacketTagType&)RingBuffer.m_Ring[local_ReadPos];
+			const PacketTagType& tag = (PacketTagType&)m_Ring[s_ReadPos];
 
 			switch (tag.command)
 			{
 				case GS_RINGTYPE_GSPACKET:
 				{
 					Gif_Path& path = gifUnit.gifPath[tag.data[2]];
-					u32 offset = tag.data[0];
-					u32 size = tag.data[1];
+					u32 offset     = tag.data[0];
+					u32 size       = tag.data[1];
 					if (offset != ~0u)
 						GSgifTransfer((u8*)&path.buffer[offset], size / 16);
 					path.readAmount.fetch_sub(size, std::memory_order_acq_rel);
@@ -250,7 +248,10 @@ void MTGS::MainLoop(bool flush_all)
 						s_sem_Vsync.Post();
 						s_VsyncSignalListener = false;
 					}
-					break;
+					s_ReadPos = (s_ReadPos + 1) & RINGBUFFERMASK;
+					if (!flush_all)
+						s_sem_event.NotifyOfWork();
+					return;
 				case GS_RINGTYPE_ASYNC_CALL:
 				{
 					AsyncCallType* const func = (AsyncCallType*)tag.pointer;
@@ -280,23 +281,7 @@ void MTGS::MainLoop(bool flush_all)
 					break;
 			}
 
-			uint newringpos = (local_ReadPos + 1) & RINGBUFFERMASK;
-
-			s_ReadPos = newringpos;
-
-			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
-			{
-				s_sem_event.NotifyOfWork();
-				return;
-			}
-		}
-
-		// TODO: With the new race-free WorkSema do we still need these?
-
-		if (s_VsyncSignalListener)
-		{
-			s_VsyncSignalListener = false;
-			s_sem_Vsync.Post();
+			s_ReadPos = (s_ReadPos + 1) & RINGBUFFERMASK;
 		}
 	}
 
@@ -371,7 +356,7 @@ void MTGS::SetEvent()
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
 	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = type;
 	tag.data[0]                 = data0;
@@ -396,7 +381,7 @@ void MTGS::WaitForClose()
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
 	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_FREEZE;
 	tag.data[0]                 = (int)mode;
@@ -410,7 +395,7 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 void MTGS::RunOnGSThread(AsyncCallType func)
 {
 	const unsigned int writepos = s_WritePos;
-	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_ASYNC_CALL;
 	tag.data[0]                 = 0;

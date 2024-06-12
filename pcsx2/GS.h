@@ -309,15 +309,8 @@ extern tGS_CSR CSRr;
 // (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])
 // A value of 19 is a 8meg ring buffer.  18 would be 4 megs, and 20 would be 16 megs.
 // Default was 2mb, but some games with lots of MTGS activity want 8mb to run fast (rama)
-#define RINGBUFFERSIZEFACTOR 19
-
 // size of the ringbuffer in simd128's. RingBufferSize = 1 << RINGBUFFERSIZEFACTOR
 #define RINGBUFFERSIZE 524288
-
-// Mask to apply to ring buffer indices to wrap the pointer from end to
-// start (the wrapping is what makes it a ringbuffer, yo!)
-// RingBufferMask = RINGBUFFERSIZE - 1
-#define RINGBUFFERMASK 524287
 
 // FIXME: These belong in common with other memcpy tools.  Will move them there later if no one
 // else beats me to it.  --air
