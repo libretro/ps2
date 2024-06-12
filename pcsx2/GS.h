@@ -253,7 +253,7 @@ namespace MTGS
 	void PostVsyncStart();
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
-	void MainLoop(bool flush_all = false);
+	void MainLoop(bool flush_all);
 
 	void GameChanged();
 	void ApplySettings();

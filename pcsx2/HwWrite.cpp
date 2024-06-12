@@ -51,21 +51,21 @@ void TAKES_R128 hwWrite128(u32 mem, r128 srcval)
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_VIF0(&usrcval);
 			}
-			return;
+			break;
 
 		case 0x05:
 			{
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_VIF1(&usrcval);
 			}
-			return;
+			break;
 
 		case 0x06:
 			{
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_GIF(&usrcval);
 			}
-			return;
+			break;
 
 		case 0x07:
 			if (mem & 0x10)
@@ -73,7 +73,7 @@ void TAKES_R128 hwWrite128(u32 mem, r128 srcval)
 				alignas(16) const u128 usrcval = r128_to_u128(srcval);
 				WriteFIFO_IPUin(&usrcval);
 			}
-			return;
+			break;
 
 		case 0x0F:
 			// todo: psx mode: this is new
@@ -82,11 +82,11 @@ void TAKES_R128 hwWrite128(u32 mem, r128 srcval)
 				PGIFwQword((mem & 0x1FFFFFFF), (void*)&usrcval);
 				return;
 			}
-
-		default: break;
+			// fallthrough
+		default:
+			hwWrite64<page>(mem, r128_to_u64(srcval));
+			break;
 	}
-
-	hwWrite64<page>(mem, r128_to_u64(srcval));
 }
 
 
@@ -129,13 +129,17 @@ void hwWrite8(u32 mem, u8 value)
 		case INTC_MASK:
 		case DMAC_FAKESTAT:
 			hwWrite32<page>(mem & ~3, (u32)value << (mem & 3) * 8);
-			return;
+			break;
+		default:
+			{
+				u32 merged = _hwRead32<page,false>(mem & ~0x03);
+				((u8*)&merged)[mem & 0x3] = value;
+
+				hwWrite32<page>(mem & ~0x03, merged);
+			}
+			break;
 	}
 
-	u32 merged = _hwRead32<page,false>(mem & ~0x03);
-	((u8*)&merged)[mem & 0x3] = value;
-
-	hwWrite32<page>(mem & ~0x03, merged);
 }
 
 
@@ -150,17 +154,17 @@ void hwWrite32( u32 mem, u32 value )
 	switch (page)
 	{
 		case 0x00:
-			if (!rcntWrite32<0x00>(mem, value)) return;
+			if (!rcntWrite32<0x00>(mem, value))
+				return;
 			break;
-
 		case 0x01:
-			if (!rcntWrite32<0x01>(mem, value)) return;
+			if (!rcntWrite32<0x01>(mem, value))
+				return;
 			break;
-
 		case 0x02:
-			if (!ipuWrite32(mem, value)) return;
+			if (!ipuWrite32(mem, value))
+				return;
 			break;
-
 		case 0x04:
 		case 0x05:
 		case 0x06:
@@ -220,7 +224,7 @@ void hwWrite32( u32 mem, u32 value )
 					return;
 				}
 			}
-		break;
+			break;
 
 		case 0x08:
 		case 0x09:
@@ -229,7 +233,8 @@ void hwWrite32( u32 mem, u32 value )
 		case 0x0c:
 		case 0x0d:
 		case 0x0e:
-			if (!dmacWrite32<page>(mem, value)) return;
+			if (!dmacWrite32<page>(mem, value))
+				return;
 			break;
 
 		case 0x0f:
@@ -334,13 +339,17 @@ void hwWrite16(u32 mem, u16 value)
 		case INTC_MASK:
 		case DMAC_FAKESTAT:
 			hwWrite32<page>(mem & ~3, (u32)value << (mem & 3) * 8);
-			return;
+			break;
+		default:
+			{
+				u32 merged = _hwRead32<page,false>(mem & ~0x03);
+				((u16*)&merged)[(mem>>1) & 0x1] = value;
+
+				hwWrite32<page>(mem & ~0x03, merged);
+			}
+			break;
 	}
 
-	u32 merged = _hwRead32<page,false>(mem & ~0x03);
-	((u16*)&merged)[(mem>>1) & 0x1] = value;
-
-	hwWrite32<page>(mem & ~0x03, merged);
 }
 
 template<uint page>
@@ -355,8 +364,8 @@ void hwWrite64( u32 mem, u64 value )
 		case 0x02:
 			if (!ipuWrite64(mem, value))
 				return;
+			memcpy(&eeHw[(mem) & 0xffff], &value, sizeof(value));
 			break;
-
 		case 0x04:
 		case 0x05:
 		case 0x06:
@@ -369,16 +378,15 @@ void hwWrite64( u32 mem, u64 value )
 				zerofill._u64[(mem >> 3) & 0x01] = value;
 				hwWrite128<page>(mem & ~0x0f, r128_from_u128(zerofill));
 			}
-			return;
+			break;
 
 		default:
 			// disregard everything except the lower 32 bits.
 			// ... and skip the 64 bit writeback since the 32-bit one will suffice.
 			hwWrite32<page>( mem, value );
-			return;
+			break;
 	}
 
-	memcpy(&eeHw[(mem) & 0xffff], &value, sizeof(value));
 }
 
 #define InstantizeHwWrite(pageidx) \
