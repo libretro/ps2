@@ -168,7 +168,7 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 	WaitGS(false, false);
 }
 
-bool MTGS::TryOpenGS(void)
+void MTGS::TryOpenGS(void)
 {
 	s_thread = std::this_thread::get_id();
 
@@ -177,7 +177,6 @@ bool MTGS::TryOpenGS(void)
 	s_open_flag = true;
 	// notify emu thread that we finished opening (or failed)
 	s_open_or_close_done.Post();
-	return true;
 }
 
 void MTGS::MainLoop(bool flush_all)

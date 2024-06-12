@@ -270,7 +270,7 @@ namespace MTGS
 	void SetSoftwareRendering(bool software);
 	void ToggleSoftwareRendering();
 
-	bool TryOpenGS(void);
+	void TryOpenGS(void);
 	void CloseGS(void);
 };
 
