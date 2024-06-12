@@ -18,7 +18,6 @@
 #include "common/Pcsx2Defs.h"
 
 #include <ctime>
-#include <functional>
 #include <string>
 #include <optional>
 #include <vector>

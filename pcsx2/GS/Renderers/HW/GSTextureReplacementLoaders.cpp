@@ -21,6 +21,8 @@
 #include <file/file_path.h>
 #include <string/stdstring.h>
 
+#include <functional> /* std::function */
+
 #include "common/Align.h"
 #include "common/Console.h"
 #include "common/FileSystem.h"

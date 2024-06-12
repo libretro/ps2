@@ -227,8 +227,7 @@ enum MTGS_RingCommand
 	GS_RINGTYPE_RESET, // issues a GSreset() command.
 	GS_RINGTYPE_GSPACKET,
 	GS_RINGTYPE_MTVU_GSPACKET,
-	GS_RINGTYPE_INIT_AND_READ_FIFO,
-	GS_RINGTYPE_ASYNC_CALL,
+	GS_RINGTYPE_INIT_AND_READ_FIFO
 };
 
 
@@ -242,8 +241,6 @@ struct MTGS_FreezeData
 // --------------------------------------------------------------------------------------
 namespace MTGS
 {
-	using AsyncCallType = std::function<void()>;
-
 	const Threading::ThreadHandle& GetThreadHandle();
 	bool IsOpen();
 
@@ -259,7 +256,6 @@ namespace MTGS
 
 	void MainLoop(bool flush_all = false);
 
-	void RunOnGSThread(AsyncCallType func);
 	void GameChanged();
 	void ApplySettings();
 	void SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace);

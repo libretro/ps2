@@ -16,7 +16,6 @@
 #pragma once
 
 #include <condition_variable>
-#include <functional>
 #include <string>
 #include <vector>
 #include <optional>

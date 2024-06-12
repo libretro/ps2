@@ -34,6 +34,7 @@
 #include <dxgi1_5.h>
 #include <memory>
 #include <vector>
+#include <functional>
 #include <wil/com.h>
 
 struct IDXGIAdapter;

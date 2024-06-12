@@ -255,13 +255,6 @@ void MTGS::MainLoop(bool flush_all)
 					if (!flush_all)
 						s_sem_event.NotifyOfWork();
 					return;
-				case GS_RINGTYPE_ASYNC_CALL:
-				{
-					AsyncCallType* const func = (AsyncCallType*)tag.pointer;
-					(*func)();
-					delete func;
-				}
-					break;
 				case GS_RINGTYPE_FREEZE:
 				{
 					MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
@@ -369,32 +362,14 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 	WaitGS(false);
 }
 
-void MTGS::RunOnGSThread(AsyncCallType func)
-{
-	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
-
-	tag.command                 = GS_RINGTYPE_ASYNC_CALL;
-	tag.data[0]                 = 0;
-	tag.pointer                 = (uptr)new AsyncCallType(std::move(func));
-
-	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
-
-	// wake the GS thread in case it's sleeping
-	s_sem_event.NotifyOfWork();
-	s_CopyDataTally = 0;
-}
-
 void MTGS::GameChanged()
 {
-	RunOnGSThread(GSGameChanged);
+	GSGameChanged();
 }
 
 void MTGS::ApplySettings()
 {
-	RunOnGSThread([opts = EmuConfig.GS]() {
-		GSUpdateConfig(opts, hw_render.context_type);
-	});
-
+	GSUpdateConfig(EmuConfig.GS, hw_render.context_type);
 	// We need to synchronize the thread when changing any settings when the download mode
 	// is unsynchronized, because otherwise we might potentially read in the middle of
 	// the GS renderer being reopened.
@@ -404,10 +379,7 @@ void MTGS::ApplySettings()
 
 void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 {
-	RunOnGSThread([renderer, interlace]() {
-		GSSwitchRenderer(renderer, hw_render.context_type, interlace);
-	});
-
+	GSSwitchRenderer(renderer, hw_render.context_type, interlace);
 	// See note in ApplySettings() for reasoning here.
 	if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
 		WaitGS(false);
