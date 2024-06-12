@@ -59,7 +59,6 @@ extern struct retro_hw_render_callback hw_render;
 namespace MTGS
 {
 	static void SetEvent();
-	static void GenericStall();
 
 	static void SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2);
 
@@ -109,8 +108,6 @@ void MTGS::ResetGS(bool hardware_reset)
 
 void MTGS::PostVsyncStart()
 {
-	GenericStall();
-
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
 	const unsigned int writepos       = s_WritePos;
@@ -156,7 +153,6 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	GenericStall();
 	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
@@ -372,82 +368,8 @@ void MTGS::SetEvent()
 	s_CopyDataTally = 0;
 }
 
-void MTGS::GenericStall()
-{
-	const uint size     = 1;
-	// Note on volatiles: s_WritePos is not modified by the GS thread, so there's no need
-	// to use volatile reads here.  We do cache it though, since we know it never changes,
-	// except for calls to RingbufferRestert() -- handled below.
-	const uint writepos = s_WritePos;
-
-	// generic gs wait/stall.
-	// if the writepos is past the readpos then we're safe.
-	// But if not then we need to make sure the readpos is outside the scope of
-	// the block about to be written (writepos + size)
-
-	uint readpos = s_ReadPos;
-	uint freeroom;
-
-	if (writepos < readpos)
-		freeroom = readpos - writepos;
-	else
-		freeroom = RINGBUFFERSIZE - (writepos - readpos);
-
-	if (freeroom <= size)
-	{
-		// writepos will overlap readpos if we commit the data, so we need to wait until
-		// readpos is out past the end of the future write pos, or until it wraps around
-		// (in which case writepos will be >= readpos).
-
-		// Ideally though we want to wait longer, because if we just toss in this packet
-		// the next packet will likely stall up too.  So lets set a condition for the MTGS
-		// thread to wake up the EE once there's a sizable chunk of the ringbuffer emptied.
-
-		uint somedone = (RINGBUFFERSIZE - freeroom) / 4;
-		if (somedone < size + 1)
-			somedone = size + 1;
-
-		// FMV Optimization: FMVs typically send *very* little data to the GS, in some cases
-		// every other frame is nothing more than a page swap.  Sleeping the EEcore is a
-		// waste of time, and we get better results using a spinwait.
-
-		if (somedone > 0x80)
-		{
-			for (;;)
-			{
-				SetEvent();
-				readpos = s_ReadPos;
-				if (writepos < readpos)
-					freeroom = readpos - writepos;
-				else
-					freeroom = RINGBUFFERSIZE - (writepos - readpos);
-
-				if (freeroom > size)
-					break;
-			}
-		}
-		else
-		{
-			SetEvent();
-			for (;;)
-			{
-				readpos = s_ReadPos;
-
-				if (writepos < readpos)
-					freeroom = readpos - writepos;
-				else
-					freeroom = RINGBUFFERSIZE - (writepos - readpos);
-
-				if (freeroom > size)
-					break;
-			}
-		}
-	}
-}
-
 void MTGS::SendSimplePacket(MTGS_RingCommand type, int data0, int data1, int data2)
 {
-	GenericStall();
 	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
@@ -473,7 +395,6 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	GenericStall();
 	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
@@ -488,7 +409,6 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 
 void MTGS::RunOnGSThread(AsyncCallType func)
 {
-	GenericStall();
 	const unsigned int writepos = s_WritePos;
 	PacketTagType& tag          = (PacketTagType&)RingBuffer.m_Ring[writepos];
 
