@@ -148,20 +148,3 @@ void Threading::KernelSemaphore::Wait()
 	sem_wait(&m_sema);
 #endif
 }
-
-bool Threading::KernelSemaphore::TryWait()
-{
-#if defined(_WIN32)
-	if (WaitForSingleObject(m_sema, 0) != WAIT_OBJECT_0)
-		return false;
-#elif defined(__APPLE__)
-	mach_timespec_t time = {};
-	kern_return_t res = semaphore_timedwait(m_sema, time);
-	if (res == KERN_OPERATION_TIMED_OUT)
-		return false;
-#else
-	if (sem_trywait(&m_sema) != 0)
-		return false;
-#endif
-	return true;
-}
