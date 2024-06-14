@@ -211,7 +211,8 @@ void cdvdLoadNVRAM(void)
 		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
 	}
-	filestream_close(fp);
+    if (fp)
+        filestream_close(fp);
 }
 
 void cdvdSaveNVRAM(void)
