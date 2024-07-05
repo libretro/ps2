@@ -624,10 +624,15 @@ static bool libretro_select_hw_render(void)
 {
 	if (Options::renderer == "Auto" || Options::renderer == "Software")
 	{
+#if defined(__APPLE__)
+        if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
+            return true;
+#else
 		retro_hw_context_type context_type = RETRO_HW_CONTEXT_NONE;
 		environ_cb(RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER, &context_type);
 		if (context_type != RETRO_HW_CONTEXT_NONE && libretro_set_hw_render(context_type))
 			return true;
+#endif
 	}
 #ifdef _WIN32
 	if (Options::renderer == "D3D11")
