@@ -1572,7 +1572,7 @@ SCAJ-20111:
   gameFixes:
     - XGKickHack # Fixes bad Geometry.
   gsHWFixes:
-    halfPixelOffset: 2 # Fixes depth lines.
+    roundSprite: 1 # Fixes depth lines + shadows misalignment.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
 SCAJ-20112:
@@ -12583,7 +12583,7 @@ SLED-52574:
   gameFixes:
     - XGKickHack # Fixes bad geometry.
   gsHWFixes:
-    halfPixelOffset: 2 # Fixes depth lines.
+    roundSprite: 1 # Fixes depth lines + shadows misalignment.
 SLED-52597:
   name: "Burnout 3 - Takedown [Demo]"
   region: "PAL-E"
@@ -19392,7 +19392,7 @@ SLES-52568:
   gameFixes:
     - XGKickHack # Fixes bad geometry.
   gsHWFixes:
-    halfPixelOffset: 2 # Fixes depth lines.
+    roundSprite: 1 # Fixes depth lines + shadows misalignment.
     PCRTCOverscan: 1 # Fixes offscreen image.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
@@ -38968,7 +38968,7 @@ SLPM-65801:
   gameFixes:
     - XGKickHack # Fixes bad geometry.
   gsHWFixes:
-    halfPixelOffset: 2 # Fixes depth lines.
+    roundSprite: 1 # Fixes depth lines + shadows misalignment.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
 SLPM-65802:
@@ -55935,7 +55935,7 @@ SLUS-20909:
   gameFixes:
     - XGKickHack # Fixes bad geometry.
   gsHWFixes:
-    halfPixelOffset: 2 # Fixes depth lines.
+    roundSprite: 1 # Fixes depth lines + shadows misalignment.
     mipmap: 2 # Mipmap + trilinear, improves some textures to match sw renderer.
     trilinearFiltering: 1
 SLUS-20910:
@@ -62528,7 +62528,7 @@ SLUS-29101:
   gameFixes:
     - XGKickHack # Fixes bad geometry.
   gsHWFixes:
-    halfPixelOffset: 2 # Fixes depth lines.
+    roundSprite: 1 # Fixes depth lines + shadows misalignment.
 SLUS-29104:
   name: "Galactic Wrestling - Featuring Ultimate Muscle [Demo]"
   region: "NTSC-U"
