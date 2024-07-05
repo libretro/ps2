@@ -107,7 +107,6 @@ alignas(__pagesize) static u8 iopRecDispatchers[__pagesize];
 static const void* iopDispatcherEvent = NULL;
 static const void* iopDispatcherReg = NULL;
 static const void* iopJITCompile = NULL;
-static const void* iopJITCompileInBlock = NULL;
 static const void* iopEnterRecompiledCode = NULL;
 static const void* iopExitRecompiledCode = NULL;
 
@@ -130,13 +129,6 @@ static const void* _DynGen_JITCompile(void)
 	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
 	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
 
-	return retval;
-}
-
-static const void* _DynGen_JITCompileInBlock(void)
-{
-	u8* retval = xGetPtr();
-	xJMP((const void*)iopJITCompile);
 	return retval;
 }
 
@@ -202,7 +194,6 @@ static void _DynGen_Dispatchers(void)
 	iopDispatcherReg = _DynGen_DispatcherReg();
 
 	iopJITCompile = _DynGen_JITCompile();
-	iopJITCompileInBlock = _DynGen_JITCompileInBlock();
 	iopEnterRecompiledCode = _DynGen_EnterRecompiledCode();
 
 	mode.m_write = false;
@@ -1220,15 +1211,6 @@ static void iopRecRecompile(const u32 startpc)
 
 	for (;;)
 	{
-		BASEBLOCK* pblock = PSX_GETBLOCK(i);
-		if (i != startpc && pblock->m_pFnptr != (uptr)iopJITCompile && pblock->m_pFnptr != (uptr)iopJITCompileInBlock)
-		{
-			// branch = 3
-			willbranch3 = 1;
-			s_nEndBlock = i;
-			break;
-		}
-
 		psxRegs.code = iopMemRead32(i);
 
 		switch (psxRegs.code >> 26)
@@ -1327,12 +1309,6 @@ StartRecomp:
 	}
 
 	s_pCurBlockEx->size = (psxpc - startpc) >> 2;
-
-	for (i = 1; i < (u32)s_pCurBlockEx->size; ++i)
-	{
-		if (s_pCurBlock[i].m_pFnptr == (uptr)iopJITCompile)
-			s_pCurBlock[i].m_pFnptr = ((uptr)iopJITCompileInBlock);
-	}
 
 	if (!(psxpc & 0x10000000))
 		g_psxMaxRecMem = std::max((psxpc & ~0xa0000000), g_psxMaxRecMem);

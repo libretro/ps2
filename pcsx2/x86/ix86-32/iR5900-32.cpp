@@ -230,7 +230,6 @@ alignas(__pagesize) static u8 eeRecDispatchers[__pagesize];
 static const void* DispatcherEvent = NULL;
 static const void* DispatcherReg = NULL;
 static const void* JITCompile = NULL;
-static const void* JITCompileInBlock = NULL;
 static const void* EnterRecompiledCode = NULL;
 static const void* DispatchBlockDiscard = NULL;
 static const void* DispatchPageReset = NULL;
@@ -295,9 +294,7 @@ static void recClear(u32 addr, u32 size)
 
 		lowerextent = std::min(lowerextent, blockstart);
 		upperextent = std::max(upperextent, blockend);
-		// This might end up inside a block that doesn't contain the clearing range,
-		// so set it to recompile now.  This will become JITCompile if we clear it.
-		pblock->m_pFnptr = ((uptr)JITCompileInBlock);
+		pblock->m_pFnptr = ((uptr)JITCompile);
 
 		blockidx--;
 	}
@@ -330,13 +327,6 @@ static const void* _DynGen_JITCompile(void)
 	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
 	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
 
-	return retval;
-}
-
-static const void* _DynGen_JITCompileInBlock(void)
-{
-	u8* retval = xGetAlignedCallTarget();
-	xJMP((const void*)JITCompile);
 	return retval;
 }
 
@@ -427,7 +417,6 @@ static void _DynGen_Dispatchers(void)
 	DispatcherReg = _DynGen_DispatcherReg();
 
 	JITCompile = _DynGen_JITCompile();
-	JITCompileInBlock = _DynGen_JITCompileInBlock();
 	EnterRecompiledCode = _DynGen_EnterRecompiledCode();
 	DispatchBlockDiscard = _DynGen_DispatchBlockDiscard();
 	DispatchPageReset = _DynGen_DispatchPageReset();
@@ -1747,18 +1736,9 @@ static void recRecompile(const u32 startpc)
 
 	for (;;)
 	{
-		BASEBLOCK* pblock = PC_GETBLOCK(i);
-
 		if (i != startpc) // Block size truncation checks.
 		{
 			if ((i & 0xffc) == 0x0) // breaks blocks at 4k page boundaries
-			{
-				willbranch3 = 1;
-				s_nEndBlock = i;
-				break;
-			}
-
-			if (pblock->m_pFnptr != (uptr)JITCompile && pblock->m_pFnptr != (uptr)JITCompileInBlock)
 			{
 				willbranch3 = 1;
 				s_nEndBlock = i;
@@ -2011,40 +1991,7 @@ StartRecomp:
 
 	s_pCurBlockEx->size = (pc - startpc) >> 2;
 
-	if (HWADDR(pc) <= Ps2MemSize::MainRam)
-	{
-		BASEBLOCKEX* oldBlock;
-		int i;
-
-		i = recBlocks.LastIndex(HWADDR(pc) - 4);
-		while ((oldBlock = recBlocks[i--]))
-		{
-			if (oldBlock == s_pCurBlockEx)
-				continue;
-			if (oldBlock->startpc >= HWADDR(pc))
-				continue;
-			if ((oldBlock->startpc + oldBlock->size * 4) <= HWADDR(startpc))
-				break;
-
-			if (memcmp(&recRAMCopy[oldBlock->startpc / 4], PSM(oldBlock->startpc),
-					oldBlock->size * 4))
-			{
-				recClear(startpc, (pc - startpc) / 4);
-				s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
-				break;
-			}
-		}
-
-		memcpy(&recRAMCopy[HWADDR(startpc) / 4], PSM(startpc), pc - startpc);
-	}
-
 	s_pCurBlock->m_pFnptr = ((uptr)recPtr);
-
-	for (i = 1; i < (u32)s_pCurBlockEx->size; i++)
-	{
-		if ((uptr)JITCompile == s_pCurBlock[i].m_pFnptr)
-			s_pCurBlock[i].m_pFnptr = (uptr)JITCompileInBlock;
-	}
 
 	if (!(pc & 0x10000000))
 		maxrecmem = std::max((pc & ~0xa0000000), maxrecmem);
