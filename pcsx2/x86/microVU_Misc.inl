@@ -401,65 +401,6 @@ void MIN_MAX_SS(mV, const xmm& to, const xmm& from, const xmm& t1in, bool min)
 		mVU.regAlloc->clearNeeded(t1);
 }
 
-// Not Used! - TriAce games only need a portion of this code to boot (see function below)
-// What this code attempts to do is do a floating point ADD with only 1 guard bit,
-// whereas FPU calculations that follow the IEEE standard have 3 guard bits (guard|round|sticky)
-// Warning: Modifies all vectors in 'to' and 'from', and Modifies t1in
-void ADD_SS_Single_Guard_Bit(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in)
-{
-	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
-
-	xMOVD(eax, to);
-	xMOVD(ecx, from);
-	xSHR (eax, 23);
-	xSHR (ecx, 23);
-	xAND (eax, 0xff);
-	xAND (ecx, 0xff);
-	xSUB (ecx, eax); // Exponent Difference
-
-	xForwardJL8 case_neg;
-	xForwardJE8 case_end1;
-
-	xCMP (ecx, 24);
-	xForwardJLE8 case_pos_small;
-
-	// case_pos_big:
-	xPAND(to, ptr128[sseMasks.ADD_SS]);
-	xForwardJump8 case_end2;
-
-	case_pos_small.SetTarget();
-	xDEC   (ecx);
-	xMOV   (eax, 0xffffffff);
-	xSHL   (eax, cl);
-	xMOVDZX(t1, eax);
-	xPAND  (to, t1);
-	xForwardJump8 case_end3;
-
-	case_neg.SetTarget();
-	xCMP (ecx, -24);
-	xForwardJGE8 case_neg_small;
-
-	// case_neg_big:
-	xPAND(from, ptr128[sseMasks.ADD_SS]);
-	xForwardJump8 case_end4;
-
-	case_neg_small.SetTarget();
-	xNOT   (ecx); // -ecx - 1
-	xMOV   (eax, 0xffffffff);
-	xSHL   (eax, cl);
-	xMOVDZX(t1, eax);
-	xPAND  (from, t1);
-
-	case_end1.SetTarget();
-	case_end2.SetTarget();
-	case_end3.SetTarget();
-	case_end4.SetTarget();
-
-	xADD.SS(to, from);
-	if (t1 != t1in)
-		mVU.regAlloc->clearNeeded(t1);
-}
-
 // Turns out only this is needed to get TriAce games booting with mVU
 // Modifies from's lower vector
 void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
