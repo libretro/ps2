@@ -1379,6 +1379,8 @@ bool GSHwHack::MV_Ico(GSRendererHW& r)
 	dst->UpdateValidity(draw_rc);
 
 	dst->UnscaleRTAlpha();
+	dst->m_alpha_min = 0;
+	dst->m_alpha_max = 255;
 
 	GSHWDrawConfig& config = GSRendererHW::GetInstance()->BeginHLEHardwareDraw(
 		dst->GetTexture(), nullptr, dst->GetScale(), src->GetTexture(), src->GetScale(), draw_rc);
