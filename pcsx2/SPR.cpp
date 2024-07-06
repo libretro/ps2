@@ -47,14 +47,11 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 			CpuVU0->ExecuteBlock(0);
 		}
 
-		if (madr < 0x11004000)
+		if (isWrite)
 		{
-			if(isWrite)
+			if (madr < 0x11004000)
 				CpuVU0->Clear(madr&0xfff, qwc * 16);
-		}
-		else if (madr >= 0x11008000 && madr < 0x1100c000)
-		{
-			if(isWrite)
+			else if (madr >= 0x11008000 && madr < 0x1100c000)
 				CpuVU1->Clear(madr&0x3fff, qwc * 16);
 		}
 	}
