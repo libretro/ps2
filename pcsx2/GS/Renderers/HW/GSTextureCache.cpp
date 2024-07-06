@@ -1906,7 +1906,7 @@ GSTextureCache::Target* GSTextureCache::LookupTarget(GIFRegTEX0 TEX0, const GSVe
 			dst->m_texture = tex;
 			dst->m_scale = scale;
 			dst->m_unscaled_size = new_size;
-			dst->m_downscaled = scale == 1.0f;
+			dst->m_downscaled = scale == 1.0f && g_gs_renderer->GetUpscaleMultiplier() > 1.0f;
 		}
 		else if (dst->m_scale != scale)
 			scale = dst->m_scale;
@@ -2425,7 +2425,7 @@ bool GSTextureCache::PreloadTarget(GIFRegTEX0 TEX0, const GSVector2i& size, cons
 
 							if (overlapping_pages_height == 0 || (overlapping_pages % dst->m_TEX0.TBW))
 							{
-								// No overlap top copy or the widths don't match.
+								// No overlap to copy or the widths don't match.
 								i++;
 								continue;
 							}
@@ -5538,7 +5538,7 @@ GSTextureCache::Target::Target(GIFRegTEX0 TEX0, int type, const GSVector2i& unsc
 	m_unscaled_size = unscaled_size;
 	m_scale = scale;
 	m_texture = texture;
-	m_downscaled = scale == 1.0f;
+	m_downscaled = scale == 1.0f && g_gs_renderer->GetUpscaleMultiplier() > 1.0f;
 
 	if ((m_TEX0.PSM & 0xf) == PSMCT24)
 	{

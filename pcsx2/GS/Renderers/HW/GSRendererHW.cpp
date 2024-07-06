@@ -706,10 +706,11 @@ void GSRendererHW::ConvertSpriteTextureShuffle(u32& process_rg, u32& process_ba,
 
 GSVector4 GSRendererHW::RealignTargetTextureCoordinate(const GSTextureCache::Source* tex)
 {
-	if (	GSConfig.UserHacks_HalfPixelOffset <= 1 || 
-		GSConfig.UserHacks_HalfPixelOffset >= 4 || 
-		GetUpscaleMultiplier() == 1.0f ||
-		m_downscale_source)
+	if (	   GSConfig.UserHacks_HalfPixelOffset <= 1 
+		|| GSConfig.UserHacks_HalfPixelOffset >= 4
+		|| GetUpscaleMultiplier() == 1.0f
+		|| m_downscale_source
+		|| tex->GetScale() == 1.0f )
 		return GSVector4(0.0f);
 
 	const GSVertex* v = &m_vertex.buff[0];
@@ -2335,7 +2336,7 @@ void GSRendererHW::Draw()
 		m_r = m_r.rintersect(t_size_rect);
 
 	float target_scale = GetTextureScaleFactor();
-	const int scale_draw = IsScalingDraw(src, no_gaps);
+	int scale_draw = IsScalingDraw(src, no_gaps);
 	if (target_scale > 1.0f && scale_draw > 0)
 	{
 		// 1 == Downscale, so we need to reduce the size of the target also.
@@ -2349,7 +2350,17 @@ void GSRendererHW::Draw()
 			m_downscale_source = GSConfig.UserHacks_NativeScaling != GSNativeScaling::NativeScaling_Aggressive ? false : src->m_from_target->GetScale() > 1.0f; // Bad for GTA + Full Spectrum Warrior, good for Sacred Blaze + Parappa.
 	}
 	else
+	{
+		// if it's directly copying keep the scale - Ratchet and clank hits this, stops edge garbage happening.
+		if (scale_draw == -1 && src && src->m_from_target && src->m_from_target->m_downscaled &&
+			(GSVector4i(m_vt.m_min.p).xyxy() == GSVector4i(m_vt.m_min.t).xyxy()).alltrue() && (GSVector4i(m_vt.m_max.p).xyxy() == GSVector4i(m_vt.m_max.t).xyxy()).alltrue())
+		{
+			target_scale = src->m_from_target->GetScale();
+			scale_draw = 1;
+		}
+
 		m_downscale_source = false;
+	}
 
 	if (IsPossibleChannelShuffle() && src && src->m_from_target && src->m_from_target->GetScale() != target_scale)
 		target_scale = src->m_from_target->GetScale();
@@ -2389,6 +2400,7 @@ void GSRendererHW::Draw()
 		const bool possible_shuffle = draw_sprite_tex && (((src && src->m_target && src->m_from_target && src->m_from_target->m_32_bits_fmt) &&
 															  GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].bpp == 16 && GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].bpp == 16) ||
 															 IsPossibleChannelShuffle());
+
 		rt = g_texture_cache->LookupTarget(FRAME_TEX0, t_size, ((src && src->m_scale != 1) && GSConfig.UserHacks_NativeScaling == GSNativeScaling::NativeScaling_Normal && !possible_shuffle) ? GetTextureScaleFactor() : target_scale, GSTextureCache::RenderTarget, true,
 			fm, false, force_preload, preserve_rt_rgb, preserve_rt_alpha, unclamped_draw_rect, possible_shuffle, is_possible_mem_clear && FRAME_TEX0.TBP0 != m_cached_ctx.ZBUF.Block(), GSConfig.UserHacks_NativeScaling != GSNativeScaling::NativeScaling_Off && scale_draw != 1);
 
@@ -2410,9 +2422,8 @@ void GSRendererHW::Draw()
 				return;
 			}
 
-			rt = g_texture_cache->CreateTarget(FRAME_TEX0, t_size, GetValidSize(src), (scale_draw < 0) 
-					? src->m_from_target->GetScale() : target_scale,
-					GSTextureCache::RenderTarget, true, fm, false, force_preload, preserve_rt_color, m_r, src);
+			rt = g_texture_cache->CreateTarget(FRAME_TEX0, t_size, GetValidSize(src), (scale_draw < 0) ? src->m_from_target->GetScale() : target_scale, GSTextureCache::RenderTarget, true,
+				fm, false, force_preload, preserve_rt_color, m_r, src);
 			if (!rt)
 			{
 				CleanupDraw(true);
@@ -2875,7 +2886,9 @@ void GSRendererHW::Draw()
 	// A couple of hack to avoid upscaling issue. So far it seems to impacts mostly sprite
 	// Note: first hack corrects both position and texture coordinate
 	// Note: second hack corrects only the texture coordinate
-	if (CanUpscale() && (m_vt.m_primclass == GS_SPRITE_CLASS))
+	// Be careful to not correct downscaled targets, this can get messy and break post processing
+	// but it still needs to adjust native stuff from memory as it's not been compensated for upscaling (Dragon Quest 8 font for example).
+	if (CanUpscale() && (m_vt.m_primclass == GS_SPRITE_CLASS) && rt && rt->GetScale() > 1.0f)
 	{
 		const u32 count = m_vertex.next;
 		GSVertex* v = &m_vertex.buff[0];
@@ -6474,7 +6487,7 @@ bool GSRendererHW::IsDiscardingDstColor()
 
 bool GSRendererHW::IsDiscardingDstRGB()
 {
-	return ((!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsBlack()) && // no blending or writing black
+	return ((!PRIM->ABE || IsOpaque() || m_context->ALPHA.IsBlack() || !m_context->ALPHA.IsCdInBlend()) && // no blending or writing black
 			((m_cached_ctx.FRAME.FBMSK & GSLocalMemory::m_psm[m_cached_ctx.FRAME.PSM].fmsk) & 0xFFFFFFu) == 0); // RGB isn't masked
 }
 
@@ -6552,10 +6565,6 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	if (GSConfig.UserHacks_NativeScaling == GSNativeScaling::NativeScaling_Off)
 		return 0;
 
-	if (m_context->TEX1.MMAG != 1 || m_vt.m_primclass < GS_TRIANGLE_CLASS || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 ||
-		IsMipMapDraw() || GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].trbpp <= 8 || !src || !src->m_from_target)
-		return 0;
-
 	const GSVector2i draw_size = GSVector2i(m_vt.m_max.p.x - m_vt.m_min.p.x, m_vt.m_max.p.y - m_vt.m_min.p.y);
 	const GSVector2i tex_size = GSVector2i(m_vt.m_max.t.x - m_vt.m_min.t.x, m_vt.m_max.t.y - m_vt.m_min.t.y);
 
@@ -6563,11 +6572,17 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	if(tex_size.x == 0 || tex_size.y == 0 || draw_size.x == 0 || draw_size.y == 0)
 		return 0;
 
-	if (std::abs(draw_size.x - tex_size.x) <= 1 && std::abs(draw_size.y - tex_size.y) <= 1)
+	const bool is_target_src = src && src->m_from_target;
+
+	if (is_target_src && src->m_from_target->m_downscaled && std::abs(draw_size.x - tex_size.x) <= 1 && std::abs(draw_size.y - tex_size.y) <= 1)
 		return -1;
 
+	if (m_context->TEX1.MMAG != 1 || m_vt.m_primclass < GS_TRIANGLE_CLASS || m_cached_ctx.FRAME.Block() == m_cached_ctx.TEX0.TBP0 ||
+		IsMipMapDraw() || GSLocalMemory::m_psm[m_cached_ctx.TEX0.PSM].trbpp <= 8 || !src || !src->m_from_target)
+		return 0;
+
 	// Should usually be 2x but some games like Monster House goes from 512x448 -> 128x128
-	const bool is_downscale = draw_size.x <= (tex_size.x - draw_size.x) || draw_size.y <= (tex_size.y - draw_size.y);
+	const bool is_downscale = draw_size.x <= (tex_size.x * 0.75f) && draw_size.y <= (tex_size.y * 0.75f);
 
 	if (is_downscale && draw_size.x >= PCRTCDisplays.GetResolution().x)
 		return 0;
@@ -6577,8 +6592,8 @@ int GSRendererHW::IsScalingDraw(GSTextureCache::Source* src, bool no_gaps)
 	// but good enough for what we want.
 	const bool no_gaps_or_single_sprite = (is_downscale || is_upscale) && (no_gaps || (m_vt.m_primclass == GS_SPRITE_CLASS && SpriteDrawWithoutGaps()));
 
-	const bool dst_discarded = IsDiscardingDstColor();
-	if (no_gaps_or_single_sprite && ((is_upscale && !dst_discarded) ||
+	const bool dst_discarded = IsDiscardingDstRGB() || IsDiscardingDstAlpha();
+	if (no_gaps_or_single_sprite && ((is_upscale && !m_context->ALPHA.IsOpaque()) ||
 		(is_downscale && (dst_discarded || (PRIM->ABE && m_context->ALPHA.C == 2 && m_context->ALPHA.FIX == 255)))))
 		return is_upscale ? 2 : 1;
 
