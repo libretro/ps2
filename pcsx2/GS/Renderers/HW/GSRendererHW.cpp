@@ -3878,13 +3878,7 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, bool& DAT
 	// Color clip
 	if (COLCLAMP.CLAMP == 0)
 	{
-		bool free_colclip = false;
-		if (features.framebuffer_fetch)
-			free_colclip = true;
-		else if (features.texture_barrier)
-			free_colclip = no_prim_overlap || blend_non_recursive;
-		else
-			free_colclip = blend_non_recursive;
+		const bool free_colclip = features.framebuffer_fetch || no_prim_overlap || blend_non_recursive;
 
 		if (color_dest_blend || color_dest_blend2)
 		{
