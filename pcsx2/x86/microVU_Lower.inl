@@ -1667,7 +1667,6 @@ void setBranchA(mP, int x, int _x_)
 		mVUlow.branch = x;
 	}
 	pass2 { if (_Imm11_ == 1 && !_x_ && !isBranchDelaySlot) { return; } mVUbranch = x; }
-	pass3 { mVUbranch = x; }
 	pass4 { if (_Imm11_ == 1 && !_x_ && !isBranchDelaySlot) { return; } mVUbranch = x; }
 }
 

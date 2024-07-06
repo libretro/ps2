@@ -24,7 +24,6 @@
 #define vifOp(vifCodeName) _vifT static int vifCodeName(int pass, const u32* data)
 #define pass1 if (pass == 0)
 #define pass2 if (pass == 1)
-#define pass3 if (pass == 2)
 #define pass1or2 if (pass == 0 || pass == 1)
 #define vif1Only() \
 	{ \

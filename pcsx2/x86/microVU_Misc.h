@@ -174,7 +174,6 @@ typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
 // Define Passes
 #define pass1 if (recPass == 0) // Analyze
 #define pass2 if (recPass == 1) // Recompile
-#define pass3 if (recPass == 2) // Logging
 #define pass4 if (recPass == 3) // Flag stuff
 
 // Upper Opcode Cases
