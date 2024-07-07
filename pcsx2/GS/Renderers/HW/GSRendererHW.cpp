@@ -4751,7 +4751,10 @@ __ri void GSRendererHW::HandleTextureHazards(const GSTextureCache::Target* rt, c
 			// causing bleeding into the edges of the downsampled texture.
 			const u32 downsample_factor = static_cast<u32>(src_target->GetScale());
 			const GSVector2i clamp_min  = (GSConfig.UserHacks_HalfPixelOffset != GSHalfPixelOffset::Native) ? GSVector2i(0, 0) : GSVector2i(downsample_factor, downsample_factor);
-			const GSVector4 dRect = GSVector4((tmm.coverage + GSVector4i(-1, 1).xxyy()).rintersect(src_target->GetUnscaledRect()));
+			GSVector4i copy_rect = tmm.coverage;
+			if (target_region)
+				copy_rect += GSVector4i(source_region.GetMinX(), source_region.GetMinY()).xyxy();
+			const GSVector4 dRect = GSVector4((copy_rect + GSVector4i(-1, 1).xxyy()).rintersect(src_target->GetUnscaledRect()));
 			g_gs_device->FilteredDownsampleTexture(src_target->m_texture, src_copy.get(), downsample_factor, clamp_min, dRect);
 		}
 #endif
