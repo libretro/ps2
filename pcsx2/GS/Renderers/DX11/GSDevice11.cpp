@@ -447,8 +447,8 @@ void GSDevice11::SetFeatures(IDXGIAdapter1* adapter)
 int GSDevice11::GetMaxTextureSize() const
 {
 	return (m_feature_level >= D3D_FEATURE_LEVEL_11_0) ?
-			   D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION :
-			   D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+			   D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION :
+			   D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 }
 
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)
