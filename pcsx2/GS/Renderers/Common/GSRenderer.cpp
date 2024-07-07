@@ -207,8 +207,6 @@ bool GSRenderer::Merge(int field)
 
 float GSRenderer::GetModXYOffset()
 {
-	float mod_xy = 0.0f;
-
 	// Scaled Bilinear HPO depending on the gradient.
 	if (GSConfig.UserHacks_HalfPixelOffset == 4)
 	{
@@ -219,29 +217,25 @@ float GSRenderer::GetModXYOffset()
 
 		if (avg_grad >= 0.5f && m_draw_env->CTXT[m_draw_env->PRIM.CTXT].TEX1.MMIN == 1)
 		{
-			mod_xy = GetUpscaleMultiplier();
-			switch (static_cast<int>(std::round(mod_xy)))
-			{
-				case 2: case 4: case 6: case 8: mod_xy += (mod_xy / 2.0f) * avg_grad; break;
-				case 3: case 7:                 mod_xy += (mod_xy / 2.0f) * avg_grad; break;
-				case 5:                         mod_xy += (mod_xy / 2.0f) * avg_grad; break;
-				default:                        mod_xy = 0.0f; break;
-			}
+			float mod_xy = GetUpscaleMultiplier();
+			return mod_xy += (mod_xy / 2.0f) * avg_grad;
 		}
 	}
 	else if (GSConfig.UserHacks_HalfPixelOffset == GSHalfPixelOffset::Normal)
 	{
-		mod_xy = GetUpscaleMultiplier();
-		switch (static_cast<int>(std::round(mod_xy)))
+		float mod_xy = GetUpscaleMultiplier();
+		const int rounded_mod_xy = static_cast<int>(std::round(mod_xy));
+		if (rounded_mod_xy > 1)
 		{
-			case 2: case 4: case 6: case 8: case 12: mod_xy += 0.2f; break;
-			case 3: case 7: case 11:        mod_xy += 0.1f; break;
-			case 5: case 10:                mod_xy += 0.3f; break;
-			default:                        mod_xy = 0.0f; break;
+			if (!(rounded_mod_xy & 1))
+				return mod_xy += 0.2f;
+			else if (!(rounded_mod_xy & 2))
+				return mod_xy += 0.3f;
+			return mod_xy += 0.1f;
 		}
 	}
 
-	return mod_xy;
+	return 0.0f;
 }
 
 bool GSRenderer::BeginPresentFrame(bool frame_skip)
