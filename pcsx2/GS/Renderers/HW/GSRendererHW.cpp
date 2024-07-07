@@ -4251,6 +4251,7 @@ else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW6))
 __ri static constexpr bool IsRedundantClamp(u8 clamp, u32 clamp_min, u32 clamp_max, u32 tsize)
 {
 	// Don't shader sample when the clamp/repeat is configured to the texture size.
+	// That way trilinear etc still works.
 	const u32 textent = (1u << tsize) - 1u;
 	if (clamp == CLAMP_REGION_CLAMP)
 		return (clamp_min == 0 && clamp_max >= textent);
@@ -4311,7 +4312,6 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	const bool need_mipmap = IsMipMapDraw();
 	const bool shader_emulated_sampler = tex->m_palette || (tex->m_target && !m_conf.ps.shuffle && cpsm.fmt != 0) ||
 										 complex_wms_wmt || psm.depth || target_region;
-	const bool can_trilinear = !tex->m_palette && !tex->m_target && !m_conf.ps.shuffle;
 	const bool trilinear_manual = need_mipmap && GSConfig.HWMipmap == HWMipmapLevel::Full;
 
 	bool bilinear = m_vt.IsLinear();
@@ -4324,18 +4324,15 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 			// Force bilinear otherwise we can end up with min/mag nearest and mip linear.
 			// We don't need to check for HWMipmapLevel::Off here, because forced trilinear implies forced mipmaps.
 			bilinear = true;
-			if (can_trilinear)
-			{
-				trilinear = static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Linear);
-				trilinear_auto = !tex->m_target && (!need_mipmap || !GSConfig.HWMipmap);
-			}
+			trilinear = static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Linear);
+			trilinear_auto = !tex->m_target && (!need_mipmap || GSConfig.HWMipmap != HWMipmapLevel::Full);
 		}
 		break;
 
 		case TriFiltering::PS2:
 		{
 			// Can only use PS2 trilinear when mipmapping is enabled.
-			if (need_mipmap && GSConfig.HWMipmap && can_trilinear)
+			if (need_mipmap && GSConfig.HWMipmap != HWMipmapLevel::Off)
 			{
 				trilinear = m_context->TEX1.MMIN;
 				trilinear_auto = !tex->m_target && GSConfig.HWMipmap != HWMipmapLevel::Full;
@@ -4535,19 +4532,17 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 			m_conf.cb_ps.MinMax.w = (wmt == CLAMP_REGION_CLAMP && !m_conf.ps.depth_fmt) ? region_clamp.w : region_repeat.w;
 		}
 	}
-
-	if (trilinear_manual)
+	else if (trilinear_manual)
 	{
-		m_conf.cb_ps.LODParams.x = static_cast<float>(m_context->TEX1.K) / 16.0f;
-		m_conf.cb_ps.LODParams.y = static_cast<float>(1 << m_context->TEX1.L);
-		m_conf.cb_ps.LODParams.z = static_cast<float>(m_lod.x); // Offset because first layer is m_lod, dunno if we can do better
-		m_conf.cb_ps.LODParams.w = static_cast<float>(m_lod.y);
-		m_conf.ps.manual_lod = 1;
+		// Reuse uv_min_max for mipmap parameter to avoid an extension of the UBO
+		m_conf.cb_ps.MinMax.x = static_cast<float>(m_context->TEX1.K) / 16.0f;
+		m_conf.cb_ps.MinMax.y = static_cast<float>(1 << m_context->TEX1.L);
+		m_conf.cb_ps.MinMax.z = static_cast<float>(m_lod.x); // Offset because first layer is m_lod, dunno if we can do better
+		m_conf.cb_ps.MinMax.w = static_cast<float>(m_lod.y);
 	}
 	else if (trilinear_auto)
 	{
 		tex->m_texture->GenerateMipmapsIfNeeded();
-		m_conf.ps.automatic_lod = 1;
 	}
 
 	// TC Offset Hack
@@ -4563,9 +4558,7 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 	{
 		m_conf.sampler.biln = 0;
 		m_conf.sampler.aniso = 0;
-
-		// Remove linear from trilinear, since we're doing the bilinear in the shader, and we only want this for mip selection.
-		m_conf.sampler.triln = (trilinear >= static_cast<u8>(GS_MIN_FILTER::Linear_Mipmap_Nearest)) ? (trilinear - static_cast<u8>(GS_MIN_FILTER::Nearest_Mipmap_Nearest)) : 0;
+		m_conf.sampler.triln = 0;
 	}
 	else
 	{
@@ -4575,8 +4568,14 @@ __ri void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Target* rt, 
 		const bool anisotropic = m_vt.m_primclass == GS_TRIANGLE_CLASS && !trilinear_manual;
 		m_conf.sampler.aniso = anisotropic;
 		m_conf.sampler.triln = trilinear;
-		if (anisotropic && !trilinear_manual)
+		if (trilinear_manual)
+		{
+			m_conf.ps.manual_lod = 1;
+		}
+		else if (trilinear_auto || anisotropic)
+		{
 			m_conf.ps.automatic_lod = 1;
+		}
 	}
 
 	// clamp to base level if we're not providing or generating mipmaps
