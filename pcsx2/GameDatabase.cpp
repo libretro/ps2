@@ -327,13 +327,13 @@ static const char* s_gs_hw_fix_names[] = {
 	"textureInsideRT",
 	"alignSprite",
 	"mergeSprite",
+	"mipmap",
 	"wildArmsHack",
 	"bilinearUpscale",
 	"nativePaletteDraw",
 	"estimateTextureRegion",
 	"PCRTCOffsets",
 	"PCRTCOverscan",
-	"mipmap",
 	"trilinearFiltering",
 	"skipDrawStart",
 	"skipDrawEnd",
@@ -582,7 +582,7 @@ bool GameDatabaseSchema::GameEntry::configMatchesHWFix(const Pcsx2Config::GSOpti
 			return (static_cast<int>(config.PCRTCOverscan) == value);
 
 		case GSHWFixId::Mipmap:
-			return (config.HWMipmap == HWMipmapLevel::Automatic || static_cast<int>(config.HWMipmap) == value);
+			return (static_cast<int>(config.HWMipmap) == value);
 
 		case GSHWFixId::TrilinearFiltering:
 			return (config.TriFilter == TriFiltering::Automatic || static_cast<int>(config.TriFilter) == value);
@@ -737,16 +737,8 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 
 			case GSHWFixId::Mipmap:
-			{
-				if (value >= 0 && value <= static_cast<int>(HWMipmapLevel::Full))
-				{
-					if (config.HWMipmap == HWMipmapLevel::Automatic)
-						config.HWMipmap = static_cast<HWMipmapLevel>(value);
-					else if (config.HWMipmap == HWMipmapLevel::Off)
-						Console.Warning("[GameDB] Game requires mipmapping but it has been force disabled.");
-				}
-			}
-			break;
+				config.HWMipmap = (value > 0);
+				break;
 
 			case GSHWFixId::TrilinearFiltering:
 			{
@@ -754,8 +746,8 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				{
 					if (config.TriFilter == TriFiltering::Automatic)
 						config.TriFilter = static_cast<TriFiltering>(value);
-					else if (config.TriFilter == TriFiltering::Off)
-						Console.Warning("[GameDB] Game requires trilinear filtering but it has been force disabled.");
+					else if (config.TriFilter > TriFiltering::Off)
+						Console.Warning("[GameDB] Game requires trilinear filtering to be disabled.");
 				}
 			}
 			break;

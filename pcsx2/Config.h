@@ -257,14 +257,6 @@ enum class TriFiltering : s8
 	Forced,
 };
 
-enum class HWMipmapLevel : s8
-{
-	Automatic = -1,
-	Off,
-	Basic,
-	Full
-};
-
 enum class AccBlendLevel : u8
 {
 	Minimum,
@@ -486,6 +478,7 @@ struct Pcsx2Config
 					AutoFlushSW : 1,
 					PreloadFrameWithGSData : 1,
 					Mipmap : 1,
+					HWMipmap : 1,
 					ManualUserHacks : 1,
 					UserHacks_AlignSpriteX : 1,
 					UserHacks_CPUFBConversion : 1,
@@ -514,7 +507,6 @@ struct Pcsx2Config
 		GSRendererType Renderer = GSRendererType::Auto;
 		float UpscaleMultiplier = 1.0f;
 
-		HWMipmapLevel HWMipmap = HWMipmapLevel::Automatic;
 		AccBlendLevel AccurateBlendingUnit = AccBlendLevel::Basic;
 		BiFiltering TextureFiltering = BiFiltering::PS2;
 		TexturePreloadingLevel TexturePreloading = TexturePreloadingLevel::Full;

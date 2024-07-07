@@ -412,6 +412,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	AutoFlushSW = true;
 	PreloadFrameWithGSData = false;
 	Mipmap = true;
+	HWMipmap = true;
 
 	ManualUserHacks = false;
 	UserHacks_AlignSpriteX = false;
@@ -453,7 +454,6 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(Renderer) &&
 		OpEqu(UpscaleMultiplier) &&
 
-		OpEqu(HWMipmap) &&
 		OpEqu(AccurateBlendingUnit) &&
 		OpEqu(TextureFiltering) &&
 		OpEqu(TexturePreloading) &&
@@ -551,7 +551,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapIntEnumEx(Renderer, "Renderer");
 	SettingsWrapEntryEx(UpscaleMultiplier, "upscale_multiplier");
 
-	SettingsWrapIntEnumEx(HWMipmap, "mipmap_hw");
+	SettingsWrapIntEnumEx(HWMipmap, "hw_mipmap");
 	SettingsWrapIntEnumEx(AccurateBlendingUnit, "accurate_blending_unit");
 	SettingsWrapIntEnumEx(TextureFiltering, "filter");
 	SettingsWrapIntEnumEx(TexturePreloading, "texture_preloading");
