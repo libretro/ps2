@@ -12334,6 +12334,7 @@ SLED-54022:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLED-54032:
   name: "Sonic Riders [Demo]"
   region: "PAL-E"
@@ -12718,9 +12719,13 @@ SLES-50126:
   name: "Quake III - Revolution"
   region: "PAL-M3"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-50127:
   name: "Quake III - Revolution"
   region: "PAL-E"
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-50128:
   name: "Knockout Kings 2001"
   region: "PAL-E"
@@ -22396,6 +22401,7 @@ SLES-53908:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-53909:
   name: "Full Spectrum Warrior - Ten Hammers"
   region: "PAL-G"
@@ -24531,6 +24537,7 @@ SLES-54674:
     halfPixelOffset: 4 # Fixes offset post processing.
     autoFlush: 1 # Fixes bloom intensity.
     nativeScaling: 1 # Fixes post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-54675:
   name: "Street Warrior"
   region: "PAL-E"
@@ -31675,6 +31682,7 @@ SLPM-61155:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLPM-61156:
   name: "Dengeki PS2 PlayStation D93"
   region: "NTSC-J"
@@ -40637,6 +40645,7 @@ SLPM-66558:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLPM-66559:
   name: "Winning Post 6 [KOEI Selection]"
   region: "NTSC-J"
@@ -43739,6 +43748,8 @@ SLPS-20107:
 SLPS-20108:
   name: "Quake III - Revolution"
   region: "NTSC-J"
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLPS-20109:
   name: "Starwars Star Fighter"
   region: "NTSC-J"
@@ -48415,6 +48426,7 @@ SLPS-25856:
     halfPixelOffset: 4 # Fixes offset post processing.
     autoFlush: 1 # Fixes bloom intensity.
     nativeScaling: 1 # Fixes post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLPS-25858:
   name: "Dengeki SP - Shakugan no Shana"
   region: "NTSC-J"
@@ -48751,6 +48763,7 @@ SLPS-25945:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLPS-25946:
   name: "Tomb Raider - Anniversary [Best of Spike]"
   region: "NTSC-J"
@@ -48759,6 +48772,7 @@ SLPS-25946:
     halfPixelOffset: 4 # Fixes offset post processing.
     autoFlush: 1 # Fixes bloom intensity.
     nativeScaling: 1 # Fixes post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLPS-25947:
   name: "Summon Night Gran-These - Horobi no Ken to Yakusoku no Kishi"
   region: "NTSC-J"
@@ -50261,6 +50275,8 @@ SLUS-20167:
   name: "Quake III - Revolution"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-20168:
   name: "Triple Play Baseball"
   region: "NTSC-U"
@@ -55734,6 +55750,7 @@ SLUS-21203:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-21204:
   name: "Victorious Boxers 2 - Fighting Spirit"
   region: "NTSC-U"
@@ -57814,6 +57831,7 @@ SLUS-21555:
     halfPixelOffset: 4 # Fixes offset post processing.
     autoFlush: 1 # Fixes bloom intensity.
     nativeScaling: 1 # Fixes post processing.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-21556:
   name: "Konami Kids Playground - Dinosaur Shapes & Colors"
   region: "NTSC-U"
