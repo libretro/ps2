@@ -166,27 +166,10 @@ static void CloseGSDevice(bool clear_state)
 	g_gs_device.reset();
 }
 
-static void GSClampUpscaleMultiplier(Pcsx2Config::GSOptions& config)
-{
-	const u32 max_upscale_multiplier = GSGetMaxUpscaleMultiplier(g_gs_device->GetMaxTextureSize());
-	if (config.UpscaleMultiplier <= static_cast<float>(max_upscale_multiplier))
-	{
-		// Shouldn't happen, but just in case.
-		if (config.UpscaleMultiplier < 1.0f)
-			config.UpscaleMultiplier = 1.0f;
-		return;
-	}
-
-	config.UpscaleMultiplier = static_cast<float>(max_upscale_multiplier);
-}
-
 static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 {
 	if (renderer != GSRendererType::SW)
-	{
-		GSClampUpscaleMultiplier(GSConfig);
 		g_gs_renderer = std::make_unique<GSRendererHW>();
-	}
 	else
 		g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
 
@@ -367,9 +350,6 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_cont
 		GSConfig.Renderer = GSsetRenderer(api);
 	if (!g_gs_renderer)
 		return;
-
-	// Ensure upscale multiplier is in range.
-	GSClampUpscaleMultiplier(GSConfig);
 
 	// Options which aren't using the global struct yet, so we need to recreate all GS objects.
 	if (
@@ -619,10 +599,4 @@ std::pair<u8, u8> GSGetRGBA8AlphaMinMax(const void* data, u32 width, u32 height,
 
 	return std::make_pair<u8, u8>(static_cast<u8>(minc.minv_u32() >> 24),
 		static_cast<u8>(maxc.maxv_u32() >> 24));
-}
-
-u32 GSGetMaxUpscaleMultiplier(u32 max_texture_size)
-{
-	// Maximum GS target size is 1280x1280. Assume we want to upscale the max size target.
-	return std::max(max_texture_size / 1280, 1u);
 }
