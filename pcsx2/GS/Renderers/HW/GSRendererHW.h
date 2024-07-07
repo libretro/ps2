@@ -28,6 +28,13 @@ MULTI_ISA_DEF(void GSRendererHWPopulateFunctions(GSRendererHW& renderer);)
 
 class GSHwHack;
 
+enum ClearType
+{
+	NotClear = 0,
+	NormalClear,
+	ClearWithDraw
+};
+
 class GSRendererHW : public GSRenderer
 {
 	MULTI_ISA_FRIEND(GSRendererHWFunctions);
@@ -61,7 +68,7 @@ private:
 	void SwSpriteRender();
 	bool CanUseSwSpriteRender();
 	int IsScalingDraw(GSTextureCache::Source* src, bool no_gaps);
-	bool IsConstantDirectWriteMemClear();
+	ClearType IsConstantDirectWriteMemClear();
 	u32 GetConstantDirectWriteMemClearColor() const;
 	u32 GetConstantDirectWriteMemClearDepth() const;
 	bool IsReallyDithered() const;
