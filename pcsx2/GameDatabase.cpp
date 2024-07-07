@@ -582,7 +582,7 @@ bool GameDatabaseSchema::GameEntry::configMatchesHWFix(const Pcsx2Config::GSOpti
 			return (static_cast<int>(config.PCRTCOverscan) == value);
 
 		case GSHWFixId::Mipmap:
-			return (static_cast<int>(config.HWMipmap) == value);
+			return (static_cast<int>(config.HWMipmapMode) == value);
 
 		case GSHWFixId::TrilinearFiltering:
 			return (config.TriFilter == TriFiltering::Automatic || static_cast<int>(config.TriFilter) == value);
@@ -737,7 +737,8 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 				break;
 
 			case GSHWFixId::Mipmap:
-				config.HWMipmap = (value > 0);
+				if (value >= 0 && value < static_cast<int>(GSHWMipmapMode::MaxCount))
+					config.HWMipmapMode = static_cast<GSHWMipmapMode>(value > 0);
 				break;
 
 			case GSHWFixId::TrilinearFiltering:
