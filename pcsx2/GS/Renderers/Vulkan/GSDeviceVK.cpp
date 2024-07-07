@@ -1466,6 +1466,8 @@ bool GSDeviceVK::CheckFeatures()
 	m_features.dxt_textures  = m_device_features.textureCompressionBC;
 	m_features.bptc_textures = m_device_features.textureCompressionBC;
 
+	m_max_texture_size = m_device_properties.limits.maxImageDimension2D;
+
 	return true;
 }
 
@@ -1508,18 +1510,14 @@ VkFormat GSDeviceVK::LookupNativeFormat(GSTexture::Format format) const
 
 GSTexture* GSDeviceVK::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
-	u32 max_img_dim          = GetMaxImageDimension2D();
-	const u32 clamped_width  = static_cast<u32>(std::clamp<int>(width, 1, max_img_dim));
-	const u32 clamped_height = static_cast<u32>(std::clamp<int>(height, 1, max_img_dim));
-
-	std::unique_ptr<GSTexture> tex(GSTextureVK::Create(type, format, clamped_width, clamped_height, levels));
+	std::unique_ptr<GSTexture> tex = GSTextureVK::Create(type, format, width, height, levels);
 	if (!tex)
 	{
 		// We're probably out of vram, try flushing the command buffer to release pending textures.
 		PurgePool();
 		/* Couldn't allocate texture */
 		ExecuteCommandBufferAndRestartRenderPass(true);
-		tex = GSTextureVK::Create(type, format, clamped_width, clamped_height, levels);
+		tex = GSTextureVK::Create(type, format, width, height, levels);
 	}
 
 	return tex.release();

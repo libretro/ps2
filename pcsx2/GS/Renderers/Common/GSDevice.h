@@ -757,6 +757,9 @@ protected:
 	GSTexture* m_target_tmp = nullptr;
 	GSTexture* m_current = nullptr;
 
+	FeatureSupport m_features;
+	u32 m_max_texture_size = 0;
+
 	struct
 	{
 		u32 start, count;
@@ -766,8 +769,6 @@ protected:
 		u32 start, count;
 	} m_index = {};
 	unsigned int m_frame = 0; // for ageing the pool
-	bool m_rbswapped = false;
-	FeatureSupport m_features;
 
 	void AcquireWindow();
 
@@ -788,6 +789,7 @@ public:
 	static int GetMipmapLevelsForSize(int width, int height);
 
 	__fi FeatureSupport Features() const { return m_features; }
+	__fi u32 GetMaxTextureSize() const { return m_max_texture_size; }
 
 	__fi s32 GetWindowWidth() const { return static_cast<s32>(m_window_info.surface_width); }
 	__fi s32 GetWindowHeight() const { return static_cast<s32>(m_window_info.surface_height); }
@@ -856,8 +858,6 @@ public:
 	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset);
 
 	bool ResizeRenderTarget(GSTexture** t, int w, int h, bool preserve_contents, bool recycle);
-
-	bool IsRBSwapped() { return m_rbswapped; }
 
 	void AgePool();
 	void PurgePool();

@@ -158,10 +158,10 @@ void GSDevice::TextureRecycleDeleter::operator()(GSTexture* const tex)
 	g_gs_device->Recycle(tex);
 }
 
-GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format, bool clear, bool prefer_reuse)
+GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format, bool clear, bool prefer_unused_texture)
 {
-	const GSVector2i size(width, height);
-	const bool prefer_new_texture = (m_features.prefer_new_textures && type == GSTexture::Type::Texture && !prefer_reuse);
+	const GSVector2i size(std::clamp(width, 1, static_cast<int>(g_gs_device->GetMaxTextureSize())),
+		std::clamp(height, 1, static_cast<int>(g_gs_device->GetMaxTextureSize())));
 	FastList<GSTexture*>& pool = m_pool[type != GSTexture::Type::Texture];
 
 	GSTexture* t = nullptr;
@@ -173,15 +173,13 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 
 		if (t->GetType() == type && t->GetFormat() == format && t->GetSize() == size && t->GetMipmapLevels() == levels)
 		{
-			if (!prefer_new_texture || t->GetLastFrameUsed() != m_frame)
+			if (!prefer_unused_texture || t->GetLastFrameUsed() != m_frame)
 			{
 				pool.erase(i);
 				break;
 			}
 			else if (fallback == pool.end())
-			{
 				fallback = i;
-			}
 		}
 
 		t = nullptr;
@@ -197,14 +195,14 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 		}
 		else
 		{
-			t = CreateSurface(type, width, height, levels, format);
+			t = CreateSurface(type, size.x, size.y, levels, format);
 			if (!t)
 			{
-				Console.Error("GS: Memory allocation failure for %dx%d texture. Purging pool and retrying.", width, height);
+				Console.Error("GS: Memory allocation failure for %dx%d texture. Purging pool and retrying.", size.x, size.y);
 				PurgePool();
 				if (!t)
 				{
-					Console.Error("GS: Memory allocation failure for %dx%d texture after purging pool.", width, height);
+					Console.Error("GS: Memory allocation failure for %dx%d texture after purging pool.", size.x, size.y);
 					return nullptr;
 				}
 			}

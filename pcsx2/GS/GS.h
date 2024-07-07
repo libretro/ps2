@@ -75,6 +75,7 @@ void GSvsync(u32 field, bool registers_written);
 int GSfreeze(FreezeAction mode, freezeData* data);
 void GSGameChanged(void);
 
+u32 GSGetMaxUpscaleMultiplier(u32 max_texture_size);
 void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_context_type api);
 void GSSwitchRenderer(GSRendererType new_renderer, enum retro_hw_context_type api, GSInterlaceMode new_interlace);
 

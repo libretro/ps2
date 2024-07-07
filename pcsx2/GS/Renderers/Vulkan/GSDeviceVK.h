@@ -174,10 +174,6 @@ public:
        {
 	       return static_cast<u32>(m_device_properties.limits.optimalBufferCopyRowPitchAlignment);
        }
-       __fi u32 GetMaxImageDimension2D() const
-       {
-	       return m_device_properties.limits.maxImageDimension2D;
-       }
 
        /// Returns true if running on an NVIDIA GPU.
 	__fi bool IsDeviceNVIDIA() const { return (m_device_properties.vendorID == 0x10DE); }
