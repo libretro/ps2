@@ -1770,6 +1770,7 @@ SCAJ-20159:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SCAJ-20160:
   name: "Yoshitsuneki"
@@ -3690,6 +3691,7 @@ SCED-53674:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SCED-53679:
   name: "Fire It Up Lads [Demo]"
@@ -5334,6 +5336,7 @@ SCES-53312:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SCES-53315:
   name: "EyeToy - Play 3"
@@ -6727,6 +6730,7 @@ SCKA-20059:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SCKA-20060:
   name: "Ratchet & Clank - Gonggu Jeonsa Wigi Ilbal"
@@ -31582,6 +31586,7 @@ SLPM-61133:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SLPM-61134:
   name: "Kidou Senshi Gundam Seed - Rengou vs. Z.A.F.T."
@@ -47258,6 +47263,7 @@ SLPS-25577:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SLPS-25578:
   name: "K-1 World Grand Prix 2005"
@@ -55807,6 +55813,7 @@ SLUS-21216:
     vuClampMode: 2 # Respawn issues, Fixes SPS, avoids teleporting characters.
   gsHWFixes:
     alignSprite: 1 # Fixes vertical lines.
+    halfPixelOffset: 3 # Fixes blurriness (normal vertex causes vertical lines).
     nativeScaling: 2 # Fixes misaligned bloom.
 SLUS-21217:
   name: "Disney/Pixar The Incredibles - Rise of the Underminer"
