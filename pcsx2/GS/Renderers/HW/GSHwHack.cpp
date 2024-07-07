@@ -283,6 +283,8 @@ bool GSHwHack::GSC_BurnoutGames(GSRendererHW& r, int& skip)
 			r.ReplaceVerticesWithSprite(downsample_rect, uv_rect, main_fb_size, downsample_rect);
 			downsample_fb = GIFRegTEX0::Create(RFBP, RFBW, RFPSM);
 			state = 3;
+			// Fix up the texture width so the native scaling code can properly detect it as a downscale.
+			RTBW = RFBW * 2;
 			return true;
 		}
 
