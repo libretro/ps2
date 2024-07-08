@@ -644,8 +644,9 @@ bool GSDevice12::Create()
 	if (!CreateBuffers())
 		return false;
 
-	if (!CompileConvertPipelines() || !CompilePresentPipelines() ||
-		!CompileInterlacePipelines() || !CompileMergePipelines() ||
+	if (    !CompileConvertPipelines()   ||
+		!CompileInterlacePipelines() || 
+		!CompileMergePipelines()     ||
 		!CompilePostProcessingPipelines())
 	{
 		Console.Error("Failed to compile utility pipelines");
@@ -874,7 +875,7 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	ShaderConvert shader /* = ShaderConvert::COPY */, bool linear /* = true */)
 {
 	DoStretchRect(static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect,
-		dTex ? m_convert[static_cast<int>(shader)].get() : m_present[0].get(), linear, ShaderConvertWriteMask(shader) == 0xf);
+		m_convert[static_cast<int>(shader)].get(), linear, ShaderConvertWriteMask(shader) == 0xf);
 }
 
 void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, bool red,
@@ -1732,44 +1733,6 @@ bool GSDevice12::CompileConvertPipelines()
 			if (!m_date_image_setup_pipelines[ds][datm])
 				return false;
 		}
-	}
-
-	return true;
-}
-
-bool GSDevice12::CompilePresentPipelines()
-{
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/present.fx");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/dx11/present.fx.");
-		return false;
-	}
-
-	ComPtr<ID3DBlob> m_convert_vs = GetUtilityVertexShader(*shader, "vs_main");
-	if (!m_convert_vs)
-		return false;
-
-	D3D12::GraphicsPipelineBuilder gpb;
-	gpb.SetRootSignature(m_utility_root_signature.get());
-	AddUtilityVertexAttributes(gpb);
-	gpb.SetNoCullRasterizationState();
-	gpb.SetNoBlendingState();
-	gpb.SetVertexShader(m_convert_vs.get());
-	gpb.SetDepthState(false, false, D3D12_COMPARISON_FUNC_ALWAYS);
-	gpb.SetNoStencilState();
-	gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
-
-	{
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, "ps_copy"));
-		if (!ps)
-			return false;
-
-		gpb.SetPixelShader(ps.get());
-
-		m_present[0] = gpb.Create(m_device.get(), m_shader_cache, false);
-		if (!m_present[0])
-			return false;
 	}
 
 	return true;

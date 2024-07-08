@@ -157,14 +157,6 @@ private:
 
 	struct
 	{
-		wil::com_ptr_nothrow<ID3D11InputLayout> il;
-		wil::com_ptr_nothrow<ID3D11VertexShader> vs;
-		wil::com_ptr_nothrow<ID3D11PixelShader> ps[static_cast<int>(PresentShader::Count)];
-		wil::com_ptr_nothrow<ID3D11Buffer> ps_cb;
-	} m_present;
-
-	struct
-	{
 		wil::com_ptr_nothrow<ID3D11PixelShader> ps[2];
 		wil::com_ptr_nothrow<ID3D11Buffer> cb;
 		wil::com_ptr_nothrow<ID3D11BlendState> bs;

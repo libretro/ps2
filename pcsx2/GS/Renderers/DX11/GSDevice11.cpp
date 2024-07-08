@@ -150,25 +150,6 @@ bool GSDevice11::Create()
 			return false;
 	}
 
-	shader = Host::ReadResourceFileToString("shaders/dx11/present.fx");
-	if (!shader.has_value())
-		return false;
-	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_present.vs.put(), m_present.il.put(),
-			il_convert, std::size(il_convert), *shader, sm_model.GetPtr(), "vs_main"))
-		return false;
-
-	m_present.ps[0] = m_shader_cache.GetPixelShader(m_dev.get(), *shader, sm_model.GetPtr(), "ps_copy");
-	if (!m_present.ps[0])
-		return false;
-
-	memset(&bd, 0, sizeof(bd));
-
-	bd.ByteWidth = sizeof(DisplayConstantBuffer);
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-	m_dev->CreateBuffer(&bd, nullptr, m_present.ps_cb.put());
-
 	memset(&dsd, 0, sizeof(dsd));
 
 	m_dev->CreateDepthStencilState(&dsd, m_convert.dss.put());
@@ -385,7 +366,6 @@ void GSDevice11::Destroy()
 	GSDevice::Destroy();
 
 	m_convert = {};
-	m_present = {};
 	m_merge = {};
 	m_interlace = {};
 	m_date = {};
