@@ -33,6 +33,7 @@
 #include "ShaderCacheVersion.h"
 
 #include "interlace.glsl"
+#include "present.glsl"
 
 #define GL_DEFAULT_FRAMEBUFFER hw_render.get_current_framebuffer()
 
@@ -472,18 +473,10 @@ bool GSDeviceOGL::Create()
 	// ****************************************************************
 	{
 		// these all share the same vertex shader
-		const auto shader = Host::ReadResourceFileToString("shaders/opengl/present.glsl");
-		if (!shader.has_value())
-		{
-			Console.Error("GS", "Failed to read shaders/opengl/present.glsl.");
-			return false;
-		}
-
-		std::string present_vs(GetShaderSource("vs_main", GL_VERTEX_SHADER, *shader));
+		std::string present_vs(GetShaderSource("vs_main", GL_VERTEX_SHADER, present_glsl_shader_raw));
 
 		{
-			const char* name = "ps_copy";
-			const std::string ps(GetShaderSource("ps_copy", GL_FRAGMENT_SHADER, *shader));
+			const std::string ps(GetShaderSource("ps_copy", GL_FRAGMENT_SHADER, present_glsl_shader_raw));
 			if (!m_shader_cache.GetProgram(&m_present[0], present_vs, ps))
 				return false;
 
