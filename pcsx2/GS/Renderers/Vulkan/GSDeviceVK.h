@@ -386,6 +386,8 @@ private:
 	VkPipeline CreateTFXPipeline(const PipelineSelector& p);
 	VkPipeline GetTFXPipeline(const PipelineSelector& p);
 
+	VkShaderModule GetUtilityVertexShader(const char *source, const char* replace_main);
+	VkShaderModule GetUtilityFragmentShader(const char *source, const char* replace_main);
 	VkShaderModule GetUtilityVertexShader(const std::string& source, const char* replace_main);
 	VkShaderModule GetUtilityFragmentShader(const std::string& source, const char* replace_main);
 

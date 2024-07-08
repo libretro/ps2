@@ -2335,6 +2335,18 @@ static void SetPipelineProvokingVertex(const GSDevice::FeatureSupport& features,
 		gpb.SetProvokingVertex(VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT);
 }
 
+VkShaderModule GSDeviceVK::GetUtilityVertexShader(const char *source, const char* replace_main = nullptr)
+{
+	std::stringstream ss;
+	AddShaderHeader(ss);
+	AddShaderStageMacro(ss, true, false, false);
+	if (replace_main)
+		ss << "#define " << replace_main << " main\n";
+	ss << source;
+
+	return g_vulkan_shader_cache->GetVertexShader(ss.str());
+}
+
 VkShaderModule GSDeviceVK::GetUtilityVertexShader(const std::string& source, const char* replace_main = nullptr)
 {
 	std::stringstream ss;
@@ -2345,6 +2357,18 @@ VkShaderModule GSDeviceVK::GetUtilityVertexShader(const std::string& source, con
 	ss << source;
 
 	return g_vulkan_shader_cache->GetVertexShader(ss.str());
+}
+
+VkShaderModule GSDeviceVK::GetUtilityFragmentShader(const char *source, const char* replace_main = nullptr)
+{
+	std::stringstream ss;
+	AddShaderHeader(ss);
+	AddShaderStageMacro(ss, false, false, true);
+	if (replace_main)
+		ss << "#define " << replace_main << " main\n";
+	ss << source;
+
+	return g_vulkan_shader_cache->GetFragmentShader(ss.str());
 }
 
 VkShaderModule GSDeviceVK::GetUtilityFragmentShader(const std::string& source, const char* replace_main = nullptr)
@@ -2828,23 +2852,18 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	return true;
 }
 
+#include "merge.glsl"
+
 bool GSDeviceVK::CompileMergePipelines()
 {
 	VkDevice m_device = vk_init_info.device;
-
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/merge.glsl");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/vulkan/merge.glsl.");
-		return false;
-	}
 
 	VkRenderPass rp = GetRenderPass(
 		LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
 	if (!rp)
 		return false;
 
-	VkShaderModule vs = GetUtilityVertexShader(*shader);
+	VkShaderModule vs = GetUtilityVertexShader(merge_glsl_shader_raw);
 	if (vs == VK_NULL_HANDLE)
 		return false;
 
@@ -2862,7 +2881,7 @@ bool GSDeviceVK::CompileMergePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_merge.size()); i++)
 	{
-		VkShaderModule ps = GetUtilityFragmentShader(*shader, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
+		VkShaderModule ps = GetUtilityFragmentShader(merge_glsl_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
 		if (ps == VK_NULL_HANDLE)
 			return false;
 
