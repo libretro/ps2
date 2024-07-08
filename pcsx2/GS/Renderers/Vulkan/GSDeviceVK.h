@@ -370,8 +370,6 @@ private:
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
-	std::string m_tfx_source;
-
 	GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) override;
 
 	void DoMerge(GSTexture* sTex[3], GSVector4* sRect, GSTexture* dTex, GSVector4* dRect, const GSRegPMODE& PMODE,

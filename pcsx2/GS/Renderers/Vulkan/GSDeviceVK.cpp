@@ -53,6 +53,7 @@ extern retro_video_refresh_t video_cb;
 #include "convert.glsl"
 #include "interlace.glsl"
 #include "merge.glsl"
+#include "tfx.glsl"
 
 static retro_hw_render_interface_vulkan *vulkan;
 extern retro_log_printf_t log_cb;
@@ -1187,17 +1188,6 @@ bool GSDeviceVK::Create()
 	{
 		Console.Error("Your GPU does not support the required Vulkan features.");
 		return false;
-	}
-
-	{
-		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/tfx.glsl");
-		if (!shader.has_value())
-		{
-			Console.Error("Failed to read shaders/vulkan/tfx.glsl.");
-			return false;
-		}
-
-		m_tfx_source = std::move(*shader);
 	}
 
 	if (!CreateNullTexture())
@@ -3040,7 +3030,7 @@ VkShaderModule GSDeviceVK::GetTFXVertexShader(GSHWDrawConfig::VSSelector sel)
 	AddMacro(ss, "VS_POINT_SIZE", sel.point_size);
 	AddMacro(ss, "VS_EXPAND", static_cast<int>(sel.expand));
 	AddMacro(ss, "VS_PROVOKING_VERTEX_LAST", static_cast<int>(m_features.provoking_vertex_last));
-	ss << m_tfx_source;
+	ss << tfx_glsl_shader_raw;
 
 	VkShaderModule mod = g_vulkan_shader_cache->GetVertexShader(ss.str());
 
@@ -3113,7 +3103,7 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	AddMacro(ss, "PS_TEX_IS_FB", sel.tex_is_fb);
 	AddMacro(ss, "PS_NO_COLOR", sel.no_color);
 	AddMacro(ss, "PS_NO_COLOR1", sel.no_color1);
-	ss << m_tfx_source;
+	ss << tfx_glsl_shader_raw;
 
 	VkShaderModule mod = g_vulkan_shader_cache->GetFragmentShader(ss.str());
 
