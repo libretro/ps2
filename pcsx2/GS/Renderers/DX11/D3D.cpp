@@ -23,8 +23,6 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
-#include <fstream>
-
 wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 {
 	UINT flags = 0;
@@ -65,8 +63,8 @@ D3D::VendorID D3D::GetVendorID(IDXGIAdapter1* adapter)
 
 static unsigned s_next_bad_shader_id = 1;
 
-wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_LEVEL feature_level, bool debug,
-	const std::string_view& code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
+static wil::com_ptr_nothrow<ID3DBlob> D3D_CompileShader(D3D::ShaderType type, D3D_FEATURE_LEVEL feature_level, bool debug,
+	const void *code, size_t code_len, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
 {
 	static constexpr UINT flags_non_debug = D3DCOMPILE_OPTIMIZATION_LEVEL3;
 	static constexpr UINT flags_debug     = D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
@@ -107,7 +105,7 @@ wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_L
 	}
 
 	const HRESULT hr =
-		D3DCompile(code.data(), code.size(), "0", macros, nullptr, entry_point, target, debug ? flags_debug : flags_non_debug,
+		D3DCompile(code, code_len, "0", macros, nullptr, entry_point, target, debug ? flags_debug : flags_non_debug,
 			0, blob.put(), error_blob.put());
 
 	if (error_blob)
@@ -119,17 +117,6 @@ wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_L
 	if (FAILED(hr))
 	{
 		Console.WriteLn("Failed to compile '%s':\n%s", target, error_string.c_str());
-
-		std::ofstream ofs(StringUtil::StdStringFromFormat("pcsx2_bad_shader_%u.txt", s_next_bad_shader_id++).c_str(),
-			std::ofstream::out | std::ofstream::binary);
-		if (ofs.is_open())
-		{
-			ofs << code;
-			ofs << "\n\nCompile as " << target << " failed: " << hr << "\n";
-			ofs.write(error_string.c_str(), error_string.size());
-			ofs.close();
-		}
-
 		return {};
 	}
 
@@ -137,4 +124,10 @@ wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_L
 		Console.Warning("'%s' compiled with warnings:\n%s", target, error_string.c_str());
 
 	return blob;
+}
+
+wil::com_ptr_nothrow<ID3DBlob> D3D::CompileShader(ShaderType type, D3D_FEATURE_LEVEL feature_level, bool debug,
+	const std::string_view& code, const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
+{
+	return D3D_CompileShader(type, feature_level, debug, code.data(), code.size(), macros, entry_point);
 }
