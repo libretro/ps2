@@ -50,6 +50,9 @@ extern retro_video_refresh_t video_cb;
 #define VK_NO_PROTOTYPES
 #include <libretro_vulkan.h>
 
+#include "interlace.glsl"
+#include "merge.glsl"
+
 static retro_hw_render_interface_vulkan *vulkan;
 extern retro_log_printf_t log_cb;
 
@@ -2798,19 +2801,12 @@ bool GSDeviceVK::CompileInterlacePipelines()
 {
 	VkDevice m_device = vk_init_info.device;
 
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/interlace.glsl");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/vulkan/interlace.glsl.");
-		return false;
-	}
-
 	VkRenderPass rp = GetRenderPass(
 		LookupNativeFormat(GSTexture::Format::Color), VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD);
 	if (!rp)
 		return false;
 
-	VkShaderModule vs = GetUtilityVertexShader(*shader);
+	VkShaderModule vs = GetUtilityVertexShader(interlace_glsl_shader_raw);
 	if (vs == VK_NULL_HANDLE)
 		return false;
 
@@ -2829,7 +2825,7 @@ bool GSDeviceVK::CompileInterlacePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_interlace.size()); i++)
 	{
-		VkShaderModule ps = GetUtilityFragmentShader(*shader, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
+		VkShaderModule ps = GetUtilityFragmentShader(interlace_glsl_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str());
 		if (ps == VK_NULL_HANDLE)
 		{
 			SafeDestroyShaderModule(m_device, vs);
@@ -2852,7 +2848,6 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	return true;
 }
 
-#include "merge.glsl"
 
 bool GSDeviceVK::CompileMergePipelines()
 {
