@@ -32,6 +32,8 @@
 #include "Host.h"
 #include "ShaderCacheVersion.h"
 
+#include "interlace.glsl"
+
 #define GL_DEFAULT_FRAMEBUFFER hw_render.get_current_framebuffer()
 
 extern retro_video_refresh_t video_cb;
@@ -524,18 +526,11 @@ bool GSDeviceOGL::Create()
 	// interlace
 	// ****************************************************************
 	{
-		const auto shader = Host::ReadResourceFileToString("shaders/opengl/interlace.glsl");
-		if (!shader.has_value())
-		{
-			Console.Error("GS", "Failed to read shaders/opengl/interlace.glsl.");
-			return false;
-		}
-
 		for (unsigned i = 0; i < std::size(m_interlace.ps); i++)
 		{
 			char entry[32];
 			snprintf(entry, sizeof(entry), "ps_main%d", i);
-			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, *shader));
+			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, interlace_glsl_shader_raw));
 			if (!m_shader_cache.GetProgram(&m_interlace.ps[i], m_convert.vs, ps))
 				return false;
 			m_interlace.ps[i].RegisterUniform("ZrH");
@@ -1017,6 +1012,13 @@ GSTexture* GSDeviceOGL::InitPrimDateTexture(GSTexture* rt, const GSVector4i& are
 
 	StretchRect(rt, GSVector4(area) / GSVector4(rtsize).xyxy(), tex, GSVector4(area), m_date.primid_ps[static_cast<u8>(datm)], false);
 	return tex;
+}
+
+std::string GSDeviceOGL::GetShaderSource(const std::string_view& entry, GLenum type, const char *glsl_h_code, const std::string_view& macro_sel)
+{
+	std::string src = GenGlslHeader(entry, type, macro_sel);
+	src += glsl_h_code;
+	return src;
 }
 
 std::string GSDeviceOGL::GetShaderSource(const std::string_view& entry, GLenum type, const std::string_view& glsl_h_code, const std::string_view& macro_sel)
