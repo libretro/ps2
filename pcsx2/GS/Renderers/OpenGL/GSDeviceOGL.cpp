@@ -32,6 +32,7 @@
 #include "Host.h"
 #include "ShaderCacheVersion.h"
 
+#include "convert.glsl"
 #include "interlace.glsl"
 #include "present.glsl"
 #include "merge.glsl"
@@ -412,24 +413,16 @@ bool GSDeviceOGL::Create()
 			m_ps_ss[key] = CreateSampler(PSSamplerSelector(key));
 	}
 
-	// these all share the same vertex shader
-	const auto convert_glsl = Host::ReadResourceFileToString("shaders/opengl/convert.glsl");
-	if (!convert_glsl.has_value())
-	{
-		Console.Error("GS", "Failed to read shaders/opengl/convert.glsl.");
-		return false;
-	}
-
 	// ****************************************************************
 	// convert
 	// ****************************************************************
 	{
-		m_convert.vs = GetShaderSource("vs_main", GL_VERTEX_SHADER, *convert_glsl);
+		m_convert.vs = GetShaderSource("vs_main", GL_VERTEX_SHADER, convert_glsl_shader_raw);
 
 		for (size_t i = 0; i < std::size(m_convert.ps); i++)
 		{
 			const char* name = shaderName(static_cast<ShaderConvert>(i));
-			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, *convert_glsl));
+			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, convert_glsl_shader_raw));
 			if (!m_shader_cache.GetProgram(&m_convert.ps[i], m_convert.vs, ps))
 				return false;
 
@@ -548,7 +541,7 @@ bool GSDeviceOGL::Create()
 		{
 			char entry[32];
 			snprintf(entry, sizeof(entry), "ps_stencil_image_init_%d", i);
-			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, *convert_glsl));
+			const std::string ps(GetShaderSource(entry, GL_FRAGMENT_SHADER, convert_glsl_shader_raw));
 			m_shader_cache.GetProgram(&m_date.primid_ps[i], m_convert.vs, ps);
 		}
 	}
