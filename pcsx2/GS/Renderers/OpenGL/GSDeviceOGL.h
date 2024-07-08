@@ -218,9 +218,6 @@ private:
 	GSHWDrawConfig::VSConstantBuffer m_vs_cb_cache;
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
-	std::string m_shader_tfx_vgs;
-	std::string m_shader_tfx_fs;
-
 	bool CheckFeatures(bool& buggy_pbo);
 
 	void DestroyResources();

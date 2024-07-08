@@ -36,6 +36,8 @@
 #include "interlace.glsl"
 #include "present.glsl"
 #include "merge.glsl"
+#include "tfx_fs.glsl"
+#include "tfx_vs.glsl"
 
 #define GL_DEFAULT_FRAMEBUFFER hw_render.get_current_framebuffer()
 
@@ -597,17 +599,6 @@ void GSDeviceOGL::Destroy()
 
 bool GSDeviceOGL::CreateTextureFX()
 {
-	auto vertex_shader = Host::ReadResourceFileToString("shaders/opengl/tfx_vgs.glsl");
-	auto fragment_shader = Host::ReadResourceFileToString("shaders/opengl/tfx_fs.glsl");
-	if (!vertex_shader.has_value() || !fragment_shader.has_value())
-	{
-		Console.Error("GS", "Failed to read shaders/opengl/tfx_{vgs,fs}.glsl.");
-		return false;
-	}
-
-	m_shader_tfx_vgs = std::move(*vertex_shader);
-	m_shader_tfx_fs = std::move(*fragment_shader);
-
 	// warning 1 sampler by image unit. So you cannot reuse m_ps_ss...
 	m_palette_ss = CreateSampler(PSSamplerSelector(0));
 	glBindSampler(1, m_palette_ss);
@@ -1082,7 +1073,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 	  + fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
 
 	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
-	src += m_shader_tfx_vgs;
+	src += tfx_vs_glsl_shader_raw;
 	return src;
 }
 
@@ -1149,7 +1140,7 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 	;
 
 	std::string src = GenGlslHeader("ps_main", GL_FRAGMENT_SHADER, macro);
-	src += m_shader_tfx_fs;
+	src += tfx_fs_glsl_shader_raw;
 	return src;
 }
 
