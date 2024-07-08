@@ -50,6 +50,7 @@ extern retro_video_refresh_t video_cb;
 #define VK_NO_PROTOTYPES
 #include <libretro_vulkan.h>
 
+#include "convert.glsl"
 #include "interlace.glsl"
 #include "merge.glsl"
 
@@ -2580,14 +2581,7 @@ bool GSDeviceVK::CreateRenderPasses()
 bool GSDeviceVK::CompileConvertPipelines()
 {
 	VkDevice m_device = vk_init_info.device;
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/vulkan/convert.glsl");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/vulkan/convert.glsl.");
-		return false;
-	}
-
-	VkShaderModule vs = GetUtilityVertexShader(*shader);
+	VkShaderModule vs = GetUtilityVertexShader(convert_glsl_shader_raw);
 	if (vs == VK_NULL_HANDLE)
 		return false;
 
@@ -2659,7 +2653,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 
 		gpb.SetColorWriteMask(0, ShaderConvertWriteMask(i));
 
-		ps = GetUtilityFragmentShader(*shader, shaderName(i));
+		ps = GetUtilityFragmentShader(convert_glsl_shader_raw, shaderName(i));
 		if (ps == VK_NULL_HANDLE)
 		{
 			SafeDestroyShaderModule(m_device, vs);
@@ -2699,7 +2693,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 		{
 			// compile color copy pipelines
 			gpb.SetRenderPass(m_utility_color_render_pass_discard, 0);
-			VkShaderModule ps = GetUtilityFragmentShader(*shader, shaderName(i));
+			VkShaderModule ps = GetUtilityFragmentShader(convert_glsl_shader_raw, shaderName(i));
 			if (ps == VK_NULL_HANDLE)
 				return false;
 
@@ -2762,7 +2756,7 @@ bool GSDeviceVK::CompileConvertPipelines()
 	{
 		char val[64];
 		snprintf(val, sizeof(val), "ps_stencil_image_init_%d", datm);
-		VkShaderModule ps = GetUtilityFragmentShader(*shader, val);
+		VkShaderModule ps = GetUtilityFragmentShader(convert_glsl_shader_raw, val);
 		if (ps == VK_NULL_HANDLE)
 		{
 			SafeDestroyShaderModule(m_device, vs);
@@ -2847,7 +2841,6 @@ bool GSDeviceVK::CompileInterlacePipelines()
 	SafeDestroyShaderModule(m_device, vs);
 	return true;
 }
-
 
 bool GSDeviceVK::CompileMergePipelines()
 {
