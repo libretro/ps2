@@ -191,7 +191,6 @@ private:
 	GSHWDrawConfig::PSConstantBuffer m_ps_cb_cache;
 
 	D3D11ShaderCache m_shader_cache;
-	std::string m_tfx_source;
 
 public:
 	GSDevice11();
