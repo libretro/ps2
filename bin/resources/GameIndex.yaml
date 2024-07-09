@@ -2959,6 +2959,7 @@ SCED-51700:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCED-51728:
   name: "EverQuest - Online Adventures [Demo]"
   region: "PAL-E"
@@ -4762,6 +4763,7 @@ SCES-51608:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCES-51610:
   name: "This is Football 2004 [Red Devils 2004]"
   region: "PAL-BE"
@@ -6462,6 +6464,7 @@ SCKA-20010:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCKA-20011:
   name: "Ratchet & Clank 2"
   region: "NTSC-K"
@@ -10014,6 +10017,7 @@ SCUS-97265:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97266:
   name: "Final Fantasy XI [Disc 1 of 2]"
   region: "NTSC-U"
@@ -10053,6 +10057,7 @@ SCUS-97273:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97274:
   name: "Jak II [Video Demo]"
   region: "NTSC-U"
@@ -10062,6 +10067,7 @@ SCUS-97274:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97275:
   name: "SOCOM II - U.S. Navy SEALs"
   region: "NTSC-U"
@@ -10948,6 +10954,7 @@ SCUS-97509:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97510:
   name: "ATV Offroad Fury 2 [Greatest Hits]"
   region: "NTSC-U"
