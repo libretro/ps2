@@ -240,7 +240,7 @@ char convert_fx_shader_raw[] =
 "float ps_convert_float32_float24(PS_INPUT input) : SV_Depth\n"
 "{\n"
 "	// Truncates depth value to 24bits\n"
-"	uint d = uint(sample_c(input.t).r * exp2(32.0f)) & 0xFFFFFF;\n"
+"	uint d = uint(sample_c(input.t).r * exp2(32.0f)) & 0xFFFFFFu;\n"
 "	return float(d) * exp2(-32.0f);\n"
 "}\n"
 "\n"
