@@ -317,7 +317,10 @@ namespace Options
 			{"9x Native (~3240p)",      9},
 			{"10x Native (~3600p/6K)", 10},
 			{"11x Native (~3960p)",    11},
-			{"12x Native (~4320p/8K)", 12}   });
+			{"12x Native (~4320p/8K)", 12},
+			{"13x Native (~5824p)",    13},
+			{"14x Native (~6272p)",    14},
+			});
 	//static GfxOption<int> sw_renderer_threads("pcsx2_sw_renderer_threads", "Software Renderer Threads", 2, 10);
 } // namespace Options
 
