@@ -31,6 +31,15 @@
 
 #include <libretro_d3d.h>
 
+extern "C" {
+
+extern char tfx_fx_shader_raw[];
+extern char merge_fx_shader_raw[];
+extern char convert_fx_shader_raw[];
+extern char interlace_fx_shader_raw[];
+
+}
+
 extern retro_environment_t environ_cb;
 
 static bool SupportsTextureFormat(ID3D11Device* dev, DXGI_FORMAT format)
@@ -118,11 +127,6 @@ bool GSDevice11::Create()
 	}
 
 
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/tfx.fx");
-	if (!shader.has_value())
-		return false;
-	m_tfx_source = std::move(*shader);
-
 	// convert
 
 	D3D11_INPUT_ELEMENT_DESC il_convert[] =
@@ -134,18 +138,12 @@ bool GSDevice11::Create()
 
 	ShaderMacro sm_model(m_shader_cache.GetFeatureLevel());
 
-	std::optional<std::string> convert_hlsl = Host::ReadResourceFileToString("shaders/dx11/convert.fx");
-	if (!convert_hlsl.has_value())
+	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_convert.vs.put(), m_convert.il.put(), il_convert, std::size(il_convert), convert_fx_shader_raw, sm_model.GetPtr(), "vs_main"))
 		return false;
-	if (!m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), m_convert.vs.put(), m_convert.il.put(),
-			il_convert, std::size(il_convert), *convert_hlsl, sm_model.GetPtr(), "vs_main"))
-	{
-		return false;
-	}
 
 	for (size_t i = 0; i < std::size(m_convert.ps); i++)
 	{
-		m_convert.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), *convert_hlsl, sm_model.GetPtr(), shaderName(static_cast<ShaderConvert>(i)));
+		m_convert.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), convert_fx_shader_raw, sm_model.GetPtr(), shaderName(static_cast<ShaderConvert>(i)));
 		if (!m_convert.ps[i])
 			return false;
 	}
@@ -178,14 +176,10 @@ bool GSDevice11::Create()
 
 	m_dev->CreateBuffer(&bd, nullptr, m_merge.cb.put());
 
-	shader = Host::ReadResourceFileToString("shaders/dx11/merge.fx");
-	if (!shader.has_value())
-		return false;
-
 	for (size_t i = 0; i < std::size(m_merge.ps); i++)
 	{
 		const std::string entry_point(StringUtil::StdStringFromFormat("ps_main%d", i));
-		m_merge.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), *shader, sm_model.GetPtr(), entry_point.c_str());
+		m_merge.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), merge_fx_shader_raw, sm_model.GetPtr(), entry_point.c_str());
 		if (!m_merge.ps[i])
 			return false;
 	}
@@ -213,13 +207,10 @@ bool GSDevice11::Create()
 
 	m_dev->CreateBuffer(&bd, nullptr, m_interlace.cb.put());
 
-	shader = Host::ReadResourceFileToString("shaders/dx11/interlace.fx");
-	if (!shader.has_value())
-		return false;
 	for (size_t i = 0; i < std::size(m_interlace.ps); i++)
 	{
 		const std::string entry_point(StringUtil::StdStringFromFormat("ps_main%d", i));
-		m_interlace.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), *shader, sm_model.GetPtr(), entry_point.c_str());
+		m_interlace.ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), interlace_fx_shader_raw, sm_model.GetPtr(), entry_point.c_str());
 		if (!m_interlace.ps[i])
 			return false;
 	}
@@ -353,7 +344,7 @@ bool GSDevice11::Create()
 	for (size_t i = 0; i < std::size(m_date.primid_init_ps); i++)
 	{
 		const std::string entry_point(StringUtil::StdStringFromFormat("ps_stencil_image_init_%d", i));
-		m_date.primid_init_ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), *convert_hlsl, sm_model.GetPtr(), entry_point.c_str());
+		m_date.primid_init_ps[i] = m_shader_cache.GetPixelShader(m_dev.get(), convert_fx_shader_raw, sm_model.GetPtr(), entry_point.c_str());
 		if (!m_date.primid_init_ps[i])
 			return false;
 	}
@@ -1519,12 +1510,10 @@ void GSDevice11::SetupVS(VSSelector sel, const GSHWDrawConfig::VSConstantBuffer*
 		if (sel.expand == GSHWDrawConfig::VSExpand::None)
 		{
 			m_shader_cache.GetVertexShaderAndInputLayout(m_dev.get(), vs.vs.put(), vs.il.put(), layout,
-				std::size(layout), m_tfx_source, sm.GetPtr(), "vs_main");
+				std::size(layout), tfx_fx_shader_raw, sm.GetPtr(), "vs_main");
 		}
 		else
-		{
-			vs.vs = m_shader_cache.GetVertexShader(m_dev.get(), m_tfx_source, sm.GetPtr(), "vs_main_expand");
-		}
+			vs.vs = m_shader_cache.GetVertexShader(m_dev.get(), tfx_fx_shader_raw, sm.GetPtr(), "vs_main_expand");
 
 		i = m_vs.try_emplace(sel.key, std::move(vs)).first;
 	}
@@ -1604,7 +1593,7 @@ void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstant
 		sm.AddMacro("PS_NO_COLOR", sel.no_color);
 		sm.AddMacro("PS_NO_COLOR1", sel.no_color1);
 
-		wil::com_ptr_nothrow<ID3D11PixelShader> ps = m_shader_cache.GetPixelShader(m_dev.get(), m_tfx_source, sm.GetPtr(), "ps_main");
+		wil::com_ptr_nothrow<ID3D11PixelShader> ps = m_shader_cache.GetPixelShader(m_dev.get(), tfx_fx_shader_raw, sm.GetPtr(), "ps_main");
 		i = m_ps.try_emplace(sel, std::move(ps)).first;
 	}
 

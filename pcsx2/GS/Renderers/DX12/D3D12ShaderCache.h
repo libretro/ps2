@@ -50,6 +50,22 @@ class D3D12ShaderCache
 		bool Open(D3D_FEATURE_LEVEL feature_level, bool debug);
 		void Close();
 
+		__fi ComPtr<ID3DBlob> GetVertexShader(const char *shader_code, size_t shader_len,
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main")
+		{
+			return GetShaderBlob(EntryType::VertexShader, shader_code, shader_len, macros, entry_point);
+		}
+		__fi ComPtr<ID3DBlob> GetPixelShader(const char *shader_code, size_t shader_len,
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main")
+		{
+			return GetShaderBlob(EntryType::PixelShader, shader_code, shader_len, macros, entry_point);
+		}
+		__fi ComPtr<ID3DBlob> GetComputeShader(const char *shader_code, size_t shader_len,
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main")
+		{
+			return GetShaderBlob(EntryType::ComputeShader, shader_code, shader_len, macros, entry_point);
+		}
+
 		__fi ComPtr<ID3DBlob> GetVertexShader(std::string_view shader_code,
 				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main")
 		{
@@ -66,14 +82,13 @@ class D3D12ShaderCache
 			return GetShaderBlob(EntryType::ComputeShader, shader_code, macros, entry_point);
 		}
 
+		ComPtr<ID3DBlob> GetShaderBlob(EntryType type, const char *shader_code, size_t shader_len,
+				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 		ComPtr<ID3DBlob> GetShaderBlob(EntryType type, std::string_view shader_code,
 				const D3D_SHADER_MACRO* macros = nullptr, const char* entry_point = "main");
 
 		ComPtr<ID3D12PipelineState> GetPipelineState(ID3D12Device* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
 		ComPtr<ID3D12PipelineState> GetPipelineState(ID3D12Device* device, const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc);
-
-	private:
-		static constexpr u32 FILE_VERSION = 1;
 
 		struct CacheIndexKey
 		{
@@ -101,6 +116,9 @@ class D3D12ShaderCache
 			}
 		};
 
+	private:
+		static constexpr u32 FILE_VERSION = 1;
+
 		struct CacheIndexData
 		{
 			u32 file_offset;
@@ -111,8 +129,8 @@ class D3D12ShaderCache
 
 		static std::string GetCacheBaseFileName(const std::string_view& type,
 				D3D_FEATURE_LEVEL feature_level, bool debug);
-		static CacheIndexKey GetShaderCacheKey(EntryType type, const std::string_view& shader_code,
-				const D3D_SHADER_MACRO* macros, const char* entry_point);
+		static CacheIndexKey GetShaderCacheKey(EntryType type, const std::string_view& shader_code, const D3D_SHADER_MACRO* macros, const char* entry_point);
+		static CacheIndexKey GetShaderCacheKey(EntryType type, const char *shader_code, size_t shader_len, const D3D_SHADER_MACRO* macros, const char* entry_point);
 		static CacheIndexKey GetPipelineCacheKey(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& gpdesc);
 		static CacheIndexKey GetPipelineCacheKey(const D3D12_COMPUTE_PIPELINE_STATE_DESC& gpdesc);
 

@@ -37,6 +37,16 @@
 #include <vector>
 
 #include <libretro_d3d.h>
+
+extern "C" {
+
+extern char tfx_fx_shader_raw[];
+extern char merge_fx_shader_raw[];
+extern char convert_fx_shader_raw[];
+extern char interlace_fx_shader_raw[];
+
+}
+
 retro_hw_render_interface_d3d12 *d3d12;
 extern retro_environment_t environ_cb;
 extern retro_video_refresh_t video_cb;
@@ -614,17 +624,6 @@ bool GSDevice12::Create()
 	}
 
 	AcquireWindow();
-
-	{
-		std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/tfx.fx");
-		if (!shader.has_value())
-		{
-			Console.Error("Failed to read shaders/dx11/tfx.fxf.");
-			return false;
-		}
-
-		m_tfx_source = std::move(*shader);
-	}
 
 	if (!m_shader_cache.Open(m_feature_level, GSConfig.UseDebugDevice))
 		Console.Warning("Shader cache failed to open.");
@@ -1501,6 +1500,18 @@ GSDevice12::ComPtr<ID3DBlob> GSDevice12::GetUtilityPixelShader(const std::string
 	return m_shader_cache.GetPixelShader(source, sm_model.GetPtr(), entry_point);
 }
 
+GSDevice12::ComPtr<ID3DBlob> GSDevice12::GetUtilityVertexShader(const char *source, size_t len, const char* entry_point)
+{
+	ShaderMacro sm_model(m_shader_cache.GetFeatureLevel());
+	return m_shader_cache.GetVertexShader(source, len, sm_model.GetPtr(), entry_point);
+}
+
+GSDevice12::ComPtr<ID3DBlob> GSDevice12::GetUtilityPixelShader(const char *source, size_t len, const char* entry_point)
+{
+	ShaderMacro sm_model(m_shader_cache.GetFeatureLevel());
+	return m_shader_cache.GetPixelShader(source, len, sm_model.GetPtr(), entry_point);
+}
+
 bool GSDevice12::CreateNullTexture()
 {
 	m_null_texture =
@@ -1580,14 +1591,7 @@ bool GSDevice12::CreateRootSignatures()
 
 bool GSDevice12::CompileConvertPipelines()
 {
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/convert.fx");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/dx11/convert.fx.");
-		return false;
-	}
-
-	m_convert_vs = GetUtilityVertexShader(*shader, "vs_main");
+	m_convert_vs = GetUtilityVertexShader(convert_fx_shader_raw, "vs_main");
 	if (!m_convert_vs)
 		return false;
 
@@ -1651,7 +1655,7 @@ bool GSDevice12::CompileConvertPipelines()
 
 		gpb.SetColorWriteMask(0, ShaderConvertWriteMask(i));
 
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, shaderName(i)));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(convert_fx_shader_raw, shaderName(i)));
 		if (!ps)
 			return false;
 
@@ -1680,7 +1684,7 @@ bool GSDevice12::CompileConvertPipelines()
 			gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
 			gpb.SetDepthStencilFormat(DXGI_FORMAT_UNKNOWN);
 
-			ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, shaderName(i)));
+			ComPtr<ID3DBlob> ps(GetUtilityPixelShader(convert_fx_shader_raw, shaderName(i)));
 			if (!ps)
 				return false;
 
@@ -1714,7 +1718,7 @@ bool GSDevice12::CompileConvertPipelines()
 	{
 		char var[64];
 		snprintf(var, sizeof(var), "ps_stencil_image_init_%d", datm);
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, var));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(convert_fx_shader_raw, var));
 		if (!ps)
 			return false;
 
@@ -1740,13 +1744,6 @@ bool GSDevice12::CompileConvertPipelines()
 
 bool GSDevice12::CompileInterlacePipelines()
 {
-	std::optional<std::string> source = Host::ReadResourceFileToString("shaders/dx11/interlace.fx");
-	if (!source)
-	{
-		Console.Error("Failed to read shaders/dx11/interlace.fx.");
-		return false;
-	}
-
 	D3D12::GraphicsPipelineBuilder gpb;
 	AddUtilityVertexAttributes(gpb);
 	gpb.SetRootSignature(m_utility_root_signature.get());
@@ -1758,7 +1755,7 @@ bool GSDevice12::CompileInterlacePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_interlace.size()); i++)
 	{
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*source, StringUtil::StdStringFromFormat("ps_main%d", i).c_str()));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(interlace_fx_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str()));
 		if (!ps)
 			return false;
 
@@ -1774,13 +1771,6 @@ bool GSDevice12::CompileInterlacePipelines()
 
 bool GSDevice12::CompileMergePipelines()
 {
-	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/merge.fx");
-	if (!shader)
-	{
-		Console.Error("Failed to read shaders/dx11/merge.fx.");
-		return false;
-	}
-
 	D3D12::GraphicsPipelineBuilder gpb;
 	AddUtilityVertexAttributes(gpb);
 	gpb.SetRootSignature(m_utility_root_signature.get());
@@ -1791,7 +1781,7 @@ bool GSDevice12::CompileMergePipelines()
 
 	for (int i = 0; i < static_cast<int>(m_merge.size()); i++)
 	{
-		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, StringUtil::StdStringFromFormat("ps_main%d", i).c_str()));
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(merge_fx_shader_raw, StringUtil::StdStringFromFormat("ps_main%d", i).c_str()));
 		if (!ps)
 			return false;
 
@@ -1902,7 +1892,7 @@ const ID3DBlob* GSDevice12::GetTFXVertexShader(GSHWDrawConfig::VSSelector sel)
 	sm.AddMacro("VS_EXPAND", static_cast<int>(sel.expand));
 
 	const char* entry_point = (sel.expand != GSHWDrawConfig::VSExpand::None) ? "vs_main_expand" : "vs_main";
-	ComPtr<ID3DBlob> vs(m_shader_cache.GetVertexShader(m_tfx_source, sm.GetPtr(), entry_point));
+	ComPtr<ID3DBlob> vs(m_shader_cache.GetVertexShader(tfx_fx_shader_raw, strlen(tfx_fx_shader_raw), sm.GetPtr(), entry_point));
 	it = m_tfx_vertex_shaders.emplace(sel.key, std::move(vs)).first;
 	return it->second.get();
 }
@@ -1971,7 +1961,7 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_NO_COLOR", sel.no_color);
 	sm.AddMacro("PS_NO_COLOR1", sel.no_color1);
 
-	ComPtr<ID3DBlob> ps(m_shader_cache.GetPixelShader(m_tfx_source, sm.GetPtr(), "ps_main"));
+	ComPtr<ID3DBlob> ps(m_shader_cache.GetPixelShader(tfx_fx_shader_raw, strlen(tfx_fx_shader_raw), sm.GetPtr(), "ps_main"));
 	it = m_tfx_pixel_shaders.emplace(sel, std::move(ps)).first;
 	return it->second.get();
 }

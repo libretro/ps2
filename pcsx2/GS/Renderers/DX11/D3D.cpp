@@ -23,6 +23,15 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
+extern "C" {
+
+#include "convert.fx"
+#include "interlace.fx"
+#include "merge.fx"
+#include "tfx.fx"
+
+}
+
 wil::com_ptr_nothrow<IDXGIFactory5> D3D::CreateFactory(bool debug)
 {
 	UINT flags = 0;

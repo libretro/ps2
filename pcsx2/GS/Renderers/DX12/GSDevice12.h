@@ -203,7 +203,6 @@ private:
 
 	D3D12ShaderCache m_shader_cache;
 	ComPtr<ID3DBlob> m_convert_vs;
-	std::string m_tfx_source;
 
 	void LookupNativeFormat(GSTexture::Format format, DXGI_FORMAT* d3d_format, DXGI_FORMAT* srv_format, DXGI_FORMAT* rtv_format, DXGI_FORMAT* dsv_format) const;
 
@@ -224,6 +223,8 @@ private:
 
 	ComPtr<ID3DBlob> GetUtilityVertexShader(const std::string& source, const char* entry_point);
 	ComPtr<ID3DBlob> GetUtilityPixelShader(const std::string& source, const char* entry_point);
+	ComPtr<ID3DBlob> GetUtilityVertexShader(const char *source, size_t len, const char* entry_point);
+	ComPtr<ID3DBlob> GetUtilityPixelShader(const char *source, size_t len, const char* entry_point);
 
 	bool CheckFeatures();
 	bool CreateNullTexture();

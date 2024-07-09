@@ -300,8 +300,7 @@ union MD5Hash
 	u8 hash[16];
 };
 
-D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetShaderCacheKey(EntryType type, const std::string_view& shader_code,
-	const D3D_SHADER_MACRO* macros, const char* entry_point)
+static D3D12ShaderCache::CacheIndexKey D3D12ShaderCache_GetShaderCacheKey(D3D12ShaderCache::EntryType type, const char *shader_code, size_t shader_len, const D3D_SHADER_MACRO* macros, const char* entry_point)
 {
 	union
 	{
@@ -313,15 +312,15 @@ D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetShaderCacheKey(EntryType ty
 		u8 hash[16];
 	};
 
-	CacheIndexKey key = {};
+	D3D12ShaderCache::CacheIndexKey key = {};
 	key.type = type;
 
 	MD5Digest digest;
-	digest.Update(shader_code.data(), static_cast<u32>(shader_code.length()));
+	digest.Update(shader_code, static_cast<u32>(shader_len));
 	digest.Final(hash);
 	key.source_hash_low = hash_low;
 	key.source_hash_high = hash_high;
-	key.source_length = static_cast<u32>(shader_code.length());
+	key.source_length = static_cast<u32>(shader_len);
 
 	if (macros)
 	{
@@ -343,6 +342,17 @@ D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetShaderCacheKey(EntryType ty
 	key.entry_point_high = hash_high;
 
 	return key;
+}
+
+D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetShaderCacheKey(EntryType type, const std::string_view& shader_code,
+	const D3D_SHADER_MACRO* macros, const char* entry_point)
+{
+	return D3D12ShaderCache_GetShaderCacheKey(type, shader_code.data(), shader_code.size(), macros, entry_point);
+}
+
+D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetShaderCacheKey(EntryType type, const char *shader_code, size_t shader_len, const D3D_SHADER_MACRO* macros, const char* entry_point)
+{
+	return D3D12ShaderCache_GetShaderCacheKey(type, shader_code, shader_len, macros, entry_point);
 }
 
 D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetPipelineCacheKey(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& gpdesc)
@@ -413,6 +423,26 @@ D3D12ShaderCache::CacheIndexKey D3D12ShaderCache::GetPipelineCacheKey(const D3D1
 	digest.Final(h.hash);
 
 	return CacheIndexKey{h.low, h.high, 0, 0, 0, 0, length, EntryType::ComputePipeline};
+}
+
+D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::GetShaderBlob(EntryType type, const char *shader_code, size_t shader_len,
+	const D3D_SHADER_MACRO* macros /* = nullptr */, const char* entry_point /* = "main" */)
+{
+	const auto key = GetShaderCacheKey(type, shader_code, shader_len, macros, entry_point);
+	auto iter = m_shader_index.find(key);
+	if (iter == m_shader_index.end())
+		return CompileAndAddShaderBlob(key, shader_code, macros, entry_point);
+
+	ComPtr<ID3DBlob> blob;
+	HRESULT hr = D3DCreateBlob(iter->second.blob_size, blob.put());
+	if (FAILED(hr) || rfseek(m_shader_blob_file, iter->second.file_offset, SEEK_SET) != 0 ||
+		rfread(blob->GetBufferPointer(), 1, iter->second.blob_size, m_shader_blob_file) != iter->second.blob_size)
+	{
+		Console.Error("Read blob from file failed");
+		return {};
+	}
+
+	return blob;
 }
 
 D3D12ShaderCache::ComPtr<ID3DBlob> D3D12ShaderCache::GetShaderBlob(EntryType type, std::string_view shader_code,
