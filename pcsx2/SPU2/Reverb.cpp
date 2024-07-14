@@ -35,8 +35,8 @@ StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 		return ret;
 	}
 
-	Input.Left  = std::min(std::max(Input.Left,  -0x8000), 0x7fff);
-	Input.Right = std::min(std::max(Input.Right, -0x8000), 0x7fff);
+	Input.Left  = std::clamp(Input.Left, -0x8000, 0x7fff);
+	Input.Right = std::clamp(Input.Right, -0x8000, 0x7fff);
 
 	RevbDownBuf[0][RevbSampleBufPos] = Input.Left;
 	RevbDownBuf[1][RevbSampleBufPos] = Input.Right;
@@ -112,13 +112,13 @@ StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 	// According to no$psx the effects always run but don't always write back, see check in V_Core::Mix
 	if (FxEnable)
 	{
-		_spu2mem[same_dst] = std::min(std::max(same, -0x8000), 0x7fff);
-		_spu2mem[diff_dst] = std::min(std::max(diff, -0x8000), 0x7fff);
-		_spu2mem[apf1_dst] = std::min(std::max(apf1, -0x8000), 0x7fff);
-		_spu2mem[apf2_dst] = std::min(std::max(apf2, -0x8000), 0x7fff);
+		_spu2mem[same_dst] = std::clamp(same, -0x8000, 0x7fff);
+		_spu2mem[diff_dst] = std::clamp(diff, -0x8000, 0x7fff);
+		_spu2mem[apf1_dst] = std::clamp(apf1, -0x8000, 0x7fff);
+		_spu2mem[apf2_dst] = std::clamp(apf2, -0x8000, 0x7fff);
 	}
 
-	out = std::min(std::max(out, -0x8000), 0x7fff);
+	out = std::clamp(out, -0x8000, 0x7fff);
 
 	RevbUpBuf[R][RevbSampleBufPos] = out;
 	RevbUpBuf[!R][RevbSampleBufPos] = 0;

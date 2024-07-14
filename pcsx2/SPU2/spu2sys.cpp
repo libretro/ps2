@@ -291,22 +291,11 @@ __forceinline void TimeUpdate(u32 cClocks)
 	//Update DMA4 interrupt delay counter
 	if (Cores[0].DMAICounter > 0 && (psxRegs.cycle - Cores[0].LastClock) > 0)
 	{
-		s64 a = psxRegs.cycle - Cores[0].LastClock;
-		s64 b = (u32)Cores[0].DMAICounter;
-		if (b < a)
-		{
-			Cores[0].DMAICounter = 0;
-			Cores[0].LastClock   = psxRegs.cycle;
-			if(!Cores[0].AdmaInProgress)
-				HW_DMA4_MADR += b / 2;
-		}
-		else
-		{
-			Cores[0].DMAICounter -= a;
-			Cores[0].LastClock = psxRegs.cycle;
-			if(!Cores[0].AdmaInProgress)
-				HW_DMA4_MADR += a / 2;
-		}
+		const u32 amt = std::min(psxRegs.cycle - Cores[0].LastClock, (u32)Cores[0].DMAICounter);
+		Cores[0].DMAICounter -= amt;
+		Cores[0].LastClock = psxRegs.cycle;
+		if(!Cores[0].AdmaInProgress)
+			HW_DMA4_MADR += amt / 2;
 
 		if (Cores[0].DMAICounter <= 0)
 		{
@@ -355,22 +344,11 @@ __forceinline void TimeUpdate(u32 cClocks)
 	//Update DMA7 interrupt delay counter
 	if (Cores[1].DMAICounter > 0 && (psxRegs.cycle - Cores[1].LastClock) > 0)
 	{
-		s64 a = psxRegs.cycle - Cores[1].LastClock;
-		s64 b = (u32)Cores[1].DMAICounter;
-		if (b < a)
-		{
-			Cores[1].DMAICounter = 0;
-			Cores[1].LastClock   = psxRegs.cycle;
-			if(!Cores[1].AdmaInProgress)
-				HW_DMA7_MADR += b / 2;
-		}
-		else
-		{
-			Cores[1].DMAICounter -= a;
-			Cores[1].LastClock = psxRegs.cycle;
-			if(!Cores[1].AdmaInProgress)
-				HW_DMA7_MADR += a / 2;
-		}
+		const u32 amt = std::min(psxRegs.cycle - Cores[1].LastClock, (u32)Cores[1].DMAICounter);
+		Cores[1].DMAICounter -= amt;
+		Cores[1].LastClock = psxRegs.cycle;
+		if (!Cores[1].AdmaInProgress)
+			HW_DMA7_MADR += amt / 2;
 
 		if (Cores[1].DMAICounter <= 0)
 		{

@@ -92,8 +92,7 @@ void ProcessDplIISample32(const StereoOut16& src, Stereo51Out32DplII* s)
 	const float Rearness = 1 - Frontness; // And the other way around
 
 	// Equalize the power levels for L/R
-	const float _B = (-0.9f < Balance) ? Balance : -0.9f;
-	const float B  = (_B < 0.9f) ? _B : 0.9f;
+	const float B = std::min(0.9f, std::max(-0.9f, Balance));
 
 	const float VL = L / (1 - B); // if B>0, it means R>L, so increase L, else decrease L
 	const float VR = R / (1 + B); // vice-versa
