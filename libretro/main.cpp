@@ -889,6 +889,7 @@ void retro_unload_game(void)
 	}
 
 	VMManager::Shutdown();
+	Input::Shutdown();
 	cpu_thread.join();
 #ifdef ENABLE_VULKAN
 	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
@@ -934,8 +935,6 @@ void retro_run(void)
 
 	RETRO_PERFORMANCE_INIT(pcsx2_run);
 	RETRO_PERFORMANCE_START(pcsx2_run);
-
-	PAD::Update();
 
 	MTGS::MainLoop(false);
 

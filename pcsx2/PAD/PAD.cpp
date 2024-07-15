@@ -154,23 +154,27 @@ namespace Input
 
 	void Shutdown()
 	{
+		button_mask[0] = 0xFFFFFFFF;
+		button_mask[1] = 0xFFFFFFFF;
 	}
 
 	void Update()
 	{
 		poll_cb();
 
-		for (int j = 0; j < 2; j++)
+		for (unsigned port = 0; port < 2; port++)
 		{
-			u32 mask                 = input_cb(j, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
+			u32 mask                 = input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
 			u32 new_button_mask      = 0xFFFF0000;
 			for (int i = 0; i < 16; i++)
 				new_button_mask |= !(mask & (1 << keymap[i])) << i;
-			button_mask[j]           = new_button_mask;
-			pad_lx[j]                = input_cb(j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
-			pad_ly[j]                = input_cb(j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
-			pad_rx[j]                = input_cb(j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X);
-			pad_ry[j]                = input_cb(j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y);
+			button_mask[port]        = new_button_mask;
+			pad_lx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
+			pad_ly[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
+			pad_rx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X);
+			pad_ry[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y);
+			for (unsigned slot = 0; slot < 4; slot++)
+				pads[port][slot].rumble(sioConvertPortAndSlotToPad(port, slot));
 		}
 	}
 
@@ -596,7 +600,9 @@ u8 PADpoll(u8 value)
 				// Right?  Wrong?  No clue.
 				if (pad->mode == MODE_DIGITAL)
 				{
-					queryMaskMode[1] = queryMaskMode[2] = queryMaskMode[3] = 0;
+					queryMaskMode[1] = 0;
+					queryMaskMode[2] = 0;
+					queryMaskMode[3] = 0;
 					queryMaskMode[6] = 0x00;
 				}
 				else
@@ -622,13 +628,9 @@ u8 PADpoll(u8 value)
 
 			case CMD_QUERY_MODEL_AND_MODE:
 				if (IsDualshock2())
-				{
 					query.set_result(queryModelDS2);
-				}
 				else
-				{
 					query.set_result(queryModelDS1);
-				}
 				query.queryDone   = 1;
 				// Not digital mode.
 				query.response[5] = (pad->mode & 0xF) != 1;
@@ -778,43 +780,15 @@ void PAD::LoadConfig(const SettingsInterface& si)
 
 		g_key_status.m_type[i]             = ci->type;
 
-		const float axis_deadzone          = si.GetFloatValue(section_c, "Deadzone", DEFAULT_STICK_DEADZONE);
-		const float axis_scale             = si.GetFloatValue(section_c, "AxisScale", DEFAULT_STICK_SCALE);
-		const float trigger_deadzone       = si.GetFloatValue(section_c, "TriggerDeadzone", DEFAULT_TRIGGER_DEADZONE);
-		const float trigger_scale          = si.GetFloatValue(section_c, "TriggerScale", DEFAULT_TRIGGER_SCALE);
-		const float button_deadzone        = si.GetFloatValue(section_c, "ButtonDeadzone", DEFAULT_BUTTON_DEADZONE);
 		const float large_motor_scale      = si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE);
 		const float small_motor_scale      = si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE);
-		const float pressure_modifier      = si.GetFloatValue(section_c, "PressureModifier", 1.0f);
-		const int invert_l                 = si.GetIntValue(section_c, "InvertL", 0);
-		const int invert_r                 = si.GetIntValue(section_c, "InvertR", 0);
-
-		g_key_status.m_axis_scale[i][0]    = axis_deadzone;
-		g_key_status.m_axis_scale[i][1]    = axis_scale;
-		g_key_status.m_trigger_scale[i][0] = trigger_deadzone;
-		g_key_status.m_trigger_scale[i][1] = trigger_scale;
-		g_key_status.m_button_deadzone[i]  = button_deadzone;
 
 		if (ci->vibration_caps != NoVibration)
 		{
 			g_key_status.m_vibration_scale[i][0] = large_motor_scale;
 			g_key_status.m_vibration_scale[i][1] = small_motor_scale;
 		}
-
-		g_key_status.m_pressure_modifier[i] = pressure_modifier;
-
-		g_key_status.m_analog[i].invert_lx  = (invert_l & 1) != 0;
-		g_key_status.m_analog[i].invert_ly  = (invert_l & 2) != 0;
-		g_key_status.m_analog[i].invert_rx  = (invert_r & 1) != 0;
-		g_key_status.m_analog[i].invert_ry  = (invert_r & 2) != 0;
 	}
-}
-
-void PAD::Update()
-{
-	for (unsigned port = 0; port < 2; port++)
-		for (unsigned slot = 0; slot < 4; slot++)
-			pads[port][slot].rumble(sioConvertPortAndSlotToPad(port, slot));
 }
 
 static const InputBindingInfo s_dualshock2_binds[] = {

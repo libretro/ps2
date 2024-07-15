@@ -34,11 +34,8 @@
 /// Default stick deadzone/sensitivity.
 #define DEFAULT_STICK_DEADZONE 0.0f
 #define DEFAULT_STICK_SCALE 1.33f
-#define DEFAULT_TRIGGER_DEADZONE 0.0f
-#define DEFAULT_TRIGGER_SCALE 1.0f
 #define DEFAULT_MOTOR_SCALE 1.0f
 #define DEFAULT_PRESSURE_MODIFIER 0.5f
-#define DEFAULT_BUTTON_DEADZONE 0.0f
 
 enum PadCommands
 {
@@ -175,19 +172,13 @@ struct KeyStatus
 	{
 		u8 lx, ly;
 		u8 rx, ry;
-		u8 invert_lx, invert_ly;
-		u8 invert_rx, invert_ry;
 	};
 
 	ControllerType m_type[NUM_CONTROLLER_PORTS] = {};
 	u32 m_button[NUM_CONTROLLER_PORTS];
 	u8 m_button_pressure[NUM_CONTROLLER_PORTS][MAX_KEYS];
 	PADAnalog m_analog[NUM_CONTROLLER_PORTS];
-	float m_axis_scale[NUM_CONTROLLER_PORTS][2];
-	float m_trigger_scale[NUM_CONTROLLER_PORTS][2];
 	float m_vibration_scale[NUM_CONTROLLER_PORTS][2];
-	float m_pressure_modifier[NUM_CONTROLLER_PORTS];
-	float m_button_deadzone[NUM_CONTROLLER_PORTS];
 };
 
 namespace PAD
@@ -206,9 +197,6 @@ namespace PAD
 
 	/// Reloads configuration.
 	void LoadConfig(const SettingsInterface& si);
-
-	/// Updates vibration and other internal state. Called at the *end* of a frame.
-	void Update();
 
 	/// Returns general information for the specified controller type.
 	const ControllerInfo* GetControllerInfo(const std::string_view& name);
