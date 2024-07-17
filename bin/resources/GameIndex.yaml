@@ -7889,10 +7889,10 @@ SCPS-15064:
     - SoftwareRendererFMVHack # Fixes hash cache disabling itself.
   gsHWFixes:
     recommendedBlendingLevel: 4 # Improves banding and effect emulation.
-    halfPixelOffset: 3 # Fixes texture and lighting misalignment.
-    mergeSprite: 1 # Fixes most vertical lines and lighting misalignment.
     autoFlush: 1 # Fixes light bloom intensity.
     estimateTextureRegion: 1 # Improves performance and reduces hash cache size.
+    halfPixelOffset: 4 # Aligns post effects.
+    nativeScaling: 1 # Fixes post effects.
     getSkipCount: "GSC_GiTS"
   patches:
     A5768F53:
@@ -10433,8 +10433,6 @@ SCUS-97405:
   name: "ATV Offroad Fury 3"
   region: "NTSC-U"
   compat: 5
-  speedHacks:
-    mtvu: 0 # Increases FPS drastically.
 SCUS-97406:
   name: "Jampack Demo Disc Vol.10 - Summer 2004 [M-Rated]"
   region: "NTSC-U"
@@ -10591,8 +10589,6 @@ SCUS-97436:
 SCUS-97437:
   name: "ATV Offroad Fury 3 [Demo]"
   region: "NTSC-U"
-  speedHacks:
-    mtvu: 0 # Increases FPS drastically.
 SCUS-97438:
   name: "EyeToy - Antigrav [Demo]"
   region: "NTSC-U"
@@ -10989,8 +10985,6 @@ SCUS-97513:
 SCUS-97514:
   name: "ATV Offroad Fury 3 [Greatest Hits]"
   region: "NTSC-U"
-  speedHacks:
-    mtvu: 0 # Increases FPS drastically.
 SCUS-97515:
   name: "Hot Shots Golf FORE! [Greatest Hits]"
   region: "NTSC-U"
@@ -14536,47 +14530,47 @@ SLES-50836:
   name: "Indiana Jones and The Emperor's Tomb"
   region: "PAL-E"
   gameFixes:
-    - EETimingHack # For texture flicker.
+    - EETimingHack # Fixes texture flicker.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 4 # Reduces post misalignment.
+    halfPixelOffset: 2 # Reduces post misalignment.
     nativeScaling: 2 # Fixes remaining post misalignment.
 SLES-50837:
   name: "Indiana Jones et le Tombeau de L'Empereur"
   region: "PAL-F"
   gameFixes:
-    - EETimingHack # For texture flicker.
+    - EETimingHack # Fixes texture flicker.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 4 # Reduces post misalignment.
+    halfPixelOffset: 2 # Reduces post misalignment.
     nativeScaling: 2 # Fixes remaining post misalignment.
 SLES-50838:
   name: "Indiana Jones und die Legende der Kaisergruft"
   region: "PAL-G"
   compat: 5
   gameFixes:
-    - EETimingHack # For texture flicker.
+    - EETimingHack # Fixes texture flicker.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 4 # Reduces post misalignment.
+    halfPixelOffset: 2 # Reduces post misalignment.
     nativeScaling: 2 # Fixes remaining post misalignment.
 SLES-50839:
   name: "Indiana Jones e la Tomba dell'Imperatore"
   region: "PAL-I"
   gameFixes:
-    - EETimingHack # For texture flicker.
+    - EETimingHack # Fixes texture flicker.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 4 # Reduces post misalignment.
+    halfPixelOffset: 2 # Reduces post misalignment.
     nativeScaling: 2 # Fixes remaining post misalignment.
 SLES-50840:
   name: "Indiana Jones y la Tumba del Emperador"
   region: "PAL-S"
   gameFixes:
-    - EETimingHack # For texture flicker.
+    - EETimingHack # Fixes texture flicker.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 4 # Reduces post misalignment.
+    halfPixelOffset: 2 # Reduces post misalignment.
     nativeScaling: 2 # Fixes remaining post misalignment.
 SLES-50841:
   name: "Largo Winch - Empire Under Threat"
@@ -22254,8 +22248,6 @@ SLES-53753:
 SLES-53754:
   name: "ATV Offroad Fury 3"
   region: "PAL-M6"
-  speedHacks:
-    mtvu: 0 # Increases FPS drastically.
 SLES-53755:
   name: "Castlevania - Curse of Darkness"
   region: "PAL-M5"
@@ -52444,7 +52436,7 @@ SLUS-20508:
     - EETimingHack # Fixes texture flicker.
   gsHWFixes:
     textureInsideRT: 1
-    halfPixelOffset: 4 # Reduces post misalignment.
+    halfPixelOffset: 2 # Reduces post misalignment.
     nativeScaling: 2 # Fixes remaining post misalignment.
 SLUS-20509:
   name: "Soccer Slam - Sega Sports"
@@ -61494,8 +61486,6 @@ SLUS-90009:
 SLUS-97405:
   name: "ATV Offroad Fury 3"
   region: "NTSC-U"
-  speedHacks:
-    mtvu: 0 # Increases FPS drastically.
 SRPM-70201:
   name: "Space Venus Starring Morning Musume."
   region: "NTSC-J"
