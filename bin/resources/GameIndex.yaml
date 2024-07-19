@@ -11893,7 +11893,7 @@ SLED-51211:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 4 # Aligns bloom effect.
+    halfPixelOffset: 2 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -11981,6 +11981,7 @@ SLED-51902:
     halfPixelOffset: 3 # Fixes double image.
     gpuTargetCLUT: 1 # Fixes sun penetrating buildings.
     autoFlush: 1 # Fixes sun occlusion.
+    bilinearUpscale: 2 # Fixes sun glare textures to behave like native.
 SLED-51921:
   name: "Final Fantasy X-2 [Demo]"
   region: "PAL-Unk"
@@ -14972,7 +14973,7 @@ SLES-51044:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 4 # Aligns bloom effect.
+    halfPixelOffset: 2 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -16594,6 +16595,7 @@ SLES-51753:
     halfPixelOffset: 3 # Fixes double image.
     gpuTargetCLUT: 1 # Fixes sun penetrating buildings.
     autoFlush: 1 # Fixes sun occlusion.
+    bilinearUpscale: 2 # Fixes sun glare textures to behave like native.
 SLES-51754:
   name: "True Crime - Streets of L.A."
   region: "PAL-M5"
@@ -16603,6 +16605,7 @@ SLES-51754:
     halfPixelOffset: 3 # Fixes double image.
     gpuTargetCLUT: 1 # Fixes sun penetrating buildings.
     autoFlush: 1 # Fixes sun occlusion.
+    bilinearUpscale: 2 # Fixes sun glare textures to behave like native.
 SLES-51755:
   name: "Disney/Pixar Finding Nemo"
   region: "PAL-E"
@@ -19784,7 +19787,7 @@ SLES-52968:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 4 # Aligns bloom effect.
+    halfPixelOffset: 2 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -28222,7 +28225,7 @@ SLKA-25039:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 4 # Aligns bloom effect.
+    halfPixelOffset: 2 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -37586,6 +37589,7 @@ SLPM-65729:
     halfPixelOffset: 3 # Fixes double image.
     gpuTargetCLUT: 1 # Fixes sun penetrating buildings.
     autoFlush: 1 # Fixes sun occlusion.
+    bilinearUpscale: 2 # Fixes sun glare textures to behave like native.
 SLPM-65730:
   name: "Rockman X8"
   region: "NTSC-J"
@@ -39063,6 +39067,7 @@ SLPM-66098:
     halfPixelOffset: 3 # Fixes double image.
     gpuTargetCLUT: 1 # Fixes sun penetrating buildings.
     autoFlush: 1 # Fixes sun occlusion.
+    bilinearUpscale: 2 # Fixes sun glare textures to behave like native.
 SLPM-66099:
   name: "Harukanaru Toki no Naka de 3 - Izayoiki [Premium Box-Triple Pack]"
   region: "NTSC-J"
@@ -52381,7 +52386,7 @@ SLUS-20497:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 4 # Aligns bloom effect.
+    halfPixelOffset: 2 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -52647,6 +52652,7 @@ SLUS-20550:
     halfPixelOffset: 3 # Fixes double image.
     gpuTargetCLUT: 1 # Fixes sun penetrating buildings.
     autoFlush: 1 # Fixes sun occlusion.
+    bilinearUpscale: 2 # Fixes sun glare textures to behave like native.
 SLUS-20552:
   name: "Grand Theft Auto - Vice City"
   region: "NTSC-U"
