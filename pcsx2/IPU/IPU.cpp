@@ -60,7 +60,7 @@ bool EnableFMV = false;
 // Also defined in IPU_MultiISA.cpp, but IPU.cpp is not unshared.
 // whenever reading fractions of bytes. The low bits always come from the next byte
 // while the high bits come from the current byte
-__ri static u8 getBits32(u8* address, bool advance)
+__ri static u8 getBits32(u8* address)
 {
 	if (!g_BP.FillBuffer(32))
 		return 0;
@@ -79,9 +79,6 @@ __ri static u8 getBits32(u8* address, bool advance)
 		// Bit position-aligned -- no masking/shifting necessary
 		*(u32*)address = *(u32*)readpos;
 	}
-
-	if (advance)
-		g_BP.Advance(32);
 
 	return 1;
 }
@@ -148,7 +145,7 @@ __fi u32 ipuRead32(u32 mem)
 		{
 			if (ipu_cmd.CMD != SCE_IPU_FDEC && ipu_cmd.CMD != SCE_IPU_VDEC)
 			{
-				if (getBits32((u8*)&ipuRegs.cmd.DATA, 0))
+				if (getBits32((u8*)&ipuRegs.cmd.DATA))
 					ipuRegs.cmd.DATA = BigEndian(ipuRegs.cmd.DATA);
 			}
 			return ipuRegs.cmd.DATA;
@@ -186,7 +183,7 @@ __fi u64 ipuRead64(u32 mem)
 		{
 			if (ipu_cmd.CMD != SCE_IPU_FDEC && ipu_cmd.CMD != SCE_IPU_VDEC)
 			{
-				if (getBits32((u8*)&ipuRegs.cmd.DATA, 0))
+				if (getBits32((u8*)&ipuRegs.cmd.DATA))
 					ipuRegs.cmd.DATA = BigEndian(ipuRegs.cmd.DATA);
 			}
 
