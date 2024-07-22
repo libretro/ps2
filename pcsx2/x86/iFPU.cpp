@@ -678,17 +678,13 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 // BC1x XMM
 //------------------------------------------------------------------
 
-static void _setupBranchTest(void)
-{
-	_eeFlushAllDirty();
-
-	// COP1 branch conditionals are based on the following equation:
-	// (fpuRegs.fprc[31] & 0x00800000)
-	// BC2F checks if the statement is false, BC2T checks if the statement is true.
-
-	xMOV(eax, ptr[&fpuRegs.fprc[31]]);
-	xTEST(eax, FPUflagC);
-}
+// COP1 branch conditionals are based on the following equation:
+// (fpuRegs.fprc[31] & 0x00800000)
+// BC2F checks if the statement is false, BC2T checks if the statement is true.
+#define _setupBranchTest() \
+	_eeFlushAllDirty(); \
+	xMOV(eax, ptr[&fpuRegs.fprc[31]]); \
+	xTEST(eax, FPUflagC)
 
 void recBC1F(void)
 {
@@ -713,7 +709,7 @@ void recBC1FL(void)
 	recDoBranchImm(branchTo, JNZ32(0), true, false);
 }
 
-void recBC1TL()
+void recBC1TL(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
@@ -799,13 +795,11 @@ void recC_EQ_xmm(int info)
 }
 
 FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
-//REC_FPUFUNC(C_EQ);
 
 void recC_F()
 {
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 }
-//REC_FPUFUNC(C_F);
 
 void recC_LE_xmm(int info)
 {
@@ -881,7 +875,6 @@ void recC_LE_xmm(int info)
 }
 
 FPURECOMPILE_CONSTCODE(C_LE, XMMINFO_READS | XMMINFO_READT);
-//REC_FPUFUNC(C_LE);
 
 void recC_LT_xmm(int info)
 {
@@ -984,7 +977,7 @@ void recCVT_S_xmm(int info)
 
 FPURECOMPILE_CONSTCODE(CVT_S, XMMINFO_WRITED | XMMINFO_READS);
 
-void recCVT_W()
+void recCVT_W(void)
 {
 	if (CHECK_FPU_FULL)
 	{
@@ -1072,13 +1065,6 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	_freeXMMreg(t1reg);
 }
 
-static void recDIVhelper2(int regd, int regt) // Doesn't sets flags
-{
-	if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(regt); }
-	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(regt));
-	fpuFloat(regd);
-}
-
 alignas(16) static FPControlRegister roundmode_nearest, roundmode_neg;
 
 void recDIV_S_xmm(int info)
@@ -1094,28 +1080,22 @@ void recDIV_S_xmm(int info)
 		case PROCESS_EE_S:
 			xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
 			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
-			if (CHECK_FPU_EXTRA_FLAGS)
-				recDIVhelper1(EEREC_D, t0reg);
-			else
-				recDIVhelper2(EEREC_D, t0reg);
+			// Sets D/I flags on FPU instructions
+			recDIVhelper1(EEREC_D, t0reg);
 			break;
 		case PROCESS_EE_T:
 			if (EEREC_D == EEREC_T)
 			{
 				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
 				xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
-				if (CHECK_FPU_EXTRA_FLAGS)
-					recDIVhelper1(EEREC_D, t0reg);
-				else
-					recDIVhelper2(EEREC_D, t0reg);
+				// Sets D/I flags on FPU instructions
+				recDIVhelper1(EEREC_D, t0reg);
 			}
 			else
 			{
 				xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
-				if (CHECK_FPU_EXTRA_FLAGS)
-					recDIVhelper1(EEREC_D, EEREC_T);
-				else
-					recDIVhelper2(EEREC_D, EEREC_T);
+				// Sets D/I flags on FPU instructions
+				recDIVhelper1(EEREC_D, EEREC_T);
 			}
 			break;
 		case (PROCESS_EE_S | PROCESS_EE_T):
@@ -1123,27 +1103,21 @@ void recDIV_S_xmm(int info)
 			{
 				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
 				xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
-				if (CHECK_FPU_EXTRA_FLAGS)
-					recDIVhelper1(EEREC_D, t0reg);
-				else
-					recDIVhelper2(EEREC_D, t0reg);
+				// Sets D/I flags on FPU instructions
+				recDIVhelper1(EEREC_D, t0reg);
 			}
 			else
 			{
 				xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
-				if (CHECK_FPU_EXTRA_FLAGS)
-					recDIVhelper1(EEREC_D, EEREC_T);
-				else
-					recDIVhelper2(EEREC_D, EEREC_T);
+				// Sets D/I flags on FPU instructions
+				recDIVhelper1(EEREC_D, EEREC_T);
 			}
 			break;
 		default:
 			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
 			xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
-			if (CHECK_FPU_EXTRA_FLAGS)
-				recDIVhelper1(EEREC_D, t0reg);
-			else
-				recDIVhelper2(EEREC_D, t0reg);
+			// Sets D/I flags on FPU instructions
+			recDIVhelper1(EEREC_D, t0reg);
 			break;
 	}
 
@@ -1715,7 +1689,7 @@ void recSQRT_S_xmm(int info)
 	else
 		xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Ft_]]);
 
-	if (CHECK_FPU_EXTRA_FLAGS)
+	// Sets D/I flags on FPU instructions
 	{
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagI | FPUflagD)); // Clear I and D flags
 
@@ -1727,8 +1701,6 @@ void recSQRT_S_xmm(int info)
 			xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]); // Make EEREC_D Positive
 		x86SetJ8(pjmp);
 	}
-	else
-		xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]); // Make EEREC_D Positive
 
 	if (CHECK_FPU_OVERFLOW) // Only need to do positive clamp, since EEREC_D is positive
 		xMIN.SS(xRegisterSSE(EEREC_D), ptr[&g_maxvals[0]]);
@@ -1803,19 +1775,6 @@ static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function 
 	_freeXMMreg(t1reg);
 }
 
-static void recRSQRThelper2(int regd, int t0reg) // Preforms the RSQRT function when regd <- Fs and t0reg <- Ft (Doesn't set flags)
-{
-	xAND.PS(xRegisterSSE(t0reg), ptr[&s_pos[0]]); // Make t0reg Positive
-	if (CHECK_FPU_EXTRA_OVERFLOW)
-	{
-		xMIN.SS(xRegisterSSE(t0reg), ptr[&g_maxvals[0]]); // Only need to do positive clamp, since t0reg is positive
-		fpuFloat2(regd);
-	}
-	xSQRT.SS(xRegisterSSE(t0reg), xRegisterSSE(t0reg));
-	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
-	fpuFloat(regd);
-}
-
 void recRSQRT_S_xmm(int info)
 {
 	// RSQRT doesn't change the round mode, because RSQRTSS ignores the rounding mode in MXCSR.
@@ -1826,36 +1785,22 @@ void recRSQRT_S_xmm(int info)
 		case PROCESS_EE_S:
 			xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
 			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
-			if (CHECK_FPU_EXTRA_FLAGS)
-				recRSQRThelper1(EEREC_D, t0reg);
-			else
-				recRSQRThelper2(EEREC_D, t0reg);
 			break;
 		case PROCESS_EE_T:
 			xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
 			xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
-			if (CHECK_FPU_EXTRA_FLAGS)
-				recRSQRThelper1(EEREC_D, t0reg);
-			else
-				recRSQRThelper2(EEREC_D, t0reg);
 			break;
 		case (PROCESS_EE_S | PROCESS_EE_T):
 			xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
 			xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
-			if (CHECK_FPU_EXTRA_FLAGS)
-				recRSQRThelper1(EEREC_D, t0reg);
-			else
-				recRSQRThelper2(EEREC_D, t0reg);
 			break;
 		default:
 			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
 			xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
-			if (CHECK_FPU_EXTRA_FLAGS)
-				recRSQRThelper1(EEREC_D, t0reg);
-			else
-				recRSQRThelper2(EEREC_D, t0reg);
 			break;
 	}
+	// Sets D/I flags on FPU instructions
+	recRSQRThelper1(EEREC_D, t0reg);
 	_freeXMMreg(t0reg);
 }
 
