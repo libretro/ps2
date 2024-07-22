@@ -23,20 +23,6 @@
 #include "common/General.h"
 #include "common/FPControl.h"
 
-// Macro used for removing some of the redtape involved in defining bitfield/union helpers.
-//
-#define BITFIELD32() \
-	union \
-	{ \
-		u32 bitset; \
-		struct \
-		{
-
-#define BITFIELD_END \
-		}; \
-	};
-
-
 class SettingsInterface;
 class SettingsWrapper;
 
@@ -363,35 +349,38 @@ struct Pcsx2Config
 	// ------------------------------------------------------------------------
 	struct RecompilerOptions
 	{
-		BITFIELD32()
-		bool
-			EnableEE : 1,
-			EnableIOP : 1,
-			EnableVU0 : 1,
-			EnableVU1 : 1;
+		union
+		{
+			u32 bitset;
+			struct 
+			{
+				bool
+					EnableEE         : 1,
+					EnableIOP        : 1,
+				        EnableVU0        : 1,
+				        EnableVU1        : 1;
 
-		bool
-			vu0Overflow : 1,
-			vu0ExtraOverflow : 1,
-			vu0SignOverflow : 1,
-			vu0Underflow : 1;
+				bool
+					vu0Overflow      : 1,
+					vu0ExtraOverflow : 1,
+				        vu0SignOverflow  : 1,
+				        vu0Underflow     : 1;
 
-		bool
-			vu1Overflow : 1,
-			vu1ExtraOverflow : 1,
-			vu1SignOverflow : 1,
-			vu1Underflow : 1;
+				bool
+					vu1Overflow      : 1,
+					vu1ExtraOverflow : 1,
+					vu1SignOverflow  : 1,
+					vu1Underflow     : 1;
 
-		bool
-			fpuOverflow : 1,
-			fpuExtraOverflow : 1,
-			fpuFullMode : 1;
+				bool
+					fpuOverflow      : 1,
+					fpuExtraOverflow : 1,
+					fpuFullMode      : 1;
 
-		bool
-			EnableEECache : 1;
-		bool
-			EnableFastmem : 1;
-		BITFIELD_END
+				bool    EnableEECache    : 1;
+				bool    EnableFastmem    : 1;
+			};
+		};
 
 		RecompilerOptions();
 		void ApplySanityCheck();
@@ -679,27 +668,32 @@ struct Pcsx2Config
 	// NOTE: The GUI's GameFixes panel is dependent on the order of bits in this structure.
 	struct GamefixOptions
 	{
-		BITFIELD32()
-		bool
-			FpuMulHack : 1, // Tales of Destiny hangs.
-			GoemonTlbHack : 1, // Gomeon tlb miss hack. The game need to access unmapped virtual address. Instead to handle it as exception, tlb are preloaded at startup
-			SoftwareRendererFMVHack : 1, // Switches to software renderer for FMVs
-			SkipMPEGHack : 1, // Skips MPEG videos (Katamari and other games need this)
-			OPHFlagHack : 1, // Bleach Blade Battlers
-			EETimingHack : 1, // General purpose timing hack.
-			InstantDMAHack : 1, // Instantly complete DMA's if possible, good for cache emulation problems.
-			DMABusyHack : 1, // Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems.
-			GIFFIFOHack : 1, // Enabled the GIF FIFO (more correct but slower)
-			VIFFIFOHack : 1, // Pretends to fill the non-existant VIF FIFO Buffer.
-			VIF1StallHack : 1, // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
-			VuAddSubHack : 1, // Tri-ace games, they use an encryption algorithm that requires VU ADDI opcode to be bit-accurate.
-			IbitHack : 1, // I bit hack. Needed to stop constant VU recompilation in some games
-			VUSyncHack : 1, // Makes microVU run behind the EE to avoid VU register reading/writing sync issues. Useful for M-Bit games
-			VUOverflowHack : 1, // Tries to simulate overflow flag checks (not really possible on x86 without soft floats)
-			XgKickHack : 1, // Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
-			BlitInternalFPSHack : 1, // Disables privileged register write-based FPS detection.
-			FullVU0SyncHack : 1; // Forces tight VU0 sync on every COP2 instruction.
-		BITFIELD_END
+		union
+		{
+			u32 bitset;
+			struct
+			{
+				bool
+					FpuMulHack    : 1, // Tales of Destiny hangs.
+					GoemonTlbHack : 1, // Goemon TLB miss hack. The game need to access unmapped virtual address. Instead to handle it as exception, TLB are preloaded at startup
+				        SoftwareRendererFMVHack : 1, // Switches to software renderer for FMVs
+				        SkipMPEGHack   : 1, // Skips MPEG videos (Katamari and other games need this)
+				        OPHFlagHack    : 1, // Bleach Blade Battlers
+				        EETimingHack   : 1, // General purpose timing hack.
+			                InstantDMAHack : 1, // Instantly complete DMA's if possible, good for cache emulation problems.
+					DMABusyHack    : 1, // Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems.
+					GIFFIFOHack    : 1, // Enabled the GIF FIFO (more correct but slower)
+					VIFFIFOHack    : 1, // Pretends to fill the non-existant VIF FIFO Buffer.
+					VIF1StallHack  : 1, // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
+					VuAddSubHack   : 1, // Tri-ace games, they use an encryption algorithm that requires VU ADDI opcode to be bit-accurate.
+					IbitHack       : 1, // I bit hack. Needed to stop constant VU recompilation in some games
+					VUSyncHack     : 1, // Makes microVU run behind the EE to avoid VU register reading/writing sync issues. Useful for M-Bit games
+					VUOverflowHack : 1, // Tries to simulate overflow flag checks (not really possible on x86 without soft floats)
+					XgKickHack     : 1, // Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
+					BlitInternalFPSHack : 1, // Disables privileged register write-based FPS detection.
+					FullVU0SyncHack     : 1; // Forces tight VU0 sync on every COP2 instruction.
+			};
+		};
 
 		GamefixOptions();
 		void LoadSave(SettingsWrapper& wrap);
@@ -727,15 +721,19 @@ struct Pcsx2Config
 		static constexpr s8 MAX_EE_CYCLE_RATE = 3;
 		static constexpr u8 MAX_EE_CYCLE_SKIP = 3;
 
-		BITFIELD32()
-		bool
-			fastCDVD : 1, // enables fast CDVD access
-			IntcStat : 1, // tells Pcsx2 to fast-forward through intc_stat waits.
-			WaitLoop : 1, // enables constant loop detection and fast-forwarding
-			vuFlagHack : 1, // microVU specific flag hack
-			vuThread : 1, // Enable Threaded VU1
-			vu1Instant : 1; // Enable Instant VU1 (Without MTVU only)
-		BITFIELD_END
+		union
+		{
+			u32 bitset;
+			struct
+			{
+				bool fastCDVD   : 1, // enables fast CDVD access
+				     IntcStat   : 1, // fast-forward through INTC_STAT waits.
+				     WaitLoop   : 1, // enables constant loop detection and fast-forwarding
+				     vuFlagHack : 1, // microVU specific flag hack
+				     vuThread   : 1, // Enable Threaded VU1
+				     vu1Instant : 1; // Enable Instant VU1 (Without MTVU only)
+			};
+		};
 
 		s8 EECycleRate; // EE cycle rate selector (1.0, 1.5, 2.0)
 		u8 EECycleSkip; // EE Cycle skip factor (0, 1, 2, or 3)
@@ -831,27 +829,30 @@ struct Pcsx2Config
 
 	// ------------------------------------------------------------------------
 
-	BITFIELD32()
-	bool
-		EnablePatches : 1, // enables patch detection and application
-		EnableCheats : 1, // enables cheat detection and application
-		EnableWideScreenPatches : 1,
-		EnableNoInterlacingPatches : 1,
-		// TODO - Vaser - where are these settings exposed in the Qt UI?
-		EnableGameFixes : 1, // enables automatic game fixes
-		// when enabled uses BOOT2 injection, skipping sony bios splashes
-		UseBOOT2Injection : 1,
-		// enables simulated ejection of memory cards when loading savestates
-		McdEnableEjection : 1,
-		McdFolderAutoManage : 1,
+	union
+	{
+		u32 bitset;
+		struct
+		{
+			bool EnablePatches : 1, // enables patch detection and application
+			     EnableCheats  : 1, // enables cheat detection and application
+			     EnableWideScreenPatches    : 1,
+			     EnableNoInterlacingPatches : 1,
+		             EnableGameFixes            : 1, // enables automatic game fixes
+			     // When enabled uses BOOT2 injection, skipping sony bios splashes
+			     UseBOOT2Injection          : 1,
+			     // Enables simulated ejection of memory cards when loading savestates
+			     McdEnableEjection          : 1,
+			     McdFolderAutoManage        : 1,
 
-		MultitapPort0_Enabled : 1,
-		MultitapPort1_Enabled : 1,
+			     MultitapPort0_Enabled      : 1,
+			     MultitapPort1_Enabled      : 1,
 
-		HostFs : 1;
+			     HostFs                     : 1;
 
-	// uses automatic ntfs compression when creating new memory cards (Win32 only)
-	BITFIELD_END
+			// uses automatic NTFS compression when creating new memory cards (Win32 only)
+		};
+	};
 
 	CpuOptions Cpu;
 	GSOptions GS;
@@ -975,9 +976,7 @@ namespace EmuFolders
 #define CP0_RECOMPILE
 #define CP2_RECOMPILE
 
-// You can't recompile ARITHMETICIMM without ARITHMETIC.
+/* You can't recompile ARITHMETICIMM without ARITHMETIC. */
 #ifndef ARITHMETIC_RECOMPILE
 #undef ARITHMETICIMM_RECOMPILE
 #endif
-
-#define EE_CONST_PROP 1 // rec2 - enables constant propagation (faster)

@@ -62,16 +62,8 @@ void recLUI(void)
 	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FREE_NO_WRITEBACK);
 	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
 
-	if (EE_CONST_PROP)
-	{
-		GPR_SET_CONST(_Rt_);
-		g_cpuConstRegs[_Rt_].UD[0] = (s32)(cpuRegs.code << 16);
-	}
-	else
-	{
-		const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
-		xMOV64(xRegister64(regt), (s64)(s32)(cpuRegs.code << 16));
-	}
+	GPR_SET_CONST(_Rt_);
+	g_cpuConstRegs[_Rt_].UD[0] = (s32)(cpuRegs.code << 16);
 }
 
 ////////////////////////////////////////////////////

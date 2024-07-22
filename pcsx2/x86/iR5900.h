@@ -90,9 +90,9 @@ namespace R5900
 ////////////////////////////////////////////////////////////////////
 // Constant Propagation - From here to the end of the header!
 
-#define GPR_IS_CONST1(reg) (EE_CONST_PROP && (reg) < 32 && (g_cpuHasConstReg & (1 << (reg))))
-#define GPR_IS_CONST2(reg1, reg2) (EE_CONST_PROP && (g_cpuHasConstReg & (1 << (reg1))) && (g_cpuHasConstReg & (1 << (reg2))))
-#define GPR_IS_DIRTY_CONST(reg) (EE_CONST_PROP && (reg) < 32 && (g_cpuHasConstReg & (1 << (reg))) && (!(g_cpuFlushedConstReg & (1 << (reg)))))
+#define GPR_IS_CONST1(reg) ((reg) < 32 && (g_cpuHasConstReg & (1 << (reg))))
+#define GPR_IS_CONST2(reg1, reg2) ((g_cpuHasConstReg & (1 << (reg1))) && (g_cpuHasConstReg & (1 << (reg2))))
+#define GPR_IS_DIRTY_CONST(reg) ((reg) < 32 && (g_cpuHasConstReg & (1 << (reg))) && (!(g_cpuFlushedConstReg & (1 << (reg)))))
 #define GPR_SET_CONST(reg) \
 	{ \
 		if ((reg) < 32) \
