@@ -132,17 +132,17 @@ static __ri bool _vuIALUflush(VURegs* VU)
 
 static __ri bool _vuFDIVflush(VURegs* VU)
 {
-	if (VU->fdiv.enable == 0)
-		return false;
-
-	if ((VU->cycle - VU->fdiv.sCycle) >= VU->fdiv.Cycle)
+	if (VU->fdiv.enable != 0)
 	{
-		VU->fdiv.enable = 0;
-		VU->VI[REG_Q].UL = VU->fdiv.reg.UL;
-		// FDIV only affects D/I
-		VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0xFCF) | (VU->fdiv.statusflag & 0xC30);
+		if ((VU->cycle - VU->fdiv.sCycle) >= VU->fdiv.Cycle)
+		{
+			VU->fdiv.enable = 0;
+			VU->VI[REG_Q].UL = VU->fdiv.reg.UL;
+			// FDIV only affects D/I
+			VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0xFCF) | (VU->fdiv.statusflag & 0xC30);
 
-		return true;
+			return true;
+		}
 	}
 	return false;
 }
@@ -326,9 +326,8 @@ static __fi void _vuTestALUStalls(VURegs* VU, _VURegsNum* VUregsn)
 
 __fi void _vuTestUpperStalls(VURegs* VU, _VURegsNum* VUregsn)
 {
-	switch (VUregsn->pipe) {
-	case VUPIPE_FMAC: _vuTestFMACStalls(VU, VUregsn); break;
-	}
+	if (VUregsn->pipe == VUPIPE_FMAC)
+		_vuTestFMACStalls(VU, VUregsn);
 }
 
 
@@ -424,9 +423,8 @@ static __fi void _vuAddEFUStalls(VURegs* VU, _VURegsNum* VUregsn)
 
 __fi void _vuAddUpperStalls(VURegs* VU, _VURegsNum* VUregsn)
 {
-	switch (VUregsn->pipe) {
-	case VUPIPE_FMAC: _vuAddFMACStalls(VU, VUregsn, true); break;
-	}
+	if (VUregsn->pipe == VUPIPE_FMAC)
+		_vuAddFMACStalls(VU, VUregsn, true);
 }
 
 __fi void _vuAddLowerStalls(VURegs* VU, _VURegsNum* VUregsn)
@@ -459,30 +457,25 @@ __fi void _vuBackupVI(VURegs* VU, u32 reg)
 /******************************/
 /*   VU Upper instructions    */
 /******************************/
-#ifndef INT_VUDOUBLEHACK
 static float vuDouble(u32 f)
 {
+#ifndef INT_VUDOUBLEHACK
 	switch (f & 0x7f800000)
 	{
 		case 0x0:
 			f &= 0x80000000;
-			return *(float*)&f;
+			break;
 		case 0x7f800000:
-			if (CHECK_VU_OVERFLOW(0))
+			if (EmuConfig.Cpu.Recompiler.vu0ExtraOverflow)
 			{
 				u32 d = (f & 0x80000000) | 0x7f7fffff;
 				return *(float*)&d;
 			}
 			break;
 	}
-	return *(float*)&f;
-}
-#else
-static __fi float vuDouble(u32 f)
-{
-	return *(float*)&f;
-}
 #endif
+	return *(float*)&f;
+}
 
 static __fi float vuADD_TriAceHack(u32 a, u32 b)
 {
@@ -546,19 +539,19 @@ static __fi void _vuADDi(VURegs* VU)
 	else
 		dst = &VU->VF[_Fd_];
 
-	if (!CHECK_VUADDSUBHACK)
-	{
-		if (_X){ dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.x) + vuDouble(VU->VI[REG_I].UL));} else VU_MACx_CLEAR(VU);
-		if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) + vuDouble(VU->VI[REG_I].UL));} else VU_MACy_CLEAR(VU);
-		if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) + vuDouble(VU->VI[REG_I].UL));} else VU_MACz_CLEAR(VU);
-		if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) + vuDouble(VU->VI[REG_I].UL));} else VU_MACw_CLEAR(VU);
-	}
-	else
+	if (CHECK_VUADDSUBHACK)
 	{
 		if (_X){ dst->i.x = VU_MACx_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.x, VU->VI[REG_I].UL));} else VU_MACx_CLEAR(VU);
 		if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.y, VU->VI[REG_I].UL));} else VU_MACy_CLEAR(VU);
 		if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.z, VU->VI[REG_I].UL));} else VU_MACz_CLEAR(VU);
 		if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuADD_TriAceHack(VU->VF[_Fs_].i.w, VU->VI[REG_I].UL));} else VU_MACw_CLEAR(VU);
+	}
+	else
+	{
+		if (_X){ dst->i.x = VU_MACx_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.x) + vuDouble(VU->VI[REG_I].UL));} else VU_MACx_CLEAR(VU);
+		if (_Y){ dst->i.y = VU_MACy_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.y) + vuDouble(VU->VI[REG_I].UL));} else VU_MACy_CLEAR(VU);
+		if (_Z){ dst->i.z = VU_MACz_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.z) + vuDouble(VU->VI[REG_I].UL));} else VU_MACz_CLEAR(VU);
+		if (_W){ dst->i.w = VU_MACw_UPDATE(VU, vuDouble(VU->VF[_Fs_].i.w) + vuDouble(VU->VI[REG_I].UL));} else VU_MACw_CLEAR(VU);
 	}
 	VU_STAT_UPDATE(VU);
 }
@@ -2102,11 +2095,6 @@ static __ri void AdvanceLFSR(VURegs* VU)
 	VU->VI[REG_R].UL = (VU->VI[REG_R].UL & 0x7fffff) | 0x3f800000;
 }
 
-static __ri void _vuRINIT(VURegs* VU)
-{
-	VU->VI[REG_R].UL = 0x3F800000 | (VU->VF[_Fs_].UL[_Fsf_] & 0x007FFFFF);
-}
-
 static __ri void _vuRGET(VURegs* VU)
 {
 	if (_Ft_ == 0)
@@ -2128,15 +2116,6 @@ static __ri void _vuRNEXT(VURegs* VU)
 	if (_Y) VU->VF[_Ft_].UL[1] = VU->VI[REG_R].UL;
 	if (_Z) VU->VF[_Ft_].UL[2] = VU->VI[REG_R].UL;
 	if (_W) VU->VF[_Ft_].UL[3] = VU->VI[REG_R].UL;
-}
-
-static __ri void _vuRXOR(VURegs* VU)
-{
-	VU->VI[REG_R].UL = 0x3F800000 | ((VU->VI[REG_R].UL ^ VU->VF[_Fs_].UL[_Fsf_]) & 0x007FFFFF);
-}
-
-static __ri void _vuWAITQ(VURegs* VU)
-{
 }
 
 static __ri void _vuFSAND(VURegs* VU)
@@ -2170,9 +2149,7 @@ static __ri void _vuFSOR(VURegs* VU)
 
 static __ri void _vuFSSET(VURegs* VU)
 {
-	u16 imm = 0;
-
-	imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7FF);
+	u16 imm = (((VU->code >> 21) & 0x1) << 11) | (VU->code & 0x7FF);
 	VU->statusflag = (imm & 0xFC0) | (VU->statusflag & 0x3F);
 }
 
@@ -2228,11 +2205,6 @@ static __fi void _vuFCOR(VURegs* VU)
 		VU->VI[1].US[0] = 0;
 }
 
-static __fi void _vuFCSET(VURegs* VU)
-{
-	VU->clipflag = (u32)(VU->code & 0xFFFFFF);
-}
-
 static __fi void _vuFCGET(VURegs* VU)
 {
 	if (_It_ == 0)
@@ -2252,13 +2224,13 @@ static __fi void _setBranch(VURegs* VU, u32 bpc)
 {
 	if (VU->branch == 1)
 	{
-		VU->delaybranchpc = bpc;
+		VU->delaybranchpc   = bpc;
 		VU->takedelaybranch = true;
 	}
 	else
 	{
-		VU->branch = 2;
-		VU->branchpc = bpc;
+		VU->branch          = 2;
+		VU->branchpc        = bpc;
 	}
 }
 
@@ -2432,15 +2404,14 @@ static __ri void _vuMFP(VURegs* VU)
 	if (_W) VU->VF[_Ft_].i.w = VU->VI[REG_P].UL;
 }
 
-static __ri void _vuWAITP(VURegs* VU)
-{
-}
-
 static __ri void _vuESADD(VURegs* VU)
 {
-	float p = vuDouble(VU->VF[_Fs_].i.x) * vuDouble(VU->VF[_Fs_].i.x) + vuDouble(VU->VF[_Fs_].i.y) * vuDouble(VU->VF[_Fs_].i.y) + vuDouble(VU->VF[_Fs_].i.z) * vuDouble(VU->VF[_Fs_].i.z);
-
-	VU->p.F = p;
+	VU->p.F = vuDouble(VU->VF[_Fs_].i.x) 
+		* vuDouble(VU->VF[_Fs_].i.x) 
+		+ vuDouble(VU->VF[_Fs_].i.y) 
+		* vuDouble(VU->VF[_Fs_].i.y) 
+		+ vuDouble(VU->VF[_Fs_].i.z) 
+		* vuDouble(VU->VF[_Fs_].i.z);
 }
 
 static __ri void _vuERSADD(VURegs* VU)
@@ -2476,14 +2447,25 @@ static __ri void _vuERLENG(VURegs* VU)
 }
 
 
-static __ri float _vuCalculateEATAN(float inputvalue) {
-	float eatanconst[9] = { 0.999999344348907f, -0.333298563957214f, 0.199465364217758f, -0.13085337519646f,
-				0.096420042216778f, -0.055909886956215f, 0.021861229091883f, -0.004054057877511f,
-				0.785398185253143f };
-
-	float result = (eatanconst[0] * inputvalue) + (eatanconst[1] * pow(inputvalue, 3)) + (eatanconst[2] * pow(inputvalue, 5))
-					+ (eatanconst[3] * pow(inputvalue, 7)) + (eatanconst[4] * pow(inputvalue, 9)) + (eatanconst[5] * pow(inputvalue, 11))
-					+ (eatanconst[6] * pow(inputvalue, 13)) + (eatanconst[7] * pow(inputvalue, 15));
+static __ri float _vuCalculateEATAN(float inputvalue)
+{
+	float eatanconst[9] = {  0.999999344348907f,
+				-0.333298563957214f,
+				 0.199465364217758f,
+				-0.13085337519646f,
+				 0.096420042216778f,
+				-0.055909886956215f,
+				 0.021861229091883f,
+				-0.004054057877511f,
+				 0.785398185253143f };
+	float result = (eatanconst[0] * inputvalue) 
+		     + (eatanconst[1] * pow(inputvalue, 3)) 
+		     + (eatanconst[2] * pow(inputvalue, 5))
+		     + (eatanconst[3] * pow(inputvalue, 7)) 
+		     + (eatanconst[4] * pow(inputvalue, 9)) 
+		     + (eatanconst[5] * pow(inputvalue, 11))
+		     + (eatanconst[6] * pow(inputvalue, 13)) 
+		     + (eatanconst[7] * pow(inputvalue, 15));
 
 	result += eatanconst[8];
 	return vuDouble(*(u32*)&result);
@@ -2491,8 +2473,7 @@ static __ri float _vuCalculateEATAN(float inputvalue) {
 
 static __ri void _vuEATAN(VURegs* VU)
 {
-	float p = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].UL[_Fsf_]));
-	VU->p.F = p;
+	VU->p.F = _vuCalculateEATAN(vuDouble(VU->VF[_Fs_].UL[_Fsf_]));
 }
 
 static __ri void _vuEATANxy(VURegs* VU)
@@ -2545,9 +2526,7 @@ static __ri void _vuERSQRT(VURegs* VU)
 	{
 		p = sqrt(p);
 		if (p)
-		{
 			p = 1.0f / p;
-		}
 	}
 
 	VU->p.F = p;
@@ -2624,7 +2603,8 @@ void _vuXGKICKTransfer(s32 cycles, bool flush)
 			transfersize = std::min(transfersize, VU1.xgkickdiff / 0x10);
 		}
 
-		// Would be "nicer" to do the copy until it's all up, however this really screws up PATH3 masking stuff
+		// Would be "nicer" to do the copy until it's all up, 
+		// however this really screws up PATH3 masking stuff
 		// So lets just do it the other way :)
 		/*if (THREAD_VU1)
 		{
@@ -2671,18 +2651,18 @@ static __ri void _vuXGKICK(VURegs* VU)
 	if (VU->xgkickenable)
 		_vuXGKICKTransfer(0, true);
 
-	u32 addr = (VU->VI[_Is_].US[0] & 0x3ff) * 16;
-	u32 diff = 0x4000 - addr;
+	u32 addr                 = (VU->VI[_Is_].US[0] & 0x3ff) * 16;
+	u32 diff                 = 0x4000 - addr;
 
-	VU->xgkickenable = true;
-	VU->xgkickaddr = addr;
-	VU->xgkickdiff = diff;
-	VU->xgkicksizeremaining = 0;
-	VU->xgkickendpacket = false;
-	VU->xgkicklastcycle = VU->cycle;
+	VU->xgkickenable         = true;
+	VU->xgkickaddr           = addr;
+	VU->xgkickdiff           = diff;
+	VU->xgkicksizeremaining  = 0;
+	VU->xgkickendpacket      = false;
+	VU->xgkicklastcycle      = VU->cycle;
 	// XGKick command counts as one cycle for the transfer.
 	// Can be tested with Resident Evil: Outbreak, Kingdom Hearts, CART Fury.
-	VU->xgkickcyclecount = 1;
+	VU->xgkickcyclecount     = 1;
 	VU0.VI[REG_VPU_STAT].UL |= (1 << 12);
 }
 
@@ -2955,15 +2935,15 @@ VUREGS_FDFSFT_0_xyzw(MADDz, 2);
 
 static __ri void _vuRegsMADDw(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-	VUregsn->VFwrite = _Fd_;
-	VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= _XYZW;
-	VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw= 1;
-	VUregsn->VIwrite = 0;
-	VUregsn->VIread  = (1<<REG_ACC_FLAG)|GET_VF0_FLAG(_Fs_);
+   VUregsn->pipe      = VUPIPE_FMAC;
+   VUregsn->VFwrite   = _Fd_;
+   VUregsn->VFwxyzw   = _XYZW;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = _XYZW;
+   VUregsn->VFread1   = _Ft_;
+   VUregsn->VFr1xyzw  = 1;
+   VUregsn->VIwrite   = 0;
+   VUregsn->VIread    = (1<<REG_ACC_FLAG)|GET_VF0_FLAG(_Fs_);
 }
 
 VUREGS_ACCFSFT(MADDA, 1);
@@ -2997,23 +2977,6 @@ VUREGS_FDFSFTy(MAXy_, 0);
 VUREGS_FDFSFTz(MAXz_, 0);
 VUREGS_FDFSFTw(MAXw_, 0);
 
-static __ri void _vuRegsMAXx(const VURegs* VU, _VURegsNum* VUregsn)
-{
-	_vuRegsMAXx_(VU, VUregsn);
-}
-static __ri void _vuRegsMAXy(const VURegs* VU, _VURegsNum* VUregsn)
-{
-	_vuRegsMAXy_(VU, VUregsn);
-}
-static __ri void _vuRegsMAXz(const VURegs* VU, _VURegsNum* VUregsn)
-{
-	_vuRegsMAXz_(VU, VUregsn);
-}
-static __ri void _vuRegsMAXw(const VURegs* VU, _VURegsNum* VUregsn)
-{
-	_vuRegsMAXw_(VU, VUregsn);
-}
-
 VUREGS_FDFSFT(MINI, 0);
 VUREGS_FDFSI(MINIi, 0);
 VUREGS_FDFSFTx(MINIx, 0);
@@ -3023,38 +2986,38 @@ VUREGS_FDFSFTw(MINIw, 0);
 
 static __ri void _vuRegsOPMULA(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-	VUregsn->VFwrite = 0;
-	VUregsn->VFwxyzw= 0xE;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= 0xE;
-	VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw= 0xE;
-	VUregsn->VIwrite = 1<<REG_ACC_FLAG;
-	VUregsn->VIread  = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_)|(1<<REG_ACC_FLAG);
+   VUregsn->pipe      = VUPIPE_FMAC;
+   VUregsn->VFwrite   = 0;
+   VUregsn->VFwxyzw   = 0xE;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = 0xE;
+   VUregsn->VFread1   = _Ft_;
+   VUregsn->VFr1xyzw  = 0xE;
+   VUregsn->VIwrite   = 1<<REG_ACC_FLAG;
+   VUregsn->VIread    = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_)|(1<<REG_ACC_FLAG);
 }
 
 static __ri void _vuRegsOPMSUB(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-	VUregsn->VFwrite = _Fd_;
-	VUregsn->VFwxyzw= 0xE;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= 0xE;
-	VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw= 0xE;
-	VUregsn->VIwrite = 0;
-	VUregsn->VIread  = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_)|(1<<REG_ACC_FLAG);
+   VUregsn->pipe      = VUPIPE_FMAC;
+   VUregsn->VFwrite   = _Fd_;
+   VUregsn->VFwxyzw   = 0xE;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = 0xE;
+   VUregsn->VFread1   = _Ft_;
+   VUregsn->VFr1xyzw  = 0xE;
+   VUregsn->VIwrite   = 0;
+   VUregsn->VIread    = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_)|(1<<REG_ACC_FLAG);
 }
 
 static __ri void _vuRegsNOP(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_NONE;
-    VUregsn->VFwrite = 0;
-    VUregsn->VFread0 = 0;
-    VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = 0;
+    VUregsn->pipe     = VUPIPE_NONE;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = 0;
 }
 
 VUREGS_FTFS(FTOI0);
@@ -3068,14 +3031,14 @@ VUREGS_FTFS(ITOF15);
 
 static __ri void _vuRegsCLIP(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= 0xE;
-	VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw= 0x1;
-    VUregsn->VIwrite = 1 << REG_CLIP_FLAG;
-    VUregsn->VIread  = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_)|(1 << REG_CLIP_FLAG);
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = _Fs_;
+    VUregsn->VFr0xyzw = 0xE;
+    VUregsn->VFread1  = _Ft_;
+    VUregsn->VFr1xyzw = 0x1;
+    VUregsn->VIwrite  = 1 << REG_CLIP_FLAG;
+    VUregsn->VIread   = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_)|(1 << REG_CLIP_FLAG);
 }
 
 /******************************/
@@ -3084,41 +3047,41 @@ static __ri void _vuRegsCLIP(const VURegs* VU, _VURegsNum* VUregsn)
 
 static __ri void _vuRegsDIV(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FDIV;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= 1 << (3-_Fsf_);
-	VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw= 1 << (3-_Ftf_);
-    VUregsn->VIwrite = 1 << REG_Q;
-    VUregsn->VIread  = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_);
-	VUregsn->cycles  = 7;
+   VUregsn->pipe      = VUPIPE_FDIV;
+   VUregsn->VFwrite   = 0;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = 1 << (3-_Fsf_);
+   VUregsn->VFread1   = _Ft_;
+   VUregsn->VFr1xyzw  = 1 << (3-_Ftf_);
+   VUregsn->VIwrite   = 1 << REG_Q;
+   VUregsn->VIread    = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_);
+   VUregsn->cycles    = 7;
 }
 
 static __ri void _vuRegsSQRT(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FDIV;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFr0xyzw = 0;
-    VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw = 1 << (3-_Ftf_);
-    VUregsn->VIwrite = 1 << REG_Q;
-    VUregsn->VIread  = GET_VF0_FLAG(_Ft_);
-	VUregsn->cycles  = 7;
+   VUregsn->pipe      = VUPIPE_FDIV;
+   VUregsn->VFwrite   = 0;
+   VUregsn->VFread0   = 0;
+   VUregsn->VFr0xyzw  = 0;
+   VUregsn->VFread1   = _Ft_;
+   VUregsn->VFr1xyzw  = 1 << (3-_Ftf_);
+   VUregsn->VIwrite   = 1 << REG_Q;
+   VUregsn->VIread    = GET_VF0_FLAG(_Ft_);
+   VUregsn->cycles    = 7;
 }
 
 static __ri void _vuRegsRSQRT(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FDIV;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= 1 << (3-_Fsf_);
-	VUregsn->VFread1 = _Ft_;
-	VUregsn->VFr1xyzw= 1 << (3-_Ftf_);
-    VUregsn->VIwrite = 1 << REG_Q;
-    VUregsn->VIread  = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_);
-	VUregsn->cycles  = 13;
+   VUregsn->pipe      = VUPIPE_FDIV;
+   VUregsn->VFwrite   = 0;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = 1 << (3-_Fsf_);
+   VUregsn->VFread1   = _Ft_;
+   VUregsn->VFr1xyzw  = 1 << (3-_Ftf_);
+   VUregsn->VIwrite   = 1 << REG_Q;
+   VUregsn->VIread    = GET_VF0_FLAG(_Fs_)|GET_VF0_FLAG(_Ft_);
+   VUregsn->cycles    = 13;
 }
 
 VUREGS_ITIS(IADDI);
@@ -3131,316 +3094,316 @@ VUREGS_ITIS(ISUBIU);
 
 static __ri void _vuRegsMOVE(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = _Ft_ == 0 ? VUPIPE_NONE : VUPIPE_FMAC;
-	VUregsn->VFwrite = _Ft_;
-	VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw = _XYZW;
-	VUregsn->VFread1 = 0;
-	VUregsn->VFr1xyzw = 0;
-	VUregsn->VIwrite = 0;
-	VUregsn->VIread = (_Ft_ ? GET_VF0_FLAG(_Fs_) : 0);
+   VUregsn->pipe      = _Ft_ == 0 ? VUPIPE_NONE : VUPIPE_FMAC;
+   VUregsn->VFwrite   = _Ft_;
+   VUregsn->VFwxyzw   = _XYZW;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = _XYZW;
+   VUregsn->VFread1   = 0;
+   VUregsn->VFr1xyzw  = 0;
+   VUregsn->VIwrite   = 0;
+   VUregsn->VIread    = (_Ft_ ? GET_VF0_FLAG(_Fs_) : 0);
 }
 static __ri void _vuRegsMFIR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = _Ft_;
-    VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = 1 << _Is_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = _Ft_;
+    VUregsn->VFwxyzw  = _XYZW;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = 1 << _Is_;
 }
 
 static __ri void _vuRegsMTIR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-    VUregsn->VFr0xyzw= 1 << (3-_Fsf_);
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << _It_;
-    VUregsn->VIread  = GET_VF0_FLAG(_Fs_);
+   VUregsn->pipe      = VUPIPE_FMAC;
+   VUregsn->VFwrite   = 0;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = 1 << (3-_Fsf_);
+   VUregsn->VFread1   = 0;
+   VUregsn->VIwrite   = 1 << _It_;
+   VUregsn->VIread    = GET_VF0_FLAG(_Fs_);
 }
 
 static __ri void _vuRegsMR32(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-	VUregsn->VFwrite = _Ft_;
-	VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = _Fs_;
-	VUregsn->VFr0xyzw= (_XYZW >> 1) | ((_XYZW << 3) & 0x8);  //rotate
-	VUregsn->VFread1 = 0;
-	VUregsn->VFr1xyzw = 0xff;
-	VUregsn->VIwrite = 0;
-	VUregsn->VIread  = (_Ft_ ? GET_VF0_FLAG(_Fs_) : 0);
+   VUregsn->pipe      = VUPIPE_FMAC;
+   VUregsn->VFwrite   = _Ft_;
+   VUregsn->VFwxyzw   = _XYZW;
+   VUregsn->VFread0   = _Fs_;
+   VUregsn->VFr0xyzw  = (_XYZW >> 1) | ((_XYZW << 3) & 0x8);  //rotate
+   VUregsn->VFread1   = 0;
+   VUregsn->VFr1xyzw  = 0xff;
+   VUregsn->VIwrite   = 0;
+   VUregsn->VIread    = (_Ft_ ? GET_VF0_FLAG(_Fs_) : 0);
 }
 
 static __ri void _vuRegsLQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = _Ft_;
-    VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = 1 << _Is_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = _Ft_;
+    VUregsn->VFwxyzw  = _XYZW;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = 1 << _Is_;
 }
 
 static __ri void _vuRegsLQD(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = _Ft_;
-    VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << _Is_;
-    VUregsn->VIread  = 1 << _Is_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = _Ft_;
+    VUregsn->VFwxyzw  = _XYZW;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << _Is_;
+    VUregsn->VIread   = 1 << _Is_;
 }
 
 static __ri void _vuRegsLQI(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = _Ft_;
-    VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << _Is_;
-    VUregsn->VIread  = 1 << _Is_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = _Ft_;
+    VUregsn->VFwxyzw  = _XYZW;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << _Is_;
+    VUregsn->VIread   = 1 << _Is_;
 }
 
 static __ri void _vuRegsSQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-    VUregsn->VFr0xyzw= _XYZW;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = 1 << _It_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = _Fs_;
+    VUregsn->VFr0xyzw = _XYZW;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = 1 << _It_;
 }
 
 static __ri void _vuRegsSQD(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-    VUregsn->VFr0xyzw= _XYZW;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << _It_;
-    VUregsn->VIread  = 1 << _It_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = _Fs_;
+    VUregsn->VFr0xyzw = _XYZW;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << _It_;
+    VUregsn->VIread   = 1 << _It_;
 }
 
 static __ri void _vuRegsSQI(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-    VUregsn->VFr0xyzw= _XYZW;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << _It_;
-    VUregsn->VIread  = 1 << _It_;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = _Fs_;
+    VUregsn->VFr0xyzw = _XYZW;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << _It_;
+    VUregsn->VIread   = 1 << _It_;
 }
 
 static __ri void _vuRegsILW(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_IALU;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << _It_;
-    VUregsn->VIread  = 1 << _Is_;
-	VUregsn->cycles  = 4;
+    VUregsn->pipe     = VUPIPE_IALU;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << _It_;
+    VUregsn->VIread   = 1 << _Is_;
+    VUregsn->cycles   = 4;
 }
 
 static __ri void _vuRegsISW(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_IALU;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = (1 << _Is_) | (1 << _It_);
+    VUregsn->pipe     = VUPIPE_IALU;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = (1 << _Is_) | (1 << _It_);
 }
 
 static __ri void _vuRegsILWR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_IALU;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = (1 << _It_);
-    VUregsn->VIread  = (1 << _Is_);
-	VUregsn->cycles  = 4;
+    VUregsn->pipe     = VUPIPE_IALU;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = (1 << _It_);
+    VUregsn->VIread   = (1 << _Is_);
+    VUregsn->cycles   = 4;
 }
 
 static __ri void _vuRegsISWR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_IALU;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = (1 << _Is_) | (1 << _It_);
+    VUregsn->pipe     = VUPIPE_IALU;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = (1 << _Is_) | (1 << _It_);
 }
 
 static __ri void _vuRegsRINIT(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-    VUregsn->VFr0xyzw= 1 << (3-_Fsf_);
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << REG_R;
-    VUregsn->VIread  = GET_VF0_FLAG(_Fs_);
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = _Fs_;
+    VUregsn->VFr0xyzw = 1 << (3-_Fsf_);
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << REG_R;
+    VUregsn->VIread   = GET_VF0_FLAG(_Fs_);
 }
 
 static __ri void _vuRegsRGET(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = _Ft_;
-    VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = 1 << REG_R;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = _Ft_;
+    VUregsn->VFwxyzw  = _XYZW;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = 1 << REG_R;
 }
 
 static __ri void _vuRegsRNEXT(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = _Ft_;
-    VUregsn->VFwxyzw = _XYZW;
-	VUregsn->VFread0 = 0;
-	VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << REG_R;
-    VUregsn->VIread  = 1 << REG_R;
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = _Ft_;
+    VUregsn->VFwxyzw  = _XYZW;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << REG_R;
+    VUregsn->VIread   = 1 << REG_R;
 }
 
 static __ri void _vuRegsRXOR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
-    VUregsn->VFwrite = 0;
-	VUregsn->VFread0 = _Fs_;
-    VUregsn->VFr0xyzw= 1 << (3-_Fsf_);
-    VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 1 << REG_R;
-    VUregsn->VIread  = (1 << REG_R)|GET_VF0_FLAG(_Fs_);
+    VUregsn->pipe     = VUPIPE_FMAC;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = _Fs_;
+    VUregsn->VFr0xyzw = 1 << (3-_Fsf_);
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 1 << REG_R;
+    VUregsn->VIread   = (1 << REG_R)|GET_VF0_FLAG(_Fs_);
 }
 
 static __ri void _vuRegsWAITQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FDIV;
-    VUregsn->VFwrite = 0;
-    VUregsn->VFread0 = 0;
-    VUregsn->VFread1 = 0;
-    VUregsn->VIwrite = 0;
-    VUregsn->VIread  = 0;
+    VUregsn->pipe     = VUPIPE_FDIV;
+    VUregsn->VFwrite  = 0;
+    VUregsn->VFread0  = 0;
+    VUregsn->VFread1  = 0;
+    VUregsn->VIwrite  = 0;
+    VUregsn->VIread   = 0;
 }
 
 static __ri void _vuRegsFSAND(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 1 << REG_STATUS_FLAG;
 }
 
 static __ri void _vuRegsFSEQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 1 << REG_STATUS_FLAG;
 }
 
 static __ri void _vuRegsFSOR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 1 << REG_STATUS_FLAG;
 }
 
 static __ri void _vuRegsFSSET(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 1 << REG_STATUS_FLAG;
-	VUregsn->VIread  = 0;
+    VUregsn->VIread  = 0;
 }
 
 static __ri void _vuRegsFMAND(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = (1 << REG_MAC_FLAG) | (1 << _Is_);
 }
 
 static __ri void _vuRegsFMEQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = (1 << REG_MAC_FLAG) | (1 << _Is_);
 }
 
 static __ri void _vuRegsFMOR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = (1 << REG_MAC_FLAG) | (1 << _Is_);
 }
 
 static __ri void _vuRegsFCAND(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << 1;
+    VUregsn->VIwrite = 1 << 1;
     VUregsn->VIread  = 1 << REG_CLIP_FLAG;
 }
 
 static __ri void _vuRegsFCEQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << 1;
+    VUregsn->VIwrite = 1 << 1;
     VUregsn->VIread  = 1 << REG_CLIP_FLAG;
 }
 
 static __ri void _vuRegsFCOR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << 1;
+    VUregsn->VIwrite = 1 << 1;
     VUregsn->VIread  = 1 << REG_CLIP_FLAG;
 }
 
 static __ri void _vuRegsFCSET(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
@@ -3450,17 +3413,17 @@ static __ri void _vuRegsFCSET(const VURegs* VU, _VURegsNum* VUregsn)
 
 static __ri void _vuRegsFCGET(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 1 << REG_CLIP_FLAG;
 }
 
 static __ri void _vuRegsIBEQ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
@@ -3470,47 +3433,47 @@ static __ri void _vuRegsIBEQ(const VURegs* VU, _VURegsNum* VUregsn)
 
 static __ri void _vuRegsIBGEZ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 0;
-	VUregsn->VIread  = 1 << _Is_;
+    VUregsn->VIread  = 1 << _Is_;
 }
 
 static __ri void _vuRegsIBGTZ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 0;
-	VUregsn->VIread  = 1 << _Is_;
+    VUregsn->VIread  = 1 << _Is_;
 }
 
 static __ri void _vuRegsIBLEZ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 0;
-	VUregsn->VIread  = 1 << _Is_;
+    VUregsn->VIread  = 1 << _Is_;
 }
 
 static __ri void _vuRegsIBLTZ(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 0;
-	VUregsn->VIread  = 1 << _Is_;
+    VUregsn->VIread  = 1 << _Is_;
 }
 
 static __ri void _vuRegsIBNE(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
@@ -3520,7 +3483,7 @@ static __ri void _vuRegsIBNE(const VURegs* VU, _VURegsNum* VUregsn)
 
 static __ri void _vuRegsB(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
@@ -3530,54 +3493,54 @@ static __ri void _vuRegsB(const VURegs* VU, _VURegsNum* VUregsn)
 
 static __ri void _vuRegsBAL(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 0;
 }
 
 static __ri void _vuRegsJR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 0;
-	VUregsn->VIread  = 1 << _Is_;
+    VUregsn->VIread  = 1 << _Is_;
 }
 
 static __ri void _vuRegsJALR(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_BRANCH;
+    VUregsn->pipe    = VUPIPE_BRANCH;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 1 << _It_;
-	VUregsn->VIread  = 1 << _Is_;
+    VUregsn->VIwrite = 1 << _It_;
+    VUregsn->VIread  = 1 << _Is_;
 }
 
 static __ri void _vuRegsMFP(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_FMAC;
+    VUregsn->pipe    = VUPIPE_FMAC;
     VUregsn->VFwrite = _Ft_;
     VUregsn->VFwxyzw = _XYZW;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
-	VUregsn->VIwrite = 0;
-	VUregsn->VIread  = 1 << REG_P;
+    VUregsn->VIwrite = 0;
+    VUregsn->VIread  = 1 << REG_P;
 }
 
 static __ri void _vuRegsWAITP(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_EFU;
+    VUregsn->pipe    = VUPIPE_EFU;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 0;
     VUregsn->VIread  = 0;
-	VUregsn->cycles = 0;
+    VUregsn->cycles  = 0;
 }
 
 VUREGS_PFS_xyzw(ESADD, 11);
@@ -3596,18 +3559,18 @@ VUREGS_PFS_fsf(EEXP, 44);
 
 static __ri void _vuRegsXITOP(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_IALU;
+    VUregsn->pipe    = VUPIPE_IALU;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 0;
-	VUregsn->cycles  = 0;
+    VUregsn->cycles  = 0;
 }
 
 static __ri void _vuRegsXGKICK(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_XGKICK;
+    VUregsn->pipe    = VUPIPE_XGKICK;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
@@ -3617,13 +3580,13 @@ static __ri void _vuRegsXGKICK(const VURegs* VU, _VURegsNum* VUregsn)
 
 static __ri void _vuRegsXTOP(const VURegs* VU, _VURegsNum* VUregsn)
 {
-	VUregsn->pipe = VUPIPE_IALU;
+    VUregsn->pipe    = VUPIPE_IALU;
     VUregsn->VFwrite = 0;
     VUregsn->VFread0 = 0;
     VUregsn->VFread1 = 0;
     VUregsn->VIwrite = 1 << _It_;
     VUregsn->VIread  = 0;
-	VUregsn->cycles  = 0;
+    VUregsn->cycles  = 0;
 }
 
 // --------------------------------------------------------------------------------------
@@ -3758,11 +3721,11 @@ static void VU0MI_ILW() { _vuILW(&VU0); }
 static void VU0MI_ISW() { _vuISW(&VU0); }
 static void VU0MI_ILWR() { _vuILWR(&VU0); }
 static void VU0MI_ISWR() { _vuISWR(&VU0); }
-static void VU0MI_RINIT() { _vuRINIT(&VU0); }
+static void VU0MI_RINIT() { VU0.VI[REG_R].UL = 0x3F800000 | (VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)] & 0x007FFFFF); }
 static void VU0MI_RGET()  { _vuRGET(&VU0); }
 static void VU0MI_RNEXT() { _vuRNEXT(&VU0); }
-static void VU0MI_RXOR()  { _vuRXOR(&VU0); }
-static void VU0MI_WAITQ() { _vuWAITQ(&VU0); }
+static void VU0MI_RXOR()  { VU0.VI[REG_R].UL = 0x3F800000 | ((VU0.VI[REG_R].UL ^ VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)]) & 0x007FFFFF); }
+static void VU0MI_WAITQ() { }
 static void VU0MI_FSAND() { _vuFSAND(&VU0); }
 static void VU0MI_FSEQ()  { _vuFSEQ(&VU0); }
 static void VU0MI_FSOR()  { _vuFSOR(&VU0); }
@@ -3773,7 +3736,7 @@ static void VU0MI_FMOR()  { _vuFMOR(&VU0); }
 static void VU0MI_FCAND() { _vuFCAND(&VU0); }
 static void VU0MI_FCEQ()  { _vuFCEQ(&VU0); }
 static void VU0MI_FCOR()  { _vuFCOR(&VU0); }
-static void VU0MI_FCSET() { _vuFCSET(&VU0); }
+static void VU0MI_FCSET() { VU0.clipflag = (u32)(VU0.code & 0xFFFFFF); }
 static void VU0MI_FCGET() { _vuFCGET(&VU0); }
 static void VU0MI_IBEQ() { _vuIBEQ(&VU0); }
 static void VU0MI_IBGEZ() { _vuIBGEZ(&VU0); }
@@ -3786,7 +3749,7 @@ static void VU0MI_BAL() { _vuBAL(&VU0); }
 static void VU0MI_JR()   { _vuJR(&VU0); }
 static void VU0MI_JALR() { _vuJALR(&VU0); }
 static void VU0MI_MFP() { _vuMFP(&VU0); }
-static void VU0MI_WAITP() { _vuWAITP(&VU0); }
+static void VU0MI_WAITP() { }
 static void VU0MI_ESADD()   { _vuESADD(&VU0); }
 static void VU0MI_ERSADD()  { _vuERSADD(&VU0); }
 static void VU0MI_ELENG()   { _vuELENG(&VU0); }
@@ -3881,10 +3844,10 @@ static void VU0regsMI_MSUBAz(_VURegsNum* VUregsn) { _vuRegsMSUBAz(&VU0, VUregsn)
 static void VU0regsMI_MSUBAw(_VURegsNum* VUregsn) { _vuRegsMSUBAw(&VU0, VUregsn); }
 static void VU0regsMI_MAX(_VURegsNum* VUregsn) { _vuRegsMAX(&VU0, VUregsn); }
 static void VU0regsMI_MAXi(_VURegsNum* VUregsn) { _vuRegsMAXi(&VU0, VUregsn); }
-static void VU0regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx(&VU0, VUregsn); }
-static void VU0regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy(&VU0, VUregsn); }
-static void VU0regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz(&VU0, VUregsn); }
-static void VU0regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw(&VU0, VUregsn); }
+static void VU0regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx_(&VU0, VUregsn); }
+static void VU0regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy_(&VU0, VUregsn); }
+static void VU0regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz_(&VU0, VUregsn); }
+static void VU0regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw_(&VU0, VUregsn); }
 static void VU0regsMI_MINI(_VURegsNum* VUregsn) { _vuRegsMINI(&VU0, VUregsn); }
 static void VU0regsMI_MINIi(_VURegsNum* VUregsn) { _vuRegsMINIi(&VU0, VUregsn); }
 static void VU0regsMI_MINIx(_VURegsNum* VUregsn) { _vuRegsMINIx(&VU0, VUregsn); }
@@ -3978,7 +3941,7 @@ static void VU0regsMI_XITOP(_VURegsNum* VUregsn) { _vuRegsXITOP(&VU0, VUregsn); 
 static void VU0regsMI_XGKICK(_VURegsNum* VUregsn) { _vuRegsXGKICK(&VU0, VUregsn); }
 static void VU0regsMI_XTOP(_VURegsNum* VUregsn) { _vuRegsXTOP(&VU0, VUregsn); }
 
-void VU0unknown(void) { }
+static void VU0unknown(void) { }
 static void VU0regsunknown(_VURegsNum* VUregsn) { }
 
 // --------------------------------------------------------------------------------------
@@ -4113,11 +4076,11 @@ static void VU1MI_ILW() { _vuILW(&VU1); }
 static void VU1MI_ISW() { _vuISW(&VU1); }
 static void VU1MI_ILWR() { _vuILWR(&VU1); }
 static void VU1MI_ISWR() { _vuISWR(&VU1); }
-static void VU1MI_RINIT() { _vuRINIT(&VU1); }
+static void VU1MI_RINIT() { VU1.VI[REG_R].UL = 0x3F800000 | (VU1.VF[((VU1.code >> 11) & 0x1F)].UL[((VU1.code >> 21) & 0x03)] & 0x007FFFFF); }
 static void VU1MI_RGET()  { _vuRGET(&VU1); }
 static void VU1MI_RNEXT() { _vuRNEXT(&VU1); }
-static void VU1MI_RXOR()  { _vuRXOR(&VU1); }
-static void VU1MI_WAITQ() { _vuWAITQ(&VU1); }
+static void VU1MI_RXOR()  { VU1.VI[REG_R].UL = 0x3F800000 | ((VU1.VI[REG_R].UL ^ VU1.VF[((VU1.code >> 11) & 0x1F)].UL[((VU1.code >> 21) & 0x03)]) & 0x007FFFFF); }
+static void VU1MI_WAITQ() { }
 static void VU1MI_FSAND() { _vuFSAND(&VU1); }
 static void VU1MI_FSEQ()  { _vuFSEQ(&VU1); }
 static void VU1MI_FSOR()  { _vuFSOR(&VU1); }
@@ -4128,7 +4091,7 @@ static void VU1MI_FMOR()  { _vuFMOR(&VU1); }
 static void VU1MI_FCAND() { _vuFCAND(&VU1); }
 static void VU1MI_FCEQ()  { _vuFCEQ(&VU1); }
 static void VU1MI_FCOR()  { _vuFCOR(&VU1); }
-static void VU1MI_FCSET() { _vuFCSET(&VU1); }
+static void VU1MI_FCSET() { VU1.clipflag = (u32)(VU1.code & 0xFFFFFF); }
 static void VU1MI_FCGET() { _vuFCGET(&VU1); }
 static void VU1MI_IBEQ() { _vuIBEQ(&VU1); }
 static void VU1MI_IBGEZ() { _vuIBGEZ(&VU1); }
@@ -4141,7 +4104,7 @@ static void VU1MI_BAL() { _vuBAL(&VU1); }
 static void VU1MI_JR()   { _vuJR(&VU1); }
 static void VU1MI_JALR() { _vuJALR(&VU1); }
 static void VU1MI_MFP() { _vuMFP(&VU1); }
-static void VU1MI_WAITP() { _vuWAITP(&VU1); }
+static void VU1MI_WAITP() { }
 static void VU1MI_ESADD()   { _vuESADD(&VU1); }
 static void VU1MI_ERSADD()  { _vuERSADD(&VU1); }
 static void VU1MI_ELENG()   { _vuELENG(&VU1); }
@@ -4238,10 +4201,10 @@ static void VU1regsMI_MSUBAz(_VURegsNum* VUregsn) { _vuRegsMSUBAz(&VU1, VUregsn)
 static void VU1regsMI_MSUBAw(_VURegsNum* VUregsn) { _vuRegsMSUBAw(&VU1, VUregsn); }
 static void VU1regsMI_MAX(_VURegsNum* VUregsn) { _vuRegsMAX(&VU1, VUregsn); }
 static void VU1regsMI_MAXi(_VURegsNum* VUregsn) { _vuRegsMAXi(&VU1, VUregsn); }
-static void VU1regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx(&VU1, VUregsn); }
-static void VU1regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy(&VU1, VUregsn); }
-static void VU1regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz(&VU1, VUregsn); }
-static void VU1regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw(&VU1, VUregsn); }
+static void VU1regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx_(&VU1, VUregsn); }
+static void VU1regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy_(&VU1, VUregsn); }
+static void VU1regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz_(&VU1, VUregsn); }
+static void VU1regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw_(&VU1, VUregsn); }
 static void VU1regsMI_MINI(_VURegsNum* VUregsn) { _vuRegsMINI(&VU1, VUregsn); }
 static void VU1regsMI_MINIi(_VURegsNum* VUregsn) { _vuRegsMINIi(&VU1, VUregsn); }
 static void VU1regsMI_MINIx(_VURegsNum* VUregsn) { _vuRegsMINIx(&VU1, VUregsn); }
@@ -4757,11 +4720,11 @@ void VILW()    { VU0.code = cpuRegs.code; _vuILW(&VU0); }
 void VISW()    { VU0.code = cpuRegs.code; _vuISW(&VU0); }
 void VILWR()   { VU0.code = cpuRegs.code; _vuILWR(&VU0); }
 void VISWR()   { VU0.code = cpuRegs.code; _vuISWR(&VU0); }
-void VRINIT()  { VU0.code = cpuRegs.code; _vuRINIT(&VU0); }
+void VRINIT()  { VU0.code = cpuRegs.code; VU0.VI[REG_R].UL = 0x3F800000 | (VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)] & 0x007FFFFF); }
 void VRGET()   { VU0.code = cpuRegs.code; _vuRGET(&VU0); }
 void VRNEXT()  { VU0.code = cpuRegs.code; _vuRNEXT(&VU0); }
-void VRXOR()   { VU0.code = cpuRegs.code; _vuRXOR(&VU0); }
-void VWAITQ()  { VU0.code = cpuRegs.code; _vuWAITQ(&VU0); }
+void VRXOR()   { VU0.code = cpuRegs.code; VU0.VI[REG_R].UL = 0x3F800000 | ((VU0.VI[REG_R].UL ^ VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)]) & 0x007FFFFF); }
+void VWAITQ()  { VU0.code = cpuRegs.code; }
 void VFSAND()  { VU0.code = cpuRegs.code; _vuFSAND(&VU0); }
 void VFSEQ()   { VU0.code = cpuRegs.code; _vuFSEQ(&VU0); }
 void VFSOR()   { VU0.code = cpuRegs.code; _vuFSOR(&VU0); }
@@ -4772,7 +4735,7 @@ void VFMOR()   { VU0.code = cpuRegs.code; _vuFMOR(&VU0); }
 void VFCAND()  { VU0.code = cpuRegs.code; _vuFCAND(&VU0); }
 void VFCEQ()   { VU0.code = cpuRegs.code; _vuFCEQ(&VU0); }
 void VFCOR()   { VU0.code = cpuRegs.code; _vuFCOR(&VU0); }
-void VFCSET()  { VU0.code = cpuRegs.code; _vuFCSET(&VU0); SYNCCLIPFLAG(); }
+void VFCSET()  { VU0.code = cpuRegs.code; VU0.clipflag = (u32)(VU0.code & 0xFFFFFF); SYNCCLIPFLAG(); }
 void VFCGET()  { VU0.code = cpuRegs.code; _vuFCGET(&VU0); }
 void VXITOP()  { VU0.code = cpuRegs.code; _vuXITOP(&VU0); }
 
