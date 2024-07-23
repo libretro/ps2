@@ -22,8 +22,6 @@
 
 #include <float.h>
 
-using namespace R5900;		// for OPCODE and OpcodeImpl
-
 static int branch2 = 0;
 static u32 cpuBlockCycles = 0;		// 3 bit fixed point version of cycle count
 static bool intExitExecution = false;
@@ -80,7 +78,7 @@ static void execI(void)
 	// interprete instruction
 	cpuRegs.code = memRead32( pc );
 
-	const OPCODE& opcode = GetCurrentInstruction();
+	const R5900::OPCODE& opcode = R5900::GetCurrentInstruction();
 	cpuBlockCycles += opcode.cycles * (2 - ((cpuRegs.CP0.n.Config >> 18) & 0x1));
 
 	opcode.interpret();

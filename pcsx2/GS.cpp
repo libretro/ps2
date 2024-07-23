@@ -22,8 +22,6 @@
 #include "Counters.h"
 #include "Config.h"
 
-using namespace R5900;
-
 alignas(16) u8 g_RealGSMem[Ps2MemSize::GSregs];
 bool s_GSRegistersWritten = false;
 

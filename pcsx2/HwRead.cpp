@@ -20,8 +20,6 @@
 
 #include "ps2/pgif.h"
 
-using namespace R5900;
-
 static __fi void IntCHackCheck(void)
 {
 	// Sanity check: To protect from accidentally "rewinding" the cyclecount

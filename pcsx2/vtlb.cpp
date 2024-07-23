@@ -44,7 +44,6 @@
 #include "Host.h"
 #include "VMManager.h"
 
-using namespace R5900;
 using namespace vtlb_private;
 
 namespace vtlb_private

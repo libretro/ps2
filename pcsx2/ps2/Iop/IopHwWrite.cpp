@@ -30,11 +30,8 @@
 
 namespace IopMemory {
 
-using namespace Internal;
-
 // Template-compatible version of the psxHu macro.  Used for writing.
 #define psxHu(mem)	(*(u32*)&iopHw[(mem) & 0xffff])
-
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -44,7 +41,7 @@ static __fi void _generic_write( u32 addr, T val )
 	psxHu(addr) = val;
 }
 
-void iopHwWrite8_generic( u32 addr, mem8_t val )		{ _generic_write<mem8_t>( addr, val ); }
+void iopHwWrite8_generic( u32 addr, mem8_t val )	{ _generic_write<mem8_t>( addr, val ); }
 void iopHwWrite16_generic( u32 addr, mem16_t val )	{ _generic_write<mem16_t>( addr, val ); }
 void iopHwWrite32_generic( u32 addr, mem32_t val )	{ _generic_write<mem32_t>( addr, val ); }
 

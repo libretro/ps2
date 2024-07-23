@@ -23,8 +23,6 @@
 #include "IopBios.h"
 #include "IopHw.h"
 
-using namespace R3000A;
-
 // Used to flag delay slot instructions when throwig exceptions.
 bool iopIsDelaySlot = false;
 
@@ -131,7 +129,7 @@ void psxJ(void)
 {
 	// check for iop module import table magic
 	u32 delayslot = iopMemRead32(psxRegs.pc);
-	if (delayslot >> 16 == 0x2400 && irxImportExec(irxImportTableAddr(psxRegs.pc), delayslot & 0xffff))
+	if (delayslot >> 16 == 0x2400 && R3000A::irxImportExec(R3000A::irxImportTableAddr(psxRegs.pc), delayslot & 0xffff))
 		return;
 
 	doBranch(_JumpTarget_);

@@ -22,8 +22,6 @@
 
 #include <cmath>
 
-using namespace R5900;
-
 // This is called by the COP2 as per the CTC instruction
 void vu0ResetRegs(void)
 {

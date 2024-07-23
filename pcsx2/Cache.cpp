@@ -19,9 +19,6 @@
 #include "Cache.h"
 #include "vtlb.h"
 
-using namespace R5900;
-using namespace vtlb_private;
-
 namespace
 {
 
@@ -156,7 +153,7 @@ static int getFreeCache(u32 mem, int* way)
 {
 	const int setIdx = cache.setIdxFor(mem);
 	CacheSet& set    = cache.sets[setIdx];
-	VTLBVirtual vmv  = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
+	vtlb_private::VTLBVirtual vmv  = vtlb_private::vtlbdata.vmap[mem >> vtlb_private::VTLB_PAGE_BITS];
 	uptr ppf         = vmv.assumePtr(mem);
 
 	if (!findInCache(set, ppf, way))
@@ -262,7 +259,7 @@ static void doCacheHitOp(u32 addr, Op op)
 {
 	const int index = cache.setIdxFor(addr);
 	CacheSet& set   = cache.sets[index];
-	VTLBVirtual vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	vtlb_private::VTLBVirtual vmv = vtlb_private::vtlbdata.vmap[addr >> vtlb_private::VTLB_PAGE_BITS];
 	uptr ppf = vmv.assumePtr(addr);
 	int way;
 

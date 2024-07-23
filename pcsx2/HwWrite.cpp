@@ -29,8 +29,6 @@
 #include "CDVD/Ps1CD.h"
 #include "CDVD/CDVD.h"
 
-using namespace R5900;
-
 // Shift the middle 8 bits (bits 4-12) into the lower 8 bits.
 // This helps the compiler optimize the switch statement into a lookup table. :)
 

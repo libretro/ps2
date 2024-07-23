@@ -38,8 +38,6 @@
 #define _Fsf_ ((cpuRegs.code >> 21) & 0x03)
 #define _Ftf_ ((cpuRegs.code >> 23) & 0x03)
 
-using namespace R5900;
-
 void COP2_BC2(void) { Int_COP2BC2PrintTable[_Rt_]();}
 void COP2_SPECIAL(void) { _vu0FinishMicro(); Int_COP2SPECIAL1PrintTable[_Funct_]();}
 
