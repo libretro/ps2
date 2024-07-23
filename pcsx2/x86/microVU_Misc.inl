@@ -326,10 +326,10 @@ __fi std::optional<xAddressVoid> mVUoptimizeConstantAddr(mV, u32 srcreg, s32 off
 		return std::nullopt;
 	const s32 addr = 0 + offset;
 	if (isVU1)
-		return ptr[mVU.regs().Mem + ((addr & 0x3FFu) << 4) + offsetSS_];
+		return ptr[vuRegs[mVU.index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_];
 	if (addr & 0x400)
 		return std::nullopt;
-	return ptr[mVU.regs().Mem + ((addr & 0xFFu) << 4) + offsetSS_];
+	return ptr[vuRegs[mVU.index].Mem + ((addr & 0xFFu) << 4) + offsetSS_];
 }
 
 //------------------------------------------------------------------

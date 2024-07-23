@@ -77,7 +77,7 @@ struct microProgManager
 	microProgramQuick  quick[mProgSize/2]; // Quick reference to valid microPrograms for current execution
 	microProgram*      cur;                // Pointer to currently running MicroProgram
 	int                total;              // Total Number of valid MicroPrograms
-	int                isSame;             // Current cached microProgram is Exact Same program as mVU.regs().Micro (-1 = unknown, 0 = No, 1 = Yes)
+	int                isSame;             // Current cached microProgram is Exact Same program as vuRegs[mVU.index].Micro (-1 = unknown, 0 = No, 1 = Yes)
 	int                cleared;            // Micro Program is Indeterminate so must be searched for (and if no matches are found then recompile a new one)
 	u32                curFrame;           // Frame Counter
 	u8*                x86ptr;             // Pointer to program's recompilation code
@@ -133,19 +133,6 @@ struct microVU
 	u32 q;            // Holds current Q instance index
 	u32 totalCycles;  // Total Cycles that mVU is expected to run for
 	s32 cycles;       // Cycles Counter
-
-	VURegs& regs() const { return ::vuRegs[index]; }
-
-	__fi REG_VI& getVI(uint reg) const { return regs().VI[reg]; }
-	__fi VECTOR& getVF(uint reg) const { return regs().VF[reg]; }
-	__fi VIFregisters& getVifRegs() const
-	{
-		return (index && THREAD_VU1) ? vu1Thread.vifRegs : (&regs() == &vuRegs[1]) ? vif1Regs : vif0Regs;
-	}
-
-	__fi u32 compareState(microRegInfo* lhs, microRegInfo* rhs) const {
-		return reinterpret_cast<u32(*)(void*, void*)>(compareStateF)(lhs, rhs);
-	}
 };
 
 class microBlockManager
@@ -219,7 +206,7 @@ public:
 			microBlockLink* prevI = nullptr;
 			for (microBlockLink* linkI = fBlockList; linkI != nullptr; prevI = linkI, linkI = linkI->next)
 			{
-				if (mVU.compareState(pState, &linkI->block.pState) == 0)
+				if (reinterpret_cast<u32(*)(void*, void*)>(mVU.compareStateF)(pState, &linkI->block.pState) == 0)
 				{
 					if (linkI != fBlockList)
 					{

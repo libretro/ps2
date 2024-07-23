@@ -95,7 +95,7 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	mVUGenerateCopyPipelineState(mVU);
 	mVUGenerateCompareState(mVU);
 
-	mVU.regs().nextBlockCycles = 0;
+	vuRegs[mVU.index].nextBlockCycles = 0;
 	memset(&mVU.prog.lpState, 0, sizeof(mVU.prog.lpState));
 
 	// Program Variables
@@ -204,14 +204,14 @@ __ri void mVUcacheProg(microVU& mVU, microProgram& prog)
 	if (!doWholeProgCompare)
 	{
 		auto cmpOffset = [&](void* x) { return (u8*)x + mVUrange.start; };
-		memcpy(cmpOffset(prog.data), cmpOffset(mVU.regs().Micro), (mVUrange.end - mVUrange.start));
+		memcpy(cmpOffset(prog.data), cmpOffset(vuRegs[mVU.index].Micro), (mVUrange.end - mVUrange.start));
 	}
 	else
 	{
 		if (!mVU.index)
-			memcpy(prog.data, mVU.regs().Micro, 0x1000);
+			memcpy(prog.data, vuRegs[mVU.index].Micro, 0x1000);
 		else
-			memcpy(prog.data, mVU.regs().Micro, 0x4000);
+			memcpy(prog.data, vuRegs[mVU.index].Micro, 0x4000);
 	}
 }
 
@@ -236,12 +236,12 @@ u64 mVUrangesHash(microVU& mVU, microProgram& prog)
 	return hash.v64;
 }
 
-// Compare Cached microProgram to mVU.regs().Micro
+// Compare Cached microProgram to vuRegs[mVU.index].Micro
 __fi bool mVUcmpProg(microVU& mVU, microProgram& prog)
 {
 	if (doWholeProgCompare)
 	{
-		if (memcmp((u8*)prog.data, mVU.regs().Micro, mVU.microMemSize))
+		if (memcmp((u8*)prog.data, vuRegs[mVU.index].Micro, mVU.microMemSize))
 			return false;
 	}
 	else
@@ -250,7 +250,7 @@ __fi bool mVUcmpProg(microVU& mVU, microProgram& prog)
 		{
 			auto cmpOffset = [&](void* x) { return (u8*)x + range.start; };
 
-			if (memcmp(cmpOffset(prog.data), cmpOffset(mVU.regs().Micro), (range.end - range.start)))
+			if (memcmp(cmpOffset(prog.data), cmpOffset(vuRegs[mVU.index].Micro), (range.end - range.start)))
 				return false;
 		}
 	}
@@ -264,8 +264,8 @@ __fi bool mVUcmpProg(microVU& mVU, microProgram& prog)
 _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 {
 	microVU& mVU = mVUx;
-	microProgramQuick& quick = mVU.prog.quick[mVU.regs().start_pc / 8];
-	microProgramList*  list  = mVU.prog.prog [mVU.regs().start_pc / 8];
+	microProgramQuick& quick = mVU.prog.quick[vuRegs[mVU.index].start_pc / 8];
+	microProgramList*  list  = mVU.prog.prog [vuRegs[mVU.index].start_pc / 8];
 
 	if (!quick.prog) // If null, we need to search for new program
 	{
@@ -294,7 +294,7 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 		// If cleared and program not found, make a new program instance
 		mVU.prog.cleared = 0;
 		mVU.prog.isSame  = 1;
-		mVU.prog.cur     = mVUcreateProg(mVU, mVU.regs().start_pc/8);
+		mVU.prog.cur     = mVUcreateProg(mVU, vuRegs[mVU.index].start_pc/8);
 		void* entryPoint = mVUblockFetch(mVU,  startPC, pState);
 		quick.block      = mVU.prog.cur->block[startPC/8];
 		quick.prog       = mVU.prog.cur;
@@ -376,9 +376,9 @@ void recMicroVU0::Execute(u32 cycles)
 
 	((mVUrecCall)microVU0.startFunct)(vuRegs[0].VI[REG_TPC].UL, cycles);
 	vuRegs[0].VI[REG_TPC].UL >>= 3;
-	if (microVU0.regs().flags & 0x4)
+	if (vuRegs[microVU0.index].flags & 0x4)
 	{
-		microVU0.regs().flags &= ~0x4;
+		vuRegs[microVU0.index].flags &= ~0x4;
 		hwIntcIrq(6);
 	}
 }
@@ -398,9 +398,9 @@ void recMicroVU1::Execute(u32 cycles)
 	vuRegs[1].VI[REG_TPC].UL <<= 3;
 	((mVUrecCall)microVU1.startFunct)(vuRegs[1].VI[REG_TPC].UL, cycles);
 	vuRegs[1].VI[REG_TPC].UL >>= 3;
-	if (microVU1.regs().flags & 0x4 && !THREAD_VU1)
+	if (vuRegs[microVU1.index].flags & 0x4 && !THREAD_VU1)
 	{
-		microVU1.regs().flags &= ~0x4;
+		vuRegs[microVU1.index].flags &= ~0x4;
 		hwIntcIrq(7);
 	}
 }

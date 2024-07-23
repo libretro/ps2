@@ -49,9 +49,9 @@ void mVUdispatcherAB(mV)
 			xLDMXCSR(ptr32[isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask]);
 
 		// Load Regs
-		xMOVAPS (xmmT1, ptr128[&mVU.regs().VI[REG_P].UL]);
-		xMOVAPS (xmmPQ, ptr128[&mVU.regs().VI[REG_Q].UL]);
-		xMOVDZX (xmmT2, ptr32[&mVU.regs().pending_q]);
+		xMOVAPS (xmmT1, ptr128[&vuRegs[mVU.index].VI[REG_P].UL]);
+		xMOVAPS (xmmPQ, ptr128[&vuRegs[mVU.index].VI[REG_Q].UL]);
+		xMOVDZX (xmmT2, ptr32 [&vuRegs[mVU.index].pending_q]);
 		xSHUF.PS(xmmPQ, xmmT1, 0); // wzyx = PPQQ
 		//Load in other Q instance
 		xPSHUF.D(xmmPQ, xmmPQ, 0xe1);
@@ -61,23 +61,23 @@ void mVUdispatcherAB(mV)
 		if (isVU1)
 		{
 			//Load in other P instance
-			xMOVDZX(xmmT2, ptr32[&mVU.regs().pending_p]);
+			xMOVDZX(xmmT2, ptr32[&vuRegs[mVU.index].pending_p]);
 			xPSHUF.D(xmmPQ, xmmPQ, 0x1B);
 			xMOVSS(xmmPQ, xmmT2);
 			xPSHUF.D(xmmPQ, xmmPQ, 0x1B);
 		}
 
-		xMOVAPS(xmmT1, ptr128[&mVU.regs().micro_macflags]);
+		xMOVAPS(xmmT1, ptr128[&vuRegs[mVU.index].micro_macflags]);
 		xMOVAPS(ptr128[mVU.macFlag], xmmT1);
 
 
-		xMOVAPS(xmmT1, ptr128[&mVU.regs().micro_clipflags]);
+		xMOVAPS(xmmT1, ptr128[&vuRegs[mVU.index].micro_clipflags]);
 		xMOVAPS(ptr128[mVU.clipFlag], xmmT1);
 
-		xMOV(gprF0, ptr32[&mVU.regs().micro_statusflags[0]]);
-		xMOV(gprF1, ptr32[&mVU.regs().micro_statusflags[1]]);
-		xMOV(gprF2, ptr32[&mVU.regs().micro_statusflags[2]]);
-		xMOV(gprF3, ptr32[&mVU.regs().micro_statusflags[3]]);
+		xMOV(gprF0, ptr32[&vuRegs[mVU.index].micro_statusflags[0]]);
+		xMOV(gprF1, ptr32[&vuRegs[mVU.index].micro_statusflags[1]]);
+		xMOV(gprF2, ptr32[&vuRegs[mVU.index].micro_statusflags[2]]);
+		xMOV(gprF3, ptr32[&vuRegs[mVU.index].micro_statusflags[3]]);
 
 		// Jump to Recompiled Code Block
 		xJMP(rax);
@@ -112,10 +112,10 @@ void mVUdispatcherCD(mV)
 			xLDMXCSR(ptr32[isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask]);
 
 		mVUrestoreRegs(mVU);
-		xMOV(gprF0, ptr32[&mVU.regs().micro_statusflags[0]]);
-		xMOV(gprF1, ptr32[&mVU.regs().micro_statusflags[1]]);
-		xMOV(gprF2, ptr32[&mVU.regs().micro_statusflags[2]]);
-		xMOV(gprF3, ptr32[&mVU.regs().micro_statusflags[3]]);
+		xMOV(gprF0, ptr32[&vuRegs[mVU.index].micro_statusflags[0]]);
+		xMOV(gprF1, ptr32[&vuRegs[mVU.index].micro_statusflags[1]]);
+		xMOV(gprF2, ptr32[&vuRegs[mVU.index].micro_statusflags[2]]);
+		xMOV(gprF3, ptr32[&vuRegs[mVU.index].micro_statusflags[3]]);
 
 		// Jump to Recompiled Code Block
 		xJMP(ptrNative[&mVU.resumePtrXG]);
@@ -123,10 +123,10 @@ void mVUdispatcherCD(mV)
 		mVU.exitFunctXG = xGetAlignedCallTarget();
 
 		// Backup Status Flag (other regs were backed up on xgkick)
-		xMOV(ptr32[&mVU.regs().micro_statusflags[0]], gprF0);
-		xMOV(ptr32[&mVU.regs().micro_statusflags[1]], gprF1);
-		xMOV(ptr32[&mVU.regs().micro_statusflags[2]], gprF2);
-		xMOV(ptr32[&mVU.regs().micro_statusflags[3]], gprF3);
+		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[0]], gprF0);
+		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[1]], gprF1);
+		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[2]], gprF2);
+		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[3]], gprF3);
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -318,12 +318,10 @@ static void mVUGenerateCompareState(mV)
 // Executes for number of cycles
 _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 {
-
-	microVU& mVU = mVUx;
-	u32 vuLimit = vuIndex ? 0x3ff8 : 0xff8;
-	mVU.cycles = cycles;
+	microVU& mVU    = mVUx;
+	u32 vuLimit     = vuIndex ? 0x3ff8 : 0xff8;
+	mVU.cycles      = cycles;
 	mVU.totalCycles = cycles;
-
 	xSetPtr(mVU.prog.x86ptr); // Set x86ptr to where last program left off
 	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uptr)&mVU.prog.lpState); // Find and set correct program
 }
@@ -342,7 +340,7 @@ _mVUt void mVUcleanUp(void)
 		mVUreset(mVU, false);
 
 	mVU.cycles = mVU.totalCycles - std::max(0, mVU.cycles);
-	mVU.regs().cycle += mVU.cycles;
+	vuRegs[mVU.index].cycle += mVU.cycles;
 
 	if (!vuIndex || !THREAD_VU1)
 	{

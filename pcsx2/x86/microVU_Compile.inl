@@ -23,7 +23,7 @@
 __fi void mVUcheckIsSame(mV)
 {
 	if (mVU.prog.isSame == -1)
-		mVU.prog.isSame = !memcmp((u8*)mVUcurProg.data, mVU.regs().Micro, mVU.microMemSize);
+		mVU.prog.isSame = !memcmp((u8*)mVUcurProg.data, vuRegs[mVU.index].Micro, mVU.microMemSize);
 	if (mVU.prog.isSame == 0)
 	{
 		mVUcacheProg(mVU, *mVU.prog.cur);
@@ -132,7 +132,7 @@ void doIbit(mV)
 		if (EmuConfig.Gamefixes.IbitHack)
 		{
 			xMOV(gprT1, ptr32[&curI]);
-			xMOV(ptr32[&mVU.getVI(REG_I)], gprT1);
+			xMOV(ptr32[&::vuRegs[mVU.index].VI[REG_I]], gprT1);
 		}
 		else
 		{
@@ -142,7 +142,7 @@ void doIbit(mV)
 			else
 				tempI = curI;
 
-			xMOV(ptr32[&mVU.getVI(REG_I)], tempI);
+			xMOV(ptr32[&::vuRegs[mVU.index].VI[REG_I]], tempI);
 		}
 		incPC(1);
 	}
@@ -425,7 +425,7 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 	xCALL((void*)mVU.copyPLState);
 
 	if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-		xMOV(ptr32[&mVU.regs().nextBlockCycles], mVUcycles);
+		xMOV(ptr32[&vuRegs[mVU.index].nextBlockCycles], mVUcycles);
 	mVUendProgram(mVU, &mFC, 0);
 
 	skip.SetTarget();
@@ -497,7 +497,7 @@ void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 	if (!isVU1 || !THREAD_VU1)
 	{
 		xOR(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], (isVU1 ? 0x200 : 0x2));
-		xOR(ptr32[&mVU.regs().flags], VUFLAG_INTCINTERRUPT);
+		xOR(ptr32[&vuRegs[mVU.index].flags], VUFLAG_INTCINTERRUPT);
 	}
 	incPC(1);
 	mVUDTendProgram(mVU, mFC, 1);
@@ -515,7 +515,7 @@ void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 	if (!isVU1 || !THREAD_VU1)
 	{
 		xOR(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], (isVU1 ? 0x400 : 0x4));
-		xOR(ptr32[&mVU.regs().flags], VUFLAG_INTCINTERRUPT);
+		xOR(ptr32[&vuRegs[mVU.index].flags], VUFLAG_INTCINTERRUPT);
 	}
 	incPC(1);
 	mVUDTendProgram(mVU, mFC, 1);
@@ -785,7 +785,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 			x = 0xffff;
 		if (mVUup.mBit)
 		{
-			xOR(ptr32[&mVU.regs().flags], VUFLAG_MFLAGSET);
+			xOR(ptr32[&vuRegs[mVU.index].flags], VUFLAG_MFLAGSET);
 		}
 
 		if (isVU1 && mVUlow.kickcycles && CHECK_XGKICKHACK)
@@ -820,7 +820,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 				incPC(2);
 				mVUsetupRange(mVU, xPC, false);
 				if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-					xMOV(ptr32[&mVU.regs().nextBlockCycles], 0);
+					xMOV(ptr32[&vuRegs[mVU.index].nextBlockCycles], 0);
 				mVUendProgram(mVU, &mFC, 0);
 				normBranchCompile(mVU, xPC);
 				incPC(-2);
@@ -931,7 +931,7 @@ _mVUt void* mVUcompileJIT(u32 startPC, uptr ptr)
 		}
 		return mVUblockFetch(mVUx, startPC, ptr);
 	}
-	mVUx.regs().start_pc = startPC;
+	vuRegs[mVUx.index].start_pc = startPC;
 	if (doJumpCaching) // When doJumpCaching, ptr is a microBlock pointer
 	{
 		microVU& mVU = mVUx;

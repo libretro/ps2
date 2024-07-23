@@ -1027,7 +1027,7 @@ mVUop(mVU_ILW)
 	}
 	pass2
 	{
-		void* ptr = mVU.regs().Mem + offsetSS;
+		void* ptr = vuRegs[mVU.index].Mem + offsetSS;
 		std::optional<xAddressVoid> optaddr(mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, offsetSS));
 		if (!optaddr.has_value())
 		{
@@ -1055,7 +1055,7 @@ mVUop(mVU_ILWR)
 	}
 	pass2
 	{
-		void* ptr = mVU.regs().Mem + offsetSS;
+		void* ptr = vuRegs[mVU.index].Mem + offsetSS;
 		if (_Is_)
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
@@ -1099,7 +1099,7 @@ mVUop(mVU_ISW)
 
 		// If regT is dirty, the high bits might not be zero.
 		const xRegister32& regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
-		const xAddressVoid ptr(optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, mVU.regs().Mem, gprT1q));
+		const xAddressVoid ptr(optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q));
 		if (_X) xMOV(ptr32[ptr], regT);
 		if (_Y) xMOV(ptr32[ptr + 4], regT);
 		if (_Z) xMOV(ptr32[ptr + 8], regT);
@@ -1118,7 +1118,7 @@ mVUop(mVU_ISWR)
 	}
 	pass2
 	{
-		void* base = mVU.regs().Mem;
+		void* base = vuRegs[mVU.index].Mem;
 		xAddressReg is = xEmptyReg;
 		if (_Is_)
 		{
@@ -1180,7 +1180,7 @@ mVUop(mVU_LQ)
 		}
 
 		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-		mVUloadReg(Ft, optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, mVU.regs().Mem, gprT1q), _X_Y_Z_W);
+		mVUloadReg(Ft, optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q), _X_Y_Z_W);
 		mVU.regAlloc->clearNeeded(Ft);
 	}
 }
@@ -1190,7 +1190,7 @@ mVUop(mVU_LQD)
 	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, true); }
 	pass2
 	{
-		void* ptr = mVU.regs().Mem;
+		void* ptr = vuRegs[mVU.index].Mem;
 		xAddressReg is = xEmptyReg;
 		if (_Is_ || isVU0) // Access VU1 regs mem-map in !_Is_ case
 		{
@@ -1226,7 +1226,7 @@ mVUop(mVU_LQI)
 	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, true); }
 	pass2
 	{
-		void* ptr = mVU.regs().Mem;
+		void* ptr = vuRegs[mVU.index].Mem;
 		xAddressReg is = xEmptyReg;
 		if (_Is_)
 		{
@@ -1268,7 +1268,7 @@ mVUop(mVU_SQ)
 		}
 
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		mVUsaveReg(Fs, optptr.has_value() ? optptr.value() : xComplexAddress(gprT2q, mVU.regs().Mem, gprT1q), _X_Y_Z_W, 1);
+		mVUsaveReg(Fs, optptr.has_value() ? optptr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q), _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -1278,7 +1278,7 @@ mVUop(mVU_SQD)
 	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, true); }
 	pass2
 	{
-		void* ptr = mVU.regs().Mem;
+		void* ptr = vuRegs[mVU.index].Mem;
 		xAddressReg it = xEmptyReg;
 		if (_It_ || isVU0) // Access VU1 regs mem-map in !_It_ case
 		{
@@ -1307,7 +1307,7 @@ mVUop(mVU_SQI)
 	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, true); }
 	pass2
 	{
-		void* ptr = mVU.regs().Mem;
+		void* ptr = vuRegs[mVU.index].Mem;
 		if (_It_)
 		{
 			const xRegister32& regT = mVU.regAlloc->allocGPR(_It_, _It_, mVUlow.backupVI);
@@ -1457,7 +1457,17 @@ mVUop(mVU_XTOP)
 	pass2
 	{
 		const xRegister32& regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
-		xMOVZX(regT, ptr16[&mVU.getVifRegs().top]);
+		if (mVU.index && THREAD_VU1)
+		{
+			xMOVZX(regT, ptr16[&vu1Thread.vifRegs.top]);
+		}
+		else
+		{
+			if (&::vuRegs[mVU.index] == &vuRegs[1])
+				xMOVZX(regT, ptr16[&vif1Regs.top]);
+			else
+				xMOVZX(regT, ptr16[&vif0Regs.top]);
+		}
 		mVU.regAlloc->clearNeeded(regT);
 	}
 }
@@ -1474,7 +1484,17 @@ mVUop(mVU_XITOP)
 	pass2
 	{
 		const xRegister32& regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
-		xMOVZX(regT, ptr16[&mVU.getVifRegs().itop]);
+		if (mVU.index && THREAD_VU1)
+		{
+			xMOVZX(regT, ptr16[&vu1Thread.vifRegs.itop]);
+		}
+		else
+		{
+			if (&::vuRegs[mVU.index] == &vuRegs[1])
+				xMOVZX(regT, ptr16[&vif1Regs.itop]);
+			else
+				xMOVZX(regT, ptr16[&vif0Regs.itop]);
+		}
 		xAND(regT, isVU1 ? 0x3ff : 0xff);
 		mVU.regAlloc->clearNeeded(regT);
 	}

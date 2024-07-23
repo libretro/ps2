@@ -250,8 +250,6 @@ protected:
 
 	// Helper functions to get VU regs
 	VURegs& regs() const { return ::vuRegs[index]; }
-	__fi REG_VI& getVI(uint reg) const { return regs().VI[reg]; }
-	__fi VECTOR& getVF(uint reg) const { return regs().VF[reg]; }
 
 	__ri void loadIreg(const xmm& reg, int xyzw)
 	{
@@ -267,7 +265,7 @@ protected:
 			}
 		}
 
-		xMOVSSZX(reg, ptr32[&getVI(REG_I)]);
+		xMOVSSZX(reg, ptr32[&::vuRegs[index].VI[REG_I]]);
 		if (!_XYZWss(xyzw))
 			xSHUF.PS(reg, reg, 0);
 	}
@@ -569,11 +567,11 @@ public:
 			if ((mapX.VFreg > 0) && mapX.xyzw) // Reg was modified and not Temp or vf0
 			{
 				if (mapX.VFreg == 33)
-					xMOVSS(ptr32[&getVI(REG_I)], xmm(i));
+					xMOVSS(ptr32[&::vuRegs[index].VI[REG_I]], xmm(i));
 				else if (mapX.VFreg == 32)
-					mVUsaveReg(xmm(i), ptr[&regs().ACC], mapX.xyzw, 1);
+					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].ACC], mapX.xyzw, 1);
 				else
-					mVUsaveReg(xmm(i), ptr[&getVF(mapX.VFreg)], mapX.xyzw, 1);
+					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].VI[mapX.VFreg]], mapX.xyzw, 1);
 			}
 		}
 
@@ -651,11 +649,11 @@ public:
 		if ((mapX.VFreg > 0) && mapX.xyzw) // Reg was modified and not Temp or vf0
 		{
 			if (mapX.VFreg == 33)
-				xMOVSS(ptr32[&getVI(REG_I)], reg);
+				xMOVSS(ptr32[&::vuRegs[index].VI[REG_I]], reg);
 			else if (mapX.VFreg == 32)
-				mVUsaveReg(reg, ptr[&regs().ACC], mapX.xyzw, true);
+				mVUsaveReg(reg, ptr[&::vuRegs[index].ACC], mapX.xyzw, true);
 			else
-				mVUsaveReg(reg, ptr[&getVF(mapX.VFreg)], mapX.xyzw, true);
+				mVUsaveReg(reg, ptr[&::vuRegs[index].VF[mapX.VFreg]], mapX.xyzw, true);
 
 			if (invalidateRegs)
 			{
@@ -818,9 +816,9 @@ public:
 			else if (vfLoadReg == 33)
 				loadIreg(xmmX, xyzw);
 			else if (vfLoadReg == 32)
-				mVUloadReg(xmmX, ptr[&regs().ACC], xyzw);
+				mVUloadReg(xmmX, ptr[&::vuRegs[index].ACC], xyzw);
 			else if (vfLoadReg >= 0)
-				mVUloadReg(xmmX, ptr[&getVF(vfLoadReg)], xyzw);
+				mVUloadReg(xmmX, ptr[&::vuRegs[index].VF[vfLoadReg]], xyzw);
 
 			xmmMap[x].VFreg = vfWriteReg;
 			xmmMap[x].xyzw  = xyzw;
@@ -830,9 +828,9 @@ public:
 			if (vfLoadReg == 33)
 				loadIreg(xmmX, 0xf);
 			else if (vfLoadReg == 32)
-				xMOVAPS (xmmX, ptr128[&regs().ACC]);
+				xMOVAPS (xmmX, ptr128[&::vuRegs[index].ACC]);
 			else if (vfLoadReg >= 0)
-				xMOVAPS (xmmX, ptr128[&getVF(vfLoadReg)]);
+				xMOVAPS (xmmX, ptr128[&::vuRegs[index].VF[vfLoadReg]]);
 
 			xmmMap[x].VFreg = vfLoadReg;
 			xmmMap[x].xyzw  = 0;
@@ -888,7 +886,7 @@ public:
 		if (mapX.dirty)
 		{
 			if (mapX.VIreg < 16)
-				xMOV(ptr16[&getVI(mapX.VIreg)], xRegister16(reg));
+				xMOV(ptr16[&::vuRegs[index].VI[mapX.VIreg]], xRegister16(reg));
 			if (clearDirty)
 			{
 				mapX.dirty = false;
@@ -989,7 +987,7 @@ public:
 							// writeReg not cached, needs backing up
 							if (backup && gprMap[x].VIreg != viWriteReg)
 							{
-								xMOVZX(gprX, ptr16[&getVI(viWriteReg)]);
+								xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viWriteReg]]);
 								writeVIBackup(gprX);
 								backup = false;
 							}
@@ -1044,13 +1042,13 @@ public:
 		// it's going to get lost when we eventually write this register back.
 		if (backup && viLoadReg >= 0 && viWriteReg > 0 && viLoadReg != viWriteReg)
 		{
-			xMOVZX(gprX, ptr16[&getVI(viWriteReg)]);
+			xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viWriteReg]]);
 			writeVIBackup(gprX);
 			backup = false;
 		}
 
 		if (viLoadReg > 0)
-			xMOVZX(gprX, ptr16[&getVI(viLoadReg)]);
+			xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viLoadReg]]);
 		else if (viLoadReg == 0)
 			xXOR(gprX, gprX);
 
@@ -1065,8 +1063,7 @@ public:
 			if (backup)
 			{
 				if (viLoadReg < 0 && viWriteReg > 0)
-					xMOVZX(gprX, ptr16[&getVI(viWriteReg)]);
-
+					xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viWriteReg]]);
 				writeVIBackup(gprX);
 			}
 		}
