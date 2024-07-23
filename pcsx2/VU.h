@@ -34,10 +34,6 @@ enum VURegFlags
 	REG_CMSAR1 	= 31
 };
 
-//interpreter hacks, WIP
-//#define INT_VUSTALLHACK //some games work without those, big speedup
-//#define INT_VUDOUBLEHACK
-
 enum VUStatus
 {
 	VU_Ready = 0,
@@ -195,19 +191,6 @@ struct alignas(16) VURegs
 	u32 ialureadpos;
 	u32 ialuwritepos;
 	u32 ialucount;
-
-	VURegs()
-	{
-		Mem = NULL;
-		Micro = NULL;
-	}
-
-	bool IsVU1() const;
-
-	VIFregisters& GetVifRegs() const
-	{
-		return IsVU1() ? vif1Regs : vif0Regs;
-	}
 };
 
 enum VUPipeState
@@ -227,6 +210,3 @@ extern VURegs vuRegs[2];
 // CPP file that needs them only. --air
 static VURegs& VU0 = vuRegs[0];
 static VURegs& VU1 = vuRegs[1];
-
-// Do not use __fi here because it fires 'multiple definition' error in GCC
-inline bool VURegs::IsVU1() const { return (this == &vuRegs[1]); }

@@ -140,7 +140,7 @@ struct microVU
 	__fi VECTOR& getVF(uint reg) const { return regs().VF[reg]; }
 	__fi VIFregisters& getVifRegs() const
 	{
-		return (index && THREAD_VU1) ? vu1Thread.vifRegs : regs().GetVifRegs();
+		return (index && THREAD_VU1) ? vu1Thread.vifRegs : (&regs() == &vuRegs[1]) ? vif1Regs : vif0Regs;
 	}
 
 	__fi u32 compareState(microRegInfo* lhs, microRegInfo* rhs) const {

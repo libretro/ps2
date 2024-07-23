@@ -454,6 +454,9 @@ __fi void _vuBackupVI(VURegs* VU, u32 reg)
 #endif
 }
 
+//interpreter hacks, WIP
+//#define INT_VUDOUBLEHACK
+
 /******************************/
 /*   VU Upper instructions    */
 /******************************/
@@ -2563,7 +2566,7 @@ static __ri void _vuXITOP(VURegs* VU)
 	if (VU == &VU1 && THREAD_VU1)
 		VU->VI[_It_].US[0] = vu1Thread.vifRegs.itop;
 	else
-		VU->VI[_It_].US[0] = VU->GetVifRegs().itop;
+		VU->VI[_It_].US[0] = (VU == &vuRegs[1]) ? vif1Regs.itop : vif0Regs.itop;
 }
 
 void _vuXGKICKTransfer(s32 cycles, bool flush)
@@ -2674,7 +2677,7 @@ static __ri void _vuXTOP(VURegs* VU)
 	if (VU == &VU1 && THREAD_VU1)
 		VU->VI[_It_].US[0] = (u16)vu1Thread.vifRegs.top;
 	else
-		VU->VI[_It_].US[0] = (u16)VU->GetVifRegs().top;
+		VU->VI[_It_].US[0] = (VU == &vuRegs[1]) ? (u16)vif1Regs.top : (u16)vif0Regs.top;
 }
 
 #define GET_VF0_FLAG(reg) (((reg) == 0) ? (1 << REG_VF0_FLAG) : 0)

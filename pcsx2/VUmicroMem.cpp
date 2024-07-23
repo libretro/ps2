@@ -19,7 +19,7 @@
 #include "VUmicro.h"
 #include "MTVU.h"
 
-alignas(16) VURegs vuRegs[2];
+alignas(16) VURegs vuRegs[2] = { NULL };
 
 /* VU0/1 on-chip memory */
 vuMemoryReserve::vuMemoryReserve() : _parent() { }
