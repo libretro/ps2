@@ -18,40 +18,42 @@
 #include "R5900OpcodeTables.h"
 #include "VUmicro.h"
 
-using namespace R5900;
-using namespace R5900::Interpreter;
 #define CP2COND (((vuRegs[0].VI[REG_VPU_STAT].US[0] >> 8) & 1))
 
 //Run the FINISH either side of the VCALL's as we have no control over it past here.
-void VCALLMS(void) {
+void VCALLMS(void)
+{
 	_vu0FinishMicro();
 	vu0ExecMicro(((cpuRegs.code >> 6) & 0x7FFF));
 }
 
-void VCALLMSR(void) {
+void VCALLMSR(void)
+{
 	_vu0FinishMicro();
 	vu0ExecMicro(vuRegs[0].VI[REG_CMSAR0].US[0]);
 }
 
-void BC2F()
+void BC2F(void)
 {
 	if (CP2COND == 0)
 		intDoBranch(_BranchTarget_);
 }
-void BC2T()
+
+void BC2T(void)
 {
 	if (CP2COND == 1)
 		intDoBranch(_BranchTarget_);
 }
 
-void BC2FL()
+void BC2FL(void)
 {
 	if (CP2COND == 0)
 		intDoBranch(_BranchTarget_);
 	else
 		cpuRegs.pc+= 4;
 }
-void BC2TL()
+
+void BC2TL(void)
 {
 	if (CP2COND == 1)
 		intDoBranch(_BranchTarget_);

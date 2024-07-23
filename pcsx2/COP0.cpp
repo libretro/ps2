@@ -18,16 +18,16 @@
 
 void WriteCP0Status(u32 value)
 {
-	COP0_UpdatePCCR();
-	cpuRegs.CP0.n.Status.val = value;
-	cpuSetNextEvent(cpuRegs.cycle, 4);
+       COP0_UpdatePCCR();
+       cpuRegs.CP0.n.Status.val = value;
+       cpuSetNextEvent(cpuRegs.cycle, 4);
 }
 
 void WriteCP0Config(u32 value)
 {
-	// Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
-	cpuRegs.CP0.n.Config = value & ~0xFC0;
-	cpuRegs.CP0.n.Config |= 0x440;
+       // Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
+       cpuRegs.CP0.n.Config = value & ~0xFC0;
+       cpuRegs.CP0.n.Config |= 0x440;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -50,48 +50,33 @@ void WriteCP0Config(u32 value)
 // count.  But only mode 1 (instruction counter) has been found to be used by games thus far.
 //
 
-static __fi bool PERF_ShouldCountEvent(uint evt)
-{
-	switch (evt)
-	{
-			// This is a rough table of actions for various PCR modes.  Some of these
-			// can be implemented more accurately later.  Others (WBBs in particular)
-			// probably cannot without some severe complications.
+// This is a rough table of actions for various PCR modes.  Some of these
+// can be implemented more accurately later.  Others (WBBs in particular)
+// probably cannot without some severe complications.
+//
+// left sides are PCR0 / right sides are PCR1
+//  ( 1) cpu cycle counter.
+//  ( 2) single/dual instruction issued
+//  ( 3) Branch issued / Branch mispredicated
+//  ( 4) BTAC/TLB miss
+//  ( 5) ITLB/DTLB miss
+//  ( 6) Data/Instruction cache miss
+//  ( 7) Access to DTLB / WBB single request fail
+//  ( 8) Non-blocking load / WBB burst request fail
+//  ( 9)
+//  (10)
+//  (11) CPU address bus busy / CPU data bus busy
+//  (12) Instruction completed
+//  (13) non-delayslot instruction completed
+//  (14) COP2/COP1 instruction complete
+//  (15) Load/Store completed
 
-			// left sides are PCR0 / right sides are PCR1
-
-		case 1: // cpu cycle counter.
-		case 2: // single/dual instruction issued
-		case 3: // Branch issued / Branch mispredicated
-			return true;
-
-		case 4: // BTAC/TLB miss
-		case 5: // ITLB/DTLB miss
-		case 6: // Data/Instruction cache miss
-			return false;
-
-		case 7: // Access to DTLB / WBB single request fail
-		case 8: // Non-blocking load / WBB burst request fail
-		case 9:
-		case 10:
-			return false;
-
-		case 11: // CPU address bus busy / CPU data bus busy
-			return false;
-
-		case 12: // Instruction completed
-		case 13: // non-delayslot instruction completed
-		case 14: // COP2/COP1 instruction complete
-		case 15: // Load/Store completed
-			return true;
-	}
-
-	return false;
-}
+#define PERF_ShouldCountEvent(evt) ((evt >= 1  && evt <= 3) || (evt >= 12 && evt <= 15))
 
 __fi void COP0_UpdatePCCR(void)
 {
-	// Counting and counter exceptions are not performed if we are currently executing a Level 2 exception (ERL)
+	// Counting and counter exceptions are not performed if we are 
+	// currently executing a Level 2 exception (ERL)
 	// or the counting function is not enabled (CTE)
 	if (cpuRegs.CP0.n.Status.b.ERL || !cpuRegs.PERF.n.pccr.b.CTE)
 	{
@@ -101,14 +86,14 @@ __fi void COP0_UpdatePCCR(void)
 	}
 
 	// Implemented memory mode check (kernel/super/user)
-
 	if (cpuRegs.PERF.n.pccr.val & ((1 << (cpuRegs.CP0.n.Status.b.KSU + 2)) | (cpuRegs.CP0.n.Status.b.EXL << 1)))
 	{
 		// ----------------------------------
 		//    Update Performance Counter 0
 		// ----------------------------------
+		uint evt = cpuRegs.PERF.n.pccr.b.Event0;
 
-		if (PERF_ShouldCountEvent(cpuRegs.PERF.n.pccr.b.Event0))
+		if (PERF_ShouldCountEvent(evt))
 		{
 			u32 incr = cpuRegs.cycle - cpuRegs.lastPERFCycle[0];
 			if (incr == 0)
@@ -124,8 +109,9 @@ __fi void COP0_UpdatePCCR(void)
 		// ----------------------------------
 		//    Update Performance Counter 1
 		// ----------------------------------
+		uint evt = cpuRegs.PERF.n.pccr.b.Event1;
 
-		if (PERF_ShouldCountEvent(cpuRegs.PERF.n.pccr.b.Event1))
+		if (PERF_ShouldCountEvent(evt))
 		{
 			u32 incr = cpuRegs.cycle - cpuRegs.lastPERFCycle[1];
 			if (incr == 0)
@@ -152,6 +138,7 @@ void MapTLB(const tlbs& t, int i)
 
 	if (t.VPN2 == 0x70000000)
 		return; //uh uhh right ...
+
 	if (t.EntryLo0 & 0x2)
 	{
 		mask = ((~t.Mask) << 1) & 0xfffff;
@@ -160,8 +147,8 @@ void MapTLB(const tlbs& t, int i)
 
 		for (addr = saddr; addr < eaddr; addr++)
 		{
-			if ((addr & mask) == ((t.VPN2 >> 12) & mask))
-			{ //match
+			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+			{
 				memSetPageAddr(addr << 12, t.PFN0 + ((addr - saddr) << 12));
 				Cpu->Clear(addr << 12, 0x400);
 			}
@@ -176,8 +163,8 @@ void MapTLB(const tlbs& t, int i)
 
 		for (addr = saddr; addr < eaddr; addr++)
 		{
-			if ((addr & mask) == ((t.VPN2 >> 12) & mask))
-			{ //match
+			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+			{
 				memSetPageAddr(addr << 12, t.PFN1 + ((addr - saddr) << 12));
 				Cpu->Clear(addr << 12, 0x400);
 			}
@@ -203,8 +190,8 @@ void UnmapTLB(const tlbs& t, int i)
 		eaddr = saddr + t.Mask + 1;
 		for (addr = saddr; addr < eaddr; addr++)
 		{
-			if ((addr & mask) == ((t.VPN2 >> 12) & mask))
-			{ //match
+			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+			{
 				memClearPageAddr(addr << 12);
 				Cpu->Clear(addr << 12, 0x400);
 			}
@@ -218,8 +205,8 @@ void UnmapTLB(const tlbs& t, int i)
 		eaddr = saddr + t.Mask + 1;
 		for (addr = saddr; addr < eaddr; addr++)
 		{
-			if ((addr & mask) == ((t.VPN2 >> 12) & mask))
-			{ //match
+			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
+			{
 				memClearPageAddr(addr << 12);
 				Cpu->Clear(addr << 12, 0x400);
 			}
@@ -330,9 +317,7 @@ namespace COP0 {
 
 			case 25:
 				if (0 == (_Imm_ & 1)) // MFPS, register value ignored
-				{
 					cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.PERF.n.pccr.val;
-				}
 				else if (0 == (_Imm_ & 2)) // MFPC 0, only LSB of register matters
 				{
 					COP0_UpdatePCCR();
@@ -374,12 +359,16 @@ namespace COP0 {
 				cpuRegs.CP0.r[9] = cpuRegs.GPR.r[_Rt_].UL[0];
 				break;
 
-			case 12:
-				WriteCP0Status(cpuRegs.GPR.r[_Rt_].UL[0]);
+			case 12: /* Write CP0 Status */
+				COP0_UpdatePCCR();
+				cpuRegs.CP0.n.Status.val = cpuRegs.GPR.r[_Rt_].UL[0];
+				cpuSetNextEvent(cpuRegs.cycle, 4);
 				break;
 
-			case 16:
-				WriteCP0Config(cpuRegs.GPR.r[_Rt_].UL[0]);
+			case 16: /* Write CP0 Config */
+				// Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
+				cpuRegs.CP0.n.Config  = cpuRegs.GPR.r[_Rt_].UL[0] & ~0xFC0;
+				cpuRegs.CP0.n.Config |= 0x440;
 				break;
 
 			case 24:
