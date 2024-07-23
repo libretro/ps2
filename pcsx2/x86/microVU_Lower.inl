@@ -1503,60 +1503,58 @@ void mVU_XGKICK_(u32 addr)
 
 void _vuXGKICKTransfermVU(bool flush)
 {
-	while (VU1.xgkickenable && (flush || VU1.xgkickcyclecount >= 2))
+	while (vuRegs[1].xgkickenable && (flush || vuRegs[1].xgkickcyclecount >= 2))
 	{
 		u32 transfersize = 0;
 
-		if (VU1.xgkicksizeremaining == 0)
+		if (vuRegs[1].xgkicksizeremaining == 0)
 		{
-			u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, VU1.xgkickaddr, ~0u, flush);
-			VU1.xgkicksizeremaining = size & 0xFFFF;
-			VU1.xgkickendpacket = size >> 31;
-			VU1.xgkickdiff = 0x4000 - VU1.xgkickaddr;
+			u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, vuRegs[1].xgkickaddr, ~0u, flush);
+			vuRegs[1].xgkicksizeremaining = size & 0xFFFF;
+			vuRegs[1].xgkickendpacket = size >> 31;
+			vuRegs[1].xgkickdiff = 0x4000 - vuRegs[1].xgkickaddr;
 
-			if (VU1.xgkicksizeremaining == 0)
+			if (vuRegs[1].xgkicksizeremaining == 0)
 			{
-				VU1.xgkickenable = false;
+				vuRegs[1].xgkickenable = false;
 				break;
 			}
 		}
 
 		if (!flush)
 		{
-			transfersize = std::min(VU1.xgkicksizeremaining, VU1.xgkickcyclecount * 8);
-			transfersize = std::min(transfersize, VU1.xgkickdiff);
+			transfersize = std::min(vuRegs[1].xgkicksizeremaining, vuRegs[1].xgkickcyclecount * 8);
+			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff);
 		}
 		else
 		{
-			transfersize = VU1.xgkicksizeremaining;
-			transfersize = std::min(transfersize, VU1.xgkickdiff);
+			transfersize = vuRegs[1].xgkicksizeremaining;
+			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff);
 		}
 
 		// Would be "nicer" to do the copy until it's all up, however this really screws up PATH3 masking stuff
 		// So lets just do it the other way :)
 		if (THREAD_VU1)
 		{
-			if (transfersize < VU1.xgkicksizeremaining)
-				gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&VU1.Mem[VU1.xgkickaddr], transfersize, true);
+			if (transfersize < vuRegs[1].xgkicksizeremaining)
+				gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
 			else
-				gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[VU1.xgkickaddr], transfersize, true);
+				gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
 		}
 		else
-		{
-			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[VU1.xgkickaddr], transfersize, true);
-		}
+			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
 
 		if (flush)
-			VU1.cycle += transfersize / 8;
+			vuRegs[1].cycle += transfersize / 8;
 
-		VU1.xgkickcyclecount -= transfersize / 8;
+		vuRegs[1].xgkickcyclecount -= transfersize / 8;
 
-		VU1.xgkickaddr = (VU1.xgkickaddr + transfersize) & 0x3FFF;
-		VU1.xgkicksizeremaining -= transfersize;
-		VU1.xgkickdiff = 0x4000 - VU1.xgkickaddr;
+		vuRegs[1].xgkickaddr = (vuRegs[1].xgkickaddr + transfersize) & 0x3FFF;
+		vuRegs[1].xgkicksizeremaining -= transfersize;
+		vuRegs[1].xgkickdiff = 0x4000 - vuRegs[1].xgkickaddr;
 
-		if (VU1.xgkickendpacket && !VU1.xgkicksizeremaining)
-			VU1.xgkickenable = false;
+		if (vuRegs[1].xgkickendpacket && !vuRegs[1].xgkicksizeremaining)
+			vuRegs[1].xgkickenable = false;
 	}
 }
 
@@ -1567,16 +1565,16 @@ static __fi void mVU_XGKICK_SYNC(mV, bool flush)
 	// Add the single cycle remainder after this instruction, some games do the store
 	// on the second instruction after the kick and that needs to go through first
 	// but that's VERY close..
-	xTEST(ptr32[&VU1.xgkickenable], 0x1);
+	xTEST(ptr32[&vuRegs[1].xgkickenable], 0x1);
 	xForwardJZ32 skipxgkick;
-	xADD(ptr32[&VU1.xgkickcyclecount], mVUlow.kickcycles-1);
-	xCMP(ptr32[&VU1.xgkickcyclecount], 2);
+	xADD(ptr32[&vuRegs[1].xgkickcyclecount], mVUlow.kickcycles-1);
+	xCMP(ptr32[&vuRegs[1].xgkickcyclecount], 2);
 	xForwardJL32 needcycles;
 	mVUbackupRegs(mVU, true, true);
 	xFastCall(_vuXGKICKTransfermVU, flush);
 	mVUrestoreRegs(mVU, true, true);
 	needcycles.SetTarget();
-	xADD(ptr32[&VU1.xgkickcyclecount], 1);
+	xADD(ptr32[&vuRegs[1].xgkickcyclecount], 1);
 	skipxgkick.SetTarget();
 }
 
@@ -1626,18 +1624,18 @@ mVUop(mVU_XGKICK)
 		}
 		else
 		{
-			xMOV(ptr32[&VU1.xgkickenable], 1);
-			xMOV(ptr32[&VU1.xgkickendpacket], 0);
-			xMOV(ptr32[&VU1.xgkicksizeremaining], 0);
-			xMOV(ptr32[&VU1.xgkickcyclecount], 0);
+			xMOV(ptr32[&vuRegs[1].xgkickenable], 1);
+			xMOV(ptr32[&vuRegs[1].xgkickendpacket], 0);
+			xMOV(ptr32[&vuRegs[1].xgkicksizeremaining], 0);
+			xMOV(ptr32[&vuRegs[1].xgkickcyclecount], 0);
 			xMOV(gprT2, ptr32[&mVU.totalCycles]);
 			xSUB(gprT2, ptr32[&mVU.cycles]);
-			xADD(gprT2, ptr32[&VU1.cycle]);
-			xMOV(ptr32[&VU1.xgkicklastcycle], gprT2);
+			xADD(gprT2, ptr32[&vuRegs[1].cycle]);
+			xMOV(ptr32[&vuRegs[1].xgkicklastcycle], gprT2);
 			xMOV(gprT1, regS);
 			xAND(gprT1, 0x3FF);
 			xSHL(gprT1, 4);
-			xMOV(ptr32[&VU1.xgkickaddr], gprT1);
+			xMOV(ptr32[&vuRegs[1].xgkickaddr], gprT1);
 		}
 		mVU.regAlloc->clearNeeded(regS);
 	}

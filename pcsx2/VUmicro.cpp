@@ -38,7 +38,7 @@ __inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
 // Executes a Block based on EE delta time
 void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 {
-	const u32& stat = VU0.VI[REG_VPU_STAT].UL;
+	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
 	const int test = m_Idx ? 0x100 : 1;
 
 	if (m_Idx && THREAD_VU1)
@@ -56,7 +56,7 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 	}
 	else // Continue Executing
 	{
-		u32 cycle = m_Idx ? VU1.cycle : VU0.cycle;
+		u32 cycle = m_Idx ? vuRegs[1].cycle : vuRegs[0].cycle;
 		s32 delta = (s32)(u32)(cpuRegs.cycle - cycle);
 
 		if (delta > 0)
@@ -70,12 +70,12 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 // This fixes spinning/hanging in some games like Ratchet and Clank's Intro.
 void BaseVUmicroCPU::ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked)
 {
-	const u32& stat = VU0.VI[REG_VPU_STAT].UL;
+	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
 	constexpr int test = 1;
 
 	if (stat & test) // VU is running
 	{ 
-		s32 delta = (s32)(u32)(cpuRegs.cycle - VU0.cycle);
+		s32 delta = (s32)(u32)(cpuRegs.cycle - vuRegs[0].cycle);
 		if (delta > 0)
 			cpu->Execute(CalculateMinRunCycles(delta, interlocked)); // Execute the time since the last call
 	}

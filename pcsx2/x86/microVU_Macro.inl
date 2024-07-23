@@ -45,7 +45,7 @@ void setupMacroOp(int mode, const char* opName)
 
 	if (mode & 0x01) // Q-Reg will be Read
 	{
-		xMOVSSZX(xmmPQ, ptr32[&vu0Regs.VI[REG_Q].UL]);
+		xMOVSSZX(xmmPQ, ptr32[&vuRegs[0].VI[REG_Q].UL]);
 	}
 	if (mode & 0x08 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_CLIP_FLAG)) // Clip Instruction
 	{
@@ -71,7 +71,7 @@ void setupMacroOp(int mode, const char* opName)
 		if (!CHECK_VU_FLAGHACK || (g_pCurInstInfo->info & EEINST_COP2_DENORMALIZE_STATUS_FLAG))
 		{
 			// flags are normalized, so denormalize before running the first instruction
-			mVUallocSFLAGd(&vu0Regs.VI[REG_STATUS_FLAG].UL, gprF0, eax, ecx);
+			mVUallocSFLAGd(&vuRegs[0].VI[REG_STATUS_FLAG].UL, gprF0, eax, ecx);
 		}
 		else
 		{
@@ -86,7 +86,7 @@ void endMacroOp(int mode)
 {
 	if (mode & 0x02) // Q-Reg was Written To
 	{
-		xMOVSS(ptr32[&vu0Regs.VI[REG_Q].UL], xmmPQ);
+		xMOVSS(ptr32[&vuRegs[0].VI[REG_Q].UL], xmmPQ);
 	}
 
 	microVU0.regAlloc->flushPartialForCOP2();
@@ -97,7 +97,7 @@ void endMacroOp(int mode)
 		{
 			// Normalize
 			mVUallocSFLAGc(eax, gprF0, 0);
-			xMOV(ptr32[&vu0Regs.VI[REG_STATUS_FLAG].UL], eax);
+			xMOV(ptr32[&vuRegs[0].VI[REG_STATUS_FLAG].UL], eax);
 		}
 		else if (g_pCurInstInfo->info & (EEINST_COP2_STATUS_FLAG | EEINST_COP2_DENORMALIZE_STATUS_FLAG))
 		{
@@ -313,7 +313,7 @@ static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
 	const bool swap = isLikely ? false : TrySwapDelaySlot(0, 0, 0, false);
 	_eeFlushAllDirty();
 	//xTEST(ptr32[&vif1Regs.stat._u32], 0x4);
-	xTEST(ptr32[&VU0.VI[REG_VPU_STAT].UL], 0x100);
+	xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x100);
 	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
 }
 
@@ -342,17 +342,17 @@ static void COP2_Interlock(bool mBitSync)
 			xADD(eax, scaleblockcycles_clear());
 			xMOV(ptr32[&cpuRegs.cycle], eax); // update cycles
 
-			xTEST(ptr32[&VU0.VI[REG_VPU_STAT].UL], 0x1);
+			xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x1);
 			xForwardJZ32 skipvuidle;
 			if (mBitSync)
 			{
-				xSUB(eax, ptr32[&VU0.cycle]);
+				xSUB(eax, ptr32[&vuRegs[0].cycle]);
 
 				// Why do we check this here? Ratchet games, maybe others end up with flickering polygons
 				// when we use lazy COP2 sync, otherwise. The micro resumption getting deferred an extra
 				// EE block is apparently enough to cause issues.
 				if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-					xSUB(eax, ptr32[&VU0.nextBlockCycles]);
+					xSUB(eax, ptr32[&vuRegs[0].nextBlockCycles]);
 				xCMP(eax, 4);
 				xForwardJL32 skip;
 				xLoadFarAddr(arg1reg, CpuVU0);
@@ -369,7 +369,7 @@ static void COP2_Interlock(bool mBitSync)
 	}
 }
 
-static void mVUSyncVU0()
+static void mVUSyncVU0(void)
 {
 	iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
 	_freeX86reg(eax);
@@ -377,11 +377,11 @@ static void mVUSyncVU0()
 	xADD(eax, scaleblockcycles_clear());
 	xMOV(ptr32[&cpuRegs.cycle], eax); // update cycles
 
-	xTEST(ptr32[&VU0.VI[REG_VPU_STAT].UL], 0x1);
+	xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x1);
 	xForwardJZ32 skipvuidle;
-	xSUB(eax, ptr32[&VU0.cycle]);
+	xSUB(eax, ptr32[&vuRegs[0].cycle]);
 	if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-		xSUB(eax, ptr32[&VU0.nextBlockCycles]);
+		xSUB(eax, ptr32[&vuRegs[0].nextBlockCycles]);
 	xCMP(eax, 4);
 	xForwardJL32 skip;
 	xLoadFarAddr(arg1reg, CpuVU0);
@@ -391,10 +391,10 @@ static void mVUSyncVU0()
 	skipvuidle.SetTarget();
 }
 
-static void mVUFinishVU0()
+static void mVUFinishVU0(void)
 {
 	iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
-	xTEST(ptr32[&VU0.VI[REG_VPU_STAT].UL], 0x1);
+	xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x1);
 	xForwardJZ32 skipvuidle;
 	xFastCall((void*)_vu0FinishMicro);
 	skipvuidle.SetTarget();

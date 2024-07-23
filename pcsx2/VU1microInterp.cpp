@@ -52,18 +52,18 @@ static void _vu1Exec(VURegs* VU)
 	}
 	if (ptr[1] & 0x10000000) // D flag
 	{
-		if (VU0.VI[REG_FBRST].UL & 0x400)
+		if (vuRegs[0].VI[REG_FBRST].UL & 0x400)
 		{
-			VU0.VI[REG_VPU_STAT].UL |= 0x200;
+			vuRegs[0].VI[REG_VPU_STAT].UL |= 0x200;
 			hwIntcIrq(INTC_VU1);
 			VU->ebit = 1;
 		}
 	}
 	if (ptr[1] & 0x08000000) // T flag
 	{
-		if (VU0.VI[REG_FBRST].UL & 0x800)
+		if (vuRegs[0].VI[REG_FBRST].UL & 0x800)
 		{
-			VU0.VI[REG_VPU_STAT].UL |= 0x400;
+			vuRegs[0].VI[REG_VPU_STAT].UL |= 0x400;
 			hwIntcIrq(INTC_VU1);
 			VU->ebit = 1;
 		}
@@ -72,7 +72,7 @@ static void _vu1Exec(VURegs* VU)
 	VU->code = ptr[1];
 	VU1regs_UPPER_OPCODE[VU->code & 0x3f](&uregs);
 
-	u32 cyclesBeforeOp = VU1.cycle-1;
+	u32 cyclesBeforeOp = vuRegs[1].cycle-1;
 
 	_vuTestUpperStalls(VU, &uregs);
 
@@ -82,7 +82,7 @@ static void _vu1Exec(VURegs* VU)
 		_vuTestPipes(VU);
 
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles -= std::min((u8)(VU1.cycle - cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles -= std::min((u8)(vuRegs[1].cycle - cyclesBeforeOp), VU->VIBackupCycles);
 
 		_vu1ExecUpper(VU, ptr);
 
@@ -109,7 +109,7 @@ static void _vu1Exec(VURegs* VU)
 		_vuTestPipes(VU);
 
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles-= std::min((u8)(VU1.cycle- cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles-= std::min((u8)(vuRegs[1].cycle- cyclesBeforeOp), VU->VIBackupCycles);
 
 		if (uregs.VFwrite)
 		{
@@ -195,16 +195,18 @@ static void _vu1Exec(VURegs* VU)
 		{
 			VU->VIBackupCycles = 0;
 			_vuFlushAll(VU);
-			VU0.VI[REG_VPU_STAT].UL &= ~0x100;
+			vuRegs[0].VI[REG_VPU_STAT].UL &= ~0x100;
 			vif1Regs.stat.VEW = false;
 
-			if(VU1.xgkickenable)
+			if(vuRegs[1].xgkickenable)
 				_vuXGKICKTransfer(0, true);
-			// In instant VU mode, VU1 goes WAY ahead of the CPU, making the XGKick fall way behind
-			// We also have some code to update it in VIF Unpacks too, since in some games (Aggressive Inline) overwrite the XGKick data
+			// In instant VU mode, VU1 goes WAY ahead of the CPU, 
+			// making the XGKick fall way behind
+			// We also have some code to update it in VIF Unpacks too, 
+			// since in some games (Aggressive Inline) overwrite the XGKick data
 			// VU currently flushes XGKICK on end, so this isn't needed, yet
 			if (INSTANT_VU1)
-				VU1.xgkicklastcycle = cpuRegs.cycle;
+				vuRegs[1].xgkicklastcycle = cpuRegs.cycle;
 		}
 	}
 
@@ -229,40 +231,40 @@ InterpVU1::InterpVU1()
 
 void InterpVU1::Reset()
 {
-	VU1.fmacwritepos = 0;
-	VU1.fmacreadpos = 0;
-	VU1.fmaccount = 0;
-	VU1.ialuwritepos = 0;
-	VU1.ialureadpos = 0;
-	VU1.ialucount = 0;
+	vuRegs[1].fmacwritepos = 0;
+	vuRegs[1].fmacreadpos = 0;
+	vuRegs[1].fmaccount = 0;
+	vuRegs[1].ialuwritepos = 0;
+	vuRegs[1].ialureadpos = 0;
+	vuRegs[1].ialucount = 0;
 }
 
 void InterpVU1::SetStartPC(u32 startPC)
 {
-	VU1.start_pc = startPC;
+	vuRegs[1].start_pc = startPC;
 }
 
 void InterpVU1::Execute(u32 cycles)
 {
 	const FPControlRegisterBackup fpcr_backup(EmuConfig.Cpu.VU1FPCR);
 
-	VU1.VI[REG_TPC].UL <<= 3;
-	u32 startcycles = VU1.cycle;
+	vuRegs[1].VI[REG_TPC].UL <<= 3;
+	u32 startcycles = vuRegs[1].cycle;
 
-	while ((VU1.cycle - startcycles) < cycles)
+	while ((vuRegs[1].cycle - startcycles) < cycles)
 	{
-		if (!(VU0.VI[REG_VPU_STAT].UL & 0x100))
+		if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 		{
-			if (VU1.branch == 1)
+			if (vuRegs[1].branch == 1)
 			{
-				VU1.VI[REG_TPC].UL = VU1.branchpc;
-				VU1.branch = 0;
+				vuRegs[1].VI[REG_TPC].UL = vuRegs[1].branchpc;
+				vuRegs[1].branch = 0;
 			}
 			break;
 		}
-		VU1.VI[REG_TPC].UL &= VU1_PROGMASK;
-		vu1Exec(&VU1);
+		vuRegs[1].VI[REG_TPC].UL &= VU1_PROGMASK;
+		vu1Exec(&vuRegs[1]);
 	}
-	VU1.VI[REG_TPC].UL >>= 3;
-	VU1.nextBlockCycles = (VU1.cycle - cpuRegs.cycle) + 1;
+	vuRegs[1].VI[REG_TPC].UL >>= 3;
+	vuRegs[1].nextBlockCycles = (vuRegs[1].cycle - cpuRegs.cycle) + 1;
 }

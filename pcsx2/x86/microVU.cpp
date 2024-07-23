@@ -72,10 +72,11 @@ void mVUreset(microVU& mVU, bool resetReserve)
 	PageProtectionMode mode;
 	if (THREAD_VU1)
 	{
-		// If MTVU is toggled on during gameplay we need to flush the running VU1 program, else it gets in a mess
-		if (VU0.VI[REG_VPU_STAT].UL & 0x100)
+		// If MTVU is toggled on during gameplay we need 
+		// to flush the running VU1 program, else it gets in a mess
+		if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100)
 			CpuVU1->Execute(vu1RunCycles);
-		VU0.VI[REG_VPU_STAT].UL &= ~0x100;
+		vuRegs[0].VI[REG_VPU_STAT].UL &= ~0x100;
 	}
 	// Restore reserve to uncommitted state
 	if (resetReserve)
@@ -362,19 +363,19 @@ void recMicroVU1::Reset()
 
 void recMicroVU0::SetStartPC(u32 startPC)
 {
-	VU0.start_pc = startPC;
+	vuRegs[0].start_pc = startPC;
 }
 
 void recMicroVU0::Execute(u32 cycles)
 {
-	VU0.flags &= ~VUFLAG_MFLAGSET;
+	vuRegs[0].flags &= ~VUFLAG_MFLAGSET;
 
-	if (!(VU0.VI[REG_VPU_STAT].UL & 1))
+	if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 1))
 		return;
-	VU0.VI[REG_TPC].UL <<= 3;
+	vuRegs[0].VI[REG_TPC].UL <<= 3;
 
-	((mVUrecCall)microVU0.startFunct)(VU0.VI[REG_TPC].UL, cycles);
-	VU0.VI[REG_TPC].UL >>= 3;
+	((mVUrecCall)microVU0.startFunct)(vuRegs[0].VI[REG_TPC].UL, cycles);
+	vuRegs[0].VI[REG_TPC].UL >>= 3;
 	if (microVU0.regs().flags & 0x4)
 	{
 		microVU0.regs().flags &= ~0x4;
@@ -384,19 +385,19 @@ void recMicroVU0::Execute(u32 cycles)
 
 void recMicroVU1::SetStartPC(u32 startPC)
 {
-	VU1.start_pc = startPC;
+	vuRegs[1].start_pc = startPC;
 }
 
 void recMicroVU1::Execute(u32 cycles)
 {
 	if (!THREAD_VU1)
 	{
-		if (!(VU0.VI[REG_VPU_STAT].UL & 0x100))
+		if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 			return;
 	}
-	VU1.VI[REG_TPC].UL <<= 3;
-	((mVUrecCall)microVU1.startFunct)(VU1.VI[REG_TPC].UL, cycles);
-	VU1.VI[REG_TPC].UL >>= 3;
+	vuRegs[1].VI[REG_TPC].UL <<= 3;
+	((mVUrecCall)microVU1.startFunct)(vuRegs[1].VI[REG_TPC].UL, cycles);
+	vuRegs[1].VI[REG_TPC].UL >>= 3;
 	if (microVU1.regs().flags & 0x4 && !THREAD_VU1)
 	{
 		microVU1.regs().flags &= ~0x4;
@@ -415,7 +416,7 @@ void recMicroVU1::Clear(u32 addr, u32 size)
 
 void recMicroVU1::ResumeXGkick()
 {
-	if (!(VU0.VI[REG_VPU_STAT].UL & 0x100))
+	if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 		return;
 	((mVUrecCallXG)microVU1.startFunctXG)();
 }

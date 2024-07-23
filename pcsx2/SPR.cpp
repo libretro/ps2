@@ -30,19 +30,19 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 		// Access to VU memory is only allowed when the VU is stopped
 		// Use Psychonauts for testing
 
-		if ((madr < 0x11008000) && (VU0.VI[REG_VPU_STAT].UL & 0x1))
+		if ((madr < 0x11008000) && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x1))
 		{
 			_vu0FinishMicro();
 			//Catch up VU1 too
 			CpuVU1->ExecuteBlock(0);
 		}
-		if ((madr >= 0x11008000) && (VU0.VI[REG_VPU_STAT].UL & 0x100) && (!THREAD_VU1 || !isWrite))
+		if ((madr >= 0x11008000) && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100) && (!THREAD_VU1 || !isWrite))
 		{
 			if (THREAD_VU1)
 				vu1Thread.WaitVU();
 			else
 				CpuVU1->Execute(vu1RunCycles);
-			cpuRegs.cycle = VU1.cycle;
+			cpuRegs.cycle = vuRegs[1].cycle;
 			//Catch up VU0 too
 			CpuVU0->ExecuteBlock(0);
 		}
@@ -109,17 +109,17 @@ static __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 		//Access for VU Memory
 
 		if((addr >= 0x1100c000) && (addr < 0x11010000))
-			return (tDMA_TAG*)(VU1.Mem + (addr & 0x3ff0));
+			return (tDMA_TAG*)(vuRegs[1].Mem + (addr & 0x3ff0));
 
 		if((addr >= 0x11004000) && (addr < 0x11008000))
-			return (tDMA_TAG*)(VU0.Mem + (addr & 0xff0));
+			return (tDMA_TAG*)(vuRegs[0].Mem + (addr & 0xff0));
 
 		//Possibly not needed but the manual doesn't say SPR cannot access it.
 		if((addr >= 0x11000000) && (addr < 0x11004000))
-			return (tDMA_TAG*)(VU0.Micro + (addr & 0xff0));
+			return (tDMA_TAG*)(vuRegs[0].Micro + (addr & 0xff0));
 
 		if((addr >= 0x11008000) && (addr < 0x1100c000))
-			return (tDMA_TAG*)(VU1.Micro + (addr & 0x3ff0));
+			return (tDMA_TAG*)(vuRegs[1].Micro + (addr & 0x3ff0));
 	}
 	return NULL;
 }

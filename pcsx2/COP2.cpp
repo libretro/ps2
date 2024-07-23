@@ -20,7 +20,7 @@
 
 using namespace R5900;
 using namespace R5900::Interpreter;
-#define CP2COND (((VU0.VI[REG_VPU_STAT].US[0] >> 8) & 1))
+#define CP2COND (((vuRegs[0].VI[REG_VPU_STAT].US[0] >> 8) & 1))
 
 //Run the FINISH either side of the VCALL's as we have no control over it past here.
 void VCALLMS(void) {
@@ -30,7 +30,7 @@ void VCALLMS(void) {
 
 void VCALLMSR(void) {
 	_vu0FinishMicro();
-	vu0ExecMicro(VU0.VI[REG_CMSAR0].US[0]);
+	vu0ExecMicro(vuRegs[0].VI[REG_CMSAR0].US[0]);
 }
 
 void BC2F()

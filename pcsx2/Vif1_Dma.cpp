@@ -25,7 +25,7 @@ u32 g_vif1Cycles = 0;
 
 __fi void vif1FLUSH(void)
 {
-	if (VU0.VI[REG_VPU_STAT].UL & 0x500) // T bit stop or Busy
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x500) // T bit stop or Busy
 	{
 		vif1.waitforvu = true;
 		vif1.vifstalled.enabled = VifStallEnable(vif1ch);
@@ -181,20 +181,20 @@ __fi void vif1SetupTransfer(void)
 __fi void vif1VUFinish(void)
 {
 	// Sync up VU1 so we don't errantly wait.
-	while (!THREAD_VU1 && (VU0.VI[REG_VPU_STAT].UL & 0x100))
+	while (!THREAD_VU1 && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 	{
-		const int cycle_diff = static_cast<int>(cpuRegs.cycle - VU1.cycle);
+		const int cycle_diff = static_cast<int>(cpuRegs.cycle - vuRegs[1].cycle);
 
-		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < VU1.nextBlockCycles) || cycle_diff <= 0)
+		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < vuRegs[1].nextBlockCycles) || cycle_diff <= 0)
 			break;
 		CpuVU1->ExecuteBlock();
 	}
 
-	if (VU0.VI[REG_VPU_STAT].UL & 0x500)
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x500)
 	{
 		vu1Thread.Get_MTVUChanges();
 
-		if (THREAD_VU1 && !INSTANT_VU1 && (VU0.VI[REG_VPU_STAT].UL & 0x100))
+		if (THREAD_VU1 && !INSTANT_VU1 && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
 		else
 			CPU_INT(VIF_VU1_FINISH, 128);
@@ -202,14 +202,14 @@ __fi void vif1VUFinish(void)
 		return;
 	}
 
-	if (VU0.VI[REG_VPU_STAT].UL & 0x100)
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100)
 	{
-		u32 _cycles = VU1.cycle;
+		u32 _cycles = vuRegs[1].cycle;
 		vu1Finish(false);
-		if (THREAD_VU1 && !INSTANT_VU1 && (VU0.VI[REG_VPU_STAT].UL & 0x100))
+		if (THREAD_VU1 && !INSTANT_VU1 && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
 		else
-			CPU_INT(VIF_VU1_FINISH, VU1.cycle - _cycles);
+			CPU_INT(VIF_VU1_FINISH, vuRegs[1].cycle - _cycles);
 		CPU_SET_DMASTALL(VIF_VU1_FINISH, true);
 		return;
 	}

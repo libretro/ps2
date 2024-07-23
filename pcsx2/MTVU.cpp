@@ -61,10 +61,10 @@ bool SaveStateBase::mtvuFreeze()
 		vu1Thread.Reset();
 		vu1Thread.WriteCol(vif1);
 		vu1Thread.WriteRow(vif1);
-		vu1Thread.WriteMicroMem(0, VU1.Micro, 0x4000);
-		vu1Thread.WriteDataMem(0, VU1.Mem, 0x4000);
-		vu1Thread.WriteVIRegs(&VU1.VI[0]);
-		vu1Thread.WriteVFRegs(&VU1.VF[0]);
+		vu1Thread.WriteMicroMem(0, vuRegs[1].Micro, 0x4000);
+		vu1Thread.WriteDataMem(0, vuRegs[1].Mem, 0x4000);
+		vu1Thread.WriteVIRegs(&vuRegs[1].VI[0]);
+		vu1Thread.WriteVFRegs(&vuRegs[1].VF[0]);
 	}
 	for (size_t i = 0; i < 4; ++i)
 	{
@@ -149,18 +149,18 @@ void VU_Thread::ExecuteRingBuffer(void)
 			{
 				case MTVU_VU_EXECUTE:
 				{
-					VU1.cycle = 0;
+					vuRegs[1].cycle = 0;
 					s32 addr = Read();
 					vifRegs.top = Read();
 					vifRegs.itop = Read();
 					vuFBRST = Read();
 					if (addr != -1)
-						VU1.VI[REG_TPC].UL = addr & 0x7FF;
-					CpuVU1->SetStartPC(VU1.VI[REG_TPC].UL << 3);
+						vuRegs[1].VI[REG_TPC].UL = addr & 0x7FF;
+					CpuVU1->SetStartPC(vuRegs[1].VI[REG_TPC].UL << 3);
 					CpuVU1->Execute(vu1RunCycles);
 					gifUnit.gifPath[GIF_PATH_1].FinishGSPacketMTVU();
 					semaXGkick.Post(); // Tell MTGS a path1 packet is complete
-					vuCycles[vuCycleIdx].store(VU1.cycle, std::memory_order_release);
+					vuCycles[vuCycleIdx].store(vuRegs[1].cycle, std::memory_order_release);
 					vuCycleIdx = (vuCycleIdx + 1) & 3;
 					break;
 				}
@@ -169,21 +169,21 @@ void VU_Thread::ExecuteRingBuffer(void)
 					u32 vu_micro_addr = Read();
 					u32 size = Read();
 					CpuVU1->Clear(vu_micro_addr, size);
-					Read(&VU1.Micro[vu_micro_addr], size);
+					Read(&vuRegs[1].Micro[vu_micro_addr], size);
 					break;
 				}
 				case MTVU_VU_WRITE_DATA:
 				{
 					u32 vu_data_addr = Read();
 					u32 size = Read();
-					Read(&VU1.Mem[vu_data_addr], size);
+					Read(&vuRegs[1].Mem[vu_data_addr], size);
 					break;
 				}
 				case MTVU_VU_WRITE_VIREGS:
-					Read(&VU1.VI, /*size_u32(32)*/8);
+					Read(&vuRegs[1].VI, /*size_u32(32)*/8);
 					break;
 				case MTVU_VU_WRITE_VFREGS:
-					Read(&VU1.VF, /*size_u32(4*32)*/32);
+					Read(&vuRegs[1].VF, /*size_u32(4*32)*/32);
 					break;
 				case MTVU_VIF_WRITE_COL:
 					Read(&vif.MaskCol, sizeof(vif.MaskCol));
@@ -396,13 +396,13 @@ void VU_Thread::Get_MTVUChanges()
 		mtvuInterrupts.fetch_and(~InterruptFlagVUEBit, std::memory_order_relaxed);
 
 		if(INSTANT_VU1)
-			VU0.VI[REG_VPU_STAT].UL &= ~0xFF00;
+			vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
 	}
 	if (interrupts & InterruptFlagVUTBit)
 	{
 		mtvuInterrupts.fetch_and(~InterruptFlagVUTBit, std::memory_order_relaxed);
-		VU0.VI[REG_VPU_STAT].UL &= ~0xFF00;
-		VU0.VI[REG_VPU_STAT].UL |= 0x0400;
+		vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
+		vuRegs[0].VI[REG_VPU_STAT].UL |= 0x0400;
 		hwIntcIrq(7);
 	}
 }
@@ -437,12 +437,12 @@ void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)
 	u32 cycles = std::max(Get_vuCycles(), 4u);
 	u32 skip_cycles = std::min(cycles, 3000u);
 	cpuRegs.cycle += skip_cycles * EmuConfig.Speedhacks.EECycleSkip;
-	VU0.cycle += skip_cycles * EmuConfig.Speedhacks.EECycleSkip;
+	vuRegs[0].cycle += skip_cycles * EmuConfig.Speedhacks.EECycleSkip;
 	Get_MTVUChanges();
 
 	if (!INSTANT_VU1)
 	{
-		VU0.VI[REG_VPU_STAT].UL |= 0x100;
+		vuRegs[0].VI[REG_VPU_STAT].UL |= 0x100;
 		CPU_INT(VU_MTVU_BUSY, cycles);
 	}
 }

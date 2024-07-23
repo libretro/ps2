@@ -27,8 +27,8 @@ using namespace R5900;
 // This is called by the COP2 as per the CTC instruction
 void vu0ResetRegs(void)
 {
-	VU0.VI[REG_VPU_STAT].UL &= ~0xff; // stop vu0
-	VU0.VI[REG_FBRST].UL &= ~0xff; // stop vu0
+	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xff; // stop vu0
+	vuRegs[0].VI[REG_FBRST].UL &= ~0xff; // stop vu0
 	vif0Regs.stat.VEW = false;
 }
 
@@ -47,29 +47,29 @@ static __fi u32 vu0DenormalizeMicroStatus(u32 nstatus)
 
 void vu0ExecMicro(u32 addr)
 {
-	if(VU0.VI[REG_VPU_STAT].UL & 0x1)
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x1)
 		vu0Finish();
 
 	// Need to copy the clip flag back to the interpreter in case COP2 has edited it
-	const u32 CLIP = VU0.VI[REG_CLIP_FLAG].UL;
-	const u32 MAC = VU0.VI[REG_MAC_FLAG].UL;
-	const u32 STATUS = VU0.VI[REG_STATUS_FLAG].UL;
-	VU0.clipflag = CLIP;
-	VU0.macflag = MAC;
-	VU0.statusflag = STATUS;
+	const u32 CLIP       = vuRegs[0].VI[REG_CLIP_FLAG].UL;
+	const u32 MAC        = vuRegs[0].VI[REG_MAC_FLAG].UL;
+	const u32 STATUS     = vuRegs[0].VI[REG_STATUS_FLAG].UL;
+	vuRegs[0].clipflag   = CLIP;
+	vuRegs[0].macflag    = MAC;
+	vuRegs[0].statusflag = STATUS;
 
 	// Copy flags to micro instances, since they may be out of sync if COP2 has run.
 	// We do this at program start time, because COP2 can't execute until the program has completed,
 	// but long-running program may be interrupted so we can't do it at dispatch time.
-	vu0SetMicroFlags(VU0.micro_clipflags, CLIP);
-	vu0SetMicroFlags(VU0.micro_macflags, MAC);
-	vu0SetMicroFlags(VU0.micro_statusflags, vu0DenormalizeMicroStatus(STATUS));
+	vu0SetMicroFlags(vuRegs[0].micro_clipflags, CLIP);
+	vu0SetMicroFlags(vuRegs[0].micro_macflags, MAC);
+	vu0SetMicroFlags(vuRegs[0].micro_statusflags, vu0DenormalizeMicroStatus(STATUS));
 
-	VU0.VI[REG_VPU_STAT].UL &= ~0xFF;
-	VU0.VI[REG_VPU_STAT].UL |=  0x01;
-	VU0.cycle = cpuRegs.cycle;
-	if ((s32)addr != -1) VU0.VI[REG_TPC].UL = addr & 0x1FF;
+	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF;
+	vuRegs[0].VI[REG_VPU_STAT].UL |=  0x01;
+	vuRegs[0].cycle = cpuRegs.cycle;
+	if ((s32)addr != -1) vuRegs[0].VI[REG_TPC].UL = addr & 0x1FF;
 
-	CpuVU0->SetStartPC(VU0.VI[REG_TPC].UL << 3);
+	CpuVU0->SetStartPC(vuRegs[0].VI[REG_TPC].UL << 3);
 	CpuVU0->ExecuteBlock(1);
 }

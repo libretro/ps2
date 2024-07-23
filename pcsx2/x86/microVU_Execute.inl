@@ -349,15 +349,15 @@ _mVUt void mVUcleanUp(void)
 		u32 cycles_passed = std::min(mVU.cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
 		if (cycles_passed > 0)
 		{
-			s32 vu0_offset = VU0.cycle - cpuRegs.cycle;
+			s32 vu0_offset = vuRegs[0].cycle - cpuRegs.cycle;
 			cpuRegs.cycle += cycles_passed;
 
 			// VU0 needs to stay in sync with the CPU otherwise things get messy
 			// So we need to adjust when VU1 skips cycles also
 			if (!vuIndex)
-				VU0.cycle = cpuRegs.cycle + vu0_offset;
+				vuRegs[0].cycle  = cpuRegs.cycle + vu0_offset;
 			else
-				VU0.cycle += cycles_passed;
+				vuRegs[0].cycle += cycles_passed;
 		}
 	}
 }

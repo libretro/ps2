@@ -57,7 +57,7 @@ static __ri u32 VU_MAC_UPDATE( int shift, VURegs * VU, float f )
 				return s;
 			case 255:
 				VU->macflag = (VU->macflag&~(0x0101<<shift)) | (0x1000<<shift);
-				if (CHECK_VU_OVERFLOW((VU == &VU1) ? 1 : 0))
+				if (CHECK_VU_OVERFLOW((VU == &vuRegs[1]) ? 1 : 0))
 					return s | 0x7f7fffff; /* max allowed */
 				break;
 			default:
@@ -233,10 +233,10 @@ __fi void _vuTestPipes(VURegs* VU)
 		flushed |= _vuIALUflush(VU);
 	} while (flushed == true);
 
-	if (VU == &VU1)
+	if (VU == &vuRegs[1])
 	{
-		if (VU1.xgkickenable)
-			_vuXGKICKTransfer((VU1.cycle - VU1.xgkicklastcycle) - 1, false);
+		if (vuRegs[1].xgkickenable)
+			_vuXGKICKTransfer((vuRegs[1].cycle - vuRegs[1].xgkicklastcycle) - 1, false);
 	}
 }
 
@@ -2219,7 +2219,7 @@ static __fi void _vuFCGET(VURegs* VU)
 s32 _branchAddr(VURegs* VU)
 {
 	s32 bpc = VU->VI[REG_TPC].SL + (_Imm11_ * 8);
-	bpc &= (VU == &VU1) ? 0x3fff : 0x0fff;
+	bpc &= (VU == &vuRegs[1]) ? 0x3fff : 0x0fff;
 	return bpc;
 }
 
@@ -2563,7 +2563,7 @@ static __ri void _vuXITOP(VURegs* VU)
 	if (_It_ == 0)
 		return;
 
-	if (VU == &VU1 && THREAD_VU1)
+	if (VU == &vuRegs[1] && THREAD_VU1)
 		VU->VI[_It_].US[0] = vu1Thread.vifRegs.itop;
 	else
 		VU->VI[_It_].US[0] = (VU == &vuRegs[1]) ? vif1Regs.itop : vif0Regs.itop;
@@ -2571,39 +2571,39 @@ static __ri void _vuXITOP(VURegs* VU)
 
 void _vuXGKICKTransfer(s32 cycles, bool flush)
 {
-	if (!VU1.xgkickenable)
+	if (!vuRegs[1].xgkickenable)
 		return;
 
-	VU1.xgkickcyclecount += cycles;
-	VU1.xgkicklastcycle += cycles;
+	vuRegs[1].xgkickcyclecount += cycles;
+	vuRegs[1].xgkicklastcycle += cycles;
 
-	while (VU1.xgkickenable && (flush || VU1.xgkickcyclecount >= 2))
+	while (vuRegs[1].xgkickenable && (flush || vuRegs[1].xgkickcyclecount >= 2))
 	{
 		u32 transfersize = 0;
 
-		if (VU1.xgkicksizeremaining == 0)
+		if (vuRegs[1].xgkicksizeremaining == 0)
 		{
-			u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, VU1.xgkickaddr, ~0u, flush);
-			VU1.xgkicksizeremaining = size & 0xFFFF;
-			VU1.xgkickendpacket = size >> 31;
-			VU1.xgkickdiff = 0x4000 - VU1.xgkickaddr;
+			u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, vuRegs[1].xgkickaddr, ~0u, flush);
+			vuRegs[1].xgkicksizeremaining = size & 0xFFFF;
+			vuRegs[1].xgkickendpacket     = size >> 31;
+			vuRegs[1].xgkickdiff          = 0x4000 - vuRegs[1].xgkickaddr;
 
-			if (VU1.xgkicksizeremaining == 0)
+			if (vuRegs[1].xgkicksizeremaining == 0)
 			{
-				VU1.xgkickenable = false;
+				vuRegs[1].xgkickenable = false;
 				break;
 			}
 		}
 
 		if (!flush)
 		{
-			transfersize = std::min(VU1.xgkicksizeremaining / 0x10, VU1.xgkickcyclecount / 2);
-			transfersize = std::min(transfersize, VU1.xgkickdiff / 0x10);
+			transfersize = std::min(vuRegs[1].xgkicksizeremaining / 0x10, vuRegs[1].xgkickcyclecount / 2);
+			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff / 0x10);
 		}
 		else
 		{
-			transfersize = VU1.xgkicksizeremaining / 0x10;
-			transfersize = std::min(transfersize, VU1.xgkickdiff / 0x10);
+			transfersize = vuRegs[1].xgkicksizeremaining / 0x10;
+			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff / 0x10);
 		}
 
 		// Would be "nicer" to do the copy until it's all up, 
@@ -2611,30 +2611,30 @@ void _vuXGKICKTransfer(s32 cycles, bool flush)
 		// So lets just do it the other way :)
 		/*if (THREAD_VU1)
 		{
-			if ((transfersize * 0x10) < VU1.xgkicksizeremaining)
-				gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&VU1.Mem[VU1.xgkickaddr], transfersize * 0x10, true);
+			if ((transfersize * 0x10) < vuRegs[1].xgkicksizeremaining)
+				gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize * 0x10, true);
 			else
-				gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[VU1.xgkickaddr], transfersize * 0x10, true);
+				gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize * 0x10, true);
 		}
 		else*/
 		//{
-			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[VU1.xgkickaddr], transfersize * 0x10, true);
+			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize * 0x10, true);
 		//}
 
-		if ((VU0.VI[REG_VPU_STAT].UL & 0x100) && flush)
-			VU1.cycle += transfersize * 2;
+		if ((vuRegs[0].VI[REG_VPU_STAT].UL & 0x100) && flush)
+			vuRegs[1].cycle += transfersize * 2;
 
-		VU1.xgkickcyclecount -= transfersize * 2;
+		vuRegs[1].xgkickcyclecount -= transfersize * 2;
 
-		VU1.xgkickaddr = (VU1.xgkickaddr + (transfersize * 0x10)) & 0x3FFF;
-		VU1.xgkicksizeremaining -= (transfersize * 0x10);
-		VU1.xgkickdiff = 0x4000 - VU1.xgkickaddr;
+		vuRegs[1].xgkickaddr = (vuRegs[1].xgkickaddr + (transfersize * 0x10)) & 0x3FFF;
+		vuRegs[1].xgkicksizeremaining -= (transfersize * 0x10);
+		vuRegs[1].xgkickdiff = 0x4000 - vuRegs[1].xgkickaddr;
 
-		if (VU1.xgkicksizeremaining || !VU1.xgkickendpacket) { }
+		if (vuRegs[1].xgkicksizeremaining || !vuRegs[1].xgkickendpacket) { }
 		else
 		{
-			VU1.xgkickenable = false;
-			VU0.VI[REG_VPU_STAT].UL &= ~(1 << 12);
+			vuRegs[1].xgkickenable = false;
+			vuRegs[0].VI[REG_VPU_STAT].UL &= ~(1 << 12);
 			// Check if VIF is waiting for the GIF to not be busy
 			if (vif1Regs.stat.VGW)
 			{
@@ -2645,7 +2645,7 @@ void _vuXGKICKTransfer(s32 cycles, bool flush)
 	}
 	if (flush)
 	{
-		_vuTestPipes(&VU1);
+		_vuTestPipes(&vuRegs[1]);
 	}
 }
 
@@ -2666,7 +2666,7 @@ static __ri void _vuXGKICK(VURegs* VU)
 	// XGKick command counts as one cycle for the transfer.
 	// Can be tested with Resident Evil: Outbreak, Kingdom Hearts, CART Fury.
 	VU->xgkickcyclecount     = 1;
-	VU0.VI[REG_VPU_STAT].UL |= (1 << 12);
+	vuRegs[0].VI[REG_VPU_STAT].UL |= (1 << 12);
 }
 
 static __ri void _vuXTOP(VURegs* VU)
@@ -2674,7 +2674,7 @@ static __ri void _vuXTOP(VURegs* VU)
 	if (_It_ == 0)
 		return;
 
-	if (VU == &VU1 && THREAD_VU1)
+	if (VU == &vuRegs[1] && THREAD_VU1)
 		VU->VI[_It_].US[0] = (u16)vu1Thread.vifRegs.top;
 	else
 		VU->VI[_It_].US[0] = (VU == &vuRegs[1]) ? (u16)vif1Regs.top : (u16)vif0Regs.top;
@@ -3600,173 +3600,173 @@ static __ri void _vuRegsXTOP(const VURegs* VU, _VURegsNum* VUregsn)
 /*   VU Micromode Upper instructions    */
 /****************************************/
 
-static void VU0MI_ABS()  { _vuABS(&VU0); }
-static void VU0MI_ADD()  { _vuADD(&VU0); }
-static void VU0MI_ADDi() { _vuADDi(&VU0); }
-static void VU0MI_ADDq() { _vuADDq(&VU0); }
-static void VU0MI_ADDx() { _vuADDx(&VU0); }
-static void VU0MI_ADDy() { _vuADDy(&VU0); }
-static void VU0MI_ADDz() { _vuADDz(&VU0); }
-static void VU0MI_ADDw() { _vuADDw(&VU0); }
-static void VU0MI_ADDA() { _vuADDA(&VU0); }
-static void VU0MI_ADDAi() { _vuADDAi(&VU0); }
-static void VU0MI_ADDAq() { _vuADDAq(&VU0); }
-static void VU0MI_ADDAx() { _vuADDAx(&VU0); }
-static void VU0MI_ADDAy() { _vuADDAy(&VU0); }
-static void VU0MI_ADDAz() { _vuADDAz(&VU0); }
-static void VU0MI_ADDAw() { _vuADDAw(&VU0); }
-static void VU0MI_SUB()  { _vuSUB(&VU0); }
-static void VU0MI_SUBi() { _vuSUBi(&VU0); }
-static void VU0MI_SUBq() { _vuSUBq(&VU0); }
-static void VU0MI_SUBx() { _vuSUBx(&VU0); }
-static void VU0MI_SUBy() { _vuSUBy(&VU0); }
-static void VU0MI_SUBz() { _vuSUBz(&VU0); }
-static void VU0MI_SUBw() { _vuSUBw(&VU0); }
-static void VU0MI_SUBA()  { _vuSUBA(&VU0); }
-static void VU0MI_SUBAi() { _vuSUBAi(&VU0); }
-static void VU0MI_SUBAq() { _vuSUBAq(&VU0); }
-static void VU0MI_SUBAx() { _vuSUBAx(&VU0); }
-static void VU0MI_SUBAy() { _vuSUBAy(&VU0); }
-static void VU0MI_SUBAz() { _vuSUBAz(&VU0); }
-static void VU0MI_SUBAw() { _vuSUBAw(&VU0); }
-static void VU0MI_MUL()  { _vuMUL(&VU0); }
-static void VU0MI_MULi() { _vuMULi(&VU0); }
-static void VU0MI_MULq() { _vuMULq(&VU0); }
-static void VU0MI_MULx() { _vuMULx(&VU0); }
-static void VU0MI_MULy() { _vuMULy(&VU0); }
-static void VU0MI_MULz() { _vuMULz(&VU0); }
-static void VU0MI_MULw() { _vuMULw(&VU0); }
-static void VU0MI_MULA()  { _vuMULA(&VU0); }
-static void VU0MI_MULAi() { _vuMULAi(&VU0); }
-static void VU0MI_MULAq() { _vuMULAq(&VU0); }
-static void VU0MI_MULAx() { _vuMULAx(&VU0); }
-static void VU0MI_MULAy() { _vuMULAy(&VU0); }
-static void VU0MI_MULAz() { _vuMULAz(&VU0); }
-static void VU0MI_MULAw() { _vuMULAw(&VU0); }
-static void VU0MI_MADD()  { _vuMADD(&VU0); }
-static void VU0MI_MADDi() { _vuMADDi(&VU0); }
-static void VU0MI_MADDq() { _vuMADDq(&VU0); }
-static void VU0MI_MADDx() { _vuMADDx(&VU0); }
-static void VU0MI_MADDy() { _vuMADDy(&VU0); }
-static void VU0MI_MADDz() { _vuMADDz(&VU0); }
-static void VU0MI_MADDw() { _vuMADDw(&VU0); }
-static void VU0MI_MADDA()  { _vuMADDA(&VU0); }
-static void VU0MI_MADDAi() { _vuMADDAi(&VU0); }
-static void VU0MI_MADDAq() { _vuMADDAq(&VU0); }
-static void VU0MI_MADDAx() { _vuMADDAx(&VU0); }
-static void VU0MI_MADDAy() { _vuMADDAy(&VU0); }
-static void VU0MI_MADDAz() { _vuMADDAz(&VU0); }
-static void VU0MI_MADDAw() { _vuMADDAw(&VU0); }
-static void VU0MI_MSUB()  { _vuMSUB(&VU0); }
-static void VU0MI_MSUBi() { _vuMSUBi(&VU0); }
-static void VU0MI_MSUBq() { _vuMSUBq(&VU0); }
-static void VU0MI_MSUBx() { _vuMSUBx(&VU0); }
-static void VU0MI_MSUBy() { _vuMSUBy(&VU0); }
-static void VU0MI_MSUBz() { _vuMSUBz(&VU0); }
-static void VU0MI_MSUBw() { _vuMSUBw(&VU0); }
-static void VU0MI_MSUBA()  { _vuMSUBA(&VU0); }
-static void VU0MI_MSUBAi() { _vuMSUBAi(&VU0); }
-static void VU0MI_MSUBAq() { _vuMSUBAq(&VU0); }
-static void VU0MI_MSUBAx() { _vuMSUBAx(&VU0); }
-static void VU0MI_MSUBAy() { _vuMSUBAy(&VU0); }
-static void VU0MI_MSUBAz() { _vuMSUBAz(&VU0); }
-static void VU0MI_MSUBAw() { _vuMSUBAw(&VU0); }
-static void VU0MI_MAX()  { _vuMAX(&VU0); }
-static void VU0MI_MAXi() { _vuMAXi(&VU0); }
-static void VU0MI_MAXx() { _vuMAXx(&VU0); }
-static void VU0MI_MAXy() { _vuMAXy(&VU0); }
-static void VU0MI_MAXz() { _vuMAXz(&VU0); }
-static void VU0MI_MAXw() { _vuMAXw(&VU0); }
-static void VU0MI_MINI()  { _vuMINI(&VU0); }
-static void VU0MI_MINIi() { _vuMINIi(&VU0); }
-static void VU0MI_MINIx() { _vuMINIx(&VU0); }
-static void VU0MI_MINIy() { _vuMINIy(&VU0); }
-static void VU0MI_MINIz() { _vuMINIz(&VU0); }
-static void VU0MI_MINIw() { _vuMINIw(&VU0); }
-static void VU0MI_OPMULA() { _vuOPMULA(&VU0); }
-static void VU0MI_OPMSUB() { _vuOPMSUB(&VU0); }
-static void VU0MI_NOP() { _vuNOP(&VU0); }
-static void VU0MI_FTOI0()  { _vuFTOI0(&VU0); }
-static void VU0MI_FTOI4()  { _vuFTOI4(&VU0); }
-static void VU0MI_FTOI12() { _vuFTOI12(&VU0); }
-static void VU0MI_FTOI15() { _vuFTOI15(&VU0); }
-static void VU0MI_ITOF0()  { _vuITOF0(&VU0); }
-static void VU0MI_ITOF4()  { _vuITOF4(&VU0); }
-static void VU0MI_ITOF12() { _vuITOF12(&VU0); }
-static void VU0MI_ITOF15() { _vuITOF15(&VU0); }
-static void VU0MI_CLIP() { _vuCLIP(&VU0); }
+static void VU0MI_ABS()  { _vuABS(&vuRegs[0]); }
+static void VU0MI_ADD()  { _vuADD(&vuRegs[0]); }
+static void VU0MI_ADDi() { _vuADDi(&vuRegs[0]); }
+static void VU0MI_ADDq() { _vuADDq(&vuRegs[0]); }
+static void VU0MI_ADDx() { _vuADDx(&vuRegs[0]); }
+static void VU0MI_ADDy() { _vuADDy(&vuRegs[0]); }
+static void VU0MI_ADDz() { _vuADDz(&vuRegs[0]); }
+static void VU0MI_ADDw() { _vuADDw(&vuRegs[0]); }
+static void VU0MI_ADDA() { _vuADDA(&vuRegs[0]); }
+static void VU0MI_ADDAi() { _vuADDAi(&vuRegs[0]); }
+static void VU0MI_ADDAq() { _vuADDAq(&vuRegs[0]); }
+static void VU0MI_ADDAx() { _vuADDAx(&vuRegs[0]); }
+static void VU0MI_ADDAy() { _vuADDAy(&vuRegs[0]); }
+static void VU0MI_ADDAz() { _vuADDAz(&vuRegs[0]); }
+static void VU0MI_ADDAw() { _vuADDAw(&vuRegs[0]); }
+static void VU0MI_SUB()  { _vuSUB(&vuRegs[0]); }
+static void VU0MI_SUBi() { _vuSUBi(&vuRegs[0]); }
+static void VU0MI_SUBq() { _vuSUBq(&vuRegs[0]); }
+static void VU0MI_SUBx() { _vuSUBx(&vuRegs[0]); }
+static void VU0MI_SUBy() { _vuSUBy(&vuRegs[0]); }
+static void VU0MI_SUBz() { _vuSUBz(&vuRegs[0]); }
+static void VU0MI_SUBw() { _vuSUBw(&vuRegs[0]); }
+static void VU0MI_SUBA()  { _vuSUBA(&vuRegs[0]); }
+static void VU0MI_SUBAi() { _vuSUBAi(&vuRegs[0]); }
+static void VU0MI_SUBAq() { _vuSUBAq(&vuRegs[0]); }
+static void VU0MI_SUBAx() { _vuSUBAx(&vuRegs[0]); }
+static void VU0MI_SUBAy() { _vuSUBAy(&vuRegs[0]); }
+static void VU0MI_SUBAz() { _vuSUBAz(&vuRegs[0]); }
+static void VU0MI_SUBAw() { _vuSUBAw(&vuRegs[0]); }
+static void VU0MI_MUL()  { _vuMUL(&vuRegs[0]); }
+static void VU0MI_MULi() { _vuMULi(&vuRegs[0]); }
+static void VU0MI_MULq() { _vuMULq(&vuRegs[0]); }
+static void VU0MI_MULx() { _vuMULx(&vuRegs[0]); }
+static void VU0MI_MULy() { _vuMULy(&vuRegs[0]); }
+static void VU0MI_MULz() { _vuMULz(&vuRegs[0]); }
+static void VU0MI_MULw() { _vuMULw(&vuRegs[0]); }
+static void VU0MI_MULA()  { _vuMULA(&vuRegs[0]); }
+static void VU0MI_MULAi() { _vuMULAi(&vuRegs[0]); }
+static void VU0MI_MULAq() { _vuMULAq(&vuRegs[0]); }
+static void VU0MI_MULAx() { _vuMULAx(&vuRegs[0]); }
+static void VU0MI_MULAy() { _vuMULAy(&vuRegs[0]); }
+static void VU0MI_MULAz() { _vuMULAz(&vuRegs[0]); }
+static void VU0MI_MULAw() { _vuMULAw(&vuRegs[0]); }
+static void VU0MI_MADD()  { _vuMADD(&vuRegs[0]); }
+static void VU0MI_MADDi() { _vuMADDi(&vuRegs[0]); }
+static void VU0MI_MADDq() { _vuMADDq(&vuRegs[0]); }
+static void VU0MI_MADDx() { _vuMADDx(&vuRegs[0]); }
+static void VU0MI_MADDy() { _vuMADDy(&vuRegs[0]); }
+static void VU0MI_MADDz() { _vuMADDz(&vuRegs[0]); }
+static void VU0MI_MADDw() { _vuMADDw(&vuRegs[0]); }
+static void VU0MI_MADDA()  { _vuMADDA(&vuRegs[0]); }
+static void VU0MI_MADDAi() { _vuMADDAi(&vuRegs[0]); }
+static void VU0MI_MADDAq() { _vuMADDAq(&vuRegs[0]); }
+static void VU0MI_MADDAx() { _vuMADDAx(&vuRegs[0]); }
+static void VU0MI_MADDAy() { _vuMADDAy(&vuRegs[0]); }
+static void VU0MI_MADDAz() { _vuMADDAz(&vuRegs[0]); }
+static void VU0MI_MADDAw() { _vuMADDAw(&vuRegs[0]); }
+static void VU0MI_MSUB()  { _vuMSUB(&vuRegs[0]); }
+static void VU0MI_MSUBi() { _vuMSUBi(&vuRegs[0]); }
+static void VU0MI_MSUBq() { _vuMSUBq(&vuRegs[0]); }
+static void VU0MI_MSUBx() { _vuMSUBx(&vuRegs[0]); }
+static void VU0MI_MSUBy() { _vuMSUBy(&vuRegs[0]); }
+static void VU0MI_MSUBz() { _vuMSUBz(&vuRegs[0]); }
+static void VU0MI_MSUBw() { _vuMSUBw(&vuRegs[0]); }
+static void VU0MI_MSUBA()  { _vuMSUBA(&vuRegs[0]); }
+static void VU0MI_MSUBAi() { _vuMSUBAi(&vuRegs[0]); }
+static void VU0MI_MSUBAq() { _vuMSUBAq(&vuRegs[0]); }
+static void VU0MI_MSUBAx() { _vuMSUBAx(&vuRegs[0]); }
+static void VU0MI_MSUBAy() { _vuMSUBAy(&vuRegs[0]); }
+static void VU0MI_MSUBAz() { _vuMSUBAz(&vuRegs[0]); }
+static void VU0MI_MSUBAw() { _vuMSUBAw(&vuRegs[0]); }
+static void VU0MI_MAX()  { _vuMAX(&vuRegs[0]); }
+static void VU0MI_MAXi() { _vuMAXi(&vuRegs[0]); }
+static void VU0MI_MAXx() { _vuMAXx(&vuRegs[0]); }
+static void VU0MI_MAXy() { _vuMAXy(&vuRegs[0]); }
+static void VU0MI_MAXz() { _vuMAXz(&vuRegs[0]); }
+static void VU0MI_MAXw() { _vuMAXw(&vuRegs[0]); }
+static void VU0MI_MINI()  { _vuMINI(&vuRegs[0]); }
+static void VU0MI_MINIi() { _vuMINIi(&vuRegs[0]); }
+static void VU0MI_MINIx() { _vuMINIx(&vuRegs[0]); }
+static void VU0MI_MINIy() { _vuMINIy(&vuRegs[0]); }
+static void VU0MI_MINIz() { _vuMINIz(&vuRegs[0]); }
+static void VU0MI_MINIw() { _vuMINIw(&vuRegs[0]); }
+static void VU0MI_OPMULA() { _vuOPMULA(&vuRegs[0]); }
+static void VU0MI_OPMSUB() { _vuOPMSUB(&vuRegs[0]); }
+static void VU0MI_NOP() { _vuNOP(&vuRegs[0]); }
+static void VU0MI_FTOI0()  { _vuFTOI0(&vuRegs[0]); }
+static void VU0MI_FTOI4()  { _vuFTOI4(&vuRegs[0]); }
+static void VU0MI_FTOI12() { _vuFTOI12(&vuRegs[0]); }
+static void VU0MI_FTOI15() { _vuFTOI15(&vuRegs[0]); }
+static void VU0MI_ITOF0()  { _vuITOF0(&vuRegs[0]); }
+static void VU0MI_ITOF4()  { _vuITOF4(&vuRegs[0]); }
+static void VU0MI_ITOF12() { _vuITOF12(&vuRegs[0]); }
+static void VU0MI_ITOF15() { _vuITOF15(&vuRegs[0]); }
+static void VU0MI_CLIP() { _vuCLIP(&vuRegs[0]); }
 
 /*****************************************/
 /*   VU Micromode Lower instructions    */
 /*****************************************/
 
-static void VU0MI_DIV() { _vuDIV(&VU0); }
-static void VU0MI_SQRT() { _vuSQRT(&VU0); }
-static void VU0MI_RSQRT() { _vuRSQRT(&VU0); }
-static void VU0MI_IADD() { _vuIADD(&VU0); }
-static void VU0MI_IADDI() { _vuIADDI(&VU0); }
-static void VU0MI_IADDIU() { _vuIADDIU(&VU0); }
-static void VU0MI_IAND() { _vuIAND(&VU0); }
-static void VU0MI_IOR() { _vuIOR(&VU0); }
-static void VU0MI_ISUB() { _vuISUB(&VU0); }
-static void VU0MI_ISUBIU() { _vuISUBIU(&VU0); }
-static void VU0MI_MOVE() { _vuMOVE(&VU0); }
-static void VU0MI_MFIR() { _vuMFIR(&VU0); }
-static void VU0MI_MTIR() { _vuMTIR(&VU0); }
-static void VU0MI_MR32() { _vuMR32(&VU0); }
-static void VU0MI_LQ() { _vuLQ(&VU0); }
-static void VU0MI_LQD() { _vuLQD(&VU0); }
-static void VU0MI_LQI() { _vuLQI(&VU0); }
-static void VU0MI_SQ() { _vuSQ(&VU0); }
-static void VU0MI_SQD() { _vuSQD(&VU0); }
-static void VU0MI_SQI() { _vuSQI(&VU0); }
-static void VU0MI_ILW() { _vuILW(&VU0); }
-static void VU0MI_ISW() { _vuISW(&VU0); }
-static void VU0MI_ILWR() { _vuILWR(&VU0); }
-static void VU0MI_ISWR() { _vuISWR(&VU0); }
-static void VU0MI_RINIT() { VU0.VI[REG_R].UL = 0x3F800000 | (VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)] & 0x007FFFFF); }
-static void VU0MI_RGET()  { _vuRGET(&VU0); }
-static void VU0MI_RNEXT() { _vuRNEXT(&VU0); }
-static void VU0MI_RXOR()  { VU0.VI[REG_R].UL = 0x3F800000 | ((VU0.VI[REG_R].UL ^ VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)]) & 0x007FFFFF); }
+static void VU0MI_DIV() { _vuDIV(&vuRegs[0]); }
+static void VU0MI_SQRT() { _vuSQRT(&vuRegs[0]); }
+static void VU0MI_RSQRT() { _vuRSQRT(&vuRegs[0]); }
+static void VU0MI_IADD() { _vuIADD(&vuRegs[0]); }
+static void VU0MI_IADDI() { _vuIADDI(&vuRegs[0]); }
+static void VU0MI_IADDIU() { _vuIADDIU(&vuRegs[0]); }
+static void VU0MI_IAND() { _vuIAND(&vuRegs[0]); }
+static void VU0MI_IOR() { _vuIOR(&vuRegs[0]); }
+static void VU0MI_ISUB() { _vuISUB(&vuRegs[0]); }
+static void VU0MI_ISUBIU() { _vuISUBIU(&vuRegs[0]); }
+static void VU0MI_MOVE() { _vuMOVE(&vuRegs[0]); }
+static void VU0MI_MFIR() { _vuMFIR(&vuRegs[0]); }
+static void VU0MI_MTIR() { _vuMTIR(&vuRegs[0]); }
+static void VU0MI_MR32() { _vuMR32(&vuRegs[0]); }
+static void VU0MI_LQ() { _vuLQ(&vuRegs[0]); }
+static void VU0MI_LQD() { _vuLQD(&vuRegs[0]); }
+static void VU0MI_LQI() { _vuLQI(&vuRegs[0]); }
+static void VU0MI_SQ() { _vuSQ(&vuRegs[0]); }
+static void VU0MI_SQD() { _vuSQD(&vuRegs[0]); }
+static void VU0MI_SQI() { _vuSQI(&vuRegs[0]); }
+static void VU0MI_ILW() { _vuILW(&vuRegs[0]); }
+static void VU0MI_ISW() { _vuISW(&vuRegs[0]); }
+static void VU0MI_ILWR() { _vuILWR(&vuRegs[0]); }
+static void VU0MI_ISWR() { _vuISWR(&vuRegs[0]); }
+static void VU0MI_RINIT() { vuRegs[0].VI[REG_R].UL = 0x3F800000 | (vuRegs[0].VF[((vuRegs[0].code >> 11) & 0x1F)].UL[((vuRegs[0].code >> 21) & 0x03)] & 0x007FFFFF); }
+static void VU0MI_RGET()  { _vuRGET(&vuRegs[0]); }
+static void VU0MI_RNEXT() { _vuRNEXT(&vuRegs[0]); }
+static void VU0MI_RXOR()  { vuRegs[0].VI[REG_R].UL = 0x3F800000 | ((vuRegs[0].VI[REG_R].UL ^ vuRegs[0].VF[((vuRegs[0].code >> 11) & 0x1F)].UL[((vuRegs[0].code >> 21) & 0x03)]) & 0x007FFFFF); }
 static void VU0MI_WAITQ() { }
-static void VU0MI_FSAND() { _vuFSAND(&VU0); }
-static void VU0MI_FSEQ()  { _vuFSEQ(&VU0); }
-static void VU0MI_FSOR()  { _vuFSOR(&VU0); }
-static void VU0MI_FSSET() { _vuFSSET(&VU0); }
-static void VU0MI_FMAND() { _vuFMAND(&VU0); }
-static void VU0MI_FMEQ()  { _vuFMEQ(&VU0); }
-static void VU0MI_FMOR()  { _vuFMOR(&VU0); }
-static void VU0MI_FCAND() { _vuFCAND(&VU0); }
-static void VU0MI_FCEQ()  { _vuFCEQ(&VU0); }
-static void VU0MI_FCOR()  { _vuFCOR(&VU0); }
-static void VU0MI_FCSET() { VU0.clipflag = (u32)(VU0.code & 0xFFFFFF); }
-static void VU0MI_FCGET() { _vuFCGET(&VU0); }
-static void VU0MI_IBEQ() { _vuIBEQ(&VU0); }
-static void VU0MI_IBGEZ() { _vuIBGEZ(&VU0); }
-static void VU0MI_IBGTZ() { _vuIBGTZ(&VU0); }
-static void VU0MI_IBLTZ() { _vuIBLTZ(&VU0); }
-static void VU0MI_IBLEZ() { _vuIBLEZ(&VU0); }
-static void VU0MI_IBNE() { _vuIBNE(&VU0); }
-static void VU0MI_B()   { _vuB(&VU0); }
-static void VU0MI_BAL() { _vuBAL(&VU0); }
-static void VU0MI_JR()   { _vuJR(&VU0); }
-static void VU0MI_JALR() { _vuJALR(&VU0); }
-static void VU0MI_MFP() { _vuMFP(&VU0); }
+static void VU0MI_FSAND() { _vuFSAND(&vuRegs[0]); }
+static void VU0MI_FSEQ()  { _vuFSEQ(&vuRegs[0]); }
+static void VU0MI_FSOR()  { _vuFSOR(&vuRegs[0]); }
+static void VU0MI_FSSET() { _vuFSSET(&vuRegs[0]); }
+static void VU0MI_FMAND() { _vuFMAND(&vuRegs[0]); }
+static void VU0MI_FMEQ()  { _vuFMEQ(&vuRegs[0]); }
+static void VU0MI_FMOR()  { _vuFMOR(&vuRegs[0]); }
+static void VU0MI_FCAND() { _vuFCAND(&vuRegs[0]); }
+static void VU0MI_FCEQ()  { _vuFCEQ(&vuRegs[0]); }
+static void VU0MI_FCOR()  { _vuFCOR(&vuRegs[0]); }
+static void VU0MI_FCSET() { vuRegs[0].clipflag = (u32)(vuRegs[0].code & 0xFFFFFF); }
+static void VU0MI_FCGET() { _vuFCGET(&vuRegs[0]); }
+static void VU0MI_IBEQ() { _vuIBEQ(&vuRegs[0]); }
+static void VU0MI_IBGEZ() { _vuIBGEZ(&vuRegs[0]); }
+static void VU0MI_IBGTZ() { _vuIBGTZ(&vuRegs[0]); }
+static void VU0MI_IBLTZ() { _vuIBLTZ(&vuRegs[0]); }
+static void VU0MI_IBLEZ() { _vuIBLEZ(&vuRegs[0]); }
+static void VU0MI_IBNE() { _vuIBNE(&vuRegs[0]); }
+static void VU0MI_B()   { _vuB(&vuRegs[0]); }
+static void VU0MI_BAL() { _vuBAL(&vuRegs[0]); }
+static void VU0MI_JR()   { _vuJR(&vuRegs[0]); }
+static void VU0MI_JALR() { _vuJALR(&vuRegs[0]); }
+static void VU0MI_MFP() { _vuMFP(&vuRegs[0]); }
 static void VU0MI_WAITP() { }
-static void VU0MI_ESADD()   { _vuESADD(&VU0); }
-static void VU0MI_ERSADD()  { _vuERSADD(&VU0); }
-static void VU0MI_ELENG()   { _vuELENG(&VU0); }
-static void VU0MI_ERLENG()  { _vuERLENG(&VU0); }
-static void VU0MI_EATANxy() { _vuEATANxy(&VU0); }
-static void VU0MI_EATANxz() { _vuEATANxz(&VU0); }
-static void VU0MI_ESUM()    { _vuESUM(&VU0); }
-static void VU0MI_ERCPR()   { _vuERCPR(&VU0); }
-static void VU0MI_ESQRT()   { _vuESQRT(&VU0); }
-static void VU0MI_ERSQRT()  { _vuERSQRT(&VU0); }
-static void VU0MI_ESIN()    { _vuESIN(&VU0); }
-static void VU0MI_EATAN()   { _vuEATAN(&VU0); }
-static void VU0MI_EEXP()    { _vuEEXP(&VU0); }
-static void VU0MI_XITOP() { _vuXITOP(&VU0); }
+static void VU0MI_ESADD()   { _vuESADD(&vuRegs[0]); }
+static void VU0MI_ERSADD()  { _vuERSADD(&vuRegs[0]); }
+static void VU0MI_ELENG()   { _vuELENG(&vuRegs[0]); }
+static void VU0MI_ERLENG()  { _vuERLENG(&vuRegs[0]); }
+static void VU0MI_EATANxy() { _vuEATANxy(&vuRegs[0]); }
+static void VU0MI_EATANxz() { _vuEATANxz(&vuRegs[0]); }
+static void VU0MI_ESUM()    { _vuESUM(&vuRegs[0]); }
+static void VU0MI_ERCPR()   { _vuERCPR(&vuRegs[0]); }
+static void VU0MI_ESQRT()   { _vuESQRT(&vuRegs[0]); }
+static void VU0MI_ERSQRT()  { _vuERSQRT(&vuRegs[0]); }
+static void VU0MI_ESIN()    { _vuESIN(&vuRegs[0]); }
+static void VU0MI_EATAN()   { _vuEATAN(&vuRegs[0]); }
+static void VU0MI_EEXP()    { _vuEEXP(&vuRegs[0]); }
+static void VU0MI_XITOP() { _vuXITOP(&vuRegs[0]); }
 static void VU0MI_XGKICK() {}
 static void VU0MI_XTOP() {}
 
@@ -3774,175 +3774,175 @@ static void VU0MI_XTOP() {}
 /*   VU Micromode Upper instructions    */
 /****************************************/
 
-static void VU0regsMI_ABS(_VURegsNum* VUregsn) { _vuRegsABS(&VU0, VUregsn); }
-static void VU0regsMI_ADD(_VURegsNum* VUregsn) { _vuRegsADD(&VU0, VUregsn); }
-static void VU0regsMI_ADDi(_VURegsNum* VUregsn) { _vuRegsADDi(&VU0, VUregsn); }
-static void VU0regsMI_ADDq(_VURegsNum* VUregsn) { _vuRegsADDq(&VU0, VUregsn); }
-static void VU0regsMI_ADDx(_VURegsNum* VUregsn) { _vuRegsADDx(&VU0, VUregsn); }
-static void VU0regsMI_ADDy(_VURegsNum* VUregsn) { _vuRegsADDy(&VU0, VUregsn); }
-static void VU0regsMI_ADDz(_VURegsNum* VUregsn) { _vuRegsADDz(&VU0, VUregsn); }
-static void VU0regsMI_ADDw(_VURegsNum* VUregsn) { _vuRegsADDw(&VU0, VUregsn); }
-static void VU0regsMI_ADDA(_VURegsNum* VUregsn) { _vuRegsADDA(&VU0, VUregsn); }
-static void VU0regsMI_ADDAi(_VURegsNum* VUregsn) { _vuRegsADDAi(&VU0, VUregsn); }
-static void VU0regsMI_ADDAq(_VURegsNum* VUregsn) { _vuRegsADDAq(&VU0, VUregsn); }
-static void VU0regsMI_ADDAx(_VURegsNum* VUregsn) { _vuRegsADDAx(&VU0, VUregsn); }
-static void VU0regsMI_ADDAy(_VURegsNum* VUregsn) { _vuRegsADDAy(&VU0, VUregsn); }
-static void VU0regsMI_ADDAz(_VURegsNum* VUregsn) { _vuRegsADDAz(&VU0, VUregsn); }
-static void VU0regsMI_ADDAw(_VURegsNum* VUregsn) { _vuRegsADDAw(&VU0, VUregsn); }
-static void VU0regsMI_SUB(_VURegsNum* VUregsn) { _vuRegsSUB(&VU0, VUregsn); }
-static void VU0regsMI_SUBi(_VURegsNum* VUregsn) { _vuRegsSUBi(&VU0, VUregsn); }
-static void VU0regsMI_SUBq(_VURegsNum* VUregsn) { _vuRegsSUBq(&VU0, VUregsn); }
-static void VU0regsMI_SUBx(_VURegsNum* VUregsn) { _vuRegsSUBx(&VU0, VUregsn); }
-static void VU0regsMI_SUBy(_VURegsNum* VUregsn) { _vuRegsSUBy(&VU0, VUregsn); }
-static void VU0regsMI_SUBz(_VURegsNum* VUregsn) { _vuRegsSUBz(&VU0, VUregsn); }
-static void VU0regsMI_SUBw(_VURegsNum* VUregsn) { _vuRegsSUBw(&VU0, VUregsn); }
-static void VU0regsMI_SUBA(_VURegsNum* VUregsn) { _vuRegsSUBA(&VU0, VUregsn); }
-static void VU0regsMI_SUBAi(_VURegsNum* VUregsn) { _vuRegsSUBAi(&VU0, VUregsn); }
-static void VU0regsMI_SUBAq(_VURegsNum* VUregsn) { _vuRegsSUBAq(&VU0, VUregsn); }
-static void VU0regsMI_SUBAx(_VURegsNum* VUregsn) { _vuRegsSUBAx(&VU0, VUregsn); }
-static void VU0regsMI_SUBAy(_VURegsNum* VUregsn) { _vuRegsSUBAy(&VU0, VUregsn); }
-static void VU0regsMI_SUBAz(_VURegsNum* VUregsn) { _vuRegsSUBAz(&VU0, VUregsn); }
-static void VU0regsMI_SUBAw(_VURegsNum* VUregsn) { _vuRegsSUBAw(&VU0, VUregsn); }
-static void VU0regsMI_MUL(_VURegsNum* VUregsn) { _vuRegsMUL(&VU0, VUregsn); }
-static void VU0regsMI_MULi(_VURegsNum* VUregsn) { _vuRegsMULi(&VU0, VUregsn); }
-static void VU0regsMI_MULq(_VURegsNum* VUregsn) { _vuRegsMULq(&VU0, VUregsn); }
-static void VU0regsMI_MULx(_VURegsNum* VUregsn) { _vuRegsMULx(&VU0, VUregsn); }
-static void VU0regsMI_MULy(_VURegsNum* VUregsn) { _vuRegsMULy(&VU0, VUregsn); }
-static void VU0regsMI_MULz(_VURegsNum* VUregsn) { _vuRegsMULz(&VU0, VUregsn); }
-static void VU0regsMI_MULw(_VURegsNum* VUregsn) { _vuRegsMULw(&VU0, VUregsn); }
-static void VU0regsMI_MULA(_VURegsNum* VUregsn) { _vuRegsMULA(&VU0, VUregsn); }
-static void VU0regsMI_MULAi(_VURegsNum* VUregsn) { _vuRegsMULAi(&VU0, VUregsn); }
-static void VU0regsMI_MULAq(_VURegsNum* VUregsn) { _vuRegsMULAq(&VU0, VUregsn); }
-static void VU0regsMI_MULAx(_VURegsNum* VUregsn) { _vuRegsMULAx(&VU0, VUregsn); }
-static void VU0regsMI_MULAy(_VURegsNum* VUregsn) { _vuRegsMULAy(&VU0, VUregsn); }
-static void VU0regsMI_MULAz(_VURegsNum* VUregsn) { _vuRegsMULAz(&VU0, VUregsn); }
-static void VU0regsMI_MULAw(_VURegsNum* VUregsn) { _vuRegsMULAw(&VU0, VUregsn); }
-static void VU0regsMI_MADD(_VURegsNum* VUregsn) { _vuRegsMADD(&VU0, VUregsn); }
-static void VU0regsMI_MADDi(_VURegsNum* VUregsn) { _vuRegsMADDi(&VU0, VUregsn); }
-static void VU0regsMI_MADDq(_VURegsNum* VUregsn) { _vuRegsMADDq(&VU0, VUregsn); }
-static void VU0regsMI_MADDx(_VURegsNum* VUregsn) { _vuRegsMADDx(&VU0, VUregsn); }
-static void VU0regsMI_MADDy(_VURegsNum* VUregsn) { _vuRegsMADDy(&VU0, VUregsn); }
-static void VU0regsMI_MADDz(_VURegsNum* VUregsn) { _vuRegsMADDz(&VU0, VUregsn); }
-static void VU0regsMI_MADDw(_VURegsNum* VUregsn) { _vuRegsMADDw(&VU0, VUregsn); }
-static void VU0regsMI_MADDA(_VURegsNum* VUregsn) { _vuRegsMADDA(&VU0, VUregsn); }
-static void VU0regsMI_MADDAi(_VURegsNum* VUregsn) { _vuRegsMADDAi(&VU0, VUregsn); }
-static void VU0regsMI_MADDAq(_VURegsNum* VUregsn) { _vuRegsMADDAq(&VU0, VUregsn); }
-static void VU0regsMI_MADDAx(_VURegsNum* VUregsn) { _vuRegsMADDAx(&VU0, VUregsn); }
-static void VU0regsMI_MADDAy(_VURegsNum* VUregsn) { _vuRegsMADDAy(&VU0, VUregsn); }
-static void VU0regsMI_MADDAz(_VURegsNum* VUregsn) { _vuRegsMADDAz(&VU0, VUregsn); }
-static void VU0regsMI_MADDAw(_VURegsNum* VUregsn) { _vuRegsMADDAw(&VU0, VUregsn); }
-static void VU0regsMI_MSUB(_VURegsNum* VUregsn) { _vuRegsMSUB(&VU0, VUregsn); }
-static void VU0regsMI_MSUBi(_VURegsNum* VUregsn) { _vuRegsMSUBi(&VU0, VUregsn); }
-static void VU0regsMI_MSUBq(_VURegsNum* VUregsn) { _vuRegsMSUBq(&VU0, VUregsn); }
-static void VU0regsMI_MSUBx(_VURegsNum* VUregsn) { _vuRegsMSUBx(&VU0, VUregsn); }
-static void VU0regsMI_MSUBy(_VURegsNum* VUregsn) { _vuRegsMSUBy(&VU0, VUregsn); }
-static void VU0regsMI_MSUBz(_VURegsNum* VUregsn) { _vuRegsMSUBz(&VU0, VUregsn); }
-static void VU0regsMI_MSUBw(_VURegsNum* VUregsn) { _vuRegsMSUBw(&VU0, VUregsn); }
-static void VU0regsMI_MSUBA(_VURegsNum* VUregsn) { _vuRegsMSUBA(&VU0, VUregsn); }
-static void VU0regsMI_MSUBAi(_VURegsNum* VUregsn) { _vuRegsMSUBAi(&VU0, VUregsn); }
-static void VU0regsMI_MSUBAq(_VURegsNum* VUregsn) { _vuRegsMSUBAq(&VU0, VUregsn); }
-static void VU0regsMI_MSUBAx(_VURegsNum* VUregsn) { _vuRegsMSUBAx(&VU0, VUregsn); }
-static void VU0regsMI_MSUBAy(_VURegsNum* VUregsn) { _vuRegsMSUBAy(&VU0, VUregsn); }
-static void VU0regsMI_MSUBAz(_VURegsNum* VUregsn) { _vuRegsMSUBAz(&VU0, VUregsn); }
-static void VU0regsMI_MSUBAw(_VURegsNum* VUregsn) { _vuRegsMSUBAw(&VU0, VUregsn); }
-static void VU0regsMI_MAX(_VURegsNum* VUregsn) { _vuRegsMAX(&VU0, VUregsn); }
-static void VU0regsMI_MAXi(_VURegsNum* VUregsn) { _vuRegsMAXi(&VU0, VUregsn); }
-static void VU0regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx_(&VU0, VUregsn); }
-static void VU0regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy_(&VU0, VUregsn); }
-static void VU0regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz_(&VU0, VUregsn); }
-static void VU0regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw_(&VU0, VUregsn); }
-static void VU0regsMI_MINI(_VURegsNum* VUregsn) { _vuRegsMINI(&VU0, VUregsn); }
-static void VU0regsMI_MINIi(_VURegsNum* VUregsn) { _vuRegsMINIi(&VU0, VUregsn); }
-static void VU0regsMI_MINIx(_VURegsNum* VUregsn) { _vuRegsMINIx(&VU0, VUregsn); }
-static void VU0regsMI_MINIy(_VURegsNum* VUregsn) { _vuRegsMINIy(&VU0, VUregsn); }
-static void VU0regsMI_MINIz(_VURegsNum* VUregsn) { _vuRegsMINIz(&VU0, VUregsn); }
-static void VU0regsMI_MINIw(_VURegsNum* VUregsn) { _vuRegsMINIw(&VU0, VUregsn); }
-static void VU0regsMI_OPMULA(_VURegsNum* VUregsn) { _vuRegsOPMULA(&VU0, VUregsn); }
-static void VU0regsMI_OPMSUB(_VURegsNum* VUregsn) { _vuRegsOPMSUB(&VU0, VUregsn); }
-static void VU0regsMI_NOP(_VURegsNum* VUregsn) { _vuRegsNOP(&VU0, VUregsn); }
-static void VU0regsMI_FTOI0(_VURegsNum* VUregsn) { _vuRegsFTOI0(&VU0, VUregsn); }
-static void VU0regsMI_FTOI4(_VURegsNum* VUregsn) { _vuRegsFTOI4(&VU0, VUregsn); }
-static void VU0regsMI_FTOI12(_VURegsNum* VUregsn) { _vuRegsFTOI12(&VU0, VUregsn); }
-static void VU0regsMI_FTOI15(_VURegsNum* VUregsn) { _vuRegsFTOI15(&VU0, VUregsn); }
-static void VU0regsMI_ITOF0(_VURegsNum* VUregsn) { _vuRegsITOF0(&VU0, VUregsn); }
-static void VU0regsMI_ITOF4(_VURegsNum* VUregsn) { _vuRegsITOF4(&VU0, VUregsn); }
-static void VU0regsMI_ITOF12(_VURegsNum* VUregsn) { _vuRegsITOF12(&VU0, VUregsn); }
-static void VU0regsMI_ITOF15(_VURegsNum* VUregsn) { _vuRegsITOF15(&VU0, VUregsn); }
-static void VU0regsMI_CLIP(_VURegsNum* VUregsn) { _vuRegsCLIP(&VU0, VUregsn); }
+static void VU0regsMI_ABS(_VURegsNum* VUregsn) { _vuRegsABS(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADD(_VURegsNum* VUregsn) { _vuRegsADD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDi(_VURegsNum* VUregsn) { _vuRegsADDi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDq(_VURegsNum* VUregsn) { _vuRegsADDq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDx(_VURegsNum* VUregsn) { _vuRegsADDx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDy(_VURegsNum* VUregsn) { _vuRegsADDy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDz(_VURegsNum* VUregsn) { _vuRegsADDz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDw(_VURegsNum* VUregsn) { _vuRegsADDw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDA(_VURegsNum* VUregsn) { _vuRegsADDA(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDAi(_VURegsNum* VUregsn) { _vuRegsADDAi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDAq(_VURegsNum* VUregsn) { _vuRegsADDAq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDAx(_VURegsNum* VUregsn) { _vuRegsADDAx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDAy(_VURegsNum* VUregsn) { _vuRegsADDAy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDAz(_VURegsNum* VUregsn) { _vuRegsADDAz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ADDAw(_VURegsNum* VUregsn) { _vuRegsADDAw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUB(_VURegsNum* VUregsn) { _vuRegsSUB(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBi(_VURegsNum* VUregsn) { _vuRegsSUBi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBq(_VURegsNum* VUregsn) { _vuRegsSUBq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBx(_VURegsNum* VUregsn) { _vuRegsSUBx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBy(_VURegsNum* VUregsn) { _vuRegsSUBy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBz(_VURegsNum* VUregsn) { _vuRegsSUBz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBw(_VURegsNum* VUregsn) { _vuRegsSUBw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBA(_VURegsNum* VUregsn) { _vuRegsSUBA(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBAi(_VURegsNum* VUregsn) { _vuRegsSUBAi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBAq(_VURegsNum* VUregsn) { _vuRegsSUBAq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBAx(_VURegsNum* VUregsn) { _vuRegsSUBAx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBAy(_VURegsNum* VUregsn) { _vuRegsSUBAy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBAz(_VURegsNum* VUregsn) { _vuRegsSUBAz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SUBAw(_VURegsNum* VUregsn) { _vuRegsSUBAw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MUL(_VURegsNum* VUregsn) { _vuRegsMUL(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULi(_VURegsNum* VUregsn) { _vuRegsMULi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULq(_VURegsNum* VUregsn) { _vuRegsMULq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULx(_VURegsNum* VUregsn) { _vuRegsMULx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULy(_VURegsNum* VUregsn) { _vuRegsMULy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULz(_VURegsNum* VUregsn) { _vuRegsMULz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULw(_VURegsNum* VUregsn) { _vuRegsMULw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULA(_VURegsNum* VUregsn) { _vuRegsMULA(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULAi(_VURegsNum* VUregsn) { _vuRegsMULAi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULAq(_VURegsNum* VUregsn) { _vuRegsMULAq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULAx(_VURegsNum* VUregsn) { _vuRegsMULAx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULAy(_VURegsNum* VUregsn) { _vuRegsMULAy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULAz(_VURegsNum* VUregsn) { _vuRegsMULAz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MULAw(_VURegsNum* VUregsn) { _vuRegsMULAw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADD(_VURegsNum* VUregsn) { _vuRegsMADD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDi(_VURegsNum* VUregsn) { _vuRegsMADDi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDq(_VURegsNum* VUregsn) { _vuRegsMADDq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDx(_VURegsNum* VUregsn) { _vuRegsMADDx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDy(_VURegsNum* VUregsn) { _vuRegsMADDy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDz(_VURegsNum* VUregsn) { _vuRegsMADDz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDw(_VURegsNum* VUregsn) { _vuRegsMADDw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDA(_VURegsNum* VUregsn) { _vuRegsMADDA(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDAi(_VURegsNum* VUregsn) { _vuRegsMADDAi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDAq(_VURegsNum* VUregsn) { _vuRegsMADDAq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDAx(_VURegsNum* VUregsn) { _vuRegsMADDAx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDAy(_VURegsNum* VUregsn) { _vuRegsMADDAy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDAz(_VURegsNum* VUregsn) { _vuRegsMADDAz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MADDAw(_VURegsNum* VUregsn) { _vuRegsMADDAw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUB(_VURegsNum* VUregsn) { _vuRegsMSUB(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBi(_VURegsNum* VUregsn) { _vuRegsMSUBi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBq(_VURegsNum* VUregsn) { _vuRegsMSUBq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBx(_VURegsNum* VUregsn) { _vuRegsMSUBx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBy(_VURegsNum* VUregsn) { _vuRegsMSUBy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBz(_VURegsNum* VUregsn) { _vuRegsMSUBz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBw(_VURegsNum* VUregsn) { _vuRegsMSUBw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBA(_VURegsNum* VUregsn) { _vuRegsMSUBA(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBAi(_VURegsNum* VUregsn) { _vuRegsMSUBAi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBAq(_VURegsNum* VUregsn) { _vuRegsMSUBAq(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBAx(_VURegsNum* VUregsn) { _vuRegsMSUBAx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBAy(_VURegsNum* VUregsn) { _vuRegsMSUBAy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBAz(_VURegsNum* VUregsn) { _vuRegsMSUBAz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MSUBAw(_VURegsNum* VUregsn) { _vuRegsMSUBAw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MAX(_VURegsNum* VUregsn) { _vuRegsMAX(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MAXi(_VURegsNum* VUregsn) { _vuRegsMAXi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx_(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy_(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz_(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw_(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MINI(_VURegsNum* VUregsn) { _vuRegsMINI(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MINIi(_VURegsNum* VUregsn) { _vuRegsMINIi(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MINIx(_VURegsNum* VUregsn) { _vuRegsMINIx(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MINIy(_VURegsNum* VUregsn) { _vuRegsMINIy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MINIz(_VURegsNum* VUregsn) { _vuRegsMINIz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MINIw(_VURegsNum* VUregsn) { _vuRegsMINIw(&vuRegs[0], VUregsn); }
+static void VU0regsMI_OPMULA(_VURegsNum* VUregsn) { _vuRegsOPMULA(&vuRegs[0], VUregsn); }
+static void VU0regsMI_OPMSUB(_VURegsNum* VUregsn) { _vuRegsOPMSUB(&vuRegs[0], VUregsn); }
+static void VU0regsMI_NOP(_VURegsNum* VUregsn) { _vuRegsNOP(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FTOI0(_VURegsNum* VUregsn) { _vuRegsFTOI0(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FTOI4(_VURegsNum* VUregsn) { _vuRegsFTOI4(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FTOI12(_VURegsNum* VUregsn) { _vuRegsFTOI12(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FTOI15(_VURegsNum* VUregsn) { _vuRegsFTOI15(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ITOF0(_VURegsNum* VUregsn) { _vuRegsITOF0(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ITOF4(_VURegsNum* VUregsn) { _vuRegsITOF4(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ITOF12(_VURegsNum* VUregsn) { _vuRegsITOF12(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ITOF15(_VURegsNum* VUregsn) { _vuRegsITOF15(&vuRegs[0], VUregsn); }
+static void VU0regsMI_CLIP(_VURegsNum* VUregsn) { _vuRegsCLIP(&vuRegs[0], VUregsn); }
 
 /*****************************************/
 /*   VU Micromode Lower instructions    */
 /*****************************************/
 
-static void VU0regsMI_DIV(_VURegsNum* VUregsn) { _vuRegsDIV(&VU0, VUregsn); }
-static void VU0regsMI_SQRT(_VURegsNum* VUregsn) { _vuRegsSQRT(&VU0, VUregsn); }
-static void VU0regsMI_RSQRT(_VURegsNum* VUregsn) { _vuRegsRSQRT(&VU0, VUregsn); }
-static void VU0regsMI_IADD(_VURegsNum* VUregsn) { _vuRegsIADD(&VU0, VUregsn); }
-static void VU0regsMI_IADDI(_VURegsNum* VUregsn) { _vuRegsIADDI(&VU0, VUregsn); }
-static void VU0regsMI_IADDIU(_VURegsNum* VUregsn) { _vuRegsIADDIU(&VU0, VUregsn); }
-static void VU0regsMI_IAND(_VURegsNum* VUregsn) { _vuRegsIAND(&VU0, VUregsn); }
-static void VU0regsMI_IOR(_VURegsNum* VUregsn) { _vuRegsIOR(&VU0, VUregsn); }
-static void VU0regsMI_ISUB(_VURegsNum* VUregsn) { _vuRegsISUB(&VU0, VUregsn); }
-static void VU0regsMI_ISUBIU(_VURegsNum* VUregsn) { _vuRegsISUBIU(&VU0, VUregsn); }
-static void VU0regsMI_MOVE(_VURegsNum* VUregsn) { _vuRegsMOVE(&VU0, VUregsn); }
-static void VU0regsMI_MFIR(_VURegsNum* VUregsn) { _vuRegsMFIR(&VU0, VUregsn); }
-static void VU0regsMI_MTIR(_VURegsNum* VUregsn) { _vuRegsMTIR(&VU0, VUregsn); }
-static void VU0regsMI_MR32(_VURegsNum* VUregsn) { _vuRegsMR32(&VU0, VUregsn); }
-static void VU0regsMI_LQ(_VURegsNum* VUregsn) { _vuRegsLQ(&VU0, VUregsn); }
-static void VU0regsMI_LQD(_VURegsNum* VUregsn) { _vuRegsLQD(&VU0, VUregsn); }
-static void VU0regsMI_LQI(_VURegsNum* VUregsn) { _vuRegsLQI(&VU0, VUregsn); }
-static void VU0regsMI_SQ(_VURegsNum* VUregsn) { _vuRegsSQ(&VU0, VUregsn); }
-static void VU0regsMI_SQD(_VURegsNum* VUregsn) { _vuRegsSQD(&VU0, VUregsn); }
-static void VU0regsMI_SQI(_VURegsNum* VUregsn) { _vuRegsSQI(&VU0, VUregsn); }
-static void VU0regsMI_ILW(_VURegsNum* VUregsn) { _vuRegsILW(&VU0, VUregsn); }
-static void VU0regsMI_ISW(_VURegsNum* VUregsn) { _vuRegsISW(&VU0, VUregsn); }
-static void VU0regsMI_ILWR(_VURegsNum* VUregsn) { _vuRegsILWR(&VU0, VUregsn); }
-static void VU0regsMI_ISWR(_VURegsNum* VUregsn) { _vuRegsISWR(&VU0, VUregsn); }
-static void VU0regsMI_RINIT(_VURegsNum* VUregsn) { _vuRegsRINIT(&VU0, VUregsn); }
-static void VU0regsMI_RGET(_VURegsNum* VUregsn) { _vuRegsRGET(&VU0, VUregsn); }
-static void VU0regsMI_RNEXT(_VURegsNum* VUregsn) { _vuRegsRNEXT(&VU0, VUregsn); }
-static void VU0regsMI_RXOR(_VURegsNum* VUregsn) { _vuRegsRXOR(&VU0, VUregsn); }
-static void VU0regsMI_WAITQ(_VURegsNum* VUregsn) { _vuRegsWAITQ(&VU0, VUregsn); }
-static void VU0regsMI_FSAND(_VURegsNum* VUregsn) { _vuRegsFSAND(&VU0, VUregsn); }
-static void VU0regsMI_FSEQ(_VURegsNum* VUregsn) { _vuRegsFSEQ(&VU0, VUregsn); }
-static void VU0regsMI_FSOR(_VURegsNum* VUregsn) { _vuRegsFSOR(&VU0, VUregsn); }
-static void VU0regsMI_FSSET(_VURegsNum* VUregsn) { _vuRegsFSSET(&VU0, VUregsn); }
-static void VU0regsMI_FMAND(_VURegsNum* VUregsn) { _vuRegsFMAND(&VU0, VUregsn); }
-static void VU0regsMI_FMEQ(_VURegsNum* VUregsn) { _vuRegsFMEQ(&VU0, VUregsn); }
-static void VU0regsMI_FMOR(_VURegsNum* VUregsn) { _vuRegsFMOR(&VU0, VUregsn); }
-static void VU0regsMI_FCAND(_VURegsNum* VUregsn) { _vuRegsFCAND(&VU0, VUregsn); }
-static void VU0regsMI_FCEQ(_VURegsNum* VUregsn) { _vuRegsFCEQ(&VU0, VUregsn); }
-static void VU0regsMI_FCOR(_VURegsNum* VUregsn) { _vuRegsFCOR(&VU0, VUregsn); }
-static void VU0regsMI_FCSET(_VURegsNum* VUregsn) { _vuRegsFCSET(&VU0, VUregsn); }
-static void VU0regsMI_FCGET(_VURegsNum* VUregsn) { _vuRegsFCGET(&VU0, VUregsn); }
-static void VU0regsMI_IBEQ(_VURegsNum* VUregsn) { _vuRegsIBEQ(&VU0, VUregsn); }
-static void VU0regsMI_IBGEZ(_VURegsNum* VUregsn) { _vuRegsIBGEZ(&VU0, VUregsn); }
-static void VU0regsMI_IBGTZ(_VURegsNum* VUregsn) { _vuRegsIBGTZ(&VU0, VUregsn); }
-static void VU0regsMI_IBLTZ(_VURegsNum* VUregsn) { _vuRegsIBLTZ(&VU0, VUregsn); }
-static void VU0regsMI_IBLEZ(_VURegsNum* VUregsn) { _vuRegsIBLEZ(&VU0, VUregsn); }
-static void VU0regsMI_IBNE(_VURegsNum* VUregsn) { _vuRegsIBNE(&VU0, VUregsn); }
-static void VU0regsMI_B(_VURegsNum* VUregsn) { _vuRegsB(&VU0, VUregsn); }
-static void VU0regsMI_BAL(_VURegsNum* VUregsn) { _vuRegsBAL(&VU0, VUregsn); }
-static void VU0regsMI_JR(_VURegsNum* VUregsn) { _vuRegsJR(&VU0, VUregsn); }
-static void VU0regsMI_JALR(_VURegsNum* VUregsn) { _vuRegsJALR(&VU0, VUregsn); }
-static void VU0regsMI_MFP(_VURegsNum* VUregsn) { _vuRegsMFP(&VU0, VUregsn); }
-static void VU0regsMI_WAITP(_VURegsNum* VUregsn) { _vuRegsWAITP(&VU0, VUregsn); }
-static void VU0regsMI_ESADD(_VURegsNum* VUregsn) { _vuRegsESADD(&VU0, VUregsn); }
-static void VU0regsMI_ERSADD(_VURegsNum* VUregsn) { _vuRegsERSADD(&VU0, VUregsn); }
-static void VU0regsMI_ELENG(_VURegsNum* VUregsn) { _vuRegsELENG(&VU0, VUregsn); }
-static void VU0regsMI_ERLENG(_VURegsNum* VUregsn) { _vuRegsERLENG(&VU0, VUregsn); }
-static void VU0regsMI_EATANxy(_VURegsNum* VUregsn) { _vuRegsEATANxy(&VU0, VUregsn); }
-static void VU0regsMI_EATANxz(_VURegsNum* VUregsn) { _vuRegsEATANxz(&VU0, VUregsn); }
-static void VU0regsMI_ESUM(_VURegsNum* VUregsn) { _vuRegsESUM(&VU0, VUregsn); }
-static void VU0regsMI_ERCPR(_VURegsNum* VUregsn) { _vuRegsERCPR(&VU0, VUregsn); }
-static void VU0regsMI_ESQRT(_VURegsNum* VUregsn) { _vuRegsESQRT(&VU0, VUregsn); }
-static void VU0regsMI_ERSQRT(_VURegsNum* VUregsn) { _vuRegsERSQRT(&VU0, VUregsn); }
-static void VU0regsMI_ESIN(_VURegsNum* VUregsn) { _vuRegsESIN(&VU0, VUregsn); }
-static void VU0regsMI_EATAN(_VURegsNum* VUregsn) { _vuRegsEATAN(&VU0, VUregsn); }
-static void VU0regsMI_EEXP(_VURegsNum* VUregsn) { _vuRegsEEXP(&VU0, VUregsn); }
-static void VU0regsMI_XITOP(_VURegsNum* VUregsn) { _vuRegsXITOP(&VU0, VUregsn); }
-static void VU0regsMI_XGKICK(_VURegsNum* VUregsn) { _vuRegsXGKICK(&VU0, VUregsn); }
-static void VU0regsMI_XTOP(_VURegsNum* VUregsn) { _vuRegsXTOP(&VU0, VUregsn); }
+static void VU0regsMI_DIV(_VURegsNum* VUregsn) { _vuRegsDIV(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SQRT(_VURegsNum* VUregsn) { _vuRegsSQRT(&vuRegs[0], VUregsn); }
+static void VU0regsMI_RSQRT(_VURegsNum* VUregsn) { _vuRegsRSQRT(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IADD(_VURegsNum* VUregsn) { _vuRegsIADD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IADDI(_VURegsNum* VUregsn) { _vuRegsIADDI(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IADDIU(_VURegsNum* VUregsn) { _vuRegsIADDIU(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IAND(_VURegsNum* VUregsn) { _vuRegsIAND(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IOR(_VURegsNum* VUregsn) { _vuRegsIOR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ISUB(_VURegsNum* VUregsn) { _vuRegsISUB(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ISUBIU(_VURegsNum* VUregsn) { _vuRegsISUBIU(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MOVE(_VURegsNum* VUregsn) { _vuRegsMOVE(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MFIR(_VURegsNum* VUregsn) { _vuRegsMFIR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MTIR(_VURegsNum* VUregsn) { _vuRegsMTIR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MR32(_VURegsNum* VUregsn) { _vuRegsMR32(&vuRegs[0], VUregsn); }
+static void VU0regsMI_LQ(_VURegsNum* VUregsn) { _vuRegsLQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_LQD(_VURegsNum* VUregsn) { _vuRegsLQD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_LQI(_VURegsNum* VUregsn) { _vuRegsLQI(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SQ(_VURegsNum* VUregsn) { _vuRegsSQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SQD(_VURegsNum* VUregsn) { _vuRegsSQD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_SQI(_VURegsNum* VUregsn) { _vuRegsSQI(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ILW(_VURegsNum* VUregsn) { _vuRegsILW(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ISW(_VURegsNum* VUregsn) { _vuRegsISW(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ILWR(_VURegsNum* VUregsn) { _vuRegsILWR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ISWR(_VURegsNum* VUregsn) { _vuRegsISWR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_RINIT(_VURegsNum* VUregsn) { _vuRegsRINIT(&vuRegs[0], VUregsn); }
+static void VU0regsMI_RGET(_VURegsNum* VUregsn) { _vuRegsRGET(&vuRegs[0], VUregsn); }
+static void VU0regsMI_RNEXT(_VURegsNum* VUregsn) { _vuRegsRNEXT(&vuRegs[0], VUregsn); }
+static void VU0regsMI_RXOR(_VURegsNum* VUregsn) { _vuRegsRXOR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_WAITQ(_VURegsNum* VUregsn) { _vuRegsWAITQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FSAND(_VURegsNum* VUregsn) { _vuRegsFSAND(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FSEQ(_VURegsNum* VUregsn) { _vuRegsFSEQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FSOR(_VURegsNum* VUregsn) { _vuRegsFSOR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FSSET(_VURegsNum* VUregsn) { _vuRegsFSSET(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FMAND(_VURegsNum* VUregsn) { _vuRegsFMAND(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FMEQ(_VURegsNum* VUregsn) { _vuRegsFMEQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FMOR(_VURegsNum* VUregsn) { _vuRegsFMOR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FCAND(_VURegsNum* VUregsn) { _vuRegsFCAND(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FCEQ(_VURegsNum* VUregsn) { _vuRegsFCEQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FCOR(_VURegsNum* VUregsn) { _vuRegsFCOR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FCSET(_VURegsNum* VUregsn) { _vuRegsFCSET(&vuRegs[0], VUregsn); }
+static void VU0regsMI_FCGET(_VURegsNum* VUregsn) { _vuRegsFCGET(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IBEQ(_VURegsNum* VUregsn) { _vuRegsIBEQ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IBGEZ(_VURegsNum* VUregsn) { _vuRegsIBGEZ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IBGTZ(_VURegsNum* VUregsn) { _vuRegsIBGTZ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IBLTZ(_VURegsNum* VUregsn) { _vuRegsIBLTZ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IBLEZ(_VURegsNum* VUregsn) { _vuRegsIBLEZ(&vuRegs[0], VUregsn); }
+static void VU0regsMI_IBNE(_VURegsNum* VUregsn) { _vuRegsIBNE(&vuRegs[0], VUregsn); }
+static void VU0regsMI_B(_VURegsNum* VUregsn) { _vuRegsB(&vuRegs[0], VUregsn); }
+static void VU0regsMI_BAL(_VURegsNum* VUregsn) { _vuRegsBAL(&vuRegs[0], VUregsn); }
+static void VU0regsMI_JR(_VURegsNum* VUregsn) { _vuRegsJR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_JALR(_VURegsNum* VUregsn) { _vuRegsJALR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_MFP(_VURegsNum* VUregsn) { _vuRegsMFP(&vuRegs[0], VUregsn); }
+static void VU0regsMI_WAITP(_VURegsNum* VUregsn) { _vuRegsWAITP(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ESADD(_VURegsNum* VUregsn) { _vuRegsESADD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ERSADD(_VURegsNum* VUregsn) { _vuRegsERSADD(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ELENG(_VURegsNum* VUregsn) { _vuRegsELENG(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ERLENG(_VURegsNum* VUregsn) { _vuRegsERLENG(&vuRegs[0], VUregsn); }
+static void VU0regsMI_EATANxy(_VURegsNum* VUregsn) { _vuRegsEATANxy(&vuRegs[0], VUregsn); }
+static void VU0regsMI_EATANxz(_VURegsNum* VUregsn) { _vuRegsEATANxz(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ESUM(_VURegsNum* VUregsn) { _vuRegsESUM(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ERCPR(_VURegsNum* VUregsn) { _vuRegsERCPR(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ESQRT(_VURegsNum* VUregsn) { _vuRegsESQRT(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ERSQRT(_VURegsNum* VUregsn) { _vuRegsERSQRT(&vuRegs[0], VUregsn); }
+static void VU0regsMI_ESIN(_VURegsNum* VUregsn) { _vuRegsESIN(&vuRegs[0], VUregsn); }
+static void VU0regsMI_EATAN(_VURegsNum* VUregsn) { _vuRegsEATAN(&vuRegs[0], VUregsn); }
+static void VU0regsMI_EEXP(_VURegsNum* VUregsn) { _vuRegsEEXP(&vuRegs[0], VUregsn); }
+static void VU0regsMI_XITOP(_VURegsNum* VUregsn) { _vuRegsXITOP(&vuRegs[0], VUregsn); }
+static void VU0regsMI_XGKICK(_VURegsNum* VUregsn) { _vuRegsXGKICK(&vuRegs[0], VUregsn); }
+static void VU0regsMI_XTOP(_VURegsNum* VUregsn) { _vuRegsXTOP(&vuRegs[0], VUregsn); }
 
 static void VU0unknown(void) { }
 static void VU0regsunknown(_VURegsNum* VUregsn) { }
@@ -3955,175 +3955,175 @@ static void VU0regsunknown(_VURegsNum* VUregsn) { }
 /*   VU Micromode Upper instructions    */
 /****************************************/
 
-static void VU1MI_ABS()  { _vuABS(&VU1); }
-static void VU1MI_ADD()  { _vuADD(&VU1); }
-static void VU1MI_ADDi() { _vuADDi(&VU1); }
-static void VU1MI_ADDq() { _vuADDq(&VU1); }
-static void VU1MI_ADDx() { _vuADDx(&VU1); }
-static void VU1MI_ADDy() { _vuADDy(&VU1); }
-static void VU1MI_ADDz() { _vuADDz(&VU1); }
-static void VU1MI_ADDw() { _vuADDw(&VU1); }
-static void VU1MI_ADDA() { _vuADDA(&VU1); }
-static void VU1MI_ADDAi() { _vuADDAi(&VU1); }
-static void VU1MI_ADDAq() { _vuADDAq(&VU1); }
-static void VU1MI_ADDAx() { _vuADDAx(&VU1); }
-static void VU1MI_ADDAy() { _vuADDAy(&VU1); }
-static void VU1MI_ADDAz() { _vuADDAz(&VU1); }
-static void VU1MI_ADDAw() { _vuADDAw(&VU1); }
-static void VU1MI_SUB()  { _vuSUB(&VU1); }
-static void VU1MI_SUBi() { _vuSUBi(&VU1); }
-static void VU1MI_SUBq() { _vuSUBq(&VU1); }
-static void VU1MI_SUBx() { _vuSUBx(&VU1); }
-static void VU1MI_SUBy() { _vuSUBy(&VU1); }
-static void VU1MI_SUBz() { _vuSUBz(&VU1); }
-static void VU1MI_SUBw() { _vuSUBw(&VU1); }
-static void VU1MI_SUBA()  { _vuSUBA(&VU1); }
-static void VU1MI_SUBAi() { _vuSUBAi(&VU1); }
-static void VU1MI_SUBAq() { _vuSUBAq(&VU1); }
-static void VU1MI_SUBAx() { _vuSUBAx(&VU1); }
-static void VU1MI_SUBAy() { _vuSUBAy(&VU1); }
-static void VU1MI_SUBAz() { _vuSUBAz(&VU1); }
-static void VU1MI_SUBAw() { _vuSUBAw(&VU1); }
-static void VU1MI_MUL()  { _vuMUL(&VU1); }
-static void VU1MI_MULi() { _vuMULi(&VU1); }
-static void VU1MI_MULq() { _vuMULq(&VU1); }
-static void VU1MI_MULx() { _vuMULx(&VU1); }
-static void VU1MI_MULy() { _vuMULy(&VU1); }
-static void VU1MI_MULz() { _vuMULz(&VU1); }
-static void VU1MI_MULw() { _vuMULw(&VU1); }
-static void VU1MI_MULA()  { _vuMULA(&VU1); }
-static void VU1MI_MULAi() { _vuMULAi(&VU1); }
-static void VU1MI_MULAq() { _vuMULAq(&VU1); }
-static void VU1MI_MULAx() { _vuMULAx(&VU1); }
-static void VU1MI_MULAy() { _vuMULAy(&VU1); }
-static void VU1MI_MULAz() { _vuMULAz(&VU1); }
-static void VU1MI_MULAw() { _vuMULAw(&VU1); }
-static void VU1MI_MADD()  { _vuMADD(&VU1); }
-static void VU1MI_MADDi() { _vuMADDi(&VU1); }
-static void VU1MI_MADDq() { _vuMADDq(&VU1); }
-static void VU1MI_MADDx() { _vuMADDx(&VU1); }
-static void VU1MI_MADDy() { _vuMADDy(&VU1); }
-static void VU1MI_MADDz() { _vuMADDz(&VU1); }
-static void VU1MI_MADDw() { _vuMADDw(&VU1); }
-static void VU1MI_MADDA()  { _vuMADDA(&VU1); }
-static void VU1MI_MADDAi() { _vuMADDAi(&VU1); }
-static void VU1MI_MADDAq() { _vuMADDAq(&VU1); }
-static void VU1MI_MADDAx() { _vuMADDAx(&VU1); }
-static void VU1MI_MADDAy() { _vuMADDAy(&VU1); }
-static void VU1MI_MADDAz() { _vuMADDAz(&VU1); }
-static void VU1MI_MADDAw() { _vuMADDAw(&VU1); }
-static void VU1MI_MSUB()  { _vuMSUB(&VU1); }
-static void VU1MI_MSUBi() { _vuMSUBi(&VU1); }
-static void VU1MI_MSUBq() { _vuMSUBq(&VU1); }
-static void VU1MI_MSUBx() { _vuMSUBx(&VU1); }
-static void VU1MI_MSUBy() { _vuMSUBy(&VU1); }
-static void VU1MI_MSUBz() { _vuMSUBz(&VU1); }
-static void VU1MI_MSUBw() { _vuMSUBw(&VU1); }
-static void VU1MI_MSUBA()  { _vuMSUBA(&VU1); }
-static void VU1MI_MSUBAi() { _vuMSUBAi(&VU1); }
-static void VU1MI_MSUBAq() { _vuMSUBAq(&VU1); }
-static void VU1MI_MSUBAx() { _vuMSUBAx(&VU1); }
-static void VU1MI_MSUBAy() { _vuMSUBAy(&VU1); }
-static void VU1MI_MSUBAz() { _vuMSUBAz(&VU1); }
-static void VU1MI_MSUBAw() { _vuMSUBAw(&VU1); }
-static void VU1MI_MAX()  { _vuMAX(&VU1); }
-static void VU1MI_MAXi() { _vuMAXi(&VU1); }
-static void VU1MI_MAXx() { _vuMAXx(&VU1); }
-static void VU1MI_MAXy() { _vuMAXy(&VU1); }
-static void VU1MI_MAXz() { _vuMAXz(&VU1); }
-static void VU1MI_MAXw() { _vuMAXw(&VU1); }
-static void VU1MI_MINI()  { _vuMINI(&VU1); }
-static void VU1MI_MINIi() { _vuMINIi(&VU1); }
-static void VU1MI_MINIx() { _vuMINIx(&VU1); }
-static void VU1MI_MINIy() { _vuMINIy(&VU1); }
-static void VU1MI_MINIz() { _vuMINIz(&VU1); }
-static void VU1MI_MINIw() { _vuMINIw(&VU1); }
-static void VU1MI_OPMULA() { _vuOPMULA(&VU1); }
-static void VU1MI_OPMSUB() { _vuOPMSUB(&VU1); }
-static void VU1MI_NOP() { _vuNOP(&VU1); }
-static void VU1MI_FTOI0()  { _vuFTOI0(&VU1); }
-static void VU1MI_FTOI4()  { _vuFTOI4(&VU1); }
-static void VU1MI_FTOI12() { _vuFTOI12(&VU1); }
-static void VU1MI_FTOI15() { _vuFTOI15(&VU1); }
-static void VU1MI_ITOF0()  { _vuITOF0(&VU1); }
-static void VU1MI_ITOF4()  { _vuITOF4(&VU1); }
-static void VU1MI_ITOF12() { _vuITOF12(&VU1); }
-static void VU1MI_ITOF15() { _vuITOF15(&VU1); }
-static void VU1MI_CLIP() { _vuCLIP(&VU1); }
+static void VU1MI_ABS()  { _vuABS(&vuRegs[1]); }
+static void VU1MI_ADD()  { _vuADD(&vuRegs[1]); }
+static void VU1MI_ADDi() { _vuADDi(&vuRegs[1]); }
+static void VU1MI_ADDq() { _vuADDq(&vuRegs[1]); }
+static void VU1MI_ADDx() { _vuADDx(&vuRegs[1]); }
+static void VU1MI_ADDy() { _vuADDy(&vuRegs[1]); }
+static void VU1MI_ADDz() { _vuADDz(&vuRegs[1]); }
+static void VU1MI_ADDw() { _vuADDw(&vuRegs[1]); }
+static void VU1MI_ADDA() { _vuADDA(&vuRegs[1]); }
+static void VU1MI_ADDAi() { _vuADDAi(&vuRegs[1]); }
+static void VU1MI_ADDAq() { _vuADDAq(&vuRegs[1]); }
+static void VU1MI_ADDAx() { _vuADDAx(&vuRegs[1]); }
+static void VU1MI_ADDAy() { _vuADDAy(&vuRegs[1]); }
+static void VU1MI_ADDAz() { _vuADDAz(&vuRegs[1]); }
+static void VU1MI_ADDAw() { _vuADDAw(&vuRegs[1]); }
+static void VU1MI_SUB()  { _vuSUB(&vuRegs[1]); }
+static void VU1MI_SUBi() { _vuSUBi(&vuRegs[1]); }
+static void VU1MI_SUBq() { _vuSUBq(&vuRegs[1]); }
+static void VU1MI_SUBx() { _vuSUBx(&vuRegs[1]); }
+static void VU1MI_SUBy() { _vuSUBy(&vuRegs[1]); }
+static void VU1MI_SUBz() { _vuSUBz(&vuRegs[1]); }
+static void VU1MI_SUBw() { _vuSUBw(&vuRegs[1]); }
+static void VU1MI_SUBA()  { _vuSUBA(&vuRegs[1]); }
+static void VU1MI_SUBAi() { _vuSUBAi(&vuRegs[1]); }
+static void VU1MI_SUBAq() { _vuSUBAq(&vuRegs[1]); }
+static void VU1MI_SUBAx() { _vuSUBAx(&vuRegs[1]); }
+static void VU1MI_SUBAy() { _vuSUBAy(&vuRegs[1]); }
+static void VU1MI_SUBAz() { _vuSUBAz(&vuRegs[1]); }
+static void VU1MI_SUBAw() { _vuSUBAw(&vuRegs[1]); }
+static void VU1MI_MUL()  { _vuMUL(&vuRegs[1]); }
+static void VU1MI_MULi() { _vuMULi(&vuRegs[1]); }
+static void VU1MI_MULq() { _vuMULq(&vuRegs[1]); }
+static void VU1MI_MULx() { _vuMULx(&vuRegs[1]); }
+static void VU1MI_MULy() { _vuMULy(&vuRegs[1]); }
+static void VU1MI_MULz() { _vuMULz(&vuRegs[1]); }
+static void VU1MI_MULw() { _vuMULw(&vuRegs[1]); }
+static void VU1MI_MULA()  { _vuMULA(&vuRegs[1]); }
+static void VU1MI_MULAi() { _vuMULAi(&vuRegs[1]); }
+static void VU1MI_MULAq() { _vuMULAq(&vuRegs[1]); }
+static void VU1MI_MULAx() { _vuMULAx(&vuRegs[1]); }
+static void VU1MI_MULAy() { _vuMULAy(&vuRegs[1]); }
+static void VU1MI_MULAz() { _vuMULAz(&vuRegs[1]); }
+static void VU1MI_MULAw() { _vuMULAw(&vuRegs[1]); }
+static void VU1MI_MADD()  { _vuMADD(&vuRegs[1]); }
+static void VU1MI_MADDi() { _vuMADDi(&vuRegs[1]); }
+static void VU1MI_MADDq() { _vuMADDq(&vuRegs[1]); }
+static void VU1MI_MADDx() { _vuMADDx(&vuRegs[1]); }
+static void VU1MI_MADDy() { _vuMADDy(&vuRegs[1]); }
+static void VU1MI_MADDz() { _vuMADDz(&vuRegs[1]); }
+static void VU1MI_MADDw() { _vuMADDw(&vuRegs[1]); }
+static void VU1MI_MADDA()  { _vuMADDA(&vuRegs[1]); }
+static void VU1MI_MADDAi() { _vuMADDAi(&vuRegs[1]); }
+static void VU1MI_MADDAq() { _vuMADDAq(&vuRegs[1]); }
+static void VU1MI_MADDAx() { _vuMADDAx(&vuRegs[1]); }
+static void VU1MI_MADDAy() { _vuMADDAy(&vuRegs[1]); }
+static void VU1MI_MADDAz() { _vuMADDAz(&vuRegs[1]); }
+static void VU1MI_MADDAw() { _vuMADDAw(&vuRegs[1]); }
+static void VU1MI_MSUB()  { _vuMSUB(&vuRegs[1]); }
+static void VU1MI_MSUBi() { _vuMSUBi(&vuRegs[1]); }
+static void VU1MI_MSUBq() { _vuMSUBq(&vuRegs[1]); }
+static void VU1MI_MSUBx() { _vuMSUBx(&vuRegs[1]); }
+static void VU1MI_MSUBy() { _vuMSUBy(&vuRegs[1]); }
+static void VU1MI_MSUBz() { _vuMSUBz(&vuRegs[1]); }
+static void VU1MI_MSUBw() { _vuMSUBw(&vuRegs[1]); }
+static void VU1MI_MSUBA()  { _vuMSUBA(&vuRegs[1]); }
+static void VU1MI_MSUBAi() { _vuMSUBAi(&vuRegs[1]); }
+static void VU1MI_MSUBAq() { _vuMSUBAq(&vuRegs[1]); }
+static void VU1MI_MSUBAx() { _vuMSUBAx(&vuRegs[1]); }
+static void VU1MI_MSUBAy() { _vuMSUBAy(&vuRegs[1]); }
+static void VU1MI_MSUBAz() { _vuMSUBAz(&vuRegs[1]); }
+static void VU1MI_MSUBAw() { _vuMSUBAw(&vuRegs[1]); }
+static void VU1MI_MAX()  { _vuMAX(&vuRegs[1]); }
+static void VU1MI_MAXi() { _vuMAXi(&vuRegs[1]); }
+static void VU1MI_MAXx() { _vuMAXx(&vuRegs[1]); }
+static void VU1MI_MAXy() { _vuMAXy(&vuRegs[1]); }
+static void VU1MI_MAXz() { _vuMAXz(&vuRegs[1]); }
+static void VU1MI_MAXw() { _vuMAXw(&vuRegs[1]); }
+static void VU1MI_MINI()  { _vuMINI(&vuRegs[1]); }
+static void VU1MI_MINIi() { _vuMINIi(&vuRegs[1]); }
+static void VU1MI_MINIx() { _vuMINIx(&vuRegs[1]); }
+static void VU1MI_MINIy() { _vuMINIy(&vuRegs[1]); }
+static void VU1MI_MINIz() { _vuMINIz(&vuRegs[1]); }
+static void VU1MI_MINIw() { _vuMINIw(&vuRegs[1]); }
+static void VU1MI_OPMULA() { _vuOPMULA(&vuRegs[1]); }
+static void VU1MI_OPMSUB() { _vuOPMSUB(&vuRegs[1]); }
+static void VU1MI_NOP() { _vuNOP(&vuRegs[1]); }
+static void VU1MI_FTOI0()  { _vuFTOI0(&vuRegs[1]); }
+static void VU1MI_FTOI4()  { _vuFTOI4(&vuRegs[1]); }
+static void VU1MI_FTOI12() { _vuFTOI12(&vuRegs[1]); }
+static void VU1MI_FTOI15() { _vuFTOI15(&vuRegs[1]); }
+static void VU1MI_ITOF0()  { _vuITOF0(&vuRegs[1]); }
+static void VU1MI_ITOF4()  { _vuITOF4(&vuRegs[1]); }
+static void VU1MI_ITOF12() { _vuITOF12(&vuRegs[1]); }
+static void VU1MI_ITOF15() { _vuITOF15(&vuRegs[1]); }
+static void VU1MI_CLIP() { _vuCLIP(&vuRegs[1]); }
 
 /*****************************************/
 /*   VU Micromode Lower instructions    */
 /*****************************************/
 
-static void VU1MI_DIV() { _vuDIV(&VU1); }
-static void VU1MI_SQRT() { _vuSQRT(&VU1); }
-static void VU1MI_RSQRT() { _vuRSQRT(&VU1); }
-static void VU1MI_IADD() { _vuIADD(&VU1); }
-static void VU1MI_IADDI() { _vuIADDI(&VU1); }
-static void VU1MI_IADDIU() { _vuIADDIU(&VU1); }
-static void VU1MI_IAND() { _vuIAND(&VU1); }
-static void VU1MI_IOR() { _vuIOR(&VU1); }
-static void VU1MI_ISUB() { _vuISUB(&VU1); }
-static void VU1MI_ISUBIU() { _vuISUBIU(&VU1); }
-static void VU1MI_MOVE() { _vuMOVE(&VU1); }
-static void VU1MI_MFIR() { _vuMFIR(&VU1); }
-static void VU1MI_MTIR() { _vuMTIR(&VU1); }
-static void VU1MI_MR32() { _vuMR32(&VU1); }
-static void VU1MI_LQ() { _vuLQ(&VU1); }
-static void VU1MI_LQD() { _vuLQD(&VU1); }
-static void VU1MI_LQI() { _vuLQI(&VU1); }
-static void VU1MI_SQ() { _vuSQ(&VU1); }
-static void VU1MI_SQD() { _vuSQD(&VU1); }
-static void VU1MI_SQI() { _vuSQI(&VU1); }
-static void VU1MI_ILW() { _vuILW(&VU1); }
-static void VU1MI_ISW() { _vuISW(&VU1); }
-static void VU1MI_ILWR() { _vuILWR(&VU1); }
-static void VU1MI_ISWR() { _vuISWR(&VU1); }
-static void VU1MI_RINIT() { VU1.VI[REG_R].UL = 0x3F800000 | (VU1.VF[((VU1.code >> 11) & 0x1F)].UL[((VU1.code >> 21) & 0x03)] & 0x007FFFFF); }
-static void VU1MI_RGET()  { _vuRGET(&VU1); }
-static void VU1MI_RNEXT() { _vuRNEXT(&VU1); }
-static void VU1MI_RXOR()  { VU1.VI[REG_R].UL = 0x3F800000 | ((VU1.VI[REG_R].UL ^ VU1.VF[((VU1.code >> 11) & 0x1F)].UL[((VU1.code >> 21) & 0x03)]) & 0x007FFFFF); }
+static void VU1MI_DIV() { _vuDIV(&vuRegs[1]); }
+static void VU1MI_SQRT() { _vuSQRT(&vuRegs[1]); }
+static void VU1MI_RSQRT() { _vuRSQRT(&vuRegs[1]); }
+static void VU1MI_IADD() { _vuIADD(&vuRegs[1]); }
+static void VU1MI_IADDI() { _vuIADDI(&vuRegs[1]); }
+static void VU1MI_IADDIU() { _vuIADDIU(&vuRegs[1]); }
+static void VU1MI_IAND() { _vuIAND(&vuRegs[1]); }
+static void VU1MI_IOR() { _vuIOR(&vuRegs[1]); }
+static void VU1MI_ISUB() { _vuISUB(&vuRegs[1]); }
+static void VU1MI_ISUBIU() { _vuISUBIU(&vuRegs[1]); }
+static void VU1MI_MOVE() { _vuMOVE(&vuRegs[1]); }
+static void VU1MI_MFIR() { _vuMFIR(&vuRegs[1]); }
+static void VU1MI_MTIR() { _vuMTIR(&vuRegs[1]); }
+static void VU1MI_MR32() { _vuMR32(&vuRegs[1]); }
+static void VU1MI_LQ() { _vuLQ(&vuRegs[1]); }
+static void VU1MI_LQD() { _vuLQD(&vuRegs[1]); }
+static void VU1MI_LQI() { _vuLQI(&vuRegs[1]); }
+static void VU1MI_SQ() { _vuSQ(&vuRegs[1]); }
+static void VU1MI_SQD() { _vuSQD(&vuRegs[1]); }
+static void VU1MI_SQI() { _vuSQI(&vuRegs[1]); }
+static void VU1MI_ILW() { _vuILW(&vuRegs[1]); }
+static void VU1MI_ISW() { _vuISW(&vuRegs[1]); }
+static void VU1MI_ILWR() { _vuILWR(&vuRegs[1]); }
+static void VU1MI_ISWR() { _vuISWR(&vuRegs[1]); }
+static void VU1MI_RINIT() { vuRegs[1].VI[REG_R].UL = 0x3F800000 | (vuRegs[1].VF[((vuRegs[1].code >> 11) & 0x1F)].UL[((vuRegs[1].code >> 21) & 0x03)] & 0x007FFFFF); }
+static void VU1MI_RGET()  { _vuRGET(&vuRegs[1]); }
+static void VU1MI_RNEXT() { _vuRNEXT(&vuRegs[1]); }
+static void VU1MI_RXOR()  { vuRegs[1].VI[REG_R].UL = 0x3F800000 | ((vuRegs[1].VI[REG_R].UL ^ vuRegs[1].VF[((vuRegs[1].code >> 11) & 0x1F)].UL[((vuRegs[1].code >> 21) & 0x03)]) & 0x007FFFFF); }
 static void VU1MI_WAITQ() { }
-static void VU1MI_FSAND() { _vuFSAND(&VU1); }
-static void VU1MI_FSEQ()  { _vuFSEQ(&VU1); }
-static void VU1MI_FSOR()  { _vuFSOR(&VU1); }
-static void VU1MI_FSSET() { _vuFSSET(&VU1); }
-static void VU1MI_FMAND() { _vuFMAND(&VU1); }
-static void VU1MI_FMEQ()  { _vuFMEQ(&VU1); }
-static void VU1MI_FMOR()  { _vuFMOR(&VU1); }
-static void VU1MI_FCAND() { _vuFCAND(&VU1); }
-static void VU1MI_FCEQ()  { _vuFCEQ(&VU1); }
-static void VU1MI_FCOR()  { _vuFCOR(&VU1); }
-static void VU1MI_FCSET() { VU1.clipflag = (u32)(VU1.code & 0xFFFFFF); }
-static void VU1MI_FCGET() { _vuFCGET(&VU1); }
-static void VU1MI_IBEQ() { _vuIBEQ(&VU1); }
-static void VU1MI_IBGEZ() { _vuIBGEZ(&VU1); }
-static void VU1MI_IBGTZ() { _vuIBGTZ(&VU1); }
-static void VU1MI_IBLTZ() { _vuIBLTZ(&VU1); }
-static void VU1MI_IBLEZ() { _vuIBLEZ(&VU1); }
-static void VU1MI_IBNE() { _vuIBNE(&VU1); }
-static void VU1MI_B()   { _vuB(&VU1); }
-static void VU1MI_BAL() { _vuBAL(&VU1); }
-static void VU1MI_JR()   { _vuJR(&VU1); }
-static void VU1MI_JALR() { _vuJALR(&VU1); }
-static void VU1MI_MFP() { _vuMFP(&VU1); }
+static void VU1MI_FSAND() { _vuFSAND(&vuRegs[1]); }
+static void VU1MI_FSEQ()  { _vuFSEQ(&vuRegs[1]); }
+static void VU1MI_FSOR()  { _vuFSOR(&vuRegs[1]); }
+static void VU1MI_FSSET() { _vuFSSET(&vuRegs[1]); }
+static void VU1MI_FMAND() { _vuFMAND(&vuRegs[1]); }
+static void VU1MI_FMEQ()  { _vuFMEQ(&vuRegs[1]); }
+static void VU1MI_FMOR()  { _vuFMOR(&vuRegs[1]); }
+static void VU1MI_FCAND() { _vuFCAND(&vuRegs[1]); }
+static void VU1MI_FCEQ()  { _vuFCEQ(&vuRegs[1]); }
+static void VU1MI_FCOR()  { _vuFCOR(&vuRegs[1]); }
+static void VU1MI_FCSET() { vuRegs[1].clipflag = (u32)(vuRegs[1].code & 0xFFFFFF); }
+static void VU1MI_FCGET() { _vuFCGET(&vuRegs[1]); }
+static void VU1MI_IBEQ() { _vuIBEQ(&vuRegs[1]); }
+static void VU1MI_IBGEZ() { _vuIBGEZ(&vuRegs[1]); }
+static void VU1MI_IBGTZ() { _vuIBGTZ(&vuRegs[1]); }
+static void VU1MI_IBLTZ() { _vuIBLTZ(&vuRegs[1]); }
+static void VU1MI_IBLEZ() { _vuIBLEZ(&vuRegs[1]); }
+static void VU1MI_IBNE() { _vuIBNE(&vuRegs[1]); }
+static void VU1MI_B()   { _vuB(&vuRegs[1]); }
+static void VU1MI_BAL() { _vuBAL(&vuRegs[1]); }
+static void VU1MI_JR()   { _vuJR(&vuRegs[1]); }
+static void VU1MI_JALR() { _vuJALR(&vuRegs[1]); }
+static void VU1MI_MFP() { _vuMFP(&vuRegs[1]); }
 static void VU1MI_WAITP() { }
-static void VU1MI_ESADD()   { _vuESADD(&VU1); }
-static void VU1MI_ERSADD()  { _vuERSADD(&VU1); }
-static void VU1MI_ELENG()   { _vuELENG(&VU1); }
-static void VU1MI_ERLENG()  { _vuERLENG(&VU1); }
-static void VU1MI_EATANxy() { _vuEATANxy(&VU1); }
-static void VU1MI_EATANxz() { _vuEATANxz(&VU1); }
-static void VU1MI_ESUM()    { _vuESUM(&VU1); }
-static void VU1MI_ERCPR()   { _vuERCPR(&VU1); }
-static void VU1MI_ESQRT()   { _vuESQRT(&VU1); }
-static void VU1MI_ERSQRT()  { _vuERSQRT(&VU1); }
-static void VU1MI_ESIN()    { _vuESIN(&VU1); }
-static void VU1MI_EATAN()   { _vuEATAN(&VU1); }
-static void VU1MI_EEXP()    { _vuEEXP(&VU1); }
-static void VU1MI_XITOP()   { _vuXITOP(&VU1); }
-static void VU1MI_XGKICK()  { _vuXGKICK(&VU1); }
-static void VU1MI_XTOP()    { _vuXTOP(&VU1); }
+static void VU1MI_ESADD()   { _vuESADD(&vuRegs[1]); }
+static void VU1MI_ERSADD()  { _vuERSADD(&vuRegs[1]); }
+static void VU1MI_ELENG()   { _vuELENG(&vuRegs[1]); }
+static void VU1MI_ERLENG()  { _vuERLENG(&vuRegs[1]); }
+static void VU1MI_EATANxy() { _vuEATANxy(&vuRegs[1]); }
+static void VU1MI_EATANxz() { _vuEATANxz(&vuRegs[1]); }
+static void VU1MI_ESUM()    { _vuESUM(&vuRegs[1]); }
+static void VU1MI_ERCPR()   { _vuERCPR(&vuRegs[1]); }
+static void VU1MI_ESQRT()   { _vuESQRT(&vuRegs[1]); }
+static void VU1MI_ERSQRT()  { _vuERSQRT(&vuRegs[1]); }
+static void VU1MI_ESIN()    { _vuESIN(&vuRegs[1]); }
+static void VU1MI_EATAN()   { _vuEATAN(&vuRegs[1]); }
+static void VU1MI_EEXP()    { _vuEEXP(&vuRegs[1]); }
+static void VU1MI_XITOP()   { _vuXITOP(&vuRegs[1]); }
+static void VU1MI_XGKICK()  { _vuXGKICK(&vuRegs[1]); }
+static void VU1MI_XTOP()    { _vuXTOP(&vuRegs[1]); }
 
 
 
@@ -4131,175 +4131,175 @@ static void VU1MI_XTOP()    { _vuXTOP(&VU1); }
 /*   VU Micromode Upper instructions    */
 /****************************************/
 
-static void VU1regsMI_ABS(_VURegsNum* VUregsn) { _vuRegsABS(&VU1, VUregsn); }
-static void VU1regsMI_ADD(_VURegsNum* VUregsn) { _vuRegsADD(&VU1, VUregsn); }
-static void VU1regsMI_ADDi(_VURegsNum* VUregsn) { _vuRegsADDi(&VU1, VUregsn); }
-static void VU1regsMI_ADDq(_VURegsNum* VUregsn) { _vuRegsADDq(&VU1, VUregsn); }
-static void VU1regsMI_ADDx(_VURegsNum* VUregsn) { _vuRegsADDx(&VU1, VUregsn); }
-static void VU1regsMI_ADDy(_VURegsNum* VUregsn) { _vuRegsADDy(&VU1, VUregsn); }
-static void VU1regsMI_ADDz(_VURegsNum* VUregsn) { _vuRegsADDz(&VU1, VUregsn); }
-static void VU1regsMI_ADDw(_VURegsNum* VUregsn) { _vuRegsADDw(&VU1, VUregsn); }
-static void VU1regsMI_ADDA(_VURegsNum* VUregsn) { _vuRegsADDA(&VU1, VUregsn); }
-static void VU1regsMI_ADDAi(_VURegsNum* VUregsn) { _vuRegsADDAi(&VU1, VUregsn); }
-static void VU1regsMI_ADDAq(_VURegsNum* VUregsn) { _vuRegsADDAq(&VU1, VUregsn); }
-static void VU1regsMI_ADDAx(_VURegsNum* VUregsn) { _vuRegsADDAx(&VU1, VUregsn); }
-static void VU1regsMI_ADDAy(_VURegsNum* VUregsn) { _vuRegsADDAy(&VU1, VUregsn); }
-static void VU1regsMI_ADDAz(_VURegsNum* VUregsn) { _vuRegsADDAz(&VU1, VUregsn); }
-static void VU1regsMI_ADDAw(_VURegsNum* VUregsn) { _vuRegsADDAw(&VU1, VUregsn); }
-static void VU1regsMI_SUB(_VURegsNum* VUregsn) { _vuRegsSUB(&VU1, VUregsn); }
-static void VU1regsMI_SUBi(_VURegsNum* VUregsn) { _vuRegsSUBi(&VU1, VUregsn); }
-static void VU1regsMI_SUBq(_VURegsNum* VUregsn) { _vuRegsSUBq(&VU1, VUregsn); }
-static void VU1regsMI_SUBx(_VURegsNum* VUregsn) { _vuRegsSUBx(&VU1, VUregsn); }
-static void VU1regsMI_SUBy(_VURegsNum* VUregsn) { _vuRegsSUBy(&VU1, VUregsn); }
-static void VU1regsMI_SUBz(_VURegsNum* VUregsn) { _vuRegsSUBz(&VU1, VUregsn); }
-static void VU1regsMI_SUBw(_VURegsNum* VUregsn) { _vuRegsSUBw(&VU1, VUregsn); }
-static void VU1regsMI_SUBA(_VURegsNum* VUregsn) { _vuRegsSUBA(&VU1, VUregsn); }
-static void VU1regsMI_SUBAi(_VURegsNum* VUregsn) { _vuRegsSUBAi(&VU1, VUregsn); }
-static void VU1regsMI_SUBAq(_VURegsNum* VUregsn) { _vuRegsSUBAq(&VU1, VUregsn); }
-static void VU1regsMI_SUBAx(_VURegsNum* VUregsn) { _vuRegsSUBAx(&VU1, VUregsn); }
-static void VU1regsMI_SUBAy(_VURegsNum* VUregsn) { _vuRegsSUBAy(&VU1, VUregsn); }
-static void VU1regsMI_SUBAz(_VURegsNum* VUregsn) { _vuRegsSUBAz(&VU1, VUregsn); }
-static void VU1regsMI_SUBAw(_VURegsNum* VUregsn) { _vuRegsSUBAw(&VU1, VUregsn); }
-static void VU1regsMI_MUL(_VURegsNum* VUregsn) { _vuRegsMUL(&VU1, VUregsn); }
-static void VU1regsMI_MULi(_VURegsNum* VUregsn) { _vuRegsMULi(&VU1, VUregsn); }
-static void VU1regsMI_MULq(_VURegsNum* VUregsn) { _vuRegsMULq(&VU1, VUregsn); }
-static void VU1regsMI_MULx(_VURegsNum* VUregsn) { _vuRegsMULx(&VU1, VUregsn); }
-static void VU1regsMI_MULy(_VURegsNum* VUregsn) { _vuRegsMULy(&VU1, VUregsn); }
-static void VU1regsMI_MULz(_VURegsNum* VUregsn) { _vuRegsMULz(&VU1, VUregsn); }
-static void VU1regsMI_MULw(_VURegsNum* VUregsn) { _vuRegsMULw(&VU1, VUregsn); }
-static void VU1regsMI_MULA(_VURegsNum* VUregsn) { _vuRegsMULA(&VU1, VUregsn); }
-static void VU1regsMI_MULAi(_VURegsNum* VUregsn) { _vuRegsMULAi(&VU1, VUregsn); }
-static void VU1regsMI_MULAq(_VURegsNum* VUregsn) { _vuRegsMULAq(&VU1, VUregsn); }
-static void VU1regsMI_MULAx(_VURegsNum* VUregsn) { _vuRegsMULAx(&VU1, VUregsn); }
-static void VU1regsMI_MULAy(_VURegsNum* VUregsn) { _vuRegsMULAy(&VU1, VUregsn); }
-static void VU1regsMI_MULAz(_VURegsNum* VUregsn) { _vuRegsMULAz(&VU1, VUregsn); }
-static void VU1regsMI_MULAw(_VURegsNum* VUregsn) { _vuRegsMULAw(&VU1, VUregsn); }
-static void VU1regsMI_MADD(_VURegsNum* VUregsn) { _vuRegsMADD(&VU1, VUregsn); }
-static void VU1regsMI_MADDi(_VURegsNum* VUregsn) { _vuRegsMADDi(&VU1, VUregsn); }
-static void VU1regsMI_MADDq(_VURegsNum* VUregsn) { _vuRegsMADDq(&VU1, VUregsn); }
-static void VU1regsMI_MADDx(_VURegsNum* VUregsn) { _vuRegsMADDx(&VU1, VUregsn); }
-static void VU1regsMI_MADDy(_VURegsNum* VUregsn) { _vuRegsMADDy(&VU1, VUregsn); }
-static void VU1regsMI_MADDz(_VURegsNum* VUregsn) { _vuRegsMADDz(&VU1, VUregsn); }
-static void VU1regsMI_MADDw(_VURegsNum* VUregsn) { _vuRegsMADDw(&VU1, VUregsn); }
-static void VU1regsMI_MADDA(_VURegsNum* VUregsn) { _vuRegsMADDA(&VU1, VUregsn); }
-static void VU1regsMI_MADDAi(_VURegsNum* VUregsn) { _vuRegsMADDAi(&VU1, VUregsn); }
-static void VU1regsMI_MADDAq(_VURegsNum* VUregsn) { _vuRegsMADDAq(&VU1, VUregsn); }
-static void VU1regsMI_MADDAx(_VURegsNum* VUregsn) { _vuRegsMADDAx(&VU1, VUregsn); }
-static void VU1regsMI_MADDAy(_VURegsNum* VUregsn) { _vuRegsMADDAy(&VU1, VUregsn); }
-static void VU1regsMI_MADDAz(_VURegsNum* VUregsn) { _vuRegsMADDAz(&VU1, VUregsn); }
-static void VU1regsMI_MADDAw(_VURegsNum* VUregsn) { _vuRegsMADDAw(&VU1, VUregsn); }
-static void VU1regsMI_MSUB(_VURegsNum* VUregsn) { _vuRegsMSUB(&VU1, VUregsn); }
-static void VU1regsMI_MSUBi(_VURegsNum* VUregsn) { _vuRegsMSUBi(&VU1, VUregsn); }
-static void VU1regsMI_MSUBq(_VURegsNum* VUregsn) { _vuRegsMSUBq(&VU1, VUregsn); }
-static void VU1regsMI_MSUBx(_VURegsNum* VUregsn) { _vuRegsMSUBx(&VU1, VUregsn); }
-static void VU1regsMI_MSUBy(_VURegsNum* VUregsn) { _vuRegsMSUBy(&VU1, VUregsn); }
-static void VU1regsMI_MSUBz(_VURegsNum* VUregsn) { _vuRegsMSUBz(&VU1, VUregsn); }
-static void VU1regsMI_MSUBw(_VURegsNum* VUregsn) { _vuRegsMSUBw(&VU1, VUregsn); }
-static void VU1regsMI_MSUBA(_VURegsNum* VUregsn) { _vuRegsMSUBA(&VU1, VUregsn); }
-static void VU1regsMI_MSUBAi(_VURegsNum* VUregsn) { _vuRegsMSUBAi(&VU1, VUregsn); }
-static void VU1regsMI_MSUBAq(_VURegsNum* VUregsn) { _vuRegsMSUBAq(&VU1, VUregsn); }
-static void VU1regsMI_MSUBAx(_VURegsNum* VUregsn) { _vuRegsMSUBAx(&VU1, VUregsn); }
-static void VU1regsMI_MSUBAy(_VURegsNum* VUregsn) { _vuRegsMSUBAy(&VU1, VUregsn); }
-static void VU1regsMI_MSUBAz(_VURegsNum* VUregsn) { _vuRegsMSUBAz(&VU1, VUregsn); }
-static void VU1regsMI_MSUBAw(_VURegsNum* VUregsn) { _vuRegsMSUBAw(&VU1, VUregsn); }
-static void VU1regsMI_MAX(_VURegsNum* VUregsn) { _vuRegsMAX(&VU1, VUregsn); }
-static void VU1regsMI_MAXi(_VURegsNum* VUregsn) { _vuRegsMAXi(&VU1, VUregsn); }
-static void VU1regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx_(&VU1, VUregsn); }
-static void VU1regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy_(&VU1, VUregsn); }
-static void VU1regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz_(&VU1, VUregsn); }
-static void VU1regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw_(&VU1, VUregsn); }
-static void VU1regsMI_MINI(_VURegsNum* VUregsn) { _vuRegsMINI(&VU1, VUregsn); }
-static void VU1regsMI_MINIi(_VURegsNum* VUregsn) { _vuRegsMINIi(&VU1, VUregsn); }
-static void VU1regsMI_MINIx(_VURegsNum* VUregsn) { _vuRegsMINIx(&VU1, VUregsn); }
-static void VU1regsMI_MINIy(_VURegsNum* VUregsn) { _vuRegsMINIy(&VU1, VUregsn); }
-static void VU1regsMI_MINIz(_VURegsNum* VUregsn) { _vuRegsMINIz(&VU1, VUregsn); }
-static void VU1regsMI_MINIw(_VURegsNum* VUregsn) { _vuRegsMINIw(&VU1, VUregsn); }
-static void VU1regsMI_OPMULA(_VURegsNum* VUregsn) { _vuRegsOPMULA(&VU1, VUregsn); }
-static void VU1regsMI_OPMSUB(_VURegsNum* VUregsn) { _vuRegsOPMSUB(&VU1, VUregsn); }
-static void VU1regsMI_NOP(_VURegsNum* VUregsn) { _vuRegsNOP(&VU1, VUregsn); }
-static void VU1regsMI_FTOI0(_VURegsNum* VUregsn) { _vuRegsFTOI0(&VU1, VUregsn); }
-static void VU1regsMI_FTOI4(_VURegsNum* VUregsn) { _vuRegsFTOI4(&VU1, VUregsn); }
-static void VU1regsMI_FTOI12(_VURegsNum* VUregsn) { _vuRegsFTOI12(&VU1, VUregsn); }
-static void VU1regsMI_FTOI15(_VURegsNum* VUregsn) { _vuRegsFTOI15(&VU1, VUregsn); }
-static void VU1regsMI_ITOF0(_VURegsNum* VUregsn) { _vuRegsITOF0(&VU1, VUregsn); }
-static void VU1regsMI_ITOF4(_VURegsNum* VUregsn) { _vuRegsITOF4(&VU1, VUregsn); }
-static void VU1regsMI_ITOF12(_VURegsNum* VUregsn) { _vuRegsITOF12(&VU1, VUregsn); }
-static void VU1regsMI_ITOF15(_VURegsNum* VUregsn) { _vuRegsITOF15(&VU1, VUregsn); }
-static void VU1regsMI_CLIP(_VURegsNum* VUregsn) { _vuRegsCLIP(&VU1, VUregsn); }
+static void VU1regsMI_ABS(_VURegsNum* VUregsn) { _vuRegsABS(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADD(_VURegsNum* VUregsn) { _vuRegsADD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDi(_VURegsNum* VUregsn) { _vuRegsADDi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDq(_VURegsNum* VUregsn) { _vuRegsADDq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDx(_VURegsNum* VUregsn) { _vuRegsADDx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDy(_VURegsNum* VUregsn) { _vuRegsADDy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDz(_VURegsNum* VUregsn) { _vuRegsADDz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDw(_VURegsNum* VUregsn) { _vuRegsADDw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDA(_VURegsNum* VUregsn) { _vuRegsADDA(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDAi(_VURegsNum* VUregsn) { _vuRegsADDAi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDAq(_VURegsNum* VUregsn) { _vuRegsADDAq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDAx(_VURegsNum* VUregsn) { _vuRegsADDAx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDAy(_VURegsNum* VUregsn) { _vuRegsADDAy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDAz(_VURegsNum* VUregsn) { _vuRegsADDAz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ADDAw(_VURegsNum* VUregsn) { _vuRegsADDAw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUB(_VURegsNum* VUregsn) { _vuRegsSUB(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBi(_VURegsNum* VUregsn) { _vuRegsSUBi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBq(_VURegsNum* VUregsn) { _vuRegsSUBq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBx(_VURegsNum* VUregsn) { _vuRegsSUBx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBy(_VURegsNum* VUregsn) { _vuRegsSUBy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBz(_VURegsNum* VUregsn) { _vuRegsSUBz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBw(_VURegsNum* VUregsn) { _vuRegsSUBw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBA(_VURegsNum* VUregsn) { _vuRegsSUBA(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBAi(_VURegsNum* VUregsn) { _vuRegsSUBAi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBAq(_VURegsNum* VUregsn) { _vuRegsSUBAq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBAx(_VURegsNum* VUregsn) { _vuRegsSUBAx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBAy(_VURegsNum* VUregsn) { _vuRegsSUBAy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBAz(_VURegsNum* VUregsn) { _vuRegsSUBAz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SUBAw(_VURegsNum* VUregsn) { _vuRegsSUBAw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MUL(_VURegsNum* VUregsn) { _vuRegsMUL(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULi(_VURegsNum* VUregsn) { _vuRegsMULi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULq(_VURegsNum* VUregsn) { _vuRegsMULq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULx(_VURegsNum* VUregsn) { _vuRegsMULx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULy(_VURegsNum* VUregsn) { _vuRegsMULy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULz(_VURegsNum* VUregsn) { _vuRegsMULz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULw(_VURegsNum* VUregsn) { _vuRegsMULw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULA(_VURegsNum* VUregsn) { _vuRegsMULA(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULAi(_VURegsNum* VUregsn) { _vuRegsMULAi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULAq(_VURegsNum* VUregsn) { _vuRegsMULAq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULAx(_VURegsNum* VUregsn) { _vuRegsMULAx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULAy(_VURegsNum* VUregsn) { _vuRegsMULAy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULAz(_VURegsNum* VUregsn) { _vuRegsMULAz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MULAw(_VURegsNum* VUregsn) { _vuRegsMULAw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADD(_VURegsNum* VUregsn) { _vuRegsMADD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDi(_VURegsNum* VUregsn) { _vuRegsMADDi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDq(_VURegsNum* VUregsn) { _vuRegsMADDq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDx(_VURegsNum* VUregsn) { _vuRegsMADDx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDy(_VURegsNum* VUregsn) { _vuRegsMADDy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDz(_VURegsNum* VUregsn) { _vuRegsMADDz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDw(_VURegsNum* VUregsn) { _vuRegsMADDw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDA(_VURegsNum* VUregsn) { _vuRegsMADDA(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDAi(_VURegsNum* VUregsn) { _vuRegsMADDAi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDAq(_VURegsNum* VUregsn) { _vuRegsMADDAq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDAx(_VURegsNum* VUregsn) { _vuRegsMADDAx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDAy(_VURegsNum* VUregsn) { _vuRegsMADDAy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDAz(_VURegsNum* VUregsn) { _vuRegsMADDAz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MADDAw(_VURegsNum* VUregsn) { _vuRegsMADDAw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUB(_VURegsNum* VUregsn) { _vuRegsMSUB(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBi(_VURegsNum* VUregsn) { _vuRegsMSUBi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBq(_VURegsNum* VUregsn) { _vuRegsMSUBq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBx(_VURegsNum* VUregsn) { _vuRegsMSUBx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBy(_VURegsNum* VUregsn) { _vuRegsMSUBy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBz(_VURegsNum* VUregsn) { _vuRegsMSUBz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBw(_VURegsNum* VUregsn) { _vuRegsMSUBw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBA(_VURegsNum* VUregsn) { _vuRegsMSUBA(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBAi(_VURegsNum* VUregsn) { _vuRegsMSUBAi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBAq(_VURegsNum* VUregsn) { _vuRegsMSUBAq(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBAx(_VURegsNum* VUregsn) { _vuRegsMSUBAx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBAy(_VURegsNum* VUregsn) { _vuRegsMSUBAy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBAz(_VURegsNum* VUregsn) { _vuRegsMSUBAz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MSUBAw(_VURegsNum* VUregsn) { _vuRegsMSUBAw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MAX(_VURegsNum* VUregsn) { _vuRegsMAX(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MAXi(_VURegsNum* VUregsn) { _vuRegsMAXi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MAXx(_VURegsNum* VUregsn) { _vuRegsMAXx_(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MAXy(_VURegsNum* VUregsn) { _vuRegsMAXy_(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MAXz(_VURegsNum* VUregsn) { _vuRegsMAXz_(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MAXw(_VURegsNum* VUregsn) { _vuRegsMAXw_(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MINI(_VURegsNum* VUregsn) { _vuRegsMINI(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MINIi(_VURegsNum* VUregsn) { _vuRegsMINIi(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MINIx(_VURegsNum* VUregsn) { _vuRegsMINIx(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MINIy(_VURegsNum* VUregsn) { _vuRegsMINIy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MINIz(_VURegsNum* VUregsn) { _vuRegsMINIz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MINIw(_VURegsNum* VUregsn) { _vuRegsMINIw(&vuRegs[1], VUregsn); }
+static void VU1regsMI_OPMULA(_VURegsNum* VUregsn) { _vuRegsOPMULA(&vuRegs[1], VUregsn); }
+static void VU1regsMI_OPMSUB(_VURegsNum* VUregsn) { _vuRegsOPMSUB(&vuRegs[1], VUregsn); }
+static void VU1regsMI_NOP(_VURegsNum* VUregsn) { _vuRegsNOP(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FTOI0(_VURegsNum* VUregsn) { _vuRegsFTOI0(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FTOI4(_VURegsNum* VUregsn) { _vuRegsFTOI4(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FTOI12(_VURegsNum* VUregsn) { _vuRegsFTOI12(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FTOI15(_VURegsNum* VUregsn) { _vuRegsFTOI15(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ITOF0(_VURegsNum* VUregsn) { _vuRegsITOF0(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ITOF4(_VURegsNum* VUregsn) { _vuRegsITOF4(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ITOF12(_VURegsNum* VUregsn) { _vuRegsITOF12(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ITOF15(_VURegsNum* VUregsn) { _vuRegsITOF15(&vuRegs[1], VUregsn); }
+static void VU1regsMI_CLIP(_VURegsNum* VUregsn) { _vuRegsCLIP(&vuRegs[1], VUregsn); }
 
 /*****************************************/
 /*   VU Micromode Lower instructions    */
 /*****************************************/
 
-static void VU1regsMI_DIV(_VURegsNum* VUregsn) { _vuRegsDIV(&VU1, VUregsn); }
-static void VU1regsMI_SQRT(_VURegsNum* VUregsn) { _vuRegsSQRT(&VU1, VUregsn); }
-static void VU1regsMI_RSQRT(_VURegsNum* VUregsn) { _vuRegsRSQRT(&VU1, VUregsn); }
-static void VU1regsMI_IADD(_VURegsNum* VUregsn) { _vuRegsIADD(&VU1, VUregsn); }
-static void VU1regsMI_IADDI(_VURegsNum* VUregsn) { _vuRegsIADDI(&VU1, VUregsn); }
-static void VU1regsMI_IADDIU(_VURegsNum* VUregsn) { _vuRegsIADDIU(&VU1, VUregsn); }
-static void VU1regsMI_IAND(_VURegsNum* VUregsn) { _vuRegsIAND(&VU1, VUregsn); }
-static void VU1regsMI_IOR(_VURegsNum* VUregsn) { _vuRegsIOR(&VU1, VUregsn); }
-static void VU1regsMI_ISUB(_VURegsNum* VUregsn) { _vuRegsISUB(&VU1, VUregsn); }
-static void VU1regsMI_ISUBIU(_VURegsNum* VUregsn) { _vuRegsISUBIU(&VU1, VUregsn); }
-static void VU1regsMI_MOVE(_VURegsNum* VUregsn) { _vuRegsMOVE(&VU1, VUregsn); }
-static void VU1regsMI_MFIR(_VURegsNum* VUregsn) { _vuRegsMFIR(&VU1, VUregsn); }
-static void VU1regsMI_MTIR(_VURegsNum* VUregsn) { _vuRegsMTIR(&VU1, VUregsn); }
-static void VU1regsMI_MR32(_VURegsNum* VUregsn) { _vuRegsMR32(&VU1, VUregsn); }
-static void VU1regsMI_LQ(_VURegsNum* VUregsn) { _vuRegsLQ(&VU1, VUregsn); }
-static void VU1regsMI_LQD(_VURegsNum* VUregsn) { _vuRegsLQD(&VU1, VUregsn); }
-static void VU1regsMI_LQI(_VURegsNum* VUregsn) { _vuRegsLQI(&VU1, VUregsn); }
-static void VU1regsMI_SQ(_VURegsNum* VUregsn) { _vuRegsSQ(&VU1, VUregsn); }
-static void VU1regsMI_SQD(_VURegsNum* VUregsn) { _vuRegsSQD(&VU1, VUregsn); }
-static void VU1regsMI_SQI(_VURegsNum* VUregsn) { _vuRegsSQI(&VU1, VUregsn); }
-static void VU1regsMI_ILW(_VURegsNum* VUregsn) { _vuRegsILW(&VU1, VUregsn); }
-static void VU1regsMI_ISW(_VURegsNum* VUregsn) { _vuRegsISW(&VU1, VUregsn); }
-static void VU1regsMI_ILWR(_VURegsNum* VUregsn) { _vuRegsILWR(&VU1, VUregsn); }
-static void VU1regsMI_ISWR(_VURegsNum* VUregsn) { _vuRegsISWR(&VU1, VUregsn); }
-static void VU1regsMI_RINIT(_VURegsNum* VUregsn) { _vuRegsRINIT(&VU1, VUregsn); }
-static void VU1regsMI_RGET(_VURegsNum* VUregsn) { _vuRegsRGET(&VU1, VUregsn); }
-static void VU1regsMI_RNEXT(_VURegsNum* VUregsn) { _vuRegsRNEXT(&VU1, VUregsn); }
-static void VU1regsMI_RXOR(_VURegsNum* VUregsn) { _vuRegsRXOR(&VU1, VUregsn); }
-static void VU1regsMI_WAITQ(_VURegsNum* VUregsn) { _vuRegsWAITQ(&VU1, VUregsn); }
-static void VU1regsMI_FSAND(_VURegsNum* VUregsn) { _vuRegsFSAND(&VU1, VUregsn); }
-static void VU1regsMI_FSEQ(_VURegsNum* VUregsn) { _vuRegsFSEQ(&VU1, VUregsn); }
-static void VU1regsMI_FSOR(_VURegsNum* VUregsn) { _vuRegsFSOR(&VU1, VUregsn); }
-static void VU1regsMI_FSSET(_VURegsNum* VUregsn) { _vuRegsFSSET(&VU1, VUregsn); }
-static void VU1regsMI_FMAND(_VURegsNum* VUregsn) { _vuRegsFMAND(&VU1, VUregsn); }
-static void VU1regsMI_FMEQ(_VURegsNum* VUregsn) { _vuRegsFMEQ(&VU1, VUregsn); }
-static void VU1regsMI_FMOR(_VURegsNum* VUregsn) { _vuRegsFMOR(&VU1, VUregsn); }
-static void VU1regsMI_FCAND(_VURegsNum* VUregsn) { _vuRegsFCAND(&VU1, VUregsn); }
-static void VU1regsMI_FCEQ(_VURegsNum* VUregsn) { _vuRegsFCEQ(&VU1, VUregsn); }
-static void VU1regsMI_FCOR(_VURegsNum* VUregsn) { _vuRegsFCOR(&VU1, VUregsn); }
-static void VU1regsMI_FCSET(_VURegsNum* VUregsn) { _vuRegsFCSET(&VU1, VUregsn); }
-static void VU1regsMI_FCGET(_VURegsNum* VUregsn) { _vuRegsFCGET(&VU1, VUregsn); }
-static void VU1regsMI_IBEQ(_VURegsNum* VUregsn) { _vuRegsIBEQ(&VU1, VUregsn); }
-static void VU1regsMI_IBGEZ(_VURegsNum* VUregsn) { _vuRegsIBGEZ(&VU1, VUregsn); }
-static void VU1regsMI_IBGTZ(_VURegsNum* VUregsn) { _vuRegsIBGTZ(&VU1, VUregsn); }
-static void VU1regsMI_IBLTZ(_VURegsNum* VUregsn) { _vuRegsIBLTZ(&VU1, VUregsn); }
-static void VU1regsMI_IBLEZ(_VURegsNum* VUregsn) { _vuRegsIBLEZ(&VU1, VUregsn); }
-static void VU1regsMI_IBNE(_VURegsNum* VUregsn) { _vuRegsIBNE(&VU1, VUregsn); }
-static void VU1regsMI_B(_VURegsNum* VUregsn) { _vuRegsB(&VU1, VUregsn); }
-static void VU1regsMI_BAL(_VURegsNum* VUregsn) { _vuRegsBAL(&VU1, VUregsn); }
-static void VU1regsMI_JR(_VURegsNum* VUregsn) { _vuRegsJR(&VU1, VUregsn); }
-static void VU1regsMI_JALR(_VURegsNum* VUregsn) { _vuRegsJALR(&VU1, VUregsn); }
-static void VU1regsMI_MFP(_VURegsNum* VUregsn) { _vuRegsMFP(&VU1, VUregsn); }
-static void VU1regsMI_WAITP(_VURegsNum* VUregsn) { _vuRegsWAITP(&VU1, VUregsn); }
-static void VU1regsMI_ESADD(_VURegsNum* VUregsn) { _vuRegsESADD(&VU1, VUregsn); }
-static void VU1regsMI_ERSADD(_VURegsNum* VUregsn) { _vuRegsERSADD(&VU1, VUregsn); }
-static void VU1regsMI_ELENG(_VURegsNum* VUregsn) { _vuRegsELENG(&VU1, VUregsn); }
-static void VU1regsMI_ERLENG(_VURegsNum* VUregsn) { _vuRegsERLENG(&VU1, VUregsn); }
-static void VU1regsMI_EATANxy(_VURegsNum* VUregsn) { _vuRegsEATANxy(&VU1, VUregsn); }
-static void VU1regsMI_EATANxz(_VURegsNum* VUregsn) { _vuRegsEATANxz(&VU1, VUregsn); }
-static void VU1regsMI_ESUM(_VURegsNum* VUregsn) { _vuRegsESUM(&VU1, VUregsn); }
-static void VU1regsMI_ERCPR(_VURegsNum* VUregsn) { _vuRegsERCPR(&VU1, VUregsn); }
-static void VU1regsMI_ESQRT(_VURegsNum* VUregsn) { _vuRegsESQRT(&VU1, VUregsn); }
-static void VU1regsMI_ERSQRT(_VURegsNum* VUregsn) { _vuRegsERSQRT(&VU1, VUregsn); }
-static void VU1regsMI_ESIN(_VURegsNum* VUregsn) { _vuRegsESIN(&VU1, VUregsn); }
-static void VU1regsMI_EATAN(_VURegsNum* VUregsn) { _vuRegsEATAN(&VU1, VUregsn); }
-static void VU1regsMI_EEXP(_VURegsNum* VUregsn) { _vuRegsEEXP(&VU1, VUregsn); }
-static void VU1regsMI_XITOP(_VURegsNum* VUregsn) { _vuRegsXITOP(&VU1, VUregsn); }
-static void VU1regsMI_XGKICK(_VURegsNum* VUregsn) { _vuRegsXGKICK(&VU1, VUregsn); }
-static void VU1regsMI_XTOP(_VURegsNum* VUregsn) { _vuRegsXTOP(&VU1, VUregsn); }
+static void VU1regsMI_DIV(_VURegsNum* VUregsn) { _vuRegsDIV(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SQRT(_VURegsNum* VUregsn) { _vuRegsSQRT(&vuRegs[1], VUregsn); }
+static void VU1regsMI_RSQRT(_VURegsNum* VUregsn) { _vuRegsRSQRT(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IADD(_VURegsNum* VUregsn) { _vuRegsIADD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IADDI(_VURegsNum* VUregsn) { _vuRegsIADDI(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IADDIU(_VURegsNum* VUregsn) { _vuRegsIADDIU(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IAND(_VURegsNum* VUregsn) { _vuRegsIAND(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IOR(_VURegsNum* VUregsn) { _vuRegsIOR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ISUB(_VURegsNum* VUregsn) { _vuRegsISUB(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ISUBIU(_VURegsNum* VUregsn) { _vuRegsISUBIU(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MOVE(_VURegsNum* VUregsn) { _vuRegsMOVE(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MFIR(_VURegsNum* VUregsn) { _vuRegsMFIR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MTIR(_VURegsNum* VUregsn) { _vuRegsMTIR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MR32(_VURegsNum* VUregsn) { _vuRegsMR32(&vuRegs[1], VUregsn); }
+static void VU1regsMI_LQ(_VURegsNum* VUregsn) { _vuRegsLQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_LQD(_VURegsNum* VUregsn) { _vuRegsLQD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_LQI(_VURegsNum* VUregsn) { _vuRegsLQI(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SQ(_VURegsNum* VUregsn) { _vuRegsSQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SQD(_VURegsNum* VUregsn) { _vuRegsSQD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_SQI(_VURegsNum* VUregsn) { _vuRegsSQI(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ILW(_VURegsNum* VUregsn) { _vuRegsILW(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ISW(_VURegsNum* VUregsn) { _vuRegsISW(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ILWR(_VURegsNum* VUregsn) { _vuRegsILWR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ISWR(_VURegsNum* VUregsn) { _vuRegsISWR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_RINIT(_VURegsNum* VUregsn) { _vuRegsRINIT(&vuRegs[1], VUregsn); }
+static void VU1regsMI_RGET(_VURegsNum* VUregsn) { _vuRegsRGET(&vuRegs[1], VUregsn); }
+static void VU1regsMI_RNEXT(_VURegsNum* VUregsn) { _vuRegsRNEXT(&vuRegs[1], VUregsn); }
+static void VU1regsMI_RXOR(_VURegsNum* VUregsn) { _vuRegsRXOR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_WAITQ(_VURegsNum* VUregsn) { _vuRegsWAITQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FSAND(_VURegsNum* VUregsn) { _vuRegsFSAND(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FSEQ(_VURegsNum* VUregsn) { _vuRegsFSEQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FSOR(_VURegsNum* VUregsn) { _vuRegsFSOR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FSSET(_VURegsNum* VUregsn) { _vuRegsFSSET(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FMAND(_VURegsNum* VUregsn) { _vuRegsFMAND(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FMEQ(_VURegsNum* VUregsn) { _vuRegsFMEQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FMOR(_VURegsNum* VUregsn) { _vuRegsFMOR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FCAND(_VURegsNum* VUregsn) { _vuRegsFCAND(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FCEQ(_VURegsNum* VUregsn) { _vuRegsFCEQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FCOR(_VURegsNum* VUregsn) { _vuRegsFCOR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FCSET(_VURegsNum* VUregsn) { _vuRegsFCSET(&vuRegs[1], VUregsn); }
+static void VU1regsMI_FCGET(_VURegsNum* VUregsn) { _vuRegsFCGET(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IBEQ(_VURegsNum* VUregsn) { _vuRegsIBEQ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IBGEZ(_VURegsNum* VUregsn) { _vuRegsIBGEZ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IBGTZ(_VURegsNum* VUregsn) { _vuRegsIBGTZ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IBLTZ(_VURegsNum* VUregsn) { _vuRegsIBLTZ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IBLEZ(_VURegsNum* VUregsn) { _vuRegsIBLEZ(&vuRegs[1], VUregsn); }
+static void VU1regsMI_IBNE(_VURegsNum* VUregsn) { _vuRegsIBNE(&vuRegs[1], VUregsn); }
+static void VU1regsMI_B(_VURegsNum* VUregsn) { _vuRegsB(&vuRegs[1], VUregsn); }
+static void VU1regsMI_BAL(_VURegsNum* VUregsn) { _vuRegsBAL(&vuRegs[1], VUregsn); }
+static void VU1regsMI_JR(_VURegsNum* VUregsn) { _vuRegsJR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_JALR(_VURegsNum* VUregsn) { _vuRegsJALR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_MFP(_VURegsNum* VUregsn) { _vuRegsMFP(&vuRegs[1], VUregsn); }
+static void VU1regsMI_WAITP(_VURegsNum* VUregsn) { _vuRegsWAITP(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ESADD(_VURegsNum* VUregsn) { _vuRegsESADD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ERSADD(_VURegsNum* VUregsn) { _vuRegsERSADD(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ELENG(_VURegsNum* VUregsn) { _vuRegsELENG(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ERLENG(_VURegsNum* VUregsn) { _vuRegsERLENG(&vuRegs[1], VUregsn); }
+static void VU1regsMI_EATANxy(_VURegsNum* VUregsn) { _vuRegsEATANxy(&vuRegs[1], VUregsn); }
+static void VU1regsMI_EATANxz(_VURegsNum* VUregsn) { _vuRegsEATANxz(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ESUM(_VURegsNum* VUregsn) { _vuRegsESUM(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ERCPR(_VURegsNum* VUregsn) { _vuRegsERCPR(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ESQRT(_VURegsNum* VUregsn) { _vuRegsESQRT(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ERSQRT(_VURegsNum* VUregsn) { _vuRegsERSQRT(&vuRegs[1], VUregsn); }
+static void VU1regsMI_ESIN(_VURegsNum* VUregsn) { _vuRegsESIN(&vuRegs[1], VUregsn); }
+static void VU1regsMI_EATAN(_VURegsNum* VUregsn) { _vuRegsEATAN(&vuRegs[1], VUregsn); }
+static void VU1regsMI_EEXP(_VURegsNum* VUregsn) { _vuRegsEEXP(&vuRegs[1], VUregsn); }
+static void VU1regsMI_XITOP(_VURegsNum* VUregsn) { _vuRegsXITOP(&vuRegs[1], VUregsn); }
+static void VU1regsMI_XGKICK(_VURegsNum* VUregsn) { _vuRegsXGKICK(&vuRegs[1], VUregsn); }
+static void VU1regsMI_XTOP(_VURegsNum* VUregsn) { _vuRegsXTOP(&vuRegs[1], VUregsn); }
 
 static void VU1unknown(void) { }
 static void VU1regsunknown(_VURegsNum* VUregsn) { }
@@ -4577,168 +4577,167 @@ alignas(16) const FNTYPE PREFIX##_UPPER_OPCODE[64] = { \
 
 _vuTablesPre(VU0, VU0)
 _vuTablesMess(VU0, FnPtr_VuVoid)
-_vuTablesPost(VU0, VU0)
+_vuTablesPost(vuRegs[0], VU0)
 
 _vuTablesPre(VU1, VU1)
 _vuTablesMess(VU1, FnPtr_VuVoid)
-_vuTablesPost(VU1, VU1)
+_vuTablesPost(vuRegs[1], VU1)
 
-_vuRegsTables(VU0, VU0regs, FnPtr_VuRegsN)
-_vuRegsTables(VU1, VU1regs, FnPtr_VuRegsN)
-
+_vuRegsTables(vuRegs[0], VU0regs, FnPtr_VuRegsN)
+_vuRegsTables(vuRegs[1], VU1regs, FnPtr_VuRegsN)
 
 // --------------------------------------------------------------------------------------
 //  VU0macro (COP2)
 // --------------------------------------------------------------------------------------
 
 #define SYNCMSFLAGS() \
-	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0xFC0) | (VU0.statusflag & 0xF) | ((VU0.statusflag & 0xF) << 6); \
-	VU0.VI[REG_MAC_FLAG].UL = VU0.macflag
+	vuRegs[0].VI[REG_STATUS_FLAG].UL = (vuRegs[0].VI[REG_STATUS_FLAG].UL & 0xFC0) | (vuRegs[0].statusflag & 0xF) | ((vuRegs[0].statusflag & 0xF) << 6); \
+	vuRegs[0].VI[REG_MAC_FLAG].UL = vuRegs[0].macflag
 
-#define SYNCCLIPFLAG() VU0.VI[REG_CLIP_FLAG].UL = VU0.clipflag
+#define SYNCCLIPFLAG() vuRegs[0].VI[REG_CLIP_FLAG].UL = vuRegs[0].clipflag
 
-#define SYNCSTATUSFLAG() VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0xFC0) | (VU0.statusflag & 0xF) | ((VU0.statusflag & 0xF) << 6)
+#define SYNCSTATUSFLAG() vuRegs[0].VI[REG_STATUS_FLAG].UL = (vuRegs[0].VI[REG_STATUS_FLAG].UL & 0xFC0) | (vuRegs[0].statusflag & 0xF) | ((vuRegs[0].statusflag & 0xF) << 6)
 
 #define SYNCFDIV() \
-	VU0.VI[REG_Q].UL = VU0.q.UL; \
-	VU0.VI[REG_STATUS_FLAG].UL = (VU0.VI[REG_STATUS_FLAG].UL & 0x3CF) | (VU0.statusflag & 0x30) | ((VU0.statusflag & 0x30) << 6)
+	vuRegs[0].VI[REG_Q].UL = vuRegs[0].q.UL; \
+	vuRegs[0].VI[REG_STATUS_FLAG].UL = (vuRegs[0].VI[REG_STATUS_FLAG].UL & 0x3CF) | (vuRegs[0].statusflag & 0x30) | ((vuRegs[0].statusflag & 0x30) << 6)
 
-void VABS()  { VU0.code = cpuRegs.code; _vuABS(&VU0); }
-void VADD()  { VU0.code = cpuRegs.code; _vuADD(&VU0); SYNCMSFLAGS(); }
-void VADDi() { VU0.code = cpuRegs.code; _vuADDi(&VU0); SYNCMSFLAGS(); }
-void VADDq() { VU0.code = cpuRegs.code; _vuADDq(&VU0); SYNCMSFLAGS(); }
-void VADDx() { VU0.code = cpuRegs.code; _vuADDx(&VU0); SYNCMSFLAGS(); }
-void VADDy() { VU0.code = cpuRegs.code; _vuADDy(&VU0); SYNCMSFLAGS(); }
-void VADDz() { VU0.code = cpuRegs.code; _vuADDz(&VU0); SYNCMSFLAGS(); }
-void VADDw() { VU0.code = cpuRegs.code; _vuADDw(&VU0); SYNCMSFLAGS(); }
-void VADDA() { VU0.code = cpuRegs.code; _vuADDA(&VU0); SYNCMSFLAGS(); }
-void VADDAi() { VU0.code = cpuRegs.code; _vuADDAi(&VU0); SYNCMSFLAGS(); }
-void VADDAq() { VU0.code = cpuRegs.code; _vuADDAq(&VU0); SYNCMSFLAGS(); }
-void VADDAx() { VU0.code = cpuRegs.code; _vuADDAx(&VU0); SYNCMSFLAGS(); }
-void VADDAy() { VU0.code = cpuRegs.code; _vuADDAy(&VU0); SYNCMSFLAGS(); }
-void VADDAz() { VU0.code = cpuRegs.code; _vuADDAz(&VU0); SYNCMSFLAGS(); }
-void VADDAw() { VU0.code = cpuRegs.code; _vuADDAw(&VU0); SYNCMSFLAGS(); }
-void VSUB()  { VU0.code = cpuRegs.code; _vuSUB(&VU0); SYNCMSFLAGS(); }
-void VSUBi() { VU0.code = cpuRegs.code; _vuSUBi(&VU0); SYNCMSFLAGS(); }
-void VSUBq() { VU0.code = cpuRegs.code; _vuSUBq(&VU0); SYNCMSFLAGS(); }
-void VSUBx() { VU0.code = cpuRegs.code; _vuSUBx(&VU0); SYNCMSFLAGS(); }
-void VSUBy() { VU0.code = cpuRegs.code; _vuSUBy(&VU0); SYNCMSFLAGS(); }
-void VSUBz() { VU0.code = cpuRegs.code; _vuSUBz(&VU0); SYNCMSFLAGS(); }
-void VSUBw() { VU0.code = cpuRegs.code; _vuSUBw(&VU0); SYNCMSFLAGS(); }
-void VSUBA()  { VU0.code = cpuRegs.code; _vuSUBA(&VU0); SYNCMSFLAGS(); }
-void VSUBAi() { VU0.code = cpuRegs.code; _vuSUBAi(&VU0); SYNCMSFLAGS(); }
-void VSUBAq() { VU0.code = cpuRegs.code; _vuSUBAq(&VU0); SYNCMSFLAGS(); }
-void VSUBAx() { VU0.code = cpuRegs.code; _vuSUBAx(&VU0); SYNCMSFLAGS(); }
-void VSUBAy() { VU0.code = cpuRegs.code; _vuSUBAy(&VU0); SYNCMSFLAGS(); }
-void VSUBAz() { VU0.code = cpuRegs.code; _vuSUBAz(&VU0); SYNCMSFLAGS(); }
-void VSUBAw() { VU0.code = cpuRegs.code; _vuSUBAw(&VU0); SYNCMSFLAGS(); }
-void VMUL()  { VU0.code = cpuRegs.code; _vuMUL(&VU0); SYNCMSFLAGS(); }
-void VMULi() { VU0.code = cpuRegs.code; _vuMULi(&VU0); SYNCMSFLAGS(); }
-void VMULq() { VU0.code = cpuRegs.code; _vuMULq(&VU0); SYNCMSFLAGS(); }
-void VMULx() { VU0.code = cpuRegs.code; _vuMULx(&VU0); SYNCMSFLAGS(); }
-void VMULy() { VU0.code = cpuRegs.code; _vuMULy(&VU0); SYNCMSFLAGS(); }
-void VMULz() { VU0.code = cpuRegs.code; _vuMULz(&VU0); SYNCMSFLAGS(); }
-void VMULw() { VU0.code = cpuRegs.code; _vuMULw(&VU0); SYNCMSFLAGS(); }
-void VMULA()  { VU0.code = cpuRegs.code; _vuMULA(&VU0); SYNCMSFLAGS(); }
-void VMULAi() { VU0.code = cpuRegs.code; _vuMULAi(&VU0); SYNCMSFLAGS(); }
-void VMULAq() { VU0.code = cpuRegs.code; _vuMULAq(&VU0); SYNCMSFLAGS(); }
-void VMULAx() { VU0.code = cpuRegs.code; _vuMULAx(&VU0); SYNCMSFLAGS(); }
-void VMULAy() { VU0.code = cpuRegs.code; _vuMULAy(&VU0); SYNCMSFLAGS(); }
-void VMULAz() { VU0.code = cpuRegs.code; _vuMULAz(&VU0); SYNCMSFLAGS(); }
-void VMULAw() { VU0.code = cpuRegs.code; _vuMULAw(&VU0); SYNCMSFLAGS(); }
-void VMADD()  { VU0.code = cpuRegs.code; _vuMADD(&VU0); SYNCMSFLAGS(); }
-void VMADDi() { VU0.code = cpuRegs.code; _vuMADDi(&VU0); SYNCMSFLAGS(); }
-void VMADDq() { VU0.code = cpuRegs.code; _vuMADDq(&VU0); SYNCMSFLAGS(); }
-void VMADDx() { VU0.code = cpuRegs.code; _vuMADDx(&VU0); SYNCMSFLAGS(); }
-void VMADDy() { VU0.code = cpuRegs.code; _vuMADDy(&VU0); SYNCMSFLAGS(); }
-void VMADDz() { VU0.code = cpuRegs.code; _vuMADDz(&VU0); SYNCMSFLAGS(); }
-void VMADDw() { VU0.code = cpuRegs.code; _vuMADDw(&VU0); SYNCMSFLAGS(); }
-void VMADDA()  { VU0.code = cpuRegs.code; _vuMADDA(&VU0); SYNCMSFLAGS(); }
-void VMADDAi() { VU0.code = cpuRegs.code; _vuMADDAi(&VU0); SYNCMSFLAGS(); }
-void VMADDAq() { VU0.code = cpuRegs.code; _vuMADDAq(&VU0); SYNCMSFLAGS(); }
-void VMADDAx() { VU0.code = cpuRegs.code; _vuMADDAx(&VU0); SYNCMSFLAGS(); }
-void VMADDAy() { VU0.code = cpuRegs.code; _vuMADDAy(&VU0); SYNCMSFLAGS(); }
-void VMADDAz() { VU0.code = cpuRegs.code; _vuMADDAz(&VU0); SYNCMSFLAGS(); }
-void VMADDAw() { VU0.code = cpuRegs.code; _vuMADDAw(&VU0); SYNCMSFLAGS(); }
-void VMSUB()  { VU0.code = cpuRegs.code; _vuMSUB(&VU0); SYNCMSFLAGS(); }
-void VMSUBi() { VU0.code = cpuRegs.code; _vuMSUBi(&VU0); SYNCMSFLAGS(); }
-void VMSUBq() { VU0.code = cpuRegs.code; _vuMSUBq(&VU0); SYNCMSFLAGS(); }
-void VMSUBx() { VU0.code = cpuRegs.code; _vuMSUBx(&VU0); SYNCMSFLAGS(); }
-void VMSUBy() { VU0.code = cpuRegs.code; _vuMSUBy(&VU0); SYNCMSFLAGS(); }
-void VMSUBz() { VU0.code = cpuRegs.code; _vuMSUBz(&VU0); SYNCMSFLAGS(); }
-void VMSUBw() { VU0.code = cpuRegs.code; _vuMSUBw(&VU0); SYNCMSFLAGS(); }
-void VMSUBA()  { VU0.code = cpuRegs.code; _vuMSUBA(&VU0); SYNCMSFLAGS(); }
-void VMSUBAi() { VU0.code = cpuRegs.code; _vuMSUBAi(&VU0); SYNCMSFLAGS(); }
-void VMSUBAq() { VU0.code = cpuRegs.code; _vuMSUBAq(&VU0); SYNCMSFLAGS(); }
-void VMSUBAx() { VU0.code = cpuRegs.code; _vuMSUBAx(&VU0); SYNCMSFLAGS(); }
-void VMSUBAy() { VU0.code = cpuRegs.code; _vuMSUBAy(&VU0); SYNCMSFLAGS(); }
-void VMSUBAz() { VU0.code = cpuRegs.code; _vuMSUBAz(&VU0); SYNCMSFLAGS(); }
-void VMSUBAw() { VU0.code = cpuRegs.code; _vuMSUBAw(&VU0); SYNCMSFLAGS(); }
-void VMAX()  { VU0.code = cpuRegs.code; _vuMAX(&VU0); }
-void VMAXi() { VU0.code = cpuRegs.code; _vuMAXi(&VU0); }
-void VMAXx() { VU0.code = cpuRegs.code; _vuMAXx(&VU0); }
-void VMAXy() { VU0.code = cpuRegs.code; _vuMAXy(&VU0); }
-void VMAXz() { VU0.code = cpuRegs.code; _vuMAXz(&VU0); }
-void VMAXw() { VU0.code = cpuRegs.code; _vuMAXw(&VU0); }
-void VMINI()  { VU0.code = cpuRegs.code; _vuMINI(&VU0); }
-void VMINIi() { VU0.code = cpuRegs.code; _vuMINIi(&VU0); }
-void VMINIx() { VU0.code = cpuRegs.code; _vuMINIx(&VU0); }
-void VMINIy() { VU0.code = cpuRegs.code; _vuMINIy(&VU0); }
-void VMINIz() { VU0.code = cpuRegs.code; _vuMINIz(&VU0); }
-void VMINIw() { VU0.code = cpuRegs.code; _vuMINIw(&VU0); }
-void VOPMULA() { VU0.code = cpuRegs.code; _vuOPMULA(&VU0); SYNCMSFLAGS(); }
-void VOPMSUB() { VU0.code = cpuRegs.code; _vuOPMSUB(&VU0); SYNCMSFLAGS(); }
-void VNOP()    { VU0.code = cpuRegs.code; _vuNOP(&VU0); }
-void VFTOI0()  { VU0.code = cpuRegs.code; _vuFTOI0(&VU0); }
-void VFTOI4()  { VU0.code = cpuRegs.code; _vuFTOI4(&VU0); }
-void VFTOI12() { VU0.code = cpuRegs.code; _vuFTOI12(&VU0); }
-void VFTOI15() { VU0.code = cpuRegs.code; _vuFTOI15(&VU0); }
-void VITOF0()  { VU0.code = cpuRegs.code; _vuITOF0(&VU0); }
-void VITOF4()  { VU0.code = cpuRegs.code; _vuITOF4(&VU0); }
-void VITOF12() { VU0.code = cpuRegs.code; _vuITOF12(&VU0); }
-void VITOF15() { VU0.code = cpuRegs.code; _vuITOF15(&VU0); }
-void VCLIPw()  { VU0.code = cpuRegs.code; _vuCLIP(&VU0); SYNCCLIPFLAG(); }
+void VABS()  { vuRegs[0].code = cpuRegs.code; _vuABS(&vuRegs[0]); }
+void VADD()  { vuRegs[0].code = cpuRegs.code; _vuADD(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDi() { vuRegs[0].code = cpuRegs.code; _vuADDi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDq() { vuRegs[0].code = cpuRegs.code; _vuADDq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDx() { vuRegs[0].code = cpuRegs.code; _vuADDx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDy() { vuRegs[0].code = cpuRegs.code; _vuADDy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDz() { vuRegs[0].code = cpuRegs.code; _vuADDz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDw() { vuRegs[0].code = cpuRegs.code; _vuADDw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDA() { vuRegs[0].code = cpuRegs.code; _vuADDA(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDAi() { vuRegs[0].code = cpuRegs.code; _vuADDAi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDAq() { vuRegs[0].code = cpuRegs.code; _vuADDAq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDAx() { vuRegs[0].code = cpuRegs.code; _vuADDAx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDAy() { vuRegs[0].code = cpuRegs.code; _vuADDAy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDAz() { vuRegs[0].code = cpuRegs.code; _vuADDAz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VADDAw() { vuRegs[0].code = cpuRegs.code; _vuADDAw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUB()  { vuRegs[0].code = cpuRegs.code; _vuSUB(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBi() { vuRegs[0].code = cpuRegs.code; _vuSUBi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBq() { vuRegs[0].code = cpuRegs.code; _vuSUBq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBx() { vuRegs[0].code = cpuRegs.code; _vuSUBx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBy() { vuRegs[0].code = cpuRegs.code; _vuSUBy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBz() { vuRegs[0].code = cpuRegs.code; _vuSUBz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBw() { vuRegs[0].code = cpuRegs.code; _vuSUBw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBA()  { vuRegs[0].code = cpuRegs.code; _vuSUBA(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBAi() { vuRegs[0].code = cpuRegs.code; _vuSUBAi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBAq() { vuRegs[0].code = cpuRegs.code; _vuSUBAq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBAx() { vuRegs[0].code = cpuRegs.code; _vuSUBAx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBAy() { vuRegs[0].code = cpuRegs.code; _vuSUBAy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBAz() { vuRegs[0].code = cpuRegs.code; _vuSUBAz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VSUBAw() { vuRegs[0].code = cpuRegs.code; _vuSUBAw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMUL()  { vuRegs[0].code = cpuRegs.code; _vuMUL(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULi() { vuRegs[0].code = cpuRegs.code; _vuMULi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULq() { vuRegs[0].code = cpuRegs.code; _vuMULq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULx() { vuRegs[0].code = cpuRegs.code; _vuMULx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULy() { vuRegs[0].code = cpuRegs.code; _vuMULy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULz() { vuRegs[0].code = cpuRegs.code; _vuMULz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULw() { vuRegs[0].code = cpuRegs.code; _vuMULw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULA()  { vuRegs[0].code = cpuRegs.code; _vuMULA(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULAi() { vuRegs[0].code = cpuRegs.code; _vuMULAi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULAq() { vuRegs[0].code = cpuRegs.code; _vuMULAq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULAx() { vuRegs[0].code = cpuRegs.code; _vuMULAx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULAy() { vuRegs[0].code = cpuRegs.code; _vuMULAy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULAz() { vuRegs[0].code = cpuRegs.code; _vuMULAz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMULAw() { vuRegs[0].code = cpuRegs.code; _vuMULAw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADD()  { vuRegs[0].code = cpuRegs.code; _vuMADD(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDi() { vuRegs[0].code = cpuRegs.code; _vuMADDi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDq() { vuRegs[0].code = cpuRegs.code; _vuMADDq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDx() { vuRegs[0].code = cpuRegs.code; _vuMADDx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDy() { vuRegs[0].code = cpuRegs.code; _vuMADDy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDz() { vuRegs[0].code = cpuRegs.code; _vuMADDz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDw() { vuRegs[0].code = cpuRegs.code; _vuMADDw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDA()  { vuRegs[0].code = cpuRegs.code; _vuMADDA(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDAi() { vuRegs[0].code = cpuRegs.code; _vuMADDAi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDAq() { vuRegs[0].code = cpuRegs.code; _vuMADDAq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDAx() { vuRegs[0].code = cpuRegs.code; _vuMADDAx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDAy() { vuRegs[0].code = cpuRegs.code; _vuMADDAy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDAz() { vuRegs[0].code = cpuRegs.code; _vuMADDAz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMADDAw() { vuRegs[0].code = cpuRegs.code; _vuMADDAw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUB()  { vuRegs[0].code = cpuRegs.code; _vuMSUB(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBi() { vuRegs[0].code = cpuRegs.code; _vuMSUBi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBq() { vuRegs[0].code = cpuRegs.code; _vuMSUBq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBx() { vuRegs[0].code = cpuRegs.code; _vuMSUBx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBy() { vuRegs[0].code = cpuRegs.code; _vuMSUBy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBz() { vuRegs[0].code = cpuRegs.code; _vuMSUBz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBw() { vuRegs[0].code = cpuRegs.code; _vuMSUBw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBA()  { vuRegs[0].code = cpuRegs.code; _vuMSUBA(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBAi() { vuRegs[0].code = cpuRegs.code; _vuMSUBAi(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBAq() { vuRegs[0].code = cpuRegs.code; _vuMSUBAq(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBAx() { vuRegs[0].code = cpuRegs.code; _vuMSUBAx(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBAy() { vuRegs[0].code = cpuRegs.code; _vuMSUBAy(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBAz() { vuRegs[0].code = cpuRegs.code; _vuMSUBAz(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMSUBAw() { vuRegs[0].code = cpuRegs.code; _vuMSUBAw(&vuRegs[0]); SYNCMSFLAGS(); }
+void VMAX()  { vuRegs[0].code = cpuRegs.code; _vuMAX(&vuRegs[0]); }
+void VMAXi() { vuRegs[0].code = cpuRegs.code; _vuMAXi(&vuRegs[0]); }
+void VMAXx() { vuRegs[0].code = cpuRegs.code; _vuMAXx(&vuRegs[0]); }
+void VMAXy() { vuRegs[0].code = cpuRegs.code; _vuMAXy(&vuRegs[0]); }
+void VMAXz() { vuRegs[0].code = cpuRegs.code; _vuMAXz(&vuRegs[0]); }
+void VMAXw() { vuRegs[0].code = cpuRegs.code; _vuMAXw(&vuRegs[0]); }
+void VMINI()  { vuRegs[0].code = cpuRegs.code; _vuMINI(&vuRegs[0]); }
+void VMINIi() { vuRegs[0].code = cpuRegs.code; _vuMINIi(&vuRegs[0]); }
+void VMINIx() { vuRegs[0].code = cpuRegs.code; _vuMINIx(&vuRegs[0]); }
+void VMINIy() { vuRegs[0].code = cpuRegs.code; _vuMINIy(&vuRegs[0]); }
+void VMINIz() { vuRegs[0].code = cpuRegs.code; _vuMINIz(&vuRegs[0]); }
+void VMINIw() { vuRegs[0].code = cpuRegs.code; _vuMINIw(&vuRegs[0]); }
+void VOPMULA() { vuRegs[0].code = cpuRegs.code; _vuOPMULA(&vuRegs[0]); SYNCMSFLAGS(); }
+void VOPMSUB() { vuRegs[0].code = cpuRegs.code; _vuOPMSUB(&vuRegs[0]); SYNCMSFLAGS(); }
+void VNOP()    { vuRegs[0].code = cpuRegs.code; _vuNOP(&vuRegs[0]); }
+void VFTOI0()  { vuRegs[0].code = cpuRegs.code; _vuFTOI0(&vuRegs[0]); }
+void VFTOI4()  { vuRegs[0].code = cpuRegs.code; _vuFTOI4(&vuRegs[0]); }
+void VFTOI12() { vuRegs[0].code = cpuRegs.code; _vuFTOI12(&vuRegs[0]); }
+void VFTOI15() { vuRegs[0].code = cpuRegs.code; _vuFTOI15(&vuRegs[0]); }
+void VITOF0()  { vuRegs[0].code = cpuRegs.code; _vuITOF0(&vuRegs[0]); }
+void VITOF4()  { vuRegs[0].code = cpuRegs.code; _vuITOF4(&vuRegs[0]); }
+void VITOF12() { vuRegs[0].code = cpuRegs.code; _vuITOF12(&vuRegs[0]); }
+void VITOF15() { vuRegs[0].code = cpuRegs.code; _vuITOF15(&vuRegs[0]); }
+void VCLIPw()  { vuRegs[0].code = cpuRegs.code; _vuCLIP(&vuRegs[0]); SYNCCLIPFLAG(); }
 
-void VDIV()    { VU0.code = cpuRegs.code; _vuDIV(&VU0); SYNCFDIV(); }
-void VSQRT()   { VU0.code = cpuRegs.code; _vuSQRT(&VU0); SYNCFDIV(); }
-void VRSQRT()  { VU0.code = cpuRegs.code; _vuRSQRT(&VU0); SYNCFDIV(); }
-void VIADD()   { VU0.code = cpuRegs.code; _vuIADD(&VU0); }
-void VIADDI()  { VU0.code = cpuRegs.code; _vuIADDI(&VU0); }
-void VIADDIU() { VU0.code = cpuRegs.code; _vuIADDIU(&VU0); }
-void VIAND()   { VU0.code = cpuRegs.code; _vuIAND(&VU0); }
-void VIOR()    { VU0.code = cpuRegs.code; _vuIOR(&VU0); }
-void VISUB()   { VU0.code = cpuRegs.code; _vuISUB(&VU0); }
-void VISUBIU() { VU0.code = cpuRegs.code; _vuISUBIU(&VU0); }
-void VMOVE()   { VU0.code = cpuRegs.code; _vuMOVE(&VU0); }
-void VMFIR()   { VU0.code = cpuRegs.code; _vuMFIR(&VU0); }
-void VMTIR()   { VU0.code = cpuRegs.code; _vuMTIR(&VU0); }
-void VMR32()   { VU0.code = cpuRegs.code; _vuMR32(&VU0); }
-void VLQ()     { VU0.code = cpuRegs.code; _vuLQ(&VU0); }
-void VLQD()    { VU0.code = cpuRegs.code; _vuLQD(&VU0); }
-void VLQI()    { VU0.code = cpuRegs.code; _vuLQI(&VU0); }
-void VSQ()     { VU0.code = cpuRegs.code; _vuSQ(&VU0); }
-void VSQD()    { VU0.code = cpuRegs.code; _vuSQD(&VU0); }
-void VSQI()    { VU0.code = cpuRegs.code; _vuSQI(&VU0); }
-void VILW()    { VU0.code = cpuRegs.code; _vuILW(&VU0); }
-void VISW()    { VU0.code = cpuRegs.code; _vuISW(&VU0); }
-void VILWR()   { VU0.code = cpuRegs.code; _vuILWR(&VU0); }
-void VISWR()   { VU0.code = cpuRegs.code; _vuISWR(&VU0); }
-void VRINIT()  { VU0.code = cpuRegs.code; VU0.VI[REG_R].UL = 0x3F800000 | (VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)] & 0x007FFFFF); }
-void VRGET()   { VU0.code = cpuRegs.code; _vuRGET(&VU0); }
-void VRNEXT()  { VU0.code = cpuRegs.code; _vuRNEXT(&VU0); }
-void VRXOR()   { VU0.code = cpuRegs.code; VU0.VI[REG_R].UL = 0x3F800000 | ((VU0.VI[REG_R].UL ^ VU0.VF[((VU0.code >> 11) & 0x1F)].UL[((VU0.code >> 21) & 0x03)]) & 0x007FFFFF); }
-void VWAITQ()  { VU0.code = cpuRegs.code; }
-void VFSAND()  { VU0.code = cpuRegs.code; _vuFSAND(&VU0); }
-void VFSEQ()   { VU0.code = cpuRegs.code; _vuFSEQ(&VU0); }
-void VFSOR()   { VU0.code = cpuRegs.code; _vuFSOR(&VU0); }
-void VFSSET()  { VU0.code = cpuRegs.code; _vuFSSET(&VU0); SYNCSTATUSFLAG(); }
-void VFMAND()  { VU0.code = cpuRegs.code; _vuFMAND(&VU0); }
-void VFMEQ()   { VU0.code = cpuRegs.code; _vuFMEQ(&VU0); }
-void VFMOR()   { VU0.code = cpuRegs.code; _vuFMOR(&VU0); }
-void VFCAND()  { VU0.code = cpuRegs.code; _vuFCAND(&VU0); }
-void VFCEQ()   { VU0.code = cpuRegs.code; _vuFCEQ(&VU0); }
-void VFCOR()   { VU0.code = cpuRegs.code; _vuFCOR(&VU0); }
-void VFCSET()  { VU0.code = cpuRegs.code; VU0.clipflag = (u32)(VU0.code & 0xFFFFFF); SYNCCLIPFLAG(); }
-void VFCGET()  { VU0.code = cpuRegs.code; _vuFCGET(&VU0); }
-void VXITOP()  { VU0.code = cpuRegs.code; _vuXITOP(&VU0); }
+void VDIV()    { vuRegs[0].code = cpuRegs.code; _vuDIV(&vuRegs[0]); SYNCFDIV(); }
+void VSQRT()   { vuRegs[0].code = cpuRegs.code; _vuSQRT(&vuRegs[0]); SYNCFDIV(); }
+void VRSQRT()  { vuRegs[0].code = cpuRegs.code; _vuRSQRT(&vuRegs[0]); SYNCFDIV(); }
+void VIADD()   { vuRegs[0].code = cpuRegs.code; _vuIADD(&vuRegs[0]); }
+void VIADDI()  { vuRegs[0].code = cpuRegs.code; _vuIADDI(&vuRegs[0]); }
+void VIADDIU() { vuRegs[0].code = cpuRegs.code; _vuIADDIU(&vuRegs[0]); }
+void VIAND()   { vuRegs[0].code = cpuRegs.code; _vuIAND(&vuRegs[0]); }
+void VIOR()    { vuRegs[0].code = cpuRegs.code; _vuIOR(&vuRegs[0]); }
+void VISUB()   { vuRegs[0].code = cpuRegs.code; _vuISUB(&vuRegs[0]); }
+void VISUBIU() { vuRegs[0].code = cpuRegs.code; _vuISUBIU(&vuRegs[0]); }
+void VMOVE()   { vuRegs[0].code = cpuRegs.code; _vuMOVE(&vuRegs[0]); }
+void VMFIR()   { vuRegs[0].code = cpuRegs.code; _vuMFIR(&vuRegs[0]); }
+void VMTIR()   { vuRegs[0].code = cpuRegs.code; _vuMTIR(&vuRegs[0]); }
+void VMR32()   { vuRegs[0].code = cpuRegs.code; _vuMR32(&vuRegs[0]); }
+void VLQ()     { vuRegs[0].code = cpuRegs.code; _vuLQ(&vuRegs[0]); }
+void VLQD()    { vuRegs[0].code = cpuRegs.code; _vuLQD(&vuRegs[0]); }
+void VLQI()    { vuRegs[0].code = cpuRegs.code; _vuLQI(&vuRegs[0]); }
+void VSQ()     { vuRegs[0].code = cpuRegs.code; _vuSQ(&vuRegs[0]); }
+void VSQD()    { vuRegs[0].code = cpuRegs.code; _vuSQD(&vuRegs[0]); }
+void VSQI()    { vuRegs[0].code = cpuRegs.code; _vuSQI(&vuRegs[0]); }
+void VILW()    { vuRegs[0].code = cpuRegs.code; _vuILW(&vuRegs[0]); }
+void VISW()    { vuRegs[0].code = cpuRegs.code; _vuISW(&vuRegs[0]); }
+void VILWR()   { vuRegs[0].code = cpuRegs.code; _vuILWR(&vuRegs[0]); }
+void VISWR()   { vuRegs[0].code = cpuRegs.code; _vuISWR(&vuRegs[0]); }
+void VRINIT()  { vuRegs[0].code = cpuRegs.code; vuRegs[0].VI[REG_R].UL = 0x3F800000 | (vuRegs[0].VF[((vuRegs[0].code >> 11) & 0x1F)].UL[((vuRegs[0].code >> 21) & 0x03)] & 0x007FFFFF); }
+void VRGET()   { vuRegs[0].code = cpuRegs.code; _vuRGET(&vuRegs[0]); }
+void VRNEXT()  { vuRegs[0].code = cpuRegs.code; _vuRNEXT(&vuRegs[0]); }
+void VRXOR()   { vuRegs[0].code = cpuRegs.code; vuRegs[0].VI[REG_R].UL = 0x3F800000 | ((vuRegs[0].VI[REG_R].UL ^ vuRegs[0].VF[((vuRegs[0].code >> 11) & 0x1F)].UL[((vuRegs[0].code >> 21) & 0x03)]) & 0x007FFFFF); }
+void VWAITQ()  { vuRegs[0].code = cpuRegs.code; }
+void VFSAND()  { vuRegs[0].code = cpuRegs.code; _vuFSAND(&vuRegs[0]); }
+void VFSEQ()   { vuRegs[0].code = cpuRegs.code; _vuFSEQ(&vuRegs[0]); }
+void VFSOR()   { vuRegs[0].code = cpuRegs.code; _vuFSOR(&vuRegs[0]); }
+void VFSSET()  { vuRegs[0].code = cpuRegs.code; _vuFSSET(&vuRegs[0]); SYNCSTATUSFLAG(); }
+void VFMAND()  { vuRegs[0].code = cpuRegs.code; _vuFMAND(&vuRegs[0]); }
+void VFMEQ()   { vuRegs[0].code = cpuRegs.code; _vuFMEQ(&vuRegs[0]); }
+void VFMOR()   { vuRegs[0].code = cpuRegs.code; _vuFMOR(&vuRegs[0]); }
+void VFCAND()  { vuRegs[0].code = cpuRegs.code; _vuFCAND(&vuRegs[0]); }
+void VFCEQ()   { vuRegs[0].code = cpuRegs.code; _vuFCEQ(&vuRegs[0]); }
+void VFCOR()   { vuRegs[0].code = cpuRegs.code; _vuFCOR(&vuRegs[0]); }
+void VFCSET()  { vuRegs[0].code = cpuRegs.code; vuRegs[0].clipflag = (u32)(vuRegs[0].code & 0xFFFFFF); SYNCCLIPFLAG(); }
+void VFCGET()  { vuRegs[0].code = cpuRegs.code; _vuFCGET(&vuRegs[0]); }
+void VXITOP()  { vuRegs[0].code = cpuRegs.code; _vuXITOP(&vuRegs[0]); }
 

@@ -675,11 +675,11 @@ void _writebackXMMreg(int xmmreg)
 		case XMMTYPE_VFREG:
 		{
 			if (xmmregs[xmmreg].reg == 33)
-				xMOVSS(ptr[&VU0.VI[REG_I].F], xRegisterSSE(xmmreg));
+				xMOVSS(ptr[&vuRegs[0].VI[REG_I].F], xRegisterSSE(xmmreg));
 			else if (xmmregs[xmmreg].reg == 32)
-				xMOVAPS(ptr[VU0.ACC.F], xRegisterSSE(xmmreg));
+				xMOVAPS(ptr[vuRegs[0].ACC.F], xRegisterSSE(xmmreg));
 			else if (xmmregs[xmmreg].reg > 0)
-				xMOVAPS(ptr[VU0.VF[xmmregs[xmmreg].reg].F], xRegisterSSE(xmmreg));
+				xMOVAPS(ptr[vuRegs[0].VF[xmmregs[xmmreg].reg].F], xRegisterSSE(xmmreg));
 		}
 		break;
 
@@ -758,11 +758,11 @@ int _allocVFtoXMMreg(int vfreg, int mode)
 	if (mode & MODE_READ)
 	{
 		if (vfreg == 33)
-			xMOVSSZX(xRegisterSSE(xmmreg), ptr[&VU0.VI[REG_I].F]);
+			xMOVSSZX(xRegisterSSE(xmmreg), ptr[&vuRegs[0].VI[REG_I].F]);
 		else if (vfreg == 32)
-			xMOVAPS(xRegisterSSE(xmmreg), ptr[VU0.ACC.F]);
+			xMOVAPS(xRegisterSSE(xmmreg), ptr[vuRegs[0].ACC.F]);
 		else
-			xMOVAPS(xRegisterSSE(xmmreg), ptr[VU0.VF[xmmregs[xmmreg].reg].F]);
+			xMOVAPS(xRegisterSSE(xmmreg), ptr[vuRegs[0].VF[xmmregs[xmmreg].reg].F]);
 	}
 
 	return xmmreg;

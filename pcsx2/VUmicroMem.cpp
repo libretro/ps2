@@ -32,18 +32,24 @@ void vuMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
 	_parent::Assign(std::move(allocator), HostMemoryMap::VUmemOffset, VU_MEMORY_RESERVE_SIZE);
 
 	u8* curpos = GetPtr();
-	VU0.Micro	= curpos; curpos += VU0_PROGSIZE;
-	VU0.Mem		= curpos; curpos += VU0_MEMSIZE;
-	VU1.Micro	= curpos; curpos += VU1_PROGSIZE;
-	VU1.Mem		= curpos; curpos += VU1_MEMSIZE;
+	vuRegs[0].Micro	= curpos;
+	curpos += VU0_PROGSIZE;
+	vuRegs[0].Mem	= curpos;
+	curpos += VU0_MEMSIZE;
+	vuRegs[1].Micro	= curpos;
+	curpos += VU1_PROGSIZE;
+	vuRegs[1].Mem	= curpos;
+	curpos += VU1_MEMSIZE;
 }
 
 void vuMemoryReserve::Release()
 {
 	_parent::Release();
 
-	VU0.Micro = VU0.Mem = nullptr;
-	VU1.Micro = VU1.Mem = nullptr;
+	vuRegs[0].Micro = nullptr;
+	vuRegs[0].Mem   = nullptr;
+	vuRegs[1].Micro = nullptr;
+	vuRegs[1].Mem   = nullptr;
 }
 
 void vuMemoryReserve::Reset()
@@ -51,24 +57,24 @@ void vuMemoryReserve::Reset()
 	_parent::Reset();
 
 	// === VU0 Initialization ===
-	memset(&VU0.ACC, 0, sizeof(VU0.ACC));
-	memset(VU0.VF, 0, sizeof(VU0.VF));
-	memset(VU0.VI, 0, sizeof(VU0.VI));
-	VU0.VF[0].f.x = 0.0f;
-	VU0.VF[0].f.y = 0.0f;
-	VU0.VF[0].f.z = 0.0f;
-	VU0.VF[0].f.w = 1.0f;
-	VU0.VI[0].UL  = 0;
+	memset(&vuRegs[0].ACC, 0, sizeof(vuRegs[0].ACC));
+	memset(vuRegs[0].VF, 0, sizeof(vuRegs[0].VF));
+	memset(vuRegs[0].VI, 0, sizeof(vuRegs[0].VI));
+	vuRegs[0].VF[0].f.x = 0.0f;
+	vuRegs[0].VF[0].f.y = 0.0f;
+	vuRegs[0].VF[0].f.z = 0.0f;
+	vuRegs[0].VF[0].f.w = 1.0f;
+	vuRegs[0].VI[0].UL  = 0;
 
 	// === VU1 Initialization ===
-	memset(&VU1.ACC, 0, sizeof(VU1.ACC));
-	memset(VU1.VF, 0, sizeof(VU1.VF));
-	memset(VU1.VI, 0, sizeof(VU1.VI));
-	VU1.VF[0].f.x = 0.0f;
-	VU1.VF[0].f.y = 0.0f;
-	VU1.VF[0].f.z = 0.0f;
-	VU1.VF[0].f.w = 1.0f;
-	VU1.VI[0].UL  = 0;
+	memset(&vuRegs[1].ACC, 0, sizeof(vuRegs[1].ACC));
+	memset(vuRegs[1].VF, 0, sizeof(vuRegs[1].VF));
+	memset(vuRegs[1].VI, 0, sizeof(vuRegs[1].VI));
+	vuRegs[1].VF[0].f.x = 0.0f;
+	vuRegs[1].VF[0].f.y = 0.0f;
+	vuRegs[1].VF[0].f.z = 0.0f;
+	vuRegs[1].VF[0].f.w = 1.0f;
+	vuRegs[1].VI[0].UL  = 0;
 }
 
 bool SaveStateBase::vuMicroFreeze()
@@ -81,88 +87,88 @@ bool SaveStateBase::vuMicroFreeze()
 
 	// VU0 state information
 
-	Freeze(VU0.ACC);
-	Freeze(VU0.VF);
-	Freeze(VU0.VI);
-	Freeze(VU0.q);
+	Freeze(vuRegs[0].ACC);
+	Freeze(vuRegs[0].VF);
+	Freeze(vuRegs[0].VI);
+	Freeze(vuRegs[0].q);
 
-	Freeze(VU0.cycle);
-	Freeze(VU0.flags);
-	Freeze(VU0.code);
-	Freeze(VU0.start_pc);
-	Freeze(VU0.branch);
-	Freeze(VU0.branchpc);
-	Freeze(VU0.delaybranchpc);
-	Freeze(VU0.takedelaybranch);
-	Freeze(VU0.ebit);
-	Freeze(VU0.pending_q);
-	Freeze(VU0.pending_p);
-	Freeze(VU0.micro_macflags);
-	Freeze(VU0.micro_clipflags);
-	Freeze(VU0.micro_statusflags);
-	Freeze(VU0.macflag);
-	Freeze(VU0.statusflag);
-	Freeze(VU0.clipflag);
-	Freeze(VU0.nextBlockCycles);
-	Freeze(VU0.VIBackupCycles);
-	Freeze(VU0.VIOldValue);
-	Freeze(VU0.VIRegNumber);
-	Freeze(VU0.fmac);
-	Freeze(VU0.fmacreadpos);
-	Freeze(VU0.fmacwritepos);
-	Freeze(VU0.fmaccount);
-	Freeze(VU0.fdiv);
-	Freeze(VU0.efu);
-	Freeze(VU0.ialu);
-	Freeze(VU0.ialureadpos);
-	Freeze(VU0.ialuwritepos);
-	Freeze(VU0.ialucount);
+	Freeze(vuRegs[0].cycle);
+	Freeze(vuRegs[0].flags);
+	Freeze(vuRegs[0].code);
+	Freeze(vuRegs[0].start_pc);
+	Freeze(vuRegs[0].branch);
+	Freeze(vuRegs[0].branchpc);
+	Freeze(vuRegs[0].delaybranchpc);
+	Freeze(vuRegs[0].takedelaybranch);
+	Freeze(vuRegs[0].ebit);
+	Freeze(vuRegs[0].pending_q);
+	Freeze(vuRegs[0].pending_p);
+	Freeze(vuRegs[0].micro_macflags);
+	Freeze(vuRegs[0].micro_clipflags);
+	Freeze(vuRegs[0].micro_statusflags);
+	Freeze(vuRegs[0].macflag);
+	Freeze(vuRegs[0].statusflag);
+	Freeze(vuRegs[0].clipflag);
+	Freeze(vuRegs[0].nextBlockCycles);
+	Freeze(vuRegs[0].VIBackupCycles);
+	Freeze(vuRegs[0].VIOldValue);
+	Freeze(vuRegs[0].VIRegNumber);
+	Freeze(vuRegs[0].fmac);
+	Freeze(vuRegs[0].fmacreadpos);
+	Freeze(vuRegs[0].fmacwritepos);
+	Freeze(vuRegs[0].fmaccount);
+	Freeze(vuRegs[0].fdiv);
+	Freeze(vuRegs[0].efu);
+	Freeze(vuRegs[0].ialu);
+	Freeze(vuRegs[0].ialureadpos);
+	Freeze(vuRegs[0].ialuwritepos);
+	Freeze(vuRegs[0].ialucount);
 
 	// VU1 state information
-	Freeze(VU1.ACC);
-	Freeze(VU1.VF);
-	Freeze(VU1.VI);
-	Freeze(VU1.q);
-	Freeze(VU1.p);
+	Freeze(vuRegs[1].ACC);
+	Freeze(vuRegs[1].VF);
+	Freeze(vuRegs[1].VI);
+	Freeze(vuRegs[1].q);
+	Freeze(vuRegs[1].p);
 
-	Freeze(VU1.cycle);
-	Freeze(VU1.flags);
-	Freeze(VU1.code);
-	Freeze(VU1.start_pc);
-	Freeze(VU1.branch);
-	Freeze(VU1.branchpc);
-	Freeze(VU1.delaybranchpc);
-	Freeze(VU1.takedelaybranch);
-	Freeze(VU1.ebit);
-	Freeze(VU1.pending_q);
-	Freeze(VU1.pending_p);
-	Freeze(VU1.micro_macflags);
-	Freeze(VU1.micro_clipflags);
-	Freeze(VU1.micro_statusflags);
-	Freeze(VU1.macflag);
-	Freeze(VU1.statusflag);
-	Freeze(VU1.clipflag);
-	Freeze(VU1.nextBlockCycles);
-	Freeze(VU1.xgkickaddr);
-	Freeze(VU1.xgkickdiff);
-	Freeze(VU1.xgkicksizeremaining);
-	Freeze(VU1.xgkicklastcycle);
-	Freeze(VU1.xgkickcyclecount);
-	Freeze(VU1.xgkickenable);
-	Freeze(VU1.xgkickendpacket);
-	Freeze(VU1.VIBackupCycles);
-	Freeze(VU1.VIOldValue);
-	Freeze(VU1.VIRegNumber);
-	Freeze(VU1.fmac);
-	Freeze(VU1.fmacreadpos);
-	Freeze(VU1.fmacwritepos);
-	Freeze(VU1.fmaccount);
-	Freeze(VU1.fdiv);
-	Freeze(VU1.efu);
-	Freeze(VU1.ialu);
-	Freeze(VU1.ialureadpos);
-	Freeze(VU1.ialuwritepos);
-	Freeze(VU1.ialucount);
+	Freeze(vuRegs[1].cycle);
+	Freeze(vuRegs[1].flags);
+	Freeze(vuRegs[1].code);
+	Freeze(vuRegs[1].start_pc);
+	Freeze(vuRegs[1].branch);
+	Freeze(vuRegs[1].branchpc);
+	Freeze(vuRegs[1].delaybranchpc);
+	Freeze(vuRegs[1].takedelaybranch);
+	Freeze(vuRegs[1].ebit);
+	Freeze(vuRegs[1].pending_q);
+	Freeze(vuRegs[1].pending_p);
+	Freeze(vuRegs[1].micro_macflags);
+	Freeze(vuRegs[1].micro_clipflags);
+	Freeze(vuRegs[1].micro_statusflags);
+	Freeze(vuRegs[1].macflag);
+	Freeze(vuRegs[1].statusflag);
+	Freeze(vuRegs[1].clipflag);
+	Freeze(vuRegs[1].nextBlockCycles);
+	Freeze(vuRegs[1].xgkickaddr);
+	Freeze(vuRegs[1].xgkickdiff);
+	Freeze(vuRegs[1].xgkicksizeremaining);
+	Freeze(vuRegs[1].xgkicklastcycle);
+	Freeze(vuRegs[1].xgkickcyclecount);
+	Freeze(vuRegs[1].xgkickenable);
+	Freeze(vuRegs[1].xgkickendpacket);
+	Freeze(vuRegs[1].VIBackupCycles);
+	Freeze(vuRegs[1].VIOldValue);
+	Freeze(vuRegs[1].VIRegNumber);
+	Freeze(vuRegs[1].fmac);
+	Freeze(vuRegs[1].fmacreadpos);
+	Freeze(vuRegs[1].fmacwritepos);
+	Freeze(vuRegs[1].fmaccount);
+	Freeze(vuRegs[1].fdiv);
+	Freeze(vuRegs[1].efu);
+	Freeze(vuRegs[1].ialu);
+	Freeze(vuRegs[1].ialureadpos);
+	Freeze(vuRegs[1].ialuwritepos);
+	Freeze(vuRegs[1].ialucount);
 
 	return IsOkay();
 }

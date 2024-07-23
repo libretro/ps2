@@ -24,7 +24,7 @@ u32 g_vif0Cycles = 0;
 // because its vif stalling not the EE core...
 __fi void vif0FLUSH(void)
 {
-	if (VU0.VI[REG_VPU_STAT].UL & 0x5) // T bit stop or Busy
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x5) // T bit stop or Busy
 	{
 		vif0.waitforvu = true;
 		vif0.vifstalled.enabled = VifStallEnable(vif0ch);
@@ -118,27 +118,27 @@ __fi void vif0SetupTransfer(void)
 __fi void vif0VUFinish(void)
 {
 	// Sync up VU0 so we don't errantly wait.
-	while (VU0.VI[REG_VPU_STAT].UL & 0x1)
+	while (vuRegs[0].VI[REG_VPU_STAT].UL & 0x1)
 	{
-		const int cycle_diff = static_cast<int>(cpuRegs.cycle - VU0.cycle);
+		const int cycle_diff = static_cast<int>(cpuRegs.cycle - vuRegs[0].cycle);
 
-		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < VU0.nextBlockCycles) || cycle_diff <= 0)
+		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < vuRegs[0].nextBlockCycles) || cycle_diff <= 0)
 			break;
 		CpuVU0->ExecuteBlock();
 	}
 
-	if (VU0.VI[REG_VPU_STAT].UL & 0x5)
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x5)
 	{
 		CPU_INT(VIF_VU0_FINISH, 128);
 		CPU_SET_DMASTALL(VIF_VU0_FINISH, true);
 		return;
 	}
 
-	if ((VU0.VI[REG_VPU_STAT].UL & 1))
+	if ((vuRegs[0].VI[REG_VPU_STAT].UL & 1))
 	{
-		int _cycles = VU0.cycle;
+		int _cycles = vuRegs[0].cycle;
 		vu0Finish();
-		_cycles = VU0.cycle - _cycles;
+		_cycles = vuRegs[0].cycle - _cycles;
 		CPU_INT(VIF_VU0_FINISH, _cycles * BIAS);
 		CPU_SET_DMASTALL(VIF_VU0_FINISH, true);
 		return;

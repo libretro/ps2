@@ -301,7 +301,7 @@ int _allocX86reg(int type, int reg, int mode)
 
 			case X86TYPE_VIREG:
 			{
-				xMOVZX(xRegister32(regnum), ptr16[&VU0.VI[reg].US[0]]);
+				xMOVZX(xRegister32(regnum), ptr16[&vuRegs[0].VI[reg].US[0]]);
 			}
 			break;
 
@@ -343,7 +343,7 @@ void _writebackX86Reg(int x86reg)
 			break;
 
 		case X86TYPE_VIREG:
-			xMOV(ptr16[&VU0.VI[x86regs[x86reg].reg].UL], xRegister16(x86reg));
+			xMOV(ptr16[&vuRegs[0].VI[x86regs[x86reg].reg].UL], xRegister16(x86reg));
 			break;
 
 		case X86TYPE_PCWRITEBACK:

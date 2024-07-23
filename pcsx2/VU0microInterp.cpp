@@ -44,24 +44,24 @@ static void _vu0Exec(VURegs* VU)
 	{
 		VU->ebit = 2;
 	}
-	if (ptr[1] & 0x20000000 && VU == &VU0) // M flag
+	if (ptr[1] & 0x20000000 && VU == &vuRegs[0]) // M flag
 	{
 		VU->flags |= VUFLAG_MFLAGSET;
 	}
 	if (ptr[1] & 0x10000000) // D flag
 	{
-		if (VU0.VI[REG_FBRST].UL & 0x4)
+		if (vuRegs[0].VI[REG_FBRST].UL & 0x4)
 		{
-			VU0.VI[REG_VPU_STAT].UL |= 0x2;
+			vuRegs[0].VI[REG_VPU_STAT].UL |= 0x2;
 			hwIntcIrq(INTC_VU0);
 			VU->ebit = 1;
 		}
 	}
 	if (ptr[1] & 0x08000000) // T flag
 	{
-		if (VU0.VI[REG_FBRST].UL & 0x8)
+		if (vuRegs[0].VI[REG_FBRST].UL & 0x8)
 		{
-			VU0.VI[REG_VPU_STAT].UL |= 0x4;
+			vuRegs[0].VI[REG_VPU_STAT].UL |= 0x4;
 			hwIntcIrq(INTC_VU0);
 			VU->ebit = 1;
 		}
@@ -70,7 +70,7 @@ static void _vu0Exec(VURegs* VU)
 	VU->code = ptr[1];
 	VU0regs_UPPER_OPCODE[VU->code & 0x3f](&uregs);
 
-	u32 cyclesBeforeOp = VU0.cycle - 1;
+	u32 cyclesBeforeOp = vuRegs[0].cycle - 1;
 
 	_vuTestUpperStalls(VU, &uregs);
 
@@ -80,7 +80,7 @@ static void _vu0Exec(VURegs* VU)
 		_vuTestPipes(VU);
 
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles -= std::min((u8)(VU0.cycle - cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles -= std::min((u8)(vuRegs[0].cycle - cyclesBeforeOp), VU->VIBackupCycles);
 
 		_vu0ExecUpper(VU, ptr);
 
@@ -104,7 +104,7 @@ static void _vu0Exec(VURegs* VU)
 
 		_vuTestPipes(VU);
 		if (VU->VIBackupCycles > 0)
-			VU->VIBackupCycles -= std::min((u8)(VU0.cycle - cyclesBeforeOp), VU->VIBackupCycles);
+			VU->VIBackupCycles -= std::min((u8)(vuRegs[0].cycle - cyclesBeforeOp), VU->VIBackupCycles);
 
 		if (uregs.VFwrite)
 		{
@@ -129,7 +129,7 @@ static void _vu0Exec(VURegs* VU)
 			}
 			if (lregs.VIread & (1 << REG_CLIP_FLAG))
 			{
-				_VI = VU0.VI[REG_CLIP_FLAG];
+				_VI   = vuRegs[0].VI[REG_CLIP_FLAG];
 				vireg = REG_CLIP_FLAG;
 			}
 		}
@@ -189,7 +189,7 @@ static void _vu0Exec(VURegs* VU)
 		{
 			VU->VIBackupCycles = 0;
 			_vuFlushAll(VU);
-			VU0.VI[REG_VPU_STAT].UL &= ~0x1; /* E flag */
+			vuRegs[0].VI[REG_VPU_STAT].UL &= ~0x1; /* E flag */
 			vif0Regs.stat.VEW = false;
 		}
 	}
@@ -201,7 +201,7 @@ static void _vu0Exec(VURegs* VU)
 
 void vu0Exec(VURegs* VU)
 {
-	VU0.VI[REG_TPC].UL &= VU0_PROGMASK;
+	vuRegs[0].VI[REG_TPC].UL &= VU0_PROGMASK;
 	VU->cycle++;
 	_vu0Exec(VU);
 }
@@ -220,48 +220,49 @@ InterpVU0::InterpVU0()
 
 void InterpVU0::Reset()
 {
-	VU0.fmacwritepos = 0;
-	VU0.fmacreadpos = 0;
-	VU0.fmaccount = 0;
-	VU0.ialuwritepos = 0;
-	VU0.ialureadpos = 0;
-	VU0.ialucount = 0;
+	vuRegs[0].fmacwritepos = 0;
+	vuRegs[0].fmacreadpos = 0;
+	vuRegs[0].fmaccount = 0;
+	vuRegs[0].ialuwritepos = 0;
+	vuRegs[0].ialureadpos = 0;
+	vuRegs[0].ialucount = 0;
 }
 void InterpVU0::SetStartPC(u32 startPC)
 {
-	VU0.start_pc = startPC;
+	vuRegs[0].start_pc = startPC;
 }
 
 void InterpVU0::Execute(u32 cycles)
 {
 	const FPControlRegisterBackup fpcr_backup(EmuConfig.Cpu.VU0FPCR);
 
-	VU0.VI[REG_TPC].UL <<= 3;
-	VU0.flags &= ~VUFLAG_MFLAGSET;
-	u32 startcycles = VU0.cycle;
-	while ((VU0.cycle - startcycles) < cycles)
+	vuRegs[0].VI[REG_TPC].UL <<= 3;
+	vuRegs[0].flags &= ~VUFLAG_MFLAGSET;
+	u32 startcycles  = vuRegs[0].cycle;
+	while ((vuRegs[0].cycle - startcycles) < cycles)
 	{
-		if (!(VU0.VI[REG_VPU_STAT].UL & 0x1))
+		if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x1))
 		{
 			// Branches advance the PC to the new location if there was a branch in the E-Bit delay slot
-			if (VU0.branch)
+			if (vuRegs[0].branch)
 			{
-				VU0.VI[REG_TPC].UL = VU0.branchpc;
-				VU0.branch = 0;
+				vuRegs[0].VI[REG_TPC].UL = vuRegs[0].branchpc;
+				vuRegs[0].branch = 0;
 			}
 			break;
 		}
-		if (VU0.flags & VUFLAG_MFLAGSET)
+		if (vuRegs[0].flags & VUFLAG_MFLAGSET)
 			break;
 
-		vu0Exec(&VU0);
+		vu0Exec(&vuRegs[0]);
 	}
-	VU0.VI[REG_TPC].UL >>= 3;
+
+	vuRegs[0].VI[REG_TPC].UL >>= 3;
 
 	if (EmuConfig.Speedhacks.EECycleRate != 0 && (!EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Speedhacks.EECycleRate < 0))
 	{
-		u32 cycle_change = VU0.cycle - startcycles;
-		VU0.cycle -= cycle_change;
+		u32 cycle_change = vuRegs[0].cycle - startcycles;
+		vuRegs[0].cycle -= cycle_change;
 		switch (std::min(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(cycle_change)))
 		{
 			case -3: // 50%
@@ -285,8 +286,8 @@ void InterpVU0::Execute(u32 cycles)
 			default:
 				break;
 		}
-		VU0.cycle += cycle_change;
+		vuRegs[0].cycle += cycle_change;
 	}
 
-	VU0.nextBlockCycles = (VU0.cycle - cpuRegs.cycle) + 1;
+	vuRegs[0].nextBlockCycles = (vuRegs[0].cycle - cpuRegs.cycle) + 1;
 }

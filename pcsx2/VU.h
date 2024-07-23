@@ -205,8 +205,3 @@ enum VUPipeState
 };
 
 extern VURegs vuRegs[2];
-
-// Obsolete(?)  -- I think I'd rather use vu0Regs/vu1Regs or actually have these explicit to any
-// CPP file that needs them only. --air
-static VURegs& VU0 = vuRegs[0];
-static VURegs& VU1 = vuRegs[1];

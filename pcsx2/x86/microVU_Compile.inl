@@ -492,11 +492,11 @@ void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 	if (mVU.index && THREAD_VU1)
 		xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x400 : 0x4));
 	else
-		xTEST(ptr32[&VU0.VI[REG_FBRST].UL], (isVU1 ? 0x400 : 0x4));
+		xTEST(ptr32[&vuRegs[0].VI[REG_FBRST].UL], (isVU1 ? 0x400 : 0x4));
 	xForwardJump32 eJMP(Jcc_Zero);
 	if (!isVU1 || !THREAD_VU1)
 	{
-		xOR(ptr32[&VU0.VI[REG_VPU_STAT].UL], (isVU1 ? 0x200 : 0x2));
+		xOR(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], (isVU1 ? 0x200 : 0x2));
 		xOR(ptr32[&mVU.regs().flags], VUFLAG_INTCINTERRUPT);
 	}
 	incPC(1);
@@ -510,11 +510,11 @@ void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 	if (mVU.index && THREAD_VU1)
 		xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x800 : 0x8));
 	else
-		xTEST(ptr32[&VU0.VI[REG_FBRST].UL], (isVU1 ? 0x800 : 0x8));
+		xTEST(ptr32[&vuRegs[0].VI[REG_FBRST].UL], (isVU1 ? 0x800 : 0x8));
 	xForwardJump32 eJMP(Jcc_Zero);
 	if (!isVU1 || !THREAD_VU1)
 	{
-		xOR(ptr32[&VU0.VI[REG_VPU_STAT].UL], (isVU1 ? 0x400 : 0x4));
+		xOR(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], (isVU1 ? 0x400 : 0x4));
 		xOR(ptr32[&mVU.regs().flags], VUFLAG_INTCINTERRUPT);
 	}
 	incPC(1);

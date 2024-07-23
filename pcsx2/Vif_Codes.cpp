@@ -38,7 +38,7 @@ vifOp(vifCode_Null);
 
 __ri void vifExecQueue(int idx)
 {
-	if (!GetVifX.queued_program || (VU0.VI[REG_VPU_STAT].UL & 1 << (idx * 8)))
+	if (!GetVifX.queued_program || (vuRegs[0].VI[REG_VPU_STAT].UL & 1 << (idx * 8)))
 		return;
 
 	if (GetVifX.queued_gif_wait)
@@ -58,7 +58,7 @@ __ri void vifExecQueue(int idx)
 	// The start of the VU program clears the VU memory, while VIF populates it from behind, so we need to get the clear out of the way.
 	/*if (idx && !INSTANT_VU1)
 	{
-		VU1.cycle -= 256;
+		vuRegs[1].cycle -= 256;
 		CpuVU1->ExecuteBlock(0);
 	}*/
 }
@@ -295,7 +295,7 @@ vifOp(vifCode_Mark)
 
 static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 {
-	VURegs& VUx = idx ? VU1 : VU0;
+	VURegs& VUx = idx ? vuRegs[1] : vuRegs[0];
 	vifStruct& vifX = GetVifX;
 	u16 vuMemSize = idx ? 0x4000 : 0x1000;
 
