@@ -32,4 +32,3 @@ using x86Emitter::xWrite64;
 #include "common/emitter/legacy_instructions.h"
 
 extern void ModRM(uint mod, uint reg, uint rm);
-extern void SibSB(uint ss, uint index, uint base);

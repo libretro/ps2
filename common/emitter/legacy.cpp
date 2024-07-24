@@ -32,11 +32,6 @@ emitterT void ModRM(uint mod, uint reg, uint rm)
 	xWrite8((mod << 6) | (reg << 3) | rm);
 }
 
-emitterT void SibSB(uint ss, uint index, uint base)
-{
-	xWrite8((ss << 6) | (index << 3) | base);
-}
-
 using namespace x86Emitter;
 
 //////////////////////////////////////////////////////////////////////////////////////////
