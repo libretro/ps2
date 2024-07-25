@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
 #include "Global.h"
 
 static constexpr s32 ADSR_MAX_VOL = 0x7fff;
