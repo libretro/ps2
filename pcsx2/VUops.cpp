@@ -97,7 +97,8 @@ static __ri bool _vuFMACflush(VURegs* VU)
 		if (VU->fmac[i].flagreg & (1 << REG_CLIP_FLAG))
 			VU->VI[REG_CLIP_FLAG].UL = VU->fmac[i].clipflag;
 
-		// Normal FMAC instructoins only affectx Z/S/I/O, D/I are modified only by FDIV instructions
+		// Normal FMAC instructions only affects Z/S/I/O, 
+		// D/I are modified only by FDIV instructions
 		// Sticky flags (Affected by FSSET)
 		if (VU->fmac[i].flagreg & (1 << REG_STATUS_FLAG))
 			VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0x30) | (VU->fmac[i].statusflag & 0xFC0) | (VU->fmac[i].statusflag & 0xF);
@@ -170,8 +171,8 @@ void _vuFlushAll(VURegs* VU)
 
 	if (VU->fdiv.enable)
 	{
-		VU->fdiv.enable = 0;
-		VU->VI[REG_Q].UL = VU->fdiv.reg.UL;
+		VU->fdiv.enable            = 0;
+		VU->VI[REG_Q].UL           = VU->fdiv.reg.UL;
 		VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0xFCF) | (VU->fdiv.statusflag & 0xC30);
 
 		if ((VU->cycle - VU->fdiv.sCycle) < VU->fdiv.Cycle)
@@ -180,8 +181,8 @@ void _vuFlushAll(VURegs* VU)
 
 	if (VU->efu.enable)
 	{
-		VU->efu.enable = 0;
-		VU->VI[REG_P].UL = VU->efu.reg.UL;
+		VU->efu.enable    = 0;
+		VU->VI[REG_P].UL  = VU->efu.reg.UL;
 
 		if ((VU->cycle - VU->efu.sCycle) < VU->efu.Cycle)
 			VU->cycle = VU->efu.sCycle + VU->efu.Cycle;
@@ -193,7 +194,8 @@ void _vuFlushAll(VURegs* VU)
 		if (VU->fmac[i].flagreg & (1 << REG_CLIP_FLAG))
 			VU->VI[REG_CLIP_FLAG].UL = VU->fmac[i].clipflag;
 
-		// Normal FMAC instructoins only affectx Z/S/I/O, D/I are modified only by FDIV instructions
+		// Normal FMAC instructions only affects Z/S/I/O, 
+		// D/I are modified only by FDIV instructions
 		// Sticky flags (Affected by FSSET)
 		if (VU->fmac[i].flagreg & (1 << REG_STATUS_FLAG))
 			VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0x30) | (VU->fmac[i].statusflag & 0xFC0) | (VU->fmac[i].statusflag & 0xF);
@@ -231,7 +233,7 @@ __fi void _vuTestPipes(VURegs* VU)
 		flushed |= _vuFDIVflush(VU);
 		flushed |= _vuEFUflush(VU);
 		flushed |= _vuIALUflush(VU);
-	} while (flushed == true);
+	} while (flushed);
 
 	if (VU == &vuRegs[1])
 	{
@@ -246,7 +248,7 @@ static void _vuFMACTestStall(VURegs* VU, u32 reg, u32 xyzw)
 
 	for (int currentpipe = VU->fmacreadpos; i < VU->fmaccount; currentpipe = (currentpipe + 1) & 3, i++)
 	{
-		//Check if enough cycles have passed for this fmac position
+		//Check if enough cycles have passed for this FMAC position
 		if ((VU->cycle - VU->fmac[currentpipe].sCycle) >= VU->fmac[currentpipe].Cycle)
 			continue;
 

@@ -39,7 +39,7 @@ __inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
 void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 {
 	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
-	const int test = m_Idx ? 0x100 : 1;
+	const int test  = m_Idx ? 0x100 : 1;
 
 	if (m_Idx && THREAD_VU1)
 	{
@@ -52,7 +52,7 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 
 	if (startUp)
 	{
-		Execute(CalculateMinRunCycles(0, false));
+		Execute(16U);
 	}
 	else // Continue Executing
 	{
@@ -60,7 +60,7 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 		s32 delta = (s32)(u32)(cpuRegs.cycle - cycle);
 
 		if (delta > 0)
-			Execute(CalculateMinRunCycles(delta, false));
+			Execute(std::max(16, delta));
 	}
 }
 
