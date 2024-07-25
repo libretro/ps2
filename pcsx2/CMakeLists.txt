@@ -81,8 +81,6 @@ set(pcsx2Sources
 	Gif_Unit.cpp
 	GS.cpp
 	Hw.cpp
-	HwRead.cpp
-	HwWrite.cpp
 	Interpreter.cpp
 	IopBios.cpp
 	IopCounters.cpp
