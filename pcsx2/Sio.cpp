@@ -255,11 +255,6 @@ void Sio0::SetCtrl(u16 value)
 	}
 }
 
-void Sio0::SetBaud(u16 value)
-{
-	baud = value;
-}
-
 bool Sio0::IsPadCommand(u8 command)
 {
 	return command >= PadCommand::UNK_0 && command <= PadCommand::ANALOG;

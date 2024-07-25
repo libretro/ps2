@@ -209,16 +209,6 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 		{
 			// ------------------------------------------------------------------------
 			case (HW_SIO_DATA & 0x0fff):
-/*
-				sio0.SetTxData(val & 0xFF);
-				sio0.SetTxData((val >> 8) & 0xFF);
-				
-				if (sizeof(T) == 4)
-				{
-					sio0.SetTxData((static_cast<u32>(val) >> 16) & 0xFF);
-					sio0.SetTxData((static_cast<u32>(val) >> 24) & 0xFF);
-				}
-*/				
 				break;
 			case (HW_SIO_STAT & 0x0fff):
 				break;
@@ -231,7 +221,7 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 				break;
 			
 			case (HW_SIO_BAUD & 0x0fff):
-				sio0.SetBaud(static_cast<u16>(val));
+				sio0.baud = static_cast<u16>(val);
 				break;
 
 			// ------------------------------------------------------------------------

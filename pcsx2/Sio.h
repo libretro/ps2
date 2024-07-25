@@ -76,7 +76,6 @@ public:
 
 	void SetTxData(u8 value);
 	void SetCtrl(u16 value);
-	void SetBaud(u16 value);
 
 	bool IsPadCommand(u8 command);
 	bool IsMemcardCommand(u8 command);
