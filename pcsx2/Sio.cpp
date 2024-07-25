@@ -37,11 +37,6 @@ _mcd *mcd;
 // SIO0
 // ============================================================================
 
-void Sio0::ClearStatAcknowledge()
-{
-	stat &= ~(SIO0_STAT::ACK);
-}
-
 Sio0::Sio0()
 {
 	this->FullReset();
@@ -79,14 +74,6 @@ void Sio0::FullReset()
 	mcd = &mcds[0][0];
 }
 
-// Simulates the ACK line on the bus. Peripherals are expected to send an ACK signal
-// over this line to tell the PS1 "keep sending me things I'm not done yet". The PS1
-// then uses this after it receives the peripheral's response to decide what to do.
-void Sio0::Acknowledge()
-{
-	stat |= SIO0_STAT::ACK;
-}
-
 void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 {
 	switch (sio0Interrupt)
@@ -95,7 +82,7 @@ void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 			iopIntcIrq(7);
 			break;
 		case Sio0Interrupt::STAT_READ:
-			ClearStatAcknowledge();
+			stat &= ~(SIO0_STAT::ACK);
 			break;
 		case Sio0Interrupt::TX_DATA_WRITE:
 		default:
@@ -106,11 +93,6 @@ void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 	{
 		PSX_INT(IopEvt_SIO, PSXCLK / 250000); // PSXCLK/250000);
 	}
-}
-
-u8 Sio0::GetTxData()
-{
-	return txData;
 }
 
 u8 Sio0::GetRxData()
@@ -125,21 +107,6 @@ u32 Sio0::GetStat()
 	const u32 ret = stat;
 	Interrupt(Sio0Interrupt::STAT_READ);
 	return ret;
-}
-
-u16 Sio0::GetMode()
-{
-	return mode;
-}
-
-u16 Sio0::GetCtrl()
-{
-	return ctrl;
-}
-
-u16 Sio0::GetBaud()
-{
-	return baud;
 }
 
 void Sio0::SetTxData(u8 value)
@@ -165,7 +132,7 @@ void Sio0::SetTxData(u8 value)
 					res = PADstartPoll(port, slot);
 
 					if (res)
-						Acknowledge();
+						stat |= SIO0_STAT::ACK;
 
 					break;
 				case SioMode::MEMCARD:
@@ -175,7 +142,7 @@ void Sio0::SetTxData(u8 value)
 					// and zero out the fifo to simulate dead air over the wire.
 					if (mcd->autoEjectTicks)
 					{
-						SetRxData(0x00);
+						rxData = 0x00;
 						mcd->autoEjectTicks--;
 						return;
 					}
@@ -184,15 +151,15 @@ void Sio0::SetTxData(u8 value)
 					// reply with dead air and no ACK.
 					if (!FileMcd_IsPresent(mcd->port, mcd->slot) || !FileMcd_IsPSX(mcd->port, mcd->slot))
 					{
-						SetRxData(0x00);
+						rxData = 0x00;
 						return;
 					}
 
-					Acknowledge();
+					stat |= SIO0_STAT::ACK;
 					break;
 			}
 
-			SetRxData(res);
+			rxData   = res;
 			sioStage = SioStage::WAITING_COMMAND;
 			break;
 		case SioStage::WAITING_COMMAND:
@@ -200,30 +167,30 @@ void Sio0::SetTxData(u8 value)
 
 			if (IsPadCommand(value))
 			{
-				res = PADpoll(value);
-				SetRxData(res);
+				res      = PADpoll(value);
+				rxData   = res;
 
 				if (!PADcomplete())
-					Acknowledge();
+					stat |= SIO0_STAT::ACK;
 
 				sioStage = SioStage::WORKING;
 			}
 			else if (IsMemcardCommand(value))
 			{
-				SetRxData(flag);
-				Acknowledge();
+				rxData     = flag;
+				stat      |= SIO0_STAT::ACK;
 				sioCommand = value;
 				sioStage = SioStage::WORKING;
 			}
 			else if (IsPocketstationCommand(value))
 			{
 				// Set the line low, no acknowledge.
-				SetRxData(0x00);
+				rxData   = 0x00;
 				sioStage = SioStage::IDLE;
 			}
 			else
 			{
-				SetRxData(0xff);
+				rxData   = 0xff;
 				SoftReset();
 			}
 
@@ -233,45 +200,29 @@ void Sio0::SetTxData(u8 value)
 			{
 				case SioMode::PAD:
 					res = PADpoll(value);
-					SetRxData(res);
+					rxData   = res;
 
 					if (!PADcomplete())
-					{
-						Acknowledge();
-					}
+						stat |= SIO0_STAT::ACK;
 
 					break;
 				case SioMode::MEMCARD:
-					SetRxData(Memcard(value));
+					rxData   = Memcard(value);
 					break;
 				default:
-					SetRxData(0xff);
+					rxData   = 0xff;
 					SoftReset();
 					break;
 			}
 
 			break;
 		default:
-			SetRxData(0xff);
+			rxData   = 0xff;
 			SoftReset();
 			break;
 	}
 
 	Interrupt(Sio0Interrupt::TX_DATA_WRITE);
-}
-
-void Sio0::SetRxData(u8 value)
-{
-	rxData = value;
-}
-
-void Sio0::SetStat(u32 value)
-{
-}
-
-void Sio0::SetMode(u16 value)
-{
-	mode = value;
 }
 
 void Sio0::SetCtrl(u16 value)
@@ -332,7 +283,7 @@ u8 Sio0::Pad(u8 value)
 	{
 		padStarted = true;
 		PADstartPoll(port, slot);
-		Acknowledge();
+		stat |= SIO0_STAT::ACK;
 	}
 
 	return PADpoll(value);

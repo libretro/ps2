@@ -45,17 +45,13 @@ struct _mcd
 
 class Sio0
 {
-private:
+public:
 	u32 txData; // 0x1f801040
 	u32 rxData; // 0x1f801040
 	u32 stat; // 0x1f801044
 	u16 mode; // 0x1f801048
 	u16 ctrl; // 0x1f80104a
 	u16 baud; // 0x1f80104e
-
-	void ClearStatAcknowledge();
-
-public:
 	u8 flag = 0;
 
 	SioStage sioStage = SioStage::IDLE;
@@ -73,20 +69,12 @@ public:
 	void SoftReset();
 	void FullReset();
 
-	void Acknowledge();
 	void Interrupt(Sio0Interrupt sio0Interrupt);
 
-	u8 GetTxData();
 	u8 GetRxData();
 	u32 GetStat();
-	u16 GetMode();
-	u16 GetCtrl();
-	u16 GetBaud();
 
 	void SetTxData(u8 value);
-	void SetRxData(u8 value);
-	void SetStat(u32 value);
-	void SetMode(u16 value);
 	void SetCtrl(u16 value);
 	void SetBaud(u16 value);
 

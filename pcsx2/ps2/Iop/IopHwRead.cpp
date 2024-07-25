@@ -214,14 +214,13 @@ static __fi T _HwRead_16or32_Page1( u32 addr )
 				ret = sio0.GetStat();
 				break;
 			case (HW_SIO_MODE & 0x0fff):
-				ret = sio0.GetMode();
-				
+				ret = sio0.mode;
 				break;
 			case (HW_SIO_CTRL & 0x0fff):
-				ret = sio0.GetCtrl();
+				ret = sio0.ctrl;
 				break;
 			case (HW_SIO_BAUD & 0x0fff):
-				ret = sio0.GetBaud();
+				ret = sio0.baud;
 				break;
 
 			// ------------------------------------------------------------------------

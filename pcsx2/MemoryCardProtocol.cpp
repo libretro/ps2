@@ -284,9 +284,7 @@ u8 MemoryCardProtocol::PS1Read(u8 data)
 	}
 
 	if (sendAck)
-	{
-		sio0.Acknowledge();
-	}
+		sio0.stat |= SIO0_STAT::ACK;
 
 	ps1McState.currentByte++;
 	return ret;
@@ -356,7 +354,7 @@ u8 MemoryCardProtocol::PS1Write(u8 data)
 	}
 
 	if (sendAck)
-		sio0.Acknowledge();
+		sio0.stat |= SIO0_STAT::ACK;
 
 	ps1McState.currentByte++;
 	return ret;
