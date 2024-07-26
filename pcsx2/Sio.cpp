@@ -76,18 +76,10 @@ void Sio0::FullReset()
 
 void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 {
-	switch (sio0Interrupt)
-	{
-		case Sio0Interrupt::TEST_EVENT:
-			iopIntcIrq(7);
-			break;
-		case Sio0Interrupt::STAT_READ:
-			stat &= ~(SIO0_STAT::ACK);
-			break;
-		case Sio0Interrupt::TX_DATA_WRITE:
-		default:
-			break;
-	}
+	if (sio0Interrupt == Sio0Interrupt::TEST_EVENT)
+		iopIntcIrq(7);
+	else if (sio0Interrupt == Sio0Interrupt::STAT_READ)
+		stat &= ~(SIO0_STAT::ACK);
 	
 	if (!(psxRegs.interrupt & (1 << IopEvt_SIO)))
 	{
@@ -391,9 +383,7 @@ void Sio2::SetCtrl(u32 value)
 	this->ctrl = value;
 
 	if (this->ctrl & Sio2Ctrl::START_TRANSFER)
-	{
-		Interrupt();
-	}
+		iopIntcIrq(17);
 }
 
 void Sio2::SetSend3(size_t position, u32 value)
