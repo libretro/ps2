@@ -16,6 +16,8 @@
 #include "common/emitter/internal.h"
 #include "common/VectorIntrin.h"
 
+#define xCVTDQ2PD(to, from)  OpWriteSSE(0xf3, 0xe6)
+
 namespace x86Emitter
 {
 
@@ -26,30 +28,17 @@ namespace x86Emitter
 	// Non-zero upper bytes, when the lower byte is not the 0x38 or 0x3a prefix, will
 	// generate an assertion.
 	//
-	__emitinline void SimdPrefix(u8 prefix, u16 opcode)
+	__emitinline void SimdPrefix(u16 opcode)
 	{
 		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
 
-		if (prefix != 0)
+		if (is16BitOpcode)
 		{
-			if (is16BitOpcode)
-				xWrite32((opcode << 16) | 0x0f00 | prefix);
-			else
-			{
-				xWrite16(0x0f00 | prefix);
-				xWrite8(opcode);
-			}
+			xWrite8(0x0f);
+			xWrite16(opcode);
 		}
 		else
-		{
-			if (is16BitOpcode)
-			{
-				xWrite8(0x0f);
-				xWrite16(opcode);
-			}
-			else
-				xWrite16((opcode << 8) | 0x0f);
-		}
+			xWrite16((opcode << 8) | 0x0f);
 	}
 
 	const xImplSimd_DestRegEither xPAND = {0x66, 0xdb};
@@ -69,8 +58,6 @@ namespace x86Emitter
 	// nature of the functions.  (so if a function expects an m32, you must use (u32*) or ptr32[]).
 	//
 
-	__fi void xCVTDQ2PD(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0xe6); }
-	__fi void xCVTDQ2PD(const xRegisterSSE& to, const xIndirect64& from) { OpWriteSSE(0xf3, 0xe6); }
 	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x00, 0x5b); }
 	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0x00, 0x5b); }
 
@@ -363,12 +350,12 @@ namespace x86Emitter
 
 	void xImplSimd_Shuffle::PS(const xRegisterSSE& to, const xRegisterSSE& from, u8 selector) const
 	{
-		xOpWrite0F(0xc6, to, from, selector);
+		xOpWrite0F(0, 0xc6, to, from, selector);
 	}
 
 	void xImplSimd_Shuffle::PS(const xRegisterSSE& to, const xIndirectVoid& from, u8 selector) const
 	{
-		xOpWrite0F(0xc6, to, from, selector);
+		xOpWrite0F(0, 0xc6, to, from, selector);
 	}
 
 	void xImplSimd_Shuffle::PD(const xRegisterSSE& to, const xRegisterSSE& from, u8 selector) const
@@ -452,13 +439,13 @@ namespace x86Emitter
 	//  SIMD Move And Blend Instructions
 	// =====================================================================================================
 
-	void xImplSimd_MovHL::PS(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(Opcode, to, from); }
-	void xImplSimd_MovHL::PS(const xIndirectVoid& to, const xRegisterSSE& from) const { xOpWrite0F(Opcode + 1, from, to); }
+	void xImplSimd_MovHL::PS(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0, Opcode, to, from); }
+	void xImplSimd_MovHL::PS(const xIndirectVoid& to, const xRegisterSSE& from) const { xOpWrite0F(0, Opcode + 1, from, to); }
 
 	void xImplSimd_MovHL::PD(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0x66, Opcode, to, from); }
 	void xImplSimd_MovHL::PD(const xIndirectVoid& to, const xRegisterSSE& from) const { xOpWrite0F(0x66, Opcode + 1, from, to); }
 
-	void xImplSimd_MovHL_RtoR::PS(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(Opcode, to, from); }
+	void xImplSimd_MovHL_RtoR::PS(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0, Opcode, to, from); }
 	void xImplSimd_MovHL_RtoR::PD(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0x66, Opcode, to, from); }
 
 	static const u16 MovPS_OpAligned = 0x28; // Aligned [aps] form
@@ -629,43 +616,18 @@ namespace x86Emitter
 	__fi void xMOVNTDQA(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xe7, from, to); }
 
 	__fi void xMOVNTPD(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x2b, from, to); }
-	__fi void xMOVNTPS(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0x2b, from, to); }
+	__fi void xMOVNTPS(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0, 0x2b, from, to); }
 
 	// ------------------------------------------------------------------------
 
-	__fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0x50, to, from); }
+	__fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0, 0x50, to, from); }
 	__fi void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x50, to, from, true); }
-
-	// xMASKMOV:
-	// Selectively write bytes from mm1/xmm1 to memory location using the byte mask in mm2/xmm2.
-	// The default memory location is specified by DS:EDI.  The most significant bit in each byte
-	// of the mask operand determines whether the corresponding byte in the source operand is
-	// written to the corresponding byte location in memory.
-	__fi void xMASKMOV(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xf7, to, from); }
-
-	// xPMOVMSKB:
-	// Creates a mask made up of the most significant bit of each byte of the source
-	// operand and stores the result in the low byte or word of the destination operand.
-	// Upper bits of the destination are cleared to zero.
-	//
-	// When operating on a 64-bit (MMX) source, the byte mask is 8 bits; when operating on
-	// 128-bit (SSE) source, the byte mask is 16-bits.
-	//
-	__fi void xPMOVMSKB(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xd7, to, from); }
-
-	// [sSSE-3] Concatenates dest and source operands into an intermediate composite,
-	// shifts the composite at byte granularity to the right by a constant immediate,
-	// and extracts the right-aligned result into the destination.
-	//
-	__fi void xPALIGNR(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x0f3a, to, from, imm8); }
-
 
 	// --------------------------------------------------------------------------------------
 	//  INSERTPS / EXTRACTPS   [SSE4.1 only!]
 	// --------------------------------------------------------------------------------------
 	// [TODO] these might be served better as classes, especially if other instructions use
 	// the M32,sse,imm form (I forget offhand if any do).
-
 
 	// [SSE-4.1] Insert a single-precision floating-point value from src into a specified
 	// location in dest, and selectively zero out the data elements in dest according to

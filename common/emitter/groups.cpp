@@ -220,8 +220,8 @@ namespace x86Emitter
 	void xImpl_iMul::operator()(const xRegisterInt& from) const { _g3_EmitOp(G3Type_iMUL, from); }
 	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { _g3_EmitOp(G3Type_iMUL, from); }
 
-	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from) const { xOpWrite0F(0xaf, to, from); }
-	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& src) const { xOpWrite0F(0xaf, to, src); }
+	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from) const { xOpWrite0F(0, 0xaf, to, from); }
+	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& src) const { xOpWrite0F(0, 0xaf, to, src); }
 	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from) const { xOpWrite0F(0x66, 0xaf, to, from); }
 	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& src) const { xOpWrite0F(0x66, 0xaf, to, src); }
 
@@ -246,8 +246,8 @@ namespace x86Emitter
 	{
 		xOpWrite0F(bitbase->GetPrefix16(), 0xa3 | (InstType << 3), bitbase, bitoffset);
 	}
-	void xImpl_Group8::operator()(const xIndirect64& bitbase, u8 bitoffset) const { xOpWrite0F(0xba, InstType, bitbase, bitoffset); }
-	void xImpl_Group8::operator()(const xIndirect32& bitbase, u8 bitoffset) const { xOpWrite0F(0xba, InstType, bitbase, bitoffset); }
+	void xImpl_Group8::operator()(const xIndirect64& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
+	void xImpl_Group8::operator()(const xIndirect32& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
 	void xImpl_Group8::operator()(const xIndirect16& bitbase, u8 bitoffset) const { xOpWrite0F(0x66, 0xba, InstType, bitbase, bitoffset); }
 
 	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, u8 bitoffset) const

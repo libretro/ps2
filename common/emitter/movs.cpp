@@ -126,11 +126,11 @@ namespace x86Emitter
 
 	void xImpl_Set::operator()(const xRegister8& to) const
 	{
-		xOpWrite0F(0x90 | ccType, 0, to);
+		xOpWrite0F(0, 0x90 | ccType, 0, to);
 	}
 	void xImpl_Set::operator()(const xIndirect8& dest) const
 	{
-		xOpWrite0F(0x90 | ccType, 0, dest);
+		xOpWrite0F(0, 0x90 | ccType, 0, dest);
 	}
 
 	void xImpl_MovExtend::operator()(const xRegister16or32or64& to, const xRegister8& from) const
@@ -151,12 +151,12 @@ namespace x86Emitter
 
 	void xImpl_MovExtend::operator()(const xRegister32or64& to, const xRegister16& from) const
 	{
-		xOpWrite0F(SignExtend ? 0xbf : 0xb7, to, from);
+		xOpWrite0F(0, SignExtend ? 0xbf : 0xb7, to, from);
 	}
 
 	void xImpl_MovExtend::operator()(const xRegister32or64& to, const xIndirect16& sibsrc) const
 	{
-		xOpWrite0F(SignExtend ? 0xbf : 0xb7, to, sibsrc);
+		xOpWrite0F(0, SignExtend ? 0xbf : 0xb7, to, sibsrc);
 	}
 
 	void xImpl_MovExtend::operator()(const xRegister64& to, const xRegister32& from) const

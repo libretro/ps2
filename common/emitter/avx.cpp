@@ -73,11 +73,6 @@ namespace x86Emitter
 		{0x66, 0x66}, // VPCMPGTD
 	};
 
-	void xVPMOVMSKB(const xRegister32& to, const xRegisterSSE& from)
-	{
-		xOpWriteC5(0x66, 0xd7, to, xRegister32(), from);
-	}
-
 	void xVMOVMSKPS(const xRegister32& to, const xRegisterSSE& from)
 	{
 		xOpWriteC5(0x00, 0x50, to, xRegister32(), from);
@@ -86,14 +81,6 @@ namespace x86Emitter
 	void xVMOVMSKPD(const xRegister32& to, const xRegisterSSE& from)
 	{
 		xOpWriteC5(0x66, 0x50, to, xRegister32(), from);
-	}
-
-	void xVZEROUPPER()
-	{
-		// rather than dealing with nonexistant operands..
-		xWrite8(0xc5);
-		xWrite8(0xf8);
-		xWrite8(0x77);
 	}
 
 	void xImplAVX_Move::operator()(const xRegisterSSE& to, const xRegisterSSE& from) const

@@ -31,6 +31,39 @@
 #pragma once
 #include <vector>
 
+#include "internal.h"
+
+// rather than dealing with nonexistant operands..
+#define xVZEROUPPER() \
+	xWrite8(0xc5); \
+	xWrite8(0xf8); \
+	xWrite8(0x77)
+
+#define xVPMOVMSKB(to, from) xOpWriteC5(0x66, 0xd7, to, xRegister32(), from)
+
+// xMASKMOV:
+// Selectively write bytes from mm1/xmm1 to memory location using the byte mask in mm2/xmm2.
+// The default memory location is specified by DS:EDI.  The most significant bit in each byte
+// of the mask operand determines whether the corresponding byte in the source operand is
+// written to the corresponding byte location in memory.
+#define xMASKMOV(to, from) xOpWrite0F(0x66, 0xf7, to, from)
+
+// xPMOVMSKB:
+// Creates a mask made up of the most significant bit of each byte of the source
+// operand and stores the result in the low byte or word of the destination operand.
+// Upper bits of the destination are cleared to zero.
+//
+// When operating on a 64-bit (MMX) source, the byte mask is 8 bits; when operating on
+// 128-bit (SSE) source, the byte mask is 16-bits.
+//
+#define xPMOVMSKB(to, from) xOpWrite0F(0x66, 0xd7, to, from)
+
+// [sSSE-3] Concatenates dest and source operands into an intermediate composite,
+// shifts the composite at byte granularity to the right by a constant immediate,
+// and extracts the right-aligned result into the destination.
+//
+#define xPALIGNR(to, from, imm8) xOpWrite0F(0x66, 0x0f3a, to, from, imm8)
+
 namespace x86Emitter
 {
 	extern void xStoreReg(const xRegisterSSE& src);
@@ -460,10 +493,6 @@ namespace x86Emitter
 	extern void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
 	extern void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);
 
-	extern void xMASKMOV(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xPMOVMSKB(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xPALIGNR(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8);
-
 	// ------------------------------------------------------------------------
 
 	extern const xImplSimd_MoveSSE xMOVAPS;
@@ -610,9 +639,7 @@ namespace x86Emitter
 	extern const xImplAVX_ThreeArgYMM xVPXOR;
 	extern const xImplAVX_CmpInt xVPCMP;
 
-	extern void xVPMOVMSKB(const xRegister32& to, const xRegisterSSE& from);
 	extern void xVMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
 	extern void xVMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);
-	extern void xVZEROUPPER();
 
 } // namespace x86Emitter

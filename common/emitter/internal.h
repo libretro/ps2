@@ -23,7 +23,7 @@ namespace x86Emitter
 
 #define OpWriteSSE(pre, op) xOpWrite0F(pre, op, to, from)
 
-	extern void SimdPrefix(u8 prefix, u16 opcode);
+	extern void SimdPrefix(u16 opcode);
 	extern void EmitSibMagic(uint regfield, const void* address, int extraRIPOffset = 0);
 	extern void EmitSibMagic(uint regfield, const xIndirectVoid& info, int extraRIPOffset = 0);
 	extern void EmitSibMagic(uint reg1, const xRegisterBase& reg2, int = 0);
@@ -80,7 +80,7 @@ namespace x86Emitter
 			xWrite8(prefix);
 		EmitRex(param1, param2);
 
-		SimdPrefix(0, opcode);
+		SimdPrefix(opcode);
 
 		EmitSibMagic(param1, param2);
 	}
@@ -92,22 +92,10 @@ namespace x86Emitter
 			xWrite8(prefix);
 		EmitRex(param1, param2);
 
-		SimdPrefix(0, opcode);
+		SimdPrefix(opcode);
 
 		EmitSibMagic(param1, param2, 1);
 		xWrite8(imm8);
-	}
-
-	template <typename T1, typename T2>
-	__emitinline void xOpWrite0F(u16 opcode, const T1& param1, const T2& param2)
-	{
-		xOpWrite0F(0, opcode, param1, param2);
-	}
-
-	template <typename T1, typename T2>
-	__emitinline void xOpWrite0F(u16 opcode, const T1& param1, const T2& param2, u8 imm8)
-	{
-		xOpWrite0F(0, opcode, param1, param2, imm8);
 	}
 
 	// VEX 2 Bytes Prefix
