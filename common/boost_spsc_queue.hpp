@@ -90,14 +90,7 @@ public:
     static size_t next_index(size_t arg)
     {
         size_t ret = arg + 1;
-#if 0
-        // Initial boost code
-        while (unlikely(ret >= max_size))
-            ret -= max_size;
-#else
-        ret %= max_size;
-#endif
-        return ret;
+        return ret % max_size;
     }
 
     bool push(T const & t)
@@ -182,24 +175,13 @@ public:
         return empty(write_index_.load(std::memory_order_relaxed), read_index_.load(std::memory_order_relaxed));
     }
 
-    /**
-     * \return true, if implementation is lock-free.
-     *
-     * */
-    bool is_lock_free(void) const
-    {
-        return write_index_.is_lock_free() && read_index_.is_lock_free();
-    }
-
     size_t size() const
     {
         const size_t write_index =  write_index_.load(std::memory_order_relaxed);
         const size_t read_index = read_index_.load(std::memory_order_relaxed);
-        if (read_index > write_index) {
+        if (read_index > write_index)
             return (write_index + max_size) - read_index;
-        } else {
-            return write_index - read_index;
-        }
+	return write_index - read_index;
     }
 
 private:
