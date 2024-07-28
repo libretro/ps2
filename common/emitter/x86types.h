@@ -148,7 +148,7 @@ namespace x86Emitter
 	// --------------------------------------------------------------------------------------
 	class OperandSizedObject
 	{
-	protected:
+	public:
 		uint _operandSize = 0;
 		OperandSizedObject() = default;
 		OperandSizedObject(uint operandSize)
@@ -156,23 +156,17 @@ namespace x86Emitter
 		{
 		}
 
-	public:
 		uint GetOperandSize() const
 		{
 			return _operandSize;
 		}
 
-		bool Is8BitOp() const { return GetOperandSize() == 1; }
-		u8 GetPrefix16() const { return GetOperandSize() == 2 ? 0x66 : 0; }
-		void prefix16() const
-		{
-			if (GetOperandSize() == 2)
-				xWrite8(0x66);
-		}
+		bool Is8BitOp() const { return _operandSize == 1; }
+		u8 GetPrefix16() const { return _operandSize == 2 ? 0x66 : 0; }
 
 		int GetImmSize() const
 		{
-			switch (GetOperandSize())
+			switch (_operandSize)
 			{
 				case 1:
 					return 1;
@@ -242,25 +236,8 @@ namespace x86Emitter
 		}
 
 		bool IsEmpty() const { return Id < 0; }
-		bool IsInvalid() const { return Id == xRegId_Invalid; }
 		bool IsExtended() const { return (Id >= 0 && (Id & 0x0F) > 7); } // Register 8-15 need an extra bit to be selected
-		bool IsExtended8Bit() const { return (Is8BitOp() && Id >= 0x10); }
-		bool IsMem() const { return false; }
 		bool IsReg() const { return true; }
-
-		// Returns true if the register is a valid accumulator: Eax, Ax, Al, XMM0.
-		bool IsAccumulator() const { return Id == 0; }
-
-		// IsSIMD: returns true if the register is a valid XMM register.
-		bool IsSIMD() const { return GetOperandSize() == 16; }
-
-// IsWide: return true if the register is 64 bits (requires a wide op on the rex prefix)
-		bool IsWide() const
-		{
-			return GetOperandSize() == 8;
-		}
-		// return true if the register is a valid YMM register
-		bool IsWideSIMD() const { return GetOperandSize() == 32; }
 
 		/// Returns true if the specified register is caller-saved (volatile).
 		static inline bool IsCallerSaved(uint id);
@@ -279,29 +256,24 @@ namespace x86Emitter
 	public:
 		xRegisterInt() = default;
 
-		/// IDs in [4, 8) are h registers in 8-bit
-		int isIDSameInAllSizes() const
-		{
-			return Id < 4 || Id >= 8;
-		}
-
 		/// Checks if mapping the ID directly would be a good idea
 		bool canMapIDTo(int otherSize) const
 		{
-			if ((otherSize == 1) == (GetOperandSize() == 1))
+			if ((otherSize == 1) == (_operandSize == 1))
 				return true;
-			return isIDSameInAllSizes();
+			/// IDs in [4, 8) are h registers in 8-bit
+			return Id < 4 || Id >= 8;
 		}
 
 		/// Get a non-wide version of the register (for use with e.g. mov, where `mov eax, 3` and `mov rax, 3` are functionally identical but `mov eax, 3` is shorter)
 		xRegisterInt GetNonWide() const
 		{
-			return GetOperandSize() == 8 ? xRegisterInt(4, Id) : *this;
+			return _operandSize == 8 ? xRegisterInt(4, Id) : *this;
 		}
 
 		xRegisterInt MatchSizeTo(xRegisterInt other) const;
 
-		bool operator==(const xRegisterInt& src) const { return Id == src.Id && (GetOperandSize() == src.GetOperandSize()); }
+		bool operator==(const xRegisterInt& src) const { return Id == src.Id && (_operandSize == src._operandSize); }
 		bool operator!=(const xRegisterInt& src) const { return !operator==(src); }
 	};
 
@@ -795,8 +767,6 @@ extern const xRegister32
 			m_imm = imm;
 		}
 
-		const xRegType& GetReg() const { return m_reg; }
-		int GetImm() const { return m_imm; }
 		bool IsReg() const { return !m_reg.IsEmpty(); }
 	};
 
@@ -828,10 +798,8 @@ extern const xRegister32
 		xIndirectVoid(xAddressReg base, xAddressReg index, int scale = 0, sptr displacement = 0);
 		xIndirectVoid& Add(sptr imm);
 
-		bool IsMem() const { return true; }
 		bool IsReg() const { return false; }
 		bool IsExtended() const { return false; } // Non sense but ease template
-		bool IsWide() const { return _operandSize == 8; }
 
 		operator xAddressVoid()
 		{
@@ -905,22 +873,10 @@ extern const xRegister32
 		typedef xIndirectVoid _parent;
 
 	public:
-		xIndirect64orLess(const xIndirect8& src)
-			: _parent(src)
-		{
-		}
-		xIndirect64orLess(const xIndirect16& src)
-			: _parent(src)
-		{
-		}
-		xIndirect64orLess(const xIndirect32& src)
-			: _parent(src)
-		{
-		}
-		xIndirect64orLess(const xIndirect64& src)
-			: _parent(src)
-		{
-		}
+		xIndirect64orLess(const xIndirect8& src)  : _parent(src) { }
+		xIndirect64orLess(const xIndirect16& src) : _parent(src) { }
+		xIndirect64orLess(const xIndirect32& src) : _parent(src) { }
+		xIndirect64orLess(const xIndirect64& src) : _parent(src) { }
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -993,17 +949,12 @@ extern const xRegister32
 		// The jump instruction is emitted at the point of object construction.  The conditional
 		// type must be valid (Jcc_Unknown generates an assertion).
 		xForwardJump(JccComparisonType cctype = Jcc_Unconditional)
-			: xForwardJumpBase(OperandSize, cctype)
-		{
-		}
+			: xForwardJumpBase(OperandSize, cctype) { }
 
 		// Sets the jump target by writing back the current x86Ptr to the jump instruction.
 		// This method can be called multiple times, re-writing the jump instruction's target
 		// in each case. (the the last call is the one that takes effect).
-		void SetTarget() const
-		{
-			_setTarget(OperandSize);
-		}
+		void SetTarget() const { _setTarget(OperandSize); }
 	};
 
 	static __fi xAddressVoid operator+(const void* addr, const xAddressReg& reg)

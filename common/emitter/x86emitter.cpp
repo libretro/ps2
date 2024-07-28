@@ -374,7 +374,7 @@ const xRegister32
 
 	void EmitRex(uint regfield, const xIndirectVoid& info)
 	{
-		bool w = info.IsWide();
+		bool w = info._operandSize == 8;
 		bool r = false;
 		bool x = info.Index.IsExtended();
 		bool b = info.Base.IsExtended();
@@ -390,9 +390,9 @@ const xRegister32
 
 	void EmitRex(uint reg1, const xRegisterBase& reg2)
 	{
-		bool w       = reg2.IsWide();
+		bool w       = reg2._operandSize == 8;
 		bool b       = reg2.IsExtended();
-		bool ext8bit = reg2.IsExtended8Bit();
+		bool ext8bit = (reg2._operandSize == 1 && reg2.Id >= 0x10);
 		const u8 rex = 0x40 | (w << 3) | (u8)b;
 		if (rex != 0x40 || ext8bit)
 			xWrite8(rex);
@@ -400,28 +400,28 @@ const xRegister32
 
 	void EmitRex(const xRegisterBase& reg1, const xRegisterBase& reg2)
 	{
-		bool w       = reg1.IsWide() || reg2.IsWide();
+		bool w       = (reg1._operandSize == 8) || (reg2._operandSize == 8);
 		bool r       = reg1.IsExtended();
 		bool b       = reg2.IsExtended();
 		const u8 rex = 0x40 | (w << 3) | (r << 2) | (u8)b;
-		bool ext8bit = reg2.IsExtended8Bit();
+		bool ext8bit = (reg2._operandSize == 1 && reg2.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
 			xWrite8(rex);
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const void* src)
 	{
-		bool w       = reg1.IsWide();
+		bool w       = reg1._operandSize == 8;
 		bool r       = reg1.IsExtended();
 		const u8 rex = 0x40 | (w << 3) | (r << 2);
-		bool ext8bit = reg1.IsExtended8Bit();
+		bool ext8bit = (reg1._operandSize == 1 && reg1.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
 			xWrite8(rex);
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const xIndirectVoid& sib)
 	{
-		bool w = reg1.IsWide() || sib.IsWide();
+		bool w = reg1._operandSize == 8 || sib._operandSize == 8;
 		bool r = reg1.IsExtended();
 		bool x = sib.Index.IsExtended();
 		bool b = sib.Base.IsExtended();
@@ -431,7 +431,7 @@ const xRegister32
 			x = false;
 		}
 		const u8 rex = 0x40 | (w << 3) | (r << 2) | (x << 1) | (u8)b;
-		bool ext8bit = reg1.IsExtended8Bit();
+		bool ext8bit = (reg1._operandSize == 1 && reg1.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
 			xWrite8(rex);
 	}
@@ -868,7 +868,7 @@ const xRegister32
 
 	void xImpl_Test::operator()(const xRegisterInt& to, int imm) const
 	{
-		if (to.IsAccumulator())
+		if (to.Id == 0)
 		{
 			xOpAccWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xa8 : 0xa9, 0, to);
 		}
@@ -903,7 +903,8 @@ const xRegister32
 
 	void xImpl_IncDec::operator()(const xIndirect64orLess& to) const
 	{
-		to.prefix16();
+		if (to._operandSize == 2)
+			xWrite8(0x66);
 		xWrite8(to.Is8BitOp() ? 0xfe : 0xff);
 		EmitSibMagic(isDec ? 1 : 0, to);
 	}

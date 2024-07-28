@@ -92,7 +92,7 @@ namespace x86Emitter
 		}
 		else
 		{
-			if (to.IsAccumulator())
+			if (to.Id == 0)
 			{
 				u8 opcode = (to.Is8BitOp() ? 4 : 5) | (InstType << 3);
 				xOpAccWrite(to.GetPrefix16(), opcode, InstType, to);

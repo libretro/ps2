@@ -109,9 +109,9 @@ namespace x86Emitter
 
 		// Needed for 256-bit movemask.
 		if constexpr (std::is_same_v<T3, xRegisterSSE>)
-			L = param3.IsWideSIMD() ? 4 : 0;
+			L = param3._operandSize == 32 ? 4 : 0;
 		else
-			L = reg.IsWideSIMD() ? 4 : 0;
+			L = reg._operandSize == 32 ? 4 : 0;
 
 		u8 nv = (param2.IsEmpty() ? 0xF : ((~param2.Id & 0xF))) << 3;
 
@@ -136,7 +136,7 @@ namespace x86Emitter
 		u8 nR = reg.IsExtended() ? 0x00 : 0x80;
 		u8 nB = param3.IsExtended() ? 0x00 : 0x20;
 		u8 nX = 0x40; // likely unused so hardwired to disabled
-		u8 L = reg.IsWideSIMD() ? 4 : 0;
+		u8 L = reg._operandSize == 32 ? 4 : 0;
 		u8 W = (w == -1) ? (reg.GetOperandSize() == 8 ? 0x80 : 0) : // autodetect the size
                            0x80 * w; // take directly the W value
 
