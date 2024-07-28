@@ -128,38 +128,8 @@ ATTR_DEP extern u32* JS32(u32 to);
 // FPU instructions
 //******************
 
-// fld m32 to fpu reg stack
-ATTR_DEP extern void FLD32(u32 from);
-// fld st(i)
-ATTR_DEP extern void FLD(int st);
-// fld1 (push +1.0f on the stack)
-ATTR_DEP extern void FLD1();
-// fld1 (push log_2 e on the stack)
-ATTR_DEP extern void FLDL2E();
-// fstp m32 from fpu reg stack
-ATTR_DEP extern void FSTP32(u32 to);
-// fstp st(i)
-ATTR_DEP extern void FSTP(int st);
-
 // frndint
-ATTR_DEP extern void FRNDINT();
-ATTR_DEP extern void FXCH(int st);
-ATTR_DEP extern void F2XM1();
 ATTR_DEP extern void FSCALE();
-
-// fadd ST(0) to fpu reg stack ST(src)
-ATTR_DEP extern void FADD320toR(x86IntRegType src);
-// fsub ST(src) to fpu reg stack ST(0)
-ATTR_DEP extern void FSUB32Rto0(x86IntRegType src);
-
-// fmul m32 to fpu reg stack
-ATTR_DEP extern void FMUL32(u32 from);
-// fdiv m32 to fpu reg stack
-ATTR_DEP extern void FDIV32(u32 from);
-// ftan fpu reg stack
-ATTR_DEP extern void FPATAN(void);
-// fsin fpu reg stack
-ATTR_DEP extern void FSIN(void);
 
 //*********************
 // SSE   instructions *
