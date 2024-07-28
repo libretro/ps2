@@ -21,7 +21,6 @@ target_sources(common PRIVATE
 	TextureDecompress.cpp
 	Timer.cpp
 	emitter/avx.cpp
-	emitter/fpu.cpp
 	emitter/groups.cpp
 	emitter/jmp.cpp
 	emitter/legacy.cpp
