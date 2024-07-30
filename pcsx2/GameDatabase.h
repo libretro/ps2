@@ -53,7 +53,7 @@ namespace GameDatabaseSchema
 		AlignSprite,
 		MergeSprite,
 		Mipmap,
-		WildArmsHack,
+		ForceEvenSpritePosition,
 		BilinearUpscale,
 		NativePaletteDraw,
 		EstimateTextureRegion,
