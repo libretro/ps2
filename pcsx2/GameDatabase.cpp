@@ -328,7 +328,7 @@ static const char* s_gs_hw_fix_names[] = {
 	"alignSprite",
 	"mergeSprite",
 	"mipmap",
-	"wildArmsHack",
+	"forceEvenSpritePosition",
 	"bilinearUpscale",
 	"nativePaletteDraw",
 	"estimateTextureRegion",
