@@ -208,7 +208,8 @@ enum class GSRendererType : s8
 	OGL = 12,
 	SW = 13,
 	VK = 14,
-	DX12 = 15
+	DX12 = 15,
+	ParallelGS = 18
 };
 
 enum class GSInterlaceMode : u8
@@ -531,6 +532,7 @@ struct Pcsx2Config
 		GSBilinearDirtyMode UserHacks_BilinearHack = GSBilinearDirtyMode::Automatic;
 		TriFiltering TriFilter = TriFiltering::Automatic;
 		s8 OverrideTextureBarriers = -1;
+		u8 PGSSuperSampling = 0;
 
 		u16 SWExtraThreads = 2;
 		u16 SWExtraThreadsHeight = 4;

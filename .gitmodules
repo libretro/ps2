@@ -21,3 +21,6 @@
 [submodule "3rdparty/zstd/zstd"]
 	path = 3rdparty/zstd/zstd
 	url = https://github.com/facebook/zstd.git
+[submodule "pcsx2/GS/parallel-gs"]
+	path = pcsx2/GS/parallel-gs
+	url = https://github.com/Arntzen-Software/parallel-gs

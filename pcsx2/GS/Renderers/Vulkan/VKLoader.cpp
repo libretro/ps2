@@ -207,12 +207,15 @@ namespace Vulkan
 
 	void UnloadVulkanLibrary()
 	{
-		if ((--vulkan_module_ref_count) > 0)
-			return;
+		if (vulkan_module)
+		{
+			if ((--vulkan_module_ref_count) > 0)
+				return;
 
-		ResetVulkanLibraryFunctionPointers();
-		dlclose(vulkan_module);
-		vulkan_module = nullptr;
+			ResetVulkanLibraryFunctionPointers();
+			dlclose(vulkan_module);
+			vulkan_module = nullptr;
+		}
 	}
 
 #endif
