@@ -22,6 +22,9 @@
 #include "common/MemorySettingsInterface.h"
 #include "pcsx2/GS/Renderers/Common/GSRenderer.h"
 #ifdef ENABLE_VULKAN
+#ifdef HAVE_PARALLEL_GS
+#include "GS/Renderers/parallel-gs/GSRendererPGS.h"
+#endif
 #include "GS/Renderers/Vulkan/VKLoader.h"
 #include "GS/Renderers/Vulkan/GSDeviceVK.h"
 #include "GS/Renderers/Vulkan/GSTextureVK.h"
@@ -288,6 +291,7 @@ namespace Options
 
 	extern GfxOption<int> upscale_multiplier;
 	extern GfxOption<std::string> renderer;
+	extern GfxOption<int> pgs_super_sampling;
 
 	static Option<std::string> bios("pcsx2_bios", "Bios"); // will be filled in retro_init()
 	static Option<bool> fast_boot("pcsx2_fastboot", "Fast Boot", true);
@@ -301,8 +305,19 @@ namespace Options
 #ifdef ENABLE_VULKAN
 			"Vulkan",
 #endif
+#ifdef HAVE_PARALLEL_GS
+			"paraLLEl-GS",
+#endif
 			"Software",
 			"Null"});
+
+	GfxOption<int> pgs_super_sampling("pcsx2_pgs_ssaa", "paraLLEl super sampling", {
+		{ "Native", 0 },
+		{ "2x SSAA", 1 },
+		{ "4x SSAA", 2 },
+		{ "8x SSAA", 3 },
+		{ "16x SSAA", 4 },
+	});
 
 	GfxOption<int> upscale_multiplier("pcsx2_upscale_multiplier", "Internal Resolution",
 			{
@@ -514,7 +529,7 @@ void retro_get_system_info(retro_system_info* info)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	if (Options::renderer == "Software" || Options::renderer == "Null")
+	if (Options::renderer == "Software" || Options::renderer == "paraLLEl-GS" || Options::renderer == "Null")
 	{
 		info->geometry.base_width = 640;
 		info->geometry.base_height = 448;
@@ -545,8 +560,11 @@ void retro_reset(void)
 static void libretro_context_reset(void)
 {
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
+	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", Options::pgs_super_sampling);
 	GSConfig.UpscaleMultiplier = Options::upscale_multiplier;
+	GSConfig.PGSSuperSampling = Options::pgs_super_sampling;
 	EmuConfig.GS.UpscaleMultiplier = Options::upscale_multiplier;
+	EmuConfig.GS.PGSSuperSampling = Options::pgs_super_sampling;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -555,6 +573,9 @@ static void libretro_context_reset(void)
 		if (vulkan->interface_version != RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION)
 			log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION, vulkan->interface_version);
 		vk_libretro_set_hwrender_interface(vulkan);
+#ifdef HAVE_PARALLEL_GS
+		pgs_set_hwrender_interface(vulkan);
+#endif
 	}
 #endif
 	if (!MTGS::IsOpen())
@@ -571,6 +592,9 @@ static void libretro_context_destroy(void)
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		vk_libretro_shutdown();
+#ifdef HAVE_PARALLEL_GS
+	pgs_destroy_device();
+#endif
 #endif
 }
 
@@ -652,7 +676,7 @@ static bool libretro_select_hw_render(void)
 	}
 #endif
 #ifdef ENABLE_VULKAN
-	if (Options::renderer == "Vulkan")
+	if (Options::renderer == "Vulkan" || Options::renderer == "paraLLEl-GS")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN);
 #endif
 	if (Options::renderer == "Null")
@@ -830,19 +854,38 @@ bool retro_load_game(const struct retro_game_info* game)
 				break;
 #ifdef ENABLE_VULKAN
 			case RETRO_HW_CONTEXT_VULKAN:
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::VK);
+#ifdef HAVE_PARALLEL_GS
+				if (Options::renderer == "paraLLEl-GS")
 				{
+					s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::ParallelGS);
 					static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
 						RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN,
 						RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION,
-						get_application_info_vulkan,
-						create_device_vulkan,  // Callback above.
+						pgs_get_application_info,
+						pgs_create_device, // Legacy create device
 						nullptr,
+						pgs_create_instance,
+						pgs_create_device2,
 					};
-					environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, (void *)&iface);
+					environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, (void*)&iface);
 				}
-				Vulkan::LoadVulkanLibrary();
-				vk_libretro_init_wraps();
+				else
+#endif
+				{
+					s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::VK);
+					{
+						static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
+							RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN,
+							RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION,
+							get_application_info_vulkan,
+							create_device_vulkan, // Callback above.
+							nullptr,
+						};
+						environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, (void*)&iface);
+					}
+					Vulkan::LoadVulkanLibrary();
+					vk_libretro_init_wraps();
+				}
 				break;
 #endif
 			case RETRO_HW_CONTEXT_NONE:
@@ -925,6 +968,13 @@ void retro_run(void)
 #else
 		environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
 #endif
+	}
+
+	if (Options::pgs_super_sampling.Updated())
+	{
+		EmuConfig.GS.PGSSuperSampling = Options::pgs_super_sampling;
+		// FIXME: This seems to hang sometimes.
+		//VMManager::ApplySettings();
 	}
 
 	if (!MTGS::IsOpen())

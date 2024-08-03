@@ -17,35 +17,7 @@
 
 #define VK_NO_PROTOTYPES
 
-#if defined(WIN32)
-
-#define VK_USE_PLATFORM_WIN32_KHR
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-
-// vulkan.h pulls in windows.h on Windows, so we need to include our replacement header first
-#include "common/RedtapeWindows.h"
-
-#endif
-
-#if defined(VULKAN_USE_X11)
-#define VK_USE_PLATFORM_XLIB_KHR
-#endif
-
-#if defined(VULKAN_USE_WAYLAND)
-#define VK_USE_PLATFORM_WAYLAND_KHR
-#endif
-
-#if defined(__ANDROID__)
-#define VK_USE_PLATFORM_ANDROID_KHR
-#endif
-
-#if defined(__APPLE__)
-#define VK_USE_PLATFORM_METAL_EXT
-#endif
-
+#include "VKLoaderPlatformDefines.h"
 #include "vulkan/vulkan.h"
 
 #include "VKEntryPoints.h"

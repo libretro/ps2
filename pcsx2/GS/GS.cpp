@@ -28,6 +28,11 @@
 #include "../Counters.h"
 #include "../GS.h"
 
+#ifdef HAVE_PARALLEL_GS
+#include "GS/Renderers/parallel-gs/GSRendererPGS.h"
+std::unique_ptr<GSRendererPGS> g_pgs_renderer;
+#endif
+
 #ifdef ENABLE_OPENGL
 #include "Renderers/OpenGL/GSDeviceOGL.h"
 #endif
@@ -80,7 +85,11 @@ static GSRendererType GSsetRenderer(enum retro_hw_context_type api)
 		case RETRO_HW_CONTEXT_OPENGLES_VERSION: /* TODO/FIXME */
 			return GSRendererType::OGL;
 		case RETRO_HW_CONTEXT_VULKAN:
+#ifdef HAVE_PARALLEL_GS
+			return GSRendererType::ParallelGS;
+#else
 			return GSRendererType::VK;
+#endif
 		case RETRO_HW_CONTEXT_D3D11:
 			return GSRendererType::DX11;
 		case RETRO_HW_CONTEXT_D3D12:
@@ -124,12 +133,16 @@ static bool OpenGSDevice(GSRendererType renderer, bool clear_state_on_fail)
 			break;
 		case RETRO_HW_CONTEXT_VULKAN:
 #ifdef ENABLE_VULKAN
-			g_gs_device = std::make_unique<GSDeviceVK>();
-			if (!g_gs_device->Create())
+			// PGS fuses device and renderer together.
+			if (renderer == GSRendererType::VK)
 			{
-				g_gs_device->Destroy();
-				g_gs_device.reset();
-				return false;
+				g_gs_device = std::make_unique<GSDeviceVK>();
+				if (!g_gs_device->Create())
+				{
+					g_gs_device->Destroy();
+					g_gs_device.reset();
+					return false;
+				}
 			}
 #endif
 			break;
@@ -168,20 +181,34 @@ static void CloseGSDevice(bool clear_state)
 
 static bool OpenGSRenderer(GSRendererType renderer, u8* basemem)
 {
-	if (renderer != GSRendererType::SW)
-		g_gs_renderer = std::make_unique<GSRendererHW>();
+#ifdef HAVE_PARALLEL_GS
+	if (renderer == GSRendererType::ParallelGS)
+	{
+		g_pgs_renderer = std::make_unique<GSRendererPGS>(basemem);
+		return g_pgs_renderer->Init();
+	}
 	else
-		g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
+#endif
+	{
+		if (renderer != GSRendererType::SW)
+			g_gs_renderer = std::make_unique<GSRendererHW>();
+		else
+			g_gs_renderer = std::unique_ptr<GSRenderer>(MULTI_ISA_SELECT(makeGSRendererSW)(GSConfig.SWExtraThreads));
 
-	g_gs_renderer->SetRegsMem(basemem);
-	g_gs_renderer->ResetPCRTC();
-	g_gs_renderer->UpdateRenderFixes();
+		g_gs_renderer->SetRegsMem(basemem);
+		g_gs_renderer->ResetPCRTC();
+		g_gs_renderer->UpdateRenderFixes();
+	}
 	return true;
 }
 
 static void CloseGSRenderer(void)
 {
 	GSTextureReplacements::Shutdown();
+
+#ifdef HAVE_PARALLEL_GS
+	g_pgs_renderer.reset();
+#endif
 
 	if (g_gs_renderer)
 	{
@@ -195,30 +222,76 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 	Console.WriteLn("Reopening GS with %s device and %s renderer", recreate_device ? "new" : "existing",
 		recreate_renderer ? "new" : "existing");
 
-	g_gs_renderer->Flush(GSState::GSFlushReason::GSREOPEN);
-
-	if (recreate_device && !recreate_renderer)
+	if (g_gs_renderer)
 	{
-		// Keeping the renderer around, make sure nothing is left over.
-		g_gs_renderer->PurgeTextureCache(true, true, true);
-		g_gs_renderer->PurgePool();
-	}
-	else if (GSConfig.UserHacks_ReadTCOnClose)
-		g_gs_renderer->ReadbackTextureCache();
+		g_gs_renderer->Flush(GSState::GSFlushReason::GSREOPEN);
 
-	u8* basemem = g_gs_renderer->GetRegsMem();
+		if (recreate_device && !recreate_renderer)
+		{
+			// Keeping the renderer around, make sure nothing is left over.
+			g_gs_renderer->PurgeTextureCache(true, true, true);
+			g_gs_renderer->PurgePool();
+		}
+		else if (GSConfig.UserHacks_ReadTCOnClose)
+			g_gs_renderer->ReadbackTextureCache();
+	}
+
+	u8* basemem;
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+	{
+		basemem = g_pgs_renderer->GetRegsMem();
+	}
+	else
+#endif
+	{
+		basemem = g_gs_renderer->GetRegsMem();
+	}
 
 	freezeData fd = {};
 	std::unique_ptr<u8[]> fd_data;
 	if (recreate_renderer)
 	{
-		if (g_gs_renderer->Freeze(&fd, true) != 0)
-			return false;
+#ifdef HAVE_PARALLEL_GS
+		if (g_pgs_renderer)
+		{
+			if (g_pgs_renderer->Freeze(&fd, true) != 0)
+			{
+				Console.Error("(GSreopen) Failed to get GS freeze size");
+				return false;
+			}
+		}
+		else
+#endif
+		{
+			if (g_gs_renderer->Freeze(&fd, true) != 0)
+			{
+				Console.Error("(GSreopen) Failed to get GS freeze size");
+				return false;
+			}
+		}
 
 		fd_data = std::make_unique<u8[]>(fd.size);
 		fd.data = fd_data.get();
-		if (g_gs_renderer->Freeze(&fd, false) != 0)
-			return false;
+
+#ifdef HAVE_PARALLEL_GS
+		if (g_pgs_renderer)
+		{
+			if (g_pgs_renderer->Freeze(&fd, false) != 0)
+			{
+				Console.Error("(GSreopen) Failed to freeze GS");
+				return false;
+			}
+		}
+		else
+#endif
+		{
+			if (g_gs_renderer->Freeze(&fd, false) != 0)
+			{
+				Console.Error("(GSreopen) Failed to freeze GS");
+				return false;
+			}
+		}
 
 		CloseGSRenderer();
 	}
@@ -250,10 +323,23 @@ bool GSreopen(bool recreate_device, bool recreate_renderer, const Pcsx2Config::G
 			return false;
 		}
 
-		if (g_gs_renderer->Defrost(&fd) != 0)
+#ifdef HAVE_PARALLEL_GS
+		if (g_pgs_renderer)
 		{
-			Console.Error("(GSreopen) Failed to defrost");
-			return false;
+			if (g_pgs_renderer->Defrost(&fd) != 0)
+			{
+				Console.Error("(GSreopen) Failed to defrost");
+				return false;
+			}
+		}
+		else
+#endif
+		{
+			if (g_gs_renderer->Defrost(&fd) != 0)
+			{
+				Console.Error("(GSreopen) Failed to defrost");
+				return false;
+			}
 		}
 	}
 
@@ -281,45 +367,86 @@ void GSclose(void)
 
 void GSreset(bool hardware_reset)
 {
-	g_gs_renderer->Reset(hardware_reset);
+	if (g_gs_renderer)
+		g_gs_renderer->Reset(hardware_reset);
 }
 
 void GSgifSoftReset(u32 mask)
 {
-	g_gs_renderer->SoftReset(mask);
+	if (g_gs_renderer)
+		g_gs_renderer->SoftReset(mask);
 }
 
 void GSwriteCSR(u32 csr)
 {
-	g_gs_renderer->WriteCSR(csr);
+	if (g_gs_renderer)
+		g_gs_renderer->WriteCSR(csr);
 }
 
 void GSInitAndReadFIFO(u8* mem, u32 size)
 {
-	g_gs_renderer->InitReadFIFO(mem, size);
-	g_gs_renderer->ReadFIFO(mem, size);
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+		g_pgs_renderer->ReadFIFO(mem, size);
+#endif
+
+	if (g_gs_renderer)
+	{
+		g_gs_renderer->InitReadFIFO(mem, size);
+		g_gs_renderer->ReadFIFO(mem, size);
+	}
 }
 
 void GSReadLocalMemoryUnsync(u8* mem, u32 qwc, u64 BITBLITBUF, u64 TRXPOS, u64 TRXREG)
 {
-	g_gs_renderer->ReadLocalMemoryUnsync(mem, qwc, GIFRegBITBLTBUF{BITBLITBUF}, GIFRegTRXPOS{TRXPOS}, GIFRegTRXREG{TRXREG});
+	if (g_gs_renderer)
+		g_gs_renderer->ReadLocalMemoryUnsync(mem, qwc, GIFRegBITBLTBUF{BITBLITBUF}, GIFRegTRXPOS{TRXPOS}, GIFRegTRXREG{TRXREG});
 }
 
 void GSgifTransfer(const u8* mem, u32 size)
 {
-	g_gs_renderer->Transfer(mem, size);
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+		g_pgs_renderer->Transfer(mem, size);
+#endif
+
+	if (g_gs_renderer)
+		g_gs_renderer->Transfer(mem, size);
 }
 
 void GSvsync(u32 field, bool registers_written)
 {
-	// Do not move the flush into the VSync() method. It's here because EE transfers
-	// get cleared in HW VSync, and may be needed for a buffered draw (FFX FMVs).
-	g_gs_renderer->Flush(GSState::VSYNC);
-	g_gs_renderer->VSync(field, registers_written, g_gs_renderer->IsIdleFrame());
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+		g_pgs_renderer->VSync(field, registers_written);
+#endif
+
+	if (g_gs_renderer)
+	{
+		// Do not move the flush into the VSync() method. It's here because EE transfers
+		// get cleared in HW VSync, and may be needed for a buffered draw (FFX FMVs).
+		g_gs_renderer->Flush(GSState::VSYNC);
+		g_gs_renderer->VSync(field, registers_written, g_gs_renderer->IsIdleFrame());
+	}
 }
 
 int GSfreeze(FreezeAction mode, freezeData* data)
 {
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+	{
+		if (mode == FreezeAction::Save)
+			return g_pgs_renderer->Freeze(data, false);
+		else if (mode == FreezeAction::Size)
+			return g_pgs_renderer->Freeze(data, true);
+		else // if (mode == FreezeAction::Load)
+			return g_pgs_renderer->Defrost(data);
+	}
+#endif
+
+	if (!g_gs_renderer)
+		return -1;
+
 	if (mode == FreezeAction::Save)
 		return g_gs_renderer->Freeze(data, false);
 	else if (mode == FreezeAction::Size)
@@ -346,6 +473,12 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config, enum retro_hw_cont
 {
 	Pcsx2Config::GSOptions old_config(std::move(GSConfig));
 	GSConfig = new_config;
+
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+		g_pgs_renderer->UpdateConfig();
+#endif
+
 	if (GSConfig.Renderer == GSRendererType::Auto)
 		GSConfig.Renderer = GSsetRenderer(api);
 	if (!g_gs_renderer)

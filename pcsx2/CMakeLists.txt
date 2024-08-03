@@ -527,7 +527,18 @@ if(USE_VULKAN)
 		GS/Renderers/Vulkan/VKShaderCache.h
 		GS/Renderers/Vulkan/VKEntryPoints.h
 		GS/Renderers/Vulkan/VKLoader.h
+		GS/Renderers/Vulkan/VKLoaderPlatformDefines.h
 	)
+
+	set(PARALLEL_GS_STANDALONE ON CACHE BOOL "" FORCE)
+	set(GRANITE_POSITION_INDEPENDENT ON CACHE BOOL "" FORCE)
+	message("Adding support for paraLLEl-GS")
+	add_subdirectory(GS/parallel-gs EXCLUDE_FROM_ALL)
+	target_link_libraries(PCSX2_FLAGS INTERFACE parallel-gs)
+	target_compile_definitions(PCSX2_FLAGS INTERFACE HAVE_PARALLEL_GS)
+	list(APPEND pcsx2GSSources GS/Renderers/parallel-gs/GSRendererPGS.cpp)
+	list(APPEND pcsx2GSHeaders GS/Renderers/parallel-gs/GSRendererPGS.h)
+
 	target_link_libraries(common PUBLIC
 		Vulkan-Headers glslang
 	)

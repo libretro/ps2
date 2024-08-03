@@ -46,7 +46,7 @@ static __fi bool IsFirstProvokingVertex()
 	return (GSIsHardwareRenderer() && !g_gs_device->Features().provoking_vertex_last);
 }
 
-constexpr int GSState::GetSaveStateSize()
+int GSState::GetSaveStateSize()
 {
 	int size = 0;
 
