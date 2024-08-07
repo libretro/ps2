@@ -19,7 +19,9 @@
 #if !defined(_WIN32)
 
 #include "common/AlignedMalloc.h"
-#include <stdlib.h>
+
+#include <algorithm>
+#include <cstdlib>
 
 void* _aligned_malloc(size_t size, size_t align)
 {
