@@ -78,45 +78,45 @@ enum picture_coding_type
 
 struct MBtab
 {
-	std::uint8_t modes;
-	std::uint8_t len;
+	uint8_t modes;
+	uint8_t len;
 };
 
 struct MVtab
 {
-	std::uint8_t delta;
-	std::uint8_t len;
+	uint8_t delta;
+	uint8_t len;
 };
 
 struct DMVtab
 {
-	std::int8_t dmv;
-	std::uint8_t len;
+	int8_t dmv;
+	uint8_t len;
 };
 
 struct CBPtab
 {
-	std::uint8_t cbp;
-	std::uint8_t len;
+	uint8_t cbp;
+	uint8_t len;
 };
 
 struct DCtab
 {
-	std::uint8_t size;
-	std::uint8_t len;
+	uint8_t size;
+	uint8_t len;
 };
 
 struct DCTtab
 {
-	std::uint8_t run;
-	std::uint8_t level;
-	std::uint8_t len;
+	uint8_t run;
+	uint8_t level;
+	uint8_t len;
 };
 
 struct MBAtab
 {
-	std::uint8_t mba;
-	std::uint8_t len;
+	uint8_t mba;
+	uint8_t len;
 };
 
 

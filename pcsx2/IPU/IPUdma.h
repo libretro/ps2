@@ -17,25 +17,28 @@
 
 #include "IPU.h"
 
-struct IPUDMAStatus {
+struct IPUDMAStatus
+{
 	bool InProgress;
 	bool DMAFinished;
 };
 
-struct IPUStatus {
+struct IPUStatus
+{
 	bool DataRequested;
 	bool WaitingOnIPUFrom;
 	bool WaitingOnIPUTo;
 };
 
-extern void ipu0Interrupt();
-extern void ipu1Interrupt();
-
-extern void dmaIPU0();
-extern void dmaIPU1();
-extern void IPU0dma();
-extern void IPU1dma();
-
-extern void ipuDmaReset();
 extern IPUDMAStatus IPU1Status;
 extern IPUStatus IPUCoreStatus;
+
+extern void ipu0Interrupt(void);
+extern void ipu1Interrupt(void);
+
+extern void dmaIPU0(void);
+extern void dmaIPU1(void);
+extern void IPU0dma(void);
+extern void IPU1dma(void);
+
+extern void ipuDmaReset(void);
