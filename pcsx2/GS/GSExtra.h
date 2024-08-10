@@ -21,7 +21,7 @@
 
 #include <utility> /* std::pair */
 
-/// Like `memcmp(&a, &b, sizeof(T)) == 0` but faster
+/* Like `memcmp(&a, &b, sizeof(T)) == 0` but faster */
 template <typename T>
 __forceinline bool BitEqual(const T& a, const T& b)
 {
@@ -78,9 +78,10 @@ __forceinline bool BitEqual(const T& a, const T& b)
 
 extern Pcsx2Config::GSOptions GSConfig;
 
-// Maximum texture size to skip preload/hash path.
-// This is the width/height from the registers, i.e. not the power of 2.
-static constexpr u32 MAXIMUM_TEXTURE_HASH_CACHE_SIZE = 10; // 1024
+/* Maximum texture size to skip preload/hash path.
+ * This is the width/height from the registers, i.e. not the power of 2. */
+#define MAXIMUM_TEXTURE_HASH_CACHE_SIZE 10 /* 1024 */
+
 __fi static bool CanCacheTextureSize(u32 tw, u32 th)
 {
 	return (GSConfig.TexturePreloading == TexturePreloadingLevel::Full &&
@@ -124,17 +125,12 @@ extern void GSFreeWrappedMemory(void* ptr, size_t size, size_t repeat);
 /// Returns the maximum alpha value across a range of data. Assumes stride is 16 byte aligned.
 std::pair<u8, u8> GSGetRGBA8AlphaMinMax(const void* data, u32 width, u32 height, u32 stride);
 
-// clang-format off
+/* clang-format off */
 
-#ifdef _MSC_VER
-	#define ALIGN_STACK(n) alignas(n) int dummy__; (void)dummy__;
+#ifdef __GNUC__
+/* GCC removes the variable as dead code and generates some warnings.
+ * Stack is automatically realigned due to SSE/AVX operations */
+#define ALIGN_STACK(n) (void)0;
 #else
-	#ifdef __GNUC__
-		// GCC removes the variable as dead code and generates some warnings.
-		// Stack is automatically realigned due to SSE/AVX operations
-		#define ALIGN_STACK(n) (void)0;
-	#else
-		// TODO Check clang behavior
-		#define ALIGN_STACK(n) alignas(n) int dummy__;
-	#endif
+#define ALIGN_STACK(n) alignas(n) int dummy__; (void)dummy__;
 #endif
