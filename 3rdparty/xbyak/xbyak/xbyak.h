@@ -807,18 +807,6 @@ protected:
 		top_ = newTop;
 		maxSize_ = newSize;
 	}
-	/*
-		calc jmp address for AutoGrow mode
-	*/
-	void calcJmpAddress()
-	{
-		if (isCalledCalcJmpAddress_) return;
-		for (AddrInfoList::const_iterator i = addrInfoList_.begin(), ie = addrInfoList_.end(); i != ie; ++i) {
-			uint64_t disp = i->getVal(top_);
-			rewrite(i->codeOffset, disp, i->jmpSize);
-		}
-		isCalledCalcJmpAddress_ = true;
-	}
 public:
 	enum ProtectMode {
 		PROTECT_RW = 0, // read/write
@@ -1421,7 +1409,6 @@ private:
 		T_XXX
 	};
 	// T_66 = 1, T_F3 = 2, T_F2 = 3
-	uint32_t getPP(int type) const { return (type >> 5) & 3; }
 	void vex(const Reg& reg, const Reg& base, const Operand *v, int type, int code, bool x = false)
 	{
 		int w = (type & T_W1) ? 1 : 0;
@@ -1430,7 +1417,7 @@ private:
 		bool b = base.isExtIdx();
 		int idx = v ? v->getIdx() : 0;
 		if ((idx | reg.getIdx() | base.getIdx()) >= 16) return;
-		uint32_t pp = getPP(type);
+		uint32_t pp = (type >> 5) & 3;
 		uint32_t vvvv = (((~idx) & 15) << 3) | (is256 ? 4 : 0) | pp;
 		if (!b && !x && !w && (type & T_0F)) {
 			db(0xC5); db((r ? 0 : 0x80) | vvvv);
@@ -1453,7 +1440,7 @@ private:
 		int w = (type & T_EW1) ? 1 : 0;
 		uint32_t mmm = (type & T_0F) ? 1 : (type & T_0F38) ? 2 : (type & T_0F3A) ? 3 : 0;
 		if (type & T_FP16) mmm |= 4;
-		uint32_t pp = getPP(type);
+		uint32_t pp = (type >> 5) & 3;
 		int idx = v ? v->getIdx() : 0;
 		uint32_t vvvv = ~idx;
 
@@ -1500,10 +1487,6 @@ private:
 		db(code);
 		return disp8N;
 	}
-	void setModRM(int mod, int r1, int r2)
-	{
-		db(static_cast<uint8_t>((mod << 6) | ((r1 & 7) << 3) | (r2 & 7)));
-	}
 	void setSIB(const RegExp& e, int reg, int disp8N = 0)
 	{
 		uint64_t disp64 = e.getDisp();
@@ -1543,14 +1526,14 @@ private:
 		if (!baseBit && !indexBit) hasSIB = true;
 #endif
 		if (hasSIB) {
-			setModRM(mod, reg, Operand::ESP);
+			db(static_cast<uint8_t>((mod << 6) | ((reg & 7) << 3) | (Operand::ESP & 7)));
 			/* SIB = [2:3:3] = [SS:index:base(=rm)] */
 			const int idx = indexBit ? (index.getIdx() & 7) : Operand::ESP;
 			const int scale = e.getScale();
 			const int SS = (scale == 8) ? 3 : (scale == 4) ? 2 : (scale == 2) ? 1 : 0;
-			setModRM(SS, idx, newBaseIdx);
+			db(static_cast<uint8_t>((SS << 6) | ((idx & 7) << 3) | (newBaseIdx & 7)));
 		} else {
-			setModRM(mod, reg, newBaseIdx);
+			db(static_cast<uint8_t>((mod << 6) | ((reg & 7) << 3) | (newBaseIdx & 7)));
 		}
 		if (mod == mod01) {
 			db(disp);
@@ -1564,7 +1547,7 @@ private:
 	{
 		rex(reg2, reg1);
 		db(code0 | (reg1.isBit(8) ? 0 : 1)); if (code1 != NONE) db(code1); if (code2 != NONE) db(code2);
-		setModRM(3, reg1.getIdx(), reg2.getIdx());
+		db(static_cast<uint8_t>((3 << 6) | ((reg1.getIdx() & 7) << 3) | (reg2.getIdx() & 7)));
 	}
 	void opModM(const Address& addr, const Reg& reg, int code0, int code1 = NONE, int code2 = NONE, int immSize = 0)
 	{
@@ -1667,7 +1650,7 @@ private:
 		if (addr.getMode() == Address::M_ModRM) {
 			setSIB(addr.getRegExp(), reg, disp8N);
 		} else if (addr.getMode() == Address::M_rip || addr.getMode() == Address::M_ripAddr) {
-			setModRM(0, reg, 5);
+			db(static_cast<uint8_t>((0 << 6) | ((reg & 7) << 3) | (5 & 7)));
 			if (addr.getLabel()) { // [rip + Label]
 				putL_inner(*addr.getLabel(), true, addr.getDisp() - immSize);
 			} else {
@@ -1917,7 +1900,7 @@ private:
 			} else {
 				vex(r, base, p1, type, code);
 			}
-			setModRM(3, r.getIdx(), base.getIdx());
+			db(static_cast<uint8_t>((3 << 6) | ((r.getIdx() & 7) << 3) | (base.getIdx() & 7)));
 		}
 		if (imm8 != NONE) db(imm8);
 	}
