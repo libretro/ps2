@@ -312,7 +312,8 @@ public:
 		int fd = -1;
 #if defined(XBYAK_USE_MEMFD)
 		fd = memfd_create("xbyak", MFD_CLOEXEC);
-		if (fd != -1) {
+		if (fd != -1)
+		{
 			mode = MAP_SHARED;
 			if (ftruncate(fd, size) != 0) return 0;
 		}
@@ -425,7 +426,6 @@ public:
 		if (rounding_) return;
 		rounding_ = idx;
 	}
-	void setZero() { zero_ = true; }
 	// ah, ch, dh, bh?
 	bool isHigh8bit() const
 	{
@@ -584,7 +584,7 @@ struct BoundsReg : public Reg {
 };
 
 template<class T>T operator|(const T& x, const Opmask& k) { T r(x); r.setOpmaskIdx(k.getIdx()); return r; }
-template<class T>T operator|(const T& x, const EvexModifierZero&) { T r(x); r.setZero(); return r; }
+template<class T>T operator|(const T& x, const EvexModifierZero&) { T r(x); r.zero_ = true; return r; }
 template<class T>T operator|(const T& x, const EvexModifierRounding& emr) { T r(x); r.setRounding(emr.rounding); return r; }
 
 struct Fpu : public Reg {
@@ -1555,7 +1555,7 @@ private:
 		if (mod == mod01) {
 			db(disp);
 		} else if (mod == mod10 || (mod == mod00 && !baseBit)) {
-			dd(disp);
+			db(disp, 4);
 		}
 	}
 	LabelManager labelMgr_;
@@ -1592,17 +1592,25 @@ private:
 		db(code0); db(code1);
 		setSIB(regExp, reg.getIdx());
 	}
+
 	void makeJmp(uint32_t disp, LabelType type, uint8_t shortCode, uint8_t longCode, uint8_t longPref)
 	{
 		const int shortJmpSize = 2;
 		const int longHeaderSize = longPref ? 2 : 1;
 		const int longJmpSize = longHeaderSize + 4;
-		if (type != T_NEAR && inner::IsInDisp8(disp - shortJmpSize)) {
-			db(shortCode); db(disp - shortJmpSize);
-		} else {
-			if (type == T_SHORT) return;
-			if (longPref) db(longPref);
-			db(longCode); dd(disp - longJmpSize);
+		if (type != T_NEAR && inner::IsInDisp8(disp - shortJmpSize))
+		{
+			db(shortCode);
+			db(disp - shortJmpSize);
+		}
+		else
+		{
+			if (type == T_SHORT)
+				return;
+			if (longPref)
+				db(longPref);
+			db(longCode);
+			db(disp - longJmpSize, 4);
 		}
 	}
 	bool isNEAR(LabelType type) const { return type == T_NEAR || (type == T_AUTO && isDefaultJmpNEAR_); }
@@ -1611,15 +1619,21 @@ private:
 	{
 		if (isAutoGrow() && size_ + 16 >= maxSize_) growMemory(); /* avoid splitting code of jmp */
 		size_t offset = 0;
-		if (labelMgr_.getOffset(&offset, label)) { /* label exists */
+		if (labelMgr_.getOffset(&offset, label)) /* label exists */
 			makeJmp(inner::VerifyInInt32(offset - size_), type, shortCode, longCode, longPref);
-		} else {
+		else
+		{
 			int jmpSize = 0;
-			if (isNEAR(type)) {
+			if (isNEAR(type))
+			{
 				jmpSize = 4;
-				if (longPref) db(longPref);
-				db(longCode); dd(0);
-			} else {
+				if (longPref)
+					db(longPref);
+				db(longCode);
+				db((uint64_t)0, (size_t)4);
+			}
+			else
+			{
 				jmpSize = 1;
 				db(shortCode); db(0);
 			}
@@ -1629,17 +1643,20 @@ private:
 	}
 	void opJmpAbs(const void *addr, LabelType type, uint8_t shortCode, uint8_t longCode, uint8_t longPref = 0)
 	{
-		if (isAutoGrow()) {
-			if (!isNEAR(type)) return;
-			if (size_ + 16 >= maxSize_) growMemory();
-			if (longPref) db(longPref);
+		if (isAutoGrow())
+		{
+			if (!isNEAR(type))
+				return;
+			if (size_ + 16 >= maxSize_)
+				growMemory();
+			if (longPref)
+				db(longPref);
 			db(longCode);
-			dd(0);
+			db((uint64_t)0, (size_t)4);
 			save(size_ - 4, size_t(addr) - size_, 4, inner::Labs);
-		} else {
-			makeJmp(inner::VerifyInInt32(reinterpret_cast<const uint8_t*>(addr) - getCurr()), type, shortCode, longCode, longPref);
 		}
-
+		else
+			makeJmp(inner::VerifyInInt32(reinterpret_cast<const uint8_t*>(addr) - getCurr()), type, shortCode, longCode, longPref);
 	}
 	// reg is reg field of ModRM
 	// immSize is the size for immediate value
@@ -1659,7 +1676,7 @@ private:
 					if (isAutoGrow()) return;
 					disp -= (size_t)getCurr() + 4 + immSize;
 				}
-				dd(inner::VerifyInInt32(disp));
+				db(inner::VerifyInInt32(disp), 4);
 			}
 		}
 	}
@@ -2182,9 +2199,9 @@ public:
 		if (af.bit_ == 8) {
 			db(0x6A); db(imm);
 		} else if (af.bit_ == 16) {
-			db(0x66); db(0x68); dw(imm);
+			db(0x66); db(0x68); db(imm, 2);
 		} else {
-			db(0x68); dd(imm);
+			db(0x68); db(imm, 4);
 		}
 	}
 	/* use "push(word, 4)" if you want "push word 4" */
@@ -2224,7 +2241,7 @@ public:
 		if (code && addr->isOnlyDisp()) {
 			rex(*reg, *addr);
 			db(code | (reg->isBit(8) ? 0 : 1));
-			dd(static_cast<uint32_t>(addr->getDisp()));
+			db(static_cast<uint32_t>(addr->getDisp()), 4);
 		} else
 #endif
 		{
@@ -2353,10 +2370,10 @@ public:
 	*/
 	void nop(size_t size = 1, bool useMultiByteNop = true)
 	{
-		if (!useMultiByteNop) {
-			for (size_t i = 0; i < size; i++) {
+		if (!useMultiByteNop)
+		{
+			for (size_t i = 0; i < size; i++)
 				db(0x90);
-			}
 			return;
 		}
 		/*
@@ -2377,7 +2394,8 @@ public:
 			{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
 		};
 		const size_t n = sizeof(nopTbl) / sizeof(nopTbl[0]);
-		while (size > 0) {
+		while (size > 0)
+		{
 			size_t len = (std::min)(n, size);
 			const uint8_t *seq = nopTbl[len - 1];
 			db(seq, len);
