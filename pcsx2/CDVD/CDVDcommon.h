@@ -89,28 +89,28 @@ typedef struct _cdvdTN
 // CDVD
 // NOTE: The read/write functions CANNOT use XMM/MMX regs
 // If you want to use them, need to save and restore current ones
-typedef s32(CALLBACK* _CDVDopen)(const char* pTitleFilename);
+typedef s32(*_CDVDopen)(const char* pTitleFilename);
 
 // Initiates an asynchronous track read operation.
 // Returns -1 on error (invalid track)
 // Returns 0 on success.
-typedef s32(CALLBACK* _CDVDreadTrack)(u32 lsn, int mode);
+typedef s32(*_CDVDreadTrack)(u32 lsn, int mode);
 
 // Copies loaded data to the target buffer.
 // Returns -2 if the asynchronous read is still pending.
 // Returns -1 if the asyncronous read failed.
 // Returns 0 on success.
-typedef s32(CALLBACK* _CDVDgetBuffer)(u8* buffer);
+typedef s32(*_CDVDgetBuffer)(u8* buffer);
 
-typedef s32(CALLBACK* _CDVDreadSubQ)(u32 lsn, cdvdSubQ* subq);
-typedef s32(CALLBACK* _CDVDgetTN)(cdvdTN* Buffer);
-typedef s32(CALLBACK* _CDVDgetTD)(u8 Track, cdvdTD* Buffer);
-typedef s32(CALLBACK* _CDVDgetTOC)(void* toc);
-typedef s32(CALLBACK* _CDVDgetDiskType)();
-typedef s32(CALLBACK* _CDVDgetTrayStatus)();
-typedef s32(CALLBACK* _CDVDctrlTrayOpen)();
-typedef s32(CALLBACK* _CDVDctrlTrayClose)();
-typedef s32(CALLBACK* _CDVDreadSector)(u8* buffer, u32 lsn, int mode);
+typedef s32(*_CDVDreadSubQ)(u32 lsn, cdvdSubQ* subq);
+typedef s32(*_CDVDgetTN)(cdvdTN* Buffer);
+typedef s32(*_CDVDgetTD)(u8 Track, cdvdTD* Buffer);
+typedef s32(*_CDVDgetTOC)(void* toc);
+typedef s32(*_CDVDgetDiskType)();
+typedef s32(*_CDVDgetTrayStatus)();
+typedef s32(*_CDVDctrlTrayOpen)();
+typedef s32(*_CDVDctrlTrayClose)();
+typedef s32(*_CDVDreadSector)(u8* buffer, u32 lsn, int mode);
 
 // check whether disc is single or dual layer
 // if its dual layer, check what the disctype is and what sector number
@@ -120,9 +120,9 @@ typedef s32(CALLBACK* _CDVDreadSector)(u8* buffer, u32 lsn, int mode);
 //          gets value for start lsn of layer1
 // returns: 1 if on dual layer disc
 //          0 if not on dual layer disc
-typedef s32(CALLBACK* _CDVDgetDualInfo)(s32* dualType, u32* _layer1start);
+typedef s32(*_CDVDgetDualInfo)(s32* dualType, u32* _layer1start);
 
-typedef void(CALLBACK* _CDVDnewDiskCB)(void (*callback)());
+typedef void (*_CDVDnewDiskCB)(void (*callback)(void));
 
 enum class CDVD_SourceType : uint8_t
 {
@@ -133,7 +133,7 @@ enum class CDVD_SourceType : uint8_t
 
 struct CDVD_API
 {
-	void(CALLBACK* close)();
+	void(*close)(void);
 
 	// Don't need init or shutdown.  iso/nodisc have no init/shutdown.
 

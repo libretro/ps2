@@ -36,12 +36,12 @@ static T2 cpp11_bit_cast(T1 t1) {
   return t2;
 }
 
-static __fi bool IsAutoFlushEnabled()
+static __fi bool IsAutoFlushEnabled(void)
 {
 	return GSIsHardwareRenderer() ? (GSConfig.UserHacks_AutoFlush != GSHWAutoFlushLevel::Disabled) : GSConfig.AutoFlushSW;
 }
 
-static __fi bool IsFirstProvokingVertex()
+static __fi bool IsFirstProvokingVertex(void)
 {
 	return (GSIsHardwareRenderer() && !g_gs_device->Features().provoking_vertex_last);
 }
@@ -255,10 +255,20 @@ void GSState::ResetHandlers()
 	m_fpGIFPackedRegHandlers[GIF_REG_NOP] = &GSState::GIFPackedRegHandlerNOP;
 
 	// swap first/last indices when the provoking vertex is the first (D3D/Vulkan)
-	if (IsAutoFlushEnabled())
-		IsFirstProvokingVertex() ? SetPrimHandlers<true, true>() : SetPrimHandlers<true, false>();
+	if (IsFirstProvokingVertex())
+	{
+		if (IsAutoFlushEnabled())
+			SetPrimHandlers<true, true>();
+		else
+			SetPrimHandlers<false, true>();
+	}
 	else
-		IsFirstProvokingVertex() ? SetPrimHandlers<false, true>() : SetPrimHandlers<false, false>();
+	{
+		if (IsAutoFlushEnabled())
+			SetPrimHandlers<true, false>();
+		else
+			SetPrimHandlers<false, false>();
+	}
 
 	std::fill(std::begin(m_fpGIFRegHandlers), std::end(m_fpGIFRegHandlers), &GSState::GIFRegHandlerNull);
 

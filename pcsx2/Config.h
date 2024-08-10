@@ -552,10 +552,6 @@ struct Pcsx2Config
 		/// Returns true if any of the hardware renderers are selected.
 		bool UseHardwareRenderer() const;
 
-		/// Returns false if the compared to the old settings, we need to reopen GS.
-		/// (i.e. renderer change, swap chain mode change, etc.)
-		bool RestartOptionsAreEqual(const GSOptions& right) const;
-
 		/// Returns false if any options need to be applied to the MTGS.
 		bool OptionsAreEqual(const GSOptions& right) const;
 

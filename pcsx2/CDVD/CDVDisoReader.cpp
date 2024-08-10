@@ -35,16 +35,16 @@ static int pmode, cdtype;
 static s32 layer1start = -1;
 static bool layer1searched = false;
 
-static void CALLBACK ISOclose(void)
+static void ISOclose(void)
 {
 	iso.Close();
 }
 
-static s32 CALLBACK ISOopen(const char* pTitle)
+static s32 ISOopen(const char* pTitle)
 {
 	ISOclose(); // just in case
 
-	if ((pTitle == NULL) || (pTitle[0] == 0))
+	if ((!pTitle) || (pTitle[0] == 0))
 	{
 		Console.Error("CDVDiso Error: No filename specified.");
 		return -1;
@@ -72,31 +72,31 @@ static s32 CALLBACK ISOopen(const char* pTitle)
 	return 0;
 }
 
-static s32 CALLBACK ISOreadSubQ(u32 lsn, cdvdSubQ* subq)
+static s32 ISOreadSubQ(u32 lsn, cdvdSubQ* subq)
 {
 	// fake it
 	u8 min, sec, frm;
-	subq->ctrl = 4;
-	subq->mode = 1;
-	subq->trackNum = itob(1);
+	subq->ctrl       = 4;
+	subq->mode       = 1;
+	subq->trackNum   = itob(1);
 	subq->trackIndex = itob(1);
 
 	lba_to_msf(lsn, &min, &sec, &frm);
-	subq->trackM = itob(min);
-	subq->trackS = itob(sec);
-	subq->trackF = itob(frm);
+	subq->trackM     = itob(min);
+	subq->trackS     = itob(sec);
+	subq->trackF     = itob(frm);
 
-	subq->pad = 0;
+	subq->pad        = 0;
 
 	lba_to_msf(lsn + (2 * 75), &min, &sec, &frm);
-	subq->discM = itob(min);
-	subq->discS = itob(sec);
-	subq->discF = itob(frm);
+	subq->discM      = itob(min);
+	subq->discS      = itob(sec);
+	subq->discF      = itob(frm);
 
 	return 0;
 }
 
-static s32 CALLBACK ISOgetTN(cdvdTN* Buffer)
+static s32 ISOgetTN(cdvdTN* Buffer)
 {
 	Buffer->strack = 1;
 	Buffer->etrack = 1;
@@ -104,7 +104,7 @@ static s32 CALLBACK ISOgetTN(cdvdTN* Buffer)
 	return 0;
 }
 
-static s32 CALLBACK ISOgetTD(u8 Track, cdvdTD* Buffer)
+static s32 ISOgetTD(u8 Track, cdvdTD* Buffer)
 {
 	if (Track == 0)
 		Buffer->lsn  = iso.GetBlockCount();
@@ -165,7 +165,7 @@ static void FindLayer1Start(void)
 }
 
 // Should return 0 if no error occurred, or -1 if layer detection FAILED.
-static s32 CALLBACK ISOgetDualInfo(s32* dualType, u32* _layer1start)
+static s32 ISOgetDualInfo(s32* dualType, u32* _layer1start)
 {
 	FindLayer1Start();
 
@@ -182,17 +182,17 @@ static s32 CALLBACK ISOgetDualInfo(s32* dualType, u32* _layer1start)
 	return 0;
 }
 
-static s32 CALLBACK ISOgetDiskType(void) { return cdtype; }
+static s32 ISOgetDiskType(void) { return cdtype; }
 
-static s32 CALLBACK ISOgetTOC(void* toc)
+static s32 ISOgetTOC(void* toc)
 {
 	u8 type     = ISOgetDiskType();
 	u8* tocBuff = (u8*)toc;
 
 	if (type == CDVD_TYPE_DVDV || type == CDVD_TYPE_PS2DVD)
 	{
-		// get dvd structure format
-		// scsi command 0x43
+		/* get DVD structure format
+		 * scsi command 0x43 */
 		memset(tocBuff, 0, 2048);
 
 		FindLayer1Start();
@@ -262,11 +262,12 @@ static s32 CALLBACK ISOgetTOC(void* toc)
 			tocBuff[23] = (l1s >> 0) & 0xff;
 		}
 	}
-	else if ((type == CDVD_TYPE_CDDA) || (type == CDVD_TYPE_PS2CDDA) ||
-			 (type == CDVD_TYPE_PS2CD) || (type == CDVD_TYPE_PSCDDA) || (type == CDVD_TYPE_PSCD))
+	else if ((type == CDVD_TYPE_CDDA)  || (type == CDVD_TYPE_PS2CDDA) ||
+		 (type == CDVD_TYPE_PS2CD) || (type == CDVD_TYPE_PSCDDA)  || 
+		 (type == CDVD_TYPE_PSCD))
 	{
-		// cd toc
-		// (could be replaced by 1 command that reads the full toc)
+		/* CD TOC
+		 * (could be replaced by 1 command that reads the full TOC) */
 		u8 min, sec, frm;
 		s32 i, err;
 		cdvdTN diskInfo;
@@ -316,7 +317,7 @@ static s32 CALLBACK ISOgetTOC(void* toc)
 	return 0;
 }
 
-static s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
+static s32 ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
 {
 	static u8 cdbuffer[CD_FRAMESIZE_RAW] = {0};
 
@@ -362,7 +363,7 @@ static s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
 	return 0;
 }
 
-static s32 CALLBACK ISOreadTrack(u32 lsn, int mode)
+static s32 ISOreadTrack(u32 lsn, int mode)
 {
 	int _lsn = lsn;
 
@@ -376,19 +377,19 @@ static s32 CALLBACK ISOreadTrack(u32 lsn, int mode)
 	return 0;
 }
 
-static s32 CALLBACK ISOgetBuffer(u8* buffer)
+static s32 ISOgetBuffer(u8* buffer)
 {
 	return iso.FinishRead3(buffer, pmode);
 }
 
-static s32 CALLBACK ISOgetTrayStatus(void)
+static s32 ISOgetTrayStatus(void)
 {
 	return CDVD_TRAY_CLOSE;
 }
 
-static s32 CALLBACK ISOctrlTrayOpen(void)  { return 0; }
-static s32 CALLBACK ISOctrlTrayClose(void) { return 0; }
-static void CALLBACK ISOnewDiskCB(void (*)(void)) { }
+static s32 ISOctrlTrayOpen(void)  { return 0; }
+static s32 ISOctrlTrayClose(void) { return 0; }
+static void ISOnewDiskCB(void (*)(void)) { }
 
 CDVD_API CDVDapi_Iso =
 {

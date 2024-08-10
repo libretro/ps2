@@ -15,4 +15,4 @@
 
 #pragma once
 
-extern void Mix();
+extern void spu2Mix(void);

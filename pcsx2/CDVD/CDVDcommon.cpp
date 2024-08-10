@@ -43,20 +43,20 @@ static int diskTypeCached = -1;
 ////////////////////////////////////////////////////////
 //
 // CDVD null interface for Run BIOS menu
-static s32 CALLBACK NODISCopen(const char* pTitle) { return 0; }
-static void CALLBACK NODISCclose(void) { }
-static s32 CALLBACK NODISCreadTrack(u32 lsn, int mode) { return -1; }
-static s32 CALLBACK NODISCgetBuffer(u8* buffer) { return -1; }
-static s32 CALLBACK NODISCreadSubQ(u32 lsn, cdvdSubQ* subq) { return -1; }
-static s32 CALLBACK NODISCgetTN(cdvdTN* Buffer) { return -1; }
-static s32 CALLBACK NODISCgetTD(u8 Track, cdvdTD* Buffer) { return -1; }
-static s32 CALLBACK NODISCgetTOC(void* toc) { return -1; }
-static s32 CALLBACK NODISCgetDiskType(void) { return CDVD_TYPE_NODISC; }
-static s32 CALLBACK NODISCgetTrayStatus(void) { return CDVD_TRAY_CLOSE; }
-static s32 CALLBACK NODISCdummyS32(void) { return 0; }
-static void CALLBACK NODISCnewDiskCB(void (*)(void)) { }
-static s32 CALLBACK NODISCreadSector(u8* tempbuffer, u32 lsn, int mode) { return -1; }
-static s32 CALLBACK NODISCgetDualInfo(s32* dualType, u32* _layer1start) { return -1; }
+static s32 NODISCopen(const char* pTitle) { return 0; }
+static void NODISCclose(void) { }
+static s32 NODISCreadTrack(u32 lsn, int mode) { return -1; }
+static s32 NODISCgetBuffer(u8* buffer) { return -1; }
+static s32 NODISCreadSubQ(u32 lsn, cdvdSubQ* subq) { return -1; }
+static s32 NODISCgetTN(cdvdTN* Buffer) { return -1; }
+static s32 NODISCgetTD(u8 Track, cdvdTD* Buffer) { return -1; }
+static s32 NODISCgetTOC(void* toc) { return -1; }
+static s32 NODISCgetDiskType(void) { return CDVD_TYPE_NODISC; }
+static s32 NODISCgetTrayStatus(void) { return CDVD_TRAY_CLOSE; }
+static s32 NODISCdummyS32(void) { return 0; }
+static void NODISCnewDiskCB(void (*)(void)) { }
+static s32 NODISCreadSector(u8* tempbuffer, u32 lsn, int mode) { return -1; }
+static s32 NODISCgetDualInfo(s32* dualType, u32* _layer1start) { return -1; }
 
 static CDVD_API CDVDapi_NoDisc =
 {

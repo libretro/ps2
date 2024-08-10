@@ -5481,7 +5481,7 @@ void GSTextureCache::Source::Flush(u32 count, int layer, const GSOffset& off)
 		rtx = psm.rtxP;
 	}
 
-	pitch = VectorAlign(pitch);
+	pitch = Common::AlignUpPow2(pitch, VECTOR_ALIGNMENT);
 
 	for (u32 i = 0; i < count; i++)
 	{
@@ -5678,7 +5678,7 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 			if ((m_TEX0.PSM & 0xf) != PSMCT24 && m_dirty[i].rgba.c.a && bpp >= 16)
 			{
 				// TODO: Only read once in 32bit and copy to the mapped texture. Bit out of scope of this PR and not a huge impact.
-				const int pitch = VectorAlign(read_r.width() * sizeof(u32));
+				const int pitch = Common::AlignUpPow2(read_r.width() * sizeof(u32), VECTOR_ALIGNMENT);
 				g_gs_renderer->m_mem.ReadTexture(off, read_r, s_unswizzle_buffer, pitch, TEXA);
 
 				std::pair<u8, u8> new_alpha_minmax = GSGetRGBA8AlphaMinMax(s_unswizzle_buffer, read_r.width(), read_r.height(), pitch);
@@ -5691,7 +5691,7 @@ void GSTextureCache::Target::Update(bool cannot_scale)
 		}
 		else
 		{
-			const int pitch = VectorAlign(read_r.width() * sizeof(u32));
+			const int pitch = Common::AlignUpPow2(read_r.width() * sizeof(u32), VECTOR_ALIGNMENT);
 			g_gs_renderer->m_mem.ReadTexture(off, read_r, s_unswizzle_buffer, pitch, TEXA);
 
 			if ((m_TEX0.PSM & 0xf) != PSMCT24 && m_dirty[i].rgba.c.a && bpp >= 16)
@@ -6567,8 +6567,8 @@ static void HashTextureLevel(const GIFRegTEX0& TEX0, const GIFRegTEXA& TEXA, GST
 	if (tw < bs.x || th < bs.y || psm.fmsk != 0xFFFFFFFFu || region.GetMaxX() > 0 || region.GetMinY() > 0)
 	{
 		// Expand texture indices. Align to 32 bytes for AVX2.
-		const bool palette = (psm.pal > 0);
-		const u32 pitch = VectorAlign(static_cast<u32>(block_rect.z) << (palette ? 0 : 2));
+		const bool palette = psm.pal > 0;
+		const u32 pitch    = Common::AlignUpPow2(static_cast<u32>(block_rect.z) << (palette ? 0 : 2),VECTOR_ALIGNMENT);
 		const u32 row_size = static_cast<u32>(tw) << (palette ? 0 : 2);
 		const GSLocalMemory::readTexture rtx = palette ? psm.rtxP : psm.rtx;
 
@@ -6649,7 +6649,7 @@ void GSTextureCache::PreloadTexture(const GIFRegTEX0& TEX0, const GIFRegTEXA& TE
 	}
 	else
 	{
-		pitch = VectorAlign(pitch);
+		pitch = Common::AlignUpPow2(pitch, VECTOR_ALIGNMENT);
 
 		u8* buff = s_unswizzle_buffer;
 		rtx(mem, off, block_rect, buff, pitch, TEXA);

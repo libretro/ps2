@@ -107,26 +107,19 @@ __fi static bool CanPreloadTextureSize(u32 tw, u32 th)
 			min_dimension <= MAXIMUM_SIZE_IN_OTHER_DIRECTION);
 }
 
-// Maximum number of mipmap levels for a texture.
-// PS2 has a max of 7 levels (1 base + 6 mips).
-static constexpr int MAXIMUM_TEXTURE_MIPMAP_LEVELS = 7;
+/* Maximum number of mipmap levels for a texture.
+ * PS2 has a max of 7 levels (1 base + 6 mips). */
+#define MAXIMUM_TEXTURE_MIPMAP_LEVELS 7
 
-// The maximum number of duplicate frames we can skip presenting for.
-static constexpr u32 MAX_SKIPPED_DUPLICATE_FRAMES = 3;
+/* The maximum number of duplicate frames we can skip presenting for. */
+#define MAX_SKIPPED_DUPLICATE_FRAMES 3
 
 extern void* GSAllocateWrappedMemory(size_t size, size_t repeat);
 extern void GSFreeWrappedMemory(void* ptr, size_t size, size_t repeat);
 
-/// We want all allocations and pitches to be aligned to 32-bit, regardless of whether we're
-/// SSE4 or AVX2, because of multi-ISA.
-static constexpr u32 VECTOR_ALIGNMENT = 32;
-
-/// Aligns allocation/pitch size to preferred host size.
-template<typename T>
-__fi static T VectorAlign(T value)
-{
-	return Common::AlignUpPow2(value, VECTOR_ALIGNMENT);
-}
+/* We want all allocations and pitches to be aligned to 32-bit, 
+ * regardless of whether we're SSE4 or AVX2, because of multi-ISA. */
+#define VECTOR_ALIGNMENT 32
 
 /// Returns the maximum alpha value across a range of data. Assumes stride is 16 byte aligned.
 std::pair<u8, u8> GSGetRGBA8AlphaMinMax(const void* data, u32 width, u32 height, u32 stride);

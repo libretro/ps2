@@ -168,7 +168,7 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 			if (StringUtil::EndsWith(fix, "Hack"))
 			{
 				fix.erase(fix.size() - 4);
-				for (GamefixId id = GamefixId_FIRST; id < pxEnumEnd; ++id)
+				for (GamefixId id = GamefixId_FIRST; (int)id < GamefixId_COUNT; (id = (GamefixId)((int)id + 1)))
 				{
 					if (fix.compare(EnumToString(id)) == 0 &&
 						std::find(gameEntry.gameFixes.begin(), gameEntry.gameFixes.end(), id) == gameEntry.gameFixes.end())

@@ -162,7 +162,9 @@ void Pcsx2Config::SpeedhackOptions::Set(SpeedHack id, int value)
 
 bool Pcsx2Config::SpeedhackOptions::operator==(const SpeedhackOptions& right) const
 {
-	return OpEqu(bitset) && OpEqu(EECycleRate) && OpEqu(EECycleSkip);
+	return     OpEqu(bitset) 
+		&& OpEqu(EECycleRate)
+		&& OpEqu(EECycleSkip);
 }
 
 bool Pcsx2Config::SpeedhackOptions::operator!=(const SpeedhackOptions& right) const
@@ -435,72 +437,55 @@ Pcsx2Config::GSOptions::GSOptions()
 bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
 {
 	return (
-		OpEqu(VsyncQueueSize) &&
-
-		OpEqu(FramerateNTSC) &&
-		OpEqu(FrameratePAL) &&
-
-		OptionsAreEqual(right));
+		   OpEqu(VsyncQueueSize)
+		&& OpEqu(FramerateNTSC) 
+		&& OpEqu(FrameratePAL)
+		&& OptionsAreEqual(right));
 }
 
 bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 {
 	return (
-		OpEqu(bitset) &&
-
-		OpEqu(InterlaceMode) &&
-
-		OpEqu(Renderer) &&
-		OpEqu(UpscaleMultiplier) &&
-
-		OpEqu(AccurateBlendingUnit) &&
-		OpEqu(HWMipmapMode) &&
-		OpEqu(TextureFiltering) &&
-		OpEqu(TexturePreloading) &&
-		OpEqu(HWDownloadMode) &&
-		OpEqu(Dithering) &&
-		OpEqu(MaxAnisotropy) &&
-		OpEqu(SWExtraThreads) &&
-		OpEqu(SWExtraThreadsHeight) &&
-		OpEqu(TriFilter) &&
-		OpEqu(GetSkipCountFunctionId) &&
-		OpEqu(BeforeDrawFunctionId) &&
-		OpEqu(MoveHandlerFunctionId) &&
-		OpEqu(SkipDrawEnd) &&
-		OpEqu(SkipDrawStart) &&
-
-		OpEqu(UserHacks_AutoFlush) &&
-		OpEqu(UserHacks_HalfPixelOffset) &&
-		OpEqu(UserHacks_RoundSprite) &&
-		OpEqu(UserHacks_NativeScaling) &&
-		OpEqu(UserHacks_TCOffsetX) &&
-		OpEqu(UserHacks_TCOffsetY) &&
-		OpEqu(UserHacks_CPUSpriteRenderBW) &&
-		OpEqu(UserHacks_CPUSpriteRenderLevel) &&
-		OpEqu(UserHacks_CPUCLUTRender) &&
-		OpEqu(UserHacks_GPUTargetCLUTMode) &&
-		OpEqu(UserHacks_TextureInsideRt) &&
-		OpEqu(UserHacks_BilinearHack) &&
-		OpEqu(OverrideTextureBarriers) &&
-		OpEqu(Adapter) &&
-		OpEqu(PGSSuperSampling)
+		   OpEqu(bitset)
+		&& OpEqu(InterlaceMode)
+		&& OpEqu(Renderer)
+		&& OpEqu(UpscaleMultiplier)
+		&& OpEqu(AccurateBlendingUnit) 
+		&& OpEqu(HWMipmapMode) 
+		&& OpEqu(TextureFiltering)
+		&& OpEqu(TexturePreloading)
+		&& OpEqu(HWDownloadMode)
+		&& OpEqu(Dithering)
+		&& OpEqu(MaxAnisotropy)
+		&& OpEqu(SWExtraThreads)
+		&& OpEqu(SWExtraThreadsHeight)
+		&& OpEqu(TriFilter)
+		&& OpEqu(GetSkipCountFunctionId)
+		&& OpEqu(BeforeDrawFunctionId)
+		&& OpEqu(MoveHandlerFunctionId)
+		&& OpEqu(SkipDrawEnd)
+		&& OpEqu(SkipDrawStart)
+		&& OpEqu(UserHacks_AutoFlush)
+		&& OpEqu(UserHacks_HalfPixelOffset)
+		&& OpEqu(UserHacks_RoundSprite)
+		&& OpEqu(UserHacks_NativeScaling)
+		&& OpEqu(UserHacks_TCOffsetX)
+		&& OpEqu(UserHacks_TCOffsetY)
+		&& OpEqu(UserHacks_CPUSpriteRenderBW)
+		&& OpEqu(UserHacks_CPUSpriteRenderLevel)
+		&& OpEqu(UserHacks_CPUCLUTRender)
+		&& OpEqu(UserHacks_GPUTargetCLUTMode) 
+		&& OpEqu(UserHacks_TextureInsideRt)
+		&& OpEqu(UserHacks_BilinearHack)
+		&& OpEqu(OverrideTextureBarriers)
+		&& OpEqu(Adapter)
+		&& OpEqu(PGSSuperSampling)
 		);
 }
 
 bool Pcsx2Config::GSOptions::operator!=(const GSOptions& right) const
 {
 	return !operator==(right);
-}
-
-bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) const
-{
-	return OpEqu(Renderer) &&
-		   OpEqu(Adapter) &&
-		   OpEqu(UseDebugDevice) &&
-		   OpEqu(DisableShaderCache) &&
-		   OpEqu(DisableFramebufferFetch) &&
-		   OpEqu(DisableVertexShaderExpand) &&
-		   OpEqu(OverrideTextureBarriers);
 }
 
 void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
@@ -989,15 +974,15 @@ std::string Pcsx2Config::FullpathToMcd(uint slot) const
 bool Pcsx2Config::operator==(const Pcsx2Config& right) const
 {
 	bool equal =
-		OpEqu(bitset) &&
-		OpEqu(Cpu) &&
-		OpEqu(GS) &&
-		OpEqu(DEV9) &&
-		OpEqu(Speedhacks) &&
-		OpEqu(Gamefixes) &&
-		OpEqu(Framerate) &&
-		OpEqu(BaseFilenames) &&
-		OpEqu(GzipIsoIndexTemplate);
+		   OpEqu(bitset)
+		&& OpEqu(Cpu)
+		&& OpEqu(GS)
+		&& OpEqu(DEV9)
+		&& OpEqu(Speedhacks)
+		&& OpEqu(Gamefixes)
+		&& OpEqu(Framerate)
+		&& OpEqu(BaseFilenames)
+		&& OpEqu(GzipIsoIndexTemplate);
 	for (u32 i = 0; i < sizeof(Mcd) / sizeof(Mcd[0]); i++)
 	{
 		equal &= OpEqu(Mcd[i].Enabled);

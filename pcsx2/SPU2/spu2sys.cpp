@@ -64,7 +64,7 @@ void SetIrqCallDMA(int core)
 
 // writes a signed value to the SPU2 ram
 // Invalidates the ADPCM cache in the process.
-__forceinline void spu2M_Write(u32 addr, s16 value)
+__fi void spu2M_Write(u32 addr, s16 value)
 {
 	// Make sure the cache is invalidated:
 	// (note to self : addr address WORDs, not bytes)
@@ -196,7 +196,7 @@ void V_Core::Init(int index)
 /* TICKINTERVAL * SANITYINTERVAL = 3686400 */
 #define SAMPLECOUNT 3686400 
 
-__forceinline bool StartQueuedVoice(uint coreidx, V_Voice& vc, uint voiceidx)
+__fi bool StartQueuedVoice(uint coreidx, V_Voice& vc, uint voiceidx)
 {
 	if ((Cycles - vc.PlayCycle) < 2)
 		return false;
@@ -229,7 +229,7 @@ __forceinline bool StartQueuedVoice(uint coreidx, V_Voice& vc, uint voiceidx)
 	return true;
 }
 
-__forceinline void TimeUpdate(u32 cClocks)
+__fi void TimeUpdate(u32 cClocks)
 {
 	u32 dClocks = cClocks - lClocks;
 
@@ -279,13 +279,11 @@ __forceinline void TimeUpdate(u32 cClocks)
 				{
 					V_Voice& vc(Cores[c].Voices[v]);
 					if(StartQueuedVoice(c, vc, v))
-					{
 						Cores[c].KeyOn &= ~(1 << v);
-					}
 				}
 			}
 		}
-		Mix();
+		spu2Mix();
 	}
 
 	//Update DMA4 interrupt delay counter
@@ -395,7 +393,7 @@ __forceinline void TimeUpdate(u32 cClocks)
 	}
 }
 
-__forceinline void UpdateSpdifMode()
+__fi void UpdateSpdifMode(void)
 {
 	const int OPM = PlayMode;
 
