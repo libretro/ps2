@@ -144,8 +144,8 @@ void GSSetupPrimCodeGenerator2::Generate()
 	}
 #endif
 	if (isYmm)
-		vzeroupper();
-	ret();
+		actual.vzeroupper();
+	actual.ret(0);
 }
 
 void GSSetupPrimCodeGenerator2::Depth_XMM()

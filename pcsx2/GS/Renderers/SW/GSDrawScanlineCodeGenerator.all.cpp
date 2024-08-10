@@ -355,11 +355,9 @@ void GSDrawScanlineCodeGenerator2::Generate()
 	Init();
 
 	if (!m_sel.edge)
-	{
-		align(16);
-	}
+		actual.align(16);
 
-L("loop");
+	actual.L("loop");
 
 	// a0 = steps
 	// t1 = fza_base
@@ -552,7 +550,7 @@ L("loop");
 
 	WriteFrame();
 
-L("step");
+	actual.L("step");
 
 	// if(steps <= 0) break;
 
@@ -567,7 +565,7 @@ L("step");
 		jmp("loop", CodeGenerator::T_NEAR);
 	}
 
-L("exit");
+	actual.L("exit");
 
 #ifdef _WIN32
 	for (int i = 0; i < 10; i++)
@@ -587,8 +585,8 @@ L("exit");
 	mov(r13, ptr[rsp + _64_rz_r13]);
 #endif
 	if (isYmm)
-		vzeroupper();
-	ret();
+		actual.vzeroupper();
+	actual.ret(0);
 }
 
 /// Inputs: a0=pixels, a1=left, a2[x64]=top, a3[x64]=v
@@ -616,7 +614,7 @@ void GSDrawScanlineCodeGenerator2::Init()
 		and_(eax, a0.cvt32());
 		if (isXmm)
 			shl(eax, 4); // * sizeof(m_test[0])
-		cdqe();
+		actual.cdqe();
 
 		if (isXmm)
 		{
@@ -1005,7 +1003,7 @@ void GSDrawScanlineCodeGenerator2::Step()
 		and_(eax, a0.cvt32());
 		if (isXmm)
 			shl(eax, 4);
-		cdqe();
+		actual.cdqe();
 
 #if USING_XMM
 		lea(t2, _rip_const(&g_const.m_test_128b[7]));
@@ -2986,12 +2984,12 @@ void GSDrawScanlineCodeGenerator2::WritePixel(const XYm& src_, const AddressReg&
 			test(mask, 0x0000000f << shift);
 			je("@f");
 			movq(qword[base], src);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x000000f0 << shift);
 			je("@f");
 			movhps(qword[base + 8 * 2], src);
-			L("@@");
+			actual.L("@@");
 
 #if USING_YMM
 			vextracti128(src, src_, 1);
@@ -2999,12 +2997,12 @@ void GSDrawScanlineCodeGenerator2::WritePixel(const XYm& src_, const AddressReg&
 			test(mask, 0x000f0000 << shift);
 			je("@f");
 			movq(qword[base + 16 * 2], src);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x00f00000 << shift);
 			je("@f");
 			movhps(qword[base + 24 * 2], src);
-			L("@@");
+			actual.L("@@");
 #endif
 			// vmaskmovps?
 		}
@@ -3018,22 +3016,22 @@ void GSDrawScanlineCodeGenerator2::WritePixel(const XYm& src_, const AddressReg&
 			test(mask, 0x00000003 << shift);
 			je("@f");
 			WritePixel(src, addr, 0, 0, psm);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x0000000c << shift);
 			je("@f");
 			WritePixel(src, addr, 1, 1, psm);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x00000030 << shift);
 			je("@f");
 			WritePixel(src, addr, 2, 2, psm);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x000000c0 << shift);
 			je("@f");
 			WritePixel(src, addr, 3, 3, psm);
-			L("@@");
+			actual.L("@@");
 
 #if USING_YMM
 			vextracti128(src, src_, 1);
@@ -3041,22 +3039,22 @@ void GSDrawScanlineCodeGenerator2::WritePixel(const XYm& src_, const AddressReg&
 			test(mask, 0x00030000 << shift);
 			je("@f");
 			WritePixel(src, addr, 4, 0, psm);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x000c0000 << shift);
 			je("@f");
 			WritePixel(src, addr, 5, 1, psm);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x00300000 << shift);
 			je("@f");
 			WritePixel(src, addr, 6, 2, psm);
-			L("@@");
+			actual.L("@@");
 
 			test(mask, 0x00c00000 << shift);
 			je("@f");
 			WritePixel(src, addr, 7, 3, psm);
-			L("@@");
+			actual.L("@@");
 #endif
 		}
 	}

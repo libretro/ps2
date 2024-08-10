@@ -19,13 +19,13 @@
 
 #include <cpuinfo.h>
 
-#include "xbyak/xbyak.h"
+#include <xbyak/xbyak.h>
 #include "GS/MultiISA.h"
 
 #include "common/Console.h"
 
-/// Code generator that automatically selects between SSE and AVX, x86 and x64 so you don't have to
-/// Should make combined SSE and AVX codegen much easier
+/* Code generator that automatically selects between SSE and AVX, x86 and x64 so you don't have to
+ * Should make combined SSE and AVX codegen much easier */
 class GSNewCodeGenerator
 {
 public:
@@ -39,14 +39,6 @@ public:
 	using Reg = Xbyak::Reg;
 	using Xmm = Xbyak::Xmm;
 	using Ymm = Xbyak::Ymm;
-	using Zmm = Xbyak::Zmm;
-
-private:
-	void requireAVX()
-	{
-		if (!hasAVX)
-			Console.Error("used AVX instruction in SSE code");
-	}
 
 public:
 	Xbyak::CodeGenerator& actual;
@@ -209,16 +201,6 @@ public:
 #define ARGS_XO const Xmm&, const Operand&
 #define ARGS_XOI const Xmm&, const Operand&, u8
 #define ARGS_XXO const Xmm&, const Xmm&, const Operand&
-
-	const u8 *getCurr() { return actual.getCurr(); }
-	void align(int x = 16) { return actual.align(x); }
-	void db(int code) { actual.db(code); }
-	void L(const std::string& label) { actual.L(label); }
-
-	void cdqe() { actual.cdqe(); }
-	void ret(int imm = 0) { actual.ret(imm); }
-	void vzeroupper() { requireAVX(); actual.vzeroupper(); }
-	void vzeroall() { requireAVX(); actual.vzeroall(); }
 
 	FORWARD_OO_OI(add)
 	FORWARD_OO_OI(and_)
