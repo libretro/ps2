@@ -26,12 +26,12 @@
 
 #include "common/VectorIntrin.h"
 
-#include "IPU/IPU.h"
-#include "IPU/IPUdma.h"
-#include "IPU/yuv2rgb.h"
-#include "IPU/IPU_MultiISA.h"
+#include "IPU.h"
+#include "IPUdma.h"
+#include "yuv2rgb.h"
+#include "IPU_MultiISA.h"
 
-// the IPU is fixed to 16 byte strides (128-bit / QWC resolution):
+/* The IPU is fixed to 16 byte strides (128-bit / QWC resolution): */
 static const uint decoder_stride = 16;
 
 #if MULTI_ISA_COMPILE_ONCE

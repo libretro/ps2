@@ -16,9 +16,9 @@
 #include <cstring> /* memset */
 
 #include "Common.h"
-#include "IPU/IPU.h"
-#include "IPU/IPUdma.h"
-#include "IPU/IPU_MultiISA.h"
+#include "IPU.h"
+#include "IPUdma.h"
+#include "IPU_MultiISA.h"
 
 alignas(16) IPU_Fifo ipu_fifo;
 

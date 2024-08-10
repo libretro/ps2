@@ -19,9 +19,9 @@
 #include "common/VectorIntrin.h"
 
 #include "Common.h"
-#include "IPU/IPU.h"
-#include "IPU/IPU_MultiISA.h"
-#include "IPU/yuv2rgb.h"
+#include "IPU.h"
+#include "IPU_MultiISA.h"
+#include "yuv2rgb.h"
 
 #if defined(_M_ARM64)
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -32,17 +32,18 @@
 #define MULHI16(a, b) vshrq_n_s16(vqdmulhq_s16((a), (b)), 1)
 #endif
 
-// The IPU's colour space conversion conforms to ITU-R Recommendation BT.601 if anyone wants to make a
-// faster or "more accurate" implementation, but this is the precise documented integer method used by
-// the hardware and is fast enough with SSE2.
+/* The IPU's colour space conversion conforms to ITU-R Recommendation BT.601 
+ * if anyone wants to make a faster or "more accurate" implementation, but 
+ * this is the precise documented integer method used by the hardware and 
+ * is fast enough with SSE2. */
 
 #define IPU_Y_BIAS    16
 #define IPU_C_BIAS    128
-#define IPU_Y_COEFF   0x95	//  1.1640625
-#define IPU_GCR_COEFF (-0x68)	// -0.8125
-#define IPU_GCB_COEFF (-0x32)	// -0.390625
-#define IPU_RCR_COEFF 0xcc	//  1.59375
-#define IPU_BCB_COEFF 0x102	//  2.015625
+#define IPU_Y_COEFF   0x95	/*  1.1640625 */
+#define IPU_GCR_COEFF (-0x68)	/* -0.8125 */
+#define IPU_GCB_COEFF (-0x32)	/* -0.390625 */
+#define IPU_RCR_COEFF 0xcc	/*  1.59375 */
+#define IPU_BCB_COEFF 0x102	/*  2.015625 */
 
 MULTI_ISA_UNSHARED_START
 
