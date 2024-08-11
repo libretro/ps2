@@ -1,0 +1,48 @@
+diff --git a/pcsx2/CDVD/CDVD.cpp b/pcsx2/CDVD/CDVD.cpp
+index c76eb394e..cd4365e3c 100644
+--- a/pcsx2/CDVD/CDVD.cpp
++++ b/pcsx2/CDVD/CDVD.cpp
+@@ -84,7 +84,7 @@ static void CDVDSECTORREADY_INT(u32 eCycle)
+ 	if (EmuConfig.Speedhacks.fastCDVD)
+ 	{
+ 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
+-			eCycle *= 0.5f;
++			eCycle *= 0.05f;
+ 	}
+ 
+ 	PSX_INT(IopEvt_CdvdSectorReady, eCycle);
+@@ -97,7 +97,7 @@ static void CDVDREAD_INT(u32 eCycle)
+ 	if (EmuConfig.Speedhacks.fastCDVD)
+ 	{
+ 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
+-			eCycle *= 0.5f;
++			eCycle *= 0.05f;
+ 	}
+ 
+ 	PSX_INT(IopEvt_CdvdRead, eCycle);
+diff --git a/pcsx2/MTGS.cpp b/pcsx2/MTGS.cpp
+index 7701326e2..bd5ccaf59 100644
+--- a/pcsx2/MTGS.cpp
++++ b/pcsx2/MTGS.cpp
+@@ -125,7 +125,7 @@ void MTGS::PostVsyncStart()
+ 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
+ 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
+ 
+-	if (s_QueuedFrameCount++ < EmuConfig.GS.VsyncQueueSize)
++	if (s_QueuedFrameCount++ < 0)
+ 		return;
+ 
+ 	s_VsyncSignalListener = true;
+diff --git a/pcsx2/VMManager.cpp b/pcsx2/VMManager.cpp
+index c26ffcea8..4f5f4554d 100644
+--- a/pcsx2/VMManager.cpp
++++ b/pcsx2/VMManager.cpp
+@@ -319,7 +319,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
+ 
+ 	// regular cheat patches
+ 	int cheat_count = 0;
+-	if (EmuConfig.EnableCheats)
++	//if (EmuConfig.EnableCheats)
+ 	{
+ 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
+ 		if (cheat_count > 0)
