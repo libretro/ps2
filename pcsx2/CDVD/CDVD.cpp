@@ -135,10 +135,6 @@ static int mg_BIToffset(u8* buffer)
 	return ofs + 0x20;
 }
 
-static void cdvdGetMechaVer(u8* ver)
-{
-}
-
 const NVMLayout* getNvmLayout(void)
 {
 	return (nvmlayouts[1].biosVer <= BiosVersion) ? &nvmlayouts[1] : &nvmlayouts[0];
@@ -168,11 +164,6 @@ static void cdvdCreateNewNVM(void)
 	// Config sections first 16 bytes are generally blank expect the last byte which is PS1 mode stuff
 	// So let's ignore that and just write the PS2 mode stuff
 	memcpy(&s_nvram[nvmLayout->config1 + 0x10], biosLangDefaults[BiosRegion], 16);
-}
-
-static std::string cdvdGetNVRAMPath(void)
-{
-	return Path::ReplaceExtension(BiosPath, "nvm");
 }
 
 void cdvdLoadNVRAM(void)
@@ -249,9 +240,8 @@ void cdvdSaveNVRAM(void)
 static void cdvdReadNVM(u8* dst, int offset, int bytes)
 {
 	int to_read = bytes;
-	if ((offset + bytes) > sizeof(s_nvram))
+	if ((offset + bytes) > sizeof(s_nvram)) /* Out of bounds NVRAM read? */
 	{
-		Console.Warning("CDVD: Out of bounds NVRAM read: offset={}, bytes={}", offset, bytes);
 		to_read = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 		memset(dst + to_read, 0, bytes - to_read);
 	}
@@ -263,11 +253,8 @@ static void cdvdReadNVM(u8* dst, int offset, int bytes)
 static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 {
 	int to_write = bytes;
-	if ((offset + bytes) > sizeof(s_nvram))
-	{
-		Console.Warning("CDVD: Out of bounds NVRAM write: offset={}, bytes={}", offset, bytes);
+	if ((offset + bytes) > sizeof(s_nvram)) /* Out of bounds NVRAM write? */
 		to_write = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
-	}
 
 	if (to_write > 0)
 		memcpy(&s_nvram[offset], src, to_write);
@@ -312,11 +299,10 @@ static s32 cdvdReadConfig(u8* config)
 		default:
 			{
 				cdvdReadNVM(config, nvmLayout->config1 + (cdvd.CBlockIndex * 16), 16);
+				// HACK: Set the "initialized" flag when fast booting, 
+				// otherwise some games crash (e.g. Jak 1).
 				if (cdvd.CBlockIndex == 1 && (NoOSD || s_settings_interface.GetBoolValue("EmuCore", "EnableFastBoot", false)))
-				{
-					// HACK: Set the "initialized" flag when fast booting, otherwise some games crash (e.g. Jak 1).
 					config[2] |= 0x80;
-				}
 
 				cdvd.CBlockIndex++;
 			}
@@ -330,10 +316,11 @@ static s32 cdvdWriteConfig(const u8* config)
 	// make sure its in write mode && the block index is in bounds
 	if ((cdvd.CReadWrite != 1) || (cdvd.CBlockIndex >= cdvd.CNumBlocks))
 		return 1;
-	else if (
-		((cdvd.COffset == 0) && (cdvd.CBlockIndex >= 4)) ||
-		((cdvd.COffset == 1) && (cdvd.CBlockIndex >= 2)) ||
-		((cdvd.COffset == 2) && (cdvd.CBlockIndex >= 7)))
+
+	if (
+		(   (cdvd.COffset == 0) && (cdvd.CBlockIndex >= 4))
+		|| ((cdvd.COffset == 1) && (cdvd.CBlockIndex >= 2)) 
+		|| ((cdvd.COffset == 2) && (cdvd.CBlockIndex >= 7)))
 		return 0;
 
 	// get config data
@@ -447,8 +434,8 @@ static std::string ExecutablePathToSerial(const std::string& path)
 
 	// check that it matches our expected format.
 	// this maintains the old behavior of PCSX2.
-	if (!StringUtil::WildcardMatch(serial.c_str(), "????_???.??*") &&
-		!StringUtil::WildcardMatch(serial.c_str(), "????""-???.??*")) // double quote because trigraphs
+	if (       !StringUtil::WildcardMatch(serial.c_str(), "????_???.??*") 
+		&& !StringUtil::WildcardMatch(serial.c_str(), "????""-???.??*")) // double quote because trigraphs
 		serial.clear();
 
 	// SCES_123.45 -> SCES-12345
@@ -516,10 +503,10 @@ static void cdvdReadKey(u8, u16, u32 arg2, u8* key)
 
 		// combine the lower 7 bits of each char
 		// to make the 4 letters fit into a single u32
-		letters =         (s32)((DiscSerial[3] & 0x7F) << 0)  |
-				  (s32)((DiscSerial[2] & 0x7F) << 7)  |
-				  (s32)((DiscSerial[1] & 0x7F) << 14) |
-				  (s32)((DiscSerial[0] & 0x7F) << 21);
+		letters =           (s32)((DiscSerial[3] & 0x7F) << 0)
+				  | (s32)((DiscSerial[2] & 0x7F) << 7)
+				  | (s32)((DiscSerial[1] & 0x7F) << 14)
+				  | (s32)((DiscSerial[0] & 0x7F) << 21);
 	}
 
 	// calculate magic numbers
@@ -1040,19 +1027,14 @@ __fi void cdvdReadInterrupt(void)
 
 	if (cdvd.AbortRequested)
 	{
-		// Code in the CDVD controller suggest there is an alignment thing with DVD's but this seems to just break stuff (Auto Modellista).
-		// Needs more investigation
-		//if (!cdvdIsDVD() || !(cdvd.CurrentSector & 0xF))
-		{
-			Console.Warning("Read Abort");
-			cdvd.Error = 0x1; // Abort Error
-			cdvdUpdateReady(CDVD_DRIVE_READY | CDVD_DRIVE_ERROR);
-			cdvdUpdateStatus(CDVD_STATUS_PAUSE);
-			cdvd.WaitingDMA = false;
-			CDVDCancelReadAhead();
-			cdvdSetIrq();
-			return;
-		}
+		/* Read Abort */
+		cdvd.Error = 0x1; // Abort Error
+		cdvdUpdateReady(CDVD_DRIVE_READY | CDVD_DRIVE_ERROR);
+		cdvdUpdateStatus(CDVD_STATUS_PAUSE);
+		cdvd.WaitingDMA = false;
+		CDVDCancelReadAhead();
+		cdvdSetIrq();
+		return;
 	}
 
 	if (cdvd.CurrentSector >= cdvd.MaxSector)
@@ -1404,8 +1386,6 @@ u8 cdvdRead(u8 key)
 			cdvd.Error = 0;
 			return ret;
 		}
-		case 0x07: // BREAK
-			return 0;
 
 		case 0x08: // INTR_STAT
 			return cdvd.IntrStat;
@@ -1447,7 +1427,7 @@ u8 cdvdRead(u8 key)
 			return speedCtrl;
 		}
 
-
+		case 0x07: // BREAK
 		case 0x15: // RSV
 			return 0x0; //  PSX DESR related, but confirmed to be 0 on normal PS2
 
@@ -1961,9 +1941,6 @@ static __fi void cdvdWrite07(u8 rt) // BREAK
 
 static void cdvdWrite16(u8 rt) // SCOMMAND
 {
-	//	cdvdTN	diskInfo;
-	//	cdvdTD	trackInfo;
-	//	int i, lbn, type, min, sec, frm, address;
 	int address;
 	u8 tmp;
 	cdvd.sCommand = rt;
@@ -1971,11 +1948,12 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 	switch (rt)
 	{
-		//		case 0x01: // GetDiscType - from cdvdman (0:1)
-		//			SetResultSize(1);
-		//			cdvd.Result[0] = 0;
-		//			break;
-
+#if 0
+		case 0x01: // GetDiscType - from cdvdman (0:1)
+			SetResultSize(1);
+			cdvd.Result[0] = 0;
+			break;
+#endif
 		case 0x02: // CdReadSubQ  (0:11)
 			SetSCMDResultSize(11);
 			cdvd.SCMDResultBuff[0] = cdvdReadSubQ(cdvd.CurrentSector, (cdvdSubQ*)&cdvd.SCMDResultBuff[1]);
@@ -2065,10 +2043,10 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 
 			cdvd.RTC.second = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 7]);
 			cdvd.RTC.minute = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 6]) % 60;
-			cdvd.RTC.hour = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 5]) % 24;
-			cdvd.RTC.day = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 3]);
-			cdvd.RTC.month = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 2] & 0x7f);
-			cdvd.RTC.year = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 1]);
+			cdvd.RTC.hour   = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 5]) % 24;
+			cdvd.RTC.day    = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 3]);
+			cdvd.RTC.month  = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 2] & 0x7f);
+			cdvd.RTC.year   = btoi(cdvd.SCMDParamBuff[cdvd.SCMDParamPos - 1]);
 			break;
 
 		case 0x0A: // sceCdReadNVM (2:3)
@@ -2460,8 +2438,10 @@ static void cdvdWrite16(u8 rt) // SCOMMAND
 				memcpy(&cdvd.mg_kbit[0], &cdvd.mg_buffer[bit_ofs - 0x20], 0x10);
 				memcpy(&cdvd.mg_kcon[0], &cdvd.mg_buffer[bit_ofs - 0x10], 0x10);
 
-				if ((cdvd.mg_buffer[bit_ofs + 5] || cdvd.mg_buffer[bit_ofs + 6] || cdvd.mg_buffer[bit_ofs + 7]) ||
-						(cdvd.mg_buffer[bit_ofs + 4] * 16 + bit_ofs + 8 + 16 != *(u16*)&cdvd.mg_buffer[0x14]))
+				if ((      cdvd.mg_buffer[bit_ofs + 5] 
+					|| cdvd.mg_buffer[bit_ofs + 6] 
+					|| cdvd.mg_buffer[bit_ofs + 7])
+					|| (cdvd.mg_buffer[bit_ofs + 4] * 16 + bit_ofs + 8 + 16 != *(u16*)&cdvd.mg_buffer[0x14]))
 				{
 					cdvd.SCMDResultBuff[0] = 0x80;
 					break;
@@ -2576,26 +2556,24 @@ void cdvdWrite(u8 key, u8 rt)
 		case 0x08:
 			cdvd.IntrStat &= ~rt;
 			break;
-		case 0x0A: /* STATUS */
-			break;
-		case 0x0F: /* TYPE */
-			break;
-		case 0x14:
-			// Rama Or WISI guessed that "2" literally meant 2x but we can get 
-			// 0x02 or 0xfe for "Standard" or "Fast" it appears. It is unsure what those values are meant to be
-			// Tests with ref suggest this register is write only? - Weirdbeard
-			break;
 		case 0x16:
 			cdvdWrite16(rt);
 			break;
 		case 0x17:
 			cdvdWrite17(rt);
 			break;
-		case 0x18: /* SDATAOUT */
-			break;
 		case 0x3A: /* DEC-SET */
 			cdvd.decSet = rt;
 			break;
+		case 0x18: /* SDATAOUT */
+		case 0x0A: /* STATUS */
+		case 0x0F: /* TYPE */
+		case 0x14:
+			/* Rama Or WISI guessed that "2" literally meant 2x but we can get 
+			 * 0x02 or 0xfe for "Standard" or "Fast" it appears. 
+			 * It is unsure what those values are meant to be
+			 * Tests with ref suggest this register is write only? - Weirdbeard
+			 */
 		default:
 			break;
 	}
@@ -2625,8 +2603,10 @@ int GetPS2ElfName( std::string& name )
 		if (!StringUtil::ParseAssignmentString(line, &key, &value))
 			continue;
 
-		if( value.empty() && file.getLength() != file.getSeekPos() )
-		{ // Some games have a character on the last line of the file, don't print the error in those cases.
+		// Some games have a character on the last line of the file, 
+		// don't print the error in those cases.
+		if( value.empty() && file.getLength() != file.getSeekPos())
+		{ 
 			Console.Warning( "(SYSTEM.CNF) Unusual or malformed entry in SYSTEM.CNF ignored:" );
 			Console.WriteLn(line.c_str());
 			continue;
