@@ -426,7 +426,7 @@ const xRegister32
 
 
 	// --------------------------------------------------------------------------------------
-	//  xSetPtr / xAlignPtr / xGetPtr / xAdvancePtr
+	//  xSetPtr / xAlignPtr / xGetPtr
 	// --------------------------------------------------------------------------------------
 
 	// Assigns the current emitter buffer target address.
@@ -454,11 +454,6 @@ const xRegister32
 	__emitinline u8* xGetAlignedCallTarget()
 	{
 		return x86Ptr;
-	}
-
-	__emitinline void xAdvancePtr(uint bytes)
-	{
-		x86Ptr += bytes;
 	}
 
 	// --------------------------------------------------------------------------------------
@@ -659,36 +654,28 @@ const xRegister32
 			case 1:
 				Scale = 0;
 				break;
+			case 3: // becomes [reg*2+reg]
+				Base = Index;
+				// fallthrough
 			case 2:
 				Scale = 1;
 				break;
-
-			case 3: // becomes [reg*2+reg]
+			case 5: // becomes [reg*4+reg]
 				Base = Index;
-				Scale = 1;
-				break;
-
+				// fallthrough
 			case 4:
 				Scale = 2;
 				break;
 
-			case 5: // becomes [reg*4+reg]
+			case 9: // becomes [reg*8+reg]
 				Base = Index;
-				Scale = 2;
-				break;
-
-			case 6: // invalid!
-			case 7: // so invalid!
-				break;
-
+				// fallthrough
 			case 8:
 				Scale = 3;
 				break;
-			case 9: // becomes [reg*8+reg]
-				Base = Index;
-				Scale = 3;
-				break;
 			case 0:
+			case 6: // invalid!
+			case 7: // so invalid!
 			default:
 				break;
 		}
@@ -809,13 +796,6 @@ const xRegister32
 	{
 		xWrite8(0x66);
 		EmitLeaMagic(to, src, preserve_flags);
-	}
-
-	__emitinline u32* xLEA_Writeback(xAddressReg to)
-	{
-		xOpWrite(0, 0x8d, to, ptr[(void*)(0xdcdcdcd + (uptr)xGetPtr() + 7)]);
-
-		return (u32*)xGetPtr() - 1;
 	}
 
 	// =====================================================================================================
@@ -953,16 +933,9 @@ const xRegister32
 		xWrite8(0x50 | (from->Id & 7));
 	}
 
-	// pushes the EFLAGS register onto the stack
-	__fi void xPUSHFD() { xWrite8(0x9C); }
-	// pops the EFLAGS register from the stack
-	__fi void xPOPFD() { xWrite8(0x9D); }
-
-
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//
 
-	__fi void xLEAVE() { xWrite8(0xC9); }
 	__fi void xRET() { xWrite8(0xC3); }
 	__fi void xCBW() { xWrite16(0x9866); }
 	__fi void xCWD() { xWrite8(0x98); }
@@ -970,57 +943,15 @@ const xRegister32
 	__fi void xCWDE() { xWrite8(0x98); }
 	__fi void xCDQE() { xWrite16(0x9848); }
 
-	__fi void xLAHF() { xWrite8(0x9f); }
-	__fi void xSAHF() { xWrite8(0x9e); }
-
-	__fi void xSTC() { xWrite8(0xF9); }
-	__fi void xCLC() { xWrite8(0xF8); }
-
 	// NOP 1-byte
 	__fi void xNOP() { xWrite8(0x90); }
-
-	__fi void xINT(u8 imm)
-	{
-		if (imm == 3)
-			xWrite8(0xcc);
-		else
-		{
-			xWrite8(0xcd);
-			xWrite8(imm);
-		}
-	}
-
-	__fi void xINTO() { xWrite8(0xce); }
-
-	__emitinline void xBSWAP(const xRegister32or64& to)
-	{
-		xWrite8(0x0F);
-		xWrite8(0xC8 | to->Id);
-	}
-
-	alignas(16) static u64 xmm_data[iREGCNT_XMM * 2];
-
-	__emitinline void xStoreReg(const xRegisterSSE& src)
-	{
-		xMOVDQA(ptr[&xmm_data[src.Id * 2]], src);
-	}
-
-	__emitinline void xRestoreReg(const xRegisterSSE& dest)
-	{
-		xMOVDQA(dest, ptr[&xmm_data[dest.Id * 2]]);
-	}
 
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{
 		if ((sptr)base == (s32)(sptr)base)
-		{
 			return offset + base;
-		}
-		else
-		{
-			xLEA(tmpRegister, ptr[base]);
-			return offset + tmpRegister;
-		}
+		xLEA(tmpRegister, ptr[base]);
+		return offset + tmpRegister;
 	}
 
 	void xLoadFarAddr(const xAddressReg& dst, void* addr)
@@ -1037,10 +968,4 @@ const xRegister32
 			xMOV64(dst, iaddr);
 		}
 	}
-
-	void xWriteImm64ToMem(u64* addr, const xAddressReg& tmp, u64 imm)
-	{
-		xImm64Op(xMOV, ptr64[addr], tmp, imm);
-	}
-
 } // End namespace x86Emitter

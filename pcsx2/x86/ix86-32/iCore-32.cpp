@@ -108,7 +108,7 @@ void _flushConstReg(int reg)
 {
 	if (GPR_IS_CONST1(reg) && !(g_cpuFlushedConstReg & (1 << reg)))
 	{
-		xWriteImm64ToMem(&cpuRegs.GPR.r[reg].UD[0], rax, g_cpuConstRegs[reg].SD[0]);
+		xImm64Op(xMOV, ptr64[&cpuRegs.GPR.r[reg].UD[0]], rax, g_cpuConstRegs[reg].SD[0]);
 		g_cpuFlushedConstReg |= (1 << reg);
 	}
 }
@@ -172,7 +172,7 @@ void _flushConstRegs(void)
 		if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
 			continue;
 
-		xWriteImm64ToMem(&cpuRegs.GPR.r[i].UD[0], rax, g_cpuConstRegs[i].UD[0]);
+		xImm64Op(xMOV, ptr64[&cpuRegs.GPR.r[i].UD[0]], rax, g_cpuConstRegs[i].UD[0]);
 		g_cpuFlushedConstReg |= 1u << i;
 	}
 }

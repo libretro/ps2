@@ -239,7 +239,7 @@ namespace x86Emitter
 			}
 		}
 
-		xAdvancePtr(opsize);
+		x86Ptr += opsize;
 	}
 
 	void xForwardJumpBase::_setTarget(uint opsize) const
@@ -247,11 +247,8 @@ namespace x86Emitter
 		sptr displacement = (sptr)xGetPtr() - (sptr)BasePtr;
 		if (opsize == 1)
 			BasePtr[-1] = (s8)displacement;
-		else
-		{
-			// full displacement, no sanity checks needed :D
+		else // full displacement, no sanity checks needed :D
 			((s32*)BasePtr)[-1] = displacement;
-		}
 	}
 
 	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
@@ -259,7 +256,6 @@ namespace x86Emitter
 	{
 		if (Jcc_Unconditional == src)
 			return Jcc_Unconditional;
-
 		// x86 conditionals are clever!  To invert conditional types, just invert the lower bit:
 		return (JccComparisonType)((int)src ^ 1);
 	}

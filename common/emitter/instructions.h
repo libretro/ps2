@@ -29,8 +29,6 @@
  */
 
 #pragma once
-#include <vector>
-
 #include "internal.h"
 
 // rather than dealing with nonexistant operands..
@@ -66,9 +64,6 @@
 
 namespace x86Emitter
 {
-	extern void xStoreReg(const xRegisterSSE& src);
-	extern void xRestoreReg(const xRegisterSSE& dest);
-
 	// ------------------------------------------------------------------------
 	// Group 1 Instruction Class
 
@@ -156,8 +151,6 @@ namespace x86Emitter
 	// These are all defined inline or in ix86.cpp.
 	//
 
-	extern void xBSWAP(const xRegister32or64& to);
-
 	// ----- Lea Instructions (Load Effective Address) -----
 	// Note: alternate (void*) forms of these instructions are not provided since those
 	// forms are functionally equivalent to Mov reg,imm, and thus better written as MOVs
@@ -166,8 +159,6 @@ namespace x86Emitter
 	extern void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags = false);
 	extern void xLEA(xRegister32 to, const xIndirectVoid& src, bool preserve_flags = false);
 	extern void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags = false);
-	/// LEA with a target that will be decided later, guarantees that no optimizations are performed that could change what needs to be written in
-	extern u32* xLEA_Writeback(xAddressReg to);
 
 	// ----- Push / Pop Instructions  -----
 	// Note: pushad/popad implementations are intentionally left out.  The instructions are
@@ -181,15 +172,9 @@ namespace x86Emitter
 	extern void xPUSH(u32 imm);
 	extern void xPUSH(xRegister32or64 from);
 
-	// pushes the EFLAGS register onto the stack
-	extern void xPUSHFD();
-	// pops the EFLAGS register from the stack
-	extern void xPOPFD();
-
 	// ----- Miscellaneous Instructions  -----
 	// Various Instructions with no parameter and no special encoding logic.
 
-	extern void xLEAVE();
 	extern void xRET();
 	extern void xCBW();
 	extern void xCWD();
@@ -197,17 +182,8 @@ namespace x86Emitter
 	extern void xCWDE();
 	extern void xCDQE();
 
-	extern void xLAHF();
-	extern void xSAHF();
-
-	extern void xSTC();
-	extern void xCLC();
-
 	// NOP 1-byte
 	extern void xNOP();
-
-	extern void xINT(u8 imm);
-	extern void xINTO();
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to calculate base+offset taking into account the limitations of x86-64's RIP-relative addressing
@@ -219,11 +195,6 @@ namespace x86Emitter
 	/// On i386, resolves to `mov dst, (sptr)addr`
 	/// On x86-64, resolves to either `mov dst, (sptr)addr` or `lea dst, [addr]` depending on the distance from RIP
 	void xLoadFarAddr(const xAddressReg& dst, void* addr);
-
-	//////////////////////////////////////////////////////////////////////////////////////////
-	/// Helper function to write a 64-bit constant to memory
-	/// May use `tmp` on x86-64
-	void xWriteImm64ToMem(u64* addr, const xAddressReg& tmp, u64 imm);
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to run operations with large immediates
