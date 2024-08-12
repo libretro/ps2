@@ -197,40 +197,6 @@ const xRegister32
 
 	const xRegisterCL cl;
 
-	//////////////////////////////////////////////////////////////////////////////////////////
-	// Performance note: VC++ wants to use byte/word register form for the following
-	// ModRM/SibSB constructors when we use xWrite<u8>, and furthermore unrolls the
-	// the shift using a series of ADDs for the following results:
-	//   add cl,cl
-	//   add cl,cl
-	//   add cl,cl
-	//   or  cl,bl
-	//   add cl,cl
-	//  ... etc.
-	//
-	// This is unquestionably bad optimization by Core2 standard, an generates tons of
-	// register aliases and false dependencies. (although may have been ideal for early-
-	// brand P4s with a broken barrel shifter?).  The workaround is to do our own manual
-	// x86Ptr access and update using a u32 instead of u8.  Thanks to little endianness,
-	// the same end result is achieved and no false dependencies are generated.  The draw-
-	// back is that it clobbers 3 bytes past the end of the write, which could cause a
-	// headache for someone who himself is doing some kind of headache-inducing amount of
-	// recompiler SMC.  So we don't do a work-around, and just hope for the compiler to
-	// stop sucking someday instead. :)
-	//
-	// (btw, I know this isn't a critical performance item by any means, but it's
-	//  annoying simply because it *should* be an easy thing to optimize)
-
-	static __fi void ModRM(uint mod, uint reg, uint rm)
-	{
-		xWrite8((mod << 6) | (reg << 3) | rm);
-	}
-
-	static __fi void SibSB(u32 ss, u32 index, u32 base)
-	{
-		xWrite8((ss << 6) | (index << 3) | base);
-	}
-
 	void EmitSibMagic(uint regfield, const void* address, int extraRIPOffset)
 	{
 		sptr displacement = (sptr)address;
@@ -238,13 +204,13 @@ const xRegister32
 		// Can we use a rip-relative address?  (Prefer this over eiz because it's a byte shorter)
 		if (ripRelative == (s32)ripRelative)
 		{
-			ModRM(0, regfield, ModRm_UseDisp32);
+			xWrite8((regfield << 3) | ModRm_UseDisp32);
 			displacement = ripRelative;
 		}
 		else
 		{
-			ModRM(0, regfield, ModRm_UseSib);
-			SibSB(0, Sib_EIZ, Sib_UseDisp32);
+			xWrite8((regfield << 3) | ModRm_UseSib);
+			xWrite8((Sib_EIZ << 3) | Sib_UseDisp32);
 		}
 
 		*(s32*)x86Ptr = (s32)displacement;
@@ -253,7 +219,7 @@ const xRegister32
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// returns TRUE if this instruction requires SIB to be encoded, or FALSE if the
-	// instruction ca be encoded as ModRm alone.
+	// instruction can be encoded as ModRm alone.
 	static __fi bool NeedsSibMagic(const xIndirectVoid& info)
 	{
 		// no registers? no sibs!
@@ -301,7 +267,7 @@ const xRegister32
 				if (info.Index == rbp && displacement_size == 0)
 					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
 
-				ModRM(displacement_size, regfield, info.Index.Id & 7);
+				xWrite8((displacement_size << 6) | (regfield << 3) | (info.Index.Id & 7));
 			}
 		}
 		else
@@ -314,8 +280,8 @@ const xRegister32
 
 			if (info.Base.IsEmpty())
 			{
-				ModRM(0, regfield, ModRm_UseSib);
-				SibSB(info.Scale, info.Index.Id, Sib_UseDisp32);
+				xWrite8((regfield << 3) | ModRm_UseSib);
+				xWrite8((info.Scale << 6) | (info.Index.Id << 3) | Sib_UseDisp32);
 				*(s32*)x86Ptr = info.Displacement;
 				x86Ptr += sizeof(s32);
 				return;
@@ -325,8 +291,8 @@ const xRegister32
 				if (info.Base == rbp && displacement_size == 0)
 					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
 
-				ModRM(displacement_size, regfield, ModRm_UseSib);
-				SibSB(info.Scale, info.Index.Id & 7, info.Base.Id & 7);
+				xWrite8((displacement_size << 6) | (regfield << 3) | ModRm_UseSib);
+				xWrite8((info.Scale << 6) | ((info.Index.Id & 7) << 3) | (info.Base.Id & 7));
 			}
 		}
 
