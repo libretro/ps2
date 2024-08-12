@@ -596,7 +596,7 @@ const xRegister32
 	//
 	void xIndirectVoid::Reduce()
 	{
-		if (Index.IsStackPointer())
+		if (Index.Id == 4) /* is stack pointer? */
 		{
 			// esp cannot be encoded as the index, so move it to the Base, if possible.
 			// note: intentionally leave index assigned to esp also (generates correct
@@ -610,7 +610,7 @@ const xRegister32
 		{
 			Index = Base;
 			Scale = 0;
-			if (!Base.IsStackPointer()) // prevent ESP from being encoded 'alone'
+			if (!(Base.Id == 4)) // prevent ESP from being encoded 'alone'
 				Base = xEmptyReg;
 			return;
 		}

@@ -51,13 +51,14 @@ namespace x86Emitter
 		}
 		else
 		{
-			u8 opcode = is_s8(imm) ? 0x83 : 0x81;
-			xOpWrite(sibdest.GetPrefix16(), opcode, InstType, sibdest, is_s8(imm) ? 1 : sibdest.GetImmSize());
+			bool is_signed = is_s8(imm);
+			u8 opcode      = is_signed ? 0x83 : 0x81;
+			xOpWrite(sibdest.GetPrefix16(), opcode, InstType, sibdest, is_signed ? 1 : sibdest.GetImmSize());
 
-			if (is_s8(imm))
+			if (is_signed)
 			{
-				*(s8*)x86Ptr = imm;
-				x86Ptr += sizeof(s8);
+				*(s8*)x86Ptr  = imm;
+				x86Ptr       += sizeof(s8);
 			}
 			else
 				sibdest.xWriteImm(imm);
@@ -190,45 +191,63 @@ namespace x86Emitter
 	//  Group 3 Instructions - NOT, NEG, MUL, DIV
 	// =====================================================================================================
 
-	static void _g3_EmitOp(G3Type InstType, const xRegisterInt& from)
-	{
-		xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from);
-	}
+	void xImpl_Group3::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from); }
+	void xImpl_Group3::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from); }
 
-	static void _g3_EmitOp(G3Type InstType, const xIndirect64orLess& from)
-	{
-		xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from);
-	}
+	void xImpl_iDiv::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from); }
+	void xImpl_iDiv::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from); }
 
-	void xImpl_Group3::operator()(const xRegisterInt& from) const { _g3_EmitOp(InstType, from); }
-	void xImpl_Group3::operator()(const xIndirect64orLess& from) const { _g3_EmitOp(InstType, from); }
-
-	void xImpl_iDiv::operator()(const xRegisterInt& from) const { _g3_EmitOp(G3Type_iDIV, from); }
-	void xImpl_iDiv::operator()(const xIndirect64orLess& from) const { _g3_EmitOp(G3Type_iDIV, from); }
-
-	template <typename SrcType>
-	static void _imul_ImmStyle(const xRegisterInt& param1, const SrcType& param2, int imm)
-	{
-		xOpWrite0F(param1.GetPrefix16(), is_s8(imm) ? 0x6b : 0x69, param1, param2, is_s8(imm) ? 1 : param1.GetImmSize());
-
-		if (is_s8(imm))
-			xWrite8((u8)imm);
-		else
-			param1.xWriteImm(imm);
-	}
-
-	void xImpl_iMul::operator()(const xRegisterInt& from) const { _g3_EmitOp(G3Type_iMUL, from); }
-	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { _g3_EmitOp(G3Type_iMUL, from); }
+	void xImpl_iMul::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from); }
+	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from); }
 
 	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from) const { xOpWrite0F(0, 0xaf, to, from); }
 	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& src) const { xOpWrite0F(0, 0xaf, to, src); }
 	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from) const { xOpWrite0F(0x66, 0xaf, to, from); }
 	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& src) const { xOpWrite0F(0x66, 0xaf, to, src); }
 
-	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from, s32 imm) const { _imul_ImmStyle(to, from, imm); }
-	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& from, s32 imm) const { _imul_ImmStyle(to, from, imm); }
-	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from, s16 imm) const { _imul_ImmStyle(to, from, imm); }
-	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& from, s16 imm) const { _imul_ImmStyle(to, from, imm); }
+	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from, s32 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+			xWrite8((u8)imm);
+		else
+			to.xWriteImm(imm);
+	}
+
+	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& from, s32 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+			xWrite8((u8)imm);
+		else
+			to.xWriteImm(imm);
+	}
+
+	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from, s16 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+			xWrite8((u8)imm);
+		else
+			to.xWriteImm(imm);
+	}
+
+	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& from, s16 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+			xWrite8((u8)imm);
+		else
+			to.xWriteImm(imm);
+	}
 
 	const xImpl_Group3 xNOT = {G3Type_NOT};
 	const xImpl_Group3 xNEG = {G3Type_NEG};

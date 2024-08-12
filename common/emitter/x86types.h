@@ -435,9 +435,6 @@ namespace x86Emitter
 		{
 		}
 
-		// Returns true if the register is the stack pointer: ESP.
-		bool IsStackPointer() const { return Id == 4; }
-
 		/// Returns the register to use when calling a C function.
 		/// arg_number is the argument position from the left, starting with 0.
 		/// sse_number is the argument position relative to the number of vector registers.
