@@ -45,7 +45,7 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelay
 
 	// Jump target when the branch is *not* taken, skips the branchtest code
 	// insertion above.
-	x86SetJ32(jmpSkip);
+	*jmpSkip = (x86Ptr - (u8*)jmpSkip) - 4;
 
 	// if it's a likely branch then we'll need to skip the delay slot here, since
 	// MIPS cancels the delay slot instruction when branches aren't taken.

@@ -156,7 +156,7 @@ static void recBEQ_process(int process)
 
 		SetBranchImm(branchTo);
 
-		x86SetJ32(j32Ptr);
+		*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 		if (!swap)
 		{
@@ -220,7 +220,7 @@ static void recBNE_process(int process)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -269,7 +269,7 @@ static void recBEQL_process(int process)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -311,7 +311,7 @@ static void recBNEL_process(int process)
 	SaveBranchState();
 	SetBranchImm(pc + 4);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	// recopy the next inst
 	LoadBranchState();
@@ -365,7 +365,7 @@ void recBLTZAL(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -412,7 +412,7 @@ void recBGEZAL(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -455,7 +455,7 @@ void recBLTZALL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -491,7 +491,7 @@ void recBGEZALL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -532,7 +532,7 @@ void recBLEZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -579,7 +579,7 @@ void recBGTZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -619,7 +619,7 @@ void recBLTZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -660,7 +660,7 @@ void recBGEZ(void)
 
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	if (!swap)
 	{
@@ -697,7 +697,7 @@ void recBLTZL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -728,7 +728,7 @@ void recBGEZL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -772,7 +772,7 @@ void recBLEZL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);
@@ -810,7 +810,7 @@ void recBGTZL(void)
 	recompileNextInstruction(true, false);
 	SetBranchImm(branchTo);
 
-	x86SetJ32(j32Ptr);
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
 
 	LoadBranchState();
 	SetBranchImm(pc);

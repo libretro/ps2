@@ -21,14 +21,6 @@
 # undef FSCALE // Defined in a macOS header
 #endif
 
-//------------------------------------------------------------------
-// legacy jump/align functions
-//------------------------------------------------------------------
-ATTR_DEP extern void x86SetJ8(u8* j8);
-ATTR_DEP extern void x86SetJ32(u32* j32);
-ATTR_DEP extern void x86SetJ32A(u32* j32);
-//------------------------------------------------------------------
-
 ////////////////////////////////////
 // jump instructions              //
 ////////////////////////////////////

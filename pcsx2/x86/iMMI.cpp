@@ -108,14 +108,14 @@ void recPLZCW()
 	xTEST(eax, eax); // TEST sets the sign flag accordingly.
 	u8* label_notSigned = JNS8(0);
 	xNOT(eax);
-	x86SetJ8(label_notSigned);
+	*label_notSigned      = (u8)((x86Ptr - label_notSigned) - 1);
 
 	xBSR(eax, eax);
 	u8* label_Zeroed = JZ8(0); // If BSR sets the ZF, eax is "trash"
 	xSUB(ecx, eax);
 	xDEC(ecx); // PS2 doesn't count the first bit
 
-	x86SetJ8(label_Zeroed);
+	*label_Zeroed      = (u8)((x86Ptr - label_Zeroed) - 1);
 	xMOV(ptr[&cpuRegs.GPR.r[_Rd_].UL[0]], ecx);
 
 	// second word
@@ -138,14 +138,14 @@ void recPLZCW()
 	xTEST(eax, eax); // TEST sets the sign flag accordingly.
 	label_notSigned = JNS8(0);
 	xNOT(eax);
-	x86SetJ8(label_notSigned);
+	*label_notSigned      = (u8)((x86Ptr - label_notSigned) - 1);
 
 	xBSR(eax, eax);
 	label_Zeroed = JZ8(0); // If BSR sets the ZF, eax is "trash"
 	xSUB(ecx, eax);
 	xDEC(ecx); // PS2 doesn't count the first bit
 
-	x86SetJ8(label_Zeroed);
+	*label_Zeroed      = (u8)((x86Ptr - label_Zeroed) - 1);
 	xMOV(ptr[&cpuRegs.GPR.r[_Rd_].UL[1]], ecx);
 
 	GPR_DEL_CONST(_Rd_);

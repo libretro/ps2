@@ -925,8 +925,8 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 		xXOR(edx, edx); //EAX remains 0x80000000
 		end1 = JMP8(0);
 
-		x86SetJ8(cont1);
-		x86SetJ8(cont2);
+		*cont1      = (u8)((x86Ptr - cont1) - 1);
+		*cont2      = (u8)((x86Ptr - cont2) - 1);
 	}
 
 	xCMP(ecx, 0);
@@ -945,7 +945,7 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	u8* end2 = JMP8(0);
 
 	// Normal division
-	x86SetJ8(cont3);
+	*cont3      = (u8)((x86Ptr - cont3) - 1);
 	if (sign)
 	{
 		xCDQ();
@@ -958,8 +958,8 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	}
 
 	if (sign)
-		x86SetJ8(end1);
-	x86SetJ8(end2);
+		*end1      = (u8)((x86Ptr - end1) - 1);
+	*end2      = (u8)((x86Ptr - end2) - 1);
 
 	rpsxWritebackHILO(info);
 }
@@ -1530,7 +1530,9 @@ static void rpsxBEQ_process(int process)
 
 		psxSetBranchImm(branchTo);
 
-		x86SetJ32A(s_pbranchjmp);
+		while ((uptr)x86Ptr & 0xf)
+			*x86Ptr++ = 0x90;
+		*s_pbranchjmp = (x86Ptr - (u8*)s_pbranchjmp) - 4;
 
 		if (!swap)
 		{
@@ -1594,7 +1596,9 @@ static void rpsxBNE_process(int process)
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(s_pbranchjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*s_pbranchjmp = (x86Ptr - (u8*)s_pbranchjmp) - 4;
 
 	if (!swap)
 	{
@@ -1654,7 +1658,9 @@ static void rpsxBLTZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1701,7 +1707,9 @@ static void rpsxBGEZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1754,7 +1762,9 @@ static void rpsxBLTZAL()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1806,7 +1816,9 @@ static void rpsxBGEZAL()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1854,7 +1866,9 @@ static void rpsxBLEZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1903,7 +1917,9 @@ static void rpsxBGTZ()
 
 	psxSetBranchImm(psxpc);
 
-	x86SetJ32A(pjmp);
+	while ((uptr)x86Ptr & 0xf)
+		*x86Ptr++ = 0x90;
+	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
 	if (!swap)
 	{

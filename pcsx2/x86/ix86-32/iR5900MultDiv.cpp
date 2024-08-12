@@ -383,8 +383,8 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 		xXOR(edx, edx); //EAX remains 0x80000000
 		end1 = JMP8(0);
 
-		x86SetJ8(cont1);
-		x86SetJ8(cont2);
+		*cont1      = (u8)((x86Ptr - cont1) - 1);
+		*cont2      = (u8)((x86Ptr - cont2) - 1);
 	}
 
 	xCMP(divisor, 0);
@@ -401,7 +401,7 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 		xMOV(eax, 0xffffffff);
 	u8* end2 = JMP8(0);
 
-	x86SetJ8(cont3);
+	*cont3      = (u8)((x86Ptr - cont3) - 1);
 	if (sign)
 	{
 		xCDQ();
@@ -414,8 +414,8 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	}
 
 	if (sign)
-		x86SetJ8(end1);
-	x86SetJ8(end2);
+		*end1      = (u8)((x86Ptr - end1) - 1);
+	*end2      = (u8)((x86Ptr - end2) - 1);
 
 	// need to execute regardless of bad divide
 	recWritebackHILO(info, false, upper);

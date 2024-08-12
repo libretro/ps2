@@ -1103,7 +1103,7 @@ void rpsxSYSCALL(void)
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
 
 	// jump target for skipping blockCycle updates
-	x86SetJ8(j8Ptr);
+	*j8Ptr      = (u8)((x86Ptr - j8Ptr) - 1);
 
 	//if (!psxbranch) psxbranch = 2;
 }
@@ -1123,7 +1123,7 @@ void rpsxBREAK(void)
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
-	x86SetJ8(j8Ptr);
+	*j8Ptr      = (u8)((x86Ptr - j8Ptr) - 1);
 
 	//if (!psxbranch) psxbranch = 2;
 }

@@ -55,30 +55,6 @@ static emitterT u32* J32Rel(int cc, u32 to)
 	return (u32*)(x86Ptr - 4);
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Jump Label API (as rough as it might be)
-//
-// I don't auto-inline these because of the console logging in case of error, which tends
-// to cause quite a bit of code bloat.
-//
-emitterT void x86SetJ8(u8* j8)
-{
-	*j8      = (u8)((x86Ptr - j8) - 1);
-}
-
-////////////////////////////////////////////////////
-emitterT void x86SetJ32(u32* j32)
-{
-	*j32 = (x86Ptr - (u8*)j32) - 4;
-}
-
-emitterT void x86SetJ32A(u32* j32)
-{
-	while ((uptr)x86Ptr & 0xf)
-		*x86Ptr++ = 0x90;
-	x86SetJ32(j32);
-}
-
 /********************/
 /* IX86 instructions */
 /********************/

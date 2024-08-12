@@ -133,15 +133,15 @@ static void ToDouble(int reg)
 	xCVTSS2SD(xRegisterSSE(reg), xRegisterSSE(reg)); // Simply convert
 	u8* end = JMP8(0);
 
-	x86SetJ8(to_complex);
-	x86SetJ8(to_complex2);
+	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
+	*to_complex2  = (u8)((x86Ptr - to_complex2) - 1);
 
 	// Special conversion for when IEEE sees the value in reg as an INF/NaN
 	xPSUB.D(xRegisterSSE(reg), ptr[s_const.one_exp]); // Lower exponent by one
 	xCVTSS2SD(xRegisterSSE(reg), xRegisterSSE(reg));
 	xPADD.Q(xRegisterSSE(reg), ptr[s_const.dbl_one_exp]); // Raise exponent by one
 
-	x86SetJ8(end);
+	*end   = (u8)((x86Ptr - end) - 1);
 }
 
 //------------------------------------------------------------------
@@ -182,7 +182,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 	u32* end = JMP32(0);
 
-	x86SetJ8(to_complex);
+	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
 	xUCOMI.SD(xRegisterSSE(absreg), ptr[&s_const.dbl_ps2_overflow]);
 	u8* to_overflow = JAE8(0);
 
@@ -192,7 +192,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 	u32* end2 = JMP32(0);
 
-	x86SetJ8(to_overflow);
+	*to_overflow   = (u8)((x86Ptr - to_overflow) - 1);
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg));
 	xOR.PS(xRegisterSSE(reg), ptr[&s_const.pos]); //clamp
 	if (flags)
@@ -203,7 +203,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	}
 	u8* end3 = JMP8(0);
 
-	x86SetJ8(to_underflow);
+	*to_underflow   = (u8)((x86Ptr - to_underflow) - 1);
 	u8* end4 = nullptr;
 	if (flags) //set underflow flags if not zero
 	{
@@ -226,17 +226,17 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 			end4 = JMP8(0);
 		}
 
-		x86SetJ8(is_zero);
+		*is_zero   = (u8)((x86Ptr - is_zero) - 1);
 	}
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg));
 	xAND.PS(xRegisterSSE(reg), ptr[s_const.neg]); //flush to zero
 
-	x86SetJ32(end);
-	x86SetJ32(end2);
+	*end  = (x86Ptr - (u8*)end) - 4;
+	*end2 = (x86Ptr - (u8*)end2) - 4;
 
-	x86SetJ8(end3);
+	*end3 = (u8)((x86Ptr - end3) - 1);
 	if (flags && addsub)
-		x86SetJ8(end4);
+		*end4 = (u8)((x86Ptr - end4) - 1);
 }
 
 //sets the maximum (positive or negative) value into regd.
@@ -347,12 +347,12 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	xAND.PS(xRegisterSSE(tempd), xRegisterSSE(xmmtemp));
 	j8Ptr4 = JMP8(0);
 
-	x86SetJ8(j8Ptr0);
+	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	//diff = 25 .. 255 , expt < expd
 	xAND.PS(xRegisterSSE(tempt), ptr[s_const.neg]);
 	j8Ptr5 = JMP8(0);
 
-	x86SetJ8(j8Ptr1);
+	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
 	//diff = 1 .. 24, expt < expd
 	xDEC(ecx);
 	xMOV(eax, 0xffffffff);
@@ -361,16 +361,16 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	xAND.PS(xRegisterSSE(tempt), xRegisterSSE(xmmtemp));
 	j8Ptr6 = JMP8(0);
 
-	x86SetJ8(j8Ptr3);
+	*j8Ptr3 = (u8)((x86Ptr - j8Ptr3) - 1);
 	//diff = -255 .. -25, expd < expt
 	xAND.PS(xRegisterSSE(tempd), ptr[s_const.neg]);
 
-	x86SetJ8(j8Ptr2);
+	*j8Ptr2 = (u8)((x86Ptr - j8Ptr2) - 1);
 	//diff == 0
 
-	x86SetJ8(j8Ptr4);
-	x86SetJ8(j8Ptr5);
-	x86SetJ8(j8Ptr6);
+	*j8Ptr4 = (u8)((x86Ptr - j8Ptr4) - 1);
+	*j8Ptr5 = (u8)((x86Ptr - j8Ptr5) - 1);
+	*j8Ptr6 = (u8)((x86Ptr - j8Ptr6) - 1);
 
 	_freeXMMreg(xmmtemp);
 }
@@ -399,7 +399,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 		u8* noHack = JNZ8(0);
 			xMOVAPS(xRegisterSSE(regd), ptr128[result]);
 			endMul = JMP32(0);
-		x86SetJ8(noHack);
+		*noHack = (u8)((x86Ptr - noHack) - 1);
 	}
 
 	ToDouble(sreg);
@@ -409,7 +409,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 	xMOVSS(xRegisterSSE(regd), xRegisterSSE(sreg));
 
 	if (CHECK_FPUMULHACK)
-		x86SetJ32(endMul);
+		*endMul = (x86Ptr - (u8*)endMul) - 4;
 }
 
 //------------------------------------------------------------------
@@ -482,9 +482,9 @@ void recC_EQ_xmm(int info)
 	j8Ptr0 = JZ8(0);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
-	x86SetJ8(j8Ptr0);
+	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
-	x86SetJ8(j8Ptr1);
+	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
 }
 
 FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
@@ -497,9 +497,9 @@ void recC_LE_xmm(int info)
 	j8Ptr0 = JBE8(0);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
-	x86SetJ8(j8Ptr0);
+	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
-	x86SetJ8(j8Ptr1);
+	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
 }
 
 FPURECOMPILE_CONSTCODE(C_LE, XMMINFO_READS | XMMINFO_READT);
@@ -512,9 +512,9 @@ void recC_LT_xmm(int info)
 	j8Ptr0 = JB8(0);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
-	x86SetJ8(j8Ptr0);
+	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
-	x86SetJ8(j8Ptr1);
+	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
 }
 
 FPURECOMPILE_CONSTCODE(C_LT, XMMINFO_READS | XMMINFO_READT);
@@ -601,16 +601,16 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	pjmp1 = JZ8(0); //Skip if not set
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 	pjmp2 = JMP8(0);
-	x86SetJ8(pjmp1); //x/0 but not 0/0
+	*pjmp1 = (u8)((x86Ptr - pjmp1) - 1); //x/0 but not 0/0
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
-	x86SetJ8(pjmp2);
+	*pjmp2 = (u8)((x86Ptr - pjmp2) - 1);
 
 	//--- Make regd +/- Maximum ---
 	xXOR.PS(xRegisterSSE(regd), xRegisterSSE(regt)); // Make regd Positive or Negative
 	SetMaxValue(regd); //clamp to max
 	bjmp32 = JMP32(0);
 
-	x86SetJ32(ajmp32);
+	*ajmp32 = (x86Ptr - (u8*)ajmp32) - 4;
 
 	//--- Normal Divide ---
 	ToDouble(regd);
@@ -620,7 +620,7 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 
 	ToPS2FPU_Full(regd, false, regt, false, false);
 
-	x86SetJ32(bjmp32);
+	*bjmp32 = (x86Ptr - (u8*)bjmp32) - 4;
 
 	_freeXMMreg(t1reg);
 }
@@ -685,12 +685,12 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	ToDouble(treg); //else, convert
 	u8* operation = JMP8(0);
 
-	x86SetJ8(mulovf);
+	*mulovf = (u8)((x86Ptr - mulovf) - 1);
 	if (op == 1) //sub
 		xXOR.PS(xRegisterSSE(sreg), ptr[s_const.neg]);
 	xMOVAPS(xRegisterSSE(treg), xRegisterSSE(sreg)); //fall through below
 
-	x86SetJ8(accovf);
+	*accovf = (u8)((x86Ptr - accovf) - 1);
 	SetMaxValue(treg); //just in case... I think it has to be a MaxValue already here
 	CLEAR_OU_FLAGS; //clear U flag
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagO | FPUflagSO);
@@ -698,16 +698,16 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 		xOR(ptr32[&fpuRegs.ACCflag], 1);
 	u32* skipall = JMP32(0);
 
-	//			PERFORM THE ACCUMULATION AND TEST RESULT. CONVERT TO SINGLE
+	// PERFORM THE ACCUMULATION AND TEST RESULT. CONVERT TO SINGLE
 
-	x86SetJ8(operation);
+	*operation = (u8)((x86Ptr - operation) - 1);
 	if (op == 1)
 		xSUB.SD(xRegisterSSE(treg), xRegisterSSE(sreg));
 	else
 		xADD.SD(xRegisterSSE(treg), xRegisterSSE(sreg));
 
 	ToPS2FPU_Full(treg, true, sreg, acc, true);
-	x86SetJ32(skipall);
+	*skipall = (x86Ptr - (u8*)skipall) - 4;
 
 	xMOVSS(xRegisterSSE(regd), xRegisterSSE(treg));
 
@@ -909,7 +909,7 @@ void recSQRT_S_xmm(int info)
 		u8* pjmp = JZ8(0); //Skip if none are
 			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
 			xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_const.pos[0]]); // Make EEREC_D Positive
-		x86SetJ8(pjmp);
+		*pjmp = (u8)((x86Ptr - pjmp) - 1);
 	}
 
 
@@ -947,7 +947,7 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	pjmp2 = JZ8(0); //Skip if not set
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
 	xAND.PS(xRegisterSSE(regt), ptr[&s_const.pos[0]]); // Make regt Positive
-	x86SetJ8(pjmp2);
+	*pjmp2 = (u8)((x86Ptr - pjmp2) - 1);
 
 	//--- Check for zero ---
 	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
@@ -963,14 +963,14 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
 	qjmp1 = JZ8(0); //Skip if not set
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-	qjmp2 = JMP8(0);
-	x86SetJ8(qjmp1); //x/0 but not 0/0
+	qjmp2  = JMP8(0);
+	*qjmp1 = (u8)((x86Ptr - qjmp1) - 1); //x/0 but not 0/0
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
-	x86SetJ8(qjmp2);
+	*qjmp2 = (u8)((x86Ptr - qjmp2) - 1);
 
 	SetMaxValue(regd); //clamp to max
 	pjmp32 = JMP32(0);
-	x86SetJ8(pjmp1);
+	*pjmp1 = (u8)((x86Ptr - pjmp1) - 1);
 
 	ToDouble(regt);
 	ToDouble(regd);
@@ -979,7 +979,7 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xDIV.SD(xRegisterSSE(regd), xRegisterSSE(regt));
 
 	ToPS2FPU_Full(regd, false, regt, false, false);
-	x86SetJ32(pjmp32);
+	*pjmp32 = (x86Ptr - (u8*)pjmp32) - 4;
 
 	_freeXMMreg(t1reg);
 }
