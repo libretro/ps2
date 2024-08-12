@@ -3,7 +3,8 @@ index c76eb394e..cd4365e3c 100644
 --- a/pcsx2/CDVD/CDVD.cpp
 +++ b/pcsx2/CDVD/CDVD.cpp
 @@ -84,7 +84,7 @@ static void CDVDSECTORREADY_INT(u32 eCycle)
- 	if (EmuConfig.Speedhacks.fastCDVD)
+-	if (EmuConfig.Speedhacks.fastCDVD)
++	//if (EmuConfig.Speedhacks.fastCDVD)
  	{
  		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
 -			eCycle *= 0.5f;
@@ -12,7 +13,8 @@ index c76eb394e..cd4365e3c 100644
  
  	PSX_INT(IopEvt_CdvdSectorReady, eCycle);
 @@ -97,7 +97,7 @@ static void CDVDREAD_INT(u32 eCycle)
- 	if (EmuConfig.Speedhacks.fastCDVD)
+-	if (EmuConfig.Speedhacks.fastCDVD)
++	//if (EmuConfig.Speedhacks.fastCDVD)
  	{
  		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
 -			eCycle *= 0.5f;
