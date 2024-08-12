@@ -70,16 +70,16 @@ extern u32* JNZ32(u32 to);
 //*********************
 // SSE1  instructions *
 //*********************
-extern void SSE_MAXSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-extern void SSE_MINSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-extern void SSE_ADDSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-extern void SSE_SUBSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
+extern void SSE_MAXSS_XMM_to_XMM(int to, int from);
+extern void SSE_MINSS_XMM_to_XMM(int to, int from);
+extern void SSE_ADDSS_XMM_to_XMM(int to, int from);
+extern void SSE_SUBSS_XMM_to_XMM(int to, int from);
 
 //*********************
 //  SSE2 Instructions *
 //*********************
 
-extern void SSE2_MAXSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-extern void SSE2_MINSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-extern void SSE2_ADDSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-extern void SSE2_SUBSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
+extern void SSE2_MAXSD_XMM_to_XMM(int to, int from);
+extern void SSE2_MINSD_XMM_to_XMM(int to, int from);
+extern void SSE2_ADDSD_XMM_to_XMM(int to, int from);
+extern void SSE2_SUBSD_XMM_to_XMM(int to, int from);

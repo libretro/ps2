@@ -338,7 +338,7 @@ static void nVifGen(int usn, int mask, int curCycle)
 		if (nVifT[i] == 0)
 			continue;
 
-		ucall = (nVifCall)xGetAlignedCallTarget();
+		ucall = (nVifCall)x86Ptr;
 		vpugen.xUnpack(i);
 		vpugen.xMovDest();
 		xRET();
@@ -352,7 +352,7 @@ void VifUnpackSSE_Init(void)
 
 	nVifUpkExec = new RecompiledCodeReserve();
 	nVifUpkExec->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
-	xSetPtr(*nVifUpkExec);
+	x86Ptr = (u8*)*nVifUpkExec;
 
 	for (int a = 0; a < 2; a++)
 		for (int b = 0; b < 2; b++)

@@ -340,7 +340,7 @@ void vtlb_DynGenDispatchers(void)
 		{
 			for (int sign = 0; sign < (!mode && bits < 3 ? 2 : 1); sign++)
 			{
-				xSetPtr(GetIndirectDispatcherPtr(mode, bits, !!sign));
+				x86Ptr = (u8*)GetIndirectDispatcherPtr(mode, bits, !!sign);
 
 				DynGen_IndirectTlbDispatcher(mode, bits, !!sign);
 			}
@@ -925,7 +925,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	recEndThunk();
 
 	// backpatch to a jump to the slowmem handler
-	xSetPtr((u8*)code_address);
+	x86Ptr = (u8*)code_address;
 	xJMP(thunk);
 
 	// fill the rest of it with nops, if any

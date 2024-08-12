@@ -312,17 +312,17 @@ static u16 dVifComputeLength(uint cl, uint wl, u8 num, bool isFill)
 
 _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 {
-	nVifStruct& v = nVif[idx];
+	nVifStruct& v  = nVif[idx];
 
 	// Compile the block now
-	xSetPtr(v.recWritePtr);
+	x86Ptr         = (u8*)v.recWritePtr;
 
-	block.startPtr = (uptr)xGetAlignedCallTarget();
-	block.length = dVifComputeLength(block.cl, block.wl, block.num, isFill);
+	block.startPtr = (uptr)x86Ptr;
+	block.length   = dVifComputeLength(block.cl, block.wl, block.num, isFill);
 	v.vifBlocks.add(block);
 
 	VifUnpackSSE_Dynarec(v, block).CompileRoutine();
-	v.recWritePtr = xGetPtr();
+	v.recWritePtr = x86Ptr;
 
 	return &block;
 }

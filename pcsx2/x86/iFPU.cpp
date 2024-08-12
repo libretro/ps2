@@ -556,14 +556,14 @@ static void FPU_MUL_WRAP_REV(int regd, int regt) { FPU_MUL(regd, regt, true); } 
 // CommutativeOp XMM (used for ADD, MUL, MAX, and MIN opcodes)
 //------------------------------------------------------------------
 #ifdef FPU_CORRECT_ADD_SUB
-static void (*recComOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
+static void (*recComOpXMM_to_XMM[])(int, int) = {
 	FPU_ADD_WRAP, FPU_MUL_WRAP,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
-static void (*recComOpXMM_to_XMM_REV[])(x86SSERegType, x86SSERegType) = { //reversed operands
+static void (*recComOpXMM_to_XMM_REV[])(int, int) = { //reversed operands
 	FPU_ADD_WRAP, FPU_MUL_WRAP_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
 #else
-static void (*recComOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
+static void (*recComOpXMM_to_XMM[])(int, int) = {
 	FPU_ADD, FPU_MUL_WRAP,     SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
-static void (*recComOpXMM_to_XMM_REV[])(x86SSERegType, x86SSERegType) = { //reversed operands
+static void (*recComOpXMM_to_XMM_REV[])(int, int) = { //reversed operands
 	FPU_ADD, FPU_MUL_WRAP_REV, SSE_MAXSS_XMM_to_XMM, SSE_MINSS_XMM_to_XMM};
 #endif
 

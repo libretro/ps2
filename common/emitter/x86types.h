@@ -132,12 +132,6 @@ namespace x86Emitter
 	static const int Sib_EIZ = 4; // same index value as ESP (used in Index field)
 	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
 
-	extern void xSetPtr(void* ptr);
-	extern void xAlignPtr(uint bytes);
-
-	extern u8* xGetPtr();
-	extern u8* xGetAlignedCallTarget();
-
 	extern JccComparisonType xInvertCond(JccComparisonType src);
 
 	class xAddressVoid;

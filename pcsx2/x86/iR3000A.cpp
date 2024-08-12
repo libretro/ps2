@@ -119,7 +119,7 @@ static void recEventTest(void)
 // dispatches to the recompiled block address.
 static const void* _DynGen_JITCompile(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	xFastCall((const void*)iopRecRecompile, ptr32[&psxRegs.pc]);
 
@@ -135,7 +135,7 @@ static const void* _DynGen_JITCompile(void)
 // called when jumping to variable pc address
 static const void* _DynGen_DispatcherReg(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	xMOV(eax, ptr[&psxRegs.pc]);
 	xMOV(ebx, eax);
@@ -155,7 +155,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 	// allocating any room on the stack for it (which is important since the IOP's entry
 	// code gets invoked quite a lot).
 
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	{ // Properly scope the frame prologue/epilogue
 		int m_offset;
@@ -164,7 +164,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 		xJMP((const void*)iopDispatcherReg);
 
 		// Save an exit point
-		iopExitRecompiledCode = xGetPtr();
+		iopExitRecompiledCode = x86Ptr;
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
@@ -185,11 +185,11 @@ static void _DynGen_Dispatchers(void)
 	// clear the buffer to 0xcc (easier debugging).
 	memset(iopRecDispatchers, 0xcc, __pagesize);
 
-	xSetPtr(iopRecDispatchers);
+	x86Ptr = (u8*)iopRecDispatchers;
 
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
-	iopDispatcherEvent = xGetPtr();
+	iopDispatcherEvent = x86Ptr;
 	xFastCall((const void*)recEventTest);
 	iopDispatcherReg = _DynGen_DispatcherReg();
 
@@ -1163,21 +1163,17 @@ static void iopRecRecompile(const u32 startpc)
 	// Inject IRX hack
 	if (startpc == 0x1630 && EmuConfig.CurrentIRX.length() > 3)
 	{
+		// FIXME do I need to increase the module count (0x1F -> 0x20)
 		if (iopMemRead32(0x20018) == 0x1F)
-		{
-			// FIXME do I need to increase the module count (0x1F -> 0x20)
 			iopMemWrite32(0x20094, 0xbffc0000);
-		}
 	}
 
 	// if recPtr reached the mem limit reset whole mem
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
-	{
 		recResetIOP();
-	}
 
-	xSetPtr(recPtr);
-	recPtr = xGetAlignedCallTarget();
+	x86Ptr      = (u8*)recPtr;
+	recPtr      = x86Ptr;
 
 	s_pCurBlock = PSX_GETBLOCK(startpc);
 
@@ -1339,11 +1335,11 @@ StartRecomp:
 		}
 	}
 
-	s_pCurBlockEx->x86size = xGetPtr() - recPtr;
+	s_pCurBlockEx->x86size = x86Ptr - recPtr;
 
-	recPtr = xGetPtr();
+	recPtr        = x86Ptr;
 
-	s_pCurBlock = NULL;
+	s_pCurBlock   = NULL;
 	s_pCurBlockEx = NULL;
 }
 

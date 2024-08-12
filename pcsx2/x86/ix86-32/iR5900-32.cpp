@@ -313,7 +313,7 @@ static void recClear(u32 addr, u32 size)
 // dispatches to the recompiled block address.
 static const void* _DynGen_JITCompile(void)
 {
-	u8* retval = xGetAlignedCallTarget();
+	u8* retval = x86Ptr;
 
 	xFastCall((const void*)recRecompile, ptr32[&cpuRegs.pc]);
 
@@ -333,7 +333,7 @@ static const void* _DynGen_JITCompile(void)
 // called when jumping to variable pc address
 static const void* _DynGen_DispatcherReg(void)
 {
-	u8* retval = xGetPtr(); // fallthrough target, can't align it!
+	u8* retval = x86Ptr; // fallthrough target, can't align it!
 
 	// C equivalent:
 	// u32 addr = cpuRegs.pc;
@@ -350,7 +350,7 @@ static const void* _DynGen_DispatcherReg(void)
 
 static const void* _DynGen_DispatcherEvent(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 
 	xFastCall((const void*)recEventTest);
 
@@ -359,7 +359,7 @@ static const void* _DynGen_DispatcherEvent(void)
 
 static const void* _DynGen_EnterRecompiledCode(void)
 {
-	u8* retval = xGetAlignedCallTarget();
+	u8* retval = x86Ptr;
 
 #ifdef _WIN32
 	// Shadow space for Win32
@@ -383,7 +383,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 
 static const void* _DynGen_DispatchBlockDiscard(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 	xFastCall((const void*)recClear);
 	xJMP((const void*)DispatcherReg);
 	return retval;
@@ -391,7 +391,7 @@ static const void* _DynGen_DispatchBlockDiscard(void)
 
 static const void* _DynGen_DispatchPageReset(void)
 {
-	u8* retval = xGetPtr();
+	u8* retval = x86Ptr;
 	xFastCall((const void*)dyna_page_reset);
 	xJMP((const void*)DispatcherReg);
 	return retval;
@@ -409,7 +409,7 @@ static void _DynGen_Dispatchers(void)
 	// clear the buffer to 0xcc (easier debugging).
 	memset(eeRecDispatchers, 0xcc, __pagesize);
 
-	xSetPtr(eeRecDispatchers);
+	x86Ptr = (u8*)eeRecDispatchers;
 
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
@@ -519,12 +519,12 @@ static void recResetRaw(void)
 
 	recMem->Reset();
 #if TODOFIXME
-	xSetPtr(*recMem);
+	x86Ptr = (u8*)*recMem;
 #endif
 	_DynGen_Dispatchers();
 	vtlb_DynGenDispatchers();
 #if TODOFIXME
-	recPtr = xGetPtr();
+	recPtr = x86Ptr;
 #endif
 	ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize);
 	memset(recRAMCopy, 0, Ps2MemSize::MainRam);
@@ -539,9 +539,8 @@ static void recResetRaw(void)
 	vtlb_ClearLoadStoreInfo();
 
 #ifndef TODOFIXME
-	xSetPtr(*recMem);
-
-	recPtr = xGetPtr();
+	x86Ptr   = (u8*)*recMem;
+	recPtr   = x86Ptr;
 #endif
 
 	g_branch = 0;
@@ -723,9 +722,9 @@ u8* recBeginThunk(void)
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
 		eeRecNeedsReset = true;
 
-	xSetPtr(recPtr);
-	recPtr = xGetAlignedCallTarget();
-	xSetPtr(recPtr);
+	x86Ptr = (u8*)recPtr;
+	recPtr = x86Ptr;
+	x86Ptr = (u8*)recPtr;
 	return recPtr;
 }
 
@@ -1637,10 +1636,10 @@ static void recRecompile(const u32 startpc)
 		recResetRaw();
 	}
 
-	xSetPtr(recPtr);
-	recPtr = xGetAlignedCallTarget();
+	x86Ptr        = (u8*)recPtr;
+	recPtr        = x86Ptr;
 
-	s_pCurBlock = PC_GETBLOCK(startpc);
+	s_pCurBlock   = PC_GETBLOCK(startpc);
 
 	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
 
@@ -2032,11 +2031,11 @@ StartRecomp:
 		}
 	}
 
-	s_pCurBlockEx->x86size = static_cast<u32>(xGetPtr() - recPtr);
+	s_pCurBlockEx->x86size = static_cast<u32>(x86Ptr - recPtr);
 
-	recPtr = xGetPtr();
+	recPtr        = x86Ptr;
 
-	s_pCurBlock = NULL;
+	s_pCurBlock   = NULL;
 	s_pCurBlockEx = NULL;
 }
 

@@ -41,7 +41,7 @@ namespace x86Emitter
 				// calls are relative to the instruction after this one, and length is
 				// always 5 bytes (16 bit calls are bad mojo, so no bother to do special logic).
 
-				sptr dest = (sptr)func - ((sptr)xGetPtr() + 5);
+				sptr dest = (sptr)func - ((sptr)x86Ptr + 5);
 				xWrite8(0xe8);
 				xWrite32(dest);
 			}

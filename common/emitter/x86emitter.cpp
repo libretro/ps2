@@ -424,38 +424,6 @@ const xRegister32
 			xWrite8(rex);
 	}
 
-
-	// --------------------------------------------------------------------------------------
-	//  xSetPtr / xAlignPtr / xGetPtr
-	// --------------------------------------------------------------------------------------
-
-	// Assigns the current emitter buffer target address.
-	// This is provided instead of using x86Ptr directly, since we may in the future find
-	// a need to change the storage class system for the x86Ptr 'under the hood.'
-	__emitinline void xSetPtr(void* ptr)
-	{
-		x86Ptr = (u8*)ptr;
-	}
-
-	// Retrieves the current emitter buffer target address.
-	// This is provided instead of using x86Ptr directly, since we may in the future find
-	// a need to change the storage class system for the x86Ptr 'under the hood.'
-	__emitinline u8* xGetPtr()
-	{
-		return x86Ptr;
-	}
-
-	__emitinline void xAlignPtr(uint bytes)
-	{
-		// forward align
-		x86Ptr = (u8*)(((uptr)x86Ptr + bytes - 1) & ~(uptr)(bytes - 1));
-	}
-
-	__emitinline u8* xGetAlignedCallTarget()
-	{
-		return x86Ptr;
-	}
-
 	// --------------------------------------------------------------------------------------
 	//  xRegisterInt  (method implementations)
 	// --------------------------------------------------------------------------------------
@@ -957,8 +925,8 @@ const xRegister32
 	void xLoadFarAddr(const xAddressReg& dst, void* addr)
 	{
 		sptr iaddr = (sptr)addr;
-		sptr rip = (sptr)xGetPtr() + 7; // LEA will be 7 bytes
-		sptr disp = iaddr - rip;
+		sptr rip   = (sptr)x86Ptr + 7; // LEA will be 7 bytes
+		sptr disp  = iaddr - rip;
 		if (disp == (s32)disp)
 		{
 			xLEA(dst, ptr[addr]);

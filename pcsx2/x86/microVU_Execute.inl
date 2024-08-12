@@ -34,7 +34,7 @@ static bool mvuNeedsFPCRUpdate(mV)
 // Generates the code for entering/exit recompiled blocks
 void mVUdispatcherAB(mV)
 {
-	mVU.startFunct = xGetAlignedCallTarget();
+	mVU.startFunct = x86Ptr;
 
 	{
 		int m_offset;
@@ -82,7 +82,7 @@ void mVUdispatcherAB(mV)
 		// Jump to Recompiled Code Block
 		xJMP(rax);
 
-		mVU.exitFunct = xGetAlignedCallTarget();
+		mVU.exitFunct = x86Ptr;
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -101,7 +101,7 @@ void mVUdispatcherAB(mV)
 // Generates the code for resuming/exit xgkick
 void mVUdispatcherCD(mV)
 {
-	mVU.startFunctXG = xGetAlignedCallTarget();
+	mVU.startFunctXG = x86Ptr;
 
 	{
 		int m_offset;
@@ -120,7 +120,7 @@ void mVUdispatcherCD(mV)
 		// Jump to Recompiled Code Block
 		xJMP(ptrNative[&mVU.resumePtrXG]);
 
-		mVU.exitFunctXG = xGetAlignedCallTarget();
+		mVU.exitFunctXG = x86Ptr;
 
 		// Backup Status Flag (other regs were backed up on xgkick)
 		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[0]], gprF0);
@@ -139,7 +139,7 @@ void mVUdispatcherCD(mV)
 
 static void mVUGenerateWaitMTVU(mV)
 {
-	mVU.waitMTVU = xGetAlignedCallTarget();
+	mVU.waitMTVU = x86Ptr;
 
 	int num_xmms = 0, num_gprs = 0;
 
@@ -212,7 +212,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 static void mVUGenerateCopyPipelineState(mV)
 {
-	mVU.copyPLState = xGetAlignedCallTarget();
+	mVU.copyPLState = x86Ptr;
 
 	if (cpuinfo_has_x86_avx2())
 	{
@@ -254,7 +254,7 @@ static void mVUGenerateCopyPipelineState(mV)
 // Note: Structs must be 16-byte aligned! (GCC doesn't guarantee this)
 static void mVUGenerateCompareState(mV)
 {
-	mVU.compareStateF = xGetAlignedCallTarget();
+	mVU.compareStateF = x86Ptr;
 
 	if (cpuinfo_has_x86_avx2())
 	{
@@ -322,7 +322,7 @@ _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 	u32 vuLimit     = vuIndex ? 0x3ff8 : 0xff8;
 	mVU.cycles      = cycles;
 	mVU.totalCycles = cycles;
-	xSetPtr(mVU.prog.x86ptr); // Set x86ptr to where last program left off
+	x86Ptr = (u8*)mVU.prog.x86ptr; // Set x86ptr to where last program left off
 	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uptr)&mVU.prog.lpState); // Find and set correct program
 }
 
@@ -332,11 +332,11 @@ _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 
 _mVUt void mVUcleanUp(void)
 {
-	microVU& mVU = mVUx;
+	microVU& mVU    = mVUx;
 
-	mVU.prog.x86ptr = xGetAlignedCallTarget();
+	mVU.prog.x86ptr = x86Ptr;
 
-	if ((xGetPtr() < mVU.prog.x86start) || (xGetPtr() >= mVU.prog.x86end))
+	if ((x86Ptr < mVU.prog.x86start) || (x86Ptr >= mVU.prog.x86end))
 		mVUreset(mVU, false);
 
 	mVU.cycles = mVU.totalCycles - std::max(0, mVU.cycles);

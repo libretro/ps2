@@ -46,7 +46,6 @@
 
 // Including legacy items for now, but these should be removed eventually,
 // once most code is no longer dependent on them.
-#include "common/emitter/legacy_types.h"
 #include "common/emitter/legacy_instructions.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////

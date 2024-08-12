@@ -81,7 +81,7 @@ namespace x86Emitter
 	void xImpl_FastCall::operator()(const void* f, const xRegister32& a1, const xRegister32& a2) const
 	{
 		prepareRegsForFastcall(a1, a2);
-		uptr disp = ((uptr)xGetPtr() + 5) - (uptr)f;
+		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
 		if ((sptr)disp == (s32)disp)
 		{
 			xCALL(f);
@@ -96,7 +96,7 @@ namespace x86Emitter
 	void xImpl_FastCall::operator()(const void* f, const xRegisterLong& a1, const xRegisterLong& a2) const
 	{
 		prepareRegsForFastcall(a1, a2);
-		uptr disp = ((uptr)xGetPtr() + 5) - (uptr)f;
+		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
 		if ((sptr)disp == (s32)disp)
 		{
 			xCALL(f);
@@ -171,7 +171,7 @@ namespace x86Emitter
 		*(s32*)x86Ptr = displacement;
 		x86Ptr += sizeof(s32);
 
-		return ((s32*)xGetPtr()) - 1;
+		return ((s32*)x86Ptr) - 1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -183,7 +183,7 @@ namespace x86Emitter
 		xWrite8((comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison));
 		*(s8*)x86Ptr = displacement;
 		x86Ptr += sizeof(s8);
-		return (s8*)xGetPtr() - 1;
+		return (s8*)x86Ptr - 1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -196,7 +196,7 @@ namespace x86Emitter
 	__emitinline void xJccKnownTarget(JccComparisonType comparison, const void* target, bool slideForward)
 	{
 		// Calculate the potential j8 displacement first, assuming an instruction length of 2:
-		sptr displacement8 = (sptr)target - (sptr)(xGetPtr() + 2);
+		sptr displacement8 = (sptr)target - (sptr)(x86Ptr + 2);
 
 		const int slideVal = slideForward ? ((comparison == Jcc_Unconditional) ? 3 : 4) : 0;
 		displacement8 -= slideVal;
@@ -207,7 +207,7 @@ namespace x86Emitter
 		{
 			// Perform a 32 bit jump instead. :(
 			s32* bah = xJcc32(comparison);
-			sptr distance = (sptr)target - (sptr)xGetPtr();
+			sptr distance = (sptr)target - (sptr)x86Ptr;
 
 			*bah = (s32)distance;
 		}
@@ -222,7 +222,7 @@ namespace x86Emitter
 
 	xForwardJumpBase::xForwardJumpBase(uint opsize, JccComparisonType cctype)
 	{
-		BasePtr = (s8*)xGetPtr() +
+		BasePtr = (s8*)x86Ptr +
 				  ((opsize == 1) ? 2 : // j8's are always 2 bytes.
                                    ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
 
@@ -244,7 +244,7 @@ namespace x86Emitter
 
 	void xForwardJumpBase::_setTarget(uint opsize) const
 	{
-		sptr displacement = (sptr)xGetPtr() - (sptr)BasePtr;
+		sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
 		if (opsize == 1)
 			BasePtr[-1] = (s8)displacement;
 		else // full displacement, no sanity checks needed :D
