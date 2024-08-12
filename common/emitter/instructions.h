@@ -431,10 +431,7 @@ namespace x86Emitter
 	// ------------------------------------------------------------------------
 
 	extern void xEMMS();
-	extern void xSTMXCSR(const xIndirect32& dest);
 	extern void xLDMXCSR(const xIndirect32& src);
-	extern void xFXSAVE(const xIndirectVoid& dest);
-	extern void xFXRSTOR(const xIndirectVoid& src);
 
 	extern void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from);
 	extern void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src);

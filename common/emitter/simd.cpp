@@ -20,27 +20,6 @@
 
 namespace x86Emitter
 {
-
-	// ------------------------------------------------------------------------
-	// SimdPrefix - If the lower byte of the opcode is 0x38 or 0x3a, then the opcode is
-	// treated as a 16 bit value (in SSE 0x38 and 0x3a denote prefixes for extended SSE3/4
-	// instructions).  Any other lower value assumes the upper value is 0 and ignored.
-	// Non-zero upper bytes, when the lower byte is not the 0x38 or 0x3a prefix, will
-	// generate an assertion.
-	//
-	__emitinline void SimdPrefix(u16 opcode)
-	{
-		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
-
-		if (is16BitOpcode)
-		{
-			xWrite8(0x0f);
-			xWrite16(opcode);
-		}
-		else
-			xWrite16((opcode << 8) | 0x0f);
-	}
-
 	const xImplSimd_DestRegEither xPAND = {0x66, 0xdb};
 	const xImplSimd_DestRegEither xPANDN = {0x66, 0xdf};
 	const xImplSimd_DestRegEither xPOR = {0x66, 0xeb};
@@ -602,13 +581,13 @@ namespace x86Emitter
 	__fi void xMOV##ssd(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(prefix, 0x11, from, to); }
 
 	IMPLEMENT_xMOVS(SS, 0xf3)
-		IMPLEMENT_xMOVS(SD, 0xf2)
+	IMPLEMENT_xMOVS(SD, 0xf2)
 
-		//////////////////////////////////////////////////////////////////////////////////////////
-		// Non-temporal movs only support a register as a target (ie, load form only, no stores)
-		//
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// Non-temporal movs only support a register as a target (ie, load form only, no stores)
+	//
 
-		__fi void xMOVNTDQA(const xRegisterSSE& to, const xIndirectVoid& from)
+	__fi void xMOVNTDQA(const xRegisterSSE& to, const xIndirectVoid& from)
 	{
 		xOpWrite0F(0x66, 0x2a38, to.Id, from);
 	}
@@ -656,30 +635,9 @@ namespace x86Emitter
 	//  Ungrouped Instructions!
 	// =====================================================================================================
 
-
-	// Store Streaming SIMD Extension Control/Status to Mem32.
-	__emitinline void xSTMXCSR(const xIndirect32& dest)
-	{
-		xOpWrite0F(0, 0xae, 3, dest);
-	}
-
 	// Load Streaming SIMD Extension Control/Status from Mem32.
 	__emitinline void xLDMXCSR(const xIndirect32& src)
 	{
 		xOpWrite0F(0, 0xae, 2, src);
-	}
-
-	// Save x87 FPU, MMX Technology, and SSE State to buffer
-	// Target buffer must be at least 512 bytes in length to hold the result.
-	__emitinline void xFXSAVE(const xIndirectVoid& dest)
-	{
-		xOpWrite0F(0, 0xae, 0, dest);
-	}
-
-	// Restore x87 FPU, MMX , XMM, and MXCSR State.
-	// Source buffer should be 512 bytes in length.
-	__emitinline void xFXRSTOR(const xIndirectVoid& src)
-	{
-		xOpWrite0F(0, 0xae, 1, src);
 	}
 } // namespace x86Emitter
