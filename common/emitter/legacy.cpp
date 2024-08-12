@@ -143,36 +143,6 @@ emitterT u8* JNZ8(u8 to)
 	return J8Rel(0x75, to);
 }
 
-/* jng rel8 */
-emitterT u8* JNG8(u8 to)
-{
-	return J8Rel(0x7E, to);
-}
-
-/* jnge rel8 */
-emitterT u8* JNGE8(u8 to)
-{
-	return J8Rel(0x7C, to);
-}
-
-/* jnl rel8 */
-emitterT u8* JNL8(u8 to)
-{
-	return J8Rel(0x7D, to);
-}
-
-/* jnle rel8 */
-emitterT u8* JNLE8(u8 to)
-{
-	return J8Rel(0x7F, to);
-}
-
-// jb rel32
-emitterT u32* JB32(u32 to)
-{
-	return J32Rel(0x82, to);
-}
-
 /* je rel32 */
 emitterT u32* JE32(u32 to)
 {
@@ -207,18 +177,6 @@ emitterT u32* JL32(u32 to)
 emitterT u32* JLE32(u32 to)
 {
 	return J32Rel(0x8E, to);
-}
-
-/* ja rel32 */
-emitterT u32* JA32(u32 to)
-{
-	return J32Rel(0x87, to);
-}
-
-/* jae rel32 */
-emitterT u32* JAE32(u32 to)
-{
-	return J32Rel(0x83, to);
 }
 
 /* jne rel32 */

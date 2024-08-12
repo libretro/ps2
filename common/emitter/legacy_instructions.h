@@ -49,17 +49,7 @@ extern u8* JLE8(u8 to);
 extern u8* JNE8(u8 to);
 // jnz rel8
 extern u8* JNZ8(u8 to);
-// jng rel8
-extern u8* JNG8(u8 to);
-// jnge rel8
-extern u8* JNGE8(u8 to);
-// jnl rel8
-extern u8* JNL8(u8 to);
-// jnle rel8
-extern u8* JNLE8(u8 to);
 
-// jb rel32
-extern u32* JB32(u32 to);
 // je rel32
 extern u32* JE32(u32 to);
 // jz rel32
@@ -72,15 +62,13 @@ extern u32* JGE32(u32 to);
 extern u32* JL32(u32 to);
 // jle rel32
 extern u32* JLE32(u32 to);
-// jae rel32
-extern u32* JAE32(u32 to);
 // jne rel32
 extern u32* JNE32(u32 to);
 // jnz rel32
 extern u32* JNZ32(u32 to);
 
 //*********************
-// SSE   instructions *
+// SSE1  instructions *
 //*********************
 extern void SSE_MAXSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
 extern void SSE_MINSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
@@ -88,7 +76,7 @@ extern void SSE_ADDSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
 extern void SSE_SUBSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
 
 //*********************
-//  SSE 2 Instructions*
+//  SSE2 Instructions *
 //*********************
 
 extern void SSE2_MAXSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
