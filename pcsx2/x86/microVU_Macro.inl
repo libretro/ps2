@@ -29,7 +29,7 @@ using namespace R5900::Dynarec;
 // we enter micro mode, they will get overriden otherwise...
 #define FLUSH_FOR_POSSIBLE_MICRO_EXEC (FLUSH_FREE_XMM | FLUSH_FREE_VU0)
 
-void setupMacroOp(int mode, const char* opName)
+static void setupMacroOp(int mode, const char* opName)
 {
 	// Set up reg allocation
 	microVU0.regAlloc->reset(true);
@@ -52,32 +52,35 @@ void setupMacroOp(int mode, const char* opName)
 		microVU0.prog.IRinfo.info[0].cFlag.write     = 0xff;
 		microVU0.prog.IRinfo.info[0].cFlag.lastWrite = 0xff;
 	}
-	if (mode & 0x10 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_STATUS_FLAG)) // Update Status Flag
+	if (mode & 0x10)
 	{
-		microVU0.prog.IRinfo.info[0].sFlag.doFlag      = true;
-		microVU0.prog.IRinfo.info[0].sFlag.doNonSticky = true;
-		microVU0.prog.IRinfo.info[0].sFlag.write       = 0;
-		microVU0.prog.IRinfo.info[0].sFlag.lastWrite   = 0;
-	}
-	if (mode & 0x10 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_MAC_FLAG)) // Update Mac Flags
-	{
-		microVU0.prog.IRinfo.info[0].mFlag.doFlag      = true;
-		microVU0.prog.IRinfo.info[0].mFlag.write       = 0xff;
-	}
-	if (mode & 0x10 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & (EEINST_COP2_STATUS_FLAG | EEINST_COP2_DENORMALIZE_STATUS_FLAG)))
-	{
-		_freeX86reg(gprF0);
-
-		if (!CHECK_VU_FLAGHACK || (g_pCurInstInfo->info & EEINST_COP2_DENORMALIZE_STATUS_FLAG))
+		if ((!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_STATUS_FLAG)) // Update Status Flag
 		{
-			// flags are normalized, so denormalize before running the first instruction
-			mVUallocSFLAGd(&vuRegs[0].VI[REG_STATUS_FLAG].UL, gprF0, eax, ecx);
+			microVU0.prog.IRinfo.info[0].sFlag.doFlag      = true;
+			microVU0.prog.IRinfo.info[0].sFlag.doNonSticky = true;
+			microVU0.prog.IRinfo.info[0].sFlag.write       = 0;
+			microVU0.prog.IRinfo.info[0].sFlag.lastWrite   = 0;
 		}
-		else
+		if ((!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_MAC_FLAG)) // Update Mac Flags
 		{
-			// load denormalized status flag
-			// ideally we'd keep this in a register, but 32-bit...
-			xMOV(gprF0, ptr32[&vuRegs->VI[REG_STATUS_FLAG].UL]);
+			microVU0.prog.IRinfo.info[0].mFlag.doFlag      = true;
+			microVU0.prog.IRinfo.info[0].mFlag.write       = 0xff;
+		}
+		if ((!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & (EEINST_COP2_STATUS_FLAG | EEINST_COP2_DENORMALIZE_STATUS_FLAG)))
+		{
+			_freeX86reg(gprF0);
+
+			if (!CHECK_VU_FLAGHACK || (g_pCurInstInfo->info & EEINST_COP2_DENORMALIZE_STATUS_FLAG))
+			{
+				// flags are normalized, so denormalize before running the first instruction
+				mVUallocSFLAGd(&vuRegs[0].VI[REG_STATUS_FLAG].UL, gprF0, eax, ecx);
+			}
+			else
+			{
+				// load denormalized status flag
+				// ideally we'd keep this in a register, but 32-bit...
+				xMOV(gprF0, ptr32[&vuRegs->VI[REG_STATUS_FLAG].UL]);
+			}
 		}
 	}
 }
