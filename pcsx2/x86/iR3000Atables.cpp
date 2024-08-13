@@ -899,6 +899,7 @@ static void rpsxDIV_const()
 
 static void rpsxDIVsuper(int info, int sign, int process = 0)
 {
+	u8* end1, *cont3;
 	// Lo/Hi = Rs / Rt (signed)
 	if (process & PROCESS_CONSTT)
 		xMOV(ecx, g_psxConstRegs[_Rt_]);
@@ -914,23 +915,30 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	else
 		xMOV(eax, ptr32[&psxRegs.GPR.r[_Rs_]]);
 
-	u8* end1;
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
+		u8 *cont1, *cont2;
+
 		xCMP(eax, 0x80000000);
-		u8* cont1 = JNE8(0);
+		xWrite8(JNE8);
+		xWrite8(0);
+		cont1       = (u8*)(x86Ptr - 1);
 		xCMP(ecx, 0xffffffff);
-		u8* cont2 = JNE8(0);
+		xWrite8(JNE8);
+		xWrite8(0);
+		cont2       = (u8*)(x86Ptr - 1);
 		//overflow case:
 		xXOR(edx, edx); //EAX remains 0x80000000
-		end1 = JMP8(0);
+		end1        = JMP8(0);
 
 		*cont1      = (u8)((x86Ptr - cont1) - 1);
 		*cont2      = (u8)((x86Ptr - cont2) - 1);
 	}
 
 	xCMP(ecx, 0);
-	u8* cont3 = JNE8(0);
+	xWrite8(JNE8);
+	xWrite8(0);
+	cont3       = (u8*)(x86Ptr - 1);
 
 	//divide by zero
 	xMOV(edx, eax);
@@ -1491,7 +1499,10 @@ static void rpsxSetBranchEQ(int process)
 			xCMP(xRegister32(regs), ptr32[&psxRegs.GPR.r[_Rt_]]);
 	}
 
-	s_pbranchjmp = JNE32(0);
+	xWrite8(0x0F);
+	xWrite8(JNE32);
+	xWrite32(0);
+	s_pbranchjmp = (u32*)(x86Ptr - 4);
 }
 
 static void rpsxBEQ_const()
@@ -1624,8 +1635,9 @@ static void rpsxBNE()
 }
 
 //// BLTZ
-static void rpsxBLTZ()
+static void rpsxBLTZ(void)
 {
+	u32 *pjmp;
 	// Branch if Rs < 0
 	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
 
@@ -1648,7 +1660,10 @@ static void rpsxBLTZ()
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	u32* pjmp = JL32(0);
+	xWrite8(0x0F);
+	xWrite8(JL32);
+	xWrite32(0);
+	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1674,8 +1689,9 @@ static void rpsxBLTZ()
 }
 
 //// BGEZ
-static void rpsxBGEZ()
+static void rpsxBGEZ(void)
 {
+	u32 *pjmp;
 	u32 branchTo = ((s32)_Imm_ * 4) + psxpc;
 
 	if (PSX_IS_CONST1(_Rs_))
@@ -1697,7 +1713,10 @@ static void rpsxBGEZ()
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	u32* pjmp = JGE32(0);
+	xWrite8(0x0F);
+	xWrite8(JGE32);
+	xWrite32(0);
+	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1723,8 +1742,9 @@ static void rpsxBGEZ()
 }
 
 //// BLTZAL
-static void rpsxBLTZAL()
+static void rpsxBLTZAL(void)
 {
+	u32 *pjmp;
 	// Branch if Rs < 0
 	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
 
@@ -1752,7 +1772,10 @@ static void rpsxBLTZAL()
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	u32* pjmp = JL32(0);
+	xWrite8(0x0F);
+	xWrite8(JL32);
+	xWrite32(0);
+	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1778,8 +1801,9 @@ static void rpsxBLTZAL()
 }
 
 //// BGEZAL
-static void rpsxBGEZAL()
+static void rpsxBGEZAL(void)
 {
+	u32 *pjmp;
 	u32 branchTo = ((s32)_Imm_ * 4) + psxpc;
 
 	_psxDeleteReg(31, DELETE_REG_FREE_NO_WRITEBACK);
@@ -1806,7 +1830,10 @@ static void rpsxBGEZAL()
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	u32* pjmp = JGE32(0);
+	xWrite8(0x0F);
+	xWrite8(JGE32);
+	xWrite32(0);
+	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1832,8 +1859,9 @@ static void rpsxBGEZAL()
 }
 
 //// BLEZ
-static void rpsxBLEZ()
+static void rpsxBLEZ(void)
 {
+	u32 *pjmp;
 	// Branch if Rs <= 0
 	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
 
@@ -1856,7 +1884,10 @@ static void rpsxBLEZ()
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	u32* pjmp = JLE32(0);
+	xWrite8(0x0F);
+	xWrite8(JLE32);
+	xWrite32(0);
+	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1881,8 +1912,9 @@ static void rpsxBLEZ()
 }
 
 //// BGTZ
-static void rpsxBGTZ()
+static void rpsxBGTZ(void)
 {
+	u32 *pjmp;
 	// Branch if Rs > 0
 	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
 
@@ -1907,7 +1939,10 @@ static void rpsxBGTZ()
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	u32* pjmp = JG32(0);
+	xWrite8(0x0F);
+	xWrite8(JG32);
+	xWrite32(0);
+	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{

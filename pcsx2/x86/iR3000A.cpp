@@ -1098,7 +1098,7 @@ void rpsxSYSCALL(void)
 	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	xWrite8(0x74);
+	xWrite8(JE8);
 	xWrite8(0);
 	j8Ptr = (u8*)(x86Ptr - 1);
 
@@ -1124,7 +1124,7 @@ void rpsxBREAK(void)
 	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	xWrite8(0x74);
+	xWrite8(JE8);
 	xWrite8(0);
 	j8Ptr = (u8*)(x86Ptr - 1);
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());

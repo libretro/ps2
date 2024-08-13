@@ -358,6 +358,7 @@ static void recDIV_const(void)
 
 static void recDIVsuper(int info, bool sign, bool upper, int process)
 {
+	u8 *end1, *cont3;
 	const xRegister32 divisor((info & PROCESS_EE_T) ? EEREC_T : ecx.Id);
 	if (!(info & PROCESS_EE_T))
 	{
@@ -372,23 +373,29 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	else
 		_eeMoveGPRtoR(rax, _Rs_);
 
-	u8* end1;
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
+		u8 *cont1, *cont2;
 		xCMP(eax, 0x80000000);
-		u8* cont1 = JNE8(0);
+		xWrite8(JNE8);
+		xWrite8(0);
+		cont1       = (u8*)(x86Ptr - 1);
 		xCMP(divisor, 0xffffffff);
-		u8* cont2 = JNE8(0);
+		xWrite8(JNE8);
+		xWrite8(0);
+		cont2       = (u8*)(x86Ptr - 1);
 		//overflow case:
 		xXOR(edx, edx); //EAX remains 0x80000000
-		end1 = JMP8(0);
+		end1        = JMP8(0);
 
 		*cont1      = (u8)((x86Ptr - cont1) - 1);
 		*cont2      = (u8)((x86Ptr - cont2) - 1);
 	}
 
 	xCMP(divisor, 0);
-	u8* cont3 = JNE8(0);
+	xWrite8(JNE8);
+	xWrite8(0);
+	cont3 = (u8*)(x86Ptr - 1);
 	//divide by zero
 	xMOV(edx, eax);
 	if (sign) //set EAX to (EAX < 0)?1:-1

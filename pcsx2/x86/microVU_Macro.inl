@@ -306,6 +306,27 @@ INTERPRETATE_COP2_FUNC(CALLMSR);
 //------------------------------------------------------------------
 // Macro VU - Branches
 //------------------------------------------------------------------
+static u32 *branch_jnz32(u32 to)
+{
+	*(u8*)x86Ptr = 0x0F; 
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JNZ32; 
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = to;
+	x86Ptr += sizeof(u32);
+	return (u32*)(x86Ptr - 4);
+}
+
+static u32 *branch_jz32(u32 to)
+{
+	*(u8*)x86Ptr = 0x0F; 
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JZ32; 
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = to;
+	x86Ptr += sizeof(u32);
+	return (u32*)(x86Ptr - 4);
+}
 
 static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
 {
@@ -317,10 +338,10 @@ static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
 	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
 }
 
-void recBC2F()  { _setupBranchTest(JNZ32, false); }
-void recBC2T()  { _setupBranchTest(JZ32,  false); }
-void recBC2FL() { _setupBranchTest(JNZ32, true);  }
-void recBC2TL() { _setupBranchTest(JZ32,  true);  }
+void recBC2F()  { _setupBranchTest(branch_jnz32, false); }
+void recBC2T()  { _setupBranchTest(branch_jz32,  false); }
+void recBC2FL() { _setupBranchTest(branch_jnz32, true);  }
+void recBC2TL() { _setupBranchTest(branch_jz32,  true);  }
 
 //------------------------------------------------------------------
 // Macro VU - COP2 Transfer Instructions

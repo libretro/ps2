@@ -27,5 +27,3 @@ emitterT void SSE_MINSS_XMM_to_XMM (int to, int from) { xMIN.SS(xRegisterSSE(to)
 emitterT void SSE_MAXSS_XMM_to_XMM (int to, int from) { xMAX.SS(xRegisterSSE(to), xRegisterSSE(from)); }
 emitterT void SSE2_SUBSD_XMM_to_XMM(int to, int from) { xSUB.SD(xRegisterSSE(to), xRegisterSSE(from)); }
 emitterT void SSE2_ADDSD_XMM_to_XMM(int to, int from) { xADD.SD(xRegisterSSE(to), xRegisterSSE(from)); }
-emitterT void SSE2_MINSD_XMM_to_XMM(int to, int from) { xMIN.SD(xRegisterSSE(to), xRegisterSSE(from)); }
-emitterT void SSE2_MAXSD_XMM_to_XMM(int to, int from) { xMAX.SD(xRegisterSSE(to), xRegisterSSE(from)); }

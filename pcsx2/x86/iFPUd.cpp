@@ -127,11 +127,11 @@ static void ToDouble(int reg)
 {
 	u8 *to_complex, *to_complex2;
 	xUCOMI.SS(xRegisterSSE(reg), ptr[s_const.pos_inf]); // Sets ZF if reg is equal or incomparable to pos_inf
-	xWrite8(0x74);
+	xWrite8(JE8);
 	xWrite8(0);
 	to_complex = (u8*)(x86Ptr - 1); // Complex conversion if positive infinity or NaN
 	xUCOMI.SS(xRegisterSSE(reg), ptr[s_const.neg_inf]);
-	xWrite8(0x74);
+	xWrite8(JE8);
 	xWrite8(0);
 	to_complex2 = (u8*)(x86Ptr - 1); // Complex conversion if negative infinity
 
@@ -167,6 +167,7 @@ static void ToDouble(int reg)
 // doesn't handle inf/nan/denormal
 static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
 {
+	u8 *to_complex, *to_overflow, *to_underflow;
 	if (flags)
 	{
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO | FPUflagU));
@@ -178,10 +179,14 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	xAND.PD(xRegisterSSE(absreg), ptr[&s_const.dbl_s_pos]);
 
 	xUCOMI.SD(xRegisterSSE(absreg), ptr[&s_const.dbl_cvt_overflow]);
-	u8* to_complex = JAE8(0);
+	xWrite8(JAE8);
+	xWrite8(0);
+	to_complex = (u8*)(x86Ptr - 1);
 
 	xUCOMI.SD(xRegisterSSE(absreg), ptr[&s_const.dbl_underflow]);
-	u8* to_underflow = JB8(0);
+	xWrite8(JB8);
+	xWrite8(0);
+	to_underflow = (u8*)(x86Ptr - 1);
 
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //simply convert
 
@@ -189,7 +194,9 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
 	xUCOMI.SD(xRegisterSSE(absreg), ptr[&s_const.dbl_ps2_overflow]);
-	u8* to_overflow = JAE8(0);
+	xWrite8(JAE8);
+	xWrite8(0);
+	to_overflow = (u8*)(x86Ptr - 1);
 
 	xPSUB.Q(xRegisterSSE(reg), ptr[&s_const.dbl_one_exp]); //lower exponent
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //convert
@@ -216,7 +223,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 		xXOR.PD(xRegisterSSE(absreg), xRegisterSSE(absreg));
 		xUCOMI.SD(xRegisterSSE(reg), xRegisterSSE(absreg));
-		xWrite8(0x74);
+		xWrite8(JE8);
 		xWrite8(0);
 		is_zero = (u8*)(x86Ptr - 1);
 
@@ -340,14 +347,20 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 
 	xSUB(ecx, eax); //tempecx = exponent difference
 	xCMP(ecx, 25);
-	j8Ptr0 = JGE8(0);
+	xWrite8(JGE8);
+	xWrite8(0);
+	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xCMP(ecx, 0);
-	j8Ptr1 = JG8(0);
-	xWrite8(0x74);
+	xWrite8(JG8);
+	xWrite8(0);
+	j8Ptr1 = (u8*)(x86Ptr - 1);
+	xWrite8(JE8);
 	xWrite8(0);
 	j8Ptr2 = (u8*)(x86Ptr - 1);
 	xCMP(ecx, -25);
-	j8Ptr3 = JLE8(0);
+	xWrite8(JBE8);
+	xWrite8(0);
+	j8Ptr3 = (u8*)(x86Ptr - 1);
 
 	//diff = -24 .. -1 , expd < expt
 	xNEG(ecx);
@@ -392,12 +405,8 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 
 	if (CHECK_FPUMULHACK)
 	{
-		// 	if ((s == 0x3e800000) && (t == 0x40490fdb))
-		// 		return 0x3f490fda; // needed for Tales of Destiny Remake (only in a very specific room late-game)
-		// 	else
-		// 		return 0;
-
 		alignas(16) static constexpr const u32 result[4] = { 0x3f490fda };
+		u8 *noHack;
 
 		xMOVD(ecx, xRegisterSSE(sreg));
 		xMOVD(edx, xRegisterSSE(treg));
@@ -407,10 +416,12 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 		xXOR(edx, 0x40490fdb);
 		xOR(edx, ecx);
 
-		u8* noHack = JNZ8(0);
-			xMOVAPS(xRegisterSSE(regd), ptr128[result]);
-			endMul = JMP32(0);
-		*noHack = (u8)((x86Ptr - noHack) - 1);
+		xWrite8(JNZ8);
+		xWrite8(0);
+		noHack     = (u8*)(x86Ptr - 1);
+		xMOVAPS(xRegisterSSE(regd), ptr128[result]);
+		endMul     = JMP32(0);
+		*noHack    = (u8)((x86Ptr - noHack) - 1);
 	}
 
 	ToDouble(sreg);
@@ -490,9 +501,11 @@ void recC_EQ_xmm(int info)
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr0 = JZ8(0);
+	xWrite8(JZ8);
+	xWrite8(0);
+	j8Ptr0  = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
+	j8Ptr1  = JMP8(0);
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -505,9 +518,11 @@ void recC_LE_xmm(int info)
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr0 = JBE8(0);
+	xWrite8(JBE8);
+	xWrite8(0);
+	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
+	j8Ptr1  = JMP8(0);
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -520,9 +535,11 @@ void recC_LT_xmm(int info)
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
 
-	j8Ptr0 = JB8(0);
+	xWrite8(JB8);
+	xWrite8(0);
+	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
+	j8Ptr1  = JMP8(0);
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -602,14 +619,19 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regt));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regt == zero, sign will be set)
-	ajmp32 = JZ32(0); //Skip if not set
+	xWrite8(0x0F);
+	xWrite8(JZ32);
+	xWrite32(0);
+	ajmp32 = (u32*)(x86Ptr - 4); /* Skip if not set */
 
 	//--- Check for 0/0 ---
 	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
-	pjmp1 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	pjmp1 = (u8*)(x86Ptr - 1); /* Skip if not set */
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 	pjmp2 = JMP8(0);
 	*pjmp1 = (u8)((x86Ptr - pjmp1) - 1); //x/0 but not 0/0
@@ -675,6 +697,7 @@ FPURECOMPILE_CONSTCODE(DIV_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 // (where MAX is 0x7fffffff and -MAX is 0xffffffff)
 static void recMaddsub(int info, int regd, int op, bool acc)
 {
+	u8 *mulovf, *accovf;
 	int sreg, treg;
 	ALLOC_S(sreg);
 	ALLOC_T(treg);
@@ -688,11 +711,15 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	//          TEST FOR ACC/MUL OVERFLOWS, PROPOGATE THEM IF THEY OCCUR
 
 	xTEST(ptr32[&fpuRegs.fprc[31]], FPUflagO);
-	u8* mulovf = JNZ8(0);
+	xWrite8(JNZ8);
+	xWrite8(0);
+	mulovf     = (u8*)(x86Ptr - 1);
 	ToDouble(sreg); //else, convert
 
 	xTEST(ptr32[&fpuRegs.ACCflag], 1);
-	u8* accovf = JNZ8(0);
+	xWrite8(JNZ8);
+	xWrite8(0);
+	accovf        = (u8*)(x86Ptr - 1);
 	ToDouble(treg); //else, convert
 	u8* operation = JMP8(0);
 
@@ -912,14 +939,17 @@ void recSQRT_S_xmm(int info)
 	GET_T(EEREC_D);
 
 	{
+		u8 *pjmp;
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagI | FPUflagD)); // Clear I and D flags
 
 		//--- Check for negative SQRT --- (sqrt(-0) = 0, unlike what the docs say)
 		xMOVMSKPS(eax, xRegisterSSE(EEREC_D));
 		xAND(eax, 1); //Check sign
-		u8* pjmp = JZ8(0); //Skip if none are
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
-			xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_const.pos[0]]); // Make EEREC_D Positive
+		xWrite8(JZ8);
+		xWrite8(0);
+		pjmp = (u8*)(x86Ptr - 1); /* Skip if none are */
+		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
+		xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_const.pos[0]]); // Make EEREC_D Positive
 		*pjmp = (u8)((x86Ptr - pjmp) - 1);
 	}
 
@@ -955,7 +985,9 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	//--- (first) Check for negative SQRT ---
 	xMOVMSKPS(eax, xRegisterSSE(regt));
 	xAND(eax, 1); //Check sign
-	pjmp2 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	pjmp2 = (u8*)(x86Ptr - 1); /* Skip if not set */
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
 	xAND.PS(xRegisterSSE(regt), ptr[&s_const.pos[0]]); // Make regt Positive
 	*pjmp2 = (u8)((x86Ptr - pjmp2) - 1);
@@ -965,14 +997,18 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regt));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regt == zero, sign will be set)
-	pjmp1 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	pjmp1 = (u8*)(x86Ptr - 1); /* Skip if not set */
 
 	//--- Check for 0/0 ---
 	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
-	qjmp1 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	qjmp1 = (u8*)(x86Ptr - 1); /* Skip if not set */
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 	qjmp2  = JMP8(0);
 	*qjmp1 = (u8)((x86Ptr - qjmp1) - 1); //x/0 but not 0/0

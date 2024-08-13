@@ -90,8 +90,16 @@ static u32 *recSetBranchEQ(int bne, int process)
 	}
 
 	if (bne)
-		return JE32(0);
-	return JNE32(0);
+	{
+		xWrite8(0x0F);
+		xWrite8(JE32);
+		xWrite32(0);
+		return (u32*)(x86Ptr - 4);
+	}
+	xWrite8(0x0F);
+	xWrite8(JNE32);
+	xWrite32(0);
+	return (u32*)(x86Ptr - 4);
 }
 
 static u32 *recSetBranchL(int ltz)
@@ -106,8 +114,16 @@ static u32 *recSetBranchL(int ltz)
 		xTEST(al, 2);
 
 		if (ltz)
-			return JZ32(0);
-		return JNZ32(0);
+		{
+			xWrite8(0x0F);
+			xWrite8(JZ32);
+			xWrite32(0);
+			return (u32*)(x86Ptr - 4);
+		}
+		xWrite8(0x0F);
+		xWrite8(JNZ32);
+		xWrite32(0);
+		return (u32*)(x86Ptr - 4);
 	}
 
 	if (regs >= 0)
@@ -116,8 +132,16 @@ static u32 *recSetBranchL(int ltz)
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
 	if (ltz)
-		return JGE32(0);
-	return JL32(0);
+	{
+		xWrite8(0x0F);
+		xWrite8(JGE32);
+		xWrite32(0);
+		return (u32*)(x86Ptr - 4);
+	}
+	xWrite8(0x0F);
+	xWrite8(JL32);
+	xWrite32(0);
+	return (u32*)(x86Ptr - 4);
 }
 
 //// BEQ
@@ -501,6 +525,7 @@ void recBGEZALL(void)
 //// BLEZ
 void recBLEZ(void)
 {
+	u32 *j32Ptr;
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -522,7 +547,10 @@ void recBLEZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	u32 *j32Ptr = JG32(0);
+	xWrite8(0x0F);
+	xWrite8(JG32);
+	xWrite32(0);
+	j32Ptr = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -548,6 +576,7 @@ void recBLEZ(void)
 //// BGTZ
 void recBGTZ(void)
 {
+	u32 *j32Ptr;
 	u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -569,7 +598,10 @@ void recBGTZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	u32 *j32Ptr = JLE32(0);
+	xWrite8(0x0F);
+	xWrite8(JLE32);
+	xWrite32(0);
+	j32Ptr = (u32*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -744,6 +776,7 @@ void recBGEZL(void)
 ////////////////////////////////////////////////////
 void recBLEZL(void)
 {
+	u32 *j32Ptr;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -766,7 +799,10 @@ void recBLEZL(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	u32 *j32Ptr = JG32(0);
+	xWrite8(0x0F);
+	xWrite8(JG32);
+	xWrite32(0);
+	j32Ptr = (u32*)(x86Ptr - 4);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -781,6 +817,7 @@ void recBLEZL(void)
 ////////////////////////////////////////////////////
 void recBGTZL(void)
 {
+	u32 *j32Ptr;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -804,7 +841,10 @@ void recBGTZL(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	u32 *j32Ptr = JLE32(0);
+	xWrite8(0x0F);
+	xWrite8(JLE32);
+	xWrite32(0);
+	j32Ptr = (u32*)(x86Ptr - 4);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);

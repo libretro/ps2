@@ -427,14 +427,20 @@ static void FPU_ADD_SUB(int regd, int regt, int issub)
 
 	xSUB(ecx, eax); //tempecx = exponent difference
 	xCMP(ecx, 25);
-	j8Ptr0 = JGE8(0);
+	xWrite8(JGE8);
+	xWrite8(0);
+	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xCMP(ecx, 0);
-	j8Ptr1 = JG8(0);
-	xWrite8(0x74);
+	xWrite8(JG8);
+	xWrite8(0);
+	j8Ptr1 = (u8*)(x86Ptr - 1);
+	xWrite8(JE8);
 	xWrite8(0);
 	j8Ptr2 = (u8*)(x86Ptr - 1);
 	xCMP(ecx, -25);
-	j8Ptr3 = JLE8(0);
+	xWrite8(JBE8);
+	xWrite8(0);
+	j8Ptr3 = (u8*)(x86Ptr - 1);
 
 	//diff = -24 .. -1 , expd < expt
 	xNEG(ecx);
@@ -524,12 +530,8 @@ static void FPU_MUL(int regd, int regt, bool reverseOperands)
 
 	if (CHECK_FPUMULHACK)
 	{
-		// 	if ((s == 0x3e800000) && (t == 0x40490fdb))
-		// 		return 0x3f490fda; // needed for Tales of Destiny Remake (only in a very specific room late-game)
-		// 	else
-		// 		return 0;
-
 		alignas(16) static constexpr const u32 result[4] = { 0x3f490fda };
+		u8 *noHack;
 
 		xMOVD(ecx, xRegisterSSE(reverseOperands ? regt : regd));
 		xMOVD(edx, xRegisterSSE(reverseOperands ? regd : regt));
@@ -539,9 +541,11 @@ static void FPU_MUL(int regd, int regt, bool reverseOperands)
 		xXOR(edx, 0x40490fdb);
 		xOR(edx, ecx);
 
-		u8* noHack = JNZ8(0);
-			xMOVAPS(xRegisterSSE(regd), ptr128[result]);
-			endMul = JMP8(0);
+		xWrite8(JNZ8);
+		xWrite8(0);
+		noHack   = (u8*)(x86Ptr - 1);
+		xMOVAPS(xRegisterSSE(regd), ptr128[result]);
+		endMul   = JMP8(0);
 		*noHack  = (u8)((x86Ptr - noHack) - 1);
 	}
 
@@ -690,32 +694,52 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 
 void recBC1F(void)
 {
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = TrySwapDelaySlot(0, 0, 0, true);
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNZ32(0), false, swap);
+	xWrite8(0x0F);
+	xWrite8(JNZ32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, false, swap);
 }
 
 void recBC1T(void)
 {
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = TrySwapDelaySlot(0, 0, 0, true);
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JZ32(0), false, swap);
+	xWrite8(0x0F);
+	xWrite8(JZ32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, false, swap);
 }
 
 void recBC1FL(void)
 {
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNZ32(0), true, false);
+	xWrite8(0x0F);
+	xWrite8(JNZ32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, true, false);
 }
 
 void recBC1TL(void)
 {
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JZ32(0), true, false);
+	xWrite8(0x0F);
+	xWrite8(JZ32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, true, false);
 }
 //------------------------------------------------------------------
 
@@ -779,7 +803,9 @@ void recC_EQ_xmm(int info)
 			xMOV(eax, ptr[&fpuRegs.fpr[_Fs_]]);
 			xCMP(eax, ptr[&fpuRegs.fpr[_Ft_]]);
 
-			j8Ptr0 = JZ8(0);
+			xWrite8(JZ8);
+			xWrite8(0);
+			j8Ptr0 = (u8*)(x86Ptr - 1);
 			xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 			j8Ptr1 = JMP8(0);
 			*j8Ptr0  = (u8)((x86Ptr - j8Ptr0) - 1);
@@ -788,9 +814,11 @@ void recC_EQ_xmm(int info)
 			return;
 	}
 
-	j8Ptr0 = JZ8(0);
+	xWrite8(JZ8);
+	xWrite8(0);
+	j8Ptr0   = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1 = JMP8(0);
+	j8Ptr1   = JMP8(0);
 	*j8Ptr0  = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1  = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -859,7 +887,9 @@ void recC_LE_xmm(int info)
 			xMOV(eax, ptr[&fpuRegs.fpr[_Fs_]]);
 			xCMP(eax, ptr[&fpuRegs.fpr[_Ft_]]);
 
-			j8Ptr0 = JLE8(0);
+			xWrite8(JBE8);
+			xWrite8(0);
+			j8Ptr0 = (u8*)(x86Ptr - 1);
 			xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 			j8Ptr1 = JMP8(0);
 			*j8Ptr0  = (u8)((x86Ptr - j8Ptr0) - 1);
@@ -868,7 +898,9 @@ void recC_LE_xmm(int info)
 			return;
 	}
 
-	j8Ptr0 = JBE8(0);
+	xWrite8(JBE8);
+	xWrite8(0);
+	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
 	*j8Ptr0  = (u8)((x86Ptr - j8Ptr0) - 1);
@@ -934,7 +966,9 @@ void recC_LT_xmm(int info)
 			xMOV(eax, ptr[&fpuRegs.fpr[_Fs_]]);
 			xCMP(eax, ptr[&fpuRegs.fpr[_Ft_]]);
 
-			j8Ptr0 = JL8(0);
+			xWrite8(JL8);
+			xWrite8(0);
+			j8Ptr0 = (u8*)(x86Ptr - 1);
 			xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 			j8Ptr1 = JMP8(0);
 			*j8Ptr0  = (u8)((x86Ptr - j8Ptr0) - 1);
@@ -943,7 +977,9 @@ void recC_LT_xmm(int info)
 			return;
 	}
 
-	j8Ptr0 = JB8(0);
+	xWrite8(JB8);
+	xWrite8(0);
+	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
 	*j8Ptr0  = (u8)((x86Ptr - j8Ptr0) - 1);
@@ -1034,14 +1070,19 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regt));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regt == zero, sign will be set)
-	ajmp32 = JZ32(0); //Skip if not set
+	xWrite8(0x0F);
+	xWrite8(JZ32);
+	xWrite32(0);
+	ajmp32 = (u32*)(x86Ptr - 4); /* Skip if not set */
 
 	/*--- Check for 0/0 ---*/
 	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
-	pjmp1 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	pjmp1  = (u8*)(x86Ptr - 1); // Skip if not set
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 	pjmp2 = JMP8(0);
 	*pjmp1   = (u8)((x86Ptr - pjmp1) - 1); //x/0 but not 0/0
@@ -1693,12 +1734,15 @@ void recSQRT_S_xmm(int info)
 
 	// Sets D/I flags on FPU instructions
 	{
+		u8 *pjmp;
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagI | FPUflagD)); // Clear I and D flags
 
 		/*--- Check for negative SQRT ---*/
 		xMOVMSKPS(eax, xRegisterSSE(EEREC_D));
 		xAND(eax, 1); //Check sign
-		u8* pjmp = JZ8(0); //Skip if none are
+		xWrite8(JZ8);
+		xWrite8(0);
+		pjmp  = (u8*)(x86Ptr - 1); // Skip if none are
 		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
 		xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]); // Make EEREC_D Positive
 		*pjmp   = (u8)((x86Ptr - pjmp) - 1);
@@ -1733,7 +1777,9 @@ static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function 
 	/*--- (first) Check for negative SQRT ---*/
 	xMOVMSKPS(eax, xRegisterSSE(t0reg));
 	xAND(eax, 1); //Check sign
-	pjmp2 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	pjmp2  = (u8*)(x86Ptr - 1); // Skip if not set
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
 	xAND.PS(xRegisterSSE(t0reg), ptr[&s_pos[0]]); // Make t0reg Positive
 	*pjmp2   = (u8)((x86Ptr - pjmp2) - 1);
@@ -1743,14 +1789,18 @@ static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function 
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(t0reg));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if t0reg == zero, sign will be set)
-	pjmp1 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	pjmp1  = (u8*)(x86Ptr - 1); // Skip if not set
 		
 	/*--- Check for 0/0 ---*/
 	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
 	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
 	xMOVMSKPS(eax, xRegisterSSE(t1reg));
 	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
-	qjmp1 = JZ8(0); //Skip if not set
+	xWrite8(JZ8);
+	xWrite8(0);
+	qjmp1  = (u8*)(x86Ptr - 1); // Skip if not set
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 	qjmp2 = JMP8(0);
 	*qjmp1   = (u8)((x86Ptr - qjmp1) - 1); //x/0 but not 0/0

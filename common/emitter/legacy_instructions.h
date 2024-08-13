@@ -15,55 +15,33 @@
 
 #pragma once
 
-////////////////////////////////////
-// jump instructions              //
-////////////////////////////////////
+/***********************************
+** jump instructions              **
+***********************************/
 
-// jmp rel8
-extern u8* JMP8(u8 to);
+#define JE8   0x74	/* je  rel8 */
+#define JZ8   0x74	/* jz  rel8 */
+#define JNS8  0x79	/* jns rel8 */
+#define JG8   0x7F	/* jg  rel8 */
+#define JGE8  0x7D	/* jge rel8 */
+#define JL8   0x7C	/* jl  rel8 */
+#define JAE8  0x73	/* jl  rel8 */
+#define JB8   0x72	/* jb  rel8 */
+#define JBE8  0x76	/* jbe rel8 */
+#define JLE8  0x7E	/* jle rel8 */
+#define JNE8  0x75	/* jne rel8 */
+#define JNZ8  0x75	/* jnz rel8 */
+#define JE32  0x84	/* je  rel32 */
+#define JZ32  0x84	/* jz  rel32 */
+#define JG32  0x8F	/* jg  rel32 */
+#define JL32  0x8C	/* jl  rel32 */
+#define JGE32 0x8D	/* jge rel32 */
+#define JLE32 0x8E	/* jle rel32 */
+#define JNZ32 0x85	/* jnz rel32 */
+#define JNE32 0x85	/* jne rel32 */
 
-// jmp rel32
-extern u32* JMP32(uptr to);
-
-// jz rel8
-extern u8* JZ8(u8 to);
-// jg rel8
-extern u8* JG8(u8 to);
-// jge rel8
-extern u8* JGE8(u8 to);
-// jns rel8
-extern u8* JNS8(u8 to);
-// jl rel8
-extern u8* JL8(u8 to);
-// jae rel8
-extern u8* JAE8(u8 to);
-// jb rel8
-extern u8* JB8(u8 to);
-// jbe rel8
-extern u8* JBE8(u8 to);
-// jle rel8
-extern u8* JLE8(u8 to);
-// jne rel8
-extern u8* JNE8(u8 to);
-// jnz rel8
-extern u8* JNZ8(u8 to);
-
-// je rel32
-extern u32* JE32(u32 to);
-// jz rel32
-extern u32* JZ32(u32 to);
-// jg rel32
-extern u32* JG32(u32 to);
-// jge rel32
-extern u32* JGE32(u32 to);
-// jl rel32
-extern u32* JL32(u32 to);
-// jle rel32
-extern u32* JLE32(u32 to);
-// jne rel32
-extern u32* JNE32(u32 to);
-// jnz rel32
-extern u32* JNZ32(u32 to);
+extern u8* JMP8(u8 to);	/* jmp rel8 */
+extern u32* JMP32(uptr to); /* jmp rel32 */
 
 //*********************
 // SSE1  instructions *
@@ -76,8 +54,5 @@ extern void SSE_SUBSS_XMM_to_XMM(int to, int from);
 //*********************
 //  SSE2 Instructions *
 //*********************
-
-extern void SSE2_MAXSD_XMM_to_XMM(int to, int from);
-extern void SSE2_MINSD_XMM_to_XMM(int to, int from);
 extern void SSE2_ADDSD_XMM_to_XMM(int to, int from);
 extern void SSE2_SUBSD_XMM_to_XMM(int to, int from);

@@ -40,7 +40,7 @@ namespace COP0 {
 
 // emits "setup" code for a COP0 branch test.  The instruction immediately following
 // this should be a conditional Jump -- JZ or JNZ normally.
-static void _setupBranchTest()
+static void _setupBranchTest(void)
 {
 	_eeFlushAllDirty();
 
@@ -60,34 +60,54 @@ static void _setupBranchTest()
 	xCMP(eax, ecx);
 }
 
-void recBC0F()
+void recBC0F(void)
 {
+	u32 *jmpskip;
+	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	const bool swap    = TrySwapDelaySlot(0, 0, 0, false);
+	_setupBranchTest();
+	xWrite8(0x0F);
+	xWrite8(JE32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, false, swap);
+}
+
+void recBC0T(void)
+{
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = TrySwapDelaySlot(0, 0, 0, false);
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JE32(0), false, swap);
+	xWrite8(0x0F);
+	xWrite8(JNE32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, false, swap);
 }
 
-void recBC0T()
+void recBC0FL(void)
 {
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const bool swap = TrySwapDelaySlot(0, 0, 0, false);
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNE32(0), false, swap);
+	xWrite8(0x0F);
+	xWrite8(JE32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, true, false);
 }
 
-void recBC0FL()
+void recBC0TL(void)
 {
+	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JE32(0), true, false);
-}
-
-void recBC0TL()
-{
-	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	_setupBranchTest();
-	recDoBranchImm(branchTo, JNE32(0), true, false);
+	xWrite8(0x0F);
+	xWrite8(JNE32);
+	xWrite32(0);
+	jmpskip = (u32*)(x86Ptr - 4);
+	recDoBranchImm(branchTo, jmpskip, true, false);
 }
 
 void recTLBR() { recCall(Interp::TLBR); }
