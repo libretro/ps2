@@ -50,11 +50,8 @@ namespace x86Emitter
 	}
 
 	template <typename Reg1, typename Reg2>
-	void prepareRegsForFastcall(const Reg1& a1, const Reg2& a2)
+	static void prepareRegsForFastcall(const Reg1& a1, const Reg2& a2)
 	{
-		if (a1.IsEmpty())
-			return;
-
 		// Make sure we don't mess up if someone tries to fastcall with a1 in arg2reg and a2 in arg1reg
 		if (a2.Id != arg1reg.Id)
 		{
@@ -79,7 +76,8 @@ namespace x86Emitter
 
 	void xImpl_FastCall::operator()(const void* f, const xRegister32& a1, const xRegister32& a2) const
 	{
-		prepareRegsForFastcall(a1, a2);
+		if (!a1.IsEmpty())
+			prepareRegsForFastcall(a1, a2);
 		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
 		if ((sptr)disp == (s32)disp)
 		{
@@ -94,7 +92,8 @@ namespace x86Emitter
 
 	void xImpl_FastCall::operator()(const void* f, const xRegisterLong& a1, const xRegisterLong& a2) const
 	{
-		prepareRegsForFastcall(a1, a2);
+		if (!a1.IsEmpty())
+			prepareRegsForFastcall(a1, a2);
 		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
 		if ((sptr)disp == (s32)disp)
 		{
@@ -148,7 +147,8 @@ namespace x86Emitter
 
 	void xImpl_FastCall::operator()(const xIndirectNative& f, const xRegisterLong& a1, const xRegisterLong& a2) const
 	{
-		prepareRegsForFastcall(a1, a2);
+		if (!a1.IsEmpty())
+			prepareRegsForFastcall(a1, a2);
 		xCALL(f);
 	}
 
@@ -208,13 +208,6 @@ namespace x86Emitter
 
 			*bah = (s32)distance;
 		}
-	}
-
-	// Low-level jump instruction!  Specify a comparison type and a target in void* form, and
-	// a jump (either 8 or 32 bit) is generated.
-	__emitinline void xJcc(JccComparisonType comparison, const void* target)
-	{
-		xJccKnownTarget(comparison, target, false);
 	}
 
 	xForwardJumpBase::xForwardJumpBase(uint opsize, JccComparisonType cctype)

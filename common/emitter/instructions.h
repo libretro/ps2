@@ -65,32 +65,35 @@
 // Load Streaming SIMD Extension Control/Status from Mem32.
 #define xLDMXCSR(src) xOpWrite0F(0, 0xae, 2, src)
 
-// ------------------------------------------------------------------------
-// Conditional jumps to fixed targets.
-// Jumps accept any pointer as a valid target (function or data), and will generate either
-// 8 or 32 bit displacement versions of the jump, depending on relative displacement of
-// the target (efficient!)
+/* ------------------------------------------------------------------------
+ * Conditional jumps to fixed targets.
+ * Jumps accept any pointer as a valid target (function or data), and will generate either
+ * 8 or 32 bit displacement versions of the jump, depending on relative displacement of
+ * the target (efficient!)
+ * Low-level jump instruction!  Specify a comparison type and a target in void* form, and
+ * a jump (either 8 or 32 bit) is generated.
+ */
 
-#define xJE(func)  xJcc(Jcc_Equal, (void*)(uptr)func) 
-#define xJZ(func)  xJcc(Jcc_Zero,  (void*)(uptr)func)
-#define xJNE(func) xJcc(Jcc_NotEqual, (void*)(uptr)func)
-#define xJNZ(func) xJcc(Jcc_NotZero, (void*)(uptr)func)
-#define xJO(func)  xJcc(Jcc_Overflow, (void*)(uptr)func)
-#define xJNO(func) xJcc(Jcc_NotOverflow, (void*)(uptr)func)
-#define xJC(func)  xJcc(Jcc_Carry, (void*)(uptr)func)
-#define xJNC(func) xJcc(Jcc_NotCarry, (void*)(uptr)func)
-#define xJS(func)  xJcc(Jcc_Signed, (void*)(uptr)func)
-#define xJNS(func) xJcc(Jcc_Unsigned, (void*)(uptr)func)
-#define xJPE(func) xJcc(Jcc_ParityEven, (void*)(uptr)func)
-#define xJPO(func) xJcc(Jcc_ParityOdd, (void*)(uptr)func)
-#define xJL(func)  xJcc(Jcc_Less, (void*)(uptr)func)
-#define xJLE(func) xJcc(Jcc_LessOrEqual, (void*)(uptr)func)
-#define xJG(func)  xJcc(Jcc_Greater, (void*)(uptr)func)
-#define xJGE(func) xJcc(Jcc_GreaterOrEqual, (void*)(uptr)func)
-#define xJB(func)  xJcc(Jcc_Below, (void*)(uptr)func)
-#define xJBE(func) xJcc(Jcc_BelowOrEqual, (void*)(uptr)func)
-#define xJA(func)  xJcc(Jcc_Above, (void*)(uptr)func)
-#define xJAE(func) xJcc(Jcc_AboveOrEqual, (void*)(uptr)func)
+#define xJE(func)  xJccKnownTarget(Jcc_Equal, (void*)(uptr)func, false) 
+#define xJZ(func)  xJccKnownTarget(Jcc_Zero,  (void*)(uptr)func, false)
+#define xJNE(func) xJccKnownTarget(Jcc_NotEqual, (void*)(uptr)func, false)
+#define xJNZ(func) xJccKnownTarget(Jcc_NotZero, (void*)(uptr)func, false)
+#define xJO(func)  xJccKnownTarget(Jcc_Overflow, (void*)(uptr)func, false)
+#define xJNO(func) xJccKnownTarget(Jcc_NotOverflow, (void*)(uptr)func, false)
+#define xJC(func)  xJccKnownTarget(Jcc_Carry, (void*)(uptr)func, false)
+#define xJNC(func) xJccKnownTarget(Jcc_NotCarry, (void*)(uptr)func, false)
+#define xJS(func)  xJccKnownTarget(Jcc_Signed, (void*)(uptr)func, false)
+#define xJNS(func) xJccKnownTarget(Jcc_Unsigned, (void*)(uptr)func, false)
+#define xJPE(func) xJccKnownTarget(Jcc_ParityEven, (void*)(uptr)func, false)
+#define xJPO(func) xJccKnownTarget(Jcc_ParityOdd, (void*)(uptr)func, false)
+#define xJL(func)  xJccKnownTarget(Jcc_Less, (void*)(uptr)func, false)
+#define xJLE(func) xJccKnownTarget(Jcc_LessOrEqual, (void*)(uptr)func, false)
+#define xJG(func)  xJccKnownTarget(Jcc_Greater, (void*)(uptr)func, false)
+#define xJGE(func) xJccKnownTarget(Jcc_GreaterOrEqual, (void*)(uptr)func, false)
+#define xJB(func)  xJccKnownTarget(Jcc_Below, (void*)(uptr)func, false)
+#define xJBE(func) xJccKnownTarget(Jcc_BelowOrEqual, (void*)(uptr)func, false)
+#define xJA(func)  xJccKnownTarget(Jcc_Above, (void*)(uptr)func, false)
+#define xJAE(func) xJccKnownTarget(Jcc_AboveOrEqual, (void*)(uptr)func, false)
 
 // ----- Miscellaneous Instructions  -----
 // Various Instructions with no parameter and no special encoding logic.
@@ -247,7 +250,7 @@ namespace x86Emitter
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// JMP / Jcc Instructions!
 
-	extern void xJcc(JccComparisonType comparison, const void* target);
+	extern void xJccKnownTarget(JccComparisonType comparison, const void* target);
 	extern s8* xJcc8(JccComparisonType comparison, s8 displacement);
 	extern s32* xJcc32(JccComparisonType comparison, s32 displacement);
 

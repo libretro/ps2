@@ -37,6 +37,32 @@ namespace x86Emitter
 	const xImpl_Group8 xBTS = {G8Type_BTS};
 	const xImpl_Group8 xBTC = {G8Type_BTC};
 
+	const xImpl_G1Logic xAND = {G1Type_AND, {0x00, 0x54}, {0x66, 0x54}};
+	const xImpl_G1Logic xOR = {G1Type_OR, {0x00, 0x56}, {0x66, 0x56}};
+	const xImpl_G1Logic xXOR = {G1Type_XOR, {0x00, 0x57}, {0x66, 0x57}};
+
+	const xImpl_G1Arith xADD = {G1Type_ADD, {0x00, 0x58}, {0x66, 0x58}, {0xf3, 0x58}, {0xf2, 0x58}};
+	const xImpl_G1Arith xSUB = {G1Type_SUB, {0x00, 0x5c}, {0x66, 0x5c}, {0xf3, 0x5c}, {0xf2, 0x5c}};
+	const xImpl_G1Compare xCMP = {{0x00, 0xc2}, {0x66, 0xc2}, {0xf3, 0xc2}, {0xf2, 0xc2}};
+
+	const xImpl_Group1 xADC = {G1Type_ADC};
+	const xImpl_Group1 xSBB = {G1Type_SBB};
+	const xImpl_Group2 xROL = {G2Type_ROL};
+	const xImpl_Group2 xROR = {G2Type_ROR};
+	const xImpl_Group2 xRCL = {G2Type_RCL};
+	const xImpl_Group2 xRCR = {G2Type_RCR};
+	const xImpl_Group2 xSHL = {G2Type_SHL};
+	const xImpl_Group2 xSHR = {G2Type_SHR};
+	const xImpl_Group2 xSAR = {G2Type_SAR};
+
+	const xImpl_Group3 xNOT = {G3Type_NOT};
+	const xImpl_Group3 xNEG = {G3Type_NEG};
+	const xImpl_Group3 xUMUL = {G3Type_MUL};
+	const xImpl_Group3 xUDIV = {G3Type_DIV};
+
+	const xImpl_iDiv xDIV = {{0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
+	const xImpl_iMul xMUL = {{0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};
+
 	// =====================================================================================================
 	//  Group 1 Instructions - ADD, SUB, ADC, etc.
 	// =====================================================================================================
@@ -123,17 +149,6 @@ namespace x86Emitter
 	ImplementGroup1(xImpl_G1Arith, InstType)
 	ImplementGroup1(xImpl_G1Compare, G1Type_CMP)
 
-	const xImpl_G1Logic xAND = {G1Type_AND, {0x00, 0x54}, {0x66, 0x54}};
-	const xImpl_G1Logic xOR = {G1Type_OR, {0x00, 0x56}, {0x66, 0x56}};
-	const xImpl_G1Logic xXOR = {G1Type_XOR, {0x00, 0x57}, {0x66, 0x57}};
-
-	const xImpl_G1Arith xADD = {G1Type_ADD, {0x00, 0x58}, {0x66, 0x58}, {0xf3, 0x58}, {0xf2, 0x58}};
-	const xImpl_G1Arith xSUB = {G1Type_SUB, {0x00, 0x5c}, {0x66, 0x5c}, {0xf3, 0x5c}, {0xf2, 0x5c}};
-	const xImpl_G1Compare xCMP = {{0x00, 0xc2}, {0x66, 0xc2}, {0xf3, 0xc2}, {0xf2, 0xc2}};
-
-	const xImpl_Group1 xADC = {G1Type_ADC};
-	const xImpl_Group1 xSBB = {G1Type_SBB};
-
 	// =====================================================================================================
 	//  Group 2 Instructions - SHR, SHL, etc.
 	// =====================================================================================================
@@ -181,15 +196,6 @@ namespace x86Emitter
 			xWrite8(imm);
 		}
 	}
-
-	const xImpl_Group2 xROL = {G2Type_ROL};
-	const xImpl_Group2 xROR = {G2Type_ROR};
-	const xImpl_Group2 xRCL = {G2Type_RCL};
-	const xImpl_Group2 xRCR = {G2Type_RCR};
-	const xImpl_Group2 xSHL = {G2Type_SHL};
-	const xImpl_Group2 xSHR = {G2Type_SHR};
-	const xImpl_Group2 xSAR = {G2Type_SAR};
-
 
 	// =====================================================================================================
 	//  Group 3 Instructions - NOT, NEG, MUL, DIV
@@ -252,14 +258,6 @@ namespace x86Emitter
 		else
 			to.xWriteImm(imm);
 	}
-
-	const xImpl_Group3 xNOT = {G3Type_NOT};
-	const xImpl_Group3 xNEG = {G3Type_NEG};
-	const xImpl_Group3 xUMUL = {G3Type_MUL};
-	const xImpl_Group3 xUDIV = {G3Type_DIV};
-
-	const xImpl_iDiv xDIV = {{0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
-	const xImpl_iMul xMUL = {{0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};
 
 	// =====================================================================================================
 	//  Group 8 Instructions
