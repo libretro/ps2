@@ -100,7 +100,7 @@ namespace x86Emitter
 		// mov eax has a special from when writing directly to a DISP32 address
 		// (sans any register index/base registers).
 
-		xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0x88 : 0x89, from, dest);
+		xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0x88 : 0x89, from, dest, 0);
 	}
 
 	void xImpl_Mov::operator()(const xRegisterInt& to, const xIndirectVoid& src) const
@@ -108,7 +108,7 @@ namespace x86Emitter
 		// mov eax has a special from when reading directly from a DISP32 address
 		// (sans any register index/base registers).
 
-		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0x8a : 0x8b, to, src);
+		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0x8a : 0x8b, to, src, 0);
 	}
 
 	void xImpl_Mov::operator()(const xIndirect64orLess& dest, sptr imm) const
@@ -135,7 +135,7 @@ namespace x86Emitter
 		}
 		else
 		{
-			xOpWrite(to.GetPrefix16(), 0xc7, 0, to);
+			xOpWrite(to.GetPrefix16(), 0xc7, 0, to, 0);
 			to.xWriteImm(imm);
 		}
 	}
@@ -206,11 +206,11 @@ namespace x86Emitter
 
 	void xImpl_MovExtend::operator()(const xRegister64& to, const xRegister32& from) const
 	{
-		xOpWrite(0, 0x63, to, from);
+		xOpWrite(0, 0x63, to, from, 0);
 	}
 
 	void xImpl_MovExtend::operator()(const xRegister64& to, const xIndirect32& sibsrc) const
 	{
-		xOpWrite(0, 0x63, to, sibsrc);
+		xOpWrite(0, 0x63, to, sibsrc, 0);
 	}
 } // end namespace x86Emitter

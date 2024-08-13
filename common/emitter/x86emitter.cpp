@@ -756,7 +756,7 @@ const xRegister32
 			}
 		}
 
-		xOpWrite(0, 0x8d, to, src);
+		xOpWrite(0, 0x8d, to, src, 0);
 	}
 
 	__emitinline void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags)
@@ -780,7 +780,7 @@ const xRegister32
 	// =====================================================================================================
 	void xImpl_Test::operator()(const xRegisterInt& to, const xRegisterInt& from) const
 	{
-		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0x84 : 0x85, from, to);
+		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0x84 : 0x85, from, to, 0);
 	}
 
 	void xImpl_Test::operator()(const xIndirect64orLess& dest, int imm) const
@@ -797,7 +797,7 @@ const xRegister32
 		}
 		else
 		{
-			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xf6 : 0xf7, 0, to);
+			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xf6 : 0xf7, 0, to, 0);
 		}
 		to.xWriteImm(imm);
 	}
@@ -816,11 +816,11 @@ const xRegister32
 		if (to.Is8BitOp())
 		{
 			u8 regfield = isDec ? 1 : 0;
-			xOpWrite(to.GetPrefix16(), 0xfe, regfield, to);
+			xOpWrite(to.GetPrefix16(), 0xfe, regfield, to, 0);
 		}
 		else
 		{
-			xOpWrite(to.GetPrefix16(), 0xff, isDec ? 1 : 0, to);
+			xOpWrite(to.GetPrefix16(), 0xff, isDec ? 1 : 0, to, 0);
 		}
 	}
 

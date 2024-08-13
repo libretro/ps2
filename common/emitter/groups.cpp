@@ -72,26 +72,26 @@ namespace x86Emitter
 	void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xRegisterInt& from)
 	{
 		u8 opcode = (to.Is8BitOp() ? 0 : 1) | (InstType << 3);
-		xOpWrite(to.GetPrefix16(), opcode, from, to);
+		xOpWrite(to.GetPrefix16(), opcode, from, to, 0);
 	}
 
 	static void _g1_EmitOp(G1Type InstType, const xIndirectVoid& sibdest, const xRegisterInt& from)
 	{
 		u8 opcode = (from.Is8BitOp() ? 0 : 1) | (InstType << 3);
-		xOpWrite(from.GetPrefix16(), opcode, from, sibdest);
+		xOpWrite(from.GetPrefix16(), opcode, from, sibdest, 0);
 	}
 
 	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xIndirectVoid& sibsrc)
 	{
 		u8 opcode = (to.Is8BitOp() ? 2 : 3) | (InstType << 3);
-		xOpWrite(to.GetPrefix16(), opcode, to, sibsrc);
+		xOpWrite(to.GetPrefix16(), opcode, to, sibsrc, 0);
 	}
 
 	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, int imm)
 	{
 		if (!to.Is8BitOp() && is_s8(imm))
 		{
-			xOpWrite(to.GetPrefix16(), 0x83, InstType, to);
+			xOpWrite(to.GetPrefix16(), 0x83, InstType, to, 0);
 			*(s8*)x86Ptr = imm;
 			x86Ptr += sizeof(s8);
 		}
@@ -105,7 +105,7 @@ namespace x86Emitter
 			else
 			{
 				u8 opcode = to.Is8BitOp() ? 0x80 : 0x81;
-				xOpWrite(to.GetPrefix16(), opcode, InstType, to);
+				xOpWrite(to.GetPrefix16(), opcode, InstType, to, 0);
 			}
 			to.xWriteImm(imm);
 		}
@@ -138,9 +138,9 @@ namespace x86Emitter
 	//  Group 2 Instructions - SHR, SHL, etc.
 	// =====================================================================================================
 
-	void xImpl_Group2::operator()(const xRegisterInt& to, const xRegisterCL& /* from */) const
+	void xImpl_Group2::operator()(const xRegisterInt& to, const xRegisterCL& from) const
 	{
-		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd2 : 0xd3, InstType, to);
+		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd2 : 0xd3, InstType, to, 0);
 	}
 
 	void xImpl_Group2::operator()(const xRegisterInt& to, u8 imm) const
@@ -151,18 +151,18 @@ namespace x86Emitter
 		if (imm == 1)
 		{
 			// special encoding of 1's
-			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd0 : 0xd1, InstType, to);
+			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd0 : 0xd1, InstType, to, 0);
 		}
 		else
 		{
-			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xc0 : 0xc1, InstType, to);
+			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xc0 : 0xc1, InstType, to, 0);
 			xWrite8(imm);
 		}
 	}
 
-	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, const xRegisterCL& /* from */) const
+	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, const xRegisterCL& from) const
 	{
-		xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd2 : 0xd3, InstType, sibdest);
+		xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd2 : 0xd3, InstType, sibdest, 0);
 	}
 
 	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, u8 imm) const
@@ -173,7 +173,7 @@ namespace x86Emitter
 		if (imm == 1)
 		{
 			// special encoding of 1's
-			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd0 : 0xd1, InstType, sibdest);
+			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd0 : 0xd1, InstType, sibdest, 0);
 		}
 		else
 		{
@@ -195,14 +195,14 @@ namespace x86Emitter
 	//  Group 3 Instructions - NOT, NEG, MUL, DIV
 	// =====================================================================================================
 
-	void xImpl_Group3::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from); }
-	void xImpl_Group3::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from); }
+	void xImpl_Group3::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from, 0); }
+	void xImpl_Group3::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from, 0); }
 
-	void xImpl_iDiv::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from); }
-	void xImpl_iDiv::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from); }
+	void xImpl_iDiv::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from, 0); }
+	void xImpl_iDiv::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from, 0); }
 
-	void xImpl_iMul::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from); }
-	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from); }
+	void xImpl_iMul::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from, 0); }
+	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from, 0); }
 
 	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from) const { xOpWrite0F(0, 0xaf, to, from); }
 	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& src) const { xOpWrite0F(0, 0xaf, to, src); }

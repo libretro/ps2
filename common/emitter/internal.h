@@ -18,11 +18,10 @@
 #include "common/emitter/x86types.h"
 #include "common/emitter/instructions.h"
 
+#define _xMovRtoR(to, from) xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0x88 : 0x89, from, to, 0)
+
 namespace x86Emitter
 {
-
-#define OpWriteSSE(pre, op) xOpWrite0F(pre, op, to, from)
-
 	extern void EmitSibMagic(uint regfield, const void* address, int extraRIPOffset = 0);
 	extern void EmitSibMagic(uint regfield, const xIndirectVoid& info, int extraRIPOffset = 0);
 	extern void EmitSibMagic(uint reg1, const xRegisterBase& reg2, int = 0);
@@ -37,10 +36,8 @@ namespace x86Emitter
 	extern void EmitRex(const xRegisterBase& reg1, const void* src);
 	extern void EmitRex(const xRegisterBase& reg1, const xIndirectVoid& sib);
 
-#define _xMovRtoR(to, from) xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0x88 : 0x89, from, to)
-
 	template <typename T1, typename T2>
-	__emitinline void xOpWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2, int extraRIPOffset = 0)
+	__emitinline void xOpWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2, int extraRIPOffset)
 	{
 		if (prefix != 0)
 			xWrite8(prefix);

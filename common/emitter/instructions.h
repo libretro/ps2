@@ -62,6 +62,9 @@
 //
 #define xPALIGNR(to, from, imm8) xOpWrite0F(0x66, 0x0f3a, to, from, imm8)
 
+// Load Streaming SIMD Extension Control/Status from Mem32.
+#define xLDMXCSR(src) xOpWrite0F(0, 0xae, 2, src)
+
 namespace x86Emitter
 {
 	// ------------------------------------------------------------------------
@@ -429,10 +432,6 @@ namespace x86Emitter
 	typedef xForwardJPO<s32> xForwardJPO32;
 
 	// ------------------------------------------------------------------------
-
-	extern void xEMMS();
-	extern void xLDMXCSR(const xIndirect32& src);
-
 	extern void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from);
 	extern void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src);
 
@@ -451,12 +450,6 @@ namespace x86Emitter
 
 	extern void xMOVSSZX(const xRegisterSSE& to, const xIndirectVoid& from);
 	extern void xMOVSDZX(const xRegisterSSE& to, const xIndirectVoid& from);
-
-	extern void xMOVNTDQA(const xRegisterSSE& to, const xIndirectVoid& from);
-	extern void xMOVNTDQA(const xIndirectVoid& to, const xRegisterSSE& from);
-
-	extern void xMOVNTPD(const xIndirectVoid& to, const xRegisterSSE& from);
-	extern void xMOVNTPS(const xIndirectVoid& to, const xRegisterSSE& from);
 
 	extern void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
 	extern void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);

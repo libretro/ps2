@@ -39,7 +39,7 @@ namespace x86Emitter
 	void xImpl_JmpCall::operator()(const xAddressReg& absreg) const
 	{
 		// Jumps are always wide and don't need the rex.W
-		xOpWrite(0, 0xff, isJmp ? 4 : 2, absreg.GetNonWide());
+		xOpWrite(0, 0xff, isJmp ? 4 : 2, absreg.GetNonWide(), 0);
 	}
 	void xImpl_JmpCall::operator()(const xIndirectNative& src) const
 	{
