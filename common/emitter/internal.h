@@ -37,7 +37,7 @@ namespace x86Emitter
 	extern void EmitRex(const xRegisterBase& reg1, const void* src);
 	extern void EmitRex(const xRegisterBase& reg1, const xIndirectVoid& sib);
 
-	extern void _xMovRtoR(const xRegisterInt& to, const xRegisterInt& from);
+#define _xMovRtoR(to, from) xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0x88 : 0x89, from, to)
 
 	template <typename T1, typename T2>
 	__emitinline void xOpWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2, int extraRIPOffset = 0)

@@ -683,15 +683,18 @@ const xRegister32
 			}
 			else if (displacement_size == 0)
 			{
-				_xMovRtoR(to, src.Index.MatchSizeTo(to));
+				const xRegisterInt& from = src.Index.MatchSizeTo(to);
+				if (to != from)
+					_xMovRtoR(to, from);
 				return;
 			}
 			else if (!preserve_flags)
 			{
 				// encode as MOV and ADD combo.  Make sure to use the immediate on the
 				// ADD since it can encode as an 8-bit sign-extended value.
-
-				_xMovRtoR(to, src.Index.MatchSizeTo(to));
+				const xRegisterInt& from = src.Index.MatchSizeTo(to);
+				if (to != from)
+					_xMovRtoR(to, from);
 				xADD(to, src.Displacement);
 				return;
 			}
@@ -708,8 +711,9 @@ const xRegister32
 					//
 					// (this does not apply to older model P4s with the broken barrel shifter,
 					//  but we currently aren't optimizing for that target anyway).
-
-					_xMovRtoR(to, src.Index);
+					const xRegisterInt& from = src.Index;
+					if (to != from)
+						_xMovRtoR(to, from);
 					xSHL(to, src.Scale);
 					return;
 				}
@@ -723,14 +727,18 @@ const xRegister32
 						if (src.Index == rsp)
 						{
 							// ESP is not encodable as an index (ix86 ignores it), thus:
-							_xMovRtoR(to, src.Base.MatchSizeTo(to)); // will do the trick!
+							const xRegisterInt& from = src.Base.MatchSizeTo(to);
+							if (to != from)
+								_xMovRtoR(to, from); // will do the trick!
 							if (src.Displacement)
 								xADD(to, src.Displacement);
 							return;
 						}
 						else if (src.Displacement == 0)
 						{
-							_xMovRtoR(to, src.Base.MatchSizeTo(to));
+							const xRegisterInt& from = src.Base.MatchSizeTo(to);
+							if (to != from)
+								_xMovRtoR(to, from);
 							_g1_EmitOp(G1Type_ADD, to, src.Index.MatchSizeTo(to));
 							return;
 						}
@@ -739,8 +747,9 @@ const xRegister32
 					{
 						// special case handling of ESP as Index, which is replaceable with
 						// a single MOV even when preserve_flags is set! :D
-
-						_xMovRtoR(to, src.Base.MatchSizeTo(to));
+						const xRegisterInt& from = src.Base.MatchSizeTo(to);
+						if (to != from)
+							_xMovRtoR(to, from);
 						return;
 					}
 				}

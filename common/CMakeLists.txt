@@ -55,6 +55,7 @@ target_sources(common PRIVATE
 	Threading.h
 	VectorIntrin.h
 	WindowInfo.h
+	emitter/implement/avx.h
 	emitter/implement/dwshift.h
 	emitter/implement/group1.h
 	emitter/implement/group2.h
@@ -67,7 +68,6 @@ target_sources(common PRIVATE
 	emitter/implement/simd_helpers.h
 	emitter/implement/simd_moremovs.h
 	emitter/implement/simd_shufflepack.h
-	emitter/implement/simd_templated_helpers.h
 	emitter/implement/test.h
 	emitter/instructions.h
 	emitter/internal.h

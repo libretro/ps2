@@ -32,6 +32,10 @@
 
 namespace x86Emitter
 {
+	const xImpl_Group8 xBT = {G8Type_BT};
+	const xImpl_Group8 xBTR = {G8Type_BTR};
+	const xImpl_Group8 xBTS = {G8Type_BTS};
+	const xImpl_Group8 xBTC = {G8Type_BTC};
 
 	// =====================================================================================================
 	//  Group 1 Instructions - ADD, SUB, ADC, etc.
@@ -278,12 +282,4 @@ namespace x86Emitter
 	{
 		xOpWrite0F(bitoffset->GetPrefix16(), 0xa3 | (InstType << 3), bitoffset, bitbase);
 	}
-
-	const xImpl_Group8 xBT = {G8Type_BT};
-	const xImpl_Group8 xBTR = {G8Type_BTR};
-	const xImpl_Group8 xBTS = {G8Type_BTS};
-	const xImpl_Group8 xBTC = {G8Type_BTC};
-
-
-
 } // End namespace x86Emitter

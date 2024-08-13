@@ -32,6 +32,9 @@
 
 namespace x86Emitter
 {
+	const xImpl_JmpCall xJMP       = {true};
+	const xImpl_JmpCall xCALL      = {false};
+	const xImpl_FastCall xFastCall = {};
 
 	void xImpl_JmpCall::operator()(const xAddressReg& absreg) const
 	{
@@ -45,10 +48,6 @@ namespace x86Emitter
 		xWrite8(0xff);
 		EmitSibMagic(isJmp ? 4 : 2, src);
 	}
-
-	const xImpl_JmpCall xJMP = {true};
-	const xImpl_JmpCall xCALL = {false};
-
 
 	template <typename Reg1, typename Reg2>
 	void prepareRegsForFastcall(const Reg1& a1, const Reg2& a2)
@@ -152,8 +151,6 @@ namespace x86Emitter
 		prepareRegsForFastcall(a1, a2);
 		xCALL(f);
 	}
-
-	const xImpl_FastCall xFastCall = {};
 
 	// ------------------------------------------------------------------------
 	// Emits a 32 bit jump, and returns a pointer to the 32 bit displacement.

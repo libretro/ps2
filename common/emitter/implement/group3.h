@@ -20,11 +20,11 @@ namespace x86Emitter
 
 	enum G3Type
 	{
-		G3Type_NOT = 2,
-		G3Type_NEG = 3,
-		G3Type_MUL = 4,
+		G3Type_NOT  = 2,
+		G3Type_NEG  = 3,
+		G3Type_MUL  = 4,
 		G3Type_iMUL = 5, // partial implementation, iMul has additional forms in ix86.cpp
-		G3Type_DIV = 6,
+		G3Type_DIV  = 6,
 		G3Type_iDIV = 7
 	};
 
@@ -37,14 +37,6 @@ namespace x86Emitter
 
 		void operator()(const xRegisterInt& from) const;
 		void operator()(const xIndirect64orLess& from) const;
-
-#if 0
-	template< typename T >
-	void operator()( const xDirectOrIndirect<T>& from ) const
-	{
-		_DoI_helpermess( *this, from );
-	}
-#endif
 	};
 
 	// --------------------------------------------------------------------------------------
