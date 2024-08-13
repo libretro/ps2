@@ -155,7 +155,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 
 		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
 		{
-			if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
+			if (!Register_IsCallerSaved(i) || i == rsp.Id)
 				continue;
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedGPR(i))
@@ -168,7 +168,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 		std::bitset<iREGCNT_XMM> save_xmms;
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
-			if (!xRegisterSSE::IsCallerSaved(i))
+			if (!RegisterSSE_IsCallerSaved(i))
 				continue;
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ.Id == i)
@@ -217,7 +217,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 		std::bitset<iREGCNT_GPR> save_gprs;
 		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
 		{
-			if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
+			if (!Register_IsCallerSaved(i) || i == rsp.Id)
 				continue;
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedGPR(i))
@@ -230,7 +230,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 		std::bitset<iREGCNT_XMM> save_xmms;
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
-			if (!xRegisterSSE::IsCallerSaved(i))
+			if (!RegisterSSE_IsCallerSaved(i))
 				continue;
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ.Id == i)

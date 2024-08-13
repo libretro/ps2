@@ -53,7 +53,7 @@ static int _getFreeX86reg(int mode)
 		if (x86regs[reg].inuse || !_isAllocatableX86reg(reg))
 			continue;
 
-		if ((mode & MODE_CALLEESAVED) && xRegister32::IsCallerSaved(reg))
+		if ((mode & MODE_CALLEESAVED) && Register_IsCallerSaved(reg))
 			continue;
 
 		if ((mode & MODE_COP2) && mVUIsReservedCOP2(reg))
@@ -71,7 +71,7 @@ static int _getFreeX86reg(int mode)
 		if (!_isAllocatableX86reg(i))
 			continue;
 
-		if ((mode & MODE_CALLEESAVED) && xRegister32::IsCallerSaved(i))
+		if ((mode & MODE_CALLEESAVED) && Register_IsCallerSaved(i))
 			continue;
 
 		if ((mode & MODE_COP2) && mVUIsReservedCOP2(i))

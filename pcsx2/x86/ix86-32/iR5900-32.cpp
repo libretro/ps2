@@ -979,10 +979,10 @@ void iFlushCall(int flushtype)
 		if (!x86regs[i].inuse)
 			continue;
 
-		if (xRegisterBase::IsCallerSaved(i) ||
-			((flushtype & FLUSH_FREE_VU0) && x86regs[i].type == X86TYPE_VIREG) ||
-			((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP) ||
-			((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
+		if (         Register_IsCallerSaved(i)
+			|| ((flushtype & FLUSH_FREE_VU0) && x86regs[i].type == X86TYPE_VIREG)
+			|| ((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP)
+			|| ((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
 		{
 			_freeX86reg(i);
 		}
@@ -993,9 +993,9 @@ void iFlushCall(int flushtype)
 		if (!xmmregs[i].inuse)
 			continue;
 
-		if (xRegisterSSE::IsCallerSaved(i) ||
-			(flushtype & FLUSH_FREE_XMM) ||
-			((flushtype & FLUSH_FREE_VU0) && xmmregs[i].type == XMMTYPE_VFREG))
+		if (        RegisterSSE_IsCallerSaved(i)
+			|| (flushtype & FLUSH_FREE_XMM) 
+			|| ((flushtype & FLUSH_FREE_VU0) && xmmregs[i].type == XMMTYPE_VFREG))
 		{
 			_freeXMMreg(i);
 		}

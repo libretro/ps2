@@ -297,9 +297,9 @@ void _psxFlushCall(int flushtype)
 		if (!x86regs[i].inuse)
 			continue;
 
-		if (xRegisterBase::IsCallerSaved(i) ||
-			((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP) ||
-			((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
+		if (         Register_IsCallerSaved(i)
+			|| ((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP)
+			|| ((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
 		{
 			_freeX86reg(i);
 		}

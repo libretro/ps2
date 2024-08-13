@@ -181,7 +181,7 @@ namespace x86Emitter
 	void xImpl_MovExtend::operator()(const xRegister16or32or64& to, const xRegister8& from) const
 	{
 		xOpWrite0F(
-			(to->GetOperandSize() == 2) ? 0x66 : 0,
+			(to->_operandSize == 2) ? 0x66 : 0,
 			SignExtend ? 0xbe : 0xb6,
 			to, from);
 	}
@@ -189,7 +189,7 @@ namespace x86Emitter
 	void xImpl_MovExtend::operator()(const xRegister16or32or64& to, const xIndirect8& sibsrc) const
 	{
 		xOpWrite0F(
-			(to->GetOperandSize() == 2) ? 0x66 : 0,
+			(to->_operandSize == 2) ? 0x66 : 0,
 			SignExtend ? 0xbe : 0xb6,
 			to, sibsrc);
 	}

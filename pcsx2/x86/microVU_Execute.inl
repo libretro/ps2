@@ -145,7 +145,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
 	{
-		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
+		if (!Register_IsCallerSaved(i) || i == rsp.Id)
 			continue;
 
 		// T1 often contains the address we're loading when waiting for VU1.
@@ -159,7 +159,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 	{
-		if (!xRegisterSSE::IsCallerSaved(i))
+		if (!RegisterSSE_IsCallerSaved(i))
 			continue;
 
 		num_xmms++;
@@ -175,7 +175,7 @@ static void mVUGenerateWaitMTVU(mV)
 		xSUB(rsp, stack_size);
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
-			if (!xRegisterSSE::IsCallerSaved(i))
+			if (!RegisterSSE_IsCallerSaved(i))
 				continue;
 
 			xMOVAPS(ptr128[rsp + stack_offset], xRegisterSSE(i));
@@ -188,7 +188,7 @@ static void mVUGenerateWaitMTVU(mV)
 	stack_offset = (num_xmms - 1) * sizeof(u128) + SHADOW_STACK_SIZE;
 	for (int i = static_cast<int>(iREGCNT_XMM - 1); i >= 0; i--)
 	{
-		if (!xRegisterSSE::IsCallerSaved(i))
+		if (!RegisterSSE_IsCallerSaved(i))
 			continue;
 
 		xMOVAPS(xRegisterSSE(i), ptr128[rsp + stack_offset]);
@@ -198,7 +198,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
 	{
-		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
+		if (!Register_IsCallerSaved(i) || i == rsp.Id)
 			continue;
 
 		if (i == gprT2.Id)

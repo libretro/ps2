@@ -809,12 +809,12 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 	for (u32 i = 0; i < iREGCNT_GPR; i++)
 	{
-		if ((gpr_bitmask & (1u << i)) && (i == rbxid || i == arg1id || i == arg2id || xRegisterBase::IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+		if ((gpr_bitmask & (1u << i)) && (i == rbxid || i == arg1id || i == arg2id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
 			num_gprs++;
 	}
 	for (u32 i = 0; i < iREGCNT_XMM; i++)
 	{
-		if (fpr_bitmask & (1u << i) && xRegisterSSE::IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+		if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
 			num_fprs++;
 	}
 
@@ -827,7 +827,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		u32 stack_offset = SHADOW_SIZE;
 		for (u32 i = 0; i < iREGCNT_XMM; i++)
 		{
-			if (fpr_bitmask & (1u << i) && xRegisterSSE::IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
 			{
 				xMOVAPS(ptr128[rsp + stack_offset], xRegisterSSE(i));
 				stack_offset += XMM_SIZE;
@@ -836,7 +836,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 		for (u32 i = 0; i < iREGCNT_GPR; i++)
 		{
-			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || xRegisterBase::IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
 			{
 				xMOV(ptr64[rsp + stack_offset], xRegister64(i));
 				stack_offset += GPR_SIZE;
@@ -901,7 +901,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		u32 stack_offset = SHADOW_SIZE;
 		for (u32 i = 0; i < iREGCNT_XMM; i++)
 		{
-			if (fpr_bitmask & (1u << i) && xRegisterSSE::IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
 			{
 				xMOVAPS(xRegisterSSE(i), ptr128[rsp + stack_offset]);
 				stack_offset += XMM_SIZE;
@@ -910,7 +910,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 		for (u32 i = 0; i < iREGCNT_GPR; i++)
 		{
-			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || xRegisterBase::IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
 			{
 				xMOV(xRegister64(i), ptr64[rsp + stack_offset]);
 				stack_offset += GPR_SIZE;

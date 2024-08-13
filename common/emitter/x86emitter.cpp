@@ -429,7 +429,7 @@ const xRegister32
 	// --------------------------------------------------------------------------------------
 	xRegisterInt xRegisterInt::MatchSizeTo(xRegisterInt other) const
 	{
-		return other.GetOperandSize() == 1 ? xRegisterInt(xRegister8(*this)) : xRegisterInt(other.GetOperandSize(), Id);
+		return other._operandSize == 1 ? xRegisterInt(xRegister8(*this)) : xRegisterInt(other._operandSize, Id);
 	}
 
 	// --------------------------------------------------------------------------------------

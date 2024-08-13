@@ -505,7 +505,7 @@ public:
 	{
 		for (int i = 0; i < xmmTotal; i++)
 		{
-			if (!xRegisterSSE::IsCallerSaved(i))
+			if (!RegisterSSE_IsCallerSaved(i))
 				continue;
 
 			writeBackReg(xmm(i));
@@ -515,7 +515,7 @@ public:
 
 		for (int i = 0; i < gprTotal; i++)
 		{
-			if (!xRegister32::IsCallerSaved(i))
+			if (!Register_IsCallerSaved(i))
 				continue;
 
 			writeBackReg(xRegister32(i), true);

@@ -18,27 +18,46 @@
 #include "common/Threading.h"
 #include "common/Pcsx2Defs.h"
 
-static const uint iREGCNT_XMM = 16;
-static const uint iREGCNT_GPR = 16;
+#define iREGCNT_XMM 16
+#define iREGCNT_GPR 16
 
 enum XMMSSEType
 {
-	XMMT_INT = 0, // integer (sse2 only)
+	XMMT_INT = 0, // integer (SSE2 only)
 	XMMT_FPS = 1  // floating point
 };
 
 extern thread_local u8* x86Ptr;
 extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 
-namespace x86Emitter
-{
-	// Win32 requires 32 bytes of shadow stack in the caller's frame.
+/* Represents an unused or "empty" register assignment.  If encountered by the emitter, this
+ * will be ignored (in some cases it is disallowed and generates an assertion) */
+#define xRegId_Empty -1
+
+/* Represents an invalid or uninitialized register.  If this is encountered by the emitter it
+ * will generate an assertion. */
+#define xRegId_Invalid -2
+
 #ifdef _WIN32
-	static constexpr int SHADOW_STACK_SIZE = 32;
+/* Win32 requires 32 bytes of shadow stack in the caller's frame. */
+#define SHADOW_STACK_SIZE 32
+
+/* The x64 ABI considers the registers RAX, RCX, RDX, R8, R9, R10, R11, and XMM0-XMM5 volatile. */
+#define Register_IsCallerSaved(id) (((id) <= 2 || ((id) >= 8 && (id) <= 11)))
+/* XMM6 through XMM15 are saved. Upper 128 bits is always volatile. */
+#define RegisterSSE_IsCallerSaved(id) ((id) < 6)
 #else
-	static constexpr int SHADOW_STACK_SIZE = 0;
+
+#define SHADOW_STACK_SIZE 0
+
+/* rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11 are scratch registers. */
+#define Register_IsCallerSaved(id) (((id) <= 2 || (id) == 6 || (id) == 7 || ((id) >= 8 && (id) <= 11)))
+/* All vector registers are volatile. */
+#define RegisterSSE_IsCallerSaved(id) (true)
 #endif
 
+namespace x86Emitter
+{
 	extern void xWrite8(u8 val);
 	extern void xWrite16(u16 val);
 	extern void xWrite32(u32 val);
@@ -149,11 +168,6 @@ namespace x86Emitter
 		{
 		}
 
-		uint GetOperandSize() const
-		{
-			return _operandSize;
-		}
-
 		bool Is8BitOp() const { return _operandSize == 1; }
 		u8 GetPrefix16() const { return _operandSize == 2 ? 0x66 : 0; }
 
@@ -193,14 +207,6 @@ namespace x86Emitter
 		}
 	};
 
-	// Represents an unused or "empty" register assignment.  If encountered by the emitter, this
-	// will be ignored (in some cases it is disallowed and generates an assertion)
-	static const int xRegId_Empty = -1;
-
-	// Represents an invalid or uninitialized register.  If this is encountered by the emitter it
-	// will generate an assertion.
-	static const int xRegId_Invalid = -2;
-
 	// --------------------------------------------------------------------------------------
 	//  xRegisterBase  -  type-unsafe x86 register representation.
 	// --------------------------------------------------------------------------------------
@@ -222,18 +228,10 @@ namespace x86Emitter
 	public:
 		int Id;
 
-		xRegisterBase()
-			: OperandSizedObject(0)
-			, Id(xRegId_Invalid)
-		{
-		}
-
+		xRegisterBase() : OperandSizedObject(0) , Id(xRegId_Invalid) { }
 		bool IsEmpty() const { return Id < 0; }
 		bool IsExtended() const { return (Id >= 0 && (Id & 0x0F) > 7); } // Register 8-15 need an extra bit to be selected
 		bool IsReg() const { return true; }
-
-		/// Returns true if the specified register is caller-saved (volatile).
-		static inline bool IsCallerSaved(uint id);
 	};
 
 	class xRegisterInt : public xRegisterBase
@@ -306,15 +304,9 @@ namespace x86Emitter
 
 	public:
 		xRegister16() = default;
-		explicit xRegister16(int regId)
-			: _parent(2, regId)
-		{
-		}
+		explicit xRegister16(int regId) : _parent(2, regId) { }
 		explicit xRegister16(const xRegisterInt& other)
-			: _parent(2, other.Id)
-		{
-		}
-
+			: _parent(2, other.Id) { }
 		bool operator==(const xRegister16& src) const { return this->Id == src.Id; }
 		bool operator!=(const xRegister16& src) const { return this->Id != src.Id; }
 	};
@@ -325,17 +317,10 @@ namespace x86Emitter
 
 	public:
 		xRegister32() = default;
-		explicit xRegister32(int regId)
-			: _parent(4, regId)
-		{
-		}
+		explicit xRegister32(int regId) : _parent(4, regId) { }
 		explicit xRegister32(const xRegisterInt& other)
-			: _parent(4, other.Id)
-		{
-		}
-
+			: _parent(4, other.Id) { }
 		static const inline xRegister32& GetInstance(uint id);
-
 		bool operator==(const xRegister32& src) const { return this->Id == src.Id; }
 		bool operator!=(const xRegister32& src) const { return this->Id != src.Id; }
 	};
@@ -346,17 +331,10 @@ namespace x86Emitter
 
 	public:
 		xRegister64() = default;
-		explicit xRegister64(int regId)
-			: _parent(8, regId)
-		{
-		}
+		explicit xRegister64(int regId) : _parent(8, regId) { }
 		explicit xRegister64(const xRegisterInt& other)
-			: _parent(8, other.Id)
-		{
-		}
-
+			: _parent(8, other.Id) { }
 		static const inline xRegister64& GetInstance(uint id);
-
 		bool operator==(const xRegister64& src) const { return this->Id == src.Id; }
 		bool operator!=(const xRegister64& src) const { return this->Id != src.Id; }
 	};
@@ -375,14 +353,9 @@ namespace x86Emitter
 
 	public:
 		xRegisterSSE() = default;
-		explicit xRegisterSSE(int regId)
-			: _parent(16, regId)
-		{
-		}
+		explicit xRegisterSSE(int regId) : _parent(16, regId) { }
 		xRegisterSSE(int regId, xRegisterYMMTag)
-			: _parent(32, regId)
-		{
-		}
+			: _parent(32, regId) { }
 
 		bool operator==(const xRegisterSSE& src) const { return this->Id == src.Id; }
 		bool operator!=(const xRegisterSSE& src) const { return this->Id != src.Id; }
@@ -394,18 +367,12 @@ namespace x86Emitter
 		/// arg_number is the argument position from the left, starting with 0.
 		/// sse_number is the argument position relative to the number of vector registers.
 		static const inline xRegisterSSE& GetArgRegister(uint arg_number, uint sse_number, bool ymm = false);
-
-		/// Returns true if the specified register is caller-saved (volatile).
-		static inline bool IsCallerSaved(uint id);
 	};
 
 	class xRegisterCL : public xRegister8
 	{
-	public:
-		xRegisterCL()
-			: xRegister8(1)
-		{
-		}
+		public:
+			xRegisterCL() : xRegister8(1) { }
 	};
 
 	// --------------------------------------------------------------------------------------
@@ -427,13 +394,8 @@ namespace x86Emitter
 	public:
 		xAddressReg() = default;
 		explicit xAddressReg(xRegisterInt other)
-			: xRegisterLong(other)
-		{
-		}
-		explicit xAddressReg(int regId)
-			: xRegisterLong(regId)
-		{
-		}
+			: xRegisterLong(other) { }
+		explicit xAddressReg(int regId) : xRegisterLong(regId) { }
 
 		/// Returns the register to use when calling a C function.
 		/// arg_number is the argument position from the left, starting with 0.
@@ -487,17 +449,11 @@ namespace x86Emitter
 
 	public:
 		xRegister16or32or64(const xRegister64& src)
-			: m_convtype(src)
-		{
-		}
+			: m_convtype(src) { }
 		xRegister16or32or64(const xRegister32& src)
-			: m_convtype(src)
-		{
-		}
+			: m_convtype(src) { }
 		xRegister16or32or64(const xRegister16& src)
-			: m_convtype(src)
-		{
-		}
+			: m_convtype(src) { }
 
 		operator const xRegisterBase&() const { return m_convtype; }
 
@@ -513,14 +469,8 @@ namespace x86Emitter
 		const xRegisterInt& m_convtype;
 
 	public:
-		xRegister32or64(const xRegister64& src)
-			: m_convtype(src)
-		{
-		}
-		xRegister32or64(const xRegister32& src)
-			: m_convtype(src)
-		{
-		}
+		xRegister32or64(const xRegister64& src) : m_convtype(src) { }
+		xRegister32or64(const xRegister32& src) : m_convtype(src) { }
 
 		operator const xRegisterBase&() const { return m_convtype; }
 
@@ -586,17 +536,6 @@ extern const xRegister32
 
 	extern const xRegisterCL cl; // I'm special!
 
-	bool xRegisterBase::IsCallerSaved(uint id)
-	{
-#ifdef _WIN32
-		// The x64 ABI considers the registers RAX, RCX, RDX, R8, R9, R10, R11, and XMM0-XMM5 volatile.
-		return (id <= 2 || (id >= 8 && id <= 11));
-#else
-		// rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11 are scratch registers.
-		return (id <= 2 || id == 6 || id == 7 || (id >= 8 && id <= 11));
-#endif
-	}
-
 	const xRegister32& xRegister32::GetInstance(uint id)
 	{
 		static const xRegister32* const m_tbl_x86Regs[] =
@@ -619,17 +558,6 @@ extern const xRegister32
 				&r12, &r13, &r14, &r15
 		};
 		return *m_tbl_x86Regs[id];
-	}
-
-	bool xRegisterSSE::IsCallerSaved(uint id)
-	{
-#ifdef _WIN32
-		// XMM6 through XMM15 are saved. Upper 128 bits is always volatile.
-		return (id < 6);
-#else
-		// All vector registers are volatile.
-		return true;
-#endif
 	}
 
 	const xRegisterSSE& xRegisterSSE::GetInstance(uint id)
