@@ -386,7 +386,9 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 		cont2       = (u8*)(x86Ptr - 1);
 		//overflow case:
 		xXOR(edx, edx); //EAX remains 0x80000000
-		end1        = JMP8(0);
+		xWrite8(0xEB);
+		xWrite8(0);
+		end1        = x86Ptr - 1;
 
 		*cont1      = (u8)((x86Ptr - cont1) - 1);
 		*cont2      = (u8)((x86Ptr - cont2) - 1);
@@ -406,7 +408,9 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	}
 	else
 		xMOV(eax, 0xffffffff);
-	end2        = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	end2        = x86Ptr - 1;
 
 	*cont3      = (u8)((x86Ptr - cont3) - 1);
 	if (sign)

@@ -41,14 +41,6 @@
 // jump instructions		   /
 ////////////////////////////////////
 
-/* jmp rel8 */
-emitterT u8* JMP8(u8 to)
-{
-	xWrite8(0xEB);
-	xWrite8(to);
-	return x86Ptr - 1;
-}
-
 /* jmp rel32 */
 emitterT u32* JMP32(uptr to)
 {

@@ -40,7 +40,6 @@
 #define JNZ32 0x85	/* jnz rel32 */
 #define JNE32 0x85	/* jne rel32 */
 
-extern u8* JMP8(u8 to);	/* jmp rel8 */
 extern u32* JMP32(uptr to); /* jmp rel32 */
 
 //*********************

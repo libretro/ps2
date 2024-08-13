@@ -132,7 +132,9 @@ static void ToDouble(int reg)
 	to_complex2 = (u8*)(x86Ptr - 1); // Complex conversion if negative infinity
 
 	xCVTSS2SD(xRegisterSSE(reg), xRegisterSSE(reg)); // Simply convert
-	end           = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	end           =  x86Ptr - 1;
 
 	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
 	*to_complex2  = (u8)((x86Ptr - to_complex2) - 1);
@@ -204,7 +206,9 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 		if (acc)
 			xOR(ptr32[&fpuRegs.ACCflag], 1);
 	}
-	end3           = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	end3           =  x86Ptr - 1;
 
 	*to_underflow  = (u8)((x86Ptr - to_underflow) - 1);
 	end4           = nullptr;
@@ -230,7 +234,9 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 			xPSRL.Q(xRegisterSSE(absreg), 63); //sign bit
 			xPSLL.Q(xRegisterSSE(absreg), 31);
 			xPOR(xRegisterSSE(reg), xRegisterSSE(absreg));
-			end4 = JMP8(0);
+			xWrite8(0xEB);
+			xWrite8(0);
+			end4           =  x86Ptr - 1;
 		}
 
 		*is_zero   = (u8)((x86Ptr - is_zero) - 1);
@@ -360,12 +366,16 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	xSHL(eax, cl); //temp2 = 0xffffffff << tempecx
 	xMOVDZX(xRegisterSSE(xmmtemp), eax);
 	xAND.PS(xRegisterSSE(tempd), xRegisterSSE(xmmtemp));
-	j8Ptr4 = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	j8Ptr4  =  x86Ptr - 1;
 
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	//diff = 25 .. 255 , expt < expd
 	xAND.PS(xRegisterSSE(tempt), ptr[s_const.neg]);
-	j8Ptr5 = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	j8Ptr5  =  x86Ptr - 1;
 
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
 	//diff = 1 .. 24, expt < expd
@@ -374,7 +384,9 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	xSHL(eax, cl); //temp2 = 0xffffffff << tempecx
 	xMOVDZX(xRegisterSSE(xmmtemp), eax);
 	xAND.PS(xRegisterSSE(tempt), xRegisterSSE(xmmtemp));
-	j8Ptr6 = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	j8Ptr6  =  x86Ptr - 1;
 
 	*j8Ptr3 = (u8)((x86Ptr - j8Ptr3) - 1);
 	//diff = -255 .. -25, expd < expt
@@ -496,7 +508,9 @@ void recC_EQ_xmm(int info)
 	xWrite8(0);
 	j8Ptr0  = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1  = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	j8Ptr1  =  x86Ptr - 1;
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -513,7 +527,9 @@ void recC_LE_xmm(int info)
 	xWrite8(0);
 	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1  = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	j8Ptr1  =  x86Ptr - 1;
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -530,7 +546,9 @@ void recC_LT_xmm(int info)
 	xWrite8(0);
 	j8Ptr0 = (u8*)(x86Ptr - 1);
 	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
-	j8Ptr1  = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	j8Ptr1  =  x86Ptr - 1;
 	*j8Ptr0 = (u8)((x86Ptr - j8Ptr0) - 1);
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
 	*j8Ptr1 = (u8)((x86Ptr - j8Ptr1) - 1);
@@ -624,7 +642,9 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	xWrite8(0);
 	pjmp1 = (u8*)(x86Ptr - 1); /* Skip if not set */
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-	pjmp2 = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	pjmp2   =  x86Ptr - 1;
 	*pjmp1 = (u8)((x86Ptr - pjmp1) - 1); //x/0 but not 0/0
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
 	*pjmp2 = (u8)((x86Ptr - pjmp2) - 1);
@@ -713,7 +733,9 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	xWrite8(0);
 	accovf        = (u8*)(x86Ptr - 1);
 	ToDouble(treg); //else, convert
-	operation     = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	operation =  x86Ptr - 1;
 
 	*mulovf = (u8)((x86Ptr - mulovf) - 1);
 	if (op == 1) //sub
@@ -1002,7 +1024,9 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xWrite8(0);
 	qjmp1 = (u8*)(x86Ptr - 1); /* Skip if not set */
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
-	qjmp2  = JMP8(0);
+	xWrite8(0xEB);
+	xWrite8(0);
+	qjmp2  =  x86Ptr - 1;
 	*qjmp1 = (u8)((x86Ptr - qjmp1) - 1); //x/0 but not 0/0
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
 	*qjmp2 = (u8)((x86Ptr - qjmp2) - 1);
