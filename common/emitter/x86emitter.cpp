@@ -181,7 +181,6 @@ const xRegister32
 		if (ripRelative == (s32)ripRelative)
 		{
 			*(u8*)x86Ptr = (regfield << 3) | ModRm_UseDisp32;
-			x86Ptr += sizeof(u8);
 			displacement = ripRelative;
 		}
 		else
@@ -189,8 +188,8 @@ const xRegister32
 			*(u8*)x86Ptr = (regfield << 3) | ModRm_UseSib;
 			x86Ptr += sizeof(u8);
 			*(u8*)x86Ptr = (Sib_EIZ << 3) | Sib_UseDisp32;
-			x86Ptr += sizeof(u8);
 		}
+		x86Ptr += sizeof(u8);
 
 		*(s32*)x86Ptr = (s32)displacement;
 		x86Ptr       += sizeof(s32);
@@ -241,14 +240,10 @@ const xRegister32
 				EmitSibMagic(regfield, (void*)info.Displacement, extraRIPOffset);
 				return;
 			}
-			else
-			{
-				if (info.Index == rbp && displacement_size == 0)
-					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
+			if (info.Index == rbp && displacement_size == 0)
+				displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
 
-				*(u8*)x86Ptr = (displacement_size << 6) | (regfield << 3) | (info.Index.Id & 7);
-				x86Ptr += sizeof(u8);
-			}
+			*(u8*)x86Ptr = (displacement_size << 6) | (regfield << 3) | (info.Index.Id & 7);
 		}
 		else
 		{
@@ -268,17 +263,14 @@ const xRegister32
 				x86Ptr += sizeof(s32);
 				return;
 			}
-			else
-			{
-				if (info.Base == rbp && displacement_size == 0)
-					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
+			if (info.Base == rbp && displacement_size == 0)
+				displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
 
-				*(u8*)x86Ptr = (displacement_size << 6) | (regfield << 3) | ModRm_UseSib;
-				x86Ptr += sizeof(u8);
-				*(u8*)x86Ptr = (info.Scale << 6) | ((info.Index.Id & 7) << 3) | (info.Base.Id & 7);
-				x86Ptr += sizeof(u8);
-			}
+			*(u8*)x86Ptr = (displacement_size << 6) | (regfield << 3) | ModRm_UseSib;
+			x86Ptr += sizeof(u8);
+			*(u8*)x86Ptr = (info.Scale << 6) | ((info.Index.Id & 7) << 3) | (info.Base.Id & 7);
 		}
+		x86Ptr += sizeof(u8);
 
 		if (displacement_size != 0)
 		{

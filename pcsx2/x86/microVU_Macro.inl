@@ -338,10 +338,10 @@ static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
 	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
 }
 
-void recBC2F()  { _setupBranchTest(branch_jnz32, false); }
-void recBC2T()  { _setupBranchTest(branch_jz32,  false); }
-void recBC2FL() { _setupBranchTest(branch_jnz32, true);  }
-void recBC2TL() { _setupBranchTest(branch_jz32,  true);  }
+void recBC2F(void)  { _setupBranchTest(branch_jnz32, false); }
+void recBC2T(void)  { _setupBranchTest(branch_jz32,  false); }
+void recBC2FL(void) { _setupBranchTest(branch_jnz32, true);  }
+void recBC2TL(void) { _setupBranchTest(branch_jz32,  true);  }
 
 //------------------------------------------------------------------
 // Macro VU - COP2 Transfer Instructions
@@ -349,44 +349,41 @@ void recBC2TL() { _setupBranchTest(branch_jz32,  true);  }
 
 static void COP2_Interlock(bool mBitSync)
 {
-	if (cpuRegs.code & 1)
+	s_nBlockInterlocked = true;
+
+	// We can safely skip the _vu0FinishMicro() call, when there's nothing
+	// that can trigger a VU0 program between CFC2/CTC2/COP2 instructions.
+	if (g_pCurInstInfo->info & EEINST_COP2_SYNC_VU0)
 	{
-		s_nBlockInterlocked = true;
+		iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
+		_freeX86reg(eax);
+		xMOV(eax, ptr32[&cpuRegs.cycle]);
+		xADD(eax, scaleblockcycles_clear());
+		xMOV(ptr32[&cpuRegs.cycle], eax); // update cycles
 
-		// We can safely skip the _vu0FinishMicro() call, when there's nothing
-		// that can trigger a VU0 program between CFC2/CTC2/COP2 instructions.
-		if (g_pCurInstInfo->info & EEINST_COP2_SYNC_VU0)
+		xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x1);
+		xForwardJZ32 skipvuidle;
+		if (mBitSync)
 		{
-			iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
-			_freeX86reg(eax);
-			xMOV(eax, ptr32[&cpuRegs.cycle]);
-			xADD(eax, scaleblockcycles_clear());
-			xMOV(ptr32[&cpuRegs.cycle], eax); // update cycles
+			xSUB(eax, ptr32[&vuRegs[0].cycle]);
 
-			xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x1);
-			xForwardJZ32 skipvuidle;
-			if (mBitSync)
-			{
-				xSUB(eax, ptr32[&vuRegs[0].cycle]);
+			// Why do we check this here? Ratchet games, maybe others end up with flickering polygons
+			// when we use lazy COP2 sync, otherwise. The micro resumption getting deferred an extra
+			// EE block is apparently enough to cause issues.
+			if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
+				xSUB(eax, ptr32[&vuRegs[0].nextBlockCycles]);
+			xCMP(eax, 4);
+			xForwardJL32 skip;
+			xLoadFarAddr(arg1reg, CpuVU0);
+			xMOV(arg2reg, s_nBlockInterlocked);
+			xFastCall((void*)BaseVUmicroCPU::ExecuteBlockJIT, arg1reg, arg2reg);
+			skip.SetTarget();
 
-				// Why do we check this here? Ratchet games, maybe others end up with flickering polygons
-				// when we use lazy COP2 sync, otherwise. The micro resumption getting deferred an extra
-				// EE block is apparently enough to cause issues.
-				if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-					xSUB(eax, ptr32[&vuRegs[0].nextBlockCycles]);
-				xCMP(eax, 4);
-				xForwardJL32 skip;
-				xLoadFarAddr(arg1reg, CpuVU0);
-				xMOV(arg2reg, s_nBlockInterlocked);
-				xFastCall((void*)BaseVUmicroCPU::ExecuteBlockJIT, arg1reg, arg2reg);
-				skip.SetTarget();
-
-				xFastCall((void*)_vu0WaitMicro);
-			}
-			else
-				xFastCall((void*)_vu0FinishMicro);
-			skipvuidle.SetTarget();
+			xFastCall((void*)_vu0WaitMicro);
 		}
+		else
+			xFastCall((void*)_vu0FinishMicro);
+		skipvuidle.SetTarget();
 	}
 }
 
@@ -431,7 +428,8 @@ static void TEST_FBRST_RESET(int flagreg, void(*resetFunct)(), int vuIndex)
 
 static void recCFC2(void)
 {
-	COP2_Interlock(false);
+	if (cpuRegs.code & 1)
+		COP2_Interlock(false);
 
 	if (!_Rt_)
 		return;
@@ -482,9 +480,10 @@ static void recCFC2(void)
 	}
 }
 
-static void recCTC2()
+static void recCTC2(void)
 {
-	COP2_Interlock(1);
+	if (cpuRegs.code & 1)
+		COP2_Interlock(true);
 
 	if (!_Rd_)
 		return;
@@ -662,9 +661,10 @@ static void recCTC2()
 	}
 }
 
-static void recQMFC2()
+static void recQMFC2(void)
 {
-	COP2_Interlock(false);
+	if (cpuRegs.code & 1)
+		COP2_Interlock(false);
 
 	if (!_Rt_)
 		return;
@@ -700,9 +700,10 @@ static void recQMFC2()
 	}
 }
 
-static void recQMTC2()
+static void recQMTC2(void)
 {
-	COP2_Interlock(true);
+	if (cpuRegs.code & 1)
+		COP2_Interlock(true);
 
 	if (!_Rd_)
 		return;

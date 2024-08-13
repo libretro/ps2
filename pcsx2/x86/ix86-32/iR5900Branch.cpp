@@ -89,19 +89,12 @@ static u32 *recSetBranchEQ(int bne, int process)
 			xCMP(xRegister64(regs), ptr64[&cpuRegs.GPR.r[_Rt_]]);
 	}
 
-	if (bne)
-	{
-		*(u8*)x86Ptr = 0x0F;
-		x86Ptr += sizeof(u8);
-		*(u8*)x86Ptr = JE32;
-		x86Ptr += sizeof(u8);
-		*(u32*)x86Ptr = 0;
-		x86Ptr += sizeof(u32);
-		return (u32*)(x86Ptr - 4);
-	}
 	*(u8*)x86Ptr = 0x0F;
 	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JNE32;
+	if (bne)
+		*(u8*)x86Ptr = JE32;
+	else
+		*(u8*)x86Ptr = JNE32;
 	x86Ptr += sizeof(u8);
 	*(u32*)x86Ptr = 0;
 	x86Ptr += sizeof(u32);
@@ -119,43 +112,27 @@ static u32 *recSetBranchL(int ltz)
 		xMOVMSKPS(eax, xRegisterSSE(regsxmm));
 		xTEST(al, 2);
 
+		*(u8*)x86Ptr = 0x0F;
+		x86Ptr += sizeof(u8);
 		if (ltz)
-		{
-			*(u8*)x86Ptr = 0x0F;
-			x86Ptr += sizeof(u8);
 			*(u8*)x86Ptr = JZ32;
-			x86Ptr += sizeof(u8);
-			*(u32*)x86Ptr = 0;
-			x86Ptr += sizeof(u32);
-			return (u32*)(x86Ptr - 4);
-		}
-		*(u8*)x86Ptr = 0x0F;
-		x86Ptr += sizeof(u8);
-		*(u8*)x86Ptr = JNZ32;
-		x86Ptr += sizeof(u8);
-		*(u32*)x86Ptr = 0;
-		x86Ptr += sizeof(u32);
-		return (u32*)(x86Ptr - 4);
+		else
+			*(u8*)x86Ptr = JNZ32;
 	}
-
-	if (regs >= 0)
-		xCMP(xRegister64(regs), 0);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
-
-	if (ltz)
 	{
+		if (regs >= 0)
+			xCMP(xRegister64(regs), 0);
+		else
+			xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+
 		*(u8*)x86Ptr = 0x0F;
 		x86Ptr += sizeof(u8);
-		*(u8*)x86Ptr = JGE32;
-		x86Ptr += sizeof(u8);
-		*(u32*)x86Ptr = 0;
-		x86Ptr += sizeof(u32);
-		return (u32*)(x86Ptr - 4);
+		if (ltz)
+			*(u8*)x86Ptr = JGE32;
+		else
+			*(u8*)x86Ptr = JL32;
 	}
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JL32;
 	x86Ptr += sizeof(u8);
 	*(u32*)x86Ptr = 0;
 	x86Ptr += sizeof(u32);
