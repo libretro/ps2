@@ -15,26 +15,27 @@
 
 #include "Common.h"
 #include "Vif_Dma.h"
-#include "x86/newVif.h"
 
-//------------------------------------------------------------------
-// VifCode Transfer Interpreter (Vif0/Vif1)
-//------------------------------------------------------------------
+/*------------------------------------------------------------------
+ * VifCode Transfer Interpreter (Vif0/Vif1)
+ *------------------------------------------------------------------
+ */
 
-// Interprets packet
-_vifT void vifTransferLoop(u32* &data) {
+/* Interprets packet */
+_vifT void vifTransferLoop(u32* &data)
+{
 	vifStruct& vifX = GetVifX;
+	u32& pSize      = vifX.vifpacketsize;
 
-	u32& pSize = vifX.vifpacketsize;
-
-	int ret = 0;
+	int ret         = 0;
 
 	vifXRegs.stat.VPS |= VPS_TRANSFERRING;
 	vifXRegs.stat.ER1  = false;
-	while (pSize > 0 && !vifX.vifstalled.enabled) {
-
-		if(!vifX.cmd) { // Get new VifCode
-
+	while (pSize > 0 && !vifX.vifstalled.enabled)
+	{
+		if(!vifX.cmd)
+		{
+			/* Get new VifCode */
 			if(!vifXRegs.err.MII)
 			{
 				if(vifX.irq && !CHECK_VIF1STALLHACK)
@@ -53,10 +54,11 @@ _vifT void vifTransferLoop(u32* &data) {
 	}
 }
 
-_vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE) {
+_vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE)
+{
 	vifStruct& vifX = GetVifX;
 
-	// irqoffset necessary to add up the right qws, or else will spin (spiderman)
+	/* irqoffset necessary to add up the right qws, or else will spin (spiderman) */
 	int transferred = vifX.irqoffset.enabled ? vifX.irqoffset.value : 0;
 
 	vifX.vifpacketsize = size;
@@ -64,20 +66,30 @@ _vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE) {
 
 	transferred += size - vifX.vifpacketsize;
 
-	//Make this a minimum of 1 cycle so if it's the end of the packet it doesnt just fall through.
-	//Metal Saga can do this, just to be safe :)
-	if (!idx) g_vif0Cycles += std::max(1, (int)((transferred * BIAS) >> 2));
-	else	  g_vif1Cycles += std::max(1, (int)((transferred * BIAS) >> 2));
+	/* Make this a minimum of 1 cycle so if it's the end of the packet it doesnt just fall through.
+	 * Metal Saga can do this, just to be safe :) */
+	if (idx)
+		g_vif1Cycles += std::max(1, (int)((transferred * BIAS) >> 2));
+	else
+		g_vif0Cycles += std::max(1, (int)((transferred * BIAS) >> 2));
 
-	vifX.irqoffset.value = transferred % 4; // cannot lose the offset
+	vifX.irqoffset.value  = transferred % 4; /* cannot lose the offset */
 
-	if (vifX.irq && vifX.cmd == 0) {
-		//Always needs to be set to return to the correct offset if there is data left.
+	if (vifX.irq && vifX.cmd == 0)
+	{
+		/* Always needs to be set to return to the correct offset if there is data left. */
 		vifX.vifstalled.enabled = VifStallEnable(vifXch);
 		vifX.vifstalled.value = VIF_IRQ_STALL;
 	}
 
-	if (!TTE) // *WARNING* - Tags CAN have interrupts! so lets just ignore the dma modifying stuffs (GT4)
+	if (TTE) /* *WARNING* - Tags CAN have interrupts! so lets just ignore the dma modifying stuffs (GT4) */
+	{
+		if(vifX.irqoffset.value != 0)
+			vifX.irqoffset.enabled = true;
+		else
+			vifX.irqoffset.enabled = false;
+	}
+	else
 	{
 		transferred  = transferred >> 2;
 		transferred = std::min((int)vifXch.qwc, transferred);
@@ -93,23 +105,19 @@ _vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE) {
 		else if(vifX.irqoffset.value != 0)
 			vifX.irqoffset.enabled = true;
 	}
-	else
-	{
-		if(vifX.irqoffset.value != 0){
-			vifX.irqoffset.enabled = true;
-		}else
-			vifX.irqoffset.enabled = false;
-	}
 
 	vifExecQueue(idx);
 
 	return !vifX.vifstalled.enabled;
 }
 
-// When TTE is set to 1, MADR and QWC are not updated as part of the transfer.
-bool VIF0transfer(u32 *data, int size, bool TTE) {
+/* When TTE is set to 1, MADR and QWC are not updated as part of the transfer. */
+bool VIF0transfer(u32 *data, int size, bool TTE)
+{
 	return vifTransfer<0>(data, size, TTE);
 }
-bool VIF1transfer(u32 *data, int size, bool TTE) {
+
+bool VIF1transfer(u32 *data, int size, bool TTE)
+{
 	return vifTransfer<1>(data, size, TTE);
 }

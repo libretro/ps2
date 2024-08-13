@@ -61,36 +61,39 @@ static void memcpy_to_spr(u32 dst, u8* src, size_t size)
 {
 	dst &= _16kb - 1;
 
-	if (dst + size >= _16kb) {
+	if (dst + size >= _16kb)
+	{
 		size_t end = _16kb - dst;
 		memcpy(&psSu128(dst), src, end);
 
 		src += end;
 		memcpy(&psSu128(0)  , src, size - end);
-	} else {
-		memcpy(&psSu128(dst), src, size);
 	}
+	else
+		memcpy(&psSu128(dst), src, size);
 }
 
 static void memcpy_from_spr(u8* dst, u32 src, size_t size)
 {
 	src &= _16kb - 1;
 
-	if (src + size >= _16kb) {
+	if (src + size >= _16kb)
+	{
 		size_t end = _16kb - src;
 		memcpy(dst, &psSu128(src), end);
 
 		dst += end;
 		memcpy(dst, &psSu128(0)  , size - end);
-	} else {
-		memcpy(dst, &psSu128(src), size);
 	}
+	else
+		memcpy(dst, &psSu128(src), size);
 }
 
 // Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)
 static __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 {
-	//For some reason Getaway references SPR Memory from itself using SPR0, oh well, let it i guess...
+	//For some reason Getaway references SPR Memory from 
+	//itself using SPR0, oh well, let it i guess...
 	if((addr & 0x70000000) == 0x70000000)
 		return (tDMA_TAG*)&eeMem->Scratch[addr & 0x3ff0];
 
@@ -133,9 +136,11 @@ int  _SPR0chain(void)
 	pMem = SPRdmaGetAddr(spr0ch.madr, true);
 	if (pMem == NULL) return -1;
 
-	if(spr0ch.madr >= dmacRegs.rbor.ADDR && spr0ch.madr < (dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16u))
+	if(spr0ch.madr >= dmacRegs.rbor.ADDR && spr0ch.madr 
+			< (dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16u))
 	{
-		if (dmacRegs.rbsr.RMSK == 0) // Shortcut when MFIFO isn't set up with a size (Hitman series)
+		// Shortcut when MFIFO isn't set up with a size (Hitman series)
+		if (dmacRegs.rbsr.RMSK == 0) 
 		{
 			spr0ch.madr += spr0ch.qwc << 4;
 			spr0ch.sadr += spr0ch.qwc << 4;
@@ -162,7 +167,8 @@ int  _SPR0chain(void)
 	else
 	{
 
-		// Taking an arbitary small value for games which like to check the QWC/MADR instead of STR, so get most of
+		// Taking an arbitary small value for games which 
+		// like to check the QWC/MADR instead of STR, so get most of
 		// the cycle delay out of the way before the end.
 		partialqwc = std::min(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
 		memcpy_from_spr((u8*)pMem, spr0ch.sadr, partialqwc*16);
@@ -180,18 +186,10 @@ int  _SPR0chain(void)
 	if (spr0ch.qwc == 0 && dmacRegs.ctrl.STS == STS_fromSPR)
 	{
 		if (spr0ch.chcr.MOD == NORMAL_MODE || ((spr0ch.chcr.TAG >> 28) & 0x7) == TAG_CNTS)
-		{
 			dmacRegs.stadr.ADDR = spr0ch.madr; // Copy MADR to DMAC_STADR stall addr register
-		}
 	}
 
 	return (partialqwc); // Bus is 1/2 the ee speed
-}
-
-__fi void SPR0chain(void)
-{
-	int cycles = _SPR0chain() * BIAS;
-	CPU_INT(DMAC_FROM_SPR, cycles);
 }
 
 void _SPR0interleave(void)
@@ -243,10 +241,9 @@ static __fi void _dmaSPR0(void)
 		case NORMAL_MODE:
 		{
 			if (dmacRegs.ctrl.STS == STS_fromSPR) // STS == fromSPR
-			{
 				dmacRegs.stadr.ADDR = spr0ch.madr;
-			}
-			SPR0chain();
+			int cycles = _SPR0chain() * BIAS;
+			CPU_INT(DMAC_FROM_SPR, cycles);
 			spr0finished = true;
 			return;
 		}
@@ -257,7 +254,8 @@ static __fi void _dmaSPR0(void)
 
 			if (spr0ch.qwc > 0)
 			{
-				SPR0chain();
+				int cycles = _SPR0chain() * BIAS;
+				CPU_INT(DMAC_FROM_SPR, cycles);
 				return;
 			}
 			// Destination Chain Mode
@@ -273,9 +271,7 @@ static __fi void _dmaSPR0(void)
 			{
 				case TAG_CNTS: // CNTS - Transfer QWC following the tag (Stall Control)
 					if (dmacRegs.ctrl.STS == STS_fromSPR) // STS == fromSPR - Initial Value
-					{
 						dmacRegs.stadr.ADDR = spr0ch.madr;
-					}
 					break;
 
 				case TAG_CNT: // CNT - Transfer QWC following the tag.
@@ -287,7 +283,8 @@ static __fi void _dmaSPR0(void)
 					break;
 			}
 
-			SPR0chain();
+			int cycles = _SPR0chain() * BIAS;
+			CPU_INT(DMAC_FROM_SPR, cycles);
 
 			if (spr0ch.chcr.TIE && ptag->IRQ) // Check TIE bit of CHCR and IRQ bit of tag
 				done = true;
@@ -385,12 +382,6 @@ int  _SPR1chain(void)
 	return (partialqwc);
 }
 
-__fi void SPR1chain(void)
-{
-	int cycles =  _SPR1chain() * BIAS;
-	CPU_INT(DMAC_TO_SPR, cycles);
-}
-
 void _SPR1interleave(void)
 {
 	int qwc  = spr1ch.qwc;
@@ -420,7 +411,10 @@ void _dmaSPR1(void)   // toSPR work function
 	{
 		case NORMAL_MODE:
 			// Transfer Dn_QWC from Dn_MADR to SPR1
-			SPR1chain();
+			{
+				int cycles =  _SPR1chain() * BIAS;
+				CPU_INT(DMAC_TO_SPR, cycles);
+			}
 			spr1finished = true;
 			return;
 		case CHAIN_MODE:
@@ -431,7 +425,8 @@ void _dmaSPR1(void)   // toSPR work function
 			if (spr1ch.qwc > 0)
 			{
 				// Transfer Dn_QWC from Dn_MADR to SPR1
-				SPR1chain();
+				int cycles =  _SPR1chain() * BIAS;
+				CPU_INT(DMAC_TO_SPR, cycles);
 				return;
 			}
 			// Chain Mode
@@ -451,7 +446,11 @@ void _dmaSPR1(void)   // toSPR work function
 				SPR1transfer(ptag, 1); // Transfer Tag
 
 			done = hwDmacSrcChain(spr1ch, ptag->ID);
-			SPR1chain(); // Transfers the data set by the switch
+			{
+				int cycles =  _SPR1chain() * BIAS;
+				CPU_INT(DMAC_TO_SPR, cycles);
+				// Transfers the data set by the switch
+			}
 
 			if (spr1ch.chcr.TIE && ptag->IRQ) // Check TIE bit of CHCR and IRQ bit of tag
 				done = true;

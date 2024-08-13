@@ -20,13 +20,7 @@
 
 using namespace x86Emitter;
 
-#define REC_STORES
-#define REC_LOADS
-
-static int RETURN_READ_IN_RAX(void)
-{
-	return rax.Id;
-}
+static int RETURN_READ_IN_RAX(void) { return rax.Id; }
 
 namespace R5900::Dynarec::OpcodeImpl
 {
@@ -190,65 +184,24 @@ static void recStore(u32 bits)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-void recLB(void)
-{
-	recLoad(8, true);
-}
-void recLBU(void)
-{
-	recLoad(8, false);
-}
-void recLH(void)
-{
-	recLoad(16, true);
-}
-void recLHU(void)
-{
-	recLoad(16, false);
-}
-void recLW(void)
-{
-	recLoad(32, true);
-}
-void recLWU(void)
-{
-	recLoad(32, false);
-}
-void recLD(void)
-{
-	recLoad(64, false);
-}
-void recLQ(void)
-{
-	recLoadQuad(128, false);
-}
-
-void recSB(void)
-{
-	recStore(8);
-}
-void recSH(void)
-{
-	recStore(16);
-}
-void recSW(void)
-{
-	recStore(32);
-}
-void recSD(void)
-{
-	recStore(64);
-}
-void recSQ(void)
-{
-	recStore(128);
-}
+void recLB(void)  { recLoad(8,  true);       }
+void recLBU(void) { recLoad(8,  false);      }
+void recLH(void)  { recLoad(16, true);       }
+void recLHU(void) { recLoad(16, false);      }
+void recLW(void)  { recLoad(32, true);       }
+void recLWU(void) { recLoad(32, false);      }
+void recLD(void)  { recLoad(64, false);      }
+void recLQ(void)  { recLoadQuad(128, false); }
+void recSB(void)  { recStore(8);             }
+void recSH(void)  { recStore(16);            }
+void recSW(void)  { recStore(32);            }
+void recSD(void)  { recStore(64);            }
+void recSQ(void)  { recStore(128);           }
 
 ////////////////////////////////////////////////////
 
 void recLWL(void)
 {
-#ifdef REC_LOADS
 	_freeX86reg(eax);
 	_freeX86reg(ecx);
 	_freeX86reg(edx);
@@ -295,19 +248,11 @@ void recLWL(void)
 	xSHL(eax, cl);
 	xOR(eax, edx);
 	xMOVSX(xRegister64(treg), eax);
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-
-	recCall(LWL);
-#endif
 }
 
 ////////////////////////////////////////////////////
-void recLWR()
+void recLWR(void)
 {
-#ifdef REC_LOADS
 	_freeX86reg(eax);
 	_freeX86reg(ecx);
 	_freeX86reg(edx);
@@ -360,20 +305,12 @@ void recLWR()
 	xMOVSX(xRegister64(treg), eax);
 	end.SetTarget();
 	_freeX86reg(temp);
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-
-	recCall(LWR);
-#endif
 }
 
 ////////////////////////////////////////////////////
 
-void recSWL()
+void recSWL(void)
 {
-#ifdef REC_STORES
 	// avoid flushing and immediately reading back
 	_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
@@ -437,18 +374,11 @@ void recSWL()
 
 	_freeX86reg(temp);
 	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-	recCall(SWL);
-#endif
 }
 
 ////////////////////////////////////////////////////
-void recSWR()
+void recSWR(void)
 {
-#ifdef REC_STORES
 	// avoid flushing and immediately reading back
 	_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
@@ -510,17 +440,12 @@ void recSWR()
 
 	_freeX86reg(temp);
 	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-	recCall(SWR);
-#endif
 }
 
 ////////////////////////////////////////////////////
 
-/// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
+/// Masks rt with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (value shift amt), leaves result in value
 static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
 	// Would xor rcx, rcx; not rcx be better here?
@@ -533,7 +458,8 @@ static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt
 	xOR(rt, value);
 }
 
-/// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
+/// Masks rt with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (value shift amt), leaves result in value
 static void ldlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
 	// Would xor rcx, rcx; not rcx be better here?
@@ -548,12 +474,11 @@ static void ldlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift
 	xOR(rt, value);
 }
 
-void recLDL()
+void recLDL(void)
 {
 	if (!_Rt_)
 		return;
 
-#ifdef REC_LOADS
 	// avoid flushing and immediately reading back
 	if (_Rt_)
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
@@ -624,21 +549,14 @@ void recLDL()
 	}
 
 	_freeX86reg(temp1);
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-	recCall(LDL);
-#endif
 }
 
 ////////////////////////////////////////////////////
-void recLDR()
+void recLDR(void)
 {
 	if (!_Rt_)
 		return;
 
-#ifdef REC_LOADS
 	// avoid flushing and immediately reading back
 	if (_Rt_)
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
@@ -707,17 +625,12 @@ void recLDR()
 	}
 
 	_freeX86reg(temp1);
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-	recCall(LDR);
-#endif
 }
 
 ////////////////////////////////////////////////////
 
-/// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
+/// Masks value with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (rt shift amt), saves to dummyValue
 static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
 	xMOV(rcx, -1);
@@ -728,7 +641,8 @@ static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt
 	xOR(rt, rcx);
 }
 
-/// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
+/// Masks value with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (rt shift amt), saves to dummyValue
 static void sdlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
 {
 	// Generate mask 128-(shiftx8)
@@ -746,7 +660,6 @@ static void sdlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift
 
 void recSDL(void)
 {
-#ifdef REC_STORES
 	// avoid flushing and immediately reading back
 	if (_Rt_)
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
@@ -821,18 +734,11 @@ void recSDL(void)
 		_freeX86reg(temp2.Id);
 		_freeX86reg(temp1.Id);
 	}
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-	recCall(SDL);
-#endif
 }
 
 ////////////////////////////////////////////////////
 void recSDR(void)
 {
-#ifdef REC_STORES
 	// avoid flushing and immediately reading back
 	if (_Rt_)
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
@@ -905,12 +811,6 @@ void recSDR(void)
 		_freeX86reg(temp2.Id);
 		_freeX86reg(temp1.Id);
 	}
-#else
-	iFlushCall(FLUSH_INTERPRETER);
-	_deleteEEreg(_Rs_, 1);
-	_deleteEEreg(_Rt_, 1);
-	recCall(SDR);
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

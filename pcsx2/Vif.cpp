@@ -80,8 +80,9 @@ bool SaveStateBase::vif1Freeze()
 
 static __fi void vif0FBRST(u32 value)
 {
-	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is it just stops it what its doing
-			  usually accompanied by a reset, but if we find a broken game which falls here, we need to see it! (Refraction) */
+	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is 
+	 * it just stops it what its doing usually accompanied by a reset, 
+	 * but if we find a broken game which falls here, we need to see it! (Refraction) */
 	if (value & 0x2) // Forcebreak Vif,
 	{
 		/* I guess we should stop the VIF dma here, but not 100% sure (linuz) */
@@ -92,8 +93,9 @@ static __fi void vif0FBRST(u32 value)
 
 	if (value & 0x4) // Stop Vif.
 	{
-		// Not completely sure about this, can't remember what game, used this, but 'draining' the VIF helped it, instead of
-		//  just stoppin the VIF (linuz).
+		// Not completely sure about this, can't remember what game, 
+		// used this, but 'draining' the VIF helped it, instead of
+		// just stoppin the VIF (linuz).
 		vif0Regs.stat.VSS = true;
 		vif0Regs.stat.VPS = VPS_IDLE;
 		vif0.vifstalled.enabled = VifStallEnable(vif0ch);
@@ -104,12 +106,13 @@ static __fi void vif0FBRST(u32 value)
 	{
 		bool cancel = false;
 
-		/* Cancel stall, first check if there is a stall to cancel, and then clear VIF0_STAT VSS|VFS|VIS|INT|ER0|ER1 bits */
+		/* Cancel stall, first check if there is a stall to cancel, 
+		 * and then clear VIF0_STAT VSS|VFS|VIS|INT|ER0|ER1 bits */
 		if (VIF_TEST(vif0Regs.stat, VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
 			cancel = true;
 
 		vif0Regs.stat._u32 &= ~(VIF0_STAT_VSS | VIF0_STAT_VFS | VIF0_STAT_VIS |
-								  VIF0_STAT_INT | VIF0_STAT_ER0 | VIF0_STAT_ER1);
+				        VIF0_STAT_INT | VIF0_STAT_ER0 | VIF0_STAT_ER1);
 		if (cancel)
 		{
 			g_vif0Cycles = 0;
@@ -153,8 +156,10 @@ static __fi void vif1FBRST(u32 value)
 {
 	tVIF_FBRST tmp;
 	tmp._u32 = value;
-	/* Fixme: Forcebreaks are pretty unknown for operation, presumption is it just stops it what its doing
-			  usually accompanied by a reset, but if we find a broken game which falls here, we need to see it! (Refraction) */
+	/* Fixme: Forcebreaks are pretty unknown for operation, 
+	 * presumption is it just stops it what its doing
+	 * usually accompanied by a reset, but if we find a 
+	 * broken game which falls here, we need to see it! (Refraction) */
 
 	if (tmp.FBK) // Forcebreak Vif.
 	{
@@ -168,7 +173,8 @@ static __fi void vif1FBRST(u32 value)
 
 	if (tmp.STP) // Stop Vif.
 	{
-		// Not completely sure about this, can't remember what game used this, but 'draining' the VIF helped it, instead of
+		// Not completely sure about this, can't remember 
+		// what game used this, but 'draining' the VIF helped it, instead of
 		// just stoppin the VIF (linuz).
 		vif1Regs.stat.VSS = true;
 		vif1Regs.stat.VPS = VPS_IDLE;
@@ -179,12 +185,13 @@ static __fi void vif1FBRST(u32 value)
 	if (tmp.STC) // Cancel Vif Stall.
 	{
 		bool cancel = false;
-		// Cancel stall, first check if there is a stall to cancel, and then clear VIF1_STAT VSS|VFS|VIS|INT|ER0|ER1 bits
+		// Cancel stall, first check if there is a stall to cancel, 
+		// and then clear VIF1_STAT VSS|VFS|VIS|INT|ER0|ER1 bits
 		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 			cancel = true;
 
 		vif1Regs.stat._u32 &= ~(VIF1_STAT_VSS | VIF1_STAT_VFS | VIF1_STAT_VIS |
-								  VIF1_STAT_INT | VIF1_STAT_ER0 | VIF1_STAT_ER1);
+		         		VIF1_STAT_INT | VIF1_STAT_ER0 | VIF1_STAT_ER1);
 
 		if (cancel)
 		{
@@ -215,7 +222,8 @@ static __fi void vif1FBRST(u32 value)
 	{
 		u128 SaveCol;
 		u128 SaveRow;
-		//Must Preserve Row/Col registers! (Downhill Domination for testing) - Really shouldnt be part of the vifstruct.
+		//Must Preserve Row/Col registers! 
+		//(Downhill Domination for testing) - Really shouldnt be part of the vifstruct.
 		SaveCol._u64[0] = vif1.MaskCol._u64[0];
 		SaveCol._u64[1] = vif1.MaskCol._u64[1];
 		SaveRow._u64[0] = vif1.MaskRow._u64[0];

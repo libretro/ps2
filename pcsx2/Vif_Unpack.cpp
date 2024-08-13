@@ -28,7 +28,8 @@ enum UnpackOffset {
 	OFFSET_W = 3
 };
 
-static __fi u32 setVifRow(vifStruct& vif, u32 reg, u32 data) {
+static __fi u32 setVifRow(vifStruct& vif, u32 reg, u32 data)
+{
 	vif.MaskRow._u32[reg] = data;
 	return data;
 }
@@ -71,7 +72,6 @@ static __ri void writeXYZW(u32 offnum, u32 &dest, u32 data) {
 		case 3: break;
 	}
 }
-#define tParam idx,mode,doMask
 
 template < uint idx, uint mode, bool doMask, class T >
 static void UNPACK_S(u32* dest, const T* src)
@@ -79,10 +79,10 @@ static void UNPACK_S(u32* dest, const T* src)
 	u32 data = *src;
 
 	//S-# will always be a complete packet, no matter what. So we can skip the offset bits
-	writeXYZW<tParam>(OFFSET_X, *(dest+0), data);
-	writeXYZW<tParam>(OFFSET_Y, *(dest+1), data);
-	writeXYZW<tParam>(OFFSET_Z, *(dest+2), data);
-	writeXYZW<tParam>(OFFSET_W, *(dest+3), data);
+	writeXYZW<idx,mode,doMask>(OFFSET_X, *(dest+0), data);
+	writeXYZW<idx,mode,doMask>(OFFSET_Y, *(dest+1), data);
+	writeXYZW<idx,mode,doMask>(OFFSET_Z, *(dest+2), data);
+	writeXYZW<idx,mode,doMask>(OFFSET_W, *(dest+3), data);
 }
 
 // The PS2 console actually writes v1v0v1v0 for all V2 unpacks -- the second v1v0 pair
@@ -90,10 +90,10 @@ static void UNPACK_S(u32* dest, const T* src)
 template < uint idx, uint mode, bool doMask, class T >
 static void UNPACK_V2(u32* dest, const T* src)
 {
-	writeXYZW<tParam>(OFFSET_X, *(dest+0), *(src+0));
-	writeXYZW<tParam>(OFFSET_Y, *(dest+1), *(src+1));
-	writeXYZW<tParam>(OFFSET_Z, *(dest+2), *(src+0));
-	writeXYZW<tParam>(OFFSET_W, *(dest+3), *(src+1));
+	writeXYZW<idx,mode,doMask>(OFFSET_X, *(dest+0), *(src+0));
+	writeXYZW<idx,mode,doMask>(OFFSET_Y, *(dest+1), *(src+1));
+	writeXYZW<idx,mode,doMask>(OFFSET_Z, *(dest+2), *(src+0));
+	writeXYZW<idx,mode,doMask>(OFFSET_W, *(dest+3), *(src+1));
 }
 
 // V3 and V4 unpacks both use the V4 unpack logic, even though most of the OFFSET_W fields
@@ -102,10 +102,10 @@ static void UNPACK_V2(u32* dest, const T* src)
 template < uint idx, uint mode, bool doMask, class T >
 static void UNPACK_V4(u32* dest, const T* src)
 {
-	writeXYZW<tParam>(OFFSET_X, *(dest+0), *(src+0));
-	writeXYZW<tParam>(OFFSET_Y, *(dest+1), *(src+1));
-	writeXYZW<tParam>(OFFSET_Z, *(dest+2), *(src+2));
-	writeXYZW<tParam>(OFFSET_W, *(dest+3), *(src+3));
+	writeXYZW<idx,mode,doMask>(OFFSET_X, *(dest+0), *(src+0));
+	writeXYZW<idx,mode,doMask>(OFFSET_Y, *(dest+1), *(src+1));
+	writeXYZW<idx,mode,doMask>(OFFSET_Z, *(dest+2), *(src+2));
+	writeXYZW<idx,mode,doMask>(OFFSET_W, *(dest+3), *(src+3));
 }
 
 // V4_5 unpacks do not support the MODE register, and act as mode==0 always.
@@ -136,7 +136,7 @@ static void UNPACK_V4_5(u32 *dest, const u32* src)
 // to be cast as. --air
 //
 
-#define _upk				(UNPACKFUNCTYPE)
+#define _upk			(UNPACKFUNCTYPE)
 #define _unpk(usn, bits)	(UNPACKFUNCTYPE_##usn##bits)
 
 #define UnpackFuncSet( vt, idx, mode, usn, doMask ) \
@@ -188,67 +188,46 @@ alignas(16) const UNPACKFUNCTYPE VIFfuncTable[2][4][4 * 4 * 2 * 2] =
 //----------------------------------------------------------------------------
 // Unpack Setup Code
 //----------------------------------------------------------------------------
-__fi static int _limit(int a, int max)
+_vifT void vifUnpackSetup(const u32 *data)
 {
-	return ((a > max) ? max : a);
-}
-
-_vifT void vifUnpackSetup(const u32 *data) {
-
 	vifStruct& vifX = GetVifX;
 
 	GetVifX.unpackcalls++;
 
 	if (GetVifX.unpackcalls > 3)
-	{
 		vifExecQueue(idx);
-	}
-	//if (!idx) vif0FLUSH(); // Only VU0?
 
 	vifX.usn   = (vifXRegs.code >> 14) & 0x01;
 	int vifNum = (vifXRegs.code >> 16) & 0xff;
 
-	if (vifNum == 0) vifNum = 256;
+	if (vifNum == 0)
+		vifNum = 256;
 	vifXRegs.num =  vifNum;
-
-	// This is for use when XGKick is synced as VIF can overwrite XG Kick data as it's transferring out
-	// Test with Aggressive Inline Skating, or K-1 Premium 2005 Dynamite!
-	// VU currently flushes XGKICK on VU1 end so no need for this, yet
-	/*if (idx == 1 && VU1.xgkickenable && !(VU0.VI[REG_TPC].UL & 0x100))
-	{
-		// Catch up first, then the unpack cycles
-		_vuXGKICKTransfer(cpuRegs.cycle - VU1.xgkicklastcycle, false);
-		_vuXGKICKTransfer(vifNum * 2, false);
-	}*/
-
-	// Traditional-style way of calculating the gsize, based on VN/VL parameters.
-	// Useful when VN/VL are known template params, but currently they are not so we use
-	// the LUT instead (for now).
-	//uint vl = vifX.cmd & 0x03;
-	//uint vn = (vifX.cmd >> 2) & 0x3;
-	//uint gsize = ((32 >> vl) * (vn+1)) / 8;
 
 	const u8& gsize = nVifT[vifX.cmd & 0x0f];
 
 	uint wl = vifXRegs.cycle.wl ? vifXRegs.cycle.wl : 256;
 
-	if (wl <= vifXRegs.cycle.cl) { //Skipping write
+	if (wl <= vifXRegs.cycle.cl) //Skipping write
 		vifX.tag.size = ((vifNum * gsize) + 3) / 4;
-	}
-	else { //Filling write
-		int n = vifXRegs.cycle.cl * (vifNum / wl) +
-		        _limit(vifNum % wl, vifXRegs.cycle.cl);
+	else
+	{
+		//Filling write
+		int a   = vifNum % wl;
+		int max = vifXRegs.cycle.cl;
+		int n   = vifXRegs.cycle.cl * (vifNum / wl) 
+			+ ((a > max) ? max : a);
 
 		vifX.tag.size = ((n * gsize) + 3) >> 2;
 	}
 
-	u32 addr = vifXRegs.code;
+	u32 addr           = vifXRegs.code;
 	if (idx && ((addr>>15)&1)) addr += vif1Regs.tops;
-	vifX.tag.addr = (addr<<4) & (idx ? 0x3ff0 : 0xff0);
+	vifX.tag.addr      = (addr<<4) & (idx ? 0x3ff0 : 0xff0);
 
-	vifX.cl			 = 0;
-	vifX.tag.cmd	 = vifX.cmd;
-	GetVifX.pass	 = 1;
+	vifX.cl		   = 0;
+	vifX.tag.cmd	   = vifX.cmd;
+	GetVifX.pass	   = 1;
 
 	//Ugh things are never easy.
 	//Alright, in most cases with V2 and V3 we only need to know if its offset 32bits.
@@ -352,9 +331,7 @@ _vifT int nVifUnpack(const u8* data)
 		}
 
 		if (!idx || !THREAD_VU1)
-		{
 			dVifUnpack<idx>(data, isFill);
-		}
 		else
 			vu1Thread.VifUnpack(vif, vifRegs, (u8*)data, (size + 4) & ~0x3);
 
@@ -376,15 +353,13 @@ _vifT int nVifUnpack(const u8* data)
 		// to read back from it mid-transfer.  Since so few games actually use partial transfers
 		// of VIF unpacks, this code should not be any bottleneck.
 
-		if (!isFill)
-		{
-			vifRegs.num -= (size / vSize);
-		}
-		else
+		if (isFill)
 		{
 			int dataSize = (size / vSize);
 			vifRegs.num = vifRegs.num - (((dataSize / vifRegs.cycle.cl) * (vifRegs.cycle.wl - vifRegs.cycle.cl)) + dataSize);
 		}
+		else
+			vifRegs.num -= (size / vSize);
 	}
 
 	return ret;
@@ -450,7 +425,6 @@ static void setMasks(const vifStruct& vif, const VIFregisters& v)
 template <int idx, bool doMode, bool isFill>
 __ri void _nVifUnpackLoop(const u8* data)
 {
-
 	vifStruct& vif = MTVU_VifX;
 	VIFregisters& vifRegs = MTVU_VifXRegs;
 
@@ -463,9 +437,6 @@ __ri void _nVifUnpackLoop(const u8* data)
 	const int usn    = !!vif.usn;
 	const int upkNum = vif.cmd & 0x1f;
 	const u8& vSize  = nVifT[upkNum & 0x0f];
-	//uint vl = vif.cmd & 0x03;
-	//uint vn = (vif.cmd >> 2) & 0x3;
-	//uint vSize = ((32 >> vl) * (vn+1)) / 8;		// size of data (in bytes) used for each write cycle
 
 	const nVifCall* fnbase = &nVifUpk[((usn * 2 * 16) + upkNum) * (4 * 1)];
 	const UNPACKFUNCTYPE ft = VIFfuncTable[idx][doMode ? vifRegs.mode : 0][((usn * 2 * 16) + upkNum)];
@@ -475,9 +446,7 @@ __ri void _nVifUnpackLoop(const u8* data)
 		u8* dest = (u8*)(vuRegs[idx].Mem + (vif.tag.addr & (idx ? 0x3ff0 : 0xff0)));
 
 		if (doMode)
-		{
 			ft(dest, data);
-		}
 		else
 		{
 			uint cl3 = std::min(vif.cl, 3);

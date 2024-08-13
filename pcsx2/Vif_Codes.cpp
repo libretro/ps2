@@ -19,9 +19,7 @@
 #include "MTVU.h"
 #include "VUmicro.h"
 #include "Vif_Dma.h"
-#include "x86/newVif.h"
 
-#define vifOp(vifCodeName) _vifT static int vifCodeName(int pass, const u32* data)
 #define pass1 if (pass == 0)
 #define pass2 if (pass == 1)
 #define pass1or2 if (pass == 0 || pass == 1)
@@ -30,7 +28,30 @@
 		if (!idx) \
 			return vifCode_Null<idx>(pass, (u32*)data); \
 	}
-vifOp(vifCode_Null);
+
+// TODO/FIXME: Review Flags
+_vifT static int vifCode_Null(int pass, const u32* data)
+{
+	vifStruct& vifX = GetVifX;
+	pass1
+	{
+		// if ME1, then force the vif to interrupt
+		if (!(vifXRegs.err.ME1))
+		{ // Ignore vifcode and tag mismatch error
+			vifXRegs.stat.ER1 = true;
+			vifX.vifstalled.enabled = VifStallEnable(vifXch);
+			vifX.vifstalled.value = VIF_IRQ_STALL;
+		}
+		vifX.cmd = 0;
+		vifX.pass = 0;
+
+		//If the top bit was set to interrupt, 
+		//we don't want it to take commands from a bad code
+		if (vifXRegs.code & 0x80000000)
+			vifX.irq = 0;
+	}
+	return 1;
+}
 
 //------------------------------------------------------------------
 // Vif0/Vif1 Misc Functions
@@ -53,20 +74,9 @@ __ri void vifExecQueue(int idx)
 		vu0ExecMicro(vif0.queued_pc);
 	else
 		vu1ExecMicro(vif1.queued_pc);
-
-	// Hack for Wakeboarding Unleashed, game runs a VU program in parallel with a VIF unpack list.
-	// The start of the VU program clears the VU memory, while VIF populates it from behind, so we need to get the clear out of the way.
-	/*if (idx && !INSTANT_VU1)
-	{
-		vuRegs[1].cycle -= 256;
-		CpuVU1->ExecuteBlock(0);
-	}*/
 }
 
-static __fi EE_EventType vif1InternalIrq(void)
-{
-	return (dmacRegs.ctrl.MFD == MFD_VIF1) ? DMAC_MFIFO_VIF : DMAC_VIF1;
-}
+#define vif1InternalIrq() ((dmacRegs.ctrl.MFD == MFD_VIF1) ? DMAC_MFIFO_VIF : DMAC_VIF1)
 
 static __fi void vifFlush(int idx)
 {
@@ -133,7 +143,7 @@ static __fi void vuExecMicro(int idx, u32 addr, bool requires_wait)
 // Vif0/Vif1 Code Implementations
 //------------------------------------------------------------------
 
-vifOp(vifCode_Base)
+_vifT static int vifCode_Base(int pass, const u32* data)
 {
 	vif1Only();
 	pass1
@@ -184,17 +194,17 @@ static __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 	return 0;
 }
 
-vifOp(vifCode_Direct)
+_vifT static int vifCode_Direct(int pass, const u32* data)
 {
 	return _vifCode_Direct<idx>(pass, (u8*)data, 0);
 }
 
-vifOp(vifCode_DirectHL)
+_vifT static int vifCode_DirectHL(int pass, const u32* data)
 {
 	return _vifCode_Direct<idx>(pass, (u8*)data, 1);
 }
 
-vifOp(vifCode_Flush)
+_vifT static int vifCode_Flush(int pass, const u32* data)
 {
 	vif1Only();
 	pass1or2
@@ -221,7 +231,7 @@ vifOp(vifCode_Flush)
 	return 1;
 }
 
-vifOp(vifCode_FlushA)
+_vifT static int vifCode_FlushA(int pass, const u32* data)
 {
 	vif1Only();
 	pass1or2
@@ -250,7 +260,7 @@ vifOp(vifCode_FlushA)
 }
 
 // ToDo: FixMe
-vifOp(vifCode_FlushE)
+_vifT static int vifCode_FlushE(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -269,7 +279,7 @@ vifOp(vifCode_FlushE)
 	return 1;
 }
 
-vifOp(vifCode_ITop)
+_vifT static int vifCode_ITop(int pass, const u32* data)
 {
 	pass1
 	{
@@ -280,7 +290,7 @@ vifOp(vifCode_ITop)
 	return 1;
 }
 
-vifOp(vifCode_Mark)
+_vifT static int vifCode_Mark(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -295,9 +305,9 @@ vifOp(vifCode_Mark)
 
 static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 {
-	VURegs& VUx = idx ? vuRegs[1] : vuRegs[0];
+	VURegs& VUx     = idx ? vuRegs[1] : vuRegs[0];
 	vifStruct& vifX = GetVifX;
-	u16 vuMemSize = idx ? 0x4000 : 0x1000;
+	u16 vuMemSize   = idx ? 0x4000 : 0x1000;
 
 	vifExecQueue(idx);
 
@@ -350,7 +360,7 @@ static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 	}
 }
 
-vifOp(vifCode_MPG)
+_vifT static int vifCode_MPG(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -365,34 +375,29 @@ vifOp(vifCode_MPG)
 			CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
 			return 0;
 		}
-		else
-		{
-			vifX.pass = 1;
-			return 1;
-		}
+		vifX.pass = 1;
+		return 1;
 	}
 	pass2
 	{
-		if (vifX.vifpacketsize < vifX.tag.size)
-		{ // Partial Transfer
+		if (vifX.vifpacketsize < vifX.tag.size) // Partial Transfer
+		{
 			_vifCode_MPG(idx, vifX.tag.addr, data, vifX.vifpacketsize);
 			vifX.tag.size -= vifX.vifpacketsize; //We can do this first as its passed as a pointer
 			return vifX.vifpacketsize;
 		}
-		else
-		{ // Full Transfer
-			_vifCode_MPG(idx, vifX.tag.addr, data, vifX.tag.size);
-			int ret = vifX.tag.size;
-			vifX.tag.size = 0;
-			vifX.cmd = 0;
-			vifX.pass = 0;
-			return ret;
-		}
+		// Full Transfer
+		_vifCode_MPG(idx, vifX.tag.addr, data, vifX.tag.size);
+		int ret = vifX.tag.size;
+		vifX.tag.size = 0;
+		vifX.cmd = 0;
+		vifX.pass = 0;
+		return ret;
 	}
 	return 0;
 }
 
-vifOp(vifCode_MSCAL)
+_vifT static int vifCode_MSCAL(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -422,7 +427,7 @@ vifOp(vifCode_MSCAL)
 	return 1;
 }
 
-vifOp(vifCode_MSCALF)
+_vifT static int vifCode_MSCALF(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1or2
@@ -450,7 +455,7 @@ vifOp(vifCode_MSCALF)
 	return 1;
 }
 
-vifOp(vifCode_MSCNT)
+_vifT static int vifCode_MSCNT(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -478,7 +483,7 @@ vifOp(vifCode_MSCNT)
 }
 
 // ToDo: FixMe
-vifOp(vifCode_MskPath3)
+_vifT static int vifCode_MskPath3(int pass, const u32* data)
 {
 	vif1Only();
 	pass1
@@ -493,7 +498,7 @@ vifOp(vifCode_MskPath3)
 	return 1;
 }
 
-vifOp(vifCode_Nop)
+_vifT static int vifCode_Nop(int pass, const u32* data)
 {
 	pass1
 	{
@@ -513,30 +518,7 @@ vifOp(vifCode_Nop)
 	return 1;
 }
 
-// ToDo: Review Flags
-vifOp(vifCode_Null)
-{
-	vifStruct& vifX = GetVifX;
-	pass1
-	{
-		// if ME1, then force the vif to interrupt
-		if (!(vifXRegs.err.ME1))
-		{ // Ignore vifcode and tag mismatch error
-			vifXRegs.stat.ER1 = true;
-			vifX.vifstalled.enabled = VifStallEnable(vifXch);
-			vifX.vifstalled.value = VIF_IRQ_STALL;
-		}
-		vifX.cmd = 0;
-		vifX.pass = 0;
-
-		//If the top bit was set to interrupt, we don't want it to take commands from a bad code
-		if (vifXRegs.code & 0x80000000)
-			vifX.irq = 0;
-	}
-	return 1;
-}
-
-vifOp(vifCode_Offset)
+_vifT static int vifCode_Offset(int pass, const u32* data)
 {
 	vif1Only();
 	pass1
@@ -588,7 +570,7 @@ static __fi int _vifCode_STColRow(const u32* data, u32* pmem2)
 	return ret;
 }
 
-vifOp(vifCode_STCol)
+_vifT static int vifCode_STCol(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -608,7 +590,7 @@ vifOp(vifCode_STCol)
 	return 0;
 }
 
-vifOp(vifCode_STRow)
+_vifT static int vifCode_STRow(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -628,7 +610,7 @@ vifOp(vifCode_STRow)
 	return 1;
 }
 
-vifOp(vifCode_STCycl)
+_vifT static int vifCode_STCycl(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -641,7 +623,7 @@ vifOp(vifCode_STCycl)
 	return 1;
 }
 
-vifOp(vifCode_STMask)
+_vifT static int vifCode_STMask(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
@@ -660,7 +642,7 @@ vifOp(vifCode_STMask)
 	return 1;
 }
 
-vifOp(vifCode_STMod)
+_vifT static int vifCode_STMod(int pass, const u32* data)
 {
 	pass1
 	{
@@ -671,7 +653,7 @@ vifOp(vifCode_STMod)
 	return 1;
 }
 
-vifOp(vifCode_Unpack)
+_vifT static int vifCode_Unpack(int pass, const u32* data)
 {
 	pass1
 	{
