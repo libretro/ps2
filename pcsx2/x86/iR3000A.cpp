@@ -1087,6 +1087,8 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 void rpsxSYSCALL(void)
 {
+	u8 *j8Ptr;
+
 	xMOV(ptr32[&psxRegs.code], psxRegs.code);
 	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
 	_psxFlushCall(FLUSH_NODESTROY);
@@ -1096,7 +1098,9 @@ void rpsxSYSCALL(void)
 	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	u8 *j8Ptr = JE8(0);
+	xWrite8(0x74);
+	xWrite8(0);
+	j8Ptr = (u8*)(x86Ptr - 1);
 
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
@@ -1110,6 +1114,7 @@ void rpsxSYSCALL(void)
 
 void rpsxBREAK(void)
 {
+	u8 *j8Ptr;
 	xMOV(ptr32[&psxRegs.code], psxRegs.code);
 	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
 	_psxFlushCall(FLUSH_NODESTROY);
@@ -1119,7 +1124,9 @@ void rpsxBREAK(void)
 	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	u8 *j8Ptr = JE8(0);
+	xWrite8(0x74);
+	xWrite8(0);
+	j8Ptr = (u8*)(x86Ptr - 1);
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));

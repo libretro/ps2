@@ -25,8 +25,6 @@ extern u8* JMP8(u8 to);
 // jmp rel32
 extern u32* JMP32(uptr to);
 
-// je rel8
-extern u8* JE8(u8 to);
 // jz rel8
 extern u8* JZ8(u8 to);
 // jg rel8

@@ -72,8 +72,6 @@ emitterT u32* JMP32(uptr to)
 	return (u32*)(x86Ptr - 4);
 }
 
-/* je rel8 */
-emitterT u8* JE8(u8 to)     { return J8Rel(0x74, to); }
 /* jz rel8 */
 emitterT u8* JZ8(u8 to)     { return J8Rel(0x74, to); }
 /* jns rel8 */

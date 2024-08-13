@@ -430,7 +430,9 @@ static void FPU_ADD_SUB(int regd, int regt, int issub)
 	j8Ptr0 = JGE8(0);
 	xCMP(ecx, 0);
 	j8Ptr1 = JG8(0);
-	j8Ptr2 = JE8(0);
+	xWrite8(0x74);
+	xWrite8(0);
+	j8Ptr2 = (u8*)(x86Ptr - 1);
 	xCMP(ecx, -25);
 	j8Ptr3 = JLE8(0);
 
@@ -1697,8 +1699,8 @@ void recSQRT_S_xmm(int info)
 		xMOVMSKPS(eax, xRegisterSSE(EEREC_D));
 		xAND(eax, 1); //Check sign
 		u8* pjmp = JZ8(0); //Skip if none are
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
-			xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]); // Make EEREC_D Positive
+		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
+		xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]); // Make EEREC_D Positive
 		*pjmp   = (u8)((x86Ptr - pjmp) - 1);
 	}
 

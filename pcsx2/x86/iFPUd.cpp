@@ -125,10 +125,15 @@ alignas(32) static const FPUd_Globals s_const =
 // ToDouble : converts single-precision PS2 float to double-precision IEEE float
 static void ToDouble(int reg)
 {
+	u8 *to_complex, *to_complex2;
 	xUCOMI.SS(xRegisterSSE(reg), ptr[s_const.pos_inf]); // Sets ZF if reg is equal or incomparable to pos_inf
-	u8* to_complex = JE8(0); // Complex conversion if positive infinity or NaN
+	xWrite8(0x74);
+	xWrite8(0);
+	to_complex = (u8*)(x86Ptr - 1); // Complex conversion if positive infinity or NaN
 	xUCOMI.SS(xRegisterSSE(reg), ptr[s_const.neg_inf]);
-	u8* to_complex2 = JE8(0); // Complex conversion if negative infinity
+	xWrite8(0x74);
+	xWrite8(0);
+	to_complex2 = (u8*)(x86Ptr - 1); // Complex conversion if negative infinity
 
 	xCVTSS2SD(xRegisterSSE(reg), xRegisterSSE(reg)); // Simply convert
 	u8* end = JMP8(0);
@@ -207,9 +212,13 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	u8* end4 = nullptr;
 	if (flags) //set underflow flags if not zero
 	{
+		u8 *is_zero;
+
 		xXOR.PD(xRegisterSSE(absreg), xRegisterSSE(absreg));
 		xUCOMI.SD(xRegisterSSE(reg), xRegisterSSE(absreg));
-		u8* is_zero = JE8(0);
+		xWrite8(0x74);
+		xWrite8(0);
+		is_zero = (u8*)(x86Ptr - 1);
 
 		xOR(ptr32[&fpuRegs.fprc[31]], (FPUflagU | FPUflagSU));
 		if (addsub)
@@ -334,7 +343,9 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 	j8Ptr0 = JGE8(0);
 	xCMP(ecx, 0);
 	j8Ptr1 = JG8(0);
-	j8Ptr2 = JE8(0);
+	xWrite8(0x74);
+	xWrite8(0);
+	j8Ptr2 = (u8*)(x86Ptr - 1);
 	xCMP(ecx, -25);
 	j8Ptr3 = JLE8(0);
 
