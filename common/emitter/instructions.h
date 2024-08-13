@@ -108,6 +108,55 @@
 // NOP 1-byte
 #define xNOP() xWrite8(0x90)
 
+#define xVMOVMSKPS(to, from) xOpWriteC5(0x00, 0x50, to, xRegister32(), from)
+#define xVMOVMSKPD(to, from) xOpWriteC5(0x66, 0x50, to, xRegister32(), from)
+
+/* =====================================================================================================
+ * SSE Conversion Operations, as looney as they are.
+ * =====================================================================================================
+ * These enforce pointer strictness for Indirect forms, due to the otherwise completely confusing
+ * nature of the functions.  (so if a function expects an m32, you must use (u32*) or ptr32[]). */
+#define xCVTDQ2PS(to, from) xOpWrite0F(0x00, 0x5b, to, from)
+#define xCVTPD2DQ(to, from) xOpWrite0F(0xf2, 0xe6, to, from)
+#define xCVTPD2PS(to, from) xOpWrite0F(0x66, 0x5a, to, from)
+#define xCVTPI2PD(to, from) xOpWrite0F(0x66, 0x2a, to, from)
+#define xCVTPS2DQ(to, from) xOpWrite0F(0x66, 0x5b, to, from)
+#define xCVTPS2PD(to, from) xOpWrite0F(0x00, 0x5a, to, from)
+#define xCVTSD2SI(to, from) xOpWrite0F(0xf2, 0x2d, to, from)
+#define xCVTSD2SS(to, from) xOpWrite0F(0xf2, 0x5a, to, from)
+#define xCVTSI2SS(to, from) xOpWrite0F(0xf3, 0x2a, to, from)
+#define xCVTSS2SD(to, from) xOpWrite0F(0xf3, 0x5a, to, from)
+#define xCVTSS2SI(to, from) xOpWrite0F(0xf3, 0x2d, to, from)
+#define xCVTTPD2DQ(to, from) xOpWrite0F(0x66, 0xe6, to, from)
+#define xCVTTPS2DQ(to, from) xOpWrite0F(0xf3, 0x5b, to, from)
+#define xCVTTSD2SI(to, from) xOpWrite0F(0xf2, 0x2c, to, from)
+#define xCVTTSS2SI(to, from) xOpWrite0F(0xf3, 0x2c, to, from)
+
+/* =====================================================================================================
+ * MMX Mov Instructions (MOVD, MOVQ, MOVSS).
+ *
+ * Notes:
+ *  * Some of the functions have been renamed to more clearly reflect what they actually
+ *    do.  Namely we've affixed "ZX" to several MOVs that take a register as a destination
+ *    since that's what they do (MOVD clears upper 32/96 bits, etc).
+ *
+ *  * MOVD has valid forms for MMX and XMM registers. */
+
+#define xMOVDZX(to, from) xOpWrite0F(0x66, 0x6e, to, from)
+#define xMOVD(to, from) xOpWrite0F(0x66, 0x7e, from, to)
+
+/* Moves from XMM to XMM, with the *upper 64 bits* of the destination register
+ * being cleared to zero. */
+#define xMOVQZX(to, from) xOpWrite0F(0xf3, 0x7e, to, from)
+
+/* Moves lower quad of XMM to ptr64 (no bits are cleared) */
+#define xMOVQ(dest, from) xOpWrite0F(0x66, 0xd6, from, dest)
+
+/* ===================================================================================================== */
+
+#define xMOVMSKPS(to, from) xOpWrite0F(0, 0x50, to, from)
+#define xMOVMSKPD(to, from) xOpWrite0F(0x66, 0x50, to, from, true)
+
 namespace x86Emitter
 {
 	// ------------------------------------------------------------------------
@@ -348,17 +397,6 @@ namespace x86Emitter
 	typedef xForwardJPO<s32> xForwardJPO32;
 
 	// ------------------------------------------------------------------------
-	extern void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from);
-	extern void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src);
-
-	extern void xMOVD(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xMOVD(const xIndirectVoid& dest, const xRegisterSSE& from);
-
-	extern void xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from);
-
-	extern void xMOVQZX(const xRegisterSSE& to, const xIndirectVoid& src);
-	extern void xMOVQZX(const xRegisterSSE& to, const xRegisterSSE& from);
-
 	extern void xMOVSS(const xRegisterSSE& to, const xRegisterSSE& from);
 	extern void xMOVSS(const xIndirectVoid& to, const xRegisterSSE& from);
 	extern void xMOVSD(const xRegisterSSE& to, const xRegisterSSE& from);
@@ -366,9 +404,6 @@ namespace x86Emitter
 
 	extern void xMOVSSZX(const xRegisterSSE& to, const xIndirectVoid& from);
 	extern void xMOVSDZX(const xRegisterSSE& to, const xIndirectVoid& from);
-
-	extern void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
-	extern void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);
 
 	// ------------------------------------------------------------------------
 
@@ -432,49 +467,6 @@ namespace x86Emitter
 	extern const xImplSimd_PMinMax xPMAX;
 
 	// ------------------------------------------------------------------------
-	//
-	//
-	extern void xCVTDQ2PD(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTDQ2PD(const xRegisterSSE& to, const xIndirect64& from);
-	extern void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from);
-
-	extern void xCVTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPD2DQ(const xRegisterSSE& to, const xIndirect128& from);
-	extern void xCVTPD2PS(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPD2PS(const xRegisterSSE& to, const xIndirect128& from);
-
-	extern void xCVTPI2PD(const xRegisterSSE& to, const xIndirect64& from);
-	extern void xCVTPI2PS(const xRegisterSSE& to, const xIndirect64& from);
-
-	extern void xCVTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPS2DQ(const xRegisterSSE& to, const xIndirect128& from);
-	extern void xCVTPS2PD(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPS2PD(const xRegisterSSE& to, const xIndirect64& from);
-
-	extern void xCVTSD2SI(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xCVTSD2SI(const xRegister32or64& to, const xIndirect64& from);
-	extern void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from);
-	extern void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from);
-	extern void xCVTSI2SS(const xRegisterSSE& to, const xIndirect32& from);
-
-	extern void xCVTSS2SD(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTSS2SD(const xRegisterSSE& to, const xIndirect32& from);
-	extern void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from);
-
-	extern void xCVTTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTTPD2DQ(const xRegisterSSE& to, const xIndirect128& from);
-	extern void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from);
-
-	extern void xCVTTSD2SI(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xCVTTSD2SI(const xRegister32or64& to, const xIndirect64& from);
-	extern void xCVTTSS2SI(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xCVTTSS2SI(const xRegister32or64& to, const xIndirect32& from);
-
-	// ------------------------------------------------------------------------
 
 	extern const xImplSimd_AndNot xANDN;
 	extern const xImplSimd_rSqrt xRCP;
@@ -515,8 +507,4 @@ namespace x86Emitter
 	extern const xImplAVX_ThreeArgYMM xVPOR;
 	extern const xImplAVX_ThreeArgYMM xVPXOR;
 	extern const xImplAVX_CmpInt xVPCMP;
-
-	extern void xVMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
-	extern void xVMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);
-
 } // namespace x86Emitter

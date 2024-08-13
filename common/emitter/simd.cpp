@@ -30,52 +30,6 @@ namespace x86Emitter
 	// to the following condition: (xmm2/m128 AND NOT xmm1) == 0;
 	const xImplSimd_DestRegSSE xPTEST = {0x66, 0x1738};
 
-	// =====================================================================================================
-	// SSE Conversion Operations, as looney as they are.
-	// =====================================================================================================
-	// These enforce pointer strictness for Indirect forms, due to the otherwise completely confusing
-	// nature of the functions.  (so if a function expects an m32, you must use (u32*) or ptr32[]).
-	//
-
-	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0x00, 0x5b, to, from); }
-	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from) { xOpWrite0F(0x00, 0x5b, to, from); }
-
-	__fi void xCVTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0xf2, 0xe6, to, from); }
-	__fi void xCVTPD2DQ(const xRegisterSSE& to, const xIndirect128& from) { xOpWrite0F(0xf2, 0xe6, to, from); }
-	__fi void xCVTPD2PS(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x5a, to, from); }
-	__fi void xCVTPD2PS(const xRegisterSSE& to, const xIndirect128& from) { xOpWrite0F(0x66, 0x5a, to, from); }
-
-	__fi void xCVTPI2PD(const xRegisterSSE& to, const xIndirect64& from) { xOpWrite0F(0x66, 0x2a, to, from); }
-	__fi void xCVTPI2PS(const xRegisterSSE& to, const xIndirect64& from) { xOpWrite0F(0x00, 0x2a, to, from); }
-
-	__fi void xCVTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x5b, to, from); }
-	__fi void xCVTPS2DQ(const xRegisterSSE& to, const xIndirect128& from) { xOpWrite0F(0x66, 0x5b, to, from); }
-	__fi void xCVTPS2PD(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0x00, 0x5a, to, from); }
-	__fi void xCVTPS2PD(const xRegisterSSE& to, const xIndirect64& from) { xOpWrite0F(0x00, 0x5a, to, from); }
-
-	__fi void xCVTSD2SI(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0xf2, 0x2d, to, from); }
-	__fi void xCVTSD2SI(const xRegister32or64& to, const xIndirect64& from) { xOpWrite0F(0xf2, 0x2d, to, from); }
-	__fi void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0xf2, 0x5a, to, from); }
-	__fi void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from) { xOpWrite0F(0xf2, 0x5a, to, from); }
-	__fi void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from) { xOpWrite0F(0xf3, 0x2a, to, from); }
-	__fi void xCVTSI2SS(const xRegisterSSE& to, const xIndirect32& from) { xOpWrite0F(0xf3, 0x2a, to, from); }
-
-	__fi void xCVTSS2SD(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0xf3, 0x5a, to, from); }
-	__fi void xCVTSS2SD(const xRegisterSSE& to, const xIndirect32& from) { xOpWrite0F(0xf3, 0x5a, to, from); }
-	__fi void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0xf3, 0x2d, to, from); }
-	__fi void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from) { xOpWrite0F(0xf3, 0x2d, to, from); }
-
-	__fi void xCVTTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xe6, to, from); }
-	__fi void xCVTTPD2DQ(const xRegisterSSE& to, const xIndirect128& from) { xOpWrite0F(0x66, 0xe6, to, from); }
-	__fi void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0xf3, 0x5b, to, from); }
-	__fi void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from) { xOpWrite0F(0xf3, 0x5b, to, from); }
-
-	__fi void xCVTTSD2SI(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0xf2, 0x2c, to, from); }
-	__fi void xCVTTSD2SI(const xRegister32or64& to, const xIndirect64& from) { xOpWrite0F(0xf2, 0x2c, to, from); }
-	__fi void xCVTTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0xf3, 0x2c, to, from); }
-	__fi void xCVTTSS2SI(const xRegister32or64& to, const xIndirect32& from) { xOpWrite0F(0xf3, 0x2c, to, from); }
-
-
 	// ------------------------------------------------------------------------
 
 	void xImplSimd_DestRegSSE::operator()(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(Prefix, Opcode, to, from); }
@@ -537,38 +491,6 @@ namespace x86Emitter
 	const xImplSimd_DestRegSSE xMOVSHDUP = {0xf3, 0x16};
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	// MMX Mov Instructions (MOVD, MOVQ, MOVSS).
-	//
-	// Notes:
-	//  * Some of the functions have been renamed to more clearly reflect what they actually
-	//    do.  Namely we've affixed "ZX" to several MOVs that take a register as a destination
-	//    since that's what they do (MOVD clears upper 32/96 bits, etc).
-	//
-	//  * MOVD has valid forms for MMX and XMM registers.
-	//
-
-	__fi void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from) { xOpWrite0F(0x66, 0x6e, to, from); }
-	__fi void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src) { xOpWrite0F(0x66, 0x6e, to, src); }
-
-	__fi void xMOVD(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x7e, from, to); }
-	__fi void xMOVD(const xIndirectVoid& dest, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x7e, from, dest); }
-
-	// Moves from XMM to XMM, with the *upper 64 bits* of the destination register
-	// being cleared to zero.
-	__fi void xMOVQZX(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0xf3, 0x7e, to, from); }
-
-	// Moves from XMM to XMM, with the *upper 64 bits* of the destination register
-	// being cleared to zero.
-	__fi void xMOVQZX(const xRegisterSSE& to, const xIndirectVoid& src) { xOpWrite0F(0xf3, 0x7e, to, src); }
-
-	// Moves from XMM to XMM, with the *upper 64 bits* of the destination register
-	// being cleared to zero.
-	__fi void xMOVQZX(const xRegisterSSE& to, const void* src) { xOpWrite0F(0xf3, 0x7e, to, src); }
-
-	// Moves lower quad of XMM to ptr64 (no bits are cleared)
-	__fi void xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xd6, from, dest); }
-
-	//////////////////////////////////////////////////////////////////////////////////////////
 	//
 
 #define IMPLEMENT_xMOVS(ssd, prefix) \
@@ -582,11 +504,6 @@ namespace x86Emitter
 
 	IMPLEMENT_xMOVS(SS, 0xf3)
 	IMPLEMENT_xMOVS(SD, 0xf2)
-
-	// ------------------------------------------------------------------------
-
-	__fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0, 0x50, to, from); }
-	__fi void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x50, to, from, true); }
 
 	// --------------------------------------------------------------------------------------
 	//  INSERTPS / EXTRACTPS   [SSE4.1 only!]
