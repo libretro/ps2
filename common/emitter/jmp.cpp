@@ -160,34 +160,18 @@ namespace x86Emitter
 	__emitinline s32* xJcc32(JccComparisonType comparison, s32 displacement)
 	{
 		if (comparison == Jcc_Unconditional)
-		{
 			*(u8*)x86Ptr = 0xe9;
-			x86Ptr += sizeof(u8);
-		}
 		else
 		{
 			*(u8*)x86Ptr = 0x0f;
 			x86Ptr += sizeof(u8);
 			*(u8*)x86Ptr = 0x80 | comparison;
-			x86Ptr += sizeof(u8);
 		}
+		x86Ptr += sizeof(u8);
 		*(s32*)x86Ptr = displacement;
 		x86Ptr += sizeof(s32);
 
 		return ((s32*)x86Ptr) - 1;
-	}
-
-	// ------------------------------------------------------------------------
-	// Emits a 32 bit jump, and returns a pointer to the 8 bit displacement.
-	// (displacements should be assigned relative to the end of the jump instruction,
-	// or in other words *(retval+1) )
-	__emitinline s8* xJcc8(JccComparisonType comparison, s8 displacement)
-	{
-		*(u8*)x86Ptr = (comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison);
-		x86Ptr += sizeof(u8);
-		*(s8*)x86Ptr = displacement;
-		x86Ptr += sizeof(s8);
-		return (s8*)x86Ptr - 1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -203,14 +187,21 @@ namespace x86Emitter
 		sptr displacement8 = (sptr)target - (sptr)(x86Ptr + 2);
 
 		if (is_s8(displacement8))
-			xJcc8(comparison, displacement8);
+		{
+			// Emits a 32 bit jump.
+			// (displacements should be assigned relative to the end of the jump instruction,
+			// or in other words *(retval+1) )
+			*(u8*)x86Ptr = (comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison);
+			x86Ptr += sizeof(u8);
+			*(s8*)x86Ptr = displacement8;
+			x86Ptr += sizeof(s8);
+		}
 		else
 		{
 			// Perform a 32 bit jump instead. :(
-			s32* bah = xJcc32(comparison, 0);
+			s32* bah      = xJcc32(comparison, 0);
 			sptr distance = (sptr)target - (sptr)x86Ptr;
-
-			*bah = (s32)distance;
+			*bah          = (s32)distance;
 		}
 	}
 

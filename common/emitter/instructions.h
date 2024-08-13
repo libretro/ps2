@@ -261,7 +261,6 @@ namespace x86Emitter
 	// JMP / Jcc Instructions!
 
 	extern void xJccKnownTarget(JccComparisonType comparison, const void* target);
-	extern s8* xJcc8(JccComparisonType comparison, s8 displacement);
 	extern s32* xJcc32(JccComparisonType comparison, s32 displacement);
 
 // ------------------------------------------------------------------------
