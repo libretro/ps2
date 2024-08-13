@@ -203,7 +203,7 @@ namespace x86Emitter
 		else
 		{
 			// Perform a 32 bit jump instead. :(
-			s32* bah = xJcc32(comparison);
+			s32* bah = xJcc32(comparison, 0);
 			sptr distance = (sptr)target - (sptr)x86Ptr;
 
 			*bah = (s32)distance;

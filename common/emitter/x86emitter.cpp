@@ -904,6 +904,7 @@ const xRegister32
 			xWrite32(imm);
 		}
 	}
+
 	__fi void xPUSH(xRegister32or64 from)
 	{
 		EmitRexImplicitlyWide(from);
@@ -912,16 +913,6 @@ const xRegister32
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//
-
-	__fi void xRET() { xWrite8(0xC3); }
-	__fi void xCBW() { xWrite16(0x9866); }
-	__fi void xCWD() { xWrite8(0x98); }
-	__fi void xCDQ() { xWrite8(0x99); }
-	__fi void xCWDE() { xWrite8(0x98); }
-	__fi void xCDQE() { xWrite16(0x9848); }
-
-	// NOP 1-byte
-	__fi void xNOP() { xWrite8(0x90); }
 
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{

@@ -544,7 +544,7 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 		}
 		else
 		{
-			s32* ajmp = xJcc32((JccComparisonType)JMPcc);
+			s32* ajmp = xJcc32((JccComparisonType)JMPcc, 0);
 			u32 bPC = iPC; // mVUcompile can modify iPC, mVUpBlock, and mVUregs so back them up
 
 			microRegInfo regBackup;

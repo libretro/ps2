@@ -65,6 +65,46 @@
 // Load Streaming SIMD Extension Control/Status from Mem32.
 #define xLDMXCSR(src) xOpWrite0F(0, 0xae, 2, src)
 
+// ------------------------------------------------------------------------
+// Conditional jumps to fixed targets.
+// Jumps accept any pointer as a valid target (function or data), and will generate either
+// 8 or 32 bit displacement versions of the jump, depending on relative displacement of
+// the target (efficient!)
+
+#define xJE(func)  xJcc(Jcc_Equal, (void*)(uptr)func) 
+#define xJZ(func)  xJcc(Jcc_Zero,  (void*)(uptr)func)
+#define xJNE(func) xJcc(Jcc_NotEqual, (void*)(uptr)func)
+#define xJNZ(func) xJcc(Jcc_NotZero, (void*)(uptr)func)
+#define xJO(func)  xJcc(Jcc_Overflow, (void*)(uptr)func)
+#define xJNO(func) xJcc(Jcc_NotOverflow, (void*)(uptr)func)
+#define xJC(func)  xJcc(Jcc_Carry, (void*)(uptr)func)
+#define xJNC(func) xJcc(Jcc_NotCarry, (void*)(uptr)func)
+#define xJS(func)  xJcc(Jcc_Signed, (void*)(uptr)func)
+#define xJNS(func) xJcc(Jcc_Unsigned, (void*)(uptr)func)
+#define xJPE(func) xJcc(Jcc_ParityEven, (void*)(uptr)func)
+#define xJPO(func) xJcc(Jcc_ParityOdd, (void*)(uptr)func)
+#define xJL(func)  xJcc(Jcc_Less, (void*)(uptr)func)
+#define xJLE(func) xJcc(Jcc_LessOrEqual, (void*)(uptr)func)
+#define xJG(func)  xJcc(Jcc_Greater, (void*)(uptr)func)
+#define xJGE(func) xJcc(Jcc_GreaterOrEqual, (void*)(uptr)func)
+#define xJB(func)  xJcc(Jcc_Below, (void*)(uptr)func)
+#define xJBE(func) xJcc(Jcc_BelowOrEqual, (void*)(uptr)func)
+#define xJA(func)  xJcc(Jcc_Above, (void*)(uptr)func)
+#define xJAE(func) xJcc(Jcc_AboveOrEqual, (void*)(uptr)func)
+
+// ----- Miscellaneous Instructions  -----
+// Various Instructions with no parameter and no special encoding logic.
+
+#define xRET() xWrite8(0xC3)
+#define xCBW() xWrite16(0x9866)
+#define xCWD() xWrite8(0x98)
+#define xCDQ() xWrite8(0x99)
+#define xCWDE() xWrite8(0x98)
+#define xCDQE() xWrite16(0x9848)
+
+// NOP 1-byte
+#define xNOP() xWrite8(0x90)
+
 namespace x86Emitter
 {
 	// ------------------------------------------------------------------------
@@ -175,19 +215,6 @@ namespace x86Emitter
 	extern void xPUSH(u32 imm);
 	extern void xPUSH(xRegister32or64 from);
 
-	// ----- Miscellaneous Instructions  -----
-	// Various Instructions with no parameter and no special encoding logic.
-
-	extern void xRET();
-	extern void xCBW();
-	extern void xCWD();
-	extern void xCDQ();
-	extern void xCWDE();
-	extern void xCDQE();
-
-	// NOP 1-byte
-	extern void xNOP();
-
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to calculate base+offset taking into account the limitations of x86-64's RIP-relative addressing
 	/// (Will either return `base+offset` or LEA `base` into `tmpRegister` and return `tmpRegister+offset`)
@@ -221,123 +248,11 @@ namespace x86Emitter
 	// JMP / Jcc Instructions!
 
 	extern void xJcc(JccComparisonType comparison, const void* target);
-	extern s8* xJcc8(JccComparisonType comparison = Jcc_Unconditional, s8 displacement = 0);
-	extern s32* xJcc32(JccComparisonType comparison = Jcc_Unconditional, s32 displacement = 0);
+	extern s8* xJcc8(JccComparisonType comparison, s8 displacement);
+	extern s32* xJcc32(JccComparisonType comparison, s32 displacement);
 
-	// ------------------------------------------------------------------------
-	// Conditional jumps to fixed targets.
-	// Jumps accept any pointer as a valid target (function or data), and will generate either
-	// 8 or 32 bit displacement versions of the jump, depending on relative displacement of
-	// the target (efficient!)
-	//
-
-	template <typename T>
-	__fi void xJE(T* func)
-	{
-		xJcc(Jcc_Equal, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJZ(T* func)
-	{
-		xJcc(Jcc_Zero, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNE(T* func)
-	{
-		xJcc(Jcc_NotEqual, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNZ(T* func)
-	{
-		xJcc(Jcc_NotZero, (void*)(uptr)func);
-	}
-
-	template <typename T>
-	__fi void xJO(T* func)
-	{
-		xJcc(Jcc_Overflow, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNO(T* func)
-	{
-		xJcc(Jcc_NotOverflow, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJC(T* func)
-	{
-		xJcc(Jcc_Carry, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNC(T* func)
-	{
-		xJcc(Jcc_NotCarry, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJS(T* func)
-	{
-		xJcc(Jcc_Signed, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNS(T* func)
-	{
-		xJcc(Jcc_Unsigned, (void*)(uptr)func);
-	}
-
-	template <typename T>
-	__fi void xJPE(T* func)
-	{
-		xJcc(Jcc_ParityEven, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJPO(T* func)
-	{
-		xJcc(Jcc_ParityOdd, (void*)(uptr)func);
-	}
-
-	template <typename T>
-	__fi void xJL(T* func)
-	{
-		xJcc(Jcc_Less, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJLE(T* func)
-	{
-		xJcc(Jcc_LessOrEqual, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJG(T* func)
-	{
-		xJcc(Jcc_Greater, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJGE(T* func)
-	{
-		xJcc(Jcc_GreaterOrEqual, (void*)(uptr)func);
-	}
-
-	template <typename T>
-	__fi void xJB(T* func)
-	{
-		xJcc(Jcc_Below, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJBE(T* func)
-	{
-		xJcc(Jcc_BelowOrEqual, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJA(T* func)
-	{
-		xJcc(Jcc_Above, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJAE(T* func)
-	{
-		xJcc(Jcc_AboveOrEqual, (void*)(uptr)func);
-	}
-
-	// ------------------------------------------------------------------------
-	// Forward Jump Helpers (act as labels!)
+// ------------------------------------------------------------------------
+// Forward Jump Helpers (act as labels!)
 
 #define DEFINE_FORWARD_JUMP(label, cond) \
 	template <typename OperandType> \
@@ -345,9 +260,7 @@ namespace x86Emitter
 	{ \
 	public: \
 		xForward##label() \
-			: xForwardJump<OperandType>(cond) \
-		{ \
-		} \
+			: xForwardJump<OperandType>(cond) { }\
 	};
 
 	// ------------------------------------------------------------------------

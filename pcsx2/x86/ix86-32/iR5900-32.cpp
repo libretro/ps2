@@ -1118,7 +1118,7 @@ static void iBranchTest(u32 newpc)
 		if (newpc == 0xffffffff)
 			xJS(DispatcherReg);
 		else
-			recBlocks.Link(HWADDR(newpc), xJcc32(Jcc_Signed));
+			recBlocks.Link(HWADDR(newpc), xJcc32(Jcc_Signed, 0));
 	}
 	xJMP((const void*)DispatcherEvent);
 }
@@ -1613,7 +1613,7 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	xMOV(ptr32[&cpuRegs.GPR.r[reg].UL[0]], edx); // write back new value of v0
 	xJNZ((void*)DispatcherEvent); // jump to dispatcher if new v0 is not zero (i.e. an event)
 	xMOV(ptr32[&cpuRegs.pc], s_nEndBlock); // otherwise end of loop
-	recBlocks.Link(HWADDR(s_nEndBlock), xJcc32());
+	recBlocks.Link(HWADDR(s_nEndBlock), xJcc32(Jcc_Unconditional, 0));
 
 	g_branch = 1;
 	pc = s_nEndBlock;
@@ -2026,7 +2026,7 @@ StartRecomp:
 			{
 				xMOV(ptr32[&cpuRegs.pc], pc);
 				xADD(ptr32[&cpuRegs.cycle], scaleblockcycles());
-				recBlocks.Link(HWADDR(pc), xJcc32());
+				recBlocks.Link(HWADDR(pc), xJcc32(Jcc_Unconditional, 0));
 			}
 		}
 	}
