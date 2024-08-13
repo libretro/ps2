@@ -265,7 +265,7 @@ static void mVUGenerateCompareState(mV)
 		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
 		xVMOVUPS(ymm0, ptr[arg1reg]);
 		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg]);
-		xVPMOVMSKB(eax, ymm0);
+		xOpWriteC5(0x66, 0xd7, eax, xRegister32(), ymm0);
 		xXOR(eax, 0xffffffff);
 		xForwardJNZ8 exitPoint;
 
@@ -275,7 +275,7 @@ static void mVUGenerateCompareState(mV)
 		xVPCMP.EQD(ymm1, ymm1, ptr[arg2reg + 0x40]);
 		xVPAND(ymm0, ymm0, ymm1);
 
-		xVPMOVMSKB(eax, ymm0);
+		xOpWriteC5(0x66, 0xd7, eax, xRegister32(), ymm0);
 		xNOT(eax);
 
 		exitPoint.SetTarget();

@@ -40,31 +40,6 @@
 	*(u8*)x86Ptr = 0x77; \
 	x86Ptr += sizeof(u8)
 
-#define xVPMOVMSKB(to, from) xOpWriteC5(0x66, 0xd7, to, xRegister32(), from)
-
-// xMASKMOV:
-// Selectively write bytes from mm1/xmm1 to memory location using the byte mask in mm2/xmm2.
-// The default memory location is specified by DS:EDI.  The most significant bit in each byte
-// of the mask operand determines whether the corresponding byte in the source operand is
-// written to the corresponding byte location in memory.
-#define xMASKMOV(to, from) xOpWrite0F(0x66, 0xf7, to, from)
-
-// xPMOVMSKB:
-// Creates a mask made up of the most significant bit of each byte of the source
-// operand and stores the result in the low byte or word of the destination operand.
-// Upper bits of the destination are cleared to zero.
-//
-// When operating on a 64-bit (MMX) source, the byte mask is 8 bits; when operating on
-// 128-bit (SSE) source, the byte mask is 16-bits.
-//
-#define xPMOVMSKB(to, from) xOpWrite0F(0x66, 0xd7, to, from)
-
-// [sSSE-3] Concatenates dest and source operands into an intermediate composite,
-// shifts the composite at byte granularity to the right by a constant immediate,
-// and extracts the right-aligned result into the destination.
-//
-#define xPALIGNR(to, from, imm8) xOpWrite0F(0x66, 0x0f3a, to, from, imm8)
-
 // Load Streaming SIMD Extension Control/Status from Mem32.
 #define xLDMXCSR(src) xOpWrite0F(0, 0xae, 2, src)
 
@@ -97,12 +72,6 @@
 #define xJBE(func) xJccKnownTarget(Jcc_BelowOrEqual, (void*)(uptr)func, false)
 #define xJA(func)  xJccKnownTarget(Jcc_Above, (void*)(uptr)func, false)
 #define xJAE(func) xJccKnownTarget(Jcc_AboveOrEqual, (void*)(uptr)func, false)
-
-// ----- Miscellaneous Instructions  -----
-// Various Instructions with no parameter and no special encoding logic.
-
-#define xVMOVMSKPS(to, from) xOpWriteC5(0x00, 0x50, to, xRegister32(), from)
-#define xVMOVMSKPD(to, from) xOpWriteC5(0x66, 0x50, to, xRegister32(), from)
 
 /* =====================================================================================================
  * SSE Conversion Operations, as looney as they are.
@@ -148,7 +117,6 @@
 /* ===================================================================================================== */
 
 #define xMOVMSKPS(to, from) xOpWrite0F(0, 0x50, to, from)
-#define xMOVMSKPD(to, from) xOpWrite0F(0x66, 0x50, to, from, true)
 
 namespace x86Emitter
 {
