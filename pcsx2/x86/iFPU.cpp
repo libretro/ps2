@@ -1118,7 +1118,9 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	xAND.PS(xRegisterSSE(regd), ptr[&s_neg[0]]); // Get the sign bit
 	xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum
 	//xMOVSSZX(xRegisterSSE(regd), ptr[&g_maxvals[0]]);
-	bjmp32 = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	bjmp32  = (u32*)(x86Ptr - 4);
 
 	*ajmp32 = (x86Ptr - (u8*)ajmp32) - 4;
 
@@ -1836,7 +1838,9 @@ static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function 
 	/*--- Make regd +/- Maximum ---*/
 	xAND.PS(xRegisterSSE(regd), ptr[&s_neg[0]]); // Get the sign bit
 	xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum
-	pjmp32 = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	pjmp32   = (u32*)(x86Ptr - 4);
 	*pjmp1   = (u8)((x86Ptr - pjmp1) - 1);
 
 	if (CHECK_FPU_EXTRA_OVERFLOW)

@@ -40,8 +40,6 @@
 #define JNZ32 0x85	/* jnz rel32 */
 #define JNE32 0x85	/* jne rel32 */
 
-extern u32* JMP32(uptr to); /* jmp rel32 */
-
 //*********************
 // SSE1  instructions *
 //*********************

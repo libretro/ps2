@@ -23,7 +23,6 @@ target_sources(common PRIVATE
 	emitter/avx.cpp
 	emitter/groups.cpp
 	emitter/jmp.cpp
-	emitter/legacy.cpp
 	emitter/legacy_sse.cpp
 	emitter/movs.cpp
 	emitter/simd.cpp

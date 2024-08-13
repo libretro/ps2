@@ -48,6 +48,14 @@ u32 g_psxMaxRecMem = 0;
 uptr psxRecLUT[0x10000];
 u32 psxhwLUT[0x10000];
 
+/* jmp rel32 */
+static u32* JMP32(uptr to)
+{
+	xWrite8(0xE9);
+	xWrite32(to);
+	return (u32*)(x86Ptr - 4);
+}
+
 static __fi u32 HWADDR(u32 mem) { return psxhwLUT[mem >> 16] + mem; }
 
 static RecompiledCodeReserve* recMem = NULL;

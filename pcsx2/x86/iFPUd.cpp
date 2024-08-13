@@ -184,7 +184,9 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //simply convert
 
-	end = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	end           = (u32*)(x86Ptr - 4);
 
 	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
 	xUCOMI.SD(xRegisterSSE(absreg), ptr[&s_const.dbl_ps2_overflow]);
@@ -196,7 +198,9 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //convert
 	xPADD.D(xRegisterSSE(reg), ptr[s_const.one_exp]); //raise exponent
 
-	end2           = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	end2           = (u32*)(x86Ptr - 4);
 	*to_overflow   = (u8)((x86Ptr - to_overflow) - 1);
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg));
 	xOR.PS(xRegisterSSE(reg), ptr[&s_const.pos]); //clamp
@@ -423,7 +427,9 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 		xWrite8(0);
 		noHack     = (u8*)(x86Ptr - 1);
 		xMOVAPS(xRegisterSSE(regd), ptr128[result]);
-		endMul     = JMP32(0);
+		xWrite8(0xE9);
+		xWrite32(0);
+		endMul     = (u32*)(x86Ptr - 4);
 		*noHack    = (u8)((x86Ptr - noHack) - 1);
 	}
 
@@ -652,7 +658,9 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	//--- Make regd +/- Maximum ---
 	xXOR.PS(xRegisterSSE(regd), xRegisterSSE(regt)); // Make regd Positive or Negative
 	SetMaxValue(regd); //clamp to max
-	bjmp32 = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	bjmp32  = (u32*)(x86Ptr - 4);
 
 	*ajmp32 = (x86Ptr - (u8*)ajmp32) - 4;
 
@@ -748,7 +756,9 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagO | FPUflagSO);
 	if (acc)
 		xOR(ptr32[&fpuRegs.ACCflag], 1);
-	skipall = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	skipall = (u32*)(x86Ptr - 4);
 
 	// PERFORM THE ACCUMULATION AND TEST RESULT. CONVERT TO SINGLE
 
@@ -1032,7 +1042,9 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	*qjmp2 = (u8)((x86Ptr - qjmp2) - 1);
 
 	SetMaxValue(regd); //clamp to max
-	pjmp32 = JMP32(0);
+	xWrite8(0xE9);
+	xWrite32(0);
+	pjmp32 = (u32*)(x86Ptr - 4);
 	*pjmp1 = (u8)((x86Ptr - pjmp1) - 1);
 
 	ToDouble(regt);
