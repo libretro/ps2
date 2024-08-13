@@ -95,7 +95,8 @@ void mVUdispatcherAB(mV)
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 // Generates the code for resuming/exit xgkick
@@ -134,7 +135,8 @@ void mVUdispatcherCD(mV)
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 static void mVUGenerateWaitMTVU(mV)
@@ -207,7 +209,8 @@ static void mVUGenerateWaitMTVU(mV)
 		xPOP(xRegister64(i));
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 static void mVUGenerateCopyPipelineState(mV)
@@ -243,7 +246,8 @@ static void mVUGenerateCopyPipelineState(mV)
 		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 80u], xmm5);
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 //------------------------------------------------------------------
@@ -308,7 +312,8 @@ static void mVUGenerateCompareState(mV)
 		exitPoint.SetTarget();
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 //------------------------------------------------------------------

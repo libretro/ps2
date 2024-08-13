@@ -42,8 +42,10 @@ namespace x86Emitter
 				// always 5 bytes (16 bit calls are bad mojo, so no bother to do special logic).
 
 				sptr dest = (sptr)func - ((sptr)x86Ptr + 5);
-				xWrite8(0xe8);
-				xWrite32(dest);
+				*(u8*)x86Ptr = 0xe8;
+				x86Ptr += sizeof(u8);
+				*(u32*)x86Ptr = dest;
+				x86Ptr += sizeof(u32);
 			}
 		}
 	};

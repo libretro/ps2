@@ -45,7 +45,8 @@ namespace x86Emitter
 	{
 		// Jumps are always wide and don't need the rex.W
 		EmitRex(0, xIndirect32(src.Base, src.Index, 1, 0));
-		xWrite8(0xff);
+		*(u8*)x86Ptr = 0xff;
+		x86Ptr += sizeof(u8);
 		EmitSibMagic(isJmp ? 4 : 2, src);
 	}
 
@@ -159,11 +160,16 @@ namespace x86Emitter
 	__emitinline s32* xJcc32(JccComparisonType comparison, s32 displacement)
 	{
 		if (comparison == Jcc_Unconditional)
-			xWrite8(0xe9);
+		{
+			*(u8*)x86Ptr = 0xe9;
+			x86Ptr += sizeof(u8);
+		}
 		else
 		{
-			xWrite8(0x0f);
-			xWrite8(0x80 | comparison);
+			*(u8*)x86Ptr = 0x0f;
+			x86Ptr += sizeof(u8);
+			*(u8*)x86Ptr = 0x80 | comparison;
+			x86Ptr += sizeof(u8);
 		}
 		*(s32*)x86Ptr = displacement;
 		x86Ptr += sizeof(s32);
@@ -177,7 +183,8 @@ namespace x86Emitter
 	// or in other words *(retval+1) )
 	__emitinline s8* xJcc8(JccComparisonType comparison, s8 displacement)
 	{
-		xWrite8((comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison));
+		*(u8*)x86Ptr = (comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison);
+		x86Ptr += sizeof(u8);
 		*(s8*)x86Ptr = displacement;
 		x86Ptr += sizeof(s8);
 		return (s8*)x86Ptr - 1;
@@ -217,15 +224,23 @@ namespace x86Emitter
                                    ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
 
 		if (opsize == 1)
-			xWrite8((cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype));
+		{
+			*(u8*)x86Ptr = (cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype);
+			x86Ptr += sizeof(u8);
+		}
 		else
 		{
 			if (cctype == Jcc_Unconditional)
-				xWrite8(0xe9);
+			{
+				*(u8*)x86Ptr = 0xe9;
+				x86Ptr += sizeof(u8);
+			}
 			else
 			{
-				xWrite8(0x0f);
-				xWrite8(0x80 | cctype);
+				*(u8*)x86Ptr = 0x0f;
+				x86Ptr += sizeof(u8);
+				*(u8*)x86Ptr = 0x80 | cctype;
+				x86Ptr += sizeof(u8);
 			}
 		}
 

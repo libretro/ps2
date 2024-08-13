@@ -51,8 +51,10 @@ u32 psxhwLUT[0x10000];
 /* jmp rel32 */
 static u32* JMP32(uptr to)
 {
-	xWrite8(0xE9);
-	xWrite32(to);
+	*(u8*)x86Ptr = 0xE9;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = to;
+	x86Ptr += sizeof(u32);
 	return (u32*)(x86Ptr - 4);
 }
 
@@ -176,7 +178,8 @@ static const void* _DynGen_EnterRecompiledCode(void)
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 
 	return retval;
 }
@@ -1106,8 +1109,10 @@ void rpsxSYSCALL(void)
 	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	xWrite8(JE8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JE8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	j8Ptr = (u8*)(x86Ptr - 1);
 
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
@@ -1132,8 +1137,10 @@ void rpsxBREAK(void)
 	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
 
 	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	xWrite8(JE8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JE8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	j8Ptr = (u8*)(x86Ptr - 1);
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);

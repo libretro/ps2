@@ -301,7 +301,10 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 		else if (bits == 2)
 		{
 			if (sign)
-				xCDQE();
+			{
+				*(u16*)x86Ptr = 0x9848;
+				x86Ptr += sizeof(u16);
+			}
 		}
 	}
 
@@ -311,7 +314,8 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 	xADD(rsp, 8);
 #endif
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 // One-time initialization procedure.  Multiple subsequent calls during the lifespan of the
@@ -419,7 +423,10 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 
 	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
 	for (u32 i = 0; i < padding; i++)
-		xNOP();
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
 
 	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
@@ -564,7 +571,10 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 
 	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
 	for (u32 i = 0; i < padding; i++)
-		xNOP();
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
 
 	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
@@ -659,7 +669,10 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 
 	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
 	for (u32 i = 0; i < padding; i++)
-		xNOP();
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
 
 	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
@@ -930,5 +943,8 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 	// fill the rest of it with nops, if any
 	for (u32 i = static_cast<u32>((uptr)x86Ptr - code_address); i < code_size; i++)
-		xNOP();
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
 }

@@ -151,7 +151,8 @@ namespace x86Emitter
 		{
 			u8 opcode = 0xb8 | to.Id;
 			xOpAccWrite(to.GetPrefix16(), opcode, 0, to);
-			xWrite64(imm);
+			*(u64*)x86Ptr = imm;
+			x86Ptr += sizeof(u64);
 		}
 	}
 

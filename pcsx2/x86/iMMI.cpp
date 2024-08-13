@@ -107,15 +107,19 @@ void recPLZCW(void)
 
 	xMOV(ecx, 31);
 	xTEST(eax, eax); // TEST sets the sign flag accordingly.
-	xWrite8(JNS8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JNS8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	label_notSigned  = (u8*)(x86Ptr - 1);
 	xNOT(eax);
 	*label_notSigned = (u8)((x86Ptr - label_notSigned) - 1);
 
 	xBSR(eax, eax);
-	xWrite8(JZ8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JZ8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	label_Zeroed = (u8*)(x86Ptr - 1); // If BSR sets the ZF, eax is "trash"
 	xSUB(ecx, eax);
 	xDEC(ecx); // PS2 doesn't count the first bit
@@ -141,15 +145,19 @@ void recPLZCW(void)
 
 	xMOV(ecx, 31);
 	xTEST(eax, eax); // TEST sets the sign flag accordingly.
-	xWrite8(JNS8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JNS8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	label_notSigned  = (u8*)(x86Ptr - 1);
 	xNOT(eax);
 	*label_notSigned = (u8)((x86Ptr - label_notSigned) - 1);
 
 	xBSR(eax, eax);
-	xWrite8(JZ8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JZ8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	label_Zeroed = (u8*)(x86Ptr - 1); // If BSR sets the ZF, eax is "trash"
 	xSUB(ecx, eax);
 	xDEC(ecx); // PS2 doesn't count the first bit

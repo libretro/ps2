@@ -40,10 +40,14 @@ namespace x86Emitter
 	__emitinline void xOpWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2, int extraRIPOffset)
 	{
 		if (prefix != 0)
-			xWrite8(prefix);
+		{
+			*(u8*)x86Ptr = prefix;
+			x86Ptr += sizeof(u8);
+		}
 		EmitRex(param1, param2);
 
-		xWrite8(opcode);
+		*(u8*)x86Ptr = opcode;
+		x86Ptr += sizeof(u8);
 
 		EmitSibMagic(param1, param2, extraRIPOffset);
 	}
@@ -52,10 +56,14 @@ namespace x86Emitter
 	__emitinline void xOpAccWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2)
 	{
 		if (prefix != 0)
-			xWrite8(prefix);
+		{
+			*(u8*)x86Ptr = prefix;
+			x86Ptr += sizeof(u8);
+		}
 		EmitRex(param1, param2);
 
-		xWrite8(opcode);
+		*(u8*)x86Ptr = opcode;
+		x86Ptr += sizeof(u8);
 	}
 
 
@@ -73,7 +81,10 @@ namespace x86Emitter
 	__emitinline void xOpWrite0F(u8 prefix, u16 opcode, const T1& param1, const T2& param2)
 	{
 		if (prefix != 0)
-			xWrite8(prefix);
+		{
+			*(u8*)x86Ptr = prefix;
+			x86Ptr += sizeof(u8);
+		}
 		EmitRex(param1, param2);
 
 		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
@@ -86,11 +97,16 @@ namespace x86Emitter
 		// generate an assertion.
 		if (is16BitOpcode)
 		{
-			xWrite8(0x0f);
-			xWrite16(opcode);
+			*(u8*)x86Ptr = 0x0f;
+			x86Ptr += sizeof(u8);
+			*(u16*)x86Ptr = opcode;
+			x86Ptr += sizeof(u16);
 		}
 		else
-			xWrite16((opcode << 8) | 0x0f);
+		{
+			*(u16*)x86Ptr = (opcode << 8) | 0x0f;
+			x86Ptr += sizeof(u16);
+		}
 
 		EmitSibMagic(param1, param2);
 	}
@@ -99,7 +115,10 @@ namespace x86Emitter
 	__emitinline void xOpWrite0F(u8 prefix, u16 opcode, const T1& param1, const T2& param2, u8 imm8)
 	{
 		if (prefix != 0)
-			xWrite8(prefix);
+		{
+			*(u8*)x86Ptr = prefix;
+			x86Ptr += sizeof(u8);
+		}
 		EmitRex(param1, param2);
 
 		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
@@ -112,14 +131,20 @@ namespace x86Emitter
 		// generate an assertion.
 		if (is16BitOpcode)
 		{
-			xWrite8(0x0f);
-			xWrite16(opcode);
+			*(u8*)x86Ptr = 0x0f;
+			x86Ptr += sizeof(u8);
+			*(u16*)x86Ptr = opcode;
+			x86Ptr += sizeof(u16);
 		}
 		else
-			xWrite16((opcode << 8) | 0x0f);
+		{
+			*(u16*)x86Ptr = (opcode << 8) | 0x0f;
+			x86Ptr += sizeof(u16);
+		}
 
 		EmitSibMagic(param1, param2, 1);
-		xWrite8(imm8);
+		*(u8*)x86Ptr = imm8;
+		x86Ptr += sizeof(u8);
 	}
 
 	// VEX 2 Bytes Prefix
@@ -145,9 +170,12 @@ namespace x86Emitter
 			prefix == 0x66 ? 1 :
                              0;
 
-		xWrite8(0xC5);
-		xWrite8(nR | nv | L | p);
-		xWrite8(opcode);
+		*(u8*)x86Ptr = 0xC5;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = nR | nv | L | p;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = opcode;
+		x86Ptr += sizeof(u8);
 		EmitSibMagic(param1, param3);
 	}
 

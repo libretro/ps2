@@ -112,48 +112,56 @@ namespace x86Emitter
 	void xImplAVX_CmpFloatHelper::PS(const xRegisterSSE& to, const xRegisterSSE& from1, const xRegisterSSE& from2) const
 	{
 		xOpWriteC5(0x00, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::PS(const xRegisterSSE& to, const xRegisterSSE& from1, const xIndirectVoid& from2) const
 	{
 		xOpWriteC5(0x00, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::PD(const xRegisterSSE& to, const xRegisterSSE& from1, const xIndirectVoid& from2) const
 	{
 		xOpWriteC5(0x66, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::PD(const xRegisterSSE& to, const xRegisterSSE& from1, const xRegisterSSE& from2) const
 	{
 		xOpWriteC5(0x66, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::SS(const xRegisterSSE& to, const xRegisterSSE& from1, const xRegisterSSE& from2) const
 	{
 		xOpWriteC5(0xF3, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::SS(const xRegisterSSE& to, const xRegisterSSE& from1, const xIndirectVoid& from2) const
 	{
 		xOpWriteC5(0xF3, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::SD(const xRegisterSSE& to, const xRegisterSSE& from1, const xIndirectVoid& from2) const
 	{
 		xOpWriteC5(0xF2, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplAVX_CmpFloatHelper::SD(const xRegisterSSE& to, const xRegisterSSE& from1, const xRegisterSSE& from2) const
 	{
 		xOpWriteC5(0xF2, 0xC2, to, from1, from2);
-		xWrite8(static_cast<u8>(CType));
+		*(u8*)x86Ptr = static_cast<u8>(CType);
+		x86Ptr += sizeof(u8);
 	}
 } // namespace x86Emitter

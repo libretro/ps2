@@ -33,9 +33,12 @@
 
 // rather than dealing with nonexistant operands..
 #define xVZEROUPPER() \
-	xWrite8(0xc5); \
-	xWrite8(0xf8); \
-	xWrite8(0x77)
+	*(u8*)x86Ptr = 0xc5; \
+	x86Ptr += sizeof(u8); \
+	*(u8*)x86Ptr = 0xf8; \
+	x86Ptr += sizeof(u8); \
+	*(u8*)x86Ptr = 0x77; \
+	x86Ptr += sizeof(u8)
 
 #define xVPMOVMSKB(to, from) xOpWriteC5(0x66, 0xd7, to, xRegister32(), from)
 
@@ -97,16 +100,6 @@
 
 // ----- Miscellaneous Instructions  -----
 // Various Instructions with no parameter and no special encoding logic.
-
-#define xRET() xWrite8(0xC3)
-#define xCBW() xWrite16(0x9866)
-#define xCWD() xWrite8(0x98)
-#define xCDQ() xWrite8(0x99)
-#define xCWDE() xWrite8(0x98)
-#define xCDQE() xWrite16(0x9848)
-
-// NOP 1-byte
-#define xNOP() xWrite8(0x90)
 
 #define xVMOVMSKPS(to, from) xOpWriteC5(0x00, 0x50, to, xRegister32(), from)
 #define xVMOVMSKPD(to, from) xOpWriteC5(0x66, 0x50, to, xRegister32(), from)

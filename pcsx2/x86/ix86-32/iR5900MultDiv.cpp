@@ -66,7 +66,8 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		if (xmmlo >= 0)
 		{
 			// we use CDQE over MOVSX because it's shorter.
-			xCDQE();
+			*(u16*)x86Ptr = 0x9848;
+			x86Ptr += sizeof(u16);
 			xPINSR.Q(xRegisterSSE(xmmlo), rax, static_cast<u8>(upper));
 		}
 		else
@@ -78,7 +79,8 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 			}
 			else
 			{
-				xCDQE();
+				*(u16*)x86Ptr = 0x9848;
+				x86Ptr += sizeof(u16);
 				eax_sign_extended = true;
 				xMOV(ptr64[&cpuRegs.LO.UD[upper]], rax);
 			}
@@ -125,7 +127,10 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		else
 		{
 			if (!eax_sign_extended)
-				xCDQE();
+			{
+				*(u16*)x86Ptr = 0x9848;
+				x86Ptr += sizeof(u16);
+			}
 			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
 		}
 	}
@@ -377,17 +382,23 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	{
 		u8 *cont1, *cont2;
 		xCMP(eax, 0x80000000);
-		xWrite8(JNE8);
-		xWrite8(0);
+		*(u8*)x86Ptr = JNE8;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
 		cont1       = (u8*)(x86Ptr - 1);
 		xCMP(divisor, 0xffffffff);
-		xWrite8(JNE8);
-		xWrite8(0);
+		*(u8*)x86Ptr = JNE8;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
 		cont2       = (u8*)(x86Ptr - 1);
 		//overflow case:
 		xXOR(edx, edx); //EAX remains 0x80000000
-		xWrite8(0xEB);
-		xWrite8(0);
+		*(u8*)x86Ptr = 0xEB;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
 		end1        = x86Ptr - 1;
 
 		*cont1      = (u8)((x86Ptr - cont1) - 1);
@@ -395,8 +406,10 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	}
 
 	xCMP(divisor, 0);
-	xWrite8(JNE8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JNE8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	cont3 = (u8*)(x86Ptr - 1);
 	//divide by zero
 	xMOV(edx, eax);
@@ -408,14 +421,17 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	}
 	else
 		xMOV(eax, 0xffffffff);
-	xWrite8(0xEB);
-	xWrite8(0);
+	*(u8*)x86Ptr = 0xEB;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	end2        = x86Ptr - 1;
 
 	*cont3      = (u8)((x86Ptr - cont3) - 1);
 	if (sign)
 	{
-		xCDQ();
+		*(u8*)x86Ptr = 0x99;
+		x86Ptr += sizeof(u8);
 		xDIV(divisor);
 	}
 	else
@@ -539,7 +555,8 @@ EERECOMPILE_CODERC0(DIVU1, /*XMMINFO_READS |*/ XMMINFO_READT);
 static void writeBackMAddToHiLoRd(int hiloID)
 {
 	// eax -> LO, edx -> HI
-	xCDQE();
+	*(u16*)x86Ptr = 0x9848;
+	x86Ptr += sizeof(u16);
 	if (_Rd_)
 	{
 		_eeOnWriteReg(_Rd_, 1);

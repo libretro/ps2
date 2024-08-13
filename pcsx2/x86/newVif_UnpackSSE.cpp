@@ -341,7 +341,8 @@ static void nVifGen(int usn, int mask, int curCycle)
 		ucall = (nVifCall)x86Ptr;
 		vpugen.xUnpack(i);
 		vpugen.xMovDest();
-		xRET();
+		*(u8*)x86Ptr = 0xC3;
+		x86Ptr += sizeof(u8);
 	}
 }
 

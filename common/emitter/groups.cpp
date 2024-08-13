@@ -171,7 +171,8 @@ namespace x86Emitter
 		else
 		{
 			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xc0 : 0xc1, InstType, to, 0);
-			xWrite8(imm);
+			*(u8*)x86Ptr = imm;
+			x86Ptr += sizeof(u8);
 		}
 	}
 
@@ -193,7 +194,8 @@ namespace x86Emitter
 		else
 		{
 			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xc0 : 0xc1, InstType, sibdest, 1);
-			xWrite8(imm);
+			*(u8*)x86Ptr = imm;
+			x86Ptr += sizeof(u8);
 		}
 	}
 
@@ -221,7 +223,10 @@ namespace x86Emitter
 		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
 
 		if (is_signed)
-			xWrite8((u8)imm);
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
 		else
 			to.xWriteImm(imm);
 	}
@@ -232,7 +237,10 @@ namespace x86Emitter
 		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
 
 		if (is_signed)
-			xWrite8((u8)imm);
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
 		else
 			to.xWriteImm(imm);
 	}
@@ -243,7 +251,10 @@ namespace x86Emitter
 		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
 
 		if (is_signed)
-			xWrite8((u8)imm);
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
 		else
 			to.xWriteImm(imm);
 	}
@@ -254,7 +265,10 @@ namespace x86Emitter
 		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
 
 		if (is_signed)
-			xWrite8((u8)imm);
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
 		else
 			to.xWriteImm(imm);
 	}

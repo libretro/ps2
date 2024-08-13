@@ -64,30 +64,6 @@ thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
 
 namespace x86Emitter
 {
-	__fi void xWrite8(u8 val)
-	{
-		*(u8*)x86Ptr = val;
-		x86Ptr += sizeof(u8);
-	}
-
-	__fi void xWrite16(u16 val)
-	{
-		*(u16*)x86Ptr = val;
-		x86Ptr += sizeof(u16);
-	}
-
-	__fi void xWrite32(u32 val)
-	{
-		*(u32*)x86Ptr = val;
-		x86Ptr += sizeof(u32);
-	}
-
-	__fi void xWrite64(u64 val)
-	{
-		*(u64*)x86Ptr = val;
-		x86Ptr += sizeof(u64);
-	}
-
 	// Empty initializers are due to frivolously pointless GCC errors (it demands the
 	// objects be initialized even though they have no actual variable members).
 
@@ -204,13 +180,16 @@ const xRegister32
 		// Can we use a rip-relative address?  (Prefer this over eiz because it's a byte shorter)
 		if (ripRelative == (s32)ripRelative)
 		{
-			xWrite8((regfield << 3) | ModRm_UseDisp32);
+			*(u8*)x86Ptr = (regfield << 3) | ModRm_UseDisp32;
+			x86Ptr += sizeof(u8);
 			displacement = ripRelative;
 		}
 		else
 		{
-			xWrite8((regfield << 3) | ModRm_UseSib);
-			xWrite8((Sib_EIZ << 3) | Sib_UseDisp32);
+			*(u8*)x86Ptr = (regfield << 3) | ModRm_UseSib;
+			x86Ptr += sizeof(u8);
+			*(u8*)x86Ptr = (Sib_EIZ << 3) | Sib_UseDisp32;
+			x86Ptr += sizeof(u8);
 		}
 
 		*(s32*)x86Ptr = (s32)displacement;
@@ -267,7 +246,8 @@ const xRegister32
 				if (info.Index == rbp && displacement_size == 0)
 					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
 
-				xWrite8((displacement_size << 6) | (regfield << 3) | (info.Index.Id & 7));
+				*(u8*)x86Ptr = (displacement_size << 6) | (regfield << 3) | (info.Index.Id & 7);
+				x86Ptr += sizeof(u8);
 			}
 		}
 		else
@@ -280,8 +260,10 @@ const xRegister32
 
 			if (info.Base.IsEmpty())
 			{
-				xWrite8((regfield << 3) | ModRm_UseSib);
-				xWrite8((info.Scale << 6) | (info.Index.Id << 3) | Sib_UseDisp32);
+				*(u8*)x86Ptr = (regfield << 3) | ModRm_UseSib;
+				x86Ptr += sizeof(u8);
+				*(u8*)x86Ptr = (info.Scale << 6) | (info.Index.Id << 3) | Sib_UseDisp32;
+				x86Ptr += sizeof(u8);
 				*(s32*)x86Ptr = info.Displacement;
 				x86Ptr += sizeof(s32);
 				return;
@@ -291,8 +273,10 @@ const xRegister32
 				if (info.Base == rbp && displacement_size == 0)
 					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
 
-				xWrite8((displacement_size << 6) | (regfield << 3) | ModRm_UseSib);
-				xWrite8((info.Scale << 6) | ((info.Index.Id & 7) << 3) | (info.Base.Id & 7));
+				*(u8*)x86Ptr = (displacement_size << 6) | (regfield << 3) | ModRm_UseSib;
+				x86Ptr += sizeof(u8);
+				*(u8*)x86Ptr = (info.Scale << 6) | ((info.Index.Id & 7) << 3) | (info.Base.Id & 7);
+				x86Ptr += sizeof(u8);
 			}
 		}
 
@@ -315,12 +299,14 @@ const xRegister32
 	// instructions taking a form of [reg,reg].
 	void EmitSibMagic(uint reg1, const xRegisterBase& reg2, int)
 	{
-		xWrite8((Mod_Direct << 6) | (reg1 << 3) | (reg2.Id & 7));
+		*(u8*)x86Ptr = (Mod_Direct << 6) | (reg1 << 3) | (reg2.Id & 7);
+		x86Ptr += sizeof(u8);
 	}
 
 	void EmitSibMagic(const xRegisterBase& reg1, const xRegisterBase& reg2, int)
 	{
-		xWrite8((Mod_Direct << 6) | ((reg1.Id & 7) << 3) | (reg2.Id & 7));
+		*(u8*)x86Ptr = (Mod_Direct << 6) | ((reg1.Id & 7) << 3) | (reg2.Id & 7);
+		x86Ptr += sizeof(u8);
 	}
 
 	void EmitSibMagic(const xRegisterBase& reg1, const void* src, int extraRIPOffset)
@@ -351,7 +337,10 @@ const xRegister32
 		}
 		const u8 rex = 0x40 | (w << 3) | (r << 2) | (x << 1) | (u8)b;
 		if (rex != 0x40)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	void EmitRex(uint reg1, const xRegisterBase& reg2)
@@ -361,7 +350,10 @@ const xRegister32
 		bool ext8bit = (reg2._operandSize == 1 && reg2.Id >= 0x10);
 		const u8 rex = 0x40 | (w << 3) | (u8)b;
 		if (rex != 0x40 || ext8bit)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const xRegisterBase& reg2)
@@ -372,7 +364,10 @@ const xRegister32
 		const u8 rex = 0x40 | (w << 3) | (r << 2) | (u8)b;
 		bool ext8bit = (reg2._operandSize == 1 && reg2.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const void* src)
@@ -382,7 +377,10 @@ const xRegister32
 		const u8 rex = 0x40 | (w << 3) | (r << 2);
 		bool ext8bit = (reg1._operandSize == 1 && reg1.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	void EmitRex(const xRegisterBase& reg1, const xIndirectVoid& sib)
@@ -399,7 +397,10 @@ const xRegister32
 		const u8 rex = 0x40 | (w << 3) | (r << 2) | (x << 1) | (u8)b;
 		bool ext8bit = (reg1._operandSize == 1 && reg1.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	// For use by instructions that are implicitly wide
@@ -407,7 +408,10 @@ const xRegister32
 	{
 		const u8 rex = 0x40 | (u8)reg.IsExtended();
 		if (rex != 0x40)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	void EmitRexImplicitlyWide(const xIndirectVoid& sib)
@@ -421,7 +425,10 @@ const xRegister32
 		}
 		const u8 rex = 0x40 | (x << 1) | (u8)b;
 		if (rex != 0x40)
-			xWrite8(rex);
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------
@@ -771,7 +778,8 @@ const xRegister32
 
 	__emitinline void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags)
 	{
-		xWrite8(0x66);
+		*(u8*)x86Ptr = 0x66;
+		x86Ptr += sizeof(u8);
 		EmitLeaMagic(to, src, preserve_flags);
 	}
 
@@ -827,8 +835,12 @@ const xRegister32
 	void xImpl_IncDec::operator()(const xIndirect64orLess& to) const
 	{
 		if (to._operandSize == 2)
-			xWrite8(0x66);
-		xWrite8(to.Is8BitOp() ? 0xfe : 0xff);
+		{
+			*(u8*)x86Ptr = 0x66;
+			x86Ptr += sizeof(u8);
+		}
+		*(u8*)x86Ptr = to.Is8BitOp() ? 0xfe : 0xff;
+		x86Ptr += sizeof(u8);
 		EmitSibMagic(isDec ? 1 : 0, to);
 	}
 
@@ -874,41 +886,49 @@ const xRegister32
 	__emitinline void xPOP(const xIndirectVoid& from)
 	{
 		EmitRexImplicitlyWide(from);
-		xWrite8(0x8f);
+		*(u8*)x86Ptr = 0x8f;
+		x86Ptr += sizeof(u8);
 		EmitSibMagic(0, from);
 	}
 
 	__emitinline void xPUSH(const xIndirectVoid& from)
 	{
 		EmitRexImplicitlyWide(from);
-		xWrite8(0xff);
+		*(u8*)x86Ptr = 0xff;
+		x86Ptr += sizeof(u8);
 		EmitSibMagic(6, from);
 	}
 
 	__fi void xPOP(xRegister32or64 from)
 	{
 		EmitRexImplicitlyWide(from);
-		xWrite8(0x58 | (from->Id & 7));
+		*(u8*)x86Ptr = 0x58 | (from->Id & 7);
+		x86Ptr += sizeof(u8);
 	}
 
 	__fi void xPUSH(u32 imm)
 	{
 		if (is_s8(imm))
 		{
-			xWrite8(0x6a);
-			xWrite8(imm);
+			*(u8*)x86Ptr = 0x6a;
+			x86Ptr += sizeof(u8);
+			*(u8*)x86Ptr = imm;
+			x86Ptr += sizeof(u8);
 		}
 		else
 		{
-			xWrite8(0x68);
-			xWrite32(imm);
+			*(u8*)x86Ptr = 0x68;
+			x86Ptr += sizeof(u8);
+			*(u32*)x86Ptr = imm;
+			x86Ptr += sizeof(u32);
 		}
 	}
 
 	__fi void xPUSH(xRegister32or64 from)
 	{
 		EmitRexImplicitlyWide(from);
-		xWrite8(0x50 | (from->Id & 7));
+		*(u8*)x86Ptr = 0x50 | (from->Id & 7);
+		x86Ptr += sizeof(u8);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////

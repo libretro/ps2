@@ -66,9 +66,12 @@ void recBC0F(void)
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap    = TrySwapDelaySlot(0, 0, 0, false);
 	_setupBranchTest();
-	xWrite8(0x0F);
-	xWrite8(JE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	jmpskip = (u32*)(x86Ptr - 4);
 	recDoBranchImm(branchTo, jmpskip, false, swap);
 }
@@ -79,9 +82,12 @@ void recBC0T(void)
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	const bool swap = TrySwapDelaySlot(0, 0, 0, false);
 	_setupBranchTest();
-	xWrite8(0x0F);
-	xWrite8(JNE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JNE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	jmpskip = (u32*)(x86Ptr - 4);
 	recDoBranchImm(branchTo, jmpskip, false, swap);
 }
@@ -91,9 +97,12 @@ void recBC0FL(void)
 	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	xWrite8(0x0F);
-	xWrite8(JE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	jmpskip = (u32*)(x86Ptr - 4);
 	recDoBranchImm(branchTo, jmpskip, true, false);
 }
@@ -103,9 +112,12 @@ void recBC0TL(void)
 	u32 *jmpskip;
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	xWrite8(0x0F);
-	xWrite8(JNE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JNE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	jmpskip = (u32*)(x86Ptr - 4);
 	recDoBranchImm(branchTo, jmpskip, true, false);
 }

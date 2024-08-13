@@ -920,17 +920,23 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 		u8 *cont1, *cont2;
 
 		xCMP(eax, 0x80000000);
-		xWrite8(JNE8);
-		xWrite8(0);
+		*(u8*)x86Ptr = JNE8;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
 		cont1       = (u8*)(x86Ptr - 1);
 		xCMP(ecx, 0xffffffff);
-		xWrite8(JNE8);
-		xWrite8(0);
+		*(u8*)x86Ptr = JNE8;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
 		cont2       = (u8*)(x86Ptr - 1);
 		//overflow case:
 		xXOR(edx, edx); //EAX remains 0x80000000
-		xWrite8(0xEB);
-		xWrite8(0);
+		*(u8*)x86Ptr = 0xEB;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
 		end1        =  x86Ptr - 1;
 
 		*cont1      = (u8)((x86Ptr - cont1) - 1);
@@ -938,8 +944,10 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	}
 
 	xCMP(ecx, 0);
-	xWrite8(JNE8);
-	xWrite8(0);
+	*(u8*)x86Ptr = JNE8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	cont3       = (u8*)(x86Ptr - 1);
 
 	//divide by zero
@@ -952,15 +960,18 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	}
 	else
 		xMOV(eax, 0xffffffff);
-	xWrite8(0xEB);
-	xWrite8(0);
+	*(u8*)x86Ptr = 0xEB;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
 	end2        =  x86Ptr - 1;
 
 	// Normal division
 	*cont3      = (u8)((x86Ptr - cont3) - 1);
 	if (sign)
 	{
-		xCDQ();
+		*(u8*)x86Ptr = 0x99;
+		x86Ptr += sizeof(u8);
 		xDIV(ecx);
 	}
 	else
@@ -1503,9 +1514,12 @@ static void rpsxSetBranchEQ(int process)
 			xCMP(xRegister32(regs), ptr32[&psxRegs.GPR.r[_Rt_]]);
 	}
 
-	xWrite8(0x0F);
-	xWrite8(JNE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JNE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	s_pbranchjmp = (u32*)(x86Ptr - 4);
 }
 
@@ -1664,9 +1678,12 @@ static void rpsxBLTZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	xWrite8(0x0F);
-	xWrite8(JL32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JL32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
@@ -1717,9 +1734,12 @@ static void rpsxBGEZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	xWrite8(0x0F);
-	xWrite8(JGE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JGE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
@@ -1776,9 +1796,12 @@ static void rpsxBLTZAL(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	xWrite8(0x0F);
-	xWrite8(JL32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JL32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
@@ -1834,9 +1857,12 @@ static void rpsxBGEZAL(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	xWrite8(0x0F);
-	xWrite8(JGE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JGE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
@@ -1888,9 +1914,12 @@ static void rpsxBLEZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	xWrite8(0x0F);
-	xWrite8(JLE32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JLE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)
@@ -1943,9 +1972,12 @@ static void rpsxBGTZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	xWrite8(0x0F);
-	xWrite8(JG32);
-	xWrite32(0);
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JG32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
 	pjmp = (u32*)(x86Ptr - 4);
 
 	if (!swap)

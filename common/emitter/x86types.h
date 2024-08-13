@@ -58,11 +58,6 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 
 namespace x86Emitter
 {
-	extern void xWrite8(u8 val);
-	extern void xWrite16(u16 val);
-	extern void xWrite32(u32 val);
-	extern void xWrite64(u64 val);
-
 	//------------------------------------------------------------------
 	// templated version of is_s8 is required, so that u16's get correct sign extension treatment.
 	template <typename T>
@@ -193,13 +188,16 @@ namespace x86Emitter
 			switch (GetImmSize())
 			{
 				case 1:
-					xWrite8(imm);
+					*(u8*)x86Ptr = imm;
+					x86Ptr += sizeof(u8);
 					break;
 				case 2:
-					xWrite16(imm);
+					*(u16*)x86Ptr = imm;
+					x86Ptr += sizeof(u16);
 					break;
 				case 4:
-					xWrite32(imm);
+					*(u32*)x86Ptr = imm;
+					x86Ptr += sizeof(u32);
 					break;
 				default:
 					break;

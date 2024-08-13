@@ -293,7 +293,8 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 		xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmmRow);
 	}
 
-	xRET();
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
 }
 
 static u16 dVifComputeLength(uint cl, uint wl, u8 num, bool isFill)

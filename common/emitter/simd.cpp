@@ -57,7 +57,8 @@ namespace x86Emitter
 	void _SimdShiftHelper::operator()(const xRegisterSSE& to, u8 imm8) const
 	{
 		xOpWrite0F(0x66, OpcodeImm, (int)Modcode, to);
-		xWrite8(imm8);
+		*(u8*)x86Ptr = imm8;
+		x86Ptr += sizeof(u8);
 	}
 
 	void xImplSimd_Shift::DQ(const xRegisterSSE& to, u8 imm8) const
