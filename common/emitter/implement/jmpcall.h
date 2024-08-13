@@ -20,7 +20,7 @@
 namespace x86Emitter
 {
 
-	extern void xJccKnownTarget(JccComparisonType comparison, const void* target, bool slideForward);
+	extern void xJccKnownTarget(JccComparisonType comparison, const void* target);
 
 	// ------------------------------------------------------------------------
 	struct xImpl_JmpCall
@@ -35,7 +35,7 @@ namespace x86Emitter
 		void operator()(const void* func) const
 		{
 			if (isJmp)
-				xJccKnownTarget(Jcc_Unconditional, (const void*)(uptr)func, false); // double cast to/from (uptr) needed to appease GCC
+				xJccKnownTarget(Jcc_Unconditional, (const void*)(uptr)func); // double cast to/from (uptr) needed to appease GCC
 			else
 			{
 				// calls are relative to the instruction after this one, and length is

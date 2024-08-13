@@ -197,13 +197,10 @@ namespace x86Emitter
 	// slideForward - used internally by xSmartJump to indicate that the jump target is going
 	// to slide forward in the event of an 8 bit displacement.
 	//
-	__emitinline void xJccKnownTarget(JccComparisonType comparison, const void* target, bool slideForward)
+	__emitinline void xJccKnownTarget(JccComparisonType comparison, const void* target)
 	{
 		// Calculate the potential j8 displacement first, assuming an instruction length of 2:
 		sptr displacement8 = (sptr)target - (sptr)(x86Ptr + 2);
-
-		const int slideVal = slideForward ? ((comparison == Jcc_Unconditional) ? 3 : 4) : 0;
-		displacement8 -= slideVal;
 
 		if (is_s8(displacement8))
 			xJcc8(comparison, displacement8);

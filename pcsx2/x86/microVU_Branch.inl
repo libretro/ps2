@@ -539,7 +539,7 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 		incPC2(-1);
 		if (bBlock) // Branch non-taken has already been compiled
 		{
-			xJccKnownTarget(xInvertCond((JccComparisonType)JMPcc), bBlock->x86ptrStart, false);
+			xJccKnownTarget(xInvertCond((JccComparisonType)JMPcc), bBlock->x86ptrStart);
 			incPC(-3); // Go back to branch opcode (to get branch imm addr)
 			normBranchCompile(mVU, branchAddr(mVU));
 		}
