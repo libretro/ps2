@@ -125,7 +125,7 @@ alignas(32) static const FPUd_Globals s_const =
 // ToDouble : converts single-precision PS2 float to double-precision IEEE float
 static void ToDouble(int reg)
 {
-	u8 *to_complex, *to_complex2;
+	u8 *to_complex, *to_complex2, *end;
 	xUCOMI.SS(xRegisterSSE(reg), ptr[s_const.pos_inf]); // Sets ZF if reg is equal or incomparable to pos_inf
 	xWrite8(JE8);
 	xWrite8(0);
@@ -136,7 +136,7 @@ static void ToDouble(int reg)
 	to_complex2 = (u8*)(x86Ptr - 1); // Complex conversion if negative infinity
 
 	xCVTSS2SD(xRegisterSSE(reg), xRegisterSSE(reg)); // Simply convert
-	u8* end = JMP8(0);
+	end           = JMP8(0);
 
 	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
 	*to_complex2  = (u8)((x86Ptr - to_complex2) - 1);
@@ -167,7 +167,8 @@ static void ToDouble(int reg)
 // doesn't handle inf/nan/denormal
 static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub)
 {
-	u8 *to_complex, *to_overflow, *to_underflow;
+	u32 *end, *end2;
+	u8 *to_complex, *to_overflow, *to_underflow, *end3, *end4;
 	if (flags)
 	{
 		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO | FPUflagU));
@@ -190,7 +191,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //simply convert
 
-	u32* end = JMP32(0);
+	end = JMP32(0);
 
 	*to_complex   = (u8)((x86Ptr - to_complex) - 1);
 	xUCOMI.SD(xRegisterSSE(absreg), ptr[&s_const.dbl_ps2_overflow]);
@@ -202,8 +203,7 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg)); //convert
 	xPADD.D(xRegisterSSE(reg), ptr[s_const.one_exp]); //raise exponent
 
-	u32* end2 = JMP32(0);
-
+	end2           = JMP32(0);
 	*to_overflow   = (u8)((x86Ptr - to_overflow) - 1);
 	xCVTSD2SS(xRegisterSSE(reg), xRegisterSSE(reg));
 	xOR.PS(xRegisterSSE(reg), ptr[&s_const.pos]); //clamp
@@ -213,10 +213,10 @@ static void ToPS2FPU_Full(int reg, bool flags, int absreg, bool acc, bool addsub
 		if (acc)
 			xOR(ptr32[&fpuRegs.ACCflag], 1);
 	}
-	u8* end3 = JMP8(0);
+	end3           = JMP8(0);
 
-	*to_underflow   = (u8)((x86Ptr - to_underflow) - 1);
-	u8* end4 = nullptr;
+	*to_underflow  = (u8)((x86Ptr - to_underflow) - 1);
+	end4           = nullptr;
 	if (flags) //set underflow flags if not zero
 	{
 		u8 *is_zero;
@@ -697,7 +697,8 @@ FPURECOMPILE_CONSTCODE(DIV_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 // (where MAX is 0x7fffffff and -MAX is 0xffffffff)
 static void recMaddsub(int info, int regd, int op, bool acc)
 {
-	u8 *mulovf, *accovf;
+	u32 *skipall;
+	u8 *mulovf, *accovf, *operation;
 	int sreg, treg;
 	ALLOC_S(sreg);
 	ALLOC_T(treg);
@@ -721,7 +722,7 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	xWrite8(0);
 	accovf        = (u8*)(x86Ptr - 1);
 	ToDouble(treg); //else, convert
-	u8* operation = JMP8(0);
+	operation     = JMP8(0);
 
 	*mulovf = (u8)((x86Ptr - mulovf) - 1);
 	if (op == 1) //sub
@@ -734,7 +735,7 @@ static void recMaddsub(int info, int regd, int op, bool acc)
 	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagO | FPUflagSO);
 	if (acc)
 		xOR(ptr32[&fpuRegs.ACCflag], 1);
-	u32* skipall = JMP32(0);
+	skipall = JMP32(0);
 
 	// PERFORM THE ACCUMULATION AND TEST RESULT. CONVERT TO SINGLE
 

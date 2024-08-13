@@ -358,7 +358,7 @@ static void recDIV_const(void)
 
 static void recDIVsuper(int info, bool sign, bool upper, int process)
 {
-	u8 *end1, *cont3;
+	u8 *end1, *end2, *cont3;
 	const xRegister32 divisor((info & PROCESS_EE_T) ? EEREC_T : ecx.Id);
 	if (!(info & PROCESS_EE_T))
 	{
@@ -406,7 +406,7 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	}
 	else
 		xMOV(eax, 0xffffffff);
-	u8* end2 = JMP8(0);
+	end2        = JMP8(0);
 
 	*cont3      = (u8)((x86Ptr - cont3) - 1);
 	if (sign)

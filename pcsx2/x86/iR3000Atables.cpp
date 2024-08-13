@@ -899,7 +899,7 @@ static void rpsxDIV_const()
 
 static void rpsxDIVsuper(int info, int sign, int process = 0)
 {
-	u8* end1, *cont3;
+	u8* end1, *end2, *cont3;
 	// Lo/Hi = Rs / Rt (signed)
 	if (process & PROCESS_CONSTT)
 		xMOV(ecx, g_psxConstRegs[_Rt_]);
@@ -950,7 +950,7 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	}
 	else
 		xMOV(eax, 0xffffffff);
-	u8* end2 = JMP8(0);
+	end2        = JMP8(0);
 
 	// Normal division
 	*cont3      = (u8)((x86Ptr - cont3) - 1);
