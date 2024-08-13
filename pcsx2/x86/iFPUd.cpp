@@ -36,10 +36,6 @@
 
 using namespace x86Emitter;
 
-// If 1, result is not clamped (Gives correct results as in PS2,
-// but can cause problems due to insufficient clamping levels in the VUs)
-#define FPU_RESULT 1
-
 #ifdef FPU_RECOMPILE
 
 //------------------------------------------------------------------
@@ -152,11 +148,6 @@ static void ToDouble(int reg)
 //------------------------------------------------------------------
 // DOUBLE -> PS2
 //------------------------------------------------------------------
-
-// If FPU_RESULT is defined, results are more like the real PS2's FPU.
-// But new issues may happen if the VU isn't clamping all operands since games may transfer FPU results into the VU.
-// Ar tonelico 1 does this with the result from DIV/RSQRT (when a division by zero occurs).
-// Otherwise, results are still usually better than iFPU.cpp.
 
 // ToPS2FPU_Full - converts double-precision IEEE float to single-precision PS2 float
 
