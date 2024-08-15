@@ -32,7 +32,7 @@ union nVifBlock
 		u8 aligned;    // [09] Packet Alignment
 		u8 cl;         // [10] CL Field
 		u8 wl;         // [11] WL Field
-		uptr startPtr; // [12] Start Ptr of RecGen Code
+		uintptr_t startPtr; // [12] Start Ptr of RecGen Code
 	};
 
 	struct
@@ -41,7 +41,7 @@ union nVifBlock
 		u16 _pad0;
 		u32 key0;
 		u32 key1;
-		uptr value;
+		uintptr_t value;
 	};
 
 }; // 16 bytes

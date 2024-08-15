@@ -657,7 +657,7 @@ static void recCTC2(void)
 				}
 				else
 				{
-					_eeMoveGPRtoM((uptr)&vu0Regs.VI[_Rd_].UL, _Rt_);
+					_eeMoveGPRtoM((uintptr_t)&vu0Regs.VI[_Rd_].UL, _Rt_);
 				}
 			}
 			break;

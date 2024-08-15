@@ -43,7 +43,7 @@ union PacketTagType
 	{
 		u32 _command;
 		u32 _data[1];
-		uptr pointer;
+		uintptr_t pointer;
 	};
 };
 
@@ -149,7 +149,7 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 
 	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
 	tag.data[0]                 = qwc;
-	tag.pointer                 = (uptr)mem;
+	tag.pointer                 = (uintptr_t)mem;
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	WaitGS(false);
@@ -335,7 +335,7 @@ void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 
 	tag.command                 = GS_RINGTYPE_FREEZE;
 	tag.data[0]                 = (int)mode;
-	tag.pointer                 = (uptr)&data;
+	tag.pointer                 = (uintptr_t)&data;
 
 	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
 	WaitGS(false);

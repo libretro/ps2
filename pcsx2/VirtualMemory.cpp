@@ -24,7 +24,7 @@
 //  VirtualMemoryManager  (implementations)
 // --------------------------------------------------------------------------------------
 
-VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds, bool strict)
+VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uintptr_t base, size_t size, uintptr_t upper_bounds, bool strict)
 	: m_file_handle(nullptr)
 	, m_baseptr(0)
 	, m_pageuse(nullptr)
@@ -48,7 +48,7 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 			return;
 
 		m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, (void*)base, reserved_bytes, mode));
-		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
+		if (!m_baseptr || (upper_bounds != 0 && (((uintptr_t)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
 			HostSys::Munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
@@ -67,7 +67,7 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 		mode.m_exec  = true;
 		m_baseptr    = static_cast<u8*>(HostSys::Mmap((void*)base, reserved_bytes, mode));
 
-		if (!m_baseptr || (upper_bounds != 0 && (((uptr)m_baseptr + reserved_bytes) > upper_bounds)))
+		if (!m_baseptr || (upper_bounds != 0 && (((uintptr_t)m_baseptr + reserved_bytes) > upper_bounds)))
 		{
 			HostSys::Munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
@@ -80,9 +80,9 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 	}
 
 	bool fulfillsRequirements = true;
-	if (strict && (uptr)m_baseptr != base)
+	if (strict && (uintptr_t)m_baseptr != base)
 		fulfillsRequirements = false;
-	if ((upper_bounds != 0) && ((uptr)(m_baseptr + reserved_bytes) > upper_bounds))
+	if ((upper_bounds != 0) && ((uintptr_t)(m_baseptr + reserved_bytes) > upper_bounds))
 		fulfillsRequirements = false;
 	if (!fulfillsRequirements)
 	{
@@ -144,7 +144,7 @@ static bool VMMMarkPagesAsInUse(std::atomic<bool>* begin, std::atomic<bool>* end
 	return true;
 }
 
-u8* VirtualMemoryManager::Alloc(uptr offsetLocation, size_t size) const
+u8* VirtualMemoryManager::Alloc(uintptr_t offsetLocation, size_t size) const
 {
 	size = Common::PageAlign(size);
 	if (!(offsetLocation % __pagesize == 0))
@@ -162,10 +162,10 @@ u8* VirtualMemoryManager::Alloc(uptr offsetLocation, size_t size) const
 
 void VirtualMemoryManager::Free(void* address, size_t size) const
 {
-	uptr offsetLocation = (uptr)address - (uptr)m_baseptr;
+	uintptr_t offsetLocation = (uintptr_t)address - (uintptr_t)m_baseptr;
 	if (!(offsetLocation % __pagesize == 0))
 	{
-		uptr newLoc = Common::PageAlign(offsetLocation);
+		uintptr_t newLoc = Common::PageAlign(offsetLocation);
 		size -= (offsetLocation - newLoc);
 		offsetLocation = newLoc;
 	}
@@ -185,7 +185,7 @@ void VirtualMemoryManager::Free(void* address, size_t size) const
 // --------------------------------------------------------------------------------------
 //  VirtualMemoryBumpAllocator  (implementations)
 // --------------------------------------------------------------------------------------
-VirtualMemoryBumpAllocator::VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr allocator, uptr offsetLocation, size_t size)
+VirtualMemoryBumpAllocator::VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr allocator, uintptr_t offsetLocation, size_t size)
 	: m_allocator(std::move(allocator))
 	, m_baseptr(m_allocator->Alloc(offsetLocation, size))
 	, m_endptr(m_baseptr + size)

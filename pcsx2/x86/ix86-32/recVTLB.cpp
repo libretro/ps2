@@ -50,7 +50,7 @@ static u32 GetAllocatedXMMBitmask(void)
 	// Pseudo-Code For the following Dynarec Implementations -->
 
 	u32 vmv = vmap[addr>>VTLB_PAGE_BITS].raw();
-	sptr ppf=addr+vmv;
+	intptr_t ppf=addr+vmv;
 	if (!(ppf<0))
 	{
 		data[0]=*reinterpret_cast<DataType*>(ppf);
@@ -273,7 +273,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 
 	// jump to the indirect handler, which is a C++ function.
 	// [ecx is address, edx is data]
-	sptr table = (sptr)vtlbdata.RWFT[bits][mode];
+	intptr_t table = (intptr_t)vtlbdata.RWFT[bits][mode];
 	if (table == (s32)table)
 	{
 		xFastCall(ptrNative[(rax * sizeof(intptr_t)) + table], arg1reg, arg2reg);
@@ -430,7 +430,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 		x86Ptr += sizeof(u8);
 	}
 
-	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		static_cast<u8>(addr_reg), static_cast<u8>(x86_dest_reg),
 		static_cast<u8>(bits), sign, true, xmm);
@@ -578,7 +578,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 		x86Ptr += sizeof(u8);
 	}
 
-	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		static_cast<u8>(arg1reg.Id), static_cast<u8>(reg),
 		static_cast<u8>(bits), false, true, true);
@@ -676,7 +676,7 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 		x86Ptr += sizeof(u8);
 	}
 
-	vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		static_cast<u8>(addr_reg), static_cast<u8>(value_reg),
 		static_cast<u8>(sz), false, false, xmm);
@@ -798,7 +798,7 @@ void vtlb_DynV2P(void)
 	xOR(eax, ecx);
 }
 
-void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr,
+void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 guest_addr,
 	u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register,
 	u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
 {
@@ -944,7 +944,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	xJMP(thunk);
 
 	// fill the rest of it with nops, if any
-	for (u32 i = static_cast<u32>((uptr)x86Ptr - code_address); i < code_size; i++)
+	for (u32 i = static_cast<u32>((uintptr_t)x86Ptr - code_address); i < code_size; i++)
 	{
 		*(u8*)x86Ptr = 0x90;
 		x86Ptr += sizeof(u8);

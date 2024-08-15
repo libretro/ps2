@@ -86,10 +86,10 @@ static constexpr u32 NO_FASTMEM_MAPPING = 0xFFFFFFFFu;
 static std::unique_ptr<SharedMemoryMappingArea> s_fastmem_area;
 static std::vector<u32> s_fastmem_virtual_mapping; // maps vaddr -> mainmem offset
 static std::unordered_multimap<u32, u32> s_fastmem_physical_mapping; // maps mainmem offset -> vaddr
-static std::unordered_map<uptr, LoadstoreBackpatchInfo> s_fastmem_backpatch_info;
+static std::unordered_map<uintptr_t, LoadstoreBackpatchInfo> s_fastmem_backpatch_info;
 static std::unordered_set<u32> s_fastmem_faulting_pcs;
 
-vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromPointer(sptr ptr)
+vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromPointer(intptr_t ptr)
 {
 	return VTLBPhysical(ptr);
 }
@@ -348,7 +348,7 @@ void GoemonPreloadTlb(void)
 			u32 paddr = tlb[i].physical_add;
 
 			// TODO: The old code (commented below) seems to check specifically for handler 0.  Is this really correct?
-			//if ((uptr)vtlbdata.vmap[vaddr>>VTLB_PAGE_BITS] == POINTER_SIGN_BIT) {
+			//if ((uintptr_t)vtlbdata.vmap[vaddr>>VTLB_PAGE_BITS] == POINTER_SIGN_BIT) {
 			auto vmv = vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS];
 			if (vmv.isHandler(vaddr) && vmv.assumeHandlerGetID() == 0)
 			{
@@ -513,13 +513,13 @@ void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 	if (!blocksize)
 		blocksize = size;
 
-	sptr baseint = (sptr)base;
+	intptr_t baseint = (intptr_t)base;
 	u32 end = start + (size - VTLB_PAGE_SIZE);
 
 	while (start <= end)
 	{
 		u32 loopsz = blocksize;
-		sptr ptr   = baseint;
+		intptr_t ptr   = baseint;
 
 		while (loopsz > 0)
 		{
@@ -589,15 +589,15 @@ static bool vtlb_IsHostCoalesced(u32 page)
 	return true;
 }
 
-static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* mainmem_size, PageProtectionMode* prot)
+static bool vtlb_GetMainMemoryOffsetFromPtr(uintptr_t ptr, u32* mainmem_offset, u32* mainmem_size, PageProtectionMode* prot)
 {
-	const uptr page_end = ptr + VTLB_PAGE_SIZE;
+	const uintptr_t page_end = ptr + VTLB_PAGE_SIZE;
 	SysMainMemory& vmmem = GetVmMemory();
 
 	// EE memory and ROMs.
-	if (ptr >= (uptr)eeMem->Main && page_end <= (uptr)eeMem->ZeroRead)
+	if (ptr >= (uintptr_t)eeMem->Main && page_end <= (uintptr_t)eeMem->ZeroRead)
 	{
-		const u32 eemem_offset = static_cast<u32>(ptr - (uptr)eeMem->Main);
+		const u32 eemem_offset = static_cast<u32>(ptr - (uintptr_t)eeMem->Main);
 		const bool writeable   = ((eemem_offset < Ps2MemSize::MainRam) ? (mmap_GetRamPageInfo(eemem_offset) != ProtMode_Write) : true);
 		*mainmem_offset        = (eemem_offset + HostMemoryMap::EEmemOffset);
 		*mainmem_size          = (offsetof(EEVM_MemoryAllocMess, ZeroRead) - eemem_offset);
@@ -608,9 +608,9 @@ static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* 
 	}
 
 	// IOP memory.
-	if (ptr >= (uptr)iopMem->Main && page_end <= (uptr)iopMem->P)
+	if (ptr >= (uintptr_t)iopMem->Main && page_end <= (uintptr_t)iopMem->P)
 	{
-		const u32 iopmem_offset = static_cast<u32>(ptr - (uptr)iopMem->Main);
+		const u32 iopmem_offset = static_cast<u32>(ptr - (uintptr_t)iopMem->Main);
 		*mainmem_offset = iopmem_offset + HostMemoryMap::IOPmemOffset;
 		*mainmem_size = (offsetof(IopVM_MemoryAllocMess, P) - iopmem_offset);
 		prot->m_read  = true;
@@ -621,9 +621,9 @@ static bool vtlb_GetMainMemoryOffsetFromPtr(uptr ptr, u32* mainmem_offset, u32* 
 
 	// VU memory - this includes both data and code for VU0/VU1.
 	// Practically speaking, this is only data, because the code goes through a handler.
-	if (ptr >= (uptr)vmmem.VUMemory().GetPtr() && page_end <= (uptr)vmmem.VUMemory().GetPtrEnd())
+	if (ptr >= (uintptr_t)vmmem.VUMemory().GetPtr() && page_end <= (uintptr_t)vmmem.VUMemory().GetPtrEnd())
 	{
-		const u32 vumem_offset = static_cast<u32>(ptr - (uptr)vmmem.VUMemory().GetPtr());
+		const u32 vumem_offset = static_cast<u32>(ptr - (uintptr_t)vmmem.VUMemory().GetPtr());
 		*mainmem_offset        = vumem_offset + HostMemoryMap::VUmemOffset;
 		*mainmem_size          = vmmem.VUMemory().GetSize() - vumem_offset;
 		prot->m_read  = true;
@@ -746,10 +746,10 @@ static void vtlb_RemoveFastmemMappings(void)
 	s_fastmem_physical_mapping.clear();
 }
 
-static bool vtlb_GetGuestAddress(uptr host_addr, u32* guest_addr)
+static bool vtlb_GetGuestAddress(uintptr_t host_addr, u32* guest_addr)
 {
-	uptr fastmem_start = (uptr)vtlbdata.fastmem_base;
-	uptr fastmem_end = fastmem_start + 0xFFFFFFFFu;
+	uintptr_t fastmem_start = (uintptr_t)vtlbdata.fastmem_base;
+	uintptr_t fastmem_end = fastmem_start + 0xFFFFFFFFu;
 	if (host_addr < fastmem_start || host_addr > fastmem_end)
 		return false;
 
@@ -784,7 +784,7 @@ void vtlb_ClearLoadStoreInfo(void)
 	s_fastmem_faulting_pcs.clear();
 }
 
-void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr)
+void vtlb_AddLoadStoreInfo(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr)
 {
 	auto iter = s_fastmem_backpatch_info.find(code_address);
 	if (iter != s_fastmem_backpatch_info.end())
@@ -794,10 +794,10 @@ void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 g
 	s_fastmem_backpatch_info.emplace(code_address, info);
 }
 
-static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
+static bool vtlb_BackpatchLoadStore(uintptr_t code_address, uintptr_t fault_address)
 {
-	uptr fastmem_start = (uptr)vtlbdata.fastmem_base;
-	uptr fastmem_end = fastmem_start + 0xFFFFFFFFu;
+	uintptr_t fastmem_start = (uintptr_t)vtlbdata.fastmem_base;
+	uintptr_t fastmem_end = fastmem_start + 0xFFFFFFFFu;
 	if (fault_address < fastmem_start || fault_address > fastmem_end)
 		return false;
 
@@ -888,7 +888,7 @@ void vtlb_VMapBuffer(u32 vaddr, void* buffer, u32 size)
 		}
 	}
 
-	uptr bu8 = (uptr)buffer;
+	uintptr_t bu8 = (uintptr_t)buffer;
 	while (size > 0)
 	{
 		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual::fromPointer(bu8, vaddr);
@@ -1029,7 +1029,7 @@ bool vtlb_Core_Alloc(void)
 		}
 
 		s_fastmem_virtual_mapping.resize(FASTMEM_PAGE_COUNT, NO_FASTMEM_MAPPING);
-		vtlbdata.fastmem_base = (uptr)s_fastmem_area->BasePointer();
+		vtlbdata.fastmem_base = (uintptr_t)s_fastmem_area->BasePointer();
 		Console.WriteLn(Color_StrongGreen, "Fastmem area: %p - %p",
 			vtlbdata.fastmem_base, vtlbdata.fastmem_base + (FASTMEM_AREA_SIZE - 1));
 	}
@@ -1167,8 +1167,8 @@ vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr)
 {
 	paddr &= ~0xfff;
 
-	uptr ptr = (uptr)PSM(paddr);
-	uptr rampage = ptr - (uptr)eeMem->Main;
+	uintptr_t ptr = (uintptr_t)PSM(paddr);
+	uintptr_t rampage = ptr - (uintptr_t)eeMem->Main;
 
 	if (!ptr || rampage >= Ps2MemSize::MainRam)
 		return ProtMode_NotRequired; //not in ram, no tracking done ...
@@ -1184,8 +1184,8 @@ void mmap_MarkCountedRamPage(u32 paddr)
 	PageProtectionMode mode;
 	paddr &= ~__pagemask;
 
-	uptr ptr = (uptr)PSM(paddr);
-	int rampage = (ptr - (uptr)eeMem->Main) >> __pageshift;
+	uintptr_t ptr = (uintptr_t)PSM(paddr);
+	int rampage = (ptr - (uintptr_t)eeMem->Main) >> __pageshift;
 
 	// Important: Update the ReverseRamMap here because TLB changes could alter the paddr
 	// mapping into eeMem->Main.
@@ -1227,8 +1227,8 @@ bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 	u32 vaddr;
 	if (CHECK_FASTMEM && vtlb_GetGuestAddress(info.addr, &vaddr))
 	{
-		uptr ptr = (uptr)PSM(vaddr);
-		uptr offset = (ptr - (uptr)eeMem->Main);
+		uintptr_t ptr = (uintptr_t)PSM(vaddr);
+		uintptr_t offset = (ptr - (uintptr_t)eeMem->Main);
 		if (ptr && m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write)
 		{
 			mmap_ClearCpuBlock(offset);
@@ -1239,7 +1239,7 @@ bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 	else
 	{
 		// get bad virtual address
-		uptr offset = info.addr - (uptr)eeMem->Main;
+		uintptr_t offset = info.addr - (uintptr_t)eeMem->Main;
 		if (offset >= Ps2MemSize::MainRam)
 			return false;
 

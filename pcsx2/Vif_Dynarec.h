@@ -24,7 +24,7 @@
 #include "VU.h"
 
 typedef u32  (*nVifCall)(void*, const void*);
-typedef void (*nVifrecCall)(uptr dest, uptr src);
+typedef void (*nVifrecCall)(uintptr_t dest, uintptr_t src);
 
 extern void _nVifUnpack  (int idx, const u8* data, uint mode, bool isFill);
 extern void  dVifReserve (int idx);

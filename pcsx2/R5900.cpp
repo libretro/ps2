@@ -62,7 +62,7 @@ The second EELOAD call during full boot has three built-in arguments ("EELOAD ro
 meaning that only the first 13 game arguments supplied by the user can be added on and passed through.
 In fast boot mode, 15 arguments can fit because the only call to EELOAD is "<ELF> <<args>>". */
 #define KMAXARGS 16
-static uptr g_argPtrs[KMAXARGS];
+static uintptr_t g_argPtrs[KMAXARGS];
 
 extern SysMainMemory& GetVmMemory();
 
@@ -669,7 +669,7 @@ void eeloadHook2(void)
 	int argc = ParseArgumentString(g_osdsys_str);
 
 	// Back up 4 bytes from start of args block for every arg + 4 bytes for start of argv pointer block, write pointers
-	uptr block_start = g_osdsys_str - (argc * 4);
+	uintptr_t block_start = g_osdsys_str - (argc * 4);
 	for (int a = 0; a < argc; a++)
 		memWrite32(block_start + (a * 4), g_argPtrs[a]);
 

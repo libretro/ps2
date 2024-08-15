@@ -114,7 +114,7 @@ extern u32 g_cpuHasConstReg, g_cpuFlushedConstReg;
 // finds where the GPR is stored and moves lower 32 bits to EAX
 void _eeMoveGPRtoR(const x86Emitter::xRegister32& to, int fromgpr, bool allow_preload = true);
 void _eeMoveGPRtoR(const x86Emitter::xRegister64& to, int fromgpr, bool allow_preload = true);
-void _eeMoveGPRtoM(uptr to, int fromgpr); // 32-bit only
+void _eeMoveGPRtoM(uintptr_t to, int fromgpr); // 32-bit only
 
 void _eeFlushAllDirty(void);
 void _eeOnWriteReg(int reg, int signext);

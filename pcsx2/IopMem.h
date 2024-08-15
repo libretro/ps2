@@ -19,15 +19,15 @@
 
 #include <string>
 
-extern uptr *psxMemWLUT;
-extern const uptr *psxMemRLUT;
+extern uintptr_t *psxMemWLUT;
+extern const uintptr_t *psxMemRLUT;
 
 // Obtains a writable pointer into the IOP's memory, with TLB address translation.
 // If the address maps to read-only memory, NULL is returned.
 // Hacky!  This should really never be used, ever, since it bypasses the iop's Hardware
 // Register handler and SPU/DEV/USB maps.
 template<typename T>
-static __fi T* iopVirtMemW( u32 mem )
+static __fi T* iopVirtMemW(u32 mem)
 {
 	return (psxMemWLUT[(mem) >> 16] == 0) ? NULL : (T*)(psxMemWLUT[(mem) >> 16] + ((mem) & 0xffff));
 }
@@ -39,14 +39,14 @@ static __fi T* iopVirtMemW( u32 mem )
 // TLB should be using iopMemRead/Write instead for each individual access.  That ensures
 // correct handling of page boundary crossings.
 template<typename T>
-static __fi const T* iopVirtMemR( u32 mem )
+static __fi const T* iopVirtMemR(u32 mem)
 {
 	mem &= 0x1fffffff;
 	return (psxMemRLUT[mem >> 16] == 0) ? NULL : (const T*)(psxMemRLUT[mem >> 16] + (mem & 0xffff));
 }
 
-// Obtains a pointer to the IOP's physical mapping (bypasses the TLB)
-static __fi u8* iopPhysMem( u32 addr )
+/* Obtains a pointer to the IOP's physical mapping (bypasses the TLB) */
+static __fi u8* iopPhysMem(u32 addr)
 {
 	return &iopMem->Main[addr & 0x1fffff];
 }

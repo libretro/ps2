@@ -35,13 +35,13 @@ namespace x86Emitter
 		void operator()(const void* func) const
 		{
 			if (isJmp)
-				xJccKnownTarget(Jcc_Unconditional, (const void*)(uptr)func); // double cast to/from (uptr) needed to appease GCC
+				xJccKnownTarget(Jcc_Unconditional, (const void*)(uintptr_t)func); // double cast to/from (uintptr_t) needed to appease GCC
 			else
 			{
 				// calls are relative to the instruction after this one, and length is
 				// always 5 bytes (16 bit calls are bad mojo, so no bother to do special logic).
 
-				sptr dest = (sptr)func - ((sptr)x86Ptr + 5);
+				intptr_t dest = (intptr_t)func - ((intptr_t)x86Ptr + 5);
 				*(u8*)x86Ptr = 0xe8;
 				x86Ptr += sizeof(u8);
 				*(u32*)x86Ptr = dest;

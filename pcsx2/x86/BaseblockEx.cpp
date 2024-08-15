@@ -16,7 +16,7 @@
 
 #include "BaseblockEx.h"
 
-BASEBLOCKEX* BaseBlocks::New(u32 startpc, uptr fnptr)
+BASEBLOCKEX* BaseBlocks::New(u32 startpc, uintptr_t fnptr)
 {
 	std::pair<linkiter_t, linkiter_t> range = links.equal_range(startpc);
 	for (linkiter_t i = range.first; i != range.second; ++i)
@@ -49,8 +49,8 @@ void BaseBlocks::Link(u32 pc, s32* jumpptr)
 {
 	BASEBLOCKEX* targetblock = Get(pc);
 	if (targetblock && targetblock->startpc == pc)
-		*jumpptr = (s32)(targetblock->fnptr - (sptr)(jumpptr + 1));
+		*jumpptr = (s32)(targetblock->fnptr - (intptr_t)(jumpptr + 1));
 	else
-		*jumpptr = (s32)(recompiler - (sptr)(jumpptr + 1));
-	links.insert(std::pair<u32, uptr>(pc, (uptr)jumpptr));
+		*jumpptr = (s32)(recompiler - (intptr_t)(jumpptr + 1));
+	links.insert(std::pair<u32, uintptr_t>(pc, (uintptr_t)jumpptr));
 }

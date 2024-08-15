@@ -52,26 +52,26 @@
  * a jump (either 8 or 32 bit) is generated.
  */
 
-#define xJE(func)  xJccKnownTarget(Jcc_Equal, (void*)(uptr)func) 
-#define xJZ(func)  xJccKnownTarget(Jcc_Zero,  (void*)(uptr)func)
-#define xJNE(func) xJccKnownTarget(Jcc_NotEqual, (void*)(uptr)func)
-#define xJNZ(func) xJccKnownTarget(Jcc_NotZero, (void*)(uptr)func)
-#define xJO(func)  xJccKnownTarget(Jcc_Overflow, (void*)(uptr)func)
-#define xJNO(func) xJccKnownTarget(Jcc_NotOverflow, (void*)(uptr)func)
-#define xJC(func)  xJccKnownTarget(Jcc_Carry, (void*)(uptr)func)
-#define xJNC(func) xJccKnownTarget(Jcc_NotCarry, (void*)(uptr)func)
-#define xJS(func)  xJccKnownTarget(Jcc_Signed, (void*)(uptr)func)
-#define xJNS(func) xJccKnownTarget(Jcc_Unsigned, (void*)(uptr)func)
-#define xJPE(func) xJccKnownTarget(Jcc_ParityEven, (void*)(uptr)func)
-#define xJPO(func) xJccKnownTarget(Jcc_ParityOdd, (void*)(uptr)func)
-#define xJL(func)  xJccKnownTarget(Jcc_Less, (void*)(uptr)func)
-#define xJLE(func) xJccKnownTarget(Jcc_LessOrEqual, (void*)(uptr)func)
-#define xJG(func)  xJccKnownTarget(Jcc_Greater, (void*)(uptr)func)
-#define xJGE(func) xJccKnownTarget(Jcc_GreaterOrEqual, (void*)(uptr)func)
-#define xJB(func)  xJccKnownTarget(Jcc_Below, (void*)(uptr)func)
-#define xJBE(func) xJccKnownTarget(Jcc_BelowOrEqual, (void*)(uptr)func)
-#define xJA(func)  xJccKnownTarget(Jcc_Above, (void*)(uptr)func)
-#define xJAE(func) xJccKnownTarget(Jcc_AboveOrEqual, (void*)(uptr)func)
+#define xJE(func)  xJccKnownTarget(Jcc_Equal, (void*)(uintptr_t)func) 
+#define xJZ(func)  xJccKnownTarget(Jcc_Zero,  (void*)(uintptr_t)func)
+#define xJNE(func) xJccKnownTarget(Jcc_NotEqual, (void*)(uintptr_t)func)
+#define xJNZ(func) xJccKnownTarget(Jcc_NotZero, (void*)(uintptr_t)func)
+#define xJO(func)  xJccKnownTarget(Jcc_Overflow, (void*)(uintptr_t)func)
+#define xJNO(func) xJccKnownTarget(Jcc_NotOverflow, (void*)(uintptr_t)func)
+#define xJC(func)  xJccKnownTarget(Jcc_Carry, (void*)(uintptr_t)func)
+#define xJNC(func) xJccKnownTarget(Jcc_NotCarry, (void*)(uintptr_t)func)
+#define xJS(func)  xJccKnownTarget(Jcc_Signed, (void*)(uintptr_t)func)
+#define xJNS(func) xJccKnownTarget(Jcc_Unsigned, (void*)(uintptr_t)func)
+#define xJPE(func) xJccKnownTarget(Jcc_ParityEven, (void*)(uintptr_t)func)
+#define xJPO(func) xJccKnownTarget(Jcc_ParityOdd, (void*)(uintptr_t)func)
+#define xJL(func)  xJccKnownTarget(Jcc_Less, (void*)(uintptr_t)func)
+#define xJLE(func) xJccKnownTarget(Jcc_LessOrEqual, (void*)(uintptr_t)func)
+#define xJG(func)  xJccKnownTarget(Jcc_Greater, (void*)(uintptr_t)func)
+#define xJGE(func) xJccKnownTarget(Jcc_GreaterOrEqual, (void*)(uintptr_t)func)
+#define xJB(func)  xJccKnownTarget(Jcc_Below, (void*)(uintptr_t)func)
+#define xJBE(func) xJccKnownTarget(Jcc_BelowOrEqual, (void*)(uintptr_t)func)
+#define xJA(func)  xJccKnownTarget(Jcc_Above, (void*)(uintptr_t)func)
+#define xJAE(func) xJccKnownTarget(Jcc_AboveOrEqual, (void*)(uintptr_t)func)
 
 /* =====================================================================================================
  * SSE Conversion Operations, as looney as they are.
@@ -235,8 +235,8 @@ namespace x86Emitter
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to load addresses that may be far from the current instruction pointer
-	/// On i386, resolves to `mov dst, (sptr)addr`
-	/// On x86-64, resolves to either `mov dst, (sptr)addr` or `lea dst, [addr]` depending on the distance from RIP
+	/// On i386, resolves to `mov dst, (intptr_t)addr`
+	/// On x86-64, resolves to either `mov dst, (inptr_t)addr` or `lea dst, [addr]` depending on the distance from RIP
 	void xLoadFarAddr(const xAddressReg& dst, void* addr);
 
 	//////////////////////////////////////////////////////////////////////////////////////////

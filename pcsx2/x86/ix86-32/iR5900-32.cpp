@@ -47,10 +47,10 @@ static bool g_resetEeScalingStats = false;
 #define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
 
 static u32 maxrecmem = 0;
-alignas(16) static uptr recLUT[_64kb];
+alignas(16) static uintptr_t recLUT[_64kb];
 alignas(16) static u32 hwLUT[_64kb];
 
-static __fi u32 HWADDR(u32 mem) { return hwLUT[mem >> 16] + mem; }
+#define HWADDR(mem) (hwLUT[(mem) >> 16] + (mem))
 
 static u32 s_nBlockCycles = 0; // cycles of current block recompiling
 bool s_nBlockInterlocked = false; // Block is VU0 interlocked
@@ -163,7 +163,7 @@ void _eeMoveGPRtoR(const xRegister64& to, int fromgpr, bool allow_preload)
 	}
 }
 
-void _eeMoveGPRtoM(uptr to, int fromgpr)
+void _eeMoveGPRtoM(uintptr_t to, int fromgpr)
 {
 	if (GPR_IS_CONST1(fromgpr))
 		xMOV(ptr32[(u32*)(to)], g_cpuConstRegs[fromgpr].UL[0]);
@@ -294,7 +294,7 @@ static void recClear(u32 addr, u32 size)
 
 		lowerextent = std::min(lowerextent, blockstart);
 		upperextent = std::max(upperextent, blockend);
-		pblock->m_pFnptr = ((uptr)JITCompile);
+		pblock->m_pFnptr = ((uintptr_t)JITCompile);
 
 		blockidx--;
 	}
@@ -434,8 +434,8 @@ static void _DynGen_Dispatchers(void)
 
 static __ri void ClearRecLUT(BASEBLOCK* base, int memsize)
 {
-	for (int i = 0; i < memsize / (int)sizeof(uptr); i++)
-		base[i].m_pFnptr = ((uptr)JITCompile);
+	for (int i = 0; i < memsize / (int)sizeof(uintptr_t); i++)
+		base[i].m_pFnptr = ((uintptr_t)JITCompile);
 }
 
 static void recReserve(void)
@@ -696,7 +696,7 @@ void SetBranchReg(u32 reg)
 			}
 			else
 			{
-				_eeMoveGPRtoM((uptr)&cpuRegs.pc, reg);
+				_eeMoveGPRtoM((uintptr_t)&cpuRegs.pc, reg);
 			}
 		}
 	}
@@ -1643,7 +1643,7 @@ static void recRecompile(const u32 startpc)
 
 	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
 
-	s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uptr)recPtr);
+	s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uintptr_t)recPtr);
 
 	if (HWADDR(startpc) == EELOAD_START)
 	{
@@ -1990,7 +1990,7 @@ StartRecomp:
 
 	s_pCurBlockEx->size = (pc - startpc) >> 2;
 
-	s_pCurBlock->m_pFnptr = ((uptr)recPtr);
+	s_pCurBlock->m_pFnptr = ((uintptr_t)recPtr);
 
 	if (!(pc & 0x10000000))
 		maxrecmem = std::max((pc & ~0xa0000000), maxrecmem);

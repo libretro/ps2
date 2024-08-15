@@ -261,7 +261,7 @@ __fi bool mVUcmpProg(microVU& mVU, microProgram& prog)
 }
 
 // Searches for Cached Micro Program and sets prog.cur to it (returns entry-point to program)
-_mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
+_mVUt __fi void* mVUsearchProg(u32 startPC, uintptr_t pState)
 {
 	microVU& mVU = mVUx;
 	microProgramQuick& quick = mVU.prog.quick[vuRegs[mVU.index].start_pc / 8];

@@ -38,7 +38,7 @@ struct config_mdec {
 struct config_mdec Config;
 
 // Should be optimized(the funcs. that use it) to read IOP RAM direcly.
-#define PSXM(x) ((uptr)mdecMem + x)
+#define PSXM(x) ((uintptr_t)mdecMem + x)
 
 #define FIX_1_082392200  (277)
 #define FIX_1_414213562  (362)

@@ -129,7 +129,7 @@ struct decoder_t
 	template< typename T >
 	void SetOutputTo( T& obj )
 	{
-		uint mb_offset = ((uptr)&obj - (uptr)&mb8);
+		uint mb_offset = ((uintptr_t)&obj - (uintptr_t)&mb8);
 		ipu0_idx	= mb_offset / 16;
 		ipu0_data	= sizeof(obj)/16;
 	}

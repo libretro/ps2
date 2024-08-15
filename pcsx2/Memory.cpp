@@ -48,7 +48,7 @@ BIOS
 namespace HostMemoryMap
 {
 	extern "C" {
-	uptr EEmem, IOPmem, VUmem, bumpAllocator;
+	uintptr_t EEmem, IOPmem, VUmem, bumpAllocator;
 	}
 } // namespace HostMemoryMap
 
@@ -59,7 +59,7 @@ static VirtualMemoryManagerPtr AllocateVirtualMemory(const char* name, size_t si
 	// Everything looks nicer when the start of all the sections is a nice round looking number.
 	// Also reduces the variation in the address due to small changes in code.
 	// Breaks ASLR but so does anything else that tries to make addresses constant for our debugging pleasure
-	uptr codeBase = (uptr)(void*)AllocateVirtualMemory / (1 << 28) * (1 << 28);
+	uintptr_t codeBase = (uintptr_t)(void*)AllocateVirtualMemory / (1 << 28) * (1 << 28);
 
 	// The allocation is ~640MB in size, slighly under 3*2^28.
 	// We'll hope that the code generated for the PCSX2 executable stays under 512MB (which is likely)
@@ -70,9 +70,9 @@ static VirtualMemoryManagerPtr AllocateVirtualMemory(const char* name, size_t si
 	// affects what shows up in a debugger and won't affect performance or correctness of anything.
 	for (int offset = 4; offset >= -6; offset--)
 	{
-		uptr base = codeBase + (offset << 28) + offset_from_base;
-		// VTLB will throw a fit if we try to put EE main memory here
-		if ((sptr)base < 0 || (sptr)(base + size - 1) < 0)
+		uintptr_t base = codeBase + (offset << 28) + offset_from_base;
+		/* VTLB will throw a fit if we try to put EE main memory here */
+		if ((intptr_t)base < 0 || (intptr_t)(base + size - 1) < 0)
 			continue;
 		VirtualMemoryManagerPtr mgr = std::make_shared<VirtualMemoryManager>(name, base, size, /*upper_bounds=*/0, /*strict=*/true);
 		if (mgr->IsOk())
@@ -90,8 +90,8 @@ SysMainMemory::SysMainMemory()
 	, m_codeMemory(AllocateVirtualMemory(nullptr, HostMemoryMap::CodeSize, HostMemoryMap::MainSize))
 	, m_bumpAllocator(m_mainMemory, HostMemoryMap::bumpAllocatorOffset, HostMemoryMap::MainSize - HostMemoryMap::bumpAllocatorOffset)
 {
-	uptr main_base = (uptr)MainMemory()->GetBase();
-	uptr code_base = (uptr)MainMemory()->GetBase();
+	uintptr_t main_base = (uintptr_t)MainMemory()->GetBase();
+	uintptr_t code_base = (uintptr_t)MainMemory()->GetBase();
 	HostMemoryMap::EEmem = main_base + HostMemoryMap::EEmemOffset;
 	HostMemoryMap::IOPmem = main_base + HostMemoryMap::IOPmemOffset;
 	HostMemoryMap::VUmem = main_base + HostMemoryMap::VUmemOffset;

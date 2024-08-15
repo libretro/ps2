@@ -36,16 +36,16 @@ typedef  void TAKES_R128 vtlbMemW128FP(u32 addr,r128 data);
 
 template <size_t Width, bool Write> struct vtlbMemFP;
 
-template<> struct vtlbMemFP<  8, false> { typedef vtlbMemR8FP   fn; static const uptr Index = 0; };
-template<> struct vtlbMemFP< 16, false> { typedef vtlbMemR16FP  fn; static const uptr Index = 1; };
-template<> struct vtlbMemFP< 32, false> { typedef vtlbMemR32FP  fn; static const uptr Index = 2; };
-template<> struct vtlbMemFP< 64, false> { typedef vtlbMemR64FP  fn; static const uptr Index = 3; };
-template<> struct vtlbMemFP<128, false> { typedef vtlbMemR128FP fn; static const uptr Index = 4; };
-template<> struct vtlbMemFP<  8,  true> { typedef vtlbMemW8FP   fn; static const uptr Index = 0; };
-template<> struct vtlbMemFP< 16,  true> { typedef vtlbMemW16FP  fn; static const uptr Index = 1; };
-template<> struct vtlbMemFP< 32,  true> { typedef vtlbMemW32FP  fn; static const uptr Index = 2; };
-template<> struct vtlbMemFP< 64,  true> { typedef vtlbMemW64FP  fn; static const uptr Index = 3; };
-template<> struct vtlbMemFP<128,  true> { typedef vtlbMemW128FP fn; static const uptr Index = 4; };
+template<> struct vtlbMemFP<  8, false> { typedef vtlbMemR8FP   fn; static const uintptr_t Index = 0; };
+template<> struct vtlbMemFP< 16, false> { typedef vtlbMemR16FP  fn; static const uintptr_t Index = 1; };
+template<> struct vtlbMemFP< 32, false> { typedef vtlbMemR32FP  fn; static const uintptr_t Index = 2; };
+template<> struct vtlbMemFP< 64, false> { typedef vtlbMemR64FP  fn; static const uintptr_t Index = 3; };
+template<> struct vtlbMemFP<128, false> { typedef vtlbMemR128FP fn; static const uintptr_t Index = 4; };
+template<> struct vtlbMemFP<  8,  true> { typedef vtlbMemW8FP   fn; static const uintptr_t Index = 0; };
+template<> struct vtlbMemFP< 16,  true> { typedef vtlbMemW16FP  fn; static const uintptr_t Index = 1; };
+template<> struct vtlbMemFP< 32,  true> { typedef vtlbMemW32FP  fn; static const uintptr_t Index = 2; };
+template<> struct vtlbMemFP< 64,  true> { typedef vtlbMemW64FP  fn; static const uintptr_t Index = 3; };
+template<> struct vtlbMemFP<128,  true> { typedef vtlbMemW128FP fn; static const uintptr_t Index = 4; };
 
 typedef u32 vtlbHandler;
 
@@ -82,8 +82,8 @@ extern void vtlb_VMapBuffer(u32 vaddr,void* buffer,u32 sz);
 extern void vtlb_VMapUnmap(u32 vaddr,u32 sz);
 
 extern void vtlb_ClearLoadStoreInfo(void);
-extern void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
-extern void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
+extern void vtlb_AddLoadStoreInfo(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
+extern void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
 extern bool vtlb_IsFaultingPC(u32 guest_pc);
 
 //Memory functions
@@ -189,28 +189,28 @@ namespace vtlb_private
 
 	static const uint VTLB_HANDLER_ITEMS = 128;
 
-	static const uptr POINTER_SIGN_BIT   = 1ULL << (sizeof(uptr) * 8 - 1);
+	static const uintptr_t POINTER_SIGN_BIT   = 1ULL << (sizeof(uintptr_t) * 8 - 1);
 
 	struct VTLBPhysical
 	{
 	private:
-		sptr value;
-		explicit VTLBPhysical(sptr value): value(value) { }
+		intptr_t value;
+		explicit VTLBPhysical(intptr_t value): value(value) { }
 	public:
 		VTLBPhysical(): value(0) {}
 		/// Create from a pointer to raw memory
-		static VTLBPhysical fromPointer(void *ptr) { return fromPointer((sptr)ptr); }
+		static VTLBPhysical fromPointer(void *ptr) { return fromPointer((intptr_t)ptr); }
 		/// Create from an integer representing a pointer to raw memory
-		static VTLBPhysical fromPointer(sptr ptr);
+		static VTLBPhysical fromPointer(intptr_t ptr);
 		/// Create from a handler and address
 		static VTLBPhysical fromHandler(vtlbHandler handler);
 
 		/// Get the raw value held by the entry
-		uptr raw() const { return value; }
+		uintptr_t raw() const { return value; }
 		/// Returns whether or not this entry is a handler
 		bool isHandler() const { return value < 0; }
 		/// Assumes the entry is a pointer, giving back its value
-		uptr assumePtr() const { return value; }
+		uintptr_t assumePtr() const { return value; }
 		/// Assumes the entry is a handler, and gets the raw handler ID
 		u8 assumeHandler() const { return value; }
 	};
@@ -218,21 +218,21 @@ namespace vtlb_private
 	struct VTLBVirtual
 	{
 	private:
-		uptr value;
-		explicit VTLBVirtual(uptr value): value(value) { }
+		uintptr_t value;
+		explicit VTLBVirtual(uintptr_t value): value(value) { }
 	public:
 		VTLBVirtual(): value(0) {}
 		VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr);
-		static VTLBVirtual fromPointer(uptr ptr, u32 vaddr) {
+		static VTLBVirtual fromPointer(uintptr_t ptr, u32 vaddr) {
 			return VTLBVirtual(VTLBPhysical::fromPointer(ptr), 0, vaddr);
 		}
 
 		/// Get the raw value held by the entry
-		uptr raw() const { return value; }
+		uintptr_t raw() const { return value; }
 		/// Returns whether or not this entry is a handler
-		bool isHandler(u32 vaddr) const { return (sptr)(value + vaddr) < 0; }
+		bool isHandler(u32 vaddr) const { return (intptr_t)(value + vaddr) < 0; }
 		/// Assumes the entry is a pointer, giving back its value
-		uptr assumePtr(u32 vaddr) const { return value + vaddr; }
+		uintptr_t assumePtr(u32 vaddr) const { return value + vaddr; }
 		/// Assumes the entry is a handler, and gets the raw handler ID
 		u8 assumeHandlerGetID() const { return value; }
 		/// Assumes the entry is a handler, and gets the physical address
@@ -257,7 +257,7 @@ namespace vtlb_private
 
 		u32* ppmap;               //4MB (allocated by vtlb_init) // PS2 virtual to PS2 physical
 
-		uptr fastmem_base;
+		uintptr_t fastmem_base;
 
 		MapData()
 		{

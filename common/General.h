@@ -33,8 +33,8 @@ struct PageProtectionMode
 
 struct PageFaultInfo
 {
-	uptr pc;
-	uptr addr;
+	uintptr_t pc;
+	uintptr_t addr;
 };
 
 using PageFaultHandler = bool(*)(const PageFaultInfo& info);

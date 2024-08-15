@@ -33,8 +33,8 @@ namespace x86Emitter
 		void operator()(const xRegisterInt& to, const xRegisterInt& from) const;
 		void operator()(const xIndirectVoid& dest, const xRegisterInt& from) const;
 		void operator()(const xRegisterInt& to, const xIndirectVoid& src) const;
-		void operator()(const xIndirect64orLess& dest, sptr imm) const;
-		void operator()(const xRegisterInt& to, sptr imm, bool preserve_flags = false) const;
+		void operator()(const xIndirect64orLess& dest, intptr_t imm) const;
+		void operator()(const xRegisterInt& to, intptr_t imm, bool preserve_flags = false) const;
 
 	};
 

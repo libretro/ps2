@@ -401,9 +401,9 @@ namespace x86Emitter
 		static const inline xAddressReg& GetArgRegister(uint arg_number, uint gpr_number);
 
 		xAddressVoid operator+(const xAddressReg& right) const;
-		xAddressVoid operator+(sptr right) const;
+		xAddressVoid operator+(intptr_t right) const;
 		xAddressVoid operator+(const void* right) const;
-		xAddressVoid operator-(sptr right) const;
+		xAddressVoid operator-(intptr_t right) const;
 		xAddressVoid operator-(const void* right) const;
 		xAddressVoid operator*(int factor) const;
 		xAddressVoid operator<<(u32 shift) const;
@@ -613,17 +613,17 @@ extern const xRegister32
 		xAddressReg Base; // base register (no scale)
 		xAddressReg Index; // index reg gets multiplied by the scale
 		int Factor; // scale applied to the index register, in factor form (not a shift!)
-		sptr Displacement; // address displacement // 4B max even on 64 bits but keep rest for assertions
+		intptr_t Displacement; // address displacement // 4B max even on 64 bits but keep rest for assertions
 
 	public:
-		xAddressVoid(const xAddressReg& base, const xAddressReg& index, int factor = 1, sptr displacement = 0);
+		xAddressVoid(const xAddressReg& base, const xAddressReg& index, int factor = 1, intptr_t displacement = 0);
 
-		xAddressVoid(const xAddressReg& index, sptr displacement = 0);
+		xAddressVoid(const xAddressReg& index, intptr_t displacement = 0);
 		explicit xAddressVoid(const void* displacement);
-		explicit xAddressVoid(sptr displacement = 0);
+		explicit xAddressVoid(intptr_t displacement = 0);
 
 	public:
-		xAddressVoid& Add(sptr imm)
+		xAddressVoid& Add(intptr_t imm)
 		{
 			Displacement += imm;
 			return *this;
@@ -634,13 +634,13 @@ extern const xRegister32
 
 		__fi xAddressVoid operator+(const xAddressReg& right) const { return xAddressVoid(*this).Add(right); }
 		__fi xAddressVoid operator+(const xAddressVoid& right) const { return xAddressVoid(*this).Add(right); }
-		__fi xAddressVoid operator+(sptr imm) const { return xAddressVoid(*this).Add(imm); }
-		__fi xAddressVoid operator-(sptr imm) const { return xAddressVoid(*this).Add(-imm); }
-		__fi xAddressVoid operator+(const void* addr) const { return xAddressVoid(*this).Add((uptr)addr); }
+		__fi xAddressVoid operator+(intptr_t imm) const { return xAddressVoid(*this).Add(imm); }
+		__fi xAddressVoid operator-(intptr_t imm) const { return xAddressVoid(*this).Add(-imm); }
+		__fi xAddressVoid operator+(const void* addr) const { return xAddressVoid(*this).Add((uintptr_t)addr); }
 
 		__fi void operator+=(const xAddressReg& right) { Add(right); }
-		__fi void operator+=(sptr imm) { Add(imm); }
-		__fi void operator-=(sptr imm) { Add(-imm); }
+		__fi void operator+=(intptr_t imm) { Add(imm); }
+		__fi void operator-=(intptr_t imm) { Add(-imm); }
 	};
 
 	static __fi xAddressVoid operator+(const void* addr, const xAddressVoid& right)
@@ -648,7 +648,7 @@ extern const xRegister32
 		return right + addr;
 	}
 
-	static __fi xAddressVoid operator+(sptr addr, const xAddressVoid& right)
+	static __fi xAddressVoid operator+(intptr_t addr, const xAddressVoid& right)
 	{
 		return right + addr;
 	}
@@ -704,15 +704,15 @@ extern const xRegister32
 		xAddressReg Base; // base register (no scale)
 		xAddressReg Index; // index reg gets multiplied by the scale
 		uint Scale; // scale applied to the index register, in scale/shift form
-		sptr Displacement; // offset applied to the Base/Index registers.
+		intptr_t Displacement; // offset applied to the Base/Index registers.
 			// Displacement is 8/32 bits even on x86_64
 			// However we need the whole pointer to calculate rip-relative offsets
 
 	public:
-		explicit xIndirectVoid(sptr disp);
+		explicit xIndirectVoid(intptr_t disp);
 		explicit xIndirectVoid(const xAddressVoid& src);
-		xIndirectVoid(xAddressReg base, xAddressReg index, int scale = 0, sptr displacement = 0);
-		xIndirectVoid& Add(sptr imm);
+		xIndirectVoid(xAddressReg base, xAddressReg index, int scale = 0, intptr_t displacement = 0);
+		xIndirectVoid& Add(intptr_t imm);
 
 		bool IsReg() const { return false; }
 		bool IsExtended() const { return false; } // Non sense but ease template
@@ -722,8 +722,8 @@ extern const xRegister32
 			return xAddressVoid(Base, Index, Scale, Displacement);
 		}
 
-		__fi xIndirectVoid operator+(const sptr imm) const { return xIndirectVoid(*this).Add(imm); }
-		__fi xIndirectVoid operator-(const sptr imm) const { return xIndirectVoid(*this).Add(-imm); }
+		__fi xIndirectVoid operator+(const intptr_t imm) const { return xIndirectVoid(*this).Add(imm); }
+		__fi xIndirectVoid operator-(const intptr_t imm) const { return xIndirectVoid(*this).Add(-imm); }
 
 	protected:
 		void Reduce();
@@ -735,12 +735,12 @@ extern const xRegister32
 		typedef xIndirectVoid _parent;
 
 	public:
-		explicit xIndirect(sptr disp)
+		explicit xIndirect(intptr_t disp)
 			: _parent(disp)
 		{
 			_operandSize = sizeof(OperandType);
 		}
-		xIndirect(xAddressReg base, xAddressReg index, int scale = 0, sptr displacement = 0)
+		xIndirect(xAddressReg base, xAddressReg index, int scale = 0, intptr_t displacement = 0)
 			: _parent(base, index, scale, displacement)
 		{
 			_operandSize = sizeof(OperandType);
@@ -750,14 +750,14 @@ extern const xRegister32
 		{
 		}
 
-		xIndirect<OperandType>& Add(sptr imm)
+		xIndirect<OperandType>& Add(intptr_t imm)
 		{
 			Displacement += imm;
 			return *this;
 		}
 
-		__fi xIndirect<OperandType> operator+(const sptr imm) const { return xIndirect(*this).Add(imm); }
-		__fi xIndirect<OperandType> operator-(const sptr imm) const { return xIndirect(*this).Add(-imm); }
+		__fi xIndirect<OperandType> operator+(const intptr_t imm) const { return xIndirect(*this).Add(imm); }
+		__fi xIndirect<OperandType> operator-(const intptr_t imm) const { return xIndirect(*this).Add(-imm); }
 
 		bool operator==(const xIndirect<OperandType>& src) const
 		{
@@ -821,7 +821,7 @@ extern const xRegister32
 
 		xModSibType operator[](const void* src) const
 		{
-			return xModSibType((uptr)src);
+			return xModSibType((uintptr_t)src);
 		}
 	};
 
@@ -869,7 +869,7 @@ extern const xRegister32
 		// in each case. (the the last call is the one that takes effect).
 		void SetTarget() const
 		{
-			sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
+			intptr_t displacement = (intptr_t)x86Ptr - (intptr_t)BasePtr;
 			if (OperandSize == 1)
 				BasePtr[-1] = (s8)displacement;
 			else // full displacement, no sanity checks needed :D
@@ -879,12 +879,12 @@ extern const xRegister32
 
 	static __fi xAddressVoid operator+(const void* addr, const xAddressReg& reg)
 	{
-		return reg + (sptr)addr;
+		return reg + (intptr_t)addr;
 	}
 
-	static __fi xAddressVoid operator+(sptr addr, const xAddressReg& reg)
+	static __fi xAddressVoid operator+(intptr_t addr, const xAddressReg& reg)
 	{
-		return reg + (sptr)addr;
+		return reg + (intptr_t)addr;
 	}
 } // namespace x86Emitter
 

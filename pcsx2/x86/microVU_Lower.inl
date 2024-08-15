@@ -1127,13 +1127,14 @@ mVUop(mVU_ISWR)
 			is = gprT1q;
 		}
 		const xRegister32& regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
-		if (!is.IsEmpty() && (sptr)base != (s32)(sptr)base)
+		if (!is.IsEmpty() && (intptr_t)base != (s32)(intptr_t)base)
 		{
 			int register_offset = -1;
-			auto writeBackAt = [&](int offset) {
+			auto writeBackAt = [&](int offset)
+			{
 				if (register_offset == -1)
 				{
-					xLEA(gprT2q, ptr[(void*)((sptr)base + offset)]);
+					xLEA(gprT2q, ptr[(void*)((intptr_t)base + offset)]);
 					register_offset = offset;
 				}
 				xMOV(ptr32[gprT2q + is + (offset - register_offset)], regT);
@@ -1145,10 +1146,10 @@ mVUop(mVU_ISWR)
 		}
 		else if (is.IsEmpty())
 		{
-			if (_X) xMOV(ptr32[(void*)((uptr)base)], regT);
-			if (_Y) xMOV(ptr32[(void*)((uptr)base + 4)], regT);
-			if (_Z) xMOV(ptr32[(void*)((uptr)base + 8)], regT);
-			if (_W) xMOV(ptr32[(void*)((uptr)base + 12)], regT);
+			if (_X) xMOV(ptr32[(void*)((uintptr_t)base)], regT);
+			if (_Y) xMOV(ptr32[(void*)((uintptr_t)base + 4)], regT);
+			if (_Z) xMOV(ptr32[(void*)((uintptr_t)base + 8)], regT);
+			if (_W) xMOV(ptr32[(void*)((uintptr_t)base + 12)], regT);
 		}
 		else
 		{
@@ -1202,9 +1203,7 @@ mVUop(mVU_LQD)
 			is = gprT1q;
 		}
 		else
-		{
-			ptr = (void*)((sptr)ptr + (0xffff & (mVU.microMemSize - 8)));
-		}
+			ptr = (void*)((intptr_t)ptr + (0xffff & (mVU.microMemSize - 8)));
 		if (!mVUlow.noWriteVF)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
@@ -1290,9 +1289,7 @@ mVUop(mVU_SQD)
 			it = gprT1q;
 		}
 		else
-		{
-			ptr = (void*)((sptr)ptr + (0xffff & (mVU.microMemSize - 8)));
-		}
+			ptr = (void*)((intptr_t)ptr + (0xffff & (mVU.microMemSize - 8)));
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		if (it.IsEmpty())
 			mVUsaveReg(Fs, xAddressVoid(ptr), _X_Y_Z_W, 1);
@@ -1605,8 +1602,8 @@ static __fi void mVU_XGKICK_DELAY(mV)
 	mVUbackupRegs(mVU, true, true);
 #if 0 // XGkick Break - ToDo: Change "SomeGifPathValue" to w/e needs to be tested
 	xTEST (ptr32[&SomeGifPathValue], 1); // If '1', breaks execution
-	xMOV  (ptr32[&mVU.resumePtrXG], (uptr)x86Ptr + 10 + 6);
-	xJcc32(Jcc_NotZero, (uptr)mVU.exitFunctXG - ((uptr)x86Ptr + 6));
+	xMOV  (ptr32[&mVU.resumePtrXG], (uintptr_t)x86Ptr + 10 + 6);
+	xJcc32(Jcc_NotZero, (uintptr_t)mVU.exitFunctXG - ((uintptr_t)x86Ptr + 6));
 #endif
 	xFastCall(mVU_XGKICK_, ptr32[&mVU.VIxgkick]);
 	mVUrestoreRegs(mVU, true, true);

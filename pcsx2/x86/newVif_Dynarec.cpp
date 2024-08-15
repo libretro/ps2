@@ -318,7 +318,7 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	// Compile the block now
 	x86Ptr         = (u8*)v.recWritePtr;
 
-	block.startPtr = (uptr)x86Ptr;
+	block.startPtr = (uintptr_t)x86Ptr;
 	block.length   = dVifComputeLength(block.cl, block.wl, block.num, isFill);
 	v.vifBlocks.add(block);
 
@@ -373,7 +373,7 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill)
 
 		// No wrapping, you can run the fast dynarec
 		if (likely((startmem + b->length) <= endmem))
-			((nVifrecCall)b->startPtr)((uptr)startmem, (uptr)data);
+			((nVifrecCall)b->startPtr)((uintptr_t)startmem, (uintptr_t)data);
 		else
 			_nVifUnpack(idx, data, vifRegs.mode, isFill);
 	}

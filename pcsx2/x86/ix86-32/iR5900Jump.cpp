@@ -146,7 +146,7 @@ void recJALR(void)
 		}
 		else
 		{
-			_eeMoveGPRtoM((uptr)&cpuRegs.pc, _Rs_);
+			_eeMoveGPRtoM((uintptr_t)&cpuRegs.pc, _Rs_);
 		}
 	}
 

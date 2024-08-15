@@ -45,11 +45,11 @@ extern void psxBREAK();
 
 u32 g_psxMaxRecMem = 0;
 
-uptr psxRecLUT[0x10000];
+uintptr_t psxRecLUT[0x10000];
 u32 psxhwLUT[0x10000];
 
 /* jmp rel32 */
-static u32* JMP32(uptr to)
+static u32* JMP32(uintptr_t to)
 {
 	*(u8*)x86Ptr = 0xE9;
 	x86Ptr += sizeof(u8);
@@ -279,7 +279,7 @@ void _psxMoveGPRtoR(const xRegister32& to, int fromgpr)
 	}
 }
 
-void _psxMoveGPRtoM(uptr to, int fromgpr)
+void _psxMoveGPRtoM(uintptr_t to, int fromgpr)
 {
 	if (PSX_IS_CONST1(fromgpr))
 	{
@@ -899,7 +899,7 @@ static void recShutdown(void)
 static void iopClearRecLUT(BASEBLOCK* base, int count)
 {
 	for (int i = 0; i < count; i++)
-		base[i].m_pFnptr = ((uptr)iopJITCompile);
+		base[i].m_pFnptr = ((uintptr_t)iopJITCompile);
 }
 
 static __noinline s32 recExecuteBlock(s32 eeCycles)
@@ -932,7 +932,7 @@ static __noinline s32 recExecuteBlock(s32 eeCycles)
 static __fi u32 psxRecClearMem(u32 pc)
 {
 	BASEBLOCK* pblock = PSX_GETBLOCK(pc);
-	if (pblock->m_pFnptr == (uptr)iopJITCompile)
+	if (pblock->m_pFnptr == (uintptr_t)iopJITCompile)
 		return 4;
 
 	pc = HWADDR(pc);
@@ -1014,7 +1014,7 @@ void psxSetBranchReg(u32 reg)
 			}
 			else
 			{
-				_psxMoveGPRtoM((uptr)&psxRegs.pc, reg);
+				_psxMoveGPRtoM((uintptr_t)&psxRegs.pc, reg);
 			}
 		}
 	}
@@ -1022,7 +1022,7 @@ void psxSetBranchReg(u32 reg)
 	_psxFlushCall(FLUSH_EVERYTHING);
 	iPsxBranchTest(0xffffffff, 1);
 
-	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
 }
 
 void psxSetBranchImm(u32 imm)
@@ -1117,12 +1117,10 @@ void rpsxSYSCALL(void)
 
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
-	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
 
 	// jump target for skipping blockCycle updates
 	*j8Ptr      = (u8)((x86Ptr - j8Ptr) - 1);
-
-	//if (!psxbranch) psxbranch = 2;
 }
 
 void rpsxBREAK(void)
@@ -1144,10 +1142,8 @@ void rpsxBREAK(void)
 	j8Ptr = (u8*)(x86Ptr - 1);
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
-	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
 	*j8Ptr      = (u8)((x86Ptr - j8Ptr) - 1);
-
-	//if (!psxbranch) psxbranch = 2;
 }
 
 
@@ -1202,11 +1198,11 @@ static void iopRecRecompile(const u32 startpc)
 	s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
 
 	if (!s_pCurBlockEx || s_pCurBlockEx->startpc != HWADDR(startpc))
-		s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uptr)recPtr);
+		s_pCurBlockEx = recBlocks.New(HWADDR(startpc), (uintptr_t)recPtr);
 
 	psxbranch = 0;
 
-	s_pCurBlock->m_pFnptr = ((uptr)x86Ptr);
+	s_pCurBlock->m_pFnptr = ((uintptr_t)x86Ptr);
 	s_psxBlockCycles = 0;
 
 	// reset recomp state variables
@@ -1322,9 +1318,7 @@ StartRecomp:
 
 	g_pCurInstInfo = s_pInstCache;
 	while (!psxbranch && psxpc < s_nEndBlock)
-	{
 		psxRecompileNextInstruction(false, false);
-	}
 
 	s_pCurBlockEx->size = (psxpc - startpc) >> 2;
 
@@ -1337,12 +1331,11 @@ StartRecomp:
 
 		iPsxBranchTest(0xffffffff, 1);
 
-		JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
+		JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
 	}
 	else
 	{
-		if (psxbranch) { }
-		else
+		if (!psxbranch)
 		{
 			xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 			xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);

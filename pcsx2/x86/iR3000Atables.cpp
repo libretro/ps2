@@ -31,7 +31,7 @@ extern u32 g_psxMaxRecMem;
 	{ \
 		xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code); \
 		_psxFlushCall(FLUSH_EVERYTHING); \
-		xFastCall((void*)(uptr)psx##f); \
+		xFastCall((void*)(uintptr_t)psx##f); \
 		PSX_DEL_CONST(_Rt_); \
 		/*	branch = 2; */ \
 	}
@@ -42,7 +42,7 @@ extern u32 g_psxMaxRecMem;
 	{ \
 		xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code); \
 		_psxFlushCall(FLUSH_EVERYTHING); \
-		xFastCall((void*)(uptr)gte##f); \
+		xFastCall((void*)(uintptr_t)gte##f); \
 		PSX_DEL_CONST(_Rt_); \
 		/*	branch = 2; */ \
 	}
@@ -1474,7 +1474,7 @@ static void rpsxJALR()
 		}
 		else
 		{
-			_psxMoveGPRtoM((uptr)&psxRegs.pc, _Rs_);
+			_psxMoveGPRtoM((uintptr_t)&psxRegs.pc, _Rs_);
 		}
 	}
 
@@ -1559,7 +1559,7 @@ static void rpsxBEQ_process(int process)
 
 		psxSetBranchImm(branchTo);
 
-		while ((uptr)x86Ptr & 0xf)
+		while ((uintptr_t)x86Ptr & 0xf)
 			*x86Ptr++ = 0x90;
 		*s_pbranchjmp = (x86Ptr - (u8*)s_pbranchjmp) - 4;
 
@@ -1625,7 +1625,7 @@ static void rpsxBNE_process(int process)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*s_pbranchjmp = (x86Ptr - (u8*)s_pbranchjmp) - 4;
 
@@ -1694,7 +1694,7 @@ static void rpsxBLTZ(void)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
@@ -1750,7 +1750,7 @@ static void rpsxBGEZ(void)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
@@ -1812,7 +1812,7 @@ static void rpsxBLTZAL(void)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
@@ -1873,7 +1873,7 @@ static void rpsxBGEZAL(void)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
@@ -1930,7 +1930,7 @@ static void rpsxBLEZ(void)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
@@ -1988,7 +1988,7 @@ static void rpsxBGTZ(void)
 
 	psxSetBranchImm(psxpc);
 
-	while ((uptr)x86Ptr & 0xf)
+	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
 	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
 
@@ -2055,7 +2055,7 @@ static void rpsxRFE()
 	// Test the IOP's INTC status, so that any pending ints get raised.
 
 	_psxFlushCall(0);
-	xFastCall((void*)(uptr)&iopTestIntc);
+	xFastCall((void*)(uintptr_t)&iopTestIntc);
 }
 
 //// COP2

@@ -175,8 +175,8 @@ const xRegister32
 
 	void EmitSibMagic(uint regfield, const void* address, int extraRIPOffset)
 	{
-		sptr displacement = (sptr)address;
-		sptr ripRelative = (sptr)address - ((sptr)x86Ptr + sizeof(s8) + sizeof(s32) + extraRIPOffset);
+		intptr_t displacement = (intptr_t)address;
+		intptr_t ripRelative = (intptr_t)address - ((intptr_t)x86Ptr + sizeof(s8) + sizeof(s32) + extraRIPOffset);
 		// Can we use a rip-relative address?  (Prefer this over eiz because it's a byte shorter)
 		if (ripRelative == (s32)ripRelative)
 		{
@@ -439,24 +439,24 @@ const xRegister32
 		return xAddressVoid(*this, right);
 	}
 
-	xAddressVoid xAddressReg::operator+(sptr right) const
+	xAddressVoid xAddressReg::operator+(intptr_t right) const
 	{
 		return xAddressVoid(*this, right);
 	}
 
 	xAddressVoid xAddressReg::operator+(const void* right) const
 	{
-		return xAddressVoid(*this, (sptr)right);
+		return xAddressVoid(*this, (intptr_t)right);
 	}
 
-	xAddressVoid xAddressReg::operator-(sptr right) const
+	xAddressVoid xAddressReg::operator-(intptr_t right) const
 	{
 		return xAddressVoid(*this, -right);
 	}
 
 	xAddressVoid xAddressReg::operator-(const void* right) const
 	{
-		return xAddressVoid(*this, -(sptr)right);
+		return xAddressVoid(*this, -(intptr_t)right);
 	}
 
 	xAddressVoid xAddressReg::operator*(int factor) const
@@ -474,7 +474,7 @@ const xRegister32
 	//  xAddressVoid  (method implementations)
 	// --------------------------------------------------------------------------------------
 
-	xAddressVoid::xAddressVoid(const xAddressReg& base, const xAddressReg& index, int factor, sptr displacement)
+	xAddressVoid::xAddressVoid(const xAddressReg& base, const xAddressReg& index, int factor, intptr_t displacement)
 	{
 		Base = base;
 		Index = index;
@@ -482,7 +482,7 @@ const xRegister32
 		Displacement = displacement;
 	}
 
-	xAddressVoid::xAddressVoid(const xAddressReg& index, sptr displacement)
+	xAddressVoid::xAddressVoid(const xAddressReg& index, intptr_t displacement)
 	{
 		Base = xEmptyReg;
 		Index = index;
@@ -490,7 +490,7 @@ const xRegister32
 		Displacement = displacement;
 	}
 
-	xAddressVoid::xAddressVoid(sptr displacement)
+	xAddressVoid::xAddressVoid(intptr_t displacement)
 	{
 		Base = xEmptyReg;
 		Index = xEmptyReg;
@@ -503,7 +503,7 @@ const xRegister32
 		Base = xEmptyReg;
 		Index = xEmptyReg;
 		Factor = 0;
-		Displacement = (sptr)displacement;
+		Displacement = (intptr_t)displacement;
 	}
 
 	xAddressVoid& xAddressVoid::Add(const xAddressReg& src)
@@ -560,7 +560,7 @@ const xRegister32
 		Reduce();
 	}
 
-	xIndirectVoid::xIndirectVoid(sptr disp)
+	xIndirectVoid::xIndirectVoid(intptr_t disp)
 	{
 		Base = xEmptyReg;
 		Index = xEmptyReg;
@@ -570,7 +570,7 @@ const xRegister32
 		// no reduction necessary :D
 	}
 
-	xIndirectVoid::xIndirectVoid(xAddressReg base, xAddressReg index, int scale, sptr displacement)
+	xIndirectVoid::xIndirectVoid(xAddressReg base, xAddressReg index, int scale, intptr_t displacement)
 	{
 		Base = base;
 		Index = index;
@@ -648,7 +648,7 @@ const xRegister32
 		}
 	}
 
-	xIndirectVoid& xIndirectVoid::Add(sptr imm)
+	xIndirectVoid& xIndirectVoid::Add(intptr_t imm)
 	{
 		Displacement += imm;
 		return *this;
@@ -928,7 +928,7 @@ const xRegister32
 
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{
-		if ((sptr)base == (s32)(sptr)base)
+		if ((intptr_t)base == (s32)(intptr_t)base)
 			return offset + base;
 		xLEA(tmpRegister, ptr[base]);
 		return offset + tmpRegister;
@@ -936,9 +936,9 @@ const xRegister32
 
 	void xLoadFarAddr(const xAddressReg& dst, void* addr)
 	{
-		sptr iaddr = (sptr)addr;
-		sptr rip   = (sptr)x86Ptr + 7; // LEA will be 7 bytes
-		sptr disp  = iaddr - rip;
+		intptr_t iaddr = (intptr_t)addr;
+		intptr_t rip   = (intptr_t)x86Ptr + 7; // LEA will be 7 bytes
+		intptr_t disp  = iaddr - rip;
 		if (disp == (s32)disp)
 		{
 			xLEA(dst, ptr[addr]);

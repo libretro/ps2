@@ -64,13 +64,8 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelay
 
 namespace OpcodeImpl {
 
-void recPREF()
-{
-}
-
-void recSYNC()
-{
-}
+void recPREF(void) { }
+void recSYNC(void) { }
 
 void recMFSA()
 {
@@ -158,105 +153,42 @@ void recMTSAH()
 }
 
 ////////////////////////////////////////////////////
-void recNULL(void)
-{
-}
-
-////////////////////////////////////////////////////
-void recUnknown(void)
-{
-	// TODO : Unknown ops should throw an exception.
-}
-
-void recMMI_Unknown(void)
-{
-	// TODO : Unknown ops should throw an exception.
-}
-
-void recCOP0_Unknown(void)
-{
-	// TODO : Unknown ops should throw an exception.
-}
-
-void recCOP1_Unknown(void)
-{
-	// TODO : Unknown ops should throw an exception.
-}
+/* TODO : Unknown ops should throw an exception. */
+void recNULL(void) { }
+void recUnknown(void) { }
+void recMMI_Unknown(void) { }
+void recCOP0_Unknown(void) { }
+void recCOP1_Unknown(void) { }
 
 /**********************************************************
 *    UNHANDLED YET OPCODES
 *
 **********************************************************/
 
-// Suikoden 3 uses it a lot
-void recCACHE() //Interpreter only!
+/* Suikoden 3 uses it a lot */
+void recCACHE(void) /* Interpreter only! */
 {
-	//xMOV(ptr32[&cpuRegs.code], (u32)cpuRegs.code );
-	//xMOV(ptr32[&cpuRegs.pc], (u32)pc );
-	//iFlushCall(FLUSH_EVERYTHING);
-	//xFastCall((void*)(uptr)R5900::Interpreter::OpcodeImpl::CACHE );
-	//branch = 2;
+#if 0
+	xMOV(ptr32[&cpuRegs.code], (u32)cpuRegs.code );
+	xMOV(ptr32[&cpuRegs.pc], (u32)pc );
+	iFlushCall(FLUSH_EVERYTHING);
+	xFastCall((void*)(uintptr_t)R5900::Interpreter::OpcodeImpl::CACHE );
+	branch = 2;
+#endif
 }
 
-void recTGE()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGE);
-}
-
-void recTGEU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGEU);
-}
-
-void recTLT()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLT);
-}
-
-void recTLTU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLTU);
-}
-
-void recTEQ()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TEQ);
-}
-
-void recTNE()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TNE);
-}
-
-void recTGEI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGEI);
-}
-
-void recTGEIU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGEIU);
-}
-
-void recTLTI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLTI);
-}
-
-void recTLTIU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLTIU);
-}
-
-void recTEQI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TEQI);
-}
-
-void recTNEI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TNEI);
-}
+void recTGE(void)   { recBranchCall(R5900::Interpreter::OpcodeImpl::TGE);   }
+void recTGEU(void)  { recBranchCall(R5900::Interpreter::OpcodeImpl::TGEU);  }
+void recTLT(void)   { recBranchCall(R5900::Interpreter::OpcodeImpl::TLT);   }
+void recTLTU(void)  { recBranchCall(R5900::Interpreter::OpcodeImpl::TLTU);  }
+void recTEQ(void)   { recBranchCall(R5900::Interpreter::OpcodeImpl::TEQ);   }
+void recTNE(void)   { recBranchCall(R5900::Interpreter::OpcodeImpl::TNE);   }
+void recTGEI(void)  { recBranchCall(R5900::Interpreter::OpcodeImpl::TGEI);  }
+void recTGEIU(void) { recBranchCall(R5900::Interpreter::OpcodeImpl::TGEIU); } 
+void recTLTI(void)  { recBranchCall(R5900::Interpreter::OpcodeImpl::TLTI);  }
+void recTLTIU(void) { recBranchCall(R5900::Interpreter::OpcodeImpl::TLTIU); }
+void recTEQI(void)  { recBranchCall(R5900::Interpreter::OpcodeImpl::TEQI);  }
+void recTNEI(void)  { recBranchCall(R5900::Interpreter::OpcodeImpl::TNEI);  }
 
 } // namespace OpcodeImpl
 } // namespace Dynarec

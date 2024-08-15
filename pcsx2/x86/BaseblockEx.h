@@ -26,13 +26,13 @@
 // addressable memory.  Yay!
 struct BASEBLOCK
 {
-	uptr m_pFnptr;
+	uintptr_t m_pFnptr;
 };
 
 // extra block info (only valid for start of fn)
 struct BASEBLOCKEX
 {
-	uptr fnptr;
+	uintptr_t fnptr;
 	u32 startpc;
 	u32 size;    // The size in dwords (equivalent to the number of instructions)
 	u32 x86size; // The size in byte of the translated x86 instructions
@@ -76,7 +76,7 @@ public:
 		reserve(size);
 	}
 
-	BASEBLOCKEX* insert(u32 startpc, uptr fnptr)
+	BASEBLOCKEX* insert(u32 startpc, uintptr_t fnptr)
 	{
 		if (_Size + 1 >= _Reserved)
 		{
@@ -141,11 +141,11 @@ public:
 class BaseBlocks
 {
 protected:
-	typedef std::multimap<u32, uptr>::iterator linkiter_t;
+	typedef std::multimap<u32, uintptr_t>::iterator linkiter_t;
 
 	// switch to a hash map later?
-	std::multimap<u32, uptr> links;
-	uptr recompiler;
+	std::multimap<u32, uintptr_t> links;
+	uintptr_t recompiler;
 	BaseBlockArray blocks;
 
 public:
@@ -157,10 +157,10 @@ public:
 
 	void SetJITCompile(const void *recompiler_)
 	{
-		recompiler = reinterpret_cast<uptr>(recompiler_);
+		recompiler = reinterpret_cast<uintptr_t>(recompiler_);
 	}
 
-	BASEBLOCKEX* New(u32 startpc, uptr fnptr);
+	BASEBLOCKEX* New(u32 startpc, uintptr_t fnptr);
 	int LastIndex(u32 startpc) const;
 
 	__fi int Index(u32 startpc) const
@@ -218,13 +218,13 @@ public:
  * Will associate `reclut[pagebase + pageidx]` with `mapbase[mappage << 14]`
  * Will associate `hwlut[pagebase + pageidx]` with `pageidx << 16`
  */
-static inline void recLUT_SetPage(uptr reclut[0x10000], u32 hwlut[0x10000],
+static inline void recLUT_SetPage(uintptr_t reclut[0x10000], u32 hwlut[0x10000],
                                   BASEBLOCK* mapbase, uint pagebase, uint pageidx, uint mappage)
 {
 	// this value is in 64k pages!
 	uint page = pagebase + pageidx;
 
-	reclut[page] = (uptr)&mapbase[((s32)mappage - (s32)page) << 14];
+	reclut[page] = (uintptr_t)&mapbase[((s32)mappage - (s32)page) << 14];
 	if (hwlut)
 		hwlut[page] = 0u - (pagebase << 16);
 }

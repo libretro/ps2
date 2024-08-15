@@ -148,7 +148,7 @@ void recDI()
 	//xMOV(eax, ptr[&cpuRegs.cycle ]);
 	//xMOV(ptr[&g_nextBranchCycle], eax);
 
-	//xFastCall((void*)(uptr)Interp::DI );
+	//xFastCall((void*)(uintptr_t)Interp::DI );
 
 	// Fixes booting issues in the following games:
 	// Jak X, Namco 50th anniversary, Spongebob the Movie, Spongebob Battle for Bikini Bottom,
@@ -325,7 +325,7 @@ void recMTC0()
 				xMOV(ecx, ptr32[&cpuRegs.cycle]);
 				xADD(ecx, scaleblockcycles_clear());
 				xMOV(ptr32[&cpuRegs.cycle], ecx); // update cycles
-				_eeMoveGPRtoM((uptr)&cpuRegs.CP0.r[9], _Rt_);
+				_eeMoveGPRtoM((uintptr_t)&cpuRegs.CP0.r[9], _Rt_);
 				xMOV(ptr[&cpuRegs.lastCOP0Cycle], ecx);
 				break;
 
@@ -339,14 +339,14 @@ void recMTC0()
 					xADD(eax, scaleblockcycles_clear());
 					xMOV(ptr32[&cpuRegs.cycle], eax); // update cycles
 					xFastCall((void*)COP0_UpdatePCCR);
-					_eeMoveGPRtoM((uptr)&cpuRegs.PERF.n.pccr, _Rt_);
+					_eeMoveGPRtoM((uintptr_t)&cpuRegs.PERF.n.pccr, _Rt_);
 				}
 				else if (0 == (_Imm_ & 2)) // MTPC 0, only LSB of register matters
 				{
 					xMOV(ecx, ptr32[&cpuRegs.cycle]);
 					xADD(ecx, scaleblockcycles_clear());
 					xMOV(ptr32[&cpuRegs.cycle], ecx); // update cycles
-					_eeMoveGPRtoM((uptr)&cpuRegs.PERF.n.pcr0, _Rt_);
+					_eeMoveGPRtoM((uintptr_t)&cpuRegs.PERF.n.pcr0, _Rt_);
 					xMOV(ptr[&cpuRegs.lastPERFCycle[0]], ecx);
 				}
 				else // MTPC 1
@@ -354,7 +354,7 @@ void recMTC0()
 					xMOV(ecx, ptr32[&cpuRegs.cycle]);
 					xADD(ecx, scaleblockcycles_clear());
 					xMOV(ptr32[&cpuRegs.cycle], ecx); // update cycles
-					_eeMoveGPRtoM((uptr)&cpuRegs.PERF.n.pcr1, _Rt_);
+					_eeMoveGPRtoM((uintptr_t)&cpuRegs.PERF.n.pcr1, _Rt_);
 					xMOV(ptr[&cpuRegs.lastPERFCycle[1]], ecx);
 				}
 				break;
@@ -363,7 +363,7 @@ void recMTC0()
 				break;
 
 			default:
-				_eeMoveGPRtoM((uptr)&cpuRegs.CP0.r[_Rd_], _Rt_);
+				_eeMoveGPRtoM((uintptr_t)&cpuRegs.CP0.r[_Rd_], _Rt_);
 				break;
 		}
 	}

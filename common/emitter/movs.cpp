@@ -111,7 +111,7 @@ namespace x86Emitter
 		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0x8a : 0x8b, to, src, 0);
 	}
 
-	void xImpl_Mov::operator()(const xIndirect64orLess& dest, sptr imm) const
+	void xImpl_Mov::operator()(const xIndirect64orLess& dest, intptr_t imm) const
 	{
 		xOpWrite(dest.GetPrefix16(), dest.Is8BitOp() ? 0xc6 : 0xc7, 0, dest, dest.GetImmSize());
 		dest.xWriteImm(imm);
@@ -119,14 +119,14 @@ namespace x86Emitter
 
 	// preserve_flags  - set to true to disable optimizations which could alter the state of
 	//   the flags (namely replacing mov reg,0 with xor).
-	void xImpl_Mov::operator()(const xRegisterInt& to, sptr imm, bool preserve_flags) const
+	void xImpl_Mov::operator()(const xRegisterInt& to, intptr_t imm, bool preserve_flags) const
 	{
 		const xRegisterInt& to_ = to.GetNonWide();
 		if (!preserve_flags && (imm == 0))
 		{
 			_g1_EmitOp(G1Type_XOR, to_, to_);
 		}
-		else if (imm == (sptr)(u32)imm || !(to._operandSize == 8))
+		else if (imm == (intptr_t)(u32)imm || !(to._operandSize == 8))
 		{
 			// Note: MOV does not have (reg16/32,imm8) forms.
 			u8 opcode = (to_.Is8BitOp() ? 0xb0 : 0xb8) | to_.Id;

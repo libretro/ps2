@@ -44,7 +44,7 @@ namespace
 
 	struct CacheTag
 	{
-		uptr rawValue;
+		uintptr_t rawValue;
 	};
 
 	struct CacheLine
@@ -58,13 +58,13 @@ namespace
 			if (!((tag.rawValue & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
 				return;
 
-			uptr target = (tag.rawValue & ~ALL_FLAGS) | (set << 6);
+			uintptr_t target = (tag.rawValue & ~ALL_FLAGS) | (set << 6);
 
 			*reinterpret_cast<CacheData*>(target) = data;
 			tag.rawValue &= ~DIRTY_FLAG;
 		}
 
-		void load(uptr ppf)
+		void load(uintptr_t ppf)
 		{
 			tag.rawValue &= ALL_FLAGS;
 			tag.rawValue |= (ppf & ~ALL_FLAGS);
@@ -89,7 +89,7 @@ namespace
 
 }
 
-static bool findInCache(const CacheSet& set, uptr ppf, int* way)
+static bool findInCache(const CacheSet& set, uintptr_t ppf, int* way)
 {
 	auto check = [&](int checkWay) -> bool
 	{
@@ -108,7 +108,7 @@ static int getFreeCache(u32 mem, int* way)
 	const int setIdx = (mem >> 6) & 0x3F;
 	CacheSet& set    = cache.sets[setIdx];
 	vtlb_private::VTLBVirtual vmv  = vtlb_private::vtlbdata.vmap[mem >> vtlb_private::VTLB_PAGE_BITS];
-	uptr ppf         = vmv.assumePtr(mem);
+	uintptr_t ppf         = vmv.assumePtr(mem);
 
 	if (!findInCache(set, ppf, way))
 	{
@@ -185,7 +185,7 @@ static void doCacheHitOp(u32 addr, Op op)
 	const int index = (addr >> 6) & 0x3F;
 	CacheSet& set   = cache.sets[index];
 	vtlb_private::VTLBVirtual vmv = vtlb_private::vtlbdata.vmap[addr >> vtlb_private::VTLB_PAGE_BITS];
-	uptr ppf = vmv.assumePtr(addr);
+	uintptr_t ppf = vmv.assumePtr(addr);
 	if (findInCache(set, ppf, &way))
 		op({ cache.sets[index].tags[way], cache.sets[index].data[way], index });
 }

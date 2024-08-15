@@ -79,8 +79,8 @@ namespace x86Emitter
 	{
 		if (!a1.IsEmpty())
 			prepareRegsForFastcall(a1, a2);
-		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
-		if ((sptr)disp == (s32)disp)
+		uintptr_t disp = ((uintptr_t)x86Ptr + 5) - (uintptr_t)f;
+		if ((intptr_t)disp == (s32)disp)
 		{
 			xCALL(f);
 		}
@@ -95,8 +95,8 @@ namespace x86Emitter
 	{
 		if (!a1.IsEmpty())
 			prepareRegsForFastcall(a1, a2);
-		uptr disp = ((uptr)x86Ptr + 5) - (uptr)f;
-		if ((sptr)disp == (s32)disp)
+		uintptr_t disp = ((uintptr_t)x86Ptr + 5) - (uintptr_t)f;
+		if ((intptr_t)disp == (s32)disp)
 		{
 			xCALL(f);
 		}
@@ -184,7 +184,7 @@ namespace x86Emitter
 	__emitinline void xJccKnownTarget(JccComparisonType comparison, const void* target)
 	{
 		// Calculate the potential j8 displacement first, assuming an instruction length of 2:
-		sptr displacement8 = (sptr)target - (sptr)(x86Ptr + 2);
+		intptr_t displacement8 = (intptr_t)target - (intptr_t)(x86Ptr + 2);
 
 		if (is_s8(displacement8))
 		{
@@ -200,7 +200,7 @@ namespace x86Emitter
 		{
 			// Perform a 32 bit jump instead. :(
 			s32* bah      = xJcc32(comparison, 0);
-			sptr distance = (sptr)target - (sptr)x86Ptr;
+			intptr_t distance = (intptr_t)target - (intptr_t)x86Ptr;
 			*bah          = (s32)distance;
 		}
 	}

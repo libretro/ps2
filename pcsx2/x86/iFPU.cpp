@@ -89,7 +89,7 @@ alignas(16) static const u32 s_pos[4] = {0x7fffffff, 0xffffffff, 0xffffffff, 0xf
 	void rec##f() \
 	{ \
 		iFlushCall(FLUSH_INTERPRETER); \
-		xFastCall((void*)(uptr)R5900::Interpreter::OpcodeImpl::COP1::f); \
+		xFastCall((void*)(uintptr_t)R5900::Interpreter::OpcodeImpl::COP1::f); \
 		g_branch = 2; \
 	}
 
@@ -98,7 +98,7 @@ alignas(16) static const u32 s_pos[4] = {0x7fffffff, 0xffffffff, 0xffffffff, 0xf
 	void rec##f() \
 	{ \
 		iFlushCall(FLUSH_INTERPRETER); \
-		xFastCall((void*)(uptr)R5900::Interpreter::OpcodeImpl::COP1::f); \
+		xFastCall((void*)(uintptr_t)R5900::Interpreter::OpcodeImpl::COP1::f); \
 	}
 //------------------------------------------------------------------
 

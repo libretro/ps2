@@ -41,7 +41,7 @@ public:
 	// If upper_bounds is nonzero and the OS fails to allocate memory that is below it,
 	// calls to IsOk() will return false and Alloc() will always return null pointers
 	// strict indicates that the allocation should quietly fail if the memory can't be mapped at `base`
-	VirtualMemoryManager(const char* file_mapping_name, uptr base, size_t size, uptr upper_bounds = 0, bool strict = false);
+	VirtualMemoryManager(const char* file_mapping_name, uintptr_t base, size_t size, uintptr_t upper_bounds = 0, bool strict = false);
 	~VirtualMemoryManager();
 
 	void* GetFileHandle() const { return m_file_handle; }
@@ -49,7 +49,7 @@ public:
 
 	// Request the use of the memory at offsetLocation bytes from the start of the reserved memory area
 	// offsetLocation must be page-aligned
-	u8* Alloc(uptr offsetLocation, size_t size) const;
+	u8* Alloc(uintptr_t offsetLocation, size_t size) const;
 
 	void Free(void* address, size_t size) const;
 
@@ -70,7 +70,7 @@ class VirtualMemoryBumpAllocator
 	const u8* m_endptr = 0;
 
 public:
-	VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr allocator, size_t size, uptr offsetLocation);
+	VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr allocator, size_t size, uintptr_t offsetLocation);
 	u8* Alloc(size_t size);
 	const VirtualMemoryManagerPtr& GetAllocator() { return m_allocator; }
 };

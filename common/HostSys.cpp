@@ -92,7 +92,7 @@ long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 	void* const exception_pc = nullptr;
 #endif
 
-	const PageFaultInfo pfi{(uptr)exception_pc, (uptr)eps->ExceptionRecord->ExceptionInformation[1]};
+	const PageFaultInfo pfi{(uintptr_t)exception_pc, (uintptr_t)eps->ExceptionRecord->ExceptionInformation[1]};
 
 	s_in_exception_handler = true;
 
@@ -167,7 +167,7 @@ static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 	void* const exception_pc = nullptr;
 #endif
 
-	const PageFaultInfo pfi{(uptr)exception_pc, (uptr)siginfo->si_addr & ~__pagemask};
+	const PageFaultInfo pfi{(uintptr_t)exception_pc, (uintptr_t)siginfo->si_addr & ~__pagemask};
 
 	s_in_exception_handler = true;
 

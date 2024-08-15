@@ -213,34 +213,29 @@ void gteCTC2() {
 
 #define _oB_ (psxRegs.GPR.r[_Rs_] + _Imm_)
 
-void gteLWC2() {
-	MTC2(iopMemRead32(_oB_), _Rt_);
-}
-
-void gteSWC2() {
-	iopMemWrite32(_oB_, MFC2(_Rt_));
-}
+void gteLWC2(void) { MTC2(iopMemRead32(_oB_), _Rt_); }
+void gteSWC2(void) { iopMemWrite32(_oB_, MFC2(_Rt_)); }
 
 /////LIMITATIONS AND OTHER STUFF************************************
 
-__inline double NC_OVERFLOW1(double x) {
-	if (x<-2147483648.0) { gteFLAG |= 1 << 29; }
-	else if (x> 2147483647.0) { gteFLAG |= 1 << 26; }
-
+__inline double NC_OVERFLOW1(double x)
+{
+	if (x<-2147483648.0) gteFLAG |= 1 << 29;
+	else if (x> 2147483647.0) gteFLAG |= 1 << 26;
 	return x;
 }
 
-__inline double NC_OVERFLOW2(double x) {
-	if (x<-2147483648.0) { gteFLAG |= 1 << 28; }
-	else if (x> 2147483647.0) { gteFLAG |= 1 << 25; }
-
+__inline double NC_OVERFLOW2(double x)
+{
+	if (x<-2147483648.0) gteFLAG |= 1 << 28;
+	else if (x> 2147483647.0) gteFLAG |= 1 << 25;
 	return x;
 }
 
-__inline double NC_OVERFLOW3(double x) {
-	if (x<-2147483648.0) { gteFLAG |= 1 << 27; }
-	else if (x> 2147483647.0) { gteFLAG |= 1 << 24; }
-
+__inline double NC_OVERFLOW3(double x)
+{
+	if (x<-2147483648.0) gteFLAG |= 1 << 27;
+	else if (x> 2147483647.0) gteFLAG |= 1 << 24;
 	return x;
 }
 

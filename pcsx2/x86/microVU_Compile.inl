@@ -457,7 +457,7 @@ __fi void mVUinitConstValues(microVU& mVU)
 }
 
 // Initialize Variables
-__fi void mVUinitFirstPass(microVU& mVU, uptr pState, u8* thisPtr)
+__fi void mVUinitFirstPass(microVU& mVU, uintptr_t pState, u8* thisPtr)
 {
 	mVUstartPC = iPC; // Block Start PC
 	mVUbranch  = 0;   // Branch Type
@@ -465,11 +465,11 @@ __fi void mVUinitFirstPass(microVU& mVU, uptr pState, u8* thisPtr)
 	mVUcycles  = 0;   // Skips "M" phase, and starts counting cycles at "T" stage
 	mVU.p      = 0;   // All blocks start at p index #0
 	mVU.q      = 0;   // All blocks start at q index #0
-	if ((uptr)&mVUregs != pState) // Loads up Pipeline State Info
+	if ((uintptr_t)&mVUregs != pState) // Loads up Pipeline State Info
 	{
 		memcpy((u8*)&mVUregs, (u8*)pState, sizeof(microRegInfo));
 	}
-	if (((uptr)&mVU.prog.lpState != pState))
+	if (((uintptr_t)&mVU.prog.lpState != pState))
 	{
 		memcpy((u8*)&mVU.prog.lpState, (u8*)pState, sizeof(microRegInfo));
 	}
@@ -619,7 +619,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 	mVU.code = orig_code;
 }
 
-void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
+void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 {
 	microFlagCycles mFC;
 	u8* thisPtr = x86Ptr;
@@ -895,7 +895,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 }
 
 // Returns the entry point of the block (compiles it if not found)
-__fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uptr pState)
+__fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uintptr_t pState)
 {
 	microBlock* pBlock = block->search(mVU, (microRegInfo*)pState);
 	if (pBlock)
@@ -904,7 +904,7 @@ __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uptr
 }
 
 // Search for Existing Compiled Block (if found, return x86ptr; else, compile and return x86ptr)
-__fi void* mVUblockFetch(microVU& mVU, u32 startPC, uptr pState)
+__fi void* mVUblockFetch(microVU& mVU, u32 startPC, uintptr_t pState)
 {
 	startPC &= mVU.microMemSize - 8;
 
@@ -913,7 +913,7 @@ __fi void* mVUblockFetch(microVU& mVU, u32 startPC, uptr pState)
 }
 
 // mVUcompileJIT() - Called By JR/JALR during execution
-_mVUt void* mVUcompileJIT(u32 startPC, uptr ptr)
+_mVUt void* mVUcompileJIT(u32 startPC, uintptr_t ptr)
 {
 	if (doJumpAsSameProgram) // Treat jump as part of same microProgram
 	{
@@ -924,7 +924,7 @@ _mVUt void* mVUcompileJIT(u32 startPC, uptr ptr)
 			microJumpCache& jc = pBlock->jumpCache[startPC / 8];
 			if (jc.prog && jc.prog == mVU.prog.quick[startPC / 8].prog)
 				return jc.x86ptrStart;
-			void* v = mVUblockFetch(mVUx, startPC, (uptr)&pBlock->pStateEnd);
+			void* v = mVUblockFetch(mVUx, startPC, (uintptr_t)&pBlock->pStateEnd);
 			jc.prog = mVU.prog.quick[startPC / 8].prog;
 			jc.x86ptrStart = v;
 			return v;
@@ -939,7 +939,7 @@ _mVUt void* mVUcompileJIT(u32 startPC, uptr ptr)
 		microJumpCache& jc = pBlock->jumpCache[startPC / 8];
 		if (jc.prog && jc.prog == mVU.prog.quick[startPC / 8].prog)
 			return jc.x86ptrStart;
-		void* v = mVUsearchProg<vuIndex>(startPC, (uptr)&pBlock->pStateEnd);
+		void* v = mVUsearchProg<vuIndex>(startPC, (uintptr_t)&pBlock->pStateEnd);
 		jc.prog = mVU.prog.quick[startPC / 8].prog;
 		jc.x86ptrStart = v;
 		return v;

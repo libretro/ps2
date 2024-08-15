@@ -328,7 +328,7 @@ _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 	mVU.cycles      = cycles;
 	mVU.totalCycles = cycles;
 	x86Ptr = (u8*)mVU.prog.x86ptr; // Set x86ptr to where last program left off
-	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uptr)&mVU.prog.lpState); // Find and set correct program
+	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uintptr_t)&mVU.prog.lpState); // Find and set correct program
 }
 
 //------------------------------------------------------------------

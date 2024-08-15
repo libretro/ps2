@@ -32,7 +32,7 @@ static const int psxInstCycles_Load = 0;
 #define PSX_HI XMMGPR_HI
 #define PSX_LO XMMGPR_LO
 
-extern uptr psxRecLUT[];
+extern uintptr_t psxRecLUT[];
 
 void _psxFlushConstReg(int reg);
 void _psxFlushConstRegs();
@@ -44,7 +44,7 @@ void _psxFlushAllDirty();
 void _psxOnWriteReg(int reg);
 
 void _psxMoveGPRtoR(const x86Emitter::xRegister32& to, int fromgpr);
-void _psxMoveGPRtoM(uptr to, int fromgpr);
+void _psxMoveGPRtoM(uintptr_t to, int fromgpr);
 
 extern u32 psxpc; // recompiler pc
 extern int psxbranch; // set for branch

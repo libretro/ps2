@@ -21,8 +21,8 @@
 #include "DEV9/DEV9.h"
 #include "IopHw.h"
 
-uptr *psxMemWLUT = NULL;
-const uptr *psxMemRLUT = NULL;
+uintptr_t *psxMemWLUT = NULL;
+const uintptr_t *psxMemRLUT = NULL;
 
 IopVM_MemoryAllocMess* iopMem = NULL;
 
@@ -37,8 +37,8 @@ iopMemoryReserve::~iopMemoryReserve() { Release(); }
 
 void iopMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
 {
-	psxMemWLUT = (uptr*)_aligned_malloc(0x2000 * sizeof(uptr) * 2, 16);
-	psxMemRLUT = psxMemWLUT + 0x2000; //(uptr*)_aligned_malloc(0x10000 * sizeof(uptr),16);
+	psxMemWLUT = (uintptr_t*)_aligned_malloc(0x2000 * sizeof(uintptr_t) * 2, 16);
+	psxMemRLUT = psxMemWLUT + 0x2000; //(uintptr_t*)_aligned_malloc(0x10000 * sizeof(uintptr_t),16);
 
 	VtlbMemoryReserve::Assign(std::move(allocator), HostMemoryMap::IOPmemOffset, sizeof(*iopMem));
 	iopMem = reinterpret_cast<IopVM_MemoryAllocMess*>(GetPtr());
@@ -59,7 +59,7 @@ void iopMemoryReserve::Reset()
 {
 	_parent::Reset();
 
-	memset(psxMemWLUT, 0, 0x2000 * sizeof(uptr) * 2);	// clears both allocations, RLUT and WLUT
+	memset(psxMemWLUT, 0, 0x2000 * sizeof(uintptr_t) * 2);	// clears both allocations, RLUT and WLUT
 
 	// Trick!  We're accessing RLUT here through WLUT, since it's the non-const pointer.
 	// So the ones with a 0x2000 prefixed are RLUT tables.
@@ -68,43 +68,43 @@ void iopMemoryReserve::Reset()
 	// at 0x0, 0x8000, and 0xa000:
 	for (int i=0; i<0x0080; i++)
 	{
-		psxMemWLUT[i + 0x0000] = (uptr)&iopMem->Main[(i & 0x1f) << 16];
+		psxMemWLUT[i + 0x0000] = (uintptr_t)&iopMem->Main[(i & 0x1f) << 16];
 
 		// RLUTs, accessed through WLUT.
-		psxMemWLUT[i + 0x2000] = (uptr)&iopMem->Main[(i & 0x1f) << 16];
+		psxMemWLUT[i + 0x2000] = (uintptr_t)&iopMem->Main[(i & 0x1f) << 16];
 	}
 
 	// A few single-page allocations for things we store in special locations.
-	psxMemWLUT[0x2000 + 0x1f00] = (uptr)iopMem->P;
-	psxMemWLUT[0x2000 + 0x1f80] = (uptr)iopHw;
-	//psxMemWLUT[0x1bf80] = (uptr)iopHw;
+	psxMemWLUT[0x2000 + 0x1f00] = (uintptr_t)iopMem->P;
+	psxMemWLUT[0x2000 + 0x1f80] = (uintptr_t)iopHw;
+	//psxMemWLUT[0x1bf80] = (uintptr_t)iopHw;
 
-	psxMemWLUT[0x1f00] = (uptr)iopMem->P;
-	psxMemWLUT[0x1f80] = (uptr)iopHw;
+	psxMemWLUT[0x1f00] = (uintptr_t)iopMem->P;
+	psxMemWLUT[0x1f80] = (uintptr_t)iopHw;
 
 	// Read-only memory areas, so don't map WLUT for these...
 	for (int i = 0; i < 0x0040; i++)
 	{
-		psxMemWLUT[i + 0x2000 + 0x1fc0] = (uptr)&eeMem->ROM[i << 16];
+		psxMemWLUT[i + 0x2000 + 0x1fc0] = (uintptr_t)&eeMem->ROM[i << 16];
 	}
 
 	for (int i = 0; i < 0x0040; i++)
 	{
-		psxMemWLUT[i + 0x2000 + 0x1e00] = (uptr)&eeMem->ROM1[i << 16];
+		psxMemWLUT[i + 0x2000 + 0x1e00] = (uintptr_t)&eeMem->ROM1[i << 16];
 	}
 
 	for (int i = 0; i < 0x0008; i++)
 	{
-		psxMemWLUT[i + 0x2000 + 0x1e40] = (uptr)&eeMem->ROM2[i << 16];
+		psxMemWLUT[i + 0x2000 + 0x1e40] = (uintptr_t)&eeMem->ROM2[i << 16];
 	}
 
 	// sif!! (which is read only? (air))
-	psxMemWLUT[0x2000 + 0x1d00] = (uptr)iopMem->Sif;
-	//psxMemWLUT[0x1bd00] = (uptr)iopMem->Sif;
+	psxMemWLUT[0x2000 + 0x1d00] = (uintptr_t)iopMem->Sif;
+	//psxMemWLUT[0x1bd00] = (uintptr_t)iopMem->Sif;
 
 	// this one looks like an old hack for some special write-only memory area,
 	// but leaving it in for reference (air)
-	//for (i=0; i<0x0008; i++) psxMemWLUT[i + 0xbfc0] = (uptr)&psR[i << 16];
+	//for (i=0; i<0x0008; i++) psxMemWLUT[i + 0xbfc0] = (uintptr_t)&psR[i << 16];
 }
 
 u8 iopMemRead8(u32 mem)

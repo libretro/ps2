@@ -17,8 +17,9 @@
 
 #include <cstring> /* memset */
 
+/* Prototypes */
 extern void mVUincCycles(microVU& mVU, int x);
-extern void* mVUcompile(microVU& mVU, u32 startPC, uptr pState);
+extern void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState);
 
 static __fi int getLastFlagInst(microRegInfo& pState, int* xFlag, int flagType, int isEbit)
 {
@@ -299,7 +300,7 @@ void normBranchCompile(microVU& mVU, u32 branchPC)
 	if (pBlock)
 		xJMP(pBlock->x86ptrStart);
 	else
-		mVUcompile(mVU, branchPC, (uptr)&mVUregs);
+		mVUcompile(mVU, branchPC, (uintptr_t)&mVUregs);
 }
 
 void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
@@ -338,7 +339,7 @@ void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 	if (mVU.index)
 		xFastCall((void*)(void (*)())mVUcompileJIT<1>, arg1reg, arg2reg);
 	else
-		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(u32 startPC, uptr pState)
+		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(u32 startPC, uintptr_t pState)
 
 	mVUrestoreRegs(mVU);
 	xJMP(gprT1q); // Jump to rec-code address
@@ -552,12 +553,12 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 			memcpy(&regBackup, &mVUregs, sizeof(microRegInfo));
 
 			incPC2(1); // Get PC for branch not-taken
-			mVUcompile(mVU, xPC, (uptr)&mVUregs);
+			mVUcompile(mVU, xPC, (uintptr_t)&mVUregs);
 
 			iPC = bPC;
 			incPC(-3); // Go back to branch opcode (to get branch imm addr)
-			uptr jumpAddr = (uptr)mVUblockFetch(mVU, branchAddr(mVU), (uptr)&regBackup);
-			*ajmp = (jumpAddr - ((uptr)ajmp + 4));
+			uintptr_t jumpAddr = (uintptr_t)mVUblockFetch(mVU, branchAddr(mVU), (uintptr_t)&regBackup);
+			*ajmp = (jumpAddr - ((uintptr_t)ajmp + 4));
 		}
 	}
 }
