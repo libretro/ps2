@@ -1,0 +1,178 @@
+diff --git a/common/emitter/jmp.cpp b/common/emitter/jmp.cpp
+index 9eaaf475d..30d42e732 100644
+--- a/common/emitter/jmp.cpp
++++ b/common/emitter/jmp.cpp
+@@ -212,44 +212,19 @@ namespace x86Emitter
+                                    ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
+ 
+ 		if (opsize == 1)
+-		{
+ 			*(u8*)x86Ptr = (cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype);
+-			x86Ptr += sizeof(u8);
+-		}
+ 		else
+ 		{
+ 			if (cctype == Jcc_Unconditional)
+-			{
+ 				*(u8*)x86Ptr = 0xe9;
+-				x86Ptr += sizeof(u8);
+-			}
+ 			else
+ 			{
+ 				*(u8*)x86Ptr = 0x0f;
+ 				x86Ptr += sizeof(u8);
+ 				*(u8*)x86Ptr = 0x80 | cctype;
+-				x86Ptr += sizeof(u8);
+ 			}
+ 		}
+-
++		x86Ptr += sizeof(u8);
+ 		x86Ptr += opsize;
+ 	}
+-
+-	void xForwardJumpBase::_setTarget(uint opsize) const
+-	{
+-		sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
+-		if (opsize == 1)
+-			BasePtr[-1] = (s8)displacement;
+-		else // full displacement, no sanity checks needed :D
+-			((s32*)BasePtr)[-1] = displacement;
+-	}
+-
+-	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
+-	__fi JccComparisonType xInvertCond(JccComparisonType src)
+-	{
+-		if (Jcc_Unconditional == src)
+-			return Jcc_Unconditional;
+-		// x86 conditionals are clever!  To invert conditional types, just invert the lower bit:
+-		return (JccComparisonType)((int)src ^ 1);
+-	}
+ } // namespace x86Emitter
+diff --git a/common/emitter/x86types.h b/common/emitter/x86types.h
+index 9e6f04edd..ff1ba6e99 100644
+--- a/common/emitter/x86types.h
++++ b/common/emitter/x86types.h
+@@ -56,6 +56,10 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
+ #define RegisterSSE_IsCallerSaved(id) (true)
+ #endif
+ 
++/* returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
++ * x86 conditionals are clever!  To invert conditional types, just invert the lower bit: */
++#define xInvertCond(src) (Jcc_Unconditional == (src)) ? Jcc_Unconditional : (JccComparisonType)((int)(src) ^ 1)
++
+ namespace x86Emitter
+ {
+ 	//------------------------------------------------------------------
+@@ -146,8 +150,6 @@ namespace x86Emitter
+ 	static const int Sib_EIZ = 4; // same index value as ESP (used in Index field)
+ 	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
+ 
+-	extern JccComparisonType xInvertCond(JccComparisonType src);
+-
+ 	class xAddressVoid;
+ 
+ 	// --------------------------------------------------------------------------------------
+@@ -851,9 +853,6 @@ extern const xRegister32
+ 
+ 	public:
+ 		xForwardJumpBase(uint opsize, JccComparisonType cctype);
+-
+-	protected:
+-		void _setTarget(uint opsize) const;
+ 	};
+ 
+ 	template <typename OperandType>
+@@ -870,7 +869,14 @@ extern const xRegister32
+ 		// Sets the jump target by writing back the current x86Ptr to the jump instruction.
+ 		// This method can be called multiple times, re-writing the jump instruction's target
+ 		// in each case. (the the last call is the one that takes effect).
+-		void SetTarget() const { _setTarget(OperandSize); }
++		void SetTarget() const
++		{
++			sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
++			if (OperandSize == 1)
++				BasePtr[-1] = (s8)displacement;
++			else // full displacement, no sanity checks needed :D
++				((s32*)BasePtr)[-1] = displacement;
++		}
+ 	};
+ 
+ 	static __fi xAddressVoid operator+(const void* addr, const xAddressReg& reg)
+diff --git a/pcsx2/CDVD/CDVD.cpp b/pcsx2/CDVD/CDVD.cpp
+index 0b3df9c12..d68a4ba19 100644
+--- a/pcsx2/CDVD/CDVD.cpp
++++ b/pcsx2/CDVD/CDVD.cpp
+@@ -81,10 +81,10 @@ static void CDVDSECTORREADY_INT(u32 eCycle)
+ 	if (psxRegs.interrupt & (1 << IopEvt_CdvdSectorReady))
+ 		return;
+ 
+-	if (EmuConfig.Speedhacks.fastCDVD)
++	//if (EmuConfig.Speedhacks.fastCDVD)
+ 	{
+ 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
+-			eCycle *= 0.5f;
++			eCycle *= 0.05f;
+ 	}
+ 
+ 	PSX_INT(IopEvt_CdvdSectorReady, eCycle);
+@@ -94,10 +94,10 @@ static void CDVDREAD_INT(u32 eCycle)
+ {
+ 	// Give it an arbitary FAST value. Good for ~5000kb/s in ULE when copying a file from CDVD to HDD
+ 	// Keep long seeks out though, as games may try to push dmas while seeking. (Tales of the Abyss)
+-	if (EmuConfig.Speedhacks.fastCDVD)
++	//if (EmuConfig.Speedhacks.fastCDVD)
+ 	{
+ 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
+-			eCycle *= 0.5f;
++			eCycle *= 0.05f;
+ 	}
+ 
+ 	PSX_INT(IopEvt_CdvdRead, eCycle);
+diff --git a/pcsx2/MTGS.cpp b/pcsx2/MTGS.cpp
+index 7701326e2..bd5ccaf59 100644
+--- a/pcsx2/MTGS.cpp
++++ b/pcsx2/MTGS.cpp
+@@ -125,7 +125,7 @@ void MTGS::PostVsyncStart()
+ 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
+ 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
+ 
+-	if (s_QueuedFrameCount++ < EmuConfig.GS.VsyncQueueSize)
++	if (s_QueuedFrameCount++ < 0)
+ 		return;
+ 
+ 	s_VsyncSignalListener = true;
+diff --git a/pcsx2/Pcsx2Config.cpp b/pcsx2/Pcsx2Config.cpp
+index 0e3968fb7..d2924ddcc 100644
+--- a/pcsx2/Pcsx2Config.cpp
++++ b/pcsx2/Pcsx2Config.cpp
+@@ -186,7 +186,7 @@ Pcsx2Config::SpeedhackOptions::SpeedhackOptions()
+ Pcsx2Config::SpeedhackOptions& Pcsx2Config::SpeedhackOptions::DisableAll()
+ {
+ 	bitset = 0;
+-	EECycleRate = 0;
++	EECycleRate = 2;
+ 	EECycleSkip = 0;
+ 
+ 	return *this;
+@@ -205,7 +205,7 @@ void Pcsx2Config::SpeedhackOptions::LoadSave(SettingsWrapper& wrap)
+ 	SettingsWrapBitBool(vuThread);
+ 	SettingsWrapBitBool(vu1Instant);
+ 
+-	EECycleRate = std::clamp(EECycleRate, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE);
++	EECycleRate = 2;
+ 	EECycleSkip = std::min(EECycleSkip, MAX_EE_CYCLE_SKIP);
+ }
+ 
+diff --git a/pcsx2/VMManager.cpp b/pcsx2/VMManager.cpp
+index c26ffcea8..4f5f4554d 100644
+--- a/pcsx2/VMManager.cpp
++++ b/pcsx2/VMManager.cpp
+@@ -319,7 +319,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
+ 
+ 	// regular cheat patches
+ 	int cheat_count = 0;
+-	if (EmuConfig.EnableCheats)
++	//if (EmuConfig.EnableCheats)
+ 	{
+ 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
+ 		if (cheat_count > 0)

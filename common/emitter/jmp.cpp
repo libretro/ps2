@@ -212,44 +212,19 @@ namespace x86Emitter
                                    ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
 
 		if (opsize == 1)
-		{
 			*(u8*)x86Ptr = (cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype);
-			x86Ptr += sizeof(u8);
-		}
 		else
 		{
 			if (cctype == Jcc_Unconditional)
-			{
 				*(u8*)x86Ptr = 0xe9;
-				x86Ptr += sizeof(u8);
-			}
 			else
 			{
 				*(u8*)x86Ptr = 0x0f;
 				x86Ptr += sizeof(u8);
 				*(u8*)x86Ptr = 0x80 | cctype;
-				x86Ptr += sizeof(u8);
 			}
 		}
-
+		x86Ptr += sizeof(u8);
 		x86Ptr += opsize;
-	}
-
-	void xForwardJumpBase::_setTarget(uint opsize) const
-	{
-		sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
-		if (opsize == 1)
-			BasePtr[-1] = (s8)displacement;
-		else // full displacement, no sanity checks needed :D
-			((s32*)BasePtr)[-1] = displacement;
-	}
-
-	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
-	__fi JccComparisonType xInvertCond(JccComparisonType src)
-	{
-		if (Jcc_Unconditional == src)
-			return Jcc_Unconditional;
-		// x86 conditionals are clever!  To invert conditional types, just invert the lower bit:
-		return (JccComparisonType)((int)src ^ 1);
 	}
 } // namespace x86Emitter

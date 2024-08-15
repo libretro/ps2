@@ -56,6 +56,10 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 #define RegisterSSE_IsCallerSaved(id) (true)
 #endif
 
+/* returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
+ * x86 conditionals are clever!  To invert conditional types, just invert the lower bit: */
+#define xInvertCond(src) (Jcc_Unconditional == (src)) ? Jcc_Unconditional : (JccComparisonType)((int)(src) ^ 1)
+
 namespace x86Emitter
 {
 	//------------------------------------------------------------------
@@ -145,8 +149,6 @@ namespace x86Emitter
 	static const int ModRm_UseDisp32 = 5; // same index value as EBP (used in Mod field)
 	static const int Sib_EIZ = 4; // same index value as ESP (used in Index field)
 	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
-
-	extern JccComparisonType xInvertCond(JccComparisonType src);
 
 	class xAddressVoid;
 
@@ -851,9 +853,6 @@ extern const xRegister32
 
 	public:
 		xForwardJumpBase(uint opsize, JccComparisonType cctype);
-
-	protected:
-		void _setTarget(uint opsize) const;
 	};
 
 	template <typename OperandType>
@@ -870,7 +869,14 @@ extern const xRegister32
 		// Sets the jump target by writing back the current x86Ptr to the jump instruction.
 		// This method can be called multiple times, re-writing the jump instruction's target
 		// in each case. (the the last call is the one that takes effect).
-		void SetTarget() const { _setTarget(OperandSize); }
+		void SetTarget() const
+		{
+			sptr displacement = (sptr)x86Ptr - (sptr)BasePtr;
+			if (OperandSize == 1)
+				BasePtr[-1] = (s8)displacement;
+			else // full displacement, no sanity checks needed :D
+				((s32*)BasePtr)[-1] = displacement;
+		}
 	};
 
 	static __fi xAddressVoid operator+(const void* addr, const xAddressReg& reg)
