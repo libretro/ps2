@@ -71,7 +71,7 @@ static u32 GetAllocatedXMMBitmask(void)
 
 	mov eax,ecx;
 	shr eax,VTLB_PAGE_BITS;
-	mov rax,[rax*wordsize+vmap];
+	mov rax,[rax * sizeof(intptr_t) + vmap];
 	add rcx,rax;
 	js _fullread;
 
@@ -129,7 +129,7 @@ namespace vtlb_private
 
 		xMOV(eax, arg1regd);
 		xSHR(eax, VTLB_PAGE_BITS);
-		xMOV(rax, ptrNative[xComplexAddress(arg3reg, vtlbdata.vmap, rax * wordsize)]);
+		xMOV(rax, ptrNative[xComplexAddress(arg3reg, vtlbdata.vmap, rax * sizeof(intptr_t))]);
 		xADD(arg1reg, rax);
 	}
 
@@ -265,8 +265,10 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 #endif
 
 	xMOVZX(eax, al);
-	if (wordsize != 8)
+#if !(defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64))
+	if (sizeof(intptr_t) != 8)
 		xSUB(arg1regd, 0x80000000);
+#endif
 	xSUB(arg1regd, eax);
 
 	// jump to the indirect handler, which is a C++ function.
@@ -274,12 +276,12 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 	sptr table = (sptr)vtlbdata.RWFT[bits][mode];
 	if (table == (s32)table)
 	{
-		xFastCall(ptrNative[(rax * wordsize) + table], arg1reg, arg2reg);
+		xFastCall(ptrNative[(rax * sizeof(intptr_t)) + table], arg1reg, arg2reg);
 	}
 	else
 	{
 		xLEA(arg3reg, ptr[(void*)table]);
-		xFastCall(ptrNative[(rax * wordsize) + arg3reg], arg1reg, arg2reg);
+		xFastCall(ptrNative[(rax * sizeof(intptr_t)) + arg3reg], arg1reg, arg2reg);
 	}
 
 	if (!mode)

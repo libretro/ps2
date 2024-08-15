@@ -136,8 +136,8 @@ static const void* _DynGen_JITCompile(void)
 	xMOV(eax, ptr[&psxRegs.pc]);
 	xMOV(ebx, eax);
 	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * sizeof(intptr_t))]);
+	xJMP(ptrNative[rbx * (sizeof(intptr_t) / 4) + rcx]);
 
 	return retval;
 }
@@ -150,8 +150,8 @@ static const void* _DynGen_DispatcherReg(void)
 	xMOV(eax, ptr[&psxRegs.pc]);
 	xMOV(ebx, eax);
 	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * sizeof(intptr_t))]);
+	xJMP(ptrNative[rbx * (sizeof(intptr_t) / 4) + rcx]);
 
 	return retval;
 }

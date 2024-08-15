@@ -69,7 +69,7 @@ bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalExcept
 static RecompiledCodeReserve* recMem = NULL;
 static u8* recRAMCopy = NULL;
 static u8* recLutReserve_RAM = NULL;
-static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * wordsize / 4;
+static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * sizeof(intptr_t) / 4;
 
 static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
 static BASEBLOCK* recROM = NULL; // and here
@@ -324,8 +324,8 @@ static const void* _DynGen_JITCompile(void)
 	xMOV(eax, ptr[&cpuRegs.pc]);
 	xMOV(ebx, eax);
 	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * sizeof(intptr_t))]);
+	xJMP(ptrNative[rbx * (sizeof(intptr_t) / 4) + rcx]);
 
 	return retval;
 }
@@ -342,8 +342,8 @@ static const void* _DynGen_DispatcherReg(void)
 	xMOV(eax, ptr[&cpuRegs.pc]);
 	xMOV(ebx, eax);
 	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * sizeof(intptr_t))]);
+	xJMP(ptrNative[rbx * (sizeof(intptr_t) / 4) + rcx]);
 
 	return retval;
 }

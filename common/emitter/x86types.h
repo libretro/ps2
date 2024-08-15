@@ -387,8 +387,6 @@ namespace x86Emitter
 	//
 
 #define xRegisterLong xRegister64
-	static const int wordsize = sizeof(sptr);
-
 	class xAddressReg : public xRegisterLong
 	{
 	public:
