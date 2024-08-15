@@ -140,23 +140,23 @@
 #define gteZSF4 ((s16*)psxRegs.CP2C.r)[60]
 #define gteFLAG psxRegs.CP2C.r[31]
 
-__inline unsigned long MFC2(int reg) {
-	switch (reg) {
-	case 29:
-		gteORGB = (((gteIR1 >> 7) & 0x1f)) |
-			(((gteIR2 >> 7) & 0x1f) << 5) |
-			(((gteIR3 >> 7) & 0x1f) << 10);
+__inline unsigned long MFC2(int reg)
+{
+	if (reg == 29)
+	{
+		gteORGB = (((gteIR1 >> 7) & 0x1f))
+			| (((gteIR2 >> 7) & 0x1f) << 5)
+			| (((gteIR3 >> 7) & 0x1f) << 10);
 		return gteORGB;
-
-	default:
-		return psxRegs.CP2D.r[reg];
 	}
+	return psxRegs.CP2D.r[reg];
 }
 
-__inline void MTC2(unsigned long value, int reg) {
+__inline void MTC2(unsigned long value, int reg)
+{
 	switch (reg) {
 	case 8: case 9: case 10: case 11:
-		psxRegs.CP2D.r[reg] = (short)value;
+		psxRegs.CP2D.r[reg] = (int16_t)value;
 		break;
 
 	case 15:
@@ -505,7 +505,7 @@ void gteMVMVA() {
 	case 0x10000: // V2 * R
 		_MVMVA_FUNC(gteVX2, gteVY2, gteVZ2, gteR); break;
 	case 0x18000: // IR * R
-		_MVMVA_FUNC((short)gteIR1, (short)gteIR2, (short)gteIR3, gteR);
+		_MVMVA_FUNC((int16_t)gteIR1, (int16_t)gteIR2, (int16_t)gteIR3, gteR);
 		break;
 	case 0x20000: // V0 * L
 		_MVMVA_FUNC(gteVX0, gteVY0, gteVZ0, gteL); break;
@@ -514,7 +514,7 @@ void gteMVMVA() {
 	case 0x30000: // V2 * L
 		_MVMVA_FUNC(gteVX2, gteVY2, gteVZ2, gteL); break;
 	case 0x38000: // IR * L
-		_MVMVA_FUNC((short)gteIR1, (short)gteIR2, (short)gteIR3, gteL); break;
+		_MVMVA_FUNC((int16_t)gteIR1, (int16_t)gteIR2, (int16_t)gteIR3, gteL); break;
 	case 0x40000: // V0 * C
 		_MVMVA_FUNC(gteVX0, gteVY0, gteVZ0, gte_C); break;
 	case 0x48000: // V1 * C
@@ -522,7 +522,7 @@ void gteMVMVA() {
 	case 0x50000: // V2 * C
 		_MVMVA_FUNC(gteVX2, gteVY2, gteVZ2, gte_C); break;
 	case 0x58000: // IR * C
-		_MVMVA_FUNC((short)gteIR1, (short)gteIR2, (short)gteIR3, gte_C); break;
+		_MVMVA_FUNC((int16_t)gteIR1, (int16_t)gteIR2, (int16_t)gteIR3, gte_C); break;
 	default:
 		SSX = SSY = SSZ = 0;
 	}
@@ -736,9 +736,9 @@ void gteNCDT() {
 	SUM_FLAG;
 }
 
-#define	gteD1	(*(short *)&gteR11)
-#define	gteD2	(*(short *)&gteR22)
-#define	gteD3	(*(short *)&gteR33)
+#define	gteD1	(*(int16_t *)&gteR11)
+#define	gteD2	(*(int16_t *)&gteR22)
+#define	gteD3	(*(int16_t *)&gteR33)
 
 void gteOP() {
 	gteFLAG = 0;
@@ -760,9 +760,9 @@ void gteOP() {
 }
 
 void gteDCPL() {
-	gteMAC1 = ((signed long)(gteR)*gteIR1 + (gteIR0*(signed short)FlimA1S(gteRFC - ((gteR*gteIR1) >> 12)))) >> 8;
-	gteMAC2 = ((signed long)(gteG)*gteIR2 + (gteIR0*(signed short)FlimA2S(gteGFC - ((gteG*gteIR2) >> 12)))) >> 8;
-	gteMAC3 = ((signed long)(gteB)*gteIR3 + (gteIR0*(signed short)FlimA3S(gteBFC - ((gteB*gteIR3) >> 12)))) >> 8;
+	gteMAC1 = ((signed long)(gteR)*gteIR1 + (gteIR0*(int16_t)FlimA1S(gteRFC - ((gteR*gteIR1) >> 12)))) >> 8;
+	gteMAC2 = ((signed long)(gteG)*gteIR2 + (gteIR0*(int16_t)FlimA2S(gteGFC - ((gteG*gteIR2) >> 12)))) >> 8;
+	gteMAC3 = ((signed long)(gteB)*gteIR3 + (gteIR0*(int16_t)FlimA3S(gteBFC - ((gteB*gteIR3) >> 12)))) >> 8;
 
 	gteFLAG = 0;
 	MAC2IR();
@@ -829,9 +829,9 @@ void gteGPL() {
 }
 
 void gteDPCS() {
-	gteMAC1 = (gteR << 4) + ((gteIR0*(signed short)FlimA1S(gteRFC - (gteR << 4))) >> 12);
-	gteMAC2 = (gteG << 4) + ((gteIR0*(signed short)FlimA2S(gteGFC - (gteG << 4))) >> 12);
-	gteMAC3 = (gteB << 4) + ((gteIR0*(signed short)FlimA3S(gteBFC - (gteB << 4))) >> 12);
+	gteMAC1 = (gteR << 4) + ((gteIR0*(int16_t)FlimA1S(gteRFC - (gteR << 4))) >> 12);
+	gteMAC2 = (gteG << 4) + ((gteIR0*(int16_t)FlimA2S(gteGFC - (gteG << 4))) >> 12);
+	gteMAC3 = (gteB << 4) + ((gteIR0*(int16_t)FlimA3S(gteBFC - (gteB << 4))) >> 12);
 
 	gteFLAG = 0;
 	MAC2IR();
@@ -847,9 +847,9 @@ void gteDPCS() {
 }
 
 void gteDPCT() {
-	gteMAC1 = (gteR0 << 4) + ((gteIR0*(signed short)FlimA1S(gteRFC - (gteR0 << 4))) >> 12);
-	gteMAC2 = (gteG0 << 4) + ((gteIR0*(signed short)FlimA2S(gteGFC - (gteG0 << 4))) >> 12);
-	gteMAC3 = (gteB0 << 4) + ((gteIR0*(signed short)FlimA3S(gteBFC - (gteB0 << 4))) >> 12);
+	gteMAC1 = (gteR0 << 4) + ((gteIR0*(int16_t)FlimA1S(gteRFC - (gteR0 << 4))) >> 12);
+	gteMAC2 = (gteG0 << 4) + ((gteIR0*(int16_t)FlimA2S(gteGFC - (gteG0 << 4))) >> 12);
+	gteMAC3 = (gteB0 << 4) + ((gteIR0*(int16_t)FlimA3S(gteBFC - (gteB0 << 4))) >> 12);
 
 	gteRGB0 = gteRGB1;
 	gteRGB1 = gteRGB2;
@@ -858,9 +858,9 @@ void gteDPCT() {
 	gteG2 = FlimB2(gteMAC2 >> 4);
 	gteB2 = FlimB3(gteMAC3 >> 4); gteCODE2 = gteCODE;
 
-	gteMAC1 = (gteR0 << 4) + ((gteIR0*(signed short)FlimA1S(gteRFC - (gteR0 << 4))) >> 12);
-	gteMAC2 = (gteG0 << 4) + ((gteIR0*(signed short)FlimA2S(gteGFC - (gteG0 << 4))) >> 12);
-	gteMAC3 = (gteB0 << 4) + ((gteIR0*(signed short)FlimA3S(gteBFC - (gteB0 << 4))) >> 12);
+	gteMAC1 = (gteR0 << 4) + ((gteIR0*(int16_t)FlimA1S(gteRFC - (gteR0 << 4))) >> 12);
+	gteMAC2 = (gteG0 << 4) + ((gteIR0*(int16_t)FlimA2S(gteGFC - (gteG0 << 4))) >> 12);
+	gteMAC3 = (gteB0 << 4) + ((gteIR0*(int16_t)FlimA3S(gteBFC - (gteB0 << 4))) >> 12);
 	gteRGB0 = gteRGB1;
 	gteRGB1 = gteRGB2;
 
@@ -868,9 +868,9 @@ void gteDPCT() {
 	gteG2 = FlimB2(gteMAC2 >> 4);
 	gteB2 = FlimB3(gteMAC3 >> 4); gteCODE2 = gteCODE;
 
-	gteMAC1 = (gteR0 << 4) + ((gteIR0*(signed short)FlimA1S(gteRFC - (gteR0 << 4))) >> 12);
-	gteMAC2 = (gteG0 << 4) + ((gteIR0*(signed short)FlimA2S(gteGFC - (gteG0 << 4))) >> 12);
-	gteMAC3 = (gteB0 << 4) + ((gteIR0*(signed short)FlimA3S(gteBFC - (gteB0 << 4))) >> 12);
+	gteMAC1 = (gteR0 << 4) + ((gteIR0*(int16_t)FlimA1S(gteRFC - (gteR0 << 4))) >> 12);
+	gteMAC2 = (gteG0 << 4) + ((gteIR0*(int16_t)FlimA2S(gteGFC - (gteG0 << 4))) >> 12);
+	gteMAC3 = (gteB0 << 4) + ((gteIR0*(int16_t)FlimA3S(gteBFC - (gteB0 << 4))) >> 12);
 	gteFLAG = 0;
 	MAC2IR();
 	gteRGB0 = gteRGB1;
@@ -962,9 +962,9 @@ void gteCC() {
 }
 
 void gteINTPL() { //test opcode
-	gteMAC1 = gteIR1 + ((gteIR0*(signed short)FlimA1S(gteRFC - gteIR1)) >> 12);
-	gteMAC2 = gteIR2 + ((gteIR0*(signed short)FlimA2S(gteGFC - gteIR2)) >> 12);
-	gteMAC3 = gteIR3 + ((gteIR0*(signed short)FlimA3S(gteBFC - gteIR3)) >> 12);
+	gteMAC1 = gteIR1 + ((gteIR0*(int16_t)FlimA1S(gteRFC - gteIR1)) >> 12);
+	gteMAC2 = gteIR2 + ((gteIR0*(int16_t)FlimA2S(gteGFC - gteIR2)) >> 12);
+	gteMAC3 = gteIR3 + ((gteIR0*(int16_t)FlimA3S(gteBFC - gteIR3)) >> 12);
 	gteFLAG = 0;
 
 	MAC2IR();

@@ -42,19 +42,19 @@ union CP0Regs {
 };
 
 struct SVector2D {
-	short x, y;
+	int16_t x, y;
 };
 
 struct SVector2Dz {
-	short z, pad;
+	int16_t z, pad;
 };
 
 struct SVector3D {
-	short x, y, z, pad;
+	int16_t x, y, z, pad;
 };
 
 struct LVector3D {
-	short x, y, z, pad;
+	int16_t x, y, z, pad;
 };
 
 struct CBGR {
@@ -62,7 +62,7 @@ struct CBGR {
 };
 
 struct SMatrix3D {
-	short m11, m12, m13, m21, m22, m23, m31, m32, m33, pad;
+	int16_t m11, m12, m13, m21, m22, m23, m31, m32, m33, pad;
 };
 
 union CP2Data {
@@ -151,7 +151,7 @@ alignas(16) extern psxRegisters psxRegs;
 #define _Im_             ((u16)psxRegs.code) // The immediate part of the instruction register
 #define _InstrucTarget_  (psxRegs.code & 0x03ffffff)    // The target part of the instruction register
 
-#define _Imm_	((short)psxRegs.code) // sign-extended immediate
+#define _Imm_	((int16_t)psxRegs.code) // sign-extended immediate
 #define _ImmU_	(psxRegs.code&0xffff) // zero-extended immediate
 
 #define _rRs_   psxRegs.GPR.r[_Rs_]   // Rs register

@@ -24,12 +24,8 @@
 #include "CDVD/Ps1CD.h"
 #include "CDVD/CDVD.h"
 
-
-// NOTE: Any modifications to read/write fns should also go into their const counterparts
-// found in iPsxHw.cpp.
-
-void psxHwReset(void) {
-
+void psxHwReset(void)
+{
 	memset(iopHw, 0, 0x10000);
 
 	mdecInit(); // Initialize MDEC decoder
@@ -43,8 +39,7 @@ void psxHwReset(void) {
 __fi u8 psxHw4Read8(u32 add)
 {
 	u16 mem = add & 0xFF;
-	u8 ret = cdvdRead(mem);
-	return ret;
+	return cdvdRead(mem);
 }
 
 __fi void psxHw4Write8(u32 add, u8 value)

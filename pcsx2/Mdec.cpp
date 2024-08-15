@@ -257,7 +257,7 @@ static void idct(int *block,int k)
   }
 }
 
-static void yuv2rgb15(int *blk,unsigned short *image)
+static void yuv2rgb15(int *blk, uint16_t *image)
 {
 	int x,y;
 	int *Yblk = blk+DCTSIZE2*2;
@@ -359,7 +359,8 @@ static void yuv2rgb24(int *blk,unsigned char *image)
 	}
 }
 
-static unsigned short* rl2blk(int *blk,unsigned short *mdec_rl) {
+static uint16_t* rl2blk(int *blk, uint16_t *mdec_rl)
+{
 	int i,k,q_scale,rl;
 	int *iqtab;
 
@@ -446,7 +447,7 @@ void psxDma0(u32 adr, u32 bcr, u32 chcr)
 void psxDma1(u32 adr, u32 bcr, u32 chcr)
 {
 	int blk[DCTSIZE2*6];
-	unsigned short *image;
+	uint16_t *image;
 
 	if (chcr != 0x01000200) return;
 	// bcr LSBs are the blocksize in words
