@@ -24,11 +24,6 @@
 #include "Sif.h"
 #include "DEV9/DEV9.h"
 
-// Dma0/1   in Mdec.c
-// Dma3     in CdRom.c
-// Dma8     in PsxSpd.c
-// Dma11/12 in PsxSio2.c
-
 static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 {
 	const char dmaNum = spuCore ? 7 : 4;
@@ -116,7 +111,6 @@ void spu2DMA7Irq(void)
 	}
 }
 
-#ifndef DISABLE_PSX_GPU_DMAS
 void psxDma2(u32 madr, u32 bcr, u32 chcr) // GPU
 {
 	sif2.iop.busy = true;
@@ -144,7 +138,6 @@ void psxDma6(u32 madr, u32 bcr, u32 chcr)
 	HW_DMA6_CHCR &= ~0x01000000;
 	psxDmaInterrupt(6);
 }
-#endif
 
 void psxDma8(u32 madr, u32 bcr, u32 chcr)
 {
@@ -210,7 +203,7 @@ void psxDma11(u32 madr, u32 bcr, u32 chcr)
 	PSX_INT(IopEvt_Dma11, (size >> 2));
 }
 
-void psxDMA11Interrupt()
+void psxDMA11Interrupt(void)
 {
 	if (HW_DMA11_CHCR & 0x01000000)
 	{
@@ -242,7 +235,7 @@ void psxDma12(u32 madr, u32 bcr, u32 chcr)
 	PSX_INT(IopEvt_Dma12, (size >> 2));
 }
 
-void psxDMA12Interrupt()
+void psxDMA12Interrupt(void)
 {
 	if (HW_DMA12_CHCR & 0x01000000)
 	{

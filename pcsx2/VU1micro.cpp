@@ -13,21 +13,20 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-// This module contains code shared by both the dynarec and interpreter versions
-// of the VU0 micro.
+/* This module contains code shared by both the dynarec and interpreter versions
+ * of the VU0 micro. */
 
 #include "Common.h"
 #include <cmath>
 #include "VUmicro.h"
 #include "MTVU.h"
 
-// This is called by the COP2 as per the CTC instruction
+/* This is called by the COP2 as per the CTC instruction */
 void vu1ResetRegs(void)
 {
 	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xff00; // stop vu1
-	vuRegs[0].VI[REG_FBRST].UL &= ~0xff00; // stop vu1
-	vif1Regs.stat.VEW = false;
+	vuRegs[0].VI[REG_FBRST].UL    &= ~0xff00; // stop vu1
+	vif1Regs.stat.VEW              = false;
 }
 
 void vu1Finish(bool add_cycles)
@@ -78,9 +77,4 @@ void vu1ExecMicro(u32 addr)
 		CpuVU1->ExecuteBlock(1);
 	else
 		CpuVU1->Execute(vu1RunCycles);
-}
-
-void MTVUInterrupt(void)
-{
-	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
 }

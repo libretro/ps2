@@ -23,7 +23,7 @@ struct psxCounter
 	u32 mode;
 	u32 rate, interrupt;
 	u32 startCycle;
-	s32 deltaCycles;
+	int32_t deltaCycles;
 };
 
 #define NUM_COUNTERS 8

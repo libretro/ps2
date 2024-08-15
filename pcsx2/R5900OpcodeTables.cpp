@@ -121,7 +121,6 @@ namespace R5900
 
 		MakeOpcodeClass( SPECIAL );
 		MakeOpcodeClass( REGIMM );
-		//MakeOpcodeClass( COP2 );
 		MakeOpcodeClass( MMI );
 		MakeOpcodeClass( MMI0 );
 		MakeOpcodeClass( MMI2 );
@@ -634,30 +633,24 @@ namespace R5900
 		const OPCODE& Class_COP1_BC1(u32 op) { return tbl_COP1_BC1[(op >> 16) & 0x1F]; }
 		const OPCODE& Class_COP1_S(u32 op) { return tbl_COP1_S[op & 0x3F]; }
 		const OPCODE& Class_COP1_W(u32 op) { return tbl_COP1_W[op & 0x3F]; }
-
-		// These are for future use when the COP2 tables are completed.
-		//const OPCODE& Class_COP2() { return tbl_COP2[_Rs_]; }
-		//const OPCODE& Class_COP2_BC2() { return tbl_COP2_BC2[_Rt_]; }
-		//const OPCODE& Class_COP2_SPECIAL() { return tbl_COP2_SPECIAL[_Funct_]; }
-		//const OPCODE& Class_COP2_SPECIAL2() { return tbl_COP2_SPECIAL2[(cpuRegs.code & 0x3) | ((cpuRegs.code >> 4) & 0x7c)]; }
 	}
-}	// end namespace R5900
+}	/* end namespace R5900 */
 
-void (*Int_COP2PrintTable[32])() = {
+void (*Int_COP2PrintTable[32])(void) = {
     COP2_Unknown, QMFC2,        CFC2,         COP2_Unknown, COP2_Unknown, QMTC2,        CTC2,         COP2_Unknown,
     COP2_BC2,     COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown,
     COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL,
 	COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL, COP2_SPECIAL,
 };
 
-void (*Int_COP2BC2PrintTable[32])() = {
+void (*Int_COP2BC2PrintTable[32])(void) = {
     BC2F,         BC2T,         BC2FL,        BC2TL,        COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown,
     COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown,
     COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown,
     COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown, COP2_Unknown,
 };
 
-void (*Int_COP2SPECIAL1PrintTable[64])() =
+void (*Int_COP2SPECIAL1PrintTable[64])(void) =
 {
  VADDx,       VADDy,       VADDz,       VADDw,       VSUBx,        VSUBy,        VSUBz,        VSUBw,
  VMADDx,      VMADDy,      VMADDz,      VMADDw,      VMSUBx,       VMSUBy,       VMSUBz,       VMSUBw,
@@ -669,7 +662,7 @@ void (*Int_COP2SPECIAL1PrintTable[64])() =
  VCALLMS,     VCALLMSR,    COP2_Unknown,COP2_Unknown,COP2_SPECIAL2,COP2_SPECIAL2,COP2_SPECIAL2,COP2_SPECIAL2,
 };
 
-void (*Int_COP2SPECIAL2PrintTable[128])() =
+void (*Int_COP2SPECIAL2PrintTable[128])(void) =
 {
  VADDAx      ,VADDAy      ,VADDAz      ,VADDAw      ,VSUBAx      ,VSUBAy      ,VSUBAz      ,VSUBAw,
  VMADDAx     ,VMADDAy     ,VMADDAz     ,VMADDAw     ,VMSUBAx     ,VMSUBAy     ,VMSUBAz     ,VMSUBAw,

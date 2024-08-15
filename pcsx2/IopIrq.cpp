@@ -20,37 +20,12 @@
 #include "Common.h"
 #include "R3000A.h"
 
-void dev9Interrupt(void)
-{
-	if (DEV9irqHandler() != 1) return;
-
-	iopIntcIrq(13);
-}
-
-void dev9Irq(int cycles)
-{
-	PSX_INT(IopEvt_DEV9, cycles);
-}
-
-void usbInterrupt()
-{
-	iopIntcIrq(22);
-}
-
-void usbIrq(int cycles)
-{
-	PSX_INT(IopEvt_USB, cycles);
-}
-
-void fwIrq(void)
-{
-	iopIntcIrq(24);
-}
-
-void spu2Irq(void)
-{
-	iopIntcIrq(9);
-}
+void dev9Interrupt(void) { if (DEV9irqHandler() == 1) iopIntcIrq(13); }
+void dev9Irq(int cycles) { PSX_INT(IopEvt_DEV9, cycles); }
+void usbInterrupt(void)  { iopIntcIrq(22); }
+void usbIrq(int cycles)  { PSX_INT(IopEvt_USB, cycles); }
+void fwIrq(void)         { iopIntcIrq(24); }
+void spu2Irq(void)       { iopIntcIrq(9); }
 
 void iopIntcIrq(uint irqType)
 {

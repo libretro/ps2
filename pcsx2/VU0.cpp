@@ -90,10 +90,10 @@ __fi void _vu0run(bool breakOnMbit, bool addCycles, bool sync_only) {
 	}
 }
 
-void _vu0WaitMicro(void)   { _vu0run(1, 1, 0); } // Runs VU0 Micro Until E-bit or M-Bit End
-void _vu0FinishMicro(void) { _vu0run(0, 1, 0); } // Runs VU0 Micro Until E-Bit End
-void vu0Finish(void)	   { _vu0run(0, 0, 0); } // Runs VU0 Micro Until E-Bit End (doesn't stall EE)
-void vu0Sync(void)	   { _vu0run(0, 0, 1); } // Runs VU0 until it catches up
+void _vu0WaitMicro(void)   { _vu0run(1, 1, 0); } /* Runs VU0 Micro Until E-bit or M-Bit End */
+void _vu0FinishMicro(void) { _vu0run(0, 1, 0); } /* Runs VU0 Micro Until E-Bit End */
+void vu0Finish(void)	   { _vu0run(0, 0, 0); } /* Runs VU0 Micro Until E-Bit End (doesn't stall EE) */
+void vu0Sync(void)	   { _vu0run(0, 0, 1); } /* Runs VU0 until it catches up */
 
 namespace R5900 {
 namespace Interpreter{
@@ -114,10 +114,11 @@ namespace OpcodeImpl
 		}
 	}
 
-	// Asadr.Changed
-	//TODO: check this
-	// HUH why ? doesn't make any sense ...
-	void SQC2() {
+	/* Asadr.Changed
+	 * TODO: check this
+	 * HUH why ? doesn't make any sense ... */
+	void SQC2(void)
+	{
 		vu0Sync();
 		u32 addr = _Imm_ + cpuRegs.GPR.r[_Rs_].UL[0];
 		memWrite128(addr, &vuRegs[0].VF[_Ft_].UQ);
@@ -125,32 +126,42 @@ namespace OpcodeImpl
 }}}
 
 
-void QMFC2() {
+void QMFC2(void)
+{
 	vu0Sync();
 
-	if (cpuRegs.code & 1) {
+	if (cpuRegs.code & 1)
+	{
 		_vu0FinishMicro();
 	}
 
-	if (_Rt_ == 0) return;
-	cpuRegs.GPR.r[_Rt_].UD[0] = vuRegs[0].VF[_Fs_].UD[0];
-	cpuRegs.GPR.r[_Rt_].UD[1] = vuRegs[0].VF[_Fs_].UD[1];
+	if (_Rt_ != 0)
+	{
+		cpuRegs.GPR.r[_Rt_].UD[0] = vuRegs[0].VF[_Fs_].UD[0];
+		cpuRegs.GPR.r[_Rt_].UD[1] = vuRegs[0].VF[_Fs_].UD[1];
+	}
 }
 
-void QMTC2() {
+void QMTC2(void)
+{
 	vu0Sync();
-	if (cpuRegs.code & 1) {
+	if (cpuRegs.code & 1)
+	{
 		_vu0WaitMicro();
 	}
 
-	if (_Fs_ == 0) return;
-	vuRegs[0].VF[_Fs_].UD[0] = cpuRegs.GPR.r[_Rt_].UD[0];
-	vuRegs[0].VF[_Fs_].UD[1] = cpuRegs.GPR.r[_Rt_].UD[1];
+	if (_Fs_ != 0)
+	{
+		vuRegs[0].VF[_Fs_].UD[0] = cpuRegs.GPR.r[_Rt_].UD[0];
+		vuRegs[0].VF[_Fs_].UD[1] = cpuRegs.GPR.r[_Rt_].UD[1];
+	}
 }
 
-void CFC2() {
+void CFC2(void)
+{
 	vu0Sync();
-	if (cpuRegs.code & 1) {
+	if (cpuRegs.code & 1)
+	{
 		_vu0FinishMicro();
 	}
 
@@ -170,33 +181,36 @@ void CFC2() {
 
 }
 
-void CTC2() {
+void CTC2(void)
+{
 	vu0Sync();
 
 	if (cpuRegs.code & 1) {
 		_vu0WaitMicro();
 	}
 
-	if (_Fs_ == 0) return;
+	if (_Fs_ == 0)
+		return;
 
-	switch(_Fs_) {
-		case REG_MAC_FLAG: // read-only
-		case REG_TPC:      // read-only
-		case REG_VPU_STAT: // read-only
+	switch(_Fs_)
+	{
+		case REG_MAC_FLAG: /* read-only */
+		case REG_TPC:      /* read-only */
+		case REG_VPU_STAT: /* read-only */
 			break;
 		case REG_R:
 			vuRegs[0].VI[REG_R].UL = ((cpuRegs.GPR.r[_Rt_].UL[0] & 0x7FFFFF) | 0x3F800000);
 			break;
 		case REG_FBRST:
 			vuRegs[0].VI[REG_FBRST].UL = cpuRegs.GPR.r[_Rt_].UL[0] & 0x0C0C;
-			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x2) // VU0 Reset
+			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x2)   /* VU0 Reset */
 				vu0ResetRegs();
-			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x200) // VU1 Reset
+			if (cpuRegs.GPR.r[_Rt_].UL[0] & 0x200) /* VU1 Reset */
 				vu1ResetRegs();
 			break;
-		case REG_CMSAR1: // REG_CMSAR1
+		case REG_CMSAR1: /* REG_CMSAR1 */
 			vu1Finish(true);
-			vu1ExecMicro(cpuRegs.GPR.r[_Rt_].US[0]);	// Execute VU1 Micro SubRoutine
+			vu1ExecMicro(cpuRegs.GPR.r[_Rt_].US[0]); /* Execute VU1 Micro SubRoutine */
 			break;
 		default:
 			vuRegs[0].VI[_Fs_].UL = cpuRegs.GPR.r[_Rt_].UL[0];

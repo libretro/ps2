@@ -26,15 +26,15 @@
 
 struct _VURegsNum
 {
-	u8 pipe; // if 0xff, COP2
-	u8 VFwrite;
-	u8 VFwxyzw;
-	u8 VFr0xyzw;
-	u8 VFr1xyzw;
-	u8 VFread0;
-	u8 VFread1;
-	u32 VIwrite;
-	u32 VIread;
+	uint8_t pipe; /* if 0xff, COP2 */
+	uint8_t VFwrite;
+	uint8_t VFwxyzw;
+	uint8_t VFr0xyzw;
+	uint8_t VFr1xyzw;
+	uint8_t VFread0;
+	uint8_t VFread1;
+	uint32_t VIwrite;
+	uint32_t VIread;
 	int cycles;
 };
 
@@ -56,4 +56,4 @@ extern void _vuTestUpperStalls(VURegs * VU, _VURegsNum *VUregsn);
 extern void _vuTestLowerStalls(VURegs * VU, _VURegsNum *VUregsn);
 extern void _vuAddUpperStalls(VURegs * VU, _VURegsNum *VUregsn);
 extern void _vuAddLowerStalls(VURegs * VU, _VURegsNum *VUregsn);
-extern void _vuXGKICKTransfer(s32 cycles, bool flush);
+extern void _vuXGKICKTransfer(int32_t cycles, bool flush);

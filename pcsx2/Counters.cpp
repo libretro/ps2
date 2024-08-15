@@ -317,21 +317,21 @@ void UpdateVSyncRate(bool force)
 		switch (gsVideoMode)
 		{
 			case GS_VideoMode::Uninitialized: // SYSCALL instruction hasn't executed yet, give some temporary values.
-				if (gsIsInterlaced)
+				if (cpuRegs.GPR.n.a0.UL[0] & 1)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
 				break;
 			case GS_VideoMode::PAL:
 			case GS_VideoMode::DVD_PAL:
-				if (gsIsInterlaced)
+				if (cpuRegs.GPR.n.a0.UL[0] & 1)
 					total_scanlines = SCANLINES_TOTAL_PAL_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_PAL_NI;
 				break;
 			case GS_VideoMode::NTSC:
 			case GS_VideoMode::DVD_NTSC:
-				if (gsIsInterlaced)
+				if (cpuRegs.GPR.n.a0.UL[0] & 1)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
@@ -348,7 +348,7 @@ void UpdateVSyncRate(bool force)
 				break;
 			case GS_VideoMode::Unknown:
 			default:
-				if (gsIsInterlaced)
+				if (cpuRegs.GPR.n.a0.UL[0] & 1)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
@@ -916,8 +916,9 @@ template u16 rcntRead32<0x01>(u32 mem);
 template bool rcntWrite32<0x00>(u32 mem, mem32_t& value);
 template bool rcntWrite32<0x01>(u32 mem, mem32_t& value);
 
-bool SaveStateBase::rcntFreeze()
+bool SaveStateBase::rcntFreeze(void)
 {
+	bool is_interlaced = (cpuRegs.GPR.n.a0.UL[0] & 1);
 	Freeze(counters);
 	Freeze(hsyncCounter);
 	Freeze(vsyncCounter);
@@ -925,7 +926,7 @@ bool SaveStateBase::rcntFreeze()
 	Freeze(nextStartCounter);
 	Freeze(vSyncInfo);
 	Freeze(gsVideoMode);
-	Freeze(gsIsInterlaced);
+	Freeze(is_interlaced);
 	Freeze(gates);
 
 	if (IsLoading())

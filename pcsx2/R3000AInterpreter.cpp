@@ -27,7 +27,7 @@
 bool iopIsDelaySlot = false;
 
 static bool branch2 = 0;
-static u32 branchPC;
+static uint32_t branchPC;
 
 static __fi void execI(void)
 {
@@ -128,7 +128,7 @@ void psxBNE()   // Branch if Rs != Rt
 void psxJ(void)
 {
 	// check for iop module import table magic
-	u32 delayslot = iopMemRead32(psxRegs.pc);
+	uint32_t delayslot = iopMemRead32(psxRegs.pc);
 	if (delayslot >> 16 == 0x2400 && R3000A::irxImportExec(R3000A::irxImportTableAddr(psxRegs.pc), delayslot & 0xffff))
 		return;
 
@@ -162,7 +162,7 @@ void psxJALR(void)
 static void intReserve(void) { }
 static void intAlloc(void) { }
 static void intReset(void) { intAlloc(); }
-static void intClear(u32 Addr, u32 Size) { }
+static void intClear(uint32_t Addr, uint32_t Size) { }
 static void intShutdown(void) { }
 
 static s32 intExecuteBlock( s32 eeCycles )

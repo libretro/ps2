@@ -19,17 +19,17 @@
 
 union GPRRegs {
 	struct {
-		u32 r0, at, v0, v1, a0, a1, a2, a3,
+		uint32_t r0, at, v0, v1, a0, a1, a2, a3,
 			t0, t1, t2, t3, t4, t5, t6, t7,
 			s0, s1, s2, s3, s4, s5, s6, s7,
 			t8, t9, k0, k1, gp, sp, s8, ra, hi, lo; // hi needs to be at index 32! don't change
 	} n;
-	u32 r[34]; /* Lo, Hi in r[33] and r[32] */
+	uint32_t r[34]; /* Lo, Hi in r[33] and r[32] */
 };
 
 union CP0Regs {
 	struct {
-		u32 Index,     Random,    EntryLo0,  EntryLo1,
+		uint32_t Index,     Random,    EntryLo0,  EntryLo1,
 			Context,   PageMask,  Wired,     Reserved0,
 			BadVAddr,  Count,     EntryHi,   Compare,
 			Status,    Cause,     EPC,       PRid,
@@ -38,7 +38,7 @@ union CP0Regs {
 			Reserved4, Reserved5, ECC,       CacheErr,
 			TagLo,     TagHi,     ErrorEPC,  Reserved6;
 	} n;
-	u32 r[32];
+	uint32_t r[32];
 };
 
 struct SVector2D {
@@ -67,77 +67,77 @@ struct SMatrix3D {
 
 union CP2Data {
 	struct {
-		SVector3D     v0, v1, v2;
-		CBGR          rgb;
-		s32          otz;
-		s32          ir0, ir1, ir2, ir3;
-		SVector2D     sxy0, sxy1, sxy2, sxyp;
-		SVector2Dz    sz0, sz1, sz2, sz3;
-		CBGR          rgb0, rgb1, rgb2;
-		s32          reserved;
-		s32          mac0, mac1, mac2, mac3;
-		u32 irgb, orgb;
-		s32          lzcs, lzcr;
+		SVector3D        v0, v1, v2;
+		CBGR             rgb;
+		int32_t          otz;
+		int32_t          ir0, ir1, ir2, ir3;
+		SVector2D        sxy0, sxy1, sxy2, sxyp;
+		SVector2Dz       sz0, sz1, sz2, sz3;
+		CBGR             rgb0, rgb1, rgb2;
+		int32_t          reserved;
+		int32_t          mac0, mac1, mac2, mac3;
+		uint32_t 	 irgb, orgb;
+		int32_t          lzcs, lzcr;
 	} n;
-	u32 r[32];
+	uint32_t r[32];
 };
 
 union CP2Ctrl {
 	struct {
 		SMatrix3D rMatrix;
-		s32      trX, trY, trZ;
+		int32_t      trX, trY, trZ;
 		SMatrix3D lMatrix;
-		s32      rbk, gbk, bbk;
+		int32_t      rbk, gbk, bbk;
 		SMatrix3D cMatrix;
-		s32      rfc, gfc, bfc;
-		s32      ofx, ofy;
-		s32      h;
-		s32      dqa, dqb;
-		s32      zsf3, zsf4;
-		s32      flag;
+		int32_t      rfc, gfc, bfc;
+		int32_t      ofx, ofy;
+		int32_t      h;
+		int32_t      dqa, dqb;
+		int32_t      zsf3, zsf4;
+		int32_t      flag;
 	} n;
-	u32 r[32];
+	uint32_t r[32];
 };
 
 struct psxRegisters {
 	GPRRegs GPR;		/* General Purpose Registers */
 	CP0Regs CP0;		/* Coprocessor0 Registers */
-	CP2Data CP2D; 		/* Cop2 data registers */
-	CP2Ctrl CP2C; 		/* Cop2 control registers */
-	u32 pc;				/* Program counter */
-	u32 code;			/* The instruction */
-	u32 cycle;
-	u32 interrupt;
-	u32 pcWriteback;
+	CP2Data CP2D; 		/* COP2 data registers */
+	CP2Ctrl CP2C; 		/* COP2 control registers */
+	uint32_t pc;		/* Program counter */
+	uint32_t code;		/* The instruction */
+	uint32_t cycle;
+	uint32_t interrupt;
+	uint32_t pcWriteback;
 
 	// Controls when branch tests are performed.
-	u32 iopNextEventCycle;
+	uint32_t iopNextEventCycle;
 
 	// This value is used when the IOP execution is broken to return control to the EE.
 	// (which happens when the IOP throws EE-bound interrupts).  It holds the value of
 	// iopCycleEE (which is set to zero to facilitate the code break), so that the unrun
 	// cycles can be accounted for later.
-	s32 iopBreak;
+	int32_t iopBreak;
 
 	// Tracks current number of cycles IOP can run in EE cycles. When it dips below zero,
 	// control is returned to the EE.
-	s32 iopCycleEE;
+	int32_t iopCycleEE;
 
-	u32 sCycle[32];		// start cycle for signaled ints
-	s32 eCycle[32];		// cycle delta for signaled ints (sCycle + eCycle == branch cycle)
+	uint32_t sCycle[32];	// start cycle for signaled ints
+	int32_t eCycle[32];	// cycle delta for signaled ints (sCycle + eCycle == branch cycle)
 };
 
 alignas(16) extern psxRegisters psxRegs;
 
 #ifndef _PC_
 
-#define _i32(x) (s32)x //R3000A
-#define _u32(x) (u32)x //R3000A
+#define _i32(x) (int32_t)x //R3000A
+#define _u32(x) (uint32_t)x //R3000A
 
-#define _i16(x) (s16)x // Not used
+#define _i16(x) (int16_t)x // Not used
 #define _u16(x) (u16)x // Not used
 
-#define _i8(x) (s8)x // Not used
+#define _i8(x) (int8_t)x // Not used
 #define _u8(x) (u8)x //R3000A - once
 
 /**** R3000A Instruction Macros ****/
@@ -169,17 +169,17 @@ alignas(16) extern psxRegisters psxRegs;
 #define _rLo_   psxRegs.GPR.n.lo   // The LO register
 
 #define _JumpTarget_    ((_InstrucTarget_ << 2) + (_PC_ & 0xf0000000))   // Calculates the target during a jump instruction
-#define _BranchTarget_  (((s32)(s16)_Imm_ * 4) + _PC_)                 // Calculates the target during a branch instruction
+#define _BranchTarget_  (((int32_t)(int16_t)_Imm_ * 4) + _PC_)                 // Calculates the target during a branch instruction
 
 #define _SetLink(x)     psxRegs.GPR.r[x] = _PC_ + 4;       // Sets the return address in the link register
 
-extern s32 EEsCycle;
-extern u32 EEoCycle;
+extern int32_t  EEsCycle;
+extern uint32_t EEoCycle;
 
 #endif
 
-extern s32 psxNextDeltaCounter;
-extern u32 psxNextStartCounter;
+extern int32_t psxNextDeltaCounter;
+extern uint32_t psxNextStartCounter;
 extern bool iopEventAction;
 
 // Branching status used when throwing exceptions.
@@ -192,8 +192,8 @@ extern bool iopIsDelaySlot;
 struct R3000Acpu {
 	void (*Reserve)(void);
 	void (*Reset)(void);
-	s32 (*ExecuteBlock)( s32 eeCycles );		// executes the given number of EE cycles.
-	void (*Clear)(u32 Addr, u32 Size);
+	int32_t (*ExecuteBlock)(int32_t eeCycles );		// executes the given number of EE cycles.
+	void (*Clear)(uint32_t Addr, uint32_t Size);
 	void (*Shutdown)(void);
 };
 
@@ -202,7 +202,7 @@ extern R3000Acpu psxInt;
 extern R3000Acpu psxRec;
 
 extern void psxReset(void);
-extern void psxException(u32 code, u32 step);
+extern void psxException(uint32_t code, uint32_t step);
 extern void iopEventTest(void);
 
 // Subsets

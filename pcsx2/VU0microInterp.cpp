@@ -40,15 +40,11 @@ static void _vu0Exec(VURegs* VU)
 	u32* ptr = (u32*)&VU->Micro[VU->VI[REG_TPC].UL];
 	VU->VI[REG_TPC].UL += 8;
 
-	if (ptr[1] & 0x40000000) // E flag
-	{
+	if (ptr[1] & 0x40000000) /* E flag */
 		VU->ebit = 2;
-	}
-	if (ptr[1] & 0x20000000 && VU == &vuRegs[0]) // M flag
-	{
+	if (ptr[1] & 0x20000000 && VU == &vuRegs[0]) /* M flag */
 		VU->flags |= VUFLAG_MFLAGSET;
-	}
-	if (ptr[1] & 0x10000000) // D flag
+	if (ptr[1] & 0x10000000) /* D flag */
 	{
 		if (vuRegs[0].VI[REG_FBRST].UL & 0x4)
 		{
@@ -57,7 +53,7 @@ static void _vu0Exec(VURegs* VU)
 			VU->ebit = 1;
 		}
 	}
-	if (ptr[1] & 0x08000000) // T flag
+	if (ptr[1] & 0x08000000) /* T flag */
 	{
 		if (vuRegs[0].VI[REG_FBRST].UL & 0x8)
 		{
@@ -75,7 +71,7 @@ static void _vu0Exec(VURegs* VU)
 	_vuTestUpperStalls(VU, &uregs);
 
 	/* check upper flags */
-	if (ptr[1] & 0x80000000) // I flag
+	if (ptr[1] & 0x80000000) /* I flag */
 	{
 		_vuTestPipes(VU);
 
@@ -109,12 +105,9 @@ static void _vu0Exec(VURegs* VU)
 		if (uregs.VFwrite)
 		{
 			if (lregs.VFwrite == uregs.VFwrite)
-			{
-				//				Console.Warning("*PCSX2*: Warning, VF write to the same reg in both lower/upper cycle");
 				discard = 1;
-			}
-			if (lregs.VFread0 == uregs.VFwrite ||
-				lregs.VFread1 == uregs.VFwrite)
+			if (       lregs.VFread0 == uregs.VFwrite
+				|| lregs.VFread1 == uregs.VFwrite)
 			{
 				_VF = VU->VF[uregs.VFwrite];
 				vfreg = uregs.VFwrite;
@@ -123,10 +116,7 @@ static void _vu0Exec(VURegs* VU)
 		if (uregs.VIread & (1 << REG_CLIP_FLAG))
 		{
 			if (lregs.VIwrite & (1 << REG_CLIP_FLAG))
-			{
-				//Console.Warning("*PCSX2*: Warning, VI write to the same reg in both lower/upper cycle");
 				discard = 1;
-			}
 			if (lregs.VIread & (1 << REG_CLIP_FLAG))
 			{
 				_VI   = vuRegs[0].VI[REG_CLIP_FLAG];
@@ -152,13 +142,9 @@ static void _vu0Exec(VURegs* VU)
 			_vu0ExecLower(VU, ptr);
 
 			if (vfreg)
-			{
 				VU->VF[vfreg] = _VFc;
-			}
 			if (vireg)
-			{
 				VU->VI[vireg] = _VIc;
-			}
 		}
 	}
 

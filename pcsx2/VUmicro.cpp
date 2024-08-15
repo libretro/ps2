@@ -22,13 +22,12 @@
 BaseVUmicroCPU* CpuVU0 = nullptr;
 BaseVUmicroCPU* CpuVU1 = nullptr;
 
-__inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
+__inline uint32_t CalculateMinRunCycles(uint32_t cycles, bool requiresAccurateCycles)
 {
 	// If we're running an interlocked COP2 operation
 	// run for an exact amount of cycles
 	if(requiresAccurateCycles)
 		return cycles;
-
 	// Allow a minimum of 16 cycles to avoid running small blocks
 	// Running a block of like 3 cycles is highly inefficient
 	// so while sync isn't tight, it's okay to run ahead a little bit.
@@ -36,10 +35,10 @@ __inline u32 CalculateMinRunCycles(u32 cycles, bool requiresAccurateCycles)
 }
 
 // Executes a Block based on EE delta time
-void BaseVUmicroCPU::ExecuteBlock(bool startUp)
+void BaseVUmicroCPU::ExecuteBlock(bool startup)
 {
-	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
-	const int test  = m_Idx ? 0x100 : 1;
+	const uint32_t& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
+	const int test       = m_Idx ? 0x100 : 1;
 
 	if (m_Idx && THREAD_VU1)
 	{
@@ -50,14 +49,12 @@ void BaseVUmicroCPU::ExecuteBlock(bool startUp)
 	if (!(stat & test))
 		return;
 
-	if (startUp)
-	{
+	if (startup)
 		Execute(16U);
-	}
-	else // Continue Executing
+	else /* Continue Executing */
 	{
-		u32 cycle = m_Idx ? vuRegs[1].cycle : vuRegs[0].cycle;
-		s32 delta = (s32)(u32)(cpuRegs.cycle - cycle);
+		uint32_t cycle = m_Idx ? vuRegs[1].cycle : vuRegs[0].cycle;
+		int32_t delta  = (int32_t)(uint32_t)(cpuRegs.cycle - cycle);
 
 		if (delta > 0)
 			Execute(std::max(16, delta));

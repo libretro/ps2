@@ -32,8 +32,9 @@
 R3000Acpu *psxCpu;
 
 // used for constant propagation
-u32 g_psxConstRegs[32];
-u32 g_psxHasConstReg, g_psxFlushedConstReg;
+uint32_t g_psxConstRegs[32];
+uint32_t g_psxHasConstReg;
+uint32_t g_psxFlushedConstReg;
 
 // Used to signal to the EE when important actions that need IOP-attention have
 // happened (hsyncs, vsyncs, IOP exceptions, etc).  IOP runs code whenever this
@@ -66,7 +67,7 @@ void psxReset(void)
 
 void psxShutdown(void) { }
 
-void psxException(u32 code, u32 bd)
+void psxException(uint32_t code, uint32_t bd)
 {
 	// Set the Cause
 	psxRegs.CP0.n.Cause &= ~0x7f;
@@ -91,7 +92,7 @@ void psxException(u32 code, u32 bd)
 		((psxRegs.CP0.n.Status & 0xf) << 2);
 }
 
-__fi void psxSetNextBranch( u32 startCycle, s32 delta )
+__fi void psxSetNextBranch(uint32_t startCycle, s32 delta )
 {
 	// typecast the conditional to signed so that things don't blow up
 	// if startCycle is greater than our next branch cycle.
@@ -105,7 +106,7 @@ __fi void psxSetNextBranchDelta( s32 delta )
 	psxSetNextBranch( psxRegs.cycle, delta );
 }
 
-__fi int psxTestCycle( u32 startCycle, s32 delta )
+__fi int psxTestCycle(uint32_t startCycle, s32 delta )
 {
 	// typecast the conditional to signed so that things don't explode
 	// if the startCycle is ahead of our current cpu cycle.

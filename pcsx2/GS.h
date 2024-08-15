@@ -22,7 +22,7 @@
 #include "common/SingleRegisterTypes.h"
 #include "common/Threading.h"
 
-extern double GetVerticalFrequency();
+extern double GetVerticalFrequency(void);
 alignas(16) extern u8 g_RealGSMem[Ps2MemSize::GSregs];
 
 enum CSR_FifoState
@@ -215,7 +215,6 @@ enum class GS_VideoMode : int
 };
 
 extern GS_VideoMode gsVideoMode;
-extern bool gsIsInterlaced;
 
 /////////////////////////////////////////////////////////////////////////////
 // MTGS Threaded Class Declaration

@@ -13,9 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-// This module contains code shared by both the dynarec and interpreter versions
-// of the VU0 micro.
+/* This module contains code shared by both the dynarec and interpreter versions
+ * of the VU0 micro. */
 
 #include "Common.h"
 #include "VUmicro.h"
@@ -26,15 +25,12 @@
 void vu0ResetRegs(void)
 {
 	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xff; // stop vu0
-	vuRegs[0].VI[REG_FBRST].UL &= ~0xff; // stop vu0
-	vif0Regs.stat.VEW = false;
+	vuRegs[0].VI[REG_FBRST].UL    &= ~0xff; // stop vu0
+	vif0Regs.stat.VEW              = false;
 }
 
-static __fi u32 vu0DenormalizeMicroStatus(u32 nstatus)
-{
-	// from mVUallocSFLAGd()
-	return ((nstatus >> 3) & 0x18u) | ((nstatus >> 11) & 0x1800u) | ((nstatus >> 14) & 0x3cf0000u);
-}
+/* from mVUallocSFLAGd() */
+#define vu0DenormalizeMicroStatus(nstatus) (((nstatus >> 3) & 0x18u) | ((nstatus >> 11) & 0x1800u) | ((nstatus >> 14) & 0x3cf0000u))
 
 #if 1
 #define vu0SetMicroFlags(flags, value) r128_store((flags), r128_from_u32_dup((value)))
@@ -65,8 +61,9 @@ void vu0ExecMicro(u32 addr)
 
 	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF;
 	vuRegs[0].VI[REG_VPU_STAT].UL |=  0x01;
-	vuRegs[0].cycle = cpuRegs.cycle;
-	if ((s32)addr != -1) vuRegs[0].VI[REG_TPC].UL = addr & 0x1FF;
+	vuRegs[0].cycle                = cpuRegs.cycle;
+	if ((s32)addr != -1)
+		vuRegs[0].VI[REG_TPC].UL = addr & 0x1FF;
 
 	CpuVU0->SetStartPC(vuRegs[0].VI[REG_TPC].UL << 3);
 	CpuVU0->ExecuteBlock(1);

@@ -6,10 +6,10 @@
 
 #include <cmath>
 #include <float.h>
-//Lower/Upper instructions can use that..
-#define _Ft_ ((VU->code >> 16) & 0x1F)  // The rt part of the instruction register
-#define _Fs_ ((VU->code >> 11) & 0x1F)  // The rd part of the instruction register
-#define _Fd_ ((VU->code >>  6) & 0x1F)  // The sa part of the instruction register
+/* Lower/Upper instructions can use that.. */
+#define _Ft_ ((VU->code >> 16) & 0x1F)  /* The rt part of the instruction register */
+#define _Fs_ ((VU->code >> 11) & 0x1F)  /* The rd part of the instruction register */
+#define _Fd_ ((VU->code >>  6) & 0x1F)  /* The sa part of the instruction register */
 #define _It_ (_Ft_ & 0xF)
 #define _Is_ (_Fs_ & 0xF)
 #define _Id_ (_Fd_ & 0xF)
@@ -24,39 +24,37 @@
 #define _Fsf_ ((VU->code >> 21) & 0x03)
 #define _Ftf_ ((VU->code >> 23) & 0x03)
 
-#define _Imm11_		(s32)(VU->code & 0x400 ? 0xfffffc00 | (VU->code & 0x3ff) : VU->code & 0x3ff)
-#define _UImm11_	(s32)(VU->code & 0x7ff)
-
-#define VI_BACKUP
+#define _Imm11_	 (int32_t)(VU->code & 0x400 ? 0xfffffc00 | (VU->code & 0x3ff) : VU->code & 0x3ff)
+#define _UImm11_ (int32_t)(VU->code & 0x7ff)
 
 alignas(16) static VECTOR RDzero;
 
 /*****************************************/
-/*          NEW FLAGS                    */ //By asadr. Thnkx F|RES :p
+/*          NEW FLAGS                    */ /* By asadr. Thnkx F|RES :p */
 /*****************************************/
 
-static __ri u32 VU_MAC_UPDATE( int shift, VURegs * VU, float f )
+static __ri u32 VU_MAC_UPDATE(int shift, VURegs * VU, float f)
 {
 	u32 v = *(u32*)&f;
 	int exp = (v >> 23) & 0xff;
 	u32 s = v & 0x80000000;
 
 	if (s)
-		VU->macflag |= 0x0010<<shift;
+		VU->macflag |= 0x0010 << shift;
 	else
-		VU->macflag &= ~(0x0010<<shift);
+		VU->macflag &= ~(0x0010 << shift);
 
 	if( f == 0 )
-		VU->macflag = (VU->macflag & ~(0x1100<<shift)) | (0x0001<<shift);
+		VU->macflag = (VU->macflag & ~(0x1100 << shift)) | (0x0001 << shift);
 	else
 	{
 		switch(exp)
 		{
 			case 0:
-				VU->macflag = (VU->macflag&~(0x1000<<shift)) | (0x0101<<shift);
+				VU->macflag = (VU->macflag & ~(0x1000 << shift)) | (0x0101 << shift);
 				return s;
 			case 255:
-				VU->macflag = (VU->macflag&~(0x0101<<shift)) | (0x1000<<shift);
+				VU->macflag = (VU->macflag & ~(0x0101 << shift)) | (0x1000 << shift);
 				if (CHECK_VU_OVERFLOW((VU == &vuRegs[1]) ? 1 : 0))
 					return s | 0x7f7fffff; /* max allowed */
 				break;
@@ -93,13 +91,13 @@ static __ri bool _vuFMACflush(VURegs* VU)
 		if ((VU->cycle - VU->fmac[i].sCycle) < VU->fmac[i].Cycle)
 			break;
 
-		// Clip flags (Affected by CLIP instruction)
+		/* Clip flags (Affected by CLIP instruction) */
 		if (VU->fmac[i].flagreg & (1 << REG_CLIP_FLAG))
 			VU->VI[REG_CLIP_FLAG].UL = VU->fmac[i].clipflag;
 
-		// Normal FMAC instructions only affects Z/S/I/O, 
-		// D/I are modified only by FDIV instructions
-		// Sticky flags (Affected by FSSET)
+		/* Normal FMAC instructions only affects Z/S/I/O, 
+		 * D/I are modified only by FDIV instructions
+		 * Sticky flags (Affected by FSSET) */
 		if (VU->fmac[i].flagreg & (1 << REG_STATUS_FLAG))
 			VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0x30) | (VU->fmac[i].statusflag & 0xFC0) | (VU->fmac[i].statusflag & 0xF);
 		else
@@ -137,9 +135,9 @@ static __ri bool _vuFDIVflush(VURegs* VU)
 	{
 		if ((VU->cycle - VU->fdiv.sCycle) >= VU->fdiv.Cycle)
 		{
-			VU->fdiv.enable = 0;
-			VU->VI[REG_Q].UL = VU->fdiv.reg.UL;
-			// FDIV only affects D/I
+			VU->fdiv.enable            = 0;
+			VU->VI[REG_Q].UL           = VU->fdiv.reg.UL;
+			/* FDIV only affects D/I */
 			VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0xFCF) | (VU->fdiv.statusflag & 0xC30);
 
 			return true;
@@ -164,7 +162,7 @@ static __ri bool _vuEFUflush(VURegs* VU)
 	return false;
 }
 
-// called at end of program
+/* called at end of program */
 void _vuFlushAll(VURegs* VU)
 {
 	int i = 0;
@@ -190,13 +188,13 @@ void _vuFlushAll(VURegs* VU)
 
 	for (i = VU->fmacreadpos; VU->fmaccount > 0; i = (i + 1) & 3)
 	{
-		// Clip flags (Affected by CLIP instruction)
+		/* Clip flags (Affected by CLIP instruction) */
 		if (VU->fmac[i].flagreg & (1 << REG_CLIP_FLAG))
 			VU->VI[REG_CLIP_FLAG].UL = VU->fmac[i].clipflag;
 
-		// Normal FMAC instructions only affects Z/S/I/O, 
-		// D/I are modified only by FDIV instructions
-		// Sticky flags (Affected by FSSET)
+		/* Normal FMAC instructions only affects Z/S/I/O, 
+		 * D/I are modified only by FDIV instructions
+		 * Sticky flags (Affected by FSSET) */
 		if (VU->fmac[i].flagreg & (1 << REG_STATUS_FLAG))
 			VU->VI[REG_STATUS_FLAG].UL = (VU->VI[REG_STATUS_FLAG].UL & 0x30) | (VU->fmac[i].statusflag & 0xFC0) | (VU->fmac[i].statusflag & 0xF);
 		else
@@ -244,16 +242,17 @@ __fi void _vuTestPipes(VURegs* VU)
 
 static void _vuFMACTestStall(VURegs* VU, u32 reg, u32 xyzw)
 {
+	int currentpipe;
 	u32 i = 0;
 
-	for (int currentpipe = VU->fmacreadpos; i < VU->fmaccount; currentpipe = (currentpipe + 1) & 3, i++)
+	for (currentpipe = VU->fmacreadpos; i < VU->fmaccount; currentpipe = (currentpipe + 1) & 3, i++)
 	{
-		//Check if enough cycles have passed for this FMAC position
+		/* Check if enough cycles have passed for this FMAC position */
 		if ((VU->cycle - VU->fmac[currentpipe].sCycle) >= VU->fmac[currentpipe].Cycle)
 			continue;
 
-		// Check if the regs match
-		if ((VU->fmac[currentpipe].regupper == reg && VU->fmac[currentpipe].xyzwupper & xyzw)
+		/* Check if the regs match */
+		if (       (VU->fmac[currentpipe].regupper == reg && VU->fmac[currentpipe].xyzwupper & xyzw)
 			|| (VU->fmac[currentpipe].reglower == reg && VU->fmac[currentpipe].xyzwlower & xyzw))
 		{
 			u32 newCycle = VU->fmac[currentpipe].Cycle + VU->fmac[currentpipe].sCycle;
@@ -295,11 +294,11 @@ static __fi void _vuTestEFUStalls(VURegs* VU, _VURegsNum* VUregsn)
 	if (VU->efu.enable == 0)
 		return;
 
-	// With EFU commands they have a throughput/latency that doesn't match, this means if a stall occurs
-	// The stall is released 1 cycle before P is updated. However there is no other command that can read
-	// P on the same cycle as the stall is released, and if the stall is caused by an EFU command other
-	// than WAITP, we're going to overwrite the value in the pipeline, which will break everything.
-	// So the TL;DR of this is that we should be safe to release 1 cycle early and write back P
+	/* With EFU commands they have a throughput/latency that doesn't match, this means if a stall occurs
+	 * The stall is released 1 cycle before P is updated. However there is no other command that can read
+	 * P on the same cycle as the stall is released, and if the stall is caused by an EFU command other
+	 * than WAITP, we're going to overwrite the value in the pipeline, which will break everything.
+	 * So the TL;DR of this is that we should be safe to release 1 cycle early and write back P */
 	VU->efu.Cycle -= 1;
 	u32 newCycle = VU->efu.sCycle + VU->efu.Cycle;
 
@@ -316,7 +315,7 @@ static __fi void _vuTestALUStalls(VURegs* VU, _VURegsNum* VUregsn)
 		if ((VU->cycle - VU->ialu[currentpipe].sCycle) >= VU->ialu[currentpipe].Cycle)
 			continue;
 
-		if (VU->ialu[currentpipe].reg & VUregsn->VIread) // Read and written VI regs share the same register
+		if (VU->ialu[currentpipe].reg & VUregsn->VIread) /* Read and written VI regs share the same register */
 		{
 			u32 newCycle = VU->ialu[currentpipe].Cycle + VU->ialu[currentpipe].sCycle;
 
@@ -442,10 +441,9 @@ __fi void _vuAddLowerStalls(VURegs* VU, _VURegsNum* VUregsn)
 
 __fi void _vuBackupVI(VURegs* VU, u32 reg)
 {
-#ifdef VI_BACKUP
 	if (VU->VIBackupCycles && reg == VU->VIRegNumber)
 	{
-		//On repeat writes we need to remember the value from before the chain
+		/* On repeat writes we need to remember the value from before the chain */
 		VU->VIBackupCycles = 2;
 		return;
 	}
@@ -453,18 +451,15 @@ __fi void _vuBackupVI(VURegs* VU, u32 reg)
 	VU->VIBackupCycles = 2;
 	VU->VIRegNumber = reg;
 	VU->VIOldValue = VU->VI[reg].US[0];
-#endif
 }
 
-//interpreter hacks, WIP
-//#define INT_VUDOUBLEHACK
+/* interpreter hacks, WIP */
 
 /******************************/
 /*   VU Upper instructions    */
 /******************************/
 static float vuDouble(u32 f)
 {
-#ifndef INT_VUDOUBLEHACK
 	switch (f & 0x7f800000)
 	{
 		case 0x0:
@@ -478,7 +473,6 @@ static float vuDouble(u32 f)
 			}
 			break;
 	}
-#endif
 	return *(float*)&f;
 }
 
@@ -501,8 +495,8 @@ static __fi float vuADD_TriAceHack(u32 a, u32 b)
 	// but VU interpreters don't seem to need it currently:
 
 	// Update Sept 2021, now the interpreters don't suck, they do - Refraction
-	s32 aExp = (a >> 23) & 0xff;
-	s32 bExp = (b >> 23) & 0xff;
+	int32_t aExp = (a >> 23) & 0xff;
+	int32_t bExp = (b >> 23) & 0xff;
 	if (aExp - bExp >= 25) b &= 0x80000000;
 	if (aExp - bExp <=-25) a &= 0x80000000;
 	return vuDouble(a) + vuDouble(b);
@@ -1440,12 +1434,12 @@ static __fi void _vuMSUBAw(VURegs* VU)
 
 static __fi u32 fp_max(u32 a, u32 b)
 {
-	return ((s32)a < 0 && (s32)b < 0) ? std::min<s32>(a, b) : std::max<s32>(a, b);
+	return ((int32_t)a < 0 && (int32_t)b < 0) ? std::min<int32_t>(a, b) : std::max<int32_t>(a, b);
 }
 
 static __fi u32 fp_min(u32 a, u32 b)
 {
-	return ((s32)a < 0 && (s32)b < 0) ? std::max<s32>(a, b) : std::min<s32>(a, b);
+	return ((int32_t)a < 0 && (int32_t)b < 0) ? std::max<int32_t>(a, b) : std::min<int32_t>(a, b);
 }
 
 static __fi void _vuMAX(VURegs* VU)
@@ -1621,11 +1615,9 @@ static __fi void _vuOPMSUB(VURegs* VU)
 	VU_STAT_UPDATE(VU);
 }
 
-static __fi void _vuNOP(VURegs* VU)
-{
-}
+static __fi void _vuNOP(VURegs* VU) { }
 
-static __fi s32 float_to_int(float value)
+static __fi int32_t float_to_int(float value)
 {
 	if (value >= 2147483647.0)
 		return 2147483647LL;
@@ -1819,7 +1811,7 @@ static __fi void _vuRSQRT(VURegs* VU)
 
 static __fi void _vuIADDI(VURegs* VU)
 {
-	s16 imm = ((VU->code >> 6) & 0x1f);
+	int16_t imm = ((VU->code >> 6) & 0x1f);
 	imm     = ((imm & 0x10 ? 0xfff0 : 0) | (imm & 0xf));
 	if (_It_ == 0)
 		return;
@@ -1905,10 +1897,10 @@ static __fi void _vuMFIR(VURegs* VU)
 	if (_Ft_ == 0)
 		return;
 
-	if (_X) VU->VF[_Ft_].SL[0] = (s32)VU->VI[_Is_].SS[0];
-	if (_Y) VU->VF[_Ft_].SL[1] = (s32)VU->VI[_Is_].SS[0];
-	if (_Z) VU->VF[_Ft_].SL[2] = (s32)VU->VI[_Is_].SS[0];
-	if (_W) VU->VF[_Ft_].SL[3] = (s32)VU->VI[_Is_].SS[0];
+	if (_X) VU->VF[_Ft_].SL[0] = (int32_t)VU->VI[_Is_].SS[0];
+	if (_Y) VU->VF[_Ft_].SL[1] = (int32_t)VU->VI[_Is_].SS[0];
+	if (_Z) VU->VF[_Ft_].SL[2] = (int32_t)VU->VI[_Is_].SS[0];
+	if (_W) VU->VF[_Ft_].SL[3] = (int32_t)VU->VI[_Is_].SS[0];
 }
 
 static __fi void _vuMTIR(VURegs* VU)
@@ -1952,7 +1944,7 @@ static __ri void _vuLQ(VURegs* VU)
 	if (_Ft_ == 0)
 		return;
 
-	s16 imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	int16_t imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_Is_].SS[0]) * 16);
  	u32* ptr = (u32*)GET_VU_MEM(VU, addr);
 	if (_X) VU->VF[_Ft_].UL[0] = ptr[0];
@@ -1995,7 +1987,7 @@ static __ri void _vuLQI(VURegs* VU)
 
 static __ri void _vuSQ(VURegs* VU)
 {
-	s16 imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	int16_t imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_It_].SS[0]) * 16);
 	u32* ptr = (u32*)GET_VU_MEM(VU, addr);
 	if (_X) ptr[0] = VU->VF[_Fs_].UL[0];
@@ -2034,7 +2026,7 @@ static __ri void _vuILW(VURegs* VU)
 	if (_It_ == 0)
 		return;
 
-	s16 imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	int16_t imm  = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_Is_].SS[0]) * 16);
 	u16* ptr = (u16*)GET_VU_MEM(VU, addr);
 
@@ -2046,7 +2038,7 @@ static __ri void _vuILW(VURegs* VU)
 
 static __fi void _vuISW(VURegs* VU)
 {
-	s16 imm = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
+	int16_t imm = (VU->code & 0x400) ? (VU->code & 0x3ff) | 0xfc00 : (VU->code & 0x3ff);
 	u16 addr = ((imm + VU->VI[_Is_].SS[0]) * 16);
 	u16* ptr = (u16*)GET_VU_MEM(VU, addr);
 	if (_X) { ptr[0] = VU->VI[_It_].US[0]; ptr[1] = 0; }
@@ -2218,9 +2210,9 @@ static __fi void _vuFCGET(VURegs* VU)
 	VU->VI[_It_].US[0] = VU->VI[REG_CLIP_FLAG].UL & 0x0FFF;
 }
 
-s32 _branchAddr(VURegs* VU)
+static int32_t _branchAddr(VURegs* VU)
 {
-	s32 bpc = VU->VI[REG_TPC].SL + (_Imm11_ * 8);
+	int32_t bpc = VU->VI[REG_TPC].SL + (_Imm11_ * 8);
 	bpc &= (VU == &vuRegs[1]) ? 0x3fff : 0x0fff;
 	return bpc;
 }
@@ -2241,9 +2233,8 @@ static __fi void _setBranch(VURegs* VU, u32 bpc)
 
 static __ri void _vuIBEQ(VURegs* VU)
 {
-	s16 dest = VU->VI[_It_].US[0];
-	s16 src = VU->VI[_Is_].US[0];
-#ifdef VI_BACKUP
+	int16_t dest = VU->VI[_It_].US[0];
+	int16_t src  = VU->VI[_Is_].US[0];
 	if (VU->VIBackupCycles > 0)
 	{
 		if (VU->VIRegNumber == _It_)
@@ -2252,88 +2243,78 @@ static __ri void _vuIBEQ(VURegs* VU)
 		if (VU->VIRegNumber == _Is_)
 			src = VU->VIOldValue;
 	}
-#endif
 	if (dest == src)
 	{
-		s32 bpc = _branchAddr(VU);
+		int32_t bpc = _branchAddr(VU);
 		_setBranch(VU, bpc);
 	}
 }
 
 static __ri void _vuIBGEZ(VURegs* VU)
 {
-	s16 src = VU->VI[_Is_].US[0];
-#ifdef VI_BACKUP
+	int16_t src = VU->VI[_Is_].US[0];
 	if (VU->VIBackupCycles > 0)
 	{
 		if (VU->VIRegNumber == _Is_)
 			src = VU->VIOldValue;
 	}
-#endif
 	if (src >= 0)
 	{
-		s32 bpc = _branchAddr(VU);
+		int32_t bpc = _branchAddr(VU);
 		_setBranch(VU, bpc);
 	}
 }
 
 static __ri void _vuIBGTZ(VURegs* VU)
 {
-	s16 src = VU->VI[_Is_].US[0];
-#ifdef VI_BACKUP
+	int16_t src = VU->VI[_Is_].US[0];
 	if (VU->VIBackupCycles > 0)
 	{
 		if (VU->VIRegNumber == _Is_)
 			src = VU->VIOldValue;
 	}
-#endif
 
 	if (src > 0)
 	{
-		s32 bpc = _branchAddr(VU);
+		int32_t bpc = _branchAddr(VU);
 		_setBranch(VU, bpc);
 	}
 }
 
 static __ri void _vuIBLEZ(VURegs* VU)
 {
-	s16 src = VU->VI[_Is_].US[0];
-#ifdef VI_BACKUP
+	int16_t src = VU->VI[_Is_].US[0];
 	if (VU->VIBackupCycles > 0)
 	{
 		if (VU->VIRegNumber == _Is_)
 			src = VU->VIOldValue;
 	}
-#endif
 	if (src <= 0)
 	{
-		s32 bpc = _branchAddr(VU);
+		int32_t bpc = _branchAddr(VU);
 		_setBranch(VU, bpc);
 	}
 }
 
 static __ri void _vuIBLTZ(VURegs* VU)
 {
-	s16 src = VU->VI[_Is_].US[0];
-#ifdef VI_BACKUP
+	int16_t src = VU->VI[_Is_].US[0];
 	if (VU->VIBackupCycles > 0)
 	{
 		if (VU->VIRegNumber == _Is_)
 			src = VU->VIOldValue;
 	}
-#endif
 	if (src < 0)
 	{
-		s32 bpc = _branchAddr(VU);
+		int32_t bpc = _branchAddr(VU);
 		_setBranch(VU, bpc);
 	}
 }
 
 static __ri void _vuIBNE(VURegs* VU)
 {
-	s16 dest = VU->VI[_It_].US[0];
-	s16 src = VU->VI[_Is_].US[0];
-#ifdef VI_BACKUP
+	int16_t dest = VU->VI[_It_].US[0];
+	int16_t src = VU->VI[_Is_].US[0];
 	if (VU->VIBackupCycles > 0)
 	{
 		if (VU->VIRegNumber == _It_)
@@ -2342,23 +2323,22 @@ static __ri void _vuIBNE(VURegs* VU)
 		if (VU->VIRegNumber == _Is_)
 			src = VU->VIOldValue;
 	}
-#endif
 	if (dest != src)
 	{
-		s32 bpc = _branchAddr(VU);
+		int32_t bpc = _branchAddr(VU);
 		_setBranch(VU, bpc);
 	}
 }
 
 static __ri void _vuB(VURegs* VU)
 {
-	s32 bpc = _branchAddr(VU);
+	int32_t bpc = _branchAddr(VU);
 	_setBranch(VU, bpc);
 }
 
 static __ri void _vuBAL(VURegs* VU)
 {
-	s32 bpc = _branchAddr(VU);
+	int32_t bpc = _branchAddr(VU);
 
 
 	if (_It_)
@@ -2571,7 +2551,7 @@ static __ri void _vuXITOP(VURegs* VU)
 		VU->VI[_It_].US[0] = (VU == &vuRegs[1]) ? vif1Regs.itop : vif0Regs.itop;
 }
 
-void _vuXGKICKTransfer(s32 cycles, bool flush)
+void _vuXGKICKTransfer(int32_t cycles, bool flush)
 {
 	if (!vuRegs[1].xgkickenable)
 		return;

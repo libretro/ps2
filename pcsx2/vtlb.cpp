@@ -107,7 +107,7 @@ vtlb_private::VTLBVirtual::VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr)
 		value = phys.raw() - vaddr;
 }
 
-__inline int CheckCache(u32 addr)
+static __inline int CheckCache(u32 addr)
 {
 	if (((cpuRegs.CP0.n.Config >> 16) & 0x1) != 0)
 	{
@@ -467,10 +467,7 @@ __ri void vtlb_ReassignHandler(vtlbHandler rv,
 	vtlbdata.RWFT[4][1][rv] = (void*)((w128 != 0) ? w128 : vtlbDefaultPhyWrite128);
 }
 
-vtlbHandler vtlb_NewHandler(void)
-{
-	return vtlbHandlerCount++;
-}
+vtlbHandler vtlb_NewHandler(void) { return vtlbHandlerCount++; }
 
 // Registers a handler into the VTLB's internal handler array.  The handler defines specific behavior
 // for how memory pages bound to the handler are read from / written to.  If any of the handler pointers
@@ -514,12 +511,12 @@ void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 		blocksize = size;
 
 	intptr_t baseint = (intptr_t)base;
-	u32 end = start + (size - VTLB_PAGE_SIZE);
+	uint32_t end     = start + (size - VTLB_PAGE_SIZE);
 
 	while (start <= end)
 	{
-		u32 loopsz = blocksize;
-		intptr_t ptr   = baseint;
+		uint32_t loopsz = blocksize;
+		intptr_t ptr    = baseint;
 
 		while (loopsz > 0)
 		{
@@ -806,7 +803,7 @@ static bool vtlb_BackpatchLoadStore(uintptr_t code_address, uintptr_t fault_addr
 		return false;
 
 	const LoadstoreBackpatchInfo& info = iter->second;
-	const u32 guest_addr = static_cast<u32>(fault_address - fastmem_start);
+	const uint32_t guest_addr = static_cast<uint32_t>(fault_address - fastmem_start);
 	vtlb_DynBackpatchLoadStore(code_address, info.code_size, info.guest_pc, guest_addr,
 		info.gpr_bitmask, info.fpr_bitmask, info.address_register, info.data_register,
 		info.size_in_bits, info.is_signed, info.is_load, info.is_fpr);
@@ -891,7 +888,7 @@ void vtlb_VMapBuffer(u32 vaddr, void* buffer, u32 size)
 	uintptr_t bu8 = (uintptr_t)buffer;
 	while (size > 0)
 	{
-		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual::fromPointer(bu8, vaddr);
+		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual(VTLBPhysical::fromPointer(bu8), 0, vaddr);
 		vaddr += VTLB_PAGE_SIZE;
 		bu8 += VTLB_PAGE_SIZE;
 		size -= VTLB_PAGE_SIZE;
@@ -1056,7 +1053,7 @@ void vtlb_Alloc_Ppmap(void)
 	static u32* ppmap = nullptr;
 
 	if (!ppmap)
-		ppmap = (u32*)GetVmMemory().BumpAllocator().Alloc(PPMAP_SIZE);
+		ppmap  = (u32*)GetVmMemory().BumpAllocator().Alloc(PPMAP_SIZE);
 
 	mode.m_read    = true;
 	mode.m_write   = true;

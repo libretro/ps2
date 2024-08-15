@@ -198,8 +198,6 @@ namespace vtlb_private
 		explicit VTLBPhysical(intptr_t value): value(value) { }
 	public:
 		VTLBPhysical(): value(0) {}
-		/// Create from a pointer to raw memory
-		static VTLBPhysical fromPointer(void *ptr) { return fromPointer((intptr_t)ptr); }
 		/// Create from an integer representing a pointer to raw memory
 		static VTLBPhysical fromPointer(intptr_t ptr);
 		/// Create from a handler and address
@@ -223,9 +221,6 @@ namespace vtlb_private
 	public:
 		VTLBVirtual(): value(0) {}
 		VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr);
-		static VTLBVirtual fromPointer(uintptr_t ptr, u32 vaddr) {
-			return VTLBVirtual(VTLBPhysical::fromPointer(ptr), 0, vaddr);
-		}
 
 		/// Get the raw value held by the entry
 		uintptr_t raw() const { return value; }

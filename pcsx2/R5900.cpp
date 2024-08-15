@@ -240,6 +240,8 @@ static __fi void TESTINT( u8 n, void (*callback)() )
 		cpuSetNextEvent( cpuRegs.sCycle[n], cpuRegs.eCycle[n] );
 }
 
+static void MTVUInterrupt(void) { vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00; }
+
 // [TODO] move this function to Dmac.cpp, and remove most of the DMAC-related headers from
 // being included into R5900.cpp.
 static __fi bool _cpuTestInterrupts(void)
