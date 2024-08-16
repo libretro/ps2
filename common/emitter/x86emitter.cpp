@@ -1826,10 +1826,8 @@ namespace x86Emitter
 	// to optimize special forms of the Lea instructions accordingly, such
 	// as when a LEA can be replaced with a "MOV reg,imm" or "MOV reg,reg".
 	//
-	// preserve_flags - set to ture to disable use of SHL on [Index*Base] forms
-	// of LEA, which alters flags states.
 	//
-	static void EmitLeaMagic(const xRegisterInt& to, const xIndirectVoid& src, bool preserve_flags)
+	static void EmitLeaMagic(const xRegisterInt& to, const xIndirectVoid& src)
 	{
 		int displacement_size = (src.Displacement == 0)    ? 0 :
 			((is_s8(src.Displacement)) ? 1 : 2);
@@ -1854,22 +1852,19 @@ namespace x86Emitter
 					_xMovRtoR(to, from);
 				return;
 			}
-			else if (!preserve_flags)
-			{
-				// encode as MOV and ADD combo.  Make sure to use the immediate on the
-				// ADD since it can encode as an 8-bit sign-extended value.
-				const xRegisterInt& from = src.Index.MatchSizeTo(to);
-				if (to != from)
-					_xMovRtoR(to, from);
-				xADD(to, src.Displacement);
-				return;
-			}
+			// encode as MOV and ADD combo.  Make sure to use the immediate on the
+			// ADD since it can encode as an 8-bit sign-extended value.
+			const xRegisterInt& from = src.Index.MatchSizeTo(to);
+			if (to != from)
+				_xMovRtoR(to, from);
+			xADD(to, src.Displacement);
+			return;
 		}
 		else
 		{
 			if (src.Base.IsEmpty())
 			{
-				if (!preserve_flags && (displacement_size == 0))
+				if (displacement_size == 0)
 				{
 					// Encode [Index*Scale] as a combination of Mov and Shl.
 					// This is more efficient because of the bloated LEA format which requires
@@ -1888,36 +1883,22 @@ namespace x86Emitter
 			{
 				if (src.Scale == 0)
 				{
-					if (!preserve_flags)
+					if (src.Index == rsp)
 					{
-						if (src.Index == rsp)
-						{
-							// ESP is not encodable as an index (ix86 ignores it), thus:
-							const xRegisterInt& from = src.Base.MatchSizeTo(to);
-							if (to != from)
-								_xMovRtoR(to, from); // will do the trick!
-							if (src.Displacement)
-								xADD(to, src.Displacement);
-							return;
-						}
-						else if (src.Displacement == 0)
-						{
-							const xRegisterInt& from = src.Base.MatchSizeTo(to);
-							if (to != from)
-								_xMovRtoR(to, from);
-							u8 opcode = (to.Is8BitOp() ? 0 : 1) | (G1Type_ADD << 3);
-							xOpWrite(to.GetPrefix16(), opcode, src.Index.MatchSizeTo(to), to, 0);
-							return;
-						}
+						// ESP is not encodable as an index (ix86 ignores it), thus:
+						const xRegisterInt& from = src.Base.MatchSizeTo(to);
+						if (to != from)
+							_xMovRtoR(to, from); // will do the trick!
+						if (src.Displacement)
+							xADD(to, src.Displacement);
 					}
-					else if ((src.Index == rsp) && (src.Displacement == 0))
+					else if (src.Displacement == 0)
 					{
-						// special case handling of ESP as Index, which is replaceable with
-						// a single MOV even when preserve_flags is set! :D
 						const xRegisterInt& from = src.Base.MatchSizeTo(to);
 						if (to != from)
 							_xMovRtoR(to, from);
-						return;
+						u8 opcode = (to.Is8BitOp() ? 0 : 1) | (G1Type_ADD << 3);
+						xOpWrite(to.GetPrefix16(), opcode, src.Index.MatchSizeTo(to), to, 0);
 					}
 				}
 			}
@@ -1928,19 +1909,19 @@ namespace x86Emitter
 
 	__fi void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags)
 	{
-		EmitLeaMagic(to, src, preserve_flags);
+		EmitLeaMagic(to, src);
 	}
 
 	__fi void xLEA(xRegister32 to, const xIndirectVoid& src, bool preserve_flags)
 	{
-		EmitLeaMagic(to, src, preserve_flags);
+		EmitLeaMagic(to, src);
 	}
 
 	__fi void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags)
 	{
 		*(u8*)x86Ptr = 0x66;
 		x86Ptr += sizeof(u8);
-		EmitLeaMagic(to, src, preserve_flags);
+		EmitLeaMagic(to, src);
 	}
 
 	// =====================================================================================================
