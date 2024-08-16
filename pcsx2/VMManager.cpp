@@ -55,7 +55,7 @@
 #include "Vif_Dynarec.h"
 #include "PAD/PAD.h"
 #include "Sio.h"
-#include "ps2/BiosTools.h"
+#include "BiosTools.h"
 
 #include "DebugTools/MIPSAnalyst.h"
 

@@ -266,9 +266,9 @@ static void* prepareCacheAccess(u32 mem, int* way, int* idx)
 }
 
 
-mem8_t vtlb_memRead8(uint32_t addr)
+uint8_t vtlb_memRead8(uint32_t addr)
 {
-	static const uint DataSize = sizeof(mem8_t) * 8;
+	static const uint DataSize = sizeof(uint8_t) * 8;
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
 	if (!vmv.isHandler(addr))
@@ -279,14 +279,14 @@ mem8_t vtlb_memRead8(uint32_t addr)
 			void *_addr = prepareCacheAccess<false, sizeof(uint8_t)>(addr, &way, &idx);
 			return *reinterpret_cast<uint8_t*>(_addr);
 		}
-		return *reinterpret_cast<mem8_t*>(vmv.assumePtr(addr));
+		return *reinterpret_cast<uint8_t*>(vmv.assumePtr(addr));
 	}
 	//has to: translate, find function, call function
 	uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
 	return vmv.assumeHandler<8, false>()(paddr);
 }
 
-mem16_t vtlb_memRead16(uint32_t addr)
+uint16_t vtlb_memRead16(uint32_t addr)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -298,7 +298,7 @@ mem16_t vtlb_memRead16(uint32_t addr)
 			void *_addr = prepareCacheAccess<false, sizeof(uint16_t)>(addr, &way, &idx);
 			return *reinterpret_cast<uint16_t*>(_addr);
 		}
-		return *reinterpret_cast<mem16_t*>(vmv.assumePtr(addr));
+		return *reinterpret_cast<uint16_t*>(vmv.assumePtr(addr));
 	}
 
 	//has to: translate, find function, call function
@@ -306,7 +306,7 @@ mem16_t vtlb_memRead16(uint32_t addr)
 	return vmv.assumeHandler<16, false>()(paddr);
 }
 
-mem32_t vtlb_memRead32(uint32_t addr)
+uint32_t vtlb_memRead32(uint32_t addr)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -319,7 +319,7 @@ mem32_t vtlb_memRead32(uint32_t addr)
 			return *reinterpret_cast<uint32_t*>(_addr);
 		}
 
-		return *reinterpret_cast<mem32_t*>(vmv.assumePtr(addr));
+		return *reinterpret_cast<uint32_t*>(vmv.assumePtr(addr));
 	}
 
 	//has to: translate, find function, call function
@@ -327,7 +327,7 @@ mem32_t vtlb_memRead32(uint32_t addr)
 	return vmv.assumeHandler<32, false>()(paddr);
 }
 
-mem64_t vtlb_memRead64(uint32_t addr)
+uint64_t vtlb_memRead64(uint32_t addr)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -340,7 +340,7 @@ mem64_t vtlb_memRead64(uint32_t addr)
 			return *reinterpret_cast<uint64_t*>(_addr);
 		}
 
-		return *reinterpret_cast<mem64_t*>(vmv.assumePtr(addr));
+		return *reinterpret_cast<uint64_t*>(vmv.assumePtr(addr));
 	}
 
 	//has to: translate, find function, call function
@@ -373,7 +373,7 @@ RETURNS_R128 vtlb_memRead128(uint32_t mem)
 	return r128_load(reinterpret_cast<const void*>(vmv.assumePtr(mem)));
 }
 
-void vtlb_memWrite8(uint32_t addr, mem8_t data)
+void vtlb_memWrite8(uint32_t addr, uint8_t data)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -381,7 +381,7 @@ void vtlb_memWrite8(uint32_t addr, mem8_t data)
 	{
 		//has to: translate, find function, call function
 		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
-		return vmv.assumeHandler<sizeof(mem8_t) * 8, true>()(paddr, data);
+		return vmv.assumeHandler<sizeof(uint8_t) * 8, true>()(paddr, data);
 	}
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
@@ -391,10 +391,10 @@ void vtlb_memWrite8(uint32_t addr, mem8_t data)
 		*reinterpret_cast<uint8_t*>(_addr) = data;
 	}
 
-	*reinterpret_cast<mem8_t*>(vmv.assumePtr(addr)) = data;
+	*reinterpret_cast<uint8_t*>(vmv.assumePtr(addr)) = data;
 }
 
-void vtlb_memWrite16(uint32_t addr, mem16_t data)
+void vtlb_memWrite16(uint32_t addr, uint16_t data)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -402,7 +402,7 @@ void vtlb_memWrite16(uint32_t addr, mem16_t data)
 	{
 		//has to: translate, find function, call function
 		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
-		return vmv.assumeHandler<sizeof(mem16_t) * 8, true>()(paddr, data);
+		return vmv.assumeHandler<sizeof(uint16_t) * 8, true>()(paddr, data);
 	}
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
@@ -412,10 +412,10 @@ void vtlb_memWrite16(uint32_t addr, mem16_t data)
 		*reinterpret_cast<uint16_t*>(_addr) = data;
 	}
 
-	*reinterpret_cast<mem16_t*>(vmv.assumePtr(addr)) = data;
+	*reinterpret_cast<uint16_t*>(vmv.assumePtr(addr)) = data;
 }
 
-void vtlb_memWrite32(uint32_t addr, mem32_t data)
+void vtlb_memWrite32(uint32_t addr, uint32_t data)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -423,7 +423,7 @@ void vtlb_memWrite32(uint32_t addr, mem32_t data)
 	{
 		//has to: translate, find function, call function
 		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
-		return vmv.assumeHandler<sizeof(mem32_t) * 8, true>()(paddr, data);
+		return vmv.assumeHandler<sizeof(uint32_t) * 8, true>()(paddr, data);
 	}
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
@@ -433,10 +433,10 @@ void vtlb_memWrite32(uint32_t addr, mem32_t data)
 		*reinterpret_cast<uint32_t*>(_addr) = data;
 	}
 
-	*reinterpret_cast<mem32_t*>(vmv.assumePtr(addr)) = data;
+	*reinterpret_cast<uint32_t*>(vmv.assumePtr(addr)) = data;
 }
 
-void vtlb_memWrite64(uint32_t addr, mem64_t data)
+void vtlb_memWrite64(uint32_t addr, uint64_t data)
 {
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
@@ -444,7 +444,7 @@ void vtlb_memWrite64(uint32_t addr, mem64_t data)
 	{
 		//has to: translate, find function, call function
 		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
-		return vmv.assumeHandler<sizeof(mem64_t) * 8, true>()(paddr, data);
+		return vmv.assumeHandler<sizeof(uint64_t) * 8, true>()(paddr, data);
 	}
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
@@ -454,7 +454,7 @@ void vtlb_memWrite64(uint32_t addr, mem64_t data)
 		*reinterpret_cast<uint64_t*>(_addr) = data;
 	}
 
-	*reinterpret_cast<mem64_t*>(vmv.assumePtr(addr)) = data;
+	*reinterpret_cast<uint64_t*>(vmv.assumePtr(addr)) = data;
 }
 
 void TAKES_R128 vtlb_memWrite128(uint32_t mem, r128 value)
@@ -482,93 +482,93 @@ void TAKES_R128 vtlb_memWrite128(uint32_t mem, r128 value)
 	}
 }
 
-bool vtlb_ramRead8(u32 addr, mem8_t* value)
+bool vtlb_ramRead8(u32 addr, uint8_t* value)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 	{
-		memset(value, 0, sizeof(mem8_t));
+		memset(value, 0, sizeof(uint8_t));
 		return false;
 	}
-	memcpy(value, reinterpret_cast<mem8_t*>(vmv.assumePtr(addr)), sizeof(mem8_t));
+	memcpy(value, reinterpret_cast<uint8_t*>(vmv.assumePtr(addr)), sizeof(uint8_t));
 	return true;
 }
 
-bool vtlb_ramRead16(u32 addr, mem16_t* value)
+bool vtlb_ramRead16(u32 addr, uint16_t* value)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 	{
-		memset(value, 0, sizeof(mem16_t));
+		memset(value, 0, sizeof(uint16_t));
 		return false;
 	}
 
-	memcpy(value, reinterpret_cast<mem16_t*>(vmv.assumePtr(addr)), sizeof(mem16_t));
+	memcpy(value, reinterpret_cast<uint16_t*>(vmv.assumePtr(addr)), sizeof(uint16_t));
 	return true;
 }
 
-bool vtlb_ramRead32(u32 addr, mem32_t* value)
+bool vtlb_ramRead32(u32 addr, uint32_t* value)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 	{
-		memset(value, 0, sizeof(mem32_t));
+		memset(value, 0, sizeof(uint32_t));
 		return false;
 	}
 
-	memcpy(value, reinterpret_cast<mem32_t*>(vmv.assumePtr(addr)), sizeof(mem32_t));
+	memcpy(value, reinterpret_cast<uint32_t*>(vmv.assumePtr(addr)), sizeof(uint32_t));
 	return true;
 }
 
-bool vtlb_ramRead64(u32 addr, mem64_t* value)
+bool vtlb_ramRead64(u32 addr, uint64_t* value)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 	{
-		memset(value, 0, sizeof(mem64_t));
+		memset(value, 0, sizeof(uint64_t));
 		return false;
 	}
 
-	memcpy(value, reinterpret_cast<mem64_t*>(vmv.assumePtr(addr)), sizeof(mem64_t));
+	memcpy(value, reinterpret_cast<uint64_t*>(vmv.assumePtr(addr)), sizeof(uint64_t));
 	return true;
 }
 
-bool vtlb_ramWrite8(u32 addr, const mem8_t& data)
+bool vtlb_ramWrite8(u32 addr, const uint8_t& data)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 		return false;
-	memcpy(reinterpret_cast<mem8_t*>(vmv.assumePtr(addr)), &data, sizeof(mem8_t));
+	memcpy(reinterpret_cast<uint8_t*>(vmv.assumePtr(addr)), &data, sizeof(uint8_t));
 	return true;
 }
 
-bool vtlb_ramWrite16(u32 addr, const mem16_t& data)
-{
-	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
-	if (vmv.isHandler(addr))
-		return false;
-
-	memcpy(reinterpret_cast<mem16_t*>(vmv.assumePtr(addr)), &data, sizeof(mem16_t));
-	return true;
-}
-
-bool vtlb_ramWrite32(u32 addr, const mem32_t& data)
+bool vtlb_ramWrite16(u32 addr, const uint16_t& data)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 		return false;
 
-	memcpy(reinterpret_cast<mem32_t*>(vmv.assumePtr(addr)), &data, sizeof(mem32_t));
+	memcpy(reinterpret_cast<uint16_t*>(vmv.assumePtr(addr)), &data, sizeof(uint16_t));
 	return true;
 }
 
-bool vtlb_ramWrite64(u32 addr, const mem64_t& data)
+bool vtlb_ramWrite32(u32 addr, const uint32_t& data)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 		return false;
 
-	memcpy(reinterpret_cast<mem64_t*>(vmv.assumePtr(addr)), &data, sizeof(mem64_t));
+	memcpy(reinterpret_cast<uint32_t*>(vmv.assumePtr(addr)), &data, sizeof(uint32_t));
+	return true;
+}
+
+bool vtlb_ramWrite64(u32 addr, const uint64_t& data)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+		return false;
+
+	memcpy(reinterpret_cast<uint64_t*>(vmv.assumePtr(addr)), &data, sizeof(uint64_t));
 	return true;
 }
 
@@ -686,15 +686,15 @@ static void TAKES_R128 vtlbUnmappedPWriteLg(u32 addr, r128 data) { }
 // properly.  All addressable physical memory should be configured as TLBMiss or Bus Error.
 //
 
-static mem8_t vtlbDefaultPhyRead8(u32 addr) { return 0; }
-static mem16_t vtlbDefaultPhyRead16(u32 addr) { return 0; }
-static mem32_t vtlbDefaultPhyRead32(u32 addr) { return 0; }
-static mem64_t vtlbDefaultPhyRead64(u32 addr) { return 0; }
+static uint8_t vtlbDefaultPhyRead8(u32 addr) { return 0; }
+static uint16_t vtlbDefaultPhyRead16(u32 addr) { return 0; }
+static uint32_t vtlbDefaultPhyRead32(u32 addr) { return 0; }
+static uint64_t vtlbDefaultPhyRead64(u32 addr) { return 0; }
 static RETURNS_R128 vtlbDefaultPhyRead128(u32 addr) { return r128_zero(); }
-static void vtlbDefaultPhyWrite8(u32 addr, mem8_t data) { }
-static void vtlbDefaultPhyWrite16(u32 addr, mem16_t data) { }
-static void vtlbDefaultPhyWrite32(u32 addr, mem32_t data) { }
-static void vtlbDefaultPhyWrite64(u32 addr, mem64_t data) { }
+static void vtlbDefaultPhyWrite8(u32 addr, uint8_t data) { }
+static void vtlbDefaultPhyWrite16(u32 addr, uint16_t data) { }
+static void vtlbDefaultPhyWrite32(u32 addr, uint32_t data) { }
+static void vtlbDefaultPhyWrite64(u32 addr, uint64_t data) { }
 static void TAKES_R128 vtlbDefaultPhyWrite128(u32 addr, r128 data) { }
 
 // ===========================================================================================
@@ -1173,10 +1173,10 @@ void vtlb_Init(void)
 	memset(vtlbdata.RWFT, 0, sizeof(vtlbdata.RWFT));
 
 #define VTLB_BuildUnmappedHandler(baseName) \
-	baseName##ReadSm<mem8_t>, baseName##ReadSm<mem16_t>, baseName##ReadSm<mem32_t>, \
-		baseName##ReadSm<mem64_t>, baseName##ReadLg, \
-		baseName##WriteSm<mem8_t>, baseName##WriteSm<mem16_t>, baseName##WriteSm<mem32_t>, \
-		baseName##WriteSm<mem64_t>, baseName##WriteLg
+	baseName##ReadSm<uint8_t>, baseName##ReadSm<uint16_t>, baseName##ReadSm<uint32_t>, \
+		baseName##ReadSm<uint64_t>, baseName##ReadLg, \
+		baseName##WriteSm<uint8_t>, baseName##WriteSm<uint16_t>, baseName##WriteSm<uint32_t>, \
+		baseName##WriteSm<uint64_t>, baseName##WriteLg
 
 	//Register default handlers
 	//Unmapped Virt handlers _MUST_ be registered first.

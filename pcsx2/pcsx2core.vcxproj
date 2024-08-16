@@ -220,8 +220,6 @@
     <ClCompile Include="IPU\IPUdither.cpp" />
     <ClCompile Include="Mdec.cpp" />
     <ClCompile Include="Patch.cpp" />
-    <ClCompile Include="ps2\Iop\PsxBios.cpp" />
-    <ClCompile Include="ps2\pgif.cpp" />
     <ClCompile Include="Dmac.cpp" />
     <ClCompile Include="ShiftJisToUnicode.cpp" />
     <ClCompile Include="sif2.cpp" />
@@ -299,7 +297,7 @@
     <ClCompile Include="Elfheader.cpp" />
     <ClCompile Include="CDVD\InputIsoFile.cpp" />
     <ClCompile Include="x86\BaseblockEx.cpp" />
-    <ClCompile Include="ps2\BiosTools.cpp" />
+    <ClCompile Include="BiosTools.cpp" />
     <ClCompile Include="Counters.cpp" />
     <ClCompile Include="FiFo.cpp" />
     <ClCompile Include="Hw.cpp" />
@@ -358,10 +356,7 @@
     <ClCompile Include="R5900.cpp" />
     <ClCompile Include="R5900OpcodeImpl.cpp" />
     <ClCompile Include="IopBios.cpp" />
-    <ClCompile Include="IopCounters.cpp" />
-    <ClCompile Include="IopDma.cpp" />
-    <ClCompile Include="IopIrq.cpp" />
-    <ClCompile Include="IopMem.cpp" />
+    <ClCompile Include="Iop.cpp" />
     <ClCompile Include="R3000A.cpp" />
     <ClCompile Include="R3000AInterpreter.cpp" />
     <ClCompile Include="R3000AOpcodeTables.cpp" />
@@ -369,8 +364,6 @@
     <ClCompile Include="x86\iR3000A.cpp" />
     <ClCompile Include="x86\iR3000Atables.cpp" />
     <ClCompile Include="IopHw.cpp" />
-    <ClCompile Include="ps2\Iop\IopHwRead.cpp" />
-    <ClCompile Include="ps2\Iop\IopHwWrite.cpp" />
     <ClCompile Include="CDVD\Ps1CD.cpp" />
     <ClCompile Include="CDVD\CDVD.cpp" />
     <ClCompile Include="CDVD\CDVDcommon.cpp" />
@@ -557,7 +550,7 @@
     <ClInclude Include="IPU\IPUdma.h" />
     <ClInclude Include="Mdec.h" />
     <ClInclude Include="Patch.h" />
-    <ClInclude Include="ps2\pgif.h" />
+    <ClInclude Include="IopPgpuGif.h" />
     <ClInclude Include="USB\deviceproxy.h" />
     <ClInclude Include="USB\qemu-usb\desc.h" />
     <ClInclude Include="USB\qemu-usb\hid.h" />
@@ -595,7 +588,7 @@
     <ClInclude Include="Dmac.h" />
     <ClInclude Include="Hardware.h" />
     <ClInclude Include="Hw.h" />
-    <ClInclude Include="ps2\HwInternal.h" />
+    <ClInclude Include="HwInternal.h" />
     <ClInclude Include="Cache.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="VirtualMemory.h" />
@@ -642,7 +635,6 @@
     <ClInclude Include="Sio.h" />
     <ClInclude Include="x86\iR3000A.h" />
     <ClInclude Include="IopHw.h" />
-    <ClInclude Include="ps2\Iop\IopHw_Internal.h" />
     <ClInclude Include="CDVD\Ps1CD.h" />
     <ClInclude Include="CDVD\CDVD.h" />
     <ClInclude Include="CDVD\CDVD_internal.h" />
@@ -674,7 +666,7 @@
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </CustomBuildStep>
     <ClInclude Include="x86\BaseblockEx.h" />
-    <ClInclude Include="ps2\BiosTools.h" />
+    <ClInclude Include="BiosTools.h" />
     <ClInclude Include="MemoryTypes.h" />
     <ClInclude Include="x86\iCore.h" />
     <ClInclude Include="CDVD\IsoFS\IsoDirectory.h" />

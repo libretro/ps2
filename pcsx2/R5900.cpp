@@ -19,10 +19,10 @@
 #include "Common.h"
 
 #include "common/StringUtil.h"
-#include "ps2/BiosTools.h"
+#include "BiosTools.h"
 #include "R5900.h"
 #include "R3000A.h"
-#include "ps2/pgif.h" // pgif init
+#include "IopPgpuGif.h" // PGIF init
 #include "VUmicro.h"
 #include "COP0.h"
 #include "MTVU.h"

@@ -27,7 +27,7 @@
 #include "VUmicro.h"
 #include "Patch.h"
 
-#include "ps2/HwInternal.h"
+#include "HwInternal.h"
 #include "VMManager.h"
 
 struct vSyncTimingInfo

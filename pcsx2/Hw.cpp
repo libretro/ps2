@@ -20,6 +20,7 @@
 #include "Hardware.h"
 #include "IopHw.h"
 #include "IopMem.h"
+#include "IopPgpuGif.h"
 #include "R3000A.h"
 #include "SPU2/spu2.h"
 #include "USB/USB.h"
@@ -27,8 +28,7 @@
 #include "CDVD/Ps1CD.h"
 #include "CDVD/CDVD.h"
 
-#include "ps2/HwInternal.h"
-#include "ps2/pgif.h"
+#include "HwInternal.h"
 
 const int rdram_devices = 2;	/* put 8 for TOOL and 2 for PS2 and PSX */
 int rdram_sdevid = 0;
@@ -347,7 +347,7 @@ RETURNS_R128 hwRead128(u32 mem)
 
 
 template< uint page, bool intcstathack >
-mem32_t _hwRead32(u32 mem)
+uint32_t _hwRead32(u32 mem)
 {
 	switch( page )
 	{
@@ -486,12 +486,12 @@ mem32_t _hwRead32(u32 mem)
 }
 
 template< uint page >
-mem32_t hwRead32(u32 mem)
+uint32_t hwRead32(u32 mem)
 {
 	return _hwRead32<page,false>(mem);
 }
 
-mem32_t hwRead32_page_0F_INTC_HACK(u32 mem)
+uint32_t hwRead32_page_0F_INTC_HACK(u32 mem)
 {
 	return _hwRead32<0x0f,true>(mem);
 }
@@ -501,20 +501,20 @@ mem32_t hwRead32_page_0F_INTC_HACK(u32 mem)
 // --------------------------------------------------------------------------------------
 
 template< uint page >
-mem8_t hwRead8(u32 mem)
+uint8_t hwRead8(u32 mem)
 {
 	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
 	return ((u8*)&ret32)[mem & 0x03];
 }
 
 template< uint page >
-mem16_t hwRead16(u32 mem)
+uint16_t hwRead16(u32 mem)
 {
 	u32 ret32 = _hwRead32<page, false>(mem & ~0x03);
 	return ((u16*)&ret32)[(mem>>1) & 0x01];
 }
 
-mem16_t hwRead16_page_0F_INTC_HACK(u32 mem)
+uint16_t hwRead16_page_0F_INTC_HACK(u32 mem)
 {
 	u32 ret32 = _hwRead32<0x0f, true>(mem & ~0x03);
 	return ((u16*)&ret32)[(mem>>1) & 0x01];
@@ -564,12 +564,12 @@ mem64_t hwRead64(u32 mem)
 }
 
 #define InstantizeHwRead(pageidx) \
-	template mem8_t hwRead8<pageidx>(u32 mem); \
-	template mem16_t hwRead16<pageidx>(u32 mem); \
-	template mem32_t hwRead32<pageidx>(u32 mem); \
+	template uint8_t hwRead8<pageidx>(u32 mem); \
+	template uint16_t hwRead16<pageidx>(u32 mem); \
+	template uint32_t hwRead32<pageidx>(u32 mem); \
 	template mem64_t hwRead64<pageidx>(u32 mem); \
 	template RETURNS_R128 hwRead128<pageidx>(u32 mem); \
-	template mem32_t _hwRead32<pageidx, false>(u32 mem);
+	template uint32_t _hwRead32<pageidx, false>(u32 mem);
 
 InstantizeHwRead(0x00);
 InstantizeHwRead(0x01);
@@ -836,7 +836,6 @@ void hwWrite32( u32 mem, u32 value )
 					if (value & (1 << 19))
 					{
 						u32 cycle = psxRegs.cycle;
-						//pgifInit();
 						psxReset();
 						PSXCLK =  33868800;
 						SPU2::Reset(true);
@@ -952,10 +951,10 @@ void hwWrite64( u32 mem, u64 value )
 }
 
 #define InstantizeHwWrite(pageidx) \
-	template void hwWrite8<pageidx>(u32 mem, mem8_t value); \
-	template void hwWrite16<pageidx>(u32 mem, mem16_t value); \
-	template void hwWrite32<pageidx>(u32 mem, mem32_t value); \
-	template void hwWrite64<pageidx>(u32 mem, mem64_t value); \
+	template void hwWrite8<pageidx>(u32 mem, uint8_t value); \
+	template void hwWrite16<pageidx>(u32 mem, uint16_t value); \
+	template void hwWrite32<pageidx>(u32 mem, uint32_t value); \
+	template void hwWrite64<pageidx>(u32 mem, uint64_t value); \
 	template void TAKES_R128 hwWrite128<pageidx>(u32 mem, r128 srcval);
 
 InstantizeHwWrite(0x00);	InstantizeHwWrite(0x08);

@@ -18,7 +18,7 @@
 #include "MTVU.h"
 
 #include "IPU/IPUdma.h"
-#include "ps2/HwInternal.h"
+#include "HwInternal.h"
 
 /* Believe it or not, making this const can generate compiler warnings in gcc. */
 static __fi int ChannelNumber(u32 addr)

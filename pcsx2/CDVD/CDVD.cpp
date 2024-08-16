@@ -39,7 +39,7 @@
 
 #include "GS.h" // for gsVideoMode
 #include "Elfheader.h"
-#include "ps2/BiosTools.h"
+#include "BiosTools.h"
 #include "Host.h"
 #include "VMManager.h"
 

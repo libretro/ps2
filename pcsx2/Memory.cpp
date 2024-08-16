@@ -41,8 +41,8 @@ BIOS
 #include "DEV9/DEV9.h"
 #include "CDVD/CDVD.h"
 
-#include "ps2/HwInternal.h"
-#include "ps2/BiosTools.h"
+#include "HwInternal.h"
+#include "BiosTools.h"
 #include "SPU2/spu2.h"
 
 namespace HostMemoryMap
@@ -259,19 +259,19 @@ static void memMapKernelMem(void)
 	vtlb_VMap(0xA0000000, 0x00000000, _1mb*512);
 }
 
-static mem8_t  nullRead8(u32 mem)  { return 0; }
-static mem16_t nullRead16(u32 mem) { return 0; }
-static mem32_t nullRead32(u32 mem) { return 0; }
-static mem64_t nullRead64(u32 mem) { return 0; }
+static uint8_t  nullRead8(u32 mem)  { return 0; }
+static uint16_t nullRead16(u32 mem) { return 0; }
+static uint32_t nullRead32(u32 mem) { return 0; }
+static uint64_t nullRead64(u32 mem) { return 0; }
 static RETURNS_R128 nullRead128(u32 mem) { return r128_zero(); }
-static void nullWrite8(u32 mem, mem8_t value)   { }
-static void nullWrite16(u32 mem, mem16_t value) { }
-static void nullWrite32(u32 mem, mem32_t value) { }
-static void nullWrite64(u32 mem, mem64_t value) { }
+static void nullWrite8(u32 mem, uint8_t value)   { }
+static void nullWrite16(u32 mem, uint16_t value) { }
+static void nullWrite32(u32 mem, uint32_t value) { }
+static void nullWrite64(u32 mem, uint64_t value) { }
 static void TAKES_R128 nullWrite128(u32 mem, r128 value) { }
 
 template<int p>
-static mem8_t _ext_memRead8 (u32 mem)
+static uint8_t _ext_memRead8 (u32 mem)
 {
 	switch (p)
 	{
@@ -289,7 +289,7 @@ static mem8_t _ext_memRead8 (u32 mem)
 }
 
 template<int p>
-static mem16_t _ext_memRead16(u32 mem)
+static uint16_t _ext_memRead16(u32 mem)
 {
 	switch (p)
 	{
@@ -313,7 +313,7 @@ static mem16_t _ext_memRead16(u32 mem)
 }
 
 template<int p>
-static mem32_t _ext_memRead32(u32 mem)
+static uint32_t _ext_memRead32(u32 mem)
 {
 	switch (p)
 	{
@@ -345,7 +345,7 @@ static RETURNS_R128 _ext_memRead128(u32 mem)
 }
 
 template<int p>
-static void _ext_memWrite8 (u32 mem, mem8_t  value)
+static void _ext_memWrite8 (u32 mem, uint8_t  value)
 {
 	switch (p) {
 		case 3: // psh4
@@ -362,7 +362,7 @@ static void _ext_memWrite8 (u32 mem, mem8_t  value)
 }
 
 template<int p>
-static void _ext_memWrite16(u32 mem, mem16_t value)
+static void _ext_memWrite16(u32 mem, uint16_t value)
 {
 	switch (p) {
 		case 5: // ba0
@@ -380,7 +380,7 @@ static void _ext_memWrite16(u32 mem, mem16_t value)
 }
 
 template<int p>
-static void _ext_memWrite32(u32 mem, mem32_t value)
+static void _ext_memWrite32(u32 mem, uint32_t value)
 {
 	switch (p) {
 		case 6: // gsm
@@ -394,7 +394,7 @@ static void _ext_memWrite32(u32 mem, mem32_t value)
 }
 
 template<int p>
-static void _ext_memWrite64(u32 mem, mem64_t value)
+static void _ext_memWrite64(u32 mem, uint64_t value)
 {
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
@@ -421,7 +421,7 @@ template<int vunum> static __fi void ClearVuFunc(u32 addr, u32 size)
 
 // VU Micro Memory Reads...
 template<int vunum>
-static mem8_t vuMicroRead8(u32 addr)
+static uint8_t vuMicroRead8(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -431,7 +431,7 @@ static mem8_t vuMicroRead8(u32 addr)
 }
 
 template<int vunum>
-static mem16_t vuMicroRead16(u32 addr)
+static uint16_t vuMicroRead16(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -441,7 +441,7 @@ static mem16_t vuMicroRead16(u32 addr)
 }
 
 template<int vunum>
-static mem32_t vuMicroRead32(u32 addr)
+static uint32_t vuMicroRead32(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -451,7 +451,7 @@ static mem32_t vuMicroRead32(u32 addr)
 }
 
 template<int vunum>
-static mem64_t vuMicroRead64(u32 addr)
+static uint64_t vuMicroRead64(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -473,7 +473,7 @@ static RETURNS_R128 vuMicroRead128(u32 addr)
 // Profiled VU writes: Happen very infrequently, with exception of BIOS initialization (at most twice per
 //   frame in-game, and usually none at all after BIOS), so cpu clears aren't much of a big deal.
 template<int vunum>
-static void vuMicroWrite8(u32 addr,mem8_t data)
+static void vuMicroWrite8(u32 addr,uint8_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -492,7 +492,7 @@ static void vuMicroWrite8(u32 addr,mem8_t data)
 }
 
 template<int vunum>
-static void vuMicroWrite16(u32 addr, mem16_t data)
+static void vuMicroWrite16(u32 addr, uint16_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -511,7 +511,7 @@ static void vuMicroWrite16(u32 addr, mem16_t data)
 }
 
 template<int vunum>
-static void vuMicroWrite32(u32 addr, mem32_t data)
+static void vuMicroWrite32(u32 addr, uint32_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -530,7 +530,7 @@ static void vuMicroWrite32(u32 addr, mem32_t data)
 }
 
 template<int vunum>
-static void vuMicroWrite64(u32 addr, mem64_t data)
+static void vuMicroWrite64(u32 addr, uint64_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -571,7 +571,7 @@ static void TAKES_R128 vuMicroWrite128(u32 addr, r128 data)
 
 // VU Data Memory Reads...
 template<int vunum>
-static mem8_t vuDataRead8(u32 addr)
+static uint8_t vuDataRead8(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -580,7 +580,7 @@ static mem8_t vuDataRead8(u32 addr)
 }
 
 template<int vunum>
-static mem16_t vuDataRead16(u32 addr)
+static uint16_t vuDataRead16(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -589,7 +589,7 @@ static mem16_t vuDataRead16(u32 addr)
 }
 
 template<int vunum>
-static mem32_t vuDataRead32(u32 addr)
+static uint32_t vuDataRead32(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -598,7 +598,7 @@ static mem32_t vuDataRead32(u32 addr)
 }
 
 template<int vunum>
-static mem64_t vuDataRead64(u32 addr)
+static uint64_t vuDataRead64(u32 addr)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -617,7 +617,7 @@ static RETURNS_R128 vuDataRead128(u32 addr)
 
 // VU Data Memory Writes...
 template<int vunum>
-static void vuDataWrite8(u32 addr, mem8_t data)
+static void vuDataWrite8(u32 addr, uint8_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -630,7 +630,7 @@ static void vuDataWrite8(u32 addr, mem8_t data)
 }
 
 template<int vunum>
-static void vuDataWrite16(u32 addr, mem16_t data)
+static void vuDataWrite16(u32 addr, uint16_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -643,7 +643,7 @@ static void vuDataWrite16(u32 addr, mem16_t data)
 }
 
 template<int vunum>
-static void vuDataWrite32(u32 addr, mem32_t data)
+static void vuDataWrite32(u32 addr, uint32_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
@@ -656,7 +656,7 @@ static void vuDataWrite32(u32 addr, mem32_t data)
 }
 
 template<int vunum>
-static void vuDataWrite64(u32 addr, mem64_t data)
+static void vuDataWrite64(u32 addr, uint64_t data)
 {
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;

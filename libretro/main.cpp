@@ -12,7 +12,7 @@
 
 #include "GS.h"
 #include "SPU2/Global.h"
-#include "ps2/BiosTools.h"
+#include "BiosTools.h"
 #include "CDVD/CDVD.h"
 #include "MTVU.h"
 #include "Counters.h"

@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
 #include <cstring>
 
 #include <file/file_path.h>
@@ -34,7 +35,6 @@ static constexpr u32 DIRENTRY_SIZE = 16;
 // --------------------------------------------------------------------------------------
 // romdir structure (packing required!)
 // --------------------------------------------------------------------------------------
-//
 #pragma pack(push, 1)
 
 struct romdir

@@ -83,12 +83,8 @@ set(pcsx2Sources
 	Hw.cpp
 	Interpreter.cpp
 	IopBios.cpp
-	IopCounters.cpp
-	IopDma.cpp
 	IopGte.cpp
-	IopHw.cpp
-	IopIrq.cpp
-	IopMem.cpp
+	Iop.cpp
 	Mdec.cpp
 	Memory.cpp
 	MemoryCardFile.cpp
@@ -709,19 +705,12 @@ set(pcsx2LinuxHeaders
 	)
 
 # ps2 sources
-set(pcsx2ps2Sources
-	ps2/BiosTools.cpp
-	ps2/pgif.cpp
-	ps2/Iop/IopHwRead.cpp
-	ps2/Iop/IopHwWrite.cpp
-	ps2/Iop/PsxBios.cpp)
+set(pcsx2ps2Sources BiosTools.cpp)
 
 # ps2 headers
 set(pcsx2ps2Headers
-	ps2/BiosTools.h
-	ps2/pgif.h
-	ps2/HwInternal.h
-	ps2/Iop/IopHw_Internal.h)
+	BiosTools.h
+	HwInternal.h)
 
 # Windows sources
 set(pcsx2WindowsSources

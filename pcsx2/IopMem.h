@@ -84,39 +84,39 @@ std::string iopMemReadString(u32 mem, int maxlen = 65536);
 namespace IopMemory
 {
 	// Sif functions not made yet (will for future Iop improvements):
-	extern mem8_t SifRead8( u32 iopaddr );
-	extern mem16_t SifRead16( u32 iopaddr );
-	extern mem32_t SifRead32( u32 iopaddr );
+	extern uint8_t SifRead8( u32 iopaddr );
+	extern uint16_t SifRead16( u32 iopaddr );
+	extern uint32_t SifRead32( u32 iopaddr );
 
-	extern void SifWrite8( u32 iopaddr, mem8_t data );
-	extern void SifWrite16( u32 iopaddr, mem16_t data );
-	extern void SifWrite32( u32 iopaddr, mem32_t data );
+	extern void SifWrite8( u32 iopaddr, uint8_t data );
+	extern void SifWrite16( u32 iopaddr, uint16_t data );
+	extern void SifWrite32( u32 iopaddr, uint32_t data );
 
-	extern mem8_t iopHwRead8_generic( u32 addr );
-	extern mem16_t iopHwRead16_generic( u32 addr );
-	extern mem32_t iopHwRead32_generic( u32 addr );
-	extern void iopHwWrite8_generic( u32 addr, mem8_t val );
-	extern void iopHwWrite16_generic( u32 addr, mem16_t val );
-	extern void iopHwWrite32_generic( u32 addr, mem32_t val );
+	extern uint8_t iopHwRead8_generic( u32 addr );
+	extern uint16_t iopHwRead16_generic( u32 addr );
+	extern uint32_t iopHwRead32_generic( u32 addr );
+	extern void iopHwWrite8_generic( u32 addr, uint8_t val );
+	extern void iopHwWrite16_generic( u32 addr, uint16_t val );
+	extern void iopHwWrite32_generic( u32 addr, uint32_t val );
 
 
-	extern mem8_t iopHwRead8_Page1( u32 iopaddr );
-	extern mem8_t iopHwRead8_Page3( u32 iopaddr );
-	extern mem8_t iopHwRead8_Page8( u32 iopaddr );
-	extern mem16_t iopHwRead16_Page1( u32 iopaddr );
-	extern mem16_t iopHwRead16_Page3( u32 iopaddr );
-	extern mem16_t iopHwRead16_Page8( u32 iopaddr );
-	extern mem32_t iopHwRead32_Page1( u32 iopaddr );
-	extern mem32_t iopHwRead32_Page3( u32 iopaddr );
-	extern mem32_t iopHwRead32_Page8( u32 iopaddr );
+	extern uint8_t iopHwRead8_Page1( u32 iopaddr );
+	extern uint8_t iopHwRead8_Page3( u32 iopaddr );
+	extern uint8_t iopHwRead8_Page8( u32 iopaddr );
+	extern uint16_t iopHwRead16_Page1( u32 iopaddr );
+	extern uint16_t iopHwRead16_Page3( u32 iopaddr );
+	extern uint16_t iopHwRead16_Page8( u32 iopaddr );
+	extern uint32_t iopHwRead32_Page1( u32 iopaddr );
+	extern uint32_t iopHwRead32_Page3( u32 iopaddr );
+	extern uint32_t iopHwRead32_Page8( u32 iopaddr );
 
-	extern void iopHwWrite8_Page1( u32 iopaddr, mem8_t data );
-	extern void iopHwWrite8_Page3( u32 iopaddr, mem8_t data );
-	extern void iopHwWrite8_Page8( u32 iopaddr, mem8_t data );
-	extern void iopHwWrite16_Page1( u32 iopaddr, mem16_t data );
-	extern void iopHwWrite16_Page3( u32 iopaddr, mem16_t data );
-	extern void iopHwWrite16_Page8( u32 iopaddr, mem16_t data );
-	extern void iopHwWrite32_Page1( u32 iopaddr, mem32_t data );
-	extern void iopHwWrite32_Page3( u32 iopaddr, mem32_t data );
-	extern void iopHwWrite32_Page8( u32 iopaddr, mem32_t data );
+	extern void iopHwWrite8_Page1( u32 iopaddr, uint8_t data );
+	extern void iopHwWrite8_Page3( u32 iopaddr, uint8_t data );
+	extern void iopHwWrite8_Page8( u32 iopaddr, uint8_t data );
+	extern void iopHwWrite16_Page1( u32 iopaddr, uint16_t data );
+	extern void iopHwWrite16_Page3( u32 iopaddr, uint16_t data );
+	extern void iopHwWrite16_Page8( u32 iopaddr, uint16_t data );
+	extern void iopHwWrite32_Page1( u32 iopaddr, uint32_t data );
+	extern void iopHwWrite32_Page3( u32 iopaddr, uint32_t data );
+	extern void iopHwWrite32_Page8( u32 iopaddr, uint32_t data );
 }

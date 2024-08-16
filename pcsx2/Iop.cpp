@@ -13,21 +13,37 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// Note on INTC usage: All counters code is always called from inside the context of an
-// event test, so instead of using the iopTestIntc we just set the 0x1070 flags directly.
-// The EventText function will pick it up.
+#include <math.h>
 
-#include "IopCounters.h"
+#include "common/AlignedMalloc.h"
+
 #include "R3000A.h"
 #include "Common.h"
-#include "SPU2/spu2.h"
-#include "DEV9/DEV9.h"
-#include "USB/USB.h"
+
+#include "Sio.h"
+#include "Sif.h"
+#include "Mdec.h"
+#include "IopCounters.h"
 #include "IopHw.h"
 #include "IopDma.h"
+#include "IopPgpuGif.h" /* for PSX kernel TTY in iopMemWrite32 */
+#include "CDVD/Ps1CD.h"
 #include "CDVD/CDVD.h"
 
-#include <math.h>
+#include "DEV9/DEV9.h"
+#include "USB/USB.h"
+#include "SPU2/spu2.h"
+
+uintptr_t *psxMemWLUT = NULL;
+const uintptr_t *psxMemRLUT = NULL;
+
+IopVM_MemoryAllocMess* iopMem = NULL;
+
+alignas(__pagealignsize) u8 iopHw[Ps2MemSize::IopHardware];
+
+/* Note on INTC usage: All counters code is always called from inside the context of an
+ * event test, so instead of using the iopTestIntc we just set the 0x1070 flags directly.
+ * The EventText function will pick it up. */
 
 /* Config.PsxType == 1: PAL:
 	 VBlank interlaced	50.00 Hz
@@ -166,7 +182,7 @@ void psxRcntInit(void)
 static bool _rcntFireInterrupt(int i, bool isOverflow)
 {
 	bool ret = false;
-#
+
 	if (psxCounters[i].mode & IOPCNT_INT_REQ)
 	{
 		/* IRQ fired */
@@ -187,6 +203,7 @@ static bool _rcntFireInterrupt(int i, bool isOverflow)
 
 	return ret;
 }
+
 static void _rcntTestTarget(int i)
 {
 	if (psxCounters[i].count < psxCounters[i].target)
@@ -763,3 +780,758 @@ bool SaveStateBase::psxRcntFreeze()
 
 	return true;
 }
+
+void psxHwReset(void)
+{
+	memset(iopHw, 0, 0x10000);
+
+	mdecInit(); // Initialize MDEC decoder
+	cdrReset();
+	cdvdReset();
+	psxRcntInit();
+	sio0.FullReset();
+	sio2.FullReset();
+}
+
+__fi u8 psxHw4Read8(u32 add)
+{
+	u16 mem = add & 0xFF;
+	return cdvdRead(mem);
+}
+
+__fi void psxHw4Write8(u32 add, u8 value)
+{
+	u8 mem = (u8)add;	// only lower 8 bits are relevant (cdvd regs mirror across the page)
+	cdvdWrite(mem, value);
+}
+
+void psxDmaInterrupt(int n)
+{
+	if(n == 33) {
+		for (int i = 0; i < 6; i++) {
+			if (HW_DMA_ICR & (1 << (16 + i))) {
+				if (HW_DMA_ICR & (1 << (24 + i))) {
+					if (HW_DMA_ICR & (1 << 23)) {
+						HW_DMA_ICR |= 0x80000000; //Set master IRQ condition met
+					}
+					psxRegs.CP0.n.Cause &= ~0x7C;
+					iopIntcIrq(3);
+					break;
+				}
+			}
+		}
+	} else if (HW_DMA_ICR & (1 << (16 + n)))
+	{
+		HW_DMA_ICR |= (1 << (24 + n));
+		if (HW_DMA_ICR & (1 << 23)) {
+			HW_DMA_ICR |= 0x80000000; //Set master IRQ condition met
+		}
+		iopIntcIrq(3);
+	}
+}
+
+void psxDmaInterrupt2(int n)
+{
+	// SIF0 and SIF1 DMA IRQ's cannot be supressed due to a mask flag for "tag" interrupts being available which cannot be disabled.
+	// The hardware can't disinguish between the DMA End and Tag Interrupt flags on these channels so interrupts always fire
+	bool fire_interrupt = n == 2 || n == 3;
+
+	if (n == 33) {
+		for (int i = 0; i < 6; i++) {
+			if (HW_DMA_ICR2 & (1 << (24 + i))) {
+				if (HW_DMA_ICR2 & (1 << (16 + i)) || i == 2 || i == 3) {
+					fire_interrupt = true;
+					break;
+				}
+			}
+		}
+	}
+	else if (HW_DMA_ICR2 & (1 << (16 + n)))
+		fire_interrupt = true;
+
+	if (fire_interrupt)
+	{
+		if(n != 33)
+			HW_DMA_ICR2 |= (1 << (24 + n));
+
+		if (HW_DMA_ICR2 & (1 << 23)) {
+			HW_DMA_ICR2 |= 0x80000000; //Set master IRQ condition met
+		}
+		iopIntcIrq(3);
+	}
+}
+
+void dev9Interrupt(void) { if (DEV9irqHandler() == 1) iopIntcIrq(13); }
+void dev9Irq(int cycles) { PSX_INT(IopEvt_DEV9, cycles); }
+void usbInterrupt(void)  { iopIntcIrq(22); }
+void usbIrq(int cycles)  { PSX_INT(IopEvt_USB, cycles); }
+void fwIrq(void)         { iopIntcIrq(24); }
+void spu2Irq(void)       { iopIntcIrq(9); }
+
+void iopIntcIrq(uint irqType)
+{
+	psxHu32(0x1070) |= 1 << irqType;
+	iopTestIntc();
+}
+
+/* --------------------------------------------------------------------------------------
+ *  iopMemoryReserve
+ * --------------------------------------------------------------------------------------
+ *
+ * IOP Main Memory (2MB) */
+iopMemoryReserve::iopMemoryReserve() : _parent() { }
+iopMemoryReserve::~iopMemoryReserve() { Release(); }
+
+void iopMemoryReserve::Assign(VirtualMemoryManagerPtr allocator)
+{
+	psxMemWLUT = (uintptr_t*)_aligned_malloc(0x2000 * sizeof(uintptr_t) * 2, 16);
+	psxMemRLUT = psxMemWLUT + 0x2000; /* (uintptr_t*)_aligned_malloc(0x10000 * sizeof(uintptr_t),16); */
+
+	VtlbMemoryReserve::Assign(std::move(allocator), HostMemoryMap::IOPmemOffset, sizeof(*iopMem));
+	iopMem = reinterpret_cast<IopVM_MemoryAllocMess*>(GetPtr());
+}
+
+void iopMemoryReserve::Release()
+{
+	_parent::Release();
+
+	safe_aligned_free(psxMemWLUT);
+	psxMemRLUT = nullptr;
+	iopMem = nullptr;
+}
+
+/* Note!  Resetting the IOP's memory state is dependent on having *all* psx memory allocated,
+ * which is performed by MemInit and PsxMemInit() */
+void iopMemoryReserve::Reset()
+{
+	_parent::Reset();
+
+	memset(psxMemWLUT, 0, 0x2000 * sizeof(uintptr_t) * 2);	/* clears both allocations, RLUT and WLUT */
+
+	/* Trick!  We're accessing RLUT here through WLUT, since it's the non-const pointer.
+	 * So the ones with a 0x2000 prefixed are RLUT tables.
+	 *
+	 * Map IOP main memory, which is Read/Write, and mirrored three times
+	 * at 0x0, 0x8000, and 0xa000: */
+	for (int i=0; i<0x0080; i++)
+	{
+		psxMemWLUT[i + 0x0000] = (uintptr_t)&iopMem->Main[(i & 0x1f) << 16];
+
+		/* RLUTs, accessed through WLUT. */
+		psxMemWLUT[i + 0x2000] = (uintptr_t)&iopMem->Main[(i & 0x1f) << 16];
+	}
+
+	/* A few single-page allocations for things we store in special locations. */
+	psxMemWLUT[0x2000 + 0x1f00] = (uintptr_t)iopMem->P;
+	psxMemWLUT[0x2000 + 0x1f80] = (uintptr_t)iopHw;
+#if 0
+	psxMemWLUT[0x1bf80] = (uintptr_t)iopHw;
+#endif
+
+	psxMemWLUT[0x1f00] = (uintptr_t)iopMem->P;
+	psxMemWLUT[0x1f80] = (uintptr_t)iopHw;
+
+	/* Read-only memory areas, so don't map WLUT for these... */
+	for (int i = 0; i < 0x0040; i++)
+		psxMemWLUT[i + 0x2000 + 0x1fc0] = (uintptr_t)&eeMem->ROM[i << 16];
+
+	for (int i = 0; i < 0x0040; i++)
+		psxMemWLUT[i + 0x2000 + 0x1e00] = (uintptr_t)&eeMem->ROM1[i << 16];
+
+	for (int i = 0; i < 0x0008; i++)
+		psxMemWLUT[i + 0x2000 + 0x1e40] = (uintptr_t)&eeMem->ROM2[i << 16];
+
+	/* sif!! (which is read only? (air)) */
+	psxMemWLUT[0x2000 + 0x1d00] = (uintptr_t)iopMem->Sif;
+#if 0
+	psxMemWLUT[0x1bd00] = (uintptr_t)iopMem->Sif;
+
+	/* this one looks like an old hack for some special write-only memory area,
+	 * but leaving it in for reference (air) */
+	for (i=0; i<0x0008; i++)
+		psxMemWLUT[i + 0xbfc0] = (uintptr_t)&psR[i << 16];
+#endif
+}
+
+u8 iopMemRead8(u32 mem)
+{
+	mem &= 0x1fffffff;
+	u32 t = mem >> 16;
+
+	if (t == 0x1f80)
+	{
+		switch( mem & 0xf000 )
+		{
+			case 0x1000: return IopMemory::iopHwRead8_Page1(mem);
+			case 0x3000: return IopMemory::iopHwRead8_Page3(mem);
+			case 0x8000: return IopMemory::iopHwRead8_Page8(mem);
+
+			default:
+				break;
+		}
+		return psxHu8(mem);
+	}
+	else if (t == 0x1f40)
+		return psxHw4Read8(mem);
+	else
+	{
+		const u8* p = (const u8*)(psxMemRLUT[mem >> 16]);
+		if (p != NULL)
+			return *(const u8 *)(p + (mem & 0xffff));
+		if (t == 0x1000)
+			return DEV9read8(mem);
+		return 0;
+	}
+}
+
+u16 iopMemRead16(u32 mem)
+{
+	mem &= 0x1fffffff;
+	u32 t = mem >> 16;
+
+	if (t == 0x1f80)
+	{
+		switch( mem & 0xf000 )
+		{
+			case 0x1000: return IopMemory::iopHwRead16_Page1(mem);
+			case 0x3000: return IopMemory::iopHwRead16_Page3(mem);
+			case 0x8000: return IopMemory::iopHwRead16_Page8(mem);
+
+			default:
+				break;
+		}
+		return psxHu16(mem);
+	}
+	else
+	{
+		const u8* p = (const u8*)(psxMemRLUT[mem >> 16]);
+		if (p != NULL)
+		{
+			if (t == 0x1d00)
+			{
+				u16 ret;
+				switch(mem & 0xF0)
+				{
+				case 0x00:
+					ret= psHu16(SBUS_F200);
+					break;
+				case 0x10:
+					ret= psHu16(SBUS_F210);
+					break;
+				case 0x40:
+					ret= psHu16(SBUS_F240) | 0x0002;
+					break;
+				case 0x60:
+					ret = 0;
+					break;
+				default:
+					ret = psxHu16(mem);
+					break;
+				}
+				return ret;
+			}
+			return *(const u16 *)(p + (mem & 0xffff));
+		}
+		else
+		{
+			if (t == 0x1F90)
+				return SPU2read(mem);
+			if (t == 0x1000)
+				return DEV9read16(mem);
+			return 0;
+		}
+	}
+}
+
+u32 iopMemRead32(u32 mem)
+{
+	mem &= 0x1fffffff;
+	u32 t = mem >> 16;
+
+	if (t == 0x1f80)
+	{
+		switch( mem & 0xf000 )
+		{
+			case 0x1000: return IopMemory::iopHwRead32_Page1(mem);
+			case 0x3000: return IopMemory::iopHwRead32_Page3(mem);
+			case 0x8000: return IopMemory::iopHwRead32_Page8(mem);
+
+			default:
+				break;
+		}
+		return psxHu32(mem);
+	}
+	else
+	{
+		/* see also Hw.c */
+		const u8* p = (const u8*)(psxMemRLUT[mem >> 16]);
+		if (p != NULL)
+		{
+			if (t == 0x1d00)
+			{
+				u32 ret;
+				switch(mem & 0x8F0)
+				{
+					case 0x00:
+						ret= psHu32(SBUS_F200);
+						break;
+					case 0x10:
+						ret= psHu32(SBUS_F210);
+						break;
+					case 0x20:
+						ret= psHu32(SBUS_F220);
+						break;
+					case 0x30: /* EE Side */
+						ret= psHu32(SBUS_F230);
+						break;
+					case 0x40:
+						ret= psHu32(SBUS_F240) | 0xF0000002;
+						break;
+					case 0x60:
+						ret = 0;
+						break;
+
+					default:
+						ret = psxHu32(mem);
+						break;
+				}
+				return ret;
+			}
+			return *(const u32 *)(p + (mem & 0xffff));
+		}
+		else
+		{
+			if (t == 0x1000)
+				return DEV9read32(mem);
+			return 0;
+		}
+	}
+}
+
+void iopMemWrite8(u32 mem, u8 value)
+{
+	mem &= 0x1fffffff;
+	u32 t = mem >> 16;
+
+	if (t == 0x1f80)
+	{
+		switch( mem & 0xf000 )
+		{
+			case 0x1000: IopMemory::iopHwWrite8_Page1(mem,value); break;
+			case 0x3000: IopMemory::iopHwWrite8_Page3(mem,value); break;
+			case 0x8000: IopMemory::iopHwWrite8_Page8(mem,value); break;
+
+			default:
+				psxHu8(mem) = value;
+			break;
+		}
+	}
+	else if (t == 0x1f40)
+	{
+		psxHw4Write8(mem, value);
+	}
+	else
+	{
+		u8* p = (u8 *)(psxMemWLUT[mem >> 16]);
+		if (p != NULL && !(psxRegs.CP0.n.Status & 0x10000) )
+		{
+			*(u8  *)(p + (mem & 0xffff)) = value;
+			psxCpu->Clear(mem&~3, 1);
+		}
+		else
+		{
+			if (t == 0x1d00)
+			{
+				psxSu8(mem) = value;
+				return;
+			}
+			if (t == 0x1000)
+			{
+				DEV9write8(mem, value); return;
+			}
+		}
+	}
+}
+
+void iopMemWrite16(u32 mem, u16 value)
+{
+	mem &= 0x1fffffff;
+	u32 t = mem >> 16;
+
+	if (t == 0x1f80)
+	{
+		switch( mem & 0xf000 )
+		{
+			case 0x1000: IopMemory::iopHwWrite16_Page1(mem,value); break;
+			case 0x3000: IopMemory::iopHwWrite16_Page3(mem,value); break;
+			case 0x8000: IopMemory::iopHwWrite16_Page8(mem,value); break;
+
+			default:
+				psxHu16(mem) = value;
+			break;
+		}
+	} else
+	{
+		u8* p = (u8 *)(psxMemWLUT[mem >> 16]);
+		if (p != NULL && !(psxRegs.CP0.n.Status & 0x10000) )
+		{
+			*(u16 *)(p + (mem & 0xffff)) = value;
+			psxCpu->Clear(mem&~3, 1);
+		}
+		else
+		{
+			if (t == 0x1d00)
+			{
+				switch (mem & 0x8f0)
+				{
+					case 0x10:
+						/* write to ps2 mem */
+						psHu16(SBUS_F210) = value;
+						return;
+					case 0x40:
+					{
+						u32 temp = value & 0xF0;
+						/* write to ps2 mem */
+						if(value & 0x20 || value & 0x80)
+						{
+							psHu16(SBUS_F240) &= ~0xF000;
+							psHu16(SBUS_F240) |= 0x2000;
+						}
+
+
+						if(psHu16(SBUS_F240) & temp)
+							psHu16(SBUS_F240) &= ~temp;
+						else
+							psHu16(SBUS_F240) |= temp;
+						return;
+					}
+					case 0x60:
+						psHu32(SBUS_F260) = 0;
+						return;
+				}
+				psxSu16(mem) = value; return;
+			}
+			if (t == 0x1F90) {
+				SPU2write(mem, value); return;
+			}
+			if (t == 0x1000) {
+				DEV9write16(mem, value); return;
+			}
+		}
+	}
+}
+
+void iopMemWrite32(u32 mem, u32 value)
+{
+	mem &= 0x1fffffff;
+	u32 t = mem >> 16;
+
+	if (t == 0x1f80)
+	{
+		switch( mem & 0xf000 )
+		{
+			case 0x1000: IopMemory::iopHwWrite32_Page1(mem,value); break;
+			case 0x3000: IopMemory::iopHwWrite32_Page3(mem,value); break;
+			case 0x8000: IopMemory::iopHwWrite32_Page8(mem,value); break;
+
+			default:
+				psxHu32(mem) = value;
+			break;
+		}
+	}
+	else
+	{
+		/* see also Hw.c */
+		u8* p = (u8 *)(psxMemWLUT[mem >> 16]);
+		if( p != NULL && !(psxRegs.CP0.n.Status & 0x10000) )
+		{
+			*(u32 *)(p + (mem & 0xffff)) = value;
+			psxCpu->Clear(mem&~3, 1);
+		}
+		else
+		{
+			if (t == 0x1d00)
+			{
+				switch (mem & 0x8f0)
+				{
+					case 0x00:		/* EE write path (EE/IOP readable) */
+						return;		/* this is the IOP, so read-only (do nothing) */
+
+					case 0x10:		/* IOP write path (EE/IOP readable) */
+						psHu32(SBUS_F210) = value;
+						return;
+
+					case 0x20:		/* Bits cleared when written from IOP. */
+						psHu32(SBUS_F220) &= ~value;
+						return;
+
+					case 0x30:		/* bits set when written from IOP */
+						psHu32(SBUS_F230) |= value;
+						return;
+
+					case 0x40:		/* Control Register */
+					{
+						u32 temp = value & 0xF0;
+						if (value & 0x20 || value & 0x80)
+						{
+							psHu32(SBUS_F240) &= ~0xF000;
+							psHu32(SBUS_F240) |= 0x2000;
+						}
+
+
+						if (psHu32(SBUS_F240) & temp)
+							psHu32(SBUS_F240) &= ~temp;
+						else
+							psHu32(SBUS_F240) |= temp;
+						return;
+					}
+
+					case 0x60:
+						psHu32(SBUS_F260) = 0;
+					return;
+
+				}
+				psxSu32(mem) = value;
+
+				/* wtf?  why were we writing to the EE's sif space?  Commenting this out doesn't
+				 * break any of my games, and should be more correct, but I guess we'll see.  --air */
+#if 0
+				*(u32*)(eeHw+0xf200+(mem&0xf0)) = value;
+#endif
+				return;
+			}
+			else if (t == 0x1000)
+			{
+				DEV9write32(mem, value); return;
+			}
+		}
+	}
+}
+
+std::string iopMemReadString(u32 mem, int maxlen)
+{
+    std::string ret;
+    char c;
+
+    while ((c = iopMemRead8(mem++)) && maxlen--)
+        ret.push_back(c);
+
+    return ret;
+}
+
+static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
+{
+	const char dmaNum = spuCore ? 7 : 4;
+	const int size = (bcr >> 16) * (bcr & 0xFFFF);
+
+	// Update the SPU2 to the current cycle before initiating the DMA
+
+	SPU2async();
+
+	psxCounters[6].startCycle  = psxRegs.cycle;
+	psxCounters[6].deltaCycles = size * 4;
+
+	psxNextDeltaCounter -= (psxRegs.cycle - psxNextStartCounter);
+	psxNextStartCounter  = psxRegs.cycle;
+	if (psxCounters[6].deltaCycles < psxNextDeltaCounter)
+		psxNextDeltaCounter = psxCounters[6].deltaCycles;
+
+	if ((psxRegs.iopNextEventCycle - psxNextStartCounter) > (u32)psxNextDeltaCounter)
+		psxRegs.iopNextEventCycle = psxNextStartCounter + psxNextDeltaCounter;
+
+	switch (chcr)
+	{
+		case 0x01000201: //cpu to spu2 transfer
+			if (dmaNum == 7)
+				SPU2writeDMA7Mem((u16*)iopPhysMem(madr), size * 2);
+			else if (dmaNum == 4)
+				SPU2writeDMA4Mem((u16*)iopPhysMem(madr), size * 2);
+			break;
+
+		case 0x01000200: //spu2 to cpu transfer
+			if (dmaNum == 7)
+				SPU2readDMA7Mem((u16*)iopPhysMem(madr), size * 2);
+			else if (dmaNum == 4)
+				SPU2readDMA4Mem((u16*)iopPhysMem(madr), size * 2);
+			psxCpu->Clear(spuCore ? HW_DMA7_MADR : HW_DMA4_MADR, size);
+			break;
+
+		default:
+			break;
+	}
+}
+
+void psxDma4(u32 madr, u32 bcr, u32 chcr) // SPU2's Core 0
+{
+	psxDmaGeneric(madr, bcr, chcr, 0);
+}
+
+int psxDma4Interrupt(void)
+{
+	HW_DMA4_CHCR &= ~0x01000000;
+	psxDmaInterrupt(4);
+	iopIntcIrq(9);
+	return 1;
+}
+
+void spu2DMA4Irq(void)
+{
+	SPU2interruptDMA4();
+	if (HW_DMA4_CHCR & 0x01000000)
+	{
+		HW_DMA4_CHCR &= ~0x01000000;
+		psxDmaInterrupt(4);
+	}
+}
+
+void psxDma7(u32 madr, u32 bcr, u32 chcr) // SPU2's Core 1
+{
+	psxDmaGeneric(madr, bcr, chcr, 1);
+}
+
+int psxDma7Interrupt(void)
+{
+	HW_DMA7_CHCR &= ~0x01000000;
+	psxDmaInterrupt2(0);
+	return 1;
+}
+
+void spu2DMA7Irq(void)
+{
+	SPU2interruptDMA7();
+	if (HW_DMA7_CHCR & 0x01000000)
+	{
+		HW_DMA7_CHCR &= ~0x01000000;
+		psxDmaInterrupt2(0);
+	}
+}
+
+void psxDma2(u32 madr, u32 bcr, u32 chcr) // GPU
+{
+	sif2.iop.busy = true;
+	sif2.iop.end = false;
+}
+
+void psxDma6(u32 madr, u32 bcr, u32 chcr)
+{
+	u32* mem = (u32*)iopPhysMem(madr);
+
+	if (chcr == 0x11000002)
+	{
+		while (bcr--)
+		{
+			*mem-- = (madr - 4) & 0xffffff;
+			madr -= 4;
+		}
+		mem++;
+		*mem = 0xffffff;
+	}
+	HW_DMA6_CHCR &= ~0x01000000;
+	psxDmaInterrupt(6);
+}
+
+void psxDma8(u32 madr, u32 bcr, u32 chcr)
+{
+	const int size = (bcr >> 16) * (bcr & 0xFFFF) * 8;
+
+	switch (chcr & 0x01000201)
+	{
+		case 0x01000201: //cpu to dev9 transfer
+			DEV9writeDMA8Mem((u32*)iopPhysMem(madr), size);
+			break;
+
+		case 0x01000200: //dev9 to cpu transfer
+			DEV9readDMA8Mem((u32*)iopPhysMem(madr), size);
+			break;
+
+		default:
+			break;
+	}
+	HW_DMA8_CHCR &= ~0x01000000;
+	psxDmaInterrupt2(1);
+}
+
+void psxDma9(u32 madr, u32 bcr, u32 chcr)
+{
+	sif0.iop.busy = true;
+	sif0.iop.end = false;
+
+	SIF0Dma();
+}
+
+void psxDma10(u32 madr, u32 bcr, u32 chcr)
+{
+	sif1.iop.busy = true;
+	sif1.iop.end = false;
+
+	SIF1Dma();
+}
+
+void psxDma11(u32 madr, u32 bcr, u32 chcr)
+{
+	unsigned int i, j;
+	int size = (bcr >> 16) * (bcr & 0xffff);
+	// Set dmaBlockSize, so SIO2 knows to count based on the DMA block rather than SEND3 length.
+	// When SEND3 is written, SIO2 will automatically reset this to zero.
+	sio2.dmaBlockSize = (bcr & 0xffff) * 4;
+
+	if (chcr != 0x01000201)
+	{
+		return;
+	}
+
+	for (i = 0; i < (bcr >> 16); i++)
+	{
+		for (j = 0; j < ((bcr & 0xFFFF) * 4); j++)
+		{
+			const u8 data = iopMemRead8(madr);
+			sio2.Write(data);
+			madr++;
+		}
+	}
+
+	HW_DMA11_MADR = madr;
+	PSX_INT(IopEvt_Dma11, (size >> 2));
+}
+
+void psxDMA11Interrupt(void)
+{
+	if (HW_DMA11_CHCR & 0x01000000)
+	{
+		HW_DMA11_CHCR &= ~0x01000000;
+		psxDmaInterrupt2(4);
+	}
+}
+
+void psxDma12(u32 madr, u32 bcr, u32 chcr)
+{
+	int size = ((bcr >> 16) * (bcr & 0xFFFF)) * 4;
+
+	if (chcr != 0x41000200)
+	{
+		return;
+	}
+
+	bcr = size;
+
+	while (bcr > 0)
+	{
+		const u8 data = sio2.Read();
+		iopMemWrite8(madr, data);
+		bcr--;
+		madr++;
+	}
+
+	HW_DMA12_MADR = madr;
+	PSX_INT(IopEvt_Dma12, (size >> 2));
+}
+
+void psxDMA12Interrupt(void)
+{
+	if (HW_DMA12_CHCR & 0x01000000)
+	{
+		HW_DMA12_CHCR &= ~0x01000000;
+		psxDmaInterrupt2(5);
+	}
+}
+

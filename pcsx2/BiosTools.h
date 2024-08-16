@@ -14,9 +14,10 @@
  */
 
 #pragma once
+#include <stdint.h>
 #include <string>
 
-const u32 ThreadListInstructions[3] =
+const uint32_t ThreadListInstructions[3] =
 {
 	0xac420000, // sw v0,0x0(v0)
 	0x00000000, // no-op
@@ -31,8 +32,8 @@ struct BiosDebugInformation
 };
 
 extern BiosDebugInformation CurrentBiosInformation;
-extern u32 BiosVersion;		// Used by CDVD
-extern u32 BiosRegion;		// Used by CDVD
+extern uint32_t BiosVersion;		// Used by CDVD
+extern uint32_t BiosRegion;		// Used by CDVD
 extern bool NoOSD;			// Used for HLE OSD Config Params
 extern bool AllowParams1;
 extern bool AllowParams2;
@@ -40,7 +41,6 @@ extern u32 BiosChecksum;
 extern std::string BiosDescription;
 extern std::string BiosSerial;
 extern std::string BiosPath;
-extern bool LoadBIOS();
+extern bool LoadBIOS(void);
 extern bool IsBIOS(const char* filename, u32& version, std::string& description, u32& region, std::string& zone);
 extern bool IsBIOSAvailable(const std::string& full_path);
-

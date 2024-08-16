@@ -21,17 +21,17 @@
 #include "common/SingleRegisterTypes.h"
 
 /* Specialized function pointers for each read type */
-typedef  mem8_t vtlbMemR8FP(u32 addr);
-typedef  mem16_t vtlbMemR16FP(u32 addr);
-typedef  mem32_t vtlbMemR32FP(u32 addr);
-typedef  mem64_t vtlbMemR64FP(u32 addr);
+typedef  uint8_t vtlbMemR8FP(u32 addr);
+typedef  uint16_t vtlbMemR16FP(u32 addr);
+typedef  uint32_t vtlbMemR32FP(u32 addr);
+typedef  uint64_t vtlbMemR64FP(u32 addr);
 typedef  RETURNS_R128 vtlbMemR128FP(u32 addr);
 
 /* Specialized function pointers for each write type */
-typedef  void vtlbMemW8FP(u32 addr,mem8_t data);
-typedef  void vtlbMemW16FP(u32 addr,mem16_t data);
-typedef  void vtlbMemW32FP(u32 addr,mem32_t data);
-typedef  void vtlbMemW64FP(u32 addr,mem64_t data);
+typedef  void vtlbMemW8FP(u32 addr,uint8_t data);
+typedef  void vtlbMemW16FP(u32 addr,uint16_t data);
+typedef  void vtlbMemW32FP(u32 addr,uint32_t data);
+typedef  void vtlbMemW64FP(u32 addr,uint64_t data);
 typedef  void TAKES_R128 vtlbMemW128FP(u32 addr,r128 data);
 
 template <size_t Width, bool Write> struct vtlbMemFP;
@@ -88,25 +88,25 @@ extern bool vtlb_IsFaultingPC(u32 guest_pc);
 
 /* Memory functions */
 
-extern mem8_t vtlb_memRead8(uint32_t addr);
-extern mem16_t vtlb_memRead16(uint32_t addr);
-extern mem32_t vtlb_memRead32(uint32_t addr);
-extern mem64_t vtlb_memRead64(uint32_t addr);
+extern uint8_t vtlb_memRead8(uint32_t addr);
+extern uint16_t vtlb_memRead16(uint32_t addr);
+extern uint32_t vtlb_memRead32(uint32_t addr);
+extern uint64_t vtlb_memRead64(uint32_t addr);
 extern RETURNS_R128 vtlb_memRead128(uint32_t mem);
 
-extern void vtlb_memWrite8(uint32_t addr, mem8_t data);
-extern void vtlb_memWrite16(uint32_t addr, mem16_t data);
-extern void vtlb_memWrite32(uint32_t addr, mem32_t data);
-extern void vtlb_memWrite64(uint32_t addr, mem64_t data);
+extern void vtlb_memWrite8(uint32_t addr, uint8_t data);
+extern void vtlb_memWrite16(uint32_t addr, uint16_t data);
+extern void vtlb_memWrite32(uint32_t addr, uint32_t data);
+extern void vtlb_memWrite64(uint32_t addr, uint64_t data);
 extern void TAKES_R128 vtlb_memWrite128(uint32_t mem, r128 value);
 
 /* "Safe" variants of vtlb, designed for external tools.
  * These routines only access the various RAM, and will not call handlers
  * which has the potential to change hardware state. */
-extern mem8_t vtlb_ramRead8(u32 mem);
-extern mem16_t vtlb_ramRead16(u32 mem);
-extern mem32_t vtlb_ramRead32(u32 mem);
-extern mem64_t vtlb_ramRead64(u32 mem);
+extern uint8_t vtlb_ramRead8(u32 mem);
+extern uint16_t vtlb_ramRead16(u32 mem);
+extern uint32_t vtlb_ramRead32(u32 mem);
+extern uint64_t vtlb_ramRead64(u32 mem);
 
 using vtlb_ReadRegAllocCallback = int(*)(void);
 extern int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc);

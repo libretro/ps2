@@ -23,7 +23,7 @@
 #include "R5900OpcodeTables.h"
 #include "GS.h"
 #include "CDVD/CDVD.h"
-#include "ps2/BiosTools.h"
+#include "BiosTools.h"
 #include "VMManager.h"
 
 GS_VideoMode gsVideoMode = GS_VideoMode::Uninitialized;

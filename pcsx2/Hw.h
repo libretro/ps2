@@ -17,80 +17,80 @@
 
 namespace EEMemoryMap
 {
-	static const uint RCNT0_Start		= 0x10000000;
-	static const uint RCNT0_End			= 0x10000800;
-	static const uint RCNT1_Start		= 0x10000800;
-	static const uint RCNT1_End			= 0x10001000;
-	static const uint RCNT2_Start		= 0x10001000;
-	static const uint RCNT2_End			= 0x10001800;
-	static const uint RCNT3_Start		= 0x10001800;
-	static const uint RCNT3_End			= 0x10002000;
+	static const unsigned int RCNT0_Start		= 0x10000000;
+	static const unsigned int RCNT0_End		= 0x10000800;
+	static const unsigned int RCNT1_Start		= 0x10000800;
+	static const unsigned int RCNT1_End		= 0x10001000;
+	static const unsigned int RCNT2_Start		= 0x10001000;
+	static const unsigned int RCNT2_End		= 0x10001800;
+	static const unsigned int RCNT3_Start		= 0x10001800;
+	static const unsigned int RCNT3_End		= 0x10002000;
 
-	static const uint IPU_Start			= 0x10002000;
-	static const uint IPU_End			= 0x10003000;
+	static const unsigned int IPU_Start		= 0x10002000;
+	static const unsigned int IPU_End		= 0x10003000;
 
-	static const uint GIF_Start			= 0x10003000;
-	static const uint GIF_End			= 0x10003800;
+	static const unsigned int GIF_Start		= 0x10003000;
+	static const unsigned int GIF_End		= 0x10003800;
 
-	static const uint VIF0_Start		= 0x10003800;
-	static const uint VIF0_End			= 0x10003C00;
-	static const uint VIF1_Start		= 0x10003C00;
-	static const uint VIF1_End			= 0x10004000;
+	static const unsigned int VIF0_Start		= 0x10003800;
+	static const unsigned int VIF0_End		= 0x10003C00;
+	static const unsigned int VIF1_Start		= 0x10003C00;
+	static const unsigned int VIF1_End		= 0x10004000;
 
-	static const uint VIF0_FIFO_Start	= 0x10004000;
-	static const uint VIF0_FIFO_End		= 0x10005000;
-	static const uint VIF1_FIFO_Start	= 0x10005000;
-	static const uint VIF1_FIFO_End		= 0x10006000;
-	static const uint GIF_FIFO_Start	= 0x10006000;
-	static const uint GIF_FIFO_End		= 0x10007000;
-	static const uint IPU_FIFO_Start	= 0x10007000;
-	static const uint IPU_FIFO_End		= 0x10008000;
+	static const unsigned int VIF0_FIFO_Start	= 0x10004000;
+	static const unsigned int VIF0_FIFO_End		= 0x10005000;
+	static const unsigned int VIF1_FIFO_Start	= 0x10005000;
+	static const unsigned int VIF1_FIFO_End		= 0x10006000;
+	static const unsigned int GIF_FIFO_Start	= 0x10006000;
+	static const unsigned int GIF_FIFO_End		= 0x10007000;
+	static const unsigned int IPU_FIFO_Start	= 0x10007000;
+	static const unsigned int IPU_FIFO_End		= 0x10008000;
 
-	static const uint VIF0dma_Start		= 0x10008000;
-	static const uint VIF0dma_End		= 0x10009000;
-	static const uint VIF1dma_Start		= 0x10009000;
-	static const uint VIF1dma_End		= 0x1000A000;
+	static const unsigned int VIF0dma_Start		= 0x10008000;
+	static const unsigned int VIF0dma_End		= 0x10009000;
+	static const unsigned int VIF1dma_Start		= 0x10009000;
+	static const unsigned int VIF1dma_End		= 0x1000A000;
 
-	static const uint GIFdma_Start		= 0x1000A000;
-	static const uint GIFdma_End		= 0x1000B000;
+	static const unsigned int GIFdma_Start		= 0x1000A000;
+	static const unsigned int GIFdma_End		= 0x1000B000;
 
-	static const uint fromIPU_Start		= 0x1000B000;
-	static const uint fromIPU_End		= 0x1000B400;
-	static const uint toIPU_Start		= 0x1000B400;
-	static const uint toIPU_End			= 0x1000C000;
+	static const unsigned int fromIPU_Start		= 0x1000B000;
+	static const unsigned int fromIPU_End		= 0x1000B400;
+	static const unsigned int toIPU_Start		= 0x1000B400;
+	static const unsigned int toIPU_End		= 0x1000C000;
 
-	static const uint SIF0dma_Start		= 0x1000C000;
-	static const uint SIF0dma_End		= 0x1000C400;
-	static const uint SIF1dma_Start		= 0x1000C400;
-	static const uint SIF1dma_End		= 0x1000C800;
-	static const uint SIF2dma_Start		= 0x1000C800;
-	static const uint SIF2dma_End		= 0x1000D000;
+	static const unsigned int SIF0dma_Start		= 0x1000C000;
+	static const unsigned int SIF0dma_End		= 0x1000C400;
+	static const unsigned int SIF1dma_Start		= 0x1000C400;
+	static const unsigned int SIF1dma_End		= 0x1000C800;
+	static const unsigned int SIF2dma_Start		= 0x1000C800;
+	static const unsigned int SIF2dma_End		= 0x1000D000;
 
-	static const uint fromSPR_Start		= 0x1000D000;
-	static const uint fromSPR_End		= 0x1000D400;
-	static const uint toSPR_Start		= 0x1000D400;
-	static const uint toSPR_End			= 0x1000E000;
+	static const unsigned int fromSPR_Start		= 0x1000D000;
+	static const unsigned int fromSPR_End		= 0x1000D400;
+	static const unsigned int toSPR_Start		= 0x1000D400;
+	static const unsigned int toSPR_End		= 0x1000E000;
 
-	static const uint DMAC_Start		= 0x1000E000;
-	static const uint DMAC_End			= 0x1000F000;
+	static const unsigned int DMAC_Start		= 0x1000E000;
+	static const unsigned int DMAC_End		= 0x1000F000;
 
-	static const uint INTC_Start		= 0x1000F000;
-	static const uint INTC_End			= 0x1000F100;
+	static const unsigned int INTC_Start		= 0x1000F000;
+	static const unsigned int INTC_End		= 0x1000F100;
 
-	static const uint SIO_Start			= 0x1000F100;
-	static const uint SIO_End			= 0x1000F200;
-	static const uint SBUS_Start		= 0x1000F200;
-	static const uint SBUS_End			= 0x1000F300;
-	static const uint SBUS_PS1_Start	= 0x1000F300;
-	static const uint SBUS_PS1_End		= 0x1000F400;
+	static const unsigned int SIO_Start		= 0x1000F100;
+	static const unsigned int SIO_End		= 0x1000F200;
+	static const unsigned int SBUS_Start		= 0x1000F200;
+	static const unsigned int SBUS_End		= 0x1000F300;
+	static const unsigned int SBUS_PS1_Start	= 0x1000F300;
+	static const unsigned int SBUS_PS1_End		= 0x1000F400;
 
 	// MCH area --  Really not sure what this area is.  Information is lacking.
-	static const uint MCH_Start			= 0x1000F400;
-	static const uint MCH_End			= 0x1000F500;
+	static const unsigned int MCH_Start		= 0x1000F400;
+	static const unsigned int MCH_End		= 0x1000F500;
 
 	// Extended master control register area for DMAC.
-	static const uint DMACext_Start		= 0x1000F500;
-	static const uint DMACext_End		= 0x1000F600;
+	static const unsigned int DMACext_Start		= 0x1000F500;
+	static const unsigned int DMACext_End		= 0x1000F600;
 
 };
 

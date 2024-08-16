@@ -22,7 +22,7 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
-#include "ps2/BiosTools.h"
+#include "BiosTools.h"
 #include "COP0.h"
 #include "VUmicro.h"
 #include "MTVU.h"

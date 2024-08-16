@@ -374,7 +374,7 @@
     <ClCompile Include="x86\BaseblockEx.cpp">
       <Filter>System\Ps2</Filter>
     </ClCompile>
-    <ClCompile Include="ps2\BiosTools.cpp">
+    <ClCompile Include="BiosTools.cpp">
       <Filter>System\Ps2</Filter>
     </ClCompile>
     <ClCompile Include="Counters.cpp">
@@ -548,16 +548,7 @@
     <ClCompile Include="IopBios.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
-    <ClCompile Include="IopCounters.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="IopDma.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="IopIrq.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="IopMem.cpp">
+    <ClCompile Include="Iop.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
     <ClCompile Include="R3000A.cpp">
@@ -721,9 +712,6 @@
     </ClCompile>
     <ClCompile Include="IopGte.cpp">
       <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="ps2\pgif.cpp">
-      <Filter>System\Ps2</Filter>
     </ClCompile>
     <ClCompile Include="Mdec.cpp">
       <Filter>System\Ps2\Iop</Filter>
@@ -1243,7 +1231,7 @@
     <ClInclude Include="Hw.h">
       <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
     </ClInclude>
-    <ClInclude Include="ps2\HwInternal.h">
+    <ClInclude Include="HwInternal.h">
       <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
     </ClInclude>
     <ClInclude Include="Cache.h">
@@ -1417,7 +1405,7 @@
     <ClInclude Include="x86\BaseblockEx.h">
       <Filter>System\Ps2\Include</Filter>
     </ClInclude>
-    <ClInclude Include="ps2\BiosTools.h">
+    <ClInclude Include="BiosTools.h">
       <Filter>System\Ps2\Include</Filter>
     </ClInclude>
     <ClInclude Include="MemoryTypes.h">
@@ -1498,7 +1486,7 @@
     <ClInclude Include="IopGte.h">
       <Filter>System\Ps2\Iop</Filter>
     </ClInclude>
-    <ClInclude Include="ps2\pgif.h">
+    <ClInclude Include="IopPgpuGif.h">
       <Filter>System\Ps2</Filter>
     </ClInclude>
     <ClInclude Include="Mdec.h">
