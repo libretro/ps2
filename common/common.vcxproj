@@ -71,18 +71,7 @@
     <ClCompile Include="Threads.cpp" />
     <ClCompile Include="Misc.cpp" />
     <ClCompile Include="Semaphore.cpp" />
-    <ClCompile Include="emitter\avx.cpp" />
-    <ClCompile Include="emitter\bmi.cpp" />
-    <ClCompile Include="emitter\fpu.cpp" />
-    <ClCompile Include="emitter\groups.cpp" />
-    <ClCompile Include="emitter\jmp.cpp" />
-    <ClCompile Include="emitter\legacy.cpp" />
-    <ClCompile Include="emitter\legacy_sse.cpp" />
-    <ClCompile Include="emitter\movs.cpp" />
-    <ClCompile Include="emitter\simd.cpp" />
     <ClCompile Include="emitter\x86emitter.cpp" />
-    <ClCompile Include="emitter\LnxCpuDetect.cpp" />
-    <ClCompile Include="emitter\WinCpuDetect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="FastJmp.asm" />
@@ -115,30 +104,7 @@
     <ClInclude Include="Timer.h" />
     <ClInclude Include="WindowInfo.h" />
     <ClInclude Include="Threading.h" />
-    <ClInclude Include="emitter\implement\avx.h" />
-    <ClInclude Include="emitter\implement\bmi.h" />
-    <ClInclude Include="emitter\instructions.h" />
-    <ClInclude Include="emitter\internal.h" />
-    <ClInclude Include="emitter\legacy_instructions.h" />
-    <ClInclude Include="emitter\legacy_internal.h" />
-    <ClInclude Include="emitter\legacy_types.h" />
     <ClInclude Include="emitter\x86emitter.h" />
-    <ClInclude Include="emitter\x86types.h" />
-    <ClInclude Include="emitter\implement\dwshift.h" />
-    <ClInclude Include="emitter\implement\group1.h" />
-    <ClInclude Include="emitter\implement\group2.h" />
-    <ClInclude Include="emitter\implement\group3.h" />
-    <ClInclude Include="emitter\implement\helpers.h" />
-    <ClInclude Include="emitter\implement\incdec.h" />
-    <ClInclude Include="emitter\implement\jmpcall.h" />
-    <ClInclude Include="emitter\implement\movs.h" />
-    <ClInclude Include="emitter\implement\test.h" />
-    <ClInclude Include="emitter\implement\simd_arithmetic.h" />
-    <ClInclude Include="emitter\implement\simd_comparisons.h" />
-    <ClInclude Include="emitter\implement\simd_helpers.h" />
-    <ClInclude Include="emitter\implement\simd_moremovs.h" />
-    <ClInclude Include="emitter\implement\simd_shufflepack.h" />
-    <ClInclude Include="ZipHelpers.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rdparty\d3d12memalloc\d3d12memalloc.vcxproj">

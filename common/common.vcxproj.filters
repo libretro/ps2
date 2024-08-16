@@ -4,34 +4,10 @@
     <ClCompile Include="AlignedMalloc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="emitter\bmi.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TextureDecompress.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\fpu.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\groups.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\jmp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\legacy.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\legacy_sse.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\LnxCpuDetect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\avx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="HostSys.cpp">
@@ -43,9 +19,6 @@
     <ClCompile Include="Threads.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="emitter\movs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Misc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -53,12 +26,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Semaphore.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\simd.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="emitter\WinCpuDetect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Windows\WinMisc.cpp">
@@ -96,9 +63,6 @@
     <ClInclude Include="AlignedMalloc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="emitter\implement\bmi.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="boost_spsc_queue.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -108,43 +72,7 @@
     <ClInclude Include="TextureDecompress.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="emitter\implement\dwshift.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="General.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\group1.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\group2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\group3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\helpers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\incdec.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\instructions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\internal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\jmpcall.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\legacy_instructions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\legacy_internal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\legacy_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MathUtils.h">
@@ -162,37 +90,10 @@
     <ClInclude Include="RedtapeWindows.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="emitter\implement\simd_arithmetic.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\simd_comparisons.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\simd_helpers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\simd_moremovs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\simd_shufflepack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\movs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\implement\avx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Threading.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="emitter\implement\test.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="emitter\x86emitter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\x86types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FastJmp.h">

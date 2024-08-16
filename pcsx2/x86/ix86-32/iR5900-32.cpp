@@ -33,8 +33,8 @@
 #include "common/AlignedMalloc.h"
 #include "common/FastJmp.h"
 
-// Only for MOVQ workaround.
-#include "common/emitter/internal.h"
+/* Only for MOVQ workaround. */
+#include "common/emitter/x86emitter.h"
 
 using namespace x86Emitter;
 using namespace R5900;

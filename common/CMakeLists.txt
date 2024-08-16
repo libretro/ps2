@@ -20,12 +20,6 @@ target_sources(common PRIVATE
 	StringUtil.cpp
 	TextureDecompress.cpp
 	Timer.cpp
-	emitter/avx.cpp
-	emitter/groups.cpp
-	emitter/jmp.cpp
-	emitter/legacy_sse.cpp
-	emitter/movs.cpp
-	emitter/simd.cpp
 	emitter/x86emitter.cpp
 	Threads.cpp
 	HostSys.cpp
@@ -54,26 +48,7 @@ target_sources(common PRIVATE
 	Threading.h
 	VectorIntrin.h
 	WindowInfo.h
-	emitter/implement/avx.h
-	emitter/implement/dwshift.h
-	emitter/implement/group1.h
-	emitter/implement/group2.h
-	emitter/implement/group3.h
-	emitter/implement/incdec.h
-	emitter/implement/jmpcall.h
-	emitter/implement/movs.h
-	emitter/implement/simd_arithmetic.h
-	emitter/implement/simd_comparisons.h
-	emitter/implement/simd_helpers.h
-	emitter/implement/simd_moremovs.h
-	emitter/implement/simd_shufflepack.h
-	emitter/implement/test.h
-	emitter/instructions.h
-	emitter/internal.h
-	emitter/legacy_instructions.h
-	emitter/legacy_internal.h
 	emitter/x86emitter.h
-	emitter/x86types.h
 )
 
 if(WIN32)
