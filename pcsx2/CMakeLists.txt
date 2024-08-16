@@ -121,7 +121,6 @@ set(pcsx2Sources
 	Vif_Transfer.cpp
 	Vif_Unpack.cpp
 	VirtualMemory.cpp
-	vtlb.cpp
 	VU0.cpp
 	VUmicro.cpp
 	VU0micro.cpp
