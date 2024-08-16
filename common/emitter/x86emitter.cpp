@@ -95,6 +95,250 @@ namespace x86Emitter
 	const xImplSimd_DestRegEither xPOR = {0x66, 0xeb};
 	const xImplSimd_DestRegEither xPXOR = {0x66, 0xef};
 
+	// =====================================================================================================
+	//  Group 1 Instructions - ADD, SUB, ADC, etc.
+	// =====================================================================================================
+
+	// Note on "[Indirect],Imm" forms : use int as the source operand since it's "reasonably inert" from a
+	// compiler perspective.  (using uint tends to make the compiler try and fail to match signed immediates
+	// with one of the other overloads).
+	static void _g1_IndirectImm(G1Type InstType, const xIndirect64orLess& sibdest, int imm)
+	{
+		if (sibdest.Is8BitOp())
+		{
+			xOpWrite(sibdest.GetPrefix16(), 0x80, InstType, sibdest, 1);
+
+			*(s8*)x86Ptr = imm;
+			x86Ptr += sizeof(s8);
+		}
+		else
+		{
+			bool is_signed = is_s8(imm);
+			u8 opcode      = is_signed ? 0x83 : 0x81;
+			xOpWrite(sibdest.GetPrefix16(), opcode, InstType, sibdest, is_signed ? 1 : sibdest.GetImmSize());
+
+			if (is_signed)
+			{
+				*(s8*)x86Ptr  = imm;
+				x86Ptr       += sizeof(s8);
+			}
+			else
+				sibdest.xWriteImm(imm);
+		}
+	}
+
+	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xRegisterInt& from)
+	{
+		u8 opcode = (to.Is8BitOp() ? 0 : 1) | (InstType << 3);
+		xOpWrite(to.GetPrefix16(), opcode, from, to, 0);
+	}
+
+	static void _g1_EmitOp(G1Type InstType, const xIndirectVoid& sibdest, const xRegisterInt& from)
+	{
+		u8 opcode = (from.Is8BitOp() ? 0 : 1) | (InstType << 3);
+		xOpWrite(from.GetPrefix16(), opcode, from, sibdest, 0);
+	}
+
+	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xIndirectVoid& sibsrc)
+	{
+		u8 opcode = (to.Is8BitOp() ? 2 : 3) | (InstType << 3);
+		xOpWrite(to.GetPrefix16(), opcode, to, sibsrc, 0);
+	}
+
+	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, int imm)
+	{
+		if (!to.Is8BitOp() && is_s8(imm))
+		{
+			xOpWrite(to.GetPrefix16(), 0x83, InstType, to, 0);
+			*(s8*)x86Ptr = imm;
+			x86Ptr += sizeof(s8);
+		}
+		else
+		{
+			if (to.Id == 0)
+			{
+				u8 opcode = (to.Is8BitOp() ? 4 : 5) | (InstType << 3);
+				xOpAccWrite(to.GetPrefix16(), opcode, InstType, to);
+			}
+			else
+			{
+				u8 opcode = to.Is8BitOp() ? 0x80 : 0x81;
+				xOpWrite(to.GetPrefix16(), opcode, InstType, to, 0);
+			}
+			to.xWriteImm(imm);
+		}
+	}
+
+#define ImplementGroup1(g1type, insttype)                                                                                 \
+    void g1type::operator()(const xRegisterInt& to, const xRegisterInt& from) const { _g1_EmitOp(insttype, to, from); }   \
+    void g1type::operator()(const xIndirectVoid& to, const xRegisterInt& from) const { _g1_EmitOp(insttype, to, from); }  \
+    void g1type::operator()(const xRegisterInt& to, const xIndirectVoid& from) const { _g1_EmitOp(insttype, to, from); }  \
+    void g1type::operator()(const xRegisterInt& to, int imm) const { _g1_EmitOp(insttype, to, imm); }                     \
+    void g1type::operator()(const xIndirect64orLess& sibdest, int imm) const { _g1_IndirectImm(insttype, sibdest, imm); }
+
+	ImplementGroup1(xImpl_Group1, InstType)
+	ImplementGroup1(xImpl_G1Logic, InstType)
+	ImplementGroup1(xImpl_G1Arith, InstType)
+	ImplementGroup1(xImpl_G1Compare, G1Type_CMP)
+
+	// =====================================================================================================
+	//  Group 2 Instructions - SHR, SHL, etc.
+	// =====================================================================================================
+
+	void xImpl_Group2::operator()(const xRegisterInt& to, const xRegisterCL& from) const
+	{
+		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd2 : 0xd3, InstType, to, 0);
+	}
+
+	void xImpl_Group2::operator()(const xRegisterInt& to, u8 imm) const
+	{
+		if (imm == 0)
+			return;
+
+		if (imm == 1)
+		{
+			// special encoding of 1's
+			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd0 : 0xd1, InstType, to, 0);
+		}
+		else
+		{
+			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xc0 : 0xc1, InstType, to, 0);
+			*(u8*)x86Ptr = imm;
+			x86Ptr += sizeof(u8);
+		}
+	}
+
+	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, const xRegisterCL& from) const
+	{
+		xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd2 : 0xd3, InstType, sibdest, 0);
+	}
+
+	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, u8 imm) const
+	{
+		if (imm == 0)
+			return;
+
+		if (imm == 1)
+		{
+			// special encoding of 1's
+			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd0 : 0xd1, InstType, sibdest, 0);
+		}
+		else
+		{
+			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xc0 : 0xc1, InstType, sibdest, 1);
+			*(u8*)x86Ptr = imm;
+			x86Ptr += sizeof(u8);
+		}
+	}
+
+	// =====================================================================================================
+	//  Group 3 Instructions - NOT, NEG, MUL, DIV
+	// =====================================================================================================
+
+	void xImpl_Group3::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from, 0); }
+	void xImpl_Group3::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from, 0); }
+
+	void xImpl_iDiv::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from, 0); }
+	void xImpl_iDiv::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from, 0); }
+
+	void xImpl_iMul::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from, 0); }
+	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from, 0); }
+
+	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from) const { xOpWrite0F(0, 0xaf, to, from); }
+	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& src) const { xOpWrite0F(0, 0xaf, to, src); }
+	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from) const { xOpWrite0F(0x66, 0xaf, to, from); }
+	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& src) const { xOpWrite0F(0x66, 0xaf, to, src); }
+
+	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from, s32 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
+		else
+			to.xWriteImm(imm);
+	}
+
+	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& from, s32 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
+		else
+			to.xWriteImm(imm);
+	}
+
+	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from, s16 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
+		else
+			to.xWriteImm(imm);
+	}
+
+	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& from, s16 imm) const
+	{
+		bool is_signed = is_s8(imm);
+		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
+
+		if (is_signed)
+		{
+			*(u8*)x86Ptr = (u8)imm;
+			x86Ptr += sizeof(u8);
+		}
+		else
+			to.xWriteImm(imm);
+	}
+
+	// =====================================================================================================
+	//  Group 8 Instructions
+	// =====================================================================================================
+
+	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, const xRegister16or32or64& bitoffset) const
+	{
+		xOpWrite0F(bitbase->GetPrefix16(), 0xa3 | (InstType << 3), bitbase, bitoffset);
+	}
+	void xImpl_Group8::operator()(const xIndirect64& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
+	void xImpl_Group8::operator()(const xIndirect32& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
+	void xImpl_Group8::operator()(const xIndirect16& bitbase, u8 bitoffset) const { xOpWrite0F(0x66, 0xba, InstType, bitbase, bitoffset); }
+
+	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, u8 bitoffset) const
+	{
+		xOpWrite0F(bitbase->GetPrefix16(), 0xba, InstType, bitbase, bitoffset);
+	}
+
+	void xImpl_Group8::operator()(const xIndirectVoid& bitbase, const xRegister16or32or64& bitoffset) const
+	{
+		xOpWrite0F(bitoffset->GetPrefix16(), 0xa3 | (InstType << 3), bitoffset, bitbase);
+	}
+	// Empty initializers are due to frivolously pointless GCC errors (it demands the
+	// objects be initialized even though they have no actual variable members).
+
+	const xAddressIndexer<xIndirectVoid> ptr = {};
+	const xAddressIndexer<xIndirectNative> ptrNative = {};
+	const xAddressIndexer<xIndirect128> ptr128 = {};
+	const xAddressIndexer<xIndirect64> ptr64 = {};
+	const xAddressIndexer<xIndirect32> ptr32 = {};
+	const xAddressIndexer<xIndirect16> ptr16 = {};
+	const xAddressIndexer<xIndirect8> ptr8 = {};
+
+	// ------------------------------------------------------------------------
+
 	// [SSE-4.1] Performs a bitwise AND of dest against src, and sets the ZF flag
 	// only if all bits in the result are 0.  PTEST also sets the CF flag according
 	// to the following condition: (xmm2/m128 AND NOT xmm1) == 0;
@@ -693,9 +937,10 @@ namespace x86Emitter
 	void xImpl_Mov::operator()(const xRegisterInt& to, intptr_t imm, bool preserve_flags) const
 	{
 		const xRegisterInt& to_ = to.GetNonWide();
-		if (!preserve_flags && (imm == 0))
+		if (imm == 0)
 		{
-			_g1_EmitOp(G1Type_XOR, to_, to_);
+			u8 opcode = (to_.Is8BitOp() ? 0 : 1) | (G1Type_XOR << 3);
+			xOpWrite(to_.GetPrefix16(), opcode, to_, to_, 0);
 		}
 		else if (imm == (intptr_t)(u32)imm || !(to._operandSize == 8))
 		{
@@ -1011,249 +1256,6 @@ namespace x86Emitter
 	const xImpl_iDiv xDIV = {{0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
 	const xImpl_iMul xMUL = {{0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};
 
-	// =====================================================================================================
-	//  Group 1 Instructions - ADD, SUB, ADC, etc.
-	// =====================================================================================================
-
-	// Note on "[Indirect],Imm" forms : use int as the source operand since it's "reasonably inert" from a
-	// compiler perspective.  (using uint tends to make the compiler try and fail to match signed immediates
-	// with one of the other overloads).
-	static void _g1_IndirectImm(G1Type InstType, const xIndirect64orLess& sibdest, int imm)
-	{
-		if (sibdest.Is8BitOp())
-		{
-			xOpWrite(sibdest.GetPrefix16(), 0x80, InstType, sibdest, 1);
-
-			*(s8*)x86Ptr = imm;
-			x86Ptr += sizeof(s8);
-		}
-		else
-		{
-			bool is_signed = is_s8(imm);
-			u8 opcode      = is_signed ? 0x83 : 0x81;
-			xOpWrite(sibdest.GetPrefix16(), opcode, InstType, sibdest, is_signed ? 1 : sibdest.GetImmSize());
-
-			if (is_signed)
-			{
-				*(s8*)x86Ptr  = imm;
-				x86Ptr       += sizeof(s8);
-			}
-			else
-				sibdest.xWriteImm(imm);
-		}
-	}
-
-	void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xRegisterInt& from)
-	{
-		u8 opcode = (to.Is8BitOp() ? 0 : 1) | (InstType << 3);
-		xOpWrite(to.GetPrefix16(), opcode, from, to, 0);
-	}
-
-	static void _g1_EmitOp(G1Type InstType, const xIndirectVoid& sibdest, const xRegisterInt& from)
-	{
-		u8 opcode = (from.Is8BitOp() ? 0 : 1) | (InstType << 3);
-		xOpWrite(from.GetPrefix16(), opcode, from, sibdest, 0);
-	}
-
-	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xIndirectVoid& sibsrc)
-	{
-		u8 opcode = (to.Is8BitOp() ? 2 : 3) | (InstType << 3);
-		xOpWrite(to.GetPrefix16(), opcode, to, sibsrc, 0);
-	}
-
-	static void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, int imm)
-	{
-		if (!to.Is8BitOp() && is_s8(imm))
-		{
-			xOpWrite(to.GetPrefix16(), 0x83, InstType, to, 0);
-			*(s8*)x86Ptr = imm;
-			x86Ptr += sizeof(s8);
-		}
-		else
-		{
-			if (to.Id == 0)
-			{
-				u8 opcode = (to.Is8BitOp() ? 4 : 5) | (InstType << 3);
-				xOpAccWrite(to.GetPrefix16(), opcode, InstType, to);
-			}
-			else
-			{
-				u8 opcode = to.Is8BitOp() ? 0x80 : 0x81;
-				xOpWrite(to.GetPrefix16(), opcode, InstType, to, 0);
-			}
-			to.xWriteImm(imm);
-		}
-	}
-
-#define ImplementGroup1(g1type, insttype)                                                                                 \
-    void g1type::operator()(const xRegisterInt& to, const xRegisterInt& from) const { _g1_EmitOp(insttype, to, from); }   \
-    void g1type::operator()(const xIndirectVoid& to, const xRegisterInt& from) const { _g1_EmitOp(insttype, to, from); }  \
-    void g1type::operator()(const xRegisterInt& to, const xIndirectVoid& from) const { _g1_EmitOp(insttype, to, from); }  \
-    void g1type::operator()(const xRegisterInt& to, int imm) const { _g1_EmitOp(insttype, to, imm); }                     \
-    void g1type::operator()(const xIndirect64orLess& sibdest, int imm) const { _g1_IndirectImm(insttype, sibdest, imm); }
-
-	ImplementGroup1(xImpl_Group1, InstType)
-	ImplementGroup1(xImpl_G1Logic, InstType)
-	ImplementGroup1(xImpl_G1Arith, InstType)
-	ImplementGroup1(xImpl_G1Compare, G1Type_CMP)
-
-	// =====================================================================================================
-	//  Group 2 Instructions - SHR, SHL, etc.
-	// =====================================================================================================
-
-	void xImpl_Group2::operator()(const xRegisterInt& to, const xRegisterCL& from) const
-	{
-		xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd2 : 0xd3, InstType, to, 0);
-	}
-
-	void xImpl_Group2::operator()(const xRegisterInt& to, u8 imm) const
-	{
-		if (imm == 0)
-			return;
-
-		if (imm == 1)
-		{
-			// special encoding of 1's
-			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xd0 : 0xd1, InstType, to, 0);
-		}
-		else
-		{
-			xOpWrite(to.GetPrefix16(), to.Is8BitOp() ? 0xc0 : 0xc1, InstType, to, 0);
-			*(u8*)x86Ptr = imm;
-			x86Ptr += sizeof(u8);
-		}
-	}
-
-	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, const xRegisterCL& from) const
-	{
-		xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd2 : 0xd3, InstType, sibdest, 0);
-	}
-
-	void xImpl_Group2::operator()(const xIndirect64orLess& sibdest, u8 imm) const
-	{
-		if (imm == 0)
-			return;
-
-		if (imm == 1)
-		{
-			// special encoding of 1's
-			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xd0 : 0xd1, InstType, sibdest, 0);
-		}
-		else
-		{
-			xOpWrite(sibdest.GetPrefix16(), sibdest.Is8BitOp() ? 0xc0 : 0xc1, InstType, sibdest, 1);
-			*(u8*)x86Ptr = imm;
-			x86Ptr += sizeof(u8);
-		}
-	}
-
-	// =====================================================================================================
-	//  Group 3 Instructions - NOT, NEG, MUL, DIV
-	// =====================================================================================================
-
-	void xImpl_Group3::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from, 0); }
-	void xImpl_Group3::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, InstType, from, 0); }
-
-	void xImpl_iDiv::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from, 0); }
-	void xImpl_iDiv::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iDIV, from, 0); }
-
-	void xImpl_iMul::operator()(const xRegisterInt& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from, 0); }
-	void xImpl_iMul::operator()(const xIndirect64orLess& from) const { xOpWrite(from.GetPrefix16(), from.Is8BitOp() ? 0xf6 : 0xf7, G3Type_iMUL, from, 0); }
-
-	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from) const { xOpWrite0F(0, 0xaf, to, from); }
-	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& src) const { xOpWrite0F(0, 0xaf, to, src); }
-	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from) const { xOpWrite0F(0x66, 0xaf, to, from); }
-	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& src) const { xOpWrite0F(0x66, 0xaf, to, src); }
-
-	void xImpl_iMul::operator()(const xRegister32& to, const xRegister32& from, s32 imm) const
-	{
-		bool is_signed = is_s8(imm);
-		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
-
-		if (is_signed)
-		{
-			*(u8*)x86Ptr = (u8)imm;
-			x86Ptr += sizeof(u8);
-		}
-		else
-			to.xWriteImm(imm);
-	}
-
-	void xImpl_iMul::operator()(const xRegister32& to, const xIndirectVoid& from, s32 imm) const
-	{
-		bool is_signed = is_s8(imm);
-		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
-
-		if (is_signed)
-		{
-			*(u8*)x86Ptr = (u8)imm;
-			x86Ptr += sizeof(u8);
-		}
-		else
-			to.xWriteImm(imm);
-	}
-
-	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from, s16 imm) const
-	{
-		bool is_signed = is_s8(imm);
-		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
-
-		if (is_signed)
-		{
-			*(u8*)x86Ptr = (u8)imm;
-			x86Ptr += sizeof(u8);
-		}
-		else
-			to.xWriteImm(imm);
-	}
-
-	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& from, s16 imm) const
-	{
-		bool is_signed = is_s8(imm);
-		xOpWrite0F(to.GetPrefix16(), is_signed ? 0x6b : 0x69, to, from, is_signed ? 1 : to.GetImmSize());
-
-		if (is_signed)
-		{
-			*(u8*)x86Ptr = (u8)imm;
-			x86Ptr += sizeof(u8);
-		}
-		else
-			to.xWriteImm(imm);
-	}
-
-	// =====================================================================================================
-	//  Group 8 Instructions
-	// =====================================================================================================
-
-	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, const xRegister16or32or64& bitoffset) const
-	{
-		xOpWrite0F(bitbase->GetPrefix16(), 0xa3 | (InstType << 3), bitbase, bitoffset);
-	}
-	void xImpl_Group8::operator()(const xIndirect64& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
-	void xImpl_Group8::operator()(const xIndirect32& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
-	void xImpl_Group8::operator()(const xIndirect16& bitbase, u8 bitoffset) const { xOpWrite0F(0x66, 0xba, InstType, bitbase, bitoffset); }
-
-	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, u8 bitoffset) const
-	{
-		xOpWrite0F(bitbase->GetPrefix16(), 0xba, InstType, bitbase, bitoffset);
-	}
-
-	void xImpl_Group8::operator()(const xIndirectVoid& bitbase, const xRegister16or32or64& bitoffset) const
-	{
-		xOpWrite0F(bitoffset->GetPrefix16(), 0xa3 | (InstType << 3), bitoffset, bitbase);
-	}
-	// Empty initializers are due to frivolously pointless GCC errors (it demands the
-	// objects be initialized even though they have no actual variable members).
-
-	const xAddressIndexer<xIndirectVoid> ptr = {};
-	const xAddressIndexer<xIndirectNative> ptrNative = {};
-	const xAddressIndexer<xIndirect128> ptr128 = {};
-	const xAddressIndexer<xIndirect64> ptr64 = {};
-	const xAddressIndexer<xIndirect32> ptr32 = {};
-	const xAddressIndexer<xIndirect16> ptr16 = {};
-	const xAddressIndexer<xIndirect8> ptr8 = {};
-
-	// ------------------------------------------------------------------------
 
 	const xRegisterEmpty xEmptyReg = {};
 
@@ -1916,7 +1918,8 @@ namespace x86Emitter
 							const xRegisterInt& from = src.Base.MatchSizeTo(to);
 							if (to != from)
 								_xMovRtoR(to, from);
-							_g1_EmitOp(G1Type_ADD, to, src.Index.MatchSizeTo(to));
+							u8 opcode = (to.Is8BitOp() ? 0 : 1) | (G1Type_ADD << 3);
+							xOpWrite(to.GetPrefix16(), opcode, src.Index.MatchSizeTo(to), to, 0);
 							return;
 						}
 					}

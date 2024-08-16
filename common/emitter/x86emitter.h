@@ -1779,8 +1779,6 @@ namespace x86Emitter
 		G1Type_CMP
 	};
 
-	extern void _g1_EmitOp(G1Type InstType, const xRegisterInt& to, const xRegisterInt& from);
-
 	// --------------------------------------------------------------------------------------
 	//  xImpl_Group1
 	// --------------------------------------------------------------------------------------
