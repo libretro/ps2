@@ -22,15 +22,15 @@
 
 #include <float.h>
 
-static int branch2 = 0;
-static u32 cpuBlockCycles = 0;		// 3 bit fixed point version of cycle count
+static int branch2           = 0;
+static u32 cpuBlockCycles    = 0;		/* 3 bit fixed point version of cycle count */
 static bool intExitExecution = false;
 static fastjmp_buf intJmpBuf;
 static u32 intLastBranchTo;
 
 static void intEventTest(void);
 
-void intUpdateCPUCycles()
+void intUpdateCPUCycles(void)
 {
 	const bool lowcycles = (cpuBlockCycles <= 40);
 	const s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
@@ -43,16 +43,16 @@ void intUpdateCPUCycles()
 		scale_cycles = cpuBlockCycles >> (2 + cyclerate);
 
 	else if (cyclerate == 1)
-		scale_cycles = (cpuBlockCycles >> 3) / 1.3f; // Adds a mild 30% increase in clockspeed for value 1.
+		scale_cycles = (cpuBlockCycles >> 3) / 1.3f; /* Adds a mild 30% increase in clockspeed for value 1. */
 
-	else if (cyclerate == -1) // the mildest value.
-		// These values were manually tuned to yield mild speedup with high compatibility
+	else if (cyclerate == -1) /* the mildest value. */
+		/* These values were manually tuned to yield mild speedup with high compatibility */
 		scale_cycles = (cpuBlockCycles <= 80 || cpuBlockCycles > 168 ? 5 : 7) * cpuBlockCycles / 32;
 
 	else
 		scale_cycles = ((5 + (-2 * (cyclerate + 1))) * cpuBlockCycles) >> 5;
 
-	// Ensure block cycle count is never less than 1.
+	/* Ensure block cycle count is never less than 1. */
 	cpuRegs.cycle += (scale_cycles < 1) ? 1 : scale_cycles;
 
 	if (cyclerate > 1)
@@ -61,7 +61,7 @@ void intUpdateCPUCycles()
 		cpuBlockCycles &= 0x7;
 }
 
-// These macros are used to assemble the repassembler functions
+/* These macros are used to assemble the repassembler functions */
 
 static void execI(void)
 {
@@ -71,12 +71,12 @@ static void execI(void)
 	// Extra note: due to some cycle count issue PCSX2's internal debugger is
 	// not yet usable with the interpreter
 	u32 pc = cpuRegs.pc;
-	// We need to increase the pc before executing the memRead32. An exception could appears
+	// We need to increase the pc before executing the vtlb_memRead32. An exception could appears
 	// and it expects the PC counter to be pre-incremented
 	cpuRegs.pc += 4;
 
 	// interprete instruction
-	cpuRegs.code = memRead32( pc );
+	cpuRegs.code = vtlb_memRead32( pc );
 
 	const R5900::OPCODE& opcode = R5900::GetCurrentInstruction();
 	cpuBlockCycles += opcode.cycles * (2 - ((cpuRegs.CP0.n.Config >> 18) & 0x1));
@@ -478,7 +478,7 @@ static void intExecute(void)
 				if (cpuRegs.pc == EELOAD_START)
 				{
 					// The EELOAD _start function is the same across all BIOS versions afaik
-					u32 mainjump = memRead32(EELOAD_START + 0x9c);
+					u32 mainjump = vtlb_memRead32(EELOAD_START + 0x9c);
 					if (mainjump >> 26 == 3) // JAL
 						g_eeloadMain = ((EELOAD_START + 0xa0) & 0xf0000000U) | (mainjump << 2 & 0x0fffffffU);
 				}
@@ -488,13 +488,13 @@ static void intExecute(void)
 					if (g_SkipBiosHack)
 					{
 						// See comments on this code in iR5900-32.cpp's recRecompile()
-						u32 typeAexecjump = memRead32(EELOAD_START + 0x470);
-						u32 typeBexecjump = memRead32(EELOAD_START + 0x5B0);
-						u32 typeCexecjump = memRead32(EELOAD_START + 0x618);
-						u32 typeDexecjump = memRead32(EELOAD_START + 0x600);
+						u32 typeAexecjump = vtlb_memRead32(EELOAD_START + 0x470);
+						u32 typeBexecjump = vtlb_memRead32(EELOAD_START + 0x5B0);
+						u32 typeCexecjump = vtlb_memRead32(EELOAD_START + 0x618);
+						u32 typeDexecjump = vtlb_memRead32(EELOAD_START + 0x600);
 						if ((typeBexecjump >> 26 == 3) || (typeCexecjump >> 26 == 3) || (typeDexecjump >> 26 == 3)) // JAL to 0x822B8
 							g_eeloadExec = EELOAD_START + 0x2B8;
-						else if (typeAexecjump >> 26 == 3) // JAL to 0x82170
+						else if (typeAexecjump >> 26 == 3) /* JAL to 0x82170 */
 							g_eeloadExec = EELOAD_START + 0x170;
 					}
 				}
@@ -505,7 +505,7 @@ static void intExecute(void)
 					break;
 
 				state = GAME_LOADING;
-				// fallthrough
+				/* fallthrough */
 			}
 
 		case GAME_LOADING:
@@ -518,7 +518,7 @@ static void intExecute(void)
 				eeGameStarting();
 			}
 			state = GAME_RUNNING;
-			// fallthrough
+			/* fallthrough */
 
 		case GAME_RUNNING:
 			for (;;)

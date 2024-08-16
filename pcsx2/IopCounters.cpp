@@ -56,8 +56,8 @@ u8 psxvblankgate = 0;
 #define IOPCNT_MODE_WRITE_MSK 0x63FF
 #define IOPCNT_MODE_FLAG_MSK 0x1800
 
-#define IOPCNT_ENABLE_GATE (1 << 0)    // enables gate-based counters
-#define IOPCNT_MODE_GATE (3 << 1)      // 0x6  Gate mode (dependant on counter)
+#define IOPCNT_ENABLE_GATE (1 << 0)    /* enables gate-based counters */
+#define IOPCNT_MODE_GATE (3 << 1)      /* 0x6  Gate mode (dependant on counter) */
 #define IOPCNT_MODE_RESET_CNT (1 << 3) // 0x8  resets the counter on target (if interrupt only?)
 #define IOPCNT_INT_TARGET (1 << 4)     // 0x10  triggers an interrupt on targets
 #define IOPCNT_INT_OVERFLOW (1 << 5)   // 0x20  triggers an interrupt on overflows
@@ -68,9 +68,9 @@ u8 psxvblankgate = 0;
 #define IOPCNT_INT_CMPFLAG  (1 << 11)  // 0x800 1=Target interrupt raised
 #define IOPCNT_INT_OFLWFLAG (1 << 12)  // 0x1000 1=Overflow interrupt raised
 
-// Use an arbitrary value to flag HBLANK counters.
-// These counters will be counted by the hblank gates coming from the EE,
-// which ensures they stay 100% in sync with the EE's hblank counters.
+/* Use an arbitrary value to flag HBLANK counters.
+ * These counters will be counted by the hblank gates coming from the EE,
+ * which ensures they stay 100% in sync with the EE's hblank counters. */
 #define PSXHBLANK 0x2001
 
 static void _rcntSet(int cntidx)
@@ -106,7 +106,6 @@ static void _rcntSet(int cntidx)
 		psxSetNextBranch(psxNextStartCounter, psxNextDeltaCounter); //Need to update on counter resets/target changes
 	}
 
-	//if((counter.mode & 0x10) == 0 || psxCounters[i].target > 0xffff) continue;
 	if (counter.target & IOPCNT_FUTURE_TARGET)
 		return;
 
@@ -158,8 +157,8 @@ void psxRcntInit(void)
 	for (i = 0; i < 8; i++)
 		psxCounters[i].startCycle = psxRegs.cycle;
 
-	// Tell the IOP to branch ASAP, so that timers can get
-	// configured properly.
+	/* Tell the IOP to branch ASAP, so that timers can get
+	 * configured properly. */
 	psxNextDeltaCounter = 1;
 	psxNextStartCounter = psxRegs.cycle;
 }
@@ -170,26 +169,21 @@ static bool _rcntFireInterrupt(int i, bool isOverflow)
 #
 	if (psxCounters[i].mode & IOPCNT_INT_REQ)
 	{
-		// IRQ fired
+		/* IRQ fired */
 		psxHu32(0x1070) |= psxCounters[i].interrupt;
 		iopTestIntc();
 		ret = true;
 	}
 	else
 	{
-		if (!(psxCounters[i].mode & IOPCNT_INT_REPEAT)) // One shot
+		if (!(psxCounters[i].mode & IOPCNT_INT_REPEAT)) /* One shot */
 			return false;
 	}
 
-	if (psxCounters[i].mode & IOPCNT_INT_TOGGLE)
-	{
-		// Toggle mode
-		psxCounters[i].mode ^= IOPCNT_INT_REQ; // Interrupt flag inverted
-	}
+	if (psxCounters[i].mode & IOPCNT_INT_TOGGLE) /* Toggle mode */
+		psxCounters[i].mode ^= IOPCNT_INT_REQ;  /* Interrupt flag inverted */
 	else
-	{
-		psxCounters[i].mode &= ~IOPCNT_INT_REQ; // Interrupt flag set low
-	}
+		psxCounters[i].mode &= ~IOPCNT_INT_REQ; /* Interrupt flag set low */
 
 	return ret;
 }
@@ -200,16 +194,13 @@ static void _rcntTestTarget(int i)
 
 	if (psxCounters[i].mode & IOPCNT_INT_TARGET)
 	{
-		// Target interrupt
+		/* Target interrupt */
 		if (_rcntFireInterrupt(i, false))
 			psxCounters[i].mode |= IOPCNT_INT_CMPFLAG;
 	}
 
-	if (psxCounters[i].mode & IOPCNT_MODE_RESET_CNT)
-	{
-		// Reset on target
+	if (psxCounters[i].mode & IOPCNT_MODE_RESET_CNT) /* Reset on target */
 		psxCounters[i].count -= psxCounters[i].target;
-	}
 	else
 		psxCounters[i].target |= IOPCNT_FUTURE_TARGET;
 }
@@ -223,15 +214,15 @@ static __fi void _rcntTestOverflow(int i)
 
 	if ((psxCounters[i].mode & IOPCNT_INT_OVERFLOW))
 	{
-		// Overflow interrupt
+		/* Overflow interrupt */
 		if (_rcntFireInterrupt(i, true))
-			psxCounters[i].mode |= IOPCNT_INT_OFLWFLAG; // Overflow flag
+			psxCounters[i].mode |= IOPCNT_INT_OFLWFLAG; /* Overflow flag */
 	}
 
-	// Update count.
-	// Count wraps around back to zero, while the target is restored (if not in one shot mode).
-	// (high bit of the target gets set by rcntWtarget when the target is behind
-	// the counter value, and thus should not be flagged until after an overflow)
+	/* Update count.
+	 * Count wraps around back to zero, while the target is restored (if not in one shot mode).
+	 * (high bit of the target gets set by rcntWtarget when the target is behind
+	 * the counter value, and thus should not be flagged until after an overflow) */
 
 	psxCounters[i].count  -= maxTarget + 1;
 	psxCounters[i].target &= maxTarget;
@@ -273,29 +264,27 @@ Gate:
 static void _psxCheckStartGate(int i)
 {
 	if (!(psxCounters[i].mode & IOPCNT_ENABLE_GATE))
-		return; // Ignore Gate
+		return; /* Ignore Gate */
 
 	switch ((psxCounters[i].mode & 0x6) >> 1)
 	{
-		case 0x0: // GATE_ON_count - stop count on gate start:
-			// get the current count at the time of stoppage:
+		case 0x0: /* GATE_ON_count - stop count on gate start:
+			   * get the current count at the time of stoppage: */
 			if (i < 3)
 				psxCounters[i].count = psxRcntRcount16(i);
 			else
 				psxCounters[i].count = psxRcntRcount32(i);
 			psxCounters[i].mode |= IOPCNT_STOPPED;
 			return;
-
-
-		case 0x2: // GATE_ON_Clear_OFF_Start - start counting on gate start, stop on gate end
+		case 0x2: /* GATE_ON_Clear_OFF_Start - start counting on gate start, stop on gate end */
 			psxCounters[i].count = 0;
 			psxCounters[i].startCycle = psxRegs.cycle;
 			psxCounters[i].mode &= ~IOPCNT_STOPPED;
 			break;
-		case 0x1: // GATE_ON_ClearStart - count normally with resets after every end gate
-			  // do nothing - All counting will be done on a need-to-count basis.
-		case 0x3: //GATE_ON_Start - start and count normally on gate end (no restarts or stops or clears)
-			  // do nothing!
+		case 0x1: /* GATE_ON_ClearStart - count normally with resets after every end gate
+			   * do nothing - All counting will be done on a need-to-count basis. */
+		case 0x3: /*GATE_ON_Start - start and count normally on gate end (no restarts or stops or clears)
+			   * do nothing! */
 			return;
 	}
 	_rcntSet(i);
@@ -304,7 +293,7 @@ static void _psxCheckStartGate(int i)
 static void _psxCheckEndGate(int i)
 {
 	if (!(psxCounters[i].mode & IOPCNT_ENABLE_GATE))
-		return; // Ignore Gate
+		return; /* Ignore Gate */
 
 	switch ((psxCounters[i].mode & 0x6) >> 1)
 	{

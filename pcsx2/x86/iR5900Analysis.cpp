@@ -14,8 +14,9 @@
  */
 
 #include "iR5900Analysis.h"
-#include "Memory.h"
-#include "Config.h"
+#include "../Config.h"
+#include "../Memory.h"
+#include "../vtlb.h"
 
 using namespace R5900;
 
@@ -36,7 +37,7 @@ void __fi AnalysisPass::ForEachInstruction(u32 start, u32 end, EEINST* inst_cach
 	EEINST* eeinst = inst_cache;
 	for (u32 apc = start; apc < end; apc += 4, eeinst++)
 	{
-		cpuRegs.code = memRead32(apc);
+		cpuRegs.code = vtlb_memRead32(apc);
 		if (!func(apc, eeinst))
 			break;
 	}

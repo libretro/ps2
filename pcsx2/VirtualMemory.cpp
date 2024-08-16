@@ -20,9 +20,10 @@
 
 #include <cinttypes>
 
-// --------------------------------------------------------------------------------------
-//  VirtualMemoryManager  (implementations)
-// --------------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------------
+ *  VirtualMemoryManager  (implementations)
+ * --------------------------------------------------------------------------------------
+ */
 
 VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uintptr_t base, size_t size, uintptr_t upper_bounds, bool strict)
 	: m_file_handle(nullptr)
@@ -53,8 +54,8 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uintpt
 			HostSys::Munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
-			// Let's try again at an OS-picked memory area, and then hope it meets needed
-			// boundschecking criteria below.
+			/* Let's try again at an OS-picked memory area, and then hope it meets needed
+			 * boundschecking criteria below. */
 			if (base)
 				m_baseptr = static_cast<u8*>(HostSys::MapSharedMemory(m_file_handle, 0, nullptr, reserved_bytes, mode));
 		}
@@ -72,8 +73,8 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uintpt
 			HostSys::Munmap(m_baseptr, reserved_bytes);
 			m_baseptr = 0;
 
-			// Let's try again at an OS-picked memory area, and then hope it meets needed
-			// boundschecking criteria below.
+			/* Let's try again at an OS-picked memory area, and then hope it meets needed
+			 * boundschecking criteria below. */
 			if (base)
 				m_baseptr = static_cast<u8*>(HostSys::Mmap(0, reserved_bytes, mode));
 		}
@@ -130,11 +131,11 @@ static bool VMMMarkPagesAsInUse(std::atomic<bool>* begin, std::atomic<bool>* end
 		bool expected = false;
 		if (!current->compare_exchange_strong(expected, true, std::memory_order_relaxed))
 		{
-			// This was already allocated!  Undo the things we've set until this point
+			/* This was already allocated!  Undo the things we've set until this point */
 			while (--current >= begin)
 			{
-				// In the time we were doing this, someone set one of the things we just set to true back to false
-				// This should never happen, but if it does we'll just stop and hope nothing bad happens
+				/* In the time we were doing this, someone set one of the things we just set to true back to false
+				 * This should never happen, but if it does we'll just stop and hope nothing bad happens */
 				if (!current->compare_exchange_strong(expected, false, std::memory_order_relaxed))
 					return false;
 			}
@@ -182,9 +183,10 @@ void VirtualMemoryManager::Free(void* address, size_t size) const
 	}
 }
 
-// --------------------------------------------------------------------------------------
-//  VirtualMemoryBumpAllocator  (implementations)
-// --------------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------------
+ *  VirtualMemoryBumpAllocator  (implementations)
+ * --------------------------------------------------------------------------------------
+ */
 VirtualMemoryBumpAllocator::VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr allocator, uintptr_t offsetLocation, size_t size)
 	: m_allocator(std::move(allocator))
 	, m_baseptr(m_allocator->Alloc(offsetLocation, size))
@@ -194,30 +196,27 @@ VirtualMemoryBumpAllocator::VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr a
 
 u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
 {
-	if (m_baseptr.load() == 0) // True if constructed from bad VirtualMemoryManager (assertion was on initialization)
+	if (m_baseptr.load() == 0) /* True if constructed from bad VirtualMemoryManager (assertion was on initialization) */
 		return nullptr;
-
 	size_t reservedSize = Common::PageAlign(size);
-
-	u8* out = m_baseptr.fetch_add(reservedSize, std::memory_order_relaxed);
-
-	return out;
+	return m_baseptr.fetch_add(reservedSize, std::memory_order_relaxed);
 }
 
-// --------------------------------------------------------------------------------------
-//  VirtualMemoryReserve  (implementations)
-// --------------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------------
+ *  VirtualMemoryReserve  (implementations)
+ * --------------------------------------------------------------------------------------
+ */
 VirtualMemoryReserve::VirtualMemoryReserve() { }
 VirtualMemoryReserve::~VirtualMemoryReserve() { }
 
-// Notes:
-//  * This method should be called if the object is already in an released (unreserved) state.
-//    Subsequent calls will be ignored, and the existing reserve will be returned.
-//
-// Parameters:
-//   baseptr - the new base pointer that's about to be assigned
-//   size - size of the region pointed to by baseptr
-//
+/* Notes:
+ *  * This method should be called if the object is already in an released (unreserved) state.
+ *    Subsequent calls will be ignored, and the existing reserve will be returned.
+ *
+ * Parameters:
+ *   baseptr - the new base pointer that's about to be assigned
+ *   size - size of the region pointed to by baseptr
+ */
 void VirtualMemoryReserve::Assign(VirtualMemoryManagerPtr allocator, u8* baseptr, size_t size)
 {
 	m_allocator = std::move(allocator);
@@ -245,22 +244,24 @@ void VirtualMemoryReserve::Release()
 	m_size = 0;
 }
 
-// --------------------------------------------------------------------------------------
-//  RecompiledCodeReserve  (implementations)
-// --------------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------------
+ *  RecompiledCodeReserve  (implementations)
+ * --------------------------------------------------------------------------------------
+ */
 
-// Constructor!
-// Parameters:
-//   name - a nice long name that accurately describes the contents of this reserve.
+/* Constructor!
+ * Parameters:
+ *   name - a nice long name that accurately describes the contents of this reserve.
+ */
 RecompiledCodeReserve::RecompiledCodeReserve() : VirtualMemoryReserve() { }
 RecompiledCodeReserve::~RecompiledCodeReserve() { Release(); }
 
 void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {
-	// Anything passed to the memory allocator must be page aligned.
+	/* Anything passed to the memory allocator must be page aligned. */
 	size = Common::PageAlign(size);
 
-	// Since the memory has already been allocated as part of the main memory map, this should never fail.
+	/* Since the memory has already been allocated as part of the main memory map, this should never fail. */
 	u8* base = allocator->Alloc(offset, size);
 	if (!base)
 		Console.Error("(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);

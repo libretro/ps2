@@ -29,13 +29,13 @@
 			return vifCode_Null<idx>(pass, (u32*)data); \
 	}
 
-// TODO/FIXME: Review Flags
+/* TODO/FIXME: Review Flags */
 _vifT static int vifCode_Null(int pass, const u32* data)
 {
 	vifStruct& vifX = GetVifX;
 	pass1
 	{
-		// if ME1, then force the vif to interrupt
+		/* if ME1, then force the vif to interrupt */
 		if (!(vifXRegs.err.ME1))
 		{ // Ignore vifcode and tag mismatch error
 			vifXRegs.stat.ER1 = true;

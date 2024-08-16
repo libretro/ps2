@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// Huge thanks to PSI for his work reversing the PS2, his documentation on SIO2 pretty much saved
-// this entire implementation. https://psi-rockin.github.io/ps2tek/#sio2registers
+/* Huge thanks to PSI for his work reversing the PS2, his documentation on SIO2 pretty much saved
+ * this entire implementation. https://psi-rockin.github.io/ps2tek/#sio2registers */
 
 #pragma once
 
@@ -25,20 +25,20 @@
 struct _mcd
 {
 	u8 currentCommand;
-	u8 term; // terminator value;
+	u8 term; /* terminator value; */
 
-	bool goodSector; // xor sector check
+	bool goodSector; /* XOR sector check */
 	u8 msb;
 	u8 lsb;
-	u32 sectorAddr;  // read/write sector address
-	u32 transferAddr; // Transfer address
+	u32 sectorAddr;  /* read/write sector address */
+	u32 transferAddr; /* Transfer address */
 
-	std::vector<u8> buf; // Buffer for reading and writing
+	std::vector<u8> buf; /* Buffer for reading and writing */
 
-	u8 FLAG;  // for PSX;
+	u8 FLAG;  /* for PSX; */
 
-	u8 port; // port
-	u8 slot; // and slot for this memcard
+	u8 port; /* port */
+	u8 slot; /* and slot for this memcard */
 
 	size_t autoEjectTicks;
 };
@@ -88,7 +88,7 @@ public:
 class Sio2
 {
 public:
-	u32 send3[16];				// 0x1f808200 - 0x1f80823f
+	u32 send3[16];				/* 0x1f808200 - 0x1f80823f */
 	// SEND1 and SEND2 are an unusual bunch. It's not entirely clear just from
 	// documentation but these registers almost seem like they are the same thing;
 	// when bit 2 is set, SEND2 is being read/written. When bit 2 isn't set, it is
@@ -108,9 +108,9 @@ public:
 	u8 port = 0;
 	u8 slot = 0;
 
-	// The current working index of SEND3. The SEND3 register is a 16 position
-	// array of command descriptors. Each descriptor describes the port the command
-	// is targeting, as well as the length of the command in bytes.
+	/* The current working index of SEND3. The SEND3 register is a 16 position
+	 * array of command descriptors. Each descriptor describes the port the command
+	 * is targeting, as well as the length of the command in bytes. */
 	bool send3Read = false;
 	size_t send3Position = 0;
 	size_t commandLength = 0;
@@ -151,13 +151,13 @@ extern Sio2 sio2;
 extern _mcd mcds[2][4];
 extern _mcd *mcd;
 
-/// Converts a global pad index to a multitap port and slot.
+/* Converts a global pad index to a multitap port and slot. */
 extern std::tuple<u32, u32> sioConvertPadToPortAndSlot(u32 index);
 
-/// Converts a multitap port and slot to a global pad index.
+/* Converts a multitap port and slot to a global pad index. */
 extern u32 sioConvertPortAndSlotToPad(u32 port, u32 slot);
 
-/// Returns true if the given pad index is a multitap slot.
+/* Returns true if the given pad index is a multitap slot. */
 extern bool sioPadIsMultitapSlot(u32 index);
 extern bool sioPortAndSlotIsMultitap(u32 port, u32 slot);
 extern void sioSetGameSerial(const std::string& serial);

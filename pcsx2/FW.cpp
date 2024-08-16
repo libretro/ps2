@@ -26,7 +26,7 @@
 #define PHYACC fwRu32(0x8414)
 
 static u8 phyregs[16];
-// Our main memory storage, and defines for accessing it.
+/* Our main memory storage, and defines for accessing it. */
 static s8 fwregs[0x10000];
 
 void FWopen(void)
@@ -70,20 +70,20 @@ u32 FWread32(u32 addr)
 {
 	switch (addr)
 	{
-		//Node ID Register the top part is default, bottom part i got from my ps2
+		/* Node ID Register the top part is default, bottom part i got from my ps2 */
 		case 0x1f808400:
 			return 0xffc00001;
-		//Dunno what this is, but my home console always returns this value 0x10000001
-		//Seems to be related to the Node ID however (does some sort of compare/check)
+		/* Dunno what this is, but my home console always returns this value 0x10000001
+		 * Seems to be related to the Node ID however (does some sort of compare/check) */
 		case 0x1f80847c:
 			return 0x10000001;
-		case 0x1f808410: // Control Register 2 - SCLK OK (Needs to be set when FW is "Ready"
-		case 0x1f808420: // Interrupt 0 Register
-		default:	 // Include other relevant 32 bit addresses we need to catch here.
+		case 0x1f808410: /* Control Register 2 - SCLK OK (Needs to be set when FW is "Ready" */
+		case 0x1f808420: /* Interrupt 0 Register */
+		default:	 /* Include other relevant 32 bit addresses we need to catch here. */
 			break;
 	}
 
-	// By default, read fwregs.
+	/* By default, read fwregs. */
 	return fwRu32(addr);
 }
 
@@ -156,7 +156,7 @@ void FWwrite32(u32 addr, u32 value)
 		//DMA Control and Status Register 1
 		case 0x1f808538:
 		default:
-			// By default, just write it to fwregs.
+			/* By default, just write it to fwregs. */
 			fwRu32(addr) = value;
 			break;
 	}

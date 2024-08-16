@@ -16,6 +16,7 @@
 #include "Common.h"
 
 #include "SPR.h"
+#include "GIF.h"
 #include "VUmicro.h"
 #include "MTVU.h"
 
@@ -23,17 +24,36 @@ static bool spr0finished = false;
 static bool spr1finished = false;
 static u32 mfifotransferred = 0;
 
+/* FIXME: These belong in common with other memcpy tools.  Will move them there later if no one
+ * else beats me to it.  --air */
+static inline void MemCopy_WrappedDest(const u128* src, u128* destBase, uint& destStart, uint destSize, uint len)
+{
+	uint endpos = destStart + len;
+	if (endpos < destSize)
+	{
+		memcpy(&destBase[destStart], src, len * 16);
+		destStart += len;
+	}
+	else
+	{
+		uint firstcopylen = destSize - destStart;
+		memcpy(&destBase[destStart], src, firstcopylen * 16);
+		destStart = endpos % destSize;
+		memcpy(destBase, src + firstcopylen, destStart * 16);
+	}
+}
+
 static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 {
 	if (madr >= 0x11000000 && (madr < 0x11010000))
 	{
-		// Access to VU memory is only allowed when the VU is stopped
-		// Use Psychonauts for testing
+		/* Access to VU memory is only allowed when the VU is stopped
+		 * Use Psychonauts for testing */
 
 		if ((madr < 0x11008000) && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x1))
 		{
 			_vu0FinishMicro();
-			//Catch up VU1 too
+			/* Catch up VU1 too */
 			CpuVU1->ExecuteBlock(0);
 		}
 		if ((madr >= 0x11008000) && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100) && (!THREAD_VU1 || !isWrite))
@@ -43,7 +63,7 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 			else
 				CpuVU1->Execute(vu1RunCycles);
 			cpuRegs.cycle = vuRegs[1].cycle;
-			//Catch up VU0 too
+			/* Catch up VU0 too */
 			CpuVU0->ExecuteBlock(0);
 		}
 
@@ -89,15 +109,15 @@ static void memcpy_from_spr(u8* dst, u32 src, size_t size)
 		memcpy(dst, &psSu128(src), size);
 }
 
-// Note: Dma addresses are guaranteed to be aligned to 16 bytes (128 bits)
+/* Note: DMA addresses are guaranteed to be aligned to 16 bytes (128 bits) */
 static __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 {
-	//For some reason Getaway references SPR Memory from 
-	//itself using SPR0, oh well, let it i guess...
+	/* For some reason Getaway references SPR Memory from 
+	 * itself using SPR0, oh well, let it i guess... */
 	if((addr & 0x70000000) == 0x70000000)
 		return (tDMA_TAG*)&eeMem->Scratch[addr & 0x3ff0];
 
-	// FIXME: Why??? DMA uses physical addresses
+	/* FIXME: Why??? DMA uses physical addresses */
 	addr &= 0x1ffffff0;
 
 	if (addr < Ps2MemSize::MainRam)
@@ -109,7 +129,7 @@ static __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 		if (addr >= 0x11008000 && THREAD_VU1)
 			vu1Thread.WaitVU();
 
-		//Access for VU Memory
+		/* Access for VU Memory */
 
 		if((addr >= 0x1100c000) && (addr < 0x11010000))
 			return (tDMA_TAG*)(vuRegs[1].Mem + (addr & 0x3ff0));
@@ -117,7 +137,7 @@ static __fi tDMA_TAG* SPRdmaGetAddr(u32 addr, bool write)
 		if((addr >= 0x11004000) && (addr < 0x11008000))
 			return (tDMA_TAG*)(vuRegs[0].Mem + (addr & 0xff0));
 
-		//Possibly not needed but the manual doesn't say SPR cannot access it.
+		/* Possibly not needed but the manual doesn't say SPR cannot access it. */
 		if((addr >= 0x11000000) && (addr < 0x11004000))
 			return (tDMA_TAG*)(vuRegs[0].Micro + (addr & 0xff0));
 
@@ -139,46 +159,50 @@ int  _SPR0chain(void)
 	if(spr0ch.madr >= dmacRegs.rbor.ADDR && spr0ch.madr 
 			< (dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16u))
 	{
-		// Shortcut when MFIFO isn't set up with a size (Hitman series)
+		/* Shortcut when MFIFO isn't set up with a size (Hitman series) */
 		if (dmacRegs.rbsr.RMSK == 0) 
 		{
 			spr0ch.madr += spr0ch.qwc << 4;
 			spr0ch.sadr += spr0ch.qwc << 4;
-			spr0ch.sadr &= 0x3FFF; // Limited to 16K
+			spr0ch.sadr &= 0x3FFF; /* Limited to 16K */
 			spr0ch.qwc = 0;
 		}
 		else
 		{
 			partialqwc = std::min(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
 
-			if ((spr0ch.madr & ~dmacRegs.rbsr.RMSK) != dmacRegs.rbor.ADDR) { }
-			else
+			if ((spr0ch.madr & ~dmacRegs.rbsr.RMSK) == dmacRegs.rbor.ADDR) 
 				mfifotransferred += partialqwc;
 
-			hwMFIFOWrite(spr0ch.madr, &psSu128(spr0ch.sadr), partialqwc);
+			if (u128* dst = (u128*)PSM(dmacRegs.rbor.ADDR))
+			{
+				const u32 ringsize = (dmacRegs.rbsr.RMSK / 16) + 1;
+				uint startpos      = (spr0ch.madr & dmacRegs.rbsr.RMSK)/16;
+				MemCopy_WrappedDest(&psSu128(spr0ch.sadr), dst, startpos, ringsize, partialqwc );
+			}
 			spr0ch.madr += partialqwc << 4;
-			spr0ch.madr = dmacRegs.rbor.ADDR + (spr0ch.madr & dmacRegs.rbsr.RMSK);
+			spr0ch.madr  = dmacRegs.rbor.ADDR + (spr0ch.madr & dmacRegs.rbsr.RMSK);
 			spr0ch.sadr += partialqwc << 4;
-			spr0ch.sadr &= 0x3FFF; // Limited to 16K
-			spr0ch.qwc -= partialqwc;
+			spr0ch.sadr &= 0x3FFF; /* Limited to 16K */
+			spr0ch.qwc  -= partialqwc;
 		}
 		spr0finished = true;
 	}
 	else
 	{
 
-		// Taking an arbitary small value for games which 
-		// like to check the QWC/MADR instead of STR, so get most of
-		// the cycle delay out of the way before the end.
+		/* Taking an arbitary small value for games which 
+		 * like to check the QWC/MADR instead of STR, so get most of
+		 * the cycle delay out of the way before the end. */
 		partialqwc = std::min(spr0ch.qwc, 0x400 - ((spr0ch.sadr & 0x3fff) >> 4));
 		memcpy_from_spr((u8*)pMem, spr0ch.sadr, partialqwc*16);
 
-		// Clear VU mem also!
+		/* Clear VU mem also! */
 		TestClearVUs(spr0ch.madr, partialqwc, true);
 
 		spr0ch.madr += partialqwc << 4;
 		spr0ch.sadr += partialqwc << 4;
-		spr0ch.sadr &= 0x3FFF; // Limited to 16K
+		spr0ch.sadr &= 0x3FFF; /* Limited to 16K */
 		spr0ch.qwc -= partialqwc;
 
 	}
@@ -186,7 +210,7 @@ int  _SPR0chain(void)
 	if (spr0ch.qwc == 0 && dmacRegs.ctrl.STS == STS_fromSPR)
 	{
 		if (spr0ch.chcr.MOD == NORMAL_MODE || ((spr0ch.chcr.TAG >> 28) & 0x7) == TAG_CNTS)
-			dmacRegs.stadr.ADDR = spr0ch.madr; // Copy MADR to DMAC_STADR stall addr register
+			dmacRegs.stadr.ADDR = spr0ch.madr; /* Copy MADR to DMAC_STADR stall addr register */
 	}
 
 	return (partialqwc); // Bus is 1/2 the ee speed
@@ -213,34 +237,39 @@ void _SPR0interleave(void)
  		{
 			case MFD_VIF1:
 			case MFD_GIF:
-				hwMFIFOWrite(spr0ch.madr, &psSu128(spr0ch.sadr), spr0ch.qwc);
+				if (u128* dst = (u128*)PSM(dmacRegs.rbor.ADDR))
+				{
+					const u32 ringsize = (dmacRegs.rbsr.RMSK / 16) + 1;
+					uint startpos      = (spr0ch.madr & dmacRegs.rbsr.RMSK)/16;
+					MemCopy_WrappedDest(&psSu128(spr0ch.sadr), dst, startpos, ringsize, spr0ch.qwc );
+				}
 				mfifotransferred += spr0ch.qwc;
 				break;
 
 			case NO_MFD:
 			case MFD_RESERVED:
-				// Clear VU mem also!
+				/* Clear VU mem also! */
 				TestClearVUs(spr0ch.madr, spr0ch.qwc, true);
 				memcpy_from_spr((u8*)pMem, spr0ch.sadr, spr0ch.qwc*16);
 				break;
  		}
 		spr0ch.sadr += spr0ch.qwc * 16;
-		spr0ch.sadr &= 0x3FFF; // Limited to 16K
+		spr0ch.sadr &= 0x3FFF; /* Limited to 16K */
 		spr0ch.madr += (sqwc + spr0ch.qwc) * 16;
 	}
 	if (dmacRegs.ctrl.STS == STS_fromSPR)
-		dmacRegs.stadr.ADDR = spr0ch.madr; // Copy MADR to DMAC_STADR stall addr register
+		dmacRegs.stadr.ADDR = spr0ch.madr; /* Copy MADR to DMAC_STADR stall addr register */
 	spr0ch.qwc = 0;
 }
 
 static __fi void _dmaSPR0(void)
 {
-	// Transfer Dn_QWC from SPR to Dn_MADR
+	/* Transfer Dn_QWC from SPR to Dn_MADR */
 	switch(spr0ch.chcr.MOD)
 	{
 		case NORMAL_MODE:
 		{
-			if (dmacRegs.ctrl.STS == STS_fromSPR) // STS == fromSPR
+			if (dmacRegs.ctrl.STS == STS_fromSPR) /* STS == fromSPR */
 				dmacRegs.stadr.ADDR = spr0ch.madr;
 			int cycles = _SPR0chain() * BIAS;
 			CPU_INT(DMAC_FROM_SPR, cycles);
@@ -292,7 +321,6 @@ static __fi void _dmaSPR0(void)
 			spr0finished = done;
 			break;
 		}
-		//case INTERLEAVE_MODE:
 		default:
 		{
 			_SPR0interleave();
@@ -308,21 +336,33 @@ void SPRFROMinterrupt(void)
 	{
 		_dmaSPR0();
 
-		// The qwc check is simply because having data still to transfer from the packet can freak games out if they do a d.tadr == s.madr check
-		// and there is still data to come over (FF12 ingame menu)
-		if(mfifotransferred != 0 && spr0ch.qwc == 0)
+		/* The qwc check is simply because having data still to transfer from the packet can freak games out if they do a d.tadr == s.madr check
+		 * and there is still data to come over (FF12 ingame menu) */
+		if (mfifotransferred != 0 && spr0ch.qwc == 0)
 		{
-			switch (dmacRegs.ctrl.MFD)
+			if (dmacRegs.ctrl.MFD == MFD_VIF1)
 			{
-				case MFD_VIF1: // Most common case.
-				case MFD_GIF:
+				spr0ch.madr = dmacRegs.rbor.ADDR + (spr0ch.madr & dmacRegs.rbsr.RMSK);
+				if (vif1.inprogress & 0x10)
 				{
-					spr0ch.madr = dmacRegs.rbor.ADDR + (spr0ch.madr & dmacRegs.rbsr.RMSK);
-					hwMFIFOResume(mfifotransferred);
-					break;
+					vif1.inprogress &= ~0x10;
+					//Don't resume if stalled or already looping
+					if (vif1ch.chcr.STR && !(cpuRegs.interrupt & (1 << DMAC_MFIFO_VIF)) && !vif1Regs.stat.INT)
+					{
+						//Need to simulate the time it takes to copy here, if the VIF resumes before the SPR has finished, it isn't happy.
+						CPU_INT(DMAC_MFIFO_VIF, mfifotransferred * BIAS);
+					}
+
 				}
-				default:
-					break;
+			}
+			else if (dmacRegs.ctrl.MFD == MFD_GIF)
+			{
+				spr0ch.madr = dmacRegs.rbor.ADDR + (spr0ch.madr & dmacRegs.rbsr.RMSK);
+				if ((gif.gifstate & GIF_STATE_EMPTY))
+				{
+					CPU_INT(DMAC_MFIFO_GIF, mfifotransferred * BIAS);
+					gif.gifstate = GIF_STATE_READY;
+				}
 			}
 
 			mfifotransferred = 0;
@@ -335,7 +375,7 @@ void SPRFROMinterrupt(void)
 	hwDmacIrq(DMAC_FROM_SPR);
 }
 
-void dmaSPR0(void)   // fromSPR
+void dmaSPR0(void)   /* fromSPR */
 {
 	spr0finished = false; //Init
 
@@ -398,19 +438,19 @@ void _SPR1interleave(void)
 		pMem = SPRdmaGetAddr(spr1ch.madr, false);
 		memcpy_to_spr(spr1ch.sadr, (u8*)pMem, spr1ch.qwc*16);
 		spr1ch.sadr += spr1ch.qwc * 16;
-		spr1ch.sadr &= 0x3FFF; // Limited to 16K
+		spr1ch.sadr &= 0x3FFF; /* Limited to 16K */
 		spr1ch.madr += (sqwc + spr1ch.qwc) * 16;
 	}
 
 	spr1ch.qwc = 0;
 }
 
-void _dmaSPR1(void)   // toSPR work function
+void _dmaSPR1(void)   /* toSPR work function */
 {
 	switch(spr1ch.chcr.MOD)
 	{
 		case NORMAL_MODE:
-			// Transfer Dn_QWC from Dn_MADR to SPR1
+			/* Transfer Dn_QWC from Dn_MADR to SPR1 */
 			{
 				int cycles =  _SPR1chain() * BIAS;
 				CPU_INT(DMAC_TO_SPR, cycles);
@@ -424,14 +464,14 @@ void _dmaSPR1(void)   // toSPR work function
 
 			if (spr1ch.qwc > 0)
 			{
-				// Transfer Dn_QWC from Dn_MADR to SPR1
+				/* Transfer Dn_QWC from Dn_MADR to SPR1 */
 				int cycles =  _SPR1chain() * BIAS;
 				CPU_INT(DMAC_TO_SPR, cycles);
 				return;
 			}
-			// Chain Mode
+			/* Chain Mode */
 
-			ptag = SPRdmaGetAddr(spr1ch.tadr, false); // Set memory pointer to TADR
+			ptag = SPRdmaGetAddr(spr1ch.tadr, false); /* Set memory pointer to TADR */
 
 			if (!spr1ch.transfer(ptag))
 			{
@@ -439,26 +479,25 @@ void _dmaSPR1(void)   // toSPR work function
 				spr1finished = done;
 			}
 
-			spr1ch.madr = ptag[1]._u32;	// MADR = ADDR field + SPR
+			spr1ch.madr = ptag[1]._u32;	/* MADR = ADDR field + SPR */
 
-			// Transfer dma tag if tte is set
+			/* Transfer DMA tag if tte is set */
 			if (spr1ch.chcr.TTE)
-				SPR1transfer(ptag, 1); // Transfer Tag
+				SPR1transfer(ptag, 1); /* Transfer Tag */
 
 			done = hwDmacSrcChain(spr1ch, ptag->ID);
 			{
 				int cycles =  _SPR1chain() * BIAS;
 				CPU_INT(DMAC_TO_SPR, cycles);
-				// Transfers the data set by the switch
+				/* Transfers the data set by the switch */
 			}
 
-			if (spr1ch.chcr.TIE && ptag->IRQ) // Check TIE bit of CHCR and IRQ bit of tag
+			if (spr1ch.chcr.TIE && ptag->IRQ) /* Check TIE bit of CHCR and IRQ bit of tag */
 				done = true;
 
 			spr1finished = done;
 			break;
 		}
-		//case INTERLEAVE_MODE:
 		default:
 		{
 			_SPR1interleave();
@@ -468,9 +507,9 @@ void _dmaSPR1(void)   // toSPR work function
 	}
 }
 
-void dmaSPR1(void)   // toSPR
+void dmaSPR1(void)   /* toSPR */
 {
-	spr1finished = false; // Init
+	spr1finished = false; /* Init */
 
 	if(spr1ch.chcr.MOD == CHAIN_MODE && spr1ch.qwc > 0)
 	{

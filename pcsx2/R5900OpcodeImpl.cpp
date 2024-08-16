@@ -469,14 +469,14 @@ void DSRLV(void){ if (_Rd_) cpuRegs.GPR.r[_Rd_].UD[0] = (uint64_t)(cpuRegs.GPR.r
 void LB(void)
 {
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	int8_t temp   = memRead8(addr);
+	int8_t temp   = vtlb_memRead8(addr);
 	if (_Rt_) cpuRegs.GPR.r[_Rt_].SD[0] = temp;
 }
 
 void LBU(void)
 {
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	uint8_t temp  = memRead8(addr);
+	uint8_t temp  = vtlb_memRead8(addr);
 	if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = temp;
 }
 
@@ -488,7 +488,7 @@ void LH(void)
 	if (unlikely(addr & 1))
 		Cpu->CancelInstruction();
 
-	temp = memRead16(addr);
+	temp = vtlb_memRead16(addr);
 	if (_Rt_) cpuRegs.GPR.r[_Rt_].SD[0] = temp;
 }
 
@@ -500,7 +500,7 @@ void LHU(void)
 	if (unlikely(addr & 1))
 		Cpu->CancelInstruction();
 
-	temp = memRead16(addr);
+	temp = vtlb_memRead16(addr);
 	if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = temp;
 }
 
@@ -512,7 +512,7 @@ void LW(void)
 	if (unlikely(addr & 3))
 		Cpu->CancelInstruction();
 
-	temp = memRead32(addr);
+	temp = vtlb_memRead32(addr);
 
 	if (_Rt_)
 		cpuRegs.GPR.r[_Rt_].SD[0] = (int32_t)temp;
@@ -526,7 +526,7 @@ void LWU(void)
 	if (unlikely(addr & 3))
 		Cpu->CancelInstruction();
 
-	temp = memRead32(addr);
+	temp = vtlb_memRead32(addr);
 
 	if (_Rt_)
 		cpuRegs.GPR.r[_Rt_].UD[0] = temp;
@@ -538,7 +538,7 @@ void LWL(void)
 	static const uint8_t LWL_SHIFT[4] = { 24, 16, 8, 0 };
 	int32_t addr                      = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	uint32_t shift                    = addr & 3;
-	uint32_t mem                      = memRead32(addr & ~3);
+	uint32_t mem                      = vtlb_memRead32(addr & ~3);
 
 	/* ensure the compiler does correct sign extension into 64 bits by using int32_t */
 	if (_Rt_)
@@ -562,7 +562,7 @@ void LWR(void)
 	static const u8 LWR_SHIFT[4] = { 0, 8, 16, 24 };
 	int32_t addr   = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	uint32_t shift = addr & 3;
-	uint32_t mem   = memRead32(addr & ~3);
+	uint32_t mem   = vtlb_memRead32(addr & ~3);
 
 	if (!_Rt_) return;
 
@@ -603,7 +603,7 @@ void LD(void)
 	if (unlikely(addr & 7))
 		Cpu->CancelInstruction();
 
-	cpuRegs.GPR.r[_Rt_].UD[0] = memRead64(addr);
+	cpuRegs.GPR.r[_Rt_].UD[0] = vtlb_memRead64(addr);
 }
 
 
@@ -616,7 +616,7 @@ void LDL(void)
 	static const u8 LDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
 	uint32_t addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	uint32_t shift = addr & 7;
-	uint64_t mem   = memRead64(addr & ~7);
+	uint64_t mem   = vtlb_memRead64(addr & ~7);
 	if(_Rt_ )
 		cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDL_MASK[shift]) |
 			(mem << LDL_SHIFT[shift]);
@@ -631,7 +631,7 @@ void LDR(void)
 	static const u8 LDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
 	uint32_t addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	uint32_t shift = addr & 7;
-	uint64_t mem   = memRead64(addr & ~7);
+	uint64_t mem   = vtlb_memRead64(addr & ~7);
 	if (_Rt_)
 		cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDR_MASK[shift]) |
 			(mem >> LDR_SHIFT[shift]);
@@ -648,7 +648,7 @@ void LQ(void)
 void SB(void)
 {
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	memWrite8(addr, cpuRegs.GPR.r[_Rt_].UC[0]);
+	vtlb_memWrite8(addr, cpuRegs.GPR.r[_Rt_].UC[0]);
 }
 
 void SH(void)
@@ -658,7 +658,7 @@ void SH(void)
 	if (unlikely(addr & 1))
 		Cpu->CancelInstruction();
 
-	memWrite16(addr, cpuRegs.GPR.r[_Rt_].US[0]);
+	vtlb_memWrite16(addr, cpuRegs.GPR.r[_Rt_].US[0]);
 }
 
 void SW(void)
@@ -668,7 +668,7 @@ void SW(void)
 	if (unlikely(addr & 3))
 		Cpu->CancelInstruction();
 
-	memWrite32(addr, cpuRegs.GPR.r[_Rt_].UL[0]);
+	vtlb_memWrite32(addr, cpuRegs.GPR.r[_Rt_].UL[0]);
 }
 
 void SWL(void)
@@ -677,8 +677,8 @@ void SWL(void)
 	static const u8 SWL_SHIFT[4] = { 24, 16, 8, 0 };
 	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-	u32 mem   = memRead32( addr & ~3 );
-	memWrite32( addr & ~3,
+	u32 mem   = vtlb_memRead32( addr & ~3 );
+	vtlb_memWrite32( addr & ~3,
 		  (cpuRegs.GPR.r[_Rt_].UL[0] >> SWL_SHIFT[shift])
 		| (mem & SWL_MASK[shift])
 	);
@@ -699,8 +699,8 @@ void SWR(void)
 	static const u8 SWR_SHIFT[4] = { 0, 8, 16, 24 };
 	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-	u32 mem   = memRead32(addr & ~3);
-	memWrite32( addr & ~3,
+	u32 mem   = vtlb_memRead32(addr & ~3);
+	vtlb_memWrite32( addr & ~3,
 		(cpuRegs.GPR.r[_Rt_].UL[0] << SWR_SHIFT[shift]) |
 		(mem & SWR_MASK[shift])
 	);
@@ -722,7 +722,7 @@ void SD()
 	if (unlikely(addr & 7))
 		Cpu->CancelInstruction();
 
-	memWrite64(addr,cpuRegs.GPR.r[_Rt_].UD[0]);
+	vtlb_memWrite64(addr,cpuRegs.GPR.r[_Rt_].UD[0]);
 }
 
 
@@ -735,10 +735,10 @@ void SDL()
 	static const u8 SDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
 	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 7;
-	u64 mem   = memRead64(addr & ~7);
+	u64 mem   = vtlb_memRead64(addr & ~7);
 	mem       = (cpuRegs.GPR.r[_Rt_].UD[0] >> SDL_SHIFT[shift]) |
 		    (mem & SDL_MASK[shift]);
-	memWrite64(addr & ~7, mem);
+	vtlb_memWrite64(addr & ~7, mem);
 }
 
 
@@ -751,10 +751,10 @@ void SDR()
 	static const u8 SDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
 	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 7;
-	u64 mem   = memRead64(addr & ~7);
+	u64 mem   = vtlb_memRead64(addr & ~7);
 	mem       = (cpuRegs.GPR.r[_Rt_].UD[0] << SDR_SHIFT[shift]) |
 		    (mem & SDR_MASK[shift]);
-	memWrite64(addr & ~7, mem );
+	vtlb_memWrite64(addr & ~7, mem );
 }
 
 void SQ(void)
@@ -878,7 +878,7 @@ void SYSCALL(void)
 				osdconf |= (u32)(params[2] & 0x1F) << 16;		// Language
 				osdconf |= timezone << 21;				// Timezone
 
-				memWrite32(memaddr, osdconf);
+				vtlb_memWrite32(memaddr, osdconf);
 				return;
 			}
 			break;
@@ -895,7 +895,7 @@ void SYSCALL(void)
 
 				u32 osdconf2 = (((u32)params[3] & 0x78) << 9);  // Daylight Savings, 24hr clock, Date format
 
-				memWrite32(memaddr, osdconf2);
+				vtlb_memWrite32(memaddr, osdconf2);
 				return;
 			}
 			break;
@@ -913,9 +913,9 @@ void SYSCALL(void)
 				while (offset < 0x5000) /* I find that the instructions are in between 0x4000 -> 0x5000 */
 				{
 					uint32_t        addr = 0x80000000 + offset;
-					const uint32_t inst1 = memRead32(addr);
-					const uint32_t inst2 = memRead32(addr += 4);
-					const uint32_t inst3 = memRead32(addr += 4);
+					const uint32_t inst1 = vtlb_memRead32(addr);
+					const uint32_t inst2 = vtlb_memRead32(addr += 4);
+					const uint32_t inst3 = vtlb_memRead32(addr += 4);
 
 					if (       ThreadListInstructions[0] == inst1  /* sw v0,0x0(v0) */
 						&& ThreadListInstructions[1] == inst2  /* no-op */
@@ -923,7 +923,7 @@ void SYSCALL(void)
 					{
 						// We've found the instruction pattern!
 						// We (well, I) know that the thread address is always 0x8001 + the immediate of the 6th instruction from here
-						const uint32_t op = memRead32(0x80000000 + offset + (sizeof(u32) * 6));
+						const uint32_t op = vtlb_memRead32(0x80000000 + offset + (sizeof(u32) * 6));
 						CurrentBiosInformation.eeThreadListAddr = 0x80010000 + static_cast<u16>(op) - 8; // Subtract 8 because the address here is offset by 8.
 						break;
 					}

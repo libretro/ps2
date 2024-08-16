@@ -15,20 +15,20 @@
 
 #include "Common.h"
 #include "CDVD/CDVD.h"
-#include "Elfheader.h"
-#include "GS.h"
-#include "Memory.h"
-#include "Patch.h"
-#include "R3000A.h"
+#include "../../Elfheader.h"
+#include "../../GS.h"
+#include "../../Memory.h"
+#include "../../Patch.h"
+#include "../../R3000A.h"
 
-#include "R5900OpcodeTables.h"
-#include "VMManager.h"
-#include "VirtualMemory.h"
-#include "vtlb.h"
+#include "../../R5900OpcodeTables.h"
+#include "../../VMManager.h"
+#include "../../VirtualMemory.h"
+#include "../../vtlb.h"
 
-#include "x86/BaseblockEx.h"
-#include "x86/iR5900.h"
-#include "x86/iR5900Analysis.h"
+#include "../BaseblockEx.h"
+#include "../iR5900.h"
+#include "../iR5900Analysis.h"
 
 #include "common/AlignedMalloc.h"
 #include "common/FastJmp.h"
@@ -1418,7 +1418,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 			int cycles = COP2DivUnitTimings(cpuRegs.code);
 			for (u32 p = pc; cycles > 0 && p < s_nEndBlock; p += 4, cycles--)
 			{
-				cpuRegs.code = memRead32(p);
+				cpuRegs.code = vtlb_memRead32(p);
 
 				if ((_Opcode_ == 022) && (cpuRegs.code & 0x7FC) == 0x3BC) // WaitQ or another DIV op hit (stalled), we're safe
 					break;
@@ -1434,7 +1434,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 			for (u32 p = pc; s != 0 && p < s_nEndBlock && all_count < 10 && cop2m_count < 5 && cop2o_count < 4; p += 4)
 			{
 				// I am so sorry.
-				cpuRegs.code = memRead32(p);
+				cpuRegs.code = vtlb_memRead32(p);
 				if (_Opcode_ == 022 && _Rs_ == 2) // CFC2
 					// rd is fs
 					if ((_Rd_ == 16 && s & 1) || (_Rd_ == 17 && s & 2) || (_Rd_ == 18 && s & 4))
@@ -1552,14 +1552,14 @@ static bool skipMPEG_By_Pattern(u32 sPC)
 		return 0;
 
 	// sceMpegIsEnd: lw reg, 0x40(a0); jr ra; lw v0, 0(reg)
-	if ((s_nEndBlock == sPC + 12) && (memRead32(sPC + 4) == 0x03e00008))
+	if ((s_nEndBlock == sPC + 12) && (vtlb_memRead32(sPC + 4) == 0x03e00008))
 	{
-		u32 code = memRead32(sPC);
+		u32 code = vtlb_memRead32(sPC);
 		u32 p1 = 0x8c800040;
 		u32 p2 = 0x8c020000 | (code & 0x1f0000) << 5;
 		if ((code & 0xffe0ffff) != p1)
 			return 0;
-		if (memRead32(sPC + 8) != p2)
+		if (vtlb_memRead32(sPC + 8) != p2)
 			return 0;
 		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[0]], 1);
 		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[1]], 0);
@@ -1648,7 +1648,7 @@ static void recRecompile(const u32 startpc)
 	if (HWADDR(startpc) == EELOAD_START)
 	{
 		// The EELOAD _start function is the same across all BIOS versions
-		u32 mainjump = memRead32(EELOAD_START + 0x9c);
+		u32 mainjump = vtlb_memRead32(EELOAD_START + 0x9c);
 		if (mainjump >> 26 == 3) // JAL
 			g_eeloadMain = ((EELOAD_START + 0xa0) & 0xf0000000U) | (mainjump << 2 & 0x0fffffffU);
 	}
@@ -1660,10 +1660,10 @@ static void recRecompile(const u32 startpc)
 		{
 			// There are four known versions of EELOAD, identifiable by the location of the 'jal' to the EELOAD function which
 			// calls ExecPS2(). The function itself is at the same address in all BIOSs after v1.00-v1.10.
-			const u32 typeAexecjump = memRead32(EELOAD_START + 0x470); // v1.00, v1.01?, v1.10?
-			const u32 typeBexecjump = memRead32(EELOAD_START + 0x5B0); // v1.20, v1.50, v1.60 (3000x models)
-			const u32 typeCexecjump = memRead32(EELOAD_START + 0x618); // v1.60 (3900x models)
-			const u32 typeDexecjump = memRead32(EELOAD_START + 0x600); // v1.70, v1.90, v2.00, v2.20, v2.30
+			const u32 typeAexecjump = vtlb_memRead32(EELOAD_START + 0x470); // v1.00, v1.01?, v1.10?
+			const u32 typeBexecjump = vtlb_memRead32(EELOAD_START + 0x5B0); // v1.20, v1.50, v1.60 (3000x models)
+			const u32 typeCexecjump = vtlb_memRead32(EELOAD_START + 0x618); // v1.60 (3900x models)
+			const u32 typeDexecjump = vtlb_memRead32(EELOAD_START + 0x600); // v1.70, v1.90, v2.00, v2.20, v2.30
 			if ((typeBexecjump >> 26 == 3) || (typeCexecjump >> 26 == 3) || (typeDexecjump >> 26 == 3)) // JAL to 0x822B8
 				g_eeloadExec = EELOAD_START + 0x2B8;
 			else if (typeAexecjump >> 26 == 3) // JAL to 0x82170
@@ -1761,7 +1761,7 @@ static void recRecompile(const u32 startpc)
 			else if ((cpuRegs.code >> 26) == 5)
 			{
 				// bne
-				if (timeout_reg != static_cast<s32>(_Rs_) || _Rt_ != 0 || memRead32(i + 4) != 0)
+				if (timeout_reg != static_cast<s32>(_Rs_) || _Rt_ != 0 || vtlb_memRead32(i + 4) != 0)
 					is_timeout_loop = false;
 			}
 			else if (cpuRegs.code != 0)

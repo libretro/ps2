@@ -83,66 +83,58 @@ static bool isValidAddress(u32 addr)
 
 u32 R5900DebugInterface::read8(u32 address)
 {
-	if (!isValidAddress(address))
-		return -1;
-
-	return memRead8(address);
+	if (isValidAddress(address))
+		return vtlb_memRead8(address);
+	return -1;
 }
 
 u32 R5900DebugInterface::read8(u32 address, bool& valid)
 {
-	if (!(valid = isValidAddress(address)))
-		return -1;
-
-	return memRead8(address);
+	if ((valid = isValidAddress(address)))
+		return vtlb_memRead8(address);
+	return -1;
 }
 
 u32 R5900DebugInterface::read16(u32 address)
 {
 	if (!isValidAddress(address) || address % 2)
 		return -1;
-
-	return memRead16(address);
+	return vtlb_memRead16(address);
 }
 
 u32 R5900DebugInterface::read16(u32 address, bool& valid)
 {
 	if (!(valid = (isValidAddress(address) || address % 2)))
 		return -1;
-
-	return memRead16(address);
+	return vtlb_memRead16(address);
 }
 
 u32 R5900DebugInterface::read32(u32 address)
 {
 	if (!isValidAddress(address) || address % 4)
 		return -1;
-
-	return memRead32(address);
+	return vtlb_memRead32(address);
 }
 
 u32 R5900DebugInterface::read32(u32 address, bool& valid)
 {
 	if (!(valid = (isValidAddress(address) || address % 4)))
 		return -1;
-
-	return memRead32(address);
+	return vtlb_memRead32(address);
 }
 
 u64 R5900DebugInterface::read64(u32 address)
 {
 	if (!isValidAddress(address) || address % 8)
 		return -1;
-
-	return memRead64(address);
+	return vtlb_memRead64(address);
 }
 
 u64 R5900DebugInterface::read64(u32 address, bool& valid)
 {
 	if (!(valid = (isValidAddress(address) || address % 8)))
 		return -1;
-
-	return memRead64(address);
+	return vtlb_memRead64(address);
 }
 
 u128 R5900DebugInterface::read128(u32 address)
@@ -158,11 +150,11 @@ u128 R5900DebugInterface::read128(u32 address)
 void R5900DebugInterface::write8(u32 address, u8 value)
 {
 	if (isValidAddress(address))
-		memWrite8(address, value);
+		vtlb_memWrite8(address, value);
 }
 
 void R5900DebugInterface::write32(u32 address, u32 value)
 {
 	if (isValidAddress(address))
-		memWrite32(address, value);
+		vtlb_memWrite32(address, value);
 }

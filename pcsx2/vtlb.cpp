@@ -61,15 +61,15 @@ static vtlbHandler UnmappedPhyHandler;
 
 struct FastmemVirtualMapping
 {
-	u32 offset;
-	u32 size;
+	uint32_t offset;
+	uint32_t size;
 };
 
 struct LoadstoreBackpatchInfo
 {
-	u32 guest_pc;
-	u32 gpr_bitmask;
-	u32 fpr_bitmask;
+	uint32_t guest_pc;
+	uint32_t gpr_bitmask;
+	uint32_t fpr_bitmask;
 	u8 code_size;
 	u8 address_register;
 	u8 data_register;
@@ -80,11 +80,11 @@ struct LoadstoreBackpatchInfo
 };
 
 static constexpr size_t FASTMEM_AREA_SIZE = 0x100000000ULL;
-static constexpr u32 FASTMEM_PAGE_COUNT = FASTMEM_AREA_SIZE / VTLB_PAGE_SIZE;
-static constexpr u32 NO_FASTMEM_MAPPING = 0xFFFFFFFFu;
+static constexpr uint32_t FASTMEM_PAGE_COUNT = FASTMEM_AREA_SIZE / VTLB_PAGE_SIZE;
+static constexpr uint32_t NO_FASTMEM_MAPPING = 0xFFFFFFFFu;
 
 static std::unique_ptr<SharedMemoryMappingArea> s_fastmem_area;
-static std::vector<u32> s_fastmem_virtual_mapping; // maps vaddr -> mainmem offset
+static std::vector<uint32_t> s_fastmem_virtual_mapping; // maps vaddr -> mainmem offset
 static std::unordered_multimap<u32, u32> s_fastmem_physical_mapping; // maps mainmem offset -> vaddr
 static std::unordered_map<uintptr_t, LoadstoreBackpatchInfo> s_fastmem_backpatch_info;
 static std::unordered_set<u32> s_fastmem_faulting_pcs;
@@ -107,11 +107,11 @@ vtlb_private::VTLBVirtual::VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr)
 		value = phys.raw() - vaddr;
 }
 
-static __inline int CheckCache(u32 addr)
+static __inline int CheckCache(uint32_t addr)
 {
 	if (((cpuRegs.CP0.n.Config >> 16) & 0x1) != 0)
 	{
-		u32 mask;
+		uint32_t mask;
 		for (int i = 1; i < 48; i++)
 		{
 			if (((tlb[i].EntryLo1 & 0x38) >> 3) == 0x3)
@@ -137,121 +137,161 @@ static __inline int CheckCache(u32 addr)
 // --------------------------------------------------------------------------------------
 // See recVTLB.cpp for the dynarec versions.
 
-template <typename DataType>
-DataType vtlb_memRead(u32 addr)
+mem8_t vtlb_memRead8(uint32_t addr)
 {
-	static const uint DataSize = sizeof(DataType) * 8;
+	static const uint DataSize = sizeof(mem8_t) * 8;
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
 	if (!vmv.isHandler(addr))
 	{
-		if (!CHECK_EEREC)
-		{
-			if (CHECK_CACHE && CheckCache(addr))
-			{
-				switch (DataSize)
-				{
-					case 8:
-						return readCache8(addr);
-					case 16:
-						return readCache16(addr);
-					case 32:
-						return readCache32(addr);
-					case 64:
-						return readCache64(addr);
-					default:
-						break;
-				}
-			}
-		}
+		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+			return readCache8(addr);
 
-		return *reinterpret_cast<DataType*>(vmv.assumePtr(addr));
+		return *reinterpret_cast<mem8_t*>(vmv.assumePtr(addr));
+	}
+	//has to: translate, find function, call function
+	uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+	return vmv.assumeHandler<8, false>()(paddr);
+}
+
+mem16_t vtlb_memRead16(uint32_t addr)
+{
+	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+
+	if (!vmv.isHandler(addr))
+	{
+		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+			return readCache16(addr);
+		return *reinterpret_cast<mem16_t*>(vmv.assumePtr(addr));
 	}
 
 	//has to: translate, find function, call function
-	u32 paddr = vmv.assumeHandlerGetPAddr(addr);
-
-	switch (DataSize)
-	{
-		case 8:
-			return vmv.assumeHandler<8, false>()(paddr);
-		case 16:
-			return vmv.assumeHandler<16, false>()(paddr);
-		case 32:
-			return vmv.assumeHandler<32, false>()(paddr);
-		case 64:
-			return vmv.assumeHandler<64, false>()(paddr);
-		default:
-			break;
-	}
-
-	return 0; // technically unreachable, but suppresses warnings.
+	uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+	return vmv.assumeHandler<16, false>()(paddr);
 }
 
-RETURNS_R128 vtlb_memRead128(u32 mem)
+mem32_t vtlb_memRead32(uint32_t addr)
 {
-	auto vmv = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
-
-	if (!vmv.isHandler(mem))
-	{
-		if (!CHECK_EEREC)
-		{
-			if (CHECK_CACHE && CheckCache(mem))
-				return readCache128(mem);
-		}
-
-		return r128_load(reinterpret_cast<const void*>(vmv.assumePtr(mem)));
-	}
-	else
-	{
-		//has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(mem);
-		return vmv.assumeHandler<128, false>()(paddr);
-	}
-}
-
-template <typename DataType>
-void vtlb_memWrite(u32 addr, DataType data)
-{
-	static const uint DataSize = sizeof(DataType) * 8;
-
 	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 
 	if (!vmv.isHandler(addr))
 	{
-		if (!CHECK_EEREC)
-		{
-			if (CHECK_CACHE && CheckCache(addr))
-			{
-				switch (DataSize)
-				{
-					case 8:
-						writeCache8(addr, data);
-						return;
-					case 16:
-						writeCache16(addr, data);
-						return;
-					case 32:
-						writeCache32(addr, data);
-						return;
-					case 64:
-						writeCache64(addr, data);
-						return;
-				}
-			}
-		}
+		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+			return readCache32(addr);
 
-		*reinterpret_cast<DataType*>(vmv.assumePtr(addr)) = data;
+		return *reinterpret_cast<mem32_t*>(vmv.assumePtr(addr));
 	}
-	else
-	{
-		//has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr);
-		return vmv.assumeHandler<sizeof(DataType) * 8, true>()(paddr, data);
-	}
+
+	//has to: translate, find function, call function
+	uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+	return vmv.assumeHandler<32, false>()(paddr);
 }
 
-void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value)
+mem64_t vtlb_memRead64(uint32_t addr)
+{
+	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+
+	if (!vmv.isHandler(addr))
+	{
+		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+			return readCache64(addr);
+
+		return *reinterpret_cast<mem64_t*>(vmv.assumePtr(addr));
+	}
+
+	//has to: translate, find function, call function
+	uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+	return vmv.assumeHandler<64, false>()(paddr);
+}
+
+RETURNS_R128 vtlb_memRead128(uint32_t mem)
+{
+	auto vmv = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
+
+	if (vmv.isHandler(mem))
+	{
+		//has to: translate, find function, call function
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(mem);
+		return vmv.assumeHandler<128, false>()(paddr);
+	}
+	if (!CHECK_EEREC)
+	{
+		if (CHECK_CACHE && CheckCache(mem))
+			return readCache128(mem);
+	}
+
+	return r128_load(reinterpret_cast<const void*>(vmv.assumePtr(mem)));
+}
+
+void vtlb_memWrite8(uint32_t addr, mem8_t data)
+{
+	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+
+	if (vmv.isHandler(addr))
+	{
+		//has to: translate, find function, call function
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+		return vmv.assumeHandler<sizeof(mem8_t) * 8, true>()(paddr, data);
+	}
+
+	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+		writeCache8(addr, data);
+
+	*reinterpret_cast<mem8_t*>(vmv.assumePtr(addr)) = data;
+}
+
+void vtlb_memWrite16(uint32_t addr, mem16_t data)
+{
+	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+
+	if (vmv.isHandler(addr))
+	{
+		//has to: translate, find function, call function
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+		return vmv.assumeHandler<sizeof(mem16_t) * 8, true>()(paddr, data);
+	}
+
+	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+		writeCache16(addr, data);
+
+	*reinterpret_cast<mem16_t*>(vmv.assumePtr(addr)) = data;
+}
+
+void vtlb_memWrite32(uint32_t addr, mem32_t data)
+{
+	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+
+	if (vmv.isHandler(addr))
+	{
+		//has to: translate, find function, call function
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+		return vmv.assumeHandler<sizeof(mem32_t) * 8, true>()(paddr, data);
+	}
+
+	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+		writeCache32(addr, data);
+
+	*reinterpret_cast<mem32_t*>(vmv.assumePtr(addr)) = data;
+}
+
+void vtlb_memWrite64(uint32_t addr, mem64_t data)
+{
+	auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+
+	if (vmv.isHandler(addr))
+	{
+		//has to: translate, find function, call function
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr);
+		return vmv.assumeHandler<sizeof(mem64_t) * 8, true>()(paddr, data);
+	}
+
+	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
+		writeCache64(addr, data);
+
+	*reinterpret_cast<mem64_t*>(vmv.assumePtr(addr)) = data;
+}
+
+void TAKES_R128 vtlb_memWrite128(uint32_t mem, r128 value)
 {
 	auto vmv = vtlbdata.vmap[mem >> VTLB_PAGE_BITS];
 
@@ -272,56 +312,110 @@ void TAKES_R128 vtlb_memWrite128(u32 mem, r128 value)
 	else
 	{
 		//has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(mem);
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(mem);
 		vmv.assumeHandler<128, true>()(paddr, value);
 	}
 }
 
-template mem8_t vtlb_memRead<mem8_t>(u32 mem);
-template mem16_t vtlb_memRead<mem16_t>(u32 mem);
-template mem32_t vtlb_memRead<mem32_t>(u32 mem);
-template mem64_t vtlb_memRead<mem64_t>(u32 mem);
-template void vtlb_memWrite<mem8_t>(u32 mem, mem8_t data);
-template void vtlb_memWrite<mem16_t>(u32 mem, mem16_t data);
-template void vtlb_memWrite<mem32_t>(u32 mem, mem32_t data);
-template void vtlb_memWrite<mem64_t>(u32 mem, mem64_t data);
-
-template <typename DataType>
-bool vtlb_ramRead(u32 addr, DataType* value)
+bool vtlb_ramRead8(u32 addr, mem8_t* value)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 	{
-		memset(value, 0, sizeof(DataType));
+		memset(value, 0, sizeof(mem8_t));
 		return false;
 	}
-
-	memcpy(value, reinterpret_cast<DataType*>(vmv.assumePtr(addr)), sizeof(DataType));
+	memcpy(value, reinterpret_cast<mem8_t*>(vmv.assumePtr(addr)), sizeof(mem8_t));
 	return true;
 }
 
-template <typename DataType>
-bool vtlb_ramWrite(u32 addr, const DataType& data)
+bool vtlb_ramRead16(u32 addr, mem16_t* value)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+	{
+		memset(value, 0, sizeof(mem16_t));
+		return false;
+	}
+
+	memcpy(value, reinterpret_cast<mem16_t*>(vmv.assumePtr(addr)), sizeof(mem16_t));
+	return true;
+}
+
+bool vtlb_ramRead32(u32 addr, mem32_t* value)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+	{
+		memset(value, 0, sizeof(mem32_t));
+		return false;
+	}
+
+	memcpy(value, reinterpret_cast<mem32_t*>(vmv.assumePtr(addr)), sizeof(mem32_t));
+	return true;
+}
+
+bool vtlb_ramRead64(u32 addr, mem64_t* value)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+	{
+		memset(value, 0, sizeof(mem64_t));
+		return false;
+	}
+
+	memcpy(value, reinterpret_cast<mem64_t*>(vmv.assumePtr(addr)), sizeof(mem64_t));
+	return true;
+}
+
+bool vtlb_ramWrite8(u32 addr, const mem8_t& data)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+		return false;
+	memcpy(reinterpret_cast<mem8_t*>(vmv.assumePtr(addr)), &data, sizeof(mem8_t));
+	return true;
+}
+
+bool vtlb_ramWrite16(u32 addr, const mem16_t& data)
 {
 	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr))
 		return false;
 
-	memcpy(reinterpret_cast<DataType*>(vmv.assumePtr(addr)), &data, sizeof(DataType));
+	memcpy(reinterpret_cast<mem16_t*>(vmv.assumePtr(addr)), &data, sizeof(mem16_t));
 	return true;
 }
 
+bool vtlb_ramWrite32(u32 addr, const mem32_t& data)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+		return false;
 
-template bool vtlb_ramRead<mem8_t>(u32 mem, mem8_t* value);
-template bool vtlb_ramRead<mem16_t>(u32 mem, mem16_t* value);
-template bool vtlb_ramRead<mem32_t>(u32 mem, mem32_t* value);
-template bool vtlb_ramRead<mem64_t>(u32 mem, mem64_t* value);
-template bool vtlb_ramRead<mem128_t>(u32 mem, mem128_t* value);
-template bool vtlb_ramWrite<mem8_t>(u32 mem, const mem8_t& data);
-template bool vtlb_ramWrite<mem16_t>(u32 mem, const mem16_t& data);
-template bool vtlb_ramWrite<mem32_t>(u32 mem, const mem32_t& data);
-template bool vtlb_ramWrite<mem64_t>(u32 mem, const mem64_t& data);
-template bool vtlb_ramWrite<mem128_t>(u32 mem, const mem128_t& data);
+	memcpy(reinterpret_cast<mem32_t*>(vmv.assumePtr(addr)), &data, sizeof(mem32_t));
+	return true;
+}
+
+bool vtlb_ramWrite64(u32 addr, const mem64_t& data)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+		return false;
+
+	memcpy(reinterpret_cast<mem64_t*>(vmv.assumePtr(addr)), &data, sizeof(mem64_t));
+	return true;
+}
+
+bool vtlb_ramWrite128(u32 addr, const mem128_t& data)
+{
+	const auto vmv = vtlbdata.vmap[addr >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr))
+		return false;
+
+	memcpy(reinterpret_cast<mem128_t*>(vmv.assumePtr(addr)), &data, sizeof(mem128_t));
+	return true;
+}
 
 // --------------------------------------------------------------------------------------
 //  TLB Miss / BusError Handlers

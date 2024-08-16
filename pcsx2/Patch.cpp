@@ -64,13 +64,13 @@ static void writeCheat(void)
 	switch (LastType)
 	{
 		case 0x0:
-			memWrite8(PrevCheatAddr, IterationIncrement & 0xFF);
+			vtlb_memWrite8(PrevCheatAddr, IterationIncrement & 0xFF);
 			break;
 		case 0x1:
-			memWrite16(PrevCheatAddr, IterationIncrement & 0xFFFF);
+			vtlb_memWrite16(PrevCheatAddr, IterationIncrement & 0xFFFF);
 			break;
 		case 0x2:
-			memWrite32(PrevCheatAddr, IterationIncrement);
+			vtlb_memWrite32(PrevCheatAddr, IterationIncrement);
 			break;
 		default:
 			break;
@@ -85,16 +85,16 @@ static void handle_extended_t(IniPatch *p)
 	{
 	case 0x3040: // vvvvvvvv 00000000 Inc
 	{
-		u32 mem = memRead32(PrevCheatAddr);
-		memWrite32(PrevCheatAddr, mem + (p->addr));
+		u32 mem = vtlb_memRead32(PrevCheatAddr);
+		vtlb_memWrite32(PrevCheatAddr, mem + (p->addr));
 		PrevCheatType = 0;
 		break;
 	}
 
 	case 0x3050: // vvvvvvvv 00000000 Dec
 	{
-		u32 mem = memRead32(PrevCheatAddr);
-		memWrite32(PrevCheatAddr, mem - (p->addr));
+		u32 mem = vtlb_memRead32(PrevCheatAddr);
+		vtlb_memWrite32(PrevCheatAddr, mem - (p->addr));
 		PrevCheatType = 0;
 		break;
 	}
@@ -102,7 +102,7 @@ static void handle_extended_t(IniPatch *p)
 	case 0x4000: // vvvvvvvv iiiiiiii
 		for (u32 i = 0; i < IterationCount; i++)
 		{
-			memWrite32((u32)(PrevCheatAddr + (i * IterationIncrement)), (u32)(p->addr + ((u32)p->data * i)));
+			vtlb_memWrite32((u32)(PrevCheatAddr + (i * IterationIncrement)), (u32)(p->addr + ((u32)p->data * i)));
 		}
 		PrevCheatType = 0;
 		break;
@@ -110,8 +110,8 @@ static void handle_extended_t(IniPatch *p)
 	case 0x5000: // bbbbbbbb 00000000
 		for (u32 i = 0; i < IterationCount; i++)
 		{
-			u8 mem = memRead8(PrevCheatAddr + i);
-			memWrite8((p->addr + i) & 0x0FFFFFFF, mem);
+			u8 mem = vtlb_memRead8(PrevCheatAddr + i);
+			vtlb_memWrite8((p->addr + i) & 0x0FFFFFFF, mem);
 		}
 		PrevCheatType = 0;
 		break;
@@ -126,7 +126,7 @@ static void handle_extended_t(IniPatch *p)
 
 		// Read first pointer
 		LastType = ((u32)p->addr & 0x000F0000) >> 16;
-		u32 mem = memRead32(PrevCheatAddr);
+		u32 mem = vtlb_memRead32(PrevCheatAddr);
 
 		PrevCheatAddr = mem + (u32)p->data;
 		IterationCount--;
@@ -150,7 +150,7 @@ static void handle_extended_t(IniPatch *p)
 	case 0x6001: // 000Xnnnn iiiiiiii
 	{
 		// Read first pointer
-		u32 mem = memRead32(PrevCheatAddr & 0x0FFFFFFF);
+		u32 mem = vtlb_memRead32(PrevCheatAddr & 0x0FFFFFFF);
 
 		PrevCheatAddr = mem + (u32)p->addr;
 		IterationCount--;
@@ -163,7 +163,7 @@ static void handle_extended_t(IniPatch *p)
 		}
 		else
 		{
-			mem = memRead32(PrevCheatAddr);
+			mem = vtlb_memRead32(PrevCheatAddr);
 
 			PrevCheatAddr = mem + (u32)p->data;
 			IterationCount--;
@@ -179,41 +179,41 @@ static void handle_extended_t(IniPatch *p)
 	default:
 		if ((p->addr & 0xF0000000) == 0x00000000)				// 0aaaaaaa 0000000vv
 		{
-			memWrite8(p->addr & 0x0FFFFFFF, (u8)p->data & 0x000000FF);
+			vtlb_memWrite8(p->addr & 0x0FFFFFFF, (u8)p->data & 0x000000FF);
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xF0000000) == 0x10000000)			// 1aaaaaaa 0000vvvv
 		{
-			memWrite16(p->addr & 0x0FFFFFFF, (u16)p->data & 0x0000FFFF);
+			vtlb_memWrite16(p->addr & 0x0FFFFFFF, (u16)p->data & 0x0000FFFF);
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xF0000000) == 0x20000000)			// 2aaaaaaa vvvvvvvv
 		{
-			memWrite32(p->addr & 0x0FFFFFFF, (u32)p->data);
+			vtlb_memWrite32(p->addr & 0x0FFFFFFF, (u32)p->data);
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xFFFF0000) == 0x30000000)			// 300000vv 0aaaaaaa Inc
 		{
-			u8 mem = memRead8((u32)p->data);
-			memWrite8((u32)p->data, mem + (p->addr & 0x000000FF));
+			u8 mem = vtlb_memRead8((u32)p->data);
+			vtlb_memWrite8((u32)p->data, mem + (p->addr & 0x000000FF));
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xFFFF0000) == 0x30100000)			// 301000vv 0aaaaaaa Dec
 		{
-			u8 mem = memRead8((u32)p->data);
-			memWrite8((u32)p->data, mem - (p->addr & 0x000000FF));
+			u8 mem = vtlb_memRead8((u32)p->data);
+			vtlb_memWrite8((u32)p->data, mem - (p->addr & 0x000000FF));
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xFFFF0000) == 0x30200000)			// 3020vvvv 0aaaaaaa Inc
 		{
-			u16 mem = memRead16((u32)p->data);
-			memWrite16((u32)p->data, mem + (p->addr & 0x0000FFFF));
+			u16 mem = vtlb_memRead16((u32)p->data);
+			vtlb_memWrite16((u32)p->data, mem + (p->addr & 0x0000FFFF));
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xFFFF0000) == 0x30300000)			// 3030vvvv 0aaaaaaa Dec
 		{
-			u16 mem = memRead16((u32)p->data);
-			memWrite16((u32)p->data, mem - (p->addr & 0x0000FFFF));
+			u16 mem = vtlb_memRead16((u32)p->data);
+			vtlb_memWrite16((u32)p->data, mem - (p->addr & 0x0000FFFF));
 			PrevCheatType = 0;
 		}
 		else if ((p->addr & 0xFFFF0000) == 0x30400000)			// 30400000 0aaaaaaa Inc + Another line
@@ -250,33 +250,33 @@ static void handle_extended_t(IniPatch *p)
 		{
 			if ((p->data & 0x00F00000) == 0x00000000)			// 7aaaaaaa 000000vv
 			{
-				u8 mem = memRead8((u32)p->addr & 0x0FFFFFFF);
-				memWrite8((u32)p->addr & 0x0FFFFFFF, (u8)(mem | (p->data & 0x000000FF)));
+				u8 mem = vtlb_memRead8((u32)p->addr & 0x0FFFFFFF);
+				vtlb_memWrite8((u32)p->addr & 0x0FFFFFFF, (u8)(mem | (p->data & 0x000000FF)));
 			}
 			else if ((p->data & 0x00F00000) == 0x00100000)		// 7aaaaaaa 0010vvvv
 			{
-				u16 mem = memRead16((u32)p->addr & 0x0FFFFFFF);
-				memWrite16((u32)p->addr & 0x0FFFFFFF, (u16)(mem | (p->data & 0x0000FFFF)));
+				u16 mem = vtlb_memRead16((u32)p->addr & 0x0FFFFFFF);
+				vtlb_memWrite16((u32)p->addr & 0x0FFFFFFF, (u16)(mem | (p->data & 0x0000FFFF)));
 			}
 			else if ((p->data & 0x00F00000) == 0x00200000)		// 7aaaaaaa 002000vv
 			{
-				u8 mem = memRead8((u32)p->addr & 0x0FFFFFFF);
-				memWrite8((u32)p->addr & 0x0FFFFFFF, (u8)(mem & (p->data & 0x000000FF)));
+				u8 mem = vtlb_memRead8((u32)p->addr & 0x0FFFFFFF);
+				vtlb_memWrite8((u32)p->addr & 0x0FFFFFFF, (u8)(mem & (p->data & 0x000000FF)));
 			}
 			else if ((p->data & 0x00F00000) == 0x00300000)		// 7aaaaaaa 0030vvvv
 			{
-				u16 mem = memRead16((u32)p->addr & 0x0FFFFFFF);
-				memWrite16((u32)p->addr & 0x0FFFFFFF, (u16)(mem & (p->data & 0x0000FFFF)));
+				u16 mem = vtlb_memRead16((u32)p->addr & 0x0FFFFFFF);
+				vtlb_memWrite16((u32)p->addr & 0x0FFFFFFF, (u16)(mem & (p->data & 0x0000FFFF)));
 			}
 			else if ((p->data & 0x00F00000) == 0x00400000)		// 7aaaaaaa 004000vv
 			{
-				u8 mem = memRead8((u32)p->addr & 0x0FFFFFFF);
-				memWrite8((u32)p->addr & 0x0FFFFFFF, (u8)(mem ^ (p->data & 0x000000FF)));
+				u8 mem = vtlb_memRead8((u32)p->addr & 0x0FFFFFFF);
+				vtlb_memWrite8((u32)p->addr & 0x0FFFFFFF, (u8)(mem ^ (p->data & 0x000000FF)));
 			}
 			else if ((p->data & 0x00F00000) == 0x00500000)		// 7aaaaaaa 0050vvvv
 			{
-				u16 mem = memRead16((u32)p->addr & 0x0FFFFFFF);
-				memWrite16((u32)p->addr & 0x0FFFFFFF, (u16)(mem ^ (p->data & 0x0000FFFF)));
+				u16 mem = vtlb_memRead16((u32)p->addr & 0x0FFFFFFF);
+				vtlb_memWrite16((u32)p->addr & 0x0FFFFFFF, (u16)(mem ^ (p->data & 0x0000FFFF)));
 			}
 		}
 		else if ((p->addr & 0xF0000000) == 0xD0000000 || (p->addr & 0xF0000000) == 0xE0000000)
@@ -305,7 +305,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy00vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (mem != (data & 0x0000FFFF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -316,7 +316,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy0100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (mem != (data & 0x000000FF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -330,7 +330,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy10vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (mem == (data & 0x0000FFFF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -341,7 +341,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy1100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (mem == (data & 0x000000FF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -355,7 +355,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy20vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (mem >= (data & 0x0000FFFF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -366,7 +366,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy2100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (mem >= (data & 0x000000FF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -380,7 +380,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy30vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (mem <= (data & 0x0000FFFF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -391,7 +391,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy3100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (mem <= (data & 0x000000FF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -405,7 +405,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy40vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (mem & (data & 0x0000FFFF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -416,7 +416,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy4100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (mem & (data & 0x000000FF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -430,7 +430,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy50vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (!(mem & (data & 0x0000FFFF)))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -441,7 +441,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy5100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (!(mem & (data & 0x000000FF)))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -455,7 +455,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy60vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (mem | (data & 0x0000FFFF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -466,7 +466,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy6100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (mem | (data & 0x000000FF))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -480,7 +480,7 @@ static void handle_extended_t(IniPatch *p)
 			{
 				if (type == 0)										// Daaaaaaa yy70vvvv
 				{
-					u16 mem = memRead16(addr & 0x0FFFFFFF);
+					u16 mem = vtlb_memRead16(addr & 0x0FFFFFFF);
 					if (!(mem | (data & 0x0000FFFF)))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -491,7 +491,7 @@ static void handle_extended_t(IniPatch *p)
 				}
 				else if (type == 1)									// Daaaaaaa yy7100vv
 				{
-					u8 mem = memRead8(addr & 0x0FFFFFFF);
+					u8 mem = vtlb_memRead8(addr & 0x0FFFFFFF);
 					if (!(mem | (data & 0x000000FF)))
 					{
 						SkipCount = (data & 0xFF000000) >> 24;
@@ -538,23 +538,23 @@ void _ApplyPatch(IniPatch *p)
 			switch (p->type)
 			{
 				case BYTE_T:
-					if (memRead8(p->addr) != (u8)p->data)
-						memWrite8(p->addr, (u8)p->data);
+					if (vtlb_memRead8(p->addr) != (u8)p->data)
+						vtlb_memWrite8(p->addr, (u8)p->data);
 					break;
 
 				case SHORT_T:
-					if (memRead16(p->addr) != (u16)p->data)
-						memWrite16(p->addr, (u16)p->data);
+					if (vtlb_memRead16(p->addr) != (u16)p->data)
+						vtlb_memWrite16(p->addr, (u16)p->data);
 					break;
 
 				case WORD_T:
-					if (memRead32(p->addr) != (u32)p->data)
-						memWrite32(p->addr, (u32)p->data);
+					if (vtlb_memRead32(p->addr) != (u32)p->data)
+						vtlb_memWrite32(p->addr, (u32)p->data);
 					break;
 
 				case DOUBLE_T:
-					if (memRead64(p->addr) != (u64)p->data)
-						memWrite64(p->addr, (u64)p->data);
+					if (vtlb_memRead64(p->addr) != (u64)p->data)
+						vtlb_memWrite64(p->addr, (u64)p->data);
 					break;
 
 				case EXTENDED_T:
@@ -563,20 +563,20 @@ void _ApplyPatch(IniPatch *p)
 
 				case SHORT_LE_T:
 					ledata = SwapEndian(p->data, 16);
-					if (memRead16(p->addr) != (u16)ledata)
-						memWrite16(p->addr, (u16)ledata);
+					if (vtlb_memRead16(p->addr) != (u16)ledata)
+						vtlb_memWrite16(p->addr, (u16)ledata);
 					break;
 
 				case WORD_LE_T:
 					ledata = SwapEndian(p->data, 32);
-					if (memRead32(p->addr) != (u32)ledata)
-						memWrite32(p->addr, (u32)ledata);
+					if (vtlb_memRead32(p->addr) != (u32)ledata)
+						vtlb_memWrite32(p->addr, (u32)ledata);
 					break;
 
 				case DOUBLE_LE_T:
 					ledata = SwapEndian(p->data, 64);
-					if (memRead64(p->addr) != (u64)ledata)
-						memWrite64(p->addr, (u64)ledata);
+					if (vtlb_memRead64(p->addr) != (u64)ledata)
+						vtlb_memWrite64(p->addr, (u64)ledata);
 					break;
 
 				default:
@@ -620,7 +620,7 @@ static void _ApplyDynaPatch(const DynamicPatch& patch, u32 address)
 	Console.WriteLn("Applying Dynamic Patch to address 0x%08X", address);
 	// If everything passes, apply the patch.
 	for (const auto& replacement : patch.replacement)
-		memWrite32(address + replacement.offset, replacement.value);
+		vtlb_memWrite32(address + replacement.offset, replacement.value);
 }
 
 // This is a declaration for PatchMemory.cpp::_ApplyPatch where we're (patch.cpp)

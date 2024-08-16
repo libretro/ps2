@@ -293,28 +293,9 @@ void gsIrq();
 
 extern tGS_CSR CSRr;
 
-// Size of the ringbuffer as a power of 2 -- size is a multiple of simd128s.
-// (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])
-// A value of 19 is a 8meg ring buffer.  18 would be 4 megs, and 20 would be 16 megs.
-// Default was 2mb, but some games with lots of MTGS activity want 8mb to run fast (rama)
-// size of the ringbuffer in simd128's. RingBufferSize = 1 << RINGBUFFERSIZEFACTOR
+/* Size of the ringbuffer as a power of 2 -- size is a multiple of simd128s.
+ * (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])
+ * A value of 19 is a 8meg ring buffer.  18 would be 4 megs, and 20 would be 16 megs.
+ * Default was 2mb, but some games with lots of MTGS activity want 8mb to run fast (rama)
+ * size of the ringbuffer in simd128's. RingBufferSize = 1 << RINGBUFFERSIZEFACTOR */
 #define RINGBUFFERSIZE 524288
-
-// FIXME: These belong in common with other memcpy tools.  Will move them there later if no one
-// else beats me to it.  --air
-inline void MemCopy_WrappedDest(const u128* src, u128* destBase, uint& destStart, uint destSize, uint len)
-{
-	uint endpos = destStart + len;
-	if (endpos < destSize)
-	{
-		memcpy(&destBase[destStart], src, len * 16);
-		destStart += len;
-	}
-	else
-	{
-		uint firstcopylen = destSize - destStart;
-		memcpy(&destBase[destStart], src, firstcopylen * 16);
-		destStart = endpos % destSize;
-		memcpy(destBase, src + firstcopylen, destStart * 16);
-	}
-}

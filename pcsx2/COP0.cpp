@@ -25,7 +25,7 @@ void WriteCP0Status(u32 value)
 
 void WriteCP0Config(u32 value)
 {
-       // Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
+       /* Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits */
        cpuRegs.CP0.n.Config = value & ~0xFC0;
        cpuRegs.CP0.n.Config |= 0x440;
 }
@@ -99,7 +99,7 @@ __fi void COP0_UpdatePCCR(void)
 			if (incr == 0)
 				incr++;
 
-			// use prev/XOR method for one-time exceptions (but likely less correct)
+			/* use prev/XOR method for one-time exceptions (but likely less correct) */
 			cpuRegs.PERF.n.pcr0 += incr;
 		}
 	}
@@ -124,10 +124,6 @@ __fi void COP0_UpdatePCCR(void)
 	cpuRegs.lastPERFCycle[1] = cpuRegs.cycle;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//
-
-
 void MapTLB(const tlbs& t, int i)
 {
 	u32 mask, addr;
@@ -137,7 +133,7 @@ void MapTLB(const tlbs& t, int i)
 		vtlb_VMapBuffer(t.VPN2, eeMem->Scratch, Ps2MemSize::Scratch);
 
 	if (t.VPN2 == 0x70000000)
-		return; //uh uhh right ...
+		return; /* uh uhh right ... */
 
 	if (t.EntryLo0 & 0x2)
 	{
@@ -217,18 +213,18 @@ void UnmapTLB(const tlbs& t, int i)
 void WriteTLB(int i)
 {
 	tlb[i].PageMask = cpuRegs.CP0.n.PageMask;
-	tlb[i].EntryHi = cpuRegs.CP0.n.EntryHi;
+	tlb[i].EntryHi  = cpuRegs.CP0.n.EntryHi;
 	tlb[i].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
 	tlb[i].EntryLo1 = cpuRegs.CP0.n.EntryLo1;
 
-	tlb[i].Mask = (cpuRegs.CP0.n.PageMask >> 13) & 0xfff;
-	tlb[i].nMask = (~tlb[i].Mask) & 0xfff;
-	tlb[i].VPN2 = ((cpuRegs.CP0.n.EntryHi >> 13) & (~tlb[i].Mask)) << 13;
-	tlb[i].ASID = cpuRegs.CP0.n.EntryHi & 0xfff;
-	tlb[i].G = cpuRegs.CP0.n.EntryLo0 & cpuRegs.CP0.n.EntryLo1 & 0x1;
-	tlb[i].PFN0 = (((cpuRegs.CP0.n.EntryLo0 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
-	tlb[i].PFN1 = (((cpuRegs.CP0.n.EntryLo1 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
-	tlb[i].S = cpuRegs.CP0.n.EntryLo0 & 0x80000000;
+	tlb[i].Mask     = (cpuRegs.CP0.n.PageMask >> 13) & 0xfff;
+	tlb[i].nMask    = (~tlb[i].Mask) & 0xfff;
+	tlb[i].VPN2     = ((cpuRegs.CP0.n.EntryHi >> 13) & (~tlb[i].Mask)) << 13;
+	tlb[i].ASID     = cpuRegs.CP0.n.EntryHi & 0xfff;
+	tlb[i].G        = cpuRegs.CP0.n.EntryLo0 & cpuRegs.CP0.n.EntryLo1 & 0x1;
+	tlb[i].PFN0     = (((cpuRegs.CP0.n.EntryLo0 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
+	tlb[i].PFN1     = (((cpuRegs.CP0.n.EntryLo1 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
+	tlb[i].S        = cpuRegs.CP0.n.EntryLo0 & 0x80000000;
 
 	MapTLB(tlb[i], i);
 }
@@ -238,41 +234,41 @@ namespace Interpreter {
 namespace OpcodeImpl {
 namespace COP0 {
 
-	void TLBR()
+	void TLBR(void)
 	{
 		int i = cpuRegs.CP0.n.Index & 0x3f;
 
 		cpuRegs.CP0.n.PageMask = tlb[i].PageMask;
-		cpuRegs.CP0.n.EntryHi = tlb[i].EntryHi & ~(tlb[i].PageMask | 0x1f00);
+		cpuRegs.CP0.n.EntryHi  = tlb[i].EntryHi & ~(tlb[i].PageMask | 0x1f00);
 		cpuRegs.CP0.n.EntryLo0 = (tlb[i].EntryLo0 & ~1) | ((tlb[i].EntryHi >> 12) & 1);
 		cpuRegs.CP0.n.EntryLo1 = (tlb[i].EntryLo1 & ~1) | ((tlb[i].EntryHi >> 12) & 1);
 	}
 
-	void TLBWI()
+	void TLBWI(void)
 	{
 		int j = cpuRegs.CP0.n.Index & 0x3f;
 
 		UnmapTLB(tlb[j], j);
 		tlb[j].PageMask = cpuRegs.CP0.n.PageMask;
-		tlb[j].EntryHi = cpuRegs.CP0.n.EntryHi;
+		tlb[j].EntryHi  = cpuRegs.CP0.n.EntryHi;
 		tlb[j].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
 		tlb[j].EntryLo1 = cpuRegs.CP0.n.EntryLo1;
 		WriteTLB(j);
 	}
 
-	void TLBWR()
+	void TLBWR(void)
 	{
 		int j = cpuRegs.CP0.n.Random & 0x3f;
 
 		UnmapTLB(tlb[j], j);
 		tlb[j].PageMask = cpuRegs.CP0.n.PageMask;
-		tlb[j].EntryHi = cpuRegs.CP0.n.EntryHi;
+		tlb[j].EntryHi  = cpuRegs.CP0.n.EntryHi;
 		tlb[j].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
 		tlb[j].EntryLo1 = cpuRegs.CP0.n.EntryLo1;
 		WriteTLB(j);
 	}
 
-	void TLBP()
+	void TLBP(void)
 	{
 		int i;
 
@@ -303,9 +299,9 @@ namespace COP0 {
 			cpuRegs.CP0.n.Index = 0x80000000;
 	}
 
-	void MFC0()
+	void MFC0(void)
 	{
-		// Note on _Rd_ Condition 9: CP0.Count should be updated even if _Rt_ is 0.
+		/* Note on _Rd_ Condition 9: CP0.Count should be updated even if _Rt_ is 0. */
 		if ((_Rd_ != 9) && !_Rt_)
 			return;
 
@@ -316,14 +312,14 @@ namespace COP0 {
 				break;
 
 			case 25:
-				if (0 == (_Imm_ & 1)) // MFPS, register value ignored
+				if (0 == (_Imm_ & 1)) /* MFPS, register value ignored */
 					cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.PERF.n.pccr.val;
-				else if (0 == (_Imm_ & 2)) // MFPC 0, only LSB of register matters
+				else if (0 == (_Imm_ & 2)) /* MFPC 0, only LSB of register matters */
 				{
 					COP0_UpdatePCCR();
 					cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.PERF.n.pcr0;
 				}
-				else // MFPC 1
+				else /* MFPC 1 */
 				{
 					COP0_UpdatePCCR();
 					cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.PERF.n.pcr1;
@@ -366,7 +362,7 @@ namespace COP0 {
 				break;
 
 			case 16: /* Write CP0 Config */
-				// Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
+				/* Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits */
 				cpuRegs.CP0.n.Config  = cpuRegs.GPR.r[_Rt_].UL[0] & ~0xFC0;
 				cpuRegs.CP0.n.Config |= 0x440;
 				break;
@@ -375,22 +371,22 @@ namespace COP0 {
 				break;
 
 			case 25:
-				if (0 == (_Imm_ & 1)) // MTPS
+				if (0 == (_Imm_ & 1)) /* MTPS */
 				{
-					if (0 != (_Imm_ & 0x3E)) // only effective when the register is 0
+					if (0 != (_Imm_ & 0x3E)) /* only effective when the register is 0 */
 						break;
-					// Updates PCRs and sets the PCCR.
+					/* Updates PCRs and sets the PCCR. */
 					COP0_UpdatePCCR();
 					cpuRegs.PERF.n.pccr.val = cpuRegs.GPR.r[_Rt_].UL[0];
 				}
-				else if (0 == (_Imm_ & 2)) // MTPC 0, only LSB of register matters
+				else if (0 == (_Imm_ & 2)) /* MTPC 0, only LSB of register matters */
 				{
-					cpuRegs.PERF.n.pcr0 = cpuRegs.GPR.r[_Rt_].UL[0];
+					cpuRegs.PERF.n.pcr0      = cpuRegs.GPR.r[_Rt_].UL[0];
 					cpuRegs.lastPERFCycle[0] = cpuRegs.cycle;
 				}
-				else // MTPC 1
+				else /* MTPC 1 */
 				{
-					cpuRegs.PERF.n.pcr1 = cpuRegs.GPR.r[_Rt_].UL[0];
+					cpuRegs.PERF.n.pcr1      = cpuRegs.GPR.r[_Rt_].UL[0];
 					cpuRegs.lastPERFCycle[1] = cpuRegs.cycle;
 				}
 				break;
@@ -406,19 +402,19 @@ namespace COP0 {
 		return (((dmacRegs.stat.CIS | ~dmacRegs.pcr.CPC) & 0x3FF) == 0x3ff);
 	}
 
-	void BC0F()
+	void BC0F(void)
 	{
 		if (CPCOND0() == 0)
 			intDoBranch(_BranchTarget_);
 	}
 
-	void BC0T()
+	void BC0T(void)
 	{
 		if (CPCOND0() == 1)
 			intDoBranch(_BranchTarget_);
 	}
 
-	void BC0FL()
+	void BC0FL(void)
 	{
 		if (CPCOND0() == 0)
 			intDoBranch(_BranchTarget_);
@@ -426,7 +422,7 @@ namespace COP0 {
 			cpuRegs.pc += 4;
 	}
 
-	void BC0TL()
+	void BC0TL(void)
 	{
 		if (CPCOND0() == 1)
 			intDoBranch(_BranchTarget_);
@@ -434,7 +430,7 @@ namespace COP0 {
 			cpuRegs.pc += 4;
 	}
 
-	void ERET()
+	void ERET(void)
 	{
 		if (cpuRegs.CP0.n.Status.b.ERL)
 		{
@@ -450,17 +446,17 @@ namespace COP0 {
 		intSetBranch();
 	}
 
-	void DI()
+	void DI(void)
 	{
-		if (cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL ||
-			cpuRegs.CP0.n.Status.b.ERL || (cpuRegs.CP0.n.Status.b.KSU == 0))
+		if (       cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL
+			|| cpuRegs.CP0.n.Status.b.ERL  || (cpuRegs.CP0.n.Status.b.KSU == 0))
 			cpuRegs.CP0.n.Status.b.EIE = 0;
 	}
 
-	void EI()
+	void EI(void)
 	{
-		if (cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL ||
-			cpuRegs.CP0.n.Status.b.ERL || (cpuRegs.CP0.n.Status.b.KSU == 0))
+		if (       cpuRegs.CP0.n.Status.b._EDI || cpuRegs.CP0.n.Status.b.EXL 
+			|| cpuRegs.CP0.n.Status.b.ERL  || (cpuRegs.CP0.n.Status.b.KSU == 0))
 		{
 			cpuRegs.CP0.n.Status.b.EIE = 1;
 			// schedule an event test, which will check for and raise pending IRQs.

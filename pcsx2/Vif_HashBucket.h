@@ -17,22 +17,22 @@
 
 #include "common/AlignedMalloc.h"
 
-// nVifBlock - Ordered for Hashing; the 'num' and 'upkType' fields are
-//             used as the hash bucket selector.
+/* nVifBlock - Ordered for Hashing; the 'num' and 'upkType' fields are
+ *             used as the hash bucket selector. */
 union nVifBlock
 {
-	// Warning: order depends on the newVifDynaRec code
+	/* Warning: order depends on the newVifDynaRec code */
 	struct
 	{
-		u8 num;        // [00] Num Field
-		u8 upkType;    // [01] Unpack Type [usn1:mask1:upk*4]
-		u16 length;    // [02] Extra: pre computed Length
-		u32 mask;      // [04] Mask Field
-		u8 mode;       // [08] Mode Field
-		u8 aligned;    // [09] Packet Alignment
-		u8 cl;         // [10] CL Field
-		u8 wl;         // [11] WL Field
-		uintptr_t startPtr; // [12] Start Ptr of RecGen Code
+		u8 num;             /* [00] Num Field */
+		u8 upkType;         /* [01] Unpack Type [usn1:mask1:upk*4] */
+		u16 length;         /* [02] Extra: pre computed Length */
+		u32 mask;           /* [04] Mask Field */
+		u8 mode;            /* [08] Mode Field */
+		u8 aligned;         /* [09] Packet Alignment */
+		u8 cl;              /* [10] CL Field */
+		u8 wl;         	    /* [11] WL Field */
+		uintptr_t startPtr; /* [12] Start Ptr of RecGen Code */
 	};
 
 	struct
@@ -43,20 +43,21 @@ union nVifBlock
 		u32 key1;
 		uintptr_t value;
 	};
+}; /* 16 bytes */
 
-}; // 16 bytes
-
-// 0x4000 is enough but 0x10000 allow
-// * to skip the compare value of the first double world in lookup
-// * to use a 16 bits move instead of an 'and' mask to compute the hashed key
+/* 0x4000 is enough but 0x10000 allow
+ * * to skip the compare value of the first double world in lookup
+ * * to use a 16 bits move instead of an 'and' mask to compute the hashed key
+ */
 #define HSIZE 0x10000 // [usn*1:mask*1:upk*4:num*8] hash...
 
-// HashBucket is a container which uses a built-in hash function
-// to perform quick searches. It is designed around the nVifBlock structure
-//
-// The hash function is determined by taking the first bytes of data and
-// performing a modulus the size of HSIZE. So the most diverse-data should
-// be in the first bytes of the struct. (hence why nVifBlock is specifically sorted)
+/* HashBucket is a container which uses a built-in hash function
+ * to perform quick searches. It is designed around the nVifBlock structure
+ *
+ * The hash function is determined by taking the first bytes of data and
+ * performing a modulus the size of HSIZE. So the most diverse-data should
+ * be in the first bytes of the struct. (hence why nVifBlock is specifically sorted)
+ */
 class HashBucket
 {
 protected:
@@ -93,10 +94,10 @@ public:
 
 		u32 size = bucket_size(dataPtr);
 
-		// Warning there is an extra +1 due to the empty cell
-		// Performance note: 64B align to reduce cache miss penalty in `find`
+		/* Warning there is an extra +1 due to the empty cell
+		 * Performance note: 64B align to reduce cache miss penalty in `find` */
 		m_bucket[b] = (nVifBlock*)pcsx2_aligned_realloc(m_bucket[b], sizeof(nVifBlock) * (size + 2), 64, sizeof(nVifBlock) * (size + 1));
-		// Replace the empty cell by the new block and create a new empty cell
+		/* Replace the empty cell by the new block and create a new empty cell */
 		memcpy(&m_bucket[b][size++], &dataPtr, sizeof(nVifBlock));
 		memset(&m_bucket[b][size], 0, sizeof(nVifBlock));
 	}

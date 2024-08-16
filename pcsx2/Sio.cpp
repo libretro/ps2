@@ -33,9 +33,10 @@ Sio2 sio2;
 _mcd mcds[2][4];
 _mcd *mcd;
 
-// ============================================================================
-// SIO0
-// ============================================================================
+/* ============================================================================
+ * SIO0
+ * ============================================================================
+ */
 
 Sio0::Sio0()
 {
@@ -83,7 +84,7 @@ void Sio0::Interrupt(Sio0Interrupt sio0Interrupt)
 	
 	if (!(psxRegs.interrupt & (1 << IopEvt_SIO)))
 	{
-		PSX_INT(IopEvt_SIO, PSXCLK / 250000); // PSXCLK/250000);
+		PSX_INT(IopEvt_SIO, PSXCLK / 250000); /* PSXCLK/250000); */
 	}
 }
 
@@ -222,21 +223,19 @@ void Sio0::SetCtrl(u16 value)
 	ctrl = value;
 	port = (ctrl & SIO0_CTRL::PORT) > 0;
 
-	// CTRL appears to be set to 0 between every "transaction".
-	// Not documented anywhere, but we'll use this to "reset"
-	// the SIO0 state, particularly during the annoying probes
-	// to memcards that occur when a game boots.
+	/* CTRL appears to be set to 0 between every "transaction".
+	 * Not documented anywhere, but we'll use this to "reset"
+	 * the SIO0 state, particularly during the annoying probes
+	 * to memcards that occur when a game boots. */
 	if (ctrl == 0)
 	{
 		g_MemoryCardProtocol.ResetPS1State();
 		SoftReset();
 	}
 
-	// If CTRL acknowledge, reset STAT bits 3 and 9
+	/* If CTRL acknowledge, reset STAT bits 3 and 9 */
 	if (ctrl & SIO0_CTRL::ACK)
-	{
 		stat &= ~(SIO0_STAT::IRQ | SIO0_STAT::RX_PARITY_ERROR);
-	}
 
 	if (ctrl & SIO0_CTRL::RESET)
 	{
@@ -296,9 +295,10 @@ u8 Sio0::Memcard(u8 value)
 	return 0xff;
 }
 
-// ============================================================================
-// SIO2
-// ============================================================================
+/* ============================================================================
+ * SIO2
+ * ============================================================================
+ */
 
 
 Sio2::Sio2()
@@ -314,11 +314,11 @@ void Sio2::SoftReset()
 	send3Position = 0;
 	commandLength = 0;
 	processedLength = 0;
-	// Clear dmaBlockSize, in case the next SIO2 command is not sent over DMA11.
+	/* Clear dmaBlockSize, in case the next SIO2 command is not sent over DMA11. */
 	dmaBlockSize = 0;
 	send3Complete = false;
 
-	// Anything in fifoIn which was not necessary to consume should be cleared out prior to the next SIO2 cycle.
+	/* Anything in fifoIn which was not necessary to consume should be cleared out prior to the next SIO2 cycle. */
 	while (!fifoIn.empty())
 	{
 		fifoIn.pop_front();
@@ -455,12 +455,12 @@ void Sio2::Memcard()
 {
 	mcd = &mcds[port][slot];
 
-	// Check if auto ejection is active. If so, set RECV1 to DISCONNECTED,
-	// and zero out the fifo to simulate dead air over the wire.
+	/* Check if auto ejection is active. If so, set RECV1 to DISCONNECTED,
+	 * and zero out the fifo to simulate dead air over the wire. */
 	if (mcd->autoEjectTicks)
 	{
 		SetRecv1(Recv1::DISCONNECTED);
-		fifoOut.push_back(0x00); // Because Sio2::Write pops the first fifoIn member
+		fifoOut.push_back(0x00); /* Because Sio2::Write pops the first fifoIn member */
 
 		while (!fifoIn.empty())
 		{
@@ -588,7 +588,7 @@ void Sio2::Write(u8 data)
 {
 	if (!send3Read)
 	{
-		// No more SEND3 positions to access, but the game is still sending us SIO2 writes. Lets ignore them.
+		/* No more SEND3 positions to access, but the game is still sending us SIO2 writes. Lets ignore them. */
 		if (send3Position > 16)
 			return;
 
@@ -597,15 +597,13 @@ void Sio2::Write(u8 data)
 		commandLength = (currentSend3 >> 8) & Send3::COMMAND_LENGTH_MASK;
 		send3Read = true;
 
-		// The freshly read SEND3 position had a length of 0, so we are done handling SIO2 commands until
-		// the next SEND3 writes.
+		/* The freshly read SEND3 position had a length of 0, so we are done handling SIO2 commands until
+		 * the next SEND3 writes. */
 		if (commandLength == 0)
-		{
 			send3Complete = true;
-		}
 
-		// If the prior command did not need to fully pop fifoIn, do so now,
-		// so that the next command isn't trying to read the last command's leftovers.
+		/* If the prior command did not need to fully pop fifoIn, do so now, 
+		 * so that the next command isn't trying to read the last command's leftovers. */
 		while (!fifoIn.empty())
 		{
 			fifoIn.pop_front();
@@ -707,8 +705,8 @@ bool SaveStateBase::sio2Freeze()
 	if (!IsOkay())
 		return false;
 
-	// CRCs for memory cards.
-	// If the memory card hasn't changed when loading state, we can safely skip ejecting it.
+	/* CRCs for memory cards.
+	 * If the memory card hasn't changed when loading state, we can safely skip ejecting it. */
 	u64 mcdCrcs[SIO::PORTS][SIO::SLOTS];
 	if (IsSaving())
 	{
@@ -754,12 +752,12 @@ bool SaveStateBase::sioFreeze()
 
 std::tuple<u32, u32> sioConvertPadToPortAndSlot(u32 index)
 {
-	if (index > 4) // [5,6,7]
-		return std::make_tuple(1, index - 4); // 2B,2C,2D
-	else if (index > 1) // [2,3,4]
-		return std::make_tuple(0, index - 1); // 1B,1C,1D
-	else // [0,1]
-		return std::make_tuple(index, 0); // 1A,2A
+	if (index > 4) /* [5,6,7] */
+		return std::make_tuple(1, index - 4); /* 2B,2C,2D */
+	else if (index > 1) /* [2,3,4] */
+		return std::make_tuple(0, index - 1); /* 1B,1C,1D */
+	/* [0,1] */
+	return std::make_tuple(index, 0); /* 1A,2A */
 }
 
 u32 sioConvertPortAndSlotToPad(u32 port, u32 slot)
@@ -768,8 +766,7 @@ u32 sioConvertPortAndSlotToPad(u32 port, u32 slot)
 		return port;
 	else if (port == 0) // slot=[0,1]
 		return slot + 1; // 2,3,4
-	else
-		return slot + 4; // 5,6,7
+	return slot + 4; // 5,6,7
 }
 
 bool sioPadIsMultitapSlot(u32 index)
@@ -785,9 +782,7 @@ bool sioPortAndSlotIsMultitap(u32 port, u32 slot)
 void AutoEject::Set(size_t port, size_t slot)
 {
 	if (EmuConfig.McdEnableEjection)
-	{
 		mcds[port][slot].autoEjectTicks = 60;
-	}
 }
 
 void AutoEject::Clear(size_t port, size_t slot)

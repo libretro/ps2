@@ -28,7 +28,7 @@ class SettingsWrapper;
 
 enum class CDVD_SourceType : uint8_t;
 
-/// Generic setting information which can be reused in multiple components.
+/* Generic setting information which can be reused in multiple components. */
 struct SettingInfo
 {
 	using GetOptionsCallback = std::vector<std::pair<std::string, std::string>>(*)();
@@ -53,8 +53,8 @@ struct SettingInfo
 	const char* max_value;
 	const char* step_value;
 	const char* format;
-	const char* const* options; // For integer lists.
-	GetOptionsCallback get_options; // For string lists.
+	const char* const* options; /* For integer lists. */
+	GetOptionsCallback get_options; /* For string lists. */
 	float multiplier;
 
 	const char* StringDefaultValue() const;
@@ -71,7 +71,7 @@ struct SettingInfo
 
 enum class GenericInputBinding : u8;
 
-// TODO(Stenzek): Move to InputCommon.h or something?
+/* TODO(Stenzek): Move to InputCommon.h or something? */
 struct InputBindingInfo
 {
 	enum class Type : u8
@@ -81,9 +81,9 @@ struct InputBindingInfo
 		Axis,
 		HalfAxis,
 		Motor,
-		Pointer, // Receive relative mouse movement events, bind_index is offset by the axis.
-		Keyboard, // Receive host key events, bind_index is offset by the key code.
-		Device, // Used for special-purpose device selection, e.g. force feedback.
+		Pointer, /* Receive relative mouse movement events, bind_index is offset by the axis. */
+		Keyboard, /* Receive host key events, bind_index is offset by the key code. */
+		Device, /* Used for special-purpose device selection, e.g. force feedback. */
 		Macro,
 	};
 
@@ -94,8 +94,8 @@ struct InputBindingInfo
 	GenericInputBinding generic_mapping;
 };
 
-/// Generic input bindings. These roughly match a DualShock 4 or XBox One controller.
-/// They are used for automatic binding to PS2 controller types.
+/* Generic input bindings. These roughly match a DualShock 4 or XBox One controller.
+ * They are used for automatic binding to PS2 controller types. */
 enum class GenericInputBinding : u8
 {
 	Unknown,
@@ -117,22 +117,22 @@ enum class GenericInputBinding : u8
 	RightStickLeft,
 	R3,
 
-	Triangle, // Y on XBox pads.
-	Circle, // B on XBox pads.
-	Cross, // A on XBox pads.
-	Square, // X on XBox pads.
+	Triangle, /* Y on XBox pads. */
+	Circle,   /* B on XBox pads. */
+	Cross,    /* A on XBox pads. */
+	Square,   /* X on XBox pads. */
 
-	Select, // Share on DS4, View on XBox pads.
-	Start, // Options on DS4, Menu on XBox pads.
-	System, // PS button on DS4, Guide button on XBox pads.
+	Select,   /* Share on DS4, View on XBox pads. */
+	Start,    /* Options on DS4, Menu on XBox pads. */
+	System,   /* PS button on DS4, Guide button on XBox pads. */
 
-	L1, // LB on Xbox pads.
-	L2, // Left trigger on XBox pads.
-	R1, // RB on XBox pads.
-	R2, // Right trigger on Xbox pads.
+	L1, /* LB on Xbox pads. */
+	L2, /* Left trigger on XBox pads. */
+	R1, /* RB on XBox pads. */
+	R2, /* Right trigger on Xbox pads. */
 
-	SmallMotor, // High frequency vibration.
-	LargeMotor, // Low frequency vibration.
+	SmallMotor, /* High frequency vibration. */
+	LargeMotor, /* Low frequency vibration. */
 
 	Count,
 };
@@ -162,9 +162,6 @@ enum GamefixId
 
 	GamefixId_COUNT
 };
-
-// TODO - config - not a fan of the excessive use of enums and macros to make them work
-// a proper object would likely make more sense (if possible).
 
 enum class SpeedHack
 {
@@ -227,7 +224,6 @@ enum class GSInterlaceMode : u8
 	Count
 };
 
-// Ordering was done to keep compatibility with older ini file.
 enum class BiFiltering : u8
 {
 	Nearest,
@@ -325,7 +321,7 @@ enum GSNativeScaling
 	NativeScaling_MaxCount
 };
 
-// Template function for casting enumerations to their underlying type
+/* Template function for casting enumerations to their underlying type */
 template <typename Enumeration>
 typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
 {
@@ -334,20 +330,19 @@ typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
 
 ImplementEnumOperators(GamefixId);
 
-// --------------------------------------------------------------------------------------
-//  Pcsx2Config class
-// --------------------------------------------------------------------------------------
-// This is intended to be a public class library between the core emulator and GUI only.
-//
-// When GUI code performs modifications of this class, it must be done with strict thread
-// safety, since the emu runs on a separate thread.  Additionally many components of the
-// class require special emu-side resets or state save/recovery to be applied.  Please
-// use the provided functions to lock the emulation into a safe state and then apply
-// chances on the necessary scope (see Core_Pause, Core_ApplySettings, and Core_Resume).
-//
+/* --------------------------------------------------------------------------------------
+ *  Pcsx2Config class
+ * --------------------------------------------------------------------------------------
+ * This is intended to be a public class library between the core emulator and GUI only.
+ *
+ * When GUI code performs modifications of this class, it must be done with strict thread
+ * safety, since the emu runs on a separate thread.  Additionally many components of the
+ * class require special emu-side resets or state save/recovery to be applied.  Please
+ * use the provided functions to lock the emulation into a safe state and then apply
+ * chances on the necessary scope (see Core_Pause, Core_ApplySettings, and Core_Resume).
+ */
 struct Pcsx2Config
 {
-	// ------------------------------------------------------------------------
 	struct RecompilerOptions
 	{
 		union
@@ -416,7 +411,6 @@ struct Pcsx2Config
 		}
 	};
 
-	// ------------------------------------------------------------------------
 	struct CpuOptions
 	{
 		RecompilerOptions Recompiler;
@@ -449,7 +443,6 @@ struct Pcsx2Config
 		}
 	};
 
-	// ------------------------------------------------------------------------
 	struct GSOptions
 	{
 		static constexpr float DEFAULT_FRAME_RATE_NTSC = 59.94f;
@@ -543,16 +536,16 @@ struct Pcsx2Config
 
 		void LoadSave(SettingsWrapper& wrap);
 
-		/// Sets user hack values to defaults when user hacks are not enabled.
+		/* Sets user hack values to defaults when user hacks are not enabled. */
 		void MaskUserHacks();
 
-		/// Sets user hack values to defaults when upscaling is not enabled.
+		/* Sets user hack values to defaults when upscaling is not enabled. */
 		void MaskUpscalingHacks();
 
-		/// Returns true if any of the hardware renderers are selected.
+		/* Returns true if any of the hardware renderers are selected. */
 		bool UseHardwareRenderer() const;
 
-		/// Returns false if any options need to be applied to the MTGS.
+		/* Returns false if any options need to be applied to the MTGS. */
 		bool OptionsAreEqual(const GSOptions& right) const;
 
 		bool operator==(const GSOptions& right) const;
@@ -662,8 +655,8 @@ struct Pcsx2Config
 		static std::string SaveIPHelper(u8* field);
 	};
 
-	// ------------------------------------------------------------------------
-	// NOTE: The GUI's GameFixes panel is dependent on the order of bits in this structure.
+	/* ------------------------------------------------------------------------
+	 * NOTE: The GUI's GameFixes panel is dependent on the order of bits in this structure. */
 	struct GamefixOptions
 	{
 		union
@@ -672,24 +665,24 @@ struct Pcsx2Config
 			struct
 			{
 				bool
-					FpuMulHack    : 1, // Tales of Destiny hangs.
-					GoemonTlbHack : 1, // Goemon TLB miss hack. The game need to access unmapped virtual address. Instead to handle it as exception, TLB are preloaded at startup
-				        SoftwareRendererFMVHack : 1, // Switches to software renderer for FMVs
-				        SkipMPEGHack   : 1, // Skips MPEG videos (Katamari and other games need this)
-				        OPHFlagHack    : 1, // Bleach Blade Battlers
-				        EETimingHack   : 1, // General purpose timing hack.
-			                InstantDMAHack : 1, // Instantly complete DMA's if possible, good for cache emulation problems.
-					DMABusyHack    : 1, // Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems.
-					GIFFIFOHack    : 1, // Enabled the GIF FIFO (more correct but slower)
-					VIFFIFOHack    : 1, // Pretends to fill the non-existant VIF FIFO Buffer.
-					VIF1StallHack  : 1, // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
-					VuAddSubHack   : 1, // Tri-ace games, they use an encryption algorithm that requires VU ADDI opcode to be bit-accurate.
-					IbitHack       : 1, // I bit hack. Needed to stop constant VU recompilation in some games
-					VUSyncHack     : 1, // Makes microVU run behind the EE to avoid VU register reading/writing sync issues. Useful for M-Bit games
-					VUOverflowHack : 1, // Tries to simulate overflow flag checks (not really possible on x86 without soft floats)
-					XgKickHack     : 1, // Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others.
-					BlitInternalFPSHack : 1, // Disables privileged register write-based FPS detection.
-					FullVU0SyncHack     : 1; // Forces tight VU0 sync on every COP2 instruction.
+					FpuMulHack    : 1, /* Tales of Destiny hangs. */
+					GoemonTlbHack : 1, /* Goemon TLB miss hack. The game need to access unmapped virtual address. Instead to handle it as exception, TLB are preloaded at startup */
+				        SoftwareRendererFMVHack : 1, /* Switches to software renderer for FMVs */
+				        SkipMPEGHack   : 1, /* Skips MPEG videos (Katamari and other games need this) */
+				        OPHFlagHack    : 1, /* Bleach Blade Battlers */
+				        EETimingHack   : 1, /* General purpose timing hack. */
+			                InstantDMAHack : 1, /* Instantly complete DMA's if possible, good for cache emulation problems. */
+					DMABusyHack    : 1, /* Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems. */
+					GIFFIFOHack    : 1, /* Enabled the GIF FIFO (more correct but slower) */
+					VIFFIFOHack    : 1, /* Pretends to fill the non-existant VIF FIFO Buffer. */
+					VIF1StallHack  : 1, /* Like above, processes FIFO data before the stall is allowed (to make sure data goes over). */
+					VuAddSubHack   : 1, /* Tri-ace games, they use an encryption algorithm that requires VU ADDI opcode to be bit-accurate. */
+					IbitHack       : 1, /* I bit hack. Needed to stop constant VU recompilation in some games */
+					VUSyncHack     : 1, /* Makes microVU run behind the EE to avoid VU register reading/writing sync issues. Useful for M-Bit games */
+					VUOverflowHack : 1, /* Tries to simulate overflow flag checks (not really possible on x86 without soft floats) */
+					XgKickHack     : 1, /* Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics, but breaks Tri-ace games and others. */
+					BlitInternalFPSHack : 1, /* Disables privileged register write-based FPS detection. */
+					FullVU0SyncHack     : 1; /* Forces tight VU0 sync on every COP2 instruction. */
 			};
 		};
 
@@ -712,7 +705,6 @@ struct Pcsx2Config
 		}
 	};
 
-	// ------------------------------------------------------------------------
 	struct SpeedhackOptions
 	{
 		static constexpr s8 MIN_EE_CYCLE_RATE = -3;
@@ -724,17 +716,17 @@ struct Pcsx2Config
 			u32 bitset;
 			struct
 			{
-				bool fastCDVD   : 1, // enables fast CDVD access
-				     IntcStat   : 1, // fast-forward through INTC_STAT waits.
-				     WaitLoop   : 1, // enables constant loop detection and fast-forwarding
-				     vuFlagHack : 1, // microVU specific flag hack
-				     vuThread   : 1, // Enable Threaded VU1
-				     vu1Instant : 1; // Enable Instant VU1 (Without MTVU only)
+				bool fastCDVD   : 1, /* enables fast CDVD access */
+				     IntcStat   : 1, /* fast-forward through INTC_STAT waits. */
+				     WaitLoop   : 1, /* enables constant loop detection and fast-forwarding */
+				     vuFlagHack : 1, /* microVU specific flag hack */
+				     vuThread   : 1, /* Enable Threaded VU1 */
+				     vu1Instant : 1; /* Enable Instant VU1 (Without MTVU only) */
 			};
 		};
 
-		s8 EECycleRate; // EE cycle rate selector (1.0, 1.5, 2.0)
-		u8 EECycleSkip; // EE Cycle skip factor (0, 1, 2, or 3)
+		s8 EECycleRate; /* EE cycle rate selector (1.0, 1.5, 2.0) */
+		u8 EECycleSkip; /* EE Cycle skip factor (0, 1, 2, or 3) */
 
 		SpeedhackOptions();
 		void LoadSave(SettingsWrapper& conf);
@@ -747,7 +739,6 @@ struct Pcsx2Config
 		static std::optional<SpeedHack> ParseSpeedHackName(const std::string_view& name);
 	};
 
-	// ------------------------------------------------------------------------
 	struct FramerateOptions
 	{
 		float TurboScalar{2.0f};
@@ -767,8 +758,6 @@ struct Pcsx2Config
 	};
 
 
-
-	// ------------------------------------------------------------------------
 	struct FilenameOptions
 	{
 		std::string Bios;
@@ -787,7 +776,6 @@ struct Pcsx2Config
 		}
 	};
 
-	// ------------------------------------------------------------------------
 	struct USBOptions
 	{
 		enum : u32
@@ -813,33 +801,29 @@ struct Pcsx2Config
 		bool operator!=(const USBOptions& right) const;
 	};
 
-	// ------------------------------------------------------------------------
-	// Options struct for each memory card.
-	//
+	/* ------------------------------------------------------------------------
+	 * Options struct for each memory card.
+	 */
 	struct McdOptions
 	{
-		std::string Filename; // user-configured location of this memory card
-		bool Enabled; // memory card enabled (if false, memcard will not show up in-game)
-		MemoryCardType Type; // the memory card implementation that should be used
+		std::string Filename; /* user-configured location of this memory card */
+		bool Enabled; /* memory card enabled (if false, memcard will not show up in-game) */
+		MemoryCardType Type; /* the memory card implementation that should be used */
 	};
-
-	// ------------------------------------------------------------------------
-
-	// ------------------------------------------------------------------------
 
 	union
 	{
 		u32 bitset;
 		struct
 		{
-			bool EnablePatches : 1, // enables patch detection and application
-			     EnableCheats  : 1, // enables cheat detection and application
+			bool EnablePatches : 1, /* enables patch detection and application */
+			     EnableCheats  : 1, /* enables cheat detection and application */
 			     EnableWideScreenPatches    : 1,
 			     EnableNoInterlacingPatches : 1,
-		             EnableGameFixes            : 1, // enables automatic game fixes
-			     // When enabled uses BOOT2 injection, skipping sony bios splashes
+		             EnableGameFixes            : 1, /* enables automatic game fixes */
+			     /* When enabled uses BOOT2 injection, skipping sony bios splashes */
 			     UseBOOT2Injection          : 1,
-			     // Enables simulated ejection of memory cards when loading savestates
+			     /* Enables simulated ejection of memory cards when loading savestates */
 			     McdEnableEjection          : 1,
 			     McdFolderAutoManage        : 1,
 
@@ -848,7 +832,7 @@ struct Pcsx2Config
 
 			     HostFs                     : 1;
 
-			// uses automatic NTFS compression when creating new memory cards (Win32 only)
+			/* uses automatic NTFS compression when creating new memory cards (Win32 only) */
 		};
 	};
 
@@ -864,12 +848,12 @@ struct Pcsx2Config
 
 	FilenameOptions BaseFilenames;
 
-	// Memorycard options - first 2 are default slots, last 6 are multitap 1 and 2
-	// slots (3 each)
+	/* Memorycard options - first 2 are default slots, last 6 are multitap 1 and 2
+	 * slots (3 each) */
 	McdOptions Mcd[8];
-	std::string GzipIsoIndexTemplate; // for quick-access index with gzipped ISO
+	std::string GzipIsoIndexTemplate; /* for quick-access index with gzipped ISO */
 
-	// Set at runtime, not loaded from config.
+	/* Set at runtime, not loaded from config. */
 	std::string CurrentIRX;
 	std::string CurrentGameArgs;
 
@@ -888,7 +872,7 @@ struct Pcsx2Config
 		return !this->operator==(right);
 	}
 
-	/// Copies runtime configuration settings (e.g. frame limiter state).
+	/* Copies runtime configuration settings (e.g. frame limiter state). */
 	void CopyRuntimeConfig(Pcsx2Config& cfg);
 };
 
@@ -907,17 +891,17 @@ namespace EmuFolders
 	extern std::string Cache;
 	extern std::string Textures;
 
-	// Assumes that AppRoot and DataRoot have been initialized.
+	/* Assumes that AppRoot and DataRoot have been initialized. */
 	void SetDefaults(SettingsInterface& si);
 	void LoadConfig(SettingsInterface& si);
 	void EnsureFoldersExist();
-} // namespace EmuFolders
+}
 
-/////////////////////////////////////////////////////////////////////////////////////////
-// Helper Macros for Reading Emu Configurations.
-//
+/*
+ * Helper Macros for Reading Emu Configurations.
+ */
 
-// ------------ CPU / Recompiler Options ---------------
+/* ------------ CPU / Recompiler Options --------------- */
 
 #define THREAD_VU1 (EmuConfig.Cpu.Recompiler.EnableVU1 && EmuConfig.Speedhacks.vuThread)
 #define INSTANT_VU1 (EmuConfig.Speedhacks.vu1Instant)
@@ -926,37 +910,37 @@ namespace EmuFolders
 #define CHECK_IOPREC (EmuConfig.Cpu.Recompiler.EnableIOP)
 #define CHECK_FASTMEM (EmuConfig.Cpu.Recompiler.EnableEE && EmuConfig.Cpu.Recompiler.EnableFastmem)
 
-//------------ SPECIAL GAME FIXES!!! ---------------
-#define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack) // Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate.
-#define CHECK_FPUMULHACK (EmuConfig.Gamefixes.FpuMulHack) // Special Fix for Tales of Destiny hangs.
-#define CHECK_XGKICKHACK (EmuConfig.Gamefixes.XgKickHack) // Special Fix for Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics.
-#define CHECK_EETIMINGHACK (EmuConfig.Gamefixes.EETimingHack) // Fix all scheduled events to happen in 1 cycle.
-#define CHECK_INSTANTDMAHACK (EmuConfig.Gamefixes.InstantDMAHack) // Attempt to finish DMA's instantly, useful for games which rely on cache emulation.
-#define CHECK_SKIPMPEGHACK (EmuConfig.Gamefixes.SkipMPEGHack) // Finds sceMpegIsEnd pattern to tell the game the mpeg is finished (Katamari and a lot of games need this)
-#define CHECK_OPHFLAGHACK (EmuConfig.Gamefixes.OPHFlagHack) // Bleach Blade Battlers
-#define CHECK_DMABUSYHACK (EmuConfig.Gamefixes.DMABusyHack) // Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems.
-#define CHECK_VIFFIFOHACK (EmuConfig.Gamefixes.VIFFIFOHack) // Pretends to fill the non-existant VIF FIFO Buffer.
-#define CHECK_VIF1STALLHACK (EmuConfig.Gamefixes.VIF1StallHack) // Like above, processes FIFO data before the stall is allowed (to make sure data goes over).
-#define CHECK_GIFFIFOHACK (EmuConfig.Gamefixes.GIFFIFOHack) // Enabled the GIF FIFO (more correct but slower)
-#define CHECK_VUOVERFLOWHACK (EmuConfig.Gamefixes.VUOverflowHack) // Special Fix for Superman Returns, they check for overflows on PS2 floats which we can't do without soft floats.
+/*------------ SPECIAL GAME FIXES!!! --------------- */
+#define CHECK_VUADDSUBHACK (EmuConfig.Gamefixes.VuAddSubHack) /* Special Fix for Tri-ace games, they use an encryption algorithm that requires VU addi opcode to be bit-accurate. */
+#define CHECK_FPUMULHACK (EmuConfig.Gamefixes.FpuMulHack) /* Special Fix for Tales of Destiny hangs. */
+#define CHECK_XGKICKHACK (EmuConfig.Gamefixes.XgKickHack) /* Special Fix for Erementar Gerad, adds more delay to VU XGkick instructions. Corrects the color of some graphics. */
+#define CHECK_EETIMINGHACK (EmuConfig.Gamefixes.EETimingHack) /* Fix all scheduled events to happen in 1 cycle. */
+#define CHECK_INSTANTDMAHACK (EmuConfig.Gamefixes.InstantDMAHack) /* Attempt to finish DMA's instantly, useful for games which rely on cache emulation. */
+#define CHECK_SKIPMPEGHACK (EmuConfig.Gamefixes.SkipMPEGHack) /* Finds sceMpegIsEnd pattern to tell the game the mpeg is finished (Katamari and a lot of games need this) */
+#define CHECK_OPHFLAGHACK (EmuConfig.Gamefixes.OPHFlagHack) /* Bleach Blade Battlers */
+#define CHECK_DMABUSYHACK (EmuConfig.Gamefixes.DMABusyHack) /* Denies writes to the DMAC when it's busy. This is correct behaviour but bad timing can cause problems. */
+#define CHECK_VIFFIFOHACK (EmuConfig.Gamefixes.VIFFIFOHack) /* Pretends to fill the non-existant VIF FIFO Buffer. */
+#define CHECK_VIF1STALLHACK (EmuConfig.Gamefixes.VIF1StallHack) /* Like above, processes FIFO data before the stall is allowed (to make sure data goes over). */
+#define CHECK_GIFFIFOHACK (EmuConfig.Gamefixes.GIFFIFOHack) /* Enabled the GIF FIFO (more correct but slower) */
+#define CHECK_VUOVERFLOWHACK (EmuConfig.Gamefixes.VUOverflowHack) /* Special Fix for Superman Returns, they check for overflows on PS2 floats which we can't do without soft floats. */
 #define CHECK_FULLVU0SYNCHACK (EmuConfig.Gamefixes.FullVU0SyncHack)
 
-//------------ Advanced Options!!! ---------------
+/*------------ Advanced Options!!! --------------- */
 #define CHECK_VU_OVERFLOW(vunum) (((vunum) == 0) ? EmuConfig.Cpu.Recompiler.vu0Overflow : EmuConfig.Cpu.Recompiler.vu1Overflow)
-#define CHECK_VU_EXTRA_OVERFLOW(vunum) (((vunum) == 0) ? EmuConfig.Cpu.Recompiler.vu0ExtraOverflow : EmuConfig.Cpu.Recompiler.vu1ExtraOverflow) // If enabled, Operands are clamped before being used in the VU recs
+#define CHECK_VU_EXTRA_OVERFLOW(vunum) (((vunum) == 0) ? EmuConfig.Cpu.Recompiler.vu0ExtraOverflow : EmuConfig.Cpu.Recompiler.vu1ExtraOverflow) /* If enabled, Operands are clamped before being used in the VU recs */
 #define CHECK_VU_SIGN_OVERFLOW(vunum) (((vunum) == 0) ? EmuConfig.Cpu.Recompiler.vu0SignOverflow : EmuConfig.Cpu.Recompiler.vu1SignOverflow)
 
 #define CHECK_FPU_OVERFLOW (EmuConfig.Cpu.Recompiler.fpuOverflow)
-#define CHECK_FPU_EXTRA_OVERFLOW (EmuConfig.Cpu.Recompiler.fpuExtraOverflow) // If enabled, Operands are checked for infinities before being used in the FPU recs
+#define CHECK_FPU_EXTRA_OVERFLOW (EmuConfig.Cpu.Recompiler.fpuExtraOverflow) /* If enabled, Operands are checked for infinities before being used in the FPU recs */
 #define CHECK_FPU_FULL (EmuConfig.Cpu.Recompiler.fpuFullMode)
 
-//------------ EE Recompiler defines - Comment to disable a recompiler ---------------
+/*------------ EE Recompiler defines - Comment to disable a recompiler --------------- */
 
-#define SHIFT_RECOMPILE // Speed majorly reduced if disabled
-#define BRANCH_RECOMPILE // Speed extremely reduced if disabled - more then shift
+#define SHIFT_RECOMPILE /* Speed majorly reduced if disabled */
+#define BRANCH_RECOMPILE /* Speed extremely reduced if disabled - more then shift */
 
-// Disabling all the recompilers in this block is interesting, as it still runs at a reasonable rate.
-// It also adds a few glitches. Really reminds me of the old Linux 64-bit version. --arcum42
+/* Disabling all the recompilers in this block is interesting, as it still runs at a reasonable rate.
+ * It also adds a few glitches. Really reminds me of the old Linux 64-bit version. --arcum42 */
 #define ARITHMETICIMM_RECOMPILE
 #define ARITHMETIC_RECOMPILE
 #define MULTDIV_RECOMPILE

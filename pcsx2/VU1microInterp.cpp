@@ -46,11 +46,9 @@ static void _vu1Exec(VURegs* VU)
 	ptr = (u32*)&VU->Micro[VU->VI[REG_TPC].UL];
 	VU->VI[REG_TPC].UL += 8;
 
-	if (ptr[1] & 0x40000000) // E flag
-	{
+	if (ptr[1] & 0x40000000) /* E flag */
 		VU->ebit = 2;
-	}
-	if (ptr[1] & 0x10000000) // D flag
+	if (ptr[1] & 0x10000000) /* D flag */
 	{
 		if (vuRegs[0].VI[REG_FBRST].UL & 0x400)
 		{
@@ -59,7 +57,7 @@ static void _vu1Exec(VURegs* VU)
 			VU->ebit = 1;
 		}
 	}
-	if (ptr[1] & 0x08000000) // T flag
+	if (ptr[1] & 0x08000000) /* T flag */
 	{
 		if (vuRegs[0].VI[REG_FBRST].UL & 0x800)
 		{
@@ -77,7 +75,7 @@ static void _vu1Exec(VURegs* VU)
 	_vuTestUpperStalls(VU, &uregs);
 
 	/* check upper flags */
-	if (ptr[1] & 0x80000000) // I Flag (Lower op is a float)
+	if (ptr[1] & 0x80000000) /* I Flag (Lower op is a float) */
 	{
 		_vuTestPipes(VU);
 
@@ -87,8 +85,8 @@ static void _vu1Exec(VURegs* VU)
 		_vu1ExecUpper(VU, ptr);
 
 		VU->VI[REG_I].UL = ptr[0];
-		//Lower not used, set to 0 to fill in the FMAC stall gap
-		//Could probably get away with just running upper stalls, but lets not tempt fate.
+		/* Lower not used, set to 0 to fill in the FMAC stall gap
+		 * Could probably get away with just running upper stalls, but lets not tempt fate. */
 		memset(&lregs, 0, sizeof(lregs));
 	}
 	else
@@ -114,12 +112,9 @@ static void _vu1Exec(VURegs* VU)
 		if (uregs.VFwrite)
 		{
 			if (lregs.VFwrite == uregs.VFwrite)
-			{
-				//Console.Warning("*PCSX2*: Warning, VF write to the same reg in both lower/upper cycle pc=%x", VU->VI[REG_TPC].UL);
 				discard = 1;
-			}
-			if (lregs.VFread0 == uregs.VFwrite ||
-				lregs.VFread1 == uregs.VFwrite)
+			if (       lregs.VFread0 == uregs.VFwrite
+				|| lregs.VFread1 == uregs.VFwrite)
 			{
 				_VF = VU->VF[uregs.VFwrite];
 				vfreg = uregs.VFwrite;
@@ -128,13 +123,9 @@ static void _vu1Exec(VURegs* VU)
 		if (uregs.VIwrite & (1 << REG_CLIP_FLAG))
 		{
 			if (lregs.VIwrite & (1 << REG_CLIP_FLAG))
-			{
-				//Console.Warning("*PCSX2*: Warning, VI write to the same reg in both lower/upper cyclepc=%x", VU->VI[REG_TPC].UL);
 				discard = 1;
-			}
 			if (lregs.VIread & (1 << REG_CLIP_FLAG))
 			{
-				//Console.Warning("*PCSX2*: Warning, VI read same cycle as write pc=%x", VU->VI[REG_TPC].UL);
 				_VI = VU->VI[REG_CLIP_FLAG];
 				vireg = REG_CLIP_FLAG;
 			}
@@ -158,16 +149,13 @@ static void _vu1Exec(VURegs* VU)
 			_vu1ExecLower(VU, ptr);
 
 			if (vfreg)
-			{
 				VU->VF[vfreg] = _VFc;
-			}
 			if (vireg)
-			{
 				VU->VI[vireg] = _VIc;
-			}
 		}
 	}
-	// Clear an FMAC read for use
+
+	/* Clear an FMAC read for use */
 	if (uregs.pipe == VUPIPE_FMAC || lregs.pipe == VUPIPE_FMAC)
 		_vuClearFMAC(VU);
 

@@ -13,7 +13,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define _PC_	// disables MIPS opcode macros.
+#define _PC_	/* disables MIPS opcode macros. */
 
 #include "R3000A.h"
 #include "Common.h"
@@ -21,12 +21,6 @@
 #include "IopHw.h"
 
 _sif sif2;
-
-static __fi void Sif2Init(void)
-{
-	sif2.ee.cycles  = 0;
-	sif2.iop.cycles = 0;
-}
 
 __fi void ReadFifoSingleWord(void)
 {
@@ -38,50 +32,33 @@ __fi void ReadFifoSingleWord(void)
 	if (sif2.iop.busy && sif2.fifo.size <= 8) SIF2Dma();
 }
 
-// Write from Fifo to EE.
-static __fi bool WriteFifoToEE(void)
-{
-	const int readSize = std::min((s32)sif2dma.qwc, sif2.fifo.size >> 2);
-	tDMA_TAG *ptag = sif2dma.getAddr(sif2dma.madr, DMAC_SIF2, true);
-	if (ptag == NULL)
-		return false;
-
-	if ((readSize << 2) > 0)
-		sif2.fifo.read((u32*)ptag, readSize << 2);
-
-	sif2dma.madr += readSize << 4;
-	sif2.ee.cycles += readSize;	// fixme : BIAS is factored in above
-	sif2dma.qwc -= readSize;
-
-	return true;
-}
-
-// Write IOP to Fifo.
+/* Write IOP to FIFO. */
 static __fi bool WriteIOPtoFifo(void)
 {
-	// There's some data ready to transfer into the fifo..
+	/* There's some data ready to transfer into the FIFO.. */
 	const int writeSize = std::min(sif2.iop.counter, FIFO_SIF_W - sif2.fifo.size);
 
 	if (writeSize > 0)
 		sif2.fifo.write((u32*)iopPhysMem(hw_dma2.madr), writeSize);
 	hw_dma2.madr += writeSize << 2;
 
-	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
-	sif2.iop.cycles += (writeSize >> 2)/* * BIAS*/;		// fixme : should be >> 4
+	/* IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords). */
+	sif2.iop.cycles  += (writeSize >> 2);		/* FIXME : should be >> 4 */
 	sif2.iop.counter -= writeSize;
-	//PSX_INT(IopEvt_SIF2, sif2.iop.cycles);
-	if (sif2.iop.counter == 0) hw_dma2.madr = sif2data & 0xffffff;
-	if (sif2.fifo.size > 0) psxHu32(0x1000f300) &= ~0x4000000;
+	if (sif2.iop.counter == 0)
+		hw_dma2.madr = sif2data & 0xffffff;
+	if (sif2.fifo.size > 0)
+		psxHu32(0x1000f300) &= ~0x4000000;
 	return true;
 }
 
 // Read Fifo into an ee tag, transfer it to sif2dma, and process it.
-static __fi bool ProcessEETag(void)
+static __fi void ProcessEETag(void)
 {
 	alignas(16) static u32 tag[4];
 	tDMA_TAG& ptag(*(tDMA_TAG*)tag);
 
-	sif2.fifo.read((u32*)&tag[0], 4); // Tag
+	sif2.fifo.read((u32*)&tag[0], 4); /* Tag */
 
 	sif2dma.unsafeTransfer(&ptag);
 	sif2dma.madr = tag[1];
@@ -89,56 +66,27 @@ static __fi bool ProcessEETag(void)
 	if (sif2dma.chcr.TIE && ptag.IRQ)
 		sif2.ee.end = true;
 
-	switch (ptag.ID)
-	{
-	case TAG_CNT:
-	case TAG_CNTS:
-		break;
-
-	case TAG_END:
+	if (ptag.ID == TAG_END)
 		sif2.ee.end = true;
-		break;
-	}
-	return true;
 }
 
-// Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
+/* Read FIFO into an iop tag, and transfer it to hw_dma9. And presumably process it. */
 static __fi void ProcessIOPTag(void)
 {
-	//sif2.iop.data = *(sifData *)iopPhysMem(hw_dma2.madr); //comment this out and replace words below
-	// Process DMA tag at hw_dma9.tadr
+	/* Process DMA tag at hw_dma9.tadr */
 
-	sif2.iop.data.words = sif2.iop.data.data >> 24; // Round up to nearest 4.
+	sif2.iop.data.words = sif2.iop.data.data >> 24; /* Round up to nearest 4. */
 
-	// send the EE's side of the DMAtag.  The tag is only 64 bits, with the upper 64 bits
-	// ignored by the EE.
+	/* send the EE's side of the DMAtag.  The tag is only 64 bits, with the upper 64 bits
+	 * ignored by the EE.
+	 *
+	 * We're only copying the first 24 bits.  Bits 30 and 31 (checked below) are Stop/IRQ bits. */
 
-	// We're only copying the first 24 bits.  Bits 30 and 31 (checked below) are Stop/IRQ bits.
-
-	//psxHu32(HW_PS1_GPU_DATA) += 4;
-	sif2.iop.counter =  (HW_DMA2_BCR_H16 * HW_DMA2_BCR_L16); //makes it do more stuff?? //sif2words;
-	/*if (HW_DMA2_CHCR & 0x400)
-	{
-		if (sif2.iop.counter == 0) hw_dma2.madr = sif2data & 0xFFFFFF;
-		else hw_dma2.madr += 2;
-	}
-	else hw_dma2.madr += 2;
-	// IOP tags have an IRQ bit and an End of Transfer bit:
-	if ((sif2data & 0xFFFFFF) == 0xFFFFFF || (HW_DMA2_CHCR & 0x200)) */sif2.iop.end = true;
+	sif2.iop.counter    =  (HW_DMA2_BCR_H16 * HW_DMA2_BCR_L16); /* makes it do more stuff?? */
+	sif2.iop.end        = true;
 }
 
-// Stop transferring ee, and signal an interrupt.
-static __fi void EndEE(void)
-{
-	sif2.ee.end = false;
-	sif2.ee.busy = false;
-	if (sif2.ee.cycles == 0)
-		sif2.ee.cycles = 1;
-
-	CPU_INT(DMAC_SIF2, sif2.ee.cycles*BIAS);
-}
-
-// Stop transferring iop, and signal an interrupt.
+/* Stop transferring IOP, and signal an interrupt. */
 static __fi void EndIOP(void)
 {
 	sif2data      = 0;
@@ -146,12 +94,12 @@ static __fi void EndIOP(void)
 
 	if (sif2.iop.cycles == 0)
 		sif2.iop.cycles = 1;
-	// IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
-	// So when we're all done, the equation looks like thus:
+	/* IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords)
+	 * So when we're all done, the equation looks like thus: */
 	PSX_INT(IopEvt_SIF2, sif2.iop.cycles);
 }
 
-// Handle the EE transfer.
+/* Handle the EE transfer. */
 static __fi void HandleEETransfer(void)
 {
 	if (!sif2dma.chcr.STR)
@@ -163,25 +111,38 @@ static __fi void HandleEETransfer(void)
 
 	if (sif2dma.qwc <= 0)
 	{
+		/* Stop transferring EE, and signal an interrupt. */
 		if ((sif2dma.chcr.MOD == NORMAL_MODE) || sif2.ee.end)
 		{
-			// Stop transferring ee, and signal an interrupt.
-			EndEE();
+			sif2.ee.end  = false;
+			sif2.ee.busy = false;
+			if (sif2.ee.cycles == 0)
+				sif2.ee.cycles = 1;
+
+			CPU_INT(DMAC_SIF2, sif2.ee.cycles*BIAS);
 		}
-		else if (sif2.fifo.size >= 4) // Read a tag
-		{
-			// Read Fifo into an ee tag, transfer it to sif2dma
-			// and process it.
+		else if (sif2.fifo.size >= 4) /* Read a tag */
+			/* Read Fifo into an EE tag, transfer it to SIF2DMA
+			 * and process it. */
 			ProcessEETag();
-		}
 	}
 
-	if (sif2dma.qwc > 0) // If we're writing something, continue to do so.
+	if (sif2dma.qwc > 0) /* If we're writing something, continue to do so. */
 	{
-		// Write from Fifo to EE.
+		/* Write from Fifo to EE. */
 		if (sif2.fifo.size > 0)
 		{
-			WriteFifoToEE();
+			const int readSize = std::min((s32)sif2dma.qwc, sif2.fifo.size >> 2);
+			tDMA_TAG *ptag     = sif2dma.getAddr(sif2dma.madr, DMAC_SIF2, true);
+			if (ptag == NULL)
+				return;
+
+			if ((readSize << 2) > 0)
+				sif2.fifo.read((u32*)ptag, readSize << 2);
+
+			sif2dma.madr   += readSize << 4;
+			sif2.ee.cycles += readSize;	/* FIXME : BIAS is factored in above */
+			sif2dma.qwc    -= readSize;
 		}
 	}
 }
@@ -226,8 +187,8 @@ static __fi void HandleIOPTransfer(void)
 		}
 		else
 		{
-			// Read Fifo into an IOP tag, and transfer it to hw_dma9.
-			// And presumably process it.
+			/* Read Fifo into an IOP tag, and transfer it to hw_dma9.
+			 * And presumably process it. */
 			ProcessIOPTag();
 		}
 	}
@@ -241,21 +202,16 @@ static __fi void HandleIOPTransfer(void)
 	}
 }
 
-static __fi void Sif2End(void)
-{
-	psHu32(SBUS_F240) &= ~0x80;
-	psHu32(SBUS_F240) &= ~0x8000;
-}
-
-// Transfer IOP to EE, putting data in the fifo as an intermediate step.
+/* Transfer IOP to EE, putting data in the FIFO as an intermediate step. */
 __fi void SIF2Dma(void)
 {
-	int BusyCheck = 0;
-	Sif2Init();
+	int BusyCheck   = 0;
+	sif2.ee.cycles  = 0;
+	sif2.iop.cycles = 0;
 
 	do
 	{
-		//I realise this is very hacky in a way but its an easy way of checking if both are doing something
+		/* I realise this is very hacky in a way but its an easy way of checking if both are doing something */
 		BusyCheck = 0;
 
 		if (sif2.iop.busy)
@@ -274,9 +230,10 @@ __fi void SIF2Dma(void)
 				HandleEETransfer();
 			}
 		}
-	} while (BusyCheck > 0); // Substituting (sif2.ee.busy || sif2.iop.busy) breaks things.
+	} while (BusyCheck > 0); /* Substituting (sif2.ee.busy || sif2.iop.busy) breaks things. */
 
-	Sif2End();
+	psHu32(SBUS_F240) &= ~0x80;
+	psHu32(SBUS_F240) &= ~0x8000;
 }
 
 __fi void  sif2Interrupt(void)
@@ -289,12 +246,6 @@ __fi void  sif2Interrupt(void)
 
 	HW_DMA2_CHCR &= ~0x01000000;
 	psxDmaInterrupt2(2);
-}
-
-__fi void  EEsif2Interrupt(void)
-{
-	hwDmacIrq(DMAC_SIF2);
-	sif2dma.chcr.STR = false;
 }
 
 __fi void dmaSIF2(void)

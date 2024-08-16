@@ -30,7 +30,7 @@
 #include "ps2/HwInternal.h"
 #include "ps2/pgif.h"
 
-const int rdram_devices = 2;	// put 8 for TOOL and 2 for PS2 and PSX
+const int rdram_devices = 2;	/* put 8 for TOOL and 2 for PS2 and PSX */
 int rdram_sdevid = 0;
 
 void hwReset(void)
@@ -39,12 +39,12 @@ void hwReset(void)
 
 	psHu32(SBUS_F260) = 0x1D000060;
 
-	// i guess this is kinda a version, it's used by some bioses
+	/* i guess this is kinda a version, it's used by some bioses */
 	psHu32(DMAC_ENABLEW) = 0x1201;
 	psHu32(DMAC_ENABLER) = 0x1201;
 
-	// Sets SPU2 sample rate to PS2 standard (48KHz) whenever emulator is reset.
-	// For PSX mode sample rate setting, see HwWrite.cpp
+	/* Sets SPU2 sample rate to PS2 standard (48KHz) whenever emulator is reset.
+	 * For PSX mode sample rate setting, see HwWrite.cpp */
 	SPU2::Reset(false);
 
 	sifReset();
@@ -106,55 +106,6 @@ void FireMFIFOEmpty(void)
 
 	if (dmacRegs.ctrl.MFD == MFD_VIF1) vif1Regs.stat.FQC = 0;
 	if (dmacRegs.ctrl.MFD == MFD_GIF)  gifRegs.stat.FQC  = 0;
-}
-
-// Write 'size' bytes to memory address 'addr' from 'data'.
-__ri bool hwMFIFOWrite(u32 addr, const u128* data, uint qwc)
-{
-	// DMAC Address resolution:  FIFO can be placed anywhere in the *physical* memory map
-	// for the PS2.  Its probably a serious error for a PS2 app to have the buffer cross
-	// valid/invalid page areas of ram, so realistically we only need to test the base address
-	// of the FIFO for address validity.
-
-	if (u128* dst = (u128*)PSM(dmacRegs.rbor.ADDR))
-	{
-		const u32 ringsize = (dmacRegs.rbsr.RMSK / 16) + 1;
-		uint startpos      = (addr & dmacRegs.rbsr.RMSK)/16;
-		MemCopy_WrappedDest( data, dst, startpos, ringsize, qwc );
-		return true;
-	}
-	return false;
-}
-
-__ri void hwMFIFOResume(u32 transferred)
-{
-	if (transferred == 0)
-		return; //Nothing got put in the MFIFO, we don't care
-
-	switch (dmacRegs.ctrl.MFD)
-	{
-		case MFD_VIF1: // Most common case.
-			if (vif1.inprogress & 0x10)
-			{
-				vif1.inprogress &= ~0x10;
-				//Don't resume if stalled or already looping
-				if (vif1ch.chcr.STR && !(cpuRegs.interrupt & (1 << DMAC_MFIFO_VIF)) && !vif1Regs.stat.INT)
-				{
-					//Need to simulate the time it takes to copy here, if the VIF resumes before the SPR has finished, it isn't happy.
-					CPU_INT(DMAC_MFIFO_VIF, transferred * BIAS);
-				}
-
-			}
-			break;
-		case MFD_GIF:
-			if ((gif.gifstate & GIF_STATE_EMPTY)) {
-				CPU_INT(DMAC_MFIFO_GIF, transferred * BIAS);
-				gif.gifstate = GIF_STATE_READY;
-			}
-			break;
-		default:
-			break;
-	}
 }
 
 __ri bool hwDmacSrcChainWithStack(DMACh& dma, int id) {

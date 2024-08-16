@@ -36,7 +36,7 @@
 
 void ReadFIFO_VIF1(mem128_t* out)
 {
-	ZeroQWC(out); // Clear first in case no data gets written...
+	ZeroQWC(out); /* Clear first in case no data gets written... */
 	if (vif1Regs.stat.FDR)
 	{
 		if (vif1Regs.stat.FQC > 0)
@@ -83,8 +83,8 @@ void WriteFIFO_VIF1(const mem128_t* value)
 	if (gifRegs.stat.APATH == 2 && gifUnit.gifPath[1].isDone())
 	{
 		gifRegs.stat.APATH = 0;
-		gifRegs.stat.OPH = 0;
-		vif1Regs.stat.VGW = false; //Let vif continue if it's stuck on a flush
+		gifRegs.stat.OPH   = 0;
+		vif1Regs.stat.VGW  = false; /* Let VIF continue if it's stuck on a flush */
 
 		if (gifUnit.checkPaths(1, 0, 1))
 			gifUnit.Execute(false, true);

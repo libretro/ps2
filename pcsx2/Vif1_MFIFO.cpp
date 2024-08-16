@@ -18,40 +18,29 @@
 #include "Gif_Unit.h"
 #include "Vif_Dma.h"
 
-static u32 qwctag(u32 mask)
-{
-	return (dmacRegs.rbor.ADDR + (mask & dmacRegs.rbsr.RMSK));
-}
+#define QWCTAG(mask) (dmacRegs.rbor.ADDR + ((mask) & dmacRegs.rbsr.RMSK))
 
 static u32 QWCinVIFMFIFO(u32 DrainADDR, u32 qwc)
 {
-	u32 ret;
-
-	//Calculate what we have in the fifo.
-	if (DrainADDR <= spr0ch.madr)
-	{
-		//Drain is below the tadr, calculate the difference between them
-		ret = (spr0ch.madr - DrainADDR) >> 4;
-	}
-	else
-	{
-		u32 limit = dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16;
-		//Drain is higher than SPR so it has looped round,
-		//calculate from base to the SPR tag addr and what is left in the top of the ring
-		ret = ((spr0ch.madr - dmacRegs.rbor.ADDR) + (limit - DrainADDR)) >> 4;
-	}
-
-	return ret;
+	u32 limit;
+	/*Calculate what we have in the fifo. */
+	if (DrainADDR <= spr0ch.madr) /* Drain is below the TADR, calculate the difference between them */
+		return (spr0ch.madr - DrainADDR) >> 4;
+	limit = dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16;
+	/* Drain is higher than SPR so it has looped round,
+	 * calculate from base to the SPR tag addr and what is left in the top of the ring */
+	return ((spr0ch.madr - dmacRegs.rbor.ADDR) + (limit - DrainADDR)) >> 4;
 }
-static __fi bool mfifoVIF1rbTransfer()
+
+static __fi bool mfifoVIF1rbTransfer(void)
 {
-	u32 msize = dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16;
-	u32 mfifoqwc = std::min(QWCinVIFMFIFO(vif1ch.madr, vif1ch.qwc), vif1ch.qwc);
-	u32* src;
 	bool ret;
+	u32* src;
+	u32 msize    = dmacRegs.rbor.ADDR + dmacRegs.rbsr.RMSK + 16;
+	u32 mfifoqwc = std::min(QWCinVIFMFIFO(vif1ch.madr, vif1ch.qwc), vif1ch.qwc);
 
 	if (mfifoqwc == 0)
-		return true; //Cant do anything, lets forget it
+		return true; /* Cant do anything, lets forget it */
 
 	/* Check if the transfer should wrap around the ring buffer */
 	if ((vif1ch.madr + (mfifoqwc << 4)) > (msize))
@@ -59,10 +48,9 @@ static __fi bool mfifoVIF1rbTransfer()
 		int s1 = ((msize)-vif1ch.madr) >> 2;
 
 		/* it does, so first copy 's1' bytes from 'addr' to 'data' */
-		vif1ch.madr = qwctag(vif1ch.madr);
+		vif1ch.madr = QWCTAG(vif1ch.madr);
 
-		src = (u32*)PSM(vif1ch.madr);
-		if (src == NULL)
+		if (!(src = (u32*)PSM(vif1ch.madr)))
 			return false;
 
 		if (vif1.irqoffset.enabled)
@@ -73,11 +61,10 @@ static __fi bool mfifoVIF1rbTransfer()
 		if (ret)
 		{
 			/* and second copy 's2' bytes from 'maddr' to '&data[s1]' */
-			vif1ch.tadr = qwctag(vif1ch.tadr);
-			vif1ch.madr = qwctag(vif1ch.madr);
+			vif1ch.tadr = QWCTAG(vif1ch.tadr);
+			vif1ch.madr = QWCTAG(vif1ch.madr);
 
-			src = (u32*)PSM(vif1ch.madr);
-			if (src == NULL)
+			if (!(src = (u32*)PSM(vif1ch.madr)))
 				return false;
 			VIF1transfer(src, ((mfifoqwc << 2) - s1));
 		}
@@ -85,8 +72,7 @@ static __fi bool mfifoVIF1rbTransfer()
 	else
 	{
 		/* it doesn't, so just transfer 'qwc*4' words */
-		src = (u32*)PSM(vif1ch.madr);
-		if (src == NULL)
+		if (!(src = (u32*)PSM(vif1ch.madr)))
 			return false;
 
 		if (vif1.irqoffset.enabled)
@@ -117,18 +103,19 @@ static __fi void mfifo_VIF1chain()
 		}
 
 		mfifoVIF1rbTransfer();
-		vif1ch.madr = qwctag(vif1ch.madr);
-		//When transferring direct from the MFIFO, the TADR needs to be after the data last read
-		//FF7 DoC Expects the transfer to end with an Empty interrupt, so the TADR has to match SPR0_MADR
-		//It does an END tag (which normally doesn't increment TADR because it breaks Soul Calibur 2)
-		//with a QWC of 1 (rare) so we need to increment the TADR in the case of MFIFO.
+		vif1ch.madr = QWCTAG(vif1ch.madr);
+
+		/* When transferring direct from the MFIFO, the TADR needs to be after the data last read
+		 * FF7 DoC Expects the transfer to end with an Empty interrupt, so the TADR has to match SPR0_MADR
+		 * It does an END tag (which normally doesn't increment TADR because it breaks Soul Calibur 2)
+		 * with a QWC of 1 (rare) so we need to increment the TADR in the case of MFIFO. */
 		vif1ch.tadr = vif1ch.madr;
 	}
 	else
 	{
 		tDMA_TAG* pMem = dmaGetAddr(vif1ch.madr, !vif1ch.chcr.DIR);
 
-		//No need to exit on non-mfifo as it is indirect anyway, so it can be transferring this while spr refills the mfifo
+		/* No need to exit on non-mfifo as it is indirect anyway, so it can be transferring this while spr refills the mfifo */
 
 		if (pMem == NULL)
 			return;
@@ -144,24 +131,24 @@ void mfifoVifMaskMem(int id)
 {
 	switch (id)
 	{
-		//These five transfer data following the tag, need to check its within the buffer (Front Mission 4)
+		/* These five transfer data following the tag, need to check its within the buffer (Front Mission 4) */
 		case TAG_CNT:
 		case TAG_NEXT:
 		case TAG_CALL:
 		case TAG_RET:
 		case TAG_END:
-			if (vif1ch.madr < dmacRegs.rbor.ADDR) //probably not needed but we will check anyway.
-				vif1ch.madr = qwctag(vif1ch.madr);
-			if (vif1ch.madr > (dmacRegs.rbor.ADDR + (u32)dmacRegs.rbsr.RMSK)) //Usual scenario is the tag is near the end (Front Mission 4)
-				vif1ch.madr = qwctag(vif1ch.madr);
+			if (vif1ch.madr < dmacRegs.rbor.ADDR) /* probably not needed but we will check anyway. */
+				vif1ch.madr = QWCTAG(vif1ch.madr);
+			if (vif1ch.madr > (dmacRegs.rbor.ADDR + (u32)dmacRegs.rbsr.RMSK)) /* Usual scenario is the tag is near the end (Front Mission 4) */
+				vif1ch.madr = QWCTAG(vif1ch.madr);
 			break;
 		default:
-			//Do nothing as the MADR could be outside
+			/* Do nothing as the MADR could be outside */
 			break;
 	}
 }
 
-void mfifoVIF1transfer()
+void mfifoVIF1transfer(void)
 {
 	tDMA_TAG* ptag;
 
@@ -176,7 +163,7 @@ void mfifoVIF1transfer()
 			return;
 		}
 
-		vif1ch.tadr = qwctag(vif1ch.tadr);
+		vif1ch.tadr = QWCTAG(vif1ch.tadr);
 		ptag = dmaGetAddr(vif1ch.tadr, false);
 
 		if (vif1ch.chcr.TTE)
@@ -189,21 +176,18 @@ void mfifoVIF1transfer()
 			masked_tag._u64[1] = *((u64*)ptag + 1);
 
 			if (vif1.irqoffset.enabled)
-			{
-				ret = VIF1transfer((u32*)&masked_tag + vif1.irqoffset.value, 4 - vif1.irqoffset.value, true); //Transfer Tag on stall
-				//ret = VIF1transfer((u32*)ptag + (2 + vif1.irqoffset), 2 - vif1.irqoffset);  //Transfer Tag on stall
-			}
+				ret = VIF1transfer((u32*)&masked_tag + vif1.irqoffset.value, 4 - vif1.irqoffset.value, true); /* Transfer Tag on stall */
 			else
 			{
 				vif1.irqoffset.value = 2;
 				vif1.irqoffset.enabled = true;
-				ret = VIF1transfer((u32*)&masked_tag + 2, 2, true); //Transfer Tag
+				ret = VIF1transfer((u32*)&masked_tag + 2, 2, true); /* Transfer Tag */
 			}
 
 			if (!ret && vif1.irqoffset.enabled)
 			{
 				vif1.inprogress &= ~1;
-				return; //IRQ set by VIFTransfer
+				return; /* IRQ set by VIFTransfer */
 			}
 			g_vif1Cycles += 2;
 		}
@@ -220,11 +204,9 @@ void mfifoVIF1transfer()
 		mfifoVifMaskMem(ptag->ID);
 
 		if (vif1ch.chcr.TIE && ptag->IRQ)
-		{
 			vif1.done = true;
-		}
 
-		vif1ch.tadr = qwctag(vif1ch.tadr);
+		vif1ch.tadr = QWCTAG(vif1ch.tadr);
 
 		if (vif1ch.qwc > 0)
 			vif1.inprogress |= 1;
@@ -252,7 +234,7 @@ void vifMFIFOInterrupt(void)
 
 	if (vif1ch.chcr.DIR)
 	{
-		bool isDirect = (vif1.cmd & 0x7f) == 0x50;
+		bool isDirect   = (vif1.cmd & 0x7f) == 0x50;
 		bool isDirectHL = (vif1.cmd & 0x7f) == 0x51;
 		if ((isDirect && !gifUnit.CanDoPath2()) || (isDirectHL && !gifUnit.CanDoPath2HL()))
 		{
@@ -268,10 +250,10 @@ void vifMFIFOInterrupt(void)
 		return;
 	}
 
-	// We need to check the direction, if it is downloading from the GS,
-	// we handle that separately (KH2 for testing)
+	/* We need to check the direction, if it is downloading from the GS,
+	 * we handle that separately (KH2 for testing)
 
-	// Simulated GS transfer time done, clear the flags
+	 * Simulated GS transfer time done, clear the flags */
 
 	if (vif1.irq && vif1.vifstalled.enabled && vif1.vifstalled.value == VIF_IRQ_STALL)
 	{
@@ -285,29 +267,25 @@ void vifMFIFOInterrupt(void)
 
 		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
-			//vif1Regs.stat.FQC = 0; // FQC=0
-			//vif1ch.chcr.STR = false;
 			vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
-			//Used to check if the MFIFO was empty, there's really no need if it's finished what it needed.
+			/* Used to check if the MFIFO was empty, there's really no need if it's finished what it needed. */
 			if ((vif1ch.qwc > 0 || !vif1.done))
 			{
-				vif1Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
+				vif1Regs.stat.VPS = VPS_DECODING; /* If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors) */
 				CPU_SET_DMASTALL(DMAC_MFIFO_VIF, true);
 				return;
 			}
 		}
 	}
 
-	//Mirroring change to VIF0
+	/* Mirroring change to VIF0 */
 	if (vif1.cmd)
 	{
 		if (vif1.done && vif1ch.qwc == 0)
 			vif1Regs.stat.VPS = VPS_WAITING;
 	}
 	else
-	{
 		vif1Regs.stat.VPS = VPS_IDLE;
-	}
 
 	if (vif1.inprogress & 0x10)
 	{
@@ -322,16 +300,16 @@ void vifMFIFOInterrupt(void)
 	{
 		switch (vif1.inprogress & 1)
 		{
-			case 0: //Set up transfer
+			case 0: /* Set up transfer */
 				mfifoVIF1transfer();
 				vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
-				// fallthrough 
+				/* fallthrough  */
 
-			case 1: //Transfer data
-				if (vif1.inprogress & 0x1) //Just in case the tag breaks early (or something wierd happens)!
+			case 1: /* Transfer data */
+				if (vif1.inprogress & 0x1) /* Just in case the tag breaks early (or something wierd happens)! */
 					mfifo_VIF1chain();
-				//Sanity check! making sure we always have non-zero values
-				if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) //If we're waiting on GIF, stop looping, (can be over 1000 loops!)
+				/* Sanity check! making sure we always have non-zero values */
+				if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) /* If we're waiting on GIF, stop looping, (can be over 1000 loops!) */
 				{
 					if (vif1.waitforvu)
 					{

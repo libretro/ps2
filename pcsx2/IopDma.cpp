@@ -115,10 +115,6 @@ void psxDma2(u32 madr, u32 bcr, u32 chcr) // GPU
 {
 	sif2.iop.busy = true;
 	sif2.iop.end = false;
-	//SIF2Dma();
-	// todo: psxmode: dmaSIF2 appears to interface with PGPU but everything is already handled without it.
-	// it slows down psxmode if it's run.
-	//dmaSIF2();
 }
 
 void psxDma6(u32 madr, u32 bcr, u32 chcr)

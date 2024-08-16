@@ -19,14 +19,15 @@
 #include "Cache.h"
 #include "vtlb.h"
 
-// The lower parts of a cache tags structure is as follows:
-// 31 - 12: The physical address cache tag.
-// 11 - 7: Unused.
-// 6: Dirty flag.
-// 5: Valid flag.
-// 4: LRF flag - least recently filled flag.
-// 3: Lock flag.
-// 2-0: Unused.
+/* The lower parts of a cache tags structure is as follows:
+ * 31 - 12: The physical address cache tag.
+ * 11 - 7: Unused.
+ * 6: Dirty flag.
+ * 5: Valid flag.
+ * 4: LRF flag - least recently filled flag.
+ * 3: Lock flag.
+ * 2-0: Unused.
+ */
 
 #define DIRTY_FLAG 0x40
 #define VALID_FLAG 0x20
@@ -203,7 +204,7 @@ namespace R5900
 
 				switch (_Rt_)
 				{
-					case 0x1a: //DHIN (Data Cache Hit Invalidate)
+					case 0x1a: /* DHIN (Data Cache Hit Invalidate) */
 						doCacheHitOp(addr, [](CacheLine line)
 								{
 								line.tag.rawValue &= LRF_FLAG;
@@ -211,7 +212,7 @@ namespace R5900
 								});
 						break;
 
-					case 0x18: //DHWBIN (Data Cache Hit WriteBack with Invalidate)
+					case 0x18: /* DHWBIN (Data Cache Hit WriteBack with Invalidate) */
 						doCacheHitOp(addr, [](CacheLine line)
 								{
 								line.writeBackIfNeeded();
@@ -220,14 +221,14 @@ namespace R5900
 								});
 						break;
 
-					case 0x1c: //DHWOIN (Data Cache Hit WriteBack Without Invalidate)
+					case 0x1c: /* DHWOIN (Data Cache Hit WriteBack Without Invalidate) */
 						doCacheHitOp(addr, [](CacheLine line)
 								{
 								line.writeBackIfNeeded();
 								});
 						break;
 
-					case 0x16: //DXIN (Data Cache Index Invalidate)
+					case 0x16: /* DXIN (Data Cache Index Invalidate) */
 						{
 							const int index = (addr >> 6) & 0x3F;
 							const int way   = addr & 0x1;
@@ -238,7 +239,7 @@ namespace R5900
 							break;
 						}
 
-					case 0x11: //DXLDT (Data Cache Load Data into TagLo)
+					case 0x11: /* DXLDT (Data Cache Load Data into TagLo) */
 						{
 							const int index     = (addr >> 6) & 0x3F;
 							const int way       = addr & 0x1;
@@ -249,22 +250,22 @@ namespace R5900
 							break;
 						}
 
-					case 0x10: //DXLTG (Data Cache Load Tag into TagLo)
+					case 0x10: /* DXLTG (Data Cache Load Tag into TagLo) */
 						{
 							const int index = (addr >> 6) & 0x3F;
 							const int way   = addr & 0x1;
 							CacheLine line  = { cache.sets[index].tags[way], cache.sets[index].data[way], index };
 
-							// DXLTG demands that SYNC.L is called before this command, which forces the cache to write back, so presumably games are checking the cache has updated the memory
-							// For speed, we will do it here.
+							/* DXLTG demands that SYNC.L is called before this command, which forces the cache to write back, 
+							 * so presumably games are checking the cache has updated the memory for speed, we will do it here. */
 							line.writeBackIfNeeded();
 
-							// Our tags don't contain PS2 paddrs (instead they contain x86 addrs)
+							/* Our tags don't contain PS2 paddrs (instead they contain x86 addrs) */
 							cpuRegs.CP0.n.TagLo = line.tag.rawValue & ALL_FLAGS;
 							break;
 						}
 
-					case 0x13: //DXSDT (Data Cache Store 32bits from TagLo)
+					case 0x13: /* DXSDT (Data Cache Store 32bits from TagLo) */
 						{
 							const int index = (addr >> 6) & 0x3F;
 							const int way   = addr & 0x1;
@@ -274,7 +275,7 @@ namespace R5900
 							break;
 						}
 
-					case 0x12: //DXSTG (Data Cache Store Tag from TagLo)
+					case 0x12: /* DXSTG (Data Cache Store Tag from TagLo) */
 						{
 							const int index = (addr >> 6) & 0x3F;
 							const int way   = addr & 0x1;
@@ -285,7 +286,7 @@ namespace R5900
 							break;
 						}
 
-					case 0x14: //DXWBIN (Data Cache Index WriteBack Invalidate)
+					case 0x14: /* DXWBIN (Data Cache Index WriteBack Invalidate) */
 						{
 							const int index = (addr >> 6) & 0x3F;
 							const int way   = addr & 0x1;
@@ -296,12 +297,12 @@ namespace R5900
 							break;
 						}
 
-					case 0x7: //IXIN (Instruction Cache Index Invalidate) Not Implemented as we do not have instruction cache
-					case 0xC: //BFH (BTAC Flush) Not Implemented as we do not cache Branch Target Addresses.
+					case 0x7: /* IXIN (Instruction Cache Index Invalidate) Not Implemented as we do not have instruction cache */
+					case 0xC: /* BFH (BTAC Flush) Not Implemented as we do not cache Branch Target Addresses. */
 					default:
 						break;
 				}
 			}
-		} // end namespace OpcodeImpl
+		}
 	}
 }

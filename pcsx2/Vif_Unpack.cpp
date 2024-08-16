@@ -34,8 +34,8 @@ static __fi u32 setVifRow(vifStruct& vif, u32 reg, u32 data)
 	return data;
 }
 
-// cycle derives from vif.cl
-// mode derives from vifRegs.mode
+/* cycle derives from vif.cl
+ * mode derives from vifRegs.mode */
 template< uint idx, uint mode, bool doMask >
 static __ri void writeXYZW(u32 offnum, u32 &dest, u32 data) {
 	int n = 0;
@@ -52,11 +52,12 @@ static __ri void writeXYZW(u32 offnum, u32 &dest, u32 data) {
 		}
 	}
 
-	// Four possible types of masking are handled below:
-	//   0 - Data
-	//   1 - MaskRow
-	//   2 - MaskCol
-	//   3 - Write protect
+	/* Four possible types of masking are handled below:
+	 *   0 - Data
+	 *   1 - MaskRow
+	 *   2 - MaskCol
+	 *   3 - Write protect
+	 */
 
 	switch (n) {
 		case 0:
@@ -78,15 +79,15 @@ static void UNPACK_S(u32* dest, const T* src)
 {
 	u32 data = *src;
 
-	//S-# will always be a complete packet, no matter what. So we can skip the offset bits
+	/* S-# will always be a complete packet, no matter what. So we can skip the offset bits */
 	writeXYZW<idx,mode,doMask>(OFFSET_X, *(dest+0), data);
 	writeXYZW<idx,mode,doMask>(OFFSET_Y, *(dest+1), data);
 	writeXYZW<idx,mode,doMask>(OFFSET_Z, *(dest+2), data);
 	writeXYZW<idx,mode,doMask>(OFFSET_W, *(dest+3), data);
 }
 
-// The PS2 console actually writes v1v0v1v0 for all V2 unpacks -- the second v1v0 pair
-// being officially "indeterminate" but some games very much depend on it.
+/* The PS2 console actually writes v1v0v1v0 for all V2 unpacks -- the second v1v0 pair
+ * being officially "indeterminate" but some games very much depend on it. */
 template < uint idx, uint mode, bool doMask, class T >
 static void UNPACK_V2(u32* dest, const T* src)
 {
@@ -96,9 +97,9 @@ static void UNPACK_V2(u32* dest, const T* src)
 	writeXYZW<idx,mode,doMask>(OFFSET_W, *(dest+3), *(src+1));
 }
 
-// V3 and V4 unpacks both use the V4 unpack logic, even though most of the OFFSET_W fields
-// during V3 unpacking end up being overwritten by the next unpack.  This is confirmed real
-// hardware behavior that games such as Ape Escape 3 depend on.
+/* V3 and V4 unpacks both use the V4 unpack logic, even though most of the OFFSET_W fields
+ * during V3 unpacking end up being overwritten by the next unpack.  This is confirmed real
+ * hardware behavior that games such as Ape Escape 3 depend on. */
 template < uint idx, uint mode, bool doMask, class T >
 static void UNPACK_V4(u32* dest, const T* src)
 {
@@ -108,7 +109,7 @@ static void UNPACK_V4(u32* dest, const T* src)
 	writeXYZW<idx,mode,doMask>(OFFSET_W, *(dest+3), *(src+3));
 }
 
-// V4_5 unpacks do not support the MODE register, and act as mode==0 always.
+/* V4_5 unpacks do not support the MODE register, and act as mode==0 always. */
 template< uint idx, bool doMask >
 static void UNPACK_V4_5(u32 *dest, const u32* src)
 {
@@ -120,21 +121,21 @@ static void UNPACK_V4_5(u32 *dest, const u32* src)
 	writeXYZW<idx,0,doMask>(OFFSET_W, *(dest+3),	((data & 0x8000) >> 8));
 }
 
-// =====================================================================================================
-
-// --------------------------------------------------------------------------------------
-//  Main table for function unpacking.
-// --------------------------------------------------------------------------------------
-// The extra data bsize/dsize/etc are all duplicated between the doMask enabled and
-// disabled versions.  This is probably simpler and more efficient than bothering
-// to generate separate tables.
-//
-// The double-cast function pointer nonsense is to appease GCC, which gives some rather
-// cryptic error about being unable to deduce the type parameters (I think it's a bug
-// relating to __fastcall, which I recall having some other places as well).  It's fixed
-// by explicitly casting the function to itself prior to casting it to what we need it
-// to be cast as. --air
-//
+/* =====================================================================================================
+ *
+ * --------------------------------------------------------------------------------------
+ *  Main table for function unpacking.
+ * --------------------------------------------------------------------------------------
+ * The extra data bsize/dsize/etc are all duplicated between the doMask enabled and
+ * disabled versions.  This is probably simpler and more efficient than bothering
+ * to generate separate tables.
+ *
+ * The double-cast function pointer nonsense is to appease GCC, which gives some rather
+ * cryptic error about being unable to deduce the type parameters (I think it's a bug
+ * relating to __fastcall, which I recall having some other places as well).  It's fixed
+ * by explicitly casting the function to itself prior to casting it to what we need it
+ * to be cast as. --air
+ */
 
 #define _upk			(UNPACKFUNCTYPE)
 #define _unpk(usn, bits)	(UNPACKFUNCTYPE_##usn##bits)
@@ -185,9 +186,10 @@ alignas(16) const UNPACKFUNCTYPE VIFfuncTable[2][4][4 * 4 * 2 * 2] =
 	}
 };
 
-//----------------------------------------------------------------------------
-// Unpack Setup Code
-//----------------------------------------------------------------------------
+/*----------------------------------------------------------------------------
+ * Unpack Setup Code
+ *----------------------------------------------------------------------------
+ */
 _vifT void vifUnpackSetup(const u32 *data)
 {
 	vifStruct& vifX = GetVifX;
@@ -208,11 +210,11 @@ _vifT void vifUnpackSetup(const u32 *data)
 
 	uint wl = vifXRegs.cycle.wl ? vifXRegs.cycle.wl : 256;
 
-	if (wl <= vifXRegs.cycle.cl) //Skipping write
+	if (wl <= vifXRegs.cycle.cl) /* Skipping write */
 		vifX.tag.size = ((vifNum * gsize) + 3) / 4;
 	else
 	{
-		//Filling write
+		/* Filling write */
 		int a   = vifNum % wl;
 		int max = vifXRegs.cycle.cl;
 		int n   = vifXRegs.cycle.cl * (vifNum / wl) 
@@ -315,9 +317,9 @@ _vifT int nVifUnpack(const u8* data)
 	const bool isFill = (vifRegs.cycle.cl < wl);
 	s32        size   = ret << 2;
 
-	if (ret == vif.tag.size) // Full Transfer
+	if (ret == vif.tag.size) /* Full Transfer */
 	{
-		if (v.bSize) // Last transfer was partial
+		if (v.bSize) /* Last transfer was partial */
 		{
 			memcpy(&v.buffer[v.bSize], data, size);
 			v.bSize += size;
@@ -325,7 +327,7 @@ _vifT int nVifUnpack(const u8* data)
 			data = v.buffer;
 
 			vif.cl = 0;
-			vifRegs.num = (vifXRegs.code >> 16) & 0xff; // grab NUM form the original VIFcode input.
+			vifRegs.num = (vifXRegs.code >> 16) & 0xff; /* grab NUM form the original VIFcode input. */
 			if (!vifRegs.num)
 				vifRegs.num = 256;
 		}
@@ -368,8 +370,8 @@ _vifT int nVifUnpack(const u8* data)
 template int nVifUnpack<0>(const u8* data);
 template int nVifUnpack<1>(const u8* data);
 
-// This is used by the interpreted SSE unpacks only.  Recompiled SSE unpacks
-// and the interpreted C unpacks use the vif.MaskRow/MaskCol members directly.
+/* This is used by the interpreted SSE unpacks only.  Recompiled SSE unpacks
+ * and the interpreted C unpacks use the vif.MaskRow/MaskCol members directly. */
 static void setMasks(const vifStruct& vif, const VIFregisters& v)
 {
 	for (int i = 0; i < 16; i++)
@@ -377,22 +379,22 @@ static void setMasks(const vifStruct& vif, const VIFregisters& v)
 		int m = (v.mask >> (i * 2)) & 3;
 		switch (m)
 		{
-			case 0: // Data
+			case 0: /* Data */
 				nVifMask[0][i / 4][i % 4] = 0xffffffff;
 				nVifMask[1][i / 4][i % 4] = 0;
 				nVifMask[2][i / 4][i % 4] = 0;
 				break;
-			case 1: // MaskRow
+			case 1: /* MaskRow */
 				nVifMask[0][i / 4][i % 4] = 0;
 				nVifMask[1][i / 4][i % 4] = 0;
 				nVifMask[2][i / 4][i % 4] = vif.MaskRow._u32[i % 4];
 				break;
-			case 2: // MaskCol
+			case 2: /* MaskCol */
 				nVifMask[0][i / 4][i % 4] = 0;
 				nVifMask[1][i / 4][i % 4] = 0;
 				nVifMask[2][i / 4][i % 4] = vif.MaskCol._u32[i / 4];
 				break;
-			case 3: // Write Protect
+			case 3: /* Write Protect */
 				nVifMask[0][i / 4][i % 4] = 0;
 				nVifMask[1][i / 4][i % 4] = 0xffffffff;
 				nVifMask[2][i / 4][i % 4] = 0;
@@ -401,44 +403,44 @@ static void setMasks(const vifStruct& vif, const VIFregisters& v)
 	}
 }
 
-// ----------------------------------------------------------------------------
-//  Unpacking Optimization notes:
-// ----------------------------------------------------------------------------
-// Some games send a LOT of single-cycle packets (God of War, SotC, TriAce games, etc),
-// so we always need to be weary of keeping loop setup code optimized.  It's not always
-// a "win" to move code outside the loop, like normally in most other loop scenarios.
-//
-// The biggest bottleneck of the current code is the call/ret needed to invoke the SSE
-// unpackers.  A better option is to generate the entire vifRegs.num loop code as part
-// of the SSE template, and inline the SSE code into the heart of it.  This both avoids
-// the call/ret and opens the door for resolving some register dependency chains in the
-// current emitted functions.  (this is what zero's SSE does to get it's final bit of
-// speed advantage over the new vif). --air
-//
-// The BEST optimizatin strategy here is to use data available to us from the UNPACK dispatch
-// -- namely the unpack type and mask flag -- in combination mode and usn values -- to
-// generate ~600 special versions of this function.  But since it's an interpreter, who gives
-// a crap?  Really? :p
-//
+/* ----------------------------------------------------------------------------
+ *  Unpacking Optimization notes:
+ * ----------------------------------------------------------------------------
+ * Some games send a LOT of single-cycle packets (God of War, SotC, TriAce games, etc),
+ * so we always need to be weary of keeping loop setup code optimized.  It's not always
+ * a "win" to move code outside the loop, like normally in most other loop scenarios.
+ *
+ * The biggest bottleneck of the current code is the call/ret needed to invoke the SSE
+ * unpackers.  A better option is to generate the entire vifRegs.num loop code as part
+ * of the SSE template, and inline the SSE code into the heart of it.  This both avoids
+ * the call/ret and opens the door for resolving some register dependency chains in the
+ * current emitted functions.  (this is what zero's SSE does to get it's final bit of
+ * speed advantage over the new vif). --air
+ *
+ * The BEST optimization strategy here is to use data available to us from the UNPACK dispatch
+ * -- namely the unpack type and mask flag -- in combination mode and usn values -- to
+ * generate ~600 special versions of this function.  But since it's an interpreter, who gives
+ * a crap?  Really? :p
+ */
 
-// size - size of the packet fragment incoming from DMAC.
+/* size - size of the packet fragment incoming from DMAC. */
 template <int idx, bool doMode, bool isFill>
 __ri void _nVifUnpackLoop(const u8* data)
 {
 	vifStruct& vif = MTVU_VifX;
-	VIFregisters& vifRegs = MTVU_VifXRegs;
+	VIFregisters& vifRegs   = MTVU_VifXRegs;
 
-	// skipSize used for skipping writes only
-	const int skipSize = (vifRegs.cycle.cl - vifRegs.cycle.wl) * 16;
+	/* skipSize used for skipping writes only */
+	const int skipSize      = (vifRegs.cycle.cl - vifRegs.cycle.wl) * 16;
 
 	if (!doMode && (vif.cmd & 0x10))
 		setMasks(vif, vifRegs);
 
-	const int usn    = !!vif.usn;
-	const int upkNum = vif.cmd & 0x1f;
-	const u8& vSize  = nVifT[upkNum & 0x0f];
+	const int usn           = !!vif.usn;
+	const int upkNum        = vif.cmd & 0x1f;
+	const u8& vSize         = nVifT[upkNum & 0x0f];
 
-	const nVifCall* fnbase = &nVifUpk[((usn * 2 * 16) + upkNum) * (4 * 1)];
+	const nVifCall* fnbase  = &nVifUpk[((usn * 2 * 16) + upkNum) * (4 * 1)];
 	const UNPACKFUNCTYPE ft = VIFfuncTable[idx][doMode ? vifRegs.mode : 0][((usn * 2 * 16) + upkNum)];
 
 	do

@@ -21,11 +21,11 @@
 
 #include <cmath>
 
-// This is called by the COP2 as per the CTC instruction
+/* This is called by the COP2 as per the CTC instruction */
 void vu0ResetRegs(void)
 {
-	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xff; // stop vu0
-	vuRegs[0].VI[REG_FBRST].UL    &= ~0xff; // stop vu0
+	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xff; /* stop VU0 */
+	vuRegs[0].VI[REG_FBRST].UL    &= ~0xff; /* stop VU0 */
 	vif0Regs.stat.VEW              = false;
 }
 
@@ -44,7 +44,7 @@ void vu0ExecMicro(u32 addr)
 	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x1)
 		vu0Finish();
 
-	// Need to copy the clip flag back to the interpreter in case COP2 has edited it
+	/* Need to copy the clip flag back to the interpreter in case COP2 has edited it */
 	const u32 CLIP       = vuRegs[0].VI[REG_CLIP_FLAG].UL;
 	const u32 MAC        = vuRegs[0].VI[REG_MAC_FLAG].UL;
 	const u32 STATUS     = vuRegs[0].VI[REG_STATUS_FLAG].UL;
@@ -52,9 +52,9 @@ void vu0ExecMicro(u32 addr)
 	vuRegs[0].macflag    = MAC;
 	vuRegs[0].statusflag = STATUS;
 
-	// Copy flags to micro instances, since they may be out of sync if COP2 has run.
-	// We do this at program start time, because COP2 can't execute until the program has completed,
-	// but long-running program may be interrupted so we can't do it at dispatch time.
+	/* Copy flags to micro instances, since they may be out of sync if COP2 has run.
+	 * We do this at program start time, because COP2 can't execute until the program has completed,
+	 * but long-running program may be interrupted so we can't do it at dispatch time. */
 	vu0SetMicroFlags(vuRegs[0].micro_clipflags, CLIP);
 	vu0SetMicroFlags(vuRegs[0].micro_macflags, MAC);
 	vu0SetMicroFlags(vuRegs[0].micro_statusflags, vu0DenormalizeMicroStatus(STATUS));

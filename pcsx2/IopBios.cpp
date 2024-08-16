@@ -33,7 +33,7 @@
 #include "common/StringUtil.h"
 
 #include "Common.h"
-#include "R5900.h" // for g_GameStarted
+#include "R5900.h" /* for g_GameStarted */
 #include "IopBios.h"
 #include "IopMem.h"
 #include "iR3000A.h"
@@ -160,24 +160,24 @@ namespace R3000A
 
 	static std::string host_path(const std::string& path, bool allow_open_host_root)
 	{
-		// We are NOT allowing to use the root of the host unit.
-		// For now it just supports relative folders from the location of the elf
+		/* We are NOT allowing to use the root of the host unit.
+		 * For now it just supports relative folders from the location of the ELF */
 		std::string native_path(Path::Canonicalize(path));
 		std::string new_path;
 		if (!hostRoot.empty() && StringUtil::StartsWith(native_path, hostRoot))
 			new_path = std::move(native_path);
-		else if (!hostRoot.empty()) // relative paths
+		else if (!hostRoot.empty()) /* relative paths */
 			new_path = Path::Combine(hostRoot, native_path);
 
-		// Double-check that it falls within the directory of the elf.
-		// Not a real sandbox, but emulators shouldn't be treated as such. Don't run untrusted code!
+		/* Double-check that it falls within the directory of the elf.
+		 * Not a real sandbox, but emulators shouldn't be treated as such. Don't run untrusted code! */
 		std::string canonicalized_path(Path::Canonicalize(new_path));
 
-		// Are we opening the root of host? (i.e. `host:.` or `host:`)
-		// We want to allow this as a directory open, but not as a file open.
+		/* Are we opening the root of host? (i.e. `host:.` or `host:`)
+		 * We want to allow this as a directory open, but not as a file open. */
 		if (!allow_open_host_root || canonicalized_path != hostRoot)
 		{
-			// Only allow descendants of the hostfs directory.
+			/* Only allow descendants of the hostfs directory. */
 			if (canonicalized_path.length() <= hostRoot.length() || // Length has to be equal or longer,
 				!StringUtil::StartsWith(canonicalized_path, hostRoot) || // and start with the host root,
 				canonicalized_path[hostRoot.length()] != FS_OSPATH_SEPARATOR_CHARACTER) // and we can't access a sibling.
@@ -296,7 +296,7 @@ namespace R3000A
 		{
 			const std::string path(full_path.substr(full_path.find(':') + 1));
 			const std::string file_path(host_path(path, false));
-			int native_flags = O_BINARY; // necessary in Windows.
+			int native_flags = O_BINARY; /* necessary in Windows. */
 
 			switch (flags & IOP_O_RDWR)
 			{
@@ -396,7 +396,7 @@ namespace R3000A
 			std::string path = host_path(relativePath, true);
 
 			if (!path_is_directory(path.c_str()))
-				return -IOP_ENOENT; // Should return ENOTDIR if path is a file?
+				return -IOP_ENOENT; /* Should return ENOTDIR if path is a file? */
 			
 			FileSystem::FindResultsArray results;
 			FileSystem::FindFiles(path.c_str(), "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_FOLDERS | FILESYSTEM_FIND_RELATIVE_PATHS | FILESYSTEM_FIND_HIDDEN_FILES, &results);
@@ -580,9 +580,9 @@ namespace R3000A
 
 				if (err != 0 || !file)
 				{
-					if (err == 0) // ???
+					if (err == 0) /* ??? */
 						err = -IOP_EIO;
-					if (file) // ??????
+					if (file) /* ?????? */
 						file->close();
 					v0 = err;
 				}
@@ -787,10 +787,8 @@ namespace R3000A
 			if (is_host(full_path))
 			{
 				const std::string path = full_path.substr(full_path.find(':') + 1);
-				const std::string folder_path(host_path(path, false)); // NOTE: Don't allow creating the ELF directory.
+				const std::string folder_path(host_path(path, false)); /* NOTE: Don't allow creating the ELF directory. */
 				const bool succeeded = path_mkdir(folder_path.c_str());
-				if (!succeeded)
-					Console.Warning("IOPHLE mkdir_HLE failed for '%s'", folder_path.c_str());
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;
@@ -828,10 +826,8 @@ namespace R3000A
 			if (is_host(full_path))
 			{
 				const std::string path = full_path.substr(full_path.find(':') + 1);
-				const std::string folder_path(host_path(path, false)); // NOTE: Don't allow removing the elf directory itself.
+				const std::string folder_path(host_path(path, false)); /* NOTE: Don't allow removing the elf directory itself. */
 				const bool succeeded = FileSystem::DeleteDirectory(folder_path.c_str());
-				if (!succeeded)
-					Console.Warning("IOPHLE rmdir_HLE failed for '%s'", folder_path.c_str());
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;
@@ -846,7 +842,7 @@ namespace R3000A
 			u32 data = a1;
 			u32 count = a2;
 
-			if (fd == 1) // stdout
+			if (fd == 1) /* stdout */
 			{
 				const std::string s = Ra1;
 				pc = ra;
@@ -868,13 +864,13 @@ namespace R3000A
 
 			return 0;
 		}
-	} // namespace ioman
+	}
 
 	namespace sysmem
 	{
 		int Kprintf_HLE()
 		{
-			// Emulate the expected Kprintf functionality:
+			/* Emulate the expected Kprintf functionality: */
 			iopMemWrite32(sp, a0);
 			iopMemWrite32(sp + 4, a1);
 			iopMemWrite32(sp + 8, a2);
@@ -883,7 +879,7 @@ namespace R3000A
 
 			return 1;
 		}
-	} // namespace sysmem
+	}
 
 	namespace loadcore
 	{
@@ -896,43 +892,21 @@ namespace R3000A
 		void RegisterLibraryEntries_DEBUG()
 		{
 		}
-	} // namespace loadcore
+	}
 
 	namespace intrman
 	{
-		// clang-format off
-		static const char* intrname[] = {
-			"INT_VBLANK",   "INT_GM",       "INT_CDROM",   "INT_DMA",		//00
-			"INT_RTC0",     "INT_RTC1",     "INT_RTC2",    "INT_SIO0",		//04
-			"INT_SIO1",     "INT_SPU",      "INT_PIO",     "INT_EVBLANK",	//08
-			"INT_DVD",      "INT_PCMCIA",   "INT_RTC3",    "INT_RTC4",		//0C
-			"INT_RTC5",     "INT_SIO2",     "INT_HTR0",    "INT_HTR1",		//10
-			"INT_HTR2",     "INT_HTR3",     "INT_USB",     "INT_EXTR",		//14
-			"INT_FWRE",     "INT_FDMA",     "INT_1A",      "INT_1B",		//18
-			"INT_1C",       "INT_1D",       "INT_1E",      "INT_1F",		//1C
-			"INT_dmaMDECi", "INT_dmaMDECo", "INT_dmaGPU",  "INT_dmaCD",		//20
-			"INT_dmaSPU",   "INT_dmaPIO",   "INT_dmaOTC",  "INT_dmaBERR",	//24
-			"INT_dmaSPU2",  "INT_dma8",     "INT_dmaSIF0", "INT_dmaSIF1",	//28
-			"INT_dmaSIO2i", "INT_dmaSIO2o", "INT_2E",      "INT_2F",		//2C
-			"INT_30",       "INT_31",       "INT_32",      "INT_33",		//30
-			"INT_34",       "INT_35",       "INT_36",      "INT_37",		//34
-			"INT_38",       "INT_39",       "INT_3A",      "INT_3B",		//38
-			"INT_3C",       "INT_3D",       "INT_3E",      "INT_3F",		//3C
-			"INT_MAX"														//40
-		};
-		// clang-format on
-
 		void RegisterIntrHandler_DEBUG()
 		{
 		}
-	} // namespace intrman
+	}
 
 	namespace sifcmd
 	{
 		void sceSifRegisterRpc_DEBUG()
 		{
 		}
-	} // namespace sifcmd
+	}
 
 	u32 irxImportTableAddr(u32 entrypc)
 	{
@@ -957,10 +931,8 @@ namespace R3000A
 		{
 			case 0:
 				return "start";
-			// case 1: reinit?
 			case 2:
 				return "shutdown";
-				// case 3: ???
 		}
 
 		return 0;
@@ -1053,13 +1025,8 @@ namespace R3000A
 #undef EXPORT_D
 #undef EXPORT_H
 
-	void irxImportLog(const std::string& libname, u16 index, const char* funcname)
-	{
-	}
-
-	void irxImportLog_rec(u32 import_table, u16 index, const char* funcname)
-	{
-	}
+	void irxImportLog(const std::string& libname, u16 index, const char* funcname) { }
+	void irxImportLog_rec(u32 import_table, u16 index, const char* funcname) { }
 
 	int irxImportExec(u32 import_table, u16 index)
 	{

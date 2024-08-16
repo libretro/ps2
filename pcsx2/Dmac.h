@@ -15,7 +15,7 @@
 
 #pragma once
 
-// Useful enums for some of the fields.
+/* Useful enums for some of the fields. */
 enum pce_values
 {
 	PCE_NOTHING = 0,
@@ -28,14 +28,14 @@ enum pce_values
 enum tag_id
 {
 	TAG_CNTS = 0,
-	TAG_REFE = 0, 	// Transfer Packet According to ADDR field, clear STR, and end
-	TAG_CNT, 		// Transfer QWC following the tag.
-	TAG_NEXT,		// Transfer QWC following tag. TADR = ADDR
-	TAG_REF,		// Transfer QWC from ADDR field
-	TAG_REFS,		// Transfer QWC from ADDR field (Stall Control)
-	TAG_CALL,		// Transfer QWC following the tag, save succeeding tag
-	TAG_RET,		// Transfer QWC following the tag, load next tag
-	TAG_END			// Transfer QWC following the tag
+	TAG_REFE = 0, 	/* Transfer Packet According to ADDR field, clear STR, and end */
+	TAG_CNT, 	/* Transfer QWC following the tag. */
+	TAG_NEXT,	/* Transfer QWC following tag. TADR = ADDR */
+	TAG_REF,	/* Transfer QWC from ADDR field */
+	TAG_REFS,	/* Transfer QWC from ADDR field (Stall Control) */
+	TAG_CALL,	/* Transfer QWC following the tag, save succeeding tag */
+	TAG_RET,	/* Transfer QWC following the tag, load next tag */
+	TAG_END		/* Transfer QWC following the tag */
 };
 
 enum mfd_type
@@ -70,13 +70,14 @@ enum LogicalTransferMode
 	UNDEFINED_MODE
 };
 
-//
-// --- DMA ---
-//
+/*
+ * --- DMA ---
+ */
 
-// Doing double duty as both the top 32 bits *and* the lower 32 bits of a chain tag.
-// Theoretically should probably both be in a u64 together, but with the way the
-// code is layed out, this is easier for the moment.
+/* Doing double duty as both the top 32 bits *and* the lower 32 bits of a chain tag.
+ * Theoretically should probably both be in a u64 together, but with the way the
+ * code is layed out, this is easier for the moment.
+ */
 
 union tDMA_TAG {
 	struct {
@@ -95,15 +96,15 @@ union tDMA_TAG {
 
 union tDMA_CHCR {
 	struct {
-		u32 DIR : 1;        // Direction: 0 - to memory, 1 - from memory. VIF1 & SIF2 only.
+		u32 DIR : 1;        /* Direction: 0 - to memory, 1 - from memory. VIF1 & SIF2 only. */
 		u32 _reserved1 : 1;
-		u32 MOD : 2;		// Logical transfer mode. Normal, Chain, or Interleave (see LogicalTransferMode enum)
-		u32 ASP : 2;        // ASP1 & ASP2; Address stack pointer. 0, 1, or 2 addresses.
-		u32 TTE : 1;        // Tag Transfer Enable. 0 - Disable / 1 - Enable.
-		u32 TIE : 1;        // Tag Interrupt Enable. 0 - Disable / 1 - Enable.
-		u32 STR : 1;        // Start. 0 while stopping DMA, 1 while it's running.
+		u32 MOD : 2;	    /* Logical transfer mode. Normal, Chain, or Interleave (see LogicalTransferMode enum) */
+		u32 ASP : 2;        /* ASP1 & ASP2; Address stack pointer. 0, 1, or 2 addresses. */
+		u32 TTE : 1;        /* Tag Transfer Enable. 0 - Disable / 1 - Enable. */
+		u32 TIE : 1;        /* Tag Interrupt Enable. 0 - Disable / 1 - Enable. */
+		u32 STR : 1;        /* Start. 0 while stopping DMA, 1 while it's running */
 		u32 _reserved2 : 7;
-		u32 TAG : 16;		// Maintains upper 16 bits of the most recently read DMAtag.
+		u32 TAG : 16;	    /* Maintains upper 16 bits of the most recently read DMAtag. */
 	};
 	u32 _u32;
 };
@@ -165,14 +166,14 @@ enum INTCIrqs
 
 enum dmac_conditions
 {
-	DMAC_STAT_SIS	= (1<<13),	 // stall condition
-	DMAC_STAT_MEIS	= (1<<14),	 // mfifo empty
-	DMAC_STAT_BEIS	= (1<<15),	 // bus error
-	DMAC_STAT_SIM	= (1<<29),	 // stall mask
-	DMAC_STAT_MEIM	= (1<<30)	 // mfifo mask
+	DMAC_STAT_SIS	= (1<<13),	 /* stall condition */
+	DMAC_STAT_MEIS	= (1<<14),	 /* mfifo empty */
+	DMAC_STAT_BEIS	= (1<<15),	 /* bus error */
+	DMAC_STAT_SIM	= (1<<29),	 /* stall mask */
+	DMAC_STAT_MEIM	= (1<<30)	 /* mfifo mask */
 };
 
-//DMA interrupts & masks
+/* DMA interrupts & masks */
 enum DMAInter
 {
 	BEISintr = 0x00008000,
@@ -213,12 +214,12 @@ union tDMAC_QUEUE
 
 union tDMAC_CTRL {
 	struct {
-		u32 DMAE : 1;       // 0/1 - disables/enables all DMAs
-		u32 RELE : 1;       // 0/1 - cycle stealing off/on
-		u32 MFD : 2;        // Memory FIFO drain channel (mfd_type)
-		u32 STS : 2;        // Stall Control source channel (sts type)
-		u32 STD : 2;        // Stall Control drain channel (std_type)
-		u32 RCYC : 3;       // Release cycle (8/16/32/64/128/256)
+		u32 DMAE : 1;       /* 0/1 - disables/enables all DMAs */
+		u32 RELE : 1;       /* 0/1 - cycle stealing off/on */
+		u32 MFD : 2;        /* Memory FIFO drain channel (mfd_type) */
+		u32 STS : 2;        /* Stall Control source channel (sts type) */
+		u32 STD : 2;        /* Stall Control drain channel (std_type) */
+		u32 RCYC : 3;       /* Release cycle (8/16/32/64/128/256) */
 		u32 _reserved1 : 21;
 	};
 	u32 _u32;
@@ -278,18 +279,18 @@ union tDMAC_RBOR {
 	u32 _u32;
 };
 
-// --------------------------------------------------------------------------------------
-//  tDMAC_ADDR
-// --------------------------------------------------------------------------------------
-// This struct is used for several DMA address types, including some that do not have
-// effective SPR bit (the bit is ignored for all addresses that are not "allowed" to access
-// the scratchpad, including STADR, toSPR.MADR, fromSPR.MADR, etc.).
-//
+/* --------------------------------------------------------------------------------------
+ *  tDMAC_ADDR
+ * --------------------------------------------------------------------------------------
+ * This struct is used for several DMA address types, including some that do not have
+ * effective SPR bit (the bit is ignored for all addresses that are not "allowed" to access
+ * the scratchpad, including STADR, toSPR.MADR, fromSPR.MADR, etc.).
+ */
 union tDMAC_ADDR
 {
 	struct {
-		u32 ADDR : 31;	// Transfer memory address
-		u32 SPR : 1;	// Memory/SPR Address (only effective for MADR and TADR of non-SPR DMAs)
+		u32 ADDR : 31;	/* Transfer memory address */
+		u32 SPR : 1;	/* Memory/SPR Address (only effective for MADR and TADR of non-SPR DMAs) */
 	};
 	u32 _u32;
 };
@@ -313,7 +314,7 @@ struct DMACregisters
 	u32 _padding6[3];
 };
 
-// Currently guesswork.
+/* Currently guesswork. */
 union tINTC_STAT {
 	struct {
 		u32 interrupts : 10;
@@ -342,7 +343,7 @@ struct INTCregisters
 
 static DMACregisters& dmacRegs	= (DMACregisters&)eeHw[0xE000];
 
-// Various useful locations
+/* Various useful locations */
 static DMACh& vif0ch	= (DMACh&)eeHw[0x8000];
 static DMACh& vif1ch	= (DMACh&)eeHw[0x9000];
 static DMACh& gifch	= (DMACh&)eeHw[0xA000];
@@ -360,8 +361,6 @@ extern void hwIntcIrq(int n);
 extern void hwDmacIrq(int n);
 
 extern void FireMFIFOEmpty(void);
-extern bool hwMFIFOWrite(u32 addr, const u128* data, uint size_qwc);
-extern void hwMFIFOResume(u32 transferred);
 extern void hwDmacSrcTadrInc(DMACh& dma);
 extern bool hwDmacSrcChainWithStack(DMACh& dma, int id);
 extern bool hwDmacSrcChain(DMACh& dma, int id);

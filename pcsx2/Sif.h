@@ -180,13 +180,12 @@ extern void dmaSIF0();
 extern void dmaSIF1();
 extern void dmaSIF2();
 
-extern void EEsif0Interrupt();
-extern void EEsif1Interrupt();
-extern void EEsif2Interrupt();
+extern void EEsif0Interrupt(void);
+extern void EEsif1Interrupt(void);
 
-extern void sif0Interrupt();
-extern void sif1Interrupt();
-extern void sif2Interrupt();
+extern void sif0Interrupt(void);
+extern void sif1Interrupt(void);
+extern void sif2Interrupt(void);
 
 extern void ReadFifoSingleWord(void);
 

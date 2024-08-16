@@ -53,7 +53,7 @@ __fi void _vu0run(bool breakOnMbit, bool addCycles, bool sync_only) {
 
 	if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 1)) return;
 
-	//VU0 is ahead of the EE and M-Bit is already encountered, so no need to wait for it, just catch up the EE
+	/* VU0 is ahead of the EE and M-Bit is already encountered, so no need to wait for it, just catch up the EE */
 	if ((vuRegs[0].flags & VUFLAG_MFLAGSET) && breakOnMbit && (s32)(cpuRegs.cycle - vuRegs[0].cycle) <= 0)
 	{
 		cpuRegs.cycle = vuRegs[0].cycle;
@@ -74,16 +74,16 @@ __fi void _vu0run(bool breakOnMbit, bool addCycles, bool sync_only) {
 			return;
 	}
 
-	do { // Run VU until it finishes or M-Bit
+	do { /* Run VU until it finishes or M-Bit */
 		CpuVU0->Execute(runCycles);
-	} while ((vuRegs[0].VI[REG_VPU_STAT].UL & 1) // E-bit Termination
-	  &&	!sync_only && (!breakOnMbit || (!(vuRegs[0].flags & VUFLAG_MFLAGSET) && (s32)(cpuRegs.cycle - vuRegs[0].cycle) > 0)));	// M-bit Break
+	} while ((vuRegs[0].VI[REG_VPU_STAT].UL & 1) /* E-bit Termination */
+	  &&	!sync_only && (!breakOnMbit || (!(vuRegs[0].flags & VUFLAG_MFLAGSET) && (s32)(cpuRegs.cycle - vuRegs[0].cycle) > 0)));	/* M-bit Break */
 
-	// Add cycles if called from EE's COP2
+	/* Add cycles if called from EE's COP2 */
 	if (addCycles)
 	{
 		cpuRegs.cycle += (vuRegs[0].cycle - startcycle);
-		CpuVU1->ExecuteBlock(0); // Catch up VU1 as it's likely fallen behind
+		CpuVU1->ExecuteBlock(0); /* Catch up VU1 as it's likely fallen behind */
 
 		if (vuRegs[0].VI[REG_VPU_STAT].UL & 1)
 			cpuSetNextEvent(cpuRegs.cycle, 4);

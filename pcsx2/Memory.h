@@ -31,16 +31,6 @@
 #define psSu64(mem)	(*(u64 *)&eeMem->Scratch[(mem) & 0x3fff])
 #define psSu128(mem)	(*(u128*)&eeMem->Scratch[(mem) & 0x3fff])
 
-#define memRead8 vtlb_memRead<mem8_t>
-#define memRead16 vtlb_memRead<mem16_t>
-#define memRead32 vtlb_memRead<mem32_t>
-#define memRead64 vtlb_memRead<mem64_t>
-
-#define memWrite8 vtlb_memWrite<mem8_t>
-#define memWrite16 vtlb_memWrite<mem16_t>
-#define memWrite32 vtlb_memWrite<mem32_t>
-#define memWrite64 vtlb_memWrite<mem64_t>
-
 // This is a table of default virtual map addresses for ps2vm components.  These locations
 // are provided and used to assist in debugging and possibly hacking; as it makes it possible
 // for a programmer to know exactly where to look (consistently!) for the base address of

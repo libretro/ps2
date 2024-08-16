@@ -34,6 +34,7 @@
 #include "Elfheader.h"
 #include "CDVD/CDVD.h"
 #include "Patch.h"
+#include "vtlb.h"
 
 #include "R5900OpcodeTables.h"
 
@@ -584,7 +585,7 @@ void eeloadHook(void)
 	if (argc) // calls to EELOAD *after* the first one during the startup process will come here
 	{
 		if (argc > 1)
-			elfname = (char*)PSM(memRead32(cpuRegs.GPR.n.a1.UD[0] + 4)); // argv[1] in OSDSYS's invocation "EELOAD <game ELF>"
+			elfname = (char*)PSM(vtlb_memRead32(cpuRegs.GPR.n.a1.UD[0] + 4)); // argv[1] in OSDSYS's invocation "EELOAD <game ELF>"
 
 		// This code fires if the user chooses "full boot". First the Sony Computer Entertainment screen appears. This is the result
 		// of an EELOAD call that does not want to accept launch arguments (but we patch it to do so in eeloadHook2() in fast boot
@@ -599,17 +600,17 @@ void eeloadHook(void)
 			size_t arg_len = 0;
 			for (int a = 0; a < argc; a++)
 			{
-				arg_ptr = memRead32(cpuRegs.GPR.n.a1.UD[0] + (a * 4));
+				arg_ptr = vtlb_memRead32(cpuRegs.GPR.n.a1.UD[0] + (a * 4));
 				arg_len = strlen((char *)PSM(arg_ptr));
 				memset(PSM(arg_ptr + arg_len), 0x20, 1);
 			}
 			strcpy((char *)PSM(arg_ptr + arg_len + 1), EmuConfig.CurrentGameArgs.c_str());
-			u32 first_arg_ptr = memRead32(cpuRegs.GPR.n.a1.UD[0]);
+			u32 first_arg_ptr = vtlb_memRead32(cpuRegs.GPR.n.a1.UD[0]);
 			argc = ParseArgumentString(first_arg_ptr);
 
 			// Write pointer to next slot in $a1
 			for (int a = 0; a < argc; a++)
-				memWrite32(cpuRegs.GPR.n.a1.UD[0] + (a * 4), g_argPtrs[a]);
+				vtlb_memWrite32(cpuRegs.GPR.n.a1.UD[0] + (a * 4), g_argPtrs[a]);
 			cpuRegs.GPR.n.a0.SD[0] = argc;
 		}
 		// else it's presumed that the invocation is "EELOAD <game ELF> <<launch args>>", coming from PS2LOGO, and we needn't do
@@ -673,7 +674,7 @@ void eeloadHook2(void)
 	// Back up 4 bytes from start of args block for every arg + 4 bytes for start of argv pointer block, write pointers
 	uintptr_t block_start = g_osdsys_str - (argc * 4);
 	for (int a = 0; a < argc; a++)
-		memWrite32(block_start + (a * 4), g_argPtrs[a]);
+		vtlb_memWrite32(block_start + (a * 4), g_argPtrs[a]);
 
 	// Save argc and argv as incoming arguments for EELOAD function which calls ExecPS2()
 	cpuRegs.GPR.n.a0.SD[0] = argc;

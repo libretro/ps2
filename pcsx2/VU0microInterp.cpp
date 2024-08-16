@@ -180,7 +180,7 @@ static void _vu0Exec(VURegs* VU)
 		}
 	}
 
-	// Progress the write position of the FMAC pipeline by one place
+	/* Progress the write position of the FMAC pipeline by one place */
 	if (uregs.pipe == VUPIPE_FMAC || lregs.pipe == VUPIPE_FMAC)
 		VU->fmacwritepos = (VU->fmacwritepos + 1) & 3;
 }
@@ -192,9 +192,10 @@ void vu0Exec(VURegs* VU)
 	_vu0Exec(VU);
 }
 
-// --------------------------------------------------------------------------------------
-//  VU0microInterpreter
-// --------------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------------
+ *  VU0microInterpreter
+ * --------------------------------------------------------------------------------------
+ */
 
 InterpVU0 CpuIntVU0;
 
@@ -229,7 +230,7 @@ void InterpVU0::Execute(u32 cycles)
 	{
 		if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x1))
 		{
-			// Branches advance the PC to the new location if there was a branch in the E-Bit delay slot
+			/* Branches advance the PC to the new location if there was a branch in the E-Bit delay slot */
 			if (vuRegs[0].branch)
 			{
 				vuRegs[0].VI[REG_TPC].UL = vuRegs[0].branchpc;
@@ -251,22 +252,22 @@ void InterpVU0::Execute(u32 cycles)
 		vuRegs[0].cycle -= cycle_change;
 		switch (std::min(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(cycle_change)))
 		{
-			case -3: // 50%
+			case -3: /* 50% */
 				cycle_change *= 2.0f;
 				break;
-			case -2: // 60%
+			case -2: /* 60% */
 				cycle_change *= 1.6666667f;
 				break;
-			case -1: // 75%
+			case -1: /* 75% */
 				cycle_change *= 1.3333333f;
 				break;
-			case 1: // 130%
+			case 1: /* 130% */
 				cycle_change /= 1.3f;
 				break;
-			case 2: // 180%
+			case 2: /* 180% */
 				cycle_change /= 1.8f;
 				break;
-			case 3: // 300%
+			case 3: /* 300% */
 				cycle_change /= 3.0f;
 				break;
 			default:

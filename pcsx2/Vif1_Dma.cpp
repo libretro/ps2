@@ -25,7 +25,7 @@ u32 g_vif1Cycles = 0;
 
 __fi void vif1FLUSH(void)
 {
-	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x500) // T bit stop or Busy
+	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x500) /* T bit stop or Busy */
 	{
 		vif1.waitforvu = true;
 		vif1.vifstalled.enabled = VifStallEnable(vif1ch);
@@ -38,27 +38,27 @@ void vif1TransferToMemory(void)
 {
 	u128* pMem = (u128*)dmaGetAddr(vif1ch.madr, false);
 
-	// VIF from gsMemory
-	if (pMem == NULL)
-	{ // Is vif0ptag empty?
-		dmacRegs.stat.BEIS = true; // Bus Error
-		vif1Regs.stat.FQC = 0;
+	/* VIF from gsMemory */
+	if (!pMem) /* Is vif0ptag empty? */
+	{ 
+		dmacRegs.stat.BEIS = true; /* Bus Error */
+		vif1Regs.stat.FQC  = 0;
 
-		vif1ch.qwc = 0;
-		vif1.done = true;
+		vif1ch.qwc         = 0;
+		vif1.done          = true;
 		CPU_INT(DMAC_VIF1, 0);
-		return; // An error has occurred.
+		return; /* An error has occurred. */
 	}
 
-	// MTGS concerns:  The MTGS is inherently disagreeable with the idea of downloading
-	// stuff from the GS.  The *only* way to handle this case safely is to flush the GS
-	// completely and execute the transfer there-after.
+	/* MTGS concerns:  The MTGS is inherently disagreeable with the idea of downloading
+	 * stuff from the GS.  The *only* way to handle this case safely is to flush the GS
+	 * completely and execute the transfer there-after. */
 	const u32 size = std::min(vif1.GSLastDownloadSize, (u32)vif1ch.qwc);
 
 	MTGS::InitAndReadFIFO(reinterpret_cast<u8*>(pMem), size);
 
 	g_vif1Cycles += size * 2;
-	vif1ch.madr += size * 16; // MGS3 scene changes
+	vif1ch.madr  += size * 16; /* MGS3 scene changes */
 	if (vif1.GSLastDownloadSize >= vif1ch.qwc)
 	{
 		vif1.GSLastDownloadSize -= vif1ch.qwc;
@@ -85,7 +85,7 @@ bool _VIF1chain(void)
 		return true;
 	}
 
-	// Clarification - this is TO memory mode, for some reason i used the other way round >.<
+	/* Clarification - this is TO memory mode, for some reason i used the other way round >.< */
 	if (vif1.dmamode == VIF_NORMAL_TO_MEM_MODE)
 	{
 		vif1TransferToMemory();
@@ -93,8 +93,7 @@ bool _VIF1chain(void)
 		return true;
 	}
 
-	pMem = (u32*)dmaGetAddr(vif1ch.madr, !vif1ch.chcr.DIR);
-	if (pMem == NULL)
+	if (!(pMem = (u32*)dmaGetAddr(vif1ch.madr, !vif1ch.chcr.DIR)))
 	{
 		vif1.cmd = 0;
 		vif1.tag.size = 0;
@@ -109,21 +108,21 @@ bool _VIF1chain(void)
 
 __fi void vif1SetupTransfer(void)
 {
-	tDMA_TAG* ptag = dmaGetAddr(vif1ch.tadr, false); //Set memory pointer to TADR
+	tDMA_TAG* ptag = dmaGetAddr(vif1ch.tadr, false); /* Set memory pointer to TADR */
 
 	if (!(vif1ch.transfer(ptag)))
 		return;
 
-	vif1ch.madr = ptag[1]._u32; //MADR = ADDR field + SPR
-	g_vif1Cycles += 1; // Add 1 g_vifCycles from the QW read for the tag
+	vif1ch.madr = ptag[1]._u32; /* MADR = ADDR field + SPR */
+	g_vif1Cycles    +=  1; /* Add 1 g_vifCycles from the QW read for the tag */
 	vif1.inprogress &= ~1;
 
-	if (!vif1.done && ((dmacRegs.ctrl.STD == STD_VIF1) && (ptag->ID == TAG_REFS))) // STD == VIF1
+	if (!vif1.done && ((dmacRegs.ctrl.STD == STD_VIF1) && (ptag->ID == TAG_REFS))) /* STD == VIF1 */
 	{
-		// there are still bugs, need to also check if gif->madr +16*qwc >= stadr, if not, stall
+		/* there are still bugs, need to also check if gif->madr +16*qwc >= stadr, if not, stall */
 		if ((vif1ch.madr + vif1ch.qwc * 16) > dmacRegs.stadr.ADDR)
 		{
-			// stalled
+			/* stalled */
 			hwDmacIrq(DMAC_STALL_SIS);
 			CPU_SET_DMASTALL(DMAC_VIF1, true);
 			return;
@@ -132,7 +131,7 @@ __fi void vif1SetupTransfer(void)
 
 	if (vif1ch.chcr.TTE)
 	{
-		// Transfer dma tag if tte is set
+		/* Transfer dma tag if tte is set */
 
 		bool ret;
 
@@ -142,26 +141,24 @@ __fi void vif1SetupTransfer(void)
 		masked_tag._u64[1] = *((u64*)ptag + 1);
 
 		if (vif1.irqoffset.enabled)
-		{
-			ret = VIF1transfer((u32*)&masked_tag + vif1.irqoffset.value, 4 - vif1.irqoffset.value, true); //Transfer Tag on stall
-		}
+			ret = VIF1transfer((u32*)&masked_tag + vif1.irqoffset.value, 4 - vif1.irqoffset.value, true); /* Transfer Tag on stall */
 		else
 		{
-			// Some games (like killzone) do Tags mid unpack, the nops will just write blank data
-			// to the VU's, which breaks stuff, this is where the 128bit packet will fail, so we ignore the first 2 words
+			/* Some games (like killzone) do Tags mid unpack, the nops will just write blank data
+			 * to the VU's, which breaks stuff, this is where the 128bit packet will fail, so we ignore the first 2 words */
 			vif1.irqoffset.value = 2;
 			vif1.irqoffset.enabled = true;
-			ret = VIF1transfer((u32*)&masked_tag + 2, 2, true); //Transfer Tag
+			ret = VIF1transfer((u32*)&masked_tag + 2, 2, true); /* Transfer Tag */
 		}
 
 		if (!ret && vif1.irqoffset.enabled)
 		{
-			vif1.inprogress &= ~1; // Better clear this so it has to do it again (Jak 1)
-			vif1ch.qwc = 0; // Gumball 3000 pauses the DMA when the tag stalls so we need to reset the QWC, it'll be gotten again later
-			return; // IRQ set by VIFTransfer
+			vif1.inprogress &= ~1; /* Better clear this so it has to do it again (Jak 1) */
+			vif1ch.qwc       = 0;  /* Gumball 3000 pauses the DMA when the tag stalls so we need to reset the QWC, it'll be gotten again later */
+			return; /* IRQ set by VIFTransfer */
 		}
 	}
-	vif1.irqoffset.value = 0;
+	vif1.irqoffset.value   = 0;
 	vif1.irqoffset.enabled = false;
 
 	vif1.done |= hwDmacSrcChainWithStack(vif1ch, ptag->ID);
@@ -169,10 +166,10 @@ __fi void vif1SetupTransfer(void)
 	if (vif1ch.qwc > 0)
 		vif1.inprogress |= 1;
 
-	//Check TIE bit of CHCR and IRQ bit of tag
+	/* Check TIE bit of CHCR and IRQ bit of tag */
 	if (vif1ch.chcr.TIE && ptag->IRQ)
 	{
-		//End Transfer
+		/* End Transfer */
 		vif1.done = true;
 		return;
 	}
@@ -180,7 +177,7 @@ __fi void vif1SetupTransfer(void)
 
 __fi void vif1VUFinish(void)
 {
-	// Sync up VU1 so we don't errantly wait.
+	/* Sync up VU1 so we don't errantly wait. */
 	while (!THREAD_VU1 && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
 	{
 		const int cycle_diff = static_cast<int>(cpuRegs.cycle - vuRegs[1].cycle);
@@ -219,7 +216,7 @@ __fi void vif1VUFinish(void)
 	if (vif1.waitforvu)
 	{
 		vif1.waitforvu = false;
-		//Check if VIF is already scheduled to interrupt, if it's waiting, kick it :P
+		/* Check if VIF is already scheduled to interrupt, if it's waiting, kick it :P */
 		if ((cpuRegs.interrupt & ((1 << DMAC_VIF1) | (1 << DMAC_MFIFO_VIF))) == 0 && vif1ch.chcr.STR && !VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
 			if (dmacRegs.ctrl.MFD == MFD_VIF1)
@@ -237,43 +234,43 @@ __fi void vif1Interrupt(void)
 	if (gifRegs.stat.APATH == 2 && gifUnit.gifPath[GIF_PATH_2].isDone())
 	{
 		gifRegs.stat.APATH = 0;
-		gifRegs.stat.OPH = 0;
-		vif1Regs.stat.VGW = false; //Let vif continue if it's stuck on a flush
+		gifRegs.stat.OPH   = 0;
+		vif1Regs.stat.VGW  = false; /* Let VIF continue if it's stuck on a flush */
 
 		if (gifUnit.checkPaths(1, 0, 1))
 			gifUnit.Execute(false, true);
 	}
-	//Some games (Fahrenheit being one) start vif first, let it loop through blankness while it sets MFIFO mode, so we need to check it here.
+
+	/* Some games (Fahrenheit being one) start VIF first, let it loop through blankness while it sets MFIFO mode, so we need to check it here. */
 	if (dmacRegs.ctrl.MFD == MFD_VIF1)
 	{
-		// Test changed because the Final Fantasy 12 opening somehow has the tag in *Undefined* mode, which is not in the documentation that I saw.
+		/* Test changed because the Final Fantasy 12 opening somehow has the tag in *Undefined* mode, which is not in the documentation that I saw. */
 		vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
 		vifMFIFOInterrupt();
 		return;
 	}
 
-	// We need to check the direction, if it is downloading
-	// from the GS then we handle that separately (KH2 for testing)
+	/* We need to check the direction, if it is downloading
+	 * from the GS then we handle that separately (KH2 for testing) */
 	if (vif1ch.chcr.DIR)
 	{
-		bool isDirect = (vif1.cmd & 0x7f) == 0x50;
+		bool isDirect   = (vif1.cmd & 0x7f) == 0x50;
 		bool isDirectHL = (vif1.cmd & 0x7f) == 0x51;
 		if ((isDirect && !gifUnit.CanDoPath2()) || (isDirectHL && !gifUnit.CanDoPath2HL()))
 		{
 			CPU_INT(DMAC_VIF1, 128);
 			if (gifRegs.stat.APATH == 3)
-				vif1Regs.stat.VGW = 1; //We're waiting for path 3. Gunslinger II
+				vif1Regs.stat.VGW = 1; /* We're waiting for path 3. Gunslinger II */
 			CPU_SET_DMASTALL(DMAC_VIF1, true);
 			return;
 		}
-		vif1Regs.stat.VGW = 0; //Path 3 isn't busy so we don't need to wait for it.
+		vif1Regs.stat.VGW = 0; /* Path 3 isn't busy so we don't need to wait for it. */
 		vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
-		//Simulated GS transfer time done, clear the flags
+		/* Simulated GS transfer time done, clear the flags */
 	}
 
 	if (vif1.waitforvu)
 	{
-		//CPU_INT(DMAC_VIF1, 16);
 		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles(VU_MTVU_BUSY)));
 		CPU_SET_DMASTALL(DMAC_VIF1, true);
 		return;
@@ -293,25 +290,21 @@ __fi void vif1Interrupt(void)
 		if (!vif1Regs.stat.ER1)
 			vif1Regs.stat.INT = true;
 
-		//Yakuza watches VIF_STAT so lets do this here.
+		/* Yakuza watches VIF_STAT so lets do this here. */
 		if (((vif1Regs.code >> 24) & 0x7f) != 0x7)
-		{
 			vif1Regs.stat.VIS = true;
-		}
 
 		hwIntcIrq(VIF1intc);
 		--vif1.irq;
 
 		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
-			//vif1Regs.stat.FQC = 0;
-
-			//NFSHPS stalls when the whole packet has gone across (it stalls in the last 32bit cmd)
-			//In this case VIF will end
+			/* NFSHPS stalls when the whole packet has gone across (it stalls in the last 32bit cmd)
+			 * In this case VIF will end */
 			vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
 			if ((vif1ch.qwc > 0 || !vif1.done) && !CHECK_VIF1STALLHACK)
 			{
-				vif1Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
+				vif1Regs.stat.VPS = VPS_DECODING; /* If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors) */
 				CPU_SET_DMASTALL(DMAC_VIF1, true);
 				return;
 			}
@@ -320,26 +313,24 @@ __fi void vif1Interrupt(void)
 
 	vif1.vifstalled.enabled = false;
 
-	//Mirroring change to VIF0
+	/* Mirroring change to VIF0 */
 	if (vif1.cmd)
 	{
 		if (vif1.done && (vif1ch.qwc == 0))
 			vif1Regs.stat.VPS = VPS_WAITING;
 	}
 	else
-	{
 		vif1Regs.stat.VPS = VPS_IDLE;
-	}
 
 	if (vif1.inprogress & 0x1)
 	{
 		_VIF1chain();
-		// VIF_NORMAL_FROM_MEM_MODE is a very slow operation.
-		// Timesplitters 2 depends on this beeing a bit higher than 128.
+		/* VIF_NORMAL_FROM_MEM_MODE is a very slow operation.
+		 * Timesplitters 2 depends on this beeing a bit higher than 128. */
 		if (vif1ch.chcr.DIR)
 			vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
 
-		if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) //If we're waiting on GIF, stop looping, (can be over 1000 loops!)
+		if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) /* If we're waiting on GIF, stop looping, (can be over 1000 loops!) */
 		{
 			if (vif1.waitforvu)
 			{
@@ -354,7 +345,7 @@ __fi void vif1Interrupt(void)
 	if (!vif1.done)
 	{
 
-		if (!(dmacRegs.ctrl.DMAE) || vif1Regs.stat.VSS) //Stopped or DMA Disabled
+		if (!(dmacRegs.ctrl.DMAE) || vif1Regs.stat.VSS) /* Stopped or DMA Disabled */
 			return;
 
 		if ((vif1.inprogress & 0x1) == 0)
@@ -362,7 +353,7 @@ __fi void vif1Interrupt(void)
 		if (vif1ch.chcr.DIR)
 			vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
 
-		if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) //If we're waiting on GIF, stop looping, (can be over 1000 loops!)
+		if (!(vif1Regs.stat.VGW && gifUnit.gifPath[GIF_PATH_3].state != GIF_PATH_IDLE)) /* If we're waiting on GIF, stop looping, (can be over 1000 loops!) */
 		{
 			if (vif1.waitforvu)
 			{
@@ -378,14 +369,12 @@ __fi void vif1Interrupt(void)
 	{
 		CPU_INT(DMAC_VIF1, 0);
 		CPU_SET_DMASTALL(DMAC_VIF1, true);
-		return; //Dont want to end if vif is stalled.
+		return; /* Dont want to end if VIF is stalled. */
 	}
 
+	/* Reverse fifo has finished and nothing is left, so lets clear the outputting flag */
 	if ((vif1ch.chcr.DIR == VIF_NORMAL_TO_MEM_MODE) && vif1.GSLastDownloadSize <= 16)
-	{
-		//Reverse fifo has finished and nothing is left, so lets clear the outputting flag
 		gifRegs.stat.OPH = false;
-	}
 
 	if (vif1ch.chcr.DIR)
 		vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
@@ -406,10 +395,9 @@ void dmaVIF1(void)
 	vif1.inprogress = 0;
 	CPU_SET_DMASTALL(DMAC_VIF1, false);
 
-	if (vif1ch.qwc > 0) // Normal Mode
+	if (vif1ch.qwc > 0) /* Normal Mode */
 	{
-
-		// ignore tag if it's a GS download (Def Jam Fight for NY)
+		/* ignore tag if it's a GS download (Def Jam Fight for NY) */
 		if (vif1ch.chcr.MOD == CHAIN_MODE && vif1ch.chcr.DIR)
 		{
 			tDMA_TAG tmp;
@@ -421,9 +409,9 @@ void dmaVIF1(void)
 			else
 				vif1.done = false;
 		}
-		else //Assume normal mode for reverse FIFO and Normal.
+		else /* Assume normal mode for reverse FIFO and Normal. */
 		{
-			if (vif1ch.chcr.DIR) // from Memory
+			if (vif1ch.chcr.DIR) /* from Memory */
 				vif1.dmamode = VIF_NORMAL_FROM_MEM_MODE;
 			else
 				vif1.dmamode = VIF_NORMAL_TO_MEM_MODE;
@@ -443,9 +431,9 @@ void dmaVIF1(void)
 	if (vif1ch.chcr.DIR)
 		vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
 
-	// Check VIF isn't stalled before starting the loop.
-	// Batman Vengence does something stupid and instead of cancelling a stall it tries to restart VIF, THEN check the stall
-	// However if VIF FIFO is reversed, it can continue
+	/* Check VIF isn't stalled before starting the loop.
+	 * Batman Vengence does something stupid and instead of cancelling a stall it tries to restart VIF, THEN check the stall
+	 * However if VIF FIFO is reversed, it can continue */
 	if (!vif1ch.chcr.DIR || !VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		CPU_INT(DMAC_VIF1, 4);
 }
