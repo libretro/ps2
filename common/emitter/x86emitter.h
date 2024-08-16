@@ -278,7 +278,7 @@ namespace x86Emitter
 
 			void xWriteImm(int imm) const
 			{
-				switch (GetImmSize())
+				switch (_operandSize)
 				{
 					case 1:
 						*(u8*)x86Ptr = imm;
@@ -289,6 +289,7 @@ namespace x86Emitter
 						x86Ptr += sizeof(u16);
 						break;
 					case 4:
+					case 8: /* Only mov's take 64-bit immediates */
 						*(u32*)x86Ptr = imm;
 						x86Ptr += sizeof(u32);
 						break;
