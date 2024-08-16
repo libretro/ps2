@@ -77,6 +77,14 @@ using namespace x86Emitter;
 thread_local u8* x86Ptr;
 thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
 
+/*------------------------------------------------------------------
+ * templated version of is_s8 is required, so that u16's get correct sign extension treatment. */
+template <typename T>
+static __fi bool is_s8(T imm)
+{
+	return (s8)imm == (typename std::make_signed<T>::type)imm;
+}
+
 // ------------------------------------------------------------------------
 //                         Begin SSE-Only Part!
 // ------------------------------------------------------------------------
@@ -1492,10 +1500,6 @@ namespace x86Emitter
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	void EmitRex(uint regfield, const void* address)
-	{
-	}
-
 	void EmitRex(uint regfield, const xIndirectVoid& info)
 	{
 		bool w = info._operandSize == 8;
@@ -1579,23 +1583,6 @@ namespace x86Emitter
 	void EmitRexImplicitlyWide(const xRegisterBase& reg)
 	{
 		const u8 rex = 0x40 | (u8)reg.IsExtended();
-		if (rex != 0x40)
-		{
-			*(u8*)x86Ptr = rex;
-			x86Ptr += sizeof(u8);
-		}
-	}
-
-	void EmitRexImplicitlyWide(const xIndirectVoid& sib)
-	{
-		bool x = sib.Index.IsExtended();
-		bool b = sib.Base.IsExtended();
-		if (!NeedsSibMagic(sib))
-		{
-			b = x;
-			x = false;
-		}
-		const u8 rex = 0x40 | (x << 1) | (u8)b;
 		if (rex != 0x40)
 		{
 			*(u8*)x86Ptr = rex;
@@ -2058,7 +2045,19 @@ namespace x86Emitter
 
 	__fi void xPOP(const xIndirectVoid& from)
 	{
-		EmitRexImplicitlyWide(from);
+		bool x = from.Index.IsExtended();
+		bool b = from.Base.IsExtended();
+		if (!NeedsSibMagic(from))
+		{
+			b = x;
+			x = false;
+		}
+		const u8 rex = 0x40 | (x << 1) | (u8)b;
+		if (rex != 0x40)
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 		*(u8*)x86Ptr = 0x8f;
 		x86Ptr += sizeof(u8);
 		EmitSibMagic(0, from);
@@ -2066,7 +2065,19 @@ namespace x86Emitter
 
 	__fi void xPUSH(const xIndirectVoid& from)
 	{
-		EmitRexImplicitlyWide(from);
+		bool x = from.Index.IsExtended();
+		bool b = from.Base.IsExtended();
+		if (!NeedsSibMagic(from))
+		{
+			b = x;
+			x = false;
+		}
+		const u8 rex = 0x40 | (x << 1) | (u8)b;
+		if (rex != 0x40)
+		{
+			*(u8*)x86Ptr = rex;
+			x86Ptr += sizeof(u8);
+		}
 		*(u8*)x86Ptr = 0xff;
 		x86Ptr += sizeof(u8);
 		EmitSibMagic(6, from);

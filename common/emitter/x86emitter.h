@@ -172,21 +172,13 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 
 namespace x86Emitter
 {
-	//------------------------------------------------------------------
-	// templated version of is_s8 is required, so that u16's get correct sign extension treatment.
-	template <typename T>
-		static __fi bool is_s8(T imm)
-		{
-			return (s8)imm == (typename std::make_signed<T>::type)imm;
-		}
-
 	// ModRM 'mod' field enumeration.   Provided mostly for reference:
 	enum ModRm_ModField
 	{
 		Mod_NoDisp = 0, // effective address operation with no displacement, in the form of [reg] (or uses special Disp32-only encoding in the case of [ebp] form)
 		Mod_Disp8, // effective address operation with 8 bit displacement, in the form of [reg+disp8]
 		Mod_Disp32, // effective address operation with 32 bit displacement, in the form of [reg+disp32],
-		Mod_Direct, // direct reg/reg operation
+		Mod_Direct  // direct reg/reg operation
 	};
 
 	// ----------------------------------------------------------------------------
@@ -215,7 +207,7 @@ namespace x86Emitter
 		Jcc_Less = 0xc,
 		Jcc_GreaterOrEqual = 0xd,
 		Jcc_LessOrEqual = 0xe,
-		Jcc_Greater = 0xf,
+		Jcc_Greater = 0xf
 	};
 
 	// Not supported yet:
@@ -236,10 +228,10 @@ namespace x86Emitter
 		SSE2_Ordered
 	};
 
-	static const int ModRm_UseSib = 4; // same index value as ESP (used in RM field)
+	static const int ModRm_UseSib    = 4; // same index value as ESP (used in RM field)
 	static const int ModRm_UseDisp32 = 5; // same index value as EBP (used in Mod field)
-	static const int Sib_EIZ = 4; // same index value as ESP (used in Index field)
-	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
+	static const int Sib_EIZ         = 4; // same index value as ESP (used in Index field)
+	static const int Sib_UseDisp32   = 5; // same index value as EBP (used in Base field)
 
 	class xAddressVoid;
 
@@ -2297,7 +2289,6 @@ namespace x86Emitter
 	extern void EmitSibMagic(const xRegisterBase& reg1, const void* src, int extraRIPOffset = 0);
 	extern void EmitSibMagic(const xRegisterBase& reg1, const xIndirectVoid& sib, int extraRIPOffset = 0);
 
-	extern void EmitRex(uint regfield, const void* address);
 	extern void EmitRex(uint regfield, const xIndirectVoid& info);
 	extern void EmitRex(uint reg1, const xRegisterBase& reg2);
 	extern void EmitRex(const xRegisterBase& reg1, const xRegisterBase& reg2);
