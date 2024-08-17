@@ -16,7 +16,7 @@
 #include "Common.h"
 
 #include "SPR.h"
-#include "GIF.h"
+#include "Gif.h"
 #include "VUmicro.h"
 #include "MTVU.h"
 
