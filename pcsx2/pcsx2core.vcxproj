@@ -328,7 +328,6 @@
     <ClCompile Include="Vif_Transfer.cpp" />
     <ClCompile Include="Vif_Unpack.cpp" />
     <ClCompile Include="x86\newVif_Dynarec.cpp" />
-    <ClCompile Include="x86\newVif_UnpackSSE.cpp" />
     <ClCompile Include="SPR.cpp" />
     <ClCompile Include="Gif.cpp" />
     <ClCompile Include="R5900OpcodeTables.cpp" />

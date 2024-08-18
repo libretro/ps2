@@ -731,7 +731,6 @@ set(pcsx2x86Sources
 	x86/iR5900-32.cpp
 	x86/x86emitter.cpp
 	x86/newVif_Dynarec.cpp
-	x86/newVif_UnpackSSE.cpp
 	)
 
 # x86 headers
