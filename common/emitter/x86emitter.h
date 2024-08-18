@@ -138,7 +138,6 @@ enum XMMSSEType
 
 /* Prototypes */
 extern thread_local u8* x86Ptr;
-extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 
 /* Represents an unused or "empty" register assignment.  If encountered by the emitter, this
  * will be ignored (in some cases it is disallowed and generates an assertion) */

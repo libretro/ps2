@@ -43,8 +43,6 @@ using namespace x86Emitter;
 #pragma clang diagnostic ignored "-Wmissing-braces"
 #endif
 
-#define xCVTDQ2PD(to, from)  xOpWrite0F(0xf3, 0xe6, to, from)
-
 // ------------------------------------------------------------------------
 // Notes on Thread Local Storage:
 //  * TLS is pretty simple, and "just works" from a programmer perspective, with only
@@ -75,7 +73,6 @@ using namespace x86Emitter;
 
 
 thread_local u8* x86Ptr;
-thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
 
 /*------------------------------------------------------------------
  * templated version of is_s8 is required, so that u16's get correct sign extension treatment. */

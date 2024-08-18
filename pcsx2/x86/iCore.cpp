@@ -173,7 +173,6 @@ int _allocTempXMMreg(XMMSSEType type)
 	xmmregs[xmmreg].type    = XMMTYPE_TEMP;
 	xmmregs[xmmreg].needed  = 1;
 	xmmregs[xmmreg].counter = g_xmmAllocCounter++;
-	g_xmmtypes[xmmreg]      = type;
 	return xmmreg;
 }
 
@@ -238,7 +237,6 @@ int _allocFPtoXMMreg(int fpreg, int mode)
 			xmmregs[i].mode |= MODE_READ;
 		}
 
-		g_xmmtypes[i]       = XMMT_FPS;
 		xmmregs[i].counter  = g_xmmAllocCounter++; // update counter
 		xmmregs[i].needed   = 1;
 		xmmregs[i].mode    |= mode;
@@ -247,7 +245,6 @@ int _allocFPtoXMMreg(int fpreg, int mode)
 
 	const int xmmreg        = _getFreeXMMreg();
 
-	g_xmmtypes[xmmreg]      = XMMT_FPS;
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_FPREG;
 	xmmregs[xmmreg].reg     = fpreg;
@@ -375,7 +372,6 @@ int _allocFPACCtoXMMreg(int mode)
 			xmmregs[i].mode |= MODE_READ;
 		}
 
-		g_xmmtypes[i]      = XMMT_FPS;
 		xmmregs[i].counter = g_xmmAllocCounter++; // update counter
 		xmmregs[i].needed  = 1;
 		xmmregs[i].mode   |= mode;
@@ -384,7 +380,6 @@ int _allocFPACCtoXMMreg(int mode)
 
 	const int xmmreg        = _getFreeXMMreg();
 
-	g_xmmtypes[xmmreg]      = XMMT_FPS;
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_FPACC;
 	xmmregs[xmmreg].mode    = mode;
