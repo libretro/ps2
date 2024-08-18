@@ -31,9 +31,6 @@
     <ClCompile Include="Windows\WinMisc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="emitter\x86emitter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FastJmp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -91,9 +88,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Threading.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="emitter\x86emitter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FastJmp.h">

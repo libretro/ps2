@@ -7,7 +7,7 @@ endif(NOT TOP_CMAKE_WAS_SOURCED)
 
 add_library(common)
 
-# x86emitter sources
+# sources
 target_sources(common PRIVATE
 	AlignedMalloc.cpp
 	Console.cpp
@@ -20,12 +20,11 @@ target_sources(common PRIVATE
 	StringUtil.cpp
 	TextureDecompress.cpp
 	Timer.cpp
-	emitter/x86emitter.cpp
 	Threads.cpp
 	HostSys.cpp
 )
 
-# x86emitter headers
+# headers
 target_sources(common PRIVATE
 	Align.h
 	AlignedMalloc.h
@@ -48,7 +47,6 @@ target_sources(common PRIVATE
 	Threading.h
 	VectorIntrin.h
 	WindowInfo.h
-	emitter/x86emitter.h
 )
 
 if(WIN32)

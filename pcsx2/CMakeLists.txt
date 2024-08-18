@@ -728,7 +728,8 @@ set(pcsx2x86Sources
 	x86/iR3000Atables.cpp
 	x86/iR5900Analysis.cpp
 	x86/iR5900Misc.cpp
-	x86/ix86-32/iR5900-32.cpp
+	x86/iR5900-32.cpp
+	x86/x86emitter.cpp
 	x86/newVif_Dynarec.cpp
 	x86/newVif_UnpackSSE.cpp
 	)
@@ -769,6 +770,7 @@ set(pcsx2x86Headers
 	x86/microVU_Upper.inl
 	x86/newVif.h
 	x86/newVif_UnpackSSE.h
+	x86/x86emitter.h
 	)
 
 set(pcsx2DEV9Sources)

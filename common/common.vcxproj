@@ -71,7 +71,6 @@
     <ClCompile Include="Threads.cpp" />
     <ClCompile Include="Misc.cpp" />
     <ClCompile Include="Semaphore.cpp" />
-    <ClCompile Include="emitter\x86emitter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="FastJmp.asm" />
@@ -104,7 +103,6 @@
     <ClInclude Include="Timer.h" />
     <ClInclude Include="WindowInfo.h" />
     <ClInclude Include="Threading.h" />
-    <ClInclude Include="emitter\x86emitter.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rdparty\d3d12memalloc\d3d12memalloc.vcxproj">

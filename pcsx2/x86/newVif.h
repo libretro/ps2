@@ -19,7 +19,7 @@
 
 #include "VirtualMemory.h"
 
-#include "common/emitter/x86emitter.h"
+#include "x86emitter.h"
 
 using namespace x86Emitter;
 

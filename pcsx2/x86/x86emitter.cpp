@@ -28,8 +28,9 @@
  *		sudonim(1@gmail.com)
  */
 
+#include "common/VectorIntrin.h"
+
 #include "x86emitter.h"
-#include "../VectorIntrin.h"
 
 //------------------------------------------------------------------
 // Legacy Helper Macros and Functions (depreciated)

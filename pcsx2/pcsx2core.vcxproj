@@ -337,7 +337,8 @@
     <ClCompile Include="x86\iFPUd.cpp" />
     <ClCompile Include="x86\iMMI.cpp" />
     <ClCompile Include="x86\iR5900Misc.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900-32.cpp" />
+    <ClCompile Include="x86\iR5900-32.cpp" />
+    <ClCompile Include="x86\x86emitter.cpp" />
     <ClCompile Include="COP0.cpp" />
     <ClCompile Include="COP2.cpp" />
     <ClCompile Include="FPU.cpp" />
@@ -616,6 +617,7 @@
     <ClInclude Include="x86\iR5900Move.h" />
     <ClInclude Include="x86\iR5900MultDiv.h" />
     <ClInclude Include="x86\iR5900Shift.h" />
+    <ClInclude Include="x86\x86emitter.h" />
     <ClInclude Include="IopBios.h" />
     <ClInclude Include="IopCounters.h" />
     <ClInclude Include="IopDma.h" />

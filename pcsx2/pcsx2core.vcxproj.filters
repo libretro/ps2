@@ -491,8 +491,11 @@
     <ClCompile Include="x86\iR5900Misc.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900-32.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
+    <ClCompile Include="x86\iR5900-32.cpp">
+      <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
+    </ClCompile>
+    <ClCompile Include="x86\x86emitter.cpp">
+      <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
     <ClCompile Include="COP0.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Interpreter</Filter>
@@ -1304,6 +1307,9 @@
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClInclude>
     <ClInclude Include="x86\iR5900Shift.h">
+      <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\x86emitter.h">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClInclude>
     <ClInclude Include="IopBios.h">
