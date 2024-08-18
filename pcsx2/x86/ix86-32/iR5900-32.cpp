@@ -1233,6 +1233,32 @@ static bool COP2IsQOP(u32 code)
 	return false;
 }
 
+/* returns nonzero value if reg has been written between [startpc, endpc-4] */
+static u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
+{
+	u32 inst = 1;
+
+	while (size-- > 0)
+	{
+		for (u32 i = 0; i < std::size(pinst->writeType); ++i)
+		{
+			if ((pinst->writeType[i] == xmmtype) && (pinst->writeReg[i] == reg))
+				return inst;
+		}
+
+		for (u32 i = 0; i < std::size(pinst->readType); ++i)
+		{
+			if ((pinst->readType[i] == xmmtype) && (pinst->readReg[i] == reg))
+				return inst;
+		}
+
+		++inst;
+		pinst++;
+	}
+
+	return 0;
+}
+
 void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 {
 	static int* s_pCode;

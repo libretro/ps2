@@ -305,9 +305,17 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		{ \
 			if (!(pinst->regs[reg] & EEINST_USED)) \
 				pinst->regs[reg] |= EEINST_LASTUSE; \
-			prev->regs[reg] = (EEINST_LIVE | EEINST_USED); \
+			prev->regs[reg]  = (EEINST_LIVE | EEINST_USED); \
 			pinst->regs[reg] = (pinst->regs[reg] & ~EEINST_XMM) | EEINST_USED; \
-			_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 0); \
+			for (size_t i = 0; i < std::size(pinst->readType); ++i) \
+			{ \
+				if (pinst->readType[i] == XMMTYPE_TEMP) \
+				{ \
+					pinst->readType[i] = XMMTYPE_GPRREG; \
+					pinst->readReg[i]  = reg; \
+					break; \
+				} \
+			} \
 		} \
 	} while (0)
 
@@ -320,7 +328,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			if (!(pinst->regs[reg] & EEINST_USED)) \
 				pinst->regs[reg] |= EEINST_LASTUSE; \
 			pinst->regs[reg] |= EEINST_USED; \
-			_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 1); \
+			for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+			{ \
+				if (pinst->writeType[i] == XMMTYPE_TEMP) \
+				{ \
+					pinst->writeType[i] = XMMTYPE_GPRREG; \
+					pinst->writeReg[i]  = reg; \
+					break; \
+				} \
+			} \
 		} \
 	} while (0)
 
@@ -333,7 +349,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 				pinst->regs[reg] |= EEINST_LASTUSE; \
 			prev->regs[reg] |= EEINST_LIVE | EEINST_USED | EEINST_XMM; \
 			pinst->regs[reg] |= EEINST_USED | EEINST_XMM; \
-			_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 0); \
+			for (size_t i = 0; i < std::size(pinst->readType); ++i) \
+			{ \
+				if (pinst->readType[i] == XMMTYPE_TEMP) \
+				{ \
+					pinst->readType[i] = XMMTYPE_GPRREG; \
+					pinst->readReg[i]  = reg; \
+					break; \
+				} \
+			} \
 		} \
 	} while (0)
 
@@ -346,7 +370,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 				pinst->regs[reg] |= EEINST_LASTUSE; \
 			pinst->regs[reg] |= EEINST_LIVE | EEINST_USED | EEINST_XMM; \
 			prev->regs[reg] |= EEINST_USED | EEINST_XMM; \
-			_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 1); \
+			for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+			{ \
+				if (pinst->writeType[i] == XMMTYPE_TEMP) \
+				{ \
+					pinst->writeType[i] = XMMTYPE_GPRREG; \
+					pinst->writeReg[i]  = reg; \
+					break; \
+				} \
+			} \
 		} \
 	} while (0)
 
@@ -359,7 +391,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			if (!(pinst->regs[reg] & EEINST_USED)) \
 				pinst->regs[reg] |= EEINST_LASTUSE; \
 			pinst->regs[reg] |= EEINST_USED | EEINST_XMM; \
-			_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 1); \
+			for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+			{ \
+				if (pinst->writeType[i] == XMMTYPE_TEMP) \
+				{ \
+					pinst->writeType[i] = XMMTYPE_GPRREG; \
+					pinst->writeReg[i]  = reg; \
+					break; \
+				} \
+			} \
 		} \
 	} while (0)
 
@@ -370,7 +410,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			pinst->fpuregs[reg] |= EEINST_LASTUSE; \
 		prev->fpuregs[reg] |= EEINST_LIVE | EEINST_USED; \
 		pinst->fpuregs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_FPREG, reg, 0); \
+		for (size_t i = 0; i < std::size(pinst->readType); ++i) \
+		{ \
+			if (pinst->readType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->readType[i] = XMMTYPE_FPREG; \
+				pinst->readReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	} while (0)
 
 #define recBackpropSetFPUWrite(reg) \
@@ -380,7 +428,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		if (!(pinst->fpuregs[reg] & EEINST_USED)) \
 			pinst->fpuregs[reg] |= EEINST_LASTUSE; \
 		pinst->fpuregs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_FPREG, reg, 1); \
+		for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+		{ \
+			if (pinst->writeType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->writeType[i] = XMMTYPE_FPREG; \
+				pinst->writeReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	} while (0)
 
 #define recBackpropSetVFRead(reg) \
@@ -390,7 +446,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			pinst->vfregs[reg] |= EEINST_LASTUSE; \
 		prev->vfregs[reg] |= EEINST_LIVE | EEINST_USED; \
 		pinst->vfregs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_VFREG, reg, 0); \
+		for (size_t i = 0; i < std::size(pinst->readType); ++i) \
+		{ \
+			if (pinst->readType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->readType[i] = XMMTYPE_VFREG; \
+				pinst->readReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	} while (0)
 
 #define recBackpropSetVFWrite(reg) \
@@ -400,7 +464,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		if (!(pinst->vfregs[reg] & EEINST_USED)) \
 			pinst->vfregs[reg] |= EEINST_LASTUSE; \
 		pinst->vfregs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_VFREG, reg, 1); \
+		for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+		{ \
+			if (pinst->writeType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->writeType[i] = XMMTYPE_VFREG; \
+				pinst->writeReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	} while (0)
 
 #define recBackpropSetVIRead(reg) \
@@ -410,7 +482,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			pinst->viregs[reg] |= EEINST_LASTUSE; \
 		prev->viregs[reg] |= EEINST_LIVE | EEINST_USED; \
 		pinst->viregs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, X86TYPE_VIREG, reg, 0); \
+		for (size_t i = 0; i < std::size(pinst->readType); ++i) \
+		{ \
+			if (pinst->readType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->readType[i] = X86TYPE_VIREG; \
+				pinst->readReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	}
 
 #define recBackpropSetVIWrite(reg) \
@@ -420,7 +500,15 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		if (!(pinst->viregs[reg] & EEINST_USED)) \
 			pinst->viregs[reg] |= EEINST_LASTUSE; \
 		pinst->viregs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, X86TYPE_VIREG, reg, 1); \
+		for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+		{ \
+			if (pinst->writeType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->writeType[i] = X86TYPE_VIREG; \
+				pinst->writeReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	}
 
 static void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst);

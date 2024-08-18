@@ -87,11 +87,11 @@ bool _hasX86reg(int type, int reg, int required_mode /*= 0*/)
 // Step1: check any available register (inuse == 0)
 // Step2: check registers that are not live (both EEINST_LIVE* are cleared)
 // Step3: check registers that won't use SSE in the future (likely broken as EEINST_XMM isn't set properly)
-// Step4: take a randome register
+// Step4: take a random register
 //
 // Note: I don't understand why we don't check register that aren't useful anymore
 // (i.e EEINST_USED is cleared)
-int _getFreeXMMreg(u32 maxreg)
+static int _getFreeXMMreg(u32 maxreg)
 {
 	int i, tempi;
 	u32 bestcount = 0x10000;
@@ -168,7 +168,7 @@ int _getFreeXMMreg(u32 maxreg)
 // Reserve a XMM register for temporary operation.
 int _allocTempXMMreg(XMMSSEType type)
 {
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_TEMP;
 	xmmregs[xmmreg].needed  = 1;
@@ -243,7 +243,7 @@ int _allocFPtoXMMreg(int fpreg, int mode)
 		return i;
 	}
 
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_FPREG;
@@ -291,7 +291,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 		return i;
 	}
 
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_GPRREG;
@@ -378,7 +378,7 @@ int _allocFPACCtoXMMreg(int mode)
 		return i;
 	}
 
-	const int xmmreg        = _getFreeXMMreg();
+	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM);
 
 	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_FPACC;
@@ -805,9 +805,10 @@ int _allocIfUsedVItoX86(int vireg, int mode)
 	const int x86reg = _checkX86reg(X86TYPE_VIREG, vireg, mode);
 	if (x86reg >= 0)
 		return x86reg;
-
-	// Prefer not to stop on COP2 reserved registers here.
-	return EEINST_VIUSEDTEST(vireg) ? _allocX86reg(X86TYPE_VIREG, vireg, mode | MODE_COP2) : -1;
+	/* Prefer not to stop on COP2 reserved registers here. */
+	if ((g_pCurInstInfo->viregs[vireg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED)
+		return _allocX86reg(X86TYPE_VIREG, vireg, mode | MODE_COP2);
+	return -1;
 }
 
 int _allocIfUsedGPRtoXMM(int gprreg, int mode)
@@ -836,58 +837,4 @@ void _recClearInst(EEINST* pinst)
 	memset(pinst->fpuregs, EEINST_LIVE, sizeof(pinst->fpuregs));
 	memset(pinst->vfregs,  EEINST_LIVE, sizeof(pinst->vfregs));
 	memset(pinst->viregs,  EEINST_LIVE, sizeof(pinst->viregs));
-}
-
-// returns nonzero value if reg has been written between [startpc, endpc-4]
-u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
-{
-	u32 inst = 1;
-
-	while (size-- > 0)
-	{
-		for (u32 i = 0; i < std::size(pinst->writeType); ++i)
-		{
-			if ((pinst->writeType[i] == xmmtype) && (pinst->writeReg[i] == reg))
-				return inst;
-		}
-
-		for (u32 i = 0; i < std::size(pinst->readType); ++i)
-		{
-			if ((pinst->readType[i] == xmmtype) && (pinst->readReg[i] == reg))
-				return inst;
-		}
-
-		++inst;
-		pinst++;
-	}
-
-	return 0;
-}
-
-void _recFillRegister(EEINST& pinst, int type, int reg, int write)
-{
-	if (write)
-	{
-		for (size_t i = 0; i < std::size(pinst.writeType); ++i)
-		{
-			if (pinst.writeType[i] == XMMTYPE_TEMP)
-			{
-				pinst.writeType[i] = type;
-				pinst.writeReg[i]  = reg;
-				return;
-			}
-		}
-	}
-	else
-	{
-		for (size_t i = 0; i < std::size(pinst.readType); ++i)
-		{
-			if (pinst.readType[i] == XMMTYPE_TEMP)
-			{
-				pinst.readType[i] = type;
-				pinst.readReg[i]  = reg;
-				return;
-			}
-		}
-	}
 }

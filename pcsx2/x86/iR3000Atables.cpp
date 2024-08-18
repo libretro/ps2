@@ -2174,7 +2174,15 @@ void (*rpsxCP2BSC[32])() = {
 			pinst->regs[reg] |= EEINST_LASTUSE; \
 		prev->regs[reg] |= EEINST_LIVE | EEINST_USED; \
 		pinst->regs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 0); \
+		for (size_t i = 0; i < std::size(pinst->readType); ++i) \
+		{ \
+			if (pinst->readType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->readType[i] = XMMTYPE_GPRREG; \
+				pinst->readReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	}
 
 #define rpsxpropSetWrite(reg) \
@@ -2183,7 +2191,15 @@ void (*rpsxCP2BSC[32])() = {
 		if (!(pinst->regs[reg] & EEINST_USED)) \
 			pinst->regs[reg] |= EEINST_LASTUSE; \
 		pinst->regs[reg] |= EEINST_USED; \
-		_recFillRegister(*pinst, XMMTYPE_GPRREG, reg, 1); \
+		for (size_t i = 0; i < std::size(pinst->writeType); ++i) \
+		{ \
+			if (pinst->writeType[i] == XMMTYPE_TEMP) \
+			{ \
+				pinst->writeType[i] = XMMTYPE_GPRREG; \
+				pinst->writeReg[i]  = reg; \
+				break; \
+			} \
+		} \
 	}
 
 void rpsxpropBSC(EEINST* prev, EEINST* pinst);

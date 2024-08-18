@@ -148,16 +148,15 @@ enum : int
 
 struct _xmmregs
 {
-	u8 inuse;
-	s8 reg;
-	u8 type;
-	u8 mode;
-	u8 needed;
-	u16 counter;
+	uint8_t inuse;
+	int8_t reg;
+	uint8_t type;
+	uint8_t mode;
+	uint8_t needed;
+	uint16_t counter;
 };
 
-void _initXMMregs();
-int _getFreeXMMreg(u32 maxreg = iREGCNT_XMM);
+void _initXMMregs(void);
 int _allocTempXMMreg(XMMSSEType type);
 int _allocFPtoXMMreg(int fpreg, int mode);
 int _allocGPRtoXMMreg(int gprreg, int mode);
@@ -180,9 +179,9 @@ void _freeXMMregWithoutWriteback(int xmmreg);
 void _writebackXMMreg(int xmmreg);
 int _allocVFtoXMMreg(int vfreg, int mode);
 void mVUFreeCOP2XMMreg(int hostreg);
-void _flushCOP2regs();
+void _flushCOP2regs(void);
 void _flushXMMreg(int xmmreg);
-void _flushXMMregs();
+void _flushXMMregs(void);
 
 //////////////////////
 // Instruction Info //
@@ -199,9 +198,9 @@ void _flushXMMregs();
 // 3/ EEINST_LIVE* is cleared when register is written. And set again when register is read.
 // My guess: the purpose is to detect the usage hole in the flow
 
-#define EEINST_LIVE     1 // if var is ever used (read or write)
-#define EEINST_LASTUSE   8 // if var isn't written/read anymore
-#define EEINST_XMM    0x20 // var will be used in xmm ops
+#define EEINST_LIVE      1 /* if var is ever used (read or write) */
+#define EEINST_LASTUSE   8 /* if var isn't written/read anymore */
+#define EEINST_XMM    0x20 /* var will be used in xmm ops */
 #define EEINST_USED   0x40
 
 #define EEINST_COP2_DENORMALIZE_STATUS_FLAG 0x100
@@ -213,121 +212,93 @@ void _flushXMMregs();
 #define EEINST_COP2_FINISH_VU0 0x4000
 #define EEINST_COP2_FLUSH_VU0_REGISTERS 0x8000
 
+/*************************************************************************
+ * iFlushCall / _psxFlushCall Parameters
+ ************************************************************************/
+
+#define FLUSH_NONE             0x000 /* frees caller saved registers */
+#define FLUSH_CONSTANT_REGS    0x001
+#define FLUSH_FLUSH_XMM        0x002
+#define FLUSH_FREE_XMM         0x004 /* both flushes and frees */
+#define FLUSH_ALL_X86          0x020 /* flush x86 */
+#define FLUSH_FREE_TEMP_X86    0x040 /* flush and free temporary x86 regs */
+#define FLUSH_FREE_NONTEMP_X86 0x080 /* free all x86 regs, except temporary */
+#define FLUSH_FREE_VU0         0x100 /* free all vu0 related regs */
+#define FLUSH_PC               0x200 /* program counter */
+#if 0
+#define FLUSH_CAUSE            0x000 /* disabled for now: cause register, only the branch delay bit */
+#endif
+#define FLUSH_CODE             0x800 /* opcode for interpreter */
+
+#define FLUSH_EVERYTHING   0x1ff
+#if 0
+#define FLUSH_EXCEPTION	   0x1ff     /* will probably do this totally differently actually */
+#endif
+#define FLUSH_INTERPRETER  0xfff
+#define FLUSH_FULLVTLB 0x000
+
+/* no freeing, used when callee won't destroy xmm regs */
+#define FLUSH_NODESTROY (FLUSH_CONSTANT_REGS | FLUSH_FLUSH_XMM | FLUSH_ALL_X86)
+
+/* If unset, values which are not live will not be written back to memory.
+ * Tends to break stuff at the moment. */
+#define EE_WRITE_DEAD_VALUES 1
+
+/* Returns true if the register is used later in the block, 
+ * and this isn't the last instruction to use it.
+ * In other words, the register is worth keeping in a host register/caching it. */
+#define EEINST_USEDTEST(reg) ((g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED)
+
+/* Returns true if the register is used later in the block as an XMM/128-bit value. */
+#define EEINST_XMMUSEDTEST(reg) ((g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_XMM | EEINST_LASTUSE)) == (EEINST_USED | EEINST_XMM))
+
+/* Returns true if the specified VF register is used later in the block. */
+#define EEINST_VFUSEDTEST(reg) ((g_pCurInstInfo->vfregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED)
+
+/* Returns true if the value should be computed/written back.
+ * Basically, this means it's either used before it's overwritten, or not overwritten by the end of the block. */
+#define EEINST_LIVETEST(reg) (EE_WRITE_DEAD_VALUES || ((g_pCurInstInfo->regs[reg] & EEINST_LIVE) != 0))
+
+/* Returns true if the register can be renamed into another. */
+#define EEINST_RENAMETEST(reg) ((reg) == 0 || !EEINST_USEDTEST(reg) || !EEINST_LIVETEST(reg))
+
+#define FPUINST_ISLIVE(reg)  (!!(g_pCurInstInfo->fpuregs[reg] & EEINST_LIVE))
+#define FPUINST_LASTUSE(reg) (!!(g_pCurInstInfo->fpuregs[reg] & EEINST_LASTUSE))
+
+/* Returns true if the register is used later in the block, and this isn't the 
+ * last instruction to use it.
+ * In other words, the register is worth keeping in a host register/caching it. */
+#define FPUINST_USEDTEST(reg) ((g_pCurInstInfo->fpuregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED)
+
+/* Returns true if the value should be computed/written back. */
+#define FPUINST_LIVETEST(reg) (EE_WRITE_DEAD_VALUES || FPUINST_ISLIVE(reg))
+
+/* Returns true if the register can be renamed into another. */
+#define FPUINST_RENAMETEST(reg) ((!EEINST_USEDTEST(reg) || !EEINST_LIVETEST(reg)))
+
 struct EEINST
 {
-	u16 info; // extra info, if 1 inst is COP1, 2 inst is COP2. Also uses EEINST_XMM
-	u8 regs[34]; // includes HI/LO (HI=32, LO=33)
-	u8 fpuregs[33]; // ACC=32
-	u8 vfregs[34]; // ACC=32, I=33
-	u8 viregs[16];
+	uint16_t info;       /* extra info, if 1 inst is COP1, 2 inst is COP2. Also uses EEINST_XMM */
+	uint8_t regs[34];    /* includes HI/LO (HI=32, LO=33) */
+	uint8_t fpuregs[33]; /* ACC=32 */
+	uint8_t vfregs[34];  /* ACC=32, I=33 */
+	uint8_t viregs[16];
 
-	// uses XMMTYPE_ flags; if type == XMMTYPE_TEMP, not used
-	u8 writeType[3], writeReg[3]; // reg written in this inst, 0 if no reg
-	u8 readType[4], readReg[4];
+	/* uses XMMTYPE_ flags; if type == XMMTYPE_TEMP, not used */
+	uint8_t writeType[3], writeReg[3]; /* reg written in this inst, 0 if no reg */
+	uint8_t readType[4], readReg[4];
 };
 
 extern EEINST* g_pCurInstInfo; // info for the cur instruction
 extern void _recClearInst(EEINST* pinst);
 
-// returns the number of insts + 1 until written (0 if not written)
-extern u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg);
-
-extern void _recFillRegister(EEINST& pinst, int type, int reg, int write);
-
-// If unset, values which are not live will not be written back to memory.
-// Tends to break stuff at the moment.
-#define EE_WRITE_DEAD_VALUES 1
-
-/// Returns true if the register is used later in the block, and this isn't the last instruction to use it.
-/// In other words, the register is worth keeping in a host register/caching it.
-static __fi bool EEINST_USEDTEST(u32 reg)
-{
-	return (g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
-}
-
-/// Returns true if the register is used later in the block as an XMM/128-bit value.
-static __fi bool EEINST_XMMUSEDTEST(u32 reg)
-{
-	return (g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_XMM | EEINST_LASTUSE)) == (EEINST_USED | EEINST_XMM);
-}
-
-/// Returns true if the specified VF register is used later in the block.
-static __fi bool EEINST_VFUSEDTEST(u32 reg)
-{
-	return (g_pCurInstInfo->vfregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
-}
-
-/// Returns true if the specified VI register is used later in the block.
-static __fi bool EEINST_VIUSEDTEST(u32 reg)
-{
-	return (g_pCurInstInfo->viregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
-}
-
-/// Returns true if the value should be computed/written back.
-/// Basically, this means it's either used before it's overwritten, or not overwritten by the end of the block.
-static __fi bool EEINST_LIVETEST(u32 reg)
-{
-	return EE_WRITE_DEAD_VALUES || ((g_pCurInstInfo->regs[reg] & EEINST_LIVE) != 0);
-}
-
-/// Returns true if the register can be renamed into another.
-static __fi bool EEINST_RENAMETEST(u32 reg)
-{
-	return (reg == 0 || !EEINST_USEDTEST(reg) || !EEINST_LIVETEST(reg));
-}
-
-static __fi bool FPUINST_ISLIVE(u32 reg)   { return !!(g_pCurInstInfo->fpuregs[reg] & EEINST_LIVE); }
-static __fi bool FPUINST_LASTUSE(u32 reg)  { return !!(g_pCurInstInfo->fpuregs[reg] & EEINST_LASTUSE); }
-
-/// Returns true if the register is used later in the block, and this isn't the last instruction to use it.
-/// In other words, the register is worth keeping in a host register/caching it.
-static __fi bool FPUINST_USEDTEST(u32 reg)
-{
-	return (g_pCurInstInfo->fpuregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
-}
-
-/// Returns true if the value should be computed/written back.
-static __fi bool FPUINST_LIVETEST(u32 reg)
-{
-	return EE_WRITE_DEAD_VALUES || FPUINST_ISLIVE(reg);
-}
-
-/// Returns true if the register can be renamed into another.
-static __fi bool FPUINST_RENAMETEST(u32 reg)
-{
-	return (!EEINST_USEDTEST(reg) || !EEINST_LIVETEST(reg));
-}
 
 extern _xmmregs xmmregs[iREGCNT_XMM], s_saveXMMregs[iREGCNT_XMM];
 
 extern u16 g_x86AllocCounter;
 
-// allocates only if later insts use this register
+/* Allocates only if later insts use this register */
 int _allocIfUsedGPRtoX86(int gprreg, int mode);
 int _allocIfUsedVItoX86(int vireg, int mode);
 int _allocIfUsedGPRtoXMM(int gprreg, int mode);
 int _allocIfUsedFPUtoXMM(int fpureg, int mode);
-
-//////////////////////////////////////////////////////////////////////////
-// iFlushCall / _psxFlushCall Parameters
-
-#define FLUSH_NONE             0x000 // frees caller saved registers
-#define FLUSH_CONSTANT_REGS    0x001
-#define FLUSH_FLUSH_XMM        0x002
-#define FLUSH_FREE_XMM         0x004 // both flushes and frees
-#define FLUSH_ALL_X86          0x020 // flush x86
-#define FLUSH_FREE_TEMP_X86    0x040 // flush and free temporary x86 regs
-#define FLUSH_FREE_NONTEMP_X86 0x080 // free all x86 regs, except temporary
-#define FLUSH_FREE_VU0         0x100 // free all vu0 related regs
-#define FLUSH_PC               0x200 // program counter
-//#define FLUSH_CAUSE            0x000 // disabled for now: cause register, only the branch delay bit
-#define FLUSH_CODE             0x800 // opcode for interpreter
-
-#define FLUSH_EVERYTHING   0x1ff
-//#define FLUSH_EXCEPTION		0x1ff   // will probably do this totally differently actually
-#define FLUSH_INTERPRETER  0xfff
-#define FLUSH_FULLVTLB 0x000
-
-// no freeing, used when callee won't destroy xmm regs
-#define FLUSH_NODESTROY (FLUSH_CONSTANT_REGS | FLUSH_FLUSH_XMM | FLUSH_ALL_X86)
-
