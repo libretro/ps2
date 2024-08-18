@@ -306,7 +306,6 @@
     <ClCompile Include="Cache.cpp" />
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="x86\iR5900Analysis.cpp" />
-    <ClCompile Include="x86\ix86-32\recVTLB.cpp" />
     <ClCompile Include="vtlb.cpp" />
     <ClCompile Include="MTVU.cpp" />
     <ClCompile Include="VUmicro.cpp" />
@@ -339,15 +338,6 @@
     <ClCompile Include="x86\iMMI.cpp" />
     <ClCompile Include="x86\iR5900Misc.cpp" />
     <ClCompile Include="x86\ix86-32\iR5900-32.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900Arit.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900AritImm.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900Branch.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900Jump.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900LoadStore.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900Move.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900MultDiv.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900Shift.cpp" />
-    <ClCompile Include="x86\ix86-32\iR5900Templates.cpp" />
     <ClCompile Include="COP0.cpp" />
     <ClCompile Include="COP2.cpp" />
     <ClCompile Include="FPU.cpp" />
@@ -392,7 +382,6 @@
     <ClCompile Include="rdebug\deci2_ttyp.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="x86\ix86-32\iCore-32.cpp" />
     <ClCompile Include="x86\iCore.cpp" />
     <ClCompile Include="CDVD\IsoFS\IsoFile.cpp" />
     <ClCompile Include="CDVD\IsoFS\IsoFS.cpp" />

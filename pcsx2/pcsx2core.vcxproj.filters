@@ -398,9 +398,6 @@
     <ClCompile Include="Memory.cpp">
       <Filter>System\Ps2\EmotionEngine\Memory</Filter>
     </ClCompile>
-    <ClCompile Include="x86\ix86-32\recVTLB.cpp">
-      <Filter>System\Ps2\EmotionEngine\Memory</Filter>
-    </ClCompile>
     <ClCompile Include="vtlb.cpp">
       <Filter>System\Ps2\EmotionEngine\Memory</Filter>
     </ClCompile>
@@ -495,33 +492,6 @@
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
     <ClCompile Include="x86\ix86-32\iR5900-32.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900Arit.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900AritImm.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900Branch.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900Jump.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900LoadStore.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900Move.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900MultDiv.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900Shift.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iR5900Templates.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec\ix86-32</Filter>
     </ClCompile>
     <ClCompile Include="COP0.cpp">
@@ -637,9 +607,6 @@
     </ClCompile>
     <ClCompile Include="rdebug\deci2_ttyp.cpp">
       <Filter>System\Ps2\Debug\rdebug</Filter>
-    </ClCompile>
-    <ClCompile Include="x86\ix86-32\iCore-32.cpp">
-      <Filter>System\Ps2\iCore</Filter>
     </ClCompile>
     <ClCompile Include="x86\iCore.cpp">
       <Filter>System\Ps2\iCore</Filter>

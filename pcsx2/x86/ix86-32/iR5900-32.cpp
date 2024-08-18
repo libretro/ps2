@@ -13,44 +13,59 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Common.h"
-#include "CDVD/CDVD.h"
+#include <cstring> /* memset */
+
+#include "common/AlignedMalloc.h"
+#include "common/FastJmp.h"
+#include "common/emitter/x86emitter.h"
+
+#include "../BaseblockEx.h"
+#include "../iCOP0.h"
+#include "../iFPU.h"
+#include "../iMMI.h"
+#include "../iR5900.h"
+#include "../iR5900Analysis.h"
+#include "../iR5900LoadStore.h"
+#include "../iR3000A.h"
+#include "../vtlb.h"
+
+#include "../../Common.h"
 #include "../../Elfheader.h"
 #include "../../GS.h"
+#include "../../R3000A.h"
 #include "../../Memory.h"
 #include "../../Patch.h"
-#include "../../R3000A.h"
-
+#include "../../VU.h"
+#include "../../VUmicro.h"
+#include "../../Vif.h"
 #include "../../R5900OpcodeTables.h"
 #include "../../VMManager.h"
 #include "../../VirtualMemory.h"
 #include "../../vtlb.h"
+#include "../../CDVD/CDVD.h"
 
-#include "../BaseblockEx.h"
-#include "../iR5900.h"
-#include "../iR5900Analysis.h"
+#define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
+#define HWADDR(mem) (hwLUT[(mem) >> 16] + (mem))
 
-#include "common/AlignedMalloc.h"
-#include "common/FastJmp.h"
-
-/* Only for MOVQ workaround. */
-#include "common/emitter/x86emitter.h"
-
+using namespace vtlb_private;
 using namespace x86Emitter;
 using namespace R5900;
+
+// yay sloppy crap needed until we can remove dependency on this hippopotamic
+// landmass of shared code. (air)
+extern u32 g_psxConstRegs[32];
+
+// X86 caching
+static uint g_x86checknext;
 
 static bool eeRecNeedsReset = false;
 static bool eeCpuExecuting = false;
 static bool eeRecExitRequested = false;
 static bool g_resetEeScalingStats = false;
 
-#define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
-
 static u32 maxrecmem = 0;
 alignas(16) static uintptr_t recLUT[_64kb];
 alignas(16) static u32 hwLUT[_64kb];
-
-#define HWADDR(mem) (hwLUT[(mem) >> 16] + (mem))
 
 static u32 s_nBlockCycles = 0; // cycles of current block recompiling
 bool s_nBlockInterlocked = false; // Block is VU0 interlocked
@@ -60,6 +75,5687 @@ int g_branch; // set for branch
 alignas(16) GPR_reg64 g_cpuConstRegs[32] = {};
 u32 g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
 bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
+
+static int RETURN_READ_IN_RAX(void) { return rax.Id; }
+
+////////////////////
+// Code Templates //
+////////////////////
+
+void _eeOnWriteReg(int reg, int signext)
+{
+	GPR_DEL_CONST(reg);
+}
+
+void _deleteEEreg(int reg, int flush)
+{
+	if (!reg)
+		return;
+	if (flush && GPR_IS_CONST1(reg))
+	{
+		_flushConstReg(reg);
+	}
+	GPR_DEL_CONST(reg);
+	_deleteGPRtoXMMreg(reg, flush ? DELETE_REG_FREE : DELETE_REG_FLUSH_AND_FREE);
+	_deleteGPRtoX86reg(reg, flush ? DELETE_REG_FREE : DELETE_REG_FLUSH_AND_FREE);
+}
+
+void _deleteEEreg128(int reg)
+{
+	if (!reg)
+		return;
+
+	GPR_DEL_CONST(reg);
+	_deleteGPRtoXMMreg(reg, DELETE_REG_FREE_NO_WRITEBACK);
+	_deleteGPRtoX86reg(reg, DELETE_REG_FREE_NO_WRITEBACK);
+}
+
+void _flushEEreg(int reg, bool clear)
+{
+	if (!reg)
+		return;
+
+	if (GPR_IS_DIRTY_CONST(reg))
+		_flushConstReg(reg);
+	if (clear)
+		GPR_DEL_CONST(reg);
+
+	_deleteGPRtoXMMreg(reg, clear ? DELETE_REG_FLUSH_AND_FREE : DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(reg, clear ? DELETE_REG_FLUSH_AND_FREE : DELETE_REG_FLUSH);
+}
+
+int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
+{
+	// can't rename when in form Rd = Rs op Rt and Rd == Rs or Rd == Rt
+	if ((xmminfo & XMMINFO_NORENAME) || fromx86 < 0 || to == from || to == other || !EEINST_RENAMETEST(from))
+		return -1;
+
+	// flush back when it's been modified
+	if (x86regs[fromx86].mode & MODE_WRITE && EEINST_LIVETEST(from))
+		_writebackX86Reg(fromx86);
+
+	// remove all references to renamed-to register
+	_deleteGPRtoX86reg(to, DELETE_REG_FREE_NO_WRITEBACK);
+	_deleteGPRtoXMMreg(to, DELETE_REG_FLUSH_AND_FREE);
+	GPR_DEL_CONST(to);
+
+	// and do the actual rename, new register has been modified.
+	x86regs[fromx86].reg = to;
+	x86regs[fromx86].mode |= MODE_READ | MODE_WRITE;
+	return fromx86;
+}
+
+static bool FitsInImmediate(int reg, int fprinfo)
+{
+	if (fprinfo & XMMINFO_64BITOP)
+		return (s32)g_cpuConstRegs[reg].SD[0] == g_cpuConstRegs[reg].SD[0];
+	return true; // all 32bit ops fit
+}
+
+void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900FNPTR_INFO consttcode, R5900FNPTR_INFO noconstcode, int xmminfo)
+{
+	if (!_Rd_ && (xmminfo & XMMINFO_WRITED))
+		return;
+
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+	{
+		if (_Rd_ && (xmminfo & XMMINFO_WRITED))
+		{
+			_deleteGPRtoX86reg(_Rd_, DELETE_REG_FREE_NO_WRITEBACK);
+			_deleteGPRtoXMMreg(_Rd_, DELETE_REG_FLUSH_AND_FREE);
+			GPR_SET_CONST(_Rd_);
+		}
+		constcode();
+		return;
+	}
+
+	// we have to put these up here, because the register allocator below will wipe out const flags
+	// for the destination register when/if it switches it to write mode.
+	const bool s_is_const = GPR_IS_CONST1(_Rs_);
+	const bool t_is_const = GPR_IS_CONST1(_Rt_);
+	const bool d_is_const = GPR_IS_CONST1(_Rd_);
+	const bool s_is_used = EEINST_USEDTEST(_Rs_);
+	const bool t_is_used = EEINST_USEDTEST(_Rt_);
+	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_);
+	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_);
+
+	// regular x86
+	if ((xmminfo & XMMINFO_READS) && !s_is_const)
+		_addNeededGPRtoX86reg(_Rs_);
+	if ((xmminfo & XMMINFO_READT) && !t_is_const)
+		_addNeededGPRtoX86reg(_Rt_);
+	if ((xmminfo & XMMINFO_READD) && !d_is_const)
+		_addNeededGPRtoX86reg(_Rd_);
+
+	// when it doesn't fit in an immediate, we'll flush it to a reg early to save code
+	u32 info = 0;
+	int regs = -1, regt = -1;
+	if (xmminfo & XMMINFO_READS)
+	{
+		regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+		if (regs < 0 && (!s_is_const || !FitsInImmediate(_Rs_, xmminfo)) && (s_is_used || s_in_xmm || ((xmminfo & XMMINFO_WRITED) && _Rd_ == _Rs_) || (xmminfo & XMMINFO_FORCEREGS)))
+			regs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+		if (regs >= 0)
+			info |= PROCESS_EE_SET_S(regs);
+	}
+
+	if (xmminfo & XMMINFO_READT)
+	{
+		regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+		if (regt < 0 && (!t_is_const || !FitsInImmediate(_Rt_, xmminfo)) && (t_is_used || t_in_xmm || ((xmminfo & XMMINFO_WRITED) && _Rd_ == _Rt_) || (xmminfo & XMMINFO_FORCEREGT)))
+			regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+		if (regt >= 0)
+			info |= PROCESS_EE_SET_T(regt);
+	}
+
+	if (xmminfo & (XMMINFO_WRITED | XMMINFO_READD))
+	{
+		// _eeTryRenameReg() sets READ | WRITE already, so this is only needed when allocating.
+		const int moded = ((xmminfo & XMMINFO_WRITED) ? MODE_WRITE : 0) | ((xmminfo & XMMINFO_READD) ? MODE_READ : 0);
+
+		// If S is no longer live, swap D for S. Saves the move.
+		int regd = (_Rd_ && xmminfo & XMMINFO_WRITED) ? _eeTryRenameReg(_Rd_, (xmminfo & XMMINFO_READS) ? _Rs_ : 0, regs, (xmminfo & XMMINFO_READT) ? _Rt_ : 0, xmminfo) : 0;
+		if (regd < 0)
+			regd = _allocX86reg(X86TYPE_GPR, _Rd_, moded);
+
+		info |= PROCESS_EE_SET_D(regd);
+	}
+
+	if (xmminfo & XMMINFO_WRITED)
+		GPR_DEL_CONST(_Rd_);
+
+	if (s_is_const && regs < 0)
+	{
+		constscode(info /*| PROCESS_CONSTS*/);
+		return;
+	}
+
+	if (t_is_const && regt < 0)
+	{
+		consttcode(info /*| PROCESS_CONSTT*/);
+		return;
+	}
+
+	noconstcode(info);
+}
+
+void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int xmminfo)
+{
+	if (!_Rt_)
+		return;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
+		_deleteGPRtoX86reg(_Rt_, DELETE_REG_FREE_NO_WRITEBACK);
+		GPR_SET_CONST(_Rt_);
+		constcode();
+		return;
+	}
+
+	const bool s_is_used = EEINST_USEDTEST(_Rs_);
+	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_);
+
+	u32 info = 0;
+	int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	if (regs < 0 && (s_is_used || s_in_xmm || _Rt_ == _Rs_ || (xmminfo & XMMINFO_FORCEREGS)))
+		regs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	if (regs >= 0)
+		info |= PROCESS_EE_SET_S(regs);
+
+	// If S is no longer live, swap D for S. Saves the move.
+	int regt = _eeTryRenameReg(_Rt_, _Rs_, regs, 0, xmminfo);
+	if (regt < 0)
+		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
+
+	info |= PROCESS_EE_SET_T(regt);
+
+	GPR_DEL_CONST(_Rt_);
+	noconstcode(info);
+}
+
+// rd = rt op sa
+void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int xmminfo)
+{
+	if (!_Rd_)
+		return;
+
+	if (GPR_IS_CONST1(_Rt_))
+	{
+		_deleteGPRtoXMMreg(_Rd_, DELETE_REG_FLUSH_AND_FREE);
+		_deleteGPRtoX86reg(_Rd_, DELETE_REG_FREE_NO_WRITEBACK);
+		GPR_SET_CONST(_Rd_);
+		constcode();
+		return;
+	}
+
+	const bool t_is_used = EEINST_USEDTEST(_Rt_);
+	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_);
+
+	u32 info = 0;
+	int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+	if (regt < 0 && (t_is_used || t_in_xmm || (_Rd_ == _Rt_) || (xmminfo & XMMINFO_FORCEREGT)))
+		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+	if (regt >= 0)
+		info |= PROCESS_EE_SET_T(regt);
+
+	// If S is no longer live, swap D for T. Saves the move.
+	int regd = _eeTryRenameReg(_Rd_, _Rt_, regt, 0, xmminfo);
+	if (regd < 0)
+		regd = _allocX86reg(X86TYPE_GPR, _Rd_, MODE_WRITE);
+
+	info |= PROCESS_EE_SET_D(regd);
+
+	GPR_DEL_CONST(_Rd_);
+	noconstcode(info);
+}
+
+// EE XMM allocation code
+int eeRecompileCodeXMM(int xmminfo)
+{
+	int info = PROCESS_EE_XMM;
+
+	// add needed
+	if (xmminfo & (XMMINFO_READLO | XMMINFO_WRITELO))
+		_addNeededGPRtoXMMreg(XMMGPR_LO);
+	if (xmminfo & (XMMINFO_READHI | XMMINFO_WRITEHI))
+		_addNeededGPRtoXMMreg(XMMGPR_HI);
+
+	// TODO: we could do memory operands here if not live. but the MMI implementations aren't hooked up to that at the moment.
+	if (xmminfo & XMMINFO_READS)
+	{
+		_addNeededGPRtoXMMreg(_Rs_);
+		const int reg = _allocGPRtoXMMreg(_Rs_, MODE_READ);
+		info |= PROCESS_EE_SET_S(reg);
+	}
+	if (xmminfo & XMMINFO_READT)
+	{
+		_addNeededGPRtoXMMreg(_Rt_);
+		const int reg = _allocGPRtoXMMreg(_Rt_, MODE_READ);
+		info |= PROCESS_EE_SET_T(reg);
+	}
+
+	if (xmminfo & XMMINFO_WRITED)
+	{
+		_addNeededGPRtoXMMreg(_Rd_);
+		int readd = MODE_WRITE | ((xmminfo & XMMINFO_READD) ? MODE_READ : 0);
+
+		int regd = _checkXMMreg(XMMTYPE_GPRREG, _Rd_, readd);
+
+		if (regd < 0)
+		{
+			if (!(xmminfo & XMMINFO_READD) && (xmminfo & XMMINFO_READT) && EEINST_RENAMETEST(_Rt_))
+			{
+				_deleteEEreg128(_Rd_);
+				_reallocateXMMreg(EEREC_T, XMMTYPE_GPRREG, _Rd_, readd, EEINST_LIVETEST(_Rt_));
+				regd = EEREC_T;
+			}
+			else if (!(xmminfo & XMMINFO_READD) && (xmminfo & XMMINFO_READS) && EEINST_RENAMETEST(_Rs_))
+			{
+				_deleteEEreg128(_Rd_);
+				_reallocateXMMreg(EEREC_S, XMMTYPE_GPRREG, _Rd_, readd, EEINST_LIVETEST(_Rs_));
+				regd = EEREC_S;
+			}
+			else
+			{
+				regd = _allocGPRtoXMMreg(_Rd_, readd);
+			}
+		}
+
+		info |= PROCESS_EE_SET_D(regd);
+	}
+	if (xmminfo & (XMMINFO_READLO | XMMINFO_WRITELO))
+	{
+		info |= PROCESS_EE_SET_LO(_allocGPRtoXMMreg(XMMGPR_LO, ((xmminfo & XMMINFO_READLO) ? MODE_READ : 0) | ((xmminfo & XMMINFO_WRITELO) ? MODE_WRITE : 0)));
+	}
+	if (xmminfo & (XMMINFO_READHI | XMMINFO_WRITEHI))
+	{
+		info |= PROCESS_EE_SET_HI(_allocGPRtoXMMreg(XMMGPR_HI, ((xmminfo & XMMINFO_READHI) ? MODE_READ : 0) | ((xmminfo & XMMINFO_WRITEHI) ? MODE_WRITE : 0)));
+	}
+
+	if (xmminfo & XMMINFO_WRITED)
+		GPR_DEL_CONST(_Rd_);
+
+	return info;
+}
+
+// EE COP1(FPU) XMM allocation code
+#define _Ft_ _Rt_
+#define _Fs_ _Rd_
+#define _Fd_ _Sa_
+
+// rd = rs op rt
+void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo)
+{
+	int mmregs = -1, mmregt = -1, mmregd = -1, mmregacc = -1;
+	int info = PROCESS_EE_XMM;
+
+	if (xmminfo & (XMMINFO_WRITED | XMMINFO_READD))
+		_addNeededFPtoXMMreg(_Fd_);
+	if (xmminfo & (XMMINFO_WRITEACC | XMMINFO_READACC))
+		_addNeededFPACCtoXMMreg();
+
+	if (xmminfo & XMMINFO_READT)
+	{
+		_addNeededFPtoXMMreg(_Ft_);
+		if (g_pCurInstInfo->fpuregs[_Ft_] & EEINST_LASTUSE)
+			mmregt = _checkXMMreg(XMMTYPE_FPREG, _Ft_, MODE_READ);
+		else
+			mmregt = _allocFPtoXMMreg(_Ft_, MODE_READ);
+	}
+
+	if (xmminfo & XMMINFO_READS)
+	{
+		_addNeededFPtoXMMreg(_Fs_);
+		if ((!(xmminfo & XMMINFO_READT) || (mmregt >= 0)) && (g_pCurInstInfo->fpuregs[_Fs_] & EEINST_LASTUSE))
+			mmregs = _checkXMMreg(XMMTYPE_FPREG, _Fs_, MODE_READ);
+		else
+		{
+			mmregs = _allocFPtoXMMreg(_Fs_, MODE_READ);
+
+			// if we just allocated S and Fs == Ft, share it
+			if ((xmminfo & XMMINFO_READT) && _Fs_ == _Ft_)
+				mmregt = mmregs;
+		}
+	}
+
+	if (xmminfo & XMMINFO_READD)
+		mmregd = _allocFPtoXMMreg(_Fd_, MODE_READ);
+
+	if (xmminfo & XMMINFO_READACC)
+	{
+		if (!(xmminfo & XMMINFO_WRITEACC) && (g_pCurInstInfo->fpuregs[XMMFPU_ACC] & EEINST_LASTUSE))
+			mmregacc = _checkXMMreg(XMMTYPE_FPACC, 0, MODE_READ);
+		else
+			mmregacc = _allocFPACCtoXMMreg(MODE_READ);
+	}
+
+	if (xmminfo & XMMINFO_WRITEACC)
+	{
+
+		// check for last used, if so don't alloc a new XMM reg
+		int readacc = MODE_WRITE | ((xmminfo & XMMINFO_READACC) ? MODE_READ : 0);
+
+		mmregacc = _checkXMMreg(XMMTYPE_FPACC, 0, readacc);
+
+		if (mmregacc < 0)
+		{
+			if ((xmminfo & XMMINFO_READT) && mmregt >= 0 && FPUINST_RENAMETEST(_Ft_))
+			{
+				if (EE_WRITE_DEAD_VALUES && xmmregs[mmregt].mode & MODE_WRITE)
+					_writebackXMMreg(mmregt);
+
+				xmmregs[mmregt].reg = 0;
+				xmmregs[mmregt].mode = readacc;
+				xmmregs[mmregt].type = XMMTYPE_FPACC;
+				mmregacc = mmregt;
+			}
+			else if ((xmminfo & XMMINFO_READS) && mmregs >= 0 && FPUINST_RENAMETEST(_Fs_))
+			{
+				if (EE_WRITE_DEAD_VALUES && xmmregs[mmregs].mode & MODE_WRITE)
+					_writebackXMMreg(mmregs);
+
+				xmmregs[mmregs].reg = 0;
+				xmmregs[mmregs].mode = readacc;
+				xmmregs[mmregs].type = XMMTYPE_FPACC;
+				mmregacc = mmregs;
+			}
+			else
+				mmregacc = _allocFPACCtoXMMreg(readacc);
+		}
+
+		xmmregs[mmregacc].mode |= MODE_WRITE;
+	}
+	else if (xmminfo & XMMINFO_WRITED)
+	{
+		// check for last used, if so don't alloc a new XMM reg
+		int readd = MODE_WRITE | ((xmminfo & XMMINFO_READD) ? MODE_READ : 0);
+		if (xmminfo & XMMINFO_READD)
+			mmregd = _allocFPtoXMMreg(_Fd_, readd);
+		else
+			mmregd = _checkXMMreg(XMMTYPE_FPREG, _Fd_, readd);
+
+		if (mmregd < 0)
+		{
+			if ((xmminfo & XMMINFO_READT) && mmregt >= 0 && FPUINST_RENAMETEST(_Ft_))
+			{
+				if (EE_WRITE_DEAD_VALUES && xmmregs[mmregt].mode & MODE_WRITE)
+					_writebackXMMreg(mmregt);
+
+				xmmregs[mmregt].reg = _Fd_;
+				xmmregs[mmregt].mode = readd;
+				mmregd = mmregt;
+			}
+			else if ((xmminfo & XMMINFO_READS) && mmregs >= 0 && FPUINST_RENAMETEST(_Fs_))
+			{
+				if (EE_WRITE_DEAD_VALUES && xmmregs[mmregs].mode & MODE_WRITE)
+					_writebackXMMreg(mmregs);
+
+				xmmregs[mmregs].inuse = 1;
+				xmmregs[mmregs].reg = _Fd_;
+				xmmregs[mmregs].mode = readd;
+				mmregd = mmregs;
+			}
+			else if ((xmminfo & XMMINFO_READACC) && mmregacc >= 0 && FPUINST_RENAMETEST(XMMFPU_ACC))
+			{
+				if (EE_WRITE_DEAD_VALUES && xmmregs[mmregacc].mode & MODE_WRITE)
+					_writebackXMMreg(mmregacc);
+
+				xmmregs[mmregacc].reg = _Fd_;
+				xmmregs[mmregacc].mode = readd;
+				xmmregs[mmregacc].type = XMMTYPE_FPREG;
+				mmregd = mmregacc;
+			}
+			else
+				mmregd = _allocFPtoXMMreg(_Fd_, readd);
+		}
+	}
+
+	if (xmminfo & XMMINFO_WRITED)
+		info |= PROCESS_EE_SET_D(mmregd);
+	if (xmminfo & (XMMINFO_WRITEACC | XMMINFO_READACC))
+	{
+		if (mmregacc >= 0)
+			info |= PROCESS_EE_SET_ACC(mmregacc) | PROCESS_EE_ACC;
+	}
+
+	if (xmminfo & XMMINFO_READS)
+	{
+		if (mmregs >= 0)
+			info |= PROCESS_EE_SET_S(mmregs);
+	}
+	if (xmminfo & XMMINFO_READT)
+	{
+		if (mmregt >= 0)
+			info |= PROCESS_EE_SET_T(mmregt);
+	}
+
+	xmmcode(info);
+}
+
+// we need enough for a 32-bit jump forwards (5 bytes)
+#define LOADSTORE_PADDING 5
+
+static u32 GetAllocatedGPRBitmask(void)
+{
+	u32 mask = 0;
+	for (u32 i = 0; i < iREGCNT_GPR; i++)
+	{
+		if (x86regs[i].inuse)
+			mask |= (1u << i);
+	}
+	return mask;
+}
+
+static u32 GetAllocatedXMMBitmask(void)
+{
+	u32 mask = 0;
+	for (u32 i = 0; i < iREGCNT_XMM; i++)
+	{
+		if (xmmregs[i].inuse)
+			mask |= (1u << i);
+	}
+	return mask;
+}
+
+/*
+	// Pseudo-Code For the following Dynarec Implementations -->
+
+	u32 vmv = vmap[addr>>VTLB_PAGE_BITS].raw();
+	intptr_t ppf=addr+vmv;
+	if (!(ppf<0))
+	{
+		data[0]=*reinterpret_cast<DataType*>(ppf);
+		if (DataSize==128)
+			data[1]=*reinterpret_cast<DataType*>(ppf+8);
+		return 0;
+	}
+	else
+	{
+		//has to: translate, find function, call function
+		u32 hand=(u8)vmv;
+		u32 paddr=(ppf-hand) << 1;
+		//Console.WriteLn("Translated 0x%08X to 0x%08X",params addr,paddr);
+		return reinterpret_cast<TemplateHelper<DataSize,false>::HandlerType*>(RWFT[TemplateHelper<DataSize,false>::sidx][0][hand])(paddr,data);
+	}
+
+	// And in ASM it looks something like this -->
+
+	mov eax,ecx;
+	shr eax,VTLB_PAGE_BITS;
+	mov rax,[rax * sizeof(intptr_t) + vmap];
+	add rcx,rax;
+	js _fullread;
+
+	//these are wrong order, just an example ...
+	mov [rax],ecx;
+	mov ecx,[rdx];
+	mov [rax+4],ecx;
+	mov ecx,[rdx+4];
+	mov [rax+4+4],ecx;
+	mov ecx,[rdx+4+4];
+	mov [rax+4+4+4+4],ecx;
+	mov ecx,[rdx+4+4+4+4];
+	///....
+
+	jmp cont;
+	_fullread:
+	movzx eax,al;
+	sub   ecx,eax;
+	call [eax+stuff];
+	cont:
+	........
+
+*/
+
+namespace vtlb_private
+{
+	// ------------------------------------------------------------------------
+	// Prepares eax, ecx, and, ebx for Direct or Indirect operations.
+	// Returns the writeback pointer for ebx (return address from indirect handling)
+	//
+	static void DynGen_PrepRegs(int addr_reg, int value_reg, u32 sz, bool xmm)
+	{
+		_freeX86reg(arg1regd);
+		xMOV(arg1regd, xRegister32(addr_reg));
+
+		if (value_reg >= 0)
+		{
+			if (sz == 128)
+			{
+				_freeXMMreg(xRegisterSSE::GetArgRegister(1, 0).Id);
+				xMOVAPS(xRegisterSSE::GetArgRegister(1, 0), xRegisterSSE::GetInstance(value_reg));
+			}
+			else if (xmm)
+			{
+				// 32bit xmms are passed in GPRs
+				_freeX86reg(arg2regd);
+				xMOVD(arg2regd, xRegisterSSE(value_reg));
+			}
+			else
+			{
+				_freeX86reg(arg2regd);
+				xMOV(arg2reg, xRegister64(value_reg));
+			}
+		}
+
+		xMOV(eax, arg1regd);
+		xSHR(eax, VTLB_PAGE_BITS);
+		xMOV(rax, ptrNative[xComplexAddress(arg3reg, vtlbdata.vmap, rax * sizeof(intptr_t))]);
+		xADD(arg1reg, rax);
+	}
+
+	// ------------------------------------------------------------------------
+	static void DynGen_DirectRead(u32 bits, bool sign)
+	{
+		switch (bits)
+		{
+			case 8:
+				if (sign)
+					xMOVSX(rax, ptr8[arg1reg]);
+				else
+					xMOVZX(rax, ptr8[arg1reg]);
+				break;
+
+			case 16:
+				if (sign)
+					xMOVSX(rax, ptr16[arg1reg]);
+				else
+					xMOVZX(rax, ptr16[arg1reg]);
+				break;
+
+			case 32:
+				if (sign)
+					xMOVSX(rax, ptr32[arg1reg]);
+				else
+					xMOV(eax, ptr32[arg1reg]);
+				break;
+
+			case 64:
+				xMOV(rax, ptr64[arg1reg]);
+				break;
+
+			case 128:
+				xMOVAPS(xmm0, ptr128[arg1reg]);
+				break;
+			default:
+				break;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	static void DynGen_DirectWrite(u32 bits)
+	{
+		switch (bits)
+		{
+			case 8:
+				xMOV(ptr[arg1reg], xRegister8(arg2regd));
+				break;
+
+			case 16:
+				xMOV(ptr[arg1reg], xRegister16(arg2regd));
+				break;
+
+			case 32:
+				xMOV(ptr[arg1reg], arg2regd);
+				break;
+
+			case 64:
+				xMOV(ptr[arg1reg], arg2reg);
+				break;
+
+			case 128:
+				xMOVAPS(ptr[arg1reg], xRegisterSSE::GetArgRegister(1, 0));
+				break;
+		}
+	}
+} // namespace vtlb_private
+
+// ------------------------------------------------------------------------
+// allocate one page for our naked indirect dispatcher function.
+// this *must* be a full page, since we'll give it execution permission later.
+// If it were smaller than a page we'd end up allowing execution rights on some
+// other vars additionally (bad!).
+//
+alignas(__pagesize) static u8 m_IndirectDispatchers[__pagesize];
+
+// ------------------------------------------------------------------------
+// mode        - 0 for read, 1 for write!
+// operandsize - 0 thru 4 represents 8, 16, 32, 64, and 128 bits.
+//
+static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign = 0)
+{
+	// Each dispatcher is aligned to 64 bytes.  The actual dispatchers are only like
+	// 20-some bytes each, but 64 byte alignment on functions that are called
+	// more frequently than a hot sex hotline at 1:15am is probably a good thing.
+
+	// 7*64? 5 widths with two sign extension modes for 8 and 16 bit reads
+
+	// Gregory: a 32 bytes alignment is likely enough and more cache friendly
+	const int A = 32;
+	return &m_IndirectDispatchers[(mode * (8 * A)) + (sign * 5 * A) + (operandsize * A)];
+}
+
+// ------------------------------------------------------------------------
+// Generates a JS instruction that targets the appropriate templated instance of
+// the vtlb Indirect Dispatcher.
+//
+
+template <typename GenDirectFn>
+static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits, bool sign = false)
+{
+	int szidx = 0;
+	switch (bits)
+	{
+		case   8: szidx = 0; break;
+		case  16: szidx = 1; break;
+		case  32: szidx = 2; break;
+		case  64: szidx = 3; break;
+		case 128: szidx = 4; break;
+		default:
+			  break;
+	}
+	xForwardJS8 to_handler;
+	gen_direct();
+	xForwardJump8 done;
+	to_handler.SetTarget();
+	xFastCall(GetIndirectDispatcherPtr(mode, szidx, sign));
+	done.SetTarget();
+}
+
+// ------------------------------------------------------------------------
+// Generates the various instances of the indirect dispatchers
+// In: arg1reg: vtlb entry, arg2reg: data ptr (if mode >= 64), rbx: function return ptr
+// Out: eax: result (if mode < 64)
+static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
+{
+	// fixup stack
+#ifdef _WIN32
+	xSUB(rsp, 32 + 8);
+#else
+	xSUB(rsp, 8);
+#endif
+
+	xMOVZX(eax, al);
+#if !(defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__) || defined(__x86_64))
+	if (sizeof(intptr_t) != 8)
+		xSUB(arg1regd, 0x80000000);
+#endif
+	xSUB(arg1regd, eax);
+
+	// jump to the indirect handler, which is a C++ function.
+	// [ecx is address, edx is data]
+	intptr_t table = (intptr_t)vtlbdata.RWFT[bits][mode];
+	if (table == (s32)table)
+	{
+		xFastCall(ptrNative[(rax * sizeof(intptr_t)) + table], arg1reg, arg2reg);
+	}
+	else
+	{
+		xLEA(arg3reg, ptr[(void*)table]);
+		xFastCall(ptrNative[(rax * sizeof(intptr_t)) + arg3reg], arg1reg, arg2reg);
+	}
+
+	if (!mode)
+	{
+		if (bits == 0)
+		{
+			if (sign)
+				xMOVSX(rax, al);
+			else
+				xMOVZX(rax, al);
+		}
+		else if (bits == 1)
+		{
+			if (sign)
+				xMOVSX(rax, ax);
+			else
+				xMOVZX(rax, ax);
+		}
+		else if (bits == 2)
+		{
+			if (sign)
+			{
+				*(u16*)x86Ptr = 0x9848;
+				x86Ptr += sizeof(u16);
+			}
+		}
+	}
+
+#ifdef _WIN32
+	xADD(rsp, 32 + 8);
+#else
+	xADD(rsp, 8);
+#endif
+
+	*(u8*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(u8);
+}
+
+// One-time initialization procedure.  Multiple subsequent calls during the lifespan of the
+// process will be ignored.
+//
+void vtlb_DynGenDispatchers(void)
+{
+	PageProtectionMode mode;
+	static bool hasBeenCalled = false;
+	if (hasBeenCalled)
+		return;
+	hasBeenCalled = true;
+
+	mode.m_read   = true;
+	mode.m_write  = true;
+	mode.m_exec   = false;
+	// In case init gets called multiple times:
+	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
+
+	// clear the buffer to 0xcc (easier debugging).
+	memset(m_IndirectDispatchers, 0xcc, __pagesize);
+
+	for (int mode = 0; mode < 2; ++mode)
+	{
+		for (int bits = 0; bits < 5; ++bits)
+		{
+			for (int sign = 0; sign < (!mode && bits < 3 ? 2 : 1); sign++)
+			{
+				x86Ptr = (u8*)GetIndirectDispatcherPtr(mode, bits, !!sign);
+
+				DynGen_IndirectTlbDispatcher(mode, bits, !!sign);
+			}
+		}
+	}
+
+	mode.m_write  = false;
+	mode.m_exec   = true;
+	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//                            Dynarec Load Implementations
+// ------------------------------------------------------------------------
+// Recompiled input registers:
+//   ecx - source address to read from
+//   Returns read value in eax.
+int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
+{
+	int x86_dest_reg;
+	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+	{
+		iFlushCall(FLUSH_FULLVTLB);
+
+		DynGen_PrepRegs(addr_reg, -1, bits, xmm);
+		DynGen_HandlerTest([bits, sign]() { DynGen_DirectRead(bits, sign); }, 0, bits, sign && bits < 64);
+
+		if (!xmm)
+		{
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			xMOV(xRegister64(x86_dest_reg), rax);
+		}
+		else
+		{
+			// we shouldn't be loading any FPRs which aren't 32bit..
+			// we use MOVD here despite it being floating-point data, because we're going int->float reinterpret.
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+			xMOVDZX(xRegisterSSE(x86_dest_reg), eax);
+		}
+
+		return x86_dest_reg;
+	}
+
+	const u8* codeStart;
+	const xAddressReg x86addr(addr_reg);
+	if (!xmm)
+	{
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+		codeStart = x86Ptr;
+		const xRegister64 x86reg(x86_dest_reg);
+		switch (bits)
+		{
+		case 8:
+			sign ? xMOVSX(x86reg, ptr8[RFASTMEMBASE + x86addr]) : xMOVZX(xRegister32(x86reg), ptr8[RFASTMEMBASE + x86addr]);
+			break;
+		case 16:
+			sign ? xMOVSX(x86reg, ptr16[RFASTMEMBASE + x86addr]) : xMOVZX(xRegister32(x86reg), ptr16[RFASTMEMBASE + x86addr]);
+			break;
+		case 32:
+			sign ? xMOVSX(x86reg, ptr32[RFASTMEMBASE + x86addr]) : xMOV(xRegister32(x86reg), ptr32[RFASTMEMBASE + x86addr]);
+			break;
+		case 64:
+			xMOV(x86reg, ptr64[RFASTMEMBASE + x86addr]);
+			break;
+		default:
+			break;
+		}
+	}
+	else
+	{
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+		codeStart = x86Ptr;
+		const xRegisterSSE xmmreg(x86_dest_reg);
+		xMOVSSZX(xmmreg, ptr32[RFASTMEMBASE + x86addr]);
+	}
+
+	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
+	for (u32 i = 0; i < padding; i++)
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
+
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
+		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
+		static_cast<u8>(addr_reg), static_cast<u8>(x86_dest_reg),
+		static_cast<u8>(bits), sign, true, xmm);
+
+	return x86_dest_reg;
+}
+
+// ------------------------------------------------------------------------
+// Recompiled input registers:
+//   ecx - source address to read from
+//   Returns read value in eax.
+//
+// TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
+// recompiler if the TLB is changed.
+//
+int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+{
+	int x86_dest_reg;
+	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (!vmv.isHandler(addr_const))
+	{
+		auto ppf = vmv.assumePtr(addr_const);
+		if (!xmm)
+		{
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			switch (bits)
+			{
+			case 8:
+				sign ? xMOVSX(xRegister64(x86_dest_reg), ptr8[(u8*)ppf]) : xMOVZX(xRegister32(x86_dest_reg), ptr8[(u8*)ppf]);
+				break;
+
+			case 16:
+				sign ? xMOVSX(xRegister64(x86_dest_reg), ptr16[(u16*)ppf]) : xMOVZX(xRegister32(x86_dest_reg), ptr16[(u16*)ppf]);
+				break;
+
+			case 32:
+				sign ? xMOVSX(xRegister64(x86_dest_reg), ptr32[(u32*)ppf]) : xMOV(xRegister32(x86_dest_reg), ptr32[(u32*)ppf]);
+				break;
+
+			case 64:
+				xMOV(xRegister64(x86_dest_reg), ptr64[(u64*)ppf]);
+				break;
+			}
+		}
+		else
+		{
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+			xMOVSSZX(xRegisterSSE(x86_dest_reg), ptr32[(float*)ppf]);
+		}
+	}
+	else
+	{
+		// has to: translate, find function, call function
+		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+
+		int szidx = 0;
+		switch (bits)
+		{
+			case  8: break;
+			case 16: szidx = 1; break;
+			case 32: szidx = 2; break;
+			case 64: szidx = 3; break;
+		}
+
+		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
+		if ((bits == 32) && !EmuConfig.Speedhacks.IntcStat && (paddr == INTC_STAT))
+		{
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			if (!xmm)
+			{
+				if (sign)
+					xMOVSX(xRegister64(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
+				else
+					xMOV(xRegister32(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
+			}
+			else
+			{
+				xMOVDZX(xRegisterSSE(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
+			}
+		}
+		else
+		{
+			iFlushCall(FLUSH_FULLVTLB);
+			xFastCall(vmv.assumeHandlerGetRaw(szidx, false), paddr);
+
+			if (!xmm)
+			{
+				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+				switch (bits)
+				{
+					// save REX prefix by using 32bit dest for zext
+				case 8:
+					sign ? xMOVSX(xRegister64(x86_dest_reg), al) : xMOVZX(xRegister32(x86_dest_reg), al);
+					break;
+
+				case 16:
+					sign ? xMOVSX(xRegister64(x86_dest_reg), ax) : xMOVZX(xRegister32(x86_dest_reg), ax);
+					break;
+
+				case 32:
+					sign ? xMOVSX(xRegister64(x86_dest_reg), eax) : xMOV(xRegister32(x86_dest_reg), eax);
+					break;
+
+				case 64:
+					xMOV(xRegister64(x86_dest_reg), rax);
+					break;
+				}
+			}
+			else
+			{
+				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+				xMOVDZX(xRegisterSSE(x86_dest_reg), eax);
+			}
+		}
+	}
+
+	return x86_dest_reg;
+}
+
+int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
+{
+	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+	{
+		iFlushCall(FLUSH_FULLVTLB);
+
+		DynGen_PrepRegs(arg1regd.Id, -1, bits, true);
+		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); },  0, bits);
+
+		const int reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); // Handler returns in xmm0
+		if (reg >= 0)
+			xMOVAPS(xRegisterSSE(reg), xmm0);
+
+		return reg;
+	}
+
+	const int reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); // Handler returns in xmm0
+	const u8* codeStart = x86Ptr;
+
+	xMOVAPS(xRegisterSSE(reg), ptr128[RFASTMEMBASE + arg1reg]);
+
+	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
+	for (u32 i = 0; i < padding; i++)
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
+
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
+		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
+		static_cast<u8>(arg1reg.Id), static_cast<u8>(reg),
+		static_cast<u8>(bits), false, true, true);
+
+	return reg;
+}
+
+
+// ------------------------------------------------------------------------
+// TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
+// recompiler if the TLB is changed.
+int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+{
+	int reg;
+	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (!vmv.isHandler(addr_const))
+	{
+		void* ppf = reinterpret_cast<void*>(vmv.assumePtr(addr_const));
+		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+		if (reg >= 0)
+			xMOVAPS(xRegisterSSE(reg), ptr128[ppf]);
+	}
+	else
+	{
+		// has to: translate, find function, call function
+		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+
+		const int szidx = 4;
+		iFlushCall(FLUSH_FULLVTLB);
+		xFastCall(vmv.assumeHandlerGetRaw(szidx, 0), paddr);
+
+		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+		xMOVAPS(xRegisterSSE(reg), xmm0);
+	}
+
+	return reg;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//                            Dynarec Store Implementations
+
+void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
+{
+	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+	{
+		iFlushCall(FLUSH_FULLVTLB);
+
+		DynGen_PrepRegs(addr_reg, value_reg, sz, xmm);
+		DynGen_HandlerTest([sz]() { DynGen_DirectWrite(sz); }, 1, sz);
+		return;
+	}
+
+	const u8* codeStart = x86Ptr;
+
+	const xAddressReg vaddr_reg(addr_reg);
+	if (!xmm)
+	{
+		switch (sz)
+		{
+		case 8:
+			xMOV(ptr8[RFASTMEMBASE + vaddr_reg], xRegister8(xRegister32(value_reg)));
+			break;
+		case 16:
+			xMOV(ptr16[RFASTMEMBASE + vaddr_reg], xRegister16(value_reg));
+			break;
+		case 32:
+			xMOV(ptr32[RFASTMEMBASE + vaddr_reg], xRegister32(value_reg));
+			break;
+		case 64:
+			xMOV(ptr64[RFASTMEMBASE + vaddr_reg], xRegister64(value_reg));
+			break;
+		default:
+			break;
+		}
+	}
+	else
+	{
+		switch (sz)
+		{
+		case 32:
+			xMOVSS(ptr32[RFASTMEMBASE + vaddr_reg], xRegisterSSE(value_reg));
+			break;
+		case 128:
+			xMOVAPS(ptr128[RFASTMEMBASE + vaddr_reg], xRegisterSSE(value_reg));
+			break;
+		default:
+			break;
+		}
+	}
+
+	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
+	for (u32 i = 0; i < padding; i++)
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
+
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
+		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
+		static_cast<u8>(addr_reg), static_cast<u8>(value_reg),
+		static_cast<u8>(sz), false, false, xmm);
+}
+
+
+// ------------------------------------------------------------------------
+// Generates code for a store instruction, where the address is a known constant.
+// TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
+// recompiler if the TLB is changed.
+void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
+{
+	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (!vmv.isHandler(addr_const))
+	{
+		auto ppf = vmv.assumePtr(addr_const);
+		if (!xmm)
+		{
+			switch (bits)
+			{
+				case 8:
+					xMOV(ptr[(void*)ppf], xRegister8(xRegister32(value_reg)));
+					break;
+
+				case 16:
+					xMOV(ptr[(void*)ppf], xRegister16(value_reg));
+					break;
+
+				case 32:
+					xMOV(ptr[(void*)ppf], xRegister32(value_reg));
+					break;
+
+				case 64:
+					xMOV(ptr64[(void*)ppf], xRegister64(value_reg));
+					break;
+				default:
+					break;
+			}
+		}
+		else
+		{
+			switch (bits)
+			{
+				case 32:
+					xMOVSS(ptr[(void*)ppf], xRegisterSSE(value_reg));
+					break;
+
+				case 128:
+					xMOVAPS(ptr128[(void*)ppf], xRegisterSSE(value_reg));
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	else
+	{
+		// has to: translate, find function, call function
+		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+
+		int szidx = 0;
+		switch (bits)
+		{
+			case 8:
+				break;
+			case 16:
+				szidx = 1;
+				break;
+			case 32:
+				szidx = 2;
+				break;
+			case 64:
+				szidx = 3;
+				break;
+			case 128:
+				szidx = 4;
+				break;
+		}
+
+		iFlushCall(FLUSH_FULLVTLB);
+
+		_freeX86reg(arg1regd);
+		xMOV(arg1regd, paddr);
+		if (bits == 128)
+		{
+			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
+			_freeXMMreg(argreg.Id);
+			xMOVAPS(argreg, xRegisterSSE(value_reg));
+		}
+		else if (xmm)
+		{
+			_freeX86reg(arg2regd);
+			xMOVD(arg2regd, xRegisterSSE(value_reg));
+		}
+		else
+		{
+			_freeX86reg(arg2regd);
+			xMOV(arg2reg, xRegister64(value_reg));
+		}
+
+		xFastCall(vmv.assumeHandlerGetRaw(szidx, true));
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//							Extra Implementations
+
+//   ecx - virtual address
+//   Returns physical address in eax.
+//   Clobbers edx
+void vtlb_DynV2P(void)
+{
+	xMOV(eax, ecx);
+	xAND(ecx, VTLB_PAGE_MASK); // vaddr & VTLB_PAGE_MASK
+
+	xSHR(eax, VTLB_PAGE_BITS);
+	xMOV(eax, ptr[xComplexAddress(rdx, vtlbdata.ppmap, rax * 4)]); // vtlbdata.ppmap[vaddr >> VTLB_PAGE_BITS];
+
+	xOR(eax, ecx);
+}
+
+void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 guest_addr,
+	u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register,
+	u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
+{
+	static constexpr u32 GPR_SIZE = 8;
+	static constexpr u32 XMM_SIZE = 16;
+
+	// on win32, we need to reserve an additional 32 bytes shadow space when calling out to C
+#ifdef _WIN32
+	static constexpr u32 SHADOW_SIZE = 32;
+#else
+	static constexpr u32 SHADOW_SIZE = 0;
+#endif
+	u8* thunk = recBeginThunk();
+
+	// save regs
+	u32 num_gprs = 0;
+	u32 num_fprs = 0;
+
+	const u32 rbxid = static_cast<u32>(rbx.Id);
+	const u32 arg1id = static_cast<u32>(arg1reg.Id);
+	const u32 arg2id = static_cast<u32>(arg2reg.Id);
+	const u32 arg3id = static_cast<u32>(arg3reg.Id);
+
+	for (u32 i = 0; i < iREGCNT_GPR; i++)
+	{
+		if ((gpr_bitmask & (1u << i)) && (i == rbxid || i == arg1id || i == arg2id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			num_gprs++;
+	}
+	for (u32 i = 0; i < iREGCNT_XMM; i++)
+	{
+		if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			num_fprs++;
+	}
+
+	const u32 stack_size = (((num_gprs + 1) & ~1u) * GPR_SIZE) + (num_fprs * XMM_SIZE) + SHADOW_SIZE;
+
+	if (stack_size > 0)
+	{
+		xSUB(rsp, stack_size);
+
+		u32 stack_offset = SHADOW_SIZE;
+		for (u32 i = 0; i < iREGCNT_XMM; i++)
+		{
+			if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			{
+				xMOVAPS(ptr128[rsp + stack_offset], xRegisterSSE(i));
+				stack_offset += XMM_SIZE;
+			}
+		}
+
+		for (u32 i = 0; i < iREGCNT_GPR; i++)
+		{
+			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			{
+				xMOV(ptr64[rsp + stack_offset], xRegister64(i));
+				stack_offset += GPR_SIZE;
+			}
+		}
+	}
+
+	if (is_load)
+	{
+		DynGen_PrepRegs(address_register, -1, size_in_bits, is_xmm);
+		DynGen_HandlerTest([size_in_bits, is_signed]() {DynGen_DirectRead(size_in_bits, is_signed); },  0, size_in_bits, is_signed && size_in_bits <= 32);
+
+		if (size_in_bits == 128)
+		{
+			if (data_register != xmm0.Id)
+				xMOVAPS(xRegisterSSE(data_register), xmm0);
+		}
+		else
+		{
+			if (is_xmm)
+			{
+				xMOVDZX(xRegisterSSE(data_register), rax);
+			}
+			else
+			{
+				if (data_register != eax.Id)
+					xMOV(xRegister64(data_register), rax);
+			}
+		}
+	}
+	else
+	{
+		if (address_register != arg1reg.Id)
+			xMOV(arg1regd, xRegister32(address_register));
+
+		if (size_in_bits == 128)
+		{
+			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
+			if (data_register != argreg.Id)
+				xMOVAPS(argreg, xRegisterSSE(data_register));
+		}
+		else
+		{
+			if (is_xmm)
+			{
+				xMOVD(arg2reg, xRegisterSSE(data_register));
+			}
+			else
+			{
+				if (data_register != arg2reg.Id)
+					xMOV(arg2reg, xRegister64(data_register));
+			}
+		}
+
+		DynGen_PrepRegs(address_register, data_register, size_in_bits, is_xmm);
+		DynGen_HandlerTest([size_in_bits]() { DynGen_DirectWrite(size_in_bits); }, 1, size_in_bits);
+	}
+
+	// restore regs
+	if (stack_size > 0)
+	{
+		u32 stack_offset = SHADOW_SIZE;
+		for (u32 i = 0; i < iREGCNT_XMM; i++)
+		{
+			if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			{
+				xMOVAPS(xRegisterSSE(i), ptr128[rsp + stack_offset]);
+				stack_offset += XMM_SIZE;
+			}
+		}
+
+		for (u32 i = 0; i < iREGCNT_GPR; i++)
+		{
+			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			{
+				xMOV(xRegister64(i), ptr64[rsp + stack_offset]);
+				stack_offset += GPR_SIZE;
+			}
+		}
+
+		xADD(rsp, stack_size);
+	}
+
+	xJMP((void*)(code_address + code_size));
+
+	recEndThunk();
+
+	// backpatch to a jump to the slowmem handler
+	x86Ptr = (u8*)code_address;
+	xJMP(thunk);
+
+	// fill the rest of it with nops, if any
+	for (u32 i = static_cast<u32>((uintptr_t)x86Ptr - code_address); i < code_size; i++)
+	{
+		*(u8*)x86Ptr = 0x90;
+		x86Ptr += sizeof(u8);
+	}
+}
+
+namespace R5900::Dynarec::OpcodeImpl
+{
+/*********************************************************
+* Register arithmetic                                    *
+* Format:  OP rd, rs, rt                                 *
+*********************************************************/
+
+// TODO: overflow checks
+
+#ifndef ARITHMETIC_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_FUNC_DEL(ADD, _Rd_);
+REC_FUNC_DEL(ADDU, _Rd_);
+REC_FUNC_DEL(DADD, _Rd_);
+REC_FUNC_DEL(DADDU, _Rd_);
+REC_FUNC_DEL(SUB, _Rd_);
+REC_FUNC_DEL(SUBU, _Rd_);
+REC_FUNC_DEL(DSUB, _Rd_);
+REC_FUNC_DEL(DSUBU, _Rd_);
+REC_FUNC_DEL(AND, _Rd_);
+REC_FUNC_DEL(OR, _Rd_);
+REC_FUNC_DEL(XOR, _Rd_);
+REC_FUNC_DEL(NOR, _Rd_);
+REC_FUNC_DEL(SLT, _Rd_);
+REC_FUNC_DEL(SLTU, _Rd_);
+
+#else
+
+static void recADD_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] + g_cpuConstRegs[_Rt_].UL[0]));
+}
+
+static void recADD_consts(int info) /* s is constant */
+{
+	const s32 cval = g_cpuConstRegs[_Rs_].SL[0];
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	if (cval != 0)
+		xADD(xRegister32(EEREC_D), cval);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+// t is constant
+static void recADD_constt(int info)
+{
+	const s32 cval = g_cpuConstRegs[_Rt_].SL[0];
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (cval != 0)
+		xADD(xRegister32(EEREC_D), cval);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+// nothing is constant
+static void recADD_(int info)
+{
+	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
+	{
+		if (EEREC_D == EEREC_S)
+		{
+			xADD(xRegister32(EEREC_D), xRegister32(EEREC_T));
+		}
+		else if (EEREC_D == EEREC_T)
+		{
+			xADD(xRegister32(EEREC_D), xRegister32(EEREC_S));
+		}
+		else
+		{
+			xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
+			xADD(xRegister32(EEREC_D), xRegister32(EEREC_T));
+		}
+	}
+	else if (info & PROCESS_EE_S)
+	{
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
+		xADD(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	}
+	else if (info & PROCESS_EE_T)
+	{
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+		xADD(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	}
+	else
+	{
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xADD(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	}
+
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+EERECOMPILE_CODERC0(ADD, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
+
+//// ADDU
+void recADDU(void)
+{
+	recADD();
+}
+
+//// DADD
+void recDADD_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] + g_cpuConstRegs[_Rt_].UD[0];
+}
+
+// s is constant
+static void recDADD_consts(int info)
+{
+	const s64 cval = g_cpuConstRegs[_Rs_].SD[0];
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	if (cval != 0)
+		xImm64Op(xADD, xRegister64(EEREC_D), rax, cval);
+}
+
+// t is constant
+static void recDADD_constt(int info)
+{
+	const s64 cval = g_cpuConstRegs[_Rt_].SD[0];
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	if (cval != 0)
+		xImm64Op(xADD, xRegister64(EEREC_D), rax, cval);
+}
+
+// nothing is constant
+static void recDADD_(int info)
+{
+	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
+	{
+		if (EEREC_D == EEREC_S)
+		{
+			xADD(xRegister64(EEREC_D), xRegister64(EEREC_T));
+		}
+		else if (EEREC_D == EEREC_T)
+		{
+			xADD(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		}
+		else
+		{
+			xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+			xADD(xRegister64(EEREC_D), xRegister64(EEREC_T));
+		}
+	}
+	else if (info & PROCESS_EE_S)
+	{
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		xADD(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	}
+	else if (info & PROCESS_EE_T)
+	{
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+		xADD(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	}
+	else
+	{
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xADD(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	}
+}
+
+EERECOMPILE_CODERC0(DADD, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT | XMMINFO_64BITOP);
+
+//// DADDU
+void recDADDU(void)
+{
+	recDADD();
+}
+
+//// SUB
+
+static void recSUB_const()
+{
+	g_cpuConstRegs[_Rd_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] - g_cpuConstRegs[_Rt_].UL[0]));
+}
+
+static void recSUB_consts(int info)
+{
+	const s32 sval = g_cpuConstRegs[_Rs_].SL[0];
+	xMOV(eax, sval);
+
+	if (info & PROCESS_EE_T)
+		xSUB(eax, xRegister32(EEREC_T));
+	else
+		xSUB(eax, ptr32[&cpuRegs.GPR.r[_Rt_].SL[0]]);
+
+	xMOVSX(xRegister64(EEREC_D), eax);
+}
+
+static void recSUB_constt(int info)
+{
+	const s32 tval = g_cpuConstRegs[_Rt_].SL[0];
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (tval != 0)
+		xSUB(xRegister32(EEREC_D), tval);
+
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSUB_(int info)
+{
+	if (_Rs_ == _Rt_)
+	{
+		xXOR(xRegister32(EEREC_D), xRegister32(EEREC_D));
+		return;
+	}
+
+	// a bit messier here because it's not commutative..
+	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
+	{
+		if (EEREC_D == EEREC_S)
+		{
+			xSUB(xRegister32(EEREC_D), xRegister32(EEREC_T));
+			xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+		}
+		else if (EEREC_D == EEREC_T)
+		{
+			// D might equal T
+			xMOV(eax, xRegister32(EEREC_S));
+			xSUB(eax, xRegister32(EEREC_T));
+			xMOVSX(xRegister64(EEREC_D), eax);
+		}
+		else
+		{
+			xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
+			xSUB(xRegister32(EEREC_D), xRegister32(EEREC_T));
+			xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+		}
+	}
+	else if (info & PROCESS_EE_S)
+	{
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
+		xSUB(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+		xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+	}
+	else if (info & PROCESS_EE_T)
+	{
+		// D might equal T
+		xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xSUB(eax, xRegister32(EEREC_T));
+		xMOVSX(xRegister64(EEREC_D), eax);
+	}
+	else
+	{
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xSUB(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+		xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+	}
+}
+
+EERECOMPILE_CODERC0(SUB, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
+
+//// SUBU
+void recSUBU(void)
+{
+	recSUB();
+}
+
+//// DSUB
+static void recDSUB_const()
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] - g_cpuConstRegs[_Rt_].UD[0];
+}
+
+static void recDSUB_consts(int info)
+{
+	// gross, because if d == t, we can't destroy t
+	const s64 sval = g_cpuConstRegs[_Rs_].SD[0];
+	const xRegister64 regd((info & PROCESS_EE_T && EEREC_D == EEREC_T) ? rax.Id : EEREC_D);
+	xMOV64(regd, sval);
+
+	if (info & PROCESS_EE_T)
+		xSUB(regd, xRegister64(EEREC_T));
+	else
+		xSUB(regd, ptr64[&cpuRegs.GPR.r[_Rt_].SD[0]]);
+
+	// emitter will eliminate redundant moves.
+	xMOV(xRegister64(EEREC_D), regd);
+}
+
+static void recDSUB_constt(int info)
+{
+	const s64 tval = g_cpuConstRegs[_Rt_].SD[0];
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	if (tval != 0)
+		xImm64Op(xSUB, xRegister64(EEREC_D), rax, tval);
+}
+
+static void recDSUB_(int info)
+{
+	if (_Rs_ == _Rt_)
+	{
+		xXOR(xRegister32(EEREC_D), xRegister32(EEREC_D));
+		return;
+	}
+
+	// a bit messier here because it's not commutative..
+	if ((info & PROCESS_EE_S) && (info & PROCESS_EE_T))
+	{
+		// D might equal T
+		const xRegister64 regd(EEREC_D == EEREC_T ? rax.Id : EEREC_D);
+		xMOV(regd, xRegister64(EEREC_S));
+		xSUB(regd, xRegister64(EEREC_T));
+		xMOV(xRegister64(EEREC_D), regd);
+	}
+	else if (info & PROCESS_EE_S)
+	{
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		xSUB(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	}
+	else if (info & PROCESS_EE_T)
+	{
+		// D might equal T
+		const xRegister64 regd(EEREC_D == EEREC_T ? rax.Id : EEREC_D);
+		xMOV(regd, ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xSUB(regd, xRegister64(EEREC_T));
+		xMOV(xRegister64(EEREC_D), regd);
+	}
+	else
+	{
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xSUB(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	}
+}
+
+EERECOMPILE_CODERC0(DSUB, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// DSUBU
+void recDSUBU(void) { recDSUB(); }
+
+static void recLogicalOp_constv_XOR(int info, int creg, u32 vreg, int regv)
+{
+	GPR_reg64 cval    = g_cpuConstRegs[creg];
+
+	if (regv >= 0)
+		xMOV(xRegister64(EEREC_D), xRegister64(regv));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[vreg].UD[0]]);
+	if (cval.SD[0] != 0)
+		xImm64Op(xXOR, xRegister64(EEREC_D), rax, cval.UD[0]);
+}
+
+static void recLogicalOp_constv_NOR(int info, int creg, u32 vreg, int regv)
+{
+	GPR_reg64 cval = g_cpuConstRegs[creg];
+
+	if (cval.SD[0] == -1)
+	{
+		xMOV64(xRegister64(EEREC_D), 0);
+	}
+	else
+	{
+		if (regv >= 0)
+			xMOV(xRegister64(EEREC_D), xRegister64(regv));
+		else
+			xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[vreg].UD[0]]);
+		if (cval.SD[0] != 0)
+			xImm64Op(xOR, xRegister64(EEREC_D), rax, cval.UD[0]);
+		xNOT(xRegister64(EEREC_D));
+	}
+}
+
+static void recLogicalOp_constv_AND(int info, int creg, u32 vreg, int regv)
+{
+	GPR_reg64 cval = g_cpuConstRegs[creg];
+
+	if (cval.SD[0] == 0)
+	{
+		xMOV64(xRegister64(EEREC_D), 0);
+	}
+	else
+	{
+		if (regv >= 0)
+			xMOV(xRegister64(EEREC_D), xRegister64(regv));
+		else
+			xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[vreg].UD[0]]);
+		if (cval.SD[0] != -1)
+			xImm64Op(xAND, xRegister64(EEREC_D), rax, cval.UD[0]);
+	}
+}
+
+static void recLogicalOp_constv_OR(int info, int creg, u32 vreg, int regv)
+{
+	GPR_reg64 cval = g_cpuConstRegs[creg];
+
+	if (cval.SD[0] == -1)
+	{
+		xMOV64(xRegister64(EEREC_D), -1);
+	}
+	else
+	{
+		if (regv >= 0)
+			xMOV(xRegister64(EEREC_D), xRegister64(regv));
+		else
+			xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[vreg].UD[0]]);
+		if (cval.SD[0] != 0)
+			xImm64Op(xOR, xRegister64(EEREC_D), rax, cval.UD[0]);
+	}
+}
+
+//// AND
+static void recAND_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] & g_cpuConstRegs[_Rt_].UD[0];
+}
+
+static void recAND_consts(int info)
+{
+	recLogicalOp_constv_AND(info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+}
+
+static void recAND_constt(int info)
+{
+	recLogicalOp_constv_AND(info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+}
+
+static void recAND_(int info)
+{
+	// swap because it's commutative and Rd might be Rt
+	u32 rs = _Rs_, rt = _Rt_;
+	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
+	if (_Rd_ == _Rt_)
+	{
+		std::swap(rs, rt);
+		std::swap(regs, regt);
+	}
+
+	if (regs >= 0)
+		xMOV(xRegister64(EEREC_D), xRegister64(regs));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rs].UD[0]]);
+
+	if (regt >= 0)
+		xAND(xRegister64(EEREC_D), xRegister64(regt));
+	else
+		xAND(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rt].UD[0]]);
+}
+
+EERECOMPILE_CODERC0(AND, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// OR
+static void recOR_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] | g_cpuConstRegs[_Rt_].UD[0];
+}
+
+static void recOR_consts(int info)
+{
+	recLogicalOp_constv_OR(info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+}
+
+static void recOR_constt(int info)
+{
+	recLogicalOp_constv_OR(info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+}
+
+static void recOR_(int info)
+{
+	// swap because it's commutative and Rd might be Rt
+	u32 rs = _Rs_, rt = _Rt_;
+	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
+	if (_Rd_ == _Rt_)
+	{
+		std::swap(rs, rt);
+		std::swap(regs, regt);
+	}
+
+	if (regs >= 0)
+		xMOV(xRegister64(EEREC_D), xRegister64(regs));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rs].UD[0]]);
+
+	if (regt >= 0)
+		xOR(xRegister64(EEREC_D), xRegister64(regt));
+	else
+		xOR(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rt].UD[0]]);
+}
+
+EERECOMPILE_CODERC0(OR, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// XOR
+static void recXOR_const()
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] ^ g_cpuConstRegs[_Rt_].UD[0];
+}
+
+static void recXOR_consts(int info)
+{
+	recLogicalOp_constv_XOR(info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+}
+
+static void recXOR_constt(int info)
+{
+	recLogicalOp_constv_XOR(info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+}
+
+static void recXOR_(int info)
+{
+	// swap because it's commutative and Rd might be Rt
+	u32 rs = _Rs_, rt = _Rt_;
+	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
+	if (_Rd_ == _Rt_)
+	{
+		std::swap(rs, rt);
+		std::swap(regs, regt);
+	}
+
+	if (rs == rt)
+	{
+		xXOR(xRegister32(EEREC_D), xRegister32(EEREC_D));
+	}
+	else
+	{
+		if (regs >= 0)
+			xMOV(xRegister64(EEREC_D), xRegister64(regs));
+		else
+			xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rs].UD[0]]);
+
+		if (regt >= 0)
+			xXOR(xRegister64(EEREC_D), xRegister64(regt));
+		else
+			xXOR(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rt].UD[0]]);
+	}
+}
+
+EERECOMPILE_CODERC0(XOR, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// NOR
+static void recNOR_const()
+{
+	g_cpuConstRegs[_Rd_].UD[0] = ~(g_cpuConstRegs[_Rs_].UD[0] | g_cpuConstRegs[_Rt_].UD[0]);
+}
+
+static void recNOR_consts(int info)
+{
+	recLogicalOp_constv_NOR(info, _Rs_, _Rt_, (info & PROCESS_EE_T) ? EEREC_T : -1);
+}
+
+static void recNOR_constt(int info)
+{
+	recLogicalOp_constv_NOR(info, _Rt_, _Rs_, (info & PROCESS_EE_S) ? EEREC_S : -1);
+}
+
+static void recNOR_(int info)
+{
+	// swap because it's commutative and Rd might be Rt
+	u32 rs = _Rs_, rt = _Rt_;
+	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
+	if (_Rd_ == _Rt_)
+	{
+		std::swap(rs, rt);
+		std::swap(regs, regt);
+	}
+
+	if (regs >= 0)
+		xMOV(xRegister64(EEREC_D), xRegister64(regs));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rs].UD[0]]);
+
+	if (regt >= 0)
+		xOR(xRegister64(EEREC_D), xRegister64(regt));
+	else
+		xOR(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[rt].UD[0]]);
+
+	xNOT(xRegister64(EEREC_D));
+}
+
+EERECOMPILE_CODERC0(NOR, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// SLT - test with silent hill, lemans
+static void recSLT_const()
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].SD[0] < g_cpuConstRegs[_Rt_].SD[0];
+}
+
+static void recSLTs_const(int info, int sign, int st)
+{
+	const s64 cval = g_cpuConstRegs[st ? _Rt_ : _Rs_].SD[0];
+
+	const xImpl_Set& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
+
+	// If Rd == Rs or Rt, we can't xor it before it's used.
+	// So, allocate a temporary register first, and then reallocate it to Rd.
+	const xRegister32 dreg((_Rd_ == (st ? _Rs_ : _Rt_)) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_D);
+	const int regs = st ? ((info & PROCESS_EE_S) ? EEREC_S : -1) : ((info & PROCESS_EE_T) ? EEREC_T : -1);
+	xXOR(dreg, dreg);
+
+	if (regs >= 0)
+		xImm64Op(xCMP, xRegister64(regs), rcx, cval);
+	else
+		xImm64Op(xCMP, ptr64[&cpuRegs.GPR.r[st ? _Rs_ : _Rt_].UD[0]], rcx, cval);
+	SET(xRegister8(dreg));
+
+	if (dreg.Id != EEREC_D)
+	{
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_D]);
+		_freeX86reg(EEREC_D);
+	}
+}
+
+static void recSLTs_(int info, int sign)
+{
+	const xImpl_Set& SET = sign ? xSETL : xSETB;
+
+	// need to keep Rs/Rt around.
+	const xRegister32 dreg((_Rd_ == _Rt_ || _Rd_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_D);
+
+	// force Rs into a register, may as well cache it since we're loading anyway.
+	const int regs = (info & PROCESS_EE_S) ? EEREC_S : _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+
+	xXOR(dreg, dreg);
+	if (info & PROCESS_EE_T)
+		xCMP(xRegister64(regs), xRegister64(EEREC_T));
+	else
+		xCMP(xRegister64(regs), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+
+	SET(xRegister8(dreg));
+
+	if (dreg.Id != EEREC_D)
+	{
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_D]);
+		_freeX86reg(EEREC_D);
+	}
+}
+
+static void recSLT_consts(int info)
+{
+	recSLTs_const(info, 1, 0);
+}
+
+static void recSLT_constt(int info)
+{
+	recSLTs_const(info, 1, 1);
+}
+
+static void recSLT_(int info)
+{
+	recSLTs_(info, 1);
+}
+
+EERECOMPILE_CODERC0(SLT, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_NORENAME);
+
+// SLTU - test with silent hill, lemans
+static void recSLTU_const()
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] < g_cpuConstRegs[_Rt_].UD[0];
+}
+
+static void recSLTU_consts(int info)
+{
+	recSLTs_const(info, 0, 0);
+}
+
+static void recSLTU_constt(int info)
+{
+	recSLTs_const(info, 0, 1);
+}
+
+static void recSLTU_(int info)
+{
+	recSLTs_(info, 0);
+}
+
+EERECOMPILE_CODERC0(SLTU, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_NORENAME);
+
+#endif
+
+/*********************************************************
+* Arithmetic with immediate operand                      *
+* Format:  OP rt, rs, immediate                          *
+*********************************************************/
+
+#ifndef ARITHMETICIMM_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_FUNC_DEL(ADDI, _Rt_);
+REC_FUNC_DEL(ADDIU, _Rt_);
+REC_FUNC_DEL(DADDI, _Rt_);
+REC_FUNC_DEL(DADDIU, _Rt_);
+REC_FUNC_DEL(ANDI, _Rt_);
+REC_FUNC_DEL(ORI, _Rt_);
+REC_FUNC_DEL(XORI, _Rt_);
+
+REC_FUNC_DEL(SLTI, _Rt_);
+REC_FUNC_DEL(SLTIU, _Rt_);
+
+#else
+
+static void recADDI_const(void)
+{
+	g_cpuConstRegs[_Rt_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] + u32(s32(_Imm_))));
+}
+
+static void recADDI_(int info)
+{
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister32(EEREC_T), xRegister32(EEREC_S));
+	else
+		xMOV(xRegister32(EEREC_T), ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xADD(xRegister32(EEREC_T), _Imm_);
+	xMOVSX(xRegister64(EEREC_T), xRegister32(EEREC_T));
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, ADDI, XMMINFO_WRITET | XMMINFO_READS);
+
+////////////////////////////////////////////////////
+void recADDIU(void) { recADDI(); }
+
+////////////////////////////////////////////////////
+static void recDADDI_const(void)
+{
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] + u64(s64(_Imm_));
+}
+
+static void recDADDI_(int info)
+{
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_T), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_T), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	xADD(xRegister64(EEREC_T), _Imm_);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, DADDI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
+
+void recDADDIU(void) { recDADDI(); }
+
+static void recSLTIU_const(void)
+{
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] < (u64)(_Imm_);
+}
+
+static void recSLTIU_(int info)
+{
+	// TODO(Stenzek): this can be made to suck less by turning Rs into a temp and reallocating Rt.
+	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
+	xXOR(dreg, dreg);
+
+	if (info & PROCESS_EE_S)
+		xCMP(xRegister64(EEREC_S), _Imm_);
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], _Imm_);
+
+	xSETB(xRegister8(dreg));
+
+	if (dreg.Id != EEREC_T)
+	{
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
+		_freeX86reg(EEREC_T);
+	}
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, SLTIU, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP | XMMINFO_NORENAME);
+
+static void recSLTI_const(void)
+{
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].SD[0] < (s64)(_Imm_);
+}
+
+static void recSLTI_(int info)
+{
+	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
+	xXOR(dreg, dreg);
+
+	if (info & PROCESS_EE_S)
+		xCMP(xRegister64(EEREC_S), _Imm_);
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], _Imm_);
+
+	xSETL(xRegister8(dreg));
+
+	if (dreg.Id != EEREC_T)
+	{
+		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
+		_freeX86reg(EEREC_T);
+	}
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, SLTI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP | XMMINFO_NORENAME);
+
+static void recANDI_const(void)
+{
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] & (u64)_ImmU_; // Zero-extended Immediate
+}
+
+static void recANDI_(int info)
+{
+	if (_ImmU_ != 0)
+	{
+		if (info & PROCESS_EE_S)
+			xMOV(xRegister64(EEREC_T), xRegister64(EEREC_S));
+		else
+			xMOV(xRegister64(EEREC_T), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xAND(xRegister64(EEREC_T), _ImmU_);
+	}
+	else
+	{
+		xXOR(xRegister32(EEREC_T), xRegister32(EEREC_T));
+	}
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, ANDI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
+
+////////////////////////////////////////////////////
+static void recORI_const(void)
+{
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] | (u64)_ImmU_; // Zero-extended Immediate
+}
+
+static void recORI_(int info)
+{
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_T), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_T), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	if (_ImmU_ != 0)
+	{
+		xOR(xRegister64(EEREC_T), _ImmU_);
+	}
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, ORI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
+
+////////////////////////////////////////////////////
+static void recXORI_const(void)
+{
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] ^ (u64)_ImmU_; // Zero-extended Immediate
+}
+
+static void recXORI_(int info)
+{
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_T), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_T), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	if (_ImmU_ != 0)
+	{
+		xXOR(xRegister64(EEREC_T), _ImmU_);
+	}
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC1, XORI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
+
+#endif
+
+/*********************************************************
+* Register branch logic                                  *
+* Format:  OP rs, rt, offset                             *
+*********************************************************/
+#ifndef BRANCH_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_SYS(BEQ);
+REC_SYS(BEQL);
+REC_SYS(BNE);
+REC_SYS(BNEL);
+REC_SYS(BLTZ);
+REC_SYS(BGTZ);
+REC_SYS(BLEZ);
+REC_SYS(BGEZ);
+REC_SYS(BGTZL);
+REC_SYS(BLTZL);
+REC_SYS_DEL(BLTZAL, 31);
+REC_SYS_DEL(BLTZALL, 31);
+REC_SYS(BLEZL);
+REC_SYS(BGEZL);
+REC_SYS_DEL(BGEZAL, 31);
+REC_SYS_DEL(BGEZALL, 31);
+
+#else
+
+static u32 *recSetBranchEQ(int bne, int process)
+{
+	// TODO(Stenzek): This is suboptimal if the registers are in XMMs.
+	// If the constant register is already in a host register, we don't need the immediate...
+
+	if (process & PROCESS_CONSTS)
+	{
+		_eeFlushAllDirty();
+
+		_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
+		const int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+		if (regt >= 0)
+			xImm64Op(xCMP, xRegister64(regt), rax, g_cpuConstRegs[_Rs_].UD[0]);
+		else
+			xImm64Op(xCMP, ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], rax, g_cpuConstRegs[_Rs_].UD[0]);
+	}
+	else if (process & PROCESS_CONSTT)
+	{
+		_eeFlushAllDirty();
+
+		_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH_AND_FREE);
+		const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+		if (regs >= 0)
+			xImm64Op(xCMP, xRegister64(regs), rax, g_cpuConstRegs[_Rt_].UD[0]);
+		else
+			xImm64Op(xCMP, ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], rax, g_cpuConstRegs[_Rt_].UD[0]);
+	}
+	else
+	{
+		// force S into register, since we need to load it, may as well cache.
+		_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
+		const int regs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+		const int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+		_eeFlushAllDirty();
+
+		if (regt >= 0)
+			xCMP(xRegister64(regs), xRegister64(regt));
+		else
+			xCMP(xRegister64(regs), ptr64[&cpuRegs.GPR.r[_Rt_]]);
+	}
+
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	if (bne)
+		*(u8*)x86Ptr = JE32;
+	else
+		*(u8*)x86Ptr = JNE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
+	return (u32*)(x86Ptr - 4);
+}
+
+static u32 *recSetBranchL(int ltz)
+{
+	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	const int regsxmm = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
+	_eeFlushAllDirty();
+
+	if (regsxmm >= 0)
+	{
+		xMOVMSKPS(eax, xRegisterSSE(regsxmm));
+		xTEST(al, 2);
+
+		*(u8*)x86Ptr = 0x0F;
+		x86Ptr += sizeof(u8);
+		if (ltz)
+			*(u8*)x86Ptr = JZ32;
+		else
+			*(u8*)x86Ptr = JNZ32;
+	}
+	else
+	{
+		if (regs >= 0)
+			xCMP(xRegister64(regs), 0);
+		else
+			xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+
+		*(u8*)x86Ptr = 0x0F;
+		x86Ptr += sizeof(u8);
+		if (ltz)
+			*(u8*)x86Ptr = JGE32;
+		else
+			*(u8*)x86Ptr = JL32;
+	}
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
+	return (u32*)(x86Ptr - 4);
+}
+
+//// BEQ
+static void recBEQ_const(void)
+{
+	u32 branchTo;
+
+	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
+		branchTo = ((s32)_Imm_ * 4) + pc;
+	else
+		branchTo = pc + 4;
+
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+}
+
+static void recBEQ_process(int process)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (_Rs_ == _Rt_)
+	{
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+	}
+	else
+	{
+		const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
+		u32 *j32Ptr = recSetBranchEQ(0, process);
+
+		if (!swap)
+		{
+			SaveBranchState();
+			recompileNextInstruction(true, false);
+		}
+
+		SetBranchImm(branchTo);
+
+		*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+		if (!swap)
+		{
+			// recopy the next inst
+			pc -= 4;
+			LoadBranchState();
+			recompileNextInstruction(true, false);
+		}
+
+		SetBranchImm(pc);
+	}
+}
+
+void recBEQ(void)
+{
+	// prefer using the host register over an immediate, it'll be smaller code.
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+		recBEQ_const();
+	else if (GPR_IS_CONST1(_Rs_) && _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ) < 0)
+		recBEQ_process(PROCESS_CONSTS);
+	else if (GPR_IS_CONST1(_Rt_) && _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ) < 0)
+		recBEQ_process(PROCESS_CONSTT);
+	else
+		recBEQ_process(0);
+}
+
+//// BNE
+static void recBNE_const(void)
+{
+	u32 branchTo;
+
+	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
+		branchTo = ((s32)_Imm_ * 4) + pc;
+	else
+		branchTo = pc + 4;
+
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+}
+
+static void recBNE_process(int process)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (_Rs_ == _Rt_)
+	{
+		recompileNextInstruction(true, false);
+		SetBranchImm(pc);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
+
+	u32 *j32Ptr = recSetBranchEQ(1, process);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+void recBNE(void)
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+		recBNE_const();
+	else if (GPR_IS_CONST1(_Rs_) && _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ) < 0)
+		recBNE_process(PROCESS_CONSTS);
+	else if (GPR_IS_CONST1(_Rt_) && _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ) < 0)
+		recBNE_process(PROCESS_CONSTT);
+	else
+		recBNE_process(0);
+}
+
+//// BEQL
+static void recBEQL_const(void)
+{
+	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
+	{
+		u32 branchTo = ((s32)_Imm_ * 4) + pc;
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+	}
+	else
+	{
+		SetBranchImm(pc + 4);
+	}
+}
+
+static void recBEQL_process(int process)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	u32 *j32Ptr = recSetBranchEQ(0, process);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+void recBEQL(void)
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+		recBEQL_const();
+	else if (GPR_IS_CONST1(_Rs_) && _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ) < 0)
+		recBEQL_process(PROCESS_CONSTS);
+	else if (GPR_IS_CONST1(_Rt_) && _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ) < 0)
+		recBEQL_process(PROCESS_CONSTT);
+	else
+		recBEQL_process(0);
+}
+
+//// BNEL
+static void recBNEL_const(void)
+{
+	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
+	{
+		u32 branchTo = ((s32)_Imm_ * 4) + pc;
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+	}
+	else
+	{
+		SetBranchImm(pc + 4);
+	}
+}
+
+static void recBNEL_process(int process)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	u32 *j32Ptr = recSetBranchEQ(0, process);
+
+	SaveBranchState();
+	SetBranchImm(pc + 4);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	// recopy the next inst
+	LoadBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+}
+
+void recBNEL()
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+		recBNEL_const();
+	else if (GPR_IS_CONST1(_Rs_) && _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ) < 0)
+		recBNEL_process(PROCESS_CONSTS);
+	else if (GPR_IS_CONST1(_Rt_) && _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ) < 0)
+		recBNEL_process(PROCESS_CONSTT);
+	else
+		recBNEL_process(0);
+}
+
+////////////////////////////////////////////////////
+void recBLTZAL(void)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	_eeOnWriteReg(31, 0);
+	_eeFlushAllDirty();
+
+	_deleteEEreg(31, 0);
+	xMOV64(rax, pc + 4);
+	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
+			branchTo = pc + 4;
+
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+
+	u32 *j32Ptr = recSetBranchL(1);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBGEZAL(void)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	_eeOnWriteReg(31, 0);
+	_eeFlushAllDirty();
+
+	_deleteEEreg(31, 0);
+	xMOV64(rax, pc + 4);
+	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
+			branchTo = pc + 4;
+
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+
+	u32 *j32Ptr = recSetBranchL(0);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBLTZALL(void)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	_eeOnWriteReg(31, 0);
+	_eeFlushAllDirty();
+
+	_deleteEEreg(31, 0);
+	xMOV64(rax, pc + 4);
+	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
+			SetBranchImm(pc + 4);
+		else
+		{
+			recompileNextInstruction(true, false);
+			SetBranchImm(branchTo);
+		}
+		return;
+	}
+
+	u32 *j32Ptr = recSetBranchL(1);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBGEZALL(void)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	_eeOnWriteReg(31, 0);
+	_eeFlushAllDirty();
+
+	_deleteEEreg(31, 0);
+	xMOV64(rax, pc + 4);
+	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
+			SetBranchImm(pc + 4);
+		else
+		{
+			recompileNextInstruction(true, false);
+			SetBranchImm(branchTo);
+		}
+		return;
+	}
+
+	u32 *j32Ptr = recSetBranchL(0);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+
+//// BLEZ
+void recBLEZ(void)
+{
+	u32 *j32Ptr;
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] <= 0))
+			branchTo = pc + 4;
+
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	_eeFlushAllDirty();
+
+	if (regs >= 0)
+		xCMP(xRegister64(regs), 0);
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JG32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
+	j32Ptr = (u32*)(x86Ptr - 4);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+//// BGTZ
+void recBGTZ(void)
+{
+	u32 *j32Ptr;
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] > 0))
+			branchTo = pc + 4;
+
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	_eeFlushAllDirty();
+
+	if (regs >= 0)
+		xCMP(xRegister64(regs), 0);
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JLE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
+	j32Ptr = (u32*)(x86Ptr - 4);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBLTZ(void)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
+			branchTo = pc + 4;
+
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	_eeFlushAllDirty();
+	u32 *j32Ptr = recSetBranchL(1);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBGEZ(void)
+{
+	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
+			branchTo = pc + 4;
+
+		recompileNextInstruction(true, false);
+		SetBranchImm(branchTo);
+		return;
+	}
+
+	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
+	_eeFlushAllDirty();
+
+	u32 *j32Ptr = recSetBranchL(0);
+
+	if (!swap)
+	{
+		SaveBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	if (!swap)
+	{
+		// recopy the next inst
+		pc -= 4;
+		LoadBranchState();
+		recompileNextInstruction(true, false);
+	}
+
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBLTZL(void)
+{
+	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
+			SetBranchImm(pc + 4);
+		else
+		{
+			recompileNextInstruction(true, false);
+			SetBranchImm(branchTo);
+		}
+		return;
+	}
+
+	_eeFlushAllDirty();
+	u32 *j32Ptr = recSetBranchL(1);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+
+////////////////////////////////////////////////////
+void recBGEZL(void)
+{
+	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
+			SetBranchImm(pc + 4);
+		else
+		{
+			recompileNextInstruction(true, false);
+			SetBranchImm(branchTo);
+		}
+		return;
+	}
+
+	_eeFlushAllDirty();
+	u32 *j32Ptr = recSetBranchL(0);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+
+
+/*********************************************************
+* Register branch logic  Likely                          *
+* Format:  OP rs, offset                                 *
+*********************************************************/
+
+////////////////////////////////////////////////////
+void recBLEZL(void)
+{
+	u32 *j32Ptr;
+	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] <= 0))
+			SetBranchImm(pc + 4);
+		else
+		{
+			recompileNextInstruction(true, false);
+			SetBranchImm(branchTo);
+		}
+		return;
+	}
+
+	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	_eeFlushAllDirty();
+
+	if (regs >= 0)
+		xCMP(xRegister64(regs), 0);
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JG32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
+	j32Ptr = (u32*)(x86Ptr - 4);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+////////////////////////////////////////////////////
+void recBGTZL(void)
+{
+	u32 *j32Ptr;
+	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		if (!(g_cpuConstRegs[_Rs_].SD[0] > 0))
+			SetBranchImm(pc + 4);
+		else
+		{
+			_clearNeededXMMregs();
+			recompileNextInstruction(true, false);
+			SetBranchImm(branchTo);
+		}
+		return;
+	}
+
+	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	_eeFlushAllDirty();
+
+	if (regs >= 0)
+		xCMP(xRegister64(regs), 0);
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+
+	*(u8*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = JLE32;
+	x86Ptr += sizeof(u8);
+	*(u32*)x86Ptr = 0;
+	x86Ptr += sizeof(u32);
+	j32Ptr = (u32*)(x86Ptr - 4);
+
+	SaveBranchState();
+	recompileNextInstruction(true, false);
+	SetBranchImm(branchTo);
+
+	*j32Ptr = (x86Ptr - (u8*)j32Ptr) - 4;
+
+	LoadBranchState();
+	SetBranchImm(pc);
+}
+
+#endif
+
+/*********************************************************
+* Jump to target                                         *
+* Format:  OP target                                     *
+*********************************************************/
+#ifndef JUMP_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_SYS(J);
+REC_SYS_DEL(JAL, 31);
+REC_SYS(JR);
+REC_SYS_DEL(JALR, _Rd_);
+
+#else
+
+////////////////////////////////////////////////////
+void recJ(void)
+{
+	// SET_FPUSTATE;
+	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
+	recompileNextInstruction(true, false);
+	if (EmuConfig.Gamefixes.GoemonTlbHack)
+		SetBranchImm(vtlb_V2P(newpc));
+	else
+		SetBranchImm(newpc);
+}
+
+////////////////////////////////////////////////////
+void recJAL(void)
+{
+	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
+	_deleteEEreg(31, 0);
+	GPR_SET_CONST(31);
+	g_cpuConstRegs[31].UL[0] = pc + 4;
+	g_cpuConstRegs[31].UL[1] = 0;
+
+	recompileNextInstruction(true, false);
+	if (EmuConfig.Gamefixes.GoemonTlbHack)
+		SetBranchImm(vtlb_V2P(newpc));
+	else
+		SetBranchImm(newpc);
+}
+
+/*********************************************************
+* Register jump                                          *
+* Format:  OP rs, rd                                     *
+*********************************************************/
+
+////////////////////////////////////////////////////
+void recJR(void)
+{
+	SetBranchReg(_Rs_);
+}
+
+////////////////////////////////////////////////////
+void recJALR(void)
+{
+	const u32 newpc = pc + 4;
+	const bool swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? false : TrySwapDelaySlot(_Rs_, 0, _Rd_, true);
+
+	// uncomment when there are NO instructions that need to call interpreter
+	//	int mmreg;
+	//	if (GPR_IS_CONST1(_Rs_))
+	//		xMOV(ptr32[&cpuRegs.pc], g_cpuConstRegs[_Rs_].UL[0]);
+	//	else
+	//	{
+	//		int mmreg;
+	//
+	//		if ((mmreg = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ)) >= 0)
+	//		{
+	//			xMOVSS(ptr[&cpuRegs.pc], xRegisterSSE(mmreg));
+	//		}
+	//		else iR5900-32.cpp{
+	//			xMOV(eax, ptr[(void*)((int)&cpuRegs.GPR.r[_Rs_].UL[0])]);
+	//			xMOV(ptr[&cpuRegs.pc], eax);
+	//		}
+	//	}
+
+	int wbreg = -1;
+	if (!swap)
+	{
+		wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
+		_eeMoveGPRtoR(xRegister32(wbreg), _Rs_);
+
+		if (EmuConfig.Gamefixes.GoemonTlbHack)
+		{
+			xMOV(ecx, xRegister32(wbreg));
+			vtlb_DynV2P();
+			xMOV(xRegister32(wbreg), eax);
+		}
+	}
+
+	if (_Rd_)
+	{
+		_deleteEEreg(_Rd_, 0);
+		GPR_SET_CONST(_Rd_);
+		g_cpuConstRegs[_Rd_].UD[0] = newpc;
+	}
+
+	if (!swap)
+	{
+		recompileNextInstruction(true, false);
+
+		// the next instruction may have flushed the register.. so reload it if so.
+		if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
+		{
+			xMOV(ptr[&cpuRegs.pc], xRegister32(wbreg));
+			x86regs[wbreg].inuse = 0;
+		}
+		else
+		{
+			xMOV(eax, ptr[&cpuRegs.pcWriteback]);
+			xMOV(ptr[&cpuRegs.pc], eax);
+		}
+	}
+	else
+	{
+		if (GPR_IS_DIRTY_CONST(_Rs_) || _hasX86reg(X86TYPE_GPR, _Rs_, 0))
+		{
+			const int x86reg = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+			xMOV(ptr32[&cpuRegs.pc], xRegister32(x86reg));
+		}
+		else
+		{
+			_eeMoveGPRtoM((uintptr_t)&cpuRegs.pc, _Rs_);
+		}
+	}
+
+	SetBranchReg(0xffffffff);
+}
+
+#endif
+
+/*********************************************************
+* Load and store for GPR                                 *
+* Format:  OP rt, offset(base)                           *
+*********************************************************/
+#ifndef LOADSTORE_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_FUNC_DEL(LB, _Rt_);
+REC_FUNC_DEL(LBU, _Rt_);
+REC_FUNC_DEL(LH, _Rt_);
+REC_FUNC_DEL(LHU, _Rt_);
+REC_FUNC_DEL(LW, _Rt_);
+REC_FUNC_DEL(LWU, _Rt_);
+REC_FUNC_DEL(LWL, _Rt_);
+REC_FUNC_DEL(LWR, _Rt_);
+REC_FUNC_DEL(LD, _Rt_);
+REC_FUNC_DEL(LDR, _Rt_);
+REC_FUNC_DEL(LDL, _Rt_);
+REC_FUNC_DEL(LQ, _Rt_);
+REC_FUNC(SB);
+REC_FUNC(SH);
+REC_FUNC(SW);
+REC_FUNC(SWL);
+REC_FUNC(SWR);
+REC_FUNC(SD);
+REC_FUNC(SDL);
+REC_FUNC(SDR);
+REC_FUNC(SQ);
+REC_FUNC(LWC1);
+REC_FUNC(SWC1);
+REC_FUNC(LQC2);
+REC_FUNC(SQC2);
+
+#else
+
+using namespace Interpreter::OpcodeImpl;
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//
+static void recLoadQuad128(void)
+{
+	// This mess is so we allocate *after* the vtlb flush, not before.
+	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
+	if (_Rt_)
+		alloc_cb = []() { return _allocGPRtoXMMreg(_Rt_, MODE_WRITE); };
+
+	int xmmreg;
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		const u32 srcadr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0x0f;
+		xmmreg = vtlb_DynGenReadQuad_Const(128, srcadr, _Rt_ ? alloc_cb : nullptr);
+	}
+	else
+	{
+		// Load ECX with the source memory address that we're reading from.
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1reg, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		// force 16 byte alignment on 128 bit reads
+		xAND(arg1regd, ~0x0F);
+
+		xmmreg = vtlb_DynGenReadQuad(128, arg1regd.Id, _Rt_ ? alloc_cb : nullptr);
+	}
+
+	// if there was a constant, it should have been invalidated.
+	if (!_Rt_)
+		_freeXMMreg(xmmreg);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//
+static void recLoad(u32 bits, bool sign)
+{
+	// This mess is so we allocate *after* the vtlb flush, not before.
+	// TODO(Stenzek): If not live, save directly to state, and delete constant.
+	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
+	if (_Rt_)
+		alloc_cb = []() { return _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE); };
+
+	int x86reg;
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		const u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		x86reg = vtlb_DynGenReadNonQuad_Const(bits, sign, false, srcadr, alloc_cb);
+	}
+	else
+	{
+		// Load arg1 with the source memory address that we're reading from.
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		x86reg = vtlb_DynGenReadNonQuad(bits, sign, false, arg1regd.Id, alloc_cb);
+	}
+
+	// if there was a constant, it should have been invalidated.
+	if (!_Rt_)
+		_freeX86reg(x86reg);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//
+
+static void recStore128(void)
+{
+	// Performance note: Const prop for the store address is good, always.
+	// Constprop for the value being stored is not really worthwhile (better to use register
+	// allocation -- simpler code and just as fast)
+	int regt = _allocGPRtoXMMreg(_Rt_, MODE_READ);
+
+	// Load ECX with the destination address, or issue a direct optimized write
+	// if the address is a constant propagation.
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		dstadr &= ~0x0f;
+
+		vtlb_DynGenWrite_Const(128, true, dstadr, regt);
+	}
+	else
+	{
+		if (_Rs_ != 0)
+		{
+			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
+			_eeMoveGPRtoR(arg1regd, _Rs_);
+			if (_Imm_ != 0)
+				xADD(arg1regd, _Imm_);
+		}
+		else
+		{
+			xMOV(arg1regd, _Imm_);
+		}
+
+		xAND(arg1regd, ~0x0F);
+
+		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
+		vtlb_DynGenWrite(128, true, arg1regd.Id, regt);
+	}
+}
+
+static void recStore64(void)
+{
+	// Performance note: Const prop for the store address is good, always.
+	// Constprop for the value being stored is not really worthwhile (better to use register
+	// allocation -- simpler code and just as fast)
+	int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+
+	// Load ECX with the destination address, or issue a direct optimized write
+	// if the address is a constant propagation.
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		vtlb_DynGenWrite_Const(64, false, dstadr, regt);
+	}
+	else
+	{
+		if (_Rs_ != 0)
+		{
+			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
+			_eeMoveGPRtoR(arg1regd, _Rs_);
+			if (_Imm_ != 0)
+				xADD(arg1regd, _Imm_);
+		}
+		else
+		{
+			xMOV(arg1regd, _Imm_);
+		}
+
+		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
+		vtlb_DynGenWrite(64, false, arg1regd.Id, regt);
+	}
+}
+
+static void recStore32(void)
+{
+	// Performance note: Const prop for the store address is good, always.
+	// Constprop for the value being stored is not really worthwhile (better to use register
+	// allocation -- simpler code and just as fast)
+	int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+
+	// Load ECX with the destination address, or issue a direct optimized write
+	// if the address is a constant propagation.
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		vtlb_DynGenWrite_Const(32, false, dstadr, regt);
+	}
+	else
+	{
+		if (_Rs_ != 0)
+		{
+			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
+			_eeMoveGPRtoR(arg1regd, _Rs_);
+			if (_Imm_ != 0)
+				xADD(arg1regd, _Imm_);
+		}
+		else
+		{
+			xMOV(arg1regd, _Imm_);
+		}
+
+		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
+		vtlb_DynGenWrite(32, false, arg1regd.Id, regt);
+	}
+}
+
+static void recStore16(void)
+{
+	// Performance note: Const prop for the store address is good, always.
+	// Constprop for the value being stored is not really worthwhile (better to use register
+	// allocation -- simpler code and just as fast)
+	int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+
+	// Load ECX with the destination address, or issue a direct optimized write
+	// if the address is a constant propagation.
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		vtlb_DynGenWrite_Const(16, false, dstadr, regt);
+	}
+	else
+	{
+		if (_Rs_ != 0)
+		{
+			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
+			_eeMoveGPRtoR(arg1regd, _Rs_);
+			if (_Imm_ != 0)
+				xADD(arg1regd, _Imm_);
+		}
+		else
+		{
+			xMOV(arg1regd, _Imm_);
+		}
+
+		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
+		vtlb_DynGenWrite(16, false, arg1regd.Id, regt);
+	}
+}
+
+static void recStore8(void)
+{
+	// Performance note: Const prop for the store address is good, always.
+	// Constprop for the value being stored is not really worthwhile (better to use register
+	// allocation -- simpler code and just as fast)
+	int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+
+	// Load ECX with the destination address, or issue a direct optimized write
+	// if the address is a constant propagation.
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		vtlb_DynGenWrite_Const(8, false, dstadr, regt);
+	}
+	else
+	{
+		if (_Rs_ != 0)
+		{
+			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
+			_eeMoveGPRtoR(arg1regd, _Rs_);
+			if (_Imm_ != 0)
+				xADD(arg1regd, _Imm_);
+		}
+		else
+		{
+			xMOV(arg1regd, _Imm_);
+		}
+
+		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
+		vtlb_DynGenWrite(8, false, arg1regd.Id, regt);
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//
+void recLB(void)  { recLoad(8,  true);       }
+void recLBU(void) { recLoad(8,  false);      }
+void recLH(void)  { recLoad(16, true);       }
+void recLHU(void) { recLoad(16, false);      }
+void recLW(void)  { recLoad(32, true);       }
+void recLWU(void) { recLoad(32, false);      }
+void recLD(void)  { recLoad(64, false);      }
+void recLQ(void)  { recLoadQuad128(); }
+void recSB(void)  { recStore8();             }
+void recSH(void)  { recStore16();            }
+void recSW(void)  { recStore32();            }
+void recSD(void)  { recStore64();            }
+void recSQ(void)  { recStore128();           }
+
+////////////////////////////////////////////////////
+
+void recLWL(void)
+{
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(edx);
+	_freeX86reg(arg1regd);
+
+	// avoid flushing and immediately reading back
+	if (_Rt_)
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+	if (_Rs_)
+		_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+
+	_eeMoveGPRtoR(arg1regd, _Rs_);
+	if (_Imm_ != 0)
+		xADD(arg1regd, _Imm_);
+
+	// calleeSavedReg1 = bit offset in word
+	xMOV(temp, arg1regd);
+	xAND(temp, 3);
+	xSHL(temp, 3);
+
+	xAND(arg1regd, ~3);
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+
+	if (!_Rt_)
+	{
+		_freeX86reg(temp);
+		return;
+	}
+
+	// mask off bytes loaded
+	xMOV(ecx, temp);
+	_freeX86reg(temp);
+
+	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
+	xMOV(edx, 0xffffff);
+	xSHR(edx, cl);
+	xAND(edx, xRegister32(treg));
+
+	// OR in bytes loaded
+	xNEG(ecx);
+	xADD(ecx, 24);
+	xSHL(eax, cl);
+	xOR(eax, edx);
+	xMOVSX(xRegister64(treg), eax);
+}
+
+////////////////////////////////////////////////////
+void recLWR(void)
+{
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(edx);
+	_freeX86reg(arg1regd);
+
+	// avoid flushing and immediately reading back
+	if (_Rt_)
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+	if (_Rs_)
+		_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+
+	_eeMoveGPRtoR(arg1regd, _Rs_);
+	if (_Imm_ != 0)
+		xADD(arg1regd, _Imm_);
+
+	// edi = bit offset in word
+	xMOV(temp, arg1regd);
+
+	xAND(arg1regd, ~3);
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+
+	if (!_Rt_)
+	{
+		_freeX86reg(temp);
+		return;
+	}
+
+	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
+	xAND(temp, 3);
+
+	xForwardJE8 nomask;
+	xSHL(temp, 3);
+	// mask off bytes loaded
+	xMOV(ecx, 24);
+	xSUB(ecx, temp);
+	xMOV(edx, 0xffffff00);
+	xSHL(edx, cl);
+	xAND(xRegister32(treg), edx);
+
+	// OR in bytes loaded
+	xMOV(ecx, temp);
+	xSHR(eax, cl);
+	xOR(xRegister32(treg), eax);
+
+	xForwardJump8 end;
+	nomask.SetTarget();
+	// NOTE: This might look wrong, but it's correct - see interpreter.
+	xMOVSX(xRegister64(treg), eax);
+	end.SetTarget();
+	_freeX86reg(temp);
+}
+
+////////////////////////////////////////////////////
+
+void recSWL(void)
+{
+	// avoid flushing and immediately reading back
+	_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+	// preload Rt, since we can't do so inside the branch
+	if (!GPR_IS_CONST1(_Rt_))
+		_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+	else
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+
+	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(arg1regd);
+	_freeX86reg(arg2regd);
+
+	_eeMoveGPRtoR(arg1regd, _Rs_);
+	if (_Imm_ != 0)
+		xADD(arg1regd, _Imm_);
+
+	// edi = bit offset in word
+	xMOV(temp, arg1regd);
+	xAND(arg1regd, ~3);
+	xAND(temp, 3);
+	xCMP(temp, 3);
+
+	// If we're not using fastmem, we need to flush early. Because the first read
+	// (which would flush) happens inside a branch.
+	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+		iFlushCall(FLUSH_FULLVTLB);
+
+	xForwardJE8 skip;
+	xSHL(temp, 3);
+
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+
+	// mask read -> arg2
+	xMOV(ecx, temp);
+	xMOV(arg2regd, 0xffffff00);
+	xSHL(arg2regd, cl);
+	xAND(arg2regd, eax);
+
+	if (_Rt_)
+	{
+		// mask write and OR -> edx
+		xNEG(ecx);
+		xADD(ecx, 24);
+		_eeMoveGPRtoR(eax, _Rt_, false);
+		xSHR(eax, cl);
+		xOR(arg2regd, eax);
+	}
+
+	_eeMoveGPRtoR(arg1regd, _Rs_, false);
+	if (_Imm_ != 0)
+		xADD(arg1regd, _Imm_);
+	xAND(arg1regd, ~3);
+
+	xForwardJump8 end;
+	skip.SetTarget();
+	_eeMoveGPRtoR(arg2regd, _Rt_, false);
+	end.SetTarget();
+
+	_freeX86reg(temp);
+	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
+}
+
+////////////////////////////////////////////////////
+void recSWR(void)
+{
+	// avoid flushing and immediately reading back
+	_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+	// preload Rt, since we can't do so inside the branch
+	if (!GPR_IS_CONST1(_Rt_))
+		_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
+	else
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+
+	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	_freeX86reg(ecx);
+	_freeX86reg(arg1regd);
+	_freeX86reg(arg2regd);
+
+	_eeMoveGPRtoR(arg1regd, _Rs_);
+	if (_Imm_ != 0)
+		xADD(arg1regd, _Imm_);
+
+	// edi = bit offset in word
+	xMOV(temp, arg1regd);
+	xAND(arg1regd, ~3);
+	xAND(temp, 3);
+
+	// If we're not using fastmem, we need to flush early. Because the first read
+	// (which would flush) happens inside a branch.
+	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+		iFlushCall(FLUSH_FULLVTLB);
+
+	xForwardJE8 skip;
+	xSHL(temp, 3);
+
+	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+
+	// mask read -> edx
+	xMOV(ecx, 24);
+	xSUB(ecx, temp);
+	xMOV(arg2regd, 0xffffff);
+	xSHR(arg2regd, cl);
+	xAND(arg2regd, eax);
+
+	if (_Rt_)
+	{
+		// mask write and OR -> edx
+		xMOV(ecx, temp);
+		_eeMoveGPRtoR(eax, _Rt_, false);
+		xSHL(eax, cl);
+		xOR(arg2regd, eax);
+	}
+
+	_eeMoveGPRtoR(arg1regd, _Rs_, false);
+	if (_Imm_ != 0)
+		xADD(arg1regd, _Imm_);
+	xAND(arg1regd, ~3);
+
+	xForwardJump8 end;
+	skip.SetTarget();
+	_eeMoveGPRtoR(arg2regd, _Rt_, false);
+	end.SetTarget();
+
+	_freeX86reg(temp);
+	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
+}
+
+////////////////////////////////////////////////////
+
+/// Masks rt with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (value shift amt), leaves result in value
+static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+{
+	// Would xor rcx, rcx; not rcx be better here?
+	xMOV(rcx, -1);
+
+	maskshift(rcx, maskamt);
+	xAND(rt, rcx);
+
+	shift(value, amt);
+	xOR(rt, value);
+}
+
+/// Masks rt with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (value shift amt), leaves result in value
+static void ldlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+{
+	// Would xor rcx, rcx; not rcx be better here?
+	const xRegister64 maskamt64(maskamt);
+	xMOV(ecx, maskamt);
+	xMOV(maskamt64, -1);
+	maskshift(maskamt64, cl);
+	xAND(rt, maskamt64);
+
+	xMOV(ecx, amt);
+	shift(value, cl);
+	xOR(rt, value);
+}
+
+void recLDL(void)
+{
+	if (!_Rt_)
+		return;
+
+	// avoid flushing and immediately reading back
+	if (_Rt_)
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+	if (_Rs_)
+		_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+	const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(edx);
+	_freeX86reg(arg1regd);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+
+		// If _Rs_ is equal to _Rt_ we need to put the shift in to eax since it won't take the CONST path.
+		if (_Rs_ == _Rt_)
+			xMOV(temp1, srcadr);
+
+		srcadr &= ~0x07;
+
+		vtlb_DynGenReadNonQuad_Const(64, false, false, srcadr, RETURN_READ_IN_RAX);
+	}
+	else
+	{
+		// Load ECX with the source memory address that we're reading from.
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		xMOV(temp1, arg1regd);
+		xAND(arg1regd, ~0x07);
+
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+	}
+
+	const xRegister64 treg(_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE));
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 shift = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		shift = ((shift & 0x7) + 1) * 8;
+		if (shift != 64)
+		{
+			ldlrhelper_const(shift, xSHR, 64 - shift, xSHL, rax, treg);
+		}
+		else
+		{
+			xMOV(treg, rax);
+		}
+	}
+	else
+	{
+		xAND(temp1, 0x7);
+		xCMP(temp1, 7);
+		xCMOVE(treg, rax); // swap register with memory when not shifting
+		xForwardJE8 skip;
+		// Calculate the shift from top bit to lowest.
+		xADD(temp1, 1);
+		xMOV(edx, 64);
+		xSHL(temp1, 3);
+		xSUB(edx, temp1);
+
+		ldlrhelper(temp1, xSHR, edx, xSHL, rax, treg);
+		skip.SetTarget();
+	}
+
+	_freeX86reg(temp1);
+}
+
+////////////////////////////////////////////////////
+void recLDR(void)
+{
+	if (!_Rt_)
+		return;
+
+	// avoid flushing and immediately reading back
+	if (_Rt_)
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+	if (_Rs_)
+		_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+	const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(edx);
+	_freeX86reg(arg1regd);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+
+		// If _Rs_ is equal to _Rt_ we need to put the shift in to eax since it won't take the CONST path.
+		if (_Rs_ == _Rt_)
+			xMOV(temp1, srcadr);
+
+		srcadr &= ~0x07;
+
+		vtlb_DynGenReadNonQuad_Const(64, false, false, srcadr, RETURN_READ_IN_RAX);
+	}
+	else
+	{
+		// Load ECX with the source memory address that we're reading from.
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		xMOV(temp1, arg1regd);
+		xAND(arg1regd, ~0x07);
+
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+	}
+
+	const xRegister64 treg(_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE));
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 shift = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		shift = (shift & 0x7) * 8;
+		if (shift != 0)
+		{
+			ldlrhelper_const(64 - shift, xSHL, shift, xSHR, rax, treg);
+		}
+		else
+		{
+			xMOV(treg, rax);
+		}
+	}
+	else
+	{
+		xAND(temp1, 0x7);
+		xCMOVE(treg, rax); // swap register with memory when not shifting
+		xForwardJE8 skip;
+		// Calculate the shift from top bit to lowest.
+		xMOV(edx, 64);
+		xSHL(temp1, 3);
+		xSUB(edx, temp1);
+
+		ldlrhelper(edx, xSHL, temp1, xSHR, rax, treg);
+		skip.SetTarget();
+	}
+
+	_freeX86reg(temp1);
+}
+
+////////////////////////////////////////////////////
+
+/// Masks value with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (rt shift amt), saves to dummyValue
+static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+{
+	xMOV(rcx, -1);
+	maskshift(rcx, maskamt);
+	xAND(rcx, value);
+
+	shift(rt, amt);
+	xOR(rt, rcx);
+}
+
+/// Masks value with (0xffffffffffffffff maskshift maskamt), 
+/// merges with (rt shift amt), saves to dummyValue
+static void sdlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+{
+	// Generate mask 128-(shiftx8)
+	const xRegister64 maskamt64(maskamt);
+	xMOV(ecx, maskamt);
+	xMOV(maskamt64, -1);
+	maskshift(maskamt64, cl);
+	xAND(maskamt64, value);
+
+	// Shift over reg value
+	xMOV(ecx, amt);
+	shift(rt, cl);
+	xOR(rt, maskamt64);
+}
+
+void recSDL(void)
+{
+	// avoid flushing and immediately reading back
+	if (_Rt_)
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+
+	_freeX86reg(ecx);
+	_freeX86reg(arg2regd);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 adr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		u32 aligned = adr & ~0x07;
+		u32 shift = ((adr & 0x7) + 1) * 8;
+		if (shift == 64)
+		{
+			_eeMoveGPRtoR(arg2reg, _Rt_);
+		}
+		else
+		{
+			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
+			_eeMoveGPRtoR(arg2reg, _Rt_);
+			sdlrhelper_const(shift, xSHL, 64 - shift, xSHR, rax, arg2reg);
+		}
+		vtlb_DynGenWrite_Const(64, false, aligned, arg2regd.Id);
+	}
+	else
+	{
+		if (_Rs_)
+			_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+		// Load ECX with the source memory address that we're reading from.
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		_freeX86reg(ecx);
+		_freeX86reg(edx);
+		_freeX86reg(arg2regd);
+		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+		_eeMoveGPRtoR(arg2reg, _Rt_);
+
+		xMOV(temp1, arg1regd);
+		xMOV(temp2, arg2reg);
+		xAND(arg1regd, ~0x07);
+		xAND(temp1, 0x7);
+		xCMP(temp1, 7);
+
+		// If we're not using fastmem, we need to flush early. Because the first read
+		// (which would flush) happens inside a branch.
+		if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+			iFlushCall(FLUSH_FULLVTLB);
+
+		xForwardJE8 skip;
+		xADD(temp1, 1);
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+
+		//Calculate the shift from top bit to lowest
+		xMOV(edx, 64);
+		xSHL(temp1, 3);
+		xSUB(edx, temp1);
+
+		sdlrhelper(temp1, xSHL, edx, xSHR, rax, temp2);
+
+		_eeMoveGPRtoR(arg1regd, _Rs_, false);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+		xAND(arg1regd, ~0x7);
+		skip.SetTarget();
+
+		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2.Id);
+		_freeX86reg(temp2.Id);
+		_freeX86reg(temp1.Id);
+	}
+}
+
+////////////////////////////////////////////////////
+void recSDR(void)
+{
+	// avoid flushing and immediately reading back
+	if (_Rt_)
+		_addNeededX86reg(X86TYPE_GPR, _Rt_);
+
+	_freeX86reg(ecx);
+	_freeX86reg(arg2regd);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		u32 adr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		u32 aligned = adr & ~0x07;
+		u32 shift = (adr & 0x7) * 8;
+		if (shift == 0)
+		{
+			_eeMoveGPRtoR(arg2reg, _Rt_);
+		}
+		else
+		{
+			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
+			_eeMoveGPRtoR(arg2reg, _Rt_);
+			sdlrhelper_const(64 - shift, xSHR, shift, xSHL, rax, arg2reg);
+		}
+
+		vtlb_DynGenWrite_Const(64, false, aligned, arg2reg.Id);
+	}
+	else
+	{
+		if (_Rs_)
+			_addNeededX86reg(X86TYPE_GPR, _Rs_);
+
+		// Load ECX with the source memory address that we're reading from.
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		_freeX86reg(ecx);
+		_freeX86reg(edx);
+		_freeX86reg(arg2regd);
+		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+		_eeMoveGPRtoR(arg2reg, _Rt_);
+
+		xMOV(temp1, arg1regd);
+		xMOV(temp2, arg2reg);
+		xAND(arg1regd, ~0x07);
+		xAND(temp1, 0x7);
+
+		// If we're not using fastmem, we need to flush early. Because the first read
+		// (which would flush) happens inside a branch.
+		if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
+			iFlushCall(FLUSH_FULLVTLB);
+
+		xForwardJE8 skip;
+		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
+
+		xMOV(edx, 64);
+		xSHL(temp1, 3);
+		xSUB(edx, temp1);
+
+		sdlrhelper(edx, xSHR, temp1, xSHL, rax, temp2);
+
+		_eeMoveGPRtoR(arg1regd, _Rs_, false);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+		xAND(arg1regd, ~0x7);
+		xMOV(arg2reg, temp2);
+		skip.SetTarget();
+
+		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2.Id);
+		_freeX86reg(temp2.Id);
+		_freeX86reg(temp1.Id);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/*********************************************************
+* Load and store for COP1                                *
+* Format:  OP rt, offset(base)                           *
+*********************************************************/
+
+////////////////////////////////////////////////////
+
+void recLWC1(void)
+{
+#ifndef FPU_RECOMPILE
+	recCall(::R5900::Interpreter::OpcodeImpl::LWC1);
+#else
+
+	const vtlb_ReadRegAllocCallback alloc_cb = []() { return _allocFPtoXMMreg(_Rt_, MODE_WRITE); };
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		vtlb_DynGenReadNonQuad_Const(32, false, true, addr, alloc_cb);
+	}
+	else
+	{
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		vtlb_DynGenReadNonQuad(32, false, true, arg1regd.Id, alloc_cb);
+	}
+#endif
+}
+
+//////////////////////////////////////////////////////
+
+void recSWC1(void)
+{
+#ifndef FPU_RECOMPILE
+	recCall(::R5900::Interpreter::OpcodeImpl::SWC1);
+#else
+	const int regt = _allocFPtoXMMreg(_Rt_, MODE_READ);
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		vtlb_DynGenWrite_Const(32, true, addr, regt);
+	}
+	else
+	{
+		_freeX86reg(arg1regd);
+		_eeMoveGPRtoR(arg1regd, _Rs_);
+		if (_Imm_ != 0)
+			xADD(arg1regd, _Imm_);
+
+		vtlb_DynGenWrite(32, true, arg1regd.Id, regt);
+	}
+#endif
+}
+
+#endif
+
+/*********************************************************
+* Shift arithmetic with constant shift                   *
+* Format:  OP rd, rt, sa                                 *
+*********************************************************/
+#ifndef MOVE_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_FUNC_DEL(LUI, _Rt_);
+REC_FUNC_DEL(MFLO, _Rd_);
+REC_FUNC_DEL(MFHI, _Rd_);
+REC_FUNC(MTLO);
+REC_FUNC(MTHI);
+
+REC_FUNC_DEL(MFLO1, _Rd_);
+REC_FUNC_DEL(MFHI1, _Rd_);
+REC_FUNC(MTHI1);
+REC_FUNC(MTLO1);
+
+REC_FUNC_DEL(MOVZ, _Rd_);
+REC_FUNC_DEL(MOVN, _Rd_);
+
+#else
+
+/*********************************************************
+* Load higher 16 bits of the first word in GPR with imm  *
+* Format:  OP rt, immediate                              *
+*********************************************************/
+
+void recLUI(void)
+{
+	if (!_Rt_)
+		return;
+
+	// need to flush the upper 64 bits for xmm
+	GPR_DEL_CONST(_Rt_);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FREE_NO_WRITEBACK);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
+
+	GPR_SET_CONST(_Rt_);
+	g_cpuConstRegs[_Rt_].UD[0] = (s32)(cpuRegs.code << 16);
+}
+
+static void recMFHILO(bool hi, bool upper)
+{
+	if (!_Rd_)
+		return;
+
+	// kill any constants on rd, lower 64 bits get written regardless of upper
+	_eeOnWriteReg(_Rd_, 0);
+
+	const int reg = hi ? XMMGPR_HI : XMMGPR_LO;
+	const int xmmd = EEINST_XMMUSEDTEST(_Rd_) ? _allocGPRtoXMMreg(_Rd_, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, _Rd_, MODE_READ | MODE_WRITE);
+	const int xmmhilo = EEINST_XMMUSEDTEST(reg) ? _allocGPRtoXMMreg(reg, MODE_READ) : _checkXMMreg(XMMTYPE_GPRREG, reg, MODE_READ);
+	if (xmmd >= 0)
+	{
+		if (xmmhilo >= 0)
+		{
+			if (upper)
+				xMOVHL.PS(xRegisterSSE(xmmd), xRegisterSSE(xmmhilo));
+			else
+				xMOVSD(xRegisterSSE(xmmd), xRegisterSSE(xmmhilo));
+		}
+		else
+		{
+			const int gprhilo = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_READ);
+			if (gprhilo >= 0)
+				xPINSR.Q(xRegisterSSE(xmmd), xRegister64(gprhilo), 0);
+			else
+				xPINSR.Q(xRegisterSSE(xmmd), ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]], 0);
+		}
+	}
+	else
+	{
+		// try rename {hi,lo} -> rd
+		const int gprreg = upper ? -1 : _checkX86reg(X86TYPE_GPR, reg, MODE_READ);
+		if (gprreg >= 0 && _eeTryRenameReg(_Rd_, reg, gprreg, -1, 0) >= 0)
+			return;
+
+		const int gprd = _allocIfUsedGPRtoX86(_Rd_, MODE_WRITE);
+		if (gprd >= 0 && xmmhilo >= 0)
+		{
+			if (upper)
+				xPEXTR.Q(xRegister64(gprd), xRegisterSSE(xmmhilo), 1);
+			else
+				xMOVD(xRegister64(gprd), xRegisterSSE(xmmhilo));
+		}
+		else if (gprd < 0 && xmmhilo >= 0)
+		{
+			if (upper)
+				xPEXTR.Q(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegisterSSE(xmmhilo), 1);
+			else
+				xMOVQ(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegisterSSE(xmmhilo));
+		}
+		else if (gprd >= 0)
+		{
+			if (gprreg >= 0)
+				xMOV(xRegister64(gprd), xRegister64(gprreg));
+			else
+				xMOV(xRegister64(gprd), ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]]);
+		}
+		else if (gprreg >= 0)
+		{
+			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegister64(gprreg));
+		}
+		else
+		{
+			xMOV(rax, ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]]);
+			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
+		}
+	}
+}
+
+static void recMTHILO(bool hi, bool upper)
+{
+	const int reg = hi ? XMMGPR_HI : XMMGPR_LO;
+	_eeOnWriteReg(reg, 0);
+
+	const int xmms = EEINST_XMMUSEDTEST(_Rs_) ? _allocGPRtoXMMreg(_Rs_, MODE_READ) : _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
+	const int xmmhilo = EEINST_XMMUSEDTEST(reg) ? _allocGPRtoXMMreg(reg, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, reg, MODE_READ | MODE_WRITE);
+	if (xmms >= 0)
+	{
+		if (xmmhilo >= 0)
+		{
+			if (upper)
+				xMOVLH.PS(xRegisterSSE(xmmhilo), xRegisterSSE(xmms));
+			else
+				xMOVSD(xRegisterSSE(xmmhilo), xRegisterSSE(xmms));
+		}
+		else
+		{
+			const int gprhilo = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_WRITE);
+			if (gprhilo >= 0)
+				xMOVD(xRegister64(gprhilo), xRegisterSSE(xmms)); // actually movq
+			else
+				xMOVQ(ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]], xRegisterSSE(xmms));
+		}
+	}
+	else
+	{
+		int gprs = _allocIfUsedGPRtoX86(_Rs_, MODE_READ);
+
+		if (xmmhilo >= 0)
+		{
+			if (gprs >= 0)
+			{
+				xPINSR.Q(xRegisterSSE(xmmhilo), xRegister64(gprs), static_cast<u8>(upper));
+			}
+			else if (GPR_IS_CONST1(_Rs_))
+			{
+				// force it into a register, since we need to load the constant anyway
+				gprs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+				xPINSR.Q(xRegisterSSE(xmmhilo), xRegister64(gprs), static_cast<u8>(upper));
+			}
+			else
+			{
+				xPINSR.Q(xRegisterSSE(xmmhilo), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], static_cast<u8>(upper));
+			}
+		}
+		else
+		{
+			// try rename rs -> {hi,lo}
+			if (gprs >= 0 && !upper && _eeTryRenameReg(reg, _Rs_, gprs, -1, 0) >= 0)
+				return;
+
+			const int gprreg = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_WRITE);
+			if (gprreg >= 0)
+			{
+				_eeMoveGPRtoR(xRegister64(gprreg), _Rs_);
+			}
+			else
+			{
+				// force into a register, since we need to load it to write anyway
+				gprs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+				xMOV(ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]], xRegister64(gprs));
+			}
+		}
+	}
+}
+
+
+void recMFHI(void)
+{
+	recMFHILO(true, false);
+}
+
+void recMFLO(void)
+{
+	recMFHILO(false, false);
+}
+
+void recMTHI(void)
+{
+	recMTHILO(true, false);
+}
+
+void recMTLO(void)
+{
+	recMTHILO(false, false);
+}
+
+void recMFHI1(void)
+{
+	recMFHILO(true, true);
+}
+
+void recMFLO1(void)
+{
+	recMFHILO(false, true);
+}
+
+void recMTHI1(void)
+{
+	recMTHILO(true, true);
+}
+
+void recMTLO1(void)
+{
+	recMTHILO(false, true);
+}
+
+//// MOVZ
+// if (rt == 0) then rd <- rs
+static void recMOVZtemp_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0];
+}
+
+static void recMOVZtemp_consts(int info)
+{
+	// we need the constant anyway, so just force it into a register
+	const int regs = (info & PROCESS_EE_S) ? EEREC_S : _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	if (info & PROCESS_EE_T)
+		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+
+	xCMOVE(xRegister64(EEREC_D), xRegister64(regs));
+}
+
+static void recMOVZtemp_constt(int info)
+{
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+}
+
+static void recMOVZtemp_(int info)
+{
+	if (info & PROCESS_EE_T)
+		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+
+	if (info & PROCESS_EE_S)
+		xCMOVE(xRegister64(EEREC_D), xRegister64(EEREC_S));
+	else
+		xCMOVE(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+}
+
+// Specify READD here, because we might not write to it, and want to preserve the value.
+static EERECOMPILE_CODERC0(MOVZtemp, XMMINFO_READS | XMMINFO_READT | XMMINFO_READD | XMMINFO_WRITED | XMMINFO_NORENAME);
+
+void recMOVZ(void)
+{
+	if (_Rs_ == _Rd_)
+		return;
+
+	if (GPR_IS_CONST1(_Rt_) && g_cpuConstRegs[_Rt_].UD[0] != 0)
+		return;
+
+	recMOVZtemp();
+}
+
+static void recMOVNtemp_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = g_cpuConstRegs[_Rs_].UD[0];
+}
+
+static void recMOVNtemp_consts(int info)
+{
+	// we need the constant anyway, so just force it into a register
+	const int regs = (info & PROCESS_EE_S) ? EEREC_S : _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
+	if (info & PROCESS_EE_T)
+		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+
+	xCMOVNE(xRegister64(EEREC_D), xRegister64(regs));
+}
+
+static void recMOVNtemp_constt(int info)
+{
+	if (info & PROCESS_EE_S)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+}
+
+static void recMOVNtemp_(int info)
+{
+	if (info & PROCESS_EE_T)
+		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+	else
+		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+
+	if (info & PROCESS_EE_S)
+		xCMOVNE(xRegister64(EEREC_D), xRegister64(EEREC_S));
+	else
+		xCMOVNE(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+}
+
+static EERECOMPILE_CODERC0(MOVNtemp, XMMINFO_READS | XMMINFO_READT | XMMINFO_READD | XMMINFO_WRITED | XMMINFO_NORENAME);
+
+void recMOVN(void)
+{
+	if (_Rs_ == _Rd_)
+		return;
+
+	if (GPR_IS_CONST1(_Rt_) && g_cpuConstRegs[_Rt_].UD[0] == 0)
+		return;
+
+	recMOVNtemp();
+}
+
+#endif
+
+/*********************************************************
+* Register mult/div & Register trap logic                *
+* Format:  OP rs, rt                                     *
+*********************************************************/
+#ifndef MULTDIV_RECOMPILE
+
+REC_FUNC_DEL(MULT, _Rd_);
+REC_FUNC_DEL(MULTU, _Rd_);
+REC_FUNC_DEL(MULT1, _Rd_);
+REC_FUNC_DEL(MULTU1, _Rd_);
+
+REC_FUNC(DIV);
+REC_FUNC(DIVU);
+REC_FUNC(DIV1);
+REC_FUNC(DIVU1);
+
+REC_FUNC_DEL(MADD, _Rd_);
+REC_FUNC_DEL(MADDU, _Rd_);
+REC_FUNC_DEL(MADD1, _Rd_);
+REC_FUNC_DEL(MADDU1, _Rd_);
+
+#else
+
+static void recWritebackHILO(int info, bool writed, bool upper)
+{
+	// writeback low 32 bits, sign extended to 64 bits
+	bool eax_sign_extended = false;
+
+	// case 1: LO is already in an XMM - use the xmm
+	// case 2: LO is used as an XMM later in the block - use or allocate the XMM
+	// case 3: LO is used as a GPR later in the block - use XMM if upper, otherwise use GPR, so it can be renamed
+	// case 4: LO is already in a GPR - write to the GPR, or write to memory if upper
+	// case 4: LO is not used - writeback to memory
+
+	if (EEINST_LIVETEST(XMMGPR_LO))
+	{
+		const bool loused = EEINST_USEDTEST(XMMGPR_LO);
+		const bool lousedxmm = loused && (upper || EEINST_XMMUSEDTEST(XMMGPR_LO));
+		const int xmmlo = lousedxmm ? _allocGPRtoXMMreg(XMMGPR_LO, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_LO, MODE_WRITE);
+		if (xmmlo >= 0)
+		{
+			// we use CDQE over MOVSX because it's shorter.
+			*(u16*)x86Ptr = 0x9848;
+			x86Ptr += sizeof(u16);
+			xPINSR.Q(xRegisterSSE(xmmlo), rax, static_cast<u8>(upper));
+		}
+		else
+		{
+			const int gprlo = upper ? -1 : (loused ? _allocX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE));
+			if (gprlo >= 0)
+			{
+				xMOVSX(xRegister64(gprlo), eax);
+			}
+			else
+			{
+				*(u16*)x86Ptr = 0x9848;
+				x86Ptr += sizeof(u16);
+				eax_sign_extended = true;
+				xMOV(ptr64[&cpuRegs.LO.UD[upper]], rax);
+			}
+		}
+	}
+
+	if (EEINST_LIVETEST(XMMGPR_HI))
+	{
+		const bool hiused = EEINST_USEDTEST(XMMGPR_HI);
+		const bool hiusedxmm = hiused && (upper || EEINST_XMMUSEDTEST(XMMGPR_HI));
+		const int xmmhi = hiusedxmm ? _allocGPRtoXMMreg(XMMGPR_HI, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_HI, MODE_WRITE);
+		if (xmmhi >= 0)
+		{
+			xMOVSX(rdx, edx);
+			xPINSR.Q(xRegisterSSE(xmmhi), rdx, static_cast<u8>(upper));
+		}
+		else
+		{
+			const int gprhi = upper ? -1 : (hiused ? _allocX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE));
+			if (gprhi >= 0)
+			{
+				xMOVSX(xRegister64(gprhi), edx);
+			}
+			else
+			{
+				xMOVSX(rdx, edx);
+				xMOV(ptr64[&cpuRegs.HI.UD[upper]], rdx);
+			}
+		}
+	}
+
+	// writeback lo to Rd if present
+	if (writed && _Rd_ && EEINST_LIVETEST(_Rd_))
+	{
+		// TODO: This can be made optimal by keeping it in an xmm.
+		// But currently the templates aren't hooked up for that - we'd need a "allow xmm" flag.
+		if (info & PROCESS_EE_D)
+		{
+			if (eax_sign_extended)
+				xMOV(xRegister64(EEREC_D), rax);
+			else
+				xMOVSX(xRegister64(EEREC_D), eax);
+		}
+		else
+		{
+			if (!eax_sign_extended)
+			{
+				*(u16*)x86Ptr = 0x9848;
+				x86Ptr += sizeof(u16);
+			}
+			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
+		}
+	}
+}
+
+
+static void recWritebackConstHILO(u64 res, bool writed, int upper)
+{
+	// It's not often that MULT/DIV are entirely constant. So while the MOV64s here are not optimal
+	// by any means, it's not something that's going to be hit often enough to worry about a cache.
+	// Except for apparently when it's getting set to all-zeros, but that'll be fine with immediates.
+	const s64 loval = static_cast<s64>(static_cast<s32>(static_cast<u32>(res)));
+	const s64 hival = static_cast<s64>(static_cast<s32>(static_cast<u32>(res >> 32)));
+
+	if (EEINST_LIVETEST(XMMGPR_LO))
+	{
+		const bool lolive = EEINST_USEDTEST(XMMGPR_LO);
+		const bool lolivexmm = lolive && (upper || EEINST_XMMUSEDTEST(XMMGPR_LO));
+		const int xmmlo = lolivexmm ? _allocGPRtoXMMreg(XMMGPR_LO, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_LO, MODE_WRITE);
+		if (xmmlo >= 0)
+		{
+			xMOV64(rax, loval);
+			xPINSR.Q(xRegisterSSE(xmmlo), rax, static_cast<u8>(upper));
+		}
+		else
+		{
+			const int gprlo = upper ? -1 : (lolive ? _allocX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE));
+			if (gprlo >= 0)
+				xImm64Op(xMOV, xRegister64(gprlo), rax, loval);
+			else
+				xImm64Op(xMOV, ptr64[&cpuRegs.LO.UD[upper]], rax, loval);
+		}
+	}
+
+	if (EEINST_LIVETEST(XMMGPR_HI))
+	{
+		const bool hilive = EEINST_USEDTEST(XMMGPR_HI);
+		const bool hilivexmm = hilive && (upper || EEINST_XMMUSEDTEST(XMMGPR_HI));
+		const int xmmhi = hilivexmm ? _allocGPRtoXMMreg(XMMGPR_HI, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_HI, MODE_WRITE);
+		if (xmmhi >= 0)
+		{
+			xMOV64(rax, hival);
+			xPINSR.Q(xRegisterSSE(xmmhi), rax, static_cast<u8>(upper));
+		}
+		else
+		{
+			const int gprhi = upper ? -1 : (hilive ? _allocX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE));
+			if (gprhi >= 0)
+				xImm64Op(xMOV, xRegister64(gprhi), rax, hival);
+			else
+				xImm64Op(xMOV, ptr64[&cpuRegs.HI.UD[upper]], rax, hival);
+		}
+	}
+
+	// writeback lo to Rd if present
+	if (writed && _Rd_ && EEINST_LIVETEST(_Rd_))
+	{
+		_eeOnWriteReg(_Rd_, 0);
+
+		const int regd = _checkX86reg(X86TYPE_GPR, _Rd_, MODE_WRITE);
+		if (regd >= 0)
+			xImm64Op(xMOV, xRegister64(regd), rax, loval);
+		else
+			xImm64Op(xMOV, ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax, loval);
+	}
+}
+
+//// MULT
+static void recMULT_const(void)
+{
+	s64 res = (s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0];
+
+	recWritebackConstHILO(res, 1, 0);
+}
+
+static void recMULTsuper(int info, bool sign, bool upper, int process)
+{
+	// TODO(Stenzek): Use MULX where available.
+	if (process & PROCESS_CONSTS)
+	{
+		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
+		if (info & PROCESS_EE_T)
+			sign ? xMUL(xRegister32(EEREC_T)) : xUMUL(xRegister32(EEREC_T));
+		else
+			sign ? xMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]) : xUMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+	else if (process & PROCESS_CONSTT)
+	{
+		xMOV(eax, g_cpuConstRegs[_Rt_].UL[0]);
+		if (info & PROCESS_EE_S)
+			sign ? xMUL(xRegister32(EEREC_S)) : xUMUL(xRegister32(EEREC_S));
+		else
+			sign ? xMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]) : xUMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	}
+	else
+	{
+		// S is more likely to be in a register than T (so put T in eax).
+		if (info & PROCESS_EE_T)
+			xMOV(eax, xRegister32(EEREC_T));
+		else
+			xMOV(eax, ptr[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+
+		if (info & PROCESS_EE_S)
+			sign ? xMUL(xRegister32(EEREC_S)) : xUMUL(xRegister32(EEREC_S));
+		else
+			sign ? xMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]) : xUMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	}
+
+	recWritebackHILO(info, 1, upper);
+}
+
+static void recMULT_(int info)
+{
+	recMULTsuper(info, true, false, 0);
+}
+
+static void recMULT_consts(int info)
+{
+	recMULTsuper(info, true, false, PROCESS_CONSTS);
+}
+
+static void recMULT_constt(int info)
+{
+	recMULTsuper(info, true, false, PROCESS_CONSTT);
+}
+
+// lo/hi allocation are taken care of in recWritebackHILO().
+EERECOMPILE_CODERC0(MULT, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
+
+//// MULTU
+static void recMULTU_const(void)
+{
+	const u64 res = (u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0];
+
+	recWritebackConstHILO(res, 1, 0);
+}
+
+static void recMULTU_(int info)
+{
+	recMULTsuper(info, false, false, 0);
+}
+
+static void recMULTU_consts(int info)
+{
+	recMULTsuper(info, false, false, PROCESS_CONSTS);
+}
+
+static void recMULTU_constt(int info)
+{
+	recMULTsuper(info, false, false, PROCESS_CONSTT);
+}
+
+// don't specify XMMINFO_WRITELO or XMMINFO_WRITEHI, that is taken care of
+EERECOMPILE_CODERC0(MULTU, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
+
+////////////////////////////////////////////////////
+static void recMULT1_const(void)
+{
+	s64 res = (s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0];
+
+	recWritebackConstHILO((u64)res, 1, 1);
+}
+
+static void recMULT1_(int info)
+{
+	recMULTsuper(info, true, true, 0);
+}
+
+static void recMULT1_consts(int info)
+{
+	recMULTsuper(info, true, true, PROCESS_CONSTS);
+}
+
+static void recMULT1_constt(int info)
+{
+	recMULTsuper(info, true, true, PROCESS_CONSTT);
+}
+
+EERECOMPILE_CODERC0(MULT1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
+
+////////////////////////////////////////////////////
+static void recMULTU1_const(void)
+{
+	u64 res = (u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0];
+
+	recWritebackConstHILO(res, 1, 1);
+}
+
+static void recMULTU1_(int info)
+{
+	recMULTsuper(info, false, true, 0);
+}
+
+static void recMULTU1_consts(int info)
+{
+	recMULTsuper(info, false, true, PROCESS_CONSTS);
+}
+
+static void recMULTU1_constt(int info)
+{
+	recMULTsuper(info, false, true, PROCESS_CONSTT);
+}
+
+EERECOMPILE_CODERC0(MULTU1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
+
+//// DIV
+
+static void recDIVconst(int upper)
+{
+	s32 quot, rem = 0;
+	if (g_cpuConstRegs[_Rs_].UL[0] == 0x80000000 && g_cpuConstRegs[_Rt_].SL[0] == -1)
+		quot = (s32)0x80000000;
+	else if (g_cpuConstRegs[_Rt_].SL[0] != 0)
+	{
+		quot = g_cpuConstRegs[_Rs_].SL[0] / g_cpuConstRegs[_Rt_].SL[0];
+		rem  = g_cpuConstRegs[_Rs_].SL[0] % g_cpuConstRegs[_Rt_].SL[0];
+	}
+	else
+	{
+		quot = (g_cpuConstRegs[_Rs_].SL[0] < 0) ? 1 : -1;
+		rem  = g_cpuConstRegs[_Rs_].SL[0];
+	}
+	recWritebackConstHILO((u64)quot | ((u64)rem << 32), 0, upper);
+}
+
+static void recDIV_const(void)
+{
+	recDIVconst(0);
+}
+
+static void recDIVsuper(int info, bool sign, bool upper, int process)
+{
+	u8 *end1, *end2, *cont3;
+	const xRegister32 divisor((info & PROCESS_EE_T) ? EEREC_T : ecx.Id);
+	if (!(info & PROCESS_EE_T))
+	{
+		if (process & PROCESS_CONSTT)
+			xMOV(divisor, g_cpuConstRegs[_Rt_].UL[0]);
+		else
+			xMOV(divisor, ptr[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+
+	if (process & PROCESS_CONSTS)
+		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
+	else
+		_eeMoveGPRtoR(rax, _Rs_);
+
+	if (sign) //test for overflow (x86 will just throw an exception)
+	{
+		u8 *cont1, *cont2;
+		xCMP(eax, 0x80000000);
+		*(u8*)x86Ptr = JNE8;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
+		cont1       = (u8*)(x86Ptr - 1);
+		xCMP(divisor, 0xffffffff);
+		*(u8*)x86Ptr = JNE8;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
+		cont2       = (u8*)(x86Ptr - 1);
+		//overflow case:
+		xXOR(edx, edx); //EAX remains 0x80000000
+		*(u8*)x86Ptr = 0xEB;
+		x86Ptr += sizeof(u8);
+		*(u8*)x86Ptr = 0;
+		x86Ptr += sizeof(u8);
+		end1        = x86Ptr - 1;
+
+		*cont1      = (u8)((x86Ptr - cont1) - 1);
+		*cont2      = (u8)((x86Ptr - cont2) - 1);
+	}
+
+	xCMP(divisor, 0);
+	*(u8*)x86Ptr = JNE8;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
+	cont3 = (u8*)(x86Ptr - 1);
+	//divide by zero
+	xMOV(edx, eax);
+	if (sign) //set EAX to (EAX < 0)?1:-1
+	{
+		xSAR(eax, 31); //(EAX < 0)?-1:0
+		xSHL(eax, 1); //(EAX < 0)?-2:0
+		xNOT(eax); //(EAX < 0)?1:-1
+	}
+	else
+		xMOV(eax, 0xffffffff);
+	*(u8*)x86Ptr = 0xEB;
+	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr = 0;
+	x86Ptr += sizeof(u8);
+	end2        = x86Ptr - 1;
+
+	*cont3      = (u8)((x86Ptr - cont3) - 1);
+	if (sign)
+	{
+		*(u8*)x86Ptr = 0x99;
+		x86Ptr += sizeof(u8);
+		xDIV(divisor);
+	}
+	else
+	{
+		xXOR(edx, edx);
+		xUDIV(divisor);
+	}
+
+	if (sign)
+		*end1      = (u8)((x86Ptr - end1) - 1);
+	*end2      = (u8)((x86Ptr - end2) - 1);
+
+	// need to execute regardless of bad divide
+	recWritebackHILO(info, false, upper);
+}
+
+static void recDIV_(int info)
+{
+	recDIVsuper(info, 1, 0, 0);
+}
+
+static void recDIV_consts(int info)
+{
+	recDIVsuper(info, 1, 0, PROCESS_CONSTS);
+}
+
+static void recDIV_constt(int info)
+{
+	recDIVsuper(info, 1, 0, PROCESS_CONSTT);
+}
+
+// We handle S reading in the routine itself, since it needs to go into eax.
+EERECOMPILE_CODERC0(DIV, /*XMMINFO_READS |*/ XMMINFO_READT);
+
+//// DIVU
+static void recDIVUconst(int upper)
+{
+	u32 quot, rem;
+	if (g_cpuConstRegs[_Rt_].UL[0] != 0)
+	{
+		quot = g_cpuConstRegs[_Rs_].UL[0] / g_cpuConstRegs[_Rt_].UL[0];
+		rem = g_cpuConstRegs[_Rs_].UL[0] % g_cpuConstRegs[_Rt_].UL[0];
+	}
+	else
+	{
+		quot = 0xffffffff;
+		rem = g_cpuConstRegs[_Rs_].UL[0];
+	}
+
+	recWritebackConstHILO((u64)quot | ((u64)rem << 32), 0, upper);
+}
+
+static void recDIVU_const(void)
+{
+	recDIVUconst(0);
+}
+
+static void recDIVU_(int info)
+{
+	recDIVsuper(info, false, false, 0);
+}
+
+static void recDIVU_consts(int info)
+{
+	recDIVsuper(info, false, false, PROCESS_CONSTS);
+}
+
+static void recDIVU_constt(int info)
+{
+	recDIVsuper(info, false, false, PROCESS_CONSTT);
+}
+
+EERECOMPILE_CODERC0(DIVU, /*XMMINFO_READS |*/ XMMINFO_READT);
+
+static void recDIV1_const(void)
+{
+	recDIVconst(1);
+}
+
+static void recDIV1_(int info)
+{
+	recDIVsuper(info, true, true, 0);
+}
+
+static void recDIV1_consts(int info)
+{
+	recDIVsuper(info, true, true, PROCESS_CONSTS);
+}
+
+static void recDIV1_constt(int info)
+{
+	recDIVsuper(info, true, true, PROCESS_CONSTT);
+}
+
+EERECOMPILE_CODERC0(DIV1, /*XMMINFO_READS |*/ XMMINFO_READT);
+
+static void recDIVU1_const()
+{
+	recDIVUconst(1);
+}
+
+static void recDIVU1_(int info)
+{
+	recDIVsuper(info, false, true, 0);
+}
+
+static void recDIVU1_consts(int info)
+{
+	recDIVsuper(info, false, true, PROCESS_CONSTS);
+}
+
+static void recDIVU1_constt(int info)
+{
+	recDIVsuper(info, false, true, PROCESS_CONSTT);
+}
+
+EERECOMPILE_CODERC0(DIVU1, /*XMMINFO_READS |*/ XMMINFO_READT);
+
+// TODO(Stenzek): All of these :(
+
+static void writeBackMAddToHiLoRd(int hiloID)
+{
+	// eax -> LO, edx -> HI
+	*(u16*)x86Ptr = 0x9848;
+	x86Ptr += sizeof(u16);
+	if (_Rd_)
+	{
+		_eeOnWriteReg(_Rd_, 1);
+		_deleteEEreg(_Rd_, 0);
+		xMOV(ptr[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
+	}
+	xMOV(ptr[&cpuRegs.LO.UD[hiloID]], rax);
+
+	xMOVSX(rax, edx);
+	xMOV(ptr[&cpuRegs.HI.UD[hiloID]], rax);
+}
+
+static void addConstantAndWriteBackToHiLoRd(int hiloID, u64 constant)
+{
+	const xRegister32& ehi = edx;
+
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+
+	xMOV(eax, ptr[&cpuRegs.LO.UL[hiloID * 2]]);
+	xMOV(ehi, ptr[&cpuRegs.HI.UL[hiloID * 2]]);
+	xADD(eax, (u32)(constant & 0xffffffff));
+	xADC(ehi, (u32)(constant >> 32));
+	writeBackMAddToHiLoRd(hiloID);
+}
+
+static void addEaxEdxAndWriteBackToHiLoRd(int hiloID)
+{
+	xADD(eax, ptr[&cpuRegs.LO.UL[hiloID * 2]]);
+	xADC(edx, ptr[&cpuRegs.HI.UL[hiloID * 2]]);
+
+	writeBackMAddToHiLoRd(hiloID);
+}
+
+void recMADD()
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+	{
+		u64 result = ((s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0]);
+		addConstantAndWriteBackToHiLoRd(0, result);
+		return;
+	}
+
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
+		xMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+	else if (GPR_IS_CONST1(_Rt_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rt_].UL[0]);
+		xMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	}
+	else
+	{
+		xMOV(eax, ptr[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+
+	addEaxEdxAndWriteBackToHiLoRd(0);
+}
+
+void recMADDU()
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+	{
+		u64 result = ((u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0]);
+		addConstantAndWriteBackToHiLoRd(0, result);
+		return;
+	}
+
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
+		xUMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+	else if (GPR_IS_CONST1(_Rt_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rt_].UL[0]);
+		xUMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	}
+	else
+	{
+		xMOV(eax, ptr[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xUMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+
+	addEaxEdxAndWriteBackToHiLoRd(0);
+}
+
+void recMADD1()
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+	{
+		u64 result = ((s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0]);
+		addConstantAndWriteBackToHiLoRd(1, result);
+		return;
+	}
+
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
+		xMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+	else if (GPR_IS_CONST1(_Rt_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rt_].UL[0]);
+		xMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	}
+	else
+	{
+		xMOV(eax, ptr[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+
+	addEaxEdxAndWriteBackToHiLoRd(1);
+}
+
+void recMADDU1()
+{
+	if (GPR_IS_CONST2(_Rs_, _Rt_))
+	{
+		u64 result = ((u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0]);
+		addConstantAndWriteBackToHiLoRd(1, result);
+		return;
+	}
+
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	if (GPR_IS_CONST1(_Rs_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
+		xUMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+	else if (GPR_IS_CONST1(_Rt_))
+	{
+		xMOV(eax, g_cpuConstRegs[_Rt_].UL[0]);
+		xUMUL(ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	}
+	else
+	{
+		xMOV(eax, ptr[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xUMUL(ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	}
+
+	addEaxEdxAndWriteBackToHiLoRd(1);
+}
+#endif
+
+/*********************************************************
+* Shift arithmetic with constant shift                   *
+* Format:  OP rd, rt, sa                                 *
+*********************************************************/
+#ifndef SHIFT_RECOMPILE
+
+namespace Interp = R5900::Interpreter::OpcodeImpl;
+
+REC_FUNC_DEL(SLL, _Rd_);
+REC_FUNC_DEL(SRL, _Rd_);
+REC_FUNC_DEL(SRA, _Rd_);
+REC_FUNC_DEL(DSLL, _Rd_);
+REC_FUNC_DEL(DSRL, _Rd_);
+REC_FUNC_DEL(DSRA, _Rd_);
+REC_FUNC_DEL(DSLL32, _Rd_);
+REC_FUNC_DEL(DSRL32, _Rd_);
+REC_FUNC_DEL(DSRA32, _Rd_);
+
+REC_FUNC_DEL(SLLV, _Rd_);
+REC_FUNC_DEL(SRLV, _Rd_);
+REC_FUNC_DEL(SRAV, _Rd_);
+REC_FUNC_DEL(DSLLV, _Rd_);
+REC_FUNC_DEL(DSRLV, _Rd_);
+REC_FUNC_DEL(DSRAV, _Rd_);
+
+#else
+
+static void recSLL_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] << _Sa_);
+}
+
+static void recSLLs_(int info, int sa)
+{
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	if (sa != 0)
+		xSHL(xRegister32(EEREC_D), sa);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSLL_(int info)
+{
+	recSLLs_(info, _Sa_);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, SLL, XMMINFO_WRITED | XMMINFO_READT);
+
+static void recSRL_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] >> _Sa_);
+}
+
+static void recSRLs_(int info, int sa)
+{
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	if (sa != 0)
+		xSHR(xRegister32(EEREC_D), sa);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSRL_(int info) { recSRLs_(info, _Sa_); }
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, SRL, XMMINFO_WRITED | XMMINFO_READT);
+
+static void recSRA_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].SL[0] >> _Sa_);
+}
+
+static void recSRAs_(int info, int sa)
+{
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	if (sa != 0)
+		xSAR(xRegister32(EEREC_D), sa);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSRA_(int info)
+{
+	recSRAs_(info, _Sa_);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, SRA, XMMINFO_WRITED | XMMINFO_READT);
+
+////////////////////////////////////////////////////
+static void recDSLL_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] << _Sa_);
+}
+
+static void recDSLLs_(int info, int sa)
+{
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	if (sa != 0)
+		xSHL(xRegister64(EEREC_D), sa);
+}
+
+static void recDSLL_(int info)
+{
+	recDSLLs_(info, _Sa_);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, DSLL, XMMINFO_WRITED | XMMINFO_READT | XMMINFO_64BITOP);
+
+////////////////////////////////////////////////////
+static void recDSRL_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] >> _Sa_);
+}
+
+static void recDSRLs_(int info, int sa)
+{
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	if (sa != 0)
+		xSHR(xRegister64(EEREC_D), sa);
+}
+
+static void recDSRL_(int info)
+{
+	recDSRLs_(info, _Sa_);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRL, XMMINFO_WRITED | XMMINFO_READT | XMMINFO_64BITOP);
+
+//// DSRA
+static void recDSRA_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (u64)(g_cpuConstRegs[_Rt_].SD[0] >> _Sa_);
+}
+
+static void recDSRAs_(int info, int sa)
+{
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	if (sa != 0)
+		xSAR(xRegister64(EEREC_D), sa);
+}
+
+static void recDSRA_(int info)
+{
+	recDSRAs_(info, _Sa_);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA, XMMINFO_WRITED | XMMINFO_READT | XMMINFO_64BITOP);
+
+///// DSLL32
+static void recDSLL32_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] << (_Sa_ + 32));
+}
+
+static void recDSLL32_(int info)
+{
+	recDSLLs_(info, _Sa_ + 32);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, DSLL32, XMMINFO_WRITED | XMMINFO_READT | XMMINFO_64BITOP);
+
+//// DSRL32
+static void recDSRL32_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] >> (_Sa_ + 32));
+}
+
+static void recDSRL32_(int info)
+{
+	recDSRLs_(info, _Sa_ + 32);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRL32, XMMINFO_WRITED | XMMINFO_READT);
+
+//// DSRA32
+static void recDSRA32_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (u64)(g_cpuConstRegs[_Rt_].SD[0] >> (_Sa_ + 32));
+}
+
+static void recDSRA32_(int info)
+{
+	recDSRAs_(info, _Sa_ + 32);
+}
+
+EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA32, XMMINFO_WRITED | XMMINFO_READT | XMMINFO_64BITOP);
+
+/*********************************************************
+* Shift arithmetic with variant register shift           *
+* Format:  OP rd, rt, rs                                 *
+*********************************************************/
+
+static void recSLLV_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] << (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
+}
+
+static void recSLLV_consts(int info)
+{
+	recSLLs_(info, g_cpuConstRegs[_Rs_].UL[0] & 0x1f);
+}
+
+static void recSLLV_constt(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xMOV(xRegister32(EEREC_D), g_cpuConstRegs[_Rt_].UL[0]);
+	xSHL(xRegister32(EEREC_D), cl);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSLLV_(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	xSHL(xRegister32(EEREC_D), cl);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+EERECOMPILE_CODERC0(SLLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
+
+//// SRLV
+static void recSRLV_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
+}
+
+static void recSRLV_consts(int info)
+{
+	recSRLs_(info, g_cpuConstRegs[_Rs_].UL[0] & 0x1f);
+}
+
+static void recSRLV_constt(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xMOV(xRegister32(EEREC_D), g_cpuConstRegs[_Rt_].UL[0]);
+	xSHR(xRegister32(EEREC_D), cl);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSRLV_(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	xSHR(xRegister32(EEREC_D), cl);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+EERECOMPILE_CODERC0(SRLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
+
+//// SRAV
+static void recSRAV_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].SL[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
+}
+
+static void recSRAV_consts(int info)
+{
+	recSRAs_(info, g_cpuConstRegs[_Rs_].UL[0] & 0x1f);
+}
+
+static void recSRAV_constt(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xMOV(xRegister32(EEREC_D), g_cpuConstRegs[_Rt_].UL[0]);
+	xSAR(xRegister32(EEREC_D), cl);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+static void recSRAV_(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+	else
+		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+	xSAR(xRegister32(EEREC_D), cl);
+	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+}
+
+EERECOMPILE_CODERC0(SRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
+
+//// DSLLV
+static void recDSLLV_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] << (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
+}
+
+static void recDSLLV_consts(int info)
+{
+	int sa = g_cpuConstRegs[_Rs_].UL[0] & 0x3f;
+	recDSLLs_(info, sa);
+}
+
+static void recDSLLV_constt(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xMOV64(xRegister64(EEREC_D), g_cpuConstRegs[_Rt_].SD[0]);
+	xSHL(xRegister64(EEREC_D), cl);
+}
+
+static void recDSLLV_(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	xSHL(xRegister64(EEREC_D), cl);
+}
+
+EERECOMPILE_CODERC0(DSLLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// DSRLV
+static void recDSRLV_const(void)
+{
+	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
+}
+
+static void recDSRLV_consts(int info)
+{
+	int sa = g_cpuConstRegs[_Rs_].UL[0] & 0x3f;
+	recDSRLs_(info, sa);
+}
+
+static void recDSRLV_constt(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xMOV64(xRegister64(EEREC_D), g_cpuConstRegs[_Rt_].SD[0]);
+	xSHR(xRegister64(EEREC_D), cl);
+}
+
+static void recDSRLV_(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	xSHR(xRegister64(EEREC_D), cl);
+}
+
+EERECOMPILE_CODERC0(DSRLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+//// DSRAV
+static void recDSRAV_const(void)
+{
+	g_cpuConstRegs[_Rd_].SD[0] = (s64)(g_cpuConstRegs[_Rt_].SD[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
+}
+
+static void recDSRAV_consts(int info)
+{
+	int sa = g_cpuConstRegs[_Rs_].UL[0] & 0x3f;
+	recDSRAs_(info, sa);
+}
+
+static void recDSRAV_constt(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	xMOV64(xRegister64(EEREC_D), g_cpuConstRegs[_Rt_].SD[0]);
+	xSAR(xRegister64(EEREC_D), cl);
+}
+
+static void recDSRAV_(int info)
+{
+	// load full 64-bits for store->load forwarding, since we always store >=64.
+	if (info & PROCESS_EE_S)
+		xMOV(rcx, xRegister64(EEREC_S));
+	else
+		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+	if (info & PROCESS_EE_T)
+		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+	else
+		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+	xSAR(xRegister64(EEREC_D), cl);
+}
+
+EERECOMPILE_CODERC0(DSRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
+
+#endif
+
+} // namespace R5900::Dynarec::OpcodeImpl
 
 ////////////////////////////////////////////////////////////////
 // Static Private Variables - R5900 Dynarec
@@ -2076,3 +7772,423 @@ R5900cpu recCpu = {
 	recCancelInstruction,
 	recClear
 };
+
+// use special x86 register allocation for ia32
+
+void _initX86regs(void)
+{
+	memset(x86regs, 0, sizeof(x86regs));
+	g_x86AllocCounter = 0;
+	g_x86checknext = 0;
+}
+
+static int _getFreeX86reg(int mode)
+{
+	int tempi = -1;
+	u32 bestcount = 0x10000;
+
+	for (uint i = 0; i < iREGCNT_GPR; i++)
+	{
+		const int reg = (g_x86checknext + i) % iREGCNT_GPR;
+		if (x86regs[reg].inuse || !_isAllocatableX86reg(reg))
+			continue;
+
+		if ((mode & MODE_CALLEESAVED) && Register_IsCallerSaved(reg))
+			continue;
+
+		if ((mode & MODE_COP2) && mVUIsReservedCOP2(reg))
+			continue;
+
+		if (x86regs[reg].inuse == 0)
+		{
+			g_x86checknext = (reg + 1) % iREGCNT_GPR;
+			return reg;
+		}
+	}
+
+	for (uint i = 0; i < iREGCNT_GPR; i++)
+	{
+		if (!_isAllocatableX86reg(i))
+			continue;
+
+		if ((mode & MODE_CALLEESAVED) && Register_IsCallerSaved(i))
+			continue;
+
+		if ((mode & MODE_COP2) && mVUIsReservedCOP2(i))
+			continue;
+
+		if (x86regs[i].needed)
+			continue;
+
+		if (x86regs[i].type != X86TYPE_TEMP)
+		{
+
+			if (x86regs[i].counter < bestcount)
+			{
+				tempi = static_cast<int>(i);
+				bestcount = x86regs[i].counter;
+			}
+			continue;
+		}
+
+		_freeX86reg(i);
+		return i;
+	}
+
+	if (tempi != -1)
+	{
+		_freeX86reg(tempi);
+		return tempi;
+	}
+
+	return -1;
+}
+
+void _flushConstReg(int reg)
+{
+	if (GPR_IS_CONST1(reg) && !(g_cpuFlushedConstReg & (1 << reg)))
+	{
+		xImm64Op(xMOV, ptr64[&cpuRegs.GPR.r[reg].UD[0]], rax, g_cpuConstRegs[reg].SD[0]);
+		g_cpuFlushedConstReg |= (1 << reg);
+	}
+}
+
+void _flushConstRegs(void)
+{
+	int zero_reg_count = 0;
+	int minusone_reg_count = 0;
+	for (u32 i = 0; i < 32; i++)
+	{
+		if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
+			continue;
+
+		if (g_cpuConstRegs[i].SD[0] == 0)
+			zero_reg_count++;
+		else if (g_cpuConstRegs[i].SD[0] == -1)
+			minusone_reg_count++;
+	}
+
+	// if we have more than one of zero/minus-one, precompute
+	bool rax_is_zero = false;
+	if (zero_reg_count > 1)
+	{
+		xXOR(eax, eax);
+		for (u32 i = 0; i < 32; i++)
+		{
+			if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
+				continue;
+
+			if (g_cpuConstRegs[i].SD[0] == 0)
+			{
+				xMOV(ptr64[&cpuRegs.GPR.r[i].UD[0]], rax);
+				g_cpuFlushedConstReg |= 1u << i;
+			}
+		}
+		rax_is_zero = true;
+	}
+	if (minusone_reg_count > 1)
+	{
+		if (!rax_is_zero)
+			xMOV(rax, -1);
+		else
+			xNOT(rax);
+
+		for (u32 i = 0; i < 32; i++)
+		{
+			if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
+				continue;
+
+			if (g_cpuConstRegs[i].SD[0] == -1)
+			{
+				xMOV(ptr64[&cpuRegs.GPR.r[i].UD[0]], rax);
+				g_cpuFlushedConstReg |= 1u << i;
+			}
+		}
+	}
+
+	// and whatever's left over..
+	for (u32 i = 0; i < 32; i++)
+	{
+		if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
+			continue;
+
+		xImm64Op(xMOV, ptr64[&cpuRegs.GPR.r[i].UD[0]], rax, g_cpuConstRegs[i].UD[0]);
+		g_cpuFlushedConstReg |= 1u << i;
+	}
+}
+
+int _allocX86reg(int type, int reg, int mode)
+{
+	int hostXMMreg = (type == X86TYPE_GPR) ? _checkXMMreg(XMMTYPE_GPRREG, reg, 0) : -1;
+	if (type != X86TYPE_TEMP)
+	{
+		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
+		{
+			if (!x86regs[i].inuse || x86regs[i].type != type || x86regs[i].reg != reg)
+				continue;
+
+			if (type == X86TYPE_GPR)
+			{
+				if (mode & MODE_WRITE)
+				{
+					if (GPR_IS_CONST1(reg))
+						g_cpuHasConstReg &= ~(1 << (reg));
+
+					if (hostXMMreg >= 0)
+					{
+						// ensure upper bits get written
+						_freeXMMreg(hostXMMreg);
+					}
+				}
+			}
+			else if (type == X86TYPE_PSX)
+			{
+				if (mode & MODE_WRITE)
+				{
+					if (PSX_IS_CONST1(reg))
+					{
+						PSX_DEL_CONST(reg);
+					}
+				}
+			}
+			else if (type == X86TYPE_VIREG)
+			{
+				// keep VI temporaries separate
+				if (reg < 0)
+					continue;
+			}
+
+			x86regs[i].counter = g_x86AllocCounter++;
+			x86regs[i].mode |= mode & ~MODE_CALLEESAVED;
+			x86regs[i].needed = true;
+			return i;
+		}
+	}
+
+	const int regnum = _getFreeX86reg(mode);
+	xRegister64 new_reg(regnum);
+	x86regs[regnum].type = type;
+	x86regs[regnum].reg = reg;
+	x86regs[regnum].mode = mode & ~MODE_CALLEESAVED;
+	x86regs[regnum].counter = g_x86AllocCounter++;
+	x86regs[regnum].needed = true;
+	x86regs[regnum].inuse = true;
+
+	if (mode & MODE_READ)
+	{
+		switch (type)
+		{
+			case X86TYPE_GPR:
+			{
+				if (reg == 0)
+				{
+					xXOR(xRegister32(new_reg), xRegister32(new_reg)); // 32-bit is smaller and zexts anyway
+				}
+				else
+				{
+					if (hostXMMreg >= 0)
+					{
+						// is in a XMM. we don't need to free the XMM since we're not writing, and it's still valid
+						xMOVD(new_reg, xRegisterSSE(hostXMMreg)); // actually MOVQ
+
+						// if the XMM was dirty, just get rid of it, we don't want to try to sync the values up...
+						if (xmmregs[hostXMMreg].mode & MODE_WRITE)
+						{
+							_freeXMMreg(hostXMMreg);
+						}
+					}
+					else if (GPR_IS_CONST1(reg))
+					{
+						xMOV64(new_reg, g_cpuConstRegs[reg].SD[0]);
+						g_cpuFlushedConstReg |= (1u << reg);
+						x86regs[regnum].mode |= MODE_WRITE; // reg is dirty
+					}
+					else
+					{
+						// not loaded
+						xMOV(new_reg, ptr64[&cpuRegs.GPR.r[reg].UD[0]]);
+					}
+				}
+			}
+			break;
+
+			case X86TYPE_FPRC:
+				xMOV(xRegister32(regnum), ptr32[&fpuRegs.fprc[reg]]);
+				break;
+
+			case X86TYPE_PSX:
+			{
+				const xRegister32 new_reg32(regnum);
+				if (reg == 0)
+				{
+					xXOR(new_reg32, new_reg32);
+				}
+				else
+				{
+					if (PSX_IS_CONST1(reg))
+					{
+						xMOV(new_reg32, g_psxConstRegs[reg]);
+						g_psxFlushedConstReg |= (1u << reg);
+						x86regs[regnum].mode |= MODE_WRITE; // reg is dirty
+					}
+					else
+					{
+						xMOV(new_reg32, ptr32[&psxRegs.GPR.r[reg]]);
+					}
+				}
+			}
+			break;
+
+			case X86TYPE_VIREG:
+			{
+				xMOVZX(xRegister32(regnum), ptr16[&vuRegs[0].VI[reg].US[0]]);
+			}
+			break;
+
+			default:
+				abort();
+				break;
+		}
+	}
+
+	if (type == X86TYPE_GPR && (mode & MODE_WRITE))
+	{
+		if (GPR_IS_CONST1(reg))
+			g_cpuHasConstReg &= ~(1 << (reg));
+		if (hostXMMreg >= 0)
+		{
+			// writing, so kill the xmm allocation. gotta ensure the upper bits gets stored first.
+			_freeXMMreg(hostXMMreg);
+		}
+	}
+	else if (type == X86TYPE_PSX && (mode & MODE_WRITE))
+	{
+		if (PSX_IS_CONST1(reg))
+			g_psxHasConstReg &= ~(1 << (reg));
+	}
+
+	return regnum;
+}
+
+void _writebackX86Reg(int x86reg)
+{
+	switch (x86regs[x86reg].type)
+	{
+		case X86TYPE_GPR:
+			xMOV(ptr64[&cpuRegs.GPR.r[x86regs[x86reg].reg].UD[0]], xRegister64(x86reg));
+			break;
+
+		case X86TYPE_FPRC:
+			xMOV(ptr32[&fpuRegs.fprc[x86regs[x86reg].reg]], xRegister32(x86reg));
+			break;
+
+		case X86TYPE_VIREG:
+			xMOV(ptr16[&vuRegs[0].VI[x86regs[x86reg].reg].UL], xRegister16(x86reg));
+			break;
+
+		case X86TYPE_PCWRITEBACK:
+			xMOV(ptr32[&cpuRegs.pcWriteback], xRegister32(x86reg));
+			break;
+
+		case X86TYPE_PSX:
+			xMOV(ptr32[&psxRegs.GPR.r[x86regs[x86reg].reg]], xRegister32(x86reg));
+			break;
+
+		case X86TYPE_PSX_PCWRITEBACK:
+			xMOV(ptr32[&psxRegs.pcWriteback], xRegister32(x86reg));
+			break;
+
+		default:
+			abort();
+			break;
+	}
+}
+
+int _checkX86reg(int type, int reg, int mode)
+{
+	for (uint i = 0; i < iREGCNT_GPR; i++)
+	{
+		if (x86regs[i].inuse && x86regs[i].reg == reg && x86regs[i].type == type)
+		{
+			// ensure constants get deleted once we alloc as write
+			if (mode & MODE_WRITE)
+			{
+				// go through the alloc path instead, because we might need to invalidate an xmm.
+				if (type == X86TYPE_GPR)
+					return _allocX86reg(X86TYPE_GPR, reg, mode);
+				else if (type == X86TYPE_PSX)
+				{
+					PSX_DEL_CONST(reg);
+				}
+			}
+
+			x86regs[i].mode |= mode;
+			x86regs[i].counter = g_x86AllocCounter++;
+			x86regs[i].needed = 1;
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+void _addNeededX86reg(int type, int reg)
+{
+	for (uint i = 0; i < iREGCNT_GPR; i++)
+	{
+		if (!x86regs[i].inuse || x86regs[i].reg != reg || x86regs[i].type != type)
+			continue;
+
+		x86regs[i].counter = g_x86AllocCounter++;
+		x86regs[i].needed = 1;
+	}
+}
+
+void _clearNeededX86regs(void)
+{
+	for (uint i = 0; i < iREGCNT_GPR; i++)
+	{
+		if (x86regs[i].needed)
+		{
+			if (x86regs[i].inuse && (x86regs[i].mode & MODE_WRITE))
+				x86regs[i].mode |= MODE_READ;
+		}
+		x86regs[i].needed = 0;
+	}
+}
+
+void _freeX86reg(const x86Emitter::xRegister32& x86reg)
+{
+	_freeX86reg(x86reg.Id);
+}
+
+void _freeX86reg(int x86reg)
+{
+	if (x86regs[x86reg].inuse && (x86regs[x86reg].mode & MODE_WRITE))
+	{
+		_writebackX86Reg(x86reg);
+		x86regs[x86reg].mode &= ~MODE_WRITE;
+	}
+
+	_freeX86regWithoutWriteback(x86reg);
+}
+
+void _freeX86regWithoutWriteback(int x86reg)
+{
+	x86regs[x86reg].inuse = 0;
+
+	if (x86regs[x86reg].type == X86TYPE_VIREG)
+		mVUFreeCOP2GPR(x86reg);
+}
+
+void _flushX86regs(void)
+{
+	for (u32 i = 0; i < iREGCNT_GPR; ++i)
+	{
+		if (x86regs[i].inuse && x86regs[i].mode & MODE_WRITE)
+		{
+			_writebackX86Reg(i);
+			x86regs[i].mode = (x86regs[i].mode & ~MODE_WRITE) | MODE_READ;
+		}
+	}
+}
