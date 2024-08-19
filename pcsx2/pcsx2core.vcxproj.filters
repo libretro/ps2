@@ -1049,9 +1049,6 @@
     <ClCompile Include="GS\Renderers\HW\GSTextureReplacementLoaders.cpp">
       <Filter>System\Ps2\GS\Renderers\Hardware</Filter>
     </ClCompile>
-    <ClCompile Include="x86\iR5900Analysis.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
-    </ClCompile>
     <ClCompile Include="GS\Renderers\DX12\GSTexture12.cpp">
       <Filter>System\Ps2\GS\Renderers\Direct3D12</Filter>
     </ClCompile>

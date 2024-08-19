@@ -305,7 +305,6 @@
     <ClCompile Include="HwWrite.cpp" />
     <ClCompile Include="Cache.cpp" />
     <ClCompile Include="Memory.cpp" />
-    <ClCompile Include="x86\iR5900Analysis.cpp" />
     <ClCompile Include="vtlb.cpp" />
     <ClCompile Include="MTVU.cpp" />
     <ClCompile Include="VUmicro.cpp" />
