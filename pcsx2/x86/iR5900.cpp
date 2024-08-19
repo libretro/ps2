@@ -25,7 +25,6 @@
 #include "iFPU.h"
 #include "iMMI.h"
 #include "iR5900.h"
-#include "iR5900LoadStore.h"
 #include "iR3000A.h"
 #include "vtlb.h"
 

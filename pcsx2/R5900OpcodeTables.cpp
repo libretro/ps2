@@ -19,14 +19,148 @@
 #include "R5900OpcodeTables.h"
 #include "R5900.h"
 
-#include "x86/iR5900AritImm.h"
-#include "x86/iR5900Arit.h"
-#include "x86/iR5900MultDiv.h"
-#include "x86/iR5900Shift.h"
-#include "x86/iR5900Branch.h"
-#include "x86/iR5900Jump.h"
-#include "x86/iR5900LoadStore.h"
-#include "x86/iR5900Move.h"
+namespace R5900 {
+namespace Dynarec {
+namespace OpcodeImpl {
+
+	/*********************************************************
+	 * Arithmetic with immediate operand                      *
+	 * Format:  OP rt, rs, immediate                          *
+	 *********************************************************/
+
+	void recADDI(void);
+	void recADDIU(void);
+	void recDADDI(void);
+	void recDADDIU(void);
+	void recANDI(void);
+	void recORI(void);
+	void recXORI(void);
+
+	void recSLTI(void);
+	void recSLTIU(void);
+
+	/*********************************************************
+	 * Register arithmetic                                    *
+	 * Format:  OP rd, rs, rt                                 *
+	 *********************************************************/
+
+	void recADD(void);
+	void recADDU(void);
+	void recDADD(void);
+	void recDADDU(void);
+	void recSUB(void);
+	void recSUBU(void);
+	void recDSUB(void);
+	void recDSUBU(void);
+	void recAND(void);
+	void recOR(void);
+	void recXOR(void);
+	void recNOR(void);
+	void recSLT(void);
+	void recSLTU(void);
+
+	/*********************************************************
+	 * Register mult/div & Register trap logic                *
+	 * Format:  OP rs, rt                                     *
+	 *********************************************************/
+	void recMULT(void);
+	void recMULTU(void);
+	void recDIV(void);
+	void recDIVU(void);
+
+	/*********************************************************
+	 * Shift arithmetic with constant shift                   *
+	 * Format:  OP rd, rt, sa                                 *
+	 *********************************************************/
+	void recSLL(void);
+	void recSRL(void);
+	void recSRA(void);
+	void recDSLL(void);
+	void recDSRL(void);
+	void recDSRA(void);
+	void recDSLL32(void);
+	void recDSRL32(void);
+	void recDSRA32(void);
+
+	void recSLLV(void);
+	void recSRLV(void);
+	void recSRAV(void);
+	void recDSLLV(void);
+	void recDSRLV(void);
+	void recDSRAV(void);
+
+	/*********************************************************
+	 * Shift arithmetic with constant shift                   *
+	 * Format:  OP rd, rt, sa                                 *
+	 *********************************************************/
+	void recBEQ(void);
+	void recBEQL(void);
+	void recBNE(void);
+	void recBNEL(void);
+	void recBLTZ(void);
+	void recBLTZL(void);
+	void recBLTZAL(void);
+	void recBLTZALL(void);
+	void recBGTZ(void);
+	void recBGTZL(void);
+	void recBLEZ(void);
+	void recBLEZL(void);
+	void recBGEZ(void);
+	void recBGEZL(void);
+	void recBGEZAL(void);
+	void recBGEZALL(void);
+
+	/*********************************************************
+	 * Jump to target                                         *
+	 * Format:  OP target                                     *
+	 *********************************************************/
+	void recJ(void);
+	void recJAL(void);
+	void recJR(void);
+	void recJALR(void);
+
+	/*********************************************************
+	 * Load and store for GPR                                 *
+	 * Format:  OP rt, offset(base)                           *
+	 *********************************************************/
+	void recLB(void);
+	void recLBU(void);
+	void recLH(void);
+	void recLHU(void);
+	void recLW(void);
+	void recLWU(void);
+	void recLWL(void);
+	void recLWR(void);
+	void recLD(void);
+	void recLDR(void);
+	void recLDL(void);
+	void recLQ(void);
+	void recSB(void);
+	void recSH(void);
+	void recSW(void);
+	void recSWL(void);
+	void recSWR(void);
+	void recSD(void);
+	void recSDL(void);
+	void recSDR(void);
+	void recSQ(void);
+	void recLWC1(void);
+	void recSWC1(void);
+	void recLQC2(void);
+	void recSQC2(void);
+
+	void recLUI(void);
+	void recMFLO(void);
+	void recMFHI(void);
+	void recMTLO(void);
+	void recMTHI(void);
+	void recMOVN(void);
+	void recMOVZ(void);
+
+} // namespace OpcodeImpl
+} // namespace Dynarec
+} // namespace R5900
+
 #include "x86/iMMI.h"
 #include "x86/iCOP0.h"
 #include "x86/iFPU.h"

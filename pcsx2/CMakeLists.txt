@@ -738,15 +738,7 @@ set(pcsx2x86Headers
 	x86/iFPU.h
 	x86/iMMI.h
 	x86/iR3000A.h
-	x86/iR5900Arit.h
-	x86/iR5900AritImm.h
-	x86/iR5900Branch.h
 	x86/iR5900.h
-	x86/iR5900Jump.h
-	x86/iR5900LoadStore.h
-	x86/iR5900Move.h
-	x86/iR5900MultDiv.h
-	x86/iR5900Shift.h
 	x86/microVU.cpp
 	x86/microVU.h
 	x86/microVU_IR.h
