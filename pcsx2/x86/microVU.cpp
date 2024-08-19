@@ -4806,7 +4806,7 @@ static void normBranchCompile(microVU& mVU, u32 branchPC)
 		mVUcompile(mVU, branchPC, (uintptr_t)&mVUregs);
 }
 
-static void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
+static void normJumpCompile_evilJump(mV, microFlagCycles& mFC)
 {
 	memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
 	mVUsetupBranch(mVU, mFC);
@@ -4815,20 +4815,15 @@ static void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 	if (!mVUpBlock->jumpCache) // Create the jump cache for this block
 		mVUpBlock->jumpCache = new microJumpCache[mProgSize / 2];
 
-	if (isEvilJump)
-	{
-		xMOV(arg1regd, ptr32[&mVU.evilBranch]);
-		xMOV(gprT1, ptr32[&mVU.evilevilBranch]);
-		xMOV(ptr32[&mVU.evilBranch], gprT1);
-	}
-	else
-		xMOV(arg1regd, ptr32[&mVU.branch]);
+	xMOV(arg1regd, ptr32[&mVU.evilBranch]);
+	xMOV(gprT1, ptr32[&mVU.evilevilBranch]);
+	xMOV(ptr32[&mVU.evilBranch], gprT1);
 	if (doJumpCaching)
 		xLoadFarAddr(arg2reg, mVUpBlock);
 	else
 		xLoadFarAddr(arg2reg, &mVUpBlock->pStateEnd);
 
-	if (mVUup.eBit && isEvilJump) // E-bit EvilJump
+	if (mVUup.eBit) // E-bit EvilJump
 	{
 		//Xtreme G 3 does 2 conditional jumps, the first contains an E Bit on the first instruction
 		//So if it is taken, you need to end the program, else you get infinite loops.
@@ -4838,6 +4833,30 @@ static void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 			xFastCall((void*)mVUEBit);
 		xJMP(mVU.exitFunct);
 	}
+
+	if (mVU.index)
+		xFastCall((void*)(void (*)())mVUcompileJIT<1>, arg1reg, arg2reg);
+	else
+		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(u32 startPC, uintptr_t pState)
+
+	mVUrestoreRegs(mVU);
+	xJMP(gprT1q); // Jump to rec-code address
+}
+
+static void normJumpCompile(mV, microFlagCycles& mFC)
+{
+	memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
+	mVUsetupBranch(mVU, mFC);
+	mVUbackupRegs(mVU, false, false);
+
+	if (!mVUpBlock->jumpCache) // Create the jump cache for this block
+		mVUpBlock->jumpCache = new microJumpCache[mProgSize / 2];
+
+	xMOV(arg1regd, ptr32[&mVU.branch]);
+	if (doJumpCaching)
+		xLoadFarAddr(arg2reg, mVUpBlock);
+	else
+		xLoadFarAddr(arg2reg, &mVUpBlock->pStateEnd);
 
 	if (mVU.index)
 		xFastCall((void*)(void (*)())mVUcompileJIT<1>, arg1reg, arg2reg);
@@ -5136,7 +5155,7 @@ void normJump(mV, microFlagCycles& mFC)
 	}
 	else
 	{
-		normJumpCompile(mVU, mFC, false);
+		normJumpCompile(mVU, mFC);
 	}
 }
 
@@ -5250,7 +5269,7 @@ static __ri void flushRegs(mV)
 		mVU.regAlloc->flushAll();
 }
 
-void doIbit(mV)
+static void doIbit(mV)
 {
 	if (mVUup.iBit)
 	{
@@ -5275,7 +5294,7 @@ void doIbit(mV)
 	}
 }
 
-void doSwapOp(mV)
+static void doSwapOp(mV)
 {
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
@@ -5310,7 +5329,7 @@ void doSwapOp(mV)
 	}
 }
 
-void mVUexecuteInstruction(mV)
+static void mVUexecuteInstruction(mV)
 {
 	if (mVUlow.isNOP)
 	{
@@ -5339,9 +5358,8 @@ void mVUexecuteInstruction(mV)
 //------------------------------------------------------------------
 
 // If 1st op in block is a bad opcode, then don't compile rest of block (Dawn of Mana Level 2)
-__fi void mVUcheckBadOp(mV)
+static __fi void mVUcheckBadOp(mV)
 {
-
 	// The BIOS writes upper and lower NOPs in reversed slots (bug)
 	//So to prevent spamming we ignore these, however its possible the real VU will bomb out if
 	//this happens, so we will bomb out without warning.
@@ -5349,7 +5367,7 @@ __fi void mVUcheckBadOp(mV)
 		mVUinfo.isEOB = true;
 }
 
-__ri void branchWarning(mV)
+static __ri void branchWarning(mV)
 {
 	incPC(-2);
 	incPC(2);
@@ -5492,7 +5510,7 @@ void mVUsetCycles(mV)
 }
 
 // Test cycles to see if we need to exit-early...
-void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
+static void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 {
 	iPC = mVUstartPC;
 
@@ -5549,7 +5567,7 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 
 
 // Initialize Variables
-__fi void mVUinitFirstPass(microVU& mVU, uintptr_t pState, u8* thisPtr)
+static __fi void mVUinitFirstPass(microVU& mVU, uintptr_t pState, u8* thisPtr)
 {
 	mVUstartPC = iPC; // Block Start PC
 	mVUbranch  = 0;   // Branch Type
@@ -5736,7 +5754,8 @@ void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 				branch     = 1;
 				mVUup.eBit = true;
 			}
-			// VU0 end of program MAC results can be read by COP2, so best to make sure the last instance is valid
+			// VU0 end of program MAC results can be read by COP2, 
+			// so best to make sure the last instance is valid
 			// Needed for State of Emergency 2 and Driving Emotion Type-S
 			if (isVU0)
 				mVUregs.needExactMatch |= 7;
@@ -5932,7 +5951,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 		if (isEvilBlock)
 		{
 			mVUsetupRange(mVU, xPC + 8, false);
-			normJumpCompile(mVU, mFC, true);
+			normJumpCompile_evilJump(mVU, mFC);
 			return thisPtr;
 		}
 		else if (!mVUinfo.isBdelay)
@@ -5998,7 +6017,7 @@ static __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startP
 }
 
 // Search for Existing Compiled Block (if found, return x86ptr; else, compile and return x86ptr)
-__fi void* mVUblockFetch(microVU& mVU, u32 startPC, uintptr_t pState)
+static __fi void* mVUblockFetch(microVU& mVU, u32 startPC, uintptr_t pState)
 {
 	startPC &= mVU.microMemSize - 8;
 
