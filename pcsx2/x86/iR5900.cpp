@@ -25,7 +25,6 @@
 #include "iFPU.h"
 #include "iMMI.h"
 #include "iR5900.h"
-#include "iR5900Analysis.h"
 #include "iR5900LoadStore.h"
 #include "iR3000A.h"
 #include "vtlb.h"
@@ -44,6 +43,50 @@
 #include "../VirtualMemory.h"
 #include "../vtlb.h"
 #include "../CDVD/CDVD.h"
+
+namespace R5900
+{
+	class AnalysisPass
+	{
+	public:
+		AnalysisPass();
+		virtual ~AnalysisPass();
+
+		/// Runs the actual pass.
+		virtual void Run(u32 start, u32 end, EEINST* inst_cache);
+
+	protected:
+		/// Takes a functor of bool(pc, EEINST*), returning false if iteration should stop.
+		template <class F>
+		void ForEachInstruction(u32 start, u32 end, EEINST* inst_cache, const F& func);
+	};
+
+	class COP2FlagHackPass final : public AnalysisPass
+	{
+	public:
+		COP2FlagHackPass();
+		~COP2FlagHackPass();
+
+		void Run(u32 start, u32 end, EEINST* inst_cache) override;
+
+	private:
+		bool m_status_denormalized = false;
+		EEINST* m_last_status_write = nullptr;
+		EEINST* m_last_mac_write = nullptr;
+		EEINST* m_last_clip_write = nullptr;
+
+		u32 m_cfc2_pc = 0;
+	};
+
+	class COP2MicroFinishPass final : public AnalysisPass
+	{
+	public:
+		COP2MicroFinishPass();
+		~COP2MicroFinishPass();
+
+		void Run(u32 start, u32 end, EEINST* inst_cache) override;
+	};
+} // namespace R5900
 
 #define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
 #define HWADDR(mem) (hwLUT[(mem) >> 16] + (mem))
@@ -148,9 +191,6 @@ static int cop2flags(u32 code)
 				return 0;
 			break;
 		case 10:
-			if ((code & 3) == 3) // MAX
-				return 0;
-			break;
 		case 11:
 			if ((code & 3) == 3) // MINI
 				return 0;
@@ -201,7 +241,16 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		// this is very unlikely in a cop2 chain.
 		if (_Opcode_ == 050 || _Opcode_ == 051 || _Opcode_ == 053)
 		{
-			CommitAllFlags();
+			if (m_last_status_write)
+			{
+				m_last_status_write->info |= EEINST_COP2_STATUS_FLAG 
+				                           | EEINST_COP2_NORMALIZE_STATUS_FLAG;
+				m_status_denormalized = false;
+			}
+			if (m_last_mac_write)
+				m_last_mac_write->info |= EEINST_COP2_MAC_FLAG;
+			if (m_last_clip_write)
+				m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
 			return true;
 		}
 		else if (_Opcode_ != 022)
@@ -232,28 +281,50 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			switch (_Rd_)
 			{
 				case REG_STATUS_FLAG:
-					CommitStatusFlag();
+					if (m_last_status_write)
+					{
+						m_last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
+						m_status_denormalized = false;
+					}
 					break;
 				case REG_MAC_FLAG:
-					CommitMACFlag();
+					if (m_last_mac_write)
+						m_last_mac_write->info |= EEINST_COP2_MAC_FLAG;
 					break;
 				case REG_CLIP_FLAG:
-					CommitClipFlag();
+					if (m_last_clip_write)
+						m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
 					break;
 				case REG_FBRST:
-				{
 					// only apply to CTC2, is FBRST readable?
 					if (_Rs_ == 2)
-						CommitAllFlags();
-				}
-				break;
+					{
+						if (m_last_status_write)
+						{
+							m_last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
+							m_status_denormalized = false;
+						}
+						if (m_last_mac_write)
+							m_last_mac_write->info |= EEINST_COP2_MAC_FLAG;
+						if (m_last_clip_write)
+							m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
+					}
+					break;
 			}
 		}
 
 		if (((cpuRegs.code >> 25 & 1) == 1) && ((cpuRegs.code >> 2 & 15) == 14))
 		{
 			// VCALLMS, everything needs to be up to date
-			CommitAllFlags();
+			if (m_last_status_write)
+			{
+				m_last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
+				m_status_denormalized = false;
+			}
+			if (m_last_mac_write)
+				m_last_mac_write->info |= EEINST_COP2_MAC_FLAG;
+			if (m_last_clip_write)
+				m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
 		}
 
 		// 1 - status, 2 - mac, 3 - clip
@@ -295,35 +366,15 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		return true;
 	});
 
-	CommitAllFlags();
-}
-
-void COP2FlagHackPass::CommitStatusFlag()
-{
 	if (m_last_status_write)
 	{
 		m_last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
 		m_status_denormalized = false;
 	}
-}
-
-void COP2FlagHackPass::CommitMACFlag()
-{
 	if (m_last_mac_write)
 		m_last_mac_write->info |= EEINST_COP2_MAC_FLAG;
-}
-
-void COP2FlagHackPass::CommitClipFlag()
-{
 	if (m_last_clip_write)
 		m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
-}
-
-void COP2FlagHackPass::CommitAllFlags()
-{
-	CommitStatusFlag();
-	CommitMACFlag();
-	CommitClipFlag();
 }
 
 COP2MicroFinishPass::COP2MicroFinishPass() = default;
@@ -649,143 +700,7 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		} \
 	}
 
-static void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst);
-static void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst);
-static void recBackpropCOP0(u32 code, EEINST* prev, EEINST* pinst);
-static void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst);
-static void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst);
-static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst);
-
-void recBackpropBSC(u32 code, EEINST* prev, EEINST* pinst)
-{
-	const u32 rs = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
-
-	switch (code >> 26)
-	{
-		case 0:
-			recBackpropSPECIAL(code, prev, pinst);
-			break;
-		case 1:
-			recBackpropREGIMM(code, prev, pinst);
-			break;
-		case 3: // jal
-			recBackpropSetGPRWrite(31);
-			break;
-		case 4: // beq
-		case 5: // bne
-		case 20: // beql
-		case 21: // bnel
-			recBackpropSetGPRRead(rs);
-			recBackpropSetGPRRead(rt);
-			break;
-
-		case 6: // blez
-		case 7: // bgtz
-		case 22: // blezl
-		case 23: // bgtzl
-			recBackpropSetGPRRead(rs);
-			break;
-
-		case 15: // lui
-			recBackpropSetGPRWrite(rt);
-			break;
-
-		case 8: // addi
-		case 9: // addiu
-		case 10: // slti
-		case 11: // sltiu
-		case 12: // andi
-		case 13: // ori
-		case 14: // xori
-		case 24: // daddi
-		case 25: // daddiu
-		case 32: // lb
-		case 33: // lh
-		case 35: // lw
-		case 36: // lbu
-		case 37: // lhu
-		case 39: // lwu
-		case 55: // ld
-			recBackpropSetGPRWrite(rt);
-			recBackpropSetGPRRead(rs);
-			break;
-
-		case 30: // lq
-			recBackpropSetGPRWrite128(rt);
-			recBackpropSetGPRRead(rs);
-			break;
-
-		case 26: // ldl
-		case 27: // ldr
-		case 34: // lwl
-		case 38: // lwr
-			recBackpropSetGPRWrite(rt);
-			recBackpropSetGPRRead(rs);
-			recBackpropSetGPRRead(rt);
-			break;
-
-		case 40: // sb
-		case 41: // sh
-		case 42: // swl
-		case 43: // sw
-		case 44: // sdl
-		case 45: // sdr
-		case 46: // swr
-		case 63: // sd
-			recBackpropSetGPRRead(rt);
-			recBackpropSetGPRRead(rs);
-			break;
-
-		case 31: // sq
-			recBackpropSetGPRRead(rt);
-			recBackpropSetGPRRead128(rs);
-			break;
-
-		case 16:
-			recBackpropCOP0(code, prev, pinst);
-			break;
-
-		case 17:
-			recBackpropCOP1(code, prev, pinst);
-			break;
-
-		case 18:
-			recBackpropCOP2(code, prev, pinst);
-			break;
-
-		case 28:
-			recBackpropMMI(code, prev, pinst);
-			break;
-
-		case 49: // lwc1
-		case 57: // swc1
-			recBackpropSetGPRRead(rs);
-			recBackpropSetFPURead(rt);
-			break;
-
-		case 54: // lqc2
-			recBackpropSetVFWrite(rt);
-			recBackpropSetGPRRead128(rs);
-			break;
-
-		case 62: // sqc2
-			recBackpropSetGPRRead128(rs);
-			recBackpropSetVFRead(rt);
-			break;
-
-		case 47: // cache
-			recBackpropSetGPRRead(rs);
-			break;
-
-		case 51: // pref
-		case 2: // j
-		default:
-			break;
-	}
-}
-
-void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst)
 {
 	const u32 rs = ((code >> 21) & 0x1F);
 	const u32 rt = ((code >> 16) & 0x1F);
@@ -906,7 +821,8 @@ void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst)
 	}
 }
 
-void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst)
+
+static void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst)
 {
 	const u32 rs = ((code >> 21) & 0x1F);
 	const u32 rt = ((code >> 16) & 0x1F);
@@ -938,31 +854,18 @@ void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst)
 	}
 }
 
-void recBackpropCOP0(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropCOP0(u32 code, EEINST* prev, EEINST* pinst)
 {
 	const u32 rs = ((code >> 21) & 0x1F);
 	const u32 rt = ((code >> 16) & 0x1F);
-
-	switch (rs)
-	{
-		case 0: // mfc0
-		case 2: // cfc0
-			recBackpropSetGPRWrite(rt);
-			break;
-
-		case 4: // mtc0
-		case 6: // ctc0
-			recBackpropSetGPRRead(rt);
-			break;
-
-		case 8: // bc0f/bc0t/bc0fl/bc0tl
-		case 16: // tlb/eret/ei/di
-		default:
-			break;
-	}
+	if      (rs == 0 || rs == 2) /* 0 = MFC0, 2 = CFC0 */
+		recBackpropSetGPRWrite(rt);
+	else if (rs == 4 || rs == 6) /* 4 = MTC0, 6 = CTC0 */
+		recBackpropSetGPRRead(rt);
 }
 
-void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
+
+static void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
 {
 	const u32 fmt = ((code >> 21) & 0x1F);
 	const u32 rt = ((code >> 16) & 0x1F);
@@ -993,9 +896,6 @@ void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
 			// write fprc[fs]
 			break;
 
-		case 8: // bc1f/bc1t/bc1fl/bc1tl
-			// read fprc[31]
-			break;
 
 		case 16: // cop1.s
 		{
@@ -1066,26 +966,21 @@ void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
 		break;
 
 		case 20: // cop1.w
-		{
-			switch (funct)
+			if (funct == 32) // cvt.s
 			{
-				case 32: // cvt.s
-					recBackpropSetFPUWrite(fd);
-					recBackpropSetFPURead(fs);
-					break;
-
-				default:
-					break;
+				recBackpropSetFPUWrite(fd);
+				recBackpropSetFPURead(fs);
 			}
-		}
-		break;
-
+			break;
+		case 8: // bc1f/bc1t/bc1fl/bc1tl
+			// read fprc[31]
 		default:
 			break;
 	}
 }
 
-void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
+
+static void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 {
 	const u32 fmt = ((code >> 21) & 0x1F);
 	const u32 rt = ((code >> 16) & 0x1F);
@@ -1402,7 +1297,8 @@ void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 	}
 }
 
-void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
+
+static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 {
 	const u32 funct = (code & 0x3F);
 	const u32 rs = ((code >> 21) & 0x1F);
@@ -1719,6 +1615,136 @@ void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 	}
 }
 
+
+void recBackpropBSC(u32 code, EEINST* prev, EEINST* pinst)
+{
+	const u32 rs = ((code >> 21) & 0x1F);
+	const u32 rt = ((code >> 16) & 0x1F);
+
+	switch (code >> 26)
+	{
+		case 0:
+			recBackpropSPECIAL(code, prev, pinst);
+			break;
+		case 1:
+			recBackpropREGIMM(code, prev, pinst);
+			break;
+		case 3: // jal
+			recBackpropSetGPRWrite(31);
+			break;
+		case 4: // beq
+		case 5: // bne
+		case 20: // beql
+		case 21: // bnel
+			recBackpropSetGPRRead(rs);
+			recBackpropSetGPRRead(rt);
+			break;
+
+		case 6: // blez
+		case 7: // bgtz
+		case 22: // blezl
+		case 23: // bgtzl
+			recBackpropSetGPRRead(rs);
+			break;
+
+		case 15: // lui
+			recBackpropSetGPRWrite(rt);
+			break;
+
+		case 8: // addi
+		case 9: // addiu
+		case 10: // slti
+		case 11: // sltiu
+		case 12: // andi
+		case 13: // ori
+		case 14: // xori
+		case 24: // daddi
+		case 25: // daddiu
+		case 32: // lb
+		case 33: // lh
+		case 35: // lw
+		case 36: // lbu
+		case 37: // lhu
+		case 39: // lwu
+		case 55: // ld
+			recBackpropSetGPRWrite(rt);
+			recBackpropSetGPRRead(rs);
+			break;
+
+		case 30: // lq
+			recBackpropSetGPRWrite128(rt);
+			recBackpropSetGPRRead(rs);
+			break;
+
+		case 26: // ldl
+		case 27: // ldr
+		case 34: // lwl
+		case 38: // lwr
+			recBackpropSetGPRWrite(rt);
+			recBackpropSetGPRRead(rs);
+			recBackpropSetGPRRead(rt);
+			break;
+
+		case 40: // sb
+		case 41: // sh
+		case 42: // swl
+		case 43: // sw
+		case 44: // sdl
+		case 45: // sdr
+		case 46: // swr
+		case 63: // sd
+			recBackpropSetGPRRead(rt);
+			recBackpropSetGPRRead(rs);
+			break;
+
+		case 31: // sq
+			recBackpropSetGPRRead(rt);
+			recBackpropSetGPRRead128(rs);
+			break;
+
+		case 16:
+			recBackpropCOP0(code, prev, pinst);
+			break;
+
+		case 17:
+			recBackpropCOP1(code, prev, pinst);
+			break;
+
+		case 18:
+			recBackpropCOP2(code, prev, pinst);
+			break;
+
+		case 28:
+			recBackpropMMI(code, prev, pinst);
+			break;
+
+		case 49: // lwc1
+		case 57: // swc1
+			recBackpropSetGPRRead(rs);
+			recBackpropSetFPURead(rt);
+			break;
+
+		case 54: // lqc2
+			recBackpropSetVFWrite(rt);
+			recBackpropSetGPRRead128(rs);
+			break;
+
+		case 62: // sqc2
+			recBackpropSetGPRRead128(rs);
+			recBackpropSetVFRead(rt);
+			break;
+
+		case 47: // cache
+			recBackpropSetGPRRead(rs);
+			break;
+
+		case 51: // pref
+		case 2: // j
+		default:
+			break;
+	}
+}
+
 using namespace vtlb_private;
 using namespace x86Emitter;
 
@@ -1795,7 +1821,7 @@ void _flushEEreg(int reg, bool clear)
 	_deleteGPRtoX86reg(reg, clear ? DELETE_REG_FLUSH_AND_FREE : DELETE_REG_FLUSH);
 }
 
-int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
+static int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
 {
 	// can't rename when in form Rd = Rs op Rt and Rd == Rs or Rd == Rt
 	if ((xmminfo & XMMINFO_NORENAME) || fromx86 < 0 || to == from || to == other || !EEINST_RENAMETEST(from))

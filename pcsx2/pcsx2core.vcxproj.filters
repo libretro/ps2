@@ -1733,9 +1733,6 @@
     <ClInclude Include="GS\Renderers\HW\GSTextureReplacements.h">
       <Filter>System\Ps2\GS\Renderers\Hardware</Filter>
     </ClInclude>
-    <ClInclude Include="x86\iR5900Analysis.h">
-      <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
-    </ClInclude>
     <ClInclude Include="GS\Renderers\DX12\GSTexture12.h">
       <Filter>System\Ps2\GS\Renderers\Direct3D12</Filter>
     </ClInclude>

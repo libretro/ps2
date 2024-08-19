@@ -127,8 +127,6 @@ void _deleteEEreg128(int reg);
 
 void _flushEEreg(int reg, bool clear = false);
 
-int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo);
-
 //////////////////////////////////////
 // Templates for code recompilation //
 //////////////////////////////////////

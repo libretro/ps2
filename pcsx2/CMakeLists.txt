@@ -742,7 +742,6 @@ set(pcsx2x86Headers
 	x86/iR5900AritImm.h
 	x86/iR5900Branch.h
 	x86/iR5900.h
-	x86/iR5900Analysis.h
 	x86/iR5900Jump.h
 	x86/iR5900LoadStore.h
 	x86/iR5900Move.h
