@@ -334,7 +334,7 @@
     <ClCompile Include="x86\iFPU.cpp" />
     <ClCompile Include="x86\iFPUd.cpp" />
     <ClCompile Include="x86\iMMI.cpp" />
-    <ClCompile Include="x86\iR5900-32.cpp" />
+    <ClCompile Include="x86\iR5900.cpp" />
     <ClCompile Include="x86\x86emitter.cpp" />
     <ClCompile Include="COP0.cpp" />
     <ClCompile Include="COP2.cpp" />

@@ -485,7 +485,7 @@
     <ClCompile Include="x86\iMMI.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
-    <ClCompile Include="x86\iR5900-32.cpp">
+    <ClCompile Include="x86\iR5900.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
     <ClCompile Include="x86\x86emitter.cpp">
