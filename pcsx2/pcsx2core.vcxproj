@@ -350,7 +350,6 @@
     <ClCompile Include="R3000AOpcodeTables.cpp" />
     <ClCompile Include="Sio.cpp" />
     <ClCompile Include="x86\iR3000A.cpp" />
-    <ClCompile Include="x86\iR3000Atables.cpp" />
     <ClCompile Include="IopHw.cpp" />
     <ClCompile Include="CDVD\Ps1CD.cpp" />
     <ClCompile Include="CDVD\CDVD.cpp" />
