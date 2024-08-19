@@ -319,7 +319,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 
 	// regular cheat patches
 	int cheat_count = 0;
-	//if (EmuConfig.EnableCheats)
+	if (EmuConfig.EnableCheats)
 	{
 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
 		if (cheat_count > 0)
