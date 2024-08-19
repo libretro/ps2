@@ -50,12 +50,6 @@ void VifUnpackSSE_Base::xMovDest() const
 	}
 }
 
-void VifUnpackSSE_Base::xShiftR(const xRegisterSSE& regX, int n) const
-{
-	if (usn) xPSRL.D(regX, n);
-	else     xPSRA.D(regX, n);
-}
-
 void VifUnpackSSE_Base::xPMOVXX8(const xRegisterSSE& regX) const
 {
 	if (usn) xPMOVZX.BD(regX, ptr32[srcIndirect]);
