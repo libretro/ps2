@@ -14,18 +14,19 @@
  */
 
 #pragma once
-#include "microVU.h"
+
+#include <stdint.h>
 
 struct regCycleInfo
 {
-	u8 x : 4;
-	u8 y : 4;
-	u8 z : 4;
-	u8 w : 4;
+	uint8_t x : 4;
+	uint8_t y : 4;
+	uint8_t z : 4;
+	uint8_t w : 4;
 };
 
 // microRegInfo is carefully ordered for faster compares.  The "important" information is
-// housed in a union that is accessed via 'quick32' so that several u8 fields can be compared
+// housed in a union that is accessed via 'quick32' so that several uint8_t fields can be compared
 // using a pair of 32-bit equalities.
 // vi15 is only used if microVU const-prop is enabled (it is *not* by default).  When constprop
 // is disabled the vi15 field acts as additional padding that is required for 16 byte alignment
@@ -38,34 +39,34 @@ union alignas(16) microRegInfo
 		{
 			struct
 			{
-				u8 needExactMatch; // If set, block needs an exact match of pipeline state
-				u8 flagInfo;       // xC * 2 | xM * 2 | xS * 2 | 0 * 1 | fullFlag Valid * 1
-				u8 q;
-				u8 p;
-				u8 xgkick;
-				u8 viBackUp;       // VI reg number that was written to on branch-delay slot
-				u8 blockType;      // 0 = Normal; 1,2 = Compile one instruction (E-bit/Branch Ending)
-				u8 r;
+				uint8_t needExactMatch; // If set, block needs an exact match of pipeline state
+				uint8_t flagInfo;       // xC * 2 | xM * 2 | xS * 2 | 0 * 1 | fullFlag Valid * 1
+				uint8_t q;
+				uint8_t p;
+				uint8_t xgkick;
+				uint8_t viBackUp;       // VI reg number that was written to on branch-delay slot
+				uint8_t blockType;      // 0 = Normal; 1,2 = Compile one instruction (E-bit/Branch Ending)
+				uint8_t r;
 			};
-			u64 quick64[1];
-			u32 quick32[2];
+			uint64_t quick64[1];
+			uint32_t quick32[2];
 		};
 
-		u32 xgkickcycles;
-		u8 unused;
-		u8 vi15v; // 'vi15' constant is valid
-		u16 vi15; // Constant Prop Info for vi15
+		uint32_t xgkickcycles;
+		uint8_t unused;
+		uint8_t vi15v; // 'vi15' constant is valid
+		uint16_t vi15; // Constant Prop Info for vi15
 
 		struct
 		{
-			u8 VI[16];
+			uint8_t VI[16];
 			regCycleInfo VF[32];
 		};
 	};
 
 	u128 full128[96 / sizeof(u128)];
-	u64  full64[96 / sizeof(u64)];
-	u32  full32[96 / sizeof(u32)];
+	uint64_t  full64[96 / sizeof(uint64_t)];
+	uint32_t  full32[96 / sizeof(uint32_t)];
 };
 
 struct microProgram;
@@ -80,41 +81,41 @@ struct alignas(16) microBlock
 {
 	microRegInfo    pState;      // Detailed State of Pipeline
 	microRegInfo    pStateEnd;   // Detailed State of Pipeline at End of Block (needed by JR/JALR opcodes)
-	u8*             x86ptrStart; // Start of code (Entry point for block)
+	uint8_t*        x86ptrStart; // Start of code (Entry point for block)
 	microJumpCache* jumpCache;   // Will point to an array of entry points of size [16k/8] if block ends in JR/JALR
 };
 
 struct microTempRegInfo
 {
 	regCycleInfo VF[2]; // Holds cycle info for Fd, VF[0] = Upper Instruction, VF[1] = Lower Instruction
-	u8 VFreg[2];   // Index of the VF reg
-	u8 VI;         // Holds cycle info for Id
-	u8 VIreg;      // Index of the VI reg
-	u8 q;          // Holds cycle info for Q reg
-	u8 p;          // Holds cycle info for P reg
-	u8 r;          // Holds cycle info for R reg (Will never cause stalls, but useful to know if R is modified)
-	u8 xgkick;     // Holds the cycle info for XGkick
+	uint8_t VFreg[2];   // Index of the VF reg
+	uint8_t VI;         // Holds cycle info for Id
+	uint8_t VIreg;      // Index of the VI reg
+	uint8_t q;          // Holds cycle info for Q reg
+	uint8_t p;          // Holds cycle info for P reg
+	uint8_t r;          // Holds cycle info for R reg (Will never cause stalls, but useful to know if R is modified)
+	uint8_t xgkick;     // Holds the cycle info for XGkick
 };
 
 struct microVFreg
 {
-	u8 reg; // Reg Index
-	u8 x;   // X vector read/written to?
-	u8 y;   // Y vector read/written to?
-	u8 z;   // Z vector read/written to?
-	u8 w;   // W vector read/written to?
+	uint8_t reg; // Reg Index
+	uint8_t x;   // X vector read/written to?
+	uint8_t y;   // Y vector read/written to?
+	uint8_t z;   // Z vector read/written to?
+	uint8_t w;   // W vector read/written to?
 };
 
 struct microVIreg
 {
-	u8 reg;  // Reg Index
-	u8 used; // Reg is Used? (Read/Written)
+	uint8_t reg;  // Reg Index
+	uint8_t used; // Reg is Used? (Read/Written)
 };
 
 struct microConstInfo
 {
-	u8  isValid;  // Is the constant in regValue valid?
-	u32 regValue; // Constant Value
+	uint8_t  isValid;  // Is the constant in regValue valid?
+	uint32_t regValue; // Constant Value
 };
 
 struct microUpperOp
@@ -135,8 +136,8 @@ struct microLowerOp
 	microVIreg VI_write;      // VI reg written to by this instruction
 	microVIreg VI_read[2];    // VI regs read by this instruction
 	microConstInfo constJump; // Constant Reg Info for JR/JARL instructions
-	u32  branch;     // Branch Type (0 = Not a Branch, 1 = B. 2 = BAL, 3~8 = Conditional Branches, 9 = JR, 10 = JALR)
-	u32  kickcycles; // Number of xgkick cycles accumulated by this instruction
+	uint32_t  branch;     // Branch Type (0 = Not a Branch, 1 = B. 2 = BAL, 3~8 = Conditional Branches, 9 = JR, 10 = JALR)
+	uint32_t  kickcycles; // Number of xgkick cycles accumulated by this instruction
 	bool badBranch;  // This instruction is a Branch who has another branch in its Delay Slot
 	bool evilBranch; // This instruction is a Branch in a Branch Delay Slot (Instruction after badBranch)
 	bool isNOP;      // This instruction is a NOP
@@ -154,9 +155,9 @@ struct microFlagInst
 {
 	bool doFlag;      // Update Flag on this Instruction
 	bool doNonSticky; // Update O,U,S,Z (non-sticky) bits on this Instruction (status flag only)
-	u8   write;       // Points to the instance that should be written to (s-stage write)
-	u8   lastWrite;   // Points to the instance that was last written to (most up-to-date flag)
-	u8   read;        // Points to the instance that should be read by a lower instruction (t-stage read)
+	uint8_t   write;       // Points to the instance that should be written to (s-stage write)
+	uint8_t   lastWrite;   // Points to the instance that was last written to (most up-to-date flag)
+	uint8_t   read;        // Points to the instance that should be read by a lower instruction (t-stage read)
 };
 
 struct microFlagCycles
@@ -169,14 +170,14 @@ struct microFlagCycles
 
 struct microOp
 {
-	u8   stall;          // Info on how much current instruction stalled
+	uint8_t   stall;          // Info on how much current instruction stalled
 	bool isBadOp;        // Cur Instruction is a bad opcode (not a legal instruction)
 	bool isEOB;          // Cur Instruction is last instruction in block (End of Block)
 	bool isBdelay;       // Cur Instruction in Branch Delay slot
 	bool swapOps;        // Run Lower Instruction before Upper Instruction
 	bool backupVF;       // Backup mVUlow.VF_write.reg, and restore it before the Upper Instruction is called
 	bool doXGKICK;       // Do XGKICK transfer on this instruction
-	u32  XGKICKPC;       // The PC in which the XGKick has taken place, so if we break early (before it) we don run it.
+	uint32_t  XGKICKPC;       // The PC in which the XGKick has taken place, so if we break early (before it) we don run it.
 	bool doDivFlag;      // Transfer Div flag to Status Flag on this instruction
 	int  readQ;          // Q instance for reading
 	int  writeQ;         // Q instance for writing
@@ -189,7 +190,7 @@ struct microOp
 	microLowerOp  lOp;   // Lower Op Info
 };
 
-template <u32 pSize>
+template <uint32_t pSize>
 struct microIR
 {
 	microBlock       block;           // Block/Pipeline info
@@ -197,12 +198,12 @@ struct microIR
 	microTempRegInfo regsTemp;        // Temp Pipeline info (used so that new pipeline info isn't conflicting between upper and lower instructions in the same cycle)
 	microOp          info[pSize / 2]; // Info for Instructions in current block
 	microConstInfo   constReg[16];    // Simple Const Propagation Info for VI regs within blocks
-	u8  branch;
-	u32 cycles;    // Cycles for current block
-	u32 count;     // Number of VU 64bit instructions ran (starts at 0 for each block)
-	u32 curPC;     // Current PC
-	u32 startPC;   // Start PC for Cur Block
-	u32 sFlagHack; // Optimize out all Status flag updates if microProgram doesn't use Status flags
+	uint8_t  branch;
+	uint32_t cycles;    // Cycles for current block
+	uint32_t count;     // Number of VU 64bit instructions ran (starts at 0 for each block)
+	uint32_t curPC;     // Current PC
+	uint32_t startPC;   // Start PC for Cur Block
+	uint32_t sFlagHack; // Optimize out all Status flag updates if microProgram doesn't use Status flags
 };
 
 //------------------------------------------------------------------
@@ -872,12 +873,12 @@ public:
 		if (!regAllocCOP2)
 			return;
 
-		const u32 rn     = reg.Id;
-		const bool dirty = (gprMap[rn].VIreg >= 0 && gprMap[rn].dirty);
-		x86regs[rn].reg = gprMap[rn].VIreg;
+		const uint32_t rn   = reg.Id;
+		const bool dirty    = (gprMap[rn].VIreg >= 0 && gprMap[rn].dirty);
+		x86regs[rn].reg     = gprMap[rn].VIreg;
 		x86regs[rn].counter = gprMap[rn].count;
-		x86regs[rn].mode = dirty ? (MODE_READ | MODE_WRITE) : MODE_READ;
-		x86regs[rn].needed = gprMap[rn].isNeeded;
+		x86regs[rn].mode    = dirty ? (MODE_READ | MODE_WRITE) : MODE_READ;
+		x86regs[rn].needed  = gprMap[rn].isNeeded;
 	}
 
 	void writeBackReg(const xRegisterInt& reg, bool clearDirty)

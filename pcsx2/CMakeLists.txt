@@ -748,22 +748,10 @@ set(pcsx2x86Headers
 	x86/iR5900Move.h
 	x86/iR5900MultDiv.h
 	x86/iR5900Shift.h
-	x86/microVU_Alloc.inl
-	x86/microVU_Analyze.inl
-	x86/microVU_Branch.inl
-	x86/microVU_Clamp.inl
-	x86/microVU_Compile.inl
 	x86/microVU.cpp
-	x86/microVU_Execute.inl
-	x86/microVU_Flags.inl
 	x86/microVU.h
 	x86/microVU_IR.h
-	x86/microVU_Lower.inl
-	x86/microVU_Macro.inl
 	x86/microVU_Misc.h
-	x86/microVU_Misc.inl
-	x86/microVU_Tables.inl
-	x86/microVU_Upper.inl
 	x86/newVif.h
 	x86/newVif_UnpackSSE.h
 	x86/x86emitter.h

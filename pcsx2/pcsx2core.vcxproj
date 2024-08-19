@@ -95,18 +95,6 @@
     <None Include="..\bin\resources\shaders\dx11\tfx.fx" />
     <None Include="Utilities\folderdesc.txt" />
     <None Include="Docs\License.txt" />
-    <None Include="x86\microVU_Alloc.inl" />
-    <None Include="x86\microVU_Analyze.inl" />
-    <None Include="x86\microVU_Branch.inl" />
-    <None Include="x86\microVU_Clamp.inl" />
-    <None Include="x86\microVU_Compile.inl" />
-    <None Include="x86\microVU_Execute.inl" />
-    <None Include="x86\microVU_Flags.inl" />
-    <None Include="x86\microVU_Lower.inl" />
-    <None Include="x86\microVU_Macro.inl" />
-    <None Include="x86\microVU_Misc.inl" />
-    <None Include="x86\microVU_Tables.inl" />
-    <None Include="x86\microVU_Upper.inl" />
     <!-- Generate Recording GUI Image Headers -->
   </ItemGroup>
   <ItemGroup>
