@@ -46,28 +46,27 @@
 
 namespace R5900
 {
-	class AnalysisPass
+	/// Takes a functor of bool(pc, EEINST*), returning false if iteration should stop.
+	template <class F>
+	void __fi ForEachInstruction(u32 start, u32 end, EEINST* inst_cache, const F& func)
 	{
-	public:
-		AnalysisPass();
-		virtual ~AnalysisPass();
+		EEINST* eeinst = inst_cache;
+		for (u32 apc = start; apc < end; apc += 4, eeinst++)
+		{
+			cpuRegs.code = vtlb_memRead32(apc);
+			if (!func(apc, eeinst))
+				break;
+		}
+	}
 
-		/// Runs the actual pass.
-		virtual void Run(u32 start, u32 end, EEINST* inst_cache);
 
-	protected:
-		/// Takes a functor of bool(pc, EEINST*), returning false if iteration should stop.
-		template <class F>
-		void ForEachInstruction(u32 start, u32 end, EEINST* inst_cache, const F& func);
-	};
-
-	class COP2FlagHackPass final : public AnalysisPass
+	class COP2FlagHackPass
 	{
 	public:
 		COP2FlagHackPass();
 		~COP2FlagHackPass();
 
-		void Run(u32 start, u32 end, EEINST* inst_cache) override;
+		void Run(u32 start, u32 end, EEINST* inst_cache);
 
 	private:
 		bool m_status_denormalized = false;
@@ -78,13 +77,12 @@ namespace R5900
 		u32 m_cfc2_pc = 0;
 	};
 
-	class COP2MicroFinishPass final : public AnalysisPass
+	class COP2MicroFinishPass
 	{
 	public:
 		COP2MicroFinishPass();
 		~COP2MicroFinishPass();
-
-		void Run(u32 start, u32 end, EEINST* inst_cache) override;
+		void Run(u32 start, u32 end, EEINST* inst_cache);
 	};
 } // namespace R5900
 
@@ -201,31 +199,7 @@ static int cop2flags(u32 code)
 	return 3;
 }
 
-AnalysisPass::AnalysisPass() = default;
-
-AnalysisPass::~AnalysisPass() = default;
-
-void AnalysisPass::Run(u32 start, u32 end, EEINST* inst_cache)
-{
-}
-
-template <class F>
-void __fi AnalysisPass::ForEachInstruction(u32 start, u32 end, EEINST* inst_cache, const F& func)
-{
-	EEINST* eeinst = inst_cache;
-	for (u32 apc = start; apc < end; apc += 4, eeinst++)
-	{
-		cpuRegs.code = vtlb_memRead32(apc);
-		if (!func(apc, eeinst))
-			break;
-	}
-}
-
-COP2FlagHackPass::COP2FlagHackPass()
-	: AnalysisPass()
-{
-}
-
+COP2FlagHackPass::COP2FlagHackPass()  = default;
 COP2FlagHackPass::~COP2FlagHackPass() = default;
 
 void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
@@ -265,14 +239,16 @@ void COP2FlagHackPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		{
 			// Read ahead, looking for cfc2.
 			m_cfc2_pc = apc;
-			ForEachInstruction(apc, end, inst, [this](u32 capc, EEINST*) {
+
+			for (; apc < end; apc += 4, inst++)
+			{
+				cpuRegs.code = vtlb_memRead32(apc);
 				if (_Opcode_ == 022 && _Rs_ == 2 && _Rd_ == REG_STATUS_FLAG)
 				{
-					m_cfc2_pc = capc;
-					return false;
+					m_cfc2_pc = apc;
+					break;
 				}
-				return true;
-			});
+			}
 		}
 
 		// CFC2/CTC2
@@ -387,16 +363,19 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 	bool needs_vu0_finish = true;
 	bool block_interlocked = CHECK_FULLVU0SYNCHACK;
 
-	// First pass through the block to find out if it's interlocked or not. If it is, we need to use tighter
-	// synchronization on all COP2 instructions, otherwise Crash Twinsanity breaks.
-	ForEachInstruction(start, end, inst_cache, [&block_interlocked](u32 apc, EEINST* inst) {
+	// First pass through the block to find out if it's interlocked or not. 
+	// If it is, we need to use tighter synchronization on all COP2 instructions, 
+	// otherwise Crash Twinsanity breaks.
+	EEINST* eeinst = inst_cache;
+	for (u32 apc = start; apc < end; apc += 4, eeinst++)
+	{
+		cpuRegs.code = vtlb_memRead32(apc);
 		if (_Opcode_ == 022 && (_Rs_ == 001 || _Rs_ == 002 || _Rs_ == 005 || _Rs_ == 006) && cpuRegs.code & 1)
 		{
 			block_interlocked = true;
-			return false;
+			break;
 		}
-		return true;
-	});
+	}
 
 	ForEachInstruction(start, end, inst_cache, [this, end, inst_cache, &needs_vu0_sync, &needs_vu0_finish, block_interlocked](u32 apc, EEINST* inst) {
 		// Catch SQ/SB/SH/SW/SD to potential DMA->VIF0->VU0 exec.
@@ -405,9 +384,9 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		if (_Opcode_ == 050 || _Opcode_ == 051 || _Opcode_ == 053 || _Opcode_ == 077 || (_Opcode_ == 022 && _Rs_ >= 020 && (_Funct_ == 070 || _Funct_ == 071)))
 		{
 			// If we started a micro, we'll need to finish it before the first COP2 instruction.
-			needs_vu0_sync = true;
+			needs_vu0_sync   = true;
 			needs_vu0_finish = true;
-			inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS;
+			inst->info      |= EEINST_COP2_FLUSH_VU0_REGISTERS;
 			return true;
 		}
 
@@ -445,14 +424,16 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 			});
 			if (following_needs_finish && !block_interlocked)
 			{
-				inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_FINISH_VU0;
-				needs_vu0_sync = false;
+				inst->info      |= EEINST_COP2_FLUSH_VU0_REGISTERS 
+					         | EEINST_COP2_FINISH_VU0;
+				needs_vu0_sync   = false;
 				needs_vu0_finish = false;
 			}
 			else
 			{
-				inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_SYNC_VU0;
-				needs_vu0_sync = block_interlocked || (is_non_interlocked_move && likely_clear);
+				inst->info      |= EEINST_COP2_FLUSH_VU0_REGISTERS 
+					         | EEINST_COP2_SYNC_VU0;
+				needs_vu0_sync   = block_interlocked || (is_non_interlocked_move && likely_clear);
 				needs_vu0_finish = true;
 			}
 
@@ -466,15 +447,17 @@ void COP2MicroFinishPass::Run(u32 start, u32 end, EEINST* inst_cache)
 		// Set the flag on the current instruction, and clear it for the next.
 		if (_Rs_ >= 020 && needs_vu0_finish)
 		{
-			inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_FINISH_VU0;
-			needs_vu0_finish = false;
-			needs_vu0_sync = false;
+			inst->info       |= EEINST_COP2_FLUSH_VU0_REGISTERS 
+				          | EEINST_COP2_FINISH_VU0;
+			needs_vu0_finish  = false;
+			needs_vu0_sync    = false;
 		}
 		else if (needs_vu0_sync)
 		{
 			// Starting a sync-free block!
-			inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_SYNC_VU0;
-			needs_vu0_sync = block_interlocked;
+			inst->info       |= EEINST_COP2_FLUSH_VU0_REGISTERS 
+				          | EEINST_COP2_SYNC_VU0;
+			needs_vu0_sync    = block_interlocked;
 		}
 
 		return true;
