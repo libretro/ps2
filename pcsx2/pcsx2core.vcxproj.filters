@@ -1135,12 +1135,6 @@
     <ClInclude Include="x86\microVU.h">
       <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
     </ClInclude>
-    <ClInclude Include="x86\microVU_IR.h">
-      <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
-    </ClInclude>
-    <ClInclude Include="x86\microVU_Misc.h">
-      <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
-    </ClInclude>
     <ClInclude Include="VUops.h">
       <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
     </ClInclude>

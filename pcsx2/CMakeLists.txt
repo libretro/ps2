@@ -741,8 +741,6 @@ set(pcsx2x86Headers
 	x86/iR5900.h
 	x86/microVU.cpp
 	x86/microVU.h
-	x86/microVU_IR.h
-	x86/microVU_Misc.h
 	x86/newVif.h
 	x86/newVif_UnpackSSE.h
 	x86/x86emitter.h
