@@ -7264,7 +7264,7 @@ void recLQC2(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 addr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0xFu;
-		xmmreg = vtlb_DynGenReadQuad_Const(128, addr, alloc_cb);
+		xmmreg = vtlb_DynGenReadQuad_Const(addr, alloc_cb);
 	}
 	else
 	{

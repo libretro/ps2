@@ -2503,9 +2503,8 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 	x86Ptr += sizeof(u8);
 }
 
-// One-time initialization procedure.  Multiple subsequent calls during the lifespan of the
-// process will be ignored.
-//
+/* One-time initialization procedure.  Multiple subsequent calls during the lifespan of the
+ * process will be ignored. */
 void vtlb_DynGenDispatchers(void)
 {
 	PageProtectionMode mode;
@@ -2547,7 +2546,7 @@ void vtlb_DynGenDispatchers(void)
 // Recompiled input registers:
 //   ecx - source address to read from
 //   Returns read value in eax.
-int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
+static int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
@@ -2621,6 +2620,65 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 	return x86_dest_reg;
 }
 
+static int vtlb_DynGenReadNonQuad64_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+{
+	int x86_dest_reg;
+	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr_const))
+	{
+		// has to: translate, find function, call function
+		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+
+		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
+		iFlushCall(FLUSH_FULLVTLB);
+		xFastCall(vmv.assumeHandlerGetRaw(3, false), paddr);
+
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+		xMOV(xRegister64(x86_dest_reg), rax);
+	}
+	else
+	{
+		auto ppf = vmv.assumePtr(addr_const);
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+		xMOV(xRegister64(x86_dest_reg), ptr64[(u64*)ppf]);
+	}
+
+	return x86_dest_reg;
+}
+
+static int vtlb_DynGenReadNonQuad32_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+{
+	int x86_dest_reg;
+	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	if (vmv.isHandler(addr_const))
+	{
+		// has to: translate, find function, call function
+		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+
+		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
+		if (!EmuConfig.Speedhacks.IntcStat && (paddr == INTC_STAT))
+		{
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			xMOVDZX(xRegisterSSE(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
+		}
+		else
+		{
+			iFlushCall(FLUSH_FULLVTLB);
+			xFastCall(vmv.assumeHandlerGetRaw(2, false), paddr);
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+			xMOVDZX(xRegisterSSE(x86_dest_reg), eax);
+		}
+	}
+	else
+	{
+		auto ppf = vmv.assumePtr(addr_const);
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
+		xMOVSSZX(xRegisterSSE(x86_dest_reg), ptr32[(float*)ppf]);
+	}
+
+	return x86_dest_reg;
+}
+
 // ------------------------------------------------------------------------
 // Recompiled input registers:
 //   ecx - source address to read from
@@ -2629,18 +2687,16 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
 //
-int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+static int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
 	{
 		auto ppf = vmv.assumePtr(addr_const);
-		if (!xmm)
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+		switch (bits)
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
-			switch (bits)
-			{
 			case 8:
 				sign ? xMOVSX(xRegister64(x86_dest_reg), ptr8[(u8*)ppf]) : xMOVZX(xRegister32(x86_dest_reg), ptr8[(u8*)ppf]);
 				break;
@@ -2656,12 +2712,6 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 			case 64:
 				xMOV(xRegister64(x86_dest_reg), ptr64[(u64*)ppf]);
 				break;
-			}
-		}
-		else
-		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
-			xMOVSSZX(xRegisterSSE(x86_dest_reg), ptr32[(float*)ppf]);
 		}
 	}
 	else
@@ -2682,29 +2732,20 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 		if ((bits == 32) && !EmuConfig.Speedhacks.IntcStat && (paddr == INTC_STAT))
 		{
 			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
-			if (!xmm)
-			{
-				if (sign)
-					xMOVSX(xRegister64(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
-				else
-					xMOV(xRegister32(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
-			}
+			if (sign)
+				xMOVSX(xRegister64(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
 			else
-			{
-				xMOVDZX(xRegisterSSE(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
-			}
+				xMOV(xRegister32(x86_dest_reg), ptr32[&psHu32(INTC_STAT)]);
 		}
 		else
 		{
 			iFlushCall(FLUSH_FULLVTLB);
 			xFastCall(vmv.assumeHandlerGetRaw(szidx, false), paddr);
 
-			if (!xmm)
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			switch (bits)
 			{
-				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
-				switch (bits)
-				{
-					// save REX prefix by using 32bit dest for zext
+				// save REX prefix by using 32bit dest for zext
 				case 8:
 					sign ? xMOVSX(xRegister64(x86_dest_reg), al) : xMOVZX(xRegister32(x86_dest_reg), al);
 					break;
@@ -2720,12 +2761,6 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 				case 64:
 					xMOV(xRegister64(x86_dest_reg), rax);
 					break;
-				}
-			}
-			else
-			{
-				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
-				xMOVDZX(xRegisterSSE(x86_dest_reg), eax);
 			}
 		}
 	}
@@ -2773,7 +2808,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 // ------------------------------------------------------------------------
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
-int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+int vtlb_DynGenReadQuad_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
@@ -2789,9 +2824,8 @@ int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallbac
 		// has to: translate, find function, call function
 		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
 
-		const int szidx = 4;
 		iFlushCall(FLUSH_FULLVTLB);
-		xFastCall(vmv.assumeHandlerGetRaw(szidx, 0), paddr);
+		xFastCall(vmv.assumeHandlerGetRaw(4, 0), paddr);
 
 		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
 		xMOVAPS(xRegisterSSE(reg), xmm0);
@@ -2970,16 +3004,12 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 //   ecx - virtual address
 //   Returns physical address in eax.
 //   Clobbers edx
-void vtlb_DynV2P(void)
-{
-	xMOV(eax, ecx);
-	xAND(ecx, VTLB_PAGE_MASK); // vaddr & VTLB_PAGE_MASK
-
-	xSHR(eax, VTLB_PAGE_BITS);
-	xMOV(eax, ptr[xComplexAddress(rdx, vtlbdata.ppmap, rax * 4)]); // vtlbdata.ppmap[vaddr >> VTLB_PAGE_BITS];
-
-	xOR(eax, ecx);
-}
+#define vtlb_DynV2P() \
+	xMOV(eax, ecx); \
+	xAND(ecx, VTLB_PAGE_MASK); /* vaddr & VTLB_PAGE_MASK */ \
+	xSHR(eax, VTLB_PAGE_BITS); \
+	xMOV(eax, ptr[xComplexAddress(rdx, vtlbdata.ppmap, rax * 4)]); /* vtlbdata.ppmap[vaddr >> VTLB_PAGE_BITS]; */ \
+	xOR(eax, ecx) \
 
 void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 guest_addr,
 	u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register,
@@ -5143,7 +5173,7 @@ static void recLoadQuad128(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 srcadr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0x0f;
-		xmmreg = vtlb_DynGenReadQuad_Const(128, srcadr, _Rt_ ? alloc_cb : nullptr);
+		xmmreg = vtlb_DynGenReadQuad_Const(srcadr, _Rt_ ? alloc_cb : nullptr);
 	}
 	else
 	{
@@ -5178,7 +5208,7 @@ static void recLoad(u32 bits, bool sign)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		x86reg = vtlb_DynGenReadNonQuad_Const(bits, sign, false, srcadr, alloc_cb);
+		x86reg = vtlb_DynGenReadNonQuad_Const(bits, sign, srcadr, alloc_cb);
 	}
 	else
 	{
@@ -5693,7 +5723,7 @@ void recLDL(void)
 
 		srcadr &= ~0x07;
 
-		vtlb_DynGenReadNonQuad_Const(64, false, false, srcadr, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad64_Const(srcadr, RETURN_READ_IN_RAX);
 	}
 	else
 	{
@@ -5771,7 +5801,7 @@ void recLDR(void)
 
 		srcadr &= ~0x07;
 
-		vtlb_DynGenReadNonQuad_Const(64, false, false, srcadr, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad64_Const(srcadr, RETURN_READ_IN_RAX);
 	}
 	else
 	{
@@ -5870,7 +5900,7 @@ void recSDL(void)
 		}
 		else
 		{
-			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
+			vtlb_DynGenReadNonQuad64_Const(aligned, RETURN_READ_IN_RAX);
 			_eeMoveGPRtoR(arg2reg, _Rt_);
 			sdlrhelper_const(shift, xSHL, 64 - shift, xSHR, rax, arg2reg);
 		}
@@ -5949,7 +5979,7 @@ void recSDR(void)
 		}
 		else
 		{
-			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
+			vtlb_DynGenReadNonQuad64_Const(aligned, RETURN_READ_IN_RAX);
 			_eeMoveGPRtoR(arg2reg, _Rt_);
 			sdlrhelper_const(64 - shift, xSHR, shift, xSHL, rax, arg2reg);
 		}
@@ -6023,7 +6053,7 @@ void recLWC1(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		vtlb_DynGenReadNonQuad_Const(32, false, true, addr, alloc_cb);
+		vtlb_DynGenReadNonQuad32_Const(addr, alloc_cb);
 	}
 	else
 	{
