@@ -42,20 +42,187 @@
 #include "common/FileSystem.h"
 #include "common/Path.h"
 
+/* Cycle penalties for particularly slow instructions. */
+static const int psxInstCycles_Mult = 7;
+static const int psxInstCycles_Div = 40;
+
+/* Currently unused (iop mod incomplete) */
+static const int psxInstCycles_Peephole_Store = 0;
+static const int psxInstCycles_Store = 0;
+static const int psxInstCycles_Load = 0;
+
 using namespace x86Emitter;
 
-extern u32 g_psxMaxRecMem;
+extern uint32_t g_psxMaxRecMem;
 extern void psxBREAK();
 
-u32 g_psxMaxRecMem = 0;
+uint32_t g_psxMaxRecMem = 0;
 
-uintptr_t psxRecLUT[0x10000];
-u32 psxhwLUT[0x10000];
+static uintptr_t psxRecLUT[0x10000];
+static uint32_t psxhwLUT[0x10000];
 
-extern void psxLWL();
-extern void psxLWR();
-extern void psxSWL();
-extern void psxSWR();
+static RecompiledCodeReserve* recMem = NULL;
+
+static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
+static BASEBLOCK* recROM = NULL; // and here
+static BASEBLOCK* recROM1 = NULL; // also here
+static BASEBLOCK* recROM2 = NULL; // also here
+static BaseBlocks recBlocks;
+static uint8_t* recPtr = NULL;
+static uint32_t psxpc; /* recompiler psxpc */
+static int psxbranch; /* set for branch */
+uint32_t g_iopCyclePenalty;
+
+static EEINST* s_pInstCache = NULL;
+static uint32_t s_nInstCacheSize = 0;
+
+static BASEBLOCK* s_pCurBlock = NULL;
+static BASEBLOCKEX* s_pCurBlockEx = NULL;
+
+static uint32_t s_nEndBlock = 0; // what psxpc the current block ends
+static uint32_t s_branchTo;
+static bool s_nBlockFF;
+
+static uint32_t s_saveConstRegs[32];
+static uint32_t s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
+static EEINST* s_psaveInstInfo = NULL;
+
+uint32_t s_psxBlockCycles = 0; // cycles of current block recompiling
+static uint32_t s_savenBlockCycles = 0;
+static bool s_recompilingDelaySlot = false;
+
+extern void (*rpsxBSC[64])();
+
+static void iopRecRecompile(const uint32_t startpc);
+
+// Recompiled code buffer for EE recompiler dispatchers!
+alignas(__pagesize) static uint8_t iopRecDispatchers[__pagesize];
+
+static const void* iopDispatcherEvent = NULL;
+static const void* iopDispatcherReg = NULL;
+static const void* iopJITCompile = NULL;
+static const void* iopEnterRecompiledCode = NULL;
+static const void* iopExitRecompiledCode = NULL;
+
+static uint8_t* m_recBlockAlloc = NULL;
+
+static const uint m_recBlockAllocSize =
+	(((Ps2MemSize::IopRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) / 4) * sizeof(BASEBLOCK));
+
+/* forward declarations */
+static void iPsxBranchTest(uint32_t newpc, uint32_t cpuBranch);
+static void iopClearRecLUT(BASEBLOCK* base, int count);
+static void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot);
+void rpsxpropBSC(EEINST* prev, EEINST* pinst);
+extern void psxLWL(void);
+extern void psxLWR(void);
+extern void psxSWL(void);
+extern void psxSWR(void);
+
+static __fi uint32_t HWADDR(uint32_t mem) { return psxhwLUT[mem >> 16] + mem; }
+
+void _psxFlushConstReg(int reg)
+{
+	if (PSX_IS_CONST1(reg) && !(g_psxFlushedConstReg & (1 << reg)))
+	{
+		xMOV(ptr32[&psxRegs.GPR.r[reg]], g_psxConstRegs[reg]);
+		g_psxFlushedConstReg |= (1 << reg);
+	}
+}
+
+void _psxFlushConstRegs(void)
+{
+	// TODO: Combine flushes
+
+	int i;
+
+	// flush constants
+
+	// ignore r0
+	for (i = 1; i < 32; ++i)
+	{
+		if (g_psxHasConstReg & (1 << i))
+		{
+
+			if (!(g_psxFlushedConstReg & (1 << i)))
+			{
+				xMOV(ptr32[&psxRegs.GPR.r[i]], g_psxConstRegs[i]);
+				g_psxFlushedConstReg |= 1 << i;
+			}
+
+			if (g_psxHasConstReg == g_psxFlushedConstReg)
+				break;
+		}
+	}
+}
+
+static void _psxFlushCall(int flushtype)
+{
+	// Free registers that are not saved across function calls (x86-32 ABI):
+	for (uint32_t i = 0; i < iREGCNT_GPR; i++)
+	{
+		if (!x86regs[i].inuse)
+			continue;
+
+		if (         Register_IsCallerSaved(i)
+			|| ((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP)
+			|| ((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
+		{
+			_freeX86reg(i);
+		}
+	}
+
+	if (flushtype & FLUSH_ALL_X86)
+		_flushX86regs();
+
+	if (flushtype & FLUSH_CONSTANT_REGS)
+		_psxFlushConstRegs();
+
+	if ((flushtype & FLUSH_PC) /*&& !g_cpuFlushedPC*/)
+	{
+		xMOV(ptr32[&psxRegs.pc], psxpc);
+		//g_cpuFlushedPC = true;
+	}
+}
+
+void _psxFlushAllDirty()
+{
+	// TODO: Combine flushes
+	for (uint32_t i = 0; i < 32; ++i)
+	{
+		if (PSX_IS_CONST1(i))
+			_psxFlushConstReg(i);
+	}
+
+	_flushX86regs();
+}
+
+
+static void psxSaveBranchState(void)
+{
+	s_savenBlockCycles = s_psxBlockCycles;
+	memcpy(s_saveConstRegs, g_psxConstRegs, sizeof(g_psxConstRegs));
+	s_saveHasConstReg = g_psxHasConstReg;
+	s_saveFlushedConstReg = g_psxFlushedConstReg;
+	s_psaveInstInfo = g_pCurInstInfo;
+
+	// save all regs
+	memcpy(s_saveX86regs, x86regs, sizeof(x86regs));
+}
+
+static void psxLoadBranchState(void)
+{
+	s_psxBlockCycles = s_savenBlockCycles;
+
+	memcpy(g_psxConstRegs, s_saveConstRegs, sizeof(g_psxConstRegs));
+	g_psxHasConstReg = s_saveHasConstReg;
+	g_psxFlushedConstReg = s_saveFlushedConstReg;
+	g_pCurInstInfo = s_psaveInstInfo;
+
+	// restore all regs
+	memcpy(x86regs, s_saveX86regs, sizeof(x86regs));
+}
+
 
 static int rpsxAllocRegIfUsed(int reg, int mode)
 {
@@ -104,6 +271,27 @@ static void rpsxMoveSToECX(int info)
 	else
 		xMOV(ecx, ptr32[&psxRegs.GPR.r[_Rs_]]);
 }
+
+static int psxTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
+{
+	// can't rename when in form Rd = Rs op Rt and Rd == Rs or Rd == Rt
+	if ((xmminfo & XMMINFO_NORENAME) || fromx86 < 0 || to == from || to == other || !EEINST_RENAMETEST(from))
+		return -1;
+
+	// flush back when it's been modified
+	if (x86regs[fromx86].mode & MODE_WRITE && EEINST_LIVETEST(from))
+		_writebackX86Reg(fromx86);
+
+	// remove all references to renamed-to register
+	_deletePSXtoX86reg(to, DELETE_REG_FREE_NO_WRITEBACK);
+	PSX_DEL_CONST(to);
+
+	// and do the actual rename, new register has been modified.
+	x86regs[fromx86].reg = to;
+	x86regs[fromx86].mode |= MODE_READ | MODE_WRITE;
+	return fromx86;
+}
+
 
 static void rpsxCopyReg(int dest, int src)
 {
@@ -202,7 +390,7 @@ PSXRECOMPILE_CONSTCODE1(SLTI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_NORENAME)
 //// SLTIU
 static void rpsxSLTIU_const(void)
 {
-	g_psxConstRegs[_Rt_] = g_psxConstRegs[_Rs_] < (u32)_Imm_;
+	g_psxConstRegs[_Rt_] = g_psxConstRegs[_Rs_] < (uint32_t)_Imm_;
 }
 
 static void rpsxSLTIU_(int info)
@@ -226,7 +414,7 @@ static void rpsxSLTIU_(int info)
 
 PSXRECOMPILE_CONSTCODE1(SLTIU, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_NORENAME);
 
-static void rpsxLogicalOpI(u64 info, int op)
+static void rpsxLogicalOpI(uint64_t info, int op)
 {
 	if (_ImmU_ != 0)
 	{
@@ -296,6 +484,22 @@ static void rpsxXORI_(int info)
 }
 
 PSXRECOMPILE_CONSTCODE1(XORI, XMMINFO_WRITET | XMMINFO_READS);
+
+static void _psxDeleteReg(int reg, int flush)
+{
+	if (!reg)
+		return;
+	if (flush && PSX_IS_CONST1(reg))
+		_psxFlushConstReg(reg);
+
+	PSX_DEL_CONST(reg);
+	_deletePSXtoX86reg(reg, flush ? DELETE_REG_FREE : DELETE_REG_FREE_NO_WRITEBACK);
+}
+
+static void _psxOnWriteReg(int reg)
+{
+	PSX_DEL_CONST(reg);
+}
 
 void rpsxLUI()
 {
@@ -460,7 +664,7 @@ namespace
 	};
 } // namespace
 
-static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int regv)
+static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, uint32_t vreg, int regv)
 {
 	xImpl_G1Logic bad{};
 	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
@@ -521,7 +725,7 @@ static void rpsxLogicalOp(LogicalOp op, int info)
 														 op == LogicalOp::NOR    ? xOR :
                                                                                    bad;
 	// swap because it's commutative and Rd might be Rt
-	u32 rs = _Rs_, rt = _Rt_;
+	uint32_t rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
 	if (_Rd_ == _Rt_)
 	{
@@ -735,15 +939,15 @@ static void rpsxSLTU_(int info)
 PSXRECOMPILE_CONSTCODE0(SLTU, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT | XMMINFO_NORENAME);
 
 //// MULT
-static void rpsxMULT_const()
+static void rpsxMULT_const(void)
 {
 	_deletePSXtoX86reg(PSX_HI, DELETE_REG_FREE_NO_WRITEBACK);
 	_deletePSXtoX86reg(PSX_LO, DELETE_REG_FREE_NO_WRITEBACK);
 
-	u64 res = (s64)((s64) * (int*)&g_psxConstRegs[_Rs_] * (s64) * (int*)&g_psxConstRegs[_Rt_]);
+	uint64_t res = (int64_t)((int64_t) * (int*)&g_psxConstRegs[_Rs_] * (int64_t) * (int*)&g_psxConstRegs[_Rt_]);
 
-	xMOV(ptr32[&psxRegs.GPR.n.hi], (u32)((res >> 32) & 0xffffffff));
-	xMOV(ptr32[&psxRegs.GPR.n.lo], (u32)(res & 0xffffffff));
+	xMOV(ptr32[&psxRegs.GPR.n.hi], (uint32_t)((res >> 32) & 0xffffffff));
+	xMOV(ptr32[&psxRegs.GPR.n.lo], (uint32_t)(res & 0xffffffff));
 }
 
 static void rpsxWritebackHILO(int info)
@@ -788,6 +992,44 @@ static void rpsxMULTsuperconst(int info, int sreg, int imm, int sign)
 
 	rpsxWritebackHILO(info);
 }
+
+static void _psxMoveGPRtoR(const xRegister32& to, int fromgpr)
+{
+	if (PSX_IS_CONST1(fromgpr))
+	{
+		xMOV(to, g_psxConstRegs[fromgpr]);
+	}
+	else
+	{
+		const int reg = EEINST_USEDTEST(fromgpr) ? _allocX86reg(X86TYPE_PSX, fromgpr, MODE_READ) : _checkX86reg(X86TYPE_PSX, fromgpr, MODE_READ);
+		if (reg >= 0)
+			xMOV(to, xRegister32(reg));
+		else
+			xMOV(to, ptr[&psxRegs.GPR.r[fromgpr]]);
+	}
+}
+
+static void _psxMoveGPRtoM(uintptr_t to, int fromgpr)
+{
+	if (PSX_IS_CONST1(fromgpr))
+	{
+		xMOV(ptr32[(uint32_t*)(to)], g_psxConstRegs[fromgpr]);
+	}
+	else
+	{
+		const int reg = EEINST_USEDTEST(fromgpr) ? _allocX86reg(X86TYPE_PSX, fromgpr, MODE_READ) : _checkX86reg(X86TYPE_PSX, fromgpr, MODE_READ);
+		if (reg >= 0)
+		{
+			xMOV(ptr32[(uint32_t*)(to)], xRegister32(reg));
+		}
+		else
+		{
+			xMOV(eax, ptr[&psxRegs.GPR.r[fromgpr]]);
+			xMOV(ptr32[(uint32_t*)(to)], eax);
+		}
+	}
+}
+
 
 static void rpsxMULTsuper(int info, int sign)
 {
@@ -836,10 +1078,10 @@ static void rpsxMULTU_const()
 	_deletePSXtoX86reg(PSX_HI, DELETE_REG_FREE_NO_WRITEBACK);
 	_deletePSXtoX86reg(PSX_LO, DELETE_REG_FREE_NO_WRITEBACK);
 
-	u64 res = (u64)((u64)g_psxConstRegs[_Rs_] * (u64)g_psxConstRegs[_Rt_]);
+	uint64_t res = (uint64_t)((uint64_t)g_psxConstRegs[_Rs_] * (uint64_t)g_psxConstRegs[_Rt_]);
 
-	xMOV(ptr32[&psxRegs.GPR.n.hi], (u32)((res >> 32) & 0xffffffff));
-	xMOV(ptr32[&psxRegs.GPR.n.lo], (u32)(res & 0xffffffff));
+	xMOV(ptr32[&psxRegs.GPR.n.hi], (uint32_t)((res >> 32) & 0xffffffff));
+	xMOV(ptr32[&psxRegs.GPR.n.lo], (uint32_t)(res & 0xffffffff));
 }
 
 static void rpsxMULTU_consts(int info)
@@ -865,7 +1107,7 @@ static void rpsxDIV_const()
 	_deletePSXtoX86reg(PSX_HI, DELETE_REG_FREE_NO_WRITEBACK);
 	_deletePSXtoX86reg(PSX_LO, DELETE_REG_FREE_NO_WRITEBACK);
 
-	u32 lo, hi;
+	uint32_t lo, hi;
 
 	/*
 	 * Normally, when 0x80000000(-2147483648), the signed minimum value, is divided by 0xFFFFFFFF(-1), the
@@ -904,7 +1146,7 @@ static void rpsxDIV_const()
 
 static void rpsxDIVsuper(int info, int sign, int process = 0)
 {
-	u8* end1, *end2, *cont3;
+	uint8_t* end1, *end2, *cont3;
 	// Lo/Hi = Rs / Rt (signed)
 	if (process & PROCESS_CONSTT)
 		xMOV(ecx, g_psxConstRegs[_Rt_]);
@@ -922,38 +1164,38 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
-		u8 *cont1, *cont2;
+		uint8_t *cont1, *cont2;
 
 		xCMP(eax, 0x80000000);
-		*(u8*)x86Ptr = JNE8;
-		x86Ptr += sizeof(u8);
-		*(u8*)x86Ptr = 0;
-		x86Ptr += sizeof(u8);
-		cont1       = (u8*)(x86Ptr - 1);
+		*(uint8_t*)x86Ptr = JNE8;
+		x86Ptr += sizeof(uint8_t);
+		*(uint8_t*)x86Ptr = 0;
+		x86Ptr += sizeof(uint8_t);
+		cont1       = (uint8_t*)(x86Ptr - 1);
 		xCMP(ecx, 0xffffffff);
-		*(u8*)x86Ptr = JNE8;
-		x86Ptr += sizeof(u8);
-		*(u8*)x86Ptr = 0;
-		x86Ptr += sizeof(u8);
-		cont2       = (u8*)(x86Ptr - 1);
+		*(uint8_t*)x86Ptr = JNE8;
+		x86Ptr += sizeof(uint8_t);
+		*(uint8_t*)x86Ptr = 0;
+		x86Ptr += sizeof(uint8_t);
+		cont2       = (uint8_t*)(x86Ptr - 1);
 		//overflow case:
 		xXOR(edx, edx); //EAX remains 0x80000000
-		*(u8*)x86Ptr = 0xEB;
-		x86Ptr += sizeof(u8);
-		*(u8*)x86Ptr = 0;
-		x86Ptr += sizeof(u8);
+		*(uint8_t*)x86Ptr = 0xEB;
+		x86Ptr += sizeof(uint8_t);
+		*(uint8_t*)x86Ptr = 0;
+		x86Ptr += sizeof(uint8_t);
 		end1        =  x86Ptr - 1;
 
-		*cont1      = (u8)((x86Ptr - cont1) - 1);
-		*cont2      = (u8)((x86Ptr - cont2) - 1);
+		*cont1      = (uint8_t)((x86Ptr - cont1) - 1);
+		*cont2      = (uint8_t)((x86Ptr - cont2) - 1);
 	}
 
 	xCMP(ecx, 0);
-	*(u8*)x86Ptr = JNE8;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = 0;
-	x86Ptr += sizeof(u8);
-	cont3       = (u8*)(x86Ptr - 1);
+	*(uint8_t*)x86Ptr = JNE8;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint8_t);
+	cont3       = (uint8_t*)(x86Ptr - 1);
 
 	//divide by zero
 	xMOV(edx, eax);
@@ -965,18 +1207,18 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	}
 	else
 		xMOV(eax, 0xffffffff);
-	*(u8*)x86Ptr = 0xEB;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = 0;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xEB;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint8_t);
 	end2        =  x86Ptr - 1;
 
 	// Normal division
-	*cont3      = (u8)((x86Ptr - cont3) - 1);
+	*cont3      = (uint8_t)((x86Ptr - cont3) - 1);
 	if (sign)
 	{
-		*(u8*)x86Ptr = 0x99;
-		x86Ptr += sizeof(u8);
+		*(uint8_t*)x86Ptr = 0x99;
+		x86Ptr += sizeof(uint8_t);
 		xDIV(ecx);
 	}
 	else
@@ -986,8 +1228,8 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	}
 
 	if (sign)
-		*end1      = (u8)((x86Ptr - end1) - 1);
-	*end2      = (u8)((x86Ptr - end2) - 1);
+		*end1      = (uint8_t)((x86Ptr - end1) - 1);
+	*end2      = (uint8_t)((x86Ptr - end2) - 1);
 
 	rpsxWritebackHILO(info);
 }
@@ -1012,7 +1254,7 @@ PSXRECOMPILE_CONSTCODE3_PENALTY(DIV, 1, psxInstCycles_Div);
 //// DIVU
 void rpsxDIVU_const(void)
 {
-	u32 lo, hi;
+	uint32_t lo, hi;
 
 	_deletePSXtoX86reg(PSX_HI, DELETE_REG_FREE_NO_WRITEBACK);
 	_deletePSXtoX86reg(PSX_LO, DELETE_REG_FREE_NO_WRITEBACK);
@@ -1050,7 +1292,7 @@ PSXRECOMPILE_CONSTCODE3_PENALTY(DIVU, 1, psxInstCycles_Div);
 
 // TLB loadstore functions
 
-static u8* rpsxGetConstantAddressOperand(bool store)
+static uint8_t* rpsxGetConstantAddressOperand(bool store)
 {
 	return nullptr;
 }
@@ -1178,7 +1420,7 @@ static void rpsxLoad(int size, bool sign)
 
 static void rpsxLWL(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)psxLWL);
 	PSX_DEL_CONST(_Rt_);
@@ -1186,7 +1428,7 @@ static void rpsxLWL(void)
 
 static void rpsxLWR(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)psxLWR);
 	PSX_DEL_CONST(_Rt_);
@@ -1194,7 +1436,7 @@ static void rpsxLWR(void)
 
 static void rpsxSWL(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)psxSWL);
 	PSX_DEL_CONST(_Rt_);
@@ -1202,7 +1444,7 @@ static void rpsxSWL(void)
 
 static void rpsxSWR(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)psxSWR);
 	PSX_DEL_CONST(_Rt_);
@@ -1251,7 +1493,7 @@ static void rpsxSH()
 
 static void rpsxSW()
 {
-	u8* ptr = rpsxGetConstantAddressOperand(true);
+	uint8_t* ptr = rpsxGetConstantAddressOperand(true);
 	if (ptr)
 	{
 		const int rt = _allocX86reg(X86TYPE_PSX, _Rt_, MODE_READ);
@@ -1406,10 +1648,260 @@ static void rpsxSRAV_(int info)
 	rpsxShiftV(info, xSAR);
 }
 
+static void psxSetBranchImm(uint32_t imm)
+{
+	psxbranch = 1;
+
+	// end the current block
+	xMOV(ptr32[&psxRegs.pc], imm);
+	_psxFlushCall(FLUSH_EVERYTHING);
+	iPsxBranchTest(imm, imm <= psxpc);
+
+	recBlocks.Link(HWADDR(imm), xJcc32(Jcc_Unconditional, 0));
+}
+
+/* jmp rel32 */
+static uint32_t* JMP32(uintptr_t to)
+{
+	*(uint8_t*)x86Ptr = 0xE9;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = to;
+	x86Ptr += sizeof(uint32_t);
+	return (uint32_t*)(x86Ptr - 4);
+}
+
+static bool psxTrySwapDelaySlot(uint32_t rs, uint32_t rt, uint32_t rd)
+{
+	if (s_recompilingDelaySlot)
+		return false;
+
+	const uint32_t opcode_encoded = iopMemRead32(psxpc);
+	if (opcode_encoded == 0)
+	{
+		psxRecompileNextInstruction(true, true);
+		return true;
+	}
+
+	const uint32_t opcode_rs = ((opcode_encoded >> 21) & 0x1F);
+	const uint32_t opcode_rt = ((opcode_encoded >> 16) & 0x1F);
+	const uint32_t opcode_rd = ((opcode_encoded >> 11) & 0x1F);
+
+	switch (opcode_encoded >> 26)
+	{
+		case 8: // ADDI
+		case 9: // ADDIU
+		case 10: // SLTI
+		case 11: // SLTIU
+		case 12: // ANDIU
+		case 13: // ORI
+		case 14: // XORI
+		case 15: // LUI
+		case 32: // LB
+		case 33: // LH
+		case 34: // LWL
+		case 35: // LW
+		case 36: // LBU
+		case 37: // LHU
+		case 38: // LWR
+		case 39: // LWU
+		case 40: // SB
+		case 41: // SH
+		case 42: // SWL
+		case 43: // SW
+		case 46: // SWR
+		{
+			if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
+				goto is_unsafe;
+		}
+		break;
+
+		case 50: // LWC2
+		case 58: // SWC2
+			break;
+
+		case 0: // SPECIAL
+		{
+			switch (opcode_encoded & 0x3F)
+			{
+				case 0: // SLL
+				case 2: // SRL
+				case 3: // SRA
+				case 4: // SLLV
+				case 6: // SRLV
+				case 7: // SRAV
+				case 32: // ADD
+				case 33: // ADDU
+				case 34: // SUB
+				case 35: // SUBU
+				case 36: // AND
+				case 37: // OR
+				case 38: // XOR
+				case 39: // NOR
+				case 42: // SLT
+				case 43: // SLTU
+				{
+					if ((rs != 0 && rs == opcode_rd) || (rt != 0 && rt == opcode_rd) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
+						goto is_unsafe;
+				}
+				break;
+
+				case 15: // SYNC
+				case 24: // MULT
+				case 25: // MULTU
+				case 26: // DIV
+				case 27: // DIVU
+					break;
+
+				default:
+					goto is_unsafe;
+			}
+		}
+		break;
+
+		case 16: // COP0
+		case 17: // COP1
+		case 18: // COP2
+		case 19: // COP3
+		{
+			switch ((opcode_encoded >> 21) & 0x1F)
+			{
+				case 0: // MFC0
+				case 2: // CFC0
+				{
+					if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && rd == opcode_rt))
+						goto is_unsafe;
+				}
+				break;
+
+				case 4: // MTC0
+				case 6: // CTC0
+					break;
+
+				default:
+				{
+					// swap when it's GTE
+					if ((opcode_encoded >> 26) != 18)
+						goto is_unsafe;
+				}
+				break;
+			}
+			break;
+		}
+		break;
+
+		default:
+			goto is_unsafe;
+	}
+
+	psxRecompileNextInstruction(true, true);
+	return true;
+
+is_unsafe:
+	return false;
+}
+
+
+static void psxSetBranchReg(uint32_t reg)
+{
+	psxbranch = 1;
+
+	if (reg != 0xffffffff)
+	{
+		const bool swap = psxTrySwapDelaySlot(reg, 0, 0);
+
+		if (!swap)
+		{
+			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
+			_psxMoveGPRtoR(xRegister32(wbreg), reg);
+
+			psxRecompileNextInstruction(true, false);
+
+			if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
+			{
+				xMOV(ptr32[&psxRegs.pc], xRegister32(wbreg));
+				x86regs[wbreg].inuse = 0;
+			}
+			else
+			{
+				xMOV(eax, ptr32[&psxRegs.pcWriteback]);
+				xMOV(ptr32[&psxRegs.pc], eax);
+			}
+		}
+		else
+		{
+			if (PSX_IS_DIRTY_CONST(reg) || _hasX86reg(X86TYPE_PSX, reg, 0))
+			{
+				const int x86reg = _allocX86reg(X86TYPE_PSX, reg, MODE_READ);
+				xMOV(ptr32[&psxRegs.pc], xRegister32(x86reg));
+			}
+			else
+			{
+				_psxMoveGPRtoM((uintptr_t)&psxRegs.pc, reg);
+			}
+		}
+	}
+
+	_psxFlushCall(FLUSH_EVERYTHING);
+	iPsxBranchTest(0xffffffff, 1);
+
+	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
+}
+
 PSXRECOMPILE_CONSTCODE0(SRAV, XMMINFO_WRITED | XMMINFO_READS);
 
-extern void rpsxSYSCALL();
-extern void rpsxBREAK();
+static __fi uint32_t psxScaleBlockCycles(void) { return s_psxBlockCycles; }
+
+void rpsxSYSCALL(void)
+{
+	uint8_t *j8Ptr;
+
+	xMOV(ptr32[&psxRegs.code], psxRegs.code);
+	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
+	_psxFlushCall(FLUSH_NODESTROY);
+
+	//xMOV( ecx, 0x20 );			// exception code
+	//xMOV( edx, psxbranch==1 );	// branch delay slot?
+	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
+
+	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
+	*(uint8_t*)x86Ptr = JE8;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint8_t);
+	j8Ptr = (uint8_t*)(x86Ptr - 1);
+
+	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
+	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
+	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
+
+	// jump target for skipping blockCycle updates
+	*j8Ptr      = (uint8_t)((x86Ptr - j8Ptr) - 1);
+}
+
+void rpsxBREAK(void)
+{
+	uint8_t *j8Ptr;
+	xMOV(ptr32[&psxRegs.code], psxRegs.code);
+	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
+	_psxFlushCall(FLUSH_NODESTROY);
+
+	//xMOV( ecx, 0x24 );			// exception code
+	//xMOV( edx, psxbranch==1 );	// branch delay slot?
+	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
+
+	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
+	*(uint8_t*)x86Ptr = JE8;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint8_t);
+	j8Ptr = (uint8_t*)(x86Ptr - 1);
+	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
+	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
+	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
+	*j8Ptr      = (uint8_t)((x86Ptr - j8Ptr) - 1);
+}
+
+
 
 static void rpsxMFHI()
 {
@@ -1440,14 +1932,14 @@ static void rpsxMTLO()
 static void rpsxJ()
 {
 	// j target
-	u32 newpc = _InstrucTarget_ * 4 + (psxpc & 0xf0000000);
+	uint32_t newpc = _InstrucTarget_ * 4 + (psxpc & 0xf0000000);
 	psxRecompileNextInstruction(true, false);
 	psxSetBranchImm(newpc);
 }
 
 static void rpsxJAL()
 {
-	u32 newpc = (_InstrucTarget_ << 2) + (psxpc & 0xf0000000);
+	uint32_t newpc = (_InstrucTarget_ << 2) + (psxpc & 0xf0000000);
 	_psxDeleteReg(31, DELETE_REG_FREE_NO_WRITEBACK);
 	PSX_SET_CONST(31);
 	g_psxConstRegs[31] = psxpc + 4;
@@ -1463,7 +1955,7 @@ static void rpsxJR()
 
 static void rpsxJALR()
 {
-	const u32 newpc = psxpc + 4;
+	const uint32_t newpc = psxpc + 4;
 	const bool swap = (_Rd_ == _Rs_) ? false : psxTrySwapDelaySlot(_Rs_, 0, _Rd_);
 
 	// jalr Rs
@@ -1513,7 +2005,7 @@ static void rpsxJALR()
 }
 
 //// BEQ
-static u32* s_pbranchjmp;
+static uint32_t* s_pbranchjmp;
 
 static void rpsxSetBranchEQ(int process)
 {
@@ -1545,18 +2037,18 @@ static void rpsxSetBranchEQ(int process)
 			xCMP(xRegister32(regs), ptr32[&psxRegs.GPR.r[_Rt_]]);
 	}
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JNE32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	s_pbranchjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JNE32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	s_pbranchjmp = (uint32_t*)(x86Ptr - 4);
 }
 
 static void rpsxBEQ_const()
 {
-	u32 branchTo;
+	uint32_t branchTo;
 
 	if (g_psxConstRegs[_Rs_] == g_psxConstRegs[_Rt_])
 		branchTo = ((s32)_Imm_ * 4) + psxpc;
@@ -1569,7 +2061,7 @@ static void rpsxBEQ_const()
 
 static void rpsxBEQ_process(int process)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + psxpc;
+	uint32_t branchTo = ((s32)_Imm_ * 4) + psxpc;
 
 	if (_Rs_ == _Rt_)
 	{
@@ -1592,7 +2084,7 @@ static void rpsxBEQ_process(int process)
 
 		while ((uintptr_t)x86Ptr & 0xf)
 			*x86Ptr++ = 0x90;
-		*s_pbranchjmp = (x86Ptr - (u8*)s_pbranchjmp) - 4;
+		*s_pbranchjmp = (x86Ptr - (uint8_t*)s_pbranchjmp) - 4;
 
 		if (!swap)
 		{
@@ -1622,7 +2114,7 @@ static void rpsxBEQ(void)
 //// BNE
 static void rpsxBNE_const(void)
 {
-	u32 branchTo;
+	uint32_t branchTo;
 
 	if (g_psxConstRegs[_Rs_] != g_psxConstRegs[_Rt_])
 		branchTo = ((s32)_Imm_ * 4) + psxpc;
@@ -1635,7 +2127,7 @@ static void rpsxBNE_const(void)
 
 static void rpsxBNE_process(int process)
 {
-	const u32 branchTo = ((s32)_Imm_ * 4) + psxpc;
+	const uint32_t branchTo = ((s32)_Imm_ * 4) + psxpc;
 
 	if (_Rs_ == _Rt_)
 	{
@@ -1658,7 +2150,7 @@ static void rpsxBNE_process(int process)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*s_pbranchjmp = (x86Ptr - (u8*)s_pbranchjmp) - 4;
+	*s_pbranchjmp = (x86Ptr - (uint8_t*)s_pbranchjmp) - 4;
 
 	if (!swap)
 	{
@@ -1686,9 +2178,9 @@ static void rpsxBNE(void)
 //// BLTZ
 static void rpsxBLTZ(void)
 {
-	u32 *pjmp;
+	uint32_t *pjmp;
 	// Branch if Rs < 0
-	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
+	uint32_t branchTo = (s32)_Imm_ * 4 + psxpc;
 
 	if (PSX_IS_CONST1(_Rs_))
 	{
@@ -1709,13 +2201,13 @@ static void rpsxBLTZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JL32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	pjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JL32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	pjmp = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1727,7 +2219,7 @@ static void rpsxBLTZ(void)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
+	*pjmp = (x86Ptr - (uint8_t*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1743,8 +2235,8 @@ static void rpsxBLTZ(void)
 //// BGEZ
 static void rpsxBGEZ(void)
 {
-	u32 *pjmp;
-	u32 branchTo = ((s32)_Imm_ * 4) + psxpc;
+	uint32_t *pjmp;
+	uint32_t branchTo = ((s32)_Imm_ * 4) + psxpc;
 
 	if (PSX_IS_CONST1(_Rs_))
 	{
@@ -1765,13 +2257,13 @@ static void rpsxBGEZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JGE32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	pjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JGE32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	pjmp = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1783,7 +2275,7 @@ static void rpsxBGEZ(void)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
+	*pjmp = (x86Ptr - (uint8_t*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1799,9 +2291,9 @@ static void rpsxBGEZ(void)
 //// BLTZAL
 static void rpsxBLTZAL(void)
 {
-	u32 *pjmp;
+	uint32_t *pjmp;
 	// Branch if Rs < 0
-	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
+	uint32_t branchTo = (s32)_Imm_ * 4 + psxpc;
 
 	_psxDeleteReg(31, DELETE_REG_FREE_NO_WRITEBACK);
 
@@ -1827,13 +2319,13 @@ static void rpsxBLTZAL(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JL32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	pjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JL32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	pjmp = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1845,7 +2337,7 @@ static void rpsxBLTZAL(void)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
+	*pjmp = (x86Ptr - (uint8_t*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1861,8 +2353,8 @@ static void rpsxBLTZAL(void)
 //// BGEZAL
 static void rpsxBGEZAL(void)
 {
-	u32 *pjmp;
-	u32 branchTo = ((s32)_Imm_ * 4) + psxpc;
+	uint32_t *pjmp;
+	uint32_t branchTo = ((s32)_Imm_ * 4) + psxpc;
 
 	_psxDeleteReg(31, DELETE_REG_FREE_NO_WRITEBACK);
 
@@ -1888,13 +2380,13 @@ static void rpsxBGEZAL(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JGE32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	pjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JGE32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	pjmp = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1906,7 +2398,7 @@ static void rpsxBGEZAL(void)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
+	*pjmp = (x86Ptr - (uint8_t*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1922,9 +2414,9 @@ static void rpsxBGEZAL(void)
 //// BLEZ
 static void rpsxBLEZ(void)
 {
-	u32 *pjmp;
+	uint32_t *pjmp;
 	// Branch if Rs <= 0
-	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
+	uint32_t branchTo = (s32)_Imm_ * 4 + psxpc;
 
 	if (PSX_IS_CONST1(_Rs_))
 	{
@@ -1945,13 +2437,13 @@ static void rpsxBLEZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JLE32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	pjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JLE32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	pjmp = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -1963,7 +2455,7 @@ static void rpsxBLEZ(void)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
+	*pjmp = (x86Ptr - (uint8_t*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -1978,9 +2470,9 @@ static void rpsxBLEZ(void)
 //// BGTZ
 static void rpsxBGTZ(void)
 {
-	u32 *pjmp;
+	uint32_t *pjmp;
 	// Branch if Rs > 0
-	u32 branchTo = (s32)_Imm_ * 4 + psxpc;
+	uint32_t branchTo = (s32)_Imm_ * 4 + psxpc;
 
 	_psxFlushAllDirty();
 
@@ -2003,13 +2495,13 @@ static void rpsxBGTZ(void)
 	else
 		xCMP(ptr32[&psxRegs.GPR.r[_Rs_]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JG32;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	pjmp = (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F;
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JG32;
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	pjmp = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -2021,7 +2513,7 @@ static void rpsxBGTZ(void)
 
 	while ((uintptr_t)x86Ptr & 0xf)
 		*x86Ptr++ = 0x90;
-	*pjmp = (x86Ptr - (u8*)pjmp) - 4;
+	*pjmp = (x86Ptr - (uint8_t*)pjmp) - 4;
 
 	if (!swap)
 	{
@@ -2089,7 +2581,7 @@ static void rpsxRFE(void)
 /* COP2 */
 static void rgteRTPS(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteRTPS);
 	PSX_DEL_CONST(_Rt_);
@@ -2097,7 +2589,7 @@ static void rgteRTPS(void)
 
 static void rgteNCLIP(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCLIP);
 	PSX_DEL_CONST(_Rt_);
@@ -2105,7 +2597,7 @@ static void rgteNCLIP(void)
 
 static void rgteOP(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteOP);
 	PSX_DEL_CONST(_Rt_);
@@ -2113,7 +2605,7 @@ static void rgteOP(void)
 
 static void rgteDPCS(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteDPCS);
 	PSX_DEL_CONST(_Rt_);
@@ -2121,7 +2613,7 @@ static void rgteDPCS(void)
 
 static void rgteINTPL(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteINTPL);
 	PSX_DEL_CONST(_Rt_);
@@ -2129,7 +2621,7 @@ static void rgteINTPL(void)
 
 static void rgteMVMVA(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteMVMVA);
 	PSX_DEL_CONST(_Rt_);
@@ -2137,7 +2629,7 @@ static void rgteMVMVA(void)
 
 static void rgteNCDS(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCDS);
 	PSX_DEL_CONST(_Rt_);
@@ -2145,7 +2637,7 @@ static void rgteNCDS(void)
 
 static void rgteCDP(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteCDP);
 	PSX_DEL_CONST(_Rt_);
@@ -2153,7 +2645,7 @@ static void rgteCDP(void)
 
 static void rgteNCDT(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCDT);
 	PSX_DEL_CONST(_Rt_);
@@ -2161,7 +2653,7 @@ static void rgteNCDT(void)
 
 static void rgteNCCS(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCCS);
 	PSX_DEL_CONST(_Rt_);
@@ -2169,7 +2661,7 @@ static void rgteNCCS(void)
 
 static void rgteCC(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteCC);
 	PSX_DEL_CONST(_Rt_);
@@ -2177,7 +2669,7 @@ static void rgteCC(void)
 
 static void rgteNCS(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCS);
 	PSX_DEL_CONST(_Rt_);
@@ -2185,7 +2677,7 @@ static void rgteNCS(void)
 
 static void rgteNCT(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCT);
 	PSX_DEL_CONST(_Rt_);
@@ -2193,7 +2685,7 @@ static void rgteNCT(void)
 
 static void rgteSQR(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteSQR);
 	PSX_DEL_CONST(_Rt_);
@@ -2201,7 +2693,7 @@ static void rgteSQR(void)
 
 static void rgteDCPL(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteDCPL);
 	PSX_DEL_CONST(_Rt_);
@@ -2209,7 +2701,7 @@ static void rgteDCPL(void)
 
 static void rgteDPCT(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteDPCT);
 	PSX_DEL_CONST(_Rt_);
@@ -2217,7 +2709,7 @@ static void rgteDPCT(void)
 
 static void rgteAVSZ3(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteAVSZ3);
 	PSX_DEL_CONST(_Rt_);
@@ -2225,7 +2717,7 @@ static void rgteAVSZ3(void)
 
 static void rgteAVSZ4(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteAVSZ4);
 	PSX_DEL_CONST(_Rt_);
@@ -2233,7 +2725,7 @@ static void rgteAVSZ4(void)
 
 static void rgteRTPT(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteRTPT);
 	PSX_DEL_CONST(_Rt_);
@@ -2241,7 +2733,7 @@ static void rgteRTPT(void)
 
 static void rgteGPF(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteGPF);
 	PSX_DEL_CONST(_Rt_);
@@ -2249,7 +2741,7 @@ static void rgteGPF(void)
 
 static void rgteGPL(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteGPL);
 	PSX_DEL_CONST(_Rt_);
@@ -2257,7 +2749,7 @@ static void rgteGPL(void)
 
 static void rgteNCCT(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteNCCT);
 	PSX_DEL_CONST(_Rt_);
@@ -2265,7 +2757,7 @@ static void rgteNCCT(void)
 
 static void rgteMFC2(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteMFC2);
 	PSX_DEL_CONST(_Rt_);
@@ -2273,7 +2765,7 @@ static void rgteMFC2(void)
 
 static void rgteCFC2(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteCFC2);
 	PSX_DEL_CONST(_Rt_);
@@ -2281,7 +2773,7 @@ static void rgteCFC2(void)
 
 static void rgteMTC2(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteMTC2);
 	PSX_DEL_CONST(_Rt_);
@@ -2289,7 +2781,7 @@ static void rgteMTC2(void)
 
 static void rgteCTC2(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteCTC2);
 	PSX_DEL_CONST(_Rt_);
@@ -2297,7 +2789,7 @@ static void rgteCTC2(void)
 
 static void rgteLWC2(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteLWC2);
 	PSX_DEL_CONST(_Rt_);
@@ -2305,7 +2797,7 @@ static void rgteLWC2(void)
 
 static void rgteSWC2(void)
 {
-	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	xMOV(ptr32[&psxRegs.code], (uint32_t)psxRegs.code);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	xFastCall((void*)(uintptr_t)gteSWC2);
 	PSX_DEL_CONST(_Rt_);
@@ -2667,56 +3159,6 @@ void rpsxpropCP0(EEINST* prev, EEINST* pinst)
 	}
 }
 
-/* jmp rel32 */
-static u32* JMP32(uintptr_t to)
-{
-	*(u8*)x86Ptr = 0xE9;
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = to;
-	x86Ptr += sizeof(u32);
-	return (u32*)(x86Ptr - 4);
-}
-
-static __fi u32 HWADDR(u32 mem) { return psxhwLUT[mem >> 16] + mem; }
-
-static RecompiledCodeReserve* recMem = NULL;
-
-static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
-static BASEBLOCK* recROM = NULL; // and here
-static BASEBLOCK* recROM1 = NULL; // also here
-static BASEBLOCK* recROM2 = NULL; // also here
-static BaseBlocks recBlocks;
-static u8* recPtr = NULL;
-u32 psxpc; // recompiler psxpc
-int psxbranch; // set for branch
-u32 g_iopCyclePenalty;
-
-static EEINST* s_pInstCache = NULL;
-static u32 s_nInstCacheSize = 0;
-
-static BASEBLOCK* s_pCurBlock = NULL;
-static BASEBLOCKEX* s_pCurBlockEx = NULL;
-
-static u32 s_nEndBlock = 0; // what psxpc the current block ends
-static u32 s_branchTo;
-static bool s_nBlockFF;
-
-static u32 s_saveConstRegs[32];
-static u32 s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
-static EEINST* s_psaveInstInfo = NULL;
-
-u32 s_psxBlockCycles = 0; // cycles of current block recompiling
-static u32 s_savenBlockCycles = 0;
-static bool s_recompilingDelaySlot = false;
-
-static void iPsxBranchTest(u32 newpc, u32 cpuBranch);
-void psxRecompileNextInstruction(int delayslot);
-
-extern void (*rpsxBSC[64])();
-void rpsxpropBSC(EEINST* prev, EEINST* pinst);
-
-static void iopClearRecLUT(BASEBLOCK* base, int count);
-
 #define PSX_GETBLOCK(x) PC_GETBLOCK_(x, psxRecLUT)
 
 #define PSXREC_CLEARM(mem) \
@@ -2728,17 +3170,6 @@ static void iopClearRecLUT(BASEBLOCK* base, int count);
 //  Dynamically Compiled Dispatchers - R3000A style
 // =====================================================================================================
 
-static void iopRecRecompile(const u32 startpc);
-
-// Recompiled code buffer for EE recompiler dispatchers!
-alignas(__pagesize) static u8 iopRecDispatchers[__pagesize];
-
-static const void* iopDispatcherEvent = NULL;
-static const void* iopDispatcherReg = NULL;
-static const void* iopJITCompile = NULL;
-static const void* iopEnterRecompiledCode = NULL;
-static const void* iopExitRecompiledCode = NULL;
-
 static void recEventTest(void)
 {
 	_cpuEventTest_Shared();
@@ -2748,7 +3179,7 @@ static void recEventTest(void)
 // dispatches to the recompiled block address.
 static const void* _DynGen_JITCompile(void)
 {
-	u8* retval = x86Ptr;
+	uint8_t* retval = x86Ptr;
 
 	xFastCall((const void*)iopRecRecompile, ptr32[&psxRegs.pc]);
 
@@ -2764,7 +3195,7 @@ static const void* _DynGen_JITCompile(void)
 // called when jumping to variable pc address
 static const void* _DynGen_DispatcherReg(void)
 {
-	u8* retval = x86Ptr;
+	uint8_t* retval = x86Ptr;
 
 	xMOV(eax, ptr[&psxRegs.pc]);
 	xMOV(ebx, eax);
@@ -2784,7 +3215,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 	// allocating any room on the stack for it (which is important since the IOP's entry
 	// code gets invoked quite a lot).
 
-	u8* retval = x86Ptr;
+	uint8_t* retval = x86Ptr;
 
 	{ // Properly scope the frame prologue/epilogue
 		int m_offset;
@@ -2797,8 +3228,8 @@ static const void* _DynGen_EnterRecompiledCode(void)
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	*(u8*)x86Ptr = 0xC3;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(uint8_t);
 
 	return retval;
 }
@@ -2815,7 +3246,7 @@ static void _DynGen_Dispatchers(void)
 	// clear the buffer to 0xcc (easier debugging).
 	memset(iopRecDispatchers, 0xcc, __pagesize);
 
-	x86Ptr = (u8*)iopRecDispatchers;
+	x86Ptr = (uint8_t*)iopRecDispatchers;
 
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
@@ -2836,315 +3267,9 @@ static void _DynGen_Dispatchers(void)
 ////////////////////////////////////////////////////
 using namespace R3000A;
 
-void _psxFlushConstReg(int reg)
-{
-	if (PSX_IS_CONST1(reg) && !(g_psxFlushedConstReg & (1 << reg)))
-	{
-		xMOV(ptr32[&psxRegs.GPR.r[reg]], g_psxConstRegs[reg]);
-		g_psxFlushedConstReg |= (1 << reg);
-	}
-}
-
-void _psxFlushConstRegs()
-{
-	// TODO: Combine flushes
-
-	int i;
-
-	// flush constants
-
-	// ignore r0
-	for (i = 1; i < 32; ++i)
-	{
-		if (g_psxHasConstReg & (1 << i))
-		{
-
-			if (!(g_psxFlushedConstReg & (1 << i)))
-			{
-				xMOV(ptr32[&psxRegs.GPR.r[i]], g_psxConstRegs[i]);
-				g_psxFlushedConstReg |= 1 << i;
-			}
-
-			if (g_psxHasConstReg == g_psxFlushedConstReg)
-				break;
-		}
-	}
-}
-
-void _psxDeleteReg(int reg, int flush)
-{
-	if (!reg)
-		return;
-	if (flush && PSX_IS_CONST1(reg))
-		_psxFlushConstReg(reg);
-
-	PSX_DEL_CONST(reg);
-	_deletePSXtoX86reg(reg, flush ? DELETE_REG_FREE : DELETE_REG_FREE_NO_WRITEBACK);
-}
-
-void _psxMoveGPRtoR(const xRegister32& to, int fromgpr)
-{
-	if (PSX_IS_CONST1(fromgpr))
-	{
-		xMOV(to, g_psxConstRegs[fromgpr]);
-	}
-	else
-	{
-		const int reg = EEINST_USEDTEST(fromgpr) ? _allocX86reg(X86TYPE_PSX, fromgpr, MODE_READ) : _checkX86reg(X86TYPE_PSX, fromgpr, MODE_READ);
-		if (reg >= 0)
-			xMOV(to, xRegister32(reg));
-		else
-			xMOV(to, ptr[&psxRegs.GPR.r[fromgpr]]);
-	}
-}
-
-void _psxMoveGPRtoM(uintptr_t to, int fromgpr)
-{
-	if (PSX_IS_CONST1(fromgpr))
-	{
-		xMOV(ptr32[(u32*)(to)], g_psxConstRegs[fromgpr]);
-	}
-	else
-	{
-		const int reg = EEINST_USEDTEST(fromgpr) ? _allocX86reg(X86TYPE_PSX, fromgpr, MODE_READ) : _checkX86reg(X86TYPE_PSX, fromgpr, MODE_READ);
-		if (reg >= 0)
-		{
-			xMOV(ptr32[(u32*)(to)], xRegister32(reg));
-		}
-		else
-		{
-			xMOV(eax, ptr[&psxRegs.GPR.r[fromgpr]]);
-			xMOV(ptr32[(u32*)(to)], eax);
-		}
-	}
-}
-
-void _psxFlushCall(int flushtype)
-{
-	// Free registers that are not saved across function calls (x86-32 ABI):
-	for (u32 i = 0; i < iREGCNT_GPR; i++)
-	{
-		if (!x86regs[i].inuse)
-			continue;
-
-		if (         Register_IsCallerSaved(i)
-			|| ((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP)
-			|| ((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
-		{
-			_freeX86reg(i);
-		}
-	}
-
-	if (flushtype & FLUSH_ALL_X86)
-		_flushX86regs();
-
-	if (flushtype & FLUSH_CONSTANT_REGS)
-		_psxFlushConstRegs();
-
-	if ((flushtype & FLUSH_PC) /*&& !g_cpuFlushedPC*/)
-	{
-		xMOV(ptr32[&psxRegs.pc], psxpc);
-		//g_cpuFlushedPC = true;
-	}
-}
-
-void _psxFlushAllDirty()
-{
-	// TODO: Combine flushes
-	for (u32 i = 0; i < 32; ++i)
-	{
-		if (PSX_IS_CONST1(i))
-			_psxFlushConstReg(i);
-	}
-
-	_flushX86regs();
-}
-
-void psxSaveBranchState()
-{
-	s_savenBlockCycles = s_psxBlockCycles;
-	memcpy(s_saveConstRegs, g_psxConstRegs, sizeof(g_psxConstRegs));
-	s_saveHasConstReg = g_psxHasConstReg;
-	s_saveFlushedConstReg = g_psxFlushedConstReg;
-	s_psaveInstInfo = g_pCurInstInfo;
-
-	// save all regs
-	memcpy(s_saveX86regs, x86regs, sizeof(x86regs));
-}
-
-void psxLoadBranchState()
-{
-	s_psxBlockCycles = s_savenBlockCycles;
-
-	memcpy(g_psxConstRegs, s_saveConstRegs, sizeof(g_psxConstRegs));
-	g_psxHasConstReg = s_saveHasConstReg;
-	g_psxFlushedConstReg = s_saveFlushedConstReg;
-	g_pCurInstInfo = s_psaveInstInfo;
-
-	// restore all regs
-	memcpy(x86regs, s_saveX86regs, sizeof(x86regs));
-}
-
 ////////////////////
 // Code Templates //
 ////////////////////
-
-void _psxOnWriteReg(int reg)
-{
-	PSX_DEL_CONST(reg);
-}
-
-bool psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd)
-{
-#if 1
-	if (s_recompilingDelaySlot)
-		return false;
-
-	const u32 opcode_encoded = iopMemRead32(psxpc);
-	if (opcode_encoded == 0)
-	{
-		psxRecompileNextInstruction(true, true);
-		return true;
-	}
-
-	const u32 opcode_rs = ((opcode_encoded >> 21) & 0x1F);
-	const u32 opcode_rt = ((opcode_encoded >> 16) & 0x1F);
-	const u32 opcode_rd = ((opcode_encoded >> 11) & 0x1F);
-
-	switch (opcode_encoded >> 26)
-	{
-		case 8: // ADDI
-		case 9: // ADDIU
-		case 10: // SLTI
-		case 11: // SLTIU
-		case 12: // ANDIU
-		case 13: // ORI
-		case 14: // XORI
-		case 15: // LUI
-		case 32: // LB
-		case 33: // LH
-		case 34: // LWL
-		case 35: // LW
-		case 36: // LBU
-		case 37: // LHU
-		case 38: // LWR
-		case 39: // LWU
-		case 40: // SB
-		case 41: // SH
-		case 42: // SWL
-		case 43: // SW
-		case 46: // SWR
-		{
-			if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
-				goto is_unsafe;
-		}
-		break;
-
-		case 50: // LWC2
-		case 58: // SWC2
-			break;
-
-		case 0: // SPECIAL
-		{
-			switch (opcode_encoded & 0x3F)
-			{
-				case 0: // SLL
-				case 2: // SRL
-				case 3: // SRA
-				case 4: // SLLV
-				case 6: // SRLV
-				case 7: // SRAV
-				case 32: // ADD
-				case 33: // ADDU
-				case 34: // SUB
-				case 35: // SUBU
-				case 36: // AND
-				case 37: // OR
-				case 38: // XOR
-				case 39: // NOR
-				case 42: // SLT
-				case 43: // SLTU
-				{
-					if ((rs != 0 && rs == opcode_rd) || (rt != 0 && rt == opcode_rd) || (rd != 0 && (rd == opcode_rs || rd == opcode_rt)))
-						goto is_unsafe;
-				}
-				break;
-
-				case 15: // SYNC
-				case 24: // MULT
-				case 25: // MULTU
-				case 26: // DIV
-				case 27: // DIVU
-					break;
-
-				default:
-					goto is_unsafe;
-			}
-		}
-		break;
-
-		case 16: // COP0
-		case 17: // COP1
-		case 18: // COP2
-		case 19: // COP3
-		{
-			switch ((opcode_encoded >> 21) & 0x1F)
-			{
-				case 0: // MFC0
-				case 2: // CFC0
-				{
-					if ((rs != 0 && rs == opcode_rt) || (rt != 0 && rt == opcode_rt) || (rd != 0 && rd == opcode_rt))
-						goto is_unsafe;
-				}
-				break;
-
-				case 4: // MTC0
-				case 6: // CTC0
-					break;
-
-				default:
-				{
-					// swap when it's GTE
-					if ((opcode_encoded >> 26) != 18)
-						goto is_unsafe;
-				}
-				break;
-			}
-			break;
-		}
-		break;
-
-		default:
-			goto is_unsafe;
-	}
-
-	psxRecompileNextInstruction(true, true);
-	return true;
-
-is_unsafe:
-#endif
-	return false;
-}
-
-int psxTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
-{
-	// can't rename when in form Rd = Rs op Rt and Rd == Rs or Rd == Rt
-	if ((xmminfo & XMMINFO_NORENAME) || fromx86 < 0 || to == from || to == other || !EEINST_RENAMETEST(from))
-		return -1;
-
-	// flush back when it's been modified
-	if (x86regs[fromx86].mode & MODE_WRITE && EEINST_LIVETEST(from))
-		_writebackX86Reg(fromx86);
-
-	// remove all references to renamed-to register
-	_deletePSXtoX86reg(to, DELETE_REG_FREE_NO_WRITEBACK);
-	PSX_DEL_CONST(to);
-
-	// and do the actual rename, new register has been modified.
-	x86regs[fromx86].reg = to;
-	x86regs[fromx86].mode |= MODE_READ | MODE_WRITE;
-	return fromx86;
-}
 
 // rd = rs op rt
 void psxRecompileCodeConst0(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, R3000AFNPTR_INFO consttcode, R3000AFNPTR_INFO noconstcode, int xmminfo)
@@ -3175,7 +3300,7 @@ void psxRecompileCodeConst0(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 	if (!d_is_const)
 		_addNeededGPRtoX86reg(_Rd_);
 
-	u32 info = 0;
+	uint32_t info = 0;
 	int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
 	if (regs < 0 && ((!s_is_const && s_is_used) || _Rs_ == _Rd_))
 		regs = _allocX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -3219,8 +3344,8 @@ void psxRecompileCodeConst0(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 
 static void psxRecompileIrxImport(void)
 {
-	u32 import_table = irxImportTableAddr(psxpc - 4);
-	u16 index = psxRegs.code & 0xffff;
+	uint32_t import_table     = irxImportTableAddr(psxpc - 4);
+	uint16_t index            = psxRegs.code & 0xffff;
 	if (!import_table)
 		return;
 
@@ -3264,7 +3389,7 @@ void psxRecompileCodeConst1(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 	_addNeededPSXtoX86reg(_Rs_);
 	_addNeededPSXtoX86reg(_Rt_);
 
-	u32 info = 0;
+	uint32_t info = 0;
 
 	const bool s_is_used = EEINST_USEDTEST(_Rs_);
 	const int regs = s_is_used ? _allocX86reg(X86TYPE_PSX, _Rs_, MODE_READ) : _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -3300,7 +3425,7 @@ void psxRecompileCodeConst2(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 	_addNeededPSXtoX86reg(_Rt_);
 	_addNeededPSXtoX86reg(_Rd_);
 
-	u32 info = 0;
+	uint32_t info = 0;
 	const bool s_is_used = EEINST_USEDTEST(_Rt_);
 	const int regt = s_is_used ? _allocX86reg(X86TYPE_PSX, _Rt_, MODE_READ) : _checkX86reg(X86TYPE_PSX, _Rt_, MODE_READ);
 	if (regt >= 0)
@@ -3308,9 +3433,7 @@ void psxRecompileCodeConst2(R3000AFNPTR constcode, R3000AFNPTR_INFO noconstcode,
 
 	int regd = psxTryRenameReg(_Rd_, _Rt_, regt, 0, xmminfo);
 	if (regd < 0)
-	{
 		regd = _allocX86reg(X86TYPE_PSX, _Rd_, MODE_WRITE);
-	}
 	if (regd >= 0)
 		info |= PROCESS_EE_SET_D(regd);
 
@@ -3352,7 +3475,7 @@ void psxRecompileCodeConst3(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 			_addNeededPSXtoX86reg(PSX_HI);
 	}
 
-	u32 info = 0;
+	uint32_t info = 0;
 	int regs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
 	if (regs < 0 && !s_is_const && s_is_used)
 		regs = _allocX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
@@ -3387,23 +3510,18 @@ void psxRecompileCodeConst3(R3000AFNPTR constcode, R3000AFNPTR_INFO constscode, 
 	if (s_is_const && regs < 0)
 	{
 		// This *must* go inside the if, because of when _Rs_ =  _Rd_
-		constscode(info /*| PROCESS_CONSTS*/);
+		constscode(info);
 		return;
 	}
 
 	if (t_is_const && regt < 0)
 	{
-		consttcode(info /*| PROCESS_CONSTT*/);
+		consttcode(info);
 		return;
 	}
 
 	noconstcode(info);
 }
-
-static u8* m_recBlockAlloc = NULL;
-
-static const uint m_recBlockAllocSize =
-	(((Ps2MemSize::IopRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) / 4) * sizeof(BASEBLOCK));
 
 static void recReserve(void)
 {
@@ -3423,9 +3541,9 @@ static void recAlloc(void)
 
 	// We're on 64-bit, if these memory allocations fail, we're in real trouble.
 	if (!m_recBlockAlloc)
-		m_recBlockAlloc = (u8*)_aligned_malloc(m_recBlockAllocSize, 4096);
+		m_recBlockAlloc = (uint8_t*)_aligned_malloc(m_recBlockAllocSize, 4096);
 
-	u8* curpos = m_recBlockAlloc;
+	uint8_t* curpos = m_recBlockAlloc;
 	recRAM = (BASEBLOCK*)curpos;
 	curpos += (Ps2MemSize::IopRam / 4) * sizeof(BASEBLOCK);
 	recROM = (BASEBLOCK*)curpos;
@@ -3548,7 +3666,7 @@ static __noinline s32 recExecuteBlock(s32 eeCycles)
 }
 
 // Returns the offset to the next instruction after any cleared memory
-static __fi u32 psxRecClearMem(u32 pc)
+static __fi uint32_t psxRecClearMem(uint32_t pc)
 {
 	BASEBLOCK* pblock = PSX_GETBLOCK(pc);
 	if (pblock->m_pFnptr == (uintptr_t)iopJITCompile)
@@ -3556,7 +3674,7 @@ static __fi u32 psxRecClearMem(u32 pc)
 
 	pc = HWADDR(pc);
 
-	u32 lowerextent = pc, upperextent = pc + 4;
+	uint32_t lowerextent = pc, upperextent = pc + 4;
 	int blockidx = recBlocks.Index(pc);
 
 	while (BASEBLOCKEX* pexblock = recBlocks[blockidx - 1])
@@ -3591,83 +3709,21 @@ static __fi u32 psxRecClearMem(u32 pc)
 	return upperextent - pc;
 }
 
-static __fi void recClearIOP(u32 Addr, u32 Size)
+static __fi void recClearIOP(uint32_t Addr, uint32_t Size)
 {
-	u32 pc = Addr;
+	uint32_t pc = Addr;
 	while (pc < Addr + Size * 4)
 		pc += PSXREC_CLEARM(pc);
 }
 
-void psxSetBranchReg(u32 reg)
+static void iPsxBranchTest(uint32_t newpc, uint32_t cpuBranch)
 {
-	psxbranch = 1;
+	uint32_t blockCycles = s_psxBlockCycles;
 
-	if (reg != 0xffffffff)
-	{
-		const bool swap = psxTrySwapDelaySlot(reg, 0, 0);
-
-		if (!swap)
-		{
-			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-			_psxMoveGPRtoR(xRegister32(wbreg), reg);
-
-			psxRecompileNextInstruction(true, false);
-
-			if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
-			{
-				xMOV(ptr32[&psxRegs.pc], xRegister32(wbreg));
-				x86regs[wbreg].inuse = 0;
-			}
-			else
-			{
-				xMOV(eax, ptr32[&psxRegs.pcWriteback]);
-				xMOV(ptr32[&psxRegs.pc], eax);
-			}
-		}
-		else
-		{
-			if (PSX_IS_DIRTY_CONST(reg) || _hasX86reg(X86TYPE_PSX, reg, 0))
-			{
-				const int x86reg = _allocX86reg(X86TYPE_PSX, reg, MODE_READ);
-				xMOV(ptr32[&psxRegs.pc], xRegister32(x86reg));
-			}
-			else
-			{
-				_psxMoveGPRtoM((uintptr_t)&psxRegs.pc, reg);
-			}
-		}
-	}
-
-	_psxFlushCall(FLUSH_EVERYTHING);
-	iPsxBranchTest(0xffffffff, 1);
-
-	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
-}
-
-void psxSetBranchImm(u32 imm)
-{
-	psxbranch = 1;
-
-	// end the current block
-	xMOV(ptr32[&psxRegs.pc], imm);
-	_psxFlushCall(FLUSH_EVERYTHING);
-	iPsxBranchTest(imm, imm <= psxpc);
-
-	recBlocks.Link(HWADDR(imm), xJcc32(Jcc_Unconditional, 0));
-}
-
-static __fi u32 psxScaleBlockCycles()
-{
-	return s_psxBlockCycles;
-}
-
-static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
-{
-	u32 blockCycles = psxScaleBlockCycles();
+	xMOV(eax, ptr32[&psxRegs.cycle]);
 
 	if (EmuConfig.Speedhacks.WaitLoop && s_nBlockFF && newpc == s_branchTo)
 	{
-		xMOV(eax, ptr32[&psxRegs.cycle]);
 		xMOV(ecx, eax);
 		xMOV(edx, ptr32[&psxRegs.iopCycleEE]);
 		xADD(edx, 7);
@@ -3691,7 +3747,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 	}
 	else
 	{
-		xMOV(eax, ptr32[&psxRegs.cycle]);
+		xForwardJS<uint8_t> nointerruptpending;
 		xADD(eax, blockCycles);
 		xMOV(ptr32[&psxRegs.cycle], eax); // update cycles
 
@@ -3701,7 +3757,6 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 		// check if an event is pending
 		xSUB(eax, ptr32[&psxRegs.iopNextEventCycle]);
-		xForwardJS<u8> nointerruptpending;
 
 		xFastCall((const void*)iopEventTest);
 
@@ -3715,58 +3770,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 	}
 }
 
-void rpsxSYSCALL(void)
-{
-	u8 *j8Ptr;
-
-	xMOV(ptr32[&psxRegs.code], psxRegs.code);
-	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
-	_psxFlushCall(FLUSH_NODESTROY);
-
-	//xMOV( ecx, 0x20 );			// exception code
-	//xMOV( edx, psxbranch==1 );	// branch delay slot?
-	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
-
-	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	*(u8*)x86Ptr = JE8;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = 0;
-	x86Ptr += sizeof(u8);
-	j8Ptr = (u8*)(x86Ptr - 1);
-
-	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
-	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
-	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
-
-	// jump target for skipping blockCycle updates
-	*j8Ptr      = (u8)((x86Ptr - j8Ptr) - 1);
-}
-
-void rpsxBREAK(void)
-{
-	u8 *j8Ptr;
-	xMOV(ptr32[&psxRegs.code], psxRegs.code);
-	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
-	_psxFlushCall(FLUSH_NODESTROY);
-
-	//xMOV( ecx, 0x24 );			// exception code
-	//xMOV( edx, psxbranch==1 );	// branch delay slot?
-	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
-
-	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
-	*(u8*)x86Ptr = JE8;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = 0;
-	x86Ptr += sizeof(u8);
-	j8Ptr = (u8*)(x86Ptr - 1);
-	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
-	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
-	JMP32((uintptr_t)iopDispatcherReg - ((uintptr_t)x86Ptr + 5));
-	*j8Ptr      = (u8)((x86Ptr - j8Ptr) - 1);
-}
-
-
-void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
+static void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
 {
 	const int old_code = psxRegs.code;
 	EEINST* old_inst_info = g_pCurInstInfo;
@@ -3782,20 +3786,21 @@ void psxRecompileNextInstruction(bool delayslot, bool swapped_delayslot)
 	rpsxBSC[psxRegs.code >> 26]();
 	s_psxBlockCycles += g_iopCyclePenalty;
 
-	if (!swapped_delayslot)
-		_clearNeededX86regs();
-
 	if (swapped_delayslot)
 	{
 		psxRegs.code = old_code;
 		g_pCurInstInfo = old_inst_info;
 	}
+	else
+	{
+		_clearNeededX86regs();
+	}
 }
 
-static void iopRecRecompile(const u32 startpc)
+static void iopRecRecompile(const uint32_t startpc)
 {
-	u32 i;
-	u32 willbranch3 = 0;
+	uint32_t i;
+	uint32_t willbranch3 = 0;
 
 	// Inject IRX hack
 	if (startpc == 0x1630 && EmuConfig.CurrentIRX.length() > 3)
@@ -3809,7 +3814,7 @@ static void iopRecRecompile(const u32 startpc)
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
 		recResetIOP();
 
-	x86Ptr      = (u8*)recPtr;
+	x86Ptr      = (uint8_t*)recPtr;
 	recPtr      = x86Ptr;
 
 	s_pCurBlock = PSX_GETBLOCK(startpc);

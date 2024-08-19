@@ -423,15 +423,15 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 
 	if ((doMask && m2) || doMode)
 	{
-		xMOVAPS(xmmRow, ptr128[&vif.MaskRow]);
+		xMOVAPS(xmm6, ptr128[&vif.MaskRow]);
 	}
 	if (doMask && m3)
 	{
-		xMOVAPS(xmmCol0, ptr128[&vif.MaskCol]);
-		if ((cS >= 2) && (m3 & 0x0000ff00)) xPSHUF.D(xmmCol1, xmmCol0, _v1);
-		if ((cS >= 3) && (m3 & 0x00ff0000)) xPSHUF.D(xmmCol2, xmmCol0, _v2);
-		if ((cS >= 4) && (m3 & 0xff000000)) xPSHUF.D(xmmCol3, xmmCol0, _v3);
-		if ((cS >= 1) && (m3 & 0x000000ff)) xPSHUF.D(xmmCol0, xmmCol0, _v0);
+		xMOVAPS(xmm2, ptr128[&vif.MaskCol]);
+		if ((cS >= 2) && (m3 & 0x0000ff00)) xPSHUF.D(xmm3, xmm2, _v1);
+		if ((cS >= 3) && (m3 & 0x00ff0000)) xPSHUF.D(xmm4, xmm2, _v2);
+		if ((cS >= 4) && (m3 & 0xff000000)) xPSHUF.D(xmm5, xmm2, _v3);
+		if ((cS >= 1) && (m3 & 0x000000ff)) xPSHUF.D(xmm2, xmm2, _v0);
 	}
 }
 
@@ -449,11 +449,11 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 
 	if (doMask && m2) // Merge MaskRow
 	{
-		mVUmergeRegs(regX, xmmRow, m2);
+		mVUmergeRegs(regX, xmm6, m2);
 	}
 	if (doMask && m3) // Merge MaskCol
 	{
-		mVUmergeRegs(regX, xRegisterSSE(xmmCol0.Id + cc), m3);
+		mVUmergeRegs(regX, xRegisterSSE(xmm2.Id + cc), m3);
 	}
 
 	if (doMode)
@@ -465,30 +465,30 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 
 		if (m5 < 0xf)
 		{
-			xPXOR(xmmTemp, xmmTemp);
+			xPXOR(xmm7, xmm7);
 			if (doMode == 3)
 			{
-				mVUmergeRegs(xmmRow, regX, m5);
+				mVUmergeRegs(xmm6, regX, m5);
 			}
 			else
 			{
-				mVUmergeRegs(xmmTemp, xmmRow, m5);
-				xPADD.D(regX, xmmTemp);
+				mVUmergeRegs(xmm7, xmm6, m5);
+				xPADD.D(regX, xmm7);
 				if (doMode == 2)
-					mVUmergeRegs(xmmRow, regX, m5);
+					mVUmergeRegs(xmm6, regX, m5);
 			}
 		}
 		else
 		{
 			if (doMode == 3)
 			{
-				xMOVAPS(xmmRow, regX);
+				xMOVAPS(xmm6, regX);
 			}
 			else
 			{
-				xPADD.D(regX, xmmRow);
+				xPADD.D(regX, xmm6);
 				if (doMode == 2)
-					xMOVAPS(xmmRow, regX);
+					xMOVAPS(xmm6, regX);
 			}
 		}
 	}
@@ -638,7 +638,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	if (doMode >= 2)
 	{
 		const int idx = v.idx;
-		xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmmRow);
+		xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmm6);
 	}
 
 	*(u8*)x86Ptr = 0xC3;

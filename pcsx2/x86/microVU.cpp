@@ -29,11 +29,11 @@
 // Micro VU - Clamp Functions
 //------------------------------------------------------------------
 
-alignas(16) const u32 sse4_minvals[2][4] = {
+alignas(16) const uint32_t sse4_minvals[2][4] = {
 	{0xff7fffff, 0xffffffff, 0xffffffff, 0xffffffff}, //1000
 	{0xff7fffff, 0xff7fffff, 0xff7fffff, 0xff7fffff}, //1111
 };
-alignas(16) const u32 sse4_maxvals[2][4] = {
+alignas(16) const uint32_t sse4_maxvals[2][4] = {
 	{0x7f7fffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1000
 	{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111
 };
@@ -261,10 +261,10 @@ static __fi void mVUbackupRegs(microVU& mVU, bool toMemory, bool onlyNeeded)
 
 		// we need 16 byte alignment on the stack
 #ifdef _WIN32
-		const int stack_size = (num_xmms * sizeof(u128)) + ((num_gprs & 1) * sizeof(u64)) + 32;
+		const int stack_size = (num_xmms * sizeof(u128)) + ((num_gprs & 1) * sizeof(uint64_t)) + 32;
 		int stack_offset = 32;
 #else
-		const int stack_size = (num_xmms * sizeof(u128)) + ((num_gprs & 1) * sizeof(u64));
+		const int stack_size = (num_xmms * sizeof(u128)) + ((num_gprs & 1) * sizeof(uint64_t));
 		int stack_offset = 0;
 #endif
 		if (stack_size > 0)
@@ -326,7 +326,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 #else
 		const int stack_extra = 0;
 #endif
-		const int stack_size = (num_xmms * sizeof(u128)) + ((num_gprs & 1) * sizeof(u64)) + stack_extra;
+		const int stack_size = (num_xmms * sizeof(u128)) + ((num_gprs & 1) * sizeof(uint64_t)) + stack_extra;
 		if (num_xmms > 0)
 		{
 			int stack_offset = (num_xmms - 1) * sizeof(u128) + stack_extra;
@@ -356,7 +356,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 
 static void mVUTBit(void)
 {
-	u32 old = vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUTBit, std::memory_order_release);
+	uint32_t old = vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUTBit, std::memory_order_release);
 }
 
 static void mVUEBit(void)
@@ -364,7 +364,7 @@ static void mVUEBit(void)
 	vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUEBit, std::memory_order_release);
 }
 
-static inline u32 branchAddr(const mV)
+static inline uint32_t branchAddr(const mV)
 {
 	return ((((iPC + 2) + (_Imm11_ * 2)) & mVU.progMemMask) * 4);
 }
@@ -400,12 +400,12 @@ static __fi void mVUaddrFix(mV, const xAddressReg& gprReg)
 	}
 }
 
-static __fi std::optional<xAddressVoid> mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 offsetSS_)
+static __fi std::optional<xAddressVoid> mVUoptimizeConstantAddr(mV, uint32_t srcreg, int32_t offset, int32_t offsetSS_)
 {
 	// if we had const prop for VIs, we could do that here..
 	if (srcreg != 0)
 		return std::nullopt;
-	const s32 addr = 0 + offset;
+	const int32_t addr = 0 + offset;
 	if (isVU1)
 		return ptr[vuRegs[mVU.index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_];
 	if (addr & 0x400)
@@ -419,7 +419,7 @@ static __fi std::optional<xAddressVoid> mVUoptimizeConstantAddr(mV, u32 srcreg, 
 
 struct SSEMasks
 {
-	u32 MIN_MAX_1[4], MIN_MAX_2[4], ADD_SS[4];
+	uint32_t MIN_MAX_1[4], MIN_MAX_2[4], ADD_SS[4];
 };
 
 alignas(16) static const SSEMasks sseMasks =
@@ -707,7 +707,7 @@ static __ri void analyzeVIreg2(mV, int xReg, microVIreg& viWrite, int aCycles)
 #define analyzePreg(x) \
 	{ \
 		mVUregsTemp.p = x; \
-		mVUstall = std::max(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0)); \
+		mVUstall = std::max(mVUstall, (uint8_t)((mVUregs.p) ? (mVUregs.p - 1) : 0)); \
 	}
 #define analyzeRreg() \
 	{ \
@@ -796,7 +796,7 @@ __fi void mVUanalyzeIALU2(mV, int Is, int It)
 	analyzeVIreg2(mVU, It, mVUlow.VI_write, 1);
 }
 
-__fi void mVUanalyzeIADDI(mV, int Is, int It, s16 imm)
+__fi void mVUanalyzeIADDI(mV, int Is, int It, int16_t imm)
 {
 	mVUanalyzeIALU2(mVU, Is, It);
 	if (!Is)
@@ -823,7 +823,7 @@ __fi void mVUanalyzeMR32(mV, int Fs, int Ft)
 // FDIV - DIV/SQRT/RSQRT Opcodes
 //------------------------------------------------------------------
 
-__fi void mVUanalyzeFDIV(mV, int Fs, int Fsf, int Ft, int Ftf, u8 xCycles)
+__fi void mVUanalyzeFDIV(mV, int Fs, int Fsf, int Ft, int Ftf, uint8_t xCycles)
 {
 	analyzeReg5(mVU, Fs, Fsf, mVUlow.VF_read[0]);
 	analyzeReg5(mVU, Ft, Ftf, mVUlow.VF_read[1]);
@@ -834,13 +834,13 @@ __fi void mVUanalyzeFDIV(mV, int Fs, int Fsf, int Ft, int Ftf, u8 xCycles)
 // EFU - EFU Opcodes
 //------------------------------------------------------------------
 
-__fi void mVUanalyzeEFU1(mV, int Fs, int Fsf, u8 xCycles)
+__fi void mVUanalyzeEFU1(mV, int Fs, int Fsf, uint8_t xCycles)
 {
 	analyzeReg5(mVU, Fs, Fsf, mVUlow.VF_read[0]);
 	analyzePreg(xCycles);
 }
 
-__fi void mVUanalyzeEFU2(mV, int Fs, u8 xCycles)
+__fi void mVUanalyzeEFU2(mV, int Fs, uint8_t xCycles)
 {
 	analyzeReg1(mVU, Fs, mVUlow.VF_read[0]);
 	analyzePreg(xCycles);
@@ -1123,7 +1123,7 @@ __ri int mVUbranchCheck(mV)
 
 	if (mVUlow.branch)
 	{
-		u32 branchType = mVUlow.branch;
+		uint32_t branchType = mVUlow.branch;
 		if (doBranchInDelaySlot)
 		{
 			mVUlow.badBranch = true;
@@ -1246,7 +1246,7 @@ __ri void mVUallocSFLAGc(const x32& reg, const x32& regT, int fInstance)
 }
 
 // Denormalizes Status Flag; destroys tmp1/tmp2
-__ri void mVUallocSFLAGd(u32* memAddr, const x32& reg = eax, const x32& tmp1 = ecx, const x32& tmp2 = edx)
+__ri void mVUallocSFLAGd(uint32_t* memAddr, const x32& reg = eax, const x32& tmp1 = ecx, const x32& tmp2 = edx)
 {
 	xMOV(tmp2, ptr32[memAddr]);
 	xMOV(reg, tmp2);
@@ -1340,7 +1340,7 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 	const x32& mReg = gprT1;
 	const x32& sReg = getFlagReg(sFLAG.write);
 	bool regT1b = regT1in.IsEmpty(), regT2b = false;
-	static const u16 flipMask[16] = {0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
+	static const uint16_t flipMask[16] = {0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
 
 	if (!sFLAG.doFlag && !mFLAG.doFlag)
 		return;
@@ -1389,7 +1389,7 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 	// until some sort of soft float implementation.
 	if (sFLAG.doFlag && CHECK_VUOVERFLOWHACK)
 	{
-		alignas(16) const u32 sse4_compvals[2][4] = {
+		alignas(16) const uint32_t sse4_compvals[2][4] = {
 			{0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff}, //1111
 			{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1111
 		};
@@ -3048,7 +3048,7 @@ mVUop(mVU_ISWR)
 			is = gprT1q;
 		}
 		const xRegister32& regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
-		if (!is.IsEmpty() && (intptr_t)base != (s32)(intptr_t)base)
+		if (!is.IsEmpty() && (intptr_t)base != (int32_t)(intptr_t)base)
 		{
 			int register_offset = -1;
 			auto writeBackAt = [&](int offset)
@@ -3344,7 +3344,7 @@ mVUop(mVU_WAITP)
 			mVUlow.isNOP = true;
 			return;
 		}
-		mVUstall = std::max(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0));
+		mVUstall = std::max(mVUstall, (uint8_t)((mVUregs.p) ? (mVUregs.p - 1) : 0));
 	}
 }
 
@@ -3422,11 +3422,11 @@ mVUop(mVU_XITOP)
 // XGkick
 //------------------------------------------------------------------
 
-void mVU_XGKICK_(u32 addr)
+void mVU_XGKICK_(uint32_t addr)
 {
 	addr = (addr & 0x3ff) * 16;
-	u32 diff = 0x4000 - addr;
-	u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, addr, ~0u, true);
+	uint32_t diff = 0x4000 - addr;
+	uint32_t size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, addr, ~0u, true);
 
 	if (size > diff)
 	{
@@ -3443,11 +3443,11 @@ void _vuXGKICKTransfermVU(bool flush)
 {
 	while (vuRegs[1].xgkickenable && (flush || vuRegs[1].xgkickcyclecount >= 2))
 	{
-		u32 transfersize = 0;
+		uint32_t transfersize = 0;
 
 		if (vuRegs[1].xgkicksizeremaining == 0)
 		{
-			u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, vuRegs[1].xgkickaddr, ~0u, flush);
+			uint32_t size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, vuRegs[1].xgkickaddr, ~0u, flush);
 			vuRegs[1].xgkicksizeremaining = size & 0xFFFF;
 			vuRegs[1].xgkickendpacket = size >> 31;
 			vuRegs[1].xgkickdiff = 0x4000 - vuRegs[1].xgkickaddr;
@@ -4189,7 +4189,7 @@ void sortFullFlag(int* fFlag, int* bFlag)
 __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 {
 	int endPC = iPC;
-	u32 aCount = 0; // Amount of instructions needed to get valid mac flag instances for block linking
+	uint32_t aCount = 0; // Amount of instructions needed to get valid mac flag instances for block linking
 	//bool writeProtect = false;
 
 	// Ensure last ~4+ instructions update mac/status flags (if next block's first 4 instructions will read them)
@@ -4249,7 +4249,7 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 	}
 
 	mFC.cycles = 0;
-	u32 xCount = mVUcount; // Backup count
+	uint32_t xCount = mVUcount; // Backup count
 	iPC = mVUstartPC;
 	for (mVUcount = 0; mVUcount < xCount; mVUcount++)
 	{
@@ -4411,10 +4411,10 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 	}
 
 // Scan through instructions and check if flags are read (FSxxx, FMxxx, FCxxx opcodes)
-void _mVUflagPass(mV, u32 startPC, u32 sCount, u32 found, std::vector<u32>& v)
+void _mVUflagPass(mV, uint32_t startPC, uint32_t sCount, uint32_t found, std::vector<uint32_t>& v)
 {
 
-	for (u32 i = 0; i < v.size(); i++)
+	for (uint32_t i = 0; i < v.size(); i++)
 	{
 		if (v[i] == startPC)
 			return; // Prevent infinite recursion
@@ -4470,9 +4470,9 @@ void _mVUflagPass(mV, u32 startPC, u32 sCount, u32 found, std::vector<u32>& v)
 	setCode();
 }
 
-void mVUflagPass(mV, u32 startPC, u32 sCount = 0, u32 found = 0)
+void mVUflagPass(mV, uint32_t startPC, uint32_t sCount = 0, uint32_t found = 0)
 {
-	std::vector<u32> v;
+	std::vector<uint32_t> v;
 	_mVUflagPass(mVU, startPC, sCount, found, v);
 }
 
@@ -4521,7 +4521,7 @@ void mVUsetFlagInfo(mV)
 
 /* Prototypes */
 extern void mVUincCycles(microVU& mVU, int x);
-extern void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState);
+extern void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState);
 
 static __fi int getLastFlagInst(microRegInfo& pState, int* xFlag, int flagType, int isEbit)
 {
@@ -4795,7 +4795,7 @@ static void mVUsetupBranch(mV, microFlagCycles& mFC)
 	mVU.p = 0, mVU.q = 0;
 }
 
-static void normBranchCompile(microVU& mVU, u32 branchPC)
+static void normBranchCompile(microVU& mVU, uint32_t branchPC)
 {
 	microBlock* pBlock;
 	blockCreate(branchPC / 8);
@@ -4837,7 +4837,7 @@ static void normJumpCompile_evilJump(mV, microFlagCycles& mFC)
 	if (mVU.index)
 		xFastCall((void*)(void (*)())mVUcompileJIT<1>, arg1reg, arg2reg);
 	else
-		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(u32 startPC, uintptr_t pState)
+		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(uint32_t startPC, uintptr_t pState)
 
 	mVUrestoreRegs(mVU);
 	xJMP(gprT1q); // Jump to rec-code address
@@ -4861,7 +4861,7 @@ static void normJumpCompile(mV, microFlagCycles& mFC)
 	if (mVU.index)
 		xFastCall((void*)(void (*)())mVUcompileJIT<1>, arg1reg, arg2reg);
 	else
-		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(u32 startPC, uintptr_t pState)
+		xFastCall((void*)(void (*)())mVUcompileJIT<0>, arg1reg, arg2reg); //(uint32_t startPC, uintptr_t pState)
 
 	mVUrestoreRegs(mVU);
 	xJMP(gprT1q); // Jump to rec-code address
@@ -4875,7 +4875,7 @@ void normBranch(mV, microFlagCycles& mFC)
 		// Flush register cache early to avoid double flush on both paths
 		mVU.regAlloc->flushAll(false);
 
-		u32 tempPC = iPC;
+		uint32_t tempPC = iPC;
 		if (mVU.index && THREAD_VU1)
 			xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x400 : 0x4));
 		else
@@ -4896,7 +4896,7 @@ void normBranch(mV, microFlagCycles& mFC)
 		// Flush register cache early to avoid double flush on both paths
 		mVU.regAlloc->flushAll(false);
 
-		u32 tempPC = iPC;
+		uint32_t tempPC = iPC;
 		if (mVU.index && THREAD_VU1)
 			xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x800 : 0x8));
 		else
@@ -4914,7 +4914,7 @@ void normBranch(mV, microFlagCycles& mFC)
 	}
 	if (mVUup.mBit)
 	{
-		u32 tempPC = iPC;
+		uint32_t tempPC = iPC;
 
 		memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
 		xLoadFarAddr(rax, &mVUpBlock->pStateEnd);
@@ -4947,7 +4947,7 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 
 	if (mVUup.tBit)
 	{
-		u32 tempPC = iPC;
+		uint32_t tempPC = iPC;
 		if (mVU.index && THREAD_VU1)
 			xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x800 : 0x8));
 		else
@@ -4978,7 +4978,7 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 	}
 	if (mVUup.dBit && doDBitHandling)
 	{
-		u32 tempPC = iPC;
+		uint32_t tempPC = iPC;
 		if (mVU.index  && THREAD_VU1)
 			xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x400 : 0x4));
 		else
@@ -5005,7 +5005,7 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 	}
 	if (mVUup.mBit)
 	{
-		u32 tempPC = iPC;
+		uint32_t tempPC = iPC;
 
 		memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
 		xLoadFarAddr(rax, &mVUpBlock->pStateEnd);
@@ -5068,8 +5068,8 @@ void condBranch(mV, microFlagCycles& mFC, int JMPcc)
 		}
 		else
 		{
-			s32* ajmp = xJcc32((JccComparisonType)JMPcc, 0);
-			u32 bPC = iPC; // mVUcompile can modify iPC, mVUpBlock, and mVUregs so back them up
+			int32_t* ajmp = xJcc32((JccComparisonType)JMPcc, 0);
+			uint32_t bPC = iPC; // mVUcompile can modify iPC, mVUpBlock, and mVUregs so back them up
 
 			microRegInfo regBackup;
 			memcpy(&regBackup, &mVUregs, sizeof(microRegInfo));
@@ -5167,7 +5167,7 @@ void normJump(mV, microFlagCycles& mFC)
 __fi void mVUcheckIsSame(mV)
 {
 	if (mVU.prog.isSame == -1)
-		mVU.prog.isSame = !memcmp((u8*)mVUcurProg.data, vuRegs[mVU.index].Micro, mVU.microMemSize);
+		mVU.prog.isSame = !memcmp((uint8_t*)mVUcurProg.data, vuRegs[mVU.index].Micro, mVU.microMemSize);
 	if (mVU.prog.isSame == 0)
 	{
 		mVUcacheProg(mVU, *mVU.prog.cur);
@@ -5176,12 +5176,12 @@ __fi void mVUcheckIsSame(mV)
 }
 
 /* Sets up microProgram PC ranges based on whats been recompiled */
-static void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
+static void mVUsetupRange(microVU& mVU, int32_t pc, bool isStartPC)
 {
 	std::deque<microRange>*& ranges = mVUcurProg.ranges;
 
 	// The PC handling will prewrap the PC so we need to set the end PC to the end of the micro memory, but only if it wraps, no more.
-	const s32 cur_pc = (!isStartPC && mVUrange.start > pc && pc == 0) ? mVU.microMemSize : pc;
+	const int32_t cur_pc = (!isStartPC && mVUrange.start > pc && pc == 0) ? mVU.microMemSize : pc;
 
 	if (isStartPC) // Check if startPC is already within a block we've recompiled
 	{
@@ -5219,8 +5219,8 @@ static void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 	if (mVUrange.start <= cur_pc)
 	{
 		mVUrange.end = cur_pc;
-		s32& rStart = mVUrange.start;
-		s32& rEnd = mVUrange.end;
+		int32_t& rStart = mVUrange.start;
+		int32_t& rEnd = mVUrange.end;
 		std::deque<microRange>::iterator it(ranges->begin());
 		it++;
 		for (;it != ranges->end();)
@@ -5282,7 +5282,7 @@ static void doIbit(mV)
 		}
 		else
 		{
-			u32 tempI;
+			uint32_t tempI;
 			if (CHECK_VU_OVERFLOW(mVU.index) && ((curI & 0x7fffffff) >= 0x7f800000))
 				tempI = (0x80000000 & curI) | 0x7f7fffff; // Clamp I Reg
 			else
@@ -5387,8 +5387,8 @@ static __ri void branchWarning(mV)
 //------------------------------------------------------------------
 // Cycles / Pipeline State / Early Exit from Execution
 //------------------------------------------------------------------
-__fi u8 optimizeReg(u8 rState) { return (rState == 1) ? 0 : rState; }
-__fi u8 calcCycles(u8 reg, u8 x) { return ((reg > x) ? (reg - x) : 0); }
+__fi uint8_t optimizeReg(uint8_t rState) { return (rState == 1) ? 0 : rState; }
+__fi uint8_t calcCycles(uint8_t reg, uint8_t x) { return ((reg > x) ? (reg - x) : 0); }
 __fi void incP(mV) { mVU.p ^= 1; }
 __fi void incQ(mV) { mVU.q ^= 1; }
 
@@ -5567,7 +5567,7 @@ static void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 
 
 // Initialize Variables
-static __fi void mVUinitFirstPass(microVU& mVU, uintptr_t pState, u8* thisPtr)
+static __fi void mVUinitFirstPass(microVU& mVU, uintptr_t pState, uint8_t* thisPtr)
 {
 	mVUstartPC = iPC; // Block Start PC
 	mVUbranch  = 0;   // Branch Type
@@ -5576,9 +5576,9 @@ static __fi void mVUinitFirstPass(microVU& mVU, uintptr_t pState, u8* thisPtr)
 	mVU.p      = 0;   // All blocks start at p index #0
 	mVU.q      = 0;   // All blocks start at q index #0
 	if ((uintptr_t)&mVUregs != pState) // Loads up Pipeline State Info
-		memcpy((u8*)&mVUregs, (u8*)pState, sizeof(microRegInfo));
+		memcpy((uint8_t*)&mVUregs, (uint8_t*)pState, sizeof(microRegInfo));
 	if (((uintptr_t)&mVU.prog.lpState != pState))
-		memcpy((u8*)&mVU.prog.lpState, (u8*)pState, sizeof(microRegInfo));
+		memcpy((uint8_t*)&mVU.prog.lpState, (uint8_t*)pState, sizeof(microRegInfo));
 	mVUblock.x86ptrStart = thisPtr;
 	mVUpBlock = mVUblocks[mVUstartPC / 2]->add(mVU, &mVUblock); // Add this block to block manager
 	mVUregs.needExactMatch = (mVUpBlock->pState.blockType) ? 7 : 0; // ToDo: Fix 1-Op block flag linking (MGS2:Demo/Sly Cooper)
@@ -5638,13 +5638,13 @@ void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 	eJMP.SetTarget();
 }
 
-static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
+static void mvuPreloadRegisters(microVU& mVU, uint32_t endCount)
 {
 	static constexpr const int REQUIRED_FREE_XMMS = 3; // some space for temps
 	static constexpr const int REQUIRED_FREE_GPRS = 1; // some space for temps
 
-	u32 vfs_loaded = 0;
-	u32 vis_loaded = 0;
+	uint32_t vfs_loaded = 0;
+	uint32_t vis_loaded = 0;
 
 	for (int reg = 0; reg < mVU.regAlloc->getXmmCount(); reg++)
 	{
@@ -5660,12 +5660,12 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 			vis_loaded |= (1u << vi);
 	}
 
-	const u32 orig_pc = iPC;
-	const u32 orig_code = mVU.code;
+	const uint32_t orig_pc = iPC;
+	const uint32_t orig_code = mVU.code;
 	int free_regs = mVU.regAlloc->getFreeXmmCount();
 	int free_gprs = mVU.regAlloc->getFreeGPRCount();
 
-	auto preloadVF = [&mVU, &vfs_loaded, &free_regs](u8 reg)
+	auto preloadVF = [&mVU, &vfs_loaded, &free_regs](uint8_t reg)
 	{
 		if (free_regs <= REQUIRED_FREE_XMMS || reg == 0 || (vfs_loaded & (1u << reg)) != 0)
 			return;
@@ -5675,7 +5675,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 		free_regs--;
 	};
 
-	auto preloadVI = [&mVU, &vis_loaded, &free_gprs](u8 reg)
+	auto preloadVI = [&mVU, &vis_loaded, &free_gprs](uint8_t reg)
 	{
 		if (free_gprs <= REQUIRED_FREE_GPRS || reg == 0 || (vis_loaded & (1u << reg)) != 0)
 			return;
@@ -5689,7 +5689,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 		return (free_regs >= REQUIRED_FREE_XMMS || free_gprs >= REQUIRED_FREE_GPRS);
 	};
 
-	for (u32 x = 0; x < endCount && canPreload(); x++)
+	for (uint32_t x = 0; x < endCount && canPreload(); x++)
 	{
 		incPC(1);
 
@@ -5697,7 +5697,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 		if (info->doXGKICK)
 			break;
 
-		for (u32 i = 0; i < 2; i++)
+		for (uint32_t i = 0; i < 2; i++)
 		{
 			preloadVF(info->uOp.VF_read[i].reg);
 			preloadVF(info->lOp.VF_read[i].reg);
@@ -5727,11 +5727,11 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 	mVU.code = orig_code;
 }
 
-void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
+void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState)
 {
 	microFlagCycles mFC;
-	u8* thisPtr = x86Ptr;
-	const u32 endCount = (((microRegInfo*)pState)->blockType) ? 1 : (mVU.microMemSize / 8);
+	uint8_t* thisPtr = x86Ptr;
+	const uint32_t endCount = (((microRegInfo*)pState)->blockType) ? 1 : (mVU.microMemSize / 8);
 
 	// First Pass
 	iPC = startPC / 4;
@@ -5880,7 +5880,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 	}
 
 	// Fix up vi15 const info for propagation through blocks
-	mVUregs.vi15 = (doConstProp && mVUconstReg[15].isValid) ? (u16)mVUconstReg[15].regValue : 0;
+	mVUregs.vi15 = (doConstProp && mVUconstReg[15].isValid) ? (uint16_t)mVUconstReg[15].regValue : 0;
 	mVUregs.vi15v = (doConstProp && mVUconstReg[15].isValid) ? 1 : 0;
 	mVUsetFlags(mVU, mFC);           // Sets Up Flag instances
 	mVUoptimizePipeState(mVU);       // Optimize the End Pipeline State for nicer Block Linking
@@ -5890,7 +5890,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 	iPC = mVUstartPC;
 	setCode();
 	mVUbranch = 0;
-	u32 x = 0;
+	uint32_t x = 0;
 
 	mvuPreloadRegisters(mVU, endCount);
 
@@ -5926,8 +5926,8 @@ void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 
 				mVUsetupBranch(mVU, mFC);
 				// Make sure we save the current state so it can come back to it
-				u32* cpS = (u32*)&mVUregs;
-				u32* lpS = (u32*)&mVU.prog.lpState;
+				uint32_t* cpS = (uint32_t*)&mVUregs;
+				uint32_t* lpS = (uint32_t*)&mVU.prog.lpState;
 				for (size_t i = 0; i < (sizeof(microRegInfo) - 4) / 4; i++, lpS++, cpS++)
 				{
 					xMOV(ptr32[lpS], cpS[0]);
@@ -6010,14 +6010,14 @@ void* mVUcompile(microVU& mVU, u32 startPC, uintptr_t pState)
 }
 
 // Returns the entry point of the block (compiles it if not found)
-static __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uintptr_t pState)
+static __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, uint32_t startPC, uintptr_t pState)
 {
 	microBlock* pBlock = block->search(mVU, (microRegInfo*)pState);
 	return (pBlock) ? pBlock->x86ptrStart : mVUcompile(mVU, startPC, pState);
 }
 
 // Search for Existing Compiled Block (if found, return x86ptr; else, compile and return x86ptr)
-static __fi void* mVUblockFetch(microVU& mVU, u32 startPC, uintptr_t pState)
+static __fi void* mVUblockFetch(microVU& mVU, uint32_t startPC, uintptr_t pState)
 {
 	startPC &= mVU.microMemSize - 8;
 
@@ -6026,7 +6026,7 @@ static __fi void* mVUblockFetch(microVU& mVU, u32 startPC, uintptr_t pState)
 }
 
 // mVUcompileJIT() - Called By JR/JALR during execution
-_mVUt void* mVUcompileJIT(u32 startPC, uintptr_t ptr)
+_mVUt void* mVUcompileJIT(uint32_t startPC, uintptr_t ptr)
 {
 	if (doJumpAsSameProgram) // Treat jump as part of same microProgram
 	{
@@ -6138,8 +6138,8 @@ void mVUdispatcherAB(mV)
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	*(u8*)x86Ptr = 0xC3;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(uint8_t);
 }
 
 // Generates the code for resuming/exit xgkick
@@ -6178,8 +6178,8 @@ void mVUdispatcherCD(mV)
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	*(u8*)x86Ptr = 0xC3;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(uint8_t);
 }
 
 static void mVUGenerateWaitMTVU(mV)
@@ -6212,7 +6212,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	// We need 16 byte alignment on the stack.
 	// Since the stack is unaligned at entry to this function, we add 8 when it's even, not odd.
-	const int stack_size = (num_xmms * sizeof(u128)) + ((~num_gprs & 1) * sizeof(u64)) + SHADOW_STACK_SIZE;
+	const int stack_size = (num_xmms * sizeof(u128)) + ((~num_gprs & 1) * sizeof(uint64_t)) + SHADOW_STACK_SIZE;
 	int stack_offset = SHADOW_STACK_SIZE;
 
 	if (stack_size > 0)
@@ -6252,8 +6252,8 @@ static void mVUGenerateWaitMTVU(mV)
 		xPOP(xRegister64(i));
 	}
 
-	*(u8*)x86Ptr = 0xC3;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(uint8_t);
 }
 
 static void mVUGenerateCopyPipelineState(mV)
@@ -6266,9 +6266,9 @@ static void mVUGenerateCopyPipelineState(mV)
 		xVMOVAPS(ymm1, ptr[rax + 32u]);
 		xVMOVAPS(ymm2, ptr[rax + 64u]);
 
-		xVMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState)], ymm0);
-		xVMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 32u], ymm1);
-		xVMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 64u], ymm2);
+		xVMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState)], ymm0);
+		xVMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 32u], ymm1);
+		xVMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 64u], ymm2);
 
 		xVZEROUPPER();
 	}
@@ -6281,16 +6281,16 @@ static void mVUGenerateCopyPipelineState(mV)
 		xMOVAPS(xmm4, ptr[rax + 64u]);
 		xMOVAPS(xmm5, ptr[rax + 80u]);
 
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState)], xmm0);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 16u], xmm1);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 32u], xmm2);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 48u], xmm3);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 64u], xmm4);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 80u], xmm5);
+		xMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState)], xmm0);
+		xMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 16u], xmm1);
+		xMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 32u], xmm2);
+		xMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 48u], xmm3);
+		xMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 64u], xmm4);
+		xMOVUPS(ptr[reinterpret_cast<uint8_t*>(&mVU.prog.lpState) + 80u], xmm5);
 	}
 
-	*(u8*)x86Ptr = 0xC3;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(uint8_t);
 }
 
 //------------------------------------------------------------------
@@ -6355,8 +6355,8 @@ static void mVUGenerateCompareState(mV)
 		exitPoint.SetTarget();
 	}
 
-	*(u8*)x86Ptr = 0xC3;
-	x86Ptr += sizeof(u8);
+	*(uint8_t*)x86Ptr = 0xC3;
+	x86Ptr += sizeof(uint8_t);
 }
 
 //------------------------------------------------------------------
@@ -6364,13 +6364,13 @@ static void mVUGenerateCompareState(mV)
 //------------------------------------------------------------------
 
 // Executes for number of cycles
-_mVUt void* mVUexecute(u32 startPC, u32 cycles)
+_mVUt void* mVUexecute(uint32_t startPC, uint32_t cycles)
 {
 	microVU& mVU    = mVUx;
-	u32 vuLimit     = vuIndex ? 0x3ff8 : 0xff8;
+	uint32_t vuLimit     = vuIndex ? 0x3ff8 : 0xff8;
 	mVU.cycles      = cycles;
 	mVU.totalCycles = cycles;
-	x86Ptr = (u8*)mVU.prog.x86ptr; // Set x86ptr to where last program left off
+	x86Ptr = (uint8_t*)mVU.prog.x86ptr; // Set x86ptr to where last program left off
 	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uintptr_t)&mVU.prog.lpState); // Find and set correct program
 }
 
@@ -6392,10 +6392,10 @@ _mVUt void mVUcleanUp(void)
 
 	if (!vuIndex || !THREAD_VU1)
 	{
-		u32 cycles_passed = std::min(mVU.cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
+		uint32_t cycles_passed = std::min(mVU.cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
 		if (cycles_passed > 0)
 		{
-			s32 vu0_offset = vuRegs[0].cycle - cpuRegs.cycle;
+			int32_t vu0_offset = vuRegs[0].cycle - cpuRegs.cycle;
 			cpuRegs.cycle += cycles_passed;
 
 			// VU0 needs to stay in sync with the CPU otherwise things get messy
@@ -6412,8 +6412,8 @@ _mVUt void mVUcleanUp(void)
 // Caller Functions
 //------------------------------------------------------------------
 
-void* mVUexecuteVU0(u32 startPC, u32 cycles) { return mVUexecute<0>(startPC, cycles); }
-void* mVUexecuteVU1(u32 startPC, u32 cycles) { return mVUexecute<1>(startPC, cycles); }
+void* mVUexecuteVU0(uint32_t startPC, uint32_t cycles) { return mVUexecute<0>(startPC, cycles); }
+void* mVUexecuteVU1(uint32_t startPC, uint32_t cycles) { return mVUexecute<1>(startPC, cycles); }
 void mVUcleanUpVU0() { mVUcleanUp<0>(); }
 void mVUcleanUpVU1() { mVUcleanUp<1>(); }
 
@@ -6712,34 +6712,34 @@ INTERPRETATE_COP2_FUNC(CALLMSR);
 //------------------------------------------------------------------
 // Macro VU - Branches
 //------------------------------------------------------------------
-static u32 *branch_jnz32(u32 to)
+static uint32_t *branch_jnz32(uint32_t to)
 {
-	*(u8*)x86Ptr = 0x0F; 
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JNZ32; 
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = to;
-	x86Ptr += sizeof(u32);
-	return (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F; 
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JNZ32; 
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = to;
+	x86Ptr += sizeof(uint32_t);
+	return (uint32_t*)(x86Ptr - 4);
 }
 
-static u32 *branch_jz32(u32 to)
+static uint32_t *branch_jz32(uint32_t to)
 {
-	*(u8*)x86Ptr = 0x0F; 
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JZ32; 
-	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = to;
-	x86Ptr += sizeof(u32);
-	return (u32*)(x86Ptr - 4);
+	*(uint8_t*)x86Ptr = 0x0F; 
+	x86Ptr += sizeof(uint8_t);
+	*(uint8_t*)x86Ptr = JZ32; 
+	x86Ptr += sizeof(uint8_t);
+	*(uint32_t*)x86Ptr = to;
+	x86Ptr += sizeof(uint32_t);
+	return (uint32_t*)(x86Ptr - 4);
 }
 
-static void _setupBranchTest(u32*(jmpType)(u32), bool isLikely)
+static void _setupBranchTest(uint32_t*(jmpType)(uint32_t), bool isLikely)
 {
-	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 	const bool swap = isLikely ? false : TrySwapDelaySlot(0, 0, 0, false);
 	_eeFlushAllDirty();
-	//xTEST(ptr32[&vif1Regs.stat._u32], 0x4);
+	//xTEST(ptr32[&vif1Regs.stat._uint32_t], 0x4);
 	xTEST(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], 0x100);
 	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
 }
@@ -7263,7 +7263,7 @@ void recLQC2(void)
 	int xmmreg;
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		const u32 addr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0xFu;
+		const uint32_t addr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0xFu;
 		xmmreg = vtlb_DynGenReadQuad_Const(addr, alloc_cb);
 	}
 	else
@@ -7303,7 +7303,7 @@ void recSQC2()
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		const u32 addr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0xFu;
+		const uint32_t addr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0xFu;
 		vtlb_DynGenWrite_Const(128, true, addr, ftreg);
 	}
 	else

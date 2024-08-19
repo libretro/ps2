@@ -47,10 +47,10 @@ namespace R5900
 {
 	/// Takes a functor of bool(pc, EEINST*), returning false if iteration should stop.
 	template <class F>
-	void __fi ForEachInstruction(u32 start, u32 end, EEINST* inst_cache, const F& func)
+	void __fi ForEachInstruction(uint32_t start, uint32_t end, EEINST* inst_cache, const F& func)
 	{
 		EEINST* eeinst = inst_cache;
-		for (u32 apc = start; apc < end; apc += 4, eeinst++)
+		for (uint32_t apc = start; apc < end; apc += 4, eeinst++)
 		{
 			cpuRegs.code = vtlb_memRead32(apc);
 			if (!func(apc, eeinst))
@@ -65,7 +65,7 @@ namespace R5900
 		EEINST* m_last_status_write;
 		EEINST* m_last_mac_write;
 		EEINST* m_last_clip_write;
-		u32 m_cfc2_pc;
+		uint32_t m_cfc2_pc;
 	};
 
 	struct COP2MicroFinishPass
@@ -89,7 +89,7 @@ namespace Dynarec {
 // Parameters:
 //   jmpSkip - This parameter is the result of the appropriate J32 instruction
 //   (usually JZ32 or JNZ32).
-void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelaySlot)
+void recDoBranchImm(uint32_t branchTo, uint32_t* jmpSkip, bool isLikely, bool swappedDelaySlot)
 {
 	// First up is the Branch Taken Path : Save the recompiler's state, compile the
 	// DelaySlot, and issue a BranchTest insertion.  The state is reloaded below for
@@ -131,7 +131,7 @@ using namespace R5900;
 // 1: status
 // 2: MAC
 // 4: clip
-static int cop2flags(u32 code)
+static int cop2flags(uint32_t code)
 {
 	if (code >> 26 != 022)
 		return 0; // not COP2
@@ -189,7 +189,7 @@ static int cop2flags(u32 code)
 	return 3;
 }
 
-void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
+void COP2FlagHackPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
 {
 	COP2FlagHackPass cop2;
 	cop2.m_status_denormalized = false;
@@ -198,7 +198,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 	cop2.m_last_clip_write     = nullptr;
 	cop2.m_cfc2_pc             = start;
 
-	ForEachInstruction(start, end, inst_cache, [&cop2, end](u32 apc, EEINST* inst) {
+	ForEachInstruction(start, end, inst_cache, [&cop2, end](uint32_t apc, EEINST* inst) {
 		// catch SB/SH/SW to potential DMA->VIF0->VU0 exec.
 		// this is very unlikely in a cop2 chain.
 		if (_Opcode_ == 050 || _Opcode_ == 051 || _Opcode_ == 053)
@@ -307,7 +307,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 
 			// If we're still behind the next CFC2 after the sticky bits got cleared, we need to update flags.
 			// Also do this if we're a vsqrt/vrsqrt/vdiv, these update status unconditionally.
-			const u32 sub_opcode = (cpuRegs.code & 3) | ((cpuRegs.code >> 4) & 0x7c);
+			const uint32_t sub_opcode = (cpuRegs.code & 3) | ((cpuRegs.code >> 4) & 0x7c);
 			if (apc < cop2.m_cfc2_pc || (_Rs_ >= 020 && _Funct_ >= 074 && sub_opcode >= 070 && sub_opcode <= 072))
 				inst->info |= EEINST_COP2_STATUS_FLAG;
 
@@ -341,7 +341,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		cop2.m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
 }
 
-void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
+void COP2MicroFinishPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
 {
 	struct COP2MicroFinishPass cop2;
 	cop2.needs_vu0_sync    = true;
@@ -352,7 +352,7 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 	// If it is, we need to use tighter synchronization on all COP2 instructions, 
 	// otherwise Crash Twinsanity breaks.
 	EEINST* eeinst = inst_cache;
-	for (u32 apc = start; apc < end; apc += 4, eeinst++)
+	for (uint32_t apc = start; apc < end; apc += 4, eeinst++)
 	{
 		cpuRegs.code = vtlb_memRead32(apc);
 		if (_Opcode_ == 022 && (_Rs_ == 001 || _Rs_ == 002 || _Rs_ == 005 || _Rs_ == 006) && cpuRegs.code & 1)
@@ -362,7 +362,7 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		}
 	}
 
-	ForEachInstruction(start, end, inst_cache, [&cop2, end, inst_cache](u32 apc, EEINST* inst) {
+	ForEachInstruction(start, end, inst_cache, [&cop2, end, inst_cache](uint32_t apc, EEINST* inst) {
 		// Catch SQ/SB/SH/SW/SD to potential DMA->VIF0->VU0 exec.
 		// Also VCALLMS/VCALLMSR, that can start a micro, so the next instruction needs to finish it.
 		// This is very unlikely in a cop2 chain.
@@ -390,7 +390,7 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		if ((cop2.needs_vu0_sync && (is_lqc_sqc || is_non_interlocked_move)) || likely_clear)
 		{
 			bool following_needs_finish = false;
-			ForEachInstruction(apc + 4, end, inst_cache + 1, [&following_needs_finish](u32 apc2, EEINST* inst2) {
+			ForEachInstruction(apc + 4, end, inst_cache + 1, [&following_needs_finish](uint32_t apc2, EEINST* inst2) {
 				if (_Opcode_ == 022)
 				{
 					// For VCALLMS/VCALLMSR, we only sync, because the VCALLMS in itself will finish.
@@ -668,12 +668,12 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		} \
 	}
 
-static void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropSPECIAL(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 rs = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
-	const u32 rd = ((code >> 11) & 0x1F);
-	const u32 funct = (code & 0x3F);
+	const uint32_t rs = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
+	const uint32_t rd = ((code >> 11) & 0x1F);
+	const uint32_t funct = (code & 0x3F);
 
 	switch (funct)
 	{
@@ -790,10 +790,10 @@ static void recBackpropSPECIAL(u32 code, EEINST* prev, EEINST* pinst)
 }
 
 
-static void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropREGIMM(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 rs = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
+	const uint32_t rs = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
 
 	switch (rt)
 	{
@@ -822,10 +822,10 @@ static void recBackpropREGIMM(u32 code, EEINST* prev, EEINST* pinst)
 	}
 }
 
-static void recBackpropCOP0(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropCOP0(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 rs = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
+	const uint32_t rs = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
 	if      (rs == 0 || rs == 2) /* 0 = MFC0, 2 = CFC0 */
 		recBackpropSetGPRWrite(rt);
 	else if (rs == 4 || rs == 6) /* 4 = MTC0, 6 = CTC0 */
@@ -833,14 +833,14 @@ static void recBackpropCOP0(u32 code, EEINST* prev, EEINST* pinst)
 }
 
 
-static void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropCOP1(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 fmt = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
-	const u32 fs = ((code >> 11) & 0x1F);
-	const u32 ft = ((code >> 16) & 0x1F);
-	const u32 fd = ((code >> 6) & 0x1F);
-	const u32 funct = (code & 0x3F);
+	const uint32_t fmt = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
+	const uint32_t fs = ((code >> 11) & 0x1F);
+	const uint32_t ft = ((code >> 16) & 0x1F);
+	const uint32_t fd = ((code >> 6) & 0x1F);
+	const uint32_t funct = (code & 0x3F);
 
 	switch (fmt)
 	{
@@ -948,17 +948,17 @@ static void recBackpropCOP1(u32 code, EEINST* prev, EEINST* pinst)
 }
 
 
-static void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropCOP2(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 fmt = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
-	const u32 fs = ((code >> 11) & 0x1F);
-	const u32 ft = ((code >> 16) & 0x1F);
-	const u32 fd = ((code >> 6) & 0x1F);
-	const u32 funct = (code & 0x3F);
+	const uint32_t fmt = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
+	const uint32_t fs = ((code >> 11) & 0x1F);
+	const uint32_t ft = ((code >> 16) & 0x1F);
+	const uint32_t fd = ((code >> 6) & 0x1F);
+	const uint32_t funct = (code & 0x3F);
 
-	constexpr u32 VF_ACC = 32;
-	constexpr u32 VF_I = 33;
+	constexpr uint32_t VF_ACC = 32;
+	constexpr uint32_t VF_I = 33;
 
 	switch (fmt)
 	{
@@ -1092,9 +1092,9 @@ static void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 				case 52: // VIAND
 				case 53: // VIOR
 				{
-					const u32 is = fs & 0xFu;
-					const u32 it = ft & 0xFu;
-					const u32 id = fd & 0xFu;
+					const uint32_t is = fs & 0xFu;
+					const uint32_t it = ft & 0xFu;
+					const uint32_t id = fd & 0xFu;
 					recBackpropSetVIWrite(id);
 					recBackpropSetVIRead(is);
 					recBackpropSetVIRead(it);
@@ -1112,7 +1112,7 @@ static void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 				case 62: // COP2_SPEC2
 				case 63: // COP2_SPEC2
 				{
-					const u32 idx = (code & 3u) | ((code >> 4) & 0x7cu);
+					const uint32_t idx = (code & 3u) | ((code >> 4) & 0x7cu);
 					switch (idx)
 					{
 						case 0: // VADDAx
@@ -1266,12 +1266,12 @@ static void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 }
 
 
-static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
+static void recBackpropMMI(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 funct = (code & 0x3F);
-	const u32 rs = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
-	const u32 rd = ((code >> 11) & 0x1F);
+	const uint32_t funct = (code & 0x3F);
+	const uint32_t rs = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
+	const uint32_t rd = ((code >> 11) & 0x1F);
 
 	switch (funct)
 	{
@@ -1361,7 +1361,7 @@ static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 
 		case 8: // mmi0
 		{
-			const u32 idx = ((code >> 6) & 0x1F);
+			const uint32_t idx = ((code >> 6) & 0x1F);
 			switch (idx)
 			{
 				case 0: // PADDW
@@ -1406,7 +1406,7 @@ static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 
 		case 40: // mmi1
 		{
-			const u32 idx = ((code >> 6) & 0x1F);
+			const uint32_t idx = ((code >> 6) & 0x1F);
 			switch (idx)
 			{
 				case 2: // PCEQW
@@ -1445,7 +1445,7 @@ static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 
 		case 9: // mmi2
 		{
-			const u32 idx = ((code >> 6) & 0x1F);
+			const uint32_t idx = ((code >> 6) & 0x1F);
 			switch (idx)
 			{
 				case 0: // PMADDW
@@ -1517,7 +1517,7 @@ static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 
 		case 41: // mmi3
 		{
-			const u32 idx = ((code >> 6) & 0x1F);
+			const uint32_t idx = ((code >> 6) & 0x1F);
 			switch (idx)
 			{
 				case 0: // PMADDUW
@@ -1584,10 +1584,10 @@ static void recBackpropMMI(u32 code, EEINST* prev, EEINST* pinst)
 }
 
 
-void recBackpropBSC(u32 code, EEINST* prev, EEINST* pinst)
+void recBackpropBSC(uint32_t code, EEINST* prev, EEINST* pinst)
 {
-	const u32 rs = ((code >> 21) & 0x1F);
-	const u32 rt = ((code >> 16) & 0x1F);
+	const uint32_t rs = ((code >> 21) & 0x1F);
+	const uint32_t rt = ((code >> 16) & 0x1F);
 
 	switch (code >> 26)
 	{
@@ -1718,7 +1718,7 @@ using namespace x86Emitter;
 
 // yay sloppy crap needed until we can remove dependency on this hippopotamic
 // landmass of shared code. (air)
-extern u32 g_psxConstRegs[32];
+extern uint32_t g_psxConstRegs[32];
 
 // X86 caching
 static uint g_x86checknext;
@@ -1728,17 +1728,17 @@ static bool eeCpuExecuting = false;
 static bool eeRecExitRequested = false;
 static bool g_resetEeScalingStats = false;
 
-static u32 maxrecmem = 0;
+static uint32_t maxrecmem = 0;
 alignas(16) static uintptr_t recLUT[_64kb];
-alignas(16) static u32 hwLUT[_64kb];
+alignas(16) static uint32_t hwLUT[_64kb];
 
-static u32 s_nBlockCycles = 0; // cycles of current block recompiling
+static uint32_t s_nBlockCycles = 0; // cycles of current block recompiling
 bool s_nBlockInterlocked = false; // Block is VU0 interlocked
-u32 pc; // recompiler pc
+uint32_t pc; // recompiler pc
 int g_branch; // set for branch
 
 alignas(16) GPR_reg64 g_cpuConstRegs[32] = {};
-u32 g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
+uint32_t g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
 bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
 
 static int RETURN_READ_IN_RAX(void) { return rax.Id; }
@@ -1813,7 +1813,7 @@ static int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo
 static bool FitsInImmediate(int reg, int fprinfo)
 {
 	if (fprinfo & XMMINFO_64BITOP)
-		return (s32)g_cpuConstRegs[reg].SD[0] == g_cpuConstRegs[reg].SD[0];
+		return (int32_t)g_cpuConstRegs[reg].SD[0] == g_cpuConstRegs[reg].SD[0];
 	return true; // all 32bit ops fit
 }
 
@@ -1853,7 +1853,7 @@ void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900F
 		_addNeededGPRtoX86reg(_Rd_);
 
 	// when it doesn't fit in an immediate, we'll flush it to a reg early to save code
-	u32 info = 0;
+	uint32_t info = 0;
 	int regs = -1, regt = -1;
 	if (xmminfo & XMMINFO_READS)
 	{
@@ -1921,7 +1921,7 @@ void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 	const bool s_is_used = EEINST_USEDTEST(_Rs_);
 	const bool s_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rs_);
 
-	u32 info = 0;
+	uint32_t info = 0;
 	int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	if (regs < 0 && (s_is_used || s_in_xmm || _Rt_ == _Rs_ || (xmminfo & XMMINFO_FORCEREGS)))
 		regs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
@@ -1957,7 +1957,7 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 	const bool t_is_used = EEINST_USEDTEST(_Rt_);
 	const bool t_in_xmm = _hasXMMreg(XMMTYPE_GPRREG, _Rt_);
 
-	u32 info = 0;
+	uint32_t info = 0;
 	int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
 	if (regt < 0 && (t_is_used || t_in_xmm || (_Rd_ == _Rt_) || (xmminfo & XMMINFO_FORCEREGT)))
 		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
@@ -2201,10 +2201,10 @@ void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo
 // we need enough for a 32-bit jump forwards (5 bytes)
 #define LOADSTORE_PADDING 5
 
-static u32 GetAllocatedGPRBitmask(void)
+static uint32_t GetAllocatedGPRBitmask(void)
 {
-	u32 mask = 0;
-	for (u32 i = 0; i < iREGCNT_GPR; i++)
+	uint32_t mask = 0;
+	for (uint32_t i = 0; i < iREGCNT_GPR; i++)
 	{
 		if (x86regs[i].inuse)
 			mask |= (1u << i);
@@ -2212,10 +2212,10 @@ static u32 GetAllocatedGPRBitmask(void)
 	return mask;
 }
 
-static u32 GetAllocatedXMMBitmask(void)
+static uint32_t GetAllocatedXMMBitmask(void)
 {
-	u32 mask = 0;
-	for (u32 i = 0; i < iREGCNT_XMM; i++)
+	uint32_t mask = 0;
+	for (uint32_t i = 0; i < iREGCNT_XMM; i++)
 	{
 		if (xmmregs[i].inuse)
 			mask |= (1u << i);
@@ -2226,7 +2226,7 @@ static u32 GetAllocatedXMMBitmask(void)
 /*
 	// Pseudo-Code For the following Dynarec Implementations -->
 
-	u32 vmv = vmap[addr>>VTLB_PAGE_BITS].raw();
+	uint32_t vmv = vmap[addr>>VTLB_PAGE_BITS].raw();
 	intptr_t ppf=addr+vmv;
 	if (!(ppf<0))
 	{
@@ -2238,8 +2238,8 @@ static u32 GetAllocatedXMMBitmask(void)
 	else
 	{
 		//has to: translate, find function, call function
-		u32 hand=(u8)vmv;
-		u32 paddr=(ppf-hand) << 1;
+		uint32_t hand=(u8)vmv;
+		uint32_t paddr=(ppf-hand) << 1;
 		//Console.WriteLn("Translated 0x%08X to 0x%08X",params addr,paddr);
 		return reinterpret_cast<TemplateHelper<DataSize,false>::HandlerType*>(RWFT[TemplateHelper<DataSize,false>::sidx][0][hand])(paddr,data);
 	}
@@ -2279,7 +2279,7 @@ namespace vtlb_private
 	// Prepares eax, ecx, and, ebx for Direct or Indirect operations.
 	// Returns the writeback pointer for ebx (return address from indirect handling)
 	//
-	static void DynGen_PrepRegs(int addr_reg, int value_reg, u32 sz, bool xmm)
+	static void DynGen_PrepRegs(int addr_reg, int value_reg, uint32_t sz, bool xmm)
 	{
 		_freeX86reg(arg1regd);
 		xMOV(arg1regd, xRegister32(addr_reg));
@@ -2311,7 +2311,7 @@ namespace vtlb_private
 	}
 
 	// ------------------------------------------------------------------------
-	static void DynGen_DirectRead(u32 bits, bool sign)
+	static void DynGen_DirectRead(uint32_t bits, bool sign)
 	{
 		switch (bits)
 		{
@@ -2349,7 +2349,7 @@ namespace vtlb_private
 	}
 
 	// ------------------------------------------------------------------------
-	static void DynGen_DirectWrite(u32 bits)
+	static void DynGen_DirectWrite(uint32_t bits)
 	{
 		switch (bits)
 		{
@@ -2451,7 +2451,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 	// jump to the indirect handler, which is a C++ function.
 	// [ecx is address, edx is data]
 	intptr_t table = (intptr_t)vtlbdata.RWFT[bits][mode];
-	if (table == (s32)table)
+	if (table == (int32_t)table)
 	{
 		xFastCall(ptrNative[(rax * sizeof(intptr_t)) + table], arg1reg, arg2reg);
 	}
@@ -2540,7 +2540,7 @@ void vtlb_DynGenDispatchers(void)
 // Recompiled input registers:
 //   ecx - source address to read from
 //   Returns read value in eax.
-static int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
+static int vtlb_DynGenReadNonQuad(uint32_t bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
@@ -2599,14 +2599,14 @@ static int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, v
 		xMOVSSZX(xmmreg, ptr32[RFASTMEMBASE + x86addr]);
 	}
 
-	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
-	for (u32 i = 0; i < padding; i++)
+	const uint32_t padding = LOADSTORE_PADDING - std::min<uint32_t>(static_cast<uint32_t>(x86Ptr - codeStart), 5);
+	for (uint32_t i = 0; i < padding; i++)
 	{
 		*(u8*)x86Ptr = 0x90;
 		x86Ptr += sizeof(u8);
 	}
 
-	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<uint32_t>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		static_cast<u8>(addr_reg), static_cast<u8>(x86_dest_reg),
 		static_cast<u8>(bits), sign, true, xmm);
@@ -2614,14 +2614,14 @@ static int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, v
 	return x86_dest_reg;
 }
 
-static int vtlb_DynGenReadNonQuad64_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+static int vtlb_DynGenReadNonQuad64_Const(uint32_t addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr_const))
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr_const);
 
 		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
 		iFlushCall(FLUSH_FULLVTLB);
@@ -2634,20 +2634,20 @@ static int vtlb_DynGenReadNonQuad64_Const(u32 addr_const, vtlb_ReadRegAllocCallb
 	{
 		auto ppf = vmv.assumePtr(addr_const);
 		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
-		xMOV(xRegister64(x86_dest_reg), ptr64[(u64*)ppf]);
+		xMOV(xRegister64(x86_dest_reg), ptr64[(uint64_t*)ppf]);
 	}
 
 	return x86_dest_reg;
 }
 
-static int vtlb_DynGenReadNonQuad32_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+static int vtlb_DynGenReadNonQuad32_Const(uint32_t addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (vmv.isHandler(addr_const))
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr_const);
 
 		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
 		if (!EmuConfig.Speedhacks.IntcStat && (paddr == INTC_STAT))
@@ -2681,7 +2681,7 @@ static int vtlb_DynGenReadNonQuad32_Const(u32 addr_const, vtlb_ReadRegAllocCallb
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
 //
-static int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+static int vtlb_DynGenReadNonQuad_Const(uint32_t bits, bool sign, uint32_t addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
@@ -2700,18 +2700,18 @@ static int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, u32 addr_const, vtl
 				break;
 
 			case 32:
-				sign ? xMOVSX(xRegister64(x86_dest_reg), ptr32[(u32*)ppf]) : xMOV(xRegister32(x86_dest_reg), ptr32[(u32*)ppf]);
+				sign ? xMOVSX(xRegister64(x86_dest_reg), ptr32[(uint32_t*)ppf]) : xMOV(xRegister32(x86_dest_reg), ptr32[(uint32_t*)ppf]);
 				break;
 
 			case 64:
-				xMOV(xRegister64(x86_dest_reg), ptr64[(u64*)ppf]);
+				xMOV(xRegister64(x86_dest_reg), ptr64[(uint64_t*)ppf]);
 				break;
 		}
 	}
 	else
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr_const);
 
 		int szidx = 0;
 		switch (bits)
@@ -2762,7 +2762,7 @@ static int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, u32 addr_const, vtl
 	return x86_dest_reg;
 }
 
-int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
+int vtlb_DynGenReadQuad(uint32_t bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
@@ -2783,14 +2783,14 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 
 	xMOVAPS(xRegisterSSE(reg), ptr128[RFASTMEMBASE + arg1reg]);
 
-	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
-	for (u32 i = 0; i < padding; i++)
+	const uint32_t padding = LOADSTORE_PADDING - std::min<uint32_t>(static_cast<uint32_t>(x86Ptr - codeStart), 5);
+	for (uint32_t i = 0; i < padding; i++)
 	{
 		*(u8*)x86Ptr = 0x90;
 		x86Ptr += sizeof(u8);
 	}
 
-	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<uint32_t>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		static_cast<u8>(arg1reg.Id), static_cast<u8>(reg),
 		static_cast<u8>(bits), false, true, true);
@@ -2802,7 +2802,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 // ------------------------------------------------------------------------
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
-int vtlb_DynGenReadQuad_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+int vtlb_DynGenReadQuad_Const(uint32_t addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int reg;
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
@@ -2816,7 +2816,7 @@ int vtlb_DynGenReadQuad_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg
 	else
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr_const);
 
 		iFlushCall(FLUSH_FULLVTLB);
 		xFastCall(vmv.assumeHandlerGetRaw(4, 0), paddr);
@@ -2831,7 +2831,7 @@ int vtlb_DynGenReadQuad_Const(u32 addr_const, vtlb_ReadRegAllocCallback dest_reg
 //////////////////////////////////////////////////////////////////////////////////////////
 //                            Dynarec Store Implementations
 
-void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
+void vtlb_DynGenWrite(uint32_t sz, bool xmm, int addr_reg, int value_reg)
 {
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
@@ -2880,14 +2880,14 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 		}
 	}
 
-	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
-	for (u32 i = 0; i < padding; i++)
+	const uint32_t padding = LOADSTORE_PADDING - std::min<uint32_t>(static_cast<uint32_t>(x86Ptr - codeStart), 5);
+	for (uint32_t i = 0; i < padding; i++)
 	{
 		*(u8*)x86Ptr = 0x90;
 		x86Ptr += sizeof(u8);
 	}
 
-	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<u32>(x86Ptr - codeStart),
+	vtlb_AddLoadStoreInfo((uintptr_t)codeStart, static_cast<uint32_t>(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		static_cast<u8>(addr_reg), static_cast<u8>(value_reg),
 		static_cast<u8>(sz), false, false, xmm);
@@ -2898,7 +2898,7 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 // Generates code for a store instruction, where the address is a known constant.
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
-void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
+void vtlb_DynGenWrite_Const(uint32_t bits, bool xmm, uint32_t addr_const, int value_reg)
 {
 	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
@@ -2946,7 +2946,7 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 	else
 	{
 		// has to: translate, find function, call function
-		u32 paddr = vmv.assumeHandlerGetPAddr(addr_const);
+		uint32_t paddr = vmv.assumeHandlerGetPAddr(addr_const);
 
 		int szidx = 0;
 		switch (bits)
@@ -3005,49 +3005,49 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 	xMOV(eax, ptr[xComplexAddress(rdx, vtlbdata.ppmap, rax * 4)]); /* vtlbdata.ppmap[vaddr >> VTLB_PAGE_BITS]; */ \
 	xOR(eax, ecx) \
 
-void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest_pc, u32 guest_addr,
-	u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register,
+void vtlb_DynBackpatchLoadStore(uintptr_t code_address, uint32_t code_size, uint32_t guest_pc, uint32_t guest_addr,
+	uint32_t gpr_bitmask, uint32_t fpr_bitmask, u8 address_register, u8 data_register,
 	u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
 {
-	static constexpr u32 GPR_SIZE = 8;
-	static constexpr u32 XMM_SIZE = 16;
+	static constexpr uint32_t GPR_SIZE = 8;
+	static constexpr uint32_t XMM_SIZE = 16;
 
 	// on win32, we need to reserve an additional 32 bytes shadow space when calling out to C
 #ifdef _WIN32
-	static constexpr u32 SHADOW_SIZE = 32;
+	static constexpr uint32_t SHADOW_SIZE = 32;
 #else
-	static constexpr u32 SHADOW_SIZE = 0;
+	static constexpr uint32_t SHADOW_SIZE = 0;
 #endif
 	u8* thunk = recBeginThunk();
 
 	// save regs
-	u32 num_gprs = 0;
-	u32 num_fprs = 0;
+	uint32_t num_gprs = 0;
+	uint32_t num_fprs = 0;
 
-	const u32 rbxid = static_cast<u32>(rbx.Id);
-	const u32 arg1id = static_cast<u32>(arg1reg.Id);
-	const u32 arg2id = static_cast<u32>(arg2reg.Id);
-	const u32 arg3id = static_cast<u32>(arg3reg.Id);
+	const uint32_t rbxid = static_cast<uint32_t>(rbx.Id);
+	const uint32_t arg1id = static_cast<uint32_t>(arg1reg.Id);
+	const uint32_t arg2id = static_cast<uint32_t>(arg2reg.Id);
+	const uint32_t arg3id = static_cast<uint32_t>(arg3reg.Id);
 
-	for (u32 i = 0; i < iREGCNT_GPR; i++)
+	for (uint32_t i = 0; i < iREGCNT_GPR; i++)
 	{
 		if ((gpr_bitmask & (1u << i)) && (i == rbxid || i == arg1id || i == arg2id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
 			num_gprs++;
 	}
-	for (u32 i = 0; i < iREGCNT_XMM; i++)
+	for (uint32_t i = 0; i < iREGCNT_XMM; i++)
 	{
 		if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
 			num_fprs++;
 	}
 
-	const u32 stack_size = (((num_gprs + 1) & ~1u) * GPR_SIZE) + (num_fprs * XMM_SIZE) + SHADOW_SIZE;
+	const uint32_t stack_size = (((num_gprs + 1) & ~1u) * GPR_SIZE) + (num_fprs * XMM_SIZE) + SHADOW_SIZE;
 
 	if (stack_size > 0)
 	{
 		xSUB(rsp, stack_size);
 
-		u32 stack_offset = SHADOW_SIZE;
-		for (u32 i = 0; i < iREGCNT_XMM; i++)
+		uint32_t stack_offset = SHADOW_SIZE;
+		for (uint32_t i = 0; i < iREGCNT_XMM; i++)
 		{
 			if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
 			{
@@ -3056,7 +3056,7 @@ void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest
 			}
 		}
 
-		for (u32 i = 0; i < iREGCNT_GPR; i++)
+		for (uint32_t i = 0; i < iREGCNT_GPR; i++)
 		{
 			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
 			{
@@ -3120,8 +3120,8 @@ void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest
 	// restore regs
 	if (stack_size > 0)
 	{
-		u32 stack_offset = SHADOW_SIZE;
-		for (u32 i = 0; i < iREGCNT_XMM; i++)
+		uint32_t stack_offset = SHADOW_SIZE;
+		for (uint32_t i = 0; i < iREGCNT_XMM; i++)
 		{
 			if (fpr_bitmask & (1u << i) && RegisterSSE_IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
 			{
@@ -3130,7 +3130,7 @@ void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest
 			}
 		}
 
-		for (u32 i = 0; i < iREGCNT_GPR; i++)
+		for (uint32_t i = 0; i < iREGCNT_GPR; i++)
 		{
 			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || Register_IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
 			{
@@ -3151,7 +3151,7 @@ void vtlb_DynBackpatchLoadStore(uintptr_t code_address, u32 code_size, u32 guest
 	xJMP(thunk);
 
 	// fill the rest of it with nops, if any
-	for (u32 i = static_cast<u32>((uintptr_t)x86Ptr - code_address); i < code_size; i++)
+	for (uint32_t i = static_cast<uint32_t>((uintptr_t)x86Ptr - code_address); i < code_size; i++)
 	{
 		*(u8*)x86Ptr = 0x90;
 		x86Ptr += sizeof(u8);
@@ -3308,12 +3308,12 @@ REC_FUNC_DEL(SLTU, _Rd_);
 
 static void recADD_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] + g_cpuConstRegs[_Rt_].UL[0]));
+	g_cpuConstRegs[_Rd_].SD[0] = int64_t(int32_t(g_cpuConstRegs[_Rs_].UL[0] + g_cpuConstRegs[_Rt_].UL[0]));
 }
 
 static void recADD_consts(int info) /* s is constant */
 {
-	const s32 cval = g_cpuConstRegs[_Rs_].SL[0];
+	const int32_t cval = g_cpuConstRegs[_Rs_].SL[0];
 	if (info & PROCESS_EE_T)
 		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
 	else
@@ -3326,7 +3326,7 @@ static void recADD_consts(int info) /* s is constant */
 // t is constant
 static void recADD_constt(int info)
 {
-	const s32 cval = g_cpuConstRegs[_Rt_].SL[0];
+	const int32_t cval = g_cpuConstRegs[_Rt_].SL[0];
 	if (info & PROCESS_EE_S)
 		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
 	else
@@ -3391,7 +3391,7 @@ void recDADD_const(void)
 // s is constant
 static void recDADD_consts(int info)
 {
-	const s64 cval = g_cpuConstRegs[_Rs_].SD[0];
+	const int64_t cval = g_cpuConstRegs[_Rs_].SD[0];
 	if (info & PROCESS_EE_T)
 		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
 	else
@@ -3403,7 +3403,7 @@ static void recDADD_consts(int info)
 // t is constant
 static void recDADD_constt(int info)
 {
-	const s64 cval = g_cpuConstRegs[_Rt_].SD[0];
+	const int64_t cval = g_cpuConstRegs[_Rt_].SD[0];
 	if (info & PROCESS_EE_S)
 		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
 	else
@@ -3460,12 +3460,12 @@ void recDADDU(void)
 
 static void recSUB_const()
 {
-	g_cpuConstRegs[_Rd_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] - g_cpuConstRegs[_Rt_].UL[0]));
+	g_cpuConstRegs[_Rd_].SD[0] = int64_t(int32_t(g_cpuConstRegs[_Rs_].UL[0] - g_cpuConstRegs[_Rt_].UL[0]));
 }
 
 static void recSUB_consts(int info)
 {
-	const s32 sval = g_cpuConstRegs[_Rs_].SL[0];
+	const int32_t sval = g_cpuConstRegs[_Rs_].SL[0];
 	xMOV(eax, sval);
 
 	if (info & PROCESS_EE_T)
@@ -3478,7 +3478,7 @@ static void recSUB_consts(int info)
 
 static void recSUB_constt(int info)
 {
-	const s32 tval = g_cpuConstRegs[_Rt_].SL[0];
+	const int32_t tval = g_cpuConstRegs[_Rt_].SL[0];
 	if (info & PROCESS_EE_S)
 		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_S));
 	else
@@ -3557,7 +3557,7 @@ static void recDSUB_const()
 static void recDSUB_consts(int info)
 {
 	// gross, because if d == t, we can't destroy t
-	const s64 sval = g_cpuConstRegs[_Rs_].SD[0];
+	const int64_t sval = g_cpuConstRegs[_Rs_].SD[0];
 	const xRegister64 regd((info & PROCESS_EE_T && EEREC_D == EEREC_T) ? rax.Id : EEREC_D);
 	xMOV64(regd, sval);
 
@@ -3572,7 +3572,7 @@ static void recDSUB_consts(int info)
 
 static void recDSUB_constt(int info)
 {
-	const s64 tval = g_cpuConstRegs[_Rt_].SD[0];
+	const int64_t tval = g_cpuConstRegs[_Rt_].SD[0];
 	if (info & PROCESS_EE_S)
 		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
 	else
@@ -3623,7 +3623,7 @@ EERECOMPILE_CODERC0(DSUB, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMIN
 //// DSUBU
 void recDSUBU(void) { recDSUB(); }
 
-static void recLogicalOp_constv_XOR(int info, int creg, u32 vreg, int regv)
+static void recLogicalOp_constv_XOR(int info, int creg, uint32_t vreg, int regv)
 {
 	GPR_reg64 cval    = g_cpuConstRegs[creg];
 
@@ -3635,7 +3635,7 @@ static void recLogicalOp_constv_XOR(int info, int creg, u32 vreg, int regv)
 		xImm64Op(xXOR, xRegister64(EEREC_D), rax, cval.UD[0]);
 }
 
-static void recLogicalOp_constv_NOR(int info, int creg, u32 vreg, int regv)
+static void recLogicalOp_constv_NOR(int info, int creg, uint32_t vreg, int regv)
 {
 	GPR_reg64 cval = g_cpuConstRegs[creg];
 
@@ -3655,7 +3655,7 @@ static void recLogicalOp_constv_NOR(int info, int creg, u32 vreg, int regv)
 	}
 }
 
-static void recLogicalOp_constv_AND(int info, int creg, u32 vreg, int regv)
+static void recLogicalOp_constv_AND(int info, int creg, uint32_t vreg, int regv)
 {
 	GPR_reg64 cval = g_cpuConstRegs[creg];
 
@@ -3674,7 +3674,7 @@ static void recLogicalOp_constv_AND(int info, int creg, u32 vreg, int regv)
 	}
 }
 
-static void recLogicalOp_constv_OR(int info, int creg, u32 vreg, int regv)
+static void recLogicalOp_constv_OR(int info, int creg, uint32_t vreg, int regv)
 {
 	GPR_reg64 cval = g_cpuConstRegs[creg];
 
@@ -3712,7 +3712,7 @@ static void recAND_constt(int info)
 static void recAND_(int info)
 {
 	// swap because it's commutative and Rd might be Rt
-	u32 rs = _Rs_, rt = _Rt_;
+	uint32_t rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
 	if (_Rd_ == _Rt_)
 	{
@@ -3752,7 +3752,7 @@ static void recOR_constt(int info)
 static void recOR_(int info)
 {
 	// swap because it's commutative and Rd might be Rt
-	u32 rs = _Rs_, rt = _Rt_;
+	uint32_t rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
 	if (_Rd_ == _Rt_)
 	{
@@ -3792,7 +3792,7 @@ static void recXOR_constt(int info)
 static void recXOR_(int info)
 {
 	// swap because it's commutative and Rd might be Rt
-	u32 rs = _Rs_, rt = _Rt_;
+	uint32_t rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
 	if (_Rd_ == _Rt_)
 	{
@@ -3839,7 +3839,7 @@ static void recNOR_constt(int info)
 static void recNOR_(int info)
 {
 	// swap because it's commutative and Rd might be Rt
-	u32 rs = _Rs_, rt = _Rt_;
+	uint32_t rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
 	if (_Rd_ == _Rt_)
 	{
@@ -3870,7 +3870,7 @@ static void recSLT_const()
 
 static void recSLTs_const(int info, int sign, int st)
 {
-	const s64 cval = g_cpuConstRegs[st ? _Rt_ : _Rs_].SD[0];
+	const int64_t cval = g_cpuConstRegs[st ? _Rt_ : _Rs_].SD[0];
 
 	const xImpl_Set& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
 
@@ -3984,7 +3984,7 @@ REC_FUNC_DEL(SLTIU, _Rt_);
 
 static void recADDI_const(void)
 {
-	g_cpuConstRegs[_Rt_].SD[0] = s64(s32(g_cpuConstRegs[_Rs_].UL[0] + u32(s32(_Imm_))));
+	g_cpuConstRegs[_Rt_].SD[0] = int64_t(int32_t(g_cpuConstRegs[_Rs_].UL[0] + uint32_t(int32_t(_Imm_))));
 }
 
 static void recADDI_(int info)
@@ -4005,7 +4005,7 @@ void recADDIU(void) { recADDI(); }
 ////////////////////////////////////////////////////
 static void recDADDI_const(void)
 {
-	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] + u64(s64(_Imm_));
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] + uint64_t(int64_t(_Imm_));
 }
 
 static void recDADDI_(int info)
@@ -4023,7 +4023,7 @@ void recDADDIU(void) { recDADDI(); }
 
 static void recSLTIU_const(void)
 {
-	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] < (u64)(_Imm_);
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] < (uint64_t)(_Imm_);
 }
 
 static void recSLTIU_(int info)
@@ -4050,7 +4050,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC1, SLTIU, XMMINFO_WRITET | XMMINFO_READS | XM
 
 static void recSLTI_const(void)
 {
-	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].SD[0] < (s64)(_Imm_);
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].SD[0] < (int64_t)(_Imm_);
 }
 
 static void recSLTI_(int info)
@@ -4076,7 +4076,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC1, SLTI, XMMINFO_WRITET | XMMINFO_READS | XMM
 
 static void recANDI_const(void)
 {
-	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] & (u64)_ImmU_; // Zero-extended Immediate
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] & (uint64_t)_ImmU_; // Zero-extended Immediate
 }
 
 static void recANDI_(int info)
@@ -4100,7 +4100,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC1, ANDI, XMMINFO_WRITET | XMMINFO_READS | XMM
 ////////////////////////////////////////////////////
 static void recORI_const(void)
 {
-	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] | (u64)_ImmU_; // Zero-extended Immediate
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] | (uint64_t)_ImmU_; // Zero-extended Immediate
 }
 
 static void recORI_(int info)
@@ -4120,7 +4120,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC1, ORI, XMMINFO_WRITET | XMMINFO_READS | XMMI
 ////////////////////////////////////////////////////
 static void recXORI_const(void)
 {
-	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] ^ (u64)_ImmU_; // Zero-extended Immediate
+	g_cpuConstRegs[_Rt_].UD[0] = g_cpuConstRegs[_Rs_].UD[0] ^ (uint64_t)_ImmU_; // Zero-extended Immediate
 }
 
 static void recXORI_(int info)
@@ -4166,7 +4166,7 @@ REC_SYS_DEL(BGEZALL, 31);
 
 #else
 
-static u32 *recSetBranchEQ(int bne, int process)
+static uint32_t *recSetBranchEQ(int bne, int process)
 {
 	// TODO(Stenzek): This is suboptimal if the registers are in XMMs.
 	// If the constant register is already in a host register, we don't need the immediate...
@@ -4214,12 +4214,12 @@ static u32 *recSetBranchEQ(int bne, int process)
 	else
 		*(u8*)x86Ptr = JNE32;
 	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	return (u32*)(x86Ptr - 4);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	return (uint32_t*)(x86Ptr - 4);
 }
 
-static u32 *recSetBranchL(int ltz)
+static uint32_t *recSetBranchL(int ltz)
 {
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	const int regsxmm = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
@@ -4252,18 +4252,18 @@ static u32 *recSetBranchL(int ltz)
 			*(u8*)x86Ptr = JL32;
 	}
 	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	return (u32*)(x86Ptr - 4);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	return (uint32_t*)(x86Ptr - 4);
 }
 
 //// BEQ
 static void recBEQ_const(void)
 {
-	u32 branchTo;
+	uint32_t branchTo;
 
 	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
-		branchTo = ((s32)_Imm_ * 4) + pc;
+		branchTo = ((int32_t)_Imm_ * 4) + pc;
 	else
 		branchTo = pc + 4;
 
@@ -4273,7 +4273,7 @@ static void recBEQ_const(void)
 
 static void recBEQ_process(int process)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (_Rs_ == _Rt_)
 	{
@@ -4283,7 +4283,7 @@ static void recBEQ_process(int process)
 	else
 	{
 		const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
-		u32 *j32Ptr = recSetBranchEQ(0, process);
+		uint32_t *j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
 		{
@@ -4323,10 +4323,10 @@ void recBEQ(void)
 //// BNE
 static void recBNE_const(void)
 {
-	u32 branchTo;
+	uint32_t branchTo;
 
 	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
-		branchTo = ((s32)_Imm_ * 4) + pc;
+		branchTo = ((int32_t)_Imm_ * 4) + pc;
 	else
 		branchTo = pc + 4;
 
@@ -4336,7 +4336,7 @@ static void recBNE_const(void)
 
 static void recBNE_process(int process)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (_Rs_ == _Rt_)
 	{
@@ -4347,7 +4347,7 @@ static void recBNE_process(int process)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, _Rt_, 0, true);
 
-	u32 *j32Ptr = recSetBranchEQ(1, process);
+	uint32_t *j32Ptr = recSetBranchEQ(1, process);
 
 	if (!swap)
 	{
@@ -4387,7 +4387,7 @@ static void recBEQL_const(void)
 {
 	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
 	{
-		u32 branchTo = ((s32)_Imm_ * 4) + pc;
+		uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 		recompileNextInstruction(true, false);
 		SetBranchImm(branchTo);
 	}
@@ -4399,8 +4399,8 @@ static void recBEQL_const(void)
 
 static void recBEQL_process(int process)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	u32 *j32Ptr = recSetBranchEQ(0, process);
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
+	uint32_t *j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -4429,7 +4429,7 @@ static void recBNEL_const(void)
 {
 	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
 	{
-		u32 branchTo = ((s32)_Imm_ * 4) + pc;
+		uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 		recompileNextInstruction(true, false);
 		SetBranchImm(branchTo);
 	}
@@ -4441,9 +4441,9 @@ static void recBNEL_const(void)
 
 static void recBNEL_process(int process)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
-	u32 *j32Ptr = recSetBranchEQ(0, process);
+	uint32_t *j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	SetBranchImm(pc + 4);
@@ -4471,7 +4471,7 @@ void recBNEL()
 ////////////////////////////////////////////////////
 void recBLTZAL(void)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
 	_eeFlushAllDirty();
@@ -4492,7 +4492,7 @@ void recBLTZAL(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 
-	u32 *j32Ptr = recSetBranchL(1);
+	uint32_t *j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -4518,7 +4518,7 @@ void recBLTZAL(void)
 ////////////////////////////////////////////////////
 void recBGEZAL(void)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
 	_eeFlushAllDirty();
@@ -4539,7 +4539,7 @@ void recBGEZAL(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 
-	u32 *j32Ptr = recSetBranchL(0);
+	uint32_t *j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -4565,7 +4565,7 @@ void recBGEZAL(void)
 ////////////////////////////////////////////////////
 void recBLTZALL(void)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
 	_eeFlushAllDirty();
@@ -4586,7 +4586,7 @@ void recBLTZALL(void)
 		return;
 	}
 
-	u32 *j32Ptr = recSetBranchL(1);
+	uint32_t *j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -4601,7 +4601,7 @@ void recBLTZALL(void)
 ////////////////////////////////////////////////////
 void recBGEZALL(void)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	_eeOnWriteReg(31, 0);
 	_eeFlushAllDirty();
@@ -4622,7 +4622,7 @@ void recBGEZALL(void)
 		return;
 	}
 
-	u32 *j32Ptr = recSetBranchL(0);
+	uint32_t *j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -4638,8 +4638,8 @@ void recBGEZALL(void)
 //// BLEZ
 void recBLEZ(void)
 {
-	u32 *j32Ptr;
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t *j32Ptr;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4664,9 +4664,9 @@ void recBLEZ(void)
 	x86Ptr += sizeof(u8);
 	*(u8*)x86Ptr = JG32;
 	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	j32Ptr = (u32*)(x86Ptr - 4);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	j32Ptr = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -4692,8 +4692,8 @@ void recBLEZ(void)
 //// BGTZ
 void recBGTZ(void)
 {
-	u32 *j32Ptr;
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t *j32Ptr;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4718,9 +4718,9 @@ void recBGTZ(void)
 	x86Ptr += sizeof(u8);
 	*(u8*)x86Ptr = JLE32;
 	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	j32Ptr = (u32*)(x86Ptr - 4);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	j32Ptr = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -4746,7 +4746,7 @@ void recBGTZ(void)
 ////////////////////////////////////////////////////
 void recBLTZ(void)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4760,7 +4760,7 @@ void recBLTZ(void)
 
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 	_eeFlushAllDirty();
-	u32 *j32Ptr = recSetBranchL(1);
+	uint32_t *j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
@@ -4786,7 +4786,7 @@ void recBLTZ(void)
 ////////////////////////////////////////////////////
 void recBGEZ(void)
 {
-	u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4801,7 +4801,7 @@ void recBGEZ(void)
 	const bool swap = TrySwapDelaySlot(_Rs_, 0, 0, true);
 	_eeFlushAllDirty();
 
-	u32 *j32Ptr = recSetBranchL(0);
+	uint32_t *j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
@@ -4827,7 +4827,7 @@ void recBGEZ(void)
 ////////////////////////////////////////////////////
 void recBLTZL(void)
 {
-	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4842,7 +4842,7 @@ void recBLTZL(void)
 	}
 
 	_eeFlushAllDirty();
-	u32 *j32Ptr = recSetBranchL(1);
+	uint32_t *j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -4858,7 +4858,7 @@ void recBLTZL(void)
 ////////////////////////////////////////////////////
 void recBGEZL(void)
 {
-	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4873,7 +4873,7 @@ void recBGEZL(void)
 	}
 
 	_eeFlushAllDirty();
-	u32 *j32Ptr = recSetBranchL(0);
+	uint32_t *j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -4895,8 +4895,8 @@ void recBGEZL(void)
 ////////////////////////////////////////////////////
 void recBLEZL(void)
 {
-	u32 *j32Ptr;
-	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t *j32Ptr;
+	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4922,9 +4922,9 @@ void recBLEZL(void)
 	x86Ptr += sizeof(u8);
 	*(u8*)x86Ptr = JG32;
 	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	j32Ptr = (u32*)(x86Ptr - 4);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	j32Ptr = (uint32_t*)(x86Ptr - 4);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -4939,8 +4939,8 @@ void recBLEZL(void)
 ////////////////////////////////////////////////////
 void recBGTZL(void)
 {
-	u32 *j32Ptr;
-	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
+	uint32_t *j32Ptr;
+	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -4967,9 +4967,9 @@ void recBGTZL(void)
 	x86Ptr += sizeof(u8);
 	*(u8*)x86Ptr = JLE32;
 	x86Ptr += sizeof(u8);
-	*(u32*)x86Ptr = 0;
-	x86Ptr += sizeof(u32);
-	j32Ptr = (u32*)(x86Ptr - 4);
+	*(uint32_t*)x86Ptr = 0;
+	x86Ptr += sizeof(uint32_t);
+	j32Ptr = (uint32_t*)(x86Ptr - 4);
 
 	SaveBranchState();
 	recompileNextInstruction(true, false);
@@ -5002,7 +5002,7 @@ REC_SYS_DEL(JALR, _Rd_);
 void recJ(void)
 {
 	// SET_FPUSTATE;
-	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
+	uint32_t newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
 	recompileNextInstruction(true, false);
 	if (EmuConfig.Gamefixes.GoemonTlbHack)
 		SetBranchImm(vtlb_V2P(newpc));
@@ -5013,7 +5013,7 @@ void recJ(void)
 ////////////////////////////////////////////////////
 void recJAL(void)
 {
-	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
+	uint32_t newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
 	_deleteEEreg(31, 0);
 	GPR_SET_CONST(31);
 	g_cpuConstRegs[31].UL[0] = pc + 4;
@@ -5040,7 +5040,7 @@ void recJR(void)
 ////////////////////////////////////////////////////
 void recJALR(void)
 {
-	const u32 newpc = pc + 4;
+	const uint32_t newpc = pc + 4;
 	const bool swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? false : TrySwapDelaySlot(_Rs_, 0, _Rd_, true);
 
 	// uncomment when there are NO instructions that need to call interpreter
@@ -5166,7 +5166,7 @@ static void recLoadQuad128(void)
 	int xmmreg;
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		const u32 srcadr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0x0f;
+		const uint32_t srcadr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0x0f;
 		xmmreg = vtlb_DynGenReadQuad_Const(srcadr, _Rt_ ? alloc_cb : nullptr);
 	}
 	else
@@ -5190,7 +5190,7 @@ static void recLoadQuad128(void)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-static void recLoad(u32 bits, bool sign)
+static void recLoad(uint32_t bits, bool sign)
 {
 	// This mess is so we allocate *after* the vtlb flush, not before.
 	// TODO(Stenzek): If not live, save directly to state, and delete constant.
@@ -5201,7 +5201,7 @@ static void recLoad(u32 bits, bool sign)
 	int x86reg;
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		const u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		const uint32_t srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		x86reg = vtlb_DynGenReadNonQuad_Const(bits, sign, srcadr, alloc_cb);
 	}
 	else
@@ -5235,7 +5235,7 @@ static void recStore128(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		dstadr &= ~0x0f;
 
 		vtlb_DynGenWrite_Const(128, true, dstadr, regt);
@@ -5273,7 +5273,7 @@ static void recStore64(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		vtlb_DynGenWrite_Const(64, false, dstadr, regt);
 	}
 	else
@@ -5307,7 +5307,7 @@ static void recStore32(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		vtlb_DynGenWrite_Const(32, false, dstadr, regt);
 	}
 	else
@@ -5341,7 +5341,7 @@ static void recStore16(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		vtlb_DynGenWrite_Const(16, false, dstadr, regt);
 	}
 	else
@@ -5375,7 +5375,7 @@ static void recStore8(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t dstadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		vtlb_DynGenWrite_Const(8, false, dstadr, regt);
 	}
 	else
@@ -5709,7 +5709,7 @@ void recLDL(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 
 		// If _Rs_ is equal to _Rt_ we need to put the shift in to eax since it won't take the CONST path.
 		if (_Rs_ == _Rt_)
@@ -5737,7 +5737,7 @@ void recLDL(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 shift = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t shift = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		shift = ((shift & 0x7) + 1) * 8;
 		if (shift != 64)
 		{
@@ -5787,7 +5787,7 @@ void recLDR(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 
 		// If _Rs_ is equal to _Rt_ we need to put the shift in to eax since it won't take the CONST path.
 		if (_Rs_ == _Rt_)
@@ -5815,7 +5815,7 @@ void recLDR(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 shift = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t shift = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		shift = (shift & 0x7) * 8;
 		if (shift != 0)
 		{
@@ -5885,9 +5885,9 @@ void recSDL(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 adr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		u32 aligned = adr & ~0x07;
-		u32 shift = ((adr & 0x7) + 1) * 8;
+		uint32_t adr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t aligned = adr & ~0x07;
+		uint32_t shift = ((adr & 0x7) + 1) * 8;
 		if (shift == 64)
 		{
 			_eeMoveGPRtoR(arg2reg, _Rt_);
@@ -5964,9 +5964,9 @@ void recSDR(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		u32 adr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		u32 aligned = adr & ~0x07;
-		u32 shift = (adr & 0x7) * 8;
+		uint32_t adr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		uint32_t aligned = adr & ~0x07;
+		uint32_t shift = (adr & 0x7) * 8;
 		if (shift == 0)
 		{
 			_eeMoveGPRtoR(arg2reg, _Rt_);
@@ -6046,7 +6046,7 @@ void recLWC1(void)
 	const vtlb_ReadRegAllocCallback alloc_cb = []() { return _allocFPtoXMMreg(_Rt_, MODE_WRITE); };
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		const uint32_t addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		vtlb_DynGenReadNonQuad32_Const(addr, alloc_cb);
 	}
 	else
@@ -6071,7 +6071,7 @@ void recSWC1(void)
 	const int regt = _allocFPtoXMMreg(_Rt_, MODE_READ);
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
+		const uint32_t addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
 		vtlb_DynGenWrite_Const(32, true, addr, regt);
 	}
 	else
@@ -6128,7 +6128,7 @@ void recLUI(void)
 	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
 
 	GPR_SET_CONST(_Rt_);
-	g_cpuConstRegs[_Rt_].UD[0] = (s32)(cpuRegs.code << 16);
+	g_cpuConstRegs[_Rt_].UD[0] = (int32_t)(cpuRegs.code << 16);
 }
 
 static void recMFHILO(bool hi, bool upper)
@@ -6529,13 +6529,13 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 }
 
 
-static void recWritebackConstHILO(u64 res, bool writed, int upper)
+static void recWritebackConstHILO(uint64_t res, bool writed, int upper)
 {
 	// It's not often that MULT/DIV are entirely constant. So while the MOV64s here are not optimal
 	// by any means, it's not something that's going to be hit often enough to worry about a cache.
 	// Except for apparently when it's getting set to all-zeros, but that'll be fine with immediates.
-	const s64 loval = static_cast<s64>(static_cast<s32>(static_cast<u32>(res)));
-	const s64 hival = static_cast<s64>(static_cast<s32>(static_cast<u32>(res >> 32)));
+	const int64_t loval = static_cast<int64_t>(static_cast<int32_t>(static_cast<uint32_t>(res)));
+	const int64_t hival = static_cast<int64_t>(static_cast<int32_t>(static_cast<uint32_t>(res >> 32)));
 
 	if (EEINST_LIVETEST(XMMGPR_LO))
 	{
@@ -6593,7 +6593,7 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 //// MULT
 static void recMULT_const(void)
 {
-	s64 res = (s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0];
+	int64_t res = (int64_t)g_cpuConstRegs[_Rs_].SL[0] * (int64_t)g_cpuConstRegs[_Rt_].SL[0];
 
 	recWritebackConstHILO(res, 1, 0);
 }
@@ -6655,7 +6655,7 @@ EERECOMPILE_CODERC0(MULT, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED
 //// MULTU
 static void recMULTU_const(void)
 {
-	const u64 res = (u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0];
+	const uint64_t res = (uint64_t)g_cpuConstRegs[_Rs_].UL[0] * (uint64_t)g_cpuConstRegs[_Rt_].UL[0];
 
 	recWritebackConstHILO(res, 1, 0);
 }
@@ -6681,9 +6681,9 @@ EERECOMPILE_CODERC0(MULTU, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITE
 ////////////////////////////////////////////////////
 static void recMULT1_const(void)
 {
-	s64 res = (s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0];
+	int64_t res = (int64_t)g_cpuConstRegs[_Rs_].SL[0] * (int64_t)g_cpuConstRegs[_Rt_].SL[0];
 
-	recWritebackConstHILO((u64)res, 1, 1);
+	recWritebackConstHILO((uint64_t)res, 1, 1);
 }
 
 static void recMULT1_(int info)
@@ -6706,7 +6706,7 @@ EERECOMPILE_CODERC0(MULT1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITE
 ////////////////////////////////////////////////////
 static void recMULTU1_const(void)
 {
-	u64 res = (u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0];
+	uint64_t res = (uint64_t)g_cpuConstRegs[_Rs_].UL[0] * (uint64_t)g_cpuConstRegs[_Rt_].UL[0];
 
 	recWritebackConstHILO(res, 1, 1);
 }
@@ -6732,9 +6732,9 @@ EERECOMPILE_CODERC0(MULTU1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRIT
 
 static void recDIVconst(int upper)
 {
-	s32 quot, rem = 0;
+	int32_t quot, rem = 0;
 	if (g_cpuConstRegs[_Rs_].UL[0] == 0x80000000 && g_cpuConstRegs[_Rt_].SL[0] == -1)
-		quot = (s32)0x80000000;
+		quot = (int32_t)0x80000000;
 	else if (g_cpuConstRegs[_Rt_].SL[0] != 0)
 	{
 		quot = g_cpuConstRegs[_Rs_].SL[0] / g_cpuConstRegs[_Rt_].SL[0];
@@ -6745,7 +6745,7 @@ static void recDIVconst(int upper)
 		quot = (g_cpuConstRegs[_Rs_].SL[0] < 0) ? 1 : -1;
 		rem  = g_cpuConstRegs[_Rs_].SL[0];
 	}
-	recWritebackConstHILO((u64)quot | ((u64)rem << 32), 0, upper);
+	recWritebackConstHILO((uint64_t)quot | ((uint64_t)rem << 32), 0, upper);
 }
 
 static void recDIV_const(void)
@@ -6861,7 +6861,7 @@ EERECOMPILE_CODERC0(DIV, /*XMMINFO_READS |*/ XMMINFO_READT);
 //// DIVU
 static void recDIVUconst(int upper)
 {
-	u32 quot, rem;
+	uint32_t quot, rem;
 	if (g_cpuConstRegs[_Rt_].UL[0] != 0)
 	{
 		quot = g_cpuConstRegs[_Rs_].UL[0] / g_cpuConstRegs[_Rt_].UL[0];
@@ -6873,7 +6873,7 @@ static void recDIVUconst(int upper)
 		rem = g_cpuConstRegs[_Rs_].UL[0];
 	}
 
-	recWritebackConstHILO((u64)quot | ((u64)rem << 32), 0, upper);
+	recWritebackConstHILO((uint64_t)quot | ((uint64_t)rem << 32), 0, upper);
 }
 
 static void recDIVU_const(void)
@@ -6961,7 +6961,7 @@ static void writeBackMAddToHiLoRd(int hiloID)
 	xMOV(ptr[&cpuRegs.HI.UD[hiloID]], rax);
 }
 
-static void addConstantAndWriteBackToHiLoRd(int hiloID, u64 constant)
+static void addConstantAndWriteBackToHiLoRd(int hiloID, uint64_t constant)
 {
 	const xRegister32& ehi = edx;
 
@@ -6970,8 +6970,8 @@ static void addConstantAndWriteBackToHiLoRd(int hiloID, u64 constant)
 
 	xMOV(eax, ptr[&cpuRegs.LO.UL[hiloID * 2]]);
 	xMOV(ehi, ptr[&cpuRegs.HI.UL[hiloID * 2]]);
-	xADD(eax, (u32)(constant & 0xffffffff));
-	xADC(ehi, (u32)(constant >> 32));
+	xADD(eax, (uint32_t)(constant & 0xffffffff));
+	xADC(ehi, (uint32_t)(constant >> 32));
 	writeBackMAddToHiLoRd(hiloID);
 }
 
@@ -6987,7 +6987,7 @@ void recMADD()
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 	{
-		u64 result = ((s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0]);
+		uint64_t result = ((int64_t)g_cpuConstRegs[_Rs_].SL[0] * (int64_t)g_cpuConstRegs[_Rt_].SL[0]);
 		addConstantAndWriteBackToHiLoRd(0, result);
 		return;
 	}
@@ -7022,7 +7022,7 @@ void recMADDU()
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 	{
-		u64 result = ((u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0]);
+		uint64_t result = ((uint64_t)g_cpuConstRegs[_Rs_].UL[0] * (uint64_t)g_cpuConstRegs[_Rt_].UL[0]);
 		addConstantAndWriteBackToHiLoRd(0, result);
 		return;
 	}
@@ -7057,7 +7057,7 @@ void recMADD1()
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 	{
-		u64 result = ((s64)g_cpuConstRegs[_Rs_].SL[0] * (s64)g_cpuConstRegs[_Rt_].SL[0]);
+		uint64_t result = ((int64_t)g_cpuConstRegs[_Rs_].SL[0] * (int64_t)g_cpuConstRegs[_Rt_].SL[0]);
 		addConstantAndWriteBackToHiLoRd(1, result);
 		return;
 	}
@@ -7092,7 +7092,7 @@ void recMADDU1()
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 	{
-		u64 result = ((u64)g_cpuConstRegs[_Rs_].UL[0] * (u64)g_cpuConstRegs[_Rt_].UL[0]);
+		uint64_t result = ((uint64_t)g_cpuConstRegs[_Rs_].UL[0] * (uint64_t)g_cpuConstRegs[_Rt_].UL[0]);
 		addConstantAndWriteBackToHiLoRd(1, result);
 		return;
 	}
@@ -7153,7 +7153,7 @@ REC_FUNC_DEL(DSRAV, _Rd_);
 
 static void recSLL_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] << _Sa_);
+	g_cpuConstRegs[_Rd_].SD[0] = (int32_t)(g_cpuConstRegs[_Rt_].UL[0] << _Sa_);
 }
 
 static void recSLLs_(int info, int sa)
@@ -7176,7 +7176,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, SLL, XMMINFO_WRITED | XMMINFO_READT);
 
 static void recSRL_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] >> _Sa_);
+	g_cpuConstRegs[_Rd_].SD[0] = (int32_t)(g_cpuConstRegs[_Rt_].UL[0] >> _Sa_);
 }
 
 static void recSRLs_(int info, int sa)
@@ -7196,7 +7196,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, SRL, XMMINFO_WRITED | XMMINFO_READT);
 
 static void recSRA_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].SL[0] >> _Sa_);
+	g_cpuConstRegs[_Rd_].SD[0] = (int32_t)(g_cpuConstRegs[_Rt_].SL[0] >> _Sa_);
 }
 
 static void recSRAs_(int info, int sa)
@@ -7220,7 +7220,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, SRA, XMMINFO_WRITED | XMMINFO_READT);
 ////////////////////////////////////////////////////
 static void recDSLL_const(void)
 {
-	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] << _Sa_);
+	g_cpuConstRegs[_Rd_].UD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].UD[0] << _Sa_);
 }
 
 static void recDSLLs_(int info, int sa)
@@ -7243,7 +7243,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSLL, XMMINFO_WRITED | XMMINFO_READT | XMM
 ////////////////////////////////////////////////////
 static void recDSRL_const(void)
 {
-	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] >> _Sa_);
+	g_cpuConstRegs[_Rd_].UD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].UD[0] >> _Sa_);
 }
 
 static void recDSRLs_(int info, int sa)
@@ -7266,7 +7266,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRL, XMMINFO_WRITED | XMMINFO_READT | XMM
 //// DSRA
 static void recDSRA_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (u64)(g_cpuConstRegs[_Rt_].SD[0] >> _Sa_);
+	g_cpuConstRegs[_Rd_].SD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].SD[0] >> _Sa_);
 }
 
 static void recDSRAs_(int info, int sa)
@@ -7289,7 +7289,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA, XMMINFO_WRITED | XMMINFO_READT | XMM
 ///// DSLL32
 static void recDSLL32_const(void)
 {
-	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] << (_Sa_ + 32));
+	g_cpuConstRegs[_Rd_].UD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].UD[0] << (_Sa_ + 32));
 }
 
 static void recDSLL32_(int info)
@@ -7302,7 +7302,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSLL32, XMMINFO_WRITED | XMMINFO_READT | X
 //// DSRL32
 static void recDSRL32_const(void)
 {
-	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] >> (_Sa_ + 32));
+	g_cpuConstRegs[_Rd_].UD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].UD[0] >> (_Sa_ + 32));
 }
 
 static void recDSRL32_(int info)
@@ -7315,7 +7315,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRL32, XMMINFO_WRITED | XMMINFO_READT);
 //// DSRA32
 static void recDSRA32_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (u64)(g_cpuConstRegs[_Rt_].SD[0] >> (_Sa_ + 32));
+	g_cpuConstRegs[_Rd_].SD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].SD[0] >> (_Sa_ + 32));
 }
 
 static void recDSRA32_(int info)
@@ -7332,7 +7332,7 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA32, XMMINFO_WRITED | XMMINFO_READT | X
 
 static void recSLLV_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] << (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
+	g_cpuConstRegs[_Rd_].SD[0] = (int32_t)(g_cpuConstRegs[_Rt_].UL[0] << (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
 }
 
 static void recSLLV_consts(int info)
@@ -7372,7 +7372,7 @@ EERECOMPILE_CODERC0(SLLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
 //// SRLV
 static void recSRLV_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].UL[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
+	g_cpuConstRegs[_Rd_].SD[0] = (int32_t)(g_cpuConstRegs[_Rt_].UL[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
 }
 
 static void recSRLV_consts(int info)
@@ -7412,7 +7412,7 @@ EERECOMPILE_CODERC0(SRLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
 //// SRAV
 static void recSRAV_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s32)(g_cpuConstRegs[_Rt_].SL[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
+	g_cpuConstRegs[_Rd_].SD[0] = (int32_t)(g_cpuConstRegs[_Rt_].SL[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x1f));
 }
 
 static void recSRAV_consts(int info)
@@ -7452,7 +7452,7 @@ EERECOMPILE_CODERC0(SRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
 //// DSLLV
 static void recDSLLV_const(void)
 {
-	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] << (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
+	g_cpuConstRegs[_Rd_].UD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].UD[0] << (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
 }
 
 static void recDSLLV_consts(int info)
@@ -7491,7 +7491,7 @@ EERECOMPILE_CODERC0(DSLLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMI
 //// DSRLV
 static void recDSRLV_const(void)
 {
-	g_cpuConstRegs[_Rd_].UD[0] = (u64)(g_cpuConstRegs[_Rt_].UD[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
+	g_cpuConstRegs[_Rd_].UD[0] = (uint64_t)(g_cpuConstRegs[_Rt_].UD[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
 }
 
 static void recDSRLV_consts(int info)
@@ -7530,7 +7530,7 @@ EERECOMPILE_CODERC0(DSRLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMI
 //// DSRAV
 static void recDSRAV_const(void)
 {
-	g_cpuConstRegs[_Rd_].SD[0] = (s64)(g_cpuConstRegs[_Rt_].SD[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
+	g_cpuConstRegs[_Rd_].SD[0] = (int64_t)(g_cpuConstRegs[_Rt_].SD[0] >> (g_cpuConstRegs[_Rs_].UL[0] & 0x3f));
 }
 
 static void recDSRAV_consts(int info)
@@ -7588,24 +7588,24 @@ static BASEBLOCK* recROM2 = NULL; // also here
 static BaseBlocks recBlocks;
 static u8* recPtr = NULL;
 static EEINST* s_pInstCache = NULL;
-static u32 s_nInstCacheSize = 0;
+static uint32_t s_nInstCacheSize = 0;
 
 static BASEBLOCK* s_pCurBlock = NULL;
 static BASEBLOCKEX* s_pCurBlockEx = NULL;
-static u32 s_nEndBlock = 0; // what pc the current block ends
-static u32 s_branchTo;
+static uint32_t s_nEndBlock = 0; // what pc the current block ends
+static uint32_t s_branchTo;
 static bool s_nBlockFF;
 
 // save states for branches
 static GPR_reg64 s_saveConstRegs[32];
-static u32 s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
+static uint32_t s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
 static EEINST* s_psaveInstInfo = NULL;
 
-static u32 s_savenBlockCycles = 0;
+static uint32_t s_savenBlockCycles = 0;
 
-static void iBranchTest(u32 newpc);
+static void iBranchTest(uint32_t newpc);
 static void ClearRecLUT(BASEBLOCK* base, int count);
-static u32 scaleblockcycles(void);
+static uint32_t scaleblockcycles(void);
 
 void _eeFlushAllDirty(void)
 {
@@ -7675,7 +7675,7 @@ void _eeMoveGPRtoR(const xRegister64& to, int fromgpr, bool allow_preload)
 void _eeMoveGPRtoM(uintptr_t to, int fromgpr)
 {
 	if (GPR_IS_CONST1(fromgpr))
-		xMOV(ptr32[(u32*)(to)], g_cpuConstRegs[fromgpr].UL[0]);
+		xMOV(ptr32[(uint32_t*)(to)], g_cpuConstRegs[fromgpr].UL[0]);
 	else
 	{
 		int x86reg = _checkX86reg(X86TYPE_GPR, fromgpr, MODE_READ);
@@ -7729,9 +7729,9 @@ void recCall(void (*func)())
 //  R5900 Dispatchers
 // =====================================================================================================
 
-static void recRecompile(const u32 startpc);
-static void dyna_block_discard(u32 start, u32 sz);
-static void dyna_page_reset(u32 start, u32 sz);
+static void recRecompile(const uint32_t startpc);
+static void dyna_block_discard(uint32_t start, uint32_t sz);
+static void dyna_page_reset(uint32_t start, uint32_t sz);
 
 // Recompiled code buffer for EE recompiler dispatchers!
 alignas(__pagesize) static u8 eeRecDispatchers[__pagesize];
@@ -7760,7 +7760,7 @@ static void recEventTest(void)
 // When called from _DynGen_DispatchBlockDiscard, called when a block under manual protection fails it's pre-execution integrity check.
 // (meaning the actual code area has been modified -- ie 
 // dynamic modules being loaded or, less likely, self-modifying code)
-static void recClear(u32 addr, u32 size)
+static void recClear(uint32_t addr, uint32_t size)
 {
 	if ((addr) >= maxrecmem || !(recLUT[(addr) >> 16] + (addr & ~0xFFFFUL)))
 		return;
@@ -7771,7 +7771,7 @@ static void recClear(u32 addr, u32 size)
 	if (blockidx == -1)
 		return;
 
-	u32 lowerextent = (u32)-1, upperextent = 0, ceiling = (u32)-1;
+	uint32_t lowerextent = (uint32_t)-1, upperextent = 0, ceiling = (uint32_t)-1;
 
 	BASEBLOCKEX* pexblock = recBlocks[blockidx + 1];
 	if (pexblock)
@@ -7781,8 +7781,8 @@ static void recClear(u32 addr, u32 size)
 
 	while ((pexblock = recBlocks[blockidx]))
 	{
-		u32 blockstart = pexblock->startpc;
-		u32 blockend = pexblock->startpc + pexblock->size * 4;
+		uint32_t blockstart = pexblock->startpc;
+		uint32_t blockend = pexblock->startpc + pexblock->size * 4;
 		BASEBLOCK* pblock = PC_GETBLOCK(blockstart);
 
 		if (pblock == s_pCurBlock)
@@ -7827,7 +7827,7 @@ static const void* _DynGen_JITCompile(void)
 	xFastCall((const void*)recRecompile, ptr32[&cpuRegs.pc]);
 
 	// C equivalent:
-	// u32 addr = cpuRegs.pc;
+	// uint32_t addr = cpuRegs.pc;
 	// void(**base)() = (void(**)())recLUT[addr >> 16];
 	// base[addr >> 2]();
 	xMOV(eax, ptr[&cpuRegs.pc]);
@@ -7845,7 +7845,7 @@ static const void* _DynGen_DispatcherReg(void)
 	u8* retval = x86Ptr; // fallthrough target, can't align it!
 
 	// C equivalent:
-	// u32 addr = cpuRegs.pc;
+	// uint32_t addr = cpuRegs.pc;
 	// void(**base)() = (void(**)())recLUT[addr >> 16];
 	// base[addr >> 2]();
 	xMOV(eax, ptr[&cpuRegs.pc]);
@@ -7872,10 +7872,10 @@ static const void* _DynGen_EnterRecompiledCode(void)
 
 #ifdef _WIN32
 	// Shadow space for Win32
-	static constexpr u32 stack_size = 32 + 8;
+	static constexpr uint32_t stack_size = 32 + 8;
 #else
 	// Stack still needs to be aligned
-	static constexpr u32 stack_size = 8;
+	static constexpr uint32_t stack_size = 8;
 #endif
 
 	// We never return through this function, instead we fastjmp() out.
@@ -8163,7 +8163,7 @@ void R5900::Dynarec::OpcodeImpl::recBREAK(void)
 	g_branch = 2; // Indirect branch with event check.
 }
 
-void SetBranchReg(u32 reg)
+void SetBranchReg(uint32_t reg)
 {
 	g_branch = 1;
 
@@ -8215,7 +8215,7 @@ void SetBranchReg(u32 reg)
 	iBranchTest(0xffffffff);
 }
 
-void SetBranchImm(u32 imm)
+void SetBranchImm(uint32_t imm)
 {
 	g_branch = 1;
 
@@ -8245,21 +8245,21 @@ u8* recEndThunk(void)
 	return block_end;
 }
 
-bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
+bool TrySwapDelaySlot(uint32_t rs, uint32_t rt, uint32_t rd, bool allow_loadstore)
 {
 	if (g_recompilingDelaySlot)
 		return false;
 
-	const u32 opcode_encoded = *(u32*)PSM(pc);
+	const uint32_t opcode_encoded = *(uint32_t*)PSM(pc);
 	if (opcode_encoded == 0)
 	{
 		recompileNextInstruction(true, true);
 		return true;
 	}
 
-	const u32 opcode_rs = ((opcode_encoded >> 21) & 0x1F);
-	const u32 opcode_rt = ((opcode_encoded >> 16) & 0x1F);
-	const u32 opcode_rd = ((opcode_encoded >> 11) & 0x1F);
+	const uint32_t opcode_rs = ((opcode_encoded >> 21) & 0x1F);
+	const uint32_t opcode_rt = ((opcode_encoded >> 16) & 0x1F);
+	const uint32_t opcode_rd = ((opcode_encoded >> 11) & 0x1F);
 
 	switch (opcode_encoded >> 26)
 	{
@@ -8394,7 +8394,7 @@ bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore)
 				case 6: // CTC1
 				case 16: // S
 					{
-						const u32 funct = (opcode_encoded & 0x3F);
+						const uint32_t funct = (opcode_encoded & 0x3F);
 						// affects flags that we're comparing
 						if (funct == 50 || funct == 52 || funct == 54) // C.EQ, C.LT, C.LE
 							return false;
@@ -8483,7 +8483,7 @@ void LoadBranchState(void)
 void iFlushCall(int flushtype)
 {
 	// Free registers that are not saved across function calls (x86-32 ABI):
-	for (u32 i = 0; i < iREGCNT_GPR; i++)
+	for (uint32_t i = 0; i < iREGCNT_GPR; i++)
 	{
 		if (!x86regs[i].inuse)
 			continue;
@@ -8497,7 +8497,7 @@ void iFlushCall(int flushtype)
 		}
 	}
 
-	for (u32 i = 0; i < iREGCNT_XMM; i++)
+	for (uint32_t i = 0; i < iREGCNT_XMM; i++)
 	{
 		if (!xmmregs[i].inuse)
 			continue;
@@ -8547,11 +8547,11 @@ void iFlushCall(int flushtype)
 
 #define DEFAULT_SCALED_BLOCKS() (s_nBlockCycles >> 3)
 
-static u32 scaleblockcycles_calculation(void)
+static uint32_t scaleblockcycles_calculation(void)
 {
 	const bool lowcycles = (s_nBlockCycles <= 40);
-	const s8 cyclerate   = EmuConfig.Speedhacks.EECycleRate;
-	u32 scale_cycles     = 0;
+	const int8_t cyclerate   = EmuConfig.Speedhacks.EECycleRate;
+	uint32_t scale_cycles     = 0;
 
 	if (cyclerate == 0 || lowcycles || cyclerate < -99 || cyclerate > 3)
 		scale_cycles = DEFAULT_SCALED_BLOCKS();
@@ -8573,15 +8573,15 @@ static u32 scaleblockcycles_calculation(void)
 	return (scale_cycles < 1) ? 1 : scale_cycles;
 }
 
-static u32 scaleblockcycles(void)
+static uint32_t scaleblockcycles(void)
 {
 	return scaleblockcycles_calculation();
 }
 
-u32 scaleblockcycles_clear(void)
+uint32_t scaleblockcycles_clear(void)
 {
-	const u32 scaled   = scaleblockcycles_calculation();
-	const s8 cyclerate = EmuConfig.Speedhacks.EECycleRate;
+	const uint32_t scaled   = scaleblockcycles_calculation();
+	const int8_t cyclerate = EmuConfig.Speedhacks.EECycleRate;
 	const bool lowcycles = (s_nBlockCycles <= 40);
 
 	if (!lowcycles && cyclerate > 1)
@@ -8602,7 +8602,7 @@ u32 scaleblockcycles_clear(void)
 //   noDispatch - When set true, then jump to Dispatcher.  Used by the recs
 //   for blocks which perform exception checks without branching (it's enabled by
 //   setting "g_branch = 2";
-static void iBranchTest(u32 newpc)
+static void iBranchTest(uint32_t newpc)
 {
 	// Check the Event scheduler if our "cycle target" has been reached.
 	// Equiv code to:
@@ -8633,19 +8633,19 @@ static void iBranchTest(u32 newpc)
 }
 
 /* returns nonzero value if reg has been written between [startpc, endpc-4] */
-static u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
+static uint32_t _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
 {
-	u32 inst = 1;
+	uint32_t inst = 1;
 
 	while (size-- > 0)
 	{
-		for (u32 i = 0; i < std::size(pinst->writeType); ++i)
+		for (uint32_t i = 0; i < std::size(pinst->writeType); ++i)
 		{
 			if ((pinst->writeType[i] == xmmtype) && (pinst->writeReg[i] == reg))
 				return inst;
 		}
 
-		for (u32 i = 0; i < std::size(pinst->readType); ++i)
+		for (uint32_t i = 0; i < std::size(pinst->readType); ++i)
 		{
 			if ((pinst->readType[i] == xmmtype) && (pinst->readReg[i] == reg))
 				return inst;
@@ -8689,7 +8689,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 	// pc might be past s_nEndBlock if the last instruction in the block is a DI.
 	if (pc <= s_nEndBlock && (g_pCurInstInfo + (s_nEndBlock - pc) / 4 + 1) <= s_pInstCache + s_nInstCacheSize)
 	{
-		u32 i;
+		uint32_t i;
 		int count;
 		for (i = 0; i < iREGCNT_GPR; ++i)
 		{
@@ -8840,9 +8840,9 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 			; // TODO
 		else if ((cpuRegs.code & 0x7FC) == 0x3BC) // DIV/RSQRT/SQRT/WAITQ
 		{
-			u32 __code  = cpuRegs.code & 0x3FF;
+			uint32_t __code  = cpuRegs.code & 0x3FF;
 			int cycles  = (__code == 0x3BC || __code == 0x3BD) ? 6 : ((__code == 0x3BE) ? 12 : 0);
-			for (u32 p  = pc; cycles > 0 && p < s_nEndBlock; p += 4, cycles--)
+			for (uint32_t p  = pc; cycles > 0 && p < s_nEndBlock; p += 4, cycles--)
 			{
 				cpuRegs.code = vtlb_memRead32(p);
 
@@ -8878,7 +8878,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 		{
 			int s = cop2flags(cpuRegs.code);
 			int all_count = 0, cop2o_count = 0, cop2m_count = 0;
-			for (u32 p = pc; s != 0 && p < s_nEndBlock && all_count < 10 && cop2m_count < 5 && cop2o_count < 4; p += 4)
+			for (uint32_t p = pc; s != 0 && p < s_nEndBlock && all_count < 10 && cop2m_count < 5 && cop2o_count < 4; p += 4)
 			{
 				// I am so sorry.
 				cpuRegs.code = vtlb_memRead32(p);
@@ -8910,19 +8910,19 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 // called when a page under manual protection has been run enough times to be a candidate
 // for being reset under the faster vtlb write protection.  All blocks in the page are cleared
 // and the block is re-assigned for write protection.
-static void dyna_page_reset(u32 start, u32 sz)
+static void dyna_page_reset(uint32_t start, uint32_t sz)
 {
 	recClear(start & ~0xfffUL, 0x400);
 	manual_counter[start >> 12]++;
 	mmap_MarkCountedRamPage(start);
 }
 
-static void memory_protect_recompiled_code(u32 startpc, u32 size)
+static void memory_protect_recompiled_code(uint32_t startpc, uint32_t size)
 {
 	alignas(16) static u16 manual_page[Ps2MemSize::MainRam >> 12];
 
-	u32 inpage_ptr = HWADDR(startpc);
-	u32 inpage_sz = size * 4;
+	uint32_t inpage_ptr = HWADDR(startpc);
+	uint32_t inpage_sz = size * 4;
 
 	// The kernel context register is stored @ 0x800010C0-0x80001300
 	// The EENULL thread context register is stored @ 0x81000-....
@@ -8947,12 +8947,12 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 			xMOV(arg2regd, inpage_sz / 4);
 			//xMOV( eax, startpc );		// uncomment this to access startpc (as eax) in dyna_block_discard
 
-			u32 lpc = inpage_ptr;
-			u32 stg = inpage_sz;
+			uint32_t lpc = inpage_ptr;
+			uint32_t stg = inpage_sz;
 
 			while (stg > 0)
 			{
-				xCMP(ptr32[PSM(lpc)], *(u32*)PSM(lpc));
+				xCMP(ptr32[PSM(lpc)], *(uint32_t*)PSM(lpc));
 				xJNE(DispatchBlockDiscard);
 
 				stg -= 4;
@@ -8993,7 +8993,7 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 }
 
 // Skip MPEG Game-Fix
-static bool skipMPEG_By_Pattern(u32 sPC)
+static bool skipMPEG_By_Pattern(uint32_t sPC)
 {
 	if (!CHECK_SKIPMPEGHACK)
 		return 0;
@@ -9001,9 +9001,9 @@ static bool skipMPEG_By_Pattern(u32 sPC)
 	// sceMpegIsEnd: lw reg, 0x40(a0); jr ra; lw v0, 0(reg)
 	if ((s_nEndBlock == sPC + 12) && (vtlb_memRead32(sPC + 4) == 0x03e00008))
 	{
-		u32 code = vtlb_memRead32(sPC);
-		u32 p1 = 0x8c800040;
-		u32 p2 = 0x8c020000 | (code & 0x1f0000) << 5;
+		uint32_t code = vtlb_memRead32(sPC);
+		uint32_t p1 = 0x8c800040;
+		uint32_t p2 = 0x8c020000 | (code & 0x1f0000) << 5;
 		if ((code & 0xffe0ffff) != p1)
 			return 0;
 		if (vtlb_memRead32(sPC + 8) != p2)
@@ -9020,7 +9020,7 @@ static bool skipMPEG_By_Pattern(u32 sPC)
 	return 0;
 }
 
-static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
+static bool recSkipTimeoutLoop(int32_t reg, bool is_timeout_loop)
 {
 	if (!EmuConfig.Speedhacks.WaitLoop || !is_timeout_loop)
 		return false;
@@ -9068,10 +9068,10 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	return true;
 }
 
-static void recRecompile(const u32 startpc)
+static void recRecompile(const uint32_t startpc)
 {
-	u32 i = 0;
-	u32 willbranch3 = 0;
+	uint32_t i = 0;
+	uint32_t willbranch3 = 0;
 
 	// if recPtr reached the mem limit reset whole mem
 	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
@@ -9095,7 +9095,7 @@ static void recRecompile(const u32 startpc)
 	if (HWADDR(startpc) == EELOAD_START)
 	{
 		// The EELOAD _start function is the same across all BIOS versions
-		u32 mainjump = vtlb_memRead32(EELOAD_START + 0x9c);
+		uint32_t mainjump = vtlb_memRead32(EELOAD_START + 0x9c);
 		if (mainjump >> 26 == 3) // JAL
 			g_eeloadMain = ((EELOAD_START + 0xa0) & 0xf0000000U) | (mainjump << 2 & 0x0fffffffU);
 	}
@@ -9107,10 +9107,10 @@ static void recRecompile(const u32 startpc)
 		{
 			// There are four known versions of EELOAD, identifiable by the location of the 'jal' to the EELOAD function which
 			// calls ExecPS2(). The function itself is at the same address in all BIOSs after v1.00-v1.10.
-			const u32 typeAexecjump = vtlb_memRead32(EELOAD_START + 0x470); // v1.00, v1.01?, v1.10?
-			const u32 typeBexecjump = vtlb_memRead32(EELOAD_START + 0x5B0); // v1.20, v1.50, v1.60 (3000x models)
-			const u32 typeCexecjump = vtlb_memRead32(EELOAD_START + 0x618); // v1.60 (3900x models)
-			const u32 typeDexecjump = vtlb_memRead32(EELOAD_START + 0x600); // v1.70, v1.90, v2.00, v2.20, v2.30
+			const uint32_t typeAexecjump = vtlb_memRead32(EELOAD_START + 0x470); // v1.00, v1.01?, v1.10?
+			const uint32_t typeBexecjump = vtlb_memRead32(EELOAD_START + 0x5B0); // v1.20, v1.50, v1.60 (3000x models)
+			const uint32_t typeCexecjump = vtlb_memRead32(EELOAD_START + 0x618); // v1.60 (3900x models)
+			const uint32_t typeDexecjump = vtlb_memRead32(EELOAD_START + 0x600); // v1.70, v1.90, v2.00, v2.20, v2.30
 			if ((typeBexecjump >> 26 == 3) || (typeCexecjump >> 26 == 3) || (typeDexecjump >> 26 == 3)) // JAL to 0x822B8
 				g_eeloadExec = EELOAD_START + 0x2B8;
 			else if (typeAexecjump >> 26 == 3) // JAL to 0x82170
@@ -9177,7 +9177,7 @@ static void recRecompile(const u32 startpc)
 	// if the register being decremented, which appears to vary. So far I haven't seen any which increment instead
 	// of decrementing, so we'll limit the test to that to be safe.
 	//
-	s32 timeout_reg = -1;
+	int32_t timeout_reg = -1;
 	bool is_timeout_loop = true;
 
 	for (;;)
@@ -9208,7 +9208,7 @@ static void recRecompile(const u32 startpc)
 			else if ((cpuRegs.code >> 26) == 5)
 			{
 				// bne
-				if (timeout_reg != static_cast<s32>(_Rs_) || _Rt_ != 0 || vtlb_memRead32(i + 4) != 0)
+				if (timeout_reg != static_cast<int32_t>(_Rs_) || _Rt_ != 0 || vtlb_memRead32(i + 4) != 0)
 					is_timeout_loop = false;
 			}
 			else if (cpuRegs.code != 0)
@@ -9311,13 +9311,13 @@ StartRecomp:
 	{
 		s_nBlockFF = true;
 
-		u32 reads = 0, loads = 1;
+		uint32_t reads = 0, loads = 1;
 
 		for (i = startpc; i < s_nEndBlock; i += 4)
 		{
 			if (i == s_nEndBlock - 8)
 				continue;
-			cpuRegs.code = *(u32*)PSM(i);
+			cpuRegs.code = *(uint32_t*)PSM(i);
 			// nop
 			if (cpuRegs.code == 0)
 				continue;
@@ -9478,7 +9478,7 @@ StartRecomp:
 		}
 	}
 
-	s_pCurBlockEx->x86size = static_cast<u32>(x86Ptr - recPtr);
+	s_pCurBlockEx->x86size = static_cast<uint32_t>(x86Ptr - recPtr);
 
 	recPtr        = x86Ptr;
 
@@ -9510,7 +9510,7 @@ void _initX86regs(void)
 static int _getFreeX86reg(int mode)
 {
 	int tempi = -1;
-	u32 bestcount = 0x10000;
+	uint32_t bestcount = 0x10000;
 
 	for (uint i = 0; i < iREGCNT_GPR; i++)
 	{
@@ -9582,7 +9582,7 @@ void _flushConstRegs(void)
 {
 	int zero_reg_count = 0;
 	int minusone_reg_count = 0;
-	for (u32 i = 0; i < 32; i++)
+	for (uint32_t i = 0; i < 32; i++)
 	{
 		if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
 			continue;
@@ -9598,7 +9598,7 @@ void _flushConstRegs(void)
 	if (zero_reg_count > 1)
 	{
 		xXOR(eax, eax);
-		for (u32 i = 0; i < 32; i++)
+		for (uint32_t i = 0; i < 32; i++)
 		{
 			if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
 				continue;
@@ -9618,7 +9618,7 @@ void _flushConstRegs(void)
 		else
 			xNOT(rax);
 
-		for (u32 i = 0; i < 32; i++)
+		for (uint32_t i = 0; i < 32; i++)
 		{
 			if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
 				continue;
@@ -9632,7 +9632,7 @@ void _flushConstRegs(void)
 	}
 
 	// and whatever's left over..
-	for (u32 i = 0; i < 32; i++)
+	for (uint32_t i = 0; i < 32; i++)
 	{
 		if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
 			continue;
@@ -9908,7 +9908,7 @@ void _freeX86regWithoutWriteback(int x86reg)
 
 void _flushX86regs(void)
 {
-	for (u32 i = 0; i < iREGCNT_GPR; ++i)
+	for (uint32_t i = 0; i < iREGCNT_GPR; ++i)
 	{
 		if (x86regs[i].inuse && x86regs[i].mode & MODE_WRITE)
 		{

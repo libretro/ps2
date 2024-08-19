@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include "x86emitter.h"
 #include "R5900.h"
 #include "VU.h"
 #include "iCore.h"
@@ -23,10 +22,11 @@
 /* Register containing a pointer to our fastmem (4GB) area */
 #define RFASTMEMBASE x86Emitter::rbp
 
-extern u32 pc;             // recompiler pc
-extern int g_branch;       // set for branch
-extern u32 target;         // branch target
-extern bool s_nBlockInterlocked; // Current block has VU0 interlocking
+extern uint32_t pc;              /* recompiler pc */
+extern int g_branch;       	 /* set for branch */
+extern uint32_t target;          /* branch target */
+extern bool s_nBlockInterlocked; /* Current block has VU0 interlocking */
+extern bool g_recompilingDelaySlot;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -59,31 +59,30 @@ extern bool s_nBlockInterlocked; // Current block has VU0 interlocking
 		recBranchCall(Interp::f); \
 	}
 
-extern bool g_recompilingDelaySlot;
 
 // Used for generating backpatch thunks for fastmem.
 u8* recBeginThunk(void);
 u8* recEndThunk(void);
 
 // used when processing branches
-bool TrySwapDelaySlot(u32 rs, u32 rt, u32 rd, bool allow_loadstore);
+bool TrySwapDelaySlot(uint32_t rs, uint32_t rt, uint32_t rd, bool allow_loadstore);
 void SaveBranchState();
 void LoadBranchState();
 
 void recompileNextInstruction(bool delayslot, bool swapped_delay_slot);
-void SetBranchReg(u32 reg);
-void SetBranchImm(u32 imm);
+void SetBranchReg(uint32_t reg);
+void SetBranchImm(uint32_t imm);
 
 void iFlushCall(int flushtype);
 void recBranchCall(void (*func)(void));
 void recCall(void (*func)(void));
-u32 scaleblockcycles_clear(void);
+uint32_t scaleblockcycles_clear(void);
 
 namespace R5900
 {
 	namespace Dynarec
 	{
-		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelaySlot);
+		extern void recDoBranchImm(uint32_t branchTo, uint32_t* jmpSkip, bool isLikely, bool swappedDelaySlot);
 	} // namespace Dynarec
 } // namespace R5900
 
@@ -109,7 +108,7 @@ namespace R5900
 	}
 
 alignas(16) extern GPR_reg64 g_cpuConstRegs[32];
-extern u32 g_cpuHasConstReg, g_cpuFlushedConstReg;
+extern uint32_t g_cpuHasConstReg, g_cpuFlushedConstReg;
 
 // finds where the GPR is stored and moves lower 32 bits to EAX
 void _eeMoveGPRtoR(const x86Emitter::xRegister32& to, int fromgpr, bool allow_preload = true);
