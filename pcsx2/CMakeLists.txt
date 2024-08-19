@@ -726,7 +726,6 @@ set(pcsx2x86Sources
 	x86/iMMI.cpp
 	x86/iR3000A.cpp
 	x86/iR3000Atables.cpp
-	x86/iR5900Misc.cpp
 	x86/iR5900-32.cpp
 	x86/x86emitter.cpp
 	x86/newVif_Dynarec.cpp

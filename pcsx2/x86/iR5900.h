@@ -83,7 +83,7 @@ namespace R5900
 {
 	namespace Dynarec
 	{
-		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely = false, bool swappedDelaySlot = false);
+		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelaySlot);
 	} // namespace Dynarec
 } // namespace R5900
 
