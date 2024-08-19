@@ -8647,51 +8647,6 @@ static void iBranchTest(u32 newpc)
 	xJMP((const void*)DispatcherEvent);
 }
 
-static int COP2DivUnitTimings(u32 code)
-{
-	// Note: Cycles are off by 1 since the check ignores the actual op, so they are off by 1
-	switch (code & 0x3FF)
-	{
-		case 0x3BC: // DIV
-		case 0x3BD: // SQRT
-			return 6;
-		case 0x3BE: // RSQRT
-			return 12;
-		default:
-			break;
-	}
-	return 0; // Used mainly for WAITQ
-}
-
-static bool COP2IsQOP(u32 code)
-{
-	if (_Opcode_ == 022) // Not COP2 operation
-	{
-		if ((code & 0x3f) == 0x20) // VADDq
-			return true;
-		if ((code & 0x3f) == 0x21) // VMADDq
-			return true;
-		if ((code & 0x3f) == 0x24) // VSUBq
-			return true;
-		if ((code & 0x3f) == 0x25) // VMSUBq
-			return true;
-		if ((code & 0x3f) == 0x1C) // VMULq
-			return true;
-		if ((code & 0x7FF) == 0x1FC) // VMULAq
-			return true;
-		if ((code & 0x7FF) == 0x23C) // VADDAq
-			return true;
-		if ((code & 0x7FF) == 0x23D) // VMADDAq
-			return true;
-		if ((code & 0x7FF) == 0x27C) // VSUBAq
-			return true;
-		if ((code & 0x7FF) == 0x27D) // VMSUBAq
-			return true;
-	}
-
-	return false;
-}
-
 /* returns nonzero value if reg has been written between [startpc, endpc-4] */
 static u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg)
 {
@@ -8900,16 +8855,38 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 			; // TODO
 		else if ((cpuRegs.code & 0x7FC) == 0x3BC) // DIV/RSQRT/SQRT/WAITQ
 		{
-			int cycles = COP2DivUnitTimings(cpuRegs.code);
-			for (u32 p = pc; cycles > 0 && p < s_nEndBlock; p += 4, cycles--)
+			u32 __code  = cpuRegs.code & 0x3FF;
+			int cycles  = (__code == 0x3BC || __code == 0x3BD) ? 6 : ((__code == 0x3BE) ? 12 : 0);
+			for (u32 p  = pc; cycles > 0 && p < s_nEndBlock; p += 4, cycles--)
 			{
 				cpuRegs.code = vtlb_memRead32(p);
 
-				if ((_Opcode_ == 022) && (cpuRegs.code & 0x7FC) == 0x3BC) // WaitQ or another DIV op hit (stalled), we're safe
-					break;
-
-				else if (COP2IsQOP(cpuRegs.code))
-					break;
+				if (_Opcode_ == 022) // Not COP2 operation
+				{
+					/* WaitQ or another DIV op hit (stalled), we're safe */
+					if ((cpuRegs.code & 0x7FC) == 0x3BC) 
+						break;
+					if ((cpuRegs.code & 0x3f) == 0x20)   /* VADDq   */
+						break;
+					if ((cpuRegs.code & 0x3f) == 0x21)   /* VMADDq  */
+						break;
+					if ((cpuRegs.code & 0x3f) == 0x24)   /* VSUBq   */
+						break;
+					if ((cpuRegs.code & 0x3f) == 0x25)   /* VMSUBq  */
+						break;
+					if ((cpuRegs.code & 0x3f) == 0x1C)   /* VMULq   */
+						break;
+					if ((cpuRegs.code & 0x7FF) == 0x1FC) /* VMULAq  */
+						break;
+					if ((cpuRegs.code & 0x7FF) == 0x23C) /* VADDAq  */
+						break;
+					if ((cpuRegs.code & 0x7FF) == 0x23D) /* VMADDAq */
+						break;
+					if ((cpuRegs.code & 0x7FF) == 0x27C) /* VSUBAq  */
+						break;
+					if ((cpuRegs.code & 0x7FF) == 0x27D) /* VMSUBAq */
+						break;
+				}
 			}
 		}
 		else
