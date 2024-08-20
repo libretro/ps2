@@ -17,7 +17,7 @@
 
 #include "IPU_Fifo.h"
 #include "IPUdma.h"
-#include "Common.h"
+#include "../Common.h"
 
 #define ipumsk( src ) ( (src) & 0xff )
 #define ipucase( src ) case ipumsk(src)
@@ -27,9 +27,9 @@
 
 #define IPU_INT_PROCESS( cycles ) if(!(cpuRegs.interrupt & (1 << IPU_PROCESS))) CPU_INT( IPU_PROCESS, cycles )
 
-//
-// Bitfield Structures
-//
+/*
+ * Bitfield Structures
+ */
 
 union tIPU_CMD
 {
@@ -50,7 +50,7 @@ union tIPU_CTRL {
 		u32 SCD : 1;	// Start code detected
 		u32 IDP : 2;	// Intra DC precision
 		u32 resv0 : 2;
-		u32 AS : 1;		// Alternate scan
+		u32 AS : 1;	// Alternate scan
 		u32 IVF : 1;	// Intra VLC format
 		u32 QST : 1;	// Q scale step
 		u32 MP1 : 1;	// MPEG1 bit stream
@@ -224,8 +224,6 @@ union tIPU_cmd
 
 	void clear();
 };
-
-static IPUregisters& ipuRegs = (IPUregisters&)eeHw[0x2000];
 
 extern bool FMVstarted;
 extern bool EnableFMV;

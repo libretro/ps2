@@ -204,8 +204,6 @@
     <ClCompile Include="SPU2\ReadInput.cpp" />
     <ClCompile Include="SPU2\Reverb.cpp" />
     <ClCompile Include="SPU2\spu2.cpp" />
-    <ClCompile Include="IPU\IPUdma.cpp" />
-    <ClCompile Include="IPU\IPUdither.cpp" />
     <ClCompile Include="Mdec.cpp" />
     <ClCompile Include="Patch.cpp" />
     <ClCompile Include="Dmac.cpp" />
@@ -343,10 +341,7 @@
     <ClCompile Include="CDVD\CDVD.cpp" />
     <ClCompile Include="CDVD\CDVDcommon.cpp" />
     <ClCompile Include="CDVD\CDVDisoReader.cpp" />
-    <ClCompile Include="Ipu\IPU.cpp" />
-    <ClCompile Include="Ipu\IPU_Fifo.cpp" />
-    <ClCompile Include="Ipu\IPU_MultiISA.cpp" />
-    <ClCompile Include="Ipu\yuv2rgb.cpp" />
+    <ClCompile Include="IPU.cpp" />
     <ClCompile Include="GS.cpp" />
     <ClCompile Include="MTGS.cpp" />
     <ClCompile Include="rdebug\deci2.cpp">
@@ -448,7 +443,6 @@
     <ClInclude Include="GS\Renderers\Vulkan\GSTextureVK.h" />
     <ClInclude Include="Host.h" />
     <ClInclude Include="IopGte.h" />
-    <ClInclude Include="IPU\mpeg2_vlc.h" />
     <ClInclude Include="MemoryCardProtocol.h" />
     <ClInclude Include="MultitapProtocol.h" />
     <ClInclude Include="PAD\PAD.h" />
@@ -521,7 +515,7 @@
     <ClInclude Include="GS\Renderers\Common\GSVertexTrace.h" />
     <ClInclude Include="GS\GSXXH.h" />
     <ClInclude Include="GS\MultiISA.h" />
-    <ClInclude Include="IPU\IPUdma.h" />
+    <ClInclude Include="IPUdma.h" />
     <ClInclude Include="Mdec.h" />
     <ClInclude Include="Patch.h" />
     <ClInclude Include="IopPgpuGif.h" />
@@ -602,10 +596,8 @@
     <ClInclude Include="CDVD\CDVD.h" />
     <ClInclude Include="CDVD\CDVD_internal.h" />
     <ClInclude Include="CDVD\CDVDcommon.h" />
-    <ClInclude Include="Ipu\IPU.h" />
-    <ClInclude Include="Ipu\IPU_Fifo.h" />
-    <ClInclude Include="Ipu\IPU_MultiISA.h" />
-    <ClInclude Include="Ipu\yuv2rgb.h" />
+    <ClInclude Include="IPU.h" />
+    <ClInclude Include="IPU_Fifo.h" />
     <ClInclude Include="GS.h" />
     <CustomBuildStep Include="rdebug\deci2.h">
       <ExcludedFromBuild>true</ExcludedFromBuild>

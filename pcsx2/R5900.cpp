@@ -29,7 +29,7 @@
 #include "VMManager.h"
 
 #include "Hardware.h"
-#include "IPU/IPUdma.h"
+#include "IPUdma.h"
 
 #include "Elfheader.h"
 #include "CDVD/CDVD.h"

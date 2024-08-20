@@ -476,16 +476,7 @@
     <ClCompile Include="CDVD\CDVDisoReader.cpp">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClCompile>
-    <ClCompile Include="IPU\IPU.cpp">
-      <Filter>System\Ps2\IPU</Filter>
-    </ClCompile>
-    <ClCompile Include="IPU\IPU_Fifo.cpp">
-      <Filter>System\Ps2\IPU</Filter>
-    </ClCompile>
-    <ClCompile Include="IPU\IPU_MultiISA.cpp">
-      <Filter>System\Ps2\IPU</Filter>
-    </ClCompile>
-    <ClCompile Include="IPU\yuv2rgb.cpp">
+    <ClCompile Include="IPU.cpp">
       <Filter>System\Ps2\IPU</Filter>
     </ClCompile>
     <ClCompile Include="GS.cpp">
@@ -538,9 +529,6 @@
     </ClCompile>
     <ClCompile Include="GameDatabase.cpp">
       <Filter>Misc</Filter>
-    </ClCompile>
-    <ClCompile Include="IPU\IPUdma.cpp">
-      <Filter>System\Ps2\IPU</Filter>
     </ClCompile>
     <ClCompile Include="Dmac.cpp">
       <Filter>System\Ps2</Filter>
@@ -601,9 +589,6 @@
     </ClCompile>
     <ClCompile Include="ps2\Iop\PsxBios.cpp">
       <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="IPU\IPUdither.cpp">
-      <Filter>System\Ps2\IPU</Filter>
     </ClCompile>
     <ClCompile Include="FW.cpp">
       <Filter>System\Ps2\Iop\FW</Filter>
@@ -1228,16 +1213,10 @@
     <ClInclude Include="CDVD\CDVDcommon.h">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClInclude>
-    <ClInclude Include="IPU\IPU.h">
+    <ClInclude Include="IPU.h">
       <Filter>System\Ps2\IPU</Filter>
     </ClInclude>
-    <ClInclude Include="IPU\IPU_Fifo.h">
-      <Filter>System\Ps2\IPU</Filter>
-    </ClInclude>
-    <ClInclude Include="IPU\IPU_MultiISA.h">
-      <Filter>System\Ps2\IPU</Filter>
-    </ClInclude>
-    <ClInclude Include="IPU\yuv2rgb.h">
+    <ClInclude Include="IPU_Fifo.h">
       <Filter>System\Ps2\IPU</Filter>
     </ClInclude>
     <ClInclude Include="DebugTools\Debug.h">
@@ -1285,7 +1264,7 @@
     <ClInclude Include="GameDatabase.h">
       <Filter>Misc</Filter>
     </ClInclude>
-    <ClInclude Include="IPU\IPUdma.h">
+    <ClInclude Include="IPUdma.h">
       <Filter>System\Ps2\IPU</Filter>
     </ClInclude>
     <ClInclude Include="Gif_Unit.h">
@@ -1804,9 +1783,6 @@
     </ClInclude>
     <ClInclude Include="GS\Renderers\HW\GSHwHack.h">
       <Filter>System\Ps2\GS\Renderers\Hardware</Filter>
-    </ClInclude>
-    <ClInclude Include="IPU\mpeg2_vlc.h">
-      <Filter>System\Ps2\IPU</Filter>
     </ClInclude>
     <ClInclude Include="GS.h">
       <Filter>System\Ps2\GS\GIF</Filter>

@@ -19,7 +19,7 @@
 #include "Counters.h"
 #include "GS.h"
 #include "Hw.h"
-#include "IPU/IPU.h"
+#include "IPU.h"
 #include "SPR.h"
 #include "Gif.h"
 #include "Sif.h"
