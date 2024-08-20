@@ -434,9 +434,6 @@
     <ClCompile Include="R5900OpcodeImpl.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Interpreter</Filter>
     </ClCompile>
-    <ClCompile Include="IopBios.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
     <ClCompile Include="Iop.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>

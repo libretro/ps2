@@ -82,9 +82,8 @@ set(pcsx2Sources
 	GS.cpp
 	Hw.cpp
 	Interpreter.cpp
-	IopBios.cpp
-	IopGte.cpp
 	Iop.cpp
+	IopGte.cpp
 	Mdec.cpp
 	Memory.cpp
 	MemoryCardFile.cpp

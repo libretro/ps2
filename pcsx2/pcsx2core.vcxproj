@@ -329,7 +329,6 @@
     <ClCompile Include="MMI.cpp" />
     <ClCompile Include="R5900.cpp" />
     <ClCompile Include="R5900OpcodeImpl.cpp" />
-    <ClCompile Include="IopBios.cpp" />
     <ClCompile Include="Iop.cpp" />
     <ClCompile Include="R3000A.cpp" />
     <ClCompile Include="R3000AInterpreter.cpp" />

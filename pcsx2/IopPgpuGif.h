@@ -18,7 +18,7 @@
 
 #include "common/Pcsx2Types.h"
 
-#include "../Memory.h"
+#include "Memory.h"
 
 /* HW Registers */
 union tPGIF_CTRL
