@@ -43,38 +43,35 @@
 #include "../vtlb.h"
 #include "../CDVD/CDVD.h"
 
-namespace R5900
+/* Takes a functor of bool(pc, EEINST*), returning false if iteration should stop. */
+template <class F>
+void __fi ForEachInstruction(uint32_t start, uint32_t end, EEINST* inst_cache, const F& func)
 {
-	/// Takes a functor of bool(pc, EEINST*), returning false if iteration should stop.
-	template <class F>
-	void __fi ForEachInstruction(uint32_t start, uint32_t end, EEINST* inst_cache, const F& func)
+	EEINST* eeinst = inst_cache;
+	for (uint32_t apc = start; apc < end; apc += 4, eeinst++)
 	{
-		EEINST* eeinst = inst_cache;
-		for (uint32_t apc = start; apc < end; apc += 4, eeinst++)
-		{
-			cpuRegs.code = vtlb_memRead32(apc);
-			if (!func(apc, eeinst))
-				break;
-		}
+		cpuRegs.code = vtlb_memRead32(apc);
+		if (!func(apc, eeinst))
+			break;
 	}
+}
 
 
-	struct COP2FlagHackPass
-	{
-		bool m_status_denormalized;
-		EEINST* m_last_status_write;
-		EEINST* m_last_mac_write;
-		EEINST* m_last_clip_write;
-		uint32_t m_cfc2_pc;
-	};
+struct COP2FlagHackPass
+{
+	bool m_status_denormalized;
+	EEINST* m_last_status_write;
+	EEINST* m_last_mac_write;
+	EEINST* m_last_clip_write;
+	uint32_t m_cfc2_pc;
+};
 
-	struct COP2MicroFinishPass
-	{
-		bool needs_vu0_sync;
-		bool needs_vu0_finish;
-		bool block_interlocked;
-	};
-} // namespace R5900
+struct COP2MicroFinishPass
+{
+	bool needs_vu0_sync;
+	bool needs_vu0_finish;
+	bool block_interlocked;
+};
 
 #define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
 #define HWADDR(mem) (hwLUT[(mem) >> 16] + (mem))
@@ -4278,7 +4275,6 @@ static void recBEQ_process(int process)
 	if (_Rs_ == _Rt_)
 	{
 		recompileNextInstruction(true, false);
-		SetBranchImm(branchTo);
 	}
 	else
 	{
@@ -4303,8 +4299,9 @@ static void recBEQ_process(int process)
 			recompileNextInstruction(true, false);
 		}
 
-		SetBranchImm(pc);
+		branchTo = pc;
 	}
+	SetBranchImm(branchTo);
 }
 
 void recBEQ(void)
@@ -4385,16 +4382,16 @@ void recBNE(void)
 //// BEQL
 static void recBEQL_const(void)
 {
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
 	{
-		uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 		recompileNextInstruction(true, false);
-		SetBranchImm(branchTo);
 	}
 	else
 	{
-		SetBranchImm(pc + 4);
+		branchTo = pc + 4;
 	}
+	SetBranchImm(branchTo);
 }
 
 static void recBEQL_process(int process)
@@ -4427,23 +4424,21 @@ void recBEQL(void)
 //// BNEL
 static void recBNEL_const(void)
 {
+	uint32_t branchTo;
 	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
 	{
-		uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
+		branchTo = ((int32_t)_Imm_ * 4) + pc;
 		recompileNextInstruction(true, false);
-		SetBranchImm(branchTo);
 	}
 	else
-	{
-		SetBranchImm(pc + 4);
-	}
+		branchTo = pc + 4;
+	SetBranchImm(branchTo);
 }
 
 static void recBNEL_process(int process)
 {
 	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
-
-	uint32_t *j32Ptr = recSetBranchEQ(0, process);
+	uint32_t *j32Ptr  = recSetBranchEQ(0, process);
 
 	SaveBranchState();
 	SetBranchImm(pc + 4);
@@ -4456,7 +4451,7 @@ static void recBNEL_process(int process)
 	SetBranchImm(branchTo);
 }
 
-void recBNEL()
+void recBNEL(void)
 {
 	if (GPR_IS_CONST2(_Rs_, _Rt_))
 		recBNEL_const();
@@ -4577,12 +4572,10 @@ void recBLTZALL(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
-			SetBranchImm(pc + 4);
+			branchTo = pc + 4;
 		else
-		{
 			recompileNextInstruction(true, false);
-			SetBranchImm(branchTo);
-		}
+		SetBranchImm(branchTo);
 		return;
 	}
 
@@ -4612,13 +4605,13 @@ void recBGEZALL(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
-			SetBranchImm(pc + 4);
-		else
+		if (g_cpuConstRegs[_Rs_].SD[0] >= 0)
 		{
 			recompileNextInstruction(true, false);
-			SetBranchImm(branchTo);
 		}
+		else
+			branchTo = pc + 4;
+		SetBranchImm(branchTo);
 		return;
 	}
 
@@ -4661,12 +4654,12 @@ void recBLEZ(void)
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
 	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
+	x86Ptr      += sizeof(u8);
 	*(u8*)x86Ptr = JG32;
-	x86Ptr += sizeof(u8);
+	x86Ptr      += sizeof(u8);
 	*(uint32_t*)x86Ptr = 0;
-	x86Ptr += sizeof(uint32_t);
-	j32Ptr = (uint32_t*)(x86Ptr - 4);
+	x86Ptr      += sizeof(uint32_t);
+	j32Ptr       = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -4714,13 +4707,13 @@ void recBGTZ(void)
 	else
 		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
 
-	*(u8*)x86Ptr = 0x0F;
-	x86Ptr += sizeof(u8);
-	*(u8*)x86Ptr = JLE32;
-	x86Ptr += sizeof(u8);
+	*(u8*)x86Ptr       = 0x0F;
+	x86Ptr            += sizeof(u8);
+	*(u8*)x86Ptr       = JLE32;
+	x86Ptr            += sizeof(u8);
 	*(uint32_t*)x86Ptr = 0;
-	x86Ptr += sizeof(uint32_t);
-	j32Ptr = (uint32_t*)(x86Ptr - 4);
+	x86Ptr            += sizeof(uint32_t);
+	j32Ptr             = (uint32_t*)(x86Ptr - 4);
 
 	if (!swap)
 	{
@@ -4827,17 +4820,17 @@ void recBGEZ(void)
 ////////////////////////////////////////////////////
 void recBLTZL(void)
 {
-	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
-			SetBranchImm(pc + 4);
-		else
+		if (g_cpuConstRegs[_Rs_].SD[0] < 0)
 		{
 			recompileNextInstruction(true, false);
-			SetBranchImm(branchTo);
 		}
+		else
+			branchTo = pc + 4;
+		SetBranchImm(branchTo);
 		return;
 	}
 
@@ -4858,17 +4851,17 @@ void recBLTZL(void)
 ////////////////////////////////////////////////////
 void recBGEZL(void)
 {
-	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
-			SetBranchImm(pc + 4);
-		else
+		if (g_cpuConstRegs[_Rs_].SD[0] >= 0)
 		{
 			recompileNextInstruction(true, false);
-			SetBranchImm(branchTo);
 		}
+		else
+			branchTo = pc + 4;
+		SetBranchImm(branchTo);
 		return;
 	}
 
@@ -4896,17 +4889,15 @@ void recBGEZL(void)
 void recBLEZL(void)
 {
 	uint32_t *j32Ptr;
-	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		if (!(g_cpuConstRegs[_Rs_].SD[0] <= 0))
-			SetBranchImm(pc + 4);
-		else
-		{
+		if (g_cpuConstRegs[_Rs_].SD[0] <= 0)
 			recompileNextInstruction(true, false);
-			SetBranchImm(branchTo);
-		}
+		else
+			branchTo = pc + 4;
+		SetBranchImm(branchTo);
 		return;
 	}
 
@@ -4940,18 +4931,18 @@ void recBLEZL(void)
 void recBGTZL(void)
 {
 	uint32_t *j32Ptr;
-	const uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
+	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		if (!(g_cpuConstRegs[_Rs_].SD[0] > 0))
-			SetBranchImm(pc + 4);
-		else
+		if (g_cpuConstRegs[_Rs_].SD[0] > 0)
 		{
 			_clearNeededXMMregs();
 			recompileNextInstruction(true, false);
-			SetBranchImm(branchTo);
 		}
+		else
+			branchTo = pc + 4;
+		SetBranchImm(branchTo);
 		return;
 	}
 
@@ -5005,9 +4996,8 @@ void recJ(void)
 	uint32_t newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
 	recompileNextInstruction(true, false);
 	if (EmuConfig.Gamefixes.GoemonTlbHack)
-		SetBranchImm(vtlb_V2P(newpc));
-	else
-		SetBranchImm(newpc);
+		newpc = vtlb_V2P(newpc);
+	SetBranchImm(newpc);
 }
 
 ////////////////////////////////////////////////////
@@ -5021,9 +5011,8 @@ void recJAL(void)
 
 	recompileNextInstruction(true, false);
 	if (EmuConfig.Gamefixes.GoemonTlbHack)
-		SetBranchImm(vtlb_V2P(newpc));
-	else
-		SetBranchImm(newpc);
+		newpc = vtlb_V2P(newpc);
+	SetBranchImm(newpc);
 }
 
 /*********************************************************
