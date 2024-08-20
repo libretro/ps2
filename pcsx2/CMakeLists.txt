@@ -742,7 +742,6 @@ set(pcsx2x86Headers
 	x86/microVU.cpp
 	x86/microVU.h
 	x86/newVif.h
-	x86/newVif_UnpackSSE.h
 	x86/x86emitter.h
 	)
 

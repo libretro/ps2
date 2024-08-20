@@ -580,7 +580,6 @@
     <ClInclude Include="x86\newVif.h" />
     <ClInclude Include="Vif_Dynarec.h" />
     <ClInclude Include="Vif_HashBucket.h" />
-    <ClInclude Include="x86\newVif_UnpackSSE.h" />
     <ClInclude Include="SPR.h" />
     <ClInclude Include="Gif.h" />
     <ClInclude Include="R5900.h" />
