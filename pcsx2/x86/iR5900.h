@@ -24,17 +24,18 @@
 
 extern uint32_t pc;              /* recompiler pc */
 extern int g_branch;       	 /* set for branch */
-extern uint32_t target;          /* branch target */
 extern bool s_nBlockInterlocked; /* Current block has VU0 interlocking */
 extern bool g_recompilingDelaySlot;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 
-#define REC_FUNC(f) \
+#define REC_SYS_DEL(f, delreg) \
 	void rec##f() \
 	{ \
-		recCall(Interp::f); \
+		if ((delreg) > 0) \
+			_deleteEEreg(delreg, 1); \
+		recBranchCall(Interp::f); \
 	}
 
 #define REC_FUNC_DEL(f, delreg) \
@@ -45,22 +46,10 @@ extern bool g_recompilingDelaySlot;
 		recCall(Interp::f); \
 	}
 
-#define REC_SYS(f) \
-	void rec##f() \
-	{ \
-		recBranchCall(Interp::f); \
-	}
+#define REC_FUNC(f) void rec##f() { recCall(Interp::f); }
+#define REC_SYS(f)  void rec##f() { recBranchCall(Interp::f); }
 
-#define REC_SYS_DEL(f, delreg) \
-	void rec##f() \
-	{ \
-		if ((delreg) > 0) \
-			_deleteEEreg(delreg, 1); \
-		recBranchCall(Interp::f); \
-	}
-
-
-// Used for generating backpatch thunks for fastmem.
+/* Used for generating backpatch thunks for fastmem. */
 u8* recBeginThunk(void);
 u8* recEndThunk(void);
 
@@ -110,9 +99,9 @@ namespace R5900
 alignas(16) extern GPR_reg64 g_cpuConstRegs[32];
 extern uint32_t g_cpuHasConstReg, g_cpuFlushedConstReg;
 
-// finds where the GPR is stored and moves lower 32 bits to EAX
-void _eeMoveGPRtoR(const x86Emitter::xRegister32& to, int fromgpr, bool allow_preload = true);
-void _eeMoveGPRtoR(const x86Emitter::xRegister64& to, int fromgpr, bool allow_preload = true);
+/* finds where the GPR is stored and moves lower 32 bits to EAX */
+void _eeMoveGPRtoR(const x86Emitter::xRegister32& to, int fromgpr, bool allow_preload);
+void _eeMoveGPRtoR(const x86Emitter::xRegister64& to, int fromgpr, bool allow_preload);
 void _eeMoveGPRtoM(uintptr_t to, int fromgpr); // 32-bit only
 
 void _eeFlushAllDirty(void);

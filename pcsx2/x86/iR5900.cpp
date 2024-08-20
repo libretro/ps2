@@ -3226,7 +3226,7 @@ void recMTSAB()
 	}
 	else
 	{
-		_eeMoveGPRtoR(eax, _Rs_);
+		_eeMoveGPRtoR(eax, _Rs_, true);
 		xAND(eax, 0xF);
 		xXOR(eax, _Imm_ & 0xf);
 		xMOV(ptr[&cpuRegs.sa], eax);
@@ -3241,7 +3241,7 @@ void recMTSAH()
 	}
 	else
 	{
-		_eeMoveGPRtoR(eax, _Rs_);
+		_eeMoveGPRtoR(eax, _Rs_, true);
 		xAND(eax, 0x7);
 		xXOR(eax, _Imm_ & 0x7);
 		xSHL(eax, 1);
@@ -5065,7 +5065,7 @@ void recJALR(void)
 	if (!swap)
 	{
 		wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-		_eeMoveGPRtoR(xRegister32(wbreg), _Rs_);
+		_eeMoveGPRtoR(xRegister32(wbreg), _Rs_, true);
 
 		if (EmuConfig.Gamefixes.GoemonTlbHack)
 		{
@@ -5173,7 +5173,7 @@ static void recLoadQuad128(void)
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1reg, _Rs_);
+		_eeMoveGPRtoR(arg1reg, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -5208,7 +5208,7 @@ static void recLoad(uint32_t bits, bool sign)
 	{
 		// Load arg1 with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -5245,7 +5245,7 @@ static void recStore128(void)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR(arg1regd, _Rs_);
+			_eeMoveGPRtoR(arg1regd, _Rs_, true);
 			if (_Imm_ != 0)
 				xADD(arg1regd, _Imm_);
 		}
@@ -5281,7 +5281,7 @@ static void recStore64(void)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR(arg1regd, _Rs_);
+			_eeMoveGPRtoR(arg1regd, _Rs_, true);
 			if (_Imm_ != 0)
 				xADD(arg1regd, _Imm_);
 		}
@@ -5315,7 +5315,7 @@ static void recStore32(void)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR(arg1regd, _Rs_);
+			_eeMoveGPRtoR(arg1regd, _Rs_, true);
 			if (_Imm_ != 0)
 				xADD(arg1regd, _Imm_);
 		}
@@ -5349,7 +5349,7 @@ static void recStore16(void)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR(arg1regd, _Rs_);
+			_eeMoveGPRtoR(arg1regd, _Rs_, true);
 			if (_Imm_ != 0)
 				xADD(arg1regd, _Imm_);
 		}
@@ -5383,7 +5383,7 @@ static void recStore8(void)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR(arg1regd, _Rs_);
+			_eeMoveGPRtoR(arg1regd, _Rs_, true);
 			if (_Imm_ != 0)
 				xADD(arg1regd, _Imm_);
 		}
@@ -5431,7 +5431,7 @@ void recLWL(void)
 
 	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR(arg1regd, _Rs_, true);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -5482,7 +5482,7 @@ void recLWR(void)
 
 	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR(arg1regd, _Rs_, true);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -5542,7 +5542,7 @@ void recSWL(void)
 	_freeX86reg(arg1regd);
 	_freeX86reg(arg2regd);
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR(arg1regd, _Rs_, true);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -5609,7 +5609,7 @@ void recSWR(void)
 	_freeX86reg(arg1regd);
 	_freeX86reg(arg2regd);
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR(arg1regd, _Rs_, true);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -5723,7 +5723,7 @@ void recLDL(void)
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -5801,7 +5801,7 @@ void recLDR(void)
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -5890,12 +5890,12 @@ void recSDL(void)
 		uint32_t shift = ((adr & 0x7) + 1) * 8;
 		if (shift == 64)
 		{
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR(arg2reg, _Rt_, true);
 		}
 		else
 		{
 			vtlb_DynGenReadNonQuad64_Const(aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR(arg2reg, _Rt_, true);
 			sdlrhelper_const(shift, xSHL, 64 - shift, xSHR, rax, arg2reg);
 		}
 		vtlb_DynGenWrite_Const(64, false, aligned, arg2regd.Id);
@@ -5907,7 +5907,7 @@ void recSDL(void)
 
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -5916,7 +5916,7 @@ void recSDL(void)
 		_freeX86reg(arg2regd);
 		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
-		_eeMoveGPRtoR(arg2reg, _Rt_);
+		_eeMoveGPRtoR(arg2reg, _Rt_, true);
 
 		xMOV(temp1, arg1regd);
 		xMOV(temp2, arg2reg);
@@ -5969,12 +5969,12 @@ void recSDR(void)
 		uint32_t shift = (adr & 0x7) * 8;
 		if (shift == 0)
 		{
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR(arg2reg, _Rt_, true);
 		}
 		else
 		{
 			vtlb_DynGenReadNonQuad64_Const(aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR(arg2reg, _Rt_, true);
 			sdlrhelper_const(64 - shift, xSHR, shift, xSHL, rax, arg2reg);
 		}
 
@@ -5986,7 +5986,7 @@ void recSDR(void)
 			_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
 		// Load ECX with the source memory address that we're reading from.
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -5995,7 +5995,7 @@ void recSDR(void)
 		_freeX86reg(arg2regd);
 		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
-		_eeMoveGPRtoR(arg2reg, _Rt_);
+		_eeMoveGPRtoR(arg2reg, _Rt_, true);
 
 		xMOV(temp1, arg1regd);
 		xMOV(temp2, arg2reg);
@@ -6052,7 +6052,7 @@ void recLWC1(void)
 	else
 	{
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -6077,7 +6077,7 @@ void recSWC1(void)
 	else
 	{
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -6256,7 +6256,7 @@ static void recMTHILO(bool hi, bool upper)
 			const int gprreg = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_WRITE);
 			if (gprreg >= 0)
 			{
-				_eeMoveGPRtoR(xRegister64(gprreg), _Rs_);
+				_eeMoveGPRtoR(xRegister64(gprreg), _Rs_, true);
 			}
 			else
 			{
@@ -6768,7 +6768,7 @@ static void recDIVsuper(int info, bool sign, bool upper, int process)
 	if (process & PROCESS_CONSTS)
 		xMOV(eax, g_cpuConstRegs[_Rs_].UL[0]);
 	else
-		_eeMoveGPRtoR(rax, _Rs_);
+		_eeMoveGPRtoR(rax, _Rs_, true);
 
 	if (sign) //test for overflow (x86 will just throw an exception)
 	{
@@ -8173,7 +8173,7 @@ void SetBranchReg(uint32_t reg)
 		if (!swap)
 		{
 			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-			_eeMoveGPRtoR(xRegister32(wbreg), reg);
+			_eeMoveGPRtoR(xRegister32(wbreg), reg, true);
 
 			if (EmuConfig.Gamefixes.GoemonTlbHack)
 			{

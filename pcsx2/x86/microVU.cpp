@@ -6912,7 +6912,7 @@ static void recCTC2(void)
 		case REG_VPU_STAT:
 			break; // Read Only Regs
 		case REG_R:
-			_eeMoveGPRtoR(eax, _Rt_);
+			_eeMoveGPRtoR(eax, _Rt_, true);
 			xAND(eax, 0x7FFFFF);
 			xOR(eax, 0x3f800000);
 			xMOV(ptr32[&vu0Regs.VI[REG_R].UL], eax);
@@ -6921,7 +6921,7 @@ static void recCTC2(void)
 		{
 			if (_Rt_)
 			{
-				_eeMoveGPRtoR(eax, _Rt_);
+				_eeMoveGPRtoR(eax, _Rt_, true);
 				xAND(eax, 0xFC0);
 				xAND(ptr32[&vu0Regs.VI[REG_STATUS_FLAG].UL], 0x3F);
 				xOR(ptr32[&vu0Regs.VI[REG_STATUS_FLAG].UL], eax);
@@ -6944,7 +6944,7 @@ static void recCTC2(void)
 			iFlushCall(FLUSH_NONE);
 			xMOV(arg1regd, 1);
 			xFastCall((void*)vu1Finish);
-			_eeMoveGPRtoR(arg1regd, _Rt_);
+			_eeMoveGPRtoR(arg1regd, _Rt_, true);
 			iFlushCall(FLUSH_NONE);
 			xFastCall((void*)vu1ExecMicro);
 			break;
@@ -6957,7 +6957,7 @@ static void recCTC2(void)
 				}
 
 				const int flagreg = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-				_eeMoveGPRtoR(xRegister32(flagreg), _Rt_);
+				_eeMoveGPRtoR(xRegister32(flagreg), _Rt_, true);
 
 				iFlushCall(FLUSH_FREE_VU0);
 				TEST_FBRST_RESET(flagreg, vu0ResetRegs, 0);
@@ -7027,7 +7027,7 @@ static void recCTC2(void)
 						}
 						else
 						{
-							_eeMoveGPRtoR(eax, _Rt_);
+							_eeMoveGPRtoR(eax, _Rt_, true);
 							xMOV(ptr16[&vu0Regs.VI[_Rd_].US[0]], ax);
 						}
 					}
@@ -7268,7 +7268,7 @@ void recLQC2(void)
 	}
 	else
 	{
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 		xAND(arg1regd, ~0xF);
@@ -7308,7 +7308,7 @@ void recSQC2()
 	}
 	else
 	{
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR(arg1regd, _Rs_, true);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 		xAND(arg1regd, ~0xF);
