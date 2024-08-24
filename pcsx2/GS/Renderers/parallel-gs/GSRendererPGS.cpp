@@ -60,7 +60,7 @@ const VkApplicationInfo *pgs_get_application_info()
 		VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr,
 		"PCSX2", VK_MAKE_VERSION(1, 7, 0),
 		"Granite", 0,
-		VK_API_VERSION_1_3
+		VK_API_VERSION_1_2
 	};
 
 	return &app;
@@ -439,6 +439,11 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	VSyncInfo info = {};
 
 	info.phase = field;
+
+	// Apparently this is needed for game-fixes.
+	if (GSConfig.InterlaceMode != GSInterlaceMode::Automatic)
+		info.phase ^= (static_cast<int>(GSConfig.InterlaceMode) - 2) & 1;
+
 	info.anti_blur = GSConfig.PCRTCAntiBlur;
 	info.force_progressive = true;
 	info.overscan = GSConfig.PCRTCOverscan;
