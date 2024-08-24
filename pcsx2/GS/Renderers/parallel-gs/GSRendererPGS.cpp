@@ -439,6 +439,11 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	VSyncInfo info = {};
 
 	info.phase = field;
+
+	// Apparently this is needed for game-fixes.
+	if (GSConfig.InterlaceMode != GSInterlaceMode::Automatic)
+		info.phase ^= (static_cast<int>(GSConfig.InterlaceMode) - 2) & 1;
+
 	info.anti_blur = GSConfig.PCRTCAntiBlur;
 	info.force_progressive = true;
 	info.overscan = GSConfig.PCRTCOverscan;
