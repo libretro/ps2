@@ -29,6 +29,11 @@
 #define mVUx (vuIndex ? microVU1 : microVU0)
 #define mVUop(opName) static void opName(microVU& mVU, int recPass)
 
+/* Fetches the PC and instruction opcode relative to the current PC.  Used to rewind and
+ * fast-forward the IR state while calculating VU pipeline conditions (branches, writebacks, etc) */
+#define incPC(x)  { iPC = ((iPC + (x)) & mVU.progMemMask); mVU.code = curI; }
+#define incPC2(x) { iPC = ((iPC + (x)) & mVU.progMemMask); }
+
 /* Define Passes */
 #define pass1 if (recPass == 0) // Analyze
 #define pass2 if (recPass == 1) // Recompile

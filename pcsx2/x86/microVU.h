@@ -225,11 +225,6 @@ typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
 			mVUblocks[addr] = new microBlockManager(); \
 	}
 
-// Fetches the PC and instruction opcode relative to the current PC.  Used to rewind and
-// fast-forward the IR state while calculating VU pipeline conditions (branches, writebacks, etc)
-#define incPC(x)  { iPC = ((iPC + (x)) & mVU.progMemMask); mVU.code = curI; }
-#define incPC2(x) { iPC = ((iPC + (x)) & mVU.progMemMask); }
-
 // Flag Info (Set if next-block's first 4 ops will read current-block's flags)
 #define __Status (mVUregs.needExactMatch & 1)
 #define __Mac    (mVUregs.needExactMatch & 2)
