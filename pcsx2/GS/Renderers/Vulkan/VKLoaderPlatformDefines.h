@@ -3,12 +3,15 @@
 #pragma once
 
 #ifdef _WIN32
+#ifndef __LIBRETRO__
 #define VK_USE_PLATFORM_WIN32_KHR
+#endif
 
 // vulkan.h pulls in windows.h on Windows, so we need to include our replacement header first
 #include "common/RedtapeWindows.h"
 #endif
 
+#ifndef __LIBRETRO__
 #if defined(X11_API)
 #define VK_USE_PLATFORM_XLIB_KHR
 #endif
@@ -19,5 +22,6 @@
 
 #if defined(__APPLE__)
 #define VK_USE_PLATFORM_METAL_EXT
+#endif
 #endif
 
