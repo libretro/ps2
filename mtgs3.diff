@@ -1,0 +1,97 @@
+diff --git a/libretro/main.cpp b/libretro/main.cpp
+index 57a9e4395..352e84102 100644
+--- a/libretro/main.cpp
++++ b/libretro/main.cpp
+@@ -543,7 +543,7 @@ void retro_get_system_av_info(retro_system_av_info* info)
+ 	info->geometry.max_width = info->geometry.base_width;
+ 	info->geometry.max_height = info->geometry.base_height;
+ 
+-	info->geometry.aspect_ratio = 4.0f / 3.0f;
++	info->geometry.aspect_ratio = 16.0f / 9.0f;
+ 	info->timing.fps = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;
+ 	info->timing.sample_rate = 48000;
+ }
+diff --git a/pcsx2/CDVD/CDVD.cpp b/pcsx2/CDVD/CDVD.cpp
+index cb7ad553e..d183edf13 100644
+--- a/pcsx2/CDVD/CDVD.cpp
++++ b/pcsx2/CDVD/CDVD.cpp
+@@ -81,10 +81,10 @@ static void CDVDSECTORREADY_INT(u32 eCycle)
+ 	if (psxRegs.interrupt & (1 << IopEvt_CdvdSectorReady))
+ 		return;
+ 
+-	if (EmuConfig.Speedhacks.fastCDVD)
++	//if (EmuConfig.Speedhacks.fastCDVD)
+ 	{
+ 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
+-			eCycle *= 0.5f;
++			eCycle *= 0.05f;
+ 	}
+ 
+ 	PSX_INT(IopEvt_CdvdSectorReady, eCycle);
+@@ -94,10 +94,10 @@ static void CDVDREAD_INT(u32 eCycle)
+ {
+ 	// Give it an arbitary FAST value. Good for ~5000kb/s in ULE when copying a file from CDVD to HDD
+ 	// Keep long seeks out though, as games may try to push dmas while seeking. (Tales of the Abyss)
+-	if (EmuConfig.Speedhacks.fastCDVD)
++	//if (EmuConfig.Speedhacks.fastCDVD)
+ 	{
+ 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
+-			eCycle *= 0.5f;
++			eCycle *= 0.05f;
+ 	}
+ 
+ 	PSX_INT(IopEvt_CdvdRead, eCycle);
+diff --git a/pcsx2/GS/parallel-gs b/pcsx2/GS/parallel-gs
+--- a/pcsx2/GS/parallel-gs
++++ b/pcsx2/GS/parallel-gs
+@@ -1 +1 @@
+-Subproject commit 89e25b5e59fe8b0d03d1359430a1f8b6e95b17c5
++Subproject commit 89e25b5e59fe8b0d03d1359430a1f8b6e95b17c5-dirty
+diff --git a/pcsx2/MTGS.cpp b/pcsx2/MTGS.cpp
+index b6a8896a7..a413e59a9 100644
+--- a/pcsx2/MTGS.cpp
++++ b/pcsx2/MTGS.cpp
+@@ -125,7 +125,7 @@ void MTGS::PostVsyncStart()
+ 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
+ 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
+ 
+-	if (s_QueuedFrameCount++ < EmuConfig.GS.VsyncQueueSize)
++	if (s_QueuedFrameCount++ < 0)
+ 		return;
+ 
+ 	s_VsyncSignalListener = true;
+diff --git a/pcsx2/Pcsx2Config.cpp b/pcsx2/Pcsx2Config.cpp
+index 0e3968fb7..d2924ddcc 100644
+--- a/pcsx2/Pcsx2Config.cpp
++++ b/pcsx2/Pcsx2Config.cpp
+@@ -186,7 +186,7 @@ Pcsx2Config::SpeedhackOptions::SpeedhackOptions()
+ Pcsx2Config::SpeedhackOptions& Pcsx2Config::SpeedhackOptions::DisableAll()
+ {
+ 	bitset = 0;
+-	EECycleRate = 0;
++	EECycleRate = 2;
+ 	EECycleSkip = 0;
+ 
+ 	return *this;
+@@ -205,7 +205,7 @@ void Pcsx2Config::SpeedhackOptions::LoadSave(SettingsWrapper& wrap)
+ 	SettingsWrapBitBool(vuThread);
+ 	SettingsWrapBitBool(vu1Instant);
+ 
+-	EECycleRate = std::clamp(EECycleRate, MIN_EE_CYCLE_RATE, MAX_EE_CYCLE_RATE);
++	EECycleRate = 2;
+ 	EECycleSkip = std::min(EECycleSkip, MAX_EE_CYCLE_SKIP);
+ }
+ 
+diff --git a/pcsx2/VMManager.cpp b/pcsx2/VMManager.cpp
+index e0990e8db..82a1b0b0b 100644
+--- a/pcsx2/VMManager.cpp
++++ b/pcsx2/VMManager.cpp
+@@ -319,7 +319,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
+ 
+ 	// regular cheat patches
+ 	int cheat_count = 0;
+-	if (EmuConfig.EnableCheats)
++	//if (EmuConfig.EnableCheats)
+ 	{
+ 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
+ 		if (cheat_count > 0)
