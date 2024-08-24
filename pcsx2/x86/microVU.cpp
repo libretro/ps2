@@ -45,6 +45,11 @@
 #define opCase3 if (opCase == 3) // I  Opcodes
 #define opCase4 if (opCase == 4) // Q  Opcodes
 
+static __fi bool mVUcmpProg(microVU& mVU, microProgram& prog);
+static __fi void* mVUblockFetch(microVU& mVU, uint32_t startPC, uintptr_t pState);
+static __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, uint32_t startPC, uintptr_t pState);
+static void mVUreset(microVU& mVU, bool resetReserve);
+
 /* recCall Function Pointer */
 typedef void (*mVUrecCall)(uint32_t, uint32_t);
 typedef void (*mVUrecCallXG)(void);
@@ -137,7 +142,7 @@ static void mVUunpack_xyzw(const xmm& dstreg, const xmm& srcreg, int xyzw)
 	}
 }
 
-static void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
+void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
 {
 	switch (xyzw)
 	{
