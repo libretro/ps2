@@ -174,29 +174,11 @@ static const uint divD = 0x2080000;
 #define gprF3 r14d // Status Flag 3
 
 // Function Params
-#define mP microVU& mVU, int recPass
-#define mV microVU& mVU
 #define mF int recPass
 #define mX mVU, recPass
 
 typedef void Fntype_mVUrecInst(microVU& mVU, int recPass);
 typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
-
-// Function/Template Stuff
-#define mVUx (vuIndex ? microVU1 : microVU0)
-#define mVUop(opName) static void opName(mP)
-#define _mVUt template <int vuIndex>
-
-// Define Passes
-#define pass1 if (recPass == 0) // Analyze
-#define pass2 if (recPass == 1) // Recompile
-#define pass4 if (recPass == 3) // Flag stuff
-
-// Upper Opcode Cases
-#define opCase1 if (opCase == 1) // Normal Opcodes
-#define opCase2 if (opCase == 2) // BC Opcodes
-#define opCase3 if (opCase == 3) // I  Opcodes
-#define opCase4 if (opCase == 4) // Q  Opcodes
 
 //------------------------------------------------------------------
 
@@ -1482,7 +1464,6 @@ static const uint mVUcacheReserve = 64; // mVU0, mVU1 Reserve Cache Size (in meg
 
 struct microVU
 {
-
 	alignas(16) uint32_t statFlag[4]; // 4 instances of status flag (backup for xgkick)
 	alignas(16) uint32_t macFlag [4]; // 4 instances of mac    flag (used in execution)
 	alignas(16) uint32_t clipFlag[4]; // 4 instances of clip   flag (used in execution)
@@ -1634,26 +1615,3 @@ public:
 /* microVU rec structs */
 alignas(16) microVU microVU0;
 alignas(16) microVU microVU1;
-
-/* Main Functions */
-extern void mVUclear(mV, uint32_t, uint32_t);
-extern void mVUreset(microVU& mVU, bool resetReserve);
-extern void* mVUblockFetch(microVU& mVU, uint32_t startPC, uintptr_t pState);
-_mVUt extern void* mVUcompileJIT(uint32_t startPC, uintptr_t ptr);
-
-/* Prototypes */
-extern void mVUcleanUpVU0(void);
-extern void mVUcleanUpVU1(void);
-mVUop(mVUopU);
-mVUop(mVUopL);
-
-/* Private Functions */
-extern void mVUcacheProg(microVU& mVU, microProgram& prog);
-extern void mVUdeleteProg(microVU& mVU, microProgram*& prog);
-_mVUt extern void* mVUsearchProg(uint32_t startPC, uintptr_t pState);
-extern void* mVUexecuteVU0(uint32_t startPC, uint32_t cycles);
-extern void* mVUexecuteVU1(uint32_t startPC, uint32_t cycles);
-
-/* recCall Function Pointer */
-typedef void (*mVUrecCall)(uint32_t, uint32_t);
-typedef void (*mVUrecCallXG)(void);
