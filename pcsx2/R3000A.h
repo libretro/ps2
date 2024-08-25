@@ -182,9 +182,6 @@ extern int32_t psxNextDeltaCounter;
 extern uint32_t psxNextStartCounter;
 extern bool iopEventAction;
 
-// Branching status used when throwing exceptions.
-extern bool iopIsDelaySlot;
-
 // --------------------------------------------------------------------------------------
 //  R3000Acpu
 // --------------------------------------------------------------------------------------

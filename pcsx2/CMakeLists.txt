@@ -96,11 +96,7 @@ set(pcsx2Sources
 	Pcsx2Config.cpp
 	PerformanceMetrics.cpp
 	R3000A.cpp
-	R3000AInterpreter.cpp
-	R3000AOpcodeTables.cpp
 	R5900.cpp
-	R5900OpcodeImpl.cpp
-	R5900OpcodeTables.cpp
 	SaveState.cpp
 	Sif.cpp
 	Sif0.cpp

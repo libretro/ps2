@@ -392,9 +392,6 @@
     <ClCompile Include="Gif.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Gif</Filter>
     </ClCompile>
-    <ClCompile Include="R5900OpcodeTables.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE</Filter>
-    </ClCompile>
     <ClCompile Include="x86\iCOP0.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Dynarec</Filter>
     </ClCompile>
@@ -431,19 +428,10 @@
     <ClCompile Include="R5900.cpp">
       <Filter>System\Ps2\EmotionEngine\EE\Interpreter</Filter>
     </ClCompile>
-    <ClCompile Include="R5900OpcodeImpl.cpp">
-      <Filter>System\Ps2\EmotionEngine\EE\Interpreter</Filter>
-    </ClCompile>
     <ClCompile Include="Iop.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
     <ClCompile Include="R3000A.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="R3000AInterpreter.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="R3000AOpcodeTables.cpp">
       <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
     <ClCompile Include="Sio.cpp">
@@ -481,18 +469,6 @@
     </ClCompile>
     <ClCompile Include="MTGS.cpp">
       <Filter>System\Ps2\GS\GIF</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\DisR3000A.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\DisR5900asm.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\DisVU0Micro.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\DisVU1Micro.cpp">
-      <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
     <ClCompile Include="rdebug\deci2.cpp">
       <Filter>System\Ps2\Debug\rdebug</Filter>
@@ -545,29 +521,11 @@
     <ClCompile Include="DebugTools\DebugInterface.cpp">
       <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="DebugTools\DisassemblyManager.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="DebugTools\MIPSAnalyst.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\ExpressionParser.cpp">
       <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
     <ClCompile Include="sif2.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\MipsAssemblerTables.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\MipsAssembler.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\BiosDebugData.cpp">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="DebugTools\MipsStackWalk.cpp">
-      <Filter>System\Ps2\Debug</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\ThreadedFileReader.cpp">
       <Filter>System\ISO</Filter>
@@ -1216,18 +1174,6 @@
     <ClInclude Include="IPU_Fifo.h">
       <Filter>System\Ps2\IPU</Filter>
     </ClInclude>
-    <ClInclude Include="DebugTools\Debug.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\DisASM.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\DisVUmicro.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\DisVUops.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
     <ClInclude Include="x86\BaseblockEx.h">
       <Filter>System\Ps2\Include</Filter>
     </ClInclude>
@@ -1273,29 +1219,11 @@
     <ClInclude Include="DebugTools\DebugInterface.h">
       <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
-    <ClInclude Include="DebugTools\DisassemblyManager.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
     <ClInclude Include="DebugTools\MIPSAnalyst.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\ExpressionParser.h">
       <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
     <ClInclude Include="CDVD\zlib_indexed.h">
       <Filter>System\ISO</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\MipsAssemblerTables.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\MipsAssembler.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\BiosDebugData.h">
-      <Filter>System\Ps2\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="DebugTools\MipsStackWalk.h">
-      <Filter>System\Ps2\Debug</Filter>
     </ClInclude>
     <ClInclude Include="CDVD\ThreadedFileReader.h">
       <Filter>System\ISO</Filter>

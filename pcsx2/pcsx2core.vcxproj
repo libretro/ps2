@@ -315,7 +315,6 @@
     <ClCompile Include="x86\newVif_Dynarec.cpp" />
     <ClCompile Include="SPR.cpp" />
     <ClCompile Include="Gif.cpp" />
-    <ClCompile Include="R5900OpcodeTables.cpp" />
     <ClCompile Include="x86\iCOP0.cpp" />
     <ClCompile Include="x86\iFPU.cpp" />
     <ClCompile Include="x86\iFPUd.cpp" />
@@ -328,11 +327,8 @@
     <ClCompile Include="Interpreter.cpp" />
     <ClCompile Include="MMI.cpp" />
     <ClCompile Include="R5900.cpp" />
-    <ClCompile Include="R5900OpcodeImpl.cpp" />
     <ClCompile Include="Iop.cpp" />
     <ClCompile Include="R3000A.cpp" />
-    <ClCompile Include="R3000AInterpreter.cpp" />
-    <ClCompile Include="R3000AOpcodeTables.cpp" />
     <ClCompile Include="Sio.cpp" />
     <ClCompile Include="x86\iR3000A.cpp" />
     <ClCompile Include="IopHw.cpp" />
