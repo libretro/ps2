@@ -95,3 +95,16 @@ index e0990e8db..82a1b0b0b 100644
  	{
  		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
  		if (cheat_count > 0)
+diff --git a/pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.cpp b/pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.cpp
+index 6c0e7ba68..800884e55 100644
+--- a/pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.cpp
++++ b/pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.cpp
+@@ -501,7 +501,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
+ 				geom_changed     = true;
+ 				geom.base_height = new_base_height;
+ 			}
+-			geom.aspect_ratio = 4.0f / 3.0f; // TODO: Missing widescreen option.
++			geom.aspect_ratio = 16.0f / 9.0f; // TODO: Missing widescreen option.
+ 			float horizontal_scanout_ratio = float(vsync.internal_width) / float(vsync.mode_width);
+ 			float vertical_scanout_ratio = float(vsync.internal_height) / float(vsync.mode_height);
+ 			geom.aspect_ratio *= horizontal_scanout_ratio / vertical_scanout_ratio;
