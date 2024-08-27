@@ -868,46 +868,6 @@ void (*Int_COP2SPECIAL2PrintTable[128])(void) =
  COP2_Unknown,COP2_Unknown,COP2_Unknown,COP2_Unknown,COP2_Unknown,COP2_Unknown,COP2_Unknown,COP2_Unknown,
 };
 
-static __fi bool _add64_Overflow(int64_t x, int64_t y, int64_t *ret)
-{
-	const int64_t result = x + y;
-
-	// Let's all give gigaherz a big round of applause for finding this gem,
-	// which apparently works, and generates compact/fast x86 code too (the
-	// other method below is like 5-10 times slower).
-
-	if( ((~(x ^ y)) & (x ^ result)) < 0 )
-	{
-		cpuException(0x30, cpuRegs.branch);		// fixme: is 0x30 right for overflow??
-		return true;
-	}
-
-	*ret = result;
-	return false;
-}
-
-static __fi bool _add32_Overflow( int32_t x, int32_t y, int64_t *ret)
-{
-	GPR_reg64 result;
-	result.SD[0] = (int64_t)x + y;
-
-	// This 32bit method can rely on the MIPS documented method of checking for
-	// overflow, whichs imply compares bit 32 (rightmost bit of the upper word),
-	// against bit 31 (leftmost of the lower word).
-
-	// If bit32 != bit31 then we have an overflow.
-	if((result.UL[0]>>31) != (result.UL[1] & 1))
-	{
-		cpuException(0x30, cpuRegs.branch);
-		return true;
-	}
-
-	*ret = result.SD[0];
-
-	return false;
-}
-
-
 const R5900::OPCODE& R5900::GetCurrentInstruction()
 {
 	const OPCODE* opcode = &R5900::OpcodeTables::tbl_Standard[_Opcode_];
@@ -1060,6 +1020,65 @@ static int __Deci2Call(int call, u32 *addr)
 	return 0;
 }
 
+static __ri void cpuException(u32 code, u32 bd)
+{
+	bool checkStatus;
+	u32 offset          = 0;
+
+	cpuRegs.branch      = 0; // Tells the interpreter that an exception occurred during a branch.
+	cpuRegs.CP0.n.Cause = code & 0xffff;
+
+	if(cpuRegs.CP0.n.Status.b.ERL == 0)
+	{
+		//Error Level 0-1
+		checkStatus = (cpuRegs.CP0.n.Status.b.BEV == 0); //  for TLB/general exceptions
+
+		if (((code & 0x7C) >= 0x8) && ((code & 0x7C) <= 0xC))
+			offset = 0x0; //TLB Refill
+		else if ((code & 0x7C) == 0x0)
+			offset = 0x200; //Interrupt
+		else
+			offset = 0x180; // Everything else
+	}
+	else
+	{
+		//Error Level 2
+		checkStatus = (cpuRegs.CP0.n.Status.b.DEV == 0); // for perf/debug exceptions
+
+		if ((code & 0x38000) <= 0x8000 )
+		{
+			//Reset / NMI
+			cpuRegs.pc = 0xBFC00000;
+			return;
+		}
+		else if((code & 0x38000) == 0x10000)
+			offset = 0x80; //Performance Counter
+		else if((code & 0x38000) == 0x18000)
+			offset = 0x100; //Debug
+	}
+
+	if (cpuRegs.CP0.n.Status.b.EXL == 0)
+	{
+		cpuRegs.CP0.n.Status.b.EXL = 1;
+		cpuRegs.CP0.n.EPC          = cpuRegs.pc;
+		if (bd)
+		{
+			cpuRegs.CP0.n.EPC   -= 4;
+			cpuRegs.CP0.n.Cause |= 0x80000000;
+		}
+		else
+			cpuRegs.CP0.n.Cause &= ~0x80000000;
+	}
+	else
+		offset = 0x180; //Override the cause
+
+	if (checkStatus)
+		cpuRegs.pc = 0x80000000 + offset;
+	else
+		cpuRegs.pc = 0xBFC00200 + offset;
+}
+
+
 namespace R5900 {
 namespace Interpreter {
 namespace OpcodeImpl {
@@ -1083,10 +1102,14 @@ void COP1_Unknown(void) { }
 // Rt = Rs + Im signed [exception on overflow]
 void ADDI(void)
 {
-	int64_t result = 0;
-	bool overflow  = _add32_Overflow( cpuRegs.GPR.r[_Rs_].SD[0], _Imm_, &result);
-	if (overflow || !_Rt_) return;
-	cpuRegs.GPR.r[_Rt_].SD[0] = result;
+	GPR_reg64 result;
+	int32_t x      = cpuRegs.GPR.r[_Rs_].SD[0];
+	int32_t y      = _Imm_;
+	result.SD[0]   = (int64_t)x + y;
+	if((result.UL[0]>>31) != (result.UL[1] & 1))
+		cpuException(0x30, cpuRegs.branch);
+	else if (_Rt_)
+		cpuRegs.GPR.r[_Rt_].SD[0] = result.SD[0];
 }
 
 // Rt = Rs + Im signed !!! [overflow ignored]
@@ -1102,10 +1125,13 @@ void ADDIU(void)
 // of at 32 bits.
 void DADDI(void)
 {
-	int64_t result = 0;
-	bool overflow  = _add64_Overflow(cpuRegs.GPR.r[_Rs_].SD[0], _Imm_, &result );
-	if (overflow || !_Rt_) return;
-	cpuRegs.GPR.r[_Rt_].SD[0] = result;
+	int64_t x      = cpuRegs.GPR.r[_Rs_].SD[0];
+	int64_t y      = _Imm_;
+	int64_t result = x + y;
+	if( ((~(x ^ y)) & (x ^ result)) < 0 )
+		cpuException(0x30, cpuRegs.branch);		// fixme: is 0x30 right for overflow??
+	else if (_Rt_)
+		cpuRegs.GPR.r[_Rt_].SD[0] = 0;
 }
 
 // Rt = Rs + Im [overflow ignored]
@@ -1127,38 +1153,52 @@ void SLTIU(void)    { if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = (cpuRegs.GPR.r[_Rs_]
 *********************************************************/
 
 // Rd = Rs + Rt		(Exception on Integer Overflow)
-void ADD()
+void ADD(void)
 {
-	int64_t result = 0;
-	bool overflow  = _add32_Overflow( cpuRegs.GPR.r[_Rs_].SD[0], cpuRegs.GPR.r[_Rt_].SD[0], &result);
-	if (overflow || !_Rd_) return;
-	cpuRegs.GPR.r[_Rd_].SD[0] = result;
+	GPR_reg64 result;
+	int32_t x      = cpuRegs.GPR.r[_Rs_].SD[0];
+	int32_t y      = cpuRegs.GPR.r[_Rt_].SD[0];
+	result.SD[0]   = (int64_t)x + y;
+	if((result.UL[0]>>31) != (result.UL[1] & 1))
+		cpuException(0x30, cpuRegs.branch);
+	else if (_Rd_)
+		cpuRegs.GPR.r[_Rd_].SD[0] = result.SD[0];
 }
 
 void DADD(void)
 {
-	int64_t result = 0;
-	bool overflow  = _add64_Overflow( cpuRegs.GPR.r[_Rs_].SD[0], cpuRegs.GPR.r[_Rt_].SD[0], &result);
-	if (overflow || !_Rd_) return;
-	cpuRegs.GPR.r[_Rd_].SD[0] = result;
+	int64_t x      = cpuRegs.GPR.r[_Rs_].SD[0];
+	int64_t y      = cpuRegs.GPR.r[_Rt_].SD[0];
+	int64_t result = x + y;
+	if( ((~(x ^ y)) & (x ^ result)) < 0 )
+		cpuException(0x30, cpuRegs.branch);		// fixme: is 0x30 right for overflow??
+	else if (_Rd_)
+		cpuRegs.GPR.r[_Rd_].SD[0] = 0;
 }
 
 // Rd = Rs - Rt		(Exception on Integer Overflow)
 void SUB(void)
 {
-	int64_t result = 0;
-	bool overflow  = _add32_Overflow( cpuRegs.GPR.r[_Rs_].SD[0], -cpuRegs.GPR.r[_Rt_].SD[0], &result );
-	if (overflow || !_Rd_) return;
-	cpuRegs.GPR.r[_Rd_].SD[0] = result;
+	GPR_reg64 result;
+	int32_t x      = cpuRegs.GPR.r[_Rs_].SD[0];
+	int32_t y      = -cpuRegs.GPR.r[_Rt_].SD[0];
+	result.SD[0]   = (int64_t)x + y;
+	if((result.UL[0]>>31) != (result.UL[1] & 1))
+		cpuException(0x30, cpuRegs.branch);
+	else if (_Rd_)
+		cpuRegs.GPR.r[_Rd_].SD[0] = result.SD[0];
 }
 
 // Rd = Rs - Rt		(Exception on Integer Overflow)
 void DSUB(void)
 {
-	int64_t result = 0;
-	bool overflow  = _add64_Overflow( cpuRegs.GPR.r[_Rs_].SD[0], -cpuRegs.GPR.r[_Rt_].SD[0], &result);
-	if (overflow || !_Rd_) return;
-	cpuRegs.GPR.r[_Rd_].SD[0] = result;
+	int64_t x      =  cpuRegs.GPR.r[_Rs_].SD[0];
+	int64_t y      = -cpuRegs.GPR.r[_Rt_].SD[0];
+	int64_t result = x + y;
+	if( ((~(x ^ y)) & (x ^ result)) < 0 )
+		cpuException(0x30, cpuRegs.branch);		// fixme: is 0x30 right for overflow??
+	else if (_Rd_)
+		cpuRegs.GPR.r[_Rd_].SD[0] = 0;
 }
 
 void ADDU(void)	{ if (_Rd_) cpuRegs.GPR.r[_Rd_].UD[0] = (uint64_t)(int64_t)(int32_t)(cpuRegs.GPR.r[_Rs_].UL[0]  + cpuRegs.GPR.r[_Rt_].UL[0]); }	// Rd = Rs + Rt
@@ -1309,81 +1349,61 @@ void DSRLV(void){ if (_Rd_) cpuRegs.GPR.r[_Rd_].UD[0] = (uint64_t)(cpuRegs.GPR.r
 void LB(void)
 {
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	int8_t temp   = vtlb_memRead8(addr);
-	if (_Rt_) cpuRegs.GPR.r[_Rt_].SD[0] = temp;
+	if (_Rt_) cpuRegs.GPR.r[_Rt_].SD[0] = vtlb_memRead8(addr);
 }
 
 void LBU(void)
 {
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	uint8_t temp  = vtlb_memRead8(addr);
-	if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = temp;
+	if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = vtlb_memRead8(addr);
 }
 
 void LH(void)
 {
-	int16_t temp;
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-
 	if (unlikely(addr & 1))
 		Cpu->CancelInstruction();
-
-	temp = vtlb_memRead16(addr);
-	if (_Rt_) cpuRegs.GPR.r[_Rt_].SD[0] = temp;
+	if (_Rt_) cpuRegs.GPR.r[_Rt_].SD[0] = vtlb_memRead16(addr);
 }
 
 void LHU(void)
 {
-	uint16_t temp;
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-
 	if (unlikely(addr & 1))
 		Cpu->CancelInstruction();
-
-	temp = vtlb_memRead16(addr);
-	if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = temp;
+	if (_Rt_) cpuRegs.GPR.r[_Rt_].UD[0] = vtlb_memRead16(addr);
 }
 
 void LW(void)
 {
-	uint32_t temp;
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-
 	if (unlikely(addr & 3))
 		Cpu->CancelInstruction();
-
-	temp = vtlb_memRead32(addr);
-
 	if (_Rt_)
-		cpuRegs.GPR.r[_Rt_].SD[0] = (int32_t)temp;
+		cpuRegs.GPR.r[_Rt_].SD[0] = (int32_t)vtlb_memRead32(addr);
 }
 
 void LWU(void)
 {
-	uint32_t temp;
 	uint32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-
 	if (unlikely(addr & 3))
 		Cpu->CancelInstruction();
-
-	temp = vtlb_memRead32(addr);
-
 	if (_Rt_)
-		cpuRegs.GPR.r[_Rt_].UD[0] = temp;
+		cpuRegs.GPR.r[_Rt_].UD[0] = vtlb_memRead32(addr);
 }
 
 void LWL(void)
 {
 	static const uint32_t LWL_MASK[4] = { 0xffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
 	static const uint8_t LWL_SHIFT[4] = { 24, 16, 8, 0 };
-	int32_t addr                      = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	uint32_t shift                    = addr & 3;
-	uint32_t mem                      = vtlb_memRead32(addr & ~3);
-
 	/* ensure the compiler does correct sign extension into 64 bits by using int32_t */
 	if (_Rt_)
+	{
+		int32_t addr              = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+		uint32_t shift            = addr & 3;
 		cpuRegs.GPR.r[_Rt_].SD[0] =	(int32_t)((cpuRegs.GPR.r[_Rt_].UL[0] & LWL_MASK[shift])
-				              | (mem << LWL_SHIFT[shift]));
+				              | (vtlb_memRead32(addr & ~3) << LWL_SHIFT[shift]));
+	}
 
 	/*
 	Mem = 1234.  Reg = abcd
@@ -1400,22 +1420,23 @@ void LWR(void)
 {
 	static const u32 LWR_MASK[4] = { 0x000000, 0xff000000, 0xffff0000, 0xffffff00 };
 	static const u8 LWR_SHIFT[4] = { 0, 8, 16, 24 };
-	int32_t addr   = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	uint32_t shift = addr & 3;
-	uint32_t mem   = vtlb_memRead32(addr & ~3);
 
-	if (!_Rt_) return;
+	if (_Rt_)
+	{
+		int32_t addr   = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+		uint32_t shift = addr & 3;
+		uint32_t mem   = vtlb_memRead32(addr & ~3);
+		// Use unsigned math here, and conditionally sign extend below, when needed.
+		mem = (cpuRegs.GPR.r[_Rt_].UL[0] & LWR_MASK[shift]) | (mem >> LWR_SHIFT[shift]);
 
-	// Use unsigned math here, and conditionally sign extend below, when needed.
-	mem = (cpuRegs.GPR.r[_Rt_].UL[0] & LWR_MASK[shift]) | (mem >> LWR_SHIFT[shift]);
-
-	// This special case requires sign extension into the full 64 bit dest.
-	if (shift == 0)
-		cpuRegs.GPR.r[_Rt_].SD[0] =	(int32_t)mem;
-	else
-		// This case sets the lower 32 bits of the target register.  Upper
-		// 32 bits are always preserved.
-		cpuRegs.GPR.r[_Rt_].UL[0] =	mem;
+		// This special case requires sign extension into the full 64 bit dest.
+		if (shift == 0)
+			cpuRegs.GPR.r[_Rt_].SD[0] =	(int32_t)mem;
+		else
+			// This case sets the lower 32 bits of the target register.  Upper
+			// 32 bits are always preserved.
+			cpuRegs.GPR.r[_Rt_].UL[0] =	mem;
+	}
 
 	/*
 	Mem = 1234.  Reg = abcd
@@ -1454,12 +1475,13 @@ void LDL(void)
 		0x0000000000ffffffULL, 0x000000000000ffffULL, 0x00000000000000ffULL, 0x0000000000000000ULL
 	};
 	static const u8 LDL_SHIFT[8] = { 56, 48, 40, 32, 24, 16, 8, 0 };
-	uint32_t addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	uint32_t shift = addr & 7;
-	uint64_t mem   = vtlb_memRead64(addr & ~7);
 	if(_Rt_ )
+	{
+		uint32_t addr        = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+		uint32_t shift       = addr & 7;
 		cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDL_MASK[shift]) |
-			(mem << LDL_SHIFT[shift]);
+			(vtlb_memRead64(addr & ~7) << LDL_SHIFT[shift]);
+	}
 }
 
 void LDR(void)
@@ -1469,12 +1491,13 @@ void LDR(void)
 		0xffffffff00000000ULL, 0xffffffffff000000ULL, 0xffffffffffff0000ULL, 0xffffffffffffff00ULL
 	};
 	static const u8 LDR_SHIFT[8] = { 0, 8, 16, 24, 32, 40, 48, 56 };
-	uint32_t addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	uint32_t shift = addr & 7;
-	uint64_t mem   = vtlb_memRead64(addr & ~7);
 	if (_Rt_)
+	{
+		uint32_t addr        = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
+		uint32_t shift       = addr & 7;
 		cpuRegs.GPR.r[_Rt_].UD[0] =	(cpuRegs.GPR.r[_Rt_].UD[0] & LDR_MASK[shift]) |
-			(mem >> LDR_SHIFT[shift]);
+			(vtlb_memRead64(addr & ~7) >> LDR_SHIFT[shift]);
+	}
 }
 
 void LQ(void)
@@ -1517,10 +1540,9 @@ void SWL(void)
 	static const u8 SWL_SHIFT[4] = { 24, 16, 8, 0 };
 	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-	u32 mem   = vtlb_memRead32( addr & ~3 );
 	vtlb_memWrite32( addr & ~3,
 		  (cpuRegs.GPR.r[_Rt_].UL[0] >> SWL_SHIFT[shift])
-		| (mem & SWL_MASK[shift])
+		| (vtlb_memRead32( addr & ~3 ) & SWL_MASK[shift])
 	);
 
 	/*
@@ -1539,10 +1561,9 @@ void SWR(void)
 	static const u8 SWR_SHIFT[4] = { 0, 8, 16, 24 };
 	u32 addr  = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
 	u32 shift = addr & 3;
-	u32 mem   = vtlb_memRead32(addr & ~3);
 	vtlb_memWrite32( addr & ~3,
 		(cpuRegs.GPR.r[_Rt_].UL[0] << SWR_SHIFT[shift]) |
-		(mem & SWR_MASK[shift])
+		(vtlb_memRead32(addr & ~3) & SWR_MASK[shift])
 	);
 
 	/*
@@ -1930,64 +1951,6 @@ void cpuReset()
 	g_eeloadMain = 0, g_eeloadExec = 0, g_osdsys_str = 0;
 }
 
-__ri void cpuException(u32 code, u32 bd)
-{
-	bool checkStatus;
-	u32 offset          = 0;
-
-	cpuRegs.branch      = 0; // Tells the interpreter that an exception occurred during a branch.
-	cpuRegs.CP0.n.Cause = code & 0xffff;
-
-	if(cpuRegs.CP0.n.Status.b.ERL == 0)
-	{
-		//Error Level 0-1
-		checkStatus = (cpuRegs.CP0.n.Status.b.BEV == 0); //  for TLB/general exceptions
-
-		if (((code & 0x7C) >= 0x8) && ((code & 0x7C) <= 0xC))
-			offset = 0x0; //TLB Refill
-		else if ((code & 0x7C) == 0x0)
-			offset = 0x200; //Interrupt
-		else
-			offset = 0x180; // Everything else
-	}
-	else
-	{
-		//Error Level 2
-		checkStatus = (cpuRegs.CP0.n.Status.b.DEV == 0); // for perf/debug exceptions
-
-		if ((code & 0x38000) <= 0x8000 )
-		{
-			//Reset / NMI
-			cpuRegs.pc = 0xBFC00000;
-			return;
-		}
-		else if((code & 0x38000) == 0x10000)
-			offset = 0x80; //Performance Counter
-		else if((code & 0x38000) == 0x18000)
-			offset = 0x100; //Debug
-	}
-
-	if (cpuRegs.CP0.n.Status.b.EXL == 0)
-	{
-		cpuRegs.CP0.n.Status.b.EXL = 1;
-		cpuRegs.CP0.n.EPC          = cpuRegs.pc;
-		if (bd)
-		{
-			cpuRegs.CP0.n.EPC   -= 4;
-			cpuRegs.CP0.n.Cause |= 0x80000000;
-		}
-		else
-			cpuRegs.CP0.n.Cause &= ~0x80000000;
-	}
-	else
-		offset = 0x180; //Override the cause
-
-	if (checkStatus)
-		cpuRegs.pc = 0x80000000 + offset;
-	else
-		cpuRegs.pc = 0xBFC00200 + offset;
-}
-
 void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
 {
 	cpuRegs.CP0.n.BadVAddr = addr;
@@ -2025,7 +1988,7 @@ __fi int cpuGetCycles(int interrupt)
 	return std::max(1, cycles);
 }
 
-// tests the cpu cycle against the given start and delta values.
+// tests the CPU cycle against the given start and delta values.
 // Returns true if the delta time has passed.
 __fi int cpuTestCycle( u32 startCycle, s32 delta )
 {
@@ -2132,16 +2095,6 @@ static __fi void _cpuTestTIMR(void)
 		cpuException(0x808000, cpuRegs.branch);
 }
 
-static __fi void _cpuTestPERF(void)
-{
-	// Perfs are updated when read by games (COP0's MFC0/MTC0 instructions), so we need
-	// only update them at semi-regular intervals to keep cpuRegs.cycle from wrapping
-	// around twice on us btween updates.  Hence this function is called from the cpu's
-	// Counters update.
-
-	COP0_UpdatePCCR();
-}
-
 // Checks the COP0.Status for exception enablings.
 // Exception handling for certain modes is *not* currently supported, this function filters
 // them out.  Exceptions while the exception handler is active (EIE), or exceptions of any
@@ -2180,7 +2133,11 @@ __fi void _cpuEventTest_Shared(void)
 	if (cpuTestCycle(nextStartCounter, nextDeltaCounter))
 	{
 		rcntUpdate();
-		_cpuTestPERF();
+		// Perfs are updated when read by games (COP0's MFC0/MTC0 instructions), so we need
+		// only update them at semi-regular intervals to keep cpuRegs.cycle from wrapping
+		// around twice on us btween updates.  Hence this function is called from the cpu's
+		// Counters update.
+		COP0_UpdatePCCR();
 	}
 
 	_cpuTestTIMR();
@@ -2255,7 +2212,7 @@ __fi void _cpuEventTest_Shared(void)
 	eeEventTestIsActive = false;
 }
 
-__ri void cpuTestINTCInts()
+__ri void cpuTestINTCInts(void)
 {
 	// Check the COP0's Status register for general interrupt disables, and the 0x400
 	// bit (which is INTC master toggle).
@@ -2273,7 +2230,7 @@ __ri void cpuTestINTCInts()
 	}
 }
 
-__fi void cpuTestDMACInts()
+__fi void cpuTestDMACInts(void)
 {
 	// Check the COP0's Status register for general interrupt disables, and the 0x800
 	// bit (which is the DMAC master toggle).
