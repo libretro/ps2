@@ -270,26 +270,9 @@ extern void gsSetVideoMode(GS_VideoMode mode);
 extern void gsPostVsyncStart();
 extern void gsUpdateFrequency(Pcsx2Config& config);
 
-extern void gsWrite8(u32 mem, u8 value);
-extern void gsWrite16(u32 mem, u16 value);
-extern void gsWrite32(u32 mem, u32 value);
-
-extern void gsWrite64_page_00(u32 mem, u64 value);
-extern void gsWrite64_page_01(u32 mem, u64 value);
-extern void gsWrite64_generic(u32 mem, u64 value);
-
-extern void TAKES_R128 gsWrite128_page_00(u32 mem, r128 value);
-extern void TAKES_R128 gsWrite128_page_01(u32 mem, r128 value);
-extern void TAKES_R128 gsWrite128_generic(u32 mem, r128 value);
-
-extern u8 gsRead8(u32 mem);
-extern u16 gsRead16(u32 mem);
-extern u32 gsRead32(u32 mem);
-extern u64 gsRead64(u32 mem);
-extern u128 gsNonMirroredRead(u32 mem);
 extern bool s_GSRegistersWritten;
 
-void gsIrq();
+#define gsIrq() hwIntcIrq(INTC_GS)
 
 extern tGS_CSR CSRr;
 
