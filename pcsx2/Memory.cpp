@@ -268,206 +268,154 @@ static void nullWrite8(u32 mem, uint8_t value)   { }
 static void nullWrite16(u32 mem, uint16_t value) { }
 static void nullWrite32(u32 mem, uint32_t value) { }
 static void nullWrite64(u32 mem, uint64_t value) { }
+
 static void TAKES_R128 nullWrite128(u32 mem, r128 value) { }
 
-template<int p>
-static uint8_t _ext_memRead8 (u32 mem)
+static uint8_t _ext_memRead8DEV9(u32 mem)
 {
-	switch (p)
-	{
-		case 3: // psh4
-			return psxHw4Read8(mem);
-		case 6: // gsm
-			return gsRead8(mem);
-		case 7: // dev9
-			return DEV9read8(mem & ~0xa4000000);
-		default: break;
-	}
+	return DEV9read8(mem & ~0xa4000000);
+}
 
+static uint8_t _ext_memRead8(u32 mem)
+{
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
 
-template<int p>
-static uint16_t _ext_memRead16(u32 mem)
+static uint16_t _ext_memRead16DEV9(u32 mem)
 {
-	switch (p)
-	{
-		case 4: // b80
-			return 0;
-		case 5: // ba0
-			return ba0R16(mem);
-		case 6: // gsm
-			return gsRead16(mem);
+	return DEV9read16(mem & ~0xa4000000);
+}
 
-		case 7: // dev9
-			return DEV9read16(mem & ~0xa4000000);
-
-		case 8: // spu2
-			return SPU2read(mem);
-
-		default: break;
-	}
+static uint16_t _ext_memRead16_generic(u32 mem)
+{
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
 
-template<int p>
+static uint32_t _ext_memRead32DEV9(u32 mem)
+{
+	return DEV9read32(mem & ~0xa4000000);
+}
+
 static uint32_t _ext_memRead32(u32 mem)
 {
-	switch (p)
-	{
-		case 6: // gsm
-			return gsRead32(mem);
-		case 7: // dev9
-			return DEV9read32(mem & ~0xa4000000);
-		default: break;
-	}
-
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
 
-template<int p>
 static u64 _ext_memRead64(u32 mem)
 {
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return 0;
 }
 
-template<int p>
+static RETURNS_R128 _ext_memRead128GSM(u32 mem)
+{
+	return r128_load(PS2GS_BASE(mem));
+}
+
 static RETURNS_R128 _ext_memRead128(u32 mem)
 {
-	if (p == 6) /* GSM */
-		return r128_load(PS2GS_BASE(mem));
 	cpuTlbMissR(mem, cpuRegs.branch);
 	return r128_zero();
 }
 
-template<int p>
-static void _ext_memWrite8 (u32 mem, uint8_t  value)
+static void _ext_memWrite8DEV9(u32 mem, uint8_t  value)
 {
-	switch (p) {
-		case 3: // psh4
-			psxHw4Write8(mem, value); return;
-		case 6: // gsm
-			gsWrite8(mem, value); return;
-		case 7: // dev9
-			DEV9write8(mem & ~0xa4000000, value);
-			return;
-		default: break;
-	}
+	DEV9write8(mem & ~0xa4000000, value);
+}
 
+static void _ext_memWrite8(u32 mem, uint8_t  value)
+{
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
-template<int p>
+static void _ext_memWrite16DEV9(u32 mem, uint16_t value)
+{
+	DEV9write16(mem & ~0xa4000000, value);
+}
+
 static void _ext_memWrite16(u32 mem, uint16_t value)
 {
-	switch (p) {
-		case 5: // ba0
-			return;
-		case 6: // gsm
-			gsWrite16(mem, value); return;
-		case 7: // dev9
-			DEV9write16(mem & ~0xa4000000, value);
-			return;
-		case 8: // spu2
-			SPU2write(mem, value); return;
-		default: break;
-	}
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
-template<int p>
+static void _ext_memWrite32DEV9(u32 mem, uint32_t value)
+{
+	DEV9write32(mem & ~0xa4000000, value);
+}
+
 static void _ext_memWrite32(u32 mem, uint32_t value)
 {
-	switch (p) {
-		case 6: // gsm
-			gsWrite32(mem, value); return;
-		case 7: // dev9
-			DEV9write32(mem & ~0xa4000000, value);
-			return;
-		default: break;
-	}
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
-template<int p>
 static void _ext_memWrite64(u32 mem, uint64_t value)
 {
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
-template<int p>
 static void TAKES_R128 _ext_memWrite128(u32 mem, r128 value)
 {
 	alignas(16) const u128 uvalue = r128_to_u128(value);
 	cpuTlbMissW(mem, cpuRegs.branch);
 }
 
-#define vtlb_RegisterHandlerTempl1(nam,t) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
-															   nam##Write8<t>,nam##Write16<t>,nam##Write32<t>,nam##Write64<t>,nam##Write128<t>)
-
-typedef void ClearFunc_t( u32 addr, u32 qwc );
-
-template<int vunum> static __fi void ClearVuFunc(u32 addr, u32 size)
-{
-	if (vunum)
-		CpuVU1->Clear(addr, size);
-	else
-		CpuVU0->Clear(addr, size);
-}
-
 // VU Micro Memory Reads...
-template<int vunum>
-static uint8_t vuMicroRead8(u32 addr)
+static uint8_t vuMicroRead8VU0(u32 addr)
 {
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return vu->Micro[addr];
+	return vuRegs[0].Micro[addr & 0xfff];
 }
 
-template<int vunum>
-static uint16_t vuMicroRead16(u32 addr)
+static uint8_t vuMicroRead8VU1(u32 addr)
 {
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u16*)&vu->Micro[addr];
+	if (THREAD_VU1) vu1Thread.WaitVU();
+	return vuRegs[1].Micro[addr & 0x3fff];
 }
 
-template<int vunum>
-static uint32_t vuMicroRead32(u32 addr)
+static uint16_t vuMicroRead16VU0(u32 addr)
 {
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u32*)&vu->Micro[addr];
+	return *(u16*)&vuRegs[0].Micro[addr & 0xfff];
 }
 
-template<int vunum>
-static uint64_t vuMicroRead64(u32 addr)
+static uint16_t vuMicroRead16VU1(u32 addr)
 {
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
-	return *(u64*)&vu->Micro[addr];
+	if (THREAD_VU1) vu1Thread.WaitVU();
+	return *(u16*)&vuRegs[1].Micro[addr & 0x3fff];
 }
 
-template<int vunum>
-static RETURNS_R128 vuMicroRead128(u32 addr)
+static uint32_t vuMicroRead32VU0(u32 addr)
 {
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-	if (vunum && THREAD_VU1) vu1Thread.WaitVU();
+	return *(u32*)&vuRegs[0].Micro[addr & 0xfff];
+}
 
-	return r128_load(&vu->Micro[addr]);
+static uint32_t vuMicroRead32VU1(u32 addr)
+{
+	if (THREAD_VU1) vu1Thread.WaitVU();
+	return *(u32*)&vuRegs[1].Micro[addr & 0x3fff];
+}
+
+static uint64_t vuMicroRead64VU0(u32 addr)
+{
+	return *(u64*)&vuRegs[0].Micro[addr & 0xfff];
+}
+
+static uint64_t vuMicroRead64VU1(u32 addr)
+{
+	if (THREAD_VU1) vu1Thread.WaitVU();
+	return *(u64*)&vuRegs[1].Micro[addr & 0x3fff];
+}
+
+static RETURNS_R128 vuMicroRead128VU0(u32 addr)
+{
+	return r128_load(&vuRegs[0].Micro[addr & 0xfff]);
+}
+
+static RETURNS_R128 vuMicroRead128VU1(u32 addr)
+{
+	if (THREAD_VU1) vu1Thread.WaitVU();
+	return r128_load(&vuRegs[1].Micro[addr & 0x3fff]);
 }
 
 // Profiled VU writes: Happen very infrequently, with exception of BIOS initialization (at most twice per
@@ -486,7 +434,11 @@ static void vuMicroWrite8(u32 addr,uint8_t data)
 
 	if (vu->Micro[addr] != data) // Clear before writing new data
 	{
-		ClearVuFunc<vunum>(addr, 8); //(clearing 8 bytes because an instruction is 8 bytes) (cottonvibes)
+		/* (clearing 8 bytes because an instruction is 8 bytes) (cottonvibes) */
+		if (vunum)
+			CpuVU1->Clear(addr, 8);
+		else
+			CpuVU0->Clear(addr, 8);
 		vu->Micro[addr] =data;
 	}
 }
@@ -505,7 +457,10 @@ static void vuMicroWrite16(u32 addr, uint16_t data)
 
 	if (*(u16*)&vu->Micro[addr] != data)
 	{
-		ClearVuFunc<vunum>(addr, 8);
+		if (vunum)
+			CpuVU1->Clear(addr, 8);
+		else
+			CpuVU0->Clear(addr, 8);
 		*(u16*)&vu->Micro[addr] =data;
 	}
 }
@@ -524,7 +479,10 @@ static void vuMicroWrite32(u32 addr, uint32_t data)
 
 	if (*(u32*)&vu->Micro[addr] != data)
 	{
-		ClearVuFunc<vunum>(addr, 8);
+		if (vunum)
+			CpuVU1->Clear(addr, 8);
+		else
+			CpuVU0->Clear(addr, 8);
 		*(u32*)&vu->Micro[addr] =data;
 	}
 }
@@ -543,29 +501,38 @@ static void vuMicroWrite64(u32 addr, uint64_t data)
 
 	if (*(u64*)&vu->Micro[addr] != data)
 	{
-		ClearVuFunc<vunum>(addr, 8);
+		if (vunum)
+			CpuVU1->Clear(addr, 8);
+		else
+			CpuVU0->Clear(addr, 8);
 		*(u64*)&vu->Micro[addr] =data;
 	}
 }
 
-template<int vunum>
-static void TAKES_R128 vuMicroWrite128(u32 addr, r128 data)
+static void TAKES_R128 vuMicroWrite128VU0(u32 addr, r128 data)
 {
-	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
-	addr      &= vunum ? 0x3fff: 0xfff;
-
 	const u128 udata = r128_to_u128(data);
-
-	if (vunum && THREAD_VU1)
-	{
-		vu1Thread.WriteMicroMem(addr, &udata, sizeof(u128));
-		return;
-	}
-	u128 comp = (u128&)vu->Micro[addr];
+	u128 comp        = (u128&)vuRegs[0].Micro[addr & 0xfff];
 	if ((comp.lo != udata.lo) || (comp.hi != udata.hi))
 	{
-		ClearVuFunc<vunum>(addr, 16);
-		r128_store_unaligned(&vu->Micro[addr],data);
+		CpuVU0->Clear(addr & 0xfff, 16);
+		r128_store_unaligned(&vuRegs[0].Micro[addr & 0xfff],data);
+	}
+}
+
+static void TAKES_R128 vuMicroWrite128VU1(u32 addr, r128 data)
+{
+	const u128 udata = r128_to_u128(data);
+	if (THREAD_VU1)
+		vu1Thread.WriteMicroMem(addr & 0x3fff, &udata, sizeof(u128));
+	else
+	{
+		u128 comp  = (u128&)vuRegs[1].Micro[addr & 0x3fff];
+		if ((comp.lo != udata.lo) || (comp.hi != udata.hi))
+		{
+			CpuVU1->Clear(addr & 0x3fff, 16);
+			r128_store_unaligned(&vuRegs[1].Micro[addr & 0x3fff],data);
+		}
 	}
 }
 
@@ -622,11 +589,9 @@ static void vuDataWrite8(u32 addr, uint8_t data)
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1)
-	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u8));
-		return;
-	}
-	vu->Mem[addr] = data;
+	else
+		vu->Mem[addr] = data;
 }
 
 template<int vunum>
@@ -635,11 +600,9 @@ static void vuDataWrite16(u32 addr, uint16_t data)
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1)
-	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u16));
-		return;
-	}
-	*(u16*)&vu->Mem[addr] = data;
+	else
+		*(u16*)&vu->Mem[addr] = data;
 }
 
 template<int vunum>
@@ -648,11 +611,9 @@ static void vuDataWrite32(u32 addr, uint32_t data)
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1)
-	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u32));
-		return;
-	}
-	*(u32*)&vu->Mem[addr] = data;
+	else 
+		*(u32*)&vu->Mem[addr] = data;
 }
 
 template<int vunum>
@@ -661,11 +622,9 @@ static void vuDataWrite64(u32 addr, uint64_t data)
 	VURegs* vu = vunum ?  &vuRegs[1] :  &vuRegs[0];
 	addr      &= vunum ? 0x3fff: 0xfff;
 	if (vunum && THREAD_VU1)
-	{
 		vu1Thread.WriteDataMem(addr, &data, sizeof(u64));
-		return;
-	}
-	*(u64*)&vu->Mem[addr] = data;
+	else 
+		*(u64*)&vu->Mem[addr] = data;
 }
 
 template<int vunum> static void TAKES_R128 vuDataWrite128(u32 addr, r128 data)
@@ -752,17 +711,18 @@ void eeMemoryReserve::Reset()
 	null_handler = vtlb_RegisterHandler(nullRead8, nullRead16, nullRead32, nullRead64, nullRead128,
 		nullWrite8, nullWrite16, nullWrite32, nullWrite64, nullWrite128);
 
-	tlb_fallback_0 = vtlb_RegisterHandlerTempl1(_ext_mem,0);
-	tlb_fallback_3 = vtlb_RegisterHandlerTempl1(_ext_mem,3);
-	tlb_fallback_4 = vtlb_RegisterHandlerTempl1(_ext_mem,4);
-	tlb_fallback_5 = vtlb_RegisterHandlerTempl1(_ext_mem,5);
-	tlb_fallback_7 = vtlb_RegisterHandlerTempl1(_ext_mem,7);
-	tlb_fallback_8 = vtlb_RegisterHandlerTempl1(_ext_mem,8);
+	tlb_fallback_0 = vtlb_RegisterHandler(_ext_memRead8,_ext_memRead16_generic,_ext_memRead32,_ext_memRead64,_ext_memRead128, _ext_memWrite8, _ext_memWrite16,_ext_memWrite32,_ext_memWrite64,_ext_memWrite128);
+	tlb_fallback_3 = vtlb_RegisterHandler(psxHw4Read8,_ext_memRead16_generic,_ext_memRead32,_ext_memRead64,_ext_memRead128, psxHw4Write8, _ext_memWrite16,_ext_memWrite32,_ext_memWrite64,_ext_memWrite128);
+	tlb_fallback_4 = vtlb_RegisterHandler(_ext_memRead8, nullRead16,_ext_memRead32,_ext_memRead64,_ext_memRead128, _ext_memWrite8, _ext_memWrite16,_ext_memWrite32,_ext_memWrite64,_ext_memWrite128);
+	tlb_fallback_5 = vtlb_RegisterHandler(_ext_memRead8, ba0R16,_ext_memRead32,_ext_memRead64,_ext_memRead128, _ext_memWrite8, nullWrite16,_ext_memWrite32,_ext_memWrite64,_ext_memWrite128);
+	tlb_fallback_7 = vtlb_RegisterHandler(_ext_memRead8DEV9,_ext_memRead16DEV9,_ext_memRead32DEV9,_ext_memRead64,_ext_memRead128, _ext_memWrite8DEV9, _ext_memWrite16DEV9,_ext_memWrite32DEV9,_ext_memWrite64,_ext_memWrite128);
+	tlb_fallback_8 = vtlb_RegisterHandler(_ext_memRead8, SPU2read,_ext_memRead32,_ext_memRead64,_ext_memRead128, _ext_memWrite8, SPU2write,_ext_memWrite32,_ext_memWrite64,_ext_memWrite128);
 
 	// Dynarec versions of VUs
-	vu0_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,0);
-	vu1_micro_mem = vtlb_RegisterHandlerTempl1(vuMicro,1);
-	vu1_data_mem  = (1||THREAD_VU1) ? vtlb_RegisterHandlerTempl1(vuData,1) : 0;
+	vu0_micro_mem = vtlb_RegisterHandler(vuMicroRead8VU0,vuMicroRead16VU0,vuMicroRead32VU0,vuMicroRead64VU0,vuMicroRead128VU0, vuMicroWrite8<0>,vuMicroWrite16<0>,vuMicroWrite32<0>,vuMicroWrite64<0>,vuMicroWrite128VU0);
+	vu1_micro_mem = vtlb_RegisterHandler(vuMicroRead8VU1,vuMicroRead16VU1,vuMicroRead32VU1,vuMicroRead64VU1,vuMicroRead128VU1, vuMicroWrite8<1>,vuMicroWrite16<1>,vuMicroWrite32<1>,vuMicroWrite64<1>,vuMicroWrite128VU1);
+
+	vu1_data_mem = vtlb_RegisterHandler(vuDataRead8<1>,vuDataRead16<1>,vuDataRead32<1>,vuDataRead64<1>,vuDataRead128<1>, vuDataWrite8<1>,vuDataWrite16<1>,vuDataWrite32<1>,vuDataWrite64<1>,vuDataWrite128<1>);
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// IOP's "secret" Hardware Register mapping, accessible from the EE (and meant for use
@@ -773,23 +733,23 @@ void eeMemoryReserve::Reset()
 	using namespace IopMemory;
 
 	tlb_fallback_2 = vtlb_RegisterHandler(
-		iopHwRead8_generic, iopHwRead16_generic, iopHwRead32_generic, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_generic, iopHwWrite16_generic, iopHwWrite32_generic, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_generic, iopHwRead16_generic, iopHwRead32_generic, _ext_memRead64, _ext_memRead128,
+		iopHwWrite8_generic, iopHwWrite16_generic, iopHwWrite32_generic, _ext_memWrite64, _ext_memWrite128
 	);
 
 	iopHw_by_page_01 = vtlb_RegisterHandler(
-		iopHwRead8_Page1, iopHwRead16_Page1, iopHwRead32_Page1, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_Page1, iopHwWrite16_Page1, iopHwWrite32_Page1, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_Page1, iopHwRead16_Page1, iopHwRead32_Page1, _ext_memRead64, _ext_memRead128,
+		iopHwWrite8_Page1, iopHwWrite16_Page1, iopHwWrite32_Page1, _ext_memWrite64, _ext_memWrite128
 	);
 
 	iopHw_by_page_03 = vtlb_RegisterHandler(
-		iopHwRead8_Page3, iopHwRead16_Page3, iopHwRead32_Page3, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_Page3, iopHwWrite16_Page3, iopHwWrite32_Page3, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_Page3, iopHwRead16_Page3, iopHwRead32_Page3, _ext_memRead64, _ext_memRead128,
+		iopHwWrite8_Page3, iopHwWrite16_Page3, iopHwWrite32_Page3, _ext_memWrite64, _ext_memWrite128
 	);
 
 	iopHw_by_page_08 = vtlb_RegisterHandler(
-		iopHwRead8_Page8, iopHwRead16_Page8, iopHwRead32_Page8, _ext_memRead64<2>, _ext_memRead128<2>,
-		iopHwWrite8_Page8, iopHwWrite16_Page8, iopHwWrite32_Page8, _ext_memWrite64<2>, _ext_memWrite128<2>
+		iopHwRead8_Page8, iopHwRead16_Page8, iopHwRead32_Page8, _ext_memRead64, _ext_memRead128,
+		iopHwWrite8_Page8, iopHwWrite16_Page8, iopHwWrite32_Page8, _ext_memWrite64, _ext_memWrite128
 	);
 
 
@@ -822,17 +782,17 @@ void eeMemoryReserve::Reset()
 	// GS Optimized Mappings
 
 	tlb_fallback_6 = vtlb_RegisterHandler(
-		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128GSM,
 		gsWrite8, gsWrite16, gsWrite32, gsWrite64_generic, gsWrite128_generic
 	);
 
 	gs_page_0 = vtlb_RegisterHandler(
-		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128GSM,
 		gsWrite8, gsWrite16, gsWrite32, gsWrite64_page_00, gsWrite128_page_00
 	);
 
 	gs_page_1 = vtlb_RegisterHandler(
-		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128<6>,
+		gsRead8, gsRead16, gsRead32, gsRead64, _ext_memRead128GSM,
 		gsWrite8, gsWrite16, gsWrite32, gsWrite64_page_01, gsWrite128_page_01
 	);
 

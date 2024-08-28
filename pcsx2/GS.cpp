@@ -47,11 +47,12 @@ void gsUpdateFrequency(Pcsx2Config& config)
 
 static __fi void gsCSRwrite( const tGS_CSR& csr )
 {
-	if (csr.RESET) {
+	if (csr.RESET)
+	{
 		gifUnit.gsSIGNAL.queued = false;
 		gifUnit.gsFINISH.gsFINISHFired = true;
 		gifUnit.gsFINISH.gsFINISHPending = false;
-		// Privilage registers also reset.
+		/* Privilage registers also reset. */
 		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 		GSIMR.reset();
 		CSRreg.Reset();
@@ -60,37 +61,34 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 
 	if(csr.SIGNAL)
 	{
-		// SIGNAL : What's not known here is whether or not the SIGID register should be updated
-		//  here or when the IMR is cleared (below).
-		if (gifUnit.gsSIGNAL.queued) {
-			/* Firing pending signal */
+		/* SIGNAL : What's not known here is whether
+		 * or not the SIGID register should be updated
+		 * here or when the IMR is cleared (below). */
+
+		if (gifUnit.gsSIGNAL.queued) /* Firing pending signal */
+		{
 			GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID & ~gifUnit.gsSIGNAL.data[1])
 				        | (gifUnit.gsSIGNAL.data[0]&gifUnit.gsSIGNAL.data[1]);
 
-			if (!GSIMR.SIGMSK) gsIrq();
-			CSRreg.SIGNAL  = true; // Just to be sure :p
+			if (!GSIMR.SIGMSK)
+				gsIrq();
+			CSRreg.SIGNAL    = true; // Just to be sure :p
 		}
-		else CSRreg.SIGNAL = false;
-		gifUnit.gsSIGNAL.queued = false;
+		else
+			CSRreg.SIGNAL    = false;
+		gifUnit.gsSIGNAL.queued  = false;
 		gifUnit.Execute(false, true); // Resume paused transfers
 	}
 
-	if (csr.FINISH)	{
+	if (csr.FINISH)
+	{
 		CSRreg.FINISH = false;
-		gifUnit.gsFINISH.gsFINISHFired = false; //Clear the previously fired FINISH (YS, Indiecar 2005, MGS3)
+		gifUnit.gsFINISH.gsFINISHFired   = false; //Clear the previously fired FINISH (YS, Indiecar 2005, MGS3)
 		gifUnit.gsFINISH.gsFINISHPending = false;
 	}
 	if(csr.HSINT)	CSRreg.HSINT	= false;
 	if(csr.VSINT)	CSRreg.VSINT	= false;
 	if(csr.EDWINT)	CSRreg.EDWINT	= false;
-}
-
-static __fi void IMRwrite(u32 value)
-{
-	if ((CSRreg._u32 & 0x1f) & (~value & GSIMR._u32) >> 8)
-		gsIrq();
-
-	GSIMR._u32 = (value & 0x1f00)|0x6000;
 }
 
 __fi void gsWrite8(u32 mem, u8 value)
@@ -147,7 +145,9 @@ __fi void gsWrite16(u32 mem, u16 value)
 			gsCSRwrite(tmp);
 			return; // do not write to MTGS memory
 		case GS_IMR:
-			IMRwrite(value);
+			if ((CSRreg._u32 & 0x1f) & (~value & GSIMR._u32) >> 8)
+				gsIrq();
+			GSIMR._u32 = (value & 0x1f00)|0x6000;
 			return; // do not write to MTGS memory
 	}
 
@@ -159,20 +159,20 @@ __fi void gsWrite16(u32 mem, u16 value)
 
 __fi void gsWrite32(u32 mem, u32 value)
 {
-	tGS_CSR tmp;
-	switch (mem)
+	if (mem == GS_CSR)
 	{
-		case GS_CSR:
-			tmp._u32 = value;
-			gsCSRwrite(tmp);
-			return;
-
-		case GS_IMR:
-			IMRwrite(value);
-			return;
+		tGS_CSR tmp;
+		tmp._u32 = value;
+		gsCSRwrite(tmp);
 	}
-
-	*(u32*)PS2GS_BASE(mem) = value;
+	else if (GS_IMR)
+	{
+		if ((CSRreg._u32 & 0x1f) & (~value & GSIMR._u32) >> 8)
+			gsIrq();
+		GSIMR._u32 = (value & 0x1f00)|0x6000;
+	}
+	else
+		*(u32*)PS2GS_BASE(mem) = value;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -193,36 +193,39 @@ void gsWrite64_page_00( u32 mem, u64 value )
 			UpdateVSyncRate(false);
 	}
 
-	gsWrite64_generic( mem, value );
+	memcpy(PS2GS_BASE(mem), &value, sizeof(value));
 }
 
 void gsWrite64_page_01( u32 mem, u64 value )
 {
 	tGS_CSR tmp;
-	switch( mem )
+	if (mem == GS_BUSDIR)
 	{
-		case GS_BUSDIR:
+		gifUnit.stat.DIR = static_cast<u32>(value) & 1;
+		if (gifUnit.stat.DIR) /* Assume will do local->host transfer */
+		{
+			gifUnit.stat.OPH = true; /* Should we set OPH here? */
+			gifUnit.FlushToMTGS(); /* Send any pending GS Primitives to the GS */
+		}
 
-			gifUnit.stat.DIR = static_cast<u32>(value) & 1;
-			if (gifUnit.stat.DIR) {      // Assume will do local->host transfer
-				gifUnit.stat.OPH = true; // Should we set OPH here?
-				gifUnit.FlushToMTGS();   // Send any pending GS Primitives to the GS
-			}
-
-			gsWrite64_generic( mem, value );
-			return;
-
-		case GS_CSR:
-			tmp._u64 = value;
-			gsCSRwrite(tmp);
-			return;
-
-		case GS_IMR:
-			IMRwrite(static_cast<u32>(value));
-			return;
+		memcpy(PS2GS_BASE(mem), &value, sizeof(value));
 	}
-
-	gsWrite64_generic( mem, value );
+	else if (mem == GS_CSR)
+	{
+		tmp._u64 = value;
+		gsCSRwrite(tmp);
+	}
+	else if (mem == GS_IMR)
+	{
+		u32 _value = static_cast<u32>(value);
+		if ((CSRreg._u32 & 0x1f) & (~_value & GSIMR._u32) >> 8)
+			gsIrq();
+		GSIMR._u32 = (_value & 0x1f00)|0x6000;
+	}
+	else
+	{
+		memcpy(PS2GS_BASE(mem), &value, sizeof(value));
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -230,25 +233,30 @@ void gsWrite64_page_01( u32 mem, u64 value )
 
 void TAKES_R128 gsWrite128_page_00( u32 mem, r128 value )
 {
-	gsWrite128_generic( mem, value );
+	alignas(16) const u128 uvalue = r128_to_u128(value);
+	r128_store(PS2GS_BASE(mem), value);
 }
 
 void TAKES_R128 gsWrite128_page_01( u32 mem, r128 value )
 {
 	tGS_CSR tmp;
-	switch( mem )
+	if (mem == GS_CSR)
 	{
-		case GS_CSR:
-			tmp._u32 = r128_to_u32(value);
-			gsCSRwrite(tmp);
-			return;
-
-		case GS_IMR:
-			IMRwrite(r128_to_u32(value));
-			return;
+		tmp._u32 = r128_to_u32(value);
+		gsCSRwrite(tmp);
 	}
-
-	gsWrite128_generic( mem, value );
+	else if (mem == GS_IMR)
+	{
+		u32 _value = r128_to_u32(value);
+		if ((CSRreg._u32 & 0x1f) & (~_value & GSIMR._u32) >> 8)
+			gsIrq();
+		GSIMR._u32 = (_value & 0x1f00)|0x6000;
+	}
+	else
+	{
+		alignas(16) const u128 uvalue = r128_to_u128(value);
+		r128_store(PS2GS_BASE(mem), value);
+	}
 }
 
 void TAKES_R128 gsWrite128_generic( u32 mem, r128 value )

@@ -938,13 +938,6 @@ static u32 deci2addr = 0;
 static u32 deci2handler = 0;
 static char deci2buffer[256];
 
-void Deci2Reset(void)
-{
-	deci2handler	= 0;
-	deci2addr	= 0;
-	memset(deci2buffer, 0, sizeof(deci2buffer));
-}
-
 bool SaveStateBase::deci2Freeze()
 {
 	if (!(FreezeTag( "deci2" )))
@@ -1448,15 +1441,6 @@ void LWR(void)
 	*/
 }
 
-// dummy variable used as a destination address for writes to the zero register, so
-// that the zero register always stays zero.
-alignas(16) static GPR_reg m_dummy_gpr_zero;
-
-// Returns the x86 address of the requested GPR, which is safe for writing. (includes
-// special handling for returning a dummy var for GPR0(zero), so that it's value is
-// always preserved)
-#define GPR_GETWRITEPTR(gpr) (( gpr == 0 ) ? &m_dummy_gpr_zero : &cpuRegs.GPR.r[gpr])
-
 void LD(void)
 {
 	int32_t addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
@@ -1500,12 +1484,22 @@ void LDR(void)
 	}
 }
 
+
 void LQ(void)
 {
+	// dummy variable used as a destination address for writes to the zero register, so
+	// that the zero register always stays zero.
+	alignas(16) static GPR_reg m_dummy_gpr_zero;
 	/* MIPS Note: LQ and SQ are special and "silently" align memory addresses, thus
 	 * an address error due to unaligned access isn't possible like it is on other loads/stores. */
 	u32 addr = cpuRegs.GPR.r[_Rs_].UL[0] + _Imm_;
-	memRead128(addr & ~0xf, (u128*)GPR_GETWRITEPTR(_Rt_));
+	/* Returns the x86 address of the requested GPR, which is safe for writing. 
+	 * (includes special handling for returning a dummy var for GPR0(zero), 
+	 * so that its value is always preserved) */
+	if (_Rt_ == 0)
+		memRead128(addr & ~0xf, (u128*)&m_dummy_gpr_zero);
+	else
+		memRead128(addr & ~0xf, (u128*)&cpuRegs.GPR.r[_Rt_]);
 }
 
 void SB(void)
@@ -1766,7 +1760,6 @@ void SYSCALL(void)
 			break;
 		case Syscall::StartThread:
 		case Syscall::ChangeThreadPriority:
-		{
 			if (CurrentBiosInformation.eeThreadListAddr == 0)
 			{
 				uint32_t offset = 0x0;
@@ -1794,15 +1787,12 @@ void SYSCALL(void)
 				if (!CurrentBiosInformation.eeThreadListAddr)
 					CurrentBiosInformation.eeThreadListAddr = -1;
 			}
-		}
-		break;
+			break;
 		case Syscall::Deci2Call:
-		{
 			if (cpuRegs.GPR.n.a0.UL[0] != 0x10)
 				__Deci2Call(cpuRegs.GPR.n.a0.UL[0], (u32*)PSM(cpuRegs.GPR.n.a1.UL[0]));
 
 			break;
-		}
 		case Syscall::sysPrintOut:
 		{
 			if (cpuRegs.GPR.n.a0.UL[0] != 0)
@@ -1928,8 +1918,9 @@ void cpuReset()
 	psxReset();
 	pgifInit();
 
-	extern void Deci2Reset();		// lazy, no good header for it yet.
-	Deci2Reset();
+	deci2handler	= 0;
+	deci2addr	= 0;
+	memset(deci2buffer, 0, sizeof(deci2buffer));
 
 	g_SkipBiosHack = EmuConfig.UseBOOT2Injection;
 	AllowParams1 = !g_SkipBiosHack;
