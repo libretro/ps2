@@ -64,11 +64,6 @@ public:
 
 	/* Executes a Block based on EE delta time (see VUmicro.cpp) */
 	void ExecuteBlock(bool startUp);
-
-	/* C++ Calling Conventions are unstable, and some compilers don't even allow us to take the
-	 * address of C++ methods.  We need to use a wrapper function to invoke the ExecuteBlock from
-	 * recompiled code. */
-	static void ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked);
 };
 
 /* --------------------------------------------------------------------------------------

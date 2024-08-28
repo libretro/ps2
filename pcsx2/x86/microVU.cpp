@@ -6966,6 +6966,34 @@ void recBC2TL(void) { _setupBranchTest(branch_jz32,  true);  }
 // Macro VU - COP2 Transfer Instructions
 //------------------------------------------------------------------
 
+static __inline uint32_t CalculateMinRunCycles(uint32_t cycles, bool requiresAccurateCycles)
+{
+	/* If we're running an interlocked COP2 operation
+	 * run for an exact amount of cycles */
+	if(requiresAccurateCycles)
+		return cycles;
+	/* Allow a minimum of 16 cycles to avoid running small blocks
+	 * Running a block of like 3 cycles is highly inefficient
+	 * so while sync isn't tight, it's okay to run ahead a little bit. */
+	return std::max(16U, cycles);
+}
+
+
+/* This function is called by VU0 Macro (COP2) after transferring some
+ * EE data to VU0's registers. We want to run VU0 Micro right after this
+ * to ensure that the register is used at the correct time.
+ * This fixes spinning/hanging in some games like Ratchet and Clank's Intro. */
+static void VU_ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked)
+{
+	const u32& stat = vuRegs[0].VI[REG_VPU_STAT].UL;
+	if (stat & 1) /* VU is running */
+	{ 
+		s32 delta = (s32)(u32)(cpuRegs.cycle - vuRegs[0].cycle);
+		if (delta > 0) /* Execute the time since the last call */
+			cpu->Execute(CalculateMinRunCycles(delta, interlocked)); 
+	}
+}
+
 static void COP2_Interlock(bool mBitSync)
 {
 	s_nBlockInterlocked = true;
@@ -6995,7 +7023,7 @@ static void COP2_Interlock(bool mBitSync)
 			xForwardJL32 skip;
 			xLoadFarAddr(arg1reg, CpuVU0);
 			xMOV(arg2reg, s_nBlockInterlocked);
-			xFastCall((void*)BaseVUmicroCPU::ExecuteBlockJIT, arg1reg, arg2reg);
+			xFastCall((void*)VU_ExecuteBlockJIT, arg1reg, arg2reg);
 			skip.SetTarget();
 
 			xFastCall((void*)_vu0WaitMicro);
@@ -7023,7 +7051,7 @@ static void mVUSyncVU0(void)
 	xForwardJL32 skip;
 	xLoadFarAddr(arg1reg, CpuVU0);
 	xMOV(arg2reg, s_nBlockInterlocked);
-	xFastCall((void*)BaseVUmicroCPU::ExecuteBlockJIT, arg1reg, arg2reg);
+	xFastCall((void*)VU_ExecuteBlockJIT, arg1reg, arg2reg);
 	skip.SetTarget();
 	skipvuidle.SetTarget();
 }
