@@ -39,5 +39,3 @@ public:
 
 	void SendToMultitap();
 };
-
-extern MultitapProtocol g_MultitapProtocol;

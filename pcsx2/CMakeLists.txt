@@ -85,12 +85,9 @@ set(pcsx2Sources
 	IopGte.cpp
 	Mdec.cpp
 	Memory.cpp
-	MemoryCardFile.cpp
-	MemoryCardProtocol.cpp
 	MMI.cpp
 	MTGS.cpp
 	MTVU.cpp
-	MultitapProtocol.cpp
 	Patch.cpp
 	Pcsx2Config.cpp
 	PerformanceMetrics.cpp

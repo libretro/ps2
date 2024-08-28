@@ -20,7 +20,6 @@
 
 #include "SioTypes.h"
 #include "MemoryCardFile.h"
-#include <deque>
 
 struct _mcd
 {
@@ -142,14 +141,8 @@ public:
 	u8 Read();
 };
 
-extern std::deque<u8> fifoIn;
-extern std::deque<u8> fifoOut;
-
 extern Sio0 sio0;
 extern Sio2 sio2;
-
-extern _mcd mcds[2][4];
-extern _mcd *mcd;
 
 /* Converts a global pad index to a multitap port and slot. */
 extern std::tuple<u32, u32> sioConvertPadToPortAndSlot(u32 index);

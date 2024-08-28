@@ -31,11 +31,6 @@ class MemoryCardProtocol
 private:
 	PS1MemoryCardState ps1McState;
 
-	bool PS1Fail();
-	void The2bTerminator(size_t length);
-	void ReadWriteIncrement(size_t length);
-	void RecalculatePS1Addr();
-
 public:
 	void ResetPS1State();
 
@@ -58,5 +53,3 @@ public:
 	void AuthF3();
 	void AuthF7();
 };
-
-extern MemoryCardProtocol g_MemoryCardProtocol;

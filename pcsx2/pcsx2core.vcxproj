@@ -178,11 +178,8 @@
     <ClCompile Include="GS\Renderers\Vulkan\GSTextureVK.cpp" />
     <ClCompile Include="Frontend\HostSettings.cpp" />
     <ClCompile Include="IopGte.cpp" />
-    <ClCompile Include="MemoryCardProtocol.cpp" />
-    <ClCompile Include="MultitapProtocol.cpp" />
     <ClCompile Include="PAD\PAD.cpp" />
     <ClCompile Include="FW.cpp" />
-    <ClCompile Include="MemoryCardFile.cpp" />
     <ClCompile Include="PerformanceMetrics.cpp" />
     <ClCompile Include="Recording\InputRecording.cpp" />
     <ClCompile Include="Recording\InputRecordingControls.cpp" />

@@ -827,9 +827,6 @@
     <ClCompile Include="GS\Renderers\DX11\D3D.cpp">
       <Filter>System\Ps2\GS\Renderers\Direct3D11</Filter>
     </ClCompile>
-    <ClCompile Include="MemoryCardFile.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
     <ClCompile Include="PerformanceMetrics.cpp">
       <Filter>System</Filter>
     </ClCompile>
@@ -901,12 +898,6 @@
     </ClCompile>
     <ClCompile Include="Recording\PadData.cpp">
       <Filter>Tools\Input Recording</Filter>
-    </ClCompile>
-    <ClCompile Include="MemoryCardProtocol.cpp">
-      <Filter>System\Ps2\Iop</Filter>
-    </ClCompile>
-    <ClCompile Include="MultitapProtocol.cpp">
-      <Filter>System\Ps2\Iop</Filter>
     </ClCompile>
     <ClCompile Include="USB\USB.cpp">
       <Filter>System\Ps2\USB</Filter>
