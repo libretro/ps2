@@ -1434,7 +1434,7 @@ __fi void vif1VUFinish(void)
 
 		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < vuRegs[1].nextBlockCycles) || cycle_diff <= 0)
 			break;
-		CpuVU1->ExecuteBlock();
+		CpuVU1->ExecuteBlock(false);
 	}
 
 	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x500)
@@ -1773,7 +1773,7 @@ __fi void vif0VUFinish(void)
 
 		if ((EmuConfig.Gamefixes.VUSyncHack && cycle_diff < vuRegs[0].nextBlockCycles) || cycle_diff <= 0)
 			break;
-		CpuVU0->ExecuteBlock();
+		CpuVU0->ExecuteBlock(false);
 	}
 
 	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x5)

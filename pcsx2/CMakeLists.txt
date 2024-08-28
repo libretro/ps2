@@ -102,13 +102,7 @@ set(pcsx2Sources
 	SPR.cpp
 	Vif.cpp
 	VirtualMemory.cpp
-	VU0.cpp
-	VUmicro.cpp
-	VU0micro.cpp
-	VU0microInterp.cpp
-	VU1micro.cpp
-	VU1microInterp.cpp
-	VUmicroMem.cpp
+	VU.cpp
 	VUops.cpp)
 
 # Main pcsx2 header

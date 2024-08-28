@@ -156,7 +156,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 					vuFBRST = Read();
 					if (addr != -1)
 						vuRegs[1].VI[REG_TPC].UL = addr & 0x7FF;
-					CpuVU1->SetStartPC(vuRegs[1].VI[REG_TPC].UL << 3);
+					vuRegs[1].start_pc = vuRegs[1].VI[REG_TPC].UL << 3;
 					CpuVU1->Execute(vu1RunCycles);
 					gifUnit.gifPath[GIF_PATH_1].FinishGSPacketMTVU();
 					semaXGkick.Post(); // Tell MTGS a path1 packet is complete

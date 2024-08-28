@@ -7704,11 +7704,6 @@ void recMicroVU1::Reset()
 	mVUreset(microVU1, true);
 }
 
-void recMicroVU0::SetStartPC(uint32_t startPC)
-{
-	vuRegs[0].start_pc = startPC;
-}
-
 void recMicroVU0::Execute(uint32_t cycles)
 {
 	vuRegs[0].flags &= ~VUFLAG_MFLAGSET;
@@ -7724,11 +7719,6 @@ void recMicroVU0::Execute(uint32_t cycles)
 		vuRegs[microVU0.index].flags &= ~0x4;
 		hwIntcIrq(6);
 	}
-}
-
-void recMicroVU1::SetStartPC(uint32_t startPC)
-{
-	vuRegs[1].start_pc = startPC;
 }
 
 void recMicroVU1::Execute(uint32_t cycles)
@@ -7756,13 +7746,6 @@ void recMicroVU0::Clear(uint32_t addr, uint32_t size)
 void recMicroVU1::Clear(uint32_t addr, uint32_t size)
 {
 	mVUclear(microVU1, addr, size);
-}
-
-void recMicroVU1::ResumeXGkick(void)
-{
-	if (!(vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
-		return;
-	((mVUrecCallXG)microVU1.startFunctXG)();
 }
 
 bool SaveStateBase::vuJITFreeze()

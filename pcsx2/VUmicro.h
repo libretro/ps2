@@ -58,23 +58,17 @@ public:
 
 	virtual void Shutdown()=0;
 	virtual void Reset()=0;
-	virtual void SetStartPC(u32 startPC)=0;
 	virtual void Execute(u32 cycles)=0;
 
 	virtual void Clear(u32 Addr, u32 Size)=0;
 
 	/* Executes a Block based on EE delta time (see VUmicro.cpp) */
-	void ExecuteBlock(bool startUp = 0);
+	void ExecuteBlock(bool startUp);
 
 	/* C++ Calling Conventions are unstable, and some compilers don't even allow us to take the
 	 * address of C++ methods.  We need to use a wrapper function to invoke the ExecuteBlock from
 	 * recompiled code. */
 	static void ExecuteBlockJIT(BaseVUmicroCPU* cpu, bool interlocked);
-
-	/* VU1 sometimes needs to break execution on XGkick Path1 transfers if
-	 * there is another gif path 2/3 transfer already taking place.
-	 * Use this method to resume execution of VU1. */
-	virtual void ResumeXGkick() {}
 };
 
 /* --------------------------------------------------------------------------------------
@@ -89,7 +83,6 @@ public:
 	void Shutdown() override {}
 	void Reset() override;
 
-	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override {}
 };
@@ -103,10 +96,8 @@ public:
 	void Shutdown() override {}
 	void Reset() override;
 
-	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override {}
-	void ResumeXGkick() override {}
 };
 
 /* --------------------------------------------------------------------------------------
@@ -122,7 +113,6 @@ public:
 	void Shutdown() override;
 
 	void Reset() override;
-	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override;
 };
@@ -136,10 +126,8 @@ public:
 	void Reserve();
 	void Shutdown() override;
 	void Reset() override;
-	void SetStartPC(u32 startPC) override;
 	void Execute(u32 cycles) override;
 	void Clear(u32 addr, u32 size) override;
-	void ResumeXGkick() override;
 };
 
 extern InterpVU0 CpuIntVU0;
@@ -162,4 +150,3 @@ extern void vu0Finish();
 extern void vu1Finish(bool add_cycles);
 extern void vu1ResetRegs();
 extern void vu1ExecMicro(u32 addr);
-extern void vu1Exec(VURegs* VU);

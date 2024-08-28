@@ -2160,8 +2160,8 @@ __fi void _cpuEventTest_Shared(void)
 	// ---- VU Sync -------------
 	// We're in a EventTest.  All dynarec registers are flushed
 	// so there is no need to freeze registers here.
-	CpuVU0->ExecuteBlock();
-	CpuVU1->ExecuteBlock();
+	CpuVU0->ExecuteBlock(false);
+	CpuVU1->ExecuteBlock(false);
 
 	// ---- Schedule Next Event Test --------------
 

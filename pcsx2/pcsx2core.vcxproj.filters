@@ -326,29 +326,11 @@
     <ClCompile Include="MTVU.cpp">
       <Filter>System\Ps2\EmotionEngine\VU</Filter>
     </ClCompile>
-    <ClCompile Include="VUmicro.cpp">
-      <Filter>System\Ps2\EmotionEngine\VU</Filter>
-    </ClCompile>
-    <ClCompile Include="VUmicroMem.cpp">
+    <ClCompile Include="VU.cpp">
       <Filter>System\Ps2\EmotionEngine\VU</Filter>
     </ClCompile>
     <ClCompile Include="x86\microVU.cpp">
       <Filter>System\Ps2\EmotionEngine\VU\Dynarec\microVU</Filter>
-    </ClCompile>
-    <ClCompile Include="VU0.cpp">
-      <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
-    </ClCompile>
-    <ClCompile Include="VU0micro.cpp">
-      <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
-    </ClCompile>
-    <ClCompile Include="VU0microInterp.cpp">
-      <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
-    </ClCompile>
-    <ClCompile Include="VU1micro.cpp">
-      <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
-    </ClCompile>
-    <ClCompile Include="VU1microInterp.cpp">
-      <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
     </ClCompile>
     <ClCompile Include="VUops.cpp">
       <Filter>System\Ps2\EmotionEngine\VU\Interpreter</Filter>
