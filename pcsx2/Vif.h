@@ -207,19 +207,11 @@ struct VIFregistersMTVU {
 static VIFregisters& vif0Regs = (VIFregisters&)eeHw[0x3800];
 static VIFregisters& vif1Regs = (VIFregisters&)eeHw[0x3C00];
 
-#define _vifT		template <int idx>
-#define  GetVifX	(idx ? (vif1)     : (vif0))
-#define  vifXch		(idx ? (vif1ch)   : (vif0ch))
-#define  vifXRegs	(idx ? (vif1Regs) : (vif0Regs))
-
-#define  MTVU_VifX     (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0))
-#define  MTVU_VifXRegs (idx ? ((THREAD_VU1) ? vu1Thread.vifRegs : vif1Regs) : (vif0Regs))
-
 #define VifStallEnable(vif) (vif.chcr.STR);
 
 extern void dmaVIF0();
 extern void dmaVIF1();
 extern void mfifoVIF1transfer();
-extern bool VIF0transfer(u32 *data, int size, bool TTE=0);
-extern bool VIF1transfer(u32 *data, int size, bool TTE=0);
+extern bool VIF0transfer(u32 *data, int size, bool TTE);
+extern bool VIF1transfer(u32 *data, int size, bool TTE);
 extern void vifMFIFOInterrupt();

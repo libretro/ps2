@@ -294,7 +294,7 @@ __fi void vif1Interrupt(void)
 		if (((vif1Regs.code >> 24) & 0x7f) != 0x7)
 			vif1Regs.stat.VIS = true;
 
-		hwIntcIrq(VIF1intc);
+		hwIntcIrq(VIF1INTC);
 		--vif1.irq;
 
 		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))

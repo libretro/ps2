@@ -126,8 +126,8 @@ struct vifStruct {
 
 alignas(16) extern vifStruct  vif0, vif1;
 
-_vifT extern u32 vifRead32(u32 mem);
-_vifT extern bool vifWrite32(u32 mem, u32 value);
+template<int idx> extern u32 vifRead32(u32 mem);
+template<int idx> extern bool vifWrite32(u32 mem, u32 value);
 extern void vif0Interrupt();
 extern void vif0VUFinish();
 extern void vif0Reset();
@@ -149,8 +149,8 @@ enum VifModes
 };
 
 /* Generic constants */
-static const unsigned int VIF0intc = 4;
-static const unsigned int VIF1intc = 5;
+#define VIF0INTC 4
+#define VIF1INTC 5
 
 extern u32 g_vif0Cycles;
 extern u32 g_vif1Cycles;

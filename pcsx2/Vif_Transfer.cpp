@@ -21,22 +21,30 @@
  *------------------------------------------------------------------
  */
 
-/* Interprets packet */
-_vifT void vifTransferLoop(u32* &data)
+template<int idx> static __fi bool vifTransfer(u32 *data, int size, bool TTE)
 {
-	vifStruct& vifX = GetVifX;
-	u32& pSize      = vifX.vifpacketsize;
+	vifStruct& vifX       = (idx ? (vif1)     : (vif0));
+	VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+	DMACh& vifXch         = (idx ? (vif1ch)   : (vif0ch));
 
-	int ret         = 0;
+	/* irqoffset necessary to add up the right qws, or else will spin (spiderman) */
+	int transferred       = vifX.irqoffset.enabled ? vifX.irqoffset.value : 0;
 
-	vifXRegs.stat.VPS |= VPS_TRANSFERRING;
-	vifXRegs.stat.ER1  = false;
+	vifX.vifpacketsize    = size;
+
+	/* Interprets packet */
+	u32& pSize            = vifX.vifpacketsize;
+
+	vifRegs.stat.VPS     |= VPS_TRANSFERRING;
+	vifRegs.stat.ER1      = false;
+
 	while (pSize > 0 && !vifX.vifstalled.enabled)
 	{
+		int ret = 0;
 		if(!vifX.cmd)
 		{
 			/* Get new VifCode */
-			if(!vifXRegs.err.MII)
+			if(!vifRegs.err.MII)
 			{
 				if(vifX.irq && !CHECK_VIF1STALLHACK)
 					break;
@@ -44,25 +52,14 @@ _vifT void vifTransferLoop(u32* &data)
 				vifX.irq      |= data[0] >> 31;
 			}
 
-			vifXRegs.code = data[0];
-			vifX.cmd	  = data[0] >> 24;
+			vifRegs.code    = data[0];
+			vifX.cmd	= data[0] >> 24;
 		}
 
-		ret = vifCmdHandler[idx][vifX.cmd & 0x7f](vifX.pass, data);
+		ret     = vifCmdHandler[idx][vifX.cmd & 0x7f](vifX.pass, data);
 		data   += ret;
 		pSize  -= ret;
 	}
-}
-
-_vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE)
-{
-	vifStruct& vifX = GetVifX;
-
-	/* irqoffset necessary to add up the right qws, or else will spin (spiderman) */
-	int transferred = vifX.irqoffset.enabled ? vifX.irqoffset.value : 0;
-
-	vifX.vifpacketsize = size;
-	vifTransferLoop<idx>(data);
 
 	transferred += size - vifX.vifpacketsize;
 
@@ -79,7 +76,7 @@ _vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE)
 	{
 		/* Always needs to be set to return to the correct offset if there is data left. */
 		vifX.vifstalled.enabled = VifStallEnable(vifXch);
-		vifX.vifstalled.value = VIF_IRQ_STALL;
+		vifX.vifstalled.value   = VIF_IRQ_STALL;
 	}
 
 	if (TTE) /* *WARNING* - Tags CAN have interrupts! so lets just ignore the dma modifying stuffs (GT4) */
@@ -92,9 +89,9 @@ _vifT static __fi bool vifTransfer(u32 *data, int size, bool TTE)
 	else
 	{
 		transferred  = transferred >> 2;
-		transferred = std::min((int)vifXch.qwc, transferred);
-		vifXch.madr +=(transferred << 4);
-		vifXch.qwc  -= transferred;
+		transferred  = std::min((int)vifXch.qwc, transferred);
+		vifXch.madr += (transferred << 4);
+		vifXch.qwc  -=  transferred;
 
 		hwDmacSrcTadrInc(vifXch);
 

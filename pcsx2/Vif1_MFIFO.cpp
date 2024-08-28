@@ -54,9 +54,9 @@ static __fi bool mfifoVIF1rbTransfer(void)
 			return false;
 
 		if (vif1.irqoffset.enabled)
-			ret = VIF1transfer(src + vif1.irqoffset.value, s1 - vif1.irqoffset.value);
+			ret = VIF1transfer(src + vif1.irqoffset.value, s1 - vif1.irqoffset.value, false);
 		else
-			ret = VIF1transfer(src, s1);
+			ret = VIF1transfer(src, s1, false);
 
 		if (ret)
 		{
@@ -66,7 +66,7 @@ static __fi bool mfifoVIF1rbTransfer(void)
 
 			if (!(src = (u32*)PSM(vif1ch.madr)))
 				return false;
-			VIF1transfer(src, ((mfifoqwc << 2) - s1));
+			VIF1transfer(src, ((mfifoqwc << 2) - s1), false);
 		}
 	}
 	else
@@ -76,14 +76,14 @@ static __fi bool mfifoVIF1rbTransfer(void)
 			return false;
 
 		if (vif1.irqoffset.enabled)
-			ret = VIF1transfer(src + vif1.irqoffset.value, mfifoqwc * 4 - vif1.irqoffset.value);
+			ret = VIF1transfer(src + vif1.irqoffset.value, mfifoqwc * 4 - vif1.irqoffset.value, false);
 		else
-			ret = VIF1transfer(src, mfifoqwc << 2);
+			ret = VIF1transfer(src, mfifoqwc << 2, false);
 	}
 	return ret;
 }
 
-static __fi void mfifo_VIF1chain()
+static __fi void mfifo_VIF1chain(void)
 {
 	/* Is QWC = 0? if so there is nothing to transfer */
 	if (vif1ch.qwc == 0)
@@ -121,30 +121,9 @@ static __fi void mfifo_VIF1chain()
 			return;
 
 		if (vif1.irqoffset.enabled)
-			VIF1transfer((u32*)pMem + vif1.irqoffset.value, vif1ch.qwc * 4 - vif1.irqoffset.value);
+			VIF1transfer((u32*)pMem + vif1.irqoffset.value, vif1ch.qwc * 4 - vif1.irqoffset.value, false);
 		else
-			VIF1transfer((u32*)pMem, vif1ch.qwc << 2);
-	}
-}
-
-void mfifoVifMaskMem(int id)
-{
-	switch (id)
-	{
-		/* These five transfer data following the tag, need to check its within the buffer (Front Mission 4) */
-		case TAG_CNT:
-		case TAG_NEXT:
-		case TAG_CALL:
-		case TAG_RET:
-		case TAG_END:
-			if (vif1ch.madr < dmacRegs.rbor.ADDR) /* probably not needed but we will check anyway. */
-				vif1ch.madr = QWCTAG(vif1ch.madr);
-			if (vif1ch.madr > (dmacRegs.rbor.ADDR + (u32)dmacRegs.rbsr.RMSK)) /* Usual scenario is the tag is near the end (Front Mission 4) */
-				vif1ch.madr = QWCTAG(vif1ch.madr);
-			break;
-		default:
-			/* Do nothing as the MADR could be outside */
-			break;
+			VIF1transfer((u32*)pMem, vif1ch.qwc << 2, false);
 	}
 }
 
@@ -201,7 +180,23 @@ void mfifoVIF1transfer(void)
 
 		vif1.done |= hwDmacSrcChainWithStack(vif1ch, ptag->ID);
 
-		mfifoVifMaskMem(ptag->ID);
+		switch (ptag->ID)
+		{
+			/* These five transfer data following the tag, need to check its within the buffer (Front Mission 4) */
+			case TAG_CNT:
+			case TAG_NEXT:
+			case TAG_CALL:
+			case TAG_RET:
+			case TAG_END:
+				if (vif1ch.madr < dmacRegs.rbor.ADDR) /* probably not needed but we will check anyway. */
+					vif1ch.madr = QWCTAG(vif1ch.madr);
+				if (vif1ch.madr > (dmacRegs.rbor.ADDR + (u32)dmacRegs.rbsr.RMSK)) /* Usual scenario is the tag is near the end (Front Mission 4) */
+					vif1ch.madr = QWCTAG(vif1ch.madr);
+				break;
+			default:
+				/* Do nothing as the MADR could be outside */
+				break;
+		}
 
 		if (vif1ch.chcr.TIE && ptag->IRQ)
 			vif1.done = true;

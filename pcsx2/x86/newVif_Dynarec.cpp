@@ -534,8 +534,8 @@ VifUnpackSSE_Dynarec::VifUnpackSSE_Dynarec(const nVifStruct& vif_, const nVifBlo
 
 __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 {
-	const int idx = v.idx;
-	const vifStruct& vif = MTVU_VifX;
+	const int idx        = v.idx;
+	const vifStruct& vif = (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0));
 
 	//This could have ended up copying the row when there was no row to write.1810080
 	u32 m0 = vB.mask; //The actual mask example 0x03020100
@@ -758,8 +758,9 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 
 	if (doMode >= 2)
 	{
-		const int idx = v.idx;
-		xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmm6);
+		const int  idx = v.idx;
+		vifStruct& vif = (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0));
+		xMOVAPS(ptr128[&(vif.MaskRow)], xmm6);
 	}
 
 	*(u8*)x86Ptr = 0xC3;
@@ -780,7 +781,7 @@ static u16 dVifComputeLength(uint cl, uint wl, u8 num, bool isFill)
 	return std::min(length, 0xFFFFu);
 }
 
-_vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
+template<int idx> __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 {
 	nVifStruct& v  = nVif[idx];
 
@@ -797,11 +798,11 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	return &block;
 }
 
-_vifT __fi void dVifUnpack(const u8* data, bool isFill)
+template<int idx> __fi void dVifUnpack(const u8* data, bool isFill)
 {
 	nVifStruct&   v       = nVif[idx];
-	vifStruct&    vif     = MTVU_VifX;
-	VIFregisters& vifRegs = MTVU_VifXRegs;
+	vifStruct&    vif     = (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0));
+	VIFregisters& vifRegs = (idx ? ((THREAD_VU1) ? vu1Thread.vifRegs : vif1Regs) : (vif0Regs));
 
 	const u8  upkType = (vif.cmd & 0x1f) | (vif.usn << 5);
 	const int doMask  = isFill ? 1 : (vif.cmd & 0x10);

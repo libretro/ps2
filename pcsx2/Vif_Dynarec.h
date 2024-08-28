@@ -29,10 +29,10 @@ extern void _nVifUnpack  (int idx, const u8* data, uint mode, bool isFill);
 extern void  dVifReserve (int idx);
 extern void  dVifReset   (int idx);
 extern void  dVifRelease (int idx);
-extern void  VifUnpackSSE_Init();
-extern void  VifUnpackSSE_Destroy();
+extern void  VifUnpackSSE_Init(void);
+extern void  VifUnpackSSE_Destroy(void);
 
-_vifT extern void dVifUnpack(const u8* data, bool isFill);
+template<int idx> extern void dVifUnpack(const u8* data, bool isFill);
 
 struct nVifStruct
 {

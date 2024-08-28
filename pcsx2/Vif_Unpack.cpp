@@ -40,10 +40,10 @@ template< uint idx, uint mode, bool doMask >
 static __ri void writeXYZW(u32 offnum, u32 &dest, u32 data) {
 	int n = 0;
 
-	vifStruct& vif = MTVU_VifX;
+	vifStruct& vif = (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0));
 
 	if (doMask) {
-		const VIFregisters& regs = MTVU_VifXRegs;
+		const VIFregisters& regs = (idx ? ((THREAD_VU1) ? vu1Thread.vifRegs : vif1Regs) : (vif0Regs));
 		switch (vif.cl) {
 			case 0:  n = (regs.mask >> (offnum * 2)) & 0x3;		break;
 			case 1:  n = (regs.mask >> ( 8 + (offnum * 2))) & 0x3;	break;
@@ -137,39 +137,34 @@ static void UNPACK_V4_5(u32 *dest, const u32* src)
  * to be cast as. --air
  */
 
-#define _upk			(UNPACKFUNCTYPE)
-#define _unpk(usn, bits)	(UNPACKFUNCTYPE_##usn##bits)
-
 #define UnpackFuncSet( vt, idx, mode, usn, doMask ) \
-	(UNPACKFUNCTYPE)_unpk(u,32)		UNPACK_##vt<idx, mode, doMask, u32>, \
-	(UNPACKFUNCTYPE)_unpk(usn,16)	UNPACK_##vt<idx, mode, doMask, usn##16>, \
-	(UNPACKFUNCTYPE)_unpk(usn,8)	UNPACK_##vt<idx, mode, doMask, usn##8> \
-
-#define UnpackV4_5set(idx, doMask) \
-	(UNPACKFUNCTYPE)_unpk(u,32) UNPACK_V4_5<idx, doMask> \
+	(UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u32) UNPACK_##vt<idx, mode, doMask, u32>, \
+	(UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u16) UNPACK_##vt<idx, mode, doMask, usn##16>, \
+	(UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u8)  UNPACK_##vt<idx, mode, doMask, usn##8> \
 
 #define UnpackModeSet(idx, mode) \
 	UnpackFuncSet( S,  idx, mode, s, 0 ), NULL,  \
 	UnpackFuncSet( V2, idx, mode, s, 0 ), NULL,  \
 	UnpackFuncSet( V4, idx, mode, s, 0 ), NULL,  \
-	UnpackFuncSet( V4, idx, mode, s, 0 ), UnpackV4_5set(idx, 0), \
+	UnpackFuncSet( V4, idx, mode, s, 0 ), (UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u32) UNPACK_V4_5<idx, 0>, \
  \
 	UnpackFuncSet( S,  idx, mode, s, 1 ), NULL,  \
 	UnpackFuncSet( V2, idx, mode, s, 1 ), NULL,  \
 	UnpackFuncSet( V4, idx, mode, s, 1 ), NULL,  \
-	UnpackFuncSet( V4, idx, mode, s, 1 ), UnpackV4_5set(idx, 1), \
+	UnpackFuncSet( V4, idx, mode, s, 1 ), (UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u32) UNPACK_V4_5<idx, 1>, \
  \
 	UnpackFuncSet( S,  idx, mode, u, 0 ), NULL,  \
 	UnpackFuncSet( V2, idx, mode, u, 0 ), NULL,  \
 	UnpackFuncSet( V4, idx, mode, u, 0 ), NULL,  \
-	UnpackFuncSet( V4, idx, mode, u, 0 ), UnpackV4_5set(idx, 0), \
+	UnpackFuncSet( V4, idx, mode, u, 0 ), (UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u32) UNPACK_V4_5<idx, 0>, \
  \
 	UnpackFuncSet( S,  idx, mode, u, 1 ), NULL,  \
 	UnpackFuncSet( V2, idx, mode, u, 1 ), NULL,  \
 	UnpackFuncSet( V4, idx, mode, u, 1 ), NULL,  \
-	UnpackFuncSet( V4, idx, mode, u, 1 ), UnpackV4_5set(idx, 1)
+	UnpackFuncSet( V4, idx, mode, u, 1 ), (UNPACKFUNCTYPE)(UNPACKFUNCTYPE_u32) UNPACK_V4_5<idx, 1>
 
-alignas(16) const UNPACKFUNCTYPE VIFfuncTable[2][4][4 * 4 * 2 * 2] =
+/* Array sub-dimension order: [vifidx] [mode] (VN * VL * USN * doMask) */
+alignas(16) static const UNPACKFUNCTYPE VIFfuncTable[2][4][4 * 4 * 2 * 2] =
 {
 	{
 		{ UnpackModeSet(0,0) },
@@ -190,46 +185,47 @@ alignas(16) const UNPACKFUNCTYPE VIFfuncTable[2][4][4 * 4 * 2 * 2] =
  * Unpack Setup Code
  *----------------------------------------------------------------------------
  */
-_vifT void vifUnpackSetup(const u32 *data)
+template<int idx> void vifUnpackSetup(const u32 *data)
 {
-	vifStruct& vifX = GetVifX;
+	vifStruct& vifX       = (idx ? (vif1)     : (vif0));
+	VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 
-	GetVifX.unpackcalls++;
+	vifX.unpackcalls++;
 
-	if (GetVifX.unpackcalls > 3)
+	if (vifX.unpackcalls > 3)
 		vifExecQueue(idx);
 
-	vifX.usn   = (vifXRegs.code >> 14) & 0x01;
-	int vifNum = (vifXRegs.code >> 16) & 0xff;
+	vifX.usn   = (vifRegs.code >> 14) & 0x01;
+	int vifNum = (vifRegs.code >> 16) & 0xff;
 
 	if (vifNum == 0)
 		vifNum = 256;
-	vifXRegs.num =  vifNum;
+	vifRegs.num =  vifNum;
 
 	const u8& gsize = nVifT[vifX.cmd & 0x0f];
 
-	uint wl = vifXRegs.cycle.wl ? vifXRegs.cycle.wl : 256;
+	uint wl = vifRegs.cycle.wl ? vifRegs.cycle.wl : 256;
 
-	if (wl <= vifXRegs.cycle.cl) /* Skipping write */
+	if (wl <= vifRegs.cycle.cl) /* Skipping write */
 		vifX.tag.size = ((vifNum * gsize) + 3) / 4;
 	else
 	{
 		/* Filling write */
 		int a   = vifNum % wl;
-		int max = vifXRegs.cycle.cl;
-		int n   = vifXRegs.cycle.cl * (vifNum / wl) 
+		int max = vifRegs.cycle.cl;
+		int n   = vifRegs.cycle.cl * (vifNum / wl) 
 			+ ((a > max) ? max : a);
 
 		vifX.tag.size = ((n * gsize) + 3) >> 2;
 	}
 
-	u32 addr           = vifXRegs.code;
+	u32 addr           = vifRegs.code;
 	if (idx && ((addr>>15)&1)) addr += vif1Regs.tops;
 	vifX.tag.addr      = (addr<<4) & (idx ? 0x3ff0 : 0xff0);
 
 	vifX.cl		   = 0;
 	vifX.tag.cmd	   = vifX.cmd;
-	GetVifX.pass	   = 1;
+	vifX.pass	   = 1;
 
 	//Ugh things are never easy.
 	//Alright, in most cases with V2 and V3 we only need to know if its offset 32bits.
@@ -281,17 +277,6 @@ __ri void _nVifUnpackLoop(const u8* data);
 typedef void FnType_VifUnpackLoop(const u8* data);
 typedef FnType_VifUnpackLoop* Fnptr_VifUnpackLoop;
 
-// Unpacks Until 'Num' is 0
-alignas(16) static const Fnptr_VifUnpackLoop UnpackLoopTable[2][2][2] = {
-	{
-		{_nVifUnpackLoop<0, 0, 0>, _nVifUnpackLoop<0, 0, 1>},
-		{_nVifUnpackLoop<0, 1, 0>, _nVifUnpackLoop<0, 1, 1>},
-	},
-	{
-		{_nVifUnpackLoop<1, 0, 0>, _nVifUnpackLoop<1, 0, 1>},
-		{_nVifUnpackLoop<1, 1, 0>, _nVifUnpackLoop<1, 1, 1>},
-	},
-};
 // ----------------------------------------------------------------------------
 
 void resetNewVif(int idx)
@@ -306,16 +291,16 @@ void resetNewVif(int idx)
 	dVifReset(idx);
 }
 
-_vifT int nVifUnpack(const u8* data)
+template<int idx> int nVifUnpack(const u8* data)
 {
 	nVifStruct&   v       = nVif[idx];
-	vifStruct&    vif     = GetVifX;
-	VIFregisters& vifRegs = vifXRegs;
+	vifStruct&    vif     = (idx ? (vif1)     : (vif0));
+	VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 
-	const uint wl     = vifRegs.cycle.wl ? vifRegs.cycle.wl : 256;
-	const uint ret    = std::min(vif.vifpacketsize, vif.tag.size);
-	const bool isFill = (vifRegs.cycle.cl < wl);
-	s32        size   = ret << 2;
+	const uint wl         = vifRegs.cycle.wl ? vifRegs.cycle.wl : 256;
+	const uint ret        = std::min(vif.vifpacketsize, vif.tag.size);
+	const bool isFill     = (vifRegs.cycle.cl < wl);
+	s32        size       = ret << 2;
 
 	if (ret == vif.tag.size) /* Full Transfer */
 	{
@@ -327,7 +312,7 @@ _vifT int nVifUnpack(const u8* data)
 			data = v.buffer;
 
 			vif.cl = 0;
-			vifRegs.num = (vifXRegs.code >> 16) & 0xff; /* grab NUM form the original VIFcode input. */
+			vifRegs.num = (vifRegs.code >> 16) & 0xff; /* grab NUM form the original VIFcode input. */
 			if (!vifRegs.num)
 				vifRegs.num = 256;
 		}
@@ -427,8 +412,8 @@ static void setMasks(const vifStruct& vif, const VIFregisters& v)
 template <int idx, bool doMode, bool isFill>
 __ri void _nVifUnpackLoop(const u8* data)
 {
-	vifStruct& vif = MTVU_VifX;
-	VIFregisters& vifRegs   = MTVU_VifXRegs;
+	vifStruct& vif          = (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0));
+	VIFregisters& vifRegs   = (idx ? ((THREAD_VU1) ? vu1Thread.vifRegs : vif1Regs) : (vif0Regs));
 
 	/* skipSize used for skipping writes only */
 	const int skipSize      = (vifRegs.cycle.cl - vifRegs.cycle.wl) * 16;
@@ -481,5 +466,16 @@ __ri void _nVifUnpackLoop(const u8* data)
 
 __fi void _nVifUnpack(int idx, const u8* data, uint mode, bool isFill)
 {
+	// Unpacks Until 'Num' is 0
+	alignas(16) static const Fnptr_VifUnpackLoop UnpackLoopTable[2][2][2] = {
+		{
+			{_nVifUnpackLoop<0, false, false>, _nVifUnpackLoop<0, false, true>},
+			{_nVifUnpackLoop<0, true,  false>, _nVifUnpackLoop<0, true,  true>},
+		},
+		{
+			{_nVifUnpackLoop<1, false, false>, _nVifUnpackLoop<1, false, true>},
+			{_nVifUnpackLoop<1, true,  false>, _nVifUnpackLoop<1, true,  true>},
+		},
+	};
 	UnpackLoopTable[idx][!!mode][isFill](data);
 }

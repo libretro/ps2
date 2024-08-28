@@ -20,34 +20,26 @@
 #include "VUmicro.h"
 #include "Vif_Dma.h"
 
-#define pass1 if (pass == 0)
-#define pass2 if (pass == 1)
-#define pass1or2 if (pass == 0 || pass == 1)
-#define vif1Only() \
-	{ \
-		if (!idx) \
-			return vifCode_Null<idx>(pass, (u32*)data); \
-	}
-
 /* TODO/FIXME: Review Flags */
-_vifT static int vifCode_Null(int pass, const u32* data)
+template<int idx> static int vifCode_Null(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 		/* if ME1, then force the vif to interrupt */
-		if (!(vifXRegs.err.ME1))
-		{ // Ignore vifcode and tag mismatch error
-			vifXRegs.stat.ER1 = true;
-			vifX.vifstalled.enabled = VifStallEnable(vifXch);
-			vifX.vifstalled.value = VIF_IRQ_STALL;
+		if (!(vifRegs.err.ME1)) /* Ignore vifcode and tag mismatch error */
+		{
+			vifRegs.stat.ER1        = true;
+			vifX.vifstalled.enabled = VifStallEnable((idx ? (vif1ch)   : (vif0ch)));
+			vifX.vifstalled.value   = VIF_IRQ_STALL;
 		}
 		vifX.cmd = 0;
 		vifX.pass = 0;
 
 		//If the top bit was set to interrupt, 
 		//we don't want it to take commands from a bad code
-		if (vifXRegs.code & 0x80000000)
+		if (vifRegs.code & 0x80000000)
 			vifX.irq = 0;
 	}
 	return 1;
@@ -59,16 +51,17 @@ _vifT static int vifCode_Null(int pass, const u32* data)
 
 __ri void vifExecQueue(int idx)
 {
-	if (!GetVifX.queued_program || (vuRegs[0].VI[REG_VPU_STAT].UL & 1 << (idx * 8)))
+	vifStruct& vifX = (idx ? (vif1) : (vif0));
+	if (!vifX.queued_program || (vuRegs[0].VI[REG_VPU_STAT].UL & 1 << (idx * 8)))
 		return;
 
-	if (GetVifX.queued_gif_wait)
+	if (vifX.queued_gif_wait)
 	{
 		if (gifUnit.checkPaths(1, 1, 0))
 			return;
 	}
 
-	GetVifX.queued_program = false;
+	vifX.queued_program = false;
 
 	if (!idx)
 		vu0ExecMicro(vif0.queued_pc);
@@ -92,10 +85,11 @@ static __fi void vifFlush(int idx)
 
 static __fi void vuExecMicro(int idx, u32 addr, bool requires_wait)
 {
-	VIFregisters& vifRegs = vifXRegs;
+	vifStruct& vifX       = (idx ? (vif1) : (vif0));
+	VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 
 	vifFlush(idx);
-	if (GetVifX.waitforvu)
+	if (vifX.waitforvu)
 	{
 		CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
 		return;
@@ -126,14 +120,14 @@ static __fi void vuExecMicro(int idx, u32 addr, bool requires_wait)
 		}
 	}
 
-	GetVifX.queued_program = true;
+	vifX.queued_program = true;
 	if ((s32)addr == -1)
-		GetVifX.queued_pc = addr;
+		vifX.queued_pc = addr;
 	else
-		GetVifX.queued_pc = addr & (idx ? 0x7ffu : 0x1ffu);
-	GetVifX.unpackcalls = 0;
+		vifX.queued_pc = addr & (idx ? 0x7ffu : 0x1ffu);
+	vifX.unpackcalls = 0;
 
-	GetVifX.queued_gif_wait = requires_wait;
+	vifX.queued_gif_wait = requires_wait;
 
 	if (!idx || (!THREAD_VU1 && !INSTANT_VU1))
 		vifExecQueue(idx);
@@ -143,30 +137,32 @@ static __fi void vuExecMicro(int idx, u32 addr, bool requires_wait)
 // Vif0/Vif1 Code Implementations
 //------------------------------------------------------------------
 
-_vifT static int vifCode_Base(int pass, const u32* data)
+template<int idx> static int vifCode_Base(int pass, const u32* data)
 {
-	vif1Only();
-	pass1
+	if (!idx)
+		return vifCode_Null<idx>(pass, (u32*)data);
+	if (pass == 0)
 	{
 		vif1Regs.base = vif1Regs.code & 0x3ff;
-		vif1.cmd = 0;
-		vif1.pass = 0;
+		vif1.cmd      = 0;
+		vif1.pass     = 0;
 	}
 	return 1;
 }
 
-template <int idx>
+template<int idx>
 static __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 {
-	vif1Only();
-	pass1
+	if (!idx)
+		return vifCode_Null<idx>(pass, (u32*)data);
+	if (pass == 0)
 	{
 		int vifImm = (u16)vif1Regs.code;
 		vif1.tag.size = vifImm ? (vifImm * 4) : (65536 * 4);
 		vif1.pass = 1;
 		return 1;
 	}
-	pass2
+	else if (pass == 1)
 	{
 		GIF_TRANSFER_TYPE tranType = isDirectHL ? GIF_TRANS_DIRECTHL : GIF_TRANS_DIRECT;
 		uint size = std::min(vif1.vifpacketsize, vif1.tag.size) * 4; // Get size in bytes
@@ -175,8 +171,8 @@ static __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 		vif1.tag.size -= ret / 4; // Convert to u32's
 		vif1Regs.stat.VGW = false;
 
-		if (size != ret)
-		{ // Stall if gif didn't process all the data (path2 queued)
+		if (size != ret) // Stall if GIF didn't process all the data (path2 queued)
+		{
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
 			vif1.vifstalled.value = VIF_TIMING_BREAK;
 			vif1Regs.stat.VGW = true;
@@ -194,20 +190,21 @@ static __fi int _vifCode_Direct(int pass, const u8* data, bool isDirectHL)
 	return 0;
 }
 
-_vifT static int vifCode_Direct(int pass, const u32* data)
+template<int idx> static int vifCode_Direct(int pass, const u32* data)
 {
 	return _vifCode_Direct<idx>(pass, (u8*)data, 0);
 }
 
-_vifT static int vifCode_DirectHL(int pass, const u32* data)
+template<int idx> static int vifCode_DirectHL(int pass, const u32* data)
 {
 	return _vifCode_Direct<idx>(pass, (u8*)data, 1);
 }
 
-_vifT static int vifCode_Flush(int pass, const u32* data)
+template<int idx> static int vifCode_Flush(int pass, const u32* data)
 {
-	vif1Only();
-	pass1or2
+	if (!idx)
+		return vifCode_Null<idx>(pass, (u32*)data);
+	if (pass == 0 || pass == 1)
 	{
 		bool p1or2 = (gifRegs.stat.APATH != 0 && gifRegs.stat.APATH != 3);
 		vif1Regs.stat.VGW = false;
@@ -231,10 +228,11 @@ _vifT static int vifCode_Flush(int pass, const u32* data)
 	return 1;
 }
 
-_vifT static int vifCode_FlushA(int pass, const u32* data)
+template<int idx> static int vifCode_FlushA(int pass, const u32* data)
 {
-	vif1Only();
-	pass1or2
+	if (!idx)
+		return vifCode_Null<idx>(pass, (u32*)data);
+	if (pass == 0 || pass == 1)
 	{
 		u32 gifBusy = gifUnit.checkPaths(1, 1, 1) || (gifRegs.stat.APATH != 0);
 		vif1Regs.stat.VGW = false;
@@ -260,10 +258,10 @@ _vifT static int vifCode_FlushA(int pass, const u32* data)
 }
 
 // ToDo: FixMe
-_vifT static int vifCode_FlushE(int pass, const u32* data)
+template<int idx> static int vifCode_FlushE(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX       = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
 		vifFlush(idx);
 
@@ -279,26 +277,29 @@ _vifT static int vifCode_FlushE(int pass, const u32* data)
 	return 1;
 }
 
-_vifT static int vifCode_ITop(int pass, const u32* data)
+template<int idx> static int vifCode_ITop(int pass, const u32* data)
 {
-	pass1
+	if (pass == 0)
 	{
-		vifXRegs.itops = vifXRegs.code & 0x3ff;
-		GetVifX.cmd = 0;
-		GetVifX.pass = 0;
+		vifStruct& vifX       = (idx ? (vif1) : (vif0));
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		vifRegs.itops         = vifRegs.code & 0x3ff;
+		vifX.cmd              = 0;
+		vifX.pass             = 0;
 	}
 	return 1;
 }
 
-_vifT static int vifCode_Mark(int pass, const u32* data)
+template<int idx> static int vifCode_Mark(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	if (pass == 0)
 	{
-		vifXRegs.mark = (u16)vifXRegs.code;
-		vifXRegs.stat.MRK = true;
-		vifX.cmd = 0;
-		vifX.pass = 0;
+		vifStruct& vifX       = (idx ? (vif1) : (vif0));
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		vifRegs.mark          = (u16)vifRegs.code;
+		vifRegs.stat.MRK      = true;
+		vifX.cmd              = 0;
+		vifX.pass             = 0;
 	}
 	return 1;
 }
@@ -306,7 +307,7 @@ _vifT static int vifCode_Mark(int pass, const u32* data)
 static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 {
 	VURegs& VUx     = idx ? vuRegs[1] : vuRegs[0];
-	vifStruct& vifX = GetVifX;
+	vifStruct& vifX = (idx ? (vif1) : (vif0));
 	u16 vuMemSize   = idx ? 0x4000 : 0x1000;
 
 	vifExecQueue(idx);
@@ -360,14 +361,15 @@ static __fi void _vifCode_MPG(int idx, u32 addr, const u32* data, int size)
 	}
 }
 
-_vifT static int vifCode_MPG(int pass, const u32* data)
+template<int idx> static int vifCode_MPG(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
-		int vifNum = (u8)(vifXRegs.code >> 16);
-		vifX.tag.addr = (u16)(vifXRegs.code << 3) & (idx ? 0x3fff : 0xfff);
-		vifX.tag.size = vifNum ? (vifNum * 2) : 512;
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		int vifNum            = (u8)(vifRegs.code >> 16);
+		vifX.tag.addr         = (u16)(vifRegs.code << 3) & (idx ? 0x3fff : 0xfff);
+		vifX.tag.size         = vifNum ? (vifNum * 2) : 512;
 		vifFlush(idx);
 
 		if (vifX.waitforvu)
@@ -378,7 +380,7 @@ _vifT static int vifCode_MPG(int pass, const u32* data)
 		vifX.pass = 1;
 		return 1;
 	}
-	pass2
+	else if (pass == 1)
 	{
 		if (vifX.vifpacketsize < vifX.tag.size) // Partial Transfer
 		{
@@ -397,11 +399,12 @@ _vifT static int vifCode_MPG(int pass, const u32* data)
 	return 0;
 }
 
-_vifT static int vifCode_MSCAL(int pass, const u32* data)
+template<int idx> static int vifCode_MSCAL(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 		vifFlush(idx);
 
 		if (vifX.waitforvu)
@@ -410,11 +413,11 @@ _vifT static int vifCode_MSCAL(int pass, const u32* data)
 			return 0;
 		}
 
-		vuExecMicro(idx, (u16)(vifXRegs.code), false);
+		vuExecMicro(idx, (u16)(vifRegs.code), false);
 		vifX.cmd = 0;
 		vifX.pass = 0;
 
-		if (GetVifX.vifpacketsize > 1)
+		if (vifX.vifpacketsize > 1)
 		{
 			//Warship Gunner 2 has a rather big dislike for the delays
 			if (((data[1] >> 24) & 0x60) == 0x60) // Immediate following Unpack
@@ -427,18 +430,19 @@ _vifT static int vifCode_MSCAL(int pass, const u32* data)
 	return 1;
 }
 
-_vifT static int vifCode_MSCALF(int pass, const u32* data)
+template<int idx> static int vifCode_MSCALF(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1or2
+	vifStruct& vifX = (idx ? (vif1) : (vif0));
+	if (pass == 0 || pass == 1)
 	{
-		vifXRegs.stat.VGW = false;
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		vifRegs.stat.VGW = false;
 		vifFlush(idx);
 		if (u32 a = gifUnit.checkPaths(1, 1, 0))
 		{
-			vif1Regs.stat.VGW = true;
-			vifX.vifstalled.enabled = VifStallEnable(vifXch);
-			vifX.vifstalled.value = VIF_TIMING_BREAK;
+			vif1Regs.stat.VGW       = true;
+			vifX.vifstalled.enabled = VifStallEnable((idx ? (vif1ch)   : (vif0ch)));
+			vifX.vifstalled.value   = VIF_TIMING_BREAK;
 		}
 
 		if (vifX.waitforvu || vif1Regs.stat.VGW)
@@ -447,7 +451,7 @@ _vifT static int vifCode_MSCALF(int pass, const u32* data)
 			return 0;
 		}
 
-		vuExecMicro(idx, (u16)(vifXRegs.code), true);
+		vuExecMicro(idx, (u16)(vifRegs.code), true);
 		vifX.cmd = 0;
 		vifX.pass = 0;
 		vifExecQueue(idx);
@@ -455,10 +459,10 @@ _vifT static int vifCode_MSCALF(int pass, const u32* data)
 	return 1;
 }
 
-_vifT static int vifCode_MSCNT(int pass, const u32* data)
+template<int idx> static int vifCode_MSCNT(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX   = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
 		vifFlush(idx);
 
@@ -469,9 +473,9 @@ _vifT static int vifCode_MSCNT(int pass, const u32* data)
 		}
 
 		vuExecMicro(idx, -1, false);
-		vifX.cmd = 0;
+		vifX.cmd  = 0;
 		vifX.pass = 0;
-		if (GetVifX.vifpacketsize > 1)
+		if (vifX.vifpacketsize > 1)
 		{
 			if (((data[1] >> 24) & 0x60) == 0x60) // Immediate following Unpack
 			{
@@ -483,10 +487,11 @@ _vifT static int vifCode_MSCNT(int pass, const u32* data)
 }
 
 // ToDo: FixMe
-_vifT static int vifCode_MskPath3(int pass, const u32* data)
+template<int idx> static int vifCode_MskPath3(int pass, const u32* data)
 {
-	vif1Only();
-	pass1
+	if (!idx)
+		return vifCode_Null<idx>(pass, (u32*)data);
+	if (pass == 0)
 	{
 		vif1Regs.mskpath3 = (vif1Regs.code >> 15) & 0x1;
 		gifRegs.stat.M3P = (vif1Regs.code >> 15) & 0x1;
@@ -498,30 +503,32 @@ _vifT static int vifCode_MskPath3(int pass, const u32* data)
 	return 1;
 }
 
-_vifT static int vifCode_Nop(int pass, const u32* data)
+template<int idx> static int vifCode_Nop(int pass, const u32* data)
 {
-	pass1
+	if (pass == 0)
 	{
-		GetVifX.cmd = 0;
-		GetVifX.pass = 0;
+		vifStruct& vifX  = (idx ? (vif1) : (vif0));
+		vifX.cmd         = 0;
+		vifX.pass        = 0;
 		vifExecQueue(idx);
 
-		if (GetVifX.vifpacketsize > 1)
+		if (vifX.vifpacketsize > 1)
 		{
 			if (((data[1] >> 24) & 0x7f) == 0x6 && (data[1] & 0x1)) //is mskpath3 next
 			{
-				GetVifX.vifstalled.enabled = VifStallEnable(vifXch);
-				GetVifX.vifstalled.value = VIF_TIMING_BREAK;
+				vifX.vifstalled.enabled = VifStallEnable((idx ? (vif1ch)   : (vif0ch)));
+				vifX.vifstalled.value   = VIF_TIMING_BREAK;
 			}
 		}
 	}
 	return 1;
 }
 
-_vifT static int vifCode_Offset(int pass, const u32* data)
+template<int idx> static int vifCode_Offset(int pass, const u32* data)
 {
-	vif1Only();
-	pass1
+	if (!idx)
+		return vifCode_Null<idx>(pass, (u32*)data);
+	if (pass == 0)
 	{
 		vif1Regs.stat.DBF = false;
 		vif1Regs.ofst = vif1Regs.code & 0x3ff;
@@ -535,9 +542,8 @@ _vifT static int vifCode_Offset(int pass, const u32* data)
 template <int idx>
 static __fi int _vifCode_STColRow(const u32* data, u32* pmem2)
 {
-	vifStruct& vifX = GetVifX;
-
-	int ret = std::min(4 - vifX.tag.addr, vifX.vifpacketsize);
+	vifStruct& vifX  = (idx ? (vif1) : (vif0));
+	int ret          = std::min(4 - vifX.tag.addr, vifX.vifpacketsize);
 
 	switch (ret)
 	{
@@ -570,17 +576,17 @@ static __fi int _vifCode_STColRow(const u32* data, u32* pmem2)
 	return ret;
 }
 
-_vifT static int vifCode_STCol(int pass, const u32* data)
+template<int idx> static int vifCode_STCol(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX  = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
 		vifX.tag.addr = 0;
 		vifX.tag.size = 4;
-		vifX.pass = 1;
+		vifX.pass     = 1;
 		return 1;
 	}
-	pass2
+	else if (pass == 1)
 	{
 		u32 ret = _vifCode_STColRow<idx>(data, &vifX.MaskCol._u32[vifX.tag.addr]);
 		if (idx && vifX.tag.size == 0)
@@ -590,17 +596,16 @@ _vifT static int vifCode_STCol(int pass, const u32* data)
 	return 0;
 }
 
-_vifT static int vifCode_STRow(int pass, const u32* data)
+template<int idx> static int vifCode_STRow(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX  = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
 		vifX.tag.addr = 0;
 		vifX.tag.size = 4;
-		vifX.pass = 1;
-		return 1;
+		vifX.pass     = 1;
 	}
-	pass2
+	else if (pass == 1)
 	{
 		u32 ret = _vifCode_STColRow<idx>(data, &vifX.MaskRow._u32[vifX.tag.addr]);
 		if (idx && vifX.tag.size == 0)
@@ -610,60 +615,61 @@ _vifT static int vifCode_STRow(int pass, const u32* data)
 	return 1;
 }
 
-_vifT static int vifCode_STCycl(int pass, const u32* data)
+template<int idx> static int vifCode_STCycl(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX  = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
-		vifXRegs.cycle.cl = (u8)(vifXRegs.code);
-		vifXRegs.cycle.wl = (u8)(vifXRegs.code >> 8);
-		vifX.cmd = 0;
-		vifX.pass = 0;
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		vifRegs.cycle.cl = (u8)(vifRegs.code);
+		vifRegs.cycle.wl = (u8)(vifRegs.code >> 8);
+		vifX.cmd          = 0;
+		vifX.pass         = 0;
 	}
 	return 1;
 }
 
-_vifT static int vifCode_STMask(int pass, const u32* data)
+template<int idx> static int vifCode_STMask(int pass, const u32* data)
 {
-	vifStruct& vifX = GetVifX;
-	pass1
+	vifStruct& vifX  = (idx ? (vif1) : (vif0));
+	if (pass == 0)
 	{
 		vifX.tag.size = 1;
-		vifX.pass = 1;
-		return 1;
+		vifX.pass     = 1;
 	}
-	pass2
+	else if (pass == 1)
 	{
-		vifXRegs.mask = data[0];
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		vifRegs.mask  = data[0];
 		vifX.tag.size = 0;
-		vifX.cmd = 0;
-		vifX.pass = 0;
+		vifX.cmd      = 0;
+		vifX.pass     = 0;
 	}
 	return 1;
 }
 
-_vifT static int vifCode_STMod(int pass, const u32* data)
+template<int idx> static int vifCode_STMod(int pass, const u32* data)
 {
-	pass1
+	if (pass == 0)
 	{
-		vifXRegs.mode = vifXRegs.code & 0x3;
-		GetVifX.cmd = 0;
-		GetVifX.pass = 0;
+		vifStruct& vifX       = (idx ? (vif1) : (vif0));
+		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
+		vifRegs.mode          = vifRegs.code & 0x3;
+		vifX.cmd              = 0;
+		vifX.pass             = 0;
 	}
 	return 1;
 }
 
-_vifT static int vifCode_Unpack(int pass, const u32* data)
+template<int idx> static int vifCode_Unpack(int pass, const u32* data)
 {
-	pass1
+	if (pass == 0)
 	{
 		vifUnpackSetup<idx>(data);
 		return 1;
 	}
-	pass2
-	{
+	else if (pass == 1)
 		return nVifUnpack<idx>((u8*)data);
-	}
 	return 0;
 }
 

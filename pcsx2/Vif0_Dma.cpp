@@ -53,8 +53,8 @@ bool _VIF0chain(void)
 	}
 
 	if (vif0.irqoffset.enabled)
-		return VIF0transfer(pMem + vif0.irqoffset.value, vif0ch.qwc * 4 - vif0.irqoffset.value);
-	return VIF0transfer(pMem, vif0ch.qwc * 4);
+		return VIF0transfer(pMem + vif0.irqoffset.value, vif0ch.qwc * 4 - vif0.irqoffset.value, false);
+	return VIF0transfer(pMem, vif0ch.qwc * 4, false);
 }
 
 __fi void vif0SetupTransfer(void)
@@ -86,7 +86,7 @@ __fi void vif0SetupTransfer(void)
 		{
 			/* Some games (like Killzone) do Tags mid unpack, the nops will just write blank data
 			 * to the VU's, which breaks stuff, this is where the 128bit packet will fail, so we ignore the first 2 words */
-			vif0.irqoffset.value = 2;
+			vif0.irqoffset.value   = 2;
 			vif0.irqoffset.enabled = true;
 			ret = VIF0transfer((u32*)&masked_tag + 2, 2, true);  /* Transfer Tag */
 		}
@@ -96,7 +96,6 @@ __fi void vif0SetupTransfer(void)
 			vif0.inprogress = 0; /* Better clear this so it has to do it again (Jak 1) */
 			vif0ch.qwc      = 0; /* Gumball 3000 pauses the DMA when the tag stalls so we need to reset the QWC, it'll be gotten again later */
 			return;        /* IRQ set by VIFTransfer */
-
 		}
 	}
 
@@ -108,11 +107,7 @@ __fi void vif0SetupTransfer(void)
 		vif0.inprogress = 1;
 	/* Check TIE bit of CHCR and IRQ bit of tag */
 	if (vif0ch.chcr.TIE && ptag->IRQ)
-	{
-		/* End Transfer */
-		vif0.done = true;
-		return;
-	}
+		vif0.done = true; /* End Transfer */
 }
 
 __fi void vif0VUFinish(void)
@@ -175,7 +170,7 @@ __fi void vif0Interrupt(void)
 		if (((vif0Regs.code >> 24) & 0x7f) != 0x7)
 			vif0Regs.stat.VIS = true;
 
-		hwIntcIrq(VIF0intc);
+		hwIntcIrq(VIF0INTC);
 		--vif0.irq;
 
 		if (VIF_TEST(vif0Regs.stat, VIF0_STAT_VSS | VIF0_STAT_VIS | VIF0_STAT_VFS))
@@ -196,12 +191,11 @@ __fi void vif0Interrupt(void)
 	/* Must go after the Stall, incase it's still in progress, GTC africa likes to see it still transferring. */
 	if (vif0.cmd)
 	{
-		if(vif0.done && vif0ch.qwc == 0)	vif0Regs.stat.VPS = VPS_WAITING;
+		if(vif0.done && vif0ch.qwc == 0)
+			vif0Regs.stat.VPS = VPS_WAITING;
 	}
 	else
-	{
 		vif0Regs.stat.VPS = VPS_IDLE;
-	}
 
 	if (vif0.inprogress & 0x1)
 	{
@@ -260,8 +254,7 @@ void dmaVIF0(void)
 		else /* Assume Normal mode. */
 		{
 			vif0.dmamode = VIF_NORMAL_FROM_MEM_MODE;
-
-			vif0.done = true;
+			vif0.done    = true;
 		}
 
 		vif0.inprogress |= 1;

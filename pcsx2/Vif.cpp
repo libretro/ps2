@@ -300,10 +300,10 @@ static __fi void vif1STAT(u32 value)
 
 #define caseVif(x) (idx ? VIF1_##x : VIF0_##x)
 
-_vifT __fi u32 vifRead32(u32 mem)
+template<int idx> __fi u32 vifRead32(u32 mem)
 {
-	vifStruct& vif = MTVU_VifX;
-	bool wait = idx && THREAD_VU1;
+	vifStruct& vif = (idx ? ((THREAD_VU1) ? vu1Thread.vif     : vif1)     : (vif0));
+	bool wait      = idx && THREAD_VU1;
 
 	switch (mem)
 	{
@@ -347,14 +347,15 @@ _vifT __fi u32 vifRead32(u32 mem)
 
 /* returns FALSE if no writeback is needed (or writeback is handled internally)
  * returns TRUE if the caller should writeback the value to the eeHw register map. */
-_vifT __fi bool vifWrite32(u32 mem, u32 value)
+template<int idx> __fi bool vifWrite32(u32 mem, u32 value)
 {
-	vifStruct& vif = GetVifX;
+	vifStruct&        vif = (idx ? (vif1)     : (vif0));
+	VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 
 	switch (mem)
 	{
 		case caseVif(MARK):
-			vifXRegs.stat.MRK = false;
+			vifRegs.stat.MRK = false;
 			break;
 
 		case caseVif(FBRST):
