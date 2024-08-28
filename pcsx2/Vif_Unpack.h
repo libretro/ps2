@@ -28,8 +28,4 @@ typedef void (*UNPACKFUNCTYPE_s8) (u32* dest, const  s8* src);
 
 alignas(16) extern const u8 nVifT[16];
 
-template<int idx> extern int  nVifUnpack (const u8* data);
 extern void resetNewVif(int idx);
-
-template< int idx >
-extern void vifUnpackSetup(const u32* data);

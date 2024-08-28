@@ -103,13 +103,7 @@ set(pcsx2Sources
 	sif2.cpp
 	Sio.cpp
 	SPR.cpp
-	Vif0_Dma.cpp
-	Vif1_Dma.cpp
-	Vif1_MFIFO.cpp
 	Vif.cpp
-	Vif_Codes.cpp
-	Vif_Transfer.cpp
-	Vif_Unpack.cpp
 	VirtualMemory.cpp
 	VU0.cpp
 	VUmicro.cpp

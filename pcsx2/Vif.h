@@ -91,9 +91,7 @@ enum vif_stallreasons
 
 #define VIF_TEST(a, flags) (!!((a)._u32 & (flags)))
 
-//
-// Bitfield Structure
-//
+/* Bitfield Structure */
 union tVIF_STAT {
 	struct {
 		u32 VPS : 2; // Vif(0/1) status; 00 - idle, 01 - waiting for data following vifcode, 10 - decoding vifcode, 11 - decompressing/trasferring data follwing vifcode.
@@ -207,11 +205,8 @@ struct VIFregistersMTVU {
 static VIFregisters& vif0Regs = (VIFregisters&)eeHw[0x3800];
 static VIFregisters& vif1Regs = (VIFregisters&)eeHw[0x3C00];
 
-#define VifStallEnable(vif) (vif.chcr.STR);
-
 extern void dmaVIF0();
 extern void dmaVIF1();
-extern void mfifoVIF1transfer();
 extern bool VIF0transfer(u32 *data, int size, bool TTE);
 extern bool VIF1transfer(u32 *data, int size, bool TTE);
 extern void vifMFIFOInterrupt();
