@@ -15,27 +15,6 @@
 
 #pragma once
 #include "Config.h"
-#include <ctime>
-#include <string>
-
-struct McdSizeInfo
-{
-	u16 SectorSize; // Size of each sector, in bytes.  (only 512 and 1024 are valid)
-	u16 EraseBlockSizeInSectors; // Size of the erase block, in sectors (max is 16)
-	u32 McdSizeInSectors; // Total size of the card, in sectors (no upper limit)
-	u8 Xor; // Checksum of previous data
-};
-
-struct AvailableMcdInfo
-{
-	std::string name;
-	std::string path;
-	std::time_t modified_time;
-	MemoryCardType type;
-	MemoryCardFileType file_type;
-	u32 size;
-	bool formatted;
-};
 
 extern uint FileMcd_GetMtapPort(uint slot);
 extern uint FileMcd_GetMtapSlot(uint slot);
@@ -45,11 +24,3 @@ extern std::string FileMcd_GetDefaultName(uint slot);
 uint FileMcd_ConvertToSlot(uint port, uint slot);
 void FileMcd_EmuOpen();
 void FileMcd_EmuClose();
-s32 FileMcd_IsPresent(uint port, uint slot);
-void FileMcd_GetSizeInfo(uint port, uint slot, McdSizeInfo* outways);
-bool FileMcd_IsPSX(uint port, uint slot);
-s32 FileMcd_Read(uint port, uint slot, u8* dest, u32 adr, int size);
-s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size);
-s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr);
-u64 FileMcd_GetCRC(uint port, uint slot);
-bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter);

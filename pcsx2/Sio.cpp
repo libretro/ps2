@@ -44,6 +44,52 @@
 
 #define MC2_ERASE_SIZE 8448 /* 528 * 16 */
 
+struct McdSizeInfo
+{
+	u16 SectorSize; // Size of each sector, in bytes.  (only 512 and 1024 are valid)
+	u16 EraseBlockSizeInSectors; // Size of the erase block, in sectors (max is 16)
+	u32 McdSizeInSectors; // Total size of the card, in sectors (no upper limit)
+	u8 Xor; // Checksum of previous data
+};
+
+/* --------------------------------------------------------------------------------------
+ *  FileMemoryCard
+ * --------------------------------------------------------------------------------------
+ * Provides thread-safe direct file IO mapping.
+ */
+class FileMemoryCard
+{
+protected:
+	RFILE* m_file[8] = {};
+	std::string m_filenames[8] = {};
+	std::vector<u8> m_currentdata;
+	u64 m_chksum[8] = {};
+	bool m_ispsx[8] = {};
+	u32 m_chkaddr = 0;
+
+public:
+	FileMemoryCard();
+	~FileMemoryCard();
+
+	void Lock();
+	void Unlock();
+
+	void Open();
+	void Close();
+
+	s32 IsPresent(uint slot);
+	void GetSizeInfo(uint slot, McdSizeInfo& outways);
+	bool IsPSX(uint slot);
+	s32 Read(uint slot, u8* dest, u32 adr, int size);
+	s32 Save(uint slot, const u8* src, u32 adr, int size);
+	s32 EraseBlock(uint slot, u32 adr);
+	u64 GetCRC(uint slot);
+
+protected:
+	bool Seek(RFILE* f, u32 adr);
+	bool Create(const char* mcdFile, uint sizeInMB);
+};
+
 static std::deque<u8> fifoIn;
 static std::deque<u8> fifoOut;
 
@@ -57,6 +103,106 @@ static bool FileMcd_Open = false;
 
 Sio0 sio0;
 Sio2 sio2;
+
+// --------------------------------------------------------------------------------------
+//  MemoryCard Component API Bindings
+// --------------------------------------------------------------------------------------
+namespace Mcd
+{
+	FileMemoryCard impl; // class-based implementations we refer to when API is invoked
+}; // namespace Mcd
+
+uint FileMcd_ConvertToSlot(uint port, uint slot)
+{
+	if (slot == 0)
+		return port;
+	if (port == 0)
+		return slot + 1; // multitap 1
+	return slot + 4;     // multitap 2
+}
+
+void FileMcd_EmuOpen(void)
+{
+	if(FileMcd_Open)
+		return;
+	FileMcd_Open = true;
+	// detect inserted memory card types
+	for (uint slot = 0; slot < 8; ++slot)
+	{
+		if (EmuConfig.Mcd[slot].Filename.empty())
+			EmuConfig.Mcd[slot].Type = MemoryCardType::Empty;
+		else if (EmuConfig.Mcd[slot].Enabled)
+			EmuConfig.Mcd[slot].Type = MemoryCardType::File;
+	}
+
+	Mcd::impl.Open();
+}
+
+void FileMcd_EmuClose(void)
+{
+	if(!FileMcd_Open)
+		return;
+	FileMcd_Open = false;
+	Mcd::impl.Close();
+}
+
+static s32 FileMcd_IsPresent(uint port, uint slot)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.IsPresent(combinedSlot);
+	return false;
+}
+
+static void FileMcd_GetSizeInfo(uint port, uint slot, McdSizeInfo* outways)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		Mcd::impl.GetSizeInfo(combinedSlot, *outways);
+}
+
+static bool FileMcd_IsPSX(uint port, uint slot)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.IsPSX(combinedSlot);
+	return false;
+}
+
+static s32 FileMcd_Read(uint port, uint slot, u8* dest, u32 adr, int size)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.Read(combinedSlot, dest, adr, size);
+	return 0;
+}
+
+static s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.Save(combinedSlot, src, adr, size);
+	return 0;
+}
+
+static s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.EraseBlock(combinedSlot, adr);
+	return 0;
+}
+
+static u64 FileMcd_GetCRC(uint port, uint slot)
+{
+	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
+	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
+		return Mcd::impl.GetCRC(combinedSlot);
+	return 0;
+}
+
+static bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter) { return false; }
+
 
 void MultitapProtocol::SupportCheck()
 {
@@ -761,44 +907,6 @@ static bool ConvertRAWtoNoECC(const char* file_in, const char* file_out)
 	return true;
 }
 
-// --------------------------------------------------------------------------------------
-//  FileMemoryCard
-// --------------------------------------------------------------------------------------
-// Provides thread-safe direct file IO mapping.
-//
-class FileMemoryCard
-{
-protected:
-	RFILE* m_file[8] = {};
-	std::string m_filenames[8] = {};
-	std::vector<u8> m_currentdata;
-	u64 m_chksum[8] = {};
-	bool m_ispsx[8] = {};
-	u32 m_chkaddr = 0;
-
-public:
-	FileMemoryCard();
-	~FileMemoryCard();
-
-	void Lock();
-	void Unlock();
-
-	void Open();
-	void Close();
-
-	s32 IsPresent(uint slot);
-	void GetSizeInfo(uint slot, McdSizeInfo& outways);
-	bool IsPSX(uint slot);
-	s32 Read(uint slot, u8* dest, u32 adr, int size);
-	s32 Save(uint slot, const u8* src, u32 adr, int size);
-	s32 EraseBlock(uint slot, u32 adr);
-	u64 GetCRC(uint slot);
-
-protected:
-	bool Seek(RFILE* f, u32 adr);
-	bool Create(const char* mcdFile, uint sizeInMB);
-};
-
 uint FileMcd_GetMtapPort(uint slot)
 {
 	switch (slot)
@@ -1116,105 +1224,6 @@ u64 FileMemoryCard::GetCRC(uint slot)
 	}
 	return m_chksum[slot];
 }
-
-// --------------------------------------------------------------------------------------
-//  MemoryCard Component API Bindings
-// --------------------------------------------------------------------------------------
-namespace Mcd
-{
-	FileMemoryCard impl; // class-based implementations we refer to when API is invoked
-}; // namespace Mcd
-
-uint FileMcd_ConvertToSlot(uint port, uint slot)
-{
-	if (slot == 0)
-		return port;
-	if (port == 0)
-		return slot + 1; // multitap 1
-	return slot + 4;     // multitap 2
-}
-
-void FileMcd_EmuOpen(void)
-{
-	if(FileMcd_Open)
-		return;
-	FileMcd_Open = true;
-	// detect inserted memory card types
-	for (uint slot = 0; slot < 8; ++slot)
-	{
-		if (EmuConfig.Mcd[slot].Filename.empty())
-			EmuConfig.Mcd[slot].Type = MemoryCardType::Empty;
-		else if (EmuConfig.Mcd[slot].Enabled)
-			EmuConfig.Mcd[slot].Type = MemoryCardType::File;
-	}
-
-	Mcd::impl.Open();
-}
-
-void FileMcd_EmuClose(void)
-{
-	if(!FileMcd_Open)
-		return;
-	FileMcd_Open = false;
-	Mcd::impl.Close();
-}
-
-s32 FileMcd_IsPresent(uint port, uint slot)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		return Mcd::impl.IsPresent(combinedSlot);
-	return false;
-}
-
-void FileMcd_GetSizeInfo(uint port, uint slot, McdSizeInfo* outways)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		Mcd::impl.GetSizeInfo(combinedSlot, *outways);
-}
-
-bool FileMcd_IsPSX(uint port, uint slot)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		return Mcd::impl.IsPSX(combinedSlot);
-	return false;
-}
-
-s32 FileMcd_Read(uint port, uint slot, u8* dest, u32 adr, int size)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		return Mcd::impl.Read(combinedSlot, dest, adr, size);
-	return 0;
-}
-
-s32 FileMcd_Save(uint port, uint slot, const u8* src, u32 adr, int size)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		return Mcd::impl.Save(combinedSlot, src, adr, size);
-	return 0;
-}
-
-s32 FileMcd_EraseBlock(uint port, uint slot, u32 adr)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		return Mcd::impl.EraseBlock(combinedSlot, adr);
-	return 0;
-}
-
-u64 FileMcd_GetCRC(uint port, uint slot)
-{
-	const uint combinedSlot = FileMcd_ConvertToSlot(port, slot);
-	if (EmuConfig.Mcd[combinedSlot].Type == MemoryCardType::File)
-		return Mcd::impl.GetCRC(combinedSlot);
-	return 0;
-}
-
-bool FileMcd_ReIndex(uint port, uint slot, const std::string& filter) { return false; }
 
 /* ============================================================================
  * SIO0
