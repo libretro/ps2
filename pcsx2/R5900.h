@@ -342,21 +342,31 @@ extern uint intcInterrupt();
 extern uint dmacInterrupt();
 
 extern void cpuReset();
-extern void cpuTlbMissR(u32 addr, u32 bd);
-extern void cpuTlbMissW(u32 addr, u32 bd);
 extern void cpuClearInt(uint n);
 extern void GoemonPreloadTlb();
 extern void GoemonUnloadTlb(u32 key);
 
 extern void cpuSetNextEvent( u32 startCycle, s32 delta );
 extern int  cpuTestCycle( u32 startCycle, s32 delta );
-extern void cpuSetEvent();
+
+/* Tells the EE to run the branch test the next time it gets a chance. */
+#define cpuSetEvent() cpuRegs.nextEventCycle = cpuRegs.cycle
+
 extern int cpuGetCycles(int interrupt);
 
 extern void _cpuEventTest_Shared(void);	// for internal use by the Dynarecs and Ints inside R5900:
 
 extern void cpuTestINTCInts(void);
 extern void cpuTestDMACInts(void);
+extern void cpuException(u32 code, u32 bd);
+
+#define cpuTlbMiss(addr, bd, excode) \
+	cpuRegs.CP0.n.BadVAddr = addr; \
+	cpuRegs.CP0.n.Context &= 0xFF80000F; \
+	cpuRegs.CP0.n.Context |= (addr >> 9) & 0x007FFFF0; \
+	cpuRegs.CP0.n.EntryHi  = (addr & 0xFFFFE000) | (cpuRegs.CP0.n.EntryHi & 0x1FFF); \
+	cpuRegs.pc            -= 4; \
+	cpuException(excode, bd)
 
 ////////////////////////////////////////////////////////////////////
 // Exception Codes

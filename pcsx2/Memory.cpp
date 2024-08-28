@@ -280,7 +280,7 @@ static uint8_t _ext_memRead8DEV9(u32 mem)
 
 static uint8_t _ext_memRead8(u32 mem)
 {
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
@@ -291,7 +291,7 @@ static uint16_t _ext_memRead16DEV9(u32 mem)
 
 static uint16_t _ext_memRead16_generic(u32 mem)
 {
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
@@ -302,13 +302,13 @@ static uint32_t _ext_memRead32DEV9(u32 mem)
 
 static uint32_t _ext_memRead32(u32 mem)
 {
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
 static u64 _ext_memRead64(u32 mem)
 {
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
@@ -319,7 +319,7 @@ static RETURNS_R128 _ext_memRead128GSM(u32 mem)
 
 static RETURNS_R128 _ext_memRead128(u32 mem)
 {
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return r128_zero();
 }
 
@@ -330,7 +330,7 @@ static void _ext_memWrite8DEV9(u32 mem, uint8_t  value)
 
 static void _ext_memWrite8(u32 mem, uint8_t  value)
 {
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 static void _ext_memWrite16DEV9(u32 mem, uint16_t value)
@@ -340,7 +340,7 @@ static void _ext_memWrite16DEV9(u32 mem, uint16_t value)
 
 static void _ext_memWrite16(u32 mem, uint16_t value)
 {
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 static void _ext_memWrite32DEV9(u32 mem, uint32_t value)
@@ -350,18 +350,18 @@ static void _ext_memWrite32DEV9(u32 mem, uint32_t value)
 
 static void _ext_memWrite32(u32 mem, uint32_t value)
 {
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 static void _ext_memWrite64(u32 mem, uint64_t value)
 {
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 static void TAKES_R128 _ext_memWrite128(u32 mem, r128 value)
 {
 	alignas(16) const u128 uvalue = r128_to_u128(value);
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 // VU Micro Memory Reads...

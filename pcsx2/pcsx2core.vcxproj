@@ -337,7 +337,6 @@
     <ClCompile Include="CDVD\CDVDcommon.cpp" />
     <ClCompile Include="CDVD\CDVDisoReader.cpp" />
     <ClCompile Include="IPU.cpp" />
-    <ClCompile Include="GS.cpp" />
     <ClCompile Include="MTGS.cpp" />
     <ClCompile Include="rdebug\deci2.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>

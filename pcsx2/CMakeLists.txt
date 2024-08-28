@@ -79,7 +79,6 @@ set(pcsx2Sources
 	FPU.cpp
 	Gif.cpp
 	Gif_Unit.cpp
-	GS.cpp
 	Hw.cpp
 	Interpreter.cpp
 	Iop.cpp

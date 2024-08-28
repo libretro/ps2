@@ -33,6 +33,15 @@
 const int rdram_devices = 2;	/* put 8 for TOOL and 2 for PS2 and PSX */
 int rdram_sdevid = 0;
 
+/* Make sure framelimiter options are in sync with GS capabilities. */
+static void gsReset(void)
+{
+	MTGS::ResetGS(true);
+	gsVideoMode = GS_VideoMode::Uninitialized;
+	memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
+	UpdateVSyncRate(true);
+}
+
 void hwReset(void)
 {
 	memset(eeHw, 0, sizeof(eeHw));

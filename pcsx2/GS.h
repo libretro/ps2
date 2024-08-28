@@ -265,16 +265,9 @@ namespace MTGS
 /////////////////////////////////////////////////////////////////////////////
 // Generalized GS Functions and Stuff
 
-extern void gsReset();
-extern void gsSetVideoMode(GS_VideoMode mode);
-extern void gsPostVsyncStart();
-extern void gsUpdateFrequency(Pcsx2Config& config);
-
 extern bool s_GSRegistersWritten;
 
 #define gsIrq() hwIntcIrq(INTC_GS)
-
-extern tGS_CSR CSRr;
 
 /* Size of the ringbuffer as a power of 2 -- size is a multiple of simd128s.
  * (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])

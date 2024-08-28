@@ -73,8 +73,6 @@ static uintptr_t g_argPtrs[KMAXARGS];
 
 extern SysMainMemory& GetVmMemory();
 
-GS_VideoMode gsVideoMode = GS_VideoMode::Uninitialized;
-
 namespace R5900 {
 namespace Dynarec {
 namespace OpcodeImpl {
@@ -1013,7 +1011,7 @@ static int __Deci2Call(int call, u32 *addr)
 	return 0;
 }
 
-static __ri void cpuException(u32 code, u32 bd)
+__ri void cpuException(u32 code, u32 bd)
 {
 	bool checkStatus;
 	u32 offset          = 0;
@@ -1664,11 +1662,11 @@ void SYSCALL(void)
 			{
 				case 0x0: /* "NTSC 640x448 @ 59.940 (59.82)" */
 				case 0x2: /* "NTSC 640x448 @ 59.940 (59.82)" */
-					gsSetVideoMode(GS_VideoMode::NTSC);
+					gsVideoMode = GS_VideoMode::NTSC;
 					break;
 				case 0x1: /* "PAL  640x512 @ 50.000 (49.76)" */
 				case 0x3: /* "PAL  640x512 @ 50.000 (49.76)" */
-					gsSetVideoMode(GS_VideoMode::PAL);
+					gsVideoMode = GS_VideoMode::PAL;
 					break;
 				case 0x1A: /* "VESA 640x480 @ 59.940" */
 				case 0x1B: /* "VESA 640x480 @ 72.809" */
@@ -1685,34 +1683,36 @@ void SYSCALL(void)
 				case 0x3E: /* "VESA 1024x768 @ 84.997" */
 				case 0x4A: /* "VESA 1280x1024 @ 63.981" */
 				case 0x4B: /* "VESA 1280x1024 @ 79.976" */
-					gsSetVideoMode(GS_VideoMode::VESA); break;
+					gsVideoMode = GS_VideoMode::VESA;
+					break;
 				case 0x50: /* "SDTV   720x480 @ 59.94"  */
-					gsSetVideoMode(GS_VideoMode::SDTV_480P);
+					gsVideoMode = GS_VideoMode::SDTV_480P;
 					break;
 				case 0x51: /* "HDTV 1920x1080 @ 60.00"  */
-					gsSetVideoMode(GS_VideoMode::HDTV_1080I);
+					gsVideoMode = GS_VideoMode::HDTV_1080I;
 					break;
 				case 0x52: /* "HDTV  1280x720 @ ??.???" */
-					gsSetVideoMode(GS_VideoMode::HDTV_720P);
+					gsVideoMode = GS_VideoMode::HDTV_720P;
 					break;
 				case 0x53: /* "SDTV   768x576 @ ??.???" */
-					gsSetVideoMode(GS_VideoMode::SDTV_576P);
+					gsVideoMode = GS_VideoMode::SDTV_576P;
 					break;
 				case 0x54: /* "HDTV 1920x1080 @ ??.???" */
-					gsSetVideoMode(GS_VideoMode::HDTV_1080P);
+					gsVideoMode = GS_VideoMode::HDTV_1080P;
 					break;
 				case 0x72: /* "DVD NTSC 640x448 @ ??.???" */
 				case 0x82: /* "DVD NTSC 640x448 @ ??.???" */
-					gsSetVideoMode(GS_VideoMode::DVD_NTSC);
+					gsVideoMode = GS_VideoMode::DVD_NTSC;
 					break;
 				case 0x73: /* "DVD PAL 720x480 @ ??.???" */
 				case 0x83: /* "DVD PAL 720x480 @ ??.???" */
-					gsSetVideoMode(GS_VideoMode::DVD_PAL);
+					gsVideoMode = GS_VideoMode::DVD_PAL;
 					break;
 
 				default:
-					gsSetVideoMode(GS_VideoMode::Unknown);
+					gsVideoMode = GS_VideoMode::Unknown;
 			}
+			UpdateVSyncRate(false);
 		}
 		break;
 		case Syscall::SetOsdConfigParam:
@@ -1904,70 +1904,53 @@ void cpuReset()
 	memset(&fpuRegs, 0, sizeof(fpuRegs));
 	memset(&tlb, 0, sizeof(tlb));
 
-	cpuRegs.pc				= 0xbfc00000; //set pc reg to stack
-	cpuRegs.CP0.n.Config	= 0x440;
-	cpuRegs.CP0.n.Status.val= 0x70400004; //0x10900000 <-- wrong; // COP0 enabled | BEV = 1 | TS = 1
-	cpuRegs.CP0.n.PRid		= 0x00002e20; // PRevID = Revision ID, same as R5900
-	fpuRegs.fprc[0]			= 0x00002e30; // fpu Revision..
-	fpuRegs.fprc[31]		= 0x01000001; // fpu Status/Control
+	cpuRegs.pc		 = 0xbfc00000; // set pc reg to stack
+	cpuRegs.CP0.n.Config	 = 0x440;
+	cpuRegs.CP0.n.Status.val = 0x70400004; // 0x10900000 <-- wrong; // COP0 enabled | BEV = 1 | TS = 1
+	cpuRegs.CP0.n.PRid	 = 0x00002e20; // PRevID = Revision ID, same as R5900
+	fpuRegs.fprc[0]		 = 0x00002e30; // fpu Revision..
+	fpuRegs.fprc[31]	 = 0x01000001; // fpu Status/Control
 
-	cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
-	EEsCycle = 0;
-	EEoCycle = cpuRegs.cycle;
+	cpuRegs.nextEventCycle   = cpuRegs.cycle + 4;
+	EEsCycle                 = 0;
+	EEoCycle                 = cpuRegs.cycle;
 
 	psxReset();
 	pgifInit();
 
-	deci2handler	= 0;
-	deci2addr	= 0;
+	deci2handler	         = 0;
+	deci2addr	         = 0;
 	memset(deci2buffer, 0, sizeof(deci2buffer));
 
-	g_SkipBiosHack = EmuConfig.UseBOOT2Injection;
-	AllowParams1 = !g_SkipBiosHack;
-	AllowParams2 = !g_SkipBiosHack;
+	g_SkipBiosHack           = EmuConfig.UseBOOT2Injection;
+	AllowParams1             = !g_SkipBiosHack;
+	AllowParams2             = !g_SkipBiosHack;
 
-	ElfCRC = 0;
+	ElfCRC                   = 0;
 	DiscSerial.clear();
-	ElfEntry = -1;
-	g_GameStarted = false;
-	g_GameLoading = false;
+	ElfEntry                 = -1;
+	g_GameStarted            = false;
+	g_GameLoading            = false;
 
-	// FIXME: LastELF should be reset on media changes as well as on CPU resets, in
-	// the very unlikely case that a user swaps to another media source that "looks"
-	// the same (identical ELF names) but is actually different (devs actually could
-	// run into this while testing minor binary hacked changes to ISO images, which
-	// is why I found out about this) --air
+	/* FIXME: LastELF should be reset on media changes as well as on CPU resets, in
+	 * the very unlikely case that a user swaps to another media source that "looks"
+	 * the same (identical ELF names) but is actually different (devs actually could
+	 * run into this while testing minor binary hacked changes to ISO images, which
+	 * is why I found out about this) --air */
 	LastELF.clear();
 
-	g_eeloadMain = 0, g_eeloadExec = 0, g_osdsys_str = 0;
+	g_eeloadMain             = 0;
+	g_eeloadExec             = 0;
+	g_osdsys_str             = 0;
 }
 
-void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
-{
-	cpuRegs.CP0.n.BadVAddr = addr;
-	cpuRegs.CP0.n.Context &= 0xFF80000F;
-	cpuRegs.CP0.n.Context |= (addr >> 9) & 0x007FFFF0;
-	cpuRegs.CP0.n.EntryHi = (addr & 0xFFFFE000) | (cpuRegs.CP0.n.EntryHi & 0x1FFF);
-
-	cpuRegs.pc -= 4;
-	cpuException(excode, bd);
-}
-
-void cpuTlbMissR(u32 addr, u32 bd) {
-	cpuTlbMiss(addr, bd, EXC_CODE_TLBL);
-}
-
-void cpuTlbMissW(u32 addr, u32 bd) {
-	cpuTlbMiss(addr, bd, EXC_CODE_TLBS);
-}
-
-// sets a branch test to occur some time from an arbitrary starting point.
+/* sets a branch test to occur some time from an arbitrary starting point. */
 __fi void cpuSetNextEvent( u32 startCycle, s32 delta )
 {
-	// typecast the conditional to signed so that things don't blow up
-	// if startCycle is greater than our next branch cycle.
+	/* typecast the conditional to signed so that things don't blow up
+	 * if startCycle is greater than our next branch cycle. */
 
-	if( (int)(cpuRegs.nextEventCycle - startCycle) > delta )
+	if( (int)(cpuRegs.nextEventCycle - startCycle) > delta)
 		cpuRegs.nextEventCycle = startCycle + delta;
 }
 
@@ -1986,12 +1969,6 @@ __fi int cpuTestCycle( u32 startCycle, s32 delta )
 	// typecast the conditional to signed so that things don't explode
 	// if the startCycle is ahead of our current cpu cycle.
 	return (int)(cpuRegs.cycle - startCycle) >= delta;
-}
-
-// tells the EE to run the branch test the next time it gets a chance.
-__fi void cpuSetEvent(void)
-{
-	cpuRegs.nextEventCycle = cpuRegs.cycle;
 }
 
 __fi void cpuClearInt(uint i)
@@ -2013,7 +1990,10 @@ static __fi void TESTINT( u8 n, void (*callback)() )
 		cpuSetNextEvent( cpuRegs.sCycle[n], cpuRegs.eCycle[n] );
 }
 
-static void MTVUInterrupt(void) { vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00; }
+static void MTVUInterrupt(void)
+{
+	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
+}
 
 // [TODO] move this function to Dmac.cpp, and remove most of the DMAC-related headers from
 // being included into R5900.cpp.

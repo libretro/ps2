@@ -625,7 +625,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	memBindConditionalHandlers();
 
 	ForgetLoadedPatches();
-	gsUpdateFrequency(EmuConfig);
+	UpdateVSyncRate(true);
 
 	cpuReset();
 	hwReset();
@@ -944,7 +944,6 @@ void VMManager::CheckForGSConfigChanges(const Pcsx2Config& old_config)
 
 	Console.WriteLn("Updating GS configuration...");
 
-	gsUpdateFrequency(EmuConfig);
 	UpdateVSyncRate(true);
 	MTGS::ApplySettings();
 }
@@ -955,7 +954,6 @@ void VMManager::CheckForFramerateConfigChanges(const Pcsx2Config& old_config)
 		return;
 
 	Console.WriteLn("Updating frame rate configuration");
-	gsUpdateFrequency(EmuConfig);
 	UpdateVSyncRate(true);
 }
 

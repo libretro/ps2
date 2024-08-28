@@ -464,9 +464,6 @@
     <ClCompile Include="IPU.cpp">
       <Filter>System\Ps2\IPU</Filter>
     </ClCompile>
-    <ClCompile Include="GS.cpp">
-      <Filter>System\Ps2\GS\GIF</Filter>
-    </ClCompile>
     <ClCompile Include="MTGS.cpp">
       <Filter>System\Ps2\GS\GIF</Filter>
     </ClCompile>

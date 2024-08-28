@@ -28,8 +28,8 @@
 #include "Host.h"
 #include "VMManager.h"
 
-// Mask to apply to ring buffer indices to wrap the pointer from end to
-// start (the wrapping is what makes it a ringbuffer, yo!)
+/* Mask to apply to ring buffer indices to wrap 
+ * the pointer from end to start */
 static const unsigned int RINGBUFFERMASK = RINGBUFFERSIZE - 1;
 
 union PacketTagType
@@ -53,6 +53,11 @@ union PacketTagType
 
 alignas(__cachelinesize) static u128 m_Ring[RINGBUFFERSIZE];
 
+GS_VideoMode gsVideoMode = GS_VideoMode::Uninitialized;
+
+alignas(16) u8 g_RealGSMem[Ps2MemSize::GSregs];
+bool s_GSRegistersWritten = false;
+
 extern struct retro_hw_render_callback hw_render;
 
 namespace MTGS
@@ -72,6 +77,14 @@ namespace MTGS
 	static std::thread::id s_thread;
 	static volatile bool s_open_flag = false;
 };
+
+bool SaveStateBase::gsFreeze()
+{
+	FreezeMem(PS2MEM_GS, 0x2000);
+	Freeze(gsVideoMode);
+
+	return IsOkay();
+}
 
 bool MTGS::IsOpen() { return s_open_flag; }
 
