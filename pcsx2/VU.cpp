@@ -93,7 +93,7 @@ template<bool breakOnMbit, bool addCycles, bool sync_only> static __fi void _vu0
 	if (addCycles)
 	{
 		cpuRegs.cycle += (vuRegs[0].cycle - startcycle);
-		CpuVU1->ExecuteBlock(0); /* Catch up VU1 as it's likely fallen behind */
+		CpuVU1->ExecuteBlock(false); /* Catch up VU1 as it's likely fallen behind */
 
 		if (vuRegs[0].VI[REG_VPU_STAT].UL & 1)
 			cpuSetNextEvent(cpuRegs.cycle, 4);
@@ -881,7 +881,7 @@ void vu0ExecMicro(u32 addr)
 		vuRegs[0].VI[REG_TPC].UL = addr & 0x1FF;
 
 	vuRegs[0].start_pc = vuRegs[0].VI[REG_TPC].UL << 3;
-	CpuVU0->ExecuteBlock(1);
+	CpuVU0->ExecuteBlock(true);
 }
 
 /* This is called by the COP2 as per the CTC instruction */
@@ -937,7 +937,7 @@ void vu1ExecMicro(u32 addr)
 
 	vuRegs[1].start_pc = vuRegs[1].VI[REG_TPC].UL << 3;
 	if(!INSTANT_VU1)
-		CpuVU1->ExecuteBlock(1);
+		CpuVU1->ExecuteBlock(true);
 	else
 		CpuVU1->Execute(vu1RunCycles);
 }

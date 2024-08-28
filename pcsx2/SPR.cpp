@@ -24,9 +24,8 @@ static bool spr0finished = false;
 static bool spr1finished = false;
 static u32 mfifotransferred = 0;
 
-/* FIXME: These belong in common with other memcpy tools.  Will move them there later if no one
- * else beats me to it.  --air */
-static inline void MemCopy_WrappedDest(const u128* src, u128* destBase, uint& destStart, uint destSize, uint len)
+static inline void MemCopy_WrappedDest(const u128* src, u128* destBase, uint& destStart,
+		uint destSize, uint len)
 {
 	uint endpos = destStart + len;
 	if (endpos < destSize)
@@ -43,7 +42,7 @@ static inline void MemCopy_WrappedDest(const u128* src, u128* destBase, uint& de
 	}
 }
 
-static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
+template<bool isWrite> static void TestClearVUs(u32 madr, u32 qwc)
 {
 	if (madr >= 0x11000000 && (madr < 0x11010000))
 	{
@@ -54,9 +53,11 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 		{
 			_vu0FinishMicro();
 			/* Catch up VU1 too */
-			CpuVU1->ExecuteBlock(0);
+			CpuVU1->ExecuteBlock(false);
 		}
-		if ((madr >= 0x11008000) && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100) && (!THREAD_VU1 || !isWrite))
+		if (       (madr >= 0x11008000) 
+			&& (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100) 
+			&& (!THREAD_VU1 || !isWrite))
 		{
 			if (THREAD_VU1)
 				vu1Thread.WaitVU();
@@ -64,7 +65,7 @@ static void TestClearVUs(u32 madr, u32 qwc, bool isWrite)
 				CpuVU1->Execute(vu1RunCycles);
 			cpuRegs.cycle = vuRegs[1].cycle;
 			/* Catch up VU0 too */
-			CpuVU0->ExecuteBlock(0);
+			CpuVU0->ExecuteBlock(false);
 		}
 
 		if (isWrite)
@@ -198,7 +199,7 @@ int  _SPR0chain(void)
 		memcpy_from_spr((u8*)pMem, spr0ch.sadr, partialqwc*16);
 
 		/* Clear VU mem also! */
-		TestClearVUs(spr0ch.madr, partialqwc, true);
+		TestClearVUs<true>(spr0ch.madr, partialqwc);
 
 		spr0ch.madr += partialqwc << 4;
 		spr0ch.sadr += partialqwc << 4;
@@ -249,7 +250,7 @@ void _SPR0interleave(void)
 			case NO_MFD:
 			case MFD_RESERVED:
 				/* Clear VU mem also! */
-				TestClearVUs(spr0ch.madr, spr0ch.qwc, true);
+				TestClearVUs<true>(spr0ch.madr, spr0ch.qwc);
 				memcpy_from_spr((u8*)pMem, spr0ch.sadr, spr0ch.qwc*16);
 				break;
  		}
@@ -393,49 +394,46 @@ void dmaSPR0(void)   /* fromSPR */
 __fi static void SPR1transfer(const void* data, int qwc)
 {
 	if ((spr1ch.madr >= 0x11000000) && (spr1ch.madr < 0x11010000))
-		TestClearVUs(spr1ch.madr, spr1ch.qwc, false);
+		TestClearVUs<false>(spr1ch.madr, spr1ch.qwc);
 
 	memcpy_to_spr(spr1ch.sadr, (u8*)data, qwc*16);
 	spr1ch.sadr += qwc * 16;
 	spr1ch.sadr &= 0x3FFF; // Limited to 16K
 }
 
-int  _SPR1chain(void)
+static int  _SPR1chain(void)
 {
-	tDMA_TAG *pMem;
-
-	if (spr1ch.qwc == 0) return 0;
-
-	pMem = SPRdmaGetAddr(spr1ch.madr, false);
-	if (pMem == NULL) return -1;
 	int partialqwc = 0;
-	// Taking an arbitary small value for games which like to check the QWC/MADR instead of STR, so get most of
-	// the cycle delay out of the way before the end.
+	tDMA_TAG *pMem = SPRdmaGetAddr(spr1ch.madr, false);
+	if (!pMem)
+		return -1;
+	/* Taking an arbitary small value for games which 
+	 * like to check the QWC/MADR instead of STR, so get most of
+	 * the cycle delay out of the way before the end. */
 	partialqwc = std::min(spr1ch.qwc, 0x400u);
 
 	SPR1transfer(pMem, partialqwc);
 	spr1ch.madr += partialqwc * 16;
-	spr1ch.qwc -= partialqwc;
-
+	spr1ch.qwc  -= partialqwc;
 	hwDmacSrcTadrInc(spr1ch);
-
-	return (partialqwc);
+	return partialqwc;
 }
 
-void _SPR1interleave(void)
+static void _SPR1interleave(void)
 {
 	int qwc  = spr1ch.qwc;
 	int sqwc = dmacRegs.sqwc.SQWC;
 	int tqwc = dmacRegs.sqwc.TQWC;
 	tDMA_TAG *pMem;
 
-	if (tqwc == 0) tqwc = qwc;
+	if (tqwc == 0)
+		tqwc = qwc;
 	CPU_INT(DMAC_TO_SPR, qwc * BIAS);
 	while (qwc > 0)
 	{
-		spr1ch.qwc = std::min(tqwc, qwc);
-		qwc -= spr1ch.qwc;
-		pMem = SPRdmaGetAddr(spr1ch.madr, false);
+		spr1ch.qwc   = std::min(tqwc, qwc);
+		qwc         -= spr1ch.qwc;
+		pMem         = SPRdmaGetAddr(spr1ch.madr, false);
 		memcpy_to_spr(spr1ch.sadr, (u8*)pMem, spr1ch.qwc*16);
 		spr1ch.sadr += spr1ch.qwc * 16;
 		spr1ch.sadr &= 0x3FFF; /* Limited to 16K */
@@ -445,14 +443,16 @@ void _SPR1interleave(void)
 	spr1ch.qwc = 0;
 }
 
-void _dmaSPR1(void)   /* toSPR work function */
+static void _dmaSPR1(void)   /* toSPR work function */
 {
 	switch(spr1ch.chcr.MOD)
 	{
 		case NORMAL_MODE:
 			/* Transfer Dn_QWC from Dn_MADR to SPR1 */
 			{
-				int cycles =  _SPR1chain() * BIAS;
+				int cycles = 0;
+				if (spr1ch.qwc != 0)
+					cycles = _SPR1chain() * BIAS;
 				CPU_INT(DMAC_TO_SPR, cycles);
 			}
 			spr1finished = true;
@@ -465,7 +465,9 @@ void _dmaSPR1(void)   /* toSPR work function */
 			if (spr1ch.qwc > 0)
 			{
 				/* Transfer Dn_QWC from Dn_MADR to SPR1 */
-				int cycles =  _SPR1chain() * BIAS;
+				int cycles = 0;
+				if (spr1ch.qwc != 0)
+					cycles = _SPR1chain() * BIAS;
 				CPU_INT(DMAC_TO_SPR, cycles);
 				return;
 			}
@@ -487,7 +489,9 @@ void _dmaSPR1(void)   /* toSPR work function */
 
 			done = hwDmacSrcChain(spr1ch, ptag->ID);
 			{
-				int cycles =  _SPR1chain() * BIAS;
+				int cycles = 0;
+				if (spr1ch.qwc != 0)
+					cycles     =  _SPR1chain() * BIAS;
 				CPU_INT(DMAC_TO_SPR, cycles);
 				/* Transfers the data set by the switch */
 			}
@@ -499,11 +503,9 @@ void _dmaSPR1(void)   /* toSPR work function */
 			break;
 		}
 		default:
-		{
 			_SPR1interleave();
 			spr1finished = true;
 			break;
-		}
 	}
 }
 
