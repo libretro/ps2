@@ -176,16 +176,15 @@ static void _psxFlushCall(int flushtype)
 	if (flushtype & FLUSH_CONSTANT_REGS)
 		_psxFlushConstRegs();
 
-	if ((flushtype & FLUSH_PC) /*&& !g_cpuFlushedPC*/)
+	if ((flushtype & FLUSH_PC))
 	{
 		xMOV(ptr32[&psxRegs.pc], psxpc);
-		//g_cpuFlushedPC = true;
 	}
 }
 
 void _psxFlushAllDirty()
 {
-	// TODO: Combine flushes
+	/* TODO: Combine flushes */
 	for (uint32_t i = 0; i < 32; ++i)
 	{
 		if (PSX_IS_CONST1(i))

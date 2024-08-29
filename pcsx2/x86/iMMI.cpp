@@ -67,7 +67,7 @@ void recPLZCW(void)
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		_eeOnWriteReg(_Rd_, 0);
+		GPR_DEL_CONST(_Rd_);
 		_deleteEEreg(_Rd_, 0);
 		GPR_SET_CONST(_Rd_);
 
@@ -78,7 +78,7 @@ void recPLZCW(void)
 		return;
 	}
 
-	_eeOnWriteReg(_Rd_, 0);
+	GPR_DEL_CONST(_Rd_);
 
 	if ((xmmregs = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ)) >= 0)
 	{
@@ -1500,8 +1500,14 @@ void recQFSRV(void)
 
 	if (_Rs_ == _Rt_ + 1)
 	{
-		_flushEEreg(_Rs_);
-		_flushEEreg(_Rt_);
+		if (_Rs_)
+		{
+			_flushEEreg(_Rs_);
+		}
+		if (_Rt_)
+		{
+			_flushEEreg(_Rt_);
+		}
 		int info = eeRecompileCodeXMM(XMMINFO_WRITED);
 
 		xMOV(eax, ptr32[&cpuRegs.sa]);
@@ -2454,9 +2460,6 @@ REC_FUNC_DEL(PEXCW,   _Rd_);
 REC_FUNC_DEL(PEXCH,   _Rd_);
 
 #else
-
-////////////////////////////////////////////////////
-//REC_FUNC( PSRAVW, _Rd_ );
 
 void recPSRAVW(void)
 {

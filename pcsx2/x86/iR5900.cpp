@@ -43,6 +43,69 @@
 #include "../vtlb.h"
 #include "../CDVD/CDVD.h"
 
+#define REC_SYS_DEL(f, delreg) \
+	void rec##f() \
+	{ \
+		if ((delreg) > 0) \
+			_deleteEEreg(delreg, 1); \
+		recBranchCall(Interp::f); \
+	}
+
+static RecompiledCodeReserve* recMem = NULL;
+static u8* recRAMCopy = NULL;
+static u8* recLutReserve_RAM = NULL;
+static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * sizeof(intptr_t) / 4;
+
+static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
+static BASEBLOCK* recROM = NULL; // and here
+static BASEBLOCK* recROM1 = NULL; // also here
+static BASEBLOCK* recROM2 = NULL; // also here
+
+static BaseBlocks recBlocks;
+static u8* recPtr = NULL;
+static EEINST* s_pInstCache = NULL;
+static uint32_t s_nInstCacheSize = 0;
+
+static BASEBLOCK* s_pCurBlock = NULL;
+static BASEBLOCKEX* s_pCurBlockEx = NULL;
+static uint32_t s_nEndBlock = 0; // what pc the current block ends
+static uint32_t s_branchTo;
+static bool s_nBlockFF;
+
+// save states for branches
+static GPR_reg64 s_saveConstRegs[32];
+static uint32_t s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
+static EEINST* s_psaveInstInfo = NULL;
+
+static uint32_t s_savenBlockCycles = 0;
+
+/* yay sloppy crap needed until we can remove dependency on this hippopotamic
+ * landmass of shared code. (air) */
+extern uint32_t g_psxConstRegs[32];
+
+/* X86 caching */
+static uint g_x86checknext;
+
+static bool eeRecNeedsReset = false;
+static bool eeCpuExecuting = false;
+static bool eeRecExitRequested = false;
+static bool g_resetEeScalingStats = false;
+
+static uint32_t maxrecmem = 0;
+alignas(16) static uintptr_t recLUT[_64kb];
+alignas(16) static uint32_t hwLUT[_64kb];
+
+static uint32_t s_nBlockCycles = 0; // cycles of current block recompiling
+bool s_nBlockInterlocked = false; // Block is VU0 interlocked
+uint32_t pc; // recompiler pc
+int g_branch; // set for branch
+
+alignas(16) GPR_reg64 g_cpuConstRegs[32] = {};
+uint32_t g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
+bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
+
+static int RETURN_READ_IN_RAX(void) { return x86Emitter::rax.Id; }
+
 /* Takes a functor of bool(pc, EEINST*), returning false if iteration should stop. */
 template <class F>
 static void __fi ForEachInstruction(uint32_t start, uint32_t end, EEINST* inst_cache, const F& func)
@@ -75,6 +138,30 @@ struct COP2MicroFinishPass
 
 #define PC_GETBLOCK(x) PC_GETBLOCK_(x, recLUT)
 #define HWADDR(mem) (hwLUT[(mem) >> 16] + (mem))
+
+static void SaveBranchState(void)
+{
+	s_savenBlockCycles = s_nBlockCycles;
+	memcpy(s_saveConstRegs, g_cpuConstRegs, sizeof(g_cpuConstRegs));
+	s_saveHasConstReg = g_cpuHasConstReg;
+	s_saveFlushedConstReg = g_cpuFlushedConstReg;
+	s_psaveInstInfo = g_pCurInstInfo;
+
+	memcpy(s_saveXMMregs, xmmregs, sizeof(xmmregs));
+}
+
+static void LoadBranchState(void)
+{
+	s_nBlockCycles = s_savenBlockCycles;
+
+	memcpy(g_cpuConstRegs, s_saveConstRegs, sizeof(g_cpuConstRegs));
+	g_cpuHasConstReg = s_saveHasConstReg;
+	g_cpuFlushedConstReg = s_saveFlushedConstReg;
+	g_pCurInstInfo = s_psaveInstInfo;
+
+	memcpy(xmmregs, s_saveXMMregs, sizeof(xmmregs));
+}
+
 
 namespace R5900 {
 namespace Dynarec {
@@ -1713,41 +1800,9 @@ void recBackpropBSC(uint32_t code, EEINST* prev, EEINST* pinst)
 using namespace vtlb_private;
 using namespace x86Emitter;
 
-// yay sloppy crap needed until we can remove dependency on this hippopotamic
-// landmass of shared code. (air)
-extern uint32_t g_psxConstRegs[32];
-
-// X86 caching
-static uint g_x86checknext;
-
-static bool eeRecNeedsReset = false;
-static bool eeCpuExecuting = false;
-static bool eeRecExitRequested = false;
-static bool g_resetEeScalingStats = false;
-
-static uint32_t maxrecmem = 0;
-alignas(16) static uintptr_t recLUT[_64kb];
-alignas(16) static uint32_t hwLUT[_64kb];
-
-static uint32_t s_nBlockCycles = 0; // cycles of current block recompiling
-bool s_nBlockInterlocked = false; // Block is VU0 interlocked
-uint32_t pc; // recompiler pc
-int g_branch; // set for branch
-
-alignas(16) GPR_reg64 g_cpuConstRegs[32] = {};
-uint32_t g_cpuHasConstReg = 0, g_cpuFlushedConstReg = 0;
-bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalException;
-
-static int RETURN_READ_IN_RAX(void) { return rax.Id; }
-
 ////////////////////
 // Code Templates //
 ////////////////////
-
-void _eeOnWriteReg(int reg, int signext)
-{
-	GPR_DEL_CONST(reg);
-}
 
 void _deleteEEreg(int reg, int flush)
 {
@@ -1772,18 +1827,13 @@ void _deleteEEreg128(int reg)
 	_deleteGPRtoX86reg(reg, DELETE_REG_FREE_NO_WRITEBACK);
 }
 
-void _flushEEreg(int reg, bool clear)
+void _flushEEreg(int reg)
 {
-	if (!reg)
-		return;
-
 	if (GPR_IS_DIRTY_CONST(reg))
 		_flushConstReg(reg);
-	if (clear)
-		GPR_DEL_CONST(reg);
 
-	_deleteGPRtoXMMreg(reg, clear ? DELETE_REG_FLUSH_AND_FREE : DELETE_REG_FLUSH);
-	_deleteGPRtoX86reg(reg, clear ? DELETE_REG_FLUSH_AND_FREE : DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(reg, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(reg, DELETE_REG_FLUSH);
 }
 
 static int _eeTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
@@ -4144,20 +4194,20 @@ EERECOMPILE_CODEX(eeRecompileCodeRC1, XORI, XMMINFO_WRITET | XMMINFO_READS | XMM
 
 namespace Interp = R5900::Interpreter::OpcodeImpl;
 
-REC_SYS(BEQ);
-REC_SYS(BEQL);
-REC_SYS(BNE);
-REC_SYS(BNEL);
-REC_SYS(BLTZ);
-REC_SYS(BGTZ);
-REC_SYS(BLEZ);
-REC_SYS(BGEZ);
-REC_SYS(BGTZL);
-REC_SYS(BLTZL);
+void recBEQ(void)  { recBranchCall(Interp::BEQ); }
+void recBEQL(void) { recBranchCall(Interp::BEQL); }
+void recBNE(void)  { recBranchCall(Interp::BNE); }
+void recBNEL(void) { recBranchCall(Interp::BNEL); }
+void recBLTZ(void) { recBranchCall(Interp::BLTZ); }
+void recBGTZ(void) { recBranchCall(Interp::BGTZ); }
+void recBLEZ(void) { recBranchCall(Interp::BLEZ); }
+void recBGEZ(void) { recBranchCall(Interp::BGEZ); }
+void recBGTZL(void) { recBranchCall(Interp::BGTZL); }
+void recBLTZL(void) { recBranchCall(Interp::BLTZL); }
 REC_SYS_DEL(BLTZAL, 31);
 REC_SYS_DEL(BLTZALL, 31);
-REC_SYS(BLEZL);
-REC_SYS(BGEZL);
+void recBLEZL(void) { recBranchCall(Interp::BLEZL); }
+void recBGEZL(void) { recBranchCall(Interp::BGEZL); }
 REC_SYS_DEL(BGEZAL, 31);
 REC_SYS_DEL(BGEZALL, 31);
 
@@ -4468,7 +4518,7 @@ void recBLTZAL(void)
 {
 	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
-	_eeOnWriteReg(31, 0);
+	GPR_DEL_CONST(31);
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
@@ -4515,7 +4565,7 @@ void recBGEZAL(void)
 {
 	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
-	_eeOnWriteReg(31, 0);
+	GPR_DEL_CONST(31);
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
@@ -4562,7 +4612,7 @@ void recBLTZALL(void)
 {
 	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
-	_eeOnWriteReg(31, 0);
+	GPR_DEL_CONST(31);
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
@@ -4596,7 +4646,7 @@ void recBGEZALL(void)
 {
 	uint32_t branchTo = ((int32_t)_Imm_ * 4) + pc;
 
-	_eeOnWriteReg(31, 0);
+	GPR_DEL_CONST(31);
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
@@ -4982,9 +5032,9 @@ void recBGTZL(void)
 
 namespace Interp = R5900::Interpreter::OpcodeImpl;
 
-REC_SYS(J);
+void recJ(void) { recBranchCall(Interp::J); }
 REC_SYS_DEL(JAL, 31);
-REC_SYS(JR);
+void recJR(void) { recBranchCall(Interp::JR); }
 REC_SYS_DEL(JALR, _Rd_);
 
 #else
@@ -5125,19 +5175,20 @@ REC_FUNC_DEL(LD, _Rt_);
 REC_FUNC_DEL(LDR, _Rt_);
 REC_FUNC_DEL(LDL, _Rt_);
 REC_FUNC_DEL(LQ, _Rt_);
-REC_FUNC(SB);
-REC_FUNC(SH);
-REC_FUNC(SW);
-REC_FUNC(SWL);
-REC_FUNC(SWR);
-REC_FUNC(SD);
-REC_FUNC(SDL);
-REC_FUNC(SDR);
-REC_FUNC(SQ);
-REC_FUNC(LWC1);
-REC_FUNC(SWC1);
-REC_FUNC(LQC2);
-REC_FUNC(SQC2);
+
+void recSB(void)   { recCall(Interp::SB); }
+void recSH(void)   { recCall(Interp::SH); }
+void recSW(void)   { recCall(Interp::SW); }
+void recSWL(void)  { recCall(Interp::SWL); }
+void recSWR(void)  { recCall(Interp::SWR); }
+void recSD(void)   { recCall(Interp::SD); }
+void recSDL(void)  { recCall(Interp::SDL); }
+void recSDR(void)  { recCall(Interp::SDR); }
+void recSQ(void)   { recCall(Interp::SQ); }
+void recLWC1(void) { recCall(Interp::LWC1); }
+void recSWC1(void) { recCall(Interp::SWC1); }
+void recLQC2(void) { recCall(Interp::LQC2); }
+void recSQC2(void) { recCall(Interp::SQC2); }
 
 #else
 
@@ -6088,13 +6139,15 @@ namespace Interp = R5900::Interpreter::OpcodeImpl;
 REC_FUNC_DEL(LUI, _Rt_);
 REC_FUNC_DEL(MFLO, _Rd_);
 REC_FUNC_DEL(MFHI, _Rd_);
-REC_FUNC(MTLO);
-REC_FUNC(MTHI);
+
+void recMTLO(void)     { recCall(Interp::MTLO); }
+void recMTHI(void)     { recCall(Interp::MTHI); }
 
 REC_FUNC_DEL(MFLO1, _Rd_);
 REC_FUNC_DEL(MFHI1, _Rd_);
-REC_FUNC(MTHI1);
-REC_FUNC(MTLO1);
+
+void recMTHI1(void)    { recCall(Interp::MTHI1); }
+void recMTLO1(void)    { recCall(Interp::MTLO1); }
 
 REC_FUNC_DEL(MOVZ, _Rd_);
 REC_FUNC_DEL(MOVN, _Rd_);
@@ -6125,8 +6178,8 @@ static void recMFHILO(bool hi, bool upper)
 	if (!_Rd_)
 		return;
 
-	// kill any constants on rd, lower 64 bits get written regardless of upper
-	_eeOnWriteReg(_Rd_, 0);
+	/* kill any constants on rd, lower 64 bits get written regardless of upper */
+	GPR_DEL_CONST(_Rd_);
 
 	const int reg = hi ? XMMGPR_HI : XMMGPR_LO;
 	const int xmmd = EEINST_XMMUSEDTEST(_Rd_) ? _allocGPRtoXMMreg(_Rd_, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, _Rd_, MODE_READ | MODE_WRITE);
@@ -6193,7 +6246,7 @@ static void recMFHILO(bool hi, bool upper)
 static void recMTHILO(bool hi, bool upper)
 {
 	const int reg = hi ? XMMGPR_HI : XMMGPR_LO;
-	_eeOnWriteReg(reg, 0);
+	GPR_DEL_CONST(reg);
 
 	const int xmms = EEINST_XMMUSEDTEST(_Rs_) ? _allocGPRtoXMMreg(_Rs_, MODE_READ) : _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ);
 	const int xmmhilo = EEINST_XMMUSEDTEST(reg) ? _allocGPRtoXMMreg(reg, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, reg, MODE_READ | MODE_WRITE);
@@ -6416,10 +6469,10 @@ REC_FUNC_DEL(MULTU, _Rd_);
 REC_FUNC_DEL(MULT1, _Rd_);
 REC_FUNC_DEL(MULTU1, _Rd_);
 
-REC_FUNC(DIV);
-REC_FUNC(DIVU);
-REC_FUNC(DIV1);
-REC_FUNC(DIVU1);
+void recDIV(void)    { recCall(Interp::DIV); }
+void recDIVU(void)   { recCall(Interp::DIVU); }
+void recDIV1(void)   { recCall(Interp::DIV1); }
+void recDIVU1(void)  { recCall(Interp::DIVU1); }
 
 REC_FUNC_DEL(MADD, _Rd_);
 REC_FUNC_DEL(MADDU, _Rd_);
@@ -6569,7 +6622,7 @@ static void recWritebackConstHILO(uint64_t res, bool writed, int upper)
 	// writeback lo to Rd if present
 	if (writed && _Rd_ && EEINST_LIVETEST(_Rd_))
 	{
-		_eeOnWriteReg(_Rd_, 0);
+		GPR_DEL_CONST(_Rd_);
 
 		const int regd = _checkX86reg(X86TYPE_GPR, _Rd_, MODE_WRITE);
 		if (regd >= 0)
@@ -6940,7 +6993,7 @@ static void writeBackMAddToHiLoRd(int hiloID)
 	x86Ptr += sizeof(u16);
 	if (_Rd_)
 	{
-		_eeOnWriteReg(_Rd_, 1);
+		GPR_DEL_CONST(_Rd_);
 		_deleteEEreg(_Rd_, 0);
 		xMOV(ptr[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
 	}
@@ -7563,34 +7616,6 @@ EERECOMPILE_CODERC0(DSRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMI
 // Static Private Variables - R5900 Dynarec
 
 #define X86
-
-static RecompiledCodeReserve* recMem = NULL;
-static u8* recRAMCopy = NULL;
-static u8* recLutReserve_RAM = NULL;
-static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * sizeof(intptr_t) / 4;
-
-static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
-static BASEBLOCK* recROM = NULL; // and here
-static BASEBLOCK* recROM1 = NULL; // also here
-static BASEBLOCK* recROM2 = NULL; // also here
-
-static BaseBlocks recBlocks;
-static u8* recPtr = NULL;
-static EEINST* s_pInstCache = NULL;
-static uint32_t s_nInstCacheSize = 0;
-
-static BASEBLOCK* s_pCurBlock = NULL;
-static BASEBLOCKEX* s_pCurBlockEx = NULL;
-static uint32_t s_nEndBlock = 0; // what pc the current block ends
-static uint32_t s_branchTo;
-static bool s_nBlockFF;
-
-// save states for branches
-static GPR_reg64 s_saveConstRegs[32];
-static uint32_t s_saveHasConstReg = 0, s_saveFlushedConstReg = 0;
-static EEINST* s_psaveInstInfo = NULL;
-
-static uint32_t s_savenBlockCycles = 0;
 
 static void iBranchTest(uint32_t newpc);
 static void ClearRecLUT(BASEBLOCK* base, int count);
@@ -8444,29 +8469,6 @@ bool TrySwapDelaySlot(uint32_t rs, uint32_t rt, uint32_t rd, bool allow_loadstor
 
 	recompileNextInstruction(true, true);
 	return true;
-}
-
-void SaveBranchState(void)
-{
-	s_savenBlockCycles = s_nBlockCycles;
-	memcpy(s_saveConstRegs, g_cpuConstRegs, sizeof(g_cpuConstRegs));
-	s_saveHasConstReg = g_cpuHasConstReg;
-	s_saveFlushedConstReg = g_cpuFlushedConstReg;
-	s_psaveInstInfo = g_pCurInstInfo;
-
-	memcpy(s_saveXMMregs, xmmregs, sizeof(xmmregs));
-}
-
-void LoadBranchState(void)
-{
-	s_nBlockCycles = s_savenBlockCycles;
-
-	memcpy(g_cpuConstRegs, s_saveConstRegs, sizeof(g_cpuConstRegs));
-	g_cpuHasConstReg = s_saveHasConstReg;
-	g_cpuFlushedConstReg = s_saveFlushedConstReg;
-	g_pCurInstInfo = s_psaveInstInfo;
-
-	memcpy(xmmregs, s_saveXMMregs, sizeof(xmmregs));
 }
 
 void iFlushCall(int flushtype)

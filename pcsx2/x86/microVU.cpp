@@ -7699,8 +7699,8 @@ void recSQC2()
 #else
 namespace Interp = R5900::Interpreter::OpcodeImpl;
 
-REC_FUNC(LQC2);
-REC_FUNC(SQC2);
+void recLQC2(void) { recCall(Interp::LQC2); }
+void recSQC2(void) { recCall(Interp::SQC2); }
 
 #endif
 

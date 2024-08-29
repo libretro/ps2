@@ -30,14 +30,6 @@ extern bool g_recompilingDelaySlot;
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 
-#define REC_SYS_DEL(f, delreg) \
-	void rec##f() \
-	{ \
-		if ((delreg) > 0) \
-			_deleteEEreg(delreg, 1); \
-		recBranchCall(Interp::f); \
-	}
-
 #define REC_FUNC_DEL(f, delreg) \
 	void rec##f() \
 	{ \
@@ -46,17 +38,12 @@ extern bool g_recompilingDelaySlot;
 		recCall(Interp::f); \
 	}
 
-#define REC_FUNC(f) void rec##f() { recCall(Interp::f); }
-#define REC_SYS(f)  void rec##f() { recBranchCall(Interp::f); }
-
 /* Used for generating backpatch thunks for fastmem. */
 u8* recBeginThunk(void);
 u8* recEndThunk(void);
 
 // used when processing branches
 bool TrySwapDelaySlot(uint32_t rs, uint32_t rt, uint32_t rd, bool allow_loadstore);
-void SaveBranchState();
-void LoadBranchState();
 
 void recompileNextInstruction(bool delayslot, bool swapped_delay_slot);
 void SetBranchReg(uint32_t reg);
@@ -105,7 +92,6 @@ void _eeMoveGPRtoR(const x86Emitter::xRegister64& to, int fromgpr, bool allow_pr
 void _eeMoveGPRtoM(uintptr_t to, int fromgpr); // 32-bit only
 
 void _eeFlushAllDirty(void);
-void _eeOnWriteReg(int reg, int signext);
 
 // totally deletes from const, xmm, and mmx entries
 // if flush is 1, also flushes to memory
@@ -113,7 +99,7 @@ void _eeOnWriteReg(int reg, int signext);
 void _deleteEEreg(int reg, int flush);
 void _deleteEEreg128(int reg);
 
-void _flushEEreg(int reg, bool clear = false);
+void _flushEEreg(int reg);
 
 //////////////////////////////////////
 // Templates for code recompilation //
@@ -145,15 +131,13 @@ typedef void (*R5900FNPTR_INFO)(int info);
 		codename(rec##fn##_const, rec##fn##_, (xmminfo)); \
 	}
 
-//
-// MMX/XMM caching helpers
-//
+/* MMX/XMM caching helpers */
 
-// rd = rs op rt
+/* rd = rs op rt */
 void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900FNPTR_INFO consttcode, R5900FNPTR_INFO noconstcode, int xmminfo);
-// rt = rs op imm16
+/* rt = rs op imm16 */
 void eeRecompileCodeRC1(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int xmminfo);
-// rd = rt op sa
+/* rd = rt op sa */
 void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int xmminfo);
 
 #define FPURECOMPILE_CONSTCODE(fn, xmminfo) \
@@ -165,6 +149,6 @@ void eeRecompileCodeRC2(R5900FNPTR constcode, R5900FNPTR_INFO noconstcode, int x
 			eeFPURecompileCode(rec##fn##_xmm, R5900::Interpreter::OpcodeImpl::COP1::fn, xmminfo); \
 	}
 
-// rd = rs op rt (all regs need to be in xmm)
+/* rd = rs op rt (all regs need to be in xmm) */
 int eeRecompileCodeXMM(int xmminfo);
 void eeFPURecompileCode(R5900FNPTR_INFO xmmcode, R5900FNPTR fpucode, int xmminfo);

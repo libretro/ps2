@@ -170,8 +170,8 @@ void recDI()
 
 #ifndef CP0_RECOMPILE
 
-REC_SYS(MFC0);
-REC_SYS(MTC0);
+void recMFC0(void) { recBranchCall(Interp::MFC0); }
+void recMTC0(void) { recBranchCall(Interp::MTC0); }
 
 #else
 
