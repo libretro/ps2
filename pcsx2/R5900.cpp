@@ -1962,28 +1962,14 @@ __fi int cpuGetCycles(int interrupt)
 	return std::max(1, cycles);
 }
 
-// tests the CPU cycle against the given start and delta values.
-// Returns true if the delta time has passed.
-__fi int cpuTestCycle( u32 startCycle, s32 delta )
-{
-	// typecast the conditional to signed so that things don't explode
-	// if the startCycle is ahead of our current cpu cycle.
-	return (int)(cpuRegs.cycle - startCycle) >= delta;
-}
-
-__fi void cpuClearInt(uint i)
-{
-	cpuRegs.interrupt &= ~(1 << i);
-	cpuRegs.dmastall &= ~(1 << i);
-}
-
 static __fi void TESTINT( u8 n, void (*callback)() )
 {
 	if( !(cpuRegs.interrupt & (1 << n)) ) return;
 
 	if(!g_GameStarted || CHECK_INSTANTDMAHACK || cpuTestCycle( cpuRegs.sCycle[n], cpuRegs.eCycle[n] ) )
 	{
-		cpuClearInt( n );
+		cpuRegs.interrupt &= ~(1 << n);
+		cpuRegs.dmastall  &= ~(1 << n);
 		callback();
 	}
 	else

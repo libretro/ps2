@@ -342,12 +342,17 @@ extern uint intcInterrupt();
 extern uint dmacInterrupt();
 
 extern void cpuReset();
-extern void cpuClearInt(uint n);
 extern void GoemonPreloadTlb();
 extern void GoemonUnloadTlb(u32 key);
 
 extern void cpuSetNextEvent( u32 startCycle, s32 delta );
-extern int  cpuTestCycle( u32 startCycle, s32 delta );
+
+/* Tests the CPU cycle against the given start and delta values.
+ * Returns true if the delta time has passed.
+ *
+ * Typecast the conditional to signed so that things don't explode
+ * if the startCycle is ahead of our current CPU cycle. */
+#define cpuTestCycle(startCycle, delta) ((int)(cpuRegs.cycle - (startCycle)) >= (delta))
 
 /* Tells the EE to run the branch test the next time it gets a chance. */
 #define cpuSetEvent() cpuRegs.nextEventCycle = cpuRegs.cycle
