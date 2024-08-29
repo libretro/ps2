@@ -60,8 +60,6 @@ public:
 	virtual void Reset()=0;
 	virtual void Execute(u32 cycles)=0;
 
-	virtual void Clear(u32 Addr, u32 Size)=0;
-
 	/* Executes a Block based on EE delta time (see VUmicro.cpp) */
 	void ExecuteBlock(bool startUp);
 };
@@ -79,7 +77,6 @@ public:
 	void Reset() override;
 
 	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override {}
 };
 
 class InterpVU1 final : public BaseVUmicroCPU
@@ -92,7 +89,6 @@ public:
 	void Reset() override;
 
 	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override {}
 };
 
 /* --------------------------------------------------------------------------------------
@@ -109,7 +105,6 @@ public:
 
 	void Reset() override;
 	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override;
 };
 
 class recMicroVU1 final : public BaseVUmicroCPU
@@ -122,7 +117,6 @@ public:
 	void Shutdown() override;
 	void Reset() override;
 	void Execute(u32 cycles) override;
-	void Clear(u32 addr, u32 size) override;
 };
 
 extern InterpVU0 CpuIntVU0;

@@ -47,6 +47,8 @@ BIOS
 #include "BiosTools.h"
 #include "SPU2/spu2.h"
 
+#include "x86/microVU.h"
+
 namespace HostMemoryMap
 {
 	extern "C" {
@@ -438,9 +440,9 @@ static void vuMicroWrite8(u32 addr,uint8_t data)
 	{
 		/* (clearing 8 bytes because an instruction is 8 bytes) (cottonvibes) */
 		if (vunum)
-			CpuVU1->Clear(addr, 8);
+			mVUclear(microVU1, addr, 8);
 		else
-			CpuVU0->Clear(addr, 8);
+			mVUclear(microVU0, addr, 8);
 		vu->Micro[addr] =data;
 	}
 }
@@ -460,9 +462,9 @@ static void vuMicroWrite16(u32 addr, uint16_t data)
 	if (*(u16*)&vu->Micro[addr] != data)
 	{
 		if (vunum)
-			CpuVU1->Clear(addr, 8);
+			mVUclear(microVU1, addr, 8);
 		else
-			CpuVU0->Clear(addr, 8);
+			mVUclear(microVU0, addr, 8);
 		*(u16*)&vu->Micro[addr] =data;
 	}
 }
@@ -482,9 +484,9 @@ static void vuMicroWrite32(u32 addr, uint32_t data)
 	if (*(u32*)&vu->Micro[addr] != data)
 	{
 		if (vunum)
-			CpuVU1->Clear(addr, 8);
+			mVUclear(microVU1, addr, 8);
 		else
-			CpuVU0->Clear(addr, 8);
+			mVUclear(microVU0, addr, 8);
 		*(u32*)&vu->Micro[addr] =data;
 	}
 }
@@ -504,9 +506,9 @@ static void vuMicroWrite64(u32 addr, uint64_t data)
 	if (*(u64*)&vu->Micro[addr] != data)
 	{
 		if (vunum)
-			CpuVU1->Clear(addr, 8);
+			mVUclear(microVU1, addr, 8);
 		else
-			CpuVU0->Clear(addr, 8);
+			mVUclear(microVU0, addr, 8);
 		*(u64*)&vu->Micro[addr] =data;
 	}
 }
@@ -517,7 +519,7 @@ static void TAKES_R128 vuMicroWrite128VU0(u32 addr, r128 data)
 	u128 comp        = (u128&)vuRegs[0].Micro[addr & 0xfff];
 	if ((comp.lo != udata.lo) || (comp.hi != udata.hi))
 	{
-		CpuVU0->Clear(addr & 0xfff, 16);
+		mVUclear(microVU0, addr & 0xfff, 16);
 		r128_store_unaligned(&vuRegs[0].Micro[addr & 0xfff],data);
 	}
 }
@@ -532,7 +534,7 @@ static void TAKES_R128 vuMicroWrite128VU1(u32 addr, r128 data)
 		u128 comp  = (u128&)vuRegs[1].Micro[addr & 0x3fff];
 		if ((comp.lo != udata.lo) || (comp.hi != udata.hi))
 		{
-			CpuVU1->Clear(addr & 0x3fff, 16);
+			mVUclear(microVU1, addr & 0x3fff, 16);
 			r128_store_unaligned(&vuRegs[1].Micro[addr & 0x3fff],data);
 		}
 	}

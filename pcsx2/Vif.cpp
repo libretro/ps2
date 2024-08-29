@@ -24,6 +24,8 @@
 #include "Vif_Dma.h"
 #include "Vif_Dynarec.h"
 #include "VUmicro.h"
+
+#include "x86/microVU.h"
 #include "x86/newVif.h"
 
 /* Generic constants */
@@ -588,9 +590,9 @@ template<int idx> static __fi void _vifCode_MPG(u32 addr, const u32* data, int s
 	if ((addr + size * 4) > vuMemSize)
 	{
 		if (!idx)
-			CpuVU0->Clear(addr, vuMemSize - addr);
+			mVUclear(microVU0, addr, vuMemSize - addr);
 		else
-			CpuVU1->Clear(addr, vuMemSize - addr);
+			mVUclear(microVU1, addr, vuMemSize - addr);
 
 		memcpy(VUx.Micro + addr, data, vuMemSize - addr);
 		size -= (vuMemSize - addr) / 4;
@@ -606,9 +608,9 @@ template<int idx> static __fi void _vifCode_MPG(u32 addr, const u32* data, int s
 		//if (memcmp(VUx.Micro + addr, data, size*4)) {
 		// Clear VU memory before writing!
 		if (!idx)
-			CpuVU0->Clear(addr, size * 4);
+			mVUclear(microVU0, addr, size * 4);
 		else
-			CpuVU1->Clear(addr, size * 4);
+			mVUclear(microVU1, addr, size * 4);
 		memcpy(VUx.Micro + addr, data, size * 4); //from tests, memcpy is 1fps faster on Grandia 3 than memcpy
 
 		vifX.tag.addr += size * 4;

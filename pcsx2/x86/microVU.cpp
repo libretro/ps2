@@ -25,6 +25,10 @@
 
 #include "common/AlignedMalloc.h"
 
+/* microVU rec structs */
+alignas(16) microVU microVU0;
+alignas(16) microVU microVU1;
+
 #define _Ft_ ((mVU.code >> 16) & 0x1F) // The ft part of the instruction register
 #define _Fs_ ((mVU.code >> 11) & 0x1F) // The fs part of the instruction register
 #define _Fd_ ((mVU.code >>  6) & 0x1F) // The fd part of the instruction register
@@ -7809,8 +7813,8 @@ static void mVUclose(microVU& mVU)
 	}
 }
 
-// Clears Block Data in specified range
-static __fi void mVUclear(microVU& mVU, uint32_t addr, uint32_t size)
+/* Clears Block Data in specified range */
+void mVUclear(microVU& mVU, uint32_t addr, uint32_t size)
 {
 	if (!mVU.prog.cleared)
 	{
@@ -7899,16 +7903,6 @@ void recMicroVU1::Execute(uint32_t cycles)
 		vuRegs[microVU1.index].flags &= ~0x4;
 		hwIntcIrq(7);
 	}
-}
-
-void recMicroVU0::Clear(uint32_t addr, uint32_t size)
-{
-	mVUclear(microVU0, addr, size);
-}
-
-void recMicroVU1::Clear(uint32_t addr, uint32_t size)
-{
-	mVUclear(microVU1, addr, size);
 }
 
 bool SaveStateBase::vuJITFreeze()

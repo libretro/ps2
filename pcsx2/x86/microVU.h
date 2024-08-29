@@ -1420,6 +1420,9 @@ public:
 	}
 };
 
-/* microVU rec structs */
-alignas(16) microVU microVU0;
-alignas(16) microVU microVU1;
+/* Clears Block Data in specified range */
+void mVUclear(microVU& mVU, uint32_t addr, uint32_t size);
+
+/* Forward declarations */
+extern alignas(16) microVU microVU0;
+extern alignas(16) microVU microVU1;

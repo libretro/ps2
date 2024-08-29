@@ -20,8 +20,10 @@
 #include "VUmicro.h"
 #include "MTVU.h"
 
-static bool spr0finished = false;
-static bool spr1finished = false;
+#include "x86/microVU.h"
+
+static bool spr0finished    = false;
+static bool spr1finished    = false;
 static u32 mfifotransferred = 0;
 
 static inline void MemCopy_WrappedDest(const u128* src, u128* destBase, uint& destStart,
@@ -71,9 +73,9 @@ template<bool isWrite> static void TestClearVUs(u32 madr, u32 qwc)
 		if (isWrite)
 		{
 			if (madr < 0x11004000)
-				CpuVU0->Clear(madr&0xfff, qwc * 16);
+				mVUclear(microVU0, madr & 0xfff, qwc * 16);
 			else if (madr >= 0x11008000 && madr < 0x1100c000)
-				CpuVU1->Clear(madr&0x3fff, qwc * 16);
+				mVUclear(microVU1, madr & 0x3fff, qwc * 16);
 		}
 	}
 }

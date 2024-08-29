@@ -16,12 +16,14 @@
 #include <cstring> /* memset */
 #include <thread>
 
+#include "common/Threading.h"
+
 #include "Common.h"
 #include "Gif_Unit.h"
 #include "MTVU.h"
 #include "VMManager.h"
 #include "Vif_Dynarec.h"
-#include "common/Threading.h"
+#include "x86/microVU.h"
 
 VU_Thread vu1Thread;
 
@@ -168,7 +170,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 				{
 					u32 vu_micro_addr = Read();
 					u32 size = Read();
-					CpuVU1->Clear(vu_micro_addr, size);
+					mVUclear(microVU1, vu_micro_addr, size);
 					Read(&vuRegs[1].Micro[vu_micro_addr], size);
 					break;
 				}

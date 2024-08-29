@@ -390,13 +390,13 @@ void VifUnpackSSE_Base::xUPK_V4_5() const
 	xMOVAPS     (destReg, workReg);     // x|x|x|R
 	xPSRL.D     (workReg, 8);           // ABG
 	xPSLL.D     (workReg, 3);           // AB|G5.000
-	mVUmergeRegs(destReg, workReg, 0x4);// x|x|G|R
+	mVUmergeRegs(destReg, workReg, 0x4, false);// x|x|G|R
 	xPSRL.D     (workReg, 8);           // AB
 	xPSLL.D     (workReg, 3);           // A|B5.000
-	mVUmergeRegs(destReg, workReg, 0x2);// x|B|G|R
+	mVUmergeRegs(destReg, workReg, 0x2, false);// x|B|G|R
 	xPSRL.D     (workReg, 8);           // A
 	xPSLL.D     (workReg, 7);           // A.0000000
-	mVUmergeRegs(destReg, workReg, 0x1);// A|B|G|R
+	mVUmergeRegs(destReg, workReg, 0x1, false);// A|B|G|R
 	xPSLL.D     (destReg, 24); // can optimize to
 	xPSRL.D     (destReg, 24); // single AND...
 }
@@ -575,11 +575,11 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 
 	if (doMask && m2) // Merge MaskRow
 	{
-		mVUmergeRegs(regX, xmm6, m2);
+		mVUmergeRegs(regX, xmm6, m2, false);
 	}
 	if (doMask && m3) // Merge MaskCol
 	{
-		mVUmergeRegs(regX, xRegisterSSE(xmm2.Id + cc), m3);
+		mVUmergeRegs(regX, xRegisterSSE(xmm2.Id + cc), m3, false);
 	}
 
 	if (doMode)
@@ -594,14 +594,14 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 			xPXOR(xmm7, xmm7);
 			if (doMode == 3)
 			{
-				mVUmergeRegs(xmm6, regX, m5);
+				mVUmergeRegs(xmm6, regX, m5, false);
 			}
 			else
 			{
-				mVUmergeRegs(xmm7, xmm6, m5);
+				mVUmergeRegs(xmm7, xmm6, m5, false);
 				xPADD.D(regX, xmm7);
 				if (doMode == 2)
-					mVUmergeRegs(xmm6, regX, m5);
+					mVUmergeRegs(xmm6, regX, m5, false);
 			}
 		}
 		else
