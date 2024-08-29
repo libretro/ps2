@@ -467,9 +467,6 @@
     <ClCompile Include="Dmac.cpp">
       <Filter>System\Ps2</Filter>
     </ClCompile>
-    <ClCompile Include="Gif_Unit.cpp">
-      <Filter>System\Ps2\GS\GIF</Filter>
-    </ClCompile>
     <ClCompile Include="CDVD\FlatFileReader.cpp">
       <Filter>System\ISO</Filter>
     </ClCompile>

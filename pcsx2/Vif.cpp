@@ -183,7 +183,7 @@ static __ri void vifExecQueue(int idx)
 
 	if (vifX.queued_gif_wait)
 	{
-		if (gifUnit.checkPaths(1, 1, 0))
+		if (gifUnit.checkPaths(true, true, false, false))
 			return;
 	}
 
@@ -458,7 +458,7 @@ static int vifCode_Flush_VU1(int pass, const u32* data)
 		}
 		vifExecQueue(1);
 
-		if (gifUnit.checkPaths(1, 1, 0) || p1or2)
+		if (gifUnit.checkPaths(true, true, false, false) || p1or2)
 		{
 			vif1Regs.stat.VGW       = true;
 			vif1.vifstalled.enabled = VifStallEnable(vif1ch);
@@ -481,7 +481,7 @@ static int vifCode_FlushA_VU1(int pass, const u32* data)
 {
 	if (pass == 0 || pass == 1)
 	{
-		u32 gifBusy = gifUnit.checkPaths(1, 1, 1) || (gifRegs.stat.APATH != 0);
+		u32 gifBusy = gifUnit.checkPaths(true, true, true, false) || (gifRegs.stat.APATH != 0);
 		vif1Regs.stat.VGW = false;
 
 		vifExecQueue(1);
@@ -694,7 +694,7 @@ template<int idx> static int vifCode_MSCALF(int pass, const u32* data)
 		VIFregisters& vifRegs = (idx ? (vif1Regs) : (vif0Regs));
 		vifRegs.stat.VGW = false;
 		vifFlush(idx);
-		if (u32 a = gifUnit.checkPaths(1, 1, 0))
+		if (u32 a = gifUnit.checkPaths(true, true, false, false))
 		{
 			vif1Regs.stat.VGW       = true;
 			vifX.vifstalled.enabled = VifStallEnable((idx ? (vif1ch)   : (vif0ch)));
@@ -1172,8 +1172,8 @@ void vifMFIFOInterrupt(void)
 		gifRegs.stat.APATH = 0;
 		gifRegs.stat.OPH = 0;
 
-		if (gifUnit.checkPaths(1, 0, 1))
-			gifUnit.Execute(false, true);
+		if (gifUnit.checkPaths(true, false, true, false))
+			gifUnit.Execute<false>(true);
 	}
 
 	if (vif1ch.chcr.DIR)
@@ -1489,8 +1489,8 @@ __fi void vif1Interrupt(void)
 		gifRegs.stat.OPH   = 0;
 		vif1Regs.stat.VGW  = false; /* Let VIF continue if it's stuck on a flush */
 
-		if (gifUnit.checkPaths(1, 0, 1))
-			gifUnit.Execute(false, true);
+		if (gifUnit.checkPaths(true, false, true, false))
+			gifUnit.Execute<false>(true);
 	}
 
 	/* Some games (Fahrenheit being one) start VIF first, let it loop through blankness while it sets MFIFO mode, so we need to check it here. */

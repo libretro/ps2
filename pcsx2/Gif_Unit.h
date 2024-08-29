@@ -584,17 +584,17 @@ struct Gif_Unit
 		if (THREAD_VU1)
 		{
 			Gif_Path& path1 = gifPath[GIF_PATH_1];
-			if (tranType == GIF_TRANS_XGKICK)
-			{ // This is on the MTVU thread
+			if (tranType == GIF_TRANS_XGKICK) /* This is on the MTVU thread */
+			{
 				path1.CopyGSPacketData(pMem, size, aligned);
 				path1.ExecuteGSPacketMTVU();
 				return size;
 			}
-			if (tranType == GIF_TRANS_MTVU)
-			{ // This is on the EE thread
+			else if (tranType == GIF_TRANS_MTVU) /* This is on the EE thread */
+			{
 				path1.mtvu.fakePackets++;
 				if (CanDoGif())
-					Execute(false, true);
+					Execute<false>(true);
 				return 0;
 			}
 		}
@@ -610,57 +610,58 @@ struct Gif_Unit
 				if (!Path3Masked())
 					stat.P3Q = 1;
 				return 0;
-			} // DMA Stall
+			} /* DMA Stall */
+			gifPath[tranType & 3].CopyGSPacketData(pMem, size, aligned);
+			size -= Execute<true>(false);
+			return size;
 		}
-		if (tranType == GIF_TRANS_XGKICK)
+		else if (tranType == GIF_TRANS_XGKICK)
 		{
-			// We always buffer path1 packets
+			/* We always buffer path1 packets */
 			if (!CanDoPath1())
 				stat.P1Q = 1;
 		}
-		if (tranType == GIF_TRANS_DIRECT)
+		else if (tranType == GIF_TRANS_DIRECT)
 		{
 			if (!CanDoPath2())
 			{
 				stat.P2Q = 1;
 				return 0;
-			} // Direct Stall
+			} /* Direct Stall */
 		}
-		if (tranType == GIF_TRANS_DIRECTHL)
+		else if (tranType == GIF_TRANS_DIRECTHL)
 		{
 			if (!CanDoPath2HL())
 			{
 				stat.P2Q = 1;
 				return 0;
-			} // DirectHL Stall
+			} /* DirectHL Stall */
 		}
 
 		gifPath[tranType & 3].CopyGSPacketData(pMem, size, aligned);
-		size -= Execute(tranType == GIF_TRANS_DMA, false);
+		size -= Execute<false>(false);
 		return size;
 	}
 
-	__fi int checkQueued(bool p1, bool p2, bool p3)
-	{
-		return ((p1 && stat.P1Q) << 0)
-		     | ((p2 && stat.P2Q) << 1)
-		     | ((p3 && stat.P3Q) << 2);
-	}
-
-	// Checks path activity for the given paths
-	// Returns an int with a bit enabled if the corresponding
-	// path is not finished (needs more data/processing for an EOP)
-	__fi int checkPaths(bool p1, bool p2, bool p3, bool checkQ = false)
+	/* Checks path activity for the given paths
+	 * Returns an int with a bit enabled if the corresponding
+	 * path is not finished (needs more data/processing for an EOP) */
+	__fi int checkPaths(bool p1, bool p2, bool p3, bool checkQ)
 	{
 		int ret = ((p1 && !gifPath[GIF_PATH_1].isDone()) << 0)
 		        | ((p2 && !gifPath[GIF_PATH_2].isDone()) << 1)
 			| ((p3 && !gifPath[GIF_PATH_3].isDone()) << 2);
-		return ret | (checkQ ? checkQueued(p1, p2, p3) : 0);
+		return ret | (checkQ 
+				? 
+		                (((p1 && stat.P1Q) << 0)
+		               | ((p2 && stat.P2Q) << 1)
+		               | ((p3 && stat.P3Q) << 2))
+				: 0);
 	}
 
-	// Send processed GS Primitive(s) to the MTGS thread
-	// Note: Only does so if current path fully completed all
-	// of its given gs primitives (but didn't upload them yet)
+	/* Send processed GS Primitive(s) to the MTGS thread
+	 * Note: Only does so if current path fully completed all
+	 * of its given gs primitives (but didn't upload them yet) */
 	void FlushToMTGS()
 	{
 		if (!stat.APATH)
@@ -674,9 +675,9 @@ struct Gif_Unit
 		}
 	}
 
-	// Processes gif packets and performs path arbitration
-	// on EOPs or on Path 3 Images when IMT is set.
-	int Execute(bool isPath3, bool isResume)
+	/* Processes GIF packets and performs path arbitration
+	 * on EOPs or on Path 3 Images when IMT is set. */
+	template<bool isPath3> int Execute(bool isResume)
 	{
 		if (!CanDoGif())
 			return 0;
@@ -688,16 +689,16 @@ struct Gif_Unit
 
 		for (;;)
 		{
-			if (stat.APATH)
-			{ // Some Transfer is happening
+			if (stat.APATH) /* Some Transfer is happening */
+			{
 				Gif_Path& path = gifPath[stat.APATH - 1];
 				bool done = false;
 				GS_Packet gsPack = path.ExecuteGSPacket(done);
 				if (!done)
 				{
-					if (stat.APATH == 3 && CanDoP3Slice() && !gsSIGNAL.queued)
+					if (stat.APATH == 3 && CanDoPath3Slice() && !gsSIGNAL.queued)
 					{
-						if (!didPath3 && /*!Path3Masked() &&*/ checkPaths(1, 1, 0))
+						if (!didPath3 && checkPaths(true, true, false, false))
 						{ // Path3 slicing
 							didPath3 = true;
 							stat.APATH = 0;
@@ -750,15 +751,17 @@ struct Gif_Unit
 			}
 			else
 			{
-				// If PATH3 was stalled due to another transfer but the DMA ended, it'll never check this
-				// So lets quickly check if it's currently set to path3
+				/* If PATH3 was stalled due to another transfer 
+				 * but the DMA ended, it'll never check this
+				 * So lets quickly check if it's currently set to path3 */
 				if (stat.APATH == 3 || path3Check)
-					gifCheckPathStatus(true);
+					gifCheckPathStatusFromGIF();
 				else
 				{
 					if (vif1Regs.stat.VGW)
 					{
-						// Check if VIF is in a cycle or is currently "idle" waiting for GIF to come back.
+						/* Check if VIF is in a cycle or is 
+						 * currently "idle" waiting for GIF to come back. */
 						if (!(cpuRegs.interrupt & (1 << DMAC_VIF1)))
 							CPU_INT(DMAC_VIF1, 1);
 					}
@@ -770,9 +773,13 @@ struct Gif_Unit
 				break;
 			}
 		}
-		//Some loaders/Refresh Rate selectors and things dont issue "End of Packet" commands
-		//So we look and see if the end of the last tag is all there, if so, stick it in the buffer for the GS :)
-		//(Invisible Screens on Terminator 3 and Growlanser 2/3)
+
+		/* Some loaders/Refresh Rate selectors and things dont 
+		 * issue "EOF" (End Of Packet) commands.
+		 *
+		 * So we look and see if the end of the last tag is all there.
+		 * If so, stick it in the buffer for the GS 
+		 * (Invisible Screens on Terminator 3 and Growlanser 2/3) */
 		if (gifPath[curPath].curOffset == gifPath[curPath].curSize)
 			FlushToMTGS();
 
@@ -789,12 +796,12 @@ struct Gif_Unit
 	// XGkick
 	bool CanDoPath1() const
 	{
-		return (stat.APATH == 0 || stat.APATH == 1 || (stat.APATH == 3 && CanDoP3Slice())) && CanDoGif();
+		return (stat.APATH == 0 || stat.APATH == 1 || (stat.APATH == 3 && CanDoPath3Slice())) && CanDoGif();
 	}
 	// Direct
 	bool CanDoPath2() const
 	{
-		return (stat.APATH == 0 || stat.APATH == 2 || (stat.APATH == 3 && CanDoP3Slice())) && CanDoGif();
+		return (stat.APATH == 0 || stat.APATH == 2 || (stat.APATH == 3 && CanDoPath3Slice())) && CanDoGif();
 	}
 	// DirectHL
 	bool CanDoPath2HL() const
@@ -807,7 +814,7 @@ struct Gif_Unit
 		return ((stat.APATH == 0 && !Path3Masked()) || stat.APATH == 3) && CanDoGif();
 	}
 
-	bool CanDoP3Slice() const { return stat.IMT == 1 && gifPath[GIF_PATH_3].state == GIF_PATH_IMAGE; }
+	bool CanDoPath3Slice() const { return stat.IMT == 1 && gifPath[GIF_PATH_3].state == GIF_PATH_IMAGE; }
 	bool CanDoGif() const { return stat.PSE == 0 && stat.DIR == 0 && gsSIGNAL.queued == 0; }
 	//Mask stops the next packet which hasnt started from transferring
 	bool Path3Masked() const { return ((stat.M3R || stat.M3P) && (gifPath[GIF_PATH_3].state == GIF_PATH_IDLE || gifPath[GIF_PATH_3].state == GIF_PATH_WAIT)); }
