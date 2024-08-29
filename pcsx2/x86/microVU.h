@@ -54,40 +54,6 @@ struct mVU_Globals
 	float ITOF_4[4], ITOF_12[4], ITOF_15[4];
 };
 
-#define __four(val) { val, val, val, val }
-alignas(32) static const mVU_Globals mVUglob = {
-	__four(0x7fffffff),       // absclip
-	__four(0x80000000),       // signbit
-	__four(0xff7fffff),       // minvals
-	__four(0x7f7fffff),       // maxvals
-	__four(0x3f800000),       // ONE!
-	__four(0x3f490fdb),       // PI4!
-	__four(0x3f7ffff5),       // T1
-	__four(0xbeaaa61c),       // T5
-	__four(0x3e4c40a6),       // T2
-	__four(0xbe0e6c63),       // T3
-	__four(0x3dc577df),       // T4
-	__four(0xbd6501c4),       // T6
-	__four(0x3cb31652),       // T7
-	__four(0xbb84d7e7),       // T8
-	__four(0xbe2aaaa4),       // S2
-	__four(0x3c08873e),       // S3
-	__four(0xb94fb21f),       // S4
-	__four(0x362e9c14),       // S5
-	__four(0x3e7fffa8),       // E1
-	__four(0x3d0007f4),       // E2
-	__four(0x3b29d3ff),       // E3
-	__four(0x3933e553),       // E4
-	__four(0x36b63510),       // E5
-	__four(0x353961ac),       // E6
-	__four(16.0),             // FTOI_4
-	__four(4096.0),           // FTOI_12
-	__four(32768.0),          // FTOI_15
-	__four(0.0625f),          // ITOF_4
-	__four(0.000244140625),   // ITOF_12
-	__four(0.000030517578125) // ITOF_15
-};
-
 static const uint _Ibit_ = 1 << 31;
 static const uint _Ebit_ = 1 << 30;
 static const uint _Mbit_ = 1 << 29;
@@ -144,7 +110,6 @@ static const uint divD = 0x2080000;
 #define _Imm15_ ((uint32_t) (((mVU.code >> 10) & 0x7800)       |  (mVU.code & 0x7ff)))
 #define _Imm24_ ((uint32_t)   (mVU.code & 0xffffff))
 
-#define isCOP2      (mVU.cop2 != 0)
 #define isVU1       (mVU.index != 0)
 #define isVU0       (mVU.index == 0)
 #define getIndex    (isVU1 ? 1 : 0)
@@ -174,61 +139,10 @@ static const uint divD = 0x2080000;
 #define gprF3 r14d // Status Flag 3
 
 // Function Params
-#define mF int recPass
 #define mX mVU, recPass
 
 typedef void Fntype_mVUrecInst(microVU& mVU, int recPass);
 typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
-
-//------------------------------------------------------------------
-
-// Misc Macros...
-#define mVUcurProg   mVU.prog.cur[0]
-#define mVUblocks    mVU.prog.cur->block
-#define mVUir        mVU.prog.IRinfo
-#define mVUbranch    mVU.prog.IRinfo.branch
-#define mVUcycles    mVU.prog.IRinfo.cycles
-#define mVUcount     mVU.prog.IRinfo.count
-#define mVUpBlock    mVU.prog.IRinfo.pBlock
-#define mVUblock     mVU.prog.IRinfo.block
-#define mVUregs      mVU.prog.IRinfo.block.pState
-#define mVUregsTemp  mVU.prog.IRinfo.regsTemp
-#define iPC          mVU.prog.IRinfo.curPC
-#define mVUsFlagHack mVU.prog.IRinfo.sFlagHack
-#define mVUconstReg  mVU.prog.IRinfo.constReg
-#define mVUstartPC   mVU.prog.IRinfo.startPC
-#define mVUinfo      mVU.prog.IRinfo.info[iPC / 2]
-#define mVUstall     mVUinfo.stall
-#define mVUup        mVUinfo.uOp
-#define mVUlow       mVUinfo.lOp
-#define sFLAG        mVUinfo.sFlag
-#define mFLAG        mVUinfo.mFlag
-#define cFLAG        mVUinfo.cFlag
-#define mVUrange     (mVUcurProg.ranges[0])[0]
-#define isEvilBlock  (mVUpBlock->pState.blockType == 2)
-#define isBadOrEvil  (mVUlow.badBranch || mVUlow.evilBranch)
-#define isConditional (mVUlow.branch > 2 && mVUlow.branch < 9)
-#define xPC          ((iPC / 2) * 8)
-#define curI         ((uint32_t*)vuRegs[mVU.index].Micro)[iPC] //mVUcurProg.data[iPC]
-#define setCode()    { mVU.code = curI; }
-#define bSaveAddr    (((xPC + 16) & (mVU.microMemSize-8)) / 8)
-#define shufflePQ    (((mVU.p) ? 0xb0 : 0xe0) | ((mVU.q) ? 0x01 : 0x04))
-#define Rmem         &vuRegs[mVU.index].VI[REG_R].UL
-#define aWrap(x, m)  ((x > m) ? 0 : x)
-#define shuffleSS(x) ((x == 1) ? (0x27) : ((x == 2) ? (0xc6) : ((x == 4) ? (0xe1) : (0xe4))))
-#define clampE       CHECK_VU_EXTRA_OVERFLOW(mVU.index)
-#define islowerOP    ((iPC & 1) == 0)
-
-#define blockCreate(addr) \
-	{ \
-		if (!mVUblocks[addr]) \
-			mVUblocks[addr] = new microBlockManager(); \
-	}
-
-// Flag Info (Set if next-block's first 4 ops will read current-block's flags)
-#define __Status (mVUregs.needExactMatch & 1)
-#define __Mac    (mVUregs.needExactMatch & 2)
-#define __Clip   (mVUregs.needExactMatch & 4)
 
 //------------------------------------------------------------------
 // Optimization / Debug Options
@@ -1209,9 +1123,7 @@ public:
 				if (mapI.isNeeded)
 				{
 					if (regAllocCOP2)
-					{
 						x86regs[i].reg = -1;
-					}
 
 					mapI.VIreg = -1;
 					mapI.dirty = false;

@@ -45,7 +45,7 @@
 
 /* Takes a functor of bool(pc, EEINST*), returning false if iteration should stop. */
 template <class F>
-void __fi ForEachInstruction(uint32_t start, uint32_t end, EEINST* inst_cache, const F& func)
+static void __fi ForEachInstruction(uint32_t start, uint32_t end, EEINST* inst_cache, const F& func)
 {
 	EEINST* eeinst = inst_cache;
 	for (uint32_t apc = start; apc < end; apc += 4, eeinst++)
@@ -186,7 +186,7 @@ static int cop2flags(uint32_t code)
 	return 3;
 }
 
-void COP2FlagHackPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
+static void COP2FlagHackPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
 {
 	COP2FlagHackPass cop2;
 	cop2.m_status_denormalized = false;
@@ -338,7 +338,7 @@ void COP2FlagHackPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
 		cop2.m_last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
 }
 
-void COP2MicroFinishPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
+static void COP2MicroFinishPass_Run(uint32_t start, uint32_t end, EEINST* inst_cache)
 {
 	struct COP2MicroFinishPass cop2;
 	cop2.needs_vu0_sync    = true;

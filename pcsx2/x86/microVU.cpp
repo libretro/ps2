@@ -25,6 +25,46 @@
 
 #include "common/AlignedMalloc.h"
 
+// Misc Macros...
+#define mVUcurProg   mVU.prog.cur[0]
+#define mVUblocks    mVU.prog.cur->block
+#define mVUir        mVU.prog.IRinfo
+#define mVUbranch    mVU.prog.IRinfo.branch
+#define mVUcycles    mVU.prog.IRinfo.cycles
+#define mVUcount     mVU.prog.IRinfo.count
+#define mVUpBlock    mVU.prog.IRinfo.pBlock
+#define mVUblock     mVU.prog.IRinfo.block
+#define mVUregs      mVU.prog.IRinfo.block.pState
+#define mVUregsTemp  mVU.prog.IRinfo.regsTemp
+#define iPC          mVU.prog.IRinfo.curPC
+#define mVUsFlagHack mVU.prog.IRinfo.sFlagHack
+#define mVUconstReg  mVU.prog.IRinfo.constReg
+#define mVUstartPC   mVU.prog.IRinfo.startPC
+#define mVUinfo      mVU.prog.IRinfo.info[iPC / 2]
+#define mVUstall     mVUinfo.stall
+#define mVUup        mVUinfo.uOp
+#define mVUlow       mVUinfo.lOp
+#define sFLAG        mVUinfo.sFlag
+#define mFLAG        mVUinfo.mFlag
+#define cFLAG        mVUinfo.cFlag
+#define xPC          ((iPC / 2) * 8)
+#define curI         ((uint32_t*)vuRegs[mVU.index].Micro)[iPC] //mVUcurProg.data[iPC]
+#define bSaveAddr    (((xPC + 16) & (mVU.microMemSize-8)) / 8)
+#define Rmem         &vuRegs[mVU.index].VI[REG_R].UL
+
+// Flag Info (Set if next-block's first 4 ops will read current-block's flags)
+#define __Status (mVUregs.needExactMatch & 1)
+#define __Mac    (mVUregs.needExactMatch & 2)
+#define __Clip   (mVUregs.needExactMatch & 4)
+
+#define isCOP2      (mVU.cop2 != 0)
+#define mVUrange     (mVUcurProg.ranges[0])[0]
+#define isEvilBlock  (mVUpBlock->pState.blockType == 2)
+#define isBadOrEvil  (mVUlow.badBranch || mVUlow.evilBranch)
+#define shuffleSS(x) ((x == 1) ? (0x27) : ((x == 2) ? (0xc6) : ((x == 4) ? (0xe1) : (0xe4))))
+#define clampE       CHECK_VU_EXTRA_OVERFLOW(mVU.index)
+#define shufflePQ    (((mVU.p) ? 0xb0 : 0xe0) | ((mVU.q) ? 0x01 : 0x04))
+
 /* Function/Template Stuff */
 #define mVUx (vuIndex ? microVU1 : microVU0)
 #define mVUop(opName) static void opName(microVU& mVU, int recPass)
@@ -44,6 +84,47 @@
 #define opCase2 if (opCase == 2) // BC Opcodes
 #define opCase3 if (opCase == 3) // I  Opcodes
 #define opCase4 if (opCase == 4) // Q  Opcodes
+
+#define blockCreate(addr) \
+	{ \
+		if (!mVUblocks[addr]) \
+			mVUblocks[addr] = new microBlockManager(); \
+	}
+
+#define __four(val) { val, val, val, val }
+alignas(32) static const mVU_Globals mVUglob = {
+	__four(0x7fffffff),       // absclip
+	__four(0x80000000),       // signbit
+	__four(0xff7fffff),       // minvals
+	__four(0x7f7fffff),       // maxvals
+	__four(0x3f800000),       // ONE!
+	__four(0x3f490fdb),       // PI4!
+	__four(0x3f7ffff5),       // T1
+	__four(0xbeaaa61c),       // T5
+	__four(0x3e4c40a6),       // T2
+	__four(0xbe0e6c63),       // T3
+	__four(0x3dc577df),       // T4
+	__four(0xbd6501c4),       // T6
+	__four(0x3cb31652),       // T7
+	__four(0xbb84d7e7),       // T8
+	__four(0xbe2aaaa4),       // S2
+	__four(0x3c08873e),       // S3
+	__four(0xb94fb21f),       // S4
+	__four(0x362e9c14),       // S5
+	__four(0x3e7fffa8),       // E1
+	__four(0x3d0007f4),       // E2
+	__four(0x3b29d3ff),       // E3
+	__four(0x3933e553),       // E4
+	__four(0x36b63510),       // E5
+	__four(0x353961ac),       // E6
+	__four(16.0),             // FTOI_4
+	__four(4096.0),           // FTOI_12
+	__four(32768.0),          // FTOI_15
+	__four(0.0625f),          // ITOF_4
+	__four(0.000244140625),   // ITOF_12
+	__four(0.000030517578125) // ITOF_15
+};
+
 
 static __fi bool mVUcmpProg(microVU& mVU, microProgram& prog);
 static __fi void* mVUblockFetch(microVU& mVU, uint32_t startPC, uintptr_t pState);
@@ -999,7 +1080,7 @@ static __ri void flagSet(microVU& mVU, bool setMacFlag)
 	}
 
 	iPC = curPC;
-	setCode();
+	mVU.code = curI;
 }
 
 static __ri void mVUanalyzeSflag(microVU& mVU, int It)
@@ -4504,7 +4585,7 @@ static void _mVUflagPass(microVU& mVU, uint32_t startPC, uint32_t sCount, uint32
 	iPC = oldPC;
 	mVUbranch = oldBranch;
 	mVUregs.needExactMatch &= 7;
-	setCode();
+	mVU.code = curI;
 }
 
 static void mVUflagPass(microVU& mVU, uint32_t startPC, uint32_t sCount = 0, uint32_t found = 0)
@@ -6068,7 +6149,7 @@ static void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState)
 
 	// Second Pass
 	iPC = mVUstartPC;
-	setCode();
+	mVU.code = curI;
 	mVUbranch = 0;
 	uint32_t x = 0;
 
