@@ -586,16 +586,12 @@ protected:
 	int findFreeReg(int vfreg)
 	{
 		if (regAllocCOP2)
-		{
 			return _allocVFtoXMMreg(vfreg, 0);
-		}
 
 		for (int i = 0; i < xmmTotal; i++)
 		{
 			if (!xmmMap[i].isNeeded && (xmmMap[i].VFreg < 0))
-			{
 				return i; // Reg is not needed and was a temp reg
-			}
 		}
 		return findFreeRegRec(0);
 	}
@@ -623,9 +619,7 @@ protected:
 		for (int i = 0; i < gprTotal; i++)
 		{
 			if (gprMap[i].usable && !gprMap[i].isNeeded && (gprMap[i].VIreg < 0))
-			{
 				return i; // Reg is not needed and was a temp reg
-			}
 		}
 		return findFreeGPRRec(0);
 	}
@@ -881,24 +875,21 @@ public:
 	{
 		if (regId != xmmPQ.Id && ((xmmMap[regId].VFreg == 33 && !EmuConfig.Gamefixes.IbitHack) || xmmMap[regId].isZero))
 			return false;
-		else
-			return true;
+		return true;
 	}
 
 	bool checkCachedReg(int regId)
 	{
 		if (regId < xmmTotal)
 			return xmmMap[regId].VFreg >= 0;
-		else
-			return false;
+		return false;
 	}
 
 	bool checkCachedGPR(int regId)
 	{
 		if (regId < gprTotal)
 			return gprMap[regId].VIreg >= 0 || gprMap[regId].isNeeded;
-		else
-			return false;
+		return false;
 	}
 
 	void clearReg(const xmm& reg) { clearReg(reg.Id); }
