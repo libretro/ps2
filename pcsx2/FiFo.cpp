@@ -86,8 +86,8 @@ void WriteFIFO_VIF1(const mem128_t* value)
 		gifRegs.stat.OPH   = 0;
 		vif1Regs.stat.VGW  = false; /* Let VIF continue if it's stuck on a flush */
 
-		if (gifUnit.checkPaths(true, false, true, false))
-			gifUnit.Execute<false>(true);
+		if (gifUnit.checkPaths<true, false, true, false>())
+			gifUnit.Execute<false>();
 	}
 
 }
@@ -115,8 +115,8 @@ void WriteFIFO_GIF(const mem128_t* value)
 		if (gifUnit.gifPath[GIF_PATH_3].state == GIF_PATH_IDLE 
 		 || gifUnit.gifPath[GIF_PATH_3].state == GIF_PATH_WAIT)
 		{
-			if (gifUnit.checkPaths(true, true, false, false))
-				gifUnit.Execute<false>(true);
+			if (gifUnit.checkPaths<true, true, false, false>())
+				gifUnit.Execute<false>();
 		}
 	}
 }

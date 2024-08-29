@@ -457,8 +457,8 @@ __fi void gifInterrupt(void)
 		if (   gifUnit.gifPath[GIF_PATH_3].state == GIF_PATH_IDLE 
 		    || gifUnit.gifPath[GIF_PATH_3].state == GIF_PATH_WAIT)
 		{
-			if (gifUnit.checkPaths(true, true, false, false))
-				gifUnit.Execute<false>(true);
+			if (gifUnit.checkPaths<true, true, false, false>())
+				gifUnit.Execute<false>();
 		}
 	}
 
@@ -751,8 +751,8 @@ void gifMFIFOInterrupt(void)
 		if (   gifUnit.gifPath[GIF_PATH_3].state == GIF_PATH_IDLE 
 		    || gifUnit.gifPath[GIF_PATH_3].state == GIF_PATH_WAIT)
 		{
-			if (gifUnit.checkPaths(true, true, false, false))
-				gifUnit.Execute<false>(true);
+			if (gifUnit.checkPaths<true, true, false, false>())
+				gifUnit.Execute<false>();
 		}
 	}
 

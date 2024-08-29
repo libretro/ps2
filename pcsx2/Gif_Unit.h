@@ -594,7 +594,7 @@ struct Gif_Unit
 			{
 				path1.mtvu.fakePackets++;
 				if (CanDoGif())
-					Execute<false>(true);
+					Execute<false>();
 				return 0;
 			}
 		}
@@ -612,7 +612,7 @@ struct Gif_Unit
 				return 0;
 			} /* DMA Stall */
 			gifPath[tranType & 3].CopyGSPacketData(pMem, size, aligned);
-			size -= Execute<true>(false);
+			size -= Execute<true>();
 			return size;
 		}
 		else if (tranType == GIF_TRANS_XGKICK)
@@ -639,7 +639,7 @@ struct Gif_Unit
 		}
 
 		gifPath[tranType & 3].CopyGSPacketData(pMem, size, aligned);
-		size -= Execute<false>(false);
+		size -= Execute<false>();
 		return size;
 	}
 
@@ -647,6 +647,19 @@ struct Gif_Unit
 	 * Returns an int with a bit enabled if the corresponding
 	 * path is not finished (needs more data/processing for an EOP) */
 	__fi int checkPaths(bool p1, bool p2, bool p3, bool checkQ)
+	{
+		int ret = ((p1 && !gifPath[GIF_PATH_1].isDone()) << 0)
+		        | ((p2 && !gifPath[GIF_PATH_2].isDone()) << 1)
+			| ((p3 && !gifPath[GIF_PATH_3].isDone()) << 2);
+		return ret | (checkQ 
+				? 
+		                (((p1 && stat.P1Q) << 0)
+		               | ((p2 && stat.P2Q) << 1)
+		               | ((p3 && stat.P3Q) << 2))
+				: 0);
+	}
+
+	template<bool p1, bool p2, bool p3, bool checkQ>__fi int checkPaths(void)
 	{
 		int ret = ((p1 && !gifPath[GIF_PATH_1].isDone()) << 0)
 		        | ((p2 && !gifPath[GIF_PATH_2].isDone()) << 1)
@@ -677,36 +690,36 @@ struct Gif_Unit
 
 	/* Processes GIF packets and performs path arbitration
 	 * on EOPs or on Path 3 Images when IMT is set. */
-	template<bool isPath3> int Execute(bool isResume)
+	template<bool isPath3> int Execute(void)
 	{
 		if (!CanDoGif())
 			return 0;
-		bool didPath3 = false;
-		bool path3Check = isPath3;
-		int curPath = stat.APATH > 0 ? stat.APATH - 1 : 0; //Init to zero if no path is already set.
+		bool didPath3        = false;
+		bool path3Check      = isPath3;
+		int curPath          = stat.APATH > 0 ? stat.APATH - 1 : 0; //Init to zero if no path is already set.
 		gifPath[2].dmaRewind = 0;
-		stat.OPH = 1;
+		stat.OPH             = 1;
 
 		for (;;)
 		{
 			if (stat.APATH) /* Some Transfer is happening */
 			{
-				Gif_Path& path = gifPath[stat.APATH - 1];
-				bool done = false;
+				Gif_Path& path   = gifPath[stat.APATH - 1];
+				bool done        = false;
 				GS_Packet gsPack = path.ExecuteGSPacket(done);
 				if (!done)
 				{
 					if (stat.APATH == 3 && CanDoPath3Slice() && !gsSIGNAL.queued)
 					{
-						if (!didPath3 && checkPaths(true, true, false, false))
-						{ // Path3 slicing
-							didPath3 = true;
+						if (!didPath3 && checkPaths<true, true, false, false>())
+						{
+							didPath3   = true;
 							stat.APATH = 0;
-							stat.IP3 = 1;
+							stat.IP3   = 1;
 							if (gsPack.size > 16)
 							{                                                 // Packet had other tags which we already processed
 								u32 subOffset = path.gifTag.isValid ? 16 : 0; // if isValid, image-primitive not finished
-								gsPack.size           -= subOffset;           // Remove the image-tag (should be last thing read)
+								gsPack.size  -= subOffset;           // Remove the image-tag (should be last thing read)
 								Gif_AddCompletedGSPacket(gsPack, GIF_PATH_3);     // Consider current packet complete
 													      
 								path.curOffset        -= subOffset;           // Start the next GS packet at the image-tag

@@ -375,10 +375,10 @@ void VU_Thread::Get_MTVUChanges()
 	{
 		mtvuInterrupts.fetch_and(~InterruptFlagFinish, std::memory_order_relaxed);
 		/* Finish firing */
-		gifUnit.gsFINISH.gsFINISHFired = false;
+		gifUnit.gsFINISH.gsFINISHFired   = false;
 		gifUnit.gsFINISH.gsFINISHPending = true;
 
-		if (!gifUnit.checkPaths(false, true, true, true))
+		if (!gifUnit.checkPaths<false, true, true, true>())
 			Gif_FinishIRQ();
 	}
 	if (interrupts & InterruptFlagLabel)
