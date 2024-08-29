@@ -33,9 +33,6 @@
 
 using namespace x86Emitter;
 
-typedef xRegisterSSE xmm;
-typedef xRegister32 x32;
-
 struct microVU;
 
 //------------------------------------------------------------------
@@ -54,68 +51,22 @@ struct mVU_Globals
 	float ITOF_4[4], ITOF_12[4], ITOF_15[4];
 };
 
-static const uint _Ibit_ = 1 << 31;
-static const uint _Ebit_ = 1 << 30;
-static const uint _Mbit_ = 1 << 29;
-static const uint _Dbit_ = 1 << 28;
-static const uint _Tbit_ = 1 << 27;
-
-static const uint divI = 0x1040000;
-static const uint divD = 0x2080000;
-
 //------------------------------------------------------------------
 // Helper Macros
 //------------------------------------------------------------------
-
-#define _Ft_ ((mVU.code >> 16) & 0x1F) // The ft part of the instruction register
-#define _Fs_ ((mVU.code >> 11) & 0x1F) // The fs part of the instruction register
-#define _Fd_ ((mVU.code >>  6) & 0x1F) // The fd part of the instruction register
-
-#define _It_ ((mVU.code >> 16) & 0xF)  // The it part of the instruction register
-#define _Is_ ((mVU.code >> 11) & 0xF)  // The is part of the instruction register
-#define _Id_ ((mVU.code >>  6) & 0xF)  // The id part of the instruction register
-
-#define _X ((mVU.code >> 24) & 0x1)
-#define _Y ((mVU.code >> 23) & 0x1)
-#define _Z ((mVU.code >> 22) & 0x1)
-#define _W ((mVU.code >> 21) & 0x1)
-
-#define _cX ((cpuRegs.code >> 24) & 0x1)
-#define _cY ((cpuRegs.code >> 23) & 0x1)
-#define _cZ ((cpuRegs.code >> 22) & 0x1)
-#define _cW ((cpuRegs.code >> 21) & 0x1)
 
 #define _X_Y_Z_W   (((mVU.code >> 21) & 0xF))
 #define _cX_Y_Z_W   (((cpuRegs.code >> 21) & 0xF))
 #define _cXYZW_SS  (_cX + _cY + _cZ + _cW == 1)
 #define _cXYZW_SS2  (_cXYZW_SS && (_cX_Y_Z_W != 8))
 
-#define _XYZW_SS   (_X + _Y + _Z + _W == 1)
-#define _XYZW_SS2  (_XYZW_SS && (_X_Y_Z_W != 8))
-#define _XYZW_PS   (_X_Y_Z_W == 0xf)
 #define _XYZWss(x) ((x == 8) || (x == 4) || (x == 2) || (x == 1))
-
-#define _bc_   (mVU.code & 0x3)
-#define _bc_x ((mVU.code & 0x3) == 0)
-#define _bc_y ((mVU.code & 0x3) == 1)
-#define _bc_z ((mVU.code & 0x3) == 2)
-#define _bc_w ((mVU.code & 0x3) == 3)
-
-#define _Fsf_ ((mVU.code >> 21) & 0x03)
-#define _Ftf_ ((mVU.code >> 23) & 0x03)
 
 #define _Imm5_  ((int16_t) (((mVU.code & 0x400) ? 0xfff0 : 0) | ((mVU.code >> 6) & 0xf)))
 #define _Imm11_ ((int32_t)  ((mVU.code & 0x400) ? (0xfffffc00 |  (mVU.code & 0x3ff)) : (mVU.code & 0x3ff)))
 #define _Imm12_ ((uint32_t)((((mVU.code >> 21) & 0x1) << 11)   |  (mVU.code & 0x7ff)))
 #define _Imm15_ ((uint32_t) (((mVU.code >> 10) & 0x7800)       |  (mVU.code & 0x7ff)))
 #define _Imm24_ ((uint32_t)   (mVU.code & 0xffffff))
-
-#define isVU1       (mVU.index != 0)
-#define isVU0       (mVU.index == 0)
-#define getIndex    (isVU1 ? 1 : 0)
-#define getVUmem(x) (((isVU1) ? (x & 0x3ff) : ((x >= 0x400) ? (x & 0x43f) : (x & 0xff))) * 16)
-#define offsetSS    ((_X) ? (0) : ((_Y) ? (4) : ((_Z) ? 8 : 12)))
-#define offsetReg   ((_X) ? (0) : ((_Y) ? (1) : ((_Z) ? 2 :  3)))
 
 #define xmmT1  xmm0 // Used for regAlloc
 #define xmmT2  xmm1 // Used for regAlloc
@@ -137,12 +88,6 @@ static const uint divD = 0x2080000;
 #define gprF1 r12d // Status Flag 1
 #define gprF2 r13d // Status Flag 2
 #define gprF3 r14d // Status Flag 3
-
-// Function Params
-#define mX mVU, recPass
-
-typedef void Fntype_mVUrecInst(microVU& mVU, int recPass);
-typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
 
 //------------------------------------------------------------------
 // Optimization / Debug Options
@@ -215,18 +160,9 @@ static constexpr bool doWholeProgCompare = false;
 // Compares the entire VU memory with the stored micro program's memory, regardless of if it's used.
 // Generally slower but may be useful for debugging.
 
-//------------------------------------------------------------------
-// Speed Hacks (can cause infinite loops, SPS, Black Screens, etc...)
-//------------------------------------------------------------------
-
-// Status Flag Speed Hack
-#define CHECK_VU_FLAGHACK (EmuConfig.Speedhacks.vuFlagHack)
-// This hack only updates the Status Flag on blocks that will read it.
-// Most blocks do not read status flags, so this is a big speedup.
-
-extern void mVUmergeRegs(const xmm& dest, const xmm& src, int xyzw, bool modXYZW = false);
-extern void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW);
-extern void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw);
+extern void mVUmergeRegs(const xRegisterSSE& dest, const xRegisterSSE& src, int xyzw, bool modXYZW = false);
+extern void mVUsaveReg(const xRegisterSSE& reg, xAddressVoid ptr, int xyzw, bool modXYZW);
+extern void mVUloadReg(const xRegisterSSE& reg, xAddressVoid ptr, int xyzw);
 
 struct regCycleInfo
 {
@@ -460,10 +396,7 @@ protected:
 
 	bool        regAllocCOP2;    // Local COP2 check
 
-	// Helper functions to get VU regs
-	VURegs& regs() const { return ::vuRegs[index]; }
-
-	__ri void loadIreg(const xmm& reg, int xyzw)
+	__ri void loadIreg(const xRegisterSSE& reg, int xyzw)
 	{
 		for (int i = 0; i < gprTotal; i++)
 		{
@@ -570,21 +503,22 @@ public:
 	// Fully resets the regalloc by clearing all cached data
 	void reset(bool cop2mode)
 	{
-		// we run this at the of cop2, so don't free fprs
+		int i;
+		/* we run this at the of COP2, so don't free FPRS */
 		regAllocCOP2 = false;
 
-		for (int i = 0; i < xmmTotal; i++)
+		for (i = 0; i < xmmTotal; i++)
 			clearReg(i);
-		for (int i = 0; i < gprTotal; i++)
+		for (i = 0; i < gprTotal; i++)
 			clearGPR(i);
 
-		counter = 0;
+		counter      = 0;
 		regAllocCOP2 = cop2mode;
-		pxmmregs = cop2mode ? xmmregs : nullptr;
+		pxmmregs     = cop2mode ? xmmregs : nullptr;
 
 		if (cop2mode)
 		{
-			for (int i = 0; i < xmmTotal; i++)
+			for (i = 0; i < xmmTotal; i++)
 			{
 				if (!pxmmregs[i].inuse || pxmmregs[i].type != XMMTYPE_VFREG)
 					continue;
@@ -600,7 +534,7 @@ public:
 				}
 			}
 
-			for (int i = 0; i < gprTotal; i++)
+			for (i = 0; i < gprTotal; i++)
 			{
 				if (!x86regs[i].inuse || x86regs[i].type != X86TYPE_VIREG)
 					continue;
@@ -637,17 +571,6 @@ public:
 		return count;
 	}
 
-	bool hasRegVF(int vfreg)
-	{
-		for (int i = 0; i < xmmTotal; i++)
-		{
-			if (xmmMap[i].VFreg == vfreg)
-				return true;
-		}
-
-		return false;
-	}
-
 	int getRegVF(int i)
 	{
 		return (i < xmmTotal) ? xmmMap[i].VFreg : -1;
@@ -671,17 +594,6 @@ public:
 		return count;
 	}
 
-	bool hasRegVI(int vireg)
-	{
-		for (int i = 0; i < gprTotal; i++)
-		{
-			if (gprMap[i].VIreg == vireg)
-				return true;
-		}
-
-		return false;
-	}
-
 	int getRegVI(int i)
 	{
 		return (i < gprTotal) ? gprMap[i].VIreg : -1;
@@ -690,11 +602,11 @@ public:
 	// Flushes all allocated registers (i.e. writes-back to memory all modified registers).
 	// If clearState is 0, then it keeps cached reg data valid
 	// If clearState is 1, then it invalidates all cached reg data after write-back
-	void flushAll(bool clearState = true)
+	void flushAll(bool clearState)
 	{
 		for (int i = 0; i < xmmTotal; i++)
 		{
-			writeBackReg(xmm(i));
+			writeBackReg(xRegisterSSE(i), true);
 			if (clearState)
 				clearReg(i);
 		}
@@ -707,15 +619,15 @@ public:
 		}
 	}
 
-	void flushCallerSavedRegisters(bool clearNeeded = false)
+	void flushCallerSavedRegisters()
 	{
 		for (int i = 0; i < xmmTotal; i++)
 		{
 			if (!RegisterSSE_IsCallerSaved(i))
 				continue;
 
-			writeBackReg(xmm(i));
-			if (clearNeeded || !xmmMap[i].isNeeded)
+			writeBackReg(xRegisterSSE(i), true);
+			if (!xmmMap[i].isNeeded)
 				clearReg(i);
 		}
 
@@ -725,7 +637,7 @@ public:
 				continue;
 
 			writeBackReg(xRegister32(i), true);
-			if (clearNeeded || !gprMap[i].isNeeded)
+			if (!gprMap[i].isNeeded)
 				clearGPR(i);
 		}
 	}
@@ -768,16 +680,16 @@ public:
 
 		for (int i = 0; i < xmmTotal; i++)
 		{
-			microMapXMM& mapX = xmmMap[xmm(i).Id];
+			microMapXMM& mapX = xmmMap[xRegisterSSE(i).Id];
 
 			if ((mapX.VFreg > 0) && mapX.xyzw) // Reg was modified and not Temp or vf0
 			{
 				if (mapX.VFreg == 33)
-					xMOVSS(ptr32[&::vuRegs[index].VI[REG_I]], xmm(i));
+					xMOVSS(ptr32[&::vuRegs[index].VI[REG_I]], xRegisterSSE(i));
 				else if (mapX.VFreg == 32)
-					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].ACC], mapX.xyzw, 1);
+					mVUsaveReg(xRegisterSSE(i), ptr[&::vuRegs[index].ACC], mapX.xyzw, 1);
 				else
-					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].VI[mapX.VFreg]], mapX.xyzw, 1);
+					mVUsaveReg(xRegisterSSE(i), ptr[&::vuRegs[index].VI[mapX.VFreg]], mapX.xyzw, 1);
 			}
 		}
 
@@ -806,7 +718,6 @@ public:
 		return false;
 	}
 
-	void clearReg(const xmm& reg) { clearReg(reg.Id); }
 	void clearReg(int regId)
 	{
 		microMapXMM& clear = xmmMap[regId];
@@ -845,7 +756,7 @@ public:
 	// Writes back modified reg to memory.
 	// If all vectors modified, then keeps the VF reg cached in the xmm register.
 	// If reg was not modified, then keeps the VF reg cached in the xmm register.
-	void writeBackReg(const xmm& reg, bool invalidateRegs = true)
+	void writeBackReg(const xRegisterSSE& reg, bool invalidateRegs)
 	{
 		microMapXMM& mapX = xmmMap[reg.Id];
 
@@ -881,11 +792,11 @@ public:
 				updateCOP2AllocState(reg.Id);
 				return;
 			}
-			clearReg(reg);
+			clearReg(reg.Id);
 		}
 		else if (mapX.xyzw) // Clear reg if modified and is VF0 or temp reg...
 		{
-			clearReg(reg);
+			clearReg(reg.Id);
 		}
 	}
 
@@ -894,9 +805,8 @@ public:
 	// This is to guarantee proper merging between registers... When a written-to reg is cleared,
 	// it invalidates other cached registers of the same VF reg, and merges partial-vector
 	// writes into them.
-	void clearNeeded(const xmm& reg)
+	void clearNeeded(const xRegisterSSE& reg)
 	{
-
 		if ((reg.Id < 0) || (reg.Id >= xmmTotal)) // Sometimes xmmPQ hits this
 			return;
 
@@ -918,7 +828,7 @@ public:
 					{
 						if (mergeRegs == 1)
 						{
-							mVUmergeRegs(xmm(i), reg, clear.xyzw, true);
+							mVUmergeRegs(xRegisterSSE(i), reg, clear.xyzw, true);
 							mapI.xyzw  = 0xf;
 							mapI.count = counter;
 							mergeRegs  = 2;
@@ -929,12 +839,12 @@ public:
 					}
 				}
 				if (mergeRegs == 2) // Clear Current Reg if Merged
-					clearReg(reg);
+					clearReg(reg.Id);
 				else if (mergeRegs == 1) // Write Back Partial Writes if couldn't merge
-					writeBackReg(reg);
+					writeBackReg(reg, true);
 			}
 			else
-				clearReg(reg); // If Reg was temp or vf0, then invalidate itself
+				clearReg(reg.Id); // If Reg was temp or vf0, then invalidate itself
 		}
 		else if (regAllocCOP2 && clear.VFreg < 0)
 		{
@@ -951,14 +861,14 @@ public:
 	// To load a temp reg use the default param values, vfLoadReg = -1 and vfWriteReg = -1.
 	// To load a full reg which won't be modified and you want cached, specify vfLoadReg >= 0 and vfWriteReg = -1
 	// To load a reg which you don't want written back or cached, specify vfLoadReg >= 0 and vfWriteReg = 0
-	const xmm& allocReg(int vfLoadReg = -1, int vfWriteReg = -1, int xyzw = 0, bool cloneWrite = true)
+	const xRegisterSSE& allocReg(int vfLoadReg = -1, int vfWriteReg = -1, int xyzw = 0, bool cloneWrite = true)
 	{
 		counter++;
 		if (vfLoadReg >= 0) // Search For Cached Regs
 		{
 			for (int i = 0; i < xmmTotal; i++)
 			{
-				const xmm& xmmI = xmm::GetInstance(i);
+				const xRegisterSSE& xmmI = xRegisterSSE::GetInstance(i);
 				microMapXMM& mapI = xmmMap[i];
 				if ((mapI.VFreg == vfLoadReg)
 				 && (!mapI.xyzw                           // Reg Was Not Modified
@@ -970,8 +880,8 @@ public:
 						if (cloneWrite) // Clone Reg so as not to use the same Cached Reg
 						{
 							z = findFreeReg(vfWriteReg);
-							const xmm& xmmZ = xmm::GetInstance(z);
-							writeBackReg(xmmZ);
+							const xRegisterSSE& xmmZ = xRegisterSSE::GetInstance(z);
+							writeBackReg(xmmZ, true);
 
 							if (xyzw == 4)
 								xPSHUF.D(xmmZ, xmmI, 1);
@@ -987,7 +897,7 @@ public:
 						else // Don't clone reg, but shuffle to adjust for SS ops
 						{
 							if ((vfLoadReg != vfWriteReg) || (xyzw != 0xf))
-								writeBackReg(xmmI);
+								writeBackReg(xmmI, true);
 
 							if (xyzw == 4)
 								xPSHUF.D(xmmI, xmmI, 1);
@@ -1004,13 +914,13 @@ public:
 					xmmMap[z].isNeeded = true;
 					updateCOP2AllocState(z);
 
-					return xmm::GetInstance(z);
+					return xRegisterSSE::GetInstance(z);
 				}
 			}
 		}
 		int x = findFreeReg((vfWriteReg >= 0) ? vfWriteReg : vfLoadReg);
-		const xmm& xmmX = xmm::GetInstance(x);
-		writeBackReg(xmmX);
+		const xRegisterSSE& xmmX = xRegisterSSE::GetInstance(x);
+		writeBackReg(xmmX, true);
 
 		if (vfWriteReg >= 0) // Reg Will Be Modified (allow partial reg loading)
 		{

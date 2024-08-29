@@ -25,7 +25,44 @@
 
 #include "common/AlignedMalloc.h"
 
-// Misc Macros...
+#define _Ft_ ((mVU.code >> 16) & 0x1F) // The ft part of the instruction register
+#define _Fs_ ((mVU.code >> 11) & 0x1F) // The fs part of the instruction register
+#define _Fd_ ((mVU.code >>  6) & 0x1F) // The fd part of the instruction register
+
+#define _It_ ((mVU.code >> 16) & 0xF)  // The it part of the instruction register
+#define _Is_ ((mVU.code >> 11) & 0xF)  // The is part of the instruction register
+#define _Id_ ((mVU.code >>  6) & 0xF)  // The id part of the instruction register
+
+#define _X ((mVU.code >> 24) & 0x1)
+#define _Y ((mVU.code >> 23) & 0x1)
+#define _Z ((mVU.code >> 22) & 0x1)
+#define _W ((mVU.code >> 21) & 0x1)
+
+#define _cX ((cpuRegs.code >> 24) & 0x1)
+#define _cY ((cpuRegs.code >> 23) & 0x1)
+#define _cZ ((cpuRegs.code >> 22) & 0x1)
+#define _cW ((cpuRegs.code >> 21) & 0x1)
+
+#define _XYZW_SS   (_X + _Y + _Z + _W == 1)
+#define _XYZW_SS2  (_XYZW_SS && (_X_Y_Z_W != 8))
+#define _XYZW_PS   (_X_Y_Z_W == 0xf)
+
+/*------------------------------------------------------------------
+ * Speed Hacks (can cause infinite loops, SPS, Black Screens, etc...)
+ *------------------------------------------------------------------
+ * Status Flag Speed Hack */
+
+#define CHECK_VU_FLAGHACK (EmuConfig.Speedhacks.vuFlagHack)
+/* This hack only updates the Status Flag on blocks that will read it.
+ * Most blocks do not read status flags, so this is a big speedup. */
+
+/* Misc Macros... */
+#define _bc_   (mVU.code & 0x3)
+#define _bc_x ((mVU.code & 0x3) == 0)
+#define _bc_y ((mVU.code & 0x3) == 1)
+#define _bc_z ((mVU.code & 0x3) == 2)
+#define _bc_w ((mVU.code & 0x3) == 3)
+
 #define mVUcurProg   mVU.prog.cur[0]
 #define mVUblocks    mVU.prog.cur->block
 #define mVUir        mVU.prog.IRinfo
@@ -52,7 +89,7 @@
 #define bSaveAddr    (((xPC + 16) & (mVU.microMemSize-8)) / 8)
 #define Rmem         &vuRegs[mVU.index].VI[REG_R].UL
 
-// Flag Info (Set if next-block's first 4 ops will read current-block's flags)
+/* Flag Info (Set if next-block's first 4 ops will read current-block's flags) */
 #define __Status (mVUregs.needExactMatch & 1)
 #define __Mac    (mVUregs.needExactMatch & 2)
 #define __Clip   (mVUregs.needExactMatch & 4)
@@ -75,15 +112,20 @@
 #define incPC2(x) { iPC = ((iPC + (x)) & mVU.progMemMask); }
 
 /* Define Passes */
-#define pass1 if (recPass == 0) // Analyze
-#define pass2 if (recPass == 1) // Recompile
-#define pass4 if (recPass == 3) // Flag stuff
+#define pass1 if (recPass == 0) /* Analyze */
+#define pass2 if (recPass == 1) /* Recompile */
+#define pass4 if (recPass == 3) /* Flag stuff */
 
 /* Upper Opcode Cases */
-#define opCase1 if (opCase == 1) // Normal Opcodes
-#define opCase2 if (opCase == 2) // BC Opcodes
-#define opCase3 if (opCase == 3) // I  Opcodes
-#define opCase4 if (opCase == 4) // Q  Opcodes
+#define opCase1 if (opCase == 1) /* Normal Opcodes */
+#define opCase2 if (opCase == 2) /* BC Opcodes */
+#define opCase3 if (opCase == 3) /* I  Opcodes */
+#define opCase4 if (opCase == 4) /* Q  Opcodes */
+
+#define isVU1       (mVU.index != 0)
+#define isVU0       (mVU.index == 0)
+
+#define offsetSS    ((_X) ? (0) : ((_Y) ? (4) : ((_Z) ? 8 : 12)))
 
 #define blockCreate(addr) \
 	{ \
@@ -92,6 +134,13 @@
 	}
 
 #define __four(val) { val, val, val, val }
+
+#define _Fsf_ ((mVU.code >> 21) & 0x03)
+#define _Ftf_ ((mVU.code >> 23) & 0x03)
+
+typedef void Fntype_mVUrecInst(microVU& mVU, int recPass);
+typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
+
 alignas(32) static const mVU_Globals mVUglob = {
 	__four(0x7fffffff),       // absclip
 	__four(0x80000000),       // signbit
@@ -125,6 +174,14 @@ alignas(32) static const mVU_Globals mVUglob = {
 	__four(0.000030517578125) // ITOF_15
 };
 
+#define _IBIT_ 2147483648
+#define _EBIT_ 1073741824
+#define _MBIT_ 536870912
+#define _DBIT_ 268435456
+#define _TBIT_ 134217728
+
+#define CONST_DIVI 0x1040000
+#define CONST_DIVD 0x2080000
 
 static __fi bool mVUcmpProg(microVU& mVU, microProgram& prog);
 static __fi void* mVUblockFetch(microVU& mVU, uint32_t startPC, uintptr_t pState);
@@ -154,7 +211,7 @@ alignas(16) const uint32_t sse4_maxvals[2][4] = {
 // gotten a NaN value, then something went wrong; and the NaN's sign
 // is not to be trusted. Games like positive values better usually,
 // and its faster... so just always make NaNs into positive infinity.
-static void mVUclamp1(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw, bool bClampE)
+static void mVUclamp1(microVU& mVU, const xRegisterSSE& reg, const xRegisterSSE& regT1, int xyzw, bool bClampE)
 {
 	if (((!clampE && CHECK_VU_OVERFLOW(mVU.index)) || (clampE && bClampE)) && mVU.regAlloc->checkVFClamp(reg.Id))
 	{
@@ -177,7 +234,7 @@ static void mVUclamp1(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw, 
 // Note 2: Using regalloc here seems to contaminate some regs in certain games.
 // Must be some specific case I've overlooked (or I used regalloc improperly on an opcode)
 // so we just use a temporary mem location for our backup for now... (non-sse4 version only)
-static void mVUclamp2(microVU& mVU, const xmm& reg, const xmm& regT1in, int xyzw, bool bClampE)
+static void mVUclamp2(microVU& mVU, const xRegisterSSE& reg, const xRegisterSSE& regT1in, int xyzw, bool bClampE)
 {
 	if (((!clampE && CHECK_VU_SIGN_OVERFLOW(mVU.index)) || (clampE && bClampE && CHECK_VU_SIGN_OVERFLOW(mVU.index))) && mVU.regAlloc->checkVFClamp(reg.Id))
 	{
@@ -190,7 +247,7 @@ static void mVUclamp2(microVU& mVU, const xmm& reg, const xmm& regT1in, int xyzw
 }
 
 /* Used for operand clamping on every SSE instruction (add/sub/mul/div) */
-static void mVUclamp3(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw)
+static void mVUclamp3(microVU& mVU, const xRegisterSSE& reg, const xRegisterSSE& regT1, int xyzw)
 {
 	if (clampE && mVU.regAlloc->checkVFClamp(reg.Id))
 		mVUclamp2(mVU, reg, regT1, xyzw, true);
@@ -202,7 +259,7 @@ static void mVUclamp3(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw)
 // emulated opcodes (causing crashes). Since we're clamping the operands
 // with mVUclamp3, we should almost never be getting a NaN result,
 // but this clamp is just a precaution just-in-case.
-static void mVUclamp4(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw)
+static void mVUclamp4(microVU& mVU, const xRegisterSSE& reg, const xRegisterSSE& regT1, int xyzw)
 {
 	if (clampE && !CHECK_VU_SIGN_OVERFLOW(mVU.index) && mVU.regAlloc->checkVFClamp(reg.Id))
 		mVUclamp1(mVU, reg, regT1, xyzw, 1);
@@ -212,7 +269,7 @@ static void mVUclamp4(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw)
 // Micro VU - Reg Loading/Saving/Shuffling/Unpacking/Merging...
 //------------------------------------------------------------------
 
-static void mVUunpack_xyzw(const xmm& dstreg, const xmm& srcreg, int xyzw)
+static void mVUunpack_xyzw(const xRegisterSSE& dstreg, const xRegisterSSE& srcreg, int xyzw)
 {
 	switch (xyzw)
 	{
@@ -223,7 +280,7 @@ static void mVUunpack_xyzw(const xmm& dstreg, const xmm& srcreg, int xyzw)
 	}
 }
 
-void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
+void mVUloadReg(const xRegisterSSE& reg, xAddressVoid ptr, int xyzw)
 {
 	switch (xyzw)
 	{
@@ -235,7 +292,7 @@ void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
 	}
 }
 
-static void mVUloadIreg(const xmm& reg, int xyzw, VURegs* vuRegs)
+static void mVUloadIreg(const xRegisterSSE& reg, int xyzw, VURegs* vuRegs)
 {
 	xMOVSSZX(reg, ptr32[&vuRegs->VI[REG_I].UL]);
 	if (!_XYZWss(xyzw))
@@ -243,7 +300,7 @@ static void mVUloadIreg(const xmm& reg, int xyzw, VURegs* vuRegs)
 }
 
 // Modifies the Source Reg!
-void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW)
+void mVUsaveReg(const xRegisterSSE& reg, xAddressVoid ptr, int xyzw, bool modXYZW)
 {
 	switch (xyzw)
 	{
@@ -310,7 +367,7 @@ void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW)
 }
 
 // Modifies the Source Reg! (ToDo: Optimize modXYZW = 1 cases)
-void mVUmergeRegs(const xmm& dest, const xmm& src, int xyzw, bool modXYZW)
+void mVUmergeRegs(const xRegisterSSE& dest, const xRegisterSSE& src, int xyzw, bool modXYZW)
 {
 	xyzw &= 0xf;
 	if ((dest != src) && (xyzw != 0))
@@ -393,7 +450,7 @@ static __fi void mVUbackupRegs(microVU& mVU, bool toMemory, bool onlyNeeded)
 	else
 	{
 		// TODO(Stenzek): get rid of xmmbackup
-		mVU.regAlloc->flushAll(); // Flush Regalloc
+		mVU.regAlloc->flushAll(true); // Flush Regalloc
 		xMOVAPS(ptr128[&mVU.xmmBackup[xmmPQ.Id][0]], xmmPQ);
 	}
 }
@@ -541,14 +598,14 @@ alignas(16) static const SSEMasks sseMasks =
 
 
 // Warning: Modifies t1 and t2
-void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, const xmm& t2in, bool min)
+void MIN_MAX_PS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1in, const xRegisterSSE& t2in, bool min)
 {
-	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
-	const xmm& t2 = t2in.IsEmpty() ? mVU.regAlloc->allocReg() : t2in;
+	const xRegisterSSE& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
+	const xRegisterSSE& t2 = t2in.IsEmpty() ? mVU.regAlloc->allocReg() : t2in;
 
 	// use integer comparison
-	const xmm& c1 = min ? t2 : t1;
-	const xmm& c2 = min ? t1 : t2;
+	const xRegisterSSE& c1 = min ? t2 : t1;
+	const xRegisterSSE& c2 = min ? t1 : t2;
 
 	xMOVAPS  (t1, to);
 	xPSRA.D  (t1, 31);
@@ -570,9 +627,9 @@ void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, c
 }
 
 // Warning: Modifies to's upper 3 vectors, and t1
-void MIN_MAX_SS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, bool min)
+void MIN_MAX_SS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1in, bool min)
 {
-	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
+	const xRegisterSSE& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
 	xSHUF.PS(to, from, 0);
 	xPAND   (to, ptr128[sseMasks.MIN_MAX_1]);
 	xPOR    (to, ptr128[sseMasks.MIN_MAX_2]);
@@ -585,7 +642,7 @@ void MIN_MAX_SS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, b
 
 // Turns out only this is needed to get TriAce games booting with mVU
 // Modifies from's lower vector
-void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
+void ADD_SS_TriAceHack(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from)
 {
 	xMOVD(eax, to);
 	xMOVD(ecx, from);
@@ -621,27 +678,27 @@ void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 		mVUclamp4(mVU, to, t1, (isPS) ? 0xf : 0x8); \
 	} while (0)
 
-void SSE_MAXPS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MAXPS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	MIN_MAX_PS(mVU, to, from, t1, t2, false);
 }
 
-void SSE_MINPS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MINPS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	MIN_MAX_PS(mVU, to, from, t1, t2, true);
 }
 
-void SSE_MAXSS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MAXSS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	MIN_MAX_SS(mVU, to, from, t1, false);
 }
 
-void SSE_MINSS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MINSS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	MIN_MAX_SS(mVU, to, from, t1, true);
 }
 
-void SSE_ADD2SS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADD2SS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	if (!CHECK_VUADDSUBHACK)
 		clampOp(xADD.SS, false);
@@ -650,47 +707,47 @@ void SSE_ADD2SS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xE
 }
 
 // Does same as SSE_ADDPS since tri-ace games only need SS implementation of VUADDSUBHACK...
-void SSE_ADD2PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADD2PS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xADD.PS, true);
 }
 
-void SSE_ADDPS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADDPS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xADD.PS, true);
 }
 
-void SSE_ADDSS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADDSS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xADD.SS, false);
 }
 
-void SSE_SUBPS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_SUBPS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xSUB.PS, true);
 }
 
-void SSE_SUBSS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_SUBSS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xSUB.SS, false);
 }
 
-void SSE_MULPS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MULPS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xMUL.PS, true);
 }
 
-void SSE_MULSS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MULSS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xMUL.SS, false);
 }
 
-void SSE_DIVPS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_DIVPS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xDIV.PS, true);
 }
 
-void SSE_DIVSS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_DIVSS(microVU& mVU, const xRegisterSSE& to, const xRegisterSSE& from, const xRegisterSSE& t1 = xEmptyReg, const xRegisterSSE& t2 = xEmptyReg)
 {
 	clampOp(xDIV.SS, false);
 }
@@ -1319,13 +1376,13 @@ static __ri void mVUanalyzeJump(microVU& mVU, int Is, int It, bool isJALR)
 // Flag Allocators
 //------------------------------------------------------------------
 
-__fi static const x32& getFlagReg(uint fInst)
+__fi static const xRegister32& getFlagReg(uint fInst)
 {
-	static const x32* const gprFlags[4] = {&gprF0, &gprF1, &gprF2, &gprF3};
+	static const xRegister32* const gprFlags[4] = {&gprF0, &gprF1, &gprF2, &gprF3};
 	return *gprFlags[fInst];
 }
 
-static __fi void setBitSFLAG(const x32& reg, const x32& regT, int bitTest, int bitSet)
+static __fi void setBitSFLAG(const xRegister32& reg, const xRegister32& regT, int bitTest, int bitSet)
 {
 	xTEST(regT, bitTest);
 	xForwardJZ8 skip;
@@ -1333,7 +1390,7 @@ static __fi void setBitSFLAG(const x32& reg, const x32& regT, int bitTest, int b
 	skip.SetTarget();
 }
 
-static __fi void setBitFSEQ(const x32& reg, int bitX)
+static __fi void setBitFSEQ(const xRegister32& reg, int bitX)
 {
 	xTEST(reg, bitX);
 	xForwardJump8 skip(Jcc_Zero);
@@ -1341,18 +1398,18 @@ static __fi void setBitFSEQ(const x32& reg, int bitX)
 	skip.SetTarget();
 }
 
-static __fi void mVUallocSFLAGa(const x32& reg, int fInstance)
+static __fi void mVUallocSFLAGa(const xRegister32& reg, int fInstance)
 {
 	xMOV(reg, getFlagReg(fInstance));
 }
 
-static __fi void mVUallocSFLAGb(const x32& reg, int fInstance)
+static __fi void mVUallocSFLAGb(const xRegister32& reg, int fInstance)
 {
 	xMOV(getFlagReg(fInstance), reg);
 }
 
 // Normalize Status Flag
-static __ri void mVUallocSFLAGc(const x32& reg, const x32& regT, int fInstance)
+static __ri void mVUallocSFLAGc(const xRegister32& reg, const xRegister32& regT, int fInstance)
 {
 	xXOR(reg, reg);
 	mVUallocSFLAGa(regT, fInstance);
@@ -1366,7 +1423,7 @@ static __ri void mVUallocSFLAGc(const x32& reg, const x32& regT, int fInstance)
 }
 
 // Denormalizes Status Flag; destroys tmp1/tmp2
-static __ri void mVUallocSFLAGd(uint32_t* memAddr, const x32& reg = eax, const x32& tmp1 = ecx, const x32& tmp2 = edx)
+static __ri void mVUallocSFLAGd(uint32_t* memAddr, const xRegister32& reg = eax, const xRegister32& tmp1 = ecx, const xRegister32& tmp2 = edx)
 {
 	xMOV(tmp2, ptr32[memAddr]);
 	xMOV(reg, tmp2);
@@ -1383,24 +1440,24 @@ static __ri void mVUallocSFLAGd(uint32_t* memAddr, const x32& reg = eax, const x
 	xOR(reg, tmp2);
 }
 
-static __fi void mVUallocMFLAGa(microVU& mVU, const x32& reg, int fInstance)
+static __fi void mVUallocMFLAGa(microVU& mVU, const xRegister32& reg, int fInstance)
 {
 	xMOVZX(reg, ptr16[&mVU.macFlag[fInstance]]);
 }
 
-static __fi void mVUallocMFLAGb(microVU& mVU, const x32& reg, int fInstance)
+static __fi void mVUallocMFLAGb(microVU& mVU, const xRegister32& reg, int fInstance)
 {
 	if (fInstance < 4) xMOV(ptr32[&mVU.macFlag[fInstance]], reg);         // microVU
 	else               xMOV(ptr32[&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL], reg); // macroVU
 }
 
-static __fi void mVUallocCFLAGa(microVU& mVU, const x32& reg, int fInstance)
+static __fi void mVUallocCFLAGa(microVU& mVU, const xRegister32& reg, int fInstance)
 {
 	if (fInstance < 4) xMOV(reg, ptr32[&mVU.clipFlag[fInstance]]);         // microVU
 	else               xMOV(reg, ptr32[&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL]); // macroVU
 }
 
-static __fi void mVUallocCFLAGb(microVU& mVU, const x32& reg, int fInstance)
+static __fi void mVUallocCFLAGb(microVU& mVU, const xRegister32& reg, int fInstance)
 {
 	if (fInstance < 4) xMOV(ptr32[&mVU.clipFlag[fInstance]], reg);         // microVU
 	else               xMOV(ptr32[&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL], reg); // macroVU
@@ -1419,17 +1476,17 @@ void microRegAlloc::writeVIBackup(const xRegisterInt& reg)
 //------------------------------------------------------------------
 // P/Q Reg Allocators
 //------------------------------------------------------------------
-static __fi void getPreg(microVU& mVU, const xmm& reg)
+static __fi void getPreg(microVU& mVU, const xRegisterSSE& reg)
 {
 	mVUunpack_xyzw(reg, xmmPQ, (2 + mVUinfo.readP));
 }
 
-static __fi void getQreg(const xmm& reg, int qInstance)
+static __fi void getQreg(const xRegisterSSE& reg, int qInstance)
 {
 	mVUunpack_xyzw(reg, xmmPQ, qInstance);
 }
 
-static __ri void writeQreg(const xmm& reg, int qInstance)
+static __ri void writeQreg(const xRegisterSSE& reg, int qInstance)
 {
 	if (qInstance)
 		xINSERTPS(xmmPQ, reg, _MM_MK_INSERTPS_NDX(0, 1, 0));
@@ -1453,19 +1510,19 @@ static __ri void writeQreg(const xmm& reg, int qInstance)
 
 
 // Note: If modXYZW is true, then it adjusts XYZW for Single Scalar operations
-static void mVUupdateFlags(microVU& mVU, const xmm& reg, const xmm& regT1in = xEmptyReg, const xmm& regT2in = xEmptyReg, bool modXYZW = 1)
+static void mVUupdateFlags(microVU& mVU, const xRegisterSSE& reg, const xRegisterSSE& regT1in = xEmptyReg, const xRegisterSSE& regT2in = xEmptyReg, bool modXYZW = 1)
 {
-	const x32& mReg = gprT1;
-	const x32& sReg = getFlagReg(sFLAG.write);
+	const xRegister32& mReg = gprT1;
+	const xRegister32& sReg = getFlagReg(sFLAG.write);
 	bool regT1b = regT1in.IsEmpty(), regT2b = false;
 	static const uint16_t flipMask[16] = {0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
 
 	if (!sFLAG.doFlag && !mFLAG.doFlag)
 		return;
 
-	const xmm& regT1 = regT1b ? mVU.regAlloc->allocReg() : regT1in;
+	const xRegisterSSE& regT1 = regT1b ? mVU.regAlloc->allocReg() : regT1in;
 
-	xmm regT2 = reg;
+	xRegisterSSE regT2 = reg;
 	if ((mFLAG.doFlag && !(_XYZW_SS && modXYZW)))
 	{
 		regT2 = regT2in;
@@ -1555,7 +1612,7 @@ static void mVUupdateFlags(microVU& mVU, const xmm& reg, const xmm& regT1in = xE
 // Helper Macros and Functions
 //------------------------------------------------------------------
 
-static void (*const SSE_PS[])(microVU&, const xmm&, const xmm&, const xmm&, const xmm&) = {
+static void (*const SSE_PS[])(microVU&, const xRegisterSSE&, const xRegisterSSE&, const xRegisterSSE&, const xRegisterSSE&) = {
 	SSE_ADDPS, // 0
 	SSE_SUBPS, // 1
 	SSE_MULPS, // 2
@@ -1564,7 +1621,7 @@ static void (*const SSE_PS[])(microVU&, const xmm&, const xmm&, const xmm&, cons
 	SSE_ADD2PS // 5
 };
 
-static void (*const SSE_SS[])(microVU&, const xmm&, const xmm&, const xmm&, const xmm&) = {
+static void (*const SSE_SS[])(microVU&, const xRegisterSSE&, const xRegisterSSE&, const xRegisterSSE&, const xRegisterSSE&) = {
 	SSE_ADDSS, // 0
 	SSE_SUBSS, // 1
 	SSE_MULSS, // 2
@@ -1599,7 +1656,7 @@ static bool doSafeSub(microVU& mVU, int opCase, int opType, bool isACC)
 	{
 		if ((opType == 1) && (_Ft_ == _Fs_) && (opCase == 1)) // Don't do this with BC's!
 		{
-			const xmm& Fs = mVU.regAlloc->allocReg(-1, isACC ? 32 : _Fd_, _X_Y_Z_W);
+			const xRegisterSSE& Fs = mVU.regAlloc->allocReg(-1, isACC ? 32 : _Fd_, _X_Y_Z_W);
 			xPXOR(Fs, Fs); // Set to Positive 0
 			mVUupdateFlags(mVU, Fs);
 			mVU.regAlloc->clearNeeded(Fs);
@@ -1610,7 +1667,7 @@ static bool doSafeSub(microVU& mVU, int opCase, int opType, bool isACC)
 }
 
 // Sets Up Ft Reg for Normal, BC, I, and Q Cases
-static void setupFtReg(microVU& mVU, xmm& Ft, xmm& tempFt, int opCase, int clampType)
+static void setupFtReg(microVU& mVU, xRegisterSSE& Ft, xRegisterSSE& tempFt, int opCase, int clampType)
 {
 	opCase1
 	{
@@ -1638,7 +1695,7 @@ static void setupFtReg(microVU& mVU, xmm& Ft, xmm& tempFt, int opCase, int clamp
 	{
 		if (!clampE && _XYZW_SS && !mVUinfo.readQ)
 		{
-			Ft = xmmPQ;
+			Ft     = xmmPQ;
 			tempFt = xEmptyReg;
 		}
 		else
@@ -1656,10 +1713,10 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 	pass1 { setupPass1(mVU, opCase, isACC, ((opType == 3) || (opType == 4))); }
 	pass2
 	{
+		xRegisterSSE Fs, Ft, ACC, tempFt;
 		if (doSafeSub(mVU, opCase, opType, isACC))
 			return;
 
-		xmm Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
 		if (isACC)
@@ -1710,7 +1767,7 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 	pass1 { setupPass1(mVU, opCase, true, false); }
 	pass2
 	{
-		xmm Fs, Ft, ACC, tempFt;
+		xRegisterSSE Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
 		Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
@@ -1735,7 +1792,7 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 		}
 		else
 		{
-			const xmm& tempACC = mVU.regAlloc->allocReg();
+			const xRegisterSSE& tempACC = mVU.regAlloc->allocReg();
 			xMOVAPS(tempACC, ACC);
 			SSE_PS[opType](mVU, tempACC, Fs, tempFt, xEmptyReg);
 			mVUmergeRegs(ACC, tempACC, _X_Y_Z_W);
@@ -1756,7 +1813,7 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, int clampType)
 	pass1 { setupPass1(mVU, opCase, false, false); }
 	pass2
 	{
-		xmm Fs, Ft, ACC, tempFt;
+		xRegisterSSE Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
 		ACC = mVU.regAlloc->allocReg(32);
@@ -1791,7 +1848,7 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, int clampType)
 	pass1 { setupPass1(mVU, opCase, false, false); }
 	pass2
 	{
-		xmm Fs, Ft, Fd, tempFt;
+		xRegisterSSE Fs, Ft, Fd, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
 		Fs = mVU.regAlloc->allocReg(_Fs_,  0, _X_Y_Z_W);
@@ -1821,7 +1878,7 @@ mVUop(mVU_ABS)
 	{
 		if (!_Ft_)
 			return;
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 		xAND.PS(Fs, ptr128[mVUglob.absclip]);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
@@ -1833,8 +1890,8 @@ mVUop(mVU_OPMULA)
 	pass1 { mVUanalyzeFMAC1(mVU, 0, _Fs_, _Ft_); }
 	pass2
 	{
-		const xmm& Ft = mVU.regAlloc->allocReg(_Ft_, 0, _X_Y_Z_W);
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 32, _X_Y_Z_W);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(_Ft_, 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 32, _X_Y_Z_W);
 
 		xPSHUF.D(Fs, Fs, 0xC9); // WXZY
 		xPSHUF.D(Ft, Ft, 0xD2); // WYXZ
@@ -1852,9 +1909,9 @@ mVUop(mVU_OPMSUB)
 	pass1 { mVUanalyzeFMAC1(mVU, _Fd_, _Fs_, _Ft_); }
 	pass2
 	{
-		const xmm& Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0xf);
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
-		const xmm& ACC = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0xf);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
+		const xRegisterSSE& ACC = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);
 
 		xPSHUF.D(Fs, Fs, 0xC9); // WXZY
 		xPSHUF.D(Ft, Ft, 0xD2); // WYXZ
@@ -1876,9 +1933,9 @@ static void mVU_FTOIx(microVU& mVU, int recPass, const float* addr)
 	{
 		if (!_Ft_)
 			return;
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
-		const xmm& t1 = mVU.regAlloc->allocReg();
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 
 		// Note: For help understanding this algorithm see recVUMI_FTOI_Saturate()
 		xMOVAPS(t1, Fs);
@@ -1906,7 +1963,7 @@ static void mVU_ITOFx(microVU& mVU, int recPass, const float* addr)
 	{
 		if (!_Ft_)
 			return;
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 
 		xCVTDQ2PS(Fs, Fs);
 		if (addr)
@@ -1922,9 +1979,9 @@ mVUop(mVU_CLIP)
 	pass1 { mVUanalyzeFMAC4(mVU, _Fs_, _Ft_); }
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
-		const xmm& Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0x1);
-		const xmm& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0x1);
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
 
 		mVUunpack_xyzw(Ft, Ft, 0);
 		mVUallocCFLAGa(mVU, gprT1, cFLAG.lastWrite);
@@ -2044,14 +2101,14 @@ mVUop(mVU_MINIx)  { mVU_FMACa(mVU, recPass, 2, 4, false,  0);  }
 mVUop(mVU_MINIy)  { mVU_FMACa(mVU, recPass, 2, 4, false,  0);  }
 mVUop(mVU_MINIz)  { mVU_FMACa(mVU, recPass, 2, 4, false,  0);  }
 mVUop(mVU_MINIw)  { mVU_FMACa(mVU, recPass, 2, 4, false,  0);  }
-mVUop(mVU_FTOI0)  { mVU_FTOIx(mX, NULL);      }
-mVUop(mVU_FTOI4)  { mVU_FTOIx(mX, mVUglob.FTOI_4);      }
-mVUop(mVU_FTOI12) { mVU_FTOIx(mX, mVUglob.FTOI_12);     }
-mVUop(mVU_FTOI15) { mVU_FTOIx(mX, mVUglob.FTOI_15);     }
-mVUop(mVU_ITOF0)  { mVU_ITOFx(mX, NULL);      }
-mVUop(mVU_ITOF4)  { mVU_ITOFx(mX, mVUglob.ITOF_4);      }
-mVUop(mVU_ITOF12) { mVU_ITOFx(mX, mVUglob.ITOF_12);     }
-mVUop(mVU_ITOF15) { mVU_ITOFx(mX, mVUglob.ITOF_15);     }
+mVUop(mVU_FTOI0)  { mVU_FTOIx(mVU, recPass, NULL);      }
+mVUop(mVU_FTOI4)  { mVU_FTOIx(mVU, recPass, mVUglob.FTOI_4);      }
+mVUop(mVU_FTOI12) { mVU_FTOIx(mVU, recPass, mVUglob.FTOI_12);     }
+mVUop(mVU_FTOI15) { mVU_FTOIx(mVU, recPass, mVUglob.FTOI_15);     }
+mVUop(mVU_ITOF0)  { mVU_ITOFx(mVU, recPass, NULL);      }
+mVUop(mVU_ITOF4)  { mVU_ITOFx(mVU, recPass, mVUglob.ITOF_4);      }
+mVUop(mVU_ITOF12) { mVU_ITOFx(mVU, recPass, mVUglob.ITOF_12);     }
+mVUop(mVU_ITOF15) { mVU_ITOFx(mVU, recPass, mVUglob.ITOF_15);     }
 mVUop(mVU_NOP)    { }
 
 //------------------------------------------------------------------
@@ -2063,7 +2120,7 @@ mVUop(mVU_NOP)    { }
 //------------------------------------------------------------------
 
 // Test if Vector is +/- Zero
-static __fi void testZero(const xmm& xmmReg, const xmm& xmmTemp, const x32& gprTemp)
+static __fi void testZero(const xRegisterSSE& xmmReg, const xRegisterSSE& xmmTemp, const xRegister32& gprTemp)
 {
 	xXOR.PS(xmmTemp, xmmTemp);
 	xCMPEQ.SS(xmmTemp, xmmReg);
@@ -2071,13 +2128,13 @@ static __fi void testZero(const xmm& xmmReg, const xmm& xmmTemp, const x32& gprT
 }
 
 // Test if Vector is Negative (Set Flags and Makes Positive)
-static __fi void testNeg(microVU& mVU, const xmm& xmmReg, const x32& gprTemp)
+static __fi void testNeg(microVU& mVU, const xRegisterSSE& xmmReg, const xRegister32& gprTemp)
 {
 	xMOVMSKPS(gprTemp, xmmReg);
 	xTEST(gprTemp, 1);
 	xForwardJZ8 skip;
-		xMOV(ptr32[&mVU.divFlag], divI);
-		xAND.PS(xmmReg, ptr128[mVUglob.absclip]);
+	xMOV(ptr32[&mVU.divFlag], CONST_DIVI);
+	xAND.PS(xmmReg, ptr128[mVUglob.absclip]);
 	skip.SetTarget();
 }
 
@@ -2086,21 +2143,21 @@ mVUop(mVU_DIV)
 	pass1 { mVUanalyzeFDIV(mVU, _Fs_, _Fsf_, _Ft_, _Ftf_, 7); }
 	pass2
 	{
-		xmm Ft;
+		xRegisterSSE Ft;
 		if (_Ftf_) Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
 		else       Ft = mVU.regAlloc->allocReg(_Ft_);
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		const xmm& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
 
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
 		xForwardJZ8 cjmp; // Skip if not zero
 
 			testZero(Fs, t1, gprT1); // Test if Fs is zero
 			xForwardJZ8 ajmp;
-				xMOV(ptr32[&mVU.divFlag], divI); // Set invalid flag (0/0)
+				xMOV(ptr32[&mVU.divFlag], CONST_DIVI); // Set invalid flag (0/0)
 				xForwardJump8 bjmp;
 			ajmp.SetTarget();
-				xMOV(ptr32[&mVU.divFlag], divD); // Zero divide (only when not 0/0)
+				xMOV(ptr32[&mVU.divFlag], CONST_DIVD); // Zero divide (only when not 0/0)
 			bjmp.SetTarget();
 
 			xXOR.PS(Fs, Ft);
@@ -2133,7 +2190,7 @@ mVUop(mVU_SQRT)
 	pass1 { mVUanalyzeFDIV(mVU, 0, 0, _Ft_, _Ftf_, 7); }
 	pass2
 	{
-		const xmm& Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
 
 		xMOV(ptr32[&mVU.divFlag], 0); // Clear I/D flags
 		testNeg(mVU, Ft, gprT1); // Check for negative sqrt
@@ -2158,9 +2215,9 @@ mVUop(mVU_RSQRT)
 	pass1 { mVUanalyzeFDIV(mVU, _Fs_, _Fsf_, _Ft_, _Ftf_, 13); }
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		const xmm& Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
-		const xmm& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(_Ft_, 0, (1 << (3 - _Ftf_)));
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
 
 		xMOV(ptr32[&mVU.divFlag], 0); // Clear I/D flags
 		testNeg(mVU, Ft, gprT1); // Check for negative sqrt
@@ -2171,10 +2228,10 @@ mVUop(mVU_RSQRT)
 
 			testZero(Fs, t1, gprT1); // Test if Fs is zero
 			xForwardJZ8 bjmp; // Skip if none are
-				xMOV(ptr32[&mVU.divFlag], divI); // Set invalid flag (0/0)
-				xForwardJump8 cjmp;
+			xMOV(ptr32[&mVU.divFlag], CONST_DIVI); // Set invalid flag (0/0)
+			xForwardJump8 cjmp;
 			bjmp.SetTarget();
-				xMOV(ptr32[&mVU.divFlag], divD); // Zero divide flag (only when not 0/0)
+			xMOV(ptr32[&mVU.divFlag], CONST_DIVD); // Zero divide flag (only when not 0/0)
 			cjmp.SetTarget();
 
 			xAND.PS(Fs, ptr128[mVUglob.signbit]);
@@ -2214,7 +2271,7 @@ mVUop(mVU_RSQRT)
 	}
 
 // ToDo: Can Be Optimized Further? (takes approximately (~115 cycles + mem access time) on a c2d)
-static __fi void mVU_EATAN_(microVU& mVU, const xmm& PQ, const xmm& Fs, const xmm& t1, const xmm& t2)
+static __fi void mVU_EATAN_(microVU& mVU, const xRegisterSSE& PQ, const xRegisterSSE& Fs, const xRegisterSSE& t1, const xRegisterSSE& t2)
 {
 	xMOVSS(PQ, Fs);
 	xMUL.SS(PQ, ptr32[mVUglob.T1]);
@@ -2243,9 +2300,9 @@ mVUop(mVU_EATAN)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		const xmm& t1 = mVU.regAlloc->allocReg();
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xMOVSS (xmmPQ, Fs);
 		xSUB.SS(Fs,    ptr32[mVUglob.one]);
@@ -2271,9 +2328,9 @@ mVUop(mVU_EATANxy)
 	}
 	pass2
 	{
-		const xmm& t1 = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
-		const xmm& Fs = mVU.regAlloc->allocReg();
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 		xPSHUF.D(Fs, t1, 0x01);
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xMOVSS  (xmmPQ, Fs);
@@ -2300,9 +2357,9 @@ mVUop(mVU_EATANxz)
 	}
 	pass2
 	{
-		const xmm& t1 = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
-		const xmm& Fs = mVU.regAlloc->allocReg();
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 		xPSHUF.D(Fs, t1, 0x02);
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xMOVSS  (xmmPQ, Fs);
@@ -2337,9 +2394,9 @@ mVUop(mVU_EEXP)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		const xmm& t1 = mVU.regAlloc->allocReg();
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xMOVSS  (xmmPQ, Fs);
 		xMUL.SS (xmmPQ, ptr32[mVUglob.E1]);
@@ -2368,7 +2425,7 @@ mVUop(mVU_EEXP)
 }
 
 // sumXYZ(): PQ.x = x ^ 2 + y ^ 2 + z ^ 2
-static __fi void mVU_sumXYZ(microVU& mVU, const xmm& PQ, const xmm& Fs)
+static __fi void mVU_sumXYZ(microVU& mVU, const xRegisterSSE& PQ, const xRegisterSSE& Fs)
 {
 	xDP.PS(Fs, Fs, 0x71);
 	xMOVSS(PQ, Fs);
@@ -2387,7 +2444,7 @@ mVUop(mVU_ELENG)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
 		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xSQRT.SS       (xmmPQ, xmmPQ);
@@ -2409,7 +2466,7 @@ mVUop(mVU_ERCPR)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xMOVSS        (xmmPQ, Fs);
 		xMOVSSZX      (Fs, ptr32[mVUglob.one]);
@@ -2433,7 +2490,7 @@ mVUop(mVU_ERLENG)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
 		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xSQRT.SS       (xmmPQ, xmmPQ);
@@ -2458,7 +2515,7 @@ mVUop(mVU_ERSADD)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
 		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xMOVSSZX       (Fs, ptr32[mVUglob.one]);
@@ -2482,7 +2539,7 @@ mVUop(mVU_ERSQRT)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xAND.PS       (Fs, ptr128[mVUglob.absclip]);
 		xSQRT.SS      (xmmPQ, Fs);
@@ -2507,7 +2564,7 @@ mVUop(mVU_ESADD)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
@@ -2528,9 +2585,9 @@ mVUop(mVU_ESIN)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		const xmm& t1 = mVU.regAlloc->allocReg();
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xMOVSS        (xmmPQ, Fs); // pq = X
 		SSE_MULSS(mVU, Fs, Fs);    // fs = X^2
@@ -2573,7 +2630,7 @@ mVUop(mVU_ESQRT)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xAND.PS (Fs, ptr128[mVUglob.absclip]);
 		xSQRT.SS(xmmPQ, Fs);
@@ -2595,8 +2652,8 @@ mVUop(mVU_ESUM)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
-		const xmm& t1 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg();
 		xPSHUF.D(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xPSHUF.D(t1, Fs, 0x1b);
 		SSE_ADDPS(mVU, Fs, t1);
@@ -2966,7 +3023,7 @@ mVUop(mVU_MFIR)
 	}
 	pass2
 	{
-		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 		if (_Is_ != 0)
 		{
 			const xRegister32& regS = mVU.regAlloc->allocGPR(_Is_, -1);
@@ -2998,7 +3055,7 @@ mVUop(mVU_MFP)
 	}
 	pass2
 	{
-		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 		getPreg(mVU, Ft);
 		mVU.regAlloc->clearNeeded(Ft);
 	}
@@ -3009,7 +3066,7 @@ mVUop(mVU_MOVE)
 	pass1 { mVUanalyzeMOVE(mVU, _Fs_, _Ft_); }
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -3019,8 +3076,8 @@ mVUop(mVU_MR32)
 	pass1 { mVUanalyzeMR32(mVU, _Fs_, _Ft_); }
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_);
-		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 		if (_XYZW_SS)
 			mVUunpack_xyzw(Ft, Fs, (_X ? 1 : (_Y ? 2 : (_Z ? 3 : 0))));
 		else
@@ -3042,7 +3099,7 @@ mVUop(mVU_MTIR)
 	}
 	pass2
 	{
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		const xRegister32& regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
 		xMOVD(regT, Fs);
 		mVU.regAlloc->clearNeeded(regT);
@@ -3219,7 +3276,7 @@ mVUop(mVU_LQ)
 			mVUaddrFix(mVU, gprT1q);
 		}
 
-		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 		mVUloadReg(Ft, optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q), _X_Y_Z_W);
 		mVU.regAlloc->clearNeeded(Ft);
 	}
@@ -3245,7 +3302,7 @@ mVUop(mVU_LQD)
 			ptr = (void*)((intptr_t)ptr + (0xffff & (mVU.microMemSize - 8)));
 		if (!mVUlow.noWriteVF)
 		{
-			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+			const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 			if (is.IsEmpty())
 			{
 				mVUloadReg(Ft, xAddressVoid(ptr), _X_Y_Z_W);
@@ -3277,7 +3334,7 @@ mVUop(mVU_LQI)
 		}
 		if (!mVUlow.noWriteVF)
 		{
-			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+			const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 			if (is.IsEmpty())
 				mVUloadReg(Ft, xAddressVoid(ptr), _X_Y_Z_W);
 			else
@@ -3305,7 +3362,7 @@ mVUop(mVU_SQ)
 			mVUaddrFix(mVU, gprT1q);
 		}
 
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		mVUsaveReg(Fs, optptr.has_value() ? optptr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q), _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
@@ -3329,7 +3386,7 @@ mVUop(mVU_SQD)
 		}
 		else
 			ptr = (void*)((intptr_t)ptr + (0xffff & (mVU.microMemSize - 8)));
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		if (it.IsEmpty())
 			mVUsaveReg(Fs, xAddressVoid(ptr), _X_Y_Z_W, 1);
 		else
@@ -3352,7 +3409,7 @@ mVUop(mVU_SQI)
 			mVU.regAlloc->clearNeeded(regT);
 			mVUaddrFix(mVU, gprT1q);
 		}
-		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
+		const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		if (_It_)
 			mVUsaveReg(Fs, xComplexAddress(gprT2q, ptr, gprT1q), _X_Y_Z_W, 1);
 		else
@@ -3372,7 +3429,7 @@ mVUop(mVU_RINIT)
 	{
 		if (_Fs_ || (_Fsf_ == 3))
 		{
-			const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+			const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 			xMOVD(gprT1, Fs);
 			xAND(gprT1, 0x007fffff);
 			xOR (gprT1, 0x3f800000);
@@ -3384,11 +3441,11 @@ mVUop(mVU_RINIT)
 	}
 }
 
-static __fi void mVU_RGET_(microVU& mVU, const x32& Rreg)
+static __fi void mVU_RGET_(microVU& mVU, const xRegister32& Rreg)
 {
 	if (!mVUlow.noWriteVF)
 	{
-		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
+		const xRegisterSSE& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 		xMOVDZX(Ft, Rreg);
 		if (!_XYZW_SS)
 			mVUunpack_xyzw(Ft, Ft, 0);
@@ -3440,7 +3497,7 @@ mVUop(mVU_RXOR)
 	{
 		if (_Fs_ || (_Fsf_ == 3))
 		{
-			const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
+			const xRegisterSSE& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 			xMOVD(gprT1, Fs);
 			xAND(gprT1, 0x7fffff);
 			xXOR(ptr32[Rmem], gprT1);
@@ -3765,7 +3822,7 @@ static void condEvilBranch(microVU& mVU, int JMPcc)
 
 mVUop(mVU_B)
 {
-	setBranchA(mX, 1, 0);
+	setBranchA(mVU, recPass, 1, 0);
 	pass1 { mVUanalyzeNormBranch(mVU, 0, false); }
 	pass2
 	{
@@ -3776,7 +3833,7 @@ mVUop(mVU_B)
 
 mVUop(mVU_BAL)
 {
-	setBranchA(mX, 2, _It_);
+	setBranchA(mVU, recPass, 2, _It_);
 	pass1 { mVUanalyzeNormBranch(mVU, _It_, true); }
 	pass2
 	{
@@ -3809,7 +3866,7 @@ mVUop(mVU_BAL)
 
 mVUop(mVU_IBEQ)
 {
-	setBranchA(mX, 3, 0);
+	setBranchA(mVU, recPass, 3, 0);
 	pass1 { mVUanalyzeCondBranch2(mVU, _Is_, _It_); }
 	pass2
 	{
@@ -3836,7 +3893,7 @@ mVUop(mVU_IBEQ)
 
 mVUop(mVU_IBGEZ)
 {
-	setBranchA(mX, 4, 0);
+	setBranchA(mVU, recPass, 4, 0);
 	pass1 { mVUanalyzeCondBranch1(mVU, _Is_); }
 	pass2
 	{
@@ -3853,7 +3910,7 @@ mVUop(mVU_IBGEZ)
 
 mVUop(mVU_IBGTZ)
 {
-	setBranchA(mX, 5, 0);
+	setBranchA(mVU, recPass, 5, 0);
 	pass1 { mVUanalyzeCondBranch1(mVU, _Is_); }
 	pass2
 	{
@@ -3870,7 +3927,7 @@ mVUop(mVU_IBGTZ)
 
 mVUop(mVU_IBLEZ)
 {
-	setBranchA(mX, 6, 0);
+	setBranchA(mVU, recPass, 6, 0);
 	pass1 { mVUanalyzeCondBranch1(mVU, _Is_); }
 	pass2
 	{
@@ -3887,7 +3944,7 @@ mVUop(mVU_IBLEZ)
 
 mVUop(mVU_IBLTZ)
 {
-	setBranchA(mX, 7, 0);
+	setBranchA(mVU, recPass, 7, 0);
 	pass1 { mVUanalyzeCondBranch1(mVU, _Is_); }
 	pass2
 	{
@@ -3904,7 +3961,7 @@ mVUop(mVU_IBLTZ)
 
 mVUop(mVU_IBNE)
 {
-	setBranchA(mX, 8, 0);
+	setBranchA(mVU, recPass, 8, 0);
 	pass1 { mVUanalyzeCondBranch2(mVU, _Is_, _It_); }
 	pass2
 	{
@@ -4184,17 +4241,17 @@ static const Fnptr_mVUrecInst mVU_UPPER_FD_11_TABLE [32] = {
 // Table Functions
 //------------------------------------------------------------------
 
-mVUop(mVU_UPPER_FD_00)  { mVU_UPPER_FD_00_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVU_UPPER_FD_01)  { mVU_UPPER_FD_01_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVU_UPPER_FD_10)  { mVU_UPPER_FD_10_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVU_UPPER_FD_11)  { mVU_UPPER_FD_11_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP)       { mVULowerOP_OPCODE       [ (mVU.code & 0x3f) ](mX); }
-mVUop(mVULowerOP_T3_00) { mVULowerOP_T3_00_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP_T3_01) { mVULowerOP_T3_01_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP_T3_10) { mVULowerOP_T3_10_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP_T3_11) { mVULowerOP_T3_11_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVUopU)           { mVU_UPPER_OPCODE        [ (mVU.code & 0x3f) ](mX); } // Gets Upper Opcode
-mVUop(mVUopL)           { mVULOWER_OPCODE         [ (mVU.code >>  25) ](mX); } // Gets Lower Opcode
+mVUop(mVU_UPPER_FD_00)  { mVU_UPPER_FD_00_TABLE   [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVU_UPPER_FD_01)  { mVU_UPPER_FD_01_TABLE   [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVU_UPPER_FD_10)  { mVU_UPPER_FD_10_TABLE   [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVU_UPPER_FD_11)  { mVU_UPPER_FD_11_TABLE   [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVULowerOP)       { mVULowerOP_OPCODE       [ (mVU.code & 0x3f) ](mVU, recPass); }
+mVUop(mVULowerOP_T3_00) { mVULowerOP_T3_00_OPCODE [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVULowerOP_T3_01) { mVULowerOP_T3_01_OPCODE [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVULowerOP_T3_10) { mVULowerOP_T3_10_OPCODE [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVULowerOP_T3_11) { mVULowerOP_T3_11_OPCODE [((mVU.code >> 6) & 0x1f)](mVU, recPass); }
+mVUop(mVUopU)           { mVU_UPPER_OPCODE        [ (mVU.code & 0x3f) ](mVU, recPass); } // Gets Upper Opcode
+mVUop(mVUopL)           { mVULOWER_OPCODE         [ (mVU.code >>  25) ](mVU, recPass); } // Gets Lower Opcode
 mVUop(mVUunknown)
 {
 	pass1
@@ -4551,13 +4608,13 @@ static void _mVUflagPass(microVU& mVU, uint32_t startPC, uint32_t sCount, uint32
 		mVUopU(mVU, 3);
 		found |= (mVUregs.needExactMatch & 8) >> 3;
 		mVUregs.needExactMatch &= 7;
-		if (curI & _Ebit_)
+		if (curI & _EBIT_)
 			branch = 1;
-		if (curI & _Tbit_)
+		if (curI & _TBIT_)
 			branch = 6;
-		if ((curI & _Dbit_) && doDBitHandling)
+		if ((curI & _DBIT_) && doDBitHandling)
 			branch = 6;
-		if (!(curI & _Ibit_))
+		if (!(curI & _IBIT_))
 		{
 			incPC(-1);
 			mVUopL(mVU, 3);
@@ -5036,7 +5093,7 @@ static void mVUDTendProgram(microVU& mVU, microFlagCycles* mFC, int isEbit)
 /* Recompiles Code for Proper Flags and Q/P regs on Block Linkings */
 static void mVUsetupBranch(microVU& mVU, microFlagCycles& mFC)
 {
-	mVU.regAlloc->flushAll(); // Flush Allocated Regs
+	mVU.regAlloc->flushAll(true); // Flush Allocated Regs
 	mVUsetupFlags(mVU, mFC);  // Shuffle Flag Instances
 
 	// Shuffle P/Q regs since every block starts at instance #0
@@ -5088,7 +5145,7 @@ static void mVUendProgram(microVU& mVU, microFlagCycles* mFC, int isEbit)
 	if (!isEbit || isEbit == 3)
 		mVU.regAlloc->TDwritebackAll(); //Writing back ok, invalidating early kills the rec, so don't do it :P
 	else
-		mVU.regAlloc->flushAll();
+		mVU.regAlloc->flushAll(true);
 
 	if (isEbit && isEbit != 3)
 	{
@@ -5366,7 +5423,7 @@ static __ri void doLowerOp(microVU& mVU)
 static __ri void flushRegs(microVU& mVU)
 {
 	if (!doRegAlloc)
-		mVU.regAlloc->flushAll();
+		mVU.regAlloc->flushAll(true);
 }
 
 static void doIbit(microVU& mVU)
@@ -5399,14 +5456,14 @@ static void doSwapOp(microVU& mVU)
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
 		// Allocate t1 first for better chance of reg-alloc
-		const xmm& t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
-		const xmm& t2 = mVU.regAlloc->allocReg();
+		const xRegisterSSE& t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
+		const xRegisterSSE& t2 = mVU.regAlloc->allocReg();
 		xMOVAPS(t2, t1); // Backup VF reg
 		mVU.regAlloc->clearNeeded(t1);
 
 		mVUopL(mVU, 1);
 
-		const xmm& t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
+		const xRegisterSSE& t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
 		xXOR.PS(t2, t3); // Swap new and old values of the register
 		xXOR.PS(t3, t2); // Uses xor swap trick...
 		xXOR.PS(t2, t3);
@@ -5415,7 +5472,7 @@ static void doSwapOp(microVU& mVU)
 		incPC(1);
 		doUpperOp(mVU);
 
-		const xmm& t4 = mVU.regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
+		const xRegisterSSE& t4 = mVU.regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
 		xMOVAPS(t4, t2);
 		mVU.regAlloc->clearNeeded(t4);
 		mVU.regAlloc->clearNeeded(t2);
@@ -6012,7 +6069,7 @@ static void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState)
 		mVUincCycles(mVU, 1);
 		mVUopU(mVU, 0);
 		mVUcheckBadOp(mVU);
-		if (curI & _Ebit_)
+		if (curI & _EBIT_)
 		{
 			if (mVUregs.blockType != 1)
 			{
@@ -6026,20 +6083,20 @@ static void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState)
 				mVUregs.needExactMatch |= 7;
 		}
 
-		if ((curI & _Mbit_) && isVU0)
+		if ((curI & _MBIT_) && isVU0)
 		{
 			if (xPC > 0)
 			{
 				incPC(-2);
 				incPC(2);
-				if (!(curI & _Mbit_)) //If the last instruction was also M-Bit we don't need to sync again
+				if (!(curI & _MBIT_)) //If the last instruction was also M-Bit we don't need to sync again
 					mVUup.mBit = true;
 			}
 			else
 				mVUup.mBit = true;
 		}
 
-		if (curI & _Ibit_)
+		if (curI & _IBIT_)
 		{
 			mVUlow.isNOP = true;
 			mVUup.iBit = true;
@@ -6056,9 +6113,9 @@ static void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState)
 			mVUopL(mVU, 0);
 			incPC(1);
 		}
-		if (curI & _Dbit_)
+		if (curI & _DBIT_)
 			mVUup.dBit = true;
-		if (curI & _Tbit_)
+		if (curI & _TBIT_)
 			mVUup.tBit = true;
 		mVUsetCycles(mVU);
 		// Update XGKick information
@@ -6109,7 +6166,7 @@ static void* mVUcompile(microVU& mVU, uint32_t startPC, uintptr_t pState)
 		{
 			mVUsetFlagInfo(mVU);
 			incPC(2);
-			if (curI & _Ebit_)
+			if (curI & _EBIT_)
 				mVUregs.blockType = 1;
 			incPC(-2);
 			branch = 3;
