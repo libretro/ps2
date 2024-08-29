@@ -124,7 +124,7 @@ __fi void COP0_UpdatePCCR(void)
 	cpuRegs.lastPERFCycle[1] = cpuRegs.cycle;
 }
 
-void MapTLB(const tlbs& t, int i)
+static void MapTLB(const tlbs& t, int i)
 {
 	u32 mask, addr;
 	u32 saddr, eaddr;
@@ -210,24 +210,7 @@ void UnmapTLB(const tlbs& t, int i)
 	}
 }
 
-void WriteTLB(int i)
-{
-	tlb[i].PageMask = cpuRegs.CP0.n.PageMask;
-	tlb[i].EntryHi  = cpuRegs.CP0.n.EntryHi;
-	tlb[i].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
-	tlb[i].EntryLo1 = cpuRegs.CP0.n.EntryLo1;
-
-	tlb[i].Mask     = (cpuRegs.CP0.n.PageMask >> 13) & 0xfff;
-	tlb[i].nMask    = (~tlb[i].Mask) & 0xfff;
-	tlb[i].VPN2     = ((cpuRegs.CP0.n.EntryHi >> 13) & (~tlb[i].Mask)) << 13;
-	tlb[i].ASID     = cpuRegs.CP0.n.EntryHi & 0xfff;
-	tlb[i].G        = cpuRegs.CP0.n.EntryLo0 & cpuRegs.CP0.n.EntryLo1 & 0x1;
-	tlb[i].PFN0     = (((cpuRegs.CP0.n.EntryLo0 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
-	tlb[i].PFN1     = (((cpuRegs.CP0.n.EntryLo1 >> 6) & 0xFFFFF) & (~tlb[i].Mask)) << 12;
-	tlb[i].S        = cpuRegs.CP0.n.EntryLo0 & 0x80000000;
-
-	MapTLB(tlb[i], i);
-}
+#define CPCOND0() (((dmacRegs.stat.CIS | ~dmacRegs.pcr.CPC) & 0x3FF) == 0x3ff)
 
 namespace R5900 {
 namespace Interpreter {
@@ -253,7 +236,17 @@ namespace COP0 {
 		tlb[j].EntryHi  = cpuRegs.CP0.n.EntryHi;
 		tlb[j].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
 		tlb[j].EntryLo1 = cpuRegs.CP0.n.EntryLo1;
-		WriteTLB(j);
+
+		tlb[j].Mask     = (cpuRegs.CP0.n.PageMask >> 13) & 0xfff;
+		tlb[j].nMask    = (~tlb[j].Mask) & 0xfff;
+		tlb[j].VPN2     = ((cpuRegs.CP0.n.EntryHi >> 13) & (~tlb[j].Mask)) << 13;
+		tlb[j].ASID     = cpuRegs.CP0.n.EntryHi & 0xfff;
+		tlb[j].G        = cpuRegs.CP0.n.EntryLo0 & cpuRegs.CP0.n.EntryLo1 & 0x1;
+		tlb[j].PFN0     = (((cpuRegs.CP0.n.EntryLo0 >> 6) & 0xFFFFF) & (~tlb[j].Mask)) << 12;
+		tlb[j].PFN1     = (((cpuRegs.CP0.n.EntryLo1 >> 6) & 0xFFFFF) & (~tlb[j].Mask)) << 12;
+		tlb[j].S        = cpuRegs.CP0.n.EntryLo0 & 0x80000000;
+
+		MapTLB(tlb[j], j);
 	}
 
 	void TLBWR(void)
@@ -265,7 +258,17 @@ namespace COP0 {
 		tlb[j].EntryHi  = cpuRegs.CP0.n.EntryHi;
 		tlb[j].EntryLo0 = cpuRegs.CP0.n.EntryLo0;
 		tlb[j].EntryLo1 = cpuRegs.CP0.n.EntryLo1;
-		WriteTLB(j);
+
+		tlb[j].Mask     = (cpuRegs.CP0.n.PageMask >> 13) & 0xfff;
+		tlb[j].nMask    = (~tlb[j].Mask) & 0xfff;
+		tlb[j].VPN2     = ((cpuRegs.CP0.n.EntryHi >> 13) & (~tlb[j].Mask)) << 13;
+		tlb[j].ASID     = cpuRegs.CP0.n.EntryHi & 0xfff;
+		tlb[j].G        = cpuRegs.CP0.n.EntryLo0 & cpuRegs.CP0.n.EntryLo1 & 0x1;
+		tlb[j].PFN0     = (((cpuRegs.CP0.n.EntryLo0 >> 6) & 0xFFFFF) & (~tlb[j].Mask)) << 12;
+		tlb[j].PFN1     = (((cpuRegs.CP0.n.EntryLo1 >> 6) & 0xFFFFF) & (~tlb[j].Mask)) << 12;
+		tlb[j].S        = cpuRegs.CP0.n.EntryLo0 & 0x80000000;
+
+		MapTLB(tlb[j], j);
 	}
 
 	void TLBP(void)
@@ -397,10 +400,6 @@ namespace COP0 {
 		}
 	}
 
-	int CPCOND0()
-	{
-		return (((dmacRegs.stat.CIS | ~dmacRegs.pcr.CPC) & 0x3FF) == 0x3ff);
-	}
 
 	void BC0F(void)
 	{

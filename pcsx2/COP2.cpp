@@ -18,7 +18,7 @@
 #include "R5900OpcodeTables.h"
 #include "VUmicro.h"
 
-#define CP2COND (((vuRegs[0].VI[REG_VPU_STAT].US[0] >> 8) & 1))
+#define CP2COND() (((vuRegs[0].VI[REG_VPU_STAT].US[0] >> 8) & 1))
 
 /* Run the FINISH either side of the VCALL's as we have no control over it past here. */
 void VCALLMS(void)
@@ -35,19 +35,19 @@ void VCALLMSR(void)
 
 void BC2F(void)
 {
-	if (CP2COND == 0)
+	if (CP2COND() == 0)
 		intDoBranch(_BranchTarget_);
 }
 
 void BC2T(void)
 {
-	if (CP2COND == 1)
+	if (CP2COND() == 1)
 		intDoBranch(_BranchTarget_);
 }
 
 void BC2FL(void)
 {
-	if (CP2COND == 0)
+	if (CP2COND() == 0)
 		intDoBranch(_BranchTarget_);
 	else
 		cpuRegs.pc+= 4;
@@ -55,7 +55,7 @@ void BC2FL(void)
 
 void BC2TL(void)
 {
-	if (CP2COND == 1)
+	if (CP2COND() == 1)
 		intDoBranch(_BranchTarget_);
 	else
 		cpuRegs.pc+= 4;

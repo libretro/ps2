@@ -309,7 +309,6 @@
     <ClCompile Include="COP0.cpp" />
     <ClCompile Include="COP2.cpp" />
     <ClCompile Include="FPU.cpp" />
-    <ClCompile Include="Interpreter.cpp" />
     <ClCompile Include="MMI.cpp" />
     <ClCompile Include="R5900.cpp" />
     <ClCompile Include="Iop.cpp" />

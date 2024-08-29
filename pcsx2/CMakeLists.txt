@@ -80,7 +80,6 @@ set(pcsx2Sources
 	Gif.cpp
 	Gif_Unit.cpp
 	Hw.cpp
-	Interpreter.cpp
 	Iop.cpp
 	IopGte.cpp
 	Mdec.cpp
