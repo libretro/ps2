@@ -94,6 +94,8 @@ alignas(16) const u8 nVifT[16] = {
 template <int idx, bool doMode, bool isFill>
 __ri void _nVifUnpackLoop(const u8* data);
 
+template<int idx> static void vifUnpackSetup(const u32 *data);
+
 typedef void FnType_VifUnpackLoop(const u8* data);
 typedef FnType_VifUnpackLoop* Fnptr_VifUnpackLoop;
 

@@ -1424,5 +1424,5 @@ public:
 void mVUclear(microVU& mVU, uint32_t addr, uint32_t size);
 
 /* Forward declarations */
-extern alignas(16) microVU microVU0;
-extern alignas(16) microVU microVU1;
+extern microVU microVU0;
+extern microVU microVU1;
