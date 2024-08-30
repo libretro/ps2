@@ -270,7 +270,6 @@
     <ClCompile Include="USB\usb-pad\usb-seamic.cpp" />
     <ClCompile Include="USB\usb-printer\usb-printer.cpp" />
     <ClCompile Include="USB\USB.cpp" />
-    <ClCompile Include="VirtualMemory.cpp" />
     <ClCompile Include="VMManager.cpp" />
     <ClCompile Include="windows\Optimus.cpp" />
     <ClCompile Include="Pcsx2Config.cpp" />
@@ -281,7 +280,6 @@
     <ClCompile Include="BiosTools.cpp" />
     <ClCompile Include="Counters.cpp" />
     <ClCompile Include="FiFo.cpp" />
-    <ClCompile Include="Cache.cpp" />
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="vtlb.cpp" />
     <ClCompile Include="MTVU.cpp" />

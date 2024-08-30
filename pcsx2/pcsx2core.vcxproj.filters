@@ -305,9 +305,6 @@
     <ClCompile Include="FiFo.cpp">
       <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
     </ClCompile>
-    <ClCompile Include="Cache.cpp">
-      <Filter>System\Ps2\EmotionEngine\Memory</Filter>
-    </ClCompile>
     <ClCompile Include="Memory.cpp">
       <Filter>System\Ps2\EmotionEngine\Memory</Filter>
     </ClCompile>
@@ -937,9 +934,6 @@
     </ClCompile>
     <ClCompile Include="SPU2\SndOut_XAudio2.cpp">
       <Filter>System\Ps2\SPU2</Filter>
-    </ClCompile>
-    <ClCompile Include="VirtualMemory.cpp">
-      <Filter>System</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

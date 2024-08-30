@@ -67,7 +67,6 @@ endif(WIN32)
 
 # Main pcsx2 source
 set(pcsx2Sources
-	Cache.cpp
 	COP0.cpp
 	COP2.cpp
 	Counters.cpp
@@ -95,7 +94,6 @@ set(pcsx2Sources
 	Sio.cpp
 	SPR.cpp
 	Vif.cpp
-	VirtualMemory.cpp
 	VU.cpp
 	VUops.cpp)
 
