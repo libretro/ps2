@@ -248,11 +248,11 @@ static int getFreeCache(u32 mem, int* way)
 
 
 template <bool Write, int Bytes>
-static void* prepareCacheAccess(u32 mem, int* way, int* idx)
+static void* prepareCacheAccess(u32 mem)
 {
-	*way = 0;
-	*idx = getFreeCache(mem, way);
-	CacheLine line = { cache.sets[*idx].tags[*way], cache.sets[*idx].data[*way], *idx };
+	int way = 0;
+	int idx = getFreeCache(mem, &way);
+	CacheLine line = { cache.sets[idx].tags[way], cache.sets[idx].data[way], idx };
 	if (Write)
 		line.tag |= DIRTY_FLAG;
 	u32 aligned = mem & ~(Bytes - 1);
@@ -269,8 +269,7 @@ uint8_t vtlb_memRead8(uint32_t addr)
 	{
 		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 		{
-			int way, idx;
-			void *_addr = prepareCacheAccess<false, sizeof(uint8_t)>(addr, &way, &idx);
+			void *_addr = prepareCacheAccess<false, sizeof(uint8_t)>(addr);
 			return *reinterpret_cast<uint8_t*>(_addr);
 		}
 		return *reinterpret_cast<uint8_t*>(vmv.assumePtr(addr));
@@ -288,8 +287,7 @@ uint16_t vtlb_memRead16(uint32_t addr)
 	{
 		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 		{
-			int way, idx;
-			void *_addr = prepareCacheAccess<false, sizeof(uint16_t)>(addr, &way, &idx);
+			void *_addr = prepareCacheAccess<false, sizeof(uint16_t)>(addr);
 			return *reinterpret_cast<uint16_t*>(_addr);
 		}
 		return *reinterpret_cast<uint16_t*>(vmv.assumePtr(addr));
@@ -308,8 +306,7 @@ uint32_t vtlb_memRead32(uint32_t addr)
 	{
 		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 		{
-			int way, idx;
-			void *_addr = prepareCacheAccess<false, sizeof(uint32_t)>(addr, &way, &idx);
+			void *_addr = prepareCacheAccess<false, sizeof(uint32_t)>(addr);
 			return *reinterpret_cast<uint32_t*>(_addr);
 		}
 
@@ -329,8 +326,7 @@ uint64_t vtlb_memRead64(uint32_t addr)
 	{
 		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 		{
-			int way, idx;
-			void *_addr = prepareCacheAccess<false, sizeof(uint64_t)>(addr, &way, &idx);
+			void *_addr = prepareCacheAccess<false, sizeof(uint64_t)>(addr);
 			return *reinterpret_cast<uint64_t*>(_addr);
 		}
 
@@ -356,8 +352,7 @@ RETURNS_R128 vtlb_memRead128(uint32_t mem)
 	{
 		if (CHECK_CACHE && CheckCache(mem))
 		{
-			int way, idx;
-			void *addr = prepareCacheAccess<false, sizeof(mem128_t)>(mem, &way, &idx);
+			void *addr = prepareCacheAccess<false, sizeof(mem128_t)>(mem);
 			r128 value = r128_load(addr);
 			u64* vptr = reinterpret_cast<u64*>(&value);
 			return value;
@@ -380,8 +375,7 @@ void vtlb_memWrite8(uint32_t addr, uint8_t data)
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 	{
-		int way, idx;
-		void *_addr = prepareCacheAccess<true, sizeof(uint8_t)>(addr, &way, &idx);
+		void *_addr = prepareCacheAccess<true, sizeof(uint8_t)>(addr);
 		*reinterpret_cast<uint8_t*>(_addr) = data;
 	}
 
@@ -401,8 +395,7 @@ void vtlb_memWrite16(uint32_t addr, uint16_t data)
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 	{
-		int way, idx;
-		void *_addr = prepareCacheAccess<true, sizeof(uint16_t)>(addr, &way, &idx);
+		void *_addr = prepareCacheAccess<true, sizeof(uint16_t)>(addr);
 		*reinterpret_cast<uint16_t*>(_addr) = data;
 	}
 
@@ -422,8 +415,7 @@ void vtlb_memWrite32(uint32_t addr, uint32_t data)
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 	{
-		int way, idx;
-		void *_addr = prepareCacheAccess<true, sizeof(uint32_t)>(addr, &way, &idx);
+		void *_addr = prepareCacheAccess<true, sizeof(uint32_t)>(addr);
 		*reinterpret_cast<uint32_t*>(_addr) = data;
 	}
 
@@ -443,8 +435,7 @@ void vtlb_memWrite64(uint32_t addr, uint64_t data)
 
 	if (!CHECK_EEREC && CHECK_CACHE && CheckCache(addr))
 	{
-		int way, idx;
-		void *_addr = prepareCacheAccess<true, sizeof(uint64_t)>(addr, &way, &idx);
+		void *_addr = prepareCacheAccess<true, sizeof(uint64_t)>(addr);
 		*reinterpret_cast<uint64_t*>(_addr) = data;
 	}
 
@@ -466,8 +457,7 @@ void TAKES_R128 vtlb_memWrite128(uint32_t mem, r128 value)
 		if (!CHECK_EEREC && CHECK_CACHE && CheckCache(mem))
 		{
 			alignas(16) const u128 r = r128_to_u128(value);
-			int way, idx;
-			void* addr = prepareCacheAccess<true, sizeof(mem128_t)>(mem, &way, &idx);
+			void* addr = prepareCacheAccess<true, sizeof(mem128_t)>(mem);
 			*reinterpret_cast<mem128_t*>(addr) = r;
 			return;
 		}
