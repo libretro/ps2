@@ -281,9 +281,6 @@
     <ClCompile Include="BiosTools.cpp" />
     <ClCompile Include="Counters.cpp" />
     <ClCompile Include="FiFo.cpp" />
-    <ClCompile Include="Hw.cpp" />
-    <ClCompile Include="HwRead.cpp" />
-    <ClCompile Include="HwWrite.cpp" />
     <ClCompile Include="Cache.cpp" />
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="vtlb.cpp" />

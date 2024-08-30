@@ -364,6 +364,3 @@ extern void FireMFIFOEmpty(void);
 extern void hwDmacSrcTadrInc(DMACh& dma);
 extern bool hwDmacSrcChainWithStack(DMACh& dma, int id);
 extern bool hwDmacSrcChain(DMACh& dma, int id);
-
-template< uint page > u32 dmacRead32( u32 mem );
-template< uint page > extern bool dmacWrite32( u32 mem, mem32_t& value );

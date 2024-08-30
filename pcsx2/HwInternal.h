@@ -7,14 +7,8 @@ template< uint page > extern uint32_t hwRead32 (u32 mem);
 template< uint page > extern uint64_t hwRead64 (u32 mem);
 template< uint page > extern RETURNS_R128       hwRead128(u32 mem);
 
-// Internal hwRead32 which does not log reads, used by hwWrite8/16 to perform
-// read-modify-write operations.
-template< uint page, bool intcstathack >
-extern uint32_t _hwRead32(u32 mem);
-
 extern uint16_t hwRead16_page_0F_INTC_HACK(u32 mem);
 extern uint32_t hwRead32_page_0F_INTC_HACK(u32 mem);
-
 
 // hw write functions
 template<uint page> extern void hwWrite8  (u32 mem, u8  value);

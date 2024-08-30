@@ -305,15 +305,6 @@
     <ClCompile Include="FiFo.cpp">
       <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
     </ClCompile>
-    <ClCompile Include="Hw.cpp">
-      <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
-    </ClCompile>
-    <ClCompile Include="HwRead.cpp">
-      <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
-    </ClCompile>
-    <ClCompile Include="HwWrite.cpp">
-      <Filter>System\Ps2\EmotionEngine\Hardware</Filter>
-    </ClCompile>
     <ClCompile Include="Cache.cpp">
       <Filter>System\Ps2\EmotionEngine\Memory</Filter>
     </ClCompile>
@@ -398,13 +389,7 @@
     <ClCompile Include="x86\iR3000A.cpp">
       <Filter>System\Ps2\Iop\Dynarec</Filter>
     </ClCompile>
-    <ClCompile Include="IopHw.cpp">
-      <Filter>System\Ps2\Iop\Hardware</Filter>
-    </ClCompile>
-    <ClCompile Include="ps2\Iop\IopHwRead.cpp">
-      <Filter>System\Ps2\Iop\Hardware</Filter>
-    </ClCompile>
-    <ClCompile Include="ps2\Iop\IopHwWrite.cpp">
+    <ClCompile Include="Iop.cpp">
       <Filter>System\Ps2\Iop\Hardware</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\Ps1CD.cpp">
