@@ -19,7 +19,7 @@
 #include "VirtualMemory.h"
 #include "vtlb.h"
 
-#define PSM(mem)	(vtlb_GetPhyPtr((mem)&0x1fffffff)) //pcsx2 is a competition.The one with most hacks wins :D
+#define PSM(mem)	(vtlb_GetPhyPtr((mem) & 0x1fffffff)) 
 
 #define psHu8(mem)	(*(u8 *)&eeHw[(mem) & 0xffff])
 #define psHu16(mem)	(*(u16*)&eeHw[(mem) & 0xffff])

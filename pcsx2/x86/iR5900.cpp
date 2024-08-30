@@ -8905,7 +8905,7 @@ static void dyna_page_reset(uint32_t start, uint32_t sz)
 {
 	recClear(start & ~0xfffUL, 0x400);
 	manual_counter[start >> 12]++;
-	mmap_MarkCountedRamPage(start);
+	mmap_MarkCountedRAMPage(start);
 }
 
 static void memory_protect_recompiled_code(uint32_t startpc, uint32_t size)
@@ -8920,7 +8920,7 @@ static void memory_protect_recompiled_code(uint32_t startpc, uint32_t size)
 	bool contains_thread_stack = ((startpc >> 12) == 0x81) || ((startpc >> 12) == 0x80001);
 
 	// note: blocks are guaranteed to reside within the confines of a single page.
-	const vtlb_ProtectionMode PageType = contains_thread_stack ? ProtMode_Manual : mmap_GetRamPageInfo(inpage_ptr);
+	const vtlb_ProtectionMode PageType = contains_thread_stack ? ProtMode_Manual : mmap_GetRAMPageInfo(inpage_ptr);
 
 	switch (PageType)
 	{
@@ -8929,7 +8929,7 @@ static void memory_protect_recompiled_code(uint32_t startpc, uint32_t size)
 
 		case ProtMode_None:
 		case ProtMode_Write:
-			mmap_MarkCountedRamPage(inpage_ptr);
+			mmap_MarkCountedRAMPage(inpage_ptr);
 			manual_page[inpage_ptr >> 12] = 0;
 			break;
 

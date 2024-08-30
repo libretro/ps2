@@ -82,30 +82,17 @@ struct CacheLine
 
 static Cache cache = {};
 
-static bool findInCache(const CacheSet& set, uintptr_t ppf, int* way)
-{
-	auto check = [&](int checkWay) -> bool
-	{
-		if (!(set.tags[checkWay] & VALID_FLAG) && (set.tags[checkWay] & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS))
-			return false;
-
-		*way = checkWay;
-		return true;
-	};
-
-	return check(0) || check(1);
-}
-
 template <typename Op>
 static void doCacheHitOp(u32 addr, Op op)
 {
-	int way;
 	const int index = (addr >> 6) & 0x3F;
 	CacheSet& set   = cache.sets[index];
 	vtlb_private::VTLBVirtual vmv = vtlb_private::vtlbdata.vmap[addr >> vtlb_private::VTLB_PAGE_BITS];
-	uintptr_t ppf = vmv.assumePtr(addr);
-	if (findInCache(set, ppf, &way))
-		op({ cache.sets[index].tags[way], cache.sets[index].data[way], index });
+	uintptr_t ppf   = vmv.assumePtr(addr);
+	if (!(!(set.tags[0] & VALID_FLAG) && (set.tags[0] & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS)))
+		op({ cache.sets[index].tags[0], cache.sets[index].data[0], index });
+	else if (!(!(set.tags[1] & VALID_FLAG) && (set.tags[1] & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS)))
+		op({ cache.sets[index].tags[1], cache.sets[index].data[1], index });
 }
 
 /*
@@ -218,16 +205,17 @@ static __inline int CheckCache(uint32_t addr)
 
 static int getFreeCache(u32 mem, int* way)
 {
-	const int setIdx = (mem >> 6) & 0x3F;
-	CacheSet& set    = cache.sets[setIdx];
+	const int setIdx               = (mem >> 6) & 0x3F;
+	CacheSet& set                  = cache.sets[setIdx];
 	vtlb_private::VTLBVirtual vmv  = vtlb_private::vtlbdata.vmap[mem >> vtlb_private::VTLB_PAGE_BITS];
-	uintptr_t ppf         = vmv.assumePtr(mem);
+	uintptr_t ppf                  = vmv.assumePtr(mem);
 
-	if (!findInCache(set, ppf, way))
+	if (!(!(set.tags[0] & VALID_FLAG) && (set.tags[0] & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS))) *way = 0;
+	else if (!(!(set.tags[1] & VALID_FLAG) && (set.tags[1] & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS))) *way = 1;
+	else
 	{
-		int newWay     = (set.tags[0] & LRF_FLAG) ^ (set.tags[1] & LRF_FLAG);
-		*way           = newWay;
-		CacheLine line = { cache.sets[setIdx].tags[newWay], cache.sets[setIdx].data[newWay], setIdx };
+		*way           = (set.tags[0] & LRF_FLAG) ^ (set.tags[1] & LRF_FLAG);
+		CacheLine line = { cache.sets[setIdx].tags[*way], cache.sets[setIdx].data[*way], setIdx };
 
 		if (((line.tag & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
 		{
@@ -250,8 +238,8 @@ static int getFreeCache(u32 mem, int* way)
 template <bool Write, int Bytes>
 static void* prepareCacheAccess(u32 mem)
 {
-	int way = 0;
-	int idx = getFreeCache(mem, &way);
+	int way        = 0;
+	int idx        = getFreeCache(mem, &way);
 	CacheLine line = { cache.sets[idx].tags[way], cache.sets[idx].data[way], idx };
 	if (Write)
 		line.tag |= DIRTY_FLAG;
@@ -709,7 +697,7 @@ static void TAKES_R128 vtlbDefaultPhyWrite128(u32 addr, r128 data) { }
 //
 // Note: All handlers persist across calls to vtlb_Reset(), but are wiped/invalidated by calls to vtlb_Init()
 //
-__ri void vtlb_ReassignHandler(u32 rv,
+static __ri void vtlb_ReassignHandler(u32 rv,
 	vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
 	vtlbMemW8FP* w8, vtlbMemW16FP* w16, vtlbMemW32FP* w32, vtlbMemW64FP* w64, vtlbMemW128FP* w128)
 {
@@ -737,7 +725,7 @@ static u32 vtlb_NewHandler(void) { return vtlbHandlerCount++; }
 //
 // Returns a handle for the newly created handler  See vtlb_MapHandler for use of the return value.
 //
-__ri u32 vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
+static __ri u32 vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
 	vtlbMemW8FP* w8, vtlbMemW16FP* w16, vtlbMemW32FP* w32, vtlbMemW64FP* w64, vtlbMemW128FP* w128)
 {
 	u32 rv = vtlb_NewHandler();
@@ -753,7 +741,7 @@ __ri u32 vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* 
 // function.
 //
 // The memory region start and size parameters must be pagesize aligned.
-void vtlb_MapHandler(u32 handler, u32 start, u32 size)
+static void vtlb_MapHandler(u32 handler, u32 start, u32 size)
 {
 	u32 end = start + (size - VTLB_PAGE_SIZE);
 
@@ -764,11 +752,8 @@ void vtlb_MapHandler(u32 handler, u32 start, u32 size)
 	}
 }
 
-void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
+static void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 {
-	if (!blocksize)
-		blocksize = size;
-
 	intptr_t baseint = (intptr_t)base;
 	uint32_t end     = start + (size - VTLB_PAGE_SIZE);
 
@@ -854,7 +839,7 @@ static bool vtlb_GetMainMemoryOffsetFromPtr(uintptr_t ptr, u32* mainmem_offset, 
 	if (ptr >= (uintptr_t)eeMem->Main && page_end <= (uintptr_t)eeMem->ZeroRead)
 	{
 		const u32 eemem_offset = static_cast<u32>(ptr - (uintptr_t)eeMem->Main);
-		const bool writeable   = ((eemem_offset < Ps2MemSize::MainRam) ? (mmap_GetRamPageInfo(eemem_offset) != ProtMode_Write) : true);
+		const bool writeable   = ((eemem_offset < Ps2MemSize::MainRam) ? (mmap_GetRAMPageInfo(eemem_offset) != ProtMode_Write) : true);
 		*mainmem_offset        = (eemem_offset + HostMemoryMap::EEmemOffset);
 		*mainmem_size          = (offsetof(EEVM_MemoryAllocMess, ZeroRead) - eemem_offset);
 		prot->m_read           = true;
@@ -1166,7 +1151,33 @@ void vtlb_VMapUnmap(u32 vaddr, u32 size)
 	}
 }
 
-// vtlb_Init -- Clears vtlb handlers and memory mappings.
+static constexpr size_t PPMAP_SIZE = sizeof(*vtlbdata.ppmap) * VTLB_VMAP_ITEMS;
+
+/* The LUT is only used for 1 game so we allocate it only when the gamefix is enabled (save 4MB)
+ * However automatic gamefix is done after the standard init so a new init function was done. */
+void vtlb_Alloc_Ppmap(void)
+{
+	PageProtectionMode mode;
+	if (vtlbdata.ppmap)
+		return;
+
+	static u32* ppmap = nullptr;
+
+	if (!ppmap)
+		ppmap  = (u32*)GetVmMemory().BumpAllocator().Alloc(PPMAP_SIZE);
+
+	mode.m_read    = true;
+	mode.m_write   = true;
+	mode.m_exec    = false;
+	HostSys::MemProtect(ppmap, PPMAP_SIZE, mode);
+	vtlbdata.ppmap = ppmap;
+
+	// By default a 1:1 virtual to physical mapping
+	for (u32 i = 0; i < VTLB_VMAP_ITEMS; i++)
+		vtlbdata.ppmap[i] = i << VTLB_PAGE_BITS;
+}
+
+/* Clears vtlb handlers and memory mappings. */
 void vtlb_Init(void)
 {
 	vtlbHandlerCount = 0;
@@ -1201,15 +1212,6 @@ void vtlb_Init(void)
 	// The LUT is only used for 1 game so we allocate it only when the gamefix is enabled (save 4MB)
 	if (EmuConfig.Gamefixes.GoemonTlbHack)
 		vtlb_Alloc_Ppmap();
-}
-
-// vtlb_Reset -- Performs a COP0-level reset of the PS2's TLB.
-// This function should probably be part of the COP0 rather than here in VTLB.
-void vtlb_Reset(void)
-{
-	vtlb_RemoveFastmemMappings();
-	for (int i = 0; i < 48; i++)
-		UnmapTLB(tlb[i], i);
 }
 
 void vtlb_Shutdown(void)
@@ -1251,7 +1253,7 @@ static constexpr size_t VMAP_SIZE = sizeof(VTLBVirtual) * VTLB_VMAP_ITEMS;
 // [TODO] basemem - request allocating memory at the specified virtual location, which can allow
 //    for easier debugging and/or 3rd party cheat programs.  If 0, the operating system
 //    default is used.
-bool vtlb_Core_Alloc(void)
+static bool vtlb_Core_Alloc(void)
 {
 	// Can't return regions to the bump allocator
 	static VTLBVirtual* vmap = nullptr;
@@ -1299,33 +1301,7 @@ bool vtlb_Core_Alloc(void)
 	return true;
 }
 
-static constexpr size_t PPMAP_SIZE = sizeof(*vtlbdata.ppmap) * VTLB_VMAP_ITEMS;
-
-// The LUT is only used for 1 game so we allocate it only when the gamefix is enabled (save 4MB)
-// However automatic gamefix is done after the standard init so a new init function was done.
-void vtlb_Alloc_Ppmap(void)
-{
-	PageProtectionMode mode;
-	if (vtlbdata.ppmap)
-		return;
-
-	static u32* ppmap = nullptr;
-
-	if (!ppmap)
-		ppmap  = (u32*)GetVmMemory().BumpAllocator().Alloc(PPMAP_SIZE);
-
-	mode.m_read    = true;
-	mode.m_write   = true;
-	mode.m_exec    = false;
-	HostSys::MemProtect(ppmap, PPMAP_SIZE, mode);
-	vtlbdata.ppmap = ppmap;
-
-	// By default a 1:1 virtual to physical mapping
-	for (u32 i = 0; i < VTLB_VMAP_ITEMS; i++)
-		vtlbdata.ppmap[i] = i << VTLB_PAGE_BITS;
-}
-
-void vtlb_Core_Free(void)
+static void vtlb_Core_Free(void)
 {
 	PageProtectionMode mode;
 	HostSys::RemovePageFaultHandler(&vtlb_private::PageFaultHandler);
@@ -1419,7 +1395,7 @@ alignas(16) static vtlb_PageProtectionInfo m_PageProtectInfo[Ps2MemSize::MainRam
 //  ProtMode_NotRequired - unchecked block (resides in ROM, thus is integrity is constant)
 //  Or the current mode
 //
-vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr)
+vtlb_ProtectionMode mmap_GetRAMPageInfo(u32 paddr)
 {
 	paddr &= ~0xfff;
 
@@ -1435,7 +1411,7 @@ vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr)
 }
 
 // paddr - physically mapped PS2 address
-void mmap_MarkCountedRamPage(u32 paddr)
+void mmap_MarkCountedRAMPage(u32 paddr)
 {
 	PageProtectionMode mode;
 	paddr &= ~__pagemask;
@@ -1460,48 +1436,39 @@ void mmap_MarkCountedRamPage(u32 paddr)
 		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
 }
 
-// offset - offset of address relative to psM.
-// All recompiled blocks belonging to the page are cleared, and any new blocks recompiled
-// from code residing in this page will use manual protection.
-static __fi void mmap_ClearCpuBlock(uint offset)
-{
-	PageProtectionMode mode;
-	int rampage = offset >> __pageshift;
-
-	mode.m_read  = true;
-	mode.m_write = true;
-	mode.m_exec  = false;
-	HostSys::MemProtect(&eeMem->Main[rampage << __pageshift], __pagesize, mode);
-	if (CHECK_FASTMEM)
-		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
-	m_PageProtectInfo[rampage].Mode = ProtMode_Manual;
-	Cpu->Clear(m_PageProtectInfo[rampage].ReverseRamMap, __pagesize);
-}
-
 bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
 {
 	u32 vaddr;
+	int ram_page;
+	uintptr_t offset;
+	PageProtectionMode mode;
 	if (CHECK_FASTMEM && vtlb_GetGuestAddress(info.addr, &vaddr))
 	{
 		uintptr_t ptr = (uintptr_t)PSM(vaddr);
-		uintptr_t offset = (ptr - (uintptr_t)eeMem->Main);
-		if (ptr && m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write)
-		{
-			mmap_ClearCpuBlock(offset);
-			return true;
-		}
-		return vtlb_BackpatchLoadStore(info.pc, info.addr);
+		offset        = (ptr - (uintptr_t)eeMem->Main);
+		if (!(ptr && m_PageProtectInfo[offset >> __pageshift].Mode == ProtMode_Write))
+			return vtlb_BackpatchLoadStore(info.pc, info.addr);
 	}
 	else
 	{
-		// get bad virtual address
-		uintptr_t offset = info.addr - (uintptr_t)eeMem->Main;
+		/* get bad virtual address */
+		offset = info.addr - (uintptr_t)eeMem->Main;
 		if (offset >= Ps2MemSize::MainRam)
 			return false;
-
-		mmap_ClearCpuBlock(offset);
-		return true;
 	}
+	/* All recompiled blocks belonging to the page are cleared, 
+	 * and any new blocks recompiled from code residing in this 
+	 * page will use manual protection. */
+	ram_page     = offset >> __pageshift;
+	mode.m_read  = true;
+	mode.m_write = true;
+	mode.m_exec  = false;
+	HostSys::MemProtect(&eeMem->Main[ram_page << __pageshift], __pagesize, mode);
+	if (CHECK_FASTMEM)
+		vtlb_UpdateFastmemProtection(ram_page << __pageshift, __pagesize, mode);
+	m_PageProtectInfo[ram_page].Mode = ProtMode_Manual;
+	Cpu->Clear(m_PageProtectInfo[ram_page].ReverseRamMap, __pagesize);
+	return true;
 }
 
 // Clears all block tracking statuses, manual protection flags, and write protection.
@@ -1848,25 +1815,25 @@ static void memMapVUmicro(void)
 	// support needs to be coded to reset the memMappings when MTVU is
 	// turned off/on. For now we just always use the vu data handlers...
 	if (1||THREAD_VU1) vtlb_MapHandler(vu1_data_mem,0x1100c000,0x00004000);
-	else               vtlb_MapBlock  (vuRegs[1].Mem,     0x1100c000,0x00004000);
+	else               vtlb_MapBlock  (vuRegs[1].Mem,     0x1100c000,0x00004000, 0x00004000);
 }
 
 static void memMapPhy(void)
 {
-	// Main memory
-	vtlb_MapBlock(eeMem->Main,	0x00000000,Ps2MemSize::MainRam);//mirrored on first 256 mb ?
+	/* Main memory */
+	vtlb_MapBlock(eeMem->Main,	0x00000000,Ps2MemSize::MainRam, Ps2MemSize::MainRam); /* mirrored on first 256 MB ? */
 	// High memory, uninstalled on the configuration we emulate
 	vtlb_MapHandler(null_handler, Ps2MemSize::MainRam, 0x10000000 - Ps2MemSize::MainRam);
 
 	// Various ROMs (all read-only)
-	vtlb_MapBlock(eeMem->ROM,	0x1fc00000, Ps2MemSize::Rom);
-	vtlb_MapBlock(eeMem->ROM1,	0x1e000000, Ps2MemSize::Rom1);
-	vtlb_MapBlock(eeMem->ROM2,	0x1e400000, Ps2MemSize::Rom2);
+	vtlb_MapBlock(eeMem->ROM,	0x1fc00000, Ps2MemSize::Rom, Ps2MemSize::Rom);
+	vtlb_MapBlock(eeMem->ROM1,	0x1e000000, Ps2MemSize::Rom1, Ps2MemSize::Rom1);
+	vtlb_MapBlock(eeMem->ROM2,	0x1e400000, Ps2MemSize::Rom2, Ps2MemSize::Rom2);
 
 	// IOP memory
 	// (used by the EE Bios Kernel during initial hardware initialization, Apps/Games
 	//  are "supposed" to use the thread-safe SIF instead.)
-	vtlb_MapBlock(iopMem->Main,0x1c000000,0x00800000);
+	vtlb_MapBlock(iopMem->Main,0x1c000000,0x00800000, 0x00800000);
 
 	// Generic Handlers; These fallback to mem* stuff...
 	vtlb_MapHandler(tlb_fallback_7,0x14000000, _64kb);

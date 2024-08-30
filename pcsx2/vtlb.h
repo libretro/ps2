@@ -47,30 +47,13 @@ template<> struct vtlbMemFP< 32,  true> { typedef vtlbMemW32FP  fn; static const
 template<> struct vtlbMemFP< 64,  true> { typedef vtlbMemW64FP  fn; static const uintptr_t Index = 3; };
 template<> struct vtlbMemFP<128,  true> { typedef vtlbMemW128FP fn; static const uintptr_t Index = 4; };
 
-extern bool vtlb_Core_Alloc();
-extern void vtlb_Core_Free();
 extern void vtlb_Alloc_Ppmap();
 extern void vtlb_Init();
 extern void vtlb_Shutdown(void);
-extern void vtlb_Reset(void);
 extern void vtlb_ResetFastmem(void);
 
-extern u32 vtlb_RegisterHandler(
-	vtlbMemR8FP* r8,vtlbMemR16FP* r16,vtlbMemR32FP* r32,vtlbMemR64FP* r64,vtlbMemR128FP* r128,
-	vtlbMemW8FP* w8,vtlbMemW16FP* w16,vtlbMemW32FP* w32,vtlbMemW64FP* w64,vtlbMemW128FP* w128
-);
-
-extern void vtlb_ReassignHandler(u32 rv,
-	vtlbMemR8FP* r8,vtlbMemR16FP* r16,vtlbMemR32FP* r32,vtlbMemR64FP* r64,vtlbMemR128FP* r128,
-	vtlbMemW8FP* w8,vtlbMemW16FP* w16,vtlbMemW32FP* w32,vtlbMemW64FP* w64,vtlbMemW128FP* w128
-);
-
-
-extern void vtlb_MapHandler(u32 handler,u32 start,u32 size);
-extern void vtlb_MapBlock(void* base,u32 start,u32 size,u32 blocksize=0);
 extern void* vtlb_GetPhyPtr(u32 paddr);
 extern u32  vtlb_V2P(u32 vaddr);
-extern void vtlb_DynV2P(void);
 
 /* virtual mappings */
 extern void vtlb_VMap(u32 vaddr,u32 paddr,u32 sz);
@@ -289,8 +272,8 @@ enum vtlb_ProtectionMode
 	ProtMode_NotRequired 	/* page doesn't require any protection */
 };
 
-extern vtlb_ProtectionMode mmap_GetRamPageInfo(u32 paddr);
-extern void mmap_MarkCountedRamPage(u32 paddr);
+extern vtlb_ProtectionMode mmap_GetRAMPageInfo(u32 paddr);
+extern void mmap_MarkCountedRAMPage(u32 paddr);
 extern void mmap_ResetBlockTracking(void);
 
 /* --------------------------------------------------------------------------------------
