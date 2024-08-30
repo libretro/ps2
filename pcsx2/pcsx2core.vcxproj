@@ -204,7 +204,6 @@
     <ClCompile Include="Patch.cpp" />
     <ClCompile Include="Dmac.cpp" />
     <ClCompile Include="ShiftJisToUnicode.cpp" />
-    <ClCompile Include="sif2.cpp" />
     <ClCompile Include="GS\Renderers\OpenGL\GLState.cpp" />
     <ClCompile Include="GS\GS.cpp" />
     <ClCompile Include="GS\GSBlock.cpp" />
@@ -293,8 +292,6 @@
     <ClCompile Include="x86\microVU.cpp" />
     <ClCompile Include="VUops.cpp" />
     <ClCompile Include="Sif.cpp" />
-    <ClCompile Include="Sif0.cpp" />
-    <ClCompile Include="Sif1.cpp" />
     <ClCompile Include="Vif.cpp" />
     <ClCompile Include="x86\newVif_Dynarec.cpp" />
     <ClCompile Include="SPR.cpp" />

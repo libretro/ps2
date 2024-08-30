@@ -93,9 +93,6 @@ set(pcsx2Sources
 	R5900.cpp
 	SaveState.cpp
 	Sif.cpp
-	Sif0.cpp
-	Sif1.cpp
-	sif2.cpp
 	Sio.cpp
 	SPR.cpp
 	Vif.cpp

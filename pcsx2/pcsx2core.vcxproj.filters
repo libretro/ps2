@@ -338,12 +338,6 @@
     <ClCompile Include="Sif.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
     </ClCompile>
-    <ClCompile Include="Sif0.cpp">
-      <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
-    </ClCompile>
-    <ClCompile Include="Sif1.cpp">
-      <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
-    </ClCompile>
     <ClCompile Include="Vif.cpp">
       <Filter>System\Ps2\EmotionEngine\DMAC\Vif</Filter>
     </ClCompile>
@@ -481,9 +475,6 @@
     </ClCompile>
     <ClCompile Include="DebugTools\MIPSAnalyst.cpp">
       <Filter>System\Ps2\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="sif2.cpp">
-      <Filter>System\Ps2\EmotionEngine\DMAC\Sif</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\ThreadedFileReader.cpp">
       <Filter>System\ISO</Filter>

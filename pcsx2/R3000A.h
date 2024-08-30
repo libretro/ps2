@@ -170,12 +170,7 @@ alignas(16) extern psxRegisters psxRegs;
 
 #define _JumpTarget_    ((_InstrucTarget_ << 2) + (_PC_ & 0xf0000000))   // Calculates the target during a jump instruction
 #define _BranchTarget_  (((int32_t)(int16_t)_Imm_ * 4) + _PC_)                 // Calculates the target during a branch instruction
-
 #define _SetLink(x)     psxRegs.GPR.r[x] = _PC_ + 4;       // Sets the return address in the link register
-
-extern int32_t  EEsCycle;
-extern uint32_t EEoCycle;
-
 #endif
 
 extern int32_t psxNextDeltaCounter;
