@@ -49,19 +49,22 @@
 #define LOCK_FLAG 0x8
 #define ALL_FLAGS 0xFFF
 
+#define cpuTlbMiss(addr, bd, excode) \
+	cpuRegs.CP0.n.BadVAddr = addr; \
+	cpuRegs.CP0.n.Context &= 0xFF80000F; \
+	cpuRegs.CP0.n.Context |= (addr >> 9) & 0x007FFFF0; \
+	cpuRegs.CP0.n.EntryHi  = (addr & 0xFFFFE000) | (cpuRegs.CP0.n.EntryHi & 0x1FFF); \
+	cpuRegs.pc            -= 4; \
+	cpuException(excode, bd)
+
 union alignas(64) CacheData
 {
 	uint8_t bytes[64];
 };
 
-struct CacheTag
-{
-	uintptr_t rawValue;
-};
-
 struct CacheSet
 {
-	CacheTag tags[2];
+	uintptr_t tags[2];
 	CacheData data[2];
 };
 
@@ -72,29 +75,9 @@ struct Cache
 
 struct CacheLine
 {
-	CacheTag& tag;
+	uintptr_t tag;
 	CacheData& data;
 	int set;
-
-	void writeBackIfNeeded()
-	{
-		if (!((tag.rawValue & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
-			return;
-
-		uintptr_t target = (tag.rawValue & ~ALL_FLAGS) | (set << 6);
-
-		*reinterpret_cast<CacheData*>(target) = data;
-		tag.rawValue &= ~DIRTY_FLAG;
-	}
-
-	void load(uintptr_t ppf)
-	{
-		tag.rawValue &= ALL_FLAGS;
-		tag.rawValue |= (ppf & ~ALL_FLAGS);
-		memcpy(&data, reinterpret_cast<void*>(ppf & ~0x3FULL), sizeof(data));
-		tag.rawValue |=  VALID_FLAG;
-		tag.rawValue &= ~DIRTY_FLAG;
-	}
 };
 
 static Cache cache = {};
@@ -103,7 +86,7 @@ static bool findInCache(const CacheSet& set, uintptr_t ppf, int* way)
 {
 	auto check = [&](int checkWay) -> bool
 	{
-		if (!(set.tags[checkWay].rawValue & VALID_FLAG) && (set.tags[checkWay].rawValue & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS))
+		if (!(set.tags[checkWay] & VALID_FLAG) && (set.tags[checkWay] & ~ALL_FLAGS) == (ppf & ~ALL_FLAGS))
 			return false;
 
 		*way = checkWay;
@@ -149,11 +132,11 @@ namespace vtlb_private
 	static bool PageFaultHandler(const PageFaultInfo& info);
 } // namespace vtlb_private
 
-static vtlbHandler vtlbHandlerCount = 0;
+static u32 vtlbHandlerCount = 0;
 
-static vtlbHandler DefaultPhyHandler;
-static vtlbHandler UnmappedVirtHandler;
-static vtlbHandler UnmappedPhyHandler;
+static u32 DefaultPhyHandler;
+static u32 UnmappedVirtHandler;
+static u32 UnmappedPhyHandler;
 
 struct FastmemVirtualMapping
 {
@@ -190,7 +173,7 @@ vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromPointer(intptr_t ptr)
 	return VTLBPhysical(ptr);
 }
 
-vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromHandler(vtlbHandler handler)
+vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromHandler(u32 handler)
 {
 	return VTLBPhysical(handler | POINTER_SIGN_BIT);
 }
@@ -242,13 +225,22 @@ static int getFreeCache(u32 mem, int* way)
 
 	if (!findInCache(set, ppf, way))
 	{
-		int newWay     = (set.tags[0].rawValue & LRF_FLAG) ^ (set.tags[1].rawValue & LRF_FLAG);
+		int newWay     = (set.tags[0] & LRF_FLAG) ^ (set.tags[1] & LRF_FLAG);
 		*way           = newWay;
 		CacheLine line = { cache.sets[setIdx].tags[newWay], cache.sets[setIdx].data[newWay], setIdx };
 
-		line.writeBackIfNeeded();
-		line.load(ppf);
-		line.tag.rawValue ^= LRF_FLAG;
+		if (((line.tag & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
+		{
+			uintptr_t target = (line.tag & ~ALL_FLAGS) | (line.set << 6);
+			*reinterpret_cast<CacheData*>(target) = line.data;
+			line.tag &= ~DIRTY_FLAG;
+		}
+		line.tag &= ALL_FLAGS;
+		line.tag |= (ppf & ~ALL_FLAGS);
+		memcpy(&line.data, reinterpret_cast<void*>(ppf & ~0x3FULL), sizeof(line.data));
+		line.tag |=  VALID_FLAG;
+		line.tag &= ~DIRTY_FLAG;
+		line.tag ^= LRF_FLAG;
 	}
 
 	return setIdx;
@@ -262,7 +254,7 @@ static void* prepareCacheAccess(u32 mem, int* way, int* idx)
 	*idx = getFreeCache(mem, way);
 	CacheLine line = { cache.sets[*idx].tags[*way], cache.sets[*idx].data[*way], *idx };
 	if (Write)
-		line.tag.rawValue |= DIRTY_FLAG;
+		line.tag |= DIRTY_FLAG;
 	u32 aligned = mem & ~(Bytes - 1);
 	return &line.data.bytes[aligned & 0x3f];
 }
@@ -647,34 +639,46 @@ void GoemonUnloadTlb(u32 key)
 	}
 }
 
-// Generates a tlbMiss Exception
-static __ri void vtlb_Miss(u32 addr, u32 mode)
+// clang-format off
+template <typename OperandType>
+static OperandType vtlbUnmappedVReadSm(u32 addr)
 {
-	// Hack to handle expected tlb miss by some games.
 	if (Cpu == &intCpu)
 	{
-		if (mode)
-		{
-			cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBS);
-		}
-		else
-		{
-			cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBL);
-		}
+		cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBL);
+		Cpu->CancelInstruction();
+	}
+	return 0;
+}
 
-		// Exception handled. Current instruction need to be stopped
+static RETURNS_R128 vtlbUnmappedVReadLg(u32 addr)
+{
+	if (Cpu == &intCpu)
+	{
+		cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBL);
+		Cpu->CancelInstruction();
+	}
+	return r128_zero();
+}
+
+template <typename OperandType>
+static void vtlbUnmappedVWriteSm(u32 addr, OperandType data)
+{
+	if (Cpu == &intCpu)
+	{
+		cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBS);
 		Cpu->CancelInstruction();
 	}
 }
 
-// clang-format off
-template <typename OperandType>
-static OperandType vtlbUnmappedVReadSm(u32 addr) { vtlb_Miss(addr, 0); return 0; }
-static RETURNS_R128 vtlbUnmappedVReadLg(u32 addr) { vtlb_Miss(addr, 0); return r128_zero(); }
-
-template <typename OperandType>
-static void vtlbUnmappedVWriteSm(u32 addr, OperandType data) { vtlb_Miss(addr, 1); }
-static void TAKES_R128 vtlbUnmappedVWriteLg(u32 addr, r128 data) { vtlb_Miss(addr, 1); }
+static void TAKES_R128 vtlbUnmappedVWriteLg(u32 addr, r128 data)
+{
+	if (Cpu == &intCpu)
+	{
+		cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBS);
+		Cpu->CancelInstruction();
+	}
+}
 
 template <typename OperandType>
 static OperandType vtlbUnmappedPReadSm(u32 addr) { return 0; }
@@ -715,7 +719,7 @@ static void TAKES_R128 vtlbDefaultPhyWrite128(u32 addr, r128 data) { }
 //
 // Note: All handlers persist across calls to vtlb_Reset(), but are wiped/invalidated by calls to vtlb_Init()
 //
-__ri void vtlb_ReassignHandler(vtlbHandler rv,
+__ri void vtlb_ReassignHandler(u32 rv,
 	vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
 	vtlbMemW8FP* w8, vtlbMemW16FP* w16, vtlbMemW32FP* w32, vtlbMemW64FP* w64, vtlbMemW128FP* w128)
 {
@@ -732,7 +736,7 @@ __ri void vtlb_ReassignHandler(vtlbHandler rv,
 	vtlbdata.RWFT[4][1][rv] = (void*)((w128 != 0) ? w128 : vtlbDefaultPhyWrite128);
 }
 
-vtlbHandler vtlb_NewHandler(void) { return vtlbHandlerCount++; }
+static u32 vtlb_NewHandler(void) { return vtlbHandlerCount++; }
 
 // Registers a handler into the VTLB's internal handler array.  The handler defines specific behavior
 // for how memory pages bound to the handler are read from / written to.  If any of the handler pointers
@@ -743,10 +747,10 @@ vtlbHandler vtlb_NewHandler(void) { return vtlbHandlerCount++; }
 //
 // Returns a handle for the newly created handler  See vtlb_MapHandler for use of the return value.
 //
-__ri vtlbHandler vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
+__ri u32 vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMemR32FP* r32, vtlbMemR64FP* r64, vtlbMemR128FP* r128,
 	vtlbMemW8FP* w8, vtlbMemW16FP* w16, vtlbMemW32FP* w32, vtlbMemW64FP* w64, vtlbMemW128FP* w128)
 {
-	vtlbHandler rv = vtlb_NewHandler();
+	u32 rv = vtlb_NewHandler();
 	vtlb_ReassignHandler(rv, r8, r16, r32, r64, r128, w8, w16, w32, w64, w128);
 	return rv;
 }
@@ -759,7 +763,7 @@ __ri vtlbHandler vtlb_RegisterHandler(vtlbMemR8FP* r8, vtlbMemR16FP* r16, vtlbMe
 // function.
 //
 // The memory region start and size parameters must be pagesize aligned.
-void vtlb_MapHandler(vtlbHandler handler, u32 start, u32 size)
+void vtlb_MapHandler(u32 handler, u32 start, u32 size)
 {
 	u32 end = start + (size - VTLB_PAGE_SIZE);
 
@@ -1543,7 +1547,7 @@ namespace R5900
 					case 0x1a: /* DHIN (Data Cache Hit Invalidate) */
 						doCacheHitOp(addr, [](CacheLine line)
 								{
-								line.tag.rawValue &= LRF_FLAG;
+								line.tag &= LRF_FLAG;
 								memset(&line.data, 0, sizeof(line.data));
 								});
 						break;
@@ -1551,8 +1555,13 @@ namespace R5900
 					case 0x18: /* DHWBIN (Data Cache Hit WriteBack with Invalidate) */
 						doCacheHitOp(addr, [](CacheLine line)
 								{
-								line.writeBackIfNeeded();
-								line.tag.rawValue &= LRF_FLAG;
+								if (((line.tag & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
+								{
+									uintptr_t target = (line.tag & ~ALL_FLAGS) | (line.set << 6);
+									*reinterpret_cast<CacheData*>(target) = line.data;
+									line.tag &= ~DIRTY_FLAG;
+								}
+								line.tag &= LRF_FLAG;
 								memset(&line.data, 0, sizeof(line.data));
 								});
 						break;
@@ -1560,7 +1569,12 @@ namespace R5900
 					case 0x1c: /* DHWOIN (Data Cache Hit WriteBack Without Invalidate) */
 						doCacheHitOp(addr, [](CacheLine line)
 								{
-								line.writeBackIfNeeded();
+								if (((line.tag & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
+								{
+									uintptr_t target = (line.tag & ~ALL_FLAGS) | (line.set << 6);
+									*reinterpret_cast<CacheData*>(target) = line.data;
+									line.tag &= ~DIRTY_FLAG;
+								}
 								});
 						break;
 
@@ -1570,7 +1584,7 @@ namespace R5900
 							const int way   = addr & 0x1;
 							CacheLine line  = { cache.sets[index].tags[way], cache.sets[index].data[way], index };
 
-							line.tag.rawValue &= LRF_FLAG;
+							line.tag &= LRF_FLAG;
 							memset(&line.data, 0, sizeof(line.data));
 							break;
 						}
@@ -1594,10 +1608,15 @@ namespace R5900
 
 							/* DXLTG demands that SYNC.L is called before this command, which forces the cache to write back, 
 							 * so presumably games are checking the cache has updated the memory for speed, we will do it here. */
-							line.writeBackIfNeeded();
+							if (((line.tag & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
+							{
+								uintptr_t target = (line.tag & ~ALL_FLAGS) | (line.set << 6);
+								*reinterpret_cast<CacheData*>(target) = line.data;
+								line.tag &= ~DIRTY_FLAG;
+							}
 
 							/* Our tags don't contain PS2 paddrs (instead they contain x86 addrs) */
-							cpuRegs.CP0.n.TagLo = line.tag.rawValue & ALL_FLAGS;
+							cpuRegs.CP0.n.TagLo = line.tag & ALL_FLAGS;
 							break;
 						}
 
@@ -1617,8 +1636,8 @@ namespace R5900
 							const int way   = addr & 0x1;
 							CacheLine line  = { cache.sets[index].tags[way], cache.sets[index].data[way], index };
 
-							line.tag.rawValue &= ~ALL_FLAGS;
-							line.tag.rawValue |= (cpuRegs.CP0.n.TagLo & ALL_FLAGS);
+							line.tag &= ~ALL_FLAGS;
+							line.tag |= (cpuRegs.CP0.n.TagLo & ALL_FLAGS);
 							break;
 						}
 
@@ -1627,8 +1646,13 @@ namespace R5900
 							const int index = (addr >> 6) & 0x3F;
 							const int way   = addr & 0x1;
 							CacheLine line  = { cache.sets[index].tags[way], cache.sets[index].data[way], index };
-							line.writeBackIfNeeded();
-							line.tag.rawValue &= LRF_FLAG;
+							if (((line.tag & (DIRTY_FLAG | VALID_FLAG)) == (DIRTY_FLAG | VALID_FLAG)))
+							{
+								uintptr_t target = (line.tag & ~ALL_FLAGS) | (line.set << 6);
+								*reinterpret_cast<CacheData*>(target) = line.data;
+								line.tag &= ~DIRTY_FLAG;
+							}
+							line.tag &= LRF_FLAG;
 							memset(&line.data, 0, sizeof(line.data));
 							break;
 						}
@@ -1786,7 +1810,7 @@ static u16 ba0R16(u32 mem)
 /////////////////////////////
 // REGULAR MEM START
 /////////////////////////////
-static vtlbHandler
+static u32
 	null_handler,
 
 	tlb_fallback_0,
