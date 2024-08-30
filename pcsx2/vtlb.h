@@ -178,28 +178,6 @@ namespace vtlb_private
 
 	static const uintptr_t POINTER_SIGN_BIT   = 1ULL << (sizeof(uintptr_t) * 8 - 1);
 
-	struct VTLBPhysical
-	{
-	private:
-		intptr_t value;
-		explicit VTLBPhysical(intptr_t value): value(value) { }
-	public:
-		VTLBPhysical(): value(0) {}
-		/* Create from an integer representing a pointer to raw memory */
-		static VTLBPhysical fromPointer(intptr_t ptr);
-		/* Create from a handler and address */
-		static VTLBPhysical fromHandler(u32 handler);
-
-		/* Get the raw value held by the entry */
-		uintptr_t raw() const { return value; }
-		/* Returns whether or not this entry is a handler */
-		bool isHandler() const { return value < 0; }
-		/* Assumes the entry is a pointer, giving back its value */
-		uintptr_t assumePtr() const { return value; }
-		/* Assumes the entry is a handler, and gets the raw handler ID */
-		u8 assumeHandler() const { return value; }
-	};
-
 	struct VTLBVirtual
 	{
 	private:
@@ -207,7 +185,7 @@ namespace vtlb_private
 		explicit VTLBVirtual(uintptr_t value): value(value) { }
 	public:
 		VTLBVirtual(): value(0) {}
-		VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr);
+		VTLBVirtual(intptr_t phys, u32 paddr, u32 vaddr);
 
 		/* Get the raw value held by the entry */
 		uintptr_t raw() const { return value; }
@@ -233,7 +211,7 @@ namespace vtlb_private
 		 * third indexer -- 128 possible handlers! */
 		void* RWFT[5][2][VTLB_HANDLER_ITEMS];
 
-		VTLBPhysical pmap[VTLB_PMAP_ITEMS]; /* 512KB - PS2 physical to x86 physical */
+		intptr_t pmap[VTLB_PMAP_ITEMS]; /* 512KB - PS2 physical to x86 physical */
 
 		VTLBVirtual* vmap;                /* 4MB (allocated by vtlb_init) - PS2 virtual to x86 physical */
 
@@ -246,6 +224,8 @@ namespace vtlb_private
 			vmap = NULL;
 			ppmap = NULL;
 			fastmem_base = 0;
+			for (int i = 0; i < VTLB_PMAP_ITEMS; i++)
+				pmap[i] = 0;
 		}
 	};
 

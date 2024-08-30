@@ -155,22 +155,12 @@ static std::unordered_multimap<u32, u32> s_fastmem_physical_mapping; // maps mai
 static std::unordered_map<uintptr_t, LoadstoreBackpatchInfo> s_fastmem_backpatch_info;
 static std::unordered_set<u32> s_fastmem_faulting_pcs;
 
-vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromPointer(intptr_t ptr)
+vtlb_private::VTLBVirtual::VTLBVirtual(intptr_t phys, u32 paddr, u32 vaddr)
 {
-	return VTLBPhysical(ptr);
-}
-
-vtlb_private::VTLBPhysical vtlb_private::VTLBPhysical::fromHandler(u32 handler)
-{
-	return VTLBPhysical(handler | POINTER_SIGN_BIT);
-}
-
-vtlb_private::VTLBVirtual::VTLBVirtual(VTLBPhysical phys, u32 paddr, u32 vaddr)
-{
-	if (phys.isHandler())
-		value = phys.raw() + paddr - vaddr;
+	if (phys < 0)
+		value = phys + paddr - vaddr;
 	else
-		value = phys.raw() - vaddr;
+		value = phys - vaddr;
 }
 
 static __inline int CheckCache(uint32_t addr)
@@ -747,7 +737,7 @@ static void vtlb_MapHandler(u32 handler, u32 start, u32 size)
 
 	while (start <= end)
 	{
-		vtlbdata.pmap[start >> VTLB_PAGE_BITS] = VTLBPhysical::fromHandler(handler);
+		vtlbdata.pmap[start >> VTLB_PAGE_BITS] = (intptr_t)(handler | POINTER_SIGN_BIT);
 		start += VTLB_PAGE_SIZE;
 	}
 }
@@ -764,7 +754,7 @@ static void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 
 		while (loopsz > 0)
 		{
-			vtlbdata.pmap[start >> VTLB_PAGE_BITS] = VTLBPhysical::fromPointer(ptr);
+			vtlbdata.pmap[start >> VTLB_PAGE_BITS] = (intptr_t)ptr;
 
 			start  += VTLB_PAGE_SIZE;
 			ptr    += VTLB_PAGE_SIZE;
@@ -775,9 +765,9 @@ static void vtlb_MapBlock(void* base, u32 start, u32 size, u32 blocksize)
 
 __fi void* vtlb_GetPhyPtr(u32 paddr)
 {
-	if (paddr >= VTLB_PMAP_SZ || vtlbdata.pmap[paddr >> VTLB_PAGE_BITS].isHandler())
+	if (paddr >= VTLB_PMAP_SZ || (vtlbdata.pmap[paddr >> VTLB_PAGE_BITS] < 0))
 		return NULL;
-	return reinterpret_cast<void*>(vtlbdata.pmap[paddr >> VTLB_PAGE_BITS].assumePtr() + (paddr & VTLB_PAGE_MASK));
+	return reinterpret_cast<void*>(vtlbdata.pmap[paddr >> VTLB_PAGE_BITS] + (paddr & VTLB_PAGE_MASK));
 }
 
 __fi u32 vtlb_V2P(u32 vaddr)
@@ -884,12 +874,12 @@ static bool vtlb_GetMainMemoryOffset(u32 paddr, u32* mainmem_offset, u32* mainme
 	if (paddr >= VTLB_PMAP_SZ)
 		return false;
 
-	// Handlers aren't in our shared memory, obviously.
-	const VTLBPhysical& vm = vtlbdata.pmap[paddr >> VTLB_PAGE_BITS];
-	if (vm.isHandler())
+	/* Handlers aren't in our shared memory, obviously. */
+	intptr_t vm = vtlbdata.pmap[paddr >> VTLB_PAGE_BITS];
+	if (vm < 0)
 		return false;
 
-	return vtlb_GetMainMemoryOffsetFromPtr(vm.raw(), mainmem_offset, mainmem_size, prot);
+	return vtlb_GetMainMemoryOffsetFromPtr(vm, mainmem_offset, mainmem_size, prot);
 }
 
 static void vtlb_CreateFastmemMapping(u32 vaddr, u32 mainmem_offset, const PageProtectionMode mode)
@@ -1091,7 +1081,7 @@ void vtlb_VMap(u32 vaddr, u32 paddr, u32 size)
 	{
 		VTLBVirtual vmv;
 		if (paddr >= VTLB_PMAP_SZ)
-			vmv = VTLBVirtual(VTLBPhysical::fromHandler(UnmappedPhyHandler), paddr, vaddr);
+			vmv = VTLBVirtual((intptr_t)(UnmappedPhyHandler | POINTER_SIGN_BIT), paddr, vaddr);
 		else
 			vmv = VTLBVirtual(vtlbdata.pmap[paddr >> VTLB_PAGE_BITS], paddr, vaddr);
 
@@ -1132,7 +1122,7 @@ void vtlb_VMapBuffer(u32 vaddr, void* buffer, u32 size)
 	uintptr_t bu8 = (uintptr_t)buffer;
 	while (size > 0)
 	{
-		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual(VTLBPhysical::fromPointer(bu8), 0, vaddr);
+		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual((intptr_t)(bu8), 0, vaddr);
 		vaddr += VTLB_PAGE_SIZE;
 		bu8 += VTLB_PAGE_SIZE;
 		size -= VTLB_PAGE_SIZE;
@@ -1145,7 +1135,7 @@ void vtlb_VMapUnmap(u32 vaddr, u32 size)
 
 	while (size > 0)
 	{
-		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual(VTLBPhysical::fromHandler(UnmappedVirtHandler), vaddr, vaddr);
+		vtlbdata.vmap[vaddr >> VTLB_PAGE_BITS] = VTLBVirtual((intptr_t)(UnmappedVirtHandler | POINTER_SIGN_BIT), vaddr, vaddr);
 		vaddr += VTLB_PAGE_SIZE;
 		size -= VTLB_PAGE_SIZE;
 	}
@@ -1234,8 +1224,8 @@ void vtlb_ResetFastmem(void)
 	for (size_t i = 0; i < VTLB_VMAP_ITEMS; i++)
 	{
 		const VTLBVirtual& vm = vtlbdata.vmap[i];
-		const u32 vaddr = static_cast<u32>(i) << VTLB_PAGE_BITS;
-		// Handlers should be unmapped.
+		const u32 vaddr       = static_cast<u32>(i) << VTLB_PAGE_BITS;
+		/* Handlers should be unmapped. */
 		if (vm.isHandler(vaddr))
 			continue;
 
