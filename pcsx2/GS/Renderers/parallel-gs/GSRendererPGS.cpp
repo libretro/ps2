@@ -222,6 +222,11 @@ bool GSRendererPGS::Init()
 	return true;
 }
 
+void GSRendererPGS::Reset(bool /*hardware_reset*/)
+{
+	iface.reset_context_state();
+}
+
 void GSRendererPGS::UpdateConfig()
 {
 	u8 super_sampling = GSConfig.PGSSuperSampling;
