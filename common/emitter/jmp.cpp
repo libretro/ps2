@@ -202,28 +202,6 @@ namespace x86Emitter
 		}
 	}
 
-	xForwardJumpBase::xForwardJumpBase(uint opsize, JccComparisonType cctype)
-	{
-		BasePtr = (s8*)xGetPtr() +
-				  ((opsize == 1) ? 2 : // j8's are always 2 bytes.
-                                   ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
-
-		if (opsize == 1)
-			xWrite8((cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype));
-		else
-		{
-			if (cctype == Jcc_Unconditional)
-				xWrite8(0xe9);
-			else
-			{
-				xWrite8(0x0f);
-				xWrite8(0x80 | cctype);
-			}
-		}
-
-		xAdvancePtr(opsize);
-	}
-
 	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
 	__fi JccComparisonType xInvertCond(JccComparisonType src)
 	{

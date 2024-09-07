@@ -926,25 +926,36 @@ extern const xRegister32
 	// defined later in this header. :)
 	//
 
-	class xForwardJumpBase
-	{
-	public:
-		// pointer to base of the instruction *Following* the jump.  The jump address will be
-		// relative to this address.
-		s8* BasePtr;
-		xForwardJumpBase(uint opsize, JccComparisonType cctype);
-	};
-
 	template <typename OperandType>
-	class xForwardJump : public xForwardJumpBase
+	class xForwardJump
 	{
 	public:
+		s8* BasePtr;
 		static const uint OperandSize = sizeof(OperandType);
 
 		// The jump instruction is emitted at the point of object construction.  The conditional
 		// type must be valid (Jcc_Unknown generates an assertion).
 		xForwardJump(JccComparisonType cctype = Jcc_Unconditional)
-			: xForwardJumpBase(OperandSize, cctype) { }
+		{
+			BasePtr = (s8*)xGetPtr() +
+				((OperandSize == 1) ? 2 : // j8's are always 2 bytes.
+				 ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
+
+			if (OperandSize == 1)
+				xWrite8((cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype));
+			else
+			{
+				if (cctype == Jcc_Unconditional)
+					xWrite8(0xe9);
+				else
+				{
+					xWrite8(0x0f);
+					xWrite8(0x80 | cctype);
+				}
+			}
+
+			xAdvancePtr(OperandSize);
+		}
 
 		// Sets the jump target by writing back the current x86Ptr to the jump instruction.
 		// This method can be called multiple times, re-writing the jump instruction's target
