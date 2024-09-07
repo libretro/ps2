@@ -239,30 +239,30 @@ namespace x86Emitter
 	template <typename T>
 	__fi void xJNE(T* func)
 	{
-		xJcc(Jcc_NotEqual, (void*)(uptr)func);
+		xJccKnownTarget(Jcc_NotEqual, (void*)(uptr)func, false);
 	}
 	template <typename T>
 	__fi void xJNZ(T* func)
 	{
-		xJcc(Jcc_NotZero, (void*)(uptr)func);
+		xJccKnownTarget(Jcc_NotZero, (void*)(uptr)func, false);
 	}
 
 	template <typename T>
 	__fi void xJS(T* func)
 	{
-		xJcc(Jcc_Signed, (void*)(uptr)func);
+		xJccKnownTarget(Jcc_Signed, (void*)(uptr)func, false);
 	}
 
 	template <typename T>
 	__fi void xJLE(T* func)
 	{
-		xJcc(Jcc_LessOrEqual, (void*)(uptr)func);
+		xJccKnownTarget(Jcc_LessOrEqual, (void*)(uptr)func, false);
 	}
 
 	template <typename T>
 	__fi void xJC(T* func)
 	{
-		xJcc(Jcc_Carry, (void*)(uptr)func);
+		xJccKnownTarget(Jcc_Carry, (void*)(uptr)func, false);
 	}
 
 	// ------------------------------------------------------------------------

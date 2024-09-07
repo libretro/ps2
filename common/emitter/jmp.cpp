@@ -213,13 +213,6 @@ namespace x86Emitter
 		}
 	}
 
-	// Low-level jump instruction!  Specify a comparison type and a target in void* form, and
-	// a jump (either 8 or 32 bit) is generated.
-	__emitinline void xJcc(JccComparisonType comparison, const void* target)
-	{
-		xJccKnownTarget(comparison, target, false);
-	}
-
 	xForwardJumpBase::xForwardJumpBase(uint opsize, JccComparisonType cctype)
 	{
 		BasePtr = (s8*)xGetPtr() +
