@@ -237,16 +237,6 @@ namespace x86Emitter
 	//
 
 	template <typename T>
-	__fi void xJE(T* func)
-	{
-		xJcc(Jcc_Equal, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJZ(T* func)
-	{
-		xJcc(Jcc_Zero, (void*)(uptr)func);
-	}
-	template <typename T>
 	__fi void xJNE(T* func)
 	{
 		xJcc(Jcc_NotEqual, (void*)(uptr)func);
@@ -258,87 +248,21 @@ namespace x86Emitter
 	}
 
 	template <typename T>
-	__fi void xJO(T* func)
-	{
-		xJcc(Jcc_Overflow, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNO(T* func)
-	{
-		xJcc(Jcc_NotOverflow, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJC(T* func)
-	{
-		xJcc(Jcc_Carry, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJNC(T* func)
-	{
-		xJcc(Jcc_NotCarry, (void*)(uptr)func);
-	}
-	template <typename T>
 	__fi void xJS(T* func)
 	{
 		xJcc(Jcc_Signed, (void*)(uptr)func);
 	}
-	template <typename T>
-	__fi void xJNS(T* func)
-	{
-		xJcc(Jcc_Unsigned, (void*)(uptr)func);
-	}
 
-	template <typename T>
-	__fi void xJPE(T* func)
-	{
-		xJcc(Jcc_ParityEven, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJPO(T* func)
-	{
-		xJcc(Jcc_ParityOdd, (void*)(uptr)func);
-	}
-
-	template <typename T>
-	__fi void xJL(T* func)
-	{
-		xJcc(Jcc_Less, (void*)(uptr)func);
-	}
 	template <typename T>
 	__fi void xJLE(T* func)
 	{
 		xJcc(Jcc_LessOrEqual, (void*)(uptr)func);
 	}
-	template <typename T>
-	__fi void xJG(T* func)
-	{
-		xJcc(Jcc_Greater, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJGE(T* func)
-	{
-		xJcc(Jcc_GreaterOrEqual, (void*)(uptr)func);
-	}
 
 	template <typename T>
-	__fi void xJB(T* func)
+	__fi void xJC(T* func)
 	{
-		xJcc(Jcc_Below, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJBE(T* func)
-	{
-		xJcc(Jcc_BelowOrEqual, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJA(T* func)
-	{
-		xJcc(Jcc_Above, (void*)(uptr)func);
-	}
-	template <typename T>
-	__fi void xJAE(T* func)
-	{
-		xJcc(Jcc_AboveOrEqual, (void*)(uptr)func);
+		xJcc(Jcc_Carry, (void*)(uptr)func);
 	}
 
 	// ------------------------------------------------------------------------
