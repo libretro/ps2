@@ -21,6 +21,7 @@ public:
 	~GSRendererPGS();
 
 	bool Init();
+	void Reset(bool hardware_reset);
 
 	void Transfer(const u8 *mem, u32 size);
 

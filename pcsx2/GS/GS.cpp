@@ -367,6 +367,10 @@ void GSclose(void)
 
 void GSreset(bool hardware_reset)
 {
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+		g_pgs_renderer->Reset(hardware_reset);
+#endif
 	if (g_gs_renderer)
 		g_gs_renderer->Reset(hardware_reset);
 }
