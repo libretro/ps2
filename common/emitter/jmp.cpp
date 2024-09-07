@@ -175,18 +175,6 @@ namespace x86Emitter
 	}
 
 	// ------------------------------------------------------------------------
-	// Emits a 32 bit jump, and returns a pointer to the 8 bit displacement.
-	// (displacements should be assigned relative to the end of the jump instruction,
-	// or in other words *(retval+1) )
-	__emitinline s8* xJcc8(JccComparisonType comparison, s8 displacement)
-	{
-		xWrite8((comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison));
-		*(s8*)x86Ptr = displacement;
-		x86Ptr += sizeof(s8);
-		return (s8*)xGetPtr() - 1;
-	}
-
-	// ------------------------------------------------------------------------
 	// Writes a jump at the current x86Ptr, which targets a pre-established target address.
 	// (usually a backwards jump)
 	//
@@ -198,15 +186,16 @@ namespace x86Emitter
 		// Calculate the potential j8 displacement first, assuming an instruction length of 2:
 		sptr displacement8 = (sptr)target - (sptr)(xGetPtr() + 2);
 
-		const int slideVal = slideForward ? ((comparison == Jcc_Unconditional) ? 3 : 4) : 0;
-		displacement8 -= slideVal;
-
 		if (is_s8(displacement8))
-			xJcc8(comparison, displacement8);
+		{
+			xWrite8((comparison == Jcc_Unconditional) ? 0xeb : (0x70 | comparison));
+			*(s8*)x86Ptr = displacement8;
+			x86Ptr += sizeof(s8);
+		}
 		else
 		{
 			// Perform a 32 bit jump instead. :(
-			s32* bah = xJcc32(comparison);
+			s32* bah = xJcc32(comparison, 0);
 			sptr distance = (sptr)target - (sptr)xGetPtr();
 
 			*bah = (s32)distance;

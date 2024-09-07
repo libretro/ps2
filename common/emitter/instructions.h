@@ -225,9 +225,7 @@ namespace x86Emitter
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// JMP / Jcc Instructions!
 
-	extern void xJcc(JccComparisonType comparison, const void* target);
-	extern s8* xJcc8(JccComparisonType comparison = Jcc_Unconditional, s8 displacement = 0);
-	extern s32* xJcc32(JccComparisonType comparison = Jcc_Unconditional, s32 displacement = 0);
+	extern s32* xJcc32(JccComparisonType comparison, s32 displacement);
 
 	// ------------------------------------------------------------------------
 	// Conditional jumps to fixed targets.
