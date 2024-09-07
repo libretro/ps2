@@ -112,11 +112,6 @@ namespace x86Emitter
 
 	extern const xImpl_DwordShift xSHLD, xSHRD;
 
-	extern const xImpl_Group8 xBT;
-	extern const xImpl_Group8 xBTR;
-	extern const xImpl_Group8 xBTS;
-	extern const xImpl_Group8 xBTC;
-
 	extern const xImpl_BitScan xBSF, xBSR;
 
 	extern const xImpl_JmpCall xJMP;

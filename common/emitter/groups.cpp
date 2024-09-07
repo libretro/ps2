@@ -238,33 +238,4 @@ namespace x86Emitter
 	const xImpl_iDiv xDIV = {{0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
 	const xImpl_iMul xMUL = {{0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};
 
-	// =====================================================================================================
-	//  Group 8 Instructions
-	// =====================================================================================================
-
-	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, const xRegister16or32or64& bitoffset) const
-	{
-		xOpWrite0F(bitbase->GetPrefix16(), 0xa3 | (InstType << 3), bitbase, bitoffset);
-	}
-	void xImpl_Group8::operator()(const xIndirect64& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
-	void xImpl_Group8::operator()(const xIndirect32& bitbase, u8 bitoffset) const { xOpWrite0F(0, 0xba, InstType, bitbase, bitoffset); }
-	void xImpl_Group8::operator()(const xIndirect16& bitbase, u8 bitoffset) const { xOpWrite0F(0x66, 0xba, InstType, bitbase, bitoffset); }
-
-	void xImpl_Group8::operator()(const xRegister16or32or64& bitbase, u8 bitoffset) const
-	{
-		xOpWrite0F(bitbase->GetPrefix16(), 0xba, InstType, bitbase, bitoffset);
-	}
-
-	void xImpl_Group8::operator()(const xIndirectVoid& bitbase, const xRegister16or32or64& bitoffset) const
-	{
-		xOpWrite0F(bitoffset->GetPrefix16(), 0xa3 | (InstType << 3), bitoffset, bitbase);
-	}
-
-	const xImpl_Group8 xBT = {G8Type_BT};
-	const xImpl_Group8 xBTR = {G8Type_BTR};
-	const xImpl_Group8 xBTS = {G8Type_BTS};
-	const xImpl_Group8 xBTC = {G8Type_BTC};
-
-
-
 } // End namespace x86Emitter
