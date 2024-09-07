@@ -224,18 +224,6 @@ namespace x86Emitter
 		xAdvancePtr(opsize);
 	}
 
-	void xForwardJumpBase::_setTarget(uint opsize) const
-	{
-		sptr displacement = (sptr)xGetPtr() - (sptr)BasePtr;
-		if (opsize == 1)
-			BasePtr[-1] = (s8)displacement;
-		else
-		{
-			// full displacement, no sanity checks needed :D
-			((s32*)BasePtr)[-1] = displacement;
-		}
-	}
-
 	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
 	__fi JccComparisonType xInvertCond(JccComparisonType src)
 	{

@@ -932,12 +932,7 @@ extern const xRegister32
 		// pointer to base of the instruction *Following* the jump.  The jump address will be
 		// relative to this address.
 		s8* BasePtr;
-
-	public:
 		xForwardJumpBase(uint opsize, JccComparisonType cctype);
-
-	protected:
-		void _setTarget(uint opsize) const;
 	};
 
 	template <typename OperandType>
@@ -954,7 +949,17 @@ extern const xRegister32
 		// Sets the jump target by writing back the current x86Ptr to the jump instruction.
 		// This method can be called multiple times, re-writing the jump instruction's target
 		// in each case. (the the last call is the one that takes effect).
-		void SetTarget() const { _setTarget(OperandSize); }
+		void SetTarget() const
+		{
+			sptr displacement = (sptr)xGetPtr() - (sptr)BasePtr;
+			if (OperandSize == 1)
+				BasePtr[-1] = (s8)displacement;
+			else
+			{
+				// full displacement, no sanity checks needed :D
+				((s32*)BasePtr)[-1] = displacement;
+			}
+		}
 	};
 
 	static __fi xAddressVoid operator+(const void* addr, const xAddressReg& reg)
