@@ -198,7 +198,7 @@ void SPU2write(u32 rmem, u16 value)
 	if (rmem >> 16 == 0x1f80)
 		Cores[0].WriteRegPS1(rmem, value);
 	else
-		SPU2_FastWrite(rmem, value);
+		tbl_reg_writes[(rmem & 0x7ff) / 2](value);
 }
 
 s32 SPU2freeze(FreezeAction mode, freezeData* data)

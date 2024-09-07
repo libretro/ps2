@@ -495,56 +495,46 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				break;
 
 			case 0x1d88: //         Voice ON  (0-15)
-				SPU2_FastWrite(REG_S_KON, value);
+				tbl_reg_writes[((REG_S_KON) & 0x7ff) / 2](value);
 				break;
 			case 0x1d8a: //         Voice ON  (16-23)
-				SPU2_FastWrite(REG_S_KON + 2, value);
+				tbl_reg_writes[((REG_S_KON + 2) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1d8c: //         Voice OFF (0-15)
-				SPU2_FastWrite(REG_S_KOFF, value);
+				tbl_reg_writes[((REG_S_KOFF) & 0x7ff) / 2](value);
 				break;
 			case 0x1d8e: //         Voice OFF (16-23)
-				SPU2_FastWrite(REG_S_KOFF + 2, value);
+				tbl_reg_writes[((REG_S_KOFF + 2) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1d90: //         Channel FM (pitch lfo) mode (0-15)
-				SPU2_FastWrite(REG_S_PMON, value);
+				tbl_reg_writes[((REG_S_PMON) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1d92: //         Channel FM (pitch lfo) mode (16-23)
-				SPU2_FastWrite(REG_S_PMON + 2, value);
+				tbl_reg_writes[((REG_S_PMON + 2) & 0x7ff) / 2](value);
 				break;
 
 
 			case 0x1d94: //         Channel Noise mode (0-15)
-				SPU2_FastWrite(REG_S_NON, value);
+				tbl_reg_writes[((REG_S_NON) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1d96: //         Channel Noise mode (16-23)
-				SPU2_FastWrite(REG_S_NON + 2, value);
+				tbl_reg_writes[((REG_S_NON + 2) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1d98: //         1F801D98h - Voice 0..23 Reverb mode aka Echo On (EON) (R/W)
-				SPU2_FastWrite(REG_S_VMIXEL, value);
-				SPU2_FastWrite(REG_S_VMIXER, value);
+				tbl_reg_writes[((REG_S_VMIXEL) & 0x7ff) / 2](value);
+				tbl_reg_writes[((REG_S_VMIXER) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1d9a: //         1F801D98h + 2 - Voice 0..23 Reverb mode aka Echo On (EON) (R/W)
-				SPU2_FastWrite(REG_S_VMIXEL + 2, value);
-				SPU2_FastWrite(REG_S_VMIXER + 2, value);
+				tbl_reg_writes[((REG_S_VMIXEL + 2) & 0x7ff) / 2](value);
+				tbl_reg_writes[((REG_S_VMIXER + 2) & 0x7ff) / 2](value);
 				break;
 
-			// this was wrong? // edit: appears so!
-			//case 0x1d9c://         Channel Reverb mode (0-15)
-			//	SPU2_FastWrite(REG_S_VMIXL,value);
-			//	SPU2_FastWrite(REG_S_VMIXR,value);
-			//break;
-
-			//case 0x1d9e://         Channel Reverb mode (16-23)
-			//	SPU2_FastWrite(REG_S_VMIXL+2,value);
-			//	SPU2_FastWrite(REG_S_VMIXR+2,value);
-			//break;
 			case 0x1d9c: // Voice 0..15 ON/OFF (status) (ENDX) (R) // writeable but hw overrides it shortly after
 			case 0x1d9e: //         // Voice 15..23 ON/OFF (status) (ENDX) (R) // writeable but hw overrides it shortly after
 				break;
@@ -572,7 +562,7 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				break;
 
 			case 0x1daa:
-				SPU2_FastWrite(REG_C_ATTR, value);
+				tbl_reg_writes[((REG_C_ATTR) & 0x7ff) / 2](value);
 				break;
 
 			case 0x1dac: // 1F801DACh - Sound RAM Data Transfer Control (should be 0004h)
@@ -1298,7 +1288,7 @@ static void RegWrite_Null(u16 value)
 // --------------------------------------------------------------------------------------
 
 typedef void RegWriteHandler(u16 value);
-static RegWriteHandler* const tbl_reg_writes[0x401] =
+RegWriteHandler* const tbl_reg_writes[0x401] =
 	{
 		VoiceParamsCore(0), // 0x000 -> 0x180
 		CoreParamsPair(0, REG_S_PMON),
@@ -1527,9 +1517,3 @@ static RegWriteHandler* const tbl_reg_writes[0x401] =
 
 		nullptr // should be at 0x400!  (we assert check it on startup)
 };
-
-
-void SPU2_FastWrite(u32 rmem, u16 value)
-{
-	tbl_reg_writes[(rmem & 0x7ff) / 2](value);
-}

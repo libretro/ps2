@@ -54,8 +54,9 @@ void SPU2readDMA7Mem(u16* pMem, u32 size);
 void SPU2writeDMA7Mem(u16* pMem, u32 size);
 
 extern u32 lClocks;
+typedef void RegWriteHandler(u16 value);
+extern RegWriteHandler* const tbl_reg_writes[0x401];
 
 extern void TimeUpdate(u32 cClocks);
-extern void SPU2_FastWrite(u32 rmem, u16 value);
 
 //#define PCM24_S1_INTERLEAVE
