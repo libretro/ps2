@@ -479,7 +479,14 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	{
 		if (vsync.image)
 		{
-			retro_vulkan_image vkimage = {};
+			retro_game_geometry geom = {};
+			bool geom_changed                = false;
+			static float last_aspect         = 0.0f;
+			static uint32_t last_base_width  = 0;
+			static uint32_t last_base_height = 0;
+			uint32_t new_base_width          = vsync.image->get_width();
+			uint32_t new_base_height         = vsync.image->get_height();
+			retro_vulkan_image vkimage       = {};
 			vkimage.image_view = vsync.image->get_view().get_unorm_view();
 			vkimage.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			vkimage.create_info = {
@@ -489,19 +496,32 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 				{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
 			};
 
-			retro_game_geometry geom = {};
-			geom.base_width = vsync.image->get_width();
-			geom.base_height = vsync.image->get_height();
+			if (new_base_width != last_base_width)
+			{
+				geom_changed     = true;
+				geom.base_width  = new_base_width;
+			}
+			if (new_base_height != last_base_height)
+			{
+				geom_changed     = true;
+				geom.base_height = new_base_height;
+			}
 			geom.aspect_ratio = 4.0f / 3.0f; // TODO: Missing widescreen option.
 			float horizontal_scanout_ratio = float(vsync.internal_width) / float(vsync.mode_width);
 			float vertical_scanout_ratio = float(vsync.internal_height) / float(vsync.mode_height);
 			geom.aspect_ratio *= horizontal_scanout_ratio / vertical_scanout_ratio;
-			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geom);
+			if (last_aspect != geom.aspect_ratio)
+				geom_changed = true;
+			if (geom_changed)
+				environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geom);
 
 			hw_render_iface->set_image(hw_render_iface->handle, &vkimage, 0, nullptr, hw_render_iface->queue_index);
-			video_cb(RETRO_HW_FRAME_BUFFER_VALID, vsync.image->get_width(), vsync.image->get_height(), 0);
+			video_cb(RETRO_HW_FRAME_BUFFER_VALID, new_base_width, new_base_height, 0);
 			hw_render_iface->set_image(hw_render_iface->handle, nullptr, 0, nullptr, hw_render_iface->queue_index);
 			last_vsync_image = vsync.image;
+			last_base_width  = new_base_width;
+			last_base_height = new_base_height;
+			last_aspect      = geom.aspect_ratio;
 		}
 		else
 			video_cb(nullptr, 0, 0, 0);
