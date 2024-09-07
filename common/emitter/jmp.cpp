@@ -205,10 +205,6 @@ namespace x86Emitter
 	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
 	__fi JccComparisonType xInvertCond(JccComparisonType src)
 	{
-		if (Jcc_Unconditional == src)
-			return Jcc_Unconditional;
-
-		// x86 conditionals are clever!  To invert conditional types, just invert the lower bit:
-		return (JccComparisonType)((int)src ^ 1);
+		return (src == Jcc_Unconditional) ? Jcc_Unconditional : (JccComparisonType)((int)src ^ 1);
 	}
 } // namespace x86Emitter

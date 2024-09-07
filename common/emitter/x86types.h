@@ -133,8 +133,6 @@ namespace x86Emitter
 	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
 
 	extern void xSetPtr(void* ptr);
-	extern void xAlignPtr(uint bytes);
-	extern void xAdvancePtr(uint bytes);
 
 	extern u8* xGetPtr();
 	extern u8* xGetAlignedCallTarget();
@@ -954,7 +952,7 @@ extern const xRegister32
 				}
 			}
 
-			xAdvancePtr(OperandSize);
+			x86Ptr += OperandSize;
 		}
 
 		// Sets the jump target by writing back the current x86Ptr to the jump instruction.

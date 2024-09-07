@@ -460,7 +460,7 @@ const xRegister32
 
 
 	// --------------------------------------------------------------------------------------
-	//  xSetPtr / xAlignPtr / xGetPtr / xAdvancePtr
+	//  xSetPtr / xGetPtr
 	// --------------------------------------------------------------------------------------
 
 	// Assigns the current emitter buffer target address.
@@ -479,20 +479,9 @@ const xRegister32
 		return x86Ptr;
 	}
 
-	__emitinline void xAlignPtr(uint bytes)
-	{
-		// forward align
-		x86Ptr = (u8*)(((uptr)x86Ptr + bytes - 1) & ~(uptr)(bytes - 1));
-	}
-
 	__emitinline u8* xGetAlignedCallTarget()
 	{
 		return x86Ptr;
-	}
-
-	__emitinline void xAdvancePtr(uint bytes)
-	{
-		x86Ptr += bytes;
 	}
 
 	// --------------------------------------------------------------------------------------
