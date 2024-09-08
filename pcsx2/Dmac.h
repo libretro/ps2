@@ -15,16 +15,6 @@
 
 #pragma once
 
-// Useful enums for some of the fields.
-enum pce_values
-{
-	PCE_NOTHING = 0,
-	PCE_RESERVED,
-	PCE_DISABLED,
-	PCE_ENABLED
-};
-
-
 enum tag_id
 {
 	TAG_CNTS = 0,
