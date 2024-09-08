@@ -1542,25 +1542,15 @@ void _vuXGKICKTransfermVU(bool flush)
 		}
 
 		if (!flush)
-		{
 			transfersize = std::min(vuRegs[1].xgkicksizeremaining, vuRegs[1].xgkickcyclecount * 8);
-			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff);
-		}
 		else
-		{
 			transfersize = vuRegs[1].xgkicksizeremaining;
-			transfersize = std::min(transfersize, vuRegs[1].xgkickdiff);
-		}
+		transfersize = std::min(transfersize, vuRegs[1].xgkickdiff);
 
 		// Would be "nicer" to do the copy until it's all up, however this really screws up PATH3 masking stuff
 		// So lets just do it the other way :)
-		if (THREAD_VU1)
-		{
-			if (transfersize < vuRegs[1].xgkicksizeremaining)
-				gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
-			else
-				gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
-		}
+		if (THREAD_VU1 && (transfersize < vuRegs[1].xgkicksizeremaining))
+			gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
 		else
 			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
 
@@ -1949,8 +1939,6 @@ mVUop(mVU_JALR)
 			if (isEvilBlock)
 			{
 				xMOV(regT, ptr32[&mVU.evilBranch]);
-				xADD(regT, 8);
-				xSHR(regT, 3);
 			}
 			else
 			{
@@ -1958,9 +1946,9 @@ mVUop(mVU_JALR)
 				incPC(2);
 
 				xMOV(regT, ptr32[&mVU.badBranch]);
-				xADD(regT, 8);
-				xSHR(regT, 3);
 			}
+			xADD(regT, 8);
+			xSHR(regT, 3);
 			mVU.regAlloc->clearNeeded(regT);
 		}
 	}
