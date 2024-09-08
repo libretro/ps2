@@ -551,16 +551,6 @@ namespace x86Emitter
 		// Non-temporal movs only support a register as a target (ie, load form only, no stores)
 		//
 
-		__fi void xMOVNTDQA(const xRegisterSSE& to, const xIndirectVoid& from)
-	{
-		xOpWrite0F(0x66, 0x2a38, to.Id, from);
-	}
-
-	__fi void xMOVNTDQA(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xe7, from, to); }
-
-	__fi void xMOVNTPD(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x2b, from, to); }
-	__fi void xMOVNTPS(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(0, 0x2b, from, to); }
-
 	// ------------------------------------------------------------------------
 
 	__fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0, 0x50, to, from); }
@@ -599,30 +589,9 @@ namespace x86Emitter
 	//  Ungrouped Instructions!
 	// =====================================================================================================
 
-
-	// Store Streaming SIMD Extension Control/Status to Mem32.
-	__emitinline void xSTMXCSR(const xIndirect32& dest)
-	{
-		xOpWrite0F(0, 0xae, 3, dest);
-	}
-
 	// Load Streaming SIMD Extension Control/Status from Mem32.
 	__emitinline void xLDMXCSR(const xIndirect32& src)
 	{
 		xOpWrite0F(0, 0xae, 2, src);
-	}
-
-	// Save x87 FPU, MMX Technology, and SSE State to buffer
-	// Target buffer must be at least 512 bytes in length to hold the result.
-	__emitinline void xFXSAVE(const xIndirectVoid& dest)
-	{
-		xOpWrite0F(0, 0xae, 0, dest);
-	}
-
-	// Restore x87 FPU, MMX , XMM, and MXCSR State.
-	// Source buffer should be 512 bytes in length.
-	__emitinline void xFXRSTOR(const xIndirectVoid& src)
-	{
-		xOpWrite0F(0, 0xae, 1, src);
 	}
 } // namespace x86Emitter
