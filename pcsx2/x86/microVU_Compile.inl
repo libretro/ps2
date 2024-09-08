@@ -106,22 +106,16 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 // Execute VU Opcode/Instruction (Upper and Lower)
 //------------------------------------------------------------------
 
-__ri void doUpperOp(mV)
-{
-	mVUopU(mVU, 1);
-	mVUdivSet(mVU);
-}
-__ri void doLowerOp(mV)
-{
-	incPC(-1);
-	mVUopL(mVU, 1);
-	incPC(1);
-}
-__ri void flushRegs(mV)
-{
-	if (!doRegAlloc)
-		mVU.regAlloc->flushAll();
-}
+#define doUpperOp(mV) \
+	mVUopU(mVU, 1); \
+	mVUdivSet(mVU)
+
+#define doLowerOp(mV) \
+	incPC(-1); \
+	mVUopL(mVU, 1); \
+	incPC(1)
+
+#define flushRegs(mV) if (!doRegAlloc) mVU.regAlloc->flushAll();
 
 void doIbit(mV)
 {
@@ -212,15 +206,10 @@ void mVUexecuteInstruction(mV)
 //------------------------------------------------------------------
 
 // If 1st op in block is a bad opcode, then don't compile rest of block (Dawn of Mana Level 2)
-__fi void mVUcheckBadOp(mV)
-{
-
-	// The BIOS writes upper and lower NOPs in reversed slots (bug)
-	//So to prevent spamming we ignore these, however its possible the real VU will bomb out if
-	//this happens, so we will bomb out without warning.
-	if (mVUinfo.isBadOp && mVU.code != 0x8000033c)
-		mVUinfo.isEOB = true;
-}
+// The BIOS writes upper and lower NOPs in reversed slots (bug)
+//So to prevent spamming we ignore these, however its possible the real VU will bomb out if
+//this happens, so we will bomb out without warning.
+#define mVUcheckBadOp(mV) if (mVUinfo.isBadOp && mVU.code != 0x8000033c) mVUinfo.isEOB = true
 
 __ri void branchWarning(mV)
 {
@@ -239,30 +228,26 @@ __ri void branchWarning(mV)
 	}
 }
 
-__fi void eBitPass1(mV, int& branch)
-{
-	if (mVUregs.blockType != 1)
-	{
-		branch = 1;
-		mVUup.eBit = true;
+#define eBitPass1(mV, branch) \
+	if (mVUregs.blockType != 1) \
+	{ \
+		branch     = 1; \
+		mVUup.eBit = true; \
 	}
-}
 
-__ri void eBitWarning(mV)
-{
-	incPC(2);
-	if (curI & _Ebit_)
-		mVUregs.blockType = 1;
-	incPC(-2);
-}
+#define eBitWarning(mV) \
+	incPC(2); \
+	if (curI & _Ebit_) \
+		mVUregs.blockType = 1; \
+	incPC(-2)
 
 //------------------------------------------------------------------
 // Cycles / Pipeline State / Early Exit from Execution
 //------------------------------------------------------------------
 __fi u8 optimizeReg(u8 rState) { return (rState == 1) ? 0 : rState; }
 __fi u8 calcCycles(u8 reg, u8 x) { return ((reg > x) ? (reg - x) : 0); }
-__fi void incP(mV) { mVU.p ^= 1; }
-__fi void incQ(mV) { mVU.q ^= 1; }
+#define incP(mV) mVU.p ^= 1
+#define incQ(mV) mVU.q ^= 1
 
 // Optimizes the End Pipeline State Removing Unnecessary Info
 // If the cycles remaining is just '1', we don't have to transfer it to the next block
@@ -330,7 +315,7 @@ void mVUincCycles(mV, int x)
 }
 
 // Helps check if upper/lower ops read/write to same regs...
-void cmpVFregs(microVFreg& VFreg1, microVFreg& VFreg2, bool& xVar)
+static void cmpVFregs(microVFreg& VFreg1, microVFreg& VFreg2, bool& xVar)
 {
 	if (VFreg1.reg == VFreg2.reg)
 	{
@@ -438,23 +423,19 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 //------------------------------------------------------------------
 
 // This gets run at the start of every loop of mVU's first pass
-__fi void startLoop(mV)
-{
-	memset(&mVUinfo, 0, sizeof(mVUinfo));
-	memset(&mVUregsTemp, 0, sizeof(mVUregsTemp));
-}
+#define startLoop(mV) \
+	memset(&mVUinfo, 0, sizeof(mVUinfo)); \
+	memset(&mVUregsTemp, 0, sizeof(mVUregsTemp))
 
-// Initialize VI Constants (vi15 propagates through blocks)
-__fi void mVUinitConstValues(microVU& mVU)
-{
-	for (int i = 0; i < 16; i++)
-	{
-		mVUconstReg[i].isValid  = 0;
-		mVUconstReg[i].regValue = 0;
-	}
-	mVUconstReg[15].isValid = mVUregs.vi15v;
-	mVUconstReg[15].regValue = mVUregs.vi15v ? mVUregs.vi15 : 0;
-}
+/* Initialize VI Constants (vi15 propagates through blocks) */
+#define mVUinitConstValues() \
+	for (int i = 0; i < 16; i++) \
+	{ \
+		mVUconstReg[i].isValid  = 0; \
+		mVUconstReg[i].regValue = 0; \
+	} \
+	mVUconstReg[15].isValid  = mVUregs.vi15v; \
+	mVUconstReg[15].regValue = mVUregs.vi15v ? mVUregs.vi15 : 0
 
 // Initialize Variables
 __fi void mVUinitFirstPass(microVU& mVU, uptr pState, u8* thisPtr)
@@ -480,14 +461,14 @@ __fi void mVUinitFirstPass(microVU& mVU, uptr pState, u8* thisPtr)
 	mVUregs.viBackUp  = 0;
 	mVUregs.flagInfo  = 0;
 	mVUsFlagHack = CHECK_VU_FLAGHACK;
-	mVUinitConstValues(mVU);
+	mVUinitConstValues();
 }
 
 //------------------------------------------------------------------
 // Recompiler
 //------------------------------------------------------------------
 
-void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
+static void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 {
 	if (mVU.index && THREAD_VU1)
 		xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x400 : 0x4));
@@ -505,7 +486,7 @@ void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 	eJMP.SetTarget();
 }
 
-void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
+static void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 {
 	if (mVU.index && THREAD_VU1)
 		xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x800 : 0x8));
@@ -522,12 +503,6 @@ void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 	incPC(-1);
 
 	eJMP.SetTarget();
-}
-
-void mVUSaveFlags(microVU& mVU, microFlagCycles& mFC, microFlagCycles& mFCBackup)
-{
-	memcpy(&mFCBackup, &mFC, sizeof(microFlagCycles));
-	mVUsetFlags(mVU, mFCBackup); // Sets Up Flag instances
 }
 
 static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
