@@ -44,13 +44,6 @@ void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
 	}
 }
 
-void mVUloadIreg(const xmm& reg, int xyzw, VURegs* vuRegs)
-{
-	xMOVSSZX(reg, ptr32[&vuRegs->VI[REG_I].UL]);
-	if (!_XYZWss(xyzw))
-		xSHUF.PS(reg, reg, 0);
-}
-
 // Modifies the Source Reg!
 void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW)
 {
