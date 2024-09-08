@@ -337,15 +337,7 @@ static __fi void GIFchain(void)
 		GifDMAInt(gif.gscycles);
 }
 
-static __fi bool checkTieBit(tDMA_TAG*& ptag)
-{
-	if (gifch.chcr.TIE && ptag->IRQ)
-	{
-		gif.gspath3done = true;
-		return true;
-	}
-	return false;
-}
+#define checkTieBit(ptag) if (gifch.chcr.TIE && ptag->IRQ) gif.gspath3done = true
 
 static __fi tDMA_TAG* ReadTag(void)
 {
