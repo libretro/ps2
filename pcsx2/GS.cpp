@@ -108,18 +108,10 @@ __fi void gsWrite8(u32 mem, u8 value)
 		// and change the GS revision or ID portions -- they're all hard wired.) --air
 
 		case GS_CSR: // GS_CSR
-			gsCSRwrite(tmp);
-			break;
 		case GS_CSR + 1: // GS_CSR
-			tmp._u32 <<= 8;
-			gsCSRwrite(tmp);
-			break;
 		case GS_CSR + 2: // GS_CSR
-			tmp._u32 <<= 16;
-			gsCSRwrite(tmp);
-			break;
 		case GS_CSR + 3: // GS_CSR
-			tmp._u32 <<= 24;
+			tmp._u32 <<= ((mem - GS_CSR) << 3);
 			gsCSRwrite(tmp);
 			break;
 		default:
