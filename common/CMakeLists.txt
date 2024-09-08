@@ -55,7 +55,6 @@ target_sources(common PRIVATE
 	Threading.h
 	VectorIntrin.h
 	WindowInfo.h
-	emitter/implement/dwshift.h
 	emitter/implement/group1.h
 	emitter/implement/group2.h
 	emitter/implement/group3.h

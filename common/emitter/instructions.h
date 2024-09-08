@@ -127,8 +127,6 @@ namespace x86Emitter
 
 	extern const xImpl_MovExtend xMOVZX, xMOVSX;
 
-	extern const xImpl_DwordShift xSHLD, xSHRD;
-
 	extern const xImpl_BitScan xBSF, xBSR;
 
 	extern const xImpl_JmpCall xJMP;
@@ -141,13 +139,10 @@ namespace x86Emitter
 		xCMOVG, xCMOVGE,
 		xCMOVL, xCMOVLE,
 
-		xCMOVZ, xCMOVE,
-		xCMOVNZ, xCMOVNE,
-		xCMOVO, xCMOVNO,
-		xCMOVC, xCMOVNC,
+		xCMOVE,
+		xCMOVNE,
 
-		xCMOVS, xCMOVNS,
-		xCMOVPE, xCMOVPO;
+		xCMOVS, xCMOVNS;
 
 	// ------------------------------------------------------------------------
 	extern const xImpl_Set xSETA, xSETAE,

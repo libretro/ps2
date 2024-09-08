@@ -1018,7 +1018,6 @@ extern const xRegister32
 #include "implement/group2.h"
 #include "implement/group3.h"
 #include "implement/movs.h" // cmov and movsx/zx
-#include "implement/dwshift.h" // doubleword shifts!
 #include "implement/incdec.h"
 #include "implement/test.h"
 #include "implement/jmpcall.h"

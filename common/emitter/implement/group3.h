@@ -37,14 +37,6 @@ namespace x86Emitter
 
 		void operator()(const xRegisterInt& from) const;
 		void operator()(const xIndirect64orLess& from) const;
-
-#if 0
-	template< typename T >
-	void operator()( const xDirectOrIndirect<T>& from ) const
-	{
-		_DoI_helpermess( *this, from );
-	}
-#endif
 	};
 
 	// --------------------------------------------------------------------------------------

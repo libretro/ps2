@@ -842,28 +842,6 @@ const xRegister32
 		EmitSibMagic(isDec ? 1 : 0, to);
 	}
 
-	void xImpl_DwordShift::operator()(const xRegister16or32or64& to, const xRegister16or32or64& from, const xRegisterCL& /* clreg */) const
-	{
-		xOpWrite0F(from->GetPrefix16(), OpcodeBase + 1, to, from);
-	}
-
-	void xImpl_DwordShift::operator()(const xRegister16or32or64& to, const xRegister16or32or64& from, u8 shiftcnt) const
-	{
-		if (shiftcnt != 0)
-			xOpWrite0F(from->GetPrefix16(), OpcodeBase, to, from, shiftcnt);
-	}
-
-	void xImpl_DwordShift::operator()(const xIndirectVoid& dest, const xRegister16or32or64& from, const xRegisterCL& /* clreg */) const
-	{
-		xOpWrite0F(from->GetPrefix16(), OpcodeBase + 1, from, dest);
-	}
-
-	void xImpl_DwordShift::operator()(const xIndirectVoid& dest, const xRegister16or32or64& from, u8 shiftcnt) const
-	{
-		if (shiftcnt != 0)
-			xOpWrite0F(from->GetPrefix16(), OpcodeBase, from, dest, shiftcnt);
-	}
-
 	const xImpl_Test xTEST = {};
 
 	const xImpl_BitScan xBSF = {0xbc};
@@ -871,9 +849,6 @@ const xRegister32
 
 	const xImpl_IncDec xINC = {false};
 	const xImpl_IncDec xDEC = {true};
-
-	const xImpl_DwordShift xSHLD = {0xa4};
-	const xImpl_DwordShift xSHRD = {0xac};
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Push / Pop Emitters

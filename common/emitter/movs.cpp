@@ -182,20 +182,11 @@ namespace x86Emitter
 	const xImpl_CMov xCMOVL = {Jcc_Less};
 	const xImpl_CMov xCMOVLE = {Jcc_LessOrEqual};
 
-	const xImpl_CMov xCMOVZ = {Jcc_Zero};
 	const xImpl_CMov xCMOVE = {Jcc_Equal};
-	const xImpl_CMov xCMOVNZ = {Jcc_NotZero};
 	const xImpl_CMov xCMOVNE = {Jcc_NotEqual};
-
-	const xImpl_CMov xCMOVO = {Jcc_Overflow};
-	const xImpl_CMov xCMOVNO = {Jcc_NotOverflow};
-	const xImpl_CMov xCMOVC = {Jcc_Carry};
-	const xImpl_CMov xCMOVNC = {Jcc_NotCarry};
 
 	const xImpl_CMov xCMOVS = {Jcc_Signed};
 	const xImpl_CMov xCMOVNS = {Jcc_Unsigned};
-	const xImpl_CMov xCMOVPE = {Jcc_ParityEven};
-	const xImpl_CMov xCMOVPO = {Jcc_ParityOdd};
 
 
 	const xImpl_Set xSETA = {Jcc_Above};
