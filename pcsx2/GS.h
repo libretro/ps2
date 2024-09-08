@@ -138,15 +138,6 @@ union tGS_CSR
 		u32 _u32; // lower 32 bits (all useful content!)
 		u32 _unused32; // upper 32 bits (unused -- should probably be 0)
 	};
-
-	void Reset()
-	{
-		FIFO = CSR_FIFO_EMPTY;
-		REV = 0x1B; // GS Revision
-		ID = 0x55; // GS ID
-	}
-
-	tGS_CSR() { Reset(); }
 };
 
 // --------------------------------------------------------------------------------------

@@ -54,7 +54,9 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		// Privilage registers also reset.
 		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
 		GSIMR.reset();
-		CSRreg.Reset();
+		CSRreg.FIFO = CSR_FIFO_EMPTY;
+		CSRreg.REV  = 0x1B;
+		CSRreg.ID   = 0x55;
 		MTGS::ResetGS(false);
 	}
 
@@ -96,6 +98,9 @@ static __fi void IMRwrite(u32 value)
 __fi void gsWrite8(u32 mem, u8 value)
 {
 	tGS_CSR tmp;
+	tmp.FIFO = CSR_FIFO_EMPTY;
+	tmp.REV  = 0x1B;
+	tmp.ID   = 0x55;
 	tmp._u32 = value;
 	switch (mem)
 	{
@@ -126,6 +131,9 @@ __fi void gsWrite8(u32 mem, u8 value)
 __fi void gsWrite16(u32 mem, u16 value)
 {
 	tGS_CSR tmp;
+	tmp.FIFO = CSR_FIFO_EMPTY;
+	tmp.REV  = 0x1B;
+	tmp.ID   = 0x55;
 	tmp._u32 = value;
 	switch (mem)
 	{
@@ -152,6 +160,10 @@ __fi void gsWrite16(u32 mem, u16 value)
 __fi void gsWrite32(u32 mem, u32 value)
 {
 	tGS_CSR tmp;
+	tmp.FIFO = CSR_FIFO_EMPTY;
+	tmp.REV  = 0x1B;
+	tmp.ID   = 0x55;
+
 	switch (mem)
 	{
 		case GS_CSR:
@@ -191,6 +203,10 @@ void gsWrite64_page_00( u32 mem, u64 value )
 void gsWrite64_page_01( u32 mem, u64 value )
 {
 	tGS_CSR tmp;
+	tmp.FIFO = CSR_FIFO_EMPTY;
+	tmp.REV  = 0x1B;
+	tmp.ID   = 0x55;
+
 	switch( mem )
 	{
 		case GS_BUSDIR:
@@ -228,6 +244,10 @@ void TAKES_R128 gsWrite128_page_00( u32 mem, r128 value )
 void TAKES_R128 gsWrite128_page_01( u32 mem, r128 value )
 {
 	tGS_CSR tmp;
+	tmp.FIFO = CSR_FIFO_EMPTY;
+	tmp.REV  = 0x1B;
+	tmp.ID   = 0x55;
+
 	switch( mem )
 	{
 		case GS_CSR:
