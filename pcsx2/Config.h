@@ -495,7 +495,7 @@ struct Pcsx2Config
 			};
 		};
 
-		int VsyncQueueSize = 2;
+		int VsyncQueueSize = 1;
 
 		float FramerateNTSC = DEFAULT_FRAME_RATE_NTSC;
 		float FrameratePAL = DEFAULT_FRAME_RATE_PAL;
