@@ -23,7 +23,6 @@ namespace x86Emitter
 
 #define OpWriteSSE(pre, op) xOpWrite0F(pre, op, to, from)
 
-	extern void SimdPrefix(u16 opcode);
 	extern void EmitSibMagic(uint regfield, const void* address, int extraRIPOffset = 0);
 	extern void EmitSibMagic(uint regfield, const xIndirectVoid& info, int extraRIPOffset = 0);
 	extern void EmitSibMagic(uint reg1, const xRegisterBase& reg2, int = 0);
@@ -80,7 +79,15 @@ namespace x86Emitter
 			xWrite8(prefix);
 		EmitRex(param1, param2);
 
-		SimdPrefix(opcode);
+		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
+
+		if (is16BitOpcode)
+		{
+			xWrite8(0x0f);
+			xWrite16(opcode);
+		}
+		else
+			xWrite16((opcode << 8) | 0x0f);
 
 		EmitSibMagic(param1, param2);
 	}
@@ -92,7 +99,15 @@ namespace x86Emitter
 			xWrite8(prefix);
 		EmitRex(param1, param2);
 
-		SimdPrefix(opcode);
+		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
+
+		if (is16BitOpcode)
+		{
+			xWrite8(0x0f);
+			xWrite16(opcode);
+		}
+		else
+			xWrite16((opcode << 8) | 0x0f);
 
 		EmitSibMagic(param1, param2, 1);
 		xWrite8(imm8);

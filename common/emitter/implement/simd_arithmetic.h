@@ -128,14 +128,6 @@ namespace x86Emitter
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	//
-	struct xImplSimd_AndNot
-	{
-		const xImplSimd_DestRegSSE PS;
-		const xImplSimd_DestRegSSE PD;
-	};
-
-	//////////////////////////////////////////////////////////////////////////////////////////
 	// Packed absolute value. [sSSE3 only]
 	//
 	struct xImplSimd_PAbsolute
@@ -150,34 +142,6 @@ namespace x86Emitter
 
 		// [sSSE-3] Computes the absolute value of doublewords in the src, and stores the
 		// result in dest, as UNSIGNED.
-		const xImplSimd_DestRegEither D;
-	};
-
-	//////////////////////////////////////////////////////////////////////////////////////////
-	// Packed Sign [sSSE3 only] - Negate/zero/preserve packed integers in dest depending on the
-	// corresponding sign in src.
-	//
-	struct xImplSimd_PSign
-	{
-		// [sSSE-3] negates each byte element of dest if the signed integer value of the
-		// corresponding data element in src is less than zero. If the signed integer value
-		// of a data element in src is positive, the corresponding data element in dest is
-		// unchanged. If a data element in src is zero, the corresponding data element in
-		// dest is set to zero.
-		const xImplSimd_DestRegEither B;
-
-		// [sSSE-3] negates each word element of dest if the signed integer value of the
-		// corresponding data element in src is less than zero. If the signed integer value
-		// of a data element in src is positive, the corresponding data element in dest is
-		// unchanged. If a data element in src is zero, the corresponding data element in
-		// dest is set to zero.
-		const xImplSimd_DestRegEither W;
-
-		// [sSSE-3] negates each doubleword element of dest if the signed integer value
-		// of the corresponding data element in src is less than zero. If the signed integer
-		// value of a data element in src is positive, the corresponding data element in dest
-		// is unchanged. If a data element in src is zero, the corresponding data element in
-		// dest is set to zero.
 		const xImplSimd_DestRegEither D;
 	};
 
@@ -214,28 +178,6 @@ namespace x86Emitter
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	// Packed Horizontal Add [SSE3 only]
-	//
-	struct xImplSimd_HorizAdd
-	{
-		// [SSE-3] Horizontal Add of Packed Data.  A three step process:
-		// * Adds the single-precision floating-point values in the first and second dwords of
-		//   dest and stores the result in the first dword of dest.
-		// * Adds single-precision floating-point values in the third and fourth dword of dest
-		//   stores the result in the second dword of dest.
-		// * Adds single-precision floating-point values in the first and second dword of *src*
-		//   and stores the result in the third dword of dest.
-		const xImplSimd_DestRegSSE PS;
-
-		// [SSE-3] Horizontal Add of Packed Data.  A two step process:
-		// * Adds the double-precision floating-point values in the high and low quadwords of
-		//   dest and stores the result in the low quadword of dest.
-		// * Adds the double-precision floating-point values in the high and low quadwords of
-		//   *src* stores the result in the high quadword of dest.
-		const xImplSimd_DestRegSSE PD;
-	};
-
-	//////////////////////////////////////////////////////////////////////////////////////////
 	// DotProduct calculation (SSE4.1 only!)
 	//
 	struct xImplSimd_DotProduct
@@ -257,60 +199,6 @@ namespace x86Emitter
 
 		// [SSE-4.1]
 		xImplSimd_DestRegImmSSE PD;
-	};
-
-	//////////////////////////////////////////////////////////////////////////////////////////
-	// Rounds floating point values (packed or single scalar) by an arbitrary rounding mode.
-	// (SSE4.1 only!)
-	struct xImplSimd_Round
-	{
-		// [SSE-4.1] Rounds the 4 packed single-precision src values and stores them in dest.
-		//
-		// Imm8 specifies control fields for the rounding operation:
-		//   Bit  3 - processor behavior for a precision exception (0: normal, 1: inexact)
-		//   Bit  2 - If enabled, use MXCSR.RC, else use RC specified in bits 1:0 of this Imm8.
-		//   Bits 1:0 - Specifies a rounding mode for this instruction only.
-		//
-		// Rounding Mode Reference:
-		//   0 - Nearest, 1 - Negative Infinity, 2 - Positive infinity, 3 - Truncate.
-		//
-		const xImplSimd_DestRegImmSSE PS;
-
-		// [SSE-4.1] Rounds the 2 packed double-precision src values and stores them in dest.
-		//
-		// Imm8 specifies control fields for the rounding operation:
-		//   Bit  3 - processor behavior for a precision exception (0: normal, 1: inexact)
-		//   Bit  2 - If enabled, use MXCSR.RC, else use RC specified in bits 1:0 of this Imm8.
-		//   Bits 1:0 - Specifies a rounding mode for this instruction only.
-		//
-		// Rounding Mode Reference:
-		//   0 - Nearest, 1 - Negative Infinity, 2 - Positive infinity, 3 - Truncate.
-		//
-		const xImplSimd_DestRegImmSSE PD;
-
-		// [SSE-4.1] Rounds the single-precision src value and stores in dest.
-		//
-		// Imm8 specifies control fields for the rounding operation:
-		//   Bit  3 - processor behavior for a precision exception (0: normal, 1: inexact)
-		//   Bit  2 - If enabled, use MXCSR.RC, else use RC specified in bits 1:0 of this Imm8.
-		//   Bits 1:0 - Specifies a rounding mode for this instruction only.
-		//
-		// Rounding Mode Reference:
-		//   0 - Nearest, 1 - Negative Infinity, 2 - Positive infinity, 3 - Truncate.
-		//
-		const xImplSimd_DestRegImmSSE SS;
-
-		// [SSE-4.1] Rounds the double-precision src value and stores in dest.
-		//
-		// Imm8 specifies control fields for the rounding operation:
-		//   Bit  3 - processor behavior for a precision exception (0: normal, 1: inexact)
-		//   Bit  2 - If enabled, use MXCSR.RC, else use RC specified in bits 1:0 of this Imm8.
-		//   Bits 1:0 - Specifies a rounding mode for this instruction only.
-		//
-		// Rounding Mode Reference:
-		//   0 - Nearest, 1 - Negative Infinity, 2 - Positive infinity, 3 - Truncate.
-		//
-		const xImplSimd_DestRegImmSSE SD;
 	};
 
 } // End namespace x86Emitter

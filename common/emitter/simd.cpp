@@ -21,26 +21,6 @@
 namespace x86Emitter
 {
 
-	// ------------------------------------------------------------------------
-	// SimdPrefix - If the lower byte of the opcode is 0x38 or 0x3a, then the opcode is
-	// treated as a 16 bit value (in SSE 0x38 and 0x3a denote prefixes for extended SSE3/4
-	// instructions).  Any other lower value assumes the upper value is 0 and ignored.
-	// Non-zero upper bytes, when the lower byte is not the 0x38 or 0x3a prefix, will
-	// generate an assertion.
-	//
-	__emitinline void SimdPrefix(u16 opcode)
-	{
-		const bool is16BitOpcode = ((opcode & 0xff) == 0x38) || ((opcode & 0xff) == 0x3a);
-
-		if (is16BitOpcode)
-		{
-			xWrite8(0x0f);
-			xWrite16(opcode);
-		}
-		else
-			xWrite16((opcode << 8) | 0x0f);
-	}
-
 	const xImplSimd_DestRegEither xPAND = {0x66, 0xdb};
 	const xImplSimd_DestRegEither xPANDN = {0x66, 0xdf};
 	const xImplSimd_DestRegEither xPOR = {0x66, 0xeb};
@@ -210,24 +190,11 @@ namespace x86Emitter
 			{0xf2, 0x51} // SS
 	};
 
-	const xImplSimd_AndNot xANDN =
-		{
-			{0x00, 0x55}, // PS
-			{0x66, 0x55} // PD
-	};
-
 	const xImplSimd_PAbsolute xPABS =
 		{
 			{0x66, 0x1c38}, // B
 			{0x66, 0x1d38}, // W
 			{0x66, 0x1e38} // D
-	};
-
-	const xImplSimd_PSign xPSIGN =
-		{
-			{0x66, 0x0838}, // B
-			{0x66, 0x0938}, // W
-			{0x66, 0x0a38}, // D
 	};
 
 	const xImplSimd_PMultAdd xPMADD =
@@ -236,24 +203,10 @@ namespace x86Emitter
 			{0x66, 0xf438}, // UBSW
 	};
 
-	const xImplSimd_HorizAdd xHADD =
-		{
-			{0xf2, 0x7c}, // PS
-			{0x66, 0x7c}, // PD
-	};
-
 	const xImplSimd_DotProduct xDP =
 		{
 			{0x66, 0x403a}, // PS
 			{0x66, 0x413a}, // PD
-	};
-
-	const xImplSimd_Round xROUND =
-		{
-			{0x66, 0x083a}, // PS
-			{0x66, 0x093a}, // PD
-			{0x66, 0x0a3a}, // SS
-			{0x66, 0x0b3a}, // SD
 	};
 
 	// =====================================================================================================
@@ -292,12 +245,8 @@ namespace x86Emitter
 
 	const xImplSimd_Compare xCMPEQ = {SSE2_Equal};
 	const xImplSimd_Compare xCMPLT = {SSE2_Less};
-	const xImplSimd_Compare xCMPLE = {SSE2_LessOrEqual};
-	const xImplSimd_Compare xCMPUNORD = {SSE2_LessOrEqual};
-	const xImplSimd_Compare xCMPNE = {SSE2_NotEqual};
 	const xImplSimd_Compare xCMPNLT = {SSE2_NotLess};
 	const xImplSimd_Compare xCMPNLE = {SSE2_NotLessOrEqual};
-	const xImplSimd_Compare xCMPORD = {SSE2_Ordered};
 
 	const xImplSimd_COMI xCOMI =
 		{

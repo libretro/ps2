@@ -393,9 +393,8 @@ namespace x86Emitter
 	extern const xImplSimd_MinMax xMAX;
 
 	extern const xImplSimd_Compare xCMPEQ, xCMPLT,
-		xCMPLE, xCMPUNORD,
-		xCMPNE, xCMPNLT,
-		xCMPNLE, xCMPORD;
+		xCMPNLT,
+		xCMPNLE;
 
 	extern const xImplSimd_COMI xCOMI;
 	extern const xImplSimd_COMI xUCOMI;
@@ -449,7 +448,6 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
-	extern const xImplSimd_AndNot xANDN;
 	extern const xImplSimd_rSqrt xRCP;
 	extern const xImplSimd_rSqrt xRSQRT;
 	extern const xImplSimd_Sqrt xSQRT;
@@ -461,11 +459,8 @@ namespace x86Emitter
 	extern const xImplSimd_AddSub xPSUB;
 	extern const xImplSimd_PMul xPMUL;
 	extern const xImplSimd_PAbsolute xPABS;
-	extern const xImplSimd_PSign xPSIGN;
 	extern const xImplSimd_PMultAdd xPMADD;
-	extern const xImplSimd_HorizAdd xHADD;
 	extern const xImplSimd_DotProduct xDP;
-	extern const xImplSimd_Round xROUND;
 
 	extern const xImplSimd_PShuffle xPSHUF;
 	extern const SimdImpl_PUnpack xPUNPCK;
