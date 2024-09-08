@@ -1208,14 +1208,8 @@ mVUop(mVU_LQD)
 		if (!mVUlow.noWriteVF)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-			if (is.IsEmpty())
-			{
-				mVUloadReg(Ft, xAddressVoid(ptr), _X_Y_Z_W);
-			}
-			else
-			{
-				mVUloadReg(Ft, xComplexAddress(gprT2q, ptr, is), _X_Y_Z_W);
-			}
+			xAddressVoid _ptr = (is.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, is);
+			mVUloadReg(Ft, _ptr, _X_Y_Z_W);
 			mVU.regAlloc->clearNeeded(Ft);
 		}
 	}
@@ -1240,10 +1234,8 @@ mVUop(mVU_LQI)
 		if (!mVUlow.noWriteVF)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-			if (is.IsEmpty())
-				mVUloadReg(Ft, xAddressVoid(ptr), _X_Y_Z_W);
-			else
-				mVUloadReg(Ft, xComplexAddress(gprT2q, ptr, is), _X_Y_Z_W);
+			xAddressVoid _ptr = (is.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, is);
+			mVUloadReg(Ft, _ptr, _X_Y_Z_W);
 			mVU.regAlloc->clearNeeded(Ft);
 		}
 	}
@@ -1294,10 +1286,8 @@ mVUop(mVU_SQD)
 			ptr = (void*)((sptr)ptr + (0xffff & (mVU.microMemSize - 8)));
 		}
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		if (it.IsEmpty())
-			mVUsaveReg(Fs, xAddressVoid(ptr), _X_Y_Z_W, 1);
-		else
-			mVUsaveReg(Fs, xComplexAddress(gprT2q, ptr, it), _X_Y_Z_W, 1);
+		xAddressVoid _ptr = (it.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, it);
+		mVUsaveReg(Fs, _ptr, _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -1317,10 +1307,8 @@ mVUop(mVU_SQI)
 			mVUaddrFix(mVU, gprT1q);
 		}
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		if (_It_)
-			mVUsaveReg(Fs, xComplexAddress(gprT2q, ptr, gprT1q), _X_Y_Z_W, 1);
-		else
-			mVUsaveReg(Fs, xAddressVoid(ptr), _X_Y_Z_W, 1);
+		xAddressVoid _ptr = (_It_) ? xComplexAddress(gprT2q, ptr, gprT1q) : xAddressVoid(ptr);
+		mVUsaveReg(Fs, _ptr, _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
