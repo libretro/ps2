@@ -494,12 +494,6 @@ namespace x86Emitter
 	const xImplSimd_PMove xPMOVSX = {0x2038};
 	const xImplSimd_PMove xPMOVZX = {0x3038};
 
-	// [SSE-3]
-	const xImplSimd_DestRegSSE xMOVSLDUP = {0xf3, 0x12};
-
-	// [SSE-3]
-	const xImplSimd_DestRegSSE xMOVSHDUP = {0xf3, 0x16};
-
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// MMX Mov Instructions (MOVD, MOVQ, MOVSS).
 	//

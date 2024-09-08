@@ -346,9 +346,6 @@ namespace x86Emitter
 	extern const xImplSimd_PMove xPMOVSX;
 	extern const xImplSimd_PMove xPMOVZX;
 
-	extern const xImplSimd_DestRegSSE xMOVSLDUP;
-	extern const xImplSimd_DestRegSSE xMOVSHDUP;
-
 	extern void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8);
 	extern void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8);
 
