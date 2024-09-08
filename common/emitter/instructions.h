@@ -423,8 +423,6 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
-	extern const xImplSimd_rSqrt xRCP;
-	extern const xImplSimd_rSqrt xRSQRT;
 	extern const xImplSimd_Sqrt xSQRT;
 
 	extern const xImplSimd_Shift xPSLL;
@@ -448,15 +446,7 @@ namespace x86Emitter
 
 	extern const xImplAVX_Move xVMOVAPS;
 	extern const xImplAVX_Move xVMOVUPS;
-	extern const xImplAVX_ArithFloat xVADD;
-	extern const xImplAVX_ArithFloat xVSUB;
-	extern const xImplAVX_ArithFloat xVMUL;
-	extern const xImplAVX_ArithFloat xVDIV;
-	extern const xImplAVX_CmpFloat xVCMP;
 	extern const xImplAVX_ThreeArgYMM xVPAND;
-	extern const xImplAVX_ThreeArgYMM xVPANDN;
-	extern const xImplAVX_ThreeArgYMM xVPOR;
-	extern const xImplAVX_ThreeArgYMM xVPXOR;
 	extern const xImplAVX_CmpInt xVPCMP;
 
 	extern void xVMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);

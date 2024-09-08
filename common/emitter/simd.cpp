@@ -171,18 +171,6 @@ namespace x86Emitter
 			{0x66, 0x2838}, // DQ
 	};
 
-	const xImplSimd_rSqrt xRSQRT =
-		{
-			{0x00, 0x52}, // PS
-			{0xf3, 0x52} // SS
-	};
-
-	const xImplSimd_rSqrt xRCP =
-		{
-			{0x00, 0x53}, // PS
-			{0xf3, 0x53} // SS
-	};
-
 	const xImplSimd_Sqrt xSQRT =
 		{
 			{0x00, 0x51}, // PS

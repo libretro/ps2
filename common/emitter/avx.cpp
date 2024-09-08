@@ -26,44 +26,7 @@ namespace x86Emitter
 	const xImplAVX_Move xVMOVAPS = {0x00, 0x28, 0x29};
 	const xImplAVX_Move xVMOVUPS = {0x00, 0x10, 0x11};
 
-	const xImplAVX_ArithFloat xVADD = {
-		{0x00, 0x58}, // VADDPS
-		{0x66, 0x58}, // VADDPD
-		{0xF3, 0x58}, // VADDSS
-		{0xF2, 0x58}, // VADDSD
-	};
-	const xImplAVX_ArithFloat xVSUB = {
-		{0x00, 0x5C}, // VSUBPS
-		{0x66, 0x5C}, // VSUBPD
-		{0xF3, 0x5C}, // VSUBSS
-		{0xF2, 0x5C}, // VSUBSD
-	};
-	const xImplAVX_ArithFloat xVMUL = {
-		{0x00, 0x59}, // VMULPS
-		{0x66, 0x59}, // VMULPD
-		{0xF3, 0x59}, // VMULSS
-		{0xF2, 0x59}, // VMULSD
-	};
-	const xImplAVX_ArithFloat xVDIV = {
-		{0x00, 0x5E}, // VDIVPS
-		{0x66, 0x5E}, // VDIVPD
-		{0xF3, 0x5E}, // VDIVSS
-		{0xF2, 0x5E}, // VDIVSD
-	};
-	const xImplAVX_CmpFloat xVCMP = {
-		{SSE2_Equal},
-		{SSE2_Less},
-		{SSE2_LessOrEqual},
-		{SSE2_Unordered},
-		{SSE2_NotEqual},
-		{SSE2_NotLess},
-		{SSE2_NotLessOrEqual},
-		{SSE2_Ordered},
-	};
 	const xImplAVX_ThreeArgYMM xVPAND = {0x66, 0xDB};
-	const xImplAVX_ThreeArgYMM xVPANDN = {0x66, 0xDF};
-	const xImplAVX_ThreeArgYMM xVPOR = {0x66, 0xEB};
-	const xImplAVX_ThreeArgYMM xVPXOR = {0x66, 0xEF};
 	const xImplAVX_CmpInt xVPCMP = {
 		{0x66, 0x74}, // VPCMPEQB
 		{0x66, 0x75}, // VPCMPEQW
