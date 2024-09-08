@@ -212,7 +212,9 @@ namespace x86Emitter
 		xOpWrite0F(param1.GetPrefix16(), is_s8(imm) ? 0x6b : 0x69, param1, param2, is_s8(imm) ? 1 : param1.GetImmSize());
 
 		if (is_s8(imm))
+		{
 			xWrite8((u8)imm);
+		}
 		else
 			param1.xWriteImm(imm);
 	}

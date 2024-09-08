@@ -42,6 +42,30 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 
 #define xGetAlignedCallTarget() (x86Ptr)
 
+#define xWrite8(val) \
+	{ \
+		*(u8*)x86Ptr = (val); \
+		x86Ptr += sizeof(u8); \
+	}
+
+#define xWrite16(val) \
+	{ \
+		*(u16*)x86Ptr = (val); \
+		x86Ptr += sizeof(u16); \
+	}
+
+#define xWrite32(val) \
+	{ \
+		*(u32*)x86Ptr = (val); \
+		x86Ptr += sizeof(u32); \
+	}
+
+#define xWrite64(val) \
+	{ \
+		*(u64*)x86Ptr = (val); \
+		x86Ptr += sizeof(u64); \
+	}
+
 namespace x86Emitter
 {
 	// Win32 requires 32 bytes of shadow stack in the caller's frame.
@@ -50,11 +74,6 @@ namespace x86Emitter
 #else
 	static constexpr int SHADOW_STACK_SIZE = 0;
 #endif
-
-	extern void xWrite8(u8 val);
-	extern void xWrite16(u16 val);
-	extern void xWrite32(u32 val);
-	extern void xWrite64(u64 val);
 
 	//------------------------------------------------------------------
 	// templated version of is_s8 is required, so that u16's get correct sign extension treatment.
@@ -943,11 +962,15 @@ extern const xRegister32
 				 ((cctype == Jcc_Unconditional) ? 5 : 6)); // j32's are either 5 or 6 bytes
 
 			if (OperandSize == 1)
+			{
 				xWrite8((cctype == Jcc_Unconditional) ? 0xeb : (0x70 | cctype));
+			}
 			else
 			{
 				if (cctype == Jcc_Unconditional)
+				{
 					xWrite8(0xe9);
+				}
 				else
 				{
 					xWrite8(0x0f);

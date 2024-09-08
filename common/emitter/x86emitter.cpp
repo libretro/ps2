@@ -64,29 +64,6 @@ thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
 
 namespace x86Emitter
 {
-	__fi void xWrite8(u8 val)
-	{
-		*(u8*)x86Ptr = val;
-		x86Ptr += sizeof(u8);
-	}
-
-	__fi void xWrite16(u16 val)
-	{
-		*(u16*)x86Ptr = val;
-		x86Ptr += sizeof(u16);
-	}
-
-	__fi void xWrite32(u32 val)
-	{
-		*(u32*)x86Ptr = val;
-		x86Ptr += sizeof(u32);
-	}
-
-	__fi void xWrite64(u64 val)
-	{
-		*(u64*)x86Ptr = val;
-		x86Ptr += sizeof(u64);
-	}
 
 	// Empty initializers are due to frivolously pointless GCC errors (it demands the
 	// objects be initialized even though they have no actual variable members).

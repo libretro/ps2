@@ -162,7 +162,9 @@ namespace x86Emitter
 	__emitinline s32* xJcc32(JccComparisonType comparison, s32 displacement)
 	{
 		if (comparison == Jcc_Unconditional)
+		{
 			xWrite8(0xe9);
+		}
 		else
 		{
 			xWrite8(0x0f);

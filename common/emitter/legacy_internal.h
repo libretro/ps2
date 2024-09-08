@@ -23,11 +23,6 @@
 
 #define emitterT __fi
 
-using x86Emitter::xWrite8;
-using x86Emitter::xWrite16;
-using x86Emitter::xWrite32;
-using x86Emitter::xWrite64;
-
 #include "common/emitter/legacy_types.h"
 #include "common/emitter/legacy_instructions.h"
 
