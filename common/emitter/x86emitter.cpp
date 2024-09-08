@@ -458,38 +458,12 @@ const xRegister32
 			xWrite8(rex);
 	}
 
-
-	// --------------------------------------------------------------------------------------
-	//  xSetPtr / xGetPtr
-	// --------------------------------------------------------------------------------------
-
-	// Assigns the current emitter buffer target address.
-	// This is provided instead of using x86Ptr directly, since we may in the future find
-	// a need to change the storage class system for the x86Ptr 'under the hood.'
-	__emitinline void xSetPtr(void* ptr)
-	{
-		x86Ptr = (u8*)ptr;
-	}
-
-	// Retrieves the current emitter buffer target address.
-	// This is provided instead of using x86Ptr directly, since we may in the future find
-	// a need to change the storage class system for the x86Ptr 'under the hood.'
-	__emitinline u8* xGetPtr()
-	{
-		return x86Ptr;
-	}
-
-	__emitinline u8* xGetAlignedCallTarget()
-	{
-		return x86Ptr;
-	}
-
 	// --------------------------------------------------------------------------------------
 	//  xRegisterInt  (method implementations)
 	// --------------------------------------------------------------------------------------
 	xRegisterInt xRegisterInt::MatchSizeTo(xRegisterInt other) const
 	{
-		return other.GetOperandSize() == 1 ? xRegisterInt(xRegister8(*this)) : xRegisterInt(other.GetOperandSize(), Id);
+		return other._operandSize == 1 ? xRegisterInt(xRegister8(*this)) : xRegisterInt(other._operandSize, Id);
 	}
 
 	// --------------------------------------------------------------------------------------
@@ -971,22 +945,6 @@ const xRegister32
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//
-
-	__fi void xRET() { xWrite8(0xC3); }
-	__fi void xCBW() { xWrite16(0x9866); }
-	__fi void xCWD() { xWrite8(0x98); }
-	__fi void xCDQ() { xWrite8(0x99); }
-	__fi void xCWDE() { xWrite8(0x98); }
-	__fi void xCDQE() { xWrite16(0x9848); }
-
-	__fi void xLAHF() { xWrite8(0x9f); }
-	__fi void xSAHF() { xWrite8(0x9e); }
-
-	__fi void xSTC() { xWrite8(0xF9); }
-	__fi void xCLC() { xWrite8(0xF8); }
-
-	// NOP 1-byte
-	__fi void xNOP() { xWrite8(0x90); }
 
 	alignas(16) static u64 xmm_data[iREGCNT_XMM * 2];
 

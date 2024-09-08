@@ -64,6 +64,26 @@
 //
 #define xPALIGNR(to, from, imm8) xOpWrite0F(0x66, 0x0f3a, to, from, imm8)
 
+// ----- Miscellaneous Instructions  -----
+// Various Instructions with no parameter and no special encoding logic.
+
+#define xRET() xWrite8(0xC3)
+#define xCBW() xWrite16(0x9866)
+#define xCWD() xWrite8(0x98)
+#define xCDQ() xWrite8(0x99)
+
+#define xCWDE() xWrite8(0x98)
+#define xCDQE() xWrite16(0x9848)
+
+#define xSAHF() xWrite8(0x9e)
+#define xLAHF() xWrite8(0x9f)
+
+#define xCLC() xWrite8(0xF8)
+#define xSTC() xWrite8(0xF9)
+
+// NOP 1-byte
+#define xNOP() xWrite8(0x90)
+
 namespace x86Emitter
 {
 	// ------------------------------------------------------------------------
@@ -168,25 +188,6 @@ namespace x86Emitter
 
 	extern void xPUSH(u32 imm);
 	extern void xPUSH(xRegister32or64 from);
-
-	// ----- Miscellaneous Instructions  -----
-	// Various Instructions with no parameter and no special encoding logic.
-
-	extern void xRET();
-	extern void xCBW();
-	extern void xCWD();
-	extern void xCDQ();
-	extern void xCWDE();
-	extern void xCDQE();
-
-	extern void xLAHF();
-	extern void xSAHF();
-
-	extern void xSTC();
-	extern void xCLC();
-
-	// NOP 1-byte
-	extern void xNOP();
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to calculate base+offset taking into account the limitations of x86-64's RIP-relative addressing

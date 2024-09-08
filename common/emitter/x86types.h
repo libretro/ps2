@@ -30,6 +30,18 @@ enum XMMSSEType
 extern thread_local u8* x86Ptr;
 extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
 
+// Retrieves the current emitter buffer target address.
+// This is provided instead of using x86Ptr directly, since we may in the future find
+// a need to change the storage class system for the x86Ptr 'under the hood.'
+#define xGetPtr() (x86Ptr)
+
+// Assigns the current emitter buffer target address.
+// This is provided instead of using x86Ptr directly, since we may in the future find
+// a need to change the storage class system for the x86Ptr 'under the hood.'
+#define xSetPtr(ptr) (x86Ptr = (u8*)(ptr))
+
+#define xGetAlignedCallTarget() (x86Ptr)
+
 namespace x86Emitter
 {
 	// Win32 requires 32 bytes of shadow stack in the caller's frame.
@@ -132,10 +144,6 @@ namespace x86Emitter
 	static const int Sib_EIZ = 4; // same index value as ESP (used in Index field)
 	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
 
-	extern void xSetPtr(void* ptr);
-
-	extern u8* xGetPtr();
-	extern u8* xGetAlignedCallTarget();
 
 	extern JccComparisonType xInvertCond(JccComparisonType src);
 
@@ -152,11 +160,6 @@ namespace x86Emitter
 		OperandSizedObject(uint operandSize)
 			: _operandSize(operandSize)
 		{
-		}
-
-		uint GetOperandSize() const
-		{
-			return _operandSize;
 		}
 
 		bool Is8BitOp() const { return _operandSize == 1; }
