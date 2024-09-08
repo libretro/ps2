@@ -396,7 +396,6 @@ namespace x86Emitter
 		xCMPNLT,
 		xCMPNLE;
 
-	extern const xImplSimd_COMI xCOMI;
 	extern const xImplSimd_COMI xUCOMI;
 
 	extern const xImplSimd_PCompare xPCMP;

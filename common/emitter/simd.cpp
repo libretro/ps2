@@ -248,12 +248,6 @@ namespace x86Emitter
 	const xImplSimd_Compare xCMPNLT = {SSE2_NotLess};
 	const xImplSimd_Compare xCMPNLE = {SSE2_NotLessOrEqual};
 
-	const xImplSimd_COMI xCOMI =
-		{
-			{0x00, 0x2f}, // SS
-			{0x66, 0x2f}, // SD
-	};
-
 	const xImplSimd_COMI xUCOMI =
 		{
 			{0x00, 0x2e}, // SS
