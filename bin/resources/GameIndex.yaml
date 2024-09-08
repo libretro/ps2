@@ -17181,6 +17181,8 @@ SLES-51958:
   name: "Whiplash"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-51959:
   name: "Football Generation"
   region: "PAL-M5"
@@ -53341,6 +53343,8 @@ SLUS-20684:
   name: "Whiplash"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-20685:
   name: "Ape Escape 2"
   region: "NTSC-U"
@@ -60939,6 +60943,8 @@ SLUS-29079:
 SLUS-29080:
   name: "Whiplash [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-29081:
   name: "Metal Arms - Glitch in the System [Demo]"
   region: "NTSC-U"
