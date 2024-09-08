@@ -16,18 +16,24 @@
 #include "Common.h"
 #include "COP0.h"
 
+/* Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits */
+#define _WriteCP0Config(value) (cpuRegs.CP0.n.Config = (((value) & ~0xFC0) | 0x440))
+
+#define _WriteCP0Status(value) \
+{ \
+       COP0_UpdatePCCR(); \
+       cpuRegs.CP0.n.Status.val = (value); \
+       cpuSetNextEvent(cpuRegs.cycle, 4); \
+}
+
 void WriteCP0Status(u32 value)
 {
-       COP0_UpdatePCCR();
-       cpuRegs.CP0.n.Status.val = value;
-       cpuSetNextEvent(cpuRegs.cycle, 4);
+	_WriteCP0Status(value);
 }
 
 void WriteCP0Config(u32 value)
 {
-       // Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
-       cpuRegs.CP0.n.Config = value & ~0xFC0;
-       cpuRegs.CP0.n.Config |= 0x440;
+	_WriteCP0Config(value);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -360,15 +366,11 @@ namespace COP0 {
 				break;
 
 			case 12: /* Write CP0 Status */
-				COP0_UpdatePCCR();
-				cpuRegs.CP0.n.Status.val = cpuRegs.GPR.r[_Rt_].UL[0];
-				cpuSetNextEvent(cpuRegs.cycle, 4);
+				_WriteCP0Status(cpuRegs.GPR.r[_Rt_].UL[0]);
 				break;
 
 			case 16: /* Write CP0 Config */
-				// Protect the read-only ICacheSize (IC) and DataCacheSize (DC) bits
-				cpuRegs.CP0.n.Config  = cpuRegs.GPR.r[_Rt_].UL[0] & ~0xFC0;
-				cpuRegs.CP0.n.Config |= 0x440;
+				_WriteCP0Config(cpuRegs.GPR.r[_Rt_].UL[0]);
 				break;
 
 			case 24:
