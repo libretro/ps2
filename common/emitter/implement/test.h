@@ -31,16 +31,8 @@ namespace x86Emitter
 		void operator()(const xRegisterInt& to, int imm) const;
 	};
 
-	enum G8Type
-	{
-		G8Type_BT = 4,
-		G8Type_BTS,
-		G8Type_BTR,
-		G8Type_BTC,
-	};
-
 	// --------------------------------------------------------------------------------------
-	//  BSF / BSR
+	//  BSR
 	// --------------------------------------------------------------------------------------
 	// 16/32 operands are available.  No 8 bit ones, not that any of you cared, I bet.
 	//
