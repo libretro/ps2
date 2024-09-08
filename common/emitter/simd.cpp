@@ -41,21 +41,6 @@ namespace x86Emitter
 	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x00, 0x5b); }
 	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0x00, 0x5b); }
 
-	__fi void xCVTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf2, 0xe6); }
-	__fi void xCVTPD2DQ(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0xf2, 0xe6); }
-	__fi void xCVTPD2PS(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x66, 0x5a); }
-	__fi void xCVTPD2PS(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0x66, 0x5a); }
-
-	__fi void xCVTPI2PD(const xRegisterSSE& to, const xIndirect64& from) { OpWriteSSE(0x66, 0x2a); }
-	__fi void xCVTPI2PS(const xRegisterSSE& to, const xIndirect64& from) { OpWriteSSE(0x00, 0x2a); }
-
-	__fi void xCVTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x66, 0x5b); }
-	__fi void xCVTPS2DQ(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0x66, 0x5b); }
-	__fi void xCVTPS2PD(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x00, 0x5a); }
-	__fi void xCVTPS2PD(const xRegisterSSE& to, const xIndirect64& from) { OpWriteSSE(0x00, 0x5a); }
-
-	__fi void xCVTSD2SI(const xRegister32or64& to, const xRegisterSSE& from) { OpWriteSSE(0xf2, 0x2d); }
-	__fi void xCVTSD2SI(const xRegister32or64& to, const xIndirect64& from) { OpWriteSSE(0xf2, 0x2d); }
 	__fi void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf2, 0x5a); }
 	__fi void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from) { OpWriteSSE(0xf2, 0x5a); }
 	__fi void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from) { OpWriteSSE(0xf3, 0x2a); }
@@ -66,8 +51,6 @@ namespace x86Emitter
 	__fi void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0x2d); }
 	__fi void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from) { OpWriteSSE(0xf3, 0x2d); }
 
-	__fi void xCVTTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x66, 0xe6); }
-	__fi void xCVTTPD2DQ(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0x66, 0xe6); }
 	__fi void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0x5b); }
 	__fi void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0xf3, 0x5b); }
 
@@ -85,10 +68,8 @@ namespace x86Emitter
 	void xImplSimd_DestRegImmSSE::operator()(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm) const { xOpWrite0F(Prefix, Opcode, to, from, imm); }
 	void xImplSimd_DestRegImmSSE::operator()(const xRegisterSSE& to, const xIndirectVoid& from, u8 imm) const { xOpWrite0F(Prefix, Opcode, to, from, imm); }
 
-
 	void xImplSimd_DestRegEither::operator()(const xRegisterSSE& to, const xRegisterSSE& from) const { OpWriteSSE(Prefix, Opcode); }
 	void xImplSimd_DestRegEither::operator()(const xRegisterSSE& to, const xIndirectVoid& from) const { OpWriteSSE(Prefix, Opcode); }
-
 
 	void xImplSimd_DestSSE_CmpImm::operator()(const xRegisterSSE& to, const xRegisterSSE& from, SSE2_ComparisonType imm) const { xOpWrite0F(Prefix, Opcode, to, from, imm); }
 	void xImplSimd_DestSSE_CmpImm::operator()(const xRegisterSSE& to, const xIndirectVoid& from, SSE2_ComparisonType imm) const { xOpWrite0F(Prefix, Opcode, to, from, imm); }
@@ -452,16 +433,10 @@ namespace x86Emitter
 
 #ifdef ALWAYS_USE_MOVAPS
 	const xImplSimd_MoveSSE xMOVDQA = {0x00, true};
-	const xImplSimd_MoveSSE xMOVAPD = {0x00, true};
-
 	const xImplSimd_MoveSSE xMOVDQU = {0x00, false};
-	const xImplSimd_MoveSSE xMOVUPD = {0x00, false};
 #else
 	const xImplSimd_MoveDQ xMOVDQA = {0x66, true};
-	const xImplSimd_MoveSSE xMOVAPD = {0x66, true};
-
 	const xImplSimd_MoveDQ xMOVDQU = {0xf3, false};
-	const xImplSimd_MoveSSE xMOVUPD = {0x66, false};
 #endif
 
 
@@ -527,11 +502,11 @@ namespace x86Emitter
 	__fi void xMOV##ssd(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(prefix, 0x11, from, to); }
 
 	IMPLEMENT_xMOVS(SS, 0xf3)
-		IMPLEMENT_xMOVS(SD, 0xf2)
+	IMPLEMENT_xMOVS(SD, 0xf2)
 
-		//////////////////////////////////////////////////////////////////////////////////////////
-		// Non-temporal movs only support a register as a target (ie, load form only, no stores)
-		//
+	//////////////////////////////////////////////////////////////////////////////////////////
+	// Non-temporal movs only support a register as a target (ie, load form only, no stores)
+	//
 
 	// ------------------------------------------------------------------------
 

@@ -84,6 +84,19 @@
 // NOP 1-byte
 #define xNOP() xWrite8(0x90)
 
+// ------------------------------------------------------------------------
+// Conditional jumps to fixed targets.
+// Jumps accept any pointer as a valid target (function or data), and will generate either
+// 8 or 32 bit displacement versions of the jump, depending on relative displacement of
+// the target (efficient!)
+//
+
+#define xJNE(func) xJccKnownTarget(Jcc_NotEqual, (void*)(uptr)(func), false)
+#define xJNZ(func) xJccKnownTarget(Jcc_NotZero, (void*)(uptr)(func), false)
+#define xJS(func) xJccKnownTarget(Jcc_Signed, (void*)(uptr)(func), false)
+#define xJLE(func) xJccKnownTarget(Jcc_LessOrEqual, (void*)(uptr)(func), false)
+#define xJC(func) xJccKnownTarget(Jcc_Carry, (void*)(uptr)(func), false)
+
 namespace x86Emitter
 {
 	// ------------------------------------------------------------------------
@@ -213,42 +226,6 @@ namespace x86Emitter
 	extern s32* xJcc32(JccComparisonType comparison, s32 displacement);
 
 	// ------------------------------------------------------------------------
-	// Conditional jumps to fixed targets.
-	// Jumps accept any pointer as a valid target (function or data), and will generate either
-	// 8 or 32 bit displacement versions of the jump, depending on relative displacement of
-	// the target (efficient!)
-	//
-
-	template <typename T>
-	__fi void xJNE(T* func)
-	{
-		xJccKnownTarget(Jcc_NotEqual, (void*)(uptr)func, false);
-	}
-	template <typename T>
-	__fi void xJNZ(T* func)
-	{
-		xJccKnownTarget(Jcc_NotZero, (void*)(uptr)func, false);
-	}
-
-	template <typename T>
-	__fi void xJS(T* func)
-	{
-		xJccKnownTarget(Jcc_Signed, (void*)(uptr)func, false);
-	}
-
-	template <typename T>
-	__fi void xJLE(T* func)
-	{
-		xJccKnownTarget(Jcc_LessOrEqual, (void*)(uptr)func, false);
-	}
-
-	template <typename T>
-	__fi void xJC(T* func)
-	{
-		xJccKnownTarget(Jcc_Carry, (void*)(uptr)func, false);
-	}
-
-	// ------------------------------------------------------------------------
 	// Forward Jump Helpers (act as labels!)
 
 #define DEFINE_FORWARD_JUMP(label, cond) \
@@ -326,8 +303,6 @@ namespace x86Emitter
 
 	extern const xImplSimd_MoveSSE xMOVAPS;
 	extern const xImplSimd_MoveSSE xMOVUPS;
-	extern const xImplSimd_MoveSSE xMOVAPD;
-	extern const xImplSimd_MoveSSE xMOVUPD;
 
 #ifdef ALWAYS_USE_MOVAPS
 	extern const xImplSimd_MoveSSE xMOVDQA;
@@ -386,21 +361,6 @@ namespace x86Emitter
 	extern void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from);
 	extern void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from);
 
-	extern void xCVTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPD2DQ(const xRegisterSSE& to, const xIndirect128& from);
-	extern void xCVTPD2PS(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPD2PS(const xRegisterSSE& to, const xIndirect128& from);
-
-	extern void xCVTPI2PD(const xRegisterSSE& to, const xIndirect64& from);
-	extern void xCVTPI2PS(const xRegisterSSE& to, const xIndirect64& from);
-
-	extern void xCVTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPS2DQ(const xRegisterSSE& to, const xIndirect128& from);
-	extern void xCVTPS2PD(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTPS2PD(const xRegisterSSE& to, const xIndirect64& from);
-
-	extern void xCVTSD2SI(const xRegister32or64& to, const xRegisterSSE& from);
-	extern void xCVTSD2SI(const xRegister32or64& to, const xIndirect64& from);
 	extern void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from);
 	extern void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from);
 	extern void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from);
@@ -411,8 +371,6 @@ namespace x86Emitter
 	extern void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from);
 	extern void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from);
 
-	extern void xCVTTPD2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
-	extern void xCVTTPD2DQ(const xRegisterSSE& to, const xIndirect128& from);
 	extern void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
 	extern void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from);
 
