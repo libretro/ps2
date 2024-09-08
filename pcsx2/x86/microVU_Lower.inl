@@ -102,6 +102,7 @@ mVUop(mVU_SQRT)
 		if (CHECK_VU_OVERFLOW(mVU.index)) // Clamp infinities (only need to do positive clamp since xmmFt is positive)
 			xMIN.SS(Ft, ptr32[mVUglob.maxvals]);
 		xSQRT.SS(Ft, Ft);
+
 		writeQreg(Ft, mVUinfo.writeQ);
 
 		if (mVU.cop2)
@@ -960,7 +961,7 @@ mVUop(mVU_MFP)
 	pass2
 	{
 		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-		getPreg(mVU, Ft);
+		mVUunpack_xyzw(Ft, xmmPQ, (2 + mVUinfo.readP));
 		mVU.regAlloc->clearNeeded(Ft);
 	}
 }

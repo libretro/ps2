@@ -223,7 +223,7 @@ static void setupFtReg(microVU& mVU, xmm& Ft, xmm& tempFt, int opCase, int clamp
 		{
 			Ft = mVU.regAlloc->allocReg();
 			tempFt = Ft;
-			getQreg(Ft, mVUinfo.readQ);
+			mVUunpack_xyzw(Ft, xmmPQ, mVUinfo.readQ);
 		}
 	}
 }

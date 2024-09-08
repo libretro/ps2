@@ -125,20 +125,8 @@ void microRegAlloc::writeVIBackup(const xRegisterInt& reg)
 // P/Q Reg Allocators
 //------------------------------------------------------------------
 
-__fi void getPreg(mV, const xmm& reg)
-{
-	mVUunpack_xyzw(reg, xmmPQ, (2 + mVUinfo.readP));
-}
-
-__fi void getQreg(const xmm& reg, int qInstance)
-{
-	mVUunpack_xyzw(reg, xmmPQ, qInstance);
-}
-
-__ri void writeQreg(const xmm& reg, int qInstance)
-{
-	if (qInstance)
-		xINSERTPS(xmmPQ, reg, _MM_MK_INSERTPS_NDX(0, 1, 0));
-	else
-		xMOVSS(xmmPQ, reg);
-}
+#define writeQreg(reg, qInstance) \
+	if (qInstance) \
+		xINSERTPS(xmmPQ, reg, _MM_MK_INSERTPS_NDX(0, 1, 0)); \
+	else \
+		xMOVSS(xmmPQ, reg)
