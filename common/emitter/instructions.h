@@ -127,7 +127,7 @@ namespace x86Emitter
 
 	extern const xImpl_MovExtend xMOVZX, xMOVSX;
 
-	extern const xImpl_BitScan xBSF, xBSR;
+	extern const xImpl_BitScan xBSR;
 
 	extern const xImpl_JmpCall xJMP;
 	extern const xImpl_JmpCall xCALL;

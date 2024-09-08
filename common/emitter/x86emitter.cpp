@@ -59,6 +59,9 @@
 //
 
 
+#define ModRM(mod, reg, rm) xWrite8(((mod) << 6) | ((reg) << 3) | (rm))
+#define SibSB(ss, index, base) xWrite8(((ss) << 6) | ((index) << 3) | (base))
+
 thread_local u8* x86Ptr;
 thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
 
@@ -197,16 +200,6 @@ const xRegister32
 	//
 	// (btw, I know this isn't a critical performance item by any means, but it's
 	//  annoying simply because it *should* be an easy thing to optimize)
-
-	static __fi void ModRM(uint mod, uint reg, uint rm)
-	{
-		xWrite8((mod << 6) | (reg << 3) | rm);
-	}
-
-	static __fi void SibSB(u32 ss, u32 index, u32 base)
-	{
-		xWrite8((ss << 6) | (index << 3) | base);
-	}
 
 	void EmitSibMagic(uint regfield, const void* address, int extraRIPOffset)
 	{
@@ -607,7 +600,7 @@ const xRegister32
 	//
 	void xIndirectVoid::Reduce()
 	{
-		if (Index.IsStackPointer())
+		if (Index.Id == 4)
 		{
 			// esp cannot be encoded as the index, so move it to the Base, if possible.
 			// note: intentionally leave index assigned to esp also (generates correct
@@ -621,7 +614,7 @@ const xRegister32
 		{
 			Index = Base;
 			Scale = 0;
-			if (!Base.IsStackPointer()) // prevent ESP from being encoded 'alone'
+			if (Base.Id != 4) // prevent ESP from being encoded 'alone'
 				Base = xEmptyReg;
 			return;
 		}
@@ -844,7 +837,6 @@ const xRegister32
 
 	const xImpl_Test xTEST = {};
 
-	const xImpl_BitScan xBSF = {0xbc};
 	const xImpl_BitScan xBSR = {0xbd};
 
 	const xImpl_IncDec xINC = {false};
