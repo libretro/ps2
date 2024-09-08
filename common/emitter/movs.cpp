@@ -172,15 +172,7 @@ namespace x86Emitter
 	const xImpl_MovExtend xMOVSX = {true};
 	const xImpl_MovExtend xMOVZX = {false};
 
-	const xImpl_CMov xCMOVA = {Jcc_Above};
-	const xImpl_CMov xCMOVAE = {Jcc_AboveOrEqual};
 	const xImpl_CMov xCMOVB = {Jcc_Below};
-	const xImpl_CMov xCMOVBE = {Jcc_BelowOrEqual};
-
-	const xImpl_CMov xCMOVG = {Jcc_Greater};
-	const xImpl_CMov xCMOVGE = {Jcc_GreaterOrEqual};
-	const xImpl_CMov xCMOVL = {Jcc_Less};
-	const xImpl_CMov xCMOVLE = {Jcc_LessOrEqual};
 
 	const xImpl_CMov xCMOVE = {Jcc_Equal};
 	const xImpl_CMov xCMOVNE = {Jcc_NotEqual};
@@ -190,28 +182,9 @@ namespace x86Emitter
 
 
 	const xImpl_Set xSETA = {Jcc_Above};
-	const xImpl_Set xSETAE = {Jcc_AboveOrEqual};
 	const xImpl_Set xSETB = {Jcc_Below};
-	const xImpl_Set xSETBE = {Jcc_BelowOrEqual};
 
 	const xImpl_Set xSETG = {Jcc_Greater};
-	const xImpl_Set xSETGE = {Jcc_GreaterOrEqual};
 	const xImpl_Set xSETL = {Jcc_Less};
-	const xImpl_Set xSETLE = {Jcc_LessOrEqual};
-
-	const xImpl_Set xSETZ = {Jcc_Zero};
-	const xImpl_Set xSETE = {Jcc_Equal};
-	const xImpl_Set xSETNZ = {Jcc_NotZero};
-	const xImpl_Set xSETNE = {Jcc_NotEqual};
-
-	const xImpl_Set xSETO = {Jcc_Overflow};
-	const xImpl_Set xSETNO = {Jcc_NotOverflow};
-	const xImpl_Set xSETC = {Jcc_Carry};
-	const xImpl_Set xSETNC = {Jcc_NotCarry};
-
-	const xImpl_Set xSETS = {Jcc_Signed};
-	const xImpl_Set xSETNS = {Jcc_Unsigned};
-	const xImpl_Set xSETPE = {Jcc_ParityEven};
-	const xImpl_Set xSETPO = {Jcc_ParityOdd};
 
 } // end namespace x86Emitter

@@ -127,7 +127,6 @@ namespace x86Emitter
 	const xImpl_G1Compare xCMP = {{0x00, 0xc2}, {0x66, 0xc2}, {0xf3, 0xc2}, {0xf2, 0xc2}};
 
 	const xImpl_Group1 xADC = {G1Type_ADC};
-	const xImpl_Group1 xSBB = {G1Type_SBB};
 
 	// =====================================================================================================
 	//  Group 2 Instructions - SHR, SHL, etc.

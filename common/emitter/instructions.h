@@ -90,7 +90,6 @@ namespace x86Emitter
 	// Group 1 Instruction Class
 
 	extern const xImpl_Group1 xADC;
-	extern const xImpl_Group1 xSBB;
 
 	extern const xImpl_G1Logic xAND;
 	extern const xImpl_G1Logic xOR;
@@ -134,10 +133,8 @@ namespace x86Emitter
 	extern const xImpl_FastCall xFastCall;
 
 	// ------------------------------------------------------------------------
-	extern const xImpl_CMov xCMOVA, xCMOVAE,
-		xCMOVB, xCMOVBE,
-		xCMOVG, xCMOVGE,
-		xCMOVL, xCMOVLE,
+	extern const xImpl_CMov 
+		xCMOVB,
 
 		xCMOVE,
 		xCMOVNE,
@@ -145,18 +142,10 @@ namespace x86Emitter
 		xCMOVS, xCMOVNS;
 
 	// ------------------------------------------------------------------------
-	extern const xImpl_Set xSETA, xSETAE,
-		xSETB, xSETBE,
-		xSETG, xSETGE,
-		xSETL, xSETLE,
-
-		xSETZ, xSETE,
-		xSETNZ, xSETNE,
-		xSETO, xSETNO,
-		xSETC, xSETNC,
-
-		xSETS, xSETNS,
-		xSETPE, xSETPO;
+	extern const xImpl_Set xSETA,
+		xSETB,
+		xSETG,
+		xSETL;
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Miscellaneous Instructions
