@@ -53,10 +53,16 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		gifUnit.gsFINISH.gsFINISHPending = false;
 		// Privilage registers also reset.
 		memset(g_RealGSMem, 0, sizeof(g_RealGSMem));
-		GSIMR.reset();
-		CSRreg.FIFO = CSR_FIFO_EMPTY;
-		CSRreg.REV  = 0x1B;
-		CSRreg.ID   = 0x55;
+		GSIMR._u32       = 0;
+		GSIMR.SIGMSK     = true;
+		GSIMR.FINISHMSK  = true;
+		GSIMR.HSMSK      = true;
+		GSIMR.VSMSK      = true;
+		GSIMR.EDWMSK     = true;
+		GSIMR._undefined = 0x3;
+		CSRreg.FIFO      = CSR_FIFO_EMPTY;
+		CSRreg.REV       = 0x1B;
+		CSRreg.ID        = 0x55;
 		MTGS::ResetGS(false);
 	}
 

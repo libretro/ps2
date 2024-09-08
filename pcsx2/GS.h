@@ -157,18 +157,6 @@ union tGS_IMR
 		u32 _reserved2 : 17;
 	};
 	u32 _u32;
-
-	void reset()
-	{
-		_u32 = 0;
-		SIGMSK = FINISHMSK = HSMSK = VSMSK = EDWMSK = true;
-		_undefined = 0x3;
-	}
-	void set(u32 value)
-	{
-		_u32 = (value & 0x1f00); // Set only the interrupt mask fields.
-		_undefined = 0x3; // These should always be set.
-	}
 };
 
 // --------------------------------------------------------------------------------------
