@@ -362,11 +362,11 @@ void VU_Thread::Get_MTVUChanges()
 		}
 		else
 		{
-			CSRreg.SIGNAL = true;
+			CSRreg.SIGNAL    = true;
 			GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID & ~signalMsk) | (signalData & signalMsk);
 
 			if (!GSIMR.SIGMSK)
-				gsIrq();
+				hwIntcIrq(INTC_GS);
 		}
 	}
 	if (interrupts & InterruptFlagFinish)

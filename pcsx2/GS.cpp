@@ -40,11 +40,6 @@ void gsReset(void)
 	UpdateVSyncRate(true);
 }
 
-void gsUpdateFrequency(Pcsx2Config& config)
-{
-	UpdateVSyncRate(true);
-}
-
 static __fi void gsCSRwrite( const tGS_CSR& csr )
 {
 	if (csr.RESET) {
@@ -75,7 +70,8 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 			GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID & ~gifUnit.gsSIGNAL.data[1])
 				        | (gifUnit.gsSIGNAL.data[0]&gifUnit.gsSIGNAL.data[1]);
 
-			if (!GSIMR.SIGMSK) gsIrq();
+			if (!GSIMR.SIGMSK)
+				hwIntcIrq(INTC_GS);
 			CSRreg.SIGNAL  = true; // Just to be sure :p
 		}
 		else CSRreg.SIGNAL = false;
@@ -96,7 +92,7 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 static __fi void IMRwrite(u32 value)
 {
 	if ((CSRreg._u32 & 0x1f) & (~value & GSIMR._u32) >> 8)
-		gsIrq();
+		hwIntcIrq(INTC_GS);
 
 	GSIMR._u32 = (value & 0x1f00)|0x6000;
 }
@@ -188,12 +184,12 @@ __fi void gsWrite32(u32 mem, u32 value)
 //////////////////////////////////////////////////////////////////////////
 // GS Write 64 bit
 
-void gsWrite64_generic( u32 mem, u64 value )
+void gsWrite64_generic(u32 mem, u64 value)
 {
 	memcpy(PS2GS_BASE(mem), &value, sizeof(value));
 }
 
-void gsWrite64_page_00( u32 mem, u64 value )
+void gsWrite64_page_00(u32 mem, u64 value)
 {
 	s_GSRegistersWritten |= (mem == GS_DISPFB1 || mem == GS_DISPFB2 || mem == GS_PMODE);
 
@@ -206,7 +202,7 @@ void gsWrite64_page_00( u32 mem, u64 value )
 	gsWrite64_generic( mem, value );
 }
 
-void gsWrite64_page_01( u32 mem, u64 value )
+void gsWrite64_page_01(u32 mem, u64 value)
 {
 	tGS_CSR tmp;
 	tmp.FIFO = CSR_FIFO_EMPTY;
@@ -242,12 +238,7 @@ void gsWrite64_page_01( u32 mem, u64 value )
 //////////////////////////////////////////////////////////////////////////
 // GS Write 128 bit
 
-void TAKES_R128 gsWrite128_page_00( u32 mem, r128 value )
-{
-	gsWrite128_generic( mem, value );
-}
-
-void TAKES_R128 gsWrite128_page_01( u32 mem, r128 value )
+void TAKES_R128 gsWrite128_page_01(u32 mem, r128 value)
 {
 	tGS_CSR tmp;
 	tmp.FIFO = CSR_FIFO_EMPTY;
@@ -269,7 +260,7 @@ void TAKES_R128 gsWrite128_page_01( u32 mem, r128 value )
 	gsWrite128_generic( mem, value );
 }
 
-void TAKES_R128 gsWrite128_generic( u32 mem, r128 value )
+void TAKES_R128 gsWrite128_generic(u32 mem, r128 value)
 {
 	alignas(16) const u128 uvalue = r128_to_u128(value);
 	r128_store(PS2GS_BASE(mem), value);
@@ -277,62 +268,34 @@ void TAKES_R128 gsWrite128_generic( u32 mem, r128 value )
 
 __fi u8 gsRead8(u32 mem)
 {
-	switch (mem & ~0xF)
-	{
-		case GS_SIGLBLID:
-			return *(u8*)PS2GS_BASE(mem);
-		default: // Only SIGLBLID and CSR are readable, everything else mirrors CSR
-			return *(u8*)PS2GS_BASE(GS_CSR + (mem & 0xF));
-	}
+	if ((mem & ~0xF) == GS_SIGLBLID)
+		return *(u8*)PS2GS_BASE(mem);
+	// Only SIGLBLID and CSR are readable, everything else mirrors CSR
+	return *(u8*)PS2GS_BASE(GS_CSR + (mem & 0xF));
 }
 
 __fi u16 gsRead16(u32 mem)
 {
-	switch (mem & ~0xF)
-	{
-		case GS_SIGLBLID:
-			return *(u16*)PS2GS_BASE(mem);
-		default: // Only SIGLBLID and CSR are readable, everything else mirrors CSR
-			return *(u16*)PS2GS_BASE(GS_CSR + (mem & 0x7));
-	}
+	if ((mem & ~0xF) == GS_SIGLBLID)
+		return *(u16*)PS2GS_BASE(mem);
+	// Only SIGLBLID and CSR are readable, everything else mirrors CSR
+	return *(u16*)PS2GS_BASE(GS_CSR + (mem & 0x7));
 }
 
 __fi u32 gsRead32(u32 mem)
 {
-	switch (mem & ~0xF)
-	{
-		case GS_SIGLBLID:
-			return *(u32*)PS2GS_BASE(mem);
-		default: // Only SIGLBLID and CSR are readable, everything else mirrors CSR
-			return *(u32*)PS2GS_BASE(GS_CSR + (mem & 0xC));
-	}
+	if ((mem & ~0xF) == GS_SIGLBLID)
+		return *(u32*)PS2GS_BASE(mem);
+	// Only SIGLBLID and CSR are readable, everything else mirrors CSR
+	return *(u32*)PS2GS_BASE(GS_CSR + (mem & 0xC));
 }
 
 __fi u64 gsRead64(u32 mem)
 {
-	// fixme - PS2GS_BASE(mem+4) = (g_RealGSMem+(mem + 4 & 0x13ff))
-	switch (mem & ~0xF)
-	{
-		case GS_SIGLBLID:
-			return *(u64*)PS2GS_BASE(mem);
-		default: // Only SIGLBLID and CSR are readable, everything else mirrors CSR
-			return *(u64*)PS2GS_BASE(GS_CSR + (mem & 0x8));
-	}
-}
-
-__fi u128 gsNonMirroredRead(u32 mem)
-{
-	return *(u128*)PS2GS_BASE(mem);
-}
-
-void gsIrq(void) { hwIntcIrq(INTC_GS); }
-
-//These are done at VSync Start.  Drawing is done when VSync is off, then output the screen when Vsync is on
-//The GS needs to be told at the start of a vsync else it loses half of its picture (could be responsible for some halfscreen issues)
-//We got away with it before i think due to our awful GS timing, but now we have it right (ish)
-void gsPostVsyncStart(void)
-{
-	MTGS::PostVsyncStart();
+	if ((mem & ~0xF) == GS_SIGLBLID)
+		return *(u64*)PS2GS_BASE(mem);
+	// Only SIGLBLID and CSR are readable, everything else mirrors CSR
+	return *(u64*)PS2GS_BASE(GS_CSR + (mem & 0x8));
 }
 
 bool SaveStateBase::gsFreeze()
