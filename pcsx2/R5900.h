@@ -342,14 +342,13 @@ extern uint dmacInterrupt();
 
 extern void cpuReset();
 extern void cpuException(u32 code, u32 bd);
-extern void cpuTlbMissR(u32 addr, u32 bd);
-extern void cpuTlbMissW(u32 addr, u32 bd);
+void cpuTlbMiss(u32 addr, u32 bd, u32 excode);
 extern void cpuClearInt(uint n);
 extern void GoemonPreloadTlb();
 extern void GoemonUnloadTlb(u32 key);
 
 extern int  cpuTestCycle( u32 startCycle, s32 delta );
-extern int cpuGetCycles(int interrupt);
+extern int cpuGetCycles(void);
 
 extern void _cpuEventTest_Shared(void);	// for internal use by the Dynarecs and Ints inside R5900:
 

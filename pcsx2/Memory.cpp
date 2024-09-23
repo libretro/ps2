@@ -284,7 +284,7 @@ static mem8_t _ext_memRead8 (u32 mem)
 		default: break;
 	}
 
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
@@ -308,7 +308,7 @@ static mem16_t _ext_memRead16(u32 mem)
 
 		default: break;
 	}
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
@@ -323,15 +323,14 @@ static mem32_t _ext_memRead32(u32 mem)
 			return DEV9read32(mem & ~0xa4000000);
 		default: break;
 	}
-
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
 template<int p>
 static u64 _ext_memRead64(u32 mem)
 {
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return 0;
 }
 
@@ -340,7 +339,7 @@ static RETURNS_R128 _ext_memRead128(u32 mem)
 {
 	if (p == 6) /* GSM */
 		return r128_load(PS2GS_BASE(mem));
-	cpuTlbMissR(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBL);
 	return r128_zero();
 }
 
@@ -358,7 +357,7 @@ static void _ext_memWrite8 (u32 mem, mem8_t  value)
 		default: break;
 	}
 
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 template<int p>
@@ -376,7 +375,7 @@ static void _ext_memWrite16(u32 mem, mem16_t value)
 			SPU2write(mem, value); return;
 		default: break;
 	}
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 template<int p>
@@ -390,20 +389,20 @@ static void _ext_memWrite32(u32 mem, mem32_t value)
 			return;
 		default: break;
 	}
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 template<int p>
 static void _ext_memWrite64(u32 mem, mem64_t value)
 {
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 template<int p>
 static void TAKES_R128 _ext_memWrite128(u32 mem, r128 value)
 {
 	alignas(16) const u128 uvalue = r128_to_u128(value);
-	cpuTlbMissW(mem, cpuRegs.branch);
+	cpuTlbMiss(mem, cpuRegs.branch, EXC_CODE_TLBS);
 }
 
 #define vtlb_RegisterHandlerTempl1(nam,t) vtlb_RegisterHandler(nam##Read8<t>,nam##Read16<t>,nam##Read32<t>,nam##Read64<t>,nam##Read128<t>, \
@@ -679,16 +678,6 @@ template<int vunum> static void TAKES_R128 vuDataWrite128(u32 addr, r128 data)
 		return;
 	}
 	r128_store_unaligned(&vu->Mem[addr], data);
-}
-
-void memSetPageAddr(u32 vaddr, u32 paddr)
-{
-	vtlb_VMap(vaddr,paddr,0x1000);
-}
-
-void memClearPageAddr(u32 vaddr)
-{
-	vtlb_VMapUnmap(vaddr,0x1000); // -> whut ?
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -42,6 +42,7 @@
 #include "Cache.h"
 #include "IopMem.h"
 #include "Host.h"
+#include "R5900.h"
 #include "VMManager.h"
 
 using namespace vtlb_private;
@@ -393,9 +394,9 @@ static __ri void vtlb_Miss(u32 addr, u32 mode)
 	if (Cpu == &intCpu)
 	{
 		if (mode)
-			cpuTlbMissW(addr, cpuRegs.branch);
+			cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBS);
 		else
-			cpuTlbMissR(addr, cpuRegs.branch);
+			cpuTlbMiss(addr, cpuRegs.branch, EXC_CODE_TLBL);
 
 		// Exception handled. Current instruction need to be stopped
 		Cpu->CancelInstruction();

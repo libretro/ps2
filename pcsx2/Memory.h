@@ -137,8 +137,6 @@ public:
 
 extern SysMainMemory& GetVmMemory();
 
-extern void memSetPageAddr(u32 vaddr, u32 paddr);
-extern void memClearPageAddr(u32 vaddr);
 extern void memBindConditionalHandlers(void);
 
 static __fi void memRead128(u32 mem, mem128_t* out)        { r128_store(out, vtlb_memRead128(mem)); }

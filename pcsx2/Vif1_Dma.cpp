@@ -195,7 +195,7 @@ __fi void vif1VUFinish(void)
 		vu1Thread.Get_MTVUChanges();
 
 		if (THREAD_VU1 && !INSTANT_VU1 && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
-			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
+			CPU_INT(VIF_VU1_FINISH, cpuGetCycles());
 		else
 			CPU_INT(VIF_VU1_FINISH, 128);
 		cpuRegs.dmastall |= 1 << VIF_VU1_FINISH;
@@ -207,7 +207,7 @@ __fi void vif1VUFinish(void)
 		u32 _cycles = vuRegs[1].cycle;
 		vu1Finish(false);
 		if (THREAD_VU1 && !INSTANT_VU1 && (vuRegs[0].VI[REG_VPU_STAT].UL & 0x100))
-			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
+			CPU_INT(VIF_VU1_FINISH, cpuGetCycles());
 		else
 			CPU_INT(VIF_VU1_FINISH, vuRegs[1].cycle - _cycles);
 		cpuRegs.dmastall |= 1 << VIF_VU1_FINISH;
@@ -273,7 +273,7 @@ __fi void vif1Interrupt(void)
 
 	if (vif1.waitforvu)
 	{
-		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles(VU_MTVU_BUSY)));
+		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles()));
 		cpuRegs.dmastall |= 1 << DMAC_VIF1;
 		return;
 	}
@@ -336,7 +336,7 @@ __fi void vif1Interrupt(void)
 		{
 			if (vif1.waitforvu)
 			{
-				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles(VU_MTVU_BUSY)));
+				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles()));
 			}
 			else
 				CPU_INT(DMAC_VIF1, g_vif1Cycles);
@@ -359,7 +359,7 @@ __fi void vif1Interrupt(void)
 		{
 			if (vif1.waitforvu)
 			{
-				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles(VU_MTVU_BUSY)));
+				CPU_INT(DMAC_VIF1, std::max(static_cast<int>(g_vif1Cycles), cpuGetCycles()));
 			}
 			else
 				CPU_INT(DMAC_VIF1, g_vif1Cycles);

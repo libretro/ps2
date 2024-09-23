@@ -155,7 +155,7 @@ void MapTLB(const tlbs& t, int i)
 		{
 			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
 			{
-				memSetPageAddr(addr << 12, t.PFN0 + ((addr - saddr) << 12));
+				vtlb_VMap(addr << 12, t.PFN0 + ((addr - saddr) << 12), 0x1000);
 				Cpu->Clear(addr << 12, 0x400);
 			}
 		}
@@ -171,7 +171,7 @@ void MapTLB(const tlbs& t, int i)
 		{
 			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
 			{
-				memSetPageAddr(addr << 12, t.PFN1 + ((addr - saddr) << 12));
+				vtlb_VMap(addr << 12, t.PFN1 + ((addr - saddr) << 12), 0x1000);
 				Cpu->Clear(addr << 12, 0x400);
 			}
 		}
@@ -198,7 +198,7 @@ void UnmapTLB(const tlbs& t, int i)
 		{
 			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
 			{
-				memClearPageAddr(addr << 12);
+				vtlb_VMapUnmap(addr << 12, 0x1000);
 				Cpu->Clear(addr << 12, 0x400);
 			}
 		}
@@ -213,7 +213,7 @@ void UnmapTLB(const tlbs& t, int i)
 		{
 			if ((addr & mask) == ((t.VPN2 >> 12) & mask)) /* match */
 			{
-				memClearPageAddr(addr << 12);
+				vtlb_VMapUnmap(addr << 12, 0x1000);
 				Cpu->Clear(addr << 12, 0x400);
 			}
 		}

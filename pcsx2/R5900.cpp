@@ -180,20 +180,10 @@ void cpuTlbMiss(u32 addr, u32 bd, u32 excode)
 	cpuException(excode, bd);
 }
 
-void cpuTlbMissR(u32 addr, u32 bd) {
-	cpuTlbMiss(addr, bd, EXC_CODE_TLBL);
-}
-
-void cpuTlbMissW(u32 addr, u32 bd) {
-	cpuTlbMiss(addr, bd, EXC_CODE_TLBS);
-}
-
-__fi int cpuGetCycles(int interrupt)
+__fi int cpuGetCycles(void)
 {
-	if(interrupt == VU_MTVU_BUSY && (!THREAD_VU1 || INSTANT_VU1))
-		return 1;
-	const int cycles = (cpuRegs.sCycle[interrupt] + cpuRegs.eCycle[interrupt]) - cpuRegs.cycle;
-	return std::max(1, cycles);
+	const int cycles = (cpuRegs.sCycle[VU_MTVU_BUSY] + cpuRegs.eCycle[VU_MTVU_BUSY]) - cpuRegs.cycle;
+	return ((!THREAD_VU1 || INSTANT_VU1)) ? 1 : std::max(1, cycles);
 }
 
 // tests the cpu cycle against the given start and delta values.
@@ -207,8 +197,6 @@ __fi int cpuTestCycle(u32 startCycle, s32 delta)
 
 static __fi void TESTINT(u8 n, void (*callback)())
 {
-	if (!(cpuRegs.interrupt & (1 << n))) return;
-
 	if (!g_GameStarted || CHECK_INSTANTDMAHACK || cpuTestCycle(cpuRegs.sCycle[n], cpuRegs.eCycle[n]))
 	{
 		cpuRegs.interrupt &= ~(1 << n);
@@ -250,10 +238,14 @@ static __fi bool _cpuTestInterrupts(void)
 			}
 		}
 
-		TESTINT(DMAC_VIF1, vif1Interrupt);
-		TESTINT(DMAC_GIF, gifInterrupt);
-		TESTINT(DMAC_SIF0, EEsif0Interrupt);
-		TESTINT(DMAC_SIF1, EEsif1Interrupt);
+		if ((cpuRegs.interrupt & (1 << DMAC_VIF1)))
+			TESTINT(DMAC_VIF1, vif1Interrupt);
+		if ((cpuRegs.interrupt & (1 << DMAC_GIF)))
+			TESTINT(DMAC_GIF, gifInterrupt);
+		if ((cpuRegs.interrupt & (1 << DMAC_SIF0)))
+			TESTINT(DMAC_SIF0, EEsif0Interrupt);
+		if ((cpuRegs.interrupt & (1 << DMAC_SIF1)))
+			TESTINT(DMAC_SIF1, EEsif1Interrupt);
 		// Profile-guided Optimization (sorta)
 		// The following ints are rarely called.  Encasing them in a conditional
 		// as follows helps speed up most games.
@@ -270,20 +262,30 @@ static __fi bool _cpuTestInterrupts(void)
 			| (1 << VIF_VU1_FINISH)
 			| (1 << IPU_PROCESS)))
 		{
-			TESTINT(DMAC_VIF0, vif0Interrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_VIF0)))
+				TESTINT(DMAC_VIF0, vif0Interrupt);
 
-			TESTINT(DMAC_FROM_IPU, ipu0Interrupt);
-			TESTINT(DMAC_TO_IPU, ipu1Interrupt);
-			TESTINT(IPU_PROCESS, IPUProcessInterrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_FROM_IPU)))
+				TESTINT(DMAC_FROM_IPU, ipu0Interrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_TO_IPU)))
+				TESTINT(DMAC_TO_IPU, ipu1Interrupt);
+			if ((cpuRegs.interrupt & (1 << IPU_PROCESS)))
+				TESTINT(IPU_PROCESS, IPUProcessInterrupt);
 
-			TESTINT(DMAC_FROM_SPR, SPRFROMinterrupt);
-			TESTINT(DMAC_TO_SPR, SPRTOinterrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_FROM_SPR)))
+				TESTINT(DMAC_FROM_SPR, SPRFROMinterrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_TO_SPR)))
+				TESTINT(DMAC_TO_SPR, SPRTOinterrupt);
 
-			TESTINT(DMAC_MFIFO_VIF, vifMFIFOInterrupt);
-			TESTINT(DMAC_MFIFO_GIF, gifMFIFOInterrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_MFIFO_VIF)))
+				TESTINT(DMAC_MFIFO_VIF, vifMFIFOInterrupt);
+			if ((cpuRegs.interrupt & (1 << DMAC_MFIFO_GIF)))
+				TESTINT(DMAC_MFIFO_GIF, gifMFIFOInterrupt);
 
-			TESTINT(VIF_VU0_FINISH, vif0VUFinish);
-			TESTINT(VIF_VU1_FINISH, vif1VUFinish);
+			if ((cpuRegs.interrupt & (1 << VIF_VU0_FINISH)))
+				TESTINT(VIF_VU0_FINISH, vif0VUFinish);
+			if ((cpuRegs.interrupt & (1 << VIF_VU1_FINISH)))
+				TESTINT(VIF_VU1_FINISH, vif1VUFinish);
 		}
 
 		if (eeRunInterruptScan == INT_REQ_LOOP)
@@ -297,22 +299,6 @@ static __fi bool _cpuTestInterrupts(void)
 	if ((cpuRegs.interrupt & 0x1FFFF) & ~cpuRegs.dmastall)
 		return true;
 	return false;
-}
-
-static __fi void _cpuTestTIMR(void)
-{
-	cpuRegs.CP0.n.Count += cpuRegs.cycle - cpuRegs.lastCOP0Cycle;
-	cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
-
-	// fixme: this looks like a hack to make up for the fact that the TIMR
-	// doesn't yet have a proper mechanism for setting itself up on a nextEventCycle.
-	// A proper fix would schedule the TIMR to trigger at a specific cycle anytime
-	// the Count or Compare registers are modified.
-
-	if (       (cpuRegs.CP0.n.Status.val & 0x8000)
-		&& (cpuRegs.CP0.n.Count >= cpuRegs.CP0.n.Compare)
-		&& (cpuRegs.CP0.n.Count  < cpuRegs.CP0.n.Compare+1000))
-		cpuException(0x808000, cpuRegs.branch);
 }
 
 // Checks the COP0.Status for exception enablings.
@@ -358,7 +344,18 @@ __fi void _cpuEventTest_Shared(void)
 		COP0_UpdatePCCR();
 	}
 
-	_cpuTestTIMR();
+	cpuRegs.CP0.n.Count += cpuRegs.cycle - cpuRegs.lastCOP0Cycle;
+	cpuRegs.lastCOP0Cycle = cpuRegs.cycle;
+
+	// fixme: this looks like a hack to make up for the fact that the TIMR
+	// doesn't yet have a proper mechanism for setting itself up on a nextEventCycle.
+	// A proper fix would schedule the TIMR to trigger at a specific cycle anytime
+	// the Count or Compare registers are modified.
+
+	if (       (cpuRegs.CP0.n.Status.val & 0x8000)
+		&& (cpuRegs.CP0.n.Count >= cpuRegs.CP0.n.Compare)
+		&& (cpuRegs.CP0.n.Count  < cpuRegs.CP0.n.Compare+1000))
+		cpuException(0x808000, cpuRegs.branch);
 
 	// ---- Interrupts -------------
 	// These are basically just DMAC-related events, which also piggy-back the same bits as
@@ -455,7 +452,7 @@ __ri void cpuTestINTCInts(void)
 	}
 }
 
-__fi void cpuTestDMACInts()
+__fi void cpuTestDMACInts(void)
 {
 	// Check the COP0's Status register for general interrupt disables, and the 0x800
 	// bit (which is the DMAC master toggle).

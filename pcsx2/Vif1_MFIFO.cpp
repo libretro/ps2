@@ -263,7 +263,7 @@ void vifMFIFOInterrupt(void)
 	}
 	if (vif1.waitforvu)
 	{
-		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles(VU_MTVU_BUSY)));
+		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles()));
 		cpuRegs.dmastall |= 1 << DMAC_MFIFO_VIF;
 		return;
 	}
@@ -335,7 +335,7 @@ void vifMFIFOInterrupt(void)
 				{
 					if (vif1.waitforvu)
 					{
-						CPU_INT(DMAC_MFIFO_VIF, std::max(static_cast<int>((g_vif1Cycles == 0 ? 4 : g_vif1Cycles)), cpuGetCycles(VU_MTVU_BUSY)));
+						CPU_INT(DMAC_MFIFO_VIF, std::max(static_cast<int>((g_vif1Cycles == 0 ? 4 : g_vif1Cycles)), cpuGetCycles()));
 					}
 					else
 						CPU_INT(DMAC_MFIFO_VIF, (g_vif1Cycles == 0 ? 4 : g_vif1Cycles));
