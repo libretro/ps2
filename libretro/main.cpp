@@ -65,7 +65,7 @@ retro_log_printf_t log_cb;
 static retro_audio_sample_batch_t batch_cb;
 static retro_audio_sample_t sample_cb;
 
-#define SOUND_BUFFER_SIZE 0x1000
+#define SOUND_BUFFER_SIZE 0x0800
 #define SOUND_BUFFER_MASK (SOUND_BUFFER_SIZE - 1)
 static int write_pos = 0;
 static int read_pos = 0;
