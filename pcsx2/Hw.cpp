@@ -400,8 +400,8 @@ mem32_t _hwRead32(u32 mem)
 {
 	switch( page )
 	{
-		case 0x00:	return rcntRead32<0x00>( mem );
-		case 0x01:	return rcntRead32<0x01>( mem );
+		case 0x00:
+		case 0x01:	return rcntRead32( mem );
 
 		case 0x02:	return ipuRead32( mem );
 
@@ -759,11 +759,8 @@ void hwWrite32( u32 mem, u32 value )
 	switch (page)
 	{
 		case 0x00:
-			if (!rcntWrite32<0x00>(mem, value))
-				return;
-			break;
 		case 0x01:
-			if (!rcntWrite32<0x01>(mem, value))
+			if (!rcntWrite32(mem, value))
 				return;
 			break;
 		case 0x02:

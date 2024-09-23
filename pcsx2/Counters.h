@@ -134,7 +134,7 @@ extern void rcntUpdate(void);
 
 extern void rcntInit(void);
 extern u32 rcntRcount(int index);
-template< uint page > extern bool rcntWrite32( u32 mem, mem32_t& value );
-template< uint page > extern u16 rcntRead32( u32 mem );		// returns u16 by design! (see implementation for details)
+extern bool rcntWrite32( u32 mem, mem32_t& value );
+extern u16 rcntRead32( u32 mem );		// returns u16 by design! (see implementation for details)
 
 extern void UpdateVSyncRate(bool force);

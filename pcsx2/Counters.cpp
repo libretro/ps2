@@ -818,7 +818,6 @@ __fi u32 rcntRcount(int index)
 	return counters[index].count;
 }
 
-template <uint page>
 __fi u16 rcntRead32(u32 mem)
 {
 	// Important DevNote:
@@ -864,7 +863,6 @@ __fi u16 rcntRead32(u32 mem)
 	return psHu16(mem);
 }
 
-template <uint page>
 __fi bool rcntWrite32(u32 mem, mem32_t& value)
 {
 	// [TODO] : counters should actually just use the EE's hw register space for storing
@@ -909,12 +907,6 @@ __fi bool rcntWrite32(u32 mem, mem32_t& value)
 	// unhandled .. do memory writeback.
 	return true;
 }
-
-template u16 rcntRead32<0x00>(u32 mem);
-template u16 rcntRead32<0x01>(u32 mem);
-
-template bool rcntWrite32<0x00>(u32 mem, mem32_t& value);
-template bool rcntWrite32<0x01>(u32 mem, mem32_t& value);
 
 bool SaveStateBase::rcntFreeze()
 {
