@@ -133,7 +133,7 @@ static __fi void EndEE(void)
 	sif0.ee.busy = false;
 	if (sif0.ee.cycles == 0)
 		sif0.ee.cycles = 1;
-	CPU_SET_DMASTALL(DMAC_SIF0, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_SIF0);
 	CPU_INT(DMAC_SIF0, sif0.ee.cycles*BIAS);
 }
 
@@ -316,7 +316,7 @@ __fi void dmaSIF0(void)
 	// (as it should always be at the beginning of a DMA).  using "if IOP is busy" flags breaks Tom Clancy Rainbow Six.
 	// Legend of Legaia doesn't throw a warning either :)
 	sif0.ee.end = false;
-	CPU_SET_DMASTALL(DMAC_SIF0, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_SIF0);
 	SIF0Dma();
 
 }

@@ -130,7 +130,7 @@ __fi void vif0VUFinish(void)
 	if (vuRegs[0].VI[REG_VPU_STAT].UL & 0x5)
 	{
 		CPU_INT(VIF_VU0_FINISH, 128);
-		CPU_SET_DMASTALL(VIF_VU0_FINISH, true);
+		cpuRegs.dmastall |= 1 << VIF_VU0_FINISH;
 		return;
 	}
 
@@ -140,7 +140,7 @@ __fi void vif0VUFinish(void)
 		vu0Finish();
 		_cycles = vuRegs[0].cycle - _cycles;
 		CPU_INT(VIF_VU0_FINISH, _cycles * BIAS);
-		CPU_SET_DMASTALL(VIF_VU0_FINISH, true);
+		cpuRegs.dmastall |= 1 << VIF_VU0_FINISH;
 		return;
 	}
 	vif0Regs.stat.VEW = false;
@@ -162,7 +162,7 @@ __fi void vif0Interrupt(void)
 	if(vif0.waitforvu)
 	{
 		CPU_INT(VIF_VU0_FINISH, 16);
-		CPU_SET_DMASTALL(DMAC_VIF0, true);
+		cpuRegs.dmastall |= 1 << DMAC_VIF0;
 		return;
 	}
 
@@ -189,7 +189,7 @@ __fi void vif0Interrupt(void)
 			if (vif0ch.qwc > 0 || !vif0.done)
 			{
 				vif0Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
-				CPU_SET_DMASTALL(DMAC_VIF0, true);
+				cpuRegs.dmastall |= 1 << DMAC_VIF0;
 				return;
 			}
 		}
@@ -240,14 +240,14 @@ __fi void vif0Interrupt(void)
 	if(vif0.queued_program) vifExecQueue(0);
 	g_vif0Cycles = 0;
 	hwDmacIrq(DMAC_VIF0);
-	CPU_SET_DMASTALL(DMAC_VIF0, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_VIF0);
 	vif0Regs.stat.FQC = 0;
 }
 
 void dmaVIF0(void)
 {
 	g_vif0Cycles = 0;
-	CPU_SET_DMASTALL(DMAC_VIF0, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_VIF0);
 
 	if (vif0ch.qwc > 0)   // Normal Mode
 	{

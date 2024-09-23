@@ -65,7 +65,7 @@ void IPU1dma(void)
 		//We MUST stop the IPU from trying to fill the FIFO with more data if the DMA has been suspended
 		//if we don't, we risk causing the data to go out of sync with the fifo and we end up losing some!
 		//This is true for Dragons Quest 8 and probably others which suspend the DMA.
-		CPU_SET_DMASTALL(DMAC_TO_IPU, true);
+		cpuRegs.dmastall |= 1 << DMAC_TO_IPU;
 		return;
 	}
 
@@ -73,7 +73,7 @@ void IPU1dma(void)
 	{
 		// IPU isn't expecting any data, so put it in to wait mode.
 		cpuRegs.eCycle[4] = 0x9999;
-		CPU_SET_DMASTALL(DMAC_TO_IPU, true);
+		cpuRegs.dmastall |= 1 << DMAC_TO_IPU;
 
 		// Shouldn't Happen.
 		if (IPUCoreStatus.WaitingOnIPUTo)
@@ -118,7 +118,7 @@ void IPU1dma(void)
 	else
 	{
 		cpuRegs.eCycle[4] = 0x9999;
-		CPU_SET_DMASTALL(DMAC_TO_IPU, true);
+		cpuRegs.dmastall |= 1 << DMAC_TO_IPU;
 	}
 
 	if (IPUCoreStatus.WaitingOnIPUTo && g_BP.IFC >= 1)
@@ -138,7 +138,7 @@ void IPU0dma(void)
 			IPUCoreStatus.WaitingOnIPUFrom = false;
 			IPUProcessInterrupt();
 		}
-		CPU_SET_DMASTALL(DMAC_FROM_IPU, true);
+		cpuRegs.dmastall |= 1 << DMAC_FROM_IPU;
 		return;
 	}
 
@@ -170,7 +170,7 @@ void IPU0dma(void)
 	if (!ipu0ch.qwc)
 		IPU_INT_FROM(readsize * BIAS);
 
-	CPU_SET_DMASTALL(DMAC_FROM_IPU, true);
+	cpuRegs.dmastall |= 1 << DMAC_FROM_IPU;
 
 	if (ipuRegs.ctrl.BUSY && IPUCoreStatus.WaitingOnIPUFrom)
 	{
@@ -184,7 +184,7 @@ __fi void dmaIPU0(void) // fromIPU
 	if (dmacRegs.ctrl.STS == STS_fromIPU)   // STS == fromIPU - Initial settings
 		dmacRegs.stadr.ADDR = ipu0ch.madr;
 
-	CPU_SET_DMASTALL(DMAC_FROM_IPU, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_FROM_IPU);
 	// Note: This should probably be a very small value, however anything lower than this will break Mana Khemia
 	// This is because the game sends bad DMA information, starts an IDEC, then sets it to the correct values
 	// but because our IPU is too quick, it messes up the sync between the DMA and IPU.
@@ -208,7 +208,7 @@ __fi void dmaIPU0(void) // fromIPU
 
 __fi void dmaIPU1(void) // toIPU
 {
-	CPU_SET_DMASTALL(DMAC_TO_IPU, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_TO_IPU);
 
 	if (ipu1ch.chcr.MOD == CHAIN_MODE)  //Chain Mode
 	{
@@ -247,7 +247,7 @@ void ipu0Interrupt(void)
 
 	ipu0ch.chcr.STR = false;
 	hwDmacIrq(DMAC_FROM_IPU);
-	CPU_SET_DMASTALL(DMAC_FROM_IPU, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_FROM_IPU);
 }
 
 __fi void ipu1Interrupt(void)
@@ -260,5 +260,5 @@ __fi void ipu1Interrupt(void)
 
 	ipu1ch.chcr.STR = false;
 	hwDmacIrq(DMAC_TO_IPU);
-	CPU_SET_DMASTALL(DMAC_TO_IPU, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_TO_IPU);
 }

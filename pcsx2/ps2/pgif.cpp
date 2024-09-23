@@ -273,7 +273,8 @@ void psxGPUw(int addr, u32 data)
 		{
 			// Probably we should try to mess with delta here.
 			hwIntcIrq(15);
-			cpuSetEvent();
+			// Tells the EE to run the branch test the next time it gets a chance.
+			cpuRegs.nextEventCycle = cpuRegs.cycle;
 			ringBufPut(&rb_gp1, &data);
 		}
 	}

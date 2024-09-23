@@ -23,7 +23,7 @@
 { \
        COP0_UpdatePCCR(); \
        cpuRegs.CP0.n.Status.val = (value); \
-       cpuSetNextEvent(cpuRegs.cycle, 4); \
+       if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4) cpuRegs.nextEventCycle = cpuRegs.cycle + 4; \
 }
 
 void WriteCP0Status(u32 value)
@@ -448,7 +448,8 @@ namespace COP0 {
 			cpuRegs.pc = cpuRegs.CP0.n.EPC;
 			cpuRegs.CP0.n.Status.b.EXL = 0;
 		}
-		cpuSetNextEvent(cpuRegs.cycle, 4);
+		if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4)
+			cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
 		intSetBranch();
 	}
 
@@ -466,7 +467,8 @@ namespace COP0 {
 		{
 			cpuRegs.CP0.n.Status.b.EIE = 1;
 			// schedule an event test, which will check for and raise pending IRQs.
-			cpuSetNextEvent(cpuRegs.cycle, 4);
+			if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4)
+				cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
 		}
 	}
 

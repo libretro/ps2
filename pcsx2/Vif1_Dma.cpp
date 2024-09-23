@@ -125,7 +125,7 @@ __fi void vif1SetupTransfer(void)
 		{
 			// stalled
 			hwDmacIrq(DMAC_STALL_SIS);
-			CPU_SET_DMASTALL(DMAC_VIF1, true);
+			cpuRegs.dmastall |= 1 << DMAC_VIF1;
 			return;
 		}
 	}
@@ -161,10 +161,10 @@ __fi void vif1SetupTransfer(void)
 			return; // IRQ set by VIFTransfer
 		}
 	}
-	vif1.irqoffset.value = 0;
-	vif1.irqoffset.enabled = false;
+	vif1.irqoffset.value     = 0;
+	vif1.irqoffset.enabled   = false;
 
-	vif1.done |= hwDmacSrcChainWithStack(vif1ch, ptag->ID);
+	vif1.done               |= hwDmacSrcChainWithStack(vif1ch, ptag->ID);
 
 	if (vif1ch.qwc > 0)
 		vif1.inprogress |= 1;
@@ -198,7 +198,7 @@ __fi void vif1VUFinish(void)
 			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
 		else
 			CPU_INT(VIF_VU1_FINISH, 128);
-		CPU_SET_DMASTALL(VIF_VU1_FINISH, true);
+		cpuRegs.dmastall |= 1 << VIF_VU1_FINISH;
 		return;
 	}
 
@@ -210,7 +210,7 @@ __fi void vif1VUFinish(void)
 			CPU_INT(VIF_VU1_FINISH, cpuGetCycles(VU_MTVU_BUSY));
 		else
 			CPU_INT(VIF_VU1_FINISH, vuRegs[1].cycle - _cycles);
-		CPU_SET_DMASTALL(VIF_VU1_FINISH, true);
+		cpuRegs.dmastall |= 1 << VIF_VU1_FINISH;
 		return;
 	}
 
@@ -237,8 +237,8 @@ __fi void vif1Interrupt(void)
 	if (gifRegs.stat.APATH == 2 && gifUnit.gifPath[GIF_PATH_2].isDone())
 	{
 		gifRegs.stat.APATH = 0;
-		gifRegs.stat.OPH = 0;
-		vif1Regs.stat.VGW = false; //Let vif continue if it's stuck on a flush
+		gifRegs.stat.OPH   = 0;
+		vif1Regs.stat.VGW  = false; //Let vif continue if it's stuck on a flush
 
 		if (gifUnit.checkPaths(1, 0, 1))
 			gifUnit.Execute(false, true);
@@ -256,14 +256,14 @@ __fi void vif1Interrupt(void)
 	// from the GS then we handle that separately (KH2 for testing)
 	if (vif1ch.chcr.DIR)
 	{
-		bool isDirect = (vif1.cmd & 0x7f) == 0x50;
+		bool isDirect   = (vif1.cmd & 0x7f) == 0x50;
 		bool isDirectHL = (vif1.cmd & 0x7f) == 0x51;
 		if ((isDirect && !gifUnit.CanDoPath2()) || (isDirectHL && !gifUnit.CanDoPath2HL()))
 		{
 			CPU_INT(DMAC_VIF1, 128);
 			if (gifRegs.stat.APATH == 3)
 				vif1Regs.stat.VGW = 1; //We're waiting for path 3. Gunslinger II
-			CPU_SET_DMASTALL(DMAC_VIF1, true);
+			cpuRegs.dmastall |= 1 << DMAC_VIF1;
 			return;
 		}
 		vif1Regs.stat.VGW = 0; //Path 3 isn't busy so we don't need to wait for it.
@@ -273,15 +273,14 @@ __fi void vif1Interrupt(void)
 
 	if (vif1.waitforvu)
 	{
-		//CPU_INT(DMAC_VIF1, 16);
 		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles(VU_MTVU_BUSY)));
-		CPU_SET_DMASTALL(DMAC_VIF1, true);
+		cpuRegs.dmastall |= 1 << DMAC_VIF1;
 		return;
 	}
 
 	if (vif1Regs.stat.VGW)
 	{
-		CPU_SET_DMASTALL(DMAC_VIF1, true);
+		cpuRegs.dmastall |= 1 << DMAC_VIF1;
 		return;
 	}
 
@@ -295,24 +294,20 @@ __fi void vif1Interrupt(void)
 
 		//Yakuza watches VIF_STAT so lets do this here.
 		if (((vif1Regs.code >> 24) & 0x7f) != 0x7)
-		{
 			vif1Regs.stat.VIS = true;
-		}
 
 		hwIntcIrq(VIF1intc);
 		--vif1.irq;
 
 		if (VIF_TEST(vif1Regs.stat, VIF1_STAT_VSS | VIF1_STAT_VIS | VIF1_STAT_VFS))
 		{
-			//vif1Regs.stat.FQC = 0;
-
 			//NFSHPS stalls when the whole packet has gone across (it stalls in the last 32bit cmd)
 			//In this case VIF will end
 			vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
 			if ((vif1ch.qwc > 0 || !vif1.done) && !CHECK_VIF1STALLHACK)
 			{
 				vif1Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
-				CPU_SET_DMASTALL(DMAC_VIF1, true);
+				cpuRegs.dmastall |= 1 << DMAC_VIF1;
 				return;
 			}
 		}
@@ -327,9 +322,7 @@ __fi void vif1Interrupt(void)
 			vif1Regs.stat.VPS = VPS_WAITING;
 	}
 	else
-	{
 		vif1Regs.stat.VPS = VPS_IDLE;
-	}
 
 	if (vif1.inprogress & 0x1)
 	{
@@ -377,34 +370,33 @@ __fi void vif1Interrupt(void)
 	if (vif1.vifstalled.enabled && vif1.done)
 	{
 		CPU_INT(DMAC_VIF1, 0);
-		CPU_SET_DMASTALL(DMAC_VIF1, true);
+		cpuRegs.dmastall |= 1 << DMAC_VIF1;
 		return; //Dont want to end if vif is stalled.
 	}
 
-	if ((vif1ch.chcr.DIR == VIF_NORMAL_TO_MEM_MODE) && vif1.GSLastDownloadSize <= 16)
+	if (vif1ch.chcr.DIR)
 	{
 		//Reverse fifo has finished and nothing is left, so lets clear the outputting flag
-		gifRegs.stat.OPH = false;
+		if ((vif1ch.chcr.DIR == VIF_NORMAL_TO_MEM_MODE) && vif1.GSLastDownloadSize <= 16)
+			gifRegs.stat.OPH = false;
+		vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
 	}
 
-	if (vif1ch.chcr.DIR)
-		vif1Regs.stat.FQC = std::min(vif1ch.qwc, (u32)16);
-
-	vif1ch.chcr.STR = false;
-	vif1.vifstalled.enabled = false;
-	vif1.irqoffset.enabled = false;
+	vif1ch.chcr.STR          = false;
+	vif1.vifstalled.enabled  = false;
+	vif1.irqoffset.enabled   = false;
 	if (vif1.queued_program)
 		vifExecQueue(1);
-	g_vif1Cycles = 0;
+	g_vif1Cycles             = 0;
 	hwDmacIrq(DMAC_VIF1);
-	CPU_SET_DMASTALL(DMAC_VIF1, false);
+	cpuRegs.dmastall        &= ~(1 << DMAC_VIF1);
 }
 
 void dmaVIF1(void)
 {
-	g_vif1Cycles = 0;
-	vif1.inprogress = 0;
-	CPU_SET_DMASTALL(DMAC_VIF1, false);
+	g_vif1Cycles      = 0;
+	vif1.inprogress   = 0;
+	cpuRegs.dmastall &= ~(1 << DMAC_VIF1);
 
 	if (vif1ch.qwc > 0) // Normal Mode
 	{
@@ -436,8 +428,8 @@ void dmaVIF1(void)
 	else
 	{
 		vif1.inprogress &= ~0x1;
-		vif1.dmamode = VIF_CHAIN_MODE;
-		vif1.done = false;
+		vif1.dmamode     = VIF_CHAIN_MODE;
+		vif1.done        = false;
 	}
 
 	if (vif1ch.chcr.DIR)

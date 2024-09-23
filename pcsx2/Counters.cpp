@@ -112,7 +112,9 @@ static __fi void _rcntSet(int cntidx)
 	if (c < nextDeltaCounter)
 	{
 		nextDeltaCounter = c;
-		cpuSetNextEvent(nextStartCounter, nextDeltaCounter); // Need to update on counter resets/target changes
+		// Need to update on counter resets/target changes
+		if ((int)(cpuRegs.nextEventCycle - nextStartCounter) > nextDeltaCounter)
+			cpuRegs.nextEventCycle = nextStartCounter + nextDeltaCounter;
 	}
 
 	// Ignore target diff if target is currently disabled.
@@ -128,7 +130,9 @@ static __fi void _rcntSet(int cntidx)
 		if (c < nextDeltaCounter)
 		{
 			nextDeltaCounter = c;
-			cpuSetNextEvent(nextStartCounter, nextDeltaCounter); // Need to update on counter resets/target changes
+			// Need to update on counter resets/target changes
+			if ((int)(cpuRegs.nextEventCycle - nextStartCounter) > nextDeltaCounter)
+				cpuRegs.nextEventCycle = nextStartCounter + nextDeltaCounter;
 		}
 	}
 }
@@ -152,7 +156,9 @@ static __fi void cpuRcntSet(void)
 	// sanity check!
 	if (nextDeltaCounter < 0)
 		nextDeltaCounter = 0;
-	cpuSetNextEvent(nextStartCounter, nextDeltaCounter); // Need to update on counter resets/target changes
+	// Need to update on counter resets/target changes
+	if ((int)(cpuRegs.nextEventCycle - nextStartCounter) > nextDeltaCounter)
+		cpuRegs.nextEventCycle = nextStartCounter + nextDeltaCounter;
 }
 
 void rcntInit(void)

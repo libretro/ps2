@@ -116,8 +116,8 @@ static __fi void EndEE(void)
 	if (sif1.ee.cycles == 0)
 		sif1.ee.cycles = 1;
 
-	CPU_SET_DMASTALL(DMAC_SIF1, false);
-	CPU_INT(DMAC_SIF1, /*std::min((int)(*/sif1.ee.cycles*BIAS/*), 384)*/);
+	cpuRegs.dmastall &= ~(1 << DMAC_SIF1);
+	CPU_INT(DMAC_SIF1, sif1.ee.cycles * BIAS);
 }
 
 // Stop processing IOP, and signal an interrupt.
@@ -170,8 +170,8 @@ static __fi void HandleEETransfer(void)
 				if ((sif1ch.madr + (writeSize * 16)) > dmacRegs.stadr.ADDR)
 				{
 					hwDmacIrq(DMAC_STALL_SIS);
-					sif1_dma_stall = true;
-					CPU_SET_DMASTALL(DMAC_SIF1, true);
+					sif1_dma_stall    = true;
+					cpuRegs.dmastall |= 1 << DMAC_SIF1;
 					return;
 				}
 			}
@@ -266,9 +266,9 @@ __fi void EEsif1Interrupt(void)
 __fi void dmaSIF1(void)
 {
 	psHu32(SBUS_F240) |= 0x4000;
-	sif1.ee.busy = true;
+	sif1.ee.busy       = true;
 
-	CPU_SET_DMASTALL(DMAC_SIF1, false);
+	cpuRegs.dmastall  &= ~(1 << DMAC_SIF1);
 	// Okay, this here is needed currently (r3644).
 	// FFX battles in the thunder plains map die otherwise, Phantasy Star 4 as well
 	// These 2 games could be made playable again by increasing the time the EE or the IOP run,
@@ -279,7 +279,7 @@ __fi void dmaSIF1(void)
 	//of processing a "REFE" tag, so the hangs can be solved by forcing the ee.end to be false
 	// (as it should always be at the beginning of a DMA).  using "if IOP is busy" flags breaks Tom Clancy Rainbow Six.
 	// Legend of Legaia doesn't throw a warning either :)
-	sif1.ee.end = false;
+	sif1.ee.end        = false;
 
 	if (sif1ch.chcr.MOD == CHAIN_MODE && sif1ch.qwc > 0)
 	{

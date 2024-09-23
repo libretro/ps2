@@ -257,14 +257,14 @@ void vifMFIFOInterrupt(void)
 		if ((isDirect && !gifUnit.CanDoPath2()) || (isDirectHL && !gifUnit.CanDoPath2HL()))
 		{
 			CPU_INT(DMAC_MFIFO_VIF, 128);
-			CPU_SET_DMASTALL(DMAC_MFIFO_VIF, true);
+			cpuRegs.dmastall |= 1 << DMAC_MFIFO_VIF;
 			return;
 		}
 	}
 	if (vif1.waitforvu)
 	{
 		CPU_INT(VIF_VU1_FINISH, std::max(16, cpuGetCycles(VU_MTVU_BUSY)));
-		CPU_SET_DMASTALL(DMAC_MFIFO_VIF, true);
+		cpuRegs.dmastall |= 1 << DMAC_MFIFO_VIF;
 		return;
 	}
 
@@ -292,7 +292,7 @@ void vifMFIFOInterrupt(void)
 			if ((vif1ch.qwc > 0 || !vif1.done))
 			{
 				vif1Regs.stat.VPS = VPS_DECODING; //If there's more data you need to say it's decoding the next VIF CMD (Onimusha - Blade Warriors)
-				CPU_SET_DMASTALL(DMAC_MFIFO_VIF, true);
+				cpuRegs.dmastall |= 1 << DMAC_MFIFO_VIF;
 				return;
 			}
 		}
@@ -312,7 +312,7 @@ void vifMFIFOInterrupt(void)
 	if (vif1.inprogress & 0x10)
 	{
 		FireMFIFOEmpty();
-		CPU_SET_DMASTALL(DMAC_MFIFO_VIF, true);
+		cpuRegs.dmastall |= 1 << DMAC_MFIFO_VIF;
 		return;
 	}
 
@@ -358,8 +358,8 @@ void vifMFIFOInterrupt(void)
 
 	g_vif1Cycles = 0;
 	vif1Regs.stat.FQC = std::min((u32)0x10, vif1ch.qwc);
-	vif1ch.chcr.STR = false;
+	vif1ch.chcr.STR   = false;
 	hwDmacIrq(DMAC_VIF1);
-	CPU_SET_DMASTALL(DMAC_VIF1, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_VIF1);
 	vif1Regs.stat.FQC = 0;
 }

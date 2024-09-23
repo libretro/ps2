@@ -214,7 +214,10 @@ __fi void gifInterrupt(void)
 			{
 				GifDMAInt(16);
 			}
-			CPU_SET_DMASTALL(DMAC_GIF, gifUnit.Path3Masked() || !gifUnit.CanDoPath3());
+			if (gifUnit.Path3Masked() || !gifUnit.CanDoPath3())
+				cpuRegs.dmastall |= 1 << DMAC_GIF;
+			else
+				cpuRegs.dmastall &= ~(1 << DMAC_GIF);
 			return;
 		}
 	}
@@ -228,7 +231,7 @@ __fi void gifInterrupt(void)
 	if (gifUnit.gsSIGNAL.queued)
 	{
 		GifDMAInt(128);
-		CPU_SET_DMASTALL(DMAC_GIF, true);
+		cpuRegs.dmastall |= 1 << DMAC_GIF;
 		if (gif_fifo.fifoSize == 16)
 			return;
 	}
@@ -247,7 +250,10 @@ __fi void gifInterrupt(void)
 		// If there is no DMA data waiting and the DMA is active, let the DMA progress until there is
 		if ((!CheckPaths() && gif_fifo.fifoSize == 16) || readSize)
 		{
-			CPU_SET_DMASTALL(DMAC_GIF, gifUnit.Path3Masked() || !gifUnit.CanDoPath3());
+			if (gifUnit.Path3Masked() || !gifUnit.CanDoPath3())
+				cpuRegs.dmastall |= 1 << DMAC_GIF;
+			else
+				cpuRegs.dmastall &= ~(1 << DMAC_GIF);
 			return;
 		}
 	}
@@ -261,7 +267,7 @@ __fi void gifInterrupt(void)
 		{
 			// Re-raise the int shortly in the future
 			GifDMAInt(64);
-			CPU_SET_DMASTALL(DMAC_GIF, true);
+			cpuRegs.dmastall |= 1 << DMAC_GIF;
 			return;
 		}
 		GIFdma();
@@ -363,7 +369,7 @@ void GIFdma(void)
 		if (gifRegs.ctrl.PSE)
 		{ // Temporarily stop
 			GifDMAInt(16);
-			CPU_SET_DMASTALL(DMAC_GIF, true);
+			cpuRegs.dmastall |= 1 << DMAC_GIF;
 			return;
 		}
 
@@ -372,7 +378,7 @@ void GIFdma(void)
 			if ((gifch.madr + (gifch.qwc * 16)) > dmacRegs.stadr.ADDR)
 			{
 				GifDMAInt(4);
-				CPU_SET_DMASTALL(DMAC_GIF, true);
+				cpuRegs.dmastall |= 1 << DMAC_GIF;
 				gif.gscycles = 0;
 				return;
 			}
@@ -401,7 +407,7 @@ void GIFdma(void)
 					hwDmacIrq(DMAC_STALL_SIS);
 					GifDMAInt(128);
 					gif.gscycles = 0;
-					CPU_SET_DMASTALL(DMAC_GIF, true);
+					cpuRegs.dmastall |= 1 << DMAC_GIF;
 					return;
 				}
 			}
@@ -413,7 +419,10 @@ void GIFdma(void)
 		if (gifch.qwc > 0) // Normal Mode
 		{
 			GIFchain(); // Transfers the data set by the switch
-			CPU_SET_DMASTALL(DMAC_GIF, gifUnit.Path3Masked() || !gifUnit.CanDoPath3());
+			if (gifUnit.Path3Masked() || !gifUnit.CanDoPath3())
+				cpuRegs.dmastall |= 1 << DMAC_GIF;
+			else
+				cpuRegs.dmastall &= ~(1 << DMAC_GIF);
 			return;
 		}
 	}
@@ -425,7 +434,7 @@ void GIFdma(void)
 void dmaGIF(void)
 {
 	gif.gspath3done = false; // For some reason this doesn't clear? So when the system starts the thread, we will clear it :)
-	CPU_SET_DMASTALL(DMAC_GIF, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_GIF);
 	if (gifch.chcr.MOD == NORMAL_MODE) // Else it really is a normal transfer and we want to quit, else it gets confused with chains
 		gif.gspath3done = true;
 
@@ -580,7 +589,7 @@ void mfifoGIFtransfer(void)
 	if (gifRegs.ctrl.PSE) // Temporarily stop
 	{
 		CPU_INT(DMAC_MFIFO_GIF, 16);
-		CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
+		cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
 		return;
 	}
 
@@ -592,7 +601,7 @@ void mfifoGIFtransfer(void)
 		{
 			gif.gifstate = GIF_STATE_EMPTY;
 			GifDMAInt(4);
-			CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
+			cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
 			return;
 		}
 
@@ -627,7 +636,7 @@ void gifMFIFOInterrupt(void)
 	if (dmacRegs.ctrl.MFD != MFD_GIF) // GIF not in MFIFO anymore, come out.
 	{
 		gifInterrupt();
-		CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
+		cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
 		return;
 	}
 
@@ -648,7 +657,10 @@ void gifMFIFOInterrupt(void)
 			{
 				GifDMAInt(16);
 			}
-			CPU_SET_DMASTALL(DMAC_MFIFO_GIF, gifUnit.Path3Masked() || !gifUnit.CanDoPath3());
+			if (gifUnit.Path3Masked() || !gifUnit.CanDoPath3())
+				cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
+			else
+				cpuRegs.dmastall &= ~(1 << DMAC_MFIFO_GIF);
 			return;
 		}
 	}
@@ -656,7 +668,7 @@ void gifMFIFOInterrupt(void)
 	if (gifUnit.gsSIGNAL.queued)
 	{
 		GifDMAInt(128);
-		CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
+		cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
 		return;
 	}
 
@@ -674,7 +686,10 @@ void gifMFIFOInterrupt(void)
 		// If there is no DMA data waiting and the DMA is active, let the DMA progress until there is
 		if ((!CheckPaths() && gif_fifo.fifoSize == 16) || readSize)
 		{
-			CPU_SET_DMASTALL(DMAC_MFIFO_GIF, gifUnit.Path3Masked() || !gifUnit.CanDoPath3());
+			if (gifUnit.Path3Masked() || !gifUnit.CanDoPath3())
+				cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
+			else
+				cpuRegs.dmastall &= ~(1 << DMAC_MFIFO_GIF);
 			return;
 		}
 	}
@@ -689,7 +704,7 @@ void gifMFIFOInterrupt(void)
 
 		if (gifch.qwc > 0 || !gif.gspath3done)
 		{
-			CPU_SET_DMASTALL(DMAC_MFIFO_GIF, true);
+			cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
 			return;
 		}
 	}
@@ -697,7 +712,10 @@ void gifMFIFOInterrupt(void)
 	if (gifch.qwc > 0 || !gif.gspath3done)
 	{
 		mfifoGIFtransfer();
-		CPU_SET_DMASTALL(DMAC_MFIFO_GIF, gifUnit.Path3Masked() || !gifUnit.CanDoPath3());
+		if (gifUnit.Path3Masked() || !gifUnit.CanDoPath3())
+			cpuRegs.dmastall |= 1 << DMAC_MFIFO_GIF;
+		else
+			cpuRegs.dmastall &= ~(1 << DMAC_MFIFO_GIF);
 		return;
 	}
 
@@ -708,7 +726,7 @@ void gifMFIFOInterrupt(void)
 	gifRegs.stat.FQC = gif_fifo.fifoSize;
 	CSRreg.FIFO      = CalculateFIFOCSR();
 	hwDmacIrq(DMAC_GIF);
-	CPU_SET_DMASTALL(DMAC_MFIFO_GIF, false);
+	cpuRegs.dmastall &= ~(1 << DMAC_MFIFO_GIF);
 	if (gif_fifo.fifoSize)
 		GifDMAInt(8 * BIAS);
 }

@@ -49,7 +49,7 @@ bool g_SkipBiosHack; // set at boot if the skip bios hack is on, reset before th
 bool g_GameStarted; // set when we reach the game's entry point or earlier if the entry point cannot be determined
 bool g_GameLoading; // EELOAD has been called to load the game
 
-static const uint eeWaitCycles = 3072;
+#define EE_WAIT_CYCLES 3072
 
 bool eeEventTestIsActive = false;
 static EE_intProcessStatus eeRunInterruptScan = INT_NOT_RUNNING;
@@ -188,16 +188,6 @@ void cpuTlbMissW(u32 addr, u32 bd) {
 	cpuTlbMiss(addr, bd, EXC_CODE_TLBS);
 }
 
-// sets a branch test to occur some time from an arbitrary starting point.
-__fi void cpuSetNextEvent( u32 startCycle, s32 delta )
-{
-	// typecast the conditional to signed so that things don't blow up
-	// if startCycle is greater than our next branch cycle.
-
-	if( (int)(cpuRegs.nextEventCycle - startCycle) > delta )
-		cpuRegs.nextEventCycle = startCycle + delta;
-}
-
 __fi int cpuGetCycles(int interrupt)
 {
 	if(interrupt == VU_MTVU_BUSY && (!THREAD_VU1 || INSTANT_VU1))
@@ -208,36 +198,28 @@ __fi int cpuGetCycles(int interrupt)
 
 // tests the cpu cycle against the given start and delta values.
 // Returns true if the delta time has passed.
-__fi int cpuTestCycle( u32 startCycle, s32 delta )
+__fi int cpuTestCycle(u32 startCycle, s32 delta)
 {
 	// typecast the conditional to signed so that things don't explode
 	// if the startCycle is ahead of our current cpu cycle.
 	return (int)(cpuRegs.cycle - startCycle) >= delta;
 }
 
-// tells the EE to run the branch test the next time it gets a chance.
-__fi void cpuSetEvent(void)
+static __fi void TESTINT(u8 n, void (*callback)())
 {
-	cpuRegs.nextEventCycle = cpuRegs.cycle;
-}
+	if (!(cpuRegs.interrupt & (1 << n))) return;
 
-__fi void cpuClearInt(uint i)
-{
-	cpuRegs.interrupt &= ~(1 << i);
-	cpuRegs.dmastall &= ~(1 << i);
-}
-
-static __fi void TESTINT( u8 n, void (*callback)() )
-{
-	if( !(cpuRegs.interrupt & (1 << n)) ) return;
-
-	if(!g_GameStarted || CHECK_INSTANTDMAHACK || cpuTestCycle( cpuRegs.sCycle[n], cpuRegs.eCycle[n] ) )
+	if (!g_GameStarted || CHECK_INSTANTDMAHACK || cpuTestCycle(cpuRegs.sCycle[n], cpuRegs.eCycle[n]))
 	{
-		cpuClearInt( n );
+		cpuRegs.interrupt &= ~(1 << n);
+		cpuRegs.dmastall  &= ~(1 << n);
 		callback();
 	}
 	else
-		cpuSetNextEvent( cpuRegs.sCycle[n], cpuRegs.eCycle[n] );
+	{
+		if ((int)(cpuRegs.nextEventCycle - cpuRegs.sCycle[n]) > cpuRegs.eCycle[n])
+			cpuRegs.nextEventCycle = cpuRegs.sCycle[n] + cpuRegs.eCycle[n];
+	}
 }
 
 // [TODO] move this function to Dmac.cpp, and remove most of the DMAC-related headers from
@@ -253,7 +235,21 @@ static __fi bool _cpuTestInterrupts(void)
 	{
 		/* These are 'pcsx2 interrupts', they handle asynchronous stuff
 		   that depends on the cycle timings */
-		TESTINT(VU_MTVU_BUSY, MTVUInterrupt);
+		if ((cpuRegs.interrupt & (1 << VU_MTVU_BUSY)))
+		{
+			if (!g_GameStarted || CHECK_INSTANTDMAHACK || cpuTestCycle(cpuRegs.sCycle[VU_MTVU_BUSY], cpuRegs.eCycle[VU_MTVU_BUSY]))
+			{
+				cpuRegs.interrupt             &= ~(1 << VU_MTVU_BUSY);
+				cpuRegs.dmastall              &= ~(1 << VU_MTVU_BUSY);
+				vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
+			}
+			else
+			{
+				if ((int)(cpuRegs.nextEventCycle - cpuRegs.sCycle[VU_MTVU_BUSY]) > cpuRegs.eCycle[VU_MTVU_BUSY])
+					cpuRegs.nextEventCycle = cpuRegs.sCycle[VU_MTVU_BUSY] + cpuRegs.eCycle[VU_MTVU_BUSY];
+			}
+		}
+
 		TESTINT(DMAC_VIF1, vif1Interrupt);
 		TESTINT(DMAC_GIF, gifInterrupt);
 		TESTINT(DMAC_SIF0, EEsif0Interrupt);
@@ -262,9 +258,17 @@ static __fi bool _cpuTestInterrupts(void)
 		// The following ints are rarely called.  Encasing them in a conditional
 		// as follows helps speed up most games.
 
-		if (cpuRegs.interrupt & ((1 << DMAC_VIF0) | (1 << DMAC_FROM_IPU) | (1 << DMAC_TO_IPU)
-			| (1 << DMAC_FROM_SPR) | (1 << DMAC_TO_SPR) | (1 << DMAC_MFIFO_VIF) | (1 << DMAC_MFIFO_GIF)
-			| (1 << VIF_VU0_FINISH) | (1 << VIF_VU1_FINISH) | (1 << IPU_PROCESS)))
+		if (cpuRegs.interrupt & (
+			  (1 << DMAC_VIF0)
+			| (1 << DMAC_FROM_IPU)
+			| (1 << DMAC_TO_IPU)
+			| (1 << DMAC_FROM_SPR)
+			| (1 << DMAC_TO_SPR)
+			| (1 << DMAC_MFIFO_VIF)
+			| (1 << DMAC_MFIFO_GIF)
+			| (1 << VIF_VU0_FINISH)
+			| (1 << VIF_VU1_FINISH)
+			| (1 << IPU_PROCESS)))
 		{
 			TESTINT(DMAC_VIF0, vif0Interrupt);
 
@@ -311,25 +315,13 @@ static __fi void _cpuTestTIMR(void)
 		cpuException(0x808000, cpuRegs.branch);
 }
 
-static __fi void _cpuTestPERF(void)
-{
-	// Perfs are updated when read by games (COP0's MFC0/MTC0 instructions), so we need
-	// only update them at semi-regular intervals to keep cpuRegs.cycle from wrapping
-	// around twice on us btween updates.  Hence this function is called from the cpu's
-	// Counters update.
-
-	COP0_UpdatePCCR();
-}
-
 // Checks the COP0.Status for exception enablings.
 // Exception handling for certain modes is *not* currently supported, this function filters
 // them out.  Exceptions while the exception handler is active (EIE), or exceptions of any
 // level other than 0 are ignored here.
-
 static bool cpuIntsEnabled(int Interrupt)
 {
 	bool IntType = !!(cpuRegs.CP0.n.Status.val & Interrupt); //Choose either INTC or DMAC, depending on what called it
-
 	return IntType && cpuRegs.CP0.n.Status.b.EIE && cpuRegs.CP0.n.Status.b.IE &&
 		!cpuRegs.CP0.n.Status.b.EXL && (cpuRegs.CP0.n.Status.b.ERL == 0);
 }
@@ -338,8 +330,8 @@ static bool cpuIntsEnabled(int Interrupt)
 // and the recompiler.  (moved here to help alleviate redundant code)
 __fi void _cpuEventTest_Shared(void)
 {
-	eeEventTestIsActive = true;
-	cpuRegs.nextEventCycle = cpuRegs.cycle + eeWaitCycles;
+	eeEventTestIsActive    = true;
+	cpuRegs.nextEventCycle = cpuRegs.cycle + EE_WAIT_CYCLES;
 	cpuRegs.lastEventCycle = cpuRegs.cycle;
 	// ---- INTC / DMAC (CPU-level Exceptions) -----------------
 	// Done first because exceptions raised during event tests need to be postponed a few
@@ -359,7 +351,11 @@ __fi void _cpuEventTest_Shared(void)
 	if (cpuTestCycle(nextStartCounter, nextDeltaCounter))
 	{
 		rcntUpdate();
-		_cpuTestPERF();
+		// Perfs are updated when read by games (COP0's MFC0/MTC0 instructions), so we need
+		// only update them at semi-regular intervals to keep cpuRegs.cycle from wrapping
+		// around twice on us btween updates.  Hence this function is called from the cpu's
+		// Counters update.
+		COP0_UpdatePCCR();
 	}
 
 	_cpuTestTIMR();
@@ -421,20 +417,25 @@ __fi void _cpuEventTest_Shared(void)
 	const int nextIopEventDeta = ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8);
 	// 8 or more cycles behind and there's an event scheduled
 	if (EEsCycle >= nextIopEventDeta)
-		cpuSetNextEvent(cpuRegs.cycle, 48);
-	else
 	{
-		// Otherwise IOP is caught up/not doing anything so we can wait for the next event.
-		cpuSetNextEvent(cpuRegs.cycle, ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle);
+		if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 48)
+			cpuRegs.nextEventCycle = cpuRegs.cycle + 48;
+	}
+	else // Otherwise IOP is caught up/not doing anything so we can wait for the next event.
+	{
+		s32 delta = ((psxRegs.iopNextEventCycle - psxRegs.cycle) * 8) - EEsCycle;
+		if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > delta)
+			cpuRegs.nextEventCycle = cpuRegs.cycle + delta;
 	}
 
 	// Apply vsync and other counter nextDeltaCycles
-	cpuSetNextEvent(nextStartCounter, nextDeltaCounter);
+	if ((int)(cpuRegs.nextEventCycle - nextStartCounter) > nextDeltaCounter)
+		cpuRegs.nextEventCycle = nextStartCounter + nextDeltaCounter;
 
 	eeEventTestIsActive = false;
 }
 
-__ri void cpuTestINTCInts()
+__ri void cpuTestINTCInts(void)
 {
 	// Check the COP0's Status register for general interrupt disables, and the 0x400
 	// bit (which is INTC master toggle).
@@ -444,11 +445,13 @@ __ri void cpuTestINTCInts()
 	if ((psHu32(INTC_STAT) & psHu32(INTC_MASK)) == 0)
 		return;
 
-	cpuSetNextEvent(cpuRegs.cycle, 4);
+	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4)
+		cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
+
 	if (eeEventTestIsActive && (psxRegs.iopCycleEE > 0))
 	{
-		psxRegs.iopBreak += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
-		psxRegs.iopCycleEE = 0;
+		psxRegs.iopBreak   += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
+		psxRegs.iopCycleEE  = 0;
 	}
 }
 
@@ -463,20 +466,14 @@ __fi void cpuTestDMACInts()
 		((psHu16(0xe010) & 0x8000) == 0))
 		return;
 
-	cpuSetNextEvent(cpuRegs.cycle, 4);
+	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4)
+		cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
+
 	if (eeEventTestIsActive && (psxRegs.iopCycleEE > 0))
 	{
 		psxRegs.iopBreak += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
 		psxRegs.iopCycleEE = 0;
 	}
-}
-
-__fi void CPU_SET_DMASTALL(EE_EventType n, bool set)
-{
-	if (set)
-		cpuRegs.dmastall |= 1 << n;
-	else
-		cpuRegs.dmastall &= ~(1 << n);
 }
 
 __fi void CPU_INT( EE_EventType n, s32 ecycle)
@@ -487,8 +484,8 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 	{
 		eeRunInterruptScan = INT_REQ_LOOP;
 		cpuRegs.interrupt |= 1 << n;
-		cpuRegs.sCycle[n] = cpuRegs.cycle;
-		cpuRegs.eCycle[n] = 0;
+		cpuRegs.sCycle[n]  = cpuRegs.cycle;
+		cpuRegs.eCycle[n]  = 0;
 		return;
 	}
 
@@ -499,8 +496,8 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 		ecycle = 8;
 
 	cpuRegs.interrupt |= 1 << n;
-	cpuRegs.sCycle[n] = cpuRegs.cycle;
-	cpuRegs.eCycle[n] = ecycle;
+	cpuRegs.sCycle[n]  = cpuRegs.cycle;
+	cpuRegs.eCycle[n]  = ecycle;
 
 	// Interrupt is happening soon: make sure both EE and IOP are aware.
 
@@ -509,11 +506,12 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 		// If running in the IOP, force it to break immediately into the EE.
 		// the EE's branch test is due to run.
 
-		psxRegs.iopBreak += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
-		psxRegs.iopCycleEE = 0;
+		psxRegs.iopBreak   += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
+		psxRegs.iopCycleEE  = 0;
 	}
 
-	cpuSetNextEvent(cpuRegs.cycle, cpuRegs.eCycle[n]);
+	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > cpuRegs.eCycle[n])
+		cpuRegs.nextEventCycle = cpuRegs.cycle + cpuRegs.eCycle[n];
 }
 
 // Called from recompilers; define is mandatory.

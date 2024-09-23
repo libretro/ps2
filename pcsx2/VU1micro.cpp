@@ -79,8 +79,3 @@ void vu1ExecMicro(u32 addr)
 	else
 		CpuVU1->Execute(vu1RunCycles);
 }
-
-void MTVUInterrupt(void)
-{
-	vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
-}

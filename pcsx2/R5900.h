@@ -337,7 +337,6 @@ enum EE_EventType
 };
 
 extern void CPU_INT( EE_EventType n, s32 ecycle );
-extern void CPU_SET_DMASTALL(EE_EventType n, bool set);
 extern uint intcInterrupt();
 extern uint dmacInterrupt();
 
@@ -349,9 +348,7 @@ extern void cpuClearInt(uint n);
 extern void GoemonPreloadTlb();
 extern void GoemonUnloadTlb(u32 key);
 
-extern void cpuSetNextEvent( u32 startCycle, s32 delta );
 extern int  cpuTestCycle( u32 startCycle, s32 delta );
-extern void cpuSetEvent();
 extern int cpuGetCycles(int interrupt);
 
 extern void _cpuEventTest_Shared(void);	// for internal use by the Dynarecs and Ints inside R5900:

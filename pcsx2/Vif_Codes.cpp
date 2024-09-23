@@ -87,7 +87,7 @@ static __fi void vuExecMicro(int idx, u32 addr, bool requires_wait)
 	vifFlush(idx);
 	if (GetVifX.waitforvu)
 	{
-		CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
+		cpuRegs.dmastall |= 1 << (idx ? vif1InternalIrq() : DMAC_VIF0);
 		return;
 	}
 
@@ -211,7 +211,7 @@ vifOp(vifCode_Flush)
 
 		if (vif1.waitforvu || vif1Regs.stat.VGW)
 		{
-			CPU_SET_DMASTALL(vif1InternalIrq(), true);
+			cpuRegs.dmastall |= 1 << vif1InternalIrq();
 			return 0;
 		}
 
@@ -239,7 +239,7 @@ vifOp(vifCode_FlushA)
 
 		if (vif1.waitforvu || vif1Regs.stat.VGW)
 		{
-			CPU_SET_DMASTALL(vif1InternalIrq(), true);
+			cpuRegs.dmastall |= 1 << vif1InternalIrq();
 			return 0;
 		}
 
@@ -259,7 +259,7 @@ vifOp(vifCode_FlushE)
 
 		if (vifX.waitforvu)
 		{
-			CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
+			cpuRegs.dmastall |= 1 << (idx ? vif1InternalIrq() : DMAC_VIF0);
 			return 0;
 		}
 
@@ -362,7 +362,7 @@ vifOp(vifCode_MPG)
 
 		if (vifX.waitforvu)
 		{
-			CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
+			cpuRegs.dmastall |= 1 << (idx ? vif1InternalIrq() : DMAC_VIF0);
 			return 0;
 		}
 		else
@@ -401,7 +401,7 @@ vifOp(vifCode_MSCAL)
 
 		if (vifX.waitforvu)
 		{
-			CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
+			cpuRegs.dmastall |= 1 << (idx ? vif1InternalIrq() : DMAC_VIF0);
 			return 0;
 		}
 
@@ -438,7 +438,7 @@ vifOp(vifCode_MSCALF)
 
 		if (vifX.waitforvu || vif1Regs.stat.VGW)
 		{
-			CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
+			cpuRegs.dmastall |= 1 << (idx ? vif1InternalIrq() : DMAC_VIF0);
 			return 0;
 		}
 
@@ -459,7 +459,7 @@ vifOp(vifCode_MSCNT)
 
 		if (vifX.waitforvu)
 		{
-			CPU_SET_DMASTALL(idx ? vif1InternalIrq() : DMAC_VIF0, true);
+			cpuRegs.dmastall |= 1 << (idx ? vif1InternalIrq() : DMAC_VIF0);
 			return 0;
 		}
 

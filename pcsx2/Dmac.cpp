@@ -161,17 +161,20 @@ static __ri void DmaExec( void (*func)(), u32 mem, u32 value )
 
 			if(channel == 1)
 			{
-				cpuClearInt( 10 );
-				QueuedDMA._u16 &= ~(1 << 10); //Clear any queued DMA requests for this channel
+				cpuRegs.interrupt &= ~(1 << 10);
+				cpuRegs.dmastall  &= ~(1 << 10);
+				QueuedDMA._u16    &= ~(1 << 10); //Clear any queued DMA requests for this channel
 			}
 			else if(channel == 2)
 			{
-				cpuClearInt( 11 );
-				QueuedDMA._u16 &= ~(1 << 11); //Clear any queued DMA requests for this channel
+				cpuRegs.interrupt &= ~(1 << 11);
+				cpuRegs.dmastall  &= ~(1 << 11);
+				QueuedDMA._u16    &= ~(1 << 11); //Clear any queued DMA requests for this channel
 			}
 
-			cpuClearInt( channel );
-			QueuedDMA._u16 &= ~(1 << channel); //Clear any queued DMA requests for this channel
+			cpuRegs.interrupt &= ~(1 << channel);
+			cpuRegs.dmastall  &= ~(1 << channel);
+			QueuedDMA._u16    &= ~(1 << channel); //Clear any queued DMA requests for this channel
 		}
 		return;
 	}
