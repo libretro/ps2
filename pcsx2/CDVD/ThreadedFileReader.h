@@ -94,13 +94,6 @@ private:
 	/// View while holding `m_mtx`.  If false, you may touch decompression functions from other threads
 	bool m_running = false;
 
-	/// Get the internal block size
-	u32 InternalBlockSize() const { return m_internalBlockSize ? m_internalBlockSize : m_blocksize; }
-	/// memcpy from internal to external blocks
-	/// `size` is in internal block bytes
-	/// Returns the number of external block bytes copied
-	size_t CopyBlocks(void* dst, const void* src, size_t size) const;
-
 	/// Main loop of read thread
 	void Loop();
 
@@ -117,9 +110,6 @@ private:
 
 public:
 	virtual ~ThreadedFileReader();
-
-	const std::string& GetFilename() const { return m_filename; }
-	u32 GetBlockSize() const { return m_blocksize; }
 
 	virtual u32 GetBlockCount() const = 0;
 

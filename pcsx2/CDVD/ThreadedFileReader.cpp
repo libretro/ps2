@@ -40,31 +40,11 @@ ThreadedFileReader::~ThreadedFileReader()
 			free(buffer.ptr);
 }
 
-size_t ThreadedFileReader::CopyBlocks(void* dst, const void* src, size_t size) const
-{
-	char* cdst = static_cast<char*>(dst);
-	const char* csrc = static_cast<const char*>(src);
-	const char* cend = csrc + size;
-	if (m_internalBlockSize)
-	{
-		for (; csrc < cend; csrc += m_internalBlockSize, cdst += m_blocksize)
-		{
-			memcpy(cdst, csrc, m_blocksize);
-		}
-		return cdst - static_cast<char*>(dst);
-	}
-	else
-	{
-		memcpy(dst, src, size);
-		return size;
-	}
-}
-
 void ThreadedFileReader::Loop()
 {
 	std::unique_lock<std::mutex> lock(m_mtx);
 
-	while (true)
+	for (;;)
 	{
 		while (!m_requestSize && !m_quit)
 			m_condition.wait(lock);
@@ -80,13 +60,13 @@ void ThreadedFileReader::Loop()
 
 		for (;;)
 		{
-			void* ptr = m_requestPtr.load(std::memory_order_acquire);
+			void* ptr     = m_requestPtr.load(std::memory_order_acquire);
 			requestOffset = m_requestOffset;
-			requestSize = m_requestSize;
+			requestSize   = m_requestSize;
 			lock.unlock();
 
 			if (ptr)
-				ok = Decompress(ptr, requestOffset, requestSize);
+				ok    = Decompress(ptr, requestOffset, requestSize);
 
 			// There's a potential for a race here when doing synchronous reads. Basically, another request can come in,
 			// after we release the lock, but before we store null to indicate we're finished. So, we do a compare-exchange
@@ -135,11 +115,9 @@ void ThreadedFileReader::Loop()
 		}
 
 		lock.lock();
+		// If no one's added more work, mark this one as done
 		if (requestSize == m_requestSize && requestOffset == m_requestOffset && !m_requestPtr)
-		{
-			// If no one's added more work, mark this one as done
 			m_requestSize = 0;
-		}
 
 		m_running = false;
 		m_condition.notify_one(); // For things waiting on m_running == false
@@ -188,37 +166,67 @@ ThreadedFileReader::Buffer* ThreadedFileReader::GetBlockPtr(const Chunk& block)
 
 bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 {
-	char* write = static_cast<char*>(target);
+	char* write   = static_cast<char*>(target);
 	u32 remaining = size;
-	u64 off = begin;
-	while (remaining)
+	u64 off       = begin;
+	if (m_internalBlockSize)
 	{
-		if (m_requestCancelled.load(std::memory_order_relaxed))
-			return false;
-
-		Chunk chunk = ChunkForOffset(off);
-		if (m_internalBlockSize || chunk.offset != off || chunk.length > remaining)
+		while (remaining)
 		{
+			if (m_requestCancelled.load(std::memory_order_relaxed))
+				return false;
+
+			Chunk chunk = ChunkForOffset(off);
 			Buffer* buf = GetBlockPtr(chunk);
 			if (!buf)
 				return false;
-			u32 bufoff = off - buf->offset;
+			u32 bufoff  = off - buf->offset;
 			u32 bufsize = buf->size.load(std::memory_order_relaxed);
 			if (bufsize <= bufoff)
 				return false;
-			u32 len = std::min(bufsize - bufoff, remaining);
-			write += CopyBlocks(write, static_cast<char*>(buf->ptr) + bufoff, len);
-			remaining -= len;
-			off += len;
+			u32 len     = std::min(bufsize - bufoff, remaining);
+			char* cdst       = static_cast<char*>(write);
+			const char* csrc = static_cast<const char*>(static_cast<char*>(buf->ptr) + bufoff);
+			const char* cend = csrc + len;
+			for (; csrc < cend; csrc += m_internalBlockSize, cdst += m_blocksize)
+				memcpy(cdst, csrc, m_blocksize);
+			write      += cdst - static_cast<char*>(write);
+			remaining  -= len;
+			off        += len;
 		}
-		else
+	}
+	else
+	{
+		while (remaining)
 		{
-			int amt = ReadChunk(write, chunk.chunkID);
-			if (amt < static_cast<int>(chunk.length))
+			if (m_requestCancelled.load(std::memory_order_relaxed))
 				return false;
-			write += chunk.length;
-			remaining -= chunk.length;
-			off += chunk.length;
+
+			Chunk chunk = ChunkForOffset(off);
+			if (chunk.offset != off || chunk.length > remaining)
+			{
+				Buffer* buf = GetBlockPtr(chunk);
+				if (!buf)
+					return false;
+				u32 bufoff  = off - buf->offset;
+				u32 bufsize = buf->size.load(std::memory_order_relaxed);
+				if (bufsize <= bufoff)
+					return false;
+				u32 len     = std::min(bufsize - bufoff, remaining);
+				memcpy(write, static_cast<char*>(buf->ptr) + bufoff, len);
+				write      += len;
+				remaining  -= len;
+				off        += len;
+			}
+			else
+			{
+				int amt    = ReadChunk(write, chunk.chunkID);
+				if (amt < static_cast<int>(chunk.length))
+					return false;
+				write     += chunk.length;
+				remaining -= chunk.length;
+				off       += chunk.length;
+			}
 		}
 	}
 	m_amtRead += write - static_cast<char*>(target);
@@ -228,30 +236,66 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, const std::lock_guard<std::mutex>&)
 {
 	// Run through twice so that if m_buffer[1] contains the first half and m_buffer[0] contains the second half it still works
-	m_amtRead = 0;
-	u64 end = 0;
+	m_amtRead    = 0;
+	u64 end      = 0;
 	bool allDone = false;
-	for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
+	if (m_internalBlockSize)
 	{
-		Buffer& buf = m_buffer[i % std::size(m_buffer)];
-		u32 bufsize = buf.size.load(std::memory_order_acquire);
-		if (!bufsize)
-			continue;
-		if (buf.offset <= offset && buf.offset + bufsize > offset)
+		for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
 		{
-			u32 off = offset - buf.offset;
-			u32 cpysize = std::min(size, bufsize - off);
-			size_t read = CopyBlocks(buffer, static_cast<char*>(buf.ptr) + off, cpysize);
-			m_amtRead += read;
-			size -= cpysize;
-			offset += cpysize;
-			buffer = static_cast<char*>(buffer) + read;
-			if (size == 0)
-				end = buf.offset + bufsize;
+			Buffer& buf = m_buffer[i % std::size(m_buffer)];
+			u32 bufsize = buf.size.load(std::memory_order_acquire);
+			if (!bufsize)
+				continue;
+			if (buf.offset <= offset && buf.offset + bufsize > offset)
+			{
+				size_t read;
+				u32 off          = offset - buf.offset;
+				u32 cpysize      = std::min(size, bufsize - off);
+				char* cdst       = static_cast<char*>(buffer);
+				const char* csrc = static_cast<const char*>(static_cast<char*>(buf.ptr) + off);
+				const char* cend = csrc + cpysize;
+				for (; csrc < cend; csrc += m_internalBlockSize, cdst += m_blocksize)
+					memcpy(cdst, csrc, m_blocksize);
+				read = cdst - static_cast<char*>(buffer);
+				m_amtRead   += read;
+				size        -= cpysize;
+				offset      += cpysize;
+				buffer       = static_cast<char*>(buffer) + read;
+				if (size == 0)
+					end  = buf.offset + bufsize;
+			}
+			// Do buffers contain the current and next block?
+			if (end > 0 && buf.offset == end)
+				allDone = true;
 		}
-		// Do buffers contain the current and next block?
-		if (end > 0 && buf.offset == end)
-			allDone = true;
+	}
+	else
+	{
+		for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
+		{
+			Buffer& buf = m_buffer[i % std::size(m_buffer)];
+			u32 bufsize = buf.size.load(std::memory_order_acquire);
+			if (!bufsize)
+				continue;
+			if (buf.offset <= offset && buf.offset + bufsize > offset)
+			{
+				size_t read;
+				u32 off      = offset - buf.offset;
+				u32 cpysize  = std::min(size, bufsize - off);
+				memcpy(buffer, static_cast<char*>(buf.ptr) + off, cpysize);
+				read         = cpysize;
+				m_amtRead   += read;
+				size        -= cpysize;
+				offset      += cpysize;
+				buffer       = static_cast<char*>(buffer) + read;
+				if (size == 0)
+					end  = buf.offset + bufsize;
+			}
+			// Do buffers contain the current and next block?
+			if (end > 0 && buf.offset == end)
+				allDone = true;
+		}
 	}
 	return allDone;
 }
@@ -264,9 +308,9 @@ bool ThreadedFileReader::Open(std::string filename)
 
 int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
 {
-	u32 blocksize = InternalBlockSize();
-	u64 offset = (u64)sector * (u64)blocksize + m_dataoffset;
-	u32 size = count * blocksize;
+	u32 blocksize = m_internalBlockSize ? m_internalBlockSize : m_blocksize;
+	u64 offset    = (u64)sector * (u64)blocksize + m_dataoffset;
+	u32 size      = count * blocksize;
 	{
 		std::lock_guard<std::mutex> l(m_mtx);
 		if (TryCachedRead(pBuffer, offset, size, l))
@@ -318,9 +362,9 @@ void ThreadedFileReader::CancelAndWaitUntilStopped(void)
 
 void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
 {
-	s32 blocksize = InternalBlockSize();
-	u64 offset = (u64)sector * (u64)blocksize + m_dataoffset;
-	u32 size = count * blocksize;
+	s32 blocksize = m_internalBlockSize ? m_internalBlockSize : m_blocksize;
+	u64 offset    = (u64)sector * (u64)blocksize + m_dataoffset;
+	u32 size      = count * blocksize;
 	{
 		std::lock_guard<std::mutex> l(m_mtx);
 		if (TryCachedRead(pBuffer, offset, size, l))

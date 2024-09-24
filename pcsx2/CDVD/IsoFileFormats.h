@@ -66,11 +66,6 @@ public:
 	uint GetBlockCount() const { return m_blocks; }
 	int GetBlockOffset() const { return m_blockofs; }
 
-	const std::string& GetFilename() const
-	{
-		return m_filename;
-	}
-
 	bool Open(std::string srcfile);
 	void Close();
 	bool Detect(void);
