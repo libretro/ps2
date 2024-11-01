@@ -10,7 +10,6 @@
     GIT_SUBMODULE_STRATEGY: recursive
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
-    EXTRA_PATH: libretro
 
 # Inclusion templates, required for the build to work
 include:
@@ -52,12 +51,16 @@ libretro-build-linux-x64:
   extends:
     - .libretro-linux-cmake-x86_64
     - .core-defs
+  variables:
+    EXTRA_PATH: bin
 
 # MacOS 64-bit
 libretro-build-osx-x64:
   extends:
     - .libretro-osx-cmake-x86
     - .core-defs
+  variables:
+    EXTRA_PATH: libretro
 
 # MacOS arm64
 #libretro-build-osx-arm64:
