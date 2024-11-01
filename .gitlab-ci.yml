@@ -11,6 +11,9 @@
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
 
+before_script:
+  - git config --system core.longpaths true
+
 # Inclusion templates, required for the build to work
 include:
   ################################## DESKTOPS ################################
