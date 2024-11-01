@@ -255,8 +255,6 @@ __fi void mVUsetFlags(mV, microFlagCycles& mFC)
 // Recompiles Code for Proper Flags on Block Linkings
 __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 {
-	const bool pf = false; // Print Flag Info
-
 	if (doSFlagInsts && __Status)
 	{
 		int bStatus[4];

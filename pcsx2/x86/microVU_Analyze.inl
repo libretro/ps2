@@ -567,7 +567,6 @@ __ri int mVUbranchCheck(mV)
 
 	if (mVUlow.branch)
 	{
-		u32 branchType = mVUlow.branch;
 		if (doBranchInDelaySlot)
 		{
 			mVUlow.badBranch = true;

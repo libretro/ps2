@@ -1112,8 +1112,6 @@ static VkAttachmentLoadOp GetLoadOpForTexture(GSTextureVK* tex)
 	// clang-format on
 }
 
-static constexpr VkClearValue s_present_clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-
 GSDeviceVK::GSDeviceVK()
 {
 	memset(&m_pipeline_selector, 0, sizeof(m_pipeline_selector));

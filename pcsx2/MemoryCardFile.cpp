@@ -464,7 +464,7 @@ s32 FileMemoryCard::Save(uint slot, const u8* src, u32 adr, int size)
 		if (static_cast<int>(m_currentdata.size()) < size)
 			m_currentdata.resize(size);
 
-		const size_t read_result = rfread(m_currentdata.data(), size, 1, mcfp);
+		rfread(m_currentdata.data(), size, 1, mcfp);
 
 		for (int i = 0; i < size; i++)
 			m_currentdata[i] &= src[i];

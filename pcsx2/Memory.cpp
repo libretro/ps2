@@ -91,7 +91,6 @@ SysMainMemory::SysMainMemory()
 	, m_bumpAllocator(m_mainMemory, HostMemoryMap::bumpAllocatorOffset, HostMemoryMap::MainSize - HostMemoryMap::bumpAllocatorOffset)
 {
 	uptr main_base = (uptr)MainMemory()->GetBase();
-	uptr code_base = (uptr)MainMemory()->GetBase();
 	HostMemoryMap::EEmem = main_base + HostMemoryMap::EEmemOffset;
 	HostMemoryMap::IOPmem = main_base + HostMemoryMap::IOPmemOffset;
 	HostMemoryMap::VUmem = main_base + HostMemoryMap::VUmemOffset;

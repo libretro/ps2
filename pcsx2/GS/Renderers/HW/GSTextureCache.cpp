@@ -6172,10 +6172,6 @@ GSTextureCache::SurfaceOffset GSTextureCache::ComputeSurfaceOffset(const Surface
 
 	so.b2a_offset = b2a_offset;
 
-	const GSVector4i& r1 = so.b2a_offset;
-	const GSVector4i& r2 = b_rect;
-	const GSVector4i ri = r1.rintersect(r2);
-
 	// Clear cache if size too big.
 	if (m_surface_offset_cache.size() + 1 > S_SURFACE_OFFSET_CACHE_MAX_SIZE)
 		m_surface_offset_cache.clear();

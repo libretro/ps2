@@ -54,7 +54,6 @@ enum patch_data_type {
 static u32 SkipCount          = 0;
 static u32 IterationCount     = 0;
 static u32 IterationIncrement = 0;
-static u32 ValueIncrement     = 0;
 static u32 PrevCheatType      = 0;
 static u32 PrevCheatAddr      = 0;
 static u32 LastType           = 0;

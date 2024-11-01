@@ -1230,7 +1230,6 @@ void VMManager::SetEmuThreadAffinities()
 	const u8* this_proc_assigment = processor_assignment[EmuConfig.Cpu.AffinityControlMode][EmuConfig.Speedhacks.vuThread];
 	const u32 ee_index = s_processor_list[this_proc_assigment[0]];
 	const u32 vu_index = s_processor_list[this_proc_assigment[1]];
-	const u32 gs_index = s_processor_list[this_proc_assigment[2]];
 	Console.WriteLn("Processor order assignment: EE=%u, VU=%u, GS=%u",
 		this_proc_assigment[0], this_proc_assigment[1], this_proc_assigment[2]);
 

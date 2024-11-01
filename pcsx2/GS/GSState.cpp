@@ -2116,8 +2116,6 @@ void GSState::ReadbackTextureCache()
 
 void GSState::Transfer(const u8* mem, u32 size)
 {
-	const u8* start = mem;
-
 	GIFPath& path = m_path[3];
 
 	while (size > 0)

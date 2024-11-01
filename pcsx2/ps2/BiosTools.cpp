@@ -29,7 +29,6 @@
 
 static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
 static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;
-static constexpr u32 DIRENTRY_SIZE = 16;
 
 // --------------------------------------------------------------------------------------
 // romdir structure (packing required!)

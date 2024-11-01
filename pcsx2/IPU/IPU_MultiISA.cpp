@@ -1286,7 +1286,6 @@ __fi static bool mpeg2_slice(void)
 
 				// Copy macroblock8 to macroblock16 - without sign extension.
 				{
-					uint i;
 					const u8	*s = (const u8*)&mb8;
 					u16		*d = (u16*)&mb16;
 					//Y  bias	- 16 * 16

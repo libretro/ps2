@@ -65,7 +65,6 @@ void vu1ExecMicro(u32 addr)
 		vu1Thread.ExecuteVU(addr, vif1Regs.top, vif1Regs.itop, vuRegs[0].VI[REG_FBRST].UL);
 		return;
 	}
-	static int count = 0;
 	vu1Finish(false);
 
 	vuRegs[1].cycle = cpuRegs.cycle;

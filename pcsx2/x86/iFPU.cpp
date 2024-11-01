@@ -1065,11 +1065,8 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	_freeXMMreg(t1reg);
 }
 
-alignas(16) static FPControlRegister roundmode_nearest, roundmode_neg;
-
 void recDIV_S_xmm(int info)
 {
-	bool roundmodeFlag = false;
 	int t0reg = _allocTempXMMreg(XMMT_FPS);
 
 	if (EmuConfig.Cpu.FPUFPCR.bitmask != EmuConfig.Cpu.FPUDivFPCR.bitmask)
@@ -1674,6 +1671,7 @@ FPURECOMPILE_CONSTCODE(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 void recSQRT_S_xmm(int info)
 {
 	bool roundmodeFlag = false;
+	alignas(16) static FPControlRegister roundmode_nearest;
 
 	if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::Nearest)
 	{

@@ -824,9 +824,6 @@ void SYSCALL(void)
 			//Useful for fetching information of interlace/video/field display parameters of the Graphics Synthesizer
 
 			gsIsInterlaced = cpuRegs.GPR.n.a0.UL[0] & 1;
-			bool gsIsFrameMode = cpuRegs.GPR.n.a2.UL[0] & 1;
-			const char* inter = (gsIsInterlaced) ? "Interlaced" : "Progressive";
-			const char* field = (gsIsFrameMode) ? "FRAME" : "FIELD";
 			// Warning info might be incorrect!
 			switch (cpuRegs.GPR.n.a1.UC[0])
 			{

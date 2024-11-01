@@ -3746,7 +3746,6 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 		blend_ad_alpha_masked = false;
 
 	const u8 blend_index = static_cast<u8>(((m_conf.ps.blend_a * 3 + m_conf.ps.blend_b) * 3 + m_conf.ps.blend_c) * 3 + m_conf.ps.blend_d);
-	const HWBlend blend_preliminary = GSDevice::GetBlend(blend_index);
 	HWBlend blend = GSDevice::GetBlend(blend_index);
 	const int blend_flag = blend.flags;
 

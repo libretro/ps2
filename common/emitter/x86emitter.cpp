@@ -890,8 +890,6 @@ const xRegister32
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//
 
-	alignas(16) static u64 xmm_data[iREGCNT_XMM * 2];
-
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{
 		if ((sptr)base == (s32)(sptr)base)

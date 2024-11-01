@@ -193,28 +193,10 @@ void ElfObject::LoadSectionHeaders()
 	if (!secthead || header.e_shoff > data.size())
 		return;
 
-	const u32 section_names_offset = secthead[(header.e_shstrndx == 0xffff ? 0 : header.e_shstrndx)].sh_offset;
-	const u8* sections_names = data.data() + section_names_offset;
-
 	int i_st = -1, i_dt = -1;
 
 	for( int i = 0 ; i < header.e_shnum ; i++ )
 	{
-		const char* sectype = NULL;
-		switch(secthead[ i ].sh_type)
-		{
-			case 0x0: sectype = "null";		break;
-			case 0x1: sectype = "progbits";	break;
-			case 0x2: sectype = "symtab";	break;
-			case 0x3: sectype = "strtab";	break;
-			case 0x4: sectype = "rela";		break;
-			case 0x8: sectype = "no bits";	break;
-			case 0x9: sectype = "rel";		break;
-
-			default:
-			break;
-		}
-
 		// dump symbol table
 
 		if (secthead[ i ].sh_type == 0x02)

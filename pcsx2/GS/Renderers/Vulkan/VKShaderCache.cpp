@@ -342,7 +342,6 @@ bool VKShaderCache::ReadExistingShaderCache(const std::string& index_filename, c
 	}
 
 	u32 file_version = 0;
-	u32 data_version = 0;
 	if (rfread(&file_version, sizeof(file_version), 1, m_index_file) != 1 || file_version != SHADER_CACHE_VERSION)
 	{
 		Console.Error("Bad file/data version in '%s'", index_filename.c_str());
