@@ -10,6 +10,7 @@
     GIT_SUBMODULE_STRATEGY: recursive
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
+    EXTRA_PATH: libretro
 
 # Inclusion templates, required for the build to work
 include:
