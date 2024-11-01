@@ -24,8 +24,8 @@ include:
     file: 'osx-cmake-x86.yml'
 
   # MacOS arm64
-  - project: 'libretro-infrastructure/ci-templates'
-    file: 'osx-cmake-arm64.yml'
+#  - project: 'libretro-infrastructure/ci-templates'
+#    file: 'osx-cmake-arm64.yml'
 
   # Linux
   - project: 'libretro-infrastructure/ci-templates'
@@ -60,7 +60,7 @@ libretro-build-osx-x64:
     - .core-defs
 
 # MacOS arm64
-libretro-build-osx-arm64:
-  extends:
-    - .libretro-osx-cmake-arm64
-    - .core-defs
+#libretro-build-osx-arm64:
+#  extends:
+#    - .libretro-osx-cmake-arm64
+#    - .core-defs
