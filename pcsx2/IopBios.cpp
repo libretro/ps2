@@ -1045,9 +1045,8 @@ namespace R3000A
 			return 0;
 
 		std::string libname = iopMemReadString(import_table + 12, 8);
-		const char* funcname = irxImportFuncname(libname, index);
-		irxHLE hle = irxImportHLE(libname, index);
-		irxDEBUG debug = irxImportDebug(libname, index);
+		irxHLE hle          = irxImportHLE(libname, index);
+		irxDEBUG debug      = irxImportDebug(libname, index);
 
 		if (debug)
 			debug();

@@ -502,21 +502,13 @@ static void analyzeBranchVI(mV, int xReg, bool& infoVar)
 	{
 		if (i == (int)mVUcount)
 		{
-			bool warn = false;
-
-			if (i == 1)
-				warn = true;
-
 			if (mVUpBlock->pState.viBackUp == xReg)
 			{
-				if (i == 0)
-					warn = true;
-
 				infoVar = true;
 				j = i;
 				i++;
 			}
-			break; // if (warn), we don't have enough information to always guarantee the correct result.
+			break;
 		}
 		if ((mVUlow.VI_write.reg == xReg) && mVUlow.VI_write.used)
 		{
