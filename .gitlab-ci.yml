@@ -10,7 +10,7 @@
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
 
-before_script:
+.submodules:
   - git submodule update --init --recursive 3rdparty
   - git submodule update --init pcsx2/GS/parallel-gs
   - cd pcsx2/GS/parallel-gs
@@ -44,6 +44,7 @@ include:
 # Stages for building
 stages:
   - build-prepare
+  - .submodules
   - build-shared
 
 ##############################################################################
