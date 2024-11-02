@@ -4,12 +4,15 @@
 ################################# BOILERPLATE ################################
 ##############################################################################
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_DEPTH: 3
+
 # Core definitions
 .core-defs:
   variables:
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
-    GIT_SUBMODULE_STRATEGY: recursive
 
 # checkout-submodules:
 #   image: bitnami/git:latest
@@ -64,8 +67,6 @@ libretro-build-windows-x64:
   extends:
     - .libretro-windows-msvc19-cmake-x86_64
     - .core-defs
-  variables:
-    GIT_SUBMODULE_DEPTH: 3
 
 # Linux 64-bit
 libretro-build-linux-x64:
