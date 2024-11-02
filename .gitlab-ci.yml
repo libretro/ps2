@@ -68,7 +68,7 @@ libretro-build-windows-x64:
     - .libretro-windows-msvc19-cmake-x86_64
     - .core-defs
   variables:
-    GIT_SUBMODULE_PATHS: normal
+    GIT_SUBMODULE_STRATEGY: normal
 
 # Linux 64-bit
 libretro-build-linux-x64:
