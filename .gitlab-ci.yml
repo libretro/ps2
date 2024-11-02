@@ -53,7 +53,7 @@ libretro-prepare-windows-x64:
     - |
       cd "$Env:CI_PROJECT_DIR"
       git submodule update --init --recursive 3rdparty
-      git submodule update --init pcsx2/GC/parallel-gs
+      git submodule update --init pcsx2/GS/parallel-gs
       cd pcsx2/GS/parallel-gs
       git submodule sync Granite
       git submodule update --init Granite
@@ -69,6 +69,7 @@ libretro-build-windows-x64:
     - .core-defs
   variables:
     GIT_SUBMODULE_STRATEGY: normal
+    CORE_ARGS: -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
 
 # Linux 64-bit
 libretro-build-linux-x64:
