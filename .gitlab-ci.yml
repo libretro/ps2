@@ -11,6 +11,7 @@
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
 
 .submodules:
+  - echo "Checking out submodules manually."
   - git submodule update --init --recursive 3rdparty
   - git submodule update --init pcsx2/GS/parallel-gs
   - cd pcsx2/GS/parallel-gs
@@ -21,6 +22,7 @@
   - git submodule update --init third_party/volk
   - git submodule sync third_party/khronos/vulkan-headers
   - git submodule update --init third_party/khronos/vulkan-headers
+  - echo "Checked out submodules manually."
 
 # Inclusion templates, required for the build to work
 include:
