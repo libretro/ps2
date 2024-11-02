@@ -11,8 +11,9 @@
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
 
 checkout-submodules:
-  stage: build-shared
-  before_script:
+  image: bitnami/git:latest
+  stage: build-prepare
+  script:
     - cd $CI_PROJECT_DIR
     - echo "Checking out submodules manually."
     - git submodule update --init --recursive 3rdparty
@@ -27,8 +28,6 @@ checkout-submodules:
     - git submodule update --init third_party/khronos/vulkan-headers
     - cd $CI_PROJECT_DIR
     - echo "Checked out submodules manually."
-  script:
-    - echo "..."
 
 # Inclusion templates, required for the build to work
 include:
