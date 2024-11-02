@@ -13,6 +13,7 @@
 checkout-submodules:
   stage: build-shared
   before_script:
+    - cd $CI_PROJECT_DIR
     - echo "Checking out submodules manually."
     - git submodule update --init --recursive 3rdparty
     - git submodule update --init pcsx2/GS/parallel-gs
@@ -24,7 +25,10 @@ checkout-submodules:
     - git submodule update --init third_party/volk
     - git submodule sync third_party/khronos/vulkan-headers
     - git submodule update --init third_party/khronos/vulkan-headers
+    - cd $CI_PROJECT_DIR
     - echo "Checked out submodules manually."
+  script:
+    - echo "..."
 
 # Inclusion templates, required for the build to work
 include:
