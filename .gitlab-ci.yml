@@ -9,25 +9,26 @@
   variables:
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
+    GIT_SUBMODULE_STRATEGY: recursive
 
-checkout-submodules:
-  image: bitnami/git:latest
-  stage: build-prepare
-  script:
-    - cd $CI_PROJECT_DIR
-    - echo "Checking out submodules manually."
-    - git submodule update --init --recursive 3rdparty
-    - git submodule update --init pcsx2/GS/parallel-gs
-    - cd pcsx2/GS/parallel-gs
-    - git submodule sync Granite
-    - git submodule update --init Granite
-    - cd Granite
-    - git submodule sync third_party/volk
-    - git submodule update --init third_party/volk
-    - git submodule sync third_party/khronos/vulkan-headers
-    - git submodule update --init third_party/khronos/vulkan-headers
-    - cd $CI_PROJECT_DIR
-    - echo "Checked out submodules manually."
+# checkout-submodules:
+#   image: bitnami/git:latest
+#   stage: build-prepare
+#   script:
+#     - cd $CI_PROJECT_DIR
+#     - echo "Checking out submodules manually."
+#     - git submodule update --init --recursive 3rdparty
+#     - git submodule update --init pcsx2/GS/parallel-gs
+#     - cd pcsx2/GS/parallel-gs
+#     - git submodule sync Granite
+#     - git submodule update --init Granite
+#     - cd Granite
+#     - git submodule sync third_party/volk
+#     - git submodule update --init third_party/volk
+#     - git submodule sync third_party/khronos/vulkan-headers
+#     - git submodule update --init third_party/khronos/vulkan-headers
+#     - cd $CI_PROJECT_DIR
+#     - echo "Checked out submodules manually."
 
 # Inclusion templates, required for the build to work
 include:
@@ -63,6 +64,8 @@ libretro-build-windows-x64:
   extends:
     - .libretro-windows-msvc19-cmake-x86_64
     - .core-defs
+  variables:
+    GIT_SUBMODULE_DEPTH: 3
 
 # Linux 64-bit
 libretro-build-linux-x64:
