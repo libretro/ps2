@@ -7,11 +7,11 @@
 # Core definitions
 .core-defs:
   variables:
+    GIT_SUBMODULE_STRATEGY: recursive
     CORENAME: pcsx2
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
 
 before_script:
-  - git submodule update --init --recursive 3rdparty
   - cd pcsx2/GS/parallel-gs
   - git submodule sync Granite
   - git submodule update --init Granite
