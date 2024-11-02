@@ -11,8 +11,8 @@
     CORE_ARGS: -DCMAKE_BUILD_TYPE=Release
 
 checkout-submodules:
-  stage: build-prepare
-  script:
+  stage: build-shared
+  before_script:
     - echo "Checking out submodules manually."
     - git submodule update --init --recursive 3rdparty
     - git submodule update --init pcsx2/GS/parallel-gs
