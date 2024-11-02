@@ -52,6 +52,7 @@ libretro-prepare-windows-x64:
   script:
     - |
       cd "$Env:CI_PROJECT_DIR"
+      git submodule update --init --recursive 3rdparty
       git submodule update --init pcsx2/GC/parallel-gs
       cd pcsx2/GS/parallel-gs
       git submodule sync Granite
@@ -67,7 +68,7 @@ libretro-build-windows-x64:
     - .libretro-windows-msvc19-cmake-x86_64
     - .core-defs
   variables:
-    GIT_SUBMODULE_PATHS: 3rdparty # this ignores parallel-gs, which we updated above
+    GIT_SUBMODULE_PATHS: normal
 
 # Linux 64-bit
 libretro-build-linux-x64:
