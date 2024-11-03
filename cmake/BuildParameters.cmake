@@ -12,7 +12,7 @@ optional_system_library(fmt)
 optional_system_library(ryml)
 optional_system_library(zstd)
 optional_system_library(libzip)
-set(CMAKE_MSVC_RUNTIME_LIBRARY "")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
 #-------------------------------------------------------------------------------
 # Graphical option
