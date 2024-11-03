@@ -69,7 +69,7 @@ libretro-build-windows-x64:
     - .core-defs
   variables:
     GIT_SUBMODULE_STRATEGY: normal
-    CORE_ARGS: -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
+    EXTRA_PATH: libretro/Release
 
 # Linux 64-bit
 libretro-build-linux-x64:
