@@ -88,7 +88,7 @@ libretro-build-osx-x64:
     - .core-defs
   variables:
     EXTRA_PATH: libretro
-    CORE_ARGS: -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DARCH_FLAG=-march=x86-64\ -msse4.1
+    CORE_ARGS: -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DARCH_FLAG=-march=x86-64\\\ -msse4.1
 
 # MacOS arm64
 #libretro-build-osx-arm64:
