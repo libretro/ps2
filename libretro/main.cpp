@@ -292,6 +292,7 @@ namespace Options
 	extern GfxOption<int> upscale_multiplier;
 	extern GfxOption<std::string> renderer;
 	extern GfxOption<int> pgs_super_sampling;
+	extern GfxOption<int> pgs_high_res_scanout;
 
 	static Option<std::string> bios("pcsx2_bios", "Bios"); // will be filled in retro_init()
 	static Option<bool> fast_boot("pcsx2_fastboot", "Fast Boot", true);
@@ -311,12 +312,17 @@ namespace Options
 			"Software",
 			"Null"});
 
-	GfxOption<int> pgs_super_sampling("pcsx2_pgs_ssaa", "paraLLEl super sampling", {
+	GfxOption<int> pgs_super_sampling("pcsx2_pgs_ssaa", "paraLLEl super sampling (Restart)", {
 		{ "Native", 0 },
 		{ "2x SSAA", 1 },
 		{ "4x SSAA", 2 },
 		{ "8x SSAA", 3 },
 		{ "16x SSAA", 4 },
+	});
+
+	GfxOption<int> pgs_high_res_scanout("pcsx2_pgs_high_res_scanout", "paraLLEl High-res scanout (Restart)", {
+		{ "Disabled", 0 },
+		{ "Enabled", 1 },
 	});
 
 	GfxOption<int> upscale_multiplier("pcsx2_upscale_multiplier", "Internal Resolution",
@@ -561,10 +567,13 @@ static void libretro_context_reset(void)
 {
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", Options::pgs_super_sampling);
-	GSConfig.UpscaleMultiplier = Options::upscale_multiplier;
-	GSConfig.PGSSuperSampling = Options::pgs_super_sampling;
+	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsHighResScanout", Options::pgs_high_res_scanout);
+	GSConfig.UpscaleMultiplier     = Options::upscale_multiplier;
+	GSConfig.PGSSuperSampling      = Options::pgs_super_sampling;
+	GSConfig.PGSHighResScanout     = Options::pgs_high_res_scanout;
 	EmuConfig.GS.UpscaleMultiplier = Options::upscale_multiplier;
-	EmuConfig.GS.PGSSuperSampling = Options::pgs_super_sampling;
+	EmuConfig.GS.PGSSuperSampling  = Options::pgs_super_sampling;
+	EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -1148,6 +1157,13 @@ void retro_run(void)
 	if (Options::pgs_super_sampling.Updated())
 	{
 		EmuConfig.GS.PGSSuperSampling = Options::pgs_super_sampling;
+		// FIXME: This seems to hang sometimes.
+		//VMManager::ApplySettings();
+	}
+
+	if (Options::pgs_high_res_scanout.Updated())
+	{
+		EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
 		// FIXME: This seems to hang sometimes.
 		//VMManager::ApplySettings();
 	}

@@ -189,6 +189,28 @@ GSRendererPGS::~GSRendererPGS()
 	last_vsync_image.reset();
 }
 
+struct ParsedSuperSampling
+{
+	SuperSampling super_sampling;
+	bool ordered;
+};
+
+static ParsedSuperSampling parse_super_sampling_options(u8 super_sampling)
+{
+	ParsedSuperSampling parsed = {};
+
+	if (super_sampling > 5)
+		super_sampling = 5;
+
+	parsed.ordered = super_sampling == 3;
+
+	if (super_sampling >= 3)
+		super_sampling--;
+	parsed.super_sampling = SuperSampling(1u << super_sampling);
+
+	return parsed;
+}
+
 bool GSRendererPGS::Init()
 {
 	if (!vulkan_ctx)
@@ -209,15 +231,17 @@ bool GSRendererPGS::Init()
 	GSOptions opts = {};
 	opts.vram_size = GSLocalMemory::m_vmsize;
 
-	u8 super_sampling = GSConfig.PGSSuperSampling;
+	u8 super_sampling              = GSConfig.PGSSuperSampling;
 	if (super_sampling > 4)
-		super_sampling = 4;
-	opts.super_sampling = SuperSampling(1u << super_sampling);
-	opts.dynamic_super_sampling = true;
+		super_sampling         = 4;
+	auto parsed                    = parse_super_sampling_options(GSConfig.PGSSuperSampling); 
+	opts.super_sampling            = parsed.super_sampling;
+	opts.dynamic_super_sampling    = true;
 	if (!iface.init(&dev, opts))
 		return false;
 
-	current_super_sampling = opts.super_sampling;
+	current_super_sampling         = opts.super_sampling;
+	current_ordered_super_sampling = opts.ordered_super_sampling;
 
 	return true;
 }
@@ -233,11 +257,14 @@ void GSRendererPGS::UpdateConfig()
 	if (super_sampling > 4)
 		super_sampling = 4;
 	auto new_super_sampling = SuperSampling(1u << super_sampling);
+	auto parsed             = parse_super_sampling_options(GSConfig.PGSSuperSampling);
 
-	if (new_super_sampling != current_super_sampling)
+	if (parsed.super_sampling != current_super_sampling || parsed.ordered != current_ordered_super_sampling)
 	{
-		iface.set_super_sampling_rate(new_super_sampling);
 		current_super_sampling = new_super_sampling;
+		iface.set_super_sampling_rate(parsed.super_sampling, parsed.ordered);
+		current_super_sampling = parsed.super_sampling;
+		current_ordered_super_sampling = parsed.ordered;
 	}
 }
 
@@ -458,8 +485,9 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	info.dst_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	// The scaling blur is technically a blur ...
 	info.adapt_to_internal_horizontal_resolution = GSConfig.PCRTCAntiBlur;
-	info.raw_circuit_scanout = true;
-	auto vsync = iface.vsync(info);
+	info.raw_circuit_scanout                     = true;
+	info.high_resolution_scanout                 = GSConfig.PGSHighResScanout != 0;
+	auto vsync                                   = iface.vsync(info);
 
 	auto stats = iface.consume_flush_stats();
 	if (GSConfig.SkipDuplicateFrames && has_presented_in_current_swapchain &&

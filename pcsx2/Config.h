@@ -533,6 +533,7 @@ struct Pcsx2Config
 		TriFiltering TriFilter = TriFiltering::Automatic;
 		s8 OverrideTextureBarriers = -1;
 		u8 PGSSuperSampling = 0;
+		u8 PGSHighResScanout = 0;
 
 		u16 SWExtraThreads = 2;
 		u16 SWExtraThreadsHeight = 4;
