@@ -569,54 +569,18 @@ u8 PADpoll(u8 value)
 						{
 							query.numBytes             = 21;
 
-							if (!TEST_BIT(buttons, 13)) // Right
-								query.response[9]  = 0xFF;
-							else
-								query.response[9]  = 0;
-							if (!TEST_BIT(buttons, 15)) // Left
-								query.response[10] = 0xFF;
-							else
-								query.response[10] = 0;
-							if (!TEST_BIT(buttons, 12)) // Up
-								query.response[11] = 0xFF;
-							else
-								query.response[11] = 0;
-							if (!TEST_BIT(buttons, 14)) // Down
-								query.response[12] = 0xFF;
-							else
-								query.response[12] = 0;
-							if (!TEST_BIT(buttons,  4)) // Triangle
-								query.response[13] = 0xFF;
-							else
-								query.response[13] = 0;
-							if (!TEST_BIT(buttons,  5)) // Circle
-								query.response[14] = 0xFF;
-							else
-								query.response[14] = 0;
-							if (!TEST_BIT(buttons,  6)) // Cross
-								query.response[15] = 0xFF;
-							else
-								query.response[15] = 0;
-							if (!TEST_BIT(buttons,  7)) // Square
-								query.response[16] = 0xFF;
-							else
-								query.response[16] = 0;
-							if (!TEST_BIT(buttons,  2)) // L1
-								query.response[17] = 0xFF;
-							else
-								query.response[17] = 0;
-							if (!TEST_BIT(buttons,  3)) // R1
-								query.response[18] = 0xFF;
-							else
-								query.response[18] = 0;
-							if (!TEST_BIT(buttons,  0)) // L2
-								query.response[19] = 0xFF;
-							else
-								query.response[19] = 0;
-							if (!TEST_BIT(buttons,  1)) // R2
-								query.response[20] = 0xFF;
-							else
-								query.response[20] = 0;
+							query.response[9]          = TEST_BIT(buttons, 13) ? 0 : 0xFF; /* Right */
+							query.response[10]         = TEST_BIT(buttons, 15) ? 0 : 0xFF; /* Left  */
+							query.response[11]         = TEST_BIT(buttons, 12) ? 0 : 0xFF; /* Up    */
+							query.response[12]         = TEST_BIT(buttons, 14) ? 0 : 0xFF; /* Down  */
+							query.response[13]         = TEST_BIT(buttons,  4) ? 0 : 0xFF; /* Triangle */
+							query.response[14]         = TEST_BIT(buttons,  5) ? 0 : 0xFF; /* Circle   */
+							query.response[15]         = TEST_BIT(buttons,  6) ? 0 : 0xFF; /* Cross    */
+							query.response[16]         = TEST_BIT(buttons,  7) ? 0 : 0xFF; /* Square   */
+							query.response[17]         = TEST_BIT(buttons,  2) ? 0 : 0xFF; /* L1       */
+							query.response[18]         = TEST_BIT(buttons,  3) ? 0 : 0xFF; /* R1       */
+							query.response[19]         = TEST_BIT(buttons,  0) ? 0 : 0xFF; /* L2       */
+							query.response[20]         = TEST_BIT(buttons,  1) ? 0 : 0xFF; /* R2       */
 						}
 					}
 
