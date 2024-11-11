@@ -18,6 +18,8 @@
 #include <cassert>
 #include <libretro.h>
 
+#include "PAD.h"
+
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "common/StringUtil.h"
@@ -28,9 +30,84 @@
 #include "../Host.h"
 #include "../Sio.h"
 
-#include "PAD/PAD.h"
+#define MODE_DIGITAL	0x41
+#define MODE_ANALOG	0x73
+#define MODE_DS2_NATIVE 0x79
+
+#if 1
+#define IsDualshock2() true
+#else
+#define IsDualShock2() (config.padConfigs[query.port][query.slot].type == Dualshock2Pad || (config.padConfigs[query.port][query.slot].type == GuitarPad && config.GH2))
+#endif
+
+/* Total number of pad ports, across both multitaps. */
+#define NUM_CONTROLLER_PORTS 8
+
+#define DEFAULT_MOTOR_SCALE 1.0f
 
 #define TEST_BIT(value, bit) ((value) & (1 << (bit)))
+
+enum PadCommands
+{
+	CMD_SET_VREF_PARAM        = 0x40,
+	CMD_QUERY_DS2_ANALOG_MODE = 0x41,
+	CMD_READ_DATA_AND_VIBRATE = 0x42,
+	CMD_CONFIG_MODE           = 0x43,
+	CMD_SET_MODE_AND_LOCK     = 0x44,
+	CMD_QUERY_MODEL_AND_MODE  = 0x45,
+	CMD_QUERY_ACT             = 0x46, /* ?? */
+	CMD_QUERY_COMB            = 0x47, /* ?? */
+	CMD_QUERY_MODE            = 0x4C, /* QUERY_MODE ?? */
+	CMD_VIBRATION_TOGGLE      = 0x4D,
+	CMD_SET_DS2_NATIVE_MODE   = 0x4F  /* SET_DS2_NATIVE_MODE */
+};
+
+enum gamePadValues
+{
+	PAD_UP = 0,   //  0  - Directional pad ↑
+	PAD_RIGHT,    //  1  - Directional pad →
+	PAD_DOWN,     //  2  - Directional pad ↓
+	PAD_LEFT,     //  3  - Directional pad ←
+	PAD_TRIANGLE, //  4  - Triangle button ▲
+	PAD_CIRCLE,   //  5  - Circle button ●
+	PAD_CROSS,    //  6  - Cross button ✖
+	PAD_SQUARE,   //  7  - Square button ■
+	PAD_SELECT,   //  8  - Select button
+	PAD_START,    //  9  - Start button
+	PAD_L1,       // 10  - L1 button
+	PAD_L2,       // 11  - L2 button
+	PAD_R1,       // 12  - R1 button
+	PAD_R2,       // 13  - R2 button
+	PAD_L3,       // 14  - Left joystick button (L3)
+	PAD_R3,       // 15  - Right joystick button (R3)
+	PAD_ANALOG,   // 16  - Analog mode toggle
+	PAD_PRESSURE, // 17  - Pressure modifier
+	PAD_L_UP,     // 18  - Left joystick (Up) ↑
+	PAD_L_RIGHT,  // 19  - Left joystick (Right) →
+	PAD_L_DOWN,   // 20  - Left joystick (Down) ↓
+	PAD_L_LEFT,   // 21  - Left joystick (Left) ←
+	PAD_R_UP,     // 22  - Right joystick (Up) ↑
+	PAD_R_RIGHT,  // 23  - Right joystick (Right) →
+	PAD_R_DOWN,   // 24  - Right joystick (Down) ↓
+	PAD_R_LEFT,   // 25  - Right joystick (Left) ←
+	MAX_KEYS
+};
+
+// Full state to manage save state
+struct PadFullFreezeData
+{
+	char format[8];
+	// active slot for port
+	u8 slot[2];
+	PadFreezeData padData[2][4];
+	QueryInfo query;
+};
+
+struct KeyStatus
+{
+	ControllerType m_type[NUM_CONTROLLER_PORTS] = {};
+	float m_vibration_scale[NUM_CONTROLLER_PORTS][2];
+};
 
 static KeyStatus g_key_status;
 
@@ -266,12 +343,6 @@ void Pad::stop_vibrate_all()
 //////////////////////////////////////////////////////////////////////
 // Pad implementation
 //////////////////////////////////////////////////////////////////////
-
-#if 1
-#define IsDualshock2() true
-#else
-#define IsDualShock2() (config.padConfigs[query.port][query.slot].type == Dualshock2Pad || (config.padConfigs[query.port][query.slot].type == GuitarPad && config.GH2))
-#endif
 
 s32 PADinit(void)
 {
@@ -772,22 +843,21 @@ void PAD::LoadConfig(const SettingsInterface& si)
 		const std::string type(si.GetStringValue(section_c, "Type", (i == 0) ? "DualShock2" : "None"));
 
 		const ControllerInfo* ci           = GetControllerInfo(type);
-		if (!ci)
+		if (ci)
 		{
+			const float large_motor_scale      = si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE);
+			const float small_motor_scale      = si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE);
+
+			if (ci->vibration_caps != NoVibration)
+			{
+				g_key_status.m_vibration_scale[i][0] = large_motor_scale;
+				g_key_status.m_vibration_scale[i][1] = small_motor_scale;
+			}
+
+			g_key_status.m_type[i]     = ci->type;
+		}
+		else
 			g_key_status.m_type[i]     = NotConnected;
-			continue;
-		}
-
-		g_key_status.m_type[i]             = ci->type;
-
-		const float large_motor_scale      = si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE);
-		const float small_motor_scale      = si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE);
-
-		if (ci->vibration_caps != NoVibration)
-		{
-			g_key_status.m_vibration_scale[i][0] = large_motor_scale;
-			g_key_status.m_vibration_scale[i][1] = small_motor_scale;
-		}
 	}
 }
 
@@ -822,59 +892,9 @@ static const InputBindingInfo s_dualshock2_binds[] = {
 	{"SmallMotor", "Small (High Frequency) Motor", InputBindingInfo::Type::Motor, 0, GenericInputBinding::SmallMotor},
 };
 
-static const char* s_dualshock2_invert_entries[] = {
-	"Not Inverted",
-	"Invert Left/Right",
-	"Invert Up/Down",
-	"Invert Left/Right + Up/Down",
-	nullptr};
-
-static const SettingInfo s_dualshock2_settings[] = {
-	{SettingInfo::Type::IntegerList, "InvertL", "Invert Left Stick",
-		"Inverts the direction of the left analog stick.",
-		"0", "0", "3", nullptr, nullptr, s_dualshock2_invert_entries, nullptr, 0.0f},
-	{SettingInfo::Type::IntegerList, "InvertR", "Invert Right Stick",
-		"Inverts the direction of the right analog stick.",
-		"0", "0", "3", nullptr, nullptr, s_dualshock2_invert_entries, nullptr, 0.0f},
-	{SettingInfo::Type::Float, "Deadzone", "Analog Deadzone",
-		"Sets the analog stick deadzone, i.e. the fraction of the analog stick movement which will be ignored.",
-		"0.00", "0.00", "1.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	{SettingInfo::Type::Float, "AxisScale", "Analog Sensitivity",
-		"Sets the analog stick axis scaling factor. A value between 130% and 140% is recommended when using recent "
-		"controllers, e.g. DualShock 4, Xbox One Controller.",
-		"1.33", "0.01", "2.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	{SettingInfo::Type::Float, "TriggerDeadzone", "Trigger Deadzone",
-		"Sets the deadzone for activating triggers, i.e. the fraction of the trigger press which will be ignored.",
-		"0.00", "0.00", "1.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	{SettingInfo::Type::Float, "TriggerScale", "Trigger Sensitivity",
-		"Sets the trigger scaling factor.",
-		"1.00", "0.01", "2.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	{SettingInfo::Type::Float, "LargeMotorScale", "Large Motor Vibration Scale",
-		"Increases or decreases the intensity of low frequency vibration sent by the game.",
-		"1.00", "0.00", "2.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	{SettingInfo::Type::Float, "SmallMotorScale", "Small Motor Vibration Scale",
-		"Increases or decreases the intensity of high frequency vibration sent by the game.",
-		"1.00", "0.00", "2.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	{SettingInfo::Type::Float, "ButtonDeadzone", "Button Deadzone",
-		"Sets the deadzone for activating buttons, i.e. the fraction of the button press which will be ignored.",
-		"0.00", "0.00", "1.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-	/*{SettingInfo::Type::Float, "InitialPressure", "Initial Pressure",
-	"Sets the pressure when the modifier button isn't held.",
-	"1.00", "0.01", "1.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},*/
-	{SettingInfo::Type::Float, "PressureModifier", "Modifier Pressure",
-		"Sets the pressure when the modifier button is held.",
-		"0.50", "0.01", "1.00", "0.01", "%.0f%%", nullptr, nullptr, 100.0f},
-};
-
 static const PAD::ControllerInfo s_controller_info[] = {
-	{NotConnected, "None", "Not Connected",
-		nullptr, 0,
-		nullptr, 0,
-		NoVibration},
-	{DualShock2, "DualShock2", "DualShock 2",
-		s_dualshock2_binds, std::size(s_dualshock2_binds),
-		s_dualshock2_settings, std::size(s_dualshock2_settings),
-		LargeSmallMotors},
+	{NotConnected, "None", nullptr, 0, NoVibration},
+	{DualShock2, "DualShock2", s_dualshock2_binds, std::size(s_dualshock2_binds), LargeSmallMotors},
 };
 
 const PAD::ControllerInfo* PAD::GetControllerInfo(const std::string_view& name)

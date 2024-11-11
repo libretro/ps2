@@ -110,22 +110,19 @@ void Sio0::SetTxData(u8 value)
 		return;
 
 	txData = value;
-	u8 res = 0;
 
 	switch (sioStage)
 	{
 		case SioStage::IDLE:
 			sioMode = value;
-			stat |= SIO0_STAT::TX_READY;
+			rxData  = 0;
+			stat   |= SIO0_STAT::TX_READY;
 
 			switch (sioMode)
 			{
 				case SioMode::PAD:
-					res = PADstartPoll(port, slot);
-
-					if (res)
+					if ((rxData = PADstartPoll(port, slot)))
 						stat |= SIO0_STAT::ACK;
-
 					break;
 				case SioMode::MEMCARD:
 					mcd = &mcds[port][slot];
@@ -134,7 +131,6 @@ void Sio0::SetTxData(u8 value)
 					// and zero out the fifo to simulate dead air over the wire.
 					if (mcd->autoEjectTicks)
 					{
-						rxData = 0x00;
 						mcd->autoEjectTicks--;
 						return;
 					}
@@ -142,16 +138,12 @@ void Sio0::SetTxData(u8 value)
 					// If memcard is missing, not PS1, or auto ejected, do not let SIO0 stage advance,
 					// reply with dead air and no ACK.
 					if (!FileMcd_IsPresent(mcd->port, mcd->slot) || !FileMcd_IsPSX(mcd->port, mcd->slot))
-					{
-						rxData = 0x00;
 						return;
-					}
 
 					stat |= SIO0_STAT::ACK;
 					break;
 			}
 
-			rxData   = res;
 			sioStage = SioStage::WAITING_COMMAND;
 			break;
 		case SioStage::WAITING_COMMAND:
@@ -159,8 +151,7 @@ void Sio0::SetTxData(u8 value)
 
 			if (IsPadCommand(value))
 			{
-				res      = PADpoll(value);
-				rxData   = res;
+				rxData   = PADpoll(value);
 
 				if (!PADcomplete())
 					stat |= SIO0_STAT::ACK;
@@ -172,7 +163,7 @@ void Sio0::SetTxData(u8 value)
 				rxData     = flag;
 				stat      |= SIO0_STAT::ACK;
 				sioCommand = value;
-				sioStage = SioStage::WORKING;
+				sioStage   = SioStage::WORKING;
 			}
 			else if (IsPocketstationCommand(value))
 			{
@@ -191,8 +182,7 @@ void Sio0::SetTxData(u8 value)
 			switch (sioMode)
 			{
 				case SioMode::PAD:
-					res = PADpoll(value);
-					rxData   = res;
+					rxData   = PADpoll(value);
 
 					if (!PADcomplete())
 						stat |= SIO0_STAT::ACK;
@@ -234,9 +224,7 @@ void Sio0::SetCtrl(u16 value)
 
 	// If CTRL acknowledge, reset STAT bits 3 and 9
 	if (ctrl & SIO0_CTRL::ACK)
-	{
 		stat &= ~(SIO0_STAT::IRQ | SIO0_STAT::RX_PARITY_ERROR);
-	}
 
 	if (ctrl & SIO0_CTRL::RESET)
 	{
