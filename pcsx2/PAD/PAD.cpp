@@ -497,51 +497,51 @@ u8 PADpoll(u8 value)
 						{
 							query.numBytes             = 21;
 
-							if (!TEST_BIT(buttons, 13) && (button_mask[ext_port] & (1 << keymap[PAD_RIGHT])))
+							if (!TEST_BIT(buttons, 13)) // Right
 								query.response[9]  = 0xFF;
 							else
 								query.response[9]  = 0;
-							if (!TEST_BIT(buttons, 15) && (button_mask[ext_port] & (1 << keymap[PAD_LEFT])))
+							if (!TEST_BIT(buttons, 15)) // Left
 								query.response[10] = 0xFF;
 							else
 								query.response[10] = 0;
-							if (!TEST_BIT(buttons, 12) && (button_mask[ext_port] & (1 << keymap[PAD_UP])))
+							if (!TEST_BIT(buttons, 12)) // Up
 								query.response[11] = 0xFF;
 							else
 								query.response[11] = 0;
-							if (!TEST_BIT(buttons, 14) && (button_mask[ext_port] & (1 << keymap[PAD_DOWN])))
+							if (!TEST_BIT(buttons, 14)) // Down
 								query.response[12] = 0xFF;
 							else
 								query.response[12] = 0;
-							if (!TEST_BIT(buttons,  4) && (button_mask[ext_port] & (1 << keymap[PAD_TRIANGLE])))
+							if (!TEST_BIT(buttons,  4)) // Triangle
 								query.response[13] = 0xFF;
 							else
 								query.response[13] = 0;
-							if (!TEST_BIT(buttons,  5) && (button_mask[ext_port] & (1 << keymap[PAD_CIRCLE])))
+							if (!TEST_BIT(buttons,  5)) // Circle
 								query.response[14] = 0xFF;
 							else
 								query.response[14] = 0;
-							if (!TEST_BIT(buttons,  6) && (button_mask[ext_port] & (1 << keymap[PAD_CROSS])))
+							if (!TEST_BIT(buttons,  6)) // Cross
 								query.response[15] = 0xFF;
 							else
 								query.response[15] = 0;
-							if (!TEST_BIT(buttons,  7) && (button_mask[ext_port] & (1 << keymap[PAD_SQUARE])))
+							if (!TEST_BIT(buttons,  7)) // Square
 								query.response[16] = 0xFF;
 							else
 								query.response[16] = 0;
-							if (!TEST_BIT(buttons,  2) && (button_mask[ext_port] & (1 << keymap[PAD_L1])))
+							if (!TEST_BIT(buttons,  2)) // L1
 								query.response[17] = 0xFF;
 							else
 								query.response[17] = 0;
-							if (!TEST_BIT(buttons,  3) && (button_mask[ext_port] & (1 << keymap[PAD_R1])))
+							if (!TEST_BIT(buttons,  3)) // R1
 								query.response[18] = 0xFF;
 							else
 								query.response[18] = 0;
-							if (!TEST_BIT(buttons,  0) && (button_mask[ext_port] & (1 << keymap[PAD_L2])))
+							if (!TEST_BIT(buttons,  0)) // L2
 								query.response[19] = 0xFF;
 							else
 								query.response[19] = 0;
-							if (!TEST_BIT(buttons,  1) && (button_mask[ext_port] & (1 << keymap[PAD_R2])))
+							if (!TEST_BIT(buttons,  1)) // R2
 								query.response[20] = 0xFF;
 							else
 								query.response[20] = 0;
