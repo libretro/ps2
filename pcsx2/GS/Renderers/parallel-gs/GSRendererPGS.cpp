@@ -241,6 +241,10 @@ bool GSRendererPGS::Init()
 	current_super_sampling         = opts.super_sampling;
 	current_ordered_super_sampling = opts.ordered_super_sampling;
 
+	Hacks hacks;
+	hacks.disable_mipmaps = GSConfig.PGSDisableMipmaps;
+	iface.set_hacks(hacks);
+
 	return true;
 }
 
@@ -259,6 +263,10 @@ void GSRendererPGS::UpdateConfig()
 		current_super_sampling = parsed.super_sampling;
 		current_ordered_super_sampling = parsed.ordered;
 	}
+
+	Hacks hacks;
+	hacks.disable_mipmaps = GSConfig.PGSDisableMipmaps;
+	iface.set_hacks(hacks);
 }
 
 int GSRendererPGS::GetSaveStateSize()

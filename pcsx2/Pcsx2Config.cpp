@@ -484,7 +484,8 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(OverrideTextureBarriers) &&
 		OpEqu(Adapter) &&
 		OpEqu(PGSSuperSampling) &&
-		OpEqu(PGSHighResScanout)
+		OpEqu(PGSHighResScanout) &&
+		OpEqu(PGSDisableMipmaps)
 		);
 }
 
@@ -529,6 +530,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBoolEx(AutoFlushSW, "autoflush_sw");
 	SettingsWrapIntEnumEx(PGSSuperSampling, "pgsSuperSampling");
 	SettingsWrapIntEnumEx(PGSHighResScanout, "pgsHighResScanout");
+	SettingsWrapIntEnumEx(PGSDisableMipmaps, "pgsDisableMipmaps");
 	SettingsWrapBitBoolEx(PreloadFrameWithGSData, "preload_frame_with_gs_data");
 	SettingsWrapBitBoolEx(Mipmap, "mipmap");
 	SettingsWrapBitBoolEx(ManualUserHacks, "UserHacks");

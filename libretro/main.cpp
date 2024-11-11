@@ -295,6 +295,7 @@ namespace Options
 	extern GfxOption<std::string> renderer;
 	extern GfxOption<int> pgs_super_sampling;
 	extern GfxOption<int> pgs_high_res_scanout;
+	extern GfxOption<int> pgs_disable_mipmaps;
 
 	static Option<std::string> bios("pcsx2_bios", "Bios"); // will be filled in retro_init()
 	static Option<bool> fast_boot("pcsx2_fastboot", "Fast Boot", true);
@@ -339,6 +340,11 @@ namespace Options
 	});
 
 	GfxOption<int> pgs_high_res_scanout("pcsx2_pgs_high_res_scanout", "paraLLEl experimental High-res scanout (Restart)", {
+		{ "Disabled", 0 },
+		{ "Enabled", 1 },
+	});
+
+	GfxOption<int> pgs_disable_mipmaps("pcsx2_pgs_disable_mipmaps", "paraLLEl force texture LOD0 (Restart)", {
 		{ "Disabled", 0 },
 		{ "Enabled", 1 },
 	});
@@ -592,12 +598,15 @@ static void libretro_context_reset(void)
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", Options::pgs_super_sampling);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsHighResScanout", Options::pgs_high_res_scanout);
+	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsDisableMipmaps", Options::pgs_disable_mipmaps);
 	GSConfig.UpscaleMultiplier     = Options::upscale_multiplier;
 	GSConfig.PGSSuperSampling      = Options::pgs_super_sampling;
 	GSConfig.PGSHighResScanout     = Options::pgs_high_res_scanout;
+	GSConfig.PGSHighResScanout     = Options::pgs_disable_mipmaps;
 	EmuConfig.GS.UpscaleMultiplier = Options::upscale_multiplier;
 	EmuConfig.GS.PGSSuperSampling  = Options::pgs_super_sampling;
 	EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
+	EmuConfig.GS.PGSDisableMipmaps = Options::pgs_disable_mipmaps;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -1191,6 +1200,13 @@ void retro_run(void)
 	if (Options::pgs_high_res_scanout.Updated())
 	{
 		EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
+		// FIXME: This seems to hang sometimes.
+		//VMManager::ApplySettings();
+	}
+
+	if (Options::pgs_disable_mipmaps.Updated())
+	{
+		EmuConfig.GS.PGSDisableMipmaps = Options::pgs_disable_mipmaps;
 		// FIXME: This seems to hang sometimes.
 		//VMManager::ApplySettings();
 	}
