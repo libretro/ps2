@@ -71,6 +71,8 @@ static int write_pos = 0;
 static int read_pos = 0;
 static s16 snd_buffer[SOUND_BUFFER_SIZE];
 
+float pad_axis_scale[2];
+
 static VMState cpu_thread_state;
 MemorySettingsInterface s_settings_interface;
 static std::thread cpu_thread;
@@ -296,6 +298,21 @@ namespace Options
 
 	static Option<std::string> bios("pcsx2_bios", "Bios"); // will be filled in retro_init()
 	static Option<bool> fast_boot("pcsx2_fastboot", "Fast Boot", true);
+
+	static Option<int> axis_scale1("pcsx2_axis_scale1", "Port 1: Analog Sensitivity", {
+		{ "133%", 133 },
+		{ "150%", 150 },
+		{ "200%", 200 },
+		{ "50%", 50 },
+		{ "100%", 100 },
+	});
+	static Option<int> axis_scale2("pcsx2_axis_scale2", "Port 2: Analog Sensitivity", {
+		{ "133%", 133 },
+		{ "150%", 150 },
+		{ "200%", 200 },
+		{ "50%", 50 },
+		{ "100%", 100 },
+	});
 
 	GfxOption<std::string> renderer("pcsx2_renderer", "Renderer", {
 			"Auto",
@@ -1014,6 +1031,9 @@ bool retro_load_game(const struct retro_game_info* game)
 	s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", Options::fast_boot);
 	s_settings_interface.SetStringValue("Filenames", "BIOS", Options::bios.Get().c_str());
 
+	pad_axis_scale[0] = (float)Options::axis_scale1 / 100;
+	pad_axis_scale[1] = (float)Options::axis_scale2 / 100;
+
 	read_pos  = 0;
 	write_pos = 0;
 
@@ -1166,6 +1186,12 @@ void retro_run(void)
 		EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
 		// FIXME: This seems to hang sometimes.
 		//VMManager::ApplySettings();
+	}
+
+	if (Options::axis_scale1.Updated() || Options::axis_scale2.Updated())
+	{
+		pad_axis_scale[0] = (float)Options::axis_scale1 / 100;
+		pad_axis_scale[1] = (float)Options::axis_scale2 / 100;
 	}
 
 	if (!MTGS::IsOpen())

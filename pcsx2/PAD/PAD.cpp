@@ -187,6 +187,7 @@ static int pad_lx[2];
 static int pad_ly[2];
 static int pad_rx[2];
 static int pad_ry[2];
+extern float pad_axis_scale[2];
 
 static int keymap[] =
 {
@@ -246,10 +247,10 @@ namespace Input
 			for (int i = 0; i < 16; i++)
 				new_button_mask |= !(mask & (1 << keymap[i])) << i;
 			button_mask[port]        = new_button_mask;
-			pad_lx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
-			pad_ly[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
-			pad_rx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X);
-			pad_ry[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y);
+			pad_lx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
+			pad_ly[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+			pad_rx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,  RETRO_DEVICE_ID_ANALOG_X);
+			pad_ry[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,  RETRO_DEVICE_ID_ANALOG_Y);
 			for (unsigned slot = 0; slot < 4; slot++)
 				pads[port][slot].rumble(sioConvertPortAndSlotToPad(port, slot));
 		}
@@ -559,10 +560,10 @@ u8 PADpoll(u8 value)
 					{
 						query.numBytes    = 9;
 
-						query.response[5] = 0x80 + (pad_lx[ext_port] >> 8);
-						query.response[6] = 0x80 + (pad_ly[ext_port] >> 8);
-						query.response[7] = 0x80 + (pad_rx[ext_port] >> 8);
-						query.response[8] = 0x80 + (pad_ry[ext_port] >> 8);
+						query.response[5] = static_cast<u8>(std::clamp(0x80 + (pad_rx[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
+						query.response[6] = static_cast<u8>(std::clamp(0x80 + (pad_ry[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
+						query.response[7] = static_cast<u8>(std::clamp(0x80 + (pad_lx[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
+						query.response[8] = static_cast<u8>(std::clamp(0x80 + (pad_ly[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
 
 						if (pad->mode != MODE_ANALOG) // DS2 native
 						{
