@@ -34,16 +34,3 @@ index 1bff89adc..dcf2998f9 100644
  	}
  
  	PSX_INT(IopEvt_CdvdRead, eCycle);
-diff --git a/pcsx2/MTGS.cpp b/pcsx2/MTGS.cpp
-index ac5638ced..8bb6843dd 100644
---- a/pcsx2/MTGS.cpp
-+++ b/pcsx2/MTGS.cpp
-@@ -140,7 +140,7 @@ void MTGS::PostVsyncStart()
- 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
- 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
- 
--	if (s_QueuedFrameCount++ < EmuConfig.GS.VsyncQueueSize)
-+	if (s_QueuedFrameCount++ < 0)
- 		return;
- 
- 	s_VsyncSignalListener = true;
