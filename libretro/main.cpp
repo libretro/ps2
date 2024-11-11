@@ -332,12 +332,13 @@ namespace Options
 	GfxOption<int> pgs_super_sampling("pcsx2_pgs_ssaa", "paraLLEl super sampling (Restart)", {
 		{ "Native", 0 },
 		{ "2x SSAA", 1 },
-		{ "4x SSAA", 2 },
-		{ "8x SSAA", 3 },
-		{ "16x SSAA", 4 },
+		{ "4x SSAA (sparse grid)", 2 },
+		{ "4x SSAA (ordered, can high-res)", 3 },
+		{ "8x SSAA (can high-res)", 4 },
+		{ "16x SSAA (can high-res)", 5 },
 	});
 
-	GfxOption<int> pgs_high_res_scanout("pcsx2_pgs_high_res_scanout", "paraLLEl High-res scanout (Restart)", {
+	GfxOption<int> pgs_high_res_scanout("pcsx2_pgs_high_res_scanout", "paraLLEl experimental High-res scanout (Restart)", {
 		{ "Disabled", 0 },
 		{ "Enabled", 1 },
 	});
@@ -565,6 +566,12 @@ void retro_get_system_av_info(retro_system_av_info* info)
 
 	info->geometry.max_width = info->geometry.base_width;
 	info->geometry.max_height = info->geometry.base_height;
+
+	if (Options::renderer == "paraLLEl-GS" && Options::pgs_high_res_scanout)
+	{
+		info->geometry.max_width *= 2;
+		info->geometry.max_height *= 2;
+	}
 
 	info->geometry.aspect_ratio = 4.0f / 3.0f;
 	info->timing.fps = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;

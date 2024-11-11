@@ -231,12 +231,10 @@ bool GSRendererPGS::Init()
 	GSOptions opts = {};
 	opts.vram_size = GSLocalMemory::m_vmsize;
 
-	u8 super_sampling              = GSConfig.PGSSuperSampling;
-	if (super_sampling > 4)
-		super_sampling         = 4;
-	auto parsed                    = parse_super_sampling_options(GSConfig.PGSSuperSampling); 
-	opts.super_sampling            = parsed.super_sampling;
-	opts.dynamic_super_sampling    = true;
+	auto parsed                 = parse_super_sampling_options(GSConfig.PGSSuperSampling);
+	opts.super_sampling         = parsed.super_sampling;
+	opts.ordered_super_sampling = parsed.ordered;
+	opts.dynamic_super_sampling = true;
 	if (!iface.init(&dev, opts))
 		return false;
 
@@ -253,15 +251,10 @@ void GSRendererPGS::Reset(bool /*hardware_reset*/)
 
 void GSRendererPGS::UpdateConfig()
 {
-	u8 super_sampling = GSConfig.PGSSuperSampling;
-	if (super_sampling > 4)
-		super_sampling = 4;
-	auto new_super_sampling = SuperSampling(1u << super_sampling);
-	auto parsed             = parse_super_sampling_options(GSConfig.PGSSuperSampling);
+	auto parsed = parse_super_sampling_options(GSConfig.PGSSuperSampling);
 
 	if (parsed.super_sampling != current_super_sampling || parsed.ordered != current_ordered_super_sampling)
 	{
-		current_super_sampling = new_super_sampling;
 		iface.set_super_sampling_rate(parsed.super_sampling, parsed.ordered);
 		current_super_sampling = parsed.super_sampling;
 		current_ordered_super_sampling = parsed.ordered;
