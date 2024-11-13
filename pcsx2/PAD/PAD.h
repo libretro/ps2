@@ -107,9 +107,6 @@ namespace PAD
 
 	/// Reloads configuration.
 	void LoadConfig(const SettingsInterface& si);
-
-	/// Returns general information for the specified controller type.
-	const ControllerInfo* GetControllerInfo(const std::string_view& name);
 }
   
 namespace Input

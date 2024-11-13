@@ -15,7 +15,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <libretro.h>
 
 #include "PAD.h"
@@ -107,6 +106,42 @@ struct KeyStatus
 {
 	ControllerType m_type[NUM_CONTROLLER_PORTS] = {};
 	float m_vibration_scale[NUM_CONTROLLER_PORTS][2];
+};
+
+static const InputBindingInfo s_dualshock2_binds[] = {
+	{"Up", "D-Pad Up", InputBindingInfo::Type::Button, PAD_UP, GenericInputBinding::DPadUp},
+	{"Right", "D-Pad Right", InputBindingInfo::Type::Button, PAD_RIGHT, GenericInputBinding::DPadRight},
+	{"Down", "D-Pad Down", InputBindingInfo::Type::Button, PAD_DOWN, GenericInputBinding::DPadDown},
+	{"Left", "D-Pad Left", InputBindingInfo::Type::Button, PAD_LEFT, GenericInputBinding::DPadLeft},
+	{"Triangle", "Triangle", InputBindingInfo::Type::Button, PAD_TRIANGLE, GenericInputBinding::Triangle},
+	{"Circle", "Circle", InputBindingInfo::Type::Button, PAD_CIRCLE, GenericInputBinding::Circle},
+	{"Cross", "Cross", InputBindingInfo::Type::Button, PAD_CROSS, GenericInputBinding::Cross},
+	{"Square", "Square", InputBindingInfo::Type::Button, PAD_SQUARE, GenericInputBinding::Square},
+	{"Select", "Select", InputBindingInfo::Type::Button, PAD_SELECT, GenericInputBinding::Select},
+	{"Start", "Start", InputBindingInfo::Type::Button, PAD_START, GenericInputBinding::Start},
+	{"L1", "L1 (Left Bumper)", InputBindingInfo::Type::Button, PAD_L1, GenericInputBinding::L1},
+	{"L2", "L2 (Left Trigger)", InputBindingInfo::Type::HalfAxis, PAD_L2, GenericInputBinding::L2},
+	{"R1", "R1 (Right Bumper)", InputBindingInfo::Type::Button, PAD_R1, GenericInputBinding::R1},
+	{"R2", "R2 (Right Trigger)", InputBindingInfo::Type::HalfAxis, PAD_R2, GenericInputBinding::R2},
+	{"L3", "L3 (Left Stick Button)", InputBindingInfo::Type::Button, PAD_L3, GenericInputBinding::L3},
+	{"R3", "R3 (Right Stick Button)", InputBindingInfo::Type::Button, PAD_R3, GenericInputBinding::R3},
+	{"Analog", "Analog Toggle", InputBindingInfo::Type::Button, PAD_ANALOG, GenericInputBinding::System},
+	{"Pressure", "Apply Pressure", InputBindingInfo::Type::Button, PAD_PRESSURE, GenericInputBinding::Unknown},
+	{"LUp", "Left Stick Up", InputBindingInfo::Type::HalfAxis, PAD_L_UP, GenericInputBinding::LeftStickUp},
+	{"LRight", "Left Stick Right", InputBindingInfo::Type::HalfAxis, PAD_L_RIGHT, GenericInputBinding::LeftStickRight},
+	{"LDown", "Left Stick Down", InputBindingInfo::Type::HalfAxis, PAD_L_DOWN, GenericInputBinding::LeftStickDown},
+	{"LLeft", "Left Stick Left", InputBindingInfo::Type::HalfAxis, PAD_L_LEFT, GenericInputBinding::LeftStickLeft},
+	{"RUp", "Right Stick Up", InputBindingInfo::Type::HalfAxis, PAD_R_UP, GenericInputBinding::RightStickUp},
+	{"RRight", "Right Stick Right", InputBindingInfo::Type::HalfAxis, PAD_R_RIGHT, GenericInputBinding::RightStickRight},
+	{"RDown", "Right Stick Down", InputBindingInfo::Type::HalfAxis, PAD_R_DOWN, GenericInputBinding::RightStickDown},
+	{"RLeft", "Right Stick Left", InputBindingInfo::Type::HalfAxis, PAD_R_LEFT, GenericInputBinding::RightStickLeft},
+	{"LargeMotor", "Large (Low Frequency) Motor", InputBindingInfo::Type::Motor, 0, GenericInputBinding::LargeMotor},
+	{"SmallMotor", "Small (High Frequency) Motor", InputBindingInfo::Type::Motor, 0, GenericInputBinding::SmallMotor},
+};
+
+static const PAD::ControllerInfo s_controller_info[] = {
+	{NotConnected, "None", nullptr, 0, NoVibration},
+	{DualShock2, "DualShock2", s_dualshock2_binds, std::size(s_dualshock2_binds), LargeSmallMotors},
 };
 
 static KeyStatus g_key_status;
@@ -323,7 +358,8 @@ void Pad::rumble(unsigned port)
 void Pad::stop_vibrate_all()
 {
 #if 0
-	for (int i=0; i<8; i++) {
+	for (int i=0; i<8; i++)
+	{
 		SetVibrate(i&1, i>>1, 0, 0);
 		SetVibrate(i&1, i>>1, 1, 0);
 	}
@@ -366,8 +402,8 @@ s32 PADinit(void)
 }
 
 void PADshutdown(void) { }
-s32 PADopen(void) { return 0; }
-void PADclose(void) { }
+s32 PADopen(void)      { return 0; }
+void PADclose(void)    { }
 
 s32 PADsetSlot(u8 port, u8 slot)
 {
@@ -430,7 +466,6 @@ s32 PADfreeze(FreezeAction mode, freezeData* data)
 		// - PCSX2 only saves port0 (save #1), then port1 (save #2)
 
 		memset(pdata, 0, data->size);
-		strncpy(pdata->format, "LinPad", sizeof(pdata->format));
 		pdata->query = query;
 
 		for (int port = 0; port < 2; port++)
@@ -551,21 +586,18 @@ u8 PADpoll(u8 value)
 						}
 					}
 
-					query.numBytes    = 5;
 
-					query.response[3] = (buttons >> 8) & 0xFF;
-					query.response[4] = (buttons >> 0) & 0xFF;
+					query.response[3]         = (buttons >> 8) & 0xFF;
+					query.response[4]         = (buttons >> 0) & 0xFF;
 
 					if (pad->mode != MODE_DIGITAL) // ANALOG || DS2 native
 					{
-						query.numBytes    = 9;
-
 						query.response[5] = static_cast<u8>(std::clamp(0x80 + (pad_rx[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
 						query.response[6] = static_cast<u8>(std::clamp(0x80 + (pad_ry[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
 						query.response[7] = static_cast<u8>(std::clamp(0x80 + (pad_lx[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
 						query.response[8] = static_cast<u8>(std::clamp(0x80 + (pad_ly[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
 
-						if (pad->mode != MODE_ANALOG) // DS2 native
+						if (pad->mode != MODE_ANALOG) /* DS2 native */
 						{
 							query.numBytes             = 21;
 
@@ -582,46 +614,12 @@ u8 PADpoll(u8 value)
 							query.response[19]         = TEST_BIT(buttons,  0) ? 0 : 0xFF; /* L2       */
 							query.response[20]         = TEST_BIT(buttons,  1) ? 0 : 0xFF; /* R2       */
 						}
+						else
+							query.numBytes             = 9;
 					}
+					else
+						query.numBytes                     = 5;
 
-#if 0
-					query.response[3]         = b1;
-					query.response[4]         = b2;
-
-					query.numBytes            = 5;
-					if (pad->mode != MODE_DIGITAL)
-					{
-						query.response[5] = Cap((sum->sticks[0].horiz+255)/2);
-						query.response[6] = Cap((sum->sticks[0].vert+255)/2);
-						query.response[7] = Cap((sum->sticks[1].horiz+255)/2);
-						query.response[8] = Cap((sum->sticks[1].vert+255)/2);
-
-						query.numBytes    = 9;
-						if (pad->mode != MODE_ANALOG)
-						{
-							query.numBytes       = 21;
-
-							// Good idea?  No clue.
-							//query.response[3] &= pad->mask[0];
-							//query.response[4] &= pad->mask[1];
-
-							// No need to cap these, already done int CapSum().
-							query.response[9]    = (unsigned char)sum->buttons[13]; //D-pad right
-							query.response[10]   = (unsigned char)sum->buttons[15]; //D-pad left
-							query.response[11]   = (unsigned char)sum->buttons[12]; //D-pad up
-							query.response[12]   = (unsigned char)sum->buttons[14]; //D-pad down
-
-							query.response[13]   = (unsigned char) sum->buttons[8];
-							query.response[14]   = (unsigned char) sum->buttons[9];
-							query.response[15]   = (unsigned char) sum->buttons[10];
-							query.response[16]   = (unsigned char) sum->buttons[11];
-							query.response[17]   = (unsigned char) sum->buttons[6];
-							query.response[18]   = (unsigned char) sum->buttons[7];
-							query.response[19]   = (unsigned char) sum->buttons[4];
-							query.response[20]   = (unsigned char) sum->buttons[5];
-						}
-					}
-#endif
 				}
 
 				query.lastByte = 1;
@@ -790,85 +788,38 @@ u8 PADpoll(u8 value)
 	return query.response[query.lastByte];
 }
 
-bool PADcomplete(void)
-{
-	return query.queryDone;
-}
+bool PADcomplete(void) { return query.queryDone; }
 
 void PAD::LoadConfig(const SettingsInterface& si)
 {
 	EmuConfig.MultitapPort0_Enabled = si.GetBoolValue("Pad", "MultitapPort1", false);
 	EmuConfig.MultitapPort1_Enabled = si.GetBoolValue("Pad", "MultitapPort2", false);
 
-	// This is where we would load controller types, if onepad supported them.
+	// This is where we would load controller types.
 	for (u32 i = 0; i < NUM_CONTROLLER_PORTS; i++)
 	{
 		char section_c[32];
 		snprintf(section_c, sizeof(section_c), "Pad%d", i + 1);
 		const std::string type(si.GetStringValue(section_c, "Type", (i == 0) ? "DualShock2" : "None"));
 
-		const ControllerInfo* ci           = GetControllerInfo(type);
-		if (ci)
+		g_key_status.m_type[i]     = NotConnected;
+
+		for (const ControllerInfo& info : s_controller_info)
 		{
-			const float large_motor_scale      = si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE);
-			const float small_motor_scale      = si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE);
-
-			if (ci->vibration_caps != NoVibration)
+			if (type == info.name)
 			{
-				g_key_status.m_vibration_scale[i][0] = large_motor_scale;
-				g_key_status.m_vibration_scale[i][1] = small_motor_scale;
+				const float large_motor_scale      = si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE);
+				const float small_motor_scale      = si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE);
+
+				if (info.vibration_caps != NoVibration)
+				{
+					g_key_status.m_vibration_scale[i][0] = large_motor_scale;
+					g_key_status.m_vibration_scale[i][1] = small_motor_scale;
+				}
+
+				g_key_status.m_type[i]     = info.type;
+				return;
 			}
-
-			g_key_status.m_type[i]     = ci->type;
 		}
-		else
-			g_key_status.m_type[i]     = NotConnected;
 	}
-}
-
-static const InputBindingInfo s_dualshock2_binds[] = {
-	{"Up", "D-Pad Up", InputBindingInfo::Type::Button, PAD_UP, GenericInputBinding::DPadUp},
-	{"Right", "D-Pad Right", InputBindingInfo::Type::Button, PAD_RIGHT, GenericInputBinding::DPadRight},
-	{"Down", "D-Pad Down", InputBindingInfo::Type::Button, PAD_DOWN, GenericInputBinding::DPadDown},
-	{"Left", "D-Pad Left", InputBindingInfo::Type::Button, PAD_LEFT, GenericInputBinding::DPadLeft},
-	{"Triangle", "Triangle", InputBindingInfo::Type::Button, PAD_TRIANGLE, GenericInputBinding::Triangle},
-	{"Circle", "Circle", InputBindingInfo::Type::Button, PAD_CIRCLE, GenericInputBinding::Circle},
-	{"Cross", "Cross", InputBindingInfo::Type::Button, PAD_CROSS, GenericInputBinding::Cross},
-	{"Square", "Square", InputBindingInfo::Type::Button, PAD_SQUARE, GenericInputBinding::Square},
-	{"Select", "Select", InputBindingInfo::Type::Button, PAD_SELECT, GenericInputBinding::Select},
-	{"Start", "Start", InputBindingInfo::Type::Button, PAD_START, GenericInputBinding::Start},
-	{"L1", "L1 (Left Bumper)", InputBindingInfo::Type::Button, PAD_L1, GenericInputBinding::L1},
-	{"L2", "L2 (Left Trigger)", InputBindingInfo::Type::HalfAxis, PAD_L2, GenericInputBinding::L2},
-	{"R1", "R1 (Right Bumper)", InputBindingInfo::Type::Button, PAD_R1, GenericInputBinding::R1},
-	{"R2", "R2 (Right Trigger)", InputBindingInfo::Type::HalfAxis, PAD_R2, GenericInputBinding::R2},
-	{"L3", "L3 (Left Stick Button)", InputBindingInfo::Type::Button, PAD_L3, GenericInputBinding::L3},
-	{"R3", "R3 (Right Stick Button)", InputBindingInfo::Type::Button, PAD_R3, GenericInputBinding::R3},
-	{"Analog", "Analog Toggle", InputBindingInfo::Type::Button, PAD_ANALOG, GenericInputBinding::System},
-	{"Pressure", "Apply Pressure", InputBindingInfo::Type::Button, PAD_PRESSURE, GenericInputBinding::Unknown},
-	{"LUp", "Left Stick Up", InputBindingInfo::Type::HalfAxis, PAD_L_UP, GenericInputBinding::LeftStickUp},
-	{"LRight", "Left Stick Right", InputBindingInfo::Type::HalfAxis, PAD_L_RIGHT, GenericInputBinding::LeftStickRight},
-	{"LDown", "Left Stick Down", InputBindingInfo::Type::HalfAxis, PAD_L_DOWN, GenericInputBinding::LeftStickDown},
-	{"LLeft", "Left Stick Left", InputBindingInfo::Type::HalfAxis, PAD_L_LEFT, GenericInputBinding::LeftStickLeft},
-	{"RUp", "Right Stick Up", InputBindingInfo::Type::HalfAxis, PAD_R_UP, GenericInputBinding::RightStickUp},
-	{"RRight", "Right Stick Right", InputBindingInfo::Type::HalfAxis, PAD_R_RIGHT, GenericInputBinding::RightStickRight},
-	{"RDown", "Right Stick Down", InputBindingInfo::Type::HalfAxis, PAD_R_DOWN, GenericInputBinding::RightStickDown},
-	{"RLeft", "Right Stick Left", InputBindingInfo::Type::HalfAxis, PAD_R_LEFT, GenericInputBinding::RightStickLeft},
-	{"LargeMotor", "Large (Low Frequency) Motor", InputBindingInfo::Type::Motor, 0, GenericInputBinding::LargeMotor},
-	{"SmallMotor", "Small (High Frequency) Motor", InputBindingInfo::Type::Motor, 0, GenericInputBinding::SmallMotor},
-};
-
-static const PAD::ControllerInfo s_controller_info[] = {
-	{NotConnected, "None", nullptr, 0, NoVibration},
-	{DualShock2, "DualShock2", s_dualshock2_binds, std::size(s_dualshock2_binds), LargeSmallMotors},
-};
-
-const PAD::ControllerInfo* PAD::GetControllerInfo(const std::string_view& name)
-{
-	for (const ControllerInfo& info : s_controller_info)
-	{
-		if (name == info.name)
-			return &info;
-	}
-
-	return nullptr;
 }
