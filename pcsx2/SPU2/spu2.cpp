@@ -84,15 +84,11 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 
 void SPU2::InitSndBuffer()
 {
-	SndBuffer::Init();
-
 	if (SampleRate != GetConsoleSampleRate())
 	{
 		// It'll get stretched instead..
 		const int original_sample_rate = SampleRate;
 		SampleRate = GetConsoleSampleRate();
-		SndBuffer::Init();
-
 		SampleRate = original_sample_rate;
 	}
 }

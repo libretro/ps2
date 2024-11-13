@@ -26,6 +26,10 @@
 #include "Dma.h"
 #include "Global.h"
 #include "spu2.h"
+#include <libretro.h>
+
+extern retro_audio_sample_batch_t batch_cb;
+extern s16 snd_buffer[0x0800];
 
 s16 spu2regs[0x010000 / sizeof(s16)];
 s16 _spu2mem[0x200000 / sizeof(s16)];
@@ -189,6 +193,9 @@ void V_Core::Init(int index)
 	RevbSampleBufPos = 0;
 	memset(RevbDownBuf, 0, sizeof(RevbDownBuf));
 	memset(RevbUpBuf, 0, sizeof(RevbUpBuf));
+
+	for (int i = 0; i < 0x0800; i++)
+		snd_buffer[i] = 0;
 }
 
 #define TICKINTERVAL 768
@@ -250,6 +257,8 @@ __forceinline void TimeUpdate(u32 cClocks)
 		lClocks = cClocks - dClocks;
 	}
 
+	int samples = 0;
+
 	//Update Mixing Progress
 	while (dClocks >= TICKINTERVAL)
 	{
@@ -285,8 +294,10 @@ __forceinline void TimeUpdate(u32 cClocks)
 				}
 			}
 		}
-		Mix();
+		samples  = Mix(samples);
 	}
+
+	batch_cb(snd_buffer, samples >> 1);
 
 	//Update DMA4 interrupt delay counter
 	if (Cores[0].DMAICounter > 0 && (psxRegs.cycle - Cores[0].LastClock) > 0)

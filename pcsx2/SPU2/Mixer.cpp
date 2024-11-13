@@ -19,6 +19,7 @@
 #include "spu2.h"
 #include "interpolate_table.h"
 
+extern s16 snd_buffer[0x0800];
 
 static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& prev1, s32& prev2)
 {
@@ -511,8 +512,7 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 #ifndef __POSIX__
 __forceinline
 #endif
-	void
-	Mix()
+int Mix(int samples)
 {
 	StereoOut32 Out;
 	StereoOut16 OutS16;
@@ -603,10 +603,12 @@ __forceinline
 	OutS16.Left       = (s16)Out.Left;
 	OutS16.Right      = (s16)Out.Right;
 
-	SndBuffer::Write(OutS16);
+	snd_buffer[samples++] = OutS16.Left;
+	snd_buffer[samples++] = OutS16.Right;
 
 	// Update AutoDMA output positioning
 	OutPos++;
 	if (OutPos >= 0x200)
 		OutPos = 0;
+	return samples;
 }

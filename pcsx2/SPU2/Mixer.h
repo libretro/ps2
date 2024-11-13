@@ -15,4 +15,4 @@
 
 #pragma once
 
-extern void Mix();
+extern int Mix(int samples);

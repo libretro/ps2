@@ -138,9 +138,3 @@ struct Stereo71Out16
 	s16 LeftSide;
 	s16 RightSide;
 };
-
-namespace SndBuffer
-{
-	void Init(void);
-	void Write(StereoOut16 Sample);
-}

@@ -62,14 +62,10 @@ retro_environment_t environ_cb;
 retro_video_refresh_t video_cb;
 struct retro_hw_render_callback hw_render;
 retro_log_printf_t log_cb;
-static retro_audio_sample_batch_t batch_cb;
+retro_audio_sample_batch_t batch_cb;
 static retro_audio_sample_t sample_cb;
 
-#define SOUND_BUFFER_SIZE 0x0800
-#define SOUND_BUFFER_MASK (SOUND_BUFFER_SIZE - 1)
-static int write_pos = 0;
-static int read_pos = 0;
-static s16 snd_buffer[SOUND_BUFFER_SIZE];
+s16 snd_buffer[0x0800];
 
 float pad_axis_scale[2];
 
@@ -401,19 +397,6 @@ void retro_set_audio_sample(retro_audio_sample_t cb)
 	sample_cb = cb;
 }
 
-void SndBuffer::Init(void)
-{
-	read_pos  = 0;
-	write_pos = 0;
-}
-
-void SndBuffer::Write(StereoOut16 Sample)
-{
-	snd_buffer[write_pos++] = Sample.Left;
-	snd_buffer[write_pos++] = Sample.Right;
-	write_pos &= SOUND_BUFFER_MASK;
-}
-
 void retro_set_environment(retro_environment_t cb)
 {
 	struct retro_vfs_interface_info vfs_iface_info;
@@ -588,8 +571,6 @@ void retro_reset(void)
 {
 	cpu_thread_pause();
 	VMManager::Reset();
-	read_pos = 0;
-	write_pos = 0;
 	VMManager::SetPaused(false);
 }
 
@@ -1052,9 +1033,6 @@ bool retro_load_game(const struct retro_game_info* game)
 	pad_axis_scale[0] = (float)Options::axis_scale1 / 100;
 	pad_axis_scale[1] = (float)Options::axis_scale2 / 100;
 
-	read_pos  = 0;
-	write_pos = 0;
-
 	Input::Init();
 
 	Options::renderer.UpdateAndLock(); // disallow changes to Options::renderer outside of retro_load_game.
@@ -1162,9 +1140,6 @@ void retro_unload_game(void)
 #endif
 	VMManager::Internal::CPUThreadShutdown();
 
-	read_pos  = 0;
-	write_pos = 0;
-
 	((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(LayeredSettingsInterface::LAYER_BASE, nullptr);
 }
 
@@ -1232,22 +1207,6 @@ void retro_run(void)
 	MTGS::MainLoop(false);
 
 	RETRO_PERFORMANCE_STOP(pcsx2_run);
-
-	int samples = (write_pos - read_pos) & SOUND_BUFFER_MASK & ~0x1;
-
-//	if(samples > 800)
-//		samples = 800;
-
-	int rest = 0;
-	if(read_pos + samples > SOUND_BUFFER_SIZE)
-		rest = (read_pos + samples) & SOUND_BUFFER_MASK;
-
-	batch_cb(snd_buffer + read_pos, (samples - rest) >> 1);
-	if(rest)
-		batch_cb(snd_buffer, rest >> 1);
-
-	read_pos += samples;
-	read_pos &= SOUND_BUFFER_MASK;
 
 	if (EmuConfig.GS.Renderer == GSRendererType::Null)
 		video_cb(NULL, 0, 0, 0);
