@@ -344,7 +344,7 @@ namespace Options
 		{ "Enabled", 1 },
 	});
 
-	GfxOption<int> pgs_disable_mipmaps("pcsx2_pgs_disable_mipmaps", "paraLLEl force texture LOD0 (Restart)", {
+	GfxOption<int> pgs_disable_mipmaps("pcsx2_pgs_disable_mipmaps", "Force texture LOD0 (Restart)", {
 		{ "Disabled", 0 },
 		{ "Enabled", 1 },
 	});
@@ -602,11 +602,13 @@ static void libretro_context_reset(void)
 	GSConfig.UpscaleMultiplier     = Options::upscale_multiplier;
 	GSConfig.PGSSuperSampling      = Options::pgs_super_sampling;
 	GSConfig.PGSHighResScanout     = Options::pgs_high_res_scanout;
-	GSConfig.PGSHighResScanout     = Options::pgs_disable_mipmaps;
+	GSConfig.PGSDisableMipmaps     = Options::pgs_disable_mipmaps;
+	GSConfig.HWMipmapMode          = Options::pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
 	EmuConfig.GS.UpscaleMultiplier = Options::upscale_multiplier;
 	EmuConfig.GS.PGSSuperSampling  = Options::pgs_super_sampling;
 	EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
 	EmuConfig.GS.PGSDisableMipmaps = Options::pgs_disable_mipmaps;
+	EmuConfig.GS.HWMipmapMode      = Options::pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -1207,6 +1209,7 @@ void retro_run(void)
 	if (Options::pgs_disable_mipmaps.Updated())
 	{
 		EmuConfig.GS.PGSDisableMipmaps = Options::pgs_disable_mipmaps;
+		EmuConfig.GS.HWMipmapMode      = Options::pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
 		// FIXME: This seems to hang sometimes.
 		//VMManager::ApplySettings();
 	}
