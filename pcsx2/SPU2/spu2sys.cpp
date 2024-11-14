@@ -296,7 +296,8 @@ __forceinline void TimeUpdate(u32 cClocks)
 		samples  = Mix(&snd_buffer[0], &snd_buffer[1], samples);
 	}
 
-	batch_cb(snd_buffer, samples >> 1);
+	if (batch_cb && snd_buffer[0] != 0 && snd_buffer[1] != 0)
+		batch_cb(snd_buffer, samples >> 1);
 
 	//Update DMA4 interrupt delay counter
 	if (Cores[0].DMAICounter > 0 && (psxRegs.cycle - Cores[0].LastClock) > 0)
