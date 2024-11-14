@@ -21,26 +21,16 @@
 
 namespace SPU2
 {
-	static void InitSndBuffer();
-	static void UpdateSampleRate();
 	static void InternalReset(bool psxmode);
 } // namespace SPU2
 
 static bool s_psxmode = false;
 
-int SampleRate = 48000;
-
 u32 lClocks = 0;
-
-s32 SPU2::GetConsoleSampleRate(void)
-{
-	return s_psxmode ? 44100 : 48000;
-}
 
 // --------------------------------------------------------------------------------------
 //  DMA 4/7 Callbacks from Core Emulator
 // --------------------------------------------------------------------------------------
-
 
 void SPU2readDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
 {
@@ -82,27 +72,6 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 	Cores[1].DoDMAwrite(pMem, size);
 }
 
-void SPU2::InitSndBuffer()
-{
-	if (SampleRate != GetConsoleSampleRate())
-	{
-		// It'll get stretched instead..
-		const int original_sample_rate = SampleRate;
-		SampleRate = GetConsoleSampleRate();
-		SampleRate = original_sample_rate;
-	}
-}
-
-void SPU2::UpdateSampleRate()
-{
-	const int new_sample_rate = GetConsoleSampleRate();
-	if (SampleRate == new_sample_rate)
-		return;
-
-	SampleRate = new_sample_rate;
-	InitSndBuffer();
-}
-
 void SPU2::InternalReset(bool psxmode)
 {
 	s_psxmode = psxmode;
@@ -123,7 +92,6 @@ void SPU2::InternalReset(bool psxmode)
 void SPU2::Reset(bool psxmode)
 {
 	InternalReset(psxmode);
-	UpdateSampleRate();
 }
 
 void SPU2::Initialize(void)
@@ -135,9 +103,6 @@ void SPU2::Open()
 	lClocks = psxRegs.cycle;
 
 	InternalReset(false);
-
-	SampleRate = GetConsoleSampleRate();
-	InitSndBuffer();
 }
 
 void SPU2::Close() { }

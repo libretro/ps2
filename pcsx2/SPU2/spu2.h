@@ -35,9 +35,6 @@ namespace SPU2
 
 	/// Returns true if we're currently running in PSX mode.
 	bool IsRunningPSXMode(void);
-
-	/// Returns the current sample rate the SPU2 is operating at.
-	s32 GetConsoleSampleRate(void);
 } // namespace SPU2
 
 void SPU2write(u32 mem, u16 value);

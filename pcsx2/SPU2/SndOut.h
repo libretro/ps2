@@ -17,11 +17,6 @@
 
 #include "common/Pcsx2Types.h"
 
-// Samplerate of the SPU2. For accurate playback we need to match this
-// exactly.  Trying to scale samplerates and maintain SPU2's Ts timing accuracy
-// is too problematic. :)
-extern int SampleRate;
-
 struct StereoOut16;
 
 struct Stereo51Out16DplII;
