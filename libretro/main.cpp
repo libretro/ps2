@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <thread>
 
+#include "libretro_core_options.h"
 #include "GS.h"
 #include "SPU2/Global.h"
 #include "ps2/BiosTools.h"
@@ -65,305 +66,196 @@ static retro_audio_sample_batch_t batch_cb;
 retro_log_printf_t log_cb;
 retro_audio_sample_t sample_cb;
 
-float pad_axis_scale[2];
-
 static VMState cpu_thread_state;
 MemorySettingsInterface s_settings_interface;
 static std::thread cpu_thread;
 
-enum OptionsGroups
-{
-	OPTIONS_BASE,
-	OPTIONS_GFX,
-	OPTIONS_EMU,
-	OPTIONS_GROUPS_MAX
+struct BiosInfo {
+	std::string filename;
+	std::string description;
 };
 
-namespace Options
+static std::vector<BiosInfo> bios_info;
+static std::string bios;
+static std::string renderer;
+static int upscale_multiplier;
+static int pgs_super_sampling;
+static int pgs_high_res_scanout;
+static int pgs_disable_mipmaps;
+static int axis_scale1;
+static int axis_scale2;
+static bool fast_boot;
+float pad_axis_scale[2];
+
+static bool show_parallel_options = true;
+static bool show_hle_options = true;
+
+static bool update_option_visibility()
 {
+	struct retro_core_option_display option_display;
+	struct retro_variable var;
+	bool updated = false;
 
-	class OptionBase
+	// Show/hide video options
+	bool show_input_options_prev = show_parallel_options;
+	bool show_hle_options_prev = show_hle_options;
+	show_parallel_options = true;
+	show_hle_options = true;
+
+	var.key = "pcsx2_renderer";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		public:
-			void SetDirty() { m_dirty = true; }
-			retro_variable getVariable() { return {m_id, m_options.c_str()}; }
-			virtual bool empty() = 0;
+		if (!strcmp(var.value, "paraLLEl-GS") || !strcmp(var.value, "Software") || !strcmp(var.value, "Null"))
+			show_hle_options = false;
+		if (strcmp(var.value, "paraLLEl-GS"))
+			show_parallel_options = false;
+	}
 
-		protected:
-			OptionBase(const char* id, const char* name, OptionsGroups group)
-				: m_id(id)
-				  , m_name(name)
-		{
-			m_options = m_name;
-			m_options.push_back(';');
-			Register(group);
-		}
-
-			const char* m_id;
-			const char* m_name;
-			bool m_dirty = true;
-			std::string m_options;
-
-		private:
-			void Register(OptionsGroups group);
-	};
-
-	template <typename T, OptionsGroups group = OPTIONS_BASE>
-		class Option : public OptionBase
+	if (show_parallel_options != show_input_options_prev)
 	{
-		Option(Option&) = delete;
-		Option(Option&&) = delete;
-		Option& operator=(Option&) = delete;
+		option_display.visible = show_parallel_options;
+		option_display.key = "pcsx2_pgs_ssaa";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key = "pcsx2_pgs_high_res_scanout";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key = "pcsx2_pgs_disable_mipmaps";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-		public:
-		Option(const char* id, const char* name)
-			: OptionBase(id, name, group)
+		updated = true;
+	}
+
+	if (show_hle_options != show_hle_options_prev)
+	{
+		option_display.visible = show_hle_options;
+		option_display.key = "pcsx2_upscale_multiplier";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
+		updated = true;
+	}
+
+	return updated;
+}
+
+static void check_variables(bool first_run)
+{
+	struct retro_variable var;
+	int i_prev;
+
+	if (first_run)
+	{
+		var.key = "pcsx2_bios";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
+			bios = var.value;
 		}
 
-		Option(const char* id, const char* name, T initial)
-			: OptionBase(id, name, group)
+		var.key = "pcsx2_fastboot";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			push_back(initial ? "enabled" : "disabled", initial);
-			push_back(!initial ? "enabled" : "disabled", !initial);
-		}
-
-		Option(const char* id, const char* name, std::initializer_list<std::pair<const char*, T>> list)
-			: OptionBase(id, name, group)
-		{
-			for (auto option : list)
-				push_back(option.first, option.second);
-		}
-
-		Option(const char* id, const char* name, std::initializer_list<const char*> list)
-			: OptionBase(id, name, group)
-		{
-			for (auto option : list)
-				push_back(option);
-		}
-
-		Option(const char* id, const char* name, T first, std::initializer_list<const char*> list)
-			: OptionBase(id, name, group)
-		{
-			for (auto option : list)
-				push_back(option, first + (int)m_list.size());
-		}
-
-		Option(const char* id, const char* name, T first, int count, int step = 1)
-			: OptionBase(id, name, group)
-		{
-			for (T i = first; i < first + count; i += step)
-				push_back(std::to_string(i), i);
-		}
-
-		void push_back(std::string option, T value)
-		{
-			if (m_list.empty())
-			{
-				m_options += std::string(" ") + option;
-				m_value = value;
-			}
+			if (!strcmp(var.value, "enabled"))
+				fast_boot = true;
 			else
-				m_options += std::string("|") + option;
-
-			m_list.push_back({option, value});
+				fast_boot = false;
 		}
 
-		template <bool is_str = !std::is_integral<T>() && std::is_constructible<T, const char*>()>
-			void push_back(const char* option)
-			{
-				push_back(option, option);
-			}
-#if 0
-		template <>
-			void push_back<false>(const char* option)
-			{
-				if (m_list.empty())
-					push_back(option, 0);
-				else
-					push_back(option, m_list.back().second + 1);
-			}
-#endif
-		bool Updated()
+		var.key = "pcsx2_renderer";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			if (m_dirty && !m_locked)
-			{
-				m_dirty = false;
-
-				retro_variable var{m_id};
-				T value = m_list.front().second;
-
-				if (environ_cb && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-				{
-					for (auto option : m_list)
-					{
-						if (option.first == var.value)
-						{
-							value = option.second;
-							break;
-						}
-					}
-				}
-
-				if (m_value != value)
-				{
-					m_value = value;
-					return true;
-				}
-			}
-
-			return false;
+			renderer = var.value;
 		}
-
-		void UpdateAndLock()
-		{
-			m_locked = false;
-			Updated();
-			m_locked = true;
-		}
-
-		operator T()
-		{
-			Updated();
-			return m_value;
-		}
-
-		T Get()
-		{
-			return (T) * this;
-		}
-
-		template <typename S>
-			bool operator==(S value)
-			{
-				return (T) * this == value;
-			}
-
-		template <typename S>
-			bool operator!=(S value)
-			{
-				return (T) * this != value;
-			}
-
-		virtual bool empty() override { return m_list.empty(); }
-
-		private:
-		bool m_locked = false;
-		T m_value;
-		std::vector<std::pair<std::string, T>> m_list;
-	};
-
-	template <typename T>
-		using EmuOption = Option<T, OPTIONS_EMU>;
-	template <typename T>
-		using GfxOption = Option<T, OPTIONS_GFX>;
-
-	static std::vector<OptionBase*>& GetOptionGroup(OptionsGroups group)
-	{
-		/* this garentees that 'list' is constructed first before being accessed other global constructors.*/
-		static std::vector<OptionBase*> list[OPTIONS_GROUPS_MAX];
-		return list[group];
 	}
 
-	void OptionBase::Register(OptionsGroups group)
+	var.key = "pcsx2_pgs_ssaa";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		GetOptionGroup(group).push_back(this);
+		i_prev = pgs_super_sampling;
+		if (!strcmp(var.value, "Native"))
+			pgs_super_sampling = 0;
+		else if (!strcmp(var.value, "2x SSAA"))
+			pgs_super_sampling = 1;
+		else if (!strcmp(var.value, "4x SSAA (sparse grid)"))
+			pgs_super_sampling = 2;
+		else if (!strcmp(var.value, "4x SSAA (ordered, can high-res)"))
+			pgs_super_sampling = 3;
+		else if (!strcmp(var.value, "8x SSAA (can high-res)"))
+			pgs_super_sampling = 4;
+		else if (!strcmp(var.value, "16x SSAA (can high-res)"))
+			pgs_super_sampling = 5;
+
+		if (pgs_super_sampling != i_prev && !first_run)
+		{
+			EmuConfig.GS.PGSSuperSampling = pgs_super_sampling;
+			// FIXME: This seems to hang sometimes.
+			//VMManager::ApplySettings();
+		}
 	}
 
-	void SetVariables()
+	var.key = "pcsx2_pgs_high_res_scanout";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		std::vector<retro_variable> vars;
-		for (int grp = 0; grp < OPTIONS_GROUPS_MAX; grp++)
-			for (OptionBase* option : GetOptionGroup((OptionsGroups)grp))
-				if (!option->empty())
-					vars.push_back(option->getVariable());
+		i_prev = pgs_high_res_scanout;
+		if (!strcmp(var.value, "enabled"))
+			pgs_high_res_scanout = true;
+		else
+			pgs_high_res_scanout = false;
 
-		if (vars.empty())
-			return;
-
-		vars.push_back({});
-		environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars.data());
+		if (pgs_high_res_scanout != i_prev && !first_run)
+		{
+			EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;
+			// FIXME: This seems to hang sometimes.
+			//VMManager::ApplySettings();
+		}
 	}
 
-	extern GfxOption<int> upscale_multiplier;
-	extern GfxOption<std::string> renderer;
-	extern GfxOption<int> pgs_super_sampling;
-	extern GfxOption<int> pgs_high_res_scanout;
-	extern GfxOption<int> pgs_disable_mipmaps;
+	var.key = "pcsx2_pgs_disable_mipmaps";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		i_prev = pgs_disable_mipmaps;
+		if (!strcmp(var.value, "enabled"))
+			pgs_disable_mipmaps = true;
+		else
+			pgs_disable_mipmaps = false;
 
-	static Option<std::string> bios("pcsx2_bios", "Bios"); // will be filled in retro_init()
-	static Option<bool> fast_boot("pcsx2_fastboot", "Fast Boot", true);
+		if (pgs_disable_mipmaps != i_prev && !first_run)
+		{
+			EmuConfig.GS.PGSDisableMipmaps = pgs_disable_mipmaps;
+			// FIXME: This seems to hang sometimes.
+			//VMManager::ApplySettings();
+		}
+	}
 
-	static Option<int> axis_scale1("pcsx2_axis_scale1", "Port 1: Analog Sensitivity", {
-		{ "133%", 133 },
-		{ "150%", 150 },
-		{ "200%", 200 },
-		{ "50%", 50 },
-		{ "100%", 100 },
-	});
-	static Option<int> axis_scale2("pcsx2_axis_scale2", "Port 2: Analog Sensitivity", {
-		{ "133%", 133 },
-		{ "150%", 150 },
-		{ "200%", 200 },
-		{ "50%", 50 },
-		{ "100%", 100 },
-	});
+	var.key = "pcsx2_upscale_multiplier";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		i_prev = upscale_multiplier;
+		upscale_multiplier = atoi(var.value);
 
-	GfxOption<std::string> renderer("pcsx2_renderer", "Renderer", {
-			"Auto",
-			"OpenGL",
-#ifdef _WIN32
-			"D3D11", "D3D12",
+		if (upscale_multiplier != i_prev && !first_run)
+		{
+			retro_system_av_info av_info;
+			retro_get_system_av_info(&av_info);
+#if 1
+			environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+#else
+			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
 #endif
-#ifdef ENABLE_VULKAN
-			"Vulkan",
-#endif
-#ifdef HAVE_PARALLEL_GS
-			"paraLLEl-GS",
-#endif
-			"Software",
-			"Null"});
+		}
+	}
 
-	GfxOption<int> pgs_super_sampling("pcsx2_pgs_ssaa", "paraLLEl super sampling (Restart)", {
-		{ "Native", 0 },
-		{ "2x SSAA", 1 },
-		{ "4x SSAA (sparse grid)", 2 },
-		{ "4x SSAA (ordered, can high-res)", 3 },
-		{ "8x SSAA (can high-res)", 4 },
-		{ "16x SSAA (can high-res)", 5 },
-	});
+	var.key = "pcsx2_axis_scale1";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		pad_axis_scale[0] = atof(var.value) / 100;
+	}
 
-	GfxOption<int> pgs_high_res_scanout("pcsx2_pgs_high_res_scanout", "paraLLEl experimental High-res scanout (Restart)", {
-		{ "Disabled", 0 },
-		{ "Enabled", 1 },
-	});
+	var.key = "pcsx2_axis_scale2";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		pad_axis_scale[1] = atof(var.value) / 100;
+	}
 
-	GfxOption<int> pgs_disable_mipmaps("pcsx2_pgs_disable_mipmaps", "Force texture LOD0 (Restart)", {
-		{ "Disabled", 0 },
-		{ "Enabled", 1 },
-	});
-
-	GfxOption<int> upscale_multiplier("pcsx2_upscale_multiplier", "Internal Resolution",
-			{
-			{"1x Native (PS2)",         1},
-			{"2x Native (~720p)",       2},
-			{"3x Native (~1080p)",      3},
-			{"4x Native (~1440p/2K)",   4},
-			{"5x Native (~1800p/3K)",   5},
-			{"6x Native (~2160p/4K)",   6},
-			{"7x Native (~2520p)",      7},
-			{"8x Native (~2880p/5K)",   8},
-			{"9x Native (~3240p)",      9},
-			{"10x Native (~3600p/6K)", 10},
-			{"11x Native (~3960p)",    11},
-			{"12x Native (~4320p/8K)", 12},
-			{"13x Native (~5824p)",    13},
-			{"14x Native (~6272p)",    14},
-			{"15x Native (~6720p)",    15},
-			{"16x Native (~7168p)",    16},
-			});
-	//static GfxOption<int> sw_renderer_threads("pcsx2_sw_renderer_threads", "Software Renderer Threads", 2, 10);
-} // namespace Options
+	update_option_visibility();
+}
 
 #ifdef ENABLE_VULKAN
 static retro_hw_render_interface_vulkan *vulkan;
@@ -405,6 +297,10 @@ void retro_set_environment(retro_environment_t cb)
 #ifdef PERF_TEST
 	environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb);
 #endif
+
+	struct retro_core_options_update_display_callback update_display_cb;
+	update_display_cb.callback = update_option_visibility;
+	environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK, &update_display_cb);
 
 	vfs_iface_info.required_interface_version = 1;
 	vfs_iface_info.iface                      = NULL;
@@ -540,21 +436,21 @@ void retro_get_system_info(retro_system_info* info)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	if (Options::renderer == "Software" || Options::renderer == "paraLLEl-GS" || Options::renderer == "Null")
+	if (renderer == "Software" || renderer == "paraLLEl-GS" || renderer == "Null")
 	{
 		info->geometry.base_width = 640;
 		info->geometry.base_height = 448;
 	}
 	else
 	{
-		info->geometry.base_width = 640 * Options::upscale_multiplier;
-		info->geometry.base_height = 448 * Options::upscale_multiplier;
+		info->geometry.base_width = 640 * upscale_multiplier;
+		info->geometry.base_height = 448 * upscale_multiplier;
 	}
 
 	info->geometry.max_width = info->geometry.base_width;
 	info->geometry.max_height = info->geometry.base_height;
 
-	if (Options::renderer == "paraLLEl-GS" && Options::pgs_high_res_scanout)
+	if (renderer == "paraLLEl-GS" && pgs_high_res_scanout)
 	{
 		info->geometry.max_width *= 2;
 		info->geometry.max_height *= 2;
@@ -574,20 +470,20 @@ void retro_reset(void)
 
 static void libretro_context_reset(void)
 {
-	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
-	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", Options::pgs_super_sampling);
-	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsHighResScanout", Options::pgs_high_res_scanout);
-	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsDisableMipmaps", Options::pgs_disable_mipmaps);
-	GSConfig.UpscaleMultiplier     = Options::upscale_multiplier;
-	GSConfig.PGSSuperSampling      = Options::pgs_super_sampling;
-	GSConfig.PGSHighResScanout     = Options::pgs_high_res_scanout;
-	GSConfig.PGSDisableMipmaps     = Options::pgs_disable_mipmaps;
-	GSConfig.HWMipmapMode          = Options::pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
-	EmuConfig.GS.UpscaleMultiplier = Options::upscale_multiplier;
-	EmuConfig.GS.PGSSuperSampling  = Options::pgs_super_sampling;
-	EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
-	EmuConfig.GS.PGSDisableMipmaps = Options::pgs_disable_mipmaps;
-	EmuConfig.GS.HWMipmapMode      = Options::pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
+	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
+	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
+	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
+	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
+	GSConfig.UpscaleMultiplier     = upscale_multiplier;
+	GSConfig.PGSSuperSampling      = pgs_super_sampling;
+	GSConfig.PGSHighResScanout     = pgs_high_res_scanout;
+	GSConfig.PGSDisableMipmaps     = pgs_disable_mipmaps;
+	GSConfig.HWMipmapMode          = pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
+	EmuConfig.GS.UpscaleMultiplier = upscale_multiplier;
+	EmuConfig.GS.PGSSuperSampling  = pgs_super_sampling;
+	EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;
+	EmuConfig.GS.PGSDisableMipmaps = pgs_disable_mipmaps;
+	EmuConfig.GS.HWMipmapMode      = pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -674,7 +570,7 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 
 static bool libretro_select_hw_render(void)
 {
-	if (Options::renderer == "Auto" || Options::renderer == "Software")
+	if (renderer == "Auto" || renderer == "Software")
 	{
 #if defined(__APPLE__)
         if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
@@ -687,22 +583,22 @@ static bool libretro_select_hw_render(void)
 #endif
 	}
 #ifdef _WIN32
-	if (Options::renderer == "D3D11")
+	if (renderer == "D3D11")
 	{
 		hw_render.version_major = 11;
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_D3D11);
 	}
-	if (Options::renderer == "D3D12")
+	if (renderer == "D3D12")
 	{
 		hw_render.version_major = 12;
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_D3D12);
 	}
 #endif
 #ifdef ENABLE_VULKAN
-	if (Options::renderer == "Vulkan" || Options::renderer == "paraLLEl-GS")
+	if (renderer == "Vulkan" || renderer == "paraLLEl-GS")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN);
 #endif
-	if (Options::renderer == "Null")
+	if (renderer == "Null")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL_CORE))
@@ -717,7 +613,7 @@ static bool libretro_select_hw_render(void)
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_D3D12))
 		return true;
 #endif
-	if (Options::renderer == "Software")
+	if (renderer == "Software")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 
 	return false;
@@ -780,7 +676,7 @@ void retro_init(void)
 
 	vu1Thread.Reset();
 
-	if (Options::bios.empty())
+	if (bios.empty())
 	{
 		const char* system_base = nullptr;
 		environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
@@ -798,12 +694,31 @@ void retro_init(void)
 					continue;
 
 				if (IsBIOS(fd.FileName.c_str(), version, description, region, zone))
-					Options::bios.push_back(description, std::string(Path::GetFileName(fd.FileName)));
+					bios_info.push_back({ std::string(Path::GetFileName(fd.FileName)), description });
+			}
+
+			// Find the BIOS core option and fill its values/labels/default_values
+			for (unsigned i = 0; option_defs_us[i].key != NULL; i++)
+			{
+				if (!strcmp(option_defs_us[i].key, "pcsx2_bios"))
+				{
+					unsigned j;
+					for (j = 0; j < bios_info.size() && j < (RETRO_NUM_CORE_OPTION_VALUES_MAX - 1); j++)
+						option_defs_us[i].values[j] = { bios_info[j].filename.c_str(), bios_info[j].description.c_str() };
+
+					// Make sure the next array is null and set the first BIOS found as the default value
+					option_defs_us[i].values[j] = { NULL, NULL };
+					option_defs_us[i].default_value = option_defs_us[i].values[0].value;
+					break;
+				}
 			}
 		}
 	}
 
-	Options::SetVariables();
+   	bool option_categories = false;
+   	libretro_set_core_options(environ_cb, &option_categories);
+
+	check_variables(true);
 
 	static retro_disk_control_ext_callback disk_control = {
 		set_eject_state,
@@ -1018,27 +933,22 @@ bool retro_load_game(const struct retro_game_info* game)
 	VMManager::Internal::CPUThreadInitialize();
 	VMManager::LoadSettings();
 
-	if (Options::bios.empty())
+	if (bios.empty())
 	{
 		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios.c_str());
 		return false;
 	}
 
-	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", Options::upscale_multiplier);
-	s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", Options::fast_boot);
-	s_settings_interface.SetStringValue("Filenames", "BIOS", Options::bios.Get().c_str());
-
-	pad_axis_scale[0] = (float)Options::axis_scale1 / 100;
-	pad_axis_scale[1] = (float)Options::axis_scale2 / 100;
+	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
+	s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", fast_boot);
+	s_settings_interface.SetStringValue("Filenames", "BIOS", bios.c_str());
 
 	Input::Init();
-
-	Options::renderer.UpdateAndLock(); // disallow changes to Options::renderer outside of retro_load_game.
 
 	if(!libretro_select_hw_render())
 		return false;
 
-	if(Options::renderer == "Software")
+	if(renderer == "Software")
 		s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::SW);
 	else
 	{
@@ -1053,7 +963,7 @@ bool retro_load_game(const struct retro_game_info* game)
 #ifdef ENABLE_VULKAN
 			case RETRO_HW_CONTEXT_VULKAN:
 #ifdef HAVE_PARALLEL_GS
-				if (Options::renderer == "paraLLEl-GS")
+				if (renderer == "paraLLEl-GS")
 				{
 					s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::ParallelGS);
 					static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
@@ -1146,52 +1056,9 @@ void retro_run(void)
 {
 	bool updated = false;
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-	{
-		for (int grp = 0; grp < OPTIONS_GROUPS_MAX; grp++)
-			for (Options::OptionBase* option : Options::GetOptionGroup((OptionsGroups)grp))
-				option->SetDirty();
-	}
+		check_variables(false);
 
 	Input::Update();
-
-	if (Options::upscale_multiplier.Updated())
-	{
-		retro_system_av_info av_info;
-		retro_get_system_av_info(&av_info);
-#if 1
-		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
-#else
-		environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
-#endif
-	}
-
-	if (Options::pgs_super_sampling.Updated())
-	{
-		EmuConfig.GS.PGSSuperSampling = Options::pgs_super_sampling;
-		// FIXME: This seems to hang sometimes.
-		//VMManager::ApplySettings();
-	}
-
-	if (Options::pgs_high_res_scanout.Updated())
-	{
-		EmuConfig.GS.PGSHighResScanout = Options::pgs_high_res_scanout;
-		// FIXME: This seems to hang sometimes.
-		//VMManager::ApplySettings();
-	}
-
-	if (Options::pgs_disable_mipmaps.Updated())
-	{
-		EmuConfig.GS.PGSDisableMipmaps = Options::pgs_disable_mipmaps;
-		EmuConfig.GS.HWMipmapMode      = Options::pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
-		// FIXME: This seems to hang sometimes.
-		//VMManager::ApplySettings();
-	}
-
-	if (Options::axis_scale1.Updated() || Options::axis_scale2.Updated())
-	{
-		pad_axis_scale[0] = (float)Options::axis_scale1 / 100;
-		pad_axis_scale[1] = (float)Options::axis_scale2 / 100;
-	}
 
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
@@ -1213,8 +1080,8 @@ void retro_run(void)
 std::optional<WindowInfo> Host::AcquireRenderWindow(void)
 {
 	WindowInfo wi;
-	wi.surface_width  = 640 * Options::upscale_multiplier;
-	wi.surface_height = 448 * Options::upscale_multiplier;
+	wi.surface_width  = 640 * upscale_multiplier;
+	wi.surface_height = 448 * upscale_multiplier;
 	return wi;
 }
 
