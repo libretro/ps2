@@ -992,7 +992,7 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr)
 				break;
 
 			cdsize = (bcr & 0xffff) * 4;
-			memcpy(iopPhysMem(madr), cdr.pTransfer, cdsize);
+			memcpy(&iopMem->Main[madr & 0x1fffff], cdr.pTransfer, cdsize);
 			psxCpu->Clear(madr, cdsize / 4);
 			cdr.pTransfer += cdsize;
 

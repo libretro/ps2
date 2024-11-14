@@ -452,7 +452,7 @@ namespace SPU2Savestate
 {
 	struct DataBlock;
 
-	extern s32 FreezeIt(DataBlock& spud);
+	extern void FreezeIt(DataBlock& spud);
 	extern s32 ThawIt(DataBlock& spud);
 	extern s32 SizeIt();
 } // namespace SPU2Savestate

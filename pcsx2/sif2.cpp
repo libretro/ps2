@@ -63,7 +63,7 @@ static __fi bool WriteIOPtoFifo(void)
 	const int writeSize = std::min(sif2.iop.counter, FIFO_SIF_W - sif2.fifo.size);
 
 	if (writeSize > 0)
-		sif2.fifo.write((u32*)iopPhysMem(hw_dma2.madr), writeSize);
+		sif2.fifo.write((u32*)&iopMem->Main[hw_dma2.madr & 0x1fffff], writeSize);
 	hw_dma2.madr += writeSize << 2;
 
 	// iop is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
@@ -105,9 +105,7 @@ static __fi bool ProcessEETag(void)
 // Read Fifo into an iop tag, and transfer it to hw_dma9. And presumably process it.
 static __fi void ProcessIOPTag(void)
 {
-	//sif2.iop.data = *(sifData *)iopPhysMem(hw_dma2.madr); //comment this out and replace words below
 	// Process DMA tag at hw_dma9.tadr
-
 	sif2.iop.data.words = sif2.iop.data.data >> 24; // Round up to nearest 4.
 
 	// send the EE's side of the DMAtag.  The tag is only 64 bits, with the upper 64 bits

@@ -59,7 +59,7 @@ static __fi void WriteIOPtoFifo(void)
 	const int writeSize = std::min(sif0.iop.counter, FIFO_SIF_W - sif0.fifo.size);
 
 	if (writeSize > 0)
-		sif0.fifo.write((u32*)iopPhysMem(hw_dma9.madr), writeSize);
+		sif0.fifo.write((u32*)&iopMem->Main[hw_dma9.madr & 0x1fffff], writeSize);
 	hw_dma9.madr       += writeSize << 2;
 
 	// IOP is 1/8th the clock rate of the EE and psxcycles is in words (not quadwords).
@@ -100,14 +100,14 @@ static __fi void ProcessEETag(void)
 static __fi void ProcessIOPTag(void)
 {
 	// Process DMA tag at hw_dma9.tadr
-	sif0.iop.data       = *(sifData *)iopPhysMem(hw_dma9.tadr);
+	sif0.iop.data       = *(sifData *)&iopMem->Main[hw_dma9.tadr & 0x1fffff];
 	sif0.iop.data.words = sif0.iop.data.words;
 
 	// send the EE's side of the DMAtag.  The tag is only 64 bits, with the upper 64 bits being the next IOP
 	// The tag is only 64 bits, with the upper 64 bits
 	// ignored by the EE, however required for alignment and used as junk data in small packets.
 
-	sif0.fifo.write((u32*)iopPhysMem(hw_dma9.tadr + 8), 4);
+	sif0.fifo.write((u32*)&iopMem->Main[(hw_dma9.tadr + 8) & 0x1fffff], 4);
 
 	// I know we just sent 1QW, because of the size of the EE read, but only 64bits was valid
 	// so we advance by 64bits after the EE tag to get the next IOP tag.

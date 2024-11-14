@@ -116,26 +116,25 @@ s32 SPU2freeze(FreezeAction mode, freezeData* data)
 		return -1;
 
 	if (mode == FreezeAction::Size)
-	{
 		data->size = SPU2Savestate::SizeIt();
-		return 0;
-	}
-
-	if (data->data == nullptr)
-		return -1;
-
-	auto& spud = (SPU2Savestate::DataBlock&)*(data->data);
-
-	switch (mode)
+	else
 	{
-		case FreezeAction::Load:
-			return SPU2Savestate::ThawIt(spud);
-		case FreezeAction::Save:
-			return SPU2Savestate::FreezeIt(spud);
-		default:
-			break;
+		if (data->data == nullptr)
+			return -1;
+
+		auto& spud = (SPU2Savestate::DataBlock&)*(data->data);
+
+		switch (mode)
+		{
+			case FreezeAction::Load:
+				return SPU2Savestate::ThawIt(spud);
+			case FreezeAction::Save:
+				SPU2Savestate::FreezeIt(spud);
+				break;
+			default:
+				break;
+		}
 	}
 
-	// technically unreachable, but kills a warning:
 	return 0;
 }

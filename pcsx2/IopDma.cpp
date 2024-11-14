@@ -55,12 +55,12 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 			if (dmaNum == 7)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[1].DoDMAwrite((u16*)iopPhysMem(madr), size * 2);
+				Cores[1].DoDMAwrite((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			else if (dmaNum == 4)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[0].DoDMAwrite((u16*)iopPhysMem(madr), size * 2);
+				Cores[0].DoDMAwrite((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			break;
 
@@ -68,12 +68,12 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 			if (dmaNum == 7)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[1].DoDMAread((u16*)iopPhysMem(madr), size * 2);
+				Cores[1].DoDMAread((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			else if (dmaNum == 4)
 			{
 				TimeUpdate(psxRegs.cycle);
-				Cores[0].DoDMAread((u16*)iopPhysMem(madr), size * 2);
+				Cores[0].DoDMAread((u16*)&iopMem->Main[madr & 0x1fffff], size * 2);
 			}
 			psxCpu->Clear(spuCore ? HW_DMA7_MADR : HW_DMA4_MADR, size);
 			break;
@@ -121,7 +121,7 @@ void psxDma2(u32 madr, u32 bcr, u32 chcr) // GPU
 
 void psxDma6(u32 madr, u32 bcr, u32 chcr)
 {
-	u32* mem = (u32*)iopPhysMem(madr);
+	u32* mem = (u32*)&iopMem->Main[madr & 0x1fffff];
 
 	if (chcr == 0x11000002)
 	{
@@ -145,11 +145,11 @@ void psxDma8(u32 madr, u32 bcr, u32 chcr)
 	switch (chcr & 0x01000201)
 	{
 		case 0x01000201: //cpu to dev9 transfer
-			DEV9writeDMA8Mem((u32*)iopPhysMem(madr), size);
+			DEV9writeDMA8Mem((u32*)&iopMem->Main[madr & 0x1fffff], size);
 			break;
 
 		case 0x01000200: //dev9 to cpu transfer
-			DEV9readDMA8Mem((u32*)iopPhysMem(madr), size);
+			DEV9readDMA8Mem((u32*)&iopMem->Main[madr & 0x1fffff], size);
 			break;
 
 		default:

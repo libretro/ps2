@@ -22,53 +22,24 @@
 extern uptr *psxMemWLUT;
 extern const uptr *psxMemRLUT;
 
-// Obtains a writable pointer into the IOP's memory, with TLB address translation.
-// If the address maps to read-only memory, NULL is returned.
-// Hacky!  This should really never be used, ever, since it bypasses the iop's Hardware
-// Register handler and SPU/DEV/USB maps.
-template<typename T>
-static __fi T* iopVirtMemW( u32 mem )
-{
-	return (psxMemWLUT[(mem) >> 16] == 0) ? NULL : (T*)(psxMemWLUT[(mem) >> 16] + ((mem) & 0xffff));
-}
-
-// Obtains a read-safe pointer into the IOP's physical memory, with TLB address translation.
-// Returns NULL if the address maps to an invalid/unmapped physical address.
-//
-// Hacky!  This should really never be used, since anything reading through the
-// TLB should be using iopMemRead/Write instead for each individual access.  That ensures
-// correct handling of page boundary crossings.
-template<typename T>
-static __fi const T* iopVirtMemR( u32 mem )
-{
-	mem &= 0x1fffffff;
-	return (psxMemRLUT[mem >> 16] == 0) ? NULL : (const T*)(psxMemRLUT[mem >> 16] + (mem & 0xffff));
-}
-
-// Obtains a pointer to the IOP's physical mapping (bypasses the TLB)
-static __fi u8* iopPhysMem( u32 addr )
-{
-	return &iopMem->Main[addr & 0x1fffff];
-}
-
-#define psxSs8(mem)		iopMem->Sif[(mem) & 0x00ff]
+#define psxSs8(mem)	iopMem->Sif[(mem) & 0x00ff]
 #define psxSs16(mem)	(*(s16*)&iopMem->Sif[(mem) & 0x00ff])
 #define psxSs32(mem)	(*(s32*)&iopMem->Sif[(mem) & 0x00ff])
-#define psxSu8(mem)		(*(u8*) &iopMem->Sif[(mem) & 0x00ff])
+#define psxSu8(mem)	(*(u8*) &iopMem->Sif[(mem) & 0x00ff])
 #define psxSu16(mem)	(*(u16*)&iopMem->Sif[(mem) & 0x00ff])
 #define psxSu32(mem)	(*(u32*)&iopMem->Sif[(mem) & 0x00ff])
 
-#define psxPs8(mem)		iopMem->P[(mem) & 0xffff]
+#define psxPs8(mem)	iopMem->P[(mem) & 0xffff]
 #define psxPs16(mem)	(*(s16*)&iopMem->P[(mem) & 0xffff])
 #define psxPs32(mem)	(*(s32*)&iopMem->P[(mem) & 0xffff])
-#define psxPu8(mem)		(*(u8*) &iopMem->P[(mem) & 0xffff])
+#define psxPu8(mem)	(*(u8*) &iopMem->P[(mem) & 0xffff])
 #define psxPu16(mem)	(*(u16*)&iopMem->P[(mem) & 0xffff])
 #define psxPu32(mem)	(*(u32*)&iopMem->P[(mem) & 0xffff])
 
-#define psxHs8(mem)		iopHw[(mem) & 0xffff]
+#define psxHs8(mem)	iopHw[(mem) & 0xffff]
 #define psxHs16(mem)	(*(s16*)&iopHw[(mem) & 0xffff])
 #define psxHs32(mem)	(*(s32*)&iopHw[(mem) & 0xffff])
-#define psxHu8(mem)		(*(u8*) &iopHw[(mem) & 0xffff])
+#define psxHu8(mem)	(*(u8*) &iopHw[(mem) & 0xffff])
 #define psxHu16(mem)	(*(u16*)&iopHw[(mem) & 0xffff])
 #define psxHu32(mem)	(*(u32*)&iopHw[(mem) & 0xffff])
 

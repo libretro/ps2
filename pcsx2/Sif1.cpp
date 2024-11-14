@@ -58,7 +58,7 @@ static __fi void WriteFifoToIOP(void)
 	const int readSize = std::min(sif1.iop.counter, sif1.fifo.size);
 
 	if (readSize > 0)
-		sif1.fifo.read((u32*)iopPhysMem(hw_dma10.madr), readSize);
+		sif1.fifo.read((u32*)&iopMem->Main[hw_dma10.madr & 0x1fffff], readSize);
 	psxCpu->Clear(hw_dma10.madr, readSize);
 	hw_dma10.madr    += readSize << 2;
 	sif1.iop.cycles  += readSize >> 2;		// fixme: should be >> 4

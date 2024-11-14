@@ -600,7 +600,7 @@ void Mix(short *out_left, short *out_right)
 	// A simple DC blocking high-pass filter
 	// Implementation from http://peabody.sapp.org/class/dmp2/lab/dcblock/
 	// The magic number 0x7f5c is ceil(INT16_MAX * 0.995)
-	DCFilterOut.Left  = (Out.Left - DCFilterIn.Left   + std::clamp((0x7f5c * DCFilterOut.Left)  >> 15, -0x8000, 0x7fff));
+	DCFilterOut.Left  = (Out.Left  - DCFilterIn.Left  + std::clamp((0x7f5c * DCFilterOut.Left)  >> 15, -0x8000, 0x7fff));
 	DCFilterOut.Right = (Out.Right - DCFilterIn.Right + std::clamp((0x7f5c * DCFilterOut.Right) >> 15, -0x8000, 0x7fff));
 	DCFilterIn.Left   = Out.Left;
 	DCFilterIn.Right  = Out.Right;

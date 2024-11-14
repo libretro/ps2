@@ -43,7 +43,7 @@ struct SPU2Savestate::DataBlock
 	int PlayMode;
 };
 
-s32 SPU2Savestate::FreezeIt(DataBlock& spud)
+void SPU2Savestate::FreezeIt(DataBlock& spud)
 {
 	spud.spu2id = SAVE_ID;
 	spud.version = SAVE_VERSION;
@@ -60,7 +60,7 @@ s32 SPU2Savestate::FreezeIt(DataBlock& spud)
 	if (!(x)) \
 		x = reinterpret_cast<decltype(x)>(-1); \
 	else \
-		x = reinterpret_cast<decltype(x)>(reinterpret_cast<const u8*>((x)) - iopPhysMem(0))
+		x = reinterpret_cast<decltype(x)>(reinterpret_cast<const u8*>((x)) - &iopMem->Main[0])
 
 	for (u32 i = 0; i < 2; i++)
 	{
@@ -81,8 +81,6 @@ s32 SPU2Savestate::FreezeIt(DataBlock& spud)
 	// the required size of the savestate prior to saving, plus this is just too
 	// "implementation specific" for the intended spec of a savestate.  Let's just
 	// force the user to rebuild their cache instead.
-
-	return 0;
 }
 
 s32 SPU2Savestate::ThawIt(DataBlock& spud)
@@ -113,7 +111,7 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 	if ((x) == reinterpret_cast<decltype(x)>(-1)) \
 		x = nullptr; \
 	else \
-		x = reinterpret_cast<decltype(x)>(iopPhysMem(0) + reinterpret_cast<size_t>((x)))
+		x = reinterpret_cast<decltype(x)>(&iopMem->Main[0] + reinterpret_cast<size_t>((x)))
 
 		for (u32 i = 0; i < 2; i++)
 		{

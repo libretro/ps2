@@ -827,7 +827,7 @@ static void mechaDecryptBytes(u32 madr, int size)
 	int doXor = (cdvd.decSet) & 1;
 	int doShift = (cdvd.decSet) & 2;
 
-	u8* curval = iopPhysMem(madr);
+	u8* curval = &iopMem->Main[madr & 0x1fffff];
 	for (int i = 0; i < size; ++i, ++curval)
 	{
 		if (doXor)
@@ -851,7 +851,7 @@ int cdvdReadSector(void)
 	}
 
 	// DMAs use physical addresses (air)
-	u8* mdest = iopPhysMem(HW_DMA3_MADR);
+	u8* mdest = &iopMem->Main[HW_DMA3_MADR & 0x1fffff];
 
 	// if raw dvd sector 'fill in the blanks'
 	if (cdvd.BlockSize == 2064)
@@ -1889,7 +1889,7 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 		}
 		case N_CD_GET_TOC: // CdGetToc & cdvdman_call19
 			//Param[0] is 0 for CdGetToc and any value for cdvdman_call19
-			CDVD->getTOC(iopPhysMem(HW_DMA3_MADR));
+			CDVD->getTOC(&iopMem->Main[HW_DMA3_MADR & 0x1fffff]);
 			cdvdSetIrq((1 << Irq_CommandComplete));
 			HW_DMA3_CHCR &= ~0x01000000;
 			psxDmaInterrupt(3);

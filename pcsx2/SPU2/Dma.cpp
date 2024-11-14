@@ -38,7 +38,7 @@ void V_Core::AutoDMAReadBuffer(int mode) //mode: 0= split stereo; 1 = do not spl
 	// addressing, but new PCSX2s have dynamic memory addressing).
 	if (DMAPtr == nullptr)
 	{
-		DMAPtr = (u16*)iopPhysMem(MADR);
+		DMAPtr = (u16*)&iopMem->Main[MADR & 0x1fffff];
 		InputDataProgress = 0;
 	}
 
@@ -133,7 +133,7 @@ void V_Core::PlainDMAWrite(u16* pMem, u32 size)
 void V_Core::FinishDMAwrite()
 {
 	if (!DMAPtr)
-		DMAPtr = (u16*)iopPhysMem(MADR);
+		DMAPtr = (u16*)&iopMem->Main[MADR & 0x1fffff];
 
 	DMAICounter = ReadSize;
 
@@ -251,9 +251,7 @@ void V_Core::FinishDMAread()
 	}
 
 	if (DMAPtr == nullptr)
-	{
-		DMAPtr = (u16*)iopPhysMem(MADR);
-	}
+		DMAPtr = (u16*)&iopMem->Main[MADR & 0x1fffff];
 
 	const u32 buff1size = (buff1end - ActiveTSA);
 	memcpy(DMARPtr, GetMemPtr(ActiveTSA), buff1size * 2);
