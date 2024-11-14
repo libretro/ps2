@@ -61,9 +61,9 @@ static struct retro_perf_callback perf_cb;
 retro_environment_t environ_cb;
 retro_video_refresh_t video_cb;
 struct retro_hw_render_callback hw_render;
+static retro_audio_sample_batch_t batch_cb;
 retro_log_printf_t log_cb;
-retro_audio_sample_batch_t batch_cb;
-static retro_audio_sample_t sample_cb;
+retro_audio_sample_t sample_cb;
 
 float pad_axis_scale[2];
 
