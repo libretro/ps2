@@ -19,11 +19,6 @@
 
 #include "../R3000A.h"
 
-namespace SPU2
-{
-	static void InternalReset(bool psxmode);
-} // namespace SPU2
-
 static bool s_psxmode = false;
 
 u32 lClocks = 0;
@@ -32,47 +27,7 @@ u32 lClocks = 0;
 //  DMA 4/7 Callbacks from Core Emulator
 // --------------------------------------------------------------------------------------
 
-void SPU2readDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
-{
-	TimeUpdate(psxRegs.cycle);
-	Cores[0].DoDMAread(pMem, size);
-}
-
-void SPU2writeDMA4Mem(u16* pMem, u32 size) // size now in 16bit units
-{
-	TimeUpdate(psxRegs.cycle);
-	Cores[0].DoDMAwrite(pMem, size);
-}
-
-void SPU2interruptDMA4(void)
-{
-	if (Cores[0].DmaMode)
-		Cores[0].Regs.STATX |= 0x80;
-	Cores[0].Regs.STATX &= ~0x400;
-	Cores[0].TSA = Cores[0].ActiveTSA;
-}
-
-void SPU2interruptDMA7(void)
-{
-	if (Cores[1].DmaMode)
-		Cores[1].Regs.STATX |= 0x80;
-	Cores[1].Regs.STATX &= ~0x400;
-	Cores[1].TSA = Cores[1].ActiveTSA;
-}
-
-void SPU2readDMA7Mem(u16* pMem, u32 size)
-{
-	TimeUpdate(psxRegs.cycle);
-	Cores[1].DoDMAread(pMem, size);
-}
-
-void SPU2writeDMA7Mem(u16* pMem, u32 size)
-{
-	TimeUpdate(psxRegs.cycle);
-	Cores[1].DoDMAwrite(pMem, size);
-}
-
-void SPU2::InternalReset(bool psxmode)
+static void SPU2_InternalReset(bool psxmode)
 {
 	s_psxmode = psxmode;
 	if (!s_psxmode)
@@ -89,26 +44,19 @@ void SPU2::InternalReset(bool psxmode)
 	}
 }
 
-void SPU2::Reset(bool psxmode)
-{
-	InternalReset(psxmode);
-}
-
-void SPU2::Initialize(void)
-{
-}
+void SPU2::Reset(bool psxmode) { SPU2_InternalReset(psxmode); }
+void SPU2::Initialize(void)    { }
 
 void SPU2::Open()
 {
 	lClocks = psxRegs.cycle;
 
-	InternalReset(false);
+	SPU2_InternalReset(false);
 }
 
 void SPU2::Close() { }
 void SPU2::Shutdown() { }
 bool SPU2::IsRunningPSXMode() { return s_psxmode; }
-void SPU2async(void) { TimeUpdate(psxRegs.cycle); }
 
 u16 SPU2read(u32 rmem)
 {
@@ -129,7 +77,7 @@ u16 SPU2read(u32 rmem)
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA == Cores[core].ActiveTSA))
-				SetIrqCall(i);
+				has_to_call_irq[i] = true;
 		}
 		ret = Cores[core].DmaRead();
 	}

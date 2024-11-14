@@ -55,9 +55,29 @@ StereoOut32 V_Core::ReadInput_HiFi()
 		if (!InputDataTransferred && !InputDataLeft)
 		{
 			if (Index == 0)
-				spu2DMA4Irq();
+			{
+				if (Cores[0].DmaMode)
+					Cores[0].Regs.STATX |= 0x80;
+				Cores[0].Regs.STATX &= ~0x400;
+				Cores[0].TSA = Cores[0].ActiveTSA;
+				if (HW_DMA4_CHCR & 0x01000000)
+				{
+					HW_DMA4_CHCR &= ~0x01000000;
+					psxDmaInterrupt(4);
+				}
+			}
 			else
-				spu2DMA7Irq();
+			{
+				if (Cores[1].DmaMode)
+					Cores[1].Regs.STATX |= 0x80;
+				Cores[1].Regs.STATX &= ~0x400;
+				Cores[1].TSA = Cores[1].ActiveTSA;
+				if (HW_DMA7_CHCR & 0x01000000)
+				{
+					HW_DMA7_CHCR &= ~0x01000000;
+					psxDmaInterrupt2(0);
+				}
+			}
 		}
 	}
 
@@ -88,7 +108,7 @@ StereoOut32 V_Core::ReadInput()
 
 	for (int i = 0; i < 2; i++)
 		if (Cores[i].IRQEnable && (0x2000 + (Index << 10) + ReadIndex) == (Cores[i].IRQA & 0xfffffdff))
-			SetIrqCall(i);
+			has_to_call_irq[i] = true;
 
 	// PlayMode & 2 is Bypass Mode, so it doesn't go through the SPU
 	if ((Index == 1) || !(Index == 0 && (PlayMode & 2) != 0))
@@ -110,9 +130,29 @@ StereoOut32 V_Core::ReadInput()
 		if (!InputDataTransferred && !InputDataLeft)
 		{
 			if (Index == 0)
-				spu2DMA4Irq();
+			{
+				if (Cores[0].DmaMode)
+					Cores[0].Regs.STATX |= 0x80;
+				Cores[0].Regs.STATX &= ~0x400;
+				Cores[0].TSA = Cores[0].ActiveTSA;
+				if (HW_DMA4_CHCR & 0x01000000)
+				{
+					HW_DMA4_CHCR &= ~0x01000000;
+					psxDmaInterrupt(4);
+				}
+			}
 			else
-				spu2DMA7Irq();
+			{
+				if (Cores[1].DmaMode)
+					Cores[1].Regs.STATX |= 0x80;
+				Cores[1].Regs.STATX &= ~0x400;
+				Cores[1].TSA = Cores[1].ActiveTSA;
+				if (HW_DMA7_CHCR & 0x01000000)
+				{
+					HW_DMA7_CHCR &= ~0x01000000;
+					psxDmaInterrupt2(0);
+				}
+			}
 		}
 	}
 

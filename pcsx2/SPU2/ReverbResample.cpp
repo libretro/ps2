@@ -67,9 +67,7 @@ s32 __forceinline ReverbDownsample_reference(V_Core& core, bool right)
 	for (u32 i = 0; i < NUM_TAPS; i++)
 		out += core.RevbDownBuf[right][index + i] * filter_down_coefs[i];
 
-	out >>= 15;
-
-	return std::clamp(out, -0x8000, 0x7fff);
+	return std::clamp(out >> 15, -0x8000, 0x7fff);
 }
 
 #if _M_SSE >= 0x501
@@ -151,11 +149,8 @@ StereoOut32 __forceinline ReverbUpsample_reference(V_Core& core)
 		r += core.RevbUpBuf[1][index + i] * filter_up_coefs[i];
 	}
 
-	l >>= 15;
-	r >>= 15;
-
-	val.Left  = std::clamp(l, -0x8000, 0x7fff);
-	val.Right = std::clamp(r, -0x8000, 0x7fff);
+	val.Left  = std::clamp(l >> 15, -0x8000, 0x7fff);
+	val.Right = std::clamp(r >> 15, -0x8000, 0x7fff);
 	return val;
 }
 

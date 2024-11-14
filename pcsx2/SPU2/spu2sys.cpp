@@ -43,27 +43,12 @@ u32 Cycles;
 
 int PlayMode;
 
-static bool has_to_call_irq[2] = { false, false };
-static bool has_to_call_irq_dma[2] = { false, false };
+bool has_to_call_irq[2]     = { false, false };
+bool has_to_call_irq_dma[2] = { false, false };
 StereoOut32 (*ReverbUpsample)(V_Core& core);
 s32 (*ReverbDownsample)(V_Core& core, bool right);
 
-
 static bool psxmode = false;
-
-void SetIrqCall(int core)
-{
-	// reset by an irq disable/enable cycle, behaviour found by
-	// test programs that bizarrely only fired one interrupt
-	has_to_call_irq[core] = true;
-}
-
-void SetIrqCallDMA(int core)
-{
-	// reset by an irq disable/enable cycle, behaviour found by
-	// test programs that bizarrely only fired one interrupt
-	has_to_call_irq_dma[core] = true;
-}
 
 // writes a signed value to the SPU2 ram
 // Invalidates the ADPCM cache in the process.
@@ -324,7 +309,15 @@ __forceinline void TimeUpdate(u32 cClocks)
 			if (Cores[0].DMAICounter <= 0)
 			{
 				HW_DMA4_MADR = HW_DMA4_TADR;
-				spu2DMA4Irq();
+				if (Cores[0].DmaMode)
+					Cores[0].Regs.STATX |= 0x80;
+				Cores[0].Regs.STATX &= ~0x400;
+				Cores[0].TSA = Cores[0].ActiveTSA;
+				if (HW_DMA4_CHCR & 0x01000000)
+				{
+					HW_DMA4_CHCR &= ~0x01000000;
+					psxDmaInterrupt(4);
+				}
 			}
 		}
 		else
@@ -377,7 +370,15 @@ __forceinline void TimeUpdate(u32 cClocks)
 			if (Cores[1].DMAICounter <= 0)
 			{
 				HW_DMA7_MADR = HW_DMA7_TADR;
-				spu2DMA7Irq();
+				if (Cores[1].DmaMode)
+					Cores[1].Regs.STATX |= 0x80;
+				Cores[1].Regs.STATX &= ~0x400;
+				Cores[1].TSA = Cores[1].ActiveTSA;
+				if (HW_DMA7_CHCR & 0x01000000)
+				{
+					HW_DMA7_CHCR &= ~0x01000000;
+					psxDmaInterrupt2(0);
+				}
 			}
 		}
 		else
@@ -554,7 +555,7 @@ void V_Core::WriteRegPS1(u32 mem, u16 value)
 				Cores[0].ActiveTSA = Cores[0].TSA;
 				if (Cores[0].IRQEnable && (Cores[0].IRQA <= Cores[0].ActiveTSA))
 				{
-					SetIrqCall(0);
+					has_to_call_irq[0] = true;
 					spu2Irq();
 				}
 				DmaWrite(value);
@@ -770,12 +771,7 @@ u16 V_Core::ReadRegPS1(u32 mem)
 
 static void StartVoices(V_Core& thiscore, int core, u32 value)
 {
-	// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
-	// this loop if value is zero.
-	if (value == 0)
-		return;
-
-	thiscore.KeyOn |= value;
+	thiscore.KeyOn     |=  value;
 	thiscore.Regs.ENDX &= ~value;
 
 	for (u8 vc = 0; vc < V_Core::NumVoices; vc++)
@@ -954,9 +950,7 @@ static void RegWrite_Core(u16 value)
 			for (int i = 0; i < 2; i++)
 			{
 				if (Cores[i].IRQEnable && (Cores[i].IRQA == thiscore.ActiveTSA))
-				{
-					SetIrqCall(i);
-				}
+					has_to_call_irq[i] = true;
 			}
 			thiscore.DmaWrite(value);
 			break;
@@ -1015,54 +1009,92 @@ static void RegWrite_Core(u16 value)
 			((u16*)&thiscore.Regs.NON)[1] = value;
 			break;
 
-// Games like to repeatedly write these regs over and over with the same value, hence
-// the shortcut that skips the bitloop if the values are equal.
-#define vx_SetSomeBits(reg_out, mask_out, hiword)                       \
-	{                                                                   \
-		const u32 result = thiscore.Regs.reg_out;                       \
-		if (hiword) \
-			((u16*)&thiscore.Regs.reg_out)[1] = value; \
-		else \
-			((u16*)&thiscore.Regs.reg_out)[0] = value; \
-		if (result == thiscore.Regs.reg_out)                            \
-			break;                                                      \
-                                                                        \
-		const uint start_bit = (hiword) ? 16 : 0;                       \
-		const uint end_bit = (hiword) ? 24 : 16;                        \
-		for (uint vc = start_bit, vx = 1; vc < end_bit; ++vc, vx <<= 1) \
-			thiscore.VoiceGates[vc].mask_out = (value & vx) ? -1 : 0;   \
-	}
-
 		case REG_S_VMIXL:
-			vx_SetSomeBits(VMIXL, DryL, false);
+			{
+				const u32 result = thiscore.Regs.VMIXL;
+				((u16*)&thiscore.Regs.VMIXL)[0] = value;
+				if (result == thiscore.Regs.VMIXL)
+					break;
+				for (uint vc = 0, vx = 1; vc < 16; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].DryL = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case (REG_S_VMIXL + 2):
-			vx_SetSomeBits(VMIXL, DryL, true);
+			{
+				const u32 result = thiscore.Regs.VMIXL;
+				((u16*)&thiscore.Regs.VMIXL)[1] = value;
+				if (result == thiscore.Regs.VMIXL)
+					break;
+				for (uint vc = 16, vx = 1; vc < 24; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].DryL = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case REG_S_VMIXEL:
-			vx_SetSomeBits(VMIXEL, WetL, false);
+			{
+				const u32 result = thiscore.Regs.VMIXEL;
+				((u16*)&thiscore.Regs.VMIXEL)[0] = value;
+				if (result == thiscore.Regs.VMIXEL)
+					break;
+				for (uint vc = 0, vx = 1; vc < 16; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].WetL = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case (REG_S_VMIXEL + 2):
-			vx_SetSomeBits(VMIXEL, WetL, true);
+			{
+				const u32 result = thiscore.Regs.VMIXEL;
+				((u16*)&thiscore.Regs.VMIXEL)[1] = value;
+				if (result == thiscore.Regs.VMIXEL)
+					break;
+				for (uint vc = 16, vx = 1; vc < 24; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].WetL = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case REG_S_VMIXR:
-			vx_SetSomeBits(VMIXR, DryR, false);
+			{
+				const u32 result = thiscore.Regs.VMIXR;
+				((u16*)&thiscore.Regs.VMIXR)[0] = value;
+				if (result == thiscore.Regs.VMIXR)
+					break;
+				for (uint vc = 0, vx = 1; vc < 16; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].DryR = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case (REG_S_VMIXR + 2):
-			vx_SetSomeBits(VMIXR, DryR, true);
+			{
+				const u32 result = thiscore.Regs.VMIXR;
+				((u16*)&thiscore.Regs.VMIXR)[1] = value;
+				if (result == thiscore.Regs.VMIXR)
+					break;
+				for (uint vc = 16, vx = 1; vc < 24; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].DryR = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case REG_S_VMIXER:
-			vx_SetSomeBits(VMIXER, WetR, false);
+			{
+				const u32 result = thiscore.Regs.VMIXER;
+				((u16*)&thiscore.Regs.VMIXER)[0] = value;
+				if (result == thiscore.Regs.VMIXER)
+					break;
+				for (uint vc = 0, vx = 1; vc < 16; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].WetR = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case (REG_S_VMIXER + 2):
-			vx_SetSomeBits(VMIXER, WetR, true);
+			{
+				const u32 result = thiscore.Regs.VMIXER;
+				((u16*)&thiscore.Regs.VMIXER)[1] = value;
+				if (result == thiscore.Regs.VMIXER)
+					break;
+				for (uint vc = 16, vx = 1; vc < 24; ++vc, vx <<= 1)
+					thiscore.VoiceGates[vc].WetR = (value & vx) ? -1 : 0;
+			}
 			break;
 
 		case REG_P_MMIX:
@@ -1088,12 +1120,18 @@ static void RegWrite_Core(u16 value)
 		break;
 
 		case (REG_S_KON + 2):
-			StartVoices(thiscore, core, ((u32)value) << 16);
+			// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
+			// this loop if value is zero.
+			if ((((u32)value) << 16) != 0)
+				StartVoices(thiscore, core, ((u32)value) << 16);
 			spu2regs[omem >> 1 | core * 0x200] = value;
 			break;
 
 		case REG_S_KON:
-			StartVoices(thiscore, core, ((u32)value));
+			// Optimization: Games like to write zero to the KeyOn reg a lot, so shortcut
+			// this loop if value is zero.
+			if ((u32)value != 0)
+				StartVoices(thiscore, core, ((u32)value));
 			spu2regs[omem >> 1 | core * 0x200] = value;
 			break;
 

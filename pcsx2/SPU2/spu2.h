@@ -40,15 +40,7 @@ namespace SPU2
 void SPU2write(u32 mem, u16 value);
 u16 SPU2read(u32 mem);
 
-void SPU2async(void);
 s32 SPU2freeze(FreezeAction mode, freezeData* data);
-
-void SPU2readDMA4Mem(u16* pMem, u32 size);
-void SPU2writeDMA4Mem(u16* pMem, u32 size);
-void SPU2interruptDMA4();
-void SPU2interruptDMA7();
-void SPU2readDMA7Mem(u16* pMem, u32 size);
-void SPU2writeDMA7Mem(u16* pMem, u32 size);
 
 extern u32 lClocks;
 typedef void RegWriteHandler(u16 value);

@@ -445,8 +445,8 @@ MULTI_ISA_DEF(
 extern StereoOut32 (*ReverbUpsample)(V_Core& core);
 extern s32 (*ReverbDownsample)(V_Core& core, bool right);
 
-extern void SetIrqCall(int core);
-extern void SetIrqCallDMA(int core);
+extern bool has_to_call_irq[2];
+extern bool has_to_call_irq_dma[2];
 
 namespace SPU2Savestate
 {

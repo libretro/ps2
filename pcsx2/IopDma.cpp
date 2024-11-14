@@ -23,6 +23,7 @@
 
 #include "Sif.h"
 #include "DEV9/DEV9.h"
+#include "SPU2/defs.h"
 
 // Dma0/1   in Mdec.c
 // Dma3     in CdRom.c
@@ -35,8 +36,7 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 	const int size = (bcr >> 16) * (bcr & 0xFFFF);
 
 	// Update the SPU2 to the current cycle before initiating the DMA
-
-	SPU2async();
+	TimeUpdate(psxRegs.cycle);
 
 	psxCounters[6].startCycle  = psxRegs.cycle;
 	psxCounters[6].deltaCycles = size * 4;
@@ -53,16 +53,28 @@ static void psxDmaGeneric(u32 madr, u32 bcr, u32 chcr, u32 spuCore)
 	{
 		case 0x01000201: //cpu to spu2 transfer
 			if (dmaNum == 7)
-				SPU2writeDMA7Mem((u16*)iopPhysMem(madr), size * 2);
+			{
+				TimeUpdate(psxRegs.cycle);
+				Cores[1].DoDMAwrite((u16*)iopPhysMem(madr), size * 2);
+			}
 			else if (dmaNum == 4)
-				SPU2writeDMA4Mem((u16*)iopPhysMem(madr), size * 2);
+			{
+				TimeUpdate(psxRegs.cycle);
+				Cores[0].DoDMAwrite((u16*)iopPhysMem(madr), size * 2);
+			}
 			break;
 
 		case 0x01000200: //spu2 to cpu transfer
 			if (dmaNum == 7)
-				SPU2readDMA7Mem((u16*)iopPhysMem(madr), size * 2);
+			{
+				TimeUpdate(psxRegs.cycle);
+				Cores[1].DoDMAread((u16*)iopPhysMem(madr), size * 2);
+			}
 			else if (dmaNum == 4)
-				SPU2readDMA4Mem((u16*)iopPhysMem(madr), size * 2);
+			{
+				TimeUpdate(psxRegs.cycle);
+				Cores[0].DoDMAread((u16*)iopPhysMem(madr), size * 2);
+			}
 			psxCpu->Clear(spuCore ? HW_DMA7_MADR : HW_DMA4_MADR, size);
 			break;
 
@@ -84,16 +96,6 @@ int psxDma4Interrupt(void)
 	return 1;
 }
 
-void spu2DMA4Irq(void)
-{
-	SPU2interruptDMA4();
-	if (HW_DMA4_CHCR & 0x01000000)
-	{
-		HW_DMA4_CHCR &= ~0x01000000;
-		psxDmaInterrupt(4);
-	}
-}
-
 void psxDma7(u32 madr, u32 bcr, u32 chcr) // SPU2's Core 1
 {
 	psxDmaGeneric(madr, bcr, chcr, 1);
@@ -104,16 +106,6 @@ int psxDma7Interrupt(void)
 	HW_DMA7_CHCR &= ~0x01000000;
 	psxDmaInterrupt2(0);
 	return 1;
-}
-
-void spu2DMA7Irq(void)
-{
-	SPU2interruptDMA7();
-	if (HW_DMA7_CHCR & 0x01000000)
-	{
-		HW_DMA7_CHCR &= ~0x01000000;
-		psxDmaInterrupt2(0);
-	}
 }
 
 #ifndef DISABLE_PSX_GPU_DMAS

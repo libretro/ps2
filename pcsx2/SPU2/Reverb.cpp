@@ -87,27 +87,27 @@ StereoOut32 V_Core::DoReverb(StereoOut32 Input)
 
 				(Cores[i].IRQA == apf1_dst) || (Cores[i].IRQA == apf1_src) ||
 				(Cores[i].IRQA == apf2_dst) || (Cores[i].IRQA == apf2_src))
-				SetIrqCall(i);
+				has_to_call_irq[i] = true;
 		}
 	}
 
 	// Reverb algorithm pretty much directly ripped from http://drhell.web.fc2.com/ps1/
 	// minus the 35 step FIR which just seems to break things.
 
-	s32 in, same, diff, apf1, apf2, out;
+	s32 apf2;
 
 #define MUL(x, y) ((x) * (y) >> 15)
-	in = MUL(R ? Revb.IN_COEF_R : Revb.IN_COEF_L, ReverbDownsample(*this, R));
+	s32 in   = MUL(R ? Revb.IN_COEF_R : Revb.IN_COEF_L, ReverbDownsample(*this, R));
 
-	same = MUL(Revb.IIR_VOL, in + MUL(Revb.WALL_VOL, _spu2mem[same_src]) - _spu2mem[same_prv]) + _spu2mem[same_prv];
-	diff = MUL(Revb.IIR_VOL, in + MUL(Revb.WALL_VOL, _spu2mem[diff_src]) - _spu2mem[diff_prv]) + _spu2mem[diff_prv];
+	s32 same = MUL(Revb.IIR_VOL, in + MUL(Revb.WALL_VOL, _spu2mem[same_src]) - _spu2mem[same_prv]) + _spu2mem[same_prv];
+	s32 diff = MUL(Revb.IIR_VOL, in + MUL(Revb.WALL_VOL, _spu2mem[diff_src]) - _spu2mem[diff_prv]) + _spu2mem[diff_prv];
 
-	out = MUL(Revb.COMB1_VOL, _spu2mem[comb1_src]) + MUL(Revb.COMB2_VOL, _spu2mem[comb2_src]) + MUL(Revb.COMB3_VOL, _spu2mem[comb3_src]) + MUL(Revb.COMB4_VOL, _spu2mem[comb4_src]);
+	s32 out  = MUL(Revb.COMB1_VOL, _spu2mem[comb1_src]) + MUL(Revb.COMB2_VOL, _spu2mem[comb2_src]) + MUL(Revb.COMB3_VOL, _spu2mem[comb3_src]) + MUL(Revb.COMB4_VOL, _spu2mem[comb4_src]);
 
-	apf1 = out - MUL(Revb.APF1_VOL, _spu2mem[apf1_src]);
-	out = _spu2mem[apf1_src] + MUL(Revb.APF1_VOL, apf1);
-	apf2 = out - MUL(Revb.APF2_VOL, _spu2mem[apf2_src]);
-	out = _spu2mem[apf2_src] + MUL(Revb.APF2_VOL, apf2);
+	s32 apf1 = out - MUL(Revb.APF1_VOL, _spu2mem[apf1_src]);
+	out      = _spu2mem[apf1_src] + MUL(Revb.APF1_VOL, apf1);
+	apf2     = out - MUL(Revb.APF2_VOL, _spu2mem[apf2_src]);
+	out      = _spu2mem[apf2_src] + MUL(Revb.APF2_VOL, apf2);
 
 	// According to no$psx the effects always run but don't always write back, see check in V_Core::Mix
 	if (FxEnable)

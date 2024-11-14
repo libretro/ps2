@@ -64,7 +64,7 @@ static void __forceinline IncrementNextA(V_Core& thiscore, V_Voice& vc, uint voi
 	for (int i = 0; i < 2; i++)
 	{
 		if (Cores[i].IRQEnable && (vc.NextA == Cores[i].IRQA))
-			SetIrqCall(i);
+			has_to_call_irq[i] = true;
 	}
 
 	vc.NextA++;
@@ -129,7 +129,7 @@ static __forceinline s32 GetNextDataBuffered(V_Core& thiscore, V_Voice& vc, uint
 
 		for (int i = 0; i < 2; i++)
 			if (Cores[i].IRQEnable && Cores[i].IRQA == (vc.NextA & 0xFFFF8))
-				SetIrqCall(i);
+				has_to_call_irq[i] = true;
 
 		s16* memptr = GetMemPtr(vc.NextA & 0xFFFF8);
 		vc.LoopFlags = *memptr >> 8; // grab loop flags from the upper byte.
@@ -188,7 +188,7 @@ static __forceinline void GetNextDataDummy(V_Core& thiscore, V_Voice& vc, uint v
 	{
 		for (int i = 0; i < 2; i++)
 			if (Cores[i].IRQEnable && Cores[i].IRQA == (vc.NextA & 0xFFFF8))
-				SetIrqCall(i);
+				has_to_call_irq[i] = true;
 
 		vc.LoopFlags = *GetMemPtr(vc.NextA & 0xFFFF8) >> 8; // grab loop flags from the upper byte.
 
@@ -306,7 +306,7 @@ static __forceinline void spu2M_WriteFast(u32 addr, s16 value)
 	for (int i = 0; i < 2; i++)
 	{
 		if (Cores[i].IRQEnable && Cores[i].IRQA == addr)
-			SetIrqCall(i);
+			has_to_call_irq[i] = true;
 	}
 	*GetMemPtr(addr) = value;
 }
@@ -348,14 +348,19 @@ static void V_VolumeSlide_Update(V_VolumeSlide &vs)
 			vs.Value = std::clamp<s32>(vs.Value + level_inc, INT16_MIN, INT16_MAX);
 		else
 		{
-			s32 low  = vs.Phase ? INT16_MIN : 0;
-			s32 high = vs.Phase ? 0 : INT16_MAX;
-			if (vs.Exp)
+			if (vs.Phase)
 			{
-				low  = 0;
-				high = INT16_MAX;
+				s32 low  = INT16_MIN;
+				s32 high = 0;
+				if (vs.Exp)
+				{
+					low  = 0;
+					high = INT16_MAX;
+				}
+				vs.Value = std::clamp<s32>(vs.Value + level_inc, low, high);
 			}
-			vs.Value = std::clamp<s32>(vs.Value + level_inc, low, high);
+			else
+				vs.Value = std::clamp<s32>(vs.Value + level_inc, 0, INT16_MAX);
 		}
 	}
 }
@@ -449,10 +454,20 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 	Voices.Wet.Right = std::clamp(inVoices.Wet.Right, -0x8000, 0x7fff);
 
 	// Write Mixed results To Output Area
-	spu2M_WriteFast(((0 == Index) ? 0x1000 : 0x1800) + OutPos, Voices.Dry.Left);
-	spu2M_WriteFast(((0 == Index) ? 0x1200 : 0x1A00) + OutPos, Voices.Dry.Right);
-	spu2M_WriteFast(((0 == Index) ? 0x1400 : 0x1C00) + OutPos, Voices.Wet.Left);
-	spu2M_WriteFast(((0 == Index) ? 0x1600 : 0x1E00) + OutPos, Voices.Wet.Right);
+	if (Index == 0)
+	{
+		spu2M_WriteFast(0x1000 + OutPos, Voices.Dry.Left);
+		spu2M_WriteFast(0x1200 + OutPos, Voices.Dry.Right);
+		spu2M_WriteFast(0x1400 + OutPos, Voices.Wet.Left);
+		spu2M_WriteFast(0x1600 + OutPos, Voices.Wet.Right);
+	}
+	else
+	{
+		spu2M_WriteFast(0x1800 + OutPos, Voices.Dry.Left);
+		spu2M_WriteFast(0x1A00 + OutPos, Voices.Dry.Right);
+		spu2M_WriteFast(0x1C00 + OutPos, Voices.Wet.Left);
+		spu2M_WriteFast(0x1E00 + OutPos, Voices.Wet.Right);
+	}
 
 	// Mix in the Input data
 	TD.Left   = Input.Left & DryGate.InpL;
@@ -573,7 +588,7 @@ void Mix(short *out_left, short *out_right)
 	// Experimental CDDA support
 	// The CDDA overrides all other mixer output.  It's a direct feed!
 	if (PlayMode & 8)
-		Out = Cores[1].ReadInput_HiFi();
+		Out       = Cores[1].ReadInput_HiFi();
 	else
 	{
 		Out.Left  = std::clamp(Out.Left,  -0x8000, 0x7fff);
@@ -590,15 +605,9 @@ void Mix(short *out_left, short *out_right)
 	DCFilterIn.Left   = Out.Left;
 	DCFilterIn.Right  = Out.Right;
 
-	Out.Left          = DCFilterOut.Left;
-	Out.Right         = DCFilterOut.Right;
-
 	// Final clamp, take care not to exceed 16 bits from here on
-	Out.Left          = std::clamp(Out.Left, -0x8000, 0x7fff);
-	Out.Right         = std::clamp(Out.Right, -0x8000, 0x7fff);
-
-	*out_left         = (int16_t)Out.Left;
-	*out_right        = (int16_t)Out.Right;
+	*out_left         = (int16_t)(std::clamp(DCFilterOut.Left,  -0x8000, 0x7fff));
+	*out_right        = (int16_t)(std::clamp(DCFilterOut.Right, -0x8000, 0x7fff));
 
 	// Update AutoDMA output positioning
 	OutPos++;

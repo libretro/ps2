@@ -59,11 +59,13 @@ bool ADSR_Calculate(V_ADSR &v, int voiceidx)
 
 	if (p.Exp)
 	{
-		if (!p.Decr && v.Value > 0x6000)
-			counter_inc >>= 2;
-
 		if (p.Decr)
 			level_inc = (s16)((level_inc * v.Value) >> 15);
+		else
+		{
+			if (v.Value > 0x6000)
+				counter_inc >>= 2;
+		}
 	}
 
 	counter_inc = std::max<u32>(1, counter_inc);

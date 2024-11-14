@@ -199,7 +199,7 @@ void V_Core::FinishDMAwrite()
 			// and an interrupt never fires again, leaving the voices looping the same samples forever.
 
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > start || Cores[i].IRQA < TDA))
-				SetIrqCallDMA(i);
+				has_to_call_irq_dma[i] = true;
 		}
 	}
 	else
@@ -214,7 +214,7 @@ void V_Core::FinishDMAwrite()
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > ActiveTSA && Cores[i].IRQA < TDA))
-				SetIrqCallDMA(i);
+				has_to_call_irq_dma[i] = true;
 		}
 	}
 
@@ -284,7 +284,7 @@ void V_Core::FinishDMAread()
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > start || Cores[i].IRQA < TDA))
-				SetIrqCallDMA(i);
+				has_to_call_irq_dma[i] = true;
 		}
 	}
 	else
@@ -300,7 +300,7 @@ void V_Core::FinishDMAread()
 		for (int i = 0; i < 2; i++)
 		{
 			if (Cores[i].IRQEnable && (Cores[i].IRQA > ActiveTSA && Cores[i].IRQA < TDA))
-				SetIrqCallDMA(i);
+				has_to_call_irq_dma[i] = true;
 		}
 	}
 

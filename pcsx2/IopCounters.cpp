@@ -465,7 +465,7 @@ void psxRcntUpdate(void)
 	const u32 spu2_delta = (psxRegs.cycle - lClocks) % 768;
 	psxCounters[6].startCycle = psxRegs.cycle;
 	psxCounters[6].deltaCycles = psxCounters[6].rate - spu2_delta;
-	SPU2async();
+	TimeUpdate(psxRegs.cycle);
 	psxNextDeltaCounter = psxCounters[6].deltaCycles;
 
 	DEV9async(1);
