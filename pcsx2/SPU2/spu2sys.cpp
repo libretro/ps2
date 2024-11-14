@@ -199,39 +199,6 @@ void V_Core::Init(int index)
 /* TICKINTERVAL * SANITYINTERVAL = 3686400 */
 #define SAMPLECOUNT 3686400 
 
-__forceinline bool StartQueuedVoice(uint coreidx, V_Voice& vc, uint voiceidx)
-{
-	if ((Cycles - vc.PlayCycle) < 2)
-		return false;
-
-	if (vc.StartA & 7)
-		vc.StartA = (vc.StartA + 0xFFFF8) + 0x8;
-
-	vc.ADSR.Phase   = PHASE_ATTACK;
-	vc.ADSR.Counter = 0;
-	vc.ADSR.Value   = 0;
-
-	vc.SCurrent     = 28;
-	vc.LoopMode     = 0;
-
-	// When SP >= 0 the next sample will be grabbed, we don't want this to happen
-	// instantly because in the case of pitch being 0 we want to delay getting
-	// the next block header. This is a hack to work around the fact that unlike
-	// the HW we don't update the block header on every cycle.
-	vc.SP = -1;
-
-	vc.LoopFlags = 0;
-	vc.NextA = vc.StartA | 1;
-	vc.Prev1 = 0;
-	vc.Prev2 = 0;
-
-	vc.PV1 = vc.PV2 = 0;
-	vc.PV3 = vc.PV4 = 0;
-	vc.NextCrest = -0x8000;
-
-	return true;
-}
-
 __forceinline void TimeUpdate(u32 cClocks)
 {
 	u32 dClocks = cClocks - lClocks;
@@ -254,7 +221,6 @@ __forceinline void TimeUpdate(u32 cClocks)
 	}
 
 	short snd_buffer[2];
-	int samples = 0;
 
 	snd_buffer[0] = snd_buffer[1] = 0;
 
@@ -283,21 +249,45 @@ __forceinline void TimeUpdate(u32 cClocks)
 		{
 			for (int v = 0; v < 24; v++)
 			{
-				if(Cores[c].KeyOn & (1 << v))
+				if (Cores[c].KeyOn & (1 << v))
 				{
 					V_Voice& vc(Cores[c].Voices[v]);
-					if(StartQueuedVoice(c, vc, v))
+					if ((Cycles - vc.PlayCycle) >= 2) /* Start queued voice? */
 					{
+						if (vc.StartA & 7)
+							vc.StartA = (vc.StartA + 0xFFFF8) + 0x8;
+
+						vc.ADSR.Phase   = PHASE_ATTACK;
+						vc.ADSR.Counter = 0;
+						vc.ADSR.Value   = 0;
+
+						vc.SCurrent     = 28;
+						vc.LoopMode     = 0;
+
+						// When SP >= 0 the next sample will be grabbed, we don't want this to happen
+						// instantly because in the case of pitch being 0 we want to delay getting
+						// the next block header. This is a hack to work around the fact that unlike
+						// the HW we don't update the block header on every cycle.
+						vc.SP           = -1;
+
+						vc.LoopFlags    = 0;
+						vc.NextA        = vc.StartA | 1;
+						vc.Prev1        = 0;
+						vc.Prev2        = 0;
+
+						vc.PV1 = vc.PV2 = 0;
+						vc.PV3 = vc.PV4 = 0;
+						vc.NextCrest    = -0x8000;
 						Cores[c].KeyOn &= ~(1 << v);
 					}
 				}
 			}
 		}
-		samples  = Mix(&snd_buffer[0], &snd_buffer[1], samples);
+		Mix(&snd_buffer[0], &snd_buffer[1]);
 	}
 
 	if (batch_cb && snd_buffer[0] != 0 && snd_buffer[1] != 0)
-		batch_cb(snd_buffer, samples >> 1);
+		batch_cb(snd_buffer, 1);
 
 	//Update DMA4 interrupt delay counter
 	if (Cores[0].DMAICounter > 0 && (psxRegs.cycle - Cores[0].LastClock) > 0)

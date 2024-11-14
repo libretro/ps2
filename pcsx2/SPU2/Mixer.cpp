@@ -510,7 +510,7 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 #ifndef __POSIX__
 __forceinline
 #endif
-int Mix(short *out_left, short *out_right, int samples)
+void Mix(short *out_left, short *out_right)
 {
 	StereoOut32 Out;
 	StereoOut32 empty;
@@ -600,10 +600,8 @@ int Mix(short *out_left, short *out_right, int samples)
 	*out_left         = (int16_t)Out.Left;
 	*out_right        = (int16_t)Out.Right;
 
-	samples          += 2;
 	// Update AutoDMA output positioning
 	OutPos++;
 	if (OutPos >= 0x200)
 		OutPos = 0;
-	return samples;
 }
