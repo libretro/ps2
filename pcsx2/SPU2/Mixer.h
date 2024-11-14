@@ -15,4 +15,4 @@
 
 #pragma once
 
-extern int Mix(int samples);
+extern int Mix(short *left, short *right, int samples);

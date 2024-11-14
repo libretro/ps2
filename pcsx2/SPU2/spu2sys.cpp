@@ -29,7 +29,6 @@
 #include <libretro.h>
 
 extern retro_audio_sample_batch_t batch_cb;
-extern s16 snd_buffer[0x0800];
 
 s16 spu2regs[0x010000 / sizeof(s16)];
 s16 _spu2mem[0x200000 / sizeof(s16)];
@@ -193,9 +192,6 @@ void V_Core::Init(int index)
 	RevbSampleBufPos = 0;
 	memset(RevbDownBuf, 0, sizeof(RevbDownBuf));
 	memset(RevbUpBuf, 0, sizeof(RevbUpBuf));
-
-	for (int i = 0; i < 0x0800; i++)
-		snd_buffer[i] = 0;
 }
 
 #define TICKINTERVAL 768
@@ -257,7 +253,10 @@ __forceinline void TimeUpdate(u32 cClocks)
 		lClocks = cClocks - dClocks;
 	}
 
+	short snd_buffer[2];
 	int samples = 0;
+
+	snd_buffer[0] = snd_buffer[1] = 0;
 
 	//Update Mixing Progress
 	while (dClocks >= TICKINTERVAL)
@@ -294,7 +293,7 @@ __forceinline void TimeUpdate(u32 cClocks)
 				}
 			}
 		}
-		samples  = Mix(samples);
+		samples  = Mix(&snd_buffer[0], &snd_buffer[1], samples);
 	}
 
 	batch_cb(snd_buffer, samples >> 1);

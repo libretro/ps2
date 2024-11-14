@@ -19,8 +19,6 @@
 #include "spu2.h"
 #include "interpolate_table.h"
 
-extern s16 snd_buffer[0x0800];
-
 static void __forceinline XA_decode_block(s16* buffer, const s16* block, s32& prev1, s32& prev2)
 {
 	static const s32 tbl_XA_Factor[16][2] =
@@ -512,10 +510,9 @@ StereoOut32 V_Core::Mix(const VoiceMixSet& inVoices, const StereoOut32& Input, c
 #ifndef __POSIX__
 __forceinline
 #endif
-int Mix(int samples)
+int Mix(short *out_left, short *out_right, int samples)
 {
 	StereoOut32 Out;
-	StereoOut16 OutS16;
 	StereoOut32 empty;
 	StereoOut32 Ext;
 	// Note: Playmode 4 is SPDIF, which overrides other inputs.
@@ -600,12 +597,10 @@ int Mix(int samples)
 	Out.Left          = std::clamp(Out.Left, -0x8000, 0x7fff);
 	Out.Right         = std::clamp(Out.Right, -0x8000, 0x7fff);
 
-	OutS16.Left       = (s16)Out.Left;
-	OutS16.Right      = (s16)Out.Right;
+	*out_left         = (int16_t)Out.Left;
+	*out_right        = (int16_t)Out.Right;
 
-	snd_buffer[samples++] = OutS16.Left;
-	snd_buffer[samples++] = OutS16.Right;
-
+	samples          += 2;
 	// Update AutoDMA output positioning
 	OutPos++;
 	if (OutPos >= 0x200)

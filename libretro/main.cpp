@@ -65,8 +65,6 @@ retro_log_printf_t log_cb;
 retro_audio_sample_batch_t batch_cb;
 static retro_audio_sample_t sample_cb;
 
-s16 snd_buffer[0x0800];
-
 float pad_axis_scale[2];
 
 static VMState cpu_thread_state;
