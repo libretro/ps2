@@ -85,10 +85,12 @@ static int pgs_disable_mipmaps;
 static int axis_scale1;
 static int axis_scale2;
 static bool fast_boot;
+static bool mipmapping;
 float pad_axis_scale[2];
 
 static bool show_parallel_options = true;
-static bool show_hle_options = true;
+static bool show_gsdx_hw_only_options = true;
+static bool show_gsdx_options = true;
 
 static bool update_option_visibility()
 {
@@ -97,21 +99,29 @@ static bool update_option_visibility()
 	bool updated = false;
 
 	// Show/hide video options
-	bool show_input_options_prev = show_parallel_options;
-	bool show_hle_options_prev = show_hle_options;
+	bool show_parallel_options_prev = show_parallel_options;
+	bool show_gsdx_hw_only_options_prev = show_gsdx_hw_only_options;
+	bool show_gsdx_options_prev = show_gsdx_options;
 	show_parallel_options = true;
-	show_hle_options = true;
+	show_gsdx_hw_only_options = true;
+	show_gsdx_options = true;
 
 	var.key = "pcsx2_renderer";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		if (!strcmp(var.value, "paraLLEl-GS") || !strcmp(var.value, "Software") || !strcmp(var.value, "Null"))
-			show_hle_options = false;
-		if (strcmp(var.value, "paraLLEl-GS"))
+		const bool parallel_renderer = !strcmp(var.value, "paraLLEl-GS");
+		const bool software_renderer = !strcmp(var.value, "Software");
+		const bool null_renderer = !strcmp(var.value, "Null");
+
+		if (parallel_renderer || null_renderer)
+			show_gsdx_options = false;
+		if (parallel_renderer || software_renderer || null_renderer)
+			show_gsdx_hw_only_options = false;
+		if (!parallel_renderer)
 			show_parallel_options = false;
 	}
 
-	if (show_parallel_options != show_input_options_prev)
+	if (show_parallel_options != show_parallel_options_prev)
 	{
 		option_display.visible = show_parallel_options;
 		option_display.key = "pcsx2_pgs_ssaa";
@@ -124,10 +134,19 @@ static bool update_option_visibility()
 		updated = true;
 	}
 
-	if (show_hle_options != show_hle_options_prev)
+	if (show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
 	{
-		option_display.visible = show_hle_options;
+		option_display.visible = show_gsdx_hw_only_options;
 		option_display.key = "pcsx2_upscale_multiplier";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
+		updated = true;
+	}
+
+	if (show_gsdx_options != show_gsdx_options_prev)
+	{
+		option_display.visible = show_gsdx_options;
+		option_display.key = "pcsx2_mipmapping";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated = true;
@@ -195,9 +214,9 @@ static void check_variables(bool first_run)
 	{
 		i_prev = pgs_high_res_scanout;
 		if (!strcmp(var.value, "enabled"))
-			pgs_high_res_scanout = true;
+			pgs_high_res_scanout = 1;
 		else
-			pgs_high_res_scanout = false;
+			pgs_high_res_scanout = 0;
 
 		if (pgs_high_res_scanout != i_prev && !first_run)
 		{
@@ -212,9 +231,9 @@ static void check_variables(bool first_run)
 	{
 		i_prev = pgs_disable_mipmaps;
 		if (!strcmp(var.value, "enabled"))
-			pgs_disable_mipmaps = true;
+			pgs_disable_mipmaps = 1;
 		else
-			pgs_disable_mipmaps = false;
+			pgs_disable_mipmaps = 0;
 
 		if (pgs_disable_mipmaps != i_prev && !first_run)
 		{
@@ -240,6 +259,15 @@ static void check_variables(bool first_run)
 			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
 #endif
 		}
+	}
+
+	var.key = "pcsx2_mipmapping";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		if (!strcmp(var.value, "enabled"))
+			mipmapping = true;
+		else
+			mipmapping = false;
 	}
 
 	var.key = "pcsx2_axis_scale1";
@@ -470,20 +498,25 @@ void retro_reset(void)
 
 static void libretro_context_reset(void)
 {
+	const GSHWMipmapMode mipmap_mode = mipmapping ? GSHWMipmapMode::Enabled : GSHWMipmapMode::Unclamped;
 	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
+	s_settings_interface.SetUIntValue("EmuCore/GS", "hw_mipmap_mode", (u8)mipmap_mode);
+	s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", mipmapping);
 	GSConfig.UpscaleMultiplier     = upscale_multiplier;
 	GSConfig.PGSSuperSampling      = pgs_super_sampling;
 	GSConfig.PGSHighResScanout     = pgs_high_res_scanout;
 	GSConfig.PGSDisableMipmaps     = pgs_disable_mipmaps;
-	GSConfig.HWMipmapMode          = pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
+	GSConfig.HWMipmapMode          = mipmap_mode;
+	GSConfig.Mipmap                = mipmapping;
 	EmuConfig.GS.UpscaleMultiplier = upscale_multiplier;
 	EmuConfig.GS.PGSSuperSampling  = pgs_super_sampling;
 	EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;
 	EmuConfig.GS.PGSDisableMipmaps = pgs_disable_mipmaps;
-	EmuConfig.GS.HWMipmapMode      = pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled;
+	EmuConfig.GS.HWMipmapMode      = mipmap_mode;
+	EmuConfig.GS.Mipmap            = mipmapping;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -718,8 +751,6 @@ void retro_init(void)
    	bool option_categories = false;
    	libretro_set_core_options(environ_cb, &option_categories);
 
-	check_variables(true);
-
 	static retro_disk_control_ext_callback disk_control = {
 		set_eject_state,
 		get_eject_state,
@@ -757,6 +788,8 @@ bool retro_load_game(const struct retro_game_info* game)
 	EmuFolders::EnsureFoldersExist();
 	VMManager::Internal::CPUThreadInitialize();
 	VMManager::LoadSettings();
+
+	check_variables(true);
 
 	if (bios.empty())
 	{
