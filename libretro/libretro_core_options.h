@@ -195,6 +195,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "1x Native (PS2)"
    },
+   {
+      "pcsx2_mipmapping",
+      "Mipmapping (Restart)",
+      NULL,
+      NULL,
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
 #if 0
    {
       "pcsx2_sw_renderer_threads",
