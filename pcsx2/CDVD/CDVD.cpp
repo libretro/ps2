@@ -159,11 +159,11 @@ static std::string cdvdGetNVRAMPath(void)
 
 void cdvdLoadNVRAM(void)
 {
-	const char *nvmfile = Path::ReplaceExtension(BiosPath, "nvm").c_str();
-	RFILE *fp = FileSystem::OpenFile(nvmfile, "rb");
+	std::string nvmfile = Path::ReplaceExtension(BiosPath, "nvm");
+	RFILE *fp = FileSystem::OpenFile(nvmfile.c_str(), "rb");
 	if (!fp || rfread(s_nvram, sizeof(s_nvram), 1, fp) != 1)
 	{
-		Console.Warning("Failed to open or read NVRAM: %s", nvmfile);
+		Console.Warning("Failed to open or read NVRAM: %s", nvmfile.c_str());
 		cdvdCreateNewNVM();
 	}
 	else
@@ -172,7 +172,7 @@ void cdvdLoadNVRAM(void)
 		const NVMLayout* nvmLayout = getNvmLayout();
 		constexpr u8 zero[16] = {0};
 
-		Console.WriteLn("Reading NVRAM file: %s", nvmfile);
+		Console.WriteLn("Reading NVRAM file: %s", nvmfile.c_str());
 
 		if (memcmp(&s_nvram[nvmLayout->config1 + 0x10], zero, 16) == 0 ||
 			(((BiosVersion >> 8) == 2) && ((BiosVersion & 0xff) != 10) &&
@@ -183,13 +183,13 @@ void cdvdLoadNVRAM(void)
 		}
 	}
 
-	const char * mecfile = Path::ReplaceExtension(BiosPath, "mec").c_str();
-	fp = FileSystem::OpenFile(mecfile, "rb");
+	std::string mecfile = Path::ReplaceExtension(BiosPath, "mec");
+	fp = FileSystem::OpenFile(mecfile.c_str(), "rb");
 	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 	{
 		s_mecha_version = DEFAULT_MECHA_VERSION;
-		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile);
-		fp = FileSystem::OpenFile(mecfile, "w+b");
+		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile.c_str());
+		fp = FileSystem::OpenFile(mecfile.c_str(), "w+b");
 		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
 	}
@@ -199,11 +199,11 @@ void cdvdLoadNVRAM(void)
 
 void cdvdSaveNVRAM(void)
 {
-	const char *nvmfile = Path::ReplaceExtension(BiosPath, "nvm").c_str();
-	RFILE *fp = FileSystem::OpenFile(nvmfile, "w+b");
+	std::string nvmfile = Path::ReplaceExtension(BiosPath, "nvm");
+	RFILE *fp = FileSystem::OpenFile(nvmfile.c_str(), "w+b");
 	if (!fp)
 	{
-		Console.Error("Failed to open NVRAM for updating: %s...", nvmfile);
+		Console.Error("Failed to open NVRAM for updating: %s...", nvmfile.c_str());
 		return;
 	}
 
@@ -219,11 +219,11 @@ void cdvdSaveNVRAM(void)
 	if (FileSystem::FSeek64(fp, 0, SEEK_SET) == 0 &&
 		rfwrite(s_nvram, NVRAM_SIZE, 1, fp) == 1)
 	{
-		Console.WriteLn("NVRAM saved to %s.", nvmfile);
+		Console.WriteLn("NVRAM saved to %s.", nvmfile.c_str());
 	}
 	else
 	{
-		Console.Error("Failed to save NVRAM to %s", nvmfile);
+		Console.Error("Failed to save NVRAM to %s", nvmfile.c_str());
 	}
 	filestream_close(fp);
 }
