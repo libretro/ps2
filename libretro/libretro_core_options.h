@@ -151,7 +151,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_pgs_ssaa",
-      "paraLLEl super sampling (Restart)",
+      "paraLLEl super sampling",
       NULL,
       NULL,
       NULL,
@@ -169,7 +169,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_pgs_high_res_scanout",
-      "paraLLEl experimental High-res scanout (Restart)",
+      "paraLLEl experimental High-res scanout",
       NULL,
       NULL,
       NULL,
@@ -183,7 +183,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_pgs_disable_mipmaps",
-      "paraLLEl force texture LOD0 (Restart)",
+      "paraLLEl force texture LOD0",
       NULL,
       NULL,
       NULL,
@@ -197,7 +197,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_upscale_multiplier",
-      "Internal Resolution",
+      "Internal Resolution (Restart)",
       NULL,
       NULL,
       NULL,
@@ -225,7 +225,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_mipmapping",
-      "Mipmapping (Restart)",
+      "Mipmapping",
       NULL,
       NULL,
       NULL,
@@ -245,16 +245,16 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       NULL,
       "video",
       {
-         {"Automatic", NULL },
-         {"Off", NULL },
-         {"WeaveTFF", NULL },
-         {"WeaveBFF", NULL },
-         {"BobTFF", NULL },
-         {"BobBFF", NULL },
-         {"BlendTFF", NULL },
-         {"BlendBFF", NULL },
-         {"AdaptiveTFF", NULL },
-         {"AdaptiveBFF", NULL },
+         { "Automatic", NULL },
+         { "Off", NULL },
+         { "Weave TFF", NULL },
+         { "Weave BFF", NULL },
+         { "Bob TFF", NULL },
+         { "Bob BFF", NULL },
+         { "Blend TFF", NULL },
+         { "Blend BFF", NULL },
+         { "Adaptive TFF", NULL },
+         { "Adaptive BFF", NULL },
          { NULL, NULL },
       },
       "Automatic"
@@ -271,7 +271,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "disabled", NULL },
          { NULL, NULL },
       },
-      "disabled"
+      "enabled"
    },
 #if 0
    {
