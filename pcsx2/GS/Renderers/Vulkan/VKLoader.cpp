@@ -59,7 +59,7 @@ namespace Vulkan
 #if defined(_WIN32)
 
 	static HMODULE vulkan_module;
-	static std::atomic_int vulkan_module_ref_count;
+	static std::atomic_int vulkan_module_ref_count = {0};
 
 	bool LoadVulkanLibrary()
 	{
@@ -116,7 +116,7 @@ namespace Vulkan
 #else
 
 	static void* vulkan_module;
-	static std::atomic_int vulkan_module_ref_count;
+	static std::atomic_int vulkan_module_ref_count = {0};
 
 	bool LoadVulkanLibrary()
 	{

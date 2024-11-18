@@ -76,7 +76,7 @@ static void ringBufferClear(struct ringBuf_t* rb)
 //Command (GP1) FIFO, size= 0x8 words:
 #define PGIF_CMD_RB_SIZE 0x8
 static struct ringBuf_t rb_gp1; //Ring buffer control variables.
-static u32 pgif_gp1_buffer[PGIF_CMD_RB_SIZE]; //Ring buffer data.
+static u32 pgif_gp1_buffer[PGIF_CMD_RB_SIZE] = {0}; //Ring buffer data.
 
 //Data (GP0) FIFO - the so-called (in PS1DRV) "GFIFO", (real) size= 0x20 words:
 //Using small (the real) FIFO size, disturbs MDEC video (and other stuff),
@@ -86,7 +86,7 @@ static u32 pgif_gp1_buffer[PGIF_CMD_RB_SIZE]; //Ring buffer data.
 //thus the GPU DMA would never get data, MDEC hasn't yet written to RAM yet (too early).
 #define PGIF_DAT_RB_SIZE 0x20000
 static struct ringBuf_t rb_gp0; //Ring buffer control variables.
-static u32 pgif_gp0_buffer[PGIF_DAT_RB_SIZE]; //Ring buffer data.
+static u32 pgif_gp0_buffer[PGIF_DAT_RB_SIZE] = {0}; //Ring buffer data.
 dma_t dma;
 
 //TODO: Make this be called by IopHw.cpp / psxHwReset()... but maybe it should be called by the EE reset func,

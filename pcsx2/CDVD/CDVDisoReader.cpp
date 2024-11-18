@@ -318,7 +318,7 @@ static s32 CALLBACK ISOgetTOC(void* toc)
 
 static s32 CALLBACK ISOreadSector(u8* tempbuffer, u32 lsn, int mode)
 {
-	static u8 cdbuffer[CD_FRAMESIZE_RAW];
+	static u8 cdbuffer[CD_FRAMESIZE_RAW] = {0};
 
 	int _lsn = lsn;
 
