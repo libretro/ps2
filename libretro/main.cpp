@@ -93,8 +93,9 @@ float pad_axis_scale[2];
 static bool show_parallel_options = true;
 static bool show_gsdx_hw_only_options = true;
 static bool show_gsdx_options = true;
+bool pcsx2_fastcdvd = false;
 
-static bool update_option_visibility()
+static bool update_option_visibility(void)
 {
 	struct retro_core_option_display option_display;
 	struct retro_variable var;
@@ -182,6 +183,9 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_renderer";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 			renderer = var.value;
+
+		var.key = "pcsx2_fastcdvd";
+		pcsx2_fastcdvd = (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && !strcmp(var.value, "enabled"));
 	}
 
 	var.key = "pcsx2_pgs_ssaa";

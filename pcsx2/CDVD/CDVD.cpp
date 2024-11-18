@@ -44,6 +44,7 @@
 #include "VMManager.h"
 
 /* TODO/FIXME - forward declaration */
+extern bool pcsx2_fastcdvd;
 extern MemorySettingsInterface s_settings_interface;
 
 // This typically reflects the Sony-assigned serial code for the Disc, if one exists.
@@ -67,7 +68,7 @@ static void CDVDSECTORREADY_INT(u32 eCycle)
 	if (psxRegs.interrupt & (1 << IopEvt_CdvdSectorReady))
 		return;
 
-	if (EmuConfig.Speedhacks.fastCDVD)
+	if (pcsx2_fastcdvd)
 	{
 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
 			eCycle *= 0.5f;
@@ -80,7 +81,7 @@ static void CDVDREAD_INT(u32 eCycle)
 {
 	// Give it an arbitary FAST value. Good for ~5000kb/s in ULE when copying a file from CDVD to HDD
 	// Keep long seeks out though, as games may try to push dmas while seeking. (Tales of the Abyss)
-	if (EmuConfig.Speedhacks.fastCDVD)
+	if (pcsx2_fastcdvd)
 	{
 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
 			eCycle *= 0.5f;

@@ -96,6 +96,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "enabled"
    },
    {
+      "pcsx2_fastcdvd",
+      "Fast CD/DVD Access",
+      NULL,
+      NULL,
+      NULL,
+      "system",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_enable_cheats",
       "Enable Cheats",
       NULL,
