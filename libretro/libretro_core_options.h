@@ -183,7 +183,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_pgs_disable_mipmaps",
-      "paraLLEl force texture LOD0",
+      "Force Texture LOD0",
       NULL,
       NULL,
       NULL,
@@ -222,20 +222,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { NULL, NULL },
       },
       "1x Native (PS2)"
-   },
-   {
-      "pcsx2_mipmapping",
-      "Mipmapping",
-      NULL,
-      NULL,
-      NULL,
-      "video",
-      {
-         { "enabled", NULL },
-         { "disabled", NULL },
-         { NULL, NULL },
-      },
-      "enabled"
    },
    {
       "pcsx2_deinterlace_mode",
