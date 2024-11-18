@@ -61,6 +61,11 @@ struct retro_core_option_v2_category option_cats_us[] = {
       "Show video options."
    },
    {
+      "emulation",
+      "Emulation",
+      "Show emulation options"
+   },
+   {
       "input",
       "Input",
       "Show input options."
@@ -283,6 +288,41 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "2"
    },
 #endif
+   {
+      "pcsx2_ee_cycle_rate",
+      "EE Cycle Rate",
+      NULL,
+      NULL,
+      NULL,
+      "emulation",
+      {
+         { "50% (Underclock)", NULL },
+         { "60% (Underclock)", NULL },
+         { "75% (Underclock)", NULL },
+         { "100% (Normal Speed)", NULL },
+         { "130% (Overclock)", NULL },
+         { "180% (Overclock)", NULL },
+         { "300% (Overclock)", NULL },
+         { NULL, NULL },
+      },
+      "100% (Normal Speed)"
+   },
+   {
+      "pcsx2_ee_cycle_skip",
+      "EE Cycle Skipping",
+      NULL,
+      NULL,
+      NULL,
+      "emulation",
+      {
+         { "disabled", NULL },
+         { "Mild Underclock", NULL },
+         { "Moderate Underclock", NULL },
+         { "Maximum Underclock", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
    {
       "pcsx2_axis_scale1",
       "Port 1: Analog Sensitivity",
