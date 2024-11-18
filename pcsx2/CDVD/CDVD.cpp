@@ -71,7 +71,7 @@ static void CDVDSECTORREADY_INT(u32 eCycle)
 	if (pcsx2_fastcdvd)
 	{
 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
-			eCycle *= 0.5f;
+			eCycle *= 0.05f;
 	}
 
 	PSX_INT(IopEvt_CdvdSectorReady, eCycle);
@@ -84,7 +84,7 @@ static void CDVDREAD_INT(u32 eCycle)
 	if (pcsx2_fastcdvd)
 	{
 		if (eCycle < Cdvd_FullSeek_Cycles && eCycle > 1)
-			eCycle *= 0.5f;
+			eCycle *= 0.05f;
 	}
 
 	PSX_INT(IopEvt_CdvdRead, eCycle);
