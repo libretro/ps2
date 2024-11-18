@@ -99,7 +99,6 @@ float pad_axis_scale[2];
 
 static bool show_parallel_options = true;
 static bool show_gsdx_hw_only_options = true;
-static bool show_gsdx_options = true;
 static bool show_shared_options = true;
 
 static bool update_option_visibility(void)
@@ -111,11 +110,9 @@ static bool update_option_visibility(void)
 	// Show/hide video options
 	bool show_parallel_options_prev = show_parallel_options;
 	bool show_gsdx_hw_only_options_prev = show_gsdx_hw_only_options;
-	bool show_gsdx_options_prev = show_gsdx_options;
 	bool show_shared_options_prev = show_shared_options;
 	show_parallel_options = true;
 	show_gsdx_hw_only_options = true;
-	show_gsdx_options = true;
 	show_shared_options = true;
 
 	var.key = "pcsx2_renderer";
@@ -127,8 +124,6 @@ static bool update_option_visibility(void)
 
 		if (null_renderer)
 			show_shared_options = false;
-		if (parallel_renderer || null_renderer)
-			show_gsdx_options = false;
 		if (parallel_renderer || software_renderer || null_renderer)
 			show_gsdx_hw_only_options = false;
 		if (!parallel_renderer)
@@ -142,8 +137,6 @@ static bool update_option_visibility(void)
 		option_display.key = "pcsx2_pgs_ssaa";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key = "pcsx2_pgs_high_res_scanout";
-		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		option_display.key = "pcsx2_pgs_disable_mipmaps";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated = true;
@@ -159,20 +152,12 @@ static bool update_option_visibility(void)
 		updated = true;
 	}
 
-	// GSdx HW/SW options, but not compatible with Null renderer
-	if (show_gsdx_options != show_gsdx_options_prev)
-	{
-		option_display.visible = show_gsdx_options;
-		option_display.key = "pcsx2_mipmapping";
-		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-
-		updated = true;
-	}
-
 	// Options compatible with both paraLLEl-GS and GSdx HW/SW, still not with Null renderer
 	if (show_shared_options != show_shared_options_prev)
 	{
 		option_display.visible = show_shared_options;
+		option_display.key = "pcsx2_pgs_disable_mipmaps";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key = "pcsx2_deinterlace_mode";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key = "pcsx2_pcrtc_antiblur";
@@ -276,7 +261,11 @@ static void check_variables(bool first_run)
 			if (pgs_high_res_scanout != i_prev)
 				apply_settings_requested = true;
 		}
+	}
 
+	// Options for both paraLLEl-GS and GSdx HW/SW, just not with Null renderer
+	if (plugin_type != PLUGIN_NULL)
+	{
 		var.key = "pcsx2_pgs_disable_mipmaps";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
@@ -286,15 +275,14 @@ static void check_variables(bool first_run)
 			else
 				pgs_disable_mipmaps = 0;
 
+			const u8 mipmap_mode = (u8)(pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
+			s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
+			s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !pgs_disable_mipmaps);
 			s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
 			if (pgs_disable_mipmaps != i_prev)
 				apply_settings_requested = true;
 		}
-	}
 
-	// Options for both paraLLEl-GS and GSdx HW/SW, just not with Null renderer
-	if (plugin_type != PLUGIN_NULL)
-	{
 		var.key = "pcsx2_pcrtc_antiblur";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
@@ -367,25 +355,6 @@ static void check_variables(bool first_run)
 				apply_settings_requested = true;
 			}
 #endif
-		}
-	}
-
-	if (plugin_type == PLUGIN_GSDX_HW || plugin_type == PLUGIN_GSDX_SW)
-	{
-		var.key = "pcsx2_mipmapping";
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
-			i_prev = mipmapping;
-			if (!strcmp(var.value, "enabled"))
-				mipmapping = true;
-			else
-				mipmapping = false;
-
-			const u8 mipmap_mode = (u8)(mipmapping ? GSHWMipmapMode::Enabled : GSHWMipmapMode::Unclamped);
-			s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
-			s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", mipmapping);
-			if (!!mipmapping != i_prev)
-				apply_settings_requested = true;
 		}
 	}
 
