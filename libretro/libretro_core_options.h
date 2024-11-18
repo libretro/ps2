@@ -96,6 +96,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "enabled"
    },
    {
+      "pcsx2_enable_cheats",
+      "Enable Cheats",
+      NULL,
+      NULL,
+      NULL,
+      "system",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_renderer",
       "Renderer",
       NULL,
@@ -231,6 +245,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { NULL, NULL },
       },
       "Automatic"
+   },
+   {
+      "pcsx2_pcrtc_antiblur",
+      "PCRTC Anti-Blur",
+      NULL,
+      NULL,
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
    },
 #if 0
    {

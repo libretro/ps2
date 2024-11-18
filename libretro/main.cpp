@@ -87,6 +87,8 @@ static int axis_scale1;
 static int axis_scale2;
 static bool fast_boot;
 static bool mipmapping;
+static bool pcrtc_antiblur;
+static bool enable_cheats;
 float pad_axis_scale[2];
 
 static bool show_parallel_options = true;
@@ -209,6 +211,14 @@ static void check_variables(bool first_run)
 			//VMManager::ApplySettings();
 		}
 	}
+
+	var.key = "pcsx2_enable_cheats";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		EmuConfig.EnableCheats = enable_cheats = !strcmp(var.value, "enabled") ? true : false;
+
+	var.key = "pcsx2_pcrtc_antiblur";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		GSConfig.PCRTCAntiBlur = pcrtc_antiblur = !strcmp(var.value, "enabled") ? true : false;
 
 	var.key = "pcsx2_deinterlace_mode";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -558,18 +568,22 @@ static void libretro_context_reset(void)
 	s_settings_interface.SetUIntValue("EmuCore/GS", "hw_mipmap_mode", (u8)mipmap_mode);
 	s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", mipmapping);
 	s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
+	s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", pcrtc_antiblur);
 	GSConfig.UpscaleMultiplier     = upscale_multiplier;
 	GSConfig.PGSSuperSampling      = pgs_super_sampling;
 	GSConfig.PGSHighResScanout     = pgs_high_res_scanout;
 	GSConfig.PGSDisableMipmaps     = pgs_disable_mipmaps;
 	GSConfig.HWMipmapMode          = mipmap_mode;
 	GSConfig.Mipmap                = mipmapping;
+	GSConfig.PCRTCAntiBlur         = pcrtc_antiblur;
+	EmuConfig.EnableCheats         = enable_cheats;
 	EmuConfig.GS.UpscaleMultiplier = upscale_multiplier;
 	EmuConfig.GS.PGSSuperSampling  = pgs_super_sampling;
 	EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;
 	EmuConfig.GS.PGSDisableMipmaps = pgs_disable_mipmaps;
 	EmuConfig.GS.HWMipmapMode      = mipmap_mode;
 	EmuConfig.GS.Mipmap            = mipmapping;
+	EmuConfig.GS.PCRTCAntiBlur     = pcrtc_antiblur;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
