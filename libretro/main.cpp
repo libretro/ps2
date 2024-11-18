@@ -88,7 +88,6 @@ static int axis_scale2;
 static bool fast_boot;
 static bool mipmapping;
 static bool pcrtc_antiblur;
-static bool enable_cheats;
 float pad_axis_scale[2];
 
 static bool show_parallel_options = true;
@@ -182,9 +181,7 @@ static void check_variables(bool first_run)
 
 		var.key = "pcsx2_renderer";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		{
 			renderer = var.value;
-		}
 	}
 
 	var.key = "pcsx2_pgs_ssaa";
@@ -212,9 +209,6 @@ static void check_variables(bool first_run)
 		}
 	}
 
-	var.key = "pcsx2_enable_cheats";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		EmuConfig.EnableCheats = enable_cheats = !strcmp(var.value, "enabled") ? true : false;
 
 	var.key = "pcsx2_pcrtc_antiblur";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -576,7 +570,6 @@ static void libretro_context_reset(void)
 	GSConfig.HWMipmapMode          = mipmap_mode;
 	GSConfig.Mipmap                = mipmapping;
 	GSConfig.PCRTCAntiBlur         = pcrtc_antiblur;
-	EmuConfig.EnableCheats         = enable_cheats;
 	EmuConfig.GS.UpscaleMultiplier = upscale_multiplier;
 	EmuConfig.GS.PGSSuperSampling  = pgs_super_sampling;
 	EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;

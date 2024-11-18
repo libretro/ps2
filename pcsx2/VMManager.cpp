@@ -22,6 +22,7 @@
 #include <fmt/format.h>
 
 #include <file/file_path.h>
+#include <libretro.h>
 
 #include "common/Console.h"
 #include "common/FileSystem.h"
@@ -64,6 +65,8 @@
 #include <objbase.h>
 #include <timeapi.h>
 #endif
+
+extern retro_environment_t environ_cb;
 
 // Resets all PS2 cpu execution caches, which does not affect that actual PS2 state/condition.
 // This can be called at any time outside the context of a Cpu->Execute() block without
@@ -293,6 +296,7 @@ bool VMManager::UpdateGameSettingsLayer(void) { return true; }
 
 void VMManager::LoadPatches(const std::string& serial, u32 crc)
 {
+	struct retro_variable var;
 	std::string message;
 	int patch_count = 0;
 	const std::string crc_string(fmt::format("{:08X}", crc));
@@ -319,7 +323,10 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 
 	// regular cheat patches
 	int cheat_count = 0;
-	if (EmuConfig.EnableCheats)
+
+	var.key = "pcsx2_enable_cheats";
+
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && !strcmp(var.value, "enabled"))
 	{
 		cheat_count = LoadPatchesFromDir(crc_string, EmuFolders::Cheats, "Cheats", true);
 		if (cheat_count > 0)
@@ -954,7 +961,7 @@ void VMManager::CheckForFramerateConfigChanges(const Pcsx2Config& old_config)
 
 void VMManager::CheckForPatchConfigChanges(const Pcsx2Config& old_config)
 {
-	if (EmuConfig.EnableCheats == old_config.EnableCheats &&
+	if (
 		EmuConfig.EnableWideScreenPatches == old_config.EnableWideScreenPatches &&
 		EmuConfig.EnablePatches == old_config.EnablePatches)
 		return;
@@ -1028,7 +1035,7 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 		CheckForMemoryCardConfigChanges(old_config);
 		USB::CheckForConfigChanges(old_config);
 
-		if (EmuConfig.EnableCheats != old_config.EnableCheats ||
+		if (
 			EmuConfig.EnableWideScreenPatches != old_config.EnableWideScreenPatches ||
 			EmuConfig.EnableNoInterlacingPatches != old_config.EnableNoInterlacingPatches)
 			VMManager::ReloadPatches();

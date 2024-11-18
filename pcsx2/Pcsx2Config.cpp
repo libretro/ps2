@@ -926,7 +926,6 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapSection("EmuCore");
 
 	SettingsWrapBitBool(EnablePatches);
-	SettingsWrapBitBool(EnableCheats);
 	SettingsWrapBitBool(EnableWideScreenPatches);
 	SettingsWrapBitBool(EnableNoInterlacingPatches);
 	SettingsWrapBitBool(EnableGameFixes);
