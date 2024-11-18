@@ -209,6 +209,29 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "enabled"
    },
+   {
+      "pcsx2_deinterlace_mode",
+      "Deinterlacing",
+      NULL,
+      NULL,
+      NULL,
+      "video",
+      {
+         {"Automatic", NULL },
+         {"Off", NULL },
+         {"WeaveTFF", NULL },
+         {"WeaveBFF", NULL },
+         {"BobTFF", NULL },
+         {"BobBFF", NULL },
+         {"BlendTFF", NULL },
+         {"BlendBFF", NULL },
+         {"AdaptiveTFF", NULL },
+         {"AdaptiveBFF", NULL },
+         {"Count", NULL },
+         { NULL, NULL },
+      },
+      "Automatic"
+   },
 #if 0
    {
       "pcsx2_sw_renderer_threads",

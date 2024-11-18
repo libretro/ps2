@@ -82,6 +82,7 @@ static int upscale_multiplier;
 static int pgs_super_sampling;
 static int pgs_high_res_scanout;
 static int pgs_disable_mipmaps;
+static int deinterlace_mode;
 static int axis_scale1;
 static int axis_scale2;
 static bool fast_boot;
@@ -204,6 +205,57 @@ static void check_variables(bool first_run)
 		if (pgs_super_sampling != i_prev && !first_run)
 		{
 			EmuConfig.GS.PGSSuperSampling = pgs_super_sampling;
+			// FIXME: This seems to hang sometimes.
+			//VMManager::ApplySettings();
+		}
+	}
+
+	var.key = "pcsx2_deinterlace_mode";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		i_prev = deinterlace_mode;
+
+		if (!strcmp(var.value, "Automatic"))
+			deinterlace_mode = 0;
+		else if (!strcmp(var.value, "Off"))
+			deinterlace_mode = 1;
+		else if (!strcmp(var.value, "WeaveTFF"))
+			deinterlace_mode = 2;
+		else if (!strcmp(var.value, "WeaveBFF)"))
+			deinterlace_mode = 3;
+		else if (!strcmp(var.value, "BobTFF"))
+			deinterlace_mode = 4;
+		else if (!strcmp(var.value, "BobBFF"))
+			deinterlace_mode = 5;
+		else if (!strcmp(var.value, "BlendTFF"))
+			deinterlace_mode = 6;
+		else if (!strcmp(var.value, "BlendBFF"))
+			deinterlace_mode = 7;
+		else if (!strcmp(var.value, "AdaptiveTFF"))
+			deinterlace_mode = 8;
+		else if (!strcmp(var.value, "AdaptiveBFF"))
+			deinterlace_mode = 9;
+		else if (!strcmp(var.value, "Count"))
+			deinterlace_mode = 10;
+
+		GSInterlaceMode interlace_modes[] =
+		{
+			GSInterlaceMode::Automatic,
+			GSInterlaceMode::Off,
+			GSInterlaceMode::WeaveTFF,
+			GSInterlaceMode::WeaveBFF,
+			GSInterlaceMode::BobTFF,
+			GSInterlaceMode::BobBFF,
+			GSInterlaceMode::BlendTFF,
+			GSInterlaceMode::BlendBFF,
+			GSInterlaceMode::AdaptiveTFF,
+			GSInterlaceMode::AdaptiveBFF,
+			GSInterlaceMode::Count
+		};
+
+		if (deinterlace_mode != i_prev && !first_run)
+		{
+			GSConfig.InterlaceMode = interlace_modes[deinterlace_mode];
 			// FIXME: This seems to hang sometimes.
 			//VMManager::ApplySettings();
 		}
@@ -505,6 +557,7 @@ static void libretro_context_reset(void)
 	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
 	s_settings_interface.SetUIntValue("EmuCore/GS", "hw_mipmap_mode", (u8)mipmap_mode);
 	s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", mipmapping);
+	s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
 	GSConfig.UpscaleMultiplier     = upscale_multiplier;
 	GSConfig.PGSSuperSampling      = pgs_super_sampling;
 	GSConfig.PGSHighResScanout     = pgs_high_res_scanout;
