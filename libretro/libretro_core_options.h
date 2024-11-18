@@ -241,7 +241,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          {"BlendBFF", NULL },
          {"AdaptiveTFF", NULL },
          {"AdaptiveBFF", NULL },
-         {"Count", NULL },
          { NULL, NULL },
       },
       "Automatic"

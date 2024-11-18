@@ -239,8 +239,6 @@ static void check_variables(bool first_run)
 			deinterlace_mode = 8;
 		else if (!strcmp(var.value, "AdaptiveBFF"))
 			deinterlace_mode = 9;
-		else if (!strcmp(var.value, "Count"))
-			deinterlace_mode = 10;
 
 		GSInterlaceMode interlace_modes[] =
 		{
@@ -253,8 +251,7 @@ static void check_variables(bool first_run)
 			GSInterlaceMode::BlendTFF,
 			GSInterlaceMode::BlendBFF,
 			GSInterlaceMode::AdaptiveTFF,
-			GSInterlaceMode::AdaptiveBFF,
-			GSInterlaceMode::Count
+			GSInterlaceMode::AdaptiveBFF
 		};
 
 		if (deinterlace_mode != i_prev && !first_run)
