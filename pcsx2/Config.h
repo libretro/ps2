@@ -839,6 +839,7 @@ struct Pcsx2Config
 		struct
 		{
 			bool EnablePatches : 1, // enables patch detection and application
+			     EnableCheats  : 1, // enables cheat detection and application
 			     EnableWideScreenPatches    : 1,
 			     EnableNoInterlacingPatches : 1,
 		             EnableGameFixes            : 1, // enables automatic game fixes

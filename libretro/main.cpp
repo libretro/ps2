@@ -70,6 +70,14 @@ static VMState cpu_thread_state;
 MemorySettingsInterface s_settings_interface;
 static std::thread cpu_thread;
 
+enum PluginType : u8
+{
+	PLUGIN_PGS,
+	PLUGIN_GSDX_HW,
+	PLUGIN_GSDX_SW,
+	PLUGIN_NULL
+};
+
 struct BiosInfo {
 	std::string filename;
 	std::string description;
@@ -79,21 +87,20 @@ static std::vector<BiosInfo> bios_info;
 static std::string bios;
 static std::string renderer;
 static int upscale_multiplier;
-static int pgs_super_sampling;
-static int pgs_high_res_scanout;
-static int pgs_disable_mipmaps;
-static int deinterlace_mode;
-static int axis_scale1;
-static int axis_scale2;
-static bool fast_boot;
+static PluginType plugin_type;
+static u8 pgs_super_sampling;
+static u8 pgs_high_res_scanout;
+static u8 pgs_disable_mipmaps;
+static u8 deinterlace_mode;
 static bool mipmapping;
 static bool pcrtc_antiblur;
+static bool enable_cheats;
 float pad_axis_scale[2];
 
 static bool show_parallel_options = true;
 static bool show_gsdx_hw_only_options = true;
 static bool show_gsdx_options = true;
-bool pcsx2_fastcdvd = false;
+static bool show_shared_options = true;
 
 static bool update_option_visibility(void)
 {
@@ -105,9 +112,11 @@ static bool update_option_visibility(void)
 	bool show_parallel_options_prev = show_parallel_options;
 	bool show_gsdx_hw_only_options_prev = show_gsdx_hw_only_options;
 	bool show_gsdx_options_prev = show_gsdx_options;
+	bool show_shared_options_prev = show_shared_options;
 	show_parallel_options = true;
 	show_gsdx_hw_only_options = true;
 	show_gsdx_options = true;
+	show_shared_options = true;
 
 	var.key = "pcsx2_renderer";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -116,6 +125,8 @@ static bool update_option_visibility(void)
 		const bool software_renderer = !strcmp(var.value, "Software");
 		const bool null_renderer = !strcmp(var.value, "Null");
 
+		if (null_renderer)
+			show_shared_options = false;
 		if (parallel_renderer || null_renderer)
 			show_gsdx_options = false;
 		if (parallel_renderer || software_renderer || null_renderer)
@@ -124,6 +135,7 @@ static bool update_option_visibility(void)
 			show_parallel_options = false;
 	}
 
+	// paraLLEl-GS options
 	if (show_parallel_options != show_parallel_options_prev)
 	{
 		option_display.visible = show_parallel_options;
@@ -137,6 +149,7 @@ static bool update_option_visibility(void)
 		updated = true;
 	}
 
+	// GSdx HW options, but NOT compatible with Software and Null renderers
 	if (show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
 	{
 		option_display.visible = show_gsdx_hw_only_options;
@@ -146,10 +159,23 @@ static bool update_option_visibility(void)
 		updated = true;
 	}
 
+	// GSdx HW/SW options, but not compatible with Null renderer
 	if (show_gsdx_options != show_gsdx_options_prev)
 	{
 		option_display.visible = show_gsdx_options;
 		option_display.key = "pcsx2_mipmapping";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
+		updated = true;
+	}
+
+	// Options compatible with both paraLLEl-GS and GSdx HW/SW, still not with Null renderer
+	if (show_shared_options != show_shared_options_prev)
+	{
+		option_display.visible = show_shared_options;
+		option_display.key = "pcsx2_deinterlace_mode";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key = "pcsx2_pcrtc_antiblur";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated = true;
@@ -162,13 +188,32 @@ static void check_variables(bool first_run)
 {
 	struct retro_variable var;
 	int i_prev;
+	bool apply_settings_requested = false;
 
 	if (first_run)
 	{
+		bool fast_boot;
+		bool fast_cdvd;
+
+		var.key = "pcsx2_renderer";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			renderer = var.value;
+			if (renderer == "paraLLEl-GS")
+				plugin_type = PLUGIN_PGS;
+			else if (renderer == "Software")
+				plugin_type = PLUGIN_GSDX_SW;
+			else if (renderer == "Null")
+				plugin_type = PLUGIN_NULL;
+			else
+				plugin_type = PLUGIN_GSDX_HW;
+		}
+
 		var.key = "pcsx2_bios";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			bios = var.value;
+			s_settings_interface.SetStringValue("Filenames", "BIOS", bios.c_str());
 		}
 
 		var.key = "pcsx2_fastboot";
@@ -178,153 +223,184 @@ static void check_variables(bool first_run)
 				fast_boot = true;
 			else
 				fast_boot = false;
-		}
 
-		var.key = "pcsx2_renderer";
-		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			renderer = var.value;
+			s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", fast_boot);
+		}
 
 		var.key = "pcsx2_fastcdvd";
-		pcsx2_fastcdvd = (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && !strcmp(var.value, "enabled"));
-	}
-
-	var.key = "pcsx2_pgs_ssaa";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
-		i_prev = pgs_super_sampling;
-		if (!strcmp(var.value, "Native"))
-			pgs_super_sampling = 0;
-		else if (!strcmp(var.value, "2x SSAA"))
-			pgs_super_sampling = 1;
-		else if (!strcmp(var.value, "4x SSAA (sparse grid)"))
-			pgs_super_sampling = 2;
-		else if (!strcmp(var.value, "4x SSAA (ordered, can high-res)"))
-			pgs_super_sampling = 3;
-		else if (!strcmp(var.value, "8x SSAA (can high-res)"))
-			pgs_super_sampling = 4;
-		else if (!strcmp(var.value, "16x SSAA (can high-res)"))
-			pgs_super_sampling = 5;
-
-		if (pgs_super_sampling != i_prev && !first_run)
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			EmuConfig.GS.PGSSuperSampling = pgs_super_sampling;
-			// FIXME: This seems to hang sometimes.
-			//VMManager::ApplySettings();
+			if (!strcmp(var.value, "enabled"))
+				fast_cdvd = true;
+			else
+				fast_cdvd = false;
+
+			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "fastCDVD", fast_cdvd);
 		}
 	}
 
-
-	var.key = "pcsx2_pcrtc_antiblur";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-		GSConfig.PCRTCAntiBlur = pcrtc_antiblur = !strcmp(var.value, "enabled") ? true : false;
-
-	var.key = "pcsx2_deinterlace_mode";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	if (plugin_type == PLUGIN_PGS)
 	{
-		i_prev = deinterlace_mode;
-
-		if (!strcmp(var.value, "Automatic"))
-			deinterlace_mode = 0;
-		else if (!strcmp(var.value, "Off"))
-			deinterlace_mode = 1;
-		else if (!strcmp(var.value, "WeaveTFF"))
-			deinterlace_mode = 2;
-		else if (!strcmp(var.value, "WeaveBFF)"))
-			deinterlace_mode = 3;
-		else if (!strcmp(var.value, "BobTFF"))
-			deinterlace_mode = 4;
-		else if (!strcmp(var.value, "BobBFF"))
-			deinterlace_mode = 5;
-		else if (!strcmp(var.value, "BlendTFF"))
-			deinterlace_mode = 6;
-		else if (!strcmp(var.value, "BlendBFF"))
-			deinterlace_mode = 7;
-		else if (!strcmp(var.value, "AdaptiveTFF"))
-			deinterlace_mode = 8;
-		else if (!strcmp(var.value, "AdaptiveBFF"))
-			deinterlace_mode = 9;
-
-		GSInterlaceMode interlace_modes[] =
+		var.key = "pcsx2_pgs_ssaa";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			GSInterlaceMode::Automatic,
-			GSInterlaceMode::Off,
-			GSInterlaceMode::WeaveTFF,
-			GSInterlaceMode::WeaveBFF,
-			GSInterlaceMode::BobTFF,
-			GSInterlaceMode::BobBFF,
-			GSInterlaceMode::BlendTFF,
-			GSInterlaceMode::BlendBFF,
-			GSInterlaceMode::AdaptiveTFF,
-			GSInterlaceMode::AdaptiveBFF
-		};
+			i_prev = pgs_super_sampling;
+			if (!strcmp(var.value, "Native"))
+				pgs_super_sampling = 0;
+			else if (!strcmp(var.value, "2x SSAA"))
+				pgs_super_sampling = 1;
+			else if (!strcmp(var.value, "4x SSAA (sparse grid)"))
+				pgs_super_sampling = 2;
+			else if (!strcmp(var.value, "4x SSAA (ordered, can high-res)"))
+				pgs_super_sampling = 3;
+			else if (!strcmp(var.value, "8x SSAA (can high-res)"))
+				pgs_super_sampling = 4;
+			else if (!strcmp(var.value, "16x SSAA (can high-res)"))
+				pgs_super_sampling = 5;
 
-		if (deinterlace_mode != i_prev && !first_run)
+			s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
+			if (pgs_super_sampling != i_prev)
+				apply_settings_requested = true;
+		}
+
+		var.key = "pcsx2_pgs_high_res_scanout";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			GSConfig.InterlaceMode = interlace_modes[deinterlace_mode];
-			// FIXME: This seems to hang sometimes.
-			//VMManager::ApplySettings();
+			i_prev = pgs_high_res_scanout;
+			if (!strcmp(var.value, "enabled"))
+				pgs_high_res_scanout = 1;
+			else
+				pgs_high_res_scanout = 0;
+
+			s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
+			if (pgs_high_res_scanout != i_prev)
+				apply_settings_requested = true;
+		}
+
+		var.key = "pcsx2_pgs_disable_mipmaps";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			i_prev = pgs_disable_mipmaps;
+			if (!strcmp(var.value, "enabled"))
+				pgs_disable_mipmaps = 1;
+			else
+				pgs_disable_mipmaps = 0;
+
+			s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
+			if (pgs_disable_mipmaps != i_prev)
+				apply_settings_requested = true;
 		}
 	}
 
-	var.key = "pcsx2_pgs_high_res_scanout";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	// Options for both paraLLEl-GS and GSdx HW/SW, just not with Null renderer
+	if (plugin_type != PLUGIN_NULL)
 	{
-		i_prev = pgs_high_res_scanout;
-		if (!strcmp(var.value, "enabled"))
-			pgs_high_res_scanout = 1;
-		else
-			pgs_high_res_scanout = 0;
-
-		if (pgs_high_res_scanout != i_prev && !first_run)
+		var.key = "pcsx2_pcrtc_antiblur";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;
-			// FIXME: This seems to hang sometimes.
-			//VMManager::ApplySettings();
+			i_prev = pcrtc_antiblur;
+			if (!strcmp(var.value, "enabled"))
+				pcrtc_antiblur = true;
+			else
+				pcrtc_antiblur = false;
+
+			s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", pcrtc_antiblur);
+			if (!!pcrtc_antiblur != i_prev)
+				apply_settings_requested = true;
+		}
+
+		var.key = "pcsx2_deinterlace_mode";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			i_prev = deinterlace_mode;
+			if (!strcmp(var.value, "Automatic"))
+				deinterlace_mode = (u8)GSInterlaceMode::Automatic;
+			else if (!strcmp(var.value, "Off"))
+				deinterlace_mode = (u8)GSInterlaceMode::Off;
+			else if (!strcmp(var.value, "Weave TFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::WeaveTFF;
+			else if (!strcmp(var.value, "Weave BFF)"))
+				deinterlace_mode = (u8)GSInterlaceMode::WeaveBFF;
+			else if (!strcmp(var.value, "Bob TFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::BobTFF;
+			else if (!strcmp(var.value, "Bob BFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::BobBFF;
+			else if (!strcmp(var.value, "Blend TFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::BlendTFF;
+			else if (!strcmp(var.value, "Blend BFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::BlendBFF;
+			else if (!strcmp(var.value, "Adaptive TFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::AdaptiveTFF;
+			else if (!strcmp(var.value, "Adaptive BFF"))
+				deinterlace_mode = (u8)GSInterlaceMode::AdaptiveBFF;
+
+			if (deinterlace_mode != i_prev && !first_run)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
+				if (deinterlace_mode != i_prev)
+					apply_settings_requested = true;
+			}
 		}
 	}
 
-	var.key = "pcsx2_pgs_disable_mipmaps";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	if (plugin_type == PLUGIN_GSDX_HW)
 	{
-		i_prev = pgs_disable_mipmaps;
-		if (!strcmp(var.value, "enabled"))
-			pgs_disable_mipmaps = 1;
-		else
-			pgs_disable_mipmaps = 0;
-
-		if (pgs_disable_mipmaps != i_prev && !first_run)
+		var.key = "pcsx2_upscale_multiplier";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			EmuConfig.GS.PGSDisableMipmaps = pgs_disable_mipmaps;
-			// FIXME: This seems to hang sometimes.
-			//VMManager::ApplySettings();
-		}
-	}
+			i_prev = upscale_multiplier;
+			upscale_multiplier = atoi(var.value);
 
-	var.key = "pcsx2_upscale_multiplier";
-	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
-		i_prev = upscale_multiplier;
-		upscale_multiplier = atoi(var.value);
-
-		if (upscale_multiplier != i_prev && !first_run)
-		{
-			retro_system_av_info av_info;
-			retro_get_system_av_info(&av_info);
+			s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
+#if 0
+			// TODO: atm it crashes when changed on-the-fly, re-enable when fixed
+			// also remove "(Restart)" from the core option label
+			if (upscale_multiplier != i_prev && !first_run)
+			{
+				retro_system_av_info av_info;
+				retro_get_system_av_info(&av_info);
 #if 1
-			environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+				environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 #else
-			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
+				environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
+#endif
+				apply_settings_requested = true;
+			}
 #endif
 		}
 	}
 
-	var.key = "pcsx2_mipmapping";
+	if (plugin_type == PLUGIN_GSDX_HW || plugin_type == PLUGIN_GSDX_SW)
+	{
+		var.key = "pcsx2_mipmapping";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			i_prev = mipmapping;
+			if (!strcmp(var.value, "enabled"))
+				mipmapping = true;
+			else
+				mipmapping = false;
+
+			const u8 mipmap_mode = (u8)(mipmapping ? GSHWMipmapMode::Enabled : GSHWMipmapMode::Unclamped);
+			s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
+			s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", mipmapping);
+			if (!!mipmapping != i_prev)
+				apply_settings_requested = true;
+		}
+	}
+
+	var.key = "pcsx2_enable_cheats";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
+		i_prev = enable_cheats;
 		if (!strcmp(var.value, "enabled"))
-			mipmapping = true;
+			enable_cheats = true;
 		else
-			mipmapping = false;
+			enable_cheats = false;
+
+		s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", enable_cheats);
+		if (!!enable_cheats != i_prev)
+			apply_settings_requested = true;
 	}
 
 	var.key = "pcsx2_axis_scale1";
@@ -340,6 +416,9 @@ static void check_variables(bool first_run)
 	}
 
 	update_option_visibility();
+
+	if (!first_run && apply_settings_requested)
+		VMManager::ApplySettings();
 }
 
 #ifdef ENABLE_VULKAN
@@ -555,29 +634,6 @@ void retro_reset(void)
 
 static void libretro_context_reset(void)
 {
-	const GSHWMipmapMode mipmap_mode = mipmapping ? GSHWMipmapMode::Enabled : GSHWMipmapMode::Unclamped;
-	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
-	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
-	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
-	s_settings_interface.SetFloatValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
-	s_settings_interface.SetUIntValue("EmuCore/GS", "hw_mipmap_mode", (u8)mipmap_mode);
-	s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", mipmapping);
-	s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
-	s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", pcrtc_antiblur);
-	GSConfig.UpscaleMultiplier     = upscale_multiplier;
-	GSConfig.PGSSuperSampling      = pgs_super_sampling;
-	GSConfig.PGSHighResScanout     = pgs_high_res_scanout;
-	GSConfig.PGSDisableMipmaps     = pgs_disable_mipmaps;
-	GSConfig.HWMipmapMode          = mipmap_mode;
-	GSConfig.Mipmap                = mipmapping;
-	GSConfig.PCRTCAntiBlur         = pcrtc_antiblur;
-	EmuConfig.GS.UpscaleMultiplier = upscale_multiplier;
-	EmuConfig.GS.PGSSuperSampling  = pgs_super_sampling;
-	EmuConfig.GS.PGSHighResScanout = pgs_high_res_scanout;
-	EmuConfig.GS.PGSDisableMipmaps = pgs_disable_mipmaps;
-	EmuConfig.GS.HWMipmapMode      = mipmap_mode;
-	EmuConfig.GS.Mipmap            = mipmapping;
-	EmuConfig.GS.PCRTCAntiBlur     = pcrtc_antiblur;
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 	{
@@ -857,10 +913,6 @@ bool retro_load_game(const struct retro_game_info* game)
 		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios.c_str());
 		return false;
 	}
-
-	s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
-	s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", fast_boot);
-	s_settings_interface.SetStringValue("Filenames", "BIOS", bios.c_str());
 
 	Input::Init();
 
