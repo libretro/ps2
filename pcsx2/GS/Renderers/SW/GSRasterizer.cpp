@@ -246,7 +246,7 @@ void GSRasterizer::DrawPoint(const GSVertexSW* vertex, int vertex_count, const u
 	}
 	else
 	{
-		static constexpr u16 tmp_index[1];
+		static constexpr u16 tmp_index[1] = {0};
 
 		for (int i = 0; i < vertex_count; i++, vertex++)
 		{
