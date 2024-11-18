@@ -92,7 +92,8 @@ static u8 pgs_super_sampling;
 static u8 pgs_high_res_scanout;
 static u8 pgs_disable_mipmaps;
 static u8 deinterlace_mode;
-static bool mipmapping;
+static u8 ee_clycle_skip;
+static s8 ee_clycle_rate;
 static bool pcrtc_antiblur;
 static bool enable_cheats;
 float pad_axis_scale[2];
@@ -322,12 +323,9 @@ static void check_variables(bool first_run)
 			else if (!strcmp(var.value, "Adaptive BFF"))
 				deinterlace_mode = (u8)GSInterlaceMode::AdaptiveBFF;
 
-			if (deinterlace_mode != i_prev && !first_run)
-			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
-				if (deinterlace_mode != i_prev)
-					apply_settings_requested = true;
-			}
+			s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
+			if (deinterlace_mode != i_prev)
+				apply_settings_requested = true;
 		}
 	}
 
@@ -369,6 +367,48 @@ static void check_variables(bool first_run)
 
 		s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", enable_cheats);
 		if (!!enable_cheats != i_prev)
+			apply_settings_requested = true;
+	}
+
+	var.key = "pcsx2_ee_cycle_rate";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		i_prev = ee_clycle_rate;
+		if (!strcmp(var.value, "50% (Underclock)"))
+			ee_clycle_rate = -3;
+		else if (!strcmp(var.value, "60% (Underclock)"))
+			ee_clycle_rate = -2;
+		else if (!strcmp(var.value, "75% (Underclock)"))
+			ee_clycle_rate = -1;
+		else if (!strcmp(var.value, "100% (Normal Speed)"))
+			ee_clycle_rate = 0;
+		else if (!strcmp(var.value, "130% (Overclock)"))
+			ee_clycle_rate = 1;
+		else if (!strcmp(var.value, "180% (Overclock)"))
+			ee_clycle_rate = 2;
+		else if (!strcmp(var.value, "300% (Overclock)"))
+			ee_clycle_rate = 3;
+
+		s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleRate", ee_clycle_rate);
+		if (ee_clycle_rate != i_prev)
+			apply_settings_requested = true;
+	}
+
+	var.key = "pcsx2_ee_cycle_skip";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		i_prev = ee_clycle_skip;
+		if (!strcmp(var.value, "disabled"))
+			ee_clycle_skip = 0;
+		else if (!strcmp(var.value, "Mild Underclock"))
+			ee_clycle_skip = 1;
+		else if (!strcmp(var.value, "Moderate Underclock"))
+			ee_clycle_skip = 2;
+		else if (!strcmp(var.value, "Maximum Underclock"))
+			ee_clycle_skip = 3;
+
+		s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleSkip", ee_clycle_skip);
+		if (ee_clycle_skip != i_prev)
 			apply_settings_requested = true;
 	}
 
