@@ -173,14 +173,10 @@ static bool update_option_visibility(void)
 static void check_variables(bool first_run)
 {
 	struct retro_variable var;
-	int i_prev;
-	bool apply_settings_requested = false;
+	bool updated = false;
 
 	if (first_run)
 	{
-		bool fast_boot;
-		bool fast_cdvd;
-
 		var.key = "pcsx2_renderer";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
@@ -205,22 +201,14 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_fastboot";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			if (!strcmp(var.value, "enabled"))
-				fast_boot = true;
-			else
-				fast_boot = false;
-
+			bool fast_boot = !strcmp(var.value, "enabled");
 			s_settings_interface.SetBoolValue("EmuCore", "EnableFastBoot", fast_boot);
 		}
 
 		var.key = "pcsx2_fastcdvd";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			if (!strcmp(var.value, "enabled"))
-				fast_cdvd = true;
-			else
-				fast_cdvd = false;
-
+			bool fast_cdvd = !strcmp(var.value, "enabled");
 			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "fastCDVD", fast_cdvd);
 		}
 	}
@@ -230,7 +218,7 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_pgs_ssaa";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			i_prev = pgs_super_sampling;
+			u8 pgs_super_sampling_prev = pgs_super_sampling;
 			if (!strcmp(var.value, "Native"))
 				pgs_super_sampling = 0;
 			else if (!strcmp(var.value, "2x SSAA"))
@@ -244,26 +232,28 @@ static void check_variables(bool first_run)
 			else if (!strcmp(var.value, "16x SSAA (can high-res)"))
 				pgs_super_sampling = 5;
 
-			s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
-			if (pgs_super_sampling != i_prev)
-				apply_settings_requested = true;
+			if (first_run || pgs_super_sampling != pgs_super_sampling_prev)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
+				updated = true;
+			}
 		}
 
 		var.key = "pcsx2_pgs_high_res_scanout";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			i_prev = pgs_high_res_scanout;
-			if (!strcmp(var.value, "enabled"))
-				pgs_high_res_scanout = 1;
-			else
-				pgs_high_res_scanout = 0;
+			u8 pgs_high_res_scanout_prev = pgs_high_res_scanout;
+			pgs_high_res_scanout = !strcmp(var.value, "enabled") ? 1 : 0;
 
-			s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
+			if (first_run)
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
 #if 0
 			// TODO: atm it crashes when changed on-the-fly, re-enable when fixed
 			// also remove "(Restart)" from the core option label
-			if (pgs_high_res_scanout != i_prev && !first_run)
+			else if (pgs_high_res_scanout != pgs_high_res_scanout_prev)
 			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
+
 				retro_system_av_info av_info;
 				retro_get_system_av_info(&av_info);
 #if 1
@@ -271,7 +261,7 @@ static void check_variables(bool first_run)
 #else
 				environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
 #endif
-				apply_settings_requested = true;
+				updated = true;
 			}
 #endif
 		}
@@ -283,38 +273,36 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_pgs_disable_mipmaps";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			i_prev = pgs_disable_mipmaps;
-			if (!strcmp(var.value, "enabled"))
-				pgs_disable_mipmaps = 1;
-			else
-				pgs_disable_mipmaps = 0;
+			u8 pgs_disable_mipmaps_prev = pgs_disable_mipmaps;
+			pgs_disable_mipmaps = !strcmp(var.value, "enabled") ? 1 : 0;
 
-			const u8 mipmap_mode = (u8)(pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
-			s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
-			s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !pgs_disable_mipmaps);
-			s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
-			if (pgs_disable_mipmaps != i_prev)
-				apply_settings_requested = true;
+			if (first_run || pgs_disable_mipmaps != pgs_disable_mipmaps_prev)
+			{
+				const u8 mipmap_mode = (u8)(pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
+				s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
+				s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !pgs_disable_mipmaps);
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
+				updated = true;
+			}
 		}
 
 		var.key = "pcsx2_pcrtc_antiblur";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			i_prev = pcrtc_antiblur;
-			if (!strcmp(var.value, "enabled"))
-				pcrtc_antiblur = true;
-			else
-				pcrtc_antiblur = false;
+			bool pcrtc_antiblur_prev = pcrtc_antiblur;
+			pcrtc_antiblur = !strcmp(var.value, "enabled");
 
-			s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", pcrtc_antiblur);
-			if (!!pcrtc_antiblur != i_prev)
-				apply_settings_requested = true;
+			if (first_run || pcrtc_antiblur != pcrtc_antiblur_prev)
+			{
+				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", pcrtc_antiblur);
+				updated = true;
+			}
 		}
 
 		var.key = "pcsx2_deinterlace_mode";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			i_prev = deinterlace_mode;
+			u8 deinterlace_mode_prev = deinterlace_mode;
 			if (!strcmp(var.value, "Automatic"))
 				deinterlace_mode = (u8)GSInterlaceMode::Automatic;
 			else if (!strcmp(var.value, "Off"))
@@ -336,9 +324,11 @@ static void check_variables(bool first_run)
 			else if (!strcmp(var.value, "Adaptive BFF"))
 				deinterlace_mode = (u8)GSInterlaceMode::AdaptiveBFF;
 
-			s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
-			if (deinterlace_mode != i_prev)
-				apply_settings_requested = true;
+			if (first_run || deinterlace_mode != deinterlace_mode_prev)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
+				updated = true;
+			}
 		}
 	}
 
@@ -347,15 +337,18 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_upscale_multiplier";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			i_prev = upscale_multiplier;
+			int upscale_multiplier_prev = upscale_multiplier;
 			upscale_multiplier = atoi(var.value);
 
-			s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
+			if (first_run)
+				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
 #if 0
 			// TODO: atm it crashes when changed on-the-fly, re-enable when fixed
 			// also remove "(Restart)" from the core option label
-			if (upscale_multiplier != i_prev && !first_run)
+			else if (upscale_multiplier != upscale_multiplier_prev)
 			{
+				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
+
 				retro_system_av_info av_info;
 				retro_get_system_av_info(&av_info);
 #if 1
@@ -363,7 +356,7 @@ static void check_variables(bool first_run)
 #else
 				environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
 #endif
-				apply_settings_requested = true;
+				updated = true;
 			}
 #endif
 		}
@@ -372,21 +365,20 @@ static void check_variables(bool first_run)
 	var.key = "pcsx2_enable_cheats";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		i_prev = enable_cheats;
-		if (!strcmp(var.value, "enabled"))
-			enable_cheats = true;
-		else
-			enable_cheats = false;
+		bool enable_cheats_prev = enable_cheats;
+		enable_cheats = !strcmp(var.value, "enabled");
 
-		s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", enable_cheats);
-		if (!!enable_cheats != i_prev)
-			apply_settings_requested = true;
+		if (first_run || enable_cheats != enable_cheats_prev)
+		{
+			s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", enable_cheats);
+			updated = true;
+		}
 	}
 
 	var.key = "pcsx2_ee_cycle_rate";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		i_prev = ee_clycle_rate;
+		s8 ee_clycle_rate_prev = ee_clycle_rate;
 		if (!strcmp(var.value, "50% (Underclock)"))
 			ee_clycle_rate = -3;
 		else if (!strcmp(var.value, "60% (Underclock)"))
@@ -402,15 +394,17 @@ static void check_variables(bool first_run)
 		else if (!strcmp(var.value, "300% (Overclock)"))
 			ee_clycle_rate = 3;
 
-		s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleRate", ee_clycle_rate);
-		if (ee_clycle_rate != i_prev)
-			apply_settings_requested = true;
+		if (first_run || ee_clycle_rate != ee_clycle_rate_prev)
+		{
+			s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleRate", ee_clycle_rate);
+			updated = true;
+		}
 	}
 
 	var.key = "pcsx2_ee_cycle_skip";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		i_prev = ee_clycle_skip;
+		u8 ee_clycle_skip_prev = ee_clycle_skip;
 		if (!strcmp(var.value, "disabled"))
 			ee_clycle_skip = 0;
 		else if (!strcmp(var.value, "Mild Underclock"))
@@ -420,9 +414,11 @@ static void check_variables(bool first_run)
 		else if (!strcmp(var.value, "Maximum Underclock"))
 			ee_clycle_skip = 3;
 
-		s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleSkip", ee_clycle_skip);
-		if (ee_clycle_skip != i_prev)
-			apply_settings_requested = true;
+		if (first_run || ee_clycle_skip != ee_clycle_skip_prev)
+		{
+			s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleSkip", ee_clycle_skip);
+			updated = true;
+		}
 	}
 
 	var.key = "pcsx2_axis_scale1";
@@ -439,7 +435,7 @@ static void check_variables(bool first_run)
 
 	update_option_visibility();
 
-	if (!first_run && apply_settings_requested)
+	if (!first_run && updated)
 		VMManager::ApplySettings();
 }
 
