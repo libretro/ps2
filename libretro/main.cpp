@@ -170,6 +170,13 @@ static bool update_option_visibility(void)
 	return updated;
 }
 
+static void cpu_thread_pause(void)
+{
+	VMManager::SetPaused(true);
+	while(cpu_thread_state != VMState::Paused)
+		MTGS::MainLoop(true);
+}
+
 static void check_variables(bool first_run)
 {
 	struct retro_variable var;
@@ -436,7 +443,10 @@ static void check_variables(bool first_run)
 	update_option_visibility();
 
 	if (!first_run && updated)
+	{
+		cpu_thread_pause();
 		VMManager::ApplySettings();
+	}
 }
 
 #ifdef ENABLE_VULKAN
@@ -446,13 +456,6 @@ void vk_libretro_init(VkInstance instance, VkPhysicalDevice gpu, const char **re
 void vk_libretro_shutdown(void);
 void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_render_interface);
 #endif
-
-static void cpu_thread_pause(void)
-{
-	VMManager::SetPaused(true);
-	while(cpu_thread_state != VMState::Paused)
-		MTGS::MainLoop(true);
-}
 
 void retro_set_video_refresh(retro_video_refresh_t cb)
 {
