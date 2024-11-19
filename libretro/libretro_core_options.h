@@ -174,7 +174,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_pgs_high_res_scanout",
-      "paraLLEl experimental High-res scanout",
+      "paraLLEl experimental High-res scanout (Restart)",
       NULL,
       NULL,
       NULL,

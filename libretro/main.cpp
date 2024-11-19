@@ -86,7 +86,7 @@ struct BiosInfo {
 static std::vector<BiosInfo> bios_info;
 static std::string bios;
 static std::string renderer;
-static int upscale_multiplier;
+static int upscale_multiplier = 1;
 static PluginType plugin_type;
 static u8 pgs_super_sampling;
 static u8 pgs_high_res_scanout;
@@ -259,8 +259,21 @@ static void check_variables(bool first_run)
 				pgs_high_res_scanout = 0;
 
 			s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
-			if (pgs_high_res_scanout != i_prev)
+#if 0
+			// TODO: atm it crashes when changed on-the-fly, re-enable when fixed
+			// also remove "(Restart)" from the core option label
+			if (pgs_high_res_scanout != i_prev && !first_run)
+			{
+				retro_system_av_info av_info;
+				retro_get_system_av_info(&av_info);
+#if 1
+				environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+#else
+				environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
+#endif
 				apply_settings_requested = true;
+			}
+#endif
 		}
 	}
 
@@ -308,7 +321,7 @@ static void check_variables(bool first_run)
 				deinterlace_mode = (u8)GSInterlaceMode::Off;
 			else if (!strcmp(var.value, "Weave TFF"))
 				deinterlace_mode = (u8)GSInterlaceMode::WeaveTFF;
-			else if (!strcmp(var.value, "Weave BFF)"))
+			else if (!strcmp(var.value, "Weave BFF"))
 				deinterlace_mode = (u8)GSInterlaceMode::WeaveBFF;
 			else if (!strcmp(var.value, "Bob TFF"))
 				deinterlace_mode = (u8)GSInterlaceMode::BobTFF;
