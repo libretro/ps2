@@ -88,9 +88,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_fastboot",
-      "Fast Boot",
+      "Fast Boot (Restart)",
       NULL,
-      NULL,
+      "Skips BIOS startup screen and boots straight to the game. Disable this if you want to access the PS2 system settings or access the Memory Card manager.",
       NULL,
       "system",
       {
@@ -102,9 +102,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_fastcdvd",
-      "Fast CD/DVD Access",
+      "Fast CD/DVD Access (Restart)",
       NULL,
-      NULL,
+      "Fast CD/DVD access/seek times. A small handful of games will have compatibility problems with this enabled.",
       NULL,
       "system",
       {
@@ -118,7 +118,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_enable_cheats",
       "Enable Cheats",
       NULL,
-      NULL,
+      "Enable cheat files to be read from the 'cheats' directory in the system folder.",
       NULL,
       "system",
       {
@@ -190,7 +190,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pgs_disable_mipmaps",
       "Force Texture LOD0",
       NULL,
-      NULL,
+      "Disable this for traditional hardware mipmapping. Enabling this will bypass mipmapping and always use texture LOD0 instead. The result is better image quality. Only a small handful of games have graphics rendering issues with this enabled.",
       NULL,
       "video",
       {
@@ -232,7 +232,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_deinterlace_mode",
       "Deinterlacing",
       NULL,
-      NULL,
+      "Select a deinterlacing method. Use 'Automatic' if unsure what to pick.",
       NULL,
       "video",
       {
@@ -254,7 +254,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_pcrtc_antiblur",
       "PCRTC Anti-Blur",
       NULL,
-      NULL,
+      "Disable this for the most accurate output image. Enabling this will attempt to deblur the image. Most noticeable on software renderer and paraLLEl.",
       NULL,
       "video",
       {
