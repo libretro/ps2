@@ -38,7 +38,10 @@
 #include "SPU2/spu2.h"
 #include "PAD/PAD.h"
 
-//#define PERF_TEST
+#if 0
+#define PERF_TEST
+#endif
+
 #ifdef PERF_TEST
 static struct retro_perf_callback perf_cb;
 
@@ -61,110 +64,114 @@ static struct retro_perf_callback perf_cb;
 
 retro_environment_t environ_cb;
 retro_video_refresh_t video_cb;
-struct retro_hw_render_callback hw_render;
-static retro_audio_sample_batch_t batch_cb;
 retro_log_printf_t log_cb;
 retro_audio_sample_t sample_cb;
+struct retro_hw_render_callback hw_render;
+
+MemorySettingsInterface s_settings_interface;
+
+static retro_audio_sample_batch_t batch_cb;
 
 static VMState cpu_thread_state;
-MemorySettingsInterface s_settings_interface;
 static std::thread cpu_thread;
 
 enum PluginType : u8
 {
-	PLUGIN_PGS,
+	PLUGIN_PGS = 0,
 	PLUGIN_GSDX_HW,
 	PLUGIN_GSDX_SW,
 	PLUGIN_NULL
 };
 
-struct BiosInfo {
+struct BiosInfo
+{
 	std::string filename;
 	std::string description;
 };
 
-static std::vector<BiosInfo> bios_info;
-static std::string bios;
-static std::string renderer;
-static int upscale_multiplier = 1;
-static PluginType plugin_type;
-static u8 pgs_super_sampling;
-static u8 pgs_high_res_scanout;
-static u8 pgs_disable_mipmaps;
-static u8 deinterlace_mode;
-static u8 ee_clycle_skip;
-static s8 ee_clycle_rate;
-static bool pcrtc_antiblur;
-static bool enable_cheats;
 float pad_axis_scale[2];
 
-static bool show_parallel_options = true;
-static bool show_gsdx_hw_only_options = true;
-static bool show_shared_options = true;
+static std::vector<BiosInfo> bios_info;
+static std::string setting_bios;
+static std::string setting_renderer;
+static PluginType setting_plugin_type;
+static int setting_upscale_multiplier          = 1;
+static u8 setting_pgs_super_sampling           = 0;
+static u8 setting_pgs_high_res_scanout         = 0;
+static u8 setting_pgs_disable_mipmaps          = 0;
+static u8 setting_deinterlace_mode             = 0;
+static u8 setting_ee_cycle_skip                = 0;
+static s8 setting_ee_cycle_rate                = 0;
+static bool setting_pcrtc_antiblur             = false;
+static bool setting_enable_cheats              = false;
+
+static bool setting_show_parallel_options      = true;
+static bool setting_show_gsdx_hw_only_options  = true;
+static bool setting_show_shared_options        = true;
 
 static bool update_option_visibility(void)
 {
-	struct retro_core_option_display option_display;
 	struct retro_variable var;
-	bool updated = false;
+	struct retro_core_option_display option_display;
+	bool updated                        = false;
 
 	// Show/hide video options
-	bool show_parallel_options_prev = show_parallel_options;
-	bool show_gsdx_hw_only_options_prev = show_gsdx_hw_only_options;
-	bool show_shared_options_prev = show_shared_options;
-	show_parallel_options = true;
-	show_gsdx_hw_only_options = true;
-	show_shared_options = true;
+	bool show_parallel_options_prev     = setting_show_parallel_options;
+	bool show_gsdx_hw_only_options_prev = setting_show_gsdx_hw_only_options;
+	bool show_shared_options_prev       = setting_show_shared_options;
+
+	setting_show_parallel_options       = true;
+	setting_show_gsdx_hw_only_options   = true;
+	setting_show_shared_options         = true;
 
 	var.key = "pcsx2_renderer";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
 		const bool parallel_renderer = !strcmp(var.value, "paraLLEl-GS");
 		const bool software_renderer = !strcmp(var.value, "Software");
-		const bool null_renderer = !strcmp(var.value, "Null");
+		const bool null_renderer     = !strcmp(var.value, "Null");
 
 		if (null_renderer)
-			show_shared_options = false;
+			setting_show_shared_options       = false;
 		if (parallel_renderer || software_renderer || null_renderer)
-			show_gsdx_hw_only_options = false;
+			setting_show_gsdx_hw_only_options = false;
 		if (!parallel_renderer)
-			show_parallel_options = false;
+			setting_show_parallel_options     = false;
 	}
 
 	// paraLLEl-GS options
-	if (show_parallel_options != show_parallel_options_prev)
+	if (setting_show_parallel_options != show_parallel_options_prev)
 	{
-		option_display.visible = show_parallel_options;
-		option_display.key = "pcsx2_pgs_ssaa";
+		option_display.visible = setting_show_parallel_options;
+		option_display.key     = "pcsx2_pgs_ssaa";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		option_display.key = "pcsx2_pgs_high_res_scanout";
+		option_display.key     = "pcsx2_pgs_high_res_scanout";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated = true;
 	}
 
-	// GSdx HW options, but NOT compatible with Software and Null renderers
-	if (show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
+	// GSdx HW options, but NOT compatible with Software and NULL renderers
+	if (setting_show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
 	{
-		option_display.visible = show_gsdx_hw_only_options;
-		option_display.key = "pcsx2_upscale_multiplier";
+		option_display.visible = setting_show_gsdx_hw_only_options;
+		option_display.key     = "pcsx2_upscale_multiplier";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-		updated = true;
+		updated                = true;
 	}
 
-	// Options compatible with both paraLLEl-GS and GSdx HW/SW, still not with Null renderer
-	if (show_shared_options != show_shared_options_prev)
+	// Options compatible with both paraLLEl-GS and GSdx HW/SW, still not with NULL renderer
+	if (setting_show_shared_options != show_shared_options_prev)
 	{
-		option_display.visible = show_shared_options;
-		option_display.key = "pcsx2_pgs_disable_mipmaps";
+		option_display.visible = setting_show_shared_options;
+		option_display.key     = "pcsx2_pgs_disable_mipmaps";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		option_display.key = "pcsx2_deinterlace_mode";
+		option_display.key     = "pcsx2_deinterlace_mode";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-		option_display.key = "pcsx2_pcrtc_antiblur";
+		option_display.key     = "pcsx2_pcrtc_antiblur";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-
-		updated = true;
+		updated                = true;
 	}
 
 	return updated;
@@ -187,22 +194,22 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_renderer";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			renderer = var.value;
-			if (renderer == "paraLLEl-GS")
-				plugin_type = PLUGIN_PGS;
-			else if (renderer == "Software")
-				plugin_type = PLUGIN_GSDX_SW;
-			else if (renderer == "Null")
-				plugin_type = PLUGIN_NULL;
+			setting_renderer = var.value;
+			if (setting_renderer == "paraLLEl-GS")
+				setting_plugin_type = PLUGIN_PGS;
+			else if (setting_renderer == "Software")
+				setting_plugin_type = PLUGIN_GSDX_SW;
+			else if (setting_renderer == "Null")
+				setting_plugin_type = PLUGIN_NULL;
 			else
-				plugin_type = PLUGIN_GSDX_HW;
+				setting_plugin_type = PLUGIN_GSDX_HW;
 		}
 
 		var.key = "pcsx2_bios";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			bios = var.value;
-			s_settings_interface.SetStringValue("Filenames", "BIOS", bios.c_str());
+			setting_bios = var.value;
+			s_settings_interface.SetStringValue("Filenames", "BIOS", setting_bios.c_str());
 		}
 
 		var.key = "pcsx2_fastboot";
@@ -220,28 +227,28 @@ static void check_variables(bool first_run)
 		}
 	}
 
-	if (plugin_type == PLUGIN_PGS)
+	if (setting_plugin_type == PLUGIN_PGS)
 	{
 		var.key = "pcsx2_pgs_ssaa";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			u8 pgs_super_sampling_prev = pgs_super_sampling;
+			u8 pgs_super_sampling_prev = setting_pgs_super_sampling;
 			if (!strcmp(var.value, "Native"))
-				pgs_super_sampling = 0;
+				setting_pgs_super_sampling = 0;
 			else if (!strcmp(var.value, "2x SSAA"))
-				pgs_super_sampling = 1;
+				setting_pgs_super_sampling = 1;
 			else if (!strcmp(var.value, "4x SSAA (sparse grid)"))
-				pgs_super_sampling = 2;
+				setting_pgs_super_sampling = 2;
 			else if (!strcmp(var.value, "4x SSAA (ordered, can high-res)"))
-				pgs_super_sampling = 3;
+				setting_pgs_super_sampling = 3;
 			else if (!strcmp(var.value, "8x SSAA (can high-res)"))
-				pgs_super_sampling = 4;
+				setting_pgs_super_sampling = 4;
 			else if (!strcmp(var.value, "16x SSAA (can high-res)"))
-				pgs_super_sampling = 5;
+				setting_pgs_super_sampling = 5;
 
-			if (first_run || pgs_super_sampling != pgs_super_sampling_prev)
+			if (first_run || setting_pgs_super_sampling != pgs_super_sampling_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", pgs_super_sampling);
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", setting_pgs_super_sampling);
 				updated = true;
 			}
 		}
@@ -249,19 +256,19 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_pgs_high_res_scanout";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			u8 pgs_high_res_scanout_prev = pgs_high_res_scanout;
-			pgs_high_res_scanout = !strcmp(var.value, "enabled") ? 1 : 0;
+			u8 pgs_high_res_scanout_prev = setting_pgs_high_res_scanout;
+			setting_pgs_high_res_scanout = !strcmp(var.value, "enabled") ? 1 : 0;
 
 			if (first_run)
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
 #if 0
-			// TODO: atm it crashes when changed on-the-fly, re-enable when fixed
+			// TODO: ATM it crashes when changed on-the-fly, re-enable when fixed
 			// also remove "(Restart)" from the core option label
-			else if (pgs_high_res_scanout != pgs_high_res_scanout_prev)
+			else if (setting_pgs_high_res_scanout != pgs_high_res_scanout_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", pgs_high_res_scanout);
-
 				retro_system_av_info av_info;
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
+
 				retro_get_system_av_info(&av_info);
 #if 1
 				environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
@@ -274,21 +281,21 @@ static void check_variables(bool first_run)
 		}
 	}
 
-	// Options for both paraLLEl-GS and GSdx HW/SW, just not with Null renderer
-	if (plugin_type != PLUGIN_NULL)
+	// Options for both paraLLEl-GS and GSdx HW/SW, just not with NULL renderer
+	if (setting_plugin_type != PLUGIN_NULL)
 	{
 		var.key = "pcsx2_pgs_disable_mipmaps";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			u8 pgs_disable_mipmaps_prev = pgs_disable_mipmaps;
-			pgs_disable_mipmaps = !strcmp(var.value, "enabled") ? 1 : 0;
+			u8 pgs_disable_mipmaps_prev = setting_pgs_disable_mipmaps;
+			setting_pgs_disable_mipmaps = !strcmp(var.value, "enabled") ? 1 : 0;
 
-			if (first_run || pgs_disable_mipmaps != pgs_disable_mipmaps_prev)
+			if (first_run || setting_pgs_disable_mipmaps != pgs_disable_mipmaps_prev)
 			{
-				const u8 mipmap_mode = (u8)(pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
+				const u8 mipmap_mode = (u8)(setting_pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
 				s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
-				s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !pgs_disable_mipmaps);
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", pgs_disable_mipmaps);
+				s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !setting_pgs_disable_mipmaps);
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", setting_pgs_disable_mipmaps);
 				updated = true;
 			}
 		}
@@ -296,12 +303,12 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_pcrtc_antiblur";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			bool pcrtc_antiblur_prev = pcrtc_antiblur;
-			pcrtc_antiblur = !strcmp(var.value, "enabled");
+			bool pcrtc_antiblur_prev = setting_pcrtc_antiblur;
+			setting_pcrtc_antiblur = !strcmp(var.value, "enabled");
 
-			if (first_run || pcrtc_antiblur != pcrtc_antiblur_prev)
+			if (first_run || setting_pcrtc_antiblur != pcrtc_antiblur_prev)
 			{
-				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", pcrtc_antiblur);
+				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", setting_pcrtc_antiblur);
 				updated = true;
 			}
 		}
@@ -309,54 +316,54 @@ static void check_variables(bool first_run)
 		var.key = "pcsx2_deinterlace_mode";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			u8 deinterlace_mode_prev = deinterlace_mode;
+			u8 deinterlace_mode_prev = setting_deinterlace_mode;
 			if (!strcmp(var.value, "Automatic"))
-				deinterlace_mode = (u8)GSInterlaceMode::Automatic;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::Automatic;
 			else if (!strcmp(var.value, "Off"))
-				deinterlace_mode = (u8)GSInterlaceMode::Off;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::Off;
 			else if (!strcmp(var.value, "Weave TFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::WeaveTFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::WeaveTFF;
 			else if (!strcmp(var.value, "Weave BFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::WeaveBFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::WeaveBFF;
 			else if (!strcmp(var.value, "Bob TFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::BobTFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::BobTFF;
 			else if (!strcmp(var.value, "Bob BFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::BobBFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::BobBFF;
 			else if (!strcmp(var.value, "Blend TFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::BlendTFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::BlendTFF;
 			else if (!strcmp(var.value, "Blend BFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::BlendBFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::BlendBFF;
 			else if (!strcmp(var.value, "Adaptive TFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::AdaptiveTFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::AdaptiveTFF;
 			else if (!strcmp(var.value, "Adaptive BFF"))
-				deinterlace_mode = (u8)GSInterlaceMode::AdaptiveBFF;
+				setting_deinterlace_mode = (u8)GSInterlaceMode::AdaptiveBFF;
 
-			if (first_run || deinterlace_mode != deinterlace_mode_prev)
+			if (first_run || setting_deinterlace_mode != deinterlace_mode_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", deinterlace_mode);
+				s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", setting_deinterlace_mode);
 				updated = true;
 			}
 		}
 	}
 
-	if (plugin_type == PLUGIN_GSDX_HW)
+	if (setting_plugin_type == PLUGIN_GSDX_HW)
 	{
 		var.key = "pcsx2_upscale_multiplier";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
-			int upscale_multiplier_prev = upscale_multiplier;
-			upscale_multiplier = atoi(var.value);
+			int upscale_multiplier_prev = setting_upscale_multiplier;
+			setting_upscale_multiplier = atoi(var.value);
 
 			if (first_run)
-				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
+				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", setting_upscale_multiplier);
 #if 0
-			// TODO: atm it crashes when changed on-the-fly, re-enable when fixed
+			// TODO: ATM it crashes when changed on-the-fly, re-enable when fixed
 			// also remove "(Restart)" from the core option label
-			else if (upscale_multiplier != upscale_multiplier_prev)
+			else if (setting_upscale_multiplier != upscale_multiplier_prev)
 			{
-				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", upscale_multiplier);
-
 				retro_system_av_info av_info;
+				s_settings_interface.SetFloatValue("EmuCore/GS", "upscale_multiplier", setting_upscale_multiplier);
+
 				retro_get_system_av_info(&av_info);
 #if 1
 				environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
@@ -372,12 +379,12 @@ static void check_variables(bool first_run)
 	var.key = "pcsx2_enable_cheats";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		bool enable_cheats_prev = enable_cheats;
-		enable_cheats = !strcmp(var.value, "enabled");
+		bool enable_cheats_prev = setting_enable_cheats;
+		setting_enable_cheats = !strcmp(var.value, "enabled");
 
-		if (first_run || enable_cheats != enable_cheats_prev)
+		if (first_run || setting_enable_cheats != enable_cheats_prev)
 		{
-			s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", enable_cheats);
+			s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", setting_enable_cheats);
 			updated = true;
 		}
 	}
@@ -385,25 +392,25 @@ static void check_variables(bool first_run)
 	var.key = "pcsx2_ee_cycle_rate";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		s8 ee_clycle_rate_prev = ee_clycle_rate;
+		s8 ee_cycle_rate_prev = setting_ee_cycle_rate;
 		if (!strcmp(var.value, "50% (Underclock)"))
-			ee_clycle_rate = -3;
+			setting_ee_cycle_rate = -3;
 		else if (!strcmp(var.value, "60% (Underclock)"))
-			ee_clycle_rate = -2;
+			setting_ee_cycle_rate = -2;
 		else if (!strcmp(var.value, "75% (Underclock)"))
-			ee_clycle_rate = -1;
+			setting_ee_cycle_rate = -1;
 		else if (!strcmp(var.value, "100% (Normal Speed)"))
-			ee_clycle_rate = 0;
+			setting_ee_cycle_rate = 0;
 		else if (!strcmp(var.value, "130% (Overclock)"))
-			ee_clycle_rate = 1;
+			setting_ee_cycle_rate = 1;
 		else if (!strcmp(var.value, "180% (Overclock)"))
-			ee_clycle_rate = 2;
+			setting_ee_cycle_rate = 2;
 		else if (!strcmp(var.value, "300% (Overclock)"))
-			ee_clycle_rate = 3;
+			setting_ee_cycle_rate = 3;
 
-		if (first_run || ee_clycle_rate != ee_clycle_rate_prev)
+		if (first_run || setting_ee_cycle_rate != ee_cycle_rate_prev)
 		{
-			s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleRate", ee_clycle_rate);
+			s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleRate", setting_ee_cycle_rate);
 			updated = true;
 		}
 	}
@@ -411,34 +418,31 @@ static void check_variables(bool first_run)
 	var.key = "pcsx2_ee_cycle_skip";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		u8 ee_clycle_skip_prev = ee_clycle_skip;
+		u8 ee_cycle_skip_prev = setting_ee_cycle_skip;
 		if (!strcmp(var.value, "disabled"))
-			ee_clycle_skip = 0;
+			setting_ee_cycle_skip = 0;
 		else if (!strcmp(var.value, "Mild Underclock"))
-			ee_clycle_skip = 1;
+			setting_ee_cycle_skip = 1;
 		else if (!strcmp(var.value, "Moderate Underclock"))
-			ee_clycle_skip = 2;
+			setting_ee_cycle_skip = 2;
 		else if (!strcmp(var.value, "Maximum Underclock"))
-			ee_clycle_skip = 3;
+			setting_ee_cycle_skip = 3;
 
-		if (first_run || ee_clycle_skip != ee_clycle_skip_prev)
+		if (first_run || setting_ee_cycle_skip != ee_cycle_skip_prev)
 		{
-			s_settings_interface.SetIntValue("EmuCore/Speedhacks", "EECycleSkip", ee_clycle_skip);
+			s_settings_interface.SetIntValue("EmuCore/Speedhacks",
+				"EECycleSkip", setting_ee_cycle_skip);
 			updated = true;
 		}
 	}
 
 	var.key = "pcsx2_axis_scale1";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
 		pad_axis_scale[0] = atof(var.value) / 100;
-	}
 
 	var.key = "pcsx2_axis_scale2";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-	{
 		pad_axis_scale[1] = atof(var.value) / 100;
-	}
 
 	update_option_visibility();
 
@@ -452,30 +456,22 @@ static void check_variables(bool first_run)
 #ifdef ENABLE_VULKAN
 static retro_hw_render_interface_vulkan *vulkan;
 void vk_libretro_init_wraps(void);
-void vk_libretro_init(VkInstance instance, VkPhysicalDevice gpu, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features);
+void vk_libretro_init(VkInstance instance, VkPhysicalDevice gpu, const char **required_device_extensions,
+	unsigned num_required_device_extensions, const char **required_device_layers,
+	unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features);
 void vk_libretro_shutdown(void);
 void vk_libretro_set_hwrender_interface(retro_hw_render_interface_vulkan *hw_render_interface);
 #endif
 
-void retro_set_video_refresh(retro_video_refresh_t cb)
-{
-	video_cb = cb;
-}
-
-void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb)
-{
-	batch_cb = cb;
-}
-
-void retro_set_audio_sample(retro_audio_sample_t cb)
-{
-	sample_cb = cb;
-}
+void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { batch_cb = cb; }
+void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
+void retro_set_audio_sample(retro_audio_sample_t cb)   { sample_cb = cb; }
 
 void retro_set_environment(retro_environment_t cb)
 {
-	struct retro_vfs_interface_info vfs_iface_info;
 	bool no_game = true;
+	struct retro_vfs_interface_info vfs_iface_info;
+	struct retro_core_options_update_display_callback update_display_cb;
 
 	environ_cb = cb;
 	environ_cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &no_game);
@@ -483,7 +479,6 @@ void retro_set_environment(retro_environment_t cb)
 	environ_cb(RETRO_ENVIRONMENT_GET_PERF_INTERFACE, &perf_cb);
 #endif
 
-	struct retro_core_options_update_display_callback update_display_cb;
 	update_display_cb.callback = update_option_visibility;
 	environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK, &update_display_cb);
 
@@ -496,10 +491,9 @@ void retro_set_environment(retro_environment_t cb)
 static std::vector<std::string> disk_images;
 static int image_index = 0;
 
-static bool RETRO_CALLCONV get_eject_state(void)
-{
-	return cdvdRead(0x0B);
-}
+static bool RETRO_CALLCONV get_eject_state(void) { return cdvdRead(0x0B); }
+static unsigned RETRO_CALLCONV get_image_index(void) { return image_index; }
+static unsigned RETRO_CALLCONV get_num_images(void) { return disk_images.size(); }
 
 static bool RETRO_CALLCONV set_eject_state(bool ejected)
 {
@@ -522,11 +516,6 @@ static bool RETRO_CALLCONV set_eject_state(bool ejected)
 	return true;
 }
 
-static unsigned RETRO_CALLCONV get_image_index(void)
-{
-	return image_index;
-}
-
 static bool RETRO_CALLCONV set_image_index(unsigned index)
 {
 	if (get_eject_state())
@@ -536,11 +525,6 @@ static bool RETRO_CALLCONV set_image_index(unsigned index)
 	}
 
 	return false;
-}
-
-static unsigned RETRO_CALLCONV get_num_images(void)
-{
-	return disk_images.size();
 }
 
 static bool RETRO_CALLCONV replace_image_index(unsigned index, const struct retro_game_info* info)
@@ -589,6 +573,7 @@ static bool RETRO_CALLCONV get_image_path(unsigned index, char* path, size_t len
 	strncpy(path, disk_images[index].c_str(), len);
 	return true;
 }
+
 static bool RETRO_CALLCONV get_image_label(unsigned index, char* label, size_t len)
 {
 	if (index >= disk_images.size())
@@ -621,29 +606,32 @@ void retro_get_system_info(retro_system_info* info)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	if (renderer == "Software" || renderer == "paraLLEl-GS" || renderer == "Null")
+	if (               setting_renderer == "Software" 
+			|| setting_renderer == "paraLLEl-GS" 
+			|| setting_renderer == "Null")
 	{
-		info->geometry.base_width = 640;
+		info->geometry.base_width  = 640;
 		info->geometry.base_height = 448;
 	}
 	else
 	{
-		info->geometry.base_width = 640 * upscale_multiplier;
-		info->geometry.base_height = 448 * upscale_multiplier;
+		info->geometry.base_width  = 640 * setting_upscale_multiplier;
+		info->geometry.base_height = 448 * setting_upscale_multiplier;
 	}
 
-	info->geometry.max_width = info->geometry.base_width;
+	info->geometry.max_width  = info->geometry.base_width;
 	info->geometry.max_height = info->geometry.base_height;
 
-	if (renderer == "paraLLEl-GS" && pgs_high_res_scanout)
+	if (               setting_renderer == "paraLLEl-GS" 
+			&& setting_pgs_high_res_scanout)
 	{
-		info->geometry.max_width *= 2;
+		info->geometry.max_width  *= 2;
 		info->geometry.max_height *= 2;
 	}
 
 	info->geometry.aspect_ratio = 4.0f / 3.0f;
-	info->timing.fps = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;
-	info->timing.sample_rate = 48000;
+	info->timing.fps            = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;
+	info->timing.sample_rate    = 48000;
 }
 
 void retro_reset(void)
@@ -661,7 +649,8 @@ static void libretro_context_reset(void)
 		if (!environ_cb(RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE, (void **)&vulkan) || !vulkan)
 			log_cb(RETRO_LOG_ERROR, "Failed to get HW rendering interface!\n");
 		if (vulkan->interface_version != RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION)
-			log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n", RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION, vulkan->interface_version);
+			log_cb(RETRO_LOG_ERROR, "HW render interface mismatch, expected %u, got %u!\n",
+			RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION, vulkan->interface_version);
 		vk_libretro_set_hwrender_interface(vulkan);
 #ifdef HAVE_PARALLEL_GS
 		pgs_set_hwrender_interface(vulkan);
@@ -741,11 +730,11 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 
 static bool libretro_select_hw_render(void)
 {
-	if (renderer == "Auto" || renderer == "Software")
+	if (setting_renderer == "Auto" || setting_renderer == "Software")
 	{
 #if defined(__APPLE__)
-        if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
-            return true;
+		if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
+			return true;
 #else
 		retro_hw_context_type context_type = RETRO_HW_CONTEXT_NONE;
 		environ_cb(RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER, &context_type);
@@ -754,22 +743,23 @@ static bool libretro_select_hw_render(void)
 #endif
 	}
 #ifdef _WIN32
-	if (renderer == "D3D11")
+	if (setting_renderer == "D3D11")
 	{
 		hw_render.version_major = 11;
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_D3D11);
 	}
-	if (renderer == "D3D12")
+	if (setting_renderer == "D3D12")
 	{
 		hw_render.version_major = 12;
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_D3D12);
 	}
 #endif
 #ifdef ENABLE_VULKAN
-	if (renderer == "Vulkan" || renderer == "paraLLEl-GS")
+	if (               setting_renderer == "Vulkan" 
+			|| setting_renderer == "paraLLEl-GS")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN);
 #endif
-	if (renderer == "Null")
+	if (setting_renderer == "Null")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL_CORE))
@@ -784,7 +774,7 @@ static bool libretro_select_hw_render(void)
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_D3D12))
 		return true;
 #endif
-	if (renderer == "Software")
+	if (setting_renderer == "Software")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
 
 	return false;
@@ -833,21 +823,26 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 
 #ifdef ENABLE_VULKAN
 /* Forward declarations */
-bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu, VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions, unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers, const VkPhysicalDeviceFeatures *required_features);
+bool create_device_vulkan(retro_vulkan_context *context, VkInstance instance, VkPhysicalDevice gpu,
+	VkSurfaceKHR surface, PFN_vkGetInstanceProcAddr get_instance_proc_addr, const char **required_device_extensions,
+	unsigned num_required_device_extensions, const char **required_device_layers, unsigned num_required_device_layers,
+	const VkPhysicalDeviceFeatures *required_features);
 const VkApplicationInfo *get_application_info_vulkan(void);
 #endif
 
 void retro_init(void)
 {
-	enum retro_pixel_format xrgb888 = RETRO_PIXEL_FORMAT_XRGB8888;
-	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &xrgb888);
 	struct retro_log_callback log;
+   	bool option_categories          = false;
+	enum retro_pixel_format xrgb888 = RETRO_PIXEL_FORMAT_XRGB8888;
+
+	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &xrgb888);
 	if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
 		log_cb = log.log;
 
 	vu1Thread.Reset();
 
-	if (bios.empty())
+	if (setting_bios.empty())
 	{
 		const char* system_base = nullptr;
 		environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
@@ -855,9 +850,9 @@ void retro_init(void)
 		FileSystem::FindResultsArray results;
 		if (FileSystem::FindFiles(Path::Combine(system_base, "/pcsx2/bios").c_str(), "*", FILESYSTEM_FIND_FILES, &results))
 		{
+			u32 version, region;
 			static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
 			static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;
-			u32 version, region;
 			std::string description, zone;
 			for (const FILESYSTEM_FIND_DATA& fd : results)
 			{
@@ -868,7 +863,7 @@ void retro_init(void)
 					bios_info.push_back({ std::string(Path::GetFileName(fd.FileName)), description });
 			}
 
-			// Find the BIOS core option and fill its values/labels/default_values
+			/* Find the BIOS core option and fill its values/labels/default_values */
 			for (unsigned i = 0; option_defs_us[i].key != NULL; i++)
 			{
 				if (!strcmp(option_defs_us[i].key, "pcsx2_bios"))
@@ -877,8 +872,9 @@ void retro_init(void)
 					for (j = 0; j < bios_info.size() && j < (RETRO_NUM_CORE_OPTION_VALUES_MAX - 1); j++)
 						option_defs_us[i].values[j] = { bios_info[j].filename.c_str(), bios_info[j].description.c_str() };
 
-					// Make sure the next array is null and set the first BIOS found as the default value
-					option_defs_us[i].values[j] = { NULL, NULL };
+					/* Make sure the next array is NULL 
+					 * and set the first BIOS found as the default value */
+					option_defs_us[i].values[j]     = { NULL, NULL };
 					option_defs_us[i].default_value = option_defs_us[i].values[0].value;
 					break;
 				}
@@ -886,7 +882,6 @@ void retro_init(void)
 		}
 	}
 
-   	bool option_categories = false;
    	libretro_set_core_options(environ_cb, &option_categories);
 
 	static retro_disk_control_ext_callback disk_control = {
@@ -907,6 +902,7 @@ void retro_init(void)
 
 bool retro_load_game(const struct retro_game_info* game)
 {
+	VMBootParameters boot_params;
 	const char* system_base = nullptr;
 	int format = RETRO_PIXEL_FORMAT_XRGB8888;
 	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &format);
@@ -929,7 +925,7 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	check_variables(true);
 
-	if (bios.empty())
+	if (setting_bios.empty())
 	{
 		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios.c_str());
 		return false;
@@ -937,10 +933,10 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	Input::Init();
 
-	if(!libretro_select_hw_render())
+	if (!libretro_select_hw_render())
 		return false;
 
-	if(renderer == "Software")
+	if (setting_renderer == "Software")
 		s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::SW);
 	else
 	{
@@ -955,7 +951,7 @@ bool retro_load_game(const struct retro_game_info* game)
 #ifdef ENABLE_VULKAN
 			case RETRO_HW_CONTEXT_VULKAN:
 #ifdef HAVE_PARALLEL_GS
-				if (renderer == "paraLLEl-GS")
+				if (setting_renderer == "paraLLEl-GS")
 				{
 					s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::ParallelGS);
 					static const struct retro_hw_render_context_negotiation_interface_vulkan iface = {
@@ -1001,8 +997,8 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	image_index = 0;
 	disk_images.clear();
-	VMBootParameters boot_params;
-	if(game && game->path)
+
+	if (game && game->path)
 	{
 		disk_images.push_back(game->path);
 		boot_params.filename = game->path;
@@ -1010,22 +1006,19 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	cpu_thread = std::thread(cpu_thread_entry, boot_params);
 
-	if(hw_render.context_type == RETRO_HW_CONTEXT_NONE)
+	if (hw_render.context_type == RETRO_HW_CONTEXT_NONE)
 		if (!MTGS::IsOpen())
 			MTGS::TryOpenGS();
 
 	return true;
 }
 
-bool retro_load_game_special(unsigned game_type, const struct retro_game_info* info,
-		size_t num_info)
-{
-	return false;
-}
+bool retro_load_game_special(unsigned game_type,
+	const struct retro_game_info* info, size_t num_info) { return false; }
 
 void retro_unload_game(void)
 {
-	if(MTGS::IsOpen())
+	if (MTGS::IsOpen())
 	{
 		cpu_thread_pause();
 		MTGS::CloseGS();
@@ -1035,7 +1028,7 @@ void retro_unload_game(void)
 	Input::Shutdown();
 	cpu_thread.join();
 #ifdef ENABLE_VULKAN
-	if(hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
+	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		Vulkan::UnloadVulkanLibrary();
 #endif
 	VMManager::Internal::CPUThreadShutdown();
@@ -1072,8 +1065,8 @@ void retro_run(void)
 std::optional<WindowInfo> Host::AcquireRenderWindow(void)
 {
 	WindowInfo wi;
-	wi.surface_width  = 640 * upscale_multiplier;
-	wi.surface_height = 448 * upscale_multiplier;
+	wi.surface_width  = 640 * setting_upscale_multiplier;
+	wi.surface_height = 448 * setting_upscale_multiplier;
 	return wi;
 }
 
@@ -1081,33 +1074,34 @@ size_t retro_serialize_size(void)
 {
 	freezeData fP = {0, nullptr};
 
-	size_t size = _8mb;
-	size += Ps2MemSize::MainRam;
-	size += Ps2MemSize::IopRam;
-	size += Ps2MemSize::Hardware;
-	size += Ps2MemSize::IopHardware;
-	size += Ps2MemSize::Scratch;
-	size += VU0_MEMSIZE;
-	size += VU1_MEMSIZE;
-	size += VU0_PROGSIZE;
-	size += VU1_PROGSIZE;
+	size_t size   = _8mb;
+	size         += Ps2MemSize::MainRam;
+	size         += Ps2MemSize::IopRam;
+	size         += Ps2MemSize::Hardware;
+	size         += Ps2MemSize::IopHardware;
+	size         += Ps2MemSize::Scratch;
+	size         += VU0_MEMSIZE;
+	size         += VU1_MEMSIZE;
+	size         += VU0_PROGSIZE;
+	size         += VU1_PROGSIZE;
 	SPU2freeze(FreezeAction::Size, &fP);
-	size += fP.size;
+	size         += fP.size;
 	PADfreeze(FreezeAction::Size, &fP);
-	size += fP.size;
+	size         += fP.size;
 	GSfreeze(FreezeAction::Size, &fP);
-	size += fP.size;
+	size         += fP.size;
 
 	return size;
 }
 
 bool retro_serialize(void* data, size_t size)
 {
+	freezeData fP;
+	std::vector<u8> buffer;
+
 	cpu_thread_pause();
 
-	std::vector<u8> buffer;
 	memSavingState saveme(buffer);
-	freezeData fP;
 
 	saveme.FreezeBios();
 	saveme.FreezeInternals();
@@ -1148,20 +1142,20 @@ bool retro_serialize(void* data, size_t size)
 
 	memcpy(data, buffer.data(), buffer.size());
 
-
 	VMManager::SetPaused(false);
 	return true;
 }
 
 bool retro_unserialize(const void* data, size_t size)
 {
+	freezeData fP;
+	std::vector<u8> buffer;
+
 	cpu_thread_pause();
 
-	std::vector<u8> buffer;
 	buffer.reserve(size);
 	memcpy(buffer.data(), data, size);
 	memLoadingState loadme(buffer);
-	freezeData fP;
 
 	loadme.FreezeBios();
 	loadme.FreezeInternals();
@@ -1205,20 +1199,13 @@ bool retro_unserialize(const void* data, size_t size)
 	return true;
 }
 
-unsigned retro_get_region(void)
-{
-	return RETRO_REGION_NTSC;
-}
-
-unsigned retro_api_version(void)
-{
-	return RETRO_API_VERSION;
-}
+unsigned retro_get_region(void)  { return RETRO_REGION_NTSC; }
+unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 
 size_t retro_get_memory_size(unsigned id)
 {
+	/* This only works because Scratch comes right after Main in eeMem */
 	if (RETRO_MEMORY_SYSTEM_RAM == id)
-		/* this only works because Scratch comes right after Main in eeMem */
 		return Ps2MemSize::MainRam + Ps2MemSize::Scratch;
 	return 0;
 }
@@ -1252,7 +1239,8 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	return ret;
 }
 
-void Host::OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
+void Host::OnGameChanged(const std::string& disc_path,
+	const std::string& elf_override, const std::string& game_serial,
 	u32 game_crc)
 {
 }
