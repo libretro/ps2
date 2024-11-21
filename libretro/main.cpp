@@ -34,6 +34,7 @@
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/LayeredSettingsInterface.h"
 #include "pcsx2/VMManager.h"
+#include "Pcsx2/Patch.h"
 
 #include "SPU2/spu2.h"
 #include "PAD/PAD.h"
@@ -102,6 +103,7 @@ static u8 setting_pgs_disable_mipmaps          = 0;
 static u8 setting_deinterlace_mode             = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
+static bool setting_hint_nointerlacing         = false;
 static bool setting_pcrtc_antiblur             = false;
 static bool setting_enable_cheats              = false;
 
@@ -170,6 +172,8 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_deinterlace_mode";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_pcrtc_antiblur";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_nointerlacing_hint";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		updated                = true;
 	}
@@ -298,6 +302,16 @@ static void check_variables(bool first_run)
 				s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", setting_pgs_disable_mipmaps);
 				updated = true;
 			}
+		}
+
+		var.key = "pcsx2_nointerlacing_hint";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			bool hint_nointerlacing_prev = setting_hint_nointerlacing;
+			setting_hint_nointerlacing = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_hint_nointerlacing != hint_nointerlacing_prev)
+				updated = true;
 		}
 
 		var.key = "pcsx2_pcrtc_antiblur";
@@ -1239,8 +1253,192 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	return ret;
 }
 
+
+static void lrps2_ingame_patches(const char *serial, bool nointerlacing_hint)
+{
+	log_cb(RETRO_LOG_INFO, "serial: %s\n", serial);
+
+	if (nointerlacing_hint)
+	{
+		/* Colin McRae Rally 3 (PAL) [CRC: 7DEAE69C] */
+		if (!strcmp(serial, "SLES-51117")) 
+		{
+			/* Patch courtesy: agrippa */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,00246B90,word,24040001", /* set FFMD to 0 in SMODE2 register to disable field mode */
+				"patch=1,EE,00247A64,word,00000000"  /* nop the switch to the front buffer */
+				/* A full height back buffer enabled, instead of a downsampled front buffer. */
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Enthusia - Professional Racing (NTSC-U) [CRC: 81D233DC] */
+		else if (!strcmp(serial, "SLUS-20967")) 
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2013363C,word,34060001",
+				"patch=1,EE,20383A40,word,00009450"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Harry Potter and the Sorcerer's Stone (NTSC-U) [CRC: ] */
+		else if (!strcmp(serial, "SLUS-20826")) 
+		{
+			int i;
+			/* TODO/FIXME - decouple FPS unlock */
+			char *patches[] = {
+				"patch=0,EE,2026E528,extended,3405EA60",
+				"patch=0,EE,0026E538,extended,24090001",
+				"patch=0,EE,1026E914,extended,24030280",
+				"patch=0,EE,202E0870,extended,24080001",
+				"patch=0,EE,202E1078,extended,0000282D",
+				"patch=0,EE,002E08B8,extended,24040002",
+				"patch=0,EE,002E00C4,extended,30840002",
+				"patch=0,EE,202E077C,extended,24A5FFFF",
+				"patch=0,EE,202E1070,extended,24060050",
+				"patch=0,EE,102E0854,extended,24030134"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Ico (NTSC-U) [CRC: 6F8545DB] */
+		else if (!strcmp(serial, "SCUS-97113")) 
+		{
+			int i;
+			char *patches[] = {
+				/* enable back buffer */
+				"patch=0,EE,00274EF8,extended,00000001",
+				"patch=0,EE,00274F20,extended,00000001",
+				"patch=0,EE,00274F00,extended,00001040",
+				"patch=0,EE,00274F28,extended,00001040",
+				/* nointerlacing */
+				"patch=1,EE,00274EF8,extended,00000001",
+				"patch=1,EE,00274F20,extended,00000001",
+				"patch=1,EE,00274F00,extended,00000040",
+				"patch=1,EE,00274F28,extended,00000040"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Resident Evil - Code - Veronica X (NTSC-U) [CRC: 24036809] */
+		else if (!strcmp(serial, "SLUS-20184"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=0,EE,002CB0A4,extended,24060050",
+				"patch=0,EE,202CB0A0,extended,0000282D",
+				"patch=0,EE,202CB0B0,extended,00000000",
+				"patch=0,EE,201002F4,extended,10A40029",
+				"patch=0,EE,1010030C,extended,260202D0",
+				"patch=0,EE,00100370,extended,26450023",
+				"patch=0,EE,10100398,extended,64E30134",
+				"patch=0,EE,102E1AF0,extended,24420134",
+				"patch=0,EE,202EB944,extended,00000000",
+				"patch=0,EE,202CB0F4,extended,0000482D",
+				/* font fixes */
+				"patch=1,EE,002B9A50,word,3C013F40",
+				"patch=1,EE,002B9A54,word,44816000",
+				"patch=1,EE,002B9A58,word,460C6B02",
+				"patch=1,EE,002B9A5c,word,3C010050",
+				"patch=1,EE,002B9A60,word,E42C8140",
+				"patch=1,EE,002B9A64,word,E42D8138",
+				"patch=1,EE,002B9A68,word,03E00008",
+				"patch=1,EE,002B9A6c,word,E42E8130"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Resident Evil - Dead Aim (NTSC-U) [CRC: FBB5290C] */
+		else if (!strcmp(serial, "SLUS-20669"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2028A268,extended,00000050",
+				"patch=1,EE,2028A274,extended,000001E0",
+				"patch=1,EE,2028A284,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Tekken Tag Tournament (NTSC-U) [CRC: 67454C1E] */
+		else if (!strcmp(serial, "SLUS-20001")) 
+		{
+			int i;
+			char *patches[] = {
+				"patch=0,EE,20398960,extended,0000382D",
+				"patch=0,EE,20398AF0,extended,0000502D",
+				"patch=0,EE,10398AE0,extended,240701C0",
+				"patch=0,EE,20398AF0,extended,0000502D",
+				"patch=0,EE,10398B10,extended,240701C0",
+				"patch=0,EE,10398B38,extended,240701C0",
+				"patch=0,EE,20398B48,extended,0000502D"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Tekken Tag Tournament (PAL) [CRC: 0DD8941C] */
+		else if (!strcmp(serial, "SCES-50001")) 
+		{
+			int i;
+			char *patches[] = {
+				"patch=0,EE,203993D0,extended,0000382D",
+				"patch=0,EE,10399580,extended,240700E0",
+				"patch=0,EE,103995A8,extended,240701C0",
+				"patch=0,EE,203995B8,extended,0000502D",
+				"patch=0,EE,2039DDE8,extended,0000382D"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Tekken 4 (PAL) */
+		else if (!strcmp(serial, "SCES-50878"))
+		{
+			/* Patch courtesy: felixthecat1970 */
+			int i;
+			char *patches[] = {
+				"patch=0,EE,001E2254,extended,24020002",
+				"patch=0,EE,0022B138,extended,24050006",
+				"patch=0,EE,001EDC24,extended,24020009"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Tekken 5 (NTSC-U) [CRC: 652050D2] */
+		else if (!strcmp(serial, "SLUS-21059")) 
+		{
+			/* Patch courtesy: felixthecat1970 */
+			int i;
+			char *patches[] = {
+				"patch=0,EE,00D05EC8,extended,24050000",
+				"patch=0,EE,00D05ECC,extended,24060050",
+				"patch=0,EE,20D05ED4,extended,24070001",
+				/* Devil Within upscaling */
+				"patch=1,EE,E0078870,extended,01FFEF20",
+				"patch=1,EE,202DE308,extended,AC940004", // enable progressive at start - skips Starblade minigame
+				"patch=1,EE,202F06DC,extended,341B0001",
+				"patch=1,EE,202F08FC,extended,A07B0000",
+				/* sharp backbuffer main game - skips StarBlade intro game */
+				"patch=1,EE,0031DA9C,extended,30630000",
+				"patch=1,EE,00335A38,extended,24020001",
+				"patch=1,EE,20335A5C,extended,00031C02",
+				"patch=1,EE,20335E58,extended,00042402",
+				/* Devil Within - sharp backbuffer */
+				"patch=1,EE,E0020001,extended,0027E448",
+				"patch=1,EE,2027E448,extended,00500000",
+				"patch=1,EE,203F7330,extended,00500000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+	}
+}
+
 void Host::OnGameChanged(const std::string& disc_path,
 	const std::string& elf_override, const std::string& game_serial,
 	u32 game_crc)
 {
+	lrps2_ingame_patches(game_serial.c_str(), setting_hint_nointerlacing);
 }

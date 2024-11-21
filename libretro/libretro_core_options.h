@@ -251,6 +251,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "Automatic"
    },
    {
+      "pcsx2_nointerlacing_hint",
+      "No interlacing hint (Restart)",
+      NULL,
+      "If enabled, will look in the internal database if a patch is available for the game to turn the image into either a non-interlaced, full frame, or progressive scan video signal, and/or a combination of all the above. Image will be more stable and Deinterlacing can be turned off.",
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "pcsx2_pcrtc_antiblur",
       "PCRTC Anti-Blur",
       NULL,
