@@ -1276,7 +1276,7 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
-		/* Ace Combat zero - The Belkan War (NTSC-U) [CRC: 65729657] */
+		/* Ace Combat Zero - The Belkan War (NTSC-U) [CRC: 65729657] */
 		else if (!strcmp(serial, "SLUS-21346"))
 		{
 			/* Patch courtesy: asasega */
@@ -1373,6 +1373,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			char *patches[] = {
 				"patch=1,EE,0032DC7C,word,00000000",
 				"patch=1,EE,0032DD04,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Gran Turismo 4 (NTSC-U) [CRC: 77E61C8A] */
+		else if (!strcmp(serial, "SCUS-97328"))
+		{
+			int i;
+			char *patches[] = {
+				/* Autoboot mode NTSC=0 / 480p=1 / 1080i=2 
+				 * (change last number) or disable this code. */
+				"patch=1,EE,20A461F0,extended,00000001"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
@@ -1577,30 +1589,39 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 		{
 			/* Patch courtesy: felixthecat1970 */
 			/* Framebuffer Display and no interlacing */
-			int i;
-			char *_patches[] = {
-				"patch=1,EE,E0041100,extended,01D4ADA0",
-				"patch=1,EE,21D4ADA0,extended,00001000",
-				"patch=1,EE,21D4ADC8,extended,00001000",
-				"patch=1,EE,201029FC,extended,64420000",
-				"patch=1,EE,20102C64,extended,64420000"
-			};
-			for (i = 0; i < sizeof(_patches) / sizeof((_patches)[0]); i++)
-				LoadPatchesFromString(std::string(_patches[i]));
 			if (setting_renderer == "paraLLEl-GS")
 			{
+				int i;
 				char *patches[] = {
+#if 0
+					"patch=1,EE,E0041100,extended,01D4ADA0",
 					"patch=1,EE,21D4AD98,extended,00000004",
-					"patch=1,EE,21D4ADC0,extended,00000004"
+					"patch=1,EE,21D4ADC0,extended,00000004",
+					"patch=1,EE,21D4ADA0,extended,00001000",
+					"patch=1,EE,21D4ADC8,extended,00001000",
 
-					/* TODO/FIXME - we're missing the upscaling of the menu/startup screens */
+					"patch=1,EE,2010291C,extended,64420000",
+					"patch=1,EE,20102B84,extended,64420000"
+#else
+					"patch=1,EE,2010291C,extended,00000000",
+					"patch=1,EE,20102B84,extended,00000000",
+					"patch=1,EE,E0041100,extended,01D4ADA0",
+					"patch=1,EE,21D4AD98,extended,00000001",
+					"patch=1,EE,21D4ADA0,extended,00001000",
+					"patch=1,EE,21D4ADC0,extended,00000001",
+					"patch=1,EE,21D4ADC8,extended,00001000"
+#endif
+					/* TODO/FIXME - we're missing the upscaling 
+					 * of the menu/startup screens */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
 			else
 			{
+				int i;
 				char *patches[] = {
+#if 0
 					"patch=1,EE,21D4AD98,extended,00000002",
 					"patch=1,EE,21D4ADC0,extended,00000002",
 
@@ -1609,6 +1630,15 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					"patch=1,EE,21D4ADC8,extended,00001446",
 					"patch=1,EE,21D4AD98,extended,00000003",
 					"patch=1,EE,21D4ADC0,extended,00000003"
+#else
+					"patch=1,EE,2010291C,extended,00000000",
+					"patch=1,EE,20102B84,extended,00000000",
+					"patch=1,EE,E0041100,extended,01D4ADA0",
+					"patch=1,EE,21D4AD98,extended,00000001",
+					"patch=1,EE,21D4ADA0,extended,00001000",
+					"patch=1,EE,21D4ADC0,extended,00000001",
+					"patch=1,EE,21D4ADC8,extended,00001000"
+#endif
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
