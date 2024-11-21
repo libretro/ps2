@@ -1371,6 +1371,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Kinetica (NTSC-U) [CRC: D39C08F5] */
+		else if (!strcmp(serial, "SCUS-97132"))
+		{
+			/* Patch courtesy: Mensa */
+			/* Stops company logos and intro FMV from shaking. Menus and in-game never had an issue */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,201ABB34,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* MotoGP 2 (NTSC-U) [CRC: 586EA828] */
 		else if (!strcmp(serial, "SLUS-20285"))
 		{
@@ -1410,6 +1422,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				"patch=1,EE,202DD564,extended,24020001",
 				"patch=1,EE,003EF558,extended,00000003",
 				"patch=1,EE,003EF580,extended,00000003"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Mushihimesama (NTSC-J) [CRC: F0C24BB1] */
+		else if (!strcmp(serial, "SLPM-66056"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2010C300,extended,34030001",
+				"patch=1,EE,2010C314,extended,3402148C",
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
@@ -1616,6 +1640,63 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				"patch=1,EE,E0020001,extended,0027E448",
 				"patch=1,EE,2027E448,extended,00500000",
 				"patch=1,EE,203F7330,extended,00500000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+	}
+
+	if (setting_pgs_disable_mipmaps == 1)
+	{
+		/* The games listed below need patches when mipmapping
+		 * is set to unclamped */
+
+		/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
+		if (!strcmp(serial, "SLUS-20685"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,0034CE88,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Lara Croft Tomb Raider - Legend (NTSC-U) [CRC: BC8B3F50] */
+		else if (!strcmp(serial, "SLUS-21203"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,00127390,word,10000022"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Legacy of Kain: Soul Reaver, The (NTSC-U) [CRC: 1771BFE4]) */
+		else if (!strcmp(serial, "SLUS-20165"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,0029FC00,word,000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Quake III - Revolution (NTSC-U) [CRC: A56A0525] */
+		else if (!strcmp(serial, "SLUS-20167"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,002D0398,word,03E00008"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Whiplash (NTSC-U) [CRC: 4D22DB95] */
+		else if (!strcmp(serial, "SLUS-20684"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,0025D19C,word,10000007"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
