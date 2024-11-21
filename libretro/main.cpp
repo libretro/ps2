@@ -1308,6 +1308,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
+		else if (!strcmp(serial, "SLUS-20685"))
+		{
+			/* Patch courtesy: NineKain */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,00155580,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Colin McRae Rally 3 (PAL) [CRC: 7DEAE69C] */
 		else if (!strcmp(serial, "SLES-51117")) 
 		{
@@ -1355,6 +1366,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Eternal Poison (NTSC-U) [CRC: 2BE55519] */
+		else if (!strcmp(serial, "SLUS-21779"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,0032DC7C,word,00000000",
+				"patch=1,EE,0032DD04,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Harry Potter and the Sorcerer's Stone (NTSC-U) [CRC: ] */
 		else if (!strcmp(serial, "SLUS-20826")) 
 		{
@@ -1371,6 +1393,31 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				"patch=0,EE,202E077C,extended,24A5FFFF",
 				"patch=0,EE,202E1070,extended,24060050",
 				"patch=0,EE,102E0854,extended,24030134"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Ico (PAL) [CRC: ] */
+		else if (!strcmp(serial, "SCES-50760"))
+		{
+			/* Patch courtesy: agrippa */
+			int i;
+			char *patches[] = {
+				//set the back buffer
+				"patch=1,EE,2028F500,extended,00001040",
+				"patch=1,EE,2028F528,extended,00001040",
+				//switch to the interlaced mode with FFMD set to 0. Progressive mode, applied by default,
+				//does add a black bar at the bottom in the NTSC mode when the back buffer is enabled
+				"patch=1,EE,2028F4F8,extended,00000001",
+				"patch=1,EE,2028F520,extended,00000001",
+				//check if the PAL mode is turned on to extend the display buffer from 256 to 512
+				"patch=1,EE,E0024290,extended,0028F508",
+				"patch=1,EE,2028F50C,extended,001FF9FF",
+				"patch=1,EE,2028F534,extended,001FF9FF",
+				//check if the NTSC mode is turned on to extend the display buffer from 224 to 448
+				"patch=1,EE,E002927C,extended,0028F508",
+				"patch=1,EE,2028F50C,extended,001DF9FF",
+				"patch=1,EE,2028F534,extended,001DF9FF"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
@@ -1497,6 +1544,30 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				"patch=1,EE,2028A268,extended,00000050",
 				"patch=1,EE,2028A274,extended,000001E0",
 				"patch=1,EE,2028A284,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Rumble Fish, The (NTSC-J) */
+		else if (!strcmp(serial, "SLPM-65919"))
+		{
+			/* Patch courtesy: felixthecat1970 */
+			int i;
+			char *patches[] = {
+				/* Framebuffer + 480p mode + No interlacing */
+				"patch=0,EE,201102A4,extended,3C050000",
+				"patch=0,EE,201102AC,extended,3C060050",
+				"patch=0,EE,201102B4,extended,3C070001",
+				"patch=0,EE,20110948,extended,34030002",
+				"patch=1,EE,2034FD50,extended,00009446",
+				"patch=1,EE,2034FD5C,extended,001DF4FF",
+				"patch=1,EE,2034FD78,extended,00009446",
+				"patch=1,EE,2034FD84,extended,001DF4FF",
+				/* NULL Int ints */
+				"patch=0,EE,20111278,extended,03E00008",
+				"patch=0,EE,2011127C,extended,00000000",
+				"patch=0,EE,201114E0,extended,03E00008",
+				"patch=0,EE,201114E4,extended,00000000"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
