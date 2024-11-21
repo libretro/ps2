@@ -1321,6 +1321,29 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Drakengard 2 (NTSC-U) [CRC: 1648E3C9] */
+		else if (!strcmp(serial, "SLUS-21373"))
+		{
+			/* Patch courtesy: umechan */
+			/* TODO/FIXME - text cutoff a little on the bottom
+			 * with parallel-gs */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,E0030003,extended,00456DA0",
+				"patch=1,EE,20456DA0,extended,00000001",
+				"patch=1,EE,20456DB0,extended,00001450",
+				"patch=1,EE,20456DBC,extended,001DF9FF",
+				"patch=1,EE,E0029400,extended,00456DB0",
+				"patch=1,EE,20456DB0,extended,0000948C",
+				"patch=1,EE,20456DBC,extended,001DF9FF",
+				"patch=1,EE,E0030001,extended,00456D54",
+				"patch=1,EE,20456D38,extended,00000050",
+				"patch=1,EE,20456D44,extended,000001E1",
+				"patch=1,EE,20456D54,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Enthusia - Professional Racing (NTSC-U) [CRC: 81D233DC] */
 		else if (!strcmp(serial, "SLUS-20967")) 
 		{
@@ -1574,6 +1597,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Tales of Legendia (NTSC-U) [CRC: 43AB7214] */
+		else if (!strcmp(serial, "SLUS-21201"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,D03F9750,extended,00001000",
+				"patch=1,EE,103F9750,extended,000010E0"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Tekken Tag Tournament (NTSC-U) [CRC: 67454C1E] */
 		else if (!strcmp(serial, "SLUS-20001")) 
 		{
@@ -1640,6 +1674,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				"patch=1,EE,E0020001,extended,0027E448",
 				"patch=1,EE,2027E448,extended,00500000",
 				"patch=1,EE,203F7330,extended,00500000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Whiplash (NTSC-U) [CRC: 4D22DB95] */
+		else if (!strcmp(serial, "SLUS-20684"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2025DFA4,extended,30630000",
+				"patch=1,EE,20353958,extended,34030001",
+				"patch=1,EE,2035396C,extended,34029040"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
