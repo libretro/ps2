@@ -1254,14 +1254,62 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 }
 
 
-static void lrps2_ingame_patches(const char *serial, bool nointerlacing_hint)
+static void lrps2_ingame_patches(const char *serial, const char *renderer, bool nointerlacing_hint)
 {
 	log_cb(RETRO_LOG_INFO, "serial: %s\n", serial);
 
 	if (nointerlacing_hint)
 	{
+		/* Ace Combat 04 - Shattered Skies (NTSC-U) [CRC: A32F7CD0] */
+		if (!strcmp(serial, "SLUS-20152"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,E0050003,extended,0029F418",
+				"patch=1,EE,0029F418,extended,00000001",
+				"patch=1,EE,D029F420,extended,0000948C",
+				"patch=1,EE,0029F420,extended,00000000",
+				"patch=1,EE,D029F420,extended,00009070",
+				"patch=1,EE,0029F420,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Ace Combat zero - The Belkan War (NTSC-U) [CRC: 65729657] */
+		else if (!strcmp(serial, "SLUS-21346"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,202F9A14,extended,24020001",
+				"patch=1,EE,202F9D58,extended,0C03FFF0",
+				"patch=1,EE,200FFFC0,extended,341B9070",
+				"patch=1,EE,200FFFC4,extended,145B0002",
+				"patch=1,EE,200FFFCC,extended,34029000",
+				"patch=1,EE,200FFFD0,extended,FCC20000",
+				"patch=1,EE,200FFFD4,extended,03E00008"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Alpine Racer 3 (NTSC-J) [CRC: 771C3B47] */
+		else if (!strcmp(serial, "SLPS-20181"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,E00410E0,extended,00686C80",
+				"patch=1,EE,20686C78,extended,00000001",
+				"patch=1,EE,20686C80,extended,00001000",
+				"patch=1,EE,20686CA0,extended,00000001",
+				"patch=1,EE,20686CA8,extended,00001000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Colin McRae Rally 3 (PAL) [CRC: 7DEAE69C] */
-		if (!strcmp(serial, "SLES-51117")) 
+		else if (!strcmp(serial, "SLES-51117")) 
 		{
 			/* Patch courtesy: agrippa */
 			int i;
@@ -1323,6 +1371,49 @@ static void lrps2_ingame_patches(const char *serial, bool nointerlacing_hint)
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* MotoGP 2 (NTSC-U) [CRC: 586EA828] */
+		else if (!strcmp(serial, "SLUS-20285"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,20265444,extended,FD030000",
+				"patch=1,EE,2027FED0,extended,24020001",
+				"patch=1,EE,0043C588,extended,00000001",
+				"patch=1,EE,0036C798,extended,00000003",
+				"patch=1,EE,0036C7C0,extended,00000003"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+
+			if (setting_renderer == "paraLLEl-GS" || setting_renderer == "Software")
+			{
+				int i;
+				char *patches[] = {
+					/* full frame FMV only in software mode */
+					"patch=1,EE,0036C798,extended,00000001",
+					"patch=1,EE,0036C7C0,extended,00000001",
+					"patch=1,EE,2036C7A0,extended,000018D8",
+					"patch=1,EE,2036C7C8,extended,000018D8",
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		/* MotoGP 3 (NTSC-U) [CRC: 46B7FEC5] */
+		else if (!strcmp(serial, "SLUS-20625"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,202C16CC,extended,FD030000",
+				"patch=1,EE,202DD564,extended,24020001",
+				"patch=1,EE,003EF558,extended,00000003",
+				"patch=1,EE,003EF580,extended,00000003"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Resident Evil - Code - Veronica X (NTSC-U) [CRC: 24036809] */
 		else if (!strcmp(serial, "SLUS-20184"))
 		{
@@ -1359,6 +1450,102 @@ static void lrps2_ingame_patches(const char *serial, bool nointerlacing_hint)
 				"patch=1,EE,2028A268,extended,00000050",
 				"patch=1,EE,2028A274,extended,000001E0",
 				"patch=1,EE,2028A284,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Rumble Roses (NTSC-U) [CRC: C1C91715] */
+		else if (!strcmp(serial, "SLUS-20970"))
+		{
+			/* Patch courtesy: felixthecat1970 */
+			/* Framebuffer Display and no interlacing */
+			int i;
+			char *_patches[] = {
+				"patch=1,EE,E0041100,extended,01D4ADA0",
+				"patch=1,EE,21D4ADA0,extended,00001000",
+				"patch=1,EE,21D4ADC8,extended,00001000",
+				"patch=1,EE,201029FC,extended,64420000",
+				"patch=1,EE,20102C64,extended,64420000"
+			};
+			for (i = 0; i < sizeof(_patches) / sizeof((_patches)[0]); i++)
+				LoadPatchesFromString(std::string(_patches[i]));
+			if (setting_renderer == "paraLLEl-GS")
+			{
+				char *patches[] = {
+					"patch=1,EE,21D4AD98,extended,00000004",
+					"patch=1,EE,21D4ADC0,extended,00000004"
+
+					/* TODO/FIXME - we're missing the upscaling of the menu/startup screens */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			else
+			{
+				char *patches[] = {
+					"patch=1,EE,21D4AD98,extended,00000002",
+					"patch=1,EE,21D4ADC0,extended,00000002",
+
+					"patch=1,EE,E0041400,extended,01D4ADA0",
+					"patch=1,EE,21D4ADA0,extended,00001400",
+					"patch=1,EE,21D4ADC8,extended,00001446",
+					"patch=1,EE,21D4AD98,extended,00000003",
+					"patch=1,EE,21D4ADC0,extended,00000003"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		/* Sega Rally 2006 (NTSC-J) [CRC: B26172F0] */
+		else if (!strcmp(serial, "SLPM-66212"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,20106FA0,extended,34030001",
+				"patch=1,EE,20106FB4,extended,34021040"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Star Ocean: Til the End of Time (PAL) [CRC: E04EA200] */
+		else if (!strcmp(serial, "SLES-82028"))
+		{
+			/* Patch courtesy: agrippa */
+			int i;
+			char *patches[] = {
+				/* Skip the integrity check of the main executable file */
+				"patch=1,EE,E0110011,extended,001F7660",
+				"patch=1,EE,201e2530,extended,10000016",
+				"patch=1,EE,201e2ff8,extended,10000016",
+				"patch=1,EE,201e3410,extended,10000016",
+				"patch=1,EE,201e3758,extended,10000016",
+				"patch=1,EE,201e3968,extended,10000016",
+				"patch=1,EE,201e3ba8,extended,10000016",
+				"patch=1,EE,201e3d00,extended,10000016",
+				"patch=1,EE,201eb5f8,extended,10000016",
+				"patch=1,EE,201f68c0,extended,10000016",
+				"patch=1,EE,201f6bb0,extended,10000016",
+				"patch=1,EE,201f6c50,extended,10000016",
+				"patch=1,EE,201f7030,extended,10000016",
+				"patch=1,EE,201f7160,extended,10000016",
+				"patch=1,EE,201f72a0,extended,10000016",
+				"patch=1,EE,201f73d0,extended,10000016",
+				"patch=1,EE,201f7500,extended,10000016",
+				"patch=1,EE,201f7660,extended,10000016",
+				/* in-battle anti-cheat checks? I have not seen the game to get there though. */
+				"patch=1,EE,E002FFFA,extended,001EDB44",
+				"patch=1,EE,201EDB44,extended,1400fffa",
+				"patch=1,EE,201E94E0,extended,1000000F", /* 1440000F */
+				/* full height frame buffer and video mode patches */
+				"patch=0,EE,00101320,word,A0285C84", /* A0205C84 */
+				"patch=1,EE,0012EF60,word,00000000", /* 10C00005 */
+				"patch=1,EE,00100634,word,24050001", /* 0000282D */
+				"patch=1,EE,00100638,word,24060003", /* 24060050 */
+				"patch=1,EE,00100640,word,24070000", /* 24070001 */
+				/* Texture fix for the battle mode */
+				"patch=1,EE,E0011183,extended,001E0784",
+				"patch=1,EE,201E0784,extended,24021D00"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
@@ -1417,7 +1604,7 @@ static void lrps2_ingame_patches(const char *serial, bool nointerlacing_hint)
 				"patch=0,EE,20D05ED4,extended,24070001",
 				/* Devil Within upscaling */
 				"patch=1,EE,E0078870,extended,01FFEF20",
-				"patch=1,EE,202DE308,extended,AC940004", // enable progressive at start - skips Starblade minigame
+				"patch=1,EE,202DE308,extended,AC940004", /* enable progressive at start - skips Starblade minigame */
 				"patch=1,EE,202F06DC,extended,341B0001",
 				"patch=1,EE,202F08FC,extended,A07B0000",
 				/* sharp backbuffer main game - skips StarBlade intro game */
@@ -1440,5 +1627,5 @@ void Host::OnGameChanged(const std::string& disc_path,
 	const std::string& elf_override, const std::string& game_serial,
 	u32 game_crc)
 {
-	lrps2_ingame_patches(game_serial.c_str(), setting_hint_nointerlacing);
+	lrps2_ingame_patches(game_serial.c_str(), setting_renderer.c_str(), setting_hint_nointerlacing);
 }
