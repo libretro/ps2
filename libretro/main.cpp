@@ -34,7 +34,7 @@
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/LayeredSettingsInterface.h"
 #include "pcsx2/VMManager.h"
-#include "Pcsx2/Patch.h"
+#include "pcsx2/Patch.h"
 
 #include "SPU2/spu2.h"
 #include "PAD/PAD.h"
