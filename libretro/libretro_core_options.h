@@ -468,6 +468,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_uncapped_framerate_hint",
+      "Emulation > Uncapped Framerate hint (Restart)",
+      "Uncapped Framerate hint (Restart)",
+      "Uncaps the framerate if a patch for the game can be found inside the internal database. This can turn a 30fps game into 60fps locked, or stabilize the framerate. You might have to increase EE Cycle Rate in combination with this for a stable locked framerate",
+      NULL,
+      "emulation",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_enable_hw_hacks",
       "HW Hacks > Enable Manual Hardware Renderer Fixes (Not Recommended)",
       "Enable Manual Hardware Renderer Fixes (Not Recommended)",
