@@ -1892,6 +1892,26 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Aggressive Inline (NTSC-U) [CRC: ] */
+		else if (!strcmp(serial, "SLUS-20327"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,001090B0,word,45010009"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Aggressive Inline (PAL) [CRC: ] */
+		else if (!strcmp(serial, "SLES-50480"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,00109130,word,45010009"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
 		else if (!strcmp(serial, "SLUS-20685"))
 		{
