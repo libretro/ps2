@@ -1276,6 +1276,28 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Ace Combat 5 - The Unsung War (NTSC-U) [CRC: 39B574F0] */
+		else if (!strcmp(serial, "SLUS-20851"))
+		{
+			/* Patch courtesy: asasega */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2032CA34,extended,0C03FFF3",
+				"patch=1,EE,2032CA3C,extended,00000000",
+				"patch=1,EE,200FFFCC,extended,341B0001",
+				"patch=1,EE,200FFFD0,extended,147B0004",
+				"patch=1,EE,200FFFD4,extended,34030001",
+				"patch=1,EE,200FFFD8,extended,FC430000",
+				"patch=1,EE,200FFFDC,extended,03E00008",
+				"patch=1,EE,200FFFE0,extended,DE020010",
+				"patch=1,EE,200FFFE4,extended,FC430000",
+				"patch=1,EE,200FFFE8,extended,DE020010",
+				"patch=1,EE,200FFFEC,extended,03E00008",
+				"patch=1,EE,200FFFF0,extended,30429400"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Ace Combat Zero - The Belkan War (NTSC-U) [CRC: 65729657] */
 		else if (!strcmp(serial, "SLUS-21346"))
 		{
@@ -1856,8 +1878,20 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 		/* The games listed below need patches when mipmapping
 		 * is set to unclamped */
 
+		/* Ace Combat 5 - The Unsung War (NTSC-U) [CRC: 39B574F0] */
+		if (!strcmp(serial, "SLUS-20851"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,0011F2CC,word,00000000",
+				"patch=1,EE,0011F2DC,word,00000000",
+				"patch=1,EE,0011F2E8,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
-		if (!strcmp(serial, "SLUS-20685"))
+		else if (!strcmp(serial, "SLUS-20685"))
 		{
 			int i;
 			char *patches[] = {
