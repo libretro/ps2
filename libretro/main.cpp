@@ -2753,6 +2753,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Dark Angel - James Cameron's (NTSC-U) [CRC: 29BA2F04] */
+			else if (!strcmp(serial, "SLUS-20379"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 60fps uncapped. Need EE Overclock at 130% */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0027F154,word,10400012"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Destroy All Humans! (NTSC-U) [CRC: 67A29886] */
 			else if (!strcmp(serial, "SLUS-20945"))
 			{
@@ -2829,6 +2841,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				int i;
 				char *patches[] = {
 					"patch=1,EE,005D8DF8,word,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Metal Arms - Glitch in the System (NTSC-U) [CRC: E8C504C8] */
+			else if (!strcmp(serial, "SLUS-20786"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 60fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,004B2C98,word,00000001" /* 00000002 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2943,6 +2967,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Rune - Viking Warlord (NTSC-U) [CRC: 1259612B] */
+			else if (!strcmp(serial, "SLUS-20109"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 60fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001305A4,extended,28420001" /* 28420002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Serious Sam - Next Encounter (NTSC-U) [CRC: 155466E8] */
 			else if (!strcmp(serial, "SLUS-20907"))
 			{
@@ -2951,6 +2987,30 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				int i;
 				char *patches[] = {
 					"patch=0,EE,20127580,extended,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Spawn - Armageddon (NTSC-U) [CRC: B7E7D66F] */
+			else if (!strcmp(serial, "SLUS-20707"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 60fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=0,EE,00226830,word,24020001" /* 24020002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Splinter Cell - Pandora Tomorrow (NTSC-U) [CRC: 0277247B] */
+			else if (!strcmp(serial, "SLUS-20958"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 60fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0018D778,word,24030001" /* 24030002 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3011,8 +3071,20 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 		}
 		else if (!strncmp("SLES-", serial, strlen("SLES-")))
 		{
-			/* Echo Night - Beyond (PAL) [CRC: BBF8C3D6] */
+			/* Dark Angel (PAL) [CRC: 5BE3F481] */
 			if (!strcmp(serial, "SLES-53414"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* Uncapped. Need EE Overclock at 130% */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00280B74,word,1040000D"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Echo Night - Beyond (PAL) [CRC: BBF8C3D6] */
+			else if (!strcmp(serial, "SLES-53414"))
 			{
 				/* Patch courtesy: PeterDelta */
 				/* 60fps uncapped. Need EE Overclock at 130%. Select 60Hz */
@@ -3020,6 +3092,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				char *patches[] = {
 					"patch=1,EE,E001001E,extended,0028A348",
 					"patch=1,EE,0028A348,extended,0000003C"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Metal Arms - Glitch in the System (PAL) [CRC: AF399CCC] */
+			else if (!strcmp(serial, "SLES-51758"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,004BEA90,word,00000001" /* 00000002 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3037,6 +3121,42 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 
+			}
+			/* Rune - Viking Warlord (PAL) [CRC: 52638022] */
+			else if (!strcmp(serial, "SLES-50335"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001307AC,extended,28420001" /* 28420002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Spawn - Armageddon (PAL) [CRC: 8C9BF4F9] */
+			else if (!strcmp(serial, "SLES-52326"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=0,EE,00227CB0,word,24020001" /* 24020002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Splinter Cell - Pandora Tomorrow (PAL) [CRC: 80FAC91D] */
+			else if (!strcmp(serial, "SLES-52149"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0018D7C8,word,24030001" /* 24030002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
 			}
 		}
 		if (!strncmp("SCUS-", serial, strlen("SCUS-")))
