@@ -95,21 +95,51 @@ float pad_axis_scale[2];
 static std::vector<BiosInfo> bios_info;
 static std::string setting_bios;
 static std::string setting_renderer;
-static PluginType setting_plugin_type;
 static int setting_upscale_multiplier          = 1;
+static int setting_half_pixel_offset           = 0;
+static int setting_native_scaling              = 0;
+static u8 setting_plugin_type                  = 0;
 static u8 setting_pgs_super_sampling           = 0;
 static u8 setting_pgs_high_res_scanout         = 0;
 static u8 setting_pgs_disable_mipmaps          = 0;
 static u8 setting_deinterlace_mode             = 0;
+static u8 setting_texture_filtering            = 0;
+static u8 setting_anisotropic_filtering        = 0;
+static u8 setting_dithering                    = 0;
+static u8 setting_blending_accuracy            = 0;
+static u8 setting_cpu_sprite_size              = 0;
+static u8 setting_cpu_sprite_level             = 0;
+static u8 setting_software_clut_render         = 0;
+static u8 setting_gpu_target_clut              = 0;
+static u8 setting_auto_flush                   = 0;
+static u8 setting_round_sprite                 = 0;
+static u8 setting_texture_inside_rt            = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
+static s8 setting_trilinear_filtering          = 0;
 static bool setting_hint_nointerlacing         = false;
 static bool setting_pcrtc_antiblur             = false;
 static bool setting_enable_cheats              = false;
+static bool setting_enable_hw_hacks            = false;
+static bool setting_auto_flush_software        = false;
+static bool setting_disable_depth_conversion   = false;
+static bool setting_framebuffer_conversion     = false;
+static bool setting_disable_partial_invalid    = false;
+static bool setting_gpu_palette_conversion     = false;
+static bool setting_preload_frame_data         = false;
+static bool setting_align_sprite               = false;
+static bool setting_merge_sprite               = false;
+static bool setting_unscaled_palette_draw      = false;
+static bool setting_force_sprite_position      = false;
+static bool setting_pcrtc_screen_offsets       = false;
+static bool setting_disable_interlace_offset   = false;
 
 static bool setting_show_parallel_options      = true;
+static bool setting_show_gsdx_options          = true;
 static bool setting_show_gsdx_hw_only_options  = true;
+static bool setting_show_gsdx_sw_only_options  = true;
 static bool setting_show_shared_options        = true;
+static bool setting_show_hw_hacks              = true;
 
 static bool update_option_visibility(void)
 {
@@ -117,26 +147,38 @@ static bool update_option_visibility(void)
 	struct retro_core_option_display option_display;
 	bool updated                        = false;
 
-	// Show/hide video options
 	bool show_parallel_options_prev     = setting_show_parallel_options;
+	bool show_gsdx_options_prev         = setting_show_gsdx_options;
 	bool show_gsdx_hw_only_options_prev = setting_show_gsdx_hw_only_options;
+	bool show_gsdx_sw_only_options_prev = setting_show_gsdx_sw_only_options;
 	bool show_shared_options_prev       = setting_show_shared_options;
+	bool show_hw_hacks_prev             = setting_show_hw_hacks;
 
 	setting_show_parallel_options       = true;
+	setting_show_gsdx_options           = true;
 	setting_show_gsdx_hw_only_options   = true;
+	setting_show_gsdx_sw_only_options   = true;
 	setting_show_shared_options         = true;
+	setting_show_hw_hacks               = true;
 
+	// Show/hide video options
 	var.key = "pcsx2_renderer";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
 		const bool parallel_renderer = !strcmp(var.value, "paraLLEl-GS");
-		const bool software_renderer = !strcmp(var.value, "Software");
+		const bool gsdx_sw_renderer  = !strcmp(var.value, "Software");
 		const bool null_renderer     = !strcmp(var.value, "Null");
+		const bool gsdx_hw_renderer  = !parallel_renderer && !gsdx_sw_renderer && !null_renderer;
+		const bool gsdx_renderer     = gsdx_hw_renderer || gsdx_sw_renderer;
 
 		if (null_renderer)
 			setting_show_shared_options       = false;
-		if (parallel_renderer || software_renderer || null_renderer)
+		if (!gsdx_renderer)
+			setting_show_gsdx_options         = false;
+		if (!gsdx_hw_renderer)
 			setting_show_gsdx_hw_only_options = false;
+		if (!gsdx_sw_renderer)
+			setting_show_gsdx_sw_only_options = false;
 		if (!parallel_renderer)
 			setting_show_parallel_options     = false;
 	}
@@ -150,20 +192,50 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_pgs_high_res_scanout";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-		updated = true;
+		updated                = true;
 	}
 
-	// GSdx HW options, but NOT compatible with Software and NULL renderers
-	if (setting_show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
+	// GSdx HW/SW options
+	if (setting_show_gsdx_options != show_gsdx_options_prev)
 	{
-		option_display.visible = setting_show_gsdx_hw_only_options;
-		option_display.key     = "pcsx2_upscale_multiplier";
+		option_display.visible = setting_show_gsdx_options;
+		option_display.key     = "pcsx2_texture_filtering";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated                = true;
 	}
 
-	// Options compatible with both paraLLEl-GS and GSdx HW/SW, still not with NULL renderer
+	// GSdx HW only options, not compatible with SW
+	if (setting_show_gsdx_hw_only_options != show_gsdx_hw_only_options_prev)
+	{
+		option_display.visible = setting_show_gsdx_hw_only_options;
+		option_display.key     = "pcsx2_upscale_multiplier";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_trilinear_filtering";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_anisotropic_filtering";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_dithering";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_blending_accuracy";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_enable_hw_hacks";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
+		updated                = true;
+	}
+
+	// GSdx SW only options, not compatible with HW
+	if (setting_show_gsdx_sw_only_options != show_gsdx_sw_only_options_prev)
+	{
+		option_display.visible = setting_show_gsdx_sw_only_options;
+		option_display.key     = "pcsx2_auto_flush_software";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
+		updated                = true;
+	}
+
+	// Options compatible with both paraLLEl-GS and GSdx HW/SW
 	if (setting_show_shared_options != show_shared_options_prev)
 	{
 		option_display.visible = setting_show_shared_options;
@@ -175,6 +247,60 @@ static bool update_option_visibility(void)
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_nointerlacing_hint";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_pcrtc_screen_offsets";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_disable_interlace_offset";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
+		updated                = true;
+	}
+
+	// Show/hide HW hacks
+	var.key = "pcsx2_enable_hw_hacks";
+	if ((environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && !strcmp(var.value, "disabled")) ||
+			!setting_show_gsdx_hw_only_options)
+		setting_show_hw_hacks = false;
+
+	if (setting_show_hw_hacks != show_hw_hacks_prev)
+	{
+		option_display.visible = setting_show_hw_hacks;
+		option_display.key     = "pcsx2_cpu_sprite_size";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_cpu_sprite_level";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_software_clut_render";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_gpu_target_clut";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_auto_flush";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_texture_inside_rt";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_disable_depth_conversion";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_framebuffer_conversion";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_disable_partial_invalidation";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_gpu_palette_conversion";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_preload_frame_data";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_half_pixel_offset";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_native_scaling";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_round_sprite";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_align_sprite";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_merge_sprite";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_unscaled_palette_draw";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_force_sprite_position";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
 		updated                = true;
 	}
 
@@ -261,17 +387,17 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			u8 pgs_high_res_scanout_prev = setting_pgs_high_res_scanout;
-			setting_pgs_high_res_scanout = !strcmp(var.value, "enabled") ? 1 : 0;
+			setting_pgs_high_res_scanout = !strcmp(var.value, "enabled");
 
 			if (first_run)
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
+				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
 #if 0
 			// TODO: ATM it crashes when changed on-the-fly, re-enable when fixed
 			// also remove "(Restart)" from the core option label
 			else if (setting_pgs_high_res_scanout != pgs_high_res_scanout_prev)
 			{
 				retro_system_av_info av_info;
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
+				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
 
 				retro_get_system_av_info(&av_info);
 #if 1
@@ -292,14 +418,14 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			u8 pgs_disable_mipmaps_prev = setting_pgs_disable_mipmaps;
-			setting_pgs_disable_mipmaps = !strcmp(var.value, "enabled") ? 1 : 0;
+			setting_pgs_disable_mipmaps = !strcmp(var.value, "enabled");
 
 			if (first_run || setting_pgs_disable_mipmaps != pgs_disable_mipmaps_prev)
 			{
 				const u8 mipmap_mode = (u8)(setting_pgs_disable_mipmaps ? GSHWMipmapMode::Unclamped : GSHWMipmapMode::Enabled);
-				s_settings_interface.SetIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
+				s_settings_interface.SetUIntValue("EmuCore/GS", "hw_mipmap_mode", mipmap_mode);
 				s_settings_interface.SetBoolValue("EmuCore/GS", "mipmap", !setting_pgs_disable_mipmaps);
-				s_settings_interface.SetIntValue("EmuCore/GS", "pgsDisableMipmaps", setting_pgs_disable_mipmaps);
+				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsDisableMipmaps", setting_pgs_disable_mipmaps);
 				updated = true;
 			}
 		}
@@ -323,6 +449,32 @@ static void check_variables(bool first_run)
 			if (first_run || setting_pcrtc_antiblur != pcrtc_antiblur_prev)
 			{
 				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_antiblur", setting_pcrtc_antiblur);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_pcrtc_screen_offsets";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			bool pcrtc_screen_offsets_prev = setting_pcrtc_screen_offsets;
+			setting_pcrtc_screen_offsets = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_pcrtc_screen_offsets != pcrtc_screen_offsets_prev)
+			{
+				s_settings_interface.SetBoolValue("EmuCore/GS", "pcrtc_offsets", setting_pcrtc_screen_offsets);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_disable_interlace_offset";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			bool disable_interlace_offset_prev = setting_disable_interlace_offset;
+			setting_disable_interlace_offset = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_disable_interlace_offset != disable_interlace_offset_prev)
+			{
+				s_settings_interface.SetBoolValue("EmuCore/GS", "disable_interlace_offset", setting_disable_interlace_offset);
 				updated = true;
 			}
 		}
@@ -354,7 +506,7 @@ static void check_variables(bool first_run)
 
 			if (first_run || setting_deinterlace_mode != deinterlace_mode_prev)
 			{
-				s_settings_interface.SetIntValue("EmuCore/GS", "deinterlace_mode", setting_deinterlace_mode);
+				s_settings_interface.SetUIntValue("EmuCore/GS", "deinterlace_mode", setting_deinterlace_mode);
 				updated = true;
 			}
 		}
@@ -387,6 +539,416 @@ static void check_variables(bool first_run)
 				updated = true;
 			}
 #endif
+		}
+
+		var.key = "pcsx2_trilinear_filtering";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			s8 trilinear_filtering_prev = setting_trilinear_filtering;
+			if (!strcmp(var.value, "Automatic"))
+				setting_trilinear_filtering = (s8)TriFiltering::Automatic;
+			else if (!strcmp(var.value, "disabled"))
+				setting_trilinear_filtering = (s8)TriFiltering::Off;
+			else if (!strcmp(var.value, "Trilinear (PS2)"))
+				setting_trilinear_filtering = (s8)TriFiltering::PS2;
+			else if (!strcmp(var.value, "Trilinear (Forced)"))
+				setting_trilinear_filtering = (s8)TriFiltering::Forced;
+
+			if (first_run || setting_trilinear_filtering != trilinear_filtering_prev)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "TriFilter", setting_trilinear_filtering);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_anisotropic_filtering";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 anisotropic_filtering_prev = setting_anisotropic_filtering;
+			setting_anisotropic_filtering = atoi(var.value);
+
+			if (first_run || setting_anisotropic_filtering != anisotropic_filtering_prev)
+			{
+				s_settings_interface.SetUIntValue("EmuCore/GS", "MaxAnisotropy", setting_anisotropic_filtering);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_dithering";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 dithering_prev = setting_dithering;
+			if (!strcmp(var.value, "disabled"))
+				setting_dithering = 0;
+			else if (!strcmp(var.value, "Scaled"))
+				setting_dithering = 1;
+			else if (!strcmp(var.value, "Unscaled"))
+				setting_dithering = 2;
+			else if (!strcmp(var.value, "Force 32bit"))
+				setting_dithering = 3;
+
+			if (first_run || setting_dithering != dithering_prev)
+			{
+				s_settings_interface.SetUIntValue("EmuCore/GS", "dithering_ps2", setting_dithering);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_blending_accuracy";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 blending_accuracy_prev = setting_blending_accuracy;
+			if (!strcmp(var.value, "Minimum"))
+				setting_blending_accuracy = (u8)AccBlendLevel::Minimum;
+			else if (!strcmp(var.value, "Basic"))
+				setting_blending_accuracy = (u8)AccBlendLevel::Basic;
+			else if (!strcmp(var.value, "Medium"))
+				setting_blending_accuracy = (u8)AccBlendLevel::Medium;
+			else if (!strcmp(var.value, "High"))
+				setting_blending_accuracy = (u8)AccBlendLevel::High;
+			else if (!strcmp(var.value, "Full"))
+				setting_blending_accuracy = (u8)AccBlendLevel::Full;
+			else if (!strcmp(var.value, "Maximum"))
+				setting_blending_accuracy = (u8)AccBlendLevel::Maximum;
+
+			if (first_run || setting_blending_accuracy != blending_accuracy_prev)
+			{
+				s_settings_interface.SetUIntValue("EmuCore/GS", "accurate_blending_unit", setting_blending_accuracy);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_enable_hw_hacks";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			bool enable_hw_hacks_prev = setting_enable_hw_hacks;
+			setting_enable_hw_hacks = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_enable_hw_hacks != enable_hw_hacks_prev)
+			{
+				s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks", setting_enable_hw_hacks);
+				updated = true;
+			}
+		}
+
+		if (setting_enable_hw_hacks)
+		{
+			var.key = "pcsx2_cpu_sprite_size";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 cpu_sprite_size_prev = setting_cpu_sprite_size;
+				setting_cpu_sprite_size = atoi(var.value);
+
+				if (first_run || setting_cpu_sprite_size != cpu_sprite_size_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_CPUSpriteRenderBW", setting_cpu_sprite_size);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_cpu_sprite_level";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 cpu_sprite_level_prev = setting_cpu_sprite_level;
+				if (!strcmp(var.value, "Sprites Only"))
+					setting_cpu_sprite_level = 0;
+				else if (!strcmp(var.value, "Sprites/Triangles"))
+					setting_cpu_sprite_level = 1;
+				else if (!strcmp(var.value, "Blended Sprites/Triangles"))
+					setting_cpu_sprite_level = 2;
+
+				if (first_run || setting_cpu_sprite_level != cpu_sprite_level_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_CPUSpriteRenderLevel", setting_cpu_sprite_level);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_software_clut_render";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 software_clut_render_prev = setting_software_clut_render;
+				if (!strcmp(var.value, "disabled"))
+					setting_software_clut_render = 0;
+				else if (!strcmp(var.value, "Normal"))
+					setting_software_clut_render = 1;
+				else if (!strcmp(var.value, "Aggressive"))
+					setting_software_clut_render = 2;
+
+				if (first_run || setting_software_clut_render != software_clut_render_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_CPUCLUTRender", setting_software_clut_render);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_gpu_target_clut";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 gpu_target_clut_prev = setting_gpu_target_clut;
+				if (!strcmp(var.value, "disabled"))
+					setting_gpu_target_clut = (u8)GSGPUTargetCLUTMode::Disabled;
+				else if (!strcmp(var.value, "Exact Match"))
+					setting_gpu_target_clut = (u8)GSGPUTargetCLUTMode::Enabled;
+				else if (!strcmp(var.value, "Check Inside Target"))
+					setting_gpu_target_clut = (u8)GSGPUTargetCLUTMode::InsideTarget;
+
+				if (first_run || setting_gpu_target_clut != gpu_target_clut_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_GPUTargetCLUTMode", setting_gpu_target_clut);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_auto_flush";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 auto_flush_prev = setting_auto_flush;
+				if (!strcmp(var.value, "disabled"))
+					setting_auto_flush = (u8)GSHWAutoFlushLevel::Disabled;
+				else if (!strcmp(var.value, "Sprites Only"))
+					setting_auto_flush = (u8)GSHWAutoFlushLevel::SpritesOnly;
+				else if (!strcmp(var.value, "All Primitives"))
+					setting_auto_flush = (u8)GSHWAutoFlushLevel::Enabled;
+
+				if (first_run || setting_auto_flush != auto_flush_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_AutoFlushLevel", setting_auto_flush);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_texture_inside_rt";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 texture_inside_rt_prev = setting_texture_inside_rt;
+				if (!strcmp(var.value, "disabled"))
+					setting_texture_inside_rt = (u8)GSTextureInRtMode::Disabled;
+				else if (!strcmp(var.value, "Inside Target"))
+					setting_texture_inside_rt = (u8)GSTextureInRtMode::InsideTargets;
+				else if (!strcmp(var.value, "Merge Targets"))
+					setting_texture_inside_rt = (u8)GSTextureInRtMode::MergeTargets;
+
+				if (first_run || setting_texture_inside_rt != texture_inside_rt_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_TextureInsideRt", setting_texture_inside_rt);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_disable_depth_conversion";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool disable_depth_conversion_prev = setting_disable_depth_conversion;
+				setting_disable_depth_conversion = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_disable_depth_conversion != disable_depth_conversion_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_DisableDepthSupport", setting_disable_depth_conversion);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_framebuffer_conversion";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool framebuffer_conversion_prev = setting_framebuffer_conversion;
+				setting_framebuffer_conversion = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_framebuffer_conversion != framebuffer_conversion_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_CPU_FB_Conversion", setting_framebuffer_conversion);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_disable_partial_invalidation";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool disable_partial_invalid_prev = setting_disable_partial_invalid;
+				setting_disable_partial_invalid = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_disable_partial_invalid != disable_partial_invalid_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_DisablePartialInvalidation", setting_disable_partial_invalid);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_gpu_palette_conversion";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool gpu_palette_conversion_prev = setting_gpu_palette_conversion;
+				setting_gpu_palette_conversion = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_gpu_palette_conversion != gpu_palette_conversion_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "paltex", setting_gpu_palette_conversion);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_preload_frame_data";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool preload_frame_data_prev = setting_preload_frame_data;
+				setting_preload_frame_data = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_preload_frame_data != preload_frame_data_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "preload_frame_with_gs_data", setting_preload_frame_data);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_half_pixel_offset";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				int half_pixel_offset_prev = setting_half_pixel_offset;
+				if (!strcmp(var.value, "disabled"))
+					setting_half_pixel_offset = GSHalfPixelOffset::Off;
+				else if (!strcmp(var.value, "Normal (Vertex)"))
+					setting_half_pixel_offset = GSHalfPixelOffset::Normal;
+				else if (!strcmp(var.value, "Special (Texture)"))
+					setting_half_pixel_offset = GSHalfPixelOffset::Special;
+				else if (!strcmp(var.value, "Special (Texture - Aggressive)"))
+					setting_half_pixel_offset = GSHalfPixelOffset::SpecialAggressive;
+				else if (!strcmp(var.value, "Align to Native"))
+					setting_half_pixel_offset = GSHalfPixelOffset::Native;
+
+				if (first_run || setting_half_pixel_offset != half_pixel_offset_prev)
+				{
+					s_settings_interface.SetIntValue("EmuCore/GS", "UserHacks_HalfPixelOffset", setting_half_pixel_offset);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_native_scaling";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				int native_scaling_prev = setting_native_scaling;
+				if (!strcmp(var.value, "disabled"))
+					setting_native_scaling = GSNativeScaling::NativeScaling_Off;
+				else if (!strcmp(var.value, "Normal"))
+					setting_native_scaling = GSNativeScaling::NativeScaling_Normal;
+				else if (!strcmp(var.value, "Aggressive"))
+					setting_native_scaling = GSNativeScaling::NativeScaling_Aggressive;
+
+				if (first_run || setting_native_scaling != native_scaling_prev)
+				{
+					s_settings_interface.SetIntValue("EmuCore/GS", "UserHacks_native_scaling", setting_native_scaling);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_round_sprite";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				u8 round_sprite_prev = setting_round_sprite;
+				if (!strcmp(var.value, "disabled"))
+					setting_round_sprite = 0;
+				else if (!strcmp(var.value, "Normal"))
+					setting_round_sprite = 1;
+				else if (!strcmp(var.value, "Aggressive"))
+					setting_round_sprite = 2;
+
+				if (first_run || setting_round_sprite != round_sprite_prev)
+				{
+					s_settings_interface.SetUIntValue("EmuCore/GS", "UserHacks_round_sprite_offset", setting_round_sprite);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_align_sprite";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool align_sprite_prev = setting_align_sprite;
+				setting_align_sprite = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_align_sprite != align_sprite_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_align_sprite_X", setting_align_sprite);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_merge_sprite";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool merge_sprite_prev = setting_merge_sprite;
+				setting_merge_sprite = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_merge_sprite != merge_sprite_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_merge_pp_sprite", setting_merge_sprite);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_unscaled_palette_draw";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool unscaled_palette_draw_prev = setting_unscaled_palette_draw;
+				setting_unscaled_palette_draw = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_unscaled_palette_draw != unscaled_palette_draw_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_NativePaletteDraw", setting_unscaled_palette_draw);
+					updated = true;
+				}
+			}
+
+			var.key = "pcsx2_force_sprite_position";
+			if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+			{
+				bool force_sprite_position_prev = setting_force_sprite_position;
+				setting_force_sprite_position = !strcmp(var.value, "enabled");
+
+				if (first_run || setting_force_sprite_position != force_sprite_position_prev)
+				{
+					s_settings_interface.SetBoolValue("EmuCore/GS", "UserHacks_ForceEvenSpritePosition", setting_force_sprite_position);
+					updated = true;
+				}
+			}
+		}
+	}
+
+	if (setting_plugin_type == PLUGIN_GSDX_SW)
+	{
+		var.key = "pcsx2_auto_flush_software";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			bool auto_flush_software_prev = setting_auto_flush_software;
+			setting_auto_flush_software = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_auto_flush_software != auto_flush_software_prev)
+			{
+				s_settings_interface.SetBoolValue("EmuCore/GS", "autoflush_sw", setting_auto_flush_software);
+				updated = true;
+			}
+		}
+	}
+
+	if (setting_plugin_type == PLUGIN_GSDX_HW || setting_plugin_type == PLUGIN_GSDX_SW)
+	{
+		var.key = "pcsx2_texture_filtering";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 texture_filtering_prev = setting_texture_filtering;
+			if (!strcmp(var.value, "Nearest"))
+				setting_texture_filtering = (u8)BiFiltering::Nearest;
+			else if (!strcmp(var.value, "Bilinear (Forced)"))
+				setting_texture_filtering = (u8)BiFiltering::Forced;
+			else if (!strcmp(var.value, "Bilinear (PS2)"))
+				setting_texture_filtering = (u8)BiFiltering::PS2;
+			else if (!strcmp(var.value, "Bilinear (Forced excluding sprite)"))
+				setting_texture_filtering = (u8)BiFiltering::Forced_But_Sprite;
+
+			if (first_run || setting_texture_filtering != texture_filtering_prev)
+			{
+				s_settings_interface.SetUIntValue("EmuCore/GS", "filter", setting_texture_filtering);
+				updated = true;
+			}
 		}
 	}
 

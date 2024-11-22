@@ -63,7 +63,12 @@ struct retro_core_option_v2_category option_cats_us[] = {
    {
       "emulation",
       "Emulation",
-      "Show emulation options"
+      "Show emulation options."
+   },
+   {
+      "hw_hacks",
+      "Manual Hardware Renderer Fixes",
+      "Show manual hardware renderer fixes."
    },
    {
       "input",
@@ -76,8 +81,8 @@ struct retro_core_option_v2_category option_cats_us[] = {
 struct retro_core_option_v2_definition option_defs_us[] = {
    {
       "pcsx2_bios",
+      "System > BIOS",
       "BIOS",
-      NULL,
       NULL,
       NULL,
       "system",
@@ -88,8 +93,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_fastboot",
+      "System > Fast Boot (Restart)",
       "Fast Boot (Restart)",
-      NULL,
       "Skips BIOS startup screen and boots straight to the game. Disable this if you want to access the PS2 system settings or access the Memory Card manager.",
       NULL,
       "system",
@@ -102,8 +107,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_fastcdvd",
+      "System > Fast CD/DVD Access (Restart)",
       "Fast CD/DVD Access (Restart)",
-      NULL,
       "Fast CD/DVD access/seek times. A small handful of games will have compatibility problems with this enabled.",
       NULL,
       "system",
@@ -116,8 +121,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_enable_cheats",
+      "System > Enable Cheats",
       "Enable Cheats",
-      NULL,
       "Enable cheat files to be read from the 'cheats' directory in the system folder.",
       NULL,
       "system",
@@ -130,8 +135,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_renderer",
+      "Video > Renderer",
       "Renderer",
-      NULL,
       NULL,
       NULL,
       "video",
@@ -155,55 +160,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "Auto"
    },
    {
-      "pcsx2_pgs_ssaa",
-      "paraLLEl super sampling",
-      NULL,
-      "Apply supersampled anti-aliasing (SSAA). Unlike straight upscaling, supersampling retains a coherent visual look where 3D elements have similar resolution as UI elements. For high-res scanout upscaling to work, you need at least '4x SSAA ordered' (or higher). Setting this to 'Native' disables super sampling.",
-      NULL,
-      "video",
-      {
-         { "Native", NULL },
-         { "2x SSAA", NULL },
-         { "4x SSAA (sparse grid)", NULL },
-         { "4x SSAA (ordered, can high-res)", NULL },
-         { "8x SSAA (can high-res)", NULL },
-         { "16x SSAA (can high-res)", NULL },
-         { NULL, NULL },
-      },
-      "Native"
-   },
-   {
-      "pcsx2_pgs_high_res_scanout",
-      "paraLLEl experimental High-res scanout (Restart)",
-      NULL,
-      "Allows upscaling with paraLLEl. Doesn't work with every game, some might require patches on top. Requires Supersampling to be set to at least 4x SSAA ordered or higher for it to work.",
-      NULL,
-      "video",
-      {
-         { "enabled", NULL },
-         { "disabled", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
-      "pcsx2_pgs_disable_mipmaps",
-      "Force Texture LOD0",
-      NULL,
-      "Disable this for traditional hardware mipmapping. Enabling this will bypass mipmapping and always use texture LOD0 instead. The result is better image quality. Only a small handful of games have graphics rendering issues with this enabled.",
-      NULL,
-      "video",
-      {
-         { "enabled", NULL },
-         { "disabled", NULL },
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
       "pcsx2_upscale_multiplier",
+      "Video > Internal Resolution (Restart)",
       "Internal Resolution (Restart)",
-      NULL,
       NULL,
       NULL,
       "video",
@@ -229,9 +188,55 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "1x Native (PS2)"
    },
    {
-      "pcsx2_deinterlace_mode",
-      "Deinterlacing",
+      "pcsx2_pgs_ssaa",
+      "Video > paraLLEl super sampling",
+      "paraLLEl super sampling",
+      "Apply supersampled anti-aliasing (SSAA). Unlike straight upscaling, supersampling retains a coherent visual look where 3D elements have similar resolution as UI elements. For high-res scanout upscaling to work, you need at least '4x SSAA ordered' (or higher). Setting this to 'Native' disables super sampling.",
       NULL,
+      "video",
+      {
+         { "Native", NULL },
+         { "2x SSAA", NULL },
+         { "4x SSAA (sparse grid)", NULL },
+         { "4x SSAA (ordered, can high-res)", NULL },
+         { "8x SSAA (can high-res)", NULL },
+         { "16x SSAA (can high-res)", NULL },
+         { NULL, NULL },
+      },
+      "Native"
+   },
+   {
+      "pcsx2_pgs_high_res_scanout",
+      "Video > paraLLEl experimental High-res scanout (Restart)",
+      "paraLLEl experimental High-res scanout (Restart)",
+      "Allows upscaling with paraLLEl. Doesn't work with every game, some might require patches on top. Requires Supersampling to be set to at least 4x SSAA ordered or higher for it to work.",
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_pgs_disable_mipmaps",
+      "Video > Force Texture LOD0",
+      "Force Texture LOD0",
+      "Disable this for traditional hardware mipmapping. Enabling this will bypass mipmapping and always use texture LOD0 instead. The result is better image quality. Only a small handful of games have graphics rendering issues with this enabled.",
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_deinterlace_mode",
+      "Video > Deinterlacing",
+      "Deinterlacing",
       "Select a deinterlacing method. Use 'Automatic' if unsure what to pick.",
       NULL,
       "video",
@@ -252,8 +257,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_nointerlacing_hint",
+      "Video > No interlacing hint (Restart)",
       "No interlacing hint (Restart)",
-      NULL,
       "If enabled, will look in the internal database if a patch is available for the game to turn the image into either a non-interlaced, full frame, or progressive scan video signal, and/or a combination of all the above. Image will be more stable and Deinterlacing can be turned off.",
       NULL,
       "video",
@@ -265,9 +270,92 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "enabled"
    },
    {
-      "pcsx2_pcrtc_antiblur",
-      "PCRTC Anti-Blur",
+      "pcsx2_texture_filtering",
+      "Video > Texture Filtering",
+      "Texture Filtering",
       NULL,
+      NULL,
+      "video",
+      {
+         { "Nearest", NULL },
+         { "Bilinear (Forced)", NULL },
+         { "Bilinear (PS2)", NULL },
+         { "Bilinear (Forced excluding sprite)", NULL },
+         { NULL, NULL },
+      },
+      "Bilinear (PS2)"
+   },
+   {
+      "pcsx2_trilinear_filtering",
+      "Video > Trilinear Filtering",
+      "Trilinear Filtering",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "Automatic", NULL },
+         { "disabled", NULL },
+         { "Trilinear (PS2)", NULL },
+         { "Trilinear (Forced)", NULL },
+         { NULL, NULL },
+      },
+      "Automatic"
+   },
+   {
+      "pcsx2_anisotropic_filtering",
+      "Video > Anisotropic Filtering",
+      "Anisotropic Filtering",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "2x", NULL },
+         { "4x", NULL },
+         { "8x", NULL },
+         { "16x", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_dithering",
+      "Video > Dithering",
+      "Dithering",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "Scaled", NULL },
+         { "Unscaled", NULL },
+         { "Force 32bit", NULL },
+         { NULL, NULL },
+      },
+      "Unscaled"
+   },
+   {
+      "pcsx2_blending_accuracy",
+      "Video > Blending Accuracy",
+      "Blending Accuracy",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "Minimum", NULL },
+         { "Basic", NULL },
+         { "Medium", NULL },
+         { "High", NULL },
+         { "Full", NULL },
+         { "Maximum", NULL },
+         { NULL, NULL },
+      },
+      "Basic"
+   },
+   {
+      "pcsx2_pcrtc_antiblur",
+      "Video > PCRTC Anti-Blur",
+      "PCRTC Anti-Blur",
       "Disable this for the most accurate output image. Enabling this will attempt to deblur the image. Most noticeable on software renderer and paraLLEl.",
       NULL,
       "video",
@@ -278,11 +366,53 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       },
       "enabled"
    },
+   {
+      "pcsx2_pcrtc_screen_offsets",
+      "Video > PCRTC Screen Offsets",
+      "PCRTC Screen Offsets",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_disable_interlace_offset",
+      "Video > Disable Interlace Offset",
+      "Disable Interlace Offset",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_auto_flush_software",
+      "Video > Auto Flush (Software)",
+      "Auto Flush (Software)",
+      NULL,
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
 #if 0
    {
       "pcsx2_sw_renderer_threads",
+      "Video > Software Renderer Threads",
       "Software Renderer Threads",
-      NULL,
       NULL,
       NULL,
       "video",
@@ -304,8 +434,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 #endif
    {
       "pcsx2_ee_cycle_rate",
+      "Emulation > EE Cycle Rate",
       "EE Cycle Rate",
-      NULL,
       NULL,
       NULL,
       "emulation",
@@ -323,8 +453,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_ee_cycle_skip",
+      "Emulation > EE Cycle Skipping",
       "EE Cycle Skipping",
-      NULL,
       NULL,
       NULL,
       "emulation",
@@ -338,9 +468,294 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
-      "pcsx2_axis_scale1",
-      "Port 1: Analog Sensitivity",
+      "pcsx2_enable_hw_hacks",
+      "HW Hacks > Enable Manual Hardware Renderer Fixes (Not Recommended)",
+      "Enable Manual Hardware Renderer Fixes (Not Recommended)",
+      "This will disable automatic settings from the database. Unless you know what you are doing it is NOT RECOMMENDED to turn this ON.",
       NULL,
+      "hw_hacks",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_cpu_sprite_size",
+      "HW Hacks > CPU Sprite Render Size",
+      "CPU Sprite Render Size",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "0", "disabled" },
+         { "1", "1 (64 Max Width)" },
+         { "2", "2 (128 Max Width)" },
+         { "3", "3 (192 Max Width)" },
+         { "4", "4 (256 Max Width)" },
+         { "5", "5 (320 Max Width)" },
+         { "6", "6 (384 Max Width)" },
+         { "7", "7 (448 Max Width)" },
+         { "8", "8 (512 Max Width)" },
+         { "9", "9 (576 Max Width)" },
+         { "10", "10 (640 Max Width)" },
+         { NULL, NULL },
+      },
+      "0"
+   },
+   {
+      "pcsx2_cpu_sprite_level",
+      "HW Hacks > CPU Sprite Render Level",
+      "CPU Sprite Render Level",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "Sprites Only", NULL },
+         { "Sprites/Triangles", NULL },
+         { "Blended Sprites/Triangles", NULL },
+         { NULL, NULL },
+      },
+      "Sprites Only"
+   },
+   {
+      "pcsx2_software_clut_render",
+      "HW Hacks > Software CLUT Render",
+      "Software CLUT Render",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Normal", NULL },
+         { "Aggressive", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_gpu_target_clut",
+      "HW Hacks > GPU Target CLUT",
+      "GPU Target CLUT",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Exact Match", NULL },
+         { "Check Inside Target", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_auto_flush",
+      "HW Hacks > Auto Flush",
+      "Auto Flush",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Sprites Only", NULL },
+         { "All Primitives", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_texture_inside_rt",
+      "HW Hacks > Texture Inside RT",
+      "Texture Inside RT",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Inside Target", NULL },
+         { "Merge Targets", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_disable_depth_conversion",
+      "HW Hacks > Disabled Depth Conversion",
+      "Disabled Depth Conversion",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_framebuffer_conversion",
+      "HW Hacks > Framebuffer Conversion",
+      "Framebuffer Conversion",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_disable_partial_invalidation",
+      "HW Hacks > Disable Partial Source Invalidation",
+      "Disable Partial Source Invalidation",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_gpu_palette_conversion",
+      "HW Hacks > GPU Palette Conversion",
+      "GPU Palette Conversion",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_preload_frame_data",
+      "HW Hacks > Preload Frame Data",
+      "Preload Frame Data",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_half_pixel_offset",
+      "HW Hacks > Half Pixel Offset",
+      "Half Pixel Offset",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Normal (Vertex)", NULL },
+         { "Special (Texture)", NULL },
+         { "Special (Texture - Aggressive)", NULL },
+         { "Align to Native", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_native_scaling",
+      "HW Hacks > Native Scaling",
+      "Native Scaling",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Normal", NULL },
+         { "Aggressive", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_round_sprite",
+      "HW Hacks > Round Sprite",
+      "Round Sprite",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "Half", NULL },
+         { "Full", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_align_sprite",
+      "HW Hacks > Align Sprite",
+      "Align Sprite",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_merge_sprite",
+      "HW Hacks > Merge Sprite",
+      "Merge Sprite",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_unscaled_palette_draw",
+      "HW Hacks > Unscaled Palette Texture Draws",
+      "Unscaled Palette Texture Draws",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_force_sprite_position",
+      "HW Hacks > Force Even Sprite Position",
+      "Force Even Sprite Position",
+      NULL,
+      NULL,
+      "hw_hacks",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_axis_scale1",
+      "Input > Port 1: Analog Sensitivity",
+      "Port 1: Analog Sensitivity",
       NULL,
       NULL,
       "input",
@@ -368,8 +783,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_axis_scale2",
+      "Input > Port 2: Analog Sensitivity",
       "Port 2: Analog Sensitivity",
-      NULL,
       NULL,
       NULL,
       "input",
