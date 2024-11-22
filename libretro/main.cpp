@@ -1377,6 +1377,31 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* God Hand (NTSC-U) [CRC: 6FB69282] */
+		else if (!strcmp(serial, "SLUS-21503"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=0,EE,002BE190,extended,24050000",
+				"patch=0,EE,002BE194,extended,24060050",
+				"patch=0,EE,2030CD10,extended,240E0070",
+				"patch=0,EE,2030CD8C,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* God of War II (NTSC-U) [CRC: 2F123FD8] */
+		else if (!strcmp(serial, "SCUS-97481"))
+		{
+			int i;
+			char *patches[] = {
+				/* default to progressive at first run */
+				"patch=1,EE,0025a608,word,a04986dc",
+				"patch=1,EE,001E45D4,word,24020001"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Gran Turismo 4 (NTSC-U) [CRC: 77E61C8A] */
 		else if (!strcmp(serial, "SCUS-97328"))
 		{
@@ -1409,24 +1434,28 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
-		/* Ico (PAL) [CRC: ] */
+		/* Ico (PAL) [CRC: 5C991F4E] */
 		else if (!strcmp(serial, "SCES-50760"))
 		{
 			/* Patch courtesy: agrippa */
 			int i;
 			char *patches[] = {
-				//set the back buffer
+				/* Set the back buffer */
 				"patch=1,EE,2028F500,extended,00001040",
 				"patch=1,EE,2028F528,extended,00001040",
-				//switch to the interlaced mode with FFMD set to 0. Progressive mode, applied by default,
-				//does add a black bar at the bottom in the NTSC mode when the back buffer is enabled
+				/* Switch to the interlaced mode with FFMD set to 0. 
+				 * Progressive mode, applied by default,
+				 * does add a black bar at the bottom in the NTSC mode 
+				 * when the back buffer is enabled */
 				"patch=1,EE,2028F4F8,extended,00000001",
 				"patch=1,EE,2028F520,extended,00000001",
-				//check if the PAL mode is turned on to extend the display buffer from 256 to 512
+				/* Check if the PAL mode is turned on to extend 
+				 * the display buffer from 256 to 512 */
 				"patch=1,EE,E0024290,extended,0028F508",
 				"patch=1,EE,2028F50C,extended,001FF9FF",
 				"patch=1,EE,2028F534,extended,001FF9FF",
-				//check if the NTSC mode is turned on to extend the display buffer from 224 to 448
+				/* Check if the NTSC mode is turned on to extend 
+				 * the display buffer from 224 to 448 */
 				"patch=1,EE,E002927C,extended,0028F508",
 				"patch=1,EE,2028F50C,extended,001DF9FF",
 				"patch=1,EE,2028F534,extended,001DF9FF"
@@ -1656,6 +1685,24 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Shaun Palmer's Pro Snowboarder (NTSC-U) [CRC: 3A8E10D7] */
+		else if (!strcmp(serial, "SLUS-20199"))
+		{
+			/* Patch courtesy: felixthechat1970 */
+			int i;
+			char *patches[] = {
+				/* test s.backbuffer - frame mode by felixthecat1970 */
+				/* menu is field render, use deinterlacing=auto */
+				"patch=0,EE,2012B6C4,extended,0000102D",
+				"patch=0,EE,2012B6E8,extended,00041803",
+				"patch=0,EE,2012B714,extended,0000502D",
+				"patch=0,EE,2012B730,extended,0000282D",
+				"patch=0,EE,2012B750,extended,00083003",
+				"patch=0,EE,2012B780,extended,0000502D"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Star Ocean: Til the End of Time (PAL) [CRC: E04EA200] */
 		else if (!strcmp(serial, "SLES-82028"))
 		{
@@ -1775,6 +1822,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				"patch=1,EE,E0020001,extended,0027E448",
 				"patch=1,EE,2027E448,extended,00500000",
 				"patch=1,EE,203F7330,extended,00500000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Urban Reign (NTSC-U) [CRC: BDD9BAAD] */
+		else if (!strcmp(serial, "SLUS-21209"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,201372e0,extended,0C04DCEC",
+				"patch=1,EE,201372e8,extended,0C04DCEC"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
