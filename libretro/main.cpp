@@ -1900,6 +1900,50 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Harry Potter and the Goblet of Fire (NTSC-U) [CRC: B38CC628] */
+		else if (    !strcmp(serial, "SLUS-21325")
+			  || !strcmp(serial, "SLES-53728")
+			  || !strcmp(serial, "SLES-53727")
+			  || !strcmp(serial, "SLES-53726")
+			)
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,002CF158,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Harry Potter - Quidditch World Cup (PAL) */
+		else if (!strcmp(serial, "SLES-51787"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,002ABD4C,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Harry Potter - Quidditch World Cup (NTSC-J) */
+		else if (!strcmp(serial, "SLPM-62408"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,002ABC04,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Harry Potter - Quidditch World Cup (NTSC-U) [CRC: 39E7ECF4] */
+		else if (!strcmp(serial, "SLUS-20769"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,002ABD7C,word,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Lara Croft Tomb Raider - Legend (NTSC-U) [CRC: BC8B3F50] */
 		else if (!strcmp(serial, "SLUS-21203"))
 		{
