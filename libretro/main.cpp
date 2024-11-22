@@ -1256,6 +1256,8 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 
 static void lrps2_ingame_patches(const char *serial, const char *renderer, bool nointerlacing_hint)
 {
+	struct retro_variable var;
+
 	log_cb(RETRO_LOG_INFO, "serial: %s\n", serial);
 
 	if (nointerlacing_hint)
@@ -1980,6 +1982,30 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			int i;
 			char *patches[] = {
 				"patch=1,EE,0025D19C,word,10000007"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+	}
+
+	var.key = "pcsx2_fastcdvd";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) 
+			&& var.value && !strcmp(var.value, "enabled"))
+	{
+		/* Shadow Man: 2econd Coming (NTSC-U) [CRC: 60AD8FA7] */
+		if (!strcmp(serial, "SLUS-20413"))
+		{
+			/* Only works with fastcdvd when enabling these patches */
+			int i;
+			char *patches[] = {
+				"patch=1,IOP,000884e8,word,34048800",
+				"patch=1,IOP,000884ec,word,34048800",
+				"patch=1,IOP,00088500,word,34048800",
+				"patch=1,IOP,0008850c,word,34048800",
+				"patch=1,IOP,000555e8,word,34048800",
+				"patch=1,IOP,000555ec,word,34048800",
+				"patch=1,IOP,00055600,word,34048800",
+				"patch=1,IOP,0005560c,word,34048800"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
