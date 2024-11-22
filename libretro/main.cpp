@@ -1966,6 +1966,26 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Jak II: Renegade (NTSC-U) [CRC: 9184AAF1] */
+		else if (!strcmp(serial, "SCUS-97265"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,005F8D08,word,10000016"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Jak III (NTSC-U) [CRC: 644CFD03] */
+		else if (!strcmp(serial, "SCUS-97330"))
+		{
+			int i;
+			char *patches[] = {
+				"patch=1,EE,0059F570,word,10000016"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Lara Croft Tomb Raider - Legend (NTSC-U) [CRC: BC8B3F50] */
 		else if (!strcmp(serial, "SLUS-21203"))
 		{
