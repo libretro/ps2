@@ -1893,6 +1893,28 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Ace Combat: Squadron Leader (PAL) [CRC: 1D54FEA9] */
+		else if (!strcmp(serial, "SCES-52424"))
+		{
+			int i;
+			char *patches[] = {
+				/* nop the addition of front buffer address */
+				"patch=1,EE,0032B0A8,word,00000000", /* 00A22825 */
+				/* set the SMODE2 register to FRAME mode */
+				"patch=1,EE,003311B8,word,00000000", /* 14400002 */
+				/* force the 448 height for GS_DISPLAY2 
+				 * register calculations (back buffer height is 448) */
+				"patch=1,EE,00331124,word,241200E0", /* 00079403 */
+				/* last minute lazy fix for stuttering FMVs. Game does 
+				 * render the prerecorded movies into the two interleaved 
+				 * buffers. We need to remove the first patch when the 
+				 * FMVs are played. */
+				"patch=1,EE,E0011400,extended,0059660C",
+				"patch=1,EE,2032B0A8,extended,00A22825"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Alpine Racer 3 (NTSC-J) [CRC: 771C3B47] */
 		else if (!strcmp(serial, "SLPS-20181"))
 		{
@@ -2688,6 +2710,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Destroy All Humans! (NTSC-U) [CRC: 67A29886] */
+		else if (!strcmp(serial, "SLUS-20945"))
+		{
+			/* 60fps uncapped. */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,203EF80C,extended,00000001"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Echo Night - Beyond (PAL) [CRC: BBF8C3D6] */
 		else if (!strcmp(serial, "SLES-53414"))
 		{
@@ -2697,6 +2730,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			char *patches[] = {
 				"patch=1,EE,E001001E,extended,0028A348",
 				"patch=1,EE,0028A348,extended,0000003C"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Grand Theft Auto III (NTSC-U) [CRC: 5E115FB6] */
+		else if (!strcmp(serial, "SLUS-20062"))
+		{
+			/* 60fps uncapped */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2027CEAC,extended,28420001" /* 60fps */
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
@@ -2726,6 +2770,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Jurassic: The Hunted (NTSC-U) [CRC:EFE4448F] */
+		else if (!strcmp(serial, "SLUS-21907"))
+		{
+			/* 60fps uncapped */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,2017D480,word,2C420001" /* 60fps */
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Lord of the Rings, Return of the King (NTSC-U) [CRC: 4CE187F6] */
 		else if (!strcmp(serial, "SLUS-20770"))
 		{
@@ -2733,6 +2788,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			int i;
 			char *patches[] = {
 				"patch=1,EE,2014B768,extended,10000013" /* 14400003 */
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Max Payne 2: The Fall of Max Payne (NTSC-U) [CRC: CD68E44A] */
+		else if (!strcmp(serial, "SLUS-20814"))
+		{
+			/* 60fps uncapped */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,005D8DF8,word,00000001"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
@@ -2799,6 +2865,28 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Red Faction (NTSC-U) [CRC: FBF28175] */
+		else if (!strcmp(serial, "SLUS-20073"))
+		{
+			/* 60fps uncapped */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,20164F9C,extended,24040001" /* 60fps */
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Red Faction II (NTSC-U) [CRC: 8E7FF6F8] */
+		else if (!strcmp(serial, "SLUS-20442"))
+		{
+			/* 60fps uncapped */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,201218A0,word,24040001" /* 60fps */
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Return to Castle Wolfenstein: Operation Resurrection (NTSC-U) [CRC: 5F4DB1DD] */
 		else if (!strcmp(serial, "SLUS-20297"))
 		{
@@ -2811,6 +2899,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
 		}
+		/* Serious Sam - Next Encounter (NTSC-U) [CRC: 155466E8] */
+		else if (!strcmp(serial, "SLUS-20907"))
+		{
+			/* Patch courtesy: asasega */
+			/* 60fps uncapped */
+			int i;
+			char *patches[] = {
+				"patch=0,EE,20127580,extended,00000000"
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
 		/* Summoner 2 (NTSC-U) [CRC: 93551583] */
 		else if (!strcmp(serial, "SLUS-20448"))
 		{
@@ -2819,6 +2919,22 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			int i;
 			char *patches[] = {
 				"patch=0,EE,2017BC34,word,24040001" /* 60fps */
+			};
+			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+				LoadPatchesFromString(std::string(patches[i]));
+		}
+		/* Super Monkey Ball Deluxe (NTSC-U) [CRC: 43B1CD7F] */
+		else if (!strcmp(serial, "SLUS-20918"))
+		{
+			/* Patch courtesy: gamehacking.org, by Josh_7774, & Gabominated, PCSX2 forum */
+			/* 60fps uncapped. Breaks Golf & Tennis. */
+			int i;
+			char *patches[] = {
+				"patch=1,EE,20146D04,extended,24020001",
+				/* Following patches fixes FMVs */
+				"patch=1,EE,004C318C,extended,00000001", 
+				"patch=1,EE,E0010001,extended,00473478",
+				"patch=1,EE,204C318C,extended,00000002"
 			};
 			for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 				LoadPatchesFromString(std::string(patches[i]));
