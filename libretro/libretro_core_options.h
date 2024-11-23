@@ -468,6 +468,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_game_enhancements_hint",
+      "Emulation > Game Enhancements hint (Restart)",
+      "Game Enhancements hint (Restart)",
+      "Applies game-specific enhancements if patches for the game can be found inside the internal database. Examples of enhancements: LOD [Level of Detail] enhancements, better draw distance, ability to skip FMVs, etc.",
+      NULL,
+      "emulation",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_uncapped_framerate_hint",
       "Emulation > Uncapped Framerate hint (Restart)",
       "Uncapped Framerate hint (Restart)",
