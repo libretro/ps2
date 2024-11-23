@@ -2959,7 +2959,6 @@ SCED-51700:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCED-51728:
   name: "EverQuest - Online Adventures [Demo]"
   region: "PAL-E"
@@ -4763,7 +4762,6 @@ SCES-51608:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCES-51610:
   name: "This is Football 2004 [Red Devils 2004]"
   region: "PAL-BE"
@@ -6464,7 +6462,6 @@ SCKA-20010:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCKA-20011:
   name: "Ratchet & Clank 2"
   region: "NTSC-K"
@@ -10017,7 +10014,6 @@ SCUS-97265:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97266:
   name: "Final Fantasy XI [Disc 1 of 2]"
   region: "NTSC-U"
@@ -10057,7 +10053,6 @@ SCUS-97273:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97274:
   name: "Jak II [Video Demo]"
   region: "NTSC-U"
@@ -10067,7 +10062,6 @@ SCUS-97274:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97275:
   name: "SOCOM II - U.S. Navy SEALs"
   region: "NTSC-U"
@@ -10950,7 +10944,6 @@ SCUS-97509:
     cpuSpriteRenderBW: 4 # Fixes character and water textures.
     cpuSpriteRenderLevel: 2 # Needed for above.
     autoFlush: 2 # Fixes lighting.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SCUS-97510:
   name: "ATV Offroad Fury 2 [Greatest Hits]"
   region: "NTSC-U"
@@ -12491,7 +12484,6 @@ SLED-54022:
     minimumBlendingLevel: 4 # Fixes multiple lighting effects from lights, computers, cave walls and more.
     nativeScaling: 1 # Fixes post processing.
     halfPixelOffset: 4 # Fixes offset post processing.
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLED-54032:
   name: "Sonic Riders [Demo]"
   region: "PAL-E"
@@ -12881,13 +12873,9 @@ SLES-50126:
   name: "Quake III - Revolution"
   region: "PAL-M3"
   compat: 5
-  gsHWFixes:
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-50127:
   name: "Quake III - Revolution"
   region: "PAL-E"
-  gsHWFixes:
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-50128:
   name: "Knockout Kings 2001"
   region: "PAL-E"
@@ -17181,8 +17169,6 @@ SLES-51958:
   name: "Whiplash"
   region: "PAL-M5"
   compat: 5
-  gsHWFixes:
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLES-51959:
   name: "Football Generation"
   region: "PAL-M5"
@@ -53343,8 +53329,6 @@ SLUS-20684:
   name: "Whiplash"
   region: "NTSC-U"
   compat: 5
-  gsHWFixes:
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-20685:
   name: "Ape Escape 2"
   region: "NTSC-U"
@@ -60943,8 +60927,6 @@ SLUS-29079:
 SLUS-29080:
   name: "Whiplash [Demo]"
   region: "NTSC-U"
-  gsHWFixes:
-    mipmap: 2 # All Levels - Unclamped breaks LODs
 SLUS-29081:
   name: "Metal Arms - Glitch in the System [Demo]"
   region: "NTSC-U"
