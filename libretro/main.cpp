@@ -2760,8 +2760,35 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 	{
 		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
+			/* Burnout 3: Takedown (NTSC-U) [CRC: D224D348] */
+			if (!strcmp(serial, "SLUS-21050"))
+			{
+				int i;
+				char *patches[] = {
+					/* Enable props in Road Rage mode */
+					"patch=0,EE,201B9F60,extended,00000000",
+					"patch=0,EE,202F9A44,extended,00000000",
+					/* Unlimited explosions (also affects crash mode) */
+					"patch=0,EE,201BBA08,extended,00000000",
+					/* Render extra particles while driving */
+					"patch=0,EE,20261EB8,extended,24040001",
+					/* Use 255 colors in garage. 
+					 * (Doesn't jump to 254 after the 8th color.) */
+					"patch=1,EE,2042BCE8,extended,70A028E8",
+					/* bypass PVS/force render all immediate units */
+					"patch=1,EE,20301EAC,extended,00000000",
+					/* Force specific LOD */
+					"patch=0,EE,00151ABF,extended,00000010",
+					/* Last digit is LOD level, 
+					 * 0, 1, 2, 3, and 4 (4 being the most detailed iirc) */
+					"patch=0,EE,20151B78,extended,24070004",
+					"patch=0,EE,20261E6C,extended,24120001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Burnout Revenge (NTSC-U) [CRC: D224D348] */
-			if (!strcmp(serial, "SLUS-21242"))
+			else if (!strcmp(serial, "SLUS-21242"))
 			{
 				int i;
 				char *patches[] = {
@@ -2779,6 +2806,30 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					/* Falling car parts while driving 
 					 * (takedowns and traffic checks) */
 					"patch=0,EE,20210FA8,extended,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Dynasty Warriors 4 (NTSC-U) [CRC: 6C89132B] [UNDUB] [CRC: 6C881C2B] */
+			else if (!strcmp(serial, "SLUS-20653"))
+			{
+				int i;
+				char *patches[] = {
+					/* Disable Distance Based Model Disappearing */
+					"patch=1,EE,001ce0d0,word,00000000",
+					/* High LOD */
+					"patch=1,EE,0018C8d0,word,00000000",
+					"patch=1,EE,0018CE9C,word,00000000",
+					/* Skip Events with X Button (DUELS ACCEPT IS SQUARE) */
+					"patch=1,EE,0020BB98,word,24034008",
+					"patch=1,EE,0020BA94,word,30638000",
+					/* FMV Skip with X button */
+					"patch=1,EE,002100A4,word,30424008",
+					/* Able to Skip Koei Logo */
+					"patch=1,EE,00362CEC,word,00210090",
+					/* Increase default of 24 max units 
+					 * rendered at the same time to 26. */
+					"patch=1,EE,001CDFB0,word,2403001a"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2941,6 +2992,26 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Burnout 3: Takedown (NTSC-U) [CRC: D224D348] */
+			else if (!strcmp(serial, "SLUS-21050"))
+			{
+				int i;
+				char *patches[] = {
+					/* Fix FMVs playback speed while using 60 FPS patches */
+					"patch=0,EE,201D3F2C,extended,1000000A",
+					"patch=0,EE,20130DD8,extended,C7958074",
+					"patch=0,EE,20130DDC,extended,3C084000",
+					"patch=0,EE,20130DE0,extended,4488A000",
+					"patch=0,EE,20130DE4,extended,4614AD03",
+					"patch=0,EE,20130DE8,extended,00000000",
+
+					"patch=0,EE,201320D8,extended,1000004B",
+
+					"patch=0,EE,20437758,extended,100000F1"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Burnout Revenge (NTSC-U) [CRC: D224D348] */
 			else if (!strcmp(serial, "SLUS-21242"))
 			{
@@ -2976,6 +3047,21 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0027F154,word,10400012"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Dawn of Mana (NTSC-U) [CRC: 9DC6EE5A] */
+			else if (!strcmp(serial, "SLUS-21574"))
+			{
+				/* 60fps uncapped. */
+				int i;
+				char *patches[] = {
+					/* 28620002 fps without doubling speed */
+					"patch=1,EE,20113010,extended,28620001",
+					/* condition to avoid hang and skip FMVs */
+					"patch=1,EE,E0010001,extended,005D7338", 
+					"patch=1,EE,20113010,extended,28620002"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
