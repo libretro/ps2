@@ -2772,7 +2772,20 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 
 	if (setting_game_enhancements_hint)
 	{
-		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
+		if (!strncmp("SCUS-", serial, strlen("SCUS-")))
+		{
+			/* Downhill Domination (NTSC-U) [CRC: 5AE01D98] */
+			if (!strcmp(serial, "SCUS-97177"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0029DAA8,word,00000000" /* Max LOD Distance */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
 			/* Burnout 3: Takedown (NTSC-U) [CRC: D224D348] */
 			if (!strcmp(serial, "SLUS-21050"))
