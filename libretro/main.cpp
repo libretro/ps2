@@ -2192,6 +2192,7 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 			else if (!strcmp(serial, "SLUS-21059")) 
 			{
 				/* Patch courtesy: felixthecat1970 */
+				/* TODO/FIXME - decouple widescreen */
 				int i;
 				char *patches[] = {
 					"patch=0,EE,00D05EC8,extended,24050000",
@@ -2394,6 +2395,19 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					/* NOP the switch to the front buffer 
 					 * A full height back buffer enabled, 
 					 * instead of a downsampled front buffer. */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Resident Evil - Dead Aim (PAL) [CRC: F79AF536] */
+			else if (!strcmp(serial, "SLES-51448")) 
+			{
+				/* Patch courtesy: dante3732 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2028AB88,extended,00000050",
+					"patch=1,EE,2028AB94,extended,000001E0",
+					"patch=1,EE,2028ABA4,extended,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
