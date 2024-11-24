@@ -2854,6 +2854,18 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Gran Turismo 4 (NTSC-U) [CRC: 77E61C8A] */
+			else if (!strcmp(serial, "SCUS-97328"))
+			{
+				int i;
+				char *patches[] = {
+					/* Max LOD cars */
+					"patch=1,EE,204539C0,extended,10000009",
+					"patch=1,EE,20454FBC,extended,1000000E"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 		}
 		else if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
@@ -2952,18 +2964,6 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					/* Increases default of 24 maximum units 
 					 * rendered at the same time to 28. */
 					"patch=1,EE,001cbd34,word,2402001c"
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-			}
-			/* Gran Turismo 4 (NTSC-U) [CRC: 77E61C8A] */
-			else if (!strcmp(serial, "SCUS-97328"))
-			{
-				int i;
-				char *patches[] = {
-					/* Max LOD cars */
-					"patch=1,EE,204539C0,extended,10000009",
-					"patch=1,EE,20454FBC,extended,1000000E"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3775,6 +3775,61 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Ridge Racer V (NTSC-U) [CRC: 06AD9CA0] */
+			else if (!strcmp(serial, "SLUS-20002"))
+			{
+				/* Patch courtesy: No.47 */
+				int i;
+				char *patches[] = {
+					/* single player */
+					"patch=1,EE,20332694,word,43C6C000", /* 44048000 - both fov, bumper camera */
+					"patch=1,EE,203326B4,word,43C6C000", /* chase cam - 44048000 - both fov, chase camera (*) */
+					"patch=1,EE,20332EC4,word,3F1D0364", /* 3EEB851F - vertical FOV */
+
+/* split screen */
+					"patch=1,EE,20332690,word,43951000", /* 43C6C000 - both FOV */
+					"patch=1,EE,20332ED0,word,3F1D0364", /* 3EEB851F - vert FOV, top */
+					"patch=1,EE,20332ED4,word,3F1D0364", /* 3EEB851F - vert FOV, bottom */
+
+					/* menu */
+					"patch=1,EE,20332F80,word,3F199999", /* 3F4CCCCD - horizontal FOV */
+					/* (*) improved chase cam that shows the whole car as 
+					 * in other Ridge Racer games, instead of only the 
+					 * upper half */
+					/* (*) replace 43960000 by 43C6C000 for the 
+					 * original chase cam */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Rumble Roses (NTSC-U) [CRC: C1C91715] */
+			else if (!strcmp(serial, "SLUS-20970"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00103fa4,word,3c013f40",
+					"patch=1,EE,00103fa8,word,44810000",
+					"patch=1,EE,00103fb0,word,4600c602",
+					/* Font fix */
+					"patch=1,EE,00305bbc,word,3c033f53", /* 3c033f8c */
+					"patch=1,EE,00305bc0,word,34633333" /* 3463cccd */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Street Fighter EX3 (NTSC-U) [CRC: 72B3802A] */
+			else if (!strcmp(serial, "SLUS-201301")) 
+			{
+				/* Patch courtesy: paul_met */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002e34d4,word,3c013f40",
+					"patch=1,EE,002e34d8,word,44810000",
+					"patch=1,EE,002e34e0,word,4600c602"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Tekken Tag Tournament (NTSC-U) [CRC: 67454C1E] */
 			else if (!strcmp(serial, "SLUS-20001")) 
 			{
@@ -3784,6 +3839,49 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					"patch=0,EE,2034b014,extended,3c013f40",
 					"patch=0,EE,2034b018,extended,44810000",
 					"patch=0,EE,2034b020,extended,4600c602"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Tekken 4 (NTSC-U) [CRC: 833FE0A4] */
+			else if (!strcmp(serial, "SLUS-20328")) 
+			{
+				int i;
+				char *patches[] = {
+					/* EE patch */
+					"patch=1,EE,002917E4,word,24020001",
+					"patch=1,EE,002919E4,word,00000000",
+					/* Gameplay */
+					"patch=1,EE,00216EA0,word,3c013f40",
+					/* Partial HUD fix */
+					"patch=1,EE,001F6BF8,word,3C013F40",
+					/* rfix 1 */
+					"patch=1,EE,0018D408,word,3c0143d5",
+					/* rfix 2 */
+					"patch=1,EE,00200d84,word,3c013f40",
+					"patch=1,EE,00200d88,word,44810000",
+					"patch=1,EE,00200d94,word,46006303"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Tekken 5 (NTSC-U) [CRC: 652050D2] */
+			else if (!strcmp(serial, "SLUS-21059")) 
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,E0048870,extended,01FFEF20",
+					"patch=1,EE,D03E453A,extended,0100",
+					"patch=1,EE,0032B448,extended,40",
+					"patch=1,EE,D03E453A,extended,0000",
+					"patch=1,EE,0032B448,extended,80",
+
+					"patch=1,EE,E0052C70,extended,01FFEF20",
+					"patch=1,EE,2022E8FC,extended,000D6C3A",
+					"patch=1,EE,2022E50C,extended,000E743A",
+					"patch=1,EE,2021C9C0,extended,3C013F40",
+					"patch=1,EE,2021C9CC,extended,4481F000",
+					"patch=1,EE,2021C9D0,extended,461EBDC3"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3801,6 +3899,37 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					"patch=1,EE,001E45B8,word,00000000",
 					"patch=0,EE,0027894C,word,3c013fe3",
 					"patch=0,EE,00278950,word,34218e39"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
+		{
+			/* Sega Rally 2006 (NTSC-J) [CRC: B26172F0] */
+			if (!strcmp(serial, "SLPM-66212"))
+			{
+				/* Patch courtesy: VIRGIN KLM */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,20383AF8,word,3FC71C71",
+					"patch=1,EE,20356EA0,word,3FC71C71",
+					"patch=1,EE,20356EC0,word,3FC71C71",
+					"patch=1,EE,2038445C,word,00000001",
+					"patch=1,EE,20383C3C,word,3FC00000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SLPS-", serial, strlen("SLPS-")))
+		{
+			/* Simple 2000 Series Vol. 101 - The Oneechanpon (NTSC-J) [CRC: C5B75C7C] */
+			if (!strcmp(serial, "SLPM-66212"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,20495104,extended,3F400000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
