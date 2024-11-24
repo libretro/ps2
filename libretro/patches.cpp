@@ -760,6 +760,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Harry Potter and the Goblet of Fire (NTSC-U) [CRC: B38CC628] */
+			else if (!strcmp(serial, "SLUS-21325"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002CF158,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Lara Croft Tomb Raider - Legend (NTSC-U) [CRC: BC8B3F50] */
 			else if (!strcmp(serial, "SLUS-21203"))
 			{
@@ -796,16 +806,6 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0025D19C,word,10000007"
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-			}
-			/* Harry Potter and the Goblet of Fire (NTSC-U) [CRC: B38CC628] */
-			else if (!strcmp(serial, "SLUS-21325"))
-			{
-				int i;
-				char *patches[] = {
-					"patch=1,EE,002CF158,word,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -900,6 +900,26 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Quake III - Revolution (PAL) [CRC: ] */
+			else if (!strcmp(serial, "SLES-50126"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002D0320,word,27BDFF40"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Quake III - Revolution (PAL) [CRC: ] */
+			else if (!strcmp(serial, "SLES-50127"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002D0328,word,27BDFF40"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
@@ -922,6 +942,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,002581d8,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Quake III - Revolution (NTSC-J) [CRC: ] */
+			else if (!strcmp(serial, "SLPS-20108"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002D2F70,word,27BDFF40"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1014,13 +1044,26 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 		}
 		else if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
+			/* Bloody Roar 3 (NTSC-U) [CRC: AA4E5A35] */
+			if (!strcmp(serial, "SLUS-20212"))
+			{
+				int i;
+				char *patches[] = {
+					/* Restore the blood effects intensity 
+					 * (just like the Japanese version) */
+					"patch=1,EE,0012d638,word,24040080",
+					"patch=1,EE,001bb2cc,word,24020080"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Burnout 3: Takedown (NTSC-U) [CRC: D224D348] */
-			if (!strcmp(serial, "SLUS-21050"))
+			else if (!strcmp(serial, "SLUS-21050"))
 			{
 				int i;
 				char *patches[] = {
 					/* Enable props in Road Rage mode */
-					"patch=0,EE,201B9F60,extended,00000000",
+					"patch=0,EE,200B9F60,extended,00000000",
 					"patch=0,EE,202F9A44,extended,00000000",
 					/* Unlimited explosions (also affects crash mode) */
 					"patch=0,EE,201BBA08,extended,00000000",
@@ -1156,6 +1199,21 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					"patch=1,EE,00577030,extended,0000002F",
 					"patch=1,EE,2055C344,extended,6E656D2F",
 					"patch=1,EE,2055C348,extended,73252F75"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Tokyo Xtreme Racer 3 (NTSC-U) [CRC: 0F932D81] */
+			else if (!strcmp(serial, "SLUS-20831"))
+			{
+				int i;
+				char *patches[] = {
+					/* Increase draw distance code Conquest */
+					"patch=1,EE,00889E4A,word,00004E20",
+					/* Increase draw distance code Other Modes */
+					"patch=1,EE,00873F2A,word,00004E20",
+					/* Increase draw distance code Rival Battle */
+					"patch=1,EE,0088020A,word,00004E20"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
