@@ -3,6 +3,7 @@ add_library(pcsx2_libretro SHARED)
 
 target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/main.cpp
+   ${CMAKE_SOURCE_DIR}/libretro/patches.cpp
    ${CMAKE_SOURCE_DIR}/libretro/DEV9.cpp
    ${CMAKE_SOURCE_DIR}/libretro/USB.cpp
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/compat/compat_strl.c
