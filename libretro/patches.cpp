@@ -390,6 +390,28 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Virtua Fighter 4 - Evolution (NTSC-U) [CRC: C9DEF513] */
+			else if (!strcmp(serial, "SLUS-20616")) 
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,E0054470,extended,01FFFF20",
+
+					"patch=1,EE,203A798C,extended,0000182D",
+					"patch=1,EE,00532120,extended,00000050",
+					"patch=1,EE,203A7624,extended,00A32825",
+					"patch=1,EE,203A76C8,extended,00A32825",
+					"patch=1,EE,103A8220,extended,2484013A", /* 2484013A */
+					"patch=1,EE,E0050E70,extended,01FFFF20", /* Virtua Fighter: 10th Anniversary Edition */
+					"patch=1,EE,203A509C,extended,0000182D",
+					"patch=1,EE,0052F1D0,extended,00000050",
+					"patch=1,EE,203A4D34,extended,00A32825",
+					"patch=1,EE,203A4DD8,extended,00A32825",
+					"patch=1,EE,103A5930,extended,2484013A"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Whiplash (NTSC-U) [CRC: 4D22DB95] */
 			else if (!strcmp(serial, "SLUS-20684"))
 			{
@@ -1063,7 +1085,7 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					/* Enable props in Road Rage mode */
-					"patch=0,EE,200B9F60,extended,00000000",
+					"patch=0,EE,201B9F60,extended,00000000",
 					"patch=0,EE,202F9A44,extended,00000000",
 					/* Unlimited explosions (also affects crash mode) */
 					"patch=0,EE,201BBA08,extended,00000000",
@@ -2001,6 +2023,18 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Auto Modellista (NTSC-U) [CRC: 6D76177B] */
+			else if (!strcmp(serial, "SLUS-20642"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0039b80c,word,3fe38e38",
+					"patch=1,EE,0022be20,word,3c023fe3",
+					"patch=1,EE,0022be28,word,34428e38"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Need For Speed Underground 2 (NTSC-U) [CRC: F5C7B45F] */
 			else if (!strcmp(serial, "SLUS-21065"))
 			{
@@ -2184,6 +2218,19 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					"patch=1,EE,2021C9C0,extended,3C013F40",
 					"patch=1,EE,2021C9CC,extended,4481F000",
 					"patch=1,EE,2021C9D0,extended,461EBDC3"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Virtua Fighter 4 - Evolution (NTSC-U) [CRC: C9DEF513] */
+			else if (!strcmp(serial, "SLUS-20616")) 
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,003AAA74,word,3C194455", /* 3C034420 HOR FOV */
+					"patch=0,EE,003AAA7C,word,37395555", /* 44830800 HOR FOV */
+					"patch=0,EE,003AAA94,word,44990800", /* 00000000 */
+					"patch=0,EE,00217B48,word,3C024456", /* 3C024420 RENDERFIX */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
