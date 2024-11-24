@@ -1,3 +1,4 @@
+#include <cstring>
 #include <libretro.h>
 #include "pcsx2/Patch.h"
 
