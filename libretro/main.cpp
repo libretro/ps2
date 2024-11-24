@@ -2774,8 +2774,29 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 	{
 		if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
+			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
+			if (!strcmp(serial, "SCUS-97111"))
+			{
+				int i;
+				char *patches[] = {
+					/* CNP Draw Distance */
+					"patch=1,EE,00156554,word,00000000",
+					"patch=1,EE,00156678,word,3C1943C0",
+					"patch=1,EE,00156684,word,AC990CEC",
+					"patch=1,EE,001729DC,word,00000000",
+					"patch=1,EE,00155FF0,word,00000000",
+					/* LOD Distance */
+					"patch=1,EE,00157364,word,10000006",
+					/* Shade */
+					"patch=1,EE,001A3E80,word,C6800004",
+					/* Additional Shade */
+					"patch=1,EE,001A3D80,word,C6800004"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Downhill Domination (NTSC-U) [CRC: 5AE01D98] */
-			if (!strcmp(serial, "SCUS-97177"))
+			else if (!strcmp(serial, "SCUS-97177"))
 			{
 				int i;
 				char *patches[] = {
@@ -2898,6 +2919,22 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* SSX3 (NTSC-U) [CRC: 08FFF00D] */
+			else if (!strcmp(serial, "SLUS-20772"))
+			{
+				int i;
+				char *patches[] = {
+					/* Disable intro videos (ea / thx / splash) */
+					"patch=0,EE,001A2840,word,0000202D",
+					"patch=0,EE,001A2864,word,0000202D",
+					"patch=0,EE,001A28DC,word,0000202D",
+					/* Disable perf frame skip (metro slowdown) */
+					"patch=0,EE,00230704,word,00000000",
+					"patch=0,EE,00230710,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 		}
 		else if (!strncmp("SCPS-", serial, strlen("SCPS-")))
 		{
@@ -2964,6 +3001,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 					/* Fix FMV */
 					"patch=1,EE,e0010001,extended,0058EEF4",
 					"patch=1,EE,205F9808,extended,00000002"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Aeon Flux (NTSC-U) [CRC: 9FA0A1B0] */
+			else if (!strcmp(serial, "SLUS-21205"))
+			{
+				/* 60fps uncapped. Need EE Overclock at 300%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2036C438,extended,28630001"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3392,6 +3440,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Scarface - The World is Yours (NTSC-U) [CRC: 41F4A178] */
+			else if (!strcmp(serial, "SLUS-21111"))
+			{
+				/* 60fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,20DAFABC,word,00000000" /* 00000001 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Serious Sam - Next Encounter (NTSC-U) [CRC: 155466E8] */
 			else if (!strcmp(serial, "SLUS-20907"))
 			{
@@ -3514,8 +3573,19 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 		}
 		else if (!strncmp("SLES-", serial, strlen("SLES-")))
 		{
+			/* Aeon Flux (PAL-M) [CRC: 761CABB3] */
+			if (!strcmp(serial, "SLES-54169"))
+			{
+				/* 50fps uncapped. Need EE Overclock at 300%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00362EB8,word,28630001" /* 28630002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dark Angel (PAL) [CRC: 5BE3F481] */
-			if (!strcmp(serial, "SLES-53414"))
+			else if (!strcmp(serial, "SLES-53414"))
 			{
 				/* Patch courtesy: PeterDelta */
 				/* Uncapped. Need EE Overclock at 130% */
@@ -3585,6 +3655,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				int i;
 				char *patches[] = {
 					"patch=1,EE,001307AC,extended,28420001" /* 28420002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Scarface - The World is Yours (NTSC-U) [CRC: 41F4A178] */
+			else if (!strcmp(serial, "SLES-54182"))
+			{
+				/* 50fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00DAFCBC,word,00000000" /* 00000001 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
