@@ -353,6 +353,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "Basic"
    },
    {
+      "pcsx2_widescreen_hint",
+      "Video > Widescreen hint (Restart)",
+      "Widescreen hint (Restart)",
+      "Applies a widescreen patch if a patch for the game can be found inside the internal database.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled (16:9)", NULL },
+         { "enabled (16:10)", NULL },
+         { "enabled (32:9)", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_pcrtc_antiblur",
       "Video > PCRTC Anti-Blur",
       "PCRTC Anti-Blur",

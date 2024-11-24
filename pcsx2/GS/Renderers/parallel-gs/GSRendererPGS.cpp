@@ -464,6 +464,8 @@ int GSRendererPGS::Defrost(freezeData* data)
 	return 0;
 }
 
+extern s8 setting_hint_widescreen;
+
 void GSRendererPGS::VSync(u32 field, bool registers_written)
 {
 	iface.flush();
@@ -535,7 +537,22 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 				geom_changed     = true;
 				geom.base_height = new_base_height;
 			}
-			geom.aspect_ratio = 4.0f / 3.0f; // TODO: Missing widescreen option.
+
+			switch (setting_hint_widescreen)
+			{
+				case 0:
+					geom.aspect_ratio = 4.0f / 3.0f;
+					break;
+				case 1:
+					geom.aspect_ratio = 16.0f / 9.0f;
+					break;
+				case 2:
+					geom.aspect_ratio = 16.0f / 10.0f;
+					break;
+				case 3:
+					geom.aspect_ratio = 32.0f / 9.0f;
+					break;
+			}
 			float horizontal_scanout_ratio = float(vsync.internal_width) / float(vsync.mode_width);
 			float vertical_scanout_ratio = float(vsync.internal_height) / float(vsync.mode_height);
 			geom.aspect_ratio *= horizontal_scanout_ratio / vertical_scanout_ratio;

@@ -116,8 +116,9 @@ static u8 setting_round_sprite                 = 0;
 static u8 setting_texture_inside_rt            = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
-static s8 setting_game_enhancements_hint       = 0;
-static s8 setting_uncapped_framerate_hint      = 0;
+s8 setting_hint_widescreen                     = 0;
+static s8 setting_hint_game_enhancements       = 0;
+static s8 setting_hint_uncapped_framerate      = 0;
 static s8 setting_trilinear_filtering          = 0;
 static bool setting_hint_nointerlacing         = false;
 static bool setting_pcrtc_antiblur             = false;
@@ -993,29 +994,51 @@ static void check_variables(bool first_run)
 		}
 	}
 
+	var.key = "pcsx2_widescreen_hint";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		s8 setting_hint_widescreen_prev = setting_hint_widescreen;
+		if (!strcmp(var.value, "disabled"))
+			setting_hint_widescreen = 0;
+		else if (!strcmp(var.value, "enabled (16:9)"))
+			setting_hint_widescreen = 1;
+		else if (!strcmp(var.value, "enabled (16:10)"))
+			setting_hint_widescreen = 2;
+		else if (!strcmp(var.value, "enabled (21:9)"))
+			setting_hint_widescreen = 3;
+
+		if (setting_hint_widescreen != setting_hint_widescreen_prev)
+		{
+			retro_system_av_info av_info;
+			updated = true;
+			retro_get_system_av_info(&av_info);
+			environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av_info.geometry);
+		}
+	}
+
 	var.key = "pcsx2_uncapped_framerate_hint";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		u8 uncapped_framerate_hint_prev = setting_uncapped_framerate_hint;
+		u8 uncapped_framerate_hint_prev = setting_hint_uncapped_framerate;
 		if (!strcmp(var.value, "disabled"))
-			setting_uncapped_framerate_hint = 0;
+			setting_hint_uncapped_framerate = 0;
 		else if (!strcmp(var.value, "enabled"))
-			setting_uncapped_framerate_hint = 1;
+			setting_hint_uncapped_framerate = 1;
 
-		if (setting_uncapped_framerate_hint != uncapped_framerate_hint_prev)
+		if (setting_hint_uncapped_framerate != uncapped_framerate_hint_prev)
 			updated = true;
 	}
 
 	var.key = "pcsx2_game_enhancements_hint";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		u8 game_enhancements_hint_prev = setting_game_enhancements_hint;
+		u8 game_enhancements_hint_prev = setting_hint_game_enhancements;
 		if (!strcmp(var.value, "disabled"))
-			setting_game_enhancements_hint = 0;
+			setting_hint_game_enhancements = 0;
 		else if (!strcmp(var.value, "enabled"))
-			setting_game_enhancements_hint = 1;
+			setting_hint_game_enhancements = 1;
 
-		if (setting_game_enhancements_hint != game_enhancements_hint_prev)
+		if (setting_hint_game_enhancements != game_enhancements_hint_prev)
 			updated = true;
 	}
 
@@ -1233,7 +1256,22 @@ void retro_get_system_av_info(retro_system_av_info* info)
 		info->geometry.max_height *= 2;
 	}
 
-	info->geometry.aspect_ratio = 4.0f / 3.0f;
+	switch (setting_hint_widescreen)
+	{
+		case 1:
+			info->geometry.aspect_ratio = 16.0f / 9.0f;
+			break;
+		case 2:
+			info->geometry.aspect_ratio = 16.0f / 10.0f;
+			break;
+		case 3:
+			info->geometry.aspect_ratio = 32.0f / 9.0f;
+			break;
+		case 0:
+		default:
+			info->geometry.aspect_ratio = 4.0f / 3.0f;
+			break;
+	}
 	info->timing.fps            = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;
 	info->timing.sample_rate    = 48000;
 }
@@ -2770,7 +2808,7 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 		}
 	}
 
-	if (setting_game_enhancements_hint)
+	if (setting_hint_game_enhancements)
 	{
 		if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
@@ -2801,6 +2839,17 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0029DAA8,word,00000000" /* Max LOD Distance */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* God of War II (NTSC-U) [CRC: 2F123FD8] */
+			else if (!strcmp(serial, "SCUS-97481"))
+			{
+				int i;
+				char *patches[] = {
+					/* Allow MPEG skip by pressing x */
+					"patch=1,EE,001DD8C8,word,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2985,7 +3034,7 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 		}
 	}
 
-	if (setting_uncapped_framerate_hint)
+	if (setting_hint_uncapped_framerate)
 	{
 		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
@@ -3704,6 +3753,54 @@ static void lrps2_ingame_patches(const char *serial, const char *renderer, bool 
 				int i;
 				char *patches[] = {
 					"patch=1,EE,204874FC,word,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+	}
+	
+	if (setting_hint_widescreen > 0)
+	{
+		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
+		{
+			/* Need For Speed Underground 2 (NTSC-U) [CRC: F5C7B45F] */
+			if (!strcmp(serial, "SLUS-21065"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,20276E20,extended,A2C2004C" 
+					/* auto enable in widescreen, boot option by default */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Tekken Tag Tournament (NTSC-U) [CRC: 67454C1E] */
+			else if (!strcmp(serial, "SLUS-20001")) 
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,90402148,extended,0c1007f8",
+					"patch=0,EE,2034b014,extended,3c013f40",
+					"patch=0,EE,2034b018,extended,44810000",
+					"patch=0,EE,2034b020,extended,4600c602"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
+		{
+			/* God of War II (NTSC-U) [CRC: 2F123FD8] */
+			if (!strcmp(serial, "SCUS-97481"))
+			{
+				int i;
+				char *patches[] = {
+					/* default to widescreen at first run */
+					"patch=1,EE,001E45B4,word,24040001",
+					"patch=1,EE,001E45B8,word,00000000",
+					"patch=0,EE,0027894C,word,3c013fe3",
+					"patch=0,EE,00278950,word,34218e39"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
