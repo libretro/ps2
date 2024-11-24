@@ -729,6 +729,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* BMX XXX (SLUS-20415) [CRC: 2999BCF9] */
+			else if (!strcmp(serial, "SLUS-20415"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00108610,word,10000009"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* F1 Career Challenge (SLUS-20693) [CRC: 2C1173B0] */
 			else if (!strcmp(serial, "SLUS-20693"))
 			{
@@ -841,6 +851,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,00109130,word,45010009"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* BMX XXX (SLES-51365) [CRC: ] */
+			else if (!strcmp(serial, "SLES-51365"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00108780,word,10000009"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1185,6 +1205,17 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,2036C438,extended,28630001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Alias (NTSC-U) [CRC: E3ADDC73] */
+			else if (!strcmp(serial, "SLUS-20673"))
+			{
+				/* 60fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2024BEF0,extended,14400039" /* 10400039 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1757,6 +1788,18 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Alias (PAL-M) [CRC: 83466553] */
+			if (!strcmp(serial, "SLES-51821"))
+			{
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0024BEAC,word,2C420000", /* 2C42001E */
+					"patch=1,EE,001DED08,word,3C013F00"  /* 3C013F80 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dark Angel (PAL) [CRC: 5BE3F481] */
 			else if (!strcmp(serial, "SLES-53414"))
 			{
@@ -1888,8 +1931,19 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 	{
 		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
+			/* Alias (NTSC-U) [CRC: E3ADDC73] */
+			if (!strcmp(serial, "SLUS-20673"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00248178,word,3c013ec0", /* 3c013f00 hor fov */
+					"patch=1,EE,001f3c30,word,3c013f40" /* 3c013f80 renderfix */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Need For Speed Underground 2 (NTSC-U) [CRC: F5C7B45F] */
-			if (!strcmp(serial, "SLUS-21065"))
+			else if (!strcmp(serial, "SLUS-21065"))
 			{
 				int i;
 				char *patches[] = {
@@ -2086,6 +2140,20 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					"patch=1,EE,0034b014,word,3c013f40",
 					"patch=1,EE,0034b018,word,44810000",
 					"patch=1,EE,0034b020,word,4600c602"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SLES-", serial, strlen("SLES-")))
+		{
+			/* Alias (PAL-M) [CRC: 83466553] */
+			if (!strcmp(serial, "SLES-51821"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00248138,word,3c013ec0", /* 3c013f00 hor fov */
+					"patch=1,EE,001f3c70,word,3c013f40" /* 3c013f80 renderfix */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
