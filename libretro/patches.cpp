@@ -2068,6 +2068,18 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* London Racer World Challenge (PAL-M) [CRC: F97680AA] */
+			else if (!strcmp(serial, "SLES-51580"))
+			{
+				/* Patch courtesy: Gabominated */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00133810,word,24020000" /* 24020001 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Metal Arms - Glitch in the System (PAL) [CRC: AF399CCC] */
 			else if (!strcmp(serial, "SLES-51758"))
 			{
@@ -2245,6 +2257,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					"patch=1,EE,2033b194,word,3faaaaab",
 					/* Render fix (fix by Arapapa) */
 					"patch=1,EE,20253d24,word,3c013f40"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Enter The Matrix (v1.01) (NTSC-U) [CRC: 67EA565CB] */
+			else if (!strcmp(serial, "SLUS-20454"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001CF170,word,a2740bcc"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2475,6 +2497,17 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				char *patches[] = {
 					"patch=1,EE,00248138,word,3c013ec0", /* 3c013f00 hor fov */
 					"patch=1,EE,001f3c70,word,3c013f40" /* 3c013f80 renderfix */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* London Racer World Challenge (PAL-M) [CRC: F97680AA] */
+			else if (!strcmp(serial, "SLES-51580"))
+			{
+				/* Patch courtesy: l-kobra */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00386b70,word,3c02bf55" /* 3c02bf00 X-FOV */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
