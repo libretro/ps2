@@ -710,6 +710,22 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Virtua Fighter 10th Anniversary (NTSC-J) [CRC: B5FEAE85] */
+			else if (!strcmp(serial, "SLPM-68008"))
+			{
+				/* Patch courtesy: felixthecat1970 */
+				/* 640x224 to 640x448
+				 * 512x224 to 512x448 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,203A18B8,extended,0000102D",
+					"patch=1,EE,203A5644,extended,0000382D",
+					"patch=1,EE,203A5274,extended,00A32825",
+					"patch=1,EE,203A5318,extended,00A32825"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 		}
 
 	}
@@ -2161,6 +2177,27 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0018D7C8,word,24030001" /* 24030002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		if (!strncmp("SCES-", serial, strlen("SCES-")))
+		{
+			/* Final Fantasy X (PAL) */
+			if (!strcmp(serial, "SCES-50494"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0011B940,extended,24040002",
+					"patch=1,EE,2057C7D8,extended,3D4CCCCD", /* Move NPC and Tidus */
+					"patch=1,EE,2058D448,extended,40400000", /* Text */
+					"patch=1,EE,E0030001,extended,005808B4",
+					"patch=1,EE,0011B940,extended,24040001",
+					"patch=1,EE,2057C7D8,extended,3CCCCCCD",
+					"patch=1,EE,2058D448,extended,3FC00000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
