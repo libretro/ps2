@@ -116,6 +116,7 @@ static u8 setting_round_sprite                 = 0;
 static u8 setting_texture_inside_rt            = 0;
 static u8 setting_ee_cycle_skip                = 0;
 static s8 setting_ee_cycle_rate                = 0;
+static s8 setting_hint_language_unlock         = 0;
 s8 setting_hint_widescreen                     = 0;
 static s8 setting_hint_game_enhancements       = 0;
 static s8 setting_hint_uncapped_framerate      = 0;
@@ -966,6 +967,15 @@ static void check_variables(bool first_run)
 			s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", setting_enable_cheats);
 			updated = true;
 		}
+	}
+
+	var.key = "pcsx2_hint_language_unlock";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		if (!strcmp(var.value, "enabled"))
+			setting_hint_language_unlock = 1;
+		else
+			setting_hint_language_unlock = 0;
 	}
 
 	var.key = "pcsx2_ee_cycle_rate";
@@ -1886,7 +1896,8 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 		bool disable_mipmaps,
 		bool game_enhancements,
 		int8_t hint_widescreen,
-		int8_t uncapped_framerate);
+		int8_t uncapped_framerate,
+		int8_t language_unlock);
 
 void Host::OnGameChanged(const std::string& disc_path,
 	const std::string& elf_override, const std::string& game_serial,
@@ -1899,5 +1910,6 @@ void Host::OnGameChanged(const std::string& disc_path,
 			setting_pgs_disable_mipmaps,
 			setting_hint_game_enhancements,
 			setting_hint_widescreen,
-			setting_hint_uncapped_framerate);
+			setting_hint_uncapped_framerate,
+			setting_hint_language_unlock);
 }

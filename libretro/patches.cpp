@@ -9,7 +9,8 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 		bool disable_mipmaps,
 		bool game_enhancements,
 		int8_t hint_widescreen,
-		int8_t uncapped_framerate)
+		int8_t uncapped_framerate,
+		int8_t hint_language_unlock)
 {
 	struct retro_variable var;
 
@@ -765,9 +766,20 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 			/* F1 Career Challenge (SLUS-20693) [CRC: 2C1173B0] */
 			else if (!strcmp(serial, "SLUS-20693"))
 			{
+				/* Patch courtesy: agrippa */
 				int i;
 				char *patches[] = {
 					"patch=1,EE,00257a40,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* FIFA 2003 (SLUS-20580) [CRC: 67C38BAA] */
+			else if (!strcmp(serial, "SLUS-20580"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0030F5FC,word,10000079"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -891,9 +903,20 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 			/* F1 Career Challenge (SLES-51584) [CRC: 2C1173B0] */
 			else if (!strcmp(serial, "SLES-51584"))
 			{
+				/* Patch courtesy: agrippa */
 				int i;
 				char *patches[] = {
 					"patch=1,EE,00257a40,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* FIFA 2003 (SLES-51197) [CRC: 722BBD62] */
+			else if (!strcmp(serial, "SLES-51197"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0030F554,word,10000079"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -943,6 +966,19 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					LoadPatchesFromString(std::string(patches[i]));
 			}
 		}
+		else if (!strncmp("SCES-", serial, strlen("SCES-")))
+		{
+			/* Ape Escape 2 (PAL) [CRC: 09B3AD4D] */
+			if (!strcmp(serial, "SCES-50885"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0034E0E0,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
 			/* Harry Potter - Quidditch World Cup (NTSC-J) */
@@ -961,9 +997,20 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 			/* F1 Career Challenge (NTSC-J) [CRC: 5CBB11E6] */
 			if (!strcmp(serial, "SLPS-20295"))
 			{
+				/* Patch courtesy: agrippa */
 				int i;
 				char *patches[] = {
 					"patch=1,EE,002581d8,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* FIFA 2003 (SLPS-25179) [CRC: A6A8DAB8] */
+			else if (!strcmp(serial, "SLPS-25179"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0030F5EC,word,10000079"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1129,6 +1176,48 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Dynasty Warriors 2 (NTSC-U) [CRC: 5B665C0B] */
+			else if (!strcmp(serial, "SLUS-20079"))
+			{
+				int i;
+				char *patches[] = {
+					/* Increased Draw distance */
+					"patch=1,EE,002bbcdc,word,00000000",
+					"patch=1,EE,002bbce0,word,00000000",
+					"patch=1,EE,002bbd10,word,00000000",
+					"patch=1,EE,002543ac,word,00000000",
+					"patch=1,EE,002bbcc4,word,00000000",
+					"patch=1,EE,002bbcc0,word,00000000",
+					"patch=1,EE,003e018c,word,46C35000",
+
+					"patch=1,EE,E00266ee,extended,103E2EB1",
+					"patch=1,EE,203503cc,extended,466a6000",
+					"patch=1,EE,203503c8,extended,465ac000",
+					"patch=1,EE,E00366ee,extended,003E2EB1",
+					"patch=1,EE,202bbcc4,extended,e4c0000c",
+					"patch=1,EE,202bbcc0,extended,e4c10008",
+					"patch=1,EE,202543ac,extended,0c08a860",
+
+					"patch=1,EE,003503cc,word,469C4000",  /* 11846 */
+					"patch=1,EE,003503c8,word,46947000",  /* 11841 */
+					/* Model Render Bug Fix */
+					"patch=1,EE,00202938,word,3C01427f",
+					/* Skip Events With X Button */
+					"patch=1,EE,0020E810,word,30424008",
+					/* FMV Skip with X button */
+					"patch=1,EE,002BAADC,word,30424008",
+					/* Able to skip Koei Logo */
+					"patch=1,EE,003e22b0,word,002BAAC8",
+					/* Pick up items while mounted 
+					 * This allows to pick up items while 
+					 * on a horse like in DW4/5. */
+					"patch=1,EE,00287F70,word,3C01433e",
+					/* Disable Distance Based Model Disappearing */
+					"patch=1,EE,00230d70,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dynasty Warriors 4 (NTSC-U) [CRC: 6C89132B] [UNDUB] [CRC: 6C881C2B] */
 			else if (!strcmp(serial, "SLUS-20653"))
 			{
@@ -1174,6 +1263,45 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					/* Increases default of 24 maximum units 
 					 * rendered at the same time to 28. */
 					"patch=1,EE,001cbd34,word,2402001c"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* King of Fighters '98 - Ultimate Match, The (NTSC-U) [CRC: E5A904B3] */
+			else if (!strcmp(serial, "SLUS-21816"))
+			{
+				int i;
+				char *patches[] = {
+					/* Enable blood particle effect (e.g. Choi's claw attacks) 
+					 * just like the Japanese version, also works 
+					 * in NeoGeo mode */
+					"patch=1,EE,00327da4,word,a0400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* King of Fighters 2000, The (NTSC-U) [CRC: AED59B8E] */
+			else if (!strcmp(serial, "SLUS-20834"))
+			{
+				int i;
+				char *patches[] = {
+					/* Uncensored version */
+					"patch=1,EE,00152cf0,word,93838a68",
+					"patch=1,EE,00152d04,word,93828a8c",
+					"patch=1,EE,00152d14,word,9062133e",
+					/* Whip's original desert eagle ending */
+					"patch=1,EE,002f97b4,word,90443ee6"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Le Mans 24 Hours (NTSC-U) [CRC: 67835861] */
+			else if (!strcmp(serial, "SLUS-20207"))
+			{
+				int i;
+				char *patches[] = {
+					/* Disable far objects culling (enhance draw distance) */
+					"patch=1,EE,00317F40,double,03e00008"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1252,6 +1380,40 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					"patch=1,EE,2017B150,extended,00000000", 
 					/* +100% Render Distance (0.35f, max without glitching) */
 					"patch=1,EE,203832EC,word,3EB33333"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Tokyo Bus Annai 2 (NTSC-J) */
+			else if (!strcmp(serial, "SLPM-65982"))
+			{
+				/* Patch courtesy: kozarovv */
+				int i;
+				char *patches[] = {
+					/* Mirrors draw distance, and max details */
+					"patch=1,EE,0019FE48,word,00000000",
+					"patch=1,EE,0019B988,word,3C023F80",
+					"patch=1,EE,0019B98C,word,00000000",
+					/* World draw distance */
+					"patch=1,EE,01D83164,word,45000000",
+					"patch=1,EE,01D83168,word,45000000",
+					"patch=1,EE,01D83174,word,45000000",
+					"patch=1,EE,01D83178,word,45000000",
+					"patch=1,EE,01D8317C,word,45000000",
+					"patch=1,EE,01D83188,word,45000000",
+					"patch=1,EE,01D83190,word,45000000",
+
+					"patch=1,EE,001A09DC,word,00000000",
+					"patch=1,EE,01D8316C,word,45000000",
+					"patch=1,EE,001A09C0,word,3C034500",
+					"patch=1,EE,01D05B00,word,45000000",
+					"patch=1,EE,0017AD10,word,00000000",
+					/* Trees - problematic at higher value */
+					"patch=1,EE,01D83170,word,43fc0000",
+					/* People draw distance - Last patch do real job,
+					 * sadly it break one of stages even at little bit higher value. */
+					"patch=1,EE,001B3F4C,word,00000000",
+					"patch=1,EE,001B3F54,word,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2012,8 +2174,36 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 	{
 		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
+			/* Ace Combat Zero: The Belkan War (NTSC-U) */
+			if (!strcmp(serial, "SLUS-21346"))
+			{
+				if (hint_widescreen == 3)
+				{
+					/* 21:9
+					 * Patch courtesy: pgert */
+					int i;
+					char *patches[] = {
+						"patch=1,EE,003FA350,word,440C0000",
+						"patch=1,EE,003FA354,word,444DA000"
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+				else
+				{
+					/* 16:9
+					 * Patch courtesy: nemesis2000 */
+					int i;
+					char *patches[] = {
+						"patch=1,EE,003FA350,word,43D638F3",
+						"patch=1,EE,003FA354,word,43EB7385"
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+			}
 			/* Alias (NTSC-U) [CRC: E3ADDC73] */
-			if (!strcmp(serial, "SLUS-20673"))
+			else if (!strcmp(serial, "SLUS-20673"))
 			{
 				int i;
 				char *patches[] = {
@@ -2035,6 +2225,30 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Dynasty Warriors 2 (NTSC-U) [CRC: 5B665C0B] */
+			else if (!strcmp(serial, "SLUS-20079"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,9032b488,word,0c0cacc8",
+					"patch=1,EE,202fa696,word,3faaaaab",
+					"patch=1,EE,202fb4ec,word,3c013fab",
+					"patch=1,EE,203320cc,word,3faaaaab",
+					"patch=1,EE,203321e8,word,3faaaaab",
+					"patch=1,EE,203321f4,word,3faaaaab",
+					"patch=1,EE,20332208,word,3faaaaab",
+					"patch=1,EE,20332214,word,3faaaaab",
+					"patch=1,EE,2033226c,word,3faaaaab",
+					"patch=1,EE,2033236c,word,3faaaaab",
+					"patch=1,EE,2033b18c,word,3faaaaab",
+					"patch=1,EE,2033b190,word,3faaaaab",
+					"patch=1,EE,2033b194,word,3faaaaab",
+					/* Render fix (fix by Arapapa) */
+					"patch=1,EE,20253d24,word,3c013f40"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Need For Speed Underground 2 (NTSC-U) [CRC: F5C7B45F] */
 			else if (!strcmp(serial, "SLUS-21065"))
 			{
@@ -2046,7 +2260,8 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
-			/* Return to Castle Wolfenstein: Operation Resurrection (NTSC-U) [CRC: 5F4DB1DD] */
+			/* Return to Castle Wolfenstein: Operation Resurrection 
+			 * (NTSC-U) [CRC: 5F4DB1DD] */
 			else if (!strcmp(serial, "SLUS-20297"))
 			{
 				int i;
@@ -2264,6 +2479,25 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Need for Speed - Hot Pursuit 2 (PAL-M6) (SLES-50731) */
+			else if (!strcmp(serial, "SLES-50731"))
+			{
+				if (hint_widescreen == 3) /* 21:9 */
+				{
+					/* Patch courtesy: l-kobra */
+					int i;
+					char *patches[] = {
+						"patch=1,EE,0032f6fc,word,3f100000", /* 3f800000 hor fov */
+						"patch=1,EE,0010e994,word,46011702",
+						"patch=1,EE,0032f6ec,word,3f19999a",
+						"patch=1,EE,0032f850,word,3fd55555",
+						"patch=1,EE,0010EDEC,short,0000",
+						"patch=1,EE,0010EE0C,short,0000"
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+			}
 		}
 		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
@@ -2308,6 +2542,40 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,20495104,extended,3F400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+	}
+
+	if (hint_language_unlock)
+	{
+		if (!strncmp("SLPS-", serial, strlen("SLPS-")))
+		{
+			/* Final Fantasy X International (NTSC-J) [CRC: 658597E2] */
+			if (!strcmp(serial, "SLPS-25088"))
+			{
+				/* Patch courtesy: clanmash */
+				int i;
+				char *patches[] = {
+					/* Forces the game to use English at all times */
+					"patch=1,EE,0031ce5e,byte,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
+		{
+			/* Vampire Darkstalkers Collection (NTSC-J) */
+			if (!strcmp(serial, "SLPM-66212"))
+			{
+				/* Patch courtesy: The Cutting Room Floor */
+				int i;
+				char *patches[] = {
+					/* Change Main Menu Text to English */
+					"patch=1,EE,01942819,extended,00000001"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));

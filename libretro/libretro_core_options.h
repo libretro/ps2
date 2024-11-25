@@ -134,6 +134,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_hint_language_unlock",
+      "System > Language Unlock",
+      "Language Unlock (Restart)",
+      "If enabled, will look inside the internal database for language unlock options. Examples include: forcing an international Japanese version to English, unlocking more European languages, etc",
+      NULL,
+      "system",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_renderer",
       "Video > Renderer",
       "Renderer",
