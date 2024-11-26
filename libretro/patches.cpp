@@ -538,6 +538,10 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Soulcalibur III (PAL) v1.00 [CRC: BC5480A3] */
+			else if (!strcmp(serial, "SCES-50001")) 
+			{
+			}
 			/* Tekken Tag Tournament (PAL) [CRC: 0DD8941C] */
 			else if (!strcmp(serial, "SCES-50001")) 
 			{
@@ -820,6 +824,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Lara Croft Tomb Raider - Anniversary (NTSC-U) [CRC: ] */
+			else if (!strcmp(serial, "SLUS-21555"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001297C0,word,10000022"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Lara Croft Tomb Raider - Legend (NTSC-U) [CRC: BC8B3F50] */
 			else if (!strcmp(serial, "SLUS-21203"))
 			{
@@ -830,7 +844,17 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
-			/* Legacy of Kain: Soul Reaver, The (NTSC-U) [CRC: 1771BFE4]) */
+			/* Legacy of Kain: Defiance (NTSC-U) [CRC: ] */
+			else if (!strcmp(serial, "SLUS-20773"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00188F50,word,10000020"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Legacy of Kain: Soul Reaver 2, The (NTSC-U) [CRC: 1771BFE4] */
 			else if (!strcmp(serial, "SLUS-20165"))
 			{
 				int i;
@@ -957,6 +981,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,002CF158,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Legacy of Kain: Soul Reaver 2, The (NTSC-U) [CRC: 1771BFE4] */
+			else if (!strcmp(serial, "SLES-50196"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002A1F80,word,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2274,6 +2308,23 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Blood Omen 2: The Legacy of Kain Series (NTSC-U) [CRC: ] */
+			else if (!strcmp(serial, "SLUS-20024"))
+			{
+				int i;
+				char *patches[] = {
+					/* Widescreen */
+					"patch=1,EE,00312b08,word,3C013FE3",
+					"patch=1,EE,00312b0c,word,34218E38",
+					/* Black Borders Fix */
+					"patch=1,EE,002d443c,word,00000000",
+					/* FMV Fix */
+					"patch=1,EE,002eb280,word,240575e0", /* y-position */
+					"patch=1,EE,002eb298,word,240a1440"  /* y-scaling */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dynasty Warriors 2 (NTSC-U) [CRC: 5B665C0B] */
 			else if (!strcmp(serial, "SLUS-20079"))
 			{
@@ -2534,6 +2585,23 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				char *patches[] = {
 					"patch=1,EE,00248138,word,3c013ec0", /* 3c013f00 hor fov */
 					"patch=1,EE,001f3c70,word,3c013f40" /* 3c013f80 renderfix */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Blood Omen 2: The Legacy of Kain Series (PAL) [CRC: ] */
+			else if (!strcmp(serial, "SLES-50771"))
+			{
+				int i;
+				char *patches[] = {
+					/* gameplay (based on pavachan elf hack) */
+					"patch=1,EE,00310ba0,word,3c013fe3",
+					"patch=1,EE,00310ba4,word,34218e38",
+					/* black border fix by nemesis2000 */
+					"patch=1,EE,002d24cc,word,00000000",
+					/* FMV's fix by nemesis2000 */
+					"patch=1,EE,002e9380,word,240575e0",
+					"patch=1,EE,002e9398,word,240a1440"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
