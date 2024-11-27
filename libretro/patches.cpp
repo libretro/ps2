@@ -2779,8 +2779,43 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SCES-", serial, strlen("SCES-")))
 		{
+			/* Extermination (PAL-M5) [CRC: 68707E85] */
+			if (!strcmp(serial, "SCES-50240")) 
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001D3158,word,3C023F19", /* 3C023F4C (Increases hor. axis) */
+					"patch=1,EE,001D315C,word,3442AAAB" /* 3442CCCD */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Sky Odyssey (PAL-M5) [CRC: 29B11E02] */
+			else if (!strcmp(serial, "SCES-50105")) 
+			{
+				if (hint_widescreen == 2) /* 16:10 */
+				{
+					int i;
+					char *patches[] = {
+						"patch=1,EE,0028ab58,word,3f555555", /* 3f800000 hor FOV */
+						"patch=1,EE,00273400,word,43c00000" /* 43a00000 increase hor FOV */
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+				else /* 16:9 */
+				{
+					int i;
+					char *patches[] = {
+						"patch=1,EE,0028ab58,word,3f400000", /* 3f800000 hor FOV */
+						"patch=1,EE,00273400,word,43d55555"  /* 43a00000 increase hor FOV */
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+			}
 			/* Tekken Tag Tournament (PAL) [CRC: 0DD8941C] */
-			if (!strcmp(serial, "SCES-50001")) 
+			else if (!strcmp(serial, "SCES-50001")) 
 			{
 				int i;
 				char *patches[] = {
