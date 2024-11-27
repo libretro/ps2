@@ -440,6 +440,18 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Gran Turismo 4: Mazda MX-5 Edition (NTSC-U) [CRC: ] */
+			else if (!strcmp(serial, "SCUS-97483"))
+			{
+				/* Patch courtesy: Blackbird+Silent */
+				int i;
+				char *patches[] = {
+					/* Autoboot in 480p */
+					"patch=1,EE,20A1C070,extended,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Gran Turismo 4 (NTSC-U) [CRC: 77E61C8A] */
 			else if (!strcmp(serial, "SCUS-97328"))
 			{
@@ -480,6 +492,17 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,201ABB34,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Tourist Trophy (NTSC-U)  */
+			else if (!strcmp(serial, "SCUS-97502"))
+			{
+				/* Patch courtesy: Blackbird+Silent */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,20829248,extended,00000001"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1163,8 +1186,19 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 		}
 		else if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
+			/* Alias (NTSC-U) [CRC: E3ADDC73] */
+			if (!strcmp(serial, "SLUS-20673"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2023C104,word,24030001",
+					"patch=1,EE,2023C108,word,AC431E5C"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Bloody Roar 3 (NTSC-U) [CRC: AA4E5A35] */
-			if (!strcmp(serial, "SLUS-20212"))
+			else if (!strcmp(serial, "SLUS-20212"))
 			{
 				int i;
 				char *patches[] = {
@@ -1792,6 +1826,29 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Midnight Club - Street Racing (NTSC-U) */
+			else if (!strcmp(serial, "SLUS-20063"))
+			{
+				/* 60fps uncapped */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,20302934,word,00000001" /* 60fps */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Midnight Club II (NTSC-U) */
+			else if (!strcmp(serial, "SLUS-20209"))
+			{
+				/* 60fps uncapped */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2042FAB8,word,00000001" /* fps */
+					"patch=1,EE,20432164,word,3C888889" /* speed */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Midnight Club 3 - DUB Edition (NTSC-U) v1.0 [CRC: 4A0E5B3A] */
 			else if (!strcmp(serial, "SLUS-21029"))
 			{
@@ -2239,8 +2296,19 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 		}
 		if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
+			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
+			if (!strcmp(serial, "SCUS-97654"))
+			{
+				/* 60fps uncapped */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2039BAF8,word,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Primal (NTSC-U) [CRC: FCD89DC3] */
-			if (!strcmp(serial, "SCUS-97142"))
+			else if (!strcmp(serial, "SCUS-97142"))
 			{
 				/* 60fps uncapped */
 				int i;
@@ -2653,6 +2721,16 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
+			else if (!strcmp(serial, "SCUS-97654"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,00295E00,word,24020002" /* 30420003 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
@@ -2714,6 +2792,20 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				char *patches[] = {
 					/* Change Main Menu Text to English */
 					"patch=1,EE,01942819,extended,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+		}
+		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
+		{
+			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
+			if (!strcmp(serial, "SCUS-97654"))
+			{
+				int i;
+				char *patches[] = {
+					/* Unlock more languages */
+					"patch=1,EE,0032DA04,byte,00000004"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
