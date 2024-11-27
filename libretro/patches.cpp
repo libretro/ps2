@@ -1537,10 +1537,7 @@ void lrps2_ingame_patches(const char *serial,
 					/* Disable intro videos (ea / thx / splash) */
 					"patch=0,EE,001A2840,word,0000202D",
 					"patch=0,EE,001A2864,word,0000202D",
-					"patch=0,EE,001A28DC,word,0000202D",
-					/* Disable perf frame skip (metro slowdown) */
-					"patch=0,EE,00230704,word,00000000",
-					"patch=0,EE,00230710,word,00000000"
+					"patch=0,EE,001A28DC,word,0000202D"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2189,6 +2186,18 @@ void lrps2_ingame_patches(const char *serial,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0018D778,word,24030001" /* 24030002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* SSX3 (NTSC-U) [CRC: 08FFF00D] */
+			else if (!strcmp(serial, "SLUS-20772"))
+			{
+				int i;
+				char *patches[] = {
+					/* Disable perf frame skip (metro slowdown) */
+					"patch=0,EE,00230704,word,00000000",
+					"patch=0,EE,00230710,word,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
