@@ -2250,7 +2250,7 @@ void lrps2_ingame_patches(const char *serial,
 			/* Unreal Tournament (NTSC-U) [CRC: 5751CAC1] */
 			else if (!strcmp(serial, "SLUS-20034"))
 			{
-				/* 60fps uncapped */
+				/* 60fps uncapped. Need EE Overclock at 180%. */
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0012D134,extended,28420001"
@@ -2275,8 +2275,23 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLES-", serial, strlen("SLES-")))
 		{
+			/* 7 Blades (PAL-M) */
+			if (!strcmp(serial, "SLES-50109"))
+			{
+				/* Patch courtesy: Gabominated */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,203BE838,extended,24020000", /* 24020001 fps */
+					"patch=1,EE,2051bb2c,extended,3E99999a", /* 3F19999a speed */
+					"patch=1,EE,2035e8e8,extended,3c013f00", /* 3c013f80 map A */
+					"patch=1,EE,2036565c,extended,3c013f00"  /* 3c013f80 map B */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Aeon Flux (PAL-M) [CRC: 761CABB3] */
-			if (!strcmp(serial, "SLES-54169"))
+			else if (!strcmp(serial, "SLES-54169"))
 			{
 				/* 50fps uncapped. Need EE Overclock at 300%. */
 				int i;
@@ -2359,6 +2374,18 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Rayman Revolution (PAL-M5) [CRC: 55EDA5A0] */
+			else if (!strcmp(serial, "SLES-50044"))
+			{
+				/* Patch courtesy: ElHecht & ICUP321 */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001011FC,word,24030000" /* 24030001 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Reign of Fire (PAL) [CRC: 79464D5E] */
 			else if (!strcmp(serial, "SLES-50873"))
 			{
@@ -2371,7 +2398,6 @@ void lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-
 			}
 			/* Rune - Viking Warlord (PAL) [CRC: 52638022] */
 			else if (!strcmp(serial, "SLES-50335"))
@@ -2396,6 +2422,18 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Smuggler's Run (PAL-M5) [CRC: 95416482] */
+			else if (!strcmp(serial, "SLES-50061"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002C6DA4,word,00000001" /* 00000002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Spawn - Armageddon (PAL) [CRC: 8C9BF4F9] */
 			else if (!strcmp(serial, "SLES-52326"))
 			{
@@ -2416,6 +2454,18 @@ void lrps2_ingame_patches(const char *serial,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0018D7C8,word,24030001" /* 24030002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Unreal Tournament (PAL-M5) [CRC: 4A805DF1] */
+			else if (!strcmp(serial, "SLES-50074"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 180%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0012D394,word,28420001" /* 28420002 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2829,8 +2879,21 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLES-", serial, strlen("SLES-")))
 		{
+			/* 7 Blades (PAL-M) */
+			if (!strcmp(serial, "SLES-50109"))
+			{
+				/* Patch courtesy: Gabominated */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002EF7EC,word,3C013FAB", /* 3C013F80 Y-FOV 3C013FAB */
+					"patch=1,EE,002EF970,word,3C0143c0", /* 3C014400 zoom a */
+					"patch=1,EE,002EF978,word,3C01433f"  /* 3C014380 zoom b */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Alias (PAL-M) [CRC: 83466553] */
-			if (!strcmp(serial, "SLES-51821"))
+			else if (!strcmp(serial, "SLES-51821"))
 			{
 				int i;
 				char *patches[] = {
@@ -2886,6 +2949,78 @@ void lrps2_ingame_patches(const char *serial,
 					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 						LoadPatchesFromString(std::string(patches[i]));
 				}
+			}
+			/* Rayman Revolution (PAL-M5) [CRC: 55EDA5A0] */
+			else if (!strcmp(serial, "SLES-50044"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0018c6a0,word,4481f000", /* 00000000 */
+					"patch=1,EE,0018c6a4,word,461e0842", /* 00000000 */
+					"patch=1,EE,001180ec,word,461e6303" /* 00000000 renderfix calculation */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				switch (hint_widescreen)
+				{
+					case 1: /* 16:9 */
+						{
+							/* Patch courtesy: Elhecht & ICUP321 */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0018c690,word,3c013f40" /* 00000000 hor fov */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					case 2: /* 16:10 */
+						{
+							/* Patch courtesy: Elhecht & ICUP321 */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0018c690,word,3c013f55", /* 00000000 hor fov */
+								"patch=1,EE,0018c694,word,34215555" /* 00000000 hor fov */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					case 3: /* 21:9 */
+						{
+							/* Patch courtesy: Elhecht & ICUP321 */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0018c690,word,3c013f10" /* 00000000 hor fov */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+				}
+			}
+			/* Shadow of Memories (PAL) [CRC: 5F439D01] */
+			else if (!strcmp(serial, "SLES-50112"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00218700,word,3c014455", /* 3c014420 */
+					"patch=1,EE,00218718,word,3c013ac8"  /* 3c013b00 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Smuggler's Run (PAL-M5) [CRC: 95416482] */
+			else if (!strcmp(serial, "SLES-50061")) /* 16:9 */
+			{
+				/* Patch courtesy: fox140cv */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0023548C,word,3C013FCC", /* 3C013F99 */
+					"patch=1,EE,00235490,word,342199CD"  /* 3421999A */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
 			}
 		}
 		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
