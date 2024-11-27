@@ -1891,7 +1891,9 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	return ret;
 }
 
-void lrps2_ingame_patches(const char *serial, const char *renderer,
+void lrps2_ingame_patches(const char *serial,
+		u32 game_crc,
+		const char *renderer,
 		bool nointerlacing_hint,
 		bool disable_mipmaps,
 		bool game_enhancements,
@@ -1905,6 +1907,7 @@ void Host::OnGameChanged(const std::string& disc_path,
 {
 	log_cb(RETRO_LOG_INFO, "serial: %s\n", game_serial.c_str());
 	lrps2_ingame_patches(game_serial.c_str(),
+			game_crc,
 			setting_renderer.c_str(),
 			setting_hint_nointerlacing,
 			setting_pgs_disable_mipmaps,

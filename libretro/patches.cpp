@@ -4,7 +4,9 @@
 
 extern retro_environment_t environ_cb;
 
-void lrps2_ingame_patches(const char *serial, const char *renderer,
+void lrps2_ingame_patches(const char *serial,
+		u32 game_crc,
+		const char *renderer,
 		bool nointerlacing_hint,
 		bool disable_mipmaps,
 		bool game_enhancements,
@@ -532,6 +534,39 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Gran Turismo 4 (PAL) [CRC: 44A61C8F] */
+			else if (!strcmp(serial, "SCES-51719"))
+			{
+				/* Patch courtesy: agrippa */
+				int i;
+				char *patches[] = {
+					/* progressive flag (write 0x1 at 0xA57E70). */
+					"patch=1,EE,000FF000,word,24020001",
+					"patch=1,EE,000FF004,word,3C0300A5",
+					"patch=1,EE,000FF008,word,34637E70",
+					"patch=1,EE,000FF00c,word,AC620000",
+					"patch=1,EE,000FF010,word,08128308",
+					"patch=1,EE,000FF014,word,000422C2",
+					"patch=1,EE,004A0C18,word,0803FC00", /* 000422C2 */
+					/* force SCE_GS_PAL video mode every time 
+					 * (when the progressive flag is set, 
+					 * the 480p mode is turned on instead by default) */
+					"patch=1,EE,001074A0,word,24050003", /* 8E050004 */
+					/* change sceGsResetGraph arguments when the 
+					 * progressive mode is set. These patches are 
+					 * essential when playing on a real hardware 
+					 * (half of the screen is only visible, otherwise): */
+					/* SCE_GS_INTERLACE */
+					"patch=1,EE,0061868C,word,00000001", /* 00000000 */
+					/* SCE_GS_FIELD */
+					"patch=1,EE,00618694,word,00000000", /* 00000001 */
+					/* no interlacing patch for menu and movies 
+					 * (delete this if you play on a real hardware) */
+					"patch=1,EE,004A2A2C,word,0000102D" /* 80A202C0 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Ico (PAL) [CRC: 5C991F4E] */
 			else if (!strcmp(serial, "SCES-50760"))
 			{
@@ -562,8 +597,24 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					LoadPatchesFromString(std::string(patches[i]));
 			}
 			/* Soulcalibur III (PAL) v1.00 [CRC: BC5480A3] */
-			else if (!strcmp(serial, "SCES-50001")) 
+			else if (!strcmp(serial, "SCES-53312")) 
 			{
+				/* Replace NTSC mode with Progressive Scan */
+				if (     game_crc == 0xBC5480A3) /* 1.00 */
+					LoadPatchesFromString(std::string("patch=1,EE,00509E4A,byte,06"));
+				else if (game_crc == 0x3BA95B70) /* 2.00 */
+					LoadPatchesFromString(std::string("patch=1,EE,00509ECA,byte,06"));
+
+				int i;
+				char *patches[] = {
+					/* Rename PAL60/60 Hz with Progressive */
+					"patch=1,EE,00B73FB4,word,6F725020",
+					"patch=1,EE,00B73FB8,word,73657267",
+					"patch=1,EE,00B73FBC,word,65766973",
+					"patch=1,EE,00B73FC0,word,0A205D20"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
 			}
 			/* Tekken Tag Tournament (PAL) [CRC: 0DD8941C] */
 			else if (!strcmp(serial, "SCES-50001")) 
@@ -664,6 +715,94 @@ void lrps2_ingame_patches(const char *serial, const char *renderer,
 					/* Texture fix for the battle mode */
 					"patch=1,EE,E0011183,extended,001E0784",
 					"patch=1,EE,201E0784,extended,24021D00"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Valkyrie Profile 2: Silmeria (PAL) [CRC: 04CCB600] */
+			else if (!strcmp(serial, "SLES-54644"))
+			{
+				/* Patch courtesy: agrippa */
+				int i;
+				char *patches[] = {
+					/* force progressive mode flag */
+					"patch=1,EE,00101100,word,A025CC84", /* A020CC84 */
+					/* force PAL output when the progressive mode is set */
+					"patch=1,EE,00100624,word,24050001", /* 0000282D */
+					"patch=1,EE,00100628,word,24060003", /* 24060050 */
+					"patch=1,EE,00100630,word,24070000", /* 24070001 */
+					/* correct the screen position on y-axis 
+					 * (important when playing on a real hardware!) */
+					"patch=1,EE,00117178,word,02A01021", /* 26A20014 */
+					/* skip overwriting the DISPLAY2 register values 
+					 * with the 480p ones */
+					"patch=1,EE,00117388,word,10000011", /* 10600011 */
+					/* disable the battle transition warp additive dissolve effect - 
+					 * it does crash sometimes when left enabled, uncomment this 
+					 * if you encounter a crash during a loading of the battle */
+#if 0
+					"patch=1,EE,00308548,word,1000015B", /* 10A0015B */
+#endif
+					/* fix the missing icons in battle mode */
+					"patch=1,EE,E0011983,extended,00361AE4",
+					"patch=1,EE,20361AE4,extended,24031000",
+					/* disable the photon warp effect to avoid freeze */
+					"patch=1,EE,E0010012,extended,00374BD4",
+					"patch=1,EE,20374BD4,extended,10000012",
+					/* The first frame of the transition screen is glitched, 
+					 * as the garbage is being written into the frame buffer. */
+					"patch=1,EE,003078EC,word,24030200", /* 24030080 */
+					/* GameGuard disable codes in the PNACH format, 
+					 * ported from the Maori-Jigglypuff's original overlay codes */
+					"patch=1,EE,00100A7C,word,1400FFFA",
+					/* Disable the memory scanning in the 2D mode */
+					"patch=1,EE,E0038C56,extended,00423722",
+					"patch=1,EE,204233B4,extended,24160000", /* 8C560000 */
+					"patch=1,EE,20423568,extended,24160000", /* 8C560000 */
+					"patch=1,EE,20423720,extended,24160000", /* 8C560000 */
+					/* Skip the traps while saving */
+					"patch=1,EE,E0016EA4,extended,00499F5C",
+					"patch=1,EE,20499F5C,extended,00000000", /* 0C126EA4 */
+					/* Disable the protection traps and 
+					 * memory scanning in the battle mode */
+					"patch=1,EE,E00D002D,extended,00431950",
+					"patch=1,EE,20397BB0,extended,00000000", /* 1440FFF9 */
+					"patch=1,EE,203ABE70,extended,10000017", /* 1C600017 */
+					"patch=1,EE,203AF11C,extended,00000000", /* 1000FFFA */
+					"patch=1,EE,203AF2B4,extended,00000000", /* 1000FFFA */
+					"patch=1,EE,203AF374,extended,00000000", /* 1000FFFA */
+					"patch=1,EE,203C5484,extended,00000000", /* 1000FFFA */
+					"patch=1,EE,203CFA7C,extended,00000000", /* 1000FFFA */
+					"patch=1,EE,203D226C,extended,10000020", /* 14200020 */
+					"patch=1,EE,203D4554,extended,00000000", /* 1000FFFA */
+					"patch=1,EE,203ACFB4,extended,100000F4", /* 1020002E */
+					"patch=1,EE,203AD464,extended,1000003C", /* 1020002E */
+					"patch=1,EE,20431798,extended,10000055", /* 1000002D */
+					"patch=1,EE,20431950,extended,10000043", /* 1000002D */
+					/* Pre and post battle integrity check */
+					"patch=1,EE,E0030038,extended,0036829C",
+					"patch=1,EE,20367F38,extended,100000D5", /* 102000D5 */
+					"patch=1,EE,20368294,extended,00000000"  /* FD690008 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Virtua Fighter 4: Evolution (PAL) [CRC: 81CA29BE] */
+			else if (!strcmp(serial, "SLES-51616"))
+			{
+				/* Patch courtesy: Agrippa */
+				int i;
+				char *patches[] = {
+					/* SCE_GS_FIELD set to 0x0 - read the full frame 
+					 * instead of the half */
+					"patch=1,EE,002FAF74,word,24070000", /* 00C0382D */
+					/* replace front buffer addresses with back buffer ones */
+					"patch=1,EE,002FABA4,word,00A32825", /* 00A62825 */
+					"patch=1,EE,002FAC48,word,00A32825", /* 00A62825 */
+					/* force the 448 frame height */
+					"patch=1,EE,002FAB14,word,3C01001B", /* 3C01001F */
+					/* disable the scaling of frame buffer in the PAL mode */
+					"patch=1,EE,002F74A4,word,10000006" /* 14620006 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
