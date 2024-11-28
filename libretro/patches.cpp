@@ -86,6 +86,17 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Burnout 3: Takedown (NTSC-U) [CRC: D224D348] */
+			else if (!strcmp(serial, "SLUS-21050"))
+			{
+				int i;
+				char *patches[] = {
+					/* Always ask for 480p mode during boot */
+					"patch=0,EE,20437758,extended,100000F1"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Burnout Revenge (NTSC-U) [CRC: D224D348] */
 			else if (!strcmp(serial, "SLUS-21242"))
 			{
@@ -1394,7 +1405,11 @@ void lrps2_ingame_patches(const char *serial,
 					"patch=0,EE,202D165C,extended,E4C30000",
 					/* Falling car parts while driving 
 					 * (takedowns and traffic checks) */
-					"patch=0,EE,20210FA8,extended,00000000"
+					"patch=0,EE,20210FA8,extended,00000000",
+					/* Prevent the game to remove out of range crashing traffic */
+					"patch=0,EE,001EC88A,extended,00000000",
+					/* Render all extra particles while driving */
+					"patch=0,EE,202B5334,extended,24030001"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -1739,17 +1754,17 @@ void lrps2_ingame_patches(const char *serial,
 			{
 				int i;
 				char *patches[] = {
-					/* Fix FMVs playback speed while using 60 FPS patches */
+					/* Enable 60fps in menus */
 					"patch=0,EE,201D3F2C,extended,1000000A",
+					/* Fix FMVs playback speed while using 60 FPS patches */
 					"patch=0,EE,20130DD8,extended,C7958074",
 					"patch=0,EE,20130DDC,extended,3C084000",
 					"patch=0,EE,20130DE0,extended,4488A000",
 					"patch=0,EE,20130DE4,extended,4614AD03",
 					"patch=0,EE,20130DE8,extended,00000000",
 
+					/* Enable 60fps in crashes */
 					"patch=0,EE,201320D8,extended,1000004B",
-
-					"patch=0,EE,20437758,extended,100000F1"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2603,6 +2618,18 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Burnout Revenge (NTSC-U) [CRC: D224D348] */
+			else if (!strcmp(serial, "SLUS-21242"))
+			{
+				int i;
+				char *patches[] = {
+					/* Force native widescreen mode */
+					"patch=0,EE,004693D4,extended,00000001",
+					"patch=0,EE,204693D8,extended,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dynasty Warriors 2 (NTSC-U) [CRC: 5B665C0B] */
 			else if (!strcmp(serial, "SLUS-20079"))
 			{
@@ -3064,8 +3091,20 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
+			/* Burnout Revenge (NTSC-U) [CRC: D224D348] */
+			if (!strcmp(serial, "SLPM-66108"))
+			{
+				int i;
+				char *patches[] = {
+					/* Force native widescreen mode */
+					"patch=0,EE,003FE6E4,extended,00000001",
+					"patch=0,EE,203FE6E8,extended,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Sega Rally 2006 (NTSC-J) [CRC: B26172F0] */
-			if (!strcmp(serial, "SLPM-66212"))
+			else if (!strcmp(serial, "SLPM-66212"))
 			{
 				/* Patch courtesy: VIRGIN KLM */
 				int i;
@@ -3114,6 +3153,20 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
+			/* Richard Burns Rally (NTSC-J) [CRC: 3311A6F3] */
+			if (!strcmp(serial, "SLPM-66068"))
+			{
+				/* Patch courtesy: Nehalem */
+				int i;
+				char *patches[] = {
+					/* Force the game to use English instead of Japanese */
+					"patch=0,EE,20388C80,extended,474E452E",
+					"patch=0,EE,203CC8D0,extended,474E4500",
+					"patch=0,EE,203CCE20,extended,676E652E"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Vampire Darkstalkers Collection (NTSC-J) */
 			if (!strcmp(serial, "SLPM-66212"))
 			{
