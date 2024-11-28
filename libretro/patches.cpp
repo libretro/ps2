@@ -2178,6 +2178,18 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Spider-Man - Friend or Foe (NTSC-U) [CRC: F52477F7] */
+			else if (!strcmp(serial, "SLUS-21600"))
+			{
+				/* Patch courtesy: Gabominated */
+				/* 60fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2037DCA0,extended,00000001" /* 00000002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Splinter Cell - Pandora Tomorrow (NTSC-U) [CRC: 0277247B] */
 			else if (!strcmp(serial, "SLUS-20958"))
 			{
