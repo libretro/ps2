@@ -1572,6 +1572,19 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* SSX On Tour (NTSC-U) [CRC: 0F27ED9B] */
+			else if (!strcmp(serial, "SLUS-21278"))
+			{
+				/* Patch courtesy: Zenloup */
+				int i;
+				char *patches[] = {
+					/* LOD Control
+					 * 1=Highpoly/cutscenes 2=Medium Poly 3= Lowpoly */
+					"patch=1,EE,0011BA84,word,1"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 		}
 		else if (!strncmp("SCPS-", serial, strlen("SCPS-")))
 		{
@@ -2761,6 +2774,16 @@ void lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,001130CC,word,E78C9A90",
 					"patch=1,EE,0021DF84,word,0C044C2F",
 					"patch=1,EE,00242D54,word,0C044C32"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Le Mans 24 Hours (NTSC-U) [CRC: 67835861] */
+			else if (!strcmp(serial, "SLUS-20207"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00323AF4,word,3C033FAB"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
