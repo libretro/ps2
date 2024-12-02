@@ -1286,16 +1286,13 @@ void lrps2_ingame_patches(const char *serial,
 				char *patches[] = {
 					/* CNP Draw Distance */
 					"patch=1,EE,00156554,word,00000000",
-					"patch=1,EE,00156678,word,3C1943C0",
-					"patch=1,EE,00156684,word,AC990CEC",
 					"patch=1,EE,001729DC,word,00000000",
 					"patch=1,EE,00155FF0,word,00000000",
 					/* LOD Distance */
 					"patch=1,EE,00157364,word,10000006",
 					/* Shade */
-					"patch=1,EE,001A3E80,word,C6800004",
-					/* Additional Shade */
-					"patch=1,EE,001A3D80,word,C6800004"
+					"patch=1,EE,001A3E80,word,00000000",
+					"patch=1,EE,001A3D80,word,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2618,29 +2615,32 @@ void lrps2_ingame_patches(const char *serial,
 			/* Ace Combat Zero: The Belkan War (NTSC-U) */
 			if (!strcmp(serial, "SLUS-21346"))
 			{
-				if (hint_widescreen == 3)
+				switch (hint_widescreen)
 				{
-					/* 21:9
-					 * Patch courtesy: pgert */
-					int i;
-					char *patches[] = {
-						"patch=1,EE,003FA350,word,440C0000",
-						"patch=1,EE,003FA354,word,444DA000"
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
-				}
-				else
-				{
-					/* 16:9
-					 * Patch courtesy: nemesis2000 */
-					int i;
-					char *patches[] = {
-						"patch=1,EE,003FA350,word,43D638F3",
-						"patch=1,EE,003FA354,word,43EB7385"
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
+					case 3: /* 21:9 */
+						{
+							/* Patch courtesy: pgert */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,003FA350,word,440C0000",
+								"patch=1,EE,003FA354,word,444DA000"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							/* Patch courtesy: nemesis2000 */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,003FA350,word,43D638F3",
+								"patch=1,EE,003FA354,word,43EB7385"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
 				}
 			}
 			/* Alias (NTSC-U) [CRC: E3ADDC73] */
@@ -2695,6 +2695,43 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
+			if (!strcmp(serial, "SCUS-97111"))
+			{
+				switch (hint_widescreen)
+				{
+					case 4: /* 32:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3C023E90"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					case 3: /* 21:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3F023F0F"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3C023F40"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+				}
+			}
 			/* Dirge of Cerberus - Final Fantasy VII (NTSC-U) [CRC: 44A5FA15] */
 			else if (!strcmp(serial, "SLUS-21419"))
 			{
@@ -2708,23 +2745,28 @@ void lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				if (hint_widescreen == 3) /* 21:9 */
+				switch (hint_widescreen)
 				{
-					int i;
-					char *patches[] = {
-						"patch=1,EE,004FB248,word,3FE00000" /* 3F970A3D y-fov */
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
-				}
-				else
-				{
-					int i;
-					char *patches[] = {
-						"patch=1,EE,004FB248,word,3FC962FC" /* 3F970A3D y-fov */
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
+					case 3: /* 21:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,004FB248,word,3FE00000" /* 3F970A3D y-fov */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,004FB248,word,3FC962FC" /* 3F970A3D y-fov */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
 				}
 			}
 			/* Dynasty Warriors 2 (NTSC-U) [CRC: 5B665C0B] */
@@ -2902,51 +2944,56 @@ void lrps2_ingame_patches(const char *serial,
 			/* Stretch Panic (NTSC-U) [CRC: 854D5885] */
 			else if (!strcmp(serial, "SLUS-20182")) 
 			{
-				if (hint_widescreen == 2) /* 16:10 */
+				switch (hint_widescreen)
 				{
-					/* Patch courtesy: sergx12 */
-					int i;
-					char *patches[] = {
-						//16:10 widescreen (ultra)
-						"patch=1,EE,2011FB08,extended,08047ECE", //0441000B - j $0011fb38 - Jump over game logic for SIO2MAN.IRX debug error message to prevent conflicts
-						"patch=1,EE,2011FB4C,extended,08047EE0", //0441000C - j $0011fb80 - Jump over game logic for PADMAN.IRX debug error message to prevent conflicts
-						"patch=1,EE,2012BFD8,extended,08047ECA", //C60F017C - j $0011fb28 - Jump to injected MIPS instructions for cutscene/playing check
-						"patch=1,EE,2011FB28,extended,52600013", //0C043184 - beql s3, zero, $0011fb78 - Branch to the end of the widescreen logic if a cutscene is running (by checking if s3 register is 0)
-						"patch=1,EE,2011FB2C,extended,00000000", //70003628 - nop - Nop delay slot (to avoid a "branch XXXXXXXX in delay slot!" warning in PCSX2's log)
-						"patch=1,EE,2011FB30,extended,08047ED5", //0440FFF7 - j $0011fb54 - Jump to injected MIPS instructions for widescreen logic
-						"patch=1,EE,2011FB54,extended,3C013FAA", //3C02006A - lui at, $3faa - Set $f31 register to 1.333333373 #1
-						"patch=1,EE,2011FB58,extended,3421AAAB", //0C046690 - ori at, at, $aaab - Set $f31 register to 1.333333373 #2
-						"patch=1,EE,2011FB5C,extended,4481F800", //2444B2E0 - mtc1 at, $f31 - Set $f31 register to 1.333333373 #3
-						"patch=1,EE,2011FB60,extended,461F6302", //3C02006A - mul.s $f12, $f12, $f31 - Multiply $f12 by $f31 and store the result in $f12 (positive X FOV)
-						"patch=1,EE,2011FB64,extended,46006347", //2444B2C0 - neg.s $f13, $f12 - Negate $f12 and store the result in $f13 (negative X FOV)
-						"patch=1,EE,2011FB68,extended,3C013F8E", //70002E28 - lui at, $3f8e - Set $f31 register to 1.111111164 #1
-						"patch=1,EE,2011FB6C,extended,342138E4", //0C043184 - ori at, at, $38e4 - Set $f31 register to 1.111111164 #2
-						"patch=1,EE,2011FB70,extended,4481F800", //70003628 - mtc1 at, $f31 - Set $f31 register to 1.111111164 #3
-						"patch=1,EE,2011FB74,extended,461F7382", //0440FFF7 - mul.s $f14, $f14, $f31 - Multiply $f14 by $f31 and store the result in $f14 (negative Y FOV)
-						"patch=1,EE,2011FB78,extended,0804AFF8", //00000000 - j $0012bfe0 - Jump to 2 lines after the overwritten MIPS instruction
-						"patch=1,EE,2011FB7C,extended,460073C7" //00000000 - neg.s $f15, $f14 - Negate $f14 to make it positive and store the result in $f15 (positive Y FOV)
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
-				}
-				else
-				{
-					/* Patch courtesy: sergx12 */
-					int i;
-					char *patches[] = {
-						//16:9 widescreen
-						"patch=1,EE,2011FB4C,extended,08047EE0", //0441000C - j $0011fb80 - Jump over game logic for PADMAN.IRX debug error message to prevent conflicts
-						"patch=1,EE,2012BFD0,extended,08047ED5", //C60D0174 - j $0011fb54 - Jump to injected MIPS instructions for widescreen logic
-						"patch=1,EE,2011FB54,extended,12600004", //3C02006A - beq s3, zero, $0011fb68 - Branch to the end of the widescreen logic if a cutscene is running (by checking if s3 register is 0)
-						"patch=1,EE,2011FB58,extended,3C013FAA", //0C046690 - lui at, $3faa - Set $f31 register to 1.333333373 #1
-						"patch=1,EE,2011FB5C,extended,3421AAAB", //2444B2E0 - ori at, at, $aaab - Set $f31 register to 1.333333373 #2
-						"patch=1,EE,2011FB60,extended,4481F800", //3C02006A - mtc1 at, $f31 - Set $f31 register to 1.333333373 #3
-						"patch=1,EE,2011FB64,extended,461F6302", //2444B2C0 - mul.s $f12, $f12, $f31 - Multiply $f12 by $f31 and store the result in $f12 (positive X FOV)
-						"patch=1,EE,2011FB68,extended,0804AFF6", //70002E28 - j $0012bfd8 - Jump to 2 lines after the overwritten MIPS instruction
-						"patch=1,EE,2011FB6C,extended,46006347" //0C043184 - neg.s $f13, $f12 - Negate $f12 and store the result in $f13 (negative X FOV)
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
+					case 2: /* 16:10 */
+						{
+							/* Patch courtesy: sergx12 */
+							int i;
+							char *patches[] = {
+								//16:10 widescreen (ultra)
+								"patch=1,EE,2011FB4C,extended,08047EE0", //0441000C - j $0011fb80 - Jump over game logic for PADMAN.IRX debug error message to prevent conflicts
+								"patch=1,EE,2011FB08,extended,08047ECE", //0441000B - j $0011fb38 - Jump over game logic for SIO2MAN.IRX debug error message to prevent conflicts
+								"patch=1,EE,2012BFD8,extended,08047ECA", //C60F017C - j $0011fb28 - Jump to injected MIPS instructions for cutscene/playing check
+								"patch=1,EE,2011FB28,extended,52600013", //0C043184 - beql s3, zero, $0011fb78 - Branch to the end of the widescreen logic if a cutscene is running (by checking if s3 register is 0)
+								"patch=1,EE,2011FB2C,extended,00000000", //70003628 - nop - Nop delay slot (to avoid a "branch XXXXXXXX in delay slot!" warning in PCSX2's log)
+								"patch=1,EE,2011FB30,extended,08047ED5", //0440FFF7 - j $0011fb54 - Jump to injected MIPS instructions for widescreen logic
+								"patch=1,EE,2011FB54,extended,3C013FAA", //3C02006A - lui at, $3faa - Set $f31 register to 1.333333373 #1
+								"patch=1,EE,2011FB58,extended,3421AAAB", //0C046690 - ori at, at, $aaab - Set $f31 register to 1.333333373 #2
+								"patch=1,EE,2011FB5C,extended,4481F800", //2444B2E0 - mtc1 at, $f31 - Set $f31 register to 1.333333373 #3
+								"patch=1,EE,2011FB60,extended,461F6302", //3C02006A - mul.s $f12, $f12, $f31 - Multiply $f12 by $f31 and store the result in $f12 (positive X FOV)
+								"patch=1,EE,2011FB64,extended,46006347", //2444B2C0 - neg.s $f13, $f12 - Negate $f12 and store the result in $f13 (negative X FOV)
+								"patch=1,EE,2011FB68,extended,3C013F8E", //70002E28 - lui at, $3f8e - Set $f31 register to 1.111111164 #1
+								"patch=1,EE,2011FB6C,extended,342138E4", //0C043184 - ori at, at, $38e4 - Set $f31 register to 1.111111164 #2
+								"patch=1,EE,2011FB70,extended,4481F800", //70003628 - mtc1 at, $f31 - Set $f31 register to 1.111111164 #3
+								"patch=1,EE,2011FB74,extended,461F7382", //0440FFF7 - mul.s $f14, $f14, $f31 - Multiply $f14 by $f31 and store the result in $f14 (negative Y FOV)
+								"patch=1,EE,2011FB78,extended,0804AFF8", //00000000 - j $0012bfe0 - Jump to 2 lines after the overwritten MIPS instruction
+								"patch=1,EE,2011FB7C,extended,460073C7" //00000000 - neg.s $f15, $f14 - Negate $f14 to make it positive and store the result in $f15 (positive Y FOV)
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							/* Patch courtesy: sergx12 */
+							int i;
+							char *patches[] = {
+								//16:9 widescreen
+								"patch=1,EE,2011FB4C,extended,08047EE0", //0441000C - j $0011fb80 - Jump over game logic for PADMAN.IRX debug error message to prevent conflicts
+								"patch=1,EE,2012BFD0,extended,08047ED5", //C60D0174 - j $0011fb54 - Jump to injected MIPS instructions for widescreen logic
+								"patch=1,EE,2011FB54,extended,12600004", //3C02006A - beq s3, zero, $0011fb68 - Branch to the end of the widescreen logic if a cutscene is running (by checking if s3 register is 0)
+								"patch=1,EE,2011FB58,extended,3C013FAA", //0C046690 - lui at, $3faa - Set $f31 register to 1.333333373 #1
+								"patch=1,EE,2011FB5C,extended,3421AAAB", //2444B2E0 - ori at, at, $aaab - Set $f31 register to 1.333333373 #2
+								"patch=1,EE,2011FB60,extended,4481F800", //3C02006A - mtc1 at, $f31 - Set $f31 register to 1.333333373 #3
+								"patch=1,EE,2011FB64,extended,461F6302", //2444B2C0 - mul.s $f12, $f12, $f31 - Multiply $f12 by $f31 and store the result in $f12 (positive X FOV)
+								"patch=1,EE,2011FB68,extended,0804AFF6", //70002E28 - j $0012bfd8 - Jump to 2 lines after the overwritten MIPS instruction
+								"patch=1,EE,2011FB6C,extended,46006347" //0C043184 - neg.s $f13, $f12 - Negate $f12 and store the result in $f13 (negative X FOV)
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
 				}
 			}
 			/* Tekken Tag Tournament (NTSC-U) [CRC: 67454C1E] */
@@ -3035,25 +3082,30 @@ void lrps2_ingame_patches(const char *serial,
 			/* Sky Odyssey (PAL-M5) [CRC: 29B11E02] */
 			else if (!strcmp(serial, "SCES-50105")) 
 			{
-				if (hint_widescreen == 2) /* 16:10 */
+				switch (hint_widescreen)
 				{
-					int i;
-					char *patches[] = {
-						"patch=1,EE,0028ab58,word,3f555555", /* 3f800000 hor FOV */
-						"patch=1,EE,00273400,word,43c00000" /* 43a00000 increase hor FOV */
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
-				}
-				else /* 16:9 */
-				{
-					int i;
-					char *patches[] = {
-						"patch=1,EE,0028ab58,word,3f400000", /* 3f800000 hor FOV */
-						"patch=1,EE,00273400,word,43d55555"  /* 43a00000 increase hor FOV */
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
+					case 2: /* 16:10 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0028ab58,word,3f555555", /* 3f800000 hor FOV */
+								"patch=1,EE,00273400,word,43c00000" /* 43a00000 increase hor FOV */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0028ab58,word,3f400000", /* 3f800000 hor FOV */
+								"patch=1,EE,00273400,word,43d55555"  /* 43a00000 increase hor FOV */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
 				}
 			}
 			/* Tekken Tag Tournament (PAL) [CRC: 0DD8941C] */
@@ -3126,20 +3178,26 @@ void lrps2_ingame_patches(const char *serial,
 			/* Need for Speed - Hot Pursuit 2 (PAL-M6) (SLES-50731) */
 			else if (!strcmp(serial, "SLES-50731"))
 			{
-				if (hint_widescreen == 3) /* 21:9 */
+				switch (hint_widescreen)
 				{
-					/* Patch courtesy: l-kobra */
-					int i;
-					char *patches[] = {
-						"patch=1,EE,0032f6fc,word,3f100000", /* 3f800000 hor fov */
-						"patch=1,EE,0010e994,word,46011702",
-						"patch=1,EE,0032f6ec,word,3f19999a",
-						"patch=1,EE,0032f850,word,3fd55555",
-						"patch=1,EE,0010EDEC,short,0000",
-						"patch=1,EE,0010EE0C,short,0000"
-					};
-					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-						LoadPatchesFromString(std::string(patches[i]));
+					case 3: /* 21:9 */
+						{
+							/* Patch courtesy: l-kobra */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0032f6fc,word,3f100000", /* 3f800000 hor fov */
+								"patch=1,EE,0010e994,word,46011702",
+								"patch=1,EE,0032f6ec,word,3f19999a",
+								"patch=1,EE,0032f850,word,3fd55555",
+								"patch=1,EE,0010EDEC,short,0000",
+								"patch=1,EE,0010EE0C,short,0000"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default:
+						break;
 				}
 			}
 			/* Rayman Revolution (PAL-M5) [CRC: 55EDA5A0] */
@@ -3155,12 +3213,12 @@ void lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				switch (hint_widescreen)
 				{
-					case 1: /* 16:9 */
+					case 3: /* 21:9 */
 						{
 							/* Patch courtesy: Elhecht & ICUP321 */
 							int i;
 							char *patches[] = {
-								"patch=1,EE,0018c690,word,3c013f40" /* 00000000 hor fov */
+								"patch=1,EE,0018c690,word,3c013f10" /* 00000000 hor fov */
 							};
 							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 								LoadPatchesFromString(std::string(patches[i]));
@@ -3178,12 +3236,12 @@ void lrps2_ingame_patches(const char *serial,
 								LoadPatchesFromString(std::string(patches[i]));
 						}
 						break;
-					case 3: /* 21:9 */
+					default: /* 16:9 */
 						{
 							/* Patch courtesy: Elhecht & ICUP321 */
 							int i;
 							char *patches[] = {
-								"patch=1,EE,0018c690,word,3c013f10" /* 00000000 hor fov */
+								"patch=1,EE,0018c690,word,3c013f40" /* 00000000 hor fov */
 							};
 							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 								LoadPatchesFromString(std::string(patches[i]));

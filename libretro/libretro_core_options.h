@@ -377,6 +377,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "disabled", NULL },
          { "enabled (16:9)", NULL },
          { "enabled (16:10)", NULL },
+         { "enabled (21:9)", NULL },
          { "enabled (32:9)", NULL },
          { NULL, NULL },
       },
