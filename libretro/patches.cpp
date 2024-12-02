@@ -2583,8 +2583,31 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
+			/* Dark Cloud 2 (NTSC-U) [CRC: 1DF41F33] */
+			if (!strcmp(serial, "SCUS-97213"))
+			{
+				/* 60fps uncapped. Need EE Overclock at 130% */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00376C50,word,00000001", /* 60fps */
+					/* Animation Speed Modifier */
+					"patch=1,EE,00174698,word,3c033f00", /* 3c033f80 */
+					/* Fix Character isn't walking */
+					"patch=1,EE,001746e0,word,3c033F00", /* 3c033f80 */
+					/* Revert to 30FPS during ingame cutscenes */
+					"patch=1,EE,E004CCCC,extended,10381134",
+					"patch=1,EE,E0030000,extended,01ECE40C",
+					"patch=1,EE,20376C50,extended,00000002",
+					"patch=1,EE,20174698,extended,3C033F80",
+					"patch=1,EE,201746e0,extended,3C033F80",
+					/* Fix Player Jumps too far */
+					"patch=1,EE,003560c8,word,3f000000" /* 3f800000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
-			if (!strcmp(serial, "SCUS-97654"))
+			else if (!strcmp(serial, "SCUS-97654"))
 			{
 				/* 60fps uncapped */
 				int i;
@@ -3275,8 +3298,44 @@ void lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
+			/* Dark Cloud 2 (NTSC-U) [CRC: 1DF41F33] */
+			if (!strcmp(serial, "SCUS-97213"))
+			{
+				switch (hint_widescreen)
+				{
+					case 4: /* 32:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00138D78,word,3F023EC0"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+					case 3: /* 21:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00138D78,word,3F023F10"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00138D78,word,3F023F40"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+				}
+			}
 			/* God of War II (NTSC-U) [CRC: 2F123FD8] */
-			if (!strcmp(serial, "SCUS-97481"))
+			else if (!strcmp(serial, "SCUS-97481"))
 			{
 				int i;
 				char *patches[] = {
