@@ -108,6 +108,19 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Cold Winter (NTSC-U) [CRC: D6D704BB] */
+			else if (!strcmp(serial, "SLUS-20845"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,10107C60,extended,00000001",
+					"patch=0,EE,10679C0C,extended,000001C0",
+					"patch=0,EE,1042983C,extended,240201C0",
+					"patch=0,EE,10106858,extended,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Drakengard (NTSC-U) [CRC: 9679D44C] */
 			else if (!strcmp(serial, "SLUS-20732"))
 			{
@@ -1834,6 +1847,19 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Cold Winter (NTSC-U) [CRC: D6D704BB] */
+			else if (!strcmp(serial, "SLUS-20845"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,2042A534,extended,24630000",
+					"patch=0,EE,2042A548,extended,24840000",
+					"patch=0,EE,203C0018,extended,080F000C",
+					"patch=0,EE,201FE694,extended,24020001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dark Angel - James Cameron's (NTSC-U) [CRC: 29BA2F04] */
 			else if (!strcmp(serial, "SLUS-20379"))
 			{
@@ -2727,6 +2753,29 @@ void lrps2_ingame_patches(const char *serial,
 					/* Force native widescreen mode */
 					"patch=0,EE,004693D4,extended,00000001",
 					"patch=0,EE,204693D8,extended,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Cold Winter (NTSC-U) [CRC: D6D704BB] */
+			else if (!strcmp(serial, "SLUS-20845"))
+			{
+				int i;
+				char *patches[] = {
+					/* Widescreen hack by nemesis2000 (pnach by nemesis2000) */
+					"patch=1,EE,003c4cf4,word,3c013f40",
+					"patch=1,EE,003c4cfc,word,44810800",
+					"patch=1,EE,003c4d00,word,03e00008",
+					"patch=1,EE,003c4d04,word,4601a083",
+					/* weapon */
+					"patch=1,EE,00310f4c,word,c6740330",
+					"patch=1,EE,00310f54,word,c7a30048",
+					"patch=1,EE,00310f60,word,e7a20050",
+					"patch=1,EE,00310f64,word,c6620330",
+					/* gameplay */
+					"patch=1,EE,001dcc34,word,8E440058",
+					"patch=1,EE,001dcc40,word,e7a20040"
+
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
