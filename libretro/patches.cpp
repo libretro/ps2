@@ -2104,13 +2104,24 @@ int lrps2_ingame_patches(const char *serial,
 			/* Midnight Club 3 - DUB Edition (NTSC-U) v1.0 [CRC: 4A0E5B3A] */
 			else if (!strcmp(serial, "SLUS-21029"))
 			{
-				/* 60fps uncapped */
+				/* 60fps uncapped. Need EE Overclock at 180%. */
 				int i;
-				char *patches[] = {
-					"patch=1,EE,00617AB4,word,00000001" /* 00000002 */
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
+				if (     game_crc == 0x0DD3417A) /* 2.00 */
+				{
+					char *patches[] = {
+						"patch=1,EE,00617F30,word,00000001" /* 00000002 */
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+				else
+				{
+					char *patches[] = {
+						"patch=1,EE,00617AB4,word,00000001" /* 00000002 */
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
 			}
 			/* Need For Speed - Hot Pursuit 2 (NTSC-U) [CRC: 1D2818AF] */
 			else if (!strcmp(serial, "SLUS-20362"))
@@ -2546,6 +2557,19 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Metal Gear Solid 2: Substance (PAL-M) [CRC: 093E7D52] */
+			else if (!strcmp(serial, "SLES-82009"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped cutscenes. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,E0010002,extended,00191A34",
+					"patch=1,EE,00191A34,extended,00000000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Project Zero 2 - Crimson Butterfly (PAL) [CRC: 9D87F3AF] */
 			else if (!strcmp(serial, "SLES-52384"))
 			{
@@ -2679,8 +2703,34 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		if (!strncmp("SCES-", serial, strlen("SCES-")))
 		{
+			/* Dog's Life, The (PAL-M) [CRC: 531061F2] */
+			if (!strcmp(serial, "SCES-51248"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00791350,word,3CA3D70A"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Drakan - The Ancients Gate (PAL-M) [CRC: 04F9D87F] */
+			else if (!strcmp(serial, "SCES-50006"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001D7950,extended,28420002",
+					"patch=1,EE,E0010001,extended,004DBA28",
+					"patch=1,EE,001D7950,extended,28420004"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Final Fantasy X (PAL) */
-			if (!strcmp(serial, "SCES-50494"))
+			else if (!strcmp(serial, "SCES-50494"))
 			{
 				/* Patch courtesy: PeterDelta */
 				/* 50fps uncapped. Need EE Overclock at 130%. */
@@ -2693,6 +2743,18 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,0011B940,extended,24040001",
 					"patch=1,EE,2057C7D8,extended,3CCCCCCD",
 					"patch=1,EE,2058D448,extended,3FC00000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Getaway, The (PAL-M) [CRC: 458485EF] */
+			else if (!strcmp(serial, "SCES-51159"))
+			{
+				/* Patch courtesy: PeterDelta */
+				/* 50fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001F0EB8,word,24020001" /* 24020002 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3243,8 +3305,19 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SCES-", serial, strlen("SCES-")))
 		{
+			/* Dog's Life, The (PAL-M) [CRC: 531061F2] */
+			if (!strcmp(serial, "SCES-51248"))
+			{
+				/* Patch courtesy: PeterDelta */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00AB51C0,byte,01" /* Enable native widescreen */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Extermination (PAL-M5) [CRC: 68707E85] */
-			if (!strcmp(serial, "SCES-50240")) 
+			else if (!strcmp(serial, "SCES-50240")) 
 			{
 				int i;
 				char *patches[] = {
