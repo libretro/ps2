@@ -510,7 +510,7 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 	{
 		if (vsync.image)
 		{
-			retro_game_geometry geom = {};
+			static retro_game_geometry geom  = {};
 			bool geom_changed                = false;
 			static float last_aspect         = 0.0f;
 			static uint32_t last_base_width  = 0;
