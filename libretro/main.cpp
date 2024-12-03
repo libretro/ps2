@@ -120,6 +120,7 @@ static s8 setting_hint_language_unlock         = 0;
 s8 setting_hint_widescreen                     = 0;
 static s8 setting_hint_game_enhancements       = 0;
 static s8 setting_hint_uncapped_framerate      = 0;
+static s8 internal_setting_region              = RETRO_REGION_NTSC;
 static s8 setting_trilinear_filtering          = 0;
 static bool setting_hint_nointerlacing         = false;
 static bool setting_pcrtc_antiblur             = false;
@@ -1029,11 +1030,13 @@ static void check_variables(bool first_run)
 	var.key = "pcsx2_uncapped_framerate_hint";
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 	{
-		u8 uncapped_framerate_hint_prev = setting_hint_uncapped_framerate;
+		s8 uncapped_framerate_hint_prev = setting_hint_uncapped_framerate;
 		if (!strcmp(var.value, "disabled"))
 			setting_hint_uncapped_framerate = 0;
 		else if (!strcmp(var.value, "enabled"))
 			setting_hint_uncapped_framerate = 1;
+		else if (!strcmp(var.value, "60fps PAL-to-NTSC"))
+			setting_hint_uncapped_framerate = 2;
 
 		if (setting_hint_uncapped_framerate != uncapped_framerate_hint_prev)
 			updated = true;
@@ -1275,6 +1278,9 @@ void retro_get_system_av_info(retro_system_av_info* info)
 			info->geometry.aspect_ratio = 16.0f / 10.0f;
 			break;
 		case 3:
+			info->geometry.aspect_ratio = 21.0f / 9.0f;
+			break;
+		case 4:
 			info->geometry.aspect_ratio = 32.0f / 9.0f;
 			break;
 		case 0:
@@ -1665,6 +1671,11 @@ bool retro_load_game(const struct retro_game_info* game)
 	return true;
 }
 
+void retro_set_region(unsigned val) { internal_setting_region = val; }
+unsigned retro_get_region(void) { return internal_setting_region; }
+
+unsigned retro_api_version(void) { return RETRO_API_VERSION; }
+
 bool retro_load_game_special(unsigned game_type,
 	const struct retro_game_info* info, size_t num_info) { return false; }
 
@@ -1686,8 +1697,9 @@ void retro_unload_game(void)
 	VMManager::Internal::CPUThreadShutdown();
 
 	((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(LayeredSettingsInterface::LAYER_BASE, nullptr);
-}
 
+	retro_set_region(RETRO_REGION_NTSC); /* set back to default */
+}
 
 void retro_run(void)
 {
@@ -1851,9 +1863,6 @@ bool retro_unserialize(const void* data, size_t size)
 	return true;
 }
 
-unsigned retro_get_region(void)  { return RETRO_REGION_NTSC; }
-unsigned retro_api_version(void) { return RETRO_API_VERSION; }
-
 size_t retro_get_memory_size(unsigned id)
 {
 	/* This only works because Scratch comes right after Main in eeMem */
@@ -1891,7 +1900,7 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	return ret;
 }
 
-void lrps2_ingame_patches(const char *serial,
+int lrps2_ingame_patches(const char *serial,
 		u32 game_crc,
 		const char *renderer,
 		bool nointerlacing_hint,
@@ -1905,8 +1914,11 @@ void Host::OnGameChanged(const std::string& disc_path,
 	const std::string& elf_override, const std::string& game_serial,
 	u32 game_crc)
 {
-	log_cb(RETRO_LOG_INFO, "serial: %s\n", game_serial.c_str());
-	lrps2_ingame_patches(game_serial.c_str(),
+	int ret = 0;
+	const char *serial = game_serial.c_str();
+	log_cb(RETRO_LOG_INFO, "serial: %s\n", serial);
+
+	ret = lrps2_ingame_patches(game_serial.c_str(),
 			game_crc,
 			setting_renderer.c_str(),
 			setting_hint_nointerlacing,
@@ -1915,4 +1927,24 @@ void Host::OnGameChanged(const std::string& disc_path,
 			setting_hint_widescreen,
 			setting_hint_uncapped_framerate,
 			setting_hint_language_unlock);
+
+#if 0
+	if (
+			(
+			   !strncmp("SLES-", serial, strlen("SLES-"))
+			|| !strncmp("SCES-", serial, strlen("SCES-")))
+			&& ret != 1
+	   )
+	{
+		retro_set_region(RETRO_REGION_PAL);
+		ret = 1;
+	}
+#endif
+
+	if (ret == 1)
+	{
+		retro_system_av_info av_info;
+		retro_get_system_av_info(&av_info);
+		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+	}
 }

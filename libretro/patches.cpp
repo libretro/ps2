@@ -3,8 +3,9 @@
 #include "pcsx2/Patch.h"
 
 extern retro_environment_t environ_cb;
+extern void retro_set_region(unsigned val);
 
-void lrps2_ingame_patches(const char *serial,
+int lrps2_ingame_patches(const char *serial,
 		u32 game_crc,
 		const char *renderer,
 		bool nointerlacing_hint,
@@ -15,6 +16,7 @@ void lrps2_ingame_patches(const char *serial,
 		int8_t hint_language_unlock)
 {
 	struct retro_variable var;
+	int set_system_av_info = 0;
 
 	if (nointerlacing_hint)
 	{
@@ -1707,7 +1709,7 @@ void lrps2_ingame_patches(const char *serial,
 		}
 	}
 
-	if (uncapped_framerate)
+	if (uncapped_framerate > 0)
 	{
 		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
@@ -1918,6 +1920,28 @@ void lrps2_ingame_patches(const char *serial,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,2013FFDC,word,10000014"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Fatal Frame II: Crimson Butterfly (NTSC-U) [CRC: 9A51B627] */
+			else if (!strcmp(serial, "SLUS-20766"))
+			{
+				/* Patch courtesy: Gabominated, asasega */
+				/* 60fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2021b7dc,extended,24020000", /* 24020001 */
+					"patch=1,EE,201E2BD0,extended,00000000", /* 0C07925A */
+					"patch=1,EE,201b2210,extended,3c014148", /* 3c0141c8 */
+					"patch=1,EE,201F798C,extended,2C42003c", /* 2C42001E */
+					"patch=1,EE,E0040001,extended,002BCF58",
+					"patch=1,EE,2021b7dc,extended,24020001",
+					"patch=1,EE,201E2BD0,extended,0C07925A",
+					"patch=1,EE,201b2210,extended,3c0141c8",
+					"patch=1,EE,201F798C,extended,2C42001E",
+					"patch=1,EE,E0010001,extended,002E4E44",
+					"patch=1,EE,2021b7dc,extended,24020001"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2418,6 +2442,38 @@ void lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* 7 Sins (PAL-M) [CRC: 52DEB87B] TODO/FIXME - might not work */
+			else if (!strcmp(serial, "SLES-53280") || !strcmp(serial, "SLES-53297"))
+			{
+				switch (uncapped_framerate)
+				{
+					case 2: /* 60fps NTSC */
+						{
+							/* Patch courtesy: Gabominated */
+							/* 60fps uncapped. Need EE Overclock at 130%. */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,001008f4,word,240201c0" /* 24020200 */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							set_system_av_info = 1;
+						}
+						break;
+					default:
+						{
+							/* Patch courtesy: Gabominated */
+							/* 50fps uncapped. Need EE Overclock at 130%. */
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00428390,word,24020002" /* 24020001 */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+				}
+			}
 			/* Aeon Flux (PAL-M) [CRC: 761CABB3] */
 			else if (!strcmp(serial, "SLES-54169"))
 			{
@@ -2486,6 +2542,28 @@ void lrps2_ingame_patches(const char *serial,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,004BEA90,word,00000001" /* 00000002 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Project Zero 2 - Crimson Butterfly (PAL) [CRC: 9D87F3AF] */
+			else if (!strcmp(serial, "SLES-52384"))
+			{
+				/* Patch courtesy: Gabominated, asasega */
+				/* 50/60fps uncapped. Need EE Overclock at 130%. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,2022088C,extended,00000000", /* 8F82C960 */
+					"patch=1,EE,201E6028,extended,00000000", /* 0C079FB0 */
+					"patch=1,EE,201b5ca0,extended,3c014148", /* 3c0141c8 */
+					"patch=1,EE,201FC230,extended,2C42003c", /* 2C42001E */
+					"patch=1,EE,E0040001,extended,002C3FA8",
+					"patch=1,EE,2022088C,extended,8F82C960",
+					"patch=1,EE,201E6028,extended,0C079FB0",
+					"patch=1,EE,201b5ca0,extended,3c0141c8",
+					"patch=1,EE,201FC230,extended,2C42001E",
+					"patch=1,EE,E0010001,extended,002ECEF4",
+					"patch=1,EE,2022088C,extended,8F82C960"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -2663,6 +2741,18 @@ void lrps2_ingame_patches(const char *serial,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,204874FC,word,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Rise of the Kasai (NTSC-U) [CRC: EDE17E1B] */
+			else if (!strcmp(serial, "SCUS-97416"))
+			{
+				/* Patch courtesy: Gabominated */
+				/* 60fps uncapped. */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00345A00,word,10A00003" /* 14A00003 */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3537,4 +3627,8 @@ void lrps2_ingame_patches(const char *serial,
 			}
 		}
 	}
+
+	if (set_system_av_info)
+		return 1;
+	return 0;
 }

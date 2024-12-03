@@ -516,12 +516,13 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "pcsx2_uncapped_framerate_hint",
       "Emulation > Uncapped Framerate hint (Restart)",
       "Uncapped Framerate hint (Restart)",
-      "Uncaps the framerate if a patch for the game can be found inside the internal database. This can turn a 30fps game into 60fps locked, or stabilize the framerate. You might have to increase EE Cycle Rate in combination with this for a stable locked framerate",
+      "Uncaps the framerate if a patch for the game can be found inside the internal database. This can turn a 30fps game into 60fps locked, or stabilize the framerate. You might have to increase EE Cycle Rate in combination with this for a stable locked framerate. 60fps PAL-to-NTSC does what it says if it can find a patch, otherwise it will just try to use the default uncapped framerate patch (50fps for PAL, 60fps for NTSC)",
       NULL,
       "emulation",
       {
          { "disabled", NULL },
          { "enabled", NULL },
+	 { "60fps PAL-to-NTSC", NULL },
          { NULL, NULL },
       },
       "disabled"
