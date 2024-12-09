@@ -9,6 +9,7 @@
 #include <vector>
 #include <type_traits>
 #include <thread>
+#include <atomic>
 
 #include "libretro_core_options.h"
 #include "GS.h"
@@ -73,7 +74,7 @@ MemorySettingsInterface s_settings_interface;
 
 static retro_audio_sample_batch_t batch_cb;
 
-static VMState cpu_thread_state;
+static std::atomic<VMState> cpu_thread_state;
 static std::thread cpu_thread;
 
 enum PluginType : u8
@@ -311,7 +312,7 @@ static bool update_option_visibility(void)
 static void cpu_thread_pause(void)
 {
 	VMManager::SetPaused(true);
-	while(cpu_thread_state != VMState::Paused)
+	while(cpu_thread_state.load(std::memory_order_acquire) != VMState::Paused)
 		MTGS::MainLoop(true);
 }
 
@@ -1438,7 +1439,7 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 		{
 			for (;;)
 			{
-				cpu_thread_state = VMManager::GetState();
+				cpu_thread_state.store(VMManager::GetState(), std::memory_order_release);
 				switch (cpu_thread_state)
 				{
 					case VMState::Initializing:
@@ -1697,7 +1698,7 @@ void retro_run(void)
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	if (cpu_thread_state == VMState::Paused)
+	if (cpu_thread_state.load(std::memory_order_acquire) == VMState::Paused)
 		VMManager::SetState(VMState::Running);
 
 	RETRO_PERFORMANCE_INIT(pcsx2_run);
