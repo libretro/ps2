@@ -636,7 +636,7 @@ void Pcsx2Config::GSOptions::MaskUpscalingHacks()
 
 bool Pcsx2Config::GSOptions::UseHardwareRenderer() const
 {
-	return (Renderer != GSRendererType::Null && Renderer != GSRendererType::SW);
+	return (Renderer != GSRendererType::SW);
 }
 
 const char* Pcsx2Config::DEV9Options::NetApiNames[] = {

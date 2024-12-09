@@ -80,8 +80,7 @@ enum PluginType : u8
 {
 	PLUGIN_PGS = 0,
 	PLUGIN_GSDX_HW,
-	PLUGIN_GSDX_SW,
-	PLUGIN_NULL
+	PLUGIN_GSDX_SW
 };
 
 struct BiosInfo
@@ -172,12 +171,9 @@ static bool update_option_visibility(void)
 	{
 		const bool parallel_renderer = !strcmp(var.value, "paraLLEl-GS");
 		const bool gsdx_sw_renderer  = !strcmp(var.value, "Software");
-		const bool null_renderer     = !strcmp(var.value, "Null");
-		const bool gsdx_hw_renderer  = !parallel_renderer && !gsdx_sw_renderer && !null_renderer;
+		const bool gsdx_hw_renderer  = !parallel_renderer && !gsdx_sw_renderer;
 		const bool gsdx_renderer     = gsdx_hw_renderer || gsdx_sw_renderer;
 
-		if (null_renderer)
-			setting_show_shared_options       = false;
 		if (!gsdx_renderer)
 			setting_show_gsdx_options         = false;
 		if (!gsdx_hw_renderer)
@@ -334,8 +330,6 @@ static void check_variables(bool first_run)
 				setting_plugin_type = PLUGIN_PGS;
 			else if (setting_renderer == "Software")
 				setting_plugin_type = PLUGIN_GSDX_SW;
-			else if (setting_renderer == "Null")
-				setting_plugin_type = PLUGIN_NULL;
 			else
 				setting_plugin_type = PLUGIN_GSDX_HW;
 		}
@@ -416,8 +410,7 @@ static void check_variables(bool first_run)
 		}
 	}
 
-	// Options for both paraLLEl-GS and GSdx HW/SW, just not with NULL renderer
-	if (setting_plugin_type != PLUGIN_NULL)
+	// Options for both paraLLEl-GS and GSdx HW/SW
 	{
 		var.key = "pcsx2_pgs_disable_mipmaps";
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -1247,8 +1240,7 @@ void retro_get_system_info(retro_system_info* info)
 void retro_get_system_av_info(retro_system_av_info* info)
 {
 	if (               setting_renderer == "Software" 
-			|| setting_renderer == "paraLLEl-GS" 
-			|| setting_renderer == "Null")
+			|| setting_renderer == "paraLLEl-GS")
 	{
 		info->geometry.base_width  = 640;
 		info->geometry.base_height = 448;
@@ -1417,9 +1409,6 @@ static bool libretro_select_hw_render(void)
 			|| setting_renderer == "paraLLEl-GS")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN);
 #endif
-	if (setting_renderer == "Null")
-		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
-
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL_CORE))
 		return true;
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
@@ -1643,7 +1632,7 @@ bool retro_load_game(const struct retro_game_info* game)
 				break;
 #endif
 			case RETRO_HW_CONTEXT_NONE:
-				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::Null);
+				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::SW);
 				break;
 			default:
 				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::OGL);
@@ -1721,9 +1710,6 @@ void retro_run(void)
 	MTGS::MainLoop(false);
 
 	RETRO_PERFORMANCE_STOP(pcsx2_run);
-
-	if (EmuConfig.GS.Renderer == GSRendererType::Null)
-		video_cb(NULL, 0, 0, 0);
 }
 
 std::optional<WindowInfo> Host::AcquireRenderWindow(void)

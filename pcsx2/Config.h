@@ -204,7 +204,6 @@ enum class GSRendererType : s8
 {
 	Auto = -1,
 	DX11 = 3,
-	Null = 11,
 	OGL = 12,
 	SW = 13,
 	VK = 14,

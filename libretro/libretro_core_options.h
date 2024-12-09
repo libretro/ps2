@@ -168,7 +168,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "paraLLEl-GS", NULL },
 #endif
          { "Software", NULL },
-         { "Null", NULL },
          { NULL, NULL },
       },
       "Auto"
