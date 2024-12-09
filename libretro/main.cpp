@@ -1653,10 +1653,6 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	cpu_thread = std::thread(cpu_thread_entry, boot_params);
 
-	if (hw_render.context_type == RETRO_HW_CONTEXT_NONE)
-		if (!MTGS::IsOpen())
-			MTGS::TryOpenGS();
-
 	return true;
 }
 
