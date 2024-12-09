@@ -26,7 +26,6 @@
 #include "Elfheader.h"
 
 #include "Host.h"
-#include "VMManager.h"
 
 // Mask to apply to ring buffer indices to wrap the pointer from end to
 // start (the wrapping is what makes it a ringbuffer, yo!)

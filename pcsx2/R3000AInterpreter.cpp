@@ -17,7 +17,6 @@
 #include "R3000A.h"
 #include "Common.h"
 #include "Config.h"
-#include "VMManager.h"
 
 #include "R5900OpcodeTables.h"
 #include "IopBios.h"

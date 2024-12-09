@@ -43,7 +43,6 @@
 #include "IopMem.h"
 #include "Host.h"
 #include "R5900.h"
-#include "VMManager.h"
 
 using namespace vtlb_private;
 

@@ -21,7 +21,6 @@
 #include "../Host.h"
 #include "../MemoryCardFile.h"
 #include "../Sio.h"
-#include "../VMManager.h"
 
 static std::mutex s_settings_mutex;
 static LayeredSettingsInterface s_layered_settings_interface;

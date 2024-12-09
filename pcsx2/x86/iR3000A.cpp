@@ -25,7 +25,6 @@
 #include "IopHw.h"
 #include "Common.h"
 #include "VirtualMemory.h"
-#include "VMManager.h"
 
 #ifndef _WIN32
 #include <sys/types.h>

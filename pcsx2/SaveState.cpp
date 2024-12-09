@@ -36,7 +36,6 @@
 #include "SPU2/spu2.h"
 #include "PAD/PAD.h"
 #include "USB/USB.h"
-#include "VMManager.h"
 
 // --------------------------------------------------------------------------------------
 //  SaveStateBase  (implementations)

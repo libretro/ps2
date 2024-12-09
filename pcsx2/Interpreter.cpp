@@ -15,7 +15,6 @@
 
 #include "Common.h"
 #include "R5900OpcodeTables.h"
-#include "VMManager.h"
 #include "Elfheader.h"
 
 #include "common/FastJmp.h"

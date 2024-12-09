@@ -7,7 +7,6 @@
 #include "math.hpp"
 #include "muglm/muglm_impl.hpp"
 #include "PerformanceMetrics.h"
-#include "VMManager.h"
 #include "common/Console.h"
 #include "logging.hpp"
 #include <stdarg.h>

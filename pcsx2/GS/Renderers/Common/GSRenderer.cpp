@@ -17,7 +17,6 @@
 #include "Host.h"
 #include "PerformanceMetrics.h"
 #include "pcsx2/Config.h"
-#include "VMManager.h"
 
 #include <algorithm>
 #include <array>
