@@ -204,6 +204,9 @@ memLoadingState::memLoadingState( const std::vector<u8>& load_from )
 // Loading of state data from a memory buffer...
 void memLoadingState::FreezeMem(void* data, int size)
 {
+	if (static_cast<u32>(m_idx + size) > m_memory.size())
+		m_error = true;
+
 	if (m_error)
 	{
 		memset(data, 0, size);
