@@ -77,6 +77,18 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Aeon Flux (NTSC-U) [CRC: 9FA0A1B0] */
+			else if (!strcmp(serial, "SLUS-21205"))
+			{
+				/* Patch courtesy: Paul Phoenix */
+				/* Progressive scan */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,004481b4,word,3c050000" /* 00052c00 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
 			else if (!strcmp(serial, "SLUS-20685"))
 			{
@@ -106,6 +118,69 @@ int lrps2_ingame_patches(const char *serial,
 				char *patches[] = {
 					/* Always ask for progressive scan */
 					"patch=0,EE,2019778C,extended,10A2001C"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Capcom Vs. SNK 2 (NTSC-U) [CRC: ] */
+			else if (!strcmp(serial, "SLUS-20246"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,20134DB4,extended,24020002",
+					"patch=0,EE,20134DB8,extended,AC22EDD0",
+					"patch=0,EE,20134DC8,extended,AC20EDEC"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Champions - Return to Arms (NTSC-U) [CRC: 4028A55F] */
+			else if (!strcmp(serial, "SLUS-20973"))
+			{
+				/* Patch courtesy: Agrippa */
+				int i;
+				char *patches[] = {
+					/* This game does support two modes -  
+					 * 60 fps field mode (1280x448 -> 640x224, half height FB,
+					 * 					   default one)
+					 * 30 fps frame mode (1280x448 -> 640x448, full height FB). 
+					 *
+					 * At the end of each sent frame, the game does reset the 
+					 * EE timer, which is used for engine related tasks like 
+					 * texture decompressing, physics and, so called, video 
+					 * mode switching. Basically, the game does compare the 
+					 * counter value with the threshold one and switch the 
+					 * video mode accordingly (it is a non-compliant, 
+					 * direct GS register write, instead through the 
+					 * 02h syscall). All we have to do is to force the 
+					 * full frame mode, leaving the 60 ticks timestep 
+					 * intact from the field mode. */
+					/* Patching the engineFrameEnd__Fb function
+					 * Force the video mode global variables */
+
+					/* trippleBufferMode - used for timestep calculations 
+					 * (for 60 tps this value needs to be 0x1) and 
+					 * supersampling settings (for frame mode it 
+					 * needs to be 0x0) */
+					"patch=1,EE,2044FD40,extended,00000000", 
+
+					/* fullFrameMode - enables the full height front buffer */
+					"patch=1,EE,2044FD44,extended,00000001", 
+					/* engineFullFrameMode - enables additional sprites 
+					 * filtering - they suck less in the frame mode, it is 
+					 * a engine issue unfortunately (designed for the 
+					 * interlaced and half-pixel offset) */
+					"patch=1,EE,2044FDB4,extended,00000001" 
+					/* Skip the now redundant frameskipping check */
+					"patch=1,EE,2019DB0C,extended,10000010",
+					/* Skip the 30 fps VBlank semaphore, 
+					 * triggered when the fullFrameMode 
+					 * is set to 0x1 to delay the frame end */
+					"patch=1,EE,2019DB6C,extended,10000004",
+					/* Patching the engineGetAIStepCount__Fv function
+					 * Force the 60 ticks timestep (the 0x1 value from 
+					 * the trippleBufferMode global). */
+					"patch=1,EE,2019E3AC,extended,24020001"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -854,8 +929,20 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
+			/* Capcom Vs. SNK 2 (NTSC-J) [CRC: ] */
+			if (!strcmp(serial, "SLPM-74246"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,20134E44,extended,24020002",
+					"patch=0,EE,20134E48,extended,AC222990",
+					"patch=0,EE,20134E58,extended,AC2029AC"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Mushihimesama (NTSC-J) [CRC: F0C24BB1] */
-			if (!strcmp(serial, "SLPM-66056"))
+			else if (!strcmp(serial, "SLPM-66056"))
 			{
 				/* Patch courtesy: asasega */
 				int i;
