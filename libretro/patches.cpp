@@ -2913,8 +2913,19 @@ int lrps2_ingame_patches(const char *serial,
 	{
 		if (!strncmp("SLUS-", serial, strlen("SLUS-")))
 		{
+			/* 24 The Game (NTSC-U) */
+			if (!strcmp(serial, "SLUS-21268"))
+			{
+				/* Force turn on the native widescreen */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,205FBD2C,word,00000001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Ace Combat Zero: The Belkan War (NTSC-U) */
-			if (!strcmp(serial, "SLUS-21346"))
+			else if (!strcmp(serial, "SLUS-21346"))
 			{
 				switch (hint_widescreen)
 				{
