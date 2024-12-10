@@ -1240,27 +1240,22 @@ void retro_get_system_info(retro_system_info* info)
 
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	if (               setting_renderer == "Software" 
-			|| setting_renderer == "paraLLEl-GS")
+	info->geometry.base_width  = 640;
+	info->geometry.base_height = 448;
+	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && setting_pgs_high_res_scanout) ? 2 : setting_upscale_multiplier;
+
+
+	if (               (  setting_renderer != "Software" 
+			   && setting_renderer != "paraLLEl-GS")
+			|| (  setting_renderer == "paraLLEl-GS" 
+			   && setting_pgs_high_res_scanout))
 	{
-		info->geometry.base_width  = 640;
-		info->geometry.base_height = 448;
-	}
-	else
-	{
-		info->geometry.base_width  = 640 * setting_upscale_multiplier;
-		info->geometry.base_height = 448 * setting_upscale_multiplier;
+		info->geometry.base_width  *= upscale_mul;
+		info->geometry.base_height *= upscale_mul;
 	}
 
 	info->geometry.max_width  = info->geometry.base_width;
 	info->geometry.max_height = info->geometry.base_height;
-
-	if (               setting_renderer == "paraLLEl-GS" 
-			&& setting_pgs_high_res_scanout)
-	{
-		info->geometry.max_width  *= 2;
-		info->geometry.max_height *= 2;
-	}
 
 	switch (setting_hint_widescreen)
 	{
