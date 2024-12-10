@@ -15,6 +15,7 @@
 
 #include "Common.h"
 
+#include <atomic>
 #include <cstring>
 #include <list>
 
@@ -58,21 +59,21 @@ namespace MTGS
 {
 	// note: when s_ReadPos == s_WritePos, the fifo is empty
 	// Threading info: s_ReadPos is updated by the MTGS thread. s_WritePos is updated by the EE thread
-	static volatile unsigned int s_ReadPos      = 0; // cur pos gs is reading from
-	static volatile unsigned int s_WritePos     = 0; // cur pos ee thread is writing to
+	static std::atomic<unsigned int> s_ReadPos      = 0; // cur pos gs is reading from
+	static std::atomic<unsigned int> s_WritePos     = 0; // cur pos ee thread is writing to
 
-	static volatile int  s_QueuedFrameCount      = 0;
-	static volatile bool s_VsyncSignalListener  = false;
+	static std::atomic<int>  s_QueuedFrameCount     = 0;
+	static std::atomic<bool> s_VsyncSignalListener  = false;
 
 	static std::mutex s_mtx_RingBufferBusy2; // Gets released on semaXGkick waiting...
 	static Threading::WorkSema s_sem_event;
 	static Threading::UserspaceSemaphore s_sem_Vsync;
 
 	static std::thread::id s_thread;
-	static volatile bool s_open_flag = false;
+	static std::atomic<bool> s_open_flag = false;
 };
 
-bool MTGS::IsOpen() { return s_open_flag; }
+bool MTGS::IsOpen() { return s_open_flag.load(std::memory_order_acquire); }
 
 void MTGS::ResetGS(bool hardware_reset)
 {
@@ -82,19 +83,20 @@ void MTGS::ResetGS(bool hardware_reset)
 	//  * clear the path and byRegs structs (used by GIFtagDummy)
 	if (hardware_reset)
 	{
-		s_ReadPos             = s_WritePos;
-		s_QueuedFrameCount    = 0;
-		s_VsyncSignalListener = 0;
+		s_ReadPos             = s_WritePos.load();
+		s_QueuedFrameCount.store(0, std::memory_order_release);
+		s_VsyncSignalListener.store(false, std::memory_order_release);
 	}
 
-	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_RESET;
 	tag.data[0]                 = static_cast<int>(hardware_reset);
 	tag.data[1]                 = 0;
 	tag.data[2]                 = 0;
 
-	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 
 	if (hardware_reset)
 		s_sem_event.NotifyOfWork();
@@ -104,11 +106,13 @@ void MTGS::PostVsyncStart()
 {
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
-	PacketTagType& tag                = (PacketTagType&)m_Ring[s_WritePos];
+	const unsigned int writepos       = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag                = (PacketTagType&)m_Ring[writepos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = 0;
 
-	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
+	s_VsyncSignalListener.store(true, std::memory_order_release);
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
 	s_sem_event.NotifyOfWork();
@@ -124,10 +128,8 @@ void MTGS::PostVsyncStart()
 	// If those are needed back, it's better to increase the VsyncQueueSize via PCSX_vm.ini.
 	// (The Xenosaga engine is known to run into this, due to it throwing bulks of data in one frame followed by 2 empty frames.)
 
-	if (s_QueuedFrameCount++ < EmuConfig.GS.VsyncQueueSize)
+	if (s_QueuedFrameCount.fetch_add(1) < EmuConfig.GS.VsyncQueueSize)
 		return;
-
-	s_VsyncSignalListener = true;
 
 	s_sem_Vsync.Wait();
 }
@@ -144,13 +146,14 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
 	tag.data[0]                 = qwc;
 	tag.pointer                 = (uptr)mem;
 
-	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 	WaitGS(false);
 }
 
@@ -160,7 +163,7 @@ void MTGS::TryOpenGS(void)
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
-	s_open_flag = true;
+	s_open_flag.store(true, std::memory_order_release);
 }
 
 void MTGS::MainLoop(bool flush_all)
@@ -184,26 +187,27 @@ void MTGS::MainLoop(bool flush_all)
 			mtvu_lock.lock();
 		}
 
-		if (!s_open_flag)
+		if (!s_open_flag.load(std::memory_order_acquire))
 			break;
 
 		// note: s_ReadPos is intentionally not volatile, because it should only
 		// ever be modified by this thread.
-		while (s_ReadPos != s_WritePos)
+		while (s_ReadPos.load(std::memory_order_relaxed) != s_WritePos.load(std::memory_order_acquire))
 		{
-			const PacketTagType& tag = (PacketTagType&)m_Ring[s_ReadPos];
+			const unsigned int local_ReadPos = s_ReadPos.load(std::memory_order_relaxed);
+			const PacketTagType& tag = (PacketTagType&)m_Ring[local_ReadPos];
 
 			switch (tag.command)
 			{
 				case GS_RINGTYPE_GSPACKET:
-				{
-					Gif_Path& path = gifUnit.gifPath[tag.data[2]];
-					u32 offset     = tag.data[0];
-					u32 size       = tag.data[1];
-					if (offset != ~0u)
-						GSgifTransfer((u8*)&path.buffer[offset], size / 16);
-					path.readAmount.fetch_sub(size, std::memory_order_acq_rel);
-				}
+					{
+						Gif_Path& path = gifUnit.gifPath[tag.data[2]];
+						u32 offset     = tag.data[0];
+						u32 size       = tag.data[1];
+						if (offset != ~0u)
+							GSgifTransfer((u8*)&path.buffer[offset], size / 16);
+						path.readAmount.fetch_sub(size, std::memory_order_acq_rel);
+					}
 					break;
 
 				case GS_RINGTYPE_MTVU_GSPACKET:
@@ -229,22 +233,16 @@ void MTGS::MainLoop(bool flush_all)
 						GSvsync((((u32&)PS2MEM_GS[0x1000]) & 0x2000) ? 0 : 1, s_GSRegistersWritten);
 					s_GSRegistersWritten = false;
 
-					s_QueuedFrameCount--;
-					if (s_VsyncSignalListener)
-					{
+					s_QueuedFrameCount.fetch_sub(1);
+					if (s_VsyncSignalListener.exchange(false))
 						s_sem_Vsync.Post();
-						s_VsyncSignalListener = false;
-					}
-					s_ReadPos = (s_ReadPos + 1) & RINGBUFFERMASK;
-					if (!flush_all)
-						s_sem_event.NotifyOfWork();
-					return;
+					break;
 				case GS_RINGTYPE_FREEZE:
-				{
-					MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
-					int mode = tag.data[0];
-					GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
-				}
+					{
+						MTGS_FreezeData* data = (MTGS_FreezeData*)tag.pointer;
+						int mode = tag.data[0];
+						GSfreeze((FreezeAction)mode, (freezeData*)data->fdata);
+					}
 					break;
 				case GS_RINGTYPE_RESET:
 					GSreset(tag.data[0] != 0);
@@ -257,24 +255,28 @@ void MTGS::MainLoop(bool flush_all)
 					break;
 			}
 
-			s_ReadPos = (s_ReadPos + 1) & RINGBUFFERMASK;
+			uint newringpos = (local_ReadPos + 1) & RINGBUFFERMASK;
+			s_ReadPos.store(newringpos, std::memory_order_release);
+
+			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
+			{
+				s_sem_event.NotifyOfWork();
+				return;
+			}
 		}
 	}
 
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
-	s_ReadPos = s_WritePos;
+	s_ReadPos.store(s_WritePos.load(std::memory_order_acquire), std::memory_order_relaxed);
 	s_sem_event.Kill();
 }
 
 void MTGS::CloseGS(void)
 {
-	if (s_VsyncSignalListener)
-	{
-		s_VsyncSignalListener = false;
+	if (s_VsyncSignalListener.exchange(false))
 		s_sem_Vsync.Post();
-	}
 	GSclose();
-	s_open_flag = false;
+	s_open_flag.store(false, std::memory_order_release);
 }
 
 // Waits for the GS to empty out the entire ring buffer contents.
@@ -287,7 +289,7 @@ void MTGS::WaitGS(bool isMTVU)
 		MainLoop(true);
 		return;
 	}
-	if (!s_open_flag) /* WaitGS issued on a closed thread! */
+	if (!IsOpen()) /* WaitGS issued on a closed thread! */
 		return;
 
 	s_sem_event.NotifyOfWork();
@@ -330,13 +332,14 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	PacketTagType& tag          = (PacketTagType&)m_Ring[s_WritePos];
+	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_FREEZE;
 	tag.data[0]                 = (int)mode;
 	tag.pointer                 = (uptr)&data;
 
-	s_WritePos = (s_WritePos + 1) & RINGBUFFERMASK;
+	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 	WaitGS(false);
 }
 
@@ -366,7 +369,8 @@ void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 // Adds a finished GS Packet to the MTGS ring buffer
 void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 {
-	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
+	const unsigned int writepos = MTGS::s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 	if (_gsPack.size == ~0u)
 	{
 		// Used in MTVU mode... MTVU will later complete a real packet
@@ -383,21 +387,22 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 		gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
 	}
 	tag.data[2]                         = (int)_path;
-	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
+	MTGS::s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 	MTGS::s_sem_event.NotifyOfWork();
 }
 
 void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 {
 	gifUnit.gifPath[_path].readAmount.fetch_add(_size);
-	PacketTagType& tag          = (PacketTagType&)m_Ring[MTGS::s_WritePos];
+	const unsigned int writepos = MTGS::s_WritePos.load(std::memory_order_relaxed);
+	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_GSPACKET;
 	tag.data[0]                 = (int)~0u;
 	tag.data[1]                 = (int)_size;
 	tag.data[2]                 = (int)_path;
 
-	MTGS::s_WritePos = (MTGS::s_WritePos + 1) & RINGBUFFERMASK;
+	MTGS::s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 	MTGS::s_sem_event.NotifyOfWork();
 }
 
