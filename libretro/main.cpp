@@ -1431,7 +1431,7 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 			for (;;)
 			{
 				cpu_thread_state.store(VMManager::GetState(), std::memory_order_release);
-				switch (cpu_thread_state.load(std::memory_order_acquire))
+				switch (cpu_thread_state)
 				{
 					case VMState::Initializing:
 						MTGS::MainLoop(false);
