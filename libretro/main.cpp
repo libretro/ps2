@@ -391,9 +391,6 @@ static void check_variables(bool first_run)
 
 			if (first_run)
 				s_settings_interface.SetUIntValue("EmuCore/GS", "pgsHighResScanout", setting_pgs_high_res_scanout);
-#if 0
-			// TODO: ATM it crashes when changed on-the-fly, re-enable when fixed
-			// also remove "(Restart)" from the core option label
 			else if (setting_pgs_high_res_scanout != pgs_high_res_scanout_prev)
 			{
 				retro_system_av_info av_info;
@@ -407,7 +404,6 @@ static void check_variables(bool first_run)
 #endif
 				updated = true;
 			}
-#endif
 		}
 	}
 

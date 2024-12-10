@@ -220,8 +220,8 @@ struct retro_core_option_v2_definition option_defs_us[] = {
    },
    {
       "pcsx2_pgs_high_res_scanout",
-      "Video > paraLLEl experimental High-res scanout (Restart)",
-      "paraLLEl experimental High-res scanout (Restart)",
+      "Video > paraLLEl experimental High-res scanout",
+      "paraLLEl experimental High-res scanout",
       "Allows upscaling with paraLLEl. Doesn't work with every game, some might require patches on top. Requires Supersampling to be set to at least 4x SSAA ordered or higher for it to work.",
       NULL,
       "video",
