@@ -223,12 +223,12 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,20456DA0,extended,00000001",
 					"patch=1,EE,20456DB0,extended,00001450",
 					"patch=1,EE,20456DBC,extended,001DF9FF",
-					"patch=1,EE,E0029400,extended,00456DB0",
-					"patch=1,EE,20456DB0,extended,0000948C",
+					"patch=1,EE,E0029400,extended,00456DA0", /* FMV scaling */
+					"patch=1,EE,20456DB0,extended,0000948C", /* FMV */
 					"patch=1,EE,20456DBC,extended,001DF9FF",
-					"patch=1,EE,E0030001,extended,00456D54",
+					"patch=1,EE,E0030001,extended,00456D54", /* Game screen */
 					"patch=1,EE,20456D38,extended,00000050",
-					"patch=1,EE,20456D44,extended,000001E1",
+					"patch=1,EE,20456D44,extended,000001E1", /* Game screen scaling */
 					"patch=1,EE,20456D54,extended,00000000"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
