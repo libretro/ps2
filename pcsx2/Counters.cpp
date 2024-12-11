@@ -30,6 +30,34 @@
 #include "ps2/HwInternal.h"
 #include "VMManager.h"
 
+//------------------------------------------------------------------
+// vSync and hBlank Timing Modes
+//------------------------------------------------------------------
+#define MODE_VRENDER		0x0 //Set during the Render/Frame Scanlines
+#define MODE_GSBLANK		0x2 //Set during the Syncing Scanlines (Delayed GS CSR Swap)
+#define MODE_VSYNC		0x3 //Set during the Syncing Scanlines
+
+#define MODE_HRENDER		0x0 //Set for ~5/6 of 1 Scanline
+#define MODE_HBLANK		0x1 //Set for the remaining ~1/6 of 1 Scanline
+
+#define SCANLINES_TOTAL_1080	1125 // total number of scanlines for 1080I mode
+				    
+#define SCANLINES_TOTAL_NTSC_I	525 // total number of scanlines (Interlaced)
+#define SCANLINES_TOTAL_NTSC_NI	526 // total number of scanlines (Interlaced)
+				   
+#define SCANLINES_TOTAL_PAL_I	625 // total number of scanlines per frame (Interlaced)
+#define SCANLINES_TOTAL_PAL_NI	628 // total number of scanlines per frame (Not Interlaced)
+
+//------------------------------------------------------------------
+// NTSC Timing Information!!! (some scanline info is guessed)
+//------------------------------------------------------------------
+#define FRAMERATE_NTSC		29.97 // frames per second
+				   
+//------------------------------------------------------------------
+// SPEED HACKS!!! (1 is normal) (They have inverse affects, only set 1 at a time)
+//------------------------------------------------------------------
+#define HBLANK_COUNTER_SPEED	1 //Set to '3' to double the speed of games like KHII
+
 struct vSyncTimingInfo
 {
 	double Framerate;       // frames per second (8 bit fixed)
@@ -63,7 +91,11 @@ s32 nextDeltaCounter; // delta from nextStartCounter, in cycles, until the next 
 // For Analog/Double Strike and Interlace modes
 static bool IsInterlacedVideoMode(void)
 {
-	return (gsVideoMode == GS_VideoMode::PAL || gsVideoMode == GS_VideoMode::NTSC || gsVideoMode == GS_VideoMode::DVD_NTSC || gsVideoMode == GS_VideoMode::DVD_PAL || gsVideoMode == GS_VideoMode::HDTV_1080I);
+	return (           gsVideoMode == GS_VideoMode::PAL 
+			|| gsVideoMode == GS_VideoMode::NTSC 
+			|| gsVideoMode == GS_VideoMode::DVD_NTSC 
+			|| gsVideoMode == GS_VideoMode::DVD_PAL 
+			|| gsVideoMode == GS_VideoMode::HDTV_1080I);
 }
 
 static bool IsProgressiveVideoMode(void)
@@ -242,6 +274,8 @@ static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 sca
 	if ((hBlank % 10000) >= 5000)
 		info->hBlank++;
 
+	info->hSyncError         = 0;
+
 	// Calculate accumulative hSync rounding error per half-frame:
 	if (IsInterlacedVideoMode()) // gets off the chart in that mode
 	{
@@ -249,8 +283,6 @@ static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 sca
 		u32 vSyncCycles  = (info->Render + info->Blank);
 		info->hSyncError = vSyncCycles - hSyncCycles;
 	}
-	else
-		info->hSyncError = 0;
 	// Note: In NTSC modes there is some small rounding error in the vsync too,
 	// however it would take thousands of frames for it to amount to anything and
 	// is thus not worth the effort at this time.
@@ -284,12 +316,10 @@ double GetVerticalFrequency(void)
 	{
 		case GS_VideoMode::PAL:
 		case GS_VideoMode::DVD_PAL:
-			return (IsProgressiveVideoMode() == false) ? EmuConfig.GS.FrameratePAL : EmuConfig.GS.FrameratePAL - 0.24f;
+			return (IsProgressiveVideoMode()) ? (EmuConfig.GS.FrameratePAL - 0.24f) : (EmuConfig.GS.FrameratePAL);
 		case GS_VideoMode::NTSC:
 		case GS_VideoMode::DVD_NTSC:
-			return (IsProgressiveVideoMode() == false) ? EmuConfig.GS.FramerateNTSC : EmuConfig.GS.FramerateNTSC - 0.11f;
-		case GS_VideoMode::SDTV_480P:
-			return 59.94;
+			return (IsProgressiveVideoMode()) ? (EmuConfig.GS.FramerateNTSC - 0.11f)  : EmuConfig.GS.FramerateNTSC;
 		case GS_VideoMode::HDTV_1080P:
 		case GS_VideoMode::HDTV_1080I:
 		case GS_VideoMode::HDTV_720P:
@@ -297,6 +327,7 @@ double GetVerticalFrequency(void)
 		case GS_VideoMode::VESA:
 		case GS_VideoMode::Uninitialized: // SetGsCrt hasn't executed yet, give some temporary values.
 			return 60.00;
+		case GS_VideoMode::SDTV_480P:
 		default:
 			// Pass NTSC vertical frequency value when unknown video mode is detected.
 			break;
