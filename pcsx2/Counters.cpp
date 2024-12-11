@@ -322,25 +322,12 @@ void UpdateVSyncRate(bool force)
 
 		switch (gsVideoMode)
 		{
-			case GS_VideoMode::Uninitialized: // SYSCALL instruction hasn't executed yet, give some temporary values.
-				if (gsIsInterlaced)
-					total_scanlines = SCANLINES_TOTAL_NTSC_I;
-				else
-					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
-				break;
 			case GS_VideoMode::PAL:
 			case GS_VideoMode::DVD_PAL:
 				if (gsIsInterlaced)
 					total_scanlines = SCANLINES_TOTAL_PAL_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_PAL_NI;
-				break;
-			case GS_VideoMode::NTSC:
-			case GS_VideoMode::DVD_NTSC:
-				if (gsIsInterlaced)
-					total_scanlines = SCANLINES_TOTAL_NTSC_I;
-				else
-					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
 				break;
 			case GS_VideoMode::SDTV_480P:
 			case GS_VideoMode::SDTV_576P:
@@ -353,11 +340,15 @@ void UpdateVSyncRate(bool force)
 				total_scanlines = SCANLINES_TOTAL_1080;
 				break;
 			case GS_VideoMode::Unknown:
+			case GS_VideoMode::Uninitialized: // SYSCALL instruction hasn't executed yet, give some temporary values.
+			case GS_VideoMode::NTSC:
+			case GS_VideoMode::DVD_NTSC:
 			default:
 				if (gsIsInterlaced)
 					total_scanlines = SCANLINES_TOTAL_NTSC_I;
 				else
 					total_scanlines = SCANLINES_TOTAL_NTSC_NI;
+				break;
 		}
 
 		const bool video_mode_initialized = gsVideoMode != GS_VideoMode::Uninitialized;
