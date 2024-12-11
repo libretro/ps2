@@ -539,9 +539,6 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 
 			switch (setting_hint_widescreen)
 			{
-				case 0:
-					geom.aspect_ratio = 4.0f / 3.0f;
-					break;
 				case 1:
 					geom.aspect_ratio = 16.0f / 9.0f;
 					break;
@@ -549,7 +546,14 @@ void GSRendererPGS::VSync(u32 field, bool registers_written)
 					geom.aspect_ratio = 16.0f / 10.0f;
 					break;
 				case 3:
+					geom.aspect_ratio = 21.0f / 9.0f;
+					break;
+				case 4:
 					geom.aspect_ratio = 32.0f / 9.0f;
+					break;
+				case 0:
+				default:
+					geom.aspect_ratio = 4.0f / 3.0f;
 					break;
 			}
 			float horizontal_scanout_ratio = float(vsync.internal_width) / float(vsync.mode_width);
