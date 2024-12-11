@@ -134,6 +134,55 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Champions of Norrath (NTSC-U) [CRC: 90E66BC5] */
+			else if (!strcmp(serial, "SLUS-20565"))
+			{
+				/* Patch courtesy: Agrippa */
+				int i;
+				char *patches[] = {
+					/* This game does support two modes -  
+					 * 60 fps field mode (1280x448 -> 640x224, half height FB, 
+					 * 					      default one)
+					 * 30 fps frame mode (1280x448 -> 640x448, full height FB). 
+					 *
+					 * At the end of each sent frame, the game does reset the 
+					 * EE timer, which is used for engine related tasks like 
+					 * texture decompressing, physics and, so called, video mode 
+					 * switching. Basically, the game does compare the counter 
+					 * value with the threshold one and switch the video mode 
+					 * accordingly (it is a non-compliant, direct GS register 
+					 * write, instead through the 02h syscall). All we have 
+					 * to do is to force the full frame mode, leaving the 
+					 * 60 ticks timestep intact from the field mode.
+					 *
+					 * Patching the engineFrameEnd__Fb function
+					 * Force the video mode global variables */
+
+					/*trippleBufferMode - used for timestep calculations 
+					 * (for 60 tps this value needs to be 0x1) 
+					 * and supersampling settings (for frame mode 
+					 * it needs to be 0x0) */
+					"patch=1,EE,204843E0,extended,00000000",
+					/* fullFrameMode - enables the full height front buffer */
+					"patch=1,EE,204843E4,extended,00000001",
+					/* engineFullFrameMode - enables additional sprites filtering 
+					 * - they suck less in the frame mode, it is a engine issue 
+					 *   unfortunately (designed for the interlaced and 
+					 *   half-pixel offset) */
+					"patch=1,EE,20484474,extended,00000001",
+					/* Skip the now redundant frameskipping check */
+					"patch=1,EE,20190AE4,extended,10000010",
+					/* Skip the 30 fps VBlank semaphore, triggered when the 
+					 * fullFrameMode is set to 0x1 to delay the frame end */
+					"patch=1,EE,20190B48,extended,10000005",
+					/* Patching the engineGetAIStepCount__Fv function
+					 * Force the 60 ticks timestep (the 0x1 value from 
+					 * the trippleBufferMode global). */
+					"patch=1,EE,201913D8,extended,24020001"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Champions - Return to Arms (NTSC-U) [CRC: 4028A55F] */
 			else if (!strcmp(serial, "SLUS-20973"))
 			{
@@ -700,6 +749,7 @@ int lrps2_ingame_patches(const char *serial,
 			/* Soulcalibur III (PAL) v1.00 [CRC: BC5480A3] */
 			else if (!strcmp(serial, "SCES-53312")) 
 			{
+				/* Patch courtesy: Agrippa */
 				/* Replace NTSC mode with Progressive Scan */
 				if (     game_crc == 0xBC5480A3) /* 1.00 */
 					LoadPatchesFromString(std::string("patch=1,EE,00509E4A,byte,06"));
