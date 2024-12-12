@@ -3080,42 +3080,17 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
-			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
-			if (!strcmp(serial, "SCUS-97111"))
+			/* Crimson Tears (NTSC-U) [CRC: D31904C2] */
+			else if (!strcmp(serial, "SLUS-20948"))
 			{
-				switch (hint_widescreen)
-				{
-					case 4: /* 32:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,0012e228,word,3C023E90"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-						}
-						break;
-					case 3: /* 21:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,0012e228,word,3F023F0F"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-						}
-						break;
-					default: /* 16:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,0012e228,word,3C023F40"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-						}
-						break;
-				}
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001bcb98,word,3c02bfe3", /* 3c02bfaa hor FOV */
+					"patch=1,EE,001bcba0,word,34438e39" /* 3443aaab hor FOV */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
 			}
 			/* Dino Stalker (NTSC-U) [CRC: 3FBF0EA6] */
 			else if (!strcmp(serial, "SLUS-20485"))
@@ -3843,13 +3818,39 @@ int lrps2_ingame_patches(const char *serial,
 			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
 			if (!strcmp(serial, "SCUS-97111"))
 			{
-				/* Patch courtesy: nemesis2000 */
-				int i;
-				char *patches[] = {
-					"patch=1,EE,0012df78,word,3c023f40"
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
+				switch (hint_widescreen)
+				{
+					case 4: /* 32:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3C023E90"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					case 3: /* 21:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3F023F0F"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3C023F40"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+						}
+						break;
+				}
 			}
 			/* Dark Cloud 2 (NTSC-U) [CRC: 1DF41F33] */
 			else if (!strcmp(serial, "SCUS-97213"))
