@@ -102,6 +102,8 @@ static u8 setting_plugin_type                  = 0;
 static u8 setting_pgs_super_sampling           = 0;
 static u8 setting_pgs_high_res_scanout         = 0;
 static u8 setting_pgs_disable_mipmaps          = 0;
+static u8 setting_pgs_ss_tex                   = 0;
+static u8 setting_pgs_deblur                   = 0;
 static u8 setting_deinterlace_mode             = 0;
 static u8 setting_texture_filtering            = 0;
 static u8 setting_anisotropic_filtering        = 0;
@@ -192,6 +194,10 @@ static bool update_option_visibility(void)
 		option_display.key     = "pcsx2_pgs_ssaa";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 		option_display.key     = "pcsx2_pgs_high_res_scanout";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_pgs_ss_tex";
+		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+		option_display.key     = "pcsx2_pgs_deblur";
 		environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
 		updated                = true;
@@ -379,6 +385,32 @@ static void check_variables(bool first_run)
 			if (first_run || setting_pgs_super_sampling != pgs_super_sampling_prev)
 			{
 				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampling", setting_pgs_super_sampling);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_pgs_ss_tex";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 pgs_ss_tex_prev = setting_pgs_ss_tex;
+			setting_pgs_ss_tex = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_pgs_ss_tex != pgs_ss_tex_prev)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSuperSampleTextures", setting_pgs_ss_tex);
+				updated = true;
+			}
+		}
+
+		var.key = "pcsx2_pgs_deblur";
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			u8 pgs_deblur_prev = setting_pgs_deblur;
+			setting_pgs_deblur = !strcmp(var.value, "enabled");
+
+			if (first_run || setting_pgs_deblur != pgs_deblur_prev)
+			{
+				s_settings_interface.SetIntValue("EmuCore/GS", "pgsSharpBackbuffer", setting_pgs_deblur);
 				updated = true;
 			}
 		}

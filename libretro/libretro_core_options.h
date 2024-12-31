@@ -233,6 +233,34 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_pgs_ss_tex",
+      "Video > paraLLEl experimental SSAA texture",
+      "paraLLEl experimental SSAA texture",
+      "Feedback higher resolution textures. May help high-res scanout image quality. Highly experimental and may cause rendering glitches.",
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_pgs_deblur",
+      "Video > paraLLEl experimental sharp backbuffer",
+      "paraLLEl experimental sharp backbuffer",
+      "Attempts to workaround games that add extra blit passes before scanning out. May lead to better image quality in certain games which do this.",
+      NULL,
+      "video",
+      {
+         { "enabled", NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "pcsx2_pgs_disable_mipmaps",
       "Video > Force Texture LOD0",
       "Force Texture LOD0",

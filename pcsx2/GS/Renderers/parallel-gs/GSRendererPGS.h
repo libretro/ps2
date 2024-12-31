@@ -46,6 +46,7 @@ private:
 
 	ParallelGS::SuperSampling current_super_sampling = ParallelGS::SuperSampling::X1;
 	bool current_ordered_super_sampling     = false;
+	bool current_super_sample_textures      = false;
 	bool has_presented_in_current_swapchain = false;
 	uint32_t last_internal_width = 0;
 	uint32_t last_internal_height = 0;

@@ -534,6 +534,8 @@ struct Pcsx2Config
 		u8 PGSSuperSampling = 0;
 		u8 PGSHighResScanout = 0;
 		u8 PGSDisableMipmaps = 0;
+		u8 PGSSuperSampleTextures = 0;
+		u8 PGSSharpBackbuffer = 0;
 
 		u16 SWExtraThreads = 2;
 		u16 SWExtraThreadsHeight = 4;
