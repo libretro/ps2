@@ -219,7 +219,7 @@ int lrps2_ingame_patches(const char *serial,
 					 * filtering - they suck less in the frame mode, it is 
 					 * a engine issue unfortunately (designed for the 
 					 * interlaced and half-pixel offset) */
-					"patch=1,EE,2044FDB4,extended,00000001" 
+					"patch=1,EE,2044FDB4,extended,00000001",
 					/* Skip the now redundant frameskipping check */
 					"patch=1,EE,2019DB0C,extended,10000010",
 					/* Skip the 30 fps VBlank semaphore, 
@@ -2232,7 +2232,7 @@ int lrps2_ingame_patches(const char *serial,
 				/* 60fps uncapped */
 				int i;
 				char *patches[] = {
-					"patch=1,EE,2042FAB8,word,00000001" /* fps */
+					"patch=1,EE,2042FAB8,word,00000001", /* fps */
 					"patch=1,EE,20432164,word,3C888889" /* speed */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
