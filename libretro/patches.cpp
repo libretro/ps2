@@ -2403,6 +2403,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Red Ninja: End of Honor (NTSC-U) [CRC: 6B0F338D] */
+         else if (!strcmp(serial, "SLUS-20714"))
+         {
+				int i;
+				/* 60fps uncapped */
+            char *patches[] = {
+               "patch=1,EE,E0030002,extended,0047b210",
+               "patch=1,EE,2047b210,extended,00000001", /* 00000002 //fps */
+               "patch=1,EE,205210a8,extended,3f800000", /* 40000000 //speed modifiers */
+               "patch=1,EE,2015b274,extended,3c013f40", /* 3c013f80 //environment speed */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Reign of Fire (NTSC-U) [CRC: D10945CE] */
 			else if (!strcmp(serial, "SLUS-20556"))
 			{
@@ -3128,12 +3142,30 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Chaos Legion (NTSC-U) [CRC: F3B0734E] */
+			else if (!strcmp(serial, "SLUS-20695")) /* 16:9 */
+         {
+				/* Patch courtesy: nemesis2000 */
+				int i;
+            char *patches[] = {
+               "patch=1,EE,00242f4c,word,3c013f40",
+               "patch=1,EE,00242f5c,word,4481d800",
+               "patch=1,EE,00242f60,word,460fdec2",
+               "patch=1,EE,00243064,word,3c0243ab",
+               "patch=1,EE,00228064,word,3c023fab",
+               /* FMVs fix */
+               "patch=1,EE,00325684,word,3c026fb0",
+               "patch=1,EE,00325594,word,241e77d0"
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Cold Winter (NTSC-U) [CRC: D6D704BB] */
 			else if (!strcmp(serial, "SLUS-20845"))
 			{
+				/* Patch courtesy: nemesis2000 */
 				int i;
 				char *patches[] = {
-					/* Widescreen hack by nemesis2000 (pnach by nemesis2000) */
 					"patch=1,EE,003c4cf4,word,3c013f40",
 					"patch=1,EE,003c4cfc,word,44810800",
 					"patch=1,EE,003c4d00,word,03e00008",
@@ -3226,6 +3258,16 @@ int lrps2_ingame_patches(const char *serial,
 						break;
 				}
 			}
+         /* Driving Emotion Type-S (NTSC-U) [CRC: 1FCC0CFB] */
+			else if (!strcmp(serial, "SLUS-20113")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+               "patch=1,EE,0045B2A8,word,3F400000" /* 3F800000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Dynasty Warriors 2 (NTSC-U) [CRC: 5B665C0B] */
 			else if (!strcmp(serial, "SLUS-20079"))
 			{
@@ -3310,6 +3352,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Echo Night - Beyond (NTSC) [CRC: 2DE16D21] */
+			else if (!strcmp(serial, "SLUS-20928"))
+         {
+				int i;
+            char *patches[] = {
+               /* Force turn on Internal Widescreen
+                * 01 00 00 00 00 00 00 3F */
+               "patch=1,EE,202ADC01,byte,00000001",
+               /* 703f033c 003f023c d7a36334 */
+               "patch=1,EE,00143d14,word,3c023f1f" /* 3c023f00 Zoom */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Enter The Matrix (v1.01) (NTSC-U) [CRC: 67EA565CB] */
 			else if (!strcmp(serial, "SLUS-20454"))
 			{
@@ -3327,7 +3383,7 @@ int lrps2_ingame_patches(const char *serial,
 				int i;
 				char *patches[] = {
 					"patch=1,EE,0033760c,word,3f400000", /* aspect */
-					/* FMV's fix */
+					/* FMVs fix */
 					"patch=1,EE,001e598c,word,3c013f40", /* width (1.0f = 640) */
 					"patch=1,EE,001e5990,word,0c0795e0",
 					"patch=1,EE,001e5994,word,44811800",
@@ -3344,7 +3400,7 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,001e5838,word,e4830030",
 
 					"patch=1,EE,0033b228,word,0000006a", /* x-pos = (640-640*width)/(2*width) Hex */
-					/* Lens Flare's fix */
+					/* Lens Flares fix */
 					"patch=1,EE,0014f72c,word,3c013f40",
 					"patch=1,EE,0014f79c,word,44810800",
 					"patch=1,EE,0014f7a0,word,46016302",
@@ -3367,6 +3423,18 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* God Hand (NTSC-U) [CRC: 6FB69282] */
+			else if (!strcmp(serial, "SLUS-21503"))
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0030b8f0,word,3c013f9f",
+					"patch=1,EE,0030b8f4,word,342149f1"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Grand Theft Auto: Vice City (NTSC-U) [CRC: 20B19E49] */
 			else if (!strcmp(serial, "SLUS-20552"))
 			{
@@ -3383,18 +3451,6 @@ int lrps2_ingame_patches(const char *serial,
                "patch=1,EE,0026FE1C,word,0C04C972",
                "patch=1,EE,002703F4,word,0C04C972"
             };
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-			}
-			/* God Hand (NTSC-U) [CRC: 6FB69282] */
-			else if (!strcmp(serial, "SLUS-21503"))
-			{
-				/* Patch courtesy: nemesis2000 */
-				int i;
-				char *patches[] = {
-					"patch=1,EE,0030b8f0,word,3c013f9f",
-					"patch=1,EE,0030b8f4,word,342149f1"
-				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
@@ -3436,6 +3492,17 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Mega Man X7 (NTSC-U) [CRC: 3EDA6DE7] */
+			else if (!strcmp(serial, "SLUS-21359"))
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+               "patch=1,EE,0014d3e4,word,3c0244a8" /* 16:9 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Metal Gear Solid 3: Subsistence (NTSC-U) (Disc 1) [CRC: ] */
 			else if (!strcmp(serial, "SLUS-21359"))
 			{
@@ -3449,6 +3516,18 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,D0145990,extended,8C8B0000",
 					"patch=1,EE,D01459C8,extended,240F8000",
 					"patch=1,EE,D0131758,extended,8E0E0004"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Midnight Club - Street Racing (NTSC-U) */
+			else if (!strcmp(serial, "SLUS-20063")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+               "patch=1,EE,004784C0,word,3F471C97",
+               "patch=1,EE,004784D4,word,3F471C97",
+               "patch=1,EE,004784FC,word,3F471C97"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
@@ -3478,7 +3557,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 			}
          /* Onimusha 3: Demon Siege (NTSC-U) [CRC: 6BF11378] */
-			else if (!strcmp(serial, "SLUS-20694"))
+			else if (!strcmp(serial, "SLUS-20694")) /* 16:9 */
 			{
 				int i;
             char *patches[] = {
@@ -3498,6 +3577,27 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Onimusha: Dawn of Dreams (NTSC-U) [CRC: FE44479E] */
+         else if (game_crc == 0xFE44479E) /* 16:9 */
+         {
+				int i;
+            char *patches[] = {
+               /* val1 */
+               "patch=1,EE,0012F960,word,3c033f19",
+               "patch=1,EE,0012F968,word,34649999",
+               /* val2 */
+               "patch=1,EE,0012fb38,word,3c033f19",
+               "patch=1,EE,0012fb40,word,34639999",
+               /* val3 */
+               "patch=1,EE,0012f9c8,word,3c023f19",
+               "patch=1,EE,0012f9cc,word,34439999",
+               /* renderfixes */
+               "patch=1,EE,0012Fbb0,word,3c02c3d6",
+               "patch=1,EE,0012Faa0,word,3c024527"
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Project - Snowblind (NTSC-U) [CRC: 2BDA8ADB] */
 			else if (!strcmp(serial, "SLUS-21037"))
 			{
@@ -3523,6 +3623,25 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Red Ninja: End of Honor (NTSC-U) [CRC: 6B0F338D] */
+         else if (!strcmp(serial, "SLUS-20714"))
+         {
+				int i;
+            char *patches[] = {
+               "patch=1,EE,003695dc,word,3c013f40", /* 3c013f80 hor fov1 */
+               "patch=1,EE,003695e0,word,44817000", /* 44816000 */
+               "patch=1,EE,003695f0,word,460e7303", /* 46006386 */
+
+               "patch=1,EE,003fdc40,word,3c013f40", /* 00000000 hor fov2 (background trees) */
+               "patch=1,EE,003fdc48,word,4481f000", /* 00000000 */
+               "patch=1,EE,003fdc98,word,4602f782", /* 00000000 */
+               "patch=1,EE,003fdcac,word,461e0842", /* 46020002 */
+
+               "patch=1,EE,0035dcc4,word,3c013f2b" /* 3c013f00 renderfix enemies */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Return to Castle Wolfenstein: Operation Resurrection 
 			 * (NTSC-U) [CRC: 5F4DB1DD] */
 			else if (!strcmp(serial, "SLUS-20297"))
@@ -3821,7 +3940,7 @@ int lrps2_ingame_patches(const char *serial,
 		else if (!strncmp("SLES-", serial, strlen("SLES-")))
 		{
 			/* 7 Blades (PAL-M) */
-			if (!strcmp(serial, "SLES-50109"))
+			if (!strcmp(serial, "SLES-50109")) /* 16:9 */
 			{
 				/* Patch courtesy: Gabominated */
 				int i;
@@ -3854,13 +3973,26 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,00310ba4,word,34218e38",
 					/* black border fix by nemesis2000 */
 					"patch=1,EE,002d24cc,word,00000000",
-					/* FMV's fix by nemesis2000 */
+					/* FMVs fix by nemesis2000 */
 					"patch=1,EE,002e9380,word,240575e0",
 					"patch=1,EE,002e9398,word,240a1440"
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Breath of Fire: Dragon Quarter (PAL) [CRC: 867AB5D0] */
+			else if (!strcmp(serial, "SLES-51496"))
+         {
+				int i;
+				/* Patch courtesy: nemesis2000, ElHecht */
+            char *patches[] = {
+               "patch=1,EE,0012f71c,word,3c024306", /* 3c024333 hor val */
+               "patch=1,EE,0012f720,word,3442f940", /* 3442f700 hor val */
+               "patch=1,EE,0012f868,word,3c034074"  /* 3c034036 render fix */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Gauntlet: Seven Sorrows (PAL-M) [CRC: BBB8392E] */
 			else if (!strcmp(serial, "SLES-53667"))
 			{
@@ -3883,7 +4015,32 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
-			/* Need for Speed - Hot Pursuit 2 (PAL-M6) (SLES-50731) */
+         /* Maken Shao (PAL) [CRC: 54854C71] */
+			else if (!strcmp(serial, "SLES-51058"))
+         {
+				int i;
+            char *patches[] = {
+               "patch=1,EE,2034AC20,extended,3f533334"
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
+         /* Michigan: Report From Hell (PAL-M4) [CRC: DCD7104E] */
+			else if (!strcmp(serial, "SLES-50731"))
+         {
+				/* Patch courtesy: nemesis2000 */
+				int i;
+            char *patches[] = {
+               "patch=1,EE,e0011450,extended,0029c3b8", /* xxxxxxxx check 0029c3b8 matches value (0000)1450 */
+               "patch=1,EE,201a70d0,extended,240400c0", /* 8444ca00 hor fov pal */
+               "patch=1,EE,e0011446,extended,0029c3b8", /* xxxxxxxx check 0029c3b8 matches value (0000)1446 */
+               "patch=1,EE,201a70d0,extended,240400a8", /* 8444ca00 hor fov ntsc */
+               "patch=1,EE,00184df0,word,3c023f06" /* render fix */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
+			/* Need for Speed - Hot Pursuit 2 (PAL-M6) [CRC: ] */
 			else if (!strcmp(serial, "SLES-50731"))
 			{
 				switch (hint_widescreen)
@@ -4068,6 +4225,72 @@ int lrps2_ingame_patches(const char *serial,
 						break;
 				}
 			}
+			/* Downhill Domination (NTSC-U) [CRC: 5AE01D98] */
+			else if (!strcmp(serial, "SCUS-97177")) /* 16:9 */
+         {
+				int i;
+            char *patches[] = {
+               /* default to widescreen at first run */
+               "patch=1,EE,101B9EF0,extended,00004401", /* 3C01442C - Shell Menu Master X FOV */
+               "patch=1,EE,101B68F4,extended,00004401", /* 3C01442C - Title Menu Master X FOV */
+               "patch=1,EE,2026C5C0,extended,434FC000", /* 438A8000 - Tree Sprite Width #1 */
+               "patch=1,EE,2026C700,extended,434FC000", /* 438A8000 - Tree Sprite Width #2 */
+               "patch=1,EE,2026C758,extended,434FC000", /* 438A8000 - Tree Sprite Width #3 */
+
+               "patch=1,EE,101F8510,extended,00004401", /* 3C01442C - Bike Shop Menu Goggles Default Master X FOV 
+                                                           (added to close-up float by game engine to 
+                                                           produce a "final" close-up X FOV) */
+               "patch=1,EE,101F84F8,extended,000044D8", /* 3C014510 - Bike Shop Menu Goggles Close-up Master X FOV #1 */
+               "patch=1,EE,101F84FC,extended,0000C000", /* 34218000 - Bike Shop Menu Goggles Close-up Master X FOV #2 */
+               "patch=1,EE,E0030002,extended,00A095D0", /* Conditional live memory fixes for Bike Shop menu */
+               "patch=1,EE,20A095D0,extended,3FAA3D71", /* 00000000 - Bike Shop Top HUD Width (Live Memory) */
+               "patch=1,EE,20A09610,extended,3FAA3D71", /* 00000000 - Bike Shop Bottom HUD Width (Live Memory) */
+               "patch=1,EE,20A60038,extended,C2DE0000", /* 00000000 - Bike Shop Shadow Shape/Width (Live Memory) */
+               "patch=1,EE,2027F0A0,extended,3F206D3A", /* 3EF0A3D7 - Menu Master Y FOV */
+
+               "patch=1,EE,1016BA30,extended,0000434F", /* 3C01438A - 1P P1 Master X FOV #1 */
+               "patch=1,EE,1016BA34,extended,0000C000", /* 34218000 - 1P P1 Master X FOV #2 */
+               "patch=1,EE,101A8D4C,extended,0000434F", /* 3C01438A - 1P P1 Replay Master X FOV #1 */
+               "patch=1,EE,101A8D50,extended,0000C000", /* 34218000 - 1P P1 Replay Master X FOV #2 */
+               "patch=1,EE,2027ECE0,extended,3F471C26", /* 3F15551D - 1P P1 Master Y FOV */
+
+               "patch=1,EE,2027EF00,extended,43268000", /* 435E0000 - 2P Vertical P1 Master X FOV */
+               "patch=1,EE,2027EF20,extended,3F471C26", /* 3F15551D - 2P Vertical P1 Master Y FOV */
+               "patch=1,EE,2027EFC0,extended,43268000", /* 435E0000 - 2P Vertical P2 Master X FOV */
+               "patch=1,EE,2027EFE0,extended,3F471C26", /* 3F15551D - 2P Vertical P2 Master Y FOV */
+
+               "patch=1,EE,2027ED80,extended,434FC000", /* 438A8000 - 2P Horizontal P1 Master X FOV */
+               "patch=1,EE,2027EDA0,extended,3F471C6A", /* 3F155550 - 2P Horizontal P1 Master Y FOV */
+               "patch=1,EE,2027EE40,extended,434FC000", /* 438A8000 - 2P Horizontal P2 Master X FOV */
+               "patch=1,EE,2027EE60,extended,3F471C6A", /* 3F155550 - 2P Horizontal P2 Master Y FOV */
+
+               "patch=1,EE,2027F140,extended,431D8000", /* 43520000 - 4P P1 Master X FOV */
+               "patch=1,EE,2027F160,extended,3F206D3A", /* 3EF0A3D7 - 4P P1 Master Y FOV */
+               "patch=1,EE,2027F200,extended,431D8000", /* 43520000 - 4P P2 Master X FOV */
+               "patch=1,EE,2027F220,extended,3F206D3A", /* 3EF0A3D7 - 4P P2 Master Y FOV */
+               "patch=1,EE,2027F2C0,extended,431D8000", /* 43520000 - 4P P3 Master X FOV */
+               "patch=1,EE,2027F2E0,extended,3F206D3A", /* 3EF0A3D7 - 4P P3 Master Y FOV */
+               "patch=1,EE,2027F380,extended,431D8000", /* 43520000 - 4P P4 Master X FOV */
+               "patch=1,EE,2027F3A0,extended,3F206D3A", /* 3EF0A3D7 - 4P P4 Master Y FOV */
+
+               "patch=1,EE,2027ECC0,extended,434FC000" /* 438A8000 - 2-4P P1-4 Paused Master X FOV */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
+         /* Genji - Dawn of the Samurai (NTSC-U) [CRC: D71B57F4] */
+			else if (!strcmp(serial, "SCUS-97471"))
+			{
+				int i;
+            char *patches[] = {
+               "patch=1,EE,002e1070,word,3c014455",
+               /* FMV fix by Arapapa */
+               /* e043013c 00608144 00108244 */
+               "patch=1,EE,002c6754,word,3c0143a8" /* 3c0143e0 */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* God of War II (NTSC-U) [CRC: 2F123FD8] */
 			else if (!strcmp(serial, "SCUS-97481"))
 			{
@@ -4082,6 +4305,16 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+         /* Kinetica (NTSC-U) [CRC: D39C08F5] */
+			else if (!strcmp(serial, "SCUS-97132")) /* 16:9 */
+         {
+				int i;
+				char *patches[] = {
+               "patch=1,EE,00172190,word,3c013f40" /* 3c013f80 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
 			else if (!strcmp(serial, "SCUS-97654"))
 			{
@@ -4095,8 +4328,19 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
-			/* Burnout Revenge (NTSC-U) [CRC: D224D348] */
-			if (!strcmp(serial, "SLPM-66108"))
+			/* Battle Gear 3 (NTSC-J) [CRC: AC9F1FC0] */
+			if (!strcmp(serial, "SLPM-65434")) /* 16:9 */
+         {
+				int i;
+            /* Patch courtesy: No.47 */
+				char *patches[] = {
+               "patch=1,EE,202C9B74,word,3F400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
+			/* Burnout Revenge (NTSC-J) [CRC: D224D348] */
+         else if (!strcmp(serial, "SLPM-66108"))
 			{
 				int i;
 				char *patches[] = {
@@ -4150,11 +4394,8 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
-		}
-		else if (!strncmp("SLPS-", serial, strlen("SLPS-")))
-		{
 			/* Simple 2000 Series Vol. 101 - The Oneechanpon (NTSC-J) [CRC: C5B75C7C] */
-			if (!strcmp(serial, "SLPM-66212"))
+         else if (!strcmp(serial, "SLPM-66212"))
 			{
 				int i;
 				char *patches[] = {
@@ -4163,6 +4404,31 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+		}
+		else if (!strncmp("SLPS-", serial, strlen("SLPS-")))
+		{
+         /* Kakutou Bijin Wulong (NTSC-J) [CRC: 4A4B623A] */
+         if (!strcmp(serial, "SLPS-25657")) /* 16:9 */
+         {
+				int i;
+            char *patches[] = {
+               "patch=1,EE,203C9EB0,extended,3FE37FA9"
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
+         /* Mahou no Pumpkin (NTSC-J) [CRC: 90D2D375] */
+         else if (!strcmp(serial, "SLPS-20280")) /* 16:9 */
+         {
+				int i;
+            char *patches[] = {
+               /* X-Fov */
+               /* 803f023c 1000bfff 00188244 */
+               "patch=1,EE,002bf9a4,word,3c023f40" /* 3c023f80 */
+            };
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+         }
 			/* Tekken Tag Tournament (NTSC-J) [CRC: 06979F19] */
 			else if (!strcmp(serial, "SLPS-20015"))
 			{
