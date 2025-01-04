@@ -3737,6 +3737,40 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Nightshade (NTSC-U) [CRC: 519E816B] */
+			else if (!strcmp(serial, "SLUS-20810")) /* 16:9 */
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00183124,word,3c023f24",
+					"patch=1,EE,00183128,word,34428b44",
+					"patch=1,EE,0018314c,word,3c023f40",
+					"patch=1,EE,00183100,word,3c014280",
+					"patch=1,EE,0018310c,word,44815800",
+					"patch=1,EE,002e1b40,word,e48b0070"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Okami (NTSC-U) [CRC: 21068223] */
+			else if (!strcmp(serial, "SLUS-21115")) /* 16:9 */
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0015c33c,word,3c0143a8",
+					"patch=1,EE,0033ec38,word,3c013f9f",
+					"patch=1,EE,0033ec3c,word,4481a800",
+					"patch=1,EE,0015c360,word,3c013f9f",
+					"patch=1,EE,0015c364,word,44817000",
+					"patch=1,EE,0015c3ac,word,00000000",
+					"patch=1,EE,0015c43c,word,3c014500",
+					"patch=1,EE,0033ec20,word,3c014500"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Onimusha 3: Demon Siege (NTSC-U) [CRC: 6BF11378] */
 			else if (!strcmp(serial, "SLUS-20694")) /* 16:9 */
 			{
@@ -3893,79 +3927,8 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
-			/* Serious Sam - Next Encounter (NTSC-U) [CRC: 155466E8] */
-			else if (!strcmp(serial, "SLUS-20907")) /* 16:9 */
-			{
-				int i;
-				char *patches[] = {
-					"patch=1,EE,0015d828,word,24820008",
-					"patch=1,EE,0015d82c,word,4614a503",
-					"patch=1,EE,0015d830,word,4600a5c7",
-					"patch=1,EE,0015d834,word,ae420000",
-					"patch=1,EE,0015d838,word,fc830008",
-					"patch=1,EE,0015d83c,word,8e420000",
-					"patch=1,EE,0015d840,word,8ea43cb0",
-					"patch=1,EE,0015d844,word,8ec53cb4",
-					"patch=1,EE,0015d848,word,24420008",
-					"patch=1,EE,0015d84c,word,ae420000",
-					"patch=1,EE,0015d850,word,8e660218",
-					"patch=1,EE,0015d854,word,8e67021c",
-					"patch=1,EE,0015d858,word,8e630220",
-					"patch=1,EE,0015d85c,word,00862021",
-					"patch=1,EE,0015d860,word,8e620224",
-					"patch=1,EE,0015d864,word,00a72821",
-					"patch=1,EE,0015d868,word,00031843",
-					"patch=1,EE,0015d86c,word,00021043",
-					"patch=1,EE,0015d870,word,0083a821",
-					"patch=1,EE,0015d874,word,0c0c37ae",
-					"patch=1,EE,0015d878,word,00a2b021",
-					"patch=1,EE,0015d87c,word,4600a003",
-					"patch=1,EE,0015d880,word,4616db02",
-					"patch=1,EE,0015d884,word,461a0003",
-					"patch=1,EE,0015d888,word,0c0c37ae",
-					"patch=1,EE,0015d88c,word,e6003ca8",
-					"patch=1,EE,0015d890,word,4600a003",
-					"patch=1,EE,0015d894,word,c60c3ca8",
-					"patch=1,EE,0015d898,word,e7bc0000",
-					"patch=1,EE,0015d89c,word,266400d0",
-					"patch=1,EE,0015d8a0,word,3c013f40" /* hor fov */
-						"patch=1,EE,0015d8a4,word,44816800",
-					"patch=1,EE,0015d8a8,word,4600d386",
-					"patch=1,EE,0015d8ac,word,4600abc6",
-					"patch=1,EE,0015d8b0,word,4600ac06",
-					"patch=1,EE,0015d8b4,word,4600a446",
-					"patch=1,EE,0015d8b8,word,4600bc86",
-					"patch=1,EE,0015d8bc,word,4600ecc6",
-					"patch=1,EE,0015d8c0,word,461a0003",
-					"patch=1,EE,0015d8c4,word,0c0571b8",
-					"patch=1,EE,0015d8c8,word,e6203cac",
-					"patch=1,EE,0015d8cc,word,3c013f40" /* hor fov for weapon */
-						"patch=1,EE,0015d8d0,word,44816800",
-					"patch=1,EE,0015D8F8,word,4600A446",
-					/* FMVs fix */
-					"patch=1,EE,00162a88,word,00a0482d",
-					"patch=1,EE,00162a8c,word,ffbf0000",
-					"patch=1,EE,00162a90,word,0080402d",
-					"patch=1,EE,00162a94,word,00c0582d",
-					"patch=1,EE,00162a98,word,ac40fa40",
-					"patch=1,EE,00162a9c,word,24050002",
-					"patch=1,EE,00162aa0,word,10e5000f",
-					"patch=1,EE,00162aa4,word,2ce20002",
-					"patch=1,EE,00162aa8,word,14400002",
-					"patch=1,EE,00162aac,word,24020003",
-					"patch=1,EE,00162ab0,word,10e20020",
-					"patch=1,EE,00162ab4,word,00093842",
-					"patch=1,EE,00162ab8,word,24030015",
-					"patch=1,EE,00162abc,word,3c04003d",
-					"patch=1,EE,00162ac0,word,00e33818",
-					"patch=1,EE,00162ac4,word,00073902",
-					"patch=1,EE,00162ac8,word,24030280"
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-			}
 			/* Shadow of Destiny (NTSC-U) [CRC: F14DFE0A] */
-			else if (!strcmp(serial, "SLUS-20146")) /* 16:9 */
+			else if (!strcmp(serial, "SLUS-20146")) /* 16:9 TODO/FIXME - aspect looks wrong */
 			{
 				int i;
 				char *patches[] = {
