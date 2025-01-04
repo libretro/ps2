@@ -2165,6 +2165,21 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Kingdom Hearts 2 (NTSC-U) [CRC: DA0535FD] */
+			else if (!strcmp(serial, "SLUS-21005"))
+			{
+				int i;
+				/* 60fps uncapped. Need EE Overclock at 130%. */
+				char *patches[] = {
+					"patch=1,EE,00356F4C,extended,00000000",
+					"patch=1,EE,E0010005,extended,0033E784",
+					"patch=1,EE,00356F4C,extended,00000001",
+					"patch=1,EE,20379178,extended,3F800000",
+					"patch=1,EE,2037CE98,extended,3F800000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
 			/* Lord of the Rings, Return of the King (NTSC-U) [CRC: 4CE187F6] */
 			else if (!strcmp(serial, "SLUS-20770"))
 			{
@@ -3484,7 +3499,8 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,001e5834,word,01c02820",
 					"patch=1,EE,001e5838,word,e4830030",
 
-					"patch=1,EE,0033b228,word,0000006a", /* x-pos = (640-640*width)/(2*width) Hex */
+					/* x-pos = (640-640*width)/(2*width) Hex */
+					"patch=1,EE,0033b228,word,0000006a",
 					/* Lens Flares fix */
 					"patch=1,EE,0014f72c,word,3c013f40",
 					"patch=1,EE,0014f79c,word,44810800",
@@ -3567,6 +3583,28 @@ int lrps2_ingame_patches(const char *serial,
 					"patch=1,EE,0010e328,word,4600c602",
 					"patch=1,EE,002ba3ec,word,34a98c00",
 					"patch=1,EE,002ba3d4,word,34a67400"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Kingdom Hearts 2 (NTSC-U) [CRC: DA0535FD] */
+			else if (!strcmp(serial, "SLUS-21005")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00106c70,word,3c013f4c", /* c480004c */
+					"patch=1,EE,00106c88,word,3421cccc", /* 4600a7c6 */
+					"patch=1,EE,00106c8c,word,4481f800", /* 00000000 */
+					"patch=1,EE,00106c90,word,461fa503", /* 4600a503 */
+					"patch=1,EE,00106cb4,word,3c1b3f40", /* 00000000 hor fov */
+					"patch=1,EE,00106cc0,word,449bf000", /* 00000000 */
+					"patch=1,EE,00106cd0,word,461effc2", /* 00000000 */
+					"patch=1,EE,00106cd4,word,e61f004c", /* 00000000 */
+					"patch=1,EE,20378104,word,43f90000", /* 43d00000 optional zoom for cutscenes (hides sudden pop-in) */
+					"patch=1,EE,2037ae44,word,3F400000", /* 3F800000 font fix */
+					"patch=1,EE,2037ae48,word,3F400000", /* 3F800000 */
+					"patch=1,EE,2037ae4c,word,3F400000", /* 3F800000 */
+					"patch=1,EE,001aae88,word,240a0190" /* lower subtitles */
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
