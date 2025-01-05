@@ -18,12 +18,9 @@
 #include "common/emitter/internal.h"
 
 //------------------------------------------------------------------
-// Legacy Helper Macros and Functions (depreciated)
+// Legacy Helper Macros and Functions (deprecated)
 //------------------------------------------------------------------
 
-#define emitterT __fi
-
-#include "common/emitter/legacy_types.h"
 #include "common/emitter/legacy_instructions.h"
 
 extern void ModRM(uint mod, uint reg, uint rm);

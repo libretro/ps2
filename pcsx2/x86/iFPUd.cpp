@@ -415,7 +415,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 //------------------------------------------------------------------
 // CommutativeOp XMM (used for ADD and SUB opcodes. that's it.)
 //------------------------------------------------------------------
-static void (*recFPUOpXMM_to_XMM[])(x86SSERegType, x86SSERegType) = {
+static void (*recFPUOpXMM_to_XMM[])(int, int) = {
 	SSE2_ADDSD_XMM_to_XMM, SSE2_SUBSD_XMM_to_XMM};
 
 static void recFPUOp(int info, int regd, int op, bool acc)

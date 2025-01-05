@@ -40,7 +40,7 @@ namespace x86Emitter
 	extern void _xMovRtoR(const xRegisterInt& to, const xRegisterInt& from);
 
 	template <typename T1, typename T2>
-	__emitinline void xOpWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2, int extraRIPOffset = 0)
+	__fi void xOpWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2, int extraRIPOffset = 0)
 	{
 		if (prefix != 0)
 			xWrite8(prefix);
@@ -52,7 +52,7 @@ namespace x86Emitter
 	}
 
 	template <typename T1, typename T2>
-	__emitinline void xOpAccWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2)
+	__fi void xOpAccWrite(u8 prefix, u8 opcode, const T1& param1, const T2& param2)
 	{
 		if (prefix != 0)
 			xWrite8(prefix);
@@ -73,7 +73,7 @@ namespace x86Emitter
 	// 0x3a [and other value will result in assertion failue].
 	//
 	template <typename T1, typename T2>
-	__emitinline void xOpWrite0F(u8 prefix, u16 opcode, const T1& param1, const T2& param2)
+	__fi void xOpWrite0F(u8 prefix, u16 opcode, const T1& param1, const T2& param2)
 	{
 		if (prefix != 0)
 			xWrite8(prefix);
@@ -93,7 +93,7 @@ namespace x86Emitter
 	}
 
 	template <typename T1, typename T2>
-	__emitinline void xOpWrite0F(u8 prefix, u16 opcode, const T1& param1, const T2& param2, u8 imm8)
+	__fi void xOpWrite0F(u8 prefix, u16 opcode, const T1& param1, const T2& param2, u8 imm8)
 	{
 		if (prefix != 0)
 			xWrite8(prefix);
@@ -115,7 +115,7 @@ namespace x86Emitter
 
 	// VEX 2 Bytes Prefix
 	template <typename T1, typename T2, typename T3>
-	__emitinline void xOpWriteC5(u8 prefix, u8 opcode, const T1& param1, const T2& param2, const T3& param3)
+	__fi void xOpWriteC5(u8 prefix, u8 opcode, const T1& param1, const T2& param2, const T3& param3)
 	{
 		const xRegisterBase& reg = param1.IsReg() ? param1 : param2;
 

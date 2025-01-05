@@ -531,15 +531,15 @@ namespace x86Emitter
 	//  * ZMASK: Each bit of Imm8[3:0] selects a dword element in dest to  be written
 	//    with 0.0 if set to 1.
 	//
-	__emitinline void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x213a, to, from, imm8); }
-	__emitinline void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) { xOpWrite0F(0x66, 0x213a, to, from, imm8); }
+	__fi void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x213a, to, from, imm8); }
+	__fi void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) { xOpWrite0F(0x66, 0x213a, to, from, imm8); }
 
 	// [SSE-4.1] Extract a single-precision floating-point value from src at an offset
 	// determined by imm8[1-0]*32. The extracted single precision floating-point value
 	// is stored into the low 32-bits of dest (or at a 32-bit memory pointer).
 	//
-	__emitinline void xEXTRACTPS(const xRegister32or64& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x173a, to, from, imm8); }
-	__emitinline void xEXTRACTPS(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x173a, from, dest, imm8); }
+	__fi void xEXTRACTPS(const xRegister32or64& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x173a, to, from, imm8); }
+	__fi void xEXTRACTPS(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x173a, from, dest, imm8); }
 
 
 	// =====================================================================================================
@@ -547,7 +547,7 @@ namespace x86Emitter
 	// =====================================================================================================
 
 	// Load Streaming SIMD Extension Control/Status from Mem32.
-	__emitinline void xLDMXCSR(const xIndirect32& src)
+	__fi void xLDMXCSR(const xIndirect32& src)
 	{
 		xOpWrite0F(0, 0xae, 2, src);
 	}

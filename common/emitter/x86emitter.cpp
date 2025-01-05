@@ -762,17 +762,17 @@ const xRegister32
 		xOpWrite(0, 0x8d, to, src);
 	}
 
-	__emitinline void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags)
+	__fi void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags)
 	{
 		EmitLeaMagic(to, src, preserve_flags);
 	}
 
-	__emitinline void xLEA(xRegister32 to, const xIndirectVoid& src, bool preserve_flags)
+	__fi void xLEA(xRegister32 to, const xIndirectVoid& src, bool preserve_flags)
 	{
 		EmitLeaMagic(to, src, preserve_flags);
 	}
 
-	__emitinline void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags)
+	__fi void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags)
 	{
 		xWrite8(0x66);
 		EmitLeaMagic(to, src, preserve_flags);
@@ -848,14 +848,14 @@ const xRegister32
 	// Note: pushad/popad implementations are intentionally left out.  The instructions are
 	// invalid in x64, and are super slow on x32.  Use multiple Push/Pop instructions instead.
 
-	__emitinline void xPOP(const xIndirectVoid& from)
+	__fi void xPOP(const xIndirectVoid& from)
 	{
 		EmitRexImplicitlyWide(from);
 		xWrite8(0x8f);
 		EmitSibMagic(0, from);
 	}
 
-	__emitinline void xPUSH(const xIndirectVoid& from)
+	__fi void xPUSH(const xIndirectVoid& from)
 	{
 		EmitRexImplicitlyWide(from);
 		xWrite8(0xff);

@@ -161,20 +161,6 @@ namespace StringUtil
 	/// Splits a string based on a single character delimiter.
 	std::vector<std::string_view> SplitString(const std::string_view& str, char delimiter, bool skip_empty = true);
 
-	/// Joins a string together using the specified delimiter.
-	template <typename T>
-	static inline std::string JoinString(const T& start, const T& end, char delimiter)
-	{
-		std::string ret;
-		for (auto it = start; it != end; ++it)
-		{
-			if (it != start)
-				ret += delimiter;
-			ret.append(*it);
-		}
-		return ret;
-	}
-
 	/// Replaces all instances of search in subject with replacement.
 	std::string ReplaceAll(const std::string_view& subject, const std::string_view& search, const std::string_view& replacement);
 	void ReplaceAll(std::string* subject, const std::string_view& search, const std::string_view& replacement);

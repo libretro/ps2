@@ -71,7 +71,6 @@ target_sources(common PRIVATE
 	emitter/internal.h
 	emitter/legacy_instructions.h
 	emitter/legacy_internal.h
-	emitter/legacy_types.h
 	emitter/x86emitter.h
 	emitter/x86types.h
 )

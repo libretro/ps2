@@ -159,7 +159,7 @@ namespace x86Emitter
 	// Emits a 32 bit jump, and returns a pointer to the 32 bit displacement.
 	// (displacements should be assigned relative to the end of the jump instruction,
 	// or in other words *(retval+1) )
-	__emitinline s32* xJcc32(JccComparisonType comparison, s32 displacement)
+	__fi s32* xJcc32(JccComparisonType comparison, s32 displacement)
 	{
 		if (comparison == Jcc_Unconditional)
 		{
@@ -183,7 +183,7 @@ namespace x86Emitter
 	// slideForward - used internally by xSmartJump to indicate that the jump target is going
 	// to slide forward in the event of an 8 bit displacement.
 	//
-	__emitinline void xJccKnownTarget(JccComparisonType comparison, const void* target, bool slideForward)
+	__fi void xJccKnownTarget(JccComparisonType comparison, const void* target, bool slideForward)
 	{
 		// Calculate the potential j8 displacement first, assuming an instruction length of 2:
 		sptr displacement8 = (sptr)target - (sptr)(xGetPtr() + 2);

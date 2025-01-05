@@ -83,32 +83,13 @@ namespace x86Emitter
 		return (s8)imm == (typename std::make_signed<T>::type)imm;
 	}
 
-// --------------------------------------------------------------------------------------
-//  __emitline - preprocessors definition
-// --------------------------------------------------------------------------------------
-// This is configured to inline emitter functions appropriately for release builds, and
-// disables some of the more aggressive inlines for dev builds (which can be helpful when
-// debugging).  Additionally,  I've set up the inlining to be as practical and intelligent
-// as possible with regard to constant propagation.  Namely this involves forcing inlining
-// for (void*) forms of ModRM, which (thanks to constprop) reduce to virtually no code, and
-// force-disabling inlining on complicated SibSB forms [since MSVC would sometimes inline
-// despite being a generally bad idea].
-//
-// In the case of (Reg, Imm) forms, the inlining is up to the discreation of the compiler.
-//
-// Note: I *intentionally* use __fi directly for most single-line class members,
-// when needed.  There's no point in using __emitline in these cases since the debugger
-// can't trace into single-line functions anyway.
-//
-#define __emitinline __fi
-
 	// ModRM 'mod' field enumeration.   Provided mostly for reference:
 	enum ModRm_ModField
 	{
 		Mod_NoDisp = 0, // effective address operation with no displacement, in the form of [reg] (or uses special Disp32-only encoding in the case of [ebp] form)
 		Mod_Disp8, // effective address operation with 8 bit displacement, in the form of [reg+disp8]
 		Mod_Disp32, // effective address operation with 32 bit displacement, in the form of [reg+disp32],
-		Mod_Direct, // direct reg/reg operation
+		Mod_Direct // direct reg/reg operation
 	};
 
 	// ----------------------------------------------------------------------------
@@ -137,7 +118,7 @@ namespace x86Emitter
 		Jcc_Less = 0xc,
 		Jcc_GreaterOrEqual = 0xd,
 		Jcc_LessOrEqual = 0xe,
-		Jcc_Greater = 0xf,
+		Jcc_Greater = 0xf
 	};
 
 	// Not supported yet:
@@ -220,14 +201,6 @@ namespace x86Emitter
 		}
 	};
 
-	// Represents an unused or "empty" register assignment.  If encountered by the emitter, this
-	// will be ignored (in some cases it is disallowed and generates an assertion)
-	static const int xRegId_Empty = -1;
-
-	// Represents an invalid or uninitialized register.  If this is encountered by the emitter it
-	// will generate an assertion.
-	static const int xRegId_Invalid = -2;
-
 	// --------------------------------------------------------------------------------------
 	//  xRegisterBase  -  type-unsafe x86 register representation.
 	// --------------------------------------------------------------------------------------
@@ -251,7 +224,7 @@ namespace x86Emitter
 
 		xRegisterBase()
 			: OperandSizedObject(0)
-			, Id(xRegId_Invalid)
+			, Id(-2)
 		{
 		}
 
@@ -483,27 +456,27 @@ namespace x86Emitter
 	{
 		operator xRegister8() const
 		{
-			return xRegister8(xRegId_Empty);
+			return xRegister8(-1);
 		}
 
 		operator xRegister16() const
 		{
-			return xRegister16(xRegId_Empty);
+			return xRegister16(-1);
 		}
 
 		operator xRegister32() const
 		{
-			return xRegister32(xRegId_Empty);
+			return xRegister32(-1);
 		}
 
 		operator xRegisterSSE() const
 		{
-			return xRegisterSSE(xRegId_Empty);
+			return xRegisterSSE(-1);
 		}
 
 		operator xAddressReg() const
 		{
-			return xAddressReg(xRegId_Empty);
+			return xAddressReg(-1);
 		}
 	};
 

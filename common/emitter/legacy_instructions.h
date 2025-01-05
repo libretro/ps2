@@ -15,8 +15,6 @@
 
 #pragma once
 
-#define ATTR_DEP
-
 #ifdef FSCALE
 # undef FSCALE // Defined in a macOS header
 #endif
@@ -39,66 +37,66 @@
 ////////////////////////////////////
 
 // jmp rel8
-ATTR_DEP extern u8* JMP8(u8 to);
+extern u8* JMP8(u8 to);
 
 // jmp rel32
-ATTR_DEP extern u32* JMP32(uptr to);
+extern u32* JMP32(uptr to);
 
 // je rel8
-ATTR_DEP extern u8* JE8(u8 to);
+extern u8* JE8(u8 to);
 // jz rel8
-ATTR_DEP extern u8* JZ8(u8 to);
+extern u8* JZ8(u8 to);
 // jg rel8
-ATTR_DEP extern u8* JG8(u8 to);
+extern u8* JG8(u8 to);
 // jge rel8
-ATTR_DEP extern u8* JGE8(u8 to);
+extern u8* JGE8(u8 to);
 // jns rel8
-ATTR_DEP extern u8* JNS8(u8 to);
+extern u8* JNS8(u8 to);
 // jl rel8
-ATTR_DEP extern u8* JL8(u8 to);
+extern u8* JL8(u8 to);
 // jae rel8
-ATTR_DEP extern u8* JAE8(u8 to);
+extern u8* JAE8(u8 to);
 // jb rel8
-ATTR_DEP extern u8* JB8(u8 to);
+extern u8* JB8(u8 to);
 // jbe rel8
-ATTR_DEP extern u8* JBE8(u8 to);
+extern u8* JBE8(u8 to);
 // jle rel8
-ATTR_DEP extern u8* JLE8(u8 to);
+extern u8* JLE8(u8 to);
 // jne rel8
-ATTR_DEP extern u8* JNE8(u8 to);
+extern u8* JNE8(u8 to);
 // jnz rel8
-ATTR_DEP extern u8* JNZ8(u8 to);
+extern u8* JNZ8(u8 to);
 
 // je rel32
-ATTR_DEP extern u32* JE32(u32 to);
+extern u32* JE32(u32 to);
 // jz rel32
-ATTR_DEP extern u32* JZ32(u32 to);
+extern u32* JZ32(u32 to);
 // jg rel32
-ATTR_DEP extern u32* JG32(u32 to);
+extern u32* JG32(u32 to);
 // jge rel32
-ATTR_DEP extern u32* JGE32(u32 to);
+extern u32* JGE32(u32 to);
 // jl rel32
-ATTR_DEP extern u32* JL32(u32 to);
+extern u32* JL32(u32 to);
 // jle rel32
-ATTR_DEP extern u32* JLE32(u32 to);
+extern u32* JLE32(u32 to);
 // jne rel32
-ATTR_DEP extern u32* JNE32(u32 to);
+extern u32* JNE32(u32 to);
 // jnz rel32
-ATTR_DEP extern u32* JNZ32(u32 to);
+extern u32* JNZ32(u32 to);
 
 //*********************
 // SSE   instructions *
 //*********************
-ATTR_DEP extern void SSE_MAXSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-ATTR_DEP extern void SSE_MINSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-ATTR_DEP extern void SSE_ADDSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-ATTR_DEP extern void SSE_SUBSS_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
+extern void SSE_MAXSS_XMM_to_XMM(int to, int from);
+extern void SSE_MINSS_XMM_to_XMM(int to, int from);
+extern void SSE_ADDSS_XMM_to_XMM(int to, int from);
+extern void SSE_SUBSS_XMM_to_XMM(int to, int from);
 
 //*********************
 //  SSE 2 Instructions*
 //*********************
 
-ATTR_DEP extern void SSE2_MAXSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-ATTR_DEP extern void SSE2_MINSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-ATTR_DEP extern void SSE2_ADDSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
-ATTR_DEP extern void SSE2_SUBSD_XMM_to_XMM(x86SSERegType to, x86SSERegType from);
+extern void SSE2_MAXSD_XMM_to_XMM(int to, int from);
+extern void SSE2_MINSD_XMM_to_XMM(int to, int from);
+extern void SSE2_ADDSD_XMM_to_XMM(int to, int from);
+extern void SSE2_SUBSD_XMM_to_XMM(int to, int from);

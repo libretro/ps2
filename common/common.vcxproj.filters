@@ -144,9 +144,6 @@
     <ClInclude Include="emitter\legacy_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="emitter\legacy_types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MathUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>

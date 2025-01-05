@@ -121,7 +121,6 @@
     <ClInclude Include="emitter\internal.h" />
     <ClInclude Include="emitter\legacy_instructions.h" />
     <ClInclude Include="emitter\legacy_internal.h" />
-    <ClInclude Include="emitter\legacy_types.h" />
     <ClInclude Include="emitter\x86emitter.h" />
     <ClInclude Include="emitter\x86types.h" />
     <ClInclude Include="emitter\implement\dwshift.h" />
