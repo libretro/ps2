@@ -77,8 +77,6 @@ extern u8* JNZ8(u8 to);
 
 // je rel32
 #define JE32(to) J32Rel(0x84, to)
-// jz rel32
-#define JZ32(to) J32Rel(0x84, to)
 // jg rel32
 #define JG32(to) J32Rel(0x8F, to)
 // jge rel32
@@ -89,8 +87,10 @@ extern u8* JNZ8(u8 to);
 #define JLE32(to) J32Rel(0x8E, to)
 // jne rel32
 #define JNE32(to) J32Rel(0x85, to)
+// jz rel32
+static __fi u32 *JZ32(u32 to)  { return J32Rel(0x84, to); }
 // jnz rel32
-#define JNZ32(to) J32Rel(0x85, to)
+static __fi u32 *JNZ32(u32 to) { return J32Rel(0x85, to); }
 
 //*********************
 // SSE   instructions *
