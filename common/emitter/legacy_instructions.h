@@ -19,6 +19,14 @@
 # undef FSCALE // Defined in a macOS header
 #endif
 
+static __fi u32* J32Rel(int cc, u32 to)
+{
+	xWrite8(0x0F);
+	xWrite8(cc);
+	xWrite32(to);
+	return (u32*)(x86Ptr - 4);
+}
+
 //------------------------------------------------------------------
 // legacy jump/align functions
 //------------------------------------------------------------------
@@ -68,21 +76,21 @@ extern u8* JNE8(u8 to);
 extern u8* JNZ8(u8 to);
 
 // je rel32
-extern u32* JE32(u32 to);
+#define JE32(to) J32Rel(0x84, to)
 // jz rel32
-extern u32* JZ32(u32 to);
+#define JZ32(to) J32Rel(0x84, to)
 // jg rel32
-extern u32* JG32(u32 to);
+#define JG32(to) J32Rel(0x8F, to)
 // jge rel32
-extern u32* JGE32(u32 to);
+#define JGE32(to) J32Rel(0x8D, to)
 // jl rel32
-extern u32* JL32(u32 to);
+#define JL32(to) J32Rel(0x8C, to)
 // jle rel32
-extern u32* JLE32(u32 to);
+#define JLE32(to) J32Rel(0x8E, to)
 // jne rel32
-extern u32* JNE32(u32 to);
+#define JNE32(to) J32Rel(0x85, to)
 // jnz rel32
-extern u32* JNZ32(u32 to);
+#define JNZ32(to) J32Rel(0x85, to)
 
 //*********************
 // SSE   instructions *

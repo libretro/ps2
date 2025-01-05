@@ -273,6 +273,20 @@ void Path::ToNativePath(std::string* path)
 	*path = Path::ToNativePath(*path);
 }
 
+/// Joins a string together using the specified delimiter.
+template <typename T>
+static inline std::string JoinString(const T& start, const T& end, char delimiter)
+{
+	std::string ret;
+	for (auto it = start; it != end; ++it)
+	{
+		if (it != start)
+			ret += delimiter;
+		ret.append(*it);
+	}
+	return ret;
+}
+
 std::string Path::Canonicalize(const std::string_view& path)
 {
 	std::vector<std::string_view> components = Path::SplitNativePath(path);
@@ -301,16 +315,7 @@ std::string Path::Canonicalize(const std::string_view& path)
 		}
 	}
 
-	std::string ret;
-	const T& start = new_components.begin();
-	const T& end   = new_components.end();
-	for (auto it = start; it != end; ++it)
-	{
-		if (it != start)
-			ret += FS_OSPATH_SEPARATOR_CHARACTER;
-		ret.append(*it);
-	}
-	return ret;
+	return StringUtil::JoinString(new_components.begin(), new_components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
 }
 
 void Path::Canonicalize(std::string* path)
