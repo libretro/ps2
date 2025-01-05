@@ -315,7 +315,7 @@ std::string Path::Canonicalize(const std::string_view& path)
 		}
 	}
 
-	return StringUtil::JoinString(new_components.begin(), new_components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
+	return JoinString(new_components.begin(), new_components.end(), FS_OSPATH_SEPARATOR_CHARACTER);
 }
 
 void Path::Canonicalize(std::string* path)
