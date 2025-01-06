@@ -4271,7 +4271,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Second Sight (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Shadow of Destiny (NTSC-U) [CRC: F14DFE0A] */
-			else if (!strcmp(serial, "SLUS-20146")) /* 16:9 TODO/FIXME - aspect looks wrong */
+			else if (!strcmp(serial, "SLUS-20146")) /* 16:9 */
 			{
 				int i;
 				char *patches[] = {
@@ -4280,7 +4280,8 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Shadow of Destiny (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied (TODO/FIXME - looks wrong).\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Shadow of Destiny (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Shadow of Destiny (NTSC-U)]: NOTE: PCRTC Anti-blur needs to be enabled.\n");
 			}
 			/* Shadow of Rome (NTSC-U) [CRC: 57818AF6] */
 			else if (!strcmp(serial, "SLUS-20902")) /* 16:9 */
