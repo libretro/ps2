@@ -1137,7 +1137,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Ace Combat 5 - The Unsung War (PAL)]: Mipmap disable patch applied.\n");
 			}
-			/* Aggressive Inline (NTSC-U) [CRC: ] */
+			/* Aggressive Inline (NTSC-U) [CRC: 67DB3ED8] */
 			else if (!strcmp(serial, "SLUS-20327"))
 			{
 				int i;
@@ -1320,7 +1320,7 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLES-", serial, strlen("SLES-")))
 		{
-			/* Aggressive Inline (PAL) [CRC: ] */
+			/* Aggressive Inline (PAL-M) [CRC: D6A0D7A5] */
 			if (!strcmp(serial, "SLES-50480"))
 			{
 				int i;
@@ -1331,7 +1331,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Aggressive Inline (PAL)]: Mipmap disable patch applied.\n");
 			}
-			/* BMX XXX (SLES-51365) [CRC: ] */
+			/* BMX XXX (SLES-51365) [CRC: 3A48B51C] */
 			else if (!strcmp(serial, "SLES-51365"))
 			{
 				int i;
@@ -1392,7 +1392,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Harry Potter and the Goblet of Fire (PAL)]: Mipmap disable patch applied.\n");
 			}
 			/* Legacy of Kain: Soul Reaver 2, The (NTSC-U) [CRC: 1771BFE4] */
-			else if (!strcmp(serial, "SLES-50196"))
+			else if (!strcmp(serial, "SLES-50197"))
 			{
 				int i;
 				char *patches[] = {
@@ -3337,6 +3337,26 @@ int lrps2_ingame_patches(const char *serial,
 						break;
 				}
 			}
+			/* Aggressive Inline (NTSC-U) [CRC: 67DB3ED8] */
+			else if (!strcmp(serial, "SLUS-20327"))
+			{
+				/* Patch courtesy: BloodRaynare, ElHecht */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00101130,word,3c013f40", /* 3c013f80 hor fov */
+					"patch=1,EE,00272894,word,3c093f40", /* 00000000 renderfix */
+					"patch=1,EE,00101714,word,0809ca25", /* 46000843 */
+					"patch=1,EE,00101718,word,00000000", /* e62004e8 */
+					"patch=1,EE,0027289c,word,4489f000", /* 00000000 */
+					"patch=1,EE,002728a0,word,461e0843", /* 00000000 */
+					"patch=1,EE,002728a4,word,46000843", /* 00000000 */
+					"patch=1,EE,002728a8,word,e62004e8", /* 00000000 */
+					"patch=1,EE,002728ac,word,080405c6" /* 00000000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Aggressive Inline (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Alias (NTSC-U) [CRC: E3ADDC73] */
 			else if (!strcmp(serial, "SLUS-20673"))
 			{
@@ -3442,6 +3462,25 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Bloody Roar 4 (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* BMX XXX (SLUS-20415) [CRC: 2999BCF9] */
+			else if (!strcmp(serial, "SLUS-20415"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00101074,word,3c013f40", /* 3c013f80 hor fov */
+					"patch=1,EE,00299544,word,3c093f40", /* 00000000 renderfix */
+					"patch=1,EE,001014a4,word,080a6551", /* 46000843 */
+					"patch=1,EE,001014a8,word,00000000", /* e62404e8 */
+					"patch=1,EE,0029954c,word,4489f000", /* 00000000 */
+					"patch=1,EE,00299550,word,461e0843", /* 00000000 */
+					"patch=1,EE,00299554,word,46000843", /* 00000000 */
+					"patch=1,EE,00299558,word,e62004e8", /* 00000000 */
+					"patch=1,EE,0029955c,word,0804052a" /* 00000000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [BMX XXX (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Breath of Fire: Dragon Quarter (NTSC-U) [CRC: 588CC41B] */
 			else if (!strcmp(serial, "SLUS-20499"))
@@ -3885,6 +3924,18 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Enter The Matrix (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Enthusia - Professional Racing (NTSC-U) [CRC: 81D233DC] */
+			else if (!strcmp(serial, "SLUS-20967")) 
+			{
+				/* Patch courtesy: No.47 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,20383708,word,3F400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Enthusia - Professional Racing (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Eternal Ring (NTSC-U) [CRC: C79B9F4F7] */
 			else if (!strcmp(serial, "SLUS-20015"))
 			{
@@ -4015,7 +4066,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Grand Theft Auto: Vice City (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
-			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA] */
+			/* Grand Theft Auto: San Andreas (NTSC-U) [CRC: 399A49CA / 2C6BE4534] */
 			else if (!strcmp(serial, "SLUS-20946"))
 			{
 				/* Patch courtesy: nemesis2000, flameofrecca */
@@ -4061,6 +4112,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Haunting Ground (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* King's Field: The Ancient City (NTSC-U) [CRC: 36E02E91] */
+			else if (!strcmp(serial, "SLUS-20318")) /* 16:9 */
+			{
+				/* Patch courtesy: pelvicthrustman */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0022d8e4,word,3c013f40", /* 00000000 */
+					"patch=1,EE,0022d8e8,word,44810000", /* 00000000 */
+					"patch=1,EE,0022d8f0,word,4600c602" /* 00000000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [King's Field: The Ancient City (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Kingdom Hearts 2 (NTSC-U) [CRC: DA0535FD] */
 			else if (!strcmp(serial, "SLUS-21005")) /* 16:9 */
@@ -4791,8 +4856,27 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SCES-", serial, strlen("SCES-")))
 		{
+			/* Amplitude (PAL) [CRC: F7DC0006] */
+			if (!strcmp(serial, "SCES-51706"))
+			{
+				/* Patch courtesy: Widescreen hacks by Aced14 (MIPS code injection/FMV experiment) and 2007excalibur2007 (initial live memory discovery) */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,E0FF0000,extended,001001E0", /* 00000000 - Enable condition */
+					"patch=1,EE,2022A858,extended,080A4B62", /* E6000160 - j $00292d88 - Jump to injected MIPS instructions */
+					"patch=1,EE,20292D88,extended,3C013F40", /* 3C05004B - lui at, $3f40 - Set $f31 register to .75 #1 */
+					"patch=1,EE,20292D8C,extended,4481F800", /* 0200202D - mtc1 at, $f31 - Set $f31 register to .75 #2 */
+					"patch=1,EE,20292D90,extended,461F07C2", /* 24A53550 - mul.s $f31, $f0, $f31 - Multiply $f0 by $f31 and store in $f31 */
+					"patch=1,EE,20292D94,extended,0808AA18", /* 0C0E4990 - j $0022a860 - Jump to 2 lines after the overwritten MIPS instruction */
+					"patch=1,EE,20292D98,extended,E61F0160" /* 0220302D - swc1 $f31, $0160(s0) - Write $f31 into where $f0 would've been written to by the restored overwritten MIPS instruction */
+
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Amplitude (PAL)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Dead or Alive 2 (PAL) [CRC: 7A51F86E] */
-			if (!strcmp(serial, "SCES-50003"))
+			else if (!strcmp(serial, "SCES-50003"))
 			{
 				/* Patch courtesy: nemesis2000 */
 				int i;
@@ -4899,6 +4983,52 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Aggressive Inline (PAL-M) [CRC: D6A0D7A5] */
+			else if (!strcmp(serial, "SLES-50480"))
+			{
+				/* Patch courtesy: ElHecht */
+				int i;
+				switch (hint_widescreen)
+				{
+					case 2: /* 16:10 */
+						{
+							char *patches[] = {
+								"patch=1,EE,0010113c,word,3c013f55", /* 00000000 hor fov */
+								"patch=1,EE,0010114c,word,34215555", /* 3c013f80 hor fov */
+								"patch=1,EE,00276cd4,word,3c093f55", /* 00000000 renderfix */
+								"patch=1,EE,00276cd8,word,35295555" /* 00000000 renderfix */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Aggressive Inline (PAL)]: 16:10 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					default:
+						{
+							char *patches[] = {
+								"patch=1,EE,0010114c,word,3c013f40", /* 3c013f80 hor fov */
+								"patch=1,EE,00276cd4,word,3c093f40" /* 00000000 renderfix */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Aggressive Inline (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+				}
+				{
+					char *patches[] = {
+						"patch=1,EE,00101794,word,0809db35", /* 46000843 */
+						"patch=1,EE,00101798,word,00000000", /* e62004e8 */
+						"patch=1,EE,00276cdc,word,4489f000", /* 00000000 */
+						"patch=1,EE,00276ce0,word,461e0843", /* 00000000 */
+						"patch=1,EE,00276ce4,word,46000843", /* 00000000 */
+						"patch=1,EE,00276ce8,word,e62004e8", /* 00000000 */
+						"patch=1,EE,00276cec,word,080405e6" /* 00000000 */
+					};
+					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+						LoadPatchesFromString(std::string(patches[i]));
+				}
+			}
 			/* Armored Core 2 (PAL) [CRC: D9B48C4A] */
 			else if (!strcmp(serial, "SLES-50079"))
 			{
@@ -4956,6 +5086,25 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* BMX XXX (SLES-51365) [CRC: 3A48B51C] */
+			else if (!strcmp(serial, "SLES-51365"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0010107c,word,3c013f40", /* 3c013f80 hor fov */
+					"patch=1,EE,00298ea4,word,3c093f40", /* 00000000 renderfix */
+					"patch=1,EE,00101504,word,080a63a9", /* 46000843 */
+					"patch=1,EE,00101508,word,00000000", /* e62404e8 */
+					"patch=1,EE,00298eac,word,4489f000", /* 00000000 */
+					"patch=1,EE,00298eb0,word,461e0843", /* 00000000 */
+					"patch=1,EE,00298eb4,word,46000843", /* 00000000 */
+					"patch=1,EE,00298eb8,word,e62004e8", /* 00000000 */
+					"patch=1,EE,00298ebc,word,08040542" /* 00000000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [BMX XXX (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Breath of Fire: Dragon Quarter (PAL) [CRC: 867AB5D0] */
 			else if (!strcmp(serial, "SLES-51496"))
@@ -5057,6 +5206,19 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry 3: Special Edition (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Eternal Ring (PAL) [CRC: C5B61685] */
+			else if (!strcmp(serial, "SLES-50051"))
+			{
+				int i;
+				char *patches[] = {
+					/* X-Fov
+					 * 803f013c 00a88144 */
+					"patch=1,EE,00101160,word,3c013f40" /* 3c013f80 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Eternal Ring (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Gauntlet: Seven Sorrows (PAL-M) [CRC: BBB8392E] */
 			else if (!strcmp(serial, "SLES-53667"))
 			{
@@ -5088,6 +5250,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Gradius V (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* King's Field IV (PAL-M) [CRC: 401F4726 */
+			else if (!strcmp(serial, "SLES-50920")) /* 16:9 */
+			{
+				/* Patch courtesy: pelvicthrustman */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0022d3bc,word,3c013f40", /* 00000000 */
+					"patch=1,EE,0022d3c0,word,44810000", /* 00000000 */
+					"patch=1,EE,0022d3c8,word,4600c602" /* 00000000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [King's Field IV (PAL)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* London Racer World Challenge (PAL-M) [CRC: F97680AA] */
 			else if (!strcmp(serial, "SLES-51580"))
@@ -5401,8 +5577,26 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
 		{
+			/* Amplitude (NTSC-U) [CRC: 2F7B4DB8] */
+			if (!strcmp(serial, "SCUS-97258"))
+			{
+				/* Patch courtesy: Widescreen hacks by Aced14 (MIPS code injection/FMV experiment) and 2007excalibur2007 (initial live memory discovery) */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,E0FF0000,extended,001001E0", /* 00000000 - Enable condition */
+					"patch=1,EE,20221A88,extended,080A2564", /* E6000160 - j $00289590 - Jump to injected MIPS instructions */
+					"patch=1,EE,20289590,extended,3C013F40", /* 3C050042 - lui at, $3f40 - Set $f31 register to .75 #1 */
+					"patch=1,EE,20289594,extended,4481F800", /* 0200202D - mtc1 at, $f31 - Set $f31 register to .75 #2 */
+					"patch=1,EE,20289598,extended,461F07C2", /* 24A5B880 - mul.s $f31, $f0, $f31 - Multiply $f0 by $f31 and store in $f31 */
+					"patch=1,EE,2028959C,extended,080886A4", /* 0C0C9480 - j $00221a90 - Jump to 2 lines after the overwritten MIPS instruction */
+					"patch=1,EE,202895A0,extended,E61F0160" /* 0220302D - swc1 $f31, $0160(s0) - Write $f31 into where $f0 would've been written to by the restored overwritten MIPS instruction */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Amplitude (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
-			if (!strcmp(serial, "SCUS-97111"))
+			else if (!strcmp(serial, "SCUS-97111"))
 			{
 				switch (hint_widescreen)
 				{
@@ -5923,6 +6117,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Kakutou Bijin Wulong (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* King's Field IV (NTSC-J) [CRC: 04C3765E] */
+			else if (!strcmp(serial, "SLPS-25057")) /* 16:9 */
+			{
+				/* Patch courtesy: Arapapa */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0022c1a4,word,3c013f40", /* 00000000 */
+					"patch=1,EE,0022c1a8,word,44810000", /* 00000000 */
+					"patch=1,EE,0022c1b0,word,4600c602" /* 00000000 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [King's Field IV (NTSC-J)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Mahou no Pumpkin (NTSC-J) [CRC: 90D2D375] */
 			else if (!strcmp(serial, "SLPS-20280")) /* 16:9 */
