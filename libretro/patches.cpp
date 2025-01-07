@@ -3349,6 +3349,20 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Armored Core 2 (NTSC-U) [CRC: F3F906DE] */
+			else if (!strcmp(serial, "SLUS-20014")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,202B5880,extended,43f00000",
+					"patch=1,EE,001b4508,extended,3c013f40",
+					"patch=1,EE,001c54e4,extended,3c013f40",
+					"patch=1,EE,001c5614,extended,3c013f40"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 2 (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Armored Core 3 (NTSC-U) [CRC: FDB4D261] */
 			else if (!strcmp(serial, "SLUS-20435")) /* 16:9 */
 			{
@@ -3360,7 +3374,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Ace Combat 3 (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 3 (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Auto Modellista (NTSC-U) [CRC: 6D76177B] */
 			else if (!strcmp(serial, "SLUS-20642"))
@@ -4869,6 +4883,47 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Alias (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Armored Core 2 (PAL) [CRC: D9B48C4A] */
+			else if (!strcmp(serial, "SLES-50079"))
+			{
+				int i;
+				/* Patch courtesy: Elhecht */
+				switch (hint_widescreen)
+				{
+					case 2: /* 16:10 */
+						{
+							char *patches[] = {
+								"patch=1,EE,0028b02c,word,3c013f55", /* 00000000 hor fov gameplay */
+								"patch=1,EE,0028b030,word,34215555", /* 00000000 hor fov gameplay */
+								"patch=1,EE,0028b038,word,44810000", /* 00000000 */
+								"patch=1,EE,0028b03c,word,4600c602", /* 00000000 */
+								"patch=1,EE,001b3f2c,word,3c013f55", /* 00000000 hor fov menu */
+								"patch=1,EE,001b3f30,word,34215555", /* 00000000 hor fov menu */
+								"patch=1,EE,001b3f3c,word,4481f000", /* 00000000 */
+								"patch=1,EE,001b3f40,word,461e6b42" /* 00000000 */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 2 (PAL)]: 16:10 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					default:
+						{
+							char *patches[] = {
+								"patch=1,EE,0028b02c,word,3c013f40", /* 00000000 hor fov gameplay */
+								"patch=1,EE,0028b038,word,44810000", /* 00000000 */
+								"patch=1,EE,0028b03c,word,4600c602", /* 00000000 */
+								"patch=1,EE,001b3f2c,word,3c013f40", /* 00000000 hor fov menu */
+								"patch=1,EE,001b3f3c,word,4481f000", /* 00000000 */
+								"patch=1,EE,001b3f40,word,461e6b42" /* 00000000 */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 2 (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+				}
+			}
 			/* Blood Omen 2: The Legacy of Kain Series (PAL) [CRC: ] */
 			else if (!strcmp(serial, "SLES-50771"))
 			{
@@ -5632,8 +5687,83 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLPS-", serial, strlen("SLPS-")))
 		{
+			/* Armored Core 2 (NTSC-J) [CRC: D00E1931] */
+			if (!strcmp(serial, "SLPS-25007")) /* 16:9 */
+			{
+				int i;
+				switch (hint_widescreen)
+				{
+					case 2: /* 16:10 */
+						{
+							char *patches[] = {
+								"patch=1,EE,002885ec,word,3c013f55", /* 00000000 hor fov gameplay */
+								"patch=1,EE,002885f0,word,34215555", /* 00000000 hor fov gameplay */
+								"patch=1,EE,002885f8,word,44810000", /* 00000000 */
+								"patch=1,EE,002885fc,word,4600c602", /* 00000000 */
+								"patch=1,EE,001b252c,word,3c013f55", /* 00000000 hor fov menu */
+								"patch=1,EE,001b2530,word,34215555", /* 00000000 hor fov menu */
+								"patch=1,EE,001b253c,word,4481f000", /* 00000000 */
+								"patch=1,EE,001b2540,word,461e6b42" /* 00000000 */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 2 (NTSC-J)]: 16:10 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					default:
+						{
+							char *patches[] = {
+								"patch=1,EE,002885ec,word,3c013f40", /* 00000000 hor fov gameplay */
+								"patch=1,EE,002885f8,word,44810000", /* 00000000 */
+								"patch=1,EE,002885fc,word,4600c602", /* 00000000 */
+								"patch=1,EE,001b252c,word,3c013f40", /* 00000000 hor fov menu */
+								"patch=1,EE,001b253c,word,4481f000", /* 00000000 */
+								"patch=1,EE,001b2540,word,461e6b42" /* 00000000 */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 2 (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+				}
+			}
+			/* Armored Core 3 (NTSC-J) [CRC: D00E1931] */
+			else if (!strcmp(serial, "SLPS-25112")) /* 16:9 */
+			{
+				int i;
+				switch (hint_widescreen)
+				{
+					case 2: /* 16:10 */
+						{
+							char *patches[] = {
+								"patch=1,EE,002e6c3c,word,3c013f55", /* 00000000 hor fov */
+								"patch=1,EE,002e6c40,word,34215555", /* 00000000 */
+								"patch=1,EE,002e6c48,word,44810000", /* 00000000 */
+								"patch=1,EE,002e6c4c,word,4600c602", /* 00000000 */
+								"patch=1,EE,0026caf4,word,3c0143c1" /* 3c0143a0 renderfix */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 3 (NTSC-J)]: 16:10 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					default:
+						{
+							char *patches[] = {
+								"patch=1,EE,002e6c3c,word,3c013f40", /* 00000000 hor fov */
+								"patch=1,EE,002e6c48,word,44810000", /* 00000000 */
+								"patch=1,EE,002e6c4c,word,4600c602", /* 00000000 */
+								"patch=1,EE,0026caf4,word,3c0143d6" /* 3c0143a0 renderfix */
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Armored Core 3 (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+				}
+			}
 			/* Evergrace (NTSC-J) [CRC: 66FB2124] */
-			if (!strcmp(serial, "SLPS-25003")) /* 16:9 */
+			else if (!strcmp(serial, "SLPS-25003")) /* 16:9 */
 			{
 				int i;
 				char *patches[] = {
