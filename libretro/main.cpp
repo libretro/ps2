@@ -40,6 +40,10 @@
 #include "SPU2/spu2.h"
 #include "PAD/PAD.h"
 
+#ifdef HAVE_PARALLEL_GS
+extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
+#endif
+
 #if 0
 #define PERF_TEST
 #endif
@@ -76,6 +80,10 @@ static retro_audio_sample_batch_t batch_cb;
 
 static std::atomic<VMState> cpu_thread_state;
 static std::thread cpu_thread;
+
+static freezeData fd = {};
+static std::unique_ptr<u8[]> fd_data;
+
 
 enum PluginType : u8
 {
@@ -1315,6 +1323,69 @@ void retro_reset(void)
 	VMManager::SetPaused(false);
 }
 
+static void freeze(void)
+{
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+	{
+		if (g_pgs_renderer->Freeze(&fd, true) != 0)
+		{
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size");
+			return;
+		}
+	}
+	else
+#endif
+	{
+		if (g_gs_renderer->Freeze(&fd, true) != 0)
+		{
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size");
+			return;
+		}
+	}
+	fd_data = std::make_unique<u8[]>(fd.size);
+	fd.data = fd_data.get();
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+	{
+		if (g_pgs_renderer->Freeze(&fd, false) != 0)
+		{
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS");
+			return;
+		}
+	}
+	else
+#endif
+	{
+		if (g_gs_renderer->Freeze(&fd, false) != 0)
+		{
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS");
+			return;
+		}
+	}
+}
+static void defrost(void)
+{
+#ifdef HAVE_PARALLEL_GS
+	if (g_pgs_renderer)
+	{
+		if (g_pgs_renderer->Defrost(&fd) != 0)
+		{
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost");
+			return;
+		}
+	}
+	else
+#endif
+	{
+		if (g_gs_renderer->Defrost(&fd) != 0)
+		{
+			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost");
+			return;
+		}
+	}
+}
+
 static void libretro_context_reset(void)
 {
 #ifdef ENABLE_VULKAN
@@ -1334,12 +1405,15 @@ static void libretro_context_reset(void)
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
+	defrost();
+
 	VMManager::SetPaused(false);
 }
 
 static void libretro_context_destroy(void)
 {
 	cpu_thread_pause();
+	freeze();
 
 	MTGS::CloseGS();
 #ifdef ENABLE_VULKAN
