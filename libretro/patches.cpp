@@ -3544,7 +3544,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Chaos Legion (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Chaos Legion (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Cold Winter (NTSC-U) [CRC: D6D704BB] */
 			else if (!strcmp(serial, "SLUS-20845"))
@@ -3599,7 +3599,7 @@ int lrps2_ingame_patches(const char *serial,
 					for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 						LoadPatchesFromString(std::string(patches[i]));
 				}
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Crash Bandicoot Wrath of Cortex (NTSC-U)]: 16:9 (Vert- ?) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Crash Bandicoot Wrath of Cortex (NTSC-U)]: 16:9 (Vert-) Widescreen patch applied.\n");
 			}
 			/* Crimson Tears (NTSC-U) [CRC: D31904C2] */
 			else if (!strcmp(serial, "SLUS-20948"))
@@ -3615,7 +3615,7 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Crimson Tears (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Devil May Cry (NTSC-U) [CRC: ] */
-			else if (!strcmp(serial, "SLUS-20561"))
+			else if (!strcmp(serial, "SLUS-20216"))
 			{
 				/* Patch courtesy: nemesis2000 */
 				int i;
@@ -3659,6 +3659,22 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Devil May Cry 3: Special Edition (NTSC-U) [CRC: 25FC361B] */
+			else if (!strcmp(serial, "SLUS-21361"))
+			{
+				/* Patch courtesy: No.47 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,21D0DEA0,word,3F400000", /* horizontal fov */
+					"patch=1,EE,206A2870,word,3F400000", /* hud fix, pause screen fix */
+					/* FMV's fix */
+					"patch=1,EE,0023279c,word,240301aa", /* intro / demo */
+					"patch=1,EE,002e52ec,word,240801aa" /* cutscenes */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry 3: Special Edition (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Disaster Report (NTSC-U) [CRC: 7D7D4D9D] */
 			else if (!strcmp(serial, "SLUS-20561"))
 			{
@@ -3673,7 +3689,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Disaster Report (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Disaster Report (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* DOA2: Hardcore (NTSC-U) [CRC: 23AF6876] */
 			else if (!strcmp(serial, "SLUS-20071"))
@@ -3726,7 +3742,7 @@ int lrps2_ingame_patches(const char *serial,
 							};
 							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dirge of Cerberus: Final Fantasy VII (NTSC-U)]: 21:9 (Vert- ?) Widescreen patch applied.\n");
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dirge of Cerberus: Final Fantasy VII (NTSC-U)]: 21:9 (Vert-) Widescreen patch applied.\n");
 						}
 						break;
 					default: /* 16:9 */
@@ -3737,7 +3753,7 @@ int lrps2_ingame_patches(const char *serial,
 							};
 							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dirge of Cerberus: Final Fantasy VII (NTSC-U)]: 16:9 (Vert- ?) Widescreen patch applied.\n");
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dirge of Cerberus: Final Fantasy VII (NTSC-U)]: 16:9 (Vert-) Widescreen patch applied.\n");
 						}
 						break;
 				}
@@ -4869,7 +4885,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Blades (PAL)]: 16:9 (Vert- ?) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Blades (PAL)]: 16:9 (Vert-) Widescreen patch applied.\n");
 			}
 			/* Alias (PAL-M) [CRC: 83466553] */
 			else if (!strcmp(serial, "SLES-51821"))
@@ -4976,6 +4992,70 @@ int lrps2_ingame_patches(const char *serial,
 						LoadPatchesFromString(std::string(patches[i]));
 				}
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Crash Bandicoot Wrath of Cortex (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Devil May Cry 3: Special Edition (PAL-M) [CRC: 18C9343F] */
+			else if (!strcmp(serial, "SLES-54186"))
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					/* gameplay */
+					"patch=1,EE,001ac7a4,word,3c013f40", /* hor val 1 */
+					"patch=1,EE,001ac7a8,word,4481a000",
+					"patch=1,EE,001ac7ac,word,3c0101d1",
+					"patch=1,EE,001ac7b0,word,e43407a0",
+					"patch=1,EE,001ac7b4,word,46000d03",
+
+					"patch=1,EE,001ac814,word,3c013f40", /* hor val 2 */
+					"patch=1,EE,001ac818,word,4481a000",
+					"patch=1,EE,001ac81c,word,3c0101d1",
+					"patch=1,EE,001ac820,word,e43407a0",
+					"patch=1,EE,001ac824,word,46000d03",
+
+					/* FMV's fix */
+					"patch=1,EE,00231cb8,word,24040180", /* dolby logo */
+					"patch=1,EE,00232dcc,word,240301aa", /* intro / demo */
+					"patch=1,EE,002e5a8c,word,240801aa", /* cutscenes */
+					"patch=1,EE,00307d4c,word,24050040", /* gallery 1 */
+					"patch=1,EE,00307d54,word,24070180", /* gallery 2 */
+
+					/* rfix 1 */
+					"patch=1,EE,001ac844,word,3c0345bf", /* val 1 */
+					"patch=1,EE,001ac96c,word,3c0345bf", /* val 2 */
+					/* rfix 2 */
+					"patch=1,EE,001acf0c,word,3c013f40", /* hor val 2 */
+					"patch=1,EE,001acf24,word,44812000",
+					"patch=1,EE,001acf28,word,460418c2",
+					"patch=1,EE,001acf2c,word,460018c3",
+					"patch=1,EE,001acf30,word,46001083",
+					"patch=1,EE,001acf34,word,46000803",
+					"patch=1,EE,001acf38,word,e7a30030",
+					"patch=1,EE,001acf3c,word,e7a20034",
+
+					"patch=1,EE,001acfa0,word,460418c2",
+					"patch=1,EE,001acfa4,word,460018c3",
+					"patch=1,EE,001acfa8,word,46001083",
+					"patch=1,EE,001acfac,word,46000803",
+					"patch=1,EE,001acfb0,word,e7a30030",
+					"patch=1,EE,001acfb4,word,e7a20034",
+
+					"patch=1,EE,001ad020,word,460418c2",
+					"patch=1,EE,001ad024,word,460018c3",
+					"patch=1,EE,001ad028,word,46001083",
+					"patch=1,EE,001ad02c,word,46000803",
+					"patch=1,EE,001ad030,word,e7a30030",
+					"patch=1,EE,001ad034,word,e7a20034",
+
+					"patch=1,EE,001ad0a0,word,460418c2",
+					"patch=1,EE,001ad0a4,word,460018c3",
+					"patch=1,EE,001ad0a8,word,46001083",
+					"patch=1,EE,001ad0ac,word,46000803",
+					"patch=1,EE,001ad0b0,word,e7a30030",
+					"patch=1,EE,001ad0b4,word,e7a20034"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry 3: Special Edition (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Gauntlet: Seven Sorrows (PAL-M) [CRC: BBB8392E] */
 			else if (!strcmp(serial, "SLES-53667"))
@@ -5200,7 +5280,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Splatter Master (PAL)]: 16:9 (Vert- ?) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Splatter Master (PAL)]: 16:9 (Vert-) Widescreen patch applied.\n");
 			}
 			/* Street Boyz (PAL) [CRC: BA568F6B] */
 			else if (!strcmp(serial, "SLES-53407")) /* 16:9 */
@@ -5521,8 +5601,25 @@ int lrps2_ingame_patches(const char *serial,
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
 		{
+			/* 7 Blades (NTSC-J) [CRC: C4DD197F] */
+			if (!strcmp(serial, "SLPM-65008")) /* 16:9 */
+			{
+				/* Patch courtesy: Arapapa */
+				int i;
+				char *patches[] = {
+					/* Zoom
+					 * 0044013c 00608144 2044013c (4th) */
+					"patch=1,EE,002f40c4,word,3c0143c0", /* 3c014400 */
+					/* Y-Fov
+					 * 3333733f 00401c46 (4th) */
+					"patch=1,EE,004ef9c4,word,3fa2221d" /* 3f733333 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [7 Blades (NTSC-J)]: 16:9 (Vert-) Widescreen patch applied.\n");
+			}
 			/* Battle Gear 3 (NTSC-J) [CRC: AC9F1FC0] */
-			if (!strcmp(serial, "SLPM-65434")) /* 16:9 */
+			else if (!strcmp(serial, "SLPM-65434")) /* 16:9 */
 			{
 				int i;
 				/* Patch courtesy: No.47 */
@@ -5762,6 +5859,20 @@ int lrps2_ingame_patches(const char *serial,
 						break;
 				}
 			}
+			/* Dead or Alive 2 (NTSC-J) [CRC: 7894BA09] */
+			else if (!strcmp(serial, "SLPS-25002")) /* 16:9 */
+			{
+				/* Patch courtesy: No.47 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,203B0400,word,3F400000",
+					"patch=1,EE,203B0C20,word,3F400000",
+					"patch=1,EE,203B1440,word,3F400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Dead or Alive 2 (NTSC-J)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Evergrace (NTSC-J) [CRC: 66FB2124] */
 			else if (!strcmp(serial, "SLPS-25003")) /* 16:9 */
 			{
@@ -5866,6 +5977,29 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Tekken Tag Tournament (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Zettai Zetsumei Toshi (NTSC-J) [CRC: 3E359E0B] */
+			else if (!strcmp(serial, "SLPS-25113"))
+			{
+				/* Patch courtesy: LittleGiant */
+				int i;
+				char *patches[] = {
+#if 0
+					/* black borders's fix (optional) */
+					"patch=1,EE,001945E4,word,24634230", /* 24634260 */
+					"patch=1,EE,001947e0,word,24634230", /* 24634260 */
+					"patch=1,EE,001948B4,word,24644230" /* 24644260 */
+#endif
+						/* 16:9 */
+					"patch=1,EE,0013e3b4,word,3c023f40", /* 3c023f80 game play */
+					"patch=1,EE,0013d9d4,word,3c023f40", /* 3c023f80 cutscenes fix */
+					"patch=1,EE,0013e230,word,3c023f80", /* 3c023f80 cutscenes fix */
+					"patch=1,EE,0025cd40,word,43E00000", /* 43a00000 (Increases hor. axis) */
+					"patch=1,EE,0025cd50,word,43E00000"  /* 43a00000 render fix */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Zettai Zetsumei Toshi (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 		}
 	}
