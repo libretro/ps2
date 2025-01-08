@@ -4988,7 +4988,6 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Ape Escape 3 (NTSC-U)]: Force native widescreen mode patch applied.\n");
 			}
-			 * 
 			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
 			else if (!strcmp(serial, "SCUS-97111"))
 			{
