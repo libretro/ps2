@@ -83,7 +83,7 @@ static std::thread cpu_thread;
 
 static freezeData fd = {};
 static std::unique_ptr<u8[]> fd_data;
-
+static bool defrost_requested = false;
 
 enum PluginType : u8
 {
@@ -1323,15 +1323,15 @@ void retro_reset(void)
 	VMManager::SetPaused(false);
 }
 
-static void freeze(void)
+static bool freeze(void)
 {
 #ifdef HAVE_PARALLEL_GS
 	if (g_pgs_renderer)
 	{
 		if (g_pgs_renderer->Freeze(&fd, true) != 0)
 		{
-			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size");
-			return;
+			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to get GS freeze size\n");
+			return false;
 		}
 	}
 	else
@@ -1339,19 +1339,21 @@ static void freeze(void)
 	{
 		if (g_gs_renderer->Freeze(&fd, true) != 0)
 		{
-			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to get GS freeze size");
-			return;
+			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to get GS freeze size\n");
+			return false;
 		}
 	}
+
 	fd_data = std::make_unique<u8[]>(fd.size);
 	fd.data = fd_data.get();
+
 #ifdef HAVE_PARALLEL_GS
 	if (g_pgs_renderer)
 	{
 		if (g_pgs_renderer->Freeze(&fd, false) != 0)
 		{
-			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS");
-			return;
+			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to freeze GS\n");
+			return false;
 		}
 	}
 	else
@@ -1359,10 +1361,12 @@ static void freeze(void)
 	{
 		if (g_gs_renderer->Freeze(&fd, false) != 0)
 		{
-			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to freeze GS");
-			return;
+			log_cb(RETRO_LOG_ERROR, "(context_destroy) Failed to freeze GS\n");
+			return false;
 		}
 	}
+
+	return true;
 }
 static void defrost(void)
 {
@@ -1371,7 +1375,7 @@ static void defrost(void)
 	{
 		if (g_pgs_renderer->Defrost(&fd) != 0)
 		{
-			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost");
+			log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
 			return;
 		}
 	}
@@ -1380,7 +1384,7 @@ static void defrost(void)
 	{
 		if (g_gs_renderer->Defrost(&fd) != 0)
 		{
-			log_cb(RETRO_LOG_ERROR, "(GSreopen) Failed to defrost");
+			log_cb(RETRO_LOG_ERROR, "(context_reset) Failed to defrost\n");
 			return;
 		}
 	}
@@ -1405,7 +1409,11 @@ static void libretro_context_reset(void)
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	defrost();
+	if (defrost_requested)
+	{
+		defrost_requested = false;
+		defrost();
+	}
 
 	VMManager::SetPaused(false);
 }
@@ -1413,7 +1421,9 @@ static void libretro_context_reset(void)
 static void libretro_context_destroy(void)
 {
 	cpu_thread_pause();
-	freeze();
+
+	if (freeze())
+		defrost_requested = true;
 
 	MTGS::CloseGS();
 #ifdef ENABLE_VULKAN
