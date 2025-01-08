@@ -4563,7 +4563,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Ridge Racer V (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Ridge Racer V (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Rumble Roses (NTSC-U) [CRC: C1C91715] */
 			else if (!strcmp(serial, "SLUS-20970"))
@@ -5315,6 +5315,32 @@ int lrps2_ingame_patches(const char *serial,
 #endif
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
+			}
+			/* Ridge Racer V (PAL-M5) [CRC: 5BBC2F40] */
+			else if (!strcmp(serial, "SCES-50000"))
+			{
+				/* Patch courtesy: No.47 */
+				int i;
+				char *patches[] = {
+					/* single player */
+					"patch=1,EE,2033AC94,word,43C6C000", /* 44048000 - both fov, bumper camera */
+					"patch=1,EE,2033ACB4,word,43C6C000", /* 44048000 - both fov, chase camera (*) */
+					"patch=1,EE,2033B4C4,word,3F1D0364", /* 3EEB851F - vertical FOV */
+
+					/* split screen */
+					"patch=1,EE,2033AC90,word,43951000", /* 43C6C000 - both FOV */
+					"patch=1,EE,2033B4D0,word,3F1D0364", /* 3EEB851F - vert FOV, top */
+					"patch=1,EE,2033B4D4,word,3F1D0364", /* 3EEB851F - vert FOV, bottom */
+
+					/* menu */
+					"patch=1,EE,2033B580,word,3F066666" /* 3F333333 - horizontal FOV */
+
+					/* (*) improved chase cam that shows the whole car as in other Ridge Racer games, instead of only the upper half */
+					/* (*) replace 43960000 by 43C6C000 for the original chase cam */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Ridge Racer V (PAL)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Sky Odyssey (PAL-M5) [CRC: 29B11E02] */
 			else if (!strcmp(serial, "SCES-50105")) 
@@ -6334,6 +6360,38 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [R-Type Final (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Ridge Racer V (NTSC-J) [CRC: 4F9C7FCF] */
+			else if (!strcmp(serial, "SLPS-20001"))
+			{
+				/* Patch courtesy: Arapapa */
+				int i;
+				char *patches[] = {
+					/* single player 
+					 * 00 80 04 44 33 33 B3 3E 33 33 B3 3E DB 0F 49 40 */
+					"patch=1,EE,20330F94,word,43C6C000", /* 44048000 - both fov, bumper camera */
+					/* 00 80 04 44 DB 0F 49 40 DB 0F C9 40 DB 0F 49 C0 */
+					"patch=1,EE,20330FB4,word,43C6C000", /* 44048000 - both fov, chase camera (*) */
+					/* 1F 85 EB 3E 7F 6A BC 3E CD CC 4C 3F 1F 85 EB 3E */
+					"patch=1,EE,203317C4,word,3F1D0364", /* 3EEB851F - vertical FOV */
+
+					/* split screen
+					 * 00 C0 C6 43 00 80 04 44 33 33 B3 3E 33 33 B3 3E */
+					"patch=1,EE,20330F90,word,43951000", /* 43C6C000 - both FOV */
+					/* 1F 85 EB 3E 1F 85 EB 3E 67 90 0A 44 1F 85 EB 3E */
+					"patch=1,EE,203317D0,word,3F1D0364", /* 3EEB851F - vert FOV, top */
+					/* 1F 85 EB 3E 67 90 0A 44 1F 85 EB 3E FF FF 7F 4B */
+					"patch=1,EE,203317D4,word,3F1D0364", /* 3EEB851F - vert FOV, bottom */
+
+					/* menu */
+					/* CD CC 4C 3F 7F 6A BC 3E FF FF 7F 4B CD CC CC 3D */
+					"patch=1,EE,20331880,word,3F199999", /* 3F4CCCCD - horizontal FOV */
+					/* (*) improved chase cam that shows the whole car as in other Ridge Racer games, instead of only the upper half */
+					/* (*) replace 43960000 by 43C6C000 for the original chase cam */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Ridge Racer V (NTSC-J)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Simple 2000 Series Vol. 109 - The Taxi 2 (NTSC-J) [CRC:91A93F28] */
 			else if (!strcmp(serial, "SLPS-20478"))
 			{
@@ -6587,6 +6645,19 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Gradius V (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Ikusa Gami (NTSC-J) [CRC: 6BC8DA64] */
+			else if (!strcmp(serial, "SLPM-66184"))
+			{
+				/* Patch courtesy: ElHecht, Little Giant */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00132e6c,word,3c023f80", /* 3c023faa */
+					"patch=1,EE,00132e70,word,344a0000" /* 344aaaaa */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Ikusa Gami (NTSC-J)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Kowloon Youma Gakuenki (NTSC-J) [CRC: 57782923] */
 			else if (!strcmp(serial, "SLPM-65652"))
 			{
@@ -6624,6 +6695,22 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Sega Rally 2006 (NTSC-J)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* Sengoku Basara 2 (NTSC-J) [CRC: 4961CB79] */
+			else if (!strcmp(serial, "SLPM-66447"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00271A2C,word,3C013F40",
+					"patch=1,EE,00271A30,word,44810000",
+					"patch=1,EE,00271A38,word,4600C602",
+					/* render fix */
+					"patch=1,EE,001F37E8,word,3C013F19",
+					"patch=1,EE,001F37EC,word,3421999A"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Sengoku Basara 2 (NTSC-J)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Simple 2000 Series Vol. 101 - The Oneechanpon (NTSC-J) [CRC: C5B75C7C] */
 			else if (!strcmp(serial, "SLPM-66212"))
