@@ -4944,6 +4944,29 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Wreckless: The Yakuza Missions (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Xenosaga Episode III: Also sprach Zarathustra (NTSC-U) [CRC: ] */
+			else if (          !strcmp(serial, "SLUS-21389")
+					|| !strcmp(serial, "SLUS-21417"))
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					/* gameplay */
+					"patch=1,EE,2054FF20,extended,3fc1f080", /* original value 3f91745d */
+					/* cutscenes portrait's fix */
+					"patch=1,EE,00268f40,word,24020078",
+					"patch=1,EE,203e4340,extended,00000174",
+					"patch=1,EE,203e4360,extended,00000174"
+#if 0
+					/* black borders fix (optional) */
+					"patch=1,EE,00244d90,word,24060000",
+					"patch=1,EE,00244da4,word,24c801c0"
+#endif
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Xenosaga Episode III: Also sprach Zarathustra (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Zathura (NTSC-U) [CRC: 844EDE02] */
 			else if (!strcmp(serial, "SLUS-21336"))  /* 16:9 */
 			{
@@ -6502,6 +6525,18 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Crazy Taxi (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Devil May Cry 3: Special Edition (NTSC-J) [CRC: 79C952B0] */
+			else if (!strcmp(serial, "SLPM-66160"))
+			{
+				/* Patch courtesy: synce */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,21D0DEA0,extended,3F400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry 3: Special Edition (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Fate/Unlimited Codes (NTSC-J) [CRC: 3AF675BA] */
 			else if (!strcmp(serial, "SLPM-55108"))
