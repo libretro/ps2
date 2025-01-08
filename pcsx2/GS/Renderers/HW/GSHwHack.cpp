@@ -851,7 +851,7 @@ bool GSHwHack::GSC_BigMuthaTruckers(GSRendererHW& r, int& skip)
 	// Rendering pattern:
 	// CRTC frontbuffer at 0x0 is interlaced (half vertical resolution),
 	// game needs to do a depth effect (so green channel to alpha),
-	// but there is a vram limitation so green is pushed into the alpha channel of the CRCT buffer,
+	// but there is a vram limitation so green is pushed into the alpha channel of the CRTC buffer,
 	// vertical resolution is half so only half is processed at once
 	// We, however, don't have this limitation so we'll replace the draw with a full-screen TS.
 

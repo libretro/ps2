@@ -3369,6 +3369,20 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Aeon Flux (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Ape Escape 2 (NTSC-U) [CRC: BDD9F5E1] */
+			else if (!strcmp(serial, "SLUS-20685"))
+			{
+				/* Patch courtesy: CRASHARKI */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,9039f070,extended,0c0e7bc4",
+					/* Default to builtin 16:9 widescreen mode from the start. */
+					"patch=1,EE,203e06a4,extended,00000001" /* 0 Widescreen */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Ape Escape 2 (NTSC-U)]: Force native widescreen mode patch applied.\n");
+			}
 			/* Armored Core 2 (NTSC-U) [CRC: F3F906DE] */
 			else if (!strcmp(serial, "SLUS-20014")) /* 16:9 */
 			{
@@ -4025,6 +4039,7 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [God Hand (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [God Hand (NTSC-U)]: TODO/FIXME - doesn't seem correct.\n");
 			}
 			/* Gradius V (NTSC-U) [CRC: CDA95971] */
 			else if (!strcmp(serial, "SLUS-20712"))
@@ -4909,6 +4924,254 @@ int lrps2_ingame_patches(const char *serial,
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Zathura (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 		}
+		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
+		{
+			/* Amplitude (NTSC-U) [CRC: 2F7B4DB8] */
+			if (!strcmp(serial, "SCUS-97258"))
+			{
+				/* Patch courtesy: Widescreen hacks by Aced14 (MIPS code injection/FMV experiment) and 2007excalibur2007 (initial live memory discovery) */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,E0FF0000,extended,001001E0", /* 00000000 - Enable condition */
+					"patch=1,EE,20221A88,extended,080A2564", /* E6000160 - j $00289590 - Jump to injected MIPS instructions */
+					"patch=1,EE,20289590,extended,3C013F40", /* 3C050042 - lui at, $3f40 - Set $f31 register to .75 #1 */
+					"patch=1,EE,20289594,extended,4481F800", /* 0200202D - mtc1 at, $f31 - Set $f31 register to .75 #2 */
+					"patch=1,EE,20289598,extended,461F07C2", /* 24A5B880 - mul.s $f31, $f0, $f31 - Multiply $f0 by $f31 and store in $f31 */
+					"patch=1,EE,2028959C,extended,080886A4", /* 0C0C9480 - j $00221a90 - Jump to 2 lines after the overwritten MIPS instruction */
+					"patch=1,EE,202895A0,extended,E61F0160" /* 0220302D - swc1 $f31, $0160(s0) - Write $f31 into where $f0 would've been written to by the restored overwritten MIPS instruction */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Amplitude (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* Ape Escape 3 (NTSC-U) [CRC: 7571AAEE] */
+			else if (!strcmp(serial, "SCUS-97501"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,90438e50,extended,0c10e33c",
+					/* Default to builtin 16:9 widescreen mode from the start.
+					 * NOTE: It won't show in the Options menu as enabled by default
+					 * but it does force it regardless */
+					"patch=1,EE,00649dc8,extended,00000001" /* 0 widescreen */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Ape Escape 3 (NTSC-U)]: Force native widescreen mode patch applied.\n");
+			}
+			 * 
+			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
+			else if (!strcmp(serial, "SCUS-97111"))
+			{
+				switch (hint_widescreen)
+				{
+					case 4: /* 32:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3C023E90"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud (NTSC-U)]: 32:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					case 3: /* 21:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3F023F0F"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud (NTSC-U)]: 21:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,0012e228,word,3C023F40"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+				}
+			}
+			/* Dark Cloud 2 (NTSC-U) [CRC: 1DF41F33] */
+			else if (!strcmp(serial, "SCUS-97213"))
+			{
+				switch (hint_widescreen)
+				{
+					case 4: /* 32:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00138D78,word,3F023EC0"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC)]: 32:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					case 3: /* 21:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00138D78,word,3F023F10"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC)]: 21:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+					default: /* 16:9 */
+						{
+							int i;
+							char *patches[] = {
+								"patch=1,EE,00138D78,word,3F023F40"
+							};
+							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+								LoadPatchesFromString(std::string(patches[i]));
+							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
+						}
+						break;
+				}
+			}
+			/* Downhill Domination (NTSC-U) [CRC: 5AE01D98] */
+			else if (!strcmp(serial, "SCUS-97177")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+					/* default to widescreen at first run */
+					"patch=1,EE,101B9EF0,extended,00004401", /* 3C01442C - Shell Menu Master X FOV */
+					"patch=1,EE,101B68F4,extended,00004401", /* 3C01442C - Title Menu Master X FOV */
+					"patch=1,EE,2026C5C0,extended,434FC000", /* 438A8000 - Tree Sprite Width #1 */
+					"patch=1,EE,2026C700,extended,434FC000", /* 438A8000 - Tree Sprite Width #2 */
+					"patch=1,EE,2026C758,extended,434FC000", /* 438A8000 - Tree Sprite Width #3 */
+
+					"patch=1,EE,101F8510,extended,00004401", /* 3C01442C - Bike Shop Menu Goggles Default Master X FOV 
+										    (added to close-up float by game engine to 
+										    produce a "final" close-up X FOV) */
+					"patch=1,EE,101F84F8,extended,000044D8", /* 3C014510 - Bike Shop Menu Goggles Close-up Master X FOV #1 */
+					"patch=1,EE,101F84FC,extended,0000C000", /* 34218000 - Bike Shop Menu Goggles Close-up Master X FOV #2 */
+					"patch=1,EE,E0030002,extended,00A095D0", /* Conditional live memory fixes for Bike Shop menu */
+					"patch=1,EE,20A095D0,extended,3FAA3D71", /* 00000000 - Bike Shop Top HUD Width (Live Memory) */
+					"patch=1,EE,20A09610,extended,3FAA3D71", /* 00000000 - Bike Shop Bottom HUD Width (Live Memory) */
+					"patch=1,EE,20A60038,extended,C2DE0000", /* 00000000 - Bike Shop Shadow Shape/Width (Live Memory) */
+					"patch=1,EE,2027F0A0,extended,3F206D3A", /* 3EF0A3D7 - Menu Master Y FOV */
+
+					"patch=1,EE,1016BA30,extended,0000434F", /* 3C01438A - 1P P1 Master X FOV #1 */
+					"patch=1,EE,1016BA34,extended,0000C000", /* 34218000 - 1P P1 Master X FOV #2 */
+					"patch=1,EE,101A8D4C,extended,0000434F", /* 3C01438A - 1P P1 Replay Master X FOV #1 */
+					"patch=1,EE,101A8D50,extended,0000C000", /* 34218000 - 1P P1 Replay Master X FOV #2 */
+					"patch=1,EE,2027ECE0,extended,3F471C26", /* 3F15551D - 1P P1 Master Y FOV */
+
+					"patch=1,EE,2027EF00,extended,43268000", /* 435E0000 - 2P Vertical P1 Master X FOV */
+					"patch=1,EE,2027EF20,extended,3F471C26", /* 3F15551D - 2P Vertical P1 Master Y FOV */
+					"patch=1,EE,2027EFC0,extended,43268000", /* 435E0000 - 2P Vertical P2 Master X FOV */
+					"patch=1,EE,2027EFE0,extended,3F471C26", /* 3F15551D - 2P Vertical P2 Master Y FOV */
+
+					"patch=1,EE,2027ED80,extended,434FC000", /* 438A8000 - 2P Horizontal P1 Master X FOV */
+					"patch=1,EE,2027EDA0,extended,3F471C6A", /* 3F155550 - 2P Horizontal P1 Master Y FOV */
+					"patch=1,EE,2027EE40,extended,434FC000", /* 438A8000 - 2P Horizontal P2 Master X FOV */
+					"patch=1,EE,2027EE60,extended,3F471C6A", /* 3F155550 - 2P Horizontal P2 Master Y FOV */
+
+					"patch=1,EE,2027F140,extended,431D8000", /* 43520000 - 4P P1 Master X FOV */
+					"patch=1,EE,2027F160,extended,3F206D3A", /* 3EF0A3D7 - 4P P1 Master Y FOV */
+					"patch=1,EE,2027F200,extended,431D8000", /* 43520000 - 4P P2 Master X FOV */
+					"patch=1,EE,2027F220,extended,3F206D3A", /* 3EF0A3D7 - 4P P2 Master Y FOV */
+					"patch=1,EE,2027F2C0,extended,431D8000", /* 43520000 - 4P P3 Master X FOV */
+					"patch=1,EE,2027F2E0,extended,3F206D3A", /* 3EF0A3D7 - 4P P3 Master Y FOV */
+					"patch=1,EE,2027F380,extended,431D8000", /* 43520000 - 4P P4 Master X FOV */
+					"patch=1,EE,2027F3A0,extended,3F206D3A", /* 3EF0A3D7 - 4P P4 Master Y FOV */
+
+					"patch=1,EE,2027ECC0,extended,434FC000" /* 438A8000 - 2-4P P1-4 Paused Master X FOV */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Downhill Domination (NTSC)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* Extermination (NTSC-U) [CRC: 0AE679AF] */
+			else if (!strcmp(serial, "SCUS-97112")) 
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,001d2978,extended,3c023f19", /* 16:9 */
+					"patch=1,EE,001d297c,extended,3442999a"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Extermination (NTSC)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* Genji - Dawn of the Samurai (NTSC-U) [CRC: D71B57F4] */
+			else if (!strcmp(serial, "SCUS-97471"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,002e1070,word,3c014455",
+					/* FMV fix by Arapapa */
+					/* e043013c 00608144 00108244 */
+					"patch=1,EE,002c6754,word,3c0143a8" /* 3c0143e0 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Genji: Dawn of the Samurai (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* God of War II (NTSC-U) [CRC: 2F123FD8] */
+			else if (!strcmp(serial, "SCUS-97481"))
+			{
+				int i;
+				char *patches[] = {
+					/* default to widescreen at first run */
+					"patch=1,EE,001E45B4,word,24040001",
+					"patch=1,EE,001E45B8,word,00000000",
+					"patch=0,EE,0027894C,word,3c013fe3",
+					"patch=0,EE,00278950,word,34218e39"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [God of War II (NTSC)]: Force native widescreen mode patch applied.\n");
+			}
+			/* Jak & Daxter: The Precursor Legacy (NTSC-U) [CRC: 1B3976AB] */
+			else if (!strcmp(serial, "SCUS-97124"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,90100144,extended,0c046562",
+					"patch=1,EE,202af750,extended,3f1f3b64",
+					"patch=1,EE,202af6fc,extended,bf1f3b64",
+					"patch=1,EE,2079f478,extended,0015120c"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Jak & Daxter: The Precursor Legacy (NTSC-U)]: Force native widescreen mode patch applied.\n");
+			}
+			/* Kinetica (NTSC-U) [CRC: D39C08F5] */
+			else if (!strcmp(serial, "SCUS-97132")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00172190,word,3c013f40" /* 3c013f80 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Whiplash (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
+			else if (!strcmp(serial, "SCUS-97654"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=0,EE,00295E00,word,24020002" /* 30420003 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [MotorStorm: Arctic Edge (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+		}
 		else if (!strncmp("SCES-", serial, strlen("SCES-")))
 		{
 			/* Amplitude (PAL) [CRC: F7DC0006] */
@@ -5667,224 +5930,6 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Zombie Zone - Other Side (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
-			}
-		}
-		else if (!strncmp("SCUS-", serial, strlen("SCUS-")))
-		{
-			/* Amplitude (NTSC-U) [CRC: 2F7B4DB8] */
-			if (!strcmp(serial, "SCUS-97258"))
-			{
-				/* Patch courtesy: Widescreen hacks by Aced14 (MIPS code injection/FMV experiment) and 2007excalibur2007 (initial live memory discovery) */
-				int i;
-				char *patches[] = {
-					"patch=1,EE,E0FF0000,extended,001001E0", /* 00000000 - Enable condition */
-					"patch=1,EE,20221A88,extended,080A2564", /* E6000160 - j $00289590 - Jump to injected MIPS instructions */
-					"patch=1,EE,20289590,extended,3C013F40", /* 3C050042 - lui at, $3f40 - Set $f31 register to .75 #1 */
-					"patch=1,EE,20289594,extended,4481F800", /* 0200202D - mtc1 at, $f31 - Set $f31 register to .75 #2 */
-					"patch=1,EE,20289598,extended,461F07C2", /* 24A5B880 - mul.s $f31, $f0, $f31 - Multiply $f0 by $f31 and store in $f31 */
-					"patch=1,EE,2028959C,extended,080886A4", /* 0C0C9480 - j $00221a90 - Jump to 2 lines after the overwritten MIPS instruction */
-					"patch=1,EE,202895A0,extended,E61F0160" /* 0220302D - swc1 $f31, $0160(s0) - Write $f31 into where $f0 would've been written to by the restored overwritten MIPS instruction */
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Amplitude (NTSC-U)]: 16:9 Widescreen patch applied.\n");
-			}
-			/* Dark Cloud (NTSC-U) [CRC: A5C05C78] */
-			else if (!strcmp(serial, "SCUS-97111"))
-			{
-				switch (hint_widescreen)
-				{
-					case 4: /* 32:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,0012e228,word,3C023E90"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud (NTSC)]: 32:9 (Hor+) Widescreen patch applied.\n");
-						}
-						break;
-					case 3: /* 21:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,0012e228,word,3F023F0F"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud (NTSC)]: 21:9 (Hor+) Widescreen patch applied.\n");
-						}
-						break;
-					default: /* 16:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,0012e228,word,3C023F40"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
-						}
-						break;
-				}
-			}
-			/* Dark Cloud 2 (NTSC-U) [CRC: 1DF41F33] */
-			else if (!strcmp(serial, "SCUS-97213"))
-			{
-				switch (hint_widescreen)
-				{
-					case 4: /* 32:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,00138D78,word,3F023EC0"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC)]: 32:9 (Hor+) Widescreen patch applied.\n");
-						}
-						break;
-					case 3: /* 21:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,00138D78,word,3F023F10"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC)]: 21:9 (Hor+) Widescreen patch applied.\n");
-						}
-						break;
-					default: /* 16:9 */
-						{
-							int i;
-							char *patches[] = {
-								"patch=1,EE,00138D78,word,3F023F40"
-							};
-							for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-								LoadPatchesFromString(std::string(patches[i]));
-							log_cb(RETRO_LOG_INFO, "[PATCH] [Dark Cloud 2 (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
-						}
-						break;
-				}
-			}
-			/* Downhill Domination (NTSC-U) [CRC: 5AE01D98] */
-			else if (!strcmp(serial, "SCUS-97177")) /* 16:9 */
-			{
-				int i;
-				char *patches[] = {
-					/* default to widescreen at first run */
-					"patch=1,EE,101B9EF0,extended,00004401", /* 3C01442C - Shell Menu Master X FOV */
-					"patch=1,EE,101B68F4,extended,00004401", /* 3C01442C - Title Menu Master X FOV */
-					"patch=1,EE,2026C5C0,extended,434FC000", /* 438A8000 - Tree Sprite Width #1 */
-					"patch=1,EE,2026C700,extended,434FC000", /* 438A8000 - Tree Sprite Width #2 */
-					"patch=1,EE,2026C758,extended,434FC000", /* 438A8000 - Tree Sprite Width #3 */
-
-					"patch=1,EE,101F8510,extended,00004401", /* 3C01442C - Bike Shop Menu Goggles Default Master X FOV 
-										    (added to close-up float by game engine to 
-										    produce a "final" close-up X FOV) */
-					"patch=1,EE,101F84F8,extended,000044D8", /* 3C014510 - Bike Shop Menu Goggles Close-up Master X FOV #1 */
-					"patch=1,EE,101F84FC,extended,0000C000", /* 34218000 - Bike Shop Menu Goggles Close-up Master X FOV #2 */
-					"patch=1,EE,E0030002,extended,00A095D0", /* Conditional live memory fixes for Bike Shop menu */
-					"patch=1,EE,20A095D0,extended,3FAA3D71", /* 00000000 - Bike Shop Top HUD Width (Live Memory) */
-					"patch=1,EE,20A09610,extended,3FAA3D71", /* 00000000 - Bike Shop Bottom HUD Width (Live Memory) */
-					"patch=1,EE,20A60038,extended,C2DE0000", /* 00000000 - Bike Shop Shadow Shape/Width (Live Memory) */
-					"patch=1,EE,2027F0A0,extended,3F206D3A", /* 3EF0A3D7 - Menu Master Y FOV */
-
-					"patch=1,EE,1016BA30,extended,0000434F", /* 3C01438A - 1P P1 Master X FOV #1 */
-					"patch=1,EE,1016BA34,extended,0000C000", /* 34218000 - 1P P1 Master X FOV #2 */
-					"patch=1,EE,101A8D4C,extended,0000434F", /* 3C01438A - 1P P1 Replay Master X FOV #1 */
-					"patch=1,EE,101A8D50,extended,0000C000", /* 34218000 - 1P P1 Replay Master X FOV #2 */
-					"patch=1,EE,2027ECE0,extended,3F471C26", /* 3F15551D - 1P P1 Master Y FOV */
-
-					"patch=1,EE,2027EF00,extended,43268000", /* 435E0000 - 2P Vertical P1 Master X FOV */
-					"patch=1,EE,2027EF20,extended,3F471C26", /* 3F15551D - 2P Vertical P1 Master Y FOV */
-					"patch=1,EE,2027EFC0,extended,43268000", /* 435E0000 - 2P Vertical P2 Master X FOV */
-					"patch=1,EE,2027EFE0,extended,3F471C26", /* 3F15551D - 2P Vertical P2 Master Y FOV */
-
-					"patch=1,EE,2027ED80,extended,434FC000", /* 438A8000 - 2P Horizontal P1 Master X FOV */
-					"patch=1,EE,2027EDA0,extended,3F471C6A", /* 3F155550 - 2P Horizontal P1 Master Y FOV */
-					"patch=1,EE,2027EE40,extended,434FC000", /* 438A8000 - 2P Horizontal P2 Master X FOV */
-					"patch=1,EE,2027EE60,extended,3F471C6A", /* 3F155550 - 2P Horizontal P2 Master Y FOV */
-
-					"patch=1,EE,2027F140,extended,431D8000", /* 43520000 - 4P P1 Master X FOV */
-					"patch=1,EE,2027F160,extended,3F206D3A", /* 3EF0A3D7 - 4P P1 Master Y FOV */
-					"patch=1,EE,2027F200,extended,431D8000", /* 43520000 - 4P P2 Master X FOV */
-					"patch=1,EE,2027F220,extended,3F206D3A", /* 3EF0A3D7 - 4P P2 Master Y FOV */
-					"patch=1,EE,2027F2C0,extended,431D8000", /* 43520000 - 4P P3 Master X FOV */
-					"patch=1,EE,2027F2E0,extended,3F206D3A", /* 3EF0A3D7 - 4P P3 Master Y FOV */
-					"patch=1,EE,2027F380,extended,431D8000", /* 43520000 - 4P P4 Master X FOV */
-					"patch=1,EE,2027F3A0,extended,3F206D3A", /* 3EF0A3D7 - 4P P4 Master Y FOV */
-
-					"patch=1,EE,2027ECC0,extended,434FC000" /* 438A8000 - 2-4P P1-4 Paused Master X FOV */
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Downhill Domination (NTSC)]: 16:9 Widescreen patch applied.\n");
-			}
-			/* Extermination (NTSC-U) [CRC: 0AE679AF] */
-			else if (!strcmp(serial, "SCUS-97112")) 
-			{
-				int i;
-				char *patches[] = {
-					"patch=1,EE,001d2978,extended,3c023f19", /* 16:9 */
-					"patch=1,EE,001d297c,extended,3442999a"
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Extermination (NTSC)]: 16:9 Widescreen patch applied.\n");
-			}
-			/* Genji - Dawn of the Samurai (NTSC-U) [CRC: D71B57F4] */
-			else if (!strcmp(serial, "SCUS-97471"))
-			{
-				int i;
-				char *patches[] = {
-					"patch=1,EE,002e1070,word,3c014455",
-					/* FMV fix by Arapapa */
-					/* e043013c 00608144 00108244 */
-					"patch=1,EE,002c6754,word,3c0143a8" /* 3c0143e0 */
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Genji: Dawn of the Samurai (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
-			}
-			/* God of War II (NTSC-U) [CRC: 2F123FD8] */
-			else if (!strcmp(serial, "SCUS-97481"))
-			{
-				int i;
-				char *patches[] = {
-					/* default to widescreen at first run */
-					"patch=1,EE,001E45B4,word,24040001",
-					"patch=1,EE,001E45B8,word,00000000",
-					"patch=0,EE,0027894C,word,3c013fe3",
-					"patch=0,EE,00278950,word,34218e39"
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [God of War II (NTSC)]: Force native widescreen mode patch applied.\n");
-			}
-			/* Kinetica (NTSC-U) [CRC: D39C08F5] */
-			else if (!strcmp(serial, "SCUS-97132")) /* 16:9 */
-			{
-				int i;
-				char *patches[] = {
-					"patch=1,EE,00172190,word,3c013f40" /* 3c013f80 */
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Whiplash (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
-			}
-			/* MotorStorm - Arctic Edge (U)(SCUS-97654) */
-			else if (!strcmp(serial, "SCUS-97654"))
-			{
-				int i;
-				char *patches[] = {
-					"patch=0,EE,00295E00,word,24020002" /* 30420003 */
-				};
-				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
-					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [MotorStorm: Arctic Edge (NTSC)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 		}
 		else if (!strncmp("SLPM-", serial, strlen("SLPM-")))
