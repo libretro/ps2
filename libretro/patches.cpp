@@ -655,7 +655,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Gran Turismo 4 (NTSC-U)]: Progressive scan mode (480p) enabled at startup.\n");
 			}
-			/* Ico (NTSC-U) [CRC: 6F8545DB] */
+			/* ICO (NTSC-U) [CRC: 6F8545DB] */
 			else if (!strcmp(serial, "SCUS-97113")) 
 			{
 				int i;
@@ -673,7 +673,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Gran Turismo 4 (NTSC-U)]: Full-height backbuffer (FRAME) patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [ICO (NTSC-U)]: Full-height backbuffer (FRAME) patch applied.\n");
 			}
 			/* Kinetica (NTSC-U) [CRC: D39C08F5] */
 			else if (!strcmp(serial, "SCUS-97132"))
@@ -761,7 +761,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Gran Turismo 4 (PAL)]: Progressive scan mode (480p) enabled at startup.\n");
 			}
-			/* Ico (PAL) [CRC: 5C991F4E] */
+			/* ICO (PAL) [CRC: 5C991F4E] */
 			else if (!strcmp(serial, "SCES-50760"))
 			{
 				/* Patch courtesy: agrippa */
@@ -3727,6 +3727,17 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Devil May Cry 3 (NTSC-U) [CRC: 0BED0AF9] */
+			else if (!strcmp(serial, "SLUS-20964"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,21CB0590,extended,3F400000"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil May Cry 3 (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Devil May Cry 3: Special Edition (NTSC-U) [CRC: 25FC361B] */
 			else if (!strcmp(serial, "SLUS-21361"))
 			{
@@ -4828,7 +4839,7 @@ int lrps2_ingame_patches(const char *serial,
 				};
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
-				log_cb(RETRO_LOG_INFO, "[PATCH] [Trapt (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Trapt (NTSC-U)]: 16:9 (Vert-) Widescreen patch applied.\n");
 			}
 			/* Viewtiful Joe (NTSC-U) [CRC: 080D5356] */
 			else if (!strcmp(serial, "SLUS-20951")) 
@@ -5459,6 +5470,27 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 			}
+			/* Bloody Roar 4 (PAL) [CRC: C5DBDB45] */
+			else if (!strcmp(serial, "SLES-51877")) /* 16:9 */
+			{
+				/* Patch courtesy: ElHecht */
+				int i;
+#if 1
+				char *patches[] = {
+					"patch=1,EE,2060EC20,word,3FA3A283" /* 3FDA2E04 X-RES */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Bloody Roar 4 (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+#else
+				char *patches[] = {
+					"patch=1,EE,2060EC20,word,40117402" /* 40117402 Y-RES */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Bloody Roar 4 (NTSC-U)]: 16:9 (Vert-) Widescreen patch applied.\n");
+#endif
+			}
 			/* BMX XXX (SLES-51365) [CRC: 3A48B51C] */
 			else if (!strcmp(serial, "SLES-51365"))
 			{
@@ -5503,6 +5535,23 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Britney's Dance Beat (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Chaos Legion (PAL) [CRC: 0ACDD053] */
+			else if (!strcmp(serial, "SLES-51553")) /* 16:9 */
+			{
+				/* Patch courtesy: El_Patas */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00243C1C,word,3C013F40", /* 46007EC6 (Increases hor. axis) */
+					"patch=1,EE,00243C2C,word,4481D800", /* 00000000 */
+					"patch=1,EE,00243C30,word,460FDEC2", /* 00000000 */
+					/* Render fix */
+					"patch=1,EE,00243D34,word,3C0243AB", /* 3C024380 */
+					"patch=1,EE,00228064,word,3C023FAB" /* 3C023F80 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Chaos Legion (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Crash Bandicoot Wrath of Cortex (PAL-M) [CRC: 3A03D62F/35D70452] */
 			else if (!strcmp(serial, "SLES-50386"))
 			{
@@ -5524,6 +5573,30 @@ int lrps2_ingame_patches(const char *serial,
 						LoadPatchesFromString(std::string(patches[i]));
 				}
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Crash Bandicoot Wrath of Cortex (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Crazy Taxi (PAL-M) [CRC: C9C145BF] */
+			else if (!strcmp(serial, "SLES-50215"))
+			{
+				/* Patch courtesy: ElHecht */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,0018812c,word,3c013f40", /* 3c013f80 hor fov */
+					"patch=1,EE,0015e870,word,3c013f40", /* 00000000 renderfix */
+					"patch=1,EE,0015e880,word,4481f000", /* 3c013f80 */
+					"patch=1,EE,0015e884,word,46010d03", /* 4481a000 */
+					"patch=1,EE,0015e898,word,3210ffff", /* 00000000 */
+					"patch=1,EE,0015e89c,word,2610ffff", /* 3210ffff */
+					"patch=1,EE,0015e8a0,word,0c066634", /* 2610ffff */
+					"patch=1,EE,0015e8a4,word,0200202d", /* 0c066634 */
+					"patch=1,EE,0015e8a8,word,4600a003", /* 0200202d */
+					"patch=1,EE,0015e8ac,word,0200202d", /* 4600a003 */
+					"patch=1,EE,0015e8b0,word,0c06660e", /* 0200202d */
+					"patch=1,EE,0015e8b4,word,e7809da8", /* 0c06660e */
+					"patch=1,EE,0015e8b8,word,461ea502" /* e7809da8 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Crazy Taxi (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Devil May Cry 3: Special Edition (PAL-M) [CRC: 18C9343F] */
 			else if (!strcmp(serial, "SLES-54186"))
@@ -5900,6 +5973,27 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [TimeSplitters (PAL)]: 16:9 Widescreen patch applied.\n");
 			}
+			/* Trapt (PAL) [CRC: 2A79E058] */
+			else if (!strcmp(serial, "SLES-53824")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+					/* 16:9 vertical fov */
+					"patch=1,EE,00104974,word,3c013f40", /* 00000000 ver fov */
+					"patch=1,EE,00104980,word,4481f000", /* 00000000 */
+					"patch=1,EE,0010498c,word,461eb582", /* 00000000 */
+					/* loading screen */
+					"patch=1,EE,0029ce40,word,3c024415", /* 3c0243e0 loading screen ver fov */
+					/* font fix for cut-scenes */
+					"patch=1,EE,001c628c,word,3c024190", /* 3c0241c0 */
+					/* remove black bars in cut-scenes */
+					"patch=1,EE,001e4e04,word,3c020000", /* 3c024420 */
+					"patch=1,EE,001e4e50,word,3c020000"  /* 3c024420 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Trapt (PAL)]: 16:9 (Vert-) Widescreen patch applied.\n");
+			}
 			/* Zathura (PAL-M) [CRC: B1C7FED2] */
 			else if (!strcmp(serial, "SLES-53696")) /* 16:9 */
 			{
@@ -5984,6 +6078,27 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Zombie Zone - Other Side (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+		}
+		else if (!strncmp("SCPS-", serial, strlen("SCPS-")))
+		{
+			/* Tekken 4 (NTSC-J) [CRC: 35B4028B] */
+			if (!strcmp(serial, "SCPS-56006")) 
+			{
+				/* Patch courtesy: nemesis2000, 99skull */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,90280668,extended,0c0a0142",
+					"patch=1,EE,20216c60,extended,3c013f40", /* gameplay */
+					"patch=1,EE,201f69c0,extended,3c013f40", /* partial HUD fix */
+					"patch=1,EE,2018d408,extended,3c0143d5", /* renderfix 1 */
+					"patch=1,EE,20200b44,extended,3c013f40", /* renderfix 2 */
+					"patch=1,EE,20200b48,extended,44810000", /* renderfix 2 */
+					"patch=1,EE,20200b54,extended,46006303"  /* renderfix 2 */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Tekken 4 (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 		}
 		else if (!strncmp("SLPS-", serial, strlen("SLPS-")))
@@ -6116,6 +6231,33 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Jikuu Bouken Zentrix (NTSC-J)]: 16:9 (Vert-) Widescreen patch applied.\n");
 #endif
+			}
+			/* Kagero 2: Dark Illusion (NTSC-J) [CRC: 5FEE89E0) */
+			else if (!strcmp(serial, "SLPS-25445")) /* 16:9 */
+			{
+				int i;
+				char *patches[] = {
+					/* 16:9 vertical fov */
+					/* 00000000 02a80e46 83050c46 00000000 00000000 */
+					"patch=1,EE,001049a4,word,3c013f40", /* 00000000 ver fov */
+					"patch=1,EE,001049b0,word,4481f000", /* 00000000 */
+					"patch=1,EE,001049bc,word,461eb582", /* 00000000 */
+					/* loading screen
+					 * e043023c 200083ac (3rd) */
+					"patch=1,EE,002b6580,word,3c024415", /* 3c0243e0 loading screen ver fov */
+					/* font fix for cut-scenes
+					 * c041023c 00608244 (1st)  */
+					"patch=1,EE,001c86f0,word,3c024190", /* 3c0241c0 */
+					/* remove black bars in cut-scenes
+					 * 2044023c 3000bfff 00608244 */
+#if 0
+					"patch=1,EE,001e7234,word,3c020000", /* 3c024420 */
+					"patch=1,EE,001e7280,word,3c020000" /* 3c024420 */
+#endif
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Kagero 2: Dark Illusion (NTSC-J)]: 16:9 (Vert-) Widescreen patch applied.\n");
 			}
 			/* Kakutou Bijin Wulong (NTSC-J) [CRC: 4A4B623A] */
 			else if (!strcmp(serial, "SLPS-25657")) /* 16:9 */
@@ -6280,6 +6422,18 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Battle Gear 3 (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Bloody Roar 4 (NTSC-J) [CRC: 0DA820C2] */
+			else if (!strcmp(serial, "SLPM-65499")) /* 16:9 */
+			{
+				/* Patch courtesy: Arapapa, paul_met */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00114cb8,word,3c013fe3" /* 3c013faa */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Bloody Roar 4 (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
 			/* Burnout Revenge (NTSC-J) [CRC: D224D348] */
 			else if (!strcmp(serial, "SLPM-66108"))
 			{
@@ -6292,6 +6446,25 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Burnout Revenge (NTSC-J)]: Force native widescreen mode patch applied.\n");
+			}
+			/* Chaos Legion (NTSC-J) [CRC: 5E191B9C] */
+			else if (!strcmp(serial, "SLPM-65249")) /* 16:9 */
+			{
+				/* Patch courtesy: nemesis2000 */
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00242a1c,word,3c013f40",
+					"patch=1,EE,00242a2c,word,4481d800",
+					"patch=1,EE,00242a30,word,460fdec2",
+					"patch=1,EE,00242b34,word,3c0243ab",
+					"patch=1,EE,00228064,word,3c023fab",
+					/* FMV's fix */
+					"patch=1,EE,00328a04,word,3c026fb0",
+					"patch=1,EE,00328914,word,241e77d0"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Chaos Legion (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Crash Bandicoot 4 - Sakuretsu! Majin Power NTSC-J) [CRC: F8643F9B] */
 			else if (!strcmp(serial, "SLPM-62114"))
@@ -6315,6 +6488,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Crash Bandicoot 4 - Sakuretsu! Majin Power (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Crazy Taxi (NTSC-J) [CRC: 8C78493E] */
+			else if (!strcmp(serial, "SLPM-62102")) /* 16:9 */
+			{
+				/* Patch courtesy: No.47 */
+				int i;
+				char *patches[] = {
+					/* Widescreen hack 16:9
+					 * 713daa3f 9a99593f 0ad7233c */
+					"patch=1,EE,2042AB48,word,3FE2FC93" /* 3c23d70a */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Crazy Taxi (NTSC-J)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
 			/* Fate/Unlimited Codes (NTSC-J) [CRC: 3AF675BA] */
 			else if (!strcmp(serial, "SLPM-55108"))
