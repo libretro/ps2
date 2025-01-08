@@ -3667,6 +3667,21 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Crimson Tears (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
 			}
+			/* Devil Kings (NTSC-U) [CRC: B304172F] */
+			else if (!strcmp(serial, "SLUS-21297"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,9028f058,extended,0c0a3bbe",
+					"patch=1,EE,20130afc,extended,3c013f19",
+					"patch=1,EE,20130b00,extended,3421999a",
+					"patch=1,EE,201ba360,extended,3c013f19",
+					"patch=1,EE,201ba364,extended,3421999a"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Devil Kings (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Devil May Cry (NTSC-U) [CRC: ] */
 			else if (!strcmp(serial, "SLUS-20216"))
 			{
@@ -3911,6 +3926,20 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Dynasty Warriors 5: Xtreme Legends (NTSC-U)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Dynasty Warriors 6 (NTSC-U) [CRC: 047571F1] */
+			else if (!strcmp(serial, "SLUS-21774"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,901227d0,extended,0c04899c",
+					"patch=1,EE,20147178,extended,3c0243b4",
+					"patch=1,EE,20147238,extended,3c0243f0",
+					"patch=1,EE,201556a4,extended,3c023f15"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Dynasty Warriors 6 (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Echo Night - Beyond (NTSC) [CRC: 2DE16D21] */
 			else if (!strcmp(serial, "SLUS-20928"))
@@ -5227,6 +5256,32 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Extermination (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+			}
+			/* Fantavision (PAL-M5) [CRC: ] */
+			else if (!strcmp(serial, "SCES-50002")) 
+			{
+				int i;
+#if 1
+				/* Hor+ */
+				char *patches[] = {
+					"patch=1,EE,901bab58,extended,0c06ea7c",
+					/* X-Fov */
+					"patch=1,EE,20193f50,extended,3c0143f0" /* 3c014420 */
+				};
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Fantavision (PAL)]: 16:9 (Hor+) Widescreen patch applied.\n");
+#else
+/* Vert- */
+				char *patches[] = {
+					"patch=1,EE,901bab58,extended,0c06ea7c",
+					/* Zoom */
+					"patch=1,EE,20193fe4,extended,3c013ec0", /* 3c013f00 */
+					/* Y-Fov */
+					"patch=1,EE,20193fc8,extended,3c013eb4"  /* 3c013ef0 */
+				};
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Fantavision (PAL)]: 16:9 (Vert-) Widescreen patch applied.\n");
+#endif
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
 			}
 			/* Sky Odyssey (PAL-M5) [CRC: 29B11E02] */
 			else if (!strcmp(serial, "SCES-50105")) 
