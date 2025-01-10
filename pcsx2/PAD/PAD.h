@@ -88,7 +88,7 @@ struct PadFreezeData
 class Pad : public PadFreezeData
 {
 public:
-	void rumble(unsigned port);
+	void rumble(float rumble_scale, unsigned port);
 	void reset();
 
 	static void stop_vibrate_all();
@@ -125,3 +125,17 @@ s32 PADfreeze(FreezeAction mode, freezeData* data);
 u8 PADstartPoll(int _port, int _slot);
 u8 PADpoll(u8 value);
 bool PADcomplete(void);
+
+struct PadSettings
+{
+	float axis_scale   = 1.33f;
+	float rumble_scale = 1.0f;
+	int axis_invert_lx = 1;
+	int axis_invert_ly = 1;
+	int axis_invert_rx = 1;
+	int axis_invert_ry = 1;
+	u16 axis_deadzone;
+	u16 button_deadzone;
+};
+
+extern PadSettings pad_settings[2];

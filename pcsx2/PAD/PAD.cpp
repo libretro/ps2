@@ -171,185 +171,15 @@ static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 struct retro_rumble_interface rumble;
 
-static struct retro_input_descriptor desc[] = {
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 1, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 1, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 1, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 1, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 2, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 2, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 2, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 2, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 2, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 3, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 3, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 3, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 3, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 3, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 4, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 4, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 4, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 4, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 4, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 5, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 5, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 5, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 5, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 5, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 6, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 6, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 6, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 6, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 6, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" },
-	{ 7, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" },
-	{ 7, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" },
-	{ 7, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" },
-	{ 7, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" },
-	{ 7, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" },
-
-	{0},
-};
-
 static u32 button_mask[2];
 static int pad_lx[2];
 static int pad_ly[2];
 static int pad_rx[2];
 static int pad_ry[2];
 static int pad_type[2] = { -1, -1 };
-extern float pad_axis_scale[2];
+static u8 analog_buttons[2][12];
+
+PadSettings pad_settings[2];
 
 static int keymap[] =
 {
@@ -371,23 +201,128 @@ static int keymap[] =
 	RETRO_DEVICE_ID_JOYPAD_LEFT,   // PAD_LEFT
 };
 
+enum AnalogButtons
+{
+	ANALOG_BTN_L2,
+	ANALOG_BTN_R2,
+	ANALOG_BTN_L1,
+	ANALOG_BTN_R1,
+	ANALOG_BTN_TRIANGLE, // X
+	ANALOG_BTN_CIRCLE,   // A
+	ANALOG_BTN_CROSS,    // B
+	ANALOG_BTN_SQUARE,   // Y
+	ANALOG_BTN_UP,
+	ANALOG_BTN_RIGHT,
+	ANALOG_BTN_DOWN,
+	ANALOG_BTN_LEFT,
+};
+
+static void process_analog(int &axis_x, int &axis_y, float sensitivity, u16 deadzone)
+{
+	constexpr float MAX_RANGE = 32767.0f;
+
+	if (deadzone > 0)
+	{
+		float magnitude = std::sqrt(axis_x * axis_x + axis_y * axis_y);
+		magnitude = std::min(magnitude, MAX_RANGE);
+
+		if (magnitude > deadzone)
+		{
+			// If we're past the deadzone, scale our values so we can still
+			// use slow movements when the stick is not fully pushed
+			const float scaled_mag = (magnitude - deadzone) / (MAX_RANGE - deadzone);
+			axis_x *= scaled_mag;
+			axis_y *= scaled_mag;
+		}
+		else
+		{
+			axis_x = 0;
+			axis_y = 0;
+			return;
+		}
+	}
+
+	// Apply sensitivity
+	axis_x = static_cast<int>(std::clamp(axis_x * sensitivity, -MAX_RANGE, MAX_RANGE));
+	axis_y = static_cast<int>(std::clamp(axis_y * sensitivity, -MAX_RANGE, MAX_RANGE));
+}
+
+static u8 process_button(u16 deadzone, u32 port, int id, u32 mask)
+{
+	constexpr u16 MAX_RANGE = 32767;
+	u16 value = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_BUTTON, id);
+
+	// If value is 0, either it's really not pressed or
+	// the button is not analog, check if the bit is set
+	// and return either 0 or a full press
+	if (value == 0)
+	{
+		if (mask & (1 << id))
+			return 0xFF;
+		return 0;
+	}
+
+	// Apply deadzone
+	if (deadzone > 0)
+	{
+		if (value > deadzone)
+			// Scale the range
+			value = (value - deadzone) * MAX_RANGE / (MAX_RANGE - deadzone);
+		else
+			return 0;
+	}
+
+	// 0..32767 -> 0..255
+	return value >> 7;
+}
+
 namespace Input
 {
 	void Init()
 	{
-		environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble);
-		static const struct retro_controller_description ds2_desc[] = {
-			{"DualShock 2", RETRO_DEVICE_JOYPAD},
-		};
+#define JOY_DESC(port) \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Cross" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Circle" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Triangle" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Square" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "L1" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "L2" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "L3" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R1" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "R2" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "R3" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Select" }, \
+		{ port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Start" }, \
+		{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Left Analog X" }, \
+		{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Left Analog Y" }, \
+		{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Analog X" }, \
+		{ port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Analog Y" }
 
-		static const struct retro_controller_info ports[] = {
-			{ds2_desc, sizeof(ds2_desc) / sizeof(*ds2_desc)},
-			{ds2_desc, sizeof(ds2_desc) / sizeof(*ds2_desc)},
+		struct retro_input_descriptor desc[] = {
+			JOY_DESC(0), JOY_DESC(1), JOY_DESC(2), JOY_DESC(3),
+			JOY_DESC(4), JOY_DESC(5), JOY_DESC(6), JOY_DESC(7),
 			{},
 		};
 
+		static const struct retro_controller_description ds2_desc[] = {
+			{ "DualShock 2", RETRO_DEVICE_JOYPAD},
+			{},
+		};
+
+		static const struct retro_controller_info ports[] = {
+			{ ds2_desc, sizeof(ds2_desc) / sizeof(*ds2_desc) },
+			{ ds2_desc, sizeof(ds2_desc) / sizeof(*ds2_desc) },
+			{},
+		};
+
+		environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble);
 		environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
-		//	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+		environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+
 		button_mask[0] = 0xFFFFFFFF;
 		button_mask[1] = 0xFFFFFFFF;
 	}
@@ -404,17 +339,44 @@ namespace Input
 
 		for (unsigned port = 0; port < 2; port++)
 		{
-			u32 mask                 = input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
-			u32 new_button_mask      = 0xFFFF0000;
-			for (int i = 0; i < 16; i++)
-				new_button_mask |= !(mask & (1 << keymap[i])) << i;
-			button_mask[port]        = new_button_mask;
-			pad_lx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
-			pad_ly[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
-			pad_rx[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,  RETRO_DEVICE_ID_ANALOG_X);
-			pad_ry[port]             = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,  RETRO_DEVICE_ID_ANALOG_Y);
-			for (unsigned slot = 0; slot < 4; slot++)
-				pads[port][slot].rumble(sioConvertPortAndSlotToPad(port, slot));
+			u32 mask            = input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
+			u32 new_button_mask = 0xFFFF0000;
+			u32 btn_index       = 0;
+			const auto &conf    = pad_settings[port];
+
+			for (int i = 0; i < 16; ++i)
+			{
+				// Select, Start, L3 and R3 aren't pressure sensitive
+				if (keymap[i] == RETRO_DEVICE_ID_JOYPAD_SELECT || keymap[i] == RETRO_DEVICE_ID_JOYPAD_START ||
+						keymap[i] == RETRO_DEVICE_ID_JOYPAD_L3 || keymap[i] == RETRO_DEVICE_ID_JOYPAD_R3)
+					new_button_mask |= !(mask & (1 << keymap[i])) << i;
+				else
+				{
+					// Apply pressure level if needed/possible and deadzone
+					analog_buttons[port][btn_index] = process_button(conf.button_deadzone, port, keymap[i], mask);
+					new_button_mask |= (analog_buttons[port][btn_index] == 0) << i;
+					++btn_index;
+				}
+			}
+
+			button_mask[port] = new_button_mask;
+			pad_lx[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
+			pad_ly[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+			pad_rx[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
+			pad_ry[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
+
+			// Apply axis deadzone and sensitivity
+			process_analog(pad_lx[port], pad_ly[port], conf.axis_scale, conf.axis_deadzone);
+			process_analog(pad_rx[port], pad_ry[port], conf.axis_scale, conf.axis_deadzone);
+
+			// Apply axis inversion (axis_invert_* being either 1 or -1)
+			pad_lx[port] *= conf.axis_invert_lx;
+			pad_ly[port] *= conf.axis_invert_ly;
+			pad_rx[port] *= conf.axis_invert_rx;
+			pad_ry[port] *= conf.axis_invert_ry;
+
+			if (conf.rumble_scale > 0.0f)
+				pads[port][0].rumble(conf.rumble_scale, sioConvertPortAndSlotToPad(port, 0));
 		}
 	}
 
@@ -450,22 +412,28 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 		}
 
 		PAD::LoadConfig(*si);
-		environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 	}
 }
 
-#if 0
-void Device::DoRumble(unsigned type, unsigned pad)
+void do_rumble(u8 intensity, unsigned type, unsigned port)
 {
-	if (pad >= GAMEPAD_NUMBER)
-		return;
+	// 0..255 -> 0..65535
+	u16 scaled = (intensity << 8) | intensity;
 
 	if (type == 0)
-		rumble.set_rumble_state(pad, RETRO_RUMBLE_WEAK, 0xFFFF);
+		rumble.set_rumble_state(port, RETRO_RUMBLE_STRONG, scaled);
 	else
-		rumble.set_rumble_state(pad, RETRO_RUMBLE_STRONG, 0xFFFF);
+		rumble.set_rumble_state(port, RETRO_RUMBLE_WEAK, scaled);
 }
-#endif
+
+void stop_rumble()
+{
+	for (int port = 0; port < 2; ++port)
+	{
+		rumble.set_rumble_state(port, RETRO_RUMBLE_STRONG, 0);
+		rumble.set_rumble_state(port, RETRO_RUMBLE_WEAK, 0);
+	}
+}
 
 //////////////////////////////////////////////////////////////////////
 // Pad implementation
@@ -486,13 +454,17 @@ void Pad::reset()
 	vibrate[0]     = 0x5A;
 }
 
-void Pad::rumble(unsigned port)
+void Pad::rumble(float rumble_scale, unsigned port)
 {
 	if (nextVibrate[0] == currentVibrate[0] && nextVibrate[1] == currentVibrate[1])
 		return;
 
-	currentVibrate[0] = nextVibrate[0];
-	currentVibrate[1] = nextVibrate[1];
+	for (int i = 0; i < 2; ++i)
+	{
+		currentVibrate[i] = nextVibrate[i];
+		do_rumble(currentVibrate[i] * rumble_scale, i, port);
+	}
+
 #if 0
 	InputManager::SetPadVibrationIntensity(port,
 		std::min(static_cast<float>(currentVibrate[0]) * g_key_status.m_vibration_scale[port][0] * (1.0f / 255.0f), 1.0f),
@@ -521,6 +493,8 @@ void Pad::stop_vibrate_all()
 			pads[port][slot].vibrate[0] = 0x5A;
 		}
 	}
+
+	stop_rumble();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -738,27 +712,27 @@ u8 PADpoll(u8 value)
 
 					if (pad->mode != MODE_DIGITAL) // ANALOG || DS2 native
 					{
-						query.response[5] = static_cast<u8>(std::clamp(0x80 + (pad_rx[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
-						query.response[6] = static_cast<u8>(std::clamp(0x80 + (pad_ry[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
-						query.response[7] = static_cast<u8>(std::clamp(0x80 + (pad_lx[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
-						query.response[8] = static_cast<u8>(std::clamp(0x80 + (pad_ly[ext_port] >> 8) * pad_axis_scale[ext_port], 0.f, 255.f));
+						query.response[5] = 0x80 + (pad_rx[ext_port] >> 8);
+						query.response[6] = 0x80 + (pad_ry[ext_port] >> 8);
+						query.response[7] = 0x80 + (pad_lx[ext_port] >> 8);
+						query.response[8] = 0x80 + (pad_ly[ext_port] >> 8);
 
 						if (pad->mode != MODE_ANALOG) /* DS2 native */
 						{
 							query.numBytes             = 21;
 
-							query.response[9]          = TEST_BIT(buttons, 13) ? 0 : 0xFF; /* Right */
-							query.response[10]         = TEST_BIT(buttons, 15) ? 0 : 0xFF; /* Left  */
-							query.response[11]         = TEST_BIT(buttons, 12) ? 0 : 0xFF; /* Up    */
-							query.response[12]         = TEST_BIT(buttons, 14) ? 0 : 0xFF; /* Down  */
-							query.response[13]         = TEST_BIT(buttons,  4) ? 0 : 0xFF; /* Triangle */
-							query.response[14]         = TEST_BIT(buttons,  5) ? 0 : 0xFF; /* Circle   */
-							query.response[15]         = TEST_BIT(buttons,  6) ? 0 : 0xFF; /* Cross    */
-							query.response[16]         = TEST_BIT(buttons,  7) ? 0 : 0xFF; /* Square   */
-							query.response[17]         = TEST_BIT(buttons,  2) ? 0 : 0xFF; /* L1       */
-							query.response[18]         = TEST_BIT(buttons,  3) ? 0 : 0xFF; /* R1       */
-							query.response[19]         = TEST_BIT(buttons,  0) ? 0 : 0xFF; /* L2       */
-							query.response[20]         = TEST_BIT(buttons,  1) ? 0 : 0xFF; /* R2       */
+							query.response[9]          = TEST_BIT(buttons, 13) ? 0 : analog_buttons[ext_port][ANALOG_BTN_RIGHT];
+							query.response[10]         = TEST_BIT(buttons, 15) ? 0 : analog_buttons[ext_port][ANALOG_BTN_LEFT];
+							query.response[11]         = TEST_BIT(buttons, 12) ? 0 : analog_buttons[ext_port][ANALOG_BTN_UP];
+							query.response[12]         = TEST_BIT(buttons, 14) ? 0 : analog_buttons[ext_port][ANALOG_BTN_DOWN];
+							query.response[13]         = TEST_BIT(buttons,  4) ? 0 : analog_buttons[ext_port][ANALOG_BTN_TRIANGLE];
+							query.response[14]         = TEST_BIT(buttons,  5) ? 0 : analog_buttons[ext_port][ANALOG_BTN_CIRCLE];
+							query.response[15]         = TEST_BIT(buttons,  6) ? 0 : analog_buttons[ext_port][ANALOG_BTN_CROSS];
+							query.response[16]         = TEST_BIT(buttons,  7) ? 0 : analog_buttons[ext_port][ANALOG_BTN_SQUARE];
+							query.response[17]         = TEST_BIT(buttons,  2) ? 0 : analog_buttons[ext_port][ANALOG_BTN_L1];
+							query.response[18]         = TEST_BIT(buttons,  3) ? 0 : analog_buttons[ext_port][ANALOG_BTN_R1];
+							query.response[19]         = TEST_BIT(buttons,  0) ? 0 : analog_buttons[ext_port][ANALOG_BTN_L2];
+							query.response[20]         = TEST_BIT(buttons,  1) ? 0 : analog_buttons[ext_port][ANALOG_BTN_R2];
 						}
 						else
 							query.numBytes             = 9;

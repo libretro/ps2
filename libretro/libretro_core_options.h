@@ -11,6 +11,41 @@
 #include "libretro_core_options_intl.h"
 #endif
 
+#define RUMBLE_OPTS \
+   { "disabled", NULL },  { "5%", NULL }, { "10%", NULL }, { "15%", NULL }, { "20%", NULL }, { "25%", NULL },  { "30%", NULL }, \
+        { "35%", NULL }, { "40%", NULL }, { "45%", NULL }, { "50%", NULL }, { "55%", NULL }, { "60%", NULL },  { "65%", NULL }, \
+        { "70%", NULL }, { "75%", NULL }, { "80%", NULL }, { "85%", NULL }, { "90%", NULL }, { "95%", NULL }, { "100%", NULL }
+
+#define PERCENT_0_50 \
+    { "0%", NULL },  { "1%", NULL },  { "2%", NULL },  { "3%", NULL },  { "4%", NULL },  { "5%", NULL },  { "6%", NULL }, \
+    { "7%", NULL },  { "8%", NULL },  { "9%", NULL }, { "10%", NULL }, { "11%", NULL }, { "12%", NULL }, { "13%", NULL }, \
+   { "14%", NULL }, { "15%", NULL }, { "16%", NULL }, { "17%", NULL }, { "18%", NULL }, { "19%", NULL }, { "20%", NULL }, \
+   { "21%", NULL }, { "22%", NULL }, { "23%", NULL }, { "24%", NULL }, { "25%", NULL }, { "26%", NULL }, { "27%", NULL }, \
+   { "28%", NULL }, { "29%", NULL }, { "30%", NULL }, { "31%", NULL }, { "32%", NULL }, { "33%", NULL }, { "34%", NULL }, \
+   { "35%", NULL }, { "36%", NULL }, { "37%", NULL }, { "38%", NULL }, { "39%", NULL }, { "40%", NULL }, { "41%", NULL }, \
+   { "42%", NULL }, { "43%", NULL }, { "44%", NULL }, { "45%", NULL }, { "46%", NULL }, { "47%", NULL }, { "48%", NULL }, \
+   { "49%", NULL }, { "50%", NULL }
+
+#define PERCENT_80_200 \
+    { "80%", NULL },  { "81%", NULL },  { "82%", NULL },  { "83%", NULL },  { "84%", NULL },  { "85%", NULL },  { "86%", NULL }, \
+    { "87%", NULL },  { "88%", NULL },  { "89%", NULL },  { "90%", NULL },  { "91%", NULL },  { "92%", NULL },  { "93%", NULL }, \
+    { "94%", NULL },  { "95%", NULL },  { "96%", NULL },  { "97%", NULL },  { "98%", NULL },  { "99%", NULL }, { "100%", NULL }, \
+   { "101%", NULL }, { "102%", NULL }, { "103%", NULL }, { "104%", NULL }, { "105%", NULL }, { "106%", NULL }, { "107%", NULL }, \
+   { "108%", NULL }, { "109%", NULL }, { "110%", NULL }, { "111%", NULL }, { "112%", NULL }, { "113%", NULL }, { "114%", NULL }, \
+   { "115%", NULL }, { "116%", NULL }, { "117%", NULL }, { "118%", NULL }, { "119%", NULL }, { "120%", NULL }, { "121%", NULL }, \
+   { "122%", NULL }, { "123%", NULL }, { "124%", NULL }, { "125%", NULL }, { "126%", NULL }, { "127%", NULL }, { "128%", NULL }, \
+   { "129%", NULL }, { "130%", NULL }, { "131%", NULL }, { "132%", NULL }, { "133%", NULL }, { "134%", NULL }, { "135%", NULL }, \
+   { "136%", NULL }, { "137%", NULL }, { "138%", NULL }, { "139%", NULL }, { "140%", NULL }, { "141%", NULL }, { "142%", NULL }, \
+   { "143%", NULL }, { "144%", NULL }, { "145%", NULL }, { "146%", NULL }, { "147%", NULL }, { "148%", NULL }, { "149%", NULL }, \
+   { "150%", NULL }, { "151%", NULL }, { "152%", NULL }, { "153%", NULL }, { "154%", NULL }, { "155%", NULL }, { "156%", NULL }, \
+   { "157%", NULL }, { "158%", NULL }, { "159%", NULL }, { "160%", NULL }, { "161%", NULL }, { "162%", NULL }, { "163%", NULL }, \
+   { "164%", NULL }, { "165%", NULL }, { "166%", NULL }, { "167%", NULL }, { "168%", NULL }, { "169%", NULL }, { "170%", NULL }, \
+   { "171%", NULL }, { "172%", NULL }, { "173%", NULL }, { "174%", NULL }, { "175%", NULL }, { "176%", NULL }, { "177%", NULL }, \
+   { "178%", NULL }, { "179%", NULL }, { "180%", NULL }, { "181%", NULL }, { "182%", NULL }, { "183%", NULL }, { "184%", NULL }, \
+   { "185%", NULL }, { "186%", NULL }, { "187%", NULL }, { "188%", NULL }, { "189%", NULL }, { "190%", NULL }, { "191%", NULL }, \
+   { "192%", NULL }, { "193%", NULL }, { "194%", NULL }, { "195%", NULL }, { "196%", NULL }, { "197%", NULL }, { "198%", NULL }, \
+   { "199%", NULL }, { "200%", NULL }
+
 /*
  ********************************
  * VERSION: 2.0
@@ -840,62 +875,172 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
-      "pcsx2_axis_scale1",
-      "Input > Port 1: Analog Sensitivity",
-      "Port 1: Analog Sensitivity",
+      "pcsx2_axis_deadzone1",
+      "Input > Port 1 > Analog Deadzone",
+      "Port 1 > Analog Deadzone",
       NULL,
       NULL,
       "input",
       {
-         { "50%", NULL },
-         { "60%", NULL },
-         { "70%", NULL },
-         { "80%", NULL },
-         { "90%", NULL },
-         { "100%", NULL },
-         { "110%", NULL },
-         { "120%", NULL },
-         { "130%", NULL },
-         { "133%", NULL },
-         { "140%", NULL },
-         { "150%", NULL },
-         { "160%", NULL },
-         { "170%", NULL },
-         { "180%", NULL },
-         { "190%", NULL },
-         { "200%", NULL },
+         PERCENT_0_50,
+         { NULL, NULL },
+      },
+      "15%"
+   },
+   {
+      "pcsx2_button_deadzone1",
+      "Input > Port 1 > Trigger Deadzone",
+      "Port 1 > Trigger Deadzone",
+      NULL,
+      NULL,
+      "input",
+      {
+         PERCENT_0_50,
+         { NULL, NULL },
+      },
+      "0%"
+   },
+   {
+      "pcsx2_axis_scale1",
+      "Input > Port 1 > Analog Sensitivity",
+      "Port 1 > Analog Sensitivity",
+      NULL,
+      NULL,
+      "input",
+      {
+         PERCENT_80_200,
          { NULL, NULL },
       },
       "133%"
    },
    {
-      "pcsx2_axis_scale2",
-      "Input > Port 2: Analog Sensitivity",
-      "Port 2: Analog Sensitivity",
+      "pcsx2_invert_left_stick1",
+      "Input > Port 1 > Invert Left Analog Axis",
+      "Port 1 > Invert Left Analog Axis",
       NULL,
       NULL,
       "input",
       {
-         { "50%", NULL },
-         { "60%", NULL },
-         { "70%", NULL },
-         { "80%", NULL },
-         { "90%", NULL },
-         { "100%", NULL },
-         { "110%", NULL },
-         { "120%", NULL },
-         { "130%", NULL },
-         { "133%", NULL },
-         { "140%", NULL },
-         { "150%", NULL },
-         { "160%", NULL },
-         { "170%", NULL },
-         { "180%", NULL },
-         { "190%", NULL },
-         { "200%", NULL },
+         { "disabled", NULL },
+         { "x_axis", "Left/Right" },
+         { "y_axis", "Up/Down" },
+         { "all", "Up/Down and Left/Right" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_invert_right_stick1",
+      "Input > Port 1 > Invert Right Analog Axis",
+      "Port 1 > Invert Right Analog Axis",
+      NULL,
+      NULL,
+      "input",
+      {
+         { "disabled", NULL },
+         { "x_axis", "Left/Right" },
+         { "y_axis", "Up/Down" },
+         { "all", "Up/Down and Left/Right" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_enable_rumble1",
+      "Input > Port 1 > Rumble",
+      "Port 1 > Rumble",
+      NULL,
+      NULL,
+      "input",
+      {
+         RUMBLE_OPTS,
+         { NULL, NULL },
+      },
+      "100%"
+   },
+   {
+      "pcsx2_axis_deadzone2",
+      "Input > Port 2 > Analog Deadzone",
+      "Port 2 > Analog Deadzone",
+      NULL,
+      NULL,
+      "input",
+      {
+         PERCENT_0_50,
+         { NULL, NULL },
+      },
+      "15%"
+   },
+   {
+      "pcsx2_button_deadzone2",
+      "Input > Port 2 > Trigger Deadzone",
+      "Port 2 > Trigger Deadzone",
+      NULL,
+      NULL,
+      "input",
+      {
+         PERCENT_0_50,
+         { NULL, NULL },
+      },
+      "0%"
+   },
+   {
+      "pcsx2_axis_scale2",
+      "Input > Port 2 > Analog Sensitivity",
+      "Port 2 > Analog Sensitivity",
+      NULL,
+      NULL,
+      "input",
+      {
+         PERCENT_80_200,
          { NULL, NULL },
       },
       "133%"
+   },
+   {
+      "pcsx2_invert_left_stick2",
+      "Input > Port 2 > Invert Left Analog Axis",
+      "Port 2 > Invert Left Analog Axis",
+      NULL,
+      NULL,
+      "input",
+      {
+         { "disabled", NULL },
+         { "x_axis", "Left/Right" },
+         { "y_axis", "Up/Down" },
+         { "all", "Up/Down and Left/Right" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_invert_right_stick2",
+      "Input > Port 2 > Invert Right Analog Axis",
+      "Port 2 > Invert Right Analog Axis",
+      NULL,
+      NULL,
+      "input",
+      {
+         { "disabled", NULL },
+         { "x_axis", "Left/Right" },
+         { "y_axis", "Up/Down" },
+         { "all", "Up/Down and Left/Right" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "pcsx2_enable_rumble2",
+      "Input > Port 2 > Rumble",
+      "Port 2 > Rumble",
+      NULL,
+      NULL,
+      "input",
+      {
+         RUMBLE_OPTS,
+         { NULL, NULL },
+      },
+      "100%"
    },
    { NULL, NULL, NULL, NULL, NULL, NULL, {{0}}, NULL },
 };
