@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <libretro.h>
+#include <file/file_path.h>
 #include <streams/file_stream.h>
 #include <string>
 #include <vector>
@@ -1656,6 +1657,47 @@ void retro_init(void)
 	environ_cb(RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE, &disk_control);
 }
 
+static void get_first_track_from_cue(std::string &path)
+{
+	// PCSX2 doesn't handle cue files
+	// so just find the first 'FILE "<gametrack>.bin" BINARY' line
+	// and extract the track filename from it
+	char buffer[1024];
+	char basedir[4096];
+	const char *line_start = "FILE \"";
+	const char *line_end = "\" BINARY";
+
+	snprintf(basedir, sizeof(basedir), "%s", path.c_str());
+	path_basedir(basedir);
+
+	FILE *cue_file = fopen(path.c_str(), "r");
+	if (!cue_file)
+	{
+		log_cb(RETRO_LOG_ERROR, "Failed to open cue file.\n");
+		return;
+	}
+
+	while (fgets(buffer, sizeof(buffer), cue_file))
+	{
+		std::string line(buffer);
+		size_t pos = line.find(line_start);
+		if (pos != std::string::npos)
+		{
+			size_t start = pos + strlen(line_start);
+			size_t end = line.find(line_end, start);
+			if (end != std::string::npos)
+			{
+				fclose(cue_file);
+				path = basedir + line.substr(start, end - start);
+				return;
+			}
+		}
+	}
+
+	log_cb(RETRO_LOG_ERROR, "Failed to find a valid track from cue file.\n");
+	fclose(cue_file);
+}
+
 bool retro_load_game(const struct retro_game_info* game)
 {
 	VMBootParameters boot_params;
@@ -1756,8 +1798,13 @@ bool retro_load_game(const struct retro_game_info* game)
 
 	if (game && game->path)
 	{
-		disk_images.push_back(game->path);
-		boot_params.filename = game->path;
+		std::string game_path = game->path;
+
+		if (!strcmp(path_get_extension(game->path), "cue"))
+			get_first_track_from_cue(game_path);
+
+		disk_images.push_back(game_path);
+		boot_params.filename = game_path;
 	}
 
 	cpu_thread = std::thread(cpu_thread_entry, boot_params);
