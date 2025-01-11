@@ -6696,6 +6696,24 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Sega Rally 2006 (NTSC-J)]: 16:9 Widescreen patch applied.\n");
 			}
+			/* Sengoku Basara (NTSC-J) [CRC: AEA1B3AD] */
+			else if (!strcmp(serial, "SLPM-66058"))
+			{
+				/* Patch courtesy: Little Giant */
+				int i;
+				char *patches[] = {
+					/* wide 16:9 */
+					"patch=1,EE,0026470c,word,3c013f40", /* 00000000 */
+					"patch=1,EE,00264710,word,44810000", /* 00000000 */
+					"patch=1,EE,00264718,word,4600c602", /* 00000000 */
+					/* render fix */
+					"patch=1,EE,001afdd0,word,3c013f19", /* 3c013f4c */
+					"patch=1,EE,001afdd4,word,3421999a" /* 3421cccd */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Sengoku Basara (NTSC-J)]: 16:9 Widescreen patch applied.\n");
+			}
 			/* Sengoku Basara 2 (NTSC-J) [CRC: 4961CB79] */
 			else if (!strcmp(serial, "SLPM-66447"))
 			{
@@ -6711,6 +6729,23 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Sengoku Basara 2 (NTSC-J)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* Sengoku Basara 2 - Heroes (NTSC-J) [CRC: CA857E71] */
+			else if (!strcmp(serial, "SLPM-66848"))
+			{
+				int i;
+				char *patches[] = {
+					/* wide 16:9 */
+					"patch=1,EE,00290B0C,word,3C013F40",
+					"patch=1,EE,00290B10,word,44810000",
+					"patch=1,EE,00290B18,word,4600C602",
+					/* render fix */
+					"patch=1,EE,0010D5C4,word,3C013F19",
+					"patch=1,EE,0010D5C8,word,3421999A"
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Sengoku Basara 2 - Heroes (NTSC-J)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Simple 2000 Series Vol. 101 - The Oneechanpon (NTSC-J) [CRC: C5B75C7C] */
 			else if (!strcmp(serial, "SLPM-66212"))
