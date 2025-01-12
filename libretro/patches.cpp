@@ -1376,7 +1376,7 @@ int lrps2_ingame_patches(const char *serial,
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Harry Potter: Quidditch World Cup (PAL)]: Mipmap disable patch applied.\n");
 			}
-			/* Harry Potter and the Goblet of Fire (NTSC-U) [CRC: B38CC628] */
+			/* Harry Potter and the Goblet of Fire (PAL) [CRC: B38CC628] */
 			else if (    
 					!strcmp(serial, "SLES-53728")
 					|| !strcmp(serial, "SLES-53727")
@@ -4204,6 +4204,19 @@ int lrps2_ingame_patches(const char *serial,
 				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
 					LoadPatchesFromString(std::string(patches[i]));
 				log_cb(RETRO_LOG_INFO, "[PATCH] [Kingdom Hearts II (NTSC-U)]: 16:9 Widescreen patch applied.\n");
+			}
+			/* Lara Croft Tomb Raider - Angel of Darkness (NTSC-U) [CRC: 3BAEBCC3] */
+			else if (!strcmp(serial, "SLUS-20467"))
+			{
+				int i;
+				char *patches[] = {
+					"patch=1,EE,00220bd0,word,24020002", /* force turn on native widescreen */
+					"patch=1,EE,00205230,word,3c013fe2", /* 3c013fd5 */
+					"patch=1,EE,00205234,word,3421fc93"  /* 3421c28f */
+				};
+				for (i = 0; i < sizeof(patches) / sizeof((patches)[0]); i++)
+					LoadPatchesFromString(std::string(patches[i]));
+				log_cb(RETRO_LOG_INFO, "[PATCH] [Lara Croft Tomb Raider - Angel of Darkness (NTSC-U)]: 16:9 Widescreen patch applied.\n");
 			}
 			/* Le Mans 24 Hours (NTSC-U) [CRC: 67835861] */
 			else if (!strcmp(serial, "SLUS-20207"))
