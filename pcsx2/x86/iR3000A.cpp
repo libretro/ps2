@@ -1212,7 +1212,7 @@ static void iopRecRecompile(const u32 startpc)
 	{
 		BASEBLOCK* pblock = PSX_GETBLOCK(i);
 
-		if (i != startpc && pblock->GetFnptr() != (uptr)iopJITCompile)
+		if (i != startpc && pblock->m_pFnptr != (uptr)iopJITCompile)
 		{
 			// branch = 3
 			willbranch3 = 1;

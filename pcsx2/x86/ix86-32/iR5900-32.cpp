@@ -1751,7 +1751,7 @@ static void recRecompile(const u32 startpc)
 				break;
 			}
 
-			if (pblock->GetFnptr() != (uptr)JITCompile)
+			if (pblock->m_pFnptr != (uptr)JITCompile)
 			{
 				willbranch3 = 1;
 				s_nEndBlock = i;
