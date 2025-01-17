@@ -1740,9 +1740,18 @@ static void recRecompile(const u32 startpc)
 
 	for (;;)
 	{
+		BASEBLOCK* pblock = PC_GETBLOCK(i);
+
 		if (i != startpc) // Block size truncation checks.
 		{
 			if ((i & 0xffc) == 0x0) // breaks blocks at 4k page boundaries
+			{
+				willbranch3 = 1;
+				s_nEndBlock = i;
+				break;
+			}
+
+			if (pblock->GetFnptr() != (uptr)JITCompile)
 			{
 				willbranch3 = 1;
 				s_nEndBlock = i;
@@ -1994,6 +2003,30 @@ StartRecomp:
 	}
 
 	s_pCurBlockEx->size = (pc - startpc) >> 2;
+
+	if (HWADDR(pc) <= Ps2MemSize::MainRam)
+	{
+		BASEBLOCKEX* oldBlock;
+		int i;
+		i = recBlocks.LastIndex(HWADDR(pc) - 4);
+		while ((oldBlock = recBlocks[i--]))
+		{
+			if (oldBlock == s_pCurBlockEx)
+				continue;
+			if (oldBlock->startpc >= HWADDR(pc))
+				continue;
+			if ((oldBlock->startpc + oldBlock->size * 4) <= HWADDR(startpc))
+				break;
+			if (memcmp(&recRAMCopy[oldBlock->startpc / 4], PSM(oldBlock->startpc),
+					oldBlock->size * 4))
+			{
+				recClear(startpc, (pc - startpc) / 4);
+				s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
+				break;
+			}
+		}
+		memcpy(&recRAMCopy[HWADDR(startpc) / 4], PSM(startpc), pc - startpc);
+	}
 
 	s_pCurBlock->m_pFnptr = ((uptr)recPtr);
 

@@ -1210,6 +1210,17 @@ static void iopRecRecompile(const u32 startpc)
 
 	for (;;)
 	{
+		BASEBLOCK* pblock = PSX_GETBLOCK(i);
+
+		if (i != startpc && pblock->GetFnptr() != (uptr)iopJITCompile)
+		{
+			// branch = 3
+			willbranch3 = 1;
+			s_nEndBlock = i;
+			break;
+		}
+
+
 		psxRegs.code = iopMemRead32(i);
 
 		switch (psxRegs.code >> 26)
