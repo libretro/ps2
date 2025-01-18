@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common/AlignedMalloc.h"
+#include "../../common/AlignedMalloc.h"
 
 template <int i>
 class GSAlignedClass

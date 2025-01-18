@@ -19,13 +19,13 @@
 
 #include <fmt/format.h>
 
-#include "ryml_std.hpp"
-#include "ryml.hpp"
+#include "../3rdparty/rapidyaml/rapidyaml/src/ryml_std.hpp"
+#include "../3rdparty/rapidyaml/rapidyaml/src/ryml.hpp"
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
+#include "../common/Console.h"
+#include "../common/FileSystem.h"
+#include "../common/Path.h"
+#include "../common/StringUtil.h"
 
 #include "GameDatabase.h"
 #include "GS/GS.h"

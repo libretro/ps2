@@ -3,7 +3,7 @@
 
 #include "FlatFileReader.h"
 
-#include "common/FileSystem.h"
+#include "../../common/FileSystem.h"
 
 #include <algorithm> /* std::min */
 #include <cstring>

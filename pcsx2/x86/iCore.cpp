@@ -13,11 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Memory.h"
+#include "../Memory.h"
 #include "iR5900.h"
-#include "Vif.h"
-#include "VU.h"
-#include "R3000A.h"
+#include "../Vif.h"
+#include "../VU.h"
+#include "../R3000A.h"
 
 using namespace x86Emitter;
 

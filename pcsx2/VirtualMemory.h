@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common/General.h"
+#include "../common/General.h"
 #include <atomic>
 #include <memory>
 #include <mutex>

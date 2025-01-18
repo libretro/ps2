@@ -14,7 +14,7 @@
  */
 
 #pragma once
-#include "common/Pcsx2Defs.h"
+#include "Pcsx2Defs.h"
 
 namespace Common
 {

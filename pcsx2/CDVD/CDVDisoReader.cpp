@@ -23,7 +23,7 @@
 #include <cstring>
 #include <array>
 
-#include "common/Console.h"
+#include "../../common/Console.h"
 
 #include "IsoFileFormats.h"
 #include "CDVD.h"

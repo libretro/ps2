@@ -15,7 +15,8 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
+#include "../../common/Pcsx2Defs.h"
+
 #include <string>
 
 // Important!  All FIFO containers in this header should be 'struct' type, not class type.

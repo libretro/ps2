@@ -15,33 +15,33 @@
 
 #include <cstring> /* memset */
 
-#include "R3000A.h"
-#include "Common.h"
-#include "IopHw.h"
-#include "IopDma.h"
+#include "../R3000A.h"
+#include "../Common.h"
+#include "../IopHw.h"
+#include "../IopDma.h"
 
 #include <cctype>
 #include <ctime>
 #include <cstring>
 #include <memory>
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/MemorySettingsInterface.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
-#include "common/Threading.h"
+#include "../../common/Console.h"
+#include "../../common/FileSystem.h"
+#include "../../common/MemorySettingsInterface.h"
+#include "../../common/Path.h"
+#include "../../common/StringUtil.h"
+#include "../../common/Threading.h"
 
 #include "Ps1CD.h"
 #include "CDVD.h"
 #include "CDVD_internal.h"
 #include "IsoFileFormats.h"
 
-#include "GS.h" // for gsVideoMode
-#include "Elfheader.h"
-#include "ps2/BiosTools.h"
-#include "Host.h"
-#include "VMManager.h"
+#include "../GS.h" // for gsVideoMode
+#include "../Elfheader.h"
+#include "../ps2/BiosTools.h"
+#include "../Host.h"
+#include "../VMManager.h"
 
 /* TODO/FIXME - forward declaration */
 extern MemorySettingsInterface s_settings_interface;

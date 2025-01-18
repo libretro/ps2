@@ -18,7 +18,7 @@
 #include "Config.h"
 #include "Patch.h"
 
-#include "common/FPControl.h"
+#include "../common/FPControl.h"
 
 #include <optional>
 #include <string>

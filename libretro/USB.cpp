@@ -1,6 +1,5 @@
-
-#include "USB/USB.h"
-#include "SaveState.h"
+#include "../pcsx2/USB/USB.h"
+#include "../pcsx2/SaveState.h"
 
 void USB::CheckForConfigChanges(const Pcsx2Config& old_config) { }
 void USBconfigure(void) {}

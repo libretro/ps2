@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "common/emitter/x86types.h"
-#include "common/emitter/instructions.h"
+#include "x86types.h"
+#include "instructions.h"
 
 namespace x86Emitter
 {

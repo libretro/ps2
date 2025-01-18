@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Path.h"
-#include "common/StringUtil.h"
+#include "../../common/Path.h"
+#include "../../common/StringUtil.h"
 
 #include <file/file_path.h>
 
@@ -23,7 +23,7 @@
 #include "FlatFileReader.h"
 #include "GzippedFileReader.h"
 #include "IsoFileFormats.h"
-#include "Config.h"
+#include "../Config.h"
 
 static std::unique_ptr<ThreadedFileReader> GetFileReader(const char *path)
 {

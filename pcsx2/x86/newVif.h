@@ -16,10 +16,9 @@
 #pragma once
 
 #include "../Vif_Dynarec.h"
+#include "../VirtualMemory.h"
 
-#include "VirtualMemory.h"
-
-#include "common/emitter/x86emitter.h"
+#include "../../common/emitter/x86emitter.h"
 
 using namespace x86Emitter;
 

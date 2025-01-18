@@ -41,12 +41,12 @@
 
 #pragma once
 
-#include "common/emitter/x86types.h"
-#include "common/emitter/instructions.h"
+#include "x86types.h"
+#include "instructions.h"
 
 // Including legacy items for now, but these should be removed eventually,
 // once most code is no longer dependent on them.
-#include "common/emitter/legacy_instructions.h"
+#include "legacy_instructions.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Helper object to handle ABI frame

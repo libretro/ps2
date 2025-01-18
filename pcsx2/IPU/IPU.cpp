@@ -16,13 +16,13 @@
 #include <cstring> /* memset */
 #include <limits.h>
 
-#include "Common.h"
+#include "../Common.h"
 
 #include "IPU.h"
 #include "IPU_MultiISA.h"
 #include "IPUdma.h"
 
-#include "Config.h"
+#include "../Config.h"
 
 // the BP doesn't advance and returns -1 if there is no data to be read
 alignas(16) tIPU_cmd ipu_cmd;

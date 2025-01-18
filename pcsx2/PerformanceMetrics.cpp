@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Timer.h"
+#include "../common/Timer.h"
 
 #include "Config.h"
 #include "PerformanceMetrics.h"

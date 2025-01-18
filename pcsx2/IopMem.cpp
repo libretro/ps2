@@ -13,7 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/AlignedMalloc.h"
+#include "../common/AlignedMalloc.h"
+
 #include "R3000A.h"
 #include "Common.h"
 #include "ps2/pgif.h" // for PSX kernel TTY in iopMemWrite32

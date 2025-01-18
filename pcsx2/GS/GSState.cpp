@@ -18,8 +18,8 @@
 #include <cfloat> /* FLT_MAX */
 #include <cmath>
 
-#include "common/Console.h"
-#include "common/Path.h"
+#include "../../common/Console.h"
+#include "../../common/Path.h"
 
 #include "GSState.h"
 #include "GSUtil.h"

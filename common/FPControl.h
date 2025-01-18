@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
-#include "common/VectorIntrin.h"
+#include "Pcsx2Defs.h"
+#include "VectorIntrin.h"
 
 enum class FPRoundMode : u8
 {

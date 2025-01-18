@@ -17,7 +17,7 @@
 // Hopefully this file will be used for cross-source math utilities.
 // Currently these are strewn across the code base. Please collect them all!
 
-#include "common/Pcsx2Defs.h"
+#include "Pcsx2Defs.h"
 
 inline u32 count_leading_zero(s32 n)
 {

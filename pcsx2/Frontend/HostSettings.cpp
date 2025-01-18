@@ -13,11 +13,11 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "Frontend/LayeredSettingsInterface.h"
-#include "GS.h"
-#include "GS/Renderers/HW/GSTextureReplacements.h"
+#include "../../common/FileSystem.h"
+#include "../../common/Path.h"
+#include "../Frontend/LayeredSettingsInterface.h"
+#include "../GS.h"
+#include "../GS/Renderers/HW/GSTextureReplacements.h"
 #include "../Host.h"
 #include "../MemoryCardFile.h"
 #include "../Sio.h"

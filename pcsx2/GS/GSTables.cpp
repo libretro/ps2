@@ -15,7 +15,7 @@
 
 // clang-format off
 
-#include "common/Pcsx2Defs.h"
+#include "../../common/Pcsx2Defs.h"
 
 #include <cstddef>
 #include <iterator> /* std::size() TODO/FIXME - C++17, find way to downgrade */

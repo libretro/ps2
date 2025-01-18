@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
+#include "../../common/Pcsx2Defs.h"
 
 #include <thread>
 #include <mutex>

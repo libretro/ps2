@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/AlignedMalloc.h"
+#include "../../common/AlignedMalloc.h"
 
 #include "GS.h"
 #include "GSRingHeap.h"

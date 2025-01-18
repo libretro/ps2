@@ -13,10 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Common.h"
-#include "IPU/IPU.h"
-#include "IPU/IPUdma.h"
-#include "IPU/IPU_MultiISA.h"
+#include "../Common.h"
+#include "IPU.h"
+#include "IPUdma.h"
+#include "IPU_MultiISA.h"
 
 IPUDMAStatus IPU1Status;
 

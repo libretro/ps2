@@ -13,7 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
+#include "../common/Console.h"
+
 #include <cstring>
 
 #include "MemoryCardProtocol.h"

@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/emitter/internal.h"
+#include "internal.h"
 
 // warning: suggest braces around initialization of subobject [-Wmissing-braces]
 #ifdef __clang__

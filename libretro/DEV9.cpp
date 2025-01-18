@@ -1,5 +1,4 @@
-
-#include <DEV9/DEV9.h>
+#include "../pcsx2/DEV9/DEV9.h"
 
 // Our IRQ call.
 void (*DEV9irq)(int);

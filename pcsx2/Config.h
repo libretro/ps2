@@ -20,8 +20,8 @@
 #include <optional>
 #include <vector>
 
-#include "common/General.h"
-#include "common/FPControl.h"
+#include "../common/General.h"
+#include "../common/FPControl.h"
 
 class SettingsInterface;
 class SettingsWrapper;

@@ -18,9 +18,9 @@
 
 #include "SaveState.h"
 
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
+#include "../common/FileSystem.h"
+#include "../common/Path.h"
+#include "../common/StringUtil.h"
 
 #include "ps2/BiosTools.h"
 #include "COP0.h"
@@ -41,9 +41,7 @@
 //  SaveStateBase  (implementations)
 // --------------------------------------------------------------------------------------
 SaveStateBase::SaveStateBase( std::vector<u8>& memblock )
-	: m_memory(memblock)
-{
-}
+	: m_memory(memblock) { }
 
 void SaveStateBase::PrepBlock(int size)
 {

@@ -21,11 +21,13 @@
 
 #include <cpuinfo.h>
 
-#include "Common.h"
-#include "R5900OpcodeTables.h"
+#include "../Common.h"
+#include "../R5900OpcodeTables.h"
+
 #include "iR5900.h"
 #include "iMMI.h"
-#include "common/MathUtils.h"
+
+#include "../../common/MathUtils.h"
 
 using namespace x86Emitter;
 

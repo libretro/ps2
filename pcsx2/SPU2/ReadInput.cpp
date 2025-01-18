@@ -18,7 +18,7 @@
 #include "../IopDma.h"
 #include "../IopHw.h"
 
-#include "spu2.h" // required for ENABLE_NEW_IOPDMA_SPU2 define
+#include "spu2.h"
 
 // Core 0 Input is "SPDIF mode" - Source audio is AC3 compressed.
 

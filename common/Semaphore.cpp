@@ -13,10 +13,10 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "common/Threading.h"
+#include "Threading.h"
 
 #ifdef _WIN32
-#include "common/RedtapeWindows.h"
+#include "RedtapeWindows.h"
 #endif
 
 #if defined(__APPLE__)

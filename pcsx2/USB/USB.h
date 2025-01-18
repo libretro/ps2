@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "Config.h"
+#include "../Config.h"
 
 class SettingsInterface;
 

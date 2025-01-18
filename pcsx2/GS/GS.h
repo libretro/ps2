@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include "common/WindowInfo.h"
-#include "SaveState.h"
-#include "pcsx2/Config.h"
+#include "../../common/WindowInfo.h"
+#include "../SaveState.h"
+#include "../Config.h"
 
 #include <optional>
 #include <string>

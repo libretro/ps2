@@ -15,8 +15,8 @@
 
 #include "VirtualMemory.h"
 
-#include "common/Align.h"
-#include "common/Console.h"
+#include "../common/Align.h"
+#include "../common/Console.h"
 
 #include <cinttypes>
 

@@ -19,7 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
-#include "common/Pcsx2Defs.h"
+#include "Pcsx2Defs.h"
 
 // --------------------------------------------------------------------------------------
 //  PageProtectionMode

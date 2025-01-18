@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "SaveState.h"
-#include "IopCounters.h"
+#include "../SaveState.h"
+#include "../IopCounters.h"
 
 struct Pcsx2Config;
 

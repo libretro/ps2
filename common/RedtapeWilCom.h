@@ -17,7 +17,7 @@
 
 #ifdef _WIN32
 
-#include "common/RedtapeWindows.h"
+#include "RedtapeWindows.h"
 
 // warning : variable 's_hrErrorLast' set but not used [-Wunused-but-set-variable]
 #ifdef __clang__

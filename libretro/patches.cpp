@@ -1,6 +1,7 @@
 #include <cstring>
 #include <libretro.h>
-#include "pcsx2/Patch.h"
+
+#include "../pcsx2/Patch.h"
 
 extern retro_environment_t environ_cb;
 extern retro_log_printf_t log_cb;

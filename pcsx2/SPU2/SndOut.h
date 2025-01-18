@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common/Pcsx2Types.h"
+#include "../../common/Pcsx2Types.h"
 
 struct StereoOut16;
 

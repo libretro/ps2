@@ -17,14 +17,13 @@
 #include <deque>
 #include <cstring> /* memset */
 
-#include "common/VectorIntrin.h"
+#include "../common/VectorIntrin.h"
+#include "../common/boost_spsc_queue.hpp"
 
 #include "Gif.h"
 #include "Vif.h"
 #include "GS.h"
 #include "GS/GSRegs.h"
-
-#include "common/boost_spsc_queue.hpp"
 
 struct GS_Packet;
 extern void Gif_FinishIRQ();

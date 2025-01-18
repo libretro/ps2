@@ -21,10 +21,10 @@
 
 #endif
 
-#include "common/Threading.h"
+#include "Threading.h"
 
 #ifdef _WIN32
-#include "common/RedtapeWindows.h"
+#include "RedtapeWindows.h"
 #include <direct.h>
 #else
 #include <unistd.h>

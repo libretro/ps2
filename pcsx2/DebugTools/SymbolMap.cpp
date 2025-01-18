@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/FileSystem.h"
+#include "../../common/FileSystem.h"
 
 #include "SymbolMap.h"
 #include <algorithm>

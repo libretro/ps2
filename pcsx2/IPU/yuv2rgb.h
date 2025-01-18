@@ -15,6 +15,6 @@
 
 #pragma once
 
-#include "GS/MultiISA.h"
+#include "../GS/MultiISA.h"
 
 MULTI_ISA_DEF(extern void yuv2rgb(void);)

@@ -14,12 +14,13 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "ps2/Iop/IopHw_Internal.h"
-#include "ps2/HwInternal.h"
-#include "ps2/pgif.h"
-#include "IopHw.h"
-#include "IopDma.h"
-#include "Common.h"
+#include "Iop/IopHw_Internal.h"
+#include "HwInternal.h"
+#include "pgif.h"
+
+#include "../IopHw.h"
+#include "../IopDma.h"
+#include "../Common.h"
 
 //NOTES (TODO):
 /*

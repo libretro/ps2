@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <float.h>
+
 //Lower/Upper instructions can use that..
 #define _Ft_ ((VU->code >> 16) & 0x1F)  // The rt part of the instruction register
 #define _Fs_ ((VU->code >> 11) & 0x1F)  // The rd part of the instruction register

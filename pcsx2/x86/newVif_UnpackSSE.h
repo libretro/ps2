@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "Common.h"
-#include "Vif_Dma.h"
+#include "../Common.h"
+#include "../Vif_Dma.h"
 #include "newVif.h"
 
 // --------------------------------------------------------------------------------------

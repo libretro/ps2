@@ -15,7 +15,8 @@
 
 #pragma once
 
-#include "common/Pcsx2Types.h"
+#include "../../common/Pcsx2Types.h"
+
 #include <cstddef>
 
 /// Table for storing swizzling of blocks within a page

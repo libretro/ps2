@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
+#include "../../common/Pcsx2Defs.h"
 
-#include "common/FileSystem.h"
+#include "../../common/FileSystem.h"
 
-#include "CDVD/ThreadedFileReader.h"
+#include "ThreadedFileReader.h"
 
 class FlatFileReader final : public ThreadedFileReader
 {

@@ -17,7 +17,7 @@
 #include "R5900OpcodeTables.h"
 #include "Elfheader.h"
 
-#include "common/FastJmp.h"
+#include "../common/FastJmp.h"
 
 #include <float.h>
 

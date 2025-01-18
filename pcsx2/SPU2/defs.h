@@ -15,11 +15,11 @@
 
 #pragma once
 
-#include "SPU2/Mixer.h"
-#include "SPU2/SndOut.h"
-#include "SPU2/Global.h"
+#include "Mixer.h"
+#include "SndOut.h"
+#include "Global.h"
 
-#include "GS/MultiISA.h"
+#include "../GS/MultiISA.h"
 
 #include <array>
 

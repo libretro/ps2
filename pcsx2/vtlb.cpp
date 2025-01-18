@@ -33,8 +33,8 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include "common/Align.h"
-#include "common/Console.h"
+#include "../common/Align.h"
+#include "../common/Console.h"
 
 #include "Common.h"
 #include "vtlb.h"

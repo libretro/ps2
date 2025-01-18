@@ -18,7 +18,7 @@
 #include "MemoryTypes.h"
 #include "VirtualMemory.h"
 
-#include "common/SingleRegisterTypes.h"
+#include "../common/SingleRegisterTypes.h"
 
 // Specialized function pointers for each read type
 typedef  mem8_t vtlbMemR8FP(u32 addr);

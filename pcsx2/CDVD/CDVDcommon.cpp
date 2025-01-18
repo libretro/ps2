@@ -19,14 +19,14 @@
 #include <memory>
 #include <cstring>
 
-#include "common/Console.h"
+#include "../../common/Console.h"
 
 #include "IsoFS/IsoFS.h"
 #include "IsoFS/IsoFSCDVD.h"
 #include "IsoFileFormats.h"
 
-#include "DebugTools/SymbolMap.h"
-#include "Config.h"
+#include "../DebugTools/SymbolMap.h"
+#include "../Config.h"
 
 CDVD_API* CDVD = NULL;
 

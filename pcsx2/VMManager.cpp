@@ -23,12 +23,12 @@
 
 #include <file/file_path.h>
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/FPControl.h"
-#include "common/SettingsWrapper.h"
-#include "common/StringUtil.h" /* StdStringFromFormat */
-#include "common/Threading.h"
+#include "../common/Console.h"
+#include "../common/FileSystem.h"
+#include "../common/FPControl.h"
+#include "../common/SettingsWrapper.h"
+#include "../common/StringUtil.h" /* StdStringFromFormat */
+#include "../common/Threading.h"
 
 #include "Counters.h"
 #include "CDVD/CDVD.h"

@@ -19,13 +19,13 @@
 
 #include "PAD.h"
 
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
-#include "common/SettingsInterface.h"
-#include "common/Pcsx2Defs.h"
+#include "../../common/FileSystem.h"
+#include "../../common/Path.h"
+#include "../../common/StringUtil.h"
+#include "../../common/SettingsInterface.h"
+#include "../../common/Pcsx2Defs.h"
 
-#include "Frontend/InputManager.h"
+#include "../Frontend/InputManager.h"
 #include "../Host.h"
 #include "../Sio.h"
 

@@ -14,8 +14,8 @@
  */
 
 #include <libretro.h>
-#include "common/Console.h"
-#include "common/StringUtil.h"
+#include "Console.h"
+#include "StringUtil.h"
 
 extern retro_log_printf_t log_cb;
 static ConsoleColors log_color = Color_Default;

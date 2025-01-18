@@ -19,9 +19,9 @@
 #include <variant>
 #include <utility>
 
-#include "common/Pcsx2Types.h"
+#include "../../common/Pcsx2Types.h"
 
-#include "pcsx2/Config.h"
+#include "../Config.h"
 
 namespace InputManager
 {

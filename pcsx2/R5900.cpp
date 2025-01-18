@@ -18,7 +18,8 @@
 
 #include "Common.h"
 
-#include "common/StringUtil.h"
+#include "../common/StringUtil.h"
+
 #include "ps2/BiosTools.h"
 #include "R5900.h"
 #include "R3000A.h"

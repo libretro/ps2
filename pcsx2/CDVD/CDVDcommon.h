@@ -16,8 +16,8 @@
 #pragma once
 #include <string>
 
-#include "common/Pcsx2Defs.h"
-#include "common/Pcsx2Types.h"
+#include "../../common/Pcsx2Defs.h"
+#include "../../common/Pcsx2Types.h"
 
 typedef struct _cdvdSubQ
 {

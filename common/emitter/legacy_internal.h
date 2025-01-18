@@ -15,12 +15,12 @@
 
 #pragma once
 
-#include "common/emitter/internal.h"
+#include "internal.h"
 
 //------------------------------------------------------------------
 // Legacy Helper Macros and Functions (deprecated)
 //------------------------------------------------------------------
 
-#include "common/emitter/legacy_instructions.h"
+#include "legacy_instructions.h"
 
 extern void ModRM(uint mod, uint reg, uint rm);

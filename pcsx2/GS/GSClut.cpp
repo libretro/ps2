@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/AlignedMalloc.h"
+#include "../../common/AlignedMalloc.h"
 
 #include "GSClut.h"
 #include "GSExtra.h"

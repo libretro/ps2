@@ -15,8 +15,8 @@
 #ifndef _R3000A_SUPERREC_
 #define _R3000A_SUPERREC_
 
-#include "common/emitter/x86emitter.h"
-#include "R3000A.h"
+#include "../../common/emitter/x86emitter.h"
+#include "../R3000A.h"
 #include "iCore.h"
 
 // Cycle penalties for particularly slow instructions.

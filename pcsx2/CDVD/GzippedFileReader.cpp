@@ -13,10 +13,10 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
+#include "../../common/Console.h"
+#include "../../common/FileSystem.h"
+#include "../../common/Path.h"
+#include "../../common/StringUtil.h"
 
 #include "GzippedFileReader.h"
 #include "zlib_indexed.h"

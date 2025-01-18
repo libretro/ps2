@@ -20,8 +20,8 @@
 //   unless it can make them nicely compact.  Calling the C versions will
 //   suffice.
 
-#include "Common.h"
-#include "R5900OpcodeTables.h"
+#include "../Common.h"
+#include "../R5900OpcodeTables.h"
 #include "iR5900.h"
 #include "iCOP0.h"
 

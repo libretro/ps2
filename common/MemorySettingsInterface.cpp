@@ -13,8 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/MemorySettingsInterface.h"
-#include "common/StringUtil.h"
+#include "MemorySettingsInterface.h"
+#include "StringUtil.h"
 
 MemorySettingsInterface::MemorySettingsInterface() = default;
 

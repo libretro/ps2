@@ -16,12 +16,12 @@
 // IPU-correct yuv conversions by Pseudonym
 // SSE2 Implementation by Pseudonym
 
-#include "common/VectorIntrin.h"
+#include "../../common/VectorIntrin.h"
 
-#include "Common.h"
-#include "IPU/IPU.h"
-#include "IPU/IPU_MultiISA.h"
-#include "IPU/yuv2rgb.h"
+#include "../Common.h"
+#include "IPU.h"
+#include "IPU_MultiISA.h"
+#include "yuv2rgb.h"
 
 #if defined(_M_ARM64)
 #if defined(_MSC_VER) && !defined(__clang__)

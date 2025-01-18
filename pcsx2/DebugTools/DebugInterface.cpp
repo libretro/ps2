@@ -14,10 +14,10 @@
  */
 
 #include "DebugInterface.h"
-#include "Memory.h"
-#include "R5900.h"
-#include "R5900OpcodeTables.h"
-#include "Counters.h"
+#include "../Memory.h"
+#include "../R5900.h"
+#include "../R5900OpcodeTables.h"
+#include "../Counters.h"
 
 #include "SymbolMap.h"
 

@@ -18,14 +18,14 @@
 #include <file/file_path.h>
 #include <streams/file_stream.h>
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/StringUtil.h"
+#include "../../common/Console.h"
+#include "../../common/FileSystem.h"
+#include "../../common/Path.h"
+#include "../../common/StringUtil.h"
 
-#include "Common.h"
-#include "BiosTools.h"
-#include "Config.h"
+#include "../Common.h"
+#include "../BiosTools.h"
+#include "../Config.h"
 
 static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
 static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;

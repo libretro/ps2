@@ -16,7 +16,7 @@
 #include <cstring>
 #include <algorithm> /* std::min, std::max */
 
-#include "common/VectorIntrin.h"
+#include "../../common/VectorIntrin.h"
 
 #pragma once
 

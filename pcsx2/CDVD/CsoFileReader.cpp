@@ -16,10 +16,10 @@
 #include <zlib.h>
 #include <lz4.h>
 
-#include "common/Pcsx2Types.h"
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/StringUtil.h"
+#include "../../common/Pcsx2Types.h"
+#include "../../common/Console.h"
+#include "../../common/FileSystem.h"
+#include "../../common/StringUtil.h"
 
 #include "CsoFileReader.h"
 

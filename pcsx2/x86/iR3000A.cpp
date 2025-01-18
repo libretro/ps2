@@ -18,13 +18,13 @@
 // zerofrog(@gmail.com)
 
 #include "iR3000A.h"
-#include "R3000A.h"
+#include "../R3000A.h"
 #include "BaseblockEx.h"
-#include "R5900OpcodeTables.h"
-#include "IopBios.h"
-#include "IopHw.h"
-#include "Common.h"
-#include "VirtualMemory.h"
+#include "../R5900OpcodeTables.h"
+#include "../IopBios.h"
+#include "../IopHw.h"
+#include "../Common.h"
+#include "../VirtualMemory.h"
 
 #ifndef _WIN32
 #include <sys/types.h>
@@ -32,11 +32,11 @@
 
 #include "iCore.h"
 
-#include "Config.h"
+#include "../Config.h"
 
-#include "common/AlignedMalloc.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
+#include "../../common/AlignedMalloc.h"
+#include "../../common/FileSystem.h"
+#include "../../common/Path.h"
 
 using namespace x86Emitter;
 

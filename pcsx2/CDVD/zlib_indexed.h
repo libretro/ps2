@@ -102,7 +102,7 @@ Comments) 1950 to 1952 in the files http://tools.ietf.org/html/rfc1950
 #include <string.h>
 #include <zlib.h>
 
-#include "common/FileSystem.h"
+#include "../../common/FileSystem.h"
 
 //#define SPAN (1048576L)  /* desired distance between access points */
 #define WINSIZE 32768U    /* sliding window size */

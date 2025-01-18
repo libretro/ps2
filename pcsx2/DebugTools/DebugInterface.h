@@ -14,7 +14,7 @@
  */
 
 #pragma once
-#include "MemoryTypes.h"
+#include "../MemoryTypes.h"
 #include "SymbolMap.h"
 
 enum

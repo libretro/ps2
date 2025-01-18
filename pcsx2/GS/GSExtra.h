@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include "GS/GSVector.h"
-#include "pcsx2/Config.h"
-#include "common/Align.h"
+#include "GSVector.h"
+#include "../Config.h"
+#include "../../common/Align.h"
 
 #include <utility> /* std::pair */
 

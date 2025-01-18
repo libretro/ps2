@@ -23,9 +23,11 @@
 #include "../IopDma.h"
 #include "../IopHw.h"
 #include "../R3000A.h"
+
 #include "Dma.h"
 #include "Global.h"
 #include "spu2.h"
+
 #include <libretro.h>
 
 extern retro_audio_sample_t sample_cb;

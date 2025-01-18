@@ -17,12 +17,7 @@
 #include "R3000A.h"
 #include "IopMem.h"
 
-#include "common/MathUtils.h"
-#define G_OP(name,delay)
-#define G_SD(reg)
-#define G_SC(reg)
-#define G_GD(reg)
-#define G_GC(reg)
+#include "../common/MathUtils.h"
 
 #define SUM_FLAG if(gteFLAG & 0x7F87E000) gteFLAG |= 0x80000000;
 

@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/emitter/legacy_internal.h"
+#include "legacy_internal.h"
 
 using namespace x86Emitter;
 

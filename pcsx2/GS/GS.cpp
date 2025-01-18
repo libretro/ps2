@@ -13,9 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/Console.h"
-#include "common/FileSystem.h"
-#include "common/Path.h"
+#include "../../common/Console.h"
+#include "../../common/FileSystem.h"
+#include "../../common/Path.h"
 
 #include "GS.h"
 #include "GSUtil.h"
@@ -29,7 +29,7 @@
 #include "../GS.h"
 
 #ifdef HAVE_PARALLEL_GS
-#include "GS/Renderers/parallel-gs/GSRendererPGS.h"
+#include "Renderers/parallel-gs/GSRendererPGS.h"
 std::unique_ptr<GSRendererPGS> g_pgs_renderer;
 #endif
 

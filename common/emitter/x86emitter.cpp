@@ -28,7 +28,7 @@
  *		sudonim(1@gmail.com)
  */
 
-#include "common/emitter/internal.h"
+#include "internal.h"
 
 // ------------------------------------------------------------------------
 // Notes on Thread Local Storage:

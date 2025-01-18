@@ -13,10 +13,10 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/VectorIntrin.h"
+#include "../../common/VectorIntrin.h"
 
-#include "Common.h"
-#include "R5900OpcodeTables.h"
+#include "../Common.h"
+#include "../R5900OpcodeTables.h"
 #include "iR5900.h"
 #include "iFPU.h"
 

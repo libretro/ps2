@@ -30,13 +30,13 @@
 #include <math.h>
 
 /* Config.PsxType == 1: PAL:
-	 VBlank interlaced		50.00 Hz
+	 VBlank interlaced	50.00 Hz
 	 VBlank non-interlaced	49.76 Hz
-	 HBlank					15.625 KHz
+	 HBlank			15.625 KHz
    Config.PsxType == 0: NSTC
-	 VBlank interlaced		59.94 Hz
+	 VBlank interlaced	59.94 Hz
 	 VBlank non-interlaced	59.82 Hz
-	 HBlank					15.73426573 KHz */
+	 HBlank			15.73426573 KHz */
 
 // Misc IOP Clocks
 #define PSXPIXEL ((int)(PSXCLK / 13500000))

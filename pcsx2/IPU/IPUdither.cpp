@@ -13,14 +13,14 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/VectorIntrin.h"
+#include "../../common/VectorIntrin.h"
 
-#include "Common.h"
+#include "../Common.h"
 
-#include "IPU/IPU.h"
-#include "IPU/IPUdma.h"
-#include "IPU/yuv2rgb.h"
-#include "IPU/IPU_MultiISA.h"
+#include "IPU.h"
+#include "IPUdma.h"
+#include "yuv2rgb.h"
+#include "IPU_MultiISA.h"
 
 MULTI_ISA_UNSHARED_START
 

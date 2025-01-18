@@ -17,9 +17,11 @@
 
 #include <string>
 
-#include "Config.h"
-#include "common/Pcsx2Defs.h"
-#include "SaveState.h"
+#include "../Config.h"
+
+#include "../../common/Pcsx2Defs.h"
+
+#include "../SaveState.h"
 
 enum ControllerType
 {

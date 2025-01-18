@@ -18,7 +18,7 @@
 //			Jake.Stine (@gmail.com)
 
 #include "newVif_UnpackSSE.h"
-#include "MTVU.h"
+#include "../MTVU.h"
 
 void dVifReserve(int idx)
 {

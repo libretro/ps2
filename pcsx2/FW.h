@@ -15,11 +15,16 @@
 
 #pragma once
 
-#include "common/Pcsx2Types.h"
+#include "../common/Pcsx2Types.h"
 
 void FWopen(void);
+
 void FWclose(void);
+
 void PHYWrite(void);
+
 void PHYRead(void);
+
 u32 FWread32(u32 addr);
+
 void FWwrite32(u32 addr, u32 value);

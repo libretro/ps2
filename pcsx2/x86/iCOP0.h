@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "COP0.h"
+#include "../COP0.h"
 
 /*********************************************************
 *   COP0 opcodes                                         *

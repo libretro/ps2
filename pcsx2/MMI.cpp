@@ -14,7 +14,8 @@
  */
 
 #include "Common.h"
-#include "common/MathUtils.h"
+
+#include "../common/MathUtils.h"
 
 namespace R5900 {
 namespace Interpreter {

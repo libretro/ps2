@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "common/Pcsx2Defs.h"
-#include "common/General.h"
+#include "Pcsx2Defs.h"
+#include "General.h"
 
 #if defined(__APPLE__)
 #include <mach/semaphore.h>

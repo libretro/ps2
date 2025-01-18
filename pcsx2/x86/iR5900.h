@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include "common/emitter/x86emitter.h"
-#include "R5900.h"
-#include "VU.h"
+#include "../../common/emitter/x86emitter.h"
+#include "../R5900.h"
+#include "../VU.h"
 #include "iCore.h"
 
 // Register containing a pointer to our fastmem (4GB) area

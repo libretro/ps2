@@ -21,7 +21,8 @@
 #include "MTVU.h"
 #include "VMManager.h"
 #include "Vif_Dynarec.h"
-#include "common/Threading.h"
+
+#include "../common/Threading.h"
 
 VU_Thread vu1Thread;
 

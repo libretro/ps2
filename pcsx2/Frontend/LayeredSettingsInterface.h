@@ -14,7 +14,7 @@
  */
 
 #pragma once
-#include "common/SettingsInterface.h"
+#include "../../common/SettingsInterface.h"
 #include <array>
 
 class LayeredSettingsInterface final : public SettingsInterface

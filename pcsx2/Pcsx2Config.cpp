@@ -13,11 +13,12 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/FileSystem.h"
-#include "common/Path.h"
-#include "common/SettingsInterface.h"
-#include "common/SettingsWrapper.h"
-#include "common/StringUtil.h"
+#include "../common/FileSystem.h"
+#include "../common/Path.h"
+#include "../common/SettingsInterface.h"
+#include "../common/SettingsWrapper.h"
+#include "../common/StringUtil.h"
+
 #include "Config.h"
 #include "GS.h"
 #include "CDVD/CDVDcommon.h"

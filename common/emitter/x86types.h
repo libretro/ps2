@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "common/Threading.h"
-#include "common/Pcsx2Defs.h"
+#include "../Threading.h"
+#include "../Pcsx2Defs.h"
 
 static const uint iREGCNT_XMM = 16;
 static const uint iREGCNT_GPR = 16;

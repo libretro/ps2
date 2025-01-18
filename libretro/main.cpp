@@ -13,33 +13,36 @@
 #include <atomic>
 
 #include "libretro_core_options.h"
-#include "GS.h"
-#include "SPU2/Global.h"
-#include "ps2/BiosTools.h"
-#include "CDVD/CDVD.h"
-#include "MTVU.h"
-#include "Counters.h"
-#include "Host.h"
-#include "common/Path.h"
-#include "common/FileSystem.h"
-#include "common/MemorySettingsInterface.h"
-#include "pcsx2/GS/Renderers/Common/GSRenderer.h"
+
+#include "../pcsx2/GS.h"
+#include "../pcsx2/SPU2/Global.h"
+#include "../pcsx2/ps2/BiosTools.h"
+#include "../pcsx2/CDVD/CDVD.h"
+#include "../pcsx2/MTVU.h"
+#include "../pcsx2/Counters.h"
+#include "../pcsx2/Host.h"
+
+#include "../common/Path.h"
+#include "../common/FileSystem.h"
+#include "../common/MemorySettingsInterface.h"
+
+#include "../pcsx2/GS/Renderers/Common/GSRenderer.h"
 #ifdef ENABLE_VULKAN
 #ifdef HAVE_PARALLEL_GS
-#include "GS/Renderers/parallel-gs/GSRendererPGS.h"
+#include "../pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.h"
 #endif
-#include "GS/Renderers/Vulkan/VKLoader.h"
-#include "GS/Renderers/Vulkan/GSDeviceVK.h"
-#include "GS/Renderers/Vulkan/GSTextureVK.h"
+#include "../pcsx2/GS/Renderers/Vulkan/VKLoader.h"
+#include "../pcsx2/GS/Renderers/Vulkan/GSDeviceVK.h"
+#include "../pcsx2/GS/Renderers/Vulkan/GSTextureVK.h"
 #include <libretro_vulkan.h>
 #endif
-#include "pcsx2/Frontend/InputManager.h"
-#include "pcsx2/Frontend/LayeredSettingsInterface.h"
-#include "pcsx2/VMManager.h"
-#include "pcsx2/Patch.h"
+#include "../pcsx2/Frontend/InputManager.h"
+#include "../pcsx2/Frontend/LayeredSettingsInterface.h"
+#include "../pcsx2/VMManager.h"
+#include "../pcsx2/Patch.h"
 
-#include "SPU2/spu2.h"
-#include "PAD/PAD.h"
+#include "../pcsx2/SPU2/spu2.h"
+#include "../pcsx2/PAD/PAD.h"
 
 #ifdef HAVE_PARALLEL_GS
 extern std::unique_ptr<GSRendererPGS> g_pgs_renderer;
