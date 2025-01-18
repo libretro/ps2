@@ -347,6 +347,7 @@ static GoemonTlb* FindGoemonTlbCacheAddress()
 		if (testTlb[0].valid < 2)
 			return testTlb;
 	}
+	return NULL;
 }
 
 void GoemonPreloadTlb(void)
