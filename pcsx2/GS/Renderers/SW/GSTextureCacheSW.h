@@ -15,8 +15,9 @@
 
 #pragma once
 
-#include "GS/Renderers/Common/GSRenderer.h"
-#include "GS/Renderers/Common/GSFastList.h"
+#include "../Common/GSRenderer.h"
+#include "../Common/GSFastList.h"
+
 #include <unordered_set>
 
 class GSTextureCacheSW

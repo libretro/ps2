@@ -15,9 +15,10 @@
 
 #pragma once
 
-#include "GS/GSExtra.h"
-#include "GS/Renderers/SW/GSScanlineEnvironment.h"
-#include "VirtualMemory.h"
+#include "../SW/GSScanlineEnvironment.h"
+#include "../../GSExtra.h"
+
+#include "../../../VirtualMemory.h"
 
 template <class KEY, class VALUE>
 class GSFunctionMap

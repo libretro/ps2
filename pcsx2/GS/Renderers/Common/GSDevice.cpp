@@ -20,8 +20,8 @@
 #include "common/Console.h"
 
 #include "GSDevice.h"
-#include "GS/GS.h"
-#include "Host.h"
+#include "../../GS.h"
+#include "../../../Host.h"
 
 int SetDATMShader(SetDATM datm)
 {

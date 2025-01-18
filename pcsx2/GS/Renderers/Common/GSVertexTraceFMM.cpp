@@ -14,7 +14,7 @@
  */
 
 #include "GSVertexTrace.h"
-#include "GS/GSState.h"
+#include "../../GSState.h"
 #include <cfloat>
 
 class CURRENT_ISA::GSVertexTraceFMM

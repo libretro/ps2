@@ -13,8 +13,9 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GS/Renderers/Common/GSFunctionMap.h"
-#include "Memory.h"
+#include "GSFunctionMap.h"
+
+#include "../../../Memory.h"
 
 static GSCodeReserve s_instance;
 

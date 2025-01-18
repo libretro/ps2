@@ -24,11 +24,11 @@
 #include <mutex>
 #include <thread>
 
-#include "GS/Renderers/SW/GSVertexSW.h"
-#include "GS/Renderers/SW/GSDrawScanline.h"
-#include "GS/GSAlignedClass.h"
-#include "GS/GSRingHeap.h"
-#include "GS/MultiISA.h"
+#include "GSVertexSW.h"
+#include "GSDrawScanline.h"
+#include "../../GSAlignedClass.h"
+#include "../../GSRingHeap.h"
+#include "../../MultiISA.h"
 
 template <class T, int CAPACITY>
 class GSJobQueue final

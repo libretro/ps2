@@ -13,17 +13,18 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GS/Renderers/Common/GSRenderer.h"
-#include "Host.h"
-#include "PerformanceMetrics.h"
-#include "pcsx2/Config.h"
-
 #include <algorithm>
 #include <array>
 #include <deque>
 #include <thread>
 #include <mutex>
 #include <cmath>
+
+#include "GSRenderer.h"
+
+#include "../../../Host.h"
+#include "../../../PerformanceMetrics.h"
+#include "../../../Config.h"
 
 std::unique_ptr<GSRenderer> g_gs_renderer;
 

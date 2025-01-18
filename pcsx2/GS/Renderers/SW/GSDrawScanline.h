@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include "GS/GSState.h"
-#include "GS/Renderers/SW/GSSetupPrimCodeGenerator.h"
-#include "GS/Renderers/SW/GSDrawScanlineCodeGenerator.h"
+#include "../../GSState.h"
+#include "GSSetupPrimCodeGenerator.h"
+#include "GSDrawScanlineCodeGenerator.h"
 
 struct GSScanlineLocalData;
 

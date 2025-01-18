@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "GS/Renderers/HW/GSTextureCache.h"
+#include "GSTextureCache.h"
 
 #include <utility> /* std::pair */
 

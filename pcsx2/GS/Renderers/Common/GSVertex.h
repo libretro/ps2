@@ -15,10 +15,10 @@
 
 #pragma once
 
-#include "GS/GSRegs.h"
-#include "GS/GSVector.h"
-#include "GS/Renderers/HW/GSVertexHW.h"
-#include "GS/Renderers/SW/GSVertexSW.h"
+#include "../../GSRegs.h"
+#include "../../GSVector.h"
+#include "../HW/GSVertexHW.h"
+#include "../SW/GSVertexSW.h"
 
 struct alignas(32) GSVertex
 {

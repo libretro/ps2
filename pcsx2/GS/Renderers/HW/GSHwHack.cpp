@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GS/Renderers/HW/GSRendererHW.h"
+#include "GSRendererHW.h"
 #include "GSHwHack.h"
 #include "../../GSUtil.h"
 

@@ -17,9 +17,11 @@
 
 #include "GSRasterizer.h"
 #include "GSDrawScanline.h"
-#include "GS/GSExtra.h"
+#include "../../GSExtra.h"
+
 #include "common/AlignedMalloc.h"
-#include "VMManager.h"
+
+#include "../../../VMManager.h"
 
 MULTI_ISA_UNSHARED_IMPL;
 

@@ -16,8 +16,8 @@
 #pragma once
 
 #include "GSScanlineEnvironment.h"
-#include "GS/GSUtil.h"
-#include "GS/MultiISA.h"
+#include "../../GSUtil.h"
+#include "../../MultiISA.h"
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"

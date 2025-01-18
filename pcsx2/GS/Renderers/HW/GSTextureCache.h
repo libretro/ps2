@@ -15,13 +15,13 @@
 
 #pragma once
 
-
-#include "GS/Renderers/Common/GSRenderer.h"
-#include "GS/Renderers/Common/GSFastList.h"
-#include "GS/Renderers/Common/GSDirtyRect.h"
 #include <unordered_set>
 #include <utility> /* std::pair */
 #include <limits>
+
+#include "../Common/GSRenderer.h"
+#include "../Common/GSFastList.h"
+#include "../Common/GSDirtyRect.h"
 
 class GSHwHack;
 

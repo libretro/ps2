@@ -15,15 +15,18 @@
 
 #pragma once
 
+#include <array>
+
 #include "common/HashCombine.h"
 #include "common/WindowInfo.h"
-#include "GS/GS.h"
-#include "GS/Renderers/Common/GSFastList.h"
-#include "GS/Renderers/Common/GSTexture.h"
-#include "GS/Renderers/Common/GSVertex.h"
-#include "GS/GSAlignedClass.h"
-#include "GS/GSExtra.h"
-#include <array>
+
+#include "../../GS.h"
+#include "../../GSAlignedClass.h"
+#include "../../GSExtra.h"
+
+#include "GSFastList.h"
+#include "GSTexture.h"
+#include "GSVertex.h"
 
 enum class ShaderConvert
 {

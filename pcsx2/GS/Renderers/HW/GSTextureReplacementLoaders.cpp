@@ -29,7 +29,7 @@
 #include "common/Path.h"
 #include "common/StringUtil.h"
 
-#include "GS/Renderers/HW/GSTextureReplacements.h"
+#include "GSTextureReplacements.h"
 
 struct LoaderDefinition
 {

@@ -15,10 +15,10 @@
 
 #pragma once
 
-#include "GS/Renderers/SW/GSTextureCacheSW.h"
-#include "GS/Renderers/SW/GSRasterizer.h"
-#include "GS/GSRingHeap.h"
-#include "GS/MultiISA.h"
+#include "GSTextureCacheSW.h"
+#include "GSRasterizer.h"
+#include "../../GSRingHeap.h"
+#include "../../MultiISA.h"
 
 MULTI_ISA_UNSHARED_START
 

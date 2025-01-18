@@ -9,18 +9,19 @@
 #include <malloc.h>
 #endif
 
-#include "GSTextureCache.h"
-#include "GSTextureReplacements.h"
-#include "GSRendererHW.h"
-#include "GS/GSState.h"
-#include "GS/GSUtil.h"
-#include "GS/GSXXH.h"
-
 #include "common/Align.h"
 #include "common/Console.h"
 #include "common/HashCombine.h"
 
 #include <fmt/format.h>
+
+#include "GSTextureCache.h"
+#include "GSTextureReplacements.h"
+#include "GSRendererHW.h"
+
+#include "../../GSState.h"
+#include "../../GSUtil.h"
+#include "../../GSXXH.h"
 
 std::unique_ptr<GSTextureCache> g_texture_cache;
 

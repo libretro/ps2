@@ -15,9 +15,10 @@
 
 #pragma once
 
-#include "GS/GSState.h"
 #include <memory>
 #include <string>
+
+#include "../../GSState.h"
 
 class GSRenderer : public GSState
 {

@@ -15,8 +15,8 @@
 
 #include "GSRendererHW.h"
 
-#include "GS/Renderers/SW/GSTextureCacheSW.h"
-#include "GS/Renderers/SW/GSRasterizer.h"
+#include "../SW/GSTextureCacheSW.h"
+#include "../SW/GSRasterizer.h"
 
 class CURRENT_ISA::GSRendererHWFunctions
 {

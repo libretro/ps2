@@ -17,7 +17,7 @@
 
 #include "GSScanlineEnvironment.h"
 #include "GSNewCodeGenerator.h"
-#include "GS/MultiISA.h"
+#include "../../MultiISA.h"
 
 #if _M_SSE >= 0x501
 	#define SETUP_PRIM_VECTOR_REGISTER Xbyak::Ymm

@@ -16,11 +16,11 @@
 #pragma once
 
 #include "GSTextureCache.h"
-#include "GS/Renderers/Common/GSFunctionMap.h"
-#include "GS/Renderers/Common/GSRenderer.h"
-#include "GS/Renderers/SW/GSTextureCacheSW.h"
-#include "GS/GSState.h"
-#include "GS/MultiISA.h"
+#include "../Common/GSFunctionMap.h"
+#include "../Common/GSRenderer.h"
+#include "../SW/GSTextureCacheSW.h"
+#include "../../GSState.h"
+#include "../../MultiISA.h"
 
 class GSRendererHW;
 MULTI_ISA_DEF(class GSRendererHWFunctions;)

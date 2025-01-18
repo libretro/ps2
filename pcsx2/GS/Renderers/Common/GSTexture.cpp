@@ -13,10 +13,12 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GS/Renderers/Common/GSTexture.h"
-#include "GS/Renderers/Common/GSDevice.h"
+#include "GSTexture.h"
+#include "GSDevice.h"
+
 #include "common/Align.h"
 #include "common/StringUtil.h"
+
 #include <bitset>
 
 GSTexture::GSTexture() = default;

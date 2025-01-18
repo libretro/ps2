@@ -15,12 +15,12 @@
 
 #pragma once
 
-#include "GS/GS.h"
-#include "GS/GSDrawingContext.h"
-#include "GS/MultiISA.h"
+#include "../../GS.h"
+#include "../../GSDrawingContext.h"
+#include "../../MultiISA.h"
+#include "../SW/GSVertexSW.h"
+#include "../HW/GSVertexHW.h"
 #include "GSVertex.h"
-#include "GS/Renderers/SW/GSVertexSW.h"
-#include "GS/Renderers/HW/GSVertexHW.h"
 #include "GSFunctionMap.h"
 
 class GSState;

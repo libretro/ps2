@@ -19,8 +19,9 @@
 
 #include <cpuinfo.h>
 
-#include "xbyak/xbyak.h"
-#include "GS/MultiISA.h"
+#include <xbyak/xbyak.h>
+
+#include "../../MultiISA.h"
 
 #include "common/Console.h"
 

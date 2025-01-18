@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "GS/GSVector.h"
+#include "../../GSVector.h"
 
 #pragma pack(push, 1)
 
