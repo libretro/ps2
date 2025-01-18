@@ -34,18 +34,18 @@
 
 #include <mutex>
 
-#include <fmt/format.h>
+#include "../3rdparty/fmt/fmt/include/fmt/format.h"
 
 #include <encodings/utf.h>
 
-#include "common/Align.h"
-#include "common/AlignedMalloc.h"
-#include "common/Console.h"
-#include "common/General.h"
+#include "Align.h"
+#include "AlignedMalloc.h"
+#include "Console.h"
+#include "General.h"
 #ifdef _WIN32
-#include "common/RedtapeWindows.h"
+#include "RedtapeWindows.h"
 #endif
-#include "common/StringUtil.h"
+#include "StringUtil.h"
 
 // Apple uses the MAP_ANON define instead of MAP_ANONYMOUS, but they mean
 // the same thing.

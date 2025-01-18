@@ -72,7 +72,7 @@
 #include <malloc.h> // alloca
 #endif
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 /* http://svn.reactos.org/svn/reactos/trunk/reactos/include/crt/mingw32/intrin_x86.h?view=markup */
 
 static inline int _BitScanForward(unsigned long* const Index, const unsigned long Mask)

@@ -1,0 +1,97 @@
+SOURCES_CXX :=
+SOURCES_C   :=
+
+DEPS_DIR     := $(CORE_DIR)/3rdparty
+LIBRETRO_DIR := $(CORE_DIR)/libretro
+LIBRETRO_COMM_DIR := $(LIBRETRO_DIR)/libretro-common
+COMMON_DIR   := $(CORE_DIR)/common
+LRPS2_DIR := $(CORE_DIR)/pcsx2
+
+ZLIB_INCFLAGS = -I$(ZLIB_DIR)
+
+ifeq ($(HAVE_OPENGL), 1)
+   ifeq ($(GLES3), 1)
+      GLFLAGS  := -DHAVE_OPENGLES -DHAVE_OPENGLES3
+      CFLAGS   += $(GLFLAGS)
+      CXXFLAGS += $(GLFLAGS)
+   else ifeq ($(GLES), 1)
+      GLFLAGS  := -DHAVE_OPENGLES -DHAVE_OPENGLES2
+      CFLAGS   += $(GLFLAGS)
+      CXXFLAGS += $(GLFLAGS)
+   else
+      GLFLAGS   := -DHAVE_OPENGL -DCORE
+      CFLAGS    += $(GLFLAGS)
+      CXXFLAGS  += $(GLFLAGS)
+   endif
+endif
+
+INCFLAGS := -I$(CORE_DIR) \
+	    -I$(LRPS2_DIR) \
+	    -I$(DEPS_DIR) \
+	    -I$(DEPS_DIR)/cpuinfo/include \
+            -I$(LIBRETRO_COMM_DIR)/include
+
+ifneq (,$(findstring msvc,$(platform)))
+   INCFLAGS += -I$(CORE_DIR)/msvc
+endif
+
+ifeq ($(SYSTEM_ZLIB), 1)
+   CFLAGS += $(shell pkg-config --cflags zlib)
+   LIBS += $(shell pkg-config --libs zlib)
+else
+   INCFLAGS += $(ZLIB_INCFLAGS)
+   SOURCES_C += $(ZLIB_SOURCES_C)
+endif
+
+ifeq ($(NEED_THREADING), 1)
+   FLAGS += -DWANT_THREADING -DHAVE_THREADS
+endif
+
+ifeq ($(FRONTEND_SUPPORTS_RGB565), 1)
+   FLAGS += -DFRONTEND_SUPPORTS_RGB565
+endif
+
+CFLAGS   += $(FLAGS)
+CXXFLAGS += $(FLAGS)
+
+SOURCES_C   += \
+	       $(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
+	       $(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
+	       $(LIBRETRO_COMM_DIR)/compat/fopen_utf8.c \
+	       $(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
+	       $(LIBRETRO_COMM_DIR)/file/file_path.c \
+	       $(LIBRETRO_COMM_DIR)/file/file_path_io.c \
+	       $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
+	       $(LIBRETRO_COMM_DIR)/string/stdstring.c \
+	       $(LIBRETRO_COMM_DIR)/time/rtime.c \
+	       $(LIBRETRO_COMM_DIR)/rthreads/rthreads.c \
+	       $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
+
+SOURCES_CXX += $(COMMON_DIR)/AlignedMalloc.cpp \
+	       $(COMMON_DIR)/Console.cpp \
+	       $(COMMON_DIR)/FastJmp.cpp \
+	       $(COMMON_DIR)/FileSystem.cpp \
+	       $(COMMON_DIR)/HostSys.cpp \
+	       $(COMMON_DIR)/MD5Digest.cpp \
+	       $(COMMON_DIR)/MemorySettingsInterface.cpp \
+	       $(COMMON_DIR)/Semaphore.cpp \
+	       $(COMMON_DIR)/SettingsWrapper.cpp \
+	       $(COMMON_DIR)/StringUtil.cpp \
+	       $(COMMON_DIR)/TextureDecompress.cpp \
+	       $(COMMON_DIR)/Threads.cpp \
+	       $(COMMON_DIR)/Timer.cpp \
+	       \
+	       $(COMMON_DIR)/emitter/avx.cpp \
+	       $(COMMON_DIR)/emitter/groups.cpp \
+	       $(COMMON_DIR)/emitter/jmp.cpp \
+	       $(COMMON_DIR)/emitter/legacy.cpp \
+	       $(COMMON_DIR)/emitter/legacy_sse.cpp \
+	       $(COMMON_DIR)/emitter/movs.cpp \
+	       $(COMMON_DIR)/emitter/simd.cpp \
+	       $(COMMON_DIR)/emitter/x86emitter.cpp \
+	       \
+	       $(CORE_DIR)/libretro/DEV9.cpp \
+	       $(CORE_DIR)/libretro/patches.cpp \
+	       \
+	       $(LRPS2_DIR)/Cache.cpp
+

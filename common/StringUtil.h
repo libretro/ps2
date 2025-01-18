@@ -30,7 +30,7 @@
 #define HAD_M_ARM64 _M_ARM64
 #undef _M_ARM64
 #endif
-#include "fast_float/fast_float.h"
+#include "../3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include/fast_float/fast_float.h"
 #if defined(HAD_M_ARM64) && !defined(_WIN32)
 #define _M_ARM64 HAD_M_ARM64
 #undef HAD_M_ARM64

@@ -50,7 +50,8 @@
 #endif
 #define __pagemask (__pagesize - 1)
 
-// We use 4KB alignment for globals for both Apple and x86 platforms, since computing the
+// We use 4KB alignment for globals for both Apple 
+// and x86 platforms, since computing the
 // address on ARM64 is a single instruction (adrp).
 #define __pagealignsize 0x1000
 
@@ -59,14 +60,20 @@
 // --------------------------------------------------------------------------------------
 #ifdef _MSC_VER
 
-	#define __noinline __declspec(noinline)
-	#define __noreturn __declspec(noreturn)
+#ifndef __noinline
+#define __noinline __declspec(noinline)
+#endif
+#ifndef __noreturn
+#define __noreturn __declspec(noreturn)
+#endif
 
-	// Don't know if there are Visual C++ equivalents of these.
-	#define likely(x) (!!(x))
-	#define unlikely(x) (!!(x))
+// Don't know if there are Visual C++ equivalents of these.
+#define likely(x) (!!(x))
+#define unlikely(x) (!!(x))
 
-	#define CALLBACK __stdcall
+#ifndef CALLBACK
+#define CALLBACK __stdcall
+#endif
 
 #else
 
@@ -74,34 +81,55 @@
 //  GCC / Intel Compilers Section
 // --------------------------------------------------------------------------------------
 
-	#define __assume(cond) do { if (!(cond)) __builtin_unreachable(); } while(0)
+#define __assume(cond) do { if (!(cond)) __builtin_unreachable(); } while(0)
 
-	// SysV ABI passes vector parameters through registers unconditionally.
-	#ifndef _WIN32
-		#define __vectorcall
-		#define CALLBACK
-	#else
-		#define CALLBACK __attribute__((stdcall))
-	#endif
+// SysV ABI passes vector parameters through registers unconditionally.
+#ifndef _WIN32
+#define __vectorcall
+#ifndef CALLBACK
+#define CALLBACK
+#endif
+#else
+#ifndef CALLBACK
+#define CALLBACK __attribute__((stdcall))
+#endif
+#endif
 
-	// Inlining note: GCC needs ((unused)) attributes defined on inlined functions to suppress
-	// warnings when a static inlined function isn't used in the scope of a single file (which
-	// happens *by design* like all the friggen time >_<)
+// Inlining note: GCC needs ((unused)) attributes defined 
+// on inlined functions to suppress warnings when a static 
+// inlined function isn't used in the scope of a single file (which
+// happens *by design* like all the friggen time >_<)
 
-	#define _inline __inline__ __attribute__((unused))
-	#ifdef NDEBUG
-		#define __forceinline __attribute__((always_inline, unused))
-	#else
-		#define __forceinline __attribute__((unused))
-	#endif
-	#ifndef __noinline
-		#define __noinline __attribute__((noinline))
-	#endif
-	#ifndef __noreturn
-		#define __noreturn __attribute__((noreturn))
-	#endif
-	#define likely(x) __builtin_expect(!!(x), 1)
-	#define unlikely(x) __builtin_expect(!!(x), 0)
+#ifndef _inline
+#define _inline __inline__ __attribute__((unused))
+#endif
+
+#ifdef NDEBUG
+#ifndef __forceinline
+#define __forceinline __attribute__((always_inline, unused))
+#endif
+#else
+#ifndef __forceinline
+#define __forceinline __attribute__((unused))
+#endif
+#endif
+
+#ifndef __noinline
+#define __noinline __attribute__((noinline))
+#endif
+
+#ifndef __noreturn
+#define __noreturn __attribute__((noreturn))
+#endif
+
+#ifndef likely
+#define likely(x) __builtin_expect(!!(x), 1)
+#endif
+
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
 #endif
 
 // --------------------------------------------------------------------------------------
