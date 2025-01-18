@@ -29,6 +29,8 @@ INCFLAGS := -I$(CORE_DIR) \
 	    -I$(LRPS2_DIR) \
 	    -I$(DEPS_DIR) \
 	    -I$(DEPS_DIR)/cpuinfo/include \
+	    -I$(DEPS_DIR)/cpuinfo/src \
+	    -I$(DEPS_DIR)/cpuinfo/deps/clog/include \
             -I$(LIBRETRO_COMM_DIR)/include
 
 ifneq (,$(findstring msvc,$(platform)))
@@ -66,6 +68,11 @@ SOURCES_C   += \
 	       $(LIBRETRO_COMM_DIR)/time/rtime.c \
 	       $(LIBRETRO_COMM_DIR)/rthreads/rthreads.c \
 	       $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
+
+SOURCES_C   += \
+	       $(DEPS_DIR)/cpuinfo/src/init.c \
+	       $(DEPS_DIR)/cpuinfo/src/cache.c \
+	       $(DEPS_DIR)/cpuinfo/src/api.c
 
 SOURCES_CXX += $(COMMON_DIR)/AlignedMalloc.cpp \
 	       $(COMMON_DIR)/Console.cpp \
