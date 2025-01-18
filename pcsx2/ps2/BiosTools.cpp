@@ -24,8 +24,9 @@
 #include "../../common/StringUtil.h"
 
 #include "../Common.h"
-#include "../BiosTools.h"
 #include "../Config.h"
+
+#include "BiosTools.h"
 
 static constexpr u32 MIN_BIOS_SIZE = 4 * _1mb;
 static constexpr u32 MAX_BIOS_SIZE = 8 * _1mb;
