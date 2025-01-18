@@ -1135,9 +1135,6 @@ static void InitializeCPUInfo(void)
 		return;
 	}
 
-	Console.WriteLn(Color_StrongYellow, "Processor count: %u cores, %u processors", cpuinfo_get_cores_count(), cpuinfo_get_processors_count());
-	Console.WriteLn(Color_StrongYellow, "Cluster count: %u", cluster_count);
-
 	static std::vector<const cpuinfo_processor*> ordered_processors;
 	for (u32 i = 0; i < cluster_count; i++)
 	{

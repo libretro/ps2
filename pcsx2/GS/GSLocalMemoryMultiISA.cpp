@@ -180,23 +180,10 @@ void GSLocalMemoryFunctions::PopulateFunctions(GSLocalMemory& mem)
 
 	if (cpuinfo_has_x86_avx2())
 	{
-		const struct cpuinfo_core *cpu = cpuinfo_get_cores();
-
-		bool has_slow_gather = true;
-
-		/* Gather is only fast on Broadwell and above, starts
-		 * truly coming into its own on Skylake */
-		if (       cpu->vendor == cpuinfo_vendor_intel
-	        	&& cpu->uarch >= cpuinfo_uarch_broadwell)
-			has_slow_gather = false;
-
-		if (has_slow_gather)
-		{
-			mem.m_psm[PSMT8].rtx = ReadTexture8HSW;
-			mem.m_psm[PSMT8H].rtx = ReadTexture8HHSW;
-			mem.m_psm[PSMT8].rtxb = ReadTextureBlock8HSW;
-			mem.m_psm[PSMT8H].rtxb = ReadTextureBlock8HHSW;
-		}
+		mem.m_psm[PSMT8].rtx   = ReadTexture8HSW;
+		mem.m_psm[PSMT8H].rtx  = ReadTexture8HHSW;
+		mem.m_psm[PSMT8].rtxb  = ReadTextureBlock8HSW;
+		mem.m_psm[PSMT8H].rtxb = ReadTextureBlock8HHSW;
 	}
 }
 
