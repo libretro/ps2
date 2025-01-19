@@ -2488,14 +2488,13 @@ void recPSRAVW(void)
 		xPSRA.D(xRegisterSSE(t1reg), xRegisterSSE(t0reg));
 
 		// merge & sign extend
+		xPUNPCK.LDQ(xRegisterSSE(EEREC_D), xRegisterSSE(t1reg));
 		if (cpuinfo_has_x86_sse4_1())
 		{
-			xPUNPCK.LDQ(xRegisterSSE(EEREC_D), xRegisterSSE(t1reg));
 			xPMOVSX.DQ(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_D));
 		}
 		else
 		{
-			xPUNPCK.LDQ(xRegisterSSE(EEREC_D), xRegisterSSE(t1reg));
 			xMOVDQA(xRegisterSSE(t0reg), xRegisterSSE(EEREC_D));
 			xPSRA.D(xRegisterSSE(t0reg), 31); // get the signs
 			xPUNPCK.LDQ(xRegisterSSE(EEREC_D), xRegisterSSE(t0reg));
