@@ -746,16 +746,16 @@ void VMManager::Reset()
 
 bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 {
-	const CDVD_SourceType old_type = CDVDsys_GetSourceType();
-	const std::string old_path(CDVDsys_GetFile(old_type));
-
 	CDVDsys_ChangeSource(source);
 	if (!path.empty())
-		CDVDsys_SetFile(source, std::move(path));
+		CDVDsys_SetFile(source, path);
 
 	const bool result = DoCDVDopen();
 	if (!result)
 	{
+		const CDVD_SourceType old_type = CDVDsys_GetSourceType();
+		const std::string old_path(CDVDsys_GetFile(old_type));
+
 		/* Failed to open new disc image '{}'. Reverting to old image */
 		CDVDsys_ChangeSource(old_type);
 		if (!old_path.empty())
