@@ -457,14 +457,6 @@ endif
 
 include Makefile.common
 
-# https://github.com/libretro-mirrors/mednafen-git/blob/master/README.PORTING
-MEDNAFEN_GCC_FLAGS = -fwrapv \
-                     -fsigned-char
-
-ifeq ($(IS_X86),1)
-   MEDNAFEN_GCC_FLAGS += -fomit-frame-pointer
-endif
-
 WARNINGS := -Wall \
             -Wvla \
             -Wno-sign-compare \
@@ -476,8 +468,6 @@ WARNINGS := -Wall \
 
 ifeq ($(NO_GCC),1)
    WARNINGS :=
-else
-   FLAGS += $(MEDNAFEN_GCC_FLAGS)
 endif
 
 OBJECTS := $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o)
@@ -521,22 +511,19 @@ else
    endif
 endif
 
+#CFLAGS    += -mavx
+#CXXFLAGS  += -mavx
+
 LDFLAGS += $(fpic) $(SHARED)
-FLAGS   += $(fpic) $(NEW_GCC_FLAGS)
-FLAGS   += $(INCFLAGS)
+FLAGS   += $(fpic) $(INCFLAGS)
 
 FLAGS += $(ENDIANNESS_DEFINES) \
          $(WARNINGS) \
-         -DMEDNAFEN_VERSION=\"0.9.38.6\" \
-         -DMEDNAFEN_VERSION_NUMERIC=9386 \
-         -DMPC_FIXED_POINT \
          $(CORE_DEFINE) \
          -DSTDC_HEADERS \
          -D__STDC_LIMIT_MACROS \
          -D__LIBRETRO__ \
-         -D_LOW_ACCURACY_ \
          $(EXTRA_INCLUDES) \
-         $(SOUND_DEFINE) \
          -D_FILE_OFFSET_BITS=64 \
          -D__STDC_CONSTANT_MACROS
 

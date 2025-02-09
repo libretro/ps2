@@ -20,7 +20,7 @@
 
 #include "Pcsx2Defs.h"
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #include <intrin.h>
 #endif
 
