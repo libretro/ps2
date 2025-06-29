@@ -1,6 +1,9 @@
 #ifndef __CHDCONFIG_H__
 #define __CHDCONFIG_H__
 
+#include <retro_inline.h>
+#define USE_LIBRETRO_VFS
+
 /* Configure CHDR features here */
 #define WANT_RAW_DATA_SECTOR    1
 #define WANT_SUBCODE            1
