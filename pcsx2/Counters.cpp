@@ -30,6 +30,10 @@
 #include "ps2/HwInternal.h"
 #include "VMManager.h"
 
+#ifdef __LIBRETRO__
+extern bool pending_update_av_info;
+#endif
+
 //------------------------------------------------------------------
 // vSync and hBlank Timing Modes
 //------------------------------------------------------------------
@@ -397,6 +401,9 @@ void UpdateVSyncRate(bool force)
 								  vSyncInfo.GSBlank :
 								  ((vsyncCounter.Mode == MODE_VSYNC) ? vSyncInfo.Blank : vSyncInfo.Render);
 		cpuRcntSet();
+#ifdef __LIBRETRO__
+		pending_update_av_info = true;
+#endif
 	}
 }
 

@@ -80,6 +80,8 @@ struct retro_hw_render_callback hw_render;
 
 MemorySettingsInterface s_settings_interface;
 
+bool pending_update_av_info = false;
+
 static retro_audio_sample_batch_t batch_cb;
 
 static std::atomic<VMState> cpu_thread_state;
@@ -1339,12 +1341,33 @@ void retro_get_system_info(retro_system_info* info)
 	info->block_extract    = true;
 }
 
+static void retro_set_region(unsigned val)
+{
+	internal_setting_region = val;
+}
+static unsigned retro_get_region(void)
+{
+	return internal_setting_region;
+}
+
 void retro_get_system_av_info(retro_system_av_info* info)
 {
-	info->geometry.base_width  = 640;
-	info->geometry.base_height = 448;
 	unsigned upscale_mul       = (setting_renderer == "paraLLEl-GS" && setting_pgs_high_res_scanout) ? 2 : setting_upscale_multiplier;
 
+	switch (gsVideoMode)
+	{
+		case GS_VideoMode::PAL:
+		case GS_VideoMode::DVD_PAL:
+		case GS_VideoMode::SDTV_576P:
+			retro_set_region(RETRO_REGION_PAL);
+			break;
+		default:
+			retro_set_region(RETRO_REGION_NTSC);
+			break;
+	}
+
+	info->geometry.base_width  = 640;
+	info->geometry.base_height = (retro_get_region() == RETRO_REGION_NTSC) ? 448 : 512;
 
 	if (               (  setting_renderer != "Software" 
 			   && setting_renderer != "paraLLEl-GS")
@@ -1355,8 +1378,9 @@ void retro_get_system_av_info(retro_system_av_info* info)
 		info->geometry.base_height *= upscale_mul;
 	}
 
+	/* Max always at PAL height to prevent video reinits */
 	info->geometry.max_width  = info->geometry.base_width;
-	info->geometry.max_height = info->geometry.base_height;
+	info->geometry.max_height = 512 * upscale_mul;
 
 	switch (setting_hint_widescreen)
 	{
@@ -1876,8 +1900,6 @@ bool retro_load_game(const struct retro_game_info* game)
 	return true;
 }
 
-void retro_set_region(unsigned val) { internal_setting_region = val; }
-unsigned retro_get_region(void) { return internal_setting_region; }
 
 unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 
@@ -1906,11 +1928,22 @@ void retro_unload_game(void)
 	retro_set_region(RETRO_REGION_NTSC); /* set back to default */
 }
 
+static void update_av_info(void)
+{
+	retro_system_av_info av_info;
+	retro_get_system_av_info(&av_info);
+	environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+	pending_update_av_info = false;
+}
+
 void retro_run(void)
 {
 	bool updated = false;
 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
 		check_variables(false);
+
+	if (pending_update_av_info)
+		update_av_info();
 
 	Input::Update();
 
@@ -2144,9 +2177,5 @@ void Host::OnGameChanged(const std::string& disc_path,
 #endif
 
 	if (ret == 1)
-	{
-		retro_system_av_info av_info;
-		retro_get_system_av_info(&av_info);
-		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
-	}
+		pending_update_av_info = true;
 }
