@@ -1659,7 +1659,7 @@ static bool libretro_set_hw_render(retro_hw_context_type type)
 
 static bool libretro_select_hw_render(void)
 {
-	if (setting_renderer == "Auto" || setting_renderer == "Software")
+	if (setting_renderer == "Auto")
 	{
 #if defined(__APPLE__)
 		if (libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN))
@@ -1700,7 +1700,7 @@ static bool libretro_select_hw_render(void)
 		return true;
 #endif
 	if (setting_renderer == "Software")
-		return libretro_set_hw_render(RETRO_HW_CONTEXT_NONE);
+		return libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL);
 
 	return false;
 }
