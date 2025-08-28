@@ -417,6 +417,9 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
 
 void do_rumble(u8 intensity, unsigned type, unsigned port)
 {
+	if (!rumble.set_rumble_state)
+		return;
+
 	// 0..255 -> 0..65535
 	u16 scaled = (intensity << 8) | intensity;
 
@@ -428,6 +431,9 @@ void do_rumble(u8 intensity, unsigned type, unsigned port)
 
 void stop_rumble()
 {
+	if (!rumble.set_rumble_state)
+		return;
+
 	for (int port = 0; port < 2; ++port)
 	{
 		rumble.set_rumble_state(port, RETRO_RUMBLE_STRONG, 0);
