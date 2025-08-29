@@ -2227,7 +2227,37 @@ std::optional<std::string> Host::ReadResourceFileToString(const char* filename)
 	const std::string path(Path::Combine(EmuFolders::Resources, filename));
 	std::optional<std::string> ret(FileSystem::ReadFileToString(path.c_str()));
 	if (!ret.has_value())
+	{
+		std::string str = std::string(filename) + " is missing, expect bugs.";
+		unsigned msg_interface_version = 0;
+		environ_cb(RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION, &msg_interface_version);
+
+		if (msg_interface_version >= 1)
+		{
+			retro_message_ext msg = {
+				str.c_str(),
+				3000,
+				3,
+				RETRO_LOG_WARN,
+				RETRO_MESSAGE_TARGET_OSD,
+				RETRO_MESSAGE_TYPE_NOTIFICATION,
+				-1
+			};
+			environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &msg);
+		}
+		else
+		{
+			retro_message msg = {
+				str.c_str(),
+				180
+			};
+			environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
+		}
+
+		// OSD messages should be kept pretty short, but let's give the user a bit more info in logs.
 		log_cb(RETRO_LOG_ERROR, "Failed to read resource file to string '%s', path '%s'\n", filename, path.c_str());
+		log_cb(RETRO_LOG_WARN, "Please check the docs for more informations: https://docs.libretro.com/library/lrps2/\n");
+	}
 	return ret;
 }
 
