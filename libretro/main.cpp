@@ -1705,6 +1705,15 @@ static bool libretro_select_hw_render(void)
 			|| setting_renderer == "paraLLEl-GS")
 		return libretro_set_hw_render(RETRO_HW_CONTEXT_VULKAN);
 #endif
+	if (setting_renderer == "OpenGL")
+	{
+		if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL_CORE))
+			return true;
+		else if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGL))
+			return true;
+		else if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES3))
+			return true;
+	}
 
 fallback:
 #ifdef _WIN32
