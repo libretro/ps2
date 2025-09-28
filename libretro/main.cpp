@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <libretro.h>
+#include <retro_miscellaneous.h>
 #include <file/file_path.h>
 #include <streams/file_stream.h>
 #include <string>
@@ -84,6 +85,7 @@ struct retro_hw_render_callback hw_render;
 MemorySettingsInterface s_settings_interface;
 
 bool pending_update_av_info = false;
+std::string libretro_content;
 
 static std::atomic<VMState> cpu_thread_state;
 static std::thread cpu_thread;
@@ -153,6 +155,7 @@ static bool setting_unscaled_palette_draw      = false;
 static bool setting_force_sprite_position      = false;
 static bool setting_pcrtc_screen_offsets       = false;
 static bool setting_disable_interlace_offset   = false;
+static bool setting_shared_memory_cards        = true;
 
 static bool setting_show_parallel_options      = true;
 static bool setting_show_gsdx_options          = true;
@@ -1003,6 +1006,12 @@ static void check_variables(bool first_run)
 			s_settings_interface.SetBoolValue("EmuCore", "EnableCheats", setting_enable_cheats);
 			updated = true;
 		}
+	}
+
+	var.key = "pcsx2_shared_memory_cards";
+	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+	{
+		setting_shared_memory_cards = !strcmp(var.value, "enabled");
 	}
 
 	var.key = "pcsx2_hint_language_unlock";
@@ -1882,8 +1891,8 @@ bool retro_load_game(const struct retro_game_info* game)
 	VMBootParameters boot_params;
 	const char* system_base = nullptr;
 	int format = RETRO_PIXEL_FORMAT_XRGB8888;
-	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &format);
 
+	environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &format);
 	environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &system_base);
 
 	EmuFolders::AppRoot   = Path::Combine(system_base, "pcsx2");
@@ -1891,6 +1900,7 @@ bool retro_load_game(const struct retro_game_info* game)
 	EmuFolders::DataRoot  = EmuFolders::AppRoot;
 
 	Host::Internal::SetBaseSettingsLayer(&s_settings_interface);
+
 	EmuFolders::SetDefaults(s_settings_interface);
 	VMManager::SetDefaultSettings(s_settings_interface);
 
@@ -1968,6 +1978,23 @@ bool retro_load_game(const struct retro_game_info* game)
 				s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::OGL);
 				break;
 		}
+	}
+
+	libretro_content[0] = '\0';
+
+	if (!setting_shared_memory_cards && game && game->path)
+	{
+		const char* save_base = nullptr;
+		char memcard_path[PATH_MAX_LENGTH];
+
+		environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &save_base);
+
+		s_settings_interface.SetStringValue("Folders", "MemoryCards", save_base);
+		VMManager::Internal::UpdateEmuFolders();
+
+		snprintf(memcard_path, sizeof(memcard_path), "%s", path_basename(game->path));
+		path_remove_extension(memcard_path);
+		libretro_content = memcard_path;
 	}
 
 	VMManager::ApplySettings();

@@ -155,6 +155,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       "disabled"
    },
    {
+      "pcsx2_shared_memory_cards",
+      "System > Shared Memory Cards (Restart)",
+      "Shared Memory Cards (Restart)",
+      "Use per-content or shared memory cards.",
+      NULL,
+      "system",
+      {
+         { "disabled", NULL },
+         { "enabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "pcsx2_enable_cheats",
       "System > Enable Cheats",
       "Enable Cheats",

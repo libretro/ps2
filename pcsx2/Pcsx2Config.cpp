@@ -27,6 +27,8 @@
 
 #include <file/file_path.h>
 
+extern std::string libretro_content;
+
 // This macro is actually useful for about any and every possible application of C++
 // equality operators.
 #define OpEqu(field) (field == right.field)
@@ -953,6 +955,13 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	BaseFilenames.LoadSave(wrap);
 	Framerate.LoadSave(wrap);
 	LoadSaveMemcards(wrap);
+
+	// Per-content memory card
+	if (!libretro_content.empty())
+	{
+		EmuConfig.Mcd[0].Filename = StringUtil::StdStringFromFormat("%s.ps2", libretro_content.c_str());
+		EmuConfig.Mcd[1].Enabled  = false;
+	}
 }
 
 void Pcsx2Config::LoadSaveMemcards(SettingsWrapper& wrap)
