@@ -1421,7 +1421,11 @@ void retro_deinit(void)
 
 void retro_get_system_info(retro_system_info* info)
 {
-	info->library_version  = "1";
+#ifndef GIT_VERSION
+#define GIT_VERSION ""
+#endif
+	memset(info, 0, sizeof(*info));
+	info->library_version  = GIT_VERSION;
 	info->library_name     = "LRPS2";
 	info->valid_extensions = "elf|iso|ciso|cue|bin|gz|chd|cso|zso";
 	info->need_fullpath    = true;

@@ -1,6 +1,13 @@
 # Extra preprocessor definitions that will be added to all pcsx2 builds
 set(PCSX2_DEFS "")
 
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+add_definitions(-DGIT_VERSION="${GIT_VERSION}")
+
 #-------------------------------------------------------------------------------
 # Misc option
 #-------------------------------------------------------------------------------
