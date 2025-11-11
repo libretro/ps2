@@ -40,7 +40,6 @@
 
 // Misc IOP Clocks
 #define PSXPIXEL ((int)(PSXCLK / 13500000))
-#define PSXSOUNDCLK ((int)(48000))
 
 psxCounter psxCounters[NUM_COUNTERS];
 s32 psxNextDeltaCounter;

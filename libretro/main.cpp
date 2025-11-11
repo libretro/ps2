@@ -1215,7 +1215,7 @@ void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
 void retro_set_audio_sample(retro_audio_sample_t cb)   { sample_cb = cb; }
 
 static bool audio_ready   = false;
-static float sample_rate  = 48000.0f;
+static float sample_rate  = 192000.0f;
 static float retro_fps    = 60.0f;
 
 /* Audio output buffer */
@@ -1494,7 +1494,7 @@ void retro_get_system_av_info(retro_system_av_info* info)
 	}
 
 	info->timing.fps         = (retro_get_region() == RETRO_REGION_NTSC) ? (60.0f / 1.001f) : 50.0f;
-	info->timing.sample_rate = 48000;
+	info->timing.sample_rate = 192000;
 
 	retro_fps                = info->timing.fps;
 	sample_rate              = info->timing.sample_rate;
