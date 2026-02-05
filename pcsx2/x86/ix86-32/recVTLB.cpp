@@ -493,7 +493,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 
 int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
-	const int reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); // Handler returns in xmm0
+	int reg;
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
 		iFlushCall(FLUSH_FULLVTLB);
@@ -501,12 +501,17 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 		DynGen_PrepRegs(arg1regd.Id, -1, bits, true);
 		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); },  0, bits);
 
+		/* The call here needs to be after the above function calls. */
+		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); /* Handler returns in xmm0 */
+
 		if (reg >= 0)
 			xMOVAPS(xRegisterSSE(reg), xmm0);
 	}
 	else
 	{
 		const u8* codeStart = x86Ptr;
+
+		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); /* Handler returns in xmm0 */
 
 		xMOVAPS(xRegisterSSE(reg), ptr128[RFASTMEMBASE + arg1reg]);
 
