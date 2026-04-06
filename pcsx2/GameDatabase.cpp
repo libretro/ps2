@@ -868,9 +868,10 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 void GameDatabase::initDatabase()
 {
 	ryml::Callbacks rymlCallbacks = ryml::get_callbacks();
-	rymlCallbacks.m_error = [](const char* msg, size_t msg_len, ryml::Location loc, void*) {
-		Console.Error("[YAML] Parsing error at {%s}:{%s} (bufpos={%s}): {%s}",
-			loc.line, loc.col, loc.offset, msg);
+	rymlCallbacks.m_error_parse = [](c4::csubstr msg, ryml::ErrorDataParse const& errdata, void*) {
+		Console.Error("[YAML] Parsing error at {%zu}:{%zu} (bufpos={%zu}): {%.*s}",
+			errdata.ymlloc.line, errdata.ymlloc.col, errdata.ymlloc.offset,
+			(int)msg.len, msg.str);
 	};
 	ryml::set_callbacks(rymlCallbacks);
 	c4::set_error_callback([](const char* msg, size_t msg_size) {
