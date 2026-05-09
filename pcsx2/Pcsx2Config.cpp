@@ -438,8 +438,6 @@ Pcsx2Config::GSOptions::GSOptions()
 bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
 {
 	return (
-		OpEqu(VsyncQueueSize) &&
-
 		OpEqu(FramerateNTSC) &&
 		OpEqu(FrameratePAL) &&
 
@@ -513,8 +511,6 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 {
 	SettingsWrapSection("EmuCore/GS");
-
-	SettingsWrapEntry(VsyncQueueSize);
 
 	SettingsWrapEntry(FramerateNTSC);
 	SettingsWrapEntry(FrameratePAL);
