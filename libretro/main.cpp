@@ -10,11 +10,10 @@
 #include <string>
 #include <vector>
 #include <type_traits>
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <condition_variable>
-#include <chrono>
+/* NOTE: <thread>, <atomic>, <mutex>, <condition_variable>, <chrono>
+ * were used by the old cpu_thread / pause-resume machinery and are no
+ * longer needed now that the EE runs synchronously on the libretro
+ * thread.  */
 
 #include "libretro_core_options.h"
 
@@ -63,25 +62,11 @@ MemorySettingsInterface s_settings_interface;
 bool pending_update_av_info = false;
 std::string libretro_content;
 
-static std::atomic<VMState> cpu_thread_state;
-static std::thread cpu_thread;
-
-/* Pause/resume coordination for cpu_thread.
- *
- * When the libretro thread asks the VM to pause (savestate, reset,
- * settings change), cpu_thread eventually loops to its 'case Paused'
- * branch and used to busy-spin there waiting for the state to change
- * back. That burned 100% of one core for the entire duration of any
- * libretro-thread side activity that holds the VM paused (multi-MB
- * savestate write/read, GPU context recreate, etc.).
- *
- * Now cpu_thread sleeps on cpu_thread_cv with predicate
- * "state != Paused"; cpu_thread_resume() does the resume-side state
- * transition under the mutex and notifies. A 100 ms timeout on the
- * wait is belt-and-suspenders insurance against a missed notify - the
- * normal path is instant via notify_one(). */
-static std::mutex              cpu_thread_mtx;
-static std::condition_variable cpu_thread_cv;
+/* The libretro and cpu threads have been merged: EE execution and GS
+ * processing run sequentially on the libretro thread inside retro_run().
+ * PostVsyncStart signals Cpu->ExitExecution() after each vsync so
+ * VMManager::Execute() returns one frame at a time.  No separate
+ * cpu_thread, no pause/resume machinery needed.  */
 
 static freezeData fd = {};
 static std::unique_ptr<u8[]> fd_data;
@@ -324,27 +309,8 @@ static bool update_option_visibility(void)
 	return updated;
 }
 
-static void cpu_thread_pause(void)
-{
-	VMManager::SetPaused(true);
-	while(cpu_thread_state.load(std::memory_order_acquire) != VMState::Paused)
-		MTGS::MainLoop(true);
-}
-
-/* Counterpart to cpu_thread_pause(). Performs the resume-side state
- * transition under cpu_thread_mtx so cpu_thread, sleeping in its
- * 'case Paused' wait, sees a consistent state-and-notify, and signals
- * the cv. Any new resume site (replacing 'VMManager::SetPaused(false)'
- * or 'VMManager::SetState(VMState::Running)' that was paired with a
- * prior cpu_thread_pause) should call this instead. */
-static void cpu_thread_resume(void)
-{
-	{
-		std::lock_guard<std::mutex> lk(cpu_thread_mtx);
-		VMManager::SetPaused(false);
-	}
-	cpu_thread_cv.notify_one();
-}
+/* cpu_thread_pause / cpu_thread_resume are no longer needed --- EE
+ * execution is synchronous on the libretro thread.  */
 
 static void check_variables(bool first_run)
 {
@@ -1204,7 +1170,6 @@ static void check_variables(bool first_run)
 
 	if (!first_run && updated)
 	{
-		cpu_thread_pause();
 		VMManager::ApplySettings();
 	}
 }
@@ -1512,13 +1477,11 @@ void retro_get_system_av_info(retro_system_av_info* info)
 
 void retro_reset(void)
 {
-	cpu_thread_pause();
 	VMManager::Reset();
 	/* Discard any audio buffered before the reset; carrying pre-reset
 	 * samples into the post-reset stream causes audible glitches and
 	 * leaves the buffer in a non-deterministic starting state. */
 	output_audio_buffer.size = 0;
-	cpu_thread_resume();
 }
 
 static bool freeze(void)
@@ -1612,14 +1575,10 @@ static void libretro_context_reset(void)
 		defrost_requested = false;
 		defrost();
 	}
-
-	cpu_thread_resume();
 }
 
 static void libretro_context_destroy(void)
 {
-	cpu_thread_pause();
-
 	if (freeze())
 		defrost_requested = true;
 
@@ -1739,62 +1698,6 @@ fallback:
 	if (libretro_set_hw_render(RETRO_HW_CONTEXT_OPENGLES3))
 		return true;
 	return false;
-}
-
-static void cpu_thread_entry(VMBootParameters boot_params)
-{
-	VMManager::Initialize(boot_params);
-	VMManager::SetState(VMState::Running);
-
-	while (VMManager::GetState() != VMState::Shutdown)
-	{
-		if (VMManager::HasValidVM())
-		{
-			for (;;)
-			{
-				VMState _st = VMManager::GetState();
-				cpu_thread_state.store(_st, std::memory_order_release);
-				switch (_st)
-				{
-					case VMState::Initializing:
-						MTGS::MainLoop(false);
-						continue;
-
-					case VMState::Running:
-						VMManager::Execute();
-						continue;
-
-					case VMState::Resetting:
-						VMManager::Reset();
-						continue;
-
-					case VMState::Stopping:
-#if 0
-						VMManager::Shutdown(fals);
-#endif
-						return;
-
-					case VMState::Paused:
-					{
-						/* Sleep on cpu_thread_cv until libretro thread
-						 * transitions us out of Paused. The 100 ms
-						 * timeout is belt-and-suspenders: if a notify
-						 * is ever missed (e.g. a future resume site
-						 * forgets to go through cpu_thread_resume()),
-						 * we still poll the predicate at 10 Hz instead
-						 * of burning a core. */
-						std::unique_lock<std::mutex> lk(cpu_thread_mtx);
-						cpu_thread_cv.wait_for(lk,
-							std::chrono::milliseconds(100),
-							[]{ return VMManager::GetState() != VMState::Paused; });
-						continue;
-					}
-					default:
-						continue;
-				}
-			}
-		}
-	}
 }
 
 #ifdef ENABLE_VULKAN
@@ -2110,7 +2013,8 @@ bool retro_load_game(const struct retro_game_info* game)
 		}
 	}
 
-	cpu_thread = std::thread(cpu_thread_entry, boot_params);
+	VMManager::Initialize(boot_params);
+	VMManager::SetState(VMState::Running);
 
 	return true;
 }
@@ -2124,21 +2028,10 @@ bool retro_load_game_special(unsigned game_type,
 void retro_unload_game(void)
 {
 	if (MTGS::IsOpen())
-	{
-		cpu_thread_pause();
 		MTGS::CloseGS();
-	}
 
 	VMManager::Shutdown();
-	/* Shutdown() flipped state to Stopping; if cpu_thread happens to
-	 * be sleeping in its 'case Paused' wait (post cpu_thread_pause
-	 * above), it needs a notify to observe the new state and run
-	 * through to its 'case Stopping: return;' branch. Without this,
-	 * cpu_thread.join() below would block until the 100 ms wait
-	 * timeout elapses. */
-	cpu_thread_cv.notify_one();
 	Input::Shutdown();
-	cpu_thread.join();
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		Vulkan::UnloadVulkanLibrary();
@@ -2172,10 +2065,12 @@ void retro_run(void)
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	if (cpu_thread_state.load(std::memory_order_acquire) == VMState::Paused)
-		cpu_thread_resume();
-
-	MTGS::MainLoop(false);
+	/* Run EE for one frame.  Cpu->Execute() loops until the EE
+	 * reaches its next vsync; PostVsyncStart calls WaitGS(false)
+	 * which processes the GS ring (same-thread), then calls
+	 * Cpu->ExitExecution() so Execute() returns here. */
+	MTGS::MarkSingleThreaded();
+	VMManager::Execute();
 	upload_output_audio_buffer();
 }
 
@@ -2220,7 +2115,8 @@ bool retro_serialize(void* data, size_t size)
 	freezeData fP;
 	std::vector<u8> buffer;
 
-	cpu_thread_pause();
+	/* No thread to pause --- VM execution is synchronous on the
+	 * libretro thread.  Between retro_run calls the VM is idle. */
 
 	/* retro_serialize_size() already computed the exact upper bound on
 	 * what we need. Reserve once so memSavingState's incremental
@@ -2275,12 +2171,10 @@ bool retro_serialize(void* data, size_t size)
 	{
 		log_cb(RETRO_LOG_ERROR, "retro_serialize: produced %zu bytes, "
 			"frontend buffer is only %zu\n", buffer.size(), size);
-		cpu_thread_resume();
 		return false;
 	}
 	memcpy(data, buffer.data(), buffer.size());
 
-	cpu_thread_resume();
 	return true;
 }
 
@@ -2289,7 +2183,7 @@ bool retro_unserialize(const void* data, size_t size)
 	freezeData fP;
 	std::vector<u8> buffer;
 
-	cpu_thread_pause();
+	/* No thread to pause --- VM execution is synchronous. */
 
 	/* resize() (not reserve()): m_memory.size() is what PrepBlock and
 	 * memLoadingState::FreezeMem use for bounds-checking. With reserve()
@@ -2342,7 +2236,6 @@ bool retro_unserialize(const void* data, size_t size)
 	 * longer match the SPU2 state we just restored. */
 	output_audio_buffer.size = 0;
 
-	cpu_thread_resume();
 	if (!loadme.IsOkay())
 	{
 		log_cb(RETRO_LOG_ERROR, "retro_unserialize: short or "

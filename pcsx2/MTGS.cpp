@@ -66,6 +66,7 @@ namespace MTGS
 	static Threading::WorkSema s_sem_event;
 
 	static std::thread::id s_thread;
+	static bool s_single_threaded = false;
 	static std::atomic<bool> s_open_flag = false;
 };
 
@@ -109,6 +110,12 @@ void MTGS::PostVsyncStart()
 
 	// Remove extra frame input lag
 	WaitGS(false);
+
+	// In the single-threaded libretro topology, WaitGS on the same thread
+	// called MainLoop(true) which processed the ring and rendered the frame.
+	// Bounce out of VMManager::Execute() so retro_run can deliver the frame.
+	if (s_single_threaded)
+		Cpu->ExitExecution();
 
 	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
 	s_sem_event.NotifyOfWork();
@@ -254,12 +261,22 @@ void MTGS::CloseGS(void)
 	s_open_flag.store(false, std::memory_order_release);
 }
 
+// Instructs MTGS that the calling thread is the only thread that will
+// ever call PostVsyncStart / WaitGS / MainLoop.  This is the libretro
+// single-threaded topology: EE and GS processing alternate on the same
+// thread inside retro_run().  Must be called before the first WaitGS.
+void MTGS::MarkSingleThreaded()
+{
+	s_single_threaded = true;
+	s_thread = std::this_thread::get_id();
+}
+
 // Waits for the GS to empty out the entire ring buffer contents.
 // This function is allowed to exit after MTGS finished a path1 packet.
 // If isMTVU, then this implies this function is being called from the MTVU thread...
 void MTGS::WaitGS(bool isMTVU)
 {
-	if(std::this_thread::get_id() == s_thread)
+	if (s_single_threaded || std::this_thread::get_id() == s_thread)
 	{
 		MainLoop(true);
 		return;

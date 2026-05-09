@@ -224,6 +224,11 @@ namespace MTGS
 
 	// Waits for the GS to empty out the entire ring buffer contents.
 	void WaitGS(bool isMTVU);
+
+	// Mark the calling thread as the only thread that will ever drive GS
+	// processing (single-threaded libretro topology).  Safe to call multiple
+	// times; only the first call matters.
+	void MarkSingleThreaded();
 	void ResetGS(bool hardware_reset);
 
 	void WaitForClose();
