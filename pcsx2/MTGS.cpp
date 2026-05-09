@@ -108,18 +108,22 @@ void MTGS::PostVsyncStart()
 
 	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
 
+	// Signal work before WaitGS so that MainLoop(true) -- which starts
+	// with CheckForWork() -- sees the VSYNC (and any prior GSPACKETs)
+	// in the ring and processes them.  In the 2-thread model this is
+	// redundant with the NotifyOfWork inside WaitGS(false), but is
+	// harmless (the semaphore can absorb extra posts).
+	s_sem_event.NotifyOfWork();
+
 	// Remove extra frame input lag
 	WaitGS(false);
 
-	// In the single-threaded libretro topology, WaitGS on the same thread
-	// called MainLoop(true) which processed the ring and rendered the frame.
-	// Bounce out of VMManager::Execute() so retro_run can deliver the frame.
+	// In the single-threaded libretro topology, WaitGS already called
+	// MainLoop(true) which drained the ring and rendered the frame.
+	// Bounce out of VMManager::Execute() so retro_run can deliver
+	// the frame and upload audio.
 	if (s_single_threaded)
 		Cpu->ExitExecution();
-
-	// Vsyncs should always start the GS thread, regardless of how little has actually be queued.
-	s_sem_event.NotifyOfWork();
-
 }
 
 void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
@@ -217,7 +221,10 @@ void MTGS::MainLoop(bool flush_all)
 					break;
 				case GS_RINGTYPE_VSYNC:
 					// CSR & 0x2000; is the pageflip id.
-					if(!flush_all)
+					// flush_all=true skips GSvsync in the 2-thread model (drain
+					// without render during reset/pause), but in single-threaded
+					// mode MainLoop(true) IS the render path -- call GSvsync.
+					if(!flush_all || s_single_threaded)
 						GSvsync((((u32&)PS2MEM_GS[0x1000]) & 0x2000) ? 0 : 1, s_GSRegistersWritten);
 					s_GSRegistersWritten = false;
 					break;
@@ -278,6 +285,12 @@ void MTGS::WaitGS(bool isMTVU)
 {
 	if (s_single_threaded || std::this_thread::get_id() == s_thread)
 	{
+		// In single-threaded mode MainLoop(true) starts with CheckForWork,
+		// which returns false unless work was externally signaled (e.g. by
+		// PostVsyncStart).  Other callers (InitAndReadFIFO, VMManager,
+		// Gif_Unit) call WaitGS without a prior NotifyOfWork, so signal now
+		// to guarantee the ring is drained.
+		s_sem_event.NotifyOfWork();
 		MainLoop(true);
 		return;
 	}
