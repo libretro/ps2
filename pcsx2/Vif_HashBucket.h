@@ -79,11 +79,16 @@ public:
 		nVifBlock* chainpos = m_bucket[dataPtr.hash_key];
 		for (;;)
 		{
-			if (chainpos->key0 == dataPtr.key0 && chainpos->key1 == dataPtr.key1)
-				return chainpos;
-
+			// The empty-cell sentinel must be tested before the key compare:
+			// it is all-zero, so an all-zero key query (doMask=0 makes key0==0;
+			// key1==0 with mode/aligned/cl/wl all zero, e.g. STCYCL cl=0 wl=0)
+			// would otherwise match the sentinel itself and hand the caller a
+			// block with no code behind it.
 			if (chainpos->startOffset == 0)
 				return nullptr;
+
+			if (chainpos->key0 == dataPtr.key0 && chainpos->key1 == dataPtr.key1)
+				return chainpos;
 
 			chainpos++;
 		}
