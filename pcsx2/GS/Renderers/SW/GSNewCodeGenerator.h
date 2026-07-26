@@ -19,7 +19,19 @@
 
 #include <cpuinfo.h>
 
+#if defined(__GNUC__) && !defined(__clang__)
+// GCC's -Warray-bounds flags the isMEM()-guarded Operand -> Address downcast
+// in opModRM/opModM when a register temporary is passed by const Operand&
+// (e.g. test(reg, reg)): the speculative Address::mode_ access is reported
+// against the smaller Reg object even though the branch is dead for
+// registers. False positive; suppress for this third-party header only.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 #include <xbyak/xbyak.h>
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 #include "../../MultiISA.h"
 
