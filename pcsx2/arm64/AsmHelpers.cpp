@@ -68,10 +68,10 @@ const vixl::aarch64::VRegister& armQRegister(int n)
 
 namespace a64 = vixl::aarch64;
 
-thread_local a64::MacroAssembler* armAsm;
-thread_local u8* armAsmPtr;
-thread_local size_t armAsmCapacity;
-thread_local ArmConstantPool* armConstantPool;
+thread_local a64::MacroAssembler* armAsm PCSX2_TLS_INITIAL_EXEC;
+thread_local u8* armAsmPtr PCSX2_TLS_INITIAL_EXEC;
+thread_local size_t armAsmCapacity PCSX2_TLS_INITIAL_EXEC;
+thread_local ArmConstantPool* armConstantPool PCSX2_TLS_INITIAL_EXEC;
 
 #ifdef INCLUDE_DISASSEMBLER
 static std::mutex armDisasmMutex;

@@ -77,6 +77,18 @@
 // --------------------------------------------------------------------------------------
 //  Microsoft Visual Studio
 // --------------------------------------------------------------------------------------
+// Initial-exec TLS model: one GOT load + fs/tpidr-relative access instead of
+// a __tls_get_addr resolver call on every access (general-dynamic is the
+// -fPIC default). Used for the emitter write cursors, which are touched
+// multiple times per emitted instruction during recompilation bursts. Safe
+// for a dlopen'd core: glibc reserves static-TLS surplus for exactly this.
+// No-op on MSVC, whose TLS never goes through a resolver call.
+#if defined(_MSC_VER)
+	#define PCSX2_TLS_INITIAL_EXEC
+#else
+	#define PCSX2_TLS_INITIAL_EXEC __attribute__((tls_model("initial-exec")))
+#endif
+
 #ifdef _MSC_VER
 
 #ifndef __noinline

@@ -27,8 +27,8 @@ enum XMMSSEType
 	XMMT_FPS = 1  // floating point
 };
 
-extern thread_local u8* x86Ptr;
-extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM];
+extern thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC;
+extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC;
 
 // Retrieves the current emitter buffer target address.
 // This is provided instead of using x86Ptr directly, since we may in the future find

@@ -63,10 +63,10 @@ class ArmConstantPool;
 
 static const u32 SP_SCRATCH_OFFSET = 0;
 
-extern thread_local vixl::aarch64::MacroAssembler* armAsm;
-extern thread_local u8* armAsmPtr;
-extern thread_local size_t armAsmCapacity;
-extern thread_local ArmConstantPool* armConstantPool;
+extern thread_local vixl::aarch64::MacroAssembler* armAsm PCSX2_TLS_INITIAL_EXEC;
+extern thread_local u8* armAsmPtr PCSX2_TLS_INITIAL_EXEC;
+extern thread_local size_t armAsmCapacity PCSX2_TLS_INITIAL_EXEC;
+extern thread_local ArmConstantPool* armConstantPool PCSX2_TLS_INITIAL_EXEC;
 
 static __fi bool armHasBlock()
 {

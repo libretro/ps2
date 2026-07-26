@@ -62,8 +62,8 @@
 #define ModRM(mod, reg, rm) xWrite8(((mod) << 6) | ((reg) << 3) | (rm))
 #define SibSB(ss, index, base) xWrite8(((ss) << 6) | ((index) << 3) | (base))
 
-thread_local u8* x86Ptr;
-thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] = {XMMT_INT};
+thread_local u8* x86Ptr PCSX2_TLS_INITIAL_EXEC;
+thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC = {XMMT_INT};
 
 namespace x86Emitter
 {
