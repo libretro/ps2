@@ -402,7 +402,7 @@ float GSState::GetTvRefreshRate()
 	return 0;
 }
 
-__inline void GSState::CheckFlushes()
+__noinline void GSState::CheckFlushes()
 {
 	if (m_dirty_gs_regs && m_index.tail > 0)
 	{
@@ -2952,7 +2952,7 @@ __forceinline void GSState::CheckCLUTValidity(u32 prim)
 }
 
 template<u32 prim, bool index_swap>
-__forceinline void GSState::HandleAutoFlush()
+__noinline void GSState::HandleAutoFlush()
 {
 	// Kind of a cheat, making the assumption that 2 consecutive fan/strip triangles won't overlap each other (*should* be safe)
 	if ((m_index.tail & 1) && (prim == GS_TRIANGLESTRIP || prim == GS_TRIANGLEFAN) && !m_texflush_flag)
