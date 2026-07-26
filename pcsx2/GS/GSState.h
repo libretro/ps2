@@ -135,6 +135,12 @@ protected:
 
 	GSVertex m_v = {};
 	float m_q = 1.0f;
+	// Hot per-vertex/per-handler flags, placed in the alignment hole after m_q
+	// so they share a cache line with m_q and the scissor cull constants
+	// instead of living ~36KB away next to m_env/m_prev_env.
+	u32 m_dirty_gs_regs = 0;
+	bool m_scissor_invalid = false;
+	bool m_nativeres = false;
 	GSVector4i m_scissor_cull_min = {};
 	GSVector4i m_scissor_cull_max = {};
 	GSVector4i m_xyof = {};
@@ -252,14 +258,11 @@ public:
 	static void GetQuadRasterizedPoints(GSVector4& xy, bool keep_order = true);
 	static void GetQuadRasterizedPoints(GSVector4& xy, GSVector4& tex, bool keep_order = true);
 
-	bool m_scissor_invalid = false;
-	bool m_nativeres = false;
 	bool m_mipmap = false;
 	bool m_texflush_flag = false;
 	bool m_isPackedUV_HackFlag = false;
 	bool m_channel_shuffle = false;
 	u8 m_scanmask_used = 0;
-	u32 m_dirty_gs_regs = 0;
 	int m_backed_up_ctx = 0;
 	std::vector<GSUploadQueue> m_draw_transfers;
 	NoGapsType m_primitive_covers_without_gaps;
