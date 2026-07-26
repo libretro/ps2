@@ -780,6 +780,17 @@ ifeq ($(IS_X86),1)
    CXXFLAGS += -msse -msse2 -msse4.1 -mfxsr -msse3
 endif
 
+# GCC >= 12 refuses always_inline on exported (non-hidden) functions when
+# building PIC, because ELF semantic interposition could replace the body at
+# link time; vtlb.cpp (vtlb_ReassignHandler) and Counters.cpp (rcntRcount)
+# fail to build with GCC 13 as a result. A libretro core never relies on
+# symbol interposition, so disable interposition semantics whenever we build
+# PIC with gcc/clang. MSVC platforms never set fpic, so no gating is needed
+# beyond this.
+ifneq (,$(fpic))
+   fpic += -fno-semantic-interposition
+endif
+
 LDFLAGS += $(fpic) $(SHARED)
 FLAGS   += $(fpic) $(INCFLAGS)
 
