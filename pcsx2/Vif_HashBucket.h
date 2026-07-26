@@ -32,7 +32,7 @@ union nVifBlock
 		u8 aligned;    // [09] Packet Alignment
 		u8 cl;         // [10] CL Field
 		u8 wl;         // [11] WL Field
-		uptr startPtr; // [12] Start Ptr of RecGen Code
+		u32 startOffset; // [12] +1-biased offset of RecGen Code in the rec reserve; 0 = empty cell
 	};
 
 	struct
@@ -41,10 +41,12 @@ union nVifBlock
 		u16 _pad0;
 		u32 key0;
 		u32 key1;
-		uptr value;
+		u32 value;
 	};
 
-}; // 16 bytes
+}; // 16 bytes -- 4 entries per 64B cache line during chain walks in find().
+   // Previously startPtr was a uptr, padding the struct to 24 bytes on 64-bit
+   // hosts (2.6 entries/line, defeating the 64B bucket alignment below).
 
 // 0x4000 is enough but 0x10000 allow
 // * to skip the compare value of the first double world in lookup
@@ -80,7 +82,7 @@ public:
 			if (chainpos->key0 == dataPtr.key0 && chainpos->key1 == dataPtr.key1)
 				return chainpos;
 
-			if (chainpos->startPtr == 0)
+			if (chainpos->startOffset == 0)
 				return nullptr;
 
 			chainpos++;
@@ -110,7 +112,7 @@ public:
 
 		u32 size = 0;
 
-		while (chainpos->startPtr != 0)
+		while (chainpos->startOffset != 0)
 		{
 			size++;
 			chainpos++;

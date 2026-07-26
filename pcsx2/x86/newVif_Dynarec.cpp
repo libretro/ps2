@@ -316,7 +316,8 @@ _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)
 	// Compile the block now
 	xSetPtr(v.recWritePtr);
 
-	block.startPtr = (uptr)xGetAlignedCallTarget();
+	// +1 bias keeps 0 as the empty-cell sentinel; reserve is 8MB so u32 always fits
+	block.startOffset = (u32)((u8*)xGetAlignedCallTarget() - v.recReserve->GetPtr()) + 1;
 	block.length = dVifComputeLength(block.cl, block.wl, block.num, isFill);
 	v.vifBlocks.add(block);
 
@@ -372,7 +373,7 @@ _vifT __fi void dVifUnpack(const u8* data, bool isFill)
 
 		// No wrapping, you can run the fast dynarec
 		if (likely((startmem + b->length) <= endmem))
-			((nVifrecCall)b->startPtr)((uptr)startmem, (uptr)data);
+			((nVifrecCall)(v.recReserve->GetPtr() + (b->startOffset - 1)))((uptr)startmem, (uptr)data);
 		else
 			_nVifUnpack(idx, data, vifRegs.mode, isFill);
 	}
