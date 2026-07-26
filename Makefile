@@ -464,8 +464,8 @@ else
             -D_WIN32_WINNT=0x0A00 \
             -DWINVER=0x0A00 \
             -DNTDDI_VERSION=0x0A000006 \
-            -DWIN32_LEAN_AND_MEAN \
-            -DNOMINMAX \
+            -DWIN32_LEAN_AND_MEAN= \
+            -DNOMINMAX= \
             -DUNICODE -D_UNICODE \
             -D_HAS_EXCEPTIONS=0 \
             -D_ITERATOR_DEBUG_LEVEL=0 \
@@ -809,7 +809,7 @@ ifneq (,$(findstring windows_msvc2017,$(platform)))
             -D_CRT_NONSTDC_NO_DEPRECATE \
             -D__ORDER_LITTLE_ENDIAN__ \
             -D__BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__ \
-            -DNOMINMAX \
+            -DNOMINMAX= \
             //utf-8 \
             //std:c++17
             ifeq (,$(findstring windows_msvc2017_uwp,$(platform)))
