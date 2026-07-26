@@ -226,46 +226,46 @@ void GSRendererHW::Lines2Sprites()
 
 		for (; i >= 0; i -= 4, s -= 2, q -= 4, index -= 6)
 		{
-			GSVertex v0 = s[0];
-			GSVertex v1 = s[1];
+			// Keep all four vertex halves in vector registers and express the
+			// field merges and the X/S/U swaps as dword/word blends. The
+			// previous field-by-field form mutated two stack copies of
+			// GSVertex through mixed u16/float accesses, forcing ~50 stack
+			// spill ops per iteration of this per-primitive loop.
+			//
+			// Layout reminder: m[0] = [S T | RGBA Q], m[1] = [XY Z | UV FOG];
+			// X is word 0 of m[1], U is word 4, S is dword 0 of m[0].
+			const GSVector4i a0(s[0].m[0]);
+			const GSVector4i a1(s[0].m[1]);
+			const GSVector4i b0(s[1].m[0]);
+			const GSVector4i b1(s[1].m[1]);
 
-			v0.RGBAQ = v1.RGBAQ;
-			v0.XYZ.Z = v1.XYZ.Z;
-			v0.FOG = v1.FOG;
-
+			GSVector4i A0, B0;
 			if (predivide_q)
 			{
-				const GSVector4 st0 = GSVector4::loadl(&v0.ST.U64);
-				const GSVector4 st1 = GSVector4::loadl(&v1.ST.U64);
-				const GSVector4 Q = GSVector4(v1.RGBAQ.Q, v1.RGBAQ.Q, v1.RGBAQ.Q, v1.RGBAQ.Q);
-				const GSVector4 st = st0.upld(st1) / Q;
-
-				GSVector4::storel(&v0.ST.U64, st);
-				GSVector4::storeh(&v1.ST.U64, st);
-
-				v0.RGBAQ.Q = 1.0f;
-				v1.RGBAQ.Q = 1.0f;
+				const GSVector4 Q = GSVector4::cast(b0).wwww();
+				const GSVector4 st = GSVector4::cast(a0).upld(GSVector4::cast(b0)) / Q;
+				// v1 keeps its RGBA; both vertices get Q = 1.0f
+				const GSVector4i bq1 = b0.blend32<8>(GSVector4i::cast(GSVector4(1.0f)));
+				A0 = GSVector4i::cast(st).blend32<12>(bq1);
+				B0 = GSVector4i::cast(st.zwzw()).blend32<12>(bq1);
 			}
+			else
+			{
+				A0 = a0.blend32<12>(b0); // v0 takes v1's RGBAQ
+				B0 = b0;
+			}
+			const GSVector4i A1 = a1.blend32<10>(b1); // v0 takes v1's Z and FOG
+			const GSVector4i B1 = b1;
 
-			q[0] = v0;
-			q[3] = v1;
-
-			// swap x, s, u
-
-			const u16 x = v0.XYZ.X;
-			v0.XYZ.X = v1.XYZ.X;
-			v1.XYZ.X = x;
-
-			const float v0_st_s = v0.ST.S;
-			v0.ST.S = v1.ST.S;
-			v1.ST.S = v0_st_s;
-
-			const u16 u = v0.U;
-			v0.U = v1.U;
-			v1.U = u;
-
-			q[1] = v0;
-			q[2] = v1;
+			GSVector4i* RESTRICT qv = (GSVector4i*)q;
+			qv[0] = A0;                    // q[0] = v0
+			qv[1] = A1;
+			qv[2] = A0.blend32<1>(B0);     // q[1] = v0 with v1's S...
+			qv[3] = A1.blend16<0x11>(B1);  // ...X and U
+			qv[4] = B0.blend32<1>(A0);     // q[2] = v1 with v0's S...
+			qv[5] = B1.blend16<0x11>(A1);  // ...X and U
+			qv[6] = B0;                    // q[3] = v1
+			qv[7] = B1;
 
 			const GSVector4i this_indices = GSVector4i::broadcast16(i).add16(indices);
 			const int high = this_indices.extract32<2>();
