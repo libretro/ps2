@@ -16,6 +16,20 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/file_stream.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/time/rtime.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/vfs/vfs_implementation.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/vfs/vfs_hybrid.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/file/retro_dirent.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/features/features_cpu.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/chd/rchd.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/flac/rflac.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/7z/r7z_lzma.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_rzstd.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_huffman.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_deflate.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/encodings/encoding_crc32.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/formats/png/rpng.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream_deflate.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream_pipe.c
 )
 
 target_link_libraries(pcsx2_libretro PRIVATE

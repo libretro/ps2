@@ -4,20 +4,12 @@
 if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
 	find_package(Git)
 endif()
-if(APPLE)
-	find_package(ZLIB REQUIRED)
-	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
-else()
-	add_subdirectory(3rdparty/libpng EXCLUDE_FROM_ALL)
-	add_subdirectory(3rdparty/zlib EXCLUDE_FROM_ALL)
-endif()
+# zlib and libpng are gone: every former consumer decodes through
+# libretro-common (rinflate/rpng), compiled into the libretro target.
 if (WIN32)
 	# We bundle everything on Windows
 	add_subdirectory(3rdparty/D3D12MemAlloc EXCLUDE_FROM_ALL)
 else()
-	find_package(LibLZMA REQUIRED)
-	make_imported_target_if_missing(LibLZMA::LibLZMA LIBLZMA)
-
 	# Using find_package OpenGL without either setting your opengl preference to GLVND or LEGACY
 	# is deprecated as of cmake 3.11.
 	if(USE_OPENGL)
@@ -54,15 +46,9 @@ if((GCC_VERSION VERSION_EQUAL "9.0" OR GCC_VERSION VERSION_GREATER "9.0") AND GC
 endif()
 
 find_optional_system_library(ryml 3rdparty/rapidyaml/rapidyaml 0.11.1)
-find_optional_system_library(zstd 3rdparty/zstd 1.4.5)
-if (${zstd_TYPE} STREQUAL System)
-	alias_library(Zstd::Zstd zstd::libzstd_shared)
-	alias_library(pcsx2-zstd zstd::libzstd_shared)
-endif()
-find_optional_system_library(libzip 3rdparty/libzip 1.8.0)
-
-add_subdirectory(3rdparty/lzma EXCLUDE_FROM_ALL)
-add_subdirectory(3rdparty/chdr EXCLUDE_FROM_ALL)
+# zstd, libzip, lzma, and chdr are gone with their vendored trees: CHD
+# decodes through rchd, ZIP members and CSO/gz through rinflate, all in
+# libretro-common (see libretro/CMakeLists.txt for the source list).
 
 # rapidyaml includes fast_float as a submodule, saves us pulling it in directly.
 # Normally, we'd just pull in the cmake project, and link to it, but... it seems to enable

@@ -864,13 +864,8 @@ endif()
 target_link_libraries(PCSX2_FLAGS INTERFACE
 	common
 	ryml
-	chdr-static
-	libzip::zip
 	cpuinfo
-	ZLIB::ZLIB
 	LZ4::LZ4
-	PNG::PNG
-	Zstd::Zstd
 	${LIBC_LIBRARIES}
 )
 

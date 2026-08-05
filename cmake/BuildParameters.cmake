@@ -16,8 +16,6 @@ set(CMAKE_BUILD_PO FALSE)
 set(USE_SYSTEM_LIBS OFF)
 add_definitions(-D__LIBRETRO__)
 optional_system_library(ryml)
-optional_system_library(zstd)
-optional_system_library(libzip)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 option(LTO_PCSX2_CORE "Enable LTO/IPO/LTCG on the subset of pcsx2 that benefits most from it but not anything else")
 #-------------------------------------------------------------------------------
