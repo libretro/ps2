@@ -61,7 +61,30 @@ protected:
 
 	ThreadedFileReader();
 
+	/// Zero-copy span for readers whose entire logical content is
+	/// directly addressable (a memory-mapped flat file).  When set (by
+	/// the subclass during Open2), reads bypass the worker thread, the
+	/// mutex, and the staging buffers entirely: a read is one memcpy
+	/// from the page cache on the calling thread.  The worker thread is
+	/// then never even started - readahead is the kernel's job for
+	/// mapped files, and a thread that exists to hide synchronous I/O
+	/// latency has nothing to hide when there is no I/O.
+	void SetDirectSpan(const void* base, u64 size)
+	{
+		m_direct     = static_cast<const u8*>(base);
+		m_directSize = size;
+	}
+
 private:
+	const u8* m_direct = nullptr;
+	u64 m_directSize   = 0;
+	int m_directAmt    = 0;
+	bool m_threadStarted = false;
+	/// Start the worker thread on first need (never for direct readers)
+	void StartThread();
+	/// Direct-span read: clamped memcpy, returns bytes copied
+	int DirectRead(void* dst, u64 offset, u32 size);
+
 	int m_amtRead;
 	/// Pointer to read into
 	/// If null when m_requestSize > 0, indicates a request for readahead only

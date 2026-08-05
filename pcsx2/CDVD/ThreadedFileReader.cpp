@@ -24,17 +24,35 @@
 // If buffers are smaller than that, we can't keep up with linear reads
 static constexpr u32 MINIMUM_SIZE = 128 * 1024;
 
-ThreadedFileReader::ThreadedFileReader()
+ThreadedFileReader::ThreadedFileReader() = default;
+
+void ThreadedFileReader::StartThread()
 {
+	if (m_threadStarted)
+		return;
+	m_threadStarted = true;
 	m_readThread = std::thread([](ThreadedFileReader* r){ r->Loop(); }, this);
+}
+
+int ThreadedFileReader::DirectRead(void* dst, u64 offset, u32 size)
+{
+	if (offset >= m_directSize)
+		return 0;
+	const u64 avail = m_directSize - offset;
+	const u32 len   = static_cast<u32>(std::min<u64>(size, avail));
+	memcpy(dst, m_direct + offset, len);
+	return static_cast<int>(len);
 }
 
 ThreadedFileReader::~ThreadedFileReader()
 {
 	m_quit = true;
-	(void)std::lock_guard<std::mutex>{m_mtx};
-	m_condition.notify_one();
-	m_readThread.join();
+	if (m_threadStarted)
+	{
+		(void)std::lock_guard<std::mutex>{m_mtx};
+		m_condition.notify_one();
+		m_readThread.join();
+	}
 	for (auto& buffer : m_buffer)
 		if (buffer.ptr)
 			free(buffer.ptr);
@@ -306,7 +324,16 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, co
 bool ThreadedFileReader::Open(std::string filename)
 {
 	CancelAndWaitUntilStopped();
-	return Open2(std::move(filename));
+	m_direct     = nullptr;
+	m_directSize = 0;
+	const bool ok = Open2(std::move(filename));
+	/* A direct (mapped) reader never needs the worker: its reads are
+	   page-cache memcpys on the calling thread.  Everyone else gets
+	   the thread here instead of at construction, so direct readers
+	   cost neither the thread nor the staging buffers. */
+	if (ok && !(m_direct && !m_internalBlockSize))
+		StartThread();
+	return ok;
 }
 
 int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
@@ -314,6 +341,8 @@ int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
 	u32 blocksize = m_internalBlockSize ? m_internalBlockSize : m_blocksize;
 	u64 offset    = (u64)sector * (u64)blocksize + m_dataoffset;
 	u32 size      = count * blocksize;
+	if (m_direct && !m_internalBlockSize)
+		return DirectRead(pBuffer, offset, size);
 	{
 		std::lock_guard<std::mutex> l(m_mtx);
 		if (TryCachedRead(pBuffer, offset, size, l))
@@ -352,6 +381,8 @@ int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
 
 void ThreadedFileReader::CancelAndWaitUntilStopped(void)
 {
+	if (!m_threadStarted)
+		return;
 	m_requestCancelled.store(true, std::memory_order_relaxed);
 	std::unique_lock<std::mutex> lock(m_mtx);
 
@@ -368,6 +399,13 @@ void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
 	s32 blocksize = m_internalBlockSize ? m_internalBlockSize : m_blocksize;
 	u64 offset    = (u64)sector * (u64)blocksize + m_dataoffset;
 	u32 size      = count * blocksize;
+	if (m_direct && !m_internalBlockSize)
+	{
+		/* Synchronous by construction: one memcpy now is cheaper than
+		   a handoff to a thread whose only job would be that memcpy. */
+		m_directAmt = DirectRead(pBuffer, offset, size);
+		return;
+	}
 	{
 		std::lock_guard<std::mutex> l(m_mtx);
 		if (TryCachedRead(pBuffer, offset, size, l))
@@ -392,6 +430,8 @@ void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
 
 int ThreadedFileReader::FinishRead(void)
 {
+	if (m_direct && !m_internalBlockSize)
+		return m_directAmt;
 	if (m_requestPtr.load(std::memory_order_acquire) == nullptr)
 		return m_amtRead;
 	std::unique_lock<std::mutex> lock(m_mtx);
@@ -402,6 +442,8 @@ int ThreadedFileReader::FinishRead(void)
 
 void ThreadedFileReader::CancelRead(void)
 {
+	if (m_direct && !m_internalBlockSize)
+		return;
 	if (m_requestPtr.load(std::memory_order_acquire) == nullptr)
 		return;
 	m_requestCancelled.store(true, std::memory_order_release);

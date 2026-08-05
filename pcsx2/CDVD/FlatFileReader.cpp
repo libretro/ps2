@@ -5,6 +5,8 @@
 
 #include "../../common/FileSystem.h"
 
+#include <streams/file_stream.h>
+
 #include <algorithm> /* std::min */
 #include <cstring>
 
@@ -20,7 +22,16 @@ FlatFileReader::~FlatFileReader()
 bool FlatFileReader::Open2(std::string filename)
 {
 	m_filename = std::move(filename);
-	if (!(m_file = FileSystem::OpenFile(m_filename.c_str(), "rb")))
+	/* FREQUENT_ACCESS invites the local VFS to memory-map: an ISO is
+	   read sector-by-sector for the whole session.  A mapping turns
+	   every read into a page-cache memcpy on the calling thread and
+	   lets the base class skip its worker thread and staging buffers
+	   entirely; without one, the threaded chunk path below runs
+	   exactly as before. */
+	m_file = filestream_open(m_filename.c_str(),
+			RETRO_VFS_FILE_ACCESS_READ,
+			RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS);
+	if (!m_file)
 		return false;
 
 	const s64 filesize = FileSystem::FSize64(m_file);
@@ -31,6 +42,13 @@ bool FlatFileReader::Open2(std::string filename)
 	}
 
 	m_file_size = static_cast<u64>(filesize);
+
+	{
+		int64_t maplen = 0;
+		const uint8_t* base = filestream_get_mapped_ptr(m_file, &maplen);
+		if (base && maplen >= filesize)
+			SetDirectSpan(base, m_file_size);
+	}
 	return true;
 }
 
