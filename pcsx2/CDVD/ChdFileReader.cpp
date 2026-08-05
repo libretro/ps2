@@ -1,16 +1,7 @@
 /*  PCSX2 - PS2 Emulator for PCs
- *  Copyright (C) 2002-2021  PCSX2 Dev Team
+ *  Copyright (C) 2002-2024 PCSX2 Dev Team
  *
- *  PCSX2 is free software: you can redistribute it and/or modify it under the terms
- *  of the GNU Lesser General Public License as published by the Free Software Found-
- *  ation, either version 3 of the License, or (at your option) any later version.
- *
- *  PCSX2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- *  PURPOSE.  See the GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along with PCSX2.
- *  If not, see <http://www.gnu.org/licenses/>.
+ *  SPDX-License-Identifier: LGPL-3.0+
  */
 
 #include "ChdFileReader.h"
@@ -23,151 +14,230 @@
 #include <file/file_path.h>
 #include <streams/file_stream.h>
 #include <string/stdstring.h>
+#include <formats/rchd.h>
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-function"
-#endif
-#include "libchdr/chd.h"
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+#include <cstring>
+
+/* Scratch for unmapped feeds.  One hunk-sized request is the largest
+ * thing rchd ever asks for, but requests are re-issued on short supply,
+ * so a fixed chunk is fine and keeps this off the stack. */
+static constexpr size_t FEED_CHUNK = 64 * 1024;
 
 ChdFileReader::ChdFileReader() = default;
 
 ChdFileReader::~ChdFileReader()
 {
+	/* Close() (and thus Close2()) runs from the base class path, but a
+	   reader destroyed without Close() must still release the chain. */
+	Close2();
 }
 
 bool ChdFileReader::CanHandle(const std::string& fileName, const std::string& displayName)
 {
-	if (!StringUtil::EndsWith(displayName, ".chd"))
-		return false;
-
-	return true;
+	return StringUtil::EndsWith(displayName, ".chd");
 }
 
-static chd_error chd_open_wrapper(const char* filename, RFILE** fp, int mode, chd_file* parent, chd_file** chd)
+/* Feed one outstanding request cycle.  Mapped sources feed straight
+ * from the mapping - the decoder consumes bytes in place, so a mapped
+ * image never copies compressed data at all.  Unmapped sources go
+ * through a bounded scratch buffer; short feeds are legal and rchd
+ * simply re-requests the remainder. */
+bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& parent)
 {
-	*fp = FileSystem::OpenFile(filename, "rb");
-	if (!*fp)
-		return CHDERR_FILE_NOT_FOUND;
+	rchd_request_t req;
+	uint8_t scratch[FEED_CHUNK];
 
-	const chd_error err = chd_open_file(*fp, mode, parent, chd);
-	if (err == CHDERR_NONE)
-		return err;
+	for (;;)
+	{
+		const int err = rchd_read_step(chd, &req);
+		if (err == RCHD_OK)
+			return true;
+		if (err != RCHD_PENDING)
+		{
+			Console.Error("CDVD: rchd read error %d", err);
+			return false;
+		}
 
-	rfclose(*fp);
-	*fp = nullptr;
-	return err;
+		const Source& src = (req.source == RCHD_SOURCE_PARENT) ? parent : self;
+		if (src.base)
+		{
+			if (req.offset >= static_cast<uint64_t>(src.len))
+				return false;
+			const uint64_t avail = static_cast<uint64_t>(src.len) - req.offset;
+			const size_t   n     = static_cast<size_t>(std::min<uint64_t>(req.length, avail));
+			if (rchd_feed(chd, src.base + req.offset, n) < 0)
+				return false;
+		}
+		else
+		{
+			if (!src.fp)
+				return false;
+			if (filestream_seek(src.fp, static_cast<int64_t>(req.offset), RETRO_VFS_SEEK_POSITION_START) != 0)
+				return false;
+			const size_t  want = std::min<size_t>(req.length, FEED_CHUNK);
+			const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
+			if (got <= 0)
+				return false;
+			if (rchd_feed(chd, scratch, static_cast<size_t>(got)) < 0)
+				return false;
+		}
+	}
+}
+
+bool ChdFileReader::OpenOne(const std::string& path, rchd_t** out_chd, Source* out_src)
+{
+	Source src;
+	src.fp = filestream_open(path.c_str(),
+			RETRO_VFS_FILE_ACCESS_READ,
+			RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS);
+	if (!src.fp)
+		return false;
+	src.base = filestream_get_mapped_ptr(src.fp, &src.len);
+	if (src.base && src.len <= 0)
+		src.base = nullptr;
+
+	rchd_t* chd = rchd_new();
+	if (!chd)
+	{
+		filestream_close(src.fp);
+		return false;
+	}
+
+	/* The open is the same pull loop as a read, without a parent: a
+	   header, map, or metadata byte can only live in the file itself. */
+	rchd_request_t req;
+	uint8_t scratch[FEED_CHUNK];
+	for (;;)
+	{
+		const int err = rchd_open_step(chd, &req);
+		if (err == RCHD_OK)
+			break;
+		if (err != RCHD_PENDING)
+		{
+			rchd_free(chd);
+			filestream_close(src.fp);
+			return false;
+		}
+		if (src.base)
+		{
+			if (req.offset >= static_cast<uint64_t>(src.len))
+			{
+				rchd_free(chd);
+				filestream_close(src.fp);
+				return false;
+			}
+			const uint64_t avail = static_cast<uint64_t>(src.len) - req.offset;
+			rchd_feed(chd, src.base + req.offset,
+					static_cast<size_t>(std::min<uint64_t>(req.length, avail)));
+		}
+		else
+		{
+			if (filestream_seek(src.fp, static_cast<int64_t>(req.offset), RETRO_VFS_SEEK_POSITION_START) != 0)
+			{
+				rchd_free(chd);
+				filestream_close(src.fp);
+				return false;
+			}
+			const size_t  want = std::min<size_t>(req.length, FEED_CHUNK);
+			const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
+			if (got <= 0)
+			{
+				rchd_free(chd);
+				filestream_close(src.fp);
+				return false;
+			}
+			rchd_feed(chd, scratch, static_cast<size_t>(got));
+		}
+	}
+
+	*out_chd = chd;
+	*out_src = src;
+	return true;
 }
 
 bool ChdFileReader::Open2(std::string fileName)
 {
 	Close2();
-
 	m_filename = std::move(fileName);
 
-	chd_file* child = nullptr;
-	chd_file* parent = nullptr;
-	RFILE* fp = nullptr;
-	chd_header header;
-	chd_header parent_header;
+	rchd_t* chd = nullptr;
+	Source src;
+	if (!OpenOne(m_filename, &chd, &src))
+	{
+		Console.Error("CDVD: failed to open CHD: %s", m_filename.c_str());
+		return false;
+	}
+	m_chds.push_back(chd);
+	m_srcs.push_back(src);
 
-	std::string chds[8];
-	chds[0] = m_filename;
-	int chd_depth = 0;
-	chd_error error;
-
+	/* Resolve the parent chain by SHA-1, the same directory scan the
+	   libchdr path did - but the match test is the decoder's own
+	   (rchd_parent_sha1_matches), and a wrong parent is rejected here
+	   instead of decoding to plausible garbage. */
 	std::string dirname;
 	FileSystem::FindResultsArray results;
-
-	while (CHDERR_REQUIRES_PARENT == (error = chd_open_wrapper(chds[chd_depth].c_str(), &fp, CHD_OPEN_READ, nullptr, &child)))
+	while (rchd_info(m_chds.back())->has_parent)
 	{
-		if (chd_depth >= static_cast<int>(std::size(chds) - 1))
+		if (m_chds.size() >= 8)
 		{
-			Console.Error("CDVD: chd_open hit recursion limit searching for parents");
+			Console.Error("CDVD: CHD parent chain hit recursion limit");
+			Close2();
 			return false;
 		}
 
-		// TODO: This is still broken on Windows. Needs to be fixed in libchdr.
-		if (chd_read_header(chds[chd_depth].c_str(), &header) != CHDERR_NONE)
-		{
-			Console.Error("CDVD: chd_open chd_read_header error: %s: %s", chd_error_string(error), chds[chd_depth].c_str());
-			return false;
-		}
-
-		bool found_parent = false;
-		dirname = Path::GetDirectory(chds[chd_depth]);
-		if (FileSystem::FindFiles(dirname.c_str(), "*.*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES, &results))
+		bool found = false;
+		dirname = Path::GetDirectory(m_filename);
+		if (FileSystem::FindFiles(dirname.c_str(), "*.*",
+				FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_HIDDEN_FILES, &results))
 		{
 			for (const FILESYSTEM_FIND_DATA& fd : results)
 			{
-				const char *extension = path_get_extension(fd.FileName.c_str());
+				const char* extension = path_get_extension(fd.FileName.c_str());
 				if (string_is_empty(extension) || Strncasecmp(extension, "chd", 3) != 0)
 					continue;
 
-				if (chd_read_header(fd.FileName.c_str(), &parent_header) == CHDERR_NONE &&
-					memcmp(parent_header.sha1, header.parentsha1, sizeof(parent_header.sha1)) == 0)
+				rchd_t* cand = nullptr;
+				Source cand_src;
+				if (!OpenOne(fd.FileName, &cand, &cand_src))
+					continue;
+
+				if (rchd_parent_sha1_matches(m_chds.back(), rchd_info(cand)->sha1))
 				{
-					found_parent = true;
-					chds[++chd_depth] = std::move(fd.FileName);
+					rchd_set_parent(m_chds.back(), cand);
+					m_chds.push_back(cand);
+					m_srcs.push_back(cand_src);
+					found = true;
 					break;
 				}
+				rchd_free(cand);
+				filestream_close(cand_src.fp);
 			}
 		}
 
-		if (!found_parent)
+		if (!found)
 		{
-			Console.Error("CDVD: chd_open no parent for: %s", chds[chd_depth].c_str());
-			break;
-		}
-	}
-
-	if (error != CHDERR_NONE)
-	{
-		Console.Error("CDVD: chd_open return error: %s", chd_error_string(error));
-		return false;
-	}
-
-	if (child)
-		m_files.push_back(fp);
-
-	for (int d = chd_depth - 1; d >= 0; d--)
-	{
-		parent = child;
-		child = nullptr;
-		error = chd_open_wrapper(chds[d].c_str(), &fp, CHD_OPEN_READ, parent, &child);
-		if (error != CHDERR_NONE)
-		{
-			Console.Error("CDVD: chd_open return error: %s", chd_error_string(error));
-			if (parent)
-				chd_close(parent);
+			Console.Error("CDVD: no parent found for: %s", m_filename.c_str());
+			Close2();
 			return false;
 		}
-
-		m_files.push_back(fp);
 	}
-	ChdFile = child;
 
-	const chd_header* chd_header = chd_get_header(ChdFile);
-	hunk_size = chd_header->hunkbytes;
-	// CHD likes to use full 2448 byte blocks, but keeps the +24 offset of source ISOs
-	// The rest of PCSX2 likes to use 2448 byte buffers, which can't fit that so trim blocks instead
-	m_internalBlockSize = chd_header->unitbytes;
+	const rchd_info_t* info = rchd_info(m_chds[0]);
+	hunk_size = info->hunk_bytes;
+	/* CHD uses full 2448-byte units but PCSX2 passes 2448-byte buffers
+	   that can't fit a whole padded hunk; trim via internal block size,
+	   exactly as before. */
+	m_internalBlockSize = info->unit_bytes;
 
-	// The file size in the header is incorrect, each track gets padded to a multiple of 4 frames.
-	// (see chdman.cpp from MAME). Instead, we pull the real frame count from the TOC.
-	u64 total_frames;
-	if (ParseTOC(&total_frames))
-	{
-		file_size = total_frames * static_cast<u64>(chd_header->unitbytes);
-	}
+	/* Track-accurate frame count.  rchd reconstructs the TOC itself -
+	   pregap/postgap/padding resolved, DVDs synthesised as one run -
+	   which replaces the hand-rolled metadata sscanf ParseTOC and its
+	   track-1-only limitation. */
+	const u64 total_frames = rchd_total_frames(m_chds[0]);
+	if (total_frames > 0)
+		file_size = total_frames * static_cast<u64>(info->unit_bytes);
 	else
-	{
-		Console.Warning("Failed to parse CHD TOC, file size may be incorrect.");
-		file_size = static_cast<u64>(chd_header->unitbytes) * chd_header->unitcount;
-	}
+		file_size = info->logical_bytes;
 
 	return true;
 }
@@ -190,84 +260,37 @@ ThreadedFileReader::Chunk ChdFileReader::ChunkForOffset(u64 offset)
 
 int ChdFileReader::ReadChunk(void* dst, s64 chunkID)
 {
-	if (chunkID < 0)
+	if (chunkID < 0 || m_chds.empty())
 		return -1;
 
-	chd_error error = chd_read(ChdFile, chunkID, dst);
-	if (error != CHDERR_NONE)
-	{
-		Console.Error("CDVD: chd_read returned error: %s", chd_error_string(error));
+	if (rchd_read_hunk_begin(m_chds[0], static_cast<uint32_t>(chunkID), dst) != RCHD_OK)
 		return 0;
-	}
 
-	return hunk_size;
+	static const Source no_src;
+	const Source& parent = (m_srcs.size() > 1) ? m_srcs[1] : no_src;
+	if (!DriveRead(m_chds[0], m_srcs[0], parent))
+		return 0;
+
+	return static_cast<int>(hunk_size);
 }
 
 void ChdFileReader::Close2()
 {
-	if (ChdFile)
+	/* Children reference parents; free outward-in. */
+	for (size_t i = 0; i < m_chds.size(); i++)
+		rchd_free(m_chds[i]);
+	m_chds.clear();
+	for (Source& s : m_srcs)
 	{
-		chd_close(ChdFile);
-		ChdFile = nullptr;
+		if (s.fp)
+			filestream_close(s.fp);
 	}
+	m_srcs.clear();
+	file_size = 0;
+	hunk_size = 0;
 }
 
 u32 ChdFileReader::GetBlockCount() const
 {
 	return (file_size - m_dataoffset) / m_internalBlockSize;
-}
-
-bool ChdFileReader::ParseTOC(u64* out_frame_count)
-{
-	u64 total_frames = 0;
-	int max_found_track = -1;
-
-	for (int search_index = 0;; search_index++)
-	{
-		char metadata_str[256];
-		char type_str[256];
-		char subtype_str[256];
-		char pgtype_str[256];
-		char pgsub_str[256];
-		u32 metadata_length;
-
-		int track_num = 0, frames = 0, pregap_frames = 0, postgap_frames = 0;
-		chd_error err = chd_get_metadata(ChdFile, CDROM_TRACK_METADATA2_TAG, search_index, metadata_str, sizeof(metadata_str),
-			&metadata_length, nullptr, nullptr);
-		if (err == CHDERR_NONE)
-		{
-			if (std::sscanf(metadata_str, CDROM_TRACK_METADATA2_FORMAT, &track_num, type_str, subtype_str, &frames,
-				&pregap_frames, pgtype_str, pgsub_str, &postgap_frames) != 8)
-				return false;
-		}
-		else
-		{
-			// try old version
-			err = chd_get_metadata(ChdFile, CDROM_TRACK_METADATA_TAG, search_index, metadata_str, sizeof(metadata_str),
-				&metadata_length, nullptr, nullptr);
-			if (err != CHDERR_NONE)
-			{
-				// not found, so no more tracks
-				break;
-			}
-
-			if (std::sscanf(metadata_str, CDROM_TRACK_METADATA_FORMAT, &track_num, type_str, subtype_str, &frames) != 4)
-				return false;
-		}
-
-		// PCSX2 doesn't currently support multiple tracks for CDs.
-		if (track_num != 1)
-			continue;
-
-		total_frames += static_cast<u64>(pregap_frames) + static_cast<u64>(frames) + static_cast<u64>(postgap_frames);
-		max_found_track = std::max(max_found_track, track_num);
-	}
-
-	// No tracks in TOC?
-	if (max_found_track < 0)
-		return false;
-
-	// Compute total data size.
-	*out_frame_count = total_frames;
-	return true;
 }
