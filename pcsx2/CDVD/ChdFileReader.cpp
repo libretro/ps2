@@ -23,6 +23,12 @@
  * so a fixed chunk is fine and keeps this off the stack. */
 static constexpr size_t FEED_CHUNK = 64 * 1024;
 
+/* Fetches allowed in flight per read.  Only raised above the default
+   for unmapped images, where batching real I/O ahead of the decode is
+   the point; a mapped image's feeds are memcpys and staging them would
+   only spend memory (each extra slot costs a hunk of staging). */
+static constexpr uint32_t CHD_PIPELINE_DEPTH = 4;
+
 ChdFileReader::ChdFileReader() = default;
 
 ChdFileReader::~ChdFileReader()
@@ -44,11 +50,45 @@ bool ChdFileReader::CanHandle(const std::string& fileName, const std::string& di
  * simply re-requests the remainder. */
 bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& parent)
 {
+	rchd_request_t reqs[CHD_PIPELINE_DEPTH];
 	rchd_request_t req;
 	uint8_t scratch[FEED_CHUNK];
 
 	for (;;)
 	{
+		/* Gather every fetch the read can use right now and satisfy
+		   them all before decoding.  With a mapped image each feed is
+		   an in-place hand-over from the page cache; unmapped images
+		   batch their filestream reads ahead of the decode they
+		   overlap with.  Depth one degenerates to the old ping-pong. */
+		const uint32_t n = rchd_read_pending(chd, reqs, CHD_PIPELINE_DEPTH);
+		for (uint32_t i = 0; i < n; i++)
+		{
+			const Source& src = (reqs[i].source == RCHD_SOURCE_PARENT) ? parent : self;
+			if (src.base)
+			{
+				if (reqs[i].offset >= static_cast<uint64_t>(src.len))
+					return false;
+				const uint64_t avail = static_cast<uint64_t>(src.len) - reqs[i].offset;
+				const size_t   len   = static_cast<size_t>(std::min<uint64_t>(reqs[i].length, avail));
+				if (rchd_feed_at(chd, reqs[i].offset, reqs[i].source, src.base + reqs[i].offset, len) < 0)
+					return false;
+			}
+			else
+			{
+				if (!src.fp)
+					return false;
+				if (filestream_seek(src.fp, static_cast<int64_t>(reqs[i].offset), RETRO_VFS_SEEK_POSITION_START) != 0)
+					return false;
+				const size_t  want = std::min<size_t>(reqs[i].length, FEED_CHUNK);
+				const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
+				if (got <= 0)
+					return false;
+				if (rchd_feed_at(chd, reqs[i].offset, reqs[i].source, scratch, static_cast<size_t>(got)) < 0)
+					return false;
+			}
+		}
+
 		const int err = rchd_read_step(chd, &req);
 		if (err == RCHD_OK)
 			return true;
@@ -56,30 +96,6 @@ bool ChdFileReader::DriveRead(rchd_t* chd, const Source& self, const Source& par
 		{
 			Console.Error("CDVD: rchd read error %d", err);
 			return false;
-		}
-
-		const Source& src = (req.source == RCHD_SOURCE_PARENT) ? parent : self;
-		if (src.base)
-		{
-			if (req.offset >= static_cast<uint64_t>(src.len))
-				return false;
-			const uint64_t avail = static_cast<uint64_t>(src.len) - req.offset;
-			const size_t   n     = static_cast<size_t>(std::min<uint64_t>(req.length, avail));
-			if (rchd_feed(chd, src.base + req.offset, n) < 0)
-				return false;
-		}
-		else
-		{
-			if (!src.fp)
-				return false;
-			if (filestream_seek(src.fp, static_cast<int64_t>(req.offset), RETRO_VFS_SEEK_POSITION_START) != 0)
-				return false;
-			const size_t  want = std::min<size_t>(req.length, FEED_CHUNK);
-			const int64_t got  = filestream_read(src.fp, scratch, static_cast<int64_t>(want));
-			if (got <= 0)
-				return false;
-			if (rchd_feed(chd, scratch, static_cast<size_t>(got)) < 0)
-				return false;
 		}
 	}
 }
@@ -221,6 +237,9 @@ bool ChdFileReader::Open2(std::string fileName)
 			return false;
 		}
 	}
+
+	if (!m_srcs[0].base)
+		rchd_set_pipeline_depth(m_chds[0], CHD_PIPELINE_DEPTH);
 
 	const rchd_info_t* info = rchd_info(m_chds[0]);
 	hunk_size = info->hunk_bytes;
