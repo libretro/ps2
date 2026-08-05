@@ -7,6 +7,7 @@
 #include <retro_miscellaneous.h>
 #include <file/file_path.h>
 #include <streams/file_stream.h>
+#include <vfs/vfs_hybrid.h>
 #include <compat/strl.h>
 #include <string>
 #include <vector>
@@ -1418,10 +1419,20 @@ void retro_set_environment(retro_environment_t cb)
 	update_display_cb.callback = update_option_visibility;
 	environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK, &update_display_cb);
 
-	vfs_iface_info.required_interface_version = 1;
-	vfs_iface_info.iface                      = NULL;
-	if (cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
-		filestream_vfs_init(&vfs_iface_info);
+#ifndef STATIC_LINKING
+	/*
+	   Hybrid VFS replaces the wholesale v1 adoption: plain paths (ISOs,
+	   BIOS, memcards, saves) serve through the local implementation
+	   with no per-read frontend indirection, and the local VFS can map
+	   disc images - which the CDVD readers turn into zero-copy reads
+	   and, for flat ISOs, into dropping their worker thread outright.
+	   The frontend covers URI paths and sandboxed-platform fallback
+	   plus dirent/stat coverage the old wiring lacked.  Compiled out
+	   for statically linked frontends, which share one libretro-common
+	   with the core.
+	*/
+	vfs_hybrid_init(environ_cb, NULL);
+#endif
 }
 
 #define MAX_DISKS 10

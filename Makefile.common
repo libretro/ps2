@@ -43,7 +43,6 @@ INCFLAGS := \
 	-I$(DEPS_DIR)/libzip \
 	-I$(DEPS_DIR)/libzip/libzip/lib \
 	-I$(DEPS_DIR)/libzip/private \
-	-I$(DEPS_DIR)/chdr/libchdr/include \
 	-I$(DEPS_DIR)/lzma/include \
 	-I$(DEPS_DIR)/d3d12memalloc/include
 
@@ -112,6 +111,8 @@ CXXFLAGS += $(FLAGS)
 # ============================================================================
 SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
+	$(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
+	$(LIBRETRO_COMM_DIR)/file/file_path_io.c \
 	$(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
 	$(LIBRETRO_COMM_DIR)/compat/fopen_utf8.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
@@ -642,13 +643,18 @@ SOURCES_C += \
 	$(DEPS_DIR)/lzma/src/XzEnc.c \
 	$(DEPS_DIR)/lzma/src/XzIn.c
 
-# libchdr
+# CHD: libretro-common's clean-room rchd stack (rchd + rflac + rzstd +
+# r7z_lzma + huffman/deflate/crc32), replacing vendored libchdr.  The
+# decoder does no I/O of its own - ChdFileReader drives it, feeding from
+# a mapped image when the VFS provides one.
 SOURCES_C += \
-	$(DEPS_DIR)/chdr/libchdr/src/libchdr_bitstream.c \
-	$(DEPS_DIR)/chdr/libchdr/src/libchdr_cdrom.c \
-	$(DEPS_DIR)/chdr/libchdr/src/libchdr_chd.c \
-	$(DEPS_DIR)/chdr/libchdr/src/libchdr_flac.c \
-	$(DEPS_DIR)/chdr/libchdr/src/libchdr_huffman.c
+	$(LIBRETRO_COMM_DIR)/formats/chd/rchd.c \
+	$(LIBRETRO_COMM_DIR)/formats/flac/rflac.c \
+	$(LIBRETRO_COMM_DIR)/formats/7z/r7z_lzma.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_rzstd.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_huffman.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_deflate.c \
+	$(LIBRETRO_COMM_DIR)/encodings/encoding_crc32.c
 
 # cpuinfo + clog. Arch- and OS-specific backends mirror the selection in
 # 3rdparty/cpuinfo/CMakeLists.txt. The x86 path keeps the existing Windows init
@@ -938,4 +944,12 @@ SOURCES_CXX += $(DEPS_DIR)/glslang/glslang/glslang/OSDependent/Windows/ossource.
 else
 SOURCES_CXX += $(DEPS_DIR)/glslang/glslang/glslang/OSDependent/Unix/ossource.cpp
 endif
+endif
+
+# Dynamically loaded builds only: statically linked frontends share one
+# libretro-common with the core, and vfs_hybrid.o's reference to
+# filestream_set_mapped_ptr_cb can pull this tree's file_stream.o into
+# symbol collision with griffin.
+ifneq ($(STATIC_LINKING), 1)
+SOURCES_C += $(LIBRETRO_COMM_DIR)/vfs/vfs_hybrid.c
 endif

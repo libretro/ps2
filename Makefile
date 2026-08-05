@@ -79,6 +79,8 @@ endif
 
 # Unix
 ifneq (,$(findstring unix,$(platform)))
+   # local VFS may mmap FREQUENT_ACCESS files (CDVD zero-copy)
+   FLAGS += -DHAVE_MMAP
    TARGET := $(TARGET_NAME)_libretro.so
    fpic   := -fPIC
    ifneq ($(findstring SunOS,$(shell uname -a)),)
@@ -222,6 +224,7 @@ else ifeq ($(platform), ps3)
    OLD_GCC := 1
    FLAGS += -DARCH_POWERPC_ALTIVEC
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # sncps3
 else ifeq ($(platform), sncps3)
@@ -235,6 +238,7 @@ else ifeq ($(platform), sncps3)
    NO_GCC   := 1
    FLAGS    += -DARCH_POWERPC_ALTIVEC
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # Lightweight PS3 Homebrew SDK
 else ifeq ($(platform), psl1ght)
@@ -244,6 +248,7 @@ else ifeq ($(platform), psl1ght)
    AR      = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
    ENDIANNESS_DEFINES := -DMSB_FIRST
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # PSP
 else ifeq ($(platform), psp1)
@@ -253,6 +258,7 @@ else ifeq ($(platform), psp1)
    AR      = psp-ar$(EXE_EXT)
    FLAGS  += -DPSP -G0
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
    EXTRA_INCLUDES := -I$(shell psp-config --pspsdk-path)/include
 
 # Vita
@@ -263,6 +269,7 @@ else ifeq ($(platform), vita)
    AR      = arm-vita-eabi-ar$(EXE_EXT)
    FLAGS  += -DVITA
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # Xbox 360
 else ifeq ($(platform), xenon)
@@ -273,6 +280,7 @@ else ifeq ($(platform), xenon)
    ENDIANNESS_DEFINES += -D__LIBXENON__ -m32 -D__ppc__ -DMSB_FIRST
    LIBS := $(PTHREAD_FLAGS)
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # Nintendo Game Cube / Nintendo Wii
 else ifneq (,$(filter $(platform),ngc wii))
@@ -289,6 +297,7 @@ else ifneq (,$(filter $(platform),ngc wii))
    AR  = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
    EXTRA_INCLUDES := -I$(DEVKITPRO)/libogc/include
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # Nintendo WiiU
 else ifeq ($(platform), wiiu)
@@ -301,6 +310,7 @@ else ifeq ($(platform), wiiu)
    ENDIANNESS_DEFINES += -DMSB_FIRST
    EXTRA_INCLUDES     := -Ideps
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
    NEED_THREADING = 0
 
 # GCW0
@@ -332,6 +342,7 @@ else ifeq ($(platform), emscripten)
    THREADED_RECOMPILER = 0
 
    STATIC_LINKING = 1
+   FLAGS += -DSTATIC_LINKING
 
 # Raspberry Pi 4 in 64bit mode
 else ifeq ($(platform), rpi4_64)
