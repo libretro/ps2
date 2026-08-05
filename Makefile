@@ -81,6 +81,8 @@ endif
 ifneq (,$(findstring unix,$(platform)))
    # local VFS may mmap FREQUENT_ACCESS files (CDVD zero-copy)
    FLAGS += -DHAVE_MMAP
+   # cpuinfo Linux /proc parser needs CPU_SETSIZE (sched.h, GNU)
+   FLAGS += -D_GNU_SOURCE
    TARGET := $(TARGET_NAME)_libretro.so
    fpic   := -fPIC
    ifneq ($(findstring SunOS,$(shell uname -a)),)

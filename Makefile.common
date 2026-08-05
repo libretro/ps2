@@ -36,14 +36,7 @@ INCFLAGS := \
 	-I$(DEPS_DIR)/cpuinfo/include \
 	-I$(DEPS_DIR)/cpuinfo/src \
 	-I$(DEPS_DIR)/cpuinfo/deps/clog/include \
-	-I$(DEPS_DIR)/zlib \
-	-I$(DEPS_DIR)/zstd/zstd/lib \
 	-I$(DEPS_DIR)/lz4/lz4/lib \
-	-I$(DEPS_DIR)/libpng \
-	-I$(DEPS_DIR)/libzip \
-	-I$(DEPS_DIR)/libzip/libzip/lib \
-	-I$(DEPS_DIR)/libzip/private \
-	-I$(DEPS_DIR)/lzma/include \
 	-I$(DEPS_DIR)/d3d12memalloc/include
 
 ifeq ($(HAVE_OPENGL), 1)
@@ -531,118 +524,20 @@ endif
 # 3rdparty - always-on dependencies
 # ============================================================================
 
-# zlib
-ifeq ($(SYSTEM_ZLIB), 1)
-	CFLAGS  += $(shell pkg-config --cflags zlib)
-	LIBS    += $(shell pkg-config --libs zlib)
-else
-SOURCES_C += \
-	$(DEPS_DIR)/zlib/adler32.c \
-	$(DEPS_DIR)/zlib/compress.c \
-	$(DEPS_DIR)/zlib/crc32.c \
-	$(DEPS_DIR)/zlib/deflate.c \
-	$(DEPS_DIR)/zlib/gzclose.c \
-	$(DEPS_DIR)/zlib/gzlib.c \
-	$(DEPS_DIR)/zlib/gzread.c \
-	$(DEPS_DIR)/zlib/gzwrite.c \
-	$(DEPS_DIR)/zlib/infback.c \
-	$(DEPS_DIR)/zlib/inffast.c \
-	$(DEPS_DIR)/zlib/inflate.c \
-	$(DEPS_DIR)/zlib/inftrees.c \
-	$(DEPS_DIR)/zlib/trees.c \
-	$(DEPS_DIR)/zlib/uncompr.c \
-	$(DEPS_DIR)/zlib/zutil.c
-endif
+# zlib: gone.  Every former consumer runs on libretro-common's clean-room
+# codecs - CHD hunks through rchd, CSO frames and indexed .gz through
+# rinflate (with the zran primitives), rpng through trans_stream_deflate.
 
-# libpng
+# PNG: libretro-common's rpng (rinflate-native via trans_stream),
+# replacing vendored libpng for the read-only texture loader.
 SOURCES_C += \
-	$(DEPS_DIR)/libpng/png.c \
-	$(DEPS_DIR)/libpng/pngerror.c \
-	$(DEPS_DIR)/libpng/pngget.c \
-	$(DEPS_DIR)/libpng/pngmem.c \
-	$(DEPS_DIR)/libpng/pngpread.c \
-	$(DEPS_DIR)/libpng/pngread.c \
-	$(DEPS_DIR)/libpng/pngrio.c \
-	$(DEPS_DIR)/libpng/pngrtran.c \
-	$(DEPS_DIR)/libpng/pngrutil.c \
-	$(DEPS_DIR)/libpng/pngset.c \
-	$(DEPS_DIR)/libpng/pngtrans.c \
-	$(DEPS_DIR)/libpng/pngwio.c \
-	$(DEPS_DIR)/libpng/pngwrite.c \
-	$(DEPS_DIR)/libpng/pngwtran.c \
-	$(DEPS_DIR)/libpng/pngwutil.c
-
-# zstd
-SOURCES_C += \
-	$(DEPS_DIR)/zstd/zstd/lib/common/debug.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/entropy_common.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/error_private.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/fse_decompress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/pool.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/threading.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/xxhash.c \
-	$(DEPS_DIR)/zstd/zstd/lib/common/zstd_common.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/fse_compress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/hist.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/huf_compress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_compress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_compress_literals.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_compress_sequences.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_compress_superblock.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_double_fast.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_fast.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_lazy.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_ldm.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstd_opt.c \
-	$(DEPS_DIR)/zstd/zstd/lib/compress/zstdmt_compress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/decompress/huf_decompress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/decompress/zstd_ddict.c \
-	$(DEPS_DIR)/zstd/zstd/lib/decompress/zstd_decompress.c \
-	$(DEPS_DIR)/zstd/zstd/lib/decompress/zstd_decompress_block.c
+	$(LIBRETRO_COMM_DIR)/formats/png/rpng.c \
+	$(LIBRETRO_COMM_DIR)/streams/trans_stream.c \
+	$(LIBRETRO_COMM_DIR)/streams/trans_stream_deflate.c \
+	$(LIBRETRO_COMM_DIR)/streams/trans_stream_pipe.c
 
 # lz4
 SOURCES_C += $(DEPS_DIR)/lz4/lz4/lib/lz4.c
-
-# lzma (7z)
-SOURCES_C += \
-	$(DEPS_DIR)/lzma/src/7zAlloc.c \
-	$(DEPS_DIR)/lzma/src/7zArcIn.c \
-	$(DEPS_DIR)/lzma/src/7zBuf.c \
-	$(DEPS_DIR)/lzma/src/7zBuf2.c \
-	$(DEPS_DIR)/lzma/src/7zCrc.c \
-	$(DEPS_DIR)/lzma/src/7zCrcOpt.c \
-	$(DEPS_DIR)/lzma/src/7zDec.c \
-	$(DEPS_DIR)/lzma/src/7zFile.c \
-	$(DEPS_DIR)/lzma/src/7zStream.c \
-	$(DEPS_DIR)/lzma/src/Alloc.c \
-	$(DEPS_DIR)/lzma/src/Bcj2.c \
-	$(DEPS_DIR)/lzma/src/Bcj2Enc.c \
-	$(DEPS_DIR)/lzma/src/Bra.c \
-	$(DEPS_DIR)/lzma/src/Bra86.c \
-	$(DEPS_DIR)/lzma/src/BraIA64.c \
-	$(DEPS_DIR)/lzma/src/CpuArch.c \
-	$(DEPS_DIR)/lzma/src/Delta.c \
-	$(DEPS_DIR)/lzma/src/LzFind.c \
-	$(DEPS_DIR)/lzma/src/LzFindOpt.c \
-	$(DEPS_DIR)/lzma/src/Lzma2Dec.c \
-	$(DEPS_DIR)/lzma/src/Lzma2DecMt.c \
-	$(DEPS_DIR)/lzma/src/Lzma2Enc.c \
-	$(DEPS_DIR)/lzma/src/Lzma86Dec.c \
-	$(DEPS_DIR)/lzma/src/Lzma86Enc.c \
-	$(DEPS_DIR)/lzma/src/LzmaDec.c \
-	$(DEPS_DIR)/lzma/src/LzmaEnc.c \
-	$(DEPS_DIR)/lzma/src/LzmaLib.c \
-	$(DEPS_DIR)/lzma/src/Ppmd7.c \
-	$(DEPS_DIR)/lzma/src/Ppmd7Dec.c \
-	$(DEPS_DIR)/lzma/src/Ppmd7Enc.c \
-	$(DEPS_DIR)/lzma/src/Sha256.c \
-	$(DEPS_DIR)/lzma/src/Sha256Opt.c \
-	$(DEPS_DIR)/lzma/src/Xz.c \
-	$(DEPS_DIR)/lzma/src/XzCrc64.c \
-	$(DEPS_DIR)/lzma/src/XzCrc64Opt.c \
-	$(DEPS_DIR)/lzma/src/XzDec.c \
-	$(DEPS_DIR)/lzma/src/XzEnc.c \
-	$(DEPS_DIR)/lzma/src/XzIn.c
 
 # CHD: libretro-common's clean-room rchd stack (rchd + rflac + rzstd +
 # r7z_lzma + huffman/deflate/crc32), replacing vendored libchdr.  The
@@ -697,8 +592,20 @@ SOURCES_C += \
 	$(DEPS_DIR)/cpuinfo/src/x86/name.c \
 	$(DEPS_DIR)/cpuinfo/src/x86/topology.c \
 	$(DEPS_DIR)/cpuinfo/src/x86/uarch.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/vendor.c \
+	$(DEPS_DIR)/cpuinfo/src/x86/vendor.c 
+ifeq ($(IS_WINDOWS), 1)
+SOURCES_C += \
 	$(DEPS_DIR)/cpuinfo/src/x86/windows/init.c
+else
+# Linux x86 backend: OS init + the /proc parsing core it pulls in.
+SOURCES_C += \
+	$(DEPS_DIR)/cpuinfo/src/x86/linux/init.c \
+	$(DEPS_DIR)/cpuinfo/src/x86/linux/cpuinfo.c \
+	$(DEPS_DIR)/cpuinfo/src/linux/smallfile.c \
+	$(DEPS_DIR)/cpuinfo/src/linux/multiline.c \
+	$(DEPS_DIR)/cpuinfo/src/linux/cpulist.c \
+	$(DEPS_DIR)/cpuinfo/src/linux/processors.c
+endif
 endif
 
 # ----------------------------------------------------------------------------
@@ -735,152 +642,6 @@ SOURCES_CXX += \
 	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/utf.cpp \
 	$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/version.cpp
 
-# libzip - uses pre-generated zip_err_str.c and a hand-written portable
-# libzip_config.h (#ifdef _WIN32-aware) from 3rdparty/libzip/private/.
-# This common block holds files that build on every platform; the
-# Win-only and POSIX-only files are listed in the IS_WINDOWS ifeq below.
-# Keep this list in sync with LIBZIP_COMMON_SOURCES in
-# 3rdparty/libzip/CMakeLists.txt and the ClCompile list in
-# 3rdparty/libzip/libzip.vcxproj.
-SOURCES_C += \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_add.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_add_dir.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_add_entry.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_algorithm_deflate.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_algorithm_zstd.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_buffer.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_close.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_delete.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_dirent.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_dir_add.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_discard.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_entry.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_error.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_error_clear.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_error_get.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_error_get_sys_type.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_error_strerror.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_error_to_str.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_extra_field.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_extra_field_api.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fclose.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fdopen.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_add.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_error_clear.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_error_get.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_get_comment.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_get_external_attributes.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_get_offset.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_rename.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_replace.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_set_comment.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_set_encryption.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_set_external_attributes.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_set_mtime.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_file_strerror.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fopen.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fopen_encrypted.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fopen_index.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fopen_index_encrypted.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fread.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_fseek.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_ftell.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_archive_comment.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_archive_flag.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_encryption_implementation.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_file_comment.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_name.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_num_entries.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_get_num_files.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_hash.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_io_util.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_libzip_version.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_memdup.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_name_locate.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_new.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_open.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_pkware.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_progress.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_rename.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_replace.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_set_archive_comment.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_set_archive_flag.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_set_default_password.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_set_file_comment.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_set_file_compression.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_set_name.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_accept_empty.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_begin_write.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_begin_write_cloning.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_buffer.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_call.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_close.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_commit_write.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_compress.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_crc.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_error.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_common.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_stdio.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_free.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_function.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_get_file_attributes.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_is_deleted.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_layered.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_open.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_pkware_decode.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_pkware_encode.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_read.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_remove.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_rollback_write.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_seek.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_seek_write.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_stat.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_supports.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_tell.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_tell_write.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_window.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_write.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_zip.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_zip_new.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_stat.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_stat_index.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_stat_init.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_strerror.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_string.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_unchange.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_unchange_all.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_unchange_archive.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_unchange_data.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_utf-8.c \
-	$(DEPS_DIR)/libzip/private/zip_err_str.c
-
-# libzip - platform-specific sources.  Mirrors the WIN32 branch in
-# 3rdparty/libzip/CMakeLists.txt: the *_win32 sources use Win32-only
-# APIs (CryptGenRandom, _wopen, etc.) and the unix sources reference
-# /dev/urandom and POSIX tempfile APIs.
-#
-# AES-encrypted-archive support is intentionally not built on either
-# platform -- pcsx2 never opens encrypted archives (CHD/cso/iso are
-# never WinZip-AES) so zip_winzip_aes.c, zip_source_winzip_aes_*.c,
-# and zip_crypto_win.c (the bcrypt-backed AES implementation) are
-# omitted.  This also means we don't need -lbcrypt on Windows.
-# zip_random_win32.c uses CryptGenRandom from <wincrypt.h> in advapi32,
-# linked by default on both MSVC and mingw, so no LIBS edit is needed.
-# Keep these two lists in sync with LIBZIP_PLATFORM_SOURCES in
-# 3rdparty/libzip/CMakeLists.txt.
-ifeq ($(IS_WINDOWS), 1)
-SOURCES_C += \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_random_win32.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_win32.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_win32_ansi.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_win32_named.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_win32_utf16.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_win32_utf8.c
-else
-SOURCES_C += \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_random_unix.c \
-	$(DEPS_DIR)/libzip/libzip/lib/zip_source_file_stdio_named.c
-endif
 
 # D3D12MemAlloc (Windows only)
 ifeq ($(IS_WINDOWS), 1)
