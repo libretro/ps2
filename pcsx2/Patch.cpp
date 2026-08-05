@@ -19,7 +19,7 @@
 #include "../common/FileSystem.h"
 #include "../common/Path.h"
 #include "../common/StringUtil.h"
-#include "../common/ZipHelpers.h"
+#include <encodings/deflate.h>
 
 #include "Config.h"
 #include "Common.h"
@@ -741,20 +741,116 @@ void ForgetLoadedPatches(void)
 // Note: only load patches from the root folder of the zip
 int LoadPatchesFromZip(const std::string& crc, const u8* zip_data, size_t zip_data_size)
 {
-	zip_error ze = {};
-	auto zf = zip_open_buffer_managed(zip_data, zip_data_size, ZIP_RDONLY, 0, &ze);
-	if (!zf)
+	/* Minimal in-memory ZIP reader over rinflate, replacing libzip:
+	   the entire consumer surface here is "find one named member in a
+	   buffer and inflate it".  End-of-central-directory is located by
+	   scanning back over a possible comment; entries are matched by
+	   name from the central directory; stored members are copied and
+	   deflated members run through one raw-inflate pass sized by the
+	   central-directory's own uncompressed size.  Anything malformed
+	   simply fails to match, as with a missing member. */
+	const std::string pnach_filename(crc + ".pnach");
+
+	auto rd16 = [](const u8* p) -> u32 { return p[0] | (p[1] << 8); };
+	auto rd32 = [](const u8* p) -> u32 { return p[0] | (p[1] << 8) | (p[2] << 16) | (u32(p[3]) << 24); };
+
+	if (!zip_data || zip_data_size < 22)
 		return 0;
 
-	const std::string pnach_filename(crc + ".pnach");
-	std::optional<std::string> pnach_data(ReadFileInZipToString(zf.get(), pnach_filename.c_str()));
-	if (!pnach_data.has_value())
+	/* EOCD: signature 0x06054b50, within the last 64KB+22 */
+	const size_t scan_max = std::min<size_t>(zip_data_size, 22 + 65535);
+	size_t eocd = SIZE_MAX;
+	for (size_t back = 22; back <= scan_max; back++)
+	{
+		const u8* p = zip_data + zip_data_size - back;
+		if (rd32(p) == 0x06054b50)
+		{
+			eocd = zip_data_size - back;
+			break;
+		}
+	}
+	if (eocd == SIZE_MAX)
+		return 0;
+
+	const u8* e = zip_data + eocd;
+	u32 cd_count  = rd16(e + 10);
+	u32 cd_offset = rd32(e + 16);
+	if (cd_offset >= zip_data_size)
+		return 0;
+
+	const u8* p   = zip_data + cd_offset;
+	const u8* end = zip_data + zip_data_size;
+	std::string pnach_data;
+	bool found = false;
+
+	for (u32 i = 0; i < cd_count && !found; i++)
+	{
+		if (p + 46 > end || rd32(p) != 0x02014b50)
+			break;
+		const u32 method    = rd16(p + 10);
+		const u32 comp_size = rd32(p + 20);
+		const u32 uncomp    = rd32(p + 24);
+		const u32 name_len  = rd16(p + 28);
+		const u32 extra_len = rd16(p + 30);
+		const u32 comm_len  = rd16(p + 32);
+		const u32 lho       = rd32(p + 42);
+		const u8* name      = p + 46;
+		if (name + name_len > end)
+			break;
+
+		if (name_len == pnach_filename.size() &&
+			Strncasecmp(reinterpret_cast<const char*>(name), pnach_filename.c_str(), name_len) == 0)
+		{
+			/* local header: skip its own (possibly different) name/extra */
+			if (lho + 30 > zip_data_size || rd32(zip_data + lho) != 0x04034b50)
+				return 0;
+			const u32 lname = rd16(zip_data + lho + 26);
+			const u32 lextra = rd16(zip_data + lho + 28);
+			const size_t data_off = size_t(lho) + 30 + lname + lextra;
+			if (data_off + comp_size > zip_data_size)
+				return 0;
+			const u8* src = zip_data + data_off;
+
+			if (method == 0)
+			{
+				if (comp_size != uncomp)
+					return 0;
+				pnach_data.assign(reinterpret_cast<const char*>(src), uncomp);
+				found = true;
+			}
+			else if (method == 8)
+			{
+				pnach_data.resize(uncomp);
+				void* z = rinflate_new(-15); /* raw deflate, as ZIP stores it */
+				if (!z)
+					return 0;
+				rinflate_set_in(z, src, comp_size);
+				rinflate_set_out(z, reinterpret_cast<uint8_t*>(pnach_data.data()), uncomp);
+				size_t rdn = 0, wr = 0;
+				const int r = rinflate_process(z, &rdn, &wr);
+				rinflate_free(z);
+				if (r != RDEFLATE_PROCESS_END || wr != uncomp)
+					return 0;
+				found = true;
+			}
+			else
+			{
+				/* zstd-compressed members (method 93) were only ever
+				   reachable through libzip's optional backend; pnach
+				   archives are deflate in practice. */
+				return 0;
+			}
+		}
+
+		p += 46 + name_len + extra_len + comm_len;
+	}
+
+	if (!found)
 		return 0;
 
 	Console.WriteLn("Loading patch '%s' from archive.", pnach_filename.c_str());
-	return LoadPatchesFromString(pnach_data.value());
+	return LoadPatchesFromString(pnach_data);
 }
-
 
 // This routine loads patches from *.pnach files
 // Returns number of patches loaded

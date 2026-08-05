@@ -100,7 +100,13 @@ Comments) 1950 to 1952 in the files http://tools.ietf.org/html/rfc1950
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
+#include <encodings/deflate.h>
+
+/* zlib-compatible status values kept for the existing callers */
+#define ZIDX_OK          0
+#define ZIDX_ERRNO     (-1)
+#define ZIDX_DATA_ERROR (-3)
+#define ZIDX_MEM_ERROR  (-4)
 
 #include "../../common/FileSystem.h"
 
@@ -219,104 +225,104 @@ static inline struct access* addpoint(struct access* index, int bits,
    file read error.  On success, *built points to the resulting index. */
 static inline int build_index(RFILE* in, s64 span, struct access** built)
 {
-	int ret;
-	s64 totin, totout, totPrinted; /* our own total counters to avoid 4GB limit */
-	s64 last;                      /* totout value of last access point */
-	struct access* index;               /* access points being generated */
-	z_stream strm;
+	/* rinflate port of the zran builder: stop-at-block reporting plus
+	   the exact bit tell replace Z_BLOCK/data_type, and the decoder's
+	   own gzip/zlib auto header handling (window_bits 47) replaces
+	   inflateInit2(47).  The access-point encoding is unchanged - (in,
+	   bits, out, window) mean exactly what they meant - so indexes
+	   remain compatible with what the extractor expects. */
+	int ret = ZIDX_OK;
+	s64 totout, last;
+	s64 chunk_base;              /* file offset of the current input chunk */
+	struct access* index = NULL;
+	void* z;
 	unsigned char input[CHUNK];
 	unsigned char window[WINSIZE];
+	size_t in_avail = 0, in_used = 0;
+	size_t win_fill = 0;         /* valid bytes in window (current cycle) */
+	int done = 0;
 
-	/* initialize inflate */
-	strm.zalloc = Z_NULL;
-	strm.zfree = Z_NULL;
-	strm.opaque = Z_NULL;
-	strm.avail_in = 0;
-	strm.next_in = Z_NULL;
-	ret = inflateInit2(&strm, 47); /* automatic zlib or gzip decoding */
-	if (ret != Z_OK)
-		return ret;
+	z = rinflate_new(47); /* automatic zlib or gzip decoding */
+	if (!z)
+		return ZIDX_MEM_ERROR;
+	rinflate_set_stop_at_block(z, 1);
 
-	/* inflate the input, maintain a sliding window, and build an index -- this
-       also validates the integrity of the compressed data using the check
-       information at the end of the gzip or zlib stream */
-	totin = totout = last = totPrinted = 0;
-	index = NULL; /* will be allocated by first addpoint() */
-	strm.avail_out = 0;
-	do
+	totout = last = 0;
+	chunk_base = 0;
+	rinflate_set_out(z, window, WINSIZE);
+
+	while (!done)
 	{
-		/* get some compressed data from input file */
-		strm.avail_in = rfread(input, 1, CHUNK, in);
-		if (rferror(in))
+		if (in_used == in_avail)
 		{
-			ret = Z_ERRNO;
-			goto build_index_error;
-		}
-		if (strm.avail_in == 0)
-		{
-			ret = Z_DATA_ERROR;
-			goto build_index_error;
-		}
-		strm.next_in = input;
-
-		/* process all of that, or until end of stream */
-		do
-		{
-			/* reset sliding window if necessary */
-			if (strm.avail_out == 0)
+			chunk_base = FileSystem::FTell64(in);
+			in_avail = rfread(input, 1, CHUNK, in);
+			in_used = 0;
+			if (rferror(in))
 			{
-				strm.avail_out = WINSIZE;
-				strm.next_out = window;
+				ret = ZIDX_ERRNO;
+				goto build_index_error;
+			}
+			if (in_avail == 0)
+			{
+				ret = ZIDX_DATA_ERROR;
+				goto build_index_error;
+			}
+			rinflate_set_in(z, input, in_avail);
+		}
+
+		{
+			size_t rd = 0, wr = 0;
+			const int st = rinflate_process(z, &rd, &wr);
+			in_used += rd;
+			totout  += (s64)wr;
+			win_fill += wr;
+
+			if (st == RDEFLATE_PROCESS_ERROR)
+			{
+				ret = ZIDX_DATA_ERROR;
+				goto build_index_error;
 			}
 
-			/* inflate until out of input, output, or at end of block --
-               update the total input and output counters */
-			totin += strm.avail_in;
-			totout += strm.avail_out;
-			ret = inflate(&strm, Z_BLOCK); /* return at end of block */
-			totin -= strm.avail_in;
-			totout -= strm.avail_out;
-			if (ret == Z_NEED_DICT)
-				ret = Z_DATA_ERROR;
-			if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
-				goto build_index_error;
-			if (ret == Z_STREAM_END)
-				break;
-
-			/* if at end of block, consider adding an index entry (note that if
-               data_type indicates an end-of-block, then all of the
-               uncompressed data from that block has been delivered, and none
-               of the compressed data after that block has been consumed,
-               except for up to seven bits) -- the totout == 0 provides an
-               entry point after the zlib or gzip header, and assures that the
-               index always has at least one access point; we avoid creating an
-               access point after the last block by checking bit 6 of data_type
-             */
-			if ((strm.data_type & 128) && !(strm.data_type & 64) &&
-				(totout == 0 || totout - last > span))
+			if (win_fill == WINSIZE)
 			{
-				index = addpoint(index, strm.data_type & 7, totin,
-								 totout, strm.avail_out, window);
+				rinflate_set_out(z, window, WINSIZE);
+				win_fill = 0;
+			}
+
+			if (st == RDEFLATE_PROCESS_END)
+			{
+				done = 1;
+			}
+			else if (st == RDEFLATE_PROCESS_BLOCK &&
+					(totout == 0 || totout - last > span))
+			{
+				/* Exact boundary: absolute bit position, then the same
+				   (in, bits) encoding zran used - in is the next full
+				   byte, bits the tail of the byte before it that
+				   belongs to the next block. */
+				const u64 abs_bits = (u64)chunk_base * 8 + rinflate_tell_bits(z);
+				const s64 in_off   = (s64)((abs_bits + 7) / 8);
+				const int bits     = (int)((8 - (abs_bits & 7)) & 7);
+				index = addpoint(index, bits, in_off, totout,
+						(uint)(WINSIZE - win_fill), window);
 				if (index == NULL)
 				{
-					ret = Z_MEM_ERROR;
+					ret = ZIDX_MEM_ERROR;
 					goto build_index_error;
 				}
 				last = totout;
 			}
-		} while (strm.avail_in != 0);
-		if (totin / (50 * 1024 * 1024) != totPrinted / (50 * 1024 * 1024))
-			totPrinted = totin;
-	} while (ret != Z_STREAM_END);
+		}
+	}
 
 	if (index == NULL)
 	{
-		// Could happen if the start of the stream in Z_STREAM_END
+		rinflate_free(z);
 		return 0;
 	}
 
-	/* clean up and return index (release unused entries in list) */
-	(void)inflateEnd(&strm);
+	rinflate_free(z);
 	index->list = (Point*)realloc(index->list, sizeof(struct point) * index->have);
 	index->size = index->have;
 	index->span = span;
@@ -324,9 +330,8 @@ static inline int build_index(RFILE* in, s64 span, struct access** built)
 	*built = index;
 	return index->have;
 
-	/* return error */
 build_index_error:
-	(void)inflateEnd(&strm);
+	rinflate_free(z);
 	if (index != NULL)
 		free_index(index);
 	return ret;
@@ -336,9 +341,18 @@ typedef struct zstate
 {
 	s64 out_offset;
 	s64 in_offset;
-	z_stream strm;
+	void* strm; /* rinflate raw stream, live between sequential extracts */
 	int isValid;
 } Zstate;
+
+static inline void zstate_free_strm(zstate* state)
+{
+	if (state && state->strm)
+	{
+		rinflate_free(state->strm);
+		state->strm = nullptr;
+	}
+}
 
 static inline s64 getInOffset(zstate* state)
 {
@@ -355,142 +369,147 @@ static inline s64 getInOffset(zstate* state)
 static inline int extract(RFILE* in, struct access* index, s64 offset,
 				  unsigned char* buf, int len, zstate* state)
 {
-	int ret, skip;
+	int ret = ZIDX_OK, skip;
 	struct point* here;
 	unsigned char input[CHUNK];
 	unsigned char discard[WINSIZE];
 	int isEnd = 0;
+	size_t in_avail = 0, in_used = 0;
+	size_t out_size = 0, out_done = 0;
+	unsigned char* out_ptr = nullptr;
 
-	/* proceed only if something reasonable to do */
 	if (len < 0 || state == nullptr)
 		return 0;
 
 	if (state->isValid && offset != state->out_offset)
 	{
-		// state doesn't match offset, free allocations before strm is overwritten
-		inflateEnd(&state->strm);
+		zstate_free_strm(state);
 		state->isValid = 0;
 	}
 	state->out_offset = offset;
 
 	if (state->isValid)
 	{
-		state->isValid = 0; // we took control over strm. revalidate when/if we give it back
+		/* sequential continuation: the live stream is positioned right
+		   where the previous extract stopped */
+		state->isValid = 0;
 		FileSystem::FSeek64(in, state->in_offset, SEEK_SET);
-		state->strm.avail_in = 0;
 		offset = 0;
 		skip = 1;
 	}
 	else
 	{
-		/* find where in stream to start */
 		here = index->list;
 		ret = index->have;
 		while (--ret && here[1].out <= offset)
 			here++;
 
-		/* initialize file and inflate state to start there */
-		state->strm.zalloc = Z_NULL;
-		state->strm.zfree = Z_NULL;
-		state->strm.opaque = Z_NULL;
-		state->strm.avail_in = 0;
-		state->strm.next_in = Z_NULL;
-		ret = inflateInit2(&state->strm, -15); /* raw inflate */
-		if (ret != Z_OK)
-			return ret;
+		zstate_free_strm(state);
+		state->strm = rinflate_new(-15); /* raw inflate */
+		if (!state->strm)
+			return ZIDX_MEM_ERROR;
 		ret = FileSystem::FSeek64(in, here->in - (here->bits ? 1 : 0), SEEK_SET);
 		if (ret == -1)
+		{
+			ret = ZIDX_ERRNO;
 			goto extract_ret;
+		}
 		if (here->bits)
 		{
-			ret = rfgetc(in);
-			if (ret == -1)
-			{
-				ret = rferror(in) ? Z_ERRNO : Z_DATA_ERROR;
-				goto extract_ret;
-			}
-			inflatePrime(&state->strm, here->bits, ret >> (8 - here->bits));
+			/* the boundary is mid-byte: feed from the byte before it
+			   and discard the bits that belong to the previous block */
+			rinflate_set_start_bit(state->strm, 8 - here->bits);
 		}
-		inflateSetDictionary(&state->strm, here->window, WINSIZE);
+		rinflate_set_dictionary(state->strm, here->window, WINSIZE);
 
-		/* skip uncompressed bytes until offset reached, then satisfy request */
 		offset -= here->out;
-		state->strm.avail_in = 0;
-		skip = 1; /* while skipping to offset */
+		skip = 1;
 	}
 
 	do
 	{
-		/* define where to put uncompressed data, and how much */
 		if (offset == 0 && skip)
-		{ /* at offset now */
-			state->strm.avail_out = len;
-			state->strm.next_out = buf;
-			skip = 0; /* only do this once */
+		{
+			out_ptr  = buf;
+			out_size = (size_t)len;
+			out_done = 0;
+			rinflate_set_out(state->strm, out_ptr, out_size);
+			skip = 0;
 		}
 		if (offset > WINSIZE)
-		{ /* skip WINSIZE bytes */
-			state->strm.avail_out = WINSIZE;
-			state->strm.next_out = discard;
+		{
+			out_ptr  = discard;
+			out_size = WINSIZE;
+			out_done = 0;
+			rinflate_set_out(state->strm, out_ptr, out_size);
 			offset -= WINSIZE;
 		}
 		else if (offset != 0)
-		{ /* last skip */
-			state->strm.avail_out = (unsigned)offset;
-			state->strm.next_out = discard;
+		{
+			out_ptr  = discard;
+			out_size = (size_t)offset;
+			out_done = 0;
+			rinflate_set_out(state->strm, out_ptr, out_size);
 			offset = 0;
 		}
 
-		/* uncompress until avail_out filled, or end of stream */
-		do
+		for (;;)
 		{
-			if (state->strm.avail_in == 0)
+			if (in_used == in_avail)
 			{
 				state->in_offset = FileSystem::FTell64(in);
-				state->strm.avail_in = rfread(input, 1, CHUNK, in);
+				in_avail = rfread(input, 1, CHUNK, in);
+				in_used = 0;
 				if (rferror(in))
 				{
-					ret = Z_ERRNO;
+					ret = ZIDX_ERRNO;
 					goto extract_ret;
 				}
-				if (state->strm.avail_in == 0)
+				if (in_avail == 0)
 				{
-					ret = Z_DATA_ERROR;
+					ret = ZIDX_DATA_ERROR;
 					goto extract_ret;
 				}
-				state->strm.next_in = input;
+				rinflate_set_in(state->strm, input, in_avail);
 			}
-			uint prev_in = state->strm.avail_in;
-			ret = inflate(&state->strm, Z_NO_FLUSH); /* normal inflate */
-			state->in_offset += (prev_in - state->strm.avail_in);
-			if (ret == Z_NEED_DICT)
-				ret = Z_DATA_ERROR;
-			if (ret == Z_MEM_ERROR || ret == Z_DATA_ERROR)
-				goto extract_ret;
-			if (ret == Z_STREAM_END)
+
+			{
+				size_t rd = 0, wr = 0;
+				const int st = rinflate_process(state->strm, &rd, &wr);
+				in_used += rd;
+				out_done += wr;
+				state->in_offset += (s64)rd;
+				if (st == RDEFLATE_PROCESS_ERROR)
+				{
+					ret = ZIDX_DATA_ERROR;
+					goto extract_ret;
+				}
+				if (st == RDEFLATE_PROCESS_END)
+				{
+					isEnd = 1;
+					break;
+				}
+			}
+			if (out_done == out_size)
 				break;
-		} while (state->strm.avail_out != 0);
+		}
 
-		/* if reach end of stream, then don't keep trying to get more */
-		if (ret == Z_STREAM_END)
+		if (isEnd)
 			break;
-
-		/* do until offset reached and requested data read, or stream ends */
 	} while (skip);
 
-	isEnd = ret == Z_STREAM_END;
-	/* compute number of uncompressed bytes read after offset */
-	ret = skip ? 0 : len - state->strm.avail_out;
+	ret = skip ? 0 : (int)out_done;
+	if (out_ptr != buf)
+		ret = 0;
 
-	/* clean up and return bytes read or error */
 extract_ret:
-	if (ret == len && !isEnd)
+	if (!isEnd && ret == len && out_ptr == buf)
 	{
 		state->out_offset += len;
 		state->isValid = 1;
 	}
 	else
-		inflateEnd(&state->strm);
+		zstate_free_strm(state);
 
 	return ret;
 }

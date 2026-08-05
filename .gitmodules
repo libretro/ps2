@@ -2,6 +2,3 @@
 	path = 3rdparty/rapidyaml/rapidyaml
 	url = https://github.com/biojppm/rapidyaml.git
 	branch = master
-[submodule "3rdparty/zstd/zstd"]
-	path = 3rdparty/zstd/zstd
-	url = https://github.com/facebook/zstd.git

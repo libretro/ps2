@@ -191,7 +191,7 @@ void GzippedFileReader::Close2()
 {
 	if (m_z_state.isValid)
 	{
-		inflateEnd(&m_z_state.strm);
+		zstate_free_strm(&m_z_state);
 		m_z_state = {};
 	}
 

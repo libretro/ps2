@@ -350,6 +350,9 @@ struct rinflate
    uint32_t       wnext;   /* next write position in the ring            */
 
    int            wrapped; /* zlib wrapper present?                      */
+   int            stop_at_block; /* report each block boundary            */
+   int            block_ready;   /* boundary reached, not yet reported    */
+   int            skip_bits;     /* bits to discard at stream start       */
    int            bfinal;  /* current block is the last                  */
    int            btype;
 
@@ -770,6 +773,8 @@ void rinflate_reset(void *data, int window_bits)
 
    s->bfinal           = 0;
    s->btype            = 0;
+   s->block_ready      = 0;
+   s->skip_bits        = 0;
    s->stored_len       = 0;
 
    s->fixed_loaded     = 0;
@@ -814,6 +819,54 @@ void rinflate_set_out(void *data, uint8_t *out, size_t size)
    s->out = out; s->out_size = size; s->out_pos = 0;
 }
 
+/* Prime the back-reference window with the tail of @dict, for resuming
+ * raw-deflate decode mid-stream (indexed random access into gzip
+ * members: the index stores the 32KB of plaintext preceding each entry
+ * point, and decode restarts at a block boundary with that history).
+ * Matches zlib inflateSetDictionary() semantics for the raw case: only
+ * the last 32768 bytes matter, and the call replaces any history. */
+void rinflate_set_dictionary(void *data, const uint8_t *dict, size_t len)
+{
+   struct rinflate *s = (struct rinflate *)data;
+   if (!s || !dict)
+      return;
+   if (len > 32768)
+   {
+      dict += len - 32768;
+      len   = 32768;
+   }
+   memcpy(s->window, dict, len);
+   s->whave = (uint32_t)len;
+   s->wnext = (uint32_t)(len & 32767);
+}
+
+/* zran-style indexed access primitives: report deflate block
+ * boundaries, tell the exact input bit position, and start a resumed
+ * stream part-way into its first byte. Together with
+ * rinflate_set_dictionary these are the whole toolkit an index
+ * builder/extractor needs. */
+void rinflate_set_stop_at_block(void *data, int stop)
+{
+   struct rinflate *s = (struct rinflate *)data;
+   if (s)
+      s->stop_at_block = stop;
+}
+
+uint64_t rinflate_tell_bits(const void *data)
+{
+   const struct rinflate *s = (const struct rinflate *)data;
+   if (!s)
+      return 0;
+   return (uint64_t)s->in_pos * 8 - (uint64_t)s->bitcnt;
+}
+
+void rinflate_set_start_bit(void *data, int bits)
+{
+   struct rinflate *s = (struct rinflate *)data;
+   if (s)
+      s->skip_bits = bits & 7;
+}
+
 int rinflate_process(void *data, size_t *read, size_t *wrote)
 {
    struct rinflate *s = (struct rinflate*)data;
@@ -821,6 +874,14 @@ int rinflate_process(void *data, size_t *read, size_t *wrote)
    size_t out_start = s->out_pos;
    size_t fold_start = s->out_pos;   /* adler fold cursor (wrapped mode)   */
    int status = RDEFLATE_PROCESS_NEXT;
+
+   if (s->skip_bits)
+   {
+      if (!rinf_need(s, s->skip_bits))
+         goto suspend;
+      rinf_getbits(s, s->skip_bits);
+      s->skip_bits = 0;
+   }
 
    for (;;)
    {
@@ -840,6 +901,12 @@ int rinflate_process(void *data, size_t *read, size_t *wrote)
             break;
 
          case RINF_BLOCK_HDR:
+            if (s->block_ready)
+            {
+               s->block_ready = 0;
+               status = RDEFLATE_PROCESS_BLOCK;
+               goto suspend;
+            }
             if (!rinf_need(s, 3)) goto suspend;
             s->bfinal = rinf_getbits(s, 1);
             s->btype  = rinf_getbits(s, 2);
@@ -926,6 +993,8 @@ int rinflate_process(void *data, size_t *read, size_t *wrote)
             }
             s->phase = s->bfinal ? (s->wrapped ? RINF_ADLER : RINF_DONE)
                                  : RINF_BLOCK_HDR;
+            if (!s->bfinal && s->stop_at_block)
+               s->block_ready = 1;
             break;
 
          case RINF_DYN_TABLE:
@@ -1177,6 +1246,8 @@ fast_again:
                         s->phase = s->bfinal
                            ? (s->wrapped ? RINF_ADLER : RINF_DONE)
                            : RINF_BLOCK_HDR;
+                        if (!s->bfinal && s->stop_at_block)
+                           s->block_ready = 1;
                         done_fast = 1;
                         break;
                      }
@@ -1212,6 +1283,8 @@ fast_again:
                      s->phase = s->bfinal
                         ? (s->wrapped ? RINF_ADLER : RINF_DONE)
                         : RINF_BLOCK_HDR;
+                     if (!s->bfinal && s->stop_at_block)
+                        s->block_ready = 1;
                      done_fast = 1;
                      break;
                   }
@@ -1499,6 +1572,8 @@ fast_again:
                      s->phase = s->bfinal
                         ? (s->wrapped ? RINF_ADLER : RINF_DONE)
                         : RINF_BLOCK_HDR;
+                     if (!s->bfinal && s->stop_at_block)
+                        s->block_ready = 1;
                      break;
                   }
                   s->ld_lensym = sym - 257;

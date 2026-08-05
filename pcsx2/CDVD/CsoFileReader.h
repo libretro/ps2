@@ -18,10 +18,9 @@
 #include "common/FileSystem.h"
 
 #include "ThreadedFileReader.h"
-#include <zlib.h>
+#include <encodings/deflate.h>
 
 struct CsoHeader;
-typedef struct z_stream_s z_stream;
 
 static const uint CSO_CHUNKCACHE_SIZE_MB = 200;
 
@@ -51,7 +50,7 @@ private:
 	bool ReadFileHeader();
 	bool InitializeBuffers();
 	int ReadFromFrame(u8* dest, u64 pos, int maxBytes);
-	bool DecompressFrame(Bytef* dst, u32 frame, u32 readBufferSize);
+	bool DecompressFrame(u8* dst, u32 frame, u32 readBufferSize);
 	bool DecompressFrame(u32 frame, u32 readBufferSize);
 
 	u32 m_frameSize;
@@ -63,5 +62,5 @@ private:
 	u64 m_totalSize;
 	// The actual source cso file handle.
 	RFILE* m_src;
-	z_stream* m_z_stream;
+	void* m_inflate; /* rinflate raw stream, reset per frame */
 };

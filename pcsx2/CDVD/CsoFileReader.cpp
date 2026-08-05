@@ -13,7 +13,6 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <zlib.h>
 #include <lz4.h>
 
 #include "../../common/Pcsx2Types.h"
@@ -42,7 +41,7 @@ CsoFileReader::CsoFileReader()
 	: m_readBuffer(nullptr),
 	  m_index(nullptr),
 	  m_src(nullptr),
-	  m_z_stream(nullptr),
+	  m_inflate(nullptr),
 	  m_frameSize(0),
 	  m_frameShift(0),
 	  m_indexShift(0),
@@ -171,13 +170,10 @@ bool CsoFileReader::InitializeBuffers()
 	// initialize zlib if not a ZSO
 	if (!m_uselz4)
 	{
-		m_z_stream         = new z_stream;
-		m_z_stream->zalloc = Z_NULL;
-		m_z_stream->zfree  = Z_NULL;
-		m_z_stream->opaque = Z_NULL;
-		if (inflateInit2(m_z_stream, -15) != Z_OK)
+		m_inflate = rinflate_new(-15); /* CSO frames are raw deflate */
+		if (!m_inflate)
 		{
-			Console.Error("Unable to initialize zlib for CSO decompression.");
+			Console.Error("Unable to initialize inflate for CSO decompression.");
 			return false;
 		}
 	}
@@ -194,10 +190,10 @@ void CsoFileReader::Close2()
 		rfclose(m_src);
 		m_src = NULL;
 	}
-	if (m_z_stream)
+	if (m_inflate)
 	{
-		inflateEnd(m_z_stream);
-		m_z_stream = NULL;
+		rinflate_free(m_inflate);
+		m_inflate = NULL;
 	}
 
 	if (m_readBuffer)
@@ -278,19 +274,18 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 		}
 		else
 		{
-			m_z_stream->next_in   = m_readBuffer;
-			m_z_stream->avail_in  = readRawBytes;
-			m_z_stream->next_out  = static_cast<Bytef*>(dst);
-			m_z_stream->avail_out = m_frameSize;
-			int status            = inflate(m_z_stream, Z_FINISH);
-			success               = status == Z_STREAM_END && m_z_stream->total_out == m_frameSize;
+			size_t rd = 0, wr = 0;
+			rinflate_set_in(m_inflate, m_readBuffer, readRawBytes);
+			rinflate_set_out(m_inflate, static_cast<uint8_t*>(dst), m_frameSize);
+			const int status      = rinflate_process(m_inflate, &rd, &wr);
+			success               = status == RDEFLATE_PROCESS_END && wr == m_frameSize;
 		}
 
 		if (!success)
 			Console.Error("Unable to decompress CSO frame using zlib.");
 
 		if (!m_uselz4)
-			inflateReset(m_z_stream);
+			rinflate_reset(m_inflate, -15);
 
 		return success ? m_frameSize : 0;
 	}

@@ -16,9 +16,10 @@
 #include <cstring> /* memset/memcpy */
 #include <csetjmp>
 
-#include <png.h>
+#include <formats/rpng.h>
 
 #include <file/file_path.h>
+#include <streams/file_stream.h>
 #include <string/stdstring.h>
 
 #include <functional> /* std::function */
@@ -163,92 +164,93 @@ static void ConvertTexture_R8G8B8(u32 width, u32 height, std::vector<u8>& data, 
 // PNG Handlers
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-static void png_rfile_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
-{
-   RFILE *fp           = (RFILE*)(png_get_io_ptr(png_ptr));
-   /* fread() returns 0 on error, so it is OK to store this in a png_size_t
-    * instead of an int, which is what fread() actually returns.
-    */
-   rfread(data, 1, length, fp);
-}
-
 bool PNGLoader(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image)
 {
-	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-	if (!png_ptr)
-		return false;
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-	if (!info_ptr)
-	{
-		png_destroy_read_struct(&png_ptr, nullptr, nullptr);
-		return false;
-	}
-
-	RFILE *fp = FileSystem::OpenFile(filename.c_str(), "rb");
+	/* rpng port of the libpng loader.  The file is opened with
+	   FREQUENT_ACCESS so a mapping-capable VFS lets rpng parse the PNG
+	   straight out of the page cache; otherwise it is slurped once.
+	   rpng hands back a full ARGB8888 surface (palette and gray
+	   sources included, which the old row loader never handled), and
+	   the swizzle below reproduces the previous output exactly:
+	   RGBA-in-memory rows, with truecolor-without-alpha forced to the
+	   GS-opaque 0x80 the old RGB path wrote. */
+	RFILE* fp = filestream_open(filename.c_str(),
+			RETRO_VFS_FILE_ACCESS_READ,
+			RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS);
 	if (!fp)
+		return false;
+
+	const int64_t size = filestream_get_size(fp);
+	if (size <= 8)
 	{
-		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+		filestream_close(fp);
 		return false;
 	}
 
-	if (setjmp(png_jmpbuf(png_ptr)))
+	int64_t maplen = 0;
+	const uint8_t* buf = filestream_get_mapped_ptr(fp, &maplen);
+	std::vector<u8> slurp;
+	if (!buf || maplen < size)
 	{
-		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-		rfclose(fp);
-		return false;
-	}
-
-	png_set_read_fn(png_ptr, fp, png_rfile_read_data);
-	png_read_info(png_ptr, info_ptr);
-
-	png_uint_32 width = 0;
-	png_uint_32 height = 0;
-	int bitDepth = 0;
-	int colorType = -1;
-	if (png_get_IHDR(png_ptr, info_ptr, &width, &height, &bitDepth, &colorType, nullptr, nullptr, nullptr) != 1 ||
-		width == 0 || height == 0)
-	{
-		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-		rfclose(fp);
-		return false;
-	}
-
-	const u32 pitch = width * sizeof(u32);
-	tex->width = width;
-	tex->height = height;
-	tex->format = GSTexture::Format::Color;
-	tex->pitch = pitch;
-	tex->data.resize(pitch * height);
-
-	const png_uint_32 row_bytes = png_get_rowbytes(png_ptr, info_ptr);
-	std::vector<u8> row_data(row_bytes);
-
-	for (u32 y = 0; y < height; y++)
-	{
-		png_read_row(png_ptr, static_cast<png_bytep>(row_data.data()), nullptr);
-
-		const u8* row_ptr = row_data.data();
-		u8* out_ptr = tex->data.data() + y * pitch;
-		if (colorType == PNG_COLOR_TYPE_RGB)
+		slurp.resize(static_cast<size_t>(size));
+		if (filestream_read(fp, slurp.data(), size) != size)
 		{
-			for (u32 x = 0; x < width; x++)
-			{
-				u32 pixel = static_cast<u32>(*(row_ptr)++);
-				pixel |= static_cast<u32>(*(row_ptr)++) << 8;
-				pixel |= static_cast<u32>(*(row_ptr)++) << 16;
-				pixel |= 0x80000000u; // make opaque
-				memcpy(out_ptr, &pixel, sizeof(pixel));
-				out_ptr += sizeof(pixel);
-			}
+			filestream_close(fp);
+			return false;
 		}
-		else if (colorType == PNG_COLOR_TYPE_RGBA)
-			memcpy(out_ptr, row_ptr, pitch);
+		buf = slurp.data();
 	}
 
-	png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-	rfclose(fp);
-	return true;
+	/* IHDR color type, for the alpha policy below (offset 25: 8 byte
+	   signature + length + 'IHDR' + width + height + bit depth). */
+	const u8 color_type = buf[25];
+
+	rpng_t* rpng = rpng_alloc();
+	if (!rpng)
+	{
+		filestream_close(fp);
+		return false;
+	}
+
+	bool ok = rpng_set_buf_ptr(rpng, const_cast<u8*>(buf), static_cast<size_t>(size)) &&
+			rpng_start(rpng);
+	while (ok && rpng_iterate_image(rpng))
+		;
+
+	void* out_data = nullptr;
+	unsigned width = 0, height = 0;
+	if (ok)
+		ok = rpng_process_image(rpng, &out_data, static_cast<size_t>(size), &width, &height, true) > 0 &&
+				out_data && width && height;
+
+	if (ok)
+	{
+		const u32 pitch = width * sizeof(u32);
+		tex->width  = width;
+		tex->height = height;
+		tex->format = GSTexture::Format::Color;
+		tex->pitch  = pitch;
+		tex->data.resize(pitch * height);
+
+		const u32* src = static_cast<const u32*>(out_data);
+		u8* dst        = tex->data.data();
+		const bool force_opaque = (color_type == 2); /* truecolor, no alpha */
+		for (u32 i = 0; i < width * height; i++)
+		{
+			const u32 argb = src[i];
+			u32 pixel = (argb & 0x0000FF00u) |
+					((argb >> 16) & 0xFFu) |
+					((argb & 0xFFu) << 16) |
+					(force_opaque ? 0x80000000u : (argb & 0xFF000000u));
+			memcpy(dst + i * sizeof(u32), &pixel, sizeof(pixel));
+		}
+	}
+
+	if (out_data)
+		free(out_data);
+	rpng_free(rpng);
+	filestream_close(fp);
+	return ok;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
