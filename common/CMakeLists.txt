@@ -104,7 +104,6 @@ endif()
 
 target_link_libraries(common PRIVATE
 	${LIBC_LIBRARIES}
-	PNG::PNG
 )
 
 target_link_libraries(common PUBLIC
