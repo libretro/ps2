@@ -29,7 +29,7 @@
 #include <mach/mach_time.h> // mach_absolute_time()
 #endif
 
-#include <limits>
+#include <stdint.h>
 
 // --------------------------------------------------------------------------------------
 //  Semaphore Implementations
@@ -37,23 +37,25 @@
 
 bool Threading::WorkSema::CheckForWork()
 {
-	s32 value = m_state.load(std::memory_order_relaxed);
-
-	// Dead semas stay dead: don't let the CAS below silently rewrite
-	// INT_MIN to STATE_RUNNING_0 and resurrect a killed worker.
-	if (value < STATE_SPINNING)
-		return false;
-
-	// we want to switch to the running state, but preserve the waiting empty bit for RUNNING_N -> RUNNING_0
-	// otherwise, we clear the waiting flag (since we're notifying the waiter that we're empty below)
-	while (!m_state.compare_exchange_weak(value,
-		((value & (STATE_FLAG_WAITING_EMPTY - 1)) == STATE_RUNNING_0) ? STATE_RUNNING_0 : (value & STATE_FLAG_WAITING_EMPTY),
-		std::memory_order_acq_rel, std::memory_order_relaxed))
+	/* Load-then-attempt: cas_int is strong with no expected-out
+	 * parameter, so each failed attempt re-reads and re-checks the
+	 * death sentinel - the same guarantee the old expected-out refresh
+	 * provided. */
+	s32 value;
+	for (;;)
 	{
-		// Re-check the death sentinel after a failed CAS in case Kill()
-		// raced with us: same reasoning as above for the initial load.
+		value = retro_atomic_load_acquire_int(&m_state);
+
+		// Dead semas stay dead: don't let the CAS below silently rewrite
+		// INT_MIN to STATE_RUNNING_0 and resurrect a killed worker.
 		if (value < STATE_SPINNING)
 			return false;
+
+		// we want to switch to the running state, but preserve the waiting empty bit for RUNNING_N -> RUNNING_0
+		// otherwise, we clear the waiting flag (since we're notifying the waiter that we're empty below)
+		if (retro_atomic_cas_int(&m_state, value,
+				((value & (STATE_FLAG_WAITING_EMPTY - 1)) == STATE_RUNNING_0) ? STATE_RUNNING_0 : (value & STATE_FLAG_WAITING_EMPTY)))
+			break;
 	}
 
 	// if we're not empty, we have work to do
@@ -77,13 +79,14 @@ void Threading::WorkSema::WaitForWork()
 	//   doesn't silently resurrect us to STATE_RUNNING_0 and then sleep forever on m_sema.
 	// RUNNING_0: Change state to SLEEPING, wake up thread if WAITING_EMPTY
 	// RUNNING_N: Change state to RUNNING_0 (and preserve WAITING_EMPTY flag)
-	s32 value = m_state.load(std::memory_order_relaxed);
-	if (value < STATE_SPINNING)
-		return;
-	while (!m_state.compare_exchange_weak(value, NextStateWaitForWork(value), std::memory_order_acq_rel, std::memory_order_relaxed))
+	s32 value;
+	for (;;)
 	{
+		value = retro_atomic_load_acquire_int(&m_state);
 		if (value < STATE_SPINNING)
 			return;
+		if (retro_atomic_cas_int(&m_state, value, NextStateWaitForWork(value)))
+			break;
 	}
 
 	s32 waiting_empty_cleared = value & (STATE_FLAG_WAITING_EMPTY - 1);
@@ -93,35 +96,34 @@ void Threading::WorkSema::WaitForWork()
 			m_empty_sema.Post();
 		m_sema.Wait();
 		// Acknowledge any additional work added between wake up request and getting here
-		m_state.fetch_and(STATE_FLAG_WAITING_EMPTY, std::memory_order_acquire);
+		retro_atomic_fetch_and_int(&m_state, STATE_FLAG_WAITING_EMPTY);
 	}
 }
 
 bool Threading::WorkSema::WaitForEmpty()
 {
-	s32 value = m_state.load(std::memory_order_acquire);
 	for (;;)
 	{
+		const s32 value = retro_atomic_load_acquire_int(&m_state);
 		if (value < 0)
 			return !(value < STATE_SPINNING); // STATE_SPINNING, queue is empty!
-		// Note: We technically only need memory_order_acquire on *failure* (because that's when we could leave without sleeping), but libstdc++ still asserts on failure < success
-		if (m_state.compare_exchange_weak(value, value | STATE_FLAG_WAITING_EMPTY, std::memory_order_acquire))
+		if (retro_atomic_cas_int(&m_state, value, value | STATE_FLAG_WAITING_EMPTY))
 			break;
 	}
 	m_empty_sema.Wait();
-	return !(m_state.load(std::memory_order_relaxed) < STATE_SPINNING);
+	return !(retro_atomic_load_acquire_int(&m_state) < STATE_SPINNING);
 }
 
 void Threading::WorkSema::Kill()
 {
-	s32 value = m_state.exchange(std::numeric_limits<s32>::min(), std::memory_order_release);
+	s32 value = retro_atomic_exchange_int(&m_state, INT32_MIN);
 	if (value & STATE_FLAG_WAITING_EMPTY)
 		m_empty_sema.Post();
 }
 
 void Threading::WorkSema::Reset()
 {
-	m_state = STATE_RUNNING_0;
+	retro_atomic_store_release_int(&m_state, STATE_RUNNING_0);
 }
 
 Threading::KernelSemaphore::KernelSemaphore()

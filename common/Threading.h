@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include "Pcsx2Defs.h"
 #include "General.h"
 
@@ -255,7 +256,7 @@ namespace Threading
 		/// Semaphore for sleeping thread waiting on worker queue empty
 		KernelSemaphore m_empty_sema;
 		/// Current state (see enum below)
-		std::atomic<s32> m_state{0};
+		retro_atomic_int_t m_state = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 		// Expected call frequency is NotifyOfWork > WaitForWork > WaitForEmpty
 		// So optimize states for fast NotifyOfWork
@@ -286,7 +287,7 @@ namespace Threading
 			// SLEEPING: Change state to RUNNING and wake worker.  Thread will wake up and process the new data.
 			// RUNNING_0: Change state to RUNNING_N.
 			// RUNNING_N: Stay in RUNNING_N
-			s32 old = m_state.fetch_add(2, std::memory_order_release);
+			s32 old = retro_atomic_fetch_add_int(&m_state, 2);
 			if (old == STATE_SLEEPING)
 				m_sema.Post();
 		}
@@ -301,7 +302,7 @@ namespace Threading
                 /// shutdown/close wakeups.
 		void NotifyOfWorkIfRunning()
 		{
-			if (m_state.load(std::memory_order_relaxed) < 2)
+			if (retro_atomic_load_acquire_int(&m_state) < 2)
 				NotifyOfWork();
 		}
 
@@ -329,7 +330,7 @@ namespace Threading
 		// + run a destructor on every UserspaceSemaphore teardown.
 		KernelSemaphore m_sema;
 #endif
-		std::atomic<int32_t> m_counter{0};
+		retro_atomic_int_t m_counter = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	public:
 		UserspaceSemaphore() = default;
@@ -338,7 +339,7 @@ namespace Threading
 #if defined(__aarch64__)
 		void Post()
 		{
-			m_counter.fetch_add(1, std::memory_order_release);
+			retro_atomic_fetch_add_int(&m_counter, 1);
 			__asm__ __volatile__("sev" ::: "memory");
 		}
 
@@ -361,23 +362,30 @@ namespace Threading
 #else
 		void Post()
 		{
-			if (m_counter.fetch_add(1, std::memory_order_release) < 0)
+			if (retro_atomic_fetch_add_int(&m_counter, 1) < 0)
 				m_sema.Post();
 		}
 
 		void Wait()
 		{
-			if (m_counter.fetch_sub(1, std::memory_order_acquire) <= 0)
+			if (retro_atomic_fetch_sub_int(&m_counter, 1) <= 0)
 				m_sema.Wait();
 		}
 #endif
 
 		bool TryWait()
 		{
-			int32_t counter = m_counter.load(std::memory_order_relaxed);
-			while (counter > 0 && !m_counter.compare_exchange_weak(counter, counter - 1, std::memory_order_acquire, std::memory_order_relaxed))
-				;
-			return counter > 0;
+			/* Load-then-attempt: cas_int is strong with no expected-out,
+			 * so re-read on failure.  Returns true iff a positive count
+			 * was decremented, as before. */
+			for (;;)
+			{
+				const int32_t counter = retro_atomic_load_acquire_int(&m_counter);
+				if (counter <= 0)
+					return false;
+				if (retro_atomic_cas_int(&m_counter, counter, counter - 1))
+					return true;
+			}
 		}
 	};
 } // namespace Threading
