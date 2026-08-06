@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 #include <type_traits>
-#include <thread>
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
@@ -67,7 +66,7 @@ bool pending_update_av_info = false;
 std::string libretro_content;
 
 static std::atomic<VMState> cpu_thread_state;
-static std::thread cpu_thread;
+static Threading::Thread cpu_thread;
 
 /* Pause/resume coordination for cpu_thread.
  *
@@ -2254,7 +2253,14 @@ bool retro_load_game(const struct retro_game_info* game)
 		}
 	}
 
-	cpu_thread = std::thread(cpu_thread_entry, boot_params);
+	/* Threading::Thread rather than std::thread for one substantive
+	 * reason: an explicit stack size.  This thread runs microVU0 always
+	 * and microVU1 whenever MTVU is off - the exact code
+	 * EMU_THREAD_STACK_SIZE exists for ("uVU likes recursion") and that
+	 * the MTVU worker already requests - while the Windows default for
+	 * an unadorned thread is half that. */
+	cpu_thread.SetStackSize(VMManager::EMU_THREAD_STACK_SIZE);
+	cpu_thread.Start([boot_params]() { cpu_thread_entry(boot_params); });
 
 	return true;
 }
@@ -2293,7 +2299,7 @@ void retro_unload_game(void)
 	}
 	cpu_thread_cv.notify_one();
 	Input::Shutdown();
-	cpu_thread.join();
+	cpu_thread.Join();
 #ifdef ENABLE_VULKAN
 	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
 		Vulkan::UnloadVulkanLibrary();
