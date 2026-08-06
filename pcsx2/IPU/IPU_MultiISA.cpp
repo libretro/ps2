@@ -1770,6 +1770,11 @@ __fi static void ipu_csc(macroblock_8& mb8, macroblock_rgb32& rgb32, int sgn)
 	}
 	if (sgn)
 	{
+		/* p has been advanced through the whole macroblock by the
+		 * threshold pass above; without this reset the XOR walks the
+		 * kilobyte PAST rgb32 whenever a threshold is active, flipping
+		 * bits in whatever follows in decoder_t instead of the pixels. */
+		p = (u8*)&rgb32;
 		for (i = 0; i < 16*16; i++, p += 4)
 			*(u32*)p ^= 0x808080;
 	}
