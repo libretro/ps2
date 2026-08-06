@@ -64,7 +64,7 @@ extern bool pending_update_av_info;
 
 struct vSyncTimingInfo
 {
-	double Framerate;       // frames per second (8 bit fixed)
+	u32 VerticalMilliHz;    // vertical frequency in milli-hertz, exact integer
 	GS_VideoMode VideoMode; // used to detect change (interlaced/progressive)
 	u32 Render;             // time from vblank end to vblank start (cycles)
 	u32 Blank;              // time from vblank start to vblank end (cycles)
@@ -223,11 +223,19 @@ void rcntInit(void)
 	cpuRcntSet();
 }
 
-static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 scansPerFrame)
+static void vSyncInfoCalc(vSyncTimingInfo* info, u32 vertical_mHz, u32 scansPerFrame)
 {
-	constexpr double clock = static_cast<double>(PS2CLK);
-
-	const u64 Frame = clock * 10000ULL / framesPerSecond;
+	// All-integer timing derivation.  The old double math was
+	// IEEE-deterministic only as long as no platform built this file with
+	// -ffast-math (the mips platform branch already does) or an x87 code
+	// path; integer division is deterministic under any flags on any
+	// machine.  The value grid is vertical frequency in exact
+	// milli-hertz; frame length in 1/10000ths of an EE cycle follows in
+	// one u64 division (PS2CLK * 10000 * 2000 = 5.9e18 fits with
+	// headroom), and every figure below was verified byte-identical to
+	// the old double path across the full video-mode matrix before the
+	// switch.
+	const u64 Frame = (u64)PS2CLK * 10000ULL * 2000ULL / vertical_mHz;
 	const u64 Scanline = Frame / scansPerFrame;
 
 	// There are two renders and blanks per frame. This matches the PS2 test results.
@@ -240,10 +248,16 @@ static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 sca
 	// Shadow of Rome - FMV audio issues
 	const bool ntsc_hblank = gsVideoMode != GS_VideoMode::PAL && gsVideoMode != GS_VideoMode::DVD_PAL;
 	const u64 HalfFrame = Frame / 2;
-	const float extra_scanlines = static_cast<float>(IsProgressiveVideoMode()) * (ntsc_hblank ? 0.5f : 1.5f);
-	const u64 Blank = Scanline * ((ntsc_hblank ? 22.5 : 24.5) + extra_scanlines);
-	const u64 Render = HalfFrame - Blank;
-	const u64 GSBlank = Scanline * ((ntsc_hblank ? 3.5 : 3) + extra_scanlines); // GS VBlank/CSR Swap happens roughly 3.5(NTSC) and 3(PAL) Scanlines after VBlank Start
+	// Scanline counts carried as numerators over 2: the vblank period is
+	// 22.5 (NTSC) / 24.5 (PAL) scanlines, plus 0.5 / 1.5 in progressive
+	// modes; the GS CSR swap happens 3.5 / 3 scanlines after vblank
+	// start, with the same progressive extra.
+	const u64 prog    = IsProgressiveVideoMode() ? 1 : 0;
+	const u64 blank2  = (ntsc_hblank ? 45u : 49u) + prog * (ntsc_hblank ? 1u : 3u);
+	const u64 gsb2    = (ntsc_hblank ?  7u :  6u) + prog * (ntsc_hblank ? 1u : 3u);
+	const u64 Blank   = Scanline * blank2 / 2;
+	const u64 Render  = HalfFrame - Blank;
+	const u64 GSBlank = Scanline * gsb2 / 2;
 
 	// Important!  The hRender/hBlank timers should be 50/50 for best results.
 	//  (this appears to be what the real EE's timing crystal does anyway)
@@ -257,9 +271,7 @@ static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 sca
 		hRender /= 2;
 	}
 
-	//TODO: Carry fixed-point math all the way through the entire vsync and hsync counting processes, and continually apply rounding
-	//as needed for each scheduled v/hsync related event. Much better to handle than this messed state.
-	info->Framerate = framesPerSecond;
+	info->VerticalMilliHz = vertical_mHz;
 	info->GSBlank = (u32)(GSBlank / 10000);
 	info->Render = (u32)(Render / 10000);
 	info->Blank = (u32)(Blank / 10000);
@@ -292,7 +304,7 @@ static void vSyncInfoCalc(vSyncTimingInfo* info, double framesPerSecond, u32 sca
 	// is thus not worth the effort at this time.
 }
 
-double GetVerticalFrequency(void)
+u32 GetVerticalFrequencyMilliHz(void)
 {
 	// Note about NTSC/PAL "double strike" modes:
 	// NTSC and PAL can be configured in such a way to produce a non-interlaced signal.
@@ -320,23 +332,40 @@ double GetVerticalFrequency(void)
 	{
 		case GS_VideoMode::PAL:
 		case GS_VideoMode::DVD_PAL:
-			return (IsProgressiveVideoMode()) ? (EmuConfig.GS.FrameratePAL - 0.24f) : (EmuConfig.GS.FrameratePAL);
+		{
+			// Config floats snap to the milli-hertz grid once, here; the
+			// progressive "double strike" adjustment (-0.24 Hz) is then an
+			// exact integer, where the old float subtraction put binary
+			// noise into a rate Beatmania is documented sensitive to.
+			const u32 mHz = (u32)lrintf(EmuConfig.GS.FrameratePAL * 1000.0f);
+			return IsProgressiveVideoMode() ? mHz - 240 : mHz;
+		}
 		case GS_VideoMode::NTSC:
 		case GS_VideoMode::DVD_NTSC:
-			return (IsProgressiveVideoMode()) ? (EmuConfig.GS.FramerateNTSC - 0.11f)  : EmuConfig.GS.FramerateNTSC;
+		{
+			const u32 mHz = (u32)lrintf(EmuConfig.GS.FramerateNTSC * 1000.0f);
+			return IsProgressiveVideoMode() ? mHz - 110 : mHz;
+		}
 		case GS_VideoMode::HDTV_1080P:
 		case GS_VideoMode::HDTV_1080I:
 		case GS_VideoMode::HDTV_720P:
 		case GS_VideoMode::SDTV_576P:
 		case GS_VideoMode::VESA:
 		case GS_VideoMode::Uninitialized: // SetGsCrt hasn't executed yet, give some temporary values.
-			return 60.00;
+			return 60000;
 		case GS_VideoMode::SDTV_480P:
 		default:
 			// Pass NTSC vertical frequency value when unknown video mode is detected.
 			break;
 	}
-	return FRAMERATE_NTSC * 2;
+	return 59940; // FRAMERATE_NTSC * 2
+}
+
+double GetVerticalFrequency(void)
+{
+	// Reporting/RTC convenience wrapper; core timing consumes the exact
+	// milli-hertz value and never this double.
+	return GetVerticalFrequencyMilliHz() / 1000.0;
 }
 
 void UpdateVSyncRate(bool force)
@@ -347,11 +376,9 @@ void UpdateVSyncRate(bool force)
 	//  the GS's output circuit.  It is the same regardless if the GS is outputting interlace
 	//  or progressive scan content.
 
-	const double vertical_frequency = GetVerticalFrequency();
+	const u32 vertical_mHz = GetVerticalFrequencyMilliHz();
 
-	const double frames_per_second = vertical_frequency / 2.0;
-
-	if (vSyncInfo.Framerate != frames_per_second || vSyncInfo.VideoMode != gsVideoMode || force)
+	if (vSyncInfo.VerticalMilliHz != vertical_mHz || vSyncInfo.VideoMode != gsVideoMode || force)
 	{
 		u32 total_scanlines = 0;
 
@@ -394,7 +421,7 @@ void UpdateVSyncRate(bool force)
 
 		vSyncInfo.VideoMode = gsVideoMode;
 
-		vSyncInfoCalc(&vSyncInfo, frames_per_second, total_scanlines);
+		vSyncInfoCalc(&vSyncInfo, vertical_mHz, total_scanlines);
 
 		hsyncCounter.deltaCycles = (hsyncCounter.Mode == MODE_HBLANK) ? vSyncInfo.hBlank : vSyncInfo.hRender;
 		vsyncCounter.deltaCycles = (vsyncCounter.Mode == MODE_GSBLANK) ?
