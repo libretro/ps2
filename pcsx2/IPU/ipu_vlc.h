@@ -157,10 +157,7 @@ alignas(16) static constexpr VLCarray<MVtab, 48, 24> MV_10_A(VLC_MV_10, 10, 0, 0
 alignas(16) static constexpr VLCarray<DMVtab, 4, 3> DMV_2_A(VLC_DMV_2, 2, 0, 0);
 
 /* coded_block_pattern, Table B-9 */
-alignas(16) static constexpr VLCarray<CBPtab, 64, 24> CBP_7_A(VLC_CBP_7, 7, 0, 16);
-/* The CBP_9 lookup is only reached when the 16-bit window's top three
- * bits are zero, so UBITS(9) is below 64: the upper 448 entries of the
- * old 512-entry array were unreachable and are not carried over. */
+alignas(16) static constexpr VLCarray<CBPtab, 112, 29> CBP_7_A(VLC_CBP_7, 7, 0, 16);
 alignas(16) static constexpr VLCarray<CBPtab, 64, 35> CBP_9_A(VLC_CBP_9, 9, 0, 0);
 
 static constexpr const MBtab* MB_I = MB_I_A.e;
