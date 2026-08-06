@@ -887,6 +887,7 @@ endif()
 
 # additonal include directories
 target_include_directories(PCSX2_FLAGS INTERFACE
+	"${CMAKE_SOURCE_DIR}/libretro/libretro-common/include"
 	.
 	x86
 	${CMAKE_BINARY_DIR}/pcsx2
