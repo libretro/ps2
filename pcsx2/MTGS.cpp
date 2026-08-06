@@ -227,7 +227,7 @@ void MTGS::MainLoop(bool flush_all)
 						u32 size       = tag.data[1];
 						if (offset != ~0u)
 							GSgifTransfer((u8*)&path.buffer[offset], size / 16);
-						path.readAmount.fetch_sub(size, std::memory_order_acq_rel);
+						retro_atomic_fetch_sub_int(&path.readAmount, size);
 					}
 					break;
 
@@ -255,7 +255,7 @@ void MTGS::MainLoop(bool flush_all)
 						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
 						if (gsPack.size)
 							GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
-						path.readAmount.fetch_sub(gsPack.size + gsPack.readAmount, std::memory_order_acq_rel);
+						retro_atomic_fetch_sub_int(&path.readAmount, gsPack.size + gsPack.readAmount);
 						const bool final_packet = gsPack.cycles == 0;
 						path.PopGSPacketMTVU(); // Should be done last, for proper WaitGS(isMTVU)
 						if (final_packet)
@@ -437,7 +437,7 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 		tag.data[0]                 = (int)_gsPack.offset;
 		tag.data[1]                 = (int)_gsPack.size;
 
-		gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
+		retro_atomic_fetch_add_int(&gifUnit.gifPath[_path].readAmount, _gsPack.size);
 	}
 	tag.data[2]                         = (int)_path;
 	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
@@ -454,7 +454,7 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	if (sthread_get_current_thread_id() == MTGS::s_thread)
 		return;
 
-	gifUnit.gifPath[_path].readAmount.fetch_add(_size);
+	retro_atomic_fetch_add_int(&gifUnit.gifPath[_path].readAmount, _size);
 	const unsigned int writepos = retro_atomic_load_acquire_int(&MTGS::s_WritePos);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 

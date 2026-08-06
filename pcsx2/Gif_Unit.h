@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include <deque>
 #include <cstring> /* memset */
 
@@ -215,7 +216,7 @@ struct Gif_Path_MTVU
 
 struct Gif_Path
 {
-	std::atomic<int> readAmount; // Amount of data MTGS still needs to read
+	retro_atomic_int_t readAmount; // Amount of data MTGS still needs to read
 	u8* buffer;                  // Path packet buffer
 	u32 buffSize;                // Full size of buffer
 	u32 buffLimit;               // Cut off limit to wrap around
@@ -259,7 +260,7 @@ struct Gif_Path
 		mtvu.Reset();
 		curSize = 0;
 		curOffset = 0;
-		readAmount = 0;
+		retro_atomic_store_release_int(&readAmount, 0);
 		gifTag.Reset();
 		gsPack.offset     = 0;
 		gsPack.size       = 0;
@@ -268,7 +269,7 @@ struct Gif_Path
 	}
 
 	bool isMTVU() const { return !idx && THREAD_VU1; }
-	s32 getReadAmount() { return readAmount.load(std::memory_order_acquire) + gsPack.readAmount; }
+	s32 getReadAmount() { return retro_atomic_load_acquire_int(&readAmount) + gsPack.readAmount; }
 	bool hasDataRemaining() const { return curOffset < curSize; }
 	bool isDone() const { return isMTVU() ? !mtvu.fakePackets : (!hasDataRemaining() && (state == GIF_PATH_IDLE || state == GIF_PATH_WAIT)); }
 
@@ -496,7 +497,7 @@ struct Gif_Path
 		gsPack.cycles = final ? 0 : 1;
 		// Performance note: fetch_add atomic operation might create some stall for atomic
 		// operation in gsPack.push
-		readAmount.fetch_add(gsPack.size + gsPack.readAmount, std::memory_order_acq_rel);
+		retro_atomic_fetch_add_int(&readAmount, gsPack.size + gsPack.readAmount);
 		while (!mtvu.gsPackQueue.push(gsPack))
 			;
 

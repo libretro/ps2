@@ -14,6 +14,7 @@
  */
 
 
+#include <retro_atomic.h>
 #include <cstring> /* memset */
 #include <compat/strl.h>
 
@@ -51,7 +52,7 @@ bool g_GameLoading; // EELOAD has been called to load the game
 
 #define EE_WAIT_CYCLES 3072
 
-std::atomic<bool> eeEventTestIsActive{false};
+retro_atomic_int_t eeEventTestIsActive = RETRO_ATOMIC_INT_INITIALIZER(0);
 static EE_intProcessStatus eeRunInterruptScan = INT_NOT_RUNNING;
 
 u32 g_eeloadMain = 0, g_eeloadExec = 0, g_osdsys_str = 0;
@@ -316,7 +317,7 @@ static bool cpuIntsEnabled(int Interrupt)
 // and the recompiler.  (moved here to help alleviate redundant code)
 __fi void _cpuEventTest_Shared(void)
 {
-	eeEventTestIsActive    = true;
+	retro_atomic_store_release_int(&eeEventTestIsActive, 1);
 	cpuRegs.nextEventCycle = cpuRegs.cycle + EE_WAIT_CYCLES;
 	cpuRegs.lastEventCycle = cpuRegs.cycle;
 	// ---- INTC / DMAC (CPU-level Exceptions) -----------------
@@ -431,7 +432,7 @@ __fi void _cpuEventTest_Shared(void)
 	if ((int)(cpuRegs.nextEventCycle - nextStartCounter) > nextDeltaCounter)
 		cpuRegs.nextEventCycle = nextStartCounter + nextDeltaCounter;
 
-	eeEventTestIsActive = false;
+	retro_atomic_store_release_int(&eeEventTestIsActive, 0);
 }
 
 __ri void cpuTestINTCInts(void)
@@ -447,7 +448,7 @@ __ri void cpuTestINTCInts(void)
 	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4)
 		cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
 
-	if (eeEventTestIsActive && (psxRegs.iopCycleEE > 0))
+	if (retro_atomic_load_acquire_int(&eeEventTestIsActive) && (psxRegs.iopCycleEE > 0))
 	{
 		psxRegs.iopBreak   += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
 		psxRegs.iopCycleEE  = 0;
@@ -468,7 +469,7 @@ __fi void cpuTestDMACInts(void)
 	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > 4)
 		cpuRegs.nextEventCycle = cpuRegs.cycle + 4;
 
-	if (eeEventTestIsActive && (psxRegs.iopCycleEE > 0))
+	if (retro_atomic_load_acquire_int(&eeEventTestIsActive) && (psxRegs.iopCycleEE > 0))
 	{
 		psxRegs.iopBreak += psxRegs.iopCycleEE; // record the number of cycles the IOP didn't run.
 		psxRegs.iopCycleEE = 0;

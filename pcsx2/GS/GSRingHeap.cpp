@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include "../../common/AlignedMalloc.h"
 
 #include "GS.h"
@@ -51,10 +52,10 @@ struct GSRingHeap::Buffer
 	/// Each allocation adds `sizeof(allocation)`, to allow for detection of buffers being used inefficiently
 	///   (e.g. if a buffer is orphaned with very little usage that means allocations aren't being freed in a similar order to being made)
 	/// Buffer is freed when the main heap drops it (-1) and every allocation is freed, causing this to reach 0
-	std::atomic<size_t> m_amt_allocated;
+	retro_atomic_size_t m_amt_allocated;
 	/// Holds 4x 16-bit usage counters, indicating how many allocations have been made from the nth quadrant of memory
 	/// Merged into `size_t` chunks so that they can be operated on with fewer atomic operations
-	std::atomic<size_t> m_usage[USAGE_ARR_SIZE];
+	retro_atomic_size_t m_usage[USAGE_ARR_SIZE];
 	/// Size of whole buffer (including header)
 	/// Should be kept to at least 2x the largest allocation
 	size_t m_size;
@@ -69,7 +70,7 @@ struct GSRingHeap::Buffer
 		for (size_t i = 0; i < USAGE_ARR_SIZE; i++)
 		{
 			size_t piece = static_cast<size_t>(usage >> (i * (64 / USAGE_ARR_SIZE)));
-			m_usage[i].fetch_add(piece, std::memory_order_relaxed);
+			retro_atomic_fetch_add_size(&m_usage[i], piece);
 		}
 	}
 
@@ -79,7 +80,7 @@ struct GSRingHeap::Buffer
 		for (size_t i = 0; i < USAGE_ARR_SIZE; i++)
 		{
 			size_t piece = static_cast<size_t>(usage >> (i * (64 / USAGE_ARR_SIZE)));
-			m_usage[i].fetch_sub(piece, std::memory_order_release);
+			retro_atomic_fetch_sub_size(&m_usage[i], piece);
 		}
 	}
 
@@ -88,7 +89,7 @@ struct GSRingHeap::Buffer
 	{
 		int arridx = (quadrant / USAGE_ARR_ELEMS_PER_ENTRY) % USAGE_ARR_SIZE;
 		int shift = (quadrant % USAGE_ARR_ELEMS_PER_ENTRY) * 16;
-		return ((m_usage[arridx].load(std::memory_order_acquire) >> shift) & 0xFFFF) != 0;
+		return ((retro_atomic_load_acquire_size(&m_usage[arridx]) >> shift) & 0xFFFF) != 0;
 	}
 
 	uint32_t quadrant(size_t off)
@@ -113,9 +114,9 @@ struct GSRingHeap::Buffer
 	/// Decrement the main amt_allocated refcount
 	void decref(size_t amt)
 	{
-		if (unlikely(m_amt_allocated.fetch_sub(amt, std::memory_order_release) == amt))
+		if (unlikely(retro_atomic_fetch_sub_size(&m_amt_allocated, amt) == amt))
 		{
-			std::atomic_thread_fence(std::memory_order_acquire);
+			retro_atomic_thread_fence_acquire();
 			_aligned_free(this);
 		}
 	}
@@ -156,7 +157,7 @@ struct GSRingHeap::Buffer
 
 		m_write_loc = base_off + size;
 		beginUse(usage_mask);
-		m_amt_allocated.fetch_add(size + prefix_size, std::memory_order_relaxed);
+		retro_atomic_fetch_add_size(&m_amt_allocated, size + prefix_size);
 		return reinterpret_cast<char*>(this) + base_off - prefix_size;
 	}
 
@@ -166,9 +167,9 @@ struct GSRingHeap::Buffer
 		Buffer* buffer = reinterpret_cast<Buffer*>(_aligned_malloc(size, 32));
 		buffer->m_size = size;
 		buffer->m_quadrant_shift = quadrant_shift;
-		buffer->m_amt_allocated.store(1, std::memory_order_relaxed);
-		for (std::atomic<size_t>& usage : buffer->m_usage)
-			usage.store(0, std::memory_order_relaxed);
+		retro_atomic_store_release_size(&buffer->m_amt_allocated, 1);
+		for (retro_atomic_size_t& usage : buffer->m_usage)
+			retro_atomic_store_release_size(&usage, 0);
 		buffer->m_write_loc = BEGINNING_OFFSET;
 		return buffer;
 	}

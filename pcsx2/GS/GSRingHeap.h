@@ -15,8 +15,8 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 
@@ -93,7 +93,7 @@ public:
 		struct alignas(MIN_ALIGN) AllocationHeader
 		{
 			uint32_t size;
-			std::atomic<uint32_t> refcnt;
+			retro_atomic_int_t refcnt;
 		};
 
 		T* m_ptr;
@@ -123,7 +123,7 @@ public:
 			: m_ptr(other.m_ptr)
 		{
 			if (m_ptr)
-				getHeader()->refcnt.fetch_add(1, std::memory_order_relaxed);
+				retro_atomic_inc_int(&getHeader()->refcnt);
 		}
 
 		SharedPtr(SharedPtr&& other)
@@ -153,7 +153,7 @@ public:
 			AllocationHeader* header = getHeader();
 			// (See top) Expectation: Once shared, no one writes
 			// Therefore we don't need acquire/release semantics here
-			if (header->refcnt.fetch_sub(1, std::memory_order_relaxed) == 1)
+			if (retro_atomic_fetch_sub_int(&header->refcnt, 1) == 1)
 			{
 				m_ptr->~T();
 				free_internal(static_cast<void*>(header), header->size);
@@ -167,7 +167,7 @@ public:
 		template <typename Other>
 		SharedPtr<Other> cast() const&
 		{
-			getHeader().refcount.fetch_add(1, std::memory_order_relaxed);
+			retro_atomic_inc_int(&getHeader().refcount);
 			return SharedPtr<Other>(static_cast<Other*>(m_ptr));
 		}
 
@@ -192,7 +192,7 @@ public:
 		std::unique_ptr<void, void(*)(void*)> guard(ptr, [](void* p){ free_internal(p, alloc_size); });
 		Header* header = static_cast<Header*>(ptr);
 		header->size = static_cast<uint32_t>(alloc_size);
-		header->refcnt.store(1, std::memory_order_relaxed);
+		retro_atomic_store_release_int(&header->refcnt, 1);
 
 		T* tptr = reinterpret_cast<T*>(header + 1);
 		new (tptr) T(std::forward<Args>(args)...);

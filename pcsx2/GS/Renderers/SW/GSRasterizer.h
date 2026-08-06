@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include "common/boost_spsc_queue.hpp"
 #include "common/General.h"
 #include "common/Threading.h"
@@ -35,7 +36,7 @@ private:
 	std::function<void()> m_startup;
 	std::function<void(T&)> m_func;
 	std::function<void()> m_shutdown;
-	std::atomic<bool> m_exit;
+	retro_atomic_int_t m_exit;
 	ringbuffer_base<T, CAPACITY> m_queue;
 
 	Threading::WorkSema m_sema;
@@ -48,7 +49,7 @@ private:
 		for (;;)
 		{
 			m_sema.WaitForWork();
-			if (m_exit.load(std::memory_order_acquire))
+			if (retro_atomic_load_acquire_int(&m_exit))
 				break;
 			while (m_queue.consume_one(*this))
 				;
@@ -63,14 +64,14 @@ public:
 		: m_startup(std::move(startup))
 		, m_func(std::move(func))
 		, m_shutdown(std::move(shutdown))
-		, m_exit(false)
+		, m_exit(RETRO_ATOMIC_INT_INITIALIZER(0))
 	{
 		m_thread.Start([this]() { ThreadProc(); });
 	}
 
 	~GSJobQueue()
 	{
-		m_exit.store(true, std::memory_order_release);
+		retro_atomic_store_release_int(&m_exit, 1);
 		m_sema.NotifyOfWork();
 		m_thread.Join();
 	}

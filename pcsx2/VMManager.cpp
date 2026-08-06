@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include <features/features_cpu.h>
 #include "VMManager.h"
 
@@ -126,7 +127,7 @@ namespace VMManager
 
 static std::unique_ptr<SysMainMemory> s_vm_memory;
 
-static std::atomic<VMState> s_state{VMState::Shutdown};
+static retro_atomic_int_t s_state = RETRO_ATOMIC_INT_INITIALIZER((int)VMState::Shutdown);
 static bool s_cpu_implementation_changed = false;
 static Threading::ThreadHandle s_vm_thread_handle;
 
@@ -146,15 +147,15 @@ static u32 s_active_no_interlacing_patches = 0;
 
 VMState VMManager::GetState()
 {
-	return s_state.load(std::memory_order_acquire);
+	return (VMState)retro_atomic_load_acquire_int(&s_state);
 }
 
 void VMManager::SetState(VMState state)
 {
 	// Some state transitions aren't valid.
-	const VMState old_state = s_state.load(std::memory_order_acquire);
+	const VMState old_state = (VMState)retro_atomic_load_acquire_int(&s_state);
 	SetTimerResolutionIncreased(state == VMState::Running);
-	s_state.store(state, std::memory_order_release);
+	retro_atomic_store_release_int(&s_state, (int)state);
 
 	if (state != VMState::Stopping && (state == VMState::Paused || old_state == VMState::Paused))
 	{
@@ -169,7 +170,7 @@ void VMManager::SetState(VMState state)
 
 bool VMManager::HasValidVM()
 {
-	const VMState state = s_state.load(std::memory_order_acquire);
+	const VMState state = (VMState)retro_atomic_load_acquire_int(&s_state);
 	return (state >= VMState::Running && state <= VMState::Resetting);
 }
 
@@ -600,13 +601,13 @@ bool VMManager::ApplyBootParameters(VMBootParameters params, std::string* state_
 bool VMManager::Initialize(VMBootParameters boot_params)
 {
 	std::string state_to_load;
-	s_state.store(VMState::Initializing, std::memory_order_release);
+	retro_atomic_store_release_int(&s_state, (int)VMState::Initializing);
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 
 	if (!ApplyBootParameters(std::move(boot_params), &state_to_load))
 	{
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
 
@@ -614,7 +615,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	if (!IsBIOSAvailable(EmuConfig.FullpathToBios()))
 	{
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
 
@@ -623,7 +624,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	if (!DoCDVDopen())
 	{
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
 
@@ -635,7 +636,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
 
@@ -647,7 +648,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
 
@@ -661,7 +662,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
 	}
 
@@ -679,7 +680,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 	cpuReset();
 	hwReset();
 
-	s_state.store(VMState::Paused, std::memory_order_release);
+	retro_atomic_store_release_int(&s_state, (int)VMState::Paused);
 
 	UpdateRunningGame(true, false, false);
 
@@ -694,7 +695,7 @@ void VMManager::Shutdown()
 {
 	// we'll probably already be stopping (this is how Qt calls shutdown),
 	// but just in case, so any of the stuff we call here knows we don't have a valid VM.
-	s_state.store(VMState::Stopping, std::memory_order_release);
+	retro_atomic_store_release_int(&s_state, (int)VMState::Stopping);
 
 	SetTimerResolutionIncreased(false);
 
@@ -747,7 +748,7 @@ void VMManager::Shutdown()
 	PADshutdown();
 	DEV9shutdown();
 
-	s_state.store(VMState::Shutdown, std::memory_order_release);
+	retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 
 	// clear out any potentially-incorrect settings from the last game
 	LoadSettings();
@@ -760,9 +761,9 @@ void VMManager::Reset()
 	// immediately here is a bad idea (tm), in fact, it breaks some games (e.g. TC:NYC).
 	// So, instead, we tell the rec to exit execution, _then_ reset. Paused is fine here,
 	// since the rec won't be running, so it's safe to immediately reset there.
-	if (s_state.load(std::memory_order_acquire) == VMState::Running)
+	if ((VMState)retro_atomic_load_acquire_int(&s_state) == VMState::Running)
 	{
-		s_state.store(VMState::Resetting, std::memory_order_release);
+		retro_atomic_store_release_int(&s_state, (int)VMState::Resetting);
 		return;
 	}
 
@@ -788,8 +789,8 @@ void VMManager::Reset()
 		UpdateRunningGame(true, false, false);
 
 	// If we were paused, state won't be resetting, so don't flip back to running.
-	if (s_state.load(std::memory_order_acquire) == VMState::Resetting)
-		s_state.store(VMState::Running, std::memory_order_release);
+	if ((VMState)retro_atomic_load_acquire_int(&s_state) == VMState::Resetting)
+		retro_atomic_store_release_int(&s_state, (int)VMState::Running);
 }
 
 bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
@@ -984,7 +985,7 @@ const std::string& VMManager::Internal::GetElfOverride()
 
 bool VMManager::Internal::IsExecutionInterrupted()
 {
-	return s_state.load(std::memory_order_relaxed) != VMState::Running || s_cpu_implementation_changed;
+	return (VMState)retro_atomic_load_acquire_int(&s_state) != VMState::Running || s_cpu_implementation_changed;
 }
 
 void VMManager::Internal::EntryPointCompilingOnCPUThread()
@@ -1149,7 +1150,7 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 void VMManager::ApplySettings()
 {
 	// if we're running, ensure the threads are synced
-	const bool running = (s_state.load(std::memory_order_acquire) == VMState::Running);
+	const bool running = ((VMState)retro_atomic_load_acquire_int(&s_state) == VMState::Running);
 	if (running)
 	{
 		if (THREAD_VU1)

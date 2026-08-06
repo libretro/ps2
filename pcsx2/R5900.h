@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include <atomic>
 
 // --------------------------------------------------------------------------------------
@@ -221,7 +222,7 @@ extern cpuRegisters& cpuRegs;
 extern fpuRegisters& fpuRegs;
 alignas(16) extern tlbs tlb[48];
 
-extern std::atomic<bool> eeEventTestIsActive;
+extern retro_atomic_int_t eeEventTestIsActive;
 
 void intUpdateCPUCycles();
 void intSetBranch();
