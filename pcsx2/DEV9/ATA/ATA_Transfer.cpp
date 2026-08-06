@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../../../common/Threading.h"
 #include "common/FileSystem.h"
 
 #include "ATA.h"
@@ -26,7 +27,7 @@
 
 void ATA::IO_Thread()
 {
-	std::unique_lock ioWaitHandle(ioMutex);
+	Threading::ScopedLock ioWaitHandle(ioMutex);
 	ioThreadIdle_bool = false;
 	ioWaitHandle.unlock();
 
@@ -34,9 +35,10 @@ void ATA::IO_Thread()
 	{
 		ioWaitHandle.lock();
 		ioThreadIdle_bool = true;
-		ioThreadIdle_cv.notify_all();
+		ioThreadIdle_cv.Broadcast();
 
-		ioReady.wait(ioWaitHandle, [&] { return ioRead | ioWrite; });
+		while (!(ioRead | ioWrite))
+			ioReady.Wait(ioMutex);
 		ioThreadIdle_bool = false;
 
 		int ioType = -1;
@@ -85,7 +87,7 @@ void ATA::IO_Read()
 		abort();
 	}
 	{
-		std::lock_guard ioSignallock(ioMutex);
+		Threading::ScopedLock ioSignallock(ioMutex);
 		ioRead = false;
 	}
 }
@@ -95,7 +97,7 @@ bool ATA::IO_Write()
 	WriteQueueEntry entry;
 	if (!writeQueue.Dequeue(&entry))
 	{
-		std::lock_guard ioSignallock(ioMutex);
+		Threading::ScopedLock ioSignallock(ioMutex);
 		ioWrite = false;
 		return false;
 	}
@@ -341,10 +343,10 @@ void ATA::HDD_ReadAsync(void (ATA::*drqCMD)())
 	waitingCmd = drqCMD;
 
 	{
-		std::lock_guard ioSignallock(ioMutex);
+		Threading::ScopedLock ioSignallock(ioMutex);
 		ioRead = true;
 	}
-	ioReady.notify_all();
+	ioReady.Broadcast();
 }
 
 //Note, we don't expect both Async & Sync Reads
@@ -352,13 +354,14 @@ void ATA::HDD_ReadAsync(void (ATA::*drqCMD)())
 void ATA::HDD_ReadSync(void (ATA::*drqCMD)())
 {
 	//unique_lock instead of lock_guard as also used for cv
-	std::unique_lock ioWaitHandle(ioMutex);
+	Threading::ScopedLock ioWaitHandle(ioMutex);
 	//Set ioWrite false to prevent reading & writing at the same time
 	const bool ioWritePaused = ioWrite;
 	ioWrite = false;
 
 	//wait until thread waiting
-	ioThreadIdle_cv.wait(ioWaitHandle, [&] { return ioThreadIdle_bool; });
+	while (!ioThreadIdle_bool)
+		ioThreadIdle_cv.Wait(ioMutex);
 	ioWaitHandle.unlock();
 
 	nsectorLeft = 0;
@@ -370,7 +373,7 @@ void ATA::HDD_ReadSync(void (ATA::*drqCMD)())
 			ioWaitHandle.lock();
 			ioWrite = true;
 			ioWaitHandle.unlock();
-			ioReady.notify_all();
+			ioReady.Broadcast();
 		}
 		return;
 	}
@@ -390,7 +393,7 @@ void ATA::HDD_ReadSync(void (ATA::*drqCMD)())
 		ioWaitHandle.lock();
 		ioWrite = true;
 		ioWaitHandle.unlock();
-		ioReady.notify_all();
+		ioReady.Broadcast();
 	}
 
 	(this->*drqCMD)();

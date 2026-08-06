@@ -15,7 +15,6 @@
 
 #pragma once
 #include <atomic>
-#include <mutex>
 #ifdef _WIN32
 #include <winsock2.h>
 #elif defined(__POSIX__)
@@ -23,6 +22,7 @@
 #include <sys/socket.h>
 #endif
 
+#include "../../../../common/Threading.h"
 #include "DEV9/Sessions/BaseSession.h"
 #include "UDP_BaseSession.h"
 #include "UDP_Session.h"
@@ -44,7 +44,7 @@ namespace Sessions
 		const u16 port = 0;
 
 	private:
-		std::mutex connectionSentry;
+		Threading::Mutex connectionSentry;
 		std::vector<UDP_BaseSession*> connections;
 
 	public:

@@ -14,12 +14,12 @@
  */
 
 #include <chrono>
-#include <thread>
-#include <mutex>
 #if defined(__POSIX__)
 #include <pthread.h>
 #endif
 
+#include <retro_timers.h>
+#include "../../common/Threading.h"
 #include "net.h"
 #include "DEV9.h"
 #ifdef _WIN32
@@ -33,9 +33,9 @@
 #include "PacketReader/IP/UDP/UDP_Packet.h"
 
 NetAdapter* nif;
-std::thread rx_thread;
+Threading::Thread rx_thread;
 
-std::mutex rx_mutex;
+Threading::Mutex rx_mutex;
 
 volatile bool RxRunning = false;
 //rx thread
@@ -46,7 +46,7 @@ void NetRxThread()
 	{
 		while (rx_fifo_can_rx() && nif->recv(&tmp))
 		{
-			std::lock_guard rx_lock(rx_mutex);
+			Threading::ScopedLock rx_lock(rx_mutex);
 			//Check if we can still rx
 			if (rx_fifo_can_rx())
 				rx_process(&tmp);
@@ -55,7 +55,7 @@ void NetRxThread()
 		}
 
 		using namespace std::chrono_literals;
-		std::this_thread::sleep_for(1ms);
+		retro_sleep(1);
 	}
 }
 
@@ -116,7 +116,7 @@ void InitNet()
 	nif = na;
 	RxRunning = true;
 
-	rx_thread = std::thread(NetRxThread);
+	rx_thread.Start(NetRxThread);
 
 #ifdef _WIN32
 	SetThreadPriority(rx_thread.native_handle(), THREAD_PRIORITY_HIGHEST);
@@ -163,7 +163,7 @@ void TermNet()
 		RxRunning = false;
 		nif->close();
 		Console.WriteLn("DEV9: Waiting for RX-net thread to terminate..");
-		rx_thread.join();
+		rx_thread.Join();
 		Console.WriteLn("DEV9: Done");
 
 		delete nif;
@@ -206,12 +206,12 @@ NetAdapter::~NetAdapter()
 		internalRxThreadRunning.store(false);
 
 		{
-			std::lock_guard srvlock(internalRxMutex);
+			Threading::ScopedLock srvlock(internalRxMutex);
 			internalRxHasData = true;
 		}
 
-		internalRxCV.notify_all();
-		internalRxThread.join();
+		internalRxCV.Broadcast();
+		internalRxThread.Join();
 	}
 }
 
@@ -314,7 +314,7 @@ void NetAdapter::InitInternalServer(ifaddrs* adapter, bool dhcpForceEnable, IP_A
 	if (blocks())
 	{
 		internalRxThreadRunning.store(true);
-		internalRxThread = std::thread(&NetAdapter::InternalServerThread, this);
+		internalRxThread.Start([this]() { InternalServerThread(); });
 	}
 }
 
@@ -417,11 +417,11 @@ void NetAdapter::InternalSignalReceived()
 	if (internalRxThreadRunning.load())
 	{
 		{
-			std::lock_guard srvlock(internalRxMutex);
+			Threading::ScopedLock srvlock(internalRxMutex);
 			internalRxHasData = true;
 		}
 
-		internalRxCV.notify_all();
+		internalRxCV.Broadcast();
 	}
 }
 
@@ -430,11 +430,12 @@ void NetAdapter::InternalServerThread()
 	NetPacket tmp;
 	while (internalRxThreadRunning.load())
 	{
-		std::unique_lock srvLock(internalRxMutex);
-		internalRxCV.wait(srvLock, [&] { return internalRxHasData; });
+		Threading::ScopedLock srvLock(internalRxMutex);
+		while (!internalRxHasData)
+			internalRxCV.Wait(internalRxMutex);
 
 		{
-			std::lock_guard rx_lock(rx_mutex);
+			Threading::ScopedLock rx_lock(rx_mutex);
 			while (rx_fifo_can_rx() && InternalServerRecv(&tmp))
 				rx_process(&tmp);
 		}

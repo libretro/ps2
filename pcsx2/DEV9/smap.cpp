@@ -17,12 +17,12 @@
 #include "common/RedtapeWindows.h"
 #include <Winioctl.h>
 #endif
+#include "common/Threading.h"
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
-#include <mutex>
 
 #include "smap.h"
 #include "net.h"
@@ -30,8 +30,8 @@
 
 bool has_link = true;
 volatile bool fireIntR = false;
-std::mutex frame_counter_mutex;
-std::mutex reset_mutex;
+Threading::Mutex frame_counter_mutex;
+Threading::Mutex reset_mutex;
 /*
 #define	SMAP_BASE			0xb0000000
 #define	SMAP_REG8(Offset)		(*(u8 volatile*)(SMAP_BASE+(Offset)))
@@ -104,7 +104,7 @@ void rx_process(NetPacket* pk)
 	}
 
 	//increase RXBD
-	std::unique_lock<std::mutex> reset_lock(reset_mutex);
+	Threading::ScopedLock reset_lock(reset_mutex);
 	dev9.rxbdi++;
 	dev9.rxbdi &= (SMAP_BD_SIZE / 8) - 1;
 
@@ -114,7 +114,7 @@ void rx_process(NetPacket* pk)
 	pbd->ctrl_stat &= ~SMAP_BD_RX_EMPTY;
 
 	//increase frame count
-	std::unique_lock<std::mutex> counter_lock(frame_counter_mutex);
+	Threading::ScopedLock counter_lock(frame_counter_mutex);
 	dev9Ru8(SMAP_R_RXFIFO_FRAME_CNT)++;
 	counter_lock.unlock();
 	reset_lock.unlock();
@@ -530,8 +530,8 @@ u32 smap_read32(u32 addr)
 
 void smap_write8(u32 addr, u8 value)
 {
-	std::unique_lock<std::mutex> reset_lock(reset_mutex, std::defer_lock);
-	std::unique_lock<std::mutex> counter_lock(frame_counter_mutex, std::defer_lock);
+	Threading::ScopedLock reset_lock(reset_mutex, Threading::ScopedLock::Defer{});
+	Threading::ScopedLock counter_lock(frame_counter_mutex, Threading::ScopedLock::Defer{});
 	switch (addr)
 	{
 		case SMAP_R_TXFIFO_FRAME_INC:

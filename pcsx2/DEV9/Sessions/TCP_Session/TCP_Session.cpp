@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_timers.h>
+#include "../../../../common/Threading.h"
 #include "TCP_Session.h"
 
 #ifdef _WIN32
@@ -43,7 +45,7 @@ namespace Sessions
 
 	void TCP_Session::IncrementMyNumber(u32 amount)
 	{
-		std::lock_guard numberlock(myNumberSentry);
+		Threading::ScopedLock numberlock(myNumberSentry);
 		_OldMyNumbers.push_back(_MySequenceNumber);
 		_OldMyNumbers.erase(_OldMyNumbers.begin());
 
@@ -51,12 +53,12 @@ namespace Sessions
 	}
 	u32 TCP_Session::GetMyNumber()
 	{
-		std::lock_guard numberlock(myNumberSentry);
+		Threading::ScopedLock numberlock(myNumberSentry);
 		return _MySequenceNumber;
 	}
 	std::tuple<u32, std::vector<u32>> TCP_Session::GetAllMyNumbers()
 	{
-		std::lock_guard numberlock(myNumberSentry);
+		Threading::ScopedLock numberlock(myNumberSentry);
 
 		std::vector<u32> old;
 		old.reserve(_OldMyNumbers.size());
@@ -66,7 +68,7 @@ namespace Sessions
 	}
 	void TCP_Session::ResetMyNumbers()
 	{
-		std::lock_guard numberlock(myNumberSentry);
+		Threading::ScopedLock numberlock(myNumberSentry);
 		_MySequenceNumber = 1;
 		_OldMyNumbers.clear();
 		for (int i = 0; i < oldMyNumCount; i++)
@@ -140,7 +142,7 @@ namespace Sessions
 			if (!_recvBuff.Dequeue(&retPay))
 			{
 				using namespace std::chrono_literals;
-				std::this_thread::sleep_for(1ms);
+				retro_sleep(1);
 				continue;
 			}
 

@@ -32,10 +32,10 @@
 #define off64_t off_t
 #endif
 
-#include <mutex>
 
 #include <encodings/utf.h>
 
+#include "Threading.h"
 #include "Align.h"
 #include "AlignedMalloc.h"
 #include "General.h"
@@ -54,7 +54,7 @@
 #include <ucontext.h>
 #endif
 
-static std::recursive_mutex s_exception_handler_mutex;
+static Threading::RecursiveMutex s_exception_handler_mutex;
 static PageFaultHandler s_exception_handler_callback;
 #ifdef _WIN32
 static void* s_exception_handler_handle;
@@ -71,7 +71,7 @@ static bool s_in_exception_handler;
 long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 {
 	/* Executing the handler concurrently from multiple threads wouldn't go down well. */
-	std::unique_lock lock(s_exception_handler_mutex);
+	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
 
 	/* Prevent recursive exception filtering. */
 	if (!s_in_exception_handler)
@@ -137,12 +137,12 @@ static void CallExistingSignalHandler(int signal, siginfo_t* siginfo, void* ctx)
 static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 {
 	/* Executing the handler concurrently from multiple threads wouldn't go down well. */
-	std::unique_lock lock(s_exception_handler_mutex);
+	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
 
 	/* Prevent recursive exception filtering. */
 	if (s_in_exception_handler)
 	{
-		lock.unlock();
+		lock.Unlock();
 		CallExistingSignalHandler(signal, siginfo, ctx);
 		return;
 	}
@@ -183,14 +183,14 @@ static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 		return;
 
 	/* Call old signal handler, which will likely dump core. */
-	lock.unlock();
+	lock.Unlock();
 	CallExistingSignalHandler(signal, siginfo, ctx);
 }
 #endif
 
 bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 {
-	std::unique_lock lock(s_exception_handler_mutex);
+	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
 #if defined(_WIN32)
 	if (!s_exception_handler_handle)
 	{
@@ -235,7 +235,7 @@ bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 
 void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 {
-	std::unique_lock lock(s_exception_handler_mutex);
+	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
 #ifdef _WIN32
 	s_exception_handler_callback = nullptr;
 

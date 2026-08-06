@@ -16,11 +16,9 @@
 #pragma once
 
 #include <string>
-#include <thread>
 #include <atomic>
-#include <mutex>
-#include <condition_variable>
 
+#include "../../../common/Threading.h"
 #include "common/FileSystem.h"
 #include "common/RedtapeWindows.h"
 #include "common/Path.h"
@@ -125,14 +123,14 @@ private:
 	};
 	SimpleQueue<WriteQueueEntry> writeQueue;
 
-	std::thread ioThread;
+	Threading::Thread ioThread;
 	bool ioRunning = false;
-	std::mutex ioMutex;
+	Threading::Mutex ioMutex;
 
-	std::condition_variable ioThreadIdle_cv;
+	Threading::CondVar ioThreadIdle_cv;
 	bool ioThreadIdle_bool = false;
 
-	std::condition_variable ioReady;
+	Threading::CondVar ioReady;
 	std::atomic_bool ioClose{false};
 	bool ioWrite;
 	bool ioRead;

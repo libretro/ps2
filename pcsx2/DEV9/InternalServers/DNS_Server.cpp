@@ -14,7 +14,6 @@
  */
 
 #include <chrono>
-#include <thread>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
@@ -31,6 +30,8 @@
 #include <netinet/in.h>
 #endif
 
+#include <retro_timers.h>
+#include "../../../common/Threading.h"
 #include "DNS_Server.h"
 #include "DEV9/PacketReader/IP/UDP/UDP_Packet.h"
 #include "DEV9/PacketReader/IP/UDP/DNS/DNS_Packet.h"
@@ -260,7 +261,7 @@ namespace InternalServers
 			if (!dnsQueue.Dequeue(&retPay))
 			{
 				using namespace std::chrono_literals;
-				std::this_thread::sleep_for(10ms);
+				retro_sleep(10);
 				continue;
 			}
 
@@ -348,10 +349,11 @@ namespace InternalServers
 	{
 		//Need to spin up thread, pass the parms to it
 
-		std::thread GetHostThread(&DNS_Server::GetAddrInfoThread, this, url, state);
+		Threading::Thread GetHostThread;
+		GetHostThread.Start([this, url, state]() { GetAddrInfoThread(url, state); });
 		//detatch thread so that it can clean up itself
 		//we use another method of waiting for thread compleation
-		GetHostThread.detach();
+		GetHostThread.Detach();
 	}
 
 	void DNS_Server::GetAddrInfoThread(std::string url, DNS_State* state)

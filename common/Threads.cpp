@@ -386,6 +386,38 @@ Threading::Mutex::Mutex() { m_lock = slock_new(); }
 Threading::Mutex::~Mutex() { slock_free(m_lock); }
 void Threading::Mutex::Lock() { slock_lock(m_lock); }
 void Threading::Mutex::Unlock() { slock_unlock(m_lock); }
+bool Threading::Mutex::TryLock() { return slock_try_lock(m_lock); }
+
+Threading::RecursiveMutex::RecursiveMutex()
+	: m_owner(0)
+	, m_depth(0)
+{
+	m_lock = slock_new();
+}
+Threading::RecursiveMutex::~RecursiveMutex()
+{
+	slock_free(m_lock);
+}
+void Threading::RecursiveMutex::Lock()
+{
+	const uintptr_t self = sthread_get_current_thread_id();
+	if (m_owner == self)
+	{
+		m_depth++;
+		return;
+	}
+	slock_lock(m_lock);
+	m_owner = self;
+	m_depth = 1;
+}
+void Threading::RecursiveMutex::Unlock()
+{
+	if (--m_depth == 0)
+	{
+		m_owner = 0;
+		slock_unlock(m_lock);
+	}
+}
 
 Threading::CondVar::CondVar() { m_cond = scond_new(); }
 Threading::CondVar::~CondVar() { scond_free(m_cond); }

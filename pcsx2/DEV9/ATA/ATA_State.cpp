@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../../../common/Threading.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
@@ -73,12 +74,12 @@ int ATA::Open(const std::string& hddPath)
 	InitSparseSupport(hddPath);
 
 	{
-		std::lock_guard ioSignallock(ioMutex);
+		Threading::ScopedLock ioSignallock(ioMutex);
 		ioRead = false;
 		ioWrite = false;
 	}
 
-	ioThread = std::thread(&ATA::IO_Thread, this);
+	ioThread.Start([this]() { IO_Thread(); });
 	ioRunning = true;
 
 	return 0;
@@ -225,12 +226,12 @@ void ATA::Close()
 	{
 		ioClose.store(true);
 		{
-			std::lock_guard ioSignallock(ioMutex);
+			Threading::ScopedLock ioSignallock(ioMutex);
 			ioWrite = true;
 		}
-		ioReady.notify_all();
+		ioReady.Broadcast();
 
-		ioThread.join();
+		ioThread.Join();
 		ioRunning = false;
 	}
 
@@ -456,7 +457,7 @@ void ATA::Async(uint cycles)
 		awaitFlush || (waitingCmd != nullptr))
 	{
 		{
-			std::lock_guard ioSignallock(ioMutex);
+			Threading::ScopedLock ioSignallock(ioMutex);
 			if (ioRead || ioWrite)
 				//IO Running
 				return;
@@ -474,10 +475,10 @@ void ATA::Async(uint cycles)
 		{
 			//Log_Info("Starting async write");
 			{
-				std::lock_guard ioSignallock(ioMutex);
+				Threading::ScopedLock ioSignallock(ioMutex);
 				ioWrite = true;
 			}
-			ioReady.notify_all();
+			ioReady.Broadcast();
 		}
 		else if (awaitFlush) //Fire IRQ on flush completion?
 		{

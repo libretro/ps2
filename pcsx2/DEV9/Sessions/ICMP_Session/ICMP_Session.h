@@ -16,9 +16,9 @@
 #pragma once
 #include <atomic>
 #include <chrono>
-#include <mutex>
 #include <vector>
 
+#include "../../../../common/Threading.h"
 #include "DEV9/SimpleQueue.h"
 #include "DEV9/ThreadSafeMap.h"
 #include "DEV9/Sessions/BaseSession.h"
@@ -81,7 +81,7 @@ namespace Sessions
 		};
 
 		SimpleQueue<PacketReader::IP::ICMP::ICMP_Packet*> _recvBuff;
-		std::mutex ping_mutex;
+		Threading::Mutex ping_mutex;
 		std::vector<Ping*> pings;
 		ThreadSafeMap<Sessions::ConnectionKey, Sessions::BaseSession*>* connections;
 

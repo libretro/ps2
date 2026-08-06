@@ -376,7 +376,7 @@ namespace InternalServers
 			UDP_Packet* retPay = nullptr;
 			if (!recvBuff.Dequeue(&retPay))
 			{
-				std::this_thread::yield();
+				Threading::Timeslice();
 				continue;
 			}
 

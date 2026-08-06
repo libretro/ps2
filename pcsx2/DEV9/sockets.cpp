@@ -13,6 +13,8 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_timers.h>
+#include "../../common/Threading.h"
 #include "common/StringUtil.h"
 
 #ifdef _WIN32
@@ -621,7 +623,7 @@ SocketAdapter::~SocketAdapter()
 		if (!vRecBuffer.Dequeue(&retPay))
 		{
 			using namespace std::chrono_literals;
-			std::this_thread::sleep_for(1ms);
+			retro_sleep(1);
 			continue;
 		}
 

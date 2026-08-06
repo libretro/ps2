@@ -2257,7 +2257,7 @@ remove them if not needed.
 */
 #include <cassert> // for assert
 #include <algorithm> // for min, max
-#include <mutex>
+#include "../../common/Threading.h" // libretro: VMA locks over rthreads, not <mutex>
 
 #ifndef VMA_NULL
    // Value used as null pointer. Define it to e.g.: nullptr, NULL, 0, (void*)0.
@@ -2419,69 +2419,39 @@ static void vma_aligned_free(void* VMA_NULLABLE ptr)
 #endif
 
 #ifndef VMA_MUTEX
+    // libretro: Threading::Mutex (rthreads slock) instead of std::mutex.
     class VmaMutex
     {
     public:
-        void Lock() { m_Mutex.lock(); }
-        void Unlock() { m_Mutex.unlock(); }
-        bool TryLock() { return m_Mutex.try_lock(); }
+        void Lock() { m_Mutex.Lock(); }
+        void Unlock() { m_Mutex.Unlock(); }
+        bool TryLock() { return m_Mutex.TryLock(); }
     private:
-        std::mutex m_Mutex;
+        Threading::Mutex m_Mutex;
     };
     #define VMA_MUTEX VmaMutex
 #endif
 
 // Read-write mutex, where "read" is shared access, "write" is exclusive access.
 #ifndef VMA_RW_MUTEX
-    #if VMA_USE_STL_SHARED_MUTEX
-        // Use std::shared_mutex from C++17.
-        #include <shared_mutex>
-        class VmaRWMutex
-        {
-        public:
-            void LockRead() { m_Mutex.lock_shared(); }
-            void UnlockRead() { m_Mutex.unlock_shared(); }
-            bool TryLockRead() { return m_Mutex.try_lock_shared(); }
-            void LockWrite() { m_Mutex.lock(); }
-            void UnlockWrite() { m_Mutex.unlock(); }
-            bool TryLockWrite() { return m_Mutex.try_lock(); }
-        private:
-            std::shared_mutex m_Mutex;
-        };
-        #define VMA_RW_MUTEX VmaRWMutex
-    #elif defined(_WIN32) && defined(WINVER) && WINVER >= 0x0600
-        // Use SRWLOCK from WinAPI.
-        // Minimum supported client = Windows Vista, server = Windows Server 2008.
-        class VmaRWMutex
-        {
-        public:
-            VmaRWMutex() { InitializeSRWLock(&m_Lock); }
-            void LockRead() { AcquireSRWLockShared(&m_Lock); }
-            void UnlockRead() { ReleaseSRWLockShared(&m_Lock); }
-            bool TryLockRead() { return TryAcquireSRWLockShared(&m_Lock) != FALSE; }
-            void LockWrite() { AcquireSRWLockExclusive(&m_Lock); }
-            void UnlockWrite() { ReleaseSRWLockExclusive(&m_Lock); }
-            bool TryLockWrite() { return TryAcquireSRWLockExclusive(&m_Lock) != FALSE; }
-        private:
-            SRWLOCK m_Lock;
-        };
-        #define VMA_RW_MUTEX VmaRWMutex
-    #else
-        // Less efficient fallback: Use normal mutex.
-        class VmaRWMutex
-        {
-        public:
-            void LockRead() { m_Mutex.Lock(); }
-            void UnlockRead() { m_Mutex.Unlock(); }
-            bool TryLockRead() { return m_Mutex.TryLock(); }
-            void LockWrite() { m_Mutex.Lock(); }
-            void UnlockWrite() { m_Mutex.Unlock(); }
-            bool TryLockWrite() { return m_Mutex.TryLock(); }
-        private:
-            VMA_MUTEX m_Mutex;
-        };
-        #define VMA_RW_MUTEX VmaRWMutex
-    #endif // #if VMA_USE_STL_SHARED_MUTEX
+    // libretro: exclusive lock for both read and write - VMA's own
+    // "less efficient fallback" shape - so neither std::shared_mutex
+    // nor platform ifdefs are needed.  Allocator-state locking happens
+    // per allocation/free, not per draw; shared-read parallelism here
+    // is not worth a second primitive family.
+    class VmaRWMutex
+    {
+    public:
+        void LockRead() { m_Mutex.Lock(); }
+        void UnlockRead() { m_Mutex.Unlock(); }
+        bool TryLockRead() { return m_Mutex.TryLock(); }
+        void LockWrite() { m_Mutex.Lock(); }
+        void UnlockWrite() { m_Mutex.Unlock(); }
+        bool TryLockWrite() { return m_Mutex.TryLock(); }
+    private:
+        VMA_MUTEX m_Mutex;
+    };
+    #define VMA_RW_MUTEX VmaRWMutex
 #endif // #ifndef VMA_RW_MUTEX
 
 /*

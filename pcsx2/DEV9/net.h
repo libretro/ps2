@@ -14,15 +14,13 @@
  */
 
 #pragma once
+#include "common/Threading.h"
 #include <stdlib.h>
 #include <string>
 #include <cstring>
 
 #include <functional>
-#include <thread>
 #include <atomic>
-#include <mutex>
-#include <condition_variable>
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"
@@ -98,11 +96,11 @@ protected:
 private:
 	//Only set if packet sent to the internal IP address
 	PacketReader::IP::IP_Address ps2IP{};
-	std::thread internalRxThread;
+	Threading::Thread internalRxThread;
 	std::atomic<bool> internalRxThreadRunning{false};
 
-	std::mutex internalRxMutex;
-	std::condition_variable internalRxCV;
+	Threading::Mutex internalRxMutex;
+	Threading::CondVar internalRxCV;
 	bool internalRxHasData = false;
 
 	bool dhcpOn = false;

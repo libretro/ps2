@@ -14,7 +14,6 @@
  */
 
 #include <algorithm>
-#include <thread>
 
 #ifdef __POSIX__
 #define SOCKET_ERROR -1
@@ -27,6 +26,7 @@
 #define SD_SEND SHUT_WR
 #endif
 
+#include "../../../../common/Threading.h"
 #include "TCP_Session.h"
 
 using namespace PacketReader;
@@ -357,7 +357,7 @@ namespace Sessions
 						const int err = errno;
 						if (err == EWOULDBLOCK)
 #endif
-							std::this_thread::yield();
+							Threading::Timeslice();
 						else
 						{
 							CloseByRemoteRST();

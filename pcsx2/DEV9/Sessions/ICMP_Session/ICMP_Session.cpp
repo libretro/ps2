@@ -38,6 +38,7 @@
 #include <unistd.h>
 #endif
 
+#include "../../common/Threading.h"
 #include "ICMP_Session.h"
 #include "DEV9/PacketReader/NetLib.h"
 
@@ -672,7 +673,7 @@ namespace Sessions
 
 	IP_Payload* ICMP_Session::Recv()
 	{
-		std::unique_lock lock(ping_mutex);
+		Threading::ScopedLock lock(ping_mutex);
 
 		for (size_t i = 0; i < pings.size(); i++)
 		{

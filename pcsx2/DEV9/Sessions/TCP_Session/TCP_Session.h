@@ -16,7 +16,6 @@
 #pragma once
 #include <atomic>
 #include <chrono>
-#include <mutex>
 #include <tuple>
 #include <vector>
 #ifdef _WIN32
@@ -25,6 +24,7 @@
 #define INVALID_SOCKET -1
 #endif
 
+#include "../../../../common/Threading.h"
 #include "DEV9/SimpleQueue.h"
 #include "DEV9/Sessions/BaseSession.h"
 #include "DEV9/PacketReader/IP/TCP/TCP_Packet.h"
@@ -79,7 +79,7 @@ namespace Sessions
 		u32 expectedSeqNumber; //Accesed By Out Thread Only
 		std::vector<u32> receivedPS2SeqNumbers; //Accesed By Out Thread Only
 
-		std::mutex myNumberSentry;
+		Threading::Mutex myNumberSentry;
 		const int oldMyNumCount = 2;
 		u32 _MySequenceNumber = 1;
 		std::vector<u32> _OldMyNumbers;

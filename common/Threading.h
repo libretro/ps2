@@ -45,6 +45,7 @@ namespace Threading
 	/// SwitchToThread); for bounded producer spins on full queues.
 	extern void Timeslice();
 
+
 }
 
 /* Opaque rthreads primitives; definitions live in rthreads.h, which only
@@ -71,8 +72,45 @@ namespace Threading
 		Mutex& operator=(const Mutex&) = delete;
 		void Lock();
 		void Unlock();
+		bool TryLock();
 		slock_t* Native() { return m_lock; }
 	};
+
+	/// Recursive mutex over slock: the owning thread may re-lock; depth
+	/// counted, released when the outermost Unlock runs.  Owner identity
+	/// via rthreads' thread id.
+	class RecursiveMutex
+	{
+		slock_t* m_lock;
+		uintptr_t m_owner;
+		unsigned m_depth;
+	public:
+		RecursiveMutex();
+		~RecursiveMutex();
+		RecursiveMutex(const RecursiveMutex&) = delete;
+		RecursiveMutex& operator=(const RecursiveMutex&) = delete;
+		void Lock();
+		void Unlock();
+	};
+
+	template <class MutexType>
+	class BasicScopedLock
+	{
+		MutexType& m_mtx;
+		bool m_held;
+	public:
+		explicit BasicScopedLock(MutexType& m) : m_mtx(m), m_held(true) { m_mtx.Lock(); }
+		~BasicScopedLock()
+		{
+			if (m_held)
+				m_mtx.Unlock();
+		}
+		BasicScopedLock(const BasicScopedLock&) = delete;
+		BasicScopedLock& operator=(const BasicScopedLock&) = delete;
+		void Unlock() { m_mtx.Unlock(); m_held = false; }
+		void Lock() { m_mtx.Lock(); m_held = true; }
+	};
+	using ScopedRecursiveLock = BasicScopedLock<RecursiveMutex>;
 
 	class ScopedLock
 	{
@@ -80,6 +118,10 @@ namespace Threading
 		bool m_held;
 	public:
 		explicit ScopedLock(Mutex& m) : m_mtx(m), m_held(true) { m_mtx.Lock(); }
+		/// Deferred: construct unlocked; call Lock() selectively, the
+		/// destructor releases only if held.
+		struct Defer {};
+		ScopedLock(Mutex& m, Defer) : m_mtx(m), m_held(false) {}
 		~ScopedLock()
 		{
 			if (m_held)

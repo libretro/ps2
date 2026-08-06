@@ -17,7 +17,6 @@
 
 #include <atomic>
 #include <sstream>
-#include <mutex>
 
 #include <file/file_path.h>
 
@@ -130,7 +129,7 @@ static std::atomic<VMState> s_state{VMState::Shutdown};
 static bool s_cpu_implementation_changed = false;
 static Threading::ThreadHandle s_vm_thread_handle;
 
-static std::recursive_mutex s_info_mutex;
+static Threading::RecursiveMutex s_info_mutex;
 static std::string s_disc_path;
 static u32 s_game_crc;
 static u32 s_patches_crc;
@@ -175,7 +174,7 @@ bool VMManager::HasValidVM()
 
 std::string VMManager::GetDiscSerial()
 {
-	std::unique_lock lock(s_info_mutex);
+	Threading::ScopedRecursiveLock lock(s_info_mutex);
 	return s_game_serial;
 }
 
@@ -443,7 +442,7 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting, bool swapp
 		return;
 
 	{
-		std::unique_lock lock(s_info_mutex);
+		Threading::ScopedRecursiveLock lock(s_info_mutex);
 		s_game_serial = std::move(new_serial);
 		s_game_crc    = new_crc;
 
@@ -709,7 +708,7 @@ void VMManager::Shutdown()
 		ElfCRC = 0;
 		ElfEntry = 0;
 
-		std::unique_lock lock(s_info_mutex);
+		Threading::ScopedRecursiveLock lock(s_info_mutex);
 		s_disc_path.clear();
 		s_elf_override.clear();
 		s_game_crc = 0;
@@ -1117,7 +1116,7 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 	// force reindexing, mc folder code is janky
 	std::string sioSerial;
 	{
-		std::unique_lock lock(s_info_mutex);
+		Threading::ScopedRecursiveLock lock(s_info_mutex);
 		if (const GameDatabaseSchema::GameEntry* game = GameDatabase::findGame(s_game_serial))
 			sioSerial = game->memcardFiltersAsString();
 		if (sioSerial.empty())
