@@ -384,7 +384,7 @@ __ri static void IDCT_Add(const int last, s16* block, s16* dest, const int strid
    into 1st slot is copied to the 2nd slot. Which will later be copied
    back to the 1st slot when 128bits have been read.
 */
-static const DCTtab * tab;
+static const DCTtabLut * tab;
 static int mbaCount = 0;
 
 static int GetMacroblockModes(void)

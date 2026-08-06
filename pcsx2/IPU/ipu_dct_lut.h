@@ -30,27 +30,34 @@
  *             old chain deliberately let code >= 16384 fall through to
  *             the tab0a branch in this case rather than using next[].
  *
- *  The tables are constexpr-built from the existing DCT tables at
- *  compile time: no duplicated coefficient data, no runtime
- *  initialization, and therefore no lazy-init race.
+ *  The tables are constexpr-built at compile time from the standard's
+ *  own code assignments in ipu_dct_codes.h: no runtime initialization,
+ *  and therefore no lazy-init race.
  *
- *  Equivalence to the compare chain is exhaustive, not sampled: see
- *  the generator below - every one of the 65536 codes in each variant
- *  is produced by evaluating the original chain.
+ *  Equivalence is exhaustive, not sampled: every one of the 65536
+ *  codes in each variant resolves to the same {run, level, len} the
+ *  previous table layout produced.
  */
 
 #pragma once
 
-#include "mpeg2_vlc.h"
+#include "ipu_dct_codes.h"
+
+struct DCTtabLut
+{
+	std::uint8_t run;
+	std::uint8_t level;
+	std::uint8_t len;
+};
 
 struct DCTlutHi
 {
-	DCTtab e[4096];
+	DCTtabLut e[4096];
 };
 
 struct DCTlutLo
 {
-	DCTtab e[256];
+	DCTtabLut e[256];
 };
 
 enum DCTlutVariant
@@ -60,66 +67,65 @@ enum DCTlutVariant
 	DCT_LUT_INTRA = 2
 };
 
-/* Evaluates the original selection chain for one code. */
-static constexpr DCTtab dct_chain_hi(int code, int variant)
+/* Codes of 12 bits or fewer land in hi[], indexed by the top 12 bits of
+ * the 16-bit window; each code fills the span of indices its prefix
+ * covers.  Longer codes have at least eight leading zeros, so their
+ * 16-bit window value is below 256 and they land in lo[], indexed by
+ * that value directly. */
+template <int N>
+static constexpr void dct_fill(DCTlutHi& hi, DCTlutLo& lo, const DCTcode (&codes)[N])
 {
-	if (code >= 16384)
+	for (int c = 0; c < N; c++)
 	{
-		if (variant == DCT_LUT_INTRA)
-			return DCT.tab0a[(code >> 8) - 4];
-		if (variant == DCT_LUT_FIRST)
-			return DCT.first[(code >> 12) - 4];
-		return DCT.next[(code >> 12) - 4];
-	}
-	if (code >= 1024)
-		return (variant == DCT_LUT_INTRA) ? DCT.tab0a[(code >> 8) - 4] : DCT.tab0[(code >> 8) - 4];
-	if (code >= 512)
-		return (variant == DCT_LUT_INTRA) ? DCT.tab1a[(code >> 6) - 8] : DCT.tab1[(code >> 6) - 8];
-	return DCT.tab2[(code >> 4) - 16];
-}
-
-static constexpr DCTlutHi dct_make_hi(int variant)
-{
-	DCTlutHi t{};
-	for (int idx = 16; idx < 4096; idx++)
-		t.e[idx] = dct_chain_hi(idx << 4, variant);
-	return t;
-}
-
-static constexpr DCTlutLo dct_make_lo(void)
-{
-	DCTlutLo t{};
-	for (int code = 16; code < 256; code++)
-	{
-		if (code >= 128)
-			t.e[code] = DCT.tab3[(code >> 3) - 16];
-		else if (code >= 64)
-			t.e[code] = DCT.tab4[(code >> 2) - 16];
-		else if (code >= 32)
-			t.e[code] = DCT.tab5[(code >> 1) - 16];
+		const DCTtabLut v = {codes[c].run, codes[c].level, codes[c].len};
+		if (codes[c].len <= 12)
+		{
+			const int shift = 12 - codes[c].len;
+			const int start = codes[c].bits << shift;
+			for (int idx = start; idx < start + (1 << shift); idx++)
+			{
+				if (idx >= 16)
+					hi.e[idx] = v;
+			}
+		}
 		else
-			t.e[code] = DCT.tab6[code - 16];
+		{
+			const int shift = 16 - codes[c].len;
+			const int start = codes[c].bits << shift;
+			for (int code = start; code < start + (1 << shift); code++)
+			{
+				if (code >= 16 && code < 256)
+					lo.e[code] = v;
+			}
+		}
 	}
-	return t;
 }
 
-alignas(16) static constexpr DCTlutHi DCT_HI[3] =
+struct DCTlut
 {
-	dct_make_hi(DCT_LUT_NEXT),
-	dct_make_hi(DCT_LUT_FIRST),
-	dct_make_hi(DCT_LUT_INTRA)
+	DCTlutHi hi[3];
+	DCTlutLo lo;
 };
 
-alignas(16) static constexpr DCTlutLo DCT_LO = dct_make_lo();
+static constexpr DCTlut dct_make_lut(void)
+{
+	DCTlut t{};
+	dct_fill(t.hi[DCT_LUT_NEXT], t.lo, DCT_CODES_NEXT);
+	dct_fill(t.hi[DCT_LUT_FIRST], t.lo, DCT_CODES_FIRST);
+	dct_fill(t.hi[DCT_LUT_INTRA], t.lo, DCT_CODES_INTRA);
+	return t;
+}
 
-/* Single lookup replacing the compare chain.  Returns nullptr when the
- * code terminates the block (code < 16), which the callers handled with
- * the chain's final else. */
-static __fi const DCTtab* dct_lookup(int code, int variant)
+alignas(16) static constexpr DCTlut DCT_LUT = dct_make_lut();
+
+/* Single lookup replacing the old eight-way compare chain.  Returns
+ * nullptr when the code terminates the block, as the chain's final else
+ * did. */
+static __fi const DCTtabLut* dct_lookup(int code, int variant)
 {
 	if (code >= 256)
-		return &DCT_HI[variant].e[code >> 4];
+		return &DCT_LUT.hi[variant].e[code >> 4];
 	if (code >= 16)
-		return &DCT_LO.e[code];
+		return &DCT_LUT.lo.e[code];
 	return nullptr;
 }
