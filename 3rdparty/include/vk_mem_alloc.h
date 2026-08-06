@@ -2171,8 +2171,7 @@ VMA_CALL_PRE void VMA_CALL_POST vmaDestroyImage(
     #if defined(_WIN32)
         #include <windows.h>
     #else
-        #include <sstream>
-        #include <thread>
+        #include <rthreads/rthreads.h>
     #endif
 #endif
 
@@ -14083,14 +14082,8 @@ void VmaRecorder::GetBasicParams(CallParams& outParams)
     #if defined(_WIN32)
         outParams.threadId = GetCurrentThreadId();
     #else
-        // Use C++11 features to get thread id and convert it to uint32_t.
-        // There is room for optimization since sstream is quite slow.
-        // Is there a better way to convert std::this_thread::get_id() to uint32_t?
-        std::thread::id thread_id = std::this_thread::get_id();
-        std::stringstream thread_id_to_string_converter;
-        thread_id_to_string_converter << thread_id;
-        std::string thread_id_as_string = thread_id_to_string_converter.str();
-        outParams.threadId = static_cast<uint32_t>(std::stoi(thread_id_as_string.c_str()));
+        // libretro: rthreads' thread id, truncated; no <thread>/<sstream>.
+        outParams.threadId = static_cast<uint32_t>(sthread_get_current_thread_id());
     #endif
 
     auto current_time = std::chrono::high_resolution_clock::now();

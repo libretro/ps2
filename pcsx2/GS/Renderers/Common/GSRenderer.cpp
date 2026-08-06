@@ -16,8 +16,6 @@
 #include <algorithm>
 #include <array>
 #include <deque>
-#include <thread>
-#include <mutex>
 #include <cmath>
 
 #include "GSRenderer.h"

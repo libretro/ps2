@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../common/Threading.h"
 #include "Common.h"
 
 #include "Gif_Unit.h"
@@ -126,7 +127,7 @@ void Gif_HandlerAD_MTVU(u8* pMem)
 		{
 			if (!(vu1Thread.mtvuInterrupts.load(std::memory_order_acquire) & VU_Thread::InterruptFlagSignal))
 				break;
-			std::this_thread::yield();
+			Threading::Timeslice();
 		}
 		vu1Thread.gsSignal.store(((u64)data[1] << 32) | data[0], std::memory_order_relaxed);
 		vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagSignal, std::memory_order_release);

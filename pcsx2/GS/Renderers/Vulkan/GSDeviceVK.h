@@ -22,13 +22,10 @@
 #include "common/HashCombine.h"
 #include "vk_mem_alloc.h"
 #include <array>
-#include <condition_variable>
 #include <functional>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <vector>
 

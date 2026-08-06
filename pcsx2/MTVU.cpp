@@ -14,7 +14,6 @@
  */
 
 #include <cstring> /* memset */
-#include <thread>
 
 #include "Common.h"
 #include "Gif_Unit.h"
@@ -263,7 +262,7 @@ __ri void VU_Thread::WaitOnSize(s32 size)
 			// will be more aggressive, and only flush the minimal size.
 			// Performance will be smoother but it will consume extra CPU cycle
 			// on the EE thread (not an issue on 4 cores).
-			std::this_thread::yield();
+			Threading::Timeslice();
 		}
 	}
 }

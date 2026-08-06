@@ -17,6 +17,7 @@
 #include <fstream>
 #include <optional>
 
+#include "../common/Threading.h"
 #include "../3rdparty/rapidyaml/rapidyaml/src/ryml_std.hpp"
 #include "../3rdparty/rapidyaml/rapidyaml/src/ryml.hpp"
 
@@ -46,7 +47,8 @@ namespace GameDatabase
 static constexpr char GAMEDB_YAML_FILE_NAME[] = "GameIndex.yaml";
 
 static std::unordered_map<std::string, GameDatabaseSchema::GameEntry> s_game_db;
-static std::once_flag s_load_once_flag;
+static Threading::Mutex s_load_once_mutex;
+static bool s_load_once_done = false;
 
 std::string GameDatabaseSchema::GameEntry::memcardFiltersAsString() const
 {
@@ -915,11 +917,17 @@ void GameDatabase::initDatabase()
 
 void GameDatabase::ensureLoaded()
 {
-	std::call_once(s_load_once_flag, []() {
+	// call_once semantics under the campaign lock family: double load
+	// impossible (mutex), racing callers both observe the completed
+	// state (done set before unlock, read under lock).
+	Threading::ScopedLock lock(s_load_once_mutex);
+	if (!s_load_once_done)
+	{
 		Console.WriteLn("[GameDB] Has not been initialized yet, initializing...");
 		initDatabase();
 		Console.WriteLn("[GameDB] %zu games on record", s_game_db.size());
-	});
+		s_load_once_done = true;
+	}
 }
 
 const GameDatabaseSchema::GameEntry* GameDatabase::findGame(const std::string_view& serial)

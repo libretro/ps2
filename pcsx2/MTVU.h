@@ -19,7 +19,6 @@
 #include "Vif_Dma.h"
 #include "VUmicro.h"
 
-#include <thread>
 
 // Notes:
 // - This class should only be accessed from the EE thread...

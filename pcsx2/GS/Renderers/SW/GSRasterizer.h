@@ -19,9 +19,7 @@
 #include "common/General.h"
 #include "common/Threading.h"
 
-#include <condition_variable>
 #include <functional>
-#include <mutex>
 
 #include "GSVertexSW.h"
 #include "GSDrawScanline.h"

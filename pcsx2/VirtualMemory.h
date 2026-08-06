@@ -18,7 +18,6 @@
 #include "../common/General.h"
 #include <atomic>
 #include <memory>
-#include <mutex>
 
 // --------------------------------------------------------------------------------------
 //  VirtualMemoryManager: Manages the allocation of PCSX2 VM

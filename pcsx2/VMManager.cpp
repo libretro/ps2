@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <features/features_cpu.h>
 #include "VMManager.h"
 
 #include <atomic>
@@ -1210,7 +1211,8 @@ void VMManager::SetTimerResolutionIncreased(bool enabled)
 #endif
 
 static std::vector<u32> s_processor_list;
-static std::once_flag s_processor_list_initialized;
+static Threading::Mutex s_processor_list_mutex;
+static bool s_processor_list_initialized = false;
 
 #if defined(__linux__) || defined(_WIN32)
 
@@ -1302,7 +1304,7 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 	// safe defaults again -- the C.13c livelock and the 3M-cycle-budget wall
 	// were interpreter-provider problems, and microVU1 is now the only VU1
 	// provider.
-	const bool mtvu = std::thread::hardware_concurrency() >= 3 && VMManager::g_MtvuMenuDefault;
+	const bool mtvu = cpu_features_get_core_amount() >= 3 && VMManager::g_MtvuMenuDefault;
 	Console.WriteLn(mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 hardware threads)."
 	                     : "  MTVU disabled.");
 	si.SetBoolValue("EmuCore/Speedhacks", "vuThread", mtvu);
@@ -1326,7 +1328,12 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si) { }
 
 void VMManager::EnsureCPUInfoInitialized()
 {
-	std::call_once(s_processor_list_initialized, InitializeCPUInfo);
+	Threading::ScopedLock lock(s_processor_list_mutex);
+	if (!s_processor_list_initialized)
+	{
+		InitializeCPUInfo();
+		s_processor_list_initialized = true;
+	}
 }
 
 void VMManager::SetEmuThreadAffinities()
