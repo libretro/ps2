@@ -1219,7 +1219,8 @@ static void check_variables(bool first_run)
 		var.key = input_settings;
 		snprintf(input_settings, sizeof(input_settings), "pcsx2_axis_scale%d", i + 1);
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			pad_settings[i].axis_scale = atof(var.value) / 100;
+			/* Integer percent -> 16.16, exact; no float parse. */
+			pad_settings[i].axis_scale_q16 = (u32)atoi(var.value) * 65536u / 100u;
 
 		snprintf(input_settings, sizeof(input_settings), "pcsx2_axis_deadzone%d", i + 1);
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -1231,7 +1232,7 @@ static void check_variables(bool first_run)
 
 		snprintf(input_settings, sizeof(input_settings), "pcsx2_enable_rumble%d", i + 1);
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-			pad_settings[i].rumble_scale = atof(var.value) / 100;
+			pad_settings[i].rumble_scale_q8 = (u32)atoi(var.value) * 256u / 100u;
 
 		snprintf(input_settings, sizeof(input_settings), "pcsx2_invert_left_stick%d", i + 1);
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)

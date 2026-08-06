@@ -90,7 +90,7 @@ struct PadFreezeData
 class Pad : public PadFreezeData
 {
 public:
-	void rumble(float rumble_scale, unsigned port);
+	void rumble(u32 rumble_scale_q8, unsigned port);
 	void reset();
 
 	static void stop_vibrate_all();
@@ -130,8 +130,8 @@ bool PADcomplete(void);
 
 struct PadSettings
 {
-	float axis_scale   = 1.33f;
-	float rumble_scale = 1.0f;
+	u32 axis_scale_q16   = 133 * 65536 / 100; /* 16.16; option is integer percent */
+	u32 rumble_scale_q8  = 256;               /* 8.8 */
 	int axis_invert_lx = 1;
 	int axis_invert_ly = 1;
 	int axis_invert_rx = 1;

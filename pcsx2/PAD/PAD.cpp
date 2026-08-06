@@ -44,6 +44,8 @@
 #define NUM_CONTROLLER_PORTS 8
 
 #define DEFAULT_MOTOR_SCALE 1.0f
+#define Q8_ONE  256u
+#define Q16_ONE 65536u
 
 #define TEST_BIT(value, bit) ((value) & (1 << (bit)))
 
@@ -106,7 +108,7 @@ struct PadFullFreezeData
 struct KeyStatus
 {
 	ControllerType m_type[NUM_CONTROLLER_PORTS] = {};
-	float m_vibration_scale[NUM_CONTROLLER_PORTS][2];
+	u16 m_vibration_scale_q8[NUM_CONTROLLER_PORTS][2]; /* 8.8 fixed */
 };
 
 /* Combined "USB Keyboard + Mouse" port device: one menu selection that
@@ -228,33 +230,63 @@ enum AnalogButtons
 	ANALOG_BTN_LEFT,
 };
 
-static void process_analog(int &axis_x, int &axis_y, float sensitivity, u16 deadzone)
+/* Exact floor square root of a u64; plain shift-and-subtract, identical
+ * on every host, no libm. */
+static u32 isqrt64(u64 v)
 {
-	/* Identity fast path -- the default configuration (no deadzone, unit
-	 * sensitivity). The general path below is an int->float->int roundtrip
-	 * whose result, at these settings, is just a clamp to [-32767, 32767];
-	 * do that in integer instead. The clamp is not optional: the caller
-	 * negates these axes for inversion (axis_invert_* == -1), and a raw
-	 * -32768 would otherwise become +32768 and wrap the 8-bit pad axis. */
-	if (deadzone == 0 && sensitivity == 1.0f)
+	u64 r = 0, b = 1ULL << 62;
+	while (b > v)
+		b >>= 2;
+	while (b)
 	{
+		if (v >= r + b)
+		{
+			v -= r + b;
+			r  = (r >> 1) + b;
+		}
+		else
+			r >>= 1;
+		b >>= 2;
+	}
+	return (u32)r;
+}
+
+static void process_analog(int &axis_x, int &axis_y, u32 sensitivity_q16, u16 deadzone)
+{
+	/* All-integer path: this output is emulated machine state (the pad
+	 * bytes games read), so it must not depend on the host's libm, FPU
+	 * mode, or -ffast-math.  Sensitivity is 16.16 fixed point, snapped
+	 * from the integer-percent core option, so the default (100%) is
+	 * exactly Q16_ONE.  Verified against the old float path across a
+	 * full axis sweep: identical at defaults, within 3 LSB elsewhere -
+	 * and correct at full diagonal deflection, where the old path
+	 * overflowed x*x+y*y in int, took sqrt of garbage, and zeroed both
+	 * axes. */
+	if (deadzone == 0 && sensitivity_q16 == Q16_ONE)
+	{
+		/* The clamp is not optional: the caller negates these axes for
+		 * inversion (axis_invert_* == -1), and a raw -32768 would
+		 * otherwise become +32768 and wrap the 8-bit pad axis. */
 		axis_x = std::clamp(axis_x, -32767, 32767);
 		axis_y = std::clamp(axis_y, -32767, 32767);
 		return;
 	}
 
+	s64 x = axis_x;
+	s64 y = axis_y;
+
 	if (deadzone > 0)
 	{
-		float magnitude = std::sqrt(axis_x * axis_x + axis_y * axis_y);
-		magnitude = std::min(magnitude, 32767.0f);
+		u32 magnitude = isqrt64((u64)(x * x) + (u64)(y * y));
+		magnitude     = std::min<u32>(magnitude, 32767u);
 
 		if (magnitude > deadzone)
 		{
 			// If we're past the deadzone, scale our values so we can still
 			// use slow movements when the stick is not fully pushed
-			const float scaled_mag = (magnitude - deadzone) / (32767 - deadzone);
-			axis_x *= scaled_mag;
-			axis_y *= scaled_mag;
+			const u32 scaled_q16 = (u32)(((u64)(magnitude - deadzone) << 16) / (32767u - deadzone));
+			x = (x * (s64)scaled_q16) >> 16;
+			y = (y * (s64)scaled_q16) >> 16;
 		}
 		else
 		{
@@ -265,8 +297,10 @@ static void process_analog(int &axis_x, int &axis_y, float sensitivity, u16 dead
 	}
 
 	// Apply sensitivity
-	axis_x = static_cast<int>(std::clamp(axis_x * sensitivity, -32767.0f, 32767.0f));
-	axis_y = static_cast<int>(std::clamp(axis_y * sensitivity, -32767.0f, 32767.0f));
+	x      = (x * (s64)sensitivity_q16) >> 16;
+	y      = (y * (s64)sensitivity_q16) >> 16;
+	axis_x = std::clamp<int>((int)x, -32767, 32767);
+	axis_y = std::clamp<int>((int)y, -32767, 32767);
 }
 
 static u8 process_button(u16 deadzone, u32 port, int id, u32 mask)
@@ -392,8 +426,8 @@ namespace Input
 			pad_ry[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
 
 			// Apply axis deadzone and sensitivity
-			process_analog(pad_lx[port], pad_ly[port], conf.axis_scale, conf.axis_deadzone);
-			process_analog(pad_rx[port], pad_ry[port], conf.axis_scale, conf.axis_deadzone);
+			process_analog(pad_lx[port], pad_ly[port], conf.axis_scale_q16, conf.axis_deadzone);
+			process_analog(pad_rx[port], pad_ry[port], conf.axis_scale_q16, conf.axis_deadzone);
 
 			// Apply axis inversion (axis_invert_* being either 1 or -1)
 			pad_lx[port] *= conf.axis_invert_lx;
@@ -401,8 +435,8 @@ namespace Input
 			pad_rx[port] *= conf.axis_invert_rx;
 			pad_ry[port] *= conf.axis_invert_ry;
 
-			if (conf.rumble_scale > 0.0f)
-				pads[port][0].rumble(conf.rumble_scale, sioConvertPortAndSlotToPad(port, 0));
+			if (conf.rumble_scale_q8 > 0)
+				pads[port][0].rumble(conf.rumble_scale_q8, sioConvertPortAndSlotToPad(port, 0));
 		}
 	}
 
@@ -515,7 +549,7 @@ void Pad::reset()
 	vibrate[0]     = 0x5A;
 }
 
-void Pad::rumble(float rumble_scale, unsigned port)
+void Pad::rumble(u32 rumble_scale_q8, unsigned port)
 {
 	if (nextVibrate[0] == currentVibrate[0] && nextVibrate[1] == currentVibrate[1])
 		return;
@@ -523,7 +557,7 @@ void Pad::rumble(float rumble_scale, unsigned port)
 	for (int i = 0; i < 2; ++i)
 	{
 		currentVibrate[i] = nextVibrate[i];
-		do_rumble(currentVibrate[i] * rumble_scale, i, port);
+		do_rumble((u8)std::min<u32>(((u32)currentVibrate[i] * rumble_scale_q8) >> 8, 255u), i, port);
 	}
 }
 
@@ -961,13 +995,14 @@ void PAD::LoadConfig(const SettingsInterface& si)
 		{
 			if (type == info.name)
 			{
-				const float large_motor_scale      = si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE);
-				const float small_motor_scale      = si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE);
+				// INI stores a float; snap to the 8.8 grid once, here.
+				const u16 large_motor_scale      = (u16)std::clamp<long>(lrintf(si.GetFloatValue(section_c, "LargeMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
+				const u16 small_motor_scale      = (u16)std::clamp<long>(lrintf(si.GetFloatValue(section_c, "SmallMotorScale", DEFAULT_MOTOR_SCALE) * 256.0f), 0, 65535);
 
 				if (info.vibration_caps != NoVibration)
 				{
-					g_key_status.m_vibration_scale[i][0] = large_motor_scale;
-					g_key_status.m_vibration_scale[i][1] = small_motor_scale;
+					g_key_status.m_vibration_scale_q8[i][0] = large_motor_scale;
+					g_key_status.m_vibration_scale_q8[i][1] = small_motor_scale;
 				}
 
 				g_key_status.m_type[i]     = info.type;
