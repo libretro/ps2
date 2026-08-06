@@ -41,9 +41,81 @@ namespace Threading
 	// Abstracts an OS's handle to a thread, closing the handle when necessary. Currently,
 	// only used for getting the CPU time for a thread.
 	//
+	/// Sleep the calling thread for the given number of milliseconds.
+	extern void Sleep(int ms);
+
 	/// Yield the rest of this timeslice to the scheduler (sched_yield /
 	/// SwitchToThread); for bounded producer spins on full queues.
 	extern void Timeslice();
+
+}
+
+/* Opaque rthreads primitives; definitions live in rthreads.h, which only
+ * Threads.cpp needs to see. */
+extern "C" {
+	typedef struct slock slock_t;
+	typedef struct scond scond_t;
+}
+
+namespace Threading
+{
+	/// Thin RAII over rthreads' slock/scond: the OS primitives in C,
+	/// none of <mutex>/<condition_variable>.  Semantics match the std
+	/// pair (Wait releases the mutex while sleeping and re-acquires
+	/// before returning; spurious wakeups possible - always wait in a
+	/// predicate loop).
+	class Mutex
+	{
+		slock_t* m_lock;
+	public:
+		Mutex();
+		~Mutex();
+		Mutex(const Mutex&) = delete;
+		Mutex& operator=(const Mutex&) = delete;
+		void Lock();
+		void Unlock();
+		slock_t* Native() { return m_lock; }
+	};
+
+	class ScopedLock
+	{
+		Mutex& m_mtx;
+		bool m_held;
+	public:
+		explicit ScopedLock(Mutex& m) : m_mtx(m), m_held(true) { m_mtx.Lock(); }
+		~ScopedLock()
+		{
+			if (m_held)
+				m_mtx.Unlock();
+		}
+		ScopedLock(const ScopedLock&) = delete;
+		ScopedLock& operator=(const ScopedLock&) = delete;
+		/// For unlock-around-work dances; destructor releases only if held.
+		void Unlock()
+		{
+			m_mtx.Unlock();
+			m_held = false;
+		}
+		void Lock()
+		{
+			m_mtx.Lock();
+			m_held = true;
+		}
+	};
+
+	class CondVar
+	{
+		scond_t* m_cond;
+	public:
+		CondVar();
+		~CondVar();
+		CondVar(const CondVar&) = delete;
+		CondVar& operator=(const CondVar&) = delete;
+		/// Caller must hold m; releases while sleeping, re-acquires before return.
+		void Wait(Mutex& m);
+		void Signal();
+		void Broadcast();
+	};
 
 	class ThreadHandle
 	{

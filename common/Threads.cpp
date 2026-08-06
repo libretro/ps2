@@ -379,3 +379,29 @@ void Threading::Timeslice()
 	sched_yield();
 }
 #endif
+
+#include <rthreads/rthreads.h>
+
+Threading::Mutex::Mutex() { m_lock = slock_new(); }
+Threading::Mutex::~Mutex() { slock_free(m_lock); }
+void Threading::Mutex::Lock() { slock_lock(m_lock); }
+void Threading::Mutex::Unlock() { slock_unlock(m_lock); }
+
+Threading::CondVar::CondVar() { m_cond = scond_new(); }
+Threading::CondVar::~CondVar() { scond_free(m_cond); }
+void Threading::CondVar::Wait(Mutex& m) { scond_wait(m_cond, m.Native()); }
+void Threading::CondVar::Signal() { scond_signal(m_cond); }
+void Threading::CondVar::Broadcast() { scond_broadcast(m_cond); }
+
+#ifdef _WIN32
+void Threading::Sleep(int ms)
+{
+	::Sleep(ms);
+}
+#else
+#include <unistd.h>
+void Threading::Sleep(int ms)
+{
+	usleep(1000 * ms);
+}
+#endif

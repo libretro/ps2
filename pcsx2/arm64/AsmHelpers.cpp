@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 isztld <https://isztld.com/>
 // SPDX-License-Identifier: GPL-3.0
 
+#include "../../common/Threading.h"
 #include "arm64/AsmHelpers.h"
 
 #include "arm64/ArmCompat.h"
@@ -74,7 +75,7 @@ thread_local size_t armAsmCapacity PCSX2_TLS_INITIAL_EXEC;
 thread_local ArmConstantPool* armConstantPool PCSX2_TLS_INITIAL_EXEC;
 
 #ifdef INCLUDE_DISASSEMBLER
-static std::mutex armDisasmMutex;
+static Threading::Mutex armDisasmMutex;
 static std::unique_ptr<a64::PrintDisassembler> armDisasm;
 static std::unique_ptr<a64::Decoder> armDisasmDecoder;
 #endif
@@ -142,7 +143,7 @@ u8* armEndBlock()
 void armDisassembleAndDumpCode(const void* ptr, size_t size)
 {
 #ifdef INCLUDE_DISASSEMBLER
-	std::unique_lock lock(armDisasmMutex);
+	Threading::ScopedLock lock(armDisasmMutex);
 	if (!armDisasm)
 	{
 		armDisasm = std::make_unique<a64::PrintDisassembler>(stderr);

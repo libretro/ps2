@@ -17,11 +17,9 @@
 #include <cstring>
 #include <deque>
 #include <functional>
-#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <tuple>
-#include <thread>
 
 #include "common/Console.h"
 #include "common/HashCombine.h"
@@ -33,6 +31,7 @@
 
 #include "../../GSLocalMemory.h"
 
+#include "../../../../common/Threading.h"
 #include "GSTextureReplacements.h"
 
 #include "../../../VMManager.h"
@@ -135,7 +134,7 @@ namespace GSTextureReplacements
 
 	/// Lookup map of texture names to replacement data which has been cached.
 	static std::unordered_map<TextureName, ReplacementTexture> s_replacement_texture_cache;
-	static std::mutex s_replacement_texture_cache_mutex;
+	static Threading::Mutex s_replacement_texture_cache_mutex;
 
 	/// List of textures that are pending asynchronous load. Second element is whether we're only precaching.
 	static std::unordered_map<TextureName, bool> s_pending_async_load_textures;
@@ -145,9 +144,13 @@ namespace GSTextureReplacements
 	static std::vector<std::pair<TextureName, bool>> s_async_loaded_textures;
 
 	/// Loader/dumper thread.
-	static std::thread s_worker_thread;
-	static std::mutex s_worker_thread_mutex;
-	static std::condition_variable s_worker_thread_cv;
+	static Threading::Thread s_worker_thread;
+	static Threading::Mutex s_worker_thread_mutex;
+	static Threading::CondVar s_worker_thread_cv;
+	/// Signalled by the worker at the pop that empties the queue (and by
+	/// the cancel path after clearing it), so SyncWorkerThread can wait
+	/// for drain as an event instead of polling with a sleep.
+	static Threading::CondVar s_worker_thread_done_cv;
 	static std::deque<std::pair<std::function<void()>, bool>> s_worker_thread_queue;
 	static bool s_worker_thread_running = false;
 }; // namespace GSTextureReplacements
@@ -291,7 +294,7 @@ void GSTextureReplacements::ReloadReplacementMap()
 		s_replacement_texture_filenames.clear();
 		s_replacement_textures_without_clut_hash.clear();
 
-		std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+		Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 		s_replacement_texture_cache.clear();
 		s_pending_async_load_textures.clear();
 		s_async_loaded_textures.clear();
@@ -398,7 +401,7 @@ GSTexture* GSTextureReplacements::LookupReplacementTexture(const GSTextureCache:
 
 	// try the full cache first, to avoid reloading from disk
 	{
-		std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+		Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 		auto it = s_replacement_texture_cache.find(name);
 		if (it != s_replacement_texture_cache.end())
 		{
@@ -412,7 +415,7 @@ GSTexture* GSTextureReplacements::LookupReplacementTexture(const GSTextureCache:
 	if (GSConfig.LoadTextureReplacementsAsync)
 	{
 		// replacement will be injected into the TC later on
-		std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+		Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 		QueueAsyncReplacementTextureLoad(name, fnit->second, mipmap, false);
 
 		*pending = true;
@@ -426,7 +429,7 @@ GSTexture* GSTextureReplacements::LookupReplacementTexture(const GSTextureCache:
 			return nullptr;
 
 		// insert into cache
-		std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+		Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 		const ReplacementTexture& rtex = s_replacement_texture_cache.emplace(name, std::move(replacement.value())).first->second;
 
 		// and upload to gpu
@@ -553,7 +556,7 @@ void GSTextureReplacements::QueueAsyncReplacementTextureLoad(const TextureName& 
 
 		// check the pending set, there's a race here if we disable replacements while loading otherwise
 		// also check the full replacement list, if async loading is off, it might already be in there
-		std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+		Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 		auto it = s_pending_async_load_textures.find(name);
 		if (it == s_pending_async_load_textures.end() ||
 			s_replacement_texture_cache.find(name) != s_replacement_texture_cache.end())
@@ -580,7 +583,7 @@ void GSTextureReplacements::QueueAsyncReplacementTextureLoad(const TextureName& 
 
 void GSTextureReplacements::PrecacheReplacementTextures()
 {
-	std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+	Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 
 	// predict whether the requests will come with mipmaps
 	// TODO: This will be wrong for hw mipmap games like Jak.
@@ -602,7 +605,7 @@ void GSTextureReplacements::ClearReplacementTextures()
 	s_replacement_texture_filenames.clear();
 	s_replacement_textures_without_clut_hash.clear();
 
-	std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+	Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 	s_replacement_texture_cache.clear();
 	s_pending_async_load_textures.clear();
 	s_async_loaded_textures.clear();
@@ -649,7 +652,7 @@ GSTexture* GSTextureReplacements::CreateReplacementTexture(const ReplacementText
 void GSTextureReplacements::ProcessAsyncLoadedTextures()
 {
 	// this holds the lock while doing the upload, but it should be reasonably quick
-	std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
+	Threading::ScopedLock lock(s_replacement_texture_cache_mutex);
 	for (const auto& [name, mipmap] : s_async_loaded_textures)
 	{
 		// no longer pending!
@@ -683,27 +686,27 @@ void GSTextureReplacements::ProcessAsyncLoadedTextures()
 
 void GSTextureReplacements::StartWorkerThread()
 {
-	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
+	Threading::ScopedLock lock(s_worker_thread_mutex);
 
-	if (s_worker_thread.joinable())
+	if (s_worker_thread.Joinable())
 		return;
 
 	s_worker_thread_running = true;
-	s_worker_thread = std::thread(WorkerThreadEntryPoint);
+	s_worker_thread.Start(WorkerThreadEntryPoint);
 }
 
 void GSTextureReplacements::StopWorkerThread()
 {
 	{
-		std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
-		if (!s_worker_thread.joinable())
+		Threading::ScopedLock lock(s_worker_thread_mutex);
+		if (!s_worker_thread.Joinable())
 			return;
 
 		s_worker_thread_running = false;
-		s_worker_thread_cv.notify_one();
+		s_worker_thread_cv.Signal();
 	}
 
-	s_worker_thread.join();
+	s_worker_thread.Join();
 
 	// clear out workery-things too
 	CancelPendingLoadsAndDumps();
@@ -711,7 +714,7 @@ void GSTextureReplacements::StopWorkerThread()
 
 void GSTextureReplacements::QueueWorkerThreadItem(std::function<void()> fn, bool high_priority)
 {
-	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
+	Threading::ScopedLock lock(s_worker_thread_mutex);
 
 	if (!high_priority)
 	{
@@ -743,51 +746,49 @@ void GSTextureReplacements::QueueWorkerThreadItem(std::function<void()> fn, bool
 		}
 	}
 
-	s_worker_thread_cv.notify_one();
+	s_worker_thread_cv.Signal();
 }
 
 void GSTextureReplacements::WorkerThreadEntryPoint()
 {
-	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
+	Threading::ScopedLock lock(s_worker_thread_mutex);
 	while (s_worker_thread_running)
 	{
 		if (s_worker_thread_queue.empty())
 		{
-			s_worker_thread_cv.wait(lock);
+			s_worker_thread_cv.Wait(s_worker_thread_mutex);
 			continue;
 		}
 
 		std::function<void()> fn = std::move(s_worker_thread_queue.front().first);
 		s_worker_thread_queue.pop_front();
-		lock.unlock();
+		if (s_worker_thread_queue.empty())
+			s_worker_thread_done_cv.Broadcast();
+		lock.Unlock();
 		fn();
-		lock.lock();
+		lock.Lock();
 	}
 }
 
 void GSTextureReplacements::SyncWorkerThread()
 {
-	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
-	if (!s_worker_thread.joinable())
+	Threading::ScopedLock lock(s_worker_thread_mutex);
+	if (!s_worker_thread.Joinable())
 		return;
 
-	// not the most efficient by far, but it only gets called on config changes, so whatever
-	for (;;)
-	{
-		if (s_worker_thread_queue.empty())
-			break;
-
-		lock.unlock();
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		lock.lock();
-	}
+	// Event-driven drain: the worker broadcasts at the pop that empties
+	// the queue.  The running check covers a concurrent StopWorkerThread,
+	// whose cancel path clears the queue and broadcasts.
+	while (!s_worker_thread_queue.empty() && s_worker_thread_running)
+		s_worker_thread_done_cv.Wait(s_worker_thread_mutex);
 }
 
 void GSTextureReplacements::CancelPendingLoadsAndDumps()
 {
-	std::unique_lock<std::mutex> lock(s_worker_thread_mutex);
+	Threading::ScopedLock lock(s_worker_thread_mutex);
 	while (!s_worker_thread_queue.empty())
 		s_worker_thread_queue.pop_back();
+	s_worker_thread_done_cv.Broadcast();
 	s_async_loaded_textures.clear();
 	s_pending_async_load_textures.clear();
 }

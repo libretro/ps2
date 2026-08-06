@@ -17,12 +17,13 @@
 #include "../../common/Path.h"
 #include "../Frontend/LayeredSettingsInterface.h"
 #include "../GS.h"
+#include "../../common/Threading.h"
 #include "../GS/Renderers/HW/GSTextureReplacements.h"
 #include "../Host.h"
 #include "../MemoryCardFile.h"
 #include "../Sio.h"
 
-static std::mutex s_settings_mutex;
+static Threading::Mutex s_settings_mutex;
 static LayeredSettingsInterface s_layered_settings_interface;
 
 SettingsInterface* Host::GetSettingsInterface()
@@ -32,37 +33,37 @@ SettingsInterface* Host::GetSettingsInterface()
 
 std::string Host::GetBaseStringSettingValue(const char* section, const char* key, const char* default_value /*= ""*/)
 {
-	std::unique_lock lock(s_settings_mutex);
+	Threading::ScopedLock lock(s_settings_mutex);
 	return s_layered_settings_interface.GetLayer(LayeredSettingsInterface::LAYER_BASE)->GetStringValue(section, key, default_value);
 }
 
 bool Host::GetBoolSettingValue(const char* section, const char* key, bool default_value /*= false*/)
 {
-	std::unique_lock lock(s_settings_mutex);
+	Threading::ScopedLock lock(s_settings_mutex);
 	return s_layered_settings_interface.GetBoolValue(section, key, default_value);
 }
 
 int Host::GetIntSettingValue(const char* section, const char* key, int default_value /*= 0*/)
 {
-	std::unique_lock lock(s_settings_mutex);
+	Threading::ScopedLock lock(s_settings_mutex);
 	return s_layered_settings_interface.GetIntValue(section, key, default_value);
 }
 
 uint Host::GetUIntSettingValue(const char* section, const char* key, uint default_value /*= 0*/)
 {
-	std::unique_lock lock(s_settings_mutex);
+	Threading::ScopedLock lock(s_settings_mutex);
 	return s_layered_settings_interface.GetUIntValue(section, key, default_value);
 }
 
 float Host::GetFloatSettingValue(const char* section, const char* key, float default_value /*= 0.0f*/)
 {
-	std::unique_lock lock(s_settings_mutex);
+	Threading::ScopedLock lock(s_settings_mutex);
 	return s_layered_settings_interface.GetFloatValue(section, key, default_value);
 }
 
 double Host::GetDoubleSettingValue(const char* section, const char* key, double default_value /*= 0.0f*/)
 {
-	std::unique_lock lock(s_settings_mutex);
+	Threading::ScopedLock lock(s_settings_mutex);
 	return s_layered_settings_interface.GetDoubleValue(section, key, default_value);
 }
 
