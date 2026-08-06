@@ -16,7 +16,7 @@
 #pragma once
 
 #include "IPU.h"
-#include "mpeg2_vlc.h"
+#include "ipu_vlc.h"
 #include "../GS/MultiISA.h"
 
 #ifdef _MSC_VER
