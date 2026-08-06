@@ -110,3 +110,4 @@ build*/
 *.autosave
 *.o
 *.d
+/pcsx2_libretro.so
