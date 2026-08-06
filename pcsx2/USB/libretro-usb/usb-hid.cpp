@@ -396,7 +396,7 @@ namespace usb_hid
 		bool mouse_btn[3] = {};
 
 		void QueueKeyboardState(KeyValue keycode, bool pressed);
-		void QueueMouseAxisState(InputPointerAxis axis, float delta);
+		void QueueMouseAxisState(InputPointerAxis axis, s32 delta);
 		void QueueMouseButtonState(InputButton button, bool pressed);
 	};
 
@@ -625,7 +625,10 @@ namespace usb_hid
 		hid.ptr.eh_sync(&hid);
 	}
 
-	void UsbHIDState::QueueMouseAxisState(InputPointerAxis axis, float delta)
+	/* Deltas are integers end to end: the retro mouse callback hands out
+	 * ints, and the HID event value is an s64 - the float in between was
+	 * pure laundering. */
+	void UsbHIDState::QueueMouseAxisState(InputPointerAxis axis, s32 delta)
 	{
 		if (axis < InputPointerAxis::WheelX)
 		{
@@ -641,7 +644,7 @@ namespace usb_hid
 		{
 			InputEvent evt;
 			evt.type = INPUT_EVENT_KIND_BTN;
-			evt.u.btn.button = (delta > 0.0f) ? INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
+			evt.u.btn.button = (delta > 0) ? INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
 			evt.u.btn.down = true;
 			hid.ptr.eh_entry(&hid, &evt);
 			hid.ptr.eh_sync(&hid);
@@ -752,9 +755,9 @@ namespace usb_hid
 			const int dx = input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
 			const int dy = input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
 			if (dx)
-				s->QueueMouseAxisState(InputPointerAxis::X, (float)dx);
+				s->QueueMouseAxisState(InputPointerAxis::X, dx);
 			if (dy)
-				s->QueueMouseAxisState(InputPointerAxis::Y, (float)dy);
+				s->QueueMouseAxisState(InputPointerAxis::Y, dy);
 
 			const bool bl = input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) != 0;
 			const bool br = input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT) != 0;
