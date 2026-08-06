@@ -33,14 +33,12 @@ IPUStatus IPUCoreStatus;
 
 static void (*IPUWorker)(void);
 
-// Color conversion stuff, the memory layout is a total hack
-// convert_data_buffer is a pointer to the internal rgb struct (the first param in convert_init_t)
-//char convert_data_buffer[sizeof(convert_rgb_t)];
-//char convert_data_buffer[0x1C];							// unused?
-//u8 PCT[] = {'r', 'I', 'P', 'B', 'D', '-', '-', '-'};		// unused?
-
-// Quantization matrix
-rgb16_t g_ipu_vqclut[16]; //clut conversion table
+/* SETVQ CLUT: sixteen RGB16 entries used by the PACK command's INDX4
+ * output path (EE User's Manual 8.6.3: nearest CLUT entry by squared
+ * RGB distance).  The convert_data_buffer / PCT residue that used to
+ * sit here came from the mpeg2dec (VLC) port this decoder began as and
+ * referenced structures that no longer exist. */
+rgb16_t g_ipu_vqclut[16];
 u16 g_ipu_thresh[2]; //thresholds for color conversions
 int coded_block_pattern = 0;
 

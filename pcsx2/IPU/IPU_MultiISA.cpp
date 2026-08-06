@@ -1589,16 +1589,13 @@ __fi static bool ipuVDEC(u32 val)
 					break;
 			}
 
-			// HACK ATTACK!  This code OR's the MPEG decoder's bitstream position into the upper
-			// 16 bits of DATA; which really doesn't make sense since (a) we already rewound the bits
-			// back into the IPU internal buffer above, and (b) the IPU doesn't have an MPEG internal
-			// 32-bit decoder buffer of its own anyway.  Furthermore, setting the upper 16 bits to
-			// any value other than zero appears to work fine.  When set to zero, however, FMVs run
-			// very choppy (basically only decoding/updating every 30th frame or so). So yeah,
-			// someone with knowledge on the subject please feel free to explain this one. :) --air
-
-			// The upper bits are the "length" of the decoded command, where the lower is the address.
-			// This is due to differences with IPU and the MPEG standard. See get_macroblock_address_increment().
+			/* VDEC result format (EE User's Manual, VDEC): the decoded
+			 * symbol is returned in the low bits of IPU_CMD.DATA and the
+			 * consumed code length in bits 16+; the bitstream advances by
+			 * exactly that length.  Software MPEG loops mirror the stream
+			 * position from the returned length, which is why a zero
+			 * upper half stalls FMV pacing (the old "HACK ATTACK" comment
+			 * predates having the manual to cite). */
 
 			ipuRegs.ctrl.ECD = (ipuRegs.cmd.DATA == 0);
 			/* fall-through */
@@ -1790,7 +1787,9 @@ __fi static void ipu_vq(macroblock_rgb16& rgb16, u8* indx4)
 			const int db = rgb16.c[i][j].b - g_ipu_vqclut[k].b;
 			const int distance = dr * dr + dg * dg + db * db;
 
-			// XXX: If two distances are the same which index is used?
+				/* Ties: the manual (8.6.3) describes a sequential scan
+			 * i=0..15 taking the minimum, so the lowest index wins -
+			 * which the strict > below implements. */
 			if (min_distance > distance)
 			{
 				index = k;
