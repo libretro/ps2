@@ -329,18 +329,19 @@ __ri static void IDCT_Copy(s16* block, u8* dest, const int stride)
 {
 	IDCT_Block(block);
 
+	/* Saturating pack does what the clip table did - negatives to 0,
+	 * above 255 to 255 - for a whole row at a time, and does it for
+	 * every input rather than the table's -384..639 window.  That
+	 * window was not a bound on the data: the comment above IDCT_Block
+	 * records that a corrupted stream can drive a column output to
+	 * +-3826, and indexing a 1024-byte table with that read up to three
+	 * kilobytes past its end. */
+	const __m128i zero = _mm_setzero_si128();
 	for (int i = 0; i < 8; i++)
 	{
-		dest[0] = (g_idct_clip_lut.data() + 384)[block[0]];
-		dest[1] = (g_idct_clip_lut.data() + 384)[block[1]];
-		dest[2] = (g_idct_clip_lut.data() + 384)[block[2]];
-		dest[3] = (g_idct_clip_lut.data() + 384)[block[3]];
-		dest[4] = (g_idct_clip_lut.data() + 384)[block[4]];
-		dest[5] = (g_idct_clip_lut.data() + 384)[block[5]];
-		dest[6] = (g_idct_clip_lut.data() + 384)[block[6]];
-		dest[7] = (g_idct_clip_lut.data() + 384)[block[7]];
-
-		memset(block, 0, 16);
+		const __m128i row = _mm_load_si128(reinterpret_cast<const __m128i*>(block));
+		_mm_storel_epi64(reinterpret_cast<__m128i*>(dest), _mm_packus_epi16(row, row));
+		_mm_store_si128(reinterpret_cast<__m128i*>(block), zero);
 
 		dest += stride;
 		block += 8;
