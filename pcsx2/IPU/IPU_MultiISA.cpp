@@ -207,8 +207,16 @@ __fi static void BUTTERFLY(int& t0, int& t1, int w0, int w1, int d0, int d1)
 	t1 = tmp - (w1 + w0) * d0;
 }
 
+#if _M_SSE >= 0x401
+static inline __m128i pair_const(int lo, int hi)
+{
+	return _mm_set1_epi32((int)((unsigned)(hi & 0xffff) << 16) | (unsigned)(lo & 0xffff));
+}
+#endif
+
 __ri static void IDCT_Block(s16* block)
 {
+	/* ---- row pass: unchanged scalar code, keeps its all-zero fast path */
 	for (int i = 0; i < 8; i++)
 	{
 		s16* const rblock = block + 8 * i;
@@ -230,33 +238,24 @@ __ri static void IDCT_Block(s16* block)
 			const int d1 = rblock[1];
 			const int d2 = rblock[2] << 11;
 			const int d3 = rblock[3];
-			int t0 = d0 + d2;
-			int t1 = d0 - d2;
-			int t2, t3;
-			BUTTERFLY(t2, t3, W6, W2, d3, d1);
-			a0 = t0 + t2;
-			a1 = t1 + t3;
-			a2 = t1 - t3;
-			a3 = t0 - t2;
+			const int t0 = d0 + d2;
+			const int t1 = d0 - d2;
+			const int t2 = W6 * d3 + W2 * d1;
+			const int t3 = W6 * d1 - W2 * d3;
+			a0 = t0 + t2; a1 = t1 + t3; a2 = t1 - t3; a3 = t0 - t2;
 		}
-
 		int b0, b1, b2, b3;
 		{
-			const int d0 = rblock[4];
-			const int d1 = rblock[5];
-			const int d2 = rblock[6];
-			const int d3 = rblock[7];
-			int t0, t1, t2, t3;
-			BUTTERFLY(t0, t1, W7, W1, d3, d0);
-			BUTTERFLY(t2, t3, W3, W5, d1, d2);
-			b0 = t0 + t2;
-			b3 = t1 + t3;
-			t0 -= t2;
-			t1 -= t3;
+			const int d0 = rblock[4], d1 = rblock[5], d2 = rblock[6], d3 = rblock[7];
+			int t0 = W7 * d3 + W1 * d0;
+			int t1 = W7 * d0 - W1 * d3;
+			const int t2 = W3 * d1 + W5 * d2;
+			const int t3 = W3 * d2 - W5 * d1;
+			b0 = t0 + t2; b3 = t1 + t3;
+			t0 -= t2; t1 -= t3;
 			b1 = ((t0 + t1) * 181) >> 8;
 			b2 = ((t0 - t1) * 181) >> 8;
 		}
-
 		rblock[0] = (a0 + b0) >> 8;
 		rblock[1] = (a1 + b1) >> 8;
 		rblock[2] = (a2 + b2) >> 8;
@@ -267,6 +266,95 @@ __ri static void IDCT_Block(s16* block)
 		rblock[7] = (a0 - b0) >> 8;
 	}
 
+#if _M_SSE >= 0x401
+	/* ---- column pass: eight columns in parallel.
+	 *
+	 * Each row of the block is one contiguous vector of eight s16, and
+	 * column k's inputs are lane k of rows 0..7, so no transpose is
+	 * needed.  The butterflies expand to plain product pairs
+	 *   t2 = W6*d3 + W2*d1,  t3 = W6*d1 - W2*d3
+	 * which is exactly what pmaddwd computes from interleaved 16-bit
+	 * operands - one instruction per pair instead of a 32-bit multiply
+	 * chain, which is where this beats what the compiler emits from the
+	 * scalar form. */
+	const __m128i r0 = _mm_load_si128((const __m128i*)(block + 8 * 0));
+	const __m128i r1 = _mm_load_si128((const __m128i*)(block + 8 * 1));
+	const __m128i r2 = _mm_load_si128((const __m128i*)(block + 8 * 2));
+	const __m128i r3 = _mm_load_si128((const __m128i*)(block + 8 * 3));
+	const __m128i r4 = _mm_load_si128((const __m128i*)(block + 8 * 4));
+	const __m128i r5 = _mm_load_si128((const __m128i*)(block + 8 * 5));
+	const __m128i r6 = _mm_load_si128((const __m128i*)(block + 8 * 6));
+	const __m128i r7 = _mm_load_si128((const __m128i*)(block + 8 * 7));
+
+	const __m128i k_w6w2 = pair_const(W6, W2);
+	const __m128i k_nw2w6 = pair_const(-W2, W6);
+	const __m128i k_w7w1 = pair_const(W7, W1);
+	const __m128i k_nw1w7 = pair_const(-W1, W7);
+	const __m128i k_w3w5 = pair_const(W3, W5);
+	const __m128i k_nw5w3 = pair_const(-W5, W3);
+	const __m128i k_round = _mm_set1_epi32(65536);
+	const __m128i k_181 = _mm_set1_epi32(181);
+
+	__m128i lo[8];
+	for (int h = 0; h < 2; h++)
+	{
+		const __m128i i31 = h ? _mm_unpackhi_epi16(r3, r1) : _mm_unpacklo_epi16(r3, r1);
+		const __m128i i74 = h ? _mm_unpackhi_epi16(r7, r4) : _mm_unpacklo_epi16(r7, r4);
+		const __m128i i56 = h ? _mm_unpackhi_epi16(r5, r6) : _mm_unpacklo_epi16(r5, r6);
+
+		const __m128i e0 = h ? _mm_cvtepi16_epi32(_mm_srli_si128(r0, 8)) : _mm_cvtepi16_epi32(r0);
+		const __m128i e2 = h ? _mm_cvtepi16_epi32(_mm_srli_si128(r2, 8)) : _mm_cvtepi16_epi32(r2);
+
+		const __m128i d0 = _mm_add_epi32(_mm_slli_epi32(e0, 11), k_round);
+		const __m128i d2 = _mm_slli_epi32(e2, 11);
+		const __m128i t0 = _mm_add_epi32(d0, d2);
+		const __m128i t1 = _mm_sub_epi32(d0, d2);
+		const __m128i t2 = _mm_madd_epi16(i31, k_w6w2);
+		const __m128i t3 = _mm_madd_epi16(i31, k_nw2w6);
+
+		const __m128i a0 = _mm_add_epi32(t0, t2);
+		const __m128i a1 = _mm_add_epi32(t1, t3);
+		const __m128i a2 = _mm_sub_epi32(t1, t3);
+		const __m128i a3 = _mm_sub_epi32(t0, t2);
+
+		const __m128i u0 = _mm_madd_epi16(i74, k_w7w1);
+		const __m128i u1 = _mm_madd_epi16(i74, k_nw1w7);
+		const __m128i u2 = _mm_madd_epi16(i56, k_w3w5);
+		const __m128i u3 = _mm_madd_epi16(i56, k_nw5w3);
+
+		const __m128i b0 = _mm_add_epi32(u0, u2);
+		const __m128i b3 = _mm_add_epi32(u1, u3);
+		const __m128i s0 = _mm_srai_epi32(_mm_sub_epi32(u0, u2), 8);
+		const __m128i s1 = _mm_srai_epi32(_mm_sub_epi32(u1, u3), 8);
+		const __m128i b1 = _mm_mullo_epi32(_mm_add_epi32(s0, s1), k_181);
+		const __m128i b2 = _mm_mullo_epi32(_mm_sub_epi32(s0, s1), k_181);
+
+		const __m128i o0 = _mm_srai_epi32(_mm_add_epi32(a0, b0), 17);
+		const __m128i o1 = _mm_srai_epi32(_mm_add_epi32(a1, b1), 17);
+		const __m128i o2 = _mm_srai_epi32(_mm_add_epi32(a2, b2), 17);
+		const __m128i o3 = _mm_srai_epi32(_mm_add_epi32(a3, b3), 17);
+		const __m128i o4 = _mm_srai_epi32(_mm_sub_epi32(a3, b3), 17);
+		const __m128i o5 = _mm_srai_epi32(_mm_sub_epi32(a2, b2), 17);
+		const __m128i o6 = _mm_srai_epi32(_mm_sub_epi32(a1, b1), 17);
+		const __m128i o7 = _mm_srai_epi32(_mm_sub_epi32(a0, b0), 17);
+		if (h == 0)
+		{
+			lo[0] = o0; lo[1] = o1; lo[2] = o2; lo[3] = o3;
+			lo[4] = o4; lo[5] = o5; lo[6] = o6; lo[7] = o7;
+		}
+		else
+		{
+			_mm_store_si128((__m128i*)(block + 8 * 0), _mm_packs_epi32(lo[0], o0));
+			_mm_store_si128((__m128i*)(block + 8 * 1), _mm_packs_epi32(lo[1], o1));
+			_mm_store_si128((__m128i*)(block + 8 * 2), _mm_packs_epi32(lo[2], o2));
+			_mm_store_si128((__m128i*)(block + 8 * 3), _mm_packs_epi32(lo[3], o3));
+			_mm_store_si128((__m128i*)(block + 8 * 4), _mm_packs_epi32(lo[4], o4));
+			_mm_store_si128((__m128i*)(block + 8 * 5), _mm_packs_epi32(lo[5], o5));
+			_mm_store_si128((__m128i*)(block + 8 * 6), _mm_packs_epi32(lo[6], o6));
+			_mm_store_si128((__m128i*)(block + 8 * 7), _mm_packs_epi32(lo[7], o7));
+		}
+	}
+#else
 	for (int i = 0; i < 8; i++)
 	{
 		s16* const cblock = block + i;
@@ -314,6 +402,7 @@ __ri static void IDCT_Block(s16* block)
 		cblock[8 * 6] = (a1 - b1) >> 17;
 		cblock[8 * 7] = (a0 - b0) >> 17;
 	}
+#endif
 }
 
 __ri static void IDCT_Copy(s16* block, u8* dest, const int stride)
