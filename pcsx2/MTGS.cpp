@@ -18,7 +18,7 @@
 #include <atomic>
 #include <cstring>
 #include <list>
-#include <thread>
+#include <rthreads/rthreads.h>
 
 #include <libretro.h>
 
@@ -75,10 +75,10 @@ namespace MTGS
 	// WaitGS(isMTVU=true) busy-spins lock/unlock on this to confirm that
 	// MTGS has reached a "waiting for me" state at least once. Dead weight
 	// when MTVU isn't running.
-	static std::mutex s_mtvu_handoff_mutex;
+	static slock_t* s_mtvu_handoff_lock;
 	static Threading::WorkSema s_sem_event;
 
-	static std::thread::id s_thread;
+	static uintptr_t s_thread;
 	static std::atomic<bool> s_open_flag = false;
 };
 
@@ -156,7 +156,9 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 
 void MTGS::TryOpenGS(void)
 {
-	s_thread = std::this_thread::get_id();
+	s_thread = sthread_get_current_thread_id();
+	if (!s_mtvu_handoff_lock)
+		s_mtvu_handoff_lock = slock_new();
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
@@ -179,24 +181,27 @@ void MTGS::MainLoop(bool flush_all)
 	// changes go through cpu_thread_pause, which drains via
 	// MainLoop(true) before flipping the toggle.
 	const bool mtvu_mode = THREAD_VU1;
-	std::unique_lock<std::mutex> mtvu_lock;
 	if (mtvu_mode)
-		mtvu_lock = std::unique_lock<std::mutex>(s_mtvu_handoff_mutex);
+		slock_lock(s_mtvu_handoff_lock);
 
 	for (;;)
 	{
 		if (flush_all)
 		{
 			if(!s_sem_event.CheckForWork())
+			{
+				if (mtvu_mode)
+					slock_unlock(s_mtvu_handoff_lock);
 				return;
+			}
 		}
 		else
 		{
 			if (mtvu_mode)
-				mtvu_lock.unlock();
+				slock_unlock(s_mtvu_handoff_lock);
 			s_sem_event.WaitForWork();
 			if (mtvu_mode)
-				mtvu_lock.lock();
+				slock_lock(s_mtvu_handoff_lock);
 		}
 
 		if (!s_open_flag.load(std::memory_order_acquire))
@@ -242,10 +247,10 @@ void MTGS::MainLoop(bool flush_all)
 					{
 						if (!vu1Thread.semaXGkick.TryWait())
 						{
-							mtvu_lock.unlock();
+							slock_unlock(s_mtvu_handoff_lock);
 							// Wait for MTVU to push a path1 packet
 							vu1Thread.semaXGkick.Wait();
-							mtvu_lock.lock();
+							slock_lock(s_mtvu_handoff_lock);
 						}
 						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
 						if (gsPack.size)
@@ -263,7 +268,7 @@ void MTGS::MainLoop(bool flush_all)
 					// flush_all skips GSvsync when multi-threaded (reset/pause drain
 					// without rendering), but in single-threaded mode MainLoop(true)
 					// IS the render path — call GSvsync.
-					if(!flush_all || std::this_thread::get_id() == s_thread)
+					if(!flush_all || sthread_get_current_thread_id() == s_thread)
 						GSvsync((((u32&)PS2MEM_GS[0x1000]) & 0x2000) ? 0 : 1,
 						        s_GSRegistersWritten.exchange(false, std::memory_order_acq_rel));
 					else
@@ -298,6 +303,8 @@ void MTGS::MainLoop(bool flush_all)
 		}
 	}
 
+	if (mtvu_mode)
+		slock_unlock(s_mtvu_handoff_lock);
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
 	s_ReadPos.store(s_WritePos.load(std::memory_order_acquire), std::memory_order_relaxed);
 	s_sem_event.Kill();
@@ -314,7 +321,7 @@ void MTGS::CloseGS(void)
 // If isMTVU, then this implies this function is being called from the MTVU thread...
 void MTGS::WaitGS(bool isMTVU)
 {
-	if(std::this_thread::get_id() == s_thread)
+	if(sthread_get_current_thread_id() == s_thread)
 	{
 		// Ensure MainLoop(true) doesn't bail immediately from
 		// CheckForWork() — entries may have been written without
@@ -351,11 +358,11 @@ void MTGS::WaitGS(bool isMTVU)
 				// consumes a path-1 packet. yield() hands the core to MTGS/EE
 				// instead. Protocol (lock rendezvous + exit condition) is
 				// unchanged; this only affects scheduling.
-				s_mtvu_handoff_mutex.lock();
-				s_mtvu_handoff_mutex.unlock();
+				slock_lock(s_mtvu_handoff_lock);
+				slock_unlock(s_mtvu_handoff_lock);
 				if (path.GetPendingGSPackets() != startP1Packs)
 					break;
-				std::this_thread::yield();
+				Threading::Timeslice();
 			}
 		}
 	}
@@ -373,7 +380,7 @@ void MTGS::WaitForClose()
 	// and kick the thread if it's sleeping
 	s_sem_event.NotifyOfWork();
 
-	s_thread = {};
+	s_thread = 0;
 }
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
@@ -444,7 +451,7 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	// there is no concurrent GS thread observing readAmount between
 	// the fetch_add here and the fetch_sub in MainLoop.  Skipping
 	// the ringbuffer entry removes ~88% of MainLoop entries.
-	if (std::this_thread::get_id() == MTGS::s_thread)
+	if (sthread_get_current_thread_id() == MTGS::s_thread)
 		return;
 
 	gifUnit.gifPath[_path].readAmount.fetch_add(_size);

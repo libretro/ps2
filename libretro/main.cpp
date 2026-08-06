@@ -2,6 +2,8 @@
 #include <windows.h>
 #endif
 
+#include <retro_atomic.h>
+
 #include <cstdint>
 #include <libretro.h>
 #include <retro_miscellaneous.h>
@@ -13,8 +15,6 @@
 #include <vector>
 #include <type_traits>
 #include <atomic>
-#include <mutex>
-#include <condition_variable>
 #include <chrono>
 
 #include "libretro_core_options.h"
@@ -65,7 +65,7 @@ MemorySettingsInterface s_settings_interface;
 bool pending_update_av_info = false;
 std::string libretro_content;
 
-static std::atomic<VMState> cpu_thread_state;
+static retro_atomic_int_t cpu_thread_state;
 static Threading::Thread cpu_thread;
 
 /* Pause/resume coordination for cpu_thread.
@@ -82,8 +82,13 @@ static Threading::Thread cpu_thread;
  * transition under the mutex and notifies. A 100 ms timeout on the
  * wait is belt-and-suspenders insurance against a missed notify - the
  * normal path is instant via notify_one(). */
-static std::mutex              cpu_thread_mtx;
-static std::condition_variable cpu_thread_cv;
+/* Counted semaphore instead of mutex+condvar: a Post is remembered, so
+ * the resume side needs no lock to close the check-then-wait window -
+ * if cpu_thread saw the old state and is about to Wait(), the Post
+ * issued after the state store is already banked and the Wait returns
+ * immediately.  Stale posts from earlier cycles are absorbed by the
+ * predicate re-check loop around Wait(). */
+static Threading::KernelSemaphore cpu_thread_resume_sema;
 
 static freezeData fd = {};
 static std::unique_ptr<u8[]> fd_data;
@@ -337,23 +342,20 @@ static bool update_option_visibility(void)
 static void cpu_thread_pause(void)
 {
 	VMManager::SetPaused(true);
-	while(cpu_thread_state.load(std::memory_order_acquire) != VMState::Paused)
+	while((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) != VMState::Paused)
 		MTGS::MainLoop(true);
 }
 
-/* Counterpart to cpu_thread_pause(). Performs the resume-side state
- * transition under cpu_thread_mtx so cpu_thread, sleeping in its
- * 'case Paused' wait, sees a consistent state-and-notify, and signals
- * the cv. Any new resume site (replacing 'VMManager::SetPaused(false)'
- * or 'VMManager::SetState(VMState::Running)' that was paired with a
- * prior cpu_thread_pause) should call this instead. */
+/* Counterpart to cpu_thread_pause().  Store the new state, then Post:
+ * because the semaphore counts, the post cannot be lost regardless of
+ * where cpu_thread is in its check-then-wait.  Any new resume site
+ * (replacing 'VMManager::SetPaused(false)' or
+ * 'VMManager::SetState(VMState::Running)' that was paired with a prior
+ * cpu_thread_pause) should call this instead. */
 static void cpu_thread_resume(void)
 {
-	{
-		std::lock_guard<std::mutex> lk(cpu_thread_mtx);
-		VMManager::SetPaused(false);
-	}
-	cpu_thread_cv.notify_one();
+	VMManager::SetPaused(false);
+	cpu_thread_resume_sema.Post();
 }
 
 /* Renderer-setting helpers. The "Renderer" menu has two SW entries
@@ -1881,7 +1883,7 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 			for (;;)
 			{
 				VMState _st = VMManager::GetState();
-				cpu_thread_state.store(_st, std::memory_order_release);
+				retro_atomic_store_release_int(&cpu_thread_state, (int)_st);
 				switch (_st)
 				{
 					case VMState::Initializing:
@@ -1915,18 +1917,13 @@ static void cpu_thread_entry(VMBootParameters boot_params)
 
 					case VMState::Paused:
 					{
-						/* Sleep on cpu_thread_cv until the libretro thread
-						 * transitions us out of Paused. Every state change
-						 * out of Paused happens under cpu_thread_mtx before
-						 * its notify_one (cpu_thread_resume() and the unload
-						 * path in retro_unload_game), so the predicate-then-
-						 * wait here cannot miss a wakeup: holding the lock
-						 * across the check closes the gap. A plain wait()
-						 * lets a paused core sleep fully instead of waking
-						 * 10x/s to re-poll. */
-						std::unique_lock<std::mutex> lk(cpu_thread_mtx);
-						cpu_thread_cv.wait(lk,
-							[]{ return VMManager::GetState() != VMState::Paused; });
+						/* Sleep until the libretro thread transitions us out
+						 * of Paused.  Every waker stores the new state first
+						 * and then Posts; the counted post cannot be lost, so
+						 * the re-check loop needs no lock.  A full sleep lets
+						 * a paused core idle instead of waking to re-poll. */
+						while (VMManager::GetState() == VMState::Paused)
+							cpu_thread_resume_sema.Wait();
 						continue;
 					}
 					default:
@@ -2286,18 +2283,12 @@ void retro_unload_game(void)
 	 * 'case Stopping: return;' branch so cpu_thread.join() can
 	 * complete.
 	 *
-	 * Take cpu_thread_mtx across the notify. Shutdown() already stored
-	 * the new state, so acquiring the lock here serialises against the
-	 * cpu_thread's predicate-check-then-wait: either it has not yet
-	 * checked (it will see the new state and not sleep), or it is
-	 * already in wait() (it gets this notify). This is what makes the
-	 * plain wait() in 'case Paused' safe -- the previous code notified
-	 * without the lock and relied on a 100 ms wait_for timeout to
-	 * paper over the resulting lost-wakeup window. */
-	{
-		std::lock_guard<std::mutex> lk(cpu_thread_mtx);
-	}
-	cpu_thread_cv.notify_one();
+	 * Shutdown() already stored the new state; the Post after it is
+	 * counted, so whether cpu_thread has not yet checked (it will see
+	 * the new state and not sleep) or is already in Wait() (the banked
+	 * post wakes it), the wakeup cannot be lost.  The old mutex+condvar
+	 * version needed a lock across the notify for the same guarantee. */
+	cpu_thread_resume_sema.Post();
 	Input::Shutdown();
 	cpu_thread.Join();
 #ifdef ENABLE_VULKAN
@@ -2333,7 +2324,7 @@ void retro_run(void)
 	if (!MTGS::IsOpen())
 		MTGS::TryOpenGS();
 
-	if (cpu_thread_state.load(std::memory_order_acquire) == VMState::Paused)
+	if ((VMState)retro_atomic_load_acquire_int(&cpu_thread_state) == VMState::Paused)
 		cpu_thread_resume();
 
 	MTGS::MainLoop(false);

@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include <condition_variable>
 #include <string>
 #include <vector>
 #include <optional>
@@ -140,7 +139,6 @@ namespace VMManager
 namespace Host
 {
 	/// Called with the settings lock held, when system settings are being loaded (should load input sources, etc).
-	void LoadSettings(SettingsInterface& si, std::unique_lock<std::mutex>& lock);
 	/// Provided by the host; called when the running executable changes.
 	void OnGameChanged(const std::string& disc_path, const std::string& elf_override, const std::string& game_serial,
 		u32 game_crc);
