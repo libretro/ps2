@@ -2454,16 +2454,101 @@ static void vma_aligned_free(void* VMA_NULLABLE ptr)
 #endif // #ifndef VMA_RW_MUTEX
 
 /*
-If providing your own implementation, you need to implement a subset of std::atomic.
+If providing your own implementation, it must offer the atomic member surface used below.
 */
+// libretro: std::atomic-compatible wrappers over retro_atomic so the
+// allocator's internal statistics carry no <atomic> dependency.  The
+// member surface is the subset VMA uses: load/store/exchange, weak and
+// strong compare-exchange (expected refreshed by re-read on failure -
+// VMA's retry loops re-derive from 'expected', so the weak contract
+// holds), fetch_add/sub, and increment/decrement.
+class VmaAtomicU32
+{
+    retro_atomic_int_t m_v = RETRO_ATOMIC_INT_INITIALIZER(0);
+public:
+    VmaAtomicU32() {}
+    explicit VmaAtomicU32(uint32_t v) { retro_atomic_store_release_int(&m_v, (int)v); }
+    uint32_t load(int = 0) const
+        { return (uint32_t)retro_atomic_load_acquire_int(const_cast<retro_atomic_int_t*>(&m_v)); }
+    void store(uint32_t v, int = 0)
+        { retro_atomic_store_release_int(&m_v, (int)v); }
+    uint32_t exchange(uint32_t v) { return (uint32_t)retro_atomic_exchange_int(&m_v, (int)v); }
+    bool compare_exchange_weak(uint32_t& expected, uint32_t desired,
+        int = 0, int = 0)
+    {
+        if (retro_atomic_cas_int(&m_v, (int)expected, (int)desired))
+            return true;
+        expected = load();
+        return false;
+    }
+    bool compare_exchange_strong(uint32_t& expected, uint32_t desired,
+        int = 0, int = 0)
+        { return compare_exchange_weak(expected, desired); }
+    uint32_t fetch_add(uint32_t v) { return (uint32_t)retro_atomic_fetch_add_int(&m_v, (int)v); }
+    uint32_t fetch_sub(uint32_t v) { return (uint32_t)retro_atomic_fetch_sub_int(&m_v, (int)v); }
+    uint32_t operator++() { return fetch_add(1) + 1; }
+    uint32_t operator++(int) { return fetch_add(1); }
+    uint32_t operator--() { return fetch_sub(1) - 1; }
+    uint32_t operator--(int) { return fetch_sub(1); }
+    VmaAtomicU32& operator=(uint32_t v) { store(v); return *this; }
+    VmaAtomicU32& operator+=(uint32_t v) { fetch_add(v); return *this; }
+    VmaAtomicU32& operator-=(uint32_t v) { fetch_sub(v); return *this; }
+    operator uint32_t() const { return load(); }
+};
+class VmaAtomicU64
+{
+    retro_atomic_64_t m_v = 0;
+public:
+    VmaAtomicU64() {}
+    explicit VmaAtomicU64(uint64_t v) { retro_atomic_store_release_64(&m_v, (int64_t)v); }
+    uint64_t load(int = 0) const
+        { return (uint64_t)retro_atomic_load_acquire_64(const_cast<retro_atomic_64_t*>(&m_v)); }
+    void store(uint64_t v, int = 0)
+        { retro_atomic_store_release_64(&m_v, (int64_t)v); }
+    uint64_t exchange(uint64_t v) { return (uint64_t)retro_atomic_exchange_64(&m_v, (int64_t)v); }
+    bool compare_exchange_weak(uint64_t& expected, uint64_t desired,
+        int = 0, int = 0)
+    {
+        if (retro_atomic_cas_64(&m_v, (int64_t)expected, (int64_t)desired))
+            return true;
+        expected = load();
+        return false;
+    }
+    bool compare_exchange_strong(uint64_t& expected, uint64_t desired,
+        int = 0, int = 0)
+        { return compare_exchange_weak(expected, desired); }
+    uint64_t fetch_add(uint64_t v)
+    {
+        for (;;)
+        {
+            const uint64_t old = load();
+            if (retro_atomic_cas_64(&m_v, (int64_t)old, (int64_t)(old + v)))
+                return old;
+        }
+    }
+    uint64_t fetch_sub(uint64_t v)
+    {
+        for (;;)
+        {
+            const uint64_t old = load();
+            if (retro_atomic_cas_64(&m_v, (int64_t)old, (int64_t)(old - v)))
+                return old;
+        }
+    }
+    uint64_t operator++() { return fetch_add(1) + 1; }
+    uint64_t operator++(int) { return fetch_add(1); }
+    uint64_t operator--() { return fetch_sub(1) - 1; }
+    uint64_t operator--(int) { return fetch_sub(1); }
+    VmaAtomicU64& operator=(uint64_t v) { store(v); return *this; }
+    VmaAtomicU64& operator+=(uint64_t v) { fetch_add(v); return *this; }
+    VmaAtomicU64& operator-=(uint64_t v) { fetch_sub(v); return *this; }
+    operator uint64_t() const { return load(); }
+};
 #ifndef VMA_ATOMIC_UINT32
-    #include <atomic>
-    #define VMA_ATOMIC_UINT32 std::atomic<uint32_t>
+    #define VMA_ATOMIC_UINT32 VmaAtomicU32
 #endif
-
 #ifndef VMA_ATOMIC_UINT64
-    #include <atomic>
-    #define VMA_ATOMIC_UINT64 std::atomic<uint64_t>
+    #define VMA_ATOMIC_UINT64 VmaAtomicU64
 #endif
 
 #ifndef VMA_DEBUG_ALWAYS_DEDICATED_MEMORY
@@ -15611,7 +15696,9 @@ template<typename T>
 struct AtomicTransactionalIncrement
 {
 public:
-    typedef std::atomic<T> AtomicT;
+    /* libretro: only ever instantiated with uint32_t against
+     * m_DeviceMemoryCount, which is now VmaAtomicU32. */
+    typedef VmaAtomicU32 AtomicT;
     ~AtomicTransactionalIncrement()
     {
         if(m_Atomic)

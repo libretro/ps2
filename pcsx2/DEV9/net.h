@@ -21,7 +21,6 @@
 #include <cstring>
 
 #include <functional>
-#include <atomic>
 
 #ifdef _WIN32
 #include "common/RedtapeWindows.h"

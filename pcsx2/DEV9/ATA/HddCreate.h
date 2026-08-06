@@ -16,7 +16,6 @@
 #pragma once
 
 #include <retro_atomic.h>
-#include <atomic>
 #include <chrono>
 #include <string>
 

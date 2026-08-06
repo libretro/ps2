@@ -25,7 +25,6 @@
 #include <semaphore.h>
 #endif
 
-#include <atomic>
 #include <functional>
 
 namespace Threading

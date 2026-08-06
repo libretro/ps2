@@ -15,7 +15,6 @@
 
 #pragma once
 #include <retro_atomic.h>
-#include <atomic>
 #include <unordered_map>
 #include <functional>
 

@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 #include <type_traits>
-#include <atomic>
 #include <chrono>
 
 #include "libretro_core_options.h"

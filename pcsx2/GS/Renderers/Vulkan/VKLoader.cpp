@@ -14,7 +14,6 @@
  */
 
 #include <retro_atomic.h>
-#include <atomic>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>

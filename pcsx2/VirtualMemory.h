@@ -17,7 +17,6 @@
 
 #include <retro_atomic.h>
 #include "../common/General.h"
-#include <atomic>
 #include <memory>
 
 // --------------------------------------------------------------------------------------

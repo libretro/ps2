@@ -17,7 +17,6 @@
 #include <features/features_cpu.h>
 #include "VMManager.h"
 
-#include <atomic>
 #include <sstream>
 
 #include <file/file_path.h>

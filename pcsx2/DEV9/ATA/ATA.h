@@ -17,7 +17,6 @@
 
 #include <retro_atomic.h>
 #include <string>
-#include <atomic>
 
 #include "../../../common/Threading.h"
 #include "common/FileSystem.h"

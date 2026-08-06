@@ -15,7 +15,6 @@
 
 #include "Common.h"
 
-#include <atomic>
 #include <cstring>
 #include <list>
 #include <rthreads/rthreads.h>

@@ -15,7 +15,6 @@
 
 #pragma once
 #include <retro_atomic.h>
-#include <atomic>
 #include <chrono>
 #ifdef _WIN32
 #include <winsock2.h>
