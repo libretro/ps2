@@ -22,7 +22,6 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <thread>
 
 #include "GSVertexSW.h"
 #include "GSDrawScanline.h"
@@ -34,7 +33,7 @@ template <class T, int CAPACITY>
 class GSJobQueue final
 {
 private:
-	std::thread m_thread;
+	Threading::Thread m_thread;
 	std::function<void()> m_startup;
 	std::function<void(T&)> m_func;
 	std::function<void()> m_shutdown;
@@ -68,14 +67,14 @@ public:
 		, m_shutdown(std::move(shutdown))
 		, m_exit(false)
 	{
-		m_thread = std::thread(&GSJobQueue::ThreadProc, this);
+		m_thread.Start([this]() { ThreadProc(); });
 	}
 
 	~GSJobQueue()
 	{
 		m_exit.store(true, std::memory_order_release);
 		m_sema.NotifyOfWork();
-		m_thread.join();
+		m_thread.Join();
 	}
 
 	bool IsEmpty()
@@ -86,7 +85,7 @@ public:
 	void Push(const T& item)
 	{
 		while (!m_queue.push(item))
-			std::this_thread::yield();
+			Threading::Timeslice();
 		m_sema.NotifyOfWork();
 	}
 

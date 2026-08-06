@@ -41,6 +41,10 @@ namespace Threading
 	// Abstracts an OS's handle to a thread, closing the handle when necessary. Currently,
 	// only used for getting the CPU time for a thread.
 	//
+	/// Yield the rest of this timeslice to the scheduler (sched_yield /
+	/// SwitchToThread); for bounded producer spins on full queues.
+	extern void Timeslice();
+
 	class ThreadHandle
 	{
 	public:

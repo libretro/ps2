@@ -367,3 +367,15 @@ void Threading::Thread::Join()
 #endif
 	m_native_handle = nullptr;
 }
+
+#ifdef _WIN32
+void Threading::Timeslice()
+{
+	::SwitchToThread();
+}
+#else
+void Threading::Timeslice()
+{
+	sched_yield();
+}
+#endif
