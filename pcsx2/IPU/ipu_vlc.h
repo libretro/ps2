@@ -169,6 +169,49 @@ static constexpr const DMVtab* DMV_2 = DMV_2_A.e;
 static constexpr const CBPtab* CBP_7 = CBP_7_A.e;
 static constexpr const CBPtab* CBP_9 = CBP_9_A.e;
 
+
+/* Reachable-index bounds.
+ *
+ * Every array above is addressed as base + (window >> S) - B, with the
+ * window value constrained by the guard at the call site.  These
+ * assertions state the largest index each guard can produce, so a table
+ * built too small is a compile error rather than a read past the end.
+ * They exist because CBP_7 was once rebuilt with 64 entries against a
+ * reachable maximum of 111, and the resulting garbage coded block
+ * patterns broke FMV playback.
+ *
+ * Derivations, from the guards in IPU_MultiISA.cpp:
+ *   MB_I    macroblock_modes = UBITS(2), index >> 1        ->  0..1
+ *   MB_P    macroblock_modes = UBITS(6), index >> 1        ->  0..31
+ *   MB_B    macroblock_modes = UBITS(6)                    ->  0..63
+ *   MV_4    taken when the 16-bit window has a clear sign bit and
+ *           (code & 0xF000) or (code & 0xFC00) == 0x0C00; UBITS(4) is
+ *           then at most 7                                 ->  0..7
+ *   MV_10   the other branch: code < 0x0C00, so UBITS(10) < 48
+ *                                                          ->  0..47
+ *   DMV_2   UBITS(2)                                       ->  0..3
+ *   CBP_7   taken when code >= 0x2000, so UBITS(7) is 16..127,
+ *           minus the base of 16                           ->  0..111
+ *   CBP_9   the other branch: code < 0x2000, so UBITS(9) < 64
+ *                                                          ->  0..63
+ *   MBA5    taken when code >= 4096, so UBITS(5) is 2..31, minus 2
+ *                                                          ->  0..29
+ *   MBA11   taken when 768 <= code < 4096, so UBITS(11) is 24..127,
+ *           minus 24                                       ->  0..103
+ *   lum0    UBITS(5) when below 31                         ->  0..30
+ *   lum1    UBITS(9) is 0x1F0..0x1FF, minus 0x1F0          ->  0..15
+ *   chrom0  UBITS(5) when below 31                         ->  0..30
+ *   chrom1  UBITS(10) is 0x3E0..0x3FF, minus 0x3E0         ->  0..31
+ */
+static_assert(sizeof(MB_I_A.e) / sizeof(MBtab) > 1, "MB_I too small");
+static_assert(sizeof(MB_P_A.e) / sizeof(MBtab) > 31, "MB_P too small");
+static_assert(sizeof(MB_B_A.e) / sizeof(MBtab) > 63, "MB_B too small");
+static_assert(sizeof(MV_4_A.e) / sizeof(MVtab) > 7, "MV_4 too small");
+static_assert(sizeof(MV_10_A.e) / sizeof(MVtab) > 47, "MV_10 too small");
+static_assert(sizeof(DMV_2_A.e) / sizeof(DMVtab) > 3, "DMV_2 too small");
+static_assert(sizeof(CBP_7_A.e) / sizeof(CBPtab) > 111, "CBP_7 too small");
+static_assert(sizeof(CBP_9_A.e) / sizeof(CBPtab) > 63, "CBP_9 too small");
+
 /* macroblock_address_increment, Table B-1 */
 struct MBAtabSet
 {
@@ -185,6 +228,10 @@ static constexpr MBAtabSet mba_make(void)
 }
 
 alignas(16) static constexpr MBAtabSet MBA = mba_make();
+
+
+static_assert(sizeof(MBA.mba5) / sizeof(MBAtab) > 29, "mba5 too small");
+static_assert(sizeof(MBA.mba11) / sizeof(MBAtab) > 103, "mba11 too small");
 
 /* dct_dc_size_luminance / _chrominance, Tables B-12 and B-13 */
 struct DCtabSet
@@ -206,3 +253,8 @@ static constexpr DCtabSet dc_make(void)
 }
 
 alignas(16) static constexpr DCtabSet DCtable = dc_make();
+
+static_assert(sizeof(DCtable.lum0) / sizeof(DCtab) > 30, "lum0 too small");
+static_assert(sizeof(DCtable.lum1) / sizeof(DCtab) > 15, "lum1 too small");
+static_assert(sizeof(DCtable.chrom0) / sizeof(DCtab) > 30, "chrom0 too small");
+static_assert(sizeof(DCtable.chrom1) / sizeof(DCtab) > 31, "chrom1 too small");
