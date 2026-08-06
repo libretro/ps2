@@ -31,6 +31,7 @@
 #include "IPUdma.h"
 #include "yuv2rgb.h"
 #include "IPU_MultiISA.h"
+#include "ipu_dct_lut.h"
 
 // the IPU is fixed to 16 byte strides (128-bit / QWC resolution):
 static const uint decoder_stride = 16;
@@ -606,39 +607,9 @@ __ri static bool get_intra_block(void)
 
 				code = UBITS(16);
 
-				if (code >= 16384 && (!decoder.intra_vlc_format || decoder.mpeg1))
-					tab = &DCT.next[(code >> 12) - 4];
-				else if (code >= 1024)
-				{
-					if (decoder.intra_vlc_format && !decoder.mpeg1)
-						tab = &DCT.tab0a[(code >> 8) - 4];
-					else
-						tab = &DCT.tab0[(code >> 8) - 4];
-				}
-				else if (code >= 512)
-				{
-					if (decoder.intra_vlc_format && !decoder.mpeg1)
-						tab = &DCT.tab1a[(code >> 6) - 8];
-					else
-						tab = &DCT.tab1[(code >> 6) - 8];
-				}
-
-				// [TODO] Optimization: Following codes can all be done by a single "expedited" lookup
-				// that should use a single unrolled DCT table instead of five separate tables used
-				// here.  Multiple conditional statements are very slow, while modern CPU data caches
-				// have lots of room to spare.
-
-				else if (code >= 256)
-					tab = &DCT.tab2[(code >> 4) - 16];
-				else if (code >= 128)
-					tab = &DCT.tab3[(code >> 3) - 16];
-				else if (code >= 64)
-					tab = &DCT.tab4[(code >> 2) - 16];
-				else if (code >= 32)
-					tab = &DCT.tab5[(code >> 1) - 16];
-				else if (code >= 16)
-					tab = &DCT.tab6[code - 16];
-				else
+				tab = dct_lookup(code, (decoder.intra_vlc_format && !decoder.mpeg1)
+					? DCT_LUT_INTRA : DCT_LUT_NEXT);
+				if (!tab)
 				{
 					ipu_cmd.pos[4] = 0;
 					return true;
@@ -741,34 +712,8 @@ __ri static bool get_non_intra_block(int * last)
 
 				code = UBITS(16);
 
-				if (code >= 16384)
-				{
-					if (i==0)
-						tab = &DCT.first[(code >> 12) - 4];
-					else
-						tab = &DCT.next[(code >> 12)- 4];
-				}
-				else if (code >= 1024)
-					tab = &DCT.tab0[(code >> 8) - 4];
-				else if (code >= 512)
-					tab = &DCT.tab1[(code >> 6) - 8];
-
-				// [TODO] Optimization: Following codes can all be done by a single "expedited" lookup
-				// that should use a single unrolled DCT table instead of five separate tables used
-				// here.  Multiple conditional statements are very slow, while modern CPU data caches
-				// have lots of room to spare.
-
-				else if (code >= 256)
-					tab = &DCT.tab2[(code >> 4) - 16];
-				else if (code >= 128)
-					tab = &DCT.tab3[(code >> 3) - 16];
-				else if (code >= 64)
-					tab = &DCT.tab4[(code >> 2) - 16];
-				else if (code >= 32)
-					tab = &DCT.tab5[(code >> 1) - 16];
-				else if (code >= 16)
-					tab = &DCT.tab6[code - 16];
-				else
+				tab = dct_lookup(code, (i == 0) ? DCT_LUT_FIRST : DCT_LUT_NEXT);
+				if (!tab)
 				{
 					ipu_cmd.pos[4] = 0;
 					return true;

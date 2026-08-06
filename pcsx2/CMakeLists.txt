@@ -576,6 +576,7 @@ set(pcsx2IPUHeaders
 	IPU/IPU_Fifo.h
 	IPU/IPU_MultiISA.h
 	IPU/IPUdma.h
+	IPU/ipu_dct_lut.h
 	IPU/mpeg2_vlc.h
 	IPU/yuv2rgb.h
 )
