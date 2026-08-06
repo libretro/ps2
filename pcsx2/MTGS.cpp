@@ -67,8 +67,8 @@ namespace MTGS
 	// WritePos). Without the padding, every ring push from one side
 	// invalidates the cached counter on the other side's core, forcing a
 	// coherence transaction on the next access.
-	alignas(__cachelinesize) static std::atomic<unsigned int> s_WritePos = 0; // cur pos ee thread is writing to
-	alignas(__cachelinesize) static std::atomic<unsigned int> s_ReadPos  = 0; // cur pos gs is reading from
+	alignas(__cachelinesize) static retro_atomic_int_t s_WritePos = RETRO_ATOMIC_INT_INITIALIZER(0); // cur pos ee thread is writing to
+	alignas(__cachelinesize) static retro_atomic_int_t s_ReadPos  = RETRO_ATOMIC_INT_INITIALIZER(0); // cur pos gs is reading from
 
 	// Held by MTGS while MainLoop is actively draining the ring; dropped
 	// only when MainLoop parks waiting for MTVU's semaXGkick post. MTVU's
@@ -79,10 +79,10 @@ namespace MTGS
 	static Threading::WorkSema s_sem_event;
 
 	static uintptr_t s_thread;
-	static std::atomic<bool> s_open_flag = false;
+	static retro_atomic_int_t s_open_flag = RETRO_ATOMIC_INT_INITIALIZER(0);
 };
 
-bool MTGS::IsOpen() { return s_open_flag.load(std::memory_order_acquire); }
+bool MTGS::IsOpen() { return retro_atomic_load_acquire_int(&s_open_flag); }
 
 void MTGS::ResetGS(bool hardware_reset)
 {
@@ -93,7 +93,7 @@ void MTGS::ResetGS(bool hardware_reset)
 	if (hardware_reset)
 		s_ReadPos             = s_WritePos.load();
 
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = retro_atomic_load_acquire_int(&s_WritePos);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_RESET;
@@ -101,7 +101,7 @@ void MTGS::ResetGS(bool hardware_reset)
 	tag.data[1]                 = 0;
 	tag.data[2]                 = 0;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
 
 	if (hardware_reset)
 		s_sem_event.NotifyOfWork();
@@ -111,12 +111,12 @@ void MTGS::PostVsyncStart()
 {
 	// Command qword: Low word is the command, and the high word is the packet
 	// length in SIMDs (128 bits).
-	const unsigned int writepos       = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos       = retro_atomic_load_acquire_int(&s_WritePos);
 	PacketTagType& tag                = (PacketTagType&)m_Ring[writepos];
 	tag.command                       = GS_RINGTYPE_VSYNC;
 	tag.data[0]                       = 0;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
 
 	// Remove extra frame input lag. With VsyncQueueSize hard-locked to 0 in
 	// the libretro topology, this WaitGS IS the frame-pacing mechanism: it
@@ -143,14 +143,14 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 		return;
 	}
 
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = retro_atomic_load_acquire_int(&s_WritePos);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_INIT_AND_READ_FIFO;
 	tag.data[0]                 = qwc;
 	tag.pointer                 = (uptr)mem;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
 	WaitGS(false);
 }
 
@@ -162,7 +162,7 @@ void MTGS::TryOpenGS(void)
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
-	s_open_flag.store(true, std::memory_order_release);
+	retro_atomic_store_release_int(&s_open_flag, true);
 }
 
 void MTGS::MainLoop(bool flush_all)
@@ -204,7 +204,7 @@ void MTGS::MainLoop(bool flush_all)
 				slock_lock(s_mtvu_handoff_lock);
 		}
 
-		if (!s_open_flag.load(std::memory_order_acquire))
+		if (!retro_atomic_load_acquire_int(&s_open_flag))
 			break;
 
 		// note: s_ReadPos is intentionally not volatile, because it should only
@@ -212,10 +212,10 @@ void MTGS::MainLoop(bool flush_all)
 		// Snapshot s_WritePos once per batch to avoid re-acquiring the EE's
 		// cache line on every packet.  New packets added during processing
 		// are picked up on the next outer-loop iteration.
-		const unsigned int snapshot_WritePos = s_WritePos.load(std::memory_order_acquire);
-		while (s_ReadPos.load(std::memory_order_relaxed) != snapshot_WritePos)
+		const unsigned int snapshot_WritePos = retro_atomic_load_acquire_int(&s_WritePos);
+		while (retro_atomic_load_acquire_int(&s_ReadPos) != snapshot_WritePos)
 		{
-			const unsigned int local_ReadPos = s_ReadPos.load(std::memory_order_relaxed);
+			const unsigned int local_ReadPos = retro_atomic_load_acquire_int(&s_ReadPos);
 			const PacketTagType& tag = (PacketTagType&)m_Ring[local_ReadPos];
 
 			switch (tag.command)
@@ -270,9 +270,9 @@ void MTGS::MainLoop(bool flush_all)
 					// IS the render path — call GSvsync.
 					if(!flush_all || sthread_get_current_thread_id() == s_thread)
 						GSvsync((((u32&)PS2MEM_GS[0x1000]) & 0x2000) ? 0 : 1,
-						        s_GSRegistersWritten.exchange(false, std::memory_order_acq_rel));
+						        (bool)retro_atomic_exchange_int(&s_GSRegistersWritten, 0));
 					else
-						s_GSRegistersWritten.store(false, std::memory_order_release);
+						retro_atomic_store_release_int(&s_GSRegistersWritten, 0);
 					break;
 				case GS_RINGTYPE_FREEZE:
 					{
@@ -293,7 +293,7 @@ void MTGS::MainLoop(bool flush_all)
 			}
 
 			uint newringpos = (local_ReadPos + 1) & RINGBUFFERMASK;
-			s_ReadPos.store(newringpos, std::memory_order_release);
+			retro_atomic_store_release_int(&s_ReadPos, newringpos);
 
 			if (!flush_all && tag.command == GS_RINGTYPE_VSYNC)
 			{
@@ -306,14 +306,14 @@ void MTGS::MainLoop(bool flush_all)
 	if (mtvu_mode)
 		slock_unlock(s_mtvu_handoff_lock);
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
-	s_ReadPos.store(s_WritePos.load(std::memory_order_acquire), std::memory_order_relaxed);
+	retro_atomic_store_release_int(&s_ReadPos, retro_atomic_load_acquire_int(&s_WritePos));
 	s_sem_event.Kill();
 }
 
 void MTGS::CloseGS(void)
 {
 	GSclose();
-	s_open_flag.store(false, std::memory_order_release);
+	retro_atomic_store_release_int(&s_open_flag, false);
 }
 
 // Waits for the GS to empty out the entire ring buffer contents.
@@ -385,14 +385,14 @@ void MTGS::WaitForClose()
 
 void MTGS::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 {
-	const unsigned int writepos = s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = retro_atomic_load_acquire_int(&s_WritePos);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_FREEZE;
 	tag.data[0]                 = (int)mode;
 	tag.pointer                 = (uptr)&data;
 
-	s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	retro_atomic_store_release_int(&s_WritePos, (writepos + 1) & RINGBUFFERMASK);
 	WaitGS(false);
 }
 
@@ -422,7 +422,7 @@ void MTGS::SwitchRenderer(GSRendererType renderer, GSInterlaceMode interlace)
 // Adds a finished GS Packet to the MTGS ring buffer
 void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 {
-	const unsigned int writepos = MTGS::s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = retro_atomic_load_acquire_int(&MTGS::s_WritePos);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 	if (_gsPack.size == ~0u)
 	{
@@ -440,7 +440,7 @@ void Gif_AddCompletedGSPacket(GS_Packet& _gsPack, GIF_PATH _path)
 		gifUnit.gifPath[_path].readAmount.fetch_add(_gsPack.size);
 	}
 	tag.data[2]                         = (int)_path;
-	MTGS::s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
 	MTGS::s_sem_event.NotifyOfWorkIfRunning();
 }
 
@@ -455,7 +455,7 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 		return;
 
 	gifUnit.gifPath[_path].readAmount.fetch_add(_size);
-	const unsigned int writepos = MTGS::s_WritePos.load(std::memory_order_relaxed);
+	const unsigned int writepos = retro_atomic_load_acquire_int(&MTGS::s_WritePos);
 	PacketTagType& tag          = (PacketTagType&)m_Ring[writepos];
 
 	tag.command                 = GS_RINGTYPE_GSPACKET;
@@ -463,7 +463,7 @@ void Gif_AddBlankGSPacket(u32 _size, GIF_PATH _path)
 	tag.data[1]                 = (int)_size;
 	tag.data[2]                 = (int)_path;
 
-	MTGS::s_WritePos.store((writepos + 1) & RINGBUFFERMASK, std::memory_order_release);
+	retro_atomic_store_release_int(&MTGS::s_WritePos, (writepos + 1) & RINGBUFFERMASK);
 	MTGS::s_sem_event.NotifyOfWorkIfRunning();
 }
 

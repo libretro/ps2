@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include "Common.h"
 
 #include <cstring> /* memset */
@@ -23,7 +24,7 @@
 #include "Config.h"
 
 alignas(16) u8 g_RealGSMem[Ps2MemSize::GSregs];
-std::atomic<bool> s_GSRegistersWritten{false};
+retro_atomic_int_t s_GSRegistersWritten = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 void gsSetVideoMode(GS_VideoMode mode)
 {
@@ -192,7 +193,7 @@ void gsWrite64_generic(u32 mem, u64 value)
 void gsWrite64_page_00(u32 mem, u64 value)
 {
 	if (mem == GS_DISPFB1 || mem == GS_DISPFB2 || mem == GS_PMODE)
-		s_GSRegistersWritten.store(true, std::memory_order_release);
+		retro_atomic_store_release_int(&s_GSRegistersWritten, 1);
 
 	if (mem == GS_SMODE1 || mem == GS_SMODE2)
 	{

@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include "Common.h"
 #include "Gif.h"
 #include "GS/GS.h"
@@ -269,7 +270,7 @@ extern u8 gsRead8(u32 mem);
 extern u16 gsRead16(u32 mem);
 extern u32 gsRead32(u32 mem);
 extern u64 gsRead64(u32 mem);
-extern std::atomic<bool> s_GSRegistersWritten;
+extern retro_atomic_int_t s_GSRegistersWritten;
 
 // Size of the ringbuffer as a power of 2 -- size is a multiple of simd128s.
 // (actual size is 1<<m_RingBufferSizeFactor simd vectors [128-bit values])
