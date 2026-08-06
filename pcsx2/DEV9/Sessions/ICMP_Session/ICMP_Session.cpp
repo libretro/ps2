@@ -732,7 +732,7 @@ namespace Sessions
 				//free ping
 				delete ping;
 
-				if (--open == 0)
+				if (retro_atomic_fetch_sub_int(&open, 1) - 1 == 0)
 					RaiseEventConnectionClosed();
 
 				if (ret != nullptr)
@@ -842,13 +842,13 @@ namespace Sessions
 			case 8: //Echo
 			{
 				DevCon.WriteLn("DEV9: ICMP: Send Ping");
-				open++;
+				retro_atomic_inc_int(&open);
 
 				Ping* ping = new Ping(icmpPayload->GetLength());
 
 				if (!ping->IsInitialised())
 				{
-					if (--open == 0)
+					if (retro_atomic_fetch_sub_int(&open, 1) - 1 == 0)
 						RaiseEventConnectionClosed();
 					delete ping;
 					return false;
@@ -856,7 +856,7 @@ namespace Sessions
 
 				if (!ping->Send(adapterIP, destIP, packet->timeToLive, icmpPayload))
 				{
-					if (--open == 0)
+					if (retro_atomic_fetch_sub_int(&open, 1) - 1 == 0)
 						RaiseEventConnectionClosed();
 					delete ping;
 					return false;

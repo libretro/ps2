@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include "common/FileSystem.h"
 
 #include <file/file_path.h>
@@ -45,7 +46,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 
 	if (path_is_valid(hddPath.c_str()))
 	{
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -53,7 +54,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 	auto newImage = FileSystem::OpenManagedCFile(hddPath.c_str(), "wb");
 	if (!newImage)
 	{
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -68,7 +69,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		Console.Error("DEV9: HddCreate: failed to get handle");
 		newImage.reset();
 		FileSystem::DeleteFilePath(hddPath.c_str());
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -80,7 +81,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		Console.Error("DEV9: HddCreate: failed to check sparse");
 		newImage.reset();
 		FileSystem::DeleteFilePath(hddPath.c_str());
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -101,7 +102,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 			Console.Error("DEV9: HddCreate: Failed to set sparse");
 			newImage.reset();
 			FileSystem::DeleteFilePath(hddPath.c_str());
-			errored.store(true);
+			retro_atomic_store_release_int(&errored, 1);
 			SetError();
 			return;
 		}
@@ -122,7 +123,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		Console.Error("DEV9: HddCreate: Failed to set size");
 		newImage.reset();
 		FileSystem::DeleteFilePath(hddPath.c_str());
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -136,7 +137,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		Console.Error("DEV9: HddCreate: failed to get handle");
 		newImage.reset();
 		FileSystem::DeleteFilePath(hddPath.c_str());
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -148,7 +149,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		Console.Error("DEV9: HddCreate: Failed to set size");
 		newImage.reset();
 		FileSystem::DeleteFilePath(hddPath.c_str());
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -164,7 +165,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 		[[maybe_unused]] int i = ftruncate(nativeFile, 0);
 		newImage.reset();
 		FileSystem::DeleteFilePath(hddPath.c_str());
-		errored.store(true);
+		retro_atomic_store_release_int(&errored, 1);
 		SetError();
 		return;
 	}
@@ -206,7 +207,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 #endif
 				newImage.reset();
 				FileSystem::DeleteFilePath(hddPath.c_str());
-				errored.store(true);
+				retro_atomic_store_release_int(&errored, 1);
 				SetError();
 				return;
 			}
@@ -228,7 +229,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 #endif
 				newImage.reset();
 				FileSystem::DeleteFilePath(hddPath.c_str());
-				errored.store(true);
+				retro_atomic_store_release_int(&errored, 1);
 				SetError();
 				return;
 			}
@@ -240,7 +241,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 			lastUpdate = now;
 			SetFileProgress(static_cast<u64>(FileSystem::FTell64(newImage.get())));
 		}
-		if (canceled.load())
+		if (retro_atomic_load_acquire_int(&canceled))
 		{
 			std::fflush(newImage.get());
 			// Set filesize to zero to avoid potential freeze on close.
@@ -253,7 +254,7 @@ void HddCreate::WriteImage(std::string hddPath, u64 fileBytes, u64 zeroSizeBytes
 #endif
 			newImage.reset();
 			FileSystem::DeleteFilePath(hddPath.c_str());
-			errored.store(true);
+			retro_atomic_store_release_int(&errored, 1);
 			SetError();
 			return;
 		}
@@ -273,5 +274,5 @@ void HddCreate::SetError()
 
 void HddCreate::SetCanceled()
 {
-	canceled.store(true);
+	retro_atomic_store_release_int(&canceled, 1);
 }

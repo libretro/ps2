@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include "GSTextureCacheSW.h"
 #include "GSRasterizer.h"
 #include "../../GSRingHeap.h"
@@ -67,8 +68,8 @@ protected:
 	GSPixelOffset4* m_fzb;
 	GSVector4i m_fzb_bbox;
 	u32 m_fzb_cur_pages[16];
-	std::atomic<u32> m_fzb_pages[512]; // u16 frame/zbuf pages interleaved
-	std::atomic<u16> m_tex_pages[512];
+	retro_atomic_int_t m_fzb_pages[512]; // u16 frame/zbuf pages interleaved
+	retro_atomic_int_t m_tex_pages[512]; // widened u16 -> int: retro_atomic has no sub-word ops; 1 KB extra
 	GIFRegDIMX m_last_dimx = {};
 	GSVector4i m_dimx[8] = {};
 

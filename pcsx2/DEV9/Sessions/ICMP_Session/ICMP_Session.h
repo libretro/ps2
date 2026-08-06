@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include <atomic>
 #include <chrono>
 #include <vector>
@@ -85,7 +86,7 @@ namespace Sessions
 		std::vector<Ping*> pings;
 		ThreadSafeMap<Sessions::ConnectionKey, Sessions::BaseSession*>* connections;
 
-		std::atomic<int> open{0};
+		retro_atomic_int_t open = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	public:
 		ICMP_Session(ConnectionKey parKey, PacketReader::IP::IP_Address parAdapterIP, ThreadSafeMap<Sessions::ConnectionKey, Sessions::BaseSession*>* parConnections);

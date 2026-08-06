@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include <atomic>
 #ifdef _WIN32
 #include <winsock2.h>
@@ -32,7 +33,7 @@ namespace Sessions
 	class UDP_FixedPort : public BaseSession
 	{
 	private:
-		std::atomic<bool> open{true};
+		retro_atomic_int_t open = RETRO_ATOMIC_INT_INITIALIZER(1);
 
 #ifdef _WIN32
 		SOCKET client = INVALID_SOCKET;

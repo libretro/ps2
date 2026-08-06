@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include "../common/General.h"
 #include <atomic>
 #include <memory>
@@ -31,7 +32,7 @@ class VirtualMemoryManager
 	u8* m_baseptr;
 
 	// An array to track page usage (to trigger asserts if things try to overlap)
-	std::atomic<bool>* m_pageuse;
+	retro_atomic_int_t* m_pageuse;
 
 	// reserved memory (in pages)
 	u32 m_pages_reserved;
@@ -65,7 +66,9 @@ typedef std::shared_ptr<const VirtualMemoryManager> VirtualMemoryManagerPtr;
 class VirtualMemoryBumpAllocator
 {
 	const VirtualMemoryManagerPtr m_allocator;
-	std::atomic<u8*> m_baseptr{0};
+	/* Bump cursor as an atomic address value: retro_atomic_size_t,
+	 * since retro_atomic pointers have no fetch_add. */
+	retro_atomic_size_t m_basecursor = 0;
 	const u8* m_endptr = 0;
 
 public:

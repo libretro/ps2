@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include <atomic>
 #include <unordered_map>
 #include <functional>
@@ -44,7 +45,7 @@ namespace InternalServers
 		class DNS_State
 		{
 		public:
-			std::atomic<int> counter;
+			retro_atomic_int_t counter;
 
 			std::vector<std::string> questions;
 			PacketReader::IP::UDP::DNS::DNS_Packet* dns;
@@ -70,7 +71,7 @@ namespace InternalServers
 
 		PacketReader::IP::IP_Address localhostIP{{{127, 0, 0, 1}}};
 		std::unordered_map<std::string, PacketReader::IP::IP_Address> hosts;
-		std::atomic<int> outstandingQueries{0};
+		retro_atomic_int_t outstandingQueries = RETRO_ATOMIC_INT_INITIALIZER(0);
 		SimpleQueue<PacketReader::IP::UDP::UDP_Packet*> dnsQueue;
 
 	public:

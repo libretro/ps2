@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include <string>
 #include <atomic>
 
@@ -131,7 +132,7 @@ private:
 	bool ioThreadIdle_bool = false;
 
 	Threading::CondVar ioReady;
-	std::atomic_bool ioClose{false};
+	retro_atomic_int_t ioClose = RETRO_ATOMIC_INT_INITIALIZER(0);
 	bool ioWrite;
 	bool ioRead;
 	void (ATA::*waitingCmd)() = nullptr;

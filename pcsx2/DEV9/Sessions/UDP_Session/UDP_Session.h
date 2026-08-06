@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include <atomic>
 #include <chrono>
 #ifdef _WIN32
@@ -30,7 +31,7 @@ namespace Sessions
 	class UDP_Session : public UDP_BaseSession
 	{
 	private:
-		std::atomic<bool> open{false};
+		retro_atomic_int_t open = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 #ifdef _WIN32
 		SOCKET client = INVALID_SOCKET;
@@ -46,8 +47,11 @@ namespace Sessions
 		const bool isFixedPort; // = false;
 		//EndBroadcast
 
-		std::atomic<std::chrono::steady_clock::time_point> deathClockStart;
-		const static std::chrono::duration<std::chrono::steady_clock::rep, std::chrono::steady_clock::period> MAX_IDLE;
+		/* Monotonic microsecond stamp (cpu_features_get_time_usec): a
+		 * 64-bit atomic integer instead of an atomic chrono time_point,
+		 * which is lock-based on several ABIs anyway. */
+		retro_atomic_64_t deathClockStart;
+		const static int64_t MAX_IDLE_USEC;
 
 	public:
 		//Normal Port

@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include <cstring> /* memcpy/memset */
 
 #include "GSRendererSW.h"
@@ -36,8 +37,10 @@ GSRendererSW::GSRendererSW(int threads)
 
 	m_output = (u8*)_aligned_malloc(1024 * 1024 * sizeof(u32), VECTOR_ALIGNMENT);
 
-	std::fill(std::begin(m_fzb_pages), std::end(m_fzb_pages), 0);
-	std::fill(std::begin(m_tex_pages), std::end(m_tex_pages), 0);
+	for (retro_atomic_int_t& p : m_fzb_pages)
+		retro_atomic_store_release_int(&p, 0);
+	for (retro_atomic_int_t& p : m_tex_pages)
+		retro_atomic_store_release_int(&p, 0);
 }
 
 GSRendererSW::~GSRendererSW()
@@ -405,7 +408,7 @@ void GSRendererSW::InvalidateVideoMem(const GIFRegBITBLTBUF& BITBLTBUF, const GS
 	{
 		pages.loopPagesWithBreak([&](u32 page)
 		{
-			if (m_fzb_pages[page] | m_tex_pages[page])
+			if (retro_atomic_load_acquire_int(&m_fzb_pages[page]) | retro_atomic_load_acquire_int(&m_tex_pages[page]))
 			{
 				Sync(6);
 
@@ -427,7 +430,7 @@ void GSRendererSW::InvalidateLocalMem(const GIFRegBITBLTBUF& BITBLTBUF, const GS
 
 		pages.loopPagesWithBreak([&](u32 page)
 		{
-			if (m_fzb_pages[page])
+			if (retro_atomic_load_acquire_int(&m_fzb_pages[page]))
 			{
 				Sync(7);
 
@@ -445,13 +448,13 @@ void GSRendererSW::UsePages(const GSOffset::PageLooper& pages, const int type)
 		switch (type)
 		{
 			case 0:
-				m_fzb_pages[page] += 1;
+				retro_atomic_fetch_add_int(&m_fzb_pages[page], 1);
 				break;
 			case 1:
-				m_fzb_pages[page] += 0x10000;
+				retro_atomic_fetch_add_int(&m_fzb_pages[page], 0x10000);
 				break;
 			case 2:
-				m_tex_pages[page] += 1;
+				retro_atomic_fetch_add_int(&m_tex_pages[page], 1);
 				break;
 			default:
 				break;
@@ -466,13 +469,13 @@ void GSRendererSW::ReleasePages(const GSOffset::PageLooper& pages, const int typ
 		switch (type)
 		{
 			case 0:
-				m_fzb_pages[page] -= 1;
+				retro_atomic_fetch_sub_int(&m_fzb_pages[page], 1);
 				break;
 			case 1:
-				m_fzb_pages[page] -= 0x10000;
+				retro_atomic_fetch_sub_int(&m_fzb_pages[page], 0x10000);
 				break;
 			case 2:
-				m_tex_pages[page] -= 1;
+				retro_atomic_fetch_sub_int(&m_tex_pages[page], 1);
 				break;
 			default:
 				break;
@@ -524,8 +527,8 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 
 			m_fzb_cur_pages[row] |= col;
 
-			used |= m_fzb_pages[i];
-			used |= m_tex_pages[i];
+			used |= retro_atomic_load_acquire_int(&m_fzb_pages[i]);
+			used |= retro_atomic_load_acquire_int(&m_tex_pages[i]);
 		});
 
 		zb_pages->loopPages([this, &used](u32 i)
@@ -535,8 +538,8 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 
 			m_fzb_cur_pages[row] |= col;
 
-			used |= m_fzb_pages[i];
-			used |= m_tex_pages[i];
+			used |= retro_atomic_load_acquire_int(&m_fzb_pages[i]);
+			used |= retro_atomic_load_acquire_int(&m_tex_pages[i]);
 		});
 
 		if (!synced)
@@ -572,7 +575,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 				{
 					m_fzb_cur_pages[row] |= col;
 
-					used |= m_fzb_pages[i];
+					used |= retro_atomic_load_acquire_int(&m_fzb_pages[i]);
 				}
 			});
 
@@ -585,7 +588,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 				{
 					m_fzb_cur_pages[row] |= col;
 
-					used |= m_fzb_pages[i];
+					used |= retro_atomic_load_acquire_int(&m_fzb_pages[i]);
 				}
 			});
 
@@ -605,7 +608,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 			{
 				fb_pages->loopPagesWithBreak([this, &res](u32 page)
 				{
-					if (m_fzb_pages[page] & 0xffff0000)
+					if (retro_atomic_load_acquire_int(&m_fzb_pages[page]) & 0xffff0000)
 					{
 						res = true;
 
@@ -619,7 +622,7 @@ bool GSRendererSW::CheckTargetPages(const GSOffset::PageLooper* fb_pages, const 
 			{
 				zb_pages->loopPagesWithBreak([this, &res](u32 page)
 				{
-					if (m_fzb_pages[page] & 0x0000ffff)
+					if (retro_atomic_load_acquire_int(&m_fzb_pages[page]) & 0x0000ffff)
 					{
 						res = true;
 

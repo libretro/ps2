@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <retro_atomic.h>
 #include <atomic>
 #include <chrono>
 #include <string>
@@ -27,10 +28,10 @@ public:
 	std::string filePath;
 	u64 neededSize;
 
-	std::atomic_bool errored{false};
+	retro_atomic_int_t errored = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 private:
-	std::atomic_bool canceled{false};
+	retro_atomic_int_t canceled = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	std::chrono::steady_clock::time_point lastUpdate;
 

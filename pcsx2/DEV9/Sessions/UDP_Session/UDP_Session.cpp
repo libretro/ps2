@@ -27,6 +27,8 @@
 #include <unistd.h>
 #endif
 
+#include <retro_atomic.h>
+#include <features/features_cpu.h>
 #include "UDP_Session.h"
 #include "DEV9/PacketReader/IP/UDP/UDP_Packet.h"
 
@@ -34,12 +36,10 @@ using namespace PacketReader;
 using namespace PacketReader::IP;
 using namespace PacketReader::IP::UDP;
 
-using namespace std::chrono_literals;
 
 namespace Sessions
 {
-	const std::chrono::duration<std::chrono::steady_clock::rep, std::chrono::steady_clock::period>
-		UDP_Session::MAX_IDLE = 120s; //See RFC 4787 Section 4.3
+	const int64_t UDP_Session::MAX_IDLE_USEC = INT64_C(120) * 1000000; //See RFC 4787 Section 4.3
 
 	//TODO, figure out handling of multicast
 
@@ -47,7 +47,7 @@ namespace Sessions
 		: UDP_BaseSession(parKey, parAdapterIP)
 		, isBroadcast(false)
 		, isFixedPort(false)
-		, deathClockStart(std::chrono::steady_clock::now())
+		, deathClockStart{(int64_t)cpu_features_get_time_usec()}
 	{
 	}
 
@@ -64,7 +64,7 @@ namespace Sessions
 		, isBroadcast(parIsBroadcast)
 		, isMulticast(parIsMulticast)
 		, isFixedPort(true)
-		, deathClockStart(std::chrono::steady_clock::now())
+		, deathClockStart{(int64_t)cpu_features_get_time_usec()}
 	{
 	}
 
@@ -75,7 +75,7 @@ namespace Sessions
 
 		if (isFixedPort)
 		{
-			if (std::chrono::steady_clock::now() - deathClockStart.load() > MAX_IDLE)
+			if (cpu_features_get_time_usec() - retro_atomic_load_acquire_64(&deathClockStart) > MAX_IDLE_USEC)
 			{
 				CloseSocket();
 				Console.WriteLn("DEV9: UDP: UDPFixed Max Idle Reached");
@@ -171,12 +171,12 @@ namespace Sessions
 			iRet->destinationPort = srcPort;
 			iRet->sourcePort = destPort;
 
-			deathClockStart.store(std::chrono::steady_clock::now());
+			retro_atomic_store_release_64(&deathClockStart, (int64_t)cpu_features_get_time_usec());
 
 			return iRet;
 		}
 
-		if (std::chrono::steady_clock::now() - deathClockStart.load() > MAX_IDLE)
+		if (cpu_features_get_time_usec() - retro_atomic_load_acquire_64(&deathClockStart) > MAX_IDLE_USEC)
 		{
 			//CloseSocket();
 			Console.WriteLn("DEV9: UDP: Max Idle Reached");
@@ -193,7 +193,7 @@ namespace Sessions
 
 		if (isBroadcast || (parDestIP == destIP))
 		{
-			deathClockStart.store(std::chrono::steady_clock::now());
+			retro_atomic_store_release_64(&deathClockStart, (int64_t)cpu_features_get_time_usec());
 			return true;
 		}
 		return false;
@@ -201,7 +201,7 @@ namespace Sessions
 
 	bool UDP_Session::Send(PacketReader::IP::IP_Payload* payload)
 	{
-		deathClockStart.store(std::chrono::steady_clock::now());
+		retro_atomic_store_release_64(&deathClockStart, (int64_t)cpu_features_get_time_usec());
 
 		IP_PayloadPtr* ipPayload = static_cast<IP_PayloadPtr*>(payload);
 		UDP_Packet udp(ipPayload->data, ipPayload->GetLength());
@@ -290,7 +290,7 @@ namespace Sessions
 			}
 
 			if (srcPort != 0)
-				open = true;
+				retro_atomic_store_release_int(&open, 1);
 		}
 
 		PayloadPtr* udpPayload = static_cast<PayloadPtr*>(udp.GetPayload());
@@ -377,7 +377,7 @@ namespace Sessions
 
 	void UDP_Session::CloseSocket()
 	{
-		open = false;
+		retro_atomic_store_release_int(&open, 0);
 		if (!isFixedPort && client != INVALID_SOCKET)
 		{
 #ifdef _WIN32

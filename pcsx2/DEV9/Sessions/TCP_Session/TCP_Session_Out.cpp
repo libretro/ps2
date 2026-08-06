@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include <algorithm>
 
 #ifdef __POSIX__
@@ -154,7 +155,7 @@ namespace Sessions
 			}
 		}
 
-		windowSize.store(tcp->windowSize << windowScale);
+		retro_atomic_store_release_int(&windowSize, tcp->windowSize << windowScale);
 
 		CloseSocket();
 
@@ -317,7 +318,7 @@ namespace Sessions
 			}
 		}
 
-		windowSize.store(tcp->windowSize << windowScale);
+		retro_atomic_store_release_int(&windowSize, tcp->windowSize << windowScale);
 
 		const NumCheckResult Result = CheckNumbers(tcp);
 		const uint delta = GetDelta(expectedSeqNumber, tcp->sequenceNumber);
@@ -449,7 +450,7 @@ namespace Sessions
 		else
 		{
 			//DevCon.WriteLn("[PS2]CurrSeqNumber Acknowleged By PS2");
-			myNumberACKed.store(true);
+			retro_atomic_store_release_int(&myNumberACKed, 1);
 		}
 
 		if (tcp->sequenceNumber != expectedSeqNumber)
@@ -554,7 +555,7 @@ namespace Sessions
 		if (ErrorOnNonEmptyPacket(tcp))
 			return true;
 
-		if (myNumberACKed.load())
+		if (retro_atomic_load_acquire_int(&myNumberACKed))
 		{
 			//Console.WriteLn("DEV9: TCP: ACK was for FIN");
 			CloseSocket();
@@ -573,7 +574,7 @@ namespace Sessions
 		if (ErrorOnNonEmptyPacket(tcp))
 			return true;
 
-		if (myNumberACKed.load())
+		if (retro_atomic_load_acquire_int(&myNumberACKed))
 		{
 			//Console.WriteLn("DEV9: TCP: ACK was for FIN");
 			CloseSocket();
@@ -609,7 +610,7 @@ namespace Sessions
 
 		PushRecvBuff(ret);
 
-		if (myNumberACKed.load())
+		if (retro_atomic_load_acquire_int(&myNumberACKed))
 		{
 			//Console.WriteLn("DEV9: TCP: ACK was for FIN");
 			CloseSocket();

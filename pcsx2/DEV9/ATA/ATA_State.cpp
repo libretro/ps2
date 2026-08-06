@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include "../../../common/Threading.h"
 #include "common/FileSystem.h"
 #include "common/StringUtil.h"
@@ -224,7 +225,7 @@ void ATA::Close()
 	//Wait for async code to finish
 	if (ioRunning)
 	{
-		ioClose.store(true);
+		retro_atomic_store_release_int(&ioClose, 1);
 		{
 			Threading::ScopedLock ioSignallock(ioMutex);
 			ioWrite = true;

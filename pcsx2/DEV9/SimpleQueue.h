@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include <atomic>
 
+#include <retro_atomic.h>
 #include "common/Console.h"
 
 //Designed to allow one thread to queue data to another thread
@@ -26,12 +26,12 @@ class SimpleQueue
 private:
 	struct SimpleQueueEntry
 	{
-		std::atomic_bool ready{false};
+		retro_atomic_int_t ready = RETRO_ATOMIC_INT_INITIALIZER(0);
 		SimpleQueueEntry* next;
 		T value;
 	};
 
-	std::atomic<SimpleQueueEntry*> head{nullptr};
+	retro_atomic_ptr_t head = 0;
 	SimpleQueueEntry* tail = nullptr;
 
 public:
@@ -52,7 +52,7 @@ template <class T>
 SimpleQueue<T>::SimpleQueue()
 {
 	tail = new SimpleQueueEntry();
-	head.store(tail);
+	retro_atomic_store_release_ptr(&head, tail);
 }
 
 template <class T>
@@ -60,20 +60,20 @@ void SimpleQueue<T>::Enqueue(T entry)
 {
 	//Allocate Next entry, and assign to head
 	SimpleQueueEntry* newHead = new SimpleQueueEntry();
-	SimpleQueueEntry* newEntry = head.exchange(newHead);
+	SimpleQueueEntry* newEntry = (SimpleQueueEntry*)retro_atomic_exchange_ptr(&head, newHead);
 
 	//Fill in
 	newEntry->value = entry;
 	newEntry->next = newHead;
 
 	//Set ready (can be dequeued)
-	newEntry->ready.store(true);
+	retro_atomic_store_release_int(&newEntry->ready, 1);
 }
 
 template <class T>
 bool SimpleQueue<T>::Dequeue(T* entry)
 {
-	if (!tail->ready.load())
+	if (!retro_atomic_load_acquire_int(&tail->ready))
 		return false;
 
 	SimpleQueueEntry* retEntry = tail;
@@ -88,7 +88,7 @@ bool SimpleQueue<T>::Dequeue(T* entry)
 template <class T>
 bool SimpleQueue<T>::IsQueueEmpty()
 {
-	return head.load() == tail;
+	return retro_atomic_load_acquire_ptr(&head) == tail;
 }
 
 template <class T>

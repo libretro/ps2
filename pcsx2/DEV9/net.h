@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include "common/Threading.h"
 #include <stdlib.h>
 #include <string>
@@ -97,7 +98,7 @@ private:
 	//Only set if packet sent to the internal IP address
 	PacketReader::IP::IP_Address ps2IP{};
 	Threading::Thread internalRxThread;
-	std::atomic<bool> internalRxThreadRunning{false};
+	retro_atomic_int_t internalRxThreadRunning = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	Threading::Mutex internalRxMutex;
 	Threading::CondVar internalRxCV;

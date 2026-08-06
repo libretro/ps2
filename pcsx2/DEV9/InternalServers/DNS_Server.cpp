@@ -49,7 +49,7 @@ namespace InternalServers
 	DNS_Server::DNS_State::DNS_State(int count, std::vector<std::string> dnsQuestions, DNS_Packet* dnsPacket, u16 port)
 	{
 		dns = dnsPacket;
-		counter.store(count);
+		retro_atomic_store_release_int(&counter, count);
 		questions = dnsQuestions;
 		clientPort = port;
 
@@ -63,11 +63,11 @@ namespace InternalServers
 	int DNS_Server::DNS_State::AddAnswer(const std::string& answer, IP_Address address)
 	{
 		answers[answer] = address;
-		return --counter;
+		return retro_atomic_fetch_sub_int(&counter, 1) - 1;
 	}
 	int DNS_Server::DNS_State::AddNoAnswer(const std::string& answer)
 	{
-		return --counter;
+		return retro_atomic_fetch_sub_int(&counter, 1) - 1;
 	}
 
 	std::unordered_map<std::string, IP_Address> DNS_Server::DNS_State::GetAnswers()
@@ -127,7 +127,7 @@ namespace InternalServers
 		UDP_Packet* retPay;
 		if (dnsQueue.Dequeue(&retPay))
 		{
-			outstandingQueries--;
+			retro_atomic_dec_int(&outstandingQueries);
 			return retPay;
 		}
 		return nullptr;
@@ -173,7 +173,7 @@ namespace InternalServers
 			ret->questions = dns.questions;
 
 			DNS_State* state = new DNS_State(reqs.size(), reqs, ret, payload->sourcePort);
-			outstandingQueries++;
+			retro_atomic_inc_int(&outstandingQueries);
 
 			for (size_t i = 0; i < reqs.size(); i++)
 			{
@@ -240,7 +240,7 @@ namespace InternalServers
 		{
 			Console.Error("DEV9: Generated DNS response too large, dropping");
 			delete retPay;
-			outstandingQueries--;
+			retro_atomic_dec_int(&outstandingQueries);
 			return;
 		}
 
@@ -255,7 +255,7 @@ namespace InternalServers
 	{
 		//Block untill DNS finished &
 		//Delete entries in queue
-		while (outstandingQueries != 0)
+		while (retro_atomic_load_acquire_int(&outstandingQueries) != 0)
 		{
 			UDP_Packet* retPay = nullptr;
 			if (!dnsQueue.Dequeue(&retPay))
@@ -266,7 +266,7 @@ namespace InternalServers
 			}
 
 			delete retPay;
-			outstandingQueries--;
+			retro_atomic_dec_int(&outstandingQueries);
 		}
 
 #ifdef _WIN32

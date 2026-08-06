@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include "../../../common/Threading.h"
 #include "common/FileSystem.h"
 
@@ -56,7 +57,7 @@ void ATA::IO_Thread()
 		{
 			if (!IO_Write())
 			{
-				if (ioClose.load())
+				if (retro_atomic_load_acquire_int(&ioClose))
 				{
 					ioClose.store(false);
 					ioWaitHandle.lock();

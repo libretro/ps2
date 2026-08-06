@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include "VirtualMemory.h"
 
 #include "../common/Align.h"
@@ -105,7 +106,7 @@ VirtualMemoryManager::VirtualMemoryManager(const char* file_mapping_name, uptr b
 	if (!m_baseptr)
 		return;
 
-	m_pageuse = new std::atomic<bool>[m_pages_reserved]();
+	m_pageuse = new retro_atomic_int_t[m_pages_reserved]();
 }
 
 VirtualMemoryManager::~VirtualMemoryManager()
@@ -123,19 +124,18 @@ VirtualMemoryManager::~VirtualMemoryManager()
 		HostSys::DestroySharedMemory(m_file_handle);
 }
 
-static bool VMMMarkPagesAsInUse(std::atomic<bool>* begin, std::atomic<bool>* end)
+static bool VMMMarkPagesAsInUse(retro_atomic_int_t* begin, retro_atomic_int_t* end)
 {
 	for (auto current = begin; current < end; current++)
 	{
-		bool expected = false;
-		if (!current->compare_exchange_strong(expected, true, std::memory_order_relaxed))
+		if (!retro_atomic_cas_int(current, 0, 1))
 		{
 			// This was already allocated!  Undo the things we've set until this point
 			while (--current >= begin)
 			{
 				// In the time we were doing this, someone set one of the things we just set to true back to false
 				// This should never happen, but if it does we'll just stop and hope nothing bad happens
-				if (!current->compare_exchange_strong(expected, false, std::memory_order_relaxed))
+				if (!retro_atomic_cas_int(current, 1, 0))
 					return false;
 			}
 			return false;
@@ -177,8 +177,7 @@ void VirtualMemoryManager::Free(void* address, size_t size) const
 	auto puEnd = &m_pageuse[(offsetLocation + size) / __pagesize];
 	for (; puStart < puEnd; puStart++)
 	{
-		bool expected = true;
-		if (!puStart->compare_exchange_strong(expected, false, std::memory_order_relaxed)) { }
+		if (!retro_atomic_cas_int(puStart, 1, 0)) { }
 	}
 }
 
@@ -187,19 +186,20 @@ void VirtualMemoryManager::Free(void* address, size_t size) const
 // --------------------------------------------------------------------------------------
 VirtualMemoryBumpAllocator::VirtualMemoryBumpAllocator(VirtualMemoryManagerPtr allocator, uptr offsetLocation, size_t size)
 	: m_allocator(std::move(allocator))
-	, m_baseptr(m_allocator->Alloc(offsetLocation, size))
-	, m_endptr(m_baseptr + size)
 {
+	u8* base = m_allocator->Alloc(offsetLocation, size);
+	retro_atomic_store_release_size(&m_basecursor, (size_t)base);
+	m_endptr = base + size;
 }
 
 u8* VirtualMemoryBumpAllocator::Alloc(size_t size)
 {
-	if (m_baseptr.load() == 0) // True if constructed from bad VirtualMemoryManager (assertion was on initialization)
+	if (retro_atomic_load_acquire_size(&m_basecursor) == 0) // True if constructed from bad VirtualMemoryManager (assertion was on initialization)
 		return nullptr;
 
 	size_t reservedSize = Common::PageAlign(size);
 
-	u8* out = m_baseptr.fetch_add(reservedSize, std::memory_order_relaxed);
+	u8* out = (u8*)retro_atomic_fetch_add_size(&m_basecursor, reservedSize);
 
 	return out;
 }

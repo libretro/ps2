@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include <chrono>
 #if defined(__POSIX__)
 #include <pthread.h>
@@ -187,7 +188,7 @@ NetAdapter::NetAdapter()
 
 bool NetAdapter::recv(NetPacket* pkt)
 {
-	if (!internalRxThreadRunning.load())
+	if (!retro_atomic_load_acquire_int(&internalRxThreadRunning))
 		return InternalServerRecv(pkt);
 	return false;
 }
@@ -201,9 +202,9 @@ bool NetAdapter::send(NetPacket* pkt)
 NetAdapter::~NetAdapter()
 {
 	//unblock InternalServerRX thread
-	if (internalRxThreadRunning.load())
+	if (retro_atomic_load_acquire_int(&internalRxThreadRunning))
 	{
-		internalRxThreadRunning.store(false);
+		retro_atomic_store_release_int(&internalRxThreadRunning, 0);
 
 		{
 			Threading::ScopedLock srvlock(internalRxMutex);
@@ -313,7 +314,7 @@ void NetAdapter::InitInternalServer(ifaddrs* adapter, bool dhcpForceEnable, IP_A
 
 	if (blocks())
 	{
-		internalRxThreadRunning.store(true);
+		retro_atomic_store_release_int(&internalRxThreadRunning, 1);
 		internalRxThread.Start([this]() { InternalServerThread(); });
 	}
 }
@@ -414,7 +415,7 @@ bool NetAdapter::InternalServerSend(NetPacket* pkt)
 void NetAdapter::InternalSignalReceived()
 {
 	//Signal internal server thread to read
-	if (internalRxThreadRunning.load())
+	if (retro_atomic_load_acquire_int(&internalRxThreadRunning))
 	{
 		{
 			Threading::ScopedLock srvlock(internalRxMutex);
@@ -428,7 +429,7 @@ void NetAdapter::InternalSignalReceived()
 void NetAdapter::InternalServerThread()
 {
 	NetPacket tmp;
-	while (internalRxThreadRunning.load())
+	while (retro_atomic_load_acquire_int(&internalRxThreadRunning))
 	{
 		Threading::ScopedLock srvLock(internalRxMutex);
 		while (!internalRxHasData)

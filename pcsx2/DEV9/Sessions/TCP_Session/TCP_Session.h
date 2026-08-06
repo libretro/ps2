@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include <atomic>
 #include <chrono>
 #include <tuple>
@@ -69,7 +70,7 @@ namespace Sessions
 
 		u16 maxSegmentSize = 1460; //Accesed By Both In and Out Threads, but set only on Connect Thread
 		int windowScale = 0;
-		std::atomic<int> windowSize{1460}; //Make atomic instead
+		retro_atomic_int_t windowSize = RETRO_ATOMIC_INT_INITIALIZER(1460);
 
 		u32 lastRecivedTimeStamp; //Accesed By Both In and Out Threads
 		std::chrono::steady_clock::time_point timeStampStart; //Set By In on connect, read by In and Out Threads, unsure as to correct C++ type
@@ -83,7 +84,7 @@ namespace Sessions
 		const int oldMyNumCount = 2;
 		u32 _MySequenceNumber = 1;
 		std::vector<u32> _OldMyNumbers;
-		std::atomic<bool> myNumberACKed{true};
+		retro_atomic_int_t myNumberACKed = RETRO_ATOMIC_INT_INITIALIZER(1);
 
 	public:
 		TCP_Session(ConnectionKey parKey, PacketReader::IP::IP_Address parAdapterIP);

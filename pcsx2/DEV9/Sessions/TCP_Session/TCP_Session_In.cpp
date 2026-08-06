@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <retro_atomic.h>
 #include <algorithm>
 
 #ifdef __POSIX__
@@ -81,12 +82,12 @@ namespace Sessions
 
 		uint maxSize = 0;
 		if (sendTimeStamps)
-			maxSize = std::min<uint>(maxSegmentSize - 12, windowSize.load());
+			maxSize = std::min<uint>(maxSegmentSize - 12, retro_atomic_load_acquire_int(&windowSize));
 		else
-			maxSize = std::min<uint>(maxSegmentSize, windowSize.load());
+			maxSize = std::min<uint>(maxSegmentSize, retro_atomic_load_acquire_int(&windowSize));
 
 		if (maxSize != 0 &&
-			myNumberACKed.load())
+			retro_atomic_load_acquire_int(&myNumberACKed))
 		{
 			std::unique_ptr<u8[]> buffer;
 			int err = 0;
@@ -177,7 +178,7 @@ namespace Sessions
 				iRet->SetACK(true);
 				iRet->SetPSH(true);
 
-				myNumberACKed.store(false);
+				retro_atomic_store_release_int(&myNumberACKed, 0);
 				//DevCon.WriteLn("DEV9: TCP: myNumberACKed Reset");
 				return iRet;
 			}
@@ -204,7 +205,7 @@ namespace Sessions
 
 			ret->SetSYN(true);
 			ret->SetACK(true);
-			ret->windowSize = (2 * maxSegmentSize);
+			retro_atomic_store_release_int(&ret->windowSize, 2 * maxSegmentSize);
 			ret->options.push_back(new TCPopMSS(maxSegmentSize));
 
 			ret->options.push_back(new TCPopNOP());
@@ -253,7 +254,7 @@ namespace Sessions
 		ret->SetACK(true);
 		ret->SetFIN(true);
 
-		myNumberACKed.store(false);
+		retro_atomic_store_release_int(&myNumberACKed, 0);
 		//DevCon.WriteLn("myNumberACKed Reset");
 
 		state = TCP_State::Closing_ClosedByPS2ThenRemote_WaitingForAck;
@@ -270,7 +271,7 @@ namespace Sessions
 		ret->SetACK(true);
 		ret->SetFIN(true);
 
-		myNumberACKed.store(false);
+		retro_atomic_store_release_int(&myNumberACKed, 0);
 		//DevCon.WriteLn("myNumberACKed Reset");
 
 		state = TCP_State::Closing_ClosedByRemote;

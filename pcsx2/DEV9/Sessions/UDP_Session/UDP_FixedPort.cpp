@@ -27,6 +27,7 @@
 #include <unistd.h>
 #endif
 
+#include <retro_atomic.h>
 #include "../../common/Threading.h"
 #include "UDP_FixedPort.h"
 #include "DEV9/PacketReader/IP/UDP/UDP_Packet.h"
@@ -95,7 +96,7 @@ namespace Sessions
 
 	IP_Payload* UDP_FixedPort::Recv()
 	{
-		if (!open.load())
+		if (!retro_atomic_load_acquire_int(&open))
 			return nullptr;
 
 		int ret;
@@ -244,7 +245,7 @@ namespace Sessions
 
 	UDP_FixedPort::~UDP_FixedPort()
 	{
-		open.store(false);
+		retro_atomic_store_release_int(&open, 0);
 		if (client != INVALID_SOCKET)
 		{
 #ifdef _WIN32
