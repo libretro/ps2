@@ -13,7 +13,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <lz4.h>
+#include <encodings/rlz4.h>
 
 #include "../../common/Pcsx2Types.h"
 #include "../../common/Console.h"
@@ -264,12 +264,8 @@ int CsoFileReader::ReadChunk(void *dst, s64 chunkID)
 
 		if (m_uselz4)
 		{
-			const int src_size    = static_cast<int>(readRawBytes);
-			const int dst_size    = static_cast<int>(m_frameSize);
-			const char* src_buf   = reinterpret_cast<const char*>(m_readBuffer);
-			char* dst_buf         = static_cast<char*>(dst);
-
-			const int res         = LZ4_decompress_safe_partial(src_buf, dst_buf, src_size, dst_size, dst_size);
+			const int64_t res     = rlz4_decode(static_cast<uint8_t*>(dst), m_frameSize,
+					m_readBuffer, readRawBytes);
 			success               = (res > 0);
 		}
 		else

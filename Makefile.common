@@ -36,7 +36,6 @@ INCFLAGS := \
 	-I$(DEPS_DIR)/cpuinfo/include \
 	-I$(DEPS_DIR)/cpuinfo/src \
 	-I$(DEPS_DIR)/cpuinfo/deps/clog/include \
-	-I$(DEPS_DIR)/lz4/lz4/lib \
 	-I$(DEPS_DIR)/d3d12memalloc/include
 
 ifeq ($(HAVE_OPENGL), 1)
@@ -536,8 +535,9 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/streams/trans_stream_deflate.c \
 	$(LIBRETRO_COMM_DIR)/streams/trans_stream_pipe.c
 
-# lz4
-SOURCES_C += $(DEPS_DIR)/lz4/lz4/lib/lz4.c
+# lz4: gone.  ZSO frames decode through libretro-common's clean-room
+# rlz4 block decoder.
+SOURCES_C += $(LIBRETRO_COMM_DIR)/encodings/encoding_rlz4.c
 
 # CHD: libretro-common's clean-room rchd stack (rchd + rflac + rzstd +
 # r7z_lzma + huffman/deflate/crc32), replacing vendored libchdr.  The

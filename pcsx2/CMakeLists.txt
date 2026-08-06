@@ -865,7 +865,6 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	common
 	ryml
 	cpuinfo
-	LZ4::LZ4
 	${LIBC_LIBRARIES}
 )
 
