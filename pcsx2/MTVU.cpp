@@ -72,19 +72,19 @@ bool SaveStateBase::mtvuFreeze()
 	}
 	for (size_t i = 0; i < 4; ++i)
 	{
-		unsigned int v = vu1Thread.vuCycles[i].load();
+		unsigned int v = (unsigned int)retro_atomic_load_acquire_int(&vu1Thread.vuCycles[i]);
 		Freeze(v);
 	}
 
-	u32 gsInterrupts = vu1Thread.mtvuInterrupts.load();
+	u32 gsInterrupts = (u32)retro_atomic_load_acquire_int(&vu1Thread.mtvuInterrupts);
 	Freeze(gsInterrupts);
-	vu1Thread.mtvuInterrupts.store(gsInterrupts);
-	u64 gsSignal = vu1Thread.gsSignal.load();
+	retro_atomic_store_release_int(&vu1Thread.mtvuInterrupts, (int)gsInterrupts);
+	u64 gsSignal = (u64)retro_atomic_load_acquire_64(&vu1Thread.gsSignal);
 	Freeze(gsSignal);
-	vu1Thread.gsSignal.store(gsSignal);
-	u64 gsLabel = vu1Thread.gsLabel.load();
+	retro_atomic_store_release_64(&vu1Thread.gsSignal, (int64_t)gsSignal);
+	u64 gsLabel = (u64)retro_atomic_load_acquire_64(&vu1Thread.gsLabel);
 	Freeze(gsLabel);
-	vu1Thread.gsLabel.store(gsLabel);
+	retro_atomic_store_release_64(&vu1Thread.gsLabel, (int64_t)gsLabel);
 
 	Freeze(vu1Thread.vuCycleIdx);
 
@@ -107,7 +107,7 @@ void VU_Thread::Open()
 
 	Reset();
 	semaEvent.Reset();
-	m_shutdown_flag.store(false, std::memory_order_release);
+	retro_atomic_store_release_int(&m_shutdown_flag, 0);
 	m_thread.SetStackSize(VMManager::EMU_THREAD_STACK_SIZE);
 	m_thread.Start([this]() { ExecuteRingBuffer(); });
 }
@@ -117,7 +117,7 @@ void VU_Thread::Close()
 	if (!IsOpen())
 		return;
 
-	m_shutdown_flag.store(true, std::memory_order_release);
+	retro_atomic_store_release_int(&m_shutdown_flag, 1);
 	// C.80: full notify -- there may be a deferred unpack notify pending, and
 	// the IfRunning state-peek could also race the worker's RUNNING->SLEEPING
 	// transition and miss the shutdown wakeup (see Threading.h).
@@ -131,15 +131,15 @@ void VU_Thread::Reset()
 
 	vuCycleIdx = 0;
 	s_kickPending = false; // C.80: the ring is being cleared, nothing to notify
-	m_ato_write_pos = 0;
+	retro_atomic_store_release_int(&m_ato_write_pos, 0);
 	m_write_pos = 0;
-	m_ato_read_pos = 0;
+	retro_atomic_store_release_int(&m_ato_read_pos, 0);
 	m_read_pos = 0;
 	memset(&vif, 0, sizeof(vif));
 	memset(&vifRegs, 0, sizeof(vifRegs));
 	for (i = 0; i < 4; ++i)
-		vu1Thread.vuCycles[i] = 0;
-	vu1Thread.mtvuInterrupts = 0;
+		retro_atomic_store_release_int(&vu1Thread.vuCycles[i], 0);
+	retro_atomic_store_release_int(&vu1Thread.mtvuInterrupts, 0);
 }
 
 void VU_Thread::ExecuteRingBuffer(void)
@@ -148,10 +148,10 @@ void VU_Thread::ExecuteRingBuffer(void)
 	for (;;)
 	{
 		semaEvent.WaitForWork();
-		if (m_shutdown_flag.load(std::memory_order_acquire))
+		if (retro_atomic_load_acquire_int(&m_shutdown_flag))
 			break;
 
-		while (m_ato_read_pos.load(std::memory_order_relaxed) != GetWritePos())
+		while (retro_atomic_load_acquire_int(&m_ato_read_pos) != GetWritePos())
 		{
 			u32 tag = Read();
 			switch (tag)
@@ -185,7 +185,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 					CpuVU1->Execute(vu1RunCycles);
 					gifUnit.gifPath[GIF_PATH_1].FinishGSPacketMTVU();
 					semaXGkick.Post(); // Tell MTGS a path1 packet is complete
-					vuCycles[vuCycleIdx].store(vuRegs[1].cycle, std::memory_order_release);
+					retro_atomic_store_release_int(&vuCycles[vuCycleIdx], (int)vuRegs[1].cycle);
 					vuCycleIdx = (vuCycleIdx + 1) & 3;
 					break;
 				}
@@ -233,7 +233,7 @@ void VU_Thread::ExecuteRingBuffer(void)
 					break;
 			}
 
-			m_ato_read_pos.store(m_read_pos, std::memory_order_release);
+			retro_atomic_store_release_int(&m_ato_read_pos, m_read_pos);
 		}
 	}
 
@@ -277,7 +277,7 @@ void VU_Thread::ReserveSpace(s32 size)
 		Write(MTVU_NULL_PACKET);
 		// Reset local write pointer/position
 		m_write_pos = 0;
-		m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+		retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	}
 
 	WaitOnSize(size);
@@ -286,13 +286,13 @@ void VU_Thread::ReserveSpace(s32 size)
 // Use this when reading read_pos from ee thread
 __fi s32 VU_Thread::GetReadPos()
 {
-	return m_ato_read_pos.load(std::memory_order_acquire);
+	return retro_atomic_load_acquire_int(&m_ato_read_pos);
 }
 
 // Use this when reading write_pos from vu thread
 __fi s32 VU_Thread::GetWritePos()
 {
-	return m_ato_write_pos.load(std::memory_order_acquire);
+	return retro_atomic_load_acquire_int(&m_ato_write_pos);
 }
 
 // Gets the effective write pointer after
@@ -354,10 +354,10 @@ __fi void VU_Thread::WriteRegs(VIFregisters* src)
 // Used for vu cycle stealing hack
 u32 VU_Thread::Get_vuCycles()
 {
-	return (vuCycles[0].load(std::memory_order_relaxed) +
-			vuCycles[1].load(std::memory_order_relaxed) +
-			vuCycles[2].load(std::memory_order_relaxed) +
-			vuCycles[3].load(std::memory_order_relaxed)) >>
+	return (retro_atomic_load_acquire_int(&vuCycles[0]) +
+			retro_atomic_load_acquire_int(&vuCycles[1]) +
+			retro_atomic_load_acquire_int(&vuCycles[2]) +
+			retro_atomic_load_acquire_int(&vuCycles[3])) >>
 		   2;
 }
 
@@ -429,26 +429,26 @@ void VU_Thread::Get_MTVUChanges()
 	}
 	if (interrupts & InterruptFlagLabel)
 	{
-		mtvuInterrupts.fetch_and(~InterruptFlagLabel, std::memory_order_acquire);
+		retro_atomic_fetch_and_int(&mtvuInterrupts, ~InterruptFlagLabel);
 		// If other thread updates gsLabel for a second interrupt, that's okay.  Worst case we think there's a label interrupt but gsLabel is 0
 		// We do not want the exchange of gsLabel to move ahead of clearing the flag, or the other thread could add more work before we clear the flag, resulting in an update with the flag unset
 		// acquire semantics should supply that guarantee
 		/* LABEL firing */
-		const u64 label = gsLabel.exchange(0, std::memory_order_relaxed);
+		const u64 label = (u64)retro_atomic_exchange_64(&gsLabel, 0);
 		const u32 labelMsk = (u32)(label >> 32);
 		const u32 labelData = (u32)label;
 		GSSIGLBLID.LBLID = (GSSIGLBLID.LBLID & ~labelMsk) | (labelData & labelMsk);
 	}
 	if (interrupts & InterruptFlagVUEBit)
 	{
-		mtvuInterrupts.fetch_and(~InterruptFlagVUEBit, std::memory_order_relaxed);
+		retro_atomic_fetch_and_int(&mtvuInterrupts, ~InterruptFlagVUEBit);
 
 		if(INSTANT_VU1)
 			vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
 	}
 	if (interrupts & InterruptFlagVUTBit)
 	{
-		mtvuInterrupts.fetch_and(~InterruptFlagVUTBit, std::memory_order_relaxed);
+		retro_atomic_fetch_and_int(&mtvuInterrupts, ~InterruptFlagVUTBit);
 		vuRegs[0].VI[REG_VPU_STAT].UL &= ~0xFF00;
 		vuRegs[0].VI[REG_VPU_STAT].UL |= 0x0400;
 		hwIntcIrq(7);
@@ -517,7 +517,7 @@ void VU_Thread::ExecuteVU(u32 vu_addr, u32 vif_top, u32 vif_itop, u32 fbrst)
 	Write(vif_top);
 	Write(vif_itop);
 	Write(fbrst);
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	gifUnit.TransferGSPacketData(GIF_TRANS_MTVU, NULL, 0);
 	KickStart();
 	u32 cycles = std::max(Get_vuCycles(), 4u);
@@ -542,7 +542,7 @@ void VU_Thread::VifUnpack(vifStruct& _vif, VIFregisters& _vifRegs, const u8* dat
 	WriteRegs(&_vifRegs);
 	Write(size);
 	Write(data, size);
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	s_kickPending = true; // C.80: published; notify deferred to a flush point
 }
 
@@ -553,7 +553,7 @@ void VU_Thread::WriteMicroMem(u32 vu_micro_addr, const void* data, u32 size)
 	Write(vu_micro_addr);
 	Write(size);
 	Write(data, size);
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	KickStart();
 }
 
@@ -564,7 +564,7 @@ void VU_Thread::WriteDataMem(u32 vu_data_addr, const void* data, u32 size)
 	Write(vu_data_addr);
 	Write(size);
 	Write(data, size);
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	KickStart();
 }
 
@@ -573,7 +573,7 @@ void VU_Thread::WriteVIRegs(REG_VI* viRegs)
 	ReserveSpace(1 + /*size_u32(32)*/8);
 	Write(MTVU_VU_WRITE_VIREGS);
 	Write(viRegs, /*size_u32(32)*/8);
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	KickStart();
 }
 
@@ -582,7 +582,7 @@ void VU_Thread::WriteVFRegs(VECTOR* vfRegs)
 	ReserveSpace(1 + /*size_u32(32*4)*/32);
 	Write(MTVU_VU_WRITE_VFREGS);
 	Write(vfRegs, /*size_u32(32*4)*/32);
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	KickStart();
 }
 
@@ -591,7 +591,7 @@ void VU_Thread::WriteCol(vifStruct& _vif)
 	ReserveSpace(1 + SIZE_U32(sizeof(_vif.MaskCol)));
 	Write(MTVU_VIF_WRITE_COL);
 	Write(&_vif.MaskCol, sizeof(_vif.MaskCol));
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	KickStart();
 }
 
@@ -600,6 +600,6 @@ void VU_Thread::WriteRow(vifStruct& _vif)
 	ReserveSpace(1 + SIZE_U32(sizeof(_vif.MaskRow)));
 	Write(MTVU_VIF_WRITE_ROW);
 	Write(&_vif.MaskRow, sizeof(_vif.MaskRow));
-	m_ato_write_pos.store(m_write_pos, std::memory_order_release);
+	retro_atomic_store_release_int(&m_ato_write_pos, m_write_pos);
 	KickStart();
 }

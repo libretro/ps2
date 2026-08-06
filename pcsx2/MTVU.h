@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include <retro_atomic.h>
 #include "common/Threading.h"
 #include "Vif.h"
 #include "Vif_Dma.h"
@@ -29,12 +30,12 @@ class VU_Thread final {
 
 	u32 buffer[buffer_size];
 	// Note: keep atomic on separate cache line to avoid CPU conflict
-	alignas(__cachelinesize) std::atomic<int> m_ato_read_pos; // Only modified by VU thread
-	alignas(__cachelinesize) std::atomic<int> m_ato_write_pos;    // Only modified by EE thread
+	alignas(__cachelinesize) retro_atomic_int_t m_ato_read_pos; // Only modified by VU thread
+	alignas(__cachelinesize) retro_atomic_int_t m_ato_write_pos;    // Only modified by EE thread
 	alignas(__cachelinesize) int  m_read_pos; // temporary read pos (local to the VU thread)
 	int  m_write_pos; // temporary write pos (local to the EE thread)
 	Threading::WorkSema semaEvent;
-	std::atomic_bool m_shutdown_flag{false};
+	retro_atomic_int_t m_shutdown_flag = RETRO_ATOMIC_INT_INITIALIZER(0);
 
 	Threading::Thread m_thread;
 
@@ -42,7 +43,7 @@ public:
 	alignas(16)  vifStruct        vif;
 	alignas(16)  VIFregisters     vifRegs;
 	Threading::UserspaceSemaphore semaXGkick;
-	std::atomic<unsigned int> vuCycles[4]; // Used for VU cycle stealing hack
+	retro_atomic_int_t vuCycles[4]; // Used for VU cycle stealing hack
 	u32 vuCycleIdx;  // Used for VU cycle stealing hack
 	u32 vuFBRST;
 
@@ -54,9 +55,9 @@ public:
 		InterruptFlagVUTBit = 1 << 4,
 	};
 
-	std::atomic<u32> mtvuInterrupts; // Used for GS Signal, Finish etc, plus VU End/T-Bit
-	std::atomic<u64> gsLabel; // Used for GS Label command
-	std::atomic<u64> gsSignal; // Used for GS Signal command
+	retro_atomic_int_t mtvuInterrupts; // Used for GS Signal, Finish etc, plus VU End/T-Bit
+	retro_atomic_64_t gsLabel; // Used for GS Label command
+	retro_atomic_64_t gsSignal; // Used for GS Signal command
 
 	VU_Thread();
 	~VU_Thread();

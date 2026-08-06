@@ -125,33 +125,40 @@ void Gif_HandlerAD_MTVU(u8* pMem)
 		 * case while keeping liveness for the deadlock case. */
 		for (int spin = 0; spin < 16; spin++)
 		{
-			if (!(vu1Thread.mtvuInterrupts.load(std::memory_order_acquire) & VU_Thread::InterruptFlagSignal))
+			if (!((u32)retro_atomic_load_acquire_int(&vu1Thread.mtvuInterrupts) & VU_Thread::InterruptFlagSignal))
 				break;
 			Threading::Timeslice();
 		}
-		vu1Thread.gsSignal.store(((u64)data[1] << 32) | data[0], std::memory_order_relaxed);
-		vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagSignal, std::memory_order_release);
+		retro_atomic_store_release_64(&vu1Thread.gsSignal, (int64_t)(((u64)data[1] << 32) | data[0]));
+		retro_atomic_fetch_or_int(&vu1Thread.mtvuInterrupts, VU_Thread::InterruptFlagSignal);
 	}
 	else if (reg == GIF_A_D_REG_FINISH)
 	{ // FINISH
-		vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagFinish, std::memory_order_relaxed);
+		retro_atomic_fetch_or_int(&vu1Thread.mtvuInterrupts, VU_Thread::InterruptFlagFinish);
 	}
 	else if (reg == GIF_A_D_REG_LABEL)
 	{ // LABEL
 		// It's okay to coalesce label updates
 		u32 labelData = data[0];
 		u32 labelMsk = data[1];
-		u64 existing = 0;
-		u64 wanted = ((u64)labelMsk << 32) | labelData;
-		while (!vu1Thread.gsLabel.compare_exchange_weak(existing, wanted, std::memory_order_relaxed))
+		/* Merge-coalesce under CAS.  cas_64 is strong with no
+		 * expected-out parameter, so the loop is load-then-attempt:
+		 * recompute the merge against the freshly observed value each
+		 * round.  Same convergence as the old weak-CAS form (which
+		 * refreshed 'existing' through the expected-out channel), one
+		 * doomed first attempt fewer. */
+		for (;;)
 		{
-			u32 existingData = (u32)existing;
-			u32 existingMsk = (u32)(existing >> 32);
-			u32 wantedData = (existingData & ~labelMsk) | (labelData & labelMsk);
-			u32 wantedMsk = existingMsk | labelMsk;
-			wanted = ((u64)wantedMsk << 32) | wantedData;
+			const u64 existing = (u64)retro_atomic_load_acquire_64(&vu1Thread.gsLabel);
+			const u32 existingData = (u32)existing;
+			const u32 existingMsk = (u32)(existing >> 32);
+			const u32 wantedData = (existingData & ~labelMsk) | (labelData & labelMsk);
+			const u32 wantedMsk = existingMsk | labelMsk;
+			const u64 wanted = ((u64)wantedMsk << 32) | wantedData;
+			if (retro_atomic_cas_64(&vu1Thread.gsLabel, (int64_t)existing, (int64_t)wanted))
+				break;
 		}
-		vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagLabel, std::memory_order_release);
+		retro_atomic_fetch_or_int(&vu1Thread.mtvuInterrupts, VU_Thread::InterruptFlagLabel);
 	}
 }
 
