@@ -38,14 +38,6 @@ static const uint decoder_stride = 16;
 
 #if MULTI_ISA_COMPILE_ONCE
 
-static constexpr std::array<u8, 1024> make_clip_lut(void)
-{
-	std::array<u8, 1024> lut = {};
-	for (int i = -384; i < 640; i++)
-		lut[i+384] = (i < 0) ? 0 : ((i > 255) ? 255 : i);
-	return lut;
-}
-
 static constexpr mpeg2_scan_pack make_scan_pack(void)
 {
 	constexpr u8 mpeg2_scan_norm[64] = {
@@ -76,7 +68,6 @@ static constexpr mpeg2_scan_pack make_scan_pack(void)
 	return pack;
 }
 
-alignas(16) const std::array<u8, 1024> g_idct_clip_lut = make_clip_lut();
 alignas(16) const mpeg2_scan_pack mpeg2_scan = make_scan_pack();
 
 #endif
