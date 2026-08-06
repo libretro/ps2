@@ -23,6 +23,7 @@
 #include "../common/Threading.h"
 
 extern double GetVerticalFrequency();
+extern u32 GetVerticalFrequencyMilliHz();
 alignas(16) extern u8 g_RealGSMem[Ps2MemSize::GSregs];
 
 enum CSR_FifoState

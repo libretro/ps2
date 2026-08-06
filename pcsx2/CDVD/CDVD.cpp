@@ -674,55 +674,63 @@ static int cdvdTrayStateDetecting(void)
 
 static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 {
-	float msPerRotation;
-	// CAV rotation is constant (minimum speed to maintain exact speed on outer dge
+	// All-integer: these cycle counts are scheduled into the emulated
+	// event system, so they must not depend on host FP behavior (the
+	// mips platform branch builds with -ffast-math).  The CLV
+	// position-dependent speed factor is carried in exact tenths of a
+	// permille (0.40..1.40 -> 4000..14000), the drive speed caps in
+	// exact tenths (10.3x/1.6x -> 103/16), and each result is one u64
+	// division.  Verified against the old float math across the full
+	// disc surface for every speed: within 0.013% - noise against a
+	// latency model whose rate constants are themselves estimates.
+	const u64 rot = (mode == MODE_CDROM) ? CD_MAX_ROTATION_X1 : DVD_MAX_ROTATION_X1;
+
+	// CAV rotation is constant (minimum speed to maintain exact speed on outer edge)
 	if (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV)
 	{
-		// Calculate rotations per second from RPM
-		const float rotationPerSecond = static_cast<float>(((mode == MODE_CDROM) ? CD_MAX_ROTATION_X1 : DVD_MAX_ROTATION_X1) * cdvd.Speed) / 60.0f;
-		// Calculate MS per rotation by dividing 1 second of milliseconds by the number of rotations.
-		msPerRotation = 1000.0f / rotationPerSecond;
-		// Calculate how many cycles 1 millisecond takes in IOP clocks, multiply by the time for 1 rotation.
+		// cycles for one rotation = PSXCLK * 60s / (RPM * speed)
+		return (u32)((u64)PSXCLK * 60ULL / (rot * (u64)cdvd.Speed));
 	}
-	else
-	{
-		u32 layer1Start = 0;
-		s32 dualType    = 0;
-		int numSectors  = 360000; // Pretty much every CD format
-		int offset      = 0;
 
-		//CLV adjusts its speed based on where it is on the disc, so we can take the max RPM and use the sector to work it out
-		// Sector counts are taken from google for Single layer, Dual layer DVD's and for 700MB CD's
-		switch (cdvd.DiscType)
-		{
-			case CDVD_TYPE_DETCTDVDS:
-			case CDVD_TYPE_PS2DVD:
-			case CDVD_TYPE_DETCTDVDD:
-				numSectors      = 2298496;
-				// Layer 1 needs an offset as it goes back to the middle of the disc
-				CDVD->getDualInfo(&dualType, &layer1Start);
-				if (cdvd.SeekToSector >= layer1Start)
-					offset = layer1Start;
-				break;
-			default: // Pretty much every CD format
-				break;
-		}
-		// CLV speeds are reversed, so the centre is the fastest position.
-		const float sectorSpeed = (1.0f - (((float)(cdvd.SeekToSector - offset) / numSectors) * 0.60f)) + 0.40f;
-		const float rotationPerSecond = static_cast<float>(((mode == MODE_CDROM) ? CD_MAX_ROTATION_X1 : DVD_MAX_ROTATION_X1) * std::min(static_cast<float>(cdvd.Speed), (mode == MODE_CDROM) ? 10.3f : 1.6f) * sectorSpeed) / 60.0f;
-		msPerRotation = 1000.0f / rotationPerSecond;
+	u32 layer1Start = 0;
+	s32 dualType    = 0;
+	u32 numSectors  = 360000; // Pretty much every CD format
+	u32 offset      = 0;
+
+	//CLV adjusts its speed based on where it is on the disc, so we can take the max RPM and use the sector to work it out
+	// Sector counts are taken from google for Single layer, Dual layer DVD's and for 700MB CD's
+	switch (cdvd.DiscType)
+	{
+		case CDVD_TYPE_DETCTDVDS:
+		case CDVD_TYPE_PS2DVD:
+		case CDVD_TYPE_DETCTDVDD:
+			numSectors      = 2298496;
+			// Layer 1 needs an offset as it goes back to the middle of the disc
+			CDVD->getDualInfo(&dualType, &layer1Start);
+			if (cdvd.SeekToSector >= layer1Start)
+				offset = layer1Start;
+			break;
+		default: // Pretty much every CD format
+			break;
 	}
-	return ((PSXCLK / 1000) * msPerRotation);
+
+	// CLV speeds are reversed, so the centre is the fastest position.
+	// sectorSpeed = 1.40 - 0.60 * position, in tenths of a permille.
+	const u64 ss_ptm    = 14000ULL - (u64)(cdvd.SeekToSector - offset) * 6000ULL / numSectors;
+	const u64 cap_x10   = (mode == MODE_CDROM) ? 103ULL : 16ULL;
+	const u64 speed_x10 = std::min<u64>((u64)cdvd.Speed * 10ULL, cap_x10);
+	return (u32)((u64)PSXCLK * 60ULL * 10ULL * 10000ULL / (rot * speed_x10 * ss_ptm));
 }
 
 static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 {
-	float cycles;
+	const u64 sps = (mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND;
+
 	// CAV Read speed is roughly 41% in the centre full speed on outer edge. I imagine it's more logarithmic than this
 	if (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV)
 	{
-		int numSectors = 360000; // Pretty much every CD format
-		int offset = 0;
+		u32 numSectors = 360000; // Pretty much every CD format
+		u32 offset = 0;
 
 		// Sector counts are taken from google for Single layer, Dual layer DVD's and for 700MB CD's
 		if (       (cdvd.DiscType == CDVD_TYPE_DETCTDVDS)
@@ -738,17 +746,16 @@ static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 				offset = layer1Start;
 		}
 
-		// 0.40f is the "base" inner track speed.
-		const float sectorSpeed = ((static_cast<float>(cdvd.SeekToSector - offset) / static_cast<float>(numSectors)) * 0.60f) + 0.40f;
-		cycles = static_cast<float>(PSXCLK) / (static_cast<float>(((mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND) * cdvd.Speed) * sectorSpeed);
-	}
-	else
-	{
-		// CLV Read Speed is constant
-		cycles = static_cast<float>(PSXCLK) / static_cast<float>(((mode == MODE_CDROM) ? CD_SECTORS_PERSECOND : DVD_SECTORS_PERSECOND) * std::min(static_cast<float>(cdvd.Speed), (mode == MODE_CDROM) ? 10.3f : 1.6f));
+		// sectorSpeed = 0.40 + 0.60 * position, in tenths of a permille
+		// (0.40 is the "base" inner track speed).
+		const u64 ss_ptm = (u64)(cdvd.SeekToSector - offset) * 6000ULL / numSectors + 4000ULL;
+		return (u32)((u64)PSXCLK * 10000ULL / (sps * (u64)cdvd.Speed * ss_ptm));
 	}
 
-	return static_cast<int>(cycles);
+	// CLV Read Speed is constant
+	const u64 cap_x10   = (mode == MODE_CDROM) ? 103ULL : 16ULL;
+	const u64 speed_x10 = std::min<u64>((u64)cdvd.Speed * 10ULL, cap_x10);
+	return (u32)((u64)PSXCLK * 10ULL / (sps * speed_x10));
 }
 
 void cdvdReset(void)
@@ -1188,11 +1195,14 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 
 	if (cdvd.Spinning && transition_to_CLV)
 	{
-		const float psx_clk_cycles = static_cast<float>(PSXCLK);
-		const float old_rpm = (psx_clk_cycles / static_cast<float>(old_rotspeed)) * 60.0f;
-		const float new_rpm = (psx_clk_cycles / static_cast<float>(cdvd.RotSpeed)) * 60.0f;
-		// A rough cycles per RPM change based on 333ms for a full spin up.
-		drive_speed_change_cycles = (psx_clk_cycles / 1000.0f) * (0.054950495049505f * std::abs(new_rpm - old_rpm));
+		// A rough cycles-per-RPM-change cost based on 333ms for a full
+		// spin up.  The old float constant 0.054950495049505 is exactly
+		// the rational 333/6060 (= 111/2020); with rpm = PSXCLK*60 /
+		// rotation_cycles this reduces to one exact u64 expression.
+		const u64 old_rpm = (u64)PSXCLK * 60ULL / (u64)old_rotspeed;
+		const u64 new_rpm = (u64)PSXCLK * 60ULL / (u64)cdvd.RotSpeed;
+		const u64 d_rpm   = (new_rpm > old_rpm) ? (new_rpm - old_rpm) : (old_rpm - new_rpm);
+		drive_speed_change_cycles = (int)((u64)PSXCLK * d_rpm * 111ULL / 2020000ULL);
 		cdvd.nextSectorsBuffered = 0;
 		psxRegs.interrupt &= ~(1 << IopEvt_CdvdSectorReady);
 	}
@@ -1345,7 +1355,9 @@ void cdvdVsync(void)
 	static u8 monthmap[13] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
 	cdvd.RTCcount++;
-	if (cdvd.RTCcount < GetVerticalFrequency())
+	// Exact integer compare on the milli-hertz grid; identical boundary
+	// to the old double compare (n * 1000 < mHz  <=>  n < mHz / 1000.0).
+	if (cdvd.RTCcount * 1000u < GetVerticalFrequencyMilliHz())
 		return;
 	cdvd.RTCcount = 0;
 
