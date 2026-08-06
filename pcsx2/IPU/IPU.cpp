@@ -211,19 +211,28 @@ __fi u64 ipuRead64(u32 mem)
 
 		ipucase(IPU_TOP): // IPU_TOP
 		{
-			/* EE User's Manual 8.3, IPU_TOP: "Reading IPU_TOP after the
-			 * execution of BDEC/IDEC/VDEC/FDEC commands enables the next
-			 * 32 bits of the bit stream to be obtained.  The bit stream
-			 * does not proceed."  That is a read-time, non-consuming peek
-			 * gated on BUSY - not the stale snapshot from the last command
-			 * end that lived in the backing memory.  getBits32 peeks at
-			 * g_BP without advancing, the same call the IPU_CMD read path
-			 * has always made on this thread. */
-			if (!ipuRegs.topbusy)
-			{
-				if (getBits32((u8*)&ipuRegs.top))
-					ipuRegs.top = BigEndian(ipuRegs.top);
-			}
+			/* Return the value the decoder left here at the end of the
+			 * last BDEC/IDEC/VDEC/FDEC command.
+			 *
+			 * EE User's Manual 8.3 describes IPU_TOP as a read-time peek
+			 * of the next 32 bits that does not advance the stream, and
+			 * peeking here looks equivalent - but it is not.  getBits32
+			 * goes through g_BP.FillBuffer, which pulls quadwords out of
+			 * IPU_in_FIFO into the internal buffer (IFC down, FP up) and
+			 * can set IPUCoreStatus.WaitingOnIPUTo, requesting to-IPU
+			 * DMA.  Doing that from a register read on the EE thread,
+			 * asynchronously to the worker, desynchronizes FIFO
+			 * occupancy from what the DMA logic expects; Tekken Tag
+			 * Tournament polls IPU_TOP during its FMV intro and gets its
+			 * stream handling knocked far enough off that it abandons
+			 * the movie and jumps to the title screen.
+			 *
+			 * The snapshot is refreshed by the decoder at the end of
+			 * every command that advances the stream, which is when the
+			 * manual says software may read it, so it agrees with the
+			 * documented semantics wherever software is entitled to
+			 * look.  A true read-time peek would have to be restricted
+			 * to data already in the internal buffer, with no refill. */
 			break;
 		}
 
