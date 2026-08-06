@@ -416,6 +416,7 @@ __ri static void IDCT_Copy(s16* block, u8* dest, const int stride)
 	 * records that a corrupted stream can drive a column output to
 	 * +-3826, and indexing a 1024-byte table with that read up to three
 	 * kilobytes past its end. */
+#if _M_SSE >= 0x200
 	const __m128i zero = _mm_setzero_si128();
 	for (int i = 0; i < 8; i++)
 	{
@@ -426,6 +427,22 @@ __ri static void IDCT_Copy(s16* block, u8* dest, const int stride)
 		dest += stride;
 		block += 8;
 	}
+#else
+	/* Same clamp, written out: targets without the x86 intrinsics still
+	 * must not index a table with an out-of-range IDCT output. */
+	for (int i = 0; i < 8; i++)
+	{
+		for (int j = 0; j < 8; j++)
+		{
+			const int v = block[j];
+			dest[j] = (u8)((v < 0) ? 0 : ((v > 255) ? 255 : v));
+			block[j] = 0;
+		}
+
+		dest += stride;
+		block += 8;
+	}
+#endif
 }
 
 
