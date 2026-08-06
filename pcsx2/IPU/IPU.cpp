@@ -103,6 +103,11 @@ void ipuReset(void)
 	memset(&ipuRegs, 0, sizeof(ipuRegs));
 	memset(&g_BP, 0, sizeof(g_BP));
 	memset(&decoder, 0, sizeof(decoder));
+	memset(g_ipu_vqclut, 0, sizeof(g_ipu_vqclut));
+	memset(g_ipu_thresh, 0, sizeof(g_ipu_thresh));
+	memset(g_ipu_indx4, 0, sizeof(g_ipu_indx4));
+	coded_block_pattern = 0;
+
 	IPUCoreStatus.DataRequested = false;
 	IPUCoreStatus.WaitingOnIPUFrom= false;
 	IPUCoreStatus.WaitingOnIPUTo = false;
@@ -189,9 +194,39 @@ __fi u64 ipuRead64(u32 mem)
 			return ipuRegs.cmd._u64;
 		}
 
-		ipucase(IPU_CTRL):
-		ipucase(IPU_BP):
+		ipucase(IPU_CTRL): // 32-bit register; synthesize live fields as the 32-bit path does
+		{
+			ipuRegs.ctrl.IFC = g_BP.IFC;
+			ipuRegs.ctrl.CBP = coded_block_pattern;
+			break;
+		}
+
+		ipucase(IPU_BP): // 32-bit register; synthesize live fields as the 32-bit path does
+		{
+			ipuRegs.ipubp = g_BP.BP & 0x7f;
+			ipuRegs.ipubp |= g_BP.IFC << 8;
+			ipuRegs.ipubp |= g_BP.FP << 16;
+			break;
+		}
+
 		ipucase(IPU_TOP): // IPU_TOP
+		{
+			/* EE User's Manual 8.3, IPU_TOP: "Reading IPU_TOP after the
+			 * execution of BDEC/IDEC/VDEC/FDEC commands enables the next
+			 * 32 bits of the bit stream to be obtained.  The bit stream
+			 * does not proceed."  That is a read-time, non-consuming peek
+			 * gated on BUSY - not the stale snapshot from the last command
+			 * end that lived in the backing memory.  getBits32 peeks at
+			 * g_BP without advancing, the same call the IPU_CMD read path
+			 * has always made on this thread. */
+			if (!ipuRegs.topbusy)
+			{
+				if (getBits32((u8*)&ipuRegs.top))
+					ipuRegs.top = BigEndian(ipuRegs.top);
+			}
+			break;
+		}
+
 		default:
 			break;
 	}
@@ -204,8 +239,12 @@ void ipuSoftReset(void)
 	memset(&g_BP, 0, sizeof(g_BP));
 
 	coded_block_pattern = 0;
-	g_ipu_thresh[0] = 0;
-	g_ipu_thresh[1] = 0;
+	/* SETTH thresholds are configuration, not in-flight decode state:
+	 * the manual's RST description (8.1.2) clears BUSY/IFC/OFC and
+	 * abandons the data being decoded, and this mask already preserves
+	 * every other piece of configuration (IDP/AS/IVF/QST/MP1/PCT, the
+	 * IQ tables, the VQ CLUT).  Clearing the thresholds here made a
+	 * mid-session RST silently break CSC/PACK alpha generation. */
 
 	ipuRegs.ctrl._u32 &= 0x7F33F00;
 	ipuRegs.top = 0;
