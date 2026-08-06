@@ -24,6 +24,7 @@
 
 #include <cstring>
 
+#include <limits.h>
 #include "../../common/VectorIntrin.h"
 
 #include "IPU.h"
@@ -1781,7 +1782,7 @@ __fi static void ipu_vq(macroblock_rgb16& rgb16, u8* indx4)
 {
 	const auto closest_index = [&](int i, int j) {
 		u8 index = 0;
-		int min_distance = std::numeric_limits<int>::max();
+		int min_distance = INT_MAX;
 		for (u8 k = 0; k < 16; ++k)
 		{
 			const int dr = rgb16.c[i][j].r - g_ipu_vqclut[k].r;
