@@ -17,22 +17,16 @@
 #include <cstring>
 
 #include "ThreadedFileReader.h"
+#include "ThreadedFileReader.h"
 
-#include "../../common/Threading.h"
+#include <cstring>
+#include <algorithm>
 
 // Make sure buffer size is bigger than the cutoff where PCSX2 emulates a seek
 // If buffers are smaller than that, we can't keep up with linear reads
 static constexpr u32 MINIMUM_SIZE = 128 * 1024;
 
 ThreadedFileReader::ThreadedFileReader() = default;
-
-void ThreadedFileReader::StartThread()
-{
-	if (m_threadStarted)
-		return;
-	m_threadStarted = true;
-	m_readThread = std::thread([](ThreadedFileReader* r){ r->Loop(); }, this);
-}
 
 int ThreadedFileReader::DirectRead(void* dst, u64 offset, u32 size)
 {
@@ -46,107 +40,16 @@ int ThreadedFileReader::DirectRead(void* dst, u64 offset, u32 size)
 
 ThreadedFileReader::~ThreadedFileReader()
 {
-	m_quit = true;
-	if (m_threadStarted)
-	{
-		(void)std::lock_guard<std::mutex>{m_mtx};
-		m_condition.notify_one();
-		m_readThread.join();
-	}
 	for (auto& buffer : m_buffer)
 		if (buffer.ptr)
 			free(buffer.ptr);
-}
-
-void ThreadedFileReader::Loop()
-{
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	for (;;)
-	{
-		while (!m_requestSize && !m_quit)
-			m_condition.wait(lock);
-
-		if (m_quit)
-			return;
-
-		u64 requestOffset;
-		u32 requestSize;
-
-		bool ok = true;
-		m_running = true;
-
-		for (;;)
-		{
-			void* ptr     = m_requestPtr.load(std::memory_order_acquire);
-			requestOffset = m_requestOffset;
-			requestSize   = m_requestSize;
-			lock.unlock();
-
-			if (ptr)
-				ok    = Decompress(ptr, requestOffset, requestSize);
-
-			// There's a potential for a race here when doing synchronous reads. Basically, another request can come in,
-			// after we release the lock, but before we store null to indicate we're finished. So, we do a compare-exchange
-			// instead, to detect when this happens, and if so, reload all the inputs and try again.
-			if (!m_requestPtr.compare_exchange_strong(ptr, nullptr, std::memory_order_release))
-			{
-				lock.lock();
-				continue;
-			}
-
-			m_condition.notify_one();
-			break;
-		}
-
-		if (ok)
-		{
-			// Readahead
-			Chunk chunk = ChunkForOffset(requestOffset + requestSize);
-			if (chunk.chunkID >= 0)
-			{
-				int buffersFilled = 0;
-				Buffer* buf = GetBlockPtr(chunk);
-				// Cancel readahead if a new request comes in
-				while (buf && !m_requestPtr.load(std::memory_order_acquire))
-				{
-					u32 bufsize = buf->size.load(std::memory_order_relaxed);
-					chunk = ChunkForOffset(buf->offset + bufsize);
-					if (chunk.chunkID < 0)
-						break;
-					if (buf->offset + bufsize != chunk.offset || chunk.length + bufsize > buf->cap)
-					{
-						buffersFilled++;
-						if (buffersFilled >= 2)
-							break;
-						buf = GetBlockPtr(chunk);
-					}
-					else
-					{
-						int amt = ReadChunk(static_cast<char*>(buf->ptr) + bufsize, chunk.chunkID);
-						if (amt <= 0)
-							break;
-						buf->size.store(bufsize + amt, std::memory_order_release);
-					}
-				}
-			}
-		}
-
-		lock.lock();
-		// If no one's added more work, mark this one as done
-		if (requestSize == m_requestSize && requestOffset == m_requestOffset && !m_requestPtr)
-			m_requestSize = 0;
-
-		m_running = false;
-		m_condition.notify_one(); // For things waiting on m_running == false
-	}
 }
 
 ThreadedFileReader::Buffer* ThreadedFileReader::GetBlockPtr(const Chunk& block)
 {
 	for (int i = 0; i < static_cast<int>(std::size(m_buffer)); i++)
 	{
-		u32 size = m_buffer[i].size.load(std::memory_order_relaxed);
+		u32 size   = m_buffer[i].size;
 		u64 offset = m_buffer[i].offset;
 		if (size && offset <= block.offset && offset + size >= block.offset + block.length)
 		{
@@ -156,29 +59,21 @@ ThreadedFileReader::Buffer* ThreadedFileReader::GetBlockPtr(const Chunk& block)
 	}
 
 	Buffer& buf = m_buffer[m_nextBuffer];
+	u32 size = std::max(block.length, MINIMUM_SIZE);
+	if (buf.cap < size)
 	{
-		// This can be called from both the read thread threads in ReadSync
-		// Calls from ReadSync are done with the lock already held to keep the read thread out
-		// Therefore we should only lock on the read thread
-		std::unique_lock<std::mutex> lock(m_mtx, std::defer_lock);
-		if (std::this_thread::get_id() == m_readThread.get_id())
-			lock.lock();
-		u32 size = std::max(block.length, MINIMUM_SIZE);
-		if (buf.cap < size)
-		{
-			void* new_ptr = realloc(buf.ptr, size);
-			if (!new_ptr)
-				return nullptr;
-			buf.ptr = new_ptr;
-			buf.cap = size;
-		}
-		buf.size.store(0, std::memory_order_relaxed);
+		void* new_ptr = realloc(buf.ptr, size);
+		if (!new_ptr)
+			return nullptr;
+		buf.ptr = new_ptr;
+		buf.cap = size;
 	}
-	int size = ReadChunk(buf.ptr, block.chunkID);
-	if (size > 0)
+	buf.size = 0;
+	int amt = ReadChunk(buf.ptr, block.chunkID);
+	if (amt > 0)
 	{
 		buf.offset = block.offset;
-		buf.size.store(size, std::memory_order_release);
+		buf.size   = amt;
 		m_nextBuffer = (m_nextBuffer + 1) % std::size(m_buffer);
 		return &buf;
 	}
@@ -194,15 +89,12 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 	{
 		while (remaining)
 		{
-			if (m_requestCancelled.load(std::memory_order_relaxed))
-				return false;
-
 			Chunk chunk = ChunkForOffset(off);
 			Buffer* buf = GetBlockPtr(chunk);
 			if (!buf)
 				return false;
 			u32 bufoff  = off - buf->offset;
-			u32 bufsize = buf->size.load(std::memory_order_relaxed);
+			u32 bufsize = buf->size;
 			if (bufsize <= bufoff)
 				return false;
 			u32 len     = std::min(bufsize - bufoff, remaining);
@@ -220,9 +112,6 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 	{
 		while (remaining)
 		{
-			if (m_requestCancelled.load(std::memory_order_relaxed))
-				return false;
-
 			Chunk chunk = ChunkForOffset(off);
 			if (chunk.offset != off || chunk.length > remaining)
 			{
@@ -230,7 +119,7 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 				if (!buf)
 					return false;
 				u32 bufoff  = off - buf->offset;
-				u32 bufsize = buf->size.load(std::memory_order_relaxed);
+				u32 bufsize = buf->size;
 				if (bufsize <= bufoff)
 					return false;
 				u32 len     = std::min(bufsize - bufoff, remaining);
@@ -254,7 +143,7 @@ bool ThreadedFileReader::Decompress(void* target, u64 begin, u32 size)
 	return true;
 }
 
-bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, const std::lock_guard<std::mutex>&)
+bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size)
 {
 	// Run through twice so that if m_buffer[1] contains the first half and m_buffer[0] contains the second half it still works
 	m_amtRead    = 0;
@@ -265,7 +154,7 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, co
 		for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
 		{
 			Buffer& buf = m_buffer[i % std::size(m_buffer)];
-			u32 bufsize = buf.size.load(std::memory_order_acquire);
+			u32 bufsize = buf.size;
 			if (!bufsize)
 				continue;
 			if (buf.offset <= offset && buf.offset + bufsize > offset)
@@ -296,7 +185,7 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, co
 		for (int i = 0; i < static_cast<int>(std::size(m_buffer) * 2); i++)
 		{
 			Buffer& buf = m_buffer[i % std::size(m_buffer)];
-			u32 bufsize = buf.size.load(std::memory_order_acquire);
+			u32 bufsize = buf.size;
 			if (!bufsize)
 				continue;
 			if (buf.offset <= offset && buf.offset + bufsize > offset)
@@ -323,17 +212,9 @@ bool ThreadedFileReader::TryCachedRead(void*& buffer, u64& offset, u32& size, co
 
 bool ThreadedFileReader::Open(std::string filename)
 {
-	CancelAndWaitUntilStopped();
 	m_direct     = nullptr;
 	m_directSize = 0;
-	const bool ok = Open2(std::move(filename));
-	/* A direct (mapped) reader never needs the worker: its reads are
-	   page-cache memcpys on the calling thread.  Everyone else gets
-	   the thread here instead of at construction, so direct readers
-	   cost neither the thread nor the staging buffers. */
-	if (ok && !(m_direct && !m_internalBlockSize))
-		StartThread();
-	return ok;
+	return Open2(std::move(filename));
 }
 
 int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
@@ -343,55 +224,11 @@ int ThreadedFileReader::ReadSync(void* pBuffer, u32 sector, u32 count)
 	u32 size      = count * blocksize;
 	if (m_direct && !m_internalBlockSize)
 		return DirectRead(pBuffer, offset, size);
-	{
-		std::lock_guard<std::mutex> l(m_mtx);
-		if (TryCachedRead(pBuffer, offset, size, l))
-			return m_amtRead;
-
-		if (size > 0 && !m_running)
-		{
-			// Don't wait for read thread to start back up
-			if (Decompress(pBuffer, offset, size))
-			{
-				offset += size;
-				size = 0;
-			}
-		}
-
-		if (size == 0)
-		{
-			// For readahead
-			m_requestOffset = offset - 1;
-			m_requestSize = 1;
-			m_requestPtr.store(nullptr, std::memory_order_relaxed);
-		}
-		else
-		{
-			m_requestOffset = offset;
-			m_requestSize = size;
-			m_requestPtr.store(pBuffer, std::memory_order_relaxed);
-		}
-		m_requestCancelled.store(false, std::memory_order_relaxed);
-	}
-	m_condition.notify_one();
-	if (size == 0)
+	if (TryCachedRead(pBuffer, offset, size))
 		return m_amtRead;
-	return FinishRead();
-}
-
-void ThreadedFileReader::CancelAndWaitUntilStopped(void)
-{
-	if (!m_threadStarted)
-		return;
-	m_requestCancelled.store(true, std::memory_order_relaxed);
-	std::unique_lock<std::mutex> lock(m_mtx);
-
-	// Prevent the last request being picked up, if there was one.
-	// m_requestCancelled just stops the current decompress.
-	m_requestSize = 0;
-
-	while (m_running)
-		m_condition.wait(lock);
+	if (Decompress(pBuffer, offset, size))
+		return m_amtRead;
+	return -1;
 }
 
 void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
@@ -401,62 +238,36 @@ void ThreadedFileReader::BeginRead(void* pBuffer, u32 sector, u32 count)
 	u32 size      = count * blocksize;
 	if (m_direct && !m_internalBlockSize)
 	{
-		/* Synchronous by construction: one memcpy now is cheaper than
-		   a handoff to a thread whose only job would be that memcpy. */
 		m_directAmt = DirectRead(pBuffer, offset, size);
 		return;
 	}
-	{
-		std::lock_guard<std::mutex> l(m_mtx);
-		if (TryCachedRead(pBuffer, offset, size, l))
-			return;
-		if (size == 0)
-		{
-			// For readahead
-			m_requestOffset = offset - 1;
-			m_requestSize = 1;
-			m_requestPtr.store(nullptr, std::memory_order_relaxed);
-		}
-		else
-		{
-			m_requestOffset = offset;
-			m_requestSize = size;
-			m_requestPtr.store(pBuffer, std::memory_order_relaxed);
-		}
-		m_requestCancelled.store(false, std::memory_order_relaxed);
-	}
-	m_condition.notify_one();
+	/* Synchronous: the read completes here; FinishRead only reports it.
+	 * The emulated drive's seek and rotation model (cdvdBlockReadTime)
+	 * spaces sector deliveries by far more virtual time than one chunk
+	 * decode costs in real time, and the two-buffer cache means a chunk
+	 * is decoded once and then serves every sector inside it. */
+	if (TryCachedRead(pBuffer, offset, size))
+		return;
+	if (!Decompress(pBuffer, offset, size))
+		m_amtRead = -1;
 }
 
 int ThreadedFileReader::FinishRead(void)
 {
 	if (m_direct && !m_internalBlockSize)
 		return m_directAmt;
-	if (m_requestPtr.load(std::memory_order_acquire) == nullptr)
-		return m_amtRead;
-	std::unique_lock<std::mutex> lock(m_mtx);
-	while (m_requestPtr.load(std::memory_order_acquire))
-		m_condition.wait(lock);
 	return m_amtRead;
 }
 
 void ThreadedFileReader::CancelRead(void)
 {
-	if (m_direct && !m_internalBlockSize)
-		return;
-	if (m_requestPtr.load(std::memory_order_acquire) == nullptr)
-		return;
-	m_requestCancelled.store(true, std::memory_order_release);
-	std::unique_lock<std::mutex> lock(m_mtx);
-	while (m_requestPtr.load(std::memory_order_relaxed))
-		m_condition.wait(lock);
+	/* Nothing is ever in flight. */
 }
 
 void ThreadedFileReader::Close(void)
 {
-	CancelAndWaitUntilStopped();
 	for (auto& buf : m_buffer)
-		buf.size.store(0, std::memory_order_relaxed);
+		buf.size = 0;
 	Close2();
 }
 
