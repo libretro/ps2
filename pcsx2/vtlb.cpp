@@ -31,6 +31,11 @@
 #include <algorithm>
 #include <cstdlib> /* bsearch, realloc, free */
 #include <cstring> /* memset */
+#ifndef _WIN32
+#include <sys/mman.h> /* mmap/munmap: signal-safe growth of the
+                       * fastmem faulting-PC array, see
+                       * vtlb_BackpatchLoadStore */
+#endif
 #include <map>
 #include <unordered_map>
 
@@ -150,7 +155,16 @@ static int u32_compare(const void* a, const void* b)
 
 static void s_fastmem_faulting_pcs_free(void)
 {
-	free(s_fastmem_faulting_pcs);
+	/* OS pages, not heap - see the growth site in
+	 * vtlb_BackpatchLoadStore. */
+	if (s_fastmem_faulting_pcs)
+	{
+#ifdef _WIN32
+		VirtualFree(s_fastmem_faulting_pcs, 0, MEM_RELEASE);
+#else
+		munmap(s_fastmem_faulting_pcs, s_fastmem_faulting_pcs_cap * sizeof(u32));
+#endif
+	}
 	s_fastmem_faulting_pcs       = NULL;
 	s_fastmem_faulting_pcs_count = 0;
 	s_fastmem_faulting_pcs_cap   = 0;
@@ -996,9 +1010,43 @@ static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 		{
 			if (s_fastmem_faulting_pcs_count == s_fastmem_faulting_pcs_cap)
 			{
+				/* We are inside the page-fault signal handler here:
+				 * realloc() is not async-signal-safe.  In practice the
+				 * faulting thread is executing recompiled code and so
+				 * cannot itself hold the allocator lock, but that
+				 * invariant is fragile (instrumented builds, future
+				 * callers), so grow with raw OS pages instead and keep
+				 * the handler allocator-free.  On failure, skip the
+				 * bookkeeping: the only consequence is that this PC's
+				 * fastmem loadstore gets backpatched again on a later
+				 * fault, which is a performance detail, not a
+				 * correctness one. */
 				size_t newcap = s_fastmem_faulting_pcs_cap ?
 					s_fastmem_faulting_pcs_cap + (s_fastmem_faulting_pcs_cap >> 1) : 16;
-				s_fastmem_faulting_pcs     = (u32*)realloc(s_fastmem_faulting_pcs, newcap * sizeof(u32));
+				u32* newbuf;
+#ifdef _WIN32
+				newbuf = (u32*)VirtualAlloc(NULL, newcap * sizeof(u32),
+					MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
+				newbuf = (u32*)mmap(NULL, newcap * sizeof(u32),
+					PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+				if (newbuf == MAP_FAILED)
+					newbuf = NULL;
+#endif
+				if (!newbuf)
+					goto skip_faulting_pc_insert;
+				if (s_fastmem_faulting_pcs)
+				{
+					memcpy(newbuf, s_fastmem_faulting_pcs,
+						s_fastmem_faulting_pcs_count * sizeof(u32));
+#ifdef _WIN32
+					VirtualFree(s_fastmem_faulting_pcs, 0, MEM_RELEASE);
+#else
+					munmap(s_fastmem_faulting_pcs,
+						s_fastmem_faulting_pcs_cap * sizeof(u32));
+#endif
+				}
+				s_fastmem_faulting_pcs     = newbuf;
 				s_fastmem_faulting_pcs_cap = newcap;
 			}
 			memmove(&s_fastmem_faulting_pcs[lo + 1], &s_fastmem_faulting_pcs[lo],
@@ -1006,6 +1054,7 @@ static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 			s_fastmem_faulting_pcs[lo] = info_guest_pc;
 			s_fastmem_faulting_pcs_count++;
 		}
+skip_faulting_pc_insert:;
 	}
 	memmove(&s_fastmem_backpatch[pos], &s_fastmem_backpatch[pos + 1],
 		(s_fastmem_backpatch_count - pos - 1) * sizeof(LoadstoreBackpatchEntry));
