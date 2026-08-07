@@ -111,3 +111,12 @@ build*/
 *.o
 *.d
 /pcsx2_libretro.so
+
+# Test binaries (tests/*/build.sh outputs)
+/tests/spsc/spsc_test
+/tests/spsc/spsc_test_tsan
+/tests/spsc/spsc_test.exe
+/tests/faultstress/fault_test
+/tests/faultstress/fault_test_tsan
+/tests/faultstress/fault_test.exe
+/tests/ipu/ipu_test
