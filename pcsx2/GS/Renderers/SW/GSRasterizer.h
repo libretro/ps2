@@ -115,7 +115,6 @@ public:
 	u16* index;
 	int index_count;
 	u64 start;
-	int pixels;
 	int counter;
 	u8 scanmsk_value;
 
@@ -135,7 +134,6 @@ public:
 		, index(NULL)
 		, index_count(0)
 		, start(0)
-		, pixels(0)
 		, scanmsk_value(0)
 	{
 	}

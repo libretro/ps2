@@ -220,7 +220,13 @@ void GSRasterizer::Draw(GSRasterizerData& data)
 	_mm256_zeroupper();
 #endif
 
-	data.pixels   = m_pixels.actual;
+	/* NOTE: 'data.pixels = m_pixels.actual;' used to live here.  data
+	 * is the SHARED GSRasterizerData job object - every worker slicing
+	 * the same draw wrote this one field, and nothing in the tree ever
+	 * read it back.  Besides being a data race, it made all workers
+	 * store to the same cache line on every draw, bouncing that line
+	 * between cores for no result.  m_pixels.sum below is per-worker
+	 * and is what GetPixels() actually reports. */
 	m_pixels.sum += m_pixels.actual;
 }
 

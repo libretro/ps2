@@ -27,25 +27,22 @@ race:gsWrite64_page_00
 race:MTGS::MainLoop
 #
 # ---------------------------------------------------------------------
-# TRACKED - one entry left, worker-vs-worker inside a single draw.
+# TRACKED - empty.
 #
-# The host-transfer-vs-draw races previously listed here
-# (WriteImageX -> WritePixel4HH/4HL/8H against DrawRectT/FillBlock)
-# were ROOT-CAUSED and FIXED: boost_spsc_queue's empty()/size()
-# loaded both cursors relaxed, so GSRasterizerList::IsSynced() ->
-# IsEmpty() established no happens-before, and the Sync() gate in
-# GSRendererSW::InvalidateVideoMem/InvalidateLocalMem could let a
-# transfer proceed against in-flight rasterizer writes.  Making those
-# two query helpers acquire removed every one of those reports.
-# Their entries are deleted rather than kept 'just in case' - a
-# suppression for a fixed bug hides its regression.
+# Every entry that lived here has been root-caused and fixed:
 #
-# What remains is a different pairing: two SW worker threads writing
-# the same 4-byte location from within GSRasterizer::Draw itself.
-# Scanline ownership should make that impossible, so either the
-# slicing has an overlap case or the address is shared state rather
-# than framebuffer.  Not yet root-caused; the fix is rasterizer-hot
-# either way and must go through the FPS harness on worst-case
-# content before shipping (reference: the S2DEX per-draw flush
-# regression, 900 -> 68 fps).
-race:GSRasterizer::Draw
+#   - host-transfer vs in-flight draw (WriteImageX -> WritePixel4HH
+#     /4HL/8H against DrawRectT/FillBlock): boost_spsc_queue's
+#     empty()/size() loaded both cursors relaxed, so
+#     GSRasterizerList::IsSynced() established no happens-before and
+#     the Sync() gate in InvalidateVideoMem/InvalidateLocalMem could
+#     be skipped.  Fixed by making those query helpers acquire.
+#
+#   - worker vs worker in GSRasterizer::Draw: 'data.pixels =
+#     m_pixels.actual' wrote a field of the SHARED job object from
+#     every worker slicing the draw, and nothing ever read it back.
+#     Fixed by deleting the dead write and the dead field.
+#
+# The sweep now reports zero WITHOUT any GS-worker suppression.  If a
+# GS race appears here again it is a regression, not a known issue -
+# add it only with a root cause, never to quiet the run.
