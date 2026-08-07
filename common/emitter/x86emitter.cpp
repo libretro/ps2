@@ -222,7 +222,10 @@ const xRegister32
 			*p++ = (u8)((0 << 6) | (Sib_EIZ << 3) | Sib_UseDisp32);
 		}
 
-		*(s32*)p = (s32)displacement;
+		{
+			const s32 disp32_ = (s32)displacement;
+			memcpy(p, &disp32_, sizeof(s32));
+		}
 		p       += sizeof(s32);
 		x86Ptr   = p;
 	}

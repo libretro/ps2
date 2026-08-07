@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <cstring>
+
 #include "../Threading.h"
 #include "../Pcsx2Defs.h"
 
@@ -50,19 +52,22 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC;
 
 #define xWrite16(val) \
 	{ \
-		*(u16*)x86Ptr = (val); \
+		u16 xw_val_ = (u16)(val); \
+		memcpy(x86Ptr, &xw_val_, sizeof(u16)); \
 		x86Ptr += sizeof(u16); \
 	}
 
 #define xWrite32(val) \
 	{ \
-		*(u32*)x86Ptr = (val); \
+		u32 xw_val_ = (u32)(val); \
+		memcpy(x86Ptr, &xw_val_, sizeof(u32)); \
 		x86Ptr += sizeof(u32); \
 	}
 
 #define xWrite64(val) \
 	{ \
-		*(u64*)x86Ptr = (val); \
+		u64 xw_val_ = (u64)(val); \
+		memcpy(x86Ptr, &xw_val_, sizeof(u64)); \
 		x86Ptr += sizeof(u64); \
 	}
 
@@ -79,19 +84,22 @@ extern thread_local XMMSSEType g_xmmtypes[iREGCNT_XMM] PCSX2_TLS_INITIAL_EXEC;
 
 #define xWrite16p(p, val) \
 	{ \
-		*(u16*)(p) = (val); \
+		u16 xw_val_ = (u16)(val); \
+		memcpy((p), &xw_val_, sizeof(u16)); \
 		(p) += sizeof(u16); \
 	}
 
 #define xWrite32p(p, val) \
 	{ \
-		*(u32*)(p) = (val); \
+		u32 xw_val_ = (u32)(val); \
+		memcpy((p), &xw_val_, sizeof(u32)); \
 		(p) += sizeof(u32); \
 	}
 
 #define xWrite64p(p, val) \
 	{ \
-		*(u64*)(p) = (val); \
+		u64 xw_val_ = (u64)(val); \
+		memcpy((p), &xw_val_, sizeof(u64)); \
 		(p) += sizeof(u64); \
 	}
 
