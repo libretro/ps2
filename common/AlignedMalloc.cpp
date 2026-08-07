@@ -26,7 +26,11 @@
 void* _aligned_malloc(size_t size, size_t align)
 {
 #if defined(__USE_ISOC11) && !defined(ASAN_WORKAROUND) // not supported yet on gcc 4.9
-	return aligned_alloc(align, size);
+	/* ISO C11/C17 requires size to be a multiple of align; glibc happens
+	 * to accept anything but ASan enforces the contract and other libcs
+	 * (musl historically, macOS) reject it.  Round up, same as
+	 * parallel-gs Granite's memalign_alloc does. */
+	return aligned_alloc(align, (size + align - 1) & ~(align - 1));
 #else
 #ifdef __APPLE__
 	// MacOS has a bug where posix_memalign is ridiculously slow on unaligned sizes
