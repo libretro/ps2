@@ -27,16 +27,31 @@ race:gsWrite64_page_00
 race:MTGS::MainLoop
 #
 # ---------------------------------------------------------------------
-# TRACKED - genuine bug class, fix gated on the GS benchmark harness.
+# TRACKED - genuine bug class, NOT yet root-caused.
 #
-# GS SW worker threads overlap on shared words: scanline slicing does
-# not prevent two workers from read-modify-writing the same 32-bit
-# word in 4-bit texel formats (WritePixel4HH packs two texels per
-# byte), and GSRasterizer::Draw shows the same overlap shape on its
-# edge rows.  User-visible worst case is rare single-pixel artifacts
-# in 4-bit content.  Candidate fixes (atomic RMW on the 4-bit path, or
-# widened row ownership) are rasterizer-hot and MUST go through the
-# FPS harness on worst-case content before shipping - the S2DEX
-# per-draw flush regression (900 -> 68 fps) is the cautionary tale.
+# GS local memory is written from two directions without reliable
+# mutual exclusion: a host->local transfer on the GS/EE side
+# (WriteImageX -> WritePixel4HH and friends, read-modify-write) racing
+# an in-flight SW rasterizer draw on a worker thread (DrawRectT /
+# FillBlock, 8-byte stores) at the SAME address.
+#
+# This is NOT a worker-vs-worker sub-word packing problem, and it is
+# NOT fixable with an atomic RMW or by widening scanline ownership -
+# an earlier note in this file said so and was wrong.  GSRendererSW
+# already has the intended mechanism: InvalidateVideoMem /
+# InvalidateLocalMem consult m_fzb_pages / m_tex_pages and call
+# Sync() when a transfer touches pages the rasterizer is using.  A
+# race reaching WritePixel4HH means that page tracking has a GAP -
+# wrong page set for the rect, a transfer path that skips the
+# Invalidate call, or a tracking update ordered after the transfer.
+#
+# Next step is therefore diagnostic, not a fix: instrument the
+# Invalidate paths to assert that every page touched by a transfer is
+# either untracked or Sync()'d first, and find which transfer slips
+# through.  Only then does a fix (and its FPS measurement) make
+# sense.  User-visible symptom today is rare corrupted texels/pixels
+# in content that streams textures while drawing.
 race:GSLocalMemory::WritePixel4HH
+race:GSLocalMemory::WritePixel4HL
+race:GSLocalMemory::WritePixel8H
 race:GSRasterizer::Draw
