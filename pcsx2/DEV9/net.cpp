@@ -38,12 +38,15 @@ Threading::Thread rx_thread;
 
 Threading::Mutex rx_mutex;
 
-volatile bool RxRunning = false;
+/* RX pump thread loops on this; the control side flips it on
+ * start/stop.  volatile gives neither atomicity nor ordering in
+ * C++; use release/acquire atomics for the cross-thread handshake. */
+static retro_atomic_int_t RxRunning;
 //rx thread
 void NetRxThread()
 {
 	NetPacket tmp;
-	while (RxRunning)
+	while (retro_atomic_load_acquire_int(&RxRunning))
 	{
 		while (rx_fifo_can_rx() && nif->recv(&tmp))
 		{
@@ -115,7 +118,7 @@ void InitNet()
 	}
 
 	nif = na;
-	RxRunning = true;
+	retro_atomic_store_release_int(&RxRunning, 1);
 
 	rx_thread.Start(NetRxThread);
 
@@ -159,9 +162,9 @@ void ReconfigureLiveNet(const Pcsx2Config& old_config)
 
 void TermNet()
 {
-	if (RxRunning)
+	if (retro_atomic_load_acquire_int(&RxRunning))
 	{
-		RxRunning = false;
+		retro_atomic_store_release_int(&RxRunning, 0);
 		nif->close();
 		Console.WriteLn("DEV9: Waiting for RX-net thread to terminate..");
 		rx_thread.Join();

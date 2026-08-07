@@ -14,6 +14,7 @@
  */
 
 #ifdef _WIN32
+#include <retro_atomic.h>
 #include "common/RedtapeWindows.h"
 #include <Winioctl.h>
 #endif
@@ -29,7 +30,12 @@
 #include "pcap_io.h"
 
 bool has_link = true;
-volatile bool fireIntR = false;
+/* Set by the RX thread per received packet, consumed by smap_async on
+ * the EE side (deferred because the IOP irq system is not thread
+ * safe - see the comment at the set site).  Consumed with an atomic
+ * exchange: with the old plain flag, a set landing between the EE's
+ * test and clear was swallowed - a lost RXEND interrupt. */
+static retro_atomic_int_t fireIntR;
 Threading::Mutex frame_counter_mutex;
 Threading::Mutex reset_mutex;
 /*
@@ -119,7 +125,7 @@ void rx_process(NetPacket* pk)
 	counter_lock.unlock();
 	reset_lock.unlock();
 	//spams// emu_printf("Got packet, %d bytes (%d fifo)\n", pk->size,bytes);
-	fireIntR = true;
+	retro_atomic_store_release_int(&fireIntR, 1);
 	//_DEV9irq(SMAP_INTR_RXEND,0);//now ? or when the fifo is full ? i guess now atm
 	//note that this _is_ wrong since the IOP interrupt system is not thread safe.. but nothing i can do about that
 }
@@ -856,9 +862,8 @@ void smap_writeDMA8Mem(u32* pMem, int size)
 
 void smap_async(u32 cycles)
 {
-	if (fireIntR)
+	if (retro_atomic_exchange_int(&fireIntR, 0))
 	{
-		fireIntR = false;
 		//Is this used to signal each individual packet, or just when there are packets in the RX fifo?
 		//I think it just signals when there are packets in the RX fifo
 		_DEV9irq(SMAP_INTR_RXEND, 0); //Make the call to _DEV9irq in a thread safe way
