@@ -38,7 +38,16 @@ namespace IopMemory {
 template< typename T >
 static __fi void _generic_write( u32 addr, T val )
 {
-	psxHu(addr) = val;
+	/* Dispatch on the caller's width.  psxHu() is *(u32*) regardless
+	 * of T, so the 8- and 16-bit instantiations used to write 4 bytes:
+	 * an 8-bit register write also zeroed the three bytes after it.
+	 * Only the 32-bit instantiation was correct. */
+	if constexpr (sizeof(T) == 1)
+		psxHu8(addr) = val;
+	else if constexpr (sizeof(T) == 2)
+		psxHu16(addr) = val;
+	else
+		psxHu32(addr) = val;
 }
 
 void iopHwWrite8_generic( u32 addr, mem8_t val )	{ _generic_write<mem8_t>( addr, val ); }
