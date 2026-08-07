@@ -14,6 +14,7 @@
  */
 
 #include "Global.h"
+#include "../../common/AlignedMalloc.h"
 #include "spu2.h" // hopefully temporary, until I resolve lClocks depdendency
 #include "../IopMem.h"
 
@@ -43,10 +44,10 @@ struct SPU2Savestate::DataBlock
 	int PlayMode;
 };
 
-void SPU2Savestate::FreezeIt(DataBlock& spud)
+static void FreezeItImpl(SPU2Savestate::DataBlock& spud)
 {
-	spud.spu2id = SAVE_ID;
-	spud.version = SAVE_VERSION;
+	spud.spu2id = SPU2Savestate::SAVE_ID;
+	spud.version = SPU2Savestate::SAVE_VERSION;
 
 	memcpy(spud.unkregs, spu2regs, sizeof(spud.unkregs));
 	memcpy(spud.mem, _spu2mem, sizeof(spud.mem));
@@ -83,9 +84,9 @@ void SPU2Savestate::FreezeIt(DataBlock& spud)
 	// force the user to rebuild their cache instead.
 }
 
-s32 SPU2Savestate::ThawIt(DataBlock& spud)
+static s32 ThawItImpl(SPU2Savestate::DataBlock& spud)
 {
-	if (spud.spu2id != SAVE_ID || spud.version < SAVE_VERSION)
+	if (spud.spu2id != SPU2Savestate::SAVE_ID || spud.version < SPU2Savestate::SAVE_VERSION)
 	{
 		// Do *not* reset the cores.
 		// We'll need some "hints" as to how the cores should be initialized, and the
@@ -143,6 +144,47 @@ s32 SPU2Savestate::ThawIt(DataBlock& spud)
 		}
 	}
 	return 0;
+}
+
+
+/* The caller hands us a DataBlock reference formed by casting into the
+ * frontend's savestate blob, which carries no alignment guarantee -
+ * DataBlock embeds V_Core (alignas(64)), so accessing members through
+ * such a reference is UB (UBSan: 34 misaligned V_Core reports across
+ * freeze/thaw).  When the blob happens to be aligned, run in place;
+ * otherwise bounce through an aligned heap temp.  If the temp cannot
+ * be allocated, fall back to in-place access: on every ABI we target
+ * that behaves as before (x86 tolerates the misalignment), which
+ * beats losing the savestate. */
+void SPU2Savestate::FreezeIt(DataBlock& spud)
+{
+	if (((uintptr_t)&spud & (alignof(DataBlock) - 1)) == 0)
+	{
+		FreezeItImpl(spud);
+		return;
+	}
+	DataBlock* tmp = (DataBlock*)_aligned_malloc(sizeof(DataBlock), alignof(DataBlock));
+	if (!tmp)
+	{
+		FreezeItImpl(spud);
+		return;
+	}
+	FreezeItImpl(*tmp);
+	memcpy((void*)&spud, tmp, sizeof(DataBlock));
+	_aligned_free(tmp);
+}
+
+s32 SPU2Savestate::ThawIt(DataBlock& spud)
+{
+	if (((uintptr_t)&spud & (alignof(DataBlock) - 1)) == 0)
+		return ThawItImpl(spud);
+	DataBlock* tmp = (DataBlock*)_aligned_malloc(sizeof(DataBlock), alignof(DataBlock));
+	if (!tmp)
+		return ThawItImpl(spud);
+	memcpy(tmp, (const void*)&spud, sizeof(DataBlock));
+	const s32 ret = ThawItImpl(*tmp);
+	_aligned_free(tmp);
+	return ret;
 }
 
 s32 SPU2Savestate::SizeIt()

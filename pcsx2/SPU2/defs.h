@@ -221,7 +221,8 @@ static __fi bool ADSR_Calculate(V_ADSR &v)
 	s32 counter_shift = p.Shift - 11;
 	s32 level_shift   = 11 - p.Shift;
 	u32 counter_inc = 0x8000 >> (counter_shift > 0 ? counter_shift : 0);
-	s32 level_inc   = p.Step  << (level_shift   > 0 ? level_shift   : 0);
+	/* p.Step can be negative; shift in the unsigned domain (same bits). */
+	s32 level_inc   = (s32)((u32)p.Step << (level_shift > 0 ? level_shift : 0));
 
 	if (p.Exp)
 	{
