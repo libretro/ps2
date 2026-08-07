@@ -1304,7 +1304,7 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 	// safe defaults again -- the C.13c livelock and the 3M-cycle-budget wall
 	// were interpreter-provider problems, and microVU1 is now the only VU1
 	// provider.
-	const bool mtvu = cpu_features_get_core_amount() >= 3 && VMManager::g_MtvuMenuDefault;
+	const bool mtvu = VMManager::MtvuHardwareAllowed() && VMManager::g_MtvuMenuDefault;
 	Console.WriteLn(mtvu ? "  MTVU enabled (pcsx2_mtvu; requires >= 3 hardware threads)."
 	                     : "  MTVU disabled.");
 	si.SetBoolValue("EmuCore/Speedhacks", "vuThread", mtvu);
@@ -1325,6 +1325,16 @@ static void InitializeCPUInfo(void)
 }
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si) { }
 #endif
+
+/* Single source of truth for the MTVU hardware gate.  The worker is only
+ * worth spawning (and only spawned) with >= 3 hardware threads; every
+ * writer of EmuCore/Speedhacks vuThread must apply this same predicate,
+ * otherwise THREAD_VU1 can come up true with no worker alive and
+ * MTGS::MainLoop waits on a handoff that never arrives (boot hang). */
+bool VMManager::MtvuHardwareAllowed()
+{
+	return cpu_features_get_core_amount() >= 3;
+}
 
 void VMManager::EnsureCPUInfoInitialized()
 {

@@ -55,6 +55,8 @@ namespace VMManager
 
 	/// Returns true if there is an active virtual machine.
 	bool HasValidVM();
+	/// True when this host has enough hardware threads for the MTVU worker.
+	bool MtvuHardwareAllowed();
 
 	/// Returns the serial of the disc/executable currently running.
 	std::string GetDiscSerial();

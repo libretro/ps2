@@ -1138,7 +1138,14 @@ static void check_variables(bool first_run)
 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		{
 			const bool mtvu_on = !strcmp(var.value, "enabled");
-			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "vuThread", mtvu_on);
+			/* Apply the same hardware gate as VMManager's boot hook.
+			 * check_variables(true) runs after CPUThreadInitialize, so
+			 * an ungated write here would overwrite the gated value and
+			 * raise THREAD_VU1 with no MTVU worker spawned - MainLoop
+			 * then waits forever on the handoff (boot hang on <3
+			 * hardware threads with pcsx2_mtvu=enabled). */
+			s_settings_interface.SetBoolValue("EmuCore/Speedhacks", "vuThread",
+				mtvu_on && VMManager::MtvuHardwareAllowed());
 			VMManager::g_MtvuMenuDefault = mtvu_on;
 		}
 
