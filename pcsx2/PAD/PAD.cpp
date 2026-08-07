@@ -17,6 +17,8 @@
 #include <array>
 #include <libretro.h>
 
+#include <retro_atomic.h>
+
 #include "PAD.h"
 
 #include "../../common/FileSystem.h"
@@ -184,11 +186,17 @@ static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 struct retro_rumble_interface rumble;
 
-static u32 button_mask[2];
-static int pad_lx[2];
-static int pad_ly[2];
-static int pad_rx[2];
-static int pad_ry[2];
+/* Written by Input::Update (libretro thread) once per retro_run,
+ * read by PADpoll (cpu_thread) during SIO2 transfers.  Published
+ * per-field with release/acquire retro_atomics: no locks anywhere
+ * near the SIO2 path, and per-field skew matches real hardware
+ * polling mid-change.  Values are int-sized bit patterns (u32 masks
+ * stored bitwise). */
+static retro_atomic_int_t button_mask[2];
+static retro_atomic_int_t pad_lx[2];
+static retro_atomic_int_t pad_ly[2];
+static retro_atomic_int_t pad_rx[2];
+static retro_atomic_int_t pad_ry[2];
 static int pad_type[2] = { -1, -1 };
 static u8 analog_buttons[2][12];
 
@@ -383,14 +391,14 @@ namespace Input
 		environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
 		environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
-		button_mask[0] = 0xFFFFFFFF;
-		button_mask[1] = 0xFFFFFFFF;
+		retro_atomic_store_release_int(&button_mask[0], (int)0xFFFFFFFF);
+		retro_atomic_store_release_int(&button_mask[1], (int)0xFFFFFFFF);
 	}
 
 	void Shutdown()
 	{
-		button_mask[0] = 0xFFFFFFFF;
-		button_mask[1] = 0xFFFFFFFF;
+		retro_atomic_store_release_int(&button_mask[0], (int)0xFFFFFFFF);
+		retro_atomic_store_release_int(&button_mask[1], (int)0xFFFFFFFF);
 	}
 
 	void Update()
@@ -419,21 +427,27 @@ namespace Input
 				}
 			}
 
-			button_mask[port] = new_button_mask;
-			pad_lx[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
-			pad_ly[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
-			pad_rx[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
-			pad_ry[port]      = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
+			int new_lx = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
+			int new_ly = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+			int new_rx = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
+			int new_ry = input_cb(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
 
 			// Apply axis deadzone and sensitivity
-			process_analog(pad_lx[port], pad_ly[port], conf.axis_scale_q16, conf.axis_deadzone);
-			process_analog(pad_rx[port], pad_ry[port], conf.axis_scale_q16, conf.axis_deadzone);
+			process_analog(new_lx, new_ly, conf.axis_scale_q16, conf.axis_deadzone);
+			process_analog(new_rx, new_ry, conf.axis_scale_q16, conf.axis_deadzone);
 
 			// Apply axis inversion (axis_invert_* being either 1 or -1)
-			pad_lx[port] *= conf.axis_invert_lx;
-			pad_ly[port] *= conf.axis_invert_ly;
-			pad_rx[port] *= conf.axis_invert_rx;
-			pad_ry[port] *= conf.axis_invert_ry;
+			new_lx *= conf.axis_invert_lx;
+			new_ly *= conf.axis_invert_ly;
+			new_rx *= conf.axis_invert_rx;
+			new_ry *= conf.axis_invert_ry;
+
+			/* Publish the frame's snapshot, one release-store per field. */
+			retro_atomic_store_release_int(&button_mask[port], (int)new_button_mask);
+			retro_atomic_store_release_int(&pad_lx[port], new_lx);
+			retro_atomic_store_release_int(&pad_ly[port], new_ly);
+			retro_atomic_store_release_int(&pad_rx[port], new_rx);
+			retro_atomic_store_release_int(&pad_ry[port], new_ry);
 
 			if (conf.rumble_scale_q8 > 0)
 				pads[port][0].rumble(conf.rumble_scale_q8, sioConvertPortAndSlotToPad(port, 0));
@@ -747,7 +761,7 @@ u8 PADpoll(u8 value)
 					query.response[2] = 0x5A;
 
 					const u32 ext_port = sioConvertPortAndSlotToPad(query.port, query.slot);
-					const u32 buttons  = button_mask[ext_port];
+					const u32 buttons  = (u32)retro_atomic_load_acquire_int(&button_mask[ext_port]);
 
 					// "Start in analog mode" option: on the first read after
 					// reset, promote a still-digital, unlocked pad to analog.
@@ -782,10 +796,10 @@ u8 PADpoll(u8 value)
 
 					if (pad->mode != MODE_DIGITAL) // ANALOG || DS2 native
 					{
-						query.response[5] = 0x80 + (pad_rx[ext_port] >> 8);
-						query.response[6] = 0x80 + (pad_ry[ext_port] >> 8);
-						query.response[7] = 0x80 + (pad_lx[ext_port] >> 8);
-						query.response[8] = 0x80 + (pad_ly[ext_port] >> 8);
+						query.response[5] = 0x80 + (retro_atomic_load_acquire_int(&pad_rx[ext_port]) >> 8);
+						query.response[6] = 0x80 + (retro_atomic_load_acquire_int(&pad_ry[ext_port]) >> 8);
+						query.response[7] = 0x80 + (retro_atomic_load_acquire_int(&pad_lx[ext_port]) >> 8);
+						query.response[8] = 0x80 + (retro_atomic_load_acquire_int(&pad_ly[ext_port]) >> 8);
 
 						if (pad->mode != MODE_ANALOG) /* DS2 native */
 						{

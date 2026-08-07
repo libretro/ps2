@@ -1,0 +1,42 @@
+# ThreadSanitizer suppressions for LRPS2 sweeps.
+#
+# Usage:
+#   TSAN_OPTIONS="suppressions=tests/tsan.supp" <harness>
+#
+# Two categories only.  Anything TSan reports that is not matched here
+# is NEW and must be triaged, not added blindly.
+#
+# ---------------------------------------------------------------------
+# ACCEPTED BY DESIGN - do not "fix" without an architecture decision.
+#
+# The EE thread writes GS privileged registers (SMODE1/SMODE2, PMODE,
+# DISPFB, ...) directly into shared PS2MEM_GS via gsWrite64_page_00 /
+# gsWrite64_generic; the GS side reads them at vsync (GSRenderer::Merge,
+# GSState::GetVideoMode / isReallyInterlaced, MTGS::MainLoop's vsync
+# path).  Inherited from upstream PCSX2, where priv-reg traffic is
+# deliberately not ring-serialized.  Accesses are aligned and
+# word-sized on the only supported host (x86-64: single mov, no
+# tearing); worst case is a one-frame-stale video mode, which matches
+# real-hardware semantics - a mode change mid-scanout is "torn" on a
+# real PS2 too.  Serializing these through the MTGS ring would be
+# invasive, perf-relevant, and upstream-divergent.
+race:GSState::GetVideoMode
+race:GSState::isReallyInterlaced
+race:gsWrite64_generic
+race:gsWrite64_page_00
+race:MTGS::MainLoop
+#
+# ---------------------------------------------------------------------
+# TRACKED - genuine bug class, fix gated on the GS benchmark harness.
+#
+# GS SW worker threads overlap on shared words: scanline slicing does
+# not prevent two workers from read-modify-writing the same 32-bit
+# word in 4-bit texel formats (WritePixel4HH packs two texels per
+# byte), and GSRasterizer::Draw shows the same overlap shape on its
+# edge rows.  User-visible worst case is rare single-pixel artifacts
+# in 4-bit content.  Candidate fixes (atomic RMW on the 4-bit path, or
+# widened row ownership) are rasterizer-hot and MUST go through the
+# FPS harness on worst-case content before shipping - the S2DEX
+# per-draw flush regression (900 -> 68 fps) is the cautionary tale.
+race:GSLocalMemory::WritePixel4HH
+race:GSRasterizer::Draw
