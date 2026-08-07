@@ -57,15 +57,32 @@
  * blocking call under that lock, this test will hang - which is the
  * correct alarm.
  */
+#ifndef _WIN32
 #define _GNU_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+
+#ifdef _WIN32
+/* Windows uses a vectored exception handler, which is what the shipped
+ * SysPageFaultExceptionFilter actually is - so this build exercises
+ * the real Windows dispatch shape, not a POSIX approximation. */
+#include <windows.h>
+typedef HANDLE thread_t;
+#define THREAD_RET      DWORD WINAPI
+#define thread_yield()  SwitchToThread()
+#else
 #include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/mman.h>
+typedef pthread_t thread_t;
+#define THREAD_RET      void *
+#define thread_yield()  sched_yield()
+#endif
 
 #define MAX_THREADS         16
 #define FAULT_SLOTS         4      /* mirrors FAULT_THREAD_SLOTS */
@@ -79,7 +96,11 @@ static volatile int  slot_inhandler[FAULT_SLOTS];
 
 static uintptr_t thread_identity(void)
 {
+#ifdef _WIN32
+   return (uintptr_t)GetCurrentThreadId();
+#else
    return (uintptr_t)pthread_self();
+#endif
 }
 
 static int slot_register(void)
@@ -153,12 +174,54 @@ static void shared_lock_release(void)
 static uint64_t guarded_counter;
 static uint64_t guarded_shadow[8];
 
-static volatile sig_atomic_t saw_no_slot;
-static volatile sig_atomic_t saw_recursion_conflict;
+static volatile int saw_no_slot;
+static volatile int saw_recursion_conflict;
 
 /* ---- fault machinery ------------------------------------------------ */
 
 static size_t page_size;
+
+/* Portable page primitives: reserve inaccessible, deny, allow. */
+static void *page_reserve_noaccess(size_t bytes)
+{
+#ifdef _WIN32
+   return VirtualAlloc(NULL, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_NOACCESS);
+#else
+   void *p = mmap(NULL, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+   return (p == MAP_FAILED) ? NULL : p;
+#endif
+}
+
+static int page_deny(void *addr, size_t bytes)
+{
+#ifdef _WIN32
+   DWORD old;
+   return VirtualProtect(addr, bytes, PAGE_NOACCESS, &old) ? 0 : -1;
+#else
+   return mprotect(addr, bytes, PROT_NONE);
+#endif
+}
+
+static int page_allow(void *addr, size_t bytes)
+{
+#ifdef _WIN32
+   DWORD old;
+   return VirtualProtect(addr, bytes, PAGE_READWRITE, &old) ? 0 : -1;
+#else
+   return mprotect(addr, bytes, PROT_READ | PROT_WRITE);
+#endif
+}
+
+static size_t page_size_query(void)
+{
+#ifdef _WIN32
+   SYSTEM_INFO si;
+   GetSystemInfo(&si);
+   return (size_t)si.dwPageSize;
+#else
+   return (size_t)sysconf(_SC_PAGESIZE);
+#endif
+}
 
 struct thread_ctx
 {
@@ -168,27 +231,26 @@ struct thread_ctx
    uint64_t  local_count;
 };
 
-static __thread struct thread_ctx *tls_ctx; /* handler needs the region */
 
-static void fault_handler(int sig, siginfo_t *si, void *uctx)
+/* Platform-independent core.  Returns 1 if we handled the fault. */
+static int fault_dispatch(void *fault_addr)
 {
    uintptr_t self = thread_identity();
    int       slot;
    int       i;
-   (void)sig; (void)uctx;
 
    slot = slot_lookup(self);
    if (slot < 0)
    {
       saw_no_slot = 1;
-      _exit(3);
+      abort();
    }
 
    /* Per-slot recursion guard: must be exclusive for this slot. */
    if (__atomic_exchange_n(&slot_inhandler[slot], 1, __ATOMIC_ACQ_REL))
    {
       saw_recursion_conflict = 1;
-      _exit(4);
+      abort();
    }
 
    /* Critical section: exactly the shape of vtlb's bookkeeping -
@@ -202,20 +264,39 @@ static void fault_handler(int sig, siginfo_t *si, void *uctx)
 
    /* "Handle" the fault: make the page accessible so we can resume,
     * mirroring vtlb's backpatch-and-continue. */
-   if (mprotect((void*)((uintptr_t)si->si_addr & ~(uintptr_t)(page_size - 1)),
-                page_size, PROT_READ | PROT_WRITE) != 0)
-      _exit(5);
+   if (page_allow((void*)((uintptr_t)fault_addr & ~(uintptr_t)(page_size - 1)),
+                  page_size) != 0)
+      abort();
 
    __atomic_store_n(&slot_inhandler[slot], 0, __ATOMIC_RELEASE);
+   return 1;
 }
 
-static void *fault_worker(void *p)
+#ifdef _WIN32
+/* Vectored handler - the same mechanism SysPageFaultExceptionFilter
+ * installs, so this build tests the real Windows dispatch shape. */
+static LONG CALLBACK veh_handler(EXCEPTION_POINTERS *eps)
+{
+   if (eps->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
+      return EXCEPTION_CONTINUE_SEARCH;
+   if (fault_dispatch((void*)eps->ExceptionRecord->ExceptionInformation[1]))
+      return EXCEPTION_CONTINUE_EXECUTION;
+   return EXCEPTION_CONTINUE_SEARCH;
+}
+#else
+static void fault_handler(int sig, siginfo_t *si, void *uctx)
+{
+   (void)sig; (void)uctx;
+   fault_dispatch(si->si_addr);
+}
+#endif
+
+static THREAD_RET fault_worker(void *p)
 {
    struct thread_ctx *ctx = (struct thread_ctx*)p;
    long   n;
    size_t pg;
 
-   tls_ctx = ctx;
    if (slot_register() < 0)
    {
       fprintf(stderr, "NO SLOT for thread %d\n", ctx->id);
@@ -226,20 +307,24 @@ static void *fault_worker(void *p)
    {
       pg = (size_t)(n % PAGES_PER_THREAD);
       /* Re-arm then touch: each touch is a real page fault. */
-      if (mprotect(ctx->region + pg * page_size, page_size, PROT_NONE) != 0)
+      if (page_deny(ctx->region + pg * page_size, page_size) != 0)
          exit(6);
       ctx->region[pg * page_size] = (uint8_t)n; /* faults here */
       ctx->local_count++;
    }
 
    slot_unregister();
+#ifdef _WIN32
+   return 0;
+#else
    return NULL;
+#endif
 }
 
 /* Races register/unregister against the lookup in live handlers. */
 static volatile int churn_stop;
 
-static void *churn_worker(void *p)
+static THREAD_RET churn_worker(void *p)
 {
    (void)p;
    while (!__atomic_load_n(&churn_stop, __ATOMIC_ACQUIRE))
@@ -247,15 +332,21 @@ static void *churn_worker(void *p)
       int s = slot_register();
       if (s >= 0)
          slot_unregister();
-      sched_yield();
+      thread_yield();
    }
+#ifdef _WIN32
+   return 0;
+#else
    return NULL;
+#endif
 }
 
 int main(int argc, char **argv)
 {
+#ifndef _WIN32
    struct sigaction  sa;
-   pthread_t         th[MAX_THREADS], churn;
+#endif
+   thread_t          th[MAX_THREADS], churn;
    struct thread_ctx ctx[MAX_THREADS];
    int               n_threads = 4;
    long              faults    = 50000;
@@ -270,14 +361,19 @@ int main(int argc, char **argv)
       return 2;
    }
 
-   page_size = (size_t)sysconf(_SC_PAGESIZE);
+   page_size = page_size_query();
 
+#ifdef _WIN32
+   if (!AddVectoredExceptionHandler(1, veh_handler))
+      return 1;
+#else
    memset(&sa, 0, sizeof(sa));
    sigemptyset(&sa.sa_mask);
    sa.sa_flags     = SA_SIGINFO | SA_NODEFER;
    sa.sa_sigaction = fault_handler;
    if (sigaction(SIGSEGV, &sa, NULL) != 0)
       return 1;
+#endif
 
    printf("fault dispatch stress: %d threads x %ld faults, %d slots\n",
           n_threads, faults, FAULT_SLOTS);
@@ -287,25 +383,34 @@ int main(int argc, char **argv)
       ctx[i].id     = i;
       ctx[i].faults = faults;
       ctx[i].local_count = 0;
-      ctx[i].region = (uint8_t*)mmap(NULL, PAGES_PER_THREAD * page_size,
-                                     PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-      if (ctx[i].region == MAP_FAILED)
+      ctx[i].region = (uint8_t*)page_reserve_noaccess(PAGES_PER_THREAD * page_size);
+      if (!ctx[i].region)
          return 1;
    }
 
    /* Churn only makes sense with a free slot to contend for. */
    churn_stop = 0;
+#ifdef _WIN32
+   if (n_threads < FAULT_SLOTS)
+      churn = CreateThread(NULL, 0, churn_worker, NULL, 0, NULL);
+   for (i = 0; i < n_threads; i++)
+      th[i] = CreateThread(NULL, 0, fault_worker, &ctx[i], 0, NULL);
+   for (i = 0; i < n_threads; i++)
+      WaitForSingleObject(th[i], INFINITE);
+   __atomic_store_n(&churn_stop, 1, __ATOMIC_RELEASE);
+   if (n_threads < FAULT_SLOTS)
+      WaitForSingleObject(churn, INFINITE);
+#else
    if (n_threads < FAULT_SLOTS)
       pthread_create(&churn, NULL, churn_worker, NULL);
-
    for (i = 0; i < n_threads; i++)
       pthread_create(&th[i], NULL, fault_worker, &ctx[i]);
    for (i = 0; i < n_threads; i++)
       pthread_join(th[i], NULL);
-
    __atomic_store_n(&churn_stop, 1, __ATOMIC_RELEASE);
    if (n_threads < FAULT_SLOTS)
       pthread_join(churn, NULL);
+#endif
 
    for (i = 0; i < n_threads; i++)
       expected += ctx[i].local_count;
