@@ -246,7 +246,7 @@ protected:
 
 	GSRasterizerList(int threads);
 
-	static void OnWorkerStartup(int i);
+	static void OnWorkerStartup(int i, u64 affinity);
 	static void OnWorkerShutdown(int i);
 
 public:

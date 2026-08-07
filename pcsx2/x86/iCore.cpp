@@ -539,7 +539,7 @@ void _deleteGPRtoX86reg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (x86regs[i].mode & MODE_WRITE)
 					{
-						xMOV(ptr64[&cpuRegs.GPR.r[reg].UL[0]], xRegister64(i));
+						xMOV(ptr64[&_eeGetGPRPtr(reg)->UL[0]], xRegister64(i));
 
 						// get rid of MODE_WRITE since don't want to flush again
 						x86regs[i].mode &= ~MODE_WRITE;
@@ -614,7 +614,7 @@ void _deleteGPRtoXMMreg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (xmmregs[i].mode & MODE_WRITE)
 					{
-						xMOVDQA(ptr[&cpuRegs.GPR.r[reg].UL[0]], xRegisterSSE(i));
+						xMOVDQA(ptr[&_eeGetGPRPtr(reg)->UL[0]], xRegisterSSE(i));
 
 						// get rid of MODE_WRITE since don't want to flush again
 						xmmregs[i].mode &= ~MODE_WRITE;

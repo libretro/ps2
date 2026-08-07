@@ -1142,20 +1142,18 @@ GSRasterizerList::~GSRasterizerList()
 	_aligned_free(m_scanline);
 }
 
-void GSRasterizerList::OnWorkerStartup(int i)
+void GSRasterizerList::OnWorkerStartup(int i, u64 affinity)
 {
-	Threading::ThreadHandle handle(Threading::ThreadHandle::GetForCallingThread());
-
-	if (EmuConfig.Cpu.AffinityControlMode != 0)
+	/* The affinity mask is computed on the spawning thread at Create()
+	 * and captured by value: reading EmuConfig (AffinityControlMode,
+	 * THREAD_VU1) from inside the freshly started worker raced
+	 * VMManager::ApplySettings' whole-struct assignment on the CPU
+	 * thread (TSan).  Create() runs in the GS-open path, which shares
+	 * the ordering discipline of every other GSopen-time config read. */
+	if (affinity)
 	{
-		const std::vector<u32>& procs = VMManager::GetSortedProcessorList();
-		const u32 processor_index = (THREAD_VU1 ? 3 : 2) + i;
-		if (processor_index < procs.size())
-		{
-			const u32 procid = procs[processor_index];
-			const u64 affinity = static_cast<u64>(1) << procid;
-			handle.SetAffinity(affinity);
-		}
+		Threading::ThreadHandle handle(Threading::ThreadHandle::GetForCallingThread());
+		handle.SetAffinity(affinity);
 	}
 }
 
@@ -1226,11 +1224,17 @@ std::unique_ptr<IRasterizer> GSRasterizerList::Create(int threads)
 
 	std::unique_ptr<GSRasterizerList> rl(new GSRasterizerList(threads));
 
+	const bool affinity_on = EmuConfig.Cpu.AffinityControlMode != 0;
+	const std::vector<u32>& procs = VMManager::GetSortedProcessorList();
+	const u32 worker_proc_base = THREAD_VU1 ? 3 : 2;
 	for (int i = 0; i < threads; i++)
 	{
+		u64 affinity = 0;
+		if (affinity_on && (worker_proc_base + i) < procs.size())
+			affinity = static_cast<u64>(1) << procs[worker_proc_base + i];
 		rl->m_r.push_back(std::unique_ptr<GSRasterizer>(new GSRasterizer(&rl->m_ds, i, threads)));
 		auto& r = *rl->m_r[i];
-		rl->m_workers.push_back(std::unique_ptr<GSWorker>(new GSWorker([i]() { GSRasterizerList::OnWorkerStartup(i); },
+		rl->m_workers.push_back(std::unique_ptr<GSWorker>(new GSWorker([i, affinity]() { GSRasterizerList::OnWorkerStartup(i, affinity); },
 			[&r](GSRingHeap::SharedPtr<GSRasterizerData>& item) { r.Draw(*item.get()); },
 			[i]() { GSRasterizerList::OnWorkerShutdown(i); })));
 	}
