@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cstdlib> /* bsearch, realloc, free */
 #include <cstring> /* memset */
+#include <retro_atomic.h>
 #include <map>
 #include <unordered_map>
 
@@ -137,6 +138,70 @@ static void vtlb_BackpatchFree(void)
 // Raw buffer + realloc growth; bsearch for lookup.  Insert keeps the
 // array sorted by shifting tail entries (rare path - one append per
 // distinct faulting PC discovered, never reaches more than a few k).
+/* Guards s_fastmem_backpatch* and s_fastmem_faulting_pcs*.
+ *
+ * These were serialized only INCIDENTALLY, by the global mutex the
+ * page-fault filter used to take on entry.  That mutex is gone (it was
+ * not async-signal-safe and it serialized every JIT fault
+ * process-wide), so the exclusion has to be explicit and it has to
+ * live here.  Without it, two threads faulting at once - EE and the
+ * MTVU worker, which is the normal configuration - corrupt the
+ * backpatch array and the sorted faulting-PC list.
+ *
+ * An atomic-flag spinlock, not a mutex: this runs inside the
+ * SIGSEGV/VEH handler where pthread locks are not async-signal-safe.
+ * Spinning is safe because nothing under the lock blocks, allocates,
+ * or touches guest fastmem, so a nested fault while holding it cannot
+ * occur and the holder is always another thread finishing bounded
+ * work.
+ *
+ * The spin issues a CPU relax hint.  A bare exchange loop hammers the
+ * cache line and starves the holder; measured on Windows/x86 it made
+ * the lock-free path LOSE to a CRITICAL_SECTION (1.81 vs 1.48
+ * us/fault, 4 threads), which is what a naive spin does under
+ * contention. */
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+#if defined(_MSC_VER)
+#define VTLB_CPU_RELAX() _mm_pause()
+#else
+#define VTLB_CPU_RELAX() __builtin_ia32_pause()
+#endif
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__)
+#if defined(_MSC_VER)
+#define VTLB_CPU_RELAX() __yield()
+#else
+#define VTLB_CPU_RELAX() __asm__ __volatile__("yield" ::: "memory")
+#endif
+#else
+#define VTLB_CPU_RELAX() ((void)0)
+#endif
+
+static retro_atomic_int_t s_fastmem_lock;
+
+static __fi void fastmem_lock(void)
+{
+	while (retro_atomic_exchange_int(&s_fastmem_lock, 1))
+	{
+		/* Read-only spin until it looks free, so the contended path
+		 * does not keep issuing exclusive-ownership RMWs at the
+		 * holder. */
+		while (retro_atomic_load_acquire_int(&s_fastmem_lock))
+			VTLB_CPU_RELAX();
+	}
+}
+
+static __fi void fastmem_unlock(void)
+{
+	retro_atomic_store_release_int(&s_fastmem_lock, 0);
+}
+
+/* RAII scope for the functions below that have multiple return paths. */
+struct FastmemLockScope
+{
+	__fi FastmemLockScope() { fastmem_lock(); }
+	__fi ~FastmemLockScope() { fastmem_unlock(); }
+};
+
 static u32*   s_fastmem_faulting_pcs       = NULL;
 static size_t s_fastmem_faulting_pcs_count = 0;
 static size_t s_fastmem_faulting_pcs_cap   = 0;
@@ -914,12 +979,14 @@ static void vtlb_UpdateFastmemProtection(u32 paddr, u32 size, const PageProtecti
 
 void vtlb_ClearLoadStoreInfo(void)
 {
+	FastmemLockScope fastmem_scope_;
 	vtlb_BackpatchClear();
 	s_fastmem_faulting_pcs_count = 0;
 }
 
 void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr)
 {
+	FastmemLockScope fastmem_scope_;
 	LoadstoreBackpatchInfo info{guest_pc, gpr_bitmask, fpr_bitmask, static_cast<u8>(code_size), address_register, data_register, size_in_bits, is_signed, is_load, is_fpr};
 
 	bool   found;
@@ -955,6 +1022,9 @@ static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 	uptr fastmem_end = fastmem_start + 0xFFFFFFFFu;
 	if (fault_address < fastmem_start || fault_address > fastmem_end)
 		return false;
+
+	/* Everything below touches the shared backpatch bookkeeping. */
+	FastmemLockScope fastmem_scope_;
 
 #ifdef ARCH_ARM64
 	// The arm64 EE rec (C.50) keeps its own site registry and pre-emits the slow
@@ -1041,6 +1111,7 @@ skip_faulting_pc_insert:;
 
 bool vtlb_IsFaultingPC(u32 guest_pc)
 {
+	FastmemLockScope fastmem_scope_;
 	if (!s_fastmem_faulting_pcs_count)
 		return false;
 	return bsearch(&guest_pc, s_fastmem_faulting_pcs, s_fastmem_faulting_pcs_count, sizeof(u32), u32_compare) != NULL;

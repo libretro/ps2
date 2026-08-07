@@ -167,10 +167,24 @@ static CRITICAL_SECTION legacy_cs;
 /* vtlb's async-signal-safe spinlock, reproduced. */
 static volatile int shared_lock;
 
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+#define CPU_RELAX() __builtin_ia32_pause()
+#elif defined(__aarch64__) || defined(__arm__)
+#define CPU_RELAX() __asm__ __volatile__("yield" ::: "memory")
+#else
+#define CPU_RELAX() ((void)0)
+#endif
+
 static void shared_lock_acquire(void)
 {
+   /* Test-then-test-and-set with a relax hint, matching vtlb.  A bare
+    * exchange loop hammers the line and starves the holder - that is
+    * what made this path lose to a CRITICAL_SECTION in the first
+    * A/B run. */
    while (__atomic_exchange_n(&shared_lock, 1, __ATOMIC_ACQ_REL))
    {
+      while (__atomic_load_n(&shared_lock, __ATOMIC_ACQUIRE))
+         CPU_RELAX();
    }
 }
 
