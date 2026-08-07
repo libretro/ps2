@@ -43,6 +43,11 @@ public:
 	alignas(16)  vifStruct        vif;
 	alignas(16)  VIFregisters     vifRegs;
 	Threading::UserspaceSemaphore semaXGkick;
+	/* Posted by MTGS once per PopGSPacketMTVU.  WaitGS(isMTVU=true)
+	 * sleeps on this until MTGS consumes a path-1 packet, replacing
+	 * the old slock rendezvous + Timeslice poll (which protected no
+	 * data - it was a scheduling construct). */
+	Threading::UserspaceSemaphore semaP1Progress;
 	retro_atomic_int_t vuCycles[4]; // Used for VU cycle stealing hack
 	u32 vuCycleIdx;  // Used for VU cycle stealing hack
 	u32 vuFBRST;

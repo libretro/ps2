@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <atomic>
 #include "Common.h"
 
 #include <cstring>
@@ -69,12 +70,6 @@ namespace MTGS
 	alignas(__cachelinesize) static retro_atomic_int_t s_WritePos = RETRO_ATOMIC_INT_INITIALIZER(0); // cur pos ee thread is writing to
 	alignas(__cachelinesize) static retro_atomic_int_t s_ReadPos  = RETRO_ATOMIC_INT_INITIALIZER(0); // cur pos gs is reading from
 
-	// Held by MTGS while MainLoop is actively draining the ring; dropped
-	// only when MainLoop parks waiting for MTVU's semaXGkick post. MTVU's
-	// WaitGS(isMTVU=true) busy-spins lock/unlock on this to confirm that
-	// MTGS has reached a "waiting for me" state at least once. Dead weight
-	// when MTVU isn't running.
-	static slock_t* s_mtvu_handoff_lock;
 	static Threading::WorkSema s_sem_event;
 
 	static uintptr_t s_thread;
@@ -156,8 +151,6 @@ void MTGS::InitAndReadFIFO(u8* mem, u32 qwc)
 void MTGS::TryOpenGS(void)
 {
 	s_thread = sthread_get_current_thread_id();
-	if (!s_mtvu_handoff_lock)
-		s_mtvu_handoff_lock = slock_new();
 
 	GSopen(EmuConfig.GS, EmuConfig.GS.Renderer, hw_render.context_type, PS2MEM_GS);
 
@@ -170,37 +163,22 @@ void MTGS::MainLoop(bool flush_all)
 	// Threading info: run in MTGS thread
 	// s_ReadPos is only update by the MTGS thread so it is safe to load it with a relaxed atomic
 
-	// The handoff mutex coordinates with MTVU's WaitGS(isMTVU=true)
-	// spinner. When MTVU isn't running, the mutex is dead weight - the
-	// MTVU_GSPACKET case below cannot fire (Gif_AddCompletedGSPacket
-	// only emits it from the fakePacket path, which is MTVU-only) and
-	// MTVU's WaitGS path is unreachable. Skip the acquisition entirely
-	// and the unlock/lock around WaitForWork below. THREAD_VU1 is
-	// stable across a MainLoop invocation because configuration
-	// changes go through cpu_thread_pause, which drains via
-	// MainLoop(true) before flipping the toggle.
-	const bool mtvu_mode = THREAD_VU1;
-	if (mtvu_mode)
-		slock_lock(s_mtvu_handoff_lock);
+	/* MTVU handoff needs no lock: the WaitGS(isMTVU) rendezvous this
+	 * loop used to serve is now a real sleep on
+	 * vu1Thread.semaP1Progress, posted once per PopGSPacketMTVU
+	 * below.  The packet queue itself has always run on its own
+	 * atomics + semaXGkick. */
 
 	for (;;)
 	{
 		if (flush_all)
 		{
 			if(!s_sem_event.CheckForWork())
-			{
-				if (mtvu_mode)
-					slock_unlock(s_mtvu_handoff_lock);
 				return;
-			}
 		}
 		else
 		{
-			if (mtvu_mode)
-				slock_unlock(s_mtvu_handoff_lock);
 			s_sem_event.WaitForWork();
-			if (mtvu_mode)
-				slock_lock(s_mtvu_handoff_lock);
 		}
 
 		if (!retro_atomic_load_acquire_int(&s_open_flag))
@@ -232,8 +210,7 @@ void MTGS::MainLoop(bool flush_all)
 
 				case GS_RINGTYPE_MTVU_GSPACKET:
 				{
-					// MTVU_GSPACKET only enqueued in MTVU mode, so
-					// mtvu_lock is held here (mtvu_mode == true).
+					// MTVU_GSPACKET only enqueued in MTVU mode.
 					// One ring item = one VU1 program, but the program may
 					// deliver MULTIPLE queue packets: PARTIAL flushes
 					// (gsPack.cycles != 0, emitted when the worker's path1
@@ -244,19 +221,17 @@ void MTGS::MainLoop(bool flush_all)
 					Gif_Path& path = gifUnit.gifPath[GIF_PATH_1];
 					for (;;)
 					{
-						if (!vu1Thread.semaXGkick.TryWait())
-						{
-							slock_unlock(s_mtvu_handoff_lock);
-							// Wait for MTVU to push a path1 packet
-							vu1Thread.semaXGkick.Wait();
-							slock_lock(s_mtvu_handoff_lock);
-						}
+						// Wait for MTVU to push a path1 packet
+						vu1Thread.semaXGkick.Wait();
 						GS_Packet gsPack = path.GetGSPacketMTVU(); // Get vu1 program's xgkick packet(s)
 						if (gsPack.size)
 							GSgifTransfer((u8*)&path.buffer[gsPack.offset], gsPack.size / 16);
 						retro_atomic_fetch_sub_int(&path.readAmount, gsPack.size + gsPack.readAmount);
 						const bool final_packet = gsPack.cycles == 0;
 						path.PopGSPacketMTVU(); // Should be done last, for proper WaitGS(isMTVU)
+						/* One post per pop: WaitGS(isMTVU) sleeps on
+						 * this instead of the old lock rendezvous. */
+						vu1Thread.semaP1Progress.Post();
 						if (final_packet)
 							break;
 					}
@@ -302,10 +277,12 @@ void MTGS::MainLoop(bool flush_all)
 		}
 	}
 
-	if (mtvu_mode)
-		slock_unlock(s_mtvu_handoff_lock);
 	// Unblock any threads in WaitGS in case MTGS gets cancelled while still processing work
 	retro_atomic_store_release_int(&s_ReadPos, retro_atomic_load_acquire_int(&s_WritePos));
+	/* Wake a WaitGS(isMTVU) sleeper too; its loop re-checks
+	 * s_open_flag and exits.  The old rendezvous spin hung here
+	 * with pending packets, so this path is strictly safer now. */
+	vu1Thread.semaP1Progress.Post();
 	s_sem_event.Kill();
 }
 
@@ -347,21 +324,45 @@ void MTGS::WaitGS(bool isMTVU)
 		u32 startP1Packs = path.GetPendingGSPackets();
 		if (startP1Packs)
 		{
+			/* Sleep until MTGS consumes a path-1 packet.  MTGS posts
+			 * semaP1Progress once per PopGSPacketMTVU, so this
+			 * replaces the old slock rendezvous + Timeslice poll with
+			 * a real block - the exit condition is unchanged.
+			 *
+			 * Drain stale credit first: posts accumulated from pops
+			 * outside this wait window would otherwise turn Wait()
+			 * into an immediate return and degrade this into a
+			 * syscall spin.  A post racing the drain (a pop landing
+			 * right now) at worst wakes the first Wait early; the
+			 * loop re-checks the real condition.
+			 *
+			 * Liveness is the same premise the old poll relied on:
+			 * progress requires MTGS to pop, and MTGS posts at every
+			 * pop - including before it blocks in semaXGkick.Wait,
+			 * which it only reaches after popping what was
+			 * available. */
+			while (vu1Thread.semaP1Progress.TryWait())
+			{
+			}
 			for (;;)
 			{
-				// Rendezvous with MainLoop: lock() blocks while MTGS holds
-				// the mutex (actively draining) and returns once MTGS parks,
-				// throttling this poll of GetPendingGSPackets(). When MTGS is
-				// parked the lock is uncontended, so without a yield this
-				// loop pins a core spinning on the packet count until MTGS
-				// consumes a path-1 packet. yield() hands the core to MTGS/EE
-				// instead. Protocol (lock rendezvous + exit condition) is
-				// unchanged; this only affects scheduling.
-				slock_lock(s_mtvu_handoff_lock);
-				slock_unlock(s_mtvu_handoff_lock);
 				if (path.GetPendingGSPackets() != startP1Packs)
+				{
+					/* ringbuffer_base::size() reads both cursors RELAXED, so
+					 * on weak memory the changed count can be observed before
+					 * MTGS's pop-side writes (the release store to read_index
+					 * and the readAmount subtract).  Acquire-fence here to
+					 * pair with that release before we act on the count.  The
+					 * old code got this incidentally from the slock acquire
+					 * it performed each iteration; with the lock gone the
+					 * fence has to be explicit.  Costs nothing on x86 and one
+					 * dmb ishld on arm64, once, on the exit path. */
+					std::atomic_thread_fence(std::memory_order_acquire);
 					break;
-				Threading::Timeslice();
+				}
+				if (!retro_atomic_load_acquire_int(&s_open_flag))
+					break; /* MTGS cancelled; see MainLoop exit tail */
+				vu1Thread.semaP1Progress.Wait();
 			}
 		}
 	}
