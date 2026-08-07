@@ -136,6 +136,20 @@ bool mVUIsReservedCOP2(int hostreg);
 /* LO and HI regs */
 #define XMMGPR_LO  33
 #define XMMGPR_HI  32
+
+/* HI and LO are separate cpuRegisters members; the recompiler's virtual
+ * GPR numbering maps them to indices 32/33.  Resolve them with explicit
+ * branches instead of indexing past GPR.r[32] (UBSan: index out of
+ * bounds), which also removes the struct-layout adjacency assumption. */
+static __fi GPR_reg* _eeGetGPRPtr(int reg)
+{
+	if (reg == XMMGPR_HI)
+		return &cpuRegs.HI;
+	if (reg == XMMGPR_LO)
+		return &cpuRegs.LO;
+	return &cpuRegs.GPR.r[reg];
+}
+
 #define XMMFPU_ACC 32
 
 enum : int

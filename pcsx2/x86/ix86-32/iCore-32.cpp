@@ -266,7 +266,7 @@ int _allocX86reg(int type, int reg, int mode)
 					else
 					{
 						// not loaded
-						xMOV(new_reg, ptr64[&cpuRegs.GPR.r[reg].UD[0]]);
+						xMOV(new_reg, ptr64[&_eeGetGPRPtr(reg)->UD[0]]);
 					}
 				}
 			}
@@ -335,7 +335,7 @@ void _writebackX86Reg(int x86reg)
 	switch (x86regs[x86reg].type)
 	{
 		case X86TYPE_GPR:
-			xMOV(ptr64[&cpuRegs.GPR.r[x86regs[x86reg].reg].UD[0]], xRegister64(x86reg));
+			xMOV(ptr64[&_eeGetGPRPtr(x86regs[x86reg].reg)->UD[0]], xRegister64(x86reg));
 			break;
 
 		case X86TYPE_FPRC:

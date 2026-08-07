@@ -314,7 +314,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			if (GPR_IS_CONST1(gprreg))
 			{
 				// load lower+upper, replace lower
-				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&cpuRegs.GPR.r[gprreg].UQ]);
+				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&_eeGetGPRPtr(gprreg)->UQ]);
 				xMOV64(rax, g_cpuConstRegs[gprreg].SD[0]);
 				xPINSR.Q(xRegisterSSE(xmmreg), rax, 0);
 				xmmregs[xmmreg].mode |= MODE_WRITE; // reg is dirty
@@ -327,7 +327,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			else if (hostx86reg >= 0)
 			{
 				// load lower+upper, replace lower if dirty
-				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&cpuRegs.GPR.r[gprreg].UQ]);
+				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&_eeGetGPRPtr(gprreg)->UQ]);
 
 				// if the gpr was written to (dirty), we need to invalidate it
 				if (x86regs[hostx86reg].mode & MODE_WRITE)
@@ -340,7 +340,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			else
 			{
 				// not loaded
-				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&cpuRegs.GPR.r[gprreg].UQ]);
+				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&_eeGetGPRPtr(gprreg)->UQ]);
 			}
 		}
 	}
@@ -685,7 +685,7 @@ void _writebackXMMreg(int xmmreg)
 		break;
 
 		case XMMTYPE_GPRREG:
-			xMOVDQA(ptr[&cpuRegs.GPR.r[xmmregs[xmmreg].reg].UL[0]], xRegisterSSE(xmmreg));
+			xMOVDQA(ptr[&_eeGetGPRPtr(xmmregs[xmmreg].reg)->UL[0]], xRegisterSSE(xmmreg));
 			break;
 
 		case XMMTYPE_FPREG:
