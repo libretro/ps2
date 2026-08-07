@@ -31,11 +31,6 @@
 #include <algorithm>
 #include <cstdlib> /* bsearch, realloc, free */
 #include <cstring> /* memset */
-#ifndef _WIN32
-#include <sys/mman.h> /* mmap/munmap: signal-safe growth of the
-                       * fastmem faulting-PC array, see
-                       * vtlb_BackpatchLoadStore */
-#endif
 #include <map>
 #include <unordered_map>
 
@@ -157,14 +152,8 @@ static void s_fastmem_faulting_pcs_free(void)
 {
 	/* OS pages, not heap - see the growth site in
 	 * vtlb_BackpatchLoadStore. */
-	if (s_fastmem_faulting_pcs)
-	{
-#ifdef _WIN32
-		VirtualFree(s_fastmem_faulting_pcs, 0, MEM_RELEASE);
-#else
-		munmap(s_fastmem_faulting_pcs, s_fastmem_faulting_pcs_cap * sizeof(u32));
-#endif
-	}
+	HostSys::Munmap(s_fastmem_faulting_pcs,
+		s_fastmem_faulting_pcs_cap * sizeof(u32));
 	s_fastmem_faulting_pcs       = NULL;
 	s_fastmem_faulting_pcs_count = 0;
 	s_fastmem_faulting_pcs_cap   = 0;
@@ -1023,28 +1012,16 @@ static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 				 * correctness one. */
 				size_t newcap = s_fastmem_faulting_pcs_cap ?
 					s_fastmem_faulting_pcs_cap + (s_fastmem_faulting_pcs_cap >> 1) : 16;
-				u32* newbuf;
-#ifdef _WIN32
-				newbuf = (u32*)VirtualAlloc(NULL, newcap * sizeof(u32),
-					MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#else
-				newbuf = (u32*)mmap(NULL, newcap * sizeof(u32),
-					PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-				if (newbuf == MAP_FAILED)
-					newbuf = NULL;
-#endif
+				const PageProtectionMode rw = {true, true, false};
+				u32* newbuf = (u32*)HostSys::Mmap(nullptr, newcap * sizeof(u32), rw);
 				if (!newbuf)
 					goto skip_faulting_pc_insert;
 				if (s_fastmem_faulting_pcs)
 				{
 					memcpy(newbuf, s_fastmem_faulting_pcs,
 						s_fastmem_faulting_pcs_count * sizeof(u32));
-#ifdef _WIN32
-					VirtualFree(s_fastmem_faulting_pcs, 0, MEM_RELEASE);
-#else
-					munmap(s_fastmem_faulting_pcs,
+					HostSys::Munmap(s_fastmem_faulting_pcs,
 						s_fastmem_faulting_pcs_cap * sizeof(u32));
-#endif
 				}
 				s_fastmem_faulting_pcs     = newbuf;
 				s_fastmem_faulting_pcs_cap = newcap;
