@@ -65,6 +65,11 @@ bool pending_update_av_info = false;
 std::string libretro_content;
 
 static retro_atomic_int_t cpu_thread_state;
+/* Boot handshake: 0 = Initialize() still running, 1 = VM up, -1 = failed.
+ * Written by cpu_thread_entry, read by retro_load_game.  VMManager::
+ * Initialize() never waits on MTGS (GS opens lazily from retro_run), so
+ * blocking retro_load_game on this cannot deadlock. */
+static retro_atomic_int_t cpu_thread_boot_result;
 static Threading::Thread cpu_thread;
 
 /* Pause/resume coordination for cpu_thread.
@@ -1872,8 +1877,26 @@ static bool libretro_select_hw_render(void)
 
 static void cpu_thread_entry(VMBootParameters boot_params)
 {
-	VMManager::Initialize(boot_params);
-	VMManager::SetState(VMState::Running);
+	if (!VMManager::Initialize(boot_params))
+	{
+		/* Initialize() flipped s_state to Shutdown on its way out.
+		 * Do NOT stomp it back to Running: HasValidVM() would come
+		 * true again and the loop below would reach
+		 * VMManager::Execute() -> Cpu->Execute() with Cpu == NULL -
+		 * an access violation reading offset 0x18 (offsetof(R5900cpu,
+		 * Execute)) on this raw thread.  Publish the result so
+		 * retro_load_game's boot handshake can fail the load. */
+		retro_atomic_store_release_int(&cpu_thread_state, (int)VMState::Shutdown);
+		retro_atomic_store_release_int(&cpu_thread_boot_result, -1);
+		return;
+	}
+	retro_atomic_store_release_int(&cpu_thread_boot_result, 1);
+	/* Initialize() left the VM in Paused.  Deliberately do NOT flip it
+	 * to Running here: retro_run opens the GS (MTGS::TryOpenGS) before
+	 * its Paused->resume check, so keeping the EE parked until then
+	 * means GSopen/ResetPCRTC reads SMODE/PMODE with no concurrent
+	 * gsWrite from this thread (TSan: GSState::GetVideoMode vs
+	 * gsWrite64_page_00).  First retro_run resumes us. */
 
 	while (VMManager::GetState() != VMState::Shutdown)
 	{
@@ -2256,7 +2279,30 @@ bool retro_load_game(const struct retro_game_info* game)
 	 * the MTVU worker already requests - while the Windows default for
 	 * an unadorned thread is half that. */
 	cpu_thread.SetStackSize(VMManager::EMU_THREAD_STACK_SIZE);
+	retro_atomic_store_release_int(&cpu_thread_boot_result, 0);
 	cpu_thread.Start([boot_params]() { cpu_thread_entry(boot_params); });
+
+	/* Wait for VMManager::Initialize() to succeed or fail so a bad
+	 * BIOS path, unreadable disc image, or any other init failure is
+	 * reported to the frontend as a failed load instead of a black
+	 * screen (or, before the cpu_thread_entry guard above, a null
+	 * R5900cpu dereference).  Initialize() is bounded: it performs no
+	 * GS waits, so this terminates. */
+	for (;;)
+	{
+		int r = retro_atomic_load_acquire_int(&cpu_thread_boot_result);
+		if (r > 0)
+			break;
+		if (r < 0)
+		{
+			log_cb(RETRO_LOG_ERROR,
+				"VM initialization failed (BIOS/disc/peripheral open); failing content load.\n");
+			if (cpu_thread.Joinable())
+				cpu_thread.Join();
+			return false;
+		}
+		Threading::Timeslice();
+	}
 
 	return true;
 }
