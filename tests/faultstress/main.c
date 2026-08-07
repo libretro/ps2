@@ -79,6 +79,7 @@ typedef HANDLE thread_t;
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <time.h>
 typedef pthread_t thread_t;
 #define THREAD_RET      void *
 #define thread_yield()  sched_yield()
@@ -151,6 +152,18 @@ static int slot_lookup(uintptr_t self)
    return -1;
 }
 
+/* Dispatch mode: 0 = lock-free (shipped), 1 = the pthread-mutex
+ * design it replaced.  Mode 1 exists only to put a NUMBER on that
+ * change - taking a mutex inside a signal handler is not
+ * async-signal-safe and is exactly what the rework removed; do not
+ * mistake it for a supported configuration. */
+static int use_mutex_mode;
+#ifndef _WIN32
+static pthread_mutex_t legacy_mutex = PTHREAD_MUTEX_INITIALIZER;
+#else
+static CRITICAL_SECTION legacy_cs;
+#endif
+
 /* vtlb's async-signal-safe spinlock, reproduced. */
 static volatile int shared_lock;
 
@@ -176,6 +189,20 @@ static uint64_t guarded_shadow[8];
 
 static volatile int saw_no_slot;
 static volatile int saw_recursion_conflict;
+
+static double now_sec(void)
+{
+#ifdef _WIN32
+   LARGE_INTEGER f, c;
+   QueryPerformanceFrequency(&f);
+   QueryPerformanceCounter(&c);
+   return (double)c.QuadPart / (double)f.QuadPart;
+#else
+   struct timespec ts;
+   clock_gettime(CLOCK_MONOTONIC, &ts);
+   return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+#endif
+}
 
 /* ---- fault machinery ------------------------------------------------ */
 
@@ -256,11 +283,31 @@ static int fault_dispatch(void *fault_addr)
    /* Critical section: exactly the shape of vtlb's bookkeeping -
     * plain host-memory writes, no allocation, no blocking, no
     * access to the faulting region. */
-   shared_lock_acquire();
+   if (use_mutex_mode)
+   {
+#ifdef _WIN32
+      EnterCriticalSection(&legacy_cs);
+#else
+      pthread_mutex_lock(&legacy_mutex);
+#endif
+   }
+   else
+      shared_lock_acquire();
+
    guarded_counter++;
    for (i = 0; i < 8; i++)
       guarded_shadow[i] = guarded_counter + (uint64_t)i;
-   shared_lock_release();
+
+   if (use_mutex_mode)
+   {
+#ifdef _WIN32
+      LeaveCriticalSection(&legacy_cs);
+#else
+      pthread_mutex_unlock(&legacy_mutex);
+#endif
+   }
+   else
+      shared_lock_release();
 
    /* "Handle" the fault: make the page accessible so we can resume,
     * mirroring vtlb's backpatch-and-continue. */
@@ -352,6 +399,7 @@ int main(int argc, char **argv)
    long              faults    = 50000;
    int               i;
    uint64_t          expected  = 0;
+   double            t_start, elapsed;
 
    if (argc > 1) n_threads = atoi(argv[1]);
    if (argc > 2) faults    = atol(argv[2]);
@@ -377,6 +425,12 @@ int main(int argc, char **argv)
 
    printf("fault dispatch stress: %d threads x %ld faults, %d slots\n",
           n_threads, faults, FAULT_SLOTS);
+#ifdef _WIN32
+   InitializeCriticalSection(&legacy_cs);
+#endif
+   use_mutex_mode = (getenv("FAULT_MUTEX_MODE") != NULL);
+   if (use_mutex_mode)
+      printf("  MODE: legacy pthread-mutex dispatch (A/B baseline only)\n");
 
    for (i = 0; i < n_threads; i++)
    {
@@ -390,6 +444,7 @@ int main(int argc, char **argv)
 
    /* Churn only makes sense with a free slot to contend for. */
    churn_stop = 0;
+   t_start = now_sec();
 #ifdef _WIN32
    if (n_threads < FAULT_SLOTS)
       churn = CreateThread(NULL, 0, churn_worker, NULL, 0, NULL);
@@ -412,11 +467,15 @@ int main(int argc, char **argv)
       pthread_join(churn, NULL);
 #endif
 
+   elapsed = now_sec() - t_start;
    for (i = 0; i < n_threads; i++)
       expected += ctx[i].local_count;
 
    printf("  faults taken:     %llu\n", (unsigned long long)expected);
    printf("  guarded counter:  %llu\n", (unsigned long long)guarded_counter);
+   printf("  wall time:        %.3f s   (%.2f us/fault, %.0f faults/s)\n",
+          elapsed, expected ? (elapsed * 1e6) / (double)expected : 0.0,
+          elapsed > 0.0 ? (double)expected / elapsed : 0.0);
 
    if (saw_no_slot)
    {
