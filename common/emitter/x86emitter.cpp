@@ -318,7 +318,8 @@ const xRegister32
 			}
 			else
 			{
-				*(s32*)x86Ptr = info.Displacement;
+				const s32 disp32_ = info.Displacement;
+				memcpy(x86Ptr, &disp32_, sizeof(s32));
 				x86Ptr += sizeof(s32);
 			}
 		}

@@ -170,7 +170,10 @@ namespace x86Emitter
 			xWrite8(0x0f);
 			xWrite8(0x80 | comparison);
 		}
-		*(s32*)x86Ptr = displacement;
+		{
+			const s32 disp32_ = (s32)displacement;
+			memcpy(x86Ptr, &disp32_, sizeof(s32));
+		}
 		x86Ptr += sizeof(s32);
 
 		return ((s32*)xGetPtr()) - 1;
@@ -200,7 +203,10 @@ namespace x86Emitter
 			s32* bah = xJcc32(comparison, 0);
 			sptr distance = (sptr)target - (sptr)xGetPtr();
 
-			*bah = (s32)distance;
+			{
+				const s32 dist32_ = (s32)distance;
+				memcpy(bah, &dist32_, sizeof(s32));
+			}
 		}
 	}
 

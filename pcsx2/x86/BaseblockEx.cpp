@@ -46,9 +46,10 @@ int BaseBlocks::LastIndex(u32 startpc) const
 void BaseBlocks::Link(u32 pc, s32* jumpptr)
 {
 	BASEBLOCKEX* targetblock = Get(pc);
-	if (targetblock && targetblock->startpc == pc)
-		*jumpptr = (s32)(targetblock->fnptr - (sptr)(jumpptr + 1));
-	else
-		*jumpptr = (s32)(recompiler - (sptr)(jumpptr + 1));
+	/* jumpptr aims into the code buffer at arbitrary alignment. */
+	const s32 rel32_ = (targetblock && targetblock->startpc == pc)
+		? (s32)(targetblock->fnptr - (sptr)(jumpptr + 1))
+		: (s32)(recompiler - (sptr)(jumpptr + 1));
+	memcpy(jumpptr, &rel32_, sizeof(s32));
 	links.insert(pc, (uptr)jumpptr);
 }

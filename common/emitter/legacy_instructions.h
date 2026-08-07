@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <cstring>
+
 #ifdef FSCALE
 # undef FSCALE // Defined in a macOS header
 #endif
@@ -31,7 +33,14 @@ static __fi u32* J32Rel(int cc, u32 to)
 // legacy jump/align functions
 //------------------------------------------------------------------
 #define x86SetJ8(j8) (*(j8)      = (u8)((x86Ptr - (j8)) - 1))
-#define x86SetJ32(j32) (*(j32) = (x86Ptr - (u8*)(j32)) - 4)
+/* memcpy: the patch target is an arbitrary code-buffer address, and a
+ * raw typed store there is UB (misaligned-store, UBSan).  GCC folds
+ * the fixed-size memcpy to the same single mov. */
+#define x86SetJ32(j32) \
+	{ \
+		u32 xsj32_val_ = (u32)((x86Ptr - (u8*)(j32)) - 4); \
+		memcpy((j32), &xsj32_val_, sizeof(u32)); \
+	}
 
 #define x86SetJ32A(j32) \
 	while ((uptr)x86Ptr & 0xf) \

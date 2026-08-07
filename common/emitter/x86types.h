@@ -999,7 +999,8 @@ extern const xRegister32
 			else
 			{
 				// full displacement, no sanity checks needed :D
-				((s32*)BasePtr)[-1] = displacement;
+				const s32 disp32_ = (s32)displacement;
+				memcpy(BasePtr - sizeof(s32), &disp32_, sizeof(s32));
 			}
 		}
 	};

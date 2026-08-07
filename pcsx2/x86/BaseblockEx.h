@@ -224,7 +224,10 @@ public:
 		{
 			const Entry& e = m_entries[i];
 			if (e.pc == pc)
-				*(u32*)e.jumpptr = (u32)(target_addr - (e.jumpptr + 4));
+			{
+				const u32 rel32_ = (u32)(target_addr - (e.jumpptr + 4));
+				memcpy((void*)e.jumpptr, &rel32_, sizeof(u32));
+			}
 			i = e.next;
 		}
 	}
@@ -316,7 +319,12 @@ static inline void recLUT_SetPage(uptr reclut[0x10000], u32 hwlut[0x10000],
 	// this value is in 64k pages!
 	uint page = pagebase + pageidx;
 
-	reclut[page] = (uptr)&mapbase[((s32)mappage - (s32)page) << 14];
+	/* Integer arithmetic on uptr, not pointer arithmetic: mapbase may be
+	 * the null sentinel and the page delta is negative for pages after
+	 * the mapped one - '&mapbase[negative]' on null and '<<' on a
+	 * negative value are both UB.  The stored value is bit-identical. */
+	reclut[page] = (uptr)mapbase +
+		(uptr)(((sptr)mappage - (sptr)page) * (sptr)0x4000 * (sptr)sizeof(BASEBLOCK));
 	if (hwlut)
 		hwlut[page] = 0u - (pagebase << 16);
 }
