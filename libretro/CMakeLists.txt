@@ -35,6 +35,23 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/trans_stream_pipe.c
 )
 
+# Which of rchd's hunk codecs are compiled in.  Stated here rather than
+# left to rchd.c's fallback: that fallback turns on DEFLATE and LZMA
+# unconditionally but gates FLAC and Zstandard behind HAVE_FLAC/HAVE_RFLAC
+# and HAVE_ZSTD/HAVE_RZSTD, which this build has never defined.  The
+# result was a reader that linked rflac.c and encoding_rzstd.c and then
+# refused every 'cdfl' and 'cdzs' hunk with RCHD_ERROR_UNSUPPORTED - a
+# per-hunk failure, so an image opened, reported correct geometry and a
+# correct TOC, and only died on the fraction of hunks that happened to
+# pick those codecs.  All four objects are in target_sources above, so
+# all four codecs are named here.  Keep in step with Makefile.common.
+target_compile_definitions(pcsx2_libretro PRIVATE
+   HAVE_RCHD_DEFLATE
+   HAVE_RCHD_LZMA
+   HAVE_RCHD_FLAC
+   HAVE_RCHD_ZSTD
+)
+
 target_link_libraries(pcsx2_libretro PRIVATE
 	PCSX2_FLAGS
 	PCSX2

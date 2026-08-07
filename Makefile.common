@@ -553,6 +553,19 @@ SOURCES_C += \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_deflate.c \
 	$(LIBRETRO_COMM_DIR)/encodings/encoding_crc32.c
 
+# Which of rchd's hunk codecs are compiled in.  Stated here rather than
+# left to rchd.c's fallback: that fallback turns on DEFLATE and LZMA
+# unconditionally but gates FLAC and Zstandard behind HAVE_FLAC/HAVE_RFLAC
+# and HAVE_ZSTD/HAVE_RZSTD, which this build has never defined.  The
+# result was a reader that linked rflac.c and encoding_rzstd.c and then
+# refused every 'cdfl' and 'cdzs' hunk with RCHD_ERROR_UNSUPPORTED - a
+# per-hunk failure, so an image opened, reported correct geometry and a
+# correct TOC, and only died on the fraction of hunks that happened to
+# pick those codecs.  All four objects are in SOURCES_C above, so all
+# four codecs are named here.
+FLAGS += -DHAVE_RCHD_DEFLATE -DHAVE_RCHD_LZMA \
+         -DHAVE_RCHD_FLAC -DHAVE_RCHD_ZSTD
+
 # cpuinfo + clog. Arch- and OS-specific backends mirror the selection in
 # 3rdparty/cpuinfo/CMakeLists.txt. The x86 path keeps the existing Windows init
 # (the static Makefile's historical target); the arm64 path adds the ARM core
