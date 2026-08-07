@@ -13,7 +13,6 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <atomic>
 #include "Common.h"
 
 #include <cstring>
@@ -357,7 +356,7 @@ void MTGS::WaitGS(bool isMTVU)
 					 * it performed each iteration; with the lock gone the
 					 * fence has to be explicit.  Costs nothing on x86 and one
 					 * dmb ishld on arm64, once, on the exit path. */
-					std::atomic_thread_fence(std::memory_order_acquire);
+					retro_atomic_thread_fence_acquire();
 					break;
 				}
 				if (!retro_atomic_load_acquire_int(&s_open_flag))
