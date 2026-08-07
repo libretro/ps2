@@ -41,6 +41,7 @@
 #include "General.h"
 #ifdef _WIN32
 #include "RedtapeWindows.h"
+#include <retro_atomic.h>
 #endif
 #include "StringUtil.h"
 
@@ -54,12 +55,95 @@
 #include <ucontext.h>
 #endif
 
+/* Registration-side mutex only.  The fault filter itself takes NO
+ * lock: pthread mutexes are not async-signal-safe, and a global lock
+ * serialized every JIT fault process-wide (EE + MTVU fault storms
+ * during memory-clear phases contended through one futex). */
 static Threading::RecursiveMutex s_exception_handler_mutex;
-static PageFaultHandler s_exception_handler_callback;
+/* Dispatch-side state, all lock-free:
+ * - callback pointer: release-published by Install/Remove (under the
+ *   registration mutex), acquire-loaded by the filter.  Remove only
+ *   runs with JIT threads quiesced (VM shutdown), which is the
+ *   lifecycle guarantee that makes the plain pointer swap safe.
+ * - thread slots: threads that execute fastmem-faulting JIT register
+ *   an identity here; the filter linear-scans it.  A fault on an
+ *   unregistered thread is not ours and chains to the old handler.
+ *   Identity is uintptr: GetCurrentThreadId on Windows, pthread_self
+ *   on POSIX (scalar on every supported libc; static-asserted).
+ *   NOT thread_local: this object is dlopen'd, so its TLS is
+ *   global-dynamic and __tls_get_addr may allocate on a thread's
+ *   first access - async-signal-unsafe at exactly the wrong moment.
+ * - per-slot in-handler flag: recursion guard so a fault inside our
+ *   own callback (a genuine crash) chains out for a core dump
+ *   instead of looping. */
+static retro_atomic_ptr_t s_exception_handler_callback_atomic;
+#define FAULT_THREAD_SLOTS 4
+static retro_atomic_int_t s_fault_slot_claimed[FAULT_THREAD_SLOTS];
+static retro_atomic_ptr_t s_fault_slot_id[FAULT_THREAD_SLOTS];
+static retro_atomic_int_t s_fault_slot_inhandler[FAULT_THREAD_SLOTS];
 #ifdef _WIN32
 static void* s_exception_handler_handle;
 #endif
-static bool s_in_exception_handler;
+
+static uintptr_t fault_thread_identity(void)
+{
+#ifdef _WIN32
+	return (uintptr_t)GetCurrentThreadId();
+#else
+	static_assert(sizeof(pthread_t) <= sizeof(uintptr_t),
+		"pthread_t must be scalar-sized for the fault slot table");
+	return (uintptr_t)pthread_self();
+#endif
+}
+
+void HostSys::RegisterFaultHandlerThread()
+{
+	const uintptr_t self = fault_thread_identity();
+	int i;
+	for (i = 0; i < FAULT_THREAD_SLOTS; i++)
+	{
+		if ((uintptr_t)retro_atomic_load_acquire_ptr(&s_fault_slot_id[i]) == self)
+			return; /* already registered */
+	}
+	for (i = 0; i < FAULT_THREAD_SLOTS; i++)
+	{
+		if (!retro_atomic_exchange_int(&s_fault_slot_claimed[i], 1))
+		{
+			retro_atomic_store_release_int(&s_fault_slot_inhandler[i], 0);
+			retro_atomic_store_release_ptr(&s_fault_slot_id[i], (void*)self);
+			return;
+		}
+	}
+	/* More JIT threads than slots is a programming error; fail hard
+	 * (cold path, not signal context). */
+	abort();
+}
+
+void HostSys::UnregisterFaultHandlerThread()
+{
+	const uintptr_t self = fault_thread_identity();
+	for (int i = 0; i < FAULT_THREAD_SLOTS; i++)
+	{
+		if ((uintptr_t)retro_atomic_load_acquire_ptr(&s_fault_slot_id[i]) == self)
+		{
+			retro_atomic_store_release_ptr(&s_fault_slot_id[i], (void*)0);
+			/* Release the claim last so a concurrent register cannot
+			 * observe a claimed slot with our stale id. */
+			retro_atomic_store_release_int(&s_fault_slot_claimed[i], 0);
+			return;
+		}
+	}
+}
+
+static int fault_slot_lookup(uintptr_t self)
+{
+	for (int i = 0; i < FAULT_THREAD_SLOTS; i++)
+	{
+		if ((uintptr_t)retro_atomic_load_acquire_ptr(&s_fault_slot_id[i]) == self)
+			return i;
+	}
+	return -1;
+}
 
 #ifdef __APPLE__
 #include <mach/task.h>
@@ -70,12 +154,13 @@ static bool s_in_exception_handler;
 #ifdef _WIN32
 long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 {
-	/* Executing the handler concurrently from multiple threads wouldn't go down well. */
-	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
-
-	/* Prevent recursive exception filtering. */
-	if (!s_in_exception_handler)
+	/* Lock-free, mirroring the POSIX filter: slot lookup, per-slot
+	 * recursion guard, acquire-loaded callback.  Vectored handlers
+	 * have the same reentrancy hazards as signal handlers. */
+	const int slot = fault_slot_lookup(fault_thread_identity());
+	if (slot >= 0 && !retro_atomic_exchange_int(&s_fault_slot_inhandler[slot], 1))
 	{
+		bool handled = false;
 		/* Only interested in page faults. */
 		if (eps->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
 		{
@@ -88,16 +173,14 @@ long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 #endif
 
 			const PageFaultInfo pfi{(uptr)exception_pc, (uptr)eps->ExceptionRecord->ExceptionInformation[1]};
-
-			s_in_exception_handler = true;
-
-			const bool handled     = s_exception_handler_callback(pfi);
-
-			s_in_exception_handler = false;
-
-			if (handled)
-				return EXCEPTION_CONTINUE_EXECUTION;
+			const PageFaultHandler callback =
+				(PageFaultHandler)retro_atomic_load_acquire_ptr(&s_exception_handler_callback_atomic);
+			handled = callback ? callback(pfi) : false;
 		}
+		/* Balance the recursion-guard claim on every exit path. */
+		retro_atomic_store_release_int(&s_fault_slot_inhandler[slot], 0);
+		if (handled)
+			return EXCEPTION_CONTINUE_EXECUTION;
 	}
 	return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -136,13 +219,23 @@ static void CallExistingSignalHandler(int signal, siginfo_t* siginfo, void* ctx)
 /* Linux implementation of SIGSEGV handler. Bind it using sigaction() */
 static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 {
-	/* Executing the handler concurrently from multiple threads wouldn't go down well. */
-	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
-
-	/* Prevent recursive exception filtering. */
-	if (s_in_exception_handler)
+	/* Async-signal-safe, lock-free dispatch: identify the faulting
+	 * thread's slot; unregistered threads (not running fastmem JIT)
+	 * are not ours - chain immediately.  Cross-thread mutual
+	 * exclusion for the callback's bookkeeping lives inside vtlb as
+	 * an AS-safe spinlock; concurrent faults on EE and MTVU no longer
+	 * serialize here. */
+	const int slot = fault_slot_lookup(fault_thread_identity());
+	if (slot < 0)
 	{
-		lock.Unlock();
+		CallExistingSignalHandler(signal, siginfo, ctx);
+		return;
+	}
+
+	/* Recursion guard: a fault inside our own callback is a genuine
+	 * crash - chain out so the old handler can dump core. */
+	if (retro_atomic_exchange_int(&s_fault_slot_inhandler[slot], 1))
+	{
 		CallExistingSignalHandler(signal, siginfo, ctx);
 		return;
 	}
@@ -171,11 +264,11 @@ static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 
 	const PageFaultInfo pfi{(uptr)exception_pc, (uptr)siginfo->si_addr & ~__pagemask};
 
-	s_in_exception_handler = true;
+	const PageFaultHandler callback =
+		(PageFaultHandler)retro_atomic_load_acquire_ptr(&s_exception_handler_callback_atomic);
+	const bool handled = callback ? callback(pfi) : false;
 
-	const bool handled     = s_exception_handler_callback(pfi);
-
-	s_in_exception_handler = false;
+	retro_atomic_store_release_int(&s_fault_slot_inhandler[slot], 0);
 
 	/* Resumes execution right where we left off 
 	 * (re-executes instruction that caused the SIGSEGV). */
@@ -183,7 +276,6 @@ static void SysPageFaultSignalFilter(int signal, siginfo_t* siginfo, void* ctx)
 		return;
 
 	/* Call old signal handler, which will likely dump core. */
-	lock.Unlock();
 	CallExistingSignalHandler(signal, siginfo, ctx);
 }
 #endif
@@ -199,7 +291,7 @@ bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 			return false;
 	}
 #else
-	if (!s_exception_handler_callback)
+	if (!retro_atomic_load_acquire_ptr(&s_exception_handler_callback_atomic))
 	{
 		struct sigaction sa;
 
@@ -229,7 +321,7 @@ bool HostSys::InstallPageFaultHandler(PageFaultHandler handler)
 	}
 #endif
 
-	s_exception_handler_callback = handler;
+	retro_atomic_store_release_ptr(&s_exception_handler_callback_atomic, (void*)handler);
 	return true;
 }
 
@@ -237,7 +329,7 @@ void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 {
 	Threading::ScopedRecursiveLock lock(s_exception_handler_mutex);
 #ifdef _WIN32
-	s_exception_handler_callback = nullptr;
+	retro_atomic_store_release_ptr(&s_exception_handler_callback_atomic, (void*)0);
 
 	if (s_exception_handler_handle)
 	{
@@ -246,10 +338,10 @@ void HostSys::RemovePageFaultHandler(PageFaultHandler handler)
 	}
 #else
 	struct sigaction sa;
-	if (!s_exception_handler_callback)
+	if (!retro_atomic_load_acquire_ptr(&s_exception_handler_callback_atomic))
 		return;
 
-	s_exception_handler_callback = nullptr;
+	retro_atomic_store_release_ptr(&s_exception_handler_callback_atomic, (void*)0);
 
 #if defined(__APPLE__) || defined(__aarch64__)
 	sigaction(SIGBUS, &s_old_sigbus_action, &sa);

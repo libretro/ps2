@@ -1949,8 +1949,19 @@ static bool libretro_select_hw_render(void)
 	return false;
 }
 
+/* RAII registration with the lock-free fault filter: this thread
+ * executes fastmem-faulting EE JIT (and microVU1 when MTVU is off).
+ * Unregistered threads' faults chain to the previously installed
+ * handler.  Scope-based so every return path unregisters. */
+struct FaultThreadScope
+{
+	FaultThreadScope() { HostSys::RegisterFaultHandlerThread(); }
+	~FaultThreadScope() { HostSys::UnregisterFaultHandlerThread(); }
+};
+
 static void cpu_thread_entry(VMBootParameters boot_params)
 {
+	FaultThreadScope fault_scope_;
 	if (!VMManager::Initialize(boot_params))
 	{
 		/* Initialize() flipped s_state to Shutdown on its way out.

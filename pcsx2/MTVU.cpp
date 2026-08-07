@@ -144,6 +144,14 @@ void VU_Thread::Reset()
 
 void VU_Thread::ExecuteRingBuffer(void)
 {
+	/* MTVU worker runs microVU1 JIT, which faults through fastmem;
+	 * register with the lock-free fault filter (every exit path
+	 * unregisters via the destructor). */
+	struct MtvuFaultScope
+	{
+		MtvuFaultScope() { HostSys::RegisterFaultHandlerThread(); }
+		~MtvuFaultScope() { HostSys::UnregisterFaultHandlerThread(); }
+	} fault_scope_;
 
 	for (;;)
 	{

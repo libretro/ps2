@@ -30,6 +30,18 @@ struct PageProtectionMode
 	bool m_exec;
 };
 
+/* Fault-handler thread registration.  Only threads that execute
+ * fastmem-faulting JIT code (EE cpu thread, MTVU worker) register;
+ * a page fault on any unregistered thread chains straight to the
+ * previously installed handler, which is the correct crash behavior.
+ * Registration/unregistration are cold-path and may block; the fault
+ * filter itself is lock-free and async-signal-safe. */
+namespace HostSys
+{
+	void RegisterFaultHandlerThread();
+	void UnregisterFaultHandlerThread();
+} // namespace HostSys
+
 struct PageFaultInfo
 {
 	uptr pc;
