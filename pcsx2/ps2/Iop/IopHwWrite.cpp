@@ -154,13 +154,13 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 
 			default:
 			{
-				/* Behavior-preserving conversion of the typed u32 store
-				 * (guest may pass any alignment).  NOTE: the 8/16-bit
-				 * handlers have always stored a full u32 here via the
-				 * untyped psxHu macro - kept bit-identical, flagged for a
-				 * separate width-correctness review. */
-				const u32 hwval_ = val;
-				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(u32));
+				/* Store the caller's width, not a fixed u32: this
+				 * template serves both the 16- and 32-bit Page1
+				 * handlers, and the old u32 store meant a 16-bit
+				 * register write also zeroed the two bytes above it.
+				 * memcpy because the guest may pass any alignment. */
+				const T hwval_ = val;
+				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(T));
 			}
 			break;
 		}
@@ -195,13 +195,13 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 
 			default:
 			{
-				/* Behavior-preserving conversion of the typed u32 store
-				 * (guest may pass any alignment).  NOTE: the 8/16-bit
-				 * handlers have always stored a full u32 here via the
-				 * untyped psxHu macro - kept bit-identical, flagged for a
-				 * separate width-correctness review. */
-				const u32 hwval_ = val;
-				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(u32));
+				/* Store the caller's width, not a fixed u32: this
+				 * template serves both the 16- and 32-bit Page1
+				 * handlers, and the old u32 store meant a 16-bit
+				 * register write also zeroed the two bytes above it.
+				 * memcpy because the guest may pass any alignment. */
+				const T hwval_ = val;
+				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(T));
 			}
 			break;
 		}
@@ -460,13 +460,13 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 
 			default:
 			{
-				/* Behavior-preserving conversion of the typed u32 store
-				 * (guest may pass any alignment).  NOTE: the 8/16-bit
-				 * handlers have always stored a full u32 here via the
-				 * untyped psxHu macro - kept bit-identical, flagged for a
-				 * separate width-correctness review. */
-				const u32 hwval_ = val;
-				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(u32));
+				/* Store the caller's width, not a fixed u32: this
+				 * template serves both the 16- and 32-bit Page1
+				 * handlers, and the old u32 store meant a 16-bit
+				 * register write also zeroed the two bytes above it.
+				 * memcpy because the guest may pass any alignment. */
+				const T hwval_ = val;
+				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(T));
 			}
 			break;
 		}
