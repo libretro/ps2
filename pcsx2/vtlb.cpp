@@ -1041,6 +1041,8 @@ skip_faulting_pc_insert:;
 
 bool vtlb_IsFaultingPC(u32 guest_pc)
 {
+	if (!s_fastmem_faulting_pcs_count)
+		return false;
 	return bsearch(&guest_pc, s_fastmem_faulting_pcs, s_fastmem_faulting_pcs_count, sizeof(u32), u32_compare) != NULL;
 }
 
