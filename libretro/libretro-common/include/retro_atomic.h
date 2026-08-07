@@ -977,8 +977,32 @@ static INLINE void* retro_atomic_exchange_ptr_impl_(retro_atomic_ptr_t *p, void*
 #define RETRO_ATOMIC_HAS_PTR 1
 
 #else
-/* RETRO_ATOMIC_BACKEND_VOLATILE: no CAS, no fences, no pointer ops.
- * RETRO_ATOMIC_HAS_CAS / RETRO_ATOMIC_HAS_PTR stay undefined. */
+/* RETRO_ATOMIC_BACKEND_VOLATILE: no CAS, no pointer ops.
+ * RETRO_ATOMIC_HAS_CAS / RETRO_ATOMIC_HAS_PTR stay undefined.
+ *
+ * Fences ARE defined here, unlike CAS/PTR, because they have a
+ * meaningful degraded form and no feature gate: a caller cannot
+ * write "fence if available" the way it can branch on
+ * RETRO_ATOMIC_HAS_CAS, so leaving them undefined turns any user of
+ * this header into a compile error on this backend rather than a
+ * detectable capability gap.  A compiler barrier is the honest
+ * degradation - correct on x86/x64 TSO and on single-core, NOT
+ * correct on weakly-ordered SMP, exactly the caveat that already
+ * applies to every load/store on this backend.  Callers whose
+ * correctness depends on real barriers gate on
+ * RETRO_ATOMIC_LOCK_FREE or set RETRO_ATOMIC_REQUIRE_LOCK_FREE. */
+#if defined(__GNUC__)
+#define retro_atomic_thread_fence_acquire() \
+   __asm__ __volatile__("" ::: "memory")
+#define retro_atomic_thread_fence_release() \
+   __asm__ __volatile__("" ::: "memory")
+#elif defined(_MSC_VER)
+#define retro_atomic_thread_fence_acquire() _ReadWriteBarrier()
+#define retro_atomic_thread_fence_release() _ReadWriteBarrier()
+#else
+#define retro_atomic_thread_fence_acquire() ((void)0)
+#define retro_atomic_thread_fence_release() ((void)0)
+#endif
 #endif
 
 /* ---- 64-bit operations -------------------------------------------------
@@ -1128,87 +1152,6 @@ static INLINE int64_t retro_atomic_exchange_64_impl_(retro_atomic_64_t *p, int64
 
 #else
 /* volatile fallback: RETRO_ATOMIC_HAS_64 stays undefined. */
-#endif
-
-
-/* ---- Standalone thread fences ----------------------------------------
-
-   retro_atomic_thread_fence_acquire()
-   retro_atomic_thread_fence_release()
-
-   For the case the load/store macros cannot express: ordering against
-   a value that was read (or will be written) through a NON-atomic or
-   relaxed access, where the pairing still has to hold.  The motivating
-   caller reads a lock-free ring's cursors through a third-party
-   accessor that uses relaxed loads, and must acquire before acting on
-   what it saw.
-
-   Pairing rules are the usual ones: an acquire fence after a load that
-   read a released value orders that thread's subsequent accesses
-   against everything the releasing thread did before its release; a
-   release fence before a store makes prior accesses visible to a
-   thread that acquires after reading it.
-
-   Cost: nothing on x86/x64 (TSO makes both compiler-only), one
-   dmb/lwsync-class instruction on weakly-ordered targets.
-
-   NOTE on the volatile fallback: these degrade to compiler barriers.
-   That is correct on x86/x64 TSO and on single-core, and NOT correct
-   on weakly-ordered SMP - the same caveat that applies to every other
-   operation on that backend (see the backend notes above).  Callers
-   whose correctness depends on real barriers should gate on
-   RETRO_ATOMIC_LOCK_FREE or set RETRO_ATOMIC_REQUIRE_LOCK_FREE.       */
-
-#if defined(RETRO_ATOMIC_BACKEND_C11)
-#define retro_atomic_thread_fence_acquire() \
-   atomic_thread_fence(memory_order_acquire)
-#define retro_atomic_thread_fence_release() \
-   atomic_thread_fence(memory_order_release)
-
-#elif defined(RETRO_ATOMIC_BACKEND_CXX11)
-#define retro_atomic_thread_fence_acquire() \
-   std::atomic_thread_fence(std::memory_order_acquire)
-#define retro_atomic_thread_fence_release() \
-   std::atomic_thread_fence(std::memory_order_release)
-
-#elif defined(RETRO_ATOMIC_BACKEND_GCC_NEW)
-#define retro_atomic_thread_fence_acquire() \
-   __atomic_thread_fence(__ATOMIC_ACQUIRE)
-#define retro_atomic_thread_fence_release() \
-   __atomic_thread_fence(__ATOMIC_RELEASE)
-
-#elif defined(RETRO_ATOMIC_BACKEND_MSVC)
-/* x86/x64 are TSO: a compiler barrier is the whole requirement.
- * ARM/ARM64 need a real instruction; __dmb is available on the MSVC
- * ARM targets, which are all modern enough to have <intrin.h>. */
-#if defined(_M_ARM64) || defined(_M_ARM)
-#include <intrin.h>
-#define retro_atomic_thread_fence_acquire() __dmb(_ARM64_BARRIER_ISH)
-#define retro_atomic_thread_fence_release() __dmb(_ARM64_BARRIER_ISH)
-#else
-#define retro_atomic_thread_fence_acquire() _ReadWriteBarrier()
-#define retro_atomic_thread_fence_release() _ReadWriteBarrier()
-#endif
-
-#elif defined(RETRO_ATOMIC_BACKEND_APPLE)
-/* OSMemoryBarrier is a full barrier; stronger than either fence, but
- * this backend only exists for OS versions predating the alternatives. */
-#define retro_atomic_thread_fence_acquire() OSMemoryBarrier()
-#define retro_atomic_thread_fence_release() OSMemoryBarrier()
-
-#elif defined(RETRO_ATOMIC_BACKEND_SYNC)
-/* __sync_synchronize is a full barrier; stronger than either fence. */
-#define retro_atomic_thread_fence_acquire() __sync_synchronize()
-#define retro_atomic_thread_fence_release() __sync_synchronize()
-
-#else /* RETRO_ATOMIC_BACKEND_VOLATILE */
-#if defined(__GNUC__)
-#define retro_atomic_thread_fence_acquire() __asm__ __volatile__("" ::: "memory")
-#define retro_atomic_thread_fence_release() __asm__ __volatile__("" ::: "memory")
-#else
-#define retro_atomic_thread_fence_acquire() ((void)0)
-#define retro_atomic_thread_fence_release() ((void)0)
-#endif
 #endif
 
 
