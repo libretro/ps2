@@ -1351,11 +1351,15 @@ void retro_set_audio_sample(retro_audio_sample_t /*cb*/) { }
  * instead of the previous realloc-grow-without-limit. */
 #define AUDIO_SPSC_BYTES    (1 << 18) /* 256 KB = 128K int16s, ~1.37 s stereo at 48 kHz */
 #define AUDIO_STAGING_INT16 16384     /* above SPU2 SAMPLECOUNT-capped max reserve (~9.6K) */
-#define AUDIO_DRAIN_INT16   8192      /* consumer chunk */
 static retro_spsc_t audio_spsc;
 static bool         audio_spsc_ok;
 static int16_t      audio_staging[AUDIO_STAGING_INT16];       /* cpu_thread-private */
-static int16_t      audio_drain_scratch[AUDIO_DRAIN_INT16];   /* libretro-thread-private */
+/* Producer mode for the reserve->commit pair in flight: true when
+ * reserve handed out a span inside the ring (zero-copy), false when
+ * it fell back to the staging array because the contiguous span at
+ * the head was smaller than the request (once per ring lap).
+ * cpu_thread-private. */
+static bool         audio_reserve_in_ring;
 static uint32_t     audio_dropped_samples;
 static bool         audio_drop_logged;
 
@@ -1381,20 +1385,21 @@ static void free_output_audio_buffer(void)
 
 static void upload_output_audio_buffer(void)
 {
-   size_t avail;
+   /* Feed batch_cb directly from the ring: read_begin exposes the
+    * contiguous readable span, whose region the producer cannot touch
+    * until read_end frees it.  Frame granularity (4-byte commits)
+    * keeps every span whole-frame-sized and int16-aligned.  At most
+    * two iterations per drain (wrap).  An empty frame uploads
+    * nothing - synthetic silence would break the 48 kHz contract. */
+   const void *span;
+   size_t      span_bytes;
    if (!audio_spsc_ok)
       return;
-   /* Drain whole stereo frames in bounded chunks; multiple batch_cb
-    * calls per retro_run are legal libretro. An empty frame uploads
-    * nothing - synthetic silence would break the 48 kHz contract. */
-   while ((avail = retro_spsc_read_avail(&audio_spsc)) >= 2 * sizeof(int16_t))
+   while ((span_bytes = retro_spsc_read_begin(&audio_spsc, &span)) >= 2 * sizeof(int16_t))
    {
-      size_t take = avail;
-      if (take > sizeof(audio_drain_scratch))
-         take = sizeof(audio_drain_scratch);
-      take &= ~(size_t)(2 * sizeof(int16_t) - 1);
-      retro_spsc_read(&audio_spsc, audio_drain_scratch, take);
-      batch_cb(audio_drain_scratch, take / (2 * sizeof(int16_t)));
+      const size_t take = span_bytes & ~(size_t)(2 * sizeof(int16_t) - 1);
+      batch_cb((const int16_t*)span, take / (2 * sizeof(int16_t)));
+      retro_spsc_read_end(&audio_spsc, take);
    }
 }
 
@@ -1414,23 +1419,38 @@ static void upload_output_audio_buffer(void)
  * stopped. */
 static void discard_buffered_audio(void)
 {
-   size_t avail;
+   /* Producer (cpu_thread) must be paused; drains consumer-side
+    * because retro_spsc_clear requires both sides stopped.  Advances
+    * the tail without copying anything. */
+   const void *span;
+   size_t      span_bytes;
    if (!audio_spsc_ok)
       return;
-   while ((avail = retro_spsc_read_avail(&audio_spsc)) != 0)
-   {
-      size_t take = avail > sizeof(audio_drain_scratch) ? sizeof(audio_drain_scratch) : avail;
-      retro_spsc_read(&audio_spsc, audio_drain_scratch, take);
-   }
+   while ((span_bytes = retro_spsc_read_begin(&audio_spsc, &span)) != 0)
+      retro_spsc_read_end(&audio_spsc, span_bytes);
 }
 
 int16_t *retro_audio_reserve(int32_t max_samples)
 {
-   /* Producer-private staging: cpu_thread fills this with no
-    * synchronization; commit publishes it through the SPSC queue.
-    * NULL on oversize matches the old allocation-failure contract. */
+   void  *span;
+   size_t span_bytes;
+   const size_t need = (size_t)max_samples * sizeof(int16_t);
    if (max_samples > (int32_t)AUDIO_STAGING_INT16 || !audio_spsc_ok)
       return NULL;
+   /* Common case: hand SPU2's Mix a span inside the ring itself -
+    * zero-copy end to end.  Every commit is a whole number of stereo
+    * frames (4 bytes), so head only ever advances by multiples of 4
+    * and the span is int16-aligned by construction.  Falls back to
+    * the producer-private staging array when the contiguous run to
+    * the physical end of the ring is smaller than the request, which
+    * happens at most once per ring lap (~1.3 s of audio). */
+   span_bytes = retro_spsc_write_begin(&audio_spsc, &span);
+   if (span_bytes >= need)
+   {
+      audio_reserve_in_ring = true;
+      return (int16_t*)span;
+   }
+   audio_reserve_in_ring = false;
    return audio_staging;
 }
 
@@ -1438,11 +1458,24 @@ void retro_audio_commit(int32_t samples)
 {
    const size_t bytes = (size_t)samples * sizeof(int16_t);
    if (!samples)
+   {
+      if (audio_reserve_in_ring)
+         retro_spsc_write_end(&audio_spsc, 0); /* abandon */
       return;
+   }
+   if (audio_reserve_in_ring)
+   {
+      /* Mix already wrote into the ring; publishing is one
+       * release-store. */
+      retro_spsc_write_end(&audio_spsc, bytes);
+      return;
+   }
+   /* Wrap fallback: staging -> ring, retro_spsc_write handles the
+    * split copy.  Total free space can still be short if the
+    * frontend stalled past ~1.3 s of buffered audio; drop rather
+    * than grow without bound. */
    if (retro_spsc_write_avail(&audio_spsc) < bytes)
    {
-      /* Frontend stalled past ~1.3 s of buffered audio; drop rather
-       * than grow without bound. */
       audio_dropped_samples += (uint32_t)samples;
       if (!audio_drop_logged)
       {
