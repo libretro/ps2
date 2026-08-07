@@ -3,6 +3,7 @@
 #endif
 
 #include <retro_atomic.h>
+#include <retro_spsc.h>
 
 #include <cstdint>
 #include <libretro.h>
@@ -1332,64 +1333,68 @@ void retro_set_audio_sample(retro_audio_sample_t /*cb*/) { }
  * SPU2 writes stereo int16 samples directly into this buffer during
  * retro_run() via the reserve/commit pair below. One bulk batch_cb()
  * upload happens at the end of retro_run().
+/*
  *
- * Threading: the buffer is touched by SPU2 (cpu_thread) and by
- * upload_output_audio_buffer (libretro thread). They are implicitly
- * serialized by the MTGS ring barrier: cpu_thread blocks in
- * MTGS::WaitGS(false) at PostVsyncStart immediately after queueing the
- * VSYNC packet, and cannot resume - and therefore cannot append more
- * audio - until libretro thread fully drains the ring and the next
- * retro_run wakes it. We read+reset the buffer at end-of-retro_run,
- * before letting cpu_thread make progress, so no concurrent writes
- * race with the upload. */
-static struct {
-   int16_t *data;
-   int32_t size;     /* number of int16s currently filled (left+right interleaved) */
-   int32_t capacity; /* allocated int16s */
-} output_audio_buffer = {NULL, 0, 0};
+ * Threading: SPU2 (cpu_thread) produces, upload_output_audio_buffer
+ * (libretro thread) consumes.  The MTGS vsync barrier serializes them
+ * in the steady state but NOT during boot/loads or whenever the EE
+ * runs ahead of retro_run (TSan: commit racing the end-of-frame
+ * upload).  The handoff is a retro_spsc byte queue - lock-free SPSC
+ * with release/acquire cursors, no mutex anywhere near SPU2 timing
+ * paths.  retro_audio_reserve hands SPU2 a pointer into a
+ * producer-PRIVATE staging array (cpu_thread only, no sync), and
+ * retro_audio_commit publishes the filled samples with one
+ * retro_spsc_write.  The consumer drains in bounded chunks.
+ *
+ * Bounded by design: if the frontend stalls long enough to fill about
+ * 1.3 s of audio, further chunks are dropped (counted, logged once)
+ * instead of the previous realloc-grow-without-limit. */
+#define AUDIO_SPSC_BYTES    (1 << 18) /* 256 KB = 128K int16s, ~1.37 s stereo at 48 kHz */
+#define AUDIO_STAGING_INT16 16384     /* above SPU2 SAMPLECOUNT-capped max reserve (~9.6K) */
+#define AUDIO_DRAIN_INT16   8192      /* consumer chunk */
+static retro_spsc_t audio_spsc;
+static bool         audio_spsc_ok;
+static int16_t      audio_staging[AUDIO_STAGING_INT16];       /* cpu_thread-private */
+static int16_t      audio_drain_scratch[AUDIO_DRAIN_INT16];   /* libretro-thread-private */
+static uint32_t     audio_dropped_samples;
+static bool         audio_drop_logged;
 
-static void ensure_output_audio_buffer_capacity(int32_t capacity)
-{
-   if (capacity <= output_audio_buffer.capacity)
-      return;
-
-   const int32_t old_capacity = output_audio_buffer.capacity;
-   int16_t* new_data = (int16_t*)realloc(output_audio_buffer.data, capacity * sizeof(*output_audio_buffer.data));
-   if (!new_data)
-      return;
-   output_audio_buffer.data = new_data;
-   output_audio_buffer.capacity = capacity;
-   if (old_capacity != 0)
-      log_cb(RETRO_LOG_DEBUG, "Output audio buffer capacity set to %d\n", capacity);
-}
 
 static void init_output_audio_buffer(int32_t capacity)
 {
-   output_audio_buffer.data = NULL;
-   output_audio_buffer.size = 0;
-   output_audio_buffer.capacity = 0;
-   ensure_output_audio_buffer_capacity(capacity);
+   (void)capacity;
+   if (!audio_spsc_ok)
+      audio_spsc_ok = retro_spsc_init(&audio_spsc, AUDIO_SPSC_BYTES);
+   audio_dropped_samples = 0;
+   audio_drop_logged     = false;
 }
 
 static void free_output_audio_buffer(void)
 {
-   free(output_audio_buffer.data);
-   output_audio_buffer.data = NULL;
-   output_audio_buffer.size = 0;
-   output_audio_buffer.capacity = 0;
+   /* Called with cpu_thread joined and no upload in flight. */
+   if (audio_spsc_ok)
+   {
+      retro_spsc_free(&audio_spsc);
+      audio_spsc_ok = false;
+   }
 }
 
 static void upload_output_audio_buffer(void)
 {
-   /* output_audio_buffer.size counts int16s (left+right interleaved);
-    * batch_cb takes stereo frames, hence /2. An empty frame (0 samples)
-    * is legitimate and must not be padded with synthetic silence:
-    * silence padding decouples the audio stream from SPU2's actual
-    * output and breaks both determinism and the 48 kHz contract. */
-   if (output_audio_buffer.size > 0)
+   size_t avail;
+   if (!audio_spsc_ok)
+      return;
+   /* Drain whole stereo frames in bounded chunks; multiple batch_cb
+    * calls per retro_run are legal libretro. An empty frame uploads
+    * nothing - synthetic silence would break the 48 kHz contract. */
+   while ((avail = retro_spsc_read_avail(&audio_spsc)) >= 2 * sizeof(int16_t))
    {
-      batch_cb(output_audio_buffer.data, output_audio_buffer.size / 2);
-      output_audio_buffer.size = 0;
+      size_t take = avail;
+      if (take > sizeof(audio_drain_scratch))
+         take = sizeof(audio_drain_scratch);
+      take &= ~(size_t)(2 * sizeof(int16_t) - 1);
+      retro_spsc_read(&audio_spsc, audio_drain_scratch, take);
+      batch_cb(audio_drain_scratch, take / (2 * sizeof(int16_t)));
    }
 }
 
@@ -1403,21 +1408,50 @@ static void upload_output_audio_buffer(void)
  * would balloon every caller's frame) and the intermediate memcpy
  * the previous push-style API required - SPU2's Mix() now writes
  * straight into the persistent buffer. */
+
+/* Discard everything queued.  Producer (cpu_thread) must be paused;
+ * drains consumer-side because retro_spsc_clear requires both sides
+ * stopped. */
+static void discard_buffered_audio(void)
+{
+   size_t avail;
+   if (!audio_spsc_ok)
+      return;
+   while ((avail = retro_spsc_read_avail(&audio_spsc)) != 0)
+   {
+      size_t take = avail > sizeof(audio_drain_scratch) ? sizeof(audio_drain_scratch) : avail;
+      retro_spsc_read(&audio_spsc, audio_drain_scratch, take);
+   }
+}
+
 int16_t *retro_audio_reserve(int32_t max_samples)
 {
-   if (output_audio_buffer.capacity - output_audio_buffer.size < max_samples)
-   {
-      const int32_t old_capacity = output_audio_buffer.capacity;
-      ensure_output_audio_buffer_capacity(static_cast<int32_t>((output_audio_buffer.capacity + max_samples) * 1.5));
-      if (output_audio_buffer.capacity == old_capacity)
-         return NULL;
-   }
-   return output_audio_buffer.data + output_audio_buffer.size;
+   /* Producer-private staging: cpu_thread fills this with no
+    * synchronization; commit publishes it through the SPSC queue.
+    * NULL on oversize matches the old allocation-failure contract. */
+   if (max_samples > (int32_t)AUDIO_STAGING_INT16 || !audio_spsc_ok)
+      return NULL;
+   return audio_staging;
 }
 
 void retro_audio_commit(int32_t samples)
 {
-   output_audio_buffer.size += samples;
+   const size_t bytes = (size_t)samples * sizeof(int16_t);
+   if (!samples)
+      return;
+   if (retro_spsc_write_avail(&audio_spsc) < bytes)
+   {
+      /* Frontend stalled past ~1.3 s of buffered audio; drop rather
+       * than grow without bound. */
+      audio_dropped_samples += (uint32_t)samples;
+      if (!audio_drop_logged)
+      {
+         audio_drop_logged = true;
+         log_cb(RETRO_LOG_WARN, "Audio SPSC queue full; dropping samples (frontend stalled?)\n");
+      }
+      return;
+   }
+   retro_spsc_write(&audio_spsc, audio_staging, bytes);
 }
 
 void retro_set_environment(retro_environment_t cb)
@@ -1638,7 +1672,7 @@ void retro_reset(void)
 	/* Discard any audio buffered before the reset; carrying pre-reset
 	 * samples into the post-reset stream causes audible glitches and
 	 * leaves the buffer in a non-deterministic starting state. */
-	output_audio_buffer.size = 0;
+	discard_buffered_audio();
 	cpu_thread_resume();
 }
 
@@ -2568,7 +2602,7 @@ bool retro_unserialize(const void* data, size_t size)
 
 	/* Discard buffered audio: any pre-load samples in the buffer no
 	 * longer match the SPU2 state we just restored. */
-	output_audio_buffer.size = 0;
+	discard_buffered_audio();
 
 	cpu_thread_resume();
 	if (!loadme.IsOkay())

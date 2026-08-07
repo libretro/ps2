@@ -16,6 +16,7 @@ target_sources(pcsx2_libretro PRIVATE
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/streams/file_stream.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/time/rtime.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/rthreads/rthreads.c
+   ${CMAKE_SOURCE_DIR}/libretro/libretro-common/queues/retro_spsc.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/vfs/vfs_implementation.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/vfs/vfs_hybrid.c
    ${CMAKE_SOURCE_DIR}/libretro/libretro-common/file/retro_dirent.c
