@@ -136,7 +136,7 @@ int main(int argc, char** argv)
 	 * This sweep drives every command surface over pseudo-random
 	 * bitstreams; the traces are stable, so any change in decode
 	 * behaviour shows up as a diff. */
-	static u8 buf[16 * 32];
+	static u8 sweep_buf[16 * 32];
 	s = 0xBEEF00D;   /* reuse the LCG state variable declared above */
 	/* Exercise VDEC across all four TBL selections and every picture
 	 * type, plus BDEC, on many pseudo-random bit patterns.  TBL 1/2/3
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
 	 * committed golden trace touched. */
 	for (int iter = 0; iter < 400; iter++)
 	{
-		for (size_t i = 0; i < sizeof(buf); i++) { s = s * 1103515245 + 12345; buf[i] = (u8)(s >> 16); }
+		for (size_t i = 0; i < sizeof(sweep_buf); i++) { s = s * 1103515245 + 12345; sweep_buf[i] = (u8)(s >> 16); }
 		for (int pct = 1; pct <= 4; pct++)
 		{
 			for (int tbl = 0; tbl < 4; tbl++)
@@ -156,14 +156,14 @@ int main(int argc, char** argv)
 				ipuRegs.ctrl.PCT = pct;
 				ipuRegs.ctrl.MP1 = (iter & 1);
 				ipuRegs.ctrl.IVF = (iter >> 1) & 1;
-				feed_in(buf, 32);
+				feed_in(sweep_buf, 32);
 				cmd(0x30000000u | ((u32)tbl << 26), tag);
 			}
 		}
 		char btag[64];
 		snprintf(btag, sizeof(btag), "it%03d/bdec", iter);
 		cmd(0x00000000, "bclr");
-		feed_in(buf, 32);
+		feed_in(sweep_buf, 32);
 		cmd(0x20000000u | (1u << 27), btag);
 
 		/* IDEC: the intra slice decoder - the FMV path, and the only
@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 			snprintf(itag, sizeof(itag), "it%03d/idec/pct%d", iter, pct);
 			cmd(0x00000000, "bclr");
 			ipuRegs.ctrl.PCT = pct;
-			feed_in(buf, 32);
+			feed_in(sweep_buf, 32);
 			cmd(0x10000000u | (1u << 24) | (0x10u << 16), itag); /* IDEC QSC=16, DTD/SGN off */
 		}
 	}

@@ -99,9 +99,14 @@ __ri static s32 SBITS(uint bits)
 
 	uint readpos8 = g_BP.BP/8;
 
-	int result = BigEndian(*(s32*)( (s8*)g_BP.internal_qwc + readpos8 ));
+	/* memcpy: the bitstream position is byte-, not word-aligned, so a
+	 * typed s32 load is UB.  Do the left shift in the unsigned domain:
+	 * shifting a negative/overflowing int is UB too, and the bit
+	 * pattern is identical. */
+	u32 rawbits;
+	memcpy(&rawbits, (const s8*)g_BP.internal_qwc + readpos8, sizeof(rawbits));
 	uint bp7 = (g_BP.BP & 7);
-	result <<= bp7;
+	s32 result = (s32)(BigEndian(rawbits) << bp7);
 	result >>= (32 - bits);
 
 	return result;
@@ -157,12 +162,18 @@ __ri static u8 getBits32(u8 *address)
 		u32 mask = (0xff >> shift);
 		mask = mask | (mask << 8) | (mask << 16) | (mask << 24);
 
-		*(u32*)address = ((~mask & *(u32*)(readpos + 1)) >> (8 - shift)) | (((mask) & *(u32*)readpos) << shift);
+		u32 lo_, hi_;
+		memcpy(&lo_, readpos, sizeof(lo_));
+		memcpy(&hi_, readpos + 1, sizeof(hi_));
+		const u32 merged_ = ((~mask & hi_) >> (8 - shift)) | ((mask & lo_) << shift);
+		memcpy(address, &merged_, sizeof(merged_));
 	}
 	else
 	{
 		// Bit position-aligned -- no masking/shifting necessary
-		*(u32*)address = *(u32*)readpos;
+		u32 word_;
+		memcpy(&word_, readpos, sizeof(word_));
+		memcpy(address, &word_, sizeof(word_));
 	}
 
 	return 1;
