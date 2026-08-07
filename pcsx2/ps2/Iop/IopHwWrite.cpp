@@ -491,7 +491,7 @@ void iopHwWrite32_Page1( u32 addr, mem32_t val )
 
 void iopHwWrite32_Page3( u32 addr, mem32_t val )
 {
-	psxHu16(addr) = val;
+	psxHu32(addr) = val;
 }
 
 void iopHwWrite32_Page8( u32 addr, mem32_t val )
