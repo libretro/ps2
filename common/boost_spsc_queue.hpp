@@ -170,15 +170,28 @@ public:
      * \return true, if the ringbuffer is empty, false otherwise
      * \note Due to the concurrent nature of the ringbuffer the result may be inaccurate.
      * */
+    /* ACQUIRE on both cursors, deliberately.  push/pop/consume_one can
+     * use relaxed on their OWN cursor because they alone write it, and
+     * acquire on the other; these two query helpers have no such
+     * ownership - either thread may call them, and callers act on the
+     * answer.  With relaxed loads no happens-before is established, so
+     * a caller that sees "empty" may still race the other thread's
+     * buffer accesses: correct-looking on x86 TSO, a real ordering bug
+     * on arm64, and a genuine C++ data race that ThreadSanitizer
+     * reports on any host.  GSRasterizerList::IsSynced() -> IsEmpty()
+     * -> empty() is exactly that pattern: it gates the Sync() in
+     * GSRendererSW::InvalidateVideoMem/InvalidateLocalMem, so a
+     * relaxed "synced" answer lets a local-memory transfer proceed
+     * against in-flight rasterizer writes. */
     bool empty(void)
     {
-        return empty(write_index_.load(std::memory_order_relaxed), read_index_.load(std::memory_order_relaxed));
+        return empty(write_index_.load(std::memory_order_acquire), read_index_.load(std::memory_order_acquire));
     }
 
     size_t size() const
     {
-        const size_t write_index =  write_index_.load(std::memory_order_relaxed);
-        const size_t read_index = read_index_.load(std::memory_order_relaxed);
+        const size_t write_index =  write_index_.load(std::memory_order_acquire);
+        const size_t read_index = read_index_.load(std::memory_order_acquire);
         if (read_index > write_index)
             return (write_index + max_size) - read_index;
 	return write_index - read_index;

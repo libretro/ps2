@@ -27,31 +27,25 @@ race:gsWrite64_page_00
 race:MTGS::MainLoop
 #
 # ---------------------------------------------------------------------
-# TRACKED - genuine bug class, NOT yet root-caused.
+# TRACKED - one entry left, worker-vs-worker inside a single draw.
 #
-# GS local memory is written from two directions without reliable
-# mutual exclusion: a host->local transfer on the GS/EE side
-# (WriteImageX -> WritePixel4HH and friends, read-modify-write) racing
-# an in-flight SW rasterizer draw on a worker thread (DrawRectT /
-# FillBlock, 8-byte stores) at the SAME address.
+# The host-transfer-vs-draw races previously listed here
+# (WriteImageX -> WritePixel4HH/4HL/8H against DrawRectT/FillBlock)
+# were ROOT-CAUSED and FIXED: boost_spsc_queue's empty()/size()
+# loaded both cursors relaxed, so GSRasterizerList::IsSynced() ->
+# IsEmpty() established no happens-before, and the Sync() gate in
+# GSRendererSW::InvalidateVideoMem/InvalidateLocalMem could let a
+# transfer proceed against in-flight rasterizer writes.  Making those
+# two query helpers acquire removed every one of those reports.
+# Their entries are deleted rather than kept 'just in case' - a
+# suppression for a fixed bug hides its regression.
 #
-# This is NOT a worker-vs-worker sub-word packing problem, and it is
-# NOT fixable with an atomic RMW or by widening scanline ownership -
-# an earlier note in this file said so and was wrong.  GSRendererSW
-# already has the intended mechanism: InvalidateVideoMem /
-# InvalidateLocalMem consult m_fzb_pages / m_tex_pages and call
-# Sync() when a transfer touches pages the rasterizer is using.  A
-# race reaching WritePixel4HH means that page tracking has a GAP -
-# wrong page set for the rect, a transfer path that skips the
-# Invalidate call, or a tracking update ordered after the transfer.
-#
-# Next step is therefore diagnostic, not a fix: instrument the
-# Invalidate paths to assert that every page touched by a transfer is
-# either untracked or Sync()'d first, and find which transfer slips
-# through.  Only then does a fix (and its FPS measurement) make
-# sense.  User-visible symptom today is rare corrupted texels/pixels
-# in content that streams textures while drawing.
-race:GSLocalMemory::WritePixel4HH
-race:GSLocalMemory::WritePixel4HL
-race:GSLocalMemory::WritePixel8H
+# What remains is a different pairing: two SW worker threads writing
+# the same 4-byte location from within GSRasterizer::Draw itself.
+# Scanline ownership should make that impossible, so either the
+# slicing has an overlap case or the address is shared state rather
+# than framebuffer.  Not yet root-caused; the fix is rasterizer-hot
+# either way and must go through the FPS harness on worst-case
+# content before shipping (reference: the S2DEX per-draw flush
+# regression, 900 -> 68 fps).
 race:GSRasterizer::Draw
