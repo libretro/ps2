@@ -1656,8 +1656,8 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 		case N_CD_READ: // CdRead
 		{
 			// Assign the seek to sector based on cdvd.Param[0]-[3], and the number of  sectors based on cdvd.Param[4]-[7].
-			cdvd.SeekToSector  = *(u32*)(cdvd.NCMDParamBuff + 0);
-			cdvd.SectorCnt     = *(u32*)(cdvd.NCMDParamBuff + 4);
+			memcpy(&cdvd.SeekToSector, cdvd.NCMDParamBuff + 0, sizeof(u32));
+			memcpy(&cdvd.SectorCnt,    cdvd.NCMDParamBuff + 4, sizeof(u32));
 			cdvd.RetryCntMax   = (cdvd.NCMDParamBuff[8] == 0) ? 0x100 : cdvd.NCMDParamBuff[8];
 			u32 oldSpindleCtrl = cdvd.SpindlCtrl;
 
@@ -1764,8 +1764,8 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 				return;
 			}
 			// Assign the seek to sector based on cdvd.Param[0]-[3], and the number of  sectors based on cdvd.Param[4]-[7].
-			cdvd.SeekToSector  = *(u32*)(cdvd.NCMDParamBuff + 0);
-			cdvd.SectorCnt     = *(u32*)(cdvd.NCMDParamBuff + 4);
+			memcpy(&cdvd.SeekToSector, cdvd.NCMDParamBuff + 0, sizeof(u32));
+			memcpy(&cdvd.SectorCnt,    cdvd.NCMDParamBuff + 4, sizeof(u32));
 			cdvd.RetryCntMax   = (cdvd.NCMDParamBuff[8] == 0) ? 0x100 : cdvd.NCMDParamBuff[8];
 
 			u32 oldSpindleCtrl = cdvd.SpindlCtrl;
@@ -1848,8 +1848,8 @@ static void cdvdWrite04(u8 rt) /* NCOMMAND */
 				return;
 			}
 			// Assign the seek to sector based on cdvd.Param[0]-[3], and the number of  sectors based on cdvd.Param[4]-[7].
-			cdvd.SeekToSector  = *(u32*)(cdvd.NCMDParamBuff + 0);
-			cdvd.SectorCnt     = *(u32*)(cdvd.NCMDParamBuff + 4);
+			memcpy(&cdvd.SeekToSector, cdvd.NCMDParamBuff + 0, sizeof(u32));
+			memcpy(&cdvd.SectorCnt,    cdvd.NCMDParamBuff + 4, sizeof(u32));
 
 			u32 oldSpindleCtrl = cdvd.SpindlCtrl;
 

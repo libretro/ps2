@@ -146,7 +146,10 @@ static int FindDiskType(int mType)
 				//Horrible hack! in CD images position 166 and 171 have block size but not DVD's
 				//It's not always 2048 however (can be 4096)
 				//Test Impossible Mission if thia is changed.
-				if (*(u16*)(bleh + 166) == *(u16*)(bleh + 171))
+				u16 bs166_, bs171_;
+				memcpy(&bs166_, bleh + 166, sizeof(u16));
+				memcpy(&bs171_, bleh + 171, sizeof(u16));
+				if (bs166_ == bs171_)
 					iCDType = CDVD_TYPE_DETCTCD;
 				else
 					iCDType = CDVD_TYPE_DETCTDVDS;

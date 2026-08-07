@@ -144,7 +144,15 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 			break;
 
 			default:
-				psxHu(addr) = val;
+			{
+				/* Behavior-preserving conversion of the typed u32 store
+				 * (guest may pass any alignment).  NOTE: the 8/16-bit
+				 * handlers have always stored a full u32 here via the
+				 * untyped psxHu macro - kept bit-identical, flagged for a
+				 * separate width-correctness review. */
+				const u32 hwval_ = val;
+				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(u32));
+			}
 			break;
 		}
 	}
@@ -177,7 +185,15 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 			break;
 
 			default:
-				psxHu(addr) = val;
+			{
+				/* Behavior-preserving conversion of the typed u32 store
+				 * (guest may pass any alignment).  NOTE: the 8/16-bit
+				 * handlers have always stored a full u32 here via the
+				 * untyped psxHu macro - kept bit-identical, flagged for a
+				 * separate width-correctness review. */
+				const u32 hwval_ = val;
+				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(u32));
+			}
 			break;
 		}
 	}
@@ -434,7 +450,15 @@ static __fi void _HwWrite_16or32_Page1( u32 addr, T val )
 			break;
 
 			default:
-				psxHu(addr) = val;
+			{
+				/* Behavior-preserving conversion of the typed u32 store
+				 * (guest may pass any alignment).  NOTE: the 8/16-bit
+				 * handlers have always stored a full u32 here via the
+				 * untyped psxHu macro - kept bit-identical, flagged for a
+				 * separate width-correctness review. */
+				const u32 hwval_ = val;
+				memcpy(&iopHw[addr & 0xffff], &hwval_, sizeof(u32));
+			}
 			break;
 		}
 	}

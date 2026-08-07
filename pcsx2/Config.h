@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <array>
 #include <string>
 #include <optional>
@@ -643,10 +644,10 @@ struct Pcsx2Config
 				&& (EthDevice == right.EthDevice)
 				&& (EthLogDNS == right.EthLogDNS)
 				&& (InterceptDHCP == right.InterceptDHCP)
-				&& (*(int*)PS2IP == *(int*)right.PS2IP)
-				&& (*(int*)Gateway == *(int*)right.Gateway)
-				&& (*(int*)DNS1 == *(int*)right.DNS1)
-				&& (*(int*)DNS2 == *(int*)right.DNS2)
+				&& (memcmp(PS2IP, right.PS2IP, 4) == 0)
+				&& (memcmp(Gateway, right.Gateway, 4) == 0)
+				&& (memcmp(DNS1, right.DNS1, 4) == 0)
+				&& (memcmp(DNS2, right.DNS2, 4) == 0)
 				&& (AutoMask    == right.AutoMask)
 				&& (AutoGateway == right.AutoGateway)
 				&& (ModeDNS1    == right.ModeDNS1)

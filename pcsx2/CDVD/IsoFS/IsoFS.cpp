@@ -214,8 +214,9 @@ IsoFileDescriptor::IsoFileDescriptor(const u8* data, int length)
 
 void IsoFileDescriptor::Load(const u8* data, int length)
 {
-	lba = (u32&)data[2];
-	size = (u32&)data[10];
+	/* ISO descriptor fields are byte-packed; memcpy the LE u32s. */
+	memcpy(&lba, &data[2], sizeof(u32));
+	memcpy(&size, &data[10], sizeof(u32));
 
 	date.year = data[18] + 1900;
 	date.month = data[19];
