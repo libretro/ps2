@@ -1578,14 +1578,35 @@ static bool RETRO_CALLCONV add_image_index(void)
 	return true;
 }
 
+/* The frontend calls set_initial_image() immediately before
+ * retro_load_game, which is before the playlist has been read - so
+ * disk_images is still empty and nothing here can be validated yet.
+ * Both arguments are kept for retro_load_game to check once it knows
+ * what the playlist contains. */
+static int initial_image_index = 0;
+static std::string initial_image_path;
+
 static bool RETRO_CALLCONV set_initial_image(unsigned index, const char* path)
 {
-	if (index >= disk_images.size())
-		index = 0;
-
-	image_index = index;
-
+	initial_image_index = (int)index;
+	initial_image_path  = path ? path : "";
 	return true;
+}
+
+/* Insert the disc the frontend asked to resume on, if the playlist
+ * still agrees with what it was told.  libretro's contract is to fall
+ * back to index 0 when the index is out of range or the path at that
+ * index is not the one the frontend named, which is how a playlist
+ * edited between sessions stops the wrong disc being inserted. */
+static void apply_initial_image(void)
+{
+	if (     initial_image_index > 0
+		 && initial_image_index < (int)disk_images.size()
+		 && (initial_image_path.empty()
+			 || disk_images[initial_image_index] == initial_image_path))
+		set_image_index((unsigned)initial_image_index);
+	else
+		set_image_index(0);
 }
 
 static bool RETRO_CALLCONV get_image_path(unsigned index, char* path, size_t len)
@@ -2427,7 +2448,7 @@ bool retro_load_game(const struct retro_game_info* game)
 					}
 				}
 
-				set_image_index(0);
+				apply_initial_image();
 				get_image_path(get_image_index(), game_abs, sizeof(game_abs));
 				boot_params.filename = game_abs;
 
