@@ -930,6 +930,25 @@ void GameDatabase::ensureLoaded()
 	}
 }
 
+void GameDatabase::unload()
+{
+	/* Held under the same lock ensureLoaded() takes, so a concurrent
+	 * lookup either completes before the clear or reloads after it -
+	 * it cannot observe a half-emptied map.
+	 *
+	 * The parse is 12806 entries for about 7 MB resident and ~50 ms of
+	 * work, and every consumer of it - gamefixes, patches, the memcard
+	 * and disc-swap paths - is a VM-lifetime event.  With no VM there
+	 * is nothing to look a game up for, so the cost is worth carrying
+	 * only while content is loaded.  swap() rather than clear() because
+	 * clear() on an unordered_map keeps the bucket array. */
+	Threading::ScopedLock lock(s_load_once_mutex);
+	if (!s_load_once_done)
+		return;
+	decltype(s_game_db)().swap(s_game_db);
+	s_load_once_done = false;
+}
+
 const GameDatabaseSchema::GameEntry* GameDatabase::findGame(const std::string_view& serial)
 {
 	GameDatabase::ensureLoaded();

@@ -121,5 +121,8 @@ namespace GameDatabaseSchema
 namespace GameDatabase
 {
 	void ensureLoaded();
+	/* Drop the parsed database.  Safe at any time: findGame() goes
+	 * through ensureLoaded(), so the next lookup re-reads the file. */
+	void unload();
 	const GameDatabaseSchema::GameEntry* findGame(const std::string_view& serial);
 }; // namespace GameDatabase
