@@ -89,6 +89,41 @@ bool CsoFileReader::ValidateHeader(const CsoHeader& hdr)
 		Console.Error("CSO frame size must be at least one sector.");
 		return false;
 	}
+	/* The three fields below decide how much memory the header can make
+	 * us allocate, and none of them was bounded.
+	 *
+	 * frame_size only had to be a power of two of at least 2048, so
+	 * 0x80000000 passed and asked new[] for 2 GB - on a build compiled
+	 * -fno-exceptions, where a failed allocation is not something that
+	 * can be reported.  16 MiB is already far past any real CSO, whose
+	 * frames run 2 KiB to 64 KiB.
+	 *
+	 * align is a shift.  At 32 or more, 1 << align is undefined; a
+	 * little under that it makes the read buffer enormous.  It shifts
+	 * index values into file offsets, so anything past 16 already
+	 * describes a file no real tool produces.
+	 *
+	 * total_bytes drives the frame count and with it the index
+	 * allocation.  At 0xFFFFFFFFFFFFFFFF the frame count truncates to
+	 * u32 and the +1 for the index wraps to zero, which reads nothing,
+	 * compares equal to the expected count, and leaves every later
+	 * index lookup reading off the end of a zero-length array.  A
+	 * double-layer DVD is 8.5 GB; 64 GiB is room to spare. */
+	if (hdr.frame_size > (16 * 1024 * 1024))
+	{
+		Console.Error("CSO frame size of %u is implausible.", hdr.frame_size);
+		return false;
+	}
+	if (hdr.align > 16)
+	{
+		Console.Error("CSO index alignment shift of %u is implausible.", hdr.align);
+		return false;
+	}
+	if (hdr.total_bytes == 0 || hdr.total_bytes > (64ULL * 1024 * 1024 * 1024))
+	{
+		Console.Error("CSO total size is zero or implausible.");
+		return false;
+	}
 
 	// All checks passed, this is a good CSO header.
 	return true;
@@ -147,7 +182,15 @@ bool CsoFileReader::ReadFileHeader()
 bool CsoFileReader::InitializeBuffers()
 {
 	// Round up, since part of a frame requires a full frame.
-	u32 numFrames = (u32)((m_totalSize + m_frameSize - 1) / m_frameSize);
+	const u64 frames64 = (m_totalSize + m_frameSize - 1) / m_frameSize;
+	/* Bounded by the header checks above, but the cast is only safe
+	 * because of them - keep the two together. */
+	if (frames64 >= 0xFFFFFFFFULL)
+	{
+		Console.Error("CSO frame count is implausible.");
+		return false;
+	}
+	u32 numFrames = (u32)frames64;
 
 	// We might read a bit of alignment too, so be prepared.
 	if (m_frameSize + (1 << m_indexShift) < CSO_READ_BUFFER_SIZE)
