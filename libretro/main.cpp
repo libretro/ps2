@@ -2139,14 +2139,19 @@ static void get_first_track_from_cue(std::string &path)
 	snprintf(basedir, sizeof(basedir), "%s", path.c_str());
 	path_basedir(basedir);
 
-	FILE *cue_file = fopen(path.c_str(), "r");
+	/* Through the VFS, like every other file this core opens.  fopen()
+	 * takes the path in the local 8-bit encoding, so on Windows a cue
+	 * sitting under a path with any non-ASCII character in it simply
+	 * did not open. */
+	RFILE *cue_file = filestream_open(path.c_str(),
+			RETRO_VFS_FILE_ACCESS_READ, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 	if (!cue_file)
 	{
 		log_cb(RETRO_LOG_ERROR, "Failed to open cue file.\n");
 		return;
 	}
 
-	while (fgets(buffer, sizeof(buffer), cue_file))
+	while (filestream_gets(cue_file, buffer, sizeof(buffer)))
 	{
 		std::string line(buffer);
 		size_t pos = line.find(line_start);
@@ -2156,15 +2161,22 @@ static void get_first_track_from_cue(std::string &path)
 			size_t end = line.find(line_end, start);
 			if (end != std::string::npos)
 			{
-				fclose(cue_file);
-				path = basedir + line.substr(start, end - start);
+				const std::string track(line.substr(start, end - start));
+				filestream_close(cue_file);
+				/* An absolute FILE entry is already the path; joining it
+				 * to the cue's own directory produced nonsense like
+				 * /games//games/disc.bin and the track was not found. */
+				if (path_is_absolute(track.c_str()))
+					path = track;
+				else
+					path = basedir + track;
 				return;
 			}
 		}
 	}
 
 	log_cb(RETRO_LOG_ERROR, "Failed to find a valid track from cue file.\n");
-	fclose(cue_file);
+	filestream_close(cue_file);
 }
 
 /* What retro_load_game() has to undo when it fails.
