@@ -115,10 +115,25 @@ VirtualMemoryManager::~VirtualMemoryManager()
 		delete[] m_pageuse;
 	if (m_baseptr)
 	{
+		const size_t bytes = m_pages_reserved * __pagesize;
 		if (m_file_handle)
-			HostSys::UnmapSharedMemory((void*)m_baseptr, m_pages_reserved * __pagesize);
+		{
+			HostSys::UnmapSharedMemory((void*)m_baseptr, bytes);
+#ifndef _WIN32
+			/* On POSIX, UnmapSharedMemory does not unmap: it drops the
+			 * shared mapping by overlaying an anonymous PROT_NONE
+			 * MAP_FIXED region, which keeps the address range reserved.
+			 * That is what SharedMemoryMappingArea::Unmap wants - it
+			 * frees one page out of an area it still owns - but this
+			 * destructor owns the whole region and is giving it back, so
+			 * the placeholder has to go too.  Without this the range
+			 * stays in the address space as ---p for the life of the
+			 * process, and every VM teardown leaks its full size. */
+			HostSys::Munmap(m_baseptr, bytes);
+#endif
+		}
 		else
-			HostSys::Munmap(m_baseptr, m_pages_reserved * __pagesize);
+			HostSys::Munmap(m_baseptr, bytes);
 	}
 	if (m_file_handle)
 		HostSys::DestroySharedMemory(m_file_handle);
