@@ -81,6 +81,9 @@ static CDVD_API CDVDapi_NoDisc =
 //////////////////////////////////////////////////////////////////////////////////////////
 // Disk Type detection stuff (from cdvdGigaherz)
 //
+/* Generous: real ones are well under a kilobyte. */
+static constexpr u32 MAX_SYSTEM_CNF_SIZE = 1024 * 1024;
+
 static int CheckDiskTypeFS(int baseType)
 {
 	IsoFSCDVD isofs;
@@ -89,10 +92,29 @@ static int CheckDiskTypeFS(int baseType)
 	{
 		if (IsoFile file(isofs); file.open(rootdir, "SYSTEM.CNF;1"))
 		{
-			const int size = file.getLength();
-			const std::unique_ptr<char[]> buffer = std::make_unique<char[]>(size + 1);
-			file.read(buffer.get(), size);
-			buffer[size] = '\0';
+			/* The length is a u32 read straight out of the directory
+			 * record, so it is whatever the image says it is - up to
+			 * 4 GiB - and it used to go through int on the way here.
+			 *
+			 * A record declaring 0xFFFFFFFF gave size == -1: the
+			 * allocation became make_unique<char[]>(0), the read
+			 * returned 0 because it rejects negative lengths, and then
+			 * buffer[size] wrote a NUL one byte *before* the block.
+			 * strstr() then walked an uninitialised zero-length buffer
+			 * looking for "BOOT2".  A record declaring 0x80000000
+			 * instead asked new[] for ~2 GiB, which this build cannot
+			 * report as a failure - it is compiled -fno-exceptions.
+			 *
+			 * A real SYSTEM.CNF is a few hundred bytes.  Cap what a
+			 * disc can make us allocate, and terminate at the number of
+			 * bytes actually read rather than the number claimed. */
+			const u32 claimed = file.getLength();
+			if (claimed == 0 || claimed > MAX_SYSTEM_CNF_SIZE)
+				return CDVD_TYPE_ILLEGAL;
+
+			const std::unique_ptr<char[]> buffer = std::make_unique<char[]>(claimed + 1);
+			const s32 got = file.read(buffer.get(), static_cast<s32>(claimed));
+			buffer[(got > 0) ? got : 0] = '\0';
 
 			char* pos = strstr(buffer.get(), "BOOT2");
 			if (!pos)
