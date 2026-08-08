@@ -622,6 +622,12 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 
 	if (!DoCDVDopen())
 	{
+		/* Every failure below this point unwinds what it opened; this
+		 * one used to return with the memory cards still open and the
+		 * CDVD source still set, which is the path an unreadable or
+		 * oversized disc image takes. */
+		CDVDsys_ClearFiles();
+		FileMcd_EmuClose();
 		s_vm_thread_handle = {};
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
@@ -634,6 +640,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		SPU2::Close();
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
+		FileMcd_EmuClose();
 		s_vm_thread_handle = {};
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
@@ -646,6 +653,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		SPU2::Close();
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
+		FileMcd_EmuClose();
 		s_vm_thread_handle = {};
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;
@@ -660,6 +668,7 @@ bool VMManager::Initialize(VMBootParameters boot_params)
 		SPU2::Close();
 		DoCDVDclose();
 		CDVDsys_ClearFiles();
+		FileMcd_EmuClose();
 		s_vm_thread_handle = {};
 		retro_atomic_store_release_int(&s_state, (int)VMState::Shutdown);
 		return false;

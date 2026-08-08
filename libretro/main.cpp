@@ -2167,6 +2167,49 @@ static void get_first_track_from_cue(std::string &path)
 	fclose(cue_file);
 }
 
+/* What retro_load_game() has to undo when it fails.
+ *
+ * The frontend does not call retro_unload_game() after retro_load_game()
+ * returns false - there is nothing loaded to unload - so every early
+ * return past CPUThreadInitialize() used to leave the whole VM-thread
+ * allocation behind: SysMainMemory's EE/IOP/VU RAM and vtlb
+ * reservations, the recompiler caches from InitializeCPUProviders, plus
+ * GSinit/SPU2::Initialize/USBinit.  The core stayed resident holding
+ * all of it, which is what a failed load looked like from the outside -
+ * RetroArch still running, memory never coming back.
+ *
+ * Flagged rather than merely ordered, so it is safe to call from a
+ * failure path and again from retro_unload_game without either one
+ * having to know whether the other ran. */
+static bool s_cpu_thread_initialized = false;
+static bool s_input_initialized      = false;
+static bool s_vulkan_library_loaded  = false;
+
+static void libretro_teardown_cpu_thread(void)
+{
+	if (s_input_initialized)
+	{
+		Input::Shutdown();
+		s_input_initialized = false;
+	}
+
+#ifdef ENABLE_VULKAN
+	if (s_vulkan_library_loaded)
+	{
+		Vulkan::UnloadVulkanLibrary();
+		s_vulkan_library_loaded = false;
+	}
+#endif
+
+	if (s_cpu_thread_initialized)
+	{
+		VMManager::Internal::CPUThreadShutdown();
+		s_cpu_thread_initialized = false;
+		((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(
+				LayeredSettingsInterface::LAYER_BASE, nullptr);
+	}
+}
+
 bool retro_load_game(const struct retro_game_info* game)
 {
 	VMBootParameters boot_params;
@@ -2189,6 +2232,7 @@ bool retro_load_game(const struct retro_game_info* game)
 	EmuFolders::LoadConfig(*bsi);
 	EmuFolders::EnsureFoldersExist();
 	VMManager::Internal::CPUThreadInitialize();
+	s_cpu_thread_initialized = true;
 	VMManager::LoadSettings();
 
 	check_variables(true);
@@ -2196,13 +2240,18 @@ bool retro_load_game(const struct retro_game_info* game)
 	if (setting_bios.empty())
 	{
 		log_cb(RETRO_LOG_ERROR, "Could not find any valid PS2 BIOS File in %s\n", EmuFolders::Bios.c_str());
+		libretro_teardown_cpu_thread();
 		return false;
 	}
 
 	Input::Init();
+	s_input_initialized = true;
 
 	if (!libretro_select_hw_render())
+	{
+		libretro_teardown_cpu_thread();
 		return false;
+	}
 
 	if (is_software_setting(setting_renderer))
 		s_settings_interface.SetIntValue("EmuCore/GS", "Renderer", (int)GSRendererType::SW);
@@ -2250,6 +2299,7 @@ bool retro_load_game(const struct retro_game_info* game)
 					environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE, (void*)&iface);
 				}
 				Vulkan::LoadVulkanLibrary();
+				s_vulkan_library_loaded = true;
 				vk_libretro_init_wraps();
 			}
 			break;
@@ -2384,6 +2434,7 @@ bool retro_load_game(const struct retro_game_info* game)
 				"VM initialization failed (BIOS/disc/peripheral open); failing content load.\n");
 			if (cpu_thread.Joinable())
 				cpu_thread.Join();
+			libretro_teardown_cpu_thread();
 			return false;
 		}
 		Threading::Timeslice();
@@ -2419,15 +2470,16 @@ void retro_unload_game(void)
 	 * post wakes it), the wakeup cannot be lost.  The old mutex+condvar
 	 * version needed a lock across the notify for the same guarantee. */
 	cpu_thread_resume_sema.Post();
-	Input::Shutdown();
+	/* Input goes down before the join, as it always has: the ordering
+	 * here is not this commit's to change.  The teardown helper is
+	 * flagged, so it will not touch input a second time. */
+	if (s_input_initialized)
+	{
+		Input::Shutdown();
+		s_input_initialized = false;
+	}
 	cpu_thread.Join();
-#ifdef ENABLE_VULKAN
-	if (hw_render.context_type == RETRO_HW_CONTEXT_VULKAN)
-		Vulkan::UnloadVulkanLibrary();
-#endif
-	VMManager::Internal::CPUThreadShutdown();
-
-	((LayeredSettingsInterface*)Host::GetSettingsInterface())->SetLayer(LayeredSettingsInterface::LAYER_BASE, nullptr);
+	libretro_teardown_cpu_thread();
 
 	retro_set_region(RETRO_REGION_NTSC); /* set back to default */
 }
