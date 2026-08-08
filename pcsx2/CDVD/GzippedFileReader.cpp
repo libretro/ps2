@@ -242,8 +242,15 @@ ThreadedFileReader::Chunk GzippedFileReader::ChunkForOffset(u64 offset)
 	else
 	{
 		chunk.chunkID = static_cast<s64>(offset) / m_index->span;
-		chunk.length = static_cast<u32>(std::min<u64>(m_index->uncompressed_size - offset, m_index->span));
-		chunk.offset = static_cast<u64>(chunk.chunkID) * m_index->span;
+		chunk.offset  = static_cast<u64>(chunk.chunkID) * m_index->span;
+		/* Measured from the start of the chunk, not from the offset that
+		 * happened to be asked for.  ReadChunk always decompresses the
+		 * whole chunk starting at chunkID * span, so a request landing
+		 * partway into one described a buffer shorter than what would be
+		 * written into it - by exactly how far into the chunk the caller
+		 * had asked. */
+		chunk.length  = static_cast<u32>(std::min<u64>(
+					m_index->uncompressed_size - chunk.offset, m_index->span));
 	}
 
 	return chunk;
