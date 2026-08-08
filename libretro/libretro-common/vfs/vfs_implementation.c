@@ -20,6 +20,33 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+/* Large-file support is requested here rather than by the build,
+ * because a build flag is one more thing every consumer of this file
+ * has to get right and the failure when one does not is silent: a
+ * 32-bit off_t truncates a seek into a read somewhere else in the
+ * file.  These must precede every header in the translation unit.
+ *
+ * Not on Android: bionic did not support _FILE_OFFSET_BITS=64 until
+ * API 24, and asking for it on an older level removes mmap() and
+ * friends from the ABI rather than widening them.  Android instead
+ * takes the explicit lseek64() path below, which bionic has always
+ * had at every API level.
+ *
+ * Not on Windows either, where the CRT has no such knob - off_t is
+ * long there and stays 32 bits even in a 64-bit build.  Windows uses
+ * the _lseeki64 path below. */
+#if !defined(_WIN32)
+#if !defined(__ANDROID__) && !defined(_FILE_OFFSET_BITS)
+#define _FILE_OFFSET_BITS 64
+#endif
+#if !defined(_LARGEFILE_SOURCE)
+#define _LARGEFILE_SOURCE 1
+#endif
+#if !defined(_LARGEFILE64_SOURCE)
+#define _LARGEFILE64_SOURCE 1
+#endif
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -229,6 +256,115 @@
 
 #define RFILE_HINT_UNBUFFERED (1 << 8)
 
+/* 64-bit seek on the descriptor path.
+ *
+ * The buffered path seeks with _fseeki64/fseeko.  The descriptor path
+ * - the one RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS selects, and
+ * the only one a memory-mapped file ever uses - seeked with lseek()
+ * and off_t.  off_t is 32 bits on every Windows build, 64-bit ones
+ * included (long is 32-bit there), and on any Unix built without
+ * large-file support.  A file of 2 GiB or more therefore could not be
+ * seeked, and because retro_vfs_file_open_impl() sizes a new handle by
+ * seeking to its end, the failure landed on stream->size and
+ * stream->mapsize at open: the whole file came back as size 0 or a
+ * negative one, and the mapping was skipped.  Disc images are exactly
+ * the files that cross that line.
+ *
+ * The width is settled at compile time, in this order:
+ *
+ *   Windows    SetFilePointer with the high-order dword, on the
+ *              handle behind the descriptor.  Deliberately not the
+ *              CRT's _lseeki64: that arrived with Visual C++ 4 and is
+ *              exported by the msvcrt.dll of that era onwards, but
+ *              Windows 95 shipped without an msvcrt.dll at all and
+ *              which one a 9x box ended up with came down to what an
+ *              installer happened to drop there.  SetFilePointer has
+ *              no such history - it is the original Win32 seek, in
+ *              kernel32 since NT 3.1 and Windows 95 RTM, and it is
+ *              what the CRT's own _lseeki64 calls underneath.  (Not
+ *              SetFilePointerEx, which is XP and up and would be the
+ *              one call here that 9x could not make.)  The Xbox XDKs
+ *              have it too, alongside the _get_osfhandle this file
+ *              already uses for the Win32 mapping path, so no console
+ *              needs a case of its own.  Note that on the original
+ *              Xbox the buffered path is stuck at 32 bits regardless:
+ *              that CRT has fseek(long) and no _fseeki64, so a large
+ *              file there is reachable only through this path.
+ *
+ *              INVALID_SET_FILE_POINTER is also a legitimate low
+ *              dword for a file this size, hence the SetLastError
+ *              dance rather than a bare comparison.
+ *
+ *              Store/UWP targets, where SetFilePointer is outside the
+ *              app API partition, take _lseeki64 instead - every CRT
+ *              new enough to build for that target has it.
+ *
+ *   Android    lseek64.  Always present, at every API level, and the
+ *              reason the macros at the top of this file leave
+ *              _FILE_OFFSET_BITS alone there.
+ *
+ *   otherwise  lseek, whose off_t those same macros have widened to
+ *              64 bits wherever the platform has large-file support -
+ *              which is everywhere with an mmap() to reach this path
+ *              in the first place.  Where it has none, an offset off_t
+ *              cannot represent is refused rather than silently
+ *              truncated, and a seek that lands past its range is
+ *              reported as the failure it is.
+ */
+static int64_t retro_vfs_fd_seek64(int fd, int64_t offset, int whence)
+{
+#if defined(_WIN32) && (!defined(WINAPI_FAMILY) || defined(_CRT_USE_WINAPI_FAMILY_DESKTOP_APP))
+   HANDLE h = (HANDLE)_get_osfhandle(fd);
+   LONG   hi;
+   DWORD  lo;
+   DWORD  method;
+
+   if (h == INVALID_HANDLE_VALUE)
+      return -1;
+
+   switch (whence)
+   {
+      case SEEK_SET:
+         method = FILE_BEGIN;
+         break;
+      case SEEK_CUR:
+         method = FILE_CURRENT;
+         break;
+      case SEEK_END:
+         method = FILE_END;
+         break;
+      default:
+         return -1;
+   }
+
+   /* Two's complement split: a negative offset relative to CURRENT or
+    * END arrives as a sign-extended high dword, which is what
+    * SetFilePointer's signed PLONG wants. */
+   hi = (LONG)(offset >> 32);
+   SetLastError(NO_ERROR);
+   lo = SetFilePointer(h, (LONG)(DWORD)(offset & 0xFFFFFFFFu), &hi, method);
+   if (lo == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
+      return -1;
+
+   return (int64_t)(((uint64_t)(DWORD)hi << 32) | (uint64_t)lo);
+#elif defined(_WIN32)
+   return (int64_t)_lseeki64(fd, (__int64)offset, whence);
+#elif defined(__ANDROID__)
+   return (int64_t)lseek64(fd, (off64_t)offset, whence);
+#else
+   /* Compile-time: the cast is lossless exactly when off_t is wide
+    * enough, and the guard costs nothing when it is (the comparison
+    * folds away). */
+   if (sizeof(off_t) < sizeof(int64_t))
+   {
+      if (     offset >  (int64_t)LONG_MAX
+            || offset < -(int64_t)LONG_MAX - 1)
+         return -1;
+   }
+   return (int64_t)lseek(fd, (off_t)offset, whence);
+#endif
+}
+
 /* Keeps a cold path that needs a PATH_MAX_LENGTH scratch buffer out of
  * a caller that would otherwise not need a frame at all. Under -Os the
  * compiler is already optimizing for size and the forced outlining only
@@ -340,7 +476,7 @@ int64_t retro_vfs_file_seek_internal(
    }
 #endif
 
-   return lseek(stream->fd, (off_t)offset, whence) == -1 ? -1 : 0;
+   return retro_vfs_fd_seek64(stream->fd, offset, whence) == -1 ? -1 : 0;
 }
 
 /**
@@ -670,8 +806,21 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
          retro_vfs_file_seek_internal(stream, 0, SEEK_SET);
 
 #if defined(HAVE_MMAP)
-         if ((stream->mapped = (uint8_t*)mmap((void*)0,
-               stream->mapsize, PROT_READ,  MAP_SHARED, stream->fd, 0)) == MAP_FAILED)
+         /* mmap() takes a size_t.  On a 32-bit host a file larger than
+          * the address space would truncate to its low bits on the way
+          * in - and a truncated length can still map successfully,
+          * leaving a short mapping while mapsize goes on claiming the
+          * whole file, so every read past the cut would fault instead
+          * of coming up short.  Refuse the mapping and let the
+          * descriptor path below serve the file, exactly as a failed
+          * mmap() does.  Folds away where size_t is 64 bits. */
+         if (stream->mapsize > (uint64_t)(size_t)-1)
+         {
+            stream->mapped = NULL;
+            stream->hints &= ~RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS;
+         }
+         else if ((stream->mapped = (uint8_t*)mmap((void*)0,
+               (size_t)stream->mapsize, PROT_READ,  MAP_SHARED, stream->fd, 0)) == MAP_FAILED)
          {
             stream->mapped = NULL;
             stream->hints &= ~RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS;
@@ -895,7 +1044,7 @@ int64_t retro_vfs_file_tell_impl(libretro_vfs_implementation_file *stream)
          RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS))
       return stream->mappos;
 #endif
-   return lseek(stream->fd, 0, SEEK_CUR);
+   return retro_vfs_fd_seek64(stream->fd, 0, SEEK_CUR);
 }
 
 int64_t retro_vfs_file_seek_impl(libretro_vfs_implementation_file *stream,

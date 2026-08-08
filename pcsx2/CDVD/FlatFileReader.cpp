@@ -3,6 +3,7 @@
 
 #include "FlatFileReader.h"
 
+#include "../../common/Console.h"
 #include "../../common/FileSystem.h"
 
 #include <streams/file_stream.h>
@@ -37,6 +38,14 @@ bool FlatFileReader::Open2(std::string filename)
 	const s64 filesize = FileSystem::FSize64(m_file);
 	if (filesize <= 0)
 	{
+		/* Named, because the caller can only report that the VM failed
+		 * to start.  A file that opens but cannot be sized is a VFS
+		 * that cannot address it - a 32-bit file offset under a large
+		 * image is what this looked like in the field, and it is worth
+		 * one line to say so rather than leaving the whole disc open
+		 * as a silent false. */
+		Console.Error("CDVD: cannot determine size of %s (VFS reported %lld) - image unreadable",
+				m_filename.c_str(), static_cast<long long>(filesize));
 		Close2();
 		return false;
 	}
