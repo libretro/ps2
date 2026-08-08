@@ -1534,6 +1534,14 @@ static bool RETRO_CALLCONV set_eject_state(bool ejected)
 		cdvdCtrlTrayOpen();
 		VMManager::ChangeDisc(CDVD_SourceType::NoDisc, "");
 	}
+	else if (disk_images[image_index].empty())
+	{
+		/* add_image_index() appends an empty slot for the frontend to
+		 * fill in later.  Closing the tray on one of those asked the VM
+		 * to mount "", which is not a disc. */
+		cdvdCtrlTrayOpen();
+		VMManager::ChangeDisc(CDVD_SourceType::NoDisc, "");
+	}
 	else
 	{
 		VMManager::ChangeDisc(CDVD_SourceType::Iso, disk_images[image_index]);
@@ -1558,13 +1566,23 @@ static bool RETRO_CALLCONV replace_image_index(unsigned index, const struct retr
 	if (index >= disk_images.size())
 		return false;
 
-	if (!info->path)
+	/* libretro.h: "Passing NULL to this function indicates that the
+	 * frontend has removed this disk image from its internal list",
+	 * and its own example of doing so is replace_image_index(1, NULL).
+	 * info was dereferenced without being checked, so the documented
+	 * way to remove a disc crashed the core. */
+	if (!info || !info->path)
 	{
 		disk_images.erase(disk_images.begin() + index);
-		if (!disk_images.size())
+		if (disk_images.empty())
 			image_index = -1;
 		else if (image_index > (int)index)
 			image_index--;
+		/* Removing the entry the tray is pointing at shifts whatever
+		 * followed it down into that slot; removing the last entry
+		 * leaves the index past the end. */
+		if (image_index >= (int)disk_images.size())
+			image_index = (int)disk_images.size() - 1;
 	}
 	else
 		disk_images[index] = info->path;
