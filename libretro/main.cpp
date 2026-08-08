@@ -2383,7 +2383,27 @@ bool retro_load_game(const struct retro_game_info* game)
 						len--;
 					}
 
-					fill_pathname_join_special(game_abs, game_dir, linebuf, sizeof(game_abs));
+					/* The emptiness check above runs before the line
+					 * terminators come off, so a blank CRLF line is two
+					 * bytes there and zero here.  Joined to the playlist
+					 * directory it yields the directory itself, which
+					 * path_is_valid() is happy with - a trailing blank
+					 * line, which most editors leave, added the folder
+					 * as a disc. */
+					if (len == 0)
+						continue;
+
+					/* An absolute entry is already the path we want.
+					 * Joining it to the playlist's directory produced
+					 * things like '/tmp//tmp/game.iso', so every M3U
+					 * written with absolute paths - which is legal, and
+					 * what a generator that does not know where the
+					 * playlist will live has to emit - silently listed
+					 * no discs at all. */
+					if (path_is_absolute(linebuf))
+						strlcpy(game_abs, linebuf, sizeof(game_abs));
+					else
+						fill_pathname_join_special(game_abs, game_dir, linebuf, sizeof(game_abs));
 
 					if (path_is_valid(game_abs))
 					{
@@ -2398,6 +2418,11 @@ bool retro_load_game(const struct retro_game_info* game)
 				set_image_index(0);
 				get_image_path(get_image_index(), game_abs, sizeof(game_abs));
 				boot_params.filename = game_abs;
+
+				/* The playlist has been read; the handle was never
+				 * released, so every multi-disc load leaked an RFILE and
+				 * the 64 KiB buffer the VFS attaches to it. */
+				filestream_close(fd);
 			}
 		}
 		else
