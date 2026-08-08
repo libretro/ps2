@@ -1066,7 +1066,7 @@ static void GSDeviceOGLAppendShaderMacro(std::string& macro, const char* name, i
 
 std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 {
-	Console.WriteLn("Compiling new vertex shader with selector 0x%" PRIX64, sel.key);
+	Console.WriteLn("Compiling new vertex shader with selector 0x%" PRIX64, (uint64_t)sel.key);
 
 	std::string macro;
 	GSDeviceOGLAppendShaderMacro(macro, "VS_FST", sel.fst);
@@ -1081,7 +1081,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
 
 std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 {
-	Console.WriteLn("Compiling new pixel shader with selector 0x%" PRIX64 "%08X", sel.key_hi, sel.key_lo);
+	Console.WriteLn("Compiling new pixel shader with selector 0x%" PRIX64 "%08X", (uint64_t)sel.key_hi, (unsigned)sel.key_lo);
 
 	std::string macro;
 	GSDeviceOGLAppendShaderMacro(macro, "PS_FST", sel.fst);

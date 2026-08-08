@@ -164,7 +164,7 @@ static bool LoadBiosVersion(RFILE* fp, u32& version, std::string& description, u
 
 	if (fileSize < (int)fileOffset)
 	{
-		description += StringUtil::StdStringFromFormat(" %d%%", ((fileSize * 100) / (int)fileOffset));
+		description += StringUtil::StdStringFromFormat(" %d%%", (int)((fileSize * 100) / (int)fileOffset));
 		// we force users to have correct bioses,
 		// not that lame scph10000 of 513KB ;-)
 	}

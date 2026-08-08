@@ -61,12 +61,23 @@ enum ConsoleColors
 	Color_StrongWhite,
 };
 
+/* printf-style checking.  These are varargs functions with a format
+ * string and nothing was verifying the two against each other, which is
+ * how a std::string_view reached a %s in IsoFile::open() and segfaulted
+ * on every unreadable disc.  Member functions count `this' as argument
+ * one, hence 2,3. */
+#if defined(__GNUC__) || defined(__clang__)
+#define CONSOLE_PRINTF_FMT(f, a) __attribute__((format(printf, f, a)))
+#else
+#define CONSOLE_PRINTF_FMT(f, a)
+#endif
+
 struct IConsoleWriter
 {
-	bool WriteLn(const char* fmt, ...) const;
-	bool Error(const char* fmt, ...) const;
-	bool Warning(const char* fmt, ...) const;
-	bool Debug(const char* fmt, ...) const;
+	bool WriteLn(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
+	bool Error(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
+	bool Warning(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
+	bool Debug(const char* fmt, ...) const CONSOLE_PRINTF_FMT(2, 3);
 
 	// Color-taking overloads: the color is ignored (see ConsoleColors).
 	template <typename... Args>

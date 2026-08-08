@@ -67,12 +67,12 @@ const std::string* GameDatabaseSchema::GameEntry::findPatch(u32 crc) const
 	if (crc == 0)
 		return nullptr;
 
-	Console.WriteLn(StringUtil::StdStringFromFormat("[GameDB] Searching for patch with CRC '%08X'", crc).c_str());
+	Console.WriteLn("[GameDB] Searching for patch with CRC '%08X'", crc);
 
 	auto it = patches.find(crc);
 	if (it != patches.end())
 	{
-		Console.WriteLn(StringUtil::StdStringFromFormat("[GameDB] Found patch with CRC '%08X'", crc).c_str());
+		Console.WriteLn("[GameDB] Found patch with CRC '%08X'", crc);
 		return &it->second;
 	}
 
@@ -206,7 +206,7 @@ void GameDatabase::parseAndInsert(const char *serial, const c4::yml::NodeRef& no
 					[&id](const auto& it) { return it.first == id.value(); }))
 				gameEntry.speedHacks.emplace_back(id.value(), value.value());
 			else
-				Console.Error("[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%s}'. Dropping!", std::string(id_view).c_str(), value_view);
+				Console.Error("[GameDB] Invalid speedhack: '{%s}', specified for serial: '{%.*s}'. Dropping!", std::string(id_view).c_str(), (int)value_view.size(), value_view.data());
 		}
 	}
 
@@ -414,12 +414,12 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing EE/FPU divison roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeDivRoundMode)]);
+			Console.WriteLn("(GameDB) Changing EE/FPU divison roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeDivRoundMode)]);
 			config.Cpu.FPUDivFPCR.SetRoundMode(eeDivRoundMode);
 		}
 		else
 		{
-			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 		}
 	}
 
@@ -427,33 +427,33 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			Console.WriteLn("(GameDB) Changing EE/FPU roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 			config.Cpu.FPUFPCR.SetRoundMode(eeRoundMode);
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
+			Console.Warning("[GameDB] Skipping changing EE/FPU roundmode to %d [%s]", (int)eeRoundMode, s_round_modes[static_cast<u8>(eeRoundMode)]);
 	}
 
 	if (vu0RoundMode < FPRoundMode::MaxCount)
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
+			Console.WriteLn("(GameDB) Changing VU0 roundmode to %d [%s]", (int)vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
 			config.Cpu.VU0FPCR.SetRoundMode(vu0RoundMode);
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
+			Console.Warning("[GameDB] Skipping changing VU0 roundmode to %d [%s]", (int)vu0RoundMode, s_round_modes[static_cast<u8>(vu0RoundMode)]);
 	}
 
 	if (vu1RoundMode < FPRoundMode::MaxCount)
 	{
 		if (applyAuto)
 		{
-			Console.WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
+			Console.WriteLn("(GameDB) Changing VU1 roundmode to %d [%s]", (int)vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
 			config.Cpu.VU1FPCR.SetRoundMode(vu1RoundMode);
 		}
 		else
-			Console.Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
+			Console.Warning("[GameDB] Skipping changing VU1 roundmode to %d [%s]", (int)vu1RoundMode, s_round_modes[static_cast<u8>(vu1RoundMode)]);
 	}
 
 	if (eeClampMode != GameDatabaseSchema::ClampMode::Undefined)

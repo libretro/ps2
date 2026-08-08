@@ -425,7 +425,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc)
 	if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
 	{
 		message += " are active.";
-		Console.WriteLn(message.c_str());
+		Console.WriteLn("%s", message.c_str());
 	}
 }
 
@@ -1291,7 +1291,7 @@ static void InitializeCPUInfo(void)
 
 		s_processor_list.push_back(procid);
 	}
-	Console.WriteLn(ss.str().c_str());
+	Console.WriteLn("%s", ss.str().c_str());
 }
 
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
@@ -1393,13 +1393,13 @@ void VMManager::SetEmuThreadAffinities()
 		this_proc_assigment[0], this_proc_assigment[1], this_proc_assigment[2]);
 
 	const u64 ee_affinity = static_cast<u64>(1) << ee_index;
-	Console.WriteLn("EE thread is on processor %u (0x%llx)", ee_index, ee_affinity);
+	Console.WriteLn("EE thread is on processor %u (0x%llx)", ee_index, (unsigned long long)ee_affinity);
 	s_vm_thread_handle.SetAffinity(ee_affinity);
 
 	if (EmuConfig.Speedhacks.vuThread)
 	{
 		const u64 vu_affinity = static_cast<u64>(1) << vu_index;
-		Console.WriteLn("VU thread is on processor %u (0x%llx)", vu_index, vu_affinity);
+		Console.WriteLn("VU thread is on processor %u (0x%llx)", vu_index, (unsigned long long)vu_affinity);
 		vu1Thread.GetThreadHandle().SetAffinity(vu_affinity);
 	}
 	else
