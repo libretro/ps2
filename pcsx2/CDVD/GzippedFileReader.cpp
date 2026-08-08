@@ -45,6 +45,19 @@ static Access* ReadIndexFromFile(const char* filename)
 		return nullptr;
 	}
 
+	/* Everything below is derived from the file's own size, so the file
+	 * has to be big enough to hold what it is describing.  A shorter
+	 * one made datasize negative, and index->have is a signed int read
+	 * straight out of that file: a matching negative value satisfied
+	 * the equality check, malloc() was then called with a negative
+	 * size that converts to an enormous size_t, and the read went
+	 * ahead through the null it returned. */
+	if (size < static_cast<s64>(GZIP_ID_LEN + sizeof(Access)))
+	{
+		filestream_close(fp);
+		return nullptr;
+	}
+
 	char fileId[GZIP_ID_LEN + 1] = {0};
 	if (rfread(fileId, GZIP_ID_LEN, 1, fp) != 1 || std::memcmp(fileId, GZIP_ID, 4) != 0)
 	{
@@ -53,8 +66,15 @@ static Access* ReadIndexFromFile(const char* filename)
 	}
 
 	Access* const index = static_cast<Access*>(std::malloc(sizeof(Access)));
+	if (!index)
+	{
+		filestream_close(fp);
+		return nullptr;
+	}
+
 	const s64 datasize = size - GZIP_ID_LEN - sizeof(Access);
 	if (rfread(index, sizeof(Access), 1, fp) != 1 ||
+		index->have <= 0 ||
 		datasize != static_cast<s64>(index->have) * static_cast<s64>(sizeof(Point)))
 	{
 		filestream_close(fp);
@@ -63,7 +83,7 @@ static Access* ReadIndexFromFile(const char* filename)
 	}
 
 	char* buffer = static_cast<char*>(std::malloc(datasize));
-	if (rfread(buffer, datasize, 1, fp) != 1)
+	if (!buffer || rfread(buffer, datasize, 1, fp) != 1)
 	{
 		filestream_close(fp);
 		std::free(buffer);
@@ -159,7 +179,13 @@ bool GzippedFileReader::LoadOrCreateIndex()
 	printf("\n"); // build_index prints progress without \n's
 	FileSystem::FSeek64(m_src, prevoffset, SEEK_SET);
 
-	if (len >= 0)
+	/* build_index returns the number of access points, and zero is not
+	 * success: it takes that path when no point was ever added, and on
+	 * that path it never writes through `built' at all.  index stays
+	 * null, and >= 0 sent it to WriteIndexToFile, which dereferences it
+	 * immediately - index->list, on a null pointer, from the load
+	 * thread. */
+	if (len > 0 && index != nullptr)
 	{
 		m_index = index;
 		WriteIndexToFile(m_index, indexfile.c_str());
