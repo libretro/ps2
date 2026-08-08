@@ -32,9 +32,8 @@
 #include <cstdlib> /* bsearch, realloc, free */
 #include <cstring> /* memset */
 #include <retro_atomic.h>
-#ifndef _WIN32
-#include <sched.h> /* sched_yield: async-signal-safe, unlike a mutex */
-#endif
+
+#include "../common/Threading.h" /* Threading::Timeslice */
 #include <map>
 #include <unordered_map>
 
@@ -202,11 +201,10 @@ static __fi void fastmem_lock(void)
 			else
 			{
 				spins = 0;
-#ifdef _WIN32
-				SwitchToThread();
-#else
-				sched_yield();
-#endif
+				/* common/ already abstracts this (SwitchToThread /
+				 * sched_yield); both are async-signal-safe, unlike a
+				 * mutex.  Platform #ifdefs do not belong here. */
+				Threading::Timeslice();
 			}
 		}
 	}
