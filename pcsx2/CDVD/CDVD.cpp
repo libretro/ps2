@@ -266,7 +266,7 @@ static void cdvdReadNVM(u8* dst, int offset, int bytes)
 	int to_read = bytes;
 	if ((offset + bytes) > sizeof(s_nvram))
 	{
-		Console.Warning("CDVD: Out of bounds NVRAM read: offset={}, bytes={}", offset, bytes);
+		Console.Warning("CDVD: Out of bounds NVRAM read: offset=%d, bytes=%d", offset, bytes);
 		to_read = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 		memset(dst + to_read, 0, bytes - to_read);
 	}
@@ -280,7 +280,7 @@ static void cdvdWriteNVM(const u8* src, int offset, int bytes)
 	int to_write = bytes;
 	if ((offset + bytes) > sizeof(s_nvram))
 	{
-		Console.Warning("CDVD: Out of bounds NVRAM write: offset={}, bytes={}", offset, bytes);
+		Console.Warning("CDVD: Out of bounds NVRAM write: offset=%d, bytes=%d", offset, bytes);
 		to_write = std::max(static_cast<int>(sizeof(s_nvram)) - offset, 0);
 	}
 
