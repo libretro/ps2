@@ -32,6 +32,9 @@
 #include <cstdlib> /* bsearch, realloc, free */
 #include <cstring> /* memset */
 #include <retro_atomic.h>
+#ifndef _WIN32
+#include <sched.h> /* sched_yield: async-signal-safe, unlike a mutex */
+#endif
 #include <map>
 #include <unordered_map>
 
@@ -178,15 +181,34 @@ static void vtlb_BackpatchFree(void)
 
 static retro_atomic_int_t s_fastmem_lock;
 
+/* Spins before yielding.  Sized so an uncontended acquire and a normal
+ * short hold never reach the yield, while a thread that has clearly
+ * lost the race stops burning its slice.  sched_yield/SwitchToThread
+ * are async-signal-safe, unlike a mutex. */
+#define VTLB_SPIN_BEFORE_YIELD 256
+
 static __fi void fastmem_lock(void)
 {
 	while (retro_atomic_exchange_int(&s_fastmem_lock, 1))
 	{
+		int spins = 0;
 		/* Read-only spin until it looks free, so the contended path
 		 * does not keep issuing exclusive-ownership RMWs at the
 		 * holder. */
 		while (retro_atomic_load_acquire_int(&s_fastmem_lock))
-			VTLB_CPU_RELAX();
+		{
+			if (++spins < VTLB_SPIN_BEFORE_YIELD)
+				VTLB_CPU_RELAX();
+			else
+			{
+				spins = 0;
+#ifdef _WIN32
+				SwitchToThread();
+#else
+				sched_yield();
+#endif
+			}
+		}
 	}
 }
 

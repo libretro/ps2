@@ -183,8 +183,17 @@ static void shared_lock_acquire(void)
     * A/B run. */
    while (__atomic_exchange_n(&shared_lock, 1, __ATOMIC_ACQ_REL))
    {
+      int spins = 0;
       while (__atomic_load_n(&shared_lock, __ATOMIC_ACQUIRE))
-         CPU_RELAX();
+      {
+         if (++spins < 256)
+            CPU_RELAX();
+         else
+         {
+            spins = 0;
+            thread_yield();
+         }
+      }
    }
 }
 
