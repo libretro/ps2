@@ -18,6 +18,8 @@
 #include <cfloat> /* FLT_MAX */
 #include <cmath>
 
+#include <retro_atomic.h>
+
 #include "../../common/Console.h"
 #include "../../common/Path.h"
 
@@ -338,15 +340,41 @@ void GSState::UpdateSettings(const Pcsx2Config::GSOptions& old_config)
 	}
 }
 
+/* The privileged registers live in g_RealGSMem, which the EE writes with
+ * whole 64-bit stores (gsWrite64_generic) while this thread reads single
+ * bit-fields out of them during vsync.  TSan, over four load/unload
+ * cycles: GSState::GetVideoMode and GSState::isReallyInterlaced against
+ * gsWrite64_page_00, on SMODE1, SMODE2 and SYNCV.
+ *
+ * Load the whole register in one atomic read and take the fields off the
+ * copy.  The value can still be one write out of date - it always could,
+ * there is no ordering between a game changing video mode and the vsync
+ * that observes it - but it is now a value that was actually written,
+ * rather than halves of two different ones.  Pairs with the release
+ * store in gsWrite64_generic. */
+template <typename T>
+static inline T gs_reg_read(const T& reg)
+{
+	T copy;
+#if defined(RETRO_ATOMIC_HAS_64)
+	copy.U64 = (u64)retro_atomic_load_acquire_64((const retro_atomic_64_t*)&reg.U64);
+#else
+	/* No 64-bit atomics on this target (old 32-bit __sync); the read is
+	 * as it always was. */
+	copy.U64 = reg.U64;
+#endif
+	return copy;
+}
+
 bool GSState::isinterlaced()
 {
-	return !!m_regs->SMODE2.INT;
+	return !!gs_reg_read(m_regs->SMODE2).INT;
 }
 
 bool GSState::isReallyInterlaced()
 {
 	// The FIELD register only flips if the CMOD field in SMODE1 is set to anything but 0 and Front Porch bottom bit in SYNCV is set.
-	return (m_regs->SYNCV.VFP & 0x1) && m_regs->SMODE1.CMOD;
+	return (gs_reg_read(m_regs->SYNCV).VFP & 0x1) && gs_reg_read(m_regs->SMODE1).CMOD;
 }
 
 GSVideoMode GSState::GetVideoMode()
@@ -355,8 +383,9 @@ GSVideoMode GSState::GetVideoMode()
 	// Other videomodes can't be detected on our side without the help of the data from core
 	// You can only identify a limited number of video modes based on the info from CRTC registers.
 
-	const u8 Colorburst = m_regs->SMODE1.CMOD; // Subcarrier frequency
-	const u8 PLL_Divider = m_regs->SMODE1.LC;  // Phased lock loop divider
+	const GSRegSMODE1 smode1 = gs_reg_read(m_regs->SMODE1);
+	const u8 Colorburst = smode1.CMOD; // Subcarrier frequency
+	const u8 PLL_Divider = smode1.LC;  // Phased lock loop divider
 
 	switch (Colorburst)
 	{

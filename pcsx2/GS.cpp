@@ -187,7 +187,19 @@ __fi void gsWrite32(u32 mem, u32 value)
 
 void gsWrite64_generic(u32 mem, u64 value)
 {
-	memcpy(PS2GS_BASE(mem), &value, sizeof(value));
+	/* Release store, paired with the acquire loads GSState uses to read
+	 * these registers from the GS thread.  The registers are 8-byte
+	 * aligned within g_RealGSMem, so this is a single store either way -
+	 * what changes is that a concurrent reader now sees one whole
+	 * written value instead of a byte-wise copy it can observe halfway
+	 * through. */
+	u8* const dst = PS2GS_BASE(mem);
+#if defined(RETRO_ATOMIC_HAS_64)
+	if (((uptr)dst & 7) == 0)
+		retro_atomic_store_release_64((retro_atomic_64_t*)dst, (int64_t)value);
+	else
+#endif
+		memcpy(dst, &value, sizeof(value));
 }
 
 void gsWrite64_page_00(u32 mem, u64 value)
