@@ -293,26 +293,89 @@ ID3D12GraphicsCommandList4* GSDevice12::GetInitCommandList()
 	return res.command_lists[0].get();
 }
 
+/* Report a recurring device error without turning a wedged GPU into a
+ * multi-gigabyte log.  The first few say what happened; after that the
+ * count is carried until the next distinct failure. */
+void GSDevice12::ReportRecurring(const char* what, HRESULT hr)
+{
+	static const char* last_what;
+	static HRESULT     last_hr;
+	static u64         repeats;
+
+	if (what != last_what || hr != last_hr)
+	{
+		if (repeats > 0)
+			Console.Error("(previous message repeated %llu more times)",
+					static_cast<unsigned long long>(repeats));
+		last_what = what;
+		last_hr   = hr;
+		repeats   = 0;
+		Console.Error("%s failed with HRESULT %08X", what, hr);
+		return;
+	}
+
+	repeats++;
+	/* One line every ~10 seconds of a 60 Hz stream of failures, so a
+	 * report still shows the problem is ongoing. */
+	if ((repeats % 600) == 0)
+		Console.Error("%s failed with HRESULT %08X (%llu times)", what, hr,
+				static_cast<unsigned long long>(repeats));
+}
+
 bool GSDevice12::ContextExecuteCommandList(bool wait_for_completion)
 {
 	CommandListResources& res = m_command_lists[m_current_command_list];
 	HRESULT hr;
+	bool    closed_ok = true;
 
 	if (res.init_command_list_used)
 	{
 		hr = res.command_lists[0]->Close();
 		if (FAILED(hr))
 		{
-			Console.Error("Closing init command list failed with HRESULT %08X", hr);
-			return false;
+			ReportRecurring("Closing init command list", hr);
+			closed_ok = false;
 		}
 	}
 
 	// Close and queue command list.
-	hr = res.command_lists[1]->Close();
-	if (FAILED(hr))
+	if (closed_ok)
 	{
-		Console.Error("Closing main command list failed with HRESULT %08X", hr);
+		hr = res.command_lists[1]->Close();
+		if (FAILED(hr))
+		{
+			ReportRecurring("Closing main command list", hr);
+			closed_ok = false;
+		}
+	}
+
+	if (!closed_ok)
+	{
+		/* This used to return here, which is what turned one failed
+		 * close into a device that never worked again.  Nothing was
+		 * submitted, the fence was never signalled and the command
+		 * list index never advanced, so the next call re-entered with
+		 * init_command_list_used still set and closed an
+		 * already-closed list - E_FAIL, once per attempt, forever.
+		 * The stream buffers were caught in the same net: they only
+		 * reclaim space when the completed fence passes the value a
+		 * segment was tagged with, so a fence that stops advancing
+		 * means "Failed to reserve space for vertices" and "Failed to
+		 * reserve texture upload memory" from then on, and the
+		 * handlers for those call back into this function to make
+		 * room.
+		 *
+		 * Drop the frame, but keep the bookkeeping moving: signal the
+		 * fence this list was going to signal - there is no GPU work
+		 * outstanding for it, so it completes immediately and the
+		 * stream buffers can free their segments - and move to the
+		 * next command list, which resets an allocator and a list that
+		 * are in a known state.  The frame is lost either way; this
+		 * way the next one has somewhere to go. */
+		m_command_queue->Signal(m_fence.get(), res.ready_fence_value);
+		MoveToNextCommandList();
+		if (wait_for_completion)
+			WaitForFence(res.ready_fence_value);
 		return false;
 	}
 
@@ -1020,7 +1083,7 @@ void GSDevice12::DoMultiStretchRects(
 		if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
 			!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
 		{
-			Console.Error("Failed to reserve space for vertices");
+			GSDevice12::ReportRecurring("Reserving space for vertices", E_OUTOFMEMORY);
 		}
 	}
 
@@ -1323,7 +1386,7 @@ void GSDevice12::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 	{
 		ExecuteCommandListAndRestartRenderPass(false);
 		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
-			Console.Error("Failed to reserve space for vertices");
+			GSDevice12::ReportRecurring("Reserving space for vertices", E_OUTOFMEMORY);
 	}
 
 	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
@@ -1341,7 +1404,7 @@ void GSDevice12::IASetIndexBuffer(const void* index, size_t count)
 	{
 		ExecuteCommandListAndRestartRenderPass(false);
 		if (!m_index_stream_buffer.ReserveMemory(size, sizeof(u16)))
-			Console.Error("Failed to reserve space for vertices");
+			GSDevice12::ReportRecurring("Reserving space for vertices", E_OUTOFMEMORY);
 	}
 
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);

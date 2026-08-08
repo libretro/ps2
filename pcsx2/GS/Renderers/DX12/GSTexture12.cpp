@@ -429,7 +429,7 @@ bool GSTexture12::Update(const GSVector4i& r, const void* data, int pitch, int l
 			dev->ExecuteCommandList(false);
 			if (!sbuffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
 			{
-				Console.Error("Failed to reserve texture upload memory (%u bytes).", required_size);
+				GSDevice12::ReportRecurring("Reserving texture upload memory", E_OUTOFMEMORY);
 				return false;
 			}
 		}
@@ -496,7 +496,7 @@ bool GSTexture12::Map(GSMap& m, const GSVector4i* r, int layer)
 	{
 		dev->ExecuteCommandList(false);
 		if (!buffer.ReserveMemory(required_size, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT))
-			Console.Error("Failed to reserve texture upload memory");
+			GSDevice12::ReportRecurring("Reserving texture upload memory", E_OUTOFMEMORY);
 	}
 
 	m.bits = static_cast<u8*>(buffer.GetCurrentHostPointer());

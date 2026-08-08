@@ -390,6 +390,11 @@ public:
        ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_ROOT_SIGNATURE_DESC* desc);
 
        /// Fence value for current command list.
+       /* Rate-limited device-error reporting.  A wedged device fails the
+        * same way every frame; without this a report is a log file the
+        * size of the disc image that provoked it. */
+       static void ReportRecurring(const char* what, HRESULT hr);
+
        u64 GetCurrentFenceValue() const { return m_current_fence_value; }
 
        /// Last "completed" fence.
