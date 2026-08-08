@@ -52,7 +52,13 @@ bool IsoFile::open(const IsoDirectory& dir, const std::string_view& filename)
 	const std::optional<IsoFileDescriptor> fd(dir.FindFile(filename));
 	if (!fd.has_value())
 	{
-		Console.Error("Failed to find file %s", filename);
+		/* filename is a std::string_view: it is not null-terminated and is
+		 * not a const char*, so handing it to a printf-style %s through
+		 * varargs walks off the end of whatever it points into.  On a disc
+		 * whose SYSTEM.CNF cannot be found - an unreadable image, or one
+		 * whose reads are failing for any other reason - that is a
+		 * segfault on the emu thread rather than a failed load. */
+		Console.Error("Failed to find file %.*s", (int)filename.size(), filename.data());
 		return false;
 	}
 
