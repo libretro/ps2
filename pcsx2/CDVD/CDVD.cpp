@@ -672,6 +672,37 @@ static int cdvdTrayStateDetecting(void)
 	return CDVD_TYPE_DETCT; //Detecting any kind of disc existing
 }
 
+// Where the head sits across the disc surface, in tenths of a permille
+// (0 = innermost, 6000 = outermost), which is the position term both
+// latency curves are built from.
+//
+// SeekToSector is copied straight out of the guest's N-command parameter
+// buffer, so it is bounded by nothing: games read past the end of the
+// disc, and reads are issued while DiscType is still one of the
+// transient detection values, where numSectors is a CD's 360000 rather
+// than a DVD's 2298496 and every DVD-sized sector is off the end of the
+// modelled surface.  The float curve this replaced turned those into a
+// negative speed factor and a negative cycle count, which the u32 cast
+// made meaningless but harmless.  The integer form divides by the
+// factor, so an unclamped position is an unsigned wrap and then a
+// division by zero - a SIGFPE the float version could not produce.
+// Clamped to the surface, which is the only domain the curve was ever
+// defined on.
+static u64 cdvdSurfacePosPtm(u32 numSectors, u32 offset)
+{
+	const u64 pos = (u64)(cdvd.SeekToSector - offset) * 6000ULL / numSectors;
+	return (pos > 6000ULL) ? 6000ULL : pos;
+}
+
+// Drive speed as a divisor.  Set to 1/2/4/12/24 by every N command that
+// starts a transfer and to 4 by reset, so zero is not reachable today;
+// taken as a floor of 1 anyway, so that no path through these two
+// functions can divide by zero regardless of what sets it later.
+static u64 cdvdDriveSpeed(void)
+{
+	return cdvd.Speed ? (u64)cdvd.Speed : 1ULL;
+}
+
 static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 {
 	// All-integer: these cycle counts are scheduled into the emulated
@@ -689,7 +720,7 @@ static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 	if (cdvd.SpindlCtrl & CDVD_SPINDLE_CAV)
 	{
 		// cycles for one rotation = PSXCLK * 60s / (RPM * speed)
-		return (u32)((u64)PSXCLK * 60ULL / (rot * (u64)cdvd.Speed));
+		return (u32)((u64)PSXCLK * 60ULL / (rot * cdvdDriveSpeed()));
 	}
 
 	u32 layer1Start = 0;
@@ -715,10 +746,11 @@ static u32 cdvdRotationTime(CDVD_MODE_TYPE mode)
 	}
 
 	// CLV speeds are reversed, so the centre is the fastest position.
-	// sectorSpeed = 1.40 - 0.60 * position, in tenths of a permille.
-	const u64 ss_ptm    = 14000ULL - (u64)(cdvd.SeekToSector - offset) * 6000ULL / numSectors;
+	// sectorSpeed = 1.40 - 0.60 * position, in tenths of a permille,
+	// so 8000..14000 across the surface and never zero.
+	const u64 ss_ptm    = 14000ULL - cdvdSurfacePosPtm(numSectors, offset);
 	const u64 cap_x10   = (mode == MODE_CDROM) ? 103ULL : 16ULL;
-	const u64 speed_x10 = std::min<u64>((u64)cdvd.Speed * 10ULL, cap_x10);
+	const u64 speed_x10 = std::min<u64>(cdvdDriveSpeed() * 10ULL, cap_x10);
 	return (u32)((u64)PSXCLK * 60ULL * 10ULL * 10000ULL / (rot * speed_x10 * ss_ptm));
 }
 
@@ -747,14 +779,14 @@ static uint cdvdBlockReadTime(CDVD_MODE_TYPE mode)
 		}
 
 		// sectorSpeed = 0.40 + 0.60 * position, in tenths of a permille
-		// (0.40 is the "base" inner track speed).
-		const u64 ss_ptm = (u64)(cdvd.SeekToSector - offset) * 6000ULL / numSectors + 4000ULL;
-		return (u32)((u64)PSXCLK * 10000ULL / (sps * (u64)cdvd.Speed * ss_ptm));
+		// (0.40 is the "base" inner track speed), so 4000..10000.
+		const u64 ss_ptm = 4000ULL + cdvdSurfacePosPtm(numSectors, offset);
+		return (u32)((u64)PSXCLK * 10000ULL / (sps * cdvdDriveSpeed() * ss_ptm));
 	}
 
 	// CLV Read Speed is constant
 	const u64 cap_x10   = (mode == MODE_CDROM) ? 103ULL : 16ULL;
-	const u64 speed_x10 = std::min<u64>((u64)cdvd.Speed * 10ULL, cap_x10);
+	const u64 speed_x10 = std::min<u64>(cdvdDriveSpeed() * 10ULL, cap_x10);
 	return (u32)((u64)PSXCLK * 10ULL / (sps * speed_x10));
 }
 
@@ -1199,8 +1231,11 @@ static uint cdvdStartSeek(uint newsector, CDVD_MODE_TYPE mode, bool transition_t
 		// spin up.  The old float constant 0.054950495049505 is exactly
 		// the rational 333/6060 (= 111/2020); with rpm = PSXCLK*60 /
 		// rotation_cycles this reduces to one exact u64 expression.
-		const u64 old_rpm = (u64)PSXCLK * 60ULL / (u64)old_rotspeed;
-		const u64 new_rpm = (u64)PSXCLK * 60ULL / (u64)cdvd.RotSpeed;
+		// A rotation time of zero is not reachable now that the position
+		// factor is clamped, but these two divisions are the second half
+		// of the same trap and cost nothing to close.
+		const u64 old_rpm = old_rotspeed ? ((u64)PSXCLK * 60ULL / (u64)old_rotspeed) : 0ULL;
+		const u64 new_rpm = cdvd.RotSpeed ? ((u64)PSXCLK * 60ULL / (u64)cdvd.RotSpeed) : 0ULL;
 		const u64 d_rpm   = (new_rpm > old_rpm) ? (new_rpm - old_rpm) : (old_rpm - new_rpm);
 		drive_speed_change_cycles = (int)((u64)PSXCLK * d_rpm * 111ULL / 2020000ULL);
 		cdvd.nextSectorsBuffered = 0;
