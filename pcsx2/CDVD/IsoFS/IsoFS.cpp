@@ -111,6 +111,15 @@ bool IsoDirectory::Open(const IsoFileDescriptor& directoryEntry)
 		if (b[0] == 0)
 			break; // or continue?
 
+		/* Both of these used to be taken on trust.  A record length
+		 * under 34 cannot hold the fixed part plus a one-byte name, and
+		 * one larger than what the directory says is left made the
+		 * unsigned subtraction below wrap to about 4 billion - the loop
+		 * then ran on the reader hitting EOF rather than on the size it
+		 * was given. */
+		if (b[0] < 34 || b[0] > remainingSize)
+			break;
+
 		remainingSize -= b[0];
 
 		dataStream.read(b + 1, b[0] - 1);
@@ -214,6 +223,25 @@ IsoFileDescriptor::IsoFileDescriptor(const u8* data, int length)
 
 void IsoFileDescriptor::Load(const u8* data, int length)
 {
+	/* length was accepted and then ignored, so every field below was
+	 * read whether the record was long enough to hold it or not.  The
+	 * caller hands us a 257-byte stack buffer with only `length' bytes
+	 * filled in, and the name length at data[32] is a disc-controlled
+	 * byte: at 255 the assign() below read data[33..287], 31 bytes off
+	 * the end of that buffer and into the rest of the frame, and the
+	 * result became a file name.  A record shorter than 33 bytes read
+	 * uninitialised stack for everything past its end.
+	 *
+	 * 33 bytes is the fixed part of an ISO9660 directory record; the
+	 * name follows it. */
+	lba   = 0;
+	size  = 0;
+	flags = 0;
+	memset(&date, 0, sizeof(date));
+
+	if (length < 33)
+		return;
+
 	/* ISO descriptor fields are byte-packed; memcpy the LE u32s. */
 	memcpy(&lba, &data[2], sizeof(u32));
 	memcpy(&size, &data[10], sizeof(u32));
@@ -229,6 +257,12 @@ void IsoFileDescriptor::Load(const u8* data, int length)
 	flags = data[25];
 
 	int fileNameLength = data[32];
+
+	/* The name has to fit inside the record it came from. */
+	if (fileNameLength > length - 33)
+		fileNameLength = length - 33;
+	if (fileNameLength <= 0)
+		return;
 
 	if (fileNameLength == 1)
 	{
