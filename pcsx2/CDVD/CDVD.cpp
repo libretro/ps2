@@ -206,18 +206,28 @@ void cdvdLoadNVRAM(void)
 		}
 	}
 
+	/* The NVRAM handle is done with here.  It used to be left open and
+	 * then overwritten by the MEC open below, which leaked it - one
+	 * RFILE and its 64 KiB stdio buffer per VM start. */
+	if (fp)
+		filestream_close(fp);
+
 	std::string mecfile = Path::ReplaceExtension(BiosPath, "mec");
 	fp = FileSystem::OpenFile(mecfile.c_str(), "rb");
 	if (!fp || rfread(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 	{
 		s_mecha_version = DEFAULT_MECHA_VERSION;
 		Console.Error("Failed to open or read MEC file at %s, creating default.", mecfile.c_str());
+		/* Same again: the read may have failed on an open handle, and
+		 * the reopen below would drop it. */
+		if (fp)
+			filestream_close(fp);
 		fp = FileSystem::OpenFile(mecfile.c_str(), "w+b");
 		if (!fp || rfwrite(&s_mecha_version, sizeof(s_mecha_version), 1, fp) != 1)
 			Console.Error("Failed to write MEC file. Check your BIOS setup/permission settings.");
 	}
-    if (fp)
-        filestream_close(fp);
+	if (fp)
+		filestream_close(fp);
 }
 
 void cdvdSaveNVRAM(void)
