@@ -90,7 +90,8 @@ namespace Vulkan
 {
 static constexpr ContextCreationFlags video_context_flags =
 	CONTEXT_CREATION_ENABLE_VIDEO_DECODE_BIT |
-	CONTEXT_CREATION_ENABLE_VIDEO_ENCODE_BIT;
+	CONTEXT_CREATION_ENABLE_VIDEO_ENCODE_BIT |
+	CONTEXT_CREATION_ENABLE_VIDEO_FEATURE_ONLY_BIT;
 
 void Context::set_instance_factory(InstanceFactory *factory)
 {
@@ -369,6 +370,20 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_messenger_cb(
 	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
 		if (messageType == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
 		{
+			// FFmpeg triggers this when decoding. Nothing we can do about it for now.
+			static const char *known_failures[] = {
+				"VUID-VkVideoBeginCodingInfoKHR-slotIndex-07245",
+			};
+
+			if (pCallbackData->pMessageIdName)
+			{
+				for (auto *failure : known_failures)
+				{
+					if (strcmp(failure, pCallbackData->pMessageIdName) == 0)
+						return VK_FALSE;
+				}
+			}
+
 			LOGE("[Vulkan]: Validation Error: %s - %s\n", pCallbackData->pMessageIdName, pCallbackData->pMessage);
 			context->notify_validation_error(pCallbackData->pMessage);
 		}
@@ -1386,6 +1401,11 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 				}
 			}
 		}
+		else if ((flags & CONTEXT_CREATION_ENABLE_VIDEO_FEATURE_ONLY_BIT) != 0 &&
+		         has_extension(VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME))
+		{
+			enabled_extensions.push_back(VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME);
+		}
 
 		if ((flags & CONTEXT_CREATION_ENABLE_VIDEO_ENCODE_BIT) != 0 &&
 		    has_extension(VK_KHR_VIDEO_ENCODE_QUEUE_EXTENSION_NAME))
@@ -1432,6 +1452,11 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 				}
 			}
 		}
+		else if ((flags & CONTEXT_CREATION_ENABLE_VIDEO_FEATURE_ONLY_BIT) != 0 &&
+		         has_extension(VK_KHR_VIDEO_ENCODE_QUEUE_EXTENSION_NAME))
+		{
+			enabled_extensions.push_back(VK_KHR_VIDEO_ENCODE_QUEUE_EXTENSION_NAME);
+		}
 	}
 
 	pdf2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
@@ -1458,6 +1483,13 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 
 	if (ext.supports_video_encode_av1)
 		ADD_CHAIN(ext.av1_features, VIDEO_ENCODE_AV1_FEATURES_KHR);
+
+	if ((flags & CONTEXT_CREATION_ENABLE_VIDEO_ENCODE_BIT) != 0 &&
+	    has_extension(VK_KHR_VIDEO_ENCODE_INTRA_REFRESH_EXTENSION_NAME))
+	{
+		enabled_extensions.push_back(VK_KHR_VIDEO_ENCODE_INTRA_REFRESH_EXTENSION_NAME);
+		ADD_CHAIN(ext.intra_refresh_features, VIDEO_ENCODE_INTRA_REFRESH_FEATURES_KHR);
+	}
 
 	if (ext.device_api_core_version >= VK_API_VERSION_1_2)
 	{
@@ -1633,7 +1665,8 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 		ADD_CHAIN(ext.image_compression_control_swapchain_features, IMAGE_COMPRESSION_CONTROL_SWAPCHAIN_FEATURES_EXT);
 	}
 
-	if (has_extension(VK_NV_LOW_LATENCY_2_EXTENSION_NAME))
+	if ((flags & CONTEXT_CREATION_ENABLE_ADVANCED_WSI_BIT) != 0 && requires_swapchain &&
+	    has_extension(VK_NV_LOW_LATENCY_2_EXTENSION_NAME))
 	{
 		enabled_extensions.push_back(VK_NV_LOW_LATENCY_2_EXTENSION_NAME);
 		ext.supports_low_latency2_nv = true;
@@ -1788,6 +1821,18 @@ bool Context::create_device(VkPhysicalDevice gpu_, VkSurfaceKHR surface,
 		}
 
 		ext.supports_post_mortem = true;
+	}
+
+	if (has_extension(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME))
+	{
+		enabled_extensions.push_back(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME);
+		ADD_CHAIN(ext.cooperative_matrix_features, COOPERATIVE_MATRIX_FEATURES_KHR);
+	}
+
+	if (has_extension(VK_VALVE_SHADER_MIXED_FLOAT_DOT_PRODUCT_EXTENSION_NAME))
+	{
+		enabled_extensions.push_back(VK_VALVE_SHADER_MIXED_FLOAT_DOT_PRODUCT_EXTENSION_NAME);
+		ADD_CHAIN(ext.shader_mixed_float_dot_product_features, SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE);
 	}
 
 #ifdef GRANITE_VULKAN_PROFILES

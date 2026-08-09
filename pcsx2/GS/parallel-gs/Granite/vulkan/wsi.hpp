@@ -25,6 +25,7 @@
 #include "device.hpp"
 #include "semaphore_manager.hpp"
 #include "vulkan_headers.hpp"
+#include "wsi_pacer.hpp"
 #include "timer.hpp"
 #include <vector>
 #include <thread>
@@ -252,7 +253,8 @@ public:
 
 	// The simple approach. WSI internally creates the context with instance + device.
 	// Required information about extensions etc, is pulled from the platform.
-	bool init_context_from_platform(unsigned num_thread_indices, const Context::SystemHandles &system_handles);
+	bool init_context_from_platform(unsigned num_thread_indices, const Context::SystemHandles &system_handles,
+	                                ContextCreationFlags enable_flags = 0, ContextCreationFlags disable_flags = 0);
 
 	// If you have your own VkInstance and/or VkDevice, you must create your own Vulkan::Context with
 	// the appropriate init() call. Based on the platform you use, you must make sure to enable the
@@ -376,6 +378,9 @@ public:
 	bool set_target_presentation_time(uint64_t absolute_time_ns, uint64_t relative_time_ns, bool force_vrr);
 	void set_enable_timing_feedback(bool enable);
 
+	FixedRefreshRatePacer &get_fixed_rate_pacer();
+	void set_fixed_rate_low_latency_pacer(bool enable);
+
 private:
 	void update_framebuffer(unsigned width, unsigned height);
 
@@ -386,6 +391,8 @@ private:
 	std::vector<Semaphore> release_semaphores;
 	DeviceHandle device;
 	const VolkDeviceTable *table = nullptr;
+	FixedRefreshRatePacer frr_pacer;
+	bool frr_pacer_enable = false;
 
 	unsigned swapchain_width = 0;
 	unsigned swapchain_height = 0;

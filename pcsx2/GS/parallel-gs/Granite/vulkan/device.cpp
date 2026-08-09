@@ -1490,6 +1490,7 @@ void Device::collect_wait_semaphores(QueueData &data, Helper::WaitSemaphores &se
 	for (size_t i = 0, n = data.wait_semaphores.size(); i < n; i++)
 	{
 		auto &semaphore = data.wait_semaphores[i];
+		bool is_owned = semaphore->is_owned();
 		auto vk_semaphore = semaphore->consume();
 		if (semaphore->get_semaphore_type() == VK_SEMAPHORE_TYPE_TIMELINE)
 		{
@@ -1513,10 +1514,13 @@ void Device::collect_wait_semaphores(QueueData &data, Helper::WaitSemaphores &se
 		}
 		else
 		{
-			if (semaphore->is_external_object_compatible())
-				frame().destroyed_semaphores.push_back(vk_semaphore);
-			else
-				frame().recycled_semaphores.push_back(vk_semaphore);
+			if (is_owned)
+			{
+				if (semaphore->is_external_object_compatible())
+					frame().destroyed_semaphores.push_back(vk_semaphore);
+				else
+					frame().recycled_semaphores.push_back(vk_semaphore);
+			}
 
 			info.semaphore = vk_semaphore;
 			info.stageMask = data.wait_stages[i];
@@ -2164,7 +2168,9 @@ Device::~Device()
 
 	if (legacy_pipeline_cache != VK_NULL_HANDLE || ext.pipeline_binary_features.pipelineBinaries)
 		flush_pipeline_cache();
-	table->vkDestroyPipelineCache(device, legacy_pipeline_cache, nullptr);
+
+	if (table)
+		table->vkDestroyPipelineCache(device, legacy_pipeline_cache, nullptr);
 
 	framebuffer_allocator.clear();
 	transient_allocator.clear();
@@ -2754,10 +2760,8 @@ void Device::init_calibrated_timestamps()
 	{
 #ifdef _WIN32
 		const auto supported_domain = VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR;
-#elif defined(ANDROID)
-		const auto supported_domain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
 #else
-		const auto supported_domain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_KHR;
+		const auto supported_domain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
 #endif
 		if (domain == supported_domain)
 		{
@@ -3412,6 +3416,10 @@ public:
 				VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
 				image_usage_video_flags;
 
+		// Don't include video usage for views that aren't planar.
+		if (format_ycbcr_num_planes(create_info.format) == 1)
+			view_usage &= ~image_usage_video_flags;
+
 		if (view_usage & VK_IMAGE_USAGE_STORAGE_BIT)
 		{
 			VkFormatProperties3 props3 = { VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3 };
@@ -3712,7 +3720,7 @@ ImageViewHandle Device::create_image_view(const ImageViewCreateInfo &create_info
 
 InitialImageBuffer Device::create_image_staging_buffer(const TextureFormatLayout &layout)
 {
-	InitialImageBuffer result;
+	InitialImageBuffer result = {};
 	result.host = { layout.data(), layout.get_required_size() };
 	layout.build_buffer_image_copies(result.blits);
 	return result;
@@ -3723,7 +3731,7 @@ InitialImageBuffer Device::create_image_staging_buffer(const ImageCreateInfo &in
 	// This method is very annoying to deal with and requires shuffling a lot of data around.
 	// Plumbing this through to host image copy is a hot mess and is avoided.
 
-	InitialImageBuffer result;
+	InitialImageBuffer result = {};
 
 	bool generate_mips = (info.misc & IMAGE_MISC_GENERATE_MIPS_BIT) != 0;
 	TextureFormatLayout layout;
@@ -4260,16 +4268,24 @@ ImageHandle Device::create_image_from_staging_buffer(const ImageCreateInfo &crea
 			modifier_info.pNext = external_format_info.pNext;
 			external_format_info.pNext = &modifier_info;
 
-			auto *drm_info = find_pnext<VkImageDrmFormatModifierExplicitCreateInfoEXT>(
-					info.pNext, VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
-			if (!drm_info)
+			// If we're exporting, we have a list of formats instead.
+			if (auto *list_info = find_pnext<VkImageDrmFormatModifierListCreateInfoEXT>(
+					info.pNext, VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT))
 			{
-				// There's also the modifier list for export purposes, but we don't care about that yet.
+				VK_ASSERT(list_info->drmFormatModifierCount != 0);
+				modifier_info.drmFormatModifier = list_info->pDrmFormatModifiers[0];
+			}
+			else if (auto *drm_info = find_pnext<VkImageDrmFormatModifierExplicitCreateInfoEXT>(
+					info.pNext, VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT))
+			{
+				modifier_info.drmFormatModifier = drm_info->drmFormatModifier;
+			}
+			else
+			{
 				LOGE("Trying to create DRM modifier image without explicit info.\n");
 				return ImageHandle(nullptr);
 			}
 
-			modifier_info.drmFormatModifier = drm_info->drmFormatModifier;
 			modifier_info.sharingMode = info.sharingMode;
 			modifier_info.queueFamilyIndexCount = info.queueFamilyIndexCount;
 			modifier_info.pQueueFamilyIndices = info.pQueueFamilyIndices;

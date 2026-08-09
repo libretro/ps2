@@ -25,7 +25,11 @@
 #include "device.hpp"
 #include "timer.hpp"
 #include <time.h>
-#include <ctime>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 namespace Vulkan
 {
@@ -346,7 +350,7 @@ void BreadcrumbsTracker::notify_device_hung()
 #endif
 
 	// Windows does not like colons in path names, so %T breaks.
-	strftime(path, sizeof(path), "granite-post-mortem-%F-%H-%M-%S.txt", &gmt);
+	strftime(path, sizeof(path), "granite-post-mortem-%Y-%m-%d-%H-%M-%S.txt", &gmt);
 
 	LOGE("Device hung ... Attempting to grab post-mortem data to: %s\n", path);
 
@@ -472,7 +476,6 @@ void BreadcrumbsTracker::notify_device_hung()
 				static_cast<unsigned long long>(info.vendorFaultData));
 	};
 
-#ifdef VK_KHR_device_fault_VOLK_HAS_REPORTS
 	if (device->get_device_features().fault_features_khr.deviceFault)
 	{
 		std::vector<VkDeviceFaultInfoKHR> faults;
@@ -516,7 +519,6 @@ void BreadcrumbsTracker::notify_device_hung()
 		}
 	}
 	else
-#endif
 	{
 		VkDeviceFaultCountsEXT counts = { VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT };
 		VkDeviceFaultInfoEXT fault = { VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT };
@@ -554,11 +556,13 @@ void BreadcrumbsTracker::notify_device_hung()
 	if (file != stderr)
 		fclose(file);
 
-	LOGE("Completed post-mortem analysis.\n");
-	// libretro: do NOT pop a message box or terminate the host process. A GPU
-	// device hang must be reported back to the frontend (RetroArch), never
-	// turned into a hard abort of the host application. The post-mortem
-	// breadcrumb log above is still emitted for diagnostics; control returns
-	// to the caller.
+	LOGE("Completed post-mortem analysis, will crash now.\n");
+#ifdef _WIN32
+	char msg[512];
+	snprintf(msg, sizeof(msg), "GPU crashed, see post-mortem log in %s. Application will now terminate.", path);
+	MessageBoxA(nullptr, msg, "Granite Post Mortem", MB_OK);
+	TerminateProcess(GetCurrentProcess(), 1);
+#endif
+	std::terminate();
 }
 }

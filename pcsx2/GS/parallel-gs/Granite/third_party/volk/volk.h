@@ -19,7 +19,7 @@
 #endif
 
 /* VOLK_GENERATE_VERSION_DEFINE */
-#define VOLK_HEADER_VERSION 343
+#define VOLK_HEADER_VERSION 359
 /* VOLK_GENERATE_VERSION_DEFINE */
 
 #ifndef VK_NO_PROTOTYPES
@@ -278,11 +278,21 @@ struct VolkInstanceTable
 #else
 	PFN_vkVoidFunction padding_15920a35[2];
 #endif /* defined(VK_ARM_data_graph) */
+#if defined(VK_ARM_data_graph_optical_flow)
+	PFN_vkGetPhysicalDeviceQueueFamilyDataGraphOpticalFlowImageFormatsARM vkGetPhysicalDeviceQueueFamilyDataGraphOpticalFlowImageFormatsARM;
+#else
+	PFN_vkVoidFunction padding_4da6b74b[1];
+#endif /* defined(VK_ARM_data_graph_optical_flow) */
 #if defined(VK_ARM_performance_counters_by_region)
 	PFN_vkEnumeratePhysicalDeviceQueueFamilyPerformanceCountersByRegionARM vkEnumeratePhysicalDeviceQueueFamilyPerformanceCountersByRegionARM;
 #else
 	PFN_vkVoidFunction padding_4fd09193[1];
 #endif /* defined(VK_ARM_performance_counters_by_region) */
+#if defined(VK_ARM_shader_instrumentation)
+	PFN_vkEnumeratePhysicalDeviceShaderInstrumentationMetricsARM vkEnumeratePhysicalDeviceShaderInstrumentationMetricsARM;
+#else
+	PFN_vkVoidFunction padding_faae0311[1];
+#endif /* defined(VK_ARM_shader_instrumentation) */
 #if defined(VK_ARM_tensors)
 	PFN_vkGetPhysicalDeviceExternalTensorPropertiesARM vkGetPhysicalDeviceExternalTensorPropertiesARM;
 #else
@@ -305,6 +315,11 @@ struct VolkInstanceTable
 #else
 	PFN_vkVoidFunction padding_61710136[1];
 #endif /* defined(VK_EXT_calibrated_timestamps) */
+#if defined(VK_EXT_cooperative_matrix_maintenance1)
+	PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT vkGetPhysicalDeviceCooperativeMatrixProperties2EXT;
+#else
+	PFN_vkVoidFunction padding_c8d35e9d[1];
+#endif /* defined(VK_EXT_cooperative_matrix_maintenance1) */
 #if defined(VK_EXT_debug_report)
 	PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 	PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
@@ -577,6 +592,11 @@ struct VolkInstanceTable
 #else
 	PFN_vkVoidFunction padding_bdcf11f9[2];
 #endif /* defined(VK_SEC_ubm_surface) */
+#if (defined(VK_ARM_data_graph_instruction_set_tosa)) || (defined(VK_ARM_data_graph_optical_flow))
+	PFN_vkGetPhysicalDeviceQueueFamilyDataGraphEngineOperationPropertiesARM vkGetPhysicalDeviceQueueFamilyDataGraphEngineOperationPropertiesARM;
+#else
+	PFN_vkVoidFunction padding_d3dcb1f3[1];
+#endif /* (defined(VK_ARM_data_graph_instruction_set_tosa)) || (defined(VK_ARM_data_graph_optical_flow)) */
 #if (defined(VK_KHR_device_group) && defined(VK_KHR_surface)) || (defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1))
 	PFN_vkGetPhysicalDevicePresentRectanglesKHR vkGetPhysicalDevicePresentRectanglesKHR;
 #else
@@ -852,6 +872,22 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_fbfa9964[2];
 #endif /* defined(VK_AMD_draw_indirect_count) */
+#if defined(VK_AMD_gpa_interface)
+	PFN_vkCmdBeginGpaSampleAMD vkCmdBeginGpaSampleAMD;
+	PFN_vkCmdBeginGpaSessionAMD vkCmdBeginGpaSessionAMD;
+	PFN_vkCmdCopyGpaSessionResultsAMD vkCmdCopyGpaSessionResultsAMD;
+	PFN_vkCmdEndGpaSampleAMD vkCmdEndGpaSampleAMD;
+	PFN_vkCmdEndGpaSessionAMD vkCmdEndGpaSessionAMD;
+	PFN_vkCreateGpaSessionAMD vkCreateGpaSessionAMD;
+	PFN_vkDestroyGpaSessionAMD vkDestroyGpaSessionAMD;
+	PFN_vkGetGpaDeviceClockInfoAMD vkGetGpaDeviceClockInfoAMD;
+	PFN_vkGetGpaSessionResultsAMD vkGetGpaSessionResultsAMD;
+	PFN_vkGetGpaSessionStatusAMD vkGetGpaSessionStatusAMD;
+	PFN_vkResetGpaSessionAMD vkResetGpaSessionAMD;
+	PFN_vkSetGpaDeviceClockModeAMD vkSetGpaDeviceClockModeAMD;
+#else
+	PFN_vkVoidFunction padding_56ca082d[12];
+#endif /* defined(VK_AMD_gpa_interface) */
 #if defined(VK_AMD_shader_info)
 	PFN_vkGetShaderInfoAMD vkGetShaderInfoAMD;
 #else
@@ -876,6 +912,21 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_894d85d8[9];
 #endif /* defined(VK_ARM_data_graph) */
+#if defined(VK_ARM_scheduling_controls) && VK_ARM_SCHEDULING_CONTROLS_SPEC_VERSION >= 2
+	PFN_vkCmdSetDispatchParametersARM vkCmdSetDispatchParametersARM;
+#else
+	PFN_vkVoidFunction padding_4702b278[1];
+#endif /* defined(VK_ARM_scheduling_controls) && VK_ARM_SCHEDULING_CONTROLS_SPEC_VERSION >= 2 */
+#if defined(VK_ARM_shader_instrumentation)
+	PFN_vkClearShaderInstrumentationMetricsARM vkClearShaderInstrumentationMetricsARM;
+	PFN_vkCmdBeginShaderInstrumentationARM vkCmdBeginShaderInstrumentationARM;
+	PFN_vkCmdEndShaderInstrumentationARM vkCmdEndShaderInstrumentationARM;
+	PFN_vkCreateShaderInstrumentationARM vkCreateShaderInstrumentationARM;
+	PFN_vkDestroyShaderInstrumentationARM vkDestroyShaderInstrumentationARM;
+	PFN_vkGetShaderInstrumentationValuesARM vkGetShaderInstrumentationValuesARM;
+#else
+	PFN_vkVoidFunction padding_dcecc311[6];
+#endif /* defined(VK_ARM_shader_instrumentation) */
 #if defined(VK_ARM_tensors)
 	PFN_vkBindTensorMemoryARM vkBindTensorMemoryARM;
 	PFN_vkCmdCopyTensorARM vkCmdCopyTensorARM;
@@ -1135,6 +1186,11 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_8751feb5[4];
 #endif /* defined(VK_EXT_present_timing) */
+#if defined(VK_EXT_primitive_restart_index)
+	PFN_vkCmdSetPrimitiveRestartIndexEXT vkCmdSetPrimitiveRestartIndexEXT;
+#else
+	PFN_vkVoidFunction padding_a1770b32[1];
+#endif /* defined(VK_EXT_primitive_restart_index) */
 #if defined(VK_EXT_private_data)
 	PFN_vkCreatePrivateDataSlotEXT vkCreatePrivateDataSlotEXT;
 	PFN_vkDestroyPrivateDataSlotEXT vkDestroyPrivateDataSlotEXT;
@@ -1324,6 +1380,66 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_3d63aec0[3];
 #endif /* defined(VK_KHR_descriptor_update_template) */
+#if defined(VK_KHR_device_address_commands)
+	PFN_vkCmdBindIndexBuffer3KHR vkCmdBindIndexBuffer3KHR;
+	PFN_vkCmdBindVertexBuffers3KHR vkCmdBindVertexBuffers3KHR;
+	PFN_vkCmdCopyImageToMemoryKHR vkCmdCopyImageToMemoryKHR;
+	PFN_vkCmdCopyMemoryKHR vkCmdCopyMemoryKHR;
+	PFN_vkCmdCopyMemoryToImageKHR vkCmdCopyMemoryToImageKHR;
+	PFN_vkCmdCopyQueryPoolResultsToMemoryKHR vkCmdCopyQueryPoolResultsToMemoryKHR;
+	PFN_vkCmdDispatchIndirect2KHR vkCmdDispatchIndirect2KHR;
+	PFN_vkCmdDrawIndexedIndirect2KHR vkCmdDrawIndexedIndirect2KHR;
+	PFN_vkCmdDrawIndirect2KHR vkCmdDrawIndirect2KHR;
+	PFN_vkCmdFillMemoryKHR vkCmdFillMemoryKHR;
+	PFN_vkCmdUpdateMemoryKHR vkCmdUpdateMemoryKHR;
+#else
+	PFN_vkVoidFunction padding_2b90e4ce[11];
+#endif /* defined(VK_KHR_device_address_commands) */
+#if defined(VK_KHR_device_address_commands) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2))
+	PFN_vkCmdDrawIndexedIndirectCount2KHR vkCmdDrawIndexedIndirectCount2KHR;
+	PFN_vkCmdDrawIndirectCount2KHR vkCmdDrawIndirectCount2KHR;
+#else
+	PFN_vkVoidFunction padding_7a492754[2];
+#endif /* defined(VK_KHR_device_address_commands) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2)) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_EXT_conditional_rendering)
+	PFN_vkCmdBeginConditionalRendering2EXT vkCmdBeginConditionalRendering2EXT;
+#else
+	PFN_vkVoidFunction padding_f9bf440[1];
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_EXT_conditional_rendering) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_EXT_transform_feedback)
+	PFN_vkCmdBeginTransformFeedback2EXT vkCmdBeginTransformFeedback2EXT;
+	PFN_vkCmdBindTransformFeedbackBuffers2EXT vkCmdBindTransformFeedbackBuffers2EXT;
+	PFN_vkCmdDrawIndirectByteCount2EXT vkCmdDrawIndirectByteCount2EXT;
+	PFN_vkCmdEndTransformFeedback2EXT vkCmdEndTransformFeedback2EXT;
+#else
+	PFN_vkVoidFunction padding_2d72d440[4];
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_EXT_transform_feedback) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_EXT_mesh_shader)
+	PFN_vkCmdDrawMeshTasksIndirect2EXT vkCmdDrawMeshTasksIndirect2EXT;
+#else
+	PFN_vkVoidFunction padding_4e6fc3d1[1];
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_EXT_mesh_shader) */
+#if defined(VK_KHR_device_address_commands) && ((defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2)) && defined(VK_EXT_mesh_shader))
+	PFN_vkCmdDrawMeshTasksIndirectCount2EXT vkCmdDrawMeshTasksIndirectCount2EXT;
+#else
+	PFN_vkVoidFunction padding_5dc290cb[1];
+#endif /* defined(VK_KHR_device_address_commands) && ((defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2)) && defined(VK_EXT_mesh_shader)) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_AMD_buffer_marker)
+	PFN_vkCmdWriteMarkerToMemoryAMD vkCmdWriteMarkerToMemoryAMD;
+#else
+	PFN_vkVoidFunction padding_140dbb45[1];
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_AMD_buffer_marker) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_KHR_acceleration_structure)
+	PFN_vkCreateAccelerationStructure2KHR vkCreateAccelerationStructure2KHR;
+#else
+	PFN_vkVoidFunction padding_2564889a[1];
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_KHR_acceleration_structure) */
+#if defined(VK_KHR_device_fault)
+	PFN_vkGetDeviceFaultDebugInfoKHR vkGetDeviceFaultDebugInfoKHR;
+	PFN_vkGetDeviceFaultReportsKHR vkGetDeviceFaultReportsKHR;
+#else
+	PFN_vkVoidFunction padding_d83e9289[2];
+#endif /* defined(VK_KHR_device_fault) */
 #if defined(VK_KHR_device_group)
 	PFN_vkCmdDispatchBaseKHR vkCmdDispatchBaseKHR;
 	PFN_vkCmdSetDeviceMaskKHR vkCmdSetDeviceMaskKHR;
@@ -1698,6 +1814,17 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_4979ca14[1];
 #endif /* defined(VK_NV_fragment_shading_rate_enums) */
+#if defined(VK_NV_low_latency) && VK_NV_LOW_LATENCY_SPEC_VERSION >= 2
+	PFN_vkGetLatencyTimingsLegacyNV vkGetLatencyTimingsLegacyNV;
+	PFN_vkGetSleepStatusLegacyNV vkGetSleepStatusLegacyNV;
+	PFN_vkLatencySleepLegacyNV vkLatencySleepLegacyNV;
+	PFN_vkQueueNotifyOutOfBandLegacyNV vkQueueNotifyOutOfBandLegacyNV;
+	PFN_vkSetLatencyMarkerLegacyNV vkSetLatencyMarkerLegacyNV;
+	PFN_vkSetLatencySleepModeLegacyNV vkSetLatencySleepModeLegacyNV;
+	PFN_vkShutdownLatencyDeviceLegacyNV vkShutdownLatencyDeviceLegacyNV;
+#else
+	PFN_vkVoidFunction padding_f08173c[7];
+#endif /* defined(VK_NV_low_latency) && VK_NV_LOW_LATENCY_SPEC_VERSION >= 2 */
 #if defined(VK_NV_low_latency2)
 	PFN_vkGetLatencyTimingsNV vkGetLatencyTimingsNV;
 	PFN_vkLatencySleepNV vkLatencySleepNV;
@@ -1777,6 +1904,11 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_9c703846[2];
 #endif /* defined(VK_OHOS_external_memory) */
+#if defined(VK_QCOM_queue_perf_hint)
+	PFN_vkQueueSetPerfHintQCOM vkQueueSetPerfHintQCOM;
+#else
+	PFN_vkVoidFunction padding_98b80534[1];
+#endif /* defined(VK_QCOM_queue_perf_hint) */
 #if defined(VK_QCOM_tile_memory_heap)
 	PFN_vkCmdBindTileMemoryQCOM vkCmdBindTileMemoryQCOM;
 #else
@@ -1886,12 +2018,12 @@ struct VolkDeviceTable
 #else
 	PFN_vkVoidFunction padding_3a8ec90e[1];
 #endif /* (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_provoking_vertex)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_provoking_vertex)) */
-#if (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_line_rasterization)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_line_rasterization))
+#if (defined(VK_EXT_extended_dynamic_state3) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization))) || (defined(VK_EXT_shader_object) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization)))
 	PFN_vkCmdSetLineRasterizationModeEXT vkCmdSetLineRasterizationModeEXT;
 	PFN_vkCmdSetLineStippleEnableEXT vkCmdSetLineStippleEnableEXT;
 #else
 	PFN_vkVoidFunction padding_29cdb756[2];
-#endif /* (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_line_rasterization)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_line_rasterization)) */
+#endif /* (defined(VK_EXT_extended_dynamic_state3) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization))) || (defined(VK_EXT_shader_object) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization))) */
 #if (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_control)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_control))
 	PFN_vkCmdSetDepthClipNegativeOneToOneEXT vkCmdSetDepthClipNegativeOneToOneEXT;
 #else
@@ -2005,9 +2137,15 @@ extern PFN_vkGetPhysicalDeviceToolProperties vkGetPhysicalDeviceToolProperties;
 extern PFN_vkGetPhysicalDeviceQueueFamilyDataGraphProcessingEnginePropertiesARM vkGetPhysicalDeviceQueueFamilyDataGraphProcessingEnginePropertiesARM;
 extern PFN_vkGetPhysicalDeviceQueueFamilyDataGraphPropertiesARM vkGetPhysicalDeviceQueueFamilyDataGraphPropertiesARM;
 #endif /* defined(VK_ARM_data_graph) */
+#if defined(VK_ARM_data_graph_optical_flow)
+extern PFN_vkGetPhysicalDeviceQueueFamilyDataGraphOpticalFlowImageFormatsARM vkGetPhysicalDeviceQueueFamilyDataGraphOpticalFlowImageFormatsARM;
+#endif /* defined(VK_ARM_data_graph_optical_flow) */
 #if defined(VK_ARM_performance_counters_by_region)
 extern PFN_vkEnumeratePhysicalDeviceQueueFamilyPerformanceCountersByRegionARM vkEnumeratePhysicalDeviceQueueFamilyPerformanceCountersByRegionARM;
 #endif /* defined(VK_ARM_performance_counters_by_region) */
+#if defined(VK_ARM_shader_instrumentation)
+extern PFN_vkEnumeratePhysicalDeviceShaderInstrumentationMetricsARM vkEnumeratePhysicalDeviceShaderInstrumentationMetricsARM;
+#endif /* defined(VK_ARM_shader_instrumentation) */
 #if defined(VK_ARM_tensors)
 extern PFN_vkGetPhysicalDeviceExternalTensorPropertiesARM vkGetPhysicalDeviceExternalTensorPropertiesARM;
 #endif /* defined(VK_ARM_tensors) */
@@ -2022,6 +2160,9 @@ extern PFN_vkGetRandROutputDisplayEXT vkGetRandROutputDisplayEXT;
 #if defined(VK_EXT_calibrated_timestamps)
 extern PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT vkGetPhysicalDeviceCalibrateableTimeDomainsEXT;
 #endif /* defined(VK_EXT_calibrated_timestamps) */
+#if defined(VK_EXT_cooperative_matrix_maintenance1)
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixProperties2EXT vkGetPhysicalDeviceCooperativeMatrixProperties2EXT;
+#endif /* defined(VK_EXT_cooperative_matrix_maintenance1) */
 #if defined(VK_EXT_debug_report)
 extern PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 extern PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
@@ -2202,6 +2343,9 @@ extern PFN_vkGetPhysicalDeviceScreenPresentationSupportQNX vkGetPhysicalDeviceSc
 extern PFN_vkCreateUbmSurfaceSEC vkCreateUbmSurfaceSEC;
 extern PFN_vkGetPhysicalDeviceUbmPresentationSupportSEC vkGetPhysicalDeviceUbmPresentationSupportSEC;
 #endif /* defined(VK_SEC_ubm_surface) */
+#if (defined(VK_ARM_data_graph_instruction_set_tosa)) || (defined(VK_ARM_data_graph_optical_flow))
+extern PFN_vkGetPhysicalDeviceQueueFamilyDataGraphEngineOperationPropertiesARM vkGetPhysicalDeviceQueueFamilyDataGraphEngineOperationPropertiesARM;
+#endif /* (defined(VK_ARM_data_graph_instruction_set_tosa)) || (defined(VK_ARM_data_graph_optical_flow)) */
 #if (defined(VK_KHR_device_group) && defined(VK_KHR_surface)) || (defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1))
 extern PFN_vkGetPhysicalDevicePresentRectanglesKHR vkGetPhysicalDevicePresentRectanglesKHR;
 #endif /* (defined(VK_KHR_device_group) && defined(VK_KHR_surface)) || (defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1)) */
@@ -2448,6 +2592,20 @@ extern PFN_vkSetLocalDimmingAMD vkSetLocalDimmingAMD;
 extern PFN_vkCmdDrawIndexedIndirectCountAMD vkCmdDrawIndexedIndirectCountAMD;
 extern PFN_vkCmdDrawIndirectCountAMD vkCmdDrawIndirectCountAMD;
 #endif /* defined(VK_AMD_draw_indirect_count) */
+#if defined(VK_AMD_gpa_interface)
+extern PFN_vkCmdBeginGpaSampleAMD vkCmdBeginGpaSampleAMD;
+extern PFN_vkCmdBeginGpaSessionAMD vkCmdBeginGpaSessionAMD;
+extern PFN_vkCmdCopyGpaSessionResultsAMD vkCmdCopyGpaSessionResultsAMD;
+extern PFN_vkCmdEndGpaSampleAMD vkCmdEndGpaSampleAMD;
+extern PFN_vkCmdEndGpaSessionAMD vkCmdEndGpaSessionAMD;
+extern PFN_vkCreateGpaSessionAMD vkCreateGpaSessionAMD;
+extern PFN_vkDestroyGpaSessionAMD vkDestroyGpaSessionAMD;
+extern PFN_vkGetGpaDeviceClockInfoAMD vkGetGpaDeviceClockInfoAMD;
+extern PFN_vkGetGpaSessionResultsAMD vkGetGpaSessionResultsAMD;
+extern PFN_vkGetGpaSessionStatusAMD vkGetGpaSessionStatusAMD;
+extern PFN_vkResetGpaSessionAMD vkResetGpaSessionAMD;
+extern PFN_vkSetGpaDeviceClockModeAMD vkSetGpaDeviceClockModeAMD;
+#endif /* defined(VK_AMD_gpa_interface) */
 #if defined(VK_AMD_shader_info)
 extern PFN_vkGetShaderInfoAMD vkGetShaderInfoAMD;
 #endif /* defined(VK_AMD_shader_info) */
@@ -2466,6 +2624,17 @@ extern PFN_vkGetDataGraphPipelinePropertiesARM vkGetDataGraphPipelinePropertiesA
 extern PFN_vkGetDataGraphPipelineSessionBindPointRequirementsARM vkGetDataGraphPipelineSessionBindPointRequirementsARM;
 extern PFN_vkGetDataGraphPipelineSessionMemoryRequirementsARM vkGetDataGraphPipelineSessionMemoryRequirementsARM;
 #endif /* defined(VK_ARM_data_graph) */
+#if defined(VK_ARM_scheduling_controls) && VK_ARM_SCHEDULING_CONTROLS_SPEC_VERSION >= 2
+extern PFN_vkCmdSetDispatchParametersARM vkCmdSetDispatchParametersARM;
+#endif /* defined(VK_ARM_scheduling_controls) && VK_ARM_SCHEDULING_CONTROLS_SPEC_VERSION >= 2 */
+#if defined(VK_ARM_shader_instrumentation)
+extern PFN_vkClearShaderInstrumentationMetricsARM vkClearShaderInstrumentationMetricsARM;
+extern PFN_vkCmdBeginShaderInstrumentationARM vkCmdBeginShaderInstrumentationARM;
+extern PFN_vkCmdEndShaderInstrumentationARM vkCmdEndShaderInstrumentationARM;
+extern PFN_vkCreateShaderInstrumentationARM vkCreateShaderInstrumentationARM;
+extern PFN_vkDestroyShaderInstrumentationARM vkDestroyShaderInstrumentationARM;
+extern PFN_vkGetShaderInstrumentationValuesARM vkGetShaderInstrumentationValuesARM;
+#endif /* defined(VK_ARM_shader_instrumentation) */
 #if defined(VK_ARM_tensors)
 extern PFN_vkBindTensorMemoryARM vkBindTensorMemoryARM;
 extern PFN_vkCmdCopyTensorARM vkCmdCopyTensorARM;
@@ -2647,6 +2816,9 @@ extern PFN_vkGetSwapchainTimeDomainPropertiesEXT vkGetSwapchainTimeDomainPropert
 extern PFN_vkGetSwapchainTimingPropertiesEXT vkGetSwapchainTimingPropertiesEXT;
 extern PFN_vkSetSwapchainPresentTimingQueueSizeEXT vkSetSwapchainPresentTimingQueueSizeEXT;
 #endif /* defined(VK_EXT_present_timing) */
+#if defined(VK_EXT_primitive_restart_index)
+extern PFN_vkCmdSetPrimitiveRestartIndexEXT vkCmdSetPrimitiveRestartIndexEXT;
+#endif /* defined(VK_EXT_primitive_restart_index) */
 #if defined(VK_EXT_private_data)
 extern PFN_vkCreatePrivateDataSlotEXT vkCreatePrivateDataSlotEXT;
 extern PFN_vkDestroyPrivateDataSlotEXT vkDestroyPrivateDataSlotEXT;
@@ -2786,6 +2958,48 @@ extern PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateK
 extern PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
 extern PFN_vkUpdateDescriptorSetWithTemplateKHR vkUpdateDescriptorSetWithTemplateKHR;
 #endif /* defined(VK_KHR_descriptor_update_template) */
+#if defined(VK_KHR_device_address_commands)
+extern PFN_vkCmdBindIndexBuffer3KHR vkCmdBindIndexBuffer3KHR;
+extern PFN_vkCmdBindVertexBuffers3KHR vkCmdBindVertexBuffers3KHR;
+extern PFN_vkCmdCopyImageToMemoryKHR vkCmdCopyImageToMemoryKHR;
+extern PFN_vkCmdCopyMemoryKHR vkCmdCopyMemoryKHR;
+extern PFN_vkCmdCopyMemoryToImageKHR vkCmdCopyMemoryToImageKHR;
+extern PFN_vkCmdCopyQueryPoolResultsToMemoryKHR vkCmdCopyQueryPoolResultsToMemoryKHR;
+extern PFN_vkCmdDispatchIndirect2KHR vkCmdDispatchIndirect2KHR;
+extern PFN_vkCmdDrawIndexedIndirect2KHR vkCmdDrawIndexedIndirect2KHR;
+extern PFN_vkCmdDrawIndirect2KHR vkCmdDrawIndirect2KHR;
+extern PFN_vkCmdFillMemoryKHR vkCmdFillMemoryKHR;
+extern PFN_vkCmdUpdateMemoryKHR vkCmdUpdateMemoryKHR;
+#endif /* defined(VK_KHR_device_address_commands) */
+#if defined(VK_KHR_device_address_commands) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2))
+extern PFN_vkCmdDrawIndexedIndirectCount2KHR vkCmdDrawIndexedIndirectCount2KHR;
+extern PFN_vkCmdDrawIndirectCount2KHR vkCmdDrawIndirectCount2KHR;
+#endif /* defined(VK_KHR_device_address_commands) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2)) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_EXT_conditional_rendering)
+extern PFN_vkCmdBeginConditionalRendering2EXT vkCmdBeginConditionalRendering2EXT;
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_EXT_conditional_rendering) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_EXT_transform_feedback)
+extern PFN_vkCmdBeginTransformFeedback2EXT vkCmdBeginTransformFeedback2EXT;
+extern PFN_vkCmdBindTransformFeedbackBuffers2EXT vkCmdBindTransformFeedbackBuffers2EXT;
+extern PFN_vkCmdDrawIndirectByteCount2EXT vkCmdDrawIndirectByteCount2EXT;
+extern PFN_vkCmdEndTransformFeedback2EXT vkCmdEndTransformFeedback2EXT;
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_EXT_transform_feedback) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_EXT_mesh_shader)
+extern PFN_vkCmdDrawMeshTasksIndirect2EXT vkCmdDrawMeshTasksIndirect2EXT;
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_EXT_mesh_shader) */
+#if defined(VK_KHR_device_address_commands) && ((defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2)) && defined(VK_EXT_mesh_shader))
+extern PFN_vkCmdDrawMeshTasksIndirectCount2EXT vkCmdDrawMeshTasksIndirectCount2EXT;
+#endif /* defined(VK_KHR_device_address_commands) && ((defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2)) && defined(VK_EXT_mesh_shader)) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_AMD_buffer_marker)
+extern PFN_vkCmdWriteMarkerToMemoryAMD vkCmdWriteMarkerToMemoryAMD;
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_AMD_buffer_marker) */
+#if defined(VK_KHR_device_address_commands) && defined(VK_KHR_acceleration_structure)
+extern PFN_vkCreateAccelerationStructure2KHR vkCreateAccelerationStructure2KHR;
+#endif /* defined(VK_KHR_device_address_commands) && defined(VK_KHR_acceleration_structure) */
+#if defined(VK_KHR_device_fault)
+extern PFN_vkGetDeviceFaultDebugInfoKHR vkGetDeviceFaultDebugInfoKHR;
+extern PFN_vkGetDeviceFaultReportsKHR vkGetDeviceFaultReportsKHR;
+#endif /* defined(VK_KHR_device_fault) */
 #if defined(VK_KHR_device_group)
 extern PFN_vkCmdDispatchBaseKHR vkCmdDispatchBaseKHR;
 extern PFN_vkCmdSetDeviceMaskKHR vkCmdSetDeviceMaskKHR;
@@ -3042,6 +3256,15 @@ extern PFN_vkGetMemoryWin32HandleNV vkGetMemoryWin32HandleNV;
 #if defined(VK_NV_fragment_shading_rate_enums)
 extern PFN_vkCmdSetFragmentShadingRateEnumNV vkCmdSetFragmentShadingRateEnumNV;
 #endif /* defined(VK_NV_fragment_shading_rate_enums) */
+#if defined(VK_NV_low_latency) && VK_NV_LOW_LATENCY_SPEC_VERSION >= 2
+extern PFN_vkGetLatencyTimingsLegacyNV vkGetLatencyTimingsLegacyNV;
+extern PFN_vkGetSleepStatusLegacyNV vkGetSleepStatusLegacyNV;
+extern PFN_vkLatencySleepLegacyNV vkLatencySleepLegacyNV;
+extern PFN_vkQueueNotifyOutOfBandLegacyNV vkQueueNotifyOutOfBandLegacyNV;
+extern PFN_vkSetLatencyMarkerLegacyNV vkSetLatencyMarkerLegacyNV;
+extern PFN_vkSetLatencySleepModeLegacyNV vkSetLatencySleepModeLegacyNV;
+extern PFN_vkShutdownLatencyDeviceLegacyNV vkShutdownLatencyDeviceLegacyNV;
+#endif /* defined(VK_NV_low_latency) && VK_NV_LOW_LATENCY_SPEC_VERSION >= 2 */
 #if defined(VK_NV_low_latency2)
 extern PFN_vkGetLatencyTimingsNV vkGetLatencyTimingsNV;
 extern PFN_vkLatencySleepNV vkLatencySleepNV;
@@ -3099,6 +3322,9 @@ extern PFN_vkCmdSetViewportShadingRatePaletteNV vkCmdSetViewportShadingRatePalet
 extern PFN_vkGetMemoryNativeBufferOHOS vkGetMemoryNativeBufferOHOS;
 extern PFN_vkGetNativeBufferPropertiesOHOS vkGetNativeBufferPropertiesOHOS;
 #endif /* defined(VK_OHOS_external_memory) */
+#if defined(VK_QCOM_queue_perf_hint)
+extern PFN_vkQueueSetPerfHintQCOM vkQueueSetPerfHintQCOM;
+#endif /* defined(VK_QCOM_queue_perf_hint) */
 #if defined(VK_QCOM_tile_memory_heap)
 extern PFN_vkCmdBindTileMemoryQCOM vkCmdBindTileMemoryQCOM;
 #endif /* defined(VK_QCOM_tile_memory_heap) */
@@ -3176,10 +3402,10 @@ extern PFN_vkCmdSetColorBlendAdvancedEXT vkCmdSetColorBlendAdvancedEXT;
 #if (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_provoking_vertex)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_provoking_vertex))
 extern PFN_vkCmdSetProvokingVertexModeEXT vkCmdSetProvokingVertexModeEXT;
 #endif /* (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_provoking_vertex)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_provoking_vertex)) */
-#if (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_line_rasterization)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_line_rasterization))
+#if (defined(VK_EXT_extended_dynamic_state3) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization))) || (defined(VK_EXT_shader_object) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization)))
 extern PFN_vkCmdSetLineRasterizationModeEXT vkCmdSetLineRasterizationModeEXT;
 extern PFN_vkCmdSetLineStippleEnableEXT vkCmdSetLineStippleEnableEXT;
-#endif /* (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_line_rasterization)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_line_rasterization)) */
+#endif /* (defined(VK_EXT_extended_dynamic_state3) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization))) || (defined(VK_EXT_shader_object) && (defined(VK_VERSION_1_4) || defined(VK_KHR_line_rasterization) || defined(VK_EXT_line_rasterization))) */
 #if (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_control)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_control))
 extern PFN_vkCmdSetDepthClipNegativeOneToOneEXT vkCmdSetDepthClipNegativeOneToOneEXT;
 #endif /* (defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_control)) || (defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_control)) */
