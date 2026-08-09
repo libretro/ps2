@@ -2095,7 +2095,21 @@ void GSDeviceVK::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 		/* Uploading bytes to vertex buffer */
 		ExecuteCommandBufferAndRestartRenderPass(false);
 		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
+		{
+			/* Nothing reserved the space, but GetCurrentHostPointer() is
+			 * still a valid pointer into the stream buffer, so the write
+			 * below would land in a region belonging to something else -
+			 * and CommitMemory would then advance the buffer as though it
+			 * had been reserved.  This is the main draw path, not a blit:
+			 * on a wedged device it ran for every draw of every frame.
+			 *
+			 * Leave the count at zero so the draw that follows submits
+			 * nothing, rather than reading whatever the stale offsets
+			 * point at. */
 			Console.Error("Failed to reserve space for vertices");
+			m_vertex.count = 0;
+			return;
+		}
 	}
 
 	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
@@ -2113,7 +2127,21 @@ void GSDeviceVK::IASetIndexBuffer(const void* index, size_t count)
 		/* Uploading bytes to index buffer */
 		ExecuteCommandBufferAndRestartRenderPass(false);
 		if (!m_index_stream_buffer.ReserveMemory(size, sizeof(u16)))
-			Console.Error("Failed to reserve space for vertices");
+		{
+			/* Nothing reserved the space, but GetCurrentHostPointer() is
+			 * still a valid pointer into the stream buffer, so the write
+			 * below would land in a region belonging to something else -
+			 * and CommitMemory would then advance the buffer as though it
+			 * had been reserved.  This is the main draw path, not a blit:
+			 * on a wedged device it ran for every draw of every frame.
+			 *
+			 * Leave the count at zero so the draw that follows submits
+			 * nothing, rather than reading whatever the stale offsets
+			 * point at. */
+			Console.Error("Failed to reserve space for indices");
+			m_index.count = 0;
+			return;
+		}
 	}
 
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);

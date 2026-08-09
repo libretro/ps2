@@ -1393,7 +1393,21 @@ void GSDevice12::IASetVertexBuffer(const void* vertex, size_t stride, size_t cou
 	{
 		ExecuteCommandListAndRestartRenderPass(false);
 		if (!m_vertex_stream_buffer.ReserveMemory(size, static_cast<u32>(stride)))
+		{
+			/* Nothing reserved the space, but GetCurrentHostPointer() is
+			 * still a valid pointer into the stream buffer, so the write
+			 * below would land in a region belonging to something else -
+			 * and CommitMemory would then advance the buffer as though it
+			 * had been reserved.  This is the main draw path, not a blit:
+			 * on a wedged device it ran for every draw of every frame.
+			 *
+			 * Leave the count at zero so the draw that follows submits
+			 * nothing, rather than reading whatever the stale offsets
+			 * point at. */
 			GSDevice12::ReportRecurring("Reserving space for vertices", E_OUTOFMEMORY);
+			m_vertex.count = 0;
+			return;
+		}
 	}
 
 	m_vertex.start = m_vertex_stream_buffer.GetCurrentOffset() / stride;
@@ -1411,7 +1425,21 @@ void GSDevice12::IASetIndexBuffer(const void* index, size_t count)
 	{
 		ExecuteCommandListAndRestartRenderPass(false);
 		if (!m_index_stream_buffer.ReserveMemory(size, sizeof(u16)))
-			GSDevice12::ReportRecurring("Reserving space for vertices", E_OUTOFMEMORY);
+		{
+			/* Nothing reserved the space, but GetCurrentHostPointer() is
+			 * still a valid pointer into the stream buffer, so the write
+			 * below would land in a region belonging to something else -
+			 * and CommitMemory would then advance the buffer as though it
+			 * had been reserved.  This is the main draw path, not a blit:
+			 * on a wedged device it ran for every draw of every frame.
+			 *
+			 * Leave the count at zero so the draw that follows submits
+			 * nothing, rather than reading whatever the stale offsets
+			 * point at. */
+			GSDevice12::ReportRecurring("Reserving space for indices", E_OUTOFMEMORY);
+			m_index.count = 0;
+			return;
+		}
 	}
 
 	m_index.start = m_index_stream_buffer.GetCurrentOffset() / sizeof(u16);
