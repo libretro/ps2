@@ -1083,7 +1083,14 @@ void GSDevice12::DoMultiStretchRects(
 		if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
 			!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
 		{
+			/* Reporting the failure and then filling the buffer anyway
+			 * is worse than the failure: GetCurrentHostPointer() still
+			 * points into the stream buffer, at a region nothing
+			 * reserved, and the loop below writes num_rects worth of
+			 * vertices and indices into it.  Once the device is wedged
+			 * this ran every frame.  Drop the blit instead. */
 			GSDevice12::ReportRecurring("Reserving space for vertices", E_OUTOFMEMORY);
+			return;
 		}
 	}
 

@@ -1722,7 +1722,15 @@ void GSDeviceVK::DoMultiStretchRects(
 		ExecuteCommandBufferAndRestartRenderPass(false);
 		if (!m_vertex_stream_buffer.ReserveMemory(vertex_reserve_size, sizeof(GSVertexPT1)) ||
 			!m_index_stream_buffer.ReserveMemory(index_reserve_size, sizeof(u16)))
+		{
+			/* Same as the D3D12 path: GetCurrentHostPointer() below is
+			 * still a pointer into the stream buffer whether or not the
+			 * reserve succeeded, so carrying on writes num_rects worth
+			 * of vertices into a region nothing reserved.  Drop the
+			 * blit. */
 			Console.Error("Failed to reserve space for vertices");
+			return;
+		}
 	}
 
 	// Pain in the arse because the primitive topology for the pipelines is all triangle strips.

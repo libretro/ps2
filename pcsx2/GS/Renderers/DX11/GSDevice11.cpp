@@ -772,6 +772,32 @@ void GSDevice11::DoMultiStretchRects(const MultiStretchRect* rects, u32 num_rect
 	const u32 index_reserve_size = num_rects * 6;
 	GSVertexPT1* verts = static_cast<GSVertexPT1*>(IAMapVertexBuffer(sizeof(GSVertexPT1), vertex_reserve_size));
 	u16* idx = IAMapIndexBuffer(index_reserve_size);
+	if (!verts || !idx)
+	{
+		/* Map() returns nothing when the device has been removed or
+		 * reset - a TDR, which is a live event on this renderer rather
+		 * than a theoretical one - and the loop below wrote through
+		 * both pointers without looking at them.  A null store is the
+		 * whole process, immediately, with nothing in the log to say
+		 * why.  IASetVertexBuffer and IASetIndexBuffer have always
+		 * checked; this path never did.
+		 *
+		 * Release whichever mapping did succeed and drop the blit.
+		 * There is no frame to draw on a device that cannot be
+		 * written to. */
+		if (verts)
+			m_ctx->Unmap(m_vb.get(), 0);
+		if (idx)
+			m_ctx->Unmap(m_ib.get(), 0);
+		static bool reported = false;
+		if (!reported)
+		{
+			reported = true;
+			Console.Error("D3D11: could not map the vertex/index buffer "
+					"(device removed or reset?); skipping blits");
+		}
+		return;
+	}
 	u32 icount = 0;
 	u32 vcount = 0;
 	for (u32 i = 0; i < num_rects; i++)
