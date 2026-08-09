@@ -1529,6 +1529,34 @@ static bool RETRO_CALLCONV set_eject_state(bool ejected)
 	if (get_eject_state() == ejected)
 		return false;
 
+	/* Everything below runs on the frontend thread and reaches straight
+	 * into a live VM: cdvdCtrlTrayOpen/Close raise an IOP interrupt, and
+	 * ChangeDisc closes the CDVD reader and opens another one - while
+	 * the EE thread is executing recompiled code that reads those very
+	 * registers and streams from that very reader.
+	 *
+	 * ThreadSanitizer, on three load cycles with three disc swaps each:
+	 *
+	 *   Write of size 4 by main thread
+	 *     iopIntcIrq -> cdvdCtrlTrayOpen -> set_eject_state
+	 *   Previous read of size 4 by thread T5
+	 *     iopEventTest -> _cpuEventTest_Shared -> recEventTest
+	 *   Location is global 'iopHw'
+	 *
+	 * plus four more of the same shape across iopTestIntc,
+	 * iopHwRead32_Page1 and cdvdWrite.  The interrupt controller is the
+	 * visible half; swapping the reader underneath a thread that is
+	 * reading through it is the half that does not need a sanitizer to
+	 * be a problem.
+	 *
+	 * Park the EE for the swap, the way retro_serialize does for the
+	 * same reason.  Guarded on there being a VM at all, because
+	 * cpu_thread_pause waits for a thread that has to exist to answer -
+	 * a frontend may eject before content is loaded. */
+	const bool vm_live = VMManager::HasValidVM();
+	if (vm_live)
+		cpu_thread_pause();
+
 	if (ejected || image_index < 0 || image_index >= (int)disk_images.size())
 	{
 		cdvdCtrlTrayOpen();
@@ -1547,6 +1575,9 @@ static bool RETRO_CALLCONV set_eject_state(bool ejected)
 		VMManager::ChangeDisc(CDVD_SourceType::Iso, disk_images[image_index]);
 		cdvdCtrlTrayClose();
 	}
+
+	if (vm_live)
+		cpu_thread_resume();
 
 	disk_ejected = ejected;
 	return true;
