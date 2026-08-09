@@ -47,21 +47,24 @@ libretro-prepare-windows-x64:
     - msvc2019
   variables:
     GIT_SUBMODULE_STRATEGY: normal
-  # need to go through some heroics to avoid pcsx2/GS/parallel-gs/Granite/third_party/fossilize/cli/SPIRV-Cross;
-  # the filename 'reference/opt/shaders-msl/comp/overlapping-bindings.msl31.argument.argument-tier-1.decoration-binding.device-argument-buffer.texture-buffer-native.comp' is too long
+  # paraLLEl-GS, Granite and volk are vendored in the tree, so only 3rdparty
+  # is still a submodule.  The heroics that used to live here - initialising
+  # parallel-gs, then Granite, then volk and Khronos headers one at a time -
+  # existed to avoid checking out
+  # Granite/third_party/fossilize/cli/SPIRV-Cross, whose
+  # 'reference/opt/shaders-msl/comp/overlapping-bindings.msl31.argument.argument-tier-1.decoration-binding.device-argument-buffer.texture-buffer-native.comp'
+  # is longer than Windows will accept.  Vendoring removed that problem and
+  # the paths with it: 'git submodule update --init third_party/khronos/vulkan-headers'
+  # now fails with "pathspec did not match any file(s) known to git", which
+  # fails the job before anything is built.
+  #
+  # Vulkan headers still resolve.  Granite's third_party/CMakeLists.txt only
+  # descends into khronos/vulkan-headers when Vulkan::Headers is not already
+  # a target, and 3rdparty/vulkan-headers defines it first.
   script:
     - |
       cd "$Env:CI_PROJECT_DIR"
       git submodule update --init --recursive 3rdparty
-      git submodule update --init pcsx2/GS/parallel-gs
-      cd pcsx2/GS/parallel-gs
-      git submodule sync Granite
-      git submodule update --init Granite
-      cd Granite
-      git submodule sync third_party/volk
-      git submodule update --init third_party/volk
-      git submodule sync third_party/khronos/vulkan-headers
-      git submodule update --init third_party/khronos/vulkan-headers
 
 libretro-build-windows-x64:
   extends:
