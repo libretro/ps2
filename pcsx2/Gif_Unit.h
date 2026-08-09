@@ -555,7 +555,7 @@ struct Gif_Unit
 		gifRegs.stat._u32      = 0;
 		gifRegs.ctrl._u32      = 0;
 		gifRegs.mode._u32      = 0;
-		CSRreg.FIFO            = CSR_FIFO_EMPTY; // This is the GIF unit side FIFO, not DMA!
+		gsCSRfield(GS_CSR_FIFO, (u32)CSR_FIFO_EMPTY << GS_CSR_FIFO_SH); // This is the GIF unit side FIFO, not DMA!
 		gsSIGNAL.data[0]       = 0;
 		gsSIGNAL.data[1]       = 0;
 		gsSIGNAL.queued        = false;

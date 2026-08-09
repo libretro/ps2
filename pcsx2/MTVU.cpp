@@ -401,7 +401,7 @@ void VU_Thread::Get_MTVUChanges()
 		{
 			const u32 signalMsk = (u32)(signal >> 32);
 			const u32 signalData = (u32)signal;
-			if (CSRreg.SIGNAL)
+			if (gsCSRload() & GS_CSR_SIGNAL)
 			{
 				/* Queue signal */
 				gifUnit.gsSIGNAL.queued = true;
@@ -410,7 +410,7 @@ void VU_Thread::Get_MTVUChanges()
 			}
 			else
 			{
-				CSRreg.SIGNAL    = true;
+				gsCSRset(GS_CSR_SIGNAL);
 				GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID & ~signalMsk) | (signalData & signalMsk);
 
 				if (!GSIMR.SIGMSK)

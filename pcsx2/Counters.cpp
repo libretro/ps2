@@ -417,7 +417,7 @@ void UpdateVSyncRate(bool force)
 
 		// NBA Jam 2004 PAL will fail to display 3D on the menu if this value isn't correct on reset.
 		if (video_mode_initialized && vSyncInfo.VideoMode != gsVideoMode)
-			CSRreg.FIELD = 1;
+			gsCSRset(GS_CSR_FIELD);
 
 		vSyncInfo.VideoMode = gsVideoMode;
 
@@ -609,13 +609,13 @@ static __fi void GSVSync(void)
 	// CSR is swapped and GS vBlank IRQ is triggered roughly 3.5 hblanks after VSync Start
 
 	if (IsProgressiveVideoMode())
-		CSRreg._u32 |= 0x2000; /* SetField  */
+		gsCSRset(GS_CSR_FIELD);  /* SetField  */
 	else
-		CSRreg._u32 ^= 0x2000; /* SwapField */
+		gsCSRflip(GS_CSR_FIELD); /* SwapField */
 
-	if (!CSRreg.VSINT)
+	if (!(gsCSRload() & GS_CSR_VSINT))
 	{
-		CSRreg.VSINT = true;
+		gsCSRset(GS_CSR_VSINT);
 		if (!GSIMR.VSMSK)
 			hwIntcIrq(INTC_GS);
 	}
@@ -684,9 +684,9 @@ static __fi void rcntUpdate_hScanline(void)
 	}
 	else
 	{ //HBLANK END / HRENDER Begin
-		if (!CSRreg.HSINT)
+		if (!(gsCSRload() & GS_CSR_HSINT))
 		{
-			CSRreg.HSINT = true;
+			gsCSRset(GS_CSR_HSINT);
 			if (!GSIMR.HSMSK)
 				hwIntcIrq(INTC_GS);
 		}

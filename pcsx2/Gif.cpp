@@ -94,7 +94,7 @@ int GIF_Fifo::write_fifo(u32* pMem, int size)
 	fifoSize += transferSize;
 
 	gifRegs.stat.FQC = fifoSize;
-	CSRreg.FIFO      = CalculateFIFOCSR();
+	gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 
 	return transferSize;
 }
@@ -104,7 +104,7 @@ int GIF_Fifo::read_fifo()
 	if (!fifoSize || !gifUnit.CanDoPath3())
 	{
 		gifRegs.stat.FQC = fifoSize;
-		CSRreg.FIFO      = CalculateFIFOCSR();
+		gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 		if (fifoSize)
 			GifDMAInt(128);
 		return 0;
@@ -134,7 +134,7 @@ int GIF_Fifo::read_fifo()
 		fifoSize = 0;
 
 	gifRegs.stat.FQC = fifoSize;
-	CSRreg.FIFO      = CalculateFIFOCSR();
+	gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 
 	return sizeRead;
 }
@@ -278,7 +278,7 @@ __fi void gifInterrupt(void)
 	gif.gscycles = 0;
 	gifch.chcr.STR = false;
 	gifRegs.stat.FQC = gif_fifo.fifoSize;
-	CSRreg.FIFO      = CalculateFIFOCSR();
+	gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 	hwDmacIrq(DMAC_GIF);
 
 	if (gif_fifo.fifoSize)
@@ -392,7 +392,7 @@ void GIFdma(void)
 			if (ptag == NULL)
 				return;
 			gifRegs.stat.FQC = std::min((u32)0x10, gifch.qwc);
-			CSRreg.FIFO      = CalculateFIFOCSR();
+			gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 
 			if (dmacRegs.ctrl.STD == STD_GIF)
 			{
@@ -610,7 +610,7 @@ void mfifoGIFtransfer(void)
 		gifch.madr       = ptag[1]._u32;
 
 		gifRegs.stat.FQC = std::min((u32)0x10, gifch.qwc);
-		CSRreg.FIFO      = CalculateFIFOCSR();
+		gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 
 		gif.mfifocycles += 2;
 
@@ -724,7 +724,7 @@ void gifMFIFOInterrupt(void)
 	gifch.chcr.STR   = false;
 	gif.gifstate     = GIF_STATE_READY;
 	gifRegs.stat.FQC = gif_fifo.fifoSize;
-	CSRreg.FIFO      = CalculateFIFOCSR();
+	gsCSRfield(GS_CSR_FIFO, (u32)CalculateFIFOCSR() << GS_CSR_FIFO_SH);
 	hwDmacIrq(DMAC_GIF);
 	cpuRegs.dmastall &= ~(1 << DMAC_MFIFO_GIF);
 	if (gif_fifo.fifoSize)

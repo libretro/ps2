@@ -56,9 +56,9 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 		GSIMR.VSMSK      = true;
 		GSIMR.EDWMSK     = true;
 		GSIMR._undefined = 0x3;
-		CSRreg.FIFO      = CSR_FIFO_EMPTY;
-		CSRreg.REV       = 0x1B;
-		CSRreg.ID        = 0x55;
+		gsCSRfield(GS_CSR_FIFO, (u32)CSR_FIFO_EMPTY << GS_CSR_FIFO_SH);
+		gsCSRfield(GS_CSR_REV, 0x1Bu << GS_CSR_REV_SH);
+		gsCSRfield(GS_CSR_ID, 0x55u << GS_CSR_ID_SH);
 		MTGS::ResetGS(false);
 	}
 
@@ -73,26 +73,26 @@ static __fi void gsCSRwrite( const tGS_CSR& csr )
 
 			if (!GSIMR.SIGMSK)
 				hwIntcIrq(INTC_GS);
-			CSRreg.SIGNAL  = true; // Just to be sure :p
+			gsCSRset(GS_CSR_SIGNAL); // Just to be sure :p
 		}
-		else CSRreg.SIGNAL = false;
+		else gsCSRclear(GS_CSR_SIGNAL);
 		gifUnit.gsSIGNAL.queued = false;
 		gifUnit.Execute(false, true); // Resume paused transfers
 	}
 
 	if (csr.FINISH)	{
-		CSRreg.FINISH = false;
+		gsCSRclear(GS_CSR_FINISH);
 		gifUnit.gsFINISH.gsFINISHFired = false; //Clear the previously fired FINISH (YS, Indiecar 2005, MGS3)
 		gifUnit.gsFINISH.gsFINISHPending = false;
 	}
-	if(csr.HSINT)	CSRreg.HSINT	= false;
-	if(csr.VSINT)	CSRreg.VSINT	= false;
-	if(csr.EDWINT)	CSRreg.EDWINT	= false;
+	if(csr.HSINT)	gsCSRclear(GS_CSR_HSINT);
+	if(csr.VSINT)	gsCSRclear(GS_CSR_VSINT);
+	if(csr.EDWINT)	gsCSRclear(GS_CSR_EDWINT);
 }
 
 static __fi void IMRwrite(u32 value)
 {
-	if ((CSRreg._u32 & 0x1f) & (~value & GSIMR._u32) >> 8)
+	if ((gsCSRload() & 0x1f) & (~value & GSIMR._u32) >> 8)
 		hwIntcIrq(INTC_GS);
 
 	GSIMR._u32 = (value & 0x1f00)|0x6000;

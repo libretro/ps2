@@ -242,7 +242,7 @@ void MTGS::MainLoop(bool flush_all)
 					// without rendering), but in single-threaded mode MainLoop(true)
 					// IS the render path — call GSvsync.
 					if(!flush_all || sthread_get_current_thread_id() == s_thread)
-						GSvsync((((u32&)PS2MEM_GS[0x1000]) & 0x2000) ? 0 : 1,
+						GSvsync((gsCSRload() & GS_CSR_FIELD) ? 0 : 1,
 						        (bool)retro_atomic_exchange_int(&s_GSRegistersWritten, 0));
 					else
 						retro_atomic_store_release_int(&s_GSRegistersWritten, 0);

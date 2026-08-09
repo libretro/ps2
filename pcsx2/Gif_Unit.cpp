@@ -60,7 +60,7 @@ bool Gif_HandlerAD(u8* pMem)
 	}
 	else if (reg == GIF_A_D_REG_SIGNAL)
 	{ // SIGNAL
-		if (CSRreg.SIGNAL)
+		if (gsCSRload() & GS_CSR_SIGNAL)
 		{ // Time to ignore all subsequent drawing operations.
 			if (!gifUnit.gsSIGNAL.queued)
 			{
@@ -75,7 +75,7 @@ bool Gif_HandlerAD(u8* pMem)
 			GSSIGLBLID.SIGID = (GSSIGLBLID.SIGID & ~data[1]) | (data[0] & data[1]);
 			if (!GSIMR.SIGMSK)
 				hwIntcIrq(INTC_GS);
-			CSRreg.SIGNAL    = true;
+			gsCSRset(GS_CSR_SIGNAL);
 		}
 	}
 	else if (reg == GIF_A_D_REG_FINISH) /* FINISH */
@@ -166,10 +166,10 @@ void Gif_FinishIRQ(void)
 {
 	if (gifUnit.gsFINISH.gsFINISHPending)
 	{
-		CSRreg.FINISH = true;
+		gsCSRset(GS_CSR_FINISH);
 		gifUnit.gsFINISH.gsFINISHPending = false;
 	}
-	if (CSRreg.FINISH && !GSIMR.FINISHMSK && !gifUnit.gsFINISH.gsFINISHFired)
+	if ((gsCSRload() & GS_CSR_FINISH) && !GSIMR.FINISHMSK && !gifUnit.gsFINISH.gsFINISHFired)
 	{
 		hwIntcIrq(INTC_GS);
 		gifUnit.gsFINISH.gsFINISHFired = true;
