@@ -25,6 +25,9 @@
 #include "device.hpp"
 #include "timer.hpp"
 #include <time.h>
+/* std::time_t / std::time: <time.h> puts them in the global namespace and
+ * only some libraries also drag them into std.  MSVC does not. */
+#include <ctime>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
