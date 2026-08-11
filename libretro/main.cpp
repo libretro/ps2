@@ -2485,7 +2485,7 @@ bool retro_load_game(const struct retro_game_info* game)
 					if (path_is_absolute(linebuf))
 						strlcpy(game_abs, linebuf, sizeof(game_abs));
 					else
-						fill_pathname_join_special(game_abs, game_dir, linebuf, sizeof(game_abs));
+						fill_pathname_join(game_abs, game_dir, linebuf, sizeof(game_abs));
 
 					if (path_is_valid(game_abs))
 					{
