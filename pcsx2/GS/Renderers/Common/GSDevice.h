@@ -143,6 +143,8 @@ enum ChannelFetch
 #define HW_BLEND_SRC_ALPHA_DST_FACTOR    2 /* Use the dest color as blend factor, Cs is set to (Alpha - 1). */
 #define HW_BLEND_SRC_DOUBLE              3 /* Double source color. */
 #define HW_BLEND_SRC_HALF_ONE_DST_FACTOR 4 /* Cs is set to 0.5, additionally divide As or Af by 2. */
+#define HW_BLEND_SRC_INV_DST_BLEND_HALF  5 /* Halve the alpha then double the final result. */
+#define HW_BLEND_INV_SRC_DST_BLEND_HALF  6 /* Halve the alpha then double the final result. */
 #define HW_BLEND_BMIX1_ALPHA_HIGH_ONE    1 /* Blend formula replaced when alpha is higher than 1. */
 #define HW_BLEND_BMIX1_SRC_HALF          2 /* Impossible blend always wrong on hw, divide Cs by 2. */
 #define HW_BLEND_BMIX2_OVERFLOW          3 /* Blending Cs might overflow, try to compensate. */
