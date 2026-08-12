@@ -4672,6 +4672,18 @@ void GSRendererHW::EmulateBlending(int rt_alpha_min, int rt_alpha_max, const boo
 				m_conf.blend_multi_pass.blend_hw = HW_BLEND_SRC_ALPHA_DST_FACTOR;
 				m_conf.blend_multi_pass.blend = {true, GSDevice::DST_COLOR, (m_conf.ps.blend_c == 2) ? GSDevice::CONST_COLOR : GSDevice::SRC1_COLOR, GSDevice::OP_ADD, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, m_conf.ps.blend_c == 2, AFIX};
 			}
+			else if ((alpha_c0_high_max_one || alpha_c1_high_no_rta_correct || alpha_c2_high_one) && (blend_flag & BLEND_HW1))
+			{
+				// Alpha = As, Ad or Af.
+				// Cd*(1 + Alpha).
+				// Render pass 1: Do Cd*(1 + Alpha) with a half result in the end.
+				m_conf.ps.blend_hw = HW_BLEND_SRC_HALF_ONE_DST_FACTOR;
+				blend.dst = (m_conf.ps.blend_c == 1) ? GSDevice::DST_ALPHA : GSDevice::SRC1_COLOR;
+				// Render pass 2: Take result (Cd) from render pass 1 and double it.
+				m_conf.blend_multi_pass.enable = true;
+				m_conf.blend_multi_pass.blend_hw = HW_BLEND_SRC_ONE_DST_FACTOR;
+				m_conf.blend_multi_pass.blend = {true, blend_multi_pass.src, GSDevice::CONST_ONE, blend_multi_pass.op, GSDevice::CONST_ONE, GSDevice::CONST_ZERO, false, 0};
+			}
 			else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW3))
 			{
 				// Alpha = Ad.
@@ -4756,7 +4768,7 @@ else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW6))
 			}
 		}
 
-		if (blend_flag & BLEND_HW1)
+		if (!m_conf.blend_multi_pass.enable && blend_flag & BLEND_HW1)
 		{
 			m_conf.ps.blend_hw = HW_BLEND_SRC_ONE_DST_FACTOR;
 		}
@@ -4769,7 +4781,7 @@ else if (alpha_c1_high_no_rta_correct && (blend_flag & BLEND_HW6))
 			m_conf.ps.blend_hw = HW_BLEND_SRC_DOUBLE;
 		}
 
-		if (m_conf.ps.blend_c == 2 && (m_conf.ps.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR || m_conf.blend_multi_pass.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR))
+		if (m_conf.ps.blend_c == 2 && (m_conf.ps.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR || m_conf.ps.blend_hw == HW_BLEND_SRC_HALF_ONE_DST_FACTOR || m_conf.blend_multi_pass.blend_hw == HW_BLEND_SRC_ALPHA_DST_FACTOR))
 			m_conf.cb_ps.TA_MaxDepth_Af.a = static_cast<float>(AFIX) / 128.0f;
 
 		const GSDevice::BlendFactor src_factor_alpha = m_conf.blend_multi_pass.enable ? GSDevice::CONST_ZERO : GSDevice::CONST_ONE;
