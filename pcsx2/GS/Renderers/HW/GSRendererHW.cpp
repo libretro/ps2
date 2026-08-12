@@ -5220,7 +5220,7 @@ __ri void GSRendererHW::HandleTextureHazards(const GSTextureCache::Target* rt, c
 		src_target = rt;
 	}
 	// Be careful of single page channel shuffles where depth is the source but it's not going to the same place, we can't read this directly.
-	else if (ds && m_conf.tex == m_conf.ds && (!m_channel_shuffle || (int)(m_cached_ctx.FRAME.Block() - rt->m_TEX0.TBP0) == (int)(m_cached_ctx.ZBUF.Block() - ds->m_TEX0.TBP0)))
+	else if (ds && m_conf.tex == m_conf.ds && (!m_channel_shuffle || !rt || (int)(m_cached_ctx.FRAME.Block() - rt->m_TEX0.TBP0) == (int)(m_cached_ctx.ZBUF.Block() - ds->m_TEX0.TBP0)))
 	{
 		// GL, Vulkan (in General layout), not DirectX!
 		const bool can_read_current_depth_buffer = g_gs_device->Features().test_and_sample_depth;
