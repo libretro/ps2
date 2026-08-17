@@ -401,6 +401,53 @@ int main()
         }
     }
 
+
+    /* mov/test [mem], imm at every operand width */
+    { const shim_Mov sMOVm; const shim_Test sTSTm;
+      for(int b=0;b<8;b++) for(int i=0;i<nimm;i++){
+        const xAddressVoid mm(xAddressReg(b),xAddressReg(1),4,0x28);
+        snprintf(nm,sizeof nm,"MOVmi8 b%d i%d",b,i);
+        check(nm,[&]{ xMOV(ptr8[mm], imms[i]); },[&]{ sMOVm(ptr8[mm], imms[i]); });
+        snprintf(nm,sizeof nm,"MOVmi16 b%d i%d",b,i);
+        check(nm,[&]{ xMOV(ptr16[mm],imms[i]); },[&]{ sMOVm(ptr16[mm],imms[i]); });
+        snprintf(nm,sizeof nm,"MOVmi32 b%d i%d",b,i);
+        check(nm,[&]{ xMOV(ptr32[mm],imms[i]); },[&]{ sMOVm(ptr32[mm],imms[i]); });
+        snprintf(nm,sizeof nm,"MOVmi64 b%d i%d",b,i);
+        check(nm,[&]{ xMOV(ptr64[mm],imms[i]); },[&]{ sMOVm(ptr64[mm],imms[i]); });
+        snprintf(nm,sizeof nm,"MOVmi_abs b%d i%d",b,i);
+        check(nm,[&]{ xMOV(ptr32[addrs[b%naddr]],imms[i]); },
+                 [&]{ sMOVm(ptr32[addrs[b%naddr]],imms[i]); });
+        snprintf(nm,sizeof nm,"TSTmi8 b%d i%d",b,i);
+        check(nm,[&]{ xTEST(ptr8[mm], imms[i]); },[&]{ sTSTm(ptr8[mm], imms[i]); });
+        snprintf(nm,sizeof nm,"TSTmi32 b%d i%d",b,i);
+        check(nm,[&]{ xTEST(ptr32[mm],imms[i]); },[&]{ sTSTm(ptr32[mm],imms[i]); });
+        snprintf(nm,sizeof nm,"TSTmi64 b%d i%d",b,i);
+        check(nm,[&]{ xTEST(ptr64[mm],imms[i]); },[&]{ sTSTm(ptr64[mm],imms[i]); });
+        snprintf(nm,sizeof nm,"TSTmi_abs b%d i%d",b,i);
+        check(nm,[&]{ xTEST(ptr32[addrs[b%naddr]],imms[i]); },
+                 [&]{ sTSTm(ptr32[addrs[b%naddr]],imms[i]); }); } }
+
+
+    /* PMOVSX/PMOVZX with memory sources: each member takes a different width */
+    { const shim_PMove sSX = {0x2038}, sZX = {0x3038};
+      for(int r=0;r<16;r++) for(int b=0;b<8;b++){
+        const xAddressVoid mm(xAddressReg(b),xAddressReg(2),4,0x18);
+        snprintf(nm,sizeof nm,"PMOVSX.BD_m x%d b%d",r,b);
+        check(nm,[&]{ xPMOVSX.BD(xRegisterSSE(r), ptr32[mm]); },
+                 [&]{ sSX.BD(xRegisterSSE(r), ptr32[mm]); });
+        snprintf(nm,sizeof nm,"PMOVSX.WD_m x%d b%d",r,b);
+        check(nm,[&]{ xPMOVSX.WD(xRegisterSSE(r), ptr64[mm]); },
+                 [&]{ sSX.WD(xRegisterSSE(r), ptr64[mm]); });
+        snprintf(nm,sizeof nm,"PMOVZX.BD_m x%d b%d",r,b);
+        check(nm,[&]{ xPMOVZX.BD(xRegisterSSE(r), ptr32[mm]); },
+                 [&]{ sZX.BD(xRegisterSSE(r), ptr32[mm]); });
+        snprintf(nm,sizeof nm,"PMOVZX.WD_m x%d b%d",r,b);
+        check(nm,[&]{ xPMOVZX.WD(xRegisterSSE(r), ptr64[mm]); },
+                 [&]{ sZX.WD(xRegisterSSE(r), ptr64[mm]); });
+        snprintf(nm,sizeof nm,"PMOVSX.BW_m x%d b%d",r,b);
+        check(nm,[&]{ xPMOVSX.BW(xRegisterSSE(r), ptr64[mm]); },
+                 [&]{ sSX.BW(xRegisterSSE(r), ptr64[mm]); }); } }
+
     printf("shim cases: %ld   divergent: %ld\n",g_cases,g_fail);
     for(size_t i=0;i<g_f.size();i++) printf("  %s\n",g_f[i].c_str());
     return g_fail?1:0;

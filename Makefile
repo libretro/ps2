@@ -820,6 +820,24 @@ ifneq (,$(fpic))
    fpic += -fvisibility=hidden -fvisibility-inlines-hidden
 endif
 
+# Route the x86 emitter's encoding through the C89 macro core in
+# common/emitter/c89emit.h, behind the header-only shim, instead of the
+# out-of-line C++ implementations. Off by default.
+#
+# Equivalence is checked by tests/emitter/switch_equiv.cpp, which compiles one
+# driver both ways and diffs the emitted bytes. That is byte equality of the
+# emitter's output; it is not a claim that the emulator has been run this way.
+#
+# Toggling this needs a clean build. It changes header content rather than any
+# source file, so make will not rebuild translation units that only include
+# the emitter transitively, and the switched objects define their instruction
+# objects with internal linkage. A stale object then fails to link against
+# x86Emitter::xMOV and friends -- loudly, which is the good outcome, but only
+# after a full compile.
+ifeq ($(C89_EMITTER), 1)
+   CXXFLAGS += -DPCSX2_C89_EMITTER
+endif
+
 LDFLAGS += $(fpic) $(SHARED)
 # Opt-in EE recompiler profiling. Off by default and entirely inside
 # #ifdef PCSX2_REC_PROFILE, so a normal build is unaffected.

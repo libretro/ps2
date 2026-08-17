@@ -521,7 +521,8 @@ void recSWR()
 ////////////////////////////////////////////////////
 
 /// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
-static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+template <typename MaskShiftOp, typename ShiftOp>
+static void ldlrhelper_const(int maskamt, const MaskShiftOp& maskshift, int amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
 {
 	// Would xor rcx, rcx; not rcx be better here?
 	xMOV(rcx, -1);
@@ -534,7 +535,8 @@ static void ldlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt
 }
 
 /// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
-static void ldlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+template <typename MaskShiftOp, typename ShiftOp>
+static void ldlrhelper(const xRegister32& maskamt, const MaskShiftOp& maskshift, const xRegister32& amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
 {
 	// Would xor rcx, rcx; not rcx be better here?
 	const xRegister64 maskamt64(maskamt);
@@ -718,7 +720,8 @@ void recLDR()
 ////////////////////////////////////////////////////
 
 /// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
-static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+template <typename MaskShiftOp, typename ShiftOp>
+static void sdlrhelper_const(int maskamt, const MaskShiftOp& maskshift, int amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
 {
 	xMOV(rcx, -1);
 	maskshift(rcx, maskamt);
@@ -729,7 +732,8 @@ static void sdlrhelper_const(int maskamt, const xImpl_Group2& maskshift, int amt
 }
 
 /// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
-static void sdlrhelper(const xRegister32& maskamt, const xImpl_Group2& maskshift, const xRegister32& amt, const xImpl_Group2& shift, const xRegister64& value, const xRegister64& rt)
+template <typename MaskShiftOp, typename ShiftOp>
+static void sdlrhelper(const xRegister32& maskamt, const MaskShiftOp& maskshift, const xRegister32& amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
 {
 	// Generate mask 128-(shiftx8)
 	const xRegister64 maskamt64(maskamt);

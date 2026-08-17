@@ -358,6 +358,25 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
             EW32((p), (e_u32)(imm)); \
         } } while (0)
 
+
+/* mov [mem], imm and test [mem], imm. Both write the immediate at the
+ * operand's size -- one byte, two, or four with the 64-bit form taking a
+ * sign-extended dword -- and the RIP-relative displacement is corrected by
+ * that same count, which is what the reference passes as extraRIPOffset.
+ * mov is movs.cpp:66-70, test is x86emitter.cpp:804-808; they differ only in
+ * the opcode pair. */
+#define E_MEMIMM_(p, sz, op8, op32, m, imm) do { \
+        if ((sz) == 2) E_P16(p); \
+        E_REX_MEM((p), ((sz) == 8), 0, (m)); \
+        EW8((p), (e_u8)(((sz) == 1) ? (op8) : (op32))); \
+        E_MODRM_MEM((p), 0, (m), ((sz) == 1) ? 1 : (((sz) == 2) ? 2 : 4)); \
+        if ((sz) == 1) { EW8((p), (e_u8)(imm)); } \
+        else if ((sz) == 2) { EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); } \
+        else { EW32((p), (e_u32)(imm)); } } while (0)
+
+#define E_MOV_MEM_I(p, sz, m, imm)  E_MEMIMM_((p), (sz), 0xc6, 0xc7, (m), (imm))
+#define E_TEST_MEM_I(p, sz, m, imm) E_MEMIMM_((p), (sz), 0xf6, 0xf7, (m), (imm))
+
 /* group1 r,[mem] and [mem],r */
 #define E_G1_R_MEM(p, w, op, reg, m) do { \
         E_REX_MEM((p), (w), (reg), (m)); \

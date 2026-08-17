@@ -185,6 +185,14 @@ namespace x86Emitter
 			E_MOV_MEM_R(p_, shim_w(from), shim_id(from), m);
 			SHIM_END;
 		}
+		__fi void operator()(const xIndirect64orLess& dest, sptr imm) const
+		{
+			struct e_mem m = shim_mem(dest);
+			SHIM_BEGIN;
+			E_MOV_MEM_I(p_, dest._operandSize, m, imm);
+			SHIM_END;
+		}
+
 		__fi void operator()(const xRegisterInt& to, sptr imm, bool preserve_flags = false) const
 		{
 			SHIM_BEGIN;
@@ -209,6 +217,14 @@ namespace x86Emitter
 
 	struct shim_Test
 	{
+		__fi void operator()(const xIndirect64orLess& dest, int imm) const
+		{
+			struct e_mem m = shim_mem(dest);
+			SHIM_BEGIN;
+			E_TEST_MEM_I(p_, dest._operandSize, m, imm);
+			SHIM_END;
+		}
+
 		__fi void operator()(const xRegisterInt& to, const xRegisterInt& from) const
 		{
 			SHIM_BEGIN;
@@ -627,6 +643,29 @@ namespace x86Emitter
 	struct shim_PMove
 	{
 		u16 OpcodeBase;
+
+		// Memory forms as well as register: each member takes a source of a
+		// different width -- BW an m64, BD an m32, BQ an m16 -- and the
+		// operand's own size feeds REX.W through EmitRex, so it is threaded
+		// through rather than assumed zero.
+		__fi void BW(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, OpcodeBase, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void BD(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, OpcodeBase + 0x100, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void BQ(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, OpcodeBase + 0x200, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void WD(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, OpcodeBase + 0x300, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void WQ(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, OpcodeBase + 0x400, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void DQ(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, OpcodeBase + 0x500, to.Id, m, from._operandSize == 8); SHIM_END; }
 
 		__fi void BW(const xRegisterSSE& to, const xRegisterSSE& from) const
 		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase, to.Id, from.Id); SHIM_END; }
