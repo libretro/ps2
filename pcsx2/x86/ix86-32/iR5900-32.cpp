@@ -509,6 +509,7 @@ static void recAlloc(void)
 	}
 }
 
+alignas(16) static u16 manual_page[Ps2MemSize::MainRam >> 12];
 alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
 
 
@@ -531,6 +532,9 @@ static void recResetRaw(void)
 	recBlocks.Reset();
 	mmap_ResetBlockTracking();
 	vtlb_ClearLoadStoreInfo();
+
+	memset(manual_page, 0, sizeof(manual_page));
+	memset(manual_counter, 0, sizeof(manual_counter));
 
 	xSetPtr(*recMem);
 	recPtr = xGetPtr();
@@ -1455,8 +1459,6 @@ static void dyna_page_reset(u32 start, u32 sz)
 
 static void memory_protect_recompiled_code(u32 startpc, u32 size)
 {
-	alignas(16) static u16 manual_page[Ps2MemSize::MainRam >> 12];
-
 	u32 inpage_ptr = HWADDR(startpc);
 	u32 inpage_sz = size * 4;
 
