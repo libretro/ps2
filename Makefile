@@ -799,6 +799,25 @@ endif
 # beyond this.
 ifneq (,$(fpic))
    fpic += -fno-semantic-interposition
+   # Hide everything the core does not deliberately export. The libretro entry
+   # points carry visibility("default") through RETRO_API, so they survive.
+   #
+   # This is not primarily about call overhead -- -fno-semantic-interposition
+   # already lets internal calls bind directly. It is about data: without it,
+   # a global reached from another translation unit goes through the GOT, an
+   # extra load before every access. Counted as GOTPCREL relocations in the
+   # helpers that emitted code calls into constantly:
+   #
+   #     Counters.cpp   127 -> 67
+   #     vtlb.cpp       144 -> 97
+   #     IopMem.cpp      49 -> 31
+   #
+   # It also drops the dynamic symbol table from 450 exported symbols to the
+   # libretro entry points alone, which is a smaller relocation pass at load.
+   #
+   # The cmake build has had -fvisibility=hidden all along; this brings the
+   # Makefile build in line.
+   fpic += -fvisibility=hidden -fvisibility-inlines-hidden
 endif
 
 LDFLAGS += $(fpic) $(SHARED)

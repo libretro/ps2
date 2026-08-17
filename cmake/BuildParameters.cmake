@@ -167,7 +167,11 @@ if(MSVC)
 	# Disable Exceptions
 	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 else()
-	add_compile_options(-pipe -fvisibility=hidden -pthread)
+	# -fno-semantic-interposition matches the Makefile build: the core is a
+	# shared object that never relies on symbol interposition, and without
+	# it the compiler must assume its own definitions can be replaced at
+	# load time, which blocks direct binding and cross-TU constant folding.
+	add_compile_options(-pipe -fvisibility=hidden -fvisibility-inlines-hidden -fno-semantic-interposition -pthread)
 	add_compile_options(
 		"$<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>"
 		"$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>"
