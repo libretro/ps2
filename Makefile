@@ -802,6 +802,12 @@ ifneq (,$(fpic))
 endif
 
 LDFLAGS += $(fpic) $(SHARED)
+# Opt-in EE recompiler profiling. Off by default and entirely inside
+# #ifdef PCSX2_REC_PROFILE, so a normal build is unaffected.
+ifeq ($(PCSX2_REC_PROFILE), 1)
+   FLAGS += -DPCSX2_REC_PROFILE
+endif
+
 FLAGS   += $(fpic) $(INCFLAGS)
 
 FLAGS += $(ENDIANNESS_DEFINES) \
