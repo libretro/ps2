@@ -241,7 +241,8 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA32, XMMINFO_WRITED | XMMINFO_READT | X
 * Format:  OP rd, rt, rs                                 *
 *********************************************************/
 
-static void recShiftV_constt(int info, const xImpl_Group2& shift)
+template <typename ShiftOp>
+static void recShiftV_constt(int info, const ShiftOp& shift)
 {
 	recMoveSToRCX(info);
 	xMOV(xRegister32(EEREC_D), g_cpuConstRegs[_Rt_].UL[0]);
@@ -249,7 +250,8 @@ static void recShiftV_constt(int info, const xImpl_Group2& shift)
 	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
 }
 
-static void recShiftV(int info, const xImpl_Group2& shift)
+template <typename ShiftOp>
+static void recShiftV(int info, const ShiftOp& shift)
 {
 	recMoveSToRCX(info);
 	recMoveTtoD(info);
@@ -257,14 +259,16 @@ static void recShiftV(int info, const xImpl_Group2& shift)
 	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
 }
 
-static void recDShiftV_constt(int info, const xImpl_Group2& shift)
+template <typename ShiftOp>
+static void recDShiftV_constt(int info, const ShiftOp& shift)
 {
 	recMoveSToRCX(info);
 	xMOV64(xRegister64(EEREC_D), g_cpuConstRegs[_Rt_].SD[0]);
 	shift(xRegister64(EEREC_D), cl);
 }
 
-static void recDShiftV(int info, const xImpl_Group2& shift)
+template <typename ShiftOp>
+static void recDShiftV(int info, const ShiftOp& shift)
 {
 	recMoveSToRCX(info);
 	recMoveTtoD64(info);

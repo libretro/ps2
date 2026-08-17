@@ -1462,14 +1462,16 @@ static void rpsxSRA_(int info)
 PSXRECOMPILE_CONSTCODE2(SRA, XMMINFO_WRITED | XMMINFO_READS);
 
 //// SLLV
-static void rpsxShiftV_constt(int info, const xImpl_Group2& shift)
+template <typename ShiftOp>
+static void rpsxShiftV_constt(int info, const ShiftOp& shift)
 {
 	rpsxMoveSToECX(info);
 	xMOV(xRegister32(EEREC_D), g_psxConstRegs[_Rt_]);
 	shift(xRegister32(EEREC_D), cl);
 }
 
-static void rpsxShiftV(int info, const xImpl_Group2& shift)
+template <typename ShiftOp>
+static void rpsxShiftV(int info, const ShiftOp& shift)
 {
 	rpsxMoveSToECX(info);
 	rpsxMoveTtoD(info);
