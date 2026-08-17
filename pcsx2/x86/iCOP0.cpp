@@ -113,7 +113,10 @@ void recTLBR()
 	// Three-operand IMUL, which only started encoding correctly in 661ebc9;
 	// before that it emitted PACKSSDW.
 	xMUL(eax, eax, (s32)sizeof(tlbs));
-	xMOV(rcx, (uptr)tlb);
+	// xLoadFarAddr, not xMOV: xMOV(reg64, imm) has no 64-bit immediate form
+	// and silently truncates a host pointer to a sign-extended dword. tlb is
+	// a global in the shared object, which loads above 4GB on Windows.
+	xLoadFarAddr(rcx, tlb);
 	xADD(rcx, rax);
 
 	// PageMask, then reuse it to build the EntryHi mask in place.
@@ -168,7 +171,10 @@ void recTLBP()
 	xAND(r9d, 0xFF); // ASID
 
 	xMOV(ptr32[&cpuRegs.CP0.n.Index], 0x80000000);
-	xMOV(rcx, (uptr)tlb);
+	// xLoadFarAddr, not xMOV: xMOV(reg64, imm) has no 64-bit immediate form
+	// and silently truncates a host pointer to a sign-extended dword. tlb is
+	// a global in the shared object, which loads above 4GB on Windows.
+	xLoadFarAddr(rcx, tlb);
 	xXOR(r10d, r10d);
 
 	u8* loop = xGetPtr();
