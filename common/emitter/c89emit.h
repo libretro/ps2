@@ -328,6 +328,36 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
         E_REX_MEM((p), (w), (reg), (m)); \
         EW8((p), 0x89); E_MODRM_MEM((p), (reg), (m), 0); } while (0)
 
+
+/* group1 with a memory destination and an immediate, over the full addressing
+ * form and every operand width. Mirrors xImpl_Group1::operator()(
+ * xIndirect64orLess, int) in groups.cpp:43-65.
+ *
+ * `sz` is the operand size in bytes (1, 2, 4 or 8). The immediate is one byte
+ * for the 8-bit form and for the sign-extended 0x83 form, two for 16-bit and
+ * four otherwise -- and the RIP-relative displacement has to be corrected by
+ * that count, which is what the reference passes as extraRIPOffset. */
+#define E_G1_MEM_I(p, sz, op, m, imm) do { \
+        if ((sz) == 1) { \
+            E_REX_MEM((p), 0, (op), (m)); \
+            EW8((p), 0x80); E_MODRM_MEM((p), (op), (m), 1); \
+            EW8((p), (e_u8)(imm)); \
+        } else if (E_IS_S8(imm)) { \
+            if ((sz) == 2) E_P16(p); \
+            E_REX_MEM((p), ((sz) == 8), (op), (m)); \
+            EW8((p), 0x83); E_MODRM_MEM((p), (op), (m), 1); \
+            EW8((p), (e_u8)(imm)); \
+        } else if ((sz) == 2) { \
+            E_P16(p); \
+            E_REX_MEM((p), 0, (op), (m)); \
+            EW8((p), 0x81); E_MODRM_MEM((p), (op), (m), 2); \
+            EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); \
+        } else { \
+            E_REX_MEM((p), ((sz) == 8), (op), (m)); \
+            EW8((p), 0x81); E_MODRM_MEM((p), (op), (m), 4); \
+            EW32((p), (e_u32)(imm)); \
+        } } while (0)
+
 /* group1 r,[mem] and [mem],r */
 #define E_G1_R_MEM(p, w, op, reg, m) do { \
         E_REX_MEM((p), (w), (reg), (m)); \

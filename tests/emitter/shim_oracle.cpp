@@ -369,6 +369,38 @@ int main()
         }
     }
 
+
+    /* ---- group1 with a memory destination and an immediate ---- */
+    {
+        const shim_Group1 g1s[6] = { {G1Type_ADD},{G1Type_OR},{G1Type_AND},
+                                     {G1Type_SUB},{G1Type_XOR},{G1Type_CMP} };
+        const xImpl_Group1* g1r[6] = { &xADD,&xOR,&xAND,&xSUB,&xXOR,&xCMP };
+        const char* g1n[6] = {"ADD","OR","AND","SUB","XOR","CMP"};
+        for(int g=0;g<6;g++)
+        for(int i=0;i<nimm;i++)
+        for(int b=0;b<8;b++){
+            const s32 im = imms[i];
+            /* every operand width, and base+index so the RIP correction and
+               the SIB path are both exercised */
+            auto M8 =[&]{ return ptr8 [xAddressVoid(xAddressReg(b),xAddressReg(2),4,0x20)]; };
+            auto M16=[&]{ return ptr16[xAddressVoid(xAddressReg(b),xAddressReg(2),4,0x20)]; };
+            auto M32=[&]{ return ptr32[xAddressVoid(xAddressReg(b),xAddressReg(2),4,0x20)]; };
+            auto M64=[&]{ return ptr64[xAddressVoid(xAddressReg(b),xAddressReg(2),4,0x20)]; };
+            snprintf(nm,sizeof nm,"%s_MI8 b%d i%d",g1n[g],b,i);
+            check(nm,[&]{ (*g1r[g])(M8(), im); },[&]{ g1s[g](M8(), im); });
+            snprintf(nm,sizeof nm,"%s_MI16 b%d i%d",g1n[g],b,i);
+            check(nm,[&]{ (*g1r[g])(M16(),im); },[&]{ g1s[g](M16(),im); });
+            snprintf(nm,sizeof nm,"%s_MI32 b%d i%d",g1n[g],b,i);
+            check(nm,[&]{ (*g1r[g])(M32(),im); },[&]{ g1s[g](M32(),im); });
+            snprintf(nm,sizeof nm,"%s_MI64 b%d i%d",g1n[g],b,i);
+            check(nm,[&]{ (*g1r[g])(M64(),im); },[&]{ g1s[g](M64(),im); });
+            /* displacement-only too, where the RIP-relative form kicks in */
+            snprintf(nm,sizeof nm,"%s_MIabs32 b%d i%d",g1n[g],b,i);
+            check(nm,[&]{ (*g1r[g])(ptr32[addrs[b%naddr]],im); },
+                     [&]{ g1s[g](ptr32[addrs[b%naddr]],im); });
+        }
+    }
+
     printf("shim cases: %ld   divergent: %ld\n",g_cases,g_fail);
     for(size_t i=0;i<g_f.size();i++) printf("  %s\n",g_f[i].c_str());
     return g_fail?1:0;

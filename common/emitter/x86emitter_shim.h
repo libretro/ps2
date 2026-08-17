@@ -97,6 +97,17 @@ namespace x86Emitter
 			SHIM_END;
 		}
 
+		// Memory destination with an immediate. The operand's own size picks
+		// the encoding and the immediate width, and the RIP-relative
+		// displacement is corrected by that width.
+		__fi void operator()(const xIndirect64orLess& sibdest, int imm) const
+		{
+			struct e_mem m = shim_mem(sibdest);
+			SHIM_BEGIN;
+			E_G1_MEM_I(p_, sibdest._operandSize, InstType, m, imm);
+			SHIM_END;
+		}
+
 		__fi void operator()(const xRegisterInt& to, int imm) const
 		{
 			SHIM_BEGIN;
