@@ -23,6 +23,8 @@ INC="-I $ROOT -I $ROOT/common -I $ROOT/common/include -I $ROOT/pcsx2 \
  -I $ROOT/libretro/libretro-common/include -I $ROOT/common/emitter"
 g++ -O1 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
     -c "$DIR/oracle.cpp" -o "$DIR/oracle.o"
+g++ -O1 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
+    -c "$DIR/shim_oracle.cpp" -o "$DIR/shim_oracle.o"
 # -no-pie so the emit buffer can be MAP_FIXED at a known address, which keeps
 # the RIP-relative displacements reproducible between the two emitters.
 g++ $SANFLAGS -no-pie -o "$DIR/emitter_oracle" "$DIR/oracle.o" \
@@ -30,4 +32,10 @@ g++ $SANFLAGS -no-pie -o "$DIR/emitter_oracle" "$DIR/oracle.o" \
   "$ROOT"/common/emitter/jmp.o "$ROOT"/common/emitter/legacy.o \
   "$ROOT"/common/emitter/legacy_sse.o "$ROOT"/common/emitter/movs.o \
   "$ROOT"/common/emitter/simd.o "$ROOT"/common/emitter/x86emitter.o
+EMOBJS="$ROOT/common/emitter/avx.o $ROOT/common/emitter/groups.o \
+  $ROOT/common/emitter/jmp.o $ROOT/common/emitter/legacy.o \
+  $ROOT/common/emitter/legacy_sse.o $ROOT/common/emitter/movs.o \
+  $ROOT/common/emitter/simd.o $ROOT/common/emitter/x86emitter.o"
+g++ $SANFLAGS -no-pie -o "$DIR/shim_oracle" "$DIR/shim_oracle.o" $EMOBJS
 echo "built: $DIR/emitter_oracle"
+echo "built: $DIR/shim_oracle"

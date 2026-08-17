@@ -123,4 +123,5 @@ build*/
 
 # emitter oracle build products
 tests/emitter/emitter_oracle
+tests/emitter/shim_oracle
 tests/emitter/*.o
