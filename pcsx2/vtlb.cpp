@@ -1549,7 +1549,11 @@ static __fi void mmap_ClearCpuBlock(uint offset)
 	if (CHECK_FASTMEM)
 		vtlb_UpdateFastmemProtection(rampage << __pageshift, __pagesize, mode);
 	m_PageProtectInfo[rampage].Mode = ProtMode_Manual;
-	Cpu->Clear(m_PageProtectInfo[rampage].ReverseRamMap, __pagesize);
+	// Clear takes an instruction count, not a byte count -- every other
+	// caller passes one (COP0 uses 0x400 for a TLB page, CDVD uses
+	// BlockSize / 4, IopMem uses 1 for a word). Passing __pagesize here
+	// asks for four pages' worth of blocks.
+	Cpu->Clear(m_PageProtectInfo[rampage].ReverseRamMap, __pagesize / 4);
 }
 
 bool vtlb_private::PageFaultHandler(const PageFaultInfo& info)
