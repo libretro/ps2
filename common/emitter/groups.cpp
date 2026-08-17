@@ -200,7 +200,11 @@ namespace x86Emitter
 	template <typename SrcType>
 	static void _imul_ImmStyle(const xRegisterInt& param1, const SrcType& param2, int imm)
 	{
-		xOpWrite0F(param1.GetPrefix16(), is_s8(imm) ? 0x6b : 0x69, param1, param2, is_s8(imm) ? 1 : param1.GetImmSize());
+		// xOpWrite, not xOpWrite0F: 6B and 69 are one-byte opcodes. The trailing
+		// argument here is an extraRIPOffset, which is what xOpWrite takes. The
+		// five-argument xOpWrite0F overload takes an imm8 instead, so it both
+		// prepends 0x0F and appends the byte.
+		xOpWrite(param1.GetPrefix16(), is_s8(imm) ? 0x6b : 0x69, param1, param2, is_s8(imm) ? 1 : param1.GetImmSize());
 
 		if (is_s8(imm))
 		{
