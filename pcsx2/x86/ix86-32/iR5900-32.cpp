@@ -239,6 +239,10 @@ static u64  s_prof_emit_n    = 0;   // calls to recRecompile
 static u64  s_prof_clear_n   = 0;   // calls to recClear
 static u64  s_prof_pagerst_n = 0;   // calls to dyna_page_reset
 static u64  s_prof_reset_n   = 0;   // full recompiler resets
+static u64  s_prof_prot[4]   = {0,0,0,0};  // blocks compiled per protection mode
+static u64  s_prof_counted   = 0;   // blocks that took the counted (xADD/xJC) path
+static u64  s_prof_uncounted = 0;   // blocks skipped it: manual_counter above 3
+static u64  s_prof_cmpwords  = 0;   // words of xCMP verification chain emitted
 static u64  s_prof_bytes     = 0;   // x86 bytes emitted
 static double s_prof_t0      = 0.0;
 static double s_prof_next    = 0.0;
@@ -257,7 +261,9 @@ static void prof_report(void)
 	fprintf(stderr,
 		"[recprof] wall %7.2fs | emit %7.3fs (%5.2f%%) | blocks %8llu"
 		" (%6.0f/s, %5.1f us avg) | %6.2f MB emitted"
-		" | clears %7llu | pageresets %6llu | resets %llu\n",
+		" | clears %7llu | pageresets %6llu | resets %llu"
+		" | prot none/nr/wr/man %llu/%llu/%llu/%llu"
+		" | counted %llu uncounted %llu cmpwords %llu\n",
 		wall, emit, wall > 0.0 ? 100.0 * emit / wall : 0.0,
 		(unsigned long long)s_prof_emit_n,
 		wall > 0.0 ? s_prof_emit_n / wall : 0.0,
@@ -265,7 +271,14 @@ static void prof_report(void)
 		(double)s_prof_bytes / (1024.0 * 1024.0),
 		(unsigned long long)s_prof_clear_n,
 		(unsigned long long)s_prof_pagerst_n,
-		(unsigned long long)s_prof_reset_n);
+		(unsigned long long)s_prof_reset_n,
+		(unsigned long long)s_prof_prot[ProtMode_None],
+		(unsigned long long)s_prof_prot[ProtMode_NotRequired],
+		(unsigned long long)s_prof_prot[ProtMode_Write],
+		(unsigned long long)s_prof_prot[ProtMode_Manual],
+		(unsigned long long)s_prof_counted,
+		(unsigned long long)s_prof_uncounted,
+		(unsigned long long)s_prof_cmpwords);
 }
 #endif
 
@@ -1526,6 +1539,10 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 	// note: blocks are guaranteed to reside within the confines of a single page.
 	const vtlb_ProtectionMode PageType = contains_thread_stack ? ProtMode_Manual : mmap_GetRamPageInfo(inpage_ptr);
 
+#ifdef PCSX2_REC_PROFILE
+	if ((unsigned)PageType < 4)
+		s_prof_prot[PageType]++;
+#endif
 	switch (PageType)
 	{
 		case ProtMode_NotRequired:
@@ -1562,6 +1579,13 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 
 			// (ideally, perhaps, manual_counter should be reset to 0 every few minutes?)
 
+#ifdef PCSX2_REC_PROFILE
+			s_prof_cmpwords += inpage_sz / 4;
+			if (!contains_thread_stack && manual_counter[inpage_ptr >> 12] <= 3)
+				s_prof_counted++;
+			else
+				s_prof_uncounted++;
+#endif
 			if (!contains_thread_stack && manual_counter[inpage_ptr >> 12] <= 3)
 			{
 				// Counted blocks add a weighted (by block size) value into manual_page each time they're
