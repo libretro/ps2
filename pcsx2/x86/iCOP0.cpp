@@ -139,7 +139,70 @@ void recTLBR()
 	xOR(eax, edx);
 	xMOV(ptr32[&cpuRegs.CP0.n.EntryLo1], eax);
 }
-void recTLBP() { recCall(Interp::TLBP); }
+// TLBP searches the 48 TLB entries for one matching EntryHi and reports its
+// index, or 0x80000000 if none matches. Like TLBR it touches no mapping state
+// and no GPRs, so the whole search can be emitted rather than called.
+//
+// EntryHi is a bitfield: VPN2 is bits 0..18, then VPN2X:2 and G:3, putting
+// ASID at bits 24..31. The interpreter seeds Index with 0xFFFFFFFF and
+// rewrites it to 0x80000000 when nothing matched; seeding with 0x80000000
+// directly is equivalent and drops the second test.
+//
+// Registers: RCX walks the table, R10D is the loop counter, R8D and R9D hold
+// the two EntryHi fields across the whole loop, EAX and EDX are scratch. All
+// six are caller-saved under both ABIs.
+void recTLBP()
+{
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(edx);
+	_freeX86reg(r8d);
+	_freeX86reg(r9d);
+	_freeX86reg(r10d);
+
+	xMOV(eax, ptr32[&cpuRegs.CP0.n.EntryHi]);
+	xMOV(r8d, eax);
+	xAND(r8d, 0x7FFFF); // VPN2
+	xMOV(r9d, eax);
+	xSHR(r9d, 24);
+	xAND(r9d, 0xFF); // ASID
+
+	xMOV(ptr32[&cpuRegs.CP0.n.Index], 0x80000000);
+	xMOV(rcx, (uptr)tlb);
+	xXOR(r10d, r10d);
+
+	u8* loop = xGetPtr();
+	{
+		// tlb[i].VPN2 == ((~tlb[i].Mask) & VPN2)
+		xMOV(eax, ptr32[xAddressVoid(rcx, offsetof(tlbs, Mask))]);
+		xNOT(eax);
+		xAND(eax, r8d);
+		xCMP(eax, ptr32[xAddressVoid(rcx, offsetof(tlbs, VPN2))]);
+		xForwardJump8 next(Jcc_NotEqual);
+
+		// && ((tlb[i].G & 1) || (tlb[i].ASID & 0xff) == ASID)
+		xMOV(edx, ptr32[xAddressVoid(rcx, offsetof(tlbs, G))]);
+		xTEST(edx, 1);
+		xForwardJNZ8 found;
+		xMOV(edx, ptr32[xAddressVoid(rcx, offsetof(tlbs, ASID))]);
+		xAND(edx, 0xff);
+		xCMP(edx, r9d);
+		xForwardJump8 next2(Jcc_NotEqual);
+
+		found.SetTarget();
+		xMOV(ptr32[&cpuRegs.CP0.n.Index], r10d);
+		xForwardJump8 done;
+
+		next.SetTarget();
+		next2.SetTarget();
+		xADD(rcx, (s32)sizeof(tlbs));
+		xADD(r10d, 1);
+		xCMP(r10d, 48);
+		xJccKnownTarget(Jcc_Less, loop, false);
+
+		done.SetTarget();
+	}
+}
 void recTLBWI() { recCall(Interp::TLBWI); }
 void recTLBWR() { recCall(Interp::TLBWR); }
 
