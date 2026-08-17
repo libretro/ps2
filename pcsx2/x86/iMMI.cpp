@@ -1981,10 +1981,76 @@ void recPMULTW(void)
 	_clearNeededXMMregs();
 }
 ////////////////////////////////////////////////////
+// PDIVW divides the signed words 0 and 2 of Rs by those of Rt, putting the
+// quotients in LO.SD[0..1] and the remainders in HI.SD[0..1], sign-extended.
+// Rd is not written.
+//
+// The three cases are exactly the ones scalar DIV already handles (see
+// recDIVsuper in iR5900MultDiv.cpp), because _PDIVW is the same algorithm run
+// twice: INT_MIN / -1 is defined to give INT_MIN remainder 0 rather than
+// trapping, and division by zero gives quotient (dividend < 0) ? 1 : -1 with
+// the dividend as remainder.
+static void recPDIVW_half(int hilo, int word)
+{
+	u8* end1 = NULL;
+	u8* end2;
+	u8* cont1;
+	u8* cont2;
+	u8* cont3;
+
+	xMOV(ecx, ptr32[&cpuRegs.GPR.r[_Rt_].UL[word]]);
+	xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rs_].UL[word]]);
+
+	// INT_MIN / -1: quotient stays 0x80000000, remainder 0. x86 would raise
+	// #DE here, so the case has to be branched around rather than divided.
+	xCMP(eax, 0x80000000);
+	cont1 = JNE8(0);
+	xCMP(ecx, 0xffffffff);
+	cont2 = JNE8(0);
+	xXOR(edx, edx);
+	end1 = JMP8(0);
+
+	x86SetJ8(cont1);
+	x86SetJ8(cont2);
+
+	xCMP(ecx, 0);
+	cont3 = JNE8(0);
+	// Divide by zero: remainder is the dividend, quotient is its sign
+	// mapped to 1 / -1. SAR+SHL+NOT turns (x<0) into 1 and (x>=0) into -1
+	// without a branch.
+	xMOV(edx, eax);
+	xSAR(eax, 31);
+	xSHL(eax, 1);
+	xNOT(eax);
+	end2 = JMP8(0);
+
+	x86SetJ8(cont3);
+	xCDQ();
+	xDIV(ecx);
+
+	x86SetJ8(end1);
+	x86SetJ8(end2);
+
+	// LO/HI hold 64-bit lanes; both results are sign-extended into them.
+	xMOVSX(rax, eax);
+	xMOV(ptr64[&cpuRegs.LO.UD[hilo]], rax);
+	xMOVSX(rdx, edx);
+	xMOV(ptr64[&cpuRegs.HI.UD[hilo]], rdx);
+}
+
 void recPDIVW(void)
 {
-	_deleteEEreg(_Rd_, 0);
-	recCall(Interp::PDIVW);
+	// Flush everything the sequence reads or clobbers: it works out of
+	// memory and needs eax, ecx and edx. Same preamble recMADD uses.
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	recPDIVW_half(0, 0);
+	recPDIVW_half(1, 2);
 }
 
 ////////////////////////////////////////////////////
