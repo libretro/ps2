@@ -276,12 +276,6 @@ namespace x86Emitter
 		shim_SimdRegSSE    B;   // 66 0F 38 00
 	};
 
-	struct shim_Shuffle
-	{
-		shim_SimdRegImmSSE PS;  // 00 0F C6
-		shim_SimdRegImmSSE PD;  // 66 0F C6
-	};
-
 	struct shim_PCompare
 	{
 		shim_SimdRegSSE EQB, EQW, EQD;
@@ -507,6 +501,70 @@ namespace x86Emitter
 			else       { E_CALL_R(p_, absreg.Id); }
 			SHIM_END;
 		}
+	};
+
+	// xFastCall picks a near call when the target is within a signed 32-bit
+	// displacement and an indirect call through RAX when it is not
+	// (jmp.cpp:84-93), so the emitted length depends on where the code cache
+	// landed relative to the callee.
+	static __fi void shim_FastCall(const void* f)
+	{
+		const sptr disp = ((sptr)x86Ptr + 5) - (sptr)f;
+		if (disp == (sptr)(s32)disp)
+		{
+			SHIM_BEGIN; E_CALL_REL(p_, f); SHIM_END;
+		}
+		else
+		{
+			xLEA(rax, ptr64[f]);
+			SHIM_BEGIN; E_CALL_R(p_, 0); SHIM_END;
+		}
+	}
+
+
+	// ---- the remaining families -----------------------------------------
+
+	// SHUFPS / SHUFPD. Note PD masks the selector to two bits and PS does
+	// not (simd.cpp:264-277) -- the operand only has two lanes to permute.
+	struct shim_Shuffle
+	{
+		__fi void PS(const xRegisterSSE& to, const xRegisterSSE& from, u8 sel) const
+		{ SHIM_BEGIN; E_SSE_RRI(p_, 0x00, 0xc6, to.Id, from.Id, sel); SHIM_END; }
+		__fi void PS(const xRegisterSSE& to, const xIndirectVoid& from, u8 sel) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEMI(p_, 0x00, 0xc6, to.Id, m, sel); SHIM_END; }
+		__fi void PD(const xRegisterSSE& to, const xRegisterSSE& from, u8 sel) const
+		{ SHIM_BEGIN; E_SSE_RRI(p_, 0x66, 0xc6, to.Id, from.Id, sel & 0x3); SHIM_END; }
+		__fi void PD(const xRegisterSSE& to, const xIndirectVoid& from, u8 sel) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEMI(p_, 0x66, 0xc6, to.Id, m, sel & 0x3); SHIM_END; }
+	};
+
+	// MOVD / MOVDZX. The direction is in the opcode, and the register is
+	// always the ModRM.reg operand, so the store form passes the SSE
+	// register first (simd.cpp:472-476).
+	static __fi void shim_MOVDZX(const xRegisterSSE& to, const xRegisterInt& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, 0x6e, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_MOVDZX(const xRegisterSSE& to, const xIndirectVoid& src)
+	{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0x66, 0x6e, to.Id, m, src._operandSize == 8); SHIM_END; }
+	static __fi void shim_MOVD(const xRegisterInt& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, 0x7e, from.Id, to.Id); SHIM_END; }
+	static __fi void shim_MOVD(const xIndirectVoid& dest, const xRegisterSSE& from)
+	{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0x66, 0x7e, from.Id, m, dest._operandSize == 8); SHIM_END; }
+
+	// Two- and three-operand IMUL. The single-operand forms come from
+	// group3 and are already covered by shim_Group3.
+	struct shim_iMul
+	{
+		__fi void operator()(const xRegister32& to, const xRegister32& from) const
+		{ SHIM_BEGIN; E_IMUL_RR(p_, 0, to.Id, from.Id); SHIM_END; }
+		__fi void operator()(const xRegister32& to, const xIndirectVoid& src) const
+		{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
+		  E_IMUL_R_MEM(p_, 0, to.Id, m); SHIM_END; }
+		__fi void operator()(const xRegister32& to, const xRegister32& from, s32 imm) const
+		{ SHIM_BEGIN; E_IMUL_RRI(p_, 0, to.Id, from.Id, imm); SHIM_END; }
 	};
 
 	// ---- free functions ---------------------------------------------------

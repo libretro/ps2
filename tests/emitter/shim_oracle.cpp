@@ -273,6 +273,54 @@ int main()
           } }
     }
 
+
+    /* ---- the last families: SHUF, MOVD, iMul, FastCall ---- */
+    {
+        const shim_Shuffle sSHUF;
+        const shim_iMul    sMUL;
+        const u8 sels[]={0x00,0x1b,0x55,0xaa,0xff};
+        for(int a=0;a<16;a++) for(int b=0;b<16;b++) for(int k=0;k<5;k+=2){
+            snprintf(nm,sizeof nm,"SHUF.PS x%d,x%d s%d",a,b,k);
+            check(nm,[&]{ xSHUF.PS(xRegisterSSE(a),xRegisterSSE(b),sels[k]); },
+                     [&]{ sSHUF.PS(xRegisterSSE(a),xRegisterSSE(b),sels[k]); });
+            /* PD masks the selector to two bits; PS does not */
+            snprintf(nm,sizeof nm,"SHUF.PD x%d,x%d s%d",a,b,k);
+            check(nm,[&]{ xSHUF.PD(xRegisterSSE(a),xRegisterSSE(b),sels[k]); },
+                     [&]{ sSHUF.PD(xRegisterSSE(a),xRegisterSSE(b),sels[k]); });
+        }
+        for(int x=0;x<16;x++) for(int r=0;r<16;r++){
+            snprintf(nm,sizeof nm,"MOVDZX x%d,r%d",x,r);
+            check(nm,[&]{ xMOVDZX(xRegisterSSE(x),xRegister32(r)); },
+                     [&]{ shim_MOVDZX(xRegisterSSE(x),xRegister32(r)); });
+            snprintf(nm,sizeof nm,"MOVD r%d,x%d",r,x);
+            check(nm,[&]{ xMOVD(xRegister32(r),xRegisterSSE(x)); },
+                     [&]{ shim_MOVD(xRegister32(r),xRegisterSSE(x)); });
+        }
+        for(int x=0;x<16;x++) for(int a=0;a<naddr;a++){
+            snprintf(nm,sizeof nm,"MOVDZX_M x%d a%d",x,a);
+            check(nm,[&]{ xMOVDZX(xRegisterSSE(x),ptr32[addrs[a]]); },
+                     [&]{ shim_MOVDZX(xRegisterSSE(x),ptr32[addrs[a]]); });
+            snprintf(nm,sizeof nm,"MOVD_ST x%d a%d",x,a);
+            check(nm,[&]{ xMOVD(ptr32[addrs[a]],xRegisterSSE(x)); },
+                     [&]{ shim_MOVD(ptr32[addrs[a]],xRegisterSSE(x)); });
+        }
+        for(int d=0;d<16;d++) for(int s3=0;s3<16;s3++){
+            snprintf(nm,sizeof nm,"IMUL2 d%d s%d",d,s3);
+            check(nm,[&]{ xMUL(xRegister32(d),xRegister32(s3)); },
+                     [&]{ sMUL(xRegister32(d),xRegister32(s3)); });
+        }
+        for(int d=0;d<16;d+=3) for(int s3=0;s3<16;s3+=3) for(int i=0;i<nimm;i++){
+            snprintf(nm,sizeof nm,"IMUL3 d%d s%d i%d",d,s3,i);
+            check(nm,[&]{ xMUL(xRegister32(d),xRegister32(s3),imms[i]); },
+                     [&]{ sMUL(xRegister32(d),xRegister32(s3),imms[i]); });
+        }
+        /* xFastCall: near and far targets pick different encodings */
+        { void* near_t = (void*)((char*)g_buf + 0x100);
+          void* far_t  = (void*)0x00007f0000000000ull;
+          check("FastCall near",[&]{ xFastCall(near_t); },[&]{ shim_FastCall(near_t); });
+          check("FastCall far", [&]{ xFastCall(far_t);  },[&]{ shim_FastCall(far_t);  }); }
+    }
+
     printf("shim cases: %ld   divergent: %ld\n",g_cases,g_fail);
     for(size_t i=0;i<g_f.size();i++) printf("  %s\n",g_f[i].c_str());
     return g_fail?1:0;
