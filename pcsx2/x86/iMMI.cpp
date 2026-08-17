@@ -183,11 +183,54 @@ void recPMFHL()
 			break;
 
 		case 0x02: // SLW
-			// fall to interp
+		{
+			// Saturating 64-to-32 narrow, twice: each lane forms a signed
+			// 64-bit value from HI:LO and clamps it into a sign-extended
+			// s32. Transcribed from MMI.cpp:182-203.
+			//
+			// Note the upper bound is tested with >=, not >, so a value of
+			// exactly 0x7fffffff takes the saturating branch rather than the
+			// pass-through one. It reaches the same answer either way, but
+			// only because the clamp constant equals the input; writing it
+			// as > would be wrong for no visible reason on most inputs.
+			int lane;
+
 			_deleteEEreg(_Rd_, 0);
-			iFlushCall(FLUSH_INTERPRETER); // since calling CALLFunc
-			xFastCall((void*)(uptr)R5900::Interpreter::OpcodeImpl::MMI::PMFHL);
+			_deleteEEreg(XMMGPR_LO, 1);
+			_deleteEEreg(XMMGPR_HI, 1);
+
+			for (lane = 0; lane < 2; lane++)
+			{
+				const int w = lane * 2;
+
+				xMOV(eax, ptr32[&cpuRegs.LO.UL[w]]); // zero-extends into rax
+				xMOV(edx, ptr32[&cpuRegs.HI.UL[w]]);
+				xSHL(rdx, 32);
+				xOR(rax, rdx);                       // rax = HI:LO, signed
+
+				xMOV64(rcx, 0x000000007fffffffLL);
+				xCMP(rax, rcx);
+				xForwardJump8 sat_hi(Jcc_GreaterOrEqual);
+				xMOV64(rcx, -0x80000000LL);
+				xCMP(rax, rcx);
+				xForwardJump8 sat_lo(Jcc_LessOrEqual);
+
+				xMOVSX(rax, ptr32[&cpuRegs.LO.UL[w]]);
+				xForwardJump8 done;
+
+				sat_hi.SetTarget();
+				xMOV64(rax, 0x000000007fffffffLL);
+				xForwardJump8 done2;
+
+				sat_lo.SetTarget();
+				xMOV64(rax, (s64)0xffffffff80000000ULL);
+
+				done.SetTarget();
+				done2.SetTarget();
+				xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[lane]], rax);
+			}
 			break;
+		}
 
 		case 0x03: // LH
 			t0reg = _allocTempXMMreg(XMMT_INT);
