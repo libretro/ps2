@@ -133,6 +133,47 @@ int main()
 		xUDIV(ptr32[m]);
 	}
 
+
+	/* mov, test, inc/dec. The immediate forms of mov are where the
+	 * interesting branching lives: xor for zero when flags may be clobbered,
+	 * the accumulator form when the value fits 32 bits, C7 /0 sign-extended
+	 * otherwise, and movabs only when nothing shorter holds it. */
+	{
+		const s64 imm64s[] = { 0, 1, -1, 0x7fffffffLL, -0x80000000LL,
+			0x80000000LL, 0xffffffffLL, 0x100000000LL, -0x80000001LL,
+			0x123456789abcdefLL };
+		for (int r = 0; r < 16; r++)
+		{
+			for (int s2 = 0; s2 < 16; s2++)
+			{
+				xMOV(xRegister32(r), xRegister32(s2));
+				xMOV(xRegister64(r), xRegister64(s2));
+				xMOV(xRegister16(r), xRegister16(s2));
+				xTEST(xRegister32(r), xRegister32(s2));
+			}
+			for (int i = 0; i < 10; i++)
+			{
+				xMOV(xRegister64(r), (sptr)imm64s[i], false);
+				xMOV(xRegister64(r), (sptr)imm64s[i], true);
+				xMOV64(xRegister64(r), imm64s[i]);
+			}
+			for (int i = 0; i < nimm; i++)
+				xTEST(xRegister32(r), imms[i]);
+			xINC(xRegister32(r));
+			xDEC(xRegister64(r));
+			xINC(xRegister64(r));
+			xDEC(xRegister32(r));
+		}
+		for (int b = 0; b < 8; b++)
+		{
+			const xAddressVoid m = xAddressVoid(xAddressReg(b), xAddressReg(6), 8, 0x24);
+			xMOV(xRegister32(1), ptr32[m]);
+			xMOV(ptr64[m], xRegister64(1));
+			xMOV(xRegister64(2), ptrNative[kAddrs[b & 3]]);
+			xMOV(ptr32[kAddrs[b & 3]], xRegister32(3));
+		}
+	}
+
 	const size_t n = (size_t)(xGetPtr() - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)

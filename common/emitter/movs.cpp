@@ -104,7 +104,9 @@ namespace x86Emitter
 		}
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Mov xMOV;
+#endif
 
 	void xImpl_MovImm64::operator()(const xRegister64& to, s64 imm, bool preserve_flags) const
 	{
@@ -120,7 +122,9 @@ namespace x86Emitter
 		}
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_MovImm64 xMOV64;
+#endif
 
 	// --------------------------------------------------------------------------------------
 	//  CMOVcc

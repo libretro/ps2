@@ -96,6 +96,13 @@
 #define xJLE(func) xJccKnownTarget(Jcc_LessOrEqual, (void*)(uptr)(func), false)
 #define xJC(func) xJccKnownTarget(Jcc_Carry, (void*)(uptr)(func), false)
 
+#ifdef PCSX2_C89_EMITTER
+// Ahead of the namespace so a binding can sit next to the declaration it
+// replaces. mov's has to: the xImm64Op template below names xMOV64, and a
+// non-dependent name must be declared before the template body.
+#include "common/emitter/x86emitter_shim.h"
+#endif
+
 namespace x86Emitter
 {
 	// ------------------------------------------------------------------------
@@ -131,9 +138,15 @@ namespace x86Emitter
 	// zero.  This is a safe optimization since any zero-value shift does not affect any
 	// flags.
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Mov      xMOV;
+	static const shim_MovImm64 xMOV64;
+	static const shim_Test     xTEST;
+#else
 	extern const xImpl_Mov xMOV;
 	extern const xImpl_MovImm64 xMOV64;
 	extern const xImpl_Test xTEST;
+#endif
 #ifndef PCSX2_C89_EMITTER
 	extern const xImpl_Group2 xROL, xROR,
 		xRCL, xRCR,
@@ -151,7 +164,12 @@ namespace x86Emitter
 	extern const xImpl_iDiv xDIV;
 	extern const xImpl_iMul xMUL;
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_IncDec xINC = {false};
+	static const shim_IncDec xDEC = {true};
+#else
 	extern const xImpl_IncDec xINC, xDEC;
+#endif
 
 	extern const xImpl_MovExtend xMOVZX, xMOVSX;
 
@@ -437,7 +455,6 @@ namespace x86Emitter
 // pass through the file would redefine them.
 #if defined(PCSX2_C89_EMITTER) && !defined(PCSX2_C89_EMITTER_BOUND)
 #define PCSX2_C89_EMITTER_BOUND 1
-#include "common/emitter/x86emitter_shim.h"
 
 namespace x86Emitter
 {

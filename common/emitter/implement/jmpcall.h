@@ -49,7 +49,14 @@ namespace x86Emitter
 	};
 
 	// yes it is awful. Due to template code is in a header with a nice circular dep.
+	//
+	// Nothing in this header actually uses xMOV -- the declaration is left
+	// over -- and it has to be skipped when the shim provides that object,
+	// since this header is reached from x86types.h long before
+	// instructions.h binds the name.
+#ifndef PCSX2_C89_EMITTER
 	extern const xImpl_Mov xMOV;
+#endif
 	extern const xImpl_JmpCall xCALL;
 
 	struct xImpl_FastCall

@@ -850,12 +850,16 @@ const xRegister32
 		EmitSibMagic(isDec ? 1 : 0, to);
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Test xTEST = {};
+#endif
 
 	const xImpl_BitScan xBSR = {0xbd};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_IncDec xINC = {false};
 	const xImpl_IncDec xDEC = {true};
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Push / Pop Emitters
