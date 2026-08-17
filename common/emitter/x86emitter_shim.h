@@ -628,6 +628,12 @@ namespace x86Emitter
 	{ struct e_mem m = shim_mem(dst); SHIM_BEGIN;
 	  E_SSE_R_MEM(p_, 0x00, 0xae, 3, m); SHIM_END; }
 
+
+	// Subclass shapes matching xImpl_G1Logic / xImpl_G1Arith: the same
+	// group1 object with SSE members bolted on.
+	struct shim_G1Logic : public shim_Group1 { shim_SimdRegSSE PS, PD; };
+	struct shim_G1Arith : public shim_Group1 { shim_SimdRegSSE PS, PD, SS, SD; };
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

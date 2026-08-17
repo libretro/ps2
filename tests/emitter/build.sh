@@ -37,5 +37,18 @@ EMOBJS="$ROOT/common/emitter/avx.o $ROOT/common/emitter/groups.o \
   $ROOT/common/emitter/legacy_sse.o $ROOT/common/emitter/movs.o \
   $ROOT/common/emitter/simd.o $ROOT/common/emitter/x86emitter.o"
 g++ $SANFLAGS -no-pie -o "$DIR/shim_oracle" "$DIR/shim_oracle.o" $EMOBJS
+# Switchover equivalence: the same driver built both ways, bytes diffed.
+# The reference build links the emitter objects; the switched build gets the
+# group1 objects from the header instead, so it needs the rest of them still.
+g++ -O2 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
+    -c "$DIR/switch_equiv.cpp" -o "$DIR/equiv_ref.o"
+g++ $SANFLAGS -no-pie -o "$DIR/equiv_ref" "$DIR/equiv_ref.o" $EMOBJS
+g++ -O2 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG -DPCSX2_C89_EMITTER \
+    $SANFLAGS $INC -c "$DIR/switch_equiv.cpp" -o "$DIR/equiv_sw.o"
+g++ $SANFLAGS -no-pie -o "$DIR/equiv_sw" "$DIR/equiv_sw.o" $EMOBJS
+
 echo "built: $DIR/emitter_oracle"
 echo "built: $DIR/shim_oracle"
+echo "built: $DIR/equiv_ref and $DIR/equiv_sw"
+echo "  compare with: diff <(setarch $(uname -m) -R $DIR/equiv_ref) \\"
+echo "                     <(setarch $(uname -m) -R $DIR/equiv_sw)"

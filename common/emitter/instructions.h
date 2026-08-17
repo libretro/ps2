@@ -101,6 +101,8 @@ namespace x86Emitter
 	// ------------------------------------------------------------------------
 	// Group 1 Instruction Class
 
+#ifndef PCSX2_C89_EMITTER
+#ifndef PCSX2_C89_EMITTER
 	extern const xImpl_Group1 xADC;
 	extern const xImpl_Group1 xCMP;
 
@@ -110,6 +112,17 @@ namespace x86Emitter
 
 	extern const xImpl_G1Arith xADD;
 	extern const xImpl_G1Arith xSUB;
+#endif
+	// Under PCSX2_C89_EMITTER these are objects of the shim types instead,
+	// defined at the bottom of this header. Same names, same call syntax,
+	// same initialisers -- only the type changes, to one whose members are
+	// defined in a header and therefore inline at the call site.
+#endif
+	// When PCSX2_C89_EMITTER is defined these are objects of the shim types
+	// instead, defined at the bottom of this header -- after xLEA, which the
+	// shim's far-call path needs. Same names, same call syntax, same
+	// initialisers; only the type changes, to one whose members live in a
+	// header and therefore inline at the call site.
 
 	// ------------------------------------------------------------------------
 	// Group 2 Instruction Class
@@ -407,3 +420,66 @@ namespace x86Emitter
 	extern void xVMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);
 
 } // namespace x86Emitter
+
+// ---------------------------------------------------------------------------
+//  C89 emitter switchover (opt-in)
+// ---------------------------------------------------------------------------
+// Included here, at the end, so everything the shim references -- xLEA in
+// particular -- is already declared. Each instruction object is independent,
+// so families migrate one at a time; only group1 is switched today and the
+// rest still go through the reference emitter.
+// instructions.h carries no include guard of its own, so this block needs
+// one: the objects below are definitions, not declarations, and a second
+// pass through the file would redefine them.
+#if defined(PCSX2_C89_EMITTER) && !defined(PCSX2_C89_EMITTER_BOUND)
+#define PCSX2_C89_EMITTER_BOUND 1
+#include "common/emitter/x86emitter_shim.h"
+
+namespace x86Emitter
+{
+	static const shim_Group1 xADC = {G1Type_ADC};
+	static const shim_Group1 xCMP = {G1Type_CMP};
+
+	static const shim_G1Logic xAND = {{G1Type_AND}, {0x00, 0x54}, {0x66, 0x54}};
+	static const shim_G1Logic xOR  = {{G1Type_OR},  {0x00, 0x56}, {0x66, 0x56}};
+	static const shim_G1Logic xXOR = {{G1Type_XOR}, {0x00, 0x57}, {0x66, 0x57}};
+
+	static const shim_G1Arith xADD = {{G1Type_ADD}, {0x00, 0x58}, {0x66, 0x58}, {0xf3, 0x58}, {0xf2, 0x58}};
+	static const shim_G1Arith xSUB = {{G1Type_SUB}, {0x00, 0x5c}, {0x66, 0x5c}, {0xf3, 0x5c}, {0xf2, 0x5c}};
+} // namespace x86Emitter
+#endif
+
+// ---------------------------------------------------------------------------
+//  C89 emitter switchover (opt-in, off by default)
+// ---------------------------------------------------------------------------
+// Included at the end so everything the shim references is already declared;
+// xLEA in particular, which the far-call path needs and which is declared
+// above. Each instruction object is independent, so families can move across
+// one at a time -- only group1 does today, and the rest still go through the
+// reference emitter.
+//
+// Equivalence is checked by tests/emitter/switch_equiv.cpp, which compiles
+// one driver both ways and diffs the emitted bytes. That is a different
+// question from the two oracles: they compare the emitters side by side in a
+// single build, whereas with this flag set the reference is not present in
+// the translation unit at all.
+// instructions.h has no include guard of its own and is pulled into a single
+// translation unit many times over; the objects below are definitions, not
+// declarations, so this block needs one of its own.
+#if defined(PCSX2_C89_EMITTER) && !defined(PCSX2_C89_EMITTER_BOUND)
+#define PCSX2_C89_EMITTER_BOUND 1
+#include "common/emitter/x86emitter_shim.h"
+
+namespace x86Emitter
+{
+	static const shim_Group1 xADC = {G1Type_ADC};
+	static const shim_Group1 xCMP = {G1Type_CMP};
+
+	static const shim_G1Logic xAND = {{G1Type_AND}, {0x00, 0x54}, {0x66, 0x54}};
+	static const shim_G1Logic xOR  = {{G1Type_OR},  {0x00, 0x56}, {0x66, 0x56}};
+	static const shim_G1Logic xXOR = {{G1Type_XOR}, {0x00, 0x57}, {0x66, 0x57}};
+
+	static const shim_G1Arith xADD = {{G1Type_ADD}, {0x00, 0x58}, {0x66, 0x58}, {0xf3, 0x58}, {0xf2, 0x58}};
+	static const shim_G1Arith xSUB = {{G1Type_SUB}, {0x00, 0x5c}, {0x66, 0x5c}, {0xf3, 0x5c}, {0xf2, 0x5c}};
+} // namespace x86Emitter
+#endif

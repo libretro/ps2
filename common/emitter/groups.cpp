@@ -106,6 +106,8 @@ namespace x86Emitter
 		}
 	}
 
+#ifndef PCSX2_C89_EMITTER
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_G1Logic xAND = {{G1Type_AND}, {0x00, 0x54}, {0x66, 0x54}};
 	const xImpl_G1Logic xOR  = {{G1Type_OR}, {0x00, 0x56}, {0x66, 0x56}};
 	const xImpl_G1Logic xXOR = {{G1Type_XOR}, {0x00, 0x57}, {0x66, 0x57}};
@@ -115,6 +117,8 @@ namespace x86Emitter
 
 	const xImpl_Group1 xADC = {G1Type_ADC};
 	const xImpl_Group1 xCMP = {G1Type_CMP};
+#endif
+#endif
 
 	// =====================================================================================================
 	//  Group 2 Instructions - SHR, SHL, etc.
