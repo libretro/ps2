@@ -1252,8 +1252,89 @@ static void rpsxLoadUnaligned(bool isLeft)
 
 static void rpsxLWL() { rpsxLoadUnaligned(true); }
 static void rpsxLWR() { rpsxLoadUnaligned(false); }
-REC_FUNC(SWL);
-REC_FUNC(SWR);
+// SWL/SWR: unaligned stores. Read-modify-write, so unlike the loads they
+// cannot be fully inlined -- iopMemWrite32 does more than store. It gates on
+// the isolate-cache bit and calls psxCpu->Clear to invalidate recompiled IOP
+// code at the target (IopMem.cpp:402), so writing straight into iopMem->Main
+// the way the load fast path reads from it would leave stale blocks behind
+// for self-modifying code. The store therefore always goes through
+// iopMemWrite32.
+//
+// What is left to win is the read and the interpreter body. At runtime the
+// old path was three calls -- psxSWL, then iopMemRead32 and iopMemWrite32
+// inside it. For a RAM target this is one: the read is inlined and only the
+// write calls out. For anything else it falls back to the interpreter whole,
+// which is the same three calls as before, so no case regresses.
+//
+// FLUSH_EVERYTHING and the psxRegs.code store are kept because the fallback
+// arm needs them, and they also put Rt in memory for the inline merge, which
+// is why no temp is needed for it.
+static void rpsxStoreUnaligned(bool isLeft)
+{
+	rpsxCalcAddressOperand();
+
+	xMOV(ptr32[&psxRegs.code], (u32)psxRegs.code);
+	_psxFlushCall(FLUSH_EVERYTHING);
+
+	// arg1regd survives the flush (rpsxSW relies on the same), but ECX is
+	// arg1regd on Win64 and the variable shifts below need CL, so the
+	// address is parked before ECX is touched.
+	xMOV(ptr32[&s_psx_unaligned_addr], arg1regd);
+
+	xMOV(eax, arg1regd);
+	xTEST(eax, 0x10000000);
+	xForwardJump8 not_ram(Jcc_NotZero);
+
+	// --- RAM: inline the read, then merge ---
+	xMOV(ecx, eax);
+	xAND(ecx, 3);
+	xSHL(ecx, 3); // shift = (addr & 3) * 8
+	xMOV(edx, eax);
+	xAND(edx, 0x1ffffc); // aligned offset, zero-extended into RDX
+	xMOV(r8, (uptr)iopMem->Main);
+	xADD(r8, rdx);
+	xMOV(eax, ptr32[xAddressVoid(r8, 0)]);
+
+	if (isLeft)
+	{
+		// (rt >> (24 - shift)) | (mem & (0xffffff00 << shift))
+		xMOV(r9d, 0xffffff00);
+		xSHL(r9d, cl);
+		xAND(eax, r9d);
+		xMOV(r9d, ptr32[&psxRegs.GPR.r[_Rt_]]);
+		xNEG(ecx);
+		xADD(ecx, 24);
+		xSHR(r9d, cl);
+		xOR(eax, r9d);
+	}
+	else
+	{
+		// (rt << shift) | (mem & (0x00ffffff >> (24 - shift)))
+		xMOV(r9d, ptr32[&psxRegs.GPR.r[_Rt_]]);
+		xSHL(r9d, cl);
+		xNEG(ecx);
+		xADD(ecx, 24);
+		xMOV(edx, 0x00ffffff);
+		xSHR(edx, cl);
+		xAND(eax, edx);
+		xOR(eax, r9d);
+	}
+
+	// Store through the real path so the code invalidation still happens.
+	xMOV(arg1regd, ptr32[&s_psx_unaligned_addr]);
+	xAND(arg1regd, 0xfffffffc);
+	xMOV(arg2regd, eax);
+	xFastCall((void*)iopMemWrite32);
+	xForwardJump8 done;
+
+	not_ram.SetTarget();
+	xFastCall((void*)(uptr)(isLeft ? psxSWL : psxSWR));
+
+	done.SetTarget();
+}
+
+static void rpsxSWL() { rpsxStoreUnaligned(true); }
+static void rpsxSWR() { rpsxStoreUnaligned(false); }
 
 static void rpsxLB()
 {
