@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <type_traits>
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
@@ -173,8 +174,11 @@ enum class LogicalOp
 
 static void recLogicalOpI(int info, LogicalOp op)
 {
-	xImpl_G1Logic *bad = nullptr;
-	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
+	// `auto` rather than the concrete type: the object's type is a
+	// detail of the emitter, and naming it here pins this code to one
+	// implementation of it for no benefit.
+	std::remove_reference<decltype(xAND)>::type *bad = nullptr;
+	const auto& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
 		op == LogicalOp::XOR    ? xXOR :
 		*bad;
 	if (_ImmU_ != 0)

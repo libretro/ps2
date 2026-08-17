@@ -13,6 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <type_traits>
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
@@ -398,8 +399,11 @@ enum class LogicalOp
 
 static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int regv)
 {
-	xImpl_G1Logic *bad = nullptr;
-	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
+	// `auto` rather than the concrete type: the object's type is a
+	// detail of the emitter, and naming it here pins this code to one
+	// implementation of it for no benefit.
+	std::remove_reference<decltype(xAND)>::type *bad = nullptr;
+	const auto& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
 														 op == LogicalOp::XOR    ? xXOR :
 														 op == LogicalOp::NOR    ? xOR :
                                                                                    *bad;
@@ -451,8 +455,11 @@ static void recLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int 
 
 static void recLogicalOp(LogicalOp op, int info)
 {
-	xImpl_G1Logic *bad = nullptr;
-	const xImpl_G1Logic& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
+	// `auto` rather than the concrete type: the object's type is a
+	// detail of the emitter, and naming it here pins this code to one
+	// implementation of it for no benefit.
+	std::remove_reference<decltype(xAND)>::type *bad = nullptr;
+	const auto& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
 		op == LogicalOp::XOR    ? xXOR :
 		op == LogicalOp::NOR    ? xOR :
 		*bad;
