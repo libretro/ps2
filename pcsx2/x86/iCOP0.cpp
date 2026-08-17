@@ -143,16 +143,63 @@ void recTLBP() { recCall(Interp::TLBP); }
 void recTLBWI() { recCall(Interp::TLBWI); }
 void recTLBWR() { recCall(Interp::TLBWR); }
 
+// recBranchCall forces nextEventCycle = cycle before calling, which makes the
+// interpreter's own "if (nextEventCycle - cycle > 4) nextEventCycle = cycle+4"
+// unreachable on this path -- the delta is already zero. So both bodies below
+// reduce to the register work, with the forced branch test kept verbatim and
+// g_branch = 2 still ending the block.
+//
+// intSetBranch() is likewise a no-op here: it sets branch2, which is static to
+// Interpreter.cpp and invisible to recompiled code.
+static void recCOP0_ForceBranchTest()
+{
+	xMOV(rax, ptr64[&cpuRegs.cycle]);
+	xMOV(ptr64[&cpuRegs.nextEventCycle], rax);
+}
+
 void recERET()
 {
-	recBranchCall(Interp::ERET);
+	_freeX86reg(eax);
+	_freeX86reg(edx);
+	recCOP0_ForceBranchTest();
+
+	// ERL selects which EPC to resume from, and which flag to clear.
+	xMOV(eax, ptr32[&cpuRegs.CP0.n.Status]);
+	xTEST(eax, 0x4); // ERL
+	xForwardJZ8 useEPC;
+	xMOV(edx, ptr32[&cpuRegs.CP0.n.ErrorEPC]);
+	xMOV(ptr32[&cpuRegs.pc], edx);
+	xAND(eax, ~(u32)0x4);
+	xForwardJump8 done;
+	useEPC.SetTarget();
+	xMOV(edx, ptr32[&cpuRegs.CP0.n.EPC]);
+	xMOV(ptr32[&cpuRegs.pc], edx);
+	xAND(eax, ~(u32)0x2); // EXL
+	done.SetTarget();
+	xMOV(ptr32[&cpuRegs.CP0.n.Status], eax);
+
+	g_branch = 2;
 }
 
 void recEI()
 {
 	// must branch after enabling interrupts, so that anything
 	// pending gets triggered properly.
-	recBranchCall(Interp::EI);
+	_freeX86reg(eax);
+	recCOP0_ForceBranchTest();
+
+	// Same guard recDI uses, inverted only in what it does to EIE.
+	xMOV(eax, ptr32[&cpuRegs.CP0.n.Status]);
+	xTEST(eax, 0x20006); // EXL | ERL | EDI
+	xForwardJNZ8 privileged;
+	xTEST(eax, 0x18); // KSU
+	xForwardJNZ8 inUserMode;
+	privileged.SetTarget();
+	xOR(eax, 0x10000); // EIE
+	xMOV(ptr32[&cpuRegs.CP0.n.Status], eax);
+	inUserMode.SetTarget();
+
+	g_branch = 2;
 }
 
 void recDI()
