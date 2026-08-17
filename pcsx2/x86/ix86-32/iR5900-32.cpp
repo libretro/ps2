@@ -2015,7 +2015,7 @@ StartRecomp:
 				continue;
 			if ((oldBlock->startpc + oldBlock->size * 4) <= HWADDR(startpc))
 				break;
-			if (memcmp(&recRAMCopy[oldBlock->startpc / 4], PSM(oldBlock->startpc),
+			if (memcmp(&recRAMCopy[oldBlock->startpc], PSM(oldBlock->startpc),
 					oldBlock->size * 4))
 			{
 				recClear(startpc, (pc - startpc) / 4);
@@ -2023,7 +2023,7 @@ StartRecomp:
 				break;
 			}
 		}
-		memcpy(&recRAMCopy[HWADDR(startpc) / 4], PSM(startpc), pc - startpc);
+		memcpy(&recRAMCopy[HWADDR(startpc)], PSM(startpc), pc - startpc);
 	}
 
 	s_pCurBlock->m_pFnptr = ((uptr)recPtr);
