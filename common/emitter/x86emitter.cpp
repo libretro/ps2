@@ -395,7 +395,11 @@ const xRegister32
 		bool r       = reg1.IsExtended();
 		bool b       = reg2.IsExtended();
 		const u8 rex = 0x40 | (w << 3) | (r << 2) | (u8)b;
-		bool ext8bit = (reg2._operandSize == 1 && reg2.Id >= 0x10);
+		// Either operand can be spl/bpl/sil/dil, and those need a REX byte
+		// present even when it would otherwise be an empty 0x40 -- without one
+		// the same encoding names ah/ch/dh/bh instead.
+		bool ext8bit = (reg1._operandSize == 1 && reg1.Id >= 0x10) ||
+		               (reg2._operandSize == 1 && reg2.Id >= 0x10);
 		if (rex != 0x40 || ext8bit)
 			xWrite8(rex);
 	}
