@@ -2054,10 +2054,66 @@ void recPDIVW(void)
 }
 
 ////////////////////////////////////////////////////
+// PDIVBW divides all four words of Rs by a single divisor: halfword 0 of Rt,
+// sign-extended to 32 bits. Unlike PDIVW the results are 32-bit lanes of
+// LO/HI, so nothing is sign-extended on the way out.
+//
+// Both interpreter tests fall out of the sign-extended divisor in ECX:
+// Rt.US[0] == 0xffff is ECX == -1, and Rt.US[0] == 0 is ECX == 0. IDIV does
+// not clobber ECX, so the divisor is loaded once for all four lanes.
+static void recPDIVBW_lane(int n)
+{
+	u8* end1;
+	u8* end2;
+	u8* cont1;
+	u8* cont2;
+	u8* cont3;
+
+	xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rs_].UL[n]]);
+
+	xCMP(eax, 0x80000000);
+	cont1 = JNE8(0);
+	xCMP(ecx, 0xffffffff);
+	cont2 = JNE8(0);
+	xXOR(edx, edx);
+	end1 = JMP8(0);
+
+	x86SetJ8(cont1);
+	x86SetJ8(cont2);
+
+	xCMP(ecx, 0);
+	cont3 = JNE8(0);
+	xMOV(edx, eax);
+	xSAR(eax, 31);
+	xSHL(eax, 1);
+	xNOT(eax);
+	end2 = JMP8(0);
+
+	x86SetJ8(cont3);
+	xCDQ();
+	xDIV(ecx);
+
+	x86SetJ8(end1);
+	x86SetJ8(end2);
+
+	xMOV(ptr32[&cpuRegs.LO.UL[n]], eax);
+	xMOV(ptr32[&cpuRegs.HI.UL[n]], edx);
+}
+
 void recPDIVBW(void)
 {
-	_deleteEEreg(_Rd_, 0);
-	recCall(Interp::PDIVBW); //--
+	int n;
+
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	xMOVSX(ecx, ptr16[&cpuRegs.GPR.r[_Rt_].US[0]]);
+	for (n = 0; n < 4; n++)
+		recPDIVBW_lane(n);
 }
 
 ////////////////////////////////////////////////////
@@ -2742,10 +2798,48 @@ void recPMADDUW(void)
 }
 
 ////////////////////////////////////////////////////
+// PDIVUW: unsigned divide of words 0 and 2. No INT_MIN/-1 case exists --
+// with EDX zeroed a 32-bit unsigned divide can only fault on a zero divisor
+// -- so only that one branch is needed. The interpreter casts each result to
+// s32 before storing into the 64-bit LO/HI lane, so both sign-extend.
+static void recPDIVUW_half(int hilo, int word)
+{
+	u8* cont;
+	u8* end;
+
+	xMOV(ecx, ptr32[&cpuRegs.GPR.r[_Rt_].UL[word]]);
+	xMOV(eax, ptr32[&cpuRegs.GPR.r[_Rs_].UL[word]]);
+
+	xCMP(ecx, 0);
+	cont = JNE8(0);
+	// Divide by zero: quotient -1, remainder the dividend.
+	xMOV(edx, eax);
+	xMOV(eax, 0xffffffff);
+	end = JMP8(0);
+
+	x86SetJ8(cont);
+	xXOR(edx, edx);
+	xUDIV(ecx);
+
+	x86SetJ8(end);
+
+	xMOVSX(rax, eax);
+	xMOV(ptr64[&cpuRegs.LO.UD[hilo]], rax);
+	xMOVSX(rdx, edx);
+	xMOV(ptr64[&cpuRegs.HI.UD[hilo]], rdx);
+}
+
 void recPDIVUW(void)
 {
-	_deleteEEreg(_Rd_, 0);
-	recCall(Interp::PDIVUW);
+	_deleteEEreg(XMMGPR_LO, 1);
+	_deleteEEreg(XMMGPR_HI, 1);
+	_deleteGPRtoX86reg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
+	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	recPDIVUW_half(0, 0);
+	recPDIVUW_half(1, 2);
 }
 
 ////////////////////////////////////////////////////
