@@ -365,10 +365,22 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_SimdRegSSE xPAND = {0x66, 0xdb};
+#else
 	extern const xImplSimd_DestRegEither xPAND;
+#endif
 	extern const xImplSimd_DestRegEither xPANDN;
+#ifdef PCSX2_C89_EMITTER
+	static const shim_SimdRegSSE xPOR = {0x66, 0xeb};
+#else
 	extern const xImplSimd_DestRegEither xPOR;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_SimdRegSSE xPXOR = {0x66, 0xef};
+#else
 	extern const xImplSimd_DestRegEither xPXOR;
+#endif
 
 	extern const xImplSimd_Shuffle xSHUF;
 
@@ -385,7 +397,11 @@ namespace x86Emitter
 
 	extern const xImplSimd_COMI xUCOMI;
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PCompare xPCMP = { {0x66,0x74},{0x66,0x75},{0x66,0x76},{0x66,0x64},{0x66,0x65},{0x66,0x66} };
+#else
 	extern const xImplSimd_PCompare xPCMP;
+#endif
 	extern const xImplSimd_PMinMax xPMIN;
 	extern const xImplSimd_PMinMax xPMAX;
 
@@ -429,8 +445,16 @@ namespace x86Emitter
 	extern const xImplSimd_PMultAdd xPMADD;
 	extern const xImplSimd_DotProduct xDP;
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PShuffle xPSHUF = { {0x66,0x70},{0xf2,0x70},{0xf3,0x70},{0x66,0x0038} };
+#else
 	extern const xImplSimd_PShuffle xPSHUF;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PUnpack xPUNPCK = { {0x66,0x60},{0x66,0x61},{0x66,0x62},{0x66,0x6c},{0x66,0x68},{0x66,0x69},{0x66,0x6a},{0x66,0x6d} };
+#else
 	extern const SimdImpl_PUnpack xPUNPCK;
+#endif
 	extern const xImplSimd_Unpack xUNPCK;
 	extern const SimdImpl_Pack xPACK;
 	extern const xImplSimd_PInsert xPINSR;

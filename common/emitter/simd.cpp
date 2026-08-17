@@ -21,10 +21,16 @@
 namespace x86Emitter
 {
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegEither xPAND = {0x66, 0xdb};
+#endif
 	const xImplSimd_DestRegEither xPANDN = {0x66, 0xdf};
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegEither xPOR = {0x66, 0xeb};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegEither xPXOR = {0x66, 0xef};
+#endif
 
 	// [SSE-4.1] Performs a bitwise AND of dest against src, and sets the ZF flag
 	// only if all bits in the result are 0.  PTEST also sets the CF flag according
@@ -224,6 +230,7 @@ namespace x86Emitter
 			{0x66, 0x2e}, // SD
 	};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PCompare xPCMP =
 		{
 			{0x66, 0x74}, // EQB
@@ -234,6 +241,7 @@ namespace x86Emitter
 			{0x66, 0x65}, // GTW
 			{0x66, 0x66}, // GTD
 	};
+#endif
 
 	const xImplSimd_PMinMax xPMIN =
 		{
@@ -307,6 +315,7 @@ namespace x86Emitter
 
 	const xImplSimd_Shuffle xSHUF = {};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PShuffle xPSHUF =
 		{
 			{0x66, 0x70}, // D
@@ -315,7 +324,9 @@ namespace x86Emitter
 
 			{0x66, 0x0038}, // B
 	};
+#endif
 
+#ifndef PCSX2_C89_EMITTER
 	const SimdImpl_PUnpack xPUNPCK =
 		{
 			{0x66, 0x60}, // LBW
@@ -328,6 +339,7 @@ namespace x86Emitter
 			{0x66, 0x6a}, // HDQ
 			{0x66, 0x6d}, // HQDQ
 	};
+#endif
 
 	const SimdImpl_Pack xPACK =
 		{

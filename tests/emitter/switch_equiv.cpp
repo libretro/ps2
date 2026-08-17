@@ -201,6 +201,41 @@ int main()
 		xDIV(ptr32[m]);
 	}
 
+
+	/* SSE aggregates: the logic ops, the compare family, the two shuffle
+	 * families whose selectors are masked differently, and unpack. */
+	for (int a = 0; a < 16; a++)
+	{
+		for (int b = 0; b < 16; b++)
+		{
+			xPAND(xRegisterSSE(a), xRegisterSSE(b));
+			xPOR (xRegisterSSE(a), xRegisterSSE(b));
+			xPXOR(xRegisterSSE(a), xRegisterSSE(b));
+			xPCMP.EQB(xRegisterSSE(a), xRegisterSSE(b));
+			xPCMP.EQW(xRegisterSSE(a), xRegisterSSE(b));
+			xPCMP.EQD(xRegisterSSE(a), xRegisterSSE(b));
+			xPCMP.GTB(xRegisterSSE(a), xRegisterSSE(b));
+			xPCMP.GTW(xRegisterSSE(a), xRegisterSSE(b));
+			xPCMP.GTD(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.LBW(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.LWD(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.LDQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.LQDQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.HBW(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.HWD(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.HDQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPUNPCK.HQDQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPSHUF.D (xRegisterSSE(a), xRegisterSSE(b), 0x1b);
+			xPSHUF.LW(xRegisterSSE(a), xRegisterSSE(b), 0x55);
+			xPSHUF.HW(xRegisterSSE(a), xRegisterSSE(b), 0xaa);
+			xPSHUF.B (xRegisterSSE(a), xRegisterSSE(b));
+		}
+		xPAND(xRegisterSSE(a), ptr128[kAddrs[a & 3]]);
+		xPXOR(xRegisterSSE(a), ptr128[kAddrs[a & 3]]);
+		xPCMP.EQD(xRegisterSSE(a), ptr128[kAddrs[a & 3]]);
+		xPSHUF.D(xRegisterSSE(a), ptr128[kAddrs[a & 3]], 0x39);
+	}
+
 	const size_t n = (size_t)(xGetPtr() - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)
