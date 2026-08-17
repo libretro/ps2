@@ -90,7 +90,55 @@ void recBC0TL()
 	recDoBranchImm(branchTo, JNE32(0), true, false);
 }
 
-void recTLBR() { recCall(Interp::TLBR); }
+// TLBR copies one TLB entry into the CP0 registers. It is pure register
+// shuffling -- no mapping state is touched -- so unlike the other three TLB
+// ops it does not need to call into COP0.cpp at all.
+//
+//   PageMask = tlb[i].PageMask
+//   EntryHi  = tlb[i].EntryHi & ~(tlb[i].PageMask | 0x1f00)
+//   EntryLo0 = (tlb[i].EntryLo0 & ~1) | ((tlb[i].EntryHi >> 12) & 1)
+//   EntryLo1 = (tlb[i].EntryLo1 & ~1) | ((tlb[i].EntryHi >> 12) & 1)
+//
+// The whole sequence fits in eax, ecx and edx: rcx holds &tlb[i] so rax is
+// free as a scratch, and the G bit is computed once into edx and reused by
+// both EntryLo halves.
+void recTLBR()
+{
+	_freeX86reg(eax);
+	_freeX86reg(ecx);
+	_freeX86reg(edx);
+
+	xMOV(eax, ptr32[&cpuRegs.CP0.n.Index]);
+	xAND(eax, 0x3f);
+	// Three-operand IMUL, which only started encoding correctly in 661ebc9;
+	// before that it emitted PACKSSDW.
+	xMUL(eax, eax, (s32)sizeof(tlbs));
+	xMOV(rcx, (uptr)tlb);
+	xADD(rcx, rax);
+
+	// PageMask, then reuse it to build the EntryHi mask in place.
+	xMOV(eax, ptr32[xAddressVoid(rcx, offsetof(tlbs, PageMask))]);
+	xMOV(ptr32[&cpuRegs.CP0.n.PageMask], eax);
+	xOR(eax, 0x1f00);
+	xNOT(eax);
+	xAND(eax, ptr32[xAddressVoid(rcx, offsetof(tlbs, EntryHi))]);
+	xMOV(ptr32[&cpuRegs.CP0.n.EntryHi], eax);
+
+	// G bit, shared by both EntryLo halves.
+	xMOV(edx, ptr32[xAddressVoid(rcx, offsetof(tlbs, EntryHi))]);
+	xSHR(edx, 12);
+	xAND(edx, 1);
+
+	xMOV(eax, ptr32[xAddressVoid(rcx, offsetof(tlbs, EntryLo0))]);
+	xAND(eax, ~1);
+	xOR(eax, edx);
+	xMOV(ptr32[&cpuRegs.CP0.n.EntryLo0], eax);
+
+	xMOV(eax, ptr32[xAddressVoid(rcx, offsetof(tlbs, EntryLo1))]);
+	xAND(eax, ~1);
+	xOR(eax, edx);
+	xMOV(ptr32[&cpuRegs.CP0.n.EntryLo1], eax);
+}
 void recTLBP() { recCall(Interp::TLBP); }
 void recTLBWI() { recCall(Interp::TLBWI); }
 void recTLBWR() { recCall(Interp::TLBWR); }
