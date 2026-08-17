@@ -138,9 +138,21 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
         } } while (0)
 
 /* test r32, r32 */
-#define E_TEST_RR(p, a, b) do { \
-        E_REX((p), 0, (b), 0, (a)); \
-        EW8((p), 0x85); E_MODRM_RR((p), (b), (a)); } while (0)
+/* test r,r. `sz` is the operand size in bytes: the 8-bit form is 0x84 rather
+ * than 0x85, and the 16-bit form takes the 0x66 prefix
+ * (x86emitter.cpp:799-802). */
+#define E_TEST_RR_SZ(p, sz, a, b) do { \
+        if ((sz) == 1) { \
+            /* 8-bit ids carry the 0x10 marker for spl/bpl/sil/dil, which the \
+             * generic REX helper reads as an extended-register bit. */ \
+            E_REX8((p), (b), (a)); \
+        } else { \
+            if ((sz) == 2) E_P16(p); \
+            E_REX((p), ((sz) == 8), (b), 0, (a)); \
+        } \
+        EW8((p), (e_u8)(((sz) == 1) ? 0x84 : 0x85)); \
+        E_MODRM_RR((p), (b), (a)); } while (0)
+#define E_TEST_RR(p, a, b) E_TEST_RR_SZ((p), 4, (a), (b))
 
 /* movss xmm, [abs] / movss [abs], xmm */
 #define E_MOVSS_R_M(p, reg, addr) do { \
@@ -179,16 +191,26 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 /* group2 shifts. g2: 0 ROL 1 ROR 2 RCL 3 RCR 4 SHL 5 SHR 7 SAR.
  * Shift-by-zero is elided (the C++ emitter drops it: no flag effect).
  * Shift-by-one uses the short D1 form. */
-#define E_G2_RI(p, w, g2, reg, imm) do { \
+/* shift r,imm. 0xd0/0xc0 for 8-bit against 0xd1/0xc1 otherwise; a count of
+ * zero emits nothing and a count of one takes the short form
+ * (groups.cpp:132-146). */
+#define E_G2_RI_SZ(p, sz, g2, reg, imm) do { \
         if ((imm) != 0) { \
-            E_REX((p), (w), 0, 0, (reg)); \
-            if ((imm) == 1) { EW8((p), 0xd1); E_MODRM_RR((p), (g2), (reg)); } \
-            else { EW8((p), 0xc1); E_MODRM_RR((p), (g2), (reg)); EW8((p), (e_u8)(imm)); } \
+            if ((sz) == 1) { E_REX8((p), 0, (reg)); } \
+            else { if ((sz) == 2) E_P16(p); E_REX((p), ((sz) == 8), 0, 0, (reg)); } \
+            if ((imm) == 1) { EW8((p), (e_u8)(((sz) == 1) ? 0xd0 : 0xd1)); \
+                              E_MODRM_RR((p), (g2), (reg)); } \
+            else { EW8((p), (e_u8)(((sz) == 1) ? 0xc0 : 0xc1)); \
+                   E_MODRM_RR((p), (g2), (reg)); EW8((p), (e_u8)(imm)); } \
         } } while (0)
+#define E_G2_RI(p, w, g2, reg, imm) E_G2_RI_SZ((p), (w) ? 8 : 4, (g2), (reg), (imm))
 /* shift by CL */
-#define E_G2_RCL(p, w, g2, reg) do { \
-        E_REX((p), (w), 0, 0, (reg)); \
-        EW8((p), 0xd3); E_MODRM_RR((p), (g2), (reg)); } while (0)
+#define E_G2_RCL_SZ(p, sz, g2, reg) do { \
+        if ((sz) == 1) { E_REX8((p), 0, (reg)); } \
+        else { if ((sz) == 2) E_P16(p); E_REX((p), ((sz) == 8), 0, 0, (reg)); } \
+        EW8((p), (e_u8)(((sz) == 1) ? 0xd2 : 0xd3)); \
+        E_MODRM_RR((p), (g2), (reg)); } while (0)
+#define E_G2_RCL(p, w, g2, reg) E_G2_RCL_SZ((p), (w) ? 8 : 4, (g2), (reg))
 
 /* mov r,r. Self-moves are elided to match _xMovRtoR's "ignore redundant MOVs".
  * NOTE: for the 32-bit form this is not strictly a no-op -- `mov eax,eax`
@@ -230,11 +252,19 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
         EW8((p), (e_u8)(0x58 | ((reg)&7))); } while (0)
 
 /* test r, imm32 (A9 short form when the destination is the accumulator) */
-#define E_TEST_RI(p, w, reg, imm) do { \
-        E_REX((p), (w), 0, 0, (reg)); \
-        if ((reg) == 0) { EW8((p), 0xa9); } \
-        else { EW8((p), 0xf7); E_MODRM_RR((p), 0, (reg)); } \
-        EW32((p), (imm)); } while (0)
+/* test r,imm. 0xa8/0xa9 is the accumulator short form; 0xf6/0xf7 otherwise.
+ * The immediate is written at the operand's size
+ * (x86emitter.cpp:810-821). */
+#define E_TEST_RI_SZ(p, sz, reg, imm) do { \
+        if ((sz) == 1) { E_REX8((p), 0, (reg)); } \
+        else { if ((sz) == 2) E_P16(p); E_REX((p), ((sz) == 8), 0, 0, (reg)); } \
+        if ((reg) == 0) { EW8((p), (e_u8)(((sz) == 1) ? 0xa8 : 0xa9)); } \
+        else { EW8((p), (e_u8)(((sz) == 1) ? 0xf6 : 0xf7)); \
+               E_MODRM_RR((p), 0, (reg)); } \
+        if ((sz) == 1) { EW8((p), (e_u8)(imm)); } \
+        else if ((sz) == 2) { EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); } \
+        else { EW32((p), (imm)); } } while (0)
+#define E_TEST_RI(p, w, reg, imm) E_TEST_RI_SZ((p), (w) ? 8 : 4, (reg), (imm))
 
 /* setcc r8 */
 #define E_SETCC_R(p, cc, reg) do { \
@@ -819,7 +849,30 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
  * B8+r accumulator form when the value fits in 32 bits or the register is
  * narrower, and C7 /0 for a sign-extended 64-bit store.
  * `w` is 1 for a 64-bit destination, `pf` is preserve_flags. */
-#define E_MOV_RI(p, w, pf, reg, imm) do { \
+/* mov r,imm at any operand size. The zero optimisation substitutes an XOR of
+ * the *same width* -- 0x30 for 8-bit, not 0x31 -- and the B8+r accumulator
+ * form is 0xb0+r with a one-byte immediate for 8-bit and takes the 0x66
+ * prefix with a two-byte immediate for 16-bit (movs.cpp:74-90). */
+#define E_MOV_RI_SZ(p, sz, pf, reg, imm) do { \
+        if (!(pf) && (imm) == 0) { \
+            /* The reference XORs to.GetNonWide(), so a 64-bit destination \
+             * gets the 32-bit XOR -- it zeroes the whole register anyway and \
+             * saves the REX byte. Only 8- and 16-bit keep their own width. */ \
+            if ((sz) == 1) { E_G1_8_RR((p), 6, (reg), (reg)); } \
+            else if ((sz) == 2) { E_G1_16_RR((p), 6, (reg), (reg)); } \
+            else { E_G1_RR((p), 0, 6, (reg), (reg)); } \
+        } else if ((sz) == 1) { \
+            E_REX8((p), 0, (reg)); \
+            EW8((p), (e_u8)(0xb0 | ((reg) & 7))); \
+            EW8((p), (e_u8)(imm)); \
+        } else if ((sz) == 2) { \
+            E_P16(p); \
+            E_REX((p), 0, 0, 0, (reg)); \
+            EW8((p), (e_u8)(0xb8 | ((reg) & 7))); \
+            EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); \
+        } else E_MOV_RI_W((p), ((sz) == 8), (pf), (reg), (imm)); } while (0)
+
+#define E_MOV_RI_W(p, w, pf, reg, imm) do { \
         if (!(pf) && (imm) == 0) { \
             E_G1_RR((p), 0, 6, (reg), (reg)); \
         } else if ((imm) == (e_sptr)(e_u32)(imm) || !(w)) { \
@@ -839,6 +892,7 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
             EW8((p), 0xc7); E_MODRM_RR((p), 0, (reg)); \
             EW32((p), (e_u32)(imm)); \
         } } while (0)
+#define E_MOV_RI(p, w, pf, reg, imm) E_MOV_RI_W((p), (w), (pf), (reg), (imm))
 
 /* mov r64, imm64 (xImpl_MovImm64). Falls back to the 32-bit path whenever the
  * value fits, so the full ten-byte movabs is emitted only when it must be. */

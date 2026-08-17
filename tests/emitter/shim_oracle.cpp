@@ -448,6 +448,64 @@ int main()
         check(nm,[&]{ xPMOVSX.BW(xRegisterSSE(r), ptr64[mm]); },
                  [&]{ sSX.BW(xRegisterSSE(r), ptr64[mm]); }); } }
 
+
+    /* ---- narrow widths: the 8-bit register file and 16-bit forms ----
+       Absent from this oracle until the C89_EMITTER build black-screened.
+       The 8-bit encodings differ from the 32-bit ones in the opcode, not
+       just a prefix, and the 8-bit ids carry a 0x10 marker for
+       spl/bpl/sil/dil that the generic REX helper misreads. */
+    {
+        static const int ids8[]={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0x14,0x15,0x16,0x17};
+        const shim_Mov sMOVn; const shim_Test sTSTn;
+        const shim_Group2 sSHLn={G2Type_SHL};
+        const shim_Group1 gn[6]={{G1Type_ADD},{G1Type_OR},{G1Type_AND},
+                                 {G1Type_SUB},{G1Type_XOR},{G1Type_CMP}};
+        const xImpl_Group1* rn[6]={&xADD,&xOR,&xAND,&xSUB,&xXOR,&xCMP};
+        for(int g=0;g<6;g++) for(int a=0;a<20;a++) for(int b=0;b<20;b++){
+            snprintf(nm,sizeof nm,"n_G1_8 g%d %x %x",g,ids8[a],ids8[b]);
+            check(nm,[&]{ (*rn[g])(xRegister8(ids8[a]),xRegister8(ids8[b])); },
+                     [&]{ gn[g](xRegister8(ids8[a]),xRegister8(ids8[b])); }); }
+        for(int a=0;a<20;a++){
+            for(int i=0;i<nimm;i++){
+                snprintf(nm,sizeof nm,"n_MOV8i %x i%d",ids8[a],i);
+                check(nm,[&]{ xMOV(xRegister8(ids8[a]),imms[i]); },
+                         [&]{ sMOVn(xRegister8(ids8[a]),imms[i]); });
+                snprintf(nm,sizeof nm,"n_TEST8i %x i%d",ids8[a],i);
+                check(nm,[&]{ xTEST(xRegister8(ids8[a]),imms[i]); },
+                         [&]{ sTSTn(xRegister8(ids8[a]),imms[i]); }); }
+            for(int b=0;b<20;b++){
+                snprintf(nm,sizeof nm,"n_TEST8 %x %x",ids8[a],ids8[b]);
+                check(nm,[&]{ xTEST(xRegister8(ids8[a]),xRegister8(ids8[b])); },
+                         [&]{ sTSTn(xRegister8(ids8[a]),xRegister8(ids8[b])); });
+                snprintf(nm,sizeof nm,"n_MOV8 %x %x",ids8[a],ids8[b]);
+                check(nm,[&]{ xMOV(xRegister8(ids8[a]),xRegister8(ids8[b])); },
+                         [&]{ sMOVn(xRegister8(ids8[a]),xRegister8(ids8[b])); }); }
+            for(int c=0;c<9;c++){
+                snprintf(nm,sizeof nm,"n_SHL8 %x c%d",ids8[a],c);
+                check(nm,[&]{ xSHL(xRegister8(ids8[a]),(u8)c); },
+                         [&]{ sSHLn(xRegister8(ids8[a]),(u8)c); }); } }
+        for(int a=0;a<16;a++) for(int i=0;i<nimm;i++){
+            snprintf(nm,sizeof nm,"n_MOV16i %d i%d",a,i);
+            check(nm,[&]{ xMOV(xRegister16(a),imms[i]); },[&]{ sMOVn(xRegister16(a),imms[i]); });
+            snprintf(nm,sizeof nm,"n_TEST16i %d i%d",a,i);
+            check(nm,[&]{ xTEST(xRegister16(a),imms[i]); },[&]{ sTSTn(xRegister16(a),imms[i]); }); }
+        /* the 64-bit zero case, whose XOR must stay non-wide */
+        for(int a=0;a<16;a++){
+            snprintf(nm,sizeof nm,"n_MOV64_zero %d",a);
+            check(nm,[&]{ xMOV(xRegister64(a),(sptr)0); },[&]{ sMOVn(xRegister64(a),(sptr)0); }); }
+    }
+
+    /* ---- addressing: every scale, including 1, which was never covered ---- */
+    {
+        const shim_Mov sMOVa;
+        const int scales[]={1,2,4,8};
+        for(int sc=0;sc<4;sc++) for(int b=0;b<16;b++) for(int ix=0;ix<16;ix++){
+            if(ix==4) continue;
+            auto M=[&]{ return ptr32[xAddressVoid(xAddressReg(b),xAddressReg(ix),scales[sc],0x40)]; };
+            snprintf(nm,sizeof nm,"a_MOV s%d b%d i%d",scales[sc],b,ix);
+            check(nm,[&]{ xMOV(xRegister32(1),M()); },[&]{ sMOVa(xRegister32(1),M()); }); }
+    }
+
     printf("shim cases: %ld   divergent: %ld\n",g_cases,g_fail);
     for(size_t i=0;i<g_f.size();i++) printf("  %s\n",g_f[i].c_str());
     return g_fail?1:0;

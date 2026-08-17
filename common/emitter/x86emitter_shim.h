@@ -61,6 +61,14 @@ namespace x86Emitter
 
 	static __fi int shim_w(const xRegisterInt& r) { return r._operandSize == 8; }
 
+	/// Operand size in bytes. Several forms need the full width rather than
+	/// just "is it 64-bit": the 8-bit encodings differ in the opcode (TEST
+	/// 0x84 vs 0x85, shifts 0xd0/0xc0 vs 0xd1/0xc1, MOV 0xb0+r vs 0xb8+r),
+	/// and 16-bit needs the 0x66 prefix and a two-byte immediate. Reducing
+	/// that to a boolean silently emits the 32-bit encoding for an 8-bit
+	/// operand, which assembles fine and clobbers the rest of the register.
+	static __fi int shim_sz(const xRegisterInt& r) { return (int)r._operandSize; }
+
 	// The cursor is stored back after each instruction; see the header comment.
 	#define SHIM_BEGIN  e_u8* p_ = (e_u8*)x86Ptr
 	#define SHIM_END    x86Ptr = (u8*)p_
@@ -127,13 +135,13 @@ namespace x86Emitter
 		__fi void operator()(const xRegisterInt& to, u8 imm) const
 		{
 			SHIM_BEGIN;
-			E_G2_RI(p_, shim_w(to), InstType, shim_id(to), imm);
+			E_G2_RI_SZ(p_, shim_sz(to), InstType, shim_id(to), imm);
 			SHIM_END;
 		}
 		__fi void operator()(const xRegisterInt& to, const xRegisterCL&) const
 		{
 			SHIM_BEGIN;
-			E_G2_RCL(p_, shim_w(to), InstType, shim_id(to));
+			E_G2_RCL_SZ(p_, shim_sz(to), InstType, shim_id(to));
 			SHIM_END;
 		}
 	};
@@ -196,7 +204,7 @@ namespace x86Emitter
 		__fi void operator()(const xRegisterInt& to, sptr imm, bool preserve_flags = false) const
 		{
 			SHIM_BEGIN;
-			E_MOV_RI(p_, shim_w(to), preserve_flags, shim_id(to), (e_sptr)imm);
+			E_MOV_RI_SZ(p_, shim_sz(to), preserve_flags, shim_id(to), (e_sptr)imm);
 			SHIM_END;
 		}
 	};
@@ -228,13 +236,13 @@ namespace x86Emitter
 		__fi void operator()(const xRegisterInt& to, const xRegisterInt& from) const
 		{
 			SHIM_BEGIN;
-			E_TEST_RR(p_, shim_id(to), shim_id(from));
+			E_TEST_RR_SZ(p_, shim_sz(to), shim_id(to), shim_id(from));
 			SHIM_END;
 		}
 		__fi void operator()(const xRegisterInt& to, int imm) const
 		{
 			SHIM_BEGIN;
-			E_TEST_RI(p_, shim_w(to), shim_id(to), imm);
+			E_TEST_RI_SZ(p_, shim_sz(to), shim_id(to), imm);
 			SHIM_END;
 		}
 	};

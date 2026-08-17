@@ -81,7 +81,14 @@ namespace x86Emitter
 		else if (imm == (sptr)(u32)imm || !(to._operandSize == 8))
 		{
 			// Note: MOV does not have (reg16/32,imm8) forms.
-			u8 opcode = (to_.Is8BitOp() ? 0xb0 : 0xb8) | to_.Id;
+			// Id & 7, not Id: the high bit of an extended register is
+			// carried by REX.B, which EmitRex has already emitted. ORing the
+			// full Id sets bit 3 of the opcode as well, and for the 8-bit
+			// form that turns 0xb0 into 0xb8 -- mov r8b,imm8 becomes the
+			// dword-immediate opcode with one byte of immediate after it.
+			// (The 32-bit form is unaffected only because 0xb8 already has
+			// bit 3 set.)
+			u8 opcode = (to_.Is8BitOp() ? 0xb0 : 0xb8) | (to_.Id & 7);
 			xOpAccWrite(to_.GetPrefix16(), opcode, 0, to_);
 			to_.xWriteImm(imm);
 		}
