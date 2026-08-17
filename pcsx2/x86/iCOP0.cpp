@@ -151,17 +151,28 @@ void recTLBWR() { recCall(Interp::TLBWR); }
 //
 // intSetBranch() is likewise a no-op here: it sets branch2, which is static to
 // Interpreter.cpp and invisible to recompiled code.
-static void recCOP0_ForceBranchTest()
+// Reproduces everything recBranchCall did around the call, in the same order:
+// force the branch test, then iFlushCall(FLUSH_INTERPRETER).
+//
+// The flush is not optional. FLUSH_INTERPRETER is 0xfff -- FLUSH_EVERYTHING
+// plus FLUSH_PC and FLUSH_CODE -- and it is what writes cached EE registers
+// back to cpuRegs before the block ends. Emitting the bodies inline without
+// it left every cached register stale, which is not subtle: it black-screens
+// on boot.
+//
+// The ordering matters too. FLUSH_PC stores the static block PC, so ERET's
+// write to cpuRegs.pc has to come after the flush, exactly as it came after
+// the flush inside the interpreter call.
+static void recCOP0_BranchCallPrologue()
 {
 	xMOV(rax, ptr64[&cpuRegs.cycle]);
 	xMOV(ptr64[&cpuRegs.nextEventCycle], rax);
+	iFlushCall(FLUSH_INTERPRETER);
 }
 
 void recERET()
 {
-	_freeX86reg(eax);
-	_freeX86reg(edx);
-	recCOP0_ForceBranchTest();
+	recCOP0_BranchCallPrologue();
 
 	// ERL selects which EPC to resume from, and which flag to clear.
 	xMOV(eax, ptr32[&cpuRegs.CP0.n.Status]);
@@ -185,8 +196,7 @@ void recEI()
 {
 	// must branch after enabling interrupts, so that anything
 	// pending gets triggered properly.
-	_freeX86reg(eax);
-	recCOP0_ForceBranchTest();
+	recCOP0_BranchCallPrologue();
 
 	// Same guard recDI uses, inverted only in what it does to EIE.
 	xMOV(eax, ptr32[&cpuRegs.CP0.n.Status]);
