@@ -2015,8 +2015,14 @@ StartRecomp:
 				continue;
 			if ((oldBlock->startpc + oldBlock->size * 4) <= HWADDR(startpc))
 				break;
+			// A block whose last instruction is a branch in the final word of a
+			// page ends one instruction into the next page, so a block sitting in
+			// the last page of RAM can extend past Ps2MemSize::MainRam. recRAMCopy
+			// is exactly Ps2MemSize::MainRam bytes, so bound the compare to it.
+			const u32 cmpsize = std::min<u32>(oldBlock->size * 4,
+					Ps2MemSize::MainRam - oldBlock->startpc);
 			if (memcmp(&recRAMCopy[oldBlock->startpc], PSM(oldBlock->startpc),
-					oldBlock->size * 4))
+					cmpsize))
 			{
 				recClear(startpc, (pc - startpc) / 4);
 				s_pCurBlockEx = recBlocks.Get(HWADDR(startpc));
