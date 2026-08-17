@@ -17,6 +17,7 @@
 
 #include "x86types.h"
 #include "instructions.h"
+#include <type_traits>
 
 namespace x86Emitter
 {
@@ -136,8 +137,48 @@ namespace x86Emitter
 			prefix == 0x66 ? 1 :
                              0;
 
-		xWrite8(0xC5);
-		xWrite8(nR | nv | L | p);
+		// The two-byte VEX form carries only the inverted R bit; X and B are
+		// implicitly zero. When the memory operand needs either -- an extended
+		// base or index register -- it has to be spelled with the three-byte
+		// form, or the register silently decodes as its low counterpart.
+		bool needX = false;
+		bool needB = false;
+		if constexpr (std::is_same_v<T3, xIndirectVoid>)
+		{
+			// Same shape as EmitRex(xRegisterBase, xIndirectVoid): with no SIB
+			// the index register's extension bit travels in B. NeedsSibMagic
+			// is file-static in x86emitter.cpp, so its condition is spelled
+			// out rather than exported.
+			const bool sib = !param3.Index.IsEmpty() &&
+			                 (param3.Scale != 0 || !param3.Base.IsEmpty());
+			needX = param3.Index.IsExtended();
+			needB = param3.Base.IsExtended();
+			if (!sib)
+			{
+				needB = needX;
+				needX = false;
+			}
+		}
+		else
+		{
+			needB = param3.IsExtended();
+		}
+
+		if (needX || needB)
+		{
+			// C4 / ~R~X~B mmmmm / W vvvv L pp.  mmmmm = 1 selects the 0F
+			// escape, which is the only one xOpWriteC5's callers use, and W
+			// is zero for all of them.
+			xWrite8(0xC4);
+			xWrite8((u8)((nR ? 0x80 : 0x00) | (needX ? 0x00 : 0x40) |
+			             (needB ? 0x00 : 0x20) | 0x01));
+			xWrite8((u8)(nv | L | p));
+		}
+		else
+		{
+			xWrite8(0xC5);
+			xWrite8(nR | nv | L | p);
+		}
 		xWrite8(opcode);
 		EmitSibMagic(param1, param3);
 	}
