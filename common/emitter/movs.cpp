@@ -85,6 +85,18 @@ namespace x86Emitter
 			xOpAccWrite(to_.GetPrefix16(), opcode, 0, to_);
 			to_.xWriteImm(imm);
 		}
+		else if (to._operandSize == 8 && imm != (sptr)(s32)imm)
+		{
+			// Neither 32-bit form can hold this: B8+r zero-extends and C7 /0
+			// sign-extends, so anything outside [-2G, 4G) needs the ten-byte
+			// movabs. Falling through to C7 /0 here silently truncated the
+			// value, which is a hard fault to trace when the value was a host
+			// pointer -- see 3fbc3bd and f652552, both of which were exactly
+			// this, discovered only as a SIGSEGV in emitted code.
+			const u8 opcode = 0xb8 | (to.Id & 7);
+			xOpAccWrite(to.GetPrefix16(), opcode, 0, to);
+			xWrite64(imm);
+		}
 		else
 		{
 			xOpWrite(to.GetPrefix16(), 0xc7, 0, to);
