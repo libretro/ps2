@@ -221,6 +221,54 @@ void recCall(void (*func)())
 // =====================================================================================================
 
 static void recRecompile(const u32 startpc);
+
+// ---------------------------------------------------------------------------
+//  EE recompiler instrumentation (PCSX2_REC_PROFILE)
+//
+//  Answers one question: what fraction of wall time does the EE recompiler
+//  spend *emitting* code, as opposed to running it. That ratio bounds any
+//  win from making the emitter faster.
+//
+//  Also counts the invalidation paths, so the effect of the recRAMCopy and
+//  manual_page fixes is visible as a clear rate rather than inferred.
+// ---------------------------------------------------------------------------
+#ifdef PCSX2_REC_PROFILE
+#include <time.h>
+static u64  s_prof_emit_ns   = 0;   // time inside recRecompile
+static u64  s_prof_emit_n    = 0;   // calls to recRecompile
+static u64  s_prof_clear_n   = 0;   // calls to recClear
+static u64  s_prof_pagerst_n = 0;   // calls to dyna_page_reset
+static u64  s_prof_reset_n   = 0;   // full recompiler resets
+static u64  s_prof_bytes     = 0;   // x86 bytes emitted
+static double s_prof_t0      = 0.0;
+static double s_prof_next    = 0.0;
+
+static __fi double prof_now(void)
+{
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	return (double)t.tv_sec + (double)t.tv_nsec / 1e9;
+}
+
+static void prof_report(void)
+{
+	const double wall = prof_now() - s_prof_t0;
+	const double emit = (double)s_prof_emit_ns / 1e9;
+	fprintf(stderr,
+		"[recprof] wall %7.2fs | emit %7.3fs (%5.2f%%) | blocks %8llu"
+		" (%6.0f/s, %5.1f us avg) | %6.2f MB emitted"
+		" | clears %7llu | pageresets %6llu | resets %llu\n",
+		wall, emit, wall > 0.0 ? 100.0 * emit / wall : 0.0,
+		(unsigned long long)s_prof_emit_n,
+		wall > 0.0 ? s_prof_emit_n / wall : 0.0,
+		s_prof_emit_n ? (double)s_prof_emit_ns / (double)s_prof_emit_n / 1000.0 : 0.0,
+		(double)s_prof_bytes / (1024.0 * 1024.0),
+		(unsigned long long)s_prof_clear_n,
+		(unsigned long long)s_prof_pagerst_n,
+		(unsigned long long)s_prof_reset_n);
+}
+#endif
+
 static void dyna_block_discard(u32 start, u32 sz);
 static void dyna_page_reset(u32 start, u32 sz);
 
@@ -253,6 +301,9 @@ static void recEventTest(void)
 // dynamic modules being loaded or, less likely, self-modifying code)
 static void recClear(u32 addr, u32 size)
 {
+#ifdef PCSX2_REC_PROFILE
+	s_prof_clear_n++;
+#endif
 	if ((addr) >= maxrecmem || !(recLUT[(addr) >> 16] + (addr & ~0xFFFFUL)))
 		return;
 	addr = HWADDR(addr);
@@ -516,6 +567,9 @@ alignas(16) static u8 manual_counter[Ps2MemSize::MainRam >> 12];
 ////////////////////////////////////////////////////
 static void recResetRaw(void)
 {
+#ifdef PCSX2_REC_PROFILE
+	s_prof_reset_n++;
+#endif
 	recAlloc();
 
 	recMem->Reset();
@@ -1452,6 +1506,9 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 // and the block is re-assigned for write protection.
 static void dyna_page_reset(u32 start, u32 sz)
 {
+#ifdef PCSX2_REC_PROFILE
+	s_prof_pagerst_n++;
+#endif
 	recClear(start & ~0xfffUL, 0x400);
 	manual_counter[start >> 12]++;
 	mmap_MarkCountedRamPage(start);
@@ -1606,8 +1663,28 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	return true;
 }
 
+#ifdef PCSX2_REC_PROFILE
+static void recRecompile_inner(const u32 startpc);
 static void recRecompile(const u32 startpc)
 {
+	double t0, t1;
+	const u8* before;
+	if (s_prof_t0 == 0.0) { s_prof_t0 = prof_now(); s_prof_next = s_prof_t0 + 2.0; }
+	before = x86Ptr;
+	t0 = prof_now();
+	recRecompile_inner(startpc);
+	t1 = prof_now();
+	s_prof_emit_ns += (u64)((t1 - t0) * 1e9);
+	s_prof_emit_n++;
+	if (x86Ptr > before) s_prof_bytes += (u64)(x86Ptr - before);
+	if (t1 >= s_prof_next) { prof_report(); s_prof_next = t1 + 2.0; }
+}
+static void recRecompile_inner(const u32 startpc)
+{
+#else
+static void recRecompile(const u32 startpc)
+{
+#endif
 	u32 i = 0;
 	u32 willbranch3 = 0;
 
