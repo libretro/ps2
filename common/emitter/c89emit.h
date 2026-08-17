@@ -23,9 +23,30 @@ typedef unsigned int   e_u32;
 typedef unsigned long long e_u64;
 typedef signed char    e_s8;
 typedef signed int     e_s32;
-typedef long           e_sptr;
 typedef long long          e_s64;
 typedef unsigned long long e_u64_;
+
+/* e_sptr has to hold a pointer, and `long` does not do that everywhere.
+ * LP64 (Linux, macOS) has 64-bit long; LLP64 (Windows, including mingw) has
+ * 32-bit long with 64-bit pointers, so casting a code-cache pointer through
+ * `long` there silently truncates it. That is not a warning worth ignoring:
+ * every RIP-relative displacement this header computes goes through the cast.
+ *
+ * C89 has no stdint.h and no sizeof in #if, so the width is selected on the
+ * usual 64-bit predefines and then checked below. */
+#if defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) || \
+    defined(__x86_64__) || defined(__aarch64__) || \
+    defined(__LP64__) || defined(_LP64) || defined(__MINGW64__)
+typedef long long          e_sptr;
+typedef unsigned long long e_uptr;
+#else
+typedef long               e_sptr;
+typedef unsigned long      e_uptr;
+#endif
+
+/* If the selection above ever picks wrong, fail here rather than emitting
+ * truncated displacements. A negative array size is the C89 way to assert. */
+typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 
 #define EW8(p, v)  do { *(p) = (e_u8)(v); (p) += 1; } while (0)
 #define EW32(p, v) do { e_u32 v_ = (e_u32)(v); \
