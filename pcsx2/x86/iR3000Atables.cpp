@@ -1291,9 +1291,11 @@ static void rpsxStoreUnaligned(bool isLeft)
 	xSHL(ecx, 3); // shift = (addr & 3) * 8
 	xMOV(edx, eax);
 	xAND(edx, 0x1ffffc); // aligned offset, zero-extended into RDX
-	xMOV(r8, (uptr)iopMem->Main);
-	xADD(r8, rdx);
-	xMOV(eax, ptr32[xAddressVoid(r8, 0)]);
+	// xComplexAddress rather than a hand-rolled load of the base: xMOV(reg64,
+	// imm) has no 64-bit immediate form and silently truncates. The helper
+	// emits a RIP-relative LEA when the base does not fit a signed 32-bit
+	// displacement, which is why rpsxLoad uses it.
+	xMOV(eax, ptr32[xComplexAddress(r8, iopMem->Main, rdx)]);
 
 	if (isLeft)
 	{
