@@ -305,7 +305,7 @@ static void recClear(u32 addr, u32 size)
 	upperextent = std::min(upperextent, ceiling);
 
 	if (upperextent > lowerextent)
-		ClearRecLUT(PC_GETBLOCK(lowerextent), upperextent - lowerextent);
+		ClearRecLUT(PC_GETBLOCK(lowerextent), (upperextent - lowerextent) / 4);
 }
 
 
@@ -432,9 +432,9 @@ static void _DynGen_Dispatchers(void)
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 
-static __ri void ClearRecLUT(BASEBLOCK* base, int memsize)
+static __ri void ClearRecLUT(BASEBLOCK* base, int count)
 {
-	for (int i = 0; i < memsize / (int)sizeof(uptr); i++)
+	for (int i = 0; i < count; i++)
 		base[i].m_pFnptr = ((uptr)JITCompile);
 }
 
@@ -521,7 +521,7 @@ static void recResetRaw(void)
 	recMem->Reset();
 	_DynGen_Dispatchers();
 	vtlb_DynGenDispatchers();
-	ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize);
+	ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize / sizeof(BASEBLOCK));
 	memset(recRAMCopy, 0, Ps2MemSize::MainRam);
 
 	maxrecmem = 0;
