@@ -198,65 +198,70 @@ void recCACHE() //Interpreter only!
 	//branch = 2;
 }
 
-void recTGE()
+
+// The twelve trap opcodes are one shape: compare Rs against Rt or a
+// sign-extended immediate, and raise if it holds. The interpreter's trap()
+// is two lines (R5900OpcodeImpl.cpp:991-995) and ignores its code argument,
+// so it inlines here rather than being called.
+//
+// The block still ends -- g_branch = 2, and the forced branch test stays --
+// exactly as recBranchCall left it. What changes is that the call is now
+// behind the condition. Traps are assertions: essentially never taken, so
+// the common path goes from an unconditional call into the interpreter to a
+// compare and a not-taken branch.
+static void recTrap(JccComparisonType skip_cond, bool use_imm, bool is_unsigned)
 {
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGE);
+	xMOV(rax, ptr64[&cpuRegs.cycle]);
+	xMOV(ptr64[&cpuRegs.nextEventCycle], rax);
+	iFlushCall(FLUSH_INTERPRETER);
+
+	xMOV(rax, ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	if (use_imm)
+	{
+		// _Imm_ is sign-extended even for the unsigned comparisons, which
+		// then treat the result as unsigned -- so TGEIU against a negative
+		// immediate compares against a very large value, deliberately.
+		(void)is_unsigned;
+		xMOV64(rcx, (s64)_Imm_);
+		xCMP(rax, rcx);
+	}
+	else
+		xCMP(rax, ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+
+	xForwardJump8 no_trap(skip_cond);
+	// trap(): cpuRegs.pc -= 4; cpuException(0x34, cpuRegs.branch);
+	xSUB(ptr32[&cpuRegs.pc], 4);
+	xMOV(arg1regd, 0x34);
+	xMOV(arg2regd, ptr32[&cpuRegs.branch]);
+	xFastCall((void*)cpuException);
+	no_trap.SetTarget();
+
+	g_branch = 2;
 }
 
-void recTGEU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGEU);
-}
+void recTGE()  { recTrap(Jcc_Less,           false, false); }
 
-void recTLT()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLT);
-}
+void recTGEU() { recTrap(Jcc_Below,          false, true ); }
 
-void recTLTU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLTU);
-}
+void recTLT()  { recTrap(Jcc_GreaterOrEqual, false, false); }
 
-void recTEQ()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TEQ);
-}
+void recTLTU() { recTrap(Jcc_AboveOrEqual,   false, true ); }
 
-void recTNE()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TNE);
-}
+void recTEQ()  { recTrap(Jcc_NotEqual,       false, false); }
 
-void recTGEI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGEI);
-}
+void recTNE()  { recTrap(Jcc_Equal,          false, false); }
 
-void recTGEIU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TGEIU);
-}
+void recTGEI() { recTrap(Jcc_Less,           true,  false); }
 
-void recTLTI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLTI);
-}
+void recTGEIU(){ recTrap(Jcc_Below,          true,  true ); }
 
-void recTLTIU()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TLTIU);
-}
+void recTLTI() { recTrap(Jcc_GreaterOrEqual, true,  false); }
 
-void recTEQI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TEQI);
-}
+void recTLTIU(){ recTrap(Jcc_AboveOrEqual,   true,  true ); }
 
-void recTNEI()
-{
-	recBranchCall(R5900::Interpreter::OpcodeImpl::TNEI);
-}
+void recTEQI() { recTrap(Jcc_NotEqual,       true,  false); }
+
+void recTNEI() { recTrap(Jcc_Equal,          true,  false); }
 
 } // namespace OpcodeImpl
 } // namespace Dynarec
