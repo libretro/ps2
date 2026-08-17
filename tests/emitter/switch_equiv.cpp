@@ -278,6 +278,37 @@ int main()
 		}
 	}
 
+
+	/* The tail: shuffle, compare-and-set-flags, packed multiply, the
+	 * sign/zero-extending moves, and the two free functions. */
+	for (int a = 0; a < 16; a++)
+	{
+		for (int b = 0; b < 16; b++)
+		{
+			xSHUF.PS(xRegisterSSE(a), xRegisterSSE(b), 0x1b);
+			xSHUF.PD(xRegisterSSE(a), xRegisterSSE(b), 0xaa); /* masked to 2 bits */
+			xUCOMI.SS(xRegisterSSE(a), xRegisterSSE(b));
+			xUCOMI.SD(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.LW(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.HW(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.HUW(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.UDQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.HRSW(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.LD(xRegisterSSE(a), xRegisterSSE(b));
+			xPMUL.DQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVSX.BW(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVSX.BD(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVSX.BQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVSX.WD(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVSX.WQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVSX.DQ(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVZX.BW(xRegisterSSE(a), xRegisterSSE(b));
+			xPMOVZX.DQ(xRegisterSSE(a), xRegisterSSE(b));
+			xMOVMSKPS(xRegister32(a), xRegisterSSE(b));
+		}
+		xLDMXCSR(ptr32[kAddrs[a & 3]]);
+	}
+
 	const size_t n = (size_t)(xGetPtr() - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)

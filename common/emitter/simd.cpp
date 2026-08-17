@@ -146,6 +146,7 @@ namespace x86Emitter
 			{0x66, 0xd8 + 1}, // USW
 	};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMul xPMUL =
 		{
 			{0x66, 0xd5}, // LW
@@ -157,6 +158,7 @@ namespace x86Emitter
 			{0x66, 0x4038}, // LD
 			{0x66, 0x2838}, // DQ
 	};
+#endif
 
 	const xImplSimd_Sqrt xSQRT =
 		{
@@ -224,11 +226,13 @@ namespace x86Emitter
 	const xImplSimd_Compare xCMPNLE = {SSE2_NotLessOrEqual};
 	const xImplSimd_Compare xCMPUNORD = {SSE2_Unordered};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_COMI xUCOMI =
 		{
 			{0x00, 0x2e}, // SS
 			{0x66, 0x2e}, // SD
 	};
+#endif
 
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PCompare xPCMP =
@@ -313,7 +317,9 @@ namespace x86Emitter
 	void SimdImpl_PExtract::Q(const xRegister64& to, const xRegisterSSE& from, u8 imm8) const { xOpWrite0F(0x66, 0x163a, from, to, imm8); }
 	void SimdImpl_PExtract::Q(const xIndirect64& dest, const xRegisterSSE& from, u8 imm8) const { xOpWrite0F(0x66, 0x163a, from, dest, imm8); }
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Shuffle xSHUF = {};
+#endif
 
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PShuffle xPSHUF =
@@ -471,8 +477,12 @@ namespace x86Emitter
 		{0x66, 0x1538}, // VPD
 	};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMove xPMOVSX = {0x2038};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMove xPMOVZX = {0x3038};
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// MMX Mov Instructions (MOVD, MOVQ, MOVSS).
@@ -527,7 +537,9 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0, 0x50, to, from); }
+#endif
 	__fi void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x50, to, from, true); }
 
 	// --------------------------------------------------------------------------------------
@@ -564,8 +576,10 @@ namespace x86Emitter
 	// =====================================================================================================
 
 	// Load Streaming SIMD Extension Control/Status from Mem32.
+#ifndef PCSX2_C89_EMITTER
 	__fi void xLDMXCSR(const xIndirect32& src)
 	{
 		xOpWrite0F(0, 0xae, 2, src);
 	}
+#endif
 } // namespace x86Emitter

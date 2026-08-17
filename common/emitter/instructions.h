@@ -315,7 +315,11 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xLDMXCSR(const xIndirect32& src) { shim_LDMXCSR(src); }
+#else
 	extern void xLDMXCSR(const xIndirect32& src);
+#endif
 
 	extern void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from);
 	extern void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src);
@@ -336,7 +340,11 @@ namespace x86Emitter
 	extern void xMOVSSZX(const xRegisterSSE& to, const xIndirectVoid& from);
 	extern void xMOVSDZX(const xRegisterSSE& to, const xIndirectVoid& from);
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { shim_MOVMSKPS(to, from); }
+#else
 	extern void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
+#endif
 	extern void xMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);
 
 	// ------------------------------------------------------------------------
@@ -370,8 +378,16 @@ namespace x86Emitter
 
 	extern const xImplSimd_PBlend xPBLEND;
 	extern const xImplSimd_Blend xBLEND;
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PMove xPMOVSX = {0x2038};
+#else
 	extern const xImplSimd_PMove xPMOVSX;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PMove xPMOVZX = {0x3038};
+#else
 	extern const xImplSimd_PMove xPMOVZX;
+#endif
 
 	extern void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8);
 	extern void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8);
@@ -398,7 +414,11 @@ namespace x86Emitter
 	extern const xImplSimd_DestRegEither xPXOR;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Shuffle xSHUF;
+#else
 	extern const xImplSimd_Shuffle xSHUF;
+#endif
 
 	// ------------------------------------------------------------------------
 
@@ -411,7 +431,11 @@ namespace x86Emitter
 		xCMPNLT,
 		xCMPNLE;
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_COMI xUCOMI = { {0x00,0x2e},{0x66,0x2e} };
+#else
 	extern const xImplSimd_COMI xUCOMI;
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static const shim_PCompare xPCMP = { {0x66,0x74},{0x66,0x75},{0x66,0x76},{0x66,0x64},{0x66,0x65},{0x66,0x66} };
@@ -456,7 +480,11 @@ namespace x86Emitter
 	extern const xImplSimd_ShiftWithoutQ xPSRA;
 	extern const xImplSimd_AddSub xPADD;
 	extern const xImplSimd_AddSub xPSUB;
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PMul xPMUL = { {0x66,0xd5},{0x66,0xe5},{0x66,0xe4},{0x66,0xf4},{0x66,0x0b38},{0x66,0x4038},{0x66,0x2838} };
+#else
 	extern const xImplSimd_PMul xPMUL;
+#endif
 	extern const xImplSimd_PAbsolute xPABS;
 	extern const xImplSimd_PMultAdd xPMADD;
 	extern const xImplSimd_DotProduct xDP;

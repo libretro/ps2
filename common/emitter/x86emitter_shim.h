@@ -608,7 +608,9 @@ namespace x86Emitter
 
 	struct shim_PMul
 	{
-		shim_SimdRegSSE LW, HW, HUW, UDQ, HRSW, LD;
+		// Seven members, not six: DQ is easy to miss because it sits below a
+		// long comment block in the reference (simd_arithmetic.h:84-109).
+		shim_SimdRegSSE LW, HW, HUW, UDQ, HRSW, LD, DQ;
 	};
 
 	struct shim_COMI
