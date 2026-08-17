@@ -233,6 +233,7 @@ static void recRecompile(const u32 startpc);
 //  manual_page fixes is visible as a clear rate rather than inferred.
 // ---------------------------------------------------------------------------
 #ifdef PCSX2_REC_PROFILE
+#include <cstdlib>
 #include <time.h>
 static u64  s_prof_emit_ns   = 0;   // time inside recRecompile
 static u64  s_prof_emit_n    = 0;   // calls to recRecompile
@@ -244,6 +245,8 @@ static u64  s_prof_counted   = 0;   // blocks that took the counted (xADD/xJC) p
 static u64  s_prof_uncounted = 0;   // blocks skipped it: manual_counter above 3
 static u64  s_prof_cmpwords  = 0;   // words of xCMP verification chain emitted
 static u64  s_prof_bytes     = 0;   // x86 bytes emitted
+static u64  s_prof_digest    = 0;   // FNV-1a over every emitted block
+static int  s_prof_atexit    = 0;
 static double s_prof_t0      = 0.0;
 static double s_prof_next    = 0.0;
 
@@ -261,7 +264,7 @@ static void prof_report(void)
 	fprintf(stderr,
 		"[recprof] wall %7.2fs | emit %7.3fs (%5.2f%%) | blocks %8llu"
 		" (%6.0f/s, %5.1f us avg) | %6.2f MB emitted"
-		" | clears %7llu | pageresets %6llu | resets %llu"
+		" | digest %016llx | clears %7llu | pageresets %6llu | resets %llu"
 		" | prot none/nr/wr/man %llu/%llu/%llu/%llu"
 		" | counted %llu uncounted %llu cmpwords %llu\n",
 		wall, emit, wall > 0.0 ? 100.0 * emit / wall : 0.0,
@@ -269,6 +272,7 @@ static void prof_report(void)
 		wall > 0.0 ? s_prof_emit_n / wall : 0.0,
 		s_prof_emit_n ? (double)s_prof_emit_ns / (double)s_prof_emit_n / 1000.0 : 0.0,
 		(double)s_prof_bytes / (1024.0 * 1024.0),
+		(unsigned long long)s_prof_digest,
 		(unsigned long long)s_prof_clear_n,
 		(unsigned long long)s_prof_pagerst_n,
 		(unsigned long long)s_prof_reset_n,
@@ -1700,8 +1704,29 @@ static void recRecompile(const u32 startpc)
 	t1 = prof_now();
 	s_prof_emit_ns += (u64)((t1 - t0) * 1e9);
 	s_prof_emit_n++;
-	if (x86Ptr > before) s_prof_bytes += (u64)(x86Ptr - before);
+	if (x86Ptr > before)
+	{
+		const u8* p;
+		s_prof_bytes += (u64)(x86Ptr - before);
+		// Content digest over the emitted bytes themselves, so two builds can
+		// be compared on what they generated rather than on how much. Blocks
+		// are hashed in compile order, which is deterministic for a fixed
+		// input, and the digest folds in the start PC so a block emitted at a
+		// different address for the same code still shows up.
+		s_prof_digest ^= (u64)startpc;
+		s_prof_digest *= 1099511628211ULL;
+		for (p = before; p < x86Ptr; p++)
+		{
+			s_prof_digest ^= (u64)*p;
+			s_prof_digest *= 1099511628211ULL;
+		}
+	}
 	if (t1 >= s_prof_next) { prof_report(); s_prof_next = t1 + 2.0; }
+	// Also report on block-count boundaries. Two builds fed the same input
+	// compile the same blocks in the same order, so a line at block 1024 is
+	// directly comparable between them -- which a wall-clock report is not,
+	// and which a short run never reaches at all.
+	if ((s_prof_emit_n & 1023) == 0) prof_report();
 }
 static void recRecompile_inner(const u32 startpc)
 {
