@@ -575,16 +575,6 @@ const xRegister32
 		Reduce();
 	}
 
-	xIndirectVoid::xIndirectVoid(sptr disp)
-	{
-		Base = xEmptyReg;
-		Index = xEmptyReg;
-		Scale = 0;
-		Displacement = disp;
-
-		// no reduction necessary :D
-	}
-
 	xIndirectVoid::xIndirectVoid(xAddressReg base, xAddressReg index, int scale, sptr displacement)
 	{
 		Base = base;

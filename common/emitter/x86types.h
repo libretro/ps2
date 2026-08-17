@@ -820,7 +820,17 @@ extern const xRegister32
 			// However we need the whole pointer to calculate rip-relative offsets
 
 	public:
-		explicit xIndirectVoid(sptr disp);
+		// Absolute-address form. No Reduce() is needed (there are no registers
+		// to fold), so this is a plain field initialisation and belongs in the
+		// header: it is the form every ptrNN[&global] operand goes through, and
+		// out-of-line it costs a call per memory operand emitted.
+		explicit __fi xIndirectVoid(sptr disp)
+		{
+			Base = xEmptyReg;
+			Index = xEmptyReg;
+			Scale = 0;
+			Displacement = disp;
+		}
 		explicit xIndirectVoid(const xAddressVoid& src);
 		xIndirectVoid(xAddressReg base, xAddressReg index, int scale = 0, sptr displacement = 0);
 		xIndirectVoid& Add(sptr imm);
