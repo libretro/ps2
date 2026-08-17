@@ -732,7 +732,7 @@ const xRegister32
 					// (this does not apply to older model P4s with the broken barrel shifter,
 					//  but we currently aren't optimizing for that target anyway).
 
-					_xMovRtoR(to, src.Index);
+					_xMovRtoR(to, src.Index.MatchSizeTo(to));
 					xSHL(to, src.Scale);
 					return;
 				}
