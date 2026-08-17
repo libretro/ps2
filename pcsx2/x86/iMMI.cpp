@@ -2049,6 +2049,14 @@ void recPDIVW(void)
 	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
 	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
 
+	// Const-propagated registers do not live in cpuRegs.GPR.r[] until they
+	// are flushed there, and none of the deletes above does that -- recMADD
+	// checks GPR_IS_CONST1 after the very same sequence for exactly this
+	// reason. Materialise them instead, which also covers the four-word case
+	// below where the manual check would only cover the low half.
+	_flushConstReg(_Rs_);
+	_flushConstReg(_Rt_);
+
 	recPDIVW_half(0, 0);
 	recPDIVW_half(1, 2);
 }
@@ -2110,6 +2118,14 @@ void recPDIVBW(void)
 	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
 	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
 	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	// Const-propagated registers do not live in cpuRegs.GPR.r[] until they
+	// are flushed there, and none of the deletes above does that -- recMADD
+	// checks GPR_IS_CONST1 after the very same sequence for exactly this
+	// reason. Materialise them instead, which also covers the four-word case
+	// below where the manual check would only cover the low half.
+	_flushConstReg(_Rs_);
+	_flushConstReg(_Rt_);
 
 	xMOVSX(ecx, ptr16[&cpuRegs.GPR.r[_Rt_].US[0]]);
 	for (n = 0; n < 4; n++)
@@ -2837,6 +2853,14 @@ void recPDIVUW(void)
 	_deleteGPRtoX86reg(_Rt_, DELETE_REG_FLUSH);
 	_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH);
 	_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH);
+
+	// Const-propagated registers do not live in cpuRegs.GPR.r[] until they
+	// are flushed there, and none of the deletes above does that -- recMADD
+	// checks GPR_IS_CONST1 after the very same sequence for exactly this
+	// reason. Materialise them instead, which also covers the four-word case
+	// below where the manual check would only cover the low half.
+	_flushConstReg(_Rs_);
+	_flushConstReg(_Rt_);
 
 	recPDIVUW_half(0, 0);
 	recPDIVUW_half(1, 2);
