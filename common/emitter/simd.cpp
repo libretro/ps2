@@ -441,11 +441,15 @@ namespace x86Emitter
 	void xImplSimd_PMove::DQ(const xRegisterSSE& to, const xIndirect64& from) const { OpWriteSSE(0x66, OpcodeBase + 0x500); }
 
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MoveSSE xMOVAPS = {0x00, true};
 	const xImplSimd_MoveSSE xMOVUPS = {0x00, false};
+#endif
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MoveDQ xMOVDQA = {0x66, true};
 	const xImplSimd_MoveDQ xMOVDQU = {0xf3, false};
+#endif
 
 	const xImplSimd_MovHL xMOVH = {0x16};
 	const xImplSimd_MovHL xMOVL = {0x12};

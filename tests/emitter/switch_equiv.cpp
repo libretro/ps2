@@ -236,6 +236,48 @@ int main()
 		xPSHUF.D(xRegisterSSE(a), ptr128[kAddrs[a & 3]], 0x39);
 	}
 
+
+	/* The Move families. The alignment rule is the point: a memory operand
+	 * counts as aligned when isAligned is set OR when it is displacement-only
+	 * and that displacement is 16-byte aligned. The choice then lands in the
+	 * opcode for MOVAPS and in the prefix for MOVDQA, and the store forms
+	 * differ again -- opcode+1 for one, a reversed-ModRM 0x7f for the other.
+	 * Four independent ways to be wrong, so drive displacements that straddle
+	 * the boundary in both displacement-only and base+index forms. */
+	{
+		const s32 mdisp[] = { 0, 4, 8, 0x0f, 0x10, 0x1f, 0x20, 0x100, 0x104, 0x110 };
+		for (int r = 0; r < 16; r++)
+		{
+			for (int b = 0; b < 16; b++)
+			{
+				xMOVAPS(xRegisterSSE(r), xRegisterSSE(b));
+				xMOVUPS(xRegisterSSE(r), xRegisterSSE(b));
+				xMOVDQA(xRegisterSSE(r), xRegisterSSE(b));
+				xMOVDQU(xRegisterSSE(r), xRegisterSSE(b));
+			}
+			for (int d = 0; d < 10; d++)
+			{
+				/* displacement-only: the alignment rule applies */
+				void* const abs = (void*)(0x200001000ull + (unsigned)mdisp[d]);
+				xMOVAPS(xRegisterSSE(r), ptr128[abs]);
+				xMOVAPS(ptr128[abs], xRegisterSSE(r));
+				xMOVUPS(xRegisterSSE(r), ptr128[abs]);
+				xMOVUPS(ptr128[abs], xRegisterSSE(r));
+				xMOVDQA(xRegisterSSE(r), ptr128[abs]);
+				xMOVDQA(ptr128[abs], xRegisterSSE(r));
+				xMOVDQU(xRegisterSSE(r), ptr128[abs]);
+				xMOVDQU(ptr128[abs], xRegisterSSE(r));
+				/* base+index: never counts as aligned, whatever the disp */
+				const xAddressVoid m =
+					xAddressVoid(xAddressReg(r & 7), xAddressReg(3), 4, mdisp[d]);
+				xMOVAPS(xRegisterSSE(r), ptr128[m]);
+				xMOVAPS(ptr128[m], xRegisterSSE(r));
+				xMOVDQA(xRegisterSSE(r), ptr128[m]);
+				xMOVDQA(ptr128[m], xRegisterSSE(r));
+			}
+		}
+	}
+
 	const size_t n = (size_t)(xGetPtr() - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)

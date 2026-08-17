@@ -408,6 +408,10 @@ namespace x86Emitter
 	// opcode+1 -- an alternate ModRM encoding with src and dst reversed.
 	struct shim_MoveDQ
 	{
+		// Prefix is carried to match the reference's layout so its
+		// initialisers transfer unchanged; the encoding does not use it,
+		// picking 0x66 or 0xf3 from the alignment instead.
+		u8   Prefix;
 		bool isAligned;
 
 		__fi void operator()(const xRegisterSSE& to, const xRegisterSSE& from) const

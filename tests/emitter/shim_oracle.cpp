@@ -170,8 +170,8 @@ int main()
     {
         const shim_MoveSSE sMOVAPS = {0x00, true};
         const shim_MoveSSE sMOVUPS = {0x00, false};
-        const shim_MoveDQ  sMOVDQA = {true};
-        const shim_MoveDQ  sMOVDQU = {false};
+        const shim_MoveDQ  sMOVDQA = {0x66, true};
+        const shim_MoveDQ  sMOVDQU = {0xf3, false};
         const shim_MovExtend sMOVSX = {true}, sMOVZX = {false};
         /* displacements chosen to straddle the 16-byte alignment rule */
         const s32 disps[] = {0, 0x10, 0x20, 4, 8, 0x1f, 0x100, 0x104};

@@ -341,11 +341,27 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MoveSSE xMOVAPS = {0x00, true};
+#else
 	extern const xImplSimd_MoveSSE xMOVAPS;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MoveSSE xMOVUPS = {0x00, false};
+#else
 	extern const xImplSimd_MoveSSE xMOVUPS;
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MoveDQ  xMOVDQA = {0x66, true};
+#else
 	extern const xImplSimd_MoveDQ xMOVDQA;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MoveDQ  xMOVDQU = {0xf3, false};
+#else
 	extern const xImplSimd_MoveDQ xMOVDQU;
+#endif
 
 	extern const xImplSimd_MovHL xMOVH;
 	extern const xImplSimd_MovHL xMOVL;
