@@ -96,6 +96,43 @@ int main()
 		xOR.PS(xRegisterSSE(a), ptr128[kAddrs[a & 3]]);
 	}
 
+
+	/* group2: shifts by immediate and by CL, both widths, including the
+	 * zero-count case the emitter elides and the by-one short form. */
+	for (int r = 0; r < 16; r++)
+	{
+		for (int c = 0; c < 34; c++)
+		{
+			xSHL(xRegister32(r), (u8)c);
+			xSHR(xRegister64(r), (u8)c);
+			xSAR(xRegister32(r), (u8)c);
+			xROL(xRegister64(r), (u8)c);
+			xROR(xRegister32(r), (u8)c);
+			xRCL(xRegister32(r), (u8)c);
+			xRCR(xRegister64(r), (u8)c);
+		}
+		xSHL(xRegister32(r), cl);
+		xSAR(xRegister64(r), cl);
+		xROR(xRegister32(r), cl);
+	}
+
+	/* group3 */
+	for (int r = 0; r < 16; r++)
+	{
+		xNOT (xRegister32(r));
+		xNEG (xRegister64(r));
+		xUMUL(xRegister32(r));
+		xUDIV(xRegister64(r));
+	}
+	for (int b = 0; b < 8; b++)
+	{
+		const xAddressVoid m = xAddressVoid(xAddressReg(b), xAddressReg(5), 2, 0x18);
+		xNOT (ptr32[m]);
+		xNEG (ptr32[m]);
+		xUMUL(ptr32[m]);
+		xUDIV(ptr32[m]);
+	}
+
 	const size_t n = (size_t)(xGetPtr() - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)

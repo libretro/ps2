@@ -168,6 +168,7 @@ namespace x86Emitter
 		}
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Group2 xROL = {G2Type_ROL};
 	const xImpl_Group2 xROR = {G2Type_ROR};
 	const xImpl_Group2 xRCL = {G2Type_RCL};
@@ -175,6 +176,7 @@ namespace x86Emitter
 	const xImpl_Group2 xSHL = {G2Type_SHL};
 	const xImpl_Group2 xSHR = {G2Type_SHR};
 	const xImpl_Group2 xSAR = {G2Type_SAR};
+#endif
 
 
 	// =====================================================================================================
@@ -228,10 +230,12 @@ namespace x86Emitter
 	void xImpl_iMul::operator()(const xRegister16& to, const xRegister16& from, s16 imm) const { _imul_ImmStyle(to, from, imm); }
 	void xImpl_iMul::operator()(const xRegister16& to, const xIndirectVoid& from, s16 imm) const { _imul_ImmStyle(to, from, imm); }
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Group3 xNOT = {G3Type_NOT};
 	const xImpl_Group3 xNEG = {G3Type_NEG};
 	const xImpl_Group3 xUMUL = {G3Type_MUL};
 	const xImpl_Group3 xUDIV = {G3Type_DIV};
+#endif
 
 	const xImpl_iDiv xDIV = {{G3Type_iDIV}, {0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
 	const xImpl_iMul xMUL = {{G3Type_iMUL}, {0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};

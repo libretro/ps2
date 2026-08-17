@@ -134,16 +134,20 @@ namespace x86Emitter
 	extern const xImpl_Mov xMOV;
 	extern const xImpl_MovImm64 xMOV64;
 	extern const xImpl_Test xTEST;
+#ifndef PCSX2_C89_EMITTER
 	extern const xImpl_Group2 xROL, xROR,
 		xRCL, xRCR,
 		xSHL, xSHR,
 		xSAR;
+#endif
 
 	// ------------------------------------------------------------------------
 	// Group 3 Instruction Class
 
+#ifndef PCSX2_C89_EMITTER
 	extern const xImpl_Group3 xNOT, xNEG;
 	extern const xImpl_Group3 xUMUL, xUDIV;
+#endif
 	extern const xImpl_iDiv xDIV;
 	extern const xImpl_iMul xMUL;
 
@@ -446,6 +450,19 @@ namespace x86Emitter
 
 	static const shim_G1Arith xADD = {{G1Type_ADD}, {0x00, 0x58}, {0x66, 0x58}, {0xf3, 0x58}, {0xf2, 0x58}};
 	static const shim_G1Arith xSUB = {{G1Type_SUB}, {0x00, 0x5c}, {0x66, 0x5c}, {0xf3, 0x5c}, {0xf2, 0x5c}};
+
+	static const shim_Group2 xROL = {G2Type_ROL};
+	static const shim_Group2 xROR = {G2Type_ROR};
+	static const shim_Group2 xRCL = {G2Type_RCL};
+	static const shim_Group2 xRCR = {G2Type_RCR};
+	static const shim_Group2 xSHL = {G2Type_SHL};
+	static const shim_Group2 xSHR = {G2Type_SHR};
+	static const shim_Group2 xSAR = {G2Type_SAR};
+
+	static const shim_Group3 xNOT  = {G3Type_NOT};
+	static const shim_Group3 xNEG  = {G3Type_NEG};
+	static const shim_Group3 xUMUL = {G3Type_MUL};
+	static const shim_Group3 xUDIV = {G3Type_DIV};
 } // namespace x86Emitter
 #endif
 
