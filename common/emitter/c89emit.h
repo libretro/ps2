@@ -1,0 +1,841 @@
+/* C89 macro emitter prototype.
+ *
+ * Same encoding decisions the C++ emitter makes at runtime:
+ *   - REX.W / REX.R / REX.B computed from operand width and register number
+ *   - RIP-relative vs absolute-SIB chosen by displacement reachability
+ *   - imm8 vs imm32 shortening for group1 ops
+ * The difference is purely structural: every decision is a macro, so it is
+ * inlined by construction at the call site and constant-folds whenever the
+ * inputs are constants. No cross-TU call, no reliance on always_inline.
+ *
+ * Cursor discipline: macros take an explicit lvalue cursor `p` and advance it.
+ * The caller loads it once and stores it back once, rather than touching a
+ * thread_local per byte.
+ *
+ * C89: no // comments, no declarations after statements, no inline keyword.
+ */
+#ifndef C89EMIT_H
+#define C89EMIT_H
+
+typedef unsigned char  e_u8;
+typedef unsigned short e_u16;
+typedef unsigned int   e_u32;
+typedef unsigned long long e_u64;
+typedef signed char    e_s8;
+typedef signed int     e_s32;
+typedef long           e_sptr;
+typedef long long          e_s64;
+typedef unsigned long long e_u64_;
+
+#define EW8(p, v)  do { *(p) = (e_u8)(v); (p) += 1; } while (0)
+#define EW32(p, v) do { e_u32 v_ = (e_u32)(v); \
+        (p)[0]=(e_u8)(v_); (p)[1]=(e_u8)(v_>>8); \
+        (p)[2]=(e_u8)(v_>>16); (p)[3]=(e_u8)(v_>>24); (p) += 4; } while (0)
+
+#define E_IS_S8(x) ((e_s32)(x) == (e_s8)(x))
+
+/* REX. Emitted only when needed, exactly like EmitRex. */
+#define E_REX(p, w, r, x, b) do { \
+        e_u8 rex_ = (e_u8)(0x40 | ((w)?8:0) | (((r)>>3)?4:0) | (((x)>>3)?2:0) | (((b)>>3)?1:0)); \
+        if (rex_ != 0x40) EW8((p), rex_); } while (0)
+
+/* ModRM for reg,reg (mod=11). */
+#define E_MODRM_RR(p, reg, rm) EW8((p), (e_u8)(0xc0 | (((reg)&7)<<3) | ((rm)&7)))
+
+/* ModRM for an absolute address operand.
+ * Prefers RIP-relative when the displacement fits in s32 (one byte shorter),
+ * falls back to mod=00 rm=100 SIB=0x25 disp32. `after` is the number of bytes
+ * still to be written after the disp32 (immediates), needed for the RIP delta.
+ */
+#define E_MODRM_ABS(p, reg, addr, after) do { \
+        e_sptr a_ = (e_sptr)(addr); \
+        e_sptr rip_ = a_ - ((e_sptr)(p) + 5 + (after)); \
+        if (rip_ == (e_s32)rip_) { \
+            EW8((p), (e_u8)(0x05 | (((reg)&7)<<3))); \
+            EW32((p), (e_u32)(e_s32)rip_); \
+        } else { \
+            EW8((p), (e_u8)(0x04 | (((reg)&7)<<3))); \
+            EW8((p), 0x25); \
+            EW32((p), (e_u32)(e_sptr)(addr)); \
+        } } while (0)
+
+/* --- instructions used by the benchmark block --- */
+
+/* mov r32, [abs] / mov r64, [abs] */
+#define E_MOV_R_M(p, w, reg, addr) do { \
+        E_REX((p), (w), (reg), 0, 0); \
+        EW8((p), 0x8b); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+
+/* mov [abs], r32 / r64 */
+#define E_MOV_M_R(p, w, reg, addr) do { \
+        E_REX((p), (w), (reg), 0, 0); \
+        EW8((p), 0x89); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+
+/* mov dword [abs], imm32 */
+#define E_MOV_M_I(p, addr, imm) do { \
+        EW8((p), 0xc7); E_MODRM_ABS((p), 0, (addr), 4); EW32((p), (imm)); } while (0)
+
+/* mov r32, imm32 (also the LEA-of-absolute peephole) */
+#define E_MOV_R_I(p, reg) do { \
+        E_REX((p), 0, 0, 0, (reg)); \
+        EW8((p), (e_u8)(0xb8 | ((reg)&7))); } while (0)
+#define E_MOV_R_I32(p, reg, imm) do { E_MOV_R_I((p), (reg)); EW32((p), (imm)); } while (0)
+
+/* group1 reg,reg: op = 0 add, 1 or, 4 and, 5 sub, 6 xor, 7 cmp */
+#define E_G1_RR(p, w, op, dst, src) do { \
+        E_REX((p), (w), (src), 0, (dst)); \
+        EW8((p), (e_u8)(((op)<<3) | 0x01)); \
+        E_MODRM_RR((p), (src), (dst)); } while (0)
+
+/* group1 r32, imm  (imm8 shortened when it fits, like the C++ path) */
+#define E_G1_RI(p, w, op, reg, imm) do { \
+        E_REX((p), (w), 0, 0, (reg)); \
+        if (E_IS_S8(imm)) { \
+            EW8((p), 0x83); E_MODRM_RR((p), (op), (reg)); EW8((p), (e_u8)(imm)); \
+        } else if ((reg) == 0) { \
+            EW8((p), (e_u8)(((op)<<3) | 0x05)); EW32((p), (imm)); \
+        } else { \
+            EW8((p), 0x81); E_MODRM_RR((p), (op), (reg)); EW32((p), (imm)); \
+        } } while (0)
+
+/* group1 dword [abs], imm */
+#define E_G1_MI(p, op, addr, imm) do { \
+        if (E_IS_S8(imm)) { \
+            EW8((p), 0x83); E_MODRM_ABS((p), (op), (addr), 1); EW8((p), (e_u8)(imm)); \
+        } else { \
+            EW8((p), 0x81); E_MODRM_ABS((p), (op), (addr), 4); EW32((p), (imm)); \
+        } } while (0)
+
+/* shl r32, imm8. Shift-by-one has a one-byte-shorter dedicated opcode
+ * (D1 /4); the C++ emitter prefers it, so we must too. */
+#define E_SHL_RI(p, reg, imm) do { \
+        E_REX((p), 0, 0, 0, (reg)); \
+        if ((imm) == 1) { \
+            EW8((p), 0xd1); E_MODRM_RR((p), 4, (reg)); \
+        } else { \
+            EW8((p), 0xc1); E_MODRM_RR((p), 4, (reg)); EW8((p), (e_u8)(imm)); \
+        } } while (0)
+
+/* test r32, r32 */
+#define E_TEST_RR(p, a, b) do { \
+        E_REX((p), 0, (b), 0, (a)); \
+        EW8((p), 0x85); E_MODRM_RR((p), (b), (a)); } while (0)
+
+/* movss xmm, [abs] / movss [abs], xmm */
+#define E_MOVSS_R_M(p, reg, addr) do { \
+        EW8((p), 0xf3); E_REX((p), 0, (reg), 0, 0); \
+        EW8((p), 0x0f); EW8((p), 0x10); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+#define E_MOVSS_M_R(p, reg, addr) do { \
+        EW8((p), 0xf3); E_REX((p), 0, (reg), 0, 0); \
+        EW8((p), 0x0f); EW8((p), 0x11); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+
+/* short forward Jcc: reserve, then patch. cc is the low nibble of 0x70|cc. */
+#define E_JCC8_FWD(p, cc, slot) do { \
+        EW8((p), (e_u8)(0x70 | (cc))); (slot) = (p); EW8((p), 0); } while (0)
+#define E_JCC8_SET(p, slot) do { *(slot) = (e_u8)((p) - ((slot) + 1)); } while (0)
+
+#define E_CC_L  0xc
+#define E_CC_Z  0x4
+
+#endif
+
+/* ===================================================================
+ * Batch 2: group1 memory forms, group2 shifts, mov/movzx/movsx,
+ * group3, inc/dec, push/pop/lea, jmp/jcc/setcc/call.
+ * Every form below is verified against the C++ emitter by oracle.cpp.
+ * =================================================================== */
+
+/* group1 r, [abs]  and  [abs], r  (op<<3 | 0x03 / 0x01) */
+#define E_G1_RM(p, w, op, reg, addr) do { \
+        E_REX((p), (w), (reg), 0, 0); \
+        EW8((p), (e_u8)(((op)<<3) | 0x03)); \
+        E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+#define E_G1_MR(p, w, op, reg, addr) do { \
+        E_REX((p), (w), (reg), 0, 0); \
+        EW8((p), (e_u8)(((op)<<3) | 0x01)); \
+        E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+
+/* group2 shifts. g2: 0 ROL 1 ROR 2 RCL 3 RCR 4 SHL 5 SHR 7 SAR.
+ * Shift-by-zero is elided (the C++ emitter drops it: no flag effect).
+ * Shift-by-one uses the short D1 form. */
+#define E_G2_RI(p, w, g2, reg, imm) do { \
+        if ((imm) != 0) { \
+            E_REX((p), (w), 0, 0, (reg)); \
+            if ((imm) == 1) { EW8((p), 0xd1); E_MODRM_RR((p), (g2), (reg)); } \
+            else { EW8((p), 0xc1); E_MODRM_RR((p), (g2), (reg)); EW8((p), (e_u8)(imm)); } \
+        } } while (0)
+/* shift by CL */
+#define E_G2_RCL(p, w, g2, reg) do { \
+        E_REX((p), (w), 0, 0, (reg)); \
+        EW8((p), 0xd3); E_MODRM_RR((p), (g2), (reg)); } while (0)
+
+/* mov r,r. Self-moves are elided to match _xMovRtoR's "ignore redundant MOVs".
+ * NOTE: for the 32-bit form this is not strictly a no-op -- `mov eax,eax`
+ * zero-extends into rax -- but the C++ emitter drops it, and byte-exactness
+ * with the reference is the requirement here. See the note in the port log. */
+#define E_MOV_RR_RAW(p, w, dst, src) do { \
+        E_REX((p), (w), (src), 0, (dst)); \
+        EW8((p), 0x89); E_MODRM_RR((p), (src), (dst)); } while (0)
+#define E_MOV_RR(p, w, dst, src) do { \
+        if ((dst) != (src)) { E_MOV_RR_RAW((p), (w), (dst), (src)); } } while (0)
+
+/* movzx / movsx from 8- or 16-bit register. srcw: 0 = byte, 1 = word.
+ * sx selects movsx (0xbe/0xbf) over movzx (0xb6/0xb7). */
+#define E_MOVEXT_RR(p, w, sx, srcw, dst, src) do { \
+        E_REX((p), (w), (dst), 0, (src)); \
+        EW8((p), 0x0f); \
+        EW8((p), (e_u8)(((sx) ? 0xbe : 0xb6) + ((srcw) ? 1 : 0))); \
+        E_MODRM_RR((p), (dst), (src)); } while (0)
+
+/* group3: 2 NOT, 3 NEG, 4 MUL, 5 IMUL, 6 DIV, 7 IDIV */
+#define E_G3_R(p, w, g3, reg) do { \
+        E_REX((p), (w), 0, 0, (reg)); \
+        EW8((p), 0xf7); E_MODRM_RR((p), (g3), (reg)); } while (0)
+#define E_G3_M(p, g3, addr) do { \
+        EW8((p), 0xf7); E_MODRM_ABS((p), (g3), (addr), 0); } while (0)
+
+/* inc / dec (64-bit mode: FF /0 and FF /1; no single-byte 0x4x form) */
+#define E_INCDEC_R(p, w, dec, reg) do { \
+        E_REX((p), (w), 0, 0, (reg)); \
+        EW8((p), 0xff); E_MODRM_RR((p), ((dec) ? 1 : 0), (reg)); } while (0)
+
+/* push / pop reg. Default operand size is 64-bit, so REX.W is never set;
+ * only REX.B for r8-r15. */
+#define E_PUSH_R(p, reg) do { \
+        if ((reg) >= 8) EW8((p), 0x41); \
+        EW8((p), (e_u8)(0x50 | ((reg)&7))); } while (0)
+#define E_POP_R(p, reg) do { \
+        if ((reg) >= 8) EW8((p), 0x41); \
+        EW8((p), (e_u8)(0x58 | ((reg)&7))); } while (0)
+
+/* test r, imm32 (A9 short form when the destination is the accumulator) */
+#define E_TEST_RI(p, w, reg, imm) do { \
+        E_REX((p), (w), 0, 0, (reg)); \
+        if ((reg) == 0) { EW8((p), 0xa9); } \
+        else { EW8((p), 0xf7); E_MODRM_RR((p), 0, (reg)); } \
+        EW32((p), (imm)); } while (0)
+
+/* setcc r8 */
+#define E_SETCC_R(p, cc, reg) do { \
+        if ((reg) >= 4) EW8((p), (e_u8)(0x40 | (((reg)>>3) ? 1 : 0))); \
+        EW8((p), 0x0f); EW8((p), (e_u8)(0x90 | (cc))); \
+        E_MODRM_RR((p), 0, (reg)); } while (0)
+
+/* near jmp / jcc with a 32-bit displacement to a known target */
+#define E_JMP32(p, target) do { \
+        e_sptr d_ = (e_sptr)(target) - ((e_sptr)(p) + 5); \
+        EW8((p), 0xe9); EW32((p), (e_u32)(e_s32)d_); } while (0)
+#define E_JCC32(p, cc, target) do { \
+        e_sptr d_ = (e_sptr)(target) - ((e_sptr)(p) + 6); \
+        EW8((p), 0x0f); EW8((p), (e_u8)(0x80 | (cc))); \
+        EW32((p), (e_u32)(e_s32)d_); } while (0)
+
+/* condition codes */
+#define E_CC_O  0x0
+#define E_CC_NO 0x1
+#define E_CC_B  0x2
+#define E_CC_AE 0x3
+#define E_CC_E  0x4
+#define E_CC_NE 0x5
+#define E_CC_BE 0x6
+#define E_CC_A  0x7
+#define E_CC_S  0x8
+#define E_CC_NS 0x9
+#define E_CC_GE 0xd
+#define E_CC_LE 0xe
+#define E_CC_G  0xf
+
+/* ===================================================================
+ * Batch 3: full memory operands (base + index*scale + disp).
+ * Mirrors xIndirectVoid::Reduce, NeedsSibMagic and EmitSibMagic.
+ * E_NOREG marks an absent register (xEmptyReg).
+ * =================================================================== */
+
+#define E_NOREG (-1)
+
+struct e_mem { int base; int index; int scale; e_sptr disp; };
+
+/* xIndirectVoid::Reduce, verbatim in behaviour. Note it is applied once at
+ * construction, exactly as the C++ constructor does. */
+#define E_MEM(m, b, i, sc, d) do { \
+        (m).base = (b); (m).index = (i); (m).scale = (sc); (m).disp = (d); \
+        if ((m).index == 4) { (m).base = (m).index; } \
+        else if ((m).index == E_NOREG) { \
+            (m).index = (m).base; (m).scale = 0; \
+            if ((m).base != 4) (m).base = E_NOREG; \
+        } else { \
+            switch ((m).scale) { \
+            case 1: (m).scale = 0; break; \
+            case 2: (m).scale = 1; break; \
+            case 3: (m).base = (m).index; (m).scale = 1; break; \
+            case 4: (m).scale = 2; break; \
+            case 5: (m).base = (m).index; (m).scale = 2; break; \
+            case 8: (m).scale = 3; break; \
+            case 9: (m).base = (m).index; (m).scale = 3; break; \
+            default: break; \
+            } \
+        } } while (0)
+
+#define E_NEEDS_SIB(m) \
+        (((m).index != E_NOREG) && (((m).scale != 0) || ((m).base != E_NOREG)))
+
+/* REX for reg + memory operand. Mirrors EmitRex(xRegisterBase, xIndirectVoid):
+ * when no SIB is needed the index register's extension bit moves to B. */
+#define E_REX_MEM(p, w, reg, m) do { \
+        int rx_ = ((m).index != E_NOREG && (m).index >= 8) ? 1 : 0; \
+        int rb_ = ((m).base  != E_NOREG && (m).base  >= 8) ? 1 : 0; \
+        e_u8 rex_; \
+        if (!E_NEEDS_SIB(m)) { rb_ = rx_; rx_ = 0; } \
+        rex_ = (e_u8)(0x40 | ((w)?8:0) | ((((reg)>=8)?1:0)<<2) | (rx_<<1) | rb_); \
+        if (rex_ != 0x40) EW8((p), rex_); } while (0)
+
+/* EmitSibMagic for the register form. `after` counts bytes emitted after the
+ * displacement (immediates), needed only by the absolute/RIP fallback. */
+#define E_MODRM_MEM(p, reg, m, after) do { \
+        int ds_ = ((m).disp == 0) ? 0 : (E_IS_S8((m).disp) ? 1 : 2); \
+        if (!E_NEEDS_SIB(m)) { \
+            if ((m).index == E_NOREG) { \
+                E_MODRM_ABS((p), (reg), (m).disp, (after)); \
+                ds_ = -1; \
+            } else { \
+                if (((m).index & 7) == 5 && ds_ == 0) ds_ = 1; \
+                EW8((p), (e_u8)((ds_ << 6) | (((reg)&7) << 3) | ((m).index & 7))); \
+                /* rm=100 always means a SIB follows. rsp is diverted into the \
+                 * SIB branch by E_MEM; r12 reaches here and needs one. */ \
+                if (((m).index & 7) == 4) \
+                    EW8((p), (e_u8)((0 << 6) | (4 << 3) | ((m).index & 7))); \
+            } \
+        } else { \
+            if ((m).base == E_NOREG) { \
+                EW8((p), (e_u8)((0 << 6) | (((reg)&7) << 3) | 4)); \
+                EW8((p), (e_u8)(((m).scale << 6) | (((m).index) << 3) | 5)); \
+                EW32((p), (e_u32)(e_s32)(m).disp); \
+                ds_ = -1; \
+            } else { \
+                if (((m).base & 7) == 5 && ds_ == 0) ds_ = 1; \
+                EW8((p), (e_u8)((ds_ << 6) | (((reg)&7) << 3) | 4)); \
+                EW8((p), (e_u8)(((m).scale << 6) | (((m).index & 7) << 3) | ((m).base & 7))); \
+            } \
+        } \
+        if (ds_ == 1) { EW8((p), (e_u8)(m).disp); } \
+        else if (ds_ == 2) { EW32((p), (e_u32)(e_s32)(m).disp); } } while (0)
+
+/* mov r,[mem] / mov [mem],r over the full addressing form */
+#define E_MOV_R_MEM(p, w, reg, m) do { \
+        E_REX_MEM((p), (w), (reg), (m)); \
+        EW8((p), 0x8b); E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+#define E_MOV_MEM_R(p, w, reg, m) do { \
+        E_REX_MEM((p), (w), (reg), (m)); \
+        EW8((p), 0x89); E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+
+/* group1 r,[mem] and [mem],r */
+#define E_G1_R_MEM(p, w, op, reg, m) do { \
+        E_REX_MEM((p), (w), (reg), (m)); \
+        EW8((p), (e_u8)(((op)<<3) | 0x03)); \
+        E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+#define E_G1_MEM_R(p, w, op, reg, m) do { \
+        E_REX_MEM((p), (w), (reg), (m)); \
+        EW8((p), (e_u8)(((op)<<3) | 0x01)); \
+        E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+
+/* ===================================================================
+ * Batch 4: group3 memory forms, MUL/DIV family, IMUL two- and
+ * three-operand forms, LEA with its peepholes.
+ * =================================================================== */
+
+/* group3 over a full memory operand (F7 /g3) */
+#define E_G3_MEM(p, w, g3, m) do { \
+        E_REX_MEM((p), (w), 0, (m)); \
+        EW8((p), 0xf7); E_MODRM_MEM((p), (g3), (m), 0); } while (0)
+
+/* two-operand IMUL: 0F AF /r */
+#define E_IMUL_RR(p, w, dst, src) do { \
+        E_REX((p), (w), (dst), 0, (src)); \
+        EW8((p), 0x0f); EW8((p), 0xaf); \
+        E_MODRM_RR((p), (dst), (src)); } while (0)
+#define E_IMUL_R_MEM(p, w, dst, m) do { \
+        E_REX_MEM((p), (w), (dst), (m)); \
+        EW8((p), 0x0f); EW8((p), 0xaf); \
+        E_MODRM_MEM((p), (dst), (m), 0); } while (0)
+
+/* three-operand IMUL: 6B /r ib when the immediate fits in s8, else 69 /r id. */
+#define E_IMUL_RRI(p, w, dst, src, imm) do { \
+        E_REX((p), (w), (dst), 0, (src)); \
+        if (E_IS_S8(imm)) { \
+            EW8((p), 0x6b); E_MODRM_RR((p), (dst), (src)); EW8((p), (e_u8)(imm)); \
+        } else { \
+            EW8((p), 0x69); E_MODRM_RR((p), (dst), (src)); EW32((p), (imm)); \
+        } } while (0)
+#define E_IMUL_RMI(p, w, dst, m, imm) do { \
+        E_REX_MEM((p), (w), (dst), (m)); \
+        if (E_IS_S8(imm)) { \
+            EW8((p), 0x6b); E_MODRM_MEM((p), (dst), (m), 1); EW8((p), (e_u8)(imm)); \
+        } else { \
+            EW8((p), 0x69); E_MODRM_MEM((p), (dst), (m), 4); EW32((p), (imm)); \
+        } } while (0)
+
+/* LEA. Mirrors EmitLeaMagic (x86emitter.cpp:678-763) branch for branch.
+ * Most operand shapes are rewritten into shorter sequences; only the residual
+ * cases reach an actual 8D. `pf` is preserve_flags.
+ *
+ * Note the reference compares Index/Base against rsp/rbp by Id, so r12/r13
+ * take different paths than their low counterparts -- see the port log. */
+#define E_LEA(p, w, pf, dst, m) do { \
+        int ds_ = ((m).disp == 0) ? 0 : (E_IS_S8((m).disp) ? 1 : 2); \
+        int done_ = 0; \
+        if (!E_NEEDS_SIB(m) && (m).disp == (e_sptr)(e_s32)(m).disp) { \
+            if ((m).index == E_NOREG) { \
+                E_MOV_R_I32((p), (dst), (e_u32)(e_s32)(m).disp); done_ = 1; \
+            } else if (ds_ == 0) { \
+                E_MOV_RR((p), (w), (dst), (m).index); done_ = 1; \
+            } else if (!(pf)) { \
+                E_MOV_RR((p), (w), (dst), (m).index); \
+                E_G1_RI((p), (w), 0, (dst), (e_s32)(m).disp); done_ = 1; \
+            } \
+        } else if ((m).base == E_NOREG) { \
+            if (!(pf) && ds_ == 0) { \
+                E_MOV_RR((p), (w), (dst), (m).index); \
+                E_G2_RI((p), (w), 4, (dst), (m).scale); done_ = 1; \
+            } \
+        } else if ((m).scale == 0) { \
+            if (!(pf)) { \
+                if ((m).index == 4) { \
+                    E_MOV_RR((p), (w), (dst), (m).base); \
+                    if ((m).disp) E_G1_RI((p), (w), 0, (dst), (e_s32)(m).disp); \
+                    done_ = 1; \
+                } else if ((m).disp == 0) { \
+                    E_MOV_RR((p), (w), (dst), (m).base); \
+                    E_G1_RR((p), (w), 0, (dst), (m).index); \
+                    done_ = 1; \
+                } \
+            } else if ((m).index == 4 && (m).disp == 0) { \
+                E_MOV_RR((p), (w), (dst), (m).base); done_ = 1; \
+            } \
+        } \
+        if (!done_) { \
+            E_REX_MEM((p), (w), (dst), (m)); \
+            EW8((p), 0x8d); E_MODRM_MEM((p), (dst), (m), 0); \
+        } } while (0)
+
+/* ===================================================================
+ * Batch 5: jumps and calls.
+ *   - known-target Jcc/JMP with short-vs-near selection
+ *   - the xForwardJump construct/patch protocol
+ *   - CALL, RET, NOP
+ * E_CC_UNC is the unconditional pseudo-condition; the reference uses a
+ * distinct opcode for it in every form, so it is not a real cc value.
+ * =================================================================== */
+
+#define E_CC_UNC 0x10
+
+/* Known-target jump. Tries the 2-byte short form first, assuming a 2-byte
+ * instruction, exactly as xJccKnownTarget does; falls back to the near form
+ * and patches the displacement afterwards. */
+#define E_JCC_TO(p, cc, target) do { \
+        e_sptr d8_ = (e_sptr)(target) - ((e_sptr)(p) + 2); \
+        if (E_IS_S8(d8_)) { \
+            EW8((p), (e_u8)(((cc) == E_CC_UNC) ? 0xeb : (0x70 | (cc)))); \
+            EW8((p), (e_u8)d8_); \
+        } else { \
+            e_u8* slot_; \
+            e_sptr dn_; \
+            if ((cc) == E_CC_UNC) { EW8((p), 0xe9); } \
+            else { EW8((p), 0x0f); EW8((p), (e_u8)(0x80 | (cc))); } \
+            slot_ = (p); EW32((p), 0); \
+            dn_ = (e_sptr)(target) - (e_sptr)(p); \
+            slot_[0]=(e_u8)dn_; slot_[1]=(e_u8)(dn_>>8); \
+            slot_[2]=(e_u8)(dn_>>16); slot_[3]=(e_u8)(dn_>>24); \
+        } } while (0)
+
+/* Forward jump, short (1-byte displacement) form.
+ * `base` receives the address just past the instruction, matching
+ * xForwardJump<s8>::BasePtr; E_FWD8_SET patches BasePtr[-1]. */
+#define E_FWD8(p, cc, base) do { \
+        (base) = (p) + 2; \
+        EW8((p), (e_u8)(((cc) == E_CC_UNC) ? 0xeb : (0x70 | (cc)))); \
+        (p) += 1; } while (0)
+#define E_FWD8_SET(p, base) do { \
+        (base)[-1] = (e_u8)((e_sptr)(p) - (e_sptr)(base)); } while (0)
+
+/* Forward jump, near (4-byte displacement) form. BasePtr is 5 bytes past for
+ * an unconditional jump and 6 for a conditional one. */
+#define E_FWD32(p, cc, base) do { \
+        (base) = (p) + (((cc) == E_CC_UNC) ? 5 : 6); \
+        if ((cc) == E_CC_UNC) { EW8((p), 0xe9); } \
+        else { EW8((p), 0x0f); EW8((p), (e_u8)(0x80 | (cc))); } \
+        (p) += 4; } while (0)
+#define E_FWD32_SET(p, base) do { \
+        e_sptr d_ = (e_sptr)(p) - (e_sptr)(base); \
+        (base)[-4]=(e_u8)d_; (base)[-3]=(e_u8)(d_>>8); \
+        (base)[-2]=(e_u8)(d_>>16); (base)[-1]=(e_u8)(d_>>24); } while (0)
+
+/* call rel32 / call r/m64 / ret / nop */
+#define E_CALL_REL(p, target) do { \
+        e_sptr d_ = (e_sptr)(target) - ((e_sptr)(p) + 5); \
+        EW8((p), 0xe8); EW32((p), (e_u32)(e_s32)d_); } while (0)
+#define E_CALL_R(p, reg) do { \
+        if ((reg) >= 8) EW8((p), 0x41); \
+        EW8((p), 0xff); E_MODRM_RR((p), 2, (reg)); } while (0)
+#define E_JMP_R(p, reg) do { \
+        if ((reg) >= 8) EW8((p), 0x41); \
+        EW8((p), 0xff); E_MODRM_RR((p), 4, (reg)); } while (0)
+#define E_RET(p)  EW8((p), 0xc3)
+#define E_NOP(p)  EW8((p), 0x90)
+
+/* ===================================================================
+ * Batch 5b: 16-bit operand forms. These are the 32-bit encodings with a
+ * 0x66 operand-size prefix, emitted before REX.
+ * =================================================================== */
+
+#define E_P16(p) EW8((p), 0x66)
+
+#define E_MOV16_RR(p, dst, src) do { \
+        if ((dst) != (src)) { \
+            E_P16(p); E_REX((p), 0, (src), 0, (dst)); \
+            EW8((p), 0x89); E_MODRM_RR((p), (src), (dst)); \
+        } } while (0)
+#define E_MOV16_R_M(p, reg, addr) do { \
+        E_P16(p); E_REX((p), 0, (reg), 0, 0); \
+        EW8((p), 0x8b); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+#define E_MOV16_M_R(p, reg, addr) do { \
+        E_P16(p); E_REX((p), 0, (reg), 0, 0); \
+        EW8((p), 0x89); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+#define E_G1_16_RR(p, op, dst, src) do { \
+        E_P16(p); E_REX((p), 0, (src), 0, (dst)); \
+        EW8((p), (e_u8)(((op)<<3) | 0x01)); \
+        E_MODRM_RR((p), (src), (dst)); } while (0)
+/* 16-bit group1 with an immediate: imm8 short form, else imm16 */
+#define E_G1_16_RI(p, op, reg, imm) do { \
+        E_P16(p); E_REX((p), 0, 0, 0, (reg)); \
+        if (E_IS_S8(imm)) { \
+            EW8((p), 0x83); E_MODRM_RR((p), (op), (reg)); EW8((p), (e_u8)(imm)); \
+        } else if ((reg) == 0) { \
+            EW8((p), (e_u8)(((op)<<3) | 0x05)); \
+            EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); \
+        } else { \
+            EW8((p), 0x81); E_MODRM_RR((p), (op), (reg)); \
+            EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); \
+        } } while (0)
+
+/* ===================================================================
+ * Batch 6: 8-bit operand forms.
+ *
+ * The 8-bit register file overlaps itself. Ids 4-7 name ah/ch/dh/bh when no
+ * REX byte is present, and spl/bpl/sil/dil when one is. The reference marks
+ * the latter by setting bit 0x10 in the id (x86types.h:329) and forces a REX
+ * byte for them even when it would be an empty 0x40 (x86emitter.cpp:386).
+ *
+ * So an 8-bit register argument here carries the same encoding: the low three
+ * bits select, bit 0x10 means "needs REX", and IsExtended tests (Id & 0x0F) > 7
+ * rather than Id > 7, so 0x14 (spl) is NOT extended.
+ *
+ * E_R8H(n)  -> ah/ch/dh/bh for n in 4..7
+ * E_R8L(n)  -> spl/bpl/sil/dil for n in 4..7
+ * =================================================================== */
+
+#define E_R8H(n) (n)
+#define E_R8L(n) ((n) | 0x10)
+#define E_R8_EXT(r)  ((((r) & 0x0F) > 7) ? 1 : 0)
+#define E_R8_NEEDREX(r) (((r) >= 0x10) ? 1 : 0)
+
+/* REX for an 8-bit reg,reg pair. Emitted when any bit is set OR when either
+ * operand is one of spl/bpl/sil/dil. */
+#define E_REX8(p, reg1, reg2) do { \
+        e_u8 rex_ = (e_u8)(0x40 | (E_R8_EXT(reg1) << 2) | E_R8_EXT(reg2)); \
+        if (rex_ != 0x40 || E_R8_NEEDREX(reg1) || E_R8_NEEDREX(reg2)) \
+            EW8((p), rex_); } while (0)
+
+/* REX for an 8-bit reg used as the *reg* field (with a memory operand). */
+#define E_REX8_M(p, reg) do { \
+        e_u8 rex_ = (e_u8)(0x40 | (E_R8_EXT(reg) << 2)); \
+        if (rex_ != 0x40 || E_R8_NEEDREX(reg)) EW8((p), rex_); } while (0)
+
+/* REX for an 8-bit reg used as the *rm* field (single-operand forms such as
+ * group1-with-immediate and setcc). The extension bit is B, not R. */
+#define E_REX8_RM(p, reg) do { \
+        e_u8 rex_ = (e_u8)(0x40 | E_R8_EXT(reg)); \
+        if (rex_ != 0x40 || E_R8_NEEDREX(reg)) EW8((p), rex_); } while (0)
+
+#define E_MOV8_RR(p, dst, src) do { \
+        if ((dst) != (src)) { \
+            E_REX8((p), (src), (dst)); \
+            EW8((p), 0x88); E_MODRM_RR((p), (src), (dst)); \
+        } } while (0)
+#define E_MOV8_R_M(p, reg, addr) do { \
+        E_REX8_M((p), (reg)); \
+        EW8((p), 0x8a); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+#define E_MOV8_M_R(p, reg, addr) do { \
+        E_REX8_M((p), (reg)); \
+        EW8((p), 0x88); E_MODRM_ABS((p), (reg), (addr), 0); } while (0)
+
+/* 8-bit group1: reg,reg uses op<<3|0x00; reg,imm8 uses 0x80 /op ib, with the
+ * 0x04|op<<3 accumulator short form for al. */
+#define E_G1_8_RR(p, op, dst, src) do { \
+        E_REX8((p), (src), (dst)); \
+        EW8((p), (e_u8)((op) << 3)); \
+        E_MODRM_RR((p), (src), (dst)); } while (0)
+#define E_G1_8_RI(p, op, reg, imm) do { \
+        E_REX8_RM((p), (reg)); \
+        if ((reg) == 0) { EW8((p), (e_u8)(((op)<<3) | 0x04)); } \
+        else { EW8((p), 0x80); E_MODRM_RR((p), (op), (reg)); } \
+        EW8((p), (e_u8)(imm)); } while (0)
+
+/* setcc into an 8-bit register: 0F 90+cc /0 */
+#define E_SETCC_R8(p, cc, reg) do { \
+        E_REX8_RM((p), (reg)); \
+        EW8((p), 0x0f); EW8((p), (e_u8)(0x90 | (cc))); \
+        E_MODRM_RR((p), 0, (reg)); } while (0)
+
+/* ===================================================================
+ * Batch 7: SSE.
+ *
+ * Every SSE form in the reference funnels through xOpWrite0F, so the whole
+ * family reduces to a handful of encoding shapes:
+ *
+ *   [prefix] [REX] 0F opcode         ModRM/SIB [imm8]     two-byte opcode
+ *   [prefix] [REX] 0F 3A|38 opcode   ModRM/SIB [imm8]     three-byte opcode
+ *
+ * The three-byte form is selected by the low byte of the 16-bit opcode value
+ * being 0x38 or 0x3a, matching xOpWrite0F's is16BitOpcode test; the high byte
+ * is then the real opcode. xRegisterSSE has operand size 16, so REX.W is never
+ * set and the only bits that matter are R and B.
+ *
+ * The register is always the ModRM.reg field, for loads and stores alike --
+ * stores just use a different opcode and pass the register first.
+ * =================================================================== */
+
+#define E_REX_SSE(p, reg1, reg2) do { \
+        e_u8 rex_ = (e_u8)(0x40 | ((((reg1) & 0x0F) > 7) << 2) \
+                                | (((reg2) & 0x0F) > 7)); \
+        if (rex_ != 0x40) EW8((p), rex_); } while (0)
+
+/* Emits 0F + opcode, or 0F 3A/38 + opcode for the three-byte forms. */
+#define E_SSE_OP(p, opcode) do { \
+        if (((opcode) & 0xff) == 0x38 || ((opcode) & 0xff) == 0x3a) { \
+            EW8((p), 0x0f); \
+            EW8((p), (e_u8)((opcode) & 0xff)); \
+            EW8((p), (e_u8)((opcode) >> 8)); \
+        } else { \
+            EW8((p), 0x0f); \
+            EW8((p), (e_u8)((opcode) & 0xff)); \
+        } } while (0)
+
+/* reg,reg */
+#define E_SSE_RR(p, pre, opcode, r1, r2) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        E_REX_SSE((p), (r1), (r2)); \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_RR((p), (r1), (r2)); } while (0)
+
+/* reg + absolute address */
+#define E_SSE_R_M(p, pre, opcode, r1, addr) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        E_REX_SSE((p), (r1), 0); \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_ABS((p), (r1), (addr), 0); } while (0)
+
+/* reg + full base/index/scale/disp operand.
+ * `w` is REX.W. It is not always zero for SSE: EmitRex sets it when *either*
+ * operand is 64-bit, and xIndirectVoid carries its own operand size, so a
+ * ptr64[] source makes MOVSD emit F2 48 0F 10 where a ptr32[] source makes
+ * MOVSS emit F3 0F 10. Callers pass the memory operand's width. */
+#define E_SSE_R_MEM_W(p, pre, opcode, r1, m, w) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        E_REX_MEM((p), (w), (r1), (m)); \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_MEM((p), (r1), (m), 0); } while (0)
+#define E_SSE_R_MEM(p, pre, opcode, r1, m) \
+        E_SSE_R_MEM_W((p), (pre), (opcode), (r1), (m), 0)
+
+/* the imm8 variants (shufps, pshufd, cmpps, pinsr/pextr, insertps, ...).
+ * The trailing byte is part of the instruction, so the RIP-relative
+ * displacement has to be computed one byte short -- the reference passes
+ * extraRIPOffset=1 here (internal.h:111). */
+#define E_SSE_RRI(p, pre, opcode, r1, r2, imm) do { \
+        E_SSE_RR((p), (pre), (opcode), (r1), (r2)); \
+        EW8((p), (e_u8)(imm)); } while (0)
+#define E_SSE_R_MI(p, pre, opcode, r1, addr, imm) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        E_REX_SSE((p), (r1), 0); \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_ABS((p), (r1), (addr), 1); \
+        EW8((p), (e_u8)(imm)); } while (0)
+#define E_SSE_R_MEMI(p, pre, opcode, r1, m, imm) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        E_REX_MEM((p), 0, (r1), (m)); \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_MEM((p), (r1), (m), 1); \
+        EW8((p), (e_u8)(imm)); } while (0)
+
+/* ===================================================================
+ * Batch 8: AVX.
+ *
+ * This fork emits only the two-byte VEX form (0xC5), via xOpWriteC5:
+ *
+ *   C5  [~R vvvv L pp]  opcode  ModRM/SIB
+ *
+ * where ~R is the inverted extension bit of the ModRM.reg register, vvvv is
+ * the inverted id of the second source (all ones when absent), L is set for
+ * 256-bit operands, and pp encodes the legacy prefix (none/66/F3/F2 -> 0/1/2/3).
+ *
+ * No REX is emitted, and the two-byte form carries no B or X bit, so an
+ * extended base or index register cannot be expressed -- see the port log.
+ *
+ * `regfield` is the ModRM.reg register, `vvvv` the second source or E_NOREG,
+ * `ymm` selects the 256-bit L bit.
+ * =================================================================== */
+
+#define E_VEX_PP(pre) ((pre) == 0xF2 ? 3 : (pre) == 0xF3 ? 2 : (pre) == 0x66 ? 1 : 0)
+
+/* Emits the VEX prefix. The two-byte form (C5) carries only the inverted R
+ * bit; when the rm operand needs X or B -- an extended register, base or
+ * index -- the three-byte form (C4) is required, or the register silently
+ * decodes as its low counterpart. mmmmm is always 1 (the 0F escape) and W is
+ * always 0 for every caller in this emitter. */
+#define E_VEX(p, pre, opcode, regfield, vvvv, ymm, needx, needb) do { \
+        e_u8 nv_ = (e_u8)((((vvvv) == E_NOREG) ? 0xF : (~(vvvv) & 0xF)) << 3); \
+        e_u8 L_  = (e_u8)((ymm) ? 4 : 0); \
+        int  rx_ = ((((regfield) & 0x0F) > 7) ? 1 : 0); \
+        if ((needx) || (needb)) { \
+            EW8((p), 0xC4); \
+            EW8((p), (e_u8)((rx_ ? 0x00 : 0x80) | ((needx) ? 0x00 : 0x40) | \
+                            ((needb) ? 0x00 : 0x20) | 0x01)); \
+            EW8((p), (e_u8)(nv_ | L_ | E_VEX_PP(pre))); \
+        } else { \
+            EW8((p), 0xC5); \
+            EW8((p), (e_u8)((rx_ ? 0x00 : 0x80) | nv_ | L_ | E_VEX_PP(pre))); \
+        } \
+        EW8((p), (e_u8)(opcode)); } while (0)
+
+/* three-operand register form: vop dst, src1, src2 */
+#define E_VEX_RRR(p, pre, opcode, dst, src1, src2, ymm) do { \
+        E_VEX((p), (pre), (opcode), (dst), (src1), (ymm), \
+              0, ((((src2) & 0x0F) > 7) ? 1 : 0)); \
+        E_MODRM_RR((p), (dst), (src2)); } while (0)
+
+/* three-operand with an absolute memory source (no base or index) */
+#define E_VEX_RRM(p, pre, opcode, dst, src1, addr, ymm) do { \
+        E_VEX((p), (pre), (opcode), (dst), (src1), (ymm), 0, 0); \
+        E_MODRM_ABS((p), (dst), (addr), 0); } while (0)
+
+/* three-operand with a base+index*scale memory source */
+#define E_VEX_RRMEM(p, pre, opcode, dst, src1, m, ymm) do { \
+        int vx_ = ((m).index != E_NOREG && ((m).index & 0x0F) > 7) ? 1 : 0; \
+        int vb_ = ((m).base  != E_NOREG && ((m).base  & 0x0F) > 7) ? 1 : 0; \
+        if (!E_NEEDS_SIB(m)) { vb_ = vx_; vx_ = 0; } \
+        E_VEX((p), (pre), (opcode), (dst), (src1), (ymm), vx_, vb_); \
+        E_MODRM_MEM((p), (dst), (m), 0); } while (0)
+
+/* two-operand move forms: vvvv is absent. Self-moves are elided, matching
+ * xImplAVX_Move::operator()(reg, reg). */
+#define E_VEX_RR(p, pre, opcode, dst, src, ymm) do { \
+        if ((dst) != (src)) { \
+            E_VEX_RRR((p), (pre), (opcode), (dst), E_NOREG, (src), (ymm)); \
+        } } while (0)
+#define E_VEX_RM(p, pre, opcode, dst, addr, ymm) \
+        E_VEX_RRM((p), (pre), (opcode), (dst), E_NOREG, (addr), (ymm))
+
+/* ===================================================================
+ * Batch 9: the mov-immediate family.
+ *
+ * Found by auditing every direct xWrite site in the emitter for paths that do
+ * not funnel through xOpWrite/xOpWrite0F/xOpWriteC5. Most turned out to be
+ * trailing immediates after a helper call, already covered -- these three
+ * were not.
+ * =================================================================== */
+
+/* mov r, imm  (xImpl_Mov::operator()(xRegisterInt, sptr, bool)).
+ * Three outcomes: xor for a zero immediate when flags may be clobbered, the
+ * B8+r accumulator form when the value fits in 32 bits or the register is
+ * narrower, and C7 /0 for a sign-extended 64-bit store.
+ * `w` is 1 for a 64-bit destination, `pf` is preserve_flags. */
+#define E_MOV_RI(p, w, pf, reg, imm) do { \
+        if (!(pf) && (imm) == 0) { \
+            E_G1_RR((p), 0, 6, (reg), (reg)); \
+        } else if ((imm) == (e_sptr)(e_u32)(imm) || !(w)) { \
+            E_REX((p), 0, 0, 0, (reg)); \
+            EW8((p), (e_u8)(0xb8 | ((reg) & 7))); \
+            EW32((p), (e_u32)(imm)); \
+        } else if ((w) && (imm) != (e_sptr)(e_s32)(imm)) { \
+            /* Outside [-2G, 4G): neither dword form can hold it, so movabs \
+             * is the only correct encoding. The reference used to fall \
+             * through to C7 /0 here and truncate; fixed upstream. */ \
+            E_REX((p), 1, 0, 0, (reg)); \
+            EW8((p), (e_u8)(0xb8 | ((reg) & 7))); \
+            EW32((p), (e_u32)(imm)); \
+            EW32((p), (e_u32)(((e_u64)(imm)) >> 32)); \
+        } else { \
+            E_REX((p), (w), 0, 0, (reg)); \
+            EW8((p), 0xc7); E_MODRM_RR((p), 0, (reg)); \
+            EW32((p), (e_u32)(imm)); \
+        } } while (0)
+
+/* mov r64, imm64 (xImpl_MovImm64). Falls back to the 32-bit path whenever the
+ * value fits, so the full ten-byte movabs is emitted only when it must be. */
+#define E_MOV64_RI(p, pf, reg, imm) do { \
+        e_u64 i_ = (e_u64)(imm); \
+        if ((e_s64)(imm) == (e_s64)(e_u32)(imm) || (e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+            E_MOV_RI((p), 1, (pf), (reg), (e_sptr)(imm)); \
+        } else { \
+            E_REX((p), 1, 0, 0, (reg)); \
+            EW8((p), (e_u8)(0xb8 | ((reg) & 7))); \
+            EW32((p), (e_u32)i_); EW32((p), (e_u32)(i_ >> 32)); \
+        } } while (0)
+
+/* mov [abs], imm at 8/16/32/64-bit width. The immediate is written at the
+ * operand width, except the 64-bit form which sign-extends a dword, so the
+ * RIP-relative displacement is short by that many bytes. */
+#define E_MOV_M_I8(p, addr, imm) do { \
+        EW8((p), 0xc6); E_MODRM_ABS((p), 0, (addr), 1); \
+        EW8((p), (e_u8)(imm)); } while (0)
+#define E_MOV_M_I16(p, addr, imm) do { \
+        E_P16(p); \
+        EW8((p), 0xc7); E_MODRM_ABS((p), 0, (addr), 2); \
+        EW8((p), (e_u8)(imm)); EW8((p), (e_u8)((imm) >> 8)); } while (0)
+#define E_MOV_M_I64(p, addr, imm) do { \
+        E_REX((p), 1, 0, 0, 0); \
+        EW8((p), 0xc7); E_MODRM_ABS((p), 0, (addr), 4); \
+        EW32((p), (e_u32)(imm)); } while (0)
+
+/* ===================================================================
+ * Batch 10: the legacy layer and the remaining odd forms.
+ *
+ * legacy.cpp is described in its own comment as instructions "NOT been
+ * implemented in the new emitter", but it is not dead: 67 call sites across
+ * iFPU, iFPUd, iR3000A, iR3000Atables and iR5900MultDiv still use it. Unlike
+ * the xJcc family these take a raw displacement rather than a target, and
+ * return a pointer to the displacement field for later patching.
+ * =================================================================== */
+
+/* JMP8/Jcc8 rel8. `slot` receives the displacement byte's address, matching
+ * the u8* these return. */
+#define E_L_JMP8(p, to, slot) do { \
+        EW8((p), 0xEB); (slot) = (p); EW8((p), (e_u8)(to)); } while (0)
+#define E_L_JCC8(p, cc, to, slot) do { \
+        EW8((p), (e_u8)(0x70 | (cc))); (slot) = (p); EW8((p), (e_u8)(to)); } while (0)
+
+/* JMP32/Jcc32 rel32. `slot` receives the dword's address. */
+#define E_L_JMP32(p, to, slot) do { \
+        EW8((p), 0xE9); (slot) = (p); EW32((p), (e_u32)(to)); } while (0)
+#define E_L_JCC32(p, cc, to, slot) do { \
+        EW8((p), 0x0F); EW8((p), (e_u8)(0x80 | (cc))); \
+        (slot) = (p); EW32((p), (e_u32)(to)); } while (0)
+
+/* Raw ModRM, as legacy.cpp exposes it. */
+#define E_L_MODRM(p, mod, reg, rm) \
+        EW8((p), (e_u8)(((mod) << 6) | ((reg) << 3) | (rm)))
+
+/* push imm, with the 6A imm8 short form when it fits. */
+#define E_PUSH_I(p, imm) do { \
+        if (E_IS_S8(imm)) { EW8((p), 0x6a); EW8((p), (e_u8)(imm)); } \
+        else { EW8((p), 0x68); EW32((p), (e_u32)(imm)); } } while (0)
+
+/* push/pop through an absolute memory operand */
+#define E_PUSH_M(p, addr) do { \
+        EW8((p), 0xff); E_MODRM_ABS((p), 6, (addr), 0); } while (0)
+#define E_POP_M(p, addr) do { \
+        EW8((p), 0x8f); E_MODRM_ABS((p), 0, (addr), 0); } while (0)
+
+/* inc/dec through an absolute memory operand */
+#define E_INCDEC_M(p, dec, addr) do { \
+        EW8((p), 0xff); E_MODRM_ABS((p), ((dec) ? 1 : 0), (addr), 0); } while (0)
