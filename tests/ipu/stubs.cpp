@@ -6,8 +6,7 @@
 #include "IPU/IPUdma.h"
 
 alignas(__pagealignsize) u8 eeHw[Ps2MemSize::Hardware];
-static cpuRegisters s_cpuRegs;
-cpuRegisters& cpuRegs = s_cpuRegs;
+alignas(16) cpuRegisters cpuRegs;
 
 void hwIntcIrq(int n) { (void)n; }
 void CPU_INT(EE_EventType n, s32 c) { (void)n; (void)c; }

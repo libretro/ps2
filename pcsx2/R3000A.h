@@ -127,7 +127,7 @@ struct psxRegisters {
 	s32 eCycle[32];		// cycle delta for signaled ints (sCycle + eCycle == branch cycle)
 };
 
-extern psxRegisters& psxRegs;
+alignas(16) extern psxRegisters psxRegs;
 
 #ifndef _PC_
 
@@ -180,7 +180,7 @@ extern u32 psxNextStartCounter;
 extern bool iopEventAction;
 
 // Branching status used when throwing exceptions.
-extern bool& iopIsDelaySlot;
+extern bool iopIsDelaySlot;
 
 // --------------------------------------------------------------------------------------
 //  R3000Acpu

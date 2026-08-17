@@ -217,8 +217,8 @@ struct tlbs
 
 #endif
 
-extern cpuRegisters& cpuRegs;
-extern fpuRegisters& fpuRegs;
+alignas(16) extern cpuRegisters cpuRegs;
+alignas(16) extern fpuRegisters fpuRegs;
 alignas(16) extern tlbs tlb[48];
 
 extern retro_atomic_int_t eeEventTestIsActive;
