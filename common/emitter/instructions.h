@@ -161,8 +161,13 @@ namespace x86Emitter
 	extern const xImpl_Group3 xNOT, xNEG;
 	extern const xImpl_Group3 xUMUL, xUDIV;
 #endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_iDiv     xDIV = {{G3Type_iDIV}, {0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
+	static const shim_iMulFull xMUL = {{G3Type_iMUL}, {0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};
+#else
 	extern const xImpl_iDiv xDIV;
 	extern const xImpl_iMul xMUL;
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static const shim_IncDec xINC = {false};

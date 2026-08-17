@@ -655,6 +655,34 @@ namespace x86Emitter
 	struct shim_G1Logic : public shim_Group1 { shim_SimdRegSSE PS, PD; };
 	struct shim_G1Arith : public shim_Group1 { shim_SimdRegSSE PS, PD, SS, SD; };
 
+
+	// xDIV and xMUL are group3 objects with SSE members bolted on, and xMUL
+	// additionally carries the two- and three-operand IMUL forms. Both
+	// inherit group3's single-operand forms rather than redeclaring them,
+	// which is why shim_iMul brings them in with a using-declaration.
+	struct shim_iDiv : public shim_Group3
+	{
+		shim_SimdRegSSE PS, PD, SS, SD;
+	};
+
+	struct shim_iMulFull : public shim_Group3
+	{
+		shim_SimdRegSSE PS, PD, SS, SD;
+
+		using shim_Group3::operator();
+
+		__fi void operator()(const xRegister32& to, const xRegister32& from) const
+		{ SHIM_BEGIN; E_IMUL_RR(p_, 0, to.Id, from.Id); SHIM_END; }
+		__fi void operator()(const xRegister32& to, const xIndirectVoid& src) const
+		{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
+		  E_IMUL_R_MEM(p_, 0, to.Id, m); SHIM_END; }
+		__fi void operator()(const xRegister32& to, const xRegister32& from, s32 imm) const
+		{ SHIM_BEGIN; E_IMUL_RRI(p_, 0, to.Id, from.Id, imm); SHIM_END; }
+		__fi void operator()(const xRegister32& to, const xIndirectVoid& from, s32 imm) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_IMUL_RMI(p_, 0, to.Id, m, imm); SHIM_END; }
+	};
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

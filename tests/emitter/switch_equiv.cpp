@@ -174,6 +174,33 @@ int main()
 		}
 	}
 
+
+	/* xDIV and xMUL: the single-operand group3 forms they inherit, the SSE
+	 * members they carry, and the two- and three-operand IMUL forms. */
+	for (int r = 0; r < 16; r++)
+	{
+		xDIV(xRegister32(r));
+		xDIV(xRegister64(r));
+		xMUL(xRegister32(r));
+		for (int s2 = 0; s2 < 16; s2++)
+		{
+			xMUL(xRegister32(r), xRegister32(s2));
+			xDIV.PS(xRegisterSSE(r), xRegisterSSE(s2));
+			xDIV.SD(xRegisterSSE(r), xRegisterSSE(s2));
+			xMUL.PD(xRegisterSSE(r), xRegisterSSE(s2));
+			xMUL.SS(xRegisterSSE(r), xRegisterSSE(s2));
+		}
+		for (int i = 0; i < nimm; i++)
+			xMUL(xRegister32(r), xRegister32((r + 3) & 15), imms[i]);
+	}
+	for (int b = 0; b < 8; b++)
+	{
+		const xAddressVoid m = xAddressVoid(xAddressReg(b), xAddressReg(4), 2, 0x14);
+		xMUL(xRegister32(2), ptr32[m]);
+		xMUL(xRegister32(2), ptr32[m], 0x1234);
+		xDIV(ptr32[m]);
+	}
+
 	const size_t n = (size_t)(xGetPtr() - buf);
 	fprintf(stderr, "emitted %zu bytes\n", n);
 	for (size_t i = 0; i < n; i++)

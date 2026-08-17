@@ -237,7 +237,9 @@ namespace x86Emitter
 	const xImpl_Group3 xUDIV = {G3Type_DIV};
 #endif
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_iDiv xDIV = {{G3Type_iDIV}, {0x00, 0x5e}, {0x66, 0x5e}, {0xf3, 0x5e}, {0xf2, 0x5e}};
 	const xImpl_iMul xMUL = {{G3Type_iMUL}, {0x00, 0x59}, {0x66, 0x59}, {0xf3, 0x59}, {0xf2, 0x59}};
+#endif
 
 } // End namespace x86Emitter
