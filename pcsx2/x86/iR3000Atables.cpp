@@ -1143,8 +1143,115 @@ static void rpsxLoad(int size, bool sign)
 }
 
 
-REC_FUNC(LWL);
-REC_FUNC(LWR);
+// LWL/LWR: unaligned loads. Previously REC_FUNC -- FLUSH_EVERYTHING plus a
+// call to psxLWL, which then called iopMemRead32 itself. Emitting them reuses
+// rpsxLoad's structure, so the RAM case skips the memory call entirely and
+// the merge happens inline.
+//
+// Contract notes, since a missing one of these is not visible to a test that
+// runs the emitted bytes on their own:
+//   - calls out, so _psxFlushCall is required, same FLUSH_FULLVTLB rpsxLoad
+//     uses;
+//   - reads Rs, handled by rpsxCalcAddressOperand, which materialises a
+//     const-propagated Rs through _allocX86reg(MODE_READ);
+//   - reads the old Rt for the merge, captured the same way
+//     rpsxCalcStoreOperand does, which is likewise const-safe;
+//   - writes Rt, so PSX_DEL_CONST before the write;
+//   - does not end a block.
+//
+// Two values must survive the call: the unmasked address, whose low two bits
+// give the shift, and the old Rt. Both live in caller-saved places, so they
+// go through file-scope temps. That also keeps the sequence ABI-neutral --
+// ECX and EDX are only touched once the load has completed and arg1regd is
+// dead, which matters because arg1regd is ECX on Win64 and EDI on SysV, and
+// arg2regd is EDX on Win64.
+alignas(16) static u32 s_psx_unaligned_addr;
+alignas(16) static u32 s_psx_unaligned_rt;
+
+// isLeft selects LWL's merge over LWR's:
+//   LWL   rt = (rt & (0x00ffffff >> shift)) | (mem << (24 - shift))
+//   LWR   rt = (rt & (0xffffff00 << (24 - shift))) | (mem >> shift)
+static void rpsxLoadUnaligned(bool isLeft)
+{
+	int rtcache = -1;
+
+	rpsxCalcAddressOperand();
+
+	// Capture the old Rt while its cached or const copy is still reachable.
+	// Skipped for r0, which is never merged into and would otherwise burn an
+	// allocation on a register that is constant zero.
+	if (_Rt_ != 0)
+	{
+		rtcache = PSX_IS_CONST1(_Rt_) ? _allocX86reg(X86TYPE_PSX, _Rt_, MODE_READ)
+		                              : _checkX86reg(X86TYPE_PSX, _Rt_, MODE_READ);
+		if (rtcache >= 0)
+			xMOV(ptr32[&s_psx_unaligned_rt], xRegister32(rtcache));
+		else
+		{
+			xMOV(eax, ptr32[&psxRegs.GPR.r[_Rt_]]);
+			xMOV(ptr32[&s_psx_unaligned_rt], eax);
+		}
+	}
+
+	xMOV(ptr32[&s_psx_unaligned_addr], arg1regd);
+	xAND(arg1regd, 0xfffffffc);
+
+	if (_Rt_ != 0)
+	{
+		PSX_DEL_CONST(_Rt_);
+		_deletePSXtoX86reg(_Rt_, DELETE_REG_FREE_NO_WRITEBACK);
+	}
+
+	_psxFlushCall(FLUSH_FULLVTLB);
+
+	xTEST(arg1regd, 0x10000000);
+	xForwardJZ8 is_ram_read;
+	xFastCall((void*)iopMemRead32);
+	xForwardJump8 done;
+	is_ram_read.SetTarget();
+	xAND(arg1regd, 0x1fffff);
+	xMOV(eax, ptr32[xComplexAddress(rax, iopMem->Main, arg1reg)]);
+	done.SetTarget();
+	// EAX holds the aligned word; arg1regd is dead from here on.
+
+	if (_Rt_ == 0)
+		return;
+
+	xMOV(ecx, ptr32[&s_psx_unaligned_addr]);
+	xAND(ecx, 3);
+	xSHL(ecx, 3); // shift = (addr & 3) * 8
+
+	if (isLeft)
+	{
+		xMOV(edx, 0x00ffffff);
+		xSHR(edx, cl);
+		xAND(edx, ptr32[&s_psx_unaligned_rt]);
+		xNEG(ecx);
+		xADD(ecx, 24); // 24 - shift
+		xSHL(eax, cl);
+	}
+	else
+	{
+		xSHR(eax, cl); // while CL still holds shift
+		xMOV(edx, 0xffffff00);
+		xNEG(ecx);
+		xADD(ecx, 24);
+		xSHL(edx, cl);
+		xAND(edx, ptr32[&s_psx_unaligned_rt]);
+	}
+	xOR(eax, edx);
+
+	{
+		const int rt = rpsxAllocRegIfUsed(_Rt_, MODE_WRITE);
+		if (rt >= 0)
+			xMOV(xRegister32(rt), eax);
+		else
+			xMOV(ptr32[&psxRegs.GPR.r[_Rt_]], eax);
+	}
+}
+
+static void rpsxLWL() { rpsxLoadUnaligned(true); }
+static void rpsxLWR() { rpsxLoadUnaligned(false); }
 REC_FUNC(SWL);
 REC_FUNC(SWR);
 
