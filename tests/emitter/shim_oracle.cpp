@@ -321,6 +321,54 @@ int main()
           check("FastCall far", [&]{ xFastCall(far_t);  },[&]{ shim_FastCall(far_t);  }); }
     }
 
+
+    /* ---- the instruction tail ---- */
+    {
+        const shim_PMul  sPMUL  = { {0x66,0xd5},{0x66,0xe5},{0x66,0xe4},
+                                    {0x66,0xf4},{0x66,0x0b38},{0x66,0x4038} };
+        const shim_COMI  sUCOMI = { {0x00,0x2e},{0x66,0x2e} };
+        const shim_PMove sPMOVSX = {0x2038};
+        const shim_PMove sPMOVZX = {0x3038};
+        for(int a=0;a<16;a++) for(int b=0;b<16;b++){
+            snprintf(nm,sizeof nm,"PMUL.LW x%d,x%d",a,b);
+            check(nm,[&]{ xPMUL.LW(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMUL.LW(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"PMUL.LD x%d,x%d",a,b);   /* 3-byte opcode */
+            check(nm,[&]{ xPMUL.LD(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMUL.LD(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"PMUL.HRSW x%d,x%d",a,b);
+            check(nm,[&]{ xPMUL.HRSW(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMUL.HRSW(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"UCOMI.SS x%d,x%d",a,b);
+            check(nm,[&]{ xUCOMI.SS(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sUCOMI.SS(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"UCOMI.SD x%d,x%d",a,b);
+            check(nm,[&]{ xUCOMI.SD(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sUCOMI.SD(xRegisterSSE(a),xRegisterSSE(b)); });
+            /* every PMove member: the +0x100 stepping lands on the 2nd opcode byte */
+            snprintf(nm,sizeof nm,"PMOVSX.BW x%d,x%d",a,b);
+            check(nm,[&]{ xPMOVSX.BW(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMOVSX.BW(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"PMOVSX.BD x%d,x%d",a,b);
+            check(nm,[&]{ xPMOVSX.BD(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMOVSX.BD(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"PMOVSX.DQ x%d,x%d",a,b);
+            check(nm,[&]{ xPMOVSX.DQ(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMOVSX.DQ(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"PMOVZX.WQ x%d,x%d",a,b);
+            check(nm,[&]{ xPMOVZX.WQ(xRegisterSSE(a),xRegisterSSE(b)); },
+                     [&]{ sPMOVZX.WQ(xRegisterSSE(a),xRegisterSSE(b)); });
+            snprintf(nm,sizeof nm,"MOVMSKPS r%d,x%d",a,b);
+            check(nm,[&]{ xMOVMSKPS(xRegister32(a),xRegisterSSE(b)); },
+                     [&]{ shim_MOVMSKPS(xRegister32(a),xRegisterSSE(b)); });
+        }
+        for(int a=0;a<naddr;a++){
+            snprintf(nm,sizeof nm,"LDMXCSR a%d",a);
+            check(nm,[&]{ xLDMXCSR(ptr32[addrs[a]]); },
+                     [&]{ shim_LDMXCSR(ptr32[addrs[a]]); });
+        }
+    }
+
     printf("shim cases: %ld   divergent: %ld\n",g_cases,g_fail);
     for(size_t i=0;i<g_f.size();i++) printf("  %s\n",g_f[i].c_str());
     return g_fail?1:0;

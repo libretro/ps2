@@ -567,6 +567,56 @@ namespace x86Emitter
 		{ SHIM_BEGIN; E_IMUL_RRI(p_, 0, to.Id, from.Id, imm); SHIM_END; }
 	};
 
+
+	// ---- the instruction tail --------------------------------------------
+
+	struct shim_PMul
+	{
+		shim_SimdRegSSE LW, HW, HUW, UDQ, HRSW, LD;
+	};
+
+	struct shim_COMI
+	{
+		shim_SimdRegSSE SS, SD;
+	};
+
+	// PMOVSX / PMOVZX. One three-byte base opcode; each member steps it by
+	// 0x100, which is the *high* byte of the 16-bit opcode value, so the
+	// walk lands on the second opcode byte rather than the first
+	// (simd.cpp:413-428). Source widths differ per member -- BW takes an
+	// m64, BD an m32, BQ an m16 -- so the memory forms carry their own
+	// operand size.
+	struct shim_PMove
+	{
+		u16 OpcodeBase;
+
+		__fi void BW(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase, to.Id, from.Id); SHIM_END; }
+		__fi void BD(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase + 0x100, to.Id, from.Id); SHIM_END; }
+		__fi void BQ(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase + 0x200, to.Id, from.Id); SHIM_END; }
+		__fi void WD(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase + 0x300, to.Id, from.Id); SHIM_END; }
+		__fi void WQ(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase + 0x400, to.Id, from.Id); SHIM_END; }
+		__fi void DQ(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, OpcodeBase + 0x500, to.Id, from.Id); SHIM_END; }
+	};
+
+	static __fi void shim_MOVMSKPS(const xRegister32& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0x00, 0x50, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_MOVMSKPD(const xRegister32& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, 0x50, to.Id, from.Id); SHIM_END; }
+
+	// LDMXCSR / STMXCSR: 0F AE with a /digit in ModRM.reg, no register operand.
+	static __fi void shim_LDMXCSR(const xIndirectVoid& src)
+	{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
+	  E_SSE_R_MEM(p_, 0x00, 0xae, 2, m); SHIM_END; }
+	static __fi void shim_STMXCSR(const xIndirectVoid& dst)
+	{ struct e_mem m = shim_mem(dst); SHIM_BEGIN;
+	  E_SSE_R_MEM(p_, 0x00, 0xae, 3, m); SHIM_END; }
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)
