@@ -277,10 +277,21 @@ const xRegister32
 			}
 			else
 			{
-				if (info.Index == rbp && displacement_size == 0)
-					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
+				// Compare the low 3 bits, not the register id: r13 encodes as
+				// rm=101 just like rbp and needs the same forced displacement,
+				// otherwise mod=00/rm=101 means RIP-relative and the disp32 it
+				// requires is never written.
+				if ((info.Index.Id & 7) == 5 && displacement_size == 0)
+					displacement_size = 1; // forces [ebp]/[r13] to be encoded as [reg+0]!
 
 				ModRM(displacement_size, regfield, info.Index.Id & 7);
+
+				// Likewise rm=100 always means "a SIB byte follows". rsp never
+				// reaches here (Reduce diverts it into the SIB path below), but
+				// r12 does, and without this the encoding is truncated and the
+				// next instruction's bytes are consumed as the SIB.
+				if ((info.Index.Id & 7) == 4)
+					SibSB(0, Sib_EIZ, info.Index.Id & 7);
 			}
 		}
 		else
@@ -301,8 +312,8 @@ const xRegister32
 			}
 			else
 			{
-				if (info.Base == rbp && displacement_size == 0)
-					displacement_size = 1; // forces [ebp] to be encoded as [ebp+0]!
+				if ((info.Base.Id & 7) == 5 && displacement_size == 0)
+					displacement_size = 1; // forces [ebp]/[r13] to be encoded as [reg+0]!
 
 				ModRM(displacement_size, regfield, ModRm_UseSib);
 				SibSB(info.Scale, info.Index.Id & 7, info.Base.Id & 7);
