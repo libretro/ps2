@@ -270,6 +270,47 @@ void VirtualMemoryReserve::Release()
 RecompiledCodeReserve::RecompiledCodeReserve() : VirtualMemoryReserve() { }
 RecompiledCodeReserve::~RecompiledCodeReserve() { Release(); }
 
+// Anchor in this module's data segment. Recompiled code reaches objects like
+// cpuRegs, psxRegs and tlb[] -- all of which live in the module image, not in
+// the VM reservation -- and the module is a few megabytes wide, so the
+// distance from any one of them stands in for all of them.
+static u8 s_module_data_anchor;
+
+// The emitters address module globals with RIP-relative operands, and both
+// paths that build them degrade silently rather than failing:
+//
+//   ptr32[&global]  emits mov eax, [rip+disp32] when the target is within
+//                   +-2GB of the emit cursor, and mov eax, [disp32] when it
+//                   is not -- truncating the address to 32 bits.
+//   xLEA/xMOV       same shape; xMOV(reg64, imm) had the identical problem
+//                   until 4c941ed.
+//
+// So the entire recompiler rests on the code reservation landing within 2GB
+// of the loaded module. Those are two independently placed regions -- one a
+// runtime reservation, one wherever the loader put the image -- and nothing
+// has ever checked that they end up close enough. If they do not, the failure
+// is thousands of memory operands quietly reading and writing near address
+// zero, which presents as arbitrary corruption rather than as an error.
+//
+// One comparison at reservation time turns that into a message.
+static void CheckRipRelativeReach(const char* what, const u8* base, size_t size)
+{
+	const sptr anchor = (sptr)&s_module_data_anchor;
+	const sptr lo = (sptr)base;
+	const sptr hi = (sptr)base + (sptr)size;
+	const sptr d_lo = lo - anchor;
+	const sptr d_hi = hi - anchor;
+
+	if (d_lo == (sptr)(s32)d_lo && d_hi == (sptr)(s32)d_hi)
+		return;
+
+	Console.Error("(%s) Code reservation at %p-%p is more than 2GB from this "
+	              "module's data at %p. RIP-relative operands to module "
+	              "globals cannot be encoded and will be silently truncated; "
+	              "expect memory corruption.",
+	              what, (void*)lo, (void*)hi, (void*)anchor);
+}
+
 void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {
 	// Anything passed to the memory allocator must be page aligned.
@@ -279,6 +320,8 @@ void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t off
 	u8* base = allocator->Alloc(offset, size);
 	if (!base)
 		Console.Error("(RecompiledCodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
+	else
+		CheckRipRelativeReach("RecompiledCodeReserve", base, size);
 
 	VirtualMemoryReserve::Assign(std::move(allocator), base, size);
 }
