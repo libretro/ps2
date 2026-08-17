@@ -193,6 +193,18 @@ namespace x86Emitter
 		}
 	};
 
+	// xMOV64 falls back to the 32-bit forms whenever the value fits, so the
+	// ten-byte movabs is emitted only when nothing shorter can hold it.
+	struct shim_MovImm64
+	{
+		__fi void operator()(const xRegister64& to, s64 imm, bool preserve_flags = false) const
+		{
+			SHIM_BEGIN;
+			E_MOV64_RI(p_, preserve_flags, to.Id, imm);
+			SHIM_END;
+		}
+	};
+
 	// ---- test -------------------------------------------------------------
 
 	struct shim_Test
@@ -527,8 +539,17 @@ namespace x86Emitter
 		}
 		else
 		{
-			xLEA(rax, ptr64[f]);
-			SHIM_BEGIN; E_CALL_R(p_, 0); SHIM_END;
+			// The reference reaches for xLEA here. Using the core's E_LEA
+			// instead -- which mirrors EmitLeaMagic -- keeps this header
+			// self-contained, so it can be included before xLEA is declared.
+			// That matters: the mov bindings have to sit above the xImm64Op
+			// template, which is above xLEA's declaration.
+			struct e_mem m;
+			E_MEM(m, E_NOREG, E_NOREG, 0, (e_sptr)f);
+			SHIM_BEGIN;
+			E_LEA(p_, 1, 0, 0 /* rax */, m);
+			E_CALL_R(p_, 0);
+			SHIM_END;
 		}
 	}
 
