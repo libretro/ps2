@@ -389,6 +389,7 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	switch (cc) { \
 	case x86Emitter::Jcc_Equal:    x86Emitter::xCMOVE (x86Emitter::xRegister64(dst), x86Emitter::ptr64[(void*)(addr)]); break; \
 	case x86Emitter::Jcc_NotEqual: x86Emitter::xCMOVNE(x86Emitter::xRegister64(dst), x86Emitter::ptr64[(void*)(addr)]); break; \
+	case x86Emitter::Jcc_Signed:   x86Emitter::xCMOVS (x86Emitter::xRegister64(dst), x86Emitter::ptr64[(void*)(addr)]); break; \
 	default: break; } } while (0)
 #define xe_cmovcc64_rr(cc, dst, src) XE_2( \
 	E_REX(xep, 1, (dst), 0, (src)); EW8(xep, 0x0f); \
@@ -604,6 +605,8 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	case x86Emitter::Jcc_NotEqual: /* == Jcc_NotZero: same 0x5 on x86 */ \
 		x86Emitter::xJNE((const void*)(target)); break; \
 	case x86Emitter::Jcc_LessOrEqual: x86Emitter::xJLE((const void*)(target)); break; \
+	case x86Emitter::Jcc_Signed:      x86Emitter::xJS ((const void*)(target)); break; \
+	case x86Emitter::Jcc_Below:       x86Emitter::xJC ((const void*)(target)); break; \
 	default: break; } } while (0)
 #define xe_jmp_to(target) XE_2(E_JCC_TO(xep, E_CC_UNC, (target)), \
 	x86Emitter::xJMP((const void*)(target)))
@@ -709,5 +712,35 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_G1_MEM_I(xep, 4, 4, xm_, (e_s32)(imm)); }, \
 	x86Emitter::xAND(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+
+
+#define xe_sub64_ri(reg, imm)  XE_2(E_G1_RI(xep, 1, 5, (reg), (e_s32)(imm)), \
+	x86Emitter::xSUB(x86Emitter::xRegister64(reg), (imm)))
+#define xe_add64_ri(reg, imm)  XE_2(E_G1_RI(xep, 1, 0, (reg), (e_s32)(imm)), \
+	x86Emitter::xADD(x86Emitter::xRegister64(reg), (imm)))
+/* add qword [abs], imm: E_G1_MEM_I already speaks sz=8 (REX.W). The
+ * earlier cmp64 composition hand-rolled this before reading far enough
+ * into the macro; this one does not repeat that. */
+#define xe_add64_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 8, 0, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xADD(x86Emitter::ptr64[(void*)(addr)], (imm)))
+/* add word [abs], imm: 0x66 prefix, then the s8-narrowed body with a
+ * 16-bit wide immediate. Byte behavior from E_G1_MEM_I sz=2. */
+#define xe_add16_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 2, 0, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xADD(x86Emitter::ptr16[(void*)(addr)], (imm)))
+/* lea r64, [base + index*scale + disp] from an e_mem */
+#define xe_lea64_mem(reg, m)   XE_2(E_LEA(xep, 1, 0, (reg), (m)), \
+	x86Emitter::xLEA(x86Emitter::xAddressReg(reg), x86Emitter::ptrNative[XE_MEM_TO_ADDR(m)]))
+#define xe_fastcall1_i(fn, a1) do { \
+	xe_mov32_ri(x86Emitter::arg1regd.Id, (a1)); \
+	xe_fastcall0(fn); } while (0)
+#define XE_CMOVB64_RR(dst, src) x86Emitter::xCMOVB(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src))
+#define xe_cmovb64_rr(dst, src) XE_2( \
+	E_REX(xep, 1, (dst), 0, (src)); EW8(xep, 0x0f); \
+	EW8(xep, (e_u8)(0x40 | x86Emitter::Jcc_Below)); E_MODRM_RR(xep, (dst), (src)), \
+	XE_CMOVB64_RR((dst), (src)))
 
 #endif /* PCSX2_C89OPS_H */

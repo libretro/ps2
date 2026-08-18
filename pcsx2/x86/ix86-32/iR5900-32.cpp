@@ -172,7 +172,7 @@ void _eeMoveGPRtoR64(int to, int fromgpr, bool allow_preload)
 void _eeMoveGPRtoM(uptr to, int fromgpr)
 {
 	if (GPR_IS_CONST1(fromgpr))
-		xMOV(ptr32[(u32*)(to)], g_cpuConstRegs[fromgpr].UL[0]);
+		xe_mov32_mi(to, g_cpuConstRegs[fromgpr].UL[0]);
 	else
 	{
 		int x86reg = _checkX86reg(X86TYPE_GPR, fromgpr, MODE_READ);
@@ -188,16 +188,16 @@ void _eeMoveGPRtoM(uptr to, int fromgpr)
 
 		if (x86reg >= 0)
 		{
-			xMOV(ptr32[(void*)(to)], xRegister32(x86reg));
+			xe_mov32_mr(to, x86reg);
 		}
 		else if (xmmreg >= 0)
 		{
-			xMOVSS(ptr32[(void*)(to)], xRegisterSSE(xmmreg));
+			xe_movss_mx(to, xmmreg);
 		}
 		else
 		{
-			xMOV(eax, ptr32[&cpuRegs.GPR.r[fromgpr].UL[0]]);
-			xMOV(ptr32[(void*)(to)], eax);
+			xe_mov32_rm(XE_AX, &cpuRegs.GPR.r[fromgpr].UL[0]);
+			xe_mov32_mr(to, XE_AX);
 		}
 	}
 }
@@ -209,8 +209,8 @@ void recBranchCall(void (*func)())
 	// In order to make sure a branch test is performed, the nextBranchCycle is set
 	// to the current cpu cycle.
 
-	xMOV(rax, ptr64[&cpuRegs.cycle]);
-	xMOV(ptr64[&cpuRegs.nextEventCycle], rax);
+	xe_mov64_rm(XE_AX, &cpuRegs.cycle);
+	xe_mov64_mr(&cpuRegs.nextEventCycle, XE_AX);
 
 	recCall(func);
 	g_branch = 2;
@@ -219,7 +219,7 @@ void recBranchCall(void (*func)())
 void recCall(void (*func)())
 {
 	iFlushCall(FLUSH_INTERPRETER);
-	xFastCall((const void*)func);
+	xe_fastcall0(func);
 }
 
 // =====================================================================================================
@@ -389,17 +389,17 @@ static const void* _DynGen_JITCompile(void)
 {
 	u8* retval = xGetAlignedCallTarget();
 
-	xFastCall((const void*)recRecompile, ptr32[&cpuRegs.pc]);
+	xe_fastcall1_m32(recRecompile, &cpuRegs.pc);
 
 	// C equivalent:
 	// u32 addr = cpuRegs.pc;
 	// void(**base)() = (void(**)())recLUT[addr >> 16];
 	// base[addr >> 2]();
-	xMOV(eax, ptr[&cpuRegs.pc]);
-	xMOV(ebx, eax);
-	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xe_mov32_rm(XE_AX, &cpuRegs.pc);
+	xe_mov32_rr(XE_BX, XE_AX);
+	xe_shr32_ri(XE_AX, 16);
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, recLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -413,11 +413,11 @@ static const void* _DynGen_DispatcherReg(void)
 	// u32 addr = cpuRegs.pc;
 	// void(**base)() = (void(**)())recLUT[addr >> 16];
 	// base[addr >> 2]();
-	xMOV(eax, ptr[&cpuRegs.pc]);
-	xMOV(ebx, eax);
-	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, recLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xe_mov32_rm(XE_AX, &cpuRegs.pc);
+	xe_mov32_rr(XE_BX, XE_AX);
+	xe_shr32_ri(XE_AX, 16);
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, recLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -426,7 +426,7 @@ static const void* _DynGen_DispatcherEvent(void)
 {
 	u8* retval = xGetPtr();
 
-	xFastCall((const void*)recEventTest);
+	xe_fastcall0(recEventTest);
 
 	return retval;
 }
@@ -445,12 +445,12 @@ static const void* _DynGen_EnterRecompiledCode(void)
 
 	// We never return through this function, instead we fastjmp() out.
 	// So we don't need to worry about preserving callee-saved registers, but we do need to align the stack.
-	xSUB(rsp, stack_size);
+	xe_sub64_ri(XE_SP, stack_size);
 
 	if (CHECK_FASTMEM)
-		xMOV(RFASTMEMBASE, ptrNative[&vtlb_private::vtlbdata.fastmem_base]);
+		xe_mov64_rm(RFASTMEMBASE.Id, &vtlb_private::vtlbdata.fastmem_base);
 
-	xJMP((const void*)DispatcherReg);
+	xe_jmp_to(DispatcherReg);
 
 	return retval;
 }
@@ -458,16 +458,16 @@ static const void* _DynGen_EnterRecompiledCode(void)
 static const void* _DynGen_DispatchBlockDiscard(void)
 {
 	u8* retval = xGetPtr();
-	xFastCall((const void*)recClear);
-	xJMP((const void*)DispatcherReg);
+	xe_fastcall0(recClear);
+	xe_jmp_to(DispatcherReg);
 	return retval;
 }
 
 static const void* _DynGen_DispatchPageReset(void)
 {
 	u8* retval = xGetPtr();
-	xFastCall((const void*)dyna_page_reset);
-	xJMP((const void*)DispatcherReg);
+	xe_fastcall0(dyna_page_reset);
+	xe_jmp_to(DispatcherReg);
 	return retval;
 }
 
@@ -741,9 +741,9 @@ void SetBranchReg(u32 reg)
 
 			if (EmuConfig.Gamefixes.GoemonTlbHack)
 			{
-				xMOV(ecx, xRegister32(wbreg));
+				xe_mov32_rr(XE_CX, wbreg);
 				vtlb_DynV2P();
-				xMOV(xRegister32(wbreg), eax);
+				xe_mov32_rr(wbreg, XE_AX);
 			}
 
 			recompileNextInstruction(true, false);
@@ -751,13 +751,13 @@ void SetBranchReg(u32 reg)
 			// the next instruction may have flushed the register.. so reload it if so.
 			if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
 			{
-				xMOV(ptr[&cpuRegs.pc], xRegister32(wbreg));
+				xe_mov32_mr(&cpuRegs.pc, wbreg);
 				x86regs[wbreg].inuse = 0;
 			}
 			else
 			{
-				xMOV(eax, ptr[&cpuRegs.pcWriteback]);
-				xMOV(ptr[&cpuRegs.pc], eax);
+				xe_mov32_rm(XE_AX, &cpuRegs.pcWriteback);
+				xe_mov32_mr(&cpuRegs.pc, XE_AX);
 			}
 		}
 		else
@@ -765,7 +765,7 @@ void SetBranchReg(u32 reg)
 			if (GPR_IS_DIRTY_CONST(reg) || _hasX86reg(X86TYPE_GPR, reg, 0))
 			{
 				const int x86reg = _allocX86reg(X86TYPE_GPR, reg, MODE_READ);
-				xMOV(ptr32[&cpuRegs.pc], xRegister32(x86reg));
+				xe_mov32_mr(&cpuRegs.pc, x86reg);
 			}
 			else
 			{
@@ -785,7 +785,7 @@ void SetBranchImm(u32 imm)
 
 	// end the current block
 	iFlushCall(FLUSH_EVERYTHING);
-	xMOV(ptr32[&cpuRegs.pc], imm);
+	xe_mov32_mi(&cpuRegs.pc, imm);
 	iBranchTest(imm);
 }
 
@@ -1085,13 +1085,13 @@ void iFlushCall(int flushtype)
 
 	if ((flushtype & FLUSH_PC) && !g_cpuFlushedPC)
 	{
-		xMOV(ptr32[&cpuRegs.pc], pc);
+		xe_mov32_mi(&cpuRegs.pc, pc);
 		g_cpuFlushedPC = true;
 	}
 
 	if ((flushtype & FLUSH_CODE) && !g_cpuFlushedCode)
 	{
-		xMOV(ptr32[&cpuRegs.code], cpuRegs.code);
+		xe_mov32_mi(&cpuRegs.code, cpuRegs.code);
 		g_cpuFlushedCode = true;
 	}
 }
@@ -1166,25 +1166,25 @@ static void iBranchTest(u32 newpc)
 
 	if (EmuConfig.Speedhacks.WaitLoop && s_nBlockFF && newpc == s_branchTo)
 	{
-		xMOV(rax, ptr64[&cpuRegs.nextEventCycle]);
-		xADD(ptr64[&cpuRegs.cycle], scaleblockcycles());
-		xCMP(rax, ptr64[&cpuRegs.cycle]);
-		xCMOVS(rax, ptr64[&cpuRegs.cycle]);
-		xMOV(ptr64[&cpuRegs.cycle], rax);
+		xe_mov64_rm(XE_AX, &cpuRegs.nextEventCycle);
+		xe_add64_mi(&cpuRegs.cycle, scaleblockcycles());
+		xe_cmp64_rm(XE_AX, &cpuRegs.cycle);
+		xe_cmovcc64_rm(Jcc_Signed, XE_AX, &cpuRegs.cycle);
+		xe_mov64_mr(&cpuRegs.cycle, XE_AX);
 	}
 	else
 	{
-		xMOV(rax, ptr64[&cpuRegs.cycle]);
-		xADD(rax, scaleblockcycles());
-		xMOV(ptr64[&cpuRegs.cycle], rax); // update cycles
-		xSUB(rax, ptr64[&cpuRegs.nextEventCycle]);
+		xe_mov64_rm(XE_AX, &cpuRegs.cycle);
+		xe_add64_ri(XE_AX, scaleblockcycles());
+		xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles
+		xe_sub64_rm(XE_AX, &cpuRegs.nextEventCycle);
 
 		if (newpc == 0xffffffff)
-			xJS(DispatcherReg);
+			xe_jcc_to(Jcc_Signed, DispatcherReg);
 		else
-			recBlocks.Link(HWADDR(newpc), xJcc32(Jcc_Signed, 0));
+			{ s32* xslot; xe_jcc32_slot(Jcc_Signed, 0, xslot); recBlocks.Link(HWADDR(newpc), xslot); }
 	}
-	xJMP((const void*)DispatcherEvent);
+	xe_jmp_to(DispatcherEvent);
 }
 
 // opcode 'code' modifies:
@@ -1416,7 +1416,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 			g_cpuFlushedPC = false;
 			g_cpuFlushedCode = false;
 			if (g_maySignalException)
-				xAND(ptr32[&cpuRegs.CP0.n.Cause], ~(1 << 31)); // BD
+				xe_and32_mi(&cpuRegs.CP0.n.Cause, ~(1 << 31)); // BD
 
 			g_recompilingDelaySlot = false;
 			return;
@@ -1447,7 +1447,7 @@ void recompileNextInstruction(bool delayslot, bool swapped_delay_slot)
 		g_cpuFlushedPC = false;
 		g_cpuFlushedCode = false;
 		if (g_maySignalException)
-			xAND(ptr32[&cpuRegs.CP0.n.Cause], ~(1 << 31)); // BD
+			xe_and32_mi(&cpuRegs.CP0.n.Cause, ~(1 << 31)); // BD
 		g_recompilingDelaySlot = false;
 	}
 
@@ -1565,8 +1565,8 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 			break;
 
 		case ProtMode_Manual:
-			xMOV(arg1regd, inpage_ptr);
-			xMOV(arg2regd, inpage_sz / 4);
+			xe_mov32_ri(arg1regd.Id, inpage_ptr);
+			xe_mov32_ri(arg2regd.Id, inpage_sz / 4);
 			//xMOV( eax, startpc );		// uncomment this to access startpc (as eax) in dyna_block_discard
 
 			u32 lpc = inpage_ptr;
@@ -1574,8 +1574,8 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 
 			while (stg > 0)
 			{
-				xCMP(ptr32[PSM(lpc)], *(u32*)PSM(lpc));
-				xJNE(DispatchBlockDiscard);
+				xe_cmp32_mi(PSM(lpc), *(u32*)PSM(lpc));
+				xe_jcc_to(Jcc_NotEqual, DispatchBlockDiscard);
 
 				stg -= 4;
 				lpc += 4;
@@ -1614,8 +1614,8 @@ static void memory_protect_recompiled_code(u32 startpc, u32 size)
 				// not worth the effort (tests show that we have lots of recompiler memory to spare, and
 				// that the current amount of recompilation is fairly cheap).
 
-				xADD(ptr16[&manual_page[inpage_ptr >> 12]], size);
-				xJC(DispatchPageReset);
+				xe_add16_mi(&manual_page[inpage_ptr >> 12], size);
+				xe_jcc_to(Jcc_Below, DispatchPageReset);
 			}
 			break;
 	}
@@ -1637,10 +1637,10 @@ static bool skipMPEG_By_Pattern(u32 sPC)
 			return 0;
 		if (memRead32(sPC + 8) != p2)
 			return 0;
-		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[0]], 1);
-		xMOV(ptr32[&cpuRegs.GPR.n.v0.UL[1]], 0);
-		xMOV(eax, ptr32[&cpuRegs.GPR.n.ra.UL[0]]);
-		xMOV(ptr32[&cpuRegs.pc], eax);
+		xe_mov32_mi(&cpuRegs.GPR.n.v0.UL[0], 1);
+		xe_mov32_mi(&cpuRegs.GPR.n.v0.UL[1], 0);
+		xe_mov32_rm(XE_AX, &cpuRegs.GPR.n.ra.UL[0]);
+		xe_mov32_mr(&cpuRegs.pc, XE_AX);
 		iBranchTest(0xffffffff);
 		g_branch = 1;
 		pc = s_nEndBlock;
@@ -1664,32 +1664,32 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	// if new_v0 > 0 { jump to dispatcher because loop exited early }
 	// else new_v0 is 0, so exit loop
 
-	xMOV(rbx, ptr64[&cpuRegs.cycle]); // ebx = cycle
-	xMOV(rcx, ptr64[&cpuRegs.nextEventCycle]); // ecx = nextEventCycle
-	xCMP(rbx, rcx);
+	xe_mov64_rm(XE_BX, &cpuRegs.cycle); // rbx = cycle
+	xe_mov64_rm(XE_CX, &cpuRegs.nextEventCycle); // rcx = nextEventCycle
+	xe_cmp64_rr(XE_BX, XE_CX);
 	//xJAE((void*)DispatcherEvent); // jump to dispatcher if event immediately
 
 	// TODO: In the case where nextEventCycle < cycle because it's overflowed, tack 8
 	// cycles onto the event count, so hopefully it'll wrap around. This is pretty
 	// gross, but until we switch to 64-bit counters, not many better options.
 	xForwardJB8 not_dispatcher;
-	xADD(rbx, 8);
-	xMOV(ptr64[&cpuRegs.cycle], rbx);
-	xJMP((const void*)DispatcherEvent);
+	xe_add64_ri(XE_BX, 8);
+	xe_mov64_mr(&cpuRegs.cycle, XE_BX);
+	xe_jmp_to(DispatcherEvent);
 	not_dispatcher.SetTarget();
 
-	xMOV(edx, ptr32[&cpuRegs.GPR.r[reg].UL[0]]); // eax = v0
-	xLEA(rax, ptrNative[rdx * 8 + rbx]); // edx = v0 * 8 + cycle
-	xCMP(rcx, rax);
-	xCMOVB(rax, rcx); // eax = new_cycles = min(v8 * 8, nextEventCycle)
-	xMOV(ptr64[&cpuRegs.cycle], rax); // writeback new_cycles
-	xSUB(rax, rbx); // new_cycles -= cycle
-	xSHR(rax, 3); // compute new v0 value
-	xSUB(rdx, rax); // v0 -= cycle_diff
-	xMOV(ptr32[&cpuRegs.GPR.r[reg].UL[0]], edx); // write back new value of v0
-	xJNZ((void*)DispatcherEvent); // jump to dispatcher if new v0 is not zero (i.e. an event)
-	xMOV(ptr32[&cpuRegs.pc], s_nEndBlock); // otherwise end of loop
-	recBlocks.Link(HWADDR(s_nEndBlock), xJcc32(Jcc_Unconditional, 0));
+	xe_mov32_rm(XE_DX, &cpuRegs.GPR.r[reg].UL[0]); // edx = v0
+	{ struct e_mem xm; E_MEM(xm, XE_BX, XE_DX, 8, 0); xe_lea64_mem(XE_AX, xm); } // rax = v0 * 8 + cycle
+	xe_cmp64_rr(XE_CX, XE_AX);
+	xe_cmovb64_rr(XE_AX, XE_CX); // rax = new_cycles = min(v0 * 8, nextEventCycle)
+	xe_mov64_mr(&cpuRegs.cycle, XE_AX); // writeback new_cycles
+	xe_sub64_rr(XE_AX, XE_BX); // new_cycles -= cycle
+	xe_shr64_ri(XE_AX, 3); // compute new v0 value
+	xe_sub64_rr(XE_DX, XE_AX); // v0 -= cycle_diff
+	xe_mov32_mr(&cpuRegs.GPR.r[reg].UL[0], XE_DX); // write back new value of v0
+	xe_jcc_to(Jcc_NotZero, DispatcherEvent); // jump to dispatcher if new v0 is not zero (i.e. an event)
+	xe_mov32_mi(&cpuRegs.pc, s_nEndBlock); // otherwise end of loop
+	{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(s_nEndBlock), xslot); }
 
 	g_branch = 1;
 	pc = s_nEndBlock;
@@ -1772,7 +1772,7 @@ static void recRecompile(const u32 startpc)
 
 	if (g_eeloadMain && HWADDR(startpc) == HWADDR(g_eeloadMain))
 	{
-		xFastCall((const void*)eeloadHook);
+		xe_fastcall0(eeloadHook);
 		if (g_SkipBiosHack)
 		{
 			// There are four known versions of EELOAD, identifiable by the location of the 'jal' to the EELOAD function which
@@ -1789,12 +1789,12 @@ static void recRecompile(const u32 startpc)
 	}
 
 	if (g_eeloadExec && HWADDR(startpc) == HWADDR(g_eeloadExec))
-		xFastCall((const void*)eeloadHook2);
+		xe_fastcall0(eeloadHook2);
 
 	// this is the only way patches get applied, doesn't depend on a hack
 	if (g_GameLoading && HWADDR(startpc) == ElfEntry)
 	{
-		xFastCall((const void*)eeGameStarting);
+		xe_fastcall0(eeGameStarting);
 		VMManager::Internal::EntryPointCompilingOnCPUThread();
 	}
 
@@ -1816,7 +1816,7 @@ static void recRecompile(const u32 startpc)
 			// 0x33ad48 and 0x35060c are the return address of the function (0x356250) that populate the TLB cache
 			// 0x340600 and 0x356334 are the addresses in the June 22 prototype
 			// 0x341ad0 and 0x357844 are the addresses in the August 26 prototype
-			xFastCall((void*)GoemonPreloadTlb, 0x3d5580);
+			xe_fastcall1_i(GoemonPreloadTlb, 0x3d5580);
 		}
 		else if (pc == 0x3563b8 || pc == 0x35d628 || pc == 0x35c118)
 		{
@@ -1825,7 +1825,7 @@ static void recRecompile(const u32 startpc)
 			// 0x3563b8 is the start address of the function that invalidate entry in TLB cache
 			// 0x35c118 is the address in the June 22 prototype
 			// 0x35d628 is the address in the August 26 prototype
-			xFastCall((const void*)GoemonUnloadTlb, ptr32[&cpuRegs.GPR.n.a0.UL[0]]);
+			xe_fastcall1_m32(GoemonUnloadTlb, &cpuRegs.GPR.n.a0.UL[0]);
 		}
 	}
 
@@ -2200,9 +2200,9 @@ StartRecomp:
 				SetBranchImm(pc);
 			else
 			{
-				xMOV(ptr32[&cpuRegs.pc], pc);
-				xADD(ptr64[&cpuRegs.cycle], scaleblockcycles());
-				recBlocks.Link(HWADDR(pc), xJcc32(Jcc_Unconditional, 0));
+				xe_mov32_mi(&cpuRegs.pc, pc);
+				xe_add64_mi(&cpuRegs.cycle, scaleblockcycles());
+				{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(pc), xslot); }
 			}
 		}
 	}
