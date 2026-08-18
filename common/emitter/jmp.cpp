@@ -157,6 +157,8 @@ namespace x86Emitter
 		xCALL(f);
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_FastCall xFastCall = {};
+#endif
 
 } // namespace x86Emitter

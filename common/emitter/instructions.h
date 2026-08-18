@@ -199,7 +199,9 @@ namespace x86Emitter
 #else
 	extern const xImpl_JmpCall xCALL;
 #endif
+#ifndef PCSX2_C89_EMITTER
 	extern const xImpl_FastCall xFastCall;
+#endif
 
 	// ------------------------------------------------------------------------
 #ifdef PCSX2_C89_EMITTER
@@ -287,6 +289,118 @@ namespace x86Emitter
 #endif
 #ifdef PCSX2_C89_EMITTER
 	static __fi void xPUSH(xRegister32or64 from) { shim_xPUSH(from); }
+
+#ifdef PCSX2_C89_EMITTER
+	// xFastCall for the switched build. Every overload is composition over
+	// names bound above -- xMOV, xLEA, xCALL, xPUSH, xPOP -- which is why
+	// this is defined here, after all of them, rather than in the shim
+	// header, which is included before those names exist. Bodies are
+	// transcribed from jmp.cpp; the argument-shuffle in prepare() guards the
+	// case where a1 already sits in arg2reg and a2 in arg1reg, which a naive
+	// pair of MOVs would clobber.
+	struct shim_FastCallObj
+	{
+		template <typename Reg1, typename Reg2>
+		__fi void prepare(const Reg1& a1, const Reg2& a2) const
+		{
+			if (a1.IsEmpty())
+				return;
+			if (a2.Id != arg1reg.Id)
+			{
+				xMOV(Reg1(arg1reg), a1);
+				if (!a2.IsEmpty())
+					xMOV(Reg2(arg2reg), a2);
+			}
+			else if (a1.Id != arg2reg.Id)
+			{
+				xMOV(Reg2(arg2reg), a2);
+				xMOV(Reg1(arg1reg), a1);
+			}
+			else
+			{
+				xPUSH(a1);
+				xMOV(Reg2(arg2reg), a2);
+				xPOP(Reg1(arg1reg));
+			}
+		}
+
+		__fi void callNear(const void* f) const
+		{
+			const sptr disp = ((sptr)xGetPtr() + 5) - (sptr)f;
+			if (disp == (sptr)(s32)disp)
+			{
+				xCALL(f);
+			}
+			else
+			{
+				xLEA(rax, ptr64[f]);
+				xCALL(rax);
+			}
+		}
+
+		__fi void operator()(const void* f, const xRegister32& a1 = xEmptyReg, const xRegister32& a2 = xEmptyReg) const
+		{
+			prepare(a1, a2);
+			callNear(f);
+		}
+		__fi void operator()(const void* f, const xRegisterLong& a1, const xRegisterLong& a2 = xEmptyReg) const
+		{
+			prepare(a1, a2);
+			callNear(f);
+		}
+		__fi void operator()(const void* f, u32 a1, const xRegisterLong& a2) const
+		{
+			if (!a2.IsEmpty())
+				xMOV(arg2reg, a2);
+			xMOV(arg1reg, a1);
+			(*this)(f, arg1reg, arg2reg);
+		}
+		__fi void operator()(const void* f, void* a1) const
+		{
+			xLEA(arg1reg, ptr[a1]);
+			(*this)(f, arg1reg, arg2reg);
+		}
+		__fi void operator()(const void* f, u32 a1, const xRegister32& a2) const
+		{
+			if (!a2.IsEmpty())
+				xMOV(arg2regd, a2);
+			xMOV(arg1regd, a1);
+			(*this)(f, arg1regd, arg2regd);
+		}
+		__fi void operator()(const void* f, const xIndirect32& a1) const
+		{
+			xMOV(arg1regd, a1);
+			(*this)(f, arg1regd);
+		}
+		__fi void operator()(const void* f, u32 a1, u32 a2) const
+		{
+			xMOV(arg1regd, a1);
+			xMOV(arg2regd, a2);
+			(*this)(f, arg1regd, arg2regd);
+		}
+		__fi void operator()(const xIndirectNative& f, const xRegisterLong& a1, const xRegisterLong& a2 = xEmptyReg) const
+		{
+			prepare(a1, a2);
+			xCALL(f);
+		}
+		template <typename T>
+		__fi void operator()(T* func, u32 a1, const xRegisterLong& a2 = xEmptyReg) const
+		{
+			(*this)((const void*)func, a1, a2);
+		}
+		template <typename T>
+		__fi void operator()(T* func, const xIndirect32& a1) const
+		{
+			(*this)((const void*)func, a1);
+		}
+		template <typename T>
+		__fi void operator()(T* func, u32 a1, u32 a2) const
+		{
+			(*this)((const void*)func, a1, a2);
+		}
+	};
+	static const shim_FastCallObj xFastCall = {};
+#endif
 #else
 	extern void xPUSH(xRegister32or64 from);
 #endif
