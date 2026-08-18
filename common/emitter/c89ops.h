@@ -1035,4 +1035,167 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	  E_P16(xep); E_REX_MEM(xep, 0, (reg), xm_); \
 	  EW8(xep, 0x0f); EW8(xep, 0xbf); E_MODRM_MEM(xep, (reg), xm_, 0); }, \
 	x86Emitter::xMOVSX(x86Emitter::xRegister32(reg), x86Emitter::ptr16[(void*)(addr)]))
+
+/* ================= iFPU vocabulary ================= */
+#define xe_addsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x58, (d), (s)), \
+	x86Emitter::xADD.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_addss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x58, (d), (s)), \
+	x86Emitter::xADD.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_andpd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x54, (d), (s)), \
+	x86Emitter::xAND.PD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_andps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x54, (d), (s)), \
+	x86Emitter::xAND.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_cvtdq2ps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x5b, (d), (s)), \
+	x86Emitter::xCVTDQ2PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_cvtsd2ss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x5a, (d), (s)), \
+	x86Emitter::xCVTSD2SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_cvtss2sd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x5a, (d), (s)), \
+	x86Emitter::xCVTSS2SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_divsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x5e, (d), (s)), \
+	x86Emitter::xDIV.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_divss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x5e, (d), (s)), \
+	x86Emitter::xDIV.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_maxsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x5f, (d), (s)), \
+	x86Emitter::xMAX.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_maxss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x5f, (d), (s)), \
+	x86Emitter::xMAX.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_minsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x5d, (d), (s)), \
+	x86Emitter::xMIN.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_minss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x5d, (d), (s)), \
+	x86Emitter::xMIN.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_movaps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x28, (d), (s)), \
+	x86Emitter::xMOVAPS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_mulsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x59, (d), (s)), \
+	x86Emitter::xMUL.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_mulss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x59, (d), (s)), \
+	x86Emitter::xMUL.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_orps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x56, (d), (s)), \
+	x86Emitter::xOR.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pminud_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x3b38, (d), (s)), \
+	x86Emitter::xPMIN.UD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xfb, (d), (s)), \
+	x86Emitter::xPSUB.Q(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_sqrtsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x51, (d), (s)), \
+	x86Emitter::xSQRT.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_sqrtss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x51, (d), (s)), \
+	x86Emitter::xSQRT.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_subsd_xx(d, s) XE_2(E_SSE_RR(xep, 0xf2, 0x5c, (d), (s)), \
+	x86Emitter::xSUB.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_subss_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x5c, (d), (s)), \
+	x86Emitter::xSUB.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_ucomisd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x2e, (d), (s)), \
+	x86Emitter::xUCOMI.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_ucomiss_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x2e, (d), (s)), \
+	x86Emitter::xUCOMI.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_xorpd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x57, (d), (s)), \
+	x86Emitter::xXOR.PD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_xorps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x57, (d), (s)), \
+	x86Emitter::xXOR.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+/* movss dst,src elides self-moves in the reference (shim_xMOVSS); the
+ * c89 arm replicates the elision so both arms stay in step. */
+#define xe_movss_xx(d, s) XE_2( \
+	{ if ((d) != (s)) E_SSE_RR(xep, 0xf3, 0x10, (d), (s)); }, \
+	x86Emitter::xMOVSS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+/* cmpeq.ss = CMPSS with imm 0 appended */
+#define xe_cmpeqss_xx(d, s) XE_2(E_SSE_RRI(xep, 0xf3, 0xc2, (d), (s), 0), \
+	x86Emitter::xCMPEQ.SS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_movsszx_xm(xmm, addr) xe_movss_xm(xmm, addr)
+#define xe_movdzx_xr(xmm, gpr) XE_2(E_SSE_RR_W(xep, 0x66, 0x6e, (xmm), (gpr), 0), \
+	x86Emitter::xMOVDZX(x86Emitter::xRegisterSSE(xmm), x86Emitter::xRegister32(gpr)))
+#define xe_movd_mx(addr, xmm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM_W(xep, 0x66, 0x7e, (xmm), xm_, 0); }, \
+	x86Emitter::xMOVD(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegisterSSE(xmm)))
+#define xe_movaps_xm(xmm, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM(xep, 0x00, 0x28, (xmm), xm_); }, \
+	x86Emitter::xMOVAPS(x86Emitter::xRegisterSSE(xmm), x86Emitter::ptr128[(void*)(addr)]))
+#define xe_ldmxcsr_m(addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 0, 2, xm_); EW8(xep, 0x0f); EW8(xep, 0xae); \
+	  E_MODRM_MEM(xep, 2, xm_, 0); }, \
+	x86Emitter::xLDMXCSR(x86Emitter::ptr32[(void*)(addr)]))
+#define xe_ucomiss_xm(xmm, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM(xep, 0x00, 0x2e, (xmm), xm_); }, \
+	x86Emitter::xUCOMI.SS(x86Emitter::xRegisterSSE(xmm), x86Emitter::ptr32[(void*)(addr)]))
+
+
+/* iFPU memory-operand SSE forms and the CVT family */
+#define XE_SSE_XM(name, pre, opc, cxxexpr) /* doc helper only */
+#define xe_andps_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x54, (x), xm_); }, \
+	x86Emitter::xAND.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_orps_xm(x, addr)   XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x56, (x), xm_); }, \
+	x86Emitter::xOR.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_xorps_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x57, (x), xm_); }, \
+	x86Emitter::xXOR.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_por_xm(x, addr)    XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0xeb, (x), xm_); }, \
+	x86Emitter::xPOR(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_minss_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x5d, (x), xm_); }, \
+	x86Emitter::xMIN.SS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_maxss_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x5f, (x), xm_); }, \
+	x86Emitter::xMAX.SS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_ucomisd_xm(x, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x2e, (x), xm_); }, \
+	x86Emitter::xUCOMI.SD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_movd_xr(xmm, gpr)  xe_movdzx_xr(xmm, gpr)
+#define xe_movd_rx32(gpr, xmm) xe_movd_rx(gpr, xmm)
+#define xe_cvttss2si_rx(gpr, xmm) XE_2(E_SSE_RR(xep, 0xf3, 0x2c, (gpr), (xmm)), \
+	x86Emitter::xCVTTSS2SI(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(xmm)))
+#define xe_cvtsi2ss_xr(xmm, gpr) XE_2(E_SSE_RR(xep, 0xf3, 0x2a, (xmm), (gpr)), \
+	x86Emitter::xCVTSI2SS(x86Emitter::xRegisterSSE(xmm), x86Emitter::xRegister32(gpr)))
+#define xe_insertps_xxi(d, s, i) XE_2(E_SSE_RRI_W(xep, 0x66, 0x213a, (d), (s), (i), 0), \
+	x86Emitter::xINSERTPS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s), (i)))
+
+/* last iFPU/iFPUd gaps: packed-integer mem forms over the double-domain
+ * constants, andpd, cvt with memory sources, cvttss2si from memory,
+ * test-mem-imm, and the 32-bit register cmov. */
+#define xe_pminsd_xm(x, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x3938, (x), xm_); }, \
+	x86Emitter::xPMIN.SD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr128[(void*)(addr)]))
+#define xe_pminud_xm(x, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x3b38, (x), xm_); }, \
+	x86Emitter::xPMIN.UD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr128[(void*)(addr)]))
+#define xe_psubd_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0xfa, (x), xm_); }, \
+	x86Emitter::xPSUB.D(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_paddd_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0xfe, (x), xm_); }, \
+	x86Emitter::xPADD.D(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_psubq_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0xfb, (x), xm_); }, \
+	x86Emitter::xPSUB.Q(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_paddq_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0xd4, (x), xm_); }, \
+	x86Emitter::xPADD.Q(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_andpd_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x54, (x), xm_); }, \
+	x86Emitter::xAND.PD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[(void*)(addr)]))
+#define xe_cvtsi2ss_xm(x, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x2a, (x), xm_); }, \
+	x86Emitter::xCVTSI2SS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_cvttss2si_rm(gpr, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x2c, (gpr), xm_); }, \
+	x86Emitter::xCVTTSS2SI(x86Emitter::xRegister32(gpr), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_test32_mi(addr, imm) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_REX_MEM(xep, 0, 0, xm_); EW8(xep, 0xf7); \
+	E_MODRM_MEM(xep, 0, xm_, 4); EW32(xep, (e_u32)(imm)); }, \
+	x86Emitter::xTEST(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+#define xe_cmovge32_rr(dst, src) XE_2( \
+	{ E_REX(xep, 0, (dst), 0, (src)); \
+	  EW8(xep, 0x0f); EW8(xep, (e_u8)(0x40 | x86Emitter::Jcc_GreaterOrEqual)); \
+	  E_MODRM_RR(xep, (dst), (src)); }, \
+	x86Emitter::xCMOVGE(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src)))
+
+/* or dword [abs], imm (the FPU flag-set sites) */
+#define xe_or32_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 1, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xOR(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
 #endif /* PCSX2_C89OPS_H */
