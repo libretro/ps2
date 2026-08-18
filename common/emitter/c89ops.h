@@ -335,4 +335,69 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_g2op64_rcl(g2op, reg)  XE_2(E_G2_RCL(xep, 1, (g2op), (reg)), \
 	XE_G2_CXX_RCL((g2op), (reg), 64))
 
+
+/* absolute-address e_mem, for the SSE/CMov wrappers below */
+#define XE_MEM_ABS(m, addr) E_MEM(m, E_NOREG, E_NOREG, 0, (e_sptr)(addr))
+
+/* SSE register moves used by the HILO<->xmm paths */
+#define xe_movhlps(dx, sx)     XE_2(E_SSE_RR(xep, 0x00, 0x12, (dx), (sx)), \
+	x86Emitter::xMOVHL.PS(x86Emitter::xRegisterSSE(dx), x86Emitter::xRegisterSSE(sx)))
+#define xe_movlhps(dx, sx)     XE_2(E_SSE_RR(xep, 0x00, 0x16, (dx), (sx)), \
+	x86Emitter::xMOVLH.PS(x86Emitter::xRegisterSSE(dx), x86Emitter::xRegisterSSE(sx)))
+#define xe_movsd_xx(dx, sx)    XE_2(E_SSE_RR(xep, 0xf2, 0x10, (dx), (sx)), \
+	x86Emitter::xMOVSD(x86Emitter::xRegisterSSE(dx), x86Emitter::xRegisterSSE(sx)))
+
+/* movq gpr64<-xmm (the reference spells it xMOVD on a 64-bit GPR) and
+ * movq [abs]<-xmm / xmm<-nothing else needed yet */
+#define xe_movq_rx(gpr, xmm)   XE_2(E_SSE_RR_W(xep, 0x66, 0x7e, (xmm), (gpr), 1), \
+	x86Emitter::xMOVD(x86Emitter::xRegister64(gpr), x86Emitter::xRegisterSSE(xmm)))
+#define xe_movq_mx(addr, xmm)  XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM_W(xep, 0x66, 0xd6, (xmm), xm_, 0); }, \
+	x86Emitter::xMOVQ(x86Emitter::ptr64[(void*)(addr)], x86Emitter::xRegisterSSE(xmm)))
+
+/* pinsrq/pextrq with memory forms on absolute addresses */
+#define xe_pinsrq_xm(xmm, addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM_I_W(xep, 0x66, 0x223a, (xmm), xm_, (imm), 1); }, \
+	x86Emitter::xPINSR.Q(x86Emitter::xRegisterSSE(xmm), x86Emitter::ptr64[(void*)(addr)], (imm)))
+#define xe_pextrq_rx(gpr, xmm, imm) XE_2( \
+	E_SSE_RRI_W(xep, 0x66, 0x163a, (xmm), (gpr), (imm), 1), \
+	x86Emitter::xPEXTR.Q(x86Emitter::xRegister64(gpr), x86Emitter::xRegisterSSE(xmm), (imm)))
+#define xe_pextrq_mx(addr, xmm, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM_I_W(xep, 0x66, 0x163a, (xmm), xm_, (imm), 1); }, \
+	x86Emitter::xPEXTR.Q(x86Emitter::ptr64[(void*)(addr)], x86Emitter::xRegisterSSE(xmm), (imm)))
+
+/* test r64, r64 */
+#define xe_test64_rr(a, b)     XE_2(E_TEST_RR_SZ(xep, 8, (a), (b)), \
+	x86Emitter::xTEST(x86Emitter::xRegister64(a), x86Emitter::xRegister64(b)))
+
+/* cmp qword [abs], imm -- E_G1_MEM_I with an absolute e_mem */
+#define xe_cmp64_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 8, 7, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xCMP(x86Emitter::ptr64[(void*)(addr)], (imm)))
+
+/* cmovcc r64, r64 / r64, [abs]; cc is the Jcc_ number */
+#define XE_CMOV_CXX_RR(cc, dst, src) do { \
+	switch (cc) { \
+	case x86Emitter::Jcc_Equal:    x86Emitter::xCMOVE (x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)); break; \
+	case x86Emitter::Jcc_NotEqual: x86Emitter::xCMOVNE(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)); break; \
+	default: break; } } while (0)
+#define XE_CMOV_CXX_RM(cc, dst, addr) do { \
+	switch (cc) { \
+	case x86Emitter::Jcc_Equal:    x86Emitter::xCMOVE (x86Emitter::xRegister64(dst), x86Emitter::ptr64[(void*)(addr)]); break; \
+	case x86Emitter::Jcc_NotEqual: x86Emitter::xCMOVNE(x86Emitter::xRegister64(dst), x86Emitter::ptr64[(void*)(addr)]); break; \
+	default: break; } } while (0)
+#define xe_cmovcc64_rr(cc, dst, src) XE_2( \
+	E_REX(xep, 1, (dst), 0, (src)); EW8(xep, 0x0f); \
+	EW8(xep, (e_u8)(0x40 | (cc))); E_MODRM_RR(xep, (dst), (src)), \
+	XE_CMOV_CXX_RR((cc), (dst), (src)))
+#define xe_cmovcc64_rm(cc, dst, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 1, (dst), xm_); EW8(xep, 0x0f); \
+	  EW8(xep, (e_u8)(0x40 | (cc))); E_MODRM_MEM(xep, (dst), xm_, 0); }, \
+	XE_CMOV_CXX_RM((cc), (dst), (addr)))
+
 #endif /* PCSX2_C89OPS_H */

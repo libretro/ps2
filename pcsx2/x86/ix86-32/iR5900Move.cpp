@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -83,17 +84,17 @@ static void recMFHILO(bool hi, bool upper)
 		if (xmmhilo >= 0)
 		{
 			if (upper)
-				xMOVHL.PS(xRegisterSSE(xmmd), xRegisterSSE(xmmhilo));
+				xe_movhlps(xmmd, xmmhilo);
 			else
-				xMOVSD(xRegisterSSE(xmmd), xRegisterSSE(xmmhilo));
+				xe_movsd_xx(xmmd, xmmhilo);
 		}
 		else
 		{
 			const int gprhilo = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_READ);
 			if (gprhilo >= 0)
-				xPINSR.Q(xRegisterSSE(xmmd), xRegister64(gprhilo), 0);
+				xe_pinsrq(xmmd, gprhilo, 0);
 			else
-				xPINSR.Q(xRegisterSSE(xmmd), ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]], 0);
+				xe_pinsrq_xm(xmmd, hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)], 0);
 		}
 	}
 	else
@@ -107,32 +108,32 @@ static void recMFHILO(bool hi, bool upper)
 		if (gprd >= 0 && xmmhilo >= 0)
 		{
 			if (upper)
-				xPEXTR.Q(xRegister64(gprd), xRegisterSSE(xmmhilo), 1);
+				xe_pextrq_rx(gprd, xmmhilo, 1);
 			else
-				xMOVD(xRegister64(gprd), xRegisterSSE(xmmhilo));
+				xe_movq_rx(gprd, xmmhilo);
 		}
 		else if (gprd < 0 && xmmhilo >= 0)
 		{
 			if (upper)
-				xPEXTR.Q(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegisterSSE(xmmhilo), 1);
+				xe_pextrq_mx(&cpuRegs.GPR.r[_Rd_].UD[0], xmmhilo, 1);
 			else
-				xMOVQ(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegisterSSE(xmmhilo));
+				xe_movq_mx(&cpuRegs.GPR.r[_Rd_].UD[0], xmmhilo);
 		}
 		else if (gprd >= 0)
 		{
 			if (gprreg >= 0)
-				xMOV(xRegister64(gprd), xRegister64(gprreg));
+				xe_mov64_rr(gprd, gprreg);
 			else
-				xMOV(xRegister64(gprd), ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]]);
+				xe_mov64_rm(gprd, hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]);
 		}
 		else if (gprreg >= 0)
 		{
-			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], xRegister64(gprreg));
+			xe_mov64_mr(&cpuRegs.GPR.r[_Rd_].UD[0], gprreg);
 		}
 		else
 		{
-			xMOV(rax, ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]]);
-			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
+			xe_mov64_rm(XE_AX, hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]);
+			xe_mov64_mr(&cpuRegs.GPR.r[_Rd_].UD[0], XE_AX);
 		}
 	}
 }
@@ -149,17 +150,17 @@ static void recMTHILO(bool hi, bool upper)
 		if (xmmhilo >= 0)
 		{
 			if (upper)
-				xMOVLH.PS(xRegisterSSE(xmmhilo), xRegisterSSE(xmms));
+				xe_movlhps(xmmhilo, xmms);
 			else
-				xMOVSD(xRegisterSSE(xmmhilo), xRegisterSSE(xmms));
+				xe_movsd_xx(xmmhilo, xmms);
 		}
 		else
 		{
 			const int gprhilo = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_WRITE);
 			if (gprhilo >= 0)
-				xMOVD(xRegister64(gprhilo), xRegisterSSE(xmms)); // actually movq
+				xe_movq_rx(gprhilo, xmms); // movq: 66 REX.W 0f 7e
 			else
-				xMOVQ(ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]], xRegisterSSE(xmms));
+				xe_movq_mx(hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)], xmms);
 		}
 	}
 	else
@@ -170,17 +171,17 @@ static void recMTHILO(bool hi, bool upper)
 		{
 			if (gprs >= 0)
 			{
-				xPINSR.Q(xRegisterSSE(xmmhilo), xRegister64(gprs), static_cast<u8>(upper));
+				xe_pinsrq(xmmhilo, gprs, static_cast<u8>(upper));
 			}
 			else if (GPR_IS_CONST1(_Rs_))
 			{
 				// force it into a register, since we need to load the constant anyway
 				gprs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
-				xPINSR.Q(xRegisterSSE(xmmhilo), xRegister64(gprs), static_cast<u8>(upper));
+				xe_pinsrq(xmmhilo, gprs, static_cast<u8>(upper));
 			}
 			else
 			{
-				xPINSR.Q(xRegisterSSE(xmmhilo), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], static_cast<u8>(upper));
+				xe_pinsrq_xm(xmmhilo, &cpuRegs.GPR.r[_Rs_].UD[0], static_cast<u8>(upper));
 			}
 		}
 		else
@@ -198,7 +199,7 @@ static void recMTHILO(bool hi, bool upper)
 			{
 				// force into a register, since we need to load it to write anyway
 				gprs = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
-				xMOV(ptr64[hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)]], xRegister64(gprs));
+				xe_mov64_mr(hi ? &cpuRegs.HI.UD[static_cast<u8>(upper)] : &cpuRegs.LO.UD[static_cast<u8>(upper)], gprs);
 			}
 		}
 	}
@@ -257,32 +258,32 @@ static void recMOVZtemp_consts(int info)
 	// we need the constant anyway, so just force it into a register
 	const int regs = (info & PROCESS_EE_S) ? EEREC_S : _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	if (info & PROCESS_EE_T)
-		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+		xe_test64_rr(EEREC_T, EEREC_T);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rt_].UD[0], 0);
 
-	xCMOVE(xRegister64(EEREC_D), xRegister64(regs));
+	xe_cmovcc64_rr(Jcc_Equal, EEREC_D, regs);
 }
 
 static void recMOVZtemp_constt(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		xe_mov64_rr(EEREC_D, EEREC_S);
 	else
-		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xe_mov64_rm(EEREC_D, &cpuRegs.GPR.r[_Rs_].UD[0]);
 }
 
 static void recMOVZtemp_(int info)
 {
 	if (info & PROCESS_EE_T)
-		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+		xe_test64_rr(EEREC_T, EEREC_T);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rt_].UD[0], 0);
 
 	if (info & PROCESS_EE_S)
-		xCMOVE(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		xe_cmovcc64_rr(Jcc_Equal, EEREC_D, EEREC_S);
 	else
-		xCMOVE(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xe_cmovcc64_rm(Jcc_Equal, EEREC_D, &cpuRegs.GPR.r[_Rs_].UD[0]);
 }
 
 // Specify READD here, because we might not write to it, and want to preserve the value.
@@ -310,32 +311,32 @@ static void recMOVNtemp_consts(int info)
 	// we need the constant anyway, so just force it into a register
 	const int regs = (info & PROCESS_EE_S) ? EEREC_S : _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	if (info & PROCESS_EE_T)
-		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+		xe_test64_rr(EEREC_T, EEREC_T);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rt_].UD[0], 0);
 
-	xCMOVNE(xRegister64(EEREC_D), xRegister64(regs));
+	xe_cmovcc64_rr(Jcc_NotEqual, EEREC_D, regs);
 }
 
 static void recMOVNtemp_constt(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		xe_mov64_rr(EEREC_D, EEREC_S);
 	else
-		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xe_mov64_rm(EEREC_D, &cpuRegs.GPR.r[_Rs_].UD[0]);
 }
 
 static void recMOVNtemp_(int info)
 {
 	if (info & PROCESS_EE_T)
-		xTEST(xRegister64(EEREC_T), xRegister64(EEREC_T));
+		xe_test64_rr(EEREC_T, EEREC_T);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rt_].UD[0], 0);
 
 	if (info & PROCESS_EE_S)
-		xCMOVNE(xRegister64(EEREC_D), xRegister64(EEREC_S));
+		xe_cmovcc64_rr(Jcc_NotEqual, EEREC_D, EEREC_S);
 	else
-		xCMOVNE(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xe_cmovcc64_rm(Jcc_NotEqual, EEREC_D, &cpuRegs.GPR.r[_Rs_].UD[0]);
 }
 
 static EERECOMPILE_CODERC0(MOVNtemp, XMMINFO_READS | XMMINFO_READT | XMMINFO_READD | XMMINFO_WRITED | XMMINFO_NORENAME);
