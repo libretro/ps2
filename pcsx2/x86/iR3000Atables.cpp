@@ -33,7 +33,7 @@ extern u32 g_psxMaxRecMem;
 	{ \
 		xe_mov32_mi(&psxRegs.code, (u32)psxRegs.code); \
 		_psxFlushCall(FLUSH_EVERYTHING); \
-		xFastCall((void*)(uptr)psx##f); \
+		xe_fastcall0((uptr)psx##f); \
 		PSX_DEL_CONST(_Rt_); \
 		/*	branch = 2; */ \
 	}
@@ -44,7 +44,7 @@ extern u32 g_psxMaxRecMem;
 	{ \
 		xe_mov32_mi(&psxRegs.code, (u32)psxRegs.code); \
 		_psxFlushCall(FLUSH_EVERYTHING); \
-		xFastCall((void*)(uptr)gte##f); \
+		xe_fastcall0((uptr)gte##f); \
 		PSX_DEL_CONST(_Rt_); \
 		/*	branch = 2; */ \
 	}
@@ -1072,18 +1072,18 @@ static void rpsxLoad(int size, bool sign)
 
 	_psxFlushCall(FLUSH_FULLVTLB);
 	xe_test32_ri(arg1regd.Id, 0x10000000);
-	xForwardJZ8 is_ram_read;
+	e_u8* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
 
 	switch (size)
 	{
 		case 8:
-			xFastCall((void*)iopMemRead8);
+			xe_fastcall0(iopMemRead8);
 			break;
 		case 16:
-			xFastCall((void*)iopMemRead16);
+			xe_fastcall0(iopMemRead16);
 			break;
 		case 32:
-			xFastCall((void*)iopMemRead32);
+			xe_fastcall0(iopMemRead32);
 			break;
 		default:
 			break;
@@ -1092,33 +1092,34 @@ static void rpsxLoad(int size, bool sign)
 	if (_Rt_ == 0)
 	{
 		// dummy read
-		is_ram_read.SetTarget();
+		xe_fwd_set8(is_ram_read);
 		return;
 	}
 
-	xForwardJump8 done;
-	is_ram_read.SetTarget();
+	e_u8* done; xe_fwd_jmp8(done);
+	xe_fwd_set8(is_ram_read);
 
 	// read from psM directly
 	xe_and32_ri(arg1regd.Id, 0x1fffff);
 
-	auto addr = xComplexAddress(rax, iopMem->Main, arg1reg);
+	struct e_mem addr;
+	xe_complexaddr(addr, 0 /* rax */, iopMem->Main, x86Emitter::arg1reg.Id);
 	switch (size)
 	{
 		case 8:
-			xMOVZX(eax, ptr8[addr]);
+			xe_movzx32_mem8(XE_AX, addr);
 			break;
 		case 16:
-			xMOVZX(eax, ptr16[addr]);
+			xe_movzx32_mem16(XE_AX, addr);
 			break;
 		case 32:
-			xMOV(eax, ptr32[addr]);
+			xe_mov32_rmem(XE_AX, addr);
 			break;
 		default:
 			break;
 	}
 
-	done.SetTarget();
+	xe_fwd_set8(done);
 
 	const int rt = rpsxAllocRegIfUsed(_Rt_, MODE_WRITE);
 	const int dreg = (rt < 0) ? XE_AX : rt;
@@ -1207,13 +1208,13 @@ static void rpsxLoadUnaligned(bool isLeft)
 	_psxFlushCall(FLUSH_FULLVTLB);
 
 	xe_test32_ri(arg1regd.Id, 0x10000000);
-	xForwardJZ8 is_ram_read;
-	xFastCall((void*)iopMemRead32);
-	xForwardJump8 done;
-	is_ram_read.SetTarget();
+	e_u8* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
+	xe_fastcall0(iopMemRead32);
+	e_u8* done; xe_fwd_jmp8(done);
+	xe_fwd_set8(is_ram_read);
 	xe_and32_ri(arg1regd.Id, 0x1fffff);
-	xMOV(eax, ptr32[xComplexAddress(rax, iopMem->Main, arg1reg)]);
-	done.SetTarget();
+	{ struct e_mem xm; xe_complexaddr(xm, 0 /* rax */, iopMem->Main, x86Emitter::arg1reg.Id); xe_mov32_rmem(XE_AX, xm); }
+	xe_fwd_set8(done);
 	// EAX holds the aligned word; arg1regd is dead from here on.
 
 	if (_Rt_ == 0)
@@ -1285,7 +1286,7 @@ static void rpsxStoreUnaligned(bool isLeft)
 
 	xe_mov32_rr(XE_AX, arg1regd.Id);
 	xe_test32_ri(XE_AX, 0x10000000);
-	xForwardJump8 not_ram(Jcc_NotZero);
+	e_u8* not_ram; xe_fwd_jcc8(Jcc_NotZero, not_ram);
 
 	// --- RAM: inline the read, then merge ---
 	xe_mov32_rr(XE_CX, XE_AX);
@@ -1297,7 +1298,7 @@ static void rpsxStoreUnaligned(bool isLeft)
 	// imm) has no 64-bit immediate form and silently truncates. The helper
 	// emits a RIP-relative LEA when the base does not fit a signed 32-bit
 	// displacement, which is why rpsxLoad uses it.
-	xMOV(eax, ptr32[xComplexAddress(r8, iopMem->Main, rdx)]);
+	{ struct e_mem xm; xe_complexaddr(xm, 8 /* r8 */, iopMem->Main, XE_DX); xe_mov32_rmem(XE_AX, xm); }
 
 	if (isLeft)
 	{
@@ -1328,13 +1329,13 @@ static void rpsxStoreUnaligned(bool isLeft)
 	xe_mov32_rm(arg1regd.Id, &s_psx_unaligned_addr);
 	xe_and32_ri(arg1regd.Id, 0xfffffffc);
 	xe_mov32_rr(arg2regd.Id, XE_AX);
-	xFastCall((void*)iopMemWrite32);
-	xForwardJump8 done;
+	xe_fastcall0(iopMemWrite32);
+	e_u8* done; xe_fwd_jmp8(done);
 
-	not_ram.SetTarget();
-	xFastCall((void*)(uptr)(isLeft ? psxSWL : psxSWR));
+	xe_fwd_set8(not_ram);
+	xe_fastcall0((uptr)(isLeft ? psxSWL : psxSWR));
 
-	done.SetTarget();
+	xe_fwd_set8(done);
 }
 
 static void rpsxSWL() { rpsxStoreUnaligned(true); }
@@ -1370,7 +1371,7 @@ static void rpsxSB()
 	rpsxCalcAddressOperand();
 	rpsxCalcStoreOperand();
 	_psxFlushCall(FLUSH_FULLVTLB);
-	xFastCall((void*)iopMemWrite8);
+	xe_fastcall0(iopMemWrite8);
 }
 
 static void rpsxSH()
@@ -1378,7 +1379,7 @@ static void rpsxSH()
 	rpsxCalcAddressOperand();
 	rpsxCalcStoreOperand();
 	_psxFlushCall(FLUSH_FULLVTLB);
-	xFastCall((void*)iopMemWrite16);
+	xe_fastcall0(iopMemWrite16);
 }
 
 static void rpsxSW()
@@ -1394,7 +1395,7 @@ static void rpsxSW()
 	rpsxCalcAddressOperand();
 	rpsxCalcStoreOperand();
 	_psxFlushCall(FLUSH_FULLVTLB);
-	xFastCall((void*)iopMemWrite32);
+	xe_fastcall0(iopMemWrite32);
 }
 
 //// SLL
@@ -2154,7 +2155,7 @@ static void rpsxRFE()
 	// Test the IOP's INTC status, so that any pending ints get raised.
 
 	_psxFlushCall(0);
-	xFastCall((void*)(uptr)&iopTestIntc);
+	xe_fastcall0((uptr)&iopTestIntc);
 }
 
 //// COP2

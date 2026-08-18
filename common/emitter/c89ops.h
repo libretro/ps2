@@ -520,4 +520,70 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_or32_mr(addr, reg)  XE_2(E_G1_MR(xep, 0, 1, (reg), (e_uptr)(addr)), \
 	x86Emitter::xOR(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegister32(reg)))
 
+
+/* ---- control flow ---------------------------------------------------- */
+
+/* fastcall to a fixed target: near call when the displacement fits s32,
+ * else lea rax, [target]; call rax -- the reference's exact choice
+ * (jmp.cpp:84-93), so emitted length depends on where the cache landed. */
+#define xe_fastcall0(fn) XE_2( \
+	{ e_sptr xd_ = ((e_sptr)xep + 5) - (e_sptr)(fn); \
+	  if (xd_ == (e_sptr)(e_s32)xd_) { E_CALL_REL(xep, (fn)); } \
+	  else { \
+		struct e_mem xm_; XE_MEM_ABS(xm_, (fn)); \
+		E_LEA(xep, 1, 0, 0 /* rax */, xm_); \
+		E_CALL_R(xep, 0); \
+	  } }, \
+	x86Emitter::xFastCall((void*)(fn)))
+
+/* forward jumps: emit with a zero displacement, remember the slot as a
+ * plain e_u8*, patch at the target. The C++ twins use the legacy
+ * byte-writer macros (same 0xEB / 0x70|cc encodings, same byte-verified
+ * lineage) because a twin arm cannot share an xForwardJump8 object whose
+ * constructor emits. */
+#define xe_fwd_jmp8(slot) XE_2( \
+	EW8(xep, 0xeb); (slot) = xep; EW8(xep, 0), \
+	{ (slot) = (e_u8*)JMP8(0); })
+#define xe_fwd_jcc8(cc, slot) XE_2( \
+	EW8(xep, (e_u8)(0x70 | (cc))); (slot) = xep; EW8(xep, 0), \
+	{ xWrite8((e_u8)(0x70 | (cc))); (slot) = (e_u8*)x86Ptr; xWrite8(0); })
+#define xe_fwd_set8(slot) XE_2( \
+	*(slot) = (e_u8)(xep - ((slot) + 1)), \
+	x86SetJ8((u8*)(slot)))
+
+/* complex-address loads. The builder mirrors xComplexAddress: fold the
+ * absolute base into the displacement when it fits s32, else lea
+ * tmp,[base] and use tmp as the e_mem index with the guest register as
+ * base -- exactly `offset + tmpRegister`. Both arms fill the same e_mem,
+ * and the C++ twin arm emits its LEA through the C++ API so the composed
+ * bytes match the original expression shape. */
+#define XE_MEM_TO_ADDR(m) x86Emitter::xAddressVoid( \
+	(m).base  == E_NOREG ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).base), \
+	(m).index == E_NOREG ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).index), \
+	(m).scale ? (m).scale : 1, (sptr)(m).disp)
+#define xe_complexaddr(m, tmpreg, baseptr, idxreg) do { \
+	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
+		E_MEM(m, (idxreg), E_NOREG, 0, (e_sptr)(baseptr)); \
+	} else if (xe_cpp_mode) { \
+		x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)]); \
+		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
+	} else { \
+		struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
+		XE_OPEN(); E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); \
+		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
+	} } while (0)
+
+#define xe_mov32_rmem(reg, m) XE_2( \
+	E_REX_MEM(xep, 0, (reg), (m)); EW8(xep, 0x8b); \
+	E_MODRM_MEM(xep, (reg), (m), 0), \
+	x86Emitter::xMOV(x86Emitter::xRegister32(reg), x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]))
+#define xe_movzx32_mem8(reg, m) XE_2( \
+	E_REX_MEM(xep, 0, (reg), (m)); EW8(xep, 0x0f); EW8(xep, 0xb6); \
+	E_MODRM_MEM(xep, (reg), (m), 0), \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(reg), x86Emitter::ptr8[XE_MEM_TO_ADDR(m)]))
+#define xe_movzx32_mem16(reg, m) XE_2( \
+	E_REX_MEM(xep, 0, (reg), (m)); EW8(xep, 0x0f); EW8(xep, 0xb7); \
+	E_MODRM_MEM(xep, (reg), (m), 0), \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(reg), x86Emitter::ptr16[XE_MEM_TO_ADDR(m)]))
+
 #endif /* PCSX2_C89OPS_H */
