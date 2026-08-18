@@ -1,0 +1,18 @@
+#!/bin/sh
+# Compile every translation unit that reaches the emitter, with the flag on.
+# Syntax-only, so it is fast enough to run before every claim rather than after.
+D=$(pwd)
+INC="-I$D -I$D/pcsx2 -I$D/pcsx2/x86 -I$D/common -I$D/common/include -I$D/libretro -I$D/libretro/libretro-common/include -I$D/3rdparty -I$D/3rdparty/include -I$D/3rdparty/xbyak -I$D/3rdparty/rapidyaml/rapidyaml/src -I$D/3rdparty/rapidyaml/rapidyaml/ext/c4core/src -I$D/3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include -I$D/3rdparty/cpuinfo/include -I$D/3rdparty/cpuinfo/src -I$D/3rdparty/cpuinfo/deps/clog/include -I$D/3rdparty/d3d12memalloc/include"
+DEFS="-DGIT_VERSION=\"\" -D_GNU_SOURCE -DWANT_THREADING -DHAVE_THREADS -D__LIBRETRO__ -D_FILE_OFFSET_BITS=64 -DMULTI_ISA_SHARED_COMPILATION -DNDEBUG -msse -msse2 -msse4.1 -mfxsr -msse3 -std=c++17 -fno-rtti -fno-exceptions -fPIC -fno-semantic-interposition"
+FLAG="$1"
+fail=0; n=0
+for f in $(grep -rl "x86emitter.h\|x86types.h\|iR5900.h\|microVU" pcsx2 common --include=*.cpp 2>/dev/null | grep -v arm64 | sort); do
+  n=$((n+1))
+  if ! g++ -fsyntax-only $FLAG $DEFS $INC "$f" > /tmp/gate_err.$$ 2>&1; then
+    fail=$((fail+1))
+    echo "=== $f"
+    grep " error:" /tmp/gate_err.$$ | sed 's/.*error: //' | sort -u | head -3
+  fi
+done
+rm -f /tmp/gate_err.$$
+echo "--- $n TUs, $fail failing"

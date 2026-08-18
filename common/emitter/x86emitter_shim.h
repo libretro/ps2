@@ -473,14 +473,74 @@ namespace x86Emitter
 
 	// ---- movzx / movsx ---------------------------------------------------
 
+	// All six overloads the reference declares (implement/movs.h:90-100).
+	// The destination widths differ per overload and the 16-bit destination
+	// takes a 0x66 prefix; movsxd (0x63) is a plain opcode rather than an 0F
+	// escape. Binding only the two I happened to need is what broke eleven
+	// translation units.
 	struct shim_MovExtend
 	{
 		bool SignExtend;
 
-		__fi void operator()(const xRegister32& to, const xRegister16& from) const
-		{ SHIM_BEGIN; E_MOVEXT_RR(p_, 0, SignExtend, 1, to.Id, from.Id); SHIM_END; }
-		__fi void operator()(const xRegister32& to, const xRegister8& from) const
-		{ SHIM_BEGIN; E_MOVEXT_RR(p_, 0, SignExtend, 0, to.Id, from.Id); SHIM_END; }
+		// 8-bit source: destination may be 16, 32 or 64-bit.
+		__fi void operator()(const xRegister16or32or64& to, const xRegister8& from) const
+		{
+			SHIM_BEGIN;
+			// A 16-bit destination takes the operand-size prefix; E_MOVEXT_RR
+			// has no prefix parameter, so it is emitted here.
+			if (to->_operandSize == 2) E_P16(p_);
+			E_MOVEXT_RR(p_, to->_operandSize == 8, SignExtend, 0, to->Id, from.Id);
+			SHIM_END;
+		}
+		__fi void operator()(const xRegister16or32or64& to, const xIndirect8& src) const
+		{
+			struct e_mem m = shim_mem(src);
+			SHIM_BEGIN;
+			if (to->_operandSize == 2) E_P16(p_);
+			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)(SignExtend ? 0xbe : 0xb6));
+			E_MODRM_MEM(p_, to->Id, m, 0);
+			SHIM_END;
+		}
+
+		// 16-bit source: destination 32 or 64-bit, never a 0x66 prefix.
+		__fi void operator()(const xRegister32or64& to, const xRegister16& from) const
+		{
+			SHIM_BEGIN;
+			E_MOVEXT_RR(p_, to->_operandSize == 8, SignExtend, 1, to->Id, from.Id);
+			SHIM_END;
+		}
+		__fi void operator()(const xRegister32or64& to, const xIndirect16& src) const
+		{
+			struct e_mem m = shim_mem(src);
+			SHIM_BEGIN;
+			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)(SignExtend ? 0xbf : 0xb7));
+			E_MODRM_MEM(p_, to->Id, m, 0);
+			SHIM_END;
+		}
+
+		// 32-bit source into 64: movsxd, opcode 0x63, no 0F escape. The
+		// reference emits it for both settings of SignExtend.
+		__fi void operator()(const xRegister64& to, const xRegister32& from) const
+		{
+			SHIM_BEGIN;
+			E_REX(p_, 1, to.Id, 0, from.Id);
+			EW8(p_, 0x63);
+			E_MODRM_RR(p_, to.Id, from.Id);
+			SHIM_END;
+		}
+		__fi void operator()(const xRegister64& to, const xIndirect32& src) const
+		{
+			struct e_mem m = shim_mem(src);
+			SHIM_BEGIN;
+			E_REX_MEM(p_, 1, to.Id, m);
+			EW8(p_, 0x63);
+			E_MODRM_MEM(p_, to.Id, m, 0);
+			SHIM_END;
+		}
 	};
 
 
