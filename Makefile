@@ -543,6 +543,12 @@ endif
 # exclusion in Makefile.common reads it.
 C89_EMITTER ?= 1
 
+# Opt-in A/B verification scaffolding; the flag becomes a define next to
+# PCSX2_C89_EMITTER below -- appending to COMMON_FLAGS here, before the
+# include, silently did nothing, the same trap the C89_EMITTER placement
+# comment above already warns about from the other direction.
+XE_AB ?= 0
+
 include Makefile.common
 
 # The multi-ISA block below uses $(eval) to generate explicit per-tier object
@@ -841,6 +847,14 @@ endif
 # after a full compile.
 ifeq ($(C89_EMITTER), 1)
    CXXFLAGS += -DPCSX2_C89_EMITTER
+endif
+
+# XE_AB=1: compile both the C89 body and the replaced C++ call into every
+# converted site, runtime-selected by PCSX2_XE_CPP=1, for the emission-hash
+# oracle. Roughly +40% text and real compile time in the recompiler TUs;
+# verification workflow only, never release.
+ifeq ($(XE_AB), 1)
+   CXXFLAGS += -DPCSX2_XE_AB
 endif
 
 LDFLAGS += $(fpic) $(SHARED)

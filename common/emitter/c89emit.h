@@ -355,7 +355,10 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
         int rb_ = ((m).base  != E_NOREG && (m).base  >= 8) ? 1 : 0; \
         e_u8 rex_; \
         if (!E_NEEDS_SIB(m)) { rb_ = rx_; rx_ = 0; } \
-        rex_ = (e_u8)(0x40 | ((w)?8:0) | ((((reg)>=8)?1:0)<<2) | (rx_<<1) | rb_); \
+        /* (int) cast: callers pass group-code ENUMS here (they occupy the reg \
+ * field and never take REX.R); Apple clang's enum range analysis flags \
+ * the >=8 comparison as always-false and spams four warnings per TU. */ \
+        rex_ = (e_u8)(0x40 | ((w)?8:0) | ((((int)(reg)>=8)?1:0)<<2) | (rx_<<1) | rb_); \
         if (rex_ != 0x40) EW8((p), rex_); } while (0)
 
 /* EmitSibMagic for the register form. `after` counts bytes emitted after the

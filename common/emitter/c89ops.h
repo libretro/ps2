@@ -39,14 +39,31 @@
  * PCSX2_XE_CPP=1. Same binary, same layout, same embedded pointers; a hash
  * difference between the two modes is the conversion and nothing else.
  * XE_AB and the C++ twins are deleted at the end of the migration. */
+/* XE_AB is OPT-IN (build with PCSX2_XE_AB defined; `make XE_AB=1` or
+ * -DXE_AB=ON in cmake). Default builds compile ONLY the C89 arm: the C++
+ * twin tokens are discarded by the preprocessor, so they cost nothing --
+ * no template instantiation, no runtime branch, no counter. Twins
+ * compiled into every build was a compile-time and code-size regression
+ * on every platform for the benefit of exactly one verification
+ * workflow; that workflow now pays for itself alone. */
+#ifdef PCSX2_XE_AB
 #define XE_AB 1
+#else
+#define XE_AB 0
+#endif
 #if XE_AB
 extern "C" int xe_cpp_mode; /* defined in JitHash.cpp, set from env at load */
 extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
+#define XE_HIT() (xe_site_hits++)
+/* `XE_IF_CPP(stmts) { c89 }`: runtime-select under XE_AB; with it off the
+ * twin tokens vanish and the brace block runs unconditionally. */
+#define XE_IF_CPP(...) if (xe_cpp_mode) { __VA_ARGS__ } else
 #define XE_2(c89body, cppbody) do { \
-	xe_site_hits++; \
+	XE_HIT(); \
 	if (xe_cpp_mode) { cppbody; } else { XE_OPEN(); c89body; XE_CLOSE(); } } while (0)
 #else
+#define XE_HIT() ((void)0)
+#define XE_IF_CPP(...)
 #define XE_2(c89body, cppbody) do { XE_OPEN(); c89body; XE_CLOSE(); } while (0)
 #endif
 
@@ -114,11 +131,11 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
  * composition: op(dst, imm) when s32-representable, else MOV64 tmp, imm
  * followed by the store. */
 #define xe_mov64_mi(addr, tmpreg, imm) do { \
-	xe_site_hits++; \
-	if (xe_cpp_mode) { \
+	XE_HIT(); \
+	XE_IF_CPP( \
 		x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::ptr64[(void*)(addr)], \
 			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	} else if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+	) if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
 		XE_OPEN(); E_MOV_M_I64(xep, (e_uptr)(addr), (e_s32)(imm)); XE_CLOSE(); \
 	} else { \
 		xe_mov64_ri((tmpreg), (imm)); \
@@ -132,11 +149,11 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
  * reference's suboptimality is the contract; shaving it is a later,
  * oracle-visible change of its own. */
 #define xe_imm64op_mov_rr(dst, tmpreg, imm) do { \
-	xe_site_hits++; \
-	if (xe_cpp_mode) { \
+	XE_HIT(); \
+	XE_IF_CPP( \
 		x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::xRegister64(dst), \
 			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	} else if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+	) if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
 		XE_OPEN(); E_MOV_RI(xep, 1, 0, (dst), (e_sptr)(imm)); XE_CLOSE(); \
 	} else { \
 		xe_mov64_ri((tmpreg), (imm)); \
@@ -255,12 +272,11 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 /* xImm64Op over group1 (r64 dest and abs-mem dest), per-op, matching the
  * reference composition exactly including the scratch round-trip. */
 #define XE_IMM64_G1_RR(opn, cxxop, dst, tmpreg, imm) do { \
-	if (xe_cpp_mode) { \
-		xe_site_hits++; \
+	XE_HIT(); \
+	XE_IF_CPP( \
 		x86Emitter::xImm64Op(x86Emitter::cxxop, x86Emitter::xRegister64(dst), \
 			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	} else { \
-		xe_site_hits++; \
+	) { \
 		if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
 			XE_OPEN(); E_G1_RI(xep, 1, opn, (dst), (e_s32)(imm)); XE_CLOSE(); \
 		} else { \
@@ -272,11 +288,11 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_imm64op_cmp64_ri(dst, tmp, imm) XE_IMM64_G1_RR(7, xCMP, dst, tmp, imm)
 
 #define xe_imm64op_cmp64_mi(addr, tmpreg, imm) do { \
-	xe_site_hits++; \
-	if (xe_cpp_mode) { \
+	XE_HIT(); \
+	XE_IF_CPP( \
 		x86Emitter::xImm64Op(x86Emitter::xCMP, x86Emitter::ptr64[(void*)(addr)], \
 			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	} else if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+	) if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
 		/* E_G1_MI is width-less (32-bit); this is the 64-bit form: REX.W
 		 * then the same s8-narrowed body. */ \
 		XE_OPEN(); \
@@ -302,9 +318,9 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	case 6: x86Emitter::xImm64Op(x86Emitter::xXOR, x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
 	default: break; } } while (0)
 #define xe_imm64op_g1op64_ri(g1op, dst, tmpreg, imm) do { \
-	xe_site_hits++; \
-	if (xe_cpp_mode) { XE_IMM64_G1_CXX((g1op), (dst), (tmpreg), (imm)); } \
-	else if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+	XE_HIT(); \
+	XE_IF_CPP(XE_IMM64_G1_CXX((g1op), (dst), (tmpreg), (imm));) \
+	if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
 		XE_OPEN(); E_G1_RI(xep, 1, (g1op), (dst), (e_s32)(imm)); XE_CLOSE(); \
 	} else { \
 		XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
@@ -571,10 +587,10 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_complexaddr(m, tmpreg, baseptr, idxreg) do { \
 	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
 		E_MEM(m, (idxreg), E_NOREG, 0, (e_sptr)(baseptr)); \
-	} else if (xe_cpp_mode) { \
+	} else XE_IF_CPP( \
 		x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)]); \
 		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
-	} else { \
+	) { \
 		struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
 		XE_OPEN(); E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); \
 		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
@@ -615,9 +631,9 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
  * given displacement and stores the address of the 32-bit slot -- the
  * xJcc32 contract, as an out-parameter since macros do not return. */
 #define xe_jcc32_slot(cc, disp, slot) do { \
-	xe_site_hits++; \
-	if (xe_cpp_mode) { (slot) = x86Emitter::xJcc32((x86Emitter::JccComparisonType)(cc), (disp)); } \
-	else { \
+	XE_HIT(); \
+	XE_IF_CPP((slot) = x86Emitter::xJcc32((x86Emitter::JccComparisonType)(cc), (disp));) \
+	{ \
 		XE_OPEN(); \
 		if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
 		else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
@@ -642,10 +658,10 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_complexaddr_si(m, tmpreg, baseptr, idxreg, sc) do { \
 	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
 		E_MEM(m, E_NOREG, (idxreg), (sc), (e_sptr)(baseptr)); \
-	} else if (xe_cpp_mode) { \
+	} else XE_IF_CPP( \
 		x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)]); \
 		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
-	} else { \
+	) { \
 		struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
 		XE_OPEN(); E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); \
 		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
