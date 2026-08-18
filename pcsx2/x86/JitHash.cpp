@@ -46,6 +46,19 @@ namespace
 	};
 } // namespace
 
+// Selects the C++ twin inside converted xe_* macros; see c89ops.h. Read
+// once at load so the choice is in place before any block compiles.
+extern "C" int xe_cpp_mode;
+int xe_cpp_mode;
+static struct XeModeInit
+{
+	XeModeInit()
+	{
+		const char* e = getenv("PCSX2_XE_CPP");
+		xe_cpp_mode = (e && e[0] == '1') ? 1 : 0;
+	}
+} s_xe_mode_init;
+
 extern "C" __attribute__((visibility("default"))) void pcsx2_jithash_dump(void)
 {
 	const char* env = getenv("PCSX2_JITHASH");

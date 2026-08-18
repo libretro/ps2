@@ -170,7 +170,6 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 #define E_CC_L  0xc
 #define E_CC_Z  0x4
 
-#endif
 
 /* ===================================================================
  * Batch 2: group1 memory forms, group2 shifts, mov/movzx/movsx,
@@ -1056,3 +1055,5 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
 /* inc/dec through an absolute memory operand */
 #define E_INCDEC_M(p, dec, addr) do { \
         EW8((p), 0xff); E_MODRM_ABS((p), ((dec) ? 1 : 0), (addr), 0); } while (0)
+
+#endif /* C89EMIT_H */

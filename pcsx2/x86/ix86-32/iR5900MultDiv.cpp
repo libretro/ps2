@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -144,16 +145,16 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 		const int xmmlo = lolivexmm ? _allocGPRtoXMMreg(XMMGPR_LO, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_LO, MODE_WRITE);
 		if (xmmlo >= 0)
 		{
-			xMOV64(rax, loval);
-			xPINSR.Q(xRegisterSSE(xmmlo), rax, static_cast<u8>(upper));
+			xe_mov64_ri(XE_AX, loval);
+			xe_pinsrq(xmmlo, XE_AX, static_cast<u8>(upper));
 		}
 		else
 		{
 			const int gprlo = upper ? -1 : (lolive ? _allocX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE));
 			if (gprlo >= 0)
-				xImm64Op(xMOV, xRegister64(gprlo), rax, loval);
+				xe_imm64op_mov_rr(gprlo, XE_AX, loval);
 			else
-				xImm64Op(xMOV, ptr64[&cpuRegs.LO.UD[upper]], rax, loval);
+				xe_mov64_mi(&cpuRegs.LO.UD[upper], XE_AX, loval);
 		}
 	}
 
@@ -163,16 +164,16 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 		const int xmmhi = hilivexmm ? _allocGPRtoXMMreg(XMMGPR_HI, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_HI, MODE_WRITE);
 		if (xmmhi >= 0)
 		{
-			xMOV64(rax, hival);
-			xPINSR.Q(xRegisterSSE(xmmhi), rax, static_cast<u8>(upper));
+			xe_mov64_ri(XE_AX, hival);
+			xe_pinsrq(xmmhi, XE_AX, static_cast<u8>(upper));
 		}
 		else
 		{
 			const int gprhi = upper ? -1 : (hilive ? _allocX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE));
 			if (gprhi >= 0)
-				xImm64Op(xMOV, xRegister64(gprhi), rax, hival);
+				xe_imm64op_mov_rr(gprhi, XE_AX, hival);
 			else
-				xImm64Op(xMOV, ptr64[&cpuRegs.HI.UD[upper]], rax, hival);
+				xe_mov64_mi(&cpuRegs.HI.UD[upper], XE_AX, hival);
 		}
 	}
 
@@ -183,9 +184,9 @@ static void recWritebackConstHILO(u64 res, bool writed, int upper)
 
 		const int regd = _checkX86reg(X86TYPE_GPR, _Rd_, MODE_WRITE);
 		if (regd >= 0)
-			xImm64Op(xMOV, xRegister64(regd), rax, loval);
+			xe_imm64op_mov_rr(regd, XE_AX, loval);
 		else
-			xImm64Op(xMOV, ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax, loval);
+			xe_mov64_mi(&cpuRegs.GPR.r[_Rd_].UD[0], XE_AX, loval);
 	}
 }
 
