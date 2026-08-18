@@ -67,7 +67,15 @@
  * displacements are identical by construction -- this is the same-binary
  * guarantee of the retired two-run oracle, strengthened: continuous,
  * per-site, per-emission, in one build and one run. A full boot under
- * XE_AB is 58,301 byte-compared emissions or an abort. */
+ * XE_AB is 58,301 byte-compared emissions or an abort.
+ *
+ * ARGUMENT DISCIPLINE: both arms evaluate the macro arguments, so every
+ * argument must be idempotent -- a side-effecting expression like
+ * scaleblockcycles_clear() yields different values to the two arms and
+ * the oracle reports it as a byte divergence in the immediate field
+ * (which is how this rule was discovered: iCOP0's MTC0 Status path,
+ * cpp arm saw 12, c89 arm saw 1). Hoist such expressions into a local.
+ * Lean builds evaluate once and are unaffected either way. */
 #if XE_AB
 extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 extern "C" void xe_shadow_check(const void* at, const void* end,
@@ -768,5 +776,69 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	E_REX(xep, 1, (dst), 0, (src)); EW8(xep, 0x0f); \
 	EW8(xep, (e_u8)(0x40 | x86Emitter::Jcc_Below)); E_MODRM_RR(xep, (dst), (src)), \
 	XE_CMOVB64_RR((dst), (src)))
+
+
+/* iCOP0 vocabulary: base+disp32 memory forms (the TLB entry walks), the
+ * three-operand IMUL, movsxd from absolute memory, the far-address LEA
+ * composition, add-mem-imm, and the known-target jcc with the
+ * reference's rel8/rel32 choice. */
+#define XE_MEM_BD(m, base, disp) E_MEM(m, (base), E_NOREG, 0, (e_sptr)(disp))
+#define xe_mov32_rbd(reg, base, disp) XE_2( \
+	{ struct e_mem xm_; XE_MEM_BD(xm_, (base), (disp)); \
+	  E_MOV_R_MEM(xep, 0, (reg), xm_); }, \
+	x86Emitter::xMOV(x86Emitter::xRegister32(reg), \
+		x86Emitter::ptr32[x86Emitter::xAddressVoid(x86Emitter::xAddressReg(base), (disp))]))
+#define xe_and32_rbd(reg, base, disp) XE_2( \
+	{ struct e_mem xm_; XE_MEM_BD(xm_, (base), (disp)); \
+	  E_G1_R_MEM_SZ(xep, 4, 4, (reg), xm_); }, \
+	x86Emitter::xAND(x86Emitter::xRegister32(reg), \
+		x86Emitter::ptr32[x86Emitter::xAddressVoid(x86Emitter::xAddressReg(base), (disp))]))
+#define xe_cmp32_rbd(reg, base, disp) XE_2( \
+	{ struct e_mem xm_; XE_MEM_BD(xm_, (base), (disp)); \
+	  E_G1_R_MEM_SZ(xep, 4, 7, (reg), xm_); }, \
+	x86Emitter::xCMP(x86Emitter::xRegister32(reg), \
+		x86Emitter::ptr32[x86Emitter::xAddressVoid(x86Emitter::xAddressReg(base), (disp))]))
+#define xe_imul32_rri(dst, src, imm) XE_2( \
+	E_IMUL_RRI(xep, 0, (dst), (src), (imm)), \
+	x86Emitter::xMUL(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src), (s32)(imm)))
+#define xe_movsxd_rm(reg, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 1, (reg), xm_); EW8(xep, 0x63); \
+	  E_MODRM_MEM(xep, (reg), xm_, 0); }, \
+	x86Emitter::xMOVSX(x86Emitter::xRegister64(reg), x86Emitter::ptr32[(void*)(addr)]))
+/* xLoadFarAddr, byte for byte: rip-relative LEA when the displacement
+ * from the END of the 7-byte LEA fits s32, else MOV64. The predicate is
+ * replicated against the c89 cursor so both arms take the same branch. */
+#define xe_lea_far(reg, addr) XE_2( \
+	{ e_sptr xdisp_ = (e_sptr)(addr) - ((e_sptr)xep + 7); \
+	  if (xdisp_ == (e_sptr)(e_s32)xdisp_) { \
+		struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+		E_LEA(xep, 1, 0, (reg), xm_); \
+	  } else { \
+		E_MOV64_RI(xep, 0, (reg), (e_sptr)(addr)); \
+	  } }, \
+	x86Emitter::xLoadFarAddr(x86Emitter::xAddressReg(reg), (void*)(addr)))
+#define xe_add32_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 0, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xADD(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+/* add qword [abs], r64 */
+#define xe_add64_mr(addr, reg) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 1, (reg), xm_); EW8(xep, 0x01); \
+	  E_MODRM_MEM(xep, (reg), xm_, 0); }, \
+	x86Emitter::xADD(x86Emitter::ptr[(void*)(addr)], x86Emitter::xRegister64(reg)))
+/* jcc to a KNOWN backward/forward target, choosing rel8 when it fits
+ * exactly as xJccKnownTarget(cc, target, false) does. */
+#define xe_jcc_known(cc, target) XE_2( \
+	{ e_sptr xd8_ = (e_sptr)(target) - ((e_sptr)xep + 2); \
+	  if (xd8_ == (e_sptr)(e_s8)xd8_) { \
+		EW8(xep, (e_u8)(0x70 | (cc))); EW8(xep, (e_u8)xd8_); \
+	  } else { \
+		e_sptr xd32_ = (e_sptr)(target) - ((e_sptr)xep + 6); \
+		EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); \
+		EW32(xep, (e_u32)(e_s32)xd32_); \
+	  } }, \
+	x86Emitter::xJccKnownTarget((x86Emitter::JccComparisonType)(cc), (const void*)(target), false))
 
 #endif /* PCSX2_C89OPS_H */
