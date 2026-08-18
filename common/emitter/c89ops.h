@@ -677,4 +677,19 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_movd_rx(gpr, xmm)   XE_2(E_SSE_RR_W(xep, 0x66, 0x7e, (xmm), (gpr), 0), \
 	x86Emitter::xMOVD(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(xmm)))
 
+
+#define xe_and64_rr(dst, src)  XE_2(E_G1_RR(xep, 1, 4, (dst), (src)), \
+	x86Emitter::xAND(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)))
+#define xe_or64_rr(dst, src)   XE_2(E_G1_RR(xep, 1, 1, (dst), (src)), \
+	x86Emitter::xOR(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)))
+#define XE_G2_CXX_RI(g2op, reg, imm, W) do { \
+	switch (g2op) { \
+	case 4: x86Emitter::xSHL(x86Emitter::xRegister##W(reg), (imm)); break; \
+	case 5: x86Emitter::xSHR(x86Emitter::xRegister##W(reg), (imm)); break; \
+	case 7: x86Emitter::xSAR(x86Emitter::xRegister##W(reg), (imm)); break; \
+	default: break; } } while (0)
+#define xe_g2op64_ri(g2op, reg, imm) XE_2(E_G2_RI(xep, 1, (g2op), (reg), (imm)), \
+	XE_G2_CXX_RI((g2op), (reg), (imm), 64))
+#define xe_or32_rr_(a, b) xe_or32_rr(a, b)
+
 #endif /* PCSX2_C89OPS_H */

@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 #include "x86/iR5900LoadStore.h"
 
 using namespace x86Emitter;
@@ -90,10 +91,10 @@ static void recLoadQuad(u32 bits, bool sign)
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR64(x86Emitter::arg1reg.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 		// force 16 byte alignment on 128 bit reads
-		xAND(arg1regd, ~0x0F);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x0F);
 
 		xmmreg = vtlb_DynGenReadQuad(bits, arg1regd.Id, _Rt_ ? alloc_cb : nullptr);
 	}
@@ -125,7 +126,7 @@ static void recLoad(u32 bits, bool sign)
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 		x86reg = vtlb_DynGenReadNonQuad(bits, sign, false, arg1regd.Id, alloc_cb);
 	}
@@ -172,15 +173,15 @@ static void recStore(u32 bits)
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
 			_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 			if (_Imm_ != 0)
-				xADD(arg1regd, _Imm_);
+				xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 		}
 		else
 		{
-			xMOV(arg1regd, _Imm_);
+			xe_mov32_ri(x86Emitter::arg1regd.Id, _Imm_);
 		}
 
 		if (bits == 128)
-			xAND(arg1regd, ~0x0F);
+			xe_and32_ri(x86Emitter::arg1regd.Id, ~0x0F);
 
 		// TODO(Stenzek): Use Rs directly if imm=0. But beware of upper bits.
 		vtlb_DynGenWrite(bits, xmm, arg1regd.Id, regt);
@@ -260,18 +261,18 @@ void recLWL(void)
 	if (_Rs_)
 		_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
-	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 
 	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
-		xADD(arg1regd, _Imm_);
+		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 	// calleeSavedReg1 = bit offset in word
-	xMOV(temp, arg1regd);
-	xAND(temp, 3);
-	xSHL(temp, 3);
+	xe_mov32_rr(temp, x86Emitter::arg1regd.Id);
+	xe_and32_ri(temp, 3);
+	xe_shl32_ri(temp, 3);
 
-	xAND(arg1regd, ~3);
+	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
 	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	if (!_Rt_)
@@ -281,20 +282,20 @@ void recLWL(void)
 	}
 
 	// mask off bytes loaded
-	xMOV(ecx, temp);
+	xe_mov32_rr(XE_CX, temp);
 	_freeX86reg(temp);
 
 	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
-	xMOV(edx, 0xffffff);
-	xSHR(edx, cl);
-	xAND(edx, xRegister32(treg));
+	xe_mov32_ri(XE_DX, 0xffffff);
+	xe_shr32_rcl(XE_DX);
+	xe_and32_rr(XE_DX, treg);
 
 	// OR in bytes loaded
-	xNEG(ecx);
-	xADD(ecx, 24);
-	xSHL(eax, cl);
-	xOR(eax, edx);
-	xMOVSX(xRegister64(treg), eax);
+	xe_neg32_r(XE_CX);
+	xe_add32_ri(XE_CX, 24);
+	xe_shl32_rcl(XE_AX);
+	xe_or32_rr(XE_AX, XE_DX);
+	xe_movsxd_rr(treg, XE_AX);
 #else
 	iFlushCall(FLUSH_INTERPRETER);
 	_deleteEEreg(_Rs_, 1);
@@ -319,16 +320,16 @@ void recLWR()
 	if (_Rs_)
 		_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
-	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 
 	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
-		xADD(arg1regd, _Imm_);
+		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 	// edi = bit offset in word
-	xMOV(temp, arg1regd);
+	xe_mov32_rr(temp, x86Emitter::arg1regd.Id);
 
-	xAND(arg1regd, ~3);
+	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
 	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	if (!_Rt_)
@@ -338,26 +339,26 @@ void recLWR()
 	}
 
 	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
-	xAND(temp, 3);
+	xe_and32_ri(temp, 3);
 
 	xForwardJE8 nomask;
-	xSHL(temp, 3);
+	xe_shl32_ri(temp, 3);
 	// mask off bytes loaded
-	xMOV(ecx, 24);
-	xSUB(ecx, temp);
-	xMOV(edx, 0xffffff00);
-	xSHL(edx, cl);
-	xAND(xRegister32(treg), edx);
+	xe_mov32_ri(XE_CX, 24);
+	xe_sub32_rr(XE_CX, temp);
+	xe_mov32_ri(XE_DX, 0xffffff00);
+	xe_shl32_rcl(XE_DX);
+	xe_and32_rr(treg, XE_DX);
 
 	// OR in bytes loaded
-	xMOV(ecx, temp);
-	xSHR(eax, cl);
-	xOR(xRegister32(treg), eax);
+	xe_mov32_rr(XE_CX, temp);
+	xe_shr32_rcl(XE_AX);
+	xe_or32_rr(treg, XE_AX);
 
 	xForwardJump8 end;
 	nomask.SetTarget();
 	// NOTE: This might look wrong, but it's correct - see interpreter.
-	xMOVSX(xRegister64(treg), eax);
+	xe_movsxd_rr(treg, XE_AX);
 	end.SetTarget();
 	_freeX86reg(temp);
 #else
@@ -383,7 +384,7 @@ void recSWL()
 	else
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
 
-	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 	_freeX86reg(eax);
 	_freeX86reg(ecx);
 	_freeX86reg(arg1regd);
@@ -391,13 +392,13 @@ void recSWL()
 
 	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
-		xADD(arg1regd, _Imm_);
+		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 	// edi = bit offset in word
-	xMOV(temp, arg1regd);
-	xAND(arg1regd, ~3);
-	xAND(temp, 3);
-	xCMP(temp, 3);
+	xe_mov32_rr(temp, x86Emitter::arg1regd.Id);
+	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
+	xe_and32_ri(temp, 3);
+	xe_cmp32_ri(temp, 3);
 
 	// If we're not using fastmem, we need to flush early. Because the first read
 	// (which would flush) happens inside a branch.
@@ -405,30 +406,30 @@ void recSWL()
 		iFlushCall(FLUSH_FULLVTLB);
 
 	xForwardJE8 skip;
-	xSHL(temp, 3);
+	xe_shl32_ri(temp, 3);
 
 	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	// mask read -> arg2
-	xMOV(ecx, temp);
-	xMOV(arg2regd, 0xffffff00);
-	xSHL(arg2regd, cl);
-	xAND(arg2regd, eax);
+	xe_mov32_rr(XE_CX, temp);
+	xe_mov32_ri(x86Emitter::arg2regd.Id, 0xffffff00);
+	xe_shl32_rcl(x86Emitter::arg2regd.Id);
+	xe_and32_rr(x86Emitter::arg2regd.Id, XE_AX);
 
 	if (_Rt_)
 	{
 		// mask write and OR -> edx
-		xNEG(ecx);
-		xADD(ecx, 24);
+		xe_neg32_r(XE_CX);
+		xe_add32_ri(XE_CX, 24);
 		_eeMoveGPRtoR32(0 /* eax */, _Rt_, false);
-		xSHR(eax, cl);
-		xOR(arg2regd, eax);
+		xe_shr32_rcl(XE_AX);
+		xe_or32_rr(x86Emitter::arg2regd.Id, XE_AX);
 	}
 
 	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 	if (_Imm_ != 0)
-		xADD(arg1regd, _Imm_);
-	xAND(arg1regd, ~3);
+		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
+	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
 
 	xForwardJump8 end;
 	skip.SetTarget();
@@ -458,19 +459,19 @@ void recSWR()
 	else
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
 
-	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 	_freeX86reg(ecx);
 	_freeX86reg(arg1regd);
 	_freeX86reg(arg2regd);
 
 	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
-		xADD(arg1regd, _Imm_);
+		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 	// edi = bit offset in word
-	xMOV(temp, arg1regd);
-	xAND(arg1regd, ~3);
-	xAND(temp, 3);
+	xe_mov32_rr(temp, x86Emitter::arg1regd.Id);
+	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
+	xe_and32_ri(temp, 3);
 
 	// If we're not using fastmem, we need to flush early. Because the first read
 	// (which would flush) happens inside a branch.
@@ -478,30 +479,30 @@ void recSWR()
 		iFlushCall(FLUSH_FULLVTLB);
 
 	xForwardJE8 skip;
-	xSHL(temp, 3);
+	xe_shl32_ri(temp, 3);
 
 	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 	// mask read -> edx
-	xMOV(ecx, 24);
-	xSUB(ecx, temp);
-	xMOV(arg2regd, 0xffffff);
-	xSHR(arg2regd, cl);
-	xAND(arg2regd, eax);
+	xe_mov32_ri(XE_CX, 24);
+	xe_sub32_rr(XE_CX, temp);
+	xe_mov32_ri(x86Emitter::arg2regd.Id, 0xffffff);
+	xe_shr32_rcl(x86Emitter::arg2regd.Id);
+	xe_and32_rr(x86Emitter::arg2regd.Id, XE_AX);
 
 	if (_Rt_)
 	{
 		// mask write and OR -> edx
-		xMOV(ecx, temp);
+		xe_mov32_rr(XE_CX, temp);
 		_eeMoveGPRtoR32(0 /* eax */, _Rt_, false);
-		xSHL(eax, cl);
-		xOR(arg2regd, eax);
+		xe_shl32_rcl(XE_AX);
+		xe_or32_rr(x86Emitter::arg2regd.Id, XE_AX);
 	}
 
 	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 	if (_Imm_ != 0)
-		xADD(arg1regd, _Imm_);
-	xAND(arg1regd, ~3);
+		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
+	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
 
 	xForwardJump8 end;
 	skip.SetTarget();
@@ -521,33 +522,31 @@ void recSWR()
 ////////////////////////////////////////////////////
 
 /// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
-template <typename MaskShiftOp, typename ShiftOp>
-static void ldlrhelper_const(int maskamt, const MaskShiftOp& maskshift, int amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
+static void ldlrhelper_const(int maskamt, int maskg2, int amt, int g2op, int value, int rt)
 {
 	// Would xor rcx, rcx; not rcx be better here?
-	xMOV(rcx, -1);
+	xe_mov64_ri(XE_CX, -1);
 
-	maskshift(rcx, maskamt);
-	xAND(rt, rcx);
+	xe_g2op64_ri(maskg2, XE_CX, maskamt);
+	xe_and64_rr(rt, XE_CX);
 
-	shift(value, amt);
-	xOR(rt, value);
+	xe_g2op64_ri(g2op, value, amt);
+	xe_or64_rr(rt, value);
 }
 
 /// Masks rt with (0xffffffffffffffff maskshift maskamt), merges with (value shift amt), leaves result in value
-template <typename MaskShiftOp, typename ShiftOp>
-static void ldlrhelper(const xRegister32& maskamt, const MaskShiftOp& maskshift, const xRegister32& amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
+static void ldlrhelper(int maskamt, int maskg2, int amt, int g2op, int value, int rt)
 {
 	// Would xor rcx, rcx; not rcx be better here?
-	const xRegister64 maskamt64(maskamt);
-	xMOV(ecx, maskamt);
-	xMOV(maskamt64, -1);
-	maskshift(maskamt64, cl);
-	xAND(rt, maskamt64);
+	const int maskamt64 = maskamt;
+	xe_mov32_rr(XE_CX, maskamt);
+	xe_mov64_ri(maskamt64, -1);
+	xe_g2op64_rcl(maskg2, maskamt64);
+	xe_and64_rr(rt, maskamt64);
 
-	xMOV(ecx, amt);
-	shift(value, cl);
-	xOR(rt, value);
+	xe_mov32_rr(XE_CX, amt);
+	xe_g2op64_rcl(g2op, value);
+	xe_or64_rr(rt, value);
 }
 
 void recLDL()
@@ -562,7 +561,7 @@ void recLDL()
 	if (_Rs_)
 		_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
-	const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 	_freeX86reg(eax);
 	_freeX86reg(ecx);
 	_freeX86reg(edx);
@@ -574,7 +573,7 @@ void recLDL()
 
 		// If _Rs_ is equal to _Rt_ we need to put the shift in to eax since it won't take the CONST path.
 		if (_Rs_ == _Rt_)
-			xMOV(temp1, srcadr);
+			xe_mov32_ri(temp1, srcadr);
 
 		srcadr &= ~0x07;
 
@@ -586,15 +585,15 @@ void recLDL()
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
-		xMOV(temp1, arg1regd);
-		xAND(arg1regd, ~0x07);
+		xe_mov32_rr(temp1, x86Emitter::arg1regd.Id);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x07);
 
 		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 	}
 
-	const xRegister64 treg(_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE));
+	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -602,26 +601,26 @@ void recLDL()
 		shift = ((shift & 0x7) + 1) * 8;
 		if (shift != 64)
 		{
-			ldlrhelper_const(shift, xSHR, 64 - shift, xSHL, rax, treg);
+			ldlrhelper_const(shift, 5, 64 - shift, 4, XE_AX, treg);
 		}
 		else
 		{
-			xMOV(treg, rax);
+			xe_mov64_rr(treg, XE_AX);
 		}
 	}
 	else
 	{
-		xAND(temp1, 0x7);
-		xCMP(temp1, 7);
-		xCMOVE(treg, rax); // swap register with memory when not shifting
+		xe_and32_ri(temp1, 0x7);
+		xe_cmp32_ri(temp1, 7);
+		xe_cmovcc64_rr(Jcc_Equal, treg, XE_AX); // swap register with memory when not shifting
 		xForwardJE8 skip;
 		// Calculate the shift from top bit to lowest.
-		xADD(temp1, 1);
-		xMOV(edx, 64);
-		xSHL(temp1, 3);
-		xSUB(edx, temp1);
+		xe_add32_ri(temp1, 1);
+		xe_mov32_ri(XE_DX, 64);
+		xe_shl32_ri(temp1, 3);
+		xe_sub32_rr(XE_DX, temp1);
 
-		ldlrhelper(temp1, xSHR, edx, xSHL, rax, treg);
+		ldlrhelper(temp1, 5, XE_DX, 4, XE_AX, treg);
 		skip.SetTarget();
 	}
 
@@ -647,7 +646,7 @@ void recLDR()
 	if (_Rs_)
 		_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
-	const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+	const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 	_freeX86reg(eax);
 	_freeX86reg(ecx);
 	_freeX86reg(edx);
@@ -659,7 +658,7 @@ void recLDR()
 
 		// If _Rs_ is equal to _Rt_ we need to put the shift in to eax since it won't take the CONST path.
 		if (_Rs_ == _Rt_)
-			xMOV(temp1, srcadr);
+			xe_mov32_ri(temp1, srcadr);
 
 		srcadr &= ~0x07;
 
@@ -671,15 +670,15 @@ void recLDR()
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
-		xMOV(temp1, arg1regd);
-		xAND(arg1regd, ~0x07);
+		xe_mov32_rr(temp1, x86Emitter::arg1regd.Id);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x07);
 
 		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 	}
 
-	const xRegister64 treg(_allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE));
+	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -687,24 +686,24 @@ void recLDR()
 		shift = (shift & 0x7) * 8;
 		if (shift != 0)
 		{
-			ldlrhelper_const(64 - shift, xSHL, shift, xSHR, rax, treg);
+			ldlrhelper_const(64 - shift, 4, shift, 5, XE_AX, treg);
 		}
 		else
 		{
-			xMOV(treg, rax);
+			xe_mov64_rr(treg, XE_AX);
 		}
 	}
 	else
 	{
-		xAND(temp1, 0x7);
-		xCMOVE(treg, rax); // swap register with memory when not shifting
+		xe_and32_ri(temp1, 0x7);
+		xe_cmovcc64_rr(Jcc_Equal, treg, XE_AX); // swap register with memory when not shifting
 		xForwardJE8 skip;
 		// Calculate the shift from top bit to lowest.
-		xMOV(edx, 64);
-		xSHL(temp1, 3);
-		xSUB(edx, temp1);
+		xe_mov32_ri(XE_DX, 64);
+		xe_shl32_ri(temp1, 3);
+		xe_sub32_rr(XE_DX, temp1);
 
-		ldlrhelper(edx, xSHL, temp1, xSHR, rax, treg);
+		ldlrhelper(XE_DX, 4, temp1, 5, XE_AX, treg);
 		skip.SetTarget();
 	}
 
@@ -720,32 +719,30 @@ void recLDR()
 ////////////////////////////////////////////////////
 
 /// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
-template <typename MaskShiftOp, typename ShiftOp>
-static void sdlrhelper_const(int maskamt, const MaskShiftOp& maskshift, int amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
+static void sdlrhelper_const(int maskamt, int maskg2, int amt, int g2op, int value, int rt)
 {
-	xMOV(rcx, -1);
-	maskshift(rcx, maskamt);
-	xAND(rcx, value);
+	xe_mov64_ri(XE_CX, -1);
+	xe_g2op64_ri(maskg2, XE_CX, maskamt);
+	xe_and64_rr(XE_CX, value);
 
-	shift(rt, amt);
-	xOR(rt, rcx);
+	xe_g2op64_ri(g2op, rt, amt);
+	xe_or64_rr(rt, XE_CX);
 }
 
 /// Masks value with (0xffffffffffffffff maskshift maskamt), merges with (rt shift amt), saves to dummyValue
-template <typename MaskShiftOp, typename ShiftOp>
-static void sdlrhelper(const xRegister32& maskamt, const MaskShiftOp& maskshift, const xRegister32& amt, const ShiftOp& shift, const xRegister64& value, const xRegister64& rt)
+static void sdlrhelper(int maskamt, int maskg2, int amt, int g2op, int value, int rt)
 {
 	// Generate mask 128-(shiftx8)
-	const xRegister64 maskamt64(maskamt);
-	xMOV(ecx, maskamt);
-	xMOV(maskamt64, -1);
-	maskshift(maskamt64, cl);
-	xAND(maskamt64, value);
+	const int maskamt64 = maskamt;
+	xe_mov32_rr(XE_CX, maskamt);
+	xe_mov64_ri(maskamt64, -1);
+	xe_g2op64_rcl(maskg2, maskamt64);
+	xe_and64_rr(maskamt64, value);
 
 	// Shift over reg value
-	xMOV(ecx, amt);
-	shift(rt, cl);
-	xOR(rt, maskamt64);
+	xe_mov32_rr(XE_CX, amt);
+	xe_g2op64_rcl(g2op, rt);
+	xe_or64_rr(rt, maskamt64);
 }
 
 void recSDL(void)
@@ -771,7 +768,7 @@ void recSDL(void)
 		{
 			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
 			_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
-			sdlrhelper_const(shift, xSHL, 64 - shift, xSHR, rax, arg2reg);
+			sdlrhelper_const(shift, 4, 64 - shift, 5, XE_AX, x86Emitter::arg2reg.Id);
 		}
 		vtlb_DynGenWrite_Const(64, false, aligned, arg2regd.Id);
 	}
@@ -784,20 +781,20 @@ void recSDL(void)
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 		_freeX86reg(ecx);
 		_freeX86reg(edx);
 		_freeX86reg(arg2regd);
-		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
-		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
+		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 
-		xMOV(temp1, arg1regd);
-		xMOV(temp2, arg2reg);
-		xAND(arg1regd, ~0x07);
-		xAND(temp1, 0x7);
-		xCMP(temp1, 7);
+		xe_mov32_rr(temp1, x86Emitter::arg1regd.Id);
+		xe_mov64_rr(temp2, x86Emitter::arg2reg.Id);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x07);
+		xe_and32_ri(temp1, 0x7);
+		xe_cmp32_ri(temp1, 7);
 
 		// If we're not using fastmem, we need to flush early. Because the first read
 		// (which would flush) happens inside a branch.
@@ -805,25 +802,25 @@ void recSDL(void)
 			iFlushCall(FLUSH_FULLVTLB);
 
 		xForwardJE8 skip;
-		xADD(temp1, 1);
+		xe_add32_ri(temp1, 1);
 		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 		//Calculate the shift from top bit to lowest
-		xMOV(edx, 64);
-		xSHL(temp1, 3);
-		xSUB(edx, temp1);
+		xe_mov32_ri(XE_DX, 64);
+		xe_shl32_ri(temp1, 3);
+		xe_sub32_rr(XE_DX, temp1);
 
-		sdlrhelper(temp1, xSHL, edx, xSHR, rax, temp2);
+		sdlrhelper(temp1, 4, XE_DX, 5, XE_AX, temp2);
 
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
-		xAND(arg1regd, ~0x7);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x7);
 		skip.SetTarget();
 
-		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2.Id);
-		_freeX86reg(temp2.Id);
-		_freeX86reg(temp1.Id);
+		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2);
+		_freeX86reg(temp2);
+		_freeX86reg(temp1);
 	}
 #else
 	iFlushCall(FLUSH_INTERPRETER);
@@ -857,7 +854,7 @@ void recSDR(void)
 		{
 			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
 			_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
-			sdlrhelper_const(64 - shift, xSHR, shift, xSHL, rax, arg2reg);
+			sdlrhelper_const(64 - shift, 5, shift, 4, XE_AX, x86Emitter::arg2reg.Id);
 		}
 
 		vtlb_DynGenWrite_Const(64, false, aligned, arg2reg.Id);
@@ -870,19 +867,19 @@ void recSDR(void)
 		// Load ECX with the source memory address that we're reading from.
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 		_freeX86reg(ecx);
 		_freeX86reg(edx);
 		_freeX86reg(arg2regd);
-		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
-		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
+		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
+		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 
-		xMOV(temp1, arg1regd);
-		xMOV(temp2, arg2reg);
-		xAND(arg1regd, ~0x07);
-		xAND(temp1, 0x7);
+		xe_mov32_rr(temp1, x86Emitter::arg1regd.Id);
+		xe_mov64_rr(temp2, x86Emitter::arg2reg.Id);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x07);
+		xe_and32_ri(temp1, 0x7);
 
 		// If we're not using fastmem, we need to flush early. Because the first read
 		// (which would flush) happens inside a branch.
@@ -892,22 +889,22 @@ void recSDR(void)
 		xForwardJE8 skip;
 		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
-		xMOV(edx, 64);
-		xSHL(temp1, 3);
-		xSUB(edx, temp1);
+		xe_mov32_ri(XE_DX, 64);
+		xe_shl32_ri(temp1, 3);
+		xe_sub32_rr(XE_DX, temp1);
 
-		sdlrhelper(edx, xSHR, temp1, xSHL, rax, temp2);
+		sdlrhelper(XE_DX, 5, temp1, 4, XE_AX, temp2);
 
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
-		xAND(arg1regd, ~0x7);
-		xMOV(arg2reg, temp2);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
+		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x7);
+		xe_mov64_rr(x86Emitter::arg2reg.Id, temp2);
 		skip.SetTarget();
 
-		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2.Id);
-		_freeX86reg(temp2.Id);
-		_freeX86reg(temp1.Id);
+		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2);
+		_freeX86reg(temp2);
+		_freeX86reg(temp1);
 	}
 #else
 	iFlushCall(FLUSH_INTERPRETER);
@@ -942,7 +939,7 @@ void recLWC1(void)
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 		vtlb_DynGenReadNonQuad(32, false, true, arg1regd.Id, alloc_cb);
 	}
@@ -967,7 +964,7 @@ void recSWC1(void)
 		_freeX86reg(arg1regd);
 		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
-			xADD(arg1regd, _Imm_);
+			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 
 		vtlb_DynGenWrite(32, true, arg1regd.Id, regt);
 	}
