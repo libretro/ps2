@@ -231,16 +231,27 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
         E_MODRM_RR((p), (dst), (src)); } while (0)
 
 /* group3: 2 NOT, 3 NEG, 4 MUL, 5 IMUL, 6 DIV, 7 IDIV */
-#define E_G3_R(p, w, g3, reg) do { \
-        E_REX((p), (w), 0, 0, (reg)); \
-        EW8((p), 0xf7); E_MODRM_RR((p), (g3), (reg)); } while (0)
+/* group3 at any operand size: 0xf6 for 8-bit, 0xf7 otherwise, with 16-bit
+ * taking the 0x66 prefix (groups.cpp). */
+#define E_G3_R_SZ(p, sz, g3, reg) do { \
+        if ((sz) == 2) E_P16(p); \
+        if ((sz) == 1) E_REX8_RM((p), (reg)); \
+        else E_REX((p), ((sz) == 8), 0, 0, (reg)); \
+        EW8((p), (e_u8)(((sz) == 1) ? 0xf6 : 0xf7)); \
+        E_MODRM_RR((p), (g3), (reg)); } while (0)
+#define E_G3_R(p, w, g3, reg) E_G3_R_SZ((p), (w) ? 8 : 4, (g3), (reg))
 #define E_G3_M(p, g3, addr) do { \
         EW8((p), 0xf7); E_MODRM_ABS((p), (g3), (addr), 0); } while (0)
 
 /* inc / dec (64-bit mode: FF /0 and FF /1; no single-byte 0x4x form) */
-#define E_INCDEC_R(p, w, dec, reg) do { \
-        E_REX((p), (w), 0, 0, (reg)); \
-        EW8((p), 0xff); E_MODRM_RR((p), ((dec) ? 1 : 0), (reg)); } while (0)
+/* inc/dec at any operand size: 0xfe for 8-bit, 0xff otherwise. */
+#define E_INCDEC_R_SZ(p, sz, dec, reg) do { \
+        if ((sz) == 2) E_P16(p); \
+        if ((sz) == 1) E_REX8_RM((p), (reg)); \
+        else E_REX((p), ((sz) == 8), 0, 0, (reg)); \
+        EW8((p), (e_u8)(((sz) == 1) ? 0xfe : 0xff)); \
+        E_MODRM_RR((p), ((dec) ? 1 : 0), (reg)); } while (0)
+#define E_INCDEC_R(p, w, dec, reg) E_INCDEC_R_SZ((p), (w) ? 8 : 4, (dec), (reg))
 
 /* push / pop reg. Default operand size is 64-bit, so REX.W is never set;
  * only REX.B for r8-r15. */
@@ -375,6 +386,20 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
 #define E_MOV_R_MEM(p, w, reg, m) do { \
         E_REX_MEM((p), (w), (reg), (m)); \
         EW8((p), 0x8b); E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+/* mov r,[mem] and mov [mem],r at any operand size: 0x8a/0x88 for 8-bit
+ * against 0x8b/0x89 otherwise, 16-bit taking the 0x66 prefix. */
+#define E_MOV_R_MEM_SZ(p, sz, reg, m) do { \
+        if ((sz) == 2) E_P16(p); \
+        if ((sz) == 1) E_REX8_MEM((p), (reg), (m)); \
+        else E_REX_MEM((p), ((sz) == 8), (reg), (m)); \
+        EW8((p), (e_u8)(((sz) == 1) ? 0x8a : 0x8b)); \
+        E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+#define E_MOV_MEM_R_SZ(p, sz, reg, m) do { \
+        if ((sz) == 2) E_P16(p); \
+        if ((sz) == 1) E_REX8_MEM((p), (reg), (m)); \
+        else E_REX_MEM((p), ((sz) == 8), (reg), (m)); \
+        EW8((p), (e_u8)(((sz) == 1) ? 0x88 : 0x89)); \
+        E_MODRM_MEM((p), (reg), (m), 0); } while (0)
 #define E_MOV_MEM_R(p, w, reg, m) do { \
         E_REX_MEM((p), (w), (reg), (m)); \
         EW8((p), 0x89); E_MODRM_MEM((p), (reg), (m), 0); } while (0)
@@ -429,14 +454,25 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
 #define E_TEST_MEM_I(p, sz, m, imm) E_MEMIMM_((p), (sz), 0xf6, 0xf7, (m), (imm))
 
 /* group1 r,[mem] and [mem],r */
-#define E_G1_R_MEM(p, w, op, reg, m) do { \
-        E_REX_MEM((p), (w), (reg), (m)); \
-        EW8((p), (e_u8)(((op)<<3) | 0x03)); \
+/* group1 against memory, at any operand size. The low bit of the opcode
+ * selects the width -- 0x02/0x00 for 8-bit against 0x03/0x01 otherwise -- and
+ * 16-bit additionally takes the 0x66 prefix (groups.cpp:73-84). The register
+ * forms already dispatched on size; these did not, which meant an 8-bit
+ * operand emitted the 32-bit encoding and read or wrote three bytes too many. */
+#define E_G1_R_MEM_SZ(p, sz, op, reg, m) do { \
+        if ((sz) == 2) E_P16(p); \
+        if ((sz) == 1) E_REX8_MEM((p), (reg), (m)); \
+        else E_REX_MEM((p), ((sz) == 8), (reg), (m)); \
+        EW8((p), (e_u8)(((op)<<3) | (((sz) == 1) ? 0x02 : 0x03))); \
         E_MODRM_MEM((p), (reg), (m), 0); } while (0)
-#define E_G1_MEM_R(p, w, op, reg, m) do { \
-        E_REX_MEM((p), (w), (reg), (m)); \
-        EW8((p), (e_u8)(((op)<<3) | 0x01)); \
+#define E_G1_MEM_R_SZ(p, sz, op, reg, m) do { \
+        if ((sz) == 2) E_P16(p); \
+        if ((sz) == 1) E_REX8_MEM((p), (reg), (m)); \
+        else E_REX_MEM((p), ((sz) == 8), (reg), (m)); \
+        EW8((p), (e_u8)(((op)<<3) | (((sz) == 1) ? 0x00 : 0x01))); \
         E_MODRM_MEM((p), (reg), (m), 0); } while (0)
+#define E_G1_R_MEM(p, w, op, reg, m) E_G1_R_MEM_SZ((p), (w) ? 8 : 4, (op), (reg), (m))
+#define E_G1_MEM_R(p, w, op, reg, m) E_G1_MEM_R_SZ((p), (w) ? 8 : 4, (op), (reg), (m))
 
 /* ===================================================================
  * Batch 4: group3 memory forms, MUL/DIV family, IMUL two- and
@@ -444,9 +480,12 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
  * =================================================================== */
 
 /* group3 over a full memory operand (F7 /g3) */
-#define E_G3_MEM(p, w, g3, m) do { \
-        E_REX_MEM((p), (w), 0, (m)); \
-        EW8((p), 0xf7); E_MODRM_MEM((p), (g3), (m), 0); } while (0)
+#define E_G3_MEM_SZ(p, sz, g3, m) do { \
+        if ((sz) == 2) E_P16(p); \
+        E_REX_MEM((p), ((sz) == 8), 0, (m)); \
+        EW8((p), (e_u8)(((sz) == 1) ? 0xf6 : 0xf7)); \
+        E_MODRM_MEM((p), (g3), (m), 0); } while (0)
+#define E_G3_MEM(p, w, g3, m) E_G3_MEM_SZ((p), (w) ? 8 : 4, (g3), (m))
 
 /* two-operand IMUL: 0F AF /r */
 #define E_IMUL_RR(p, w, dst, src) do { \
@@ -646,6 +685,17 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
             EW8((p), rex_); } while (0)
 
 /* REX for an 8-bit reg used as the *reg* field (with a memory operand). */
+/* REX for an 8-bit reg field combined with a memory operand: the reg's 0x10
+ * marker decides whether a REX byte is mandatory at all (spl/bpl/sil/dil),
+ * while the base and index supply B and X exactly as E_REX_MEM computes them. */
+#define E_REX8_MEM(p, reg, m) do { \
+        int rx_ = ((m).index != E_NOREG && (m).index >= 8) ? 1 : 0; \
+        int rb_ = ((m).base  != E_NOREG && (m).base  >= 8) ? 1 : 0; \
+        e_u8 rex_; \
+        if (!E_NEEDS_SIB(m)) { rb_ = rx_; rx_ = 0; } \
+        rex_ = (e_u8)(0x40 | (E_R8_EXT(reg) << 2) | (rx_ << 1) | rb_); \
+        if (rex_ != 0x40 || E_R8_NEEDREX(reg)) EW8((p), rex_); } while (0)
+
 #define E_REX8_M(p, reg) do { \
         e_u8 rex_ = (e_u8)(0x40 | (E_R8_EXT(reg) << 2)); \
         if (rex_ != 0x40 || E_R8_NEEDREX(reg)) EW8((p), rex_); } while (0)

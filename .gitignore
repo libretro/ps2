@@ -126,4 +126,5 @@ tests/emitter/emitter_oracle
 tests/emitter/shim_oracle
 tests/emitter/equiv_ref
 tests/emitter/equiv_sw
+tests/emitter/exhaustive
 tests/emitter/*.o

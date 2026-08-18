@@ -93,7 +93,7 @@ namespace x86Emitter
 		{
 			struct e_mem m = shim_mem(from);
 			SHIM_BEGIN;
-			E_G1_R_MEM(p_, shim_w(to), InstType, shim_id(to), m);
+			E_G1_R_MEM_SZ(p_, shim_sz(to), InstType, shim_id(to), m);
 			SHIM_END;
 		}
 
@@ -101,7 +101,7 @@ namespace x86Emitter
 		{
 			struct e_mem m = shim_mem(to);
 			SHIM_BEGIN;
-			E_G1_MEM_R(p_, shim_w(from), InstType, shim_id(from), m);
+			E_G1_MEM_R_SZ(p_, shim_sz(from), InstType, shim_id(from), m);
 			SHIM_END;
 		}
 
@@ -155,14 +155,14 @@ namespace x86Emitter
 		__fi void operator()(const xRegisterInt& from) const
 		{
 			SHIM_BEGIN;
-			E_G3_R(p_, shim_w(from), InstType, shim_id(from));
+			E_G3_R_SZ(p_, shim_sz(from), InstType, shim_id(from));
 			SHIM_END;
 		}
 		__fi void operator()(const xIndirect64orLess& from) const
 		{
 			struct e_mem m = shim_mem(from);
 			SHIM_BEGIN;
-			E_G3_MEM(p_, 0, InstType, m);
+			E_G3_MEM_SZ(p_, from._operandSize, InstType, m);
 			SHIM_END;
 		}
 	};
@@ -183,14 +183,14 @@ namespace x86Emitter
 		{
 			struct e_mem m = shim_mem(from);
 			SHIM_BEGIN;
-			E_MOV_R_MEM(p_, shim_w(to), shim_id(to), m);
+			E_MOV_R_MEM_SZ(p_, shim_sz(to), shim_id(to), m);
 			SHIM_END;
 		}
 		__fi void operator()(const xIndirectVoid& to, const xRegisterInt& from) const
 		{
 			struct e_mem m = shim_mem(to);
 			SHIM_BEGIN;
-			E_MOV_MEM_R(p_, shim_w(from), shim_id(from), m);
+			E_MOV_MEM_R_SZ(p_, shim_sz(from), shim_id(from), m);
 			SHIM_END;
 		}
 		__fi void operator()(const xIndirect64orLess& dest, sptr imm) const
@@ -255,7 +255,7 @@ namespace x86Emitter
 		__fi void operator()(const xRegisterInt& to) const
 		{
 			SHIM_BEGIN;
-			E_INCDEC_R(p_, shim_w(to), isDec, shim_id(to));
+			E_INCDEC_R_SZ(p_, shim_sz(to), isDec, shim_id(to));
 			SHIM_END;
 		}
 	};

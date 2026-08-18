@@ -47,8 +47,13 @@ g++ -O2 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG -DPCSX2_C89_EMITTE
     $SANFLAGS $INC -c "$DIR/switch_equiv.cpp" -o "$DIR/equiv_sw.o"
 g++ $SANFLAGS -no-pie -o "$DIR/equiv_sw" "$DIR/equiv_sw.o" $EMOBJS
 
+g++ -O0 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
+    -c "$DIR/exhaustive.cpp" -o "$DIR/exhaustive.o"
+g++ $SANFLAGS -no-pie -o "$DIR/exhaustive" "$DIR/exhaustive.o" $EMOBJS
+
 echo "built: $DIR/emitter_oracle"
 echo "built: $DIR/shim_oracle"
+echo "built: $DIR/exhaustive"
 echo "built: $DIR/equiv_ref and $DIR/equiv_sw"
 echo "  compare with: diff <(setarch $(uname -m) -R $DIR/equiv_ref) \\"
 echo "                     <(setarch $(uname -m) -R $DIR/equiv_sw)"
