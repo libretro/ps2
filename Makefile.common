@@ -147,16 +147,22 @@ SOURCES_CXX += \
 # that use it are gated out (VIXL is the arm64 emitter instead), so exclude it
 # -- matches the `if(_M_X86)` guard in common/CMakeLists.txt. FastJmp.cpp above
 # stays on both (it has an __aarch64__ path).
+# The reference emitter implementation lives with the verification harness in
+# tests/emitter/reference: it is what the byte oracles compare the C89 core
+# against. The switched build (C89_EMITTER=1) emits everything through the
+# header-only core in common/emitter/c89emit.h and compiles none of these.
 ifneq ($(IS_ARM64), 1)
+ifneq ($(C89_EMITTER), 1)
 SOURCES_CXX += \
-	$(COMMON_DIR)/emitter/avx.cpp \
-	$(COMMON_DIR)/emitter/groups.cpp \
-	$(COMMON_DIR)/emitter/jmp.cpp \
-	$(COMMON_DIR)/emitter/legacy.cpp \
-	$(COMMON_DIR)/emitter/legacy_sse.cpp \
-	$(COMMON_DIR)/emitter/movs.cpp \
-	$(COMMON_DIR)/emitter/simd.cpp \
-	$(COMMON_DIR)/emitter/x86emitter.cpp
+	$(CORE_DIR)/tests/emitter/reference/avx.cpp \
+	$(CORE_DIR)/tests/emitter/reference/groups.cpp \
+	$(CORE_DIR)/tests/emitter/reference/jmp.cpp \
+	$(CORE_DIR)/tests/emitter/reference/legacy.cpp \
+	$(CORE_DIR)/tests/emitter/reference/legacy_sse.cpp \
+	$(CORE_DIR)/tests/emitter/reference/movs.cpp \
+	$(CORE_DIR)/tests/emitter/reference/simd.cpp \
+	$(CORE_DIR)/tests/emitter/reference/x86emitter.cpp
+endif
 endif
 
 # Win32 variant of FastJmp uses a dedicated GAS source for MinGW

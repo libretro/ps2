@@ -12,6 +12,10 @@ endif()
 
 # Project Name
 project(Pcsx2)
+option(C89_EMITTER "Emit through the C89 macro core (header-only); excludes the reference emitter sources" OFF)
+if(C89_EMITTER)
+	add_compile_definitions(PCSX2_C89_EMITTER)
+endif()
 
 # Variable to check that people use the good file
 set(TOP_CMAKE_WAS_SOURCED TRUE)

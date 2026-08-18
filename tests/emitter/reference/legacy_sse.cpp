@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "legacy_internal.h"
+#include "common/emitter/legacy_internal.h"
 
 using namespace x86Emitter;
 
@@ -25,8 +25,10 @@ using namespace x86Emitter;
     __fi void SSE_##mod##SS_XMM_to_XMM(int to, int from) { x##mod.SS(xRegisterSSE(to), xRegisterSSE(from)); } \
     __fi void SSE2_##mod##SD_XMM_to_XMM(int to, int from) { x##mod.SD(xRegisterSSE(to), xRegisterSSE(from)); }
 
+#ifndef PCSX2_C89_EMITTER
 DEFINE_LEGACY_SSSD_OPCODE(SUB)
 DEFINE_LEGACY_SSSD_OPCODE(ADD)
 
 DEFINE_LEGACY_SSSD_OPCODE(MIN)
 DEFINE_LEGACY_SSSD_OPCODE(MAX)
+#endif

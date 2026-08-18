@@ -6,7 +6,7 @@ INC="-I$D -I$D/pcsx2 -I$D/pcsx2/x86 -I$D/common -I$D/common/include -I$D/libretr
 DEFS="-DGIT_VERSION=\"\" -D_GNU_SOURCE -DWANT_THREADING -DHAVE_THREADS -D__LIBRETRO__ -D_FILE_OFFSET_BITS=64 -DMULTI_ISA_SHARED_COMPILATION -DNDEBUG -msse -msse2 -msse4.1 -mfxsr -msse3 -std=c++17 -fno-rtti -fno-exceptions -fPIC -fno-semantic-interposition"
 FLAG="$1"
 fail=0; n=0
-for f in $(grep -rl "x86emitter.h\|x86types.h\|iR5900.h\|microVU" pcsx2 common --include=*.cpp 2>/dev/null | grep -v arm64 | sort); do
+for f in $(grep -rl "x86emitter.h\|x86types.h\|iR5900.h\|microVU" pcsx2 common --include=*.cpp 2>/dev/null | grep -v arm64 | sort) tests/emitter/reference/*.cpp; do
   n=$((n+1))
   if ! g++ -fsyntax-only $FLAG $DEFS $INC "$f" > /tmp/gate_err.$$ 2>&1; then
     fail=$((fail+1))

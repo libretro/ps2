@@ -54,35 +54,112 @@ static __fi u32* J32Rel(int cc, u32 to)
 ////////////////////////////////////
 
 // jmp rel8
-extern u8* JMP8(u8 to);
+// Defined inline: raw byte writers over x86Ptr, shared by both emitters.
+// Explicit inline, not __fi -- __fi is empty on MinGW and cannot carry
+// ODR linkage for a header definition.
+static __fi u8* J8Rel(int cc, int to)
+{
+	xWrite8(cc);
+	xWrite8(to);
+	return (u8*)(x86Ptr - 1);
+}
 
-// jmp rel32
-extern u32* JMP32(uptr to);
 
-// je rel8
-extern u8* JE8(u8 to);
-// jz rel8
-extern u8* JZ8(u8 to);
-// jg rel8
-extern u8* JG8(u8 to);
-// jge rel8
-extern u8* JGE8(u8 to);
-// jns rel8
-extern u8* JNS8(u8 to);
-// jl rel8
-extern u8* JL8(u8 to);
-// jae rel8
-extern u8* JAE8(u8 to);
-// jb rel8
-extern u8* JB8(u8 to);
-// jbe rel8
-extern u8* JBE8(u8 to);
-// jle rel8
-extern u8* JLE8(u8 to);
-// jne rel8
-extern u8* JNE8(u8 to);
-// jnz rel8
-extern u8* JNZ8(u8 to);
+/********************/
+/* IX86 instructions */
+/********************/
+
+////////////////////////////////////
+// jump instructions		   /
+////////////////////////////////////
+
+/* jmp rel8 */
+inline u8* JMP8(u8 to)
+{
+	xWrite8(0xEB);
+	xWrite8(to);
+	return x86Ptr - 1;
+}
+
+/* jmp rel32 */
+inline u32* JMP32(uptr to)
+{
+	xWrite8(0xE9);
+	xWrite32(to);
+	return (u32*)(x86Ptr - 4);
+}
+
+/* je rel8 */
+inline u8* JE8(u8 to)
+{
+	return J8Rel(0x74, to);
+}
+
+/* jz rel8 */
+inline u8* JZ8(u8 to)
+{
+	return J8Rel(0x74, to);
+}
+
+/* jns rel8 */
+inline u8* JNS8(u8 to)
+{
+	return J8Rel(0x79, to);
+}
+
+/* jg rel8 */
+inline u8* JG8(u8 to)
+{
+	return J8Rel(0x7F, to);
+}
+
+/* jge rel8 */
+inline u8* JGE8(u8 to)
+{
+	return J8Rel(0x7D, to);
+}
+
+/* jl rel8 */
+inline u8* JL8(u8 to)
+{
+	return J8Rel(0x7C, to);
+}
+
+inline u8* JAE8(u8 to)
+{
+	return J8Rel(0x73, to);
+}
+
+/* jb rel8 */
+inline u8* JB8(u8 to)
+{
+	return J8Rel(0x72, to);
+}
+
+/* jbe rel8 */
+inline u8* JBE8(u8 to)
+{
+	return J8Rel(0x76, to);
+}
+
+/* jle rel8 */
+inline u8* JLE8(u8 to)
+{
+	return J8Rel(0x7E, to);
+}
+
+/* jne rel8 */
+inline u8* JNE8(u8 to)
+{
+	return J8Rel(0x75, to);
+}
+
+/* jnz rel8 */
+inline u8* JNZ8(u8 to)
+{
+	return J8Rel(0x75, to);
+}
+
 
 // je rel32
 #define JE32(to) J32Rel(0x84, to)
@@ -104,16 +181,48 @@ static __fi u32 *JNZ32(u32 to) { return J32Rel(0x85, to); }
 //*********************
 // SSE   instructions *
 //*********************
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE_MAXSS_XMM_to_XMM(int to, int from) { x86Emitter::xMAX.SS(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE_MAXSS_XMM_to_XMM(int to, int from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE_MINSS_XMM_to_XMM(int to, int from) { x86Emitter::xMIN.SS(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE_MINSS_XMM_to_XMM(int to, int from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE_ADDSS_XMM_to_XMM(int to, int from) { x86Emitter::xADD.SS(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE_ADDSS_XMM_to_XMM(int to, int from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE_SUBSS_XMM_to_XMM(int to, int from) { x86Emitter::xSUB.SS(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE_SUBSS_XMM_to_XMM(int to, int from);
+#endif
 
 //*********************
 //  SSE 2 Instructions*
 //*********************
 
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE2_MAXSD_XMM_to_XMM(int to, int from) { x86Emitter::xMAX.SD(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE2_MAXSD_XMM_to_XMM(int to, int from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE2_MINSD_XMM_to_XMM(int to, int from) { x86Emitter::xMIN.SD(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE2_MINSD_XMM_to_XMM(int to, int from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE2_ADDSD_XMM_to_XMM(int to, int from) { x86Emitter::xADD.SD(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE2_ADDSD_XMM_to_XMM(int to, int from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+static __fi void SSE2_SUBSD_XMM_to_XMM(int to, int from) { x86Emitter::xSUB.SD(x86Emitter::xRegisterSSE(to), x86Emitter::xRegisterSSE(from)); }
+#else
 extern void SSE2_SUBSD_XMM_to_XMM(int to, int from);
+#endif

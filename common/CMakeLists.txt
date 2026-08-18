@@ -24,16 +24,20 @@ target_sources(common PRIVATE
 # x86emitter sources: x86-only JIT code emitter. Excluded on aarch64, where the
 # recompilers that use it are gated out and the interpreters run instead (arm64
 # port, Phase B). There is no arm64 emitter yet (that is Phase C).
-if(_M_X86)
+# The reference emitter implementation lives with the verification harness in
+# tests/emitter/reference; the byte oracles compare the C89 core against it.
+# With C89_EMITTER enabled the build emits through the header-only core in
+# emitter/c89emit.h and compiles none of these.
+if(_M_X86 AND NOT C89_EMITTER)
 	target_sources(common PRIVATE
-		emitter/avx.cpp
-		emitter/groups.cpp
-		emitter/jmp.cpp
-		emitter/legacy.cpp
-		emitter/legacy_sse.cpp
-		emitter/movs.cpp
-		emitter/simd.cpp
-		emitter/x86emitter.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/avx.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/groups.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/jmp.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy_sse.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/movs.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/simd.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/x86emitter.cpp
 	)
 endif()
 

@@ -1,3 +1,5 @@
+// Bodies moved inline to legacy_instructions.h; this file retains only
+// what nothing outside the reference needs.
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -25,7 +27,7 @@
 // ix86 legacy emitter functions
 //------------------------------------------------------------------
 
-#include "legacy_internal.h"
+#include "common/emitter/legacy_internal.h"
 
 __fi void ModRM(uint mod, uint reg, uint rm)
 {
@@ -40,105 +42,4 @@ using namespace x86Emitter;
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
 
-static __fi u8* J8Rel(int cc, int to)
-{
-	xWrite8(cc);
-	xWrite8(to);
-	return (u8*)(x86Ptr - 1);
-}
 
-
-/********************/
-/* IX86 instructions */
-/********************/
-
-////////////////////////////////////
-// jump instructions		   /
-////////////////////////////////////
-
-/* jmp rel8 */
-__fi u8* JMP8(u8 to)
-{
-	xWrite8(0xEB);
-	xWrite8(to);
-	return x86Ptr - 1;
-}
-
-/* jmp rel32 */
-__fi u32* JMP32(uptr to)
-{
-	xWrite8(0xE9);
-	xWrite32(to);
-	return (u32*)(x86Ptr - 4);
-}
-
-/* je rel8 */
-__fi u8* JE8(u8 to)
-{
-	return J8Rel(0x74, to);
-}
-
-/* jz rel8 */
-__fi u8* JZ8(u8 to)
-{
-	return J8Rel(0x74, to);
-}
-
-/* jns rel8 */
-__fi u8* JNS8(u8 to)
-{
-	return J8Rel(0x79, to);
-}
-
-/* jg rel8 */
-__fi u8* JG8(u8 to)
-{
-	return J8Rel(0x7F, to);
-}
-
-/* jge rel8 */
-__fi u8* JGE8(u8 to)
-{
-	return J8Rel(0x7D, to);
-}
-
-/* jl rel8 */
-__fi u8* JL8(u8 to)
-{
-	return J8Rel(0x7C, to);
-}
-
-__fi u8* JAE8(u8 to)
-{
-	return J8Rel(0x73, to);
-}
-
-/* jb rel8 */
-__fi u8* JB8(u8 to)
-{
-	return J8Rel(0x72, to);
-}
-
-/* jbe rel8 */
-__fi u8* JBE8(u8 to)
-{
-	return J8Rel(0x76, to);
-}
-
-/* jle rel8 */
-__fi u8* JLE8(u8 to)
-{
-	return J8Rel(0x7E, to);
-}
-
-/* jne rel8 */
-__fi u8* JNE8(u8 to)
-{
-	return J8Rel(0x75, to);
-}
-
-/* jnz rel8 */
-__fi u8* JNZ8(u8 to)
-{
-	return J8Rel(0x75, to);
-}

@@ -28,7 +28,7 @@
  *		sudonim(1@gmail.com)
  */
 
-#include "internal.h"
+#include "common/emitter/internal.h"
 
 namespace x86Emitter
 {

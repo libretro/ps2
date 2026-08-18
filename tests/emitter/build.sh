@@ -9,7 +9,7 @@
 # The C++ emitter is the reference by definition: any divergence is a bug in
 # the C89 core. Exit status is non-zero if anything diverges.
 #
-# Build the core first (the harness links common/emitter/*.o), then:
+# Build the core first (the harness links tests/emitter/reference/*.o), then:
 #   sh tests/emitter/build.sh && ./tests/emitter/emitter_oracle
 #
 # SANITIZER=... must match whatever the core objects were built with.
@@ -28,14 +28,14 @@ g++ -O1 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
 # -no-pie so the emit buffer can be MAP_FIXED at a known address, which keeps
 # the RIP-relative displacements reproducible between the two emitters.
 g++ $SANFLAGS -no-pie -o "$DIR/emitter_oracle" "$DIR/oracle.o" \
-  "$ROOT"/common/emitter/avx.o "$ROOT"/common/emitter/groups.o \
-  "$ROOT"/common/emitter/jmp.o "$ROOT"/common/emitter/legacy.o \
-  "$ROOT"/common/emitter/legacy_sse.o "$ROOT"/common/emitter/movs.o \
-  "$ROOT"/common/emitter/simd.o "$ROOT"/common/emitter/x86emitter.o
-EMOBJS="$ROOT/common/emitter/avx.o $ROOT/common/emitter/groups.o \
-  $ROOT/common/emitter/jmp.o $ROOT/common/emitter/legacy.o \
-  $ROOT/common/emitter/legacy_sse.o $ROOT/common/emitter/movs.o \
-  $ROOT/common/emitter/simd.o $ROOT/common/emitter/x86emitter.o"
+  "$ROOT"/tests/emitter/reference/avx.o "$ROOT"/tests/emitter/reference/groups.o \
+  "$ROOT"/tests/emitter/reference/jmp.o "$ROOT"/tests/emitter/reference/legacy.o \
+  "$ROOT"/tests/emitter/reference/legacy_sse.o "$ROOT"/tests/emitter/reference/movs.o \
+  "$ROOT"/tests/emitter/reference/simd.o "$ROOT"/tests/emitter/reference/x86emitter.o
+EMOBJS="$ROOT/tests/emitter/reference/avx.o $ROOT/tests/emitter/reference/groups.o \
+  $ROOT/tests/emitter/reference/jmp.o $ROOT/tests/emitter/reference/legacy.o \
+  $ROOT/tests/emitter/reference/legacy_sse.o $ROOT/tests/emitter/reference/movs.o \
+  $ROOT/tests/emitter/reference/simd.o $ROOT/tests/emitter/reference/x86emitter.o"
 g++ $SANFLAGS -no-pie -o "$DIR/shim_oracle" "$DIR/shim_oracle.o" $EMOBJS
 # Switchover equivalence: the same driver built both ways, bytes diffed.
 # The reference build links the emitter objects; the switched build gets the
