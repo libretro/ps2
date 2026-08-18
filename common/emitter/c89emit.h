@@ -832,6 +832,15 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
         E_MODRM_RR((p), (r1), (r2)); \
         EW8((p), (e_u8)(imm)); } while (0)
 
+/* register-register with explicit REX.W, no immediate */
+#define E_SSE_RR_W(p, pre, opcode, r1, r2, w) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        { e_u8 rex_ = (e_u8)(0x40 | ((w) ? 8 : 0) \
+                | ((((r1) >= 8) ? 1 : 0) << 2) | (((r2) >= 8) ? 1 : 0)); \
+          if (rex_ != 0x40) EW8((p), rex_); } \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_RR((p), (r1), (r2)); } while (0)
+
 #define E_SSE_R_MEM_I_W(p, pre, opcode, r1, m, imm, w) do { \
         if (pre) EW8((p), (e_u8)(pre)); \
         E_REX_MEM((p), (w), (r1), (m)); \

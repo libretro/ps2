@@ -578,26 +578,33 @@ namespace x86Emitter
 	// Note: pushad/popad implementations are intentionally left out.  The instructions are
 	// invalid in x64, and are super slow on x32.  Use multiple Push/Pop instructions instead.
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xPOP(const xIndirectVoid& from)
 	{
 		EmitRexImplicitlyWide(from);
 		xWrite8(0x8f);
 		EmitSibMagic(0, from);
 	}
+#endif
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xPUSH(const xIndirectVoid& from)
 	{
 		EmitRexImplicitlyWide(from);
 		xWrite8(0xff);
 		EmitSibMagic(6, from);
 	}
+#endif
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xPOP(xRegister32or64 from)
 	{
 		EmitRexImplicitlyWide(from);
 		xWrite8(0x58 | (from->Id & 7));
 	}
+#endif
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xPUSH(u32 imm)
 	{
 		if (is_s8(imm))
@@ -611,11 +618,14 @@ namespace x86Emitter
 			xWrite32(imm);
 		}
 	}
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xPUSH(xRegister32or64 from)
 	{
 		EmitRexImplicitlyWide(from);
 		xWrite8(0x50 | (from->Id & 7));
 	}
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//

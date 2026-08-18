@@ -1123,6 +1123,71 @@ namespace x86Emitter
 		}
 	};
 
+
+	// ---- free-function encoders ----------------------------------------
+	//
+	// The MOVD forms take a GPR that may be 64-bit; xOpWrite0F derives REX.W
+	// from that operand, so the width threads through here. MOVSS/MOVSD
+	// reg-reg elide self-moves, as the reference macro does.
+	static __fi void shim_xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0x66, 0x6e, to.Id, from->Id, from->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src)
+	{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0x66, 0x6e, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xMOVD(const xRegister32or64& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0x66, 0x7e, from.Id, to->Id, to->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xMOVD(const xIndirectVoid& dest, const xRegisterSSE& from)
+	{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0x66, 0x7e, from.Id, m, 0); SHIM_END; }
+
+	static __fi void shim_xMOVQZX(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0xf3, 0x7e, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xMOVQZX(const xRegisterSSE& to, const xIndirectVoid& src)
+	{ struct e_mem m = shim_mem(src); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf3, 0x7e, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xMOVQZX(const xRegisterSSE& to, const void* src)
+	{ SHIM_BEGIN; E_SSE_R_M(p_, 0xf3, 0x7e, to.Id, (e_uptr)src); SHIM_END; }
+	static __fi void shim_xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from)
+	{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0x66, 0xd6, from.Id, m, 0); SHIM_END; }
+
+	static __fi void shim_xMOVSS(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ if (to.Id == from.Id) return; SHIM_BEGIN; E_SSE_RR(p_, 0xf3, 0x10, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xMOVSSZX(const xRegisterSSE& to, const xIndirectVoid& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf3, 0x10, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xMOVSS(const xIndirectVoid& to, const xRegisterSSE& from)
+	{ struct e_mem m = shim_mem(to); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf3, 0x11, from.Id, m, 0); SHIM_END; }
+	static __fi void shim_xMOVSD(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ if (to.Id == from.Id) return; SHIM_BEGIN; E_SSE_RR(p_, 0xf2, 0x10, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xMOVSDZX(const xRegisterSSE& to, const xIndirectVoid& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf2, 0x10, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xMOVSD(const xIndirectVoid& to, const xRegisterSSE& from)
+	{ struct e_mem m = shim_mem(to); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf2, 0x11, from.Id, m, 0); SHIM_END; }
+
+	// PUSH/POP: implicitly wide, REX.W never emitted; only REX.B for r8-r15.
+	static __fi void shim_xPOP(const xIndirectVoid& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_REX_MEM(p_, 0, 0, m); EW8(p_, 0x8f); E_MODRM_MEM(p_, 0, m, 0); SHIM_END; }
+	static __fi void shim_xPUSH(const xIndirectVoid& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_REX_MEM(p_, 0, 0, m); EW8(p_, 0xff); E_MODRM_MEM(p_, 6, m, 0); SHIM_END; }
+	static __fi void shim_xPOP(xRegister32or64 from)
+	{ SHIM_BEGIN;
+	  if (from->Id >= 8) EW8(p_, 0x41);
+	  EW8(p_, (e_u8)(0x58 | (from->Id & 7))); SHIM_END; }
+	static __fi void shim_xPUSH(u32 imm)
+	{ SHIM_BEGIN;
+	  if (E_IS_S8((e_s32)imm)) { EW8(p_, 0x6a); EW8(p_, (e_u8)imm); }
+	  else { EW8(p_, 0x68); EW32(p_, imm); } SHIM_END; }
+	static __fi void shim_xPUSH(xRegister32or64 from)
+	{ SHIM_BEGIN;
+	  if (from->Id >= 8) EW8(p_, 0x41);
+	  EW8(p_, (e_u8)(0x50 | (from->Id & 7))); SHIM_END; }
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

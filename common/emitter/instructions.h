@@ -263,13 +263,33 @@ namespace x86Emitter
 	// Note: pushad/popad implementations are intentionally left out.  The instructions are
 	// invalid in x64, and are super slow on x32.  Use multiple Push/Pop instructions instead.
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xPOP(const xIndirectVoid& from) { shim_xPOP(from); }
+#else
 	extern void xPOP(const xIndirectVoid& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xPUSH(const xIndirectVoid& from) { shim_xPUSH(from); }
+#else
 	extern void xPUSH(const xIndirectVoid& from);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xPOP(xRegister32or64 from) { shim_xPOP(from); }
+#else
 	extern void xPOP(xRegister32or64 from);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xPUSH(u32 imm) { shim_xPUSH(imm); }
+#else
 	extern void xPUSH(u32 imm);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xPUSH(xRegister32or64 from) { shim_xPUSH(from); }
+#else
 	extern void xPUSH(xRegister32or64 from);
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/// Helper function to calculate base+offset taking into account the limitations of x86-64's RIP-relative addressing
@@ -425,24 +445,76 @@ namespace x86Emitter
 	extern void xLDMXCSR(const xIndirect32& src);
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from) { shim_xMOVDZX(to, from); }
+#else
 	extern void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src) { shim_xMOVDZX(to, src); }
+#else
 	extern void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVD(const xRegister32or64& to, const xRegisterSSE& from) { shim_xMOVD(to, from); }
+#else
 	extern void xMOVD(const xRegister32or64& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVD(const xIndirectVoid& dest, const xRegisterSSE& from) { shim_xMOVD(dest, from); }
+#else
 	extern void xMOVD(const xIndirectVoid& dest, const xRegisterSSE& from);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from) { shim_xMOVQ(dest, from); }
+#else
 	extern void xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVQZX(const xRegisterSSE& to, const xIndirectVoid& src) { shim_xMOVQZX(to, src); }
+#else
 	extern void xMOVQZX(const xRegisterSSE& to, const xIndirectVoid& src);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVQZX(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xMOVQZX(to, from); }
+#else
 	extern void xMOVQZX(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVSS(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xMOVSS(to, from); }
+#else
 	extern void xMOVSS(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVSS(const xIndirectVoid& to, const xRegisterSSE& from) { shim_xMOVSS(to, from); }
+#else
 	extern void xMOVSS(const xIndirectVoid& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVSD(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xMOVSD(to, from); }
+#else
 	extern void xMOVSD(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVSD(const xIndirectVoid& to, const xRegisterSSE& from) { shim_xMOVSD(to, from); }
+#else
 	extern void xMOVSD(const xIndirectVoid& to, const xRegisterSSE& from);
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVSSZX(const xRegisterSSE& to, const xIndirectVoid& from) { shim_xMOVSSZX(to, from); }
+#else
 	extern void xMOVSSZX(const xRegisterSSE& to, const xIndirectVoid& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xMOVSDZX(const xRegisterSSE& to, const xIndirectVoid& from) { shim_xMOVSDZX(to, from); }
+#else
 	extern void xMOVSDZX(const xRegisterSSE& to, const xIndirectVoid& from);
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static __fi void xMOVMSKPS(const xRegister32& to, const xRegisterSSE& from) { shim_MOVMSKPS(to, from); }

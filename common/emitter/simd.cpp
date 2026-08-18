@@ -543,26 +543,42 @@ namespace x86Emitter
 	//  * MOVD has valid forms for MMX and XMM registers.
 	//
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVDZX(const xRegisterSSE& to, const xRegister32or64& from) { xOpWrite0F(0x66, 0x6e, to, from); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVDZX(const xRegisterSSE& to, const xIndirectVoid& src) { xOpWrite0F(0x66, 0x6e, to, src); }
+#endif
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVD(const xRegister32or64& to, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x7e, from, to); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVD(const xIndirectVoid& dest, const xRegisterSSE& from) { xOpWrite0F(0x66, 0x7e, from, dest); }
+#endif
 
 	// Moves from XMM to XMM, with the *upper 64 bits* of the destination register
 	// being cleared to zero.
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVQZX(const xRegisterSSE& to, const xRegisterSSE& from) { xOpWrite0F(0xf3, 0x7e, to, from); }
+#endif
 
 	// Moves from XMM to XMM, with the *upper 64 bits* of the destination register
 	// being cleared to zero.
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVQZX(const xRegisterSSE& to, const xIndirectVoid& src) { xOpWrite0F(0xf3, 0x7e, to, src); }
+#endif
 
 	// Moves from XMM to XMM, with the *upper 64 bits* of the destination register
 	// being cleared to zero.
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVQZX(const xRegisterSSE& to, const void* src) { xOpWrite0F(0xf3, 0x7e, to, src); }
+#endif
 
 	// Moves lower quad of XMM to ptr64 (no bits are cleared)
+#ifndef PCSX2_C89_EMITTER
 	__fi void xMOVQ(const xIndirectVoid& dest, const xRegisterSSE& from) { xOpWrite0F(0x66, 0xd6, from, dest); }
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//
@@ -576,8 +592,10 @@ namespace x86Emitter
 	__fi void xMOV##ssd##ZX(const xRegisterSSE& to, const xIndirectVoid& from) { xOpWrite0F(prefix, 0x10, to, from); } \
 	__fi void xMOV##ssd(const xIndirectVoid& to, const xRegisterSSE& from) { xOpWrite0F(prefix, 0x11, from, to); }
 
+#ifndef PCSX2_C89_EMITTER
 	IMPLEMENT_xMOVS(SS, 0xf3)
 	IMPLEMENT_xMOVS(SD, 0xf2)
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Non-temporal movs only support a register as a target (ie, load form only, no stores)

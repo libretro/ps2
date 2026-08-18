@@ -285,5 +285,59 @@ int main(){
         snprintf(nm,sizeof nm,"SETL_m b%d",b);
         ck(nm,[&]{xSETL(M8());},[&]{sL(M8());}); } }
 
+
+    /* Free-function encoders. xMOVD's GPR may be 64-bit and REX.W follows
+       it; xMOVSS/xMOVSD reg-reg elide self-moves; PUSH/POP are implicitly
+       wide so REX.W is never emitted, only REX.B for r8-r15; xPUSH imm
+       narrows to the s8 form when it fits. */
+    { for(int a=0;a<16;a++) for(int g=0;g<16;g++){
+        snprintf(nm,sizeof nm,"MOVDZX x%d,r%d",a,g);
+        ck(nm,[&]{xMOVDZX(xRegisterSSE(a),xRegister32(g));},[&]{shim_xMOVDZX(xRegisterSSE(a),xRegister32(g));});
+        snprintf(nm,sizeof nm,"MOVDZX64 x%d,r%d",a,g);
+        ck(nm,[&]{xMOVDZX(xRegisterSSE(a),xRegister64(g));},[&]{shim_xMOVDZX(xRegisterSSE(a),xRegister64(g));});
+        snprintf(nm,sizeof nm,"MOVD r%d,x%d",g,a);
+        ck(nm,[&]{xMOVD(xRegister32(g),xRegisterSSE(a));},[&]{shim_xMOVD(xRegister32(g),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"MOVD64 r%d,x%d",g,a);
+        ck(nm,[&]{xMOVD(xRegister64(g),xRegisterSSE(a));},[&]{shim_xMOVD(xRegister64(g),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"MOVQZX x%d,x%d",a,g);
+        ck(nm,[&]{xMOVQZX(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xMOVQZX(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"MOVSS x%d,x%d",a,g);
+        ck(nm,[&]{xMOVSS(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xMOVSS(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"MOVSD x%d,x%d",a,g);
+        ck(nm,[&]{xMOVSD(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xMOVSD(xRegisterSSE(a),xRegisterSSE(g));}); }
+      for(int a=0;a<16;a++) for(int b=0;b<16;b++){
+        auto M=[&]{return ptr32[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        auto MV=[&]{return ptr[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        snprintf(nm,sizeof nm,"MOVDZX_m x%d b%d",a,b);
+        ck(nm,[&]{xMOVDZX(xRegisterSSE(a),MV());},[&]{shim_xMOVDZX(xRegisterSSE(a),MV());});
+        snprintf(nm,sizeof nm,"MOVD_m x%d b%d",a,b);
+        ck(nm,[&]{xMOVD(MV(),xRegisterSSE(a));},[&]{shim_xMOVD(MV(),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"MOVSSZX_m x%d b%d",a,b);
+        ck(nm,[&]{xMOVSSZX(xRegisterSSE(a),MV());},[&]{shim_xMOVSSZX(xRegisterSSE(a),MV());});
+        snprintf(nm,sizeof nm,"MOVSS_st x%d b%d",a,b);
+        ck(nm,[&]{xMOVSS(MV(),xRegisterSSE(a));},[&]{shim_xMOVSS(MV(),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"MOVSDZX_m x%d b%d",a,b);
+        ck(nm,[&]{xMOVSDZX(xRegisterSSE(a),MV());},[&]{shim_xMOVSDZX(xRegisterSSE(a),MV());});
+        snprintf(nm,sizeof nm,"MOVQZX_m x%d b%d",a,b);
+        ck(nm,[&]{xMOVQZX(xRegisterSSE(a),MV());},[&]{shim_xMOVQZX(xRegisterSSE(a),MV());});
+        snprintf(nm,sizeof nm,"MOVQ_st x%d b%d",a,b);
+        ck(nm,[&]{xMOVQ(MV(),xRegisterSSE(a));},[&]{shim_xMOVQ(MV(),xRegisterSSE(a));});
+        (void)M; }
+      static const u32 pim[6]={0,1,0x7f,0x80,0x1234,0xffffffffu};
+      for(int r=0;r<16;r++){
+        snprintf(nm,sizeof nm,"PUSH r%d",r);
+        ck(nm,[&]{xPUSH(xRegister64(r));},[&]{shim_xPUSH(xRegister64(r));});
+        snprintf(nm,sizeof nm,"POP r%d",r);
+        ck(nm,[&]{xPOP(xRegister64(r));},[&]{shim_xPOP(xRegister64(r));}); }
+      for(int i=0;i<6;i++){
+        snprintf(nm,sizeof nm,"PUSH imm%d",i);
+        ck(nm,[&]{xPUSH(pim[i]);},[&]{shim_xPUSH(pim[i]);}); }
+      for(int b=0;b<16;b++){
+        auto MV=[&]{return ptrNative[xAddressVoid(xAddressReg(b),xAddressReg(2),2,0x40)];};
+        snprintf(nm,sizeof nm,"PUSH_m b%d",b);
+        ck(nm,[&]{xPUSH(MV());},[&]{shim_xPUSH(MV());});
+        snprintf(nm,sizeof nm,"POP_m b%d",b);
+        ck(nm,[&]{xPOP(MV());},[&]{shim_xPOP(MV());}); } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }
