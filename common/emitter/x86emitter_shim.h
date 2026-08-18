@@ -1062,6 +1062,67 @@ namespace x86Emitter
 		shim_AVXThreeArg EQB, EQW, EQD, GTB, GTW, GTD;
 	};
 
+
+	// CMOVcc and SETcc. The opcode is 0x40|cc and 0x90|cc; CMov takes the
+	// operand-size prefix from the destination and REX.W from its width,
+	// SETcc is 8-bit only with the reg field fixed at 0. Same 8-bit
+	// destination REX rule as everywhere else: spl/bpl/sil/dil carry the
+	// 0x10 marker and need a bare REX, not REX.B.
+	struct shim_CMov
+	{
+		JccComparisonType ccType;
+
+		__fi void operator()(const xRegister16or32or64& to, const xRegister16or32or64& from) const
+		{
+			SHIM_BEGIN;
+			if (to->_operandSize == 2) E_P16(p_);
+			E_REX(p_, to->_operandSize == 8, to->Id, 0, from->Id);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)(0x40 | ccType));
+			E_MODRM_RR(p_, to->Id, from->Id);
+			SHIM_END;
+		}
+		__fi void operator()(const xRegister16or32or64& to, const xIndirectVoid& src) const
+		{
+			struct e_mem m = shim_mem(src);
+			SHIM_BEGIN;
+			if (to->_operandSize == 2) E_P16(p_);
+			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)(0x40 | ccType));
+			E_MODRM_MEM(p_, to->Id, m, 0);
+			SHIM_END;
+		}
+	};
+
+	struct shim_Set
+	{
+		JccComparisonType ccType;
+
+		__fi void operator()(const xRegister8& to) const
+		{
+			SHIM_BEGIN;
+			{
+				e_u8 rex_ = (e_u8)(0x40 | E_R8_EXT(to.Id));
+				if (rex_ != 0x40 || E_R8_NEEDREX(to.Id)) EW8(p_, rex_);
+			}
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)(0x90 | ccType));
+			E_MODRM_RR(p_, 0, to.Id);
+			SHIM_END;
+		}
+		__fi void operator()(const xIndirect8& dest) const
+		{
+			struct e_mem m = shim_mem(dest);
+			SHIM_BEGIN;
+			E_REX_MEM(p_, 0, 0, m);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)(0x90 | ccType));
+			E_MODRM_MEM(p_, 0, m, 0);
+			SHIM_END;
+		}
+	};
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

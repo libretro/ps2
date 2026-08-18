@@ -237,5 +237,53 @@ int main(){
         snprintf(nm,sizeof nm,"VMOVAPS_b y%d b%d",a,bs);
         ck(nm,[&]{xVMOVAPS(xRegisterSSE(a, xRegisterYMMTag()),Mb());},[&]{sVAPS(xRegisterSSE(a, xRegisterYMMTag()),Mb());}); } }
 
+
+    /* CMOVcc and SETcc. CMov at all three widths against registers and
+       memory; SETcc across all twenty 8-bit destination ids -- the 0x10
+       marker registers being the recurring trap -- and against memory. */
+    { const shim_CMov cB={Jcc_Below},cGE={Jcc_GreaterOrEqual},cE={Jcc_Equal},
+                      cNE={Jcc_NotEqual},cS={Jcc_Signed},cNS={Jcc_Unsigned};
+      const shim_Set sA={Jcc_Above},sB={Jcc_Below},sG={Jcc_Greater},sL={Jcc_Less};
+      static const int q8b[20]={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0x14,0x15,0x16,0x17};
+      struct { const char* n; const void* r; const shim_CMov* s; } cm[6] = {
+        {"CMOVB",&xCMOVB,&cB},{"CMOVGE",&xCMOVGE,&cGE},{"CMOVE",&xCMOVE,&cE},
+        {"CMOVNE",&xCMOVNE,&cNE},{"CMOVS",&xCMOVS,&cS},{"CMOVNS",&xCMOVNS,&cNS}};
+      (void)cm;
+      for(int d=0;d<16;d++) for(int f2=0;f2<16;f2++){
+        snprintf(nm,sizeof nm,"CMOVB32 %d,%d",d,f2);
+        ck(nm,[&]{xCMOVB(xRegister32(d),xRegister32(f2));},[&]{cB(xRegister32(d),xRegister32(f2));});
+        snprintf(nm,sizeof nm,"CMOVS64 %d,%d",d,f2);
+        ck(nm,[&]{xCMOVS(xRegister64(d),xRegister64(f2));},[&]{cS(xRegister64(d),xRegister64(f2));});
+        snprintf(nm,sizeof nm,"CMOVNE16 %d,%d",d,f2);
+        ck(nm,[&]{xCMOVNE(xRegister16(d),xRegister16(f2));},[&]{cNE(xRegister16(d),xRegister16(f2));});
+        snprintf(nm,sizeof nm,"CMOVGE32 %d,%d",d,f2);
+        ck(nm,[&]{xCMOVGE(xRegister32(d),xRegister32(f2));},[&]{cGE(xRegister32(d),xRegister32(f2));});
+        snprintf(nm,sizeof nm,"CMOVE64 %d,%d",d,f2);
+        ck(nm,[&]{xCMOVE(xRegister64(d),xRegister64(f2));},[&]{cE(xRegister64(d),xRegister64(f2));});
+        snprintf(nm,sizeof nm,"CMOVNS32 %d,%d",d,f2);
+        ck(nm,[&]{xCMOVNS(xRegister32(d),xRegister32(f2));},[&]{cNS(xRegister32(d),xRegister32(f2));}); }
+      for(int d=0;d<16;d++) for(int b=0;b<16;b++){
+        auto M=[&]{return ptr32[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        auto M64=[&]{return ptr64[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        snprintf(nm,sizeof nm,"CMOVB32_m %d b%d",d,b);
+        ck(nm,[&]{xCMOVB(xRegister32(d),M());},[&]{cB(xRegister32(d),M());});
+        snprintf(nm,sizeof nm,"CMOVS64_m %d b%d",d,b);
+        ck(nm,[&]{xCMOVS(xRegister64(d),M64());},[&]{cS(xRegister64(d),M64());}); }
+      for(int k=0;k<20;k++){
+        snprintf(nm,sizeof nm,"SETA r%x",q8b[k]);
+        ck(nm,[&]{xSETA(xRegister8(q8b[k]));},[&]{sA(xRegister8(q8b[k]));});
+        snprintf(nm,sizeof nm,"SETB r%x",q8b[k]);
+        ck(nm,[&]{xSETB(xRegister8(q8b[k]));},[&]{sB(xRegister8(q8b[k]));});
+        snprintf(nm,sizeof nm,"SETG r%x",q8b[k]);
+        ck(nm,[&]{xSETG(xRegister8(q8b[k]));},[&]{sG(xRegister8(q8b[k]));});
+        snprintf(nm,sizeof nm,"SETL r%x",q8b[k]);
+        ck(nm,[&]{xSETL(xRegister8(q8b[k]));},[&]{sL(xRegister8(q8b[k]));}); }
+      for(int b=0;b<16;b++){
+        auto M8=[&]{return ptr8[xAddressVoid(xAddressReg(b),xAddressReg(2),2,0x11)];};
+        snprintf(nm,sizeof nm,"SETA_m b%d",b);
+        ck(nm,[&]{xSETA(M8());},[&]{sA(M8());});
+        snprintf(nm,sizeof nm,"SETL_m b%d",b);
+        ck(nm,[&]{xSETL(M8());},[&]{sL(M8());}); } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

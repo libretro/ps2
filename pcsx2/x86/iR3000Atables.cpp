@@ -651,7 +651,7 @@ static void rpsxSLTs_const(int info, int sign, int st)
 {
 	const s32 cval = g_psxConstRegs[st ? _Rt_ : _Rs_];
 
-	const xImpl_Set& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
+	const auto& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
 
 	const xRegister32 dreg((_Rd_ == (st ? _Rs_ : _Rt_)) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_D);
 	const int regs = st ? ((info & PROCESS_EE_S) ? EEREC_S : -1) : ((info & PROCESS_EE_T) ? EEREC_T : -1);
@@ -672,7 +672,7 @@ static void rpsxSLTs_const(int info, int sign, int st)
 
 static void rpsxSLTs_(int info, int sign)
 {
-	const xImpl_Set& SET = sign ? xSETL : xSETB;
+	const auto& SET = sign ? xSETL : xSETB;
 
 	// need to keep Rs/Rt around.
 	const xRegister32 dreg((_Rd_ == _Rt_ || _Rd_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_D);

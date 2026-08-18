@@ -202,6 +202,18 @@ namespace x86Emitter
 	extern const xImpl_FastCall xFastCall;
 
 	// ------------------------------------------------------------------------
+#ifdef PCSX2_C89_EMITTER
+	static const shim_CMov xCMOVB = {Jcc_Below};
+	static const shim_CMov xCMOVGE = {Jcc_GreaterOrEqual};
+	static const shim_CMov xCMOVE = {Jcc_Equal};
+	static const shim_CMov xCMOVNE = {Jcc_NotEqual};
+	static const shim_CMov xCMOVS = {Jcc_Signed};
+	static const shim_CMov xCMOVNS = {Jcc_Unsigned};
+	static const shim_Set xSETA = {Jcc_Above};
+	static const shim_Set xSETB = {Jcc_Below};
+	static const shim_Set xSETG = {Jcc_Greater};
+	static const shim_Set xSETL = {Jcc_Less};
+#else
 	extern const xImpl_CMov 
 		xCMOVB,
 		xCMOVGE,
@@ -216,6 +228,7 @@ namespace x86Emitter
 		xSETB,
 		xSETG,
 		xSETL;
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Miscellaneous Instructions

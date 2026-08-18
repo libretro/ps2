@@ -595,7 +595,7 @@ static void recSLTs_const(int info, int sign, int st)
 {
 	const s64 cval = g_cpuConstRegs[st ? _Rt_ : _Rs_].SD[0];
 
-	const xImpl_Set& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
+	const auto& SET = st ? (sign ? xSETL : xSETB) : (sign ? xSETG : xSETA);
 
 	// If Rd == Rs or Rt, we can't xor it before it's used.
 	// So, allocate a temporary register first, and then reallocate it to Rd.
@@ -618,7 +618,7 @@ static void recSLTs_const(int info, int sign, int st)
 
 static void recSLTs_(int info, int sign)
 {
-	const xImpl_Set& SET = sign ? xSETL : xSETB;
+	const auto& SET = sign ? xSETL : xSETB;
 
 	// need to keep Rs/Rt around.
 	const xRegister32 dreg((_Rd_ == _Rt_ || _Rd_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_D);

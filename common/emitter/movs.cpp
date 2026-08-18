@@ -199,20 +199,40 @@ namespace x86Emitter
 	const xImpl_MovExtend xMOVZX = {false};
 
 #endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_CMov xCMOVB = {Jcc_Below};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_CMov xCMOVGE = {Jcc_GreaterOrEqual};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_CMov xCMOVE = {Jcc_Equal};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_CMov xCMOVNE = {Jcc_NotEqual};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_CMov xCMOVS = {Jcc_Signed};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_CMov xCMOVNS = {Jcc_Unsigned};
 
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Set xSETA = {Jcc_Above};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Set xSETB = {Jcc_Below};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Set xSETG = {Jcc_Greater};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_Set xSETL = {Jcc_Less};
 
+#endif
 } // end namespace x86Emitter
