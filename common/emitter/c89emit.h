@@ -778,14 +778,24 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
         if (rex_ != 0x40) EW8((p), rex_); } while (0)
 
 /* Emits 0F + opcode, or 0F 3A/38 + opcode for the three-byte forms. */
+/* Selection by switch rather than `(op & 0xff) == 0x38 || == 0x3a`: the
+ * opcode is a literal at nearly every call site, GCC folds the masked
+ * comparisons to constant false and emits -Wtautological-compare twice
+ * per expansion -- across every shim body that carries an immediate,
+ * that was a solid wall of warnings in the aarch64 log. The switch folds
+ * to the same code with nothing to warn about. */
 #define E_SSE_OP(p, opcode) do { \
-        if (((opcode) & 0xff) == 0x38 || ((opcode) & 0xff) == 0x3a) { \
+        switch ((opcode) & 0xff) { \
+        case 0x38: \
+        case 0x3a: \
             EW8((p), 0x0f); \
             EW8((p), (e_u8)((opcode) & 0xff)); \
             EW8((p), (e_u8)((opcode) >> 8)); \
-        } else { \
+            break; \
+        default: \
             EW8((p), 0x0f); \
             EW8((p), (e_u8)((opcode) & 0xff)); \
+            break; \
         } } while (0)
 
 /* reg,reg */
