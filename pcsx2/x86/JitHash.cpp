@@ -14,12 +14,23 @@
 
 #include "common/Pcsx2Defs.h"
 
+#include <cstdio>
+#include <cstdlib>
+
+// The exported entry point and the A/B mode flags exist on every
+// architecture and compiler: libretro/main.cpp calls the dump from
+// retro_deinit unconditionally, and the aarch64 link failed the moment
+// this TU compiled empty there. Only the hashing internals are x86-64.
+#if defined(_MSC_VER)
+#define JITHASH_EXPORT extern "C" __declspec(dllexport)
+#else
+#define JITHASH_EXPORT extern "C" __attribute__((visibility("default")))
+#endif
+
 #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
 
 #include "Memory.h"
 #include "VirtualMemory.h"
-
-#include <cstdio>
 #include <cstdlib>
 
 namespace
@@ -61,7 +72,7 @@ static struct XeModeInit
 	}
 } s_xe_mode_init;
 
-extern "C" __attribute__((visibility("default"))) void pcsx2_jithash_dump(void)
+JITHASH_EXPORT void pcsx2_jithash_dump(void)
 {
 	const char* env = getenv("PCSX2_JITHASH");
 	if (!env || env[0] == '0')
@@ -92,6 +103,17 @@ extern "C" __attribute__((visibility("default"))) void pcsx2_jithash_dump(void)
 	// count, so this line must be nonzero AND equal across modes.
 	fprintf(stderr, "[JITHASH] xe_site_hits %llu\n", xe_site_hits);
 	fflush(stderr);
+}
+
+#else // not x86-64: keep the contract, hash nothing
+
+extern "C" int xe_cpp_mode;
+int xe_cpp_mode;
+extern "C" unsigned long long xe_site_hits;
+unsigned long long xe_site_hits;
+
+JITHASH_EXPORT void pcsx2_jithash_dump(void)
+{
 }
 
 #endif // x86-64
