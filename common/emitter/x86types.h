@@ -194,7 +194,7 @@ namespace x86Emitter
 	public:
 		uint _operandSize = 0;
 		OperandSizedObject() = default;
-		OperandSizedObject(uint operandSize)
+		constexpr OperandSizedObject(uint operandSize)
 			: _operandSize(operandSize)
 		{
 		}
@@ -248,7 +248,7 @@ namespace x86Emitter
 	class xRegisterBase : public OperandSizedObject
 	{
 	protected:
-		xRegisterBase(uint operandSize, int regId)
+		constexpr xRegisterBase(uint operandSize, int regId)
 			: OperandSizedObject(operandSize)
 			, Id(regId)
 		{
@@ -259,7 +259,7 @@ namespace x86Emitter
 	public:
 		int Id;
 
-		xRegisterBase()
+		constexpr xRegisterBase()
 			: OperandSizedObject(0)
 			, Id(-2)
 		{
@@ -278,7 +278,7 @@ namespace x86Emitter
 		typedef xRegisterBase _parent;
 
 	protected:
-		explicit xRegisterInt(uint operandSize, int regId)
+		explicit constexpr xRegisterInt(uint operandSize, int regId)
 			: _parent(operandSize, regId)
 		{
 		}
@@ -316,7 +316,7 @@ namespace x86Emitter
 
 	public:
 		xRegister8() = default;
-		explicit xRegister8(int regId)
+		explicit constexpr xRegister8(int regId)
 			: _parent(1, regId)
 		{
 		}
@@ -326,7 +326,7 @@ namespace x86Emitter
 			if (!other.canMapIDTo(1))
 				Id |= 0x10;
 		}
-		xRegister8(int regId, bool ext8bit)
+		constexpr xRegister8(int regId, bool ext8bit)
 			: _parent(1, regId)
 		{
 			if (ext8bit)
@@ -343,7 +343,7 @@ namespace x86Emitter
 
 	public:
 		xRegister16() = default;
-		explicit xRegister16(int regId)
+		explicit constexpr xRegister16(int regId)
 			: _parent(2, regId)
 		{
 		}
@@ -362,7 +362,7 @@ namespace x86Emitter
 
 	public:
 		xRegister32() = default;
-		explicit xRegister32(int regId)
+		explicit constexpr xRegister32(int regId)
 			: _parent(4, regId)
 		{
 		}
@@ -383,7 +383,7 @@ namespace x86Emitter
 
 	public:
 		xRegister64() = default;
-		explicit xRegister64(int regId)
+		explicit constexpr xRegister64(int regId)
 			: _parent(8, regId)
 		{
 		}
@@ -412,11 +412,11 @@ namespace x86Emitter
 
 	public:
 		xRegisterSSE() = default;
-		explicit xRegisterSSE(int regId)
+		explicit constexpr xRegisterSSE(int regId)
 			: _parent(16, regId)
 		{
 		}
-		xRegisterSSE(int regId, xRegisterYMMTag)
+		constexpr xRegisterSSE(int regId, xRegisterYMMTag)
 			: _parent(32, regId)
 		{
 		}
@@ -439,7 +439,7 @@ namespace x86Emitter
 	class xRegisterCL : public xRegister8
 	{
 	public:
-		xRegisterCL()
+		constexpr xRegisterCL()
 			: xRegister8(1)
 		{
 		}
@@ -467,7 +467,7 @@ namespace x86Emitter
 			: xRegisterLong(other)
 		{
 		}
-		explicit xAddressReg(int regId)
+		explicit constexpr xAddressReg(int regId)
 			: xRegisterLong(regId)
 		{
 		}
@@ -567,61 +567,89 @@ namespace x86Emitter
 		}
 	};
 
-	extern const xRegisterEmpty xEmptyReg;
+	inline constexpr xRegisterEmpty xEmptyReg = {};
 
 	// clang-format off
-	extern const xRegisterSSE
-    xmm0, xmm1, xmm2, xmm3,
-    xmm4, xmm5, xmm6, xmm7,
-    xmm8, xmm9, xmm10, xmm11,
-    xmm12, xmm13, xmm14, xmm15;
+	// Register objects. C++17 inline variables with constexpr constructors:
+	// compile-time constants in every translation unit, with no out-of-line
+	// definition in x86emitter.cpp and no static-initialisation order to
+	// reason about.
+	inline constexpr xRegisterSSE
+    xmm0(0), xmm1(1), xmm2(2), xmm3(3),
+    xmm4(4), xmm5(5), xmm6(6), xmm7(7),
+    xmm8(8), xmm9(9), xmm10(10), xmm11(11),
+    xmm12(12), xmm13(13), xmm14(14), xmm15(15);
 
 	// TODO: This needs to be _M_SSE >= 0x500'ed, but we can't do it atm because common doesn't have variants.
-	extern const xRegisterSSE
-	  ymm0, ymm1, ymm2, ymm3,
-	  ymm4, ymm5, ymm6, ymm7,
-	  ymm8, ymm9, ymm10, ymm11,
-	  ymm12, ymm13, ymm14, ymm15;
+	inline constexpr xRegisterSSE
+	  ymm0(0, xRegisterYMMTag()), ymm1(1, xRegisterYMMTag()),
+	  ymm2(2, xRegisterYMMTag()), ymm3(3, xRegisterYMMTag()),
+	  ymm4(4, xRegisterYMMTag()), ymm5(5, xRegisterYMMTag()),
+	  ymm6(6, xRegisterYMMTag()), ymm7(7, xRegisterYMMTag()),
+	  ymm8(8, xRegisterYMMTag()), ymm9(9, xRegisterYMMTag()),
+	  ymm10(10, xRegisterYMMTag()), ymm11(11, xRegisterYMMTag()),
+	  ymm12(12, xRegisterYMMTag()), ymm13(13, xRegisterYMMTag()),
+	  ymm14(14, xRegisterYMMTag()), ymm15(15, xRegisterYMMTag());
 
-extern const xAddressReg
-    rax, rbx, rcx, rdx,
-    rsi, rdi, rbp, rsp,
-    r8, r9, r10, r11,
-    r12, r13, r14, r15;
+inline constexpr xAddressReg
+    rax(0), rbx(3), rcx(1), rdx(2),
+    rsi(6), rdi(7), rbp(5), rsp(4),
+    r8(8), r9(9), r10(10), r11(11),
+    r12(12), r13(13), r14(14), r15(15);
 
-extern const xRegister32
-     eax,  ebx,  ecx,  edx,
-     esi,  edi,  ebp,  esp,
-     r8d,  r9d, r10d, r11d,
-    r12d, r13d, r14d, r15d;
+inline constexpr xRegister32
+     eax(0),  ebx(3),  ecx(1),  edx(2),
+     esi(6),  edi(7),  ebp(5),  esp(4),
+     r8d(8),  r9d(9), r10d(10), r11d(11),
+    r12d(12), r13d(13), r14d(14), r15d(15);
 
-extern const xRegister16
-    ax, bx, cx, dx,
-    si, di, bp, sp;
+inline constexpr xRegister16
+    ax(0), bx(3), cx(1), dx(2),
+    si(6), di(7), bp(5), sp(4);
 
-extern const xRegister8
-    al, dl, bl,
-    ah, ch, dh, bh,
-    spl, bpl, sil, dil,
-    r8b, r9b, r10b, r11b,
-    r12b, r13b, r14b, r15b;
+	inline constexpr xRegister8
+    al(0),
+    dl(2), bl(3),
+    ah(4), ch(5),
+    dh(6), bh(7),
+    spl(4, true), bpl(5, true),
+    sil(6, true), dil(7, true),
+    r8b(8), r9b(9),
+    r10b(10), r11b(11),
+    r12b(12), r13b(13),
+    r14b(14), r15b(15);
 
-extern const xAddressReg
-    arg1reg, arg2reg,
-    arg3reg, arg4reg,
-    calleeSavedReg1,
-    calleeSavedReg2;
+// ABI argument registers. The platform conditional moves here with the
+// definitions; the copies are constexpr because the copy constructor of a
+// literal type is implicitly constexpr.
+#if defined(_WIN32)
+inline constexpr xAddressReg
+    arg1reg = rcx, arg2reg = rdx,
+    arg3reg = r8, arg4reg = r9,
+    calleeSavedReg1 = rdi,
+    calleeSavedReg2 = rsi;
 
+inline constexpr xRegister32
+    arg1regd = ecx, arg2regd = edx,
+    calleeSavedReg1d = edi,
+    calleeSavedReg2d = esi;
+#else
+inline constexpr xAddressReg
+    arg1reg = rdi, arg2reg = rsi,
+    arg3reg = rdx, arg4reg = rcx,
+    calleeSavedReg1 = r12,
+    calleeSavedReg2 = r13;
 
-extern const xRegister32
-    arg1regd, arg2regd,
-    calleeSavedReg1d,
-    calleeSavedReg2d;
+inline constexpr xRegister32
+    arg1regd = edi, arg2regd = esi,
+    calleeSavedReg1d = r12d,
+    calleeSavedReg2d = r13d;
+#endif
 
 
 	// clang-format on
 
-	extern const xRegisterCL cl; // I'm special!
+	inline constexpr xRegisterCL cl; // I'm special!
 
 	bool xRegisterBase::IsCallerSaved(uint id)
 	{
