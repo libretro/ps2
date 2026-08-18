@@ -355,7 +355,7 @@ namespace COP0 {
 				if (!_Rt_)
 					break;
 			}
-				[[fallthrough]];
+				PCSX2_FALLTHROUGH;
 
 			default:
 				cpuRegs.GPR.r[_Rt_].SD[0] = (s32)cpuRegs.CP0.r[_Rd_];

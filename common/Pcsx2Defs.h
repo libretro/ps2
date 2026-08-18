@@ -242,6 +242,24 @@
 // `inline` alongside the always_inline attribute for ODR correctness across
 // translation units. On MinGW we follow the same gnu_inline rationale as
 // __fi/__ri above and let it collapse to `inline`.
+// Fallthrough annotation that degrades instead of failing to parse:
+// [[fallthrough]] is C++17 syntax and nothing older -- not C89, not C at
+// all, not pre-17 C++ -- so a bare attribute is a landmine for any file
+// that migrates toward C or an older standard. GCC>=7 and clang accept
+// the attribute spelling in C too; everything else gets a no-op, which
+// costs only the warning the annotation was silencing.
+#ifndef PCSX2_FALLTHROUGH
+#if defined(__cplusplus) && (__cplusplus >= 201703L)
+#define PCSX2_FALLTHROUGH [[fallthrough]]
+#elif defined(__GNUC__) && (__GNUC__ >= 7)
+#define PCSX2_FALLTHROUGH __attribute__((fallthrough))
+#elif defined(__clang__)
+#define PCSX2_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define PCSX2_FALLTHROUGH ((void)0)
+#endif
+#endif
+
 #ifndef __forceinline_odr
 #if defined(_MSC_VER)
 // MSVC's __forceinline is a builtin that already carries inline linkage;

@@ -27,6 +27,7 @@
 */
 
 #include "hid.h"
+#include "common/Pcsx2Defs.h"
 #include "input-keymap.h"
 
 #include <algorithm>
@@ -510,7 +511,7 @@ static void hid_keyboard_process_keycode(HIDState* hs)
 			}
 			/* fall through to process Ctrl_L */
 			//case 0xe1 ... 0xe7:
-			[[fallthrough]];
+			PCSX2_FALLTHROUGH;
 		case 0xe1:
 		case 0xe2:
 		case 0xe3:

@@ -198,9 +198,9 @@ namespace
 					case 0x04: if (rd) { LoadGpr(m, w0, gpr, rt); LoadGpr(m, w1, gpr, rs); m.Lsl(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
 					case 0x06: if (rd) { LoadGpr(m, w0, gpr, rt); LoadGpr(m, w1, gpr, rs); m.Lsr(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
 					case 0x07: if (rd) { LoadGpr(m, w0, gpr, rt); LoadGpr(m, w1, gpr, rs); m.Asr(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
-					case 0x20: [[fallthrough]]; // ADD == ADDU (C.68)
+					case 0x20: PCSX2_FALLTHROUGH; // ADD == ADDU (C.68)
 					case 0x21: if (rd) { LoadGpr(m, w0, gpr, rs); LoadGpr(m, w1, gpr, rt); m.Add(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
-					case 0x22: [[fallthrough]]; // SUB == SUBU (C.68)
+					case 0x22: PCSX2_FALLTHROUGH; // SUB == SUBU (C.68)
 					case 0x23: if (rd) { LoadGpr(m, w0, gpr, rs); LoadGpr(m, w1, gpr, rt); m.Sub(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
 					case 0x24: if (rd) { LoadGpr(m, w0, gpr, rs); LoadGpr(m, w1, gpr, rt); m.And(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
 					case 0x25: if (rd) { LoadGpr(m, w0, gpr, rs); LoadGpr(m, w1, gpr, rt); m.Orr(w0, w0, w1); StoreGpr(m, w0, gpr, rd); } return true;
@@ -254,7 +254,7 @@ namespace
 					}
 					default: return false;
 				}
-			case 0x08: [[fallthrough]]; // ADDI == ADDIU (C.68)
+			case 0x08: PCSX2_FALLTHROUGH; // ADDI == ADDIU (C.68)
 			case 0x09: if (rt) { LoadGpr(m, w0, gpr, rs); m.Add(w0, w0, simm); StoreGpr(m, w0, gpr, rt); } return true;
 			case 0x0a: if (rt) { LoadGpr(m, w0, gpr, rs); m.Mov(w1, (u32)simm); m.Cmp(w0, w1); m.Cset(w0, lt); StoreGpr(m, w0, gpr, rt); } return true;
 			case 0x0b: if (rt) { LoadGpr(m, w0, gpr, rs); m.Mov(w1, (u32)simm); m.Cmp(w0, w1); m.Cset(w0, lo); StoreGpr(m, w0, gpr, rt); } return true;

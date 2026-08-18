@@ -539,7 +539,7 @@ static void eeExecuteLoop(void)
 					break;
 
 				state = GAME_LOADING;
-				[[fallthrough]];
+				PCSX2_FALLTHROUGH;
 			}
 
 		case GAME_LOADING:
