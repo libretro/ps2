@@ -18,6 +18,7 @@
 #include "../Common.h"
 #include "../R5900OpcodeTables.h"
 #include "iR5900.h"
+#include "common/emitter/c89ops.h"
 #include "iFPU.h"
 
 using namespace x86Emitter;
@@ -87,7 +88,7 @@ alignas(16) static const u32 s_pos[4] = {0x7fffffff, 0xffffffff, 0xffffffff, 0xf
 	void rec##f() \
 	{ \
 		iFlushCall(FLUSH_INTERPRETER); \
-		xFastCall((void*)(uptr)R5900::Interpreter::OpcodeImpl::COP1::f); \
+		xe_fastcall0(R5900::Interpreter::OpcodeImpl::COP1::f); \
 		g_branch = 2; \
 	}
 
@@ -96,7 +97,7 @@ alignas(16) static const u32 s_pos[4] = {0x7fffffff, 0xffffffff, 0xffffffff, 0xf
 	void rec##f() \
 	{ \
 		iFlushCall(FLUSH_INTERPRETER); \
-		xFastCall((void*)(uptr)R5900::Interpreter::OpcodeImpl::COP1::f); \
+		xe_fastcall0(R5900::Interpreter::OpcodeImpl::COP1::f); \
 	}
 //------------------------------------------------------------------
 
@@ -125,14 +126,14 @@ void recCFC1(void)
 	const int regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE);
 	if (_Fs_ >= 16)
 	{
-		xMOV(xRegister32(regt), ptr32[&fpuRegs.fprc[31]]);
-		xAND(xRegister32(regt), 0x0083c078); //remove always-zero bits
-		xOR(xRegister32(regt), 0x01000001); //set always-one bits
-		xMOVSX(xRegister64(regt), xRegister32(regt));
+		xe_mov32_rm(regt, &fpuRegs.fprc[31]);
+		xe_and32_ri(regt, 0x0083c078); //remove always-zero bits
+		xe_or32_ri(regt, 0x01000001); //set always-one bits
+		xe_movsxd_rr(regt, regt);
 	}
 	else
 	{
-		xMOVSX(xRegister64(regt), ptr32[&fpuRegs.fprc[0]]);
+		xe_movsxd_rm(regt, &fpuRegs.fprc[0]);
 	}
 }
 
@@ -143,7 +144,7 @@ void recCTC1(void)
 
 	if (GPR_IS_CONST1(_Rt_))
 	{
-		xMOV(ptr32[&fpuRegs.fprc[_Fs_]], g_cpuConstRegs[_Rt_].UL[0]);
+		xe_mov32_mi(&fpuRegs.fprc[_Fs_], g_cpuConstRegs[_Rt_].UL[0]);
 	}
 	else
 	{
@@ -151,18 +152,18 @@ void recCTC1(void)
 
 		if (mmreg >= 0)
 		{
-			xMOVSS(ptr[&fpuRegs.fprc[_Fs_]], xRegisterSSE(mmreg));
+			xe_movss_mx(&fpuRegs.fprc[_Fs_], mmreg);
 		}
 		else if ((mmreg = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ)) >= 0)
 		{
-			xMOV(ptr32[&fpuRegs.fprc[_Fs_]], xRegister32(mmreg));
+			xe_mov32_mr(&fpuRegs.fprc[_Fs_], mmreg);
 		}
 		else
 		{
 			_deleteGPRtoXMMreg(_Rt_, 1);
 
-			xMOV(eax, ptr[&cpuRegs.GPR.r[_Rt_].UL[0]]);
-			xMOV(ptr[&fpuRegs.fprc[_Fs_]], eax);
+			xe_mov32_rm(XE_AX, &cpuRegs.GPR.r[_Rt_].UL[0]);
+			xe_mov32_mr(&fpuRegs.fprc[_Fs_], XE_AX);
 		}
 	}
 }
@@ -184,10 +185,10 @@ void recMFC1(void)
 	{
 		// both in xmm, sign extend and insert lower bits
 		const int temp = _allocTempXMMreg(XMMT_FPS);
-		xMOVAPS(xRegisterSSE(temp), xRegisterSSE(regs));
-		xPSRA.D(xRegisterSSE(temp), 31);
-		xMOVSS(xRegisterSSE(xmmregt), xRegisterSSE(regs));
-		xINSERTPS(xRegisterSSE(xmmregt), xRegisterSSE(temp), _MM_MK_INSERTPS_NDX(0, 1, 0));
+		xe_movaps_xx(temp, regs);
+		xe_psrad_xi(temp, 31);
+		xe_movss_xx(xmmregt, regs);
+		xe_insertps_xxi(xmmregt, temp, _MM_MK_INSERTPS_NDX(0, 1, 0));
 		_freeXMMreg(temp);
 		return;
 	}
@@ -198,13 +199,13 @@ void recMFC1(void)
 	if (regs >= 0)
 	{
 		// xmm -> gpr
-		xMOVD(xRegister32(regt), xRegisterSSE(regs));
-		xMOVSX(xRegister64(regt), xRegister32(regt));
+		xe_movd_rx(regt, regs);
+		xe_movsxd_rr(regt, regt);
 	}
 	else
 	{
 		// mem -> gpr
-		xMOVSX(xRegister64(regt), ptr32[&fpuRegs.fpr[_Fs_].UL]);
+		xe_movsxd_rm(regt, &fpuRegs.fpr[_Fs_].UL);
 	}
 }
 
@@ -224,18 +225,18 @@ void recMTC1(void)
 			// common case: mtc1 zero, fnn
 			if (g_cpuConstRegs[_Rt_].UL[0] == 0)
 			{
-				xPXOR(xRegisterSSE(xmmreg), xRegisterSSE(xmmreg));
+				xe_pxor_xx(xmmreg, xmmreg);
 			}
 			else
 			{
 				// may as well flush the constant register, since we're needing it in a gpr anyway
 				const int x86reg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
-				xMOVDZX(xRegisterSSE(xmmreg), xRegister32(x86reg));
+				xe_movdzx_xr(xmmreg, x86reg);
 			}
 		}
 		else
 		{
-			xMOV(ptr32[&fpuRegs.fpr[_Fs_].UL], g_cpuConstRegs[_Rt_].UL[0]);
+			xe_mov32_mi(&fpuRegs.fpr[_Fs_].UL, g_cpuConstRegs[_Rt_].UL[0]);
 		}
 	}
 	else
@@ -253,9 +254,9 @@ void recMTC1(void)
 			{
 				const int xmmreg2 = _allocIfUsedFPUtoXMM(_Fs_, MODE_WRITE);
 				if (xmmreg2 >= 0)
-					xMOVSS(xRegisterSSE(xmmreg2), xRegisterSSE(xmmgpr));
+					xe_movss_xx(xmmreg2, xmmgpr);
 				else
-					xMOVSS(ptr[&fpuRegs.fpr[_Fs_].UL], xRegisterSSE(xmmgpr));
+					xe_movss_mx(&fpuRegs.fpr[_Fs_].UL, xmmgpr);
 			}
 		}
 		else
@@ -266,11 +267,11 @@ void recMTC1(void)
 
 			if (mmreg2 >= 0)
 			{
-				xMOVDZX(xRegisterSSE(mmreg2), xRegister32(regt));
+				xe_movdzx_xr(mmreg2, regt);
 			}
 			else
 			{
-				xMOV(ptr32[&fpuRegs.fpr[_Fs_].UL], xRegister32(regt));
+				xe_mov32_mr(&fpuRegs.fpr[_Fs_].UL, regt);
 			}
 		}
 	}
@@ -321,7 +322,7 @@ static int fpuCopyToTempForClamp(int fpureg, int xmmreg)
 	if (FPUINST_USEDTEST(fpureg))
 	{
 		const int tempreg = _allocTempXMMreg(XMMT_FPS);
-		xMOVSS(xRegisterSSE(tempreg), xRegisterSSE(xmmreg));
+		xe_movss_xx(tempreg, xmmreg);
 		return tempreg;
 	}
 
@@ -344,16 +345,16 @@ static __fi void fpuFloat3(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +f
 {
 	/* SSE4 codepath */
 #if _M_SSE >= 0x401
-	xPMIN.SD(xRegisterSSE(regd), ptr128[&g_maxvals[0]]);
-	xPMIN.UD(xRegisterSSE(regd), ptr128[&g_minvals[0]]);
+	xe_pminsd_xm(regd, &g_maxvals[0]);
+	xe_pminud_xm(regd, &g_minvals[0]);
 	/* SSE2 codepath */
 #elif _M_SSE >= 0x200
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
-	xMOVSS(xRegisterSSE(t1reg), xRegisterSSE(regd));
-	xAND.PS(xRegisterSSE(t1reg), ptr[&s_neg[0]]);
-	xMIN.SS(xRegisterSSE(regd), ptr[&g_maxvals[0]]);
-	xMAX.SS(xRegisterSSE(regd), ptr[&g_minvals[0]]);
-	xOR.PS(xRegisterSSE(regd), xRegisterSSE(t1reg));
+	xe_movss_xx(t1reg, regd);
+	xe_andps_xm(t1reg, &s_neg[0]);
+	xe_minss_xm(regd, &g_maxvals[0]);
+	xe_maxss_xm(regd, &g_minvals[0]);
+	xe_orps_xx(regd, t1reg);
 	_freeXMMreg(t1reg);
 #endif
 }
@@ -362,8 +363,8 @@ static __fi void fpuFloat(int regd) // +/-NaN -> +fMax, +Inf -> +fMax, -Inf -> -
 {
 	if (CHECK_FPU_OVERFLOW)
 	{
-		xMIN.SS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // MIN() must be before MAX()! So that NaN's become +Maximum
-		xMAX.SS(xRegisterSSE(regd), ptr[&g_minvals[0]]);
+		xe_minss_xm(regd, &g_maxvals[0]); // MIN() must be before MAX()! So that NaN's become +Maximum
+		xe_maxss_xm(regd, &g_minvals[0]);
 	}
 }
 
@@ -384,15 +385,15 @@ static __fi void fpuFloat2(int regd) // +NaN -> +fMax, -NaN -> -fMax, +Inf -> +f
 void recABS_S_xmm(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+		xe_movss_xx(EEREC_D, EEREC_S);
 	else
-		xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+		xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 
-	xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]);
+	xe_andps_xm(EEREC_D, &s_pos[0]);
 	//xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagO|FPUflagU)); // Clear O and U flags
 
 	if (CHECK_FPU_OVERFLOW) // Only need to do positive clamp, since EEREC_D is positive
-		xMIN.SS(xRegisterSSE(EEREC_D), ptr[&g_maxvals[0]]);
+		xe_minss_xm(EEREC_D, &g_maxvals[0]);
 }
 
 FPURECOMPILE_CONSTCODE(ABS_S, XMMINFO_WRITED | XMMINFO_READS);
@@ -414,75 +415,75 @@ static void FPU_ADD_SUB(int regd, int regt, int issub)
 	u8 *j8Ptr0, *j8Ptr1, *j8Ptr2, *j8Ptr3;
 	u8 *j8Ptr4, *j8Ptr5, *j8Ptr6, *j8Ptr7;
 	const int xmmtemp = _allocTempXMMreg(XMMT_FPS); //temporary for anding with regd/regt
-	xMOVD(ecx, xRegisterSSE(regd)); // ecx receives regd
-	xMOVD(eax, xRegisterSSE(regt)); // eax receives regt
+	xe_movd_rx(XE_CX, regd); // ecx receives regd
+	xe_movd_rx(XE_AX, regt); // eax receives regt
 
 	//mask the exponents
-	xSHR(ecx, 23);
-	xSHR(eax, 23);
-	xAND(ecx, 0xff);
-	xAND(eax, 0xff);
+	xe_shr32_ri(XE_CX, 23);
+	xe_shr32_ri(XE_AX, 23);
+	xe_and32_ri(XE_CX, 0xff);
+	xe_and32_ri(XE_AX, 0xff);
 
-	xSUB(ecx, eax); //tempecx = exponent difference
-	xCMP(ecx, 25);
+	xe_sub32_rr(XE_CX, XE_AX); //tempecx = exponent difference
+	xe_cmp32_ri(XE_CX, 25);
 	j8Ptr0 = JGE8(0);
-	xCMP(ecx, 0);
+	xe_cmp32_ri(XE_CX, 0);
 	j8Ptr1 = JG8(0);
 	j8Ptr2 = JE8(0);
-	xCMP(ecx, -25);
+	xe_cmp32_ri(XE_CX, -25);
 	j8Ptr3 = JLE8(0);
 
 	//diff = -24 .. -1 , expd < expt
-	xNEG(ecx);
-	xDEC(ecx);
-	xMOV(eax, 0xffffffff);
-	xSHL(eax, cl); //temp2 = 0xffffffff << tempecx
-	xMOVDZX(xRegisterSSE(xmmtemp), eax);
-	xAND.PS(xRegisterSSE(regd), xRegisterSSE(xmmtemp));
+	xe_neg32_r(XE_CX);
+	xe_dec32_r(XE_CX);
+	xe_mov32_ri(XE_AX, 0xffffffff);
+	xe_shl32_rcl(XE_AX); //temp2 = 0xffffffff << tempecx
+	xe_movdzx_xr(xmmtemp, XE_AX);
+	xe_andps_xx(regd, xmmtemp);
 	if (issub)
-		xSUB.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+		xe_subss_xx(regd, regt);
 	else
-		xADD.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+		xe_addss_xx(regd, regt);
 	j8Ptr4 = JMP8(0);
 
 	x86SetJ8(j8Ptr0);
 	//diff = 25 .. 255 , expt < expd
-	xMOVAPS(xRegisterSSE(xmmtemp), xRegisterSSE(regt));
-	xAND.PS(xRegisterSSE(xmmtemp), ptr[s_neg]);
+	xe_movaps_xx(xmmtemp, regt);
+	xe_andps_xm(xmmtemp, s_neg);
 	if (issub)
-		xSUB.SS(xRegisterSSE(regd), xRegisterSSE(xmmtemp));
+		xe_subss_xx(regd, xmmtemp);
 	else
-		xADD.SS(xRegisterSSE(regd), xRegisterSSE(xmmtemp));
+		xe_addss_xx(regd, xmmtemp);
 	j8Ptr5 = JMP8(0);
 
 	x86SetJ8(j8Ptr1);
 	//diff = 1 .. 24, expt < expd
-	xDEC(ecx);
-	xMOV(eax, 0xffffffff);
-	xSHL(eax, cl); //temp2 = 0xffffffff << tempecx
-	xMOVDZX(xRegisterSSE(xmmtemp), eax);
-	xAND.PS(xRegisterSSE(xmmtemp), xRegisterSSE(regt));
+	xe_dec32_r(XE_CX);
+	xe_mov32_ri(XE_AX, 0xffffffff);
+	xe_shl32_rcl(XE_AX); //temp2 = 0xffffffff << tempecx
+	xe_movdzx_xr(xmmtemp, XE_AX);
+	xe_andps_xx(xmmtemp, regt);
 	if (issub)
-		xSUB.SS(xRegisterSSE(regd), xRegisterSSE(xmmtemp));
+		xe_subss_xx(regd, xmmtemp);
 	else
-		xADD.SS(xRegisterSSE(regd), xRegisterSSE(xmmtemp));
+		xe_addss_xx(regd, xmmtemp);
 	j8Ptr6 = JMP8(0);
 
 	x86SetJ8(j8Ptr3);
 	//diff = -255 .. -25, expd < expt
-	xAND.PS(xRegisterSSE(regd), ptr[s_neg]);
+	xe_andps_xm(regd, s_neg);
 	if (issub)
-		xSUB.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+		xe_subss_xx(regd, regt);
 	else
-		xADD.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+		xe_addss_xx(regd, regt);
 	j8Ptr7 = JMP8(0);
 
 	x86SetJ8(j8Ptr2);
 	//diff == 0
 	if (issub)
-		xSUB.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+		xe_subss_xx(regd, regt);
 	else
-		xADD.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+		xe_addss_xx(regd, regt);
 
 	x86SetJ8(j8Ptr4);
 	x86SetJ8(j8Ptr5);
@@ -499,12 +500,12 @@ static void FPU_ADD_WRAP(int regd, int regt) { FPU_ADD_SUB(regd, regt, 0); }
 #else
 static void FPU_ADD(int regd, int regt)
 {
-	xADD.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+	xe_addss_xx(regd, regt);
 }
 
 static void FPU_SUB(int regd, int regt)
 {
-	xSUB.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+	xe_subss_xx(regd, regt);
 }
 #endif
 
@@ -527,21 +528,21 @@ static void FPU_MUL(int regd, int regt, bool reverseOperands)
 
 		alignas(16) static constexpr const u32 result[4] = { 0x3f490fda };
 
-		xMOVD(ecx, xRegisterSSE(reverseOperands ? regt : regd));
-		xMOVD(edx, xRegisterSSE(reverseOperands ? regd : regt));
+		xe_movd_rx(XE_CX, reverseOperands ? regt : regd);
+		xe_movd_rx(XE_DX, reverseOperands ? regd : regt);
 
 		// if (((s ^ 0x3e800000) | (t ^ 0x40490fdb)) != 0) { hack; }
-		xXOR(ecx, 0x3e800000);
-		xXOR(edx, 0x40490fdb);
-		xOR(edx, ecx);
+		xe_xor32_ri(XE_CX, 0x3e800000);
+		xe_xor32_ri(XE_DX, 0x40490fdb);
+		xe_or32_rr(XE_DX, XE_CX);
 
 		u8* noHack = JNZ8(0);
-			xMOVAPS(xRegisterSSE(regd), ptr128[result]);
+			xe_movaps_xm(regd, result);
 			endMul = JMP8(0);
 		x86SetJ8(noHack);
 	}
 
-	xMUL.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+	xe_mulss_xx(regd, regt);
 
 	if (CHECK_FPUMULHACK)
 		x86SetJ8(endMul);
@@ -574,7 +575,7 @@ static int recCommutativeOp(int info, int regd, int op)
 		case PROCESS_EE_S:
 			if (regd == EEREC_S)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW /*&& !CHECK_FPUCLAMPHACK */ || (op >= 2))
 				{
 					fpuFloat2(regd);
@@ -584,7 +585,7 @@ static int recCommutativeOp(int info, int regd, int op)
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW || (op >= 2))
 				{
 					fpuFloat2(regd);
@@ -596,7 +597,7 @@ static int recCommutativeOp(int info, int regd, int op)
 		case PROCESS_EE_T:
 			if (regd == EEREC_T)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW || (op >= 2))
 				{
 					fpuFloat2(regd);
@@ -606,7 +607,7 @@ static int recCommutativeOp(int info, int regd, int op)
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW || (op >= 2))
 				{
 					fpuFloat2(regd);
@@ -627,7 +628,7 @@ static int recCommutativeOp(int info, int regd, int op)
 			}
 			else
 			{
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_movss_xx(regd, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW || (op >= 2))
 				{
 					fpuFloat2(regd);
@@ -637,8 +638,8 @@ static int recCommutativeOp(int info, int regd, int op)
 			}
 			break;
 		default:
-			xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 			if (CHECK_FPU_EXTRA_OVERFLOW || (op >= 2))
 			{
 				fpuFloat2(regd);
@@ -681,8 +682,8 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 // BC2F checks if the statement is false, BC2T checks if the statement is true.
 #define _setupBranchTest() \
 	_eeFlushAllDirty(); \
-	xMOV(eax, ptr[&fpuRegs.fprc[31]]); \
-	xTEST(eax, FPUflagC)
+	xe_mov32_rm(XE_AX, &fpuRegs.fprc[31]); \
+	xe_test32_ri(XE_AX, FPUflagC)
 
 void recBC1F(void)
 {
@@ -730,10 +731,10 @@ void recC_EQ_xmm(int info)
 				fpuFloat3(regs);
 
 				const int t0reg = _allocTempXMMreg(XMMT_FPS);
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				fpuFloat3(t0reg);
 
-				xUCOMI.SS(xRegisterSSE(regs), xRegisterSSE(t0reg));
+				xe_ucomiss_xx(regs, t0reg);
 
 				_freeXMMreg(t0reg);
 				fpuFreeIfTemp(regs);
@@ -746,10 +747,10 @@ void recC_EQ_xmm(int info)
 				fpuFloat3(regt);
 
 				const int t0reg = _allocTempXMMreg(XMMT_FPS);
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 				fpuFloat3(t0reg);
 
-				xUCOMI.SS(xRegisterSSE(t0reg), xRegisterSSE(regt));
+				xe_ucomiss_xx(t0reg, regt);
 
 				_freeXMMreg(t0reg);
 				fpuFreeIfTemp(regt);
@@ -764,7 +765,7 @@ void recC_EQ_xmm(int info)
 				const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
 				fpuFloat3(regt);
 
-				xUCOMI.SS(xRegisterSSE(regs), xRegisterSSE(regt));
+				xe_ucomiss_xx(regs, regt);
 
 				fpuFreeIfTemp(regs);
 				fpuFreeIfTemp(regt);
@@ -772,23 +773,23 @@ void recC_EQ_xmm(int info)
 			break;
 
 		default:
-			xMOV(eax, ptr[&fpuRegs.fpr[_Fs_]]);
-			xCMP(eax, ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_mov32_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
+			xe_cmp32_rm(XE_AX, &fpuRegs.fpr[_Ft_]);
 
 			j8Ptr0 = JZ8(0);
-			xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+			xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 			j8Ptr1 = JMP8(0);
 			x86SetJ8(j8Ptr0);
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+			xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
 			x86SetJ8(j8Ptr1);
 			return;
 	}
 
 	j8Ptr0 = JZ8(0);
-	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
 	x86SetJ8(j8Ptr0);
-	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
 	x86SetJ8(j8Ptr1);
 }
 
@@ -796,7 +797,7 @@ FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
 
 void recC_F()
 {
-	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 }
 
 void recC_LE_xmm(int info)
@@ -810,10 +811,10 @@ void recC_LE_xmm(int info)
 			fpuFloat3(regs);
 
 			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 			fpuFloat3(t0reg);
 
-			xUCOMI.SS(xRegisterSSE(regs), xRegisterSSE(t0reg));
+			xe_ucomiss_xx(regs, t0reg);
 
 			_freeXMMreg(t0reg);
 			fpuFreeIfTemp(regs);
@@ -826,10 +827,10 @@ void recC_LE_xmm(int info)
 			fpuFloat3(regt);
 
 			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 			fpuFloat3(t0reg);
 
-			xUCOMI.SS(xRegisterSSE(t0reg), xRegisterSSE(regt));
+			xe_ucomiss_xx(t0reg, regt);
 
 			_freeXMMreg(t0reg);
 			fpuFreeIfTemp(regt);
@@ -844,7 +845,7 @@ void recC_LE_xmm(int info)
 			const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
 			fpuFloat3(regt);
 
-			xUCOMI.SS(xRegisterSSE(regs), xRegisterSSE(regt));
+			xe_ucomiss_xx(regs, regt);
 
 			fpuFreeIfTemp(regs);
 			fpuFreeIfTemp(regt);
@@ -852,23 +853,23 @@ void recC_LE_xmm(int info)
 		break;
 
 		default: // Untested and incorrect, but this case is never reached AFAIK (cottonvibes)
-			xMOV(eax, ptr[&fpuRegs.fpr[_Fs_]]);
-			xCMP(eax, ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_mov32_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
+			xe_cmp32_rm(XE_AX, &fpuRegs.fpr[_Ft_]);
 
 			j8Ptr0 = JLE8(0);
-			xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+			xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 			j8Ptr1 = JMP8(0);
 			x86SetJ8(j8Ptr0);
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+			xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
 			x86SetJ8(j8Ptr1);
 			return;
 	}
 
 	j8Ptr0 = JBE8(0);
-	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
 	x86SetJ8(j8Ptr0);
-	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
 	x86SetJ8(j8Ptr1);
 }
 
@@ -885,10 +886,10 @@ void recC_LT_xmm(int info)
 			fpuFloat3(regs);
 
 			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 			fpuFloat3(t0reg);
 
-			xUCOMI.SS(xRegisterSSE(regs), xRegisterSSE(t0reg));
+			xe_ucomiss_xx(regs, t0reg);
 
 			_freeXMMreg(t0reg);
 			fpuFreeIfTemp(regs);
@@ -901,10 +902,10 @@ void recC_LT_xmm(int info)
 			fpuFloat3(regt);
 
 			const int t0reg = _allocTempXMMreg(XMMT_FPS);
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 			fpuFloat3(t0reg);
 
-			xUCOMI.SS(xRegisterSSE(t0reg), xRegisterSSE(regt));
+			xe_ucomiss_xx(t0reg, regt);
 
 			_freeXMMreg(t0reg);
 			fpuFreeIfTemp(regt);
@@ -919,7 +920,7 @@ void recC_LT_xmm(int info)
 			const int regt = fpuCopyToTempForClamp(_Ft_, EEREC_T);
 			fpuFloat3(regt);
 
-			xUCOMI.SS(xRegisterSSE(regs), xRegisterSSE(regt));
+			xe_ucomiss_xx(regs, regt);
 
 			fpuFreeIfTemp(regs);
 			fpuFreeIfTemp(regt);
@@ -927,23 +928,23 @@ void recC_LT_xmm(int info)
 		break;
 
 		default:
-			xMOV(eax, ptr[&fpuRegs.fpr[_Fs_]]);
-			xCMP(eax, ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_mov32_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
+			xe_cmp32_rm(XE_AX, &fpuRegs.fpr[_Ft_]);
 
 			j8Ptr0 = JL8(0);
-			xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+			xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 			j8Ptr1 = JMP8(0);
 			x86SetJ8(j8Ptr0);
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+			xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
 			x86SetJ8(j8Ptr1);
 			return;
 	}
 
 	j8Ptr0 = JB8(0);
-	xAND(ptr32[&fpuRegs.fprc[31]], ~FPUflagC);
+	xe_and32_mi(&fpuRegs.fprc[31], ~FPUflagC);
 	j8Ptr1 = JMP8(0);
 	x86SetJ8(j8Ptr0);
-	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagC);
+	xe_or32_mi(&fpuRegs.fprc[31], FPUflagC);
 	x86SetJ8(j8Ptr1);
 }
 
@@ -960,15 +961,15 @@ void recCVT_S_xmm(int info)
 	if (info & PROCESS_EE_D)
 	{
 		if (info & PROCESS_EE_S)
-			xCVTDQ2PS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+			xe_cvtdq2ps_xx(EEREC_D, EEREC_S);
 		else
-			xCVTSI2SS(xRegisterSSE(EEREC_D), ptr32[&fpuRegs.fpr[_Fs_]]);
+			xe_cvtsi2ss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 	}
 	else
 	{
 		const int temp = _allocTempXMMreg(XMMT_FPS);
-		xCVTSI2SS(xRegisterSSE(temp), ptr32[&fpuRegs.fpr[_Fs_]]);
-		xMOVSS(ptr32[&fpuRegs.fpr[_Fd_]], xRegisterSSE(temp));
+		xe_cvtsi2ss_xm(temp, &fpuRegs.fpr[_Fs_]);
+		xe_movss_mx(&fpuRegs.fpr[_Fd_], temp);
 		_freeXMMreg(temp);
 	}
 }
@@ -986,13 +987,13 @@ void recCVT_W(void)
 
 	if (regs >= 0)
 	{
-		xCVTTSS2SI(eax, xRegisterSSE(regs));
-		xMOVD(edx, xRegisterSSE(regs));
+		xe_cvttss2si_rx(XE_AX, regs);
+		xe_movd_rx(XE_DX, regs);
 	}
 	else
 	{
-		xCVTTSS2SI(eax, ptr32[&fpuRegs.fpr[_Fs_]]);
-		xMOV(edx, ptr[&fpuRegs.fpr[_Fs_]]);
+		xe_cvttss2si_rm(XE_AX, &fpuRegs.fpr[_Fs_]);
+		xe_mov32_rm(XE_DX, &fpuRegs.fpr[_Fs_]);
 	}
 
 	/* Kill register allocation for dst 
@@ -1002,12 +1003,12 @@ void recCVT_W(void)
 	/* cvttss2si converts unrepresentable values to 0x80000000, 
 	 * so negative values are already handled.
 	 * So we just need to handle positive values. */
-	xCMP(edx, 0x4f000000); /* If the input is greater than INT_MAX */
-	xMOV(edx, 0x7fffffff);
-	xCMOVGE(eax, edx);     /* Saturate it */
+	xe_cmp32_ri(XE_DX, 0x4f000000); /* If the input is greater than INT_MAX */
+	xe_mov32_ri(XE_DX, 0x7fffffff);
+	xe_cmovge32_rr(XE_AX, XE_DX);     /* Saturate it */
 
 	/* Write the result */
-	xMOV(ptr[&fpuRegs.fpr[_Fd_]], eax);
+	xe_mov32_mr(&fpuRegs.fpr[_Fd_], XE_AX);
 }
 //------------------------------------------------------------------
 
@@ -1021,39 +1022,39 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 	u32 *ajmp32, *bjmp32;
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
 
-	xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagI | FPUflagD)); // Clear I and D flags
+	xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagI | FPUflagD)); // Clear I and D flags
 
 	/*--- Check for divide by zero ---*/
-	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
-	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regt));
-	xMOVMSKPS(eax, xRegisterSSE(t1reg));
-	xAND(eax, 1); //Check sign (if regt == zero, sign will be set)
+	xe_xorps_xx(t1reg, t1reg);
+	xe_cmpeqss_xx(t1reg, regt);
+	xe_movmskps_rx(XE_AX, t1reg);
+	xe_and32_ri(XE_AX, 1); //Check sign (if regt == zero, sign will be set)
 	ajmp32 = JZ32(0); //Skip if not set
 
 	/*--- Check for 0/0 ---*/
-	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
-	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
-	xMOVMSKPS(eax, xRegisterSSE(t1reg));
-	xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
+	xe_xorps_xx(t1reg, t1reg);
+	xe_cmpeqss_xx(t1reg, regd);
+	xe_movmskps_rx(XE_AX, t1reg);
+	xe_and32_ri(XE_AX, 1); //Check sign (if regd == zero, sign will be set)
 	pjmp1 = JZ8(0); //Skip if not set
-	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
+	xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 	pjmp2 = JMP8(0);
 	x86SetJ8(pjmp1); //x/0 but not 0/0
-	xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
+	xe_or32_mi(&fpuRegs.fprc[31], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
 	x86SetJ8(pjmp2);
 
 	/*--- Make regd +/- Maximum ---*/
-	xXOR.PS(xRegisterSSE(regd), xRegisterSSE(regt)); // Make regd Positive or Negative
-	xAND.PS(xRegisterSSE(regd), ptr[&s_neg[0]]); // Get the sign bit
-	xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum
-	//xMOVSSZX(xRegisterSSE(regd), ptr[&g_maxvals[0]]);
+	xe_xorps_xx(regd, regt); // Make regd Positive or Negative
+	xe_andps_xm(regd, &s_neg[0]); // Get the sign bit
+	xe_orps_xm(regd, &g_maxvals[0]); // regd = +/- Maximum
+	//xe_movss_xm(regd, &g_maxvals[0]);
 	bjmp32 = JMP32(0);
 
 	x86SetJ32(ajmp32);
 
 	/*--- Normal Divide ---*/
 	if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(regt); }
-	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(regt));
+	xe_divss_xx(regd, regt);
 
 	fpuFloat(regd);
 	x86SetJ32(bjmp32);
@@ -1066,27 +1067,27 @@ void recDIV_S_xmm(int info)
 	int t0reg = _allocTempXMMreg(XMMT_FPS);
 
 	if (EmuConfig.Cpu.FPUFPCR.bitmask != EmuConfig.Cpu.FPUDivFPCR.bitmask)
-		xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUDivFPCR.bitmask]);
+		xe_ldmxcsr_m(&EmuConfig.Cpu.FPUDivFPCR.bitmask);
 
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{
 		case PROCESS_EE_S:
-			xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_movss_xx(EEREC_D, EEREC_S);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 			// Sets D/I flags on FPU instructions
 			recDIVhelper1(EEREC_D, t0reg);
 			break;
 		case PROCESS_EE_T:
 			if (EEREC_D == EEREC_T)
 			{
-				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
-				xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xx(t0reg, EEREC_T);
+				xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 				// Sets D/I flags on FPU instructions
 				recDIVhelper1(EEREC_D, t0reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 				// Sets D/I flags on FPU instructions
 				recDIVhelper1(EEREC_D, EEREC_T);
 			}
@@ -1094,28 +1095,28 @@ void recDIV_S_xmm(int info)
 		case (PROCESS_EE_S | PROCESS_EE_T):
 			if (EEREC_D == EEREC_T)
 			{
-				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
-				xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+				xe_movss_xx(t0reg, EEREC_T);
+				xe_movss_xx(EEREC_D, EEREC_S);
 				// Sets D/I flags on FPU instructions
 				recDIVhelper1(EEREC_D, t0reg);
 			}
 			else
 			{
-				xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+				xe_movss_xx(EEREC_D, EEREC_S);
 				// Sets D/I flags on FPU instructions
 				recDIVhelper1(EEREC_D, EEREC_T);
 			}
 			break;
 		default:
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
-			xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
+			xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 			// Sets D/I flags on FPU instructions
 			recDIVhelper1(EEREC_D, t0reg);
 			break;
 	}
 
 	if (EmuConfig.Cpu.FPUFPCR.bitmask != EmuConfig.Cpu.FPUDivFPCR.bitmask)
-		xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUFPCR.bitmask]);
+		xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
 	_freeXMMreg(t0reg);
 }
 
@@ -1136,9 +1137,9 @@ void recMADDtemp(int info, int regd)
 		case PROCESS_EE_S:
 			if (regd == EEREC_S)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_mulss_xx(regd, t0reg);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(regd); }
@@ -1146,24 +1147,24 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
 			}
 			else if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(EEREC_S); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_S));
+				xe_mulss_xx(t0reg, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_ADD(regd, t0reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_S); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_mulss_xx(regd, EEREC_S);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(regd); }
@@ -1171,7 +1172,7 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
@@ -1180,9 +1181,9 @@ void recMADDtemp(int info, int regd)
 		case PROCESS_EE_T:
 			if (regd == EEREC_T)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_mulss_xx(regd, t0reg);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(regd); }
@@ -1190,24 +1191,24 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
 			}
 			else if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(EEREC_T); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(t0reg, EEREC_T);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_ADD(regd, t0reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(regd, EEREC_T);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(regd); }
@@ -1215,7 +1216,7 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(EEREC_ACC); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
@@ -1225,7 +1226,7 @@ void recMADDtemp(int info, int regd)
 			if (regd == EEREC_S)
 			{
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(regd, EEREC_T);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(EEREC_ACC); }
@@ -1233,7 +1234,7 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
@@ -1241,7 +1242,7 @@ void recMADDtemp(int info, int regd)
 			else if (regd == EEREC_T)
 			{
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_S); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_mulss_xx(regd, EEREC_S);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(EEREC_ACC); }
@@ -1249,24 +1250,24 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
 			}
 			else if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
-				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_S));
+				xe_movss_xx(t0reg, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(t0reg); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(t0reg, EEREC_T);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_ADD(regd, t0reg);
 			}
 			else
 			{
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_movss_xx(regd, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(regd, EEREC_T);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(EEREC_ACC); }
@@ -1274,7 +1275,7 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
@@ -1284,20 +1285,20 @@ void recMADDtemp(int info, int regd)
 			if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
 				const int t1reg = _allocTempXMMreg(XMMT_FPS);
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
-				xMOVSSZX(xRegisterSSE(t1reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
+				xe_movss_xm(t1reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(t0reg); fpuFloat2(t1reg); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(t1reg));
+				xe_mulss_xx(t0reg, t1reg);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_ADD(regd, t0reg);
 				_freeXMMreg(t1reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_mulss_xx(regd, t0reg);
 				if (info & PROCESS_EE_ACC)
 				{
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(EEREC_ACC); }
@@ -1305,7 +1306,7 @@ void recMADDtemp(int info, int regd)
 				}
 				else
 				{
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 					if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 					FPU_ADD(regd, t0reg);
 				}
@@ -1358,9 +1359,9 @@ FPURECOMPILE_CONSTCODE(MIN_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 void recMOV_S_xmm(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+		xe_movss_xx(EEREC_D, EEREC_S);
 	else
-		xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+		xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 }
 
 FPURECOMPILE_CONSTCODE(MOV_S, XMMINFO_WRITED | XMMINFO_READS);
@@ -1379,147 +1380,147 @@ void recMSUBtemp(int info, int regd)
 		case PROCESS_EE_S:
 			if (regd == EEREC_S)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_mulss_xx(regd, t0reg);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			else if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(EEREC_S); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_S));
+				xe_mulss_xx(t0reg, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(regd, t0reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_S); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_mulss_xx(regd, EEREC_S);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			break;
 		case PROCESS_EE_T:
 			if (regd == EEREC_T)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_mulss_xx(regd, t0reg);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			else if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(EEREC_T); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(t0reg, EEREC_T);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(regd, t0reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(regd, EEREC_T);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			break;
 		case (PROCESS_EE_S | PROCESS_EE_T):
 			if (regd == EEREC_S)
 			{
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(regd, EEREC_T);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			else if (regd == EEREC_T)
 			{
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_S); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_mulss_xx(regd, EEREC_S);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			else if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
-				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_S));
+				xe_movss_xx(t0reg, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(t0reg); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(t0reg, EEREC_T);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(regd, t0reg);
 			}
 			else
 			{
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_movss_xx(regd, EEREC_S);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(EEREC_T); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(EEREC_T));
+				xe_mulss_xx(regd, EEREC_T);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			break;
 		default:
 			if ((info & PROCESS_EE_ACC) && regd == EEREC_ACC)
 			{
 				const int t1reg = _allocTempXMMreg(XMMT_FPS);
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Fs_]]);
-				xMOVSSZX(xRegisterSSE(t1reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Fs_]);
+				xe_movss_xm(t1reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(t0reg); fpuFloat2(t1reg); }
-				xMUL.SS(xRegisterSSE(t0reg), xRegisterSSE(t1reg));
+				xe_mulss_xx(t0reg, t1reg);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(regd, t0reg);
 				_freeXMMreg(t1reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
-				xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
+				xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat2(regd); fpuFloat2(t0reg); }
-				xMUL.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_mulss_xx(regd, t0reg);
 				if (info & PROCESS_EE_ACC)
-					xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_ACC));
+					xe_movss_xx(t0reg, EEREC_ACC);
 				else
-					xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.ACC]);
+					xe_movss_xm(t0reg, &fpuRegs.ACC);
 				if (CHECK_FPU_EXTRA_OVERFLOW) { fpuFloat(regd); fpuFloat(t0reg); }
 				FPU_SUB(t0reg, regd);
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+				xe_movss_xx(regd, t0reg);
 			}
 			break;
 	}
@@ -1569,11 +1570,11 @@ FPURECOMPILE_CONSTCODE(MULA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 void recNEG_S_xmm(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+		xe_movss_xx(EEREC_D, EEREC_S);
 	else
-		xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+		xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 
-	xXOR.PS(xRegisterSSE(EEREC_D), ptr[&s_neg[0]]);
+	xe_xorps_xm(EEREC_D, &s_neg[0]);
 
 	// Always preserve sign. Using float clamping here would result in
 	// +inf to become +fMax instead of -fMax, which is definitely wrong.
@@ -1603,39 +1604,39 @@ static void recSUBop(int info, int regd)
 	{
 		case PROCESS_EE_S:
 			if (regd != EEREC_S)
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+				xe_movss_xx(regd, EEREC_S);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 			recSUBhelper(regd, t0reg);
 			break;
 		case PROCESS_EE_T:
 			if (regd == EEREC_T)
 			{
-				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xx(t0reg, EEREC_T);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
 				recSUBhelper(regd, t0reg);
 			}
 			else
 			{
-				xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
+				xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
 				recSUBhelper(regd, EEREC_T);
 			}
 			break;
 		case (PROCESS_EE_S | PROCESS_EE_T):
 			if (regd == EEREC_T)
 			{
-				xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_movss_xx(t0reg, EEREC_T);
+				xe_movss_xx(regd, EEREC_S);
 				recSUBhelper(regd, t0reg);
 			}
 			else
 			{
-				xMOVSS(xRegisterSSE(regd), xRegisterSSE(EEREC_S));
+				xe_movss_xx(regd, EEREC_S);
 				recSUBhelper(regd, EEREC_T);
 			}
 			break;
 		default:
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
-			xMOVSSZX(xRegisterSSE(regd), ptr[&fpuRegs.fpr[_Fs_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
+			xe_movss_xm(regd, &fpuRegs.fpr[_Fs_]);
 			recSUBhelper(regd, t0reg);
 			break;
 	}
@@ -1674,36 +1675,36 @@ void recSQRT_S_xmm(int info)
 		// Set roundmode to nearest if it isn't already
 		roundmode_nearest = EmuConfig.Cpu.FPUFPCR;
 		roundmode_nearest.SetRoundMode(FPRoundMode::Nearest);
-		xLDMXCSR(ptr32[&roundmode_nearest.bitmask]);
+		xe_ldmxcsr_m(&roundmode_nearest.bitmask);
 		roundmodeFlag = true;
 	}
 
 	if (info & PROCESS_EE_T)
-		xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_T));
+		xe_movss_xx(EEREC_D, EEREC_T);
 	else
-		xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Ft_]]);
+		xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Ft_]);
 
 	// Sets D/I flags on FPU instructions
 	{
-		xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagI | FPUflagD)); // Clear I and D flags
+		xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagI | FPUflagD)); // Clear I and D flags
 
 		/*--- Check for negative SQRT ---*/
-		xMOVMSKPS(eax, xRegisterSSE(EEREC_D));
-		xAND(eax, 1); //Check sign
+		xe_movmskps_rx(XE_AX, EEREC_D);
+		xe_and32_ri(XE_AX, 1); //Check sign
 		u8* pjmp = JZ8(0); //Skip if none are
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
-			xAND.PS(xRegisterSSE(EEREC_D), ptr[&s_pos[0]]); // Make EEREC_D Positive
+			xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags
+			xe_andps_xm(EEREC_D, &s_pos[0]); // Make EEREC_D Positive
 		x86SetJ8(pjmp);
 	}
 
 	if (CHECK_FPU_OVERFLOW) // Only need to do positive clamp, since EEREC_D is positive
-		xMIN.SS(xRegisterSSE(EEREC_D), ptr[&g_maxvals[0]]);
-	xSQRT.SS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_D));
+		xe_minss_xm(EEREC_D, &g_maxvals[0]);
+	xe_sqrtss_xx(EEREC_D, EEREC_D);
 	if (CHECK_FPU_EXTRA_OVERFLOW) // Shouldn't need to clamp again since SQRT of a number will always be smaller than the original number, doing it just incase :/
 		fpuFloat(EEREC_D);
 
 	if (roundmodeFlag)
-		xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUFPCR.bitmask]);
+		xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
 }
 
 FPURECOMPILE_CONSTCODE(SQRT_S, XMMINFO_WRITED | XMMINFO_READT);
@@ -1720,48 +1721,48 @@ static void recRSQRThelper1(int regd, int t0reg) // Preforms the RSQRT function 
 	u8 *qjmp1, *qjmp2;
 	int t1reg = _allocTempXMMreg(XMMT_FPS);
 
-	xAND(ptr32[&fpuRegs.fprc[31]], ~(FPUflagI | FPUflagD)); // Clear I and D flags
+	xe_and32_mi(&fpuRegs.fprc[31], ~(FPUflagI | FPUflagD)); // Clear I and D flags
 
 	/*--- (first) Check for negative SQRT ---*/
-	xMOVMSKPS(eax, xRegisterSSE(t0reg));
-	xAND(eax, 1); //Check sign
+	xe_movmskps_rx(XE_AX, t0reg);
+	xe_and32_ri(XE_AX, 1); //Check sign
 	pjmp2 = JZ8(0); //Skip if not set
-		xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags
-		xAND.PS(xRegisterSSE(t0reg), ptr[&s_pos[0]]); // Make t0reg Positive
+		xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags
+		xe_andps_xm(t0reg, &s_pos[0]); // Make t0reg Positive
 	x86SetJ8(pjmp2);
 
 	/*--- Check for zero ---*/
-	xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
-	xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(t0reg));
-	xMOVMSKPS(eax, xRegisterSSE(t1reg));
-	xAND(eax, 1); //Check sign (if t0reg == zero, sign will be set)
+	xe_xorps_xx(t1reg, t1reg);
+	xe_cmpeqss_xx(t1reg, t0reg);
+	xe_movmskps_rx(XE_AX, t1reg);
+	xe_and32_ri(XE_AX, 1); //Check sign (if t0reg == zero, sign will be set)
 	pjmp1 = JZ8(0); //Skip if not set
 		/*--- Check for 0/0 ---*/
-		xXOR.PS(xRegisterSSE(t1reg), xRegisterSSE(t1reg));
-		xCMPEQ.SS(xRegisterSSE(t1reg), xRegisterSSE(regd));
-		xMOVMSKPS(eax, xRegisterSSE(t1reg));
-		xAND(eax, 1); //Check sign (if regd == zero, sign will be set)
+		xe_xorps_xx(t1reg, t1reg);
+		xe_cmpeqss_xx(t1reg, regd);
+		xe_movmskps_rx(XE_AX, t1reg);
+		xe_and32_ri(XE_AX, 1); //Check sign (if regd == zero, sign will be set)
 		qjmp1 = JZ8(0); //Skip if not set
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
+			xe_or32_mi(&fpuRegs.fprc[31], FPUflagI | FPUflagSI); // Set I and SI flags ( 0/0 )
 			qjmp2 = JMP8(0);
 		x86SetJ8(qjmp1); //x/0 but not 0/0
-			xOR(ptr32[&fpuRegs.fprc[31]], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
+			xe_or32_mi(&fpuRegs.fprc[31], FPUflagD | FPUflagSD); // Set D and SD flags ( x/0 )
 		x86SetJ8(qjmp2);
 
 		/*--- Make regd +/- Maximum ---*/
-		xAND.PS(xRegisterSSE(regd), ptr[&s_neg[0]]); // Get the sign bit
-		xOR.PS(xRegisterSSE(regd), ptr[&g_maxvals[0]]); // regd = +/- Maximum
+		xe_andps_xm(regd, &s_neg[0]); // Get the sign bit
+		xe_orps_xm(regd, &g_maxvals[0]); // regd = +/- Maximum
 		pjmp32 = JMP32(0);
 	x86SetJ8(pjmp1);
 
 	if (CHECK_FPU_EXTRA_OVERFLOW)
 	{
-		xMIN.SS(xRegisterSSE(t0reg), ptr[&g_maxvals[0]]); // Only need to do positive clamp, since t0reg is positive
+		xe_minss_xm(t0reg, &g_maxvals[0]); // Only need to do positive clamp, since t0reg is positive
 		fpuFloat2(regd);
 	}
 
-	xSQRT.SS(xRegisterSSE(t0reg), xRegisterSSE(t0reg));
-	xDIV.SS(xRegisterSSE(regd), xRegisterSSE(t0reg));
+	xe_sqrtss_xx(t0reg, t0reg);
+	xe_divss_xx(regd, t0reg);
 
 	fpuFloat(regd);
 	x86SetJ32(pjmp32);
@@ -1777,20 +1778,20 @@ void recRSQRT_S_xmm(int info)
 	switch (info & (PROCESS_EE_S | PROCESS_EE_T))
 	{
 		case PROCESS_EE_S:
-			xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
+			xe_movss_xx(EEREC_D, EEREC_S);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
 			break;
 		case PROCESS_EE_T:
-			xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
-			xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+			xe_movss_xx(t0reg, EEREC_T);
+			xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 			break;
 		case (PROCESS_EE_S | PROCESS_EE_T):
-			xMOVSS(xRegisterSSE(t0reg), xRegisterSSE(EEREC_T));
-			xMOVSS(xRegisterSSE(EEREC_D), xRegisterSSE(EEREC_S));
+			xe_movss_xx(t0reg, EEREC_T);
+			xe_movss_xx(EEREC_D, EEREC_S);
 			break;
 		default:
-			xMOVSSZX(xRegisterSSE(t0reg), ptr[&fpuRegs.fpr[_Ft_]]);
-			xMOVSSZX(xRegisterSSE(EEREC_D), ptr[&fpuRegs.fpr[_Fs_]]);
+			xe_movss_xm(t0reg, &fpuRegs.fpr[_Ft_]);
+			xe_movss_xm(EEREC_D, &fpuRegs.fpr[_Fs_]);
 			break;
 	}
 	// Sets D/I flags on FPU instructions
