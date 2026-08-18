@@ -512,4 +512,12 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_shr32_rcl(reg)      XE_2(E_G2_RCL(xep, 0, 5, (reg)), \
 	x86Emitter::xSHR(x86Emitter::xRegister32(reg), x86Emitter::cl))
 
+
+#define xe_test32_ri(reg, imm) XE_2(E_TEST_RI_SZ(xep, 4, (reg), (imm)), \
+	x86Emitter::xTEST(x86Emitter::xRegister32(reg), (imm)))
+#define xe_and32_mr(addr, reg) XE_2(E_G1_MR(xep, 0, 4, (reg), (e_uptr)(addr)), \
+	x86Emitter::xAND(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegister32(reg)))
+#define xe_or32_mr(addr, reg)  XE_2(E_G1_MR(xep, 0, 1, (reg), (e_uptr)(addr)), \
+	x86Emitter::xOR(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegister32(reg)))
+
 #endif /* PCSX2_C89OPS_H */

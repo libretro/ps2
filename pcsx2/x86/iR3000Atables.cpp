@@ -97,7 +97,7 @@ static void rpsxMoveTtoD(int info)
 static void rpsxMoveSToECX(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOV(ecx, xRegister32(EEREC_S));
+		xe_mov32_rr(XE_CX, EEREC_S);
 	else
 		xe_mov32_rm(XE_CX, &psxRegs.GPR.r[_Rs_]);
 }
@@ -462,11 +462,8 @@ static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int
 	// `auto` rather than the concrete type: the object's type is a
 	// detail of the emitter, and naming it here pins this code to one
 	// implementation of it for no benefit.
-	std::remove_reference<decltype(xAND)>::type *bad = nullptr;
-	const auto& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
-														 op == LogicalOp::XOR    ? xXOR :
-														 op == LogicalOp::NOR    ? xOR :
-                                                                                   *bad;
+	const int xopg1 = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 :
+		op == LogicalOp::XOR ? 6 : /* NOR */ 1;
 	s32 fixedInput, fixedOutput, identityInput;
 	bool hasFixed = true;
 	switch (op)
@@ -507,7 +504,7 @@ static void rpsxLogicalOp_constv(LogicalOp op, int info, int creg, u32 vreg, int
 		else
 			xe_mov32_rm(EEREC_D, &psxRegs.GPR.r[vreg]);
 		if (cval != identityInput)
-			xOP(xRegister32(EEREC_D), cval);
+			xe_g1op32_ri(xopg1, EEREC_D, cval);
 		if (op == LogicalOp::NOR)
 			xe_not32_r(EEREC_D);
 	}
@@ -518,11 +515,8 @@ static void rpsxLogicalOp(LogicalOp op, int info)
 	// `auto` rather than the concrete type: the object's type is a
 	// detail of the emitter, and naming it here pins this code to one
 	// implementation of it for no benefit.
-	std::remove_reference<decltype(xAND)>::type *bad = nullptr;
-	const auto& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
-														 op == LogicalOp::XOR    ? xXOR :
-														 op == LogicalOp::NOR    ? xOR :
-                                                                                   *bad;
+	const int xopg1 = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 :
+		op == LogicalOp::XOR ? 6 : /* NOR */ 1;
 	// swap because it's commutative and Rd might be Rt
 	u32 rs = _Rs_, rt = _Rt_;
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
@@ -544,9 +538,9 @@ static void rpsxLogicalOp(LogicalOp op, int info)
 			xe_mov32_rm(EEREC_D, &psxRegs.GPR.r[rs]);
 
 		if (regt >= 0)
-			xOP(xRegister32(EEREC_D), xRegister32(regt));
+			xe_g1op32_rr(xopg1, EEREC_D, regt);
 		else
-			xOP(xRegister32(EEREC_D), ptr32[&psxRegs.GPR.r[rt]]);
+			xe_g1op32_rm(xopg1, EEREC_D, &psxRegs.GPR.r[rt]);
 
 		if (op == LogicalOp::NOR)
 			xe_not32_r(EEREC_D);
@@ -745,7 +739,7 @@ static void rpsxMULT_const()
 
 	u64 res = (s64)((s64) * (int*)&g_psxConstRegs[_Rs_] * (s64) * (int*)&g_psxConstRegs[_Rt_]);
 
-	xMOV(ptr32[&psxRegs.GPR.n.hi], (u32)((res >> 32) & 0xffffffff));
+	xe_mov32_mi(&psxRegs.GPR.n.hi, (u32)((res >> 32) & 0xffffffff));
 	xe_mov32_mi(&psxRegs.GPR.n.lo, (u32)(res & 0xffffffff));
 }
 
@@ -835,7 +829,7 @@ static void rpsxMULTU_const()
 
 	u64 res = (u64)((u64)g_psxConstRegs[_Rs_] * (u64)g_psxConstRegs[_Rt_]);
 
-	xMOV(ptr32[&psxRegs.GPR.n.hi], (u32)((res >> 32) & 0xffffffff));
+	xe_mov32_mi(&psxRegs.GPR.n.hi, (u32)((res >> 32) & 0xffffffff));
 	xe_mov32_mi(&psxRegs.GPR.n.lo, (u32)(res & 0xffffffff));
 }
 
@@ -903,9 +897,9 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 {
 	// Lo/Hi = Rs / Rt (signed)
 	if (process & PROCESS_CONSTT)
-		xMOV(ecx, g_psxConstRegs[_Rt_]);
+		xe_mov32_ri(XE_CX, g_psxConstRegs[_Rt_]);
 	else if (info & PROCESS_EE_T)
-		xMOV(ecx, xRegister32(EEREC_T));
+		xe_mov32_rr(XE_CX, EEREC_T);
 	else
 		xe_mov32_rm(XE_CX, &psxRegs.GPR.r[_Rt_]);
 
@@ -921,17 +915,17 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	{
 		xe_cmp32_ri(XE_AX, 0x80000000);
 		u8* cont1 = JNE8(0);
-		xCMP(ecx, 0xffffffff);
+		xe_cmp32_ri(XE_CX, 0xffffffff);
 		u8* cont2 = JNE8(0);
 		//overflow case:
-		xXOR(edx, edx); //EAX remains 0x80000000
+		xe_xor32_rr(XE_DX, XE_DX); //EAX remains 0x80000000
 		end1 = JMP8(0);
 
 		x86SetJ8(cont1);
 		x86SetJ8(cont2);
 	}
 
-	xCMP(ecx, 0);
+	xe_cmp32_ri(XE_CX, 0);
 	u8* cont3 = JNE8(0);
 
 	//divide by zero
@@ -940,7 +934,7 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	{
 		xe_sar32_ri(XE_AX, 31); //(EAX < 0)?-1:0
 		xe_shl32_ri(XE_AX, 1); //(EAX < 0)?-2:0
-		xNOT(eax); //(EAX < 0)?1:-1
+		xe_not32_r(XE_AX); //(EAX < 0)?1:-1
 	}
 	else
 		xe_mov32_ri(XE_AX, 0xffffffff);
@@ -951,12 +945,12 @@ static void rpsxDIVsuper(int info, int sign, int process = 0)
 	if (sign)
 	{
 		xe_cdq();
-		xDIV(ecx);
+		xe_idiv32_r(XE_CX);
 	}
 	else
 	{
-		xXOR(edx, edx);
-		xUDIV(ecx);
+		xe_xor32_rr(XE_DX, XE_DX);
+		xe_div32_r(XE_CX);
 	}
 
 	if (sign)
@@ -1042,12 +1036,12 @@ static void rpsxCalcAddressOperand()
 	_freeX86reg(arg1regd);
 
 	if (rs >= 0)
-		xMOV(arg1regd, xRegister32(rs));
+		xe_mov32_rr(arg1regd.Id, rs);
 	else
-		xMOV(arg1regd, ptr32[&psxRegs.GPR.r[_Rs_]]);
+		xe_mov32_rm(arg1regd.Id, &psxRegs.GPR.r[_Rs_]);
 
 	if (_Imm_)
-		xADD(arg1regd, _Imm_);
+		xe_add32_ri(arg1regd.Id, _Imm_);
 }
 
 static void rpsxCalcStoreOperand()
@@ -1061,9 +1055,9 @@ static void rpsxCalcStoreOperand()
 	_freeX86reg(arg2regd);
 
 	if (rt >= 0)
-		xMOV(arg2regd, xRegister32(rt));
+		xe_mov32_rr(arg2regd.Id, rt);
 	else
-		xMOV(arg2regd, ptr32[&psxRegs.GPR.r[_Rt_]]);
+		xe_mov32_rm(arg2regd.Id, &psxRegs.GPR.r[_Rt_]);
 }
 
 static void rpsxLoad(int size, bool sign)
@@ -1077,7 +1071,7 @@ static void rpsxLoad(int size, bool sign)
 	}
 
 	_psxFlushCall(FLUSH_FULLVTLB);
-	xTEST(arg1regd, 0x10000000);
+	xe_test32_ri(arg1regd.Id, 0x10000000);
 	xForwardJZ8 is_ram_read;
 
 	switch (size)
@@ -1106,7 +1100,7 @@ static void rpsxLoad(int size, bool sign)
 	is_ram_read.SetTarget();
 
 	// read from psM directly
-	xAND(arg1regd, 0x1fffff);
+	xe_and32_ri(arg1regd.Id, 0x1fffff);
 
 	auto addr = xComplexAddress(rax, iopMem->Main, arg1reg);
 	switch (size)
@@ -1202,7 +1196,7 @@ static void rpsxLoadUnaligned(bool isLeft)
 	}
 
 	xe_mov32_mr(&s_psx_unaligned_addr, arg1regd.Id);
-	xAND(arg1regd, 0xfffffffc);
+	xe_and32_ri(arg1regd.Id, 0xfffffffc);
 
 	if (_Rt_ != 0)
 	{
@@ -1212,12 +1206,12 @@ static void rpsxLoadUnaligned(bool isLeft)
 
 	_psxFlushCall(FLUSH_FULLVTLB);
 
-	xTEST(arg1regd, 0x10000000);
+	xe_test32_ri(arg1regd.Id, 0x10000000);
 	xForwardJZ8 is_ram_read;
 	xFastCall((void*)iopMemRead32);
 	xForwardJump8 done;
 	is_ram_read.SetTarget();
-	xAND(arg1regd, 0x1fffff);
+	xe_and32_ri(arg1regd.Id, 0x1fffff);
 	xMOV(eax, ptr32[xComplexAddress(rax, iopMem->Main, arg1reg)]);
 	done.SetTarget();
 	// EAX holds the aligned word; arg1regd is dead from here on.
@@ -1226,26 +1220,26 @@ static void rpsxLoadUnaligned(bool isLeft)
 		return;
 
 	xe_mov32_rm(XE_CX, &s_psx_unaligned_addr);
-	xAND(ecx, 3);
-	xSHL(ecx, 3); // shift = (addr & 3) * 8
+	xe_and32_ri(XE_CX, 3);
+	xe_shl32_ri(XE_CX, 3); // shift = (addr & 3) * 8
 
 	if (isLeft)
 	{
 		xe_mov32_ri(XE_DX, 0x00ffffff);
 		xe_shr32_rcl(XE_DX);
-		xAND(edx, ptr32[&s_psx_unaligned_rt]);
-		xNEG(ecx);
-		xADD(ecx, 24); // 24 - shift
+		xe_and32_rm(XE_DX, &s_psx_unaligned_rt);
+		xe_neg32_r(XE_CX);
+		xe_add32_ri(XE_CX, 24); // 24 - shift
 		xe_shl32_rcl(XE_AX);
 	}
 	else
 	{
 		xe_shr32_rcl(XE_AX); // while CL still holds shift
 		xe_mov32_ri(XE_DX, 0xffffff00);
-		xNEG(ecx);
-		xADD(ecx, 24);
+		xe_neg32_r(XE_CX);
+		xe_add32_ri(XE_CX, 24);
 		xe_shl32_rcl(XE_DX);
-		xAND(edx, ptr32[&s_psx_unaligned_rt]);
+		xe_and32_rm(XE_DX, &s_psx_unaligned_rt);
 	}
 	xe_or32_rr(XE_AX, XE_DX);
 
@@ -1290,15 +1284,15 @@ static void rpsxStoreUnaligned(bool isLeft)
 	xe_mov32_mr(&s_psx_unaligned_addr, arg1regd.Id);
 
 	xe_mov32_rr(XE_AX, arg1regd.Id);
-	xTEST(eax, 0x10000000);
+	xe_test32_ri(XE_AX, 0x10000000);
 	xForwardJump8 not_ram(Jcc_NotZero);
 
 	// --- RAM: inline the read, then merge ---
-	xMOV(ecx, eax);
-	xAND(ecx, 3);
-	xSHL(ecx, 3); // shift = (addr & 3) * 8
+	xe_mov32_rr(XE_CX, XE_AX);
+	xe_and32_ri(XE_CX, 3);
+	xe_shl32_ri(XE_CX, 3); // shift = (addr & 3) * 8
 	xe_mov32_rr(XE_DX, XE_AX);
-	xAND(edx, 0x1ffffc); // aligned offset, zero-extended into RDX
+	xe_and32_ri(XE_DX, 0x1ffffc); // aligned offset, zero-extended into RDX
 	// xComplexAddress rather than a hand-rolled load of the base: xMOV(reg64,
 	// imm) has no 64-bit immediate form and silently truncates. The helper
 	// emits a RIP-relative LEA when the base does not fit a signed 32-bit
@@ -1308,22 +1302,22 @@ static void rpsxStoreUnaligned(bool isLeft)
 	if (isLeft)
 	{
 		// (rt >> (24 - shift)) | (mem & (0xffffff00 << shift))
-		xMOV(r9d, 0xffffff00);
-		xSHL(r9d, cl);
+		xe_mov32_ri(9, 0xffffff00);
+		xe_shl32_rcl(9);
 		xe_and32_rr(XE_AX, 9);
 		xe_mov32_rm(9, &psxRegs.GPR.r[_Rt_]);
-		xNEG(ecx);
-		xADD(ecx, 24);
-		xSHR(r9d, cl);
+		xe_neg32_r(XE_CX);
+		xe_add32_ri(XE_CX, 24);
+		xe_shr32_rcl(9);
 		xe_or32_rr(XE_AX, 9);
 	}
 	else
 	{
 		// (rt << shift) | (mem & (0x00ffffff >> (24 - shift)))
 		xe_mov32_rm(9, &psxRegs.GPR.r[_Rt_]);
-		xSHL(r9d, cl);
-		xNEG(ecx);
-		xADD(ecx, 24);
+		xe_shl32_rcl(9);
+		xe_neg32_r(XE_CX);
+		xe_add32_ri(XE_CX, 24);
 		xe_mov32_ri(XE_DX, 0x00ffffff);
 		xe_shr32_rcl(XE_DX);
 		xe_and32_rr(XE_AX, XE_DX);
@@ -1331,9 +1325,9 @@ static void rpsxStoreUnaligned(bool isLeft)
 	}
 
 	// Store through the real path so the code invalidation still happens.
-	xMOV(arg1regd, ptr32[&s_psx_unaligned_addr]);
-	xAND(arg1regd, 0xfffffffc);
-	xMOV(arg2regd, eax);
+	xe_mov32_rm(arg1regd.Id, &s_psx_unaligned_addr);
+	xe_and32_ri(arg1regd.Id, 0xfffffffc);
+	xe_mov32_rr(arg2regd.Id, XE_AX);
 	xFastCall((void*)iopMemWrite32);
 	xForwardJump8 done;
 
@@ -1464,20 +1458,18 @@ static void rpsxSRA_(int info)
 PSXRECOMPILE_CONSTCODE2(SRA, XMMINFO_WRITED | XMMINFO_READS);
 
 //// SLLV
-template <typename ShiftOp>
-static void rpsxShiftV_constt(int info, const ShiftOp& shift)
+static void rpsxShiftV_constt(int info, int g2op)
 {
 	rpsxMoveSToECX(info);
 	xe_mov32_ri(EEREC_D, g_psxConstRegs[_Rt_]);
-	shift(xRegister32(EEREC_D), cl);
+	xe_g2op32_rcl(g2op, EEREC_D);
 }
 
-template <typename ShiftOp>
-static void rpsxShiftV(int info, const ShiftOp& shift)
+static void rpsxShiftV(int info, int g2op)
 {
 	rpsxMoveSToECX(info);
 	rpsxMoveTtoD(info);
-	shift(xRegister32(EEREC_D), cl);
+	xe_g2op32_rcl(g2op, EEREC_D);
 }
 
 static void rpsxSLLV_const()
@@ -1492,12 +1484,12 @@ static void rpsxSLLV_consts(int info)
 
 static void rpsxSLLV_constt(int info)
 {
-	rpsxShiftV_constt(info, xSHL);
+	rpsxShiftV_constt(info, 4);
 }
 
 static void rpsxSLLV_(int info)
 {
-	rpsxShiftV(info, xSHL);
+	rpsxShiftV(info, 4);
 }
 
 PSXRECOMPILE_CONSTCODE0(SLLV, XMMINFO_WRITED | XMMINFO_READS);
@@ -1515,12 +1507,12 @@ static void rpsxSRLV_consts(int info)
 
 static void rpsxSRLV_constt(int info)
 {
-	rpsxShiftV_constt(info, xSHR);
+	rpsxShiftV_constt(info, 5);
 }
 
 static void rpsxSRLV_(int info)
 {
-	rpsxShiftV(info, xSHR);
+	rpsxShiftV(info, 5);
 }
 
 PSXRECOMPILE_CONSTCODE0(SRLV, XMMINFO_WRITED | XMMINFO_READS);
@@ -1538,12 +1530,12 @@ static void rpsxSRAV_consts(int info)
 
 static void rpsxSRAV_constt(int info)
 {
-	rpsxShiftV_constt(info, xSAR);
+	rpsxShiftV_constt(info, 7);
 }
 
 static void rpsxSRAV_(int info)
 {
-	rpsxShiftV(info, xSAR);
+	rpsxShiftV(info, 7);
 }
 
 PSXRECOMPILE_CONSTCODE0(SRAV, XMMINFO_WRITED | XMMINFO_READS);
@@ -2152,10 +2144,10 @@ static void rpsxCTC0()
 static void rpsxRFE()
 {
 	xe_mov32_rm(XE_AX, &psxRegs.CP0.n.Status);
-	xMOV(ecx, eax);
+	xe_mov32_rr(XE_CX, XE_AX);
 	xe_and32_ri(XE_AX, 0xfffffff0);
-	xAND(ecx, 0x3c);
-	xSHR(ecx, 2);
+	xe_and32_ri(XE_CX, 0x3c);
+	xe_shr32_ri(XE_CX, 2);
 	xe_or32_rr(XE_AX, XE_CX);
 	xe_mov32_mr(&psxRegs.CP0.n.Status, XE_AX);
 
