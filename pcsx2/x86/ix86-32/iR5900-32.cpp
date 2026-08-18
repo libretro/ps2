@@ -28,6 +28,7 @@
 
 #include "x86/BaseblockEx.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 #include "x86/iR5900Analysis.h"
 
 #include "common/AlignedMalloc.h"
@@ -110,12 +111,12 @@ void _eeFlushAllDirty(void)
 	_flushConstRegs();
 }
 
-void _eeMoveGPRtoR(const xRegister32& to, int fromgpr, bool allow_preload)
+void _eeMoveGPRtoR32(int to, int fromgpr, bool allow_preload)
 {
 	if (fromgpr == 0)
-		xXOR(to, to);
+		xe_xor32_rr(to, to);
 	else if (GPR_IS_CONST1(fromgpr))
-		xMOV(to, g_cpuConstRegs[fromgpr].UL[0]);
+		xe_mov32_ri(to, g_cpuConstRegs[fromgpr].UL[0]);
 	else
 	{
 		int x86reg = _checkX86reg(X86TYPE_GPR, fromgpr, MODE_READ);
@@ -130,20 +131,20 @@ void _eeMoveGPRtoR(const xRegister32& to, int fromgpr, bool allow_preload)
 		}
 
 		if (x86reg >= 0)
-			xMOV(to, xRegister32(x86reg));
+			xe_mov32_rr(to, x86reg);
 		else if (xmmreg >= 0)
-			xMOVD(to, xRegisterSSE(xmmreg));
+			xe_movd_rx(to, xmmreg);
 		else
-			xMOV(to, ptr[&cpuRegs.GPR.r[fromgpr].UL[0]]);
+			xe_mov32_rm(to, &cpuRegs.GPR.r[fromgpr].UL[0]);
 	}
 }
 
-void _eeMoveGPRtoR(const xRegister64& to, int fromgpr, bool allow_preload)
+void _eeMoveGPRtoR64(int to, int fromgpr, bool allow_preload)
 {
 	if (fromgpr == 0)
-		xXOR(xRegister32(to), xRegister32(to));
+		xe_xor32_rr(to, to);
 	else if (GPR_IS_CONST1(fromgpr))
-		xMOV64(to, g_cpuConstRegs[fromgpr].UD[0]);
+		xe_mov64_ri(to, g_cpuConstRegs[fromgpr].UD[0]);
 	else
 	{
 		int x86reg = _checkX86reg(X86TYPE_GPR, fromgpr, MODE_READ);
@@ -158,11 +159,13 @@ void _eeMoveGPRtoR(const xRegister64& to, int fromgpr, bool allow_preload)
 		}
 
 		if (x86reg >= 0)
-			xMOV(to, xRegister64(x86reg));
+			xe_mov64_rr(to, x86reg);
 		else if (xmmreg >= 0)
-			xMOVD(to, xRegisterSSE(xmmreg));
+			xe_movq_rx(to, xmmreg); // xMOVD on a 64-bit GPR is movq
 		else
-			xMOV(to, ptr32[&cpuRegs.GPR.r[fromgpr].UD[0]]);
+			// the reference spells this ptr32 but the load takes its width
+			// from the 64-bit destination: REX.W 8B, a 64-bit load.
+			xe_mov64_rm(to, &cpuRegs.GPR.r[fromgpr].UD[0]);
 	}
 }
 
@@ -734,7 +737,7 @@ void SetBranchReg(u32 reg)
 		if (!swap)
 		{
 			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-			_eeMoveGPRtoR(xRegister32(wbreg), reg);
+			_eeMoveGPRtoR32(wbreg, reg);
 
 			if (EmuConfig.Gamefixes.GoemonTlbHack)
 			{

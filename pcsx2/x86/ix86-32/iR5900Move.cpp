@@ -193,7 +193,7 @@ static void recMTHILO(bool hi, bool upper)
 			const int gprreg = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_WRITE);
 			if (gprreg >= 0)
 			{
-				_eeMoveGPRtoR(xRegister64(gprreg), _Rs_);
+				_eeMoveGPRtoR64(gprreg, _Rs_);
 			}
 			else
 			{

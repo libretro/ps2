@@ -672,4 +672,9 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_movmskps_rx(gpr, xmm) XE_2(E_SSE_RR(xep, 0x00, 0x50, (gpr), (xmm)), \
 	x86Emitter::xMOVMSKPS(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(xmm)))
 
+
+/* movd r32 <- xmm: 66 0F 7E, no REX.W (the 64-bit spelling is movq) */
+#define xe_movd_rx(gpr, xmm)   XE_2(E_SSE_RR_W(xep, 0x66, 0x7e, (xmm), (gpr), 0), \
+	x86Emitter::xMOVD(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(xmm)))
+
 #endif /* PCSX2_C89OPS_H */

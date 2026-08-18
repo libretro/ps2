@@ -88,7 +88,7 @@ static void recLoadQuad(u32 bits, bool sign)
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1reg, _Rs_);
+		_eeMoveGPRtoR64(x86Emitter::arg1reg.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -123,7 +123,7 @@ static void recLoad(u32 bits, bool sign)
 	{
 		// Load arg1 with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -170,7 +170,7 @@ static void recStore(u32 bits)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR(arg1regd, _Rs_);
+			_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 			if (_Imm_ != 0)
 				xADD(arg1regd, _Imm_);
 		}
@@ -262,7 +262,7 @@ void recLWL(void)
 
 	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -321,7 +321,7 @@ void recLWR()
 
 	const xRegister32 temp(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -389,7 +389,7 @@ void recSWL()
 	_freeX86reg(arg1regd);
 	_freeX86reg(arg2regd);
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -420,19 +420,19 @@ void recSWL()
 		// mask write and OR -> edx
 		xNEG(ecx);
 		xADD(ecx, 24);
-		_eeMoveGPRtoR(eax, _Rt_, false);
+		_eeMoveGPRtoR32(0 /* eax */, _Rt_, false);
 		xSHR(eax, cl);
 		xOR(arg2regd, eax);
 	}
 
-	_eeMoveGPRtoR(arg1regd, _Rs_, false);
+	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 	xAND(arg1regd, ~3);
 
 	xForwardJump8 end;
 	skip.SetTarget();
-	_eeMoveGPRtoR(arg2regd, _Rt_, false);
+	_eeMoveGPRtoR32(x86Emitter::arg2regd.Id, _Rt_, false);
 	end.SetTarget();
 
 	_freeX86reg(temp);
@@ -463,7 +463,7 @@ void recSWR()
 	_freeX86reg(arg1regd);
 	_freeX86reg(arg2regd);
 
-	_eeMoveGPRtoR(arg1regd, _Rs_);
+	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 
@@ -493,19 +493,19 @@ void recSWR()
 	{
 		// mask write and OR -> edx
 		xMOV(ecx, temp);
-		_eeMoveGPRtoR(eax, _Rt_, false);
+		_eeMoveGPRtoR32(0 /* eax */, _Rt_, false);
 		xSHL(eax, cl);
 		xOR(arg2regd, eax);
 	}
 
-	_eeMoveGPRtoR(arg1regd, _Rs_, false);
+	_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 	if (_Imm_ != 0)
 		xADD(arg1regd, _Imm_);
 	xAND(arg1regd, ~3);
 
 	xForwardJump8 end;
 	skip.SetTarget();
-	_eeMoveGPRtoR(arg2regd, _Rt_, false);
+	_eeMoveGPRtoR32(x86Emitter::arg2regd.Id, _Rt_, false);
 	end.SetTarget();
 
 	_freeX86reg(temp);
@@ -584,7 +584,7 @@ void recLDL()
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -669,7 +669,7 @@ void recLDR()
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -765,12 +765,12 @@ void recSDL(void)
 		u32 shift = ((adr & 0x7) + 1) * 8;
 		if (shift == 64)
 		{
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 		}
 		else
 		{
 			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 			sdlrhelper_const(shift, xSHL, 64 - shift, xSHR, rax, arg2reg);
 		}
 		vtlb_DynGenWrite_Const(64, false, aligned, arg2regd.Id);
@@ -782,7 +782,7 @@ void recSDL(void)
 
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -791,7 +791,7 @@ void recSDL(void)
 		_freeX86reg(arg2regd);
 		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
-		_eeMoveGPRtoR(arg2reg, _Rt_);
+		_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 
 		xMOV(temp1, arg1regd);
 		xMOV(temp2, arg2reg);
@@ -815,7 +815,7 @@ void recSDL(void)
 
 		sdlrhelper(temp1, xSHL, edx, xSHR, rax, temp2);
 
-		_eeMoveGPRtoR(arg1regd, _Rs_, false);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 		xAND(arg1regd, ~0x7);
@@ -851,12 +851,12 @@ void recSDR(void)
 		u32 shift = (adr & 0x7) * 8;
 		if (shift == 0)
 		{
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 		}
 		else
 		{
 			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR(arg2reg, _Rt_);
+			_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 			sdlrhelper_const(64 - shift, xSHR, shift, xSHL, rax, arg2reg);
 		}
 
@@ -868,7 +868,7 @@ void recSDR(void)
 			_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
 		// Load ECX with the source memory address that we're reading from.
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -877,7 +877,7 @@ void recSDR(void)
 		_freeX86reg(arg2regd);
 		const xRegister32 temp1(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
 		const xRegister64 temp2(_allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED));
-		_eeMoveGPRtoR(arg2reg, _Rt_);
+		_eeMoveGPRtoR64(x86Emitter::arg2reg.Id, _Rt_);
 
 		xMOV(temp1, arg1regd);
 		xMOV(temp2, arg2reg);
@@ -898,7 +898,7 @@ void recSDR(void)
 
 		sdlrhelper(edx, xSHR, temp1, xSHL, rax, temp2);
 
-		_eeMoveGPRtoR(arg1regd, _Rs_, false);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_, false);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 		xAND(arg1regd, ~0x7);
@@ -940,7 +940,7 @@ void recLWC1(void)
 	else
 	{
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 
@@ -965,7 +965,7 @@ void recSWC1(void)
 	else
 	{
 		_freeX86reg(arg1regd);
-		_eeMoveGPRtoR(arg1regd, _Rs_);
+		_eeMoveGPRtoR32(x86Emitter::arg1regd.Id, _Rs_);
 		if (_Imm_ != 0)
 			xADD(arg1regd, _Imm_);
 

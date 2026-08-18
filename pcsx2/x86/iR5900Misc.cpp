@@ -134,7 +134,7 @@ void recMTSAB()
 	}
 	else
 	{
-		_eeMoveGPRtoR(eax, _Rs_);
+		_eeMoveGPRtoR32(0 /* eax */, _Rs_);
 		xAND(eax, 0xF);
 		xXOR(eax, _Imm_ & 0xf);
 		xMOV(ptr[&cpuRegs.sa], eax);
@@ -149,7 +149,7 @@ void recMTSAH()
 	}
 	else
 	{
-		_eeMoveGPRtoR(eax, _Rs_);
+		_eeMoveGPRtoR32(0 /* eax */, _Rs_);
 		xAND(eax, 0x7);
 		xXOR(eax, _Imm_ & 0x7);
 		xSHL(eax, 1);

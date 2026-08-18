@@ -105,7 +105,7 @@ void recJALR(void)
 	if (!swap)
 	{
 		wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-		_eeMoveGPRtoR(xRegister32(wbreg), _Rs_);
+		_eeMoveGPRtoR32(wbreg, _Rs_);
 
 		if (EmuConfig.Gamefixes.GoemonTlbHack)
 		{
