@@ -430,4 +430,86 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	  EW8(xep, (e_u8)(0x40 | (cc))); E_MODRM_MEM(xep, (dst), xm_, 0); }, \
 	XE_CMOV32_CXX_RM((cc), (dst), (addr)))
 
+
+/* the 32-bit group1 forms the IOP tables add: and/or at rr/ri/rm, plus
+ * generic runtime-operator 32-bit pair, mem-dest reg/imm adds, neg. */
+#define xe_and32_rr(dst, src)  XE_2(E_G1_RR(xep, 0, 4, (dst), (src)), \
+	x86Emitter::xAND(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src)))
+#define xe_and32_ri(reg, imm)  XE_2(E_G1_RI(xep, 0, 4, (reg), (e_s32)(imm)), \
+	x86Emitter::xAND(x86Emitter::xRegister32(reg), (u32)(imm)))
+#define xe_and32_rm(reg, addr) XE_2(E_G1_RM(xep, 0, 4, (reg), (e_uptr)(addr)), \
+	x86Emitter::xAND(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_or32_rr(dst, src)   XE_2(E_G1_RR(xep, 0, 1, (dst), (src)), \
+	x86Emitter::xOR(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src)))
+#define xe_or32_ri(reg, imm)   XE_2(E_G1_RI(xep, 0, 1, (reg), (e_s32)(imm)), \
+	x86Emitter::xOR(x86Emitter::xRegister32(reg), (u32)(imm)))
+#define xe_or32_rm(reg, addr)  XE_2(E_G1_RM(xep, 0, 1, (reg), (e_uptr)(addr)), \
+	x86Emitter::xOR(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_xor32_ri(reg, imm)  XE_2(E_G1_RI(xep, 0, 6, (reg), (e_s32)(imm)), \
+	x86Emitter::xXOR(x86Emitter::xRegister32(reg), (u32)(imm)))
+#define xe_xor32_rm(reg, addr) XE_2(E_G1_RM(xep, 0, 6, (reg), (e_uptr)(addr)), \
+	x86Emitter::xXOR(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_cmp32_rr(a, b)      XE_2(E_G1_RR(xep, 0, 7, (a), (b)), \
+	x86Emitter::xCMP(x86Emitter::xRegister32(a), x86Emitter::xRegister32(b)))
+#define xe_add32_mr(addr, reg) XE_2(E_G1_MR(xep, 0, 0, (reg), (e_uptr)(addr)), \
+	x86Emitter::xADD(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegister32(reg)))
+#define xe_add32_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 0, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xADD(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+#define xe_g1op32_ri(g1op, reg, imm) XE_2(E_G1_RI(xep, 0, (g1op), (reg), (e_s32)(imm)), \
+	XE_G1_CXX_RI32((g1op), (reg), (imm)))
+#define XE_G1_CXX_RI32(g1op, reg, imm) do { \
+	switch (g1op) { \
+	case 0: x86Emitter::xADD(x86Emitter::xRegister32(reg), (u32)(imm)); break; \
+	case 1: x86Emitter::xOR (x86Emitter::xRegister32(reg), (u32)(imm)); break; \
+	case 4: x86Emitter::xAND(x86Emitter::xRegister32(reg), (u32)(imm)); break; \
+	case 6: x86Emitter::xXOR(x86Emitter::xRegister32(reg), (u32)(imm)); break; \
+	default: break; } } while (0)
+#define xe_g1op32_rr(g1op, dst, src)  XE_2(E_G1_RR(xep, 0, (g1op), (dst), (src)), \
+	XE_G1_CXX_RR((g1op), (dst), (src), 32))
+#define xe_g1op32_rm(g1op, reg, addr) XE_2(E_G1_RM(xep, 0, (g1op), (reg), (e_uptr)(addr)), \
+	XE_G1_CXX_RM((g1op), (reg), (addr), 32))
+
+#define xe_neg32_r(reg)        XE_2(E_G3_R(xep, 0, 3, (reg)), \
+	x86Emitter::xNEG(x86Emitter::xRegister32(reg)))
+#define xe_idiv32_m(addr)      XE_2(E_G3_M(xep, 7, (e_uptr)(addr)), \
+	x86Emitter::xDIV(x86Emitter::ptr32[(void*)(addr)]))
+#define xe_div32_m(addr)       XE_2(E_G3_M(xep, 6, (e_uptr)(addr)), \
+	x86Emitter::xUDIV(x86Emitter::ptr32[(void*)(addr)]))
+#define xe_not32_m(addr)       XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G3_MEM(xep, 0, 2, xm_); }, \
+	x86Emitter::xNOT(x86Emitter::ptr32[(void*)(addr)]))
+
+/* movzx r32 <- byte [abs] and r32 <- r8; the byte-register REX rule
+ * (bare 0x40 for ids 4-7) lives in E_MOVEXT_RR's srcw==0 branch. */
+#define xe_movzx32_r8(dst, src8) XE_2(E_MOVEXT_RR(xep, 0, 0, 0, (dst), (src8)), \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::xRegister8(src8)))
+
+
+#define xe_movzx32_r16(dst, src) XE_2(E_MOVEXT_RR(xep, 0, 0, 1, (dst), (src)), \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::xRegister16(src)))
+#define xe_movzx32_m8(dst, addr) XE_2( \
+	E_REX(xep, 0, (dst), 0, 0); EW8(xep, 0x0f); EW8(xep, 0xb6); \
+	E_MODRM_ABS(xep, (dst), (e_uptr)(addr), 0), \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::ptr8[(void*)(addr)]))
+#define xe_movzx32_m16(dst, addr) XE_2( \
+	E_REX(xep, 0, (dst), 0, 0); EW8(xep, 0x0f); EW8(xep, 0xb7); \
+	E_MODRM_ABS(xep, (dst), (e_uptr)(addr), 0), \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::ptr16[(void*)(addr)]))
+
+
+/* movsx r32 <- r8/r16 (0F BE / 0F BF) */
+#define xe_movsx32_r8(dst, src8) XE_2(E_MOVEXT_RR(xep, 0, 1, 0, (dst), (src8)), \
+	x86Emitter::xMOVSX(x86Emitter::xRegister32(dst), x86Emitter::xRegister8(src8)))
+#define xe_movsx32_r16(dst, src) XE_2(E_MOVEXT_RR(xep, 0, 1, 1, (dst), (src)), \
+	x86Emitter::xMOVSX(x86Emitter::xRegister32(dst), x86Emitter::xRegister16(src)))
+
+/* shifts by CL, named */
+#define xe_shl32_rcl(reg)      XE_2(E_G2_RCL(xep, 0, 4, (reg)), \
+	x86Emitter::xSHL(x86Emitter::xRegister32(reg), x86Emitter::cl))
+#define xe_shr32_rcl(reg)      XE_2(E_G2_RCL(xep, 0, 5, (reg)), \
+	x86Emitter::xSHR(x86Emitter::xRegister32(reg), x86Emitter::cl))
+
 #endif /* PCSX2_C89OPS_H */
