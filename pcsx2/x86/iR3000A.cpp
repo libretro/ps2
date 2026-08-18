@@ -121,13 +121,13 @@ static const void* _DynGen_JITCompile(void)
 {
 	u8* retval = xGetPtr();
 
-	xFastCall((const void*)iopRecRecompile, ptr32[&psxRegs.pc]);
+	xe_fastcall1_m32(iopRecRecompile, &psxRegs.pc);
 
-	xMOV(eax, ptr[&psxRegs.pc]);
-	xMOV(ebx, eax);
-	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xe_mov32_rm(XE_AX, &psxRegs.pc);
+	xe_mov32_rr(XE_BX, XE_AX);
+	xe_shr32_ri(XE_AX, 16);
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, psxRecLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -137,11 +137,11 @@ static const void* _DynGen_DispatcherReg(void)
 {
 	u8* retval = xGetPtr();
 
-	xMOV(eax, ptr[&psxRegs.pc]);
-	xMOV(ebx, eax);
-	xSHR(eax, 16);
-	xMOV(rcx, ptrNative[xComplexAddress(rcx, psxRecLUT, rax * wordsize)]);
-	xJMP(ptrNative[rbx * (wordsize / 4) + rcx]);
+	xe_mov32_rm(XE_AX, &psxRegs.pc);
+	xe_mov32_rr(XE_BX, XE_AX);
+	xe_shr32_ri(XE_AX, 16);
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, psxRecLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -161,14 +161,14 @@ static const void* _DynGen_EnterRecompiledCode(void)
 		int m_offset;
 		SCOPED_STACK_FRAME_BEGIN(m_offset);
 
-		xJMP((const void*)iopDispatcherReg);
+		xe_jmp_to(iopDispatcherReg);
 
 		// Save an exit point
 		iopExitRecompiledCode = xGetPtr();
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	xRET();
+	xe_ret();
 
 	return retval;
 }
@@ -190,7 +190,7 @@ static void _DynGen_Dispatchers(void)
 	// Place the EventTest and DispatcherReg stuff at the top, because they get called the
 	// most and stand to benefit from strong alignment and direct referencing.
 	iopDispatcherEvent = xGetPtr();
-	xFastCall((const void*)recEventTest);
+	xe_fastcall0(recEventTest);
 	iopDispatcherReg = _DynGen_DispatcherReg();
 
 	iopJITCompile = _DynGen_JITCompile();
@@ -606,9 +606,9 @@ static void psxRecompileIrxImport(void)
 
 	if (hle)
 	{
-		xFastCall((const void*)hle);
+		xe_fastcall0(hle);
 		xe_test32_rr(XE_AX, XE_AX);
-		xJNZ(iopDispatcherReg);
+		xe_jcc_to(Jcc_NotZero, iopDispatcherReg);
 	}
 }
 
@@ -1021,7 +1021,7 @@ void psxSetBranchImm(u32 imm)
 	_psxFlushCall(FLUSH_EVERYTHING);
 	iPsxBranchTest(imm, imm <= psxpc);
 
-	recBlocks.Link(HWADDR(imm), xJcc32(Jcc_Unconditional, 0));
+	{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(imm), xslot); }
 }
 
 static __fi u32 psxScaleBlockCycles()
@@ -1047,14 +1047,14 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 		xe_sub32_rr(XE_AX, XE_CX);
 		xe_shl32_ri(XE_AX, 3);
 		xe_sub32_mr(&psxRegs.iopCycleEE, XE_AX);
-		xJLE(iopExitRecompiledCode);
+		xe_jcc_to(Jcc_LessOrEqual, iopExitRecompiledCode);
 
-		xFastCall((const void*)iopEventTest);
+		xe_fastcall0(iopEventTest);
 
 		if (newpc != 0xffffffff)
 		{
 			xe_cmp32_mi(&psxRegs.pc, newpc);
-			xJNE(iopDispatcherReg);
+			xe_jcc_to(Jcc_NotEqual, iopDispatcherReg);
 		}
 	}
 	else
@@ -1065,18 +1065,18 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 		// jump if iopCycleEE <= 0  (iop's timeslice timed out, so time to return control to the EE)
 		xe_sub32_mi(&psxRegs.iopCycleEE, blockCycles * 8);
-		xJLE(iopExitRecompiledCode);
+		xe_jcc_to(Jcc_LessOrEqual, iopExitRecompiledCode);
 
 		// check if an event is pending
 		xe_sub32_rm(XE_AX, &psxRegs.iopNextEventCycle);
 		xForwardJS<u8> nointerruptpending;
 
-		xFastCall((const void*)iopEventTest);
+		xe_fastcall0(iopEventTest);
 
 		if (newpc != 0xffffffff)
 		{
 			xe_cmp32_mi(&psxRegs.pc, newpc);
-			xJNE(iopDispatcherReg);
+			xe_jcc_to(Jcc_NotEqual, iopDispatcherReg);
 		}
 
 		nointerruptpending.SetTarget();
@@ -1091,13 +1091,13 @@ void rpsxSYSCALL(void)
 
 	//xMOV( ecx, 0x20 );			// exception code
 	//xMOV( edx, psxbranch==1 );	// branch delay slot?
-	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
+	xe_fastcall2_ii(psxException, 0x20, psxbranch == 1);
 
 	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
 	u8 *j8Ptr = JE8(0);
 
-	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
-	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
+	xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
+	xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
 
 	// jump target for skipping blockCycle updates
@@ -1114,12 +1114,12 @@ void rpsxBREAK(void)
 
 	//xMOV( ecx, 0x24 );			// exception code
 	//xMOV( edx, psxbranch==1 );	// branch delay slot?
-	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
+	xe_fastcall2_ii(psxException, 0x24, psxbranch == 1);
 
 	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
 	u8 *j8Ptr = JE8(0);
-	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
-	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
+	xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
+	xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
 	JMP32((uptr)iopDispatcherReg - ((uptr)x86Ptr + 5));
 	x86SetJ8(j8Ptr);
 
@@ -1197,9 +1197,9 @@ static void iopRecRecompile(const u32 startpc)
 
 	if ((psxHu32(HW_ICFG) & 8) && (HWADDR(startpc) == 0xa0 || HWADDR(startpc) == 0xb0 || HWADDR(startpc) == 0xc0))
 	{
-		xFastCall((const void*)psxBiosCall);
-		xTEST(al, al);
-		xJNZ(iopDispatcherReg);
+		xe_fastcall0(psxBiosCall);
+		xe_test8_rr(0, 0);
+		xe_jcc_to(Jcc_NotZero, iopDispatcherReg);
 	}
 
 	// go until the next branch
@@ -1335,15 +1335,15 @@ StartRecomp:
 		if (psxbranch) { }
 		else
 		{
-			xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
-			xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
+			xe_add32_mi(&psxRegs.cycle, psxScaleBlockCycles());
+			xe_sub32_mi(&psxRegs.iopCycleEE, psxScaleBlockCycles() * 8);
 		}
 
 		if (willbranch3 || !psxbranch)
 		{
 			_psxFlushCall(FLUSH_EVERYTHING);
 			xe_mov32_mi(&psxRegs.pc, psxpc);
-			recBlocks.Link(HWADDR(s_nEndBlock), xJcc32(Jcc_Unconditional, 0));
+			{ s32* xslot; xe_jcc32_slot(Jcc_Unconditional, 0, xslot); recBlocks.Link(HWADDR(s_nEndBlock), xslot); }
 			psxbranch = 3;
 		}
 	}

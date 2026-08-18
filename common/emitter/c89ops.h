@@ -557,10 +557,16 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
  * base -- exactly `offset + tmpRegister`. Both arms fill the same e_mem,
  * and the C++ twin arm emits its LEA through the C++ API so the composed
  * bytes match the original expression shape. */
+/* e_mem is stored POST-Reduce: .scale holds SIB bits, not the factor.
+ * The C++ address object wants the factor back -- 1 << bits. Getting this
+ * wrong for factor >= 2 sent the reference arm through xAddressVoid's own
+ * Reduce with factor 3, which rewrites the operand (base = index) and the
+ * dispatcher loaded from the wrong slot; the cpp-mode run aborted before
+ * ever reaching the hash dump. */
 #define XE_MEM_TO_ADDR(m) x86Emitter::xAddressVoid( \
 	(m).base  == E_NOREG ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).base), \
 	(m).index == E_NOREG ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).index), \
-	(m).scale ? (m).scale : 1, (sptr)(m).disp)
+	1 << (m).scale, (sptr)(m).disp)
 #define xe_complexaddr(m, tmpreg, baseptr, idxreg) do { \
 	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
 		E_MEM(m, (idxreg), E_NOREG, 0, (e_sptr)(baseptr)); \
@@ -585,5 +591,76 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	E_REX_MEM(xep, 0, (reg), (m)); EW8(xep, 0x0f); EW8(xep, 0xb7); \
 	E_MODRM_MEM(xep, (reg), (m), 0), \
 	x86Emitter::xMOVZX(x86Emitter::xRegister32(reg), x86Emitter::ptr16[XE_MEM_TO_ADDR(m)]))
+
+
+/* ---- dispatcher control flow ----------------------------------------- */
+
+/* jcc/jmp to a known target: 8-bit when it reaches, else 32 -- E_JCC_TO
+ * is the reference's selection. */
+#define xe_jcc_to(cc, target) XE_2(E_JCC_TO(xep, (cc), (target)), \
+	XE_JCC_CXX((cc), (target)))
+#define XE_JCC_CXX(cc, target) do { \
+	switch (cc) { \
+	case x86Emitter::Jcc_NotEqual: /* == Jcc_NotZero: same 0x5 on x86 */ \
+		x86Emitter::xJNE((const void*)(target)); break; \
+	case x86Emitter::Jcc_LessOrEqual: x86Emitter::xJLE((const void*)(target)); break; \
+	default: break; } } while (0)
+#define xe_jmp_to(target) XE_2(E_JCC_TO(xep, E_CC_UNC, (target)), \
+	x86Emitter::xJMP((const void*)(target)))
+
+/* wide jump with a patchable displacement: emits E9/0F8x rel32 with the
+ * given displacement and stores the address of the 32-bit slot -- the
+ * xJcc32 contract, as an out-parameter since macros do not return. */
+#define xe_jcc32_slot(cc, disp, slot) do { \
+	xe_site_hits++; \
+	if (xe_cpp_mode) { (slot) = x86Emitter::xJcc32((x86Emitter::JccComparisonType)(cc), (disp)); } \
+	else { \
+		XE_OPEN(); \
+		if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
+		else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
+		(slot) = (s32*)xep; EW32(xep, (e_u32)(e_s32)(disp)); \
+		XE_CLOSE(); \
+	} } while (0)
+
+/* indirect jmp through a base+index memory operand (the dispatcher's LUT
+ * double-indirection): FF /4, never REX.W (jmp.cpp:41-46). */
+#define xe_jmp_mem(m) XE_2( \
+	E_REX_MEM(xep, 0, 0, (m)); EW8(xep, 0xff); \
+	E_MODRM_MEM(xep, 4, (m), 0), \
+	x86Emitter::xJMP(x86Emitter::ptrNative[XE_MEM_TO_ADDR(m)]))
+
+/* mov r64 <- base+index+scale+disp (the recLUT load) */
+#define xe_mov64_rmem(reg, m) XE_2( \
+	E_REX_MEM(xep, 1, (reg), (m)); EW8(xep, 0x8b); \
+	E_MODRM_MEM(xep, (reg), (m), 0), \
+	x86Emitter::xMOV(x86Emitter::xRegister64(reg), x86Emitter::ptr64[XE_MEM_TO_ADDR(m)]))
+
+/* complex address with a scaled index register: offset is idx*scale. */
+#define xe_complexaddr_si(m, tmpreg, baseptr, idxreg, sc) do { \
+	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
+		E_MEM(m, E_NOREG, (idxreg), (sc), (e_sptr)(baseptr)); \
+	} else if (xe_cpp_mode) { \
+		x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)]); \
+		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
+	} else { \
+		struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
+		XE_OPEN(); E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); \
+		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
+	} } while (0)
+
+/* fastcall compositions actually used by the dispatchers: (imm, imm) and
+ * (mem32) argument shapes -- transcribed from the reference overloads,
+ * which stage arg1/arg2 then call near. */
+#define xe_fastcall2_ii(fn, a1, a2) do { \
+	xe_mov32_ri(x86Emitter::arg1regd.Id, (a1)); \
+	xe_mov32_ri(x86Emitter::arg2regd.Id, (a2)); \
+	xe_fastcall0(fn); } while (0)
+#define xe_fastcall1_m32(fn, addr) do { \
+	xe_mov32_rm(x86Emitter::arg1regd.Id, (addr)); \
+	xe_fastcall0(fn); } while (0)
+
+#define xe_ret() XE_2(EW8(xep, 0xc3), xRET())  /* xRET is a macro */
+#define xe_test8_rr(a, b) XE_2(E_TEST_RR_SZ(xep, 1, (a), (b)), \
+	x86Emitter::xTEST(x86Emitter::xRegister8(a), x86Emitter::xRegister8(b)))
 
 #endif /* PCSX2_C89OPS_H */
