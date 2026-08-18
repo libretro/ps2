@@ -50,10 +50,14 @@ g++ $SANFLAGS -no-pie -o "$DIR/equiv_sw" "$DIR/equiv_sw.o" $EMOBJS
 g++ -O0 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
     -c "$DIR/exhaustive.cpp" -o "$DIR/exhaustive.o"
 g++ $SANFLAGS -no-pie -o "$DIR/exhaustive" "$DIR/exhaustive.o" $EMOBJS
+g++ -O0 -std=c++17 -fPIC -fno-semantic-interposition -DNDEBUG $SANFLAGS $INC \
+    -c "$DIR/sse_exhaustive.cpp" -o "$DIR/sse_exhaustive.o"
+g++ $SANFLAGS -no-pie -o "$DIR/sse_exhaustive" "$DIR/sse_exhaustive.o" $EMOBJS
 
 echo "built: $DIR/emitter_oracle"
 echo "built: $DIR/shim_oracle"
 echo "built: $DIR/exhaustive"
+echo "built: $DIR/sse_exhaustive"
 echo "built: $DIR/equiv_ref and $DIR/equiv_sw"
 echo "  compare with: diff <(setarch $(uname -m) -R $DIR/equiv_ref) \\"
 echo "                     <(setarch $(uname -m) -R $DIR/equiv_sw)"
