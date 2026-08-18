@@ -1682,8 +1682,11 @@ static bool RETRO_CALLCONV get_image_label(unsigned index, char* label, size_t l
 	return true;
 }
 
+extern "C" void pcsx2_jithash_dump(void);
+
 void retro_deinit(void)
 {
+	pcsx2_jithash_dump();
 	free_output_audio_buffer();
 	// WIN32 doesn't allow canceling threads from global constructors/destructors in a shared library.
 	vu1Thread.Close();

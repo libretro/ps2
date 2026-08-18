@@ -330,6 +330,7 @@ SOURCES_CXX += \
 	$(LRPS2_DIR)/x86/iFPU.cpp \
 	$(LRPS2_DIR)/x86/iFPUd.cpp \
 	$(LRPS2_DIR)/x86/iMMI.cpp \
+	$(LRPS2_DIR)/x86/JitHash.cpp \
 	$(LRPS2_DIR)/x86/iR3000A.cpp \
 	$(LRPS2_DIR)/x86/iR3000Atables.cpp \
 	$(LRPS2_DIR)/x86/iR5900Analysis.cpp \
