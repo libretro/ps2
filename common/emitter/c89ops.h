@@ -143,4 +143,46 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 		xe_mov64_rr((dst), (tmpreg)); \
 	} } while (0)
 
+
+/* group1: op codes 0 ADD, 2 ADC, 6 XOR, 7 CMP -- ri keeps the reference's
+ * s8 narrowing to 0x83 and the AX short form; rm is the absolute-address
+ * load form (op reg, [abs]). */
+#define xe_add32_ri(reg, imm)  XE_2(E_G1_RI(xep, 0, 0, (reg), (e_s32)(imm)), \
+	x86Emitter::xADD(x86Emitter::xRegister32(reg), (u32)(imm)))
+#define xe_adc32_ri(reg, imm)  XE_2(E_G1_RI(xep, 0, 2, (reg), (e_s32)(imm)), \
+	x86Emitter::xADC(x86Emitter::xRegister32(reg), (u32)(imm)))
+#define xe_cmp32_ri(reg, imm)  XE_2(E_G1_RI(xep, 0, 7, (reg), (e_s32)(imm)), \
+	x86Emitter::xCMP(x86Emitter::xRegister32(reg), (u32)(imm)))
+#define xe_xor32_rr(dst, src)  XE_2(E_G1_RR(xep, 0, 6, (dst), (src)), \
+	x86Emitter::xXOR(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src)))
+#define xe_add32_rm(reg, addr) XE_2(E_G1_RM(xep, 0, 0, (reg), (e_uptr)(addr)), \
+	x86Emitter::xADD(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_adc32_rm(reg, addr) XE_2(E_G1_RM(xep, 0, 2, (reg), (e_uptr)(addr)), \
+	x86Emitter::xADC(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+
+/* group2 shifts by immediate: 4 SHL, 7 SAR; the by-1 short form (0xD1) is
+ * inside E_G2_RI, byte-verified. */
+#define xe_shl32_ri(reg, imm)  XE_2(E_G2_RI(xep, 0, 4, (reg), (imm)), \
+	x86Emitter::xSHL(x86Emitter::xRegister32(reg), (imm)))
+#define xe_sar32_ri(reg, imm)  XE_2(E_G2_RI(xep, 0, 7, (reg), (imm)), \
+	x86Emitter::xSAR(x86Emitter::xRegister32(reg), (imm)))
+
+/* group3 one-operand: 2 NOT, 4 MUL, 5 IMUL, 6 DIV, 7 IDIV; register and
+ * absolute-memory forms. The C++ xMUL/xUMUL/xDIV/xUDIV one-operand
+ * spellings map to IMUL/MUL/IDIV/DIV respectively. */
+#define xe_not32_r(reg)        XE_2(E_G3_R(xep, 0, 2, (reg)), \
+	x86Emitter::xNOT(x86Emitter::xRegister32(reg)))
+#define xe_imul32_r(reg)       XE_2(E_G3_R(xep, 0, 5, (reg)), \
+	x86Emitter::xMUL(x86Emitter::xRegister32(reg)))
+#define xe_mul32_r(reg)        XE_2(E_G3_R(xep, 0, 4, (reg)), \
+	x86Emitter::xUMUL(x86Emitter::xRegister32(reg)))
+#define xe_idiv32_r(reg)       XE_2(E_G3_R(xep, 0, 7, (reg)), \
+	x86Emitter::xDIV(x86Emitter::xRegister32(reg)))
+#define xe_div32_r(reg)        XE_2(E_G3_R(xep, 0, 6, (reg)), \
+	x86Emitter::xUDIV(x86Emitter::xRegister32(reg)))
+#define xe_imul32_m(addr)      XE_2(E_G3_M(xep, 5, (e_uptr)(addr)), \
+	x86Emitter::xMUL(x86Emitter::ptr32[(void*)(addr)]))
+#define xe_mul32_m(addr)       XE_2(E_G3_M(xep, 4, (e_uptr)(addr)), \
+	x86Emitter::xUMUL(x86Emitter::ptr32[(void*)(addr)]))
+
 #endif /* PCSX2_C89OPS_H */
