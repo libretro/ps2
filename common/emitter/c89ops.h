@@ -51,16 +51,32 @@
 #else
 #define XE_AB 0
 #endif
+/* Arm selection is COMPILE TIME. There is no runtime mode flag, no env
+ * read, no per-site branch anywhere, in any configuration:
+ *   default            -> C89 arm only, twins token-discarded
+ *   PCSX2_XE_AB        -> C89 arm only, plus the site-hit counter
+ *   PCSX2_XE_AB + PCSX2_XE_CPP -> C++ twin arm only, same counter
+ * The oracle's two modes are therefore two BUILDS of the verification
+ * configuration rather than two runs of one binary. What each check
+ * proves moves accordingly: per-instruction byte equality lives in the
+ * in-process suites (tests/emitter), which emit both ways at the SAME
+ * cursor address and memcmp -- address-identical by construction, no
+ * process pair needed. Across the two trace builds the address-
+ * independent invariants must match: xe_site_hits (identical call-site
+ * execution counts) and boot behavior. Raw cross-build hash equality is
+ * NOT expected: the two binaries lay out differently, so emitted code
+ * embeds different host addresses; anyone comparing those hashes is
+ * measuring the loader, not the conversion. */
 #if XE_AB
-extern "C" int xe_cpp_mode; /* defined in JitHash.cpp, set from env at load */
-extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
+extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 #define XE_HIT() (xe_site_hits++)
-/* `XE_IF_CPP(stmts) { c89 }`: runtime-select under XE_AB; with it off the
- * twin tokens vanish and the brace block runs unconditionally. */
-#define XE_IF_CPP(...) if (xe_cpp_mode) { __VA_ARGS__ } else
-#define XE_2(c89body, cppbody) do { \
-	XE_HIT(); \
-	if (xe_cpp_mode) { cppbody; } else { XE_OPEN(); c89body; XE_CLOSE(); } } while (0)
+#ifdef PCSX2_XE_CPP
+#define XE_IF_CPP(...) { __VA_ARGS__ } if (0)
+#define XE_2(c89body, cppbody) do { XE_HIT(); cppbody; } while (0)
+#else
+#define XE_IF_CPP(...) if (0) { } else
+#define XE_2(c89body, cppbody) do { XE_HIT(); XE_OPEN(); c89body; XE_CLOSE(); } while (0)
+#endif
 #else
 #define XE_HIT() ((void)0)
 #define XE_IF_CPP(...)

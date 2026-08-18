@@ -57,20 +57,19 @@ namespace
 	};
 } // namespace
 
-// Selects the C++ twin inside converted xe_* macros; see c89ops.h. Read
-// once at load so the choice is in place before any block compiles.
-extern "C" int xe_cpp_mode;
-int xe_cpp_mode;
+// Arm selection is compile time (PCSX2_XE_CPP); see c89ops.h. Nothing to
+// read at load, nothing to branch on at run time -- the dump line below
+// reports which arm this binary was BUILT with so trace files are
+// self-identifying.
 extern "C" unsigned long long xe_site_hits;
 unsigned long long xe_site_hits;
-static struct XeModeInit
-{
-	XeModeInit()
-	{
-		const char* e = getenv("PCSX2_XE_CPP");
-		xe_cpp_mode = (e && e[0] == '1') ? 1 : 0;
-	}
-} s_xe_mode_init;
+#if defined(PCSX2_XE_AB) && defined(PCSX2_XE_CPP)
+static const char* const s_xe_arm = "cpp";
+#elif defined(PCSX2_XE_AB)
+static const char* const s_xe_arm = "c89";
+#else
+static const char* const s_xe_arm = "lean";
+#endif
 
 JITHASH_EXPORT void pcsx2_jithash_dump(void)
 {
@@ -101,14 +100,12 @@ JITHASH_EXPORT void pcsx2_jithash_dump(void)
 	// Coverage guard for the A/B methodology: identical hashes prove
 	// nothing if the trace never reached a converted site. Both modes
 	// count, so this line must be nonzero AND equal across modes.
-	fprintf(stderr, "[JITHASH] xe_site_hits %llu\n", xe_site_hits);
+	fprintf(stderr, "[JITHASH] xe_site_hits %llu arm=%s\n", xe_site_hits, s_xe_arm);
 	fflush(stderr);
 }
 
 #else // not x86-64: keep the contract, hash nothing
 
-extern "C" int xe_cpp_mode;
-int xe_cpp_mode;
 extern "C" unsigned long long xe_site_hits;
 unsigned long long xe_site_hits;
 

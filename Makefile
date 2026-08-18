@@ -855,6 +855,10 @@ endif
 # verification workflow only, never release.
 ifeq ($(XE_AB), 1)
    CXXFLAGS += -DPCSX2_XE_AB
+ifeq ($(XE_CPP), 1)
+   # compile-time arm selection: the oracle's cpp-side BUILD
+   CXXFLAGS += -DPCSX2_XE_CPP
+endif
 endif
 
 LDFLAGS += $(fpic) $(SHARED)
