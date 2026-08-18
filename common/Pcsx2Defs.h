@@ -243,7 +243,17 @@
 // translation units. On MinGW we follow the same gnu_inline rationale as
 // __fi/__ri above and let it collapse to `inline`.
 #ifndef __forceinline_odr
-#ifdef __MINGW32__
+#if defined(_MSC_VER)
+// MSVC's __forceinline is a builtin that already carries inline linkage;
+// spelling `inline` beside it is warning C4141 in every including TU --
+// seven per inclusion of GSVertex.h alone. Forced inlining that needs a
+// per-compiler alphabet of spellings, one of which warns and another of
+// which is only a suggestion the optimizer may ignore, is exactly the
+// guarantee problem function-style inlining has always had; a macro would
+// not need any of this. Where that trade matters most in this codebase
+// (the emitter core), macros are what we use.
+#define __forceinline_odr __forceinline
+#elif defined(__MINGW32__)
 #define __forceinline_odr inline
 #else
 #define __forceinline_odr __forceinline inline
