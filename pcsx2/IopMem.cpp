@@ -111,7 +111,8 @@ void iopMemoryReserve::Reset()
 	//for (i=0; i<0x0008; i++) psxMemWLUT[i + 0xbfc0] = (uptr)&psR[i << 16];
 }
 
-u8 iopMemRead8(u32 mem)
+/* Slow path only; the common case is inline in IopMem.h. */
+u8 iopMemRead8_slow(u32 mem)
 {
 	mem &= 0x1fffffff;
 	u32 t = mem >> 16;
@@ -148,7 +149,8 @@ u8 iopMemRead8(u32 mem)
 	}
 }
 
-u16 iopMemRead16(u32 mem)
+/* Slow path only; the common case is inline in IopMem.h. */
+u16 iopMemRead16_slow(u32 mem)
 {
 	mem &= 0x1fffffff;
 	u32 t = mem >> 16;

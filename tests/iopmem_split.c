@@ -10,6 +10,47 @@ typedef uint32_t u32; typedef uint8_t u8; typedef uintptr_t uptr;
 static uptr LUT[0x2000];
 static u8   PAGE[0x10000];
 
+/* Each width has its own excluded pages, transcribed from its own original.
+ * read8 skips 0x1f80 and 0x1f40 and has no SBUS check; read16 and read32 skip
+ * 0x1f80 and, after the lookup, 0x1d00. Confusing the two would give a fast
+ * path that bypassed a hardware register. */
+static int ref8_takes_inline(u32 mem, u32* out){
+    mem &= 0x1fffffff;
+    u32 t = mem >> 16;
+    if (t == 0x1f80) return 0;
+    if (t == 0x1f40) return 0;
+    const u8* p = (const u8*)(LUT[mem >> 16]);
+    if (p == NULL) return 0;
+    *out = *(const u8*)(p + (mem & 0xffff));
+    return 1;
+}
+static int new8_takes_fast(u32 mem, u32* out){
+    mem &= 0x1fffffff;
+    { const u32 t = mem >> 16;
+      if (t != 0x1f80 && t != 0x1f40){
+        const u8* const p = (const u8*)(LUT[t]);
+        if (p != NULL){ *out = *(const u8*)(p + (mem & 0xffff)); return 1; } } }
+    return 0;
+}
+static int ref16_takes_inline(u32 mem, u32* out){
+    mem &= 0x1fffffff;
+    u32 t = mem >> 16;
+    if (t == 0x1f80) return 0;
+    const u8* p = (const u8*)(LUT[mem >> 16]);
+    if (p == NULL) return 0;
+    if (t == 0x1d00) return 0;
+    *out = *(const uint16_t*)(p + (mem & 0xffff));
+    return 1;
+}
+static int new16_takes_fast(u32 mem, u32* out){
+    mem &= 0x1fffffff;
+    { const u32 t = mem >> 16;
+      if (t != 0x1f80 && t != 0x1d00){
+        const u8* const p = (const u8*)(LUT[t]);
+        if (p != NULL){ *out = *(const uint16_t*)(p + (mem & 0xffff)); return 1; } } }
+    return 0;
+}
+
 /* transcribed from the original iopMemRead32 control flow */
 static int ref_takes_inline_return(u32 mem, u32* out){
     mem &= 0x1fffffff;
@@ -51,6 +92,20 @@ int main(void){
                 if (mismatch<5) printf("  mem=%08x ref_taken=%d(%08x) new_taken=%d(%08x)\n",mem,ta,a,tb,b);
                 mismatch++;
             }
+            /* the 8- and 16-bit widths, each against its own original */
+            { u32 c=0xDEAD,d=0xBEEF;
+              int t8a=ref8_takes_inline(mem,&c), t8b=new8_takes_fast(mem,&d);
+              cases++;
+              if (t8a!=t8b || (t8a && c!=d)){
+                if (mismatch<5) printf("  r8  mem=%08x ref=%d(%08x) new=%d(%08x)\n",mem,t8a,c,t8b,d);
+                mismatch++; }
+              c=0xDEAD; d=0xBEEF;
+              int t16a=ref16_takes_inline(mem,&c), t16b=new16_takes_fast(mem,&d);
+              cases++;
+              if (t16a!=t16b || (t16a && c!=d)){
+                if (mismatch<5) printf("  r16 mem=%08x ref=%d(%08x) new=%d(%08x)\n",mem,t16a,c,t16b,d);
+                mismatch++; } }
+
             /* and again with the high bits set, which the mask must strip */
             u32 mem2 = mem | 0x80000000u;
             a=0xDEAD;b=0xBEEF;
@@ -62,6 +117,6 @@ int main(void){
             }
         }
     }
-    printf("iop read32 split: %ld cases | mismatches %ld\n",cases,mismatch);
+    printf("iop read split (8/16/32): %ld cases | mismatches %ld\n",cases,mismatch);
     return mismatch?1:0;
 }

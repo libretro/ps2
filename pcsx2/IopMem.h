@@ -41,9 +41,50 @@
 #define psxHu16(mem)	(*(u16*)&iopHw[(mem) & 0xffff])
 #define psxHu32(mem)	(*(u32*)&iopHw[(mem) & 0xffff])
 
-extern u8   iopMemRead8 (u32 mem);
-extern u16  iopMemRead16(u32 mem);
 extern const uptr *psxMemRLUT;
+extern u8   iopMemRead8_slow (u32 mem);
+extern u16  iopMemRead16_slow(u32 mem);
+
+/* Inline fast paths for 8- and 16-bit IOP reads, same split as the 32-bit
+ * one below. The excluded pages differ per width and are taken from each
+ * function's own control flow rather than assumed to match:
+ *
+ *   read8    skips 0x1f80 (hardware) and 0x1f40 (the extra dev page it
+ *            handles before the LUT lookup); no SBUS check
+ *   read16   skips 0x1f80 and, after the lookup, 0x1d00 -- as read32 does
+ *
+ * Getting these two confused would produce a fast path that silently
+ * bypassed a hardware register, so tests/iopmem_split.c checks each
+ * predicate against its own original. */
+static __fi u8 iopMemRead8(u32 mem)
+{
+	mem &= 0x1fffffff;
+	{
+		const u32 t = mem >> 16;
+		if (t != 0x1f80 && t != 0x1f40)
+		{
+			const u8* const p = (const u8*)(psxMemRLUT[t]);
+			if (p != NULL)
+				return *(const u8*)(p + (mem & 0xffff));
+		}
+	}
+	return iopMemRead8_slow(mem);
+}
+
+static __fi u16 iopMemRead16(u32 mem)
+{
+	mem &= 0x1fffffff;
+	{
+		const u32 t = mem >> 16;
+		if (t != 0x1f80 && t != 0x1d00)
+		{
+			const u8* const p = (const u8*)(psxMemRLUT[t]);
+			if (p != NULL)
+				return *(const u16*)(p + (mem & 0xffff));
+		}
+	}
+	return iopMemRead16_slow(mem);
+}
 extern u32  iopMemRead32_slow(u32 mem);
 
 /* Inline fast path for IOP 32-bit reads.
