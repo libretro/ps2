@@ -830,6 +830,74 @@ namespace x86Emitter
 	struct shim_PBlend { shim_SimdRegImmSSE W; shim_SimdRegSSE VB; };
 	struct shim_Blend { shim_SimdRegImmSSE PS; shim_SimdRegImmSSE PD; shim_SimdRegSSE VPS; shim_SimdRegSSE VPD; };
 
+
+	// ---- bit scan, and the high/low SSE moves --------------------------
+
+	// BSR/BSF. The prefix comes from the *source* for the register form and
+	// from the destination for the memory form -- that asymmetry is in the
+	// reference (x86emitter.cpp:823-830), not a slip, and both operands are
+	// the same width in practice.
+	struct shim_BitScan
+	{
+		u16 Opcode;
+
+		__fi void operator()(const xRegister16or32or64& to, const xRegister16or32or64& from) const
+		{
+			SHIM_BEGIN;
+			if (from->_operandSize == 2) E_P16(p_);
+			E_REX(p_, to->_operandSize == 8, to->Id, 0, from->Id);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)Opcode);
+			E_MODRM_RR(p_, to->Id, from->Id);
+			SHIM_END;
+		}
+		__fi void operator()(const xRegister16or32or64& to, const xIndirectVoid& src) const
+		{
+			struct e_mem m = shim_mem(src);
+			SHIM_BEGIN;
+			if (to->_operandSize == 2) E_P16(p_);
+			E_REX_MEM(p_, to->_operandSize == 8, to->Id, m);
+			EW8(p_, 0x0f);
+			EW8(p_, (e_u8)Opcode);
+			E_MODRM_MEM(p_, to->Id, m, 0);
+			SHIM_END;
+		}
+	};
+
+	// MOVHPS/MOVLPS and friends: load uses Opcode, store uses Opcode+1 with
+	// the register passed as the reg field (simd.cpp:407-411).
+	struct shim_MovHL
+	{
+		u16 Opcode;
+
+		// These take a ptr64 operand in practice, and EmitRex sets REX.W from
+		// the memory operand's own size -- so the width has to be threaded
+		// through here rather than defaulted to zero.
+		__fi void PS(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x00, Opcode, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void PS(const xIndirectVoid& to, const xRegisterSSE& from) const
+		{ struct e_mem m = shim_mem(to); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x00, Opcode + 1, from.Id, m, to._operandSize == 8); SHIM_END; }
+		__fi void PD(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, Opcode, to.Id, m, from._operandSize == 8); SHIM_END; }
+		__fi void PD(const xIndirectVoid& to, const xRegisterSSE& from) const
+		{ struct e_mem m = shim_mem(to); SHIM_BEGIN;
+		  E_SSE_R_MEM_W(p_, 0x66, Opcode + 1, from.Id, m, to._operandSize == 8); SHIM_END; }
+	};
+
+	// MOVLHPS/MOVHLPS: register to register only, no store form.
+	struct shim_MovHL_RtoR
+	{
+		u16 Opcode;
+
+		__fi void PS(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x00, Opcode, to.Id, from.Id); SHIM_END; }
+		__fi void PD(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, Opcode, to.Id, from.Id); SHIM_END; }
+	};
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

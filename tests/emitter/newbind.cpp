@@ -88,5 +88,42 @@ int main(){
           ck(nm,[&]{ xMOVSX(xRegister32(d),xRegister16(k)); },[&]{ sS(xRegister32(d),xRegister16(k)); });
           snprintf(nm,sizeof nm,"MOVZX32_16 %d %d",d,k);
           ck(nm,[&]{ xMOVZX(xRegister32(d),xRegister16(k)); },[&]{ sZ(xRegister32(d),xRegister16(k)); }); } } }
+
+    /* xBSR and the high/low SSE moves. BSR takes its 0x66 prefix from the
+       source in the register form and from the destination in the memory
+       form; MOVH/MOVL use Opcode for loads and Opcode+1 for stores. */
+    { const shim_BitScan sBSR={0xbd};
+      const shim_MovHL sMH={0x16}, sML={0x12};
+      const shim_MovHL_RtoR sLH={0x16}, sHL={0x12};
+      for(int a=0;a<16;a++){
+        for(int b=0;b<16;b++){
+          snprintf(nm,sizeof nm,"BSR32 %d,%d",a,b);
+          ck(nm,[&]{xBSR(xRegister32(a),xRegister32(b));},[&]{sBSR(xRegister32(a),xRegister32(b));});
+          snprintf(nm,sizeof nm,"BSR64 %d,%d",a,b);
+          ck(nm,[&]{xBSR(xRegister64(a),xRegister64(b));},[&]{sBSR(xRegister64(a),xRegister64(b));});
+          snprintf(nm,sizeof nm,"BSR16 %d,%d",a,b);
+          ck(nm,[&]{xBSR(xRegister16(a),xRegister16(b));},[&]{sBSR(xRegister16(a),xRegister16(b));});
+          snprintf(nm,sizeof nm,"MOVLH %d,%d",a,b);
+          ck(nm,[&]{xMOVLH.PS(xRegisterSSE(a),xRegisterSSE(b));},[&]{sLH.PS(xRegisterSSE(a),xRegisterSSE(b));});
+          snprintf(nm,sizeof nm,"MOVHL %d,%d",a,b);
+          ck(nm,[&]{xMOVHL.PS(xRegisterSSE(a),xRegisterSSE(b));},[&]{sHL.PS(xRegisterSSE(a),xRegisterSSE(b));});
+          snprintf(nm,sizeof nm,"MOVLH.PD %d,%d",a,b);
+          ck(nm,[&]{xMOVLH.PD(xRegisterSSE(a),xRegisterSSE(b));},[&]{sLH.PD(xRegisterSSE(a),xRegisterSSE(b));}); }
+        for(int bs=0;bs<16;bs++){
+          auto M=[&]{return ptr64[xAddressVoid(xAddressReg(bs),xAddressReg(2),4,0x20)];};
+          auto M32=[&]{return ptr32[xAddressVoid(xAddressReg(bs),xAddressReg(2),4,0x20)];};
+          snprintf(nm,sizeof nm,"BSR32_m %d b%d",a,bs);
+          ck(nm,[&]{xBSR(xRegister32(a),M32());},[&]{sBSR(xRegister32(a),M32());});
+          snprintf(nm,sizeof nm,"BSR64_m %d b%d",a,bs);
+          ck(nm,[&]{xBSR(xRegister64(a),M());},[&]{sBSR(xRegister64(a),M());});
+          snprintf(nm,sizeof nm,"MOVH.PS_ld %d b%d",a,bs);
+          ck(nm,[&]{xMOVH.PS(xRegisterSSE(a),M());},[&]{sMH.PS(xRegisterSSE(a),M());});
+          snprintf(nm,sizeof nm,"MOVH.PS_st %d b%d",a,bs);
+          ck(nm,[&]{xMOVH.PS(M(),xRegisterSSE(a));},[&]{sMH.PS(M(),xRegisterSSE(a));});
+          snprintf(nm,sizeof nm,"MOVL.PD_ld %d b%d",a,bs);
+          ck(nm,[&]{xMOVL.PD(xRegisterSSE(a),M());},[&]{sML.PD(xRegisterSSE(a),M());});
+          snprintf(nm,sizeof nm,"MOVL.PD_st %d b%d",a,bs);
+          ck(nm,[&]{xMOVL.PD(M(),xRegisterSSE(a));},[&]{sML.PD(M(),xRegisterSSE(a));}); } } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

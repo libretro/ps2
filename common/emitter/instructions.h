@@ -183,7 +183,11 @@ namespace x86Emitter
 	extern const xImpl_MovExtend xMOVZX, xMOVSX;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_BitScan xBSR = {0xbd};
+#else
 	extern const xImpl_BitScan xBSR;
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static const shim_JmpCall xJMP = {true};
@@ -384,10 +388,26 @@ namespace x86Emitter
 	extern const xImplSimd_MoveDQ xMOVDQU;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MovHL xMOVH = {0x16};
+#else
 	extern const xImplSimd_MovHL xMOVH;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MovHL xMOVL = {0x12};
+#else
 	extern const xImplSimd_MovHL xMOVL;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MovHL_RtoR xMOVLH = {0x16};
+#else
 	extern const xImplSimd_MovHL_RtoR xMOVLH;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MovHL_RtoR xMOVHL = {0x12};
+#else
 	extern const xImplSimd_MovHL_RtoR xMOVHL;
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static const shim_PBlend xPBLEND = {

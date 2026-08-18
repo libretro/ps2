@@ -854,8 +854,10 @@ const xRegister32
 	const xImpl_Test xTEST = {};
 #endif
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_BitScan xBSR = {0xbd};
 
+#endif
 #ifndef PCSX2_C89_EMITTER
 	const xImpl_IncDec xINC = {false};
 	const xImpl_IncDec xDEC = {true};

@@ -491,12 +491,20 @@ namespace x86Emitter
 	const xImplSimd_MoveDQ xMOVDQU = {0xf3, false};
 #endif
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MovHL xMOVH = {0x16};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MovHL xMOVL = {0x12};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MovHL_RtoR xMOVLH = {0x16};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MovHL_RtoR xMOVHL = {0x12};
 
+#endif
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PBlend xPBLEND =
 	{
