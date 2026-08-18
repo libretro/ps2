@@ -41,8 +41,11 @@ if(CCACHE_FOUND)
 endif()
 
 if(GCC_VERSION VERSION_EQUAL "8.0" OR GCC_VERSION VERSION_GREATER "8.0")
-	# gs is pretty bad at this
-	target_compile_options(PCSX2_FLAGS INTERFACE -Wno-packed-not-aligned -Wno-class-memaccess)
+	# gs is pretty bad at this. -Wno-class-memaccess is C++-only; GCC's cc1
+	# warns per C TU when it arrives unscoped (the aarch64 log spam), so
+	# gate it by language.
+	target_compile_options(PCSX2_FLAGS INTERFACE -Wno-packed-not-aligned
+		"$<$<COMPILE_LANGUAGE:CXX>:-Wno-class-memaccess>")
 endif()
 
 if ("${PGO}" STREQUAL "generate")

@@ -167,11 +167,21 @@ if(MSVC)
 	# Disable Exceptions
 	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 else()
-	# -fno-semantic-interposition matches the Makefile build: the core is a
-	# shared object that never relies on symbol interposition, and without
-	# it the compiler must assume its own definitions can be replaced at
-	# load time, which blocks direct binding and cross-TU constant folding.
-	add_compile_options(-pipe -fvisibility=hidden -fvisibility-inlines-hidden -fno-semantic-interposition -pthread)
+	add_compile_options(-pipe -fvisibility=hidden -pthread)
+	# -fvisibility-inlines-hidden is a C++-only option: passed to C files it
+	# is a per-TU cc1 warning on GCC, so scope it by language instead of
+	# letting add_compile_options spray it at everything.
+	add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>")
+	if(NOT APPLE)
+		# -fno-semantic-interposition matches the Makefile build: the core is
+		# a shared object that never relies on symbol interposition, and
+		# without it the compiler must assume its own definitions can be
+		# replaced at load time, which blocks direct binding and cross-TU
+		# constant folding. It is an ELF concept; Mach-O has no interposition
+		# to disable, and Apple clang warns -Wunused-command-line-argument on
+		# every single compile -- once per TU across the whole macOS log.
+		add_compile_options(-fno-semantic-interposition)
+	endif()
 	add_compile_options(
 		"$<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>"
 		"$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>"
