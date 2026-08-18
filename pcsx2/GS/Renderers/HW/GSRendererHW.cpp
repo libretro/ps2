@@ -6959,7 +6959,7 @@ bool GSRendererHW::TryGSMemClear(bool no_rt, bool preserve_rt, bool invalidate_r
 
 void GSRendererHW::ClearGSLocalMemory(const GSOffset& off, const GSVector4i& r, u32 vert_color)
 {
-	const u32 psm = (off.psm() == PSMCT32 && m_cached_ctx.FRAME.FBMSK == 0xFF000000u) ? PSMCT24 : off.psm();
+	const u32 psm = (off.psm() == PSMCT32 && m_cached_ctx.FRAME.FBMSK == 0xFF000000u) ? static_cast<u32>(PSMCT24) : off.psm();
 	const int format = GSLocalMemory::m_psm[psm].fmt;
 
 	const int left = r.left;

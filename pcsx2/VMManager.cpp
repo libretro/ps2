@@ -1024,7 +1024,7 @@ void VMManager::Internal::EntryPointCompilingOnCPUThread()
 	// can flush the JIT, etc. But we need to apply patches for games where the entry
 	// point is in the patch (e.g. WRC 4). So. Gross, but the only way to handle it really.
 	LoadPatches(SysGetDiscID(), ElfCRC);
-	for (i = 0; i < Patch.size(); i++)
+	for (i = 0; static_cast<size_t>(i) < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;
 		if (_place == PPT_ONCE_ON_LOAD)
@@ -1036,7 +1036,7 @@ void VMManager::Internal::GameStartingOnCPUThread()
 {
 	int i;
 	UpdateRunningGame(false, true, false);
-	for (i = 0; i < Patch.size(); i++)
+	for (i = 0; static_cast<size_t>(i) < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;
 		if ( (_place == PPT_ONCE_ON_LOAD)

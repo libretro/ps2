@@ -206,7 +206,7 @@ static __fi void TESTINT(u8 n, void (*callback)())
 	}
 	else
 	{
-		if ((int)(cpuRegs.nextEventCycle - cpuRegs.sCycle[n]) > cpuRegs.eCycle[n])
+		if ((int)(cpuRegs.nextEventCycle - cpuRegs.sCycle[n]) > (int)cpuRegs.eCycle[n])
 			cpuRegs.nextEventCycle = cpuRegs.sCycle[n] + cpuRegs.eCycle[n];
 	}
 }
@@ -234,7 +234,7 @@ static __fi bool _cpuTestInterrupts(void)
 			}
 			else
 			{
-				if ((int)(cpuRegs.nextEventCycle - cpuRegs.sCycle[VU_MTVU_BUSY]) > cpuRegs.eCycle[VU_MTVU_BUSY])
+				if ((int)(cpuRegs.nextEventCycle - cpuRegs.sCycle[VU_MTVU_BUSY]) > (int)cpuRegs.eCycle[VU_MTVU_BUSY])
 					cpuRegs.nextEventCycle = cpuRegs.sCycle[VU_MTVU_BUSY] + cpuRegs.eCycle[VU_MTVU_BUSY];
 			}
 		}
@@ -510,7 +510,7 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 		psxRegs.iopCycleEE  = 0;
 	}
 
-	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > cpuRegs.eCycle[n])
+	if ((int)(cpuRegs.nextEventCycle - cpuRegs.cycle) > (int)cpuRegs.eCycle[n])
 		cpuRegs.nextEventCycle = cpuRegs.cycle + cpuRegs.eCycle[n];
 }
 

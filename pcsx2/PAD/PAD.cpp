@@ -756,6 +756,7 @@ u8 PADpoll(u8 value)
 					return 0xF3;
 				}
 				// fallthrough on purpose (but I don't know why)
+				[[fallthrough]];
 			case CMD_READ_DATA_AND_VIBRATE:
 				{
 					query.response[2] = 0x5A;

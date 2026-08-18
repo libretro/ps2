@@ -582,7 +582,7 @@ static __fi void VSyncStart(u64 sCycle)
 	int i;
 	// Update vibration at the end of a frame.
 	DoFMVSwitch();
-	for (i = 0; i < Patch.size(); i++)
+	for (i = 0; static_cast<size_t>(i) < Patch.size(); i++)
 	{
 		int _place = Patch[i].placetopatch;
 		if ( (_place == PPT_CONTINUOUSLY)

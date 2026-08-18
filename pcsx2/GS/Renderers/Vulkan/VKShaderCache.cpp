@@ -86,7 +86,7 @@ static std::optional<SPIRVCodeVector> CompileShaderToSPV(
 
 	std::unique_ptr<glslang::TShader> shader = std::make_unique<glslang::TShader>(stage);
 	const EProfile profile       = ECoreProfile;
-	const EShMessages messages   = static_cast<EShMessages>(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules | (debug ? EShMsgDebugInfo : 0));
+	const EShMessages messages   = static_cast<EShMessages>(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules | (debug ? static_cast<int>(EShMsgDebugInfo) : 0));
 	const int default_version    = 450;
 
 	const char* pass_source_code = source.data();

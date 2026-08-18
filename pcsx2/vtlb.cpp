@@ -1060,11 +1060,11 @@ static bool vtlb_BackpatchLoadStore(uptr code_address, uptr fault_address)
 
 	const LoadstoreBackpatchInfo& info = s_fastmem_backpatch[pos].info;
 	const u32 info_guest_pc = info.guest_pc;
-	const u32 guest_addr = static_cast<u32>(fault_address - fastmem_start);
 #ifdef ARCH_ARM64
 	// No x86 recompiler / fastmem backpatching on arm64 (interpreter only).
 	return false;
 #else
+	const u32 guest_addr = static_cast<u32>(fault_address - fastmem_start);
 	vtlb_DynBackpatchLoadStore(code_address, info.code_size, info.guest_pc, guest_addr,
 		info.gpr_bitmask, info.fpr_bitmask, info.address_register, info.data_register,
 		info.size_in_bits, info.is_signed, info.is_load, info.is_fpr);

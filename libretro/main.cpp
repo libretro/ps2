@@ -1333,7 +1333,6 @@ void retro_set_audio_sample(retro_audio_sample_t /*cb*/) { }
  * SPU2 writes stereo int16 samples directly into this buffer during
  * retro_run() via the reserve/commit pair below. One bulk batch_cb()
  * upload happens at the end of retro_run().
-/*
  *
  * Threading: SPU2 (cpu_thread) produces, upload_output_audio_buffer
  * (libretro thread) consumes.  The MTGS vsync barrier serializes them
@@ -1490,7 +1489,6 @@ void retro_audio_commit(int32_t samples)
 void retro_set_environment(retro_environment_t cb)
 {
 	bool no_game = true;
-	struct retro_vfs_interface_info vfs_iface_info;
 	struct retro_core_options_update_display_callback update_display_cb;
 
 	environ_cb = cb;

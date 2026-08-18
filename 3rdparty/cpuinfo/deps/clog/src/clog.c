@@ -109,7 +109,10 @@ void clog_vlog_fatal(const char* module, const char* format, va_list args) {
 				out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH,
 				&bytes_written, NULL);
 		#else
-			write(STDERR_FILENO, out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH);
+			/* best-effort logging: glibc marks write() warn_unused_result and a
+			 * (void) cast does not silence it; consuming the value does. */
+			if (write(STDERR_FILENO, out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH) < 0) {
+			}
 		#endif
 
 cleanup:
@@ -185,7 +188,10 @@ void clog_vlog_error(const char* module, const char* format, va_list args) {
 				out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH,
 				&bytes_written, NULL);
 		#else
-			write(STDERR_FILENO, out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH);
+			/* best-effort logging: glibc marks write() warn_unused_result and a
+			 * (void) cast does not silence it; consuming the value does. */
+			if (write(STDERR_FILENO, out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH) < 0) {
+			}
 		#endif
 
 cleanup:
@@ -261,7 +267,10 @@ void clog_vlog_warning(const char* module, const char* format, va_list args) {
 				out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH,
 				&bytes_written, NULL);
 		#else
-			write(STDERR_FILENO, out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH);
+			/* best-effort logging: glibc marks write() warn_unused_result and a
+			 * (void) cast does not silence it; consuming the value does. */
+			if (write(STDERR_FILENO, out_buffer, prefix_chars + format_chars + CLOG_SUFFIX_LENGTH) < 0) {
+			}
 		#endif
 
 cleanup:

@@ -1,5 +1,7 @@
 #include "TextureDecompress.h"
 
+#include <algorithm>
+
 /*
 DXT1/DXT3/DXT5 texture decompression
 
@@ -1095,7 +1097,7 @@ bool unpack_bc7(const void *pBlock, color_rgba *pPixels)
 	case 6:
 		return unpack_bc7_mode6(data_chunks, pPixels);
 	default:
-		memset(pPixels, 0, sizeof(color_rgba) * 16);
+		std::fill_n(pPixels, 16, color_rgba(0, 0, 0, 0));
 		break;
 	}
 

@@ -38,15 +38,15 @@ struct CsoHeader
 static const u32 CSO_READ_BUFFER_SIZE = 256 * 1024;
 
 CsoFileReader::CsoFileReader()
-	: m_readBuffer(nullptr),
-	  m_index(nullptr),
-	  m_src(nullptr),
-	  m_inflate(nullptr),
-	  m_frameSize(0),
+	: m_frameSize(0),
 	  m_frameShift(0),
 	  m_indexShift(0),
 	  m_uselz4(false),
-	  m_totalSize(0)
+	  m_readBuffer(nullptr),
+	  m_index(nullptr),
+	  m_totalSize(0),
+	  m_src(nullptr),
+	  m_inflate(nullptr)
 {
 }
 

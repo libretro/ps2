@@ -7609,7 +7609,9 @@ bool VmaBlockMetadata_Generic::Validate() const
             }
 
             // Margin required between allocations - every free space must be at least that large.
+#if VMA_DEBUG_MARGIN > 0
             VMA_VALIDATE(subAlloc.size >= VMA_DEBUG_MARGIN);
+#endif
         }
         else
         {
@@ -9481,8 +9483,10 @@ bool VmaBlockMetadata_Linear::CreateAllocationRequest_UpperAddress(
     // Start from offset equal to end of free space.
     VkDeviceSize resultOffset = resultBaseOffset;
 
-    // Apply VMA_DEBUG_MARGIN at the end.
-    if(VMA_DEBUG_MARGIN > 0)
+    // Apply VMA_DEBUG_MARGIN at the end. Preprocessor rather than a
+    // runtime if(0): GCC compiles the dead branch and -Wtype-limits
+    // flags the unsigned < 0 inside it.
+#if VMA_DEBUG_MARGIN > 0
     {
         if(resultOffset < VMA_DEBUG_MARGIN)
         {
@@ -9490,6 +9494,7 @@ bool VmaBlockMetadata_Linear::CreateAllocationRequest_UpperAddress(
         }
         resultOffset -= VMA_DEBUG_MARGIN;
     }
+#endif
 
     // Apply alignment.
     resultOffset = VmaAlignDown(resultOffset, allocAlignment);
@@ -10004,7 +10009,7 @@ void VmaBlockMetadata_Linear::Alloc(
         break;
     case VmaAllocationRequestType::EndOf1st:
         {
-            SuballocationVectorType& suballocations1st = AccessSuballocations1st();
+            [[maybe_unused]] SuballocationVectorType& suballocations1st = AccessSuballocations1st();
 
             VMA_ASSERT(suballocations1st.empty() ||
                 request.offset >= suballocations1st.back().offset + suballocations1st.back().size);
@@ -11629,7 +11634,7 @@ VkResult VmaBlockVector::AllocatePage(
                     }
                     if(IsCorruptionDetectionEnabled())
                     {
-                        VkResult res = pBestRequestBlock->WriteMagicValueAroundAllocation(m_hAllocator, bestRequest.offset, size);
+                        [[maybe_unused]] VkResult res = pBestRequestBlock->WriteMagicValueAroundAllocation(m_hAllocator, bestRequest.offset, size);
                         VMA_ASSERT(res == VK_SUCCESS && "Couldn't map block memory to write magic value.");
                     }
                     return VK_SUCCESS;
@@ -11675,7 +11680,7 @@ void VmaBlockVector::Free(
 
         if(IsCorruptionDetectionEnabled())
         {
-            VkResult res = pBlock->ValidateMagicValueAroundAllocation(m_hAllocator, hAllocation->GetOffset(), hAllocation->GetSize());
+            [[maybe_unused]] VkResult res = pBlock->ValidateMagicValueAroundAllocation(m_hAllocator, hAllocation->GetOffset(), hAllocation->GetSize());
             VMA_ASSERT(res == VK_SUCCESS && "Couldn't map block memory to validate magic value.");
         }
 
@@ -11832,7 +11837,7 @@ VkResult VmaBlockVector::AllocateFromBlock(
         }
         if(IsCorruptionDetectionEnabled())
         {
-            VkResult res = pBlock->WriteMagicValueAroundAllocation(m_hAllocator, currRequest.offset, size);
+            [[maybe_unused]] VkResult res = pBlock->WriteMagicValueAroundAllocation(m_hAllocator, currRequest.offset, size);
             VMA_ASSERT(res == VK_SUCCESS && "Couldn't map block memory to write magic value.");
         }
         return VK_SUCCESS;
@@ -15721,7 +15726,7 @@ private:
 VkResult VmaAllocator_T::AllocateVulkanMemory(const VkMemoryAllocateInfo* pAllocateInfo, VkDeviceMemory* pMemory)
 {
     AtomicTransactionalIncrement<uint32_t> deviceMemoryCountIncrement;
-    const uint64_t prevDeviceMemoryCount = deviceMemoryCountIncrement.Increment(&m_DeviceMemoryCount);
+    [[maybe_unused]] const uint64_t prevDeviceMemoryCount = deviceMemoryCountIncrement.Increment(&m_DeviceMemoryCount);
 #if VMA_DEBUG_DONT_EXCEED_MAX_MEMORY_ALLOCATION_COUNT
     if(prevDeviceMemoryCount >= m_PhysicalDeviceProperties.limits.maxMemoryAllocationCount)
     {

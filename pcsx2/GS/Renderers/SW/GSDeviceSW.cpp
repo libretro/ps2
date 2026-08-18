@@ -105,7 +105,7 @@ namespace
 
 		/* Fast path: x mapping is exact 1:1 and fully in bounds. The
 		 * inner loop is then just a memcpy of dst_w pixels. */
-		const bool x_is_identity =
+		[[maybe_unused]] const bool x_is_identity = /* consumed only by the SIMD fast path */
 			(sx0 == 0.0f) && (sx1 == 1.0f) && (out_w == src_w) &&
 			(dx0 >= 0) && (dx1 <= dst_clip_w) && (dx1 <= src_w);
 
@@ -163,7 +163,7 @@ namespace
 		const float src_x_base  = sx0 * static_cast<float>(src_w);
 		const float src_y_base  = sy0 * static_cast<float>(src_h);
 
-		const bool x_is_identity =
+		[[maybe_unused]] const bool x_is_identity = /* consumed only by the SIMD fast path */
 			(sx0 == 0.0f) && (sx1 == 1.0f) && (out_w == src_w) &&
 			(dx0 >= 0) && (dx1 <= dst_clip_w) && (dx1 <= src_w);
 
@@ -356,7 +356,7 @@ namespace
 		 * and dst clip rects. Every DoMerge call from the SW renderer
 		 * hits this in practice (sRect=(0,0,1,1) and dRect matches the
 		 * merge target's full extent). */
-		const bool x_is_identity =
+		[[maybe_unused]] const bool x_is_identity = /* consumed only by the SIMD fast path */
 			(sx0 == 0.0f) && (sx1 == 1.0f) && (out_w == src_w) &&
 			(dx0 >= 0) && (dx1 <= dst_clip_w) && (dx1 <= src_w);
 

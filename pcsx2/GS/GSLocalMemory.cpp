@@ -374,7 +374,7 @@ std::vector<GSVector2i>* GSLocalMemory::GetPage2TileMap(const GIFRegTEX0& TEX0)
 	int th = std::max<int>(1 << TEX0.TH, bs.y);
 
 	// Limit the size to the maximum size of the GS memory, there's no point in mapping more than this.
-	if ((tw * th) > VM_SIZE)
+	if (static_cast<u32>(tw * th) > VM_SIZE)
 	{
 		tw = 2048;
 		th = 2048;

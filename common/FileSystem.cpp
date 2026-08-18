@@ -571,7 +571,7 @@ std::optional<std::vector<u8>> FileSystem::ReadBinaryFile(const char* filename)
 	}
 
 	std::vector<u8> res(static_cast<size_t>(size));
-	if (size > 0 && rfread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
+	if (size > 0 && static_cast<size_t>(rfread(res.data(), 1u, static_cast<size_t>(size), fp)) != static_cast<size_t>(size))
 	{
 		rfclose(fp);
 		return std::nullopt;
@@ -598,7 +598,7 @@ std::optional<std::string> FileSystem::ReadFileToString(const char* filename)
 
 	res.resize(static_cast<size_t>(size));
 	/* NOTE - assumes mode 'rb', for example, this will fail over missing Windows carriage return bytes */
-	if (size > 0 && rfread(res.data(), 1u, static_cast<size_t>(size), fp) != static_cast<size_t>(size))
+	if (size > 0 && static_cast<size_t>(rfread(res.data(), 1u, static_cast<size_t>(size), fp)) != static_cast<size_t>(size))
 	{
 		rfclose(fp);
 		return std::nullopt;
@@ -612,7 +612,7 @@ bool FileSystem::WriteBinaryFile(const char* filename, const void* data, size_t 
 	RFILE *fp = OpenFile(filename, "wb");
 	if (!fp)
 		return false;
-	if (data_length > 0 && rfwrite(data, 1u, data_length, fp) != data_length)
+	if (data_length > 0 && static_cast<size_t>(rfwrite(data, 1u, data_length, fp)) != data_length)
 	{
 		rfclose(fp);
 		return false;

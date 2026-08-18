@@ -539,7 +539,7 @@ static void eeExecuteLoop(void)
 					break;
 
 				state = GAME_LOADING;
-				// fallthrough
+				[[fallthrough]];
 			}
 
 		case GAME_LOADING:

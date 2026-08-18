@@ -1127,7 +1127,7 @@ GSTextureCache::Source* GSTextureCache::LookupSource(const bool is_color, const 
 				//
 				// Solution: consider the RT as 32 bits if the alpha was used in the past
 				// We can render to the target as C32, but mask alpha, in which case, pretend like it doesn't have any.
-				const u32 t_psm = t->HasValidAlpha() ? t->m_TEX0.PSM & ~0x1 : ((t->m_TEX0.PSM == PSMCT32) ? PSMCT24 : t->m_TEX0.PSM);
+				const u32 t_psm = t->HasValidAlpha() ? t->m_TEX0.PSM & ~0x1 : ((t->m_TEX0.PSM == PSMCT32) ? static_cast<u32>(PSMCT24) : t->m_TEX0.PSM);
 				bool rect_clean = GSUtil::HasSameSwizzleBits(psm, t_psm) || (t_psm == PSMCT32 && GSLocalMemory::m_psm[psm].bpp == 16 && possible_shuffle);
 				const bool tex_overlaps = bp >= t->m_TEX0.TBP0 && bp < t->UnwrappedEndBlock();
 				const bool real_fmt_match = (GSLocalMemory::m_psm[psm].trbpp == 16) == (t->m_32_bits_fmt == false);

@@ -188,10 +188,10 @@ void MTGS::MainLoop(bool flush_all)
 		// Snapshot s_WritePos once per batch to avoid re-acquiring the EE's
 		// cache line on every packet.  New packets added during processing
 		// are picked up on the next outer-loop iteration.
-		const unsigned int snapshot_WritePos = retro_atomic_load_acquire_int(&s_WritePos);
+		const int snapshot_WritePos = retro_atomic_load_acquire_int(&s_WritePos);
 		while (retro_atomic_load_acquire_int(&s_ReadPos) != snapshot_WritePos)
 		{
-			const unsigned int local_ReadPos = retro_atomic_load_acquire_int(&s_ReadPos);
+			const int local_ReadPos = retro_atomic_load_acquire_int(&s_ReadPos);
 			const PacketTagType& tag = (PacketTagType&)m_Ring[local_ReadPos];
 
 			switch (tag.command)
