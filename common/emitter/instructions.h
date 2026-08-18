@@ -38,7 +38,19 @@
 	xWrite8(0xf8); \
 	xWrite8(0x77)
 
+#ifdef PCSX2_C89_EMITTER
+// The macro routes through xOpWriteC5, which is reference machinery. Same
+// encoding through the core's VEX macros; the L bit follows the source, as
+// the reference's param3 rule dictates for a GPR destination -- this is the
+// 256-bit movemask that rule exists for.
+#define xVPMOVMSKB(to, from) do { \
+	e_u8* vpm_p_ = (e_u8*)x86Ptr; \
+	E_VEX_RRR(vpm_p_, 0x66, 0xd7, (to).Id, E_NOREG, (from).Id, \
+	          x86Emitter::shim_ymm(from)); \
+	x86Ptr = (u8*)vpm_p_; } while (0)
+#else
 #define xVPMOVMSKB(to, from) xOpWriteC5(0x66, 0xd7, to, xRegister32(), from)
+#endif
 
 // xMASKMOV:
 // Selectively write bytes from mm1/xmm1 to memory location using the byte mask in mm2/xmm2.
@@ -55,7 +67,14 @@
 // When operating on a 64-bit (MMX) source, the byte mask is 8 bits; when operating on
 // 128-bit (SSE) source, the byte mask is 16-bits.
 //
+#ifdef PCSX2_C89_EMITTER
+// Routed to the shim: the reference form expands to xOpWrite0F, whose
+// EmitRex/EmitSibMagic calls were the last reference-side imports left in
+// the switched recompilers (found via objdump on microVU.o's mVU_CLIP).
+#define xPMOVMSKB(to, from) shim_xPMOVMSKB(to, from)
+#else
 #define xPMOVMSKB(to, from) xOpWrite0F(0x66, 0xd7, to, from)
+#endif
 
 // [sSSE-3] Concatenates dest and source operands into an intermediate composite,
 // shifts the composite at byte granularity to the right by a constant immediate,
@@ -401,6 +420,7 @@ namespace x86Emitter
 	};
 	static const shim_FastCallObj xFastCall = {};
 #endif
+
 #else
 	extern void xPUSH(xRegister32or64 from);
 #endif
@@ -438,6 +458,45 @@ namespace x86Emitter
 			op(dst, tmpRegister);
 		}
 	}
+
+#ifdef PCSX2_C89_EMITTER
+	// Address and constant helpers: composition over xLEA/xMOV/xMOV64,
+	// moved verbatim from x86emitter.cpp so the switched build needs no
+	// object file for them. Explicit inline: __fi is empty on MinGW.
+	inline xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
+	{
+		if ((sptr)base == (s32)(sptr)base)
+		{
+			return offset + base;
+		}
+		else
+		{
+			xLEA(tmpRegister, ptr[base]);
+			return offset + tmpRegister;
+		}
+	}
+
+	inline void xLoadFarAddr(const xAddressReg& dst, void* addr)
+	{
+		sptr iaddr = (sptr)addr;
+		sptr rip = (sptr)xGetPtr() + 7; // LEA will be 7 bytes
+		sptr disp = iaddr - rip;
+		if (disp == (s32)disp)
+		{
+			xLEA(dst, ptr[addr]);
+		}
+		else
+		{
+			xMOV64(dst, iaddr);
+		}
+	}
+
+	inline void xWriteImm64ToMem(u64* addr, const xAddressReg& tmp, u64 imm)
+	{
+		xImm64Op(xMOV, ptr64[addr], tmp, imm);
+	}
+
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// JMP / Jcc Instructions!
@@ -711,12 +770,26 @@ namespace x86Emitter
 	extern const xImplSimd_PMove xPMOVZX;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8) { shim_xINSERTPS(to, from, imm8); }
+#else
 	extern void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) { shim_xINSERTPS(to, from, imm8); }
+#else
 	extern void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8);
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	extern void xEXTRACTPS(const xRegister32or64& to, const xRegisterSSE& from, u8 imm8);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xEXTRACTPS(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) { shim_xEXTRACTPS(dest, from, imm8); }
+#else
 	extern void xEXTRACTPS(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8);
 
+#endif
 	// ------------------------------------------------------------------------
 
 #ifdef PCSX2_C89_EMITTER
@@ -775,9 +848,16 @@ namespace x86Emitter
 	extern const xImplSimd_MinMax xMAX;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_SimdCompare xCMPEQ = {SSE2_Equal};
+	static const shim_SimdCompare xCMPLT = {SSE2_Less};
+	static const shim_SimdCompare xCMPNLT = {SSE2_NotLess};
+	static const shim_SimdCompare xCMPNLE = {SSE2_NotLessOrEqual};
+#else
 	extern const xImplSimd_Compare xCMPEQ, xCMPLT,
 		xCMPNLT,
 		xCMPNLE;
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static const shim_COMI xUCOMI = { {0x00,0x2e},{0x66,0x2e} };
@@ -822,27 +902,91 @@ namespace x86Emitter
 	//
 	extern void xCVTDQ2PD(const xRegisterSSE& to, const xRegisterSSE& from);
 	extern void xCVTDQ2PD(const xRegisterSSE& to, const xIndirect64& from);
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xCVTDQ2PS(to, from); }
+#else
 	extern void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from) { shim_xCVTDQ2PS(to, from); }
+#else
 	extern void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from);
 
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xCVTSD2SS(to, from); }
+#else
 	extern void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from) { shim_xCVTSD2SS(to, from); }
+#else
 	extern void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from) { shim_xCVTSI2SS(to, from); }
+#else
 	extern void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSI2SS(const xRegisterSSE& to, const xIndirect32& from) { shim_xCVTSI2SS(to, from); }
+#else
 	extern void xCVTSI2SS(const xRegisterSSE& to, const xIndirect32& from);
 
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSS2SD(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xCVTSS2SD(to, from); }
+#else
 	extern void xCVTSS2SD(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSS2SD(const xRegisterSSE& to, const xIndirect32& from) { shim_xCVTSS2SD(to, from); }
+#else
 	extern void xCVTSS2SD(const xRegisterSSE& to, const xIndirect32& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { shim_xCVTSS2SI(to, from); }
+#else
 	extern void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from) { shim_xCVTSS2SI(to, from); }
+#else
 	extern void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from);
 
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { shim_xCVTTPS2DQ(to, from); }
+#else
 	extern void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from) { shim_xCVTTPS2DQ(to, from); }
+#else
 	extern void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from);
 
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTTSD2SI(const xRegister32or64& to, const xRegisterSSE& from) { shim_xCVTTSD2SI(to, from); }
+#else
 	extern void xCVTTSD2SI(const xRegister32or64& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTTSD2SI(const xRegister32or64& to, const xIndirect64& from) { shim_xCVTTSD2SI(to, from); }
+#else
 	extern void xCVTTSD2SI(const xRegister32or64& to, const xIndirect64& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { shim_xCVTTSS2SI(to, from); }
+#else
 	extern void xCVTTSS2SI(const xRegister32or64& to, const xRegisterSSE& from);
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xCVTTSS2SI(const xRegister32or64& to, const xIndirect32& from) { shim_xCVTTSS2SI(to, from); }
+#else
 	extern void xCVTTSS2SI(const xRegister32or64& to, const xIndirect32& from);
 
+#endif
 	// ------------------------------------------------------------------------
 
 #ifdef PCSX2_C89_EMITTER

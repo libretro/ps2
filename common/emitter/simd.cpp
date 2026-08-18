@@ -48,28 +48,60 @@ namespace x86Emitter
 	// nature of the functions.  (so if a function expects an m32, you must use (u32*) or ptr32[]).
 	//
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0x00, 0x5b); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0x00, 0x5b); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf2, 0x5a); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from) { OpWriteSSE(0xf2, 0x5a); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from) { OpWriteSSE(0xf3, 0x2a); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSI2SS(const xRegisterSSE& to, const xIndirect32& from) { OpWriteSSE(0xf3, 0x2a); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSS2SD(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0x5a); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSS2SD(const xRegisterSSE& to, const xIndirect32& from) { OpWriteSSE(0xf3, 0x5a); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0x2d); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from) { OpWriteSSE(0xf3, 0x2d); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0x5b); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from) { OpWriteSSE(0xf3, 0x5b); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTTSD2SI(const xRegister32or64& to, const xRegisterSSE& from) { OpWriteSSE(0xf2, 0x2c); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTTSD2SI(const xRegister32or64& to, const xIndirect64& from) { OpWriteSSE(0xf2, 0x2c); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTTSS2SI(const xRegister32or64& to, const xRegisterSSE& from) { OpWriteSSE(0xf3, 0x2c); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xCVTTSS2SI(const xRegister32or64& to, const xIndirect32& from) { OpWriteSSE(0xf3, 0x2c); }
 
 
+#endif
 	// ------------------------------------------------------------------------
 
 	void xImplSimd_DestRegSSE::operator()(const xRegisterSSE& to, const xRegisterSSE& from) const { OpWriteSSE(Prefix, Opcode); }
@@ -212,18 +244,34 @@ namespace x86Emitter
 	//  SIMD Comparison Instructions
 	// =====================================================================================================
 
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::PS(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0x00, 0xc2, to, from, (u8)CType); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::PS(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0x00, 0xc2, to, from, (u8)CType); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::PD(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0x66, 0xc2, to, from, (u8)CType); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::PD(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0x66, 0xc2, to, from, (u8)CType); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::SS(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0xf3, 0xc2, to, from, (u8)CType); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::SS(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0xf3, 0xc2, to, from, (u8)CType); }
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::SD(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0xf2, 0xc2, to, from, (u8)CType); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	void xImplSimd_Compare::SD(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0xf2, 0xc2, to, from, (u8)CType); }
 
+#endif
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MinMax xMIN =
 		{
@@ -246,11 +294,13 @@ namespace x86Emitter
 #endif
 	// [TODO] : Merge this into the xCMP class, so that they are notation as: xCMP.EQ
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Compare xCMPEQ = {SSE2_Equal};
 	const xImplSimd_Compare xCMPLT = {SSE2_Less};
 	const xImplSimd_Compare xCMPNLT = {SSE2_NotLess};
 	const xImplSimd_Compare xCMPNLE = {SSE2_NotLessOrEqual};
 	const xImplSimd_Compare xCMPUNORD = {SSE2_Unordered};
+#endif
 
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_COMI xUCOMI =
@@ -626,17 +676,25 @@ namespace x86Emitter
 	//  * ZMASK: Each bit of Imm8[3:0] selects a dword element in dest to  be written
 	//    with 0.0 if set to 1.
 	//
+#ifndef PCSX2_C89_EMITTER
 	__fi void xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x213a, to, from, imm8); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) { xOpWrite0F(0x66, 0x213a, to, from, imm8); }
 
+#endif
 	// [SSE-4.1] Extract a single-precision floating-point value from src at an offset
 	// determined by imm8[1-0]*32. The extracted single precision floating-point value
 	// is stored into the low 32-bits of dest (or at a 32-bit memory pointer).
 	//
+#ifndef PCSX2_C89_EMITTER
 	__fi void xEXTRACTPS(const xRegister32or64& to, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x173a, to, from, imm8); }
+#endif
+#ifndef PCSX2_C89_EMITTER
 	__fi void xEXTRACTPS(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) { xOpWrite0F(0x66, 0x173a, from, dest, imm8); }
 
 
+#endif
 	// =====================================================================================================
 	//  Ungrouped Instructions!
 	// =====================================================================================================

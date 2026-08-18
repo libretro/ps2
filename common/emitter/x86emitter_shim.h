@@ -1188,6 +1188,91 @@ namespace x86Emitter
 	  if (from->Id >= 8) EW8(p_, 0x41);
 	  EW8(p_, (e_u8)(0x50 | (from->Id & 7))); SHIM_END; }
 
+
+	// CMPPS/CMPSS family: opcode 0xC2 with the comparison type as the imm8.
+	struct shim_SimdCompare
+	{
+		SSE2_ComparisonType CType;
+
+		__fi void PS(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x00, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		__fi void PS(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x00, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		__fi void PD(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		__fi void PD(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		__fi void SS(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0xf3, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		__fi void SS(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0xf3, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+		__fi void SD(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0xf2, 0xc2, to.Id, from.Id, (e_u8)CType, 0); SHIM_END; }
+		__fi void SD(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0xf2, 0xc2, to.Id, m, (e_u8)CType, 0); SHIM_END; }
+	};
+
+	// CVT family. The GPR operand, where present, carries REX.W from its own
+	// width -- source for SI2SS, destination for SS2SI/TSS2SI/TSD2SI.
+	static __fi void shim_xCVTDQ2PS(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0x00, 0x5b, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xCVTDQ2PS(const xRegisterSSE& to, const xIndirect128& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN; E_SSE_R_MEM_W(p_, 0x00, 0x5b, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xCVTSD2SS(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0xf2, 0x5a, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xCVTSD2SS(const xRegisterSSE& to, const xIndirect64& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN; E_SSE_R_MEM_W(p_, 0xf2, 0x5a, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xCVTSI2SS(const xRegisterSSE& to, const xRegister32or64& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0xf3, 0x2a, to.Id, from->Id, from->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xCVTSI2SS(const xRegisterSSE& to, const xIndirect32& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN; E_SSE_R_MEM_W(p_, 0xf3, 0x2a, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xCVTSS2SD(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0xf3, 0x5a, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xCVTSS2SD(const xRegisterSSE& to, const xIndirect32& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN; E_SSE_R_MEM_W(p_, 0xf3, 0x5a, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xCVTSS2SI(const xRegister32or64& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0xf3, 0x2d, to->Id, from.Id, to->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xCVTSS2SI(const xRegister32or64& to, const xIndirect32& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf3, 0x2d, to->Id, m, to->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xCVTTPS2DQ(const xRegisterSSE& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR(p_, 0xf3, 0x5b, to.Id, from.Id); SHIM_END; }
+	static __fi void shim_xCVTTPS2DQ(const xRegisterSSE& to, const xIndirect128& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN; E_SSE_R_MEM_W(p_, 0xf3, 0x5b, to.Id, m, 0); SHIM_END; }
+	static __fi void shim_xCVTTSD2SI(const xRegister32or64& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0xf2, 0x2c, to->Id, from.Id, to->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xCVTTSD2SI(const xRegister32or64& to, const xIndirect64& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf2, 0x2c, to->Id, m, to->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xCVTTSS2SI(const xRegister32or64& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0xf3, 0x2c, to->Id, from.Id, to->_operandSize == 8); SHIM_END; }
+	static __fi void shim_xCVTTSS2SI(const xRegister32or64& to, const xIndirect32& from)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_SSE_R_MEM_W(p_, 0xf3, 0x2c, to->Id, m, to->_operandSize == 8); SHIM_END; }
+
+	// INSERTPS / EXTRACTPS (SSE4.1). Only the memory form of EXTRACTPS is
+	// provided: the reference's register form passes the GPR where the SSE
+	// register belongs (simd.cpp:636 -- compare PEXTR at :338, which passes
+	// them the other way), so its reg and rm fields come out swapped. No
+	// recompiler calls it; binding it would mean byte-matching what looks
+	// like a defect, and leaving it out lets the compile gate tell us if a
+	// caller ever appears.
+	static __fi void shim_xINSERTPS(const xRegisterSSE& to, const xRegisterSSE& from, u8 imm8)
+	{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x213a, to.Id, from.Id, imm8, 0); SHIM_END; }
+	static __fi void shim_xINSERTPS(const xRegisterSSE& to, const xIndirect32& from, u8 imm8)
+	{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+	  E_SSE_R_MEM_I_W(p_, 0x66, 0x213a, to.Id, m, imm8, 0); SHIM_END; }
+	static __fi void shim_xEXTRACTPS(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8)
+	{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+	  E_SSE_R_MEM_I_W(p_, 0x66, 0x173a, from.Id, m, imm8, 0); SHIM_END; }
+
+	static __fi void shim_xPMOVMSKB(const xRegister32or64& to, const xRegisterSSE& from)
+	{ SHIM_BEGIN; E_SSE_RR_W(p_, 0x66, 0xd7, to->Id, from.Id, to->_operandSize == 8); SHIM_END; }
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

@@ -630,6 +630,8 @@ namespace x86Emitter
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//
 
+
+#ifndef PCSX2_C89_EMITTER
 	xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{
 		if ((sptr)base == (s32)(sptr)base)
@@ -662,5 +664,6 @@ namespace x86Emitter
 	{
 		xImm64Op(xMOV, ptr64[addr], tmp, imm);
 	}
+#endif
 
 } // End namespace x86Emitter

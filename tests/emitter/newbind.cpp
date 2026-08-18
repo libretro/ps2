@@ -339,5 +339,83 @@ int main(){
         snprintf(nm,sizeof nm,"POP_m b%d",b);
         ck(nm,[&]{xPOP(MV());},[&]{shim_xPOP(MV());}); } }
 
+
+    /* CVT family, the CMP compare objects, INSERTPS and EXTRACTPS's memory
+       form. The GPR in the CVT scalar forms carries REX.W from its own
+       width -- source for SI2SS, destination for the *2SI group. */
+    { for(int a=0;a<16;a++) for(int g=0;g<16;g++){
+        snprintf(nm,sizeof nm,"CVTSI2SS x%d,r%d",a,g);
+        ck(nm,[&]{xCVTSI2SS(xRegisterSSE(a),xRegister32(g));},[&]{shim_xCVTSI2SS(xRegisterSSE(a),xRegister32(g));});
+        snprintf(nm,sizeof nm,"CVTSI2SS64 x%d,r%d",a,g);
+        ck(nm,[&]{xCVTSI2SS(xRegisterSSE(a),xRegister64(g));},[&]{shim_xCVTSI2SS(xRegisterSSE(a),xRegister64(g));});
+        snprintf(nm,sizeof nm,"CVTTSS2SI r%d,x%d",g,a);
+        ck(nm,[&]{xCVTTSS2SI(xRegister32(g),xRegisterSSE(a));},[&]{shim_xCVTTSS2SI(xRegister32(g),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"CVTTSS2SI64 r%d,x%d",g,a);
+        ck(nm,[&]{xCVTTSS2SI(xRegister64(g),xRegisterSSE(a));},[&]{shim_xCVTTSS2SI(xRegister64(g),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"CVTTSD2SI r%d,x%d",g,a);
+        ck(nm,[&]{xCVTTSD2SI(xRegister32(g),xRegisterSSE(a));},[&]{shim_xCVTTSD2SI(xRegister32(g),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"CVTSS2SI r%d,x%d",g,a);
+        ck(nm,[&]{xCVTSS2SI(xRegister32(g),xRegisterSSE(a));},[&]{shim_xCVTSS2SI(xRegister32(g),xRegisterSSE(a));});
+        snprintf(nm,sizeof nm,"CVTDQ2PS x%d,x%d",a,g);
+        ck(nm,[&]{xCVTDQ2PS(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xCVTDQ2PS(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CVTSD2SS x%d,x%d",a,g);
+        ck(nm,[&]{xCVTSD2SS(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xCVTSD2SS(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CVTSS2SD x%d,x%d",a,g);
+        ck(nm,[&]{xCVTSS2SD(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xCVTSS2SD(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CVTTPS2DQ x%d,x%d",a,g);
+        ck(nm,[&]{xCVTTPS2DQ(xRegisterSSE(a),xRegisterSSE(g));},[&]{shim_xCVTTPS2DQ(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CMPEQ.SS x%d,x%d",a,g);
+        ck(nm,[&]{xCMPEQ.SS(xRegisterSSE(a),xRegisterSSE(g));},
+             [&]{shim_SimdCompare{SSE2_Equal}.SS(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CMPEQ.PS x%d,x%d",a,g);
+        ck(nm,[&]{xCMPEQ.PS(xRegisterSSE(a),xRegisterSSE(g));},
+             [&]{shim_SimdCompare{SSE2_Equal}.PS(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CMPNLT.PS x%d,x%d",a,g);
+        ck(nm,[&]{xCMPNLT.PS(xRegisterSSE(a),xRegisterSSE(g));},
+             [&]{shim_SimdCompare{SSE2_NotLess}.PS(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"CMPNLE.SD x%d,x%d",a,g);
+        ck(nm,[&]{xCMPNLE.SD(xRegisterSSE(a),xRegisterSSE(g));},
+             [&]{shim_SimdCompare{SSE2_NotLessOrEqual}.SD(xRegisterSSE(a),xRegisterSSE(g));});
+        snprintf(nm,sizeof nm,"INSERTPS x%d,x%d",a,g);
+        ck(nm,[&]{xINSERTPS(xRegisterSSE(a),xRegisterSSE(g),0x5c);},
+             [&]{shim_xINSERTPS(xRegisterSSE(a),xRegisterSSE(g),0x5c);}); }
+      for(int a=0;a<16;a++) for(int b=0;b<16;b++){
+        auto M32=[&]{return ptr32[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        auto M64=[&]{return ptr64[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        auto M128=[&]{return ptr128[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x18)];};
+        snprintf(nm,sizeof nm,"CVTSI2SS_m x%d b%d",a,b);
+        ck(nm,[&]{xCVTSI2SS(xRegisterSSE(a),M32());},[&]{shim_xCVTSI2SS(xRegisterSSE(a),M32());});
+        snprintf(nm,sizeof nm,"CVTTSD2SI_m r%d b%d",a,b);
+        ck(nm,[&]{xCVTTSD2SI(xRegister64(a),M64());},[&]{shim_xCVTTSD2SI(xRegister64(a),M64());});
+        snprintf(nm,sizeof nm,"CVTDQ2PS_m x%d b%d",a,b);
+        ck(nm,[&]{xCVTDQ2PS(xRegisterSSE(a),M128());},[&]{shim_xCVTDQ2PS(xRegisterSSE(a),M128());});
+        snprintf(nm,sizeof nm,"CMPEQ.SS_m x%d b%d",a,b);
+        ck(nm,[&]{xCMPEQ.SS(xRegisterSSE(a),M32());},
+             [&]{shim_SimdCompare{SSE2_Equal}.SS(xRegisterSSE(a),M32());});
+        snprintf(nm,sizeof nm,"EXTRACTPS_m x%d b%d",a,b);
+        ck(nm,[&]{xEXTRACTPS(M32(),xRegisterSSE(a),2);},[&]{shim_xEXTRACTPS(M32(),xRegisterSSE(a),2);}); } }
+
+
+    /* xVPMOVMSKB at both widths: c5 f9 d7 vs c5 fd d7, one L bit apart. */
+    { for(int g=0;g<16;g++) for(int x=0;x<16;x++){
+        snprintf(nm,sizeof nm,"VPMOVMSKB x %d,%d",g,x);
+        ck(nm,[&]{ xVPMOVMSKB(xRegister32(g), xRegisterSSE(x)); },
+             [&]{ e_u8* q=(e_u8*)x86Ptr;
+                  E_VEX_RRR(q,0x66,0xd7,xRegister32(g).Id,E_NOREG,xRegisterSSE(x).Id,0);
+                  x86Ptr=(u8*)q; });
+        snprintf(nm,sizeof nm,"VPMOVMSKB y %d,%d",g,x);
+        ck(nm,[&]{ xVPMOVMSKB(xRegister32(g), xRegisterSSE(x, xRegisterYMMTag())); },
+             [&]{ e_u8* q=(e_u8*)x86Ptr;
+                  E_VEX_RRR(q,0x66,0xd7,xRegister32(g).Id,E_NOREG,xRegisterSSE(x, xRegisterYMMTag()).Id,1);
+                  x86Ptr=(u8*)q; }); } }
+
+
+    /* xPMOVMSKB, plain SSE form, both GPR widths. */
+    { for(int g=0;g<16;g++) for(int x=0;x<16;x++){
+        snprintf(nm,sizeof nm,"PMOVMSKB %d,%d",g,x);
+        ck(nm,[&]{xPMOVMSKB(xRegister32(g),xRegisterSSE(x));},[&]{shim_xPMOVMSKB(xRegister32(g),xRegisterSSE(x));});
+        snprintf(nm,sizeof nm,"PMOVMSKB64 %d,%d",g,x);
+        ck(nm,[&]{xPMOVMSKB(xRegister64(g),xRegisterSSE(x));},[&]{shim_xPMOVMSKB(xRegister64(g),xRegisterSSE(x));}); } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }
