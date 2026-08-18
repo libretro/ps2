@@ -15,6 +15,7 @@
 
 #include "Common.h"
 #include "iR5900.h"
+#include "common/emitter/c89ops.h"
 #include "R5900OpcodeTables.h"
 
 using namespace x86Emitter;
@@ -82,19 +83,19 @@ void recMFSA()
 	{
 		// have to zero out bits 63:32
 		const int temp = _allocTempXMMreg(XMMT_INT);
-		xMOVSSZX(xRegisterSSE(temp), ptr32[&cpuRegs.sa]);
-		xBLEND.PD(xRegisterSSE(mmreg), xRegisterSSE(temp), 1);
+		xe_movss_xm(temp, &cpuRegs.sa);
+		xe_blendpd_xxi(mmreg, temp, 1);
 		_freeXMMreg(temp);
 	}
 	else if (const int gprreg = _allocIfUsedGPRtoX86(_Rd_, MODE_WRITE); gprreg >= 0)
 	{
-		xMOV(xRegister32(gprreg), ptr32[&cpuRegs.sa]);
+		xe_mov32_rm(gprreg, &cpuRegs.sa);
 	}
 	else
 	{
 		_deleteEEreg(_Rd_, 0);
-		xMOV(eax, ptr32[&cpuRegs.sa]);
-		xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
+		xe_mov32_rm(XE_AX, &cpuRegs.sa);
+		xe_mov64_mr(&cpuRegs.GPR.r[_Rd_].UD[0], XE_AX);
 	}
 }
 
@@ -103,7 +104,7 @@ void recMTSA()
 {
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		xMOV(ptr32[&cpuRegs.sa], g_cpuConstRegs[_Rs_].UL[0] & 0xf);
+		xe_mov32_mi(&cpuRegs.sa, g_cpuConstRegs[_Rs_].UL[0] & 0xf);
 	}
 	else
 	{
@@ -111,18 +112,18 @@ void recMTSA()
 
 		if ((mmreg = _checkXMMreg(XMMTYPE_GPRREG, _Rs_, MODE_READ)) >= 0)
 		{
-			xMOVSS(ptr[&cpuRegs.sa], xRegisterSSE(mmreg));
+			xe_movss_mx(&cpuRegs.sa, mmreg);
 		}
 		else if ((mmreg = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ)) >= 0)
 		{
-			xMOV(ptr[&cpuRegs.sa], xRegister32(mmreg));
+			xe_mov32_mr(&cpuRegs.sa, mmreg);
 		}
 		else
 		{
-			xMOV(eax, ptr[&cpuRegs.GPR.r[_Rs_].UL[0]]);
-			xMOV(ptr[&cpuRegs.sa], eax);
+			xe_mov32_rm(XE_AX, &cpuRegs.GPR.r[_Rs_].UL[0]);
+			xe_mov32_mr(&cpuRegs.sa, XE_AX);
 		}
-		xAND(ptr32[&cpuRegs.sa], 0xf);
+		xe_and32_mi(&cpuRegs.sa, 0xf);
 	}
 }
 
@@ -130,14 +131,14 @@ void recMTSAB()
 {
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		xMOV(ptr32[&cpuRegs.sa], ((g_cpuConstRegs[_Rs_].UL[0] & 0xF) ^ (_Imm_ & 0xF)));
+		xe_mov32_mi(&cpuRegs.sa, ((g_cpuConstRegs[_Rs_].UL[0] & 0xF) ^ (_Imm_ & 0xF)));
 	}
 	else
 	{
 		_eeMoveGPRtoR32(0 /* eax */, _Rs_);
-		xAND(eax, 0xF);
-		xXOR(eax, _Imm_ & 0xf);
-		xMOV(ptr[&cpuRegs.sa], eax);
+		xe_and32_ri(XE_AX, 0xF);
+		xe_xor32_ri(XE_AX, _Imm_ & 0xf);
+		xe_mov32_mr(&cpuRegs.sa, XE_AX);
 	}
 }
 
@@ -145,15 +146,15 @@ void recMTSAH()
 {
 	if (GPR_IS_CONST1(_Rs_))
 	{
-		xMOV(ptr32[&cpuRegs.sa], ((g_cpuConstRegs[_Rs_].UL[0] & 0x7) ^ (_Imm_ & 0x7)) << 1);
+		xe_mov32_mi(&cpuRegs.sa, ((g_cpuConstRegs[_Rs_].UL[0] & 0x7) ^ (_Imm_ & 0x7)) << 1);
 	}
 	else
 	{
 		_eeMoveGPRtoR32(0 /* eax */, _Rs_);
-		xAND(eax, 0x7);
-		xXOR(eax, _Imm_ & 0x7);
-		xSHL(eax, 1);
-		xMOV(ptr[&cpuRegs.sa], eax);
+		xe_and32_ri(XE_AX, 0x7);
+		xe_xor32_ri(XE_AX, _Imm_ & 0x7);
+		xe_shl32_ri(XE_AX, 1);
+		xe_mov32_mr(&cpuRegs.sa, XE_AX);
 	}
 }
 
@@ -211,30 +212,30 @@ void recCACHE() //Interpreter only!
 // compare and a not-taken branch.
 static void recTrap(JccComparisonType skip_cond, bool use_imm, bool is_unsigned)
 {
-	xMOV(rax, ptr64[&cpuRegs.cycle]);
-	xMOV(ptr64[&cpuRegs.nextEventCycle], rax);
+	xe_mov64_rm(XE_AX, &cpuRegs.cycle);
+	xe_mov64_mr(&cpuRegs.nextEventCycle, XE_AX);
 	iFlushCall(FLUSH_INTERPRETER);
 
-	xMOV(rax, ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+	xe_mov64_rm(XE_AX, &cpuRegs.GPR.r[_Rs_].UD[0]);
 	if (use_imm)
 	{
 		// _Imm_ is sign-extended even for the unsigned comparisons, which
 		// then treat the result as unsigned -- so TGEIU against a negative
 		// immediate compares against a very large value, deliberately.
 		(void)is_unsigned;
-		xMOV64(rcx, (s64)_Imm_);
-		xCMP(rax, rcx);
+		xe_mov64_ri(XE_CX, (s64)_Imm_);
+		xe_cmp64_rr(XE_AX, XE_CX);
 	}
 	else
-		xCMP(rax, ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+		xe_cmp64_rm(XE_AX, &cpuRegs.GPR.r[_Rt_].UD[0]);
 
-	xForwardJump8 no_trap(skip_cond);
+	e_u8* no_trap; xe_fwd_jcc8(skip_cond, no_trap);
 	// trap(): cpuRegs.pc -= 4; cpuException(0x34, cpuRegs.branch);
-	xSUB(ptr32[&cpuRegs.pc], 4);
-	xMOV(arg1regd, 0x34);
-	xMOV(arg2regd, ptr32[&cpuRegs.branch]);
-	xFastCall((void*)cpuException);
-	no_trap.SetTarget();
+	xe_sub32_mi(&cpuRegs.pc, 4);
+	xe_mov32_ri(arg1regd.Id, 0x34);
+	xe_mov32_rm(arg2regd.Id, &cpuRegs.branch);
+	xe_fastcall0(cpuException);
+	xe_fwd_set8(no_trap);
 
 	g_branch = 2;
 }

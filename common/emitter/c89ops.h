@@ -692,4 +692,22 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	XE_G2_CXX_RI((g2op), (reg), (imm), 64))
 #define xe_or32_rr_(a, b) xe_or32_rr(a, b)
 
+
+/* movss/blend forms for the SA register paths */
+#define xe_movss_xm(xmm, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM_W(xep, 0xf3, 0x10, (xmm), xm_, 0); }, \
+	x86Emitter::xMOVSSZX(x86Emitter::xRegisterSSE(xmm), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_movss_mx(addr, xmm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM_W(xep, 0xf3, 0x11, (xmm), xm_, 0); }, \
+	x86Emitter::xMOVSS(x86Emitter::ptr[(void*)(addr)], x86Emitter::xRegisterSSE(xmm)))
+#define xe_blendpd_xxi(dx, sx, imm) XE_2( \
+	E_SSE_RRI_W(xep, 0x66, 0x0d3a, (dx), (sx), (imm), 0), \
+	x86Emitter::xBLEND.PD(x86Emitter::xRegisterSSE(dx), x86Emitter::xRegisterSSE(sx), (imm)))
+#define xe_and32_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 4, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xAND(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+
 #endif /* PCSX2_C89OPS_H */
