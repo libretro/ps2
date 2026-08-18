@@ -28,6 +28,8 @@
 #ifndef PCSX2_C89OPS_H
 #define PCSX2_C89OPS_H
 
+#include <string.h> /* memcpy for the shadow snapshot */
+
 #include "common/emitter/c89emit.h"
 
 /* Migration-time A/B oracle. Cross-BUILD hash comparison is unsound:
@@ -51,35 +53,43 @@
 #else
 #define XE_AB 0
 #endif
-/* Arm selection is COMPILE TIME. There is no runtime mode flag, no env
- * read, no per-site branch anywhere, in any configuration:
- *   default            -> C89 arm only, twins token-discarded
- *   PCSX2_XE_AB        -> C89 arm only, plus the site-hit counter
- *   PCSX2_XE_AB + PCSX2_XE_CPP -> C++ twin arm only, same counter
- * The oracle's two modes are therefore two BUILDS of the verification
- * configuration rather than two runs of one binary. What each check
- * proves moves accordingly: per-instruction byte equality lives in the
- * in-process suites (tests/emitter), which emit both ways at the SAME
- * cursor address and memcmp -- address-identical by construction, no
- * process pair needed. Across the two trace builds the address-
- * independent invariants must match: xe_site_hits (identical call-site
- * execution counts) and boot behavior. Raw cross-build hash equality is
- * NOT expected: the two binaries lay out differently, so emitted code
- * embeds different host addresses; anyone comparing those hashes is
- * measuring the loader, not the conversion. */
+/* SHADOW-COMPARE oracle, all compile time, no selection anywhere.
+ * There is no runtime mode flag, no env read, no per-site branch, and no
+ * two-build protocol. Exactly two configurations exist:
+ *   default      -> C89 arm only; twin tokens preprocessor-discarded
+ *   PCSX2_XE_AB  -> EVERY converted site verifies itself on EVERY
+ *                   emission: the C++ twin emits at the cursor, the
+ *                   bytes are snapshotted, the cursor rewinds, the C89
+ *                   arm emits at the SAME address, and a mismatch in
+ *                   length or bytes aborts with file:line and both hex
+ *                   dumps. The C89 bytes are what remains in the buffer.
+ * Same address means embedded host pointers and RIP-relative
+ * displacements are identical by construction -- this is the same-binary
+ * guarantee of the retired two-run oracle, strengthened: continuous,
+ * per-site, per-emission, in one build and one run. A full boot under
+ * XE_AB is 58,301 byte-compared emissions or an abort. */
 #if XE_AB
 extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
+extern "C" void xe_shadow_check(const void* at, const void* end,
+	const void* want, unsigned long want_len, unsigned long cap,
+	const char* file, int line);
+#define XE_SHADOW_MAX 64
 #define XE_HIT() (xe_site_hits++)
-#ifdef PCSX2_XE_CPP
-#define XE_IF_CPP(...) { __VA_ARGS__ } if (0)
-#define XE_2(c89body, cppbody) do { XE_HIT(); cppbody; } while (0)
-#else
-#define XE_IF_CPP(...) if (0) { } else
-#define XE_2(c89body, cppbody) do { XE_HIT(); XE_OPEN(); c89body; XE_CLOSE(); } while (0)
-#endif
+#define XE_2(c89body, cppbody) do { \
+	u8* xe_p0_ = x86Ptr; \
+	{ cppbody; } \
+	{ e_u8 xe_sbuf_[XE_SHADOW_MAX]; \
+	  unsigned long xe_slen_ = (unsigned long)(x86Ptr - xe_p0_); \
+	  if (xe_slen_ && xe_slen_ <= (unsigned long)XE_SHADOW_MAX) \
+		memcpy(xe_sbuf_, xe_p0_, xe_slen_); \
+	  x86Ptr = xe_p0_; \
+	  { XE_OPEN(); c89body; XE_CLOSE(); } \
+	  xe_shadow_check(xe_p0_, x86Ptr, xe_sbuf_, xe_slen_, \
+		(unsigned long)XE_SHADOW_MAX, __FILE__, __LINE__); \
+	  XE_HIT(); } \
+	} while (0)
 #else
 #define XE_HIT() ((void)0)
-#define XE_IF_CPP(...)
 #define XE_2(c89body, cppbody) do { XE_OPEN(); c89body; XE_CLOSE(); } while (0)
 #endif
 
@@ -146,17 +156,15 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
  * byte-identical to the reference xImm64Op(xMOV, ptr64[addr], tmp, imm)
  * composition: op(dst, imm) when s32-representable, else MOV64 tmp, imm
  * followed by the store. */
-#define xe_mov64_mi(addr, tmpreg, imm) do { \
-	XE_HIT(); \
-	XE_IF_CPP( \
-		x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::ptr64[(void*)(addr)], \
-			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	) if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
-		XE_OPEN(); E_MOV_M_I64(xep, (e_uptr)(addr), (e_s32)(imm)); XE_CLOSE(); \
-	} else { \
-		xe_mov64_ri((tmpreg), (imm)); \
-		xe_mov64_mr((addr), (tmpreg)); \
-	} } while (0)
+#define xe_mov64_mi(addr, tmpreg, imm) XE_2( \
+	{ if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		E_MOV_M_I64(xep, (e_uptr)(addr), (e_s32)(imm)); \
+	  } else { \
+		E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_MOV_M_R(xep, 1, (tmpreg), (e_uptr)(addr)); \
+	  } }, \
+	x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::ptr64[(void*)(addr)], \
+		x86Emitter::xRegister64(tmpreg), (s64)(imm)))
 
 /* xImm64Op(xMOV, xRegister64(dst), tmp, imm), byte-for-byte: when the
  * immediate fits s32 the reference calls op(dst, imm) directly; when it
@@ -164,17 +172,15 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
  * instructions, not one B8+imm64 to the destination. Matching the
  * reference's suboptimality is the contract; shaving it is a later,
  * oracle-visible change of its own. */
-#define xe_imm64op_mov_rr(dst, tmpreg, imm) do { \
-	XE_HIT(); \
-	XE_IF_CPP( \
-		x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::xRegister64(dst), \
-			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	) if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
-		XE_OPEN(); E_MOV_RI(xep, 1, 0, (dst), (e_sptr)(imm)); XE_CLOSE(); \
-	} else { \
-		xe_mov64_ri((tmpreg), (imm)); \
-		xe_mov64_rr((dst), (tmpreg)); \
-	} } while (0)
+#define xe_imm64op_mov_rr(dst, tmpreg, imm) XE_2( \
+	{ if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		E_MOV_RI(xep, 1, 0, (dst), (e_sptr)(imm)); \
+	  } else { \
+		E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_MOV_RR(xep, 1, (dst), (tmpreg)); \
+	  } }, \
+	x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::xRegister64(dst), \
+		x86Emitter::xRegister64(tmpreg), (s64)(imm)))
 
 
 /* group1: op codes 0 ADD, 2 ADC, 6 XOR, 7 CMP -- ri keeps the reference's
@@ -287,42 +293,35 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 
 /* xImm64Op over group1 (r64 dest and abs-mem dest), per-op, matching the
  * reference composition exactly including the scratch round-trip. */
-#define XE_IMM64_G1_RR(opn, cxxop, dst, tmpreg, imm) do { \
-	XE_HIT(); \
-	XE_IF_CPP( \
-		x86Emitter::xImm64Op(x86Emitter::cxxop, x86Emitter::xRegister64(dst), \
-			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	) { \
-		if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
-			XE_OPEN(); E_G1_RI(xep, 1, opn, (dst), (e_s32)(imm)); XE_CLOSE(); \
-		} else { \
-			XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
-			E_G1_RR(xep, 1, opn, (dst), (tmpreg)); XE_CLOSE(); \
-		} } } while (0)
+#define XE_IMM64_G1_RR(opn, cxxop, dst, tmpreg, imm) XE_2( \
+	{ if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		E_G1_RI(xep, 1, opn, (dst), (e_s32)(imm)); \
+	  } else { \
+		E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_G1_RR(xep, 1, opn, (dst), (tmpreg)); \
+	  } }, \
+	x86Emitter::xImm64Op(x86Emitter::cxxop, x86Emitter::xRegister64(dst), \
+		x86Emitter::xRegister64(tmpreg), (s64)(imm)))
 #define xe_imm64op_add64_ri(dst, tmp, imm) XE_IMM64_G1_RR(0, xADD, dst, tmp, imm)
 #define xe_imm64op_sub64_ri(dst, tmp, imm) XE_IMM64_G1_RR(5, xSUB, dst, tmp, imm)
 #define xe_imm64op_cmp64_ri(dst, tmp, imm) XE_IMM64_G1_RR(7, xCMP, dst, tmp, imm)
 
-#define xe_imm64op_cmp64_mi(addr, tmpreg, imm) do { \
-	XE_HIT(); \
-	XE_IF_CPP( \
-		x86Emitter::xImm64Op(x86Emitter::xCMP, x86Emitter::ptr64[(void*)(addr)], \
-			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
-	) if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+#define xe_imm64op_cmp64_mi(addr, tmpreg, imm) XE_2( \
+	{ if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
 		/* E_G1_MI is width-less (32-bit); this is the 64-bit form: REX.W
 		 * then the same s8-narrowed body. */ \
-		XE_OPEN(); \
 		E_REX(xep, 1, 0, 0, 0); \
 		if (E_IS_S8((e_s32)(imm))) { \
 			EW8(xep, 0x83); E_MODRM_ABS(xep, 7, (e_uptr)(addr), 1); EW8(xep, (e_u8)(imm)); \
 		} else { \
 			EW8(xep, 0x81); E_MODRM_ABS(xep, 7, (e_uptr)(addr), 4); EW32(xep, (e_s32)(imm)); \
 		} \
-		XE_CLOSE(); \
-	} else { \
-		XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
-		E_G1_MR(xep, 1, 7, (tmpreg), (e_uptr)(addr)); XE_CLOSE(); \
-	} } while (0)
+	  } else { \
+		E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_G1_MR(xep, 1, 7, (tmpreg), (e_uptr)(addr)); \
+	  } }, \
+	x86Emitter::xImm64Op(x86Emitter::xCMP, x86Emitter::ptr64[(void*)(addr)], \
+		x86Emitter::xRegister64(tmpreg), (s64)(imm)))
 
 
 /* xImm64Op with the group1 operator chosen at runtime (recLogicalOp_constv). */
@@ -333,15 +332,14 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 	case 4: x86Emitter::xImm64Op(x86Emitter::xAND, x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
 	case 6: x86Emitter::xImm64Op(x86Emitter::xXOR, x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
 	default: break; } } while (0)
-#define xe_imm64op_g1op64_ri(g1op, dst, tmpreg, imm) do { \
-	XE_HIT(); \
-	XE_IF_CPP(XE_IMM64_G1_CXX((g1op), (dst), (tmpreg), (imm));) \
-	if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
-		XE_OPEN(); E_G1_RI(xep, 1, (g1op), (dst), (e_s32)(imm)); XE_CLOSE(); \
-	} else { \
-		XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
-		E_G1_RR(xep, 1, (g1op), (dst), (tmpreg)); XE_CLOSE(); \
-	} } while (0)
+#define xe_imm64op_g1op64_ri(g1op, dst, tmpreg, imm) XE_2( \
+	{ if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		E_G1_RI(xep, 1, (g1op), (dst), (e_s32)(imm)); \
+	  } else { \
+		E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_G1_RR(xep, 1, (g1op), (dst), (tmpreg)); \
+	  } }, \
+	XE_IMM64_G1_CXX((g1op), (dst), (tmpreg), (imm)))
 
 
 /* remaining group2 named-immediate forms */
@@ -603,12 +601,11 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 #define xe_complexaddr(m, tmpreg, baseptr, idxreg) do { \
 	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
 		E_MEM(m, (idxreg), E_NOREG, 0, (e_sptr)(baseptr)); \
-	} else XE_IF_CPP( \
-		x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)]); \
-		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
-	) { \
-		struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
-		XE_OPEN(); E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); \
+	} else { \
+		XE_2( \
+			{ struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
+			  E_LEA(xep, 1, 0, (tmpreg), xb_); }, \
+			x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)])); \
 		E_MEM(m, (idxreg), (tmpreg), 1, 0); \
 	} } while (0)
 
@@ -646,16 +643,14 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 /* wide jump with a patchable displacement: emits E9/0F8x rel32 with the
  * given displacement and stores the address of the 32-bit slot -- the
  * xJcc32 contract, as an out-parameter since macros do not return. */
-#define xe_jcc32_slot(cc, disp, slot) do { \
-	XE_HIT(); \
-	XE_IF_CPP((slot) = x86Emitter::xJcc32((x86Emitter::JccComparisonType)(cc), (disp));) \
-	{ \
-		XE_OPEN(); \
-		if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
-		else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
-		(slot) = (s32*)xep; EW32(xep, (e_u32)(e_s32)(disp)); \
-		XE_CLOSE(); \
-	} } while (0)
+/* the slot is assigned by BOTH arms in a shadow build; the C89 arm runs
+ * second at the same address, so the surviving value points into the
+ * bytes that remain in the buffer. */
+#define xe_jcc32_slot(cc, disp, slot) XE_2( \
+	{ if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
+	  else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
+	  (slot) = (s32*)xep; EW32(xep, (e_u32)(e_s32)(disp)); }, \
+	(slot) = x86Emitter::xJcc32((x86Emitter::JccComparisonType)(cc), (disp)))
 
 /* indirect jmp through a base+index memory operand (the dispatcher's LUT
  * double-indirection): FF /4, never REX.W (jmp.cpp:41-46). */
@@ -674,12 +669,11 @@ extern "C" unsigned long long xe_site_hits; /* defined in JitHash.cpp */
 #define xe_complexaddr_si(m, tmpreg, baseptr, idxreg, sc) do { \
 	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
 		E_MEM(m, E_NOREG, (idxreg), (sc), (e_sptr)(baseptr)); \
-	} else XE_IF_CPP( \
-		x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)]); \
-		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
-	) { \
-		struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
-		XE_OPEN(); E_LEA(xep, 1, 0, (tmpreg), xb_); XE_CLOSE(); \
+	} else { \
+		XE_2( \
+			{ struct e_mem xb_; XE_MEM_ABS(xb_, (baseptr)); \
+			  E_LEA(xep, 1, 0, (tmpreg), xb_); }, \
+			x86Emitter::xLEA(x86Emitter::xAddressReg(tmpreg), x86Emitter::ptr[(void*)(baseptr)])); \
 		E_MEM(m, (tmpreg), (idxreg), (sc), 0); \
 	} } while (0)
 
