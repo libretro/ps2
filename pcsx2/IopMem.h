@@ -43,7 +43,37 @@
 
 extern u8   iopMemRead8 (u32 mem);
 extern u16  iopMemRead16(u32 mem);
-extern u32  iopMemRead32(u32 mem);
+extern const uptr *psxMemRLUT;
+extern u32  iopMemRead32_slow(u32 mem);
+
+/* Inline fast path for IOP 32-bit reads.
+ *
+ * Every guest load that is not a hardware register comes through here, and
+ * out of line it costs a call plus the compiler's inability to see that the
+ * LUT entry it just loaded is the one it is about to dereference. The
+ * conditions below are exactly the ones the out-of-line version tests before
+ * reaching its `return *(const u32 *)(p + (mem & 0xffff));`:
+ *
+ *   t != 0x1f80   not the hardware page
+ *   t != 0x1d00   not the SBUS register window, which aliases into psHu32
+ *   p != NULL     the page is mapped
+ *
+ * Anything else falls through to iopMemRead32_slow, which re-masks harmlessly
+ * and handles the rest unchanged. */
+static __fi u32 iopMemRead32(u32 mem)
+{
+	mem &= 0x1fffffff;
+	{
+		const u32 t = mem >> 16;
+		if (t != 0x1f80 && t != 0x1d00)
+		{
+			const u8* const p = (const u8*)(psxMemRLUT[t]);
+			if (p != NULL)
+				return *(const u32*)(p + (mem & 0xffff));
+		}
+	}
+	return iopMemRead32_slow(mem);
+}
 extern void iopMemWrite8 (u32 mem, u8 value);
 extern void iopMemWrite16(u32 mem, u16 value);
 extern void iopMemWrite32(u32 mem, u32 value);

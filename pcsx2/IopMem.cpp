@@ -23,7 +23,10 @@
 #include "IopHw.h"
 
 static uptr *psxMemWLUT = NULL;
-static const uptr *psxMemRLUT = NULL;
+/* Not static: the 32-bit read fast path in IopMem.h dereferences this
+ * directly rather than crossing a translation unit boundary for every guest
+ * load. Hidden visibility keeps the access direct within the module. */
+const uptr *psxMemRLUT = NULL;
 
 IopVM_MemoryAllocMess* iopMem = NULL;
 
@@ -203,7 +206,11 @@ u16 iopMemRead16(u32 mem)
 	}
 }
 
-u32 iopMemRead32(u32 mem)
+/* Slow path only. The common case -- ordinary IOP RAM, no hardware register,
+ * no SBUS window -- is handled inline in IopMem.h so that a guest load does
+ * not cross a translation unit boundary for it. Everything below is the
+ * remainder: hardware pages, the 0x1d00 SBUS aliases, and unmapped space. */
+u32 iopMemRead32_slow(u32 mem)
 {
 	mem &= 0x1fffffff;
 	u32 t = mem >> 16;
