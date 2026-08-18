@@ -1250,4 +1250,21 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 #define xe_pop64_r(reg) XE_2( \
 	{ if ((reg) >= 8) EW8(xep, 0x41); EW8(xep, (e_u8)(0x58 | ((reg) & 7))); }, \
 	x86Emitter::xPOP(x86Emitter::xRegister64(reg)))
+
+/* microVU compile-path vocabulary: packed min/max against memory, the
+ * direct near call (xCALL is always rel32 in the reference's
+ * void* overload), and the two-operand pmin forms over indexed tables. */
+#define xe_minps_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x5d, (x), xm_); }, \
+	x86Emitter::xMIN.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_maxps_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x5f, (x), xm_); }, \
+	x86Emitter::xMAX.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_call_ptr(fn) XE_2(E_CALL_REL(xep, (const void*)(fn)), \
+	x86Emitter::xCALL((void*)(fn)))
+
+/* mov qword [abs], imm32 (sign-extended REX.W C7 /0) */
+#define xe_mov64_mi_s32(addr, imm) XE_2( \
+	E_MOV_M_I64(xep, (e_uptr)(addr), (e_s32)(imm)), \
+	x86Emitter::xMOV(x86Emitter::ptr64[(void*)(addr)], (imm)))
 #endif /* PCSX2_C89OPS_H */

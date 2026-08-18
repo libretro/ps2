@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -40,8 +41,8 @@ void doIbit(mV)
 		mVU.regAlloc->clearRegVF(33);
 		if (EmuConfig.Gamefixes.IbitHack)
 		{
-			xMOV(gprT1, ptr32[&curI]);
-			xMOV(ptr32[&::vuRegs[mVU.index].VI[REG_I]], gprT1);
+			xe_mov32_rm(gprT1.Id, &curI);
+			xe_mov32_mr(&::vuRegs[mVU.index].VI[REG_I], gprT1.Id);
 		}
 		else
 		{
@@ -51,7 +52,7 @@ void doIbit(mV)
 			else
 				tempI = curI;
 
-			xMOV(ptr32[&::vuRegs[mVU.index].VI[REG_I]], tempI);
+			xe_mov32_mi(&::vuRegs[mVU.index].VI[REG_I], tempI);
 		}
 		incPC(1);
 	}
@@ -64,22 +65,22 @@ void doSwapOp(mV)
 		// Allocate t1 first for better chance of reg-alloc
 		const xmm& t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
 		const xmm& t2 = mVU.regAlloc->allocReg();
-		xMOVAPS(t2, t1); // Backup VF reg
+		xe_movaps_xx(t2.Id, t1.Id); // Backup VF reg
 		mVU.regAlloc->clearNeeded(t1);
 
 		mVUopL(mVU, 1);
 
 		const xmm& t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
-		xXOR.PS(t2, t3); // Swap new and old values of the register
-		xXOR.PS(t3, t2); // Uses xor swap trick...
-		xXOR.PS(t2, t3);
+		xe_xorps_xx(t2.Id, t3.Id); // Swap new and old values of the register
+		xe_xorps_xx(t3.Id, t2.Id); // Uses xor swap trick...
+		xe_xorps_xx(t2.Id, t3.Id);
 		mVU.regAlloc->clearNeeded(t3);
 
 		incPC(1);
 		doUpperOp(mVU);
 
 		const xmm& t4 = mVU.regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
-		xMOVAPS(t4, t2);
+		xe_movaps_xx(t4.Id, t2.Id);
 		mVU.regAlloc->clearNeeded(t4);
 		mVU.regAlloc->clearNeeded(t2);
 	}
@@ -189,24 +190,24 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 				break;
 		}
 	}
-	xMOV(eax, ptr32[&mVU.cycles]);
+	xe_mov32_rm(XE_AX, &mVU.cycles);
 	if (EmuConfig.Gamefixes.VUSyncHack)
-		xSUB(eax, mVUcycles); /* Running behind, make sure we have time to run the block */
+		xe_sub32_ri(XE_AX, mVUcycles); /* Running behind, make sure we have time to run the block */
 	else
-		xSUB(eax, 1); /* Running ahead, make sure cycles left are above 0 */
+		xe_sub32_ri(XE_AX, 1); /* Running ahead, make sure cycles left are above 0 */
 
 	xForwardJNS32 skip;
 
-	xLoadFarAddr(rax, &mVUpBlock->pState);
-	xCALL((void*)mVU.copyPLState);
+	xe_lea_far(XE_AX, &mVUpBlock->pState);
+	xe_call_ptr(mVU.copyPLState);
 
 	if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-		xMOV(ptr64[&vuRegs[mVU.index].nextBlockCycles], mVUcycles);
+		xe_mov64_mi_s32(&vuRegs[mVU.index].nextBlockCycles, mVUcycles);
 	mVUendProgram(mVU, &mFC, 0);
 
 	skip.SetTarget();
 
-	xSUB(ptr32[&mVU.cycles], mVUcycles);
+	xe_sub32_mi(&mVU.cycles, mVUcycles);
 }
 
 //------------------------------------------------------------------
@@ -243,14 +244,14 @@ __fi void mVUinitFirstPass(microVU& mVU, uptr pState, u8* thisPtr)
 static void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 {
 	if (mVU.index && THREAD_VU1)
-		xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x400 : 0x4));
+		xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
 	else
-		xTEST(ptr32[&vuRegs[0].VI[REG_FBRST].UL], (isVU1 ? 0x400 : 0x4));
+		xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x400 : 0x4));
 	xForwardJump32 eJMP(Jcc_Zero);
 	if (!isVU1 || !THREAD_VU1)
 	{
-		xOR(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], (isVU1 ? 0x200 : 0x2));
-		xOR(ptr32[&vuRegs[mVU.index].flags], VUFLAG_INTCINTERRUPT);
+		xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x200 : 0x2));
+		xe_or32_mi(&vuRegs[mVU.index].flags, VUFLAG_INTCINTERRUPT);
 	}
 	incPC(1);
 	mVUDTendProgram(mVU, mFC, 1);
@@ -261,14 +262,14 @@ static void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 static void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 {
 	if (mVU.index && THREAD_VU1)
-		xTEST(ptr32[&vu1Thread.vuFBRST], (isVU1 ? 0x800 : 0x8));
+		xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));
 	else
-		xTEST(ptr32[&vuRegs[0].VI[REG_FBRST].UL], (isVU1 ? 0x800 : 0x8));
+		xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x800 : 0x8));
 	xForwardJump32 eJMP(Jcc_Zero);
 	if (!isVU1 || !THREAD_VU1)
 	{
-		xOR(ptr32[&vuRegs[0].VI[REG_VPU_STAT].UL], (isVU1 ? 0x400 : 0x4));
-		xOR(ptr32[&vuRegs[mVU.index].flags], VUFLAG_INTCINTERRUPT);
+		xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x400 : 0x4));
+		xe_or32_mi(&vuRegs[mVU.index].flags, VUFLAG_INTCINTERRUPT);
 	}
 	incPC(1);
 	mVUDTendProgram(mVU, mFC, 1);
@@ -532,7 +533,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 			x = 0xffff;
 		if (mVUup.mBit)
 		{
-			xOR(ptr32[&vuRegs[mVU.index].flags], VUFLAG_MFLAGSET);
+			xe_or32_mi(&vuRegs[mVU.index].flags, VUFLAG_MFLAGSET);
 		}
 
 		if (isVU1 && mVUlow.kickcycles && CHECK_XGKICKHACK)
@@ -562,12 +563,12 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 				u32* lpS = (u32*)&mVU.prog.lpState;
 				for (size_t i = 0; i < (sizeof(microRegInfo) - 4) / 4; i++, lpS++, cpS++)
 				{
-					xMOV(ptr32[lpS], cpS[0]);
+					xe_mov32_mi(lpS, cpS[0]);
 				}
 				incPC(2);
 				mVUsetupRange(mVU, xPC, false);
 				if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
-					xMOV(ptr64[&vuRegs[mVU.index].nextBlockCycles], 0);
+					xe_mov64_mi_s32(&vuRegs[mVU.index].nextBlockCycles, 0);
 				mVUendProgram(mVU, &mFC, 0);
 				normBranchCompile(mVU, xPC);
 				incPC(-2);

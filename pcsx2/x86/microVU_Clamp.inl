@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -41,12 +42,12 @@ void mVUclamp1(microVU& mVU, const xmm& reg, const xmm& regT1, int xyzw, bool bC
 		switch (xyzw)
 		{
 			case 1: case 2: case 4: case 8:
-				xMIN.SS(reg, ptr32[mVUglob.maxvals]);
-				xMAX.SS(reg, ptr32[mVUglob.minvals]);
+				xe_minss_xm(reg.Id, mVUglob.maxvals);
+				xe_maxss_xm(reg.Id, mVUglob.minvals);
 				break;
 			default:
-				xMIN.PS(reg, ptr32[mVUglob.maxvals]);
-				xMAX.PS(reg, ptr32[mVUglob.minvals]);
+				xe_minps_xm(reg.Id, mVUglob.maxvals);
+				xe_maxps_xm(reg.Id, mVUglob.minvals);
 				break;
 		}
 	}
@@ -62,8 +63,8 @@ void mVUclamp2(microVU& mVU, const xmm& reg, const xmm& regT1in, int xyzw, bool 
 	if (((!clampE && CHECK_VU_SIGN_OVERFLOW(mVU.index)) || (clampE && bClampE && CHECK_VU_SIGN_OVERFLOW(mVU.index))) && mVU.regAlloc->checkVFClamp(reg.Id))
 	{
 		int i = (xyzw == 1 || xyzw == 2 || xyzw == 4 || xyzw == 8) ? 0 : 1;
-		xPMIN.SD(reg, ptr128[&sse4_maxvals[i][0]]);
-		xPMIN.UD(reg, ptr128[&sse4_minvals[i][0]]);
+		xe_pminsd_xm(reg.Id, &sse4_maxvals[i][0]);
+		xe_pminud_xm(reg.Id, &sse4_minvals[i][0]);
 	}
 	else
 		mVUclamp1(mVU, reg, regT1in, xyzw, bClampE);
