@@ -1198,4 +1198,56 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_G1_MEM_I(xep, 4, 1, xm_, (e_s32)(imm)); }, \
 	x86Emitter::xOR(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+
+/* microVU_Macro vocabulary: 128-bit moves to/from absolute memory, the
+ * 16-bit VI-register traffic, zero-extension in both source shapes, and
+ * and64 with an immediate. */
+#define xe_movaps_mx(addr, xmm) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x29, (xmm), xm_); }, \
+	x86Emitter::xMOVAPS(x86Emitter::ptr128[(void*)(addr)], x86Emitter::xRegisterSSE(xmm)))
+#define xe_movzx32_rr16(dst, src) XE_2( \
+	{ E_REX(xep, 0, (dst), 0, (src)); EW8(xep, 0x0f); EW8(xep, 0xb7); \
+	  E_MODRM_RR(xep, (dst), (src)); }, \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::xRegister16(src)))
+#define xe_movzx32_rm16(dst, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_REX_MEM(xep, 0, (dst), xm_); EW8(xep, 0x0f); EW8(xep, 0xb7); \
+	E_MODRM_MEM(xep, (dst), xm_, 0); }, \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::ptr16[(void*)(addr)]))
+#define xe_mov16_mr(addr, reg) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_P16(xep); E_REX_MEM(xep, 0, (reg), xm_); EW8(xep, 0x89); \
+	E_MODRM_MEM(xep, (reg), xm_, 0); }, \
+	x86Emitter::xMOV(x86Emitter::ptr16[(void*)(addr)], x86Emitter::xRegister16(reg)))
+#define xe_mov16_mi(addr, imm) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_P16(xep); E_REX_MEM(xep, 0, 0, xm_); EW8(xep, 0xc7); \
+	E_MODRM_MEM(xep, 0, xm_, 2); \
+	EW8(xep, (e_u8)((imm) & 0xff)); EW8(xep, (e_u8)(((imm) >> 8) & 0xff)); }, \
+	x86Emitter::xMOV(x86Emitter::ptr16[(void*)(addr)], (u16)(imm)))
+#define xe_and64_ri(reg, imm)  XE_2(E_G1_RI(xep, 1, 4, (reg), (e_s32)(imm)), \
+	x86Emitter::xAND(x86Emitter::xRegister64(reg), (u32)(imm)))
+
+/* two-register fastcall, replicating prepare()'s argument-shuffle guard
+ * byte for byte, including the self-moves the reference emits when the
+ * values already sit in the ABI registers, and the push/pop spill when
+ * the pair is exactly crossed. */
+#define xe_fastcall2_rr(fn, r1, r2) do { \
+	if ((r2) != XE_ARG1) { \
+		xe_mov64_rr(XE_ARG1, (r1)); \
+		xe_mov64_rr(XE_ARG2, (r2)); \
+	} else if ((r1) != XE_ARG2) { \
+		xe_mov64_rr(XE_ARG2, (r2)); \
+		xe_mov64_rr(XE_ARG1, (r1)); \
+	} else { \
+		xe_push64_r(r1); \
+		xe_mov64_rr(XE_ARG2, (r2)); \
+		xe_pop64_r(XE_ARG1); \
+	} \
+	xe_fastcall0(fn); } while (0)
+#define XE_ARG1 (x86Emitter::arg1reg.Id)
+#define XE_ARG2 (x86Emitter::arg2reg.Id)
+#define xe_push64_r(reg) XE_2( \
+	{ if ((reg) >= 8) EW8(xep, 0x41); EW8(xep, (e_u8)(0x50 | ((reg) & 7))); }, \
+	x86Emitter::xPUSH(x86Emitter::xRegister64(reg)))
+#define xe_pop64_r(reg) XE_2( \
+	{ if ((reg) >= 8) EW8(xep, 0x41); EW8(xep, (e_u8)(0x58 | ((reg) & 7))); }, \
+	x86Emitter::xPOP(x86Emitter::xRegister64(reg)))
 #endif /* PCSX2_C89OPS_H */
