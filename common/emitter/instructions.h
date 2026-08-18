@@ -668,8 +668,16 @@ namespace x86Emitter
 #else
 	extern const SimdImpl_Pack xPACK;
 #endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PInsert xPINSR;
+#else
 	extern const xImplSimd_PInsert xPINSR;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PExtract xPEXTR;
+#else
 	extern const SimdImpl_PExtract xPEXTR;
+#endif
 
 	// ------------------------------------------------------------------------
 

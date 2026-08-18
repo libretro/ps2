@@ -125,5 +125,42 @@ int main(){
           snprintf(nm,sizeof nm,"MOVL.PD_st %d b%d",a,bs);
           ck(nm,[&]{xMOVL.PD(M(),xRegisterSSE(a));},[&]{sML.PD(M(),xRegisterSSE(a));}); } } }
 
+
+    /* PINSR / PEXTR. Note PExtract::W uses 0xc5 for a register destination
+       but 0x153a for a memory one -- different opcodes -- and the Q members
+       take 64-bit operands, so REX.W applies. */
+    { const shim_PInsert sPI; const shim_PExtract sPE;
+      const u8 iv[5]={0,1,3,7,0xff};
+      for(int x=0;x<16;x++) for(int g=0;g<16;g++) for(int i=0;i<5;i++){
+        snprintf(nm,sizeof nm,"PINSR.B x%d r%d i%d",x,g,i);
+        ck(nm,[&]{xPINSR.B(xRegisterSSE(x),xRegister32(g),iv[i]);},[&]{sPI.B(xRegisterSSE(x),xRegister32(g),iv[i]);});
+        snprintf(nm,sizeof nm,"PINSR.W x%d r%d i%d",x,g,i);
+        ck(nm,[&]{xPINSR.W(xRegisterSSE(x),xRegister32(g),iv[i]);},[&]{sPI.W(xRegisterSSE(x),xRegister32(g),iv[i]);});
+        snprintf(nm,sizeof nm,"PINSR.D x%d r%d i%d",x,g,i);
+        ck(nm,[&]{xPINSR.D(xRegisterSSE(x),xRegister32(g),iv[i]);},[&]{sPI.D(xRegisterSSE(x),xRegister32(g),iv[i]);});
+        snprintf(nm,sizeof nm,"PINSR.Q x%d r%d i%d",x,g,i);
+        ck(nm,[&]{xPINSR.Q(xRegisterSSE(x),xRegister64(g),iv[i]);},[&]{sPI.Q(xRegisterSSE(x),xRegister64(g),iv[i]);});
+        snprintf(nm,sizeof nm,"PEXTR.B r%d x%d i%d",g,x,i);
+        ck(nm,[&]{xPEXTR.B(xRegister32(g),xRegisterSSE(x),iv[i]);},[&]{sPE.B(xRegister32(g),xRegisterSSE(x),iv[i]);});
+        snprintf(nm,sizeof nm,"PEXTR.W r%d x%d i%d",g,x,i);
+        ck(nm,[&]{xPEXTR.W(xRegister32(g),xRegisterSSE(x),iv[i]);},[&]{sPE.W(xRegister32(g),xRegisterSSE(x),iv[i]);});
+        snprintf(nm,sizeof nm,"PEXTR.D r%d x%d i%d",g,x,i);
+        ck(nm,[&]{xPEXTR.D(xRegister32(g),xRegisterSSE(x),iv[i]);},[&]{sPE.D(xRegister32(g),xRegisterSSE(x),iv[i]);});
+        snprintf(nm,sizeof nm,"PEXTR.Q r%d x%d i%d",g,x,i);
+        ck(nm,[&]{xPEXTR.Q(xRegister64(g),xRegisterSSE(x),iv[i]);},[&]{sPE.Q(xRegister64(g),xRegisterSSE(x),iv[i]);}); }
+      for(int x=0;x<16;x++) for(int b=0;b<16;b++){
+        auto M32=[&]{return ptr32[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x14)];};
+        auto M64=[&]{return ptr64[xAddressVoid(xAddressReg(b),xAddressReg(1),4,0x14)];};
+        snprintf(nm,sizeof nm,"PINSR.B_m x%d b%d",x,b);
+        ck(nm,[&]{xPINSR.B(xRegisterSSE(x),M32(),3);},[&]{sPI.B(xRegisterSSE(x),M32(),3);});
+        snprintf(nm,sizeof nm,"PINSR.Q_m x%d b%d",x,b);
+        ck(nm,[&]{xPINSR.Q(xRegisterSSE(x),M64(),3);},[&]{sPI.Q(xRegisterSSE(x),M64(),3);});
+        snprintf(nm,sizeof nm,"PEXTR.W_m x%d b%d",x,b);
+        ck(nm,[&]{xPEXTR.W(M32(),xRegisterSSE(x),3);},[&]{sPE.W(M32(),xRegisterSSE(x),3);});
+        snprintf(nm,sizeof nm,"PEXTR.D_m x%d b%d",x,b);
+        ck(nm,[&]{xPEXTR.D(M32(),xRegisterSSE(x),3);},[&]{sPE.D(M32(),xRegisterSSE(x),3);});
+        snprintf(nm,sizeof nm,"PEXTR.Q_m x%d b%d",x,b);
+        ck(nm,[&]{xPEXTR.Q(M64(),xRegisterSSE(x),3);},[&]{sPE.Q(M64(),xRegisterSSE(x),3);}); } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

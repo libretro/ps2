@@ -397,8 +397,10 @@ namespace x86Emitter
 	};
 
 #endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PInsert xPINSR;
 	const SimdImpl_PExtract xPEXTR;
+#endif
 
 	// =====================================================================================================
 	//  SIMD Move And Blend Instructions

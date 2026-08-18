@@ -812,6 +812,24 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
 #define E_SSE_RRI(p, pre, opcode, r1, r2, imm) do { \
         E_SSE_RR((p), (pre), (opcode), (r1), (r2)); \
         EW8((p), (e_u8)(imm)); } while (0)
+
+/* Width-aware forms. PINSRQ and PEXTRQ take a 64-bit GPR, so REX.W is set
+ * from the operand rather than always clear as E_REX_SSE assumes. */
+#define E_SSE_RRI_W(p, pre, opcode, r1, r2, imm, w) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        { e_u8 rex_ = (e_u8)(0x40 | ((w) ? 8 : 0) \
+                | ((((r1) >= 8) ? 1 : 0) << 2) | (((r2) >= 8) ? 1 : 0)); \
+          if (rex_ != 0x40) EW8((p), rex_); } \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_RR((p), (r1), (r2)); \
+        EW8((p), (e_u8)(imm)); } while (0)
+
+#define E_SSE_R_MEM_I_W(p, pre, opcode, r1, m, imm, w) do { \
+        if (pre) EW8((p), (e_u8)(pre)); \
+        E_REX_MEM((p), (w), (r1), (m)); \
+        E_SSE_OP((p), (opcode)); \
+        E_MODRM_MEM((p), (r1), (m), 1); \
+        EW8((p), (e_u8)(imm)); } while (0)
 #define E_SSE_R_MI(p, pre, opcode, r1, addr, imm) do { \
         if (pre) EW8((p), (e_u8)(pre)); \
         E_REX_SSE((p), (r1), 0); \

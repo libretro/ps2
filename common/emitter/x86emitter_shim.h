@@ -898,6 +898,66 @@ namespace x86Emitter
 		{ SHIM_BEGIN; E_SSE_RR(p_, 0x66, Opcode, to.Id, from.Id); SHIM_END; }
 	};
 
+
+	// PINSR / PEXTR. Both mix an SSE register with a GPR and an imm8, and
+	// both have a 64-bit member that sets REX.W. Two asymmetries are
+	// transcribed rather than smoothed:
+	//
+	//   PExtract::W uses 0xc5 for the register destination but 0x153a for
+	//   the memory one -- different opcodes, not a prefix difference.
+	//   PInsert::D and ::Q share opcode 0x223a and differ only in operand
+	//   width.
+	//
+	// For PINSR the SSE register is the reg field; for PEXTR it is also the
+	// reg field, with the GPR or memory operand as rm (simd.cpp:326-348).
+	struct shim_PInsert
+	{
+		__fi void B(const xRegisterSSE& to, const xRegister32& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x203a, to.Id, from.Id, imm8, 0); SHIM_END; }
+		__fi void B(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x203a, to.Id, m, imm8, 0); SHIM_END; }
+		__fi void W(const xRegisterSSE& to, const xRegister32& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0xc4, to.Id, from.Id, imm8, 0); SHIM_END; }
+		__fi void W(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0xc4, to.Id, m, imm8, 0); SHIM_END; }
+		__fi void D(const xRegisterSSE& to, const xRegister32& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x223a, to.Id, from.Id, imm8, 0); SHIM_END; }
+		__fi void D(const xRegisterSSE& to, const xIndirect32& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x223a, to.Id, m, imm8, 0); SHIM_END; }
+		__fi void Q(const xRegisterSSE& to, const xRegister64& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x223a, to.Id, from.Id, imm8, 1); SHIM_END; }
+		__fi void Q(const xRegisterSSE& to, const xIndirect64& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(from); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x223a, to.Id, m, imm8, 1); SHIM_END; }
+	};
+
+	struct shim_PExtract
+	{
+		__fi void B(const xRegister32& to, const xRegisterSSE& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x143a, from.Id, to.Id, imm8, 0); SHIM_END; }
+		__fi void B(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x143a, from.Id, m, imm8, 0); SHIM_END; }
+		__fi void W(const xRegister32& to, const xRegisterSSE& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0xc5, from.Id, to.Id, imm8, 0); SHIM_END; }
+		__fi void W(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x153a, from.Id, m, imm8, 0); SHIM_END; }
+		__fi void D(const xRegister32& to, const xRegisterSSE& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x163a, from.Id, to.Id, imm8, 0); SHIM_END; }
+		__fi void D(const xIndirect32& dest, const xRegisterSSE& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x163a, from.Id, m, imm8, 0); SHIM_END; }
+		__fi void Q(const xRegister64& to, const xRegisterSSE& from, u8 imm8) const
+		{ SHIM_BEGIN; E_SSE_RRI_W(p_, 0x66, 0x163a, from.Id, to.Id, imm8, 1); SHIM_END; }
+		__fi void Q(const xIndirect64& dest, const xRegisterSSE& from, u8 imm8) const
+		{ struct e_mem m = shim_mem(dest); SHIM_BEGIN;
+		  E_SSE_R_MEM_I_W(p_, 0x66, 0x163a, from.Id, m, imm8, 1); SHIM_END; }
+	};
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)
