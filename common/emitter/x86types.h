@@ -182,7 +182,7 @@ namespace x86Emitter
 	static const int Sib_UseDisp32 = 5; // same index value as EBP (used in Base field)
 
 
-	extern JccComparisonType xInvertCond(JccComparisonType src);
+	JccComparisonType xInvertCond(JccComparisonType src); // defined inline in instructions.h
 
 	class xAddressVoid;
 
