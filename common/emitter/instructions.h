@@ -696,10 +696,26 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_AVXMove xVMOVAPS = {0x00, 0x28, 0x29};
+#else
 	extern const xImplAVX_Move xVMOVAPS;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_AVXMove xVMOVUPS = {0x00, 0x10, 0x11};
+#else
 	extern const xImplAVX_Move xVMOVUPS;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_AVXThreeArg xVPAND = {0x66, 0xDB};
+#else
 	extern const xImplAVX_ThreeArgYMM xVPAND;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_AVXCmpInt xVPCMP = { {0x66,0x74},{0x66,0x75},{0x66,0x76},{0x66,0x64},{0x66,0x65},{0x66,0x66} };
+#else
 	extern const xImplAVX_CmpInt xVPCMP;
+#endif
 
 	extern void xVMOVMSKPS(const xRegister32& to, const xRegisterSSE& from);
 	extern void xVMOVMSKPD(const xRegister32& to, const xRegisterSSE& from);

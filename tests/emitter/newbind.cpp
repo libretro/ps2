@@ -192,5 +192,50 @@ int main(){
             snprintf(nm,sizeof nm,"LEA32 %d p%d b%d i%d s%d",d,pf,b,ix,SS[sc]);
             ck(nm,[&]{xLEA(xRegister32(d),ptr[A()],pf);},[&]{shim_LEA32(xRegister32(d),ptr[A()],pf);}); } } } }
 
+
+    /* AVX. Driven at xmm *and* ymm width, because the L bit is zero for xmm
+       and an error in the width rule is invisible there. Also driven with
+       extended base and index registers, which the two-byte VEX form cannot
+       encode and which must therefore select the three-byte form. */
+    { const shim_AVXMove sVAPS={0x00,0x28,0x29}, sVUPS={0x00,0x10,0x11};
+      const shim_AVXThreeArg sVPAND={0x66,0xDB};
+      const shim_AVXCmpInt sVPCMP={{0x66,0x74},{0x66,0x75},{0x66,0x76},
+                                   {0x66,0x64},{0x66,0x65},{0x66,0x66}};
+      for(int a=0;a<16;a++) for(int b=0;b<16;b++){
+        snprintf(nm,sizeof nm,"VMOVAPS x%d,x%d",a,b);
+        ck(nm,[&]{xVMOVAPS(xRegisterSSE(a),xRegisterSSE(b));},[&]{sVAPS(xRegisterSSE(a),xRegisterSSE(b));});
+        snprintf(nm,sizeof nm,"VMOVAPS y%d,y%d",a,b);
+        ck(nm,[&]{xVMOVAPS(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(b, xRegisterYMMTag()));},
+             [&]{sVAPS(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(b, xRegisterYMMTag()));});
+        snprintf(nm,sizeof nm,"VPAND y%d,y%d",a,b);
+        ck(nm,[&]{xVPAND(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(b, xRegisterYMMTag()),xRegisterSSE((a+1)&15, xRegisterYMMTag()));},
+             [&]{sVPAND(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(b, xRegisterYMMTag()),xRegisterSSE((a+1)&15, xRegisterYMMTag()));});
+        snprintf(nm,sizeof nm,"VPAND x%d,x%d",a,b);
+        ck(nm,[&]{xVPAND(xRegisterSSE(a),xRegisterSSE(b),xRegisterSSE((a+1)&15));},
+             [&]{sVPAND(xRegisterSSE(a),xRegisterSSE(b),xRegisterSSE((a+1)&15));});
+        snprintf(nm,sizeof nm,"VPCMP.EQD y%d,y%d",a,b);
+        ck(nm,[&]{xVPCMP.EQD(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(b, xRegisterYMMTag()),xRegisterSSE((b+2)&15, xRegisterYMMTag()));},
+             [&]{sVPCMP.EQD(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(b, xRegisterYMMTag()),xRegisterSSE((b+2)&15, xRegisterYMMTag()));});
+        snprintf(nm,sizeof nm,"VPCMP.GTB x%d,x%d",a,b);
+        ck(nm,[&]{xVPCMP.GTB(xRegisterSSE(a),xRegisterSSE(b),xRegisterSSE((b+2)&15));},
+             [&]{sVPCMP.GTB(xRegisterSSE(a),xRegisterSSE(b),xRegisterSSE((b+2)&15));}); }
+      for(int a=0;a<16;a++) for(int bs=0;bs<16;bs++) for(int ix=0;ix<16;ix++){
+        if(ix==4) continue;
+        auto M=[&]{return ptr[xAddressVoid(xAddressReg(bs),xAddressReg(ix),4,0x20)];};
+        snprintf(nm,sizeof nm,"VMOVAPS_ld y%d b%d i%d",a,bs,ix);
+        ck(nm,[&]{xVMOVAPS(xRegisterSSE(a, xRegisterYMMTag()),M());},[&]{sVAPS(xRegisterSSE(a, xRegisterYMMTag()),M());});
+        snprintf(nm,sizeof nm,"VMOVUPS_st y%d b%d i%d",a,bs,ix);
+        ck(nm,[&]{xVMOVUPS(M(),xRegisterSSE(a, xRegisterYMMTag()));},[&]{sVUPS(M(),xRegisterSSE(a, xRegisterYMMTag()));});
+        snprintf(nm,sizeof nm,"VMOVAPS_ld x%d b%d i%d",a,bs,ix);
+        ck(nm,[&]{xVMOVAPS(xRegisterSSE(a),M());},[&]{sVAPS(xRegisterSSE(a),M());});
+        snprintf(nm,sizeof nm,"VPCMP.EQD_m y%d b%d i%d",a,bs,ix);
+        ck(nm,[&]{xVPCMP.EQD(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(1, xRegisterYMMTag()),M());},
+             [&]{sVPCMP.EQD(xRegisterSSE(a, xRegisterYMMTag()),xRegisterSSE(1, xRegisterYMMTag()),M());}); }
+      /* base-only, which routes through the no-SIB branch where X folds into B */
+      for(int a=0;a<16;a++) for(int bs=0;bs<16;bs++){
+        auto Mb=[&]{return ptr[xAddressVoid(xAddressReg(bs),0x20)];};
+        snprintf(nm,sizeof nm,"VMOVAPS_b y%d b%d",a,bs);
+        ck(nm,[&]{xVMOVAPS(xRegisterSSE(a, xRegisterYMMTag()),Mb());},[&]{sVAPS(xRegisterSSE(a, xRegisterYMMTag()),Mb());}); } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

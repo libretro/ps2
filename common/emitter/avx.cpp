@@ -23,10 +23,17 @@
 
 namespace x86Emitter
 {
+#ifndef PCSX2_C89_EMITTER
 	const xImplAVX_Move xVMOVAPS = {0x00, 0x28, 0x29};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplAVX_Move xVMOVUPS = {0x00, 0x10, 0x11};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplAVX_ThreeArgYMM xVPAND = {0x66, 0xDB};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplAVX_CmpInt xVPCMP = {
 		{0x66, 0x74}, // VPCMPEQB
 		{0x66, 0x75}, // VPCMPEQW
@@ -36,6 +43,7 @@ namespace x86Emitter
 		{0x66, 0x66}, // VPCMPGTD
 	};
 
+#endif
 	void xVMOVMSKPS(const xRegister32& to, const xRegisterSSE& from)
 	{
 		xOpWriteC5(0x00, 0x50, to, xRegister32(), from);

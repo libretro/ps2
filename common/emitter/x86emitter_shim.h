@@ -992,6 +992,76 @@ namespace x86Emitter
 		SHIM_END;
 	}
 
+
+	// ---- AVX ------------------------------------------------------------
+	//
+	// The L bit is the subtle part. xOpWriteC5 takes it from param3 when that
+	// is an xRegisterSSE, and from the first register operand otherwise
+	// (internal.h:126-130) -- an asymmetry that exists for 256-bit movemask,
+	// where the destination is a GPR and only the source knows the width.
+	// For the objects bound here param1 is always the SSE destination, so
+	// both rules agree for the memory forms and the register forms take it
+	// from the third operand. Transcribed rather than simplified: an L-bit
+	// error is invisible at xmm width and only appears at ymm.
+	static __fi int shim_ymm(const xRegisterSSE& r) { return r._operandSize == 32; }
+
+	struct shim_AVXMove
+	{
+		u8 Prefix;
+		u8 LoadOpcode;
+		u8 StoreOpcode;
+
+		__fi void operator()(const xRegisterSSE& to, const xRegisterSSE& from) const
+		{
+			// Self-moves are elided by the reference.
+			if (to.Id == from.Id) return;
+			SHIM_BEGIN;
+			E_VEX_RR(p_, Prefix, LoadOpcode, to.Id, from.Id, shim_ymm(from));
+			SHIM_END;
+		}
+		__fi void operator()(const xRegisterSSE& to, const xIndirectVoid& from) const
+		{
+			struct e_mem m = shim_mem(from);
+			SHIM_BEGIN;
+			E_VEX_RRMEM(p_, Prefix, LoadOpcode, to.Id, E_NOREG, m, shim_ymm(to));
+			SHIM_END;
+		}
+		__fi void operator()(const xIndirectVoid& to, const xRegisterSSE& from) const
+		{
+			struct e_mem m = shim_mem(to);
+			SHIM_BEGIN;
+			E_VEX_RRMEM(p_, Prefix, StoreOpcode, from.Id, E_NOREG, m, shim_ymm(from));
+			SHIM_END;
+		}
+	};
+
+	struct shim_AVXThreeArg
+	{
+		u8 Prefix;
+		u8 Opcode;
+
+		__fi void operator()(const xRegisterSSE& to, const xRegisterSSE& from1,
+				const xRegisterSSE& from2) const
+		{
+			SHIM_BEGIN;
+			E_VEX_RRR(p_, Prefix, Opcode, to.Id, from1.Id, from2.Id, shim_ymm(from2));
+			SHIM_END;
+		}
+		__fi void operator()(const xRegisterSSE& to, const xRegisterSSE& from1,
+				const xIndirectVoid& from2) const
+		{
+			struct e_mem m = shim_mem(from2);
+			SHIM_BEGIN;
+			E_VEX_RRMEM(p_, Prefix, Opcode, to.Id, from1.Id, m, shim_ymm(to));
+			SHIM_END;
+		}
+	};
+
+	struct shim_AVXCmpInt
+	{
+		shim_AVXThreeArg EQB, EQW, EQD, GTB, GTW, GTD;
+	};
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)
