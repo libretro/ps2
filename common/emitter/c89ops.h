@@ -400,4 +400,34 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 	  EW8(xep, (e_u8)(0x40 | (cc))); E_MODRM_MEM(xep, (dst), xm_, 0); }, \
 	XE_CMOV_CXX_RM((cc), (dst), (addr)))
 
+
+/* mem-dest forms on absolute addresses: mov/sub with reg and imm sources,
+ * 32-bit; plus the 32-bit test/cmov/cmp companions the IOP core uses. */
+#define xe_mov32_mi(addr, imm) XE_2( \
+	E_MOV_M_I(xep, (e_uptr)(addr), (e_u32)(imm)), \
+	x86Emitter::xMOV(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+#define xe_sub32_mr(addr, reg) XE_2(E_G1_MR(xep, 0, 5, (reg), (e_uptr)(addr)), \
+	x86Emitter::xSUB(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegister32(reg)))
+#define xe_sub32_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 5, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xSUB(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+#define xe_cmp32_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 7, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xCMP(x86Emitter::ptr32[(void*)(addr)], (u32)(imm)))
+#define xe_cmp32_rm(reg, addr) XE_2(E_G1_RM(xep, 0, 7, (reg), (e_uptr)(addr)), \
+	x86Emitter::xCMP(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_test32_rr(a, b)     XE_2(E_TEST_RR_SZ(xep, 4, (a), (b)), \
+	x86Emitter::xTEST(x86Emitter::xRegister32(a), x86Emitter::xRegister32(b)))
+#define XE_CMOV32_CXX_RM(cc, dst, addr) do { \
+	switch (cc) { \
+	case x86Emitter::Jcc_Unsigned: /* NS -- the reference names 0x9 "Unsigned" */ x86Emitter::xCMOVNS(x86Emitter::xRegister32(dst), x86Emitter::ptr32[(void*)(addr)]); break; \
+	default: break; } } while (0)
+#define xe_cmovcc32_rm(cc, dst, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 0, (dst), xm_); EW8(xep, 0x0f); \
+	  EW8(xep, (e_u8)(0x40 | (cc))); E_MODRM_MEM(xep, (dst), xm_, 0); }, \
+	XE_CMOV32_CXX_RM((cc), (dst), (addr)))
+
 #endif /* PCSX2_C89OPS_H */

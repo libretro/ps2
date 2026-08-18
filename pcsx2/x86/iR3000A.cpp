@@ -18,6 +18,7 @@
 // zerofrog(@gmail.com)
 
 #include "iR3000A.h"
+#include "common/emitter/c89ops.h"
 #include "../R3000A.h"
 #include "BaseblockEx.h"
 #include "../R5900OpcodeTables.h"
@@ -209,7 +210,7 @@ void _psxFlushConstReg(int reg)
 {
 	if (PSX_IS_CONST1(reg) && !(g_psxFlushedConstReg & (1 << reg)))
 	{
-		xMOV(ptr32[&psxRegs.GPR.r[reg]], g_psxConstRegs[reg]);
+		xe_mov32_mi(&psxRegs.GPR.r[reg], g_psxConstRegs[reg]);
 		g_psxFlushedConstReg |= (1 << reg);
 	}
 }
@@ -230,7 +231,7 @@ void _psxFlushConstRegs()
 
 			if (!(g_psxFlushedConstReg & (1 << i)))
 			{
-				xMOV(ptr32[&psxRegs.GPR.r[i]], g_psxConstRegs[i]);
+				xe_mov32_mi(&psxRegs.GPR.r[i], g_psxConstRegs[i]);
 				g_psxFlushedConstReg |= 1 << i;
 			}
 
@@ -251,19 +252,19 @@ void _psxDeleteReg(int reg, int flush)
 	_deletePSXtoX86reg(reg, flush ? DELETE_REG_FREE : DELETE_REG_FREE_NO_WRITEBACK);
 }
 
-void _psxMoveGPRtoR(const xRegister32& to, int fromgpr)
+void _psxMoveGPRtoR(int to, int fromgpr)
 {
 	if (PSX_IS_CONST1(fromgpr))
 	{
-		xMOV(to, g_psxConstRegs[fromgpr]);
+		xe_mov32_ri(to, g_psxConstRegs[fromgpr]);
 	}
 	else
 	{
 		const int reg = EEINST_USEDTEST(fromgpr) ? _allocX86reg(X86TYPE_PSX, fromgpr, MODE_READ) : _checkX86reg(X86TYPE_PSX, fromgpr, MODE_READ);
 		if (reg >= 0)
-			xMOV(to, xRegister32(reg));
+			xe_mov32_rr(to, reg);
 		else
-			xMOV(to, ptr[&psxRegs.GPR.r[fromgpr]]);
+			xe_mov32_rm(to, &psxRegs.GPR.r[fromgpr]);
 	}
 }
 
@@ -271,19 +272,19 @@ void _psxMoveGPRtoM(uptr to, int fromgpr)
 {
 	if (PSX_IS_CONST1(fromgpr))
 	{
-		xMOV(ptr32[(u32*)(to)], g_psxConstRegs[fromgpr]);
+		xe_mov32_mi(to, g_psxConstRegs[fromgpr]);
 	}
 	else
 	{
 		const int reg = EEINST_USEDTEST(fromgpr) ? _allocX86reg(X86TYPE_PSX, fromgpr, MODE_READ) : _checkX86reg(X86TYPE_PSX, fromgpr, MODE_READ);
 		if (reg >= 0)
 		{
-			xMOV(ptr32[(u32*)(to)], xRegister32(reg));
+			xe_mov32_mr(to, reg);
 		}
 		else
 		{
-			xMOV(eax, ptr[&psxRegs.GPR.r[fromgpr]]);
-			xMOV(ptr32[(u32*)(to)], eax);
+			xe_mov32_rm(XE_AX, &psxRegs.GPR.r[fromgpr]);
+			xe_mov32_mr(to, XE_AX);
 		}
 	}
 }
@@ -312,7 +313,7 @@ void _psxFlushCall(int flushtype)
 
 	if ((flushtype & FLUSH_PC) /*&& !g_cpuFlushedPC*/)
 	{
-		xMOV(ptr32[&psxRegs.pc], psxpc);
+		xe_mov32_mi(&psxRegs.pc, psxpc);
 		//g_cpuFlushedPC = true;
 	}
 }
@@ -599,14 +600,14 @@ static void psxRecompileIrxImport(void)
 	if (!hle)
 		return;
 
-	xMOV(ptr32[&psxRegs.code], psxRegs.code);
-	xMOV(ptr32[&psxRegs.pc], psxpc);
+	xe_mov32_mi(&psxRegs.code, psxRegs.code);
+	xe_mov32_mi(&psxRegs.pc, psxpc);
 	_psxFlushCall(FLUSH_NODESTROY);
 
 	if (hle)
 	{
 		xFastCall((const void*)hle);
-		xTEST(eax, eax);
+		xe_test32_rr(XE_AX, XE_AX);
 		xJNZ(iopDispatcherReg);
 	}
 }
@@ -976,19 +977,19 @@ void psxSetBranchReg(u32 reg)
 		if (!swap)
 		{
 			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-			_psxMoveGPRtoR(xRegister32(wbreg), reg);
+			_psxMoveGPRtoR(wbreg, reg);
 
 			psxRecompileNextInstruction(true, false);
 
 			if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
 			{
-				xMOV(ptr32[&psxRegs.pc], xRegister32(wbreg));
+				xe_mov32_mr(&psxRegs.pc, wbreg);
 				x86regs[wbreg].inuse = 0;
 			}
 			else
 			{
-				xMOV(eax, ptr32[&psxRegs.pcWriteback]);
-				xMOV(ptr32[&psxRegs.pc], eax);
+				xe_mov32_rm(XE_AX, &psxRegs.pcWriteback);
+				xe_mov32_mr(&psxRegs.pc, XE_AX);
 			}
 		}
 		else
@@ -996,7 +997,7 @@ void psxSetBranchReg(u32 reg)
 			if (PSX_IS_DIRTY_CONST(reg) || _hasX86reg(X86TYPE_PSX, reg, 0))
 			{
 				const int x86reg = _allocX86reg(X86TYPE_PSX, reg, MODE_READ);
-				xMOV(ptr32[&psxRegs.pc], xRegister32(x86reg));
+				xe_mov32_mr(&psxRegs.pc, x86reg);
 			}
 			else
 			{
@@ -1016,7 +1017,7 @@ void psxSetBranchImm(u32 imm)
 	psxbranch = 1;
 
 	// end the current block
-	xMOV(ptr32[&psxRegs.pc], imm);
+	xe_mov32_mi(&psxRegs.pc, imm);
 	_psxFlushCall(FLUSH_EVERYTHING);
 	iPsxBranchTest(imm, imm <= psxpc);
 
@@ -1034,47 +1035,47 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 	if (EmuConfig.Speedhacks.WaitLoop && s_nBlockFF && newpc == s_branchTo)
 	{
-		xMOV(eax, ptr32[&psxRegs.cycle]);
-		xMOV(ecx, eax);
-		xMOV(edx, ptr32[&psxRegs.iopCycleEE]);
-		xADD(edx, 7);
-		xSHR(edx, 3);
-		xADD(eax, edx);
-		xCMP(eax, ptr32[&psxRegs.iopNextEventCycle]);
-		xCMOVNS(eax, ptr32[&psxRegs.iopNextEventCycle]);
-		xMOV(ptr32[&psxRegs.cycle], eax);
-		xSUB(eax, ecx);
-		xSHL(eax, 3);
-		xSUB(ptr32[&psxRegs.iopCycleEE], eax);
+		xe_mov32_rm(XE_AX, &psxRegs.cycle);
+		xe_mov32_rr(XE_CX, XE_AX);
+		xe_mov32_rm(XE_DX, &psxRegs.iopCycleEE);
+		xe_add32_ri(XE_DX, 7);
+		xe_shr32_ri(XE_DX, 3);
+		xe_add32_rr(XE_AX, XE_DX);
+		xe_cmp32_rm(XE_AX, &psxRegs.iopNextEventCycle);
+		xe_cmovcc32_rm(Jcc_Unsigned, XE_AX, &psxRegs.iopNextEventCycle);
+		xe_mov32_mr(&psxRegs.cycle, XE_AX);
+		xe_sub32_rr(XE_AX, XE_CX);
+		xe_shl32_ri(XE_AX, 3);
+		xe_sub32_mr(&psxRegs.iopCycleEE, XE_AX);
 		xJLE(iopExitRecompiledCode);
 
 		xFastCall((const void*)iopEventTest);
 
 		if (newpc != 0xffffffff)
 		{
-			xCMP(ptr32[&psxRegs.pc], newpc);
+			xe_cmp32_mi(&psxRegs.pc, newpc);
 			xJNE(iopDispatcherReg);
 		}
 	}
 	else
 	{
-		xMOV(eax, ptr32[&psxRegs.cycle]);
-		xADD(eax, blockCycles);
-		xMOV(ptr32[&psxRegs.cycle], eax); // update cycles
+		xe_mov32_rm(XE_AX, &psxRegs.cycle);
+		xe_add32_ri(XE_AX, blockCycles);
+		xe_mov32_mr(&psxRegs.cycle, XE_AX); // update cycles
 
 		// jump if iopCycleEE <= 0  (iop's timeslice timed out, so time to return control to the EE)
-		xSUB(ptr32[&psxRegs.iopCycleEE], blockCycles * 8);
+		xe_sub32_mi(&psxRegs.iopCycleEE, blockCycles * 8);
 		xJLE(iopExitRecompiledCode);
 
 		// check if an event is pending
-		xSUB(eax, ptr32[&psxRegs.iopNextEventCycle]);
+		xe_sub32_rm(XE_AX, &psxRegs.iopNextEventCycle);
 		xForwardJS<u8> nointerruptpending;
 
 		xFastCall((const void*)iopEventTest);
 
 		if (newpc != 0xffffffff)
 		{
-			xCMP(ptr32[&psxRegs.pc], newpc);
+			xe_cmp32_mi(&psxRegs.pc, newpc);
 			xJNE(iopDispatcherReg);
 		}
 
@@ -1084,15 +1085,15 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 void rpsxSYSCALL(void)
 {
-	xMOV(ptr32[&psxRegs.code], psxRegs.code);
-	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
+	xe_mov32_mi(&psxRegs.code, psxRegs.code);
+	xe_mov32_mi(&psxRegs.pc, psxpc - 4);
 	_psxFlushCall(FLUSH_NODESTROY);
 
 	//xMOV( ecx, 0x20 );			// exception code
 	//xMOV( edx, psxbranch==1 );	// branch delay slot?
 	xFastCall((const void*)psxException, 0x20, psxbranch == 1);
 
-	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
+	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
 	u8 *j8Ptr = JE8(0);
 
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
@@ -1107,15 +1108,15 @@ void rpsxSYSCALL(void)
 
 void rpsxBREAK(void)
 {
-	xMOV(ptr32[&psxRegs.code], psxRegs.code);
-	xMOV(ptr32[&psxRegs.pc], psxpc - 4);
+	xe_mov32_mi(&psxRegs.code, psxRegs.code);
+	xe_mov32_mi(&psxRegs.pc, psxpc - 4);
 	_psxFlushCall(FLUSH_NODESTROY);
 
 	//xMOV( ecx, 0x24 );			// exception code
 	//xMOV( edx, psxbranch==1 );	// branch delay slot?
 	xFastCall((const void*)psxException, 0x24, psxbranch == 1);
 
-	xCMP(ptr32[&psxRegs.pc], psxpc - 4);
+	xe_cmp32_mi(&psxRegs.pc, psxpc - 4);
 	u8 *j8Ptr = JE8(0);
 	xADD(ptr32[&psxRegs.cycle], psxScaleBlockCycles());
 	xSUB(ptr32[&psxRegs.iopCycleEE], psxScaleBlockCycles() * 8);
@@ -1341,7 +1342,7 @@ StartRecomp:
 		if (willbranch3 || !psxbranch)
 		{
 			_psxFlushCall(FLUSH_EVERYTHING);
-			xMOV(ptr32[&psxRegs.pc], psxpc);
+			xe_mov32_mi(&psxRegs.pc, psxpc);
 			recBlocks.Link(HWADDR(s_nEndBlock), xJcc32(Jcc_Unconditional, 0));
 			psxbranch = 3;
 		}

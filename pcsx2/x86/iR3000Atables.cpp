@@ -16,6 +16,7 @@
 #include <time.h>
 
 #include "iR3000A.h"
+#include "common/emitter/c89ops.h"
 #include "../IopMem.h"
 #include "../IopDma.h"
 #include "../IopGte.h"
@@ -787,7 +788,7 @@ static void rpsxMULTsuperconst(int info, int sreg, int imm, int sign)
 static void rpsxMULTsuper(int info, int sign)
 {
 	// Lo/Hi = Rs * Rt (signed)
-	_psxMoveGPRtoR(eax, _Rs_);
+	_psxMoveGPRtoR(XE_AX, _Rs_);
 
 	const int regt = rpsxAllocRegIfUsed(_Rt_, MODE_READ);
 	if (sign)
@@ -1609,7 +1610,7 @@ static void rpsxJALR()
 	if (!swap)
 	{
 		wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-		_psxMoveGPRtoR(xRegister32(wbreg), _Rs_);
+		_psxMoveGPRtoR(wbreg, _Rs_);
 	}
 
 	if (_Rd_)
