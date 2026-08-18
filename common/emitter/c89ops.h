@@ -841,4 +841,198 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	  } }, \
 	x86Emitter::xJccKnownTarget((x86Emitter::JccComparisonType)(cc), (const void*)(target), false))
 
+
+/* ================= iMMI SSE vocabulary =================
+ * Generated from the shim's own opcode tables (instructions.h
+ * initializers and struct layouts) -- transcribed, not re-derived;
+ * the shadow oracle byte-checks every one of these on execution. */
+#define xe_blendps_xxi(d, s, i) XE_2(E_SSE_RRI(xep, 0x66, 0xc3a, (d), (s), (i)), \
+	x86Emitter::xBLEND.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s), (i)))
+#define xe_movdqa_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x6f, (d), (s)), \
+	x86Emitter::xMOVDQA(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_movhlps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x12, (d), (s)), \
+	x86Emitter::xMOVHL.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_movlhps_xx(d, s) XE_2(E_SSE_RR(xep, 0x00, 0x16, (d), (s)), \
+	x86Emitter::xMOVLH.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_movqzx_xx(d, s) XE_2(E_SSE_RR(xep, 0xf3, 0x7e, (d), (s)), \
+	x86Emitter::xMOVQZX(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pabsd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x1e38, (d), (s)), \
+	x86Emitter::xPABS.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pabsw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x1d38, (d), (s)), \
+	x86Emitter::xPABS.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_packssdw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x6b, (d), (s)), \
+	x86Emitter::xPACK.SSDW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_packuswb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x67, (d), (s)), \
+	x86Emitter::xPACK.USWB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xfc, (d), (s)), \
+	x86Emitter::xPADD.B(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xfe, (d), (s)), \
+	x86Emitter::xPADD.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd4, (d), (s)), \
+	x86Emitter::xPADD.Q(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddsb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xec, (d), (s)), \
+	x86Emitter::xPADD.SB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddsw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xed, (d), (s)), \
+	x86Emitter::xPADD.SW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddusb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xdc, (d), (s)), \
+	x86Emitter::xPADD.USB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddusw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xdd, (d), (s)), \
+	x86Emitter::xPADD.USW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_paddw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xfd, (d), (s)), \
+	x86Emitter::xPADD.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pand_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xdb, (d), (s)), \
+	x86Emitter::xPAND(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pandn_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xdf, (d), (s)), \
+	x86Emitter::xPANDN(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pcmpeqb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x74, (d), (s)), \
+	x86Emitter::xPCMP.EQB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pcmpeqd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x76, (d), (s)), \
+	x86Emitter::xPCMP.EQD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pcmpeqw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x75, (d), (s)), \
+	x86Emitter::xPCMP.EQW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pcmpgtb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x64, (d), (s)), \
+	x86Emitter::xPCMP.GTB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pcmpgtd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x66, (d), (s)), \
+	x86Emitter::xPCMP.GTD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pcmpgtw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x65, (d), (s)), \
+	x86Emitter::xPCMP.GTW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmaddwd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf5, (d), (s)), \
+	x86Emitter::xPMADD.WD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmaxsd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x3d38, (d), (s)), \
+	x86Emitter::xPMAX.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmaxsw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xee, (d), (s)), \
+	x86Emitter::xPMAX.SW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pminsd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x3938, (d), (s)), \
+	x86Emitter::xPMIN.SD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pminsw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xea, (d), (s)), \
+	x86Emitter::xPMIN.SW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmovsxdq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x2538, (d), (s)), \
+	x86Emitter::xPMOVSX.DQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmuldq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x2838, (d), (s)), \
+	x86Emitter::xPMUL.DQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmulhw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xe5, (d), (s)), \
+	x86Emitter::xPMUL.HW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmullw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd5, (d), (s)), \
+	x86Emitter::xPMUL.LW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pmuludq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf4, (d), (s)), \
+	x86Emitter::xPMUL.UDQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_por_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xeb, (d), (s)), \
+	x86Emitter::xPOR(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pshufd_xxi(d, s, i) XE_2(E_SSE_RRI(xep, 0x66, 0x70, (d), (s), (i)), \
+	x86Emitter::xPSHUF.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s), (i)))
+#define xe_pshufhw_xxi(d, s, i) XE_2(E_SSE_RRI(xep, 0xf3, 0x70, (d), (s), (i)), \
+	x86Emitter::xPSHUF.HW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s), (i)))
+#define xe_pshuflw_xxi(d, s, i) XE_2(E_SSE_RRI(xep, 0xf2, 0x70, (d), (s), (i)), \
+	x86Emitter::xPSHUF.LW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s), (i)))
+#define xe_psubb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf8, (d), (s)), \
+	x86Emitter::xPSUB.B(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xfa, (d), (s)), \
+	x86Emitter::xPSUB.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xfb, (d), (s)), \
+	x86Emitter::xPSUB.Q(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubsb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xe8, (d), (s)), \
+	x86Emitter::xPSUB.SB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubsw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xe9, (d), (s)), \
+	x86Emitter::xPSUB.SW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubusb_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd8, (d), (s)), \
+	x86Emitter::xPSUB.USB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubusw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd9, (d), (s)), \
+	x86Emitter::xPSUB.USW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psubw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf9, (d), (s)), \
+	x86Emitter::xPSUB.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpckhbw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x68, (d), (s)), \
+	x86Emitter::xPUNPCK.HBW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpckhdq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x6a, (d), (s)), \
+	x86Emitter::xPUNPCK.HDQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpckhqdq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x6d, (d), (s)), \
+	x86Emitter::xPUNPCK.HQDQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpckhwd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x69, (d), (s)), \
+	x86Emitter::xPUNPCK.HWD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpcklbw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x60, (d), (s)), \
+	x86Emitter::xPUNPCK.LBW(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpckldq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x62, (d), (s)), \
+	x86Emitter::xPUNPCK.LDQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpcklqdq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x6c, (d), (s)), \
+	x86Emitter::xPUNPCK.LQDQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_punpcklwd_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0x61, (d), (s)), \
+	x86Emitter::xPUNPCK.LWD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pxor_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xef, (d), (s)), \
+	x86Emitter::xPXOR(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_shufps_xxi(d, s, i) XE_2(E_SSE_RRI(xep, 0x00, 0xc6, (d), (s), (i)), \
+	x86Emitter::xSHUF.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s), (i)))
+#define xe_psllw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf1, (d), (s)), \
+	x86Emitter::xPSLL.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psllw_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x71, 6, (d), (i)), \
+	x86Emitter::xPSLL.W(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_pslld_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf2, (d), (s)), \
+	x86Emitter::xPSLL.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_pslld_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x72, 6, (d), (i)), \
+	x86Emitter::xPSLL.D(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psllq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xf3, (d), (s)), \
+	x86Emitter::xPSLL.Q(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psllq_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x73, 6, (d), (i)), \
+	x86Emitter::xPSLL.Q(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psrlw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd1, (d), (s)), \
+	x86Emitter::xPSRL.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psrlw_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x71, 2, (d), (i)), \
+	x86Emitter::xPSRL.W(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psrld_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd2, (d), (s)), \
+	x86Emitter::xPSRL.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psrld_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x72, 2, (d), (i)), \
+	x86Emitter::xPSRL.D(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psrlq_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xd3, (d), (s)), \
+	x86Emitter::xPSRL.Q(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psrlq_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x73, 2, (d), (i)), \
+	x86Emitter::xPSRL.Q(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psraw_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xe1, (d), (s)), \
+	x86Emitter::xPSRA.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psraw_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x71, 4, (d), (i)), \
+	x86Emitter::xPSRA.W(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psrad_xx(d, s) XE_2(E_SSE_RR(xep, 0x66, 0xe2, (d), (s)), \
+	x86Emitter::xPSRA.D(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s)))
+#define xe_psrad_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x72, 4, (d), (i)), \
+	x86Emitter::xPSRA.D(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_pslldq_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x73, 7, (d), (i)), \
+	x86Emitter::xPSLL.DQ(x86Emitter::xRegisterSSE(d), (u8)(i)))
+#define xe_psrldq_xi(d, i) XE_2(E_SSE_RRI(xep, 0x66, 0x73, 3, (d), (i)), \
+	x86Emitter::xPSRL.DQ(x86Emitter::xRegisterSSE(d), (u8)(i)))
+
+
+/* iMMI scalar stragglers */
+#define xe_bsr32_rr(d, s)      XE_2( \
+	{ EW8(xep, 0x0f); EW8(xep, 0xbd); E_MODRM_RR(xep, (d), (s)); }, \
+	x86Emitter::xBSR(x86Emitter::xRegister32(d), x86Emitter::xRegister32(s)))
+#define xe_dec32_r(reg)        XE_2(E_INCDEC_R_SZ(xep, 4, 1, (reg)), \
+	x86Emitter::xDEC(x86Emitter::xRegister32(reg)))
+#define xe_udiv32_r(reg)       XE_2(E_G3_R(xep, 0, 6, (reg)), \
+	x86Emitter::xUDIV(x86Emitter::xRegister32(reg)))
+/* pextrd gpr, xmm, imm: 66 0F 3A 16, xmm in reg field */
+#define xe_pextrd_rxi(gpr, xmm, imm) XE_2( \
+	E_SSE_RRI_W(xep, 0x66, 0x163a, (xmm), (gpr), (imm), 0), \
+	x86Emitter::xPEXTR.D(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(xmm), (imm)))
+#define XE_MEM_TO_PTR32(m) x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]
+/* SSE ops against absolute memory the transform left behind */
+#define xe_pand_xm(xmm, addr)  XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_SSE_R_MEM(xep, 0x66, 0xdb, (xmm), xm_); }, \
+	x86Emitter::xPAND(x86Emitter::xRegisterSSE(xmm), x86Emitter::ptr[(void*)(addr)]))
+/* movdqa/movdqu through a register-based address (the QFSRV shifter) */
+#define xe_movdqu_xmem(xmm, m) XE_2( \
+	E_SSE_R_MEM(xep, 0xf3, 0x6f, (xmm), (m)), \
+	x86Emitter::xMOVDQU(x86Emitter::xRegisterSSE(xmm), XE_MEM_TO_PTR32(m)))
+#define xe_movdqa_memx(m, xmm) XE_2( \
+	E_SSE_R_MEM(xep, 0x66, 0x7f, (xmm), (m)), \
+	x86Emitter::xMOVDQA(XE_MEM_TO_PTR32(m), x86Emitter::xRegisterSSE(xmm)))
+/* lea r64, [abs] (fits-s32 asserted by context: tempqw/GPR are in the
+ * low image on linux; the reference emits the rip-relative form and so
+ * do we via the absolute e_mem path) */
+#define xe_lea64_m(reg, addr)  XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_LEA(xep, 1, 0, (reg), xm_); }, \
+	x86Emitter::xLEA(x86Emitter::xAddressReg(reg), x86Emitter::ptr[(void*)(addr)]))
+#define xe_movsxd_rm16(reg, addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_P16(xep); E_REX_MEM(xep, 0, (reg), xm_); \
+	  EW8(xep, 0x0f); EW8(xep, 0xbf); E_MODRM_MEM(xep, (reg), xm_, 0); }, \
+	x86Emitter::xMOVSX(x86Emitter::xRegister32(reg), x86Emitter::ptr16[(void*)(addr)]))
 #endif /* PCSX2_C89OPS_H */
