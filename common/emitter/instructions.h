@@ -176,12 +176,25 @@ namespace x86Emitter
 	extern const xImpl_IncDec xINC, xDEC;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MovExtend xMOVZX = {false};
+	static const shim_MovExtend xMOVSX = {true};
+#else
 	extern const xImpl_MovExtend xMOVZX, xMOVSX;
+#endif
 
 	extern const xImpl_BitScan xBSR;
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_JmpCall xJMP = {true};
+#else
 	extern const xImpl_JmpCall xJMP;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_JmpCall xCALL = {false};
+#else
 	extern const xImpl_JmpCall xCALL;
+#endif
 	extern const xImpl_FastCall xFastCall;
 
 	// ------------------------------------------------------------------------
@@ -549,11 +562,31 @@ namespace x86Emitter
 	extern const xImplSimd_Sqrt xSQRT;
 #endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Shift xPSLL = { {0x66,0xf1,0x71,6}, {0x66,0xf2,0x72,6}, {0x66,0xf3,0x73,6} };
+#else
 	extern const xImplSimd_Shift xPSLL;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Shift xPSRL = { {0x66,0xd1,0x71,2}, {0x66,0xd2,0x72,2}, {0x66,0xd3,0x73,2} };
+#else
 	extern const xImplSimd_Shift xPSRL;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_ShiftNoQ xPSRA = { {0x66,0xe1,0x71,4}, {0x66,0xe2,0x72,4} };
+#else
 	extern const xImplSimd_ShiftWithoutQ xPSRA;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_AddSub xPADD = { {0x66,0xdc+0x20},{0x66,0xdc+0x21},{0x66,0xdc+0x22},{0x66,0xd4},{0x66,0xdc+0x10},{0x66,0xdc+0x11},{0x66,0xdc},{0x66,0xdc+1} };
+#else
 	extern const xImplSimd_AddSub xPADD;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_AddSub xPSUB = { {0x66,0xd8+0x20},{0x66,0xd8+0x21},{0x66,0xd8+0x22},{0x66,0xfb},{0x66,0xd8+0x10},{0x66,0xd8+0x11},{0x66,0xd8},{0x66,0xd8+1} };
+#else
 	extern const xImplSimd_AddSub xPSUB;
+#endif
 #ifdef PCSX2_C89_EMITTER
 	static const shim_PMul xPMUL = { {0x66,0xd5},{0x66,0xe5},{0x66,0xe4},{0x66,0xf4},{0x66,0x0b38},{0x66,0x4038},{0x66,0x2838} };
 #else

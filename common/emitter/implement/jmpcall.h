@@ -56,8 +56,8 @@ namespace x86Emitter
 	// instructions.h binds the name.
 #ifndef PCSX2_C89_EMITTER
 	extern const xImpl_Mov xMOV;
-#endif
 	extern const xImpl_JmpCall xCALL;
+#endif
 
 	struct xImpl_FastCall
 	{

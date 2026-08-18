@@ -361,6 +361,13 @@ namespace x86Emitter
 		}
 	};
 
+	// xPSRA is the shift family minus Q -- arithmetic right shift has no
+	// quadword form -- and minus the whole-register DQ byte shift.
+	struct shim_ShiftNoQ
+	{
+		shim_ShiftHelper W, D;
+	};
+
 	struct shim_Shift
 	{
 		shim_ShiftHelper W, D, Q;
@@ -550,6 +557,18 @@ namespace x86Emitter
 			SHIM_BEGIN;
 			if (isJmp) { E_JMP_R(p_, absreg.Id); }
 			else       { E_CALL_R(p_, absreg.Id); }
+			SHIM_END;
+		}
+
+		/// Indirect through memory. Jumps are always wide, so REX.W is never
+		/// set here however large the operand looks (jmp.cpp:41-46).
+		__fi void operator()(const xIndirectNative& src) const
+		{
+			struct e_mem m = shim_mem(src);
+			SHIM_BEGIN;
+			E_REX_MEM(p_, 0, 0, m);
+			EW8(p_, 0xff);
+			E_MODRM_MEM(p_, (isJmp ? 4 : 2), m, 0);
 			SHIM_END;
 		}
 	};

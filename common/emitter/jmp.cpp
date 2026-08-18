@@ -46,10 +46,14 @@ namespace x86Emitter
 		EmitSibMagic(isJmp ? 4 : 2, src);
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_JmpCall xJMP = {true};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_JmpCall xCALL = {false};
 
 
+#endif
 	template <typename Reg1, typename Reg2>
 	void prepareRegsForFastcall(const Reg1& a1, const Reg2& a2)
 	{

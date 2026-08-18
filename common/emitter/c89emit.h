@@ -224,8 +224,16 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 
 /* movzx / movsx from 8- or 16-bit register. srcw: 0 = byte, 1 = word.
  * sx selects movsx (0xbe/0xbf) over movzx (0xb6/0xb7). */
+/* movsx/movzx. The *source* may be an 8-bit register, whose id carries the
+ * 0x10 marker for spl/bpl/sil/dil -- the generic REX helper reads that as an
+ * extended-register bit and emits a spurious REX.B. The destination is always
+ * 16/32/64-bit, so only the source needs the 8-bit treatment. */
 #define E_MOVEXT_RR(p, w, sx, srcw, dst, src) do { \
-        E_REX((p), (w), (dst), 0, (src)); \
+        if (!(srcw)) { \
+            e_u8 rex_ = (e_u8)(0x40 | ((w) ? 8 : 0) \
+                    | ((((dst) >= 8) ? 1 : 0) << 2) | E_R8_EXT(src)); \
+            if (rex_ != 0x40 || E_R8_NEEDREX(src)) EW8((p), rex_); \
+        } else E_REX((p), (w), (dst), 0, (src)); \
         EW8((p), 0x0f); \
         EW8((p), (e_u8)(((sx) ? 0xbe : 0xb6) + ((srcw) ? 1 : 0))); \
         E_MODRM_RR((p), (dst), (src)); } while (0)

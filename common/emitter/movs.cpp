@@ -192,9 +192,13 @@ namespace x86Emitter
 		xOpWrite(0, 0x63, to, sibsrc);
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_MovExtend xMOVSX = {true};
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImpl_MovExtend xMOVZX = {false};
 
+#endif
 	const xImpl_CMov xCMOVB = {Jcc_Below};
 	const xImpl_CMov xCMOVGE = {Jcc_GreaterOrEqual};
 

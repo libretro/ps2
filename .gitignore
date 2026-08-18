@@ -128,4 +128,5 @@ tests/emitter/equiv_ref
 tests/emitter/equiv_sw
 tests/emitter/exhaustive
 tests/emitter/sse_exhaustive
+tests/emitter/newbind
 tests/emitter/*.o

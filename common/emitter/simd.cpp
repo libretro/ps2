@@ -104,12 +104,15 @@ namespace x86Emitter
 	}
 
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_ShiftWithoutQ xPSRA =
 		{
 			{0x66, 0xe1, 0x71, 4}, // W
 			{0x66, 0xe2, 0x72, 4} // D
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Shift xPSRL =
 		{
 			{0x66, 0xd1, 0x71, 2}, // W
@@ -117,6 +120,8 @@ namespace x86Emitter
 			{0x66, 0xd3, 0x73, 2}, // Q
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Shift xPSLL =
 		{
 			{0x66, 0xf1, 0x71, 6}, // W
@@ -124,6 +129,8 @@ namespace x86Emitter
 			{0x66, 0xf3, 0x73, 6}, // Q
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_AddSub xPADD =
 		{
 			{0x66, 0xdc + 0x20}, // B
@@ -137,6 +144,8 @@ namespace x86Emitter
 			{0x66, 0xdc + 1}, // USW
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_AddSub xPSUB =
 		{
 			{0x66, 0xd8 + 0x20}, // B
@@ -150,6 +159,7 @@ namespace x86Emitter
 			{0x66, 0xd8 + 1}, // USW
 	};
 
+#endif
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMul xPMUL =
 		{
