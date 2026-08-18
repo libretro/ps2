@@ -42,7 +42,9 @@
 #define XE_AB 1
 #if XE_AB
 extern "C" int xe_cpp_mode; /* defined in JitHash.cpp, set from env at load */
+extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define XE_2(c89body, cppbody) do { \
+	xe_site_hits++; \
 	if (xe_cpp_mode) { cppbody; } else { XE_OPEN(); c89body; XE_CLOSE(); } } while (0)
 #else
 #define XE_2(c89body, cppbody) do { XE_OPEN(); c89body; XE_CLOSE(); } while (0)
@@ -98,8 +100,8 @@ extern "C" int xe_cpp_mode; /* defined in JitHash.cpp, set from env at load */
 	x86Emitter::xMOVSX(x86Emitter::xRegister64(to), x86Emitter::xRegister32(from)))
 
 /* cdq / cdqe */
-#define xe_cdq()                   XE_2(EW8(xep, 0x99), x86Emitter::xCDQ())
-#define xe_cdqe()                  XE_2(EW8(xep, 0x48); EW8(xep, 0x98), x86Emitter::xCDQE())
+#define xe_cdq()                   XE_2(EW8(xep, 0x99), xCDQ())  /* xCDQ is a macro; no namespace */
+#define xe_cdqe()                  XE_2(EW8(xep, 0x48); EW8(xep, 0x98), xCDQE())  /* macro twin */
 
 /* pinsrd/pinsrq xmm, r32/r64, imm8 (66 0f 3a 22 /r ib, REX.W selects Q) */
 #define xe_pinsrd(xmm, gpr, imm)   XE_2(E_SSE_RRI_W(xep, 0x66, 0x223a, (xmm), (gpr), (imm), 0), \
@@ -112,6 +114,7 @@ extern "C" int xe_cpp_mode; /* defined in JitHash.cpp, set from env at load */
  * composition: op(dst, imm) when s32-representable, else MOV64 tmp, imm
  * followed by the store. */
 #define xe_mov64_mi(addr, tmpreg, imm) do { \
+	xe_site_hits++; \
 	if (xe_cpp_mode) { \
 		x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::ptr64[(void*)(addr)], \
 			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
@@ -129,6 +132,7 @@ extern "C" int xe_cpp_mode; /* defined in JitHash.cpp, set from env at load */
  * reference's suboptimality is the contract; shaving it is a later,
  * oracle-visible change of its own. */
 #define xe_imm64op_mov_rr(dst, tmpreg, imm) do { \
+	xe_site_hits++; \
 	if (xe_cpp_mode) { \
 		x86Emitter::xImm64Op(x86Emitter::xMOV, x86Emitter::xRegister64(dst), \
 			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \

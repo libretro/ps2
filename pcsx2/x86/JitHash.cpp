@@ -50,6 +50,8 @@ namespace
 // once at load so the choice is in place before any block compiles.
 extern "C" int xe_cpp_mode;
 int xe_cpp_mode;
+extern "C" unsigned long long xe_site_hits;
+unsigned long long xe_site_hits;
 static struct XeModeInit
 {
 	XeModeInit()
@@ -85,6 +87,10 @@ extern "C" __attribute__((visibility("default"))) void pcsx2_jithash_dump(void)
 		fprintf(stderr, "[JITHASH] %-12s %016llx nz=%llu\n",
 			r.name, (unsigned long long)h, (unsigned long long)nz);
 	}
+	// Coverage guard for the A/B methodology: identical hashes prove
+	// nothing if the trace never reached a converted site. Both modes
+	// count, so this line must be nonzero AND equal across modes.
+	fprintf(stderr, "[JITHASH] xe_site_hits %llu\n", xe_site_hits);
 	fflush(stderr);
 }
 

@@ -66,21 +66,21 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		if (xmmlo >= 0)
 		{
 			// we use CDQE over MOVSX because it's shorter.
-			xCDQE();
-			xPINSR.Q(xRegisterSSE(xmmlo), rax, static_cast<u8>(upper));
+			xe_cdqe();
+			xe_pinsrq(xmmlo, XE_AX, static_cast<u8>(upper));
 		}
 		else
 		{
 			const int gprlo = upper ? -1 : (loused ? _allocX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_LO, MODE_WRITE));
 			if (gprlo >= 0)
 			{
-				xMOVSX(xRegister64(gprlo), eax);
+				xe_movsxd_rr(gprlo, XE_AX);
 			}
 			else
 			{
-				xCDQE();
+				xe_cdqe();
 				eax_sign_extended = true;
-				xMOV(ptr64[&cpuRegs.LO.UD[upper]], rax);
+				xe_mov64_mr(&cpuRegs.LO.UD[upper], XE_AX);
 			}
 		}
 	}
@@ -90,20 +90,20 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		const int xmmhi = hiusedxmm ? _allocGPRtoXMMreg(XMMGPR_HI, MODE_READ | MODE_WRITE) : _checkXMMreg(XMMTYPE_GPRREG, XMMGPR_HI, MODE_WRITE);
 		if (xmmhi >= 0)
 		{
-			xMOVSX(rdx, edx);
-			xPINSR.Q(xRegisterSSE(xmmhi), rdx, static_cast<u8>(upper));
+			xe_movsxd_rr(XE_DX, XE_DX);
+			xe_pinsrq(xmmhi, XE_DX, static_cast<u8>(upper));
 		}
 		else
 		{
 			const int gprhi = upper ? -1 : (hiused ? _allocX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE) : _checkX86reg(X86TYPE_GPR, XMMGPR_HI, MODE_WRITE));
 			if (gprhi >= 0)
 			{
-				xMOVSX(xRegister64(gprhi), edx);
+				xe_movsxd_rr(gprhi, XE_DX);
 			}
 			else
 			{
-				xMOVSX(rdx, edx);
-				xMOV(ptr64[&cpuRegs.HI.UD[upper]], rdx);
+				xe_movsxd_rr(XE_DX, XE_DX);
+				xe_mov64_mr(&cpuRegs.HI.UD[upper], XE_DX);
 			}
 		}
 	}
@@ -117,15 +117,15 @@ static void recWritebackHILO(int info, bool writed, bool upper)
 		if (info & PROCESS_EE_D)
 		{
 			if (eax_sign_extended)
-				xMOV(xRegister64(EEREC_D), rax);
+				xe_mov64_rr(EEREC_D, XE_AX);
 			else
-				xMOVSX(xRegister64(EEREC_D), eax);
+				xe_movsxd_rr(EEREC_D, XE_AX);
 		}
 		else
 		{
 			if (!eax_sign_extended)
-				xCDQE();
-			xMOV(ptr64[&cpuRegs.GPR.r[_Rd_].UD[0]], rax);
+				xe_cdqe();
+			xe_mov64_mr(&cpuRegs.GPR.r[_Rd_].UD[0], XE_AX);
 		}
 	}
 }
