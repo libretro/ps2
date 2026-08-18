@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -52,26 +53,26 @@ REC_FUNC_DEL(DSRAV, _Rd_);
 static void recMoveTtoD(int info)
 {
 	if (info & PROCESS_EE_T)
-		xMOV(xRegister32(EEREC_D), xRegister32(EEREC_T));
+		xe_mov32_rr(EEREC_D, EEREC_T);
 	else
-		xMOV(xRegister32(EEREC_D), ptr32[&cpuRegs.GPR.r[_Rt_].UL[0]]);
+		xe_mov32_rm(EEREC_D, &cpuRegs.GPR.r[_Rt_].UL[0]);
 }
 
 static void recMoveTtoD64(int info)
 {
 	if (info & PROCESS_EE_T)
-		xMOV(xRegister64(EEREC_D), xRegister64(EEREC_T));
+		xe_mov64_rr(EEREC_D, EEREC_T);
 	else
-		xMOV(xRegister64(EEREC_D), ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]]);
+		xe_mov64_rm(EEREC_D, &cpuRegs.GPR.r[_Rt_].UD[0]);
 }
 
 static void recMoveSToRCX(int info)
 {
 	// load full 64-bits for store->load forwarding, since we always store >=64.
 	if (info & PROCESS_EE_S)
-		xMOV(rcx, xRegister64(EEREC_S));
+		xe_mov64_rr(XE_CX, EEREC_S);
 	else
-		xMOV(rcx, ptr64[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xe_mov64_rm(XE_CX, &cpuRegs.GPR.r[_Rs_].UL[0]);
 }
 
 //// SLL
@@ -84,8 +85,8 @@ static void recSLLs_(int info, int sa)
 {
 	recMoveTtoD(info);
 	if (sa != 0)
-		xSHL(xRegister32(EEREC_D), sa);
-	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+		xe_shl32_ri(EEREC_D, sa);
+	xe_movsxd_rr(EEREC_D, EEREC_D);
 }
 
 static void recSLL_(int info)
@@ -105,8 +106,8 @@ static void recSRLs_(int info, int sa)
 {
 	recMoveTtoD(info);
 	if (sa != 0)
-		xSHR(xRegister32(EEREC_D), sa);
-	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+		xe_shr32_ri(EEREC_D, sa);
+	xe_movsxd_rr(EEREC_D, EEREC_D);
 }
 
 static void recSRL_(int info)
@@ -126,8 +127,8 @@ static void recSRAs_(int info, int sa)
 {
 	recMoveTtoD(info);
 	if (sa != 0)
-		xSAR(xRegister32(EEREC_D), sa);
-	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+		xe_sar32_ri(EEREC_D, sa);
+	xe_movsxd_rr(EEREC_D, EEREC_D);
 }
 
 static void recSRA_(int info)
@@ -147,7 +148,7 @@ static void recDSLLs_(int info, int sa)
 {
 	recMoveTtoD64(info);
 	if (sa != 0)
-		xSHL(xRegister64(EEREC_D), sa);
+		xe_shl64_ri(EEREC_D, sa);
 }
 
 static void recDSLL_(int info)
@@ -167,7 +168,7 @@ static void recDSRLs_(int info, int sa)
 {
 	recMoveTtoD64(info);
 	if (sa != 0)
-		xSHR(xRegister64(EEREC_D), sa);
+		xe_shr64_ri(EEREC_D, sa);
 }
 
 static void recDSRL_(int info)
@@ -187,7 +188,7 @@ static void recDSRAs_(int info, int sa)
 {
 	recMoveTtoD64(info);
 	if (sa != 0)
-		xSAR(xRegister64(EEREC_D), sa);
+		xe_sar64_ri(EEREC_D, sa);
 }
 
 static void recDSRA_(int info)
@@ -241,38 +242,34 @@ EERECOMPILE_CODEX(eeRecompileCodeRC2, DSRA32, XMMINFO_WRITED | XMMINFO_READT | X
 * Format:  OP rd, rt, rs                                 *
 *********************************************************/
 
-template <typename ShiftOp>
-static void recShiftV_constt(int info, const ShiftOp& shift)
+static void recShiftV_constt(int info, int g2op)
 {
 	recMoveSToRCX(info);
-	xMOV(xRegister32(EEREC_D), g_cpuConstRegs[_Rt_].UL[0]);
-	shift(xRegister32(EEREC_D), cl);
-	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+	xe_mov32_ri(EEREC_D, g_cpuConstRegs[_Rt_].UL[0]);
+	xe_g2op32_rcl(g2op, EEREC_D);
+	xe_movsxd_rr(EEREC_D, EEREC_D);
 }
 
-template <typename ShiftOp>
-static void recShiftV(int info, const ShiftOp& shift)
+static void recShiftV(int info, int g2op)
 {
 	recMoveSToRCX(info);
 	recMoveTtoD(info);
-	shift(xRegister32(EEREC_D), cl);
-	xMOVSX(xRegister64(EEREC_D), xRegister32(EEREC_D));
+	xe_g2op32_rcl(g2op, EEREC_D);
+	xe_movsxd_rr(EEREC_D, EEREC_D);
 }
 
-template <typename ShiftOp>
-static void recDShiftV_constt(int info, const ShiftOp& shift)
+static void recDShiftV_constt(int info, int g2op)
 {
 	recMoveSToRCX(info);
-	xMOV64(xRegister64(EEREC_D), g_cpuConstRegs[_Rt_].SD[0]);
-	shift(xRegister64(EEREC_D), cl);
+	xe_mov64_ri(EEREC_D, g_cpuConstRegs[_Rt_].SD[0]);
+	xe_g2op64_rcl(g2op, EEREC_D);
 }
 
-template <typename ShiftOp>
-static void recDShiftV(int info, const ShiftOp& shift)
+static void recDShiftV(int info, int g2op)
 {
 	recMoveSToRCX(info);
 	recMoveTtoD64(info);
-	shift(xRegister64(EEREC_D), cl);
+	xe_g2op64_rcl(g2op, EEREC_D);
 }
 
 //// SLLV
@@ -288,12 +285,12 @@ static void recSLLV_consts(int info)
 
 static void recSLLV_constt(int info)
 {
-	recShiftV_constt(info, xSHL);
+	recShiftV_constt(info, 4);
 }
 
 static void recSLLV_(int info)
 {
-	recShiftV(info, xSHL);
+	recShiftV(info, 4);
 }
 
 EERECOMPILE_CODERC0(SLLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
@@ -311,12 +308,12 @@ static void recSRLV_consts(int info)
 
 static void recSRLV_constt(int info)
 {
-	recShiftV_constt(info, xSHR);
+	recShiftV_constt(info, 5);
 }
 
 static void recSRLV_(int info)
 {
-	recShiftV(info, xSHR);
+	recShiftV(info, 5);
 }
 
 EERECOMPILE_CODERC0(SRLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
@@ -334,12 +331,12 @@ static void recSRAV_consts(int info)
 
 static void recSRAV_constt(int info)
 {
-	recShiftV_constt(info, xSAR);
+	recShiftV_constt(info, 7);
 }
 
 static void recSRAV_(int info)
 {
-	recShiftV(info, xSAR);
+	recShiftV(info, 7);
 }
 
 EERECOMPILE_CODERC0(SRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED);
@@ -358,12 +355,12 @@ static void recDSLLV_consts(int info)
 
 static void recDSLLV_constt(int info)
 {
-	recDShiftV_constt(info, xSHL);
+	recDShiftV_constt(info, 4);
 }
 
 static void recDSLLV_(int info)
 {
-	recDShiftV(info, xSHL);
+	recDShiftV(info, 4);
 }
 
 EERECOMPILE_CODERC0(DSLLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
@@ -382,12 +379,12 @@ static void recDSRLV_consts(int info)
 
 static void recDSRLV_constt(int info)
 {
-	recDShiftV_constt(info, xSHR);
+	recDShiftV_constt(info, 5);
 }
 
 static void recDSRLV_(int info)
 {
-	recDShiftV(info, xSHR);
+	recDShiftV(info, 5);
 }
 
 EERECOMPILE_CODERC0(DSRLV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
@@ -406,12 +403,12 @@ static void recDSRAV_consts(int info)
 
 static void recDSRAV_constt(int info)
 {
-	recDShiftV_constt(info, xSAR);
+	recDShiftV_constt(info, 7);
 }
 
 static void recDSRAV_(int info)
 {
-	recDShiftV(info, xSAR);
+	recDShiftV(info, 7);
 }
 
 EERECOMPILE_CODERC0(DSRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);

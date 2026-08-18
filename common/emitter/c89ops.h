@@ -311,4 +311,28 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 		E_G1_RR(xep, 1, (g1op), (dst), (tmpreg)); XE_CLOSE(); \
 	} } while (0)
 
+
+/* remaining group2 named-immediate forms */
+#define xe_shl64_ri(reg, imm)  XE_2(E_G2_RI(xep, 1, 4, (reg), (imm)), \
+	x86Emitter::xSHL(x86Emitter::xRegister64(reg), (imm)))
+#define xe_shr32_ri(reg, imm)  XE_2(E_G2_RI(xep, 0, 5, (reg), (imm)), \
+	x86Emitter::xSHR(x86Emitter::xRegister32(reg), (imm)))
+#define xe_shr64_ri(reg, imm)  XE_2(E_G2_RI(xep, 1, 5, (reg), (imm)), \
+	x86Emitter::xSHR(x86Emitter::xRegister64(reg), (imm)))
+#define xe_sar64_ri(reg, imm)  XE_2(E_G2_RI(xep, 1, 7, (reg), (imm)), \
+	x86Emitter::xSAR(x86Emitter::xRegister64(reg), (imm)))
+
+/* group2 by CL with the operator chosen at runtime (the ShiftOp template
+ * dispatch in iR5900Shift): 4 SHL, 5 SHR, 7 SAR. */
+#define XE_G2_CXX_RCL(g2op, reg, W) do { \
+	switch (g2op) { \
+	case 4: x86Emitter::xSHL(x86Emitter::xRegister##W(reg), x86Emitter::cl); break; \
+	case 5: x86Emitter::xSHR(x86Emitter::xRegister##W(reg), x86Emitter::cl); break; \
+	case 7: x86Emitter::xSAR(x86Emitter::xRegister##W(reg), x86Emitter::cl); break; \
+	default: break; } } while (0)
+#define xe_g2op32_rcl(g2op, reg)  XE_2(E_G2_RCL(xep, 0, (g2op), (reg)), \
+	XE_G2_CXX_RCL((g2op), (reg), 32))
+#define xe_g2op64_rcl(g2op, reg)  XE_2(E_G2_RCL(xep, 1, (g2op), (reg)), \
+	XE_G2_CXX_RCL((g2op), (reg), 64))
+
 #endif /* PCSX2_C89OPS_H */
