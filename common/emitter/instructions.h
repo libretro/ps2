@@ -30,7 +30,9 @@
 
 #pragma once
 
-#include "internal.h"
+#ifndef PCSX2_C89_EMITTER
+#include "tests/emitter/reference/internal.h"
+#endif
 
 // rather than dealing with nonexistant operands..
 #define xVZEROUPPER() \

@@ -18,17 +18,6 @@
 namespace x86Emitter
 {
 
-	enum G2Type
-	{
-		G2Type_ROL = 0,
-		G2Type_ROR,
-		G2Type_RCL,
-		G2Type_RCR,
-		G2Type_SHL,
-		G2Type_SHR,
-		G2Type_Unused,
-		G2Type_SAR
-	};
 
 	// --------------------------------------------------------------------------------------
 	//  xImpl_Group2

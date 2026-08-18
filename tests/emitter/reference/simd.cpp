@@ -13,7 +13,7 @@
  *  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common/emitter/internal.h"
+#include "tests/emitter/reference/internal.h"
 #include "common/VectorIntrin.h"
 
 #define xCVTDQ2PD(to, from)  OpWriteSSE(0xf3, 0xe6)

@@ -33,8 +33,11 @@
 #include "common/AlignedMalloc.h"
 #include "common/FastJmp.h"
 
-// Only for MOVQ workaround.
-#include "common/emitter/internal.h"
+// Only for MOVQ workaround (reference emitter internals; the C89 build
+// has no such file and no such workaround path).
+#ifndef PCSX2_C89_EMITTER
+#include "tests/emitter/reference/internal.h"
+#endif
 
 using namespace x86Emitter;
 using namespace R5900;

@@ -1,5 +1,6 @@
 #include "common/emitter/x86emitter.h"
 #include "common/emitter/x86emitter_shim.h"
+#include "common/emitter/legacy_instructions.h"
 #include <cstdio>
 #include <cstring>
 #include <sys/mman.h>
@@ -416,6 +417,25 @@ int main(){
         ck(nm,[&]{xPMOVMSKB(xRegister32(g),xRegisterSSE(x));},[&]{shim_xPMOVMSKB(xRegister32(g),xRegisterSSE(x));});
         snprintf(nm,sizeof nm,"PMOVMSKB64 %d,%d",g,x);
         ck(nm,[&]{xPMOVMSKB(xRegister64(g),xRegisterSSE(x));},[&]{shim_xPMOVMSKB(xRegister64(g),xRegisterSSE(x));}); } }
+
+
+    /* Legacy C-API wrappers vs the C89 core directly: same constants the
+       flag-side macros in legacy_instructions.h use. */
+    { struct W { const char* nm; void (*f)(int,int); e_u8 pre, op; };
+      static const W ws[] = {
+        {"SSE_MAXSS",  SSE_MAXSS_XMM_to_XMM,  0xf3, 0x5f},
+        {"SSE_MINSS",  SSE_MINSS_XMM_to_XMM,  0xf3, 0x5d},
+        {"SSE_ADDSS",  SSE_ADDSS_XMM_to_XMM,  0xf3, 0x58},
+        {"SSE_SUBSS",  SSE_SUBSS_XMM_to_XMM,  0xf3, 0x5c},
+        {"SSE2_MAXSD", SSE2_MAXSD_XMM_to_XMM, 0xf2, 0x5f},
+        {"SSE2_MINSD", SSE2_MINSD_XMM_to_XMM, 0xf2, 0x5d},
+        {"SSE2_ADDSD", SSE2_ADDSD_XMM_to_XMM, 0xf2, 0x58},
+        {"SSE2_SUBSD", SSE2_SUBSD_XMM_to_XMM, 0xf2, 0x5c},
+      };
+      for (const W& w : ws) for(int a=0;a<16;a++) for(int b=0;b<16;b++){
+        snprintf(nm,sizeof nm,"%s %d,%d",w.nm,a,b);
+        ck(nm,[&]{ w.f(a,b); },
+             [&]{ e_u8* q=(e_u8*)x86Ptr; E_SSE_RR(q, w.pre, w.op, a, b); x86Ptr=(u8*)q; }); } }
 
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

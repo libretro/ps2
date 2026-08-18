@@ -27,7 +27,7 @@
 // ix86 legacy emitter functions
 //------------------------------------------------------------------
 
-#include "common/emitter/legacy_internal.h"
+#include "tests/emitter/reference/legacy_internal.h"
 
 __fi void ModRM(uint mod, uint reg, uint rm)
 {

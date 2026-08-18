@@ -12,7 +12,7 @@ endif()
 
 # Project Name
 project(Pcsx2)
-option(C89_EMITTER "Emit through the C89 macro core (header-only); excludes the reference emitter sources" OFF)
+option(C89_EMITTER "Emit through the C89 macro core (header-only); OFF builds the C++ reference emitter instead" ON)
 if(C89_EMITTER)
 	add_compile_definitions(PCSX2_C89_EMITTER)
 endif()

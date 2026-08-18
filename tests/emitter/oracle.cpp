@@ -7,7 +7,7 @@
  * is the reference. Exit status is non-zero if anything diverges.
  */
 #include "common/emitter/x86emitter.h"
-#include "common/emitter/legacy_internal.h"
+#include "tests/emitter/reference/legacy_internal.h"
 extern "C" {
 #include "common/emitter/c89emit.h"
 }

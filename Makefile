@@ -538,6 +538,11 @@ ifneq (,$(findstring unix,$(platform)))
    endif
 endif
 
+# The C89 macro core is the default emitter; pass C89_EMITTER=0 to build the
+# original C++ reference implementation. Set BEFORE the include: the source
+# exclusion in Makefile.common reads it.
+C89_EMITTER ?= 1
+
 include Makefile.common
 
 # The multi-ISA block below uses $(eval) to generate explicit per-tier object

@@ -18,17 +18,6 @@
 namespace x86Emitter
 {
 
-	enum G1Type
-	{
-		G1Type_ADD = 0,
-		G1Type_OR,
-		G1Type_ADC,
-		G1Type_SBB,
-		G1Type_AND,
-		G1Type_SUB,
-		G1Type_XOR,
-		G1Type_CMP
-	};
 
 	// --------------------------------------------------------------------------------------
 	//  xImpl_Group1

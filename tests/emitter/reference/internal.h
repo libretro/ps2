@@ -15,8 +15,26 @@
 
 #pragma once
 
-#include "x86types.h"
-#include "instructions.h"
+#include "common/emitter/x86types.h"
+#include "common/emitter/instructions.h"
+
+// The xImpl_* struct declarations. x86types.h includes these only for the
+// reference (default) configuration; this file is reference-only, so it
+// needs them regardless of the flag.
+#include "tests/emitter/reference/implement/simd_helpers.h"
+#include "tests/emitter/reference/implement/simd_moremovs.h"
+#include "tests/emitter/reference/implement/simd_arithmetic.h"
+#include "tests/emitter/reference/implement/simd_comparisons.h"
+#include "tests/emitter/reference/implement/simd_shufflepack.h"
+#include "tests/emitter/reference/implement/group1.h"
+#include "tests/emitter/reference/implement/group2.h"
+#include "tests/emitter/reference/implement/group3.h"
+#include "tests/emitter/reference/implement/movs.h"
+#include "tests/emitter/reference/implement/incdec.h"
+#include "tests/emitter/reference/implement/test.h"
+#include "tests/emitter/reference/implement/jmpcall.h"
+#include "tests/emitter/reference/implement/avx.h"
+
 #include <type_traits>
 
 namespace x86Emitter

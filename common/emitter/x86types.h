@@ -167,6 +167,43 @@ namespace x86Emitter
 	// ----------------------------------------------------------------------------
 	// SSE2_ComparisonType - enumerated possibilities for SIMD data comparison!
 	//
+	// Operator selectors for the group-1/2/3 instruction families. These
+	// are API -- recompilers name the values -- so they live here with
+	// the other operand enums rather than in the reference-only headers.
+	enum G1Type
+	{
+		G1Type_ADD = 0,
+		G1Type_OR,
+		G1Type_ADC,
+		G1Type_SBB,
+		G1Type_AND,
+		G1Type_SUB,
+		G1Type_XOR,
+		G1Type_CMP
+	};
+
+	enum G2Type
+	{
+		G2Type_ROL = 0,
+		G2Type_ROR,
+		G2Type_RCL,
+		G2Type_RCR,
+		G2Type_SHL,
+		G2Type_SHR,
+		G2Type_Unused,
+		G2Type_SAR
+	};
+
+	enum G3Type
+	{
+		G3Type_NOT = 2,
+		G3Type_NEG = 3,
+		G3Type_MUL = 4,
+		G3Type_iMUL = 5, // partial implementation, iMul has additional forms in ix86.cpp
+		G3Type_DIV = 6,
+		G3Type_iDIV = 7
+	};
+
 	enum SSE2_ComparisonType
 	{
 		SSE2_Equal = 0,
@@ -1273,18 +1310,23 @@ inline constexpr xRegister32
 	}
 } // namespace x86Emitter
 
-#include "implement/simd_helpers.h"
-#include "implement/simd_moremovs.h"
-#include "implement/simd_arithmetic.h"
-#include "implement/simd_comparisons.h"
-#include "implement/simd_shufflepack.h"
+// Reference-emitter implementation headers (xImpl_* struct declarations
+// and the xOpWrite* encoders). The C89 build has no use for them; the
+// reference build and the byte oracles pull them from the harness tree.
+#ifndef PCSX2_C89_EMITTER
+#include "tests/emitter/reference/implement/simd_helpers.h"
+#include "tests/emitter/reference/implement/simd_moremovs.h"
+#include "tests/emitter/reference/implement/simd_arithmetic.h"
+#include "tests/emitter/reference/implement/simd_comparisons.h"
+#include "tests/emitter/reference/implement/simd_shufflepack.h"
 
-#include "implement/group1.h"
-#include "implement/group2.h"
-#include "implement/group3.h"
-#include "implement/movs.h" // cmov and movsx/zx
-#include "implement/incdec.h"
-#include "implement/test.h"
-#include "implement/jmpcall.h"
+#include "tests/emitter/reference/implement/group1.h"
+#include "tests/emitter/reference/implement/group2.h"
+#include "tests/emitter/reference/implement/group3.h"
+#include "tests/emitter/reference/implement/movs.h" // cmov and movsx/zx
+#include "tests/emitter/reference/implement/incdec.h"
+#include "tests/emitter/reference/implement/test.h"
+#include "tests/emitter/reference/implement/jmpcall.h"
 
-#include "implement/avx.h"
+#include "tests/emitter/reference/implement/avx.h"
+#endif

@@ -38,6 +38,21 @@ if(_M_X86 AND NOT C89_EMITTER)
 		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/movs.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/simd.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/x86emitter.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/internal.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/legacy_internal.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/avx.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group1.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group2.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/group3.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/incdec.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/jmpcall.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/movs.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_arithmetic.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_comparisons.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_helpers.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_moremovs.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/simd_shufflepack.h
+		${CMAKE_CURRENT_SOURCE_DIR}/../tests/emitter/reference/implement/test.h
 	)
 endif()
 
@@ -62,22 +77,8 @@ target_sources(common PRIVATE
 	Threading.h
 	VectorIntrin.h
 	WindowInfo.h
-	emitter/implement/group1.h
-	emitter/implement/group2.h
-	emitter/implement/group3.h
-	emitter/implement/incdec.h
-	emitter/implement/jmpcall.h
-	emitter/implement/movs.h
-	emitter/implement/simd_arithmetic.h
-	emitter/implement/simd_comparisons.h
-	emitter/implement/simd_helpers.h
-	emitter/implement/simd_moremovs.h
-	emitter/implement/simd_shufflepack.h
-	emitter/implement/test.h
 	emitter/instructions.h
-	emitter/internal.h
 	emitter/legacy_instructions.h
-	emitter/legacy_internal.h
 	emitter/x86emitter.h
 	emitter/x86types.h
 )
