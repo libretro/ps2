@@ -185,4 +185,130 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_mul32_m(addr)       XE_2(E_G3_M(xep, 4, (e_uptr)(addr)), \
 	x86Emitter::xUMUL(x86Emitter::ptr32[(void*)(addr)]))
 
+
+/* group1 rr/rm at both widths, per-op with twins. */
+#define XE_G1_RR_(name, opn, cxx, w, RT) \
+	/* nothing -- expanded manually below for twin fidelity */
+#define xe_add32_rr(dst, src)  XE_2(E_G1_RR(xep, 0, 0, (dst), (src)), \
+	x86Emitter::xADD(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src)))
+#define xe_add64_rr(dst, src)  XE_2(E_G1_RR(xep, 1, 0, (dst), (src)), \
+	x86Emitter::xADD(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)))
+#define xe_sub32_rr(dst, src)  XE_2(E_G1_RR(xep, 0, 5, (dst), (src)), \
+	x86Emitter::xSUB(x86Emitter::xRegister32(dst), x86Emitter::xRegister32(src)))
+#define xe_sub64_rr(dst, src)  XE_2(E_G1_RR(xep, 1, 5, (dst), (src)), \
+	x86Emitter::xSUB(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)))
+#define xe_xor64_rr(dst, src)  XE_2(E_G1_RR(xep, 1, 6, (dst), (src)), \
+	x86Emitter::xXOR(x86Emitter::xRegister64(dst), x86Emitter::xRegister64(src)))
+#define xe_cmp64_rr(a, b)      XE_2(E_G1_RR(xep, 1, 7, (a), (b)), \
+	x86Emitter::xCMP(x86Emitter::xRegister64(a), x86Emitter::xRegister64(b)))
+#define xe_add64_rm(reg, addr) XE_2(E_G1_RM(xep, 1, 0, (reg), (e_uptr)(addr)), \
+	x86Emitter::xADD(x86Emitter::xRegister64(reg), x86Emitter::ptr64[(void*)(addr)]))
+#define xe_sub32_rm(reg, addr) XE_2(E_G1_RM(xep, 0, 5, (reg), (e_uptr)(addr)), \
+	x86Emitter::xSUB(x86Emitter::xRegister32(reg), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_sub64_rm(reg, addr) XE_2(E_G1_RM(xep, 1, 5, (reg), (e_uptr)(addr)), \
+	x86Emitter::xSUB(x86Emitter::xRegister64(reg), x86Emitter::ptr64[(void*)(addr)]))
+#define xe_cmp64_rm(reg, addr) XE_2(E_G1_RM(xep, 1, 7, (reg), (e_uptr)(addr)), \
+	x86Emitter::xCMP(x86Emitter::xRegister64(reg), x86Emitter::ptr64[(void*)(addr)]))
+#define xe_sub32_ri(reg, imm)  XE_2(E_G1_RI(xep, 0, 5, (reg), (e_s32)(imm)), \
+	x86Emitter::xSUB(x86Emitter::xRegister32(reg), (u32)(imm)))
+
+/* group1 with the operator chosen at runtime -- for dispatch sites like
+ * recLogicalOp. The twin switches over the same C++ objects the site used
+ * to pick between; both arms take the identical g1 code. */
+#define XE_G1_CXX_RR(g1op, dst, src, W) do { \
+	switch (g1op) { \
+	case 0: x86Emitter::xADD(x86Emitter::xRegister##W(dst), x86Emitter::xRegister##W(src)); break; \
+	case 1: x86Emitter::xOR (x86Emitter::xRegister##W(dst), x86Emitter::xRegister##W(src)); break; \
+	case 4: x86Emitter::xAND(x86Emitter::xRegister##W(dst), x86Emitter::xRegister##W(src)); break; \
+	case 6: x86Emitter::xXOR(x86Emitter::xRegister##W(dst), x86Emitter::xRegister##W(src)); break; \
+	default: break; } } while (0)
+#define XE_G1_CXX_RM(g1op, reg, addr, W) do { \
+	switch (g1op) { \
+	case 0: x86Emitter::xADD(x86Emitter::xRegister##W(reg), x86Emitter::ptr##W[(void*)(addr)]); break; \
+	case 1: x86Emitter::xOR (x86Emitter::xRegister##W(reg), x86Emitter::ptr##W[(void*)(addr)]); break; \
+	case 4: x86Emitter::xAND(x86Emitter::xRegister##W(reg), x86Emitter::ptr##W[(void*)(addr)]); break; \
+	case 6: x86Emitter::xXOR(x86Emitter::xRegister##W(reg), x86Emitter::ptr##W[(void*)(addr)]); break; \
+	default: break; } } while (0)
+#define xe_g1op64_rr(g1op, dst, src)  XE_2(E_G1_RR(xep, 1, (g1op), (dst), (src)), \
+	XE_G1_CXX_RR((g1op), (dst), (src), 64))
+#define xe_g1op64_rm(g1op, reg, addr) XE_2(E_G1_RM(xep, 1, (g1op), (reg), (e_uptr)(addr)), \
+	XE_G1_CXX_RM((g1op), (reg), (addr), 64))
+
+#define xe_not64_r(reg)        XE_2(E_G3_R(xep, 1, 2, (reg)), \
+	x86Emitter::xNOT(x86Emitter::xRegister64(reg)))
+
+/* setcc r8 on an allocator id. cc is the Jcc_* comparison number (the low
+ * opcode nibble). Ids 4-7 are spl/bpl/sil/dil and need a bare REX. */
+#define xe_setcc_r8(cc, reg)   XE_2( \
+	{ e_u8 xrex_ = (e_u8)(0x40 | (((reg) >= 8) ? 1 : 0)); \
+	  if (xrex_ != 0x40 || ((reg) >= 4 && (reg) <= 7)) EW8(xep, xrex_); } \
+	EW8(xep, 0x0f); EW8(xep, (e_u8)(0x90 | (cc))); E_MODRM_RR(xep, 0, (reg)), \
+	XE_SETCC_CXX((cc), (reg)))
+#define XE_SETCC_CXX(cc, reg) do { \
+	switch (cc) { \
+	case x86Emitter::Jcc_Below:   x86Emitter::xSETB(x86Emitter::xRegister8(reg)); break; \
+	case x86Emitter::Jcc_Above:   x86Emitter::xSETA(x86Emitter::xRegister8(reg)); break; \
+	case x86Emitter::Jcc_Less:    x86Emitter::xSETL(x86Emitter::xRegister8(reg)); break; \
+	case x86Emitter::Jcc_Greater: x86Emitter::xSETG(x86Emitter::xRegister8(reg)); break; \
+	default: break; } } while (0)
+
+/* xImm64Op over group1 (r64 dest and abs-mem dest), per-op, matching the
+ * reference composition exactly including the scratch round-trip. */
+#define XE_IMM64_G1_RR(opn, cxxop, dst, tmpreg, imm) do { \
+	if (xe_cpp_mode) { \
+		xe_site_hits++; \
+		x86Emitter::xImm64Op(x86Emitter::cxxop, x86Emitter::xRegister64(dst), \
+			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
+	} else { \
+		xe_site_hits++; \
+		if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+			XE_OPEN(); E_G1_RI(xep, 1, opn, (dst), (e_s32)(imm)); XE_CLOSE(); \
+		} else { \
+			XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+			E_G1_RR(xep, 1, opn, (dst), (tmpreg)); XE_CLOSE(); \
+		} } } while (0)
+#define xe_imm64op_add64_ri(dst, tmp, imm) XE_IMM64_G1_RR(0, xADD, dst, tmp, imm)
+#define xe_imm64op_sub64_ri(dst, tmp, imm) XE_IMM64_G1_RR(5, xSUB, dst, tmp, imm)
+#define xe_imm64op_cmp64_ri(dst, tmp, imm) XE_IMM64_G1_RR(7, xCMP, dst, tmp, imm)
+
+#define xe_imm64op_cmp64_mi(addr, tmpreg, imm) do { \
+	xe_site_hits++; \
+	if (xe_cpp_mode) { \
+		x86Emitter::xImm64Op(x86Emitter::xCMP, x86Emitter::ptr64[(void*)(addr)], \
+			x86Emitter::xRegister64(tmpreg), (s64)(imm)); \
+	} else if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		/* E_G1_MI is width-less (32-bit); this is the 64-bit form: REX.W
+		 * then the same s8-narrowed body. */ \
+		XE_OPEN(); \
+		E_REX(xep, 1, 0, 0, 0); \
+		if (E_IS_S8((e_s32)(imm))) { \
+			EW8(xep, 0x83); E_MODRM_ABS(xep, 7, (e_uptr)(addr), 1); EW8(xep, (e_u8)(imm)); \
+		} else { \
+			EW8(xep, 0x81); E_MODRM_ABS(xep, 7, (e_uptr)(addr), 4); EW32(xep, (e_s32)(imm)); \
+		} \
+		XE_CLOSE(); \
+	} else { \
+		XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_G1_MR(xep, 1, 7, (tmpreg), (e_uptr)(addr)); XE_CLOSE(); \
+	} } while (0)
+
+
+/* xImm64Op with the group1 operator chosen at runtime (recLogicalOp_constv). */
+#define XE_IMM64_G1_CXX(g1op, dst, tmpreg, imm) do { \
+	switch (g1op) { \
+	case 0: x86Emitter::xImm64Op(x86Emitter::xADD, x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
+	case 1: x86Emitter::xImm64Op(x86Emitter::xOR,  x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
+	case 4: x86Emitter::xImm64Op(x86Emitter::xAND, x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
+	case 6: x86Emitter::xImm64Op(x86Emitter::xXOR, x86Emitter::xRegister64(dst), x86Emitter::xRegister64(tmpreg), (s64)(imm)); break; \
+	default: break; } } while (0)
+#define xe_imm64op_g1op64_ri(g1op, dst, tmpreg, imm) do { \
+	xe_site_hits++; \
+	if (xe_cpp_mode) { XE_IMM64_G1_CXX((g1op), (dst), (tmpreg), (imm)); } \
+	else if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		XE_OPEN(); E_G1_RI(xep, 1, (g1op), (dst), (e_s32)(imm)); XE_CLOSE(); \
+	} else { \
+		XE_OPEN(); E_MOV64_RI(xep, 0, (tmpreg), (imm)); \
+		E_G1_RR(xep, 1, (g1op), (dst), (tmpreg)); XE_CLOSE(); \
+	} } while (0)
+
 #endif /* PCSX2_C89OPS_H */
