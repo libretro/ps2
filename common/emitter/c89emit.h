@@ -773,8 +773,8 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
  * =================================================================== */
 
 #define E_REX_SSE(p, reg1, reg2) do { \
-        e_u8 rex_ = (e_u8)(0x40 | ((((reg1) & 0x0F) > 7) << 2) \
-                                | (((reg2) & 0x0F) > 7)); \
+        e_u8 rex_ = (e_u8)(0x40 | (((((reg1) & 0x0F) > 7) ? 1 : 0) << 2) \
+                                | ((((reg2) & 0x0F) > 7) ? 1 : 0)); \
         if (rex_ != 0x40) EW8((p), rex_); } while (0)
 
 /* Emits 0F + opcode, or 0F 3A/38 + opcode for the three-byte forms. */
