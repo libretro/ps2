@@ -777,6 +777,7 @@ const xRegister32
 		xOpWrite(0, 0x8d, to, src);
 	}
 
+#ifndef PCSX2_C89_EMITTER
 	__fi void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags)
 	{
 		EmitLeaMagic(to, src, preserve_flags);
@@ -787,6 +788,9 @@ const xRegister32
 		EmitLeaMagic(to, src, preserve_flags);
 	}
 
+#endif
+
+	// Always built: the 16-bit form is not switched (see instructions.h).
 	__fi void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags)
 	{
 		xWrite8(0x66);

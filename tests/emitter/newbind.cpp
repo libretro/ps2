@@ -162,5 +162,35 @@ int main(){
         snprintf(nm,sizeof nm,"PEXTR.Q_m x%d b%d",x,b);
         ck(nm,[&]{xPEXTR.Q(M64(),xRegisterSSE(x),3);},[&]{sPE.Q(M64(),xRegisterSSE(x),3);}); } }
 
+
+    /* xLEA at all three widths. EmitLeaMagic rewrites several shapes into
+       shorter instructions -- a displacement-only source becomes a MOV, a
+       bare base becomes a MOV, a base+index with no displacement stays an
+       LEA, and preserve_flags suppresses the rewrites that would clobber
+       them -- so the matrix drives each shape with the flag both ways. */
+    { const s32 ld[6]={0,1,0x7f,0x80,-1,-0x1000};
+      for(int d=0;d<16;d++) for(int pf=0;pf<2;pf++){
+        for(int i=0;i<6;i++){
+          /* displacement only */
+          snprintf(nm,sizeof nm,"LEA64_d %d p%d i%d",d,pf,i);
+          ck(nm,[&]{xLEA(xRegister64(d),ptr[(void*)(uptr)(u32)ld[i]],pf);},
+               [&]{shim_LEA64(xRegister64(d),ptr[(void*)(uptr)(u32)ld[i]],pf);});
+          /* base only */
+          snprintf(nm,sizeof nm,"LEA32_b %d p%d i%d",d,pf,i);
+          ck(nm,[&]{xLEA(xRegister32(d),ptr[xAddressVoid(xAddressReg(i%8),ld[i])],pf);},
+               [&]{shim_LEA32(xRegister32(d),ptr[xAddressVoid(xAddressReg(i%8),ld[i])],pf);});
+          /* no LEA16 here: the 16-bit form is deliberately not switched --
+             its peephole rewrites prefix each inner operation as well as the
+             outer write, which E_LEA_SZ cannot express from a single width
+             flag, and nothing in the recompilers calls it. */ }
+        for(int b=0;b<16;b++) for(int ix=0;ix<16;ix++){ if(ix==4) continue;
+          for(int sc=0;sc<4;sc++){
+            const int SS[4]={1,2,4,8};
+            auto A=[&]{return xAddressVoid(xAddressReg(b),xAddressReg(ix),SS[sc],ld[(b+ix)%6]);};
+            snprintf(nm,sizeof nm,"LEA64 %d p%d b%d i%d s%d",d,pf,b,ix,SS[sc]);
+            ck(nm,[&]{xLEA(xRegister64(d),ptr[A()],pf);},[&]{shim_LEA64(xRegister64(d),ptr[A()],pf);});
+            snprintf(nm,sizeof nm,"LEA32 %d p%d b%d i%d s%d",d,pf,b,ix,SS[sc]);
+            ck(nm,[&]{xLEA(xRegister32(d),ptr[A()],pf);},[&]{shim_LEA32(xRegister32(d),ptr[A()],pf);}); } } } }
+
     printf("newly bound: cases %ld | divergent %ld\n",C,F);
     return F?1:0; }

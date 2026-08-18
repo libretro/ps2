@@ -227,9 +227,24 @@ namespace x86Emitter
 	// forms are functionally equivalent to Mov reg,imm, and thus better written as MOVs
 	// instead.
 
+#ifdef PCSX2_C89_EMITTER
+	static __fi void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags = false)
+	{ shim_LEA64(to, src, preserve_flags); }
+	static __fi void xLEA(xRegister32 to, const xIndirectVoid& src, bool preserve_flags = false)
+	{ shim_LEA32(to, src, preserve_flags); }
+	// xLEA(xRegister16) stays on the reference. EmitLeaMagic's peephole
+	// rewrites emit their inner MOV and ADD at the destination's width, so a
+	// 16-bit LEA produces a 0x66 on the outer write *and* on each inner
+	// operation -- three prefixes in an eight-byte sequence. E_LEA_SZ drives
+	// its inner ops from one width flag and cannot express that yet. It has
+	// no callers in the recompilers; leaving it out costs nothing and
+	// guessing at it would not be verifiable.
+	extern void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags = false);
+#else
 	extern void xLEA(xRegister64 to, const xIndirectVoid& src, bool preserve_flags = false);
 	extern void xLEA(xRegister32 to, const xIndirectVoid& src, bool preserve_flags = false);
 	extern void xLEA(xRegister16 to, const xIndirectVoid& src, bool preserve_flags = false);
+#endif
 
 	// ----- Push / Pop Instructions  -----
 	// Note: pushad/popad implementations are intentionally left out.  The instructions are

@@ -958,6 +958,40 @@ namespace x86Emitter
 		  E_SSE_R_MEM_I_W(p_, 0x66, 0x163a, from.Id, m, imm8, 1); SHIM_END; }
 	};
 
+
+	// xLEA. Three free functions rather than an object, which is why they
+	// never appeared in the count of bound instruction objects -- and why
+	// xFastCall kept pulling EmitSibMagic in even though its xMOV and xCALL
+	// were already switched. E_LEA mirrors EmitLeaMagic including its
+	// peephole rewrites (a displacement-only source becomes a MOV, a
+	// base-plus-nothing becomes a MOV, and so on), so the width is all that
+	// differs here; the 16-bit form takes the operand-size prefix first.
+	static __fi void shim_LEA64(const xRegister64& to, const xIndirectVoid& src, bool pf)
+	{
+		struct e_mem m = shim_mem(src);
+		SHIM_BEGIN;
+		E_LEA_SZ(p_, 8, pf, to.Id, m);
+		SHIM_END;
+	}
+	static __fi void shim_LEA32(const xRegister32& to, const xIndirectVoid& src, bool pf)
+	{
+		struct e_mem m = shim_mem(src);
+		SHIM_BEGIN;
+		E_LEA_SZ(p_, 4, pf, to.Id, m);
+		SHIM_END;
+	}
+	static __fi void shim_LEA16(const xRegister16& to, const xIndirectVoid& src, bool pf)
+	{
+		struct e_mem m = shim_mem(src);
+		SHIM_BEGIN;
+		/* The reference writes 0x66 and then calls EmitLeaMagic with a
+		 * 16-bit destination, whose inner MOV prefixes again -- so two
+		 * 0x66 bytes, not one. */
+		E_P16(p_);
+		E_LEA_SZ(p_, 2, pf, to.Id, m);
+		SHIM_END;
+	}
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

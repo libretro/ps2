@@ -527,42 +527,50 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
  *
  * Note the reference compares Index/Base against rsp/rbp by Id, so r12/r13
  * take different paths than their low counterparts -- see the port log. */
-#define E_LEA(p, w, pf, dst, m) do { \
+#define E_LEA_SZ(p, sz, pf, dst, m) do { \
+        const int leaw_ = ((sz) == 8); \
         int ds_ = ((m).disp == 0) ? 0 : (E_IS_S8((m).disp) ? 1 : 2); \
         int done_ = 0; \
         if (!E_NEEDS_SIB(m) && (m).disp == (e_sptr)(e_s32)(m).disp) { \
             if ((m).index == E_NOREG) { \
-                E_MOV_R_I32((p), (dst), (e_u32)(e_s32)(m).disp); done_ = 1; \
+                /* The reference calls xMOV(to, disp) with preserve_flags \
+                 * defaulted -- so a zero displacement becomes XOR even when \
+                 * the caller asked for flags to be preserved, and the MOV is \
+                 * emitted at the destination's own width. Using the raw \
+                 * B8+imm32 form here diverged on both counts. */ \
+                E_MOV_RI_SZ((p), (sz), 0, (dst), (e_sptr)(m).disp); done_ = 1; \
             } else if (ds_ == 0) { \
-                E_MOV_RR((p), (w), (dst), (m).index); done_ = 1; \
+                E_MOV_RR((p), leaw_, (dst), (m).index); done_ = 1; \
             } else if (!(pf)) { \
-                E_MOV_RR((p), (w), (dst), (m).index); \
-                E_G1_RI((p), (w), 0, (dst), (e_s32)(m).disp); done_ = 1; \
+                E_MOV_RR((p), leaw_, (dst), (m).index); \
+                E_G1_RI((p), leaw_, 0, (dst), (e_s32)(m).disp); done_ = 1; \
             } \
         } else if ((m).base == E_NOREG) { \
             if (!(pf) && ds_ == 0) { \
-                E_MOV_RR((p), (w), (dst), (m).index); \
-                E_G2_RI((p), (w), 4, (dst), (m).scale); done_ = 1; \
+                E_MOV_RR((p), leaw_, (dst), (m).index); \
+                E_G2_RI((p), leaw_, 4, (dst), (m).scale); done_ = 1; \
             } \
         } else if ((m).scale == 0) { \
             if (!(pf)) { \
                 if ((m).index == 4) { \
-                    E_MOV_RR((p), (w), (dst), (m).base); \
-                    if ((m).disp) E_G1_RI((p), (w), 0, (dst), (e_s32)(m).disp); \
+                    E_MOV_RR((p), leaw_, (dst), (m).base); \
+                    if ((m).disp) E_G1_RI((p), leaw_, 0, (dst), (e_s32)(m).disp); \
                     done_ = 1; \
                 } else if ((m).disp == 0) { \
-                    E_MOV_RR((p), (w), (dst), (m).base); \
-                    E_G1_RR((p), (w), 0, (dst), (m).index); \
+                    E_MOV_RR((p), leaw_, (dst), (m).base); \
+                    E_G1_RR((p), leaw_, 0, (dst), (m).index); \
                     done_ = 1; \
                 } \
             } else if ((m).index == 4 && (m).disp == 0) { \
-                E_MOV_RR((p), (w), (dst), (m).base); done_ = 1; \
+                E_MOV_RR((p), leaw_, (dst), (m).base); done_ = 1; \
             } \
         } \
         if (!done_) { \
-            E_REX_MEM((p), (w), (dst), (m)); \
+            E_REX_MEM((p), leaw_, (dst), (m)); \
             EW8((p), 0x8d); E_MODRM_MEM((p), (dst), (m), 0); \
         } } while (0)
+
+#define E_LEA(p, w, pf, dst, m) E_LEA_SZ((p), (w) ? 8 : 4, (pf), (dst), (m))
 
 /* ===================================================================
  * Batch 5: jumps and calls.
