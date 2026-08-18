@@ -736,6 +736,21 @@ namespace x86Emitter
 		  E_IMUL_RMI(p_, 0, to.Id, m, imm); SHIM_END; }
 	};
 
+
+	// SSE families whose members are all plain reg/mem or reg/mem+imm8
+	// shapes. Struct layouts and member order are generated from the
+	// reference definitions so the initialisers transfer verbatim.
+	struct shim_Sqrt { shim_SimdRegSSE PS; shim_SimdRegSSE SS; shim_SimdRegSSE SD; };
+	struct shim_PAbsolute { shim_SimdRegSSE B; shim_SimdRegSSE W; shim_SimdRegSSE D; };
+	struct shim_PMultAdd { shim_SimdRegSSE WD; shim_SimdRegSSE UBSW; };
+	struct shim_DotProduct { shim_SimdRegImmSSE PS; shim_SimdRegImmSSE PD; };
+	struct shim_MinMax { shim_SimdRegSSE PS; shim_SimdRegSSE PD; shim_SimdRegSSE SS; shim_SimdRegSSE SD; };
+	struct shim_PMinMax { shim_SimdRegSSE UB; shim_SimdRegSSE SW; shim_SimdRegSSE SB; shim_SimdRegSSE SD; shim_SimdRegSSE UW; shim_SimdRegSSE UD; };
+	struct shim_Pack { shim_SimdRegSSE SSWB; shim_SimdRegSSE SSDW; shim_SimdRegSSE USWB; shim_SimdRegSSE USDW; };
+	struct shim_Unpack { shim_SimdRegSSE HPS; shim_SimdRegSSE HPD; shim_SimdRegSSE LPS; shim_SimdRegSSE LPD; };
+	struct shim_PBlend { shim_SimdRegImmSSE W; shim_SimdRegSSE VB; };
+	struct shim_Blend { shim_SimdRegImmSSE PS; shim_SimdRegImmSSE PD; shim_SimdRegSSE VPS; shim_SimdRegSSE VPD; };
+
 	// ---- free functions ---------------------------------------------------
 
 	static __fi void shim_PUSH(xRegister32or64 from)

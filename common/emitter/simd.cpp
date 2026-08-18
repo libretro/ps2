@@ -24,7 +24,9 @@ namespace x86Emitter
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegEither xPAND = {0x66, 0xdb};
 #endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegEither xPANDN = {0x66, 0xdf};
+#endif
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegEither xPOR = {0x66, 0xeb};
 #endif
@@ -35,8 +37,10 @@ namespace x86Emitter
 	// [SSE-4.1] Performs a bitwise AND of dest against src, and sets the ZF flag
 	// only if all bits in the result are 0.  PTEST also sets the CF flag according
 	// to the following condition: (xmm2/m128 AND NOT xmm1) == 0;
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DestRegSSE xPTEST = {0x66, 0x1738};
 
+#endif
 	// =====================================================================================================
 	// SSE Conversion Operations, as looney as they are.
 	// =====================================================================================================
@@ -160,13 +164,16 @@ namespace x86Emitter
 	};
 #endif
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Sqrt xSQRT =
 		{
 			{0x00, 0x51}, // PS
 			{0xf3, 0x51}, // SS
-			{0xf2, 0x51} // SS
+			{0xf2, 0x51} // SD
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PAbsolute xPABS =
 		{
 			{0x66, 0x1c38}, // B
@@ -174,18 +181,23 @@ namespace x86Emitter
 			{0x66, 0x1e38} // D
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMultAdd xPMADD =
 		{
 			{0x66, 0xf5}, // WD
 			{0x66, 0xf438}, // UBSW
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_DotProduct xDP =
 		{
 			{0x66, 0x403a}, // PS
 			{0x66, 0x413a}, // PD
 	};
 
+#endif
 	// =====================================================================================================
 	//  SIMD Comparison Instructions
 	// =====================================================================================================
@@ -202,6 +214,7 @@ namespace x86Emitter
 	void xImplSimd_Compare::SD(const xRegisterSSE& to, const xRegisterSSE& from) const { xOpWrite0F(0xf2, 0xc2, to, from, (u8)CType); }
 	void xImplSimd_Compare::SD(const xRegisterSSE& to, const xIndirectVoid& from) const { xOpWrite0F(0xf2, 0xc2, to, from, (u8)CType); }
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MinMax xMIN =
 		{
 			{0x00, 0x5d}, // PS
@@ -210,6 +223,8 @@ namespace x86Emitter
 			{0xf2, 0x5d}, // SD
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_MinMax xMAX =
 		{
 			{0x00, 0x5f}, // PS
@@ -218,6 +233,7 @@ namespace x86Emitter
 			{0xf2, 0x5f}, // SD
 	};
 
+#endif
 	// [TODO] : Merge this into the xCMP class, so that they are notation as: xCMP.EQ
 
 	const xImplSimd_Compare xCMPEQ = {SSE2_Equal};
@@ -247,6 +263,7 @@ namespace x86Emitter
 	};
 #endif
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMinMax xPMIN =
 		{
 			{0x66, 0xda}, // UB
@@ -258,6 +275,8 @@ namespace x86Emitter
 			{0x66, 0x3b38}, // UD
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMinMax xPMAX =
 		{
 			{0x66, 0xde}, // UB
@@ -269,6 +288,7 @@ namespace x86Emitter
 			{0x66, 0x3f38}, // UD
 	};
 
+#endif
 	// =====================================================================================================
 	//  SIMD Shuffle/Pack  (Shuffle puck?)
 	// =====================================================================================================
@@ -347,6 +367,7 @@ namespace x86Emitter
 	};
 #endif
 
+#ifndef PCSX2_C89_EMITTER
 	const SimdImpl_Pack xPACK =
 		{
 			{0x66, 0x63}, // SSWB
@@ -355,6 +376,8 @@ namespace x86Emitter
 			{0x66, 0x2b38}, // USDW
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Unpack xUNPCK =
 		{
 			{0x00, 0x15}, // HPS
@@ -363,6 +386,7 @@ namespace x86Emitter
 			{0x66, 0x14}, // LPD
 	};
 
+#endif
 	const xImplSimd_PInsert xPINSR;
 	const SimdImpl_PExtract xPEXTR;
 
@@ -463,12 +487,15 @@ namespace x86Emitter
 	const xImplSimd_MovHL_RtoR xMOVLH = {0x16};
 	const xImplSimd_MovHL_RtoR xMOVHL = {0x12};
 
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PBlend xPBLEND =
 	{
 		{0x66, 0x0e3a}, // W
 		{0x66, 0x1038}, // VB
 	};
 
+#endif
+#ifndef PCSX2_C89_EMITTER
 	const xImplSimd_Blend xBLEND =
 	{
 		{0x66, 0x0c3a}, // PS
@@ -477,6 +504,7 @@ namespace x86Emitter
 		{0x66, 0x1538}, // VPD
 	};
 
+#endif
 #ifndef PCSX2_C89_EMITTER
 	const xImplSimd_PMove xPMOVSX = {0x2038};
 #endif

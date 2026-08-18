@@ -376,8 +376,24 @@ namespace x86Emitter
 	extern const xImplSimd_MovHL_RtoR xMOVLH;
 	extern const xImplSimd_MovHL_RtoR xMOVHL;
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PBlend xPBLEND = {
+		{0x66, 0x0e3a}, // W
+		{0x66, 0x1038}, // VB
+	};
+#else
 	extern const xImplSimd_PBlend xPBLEND;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Blend xBLEND = {
+		{0x66, 0x0c3a}, // PS
+		{0x66, 0x0d3a}, // PD
+		{0x66, 0x1438}, // VPS
+		{0x66, 0x1538}, // VPD
+	};
+#else
 	extern const xImplSimd_Blend xBLEND;
+#endif
 #ifdef PCSX2_C89_EMITTER
 	static const shim_PMove xPMOVSX = {0x2038};
 #else
@@ -402,7 +418,11 @@ namespace x86Emitter
 #else
 	extern const xImplSimd_DestRegEither xPAND;
 #endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_SimdRegSSE xPANDN = {0x66, 0xdf};
+#else
 	extern const xImplSimd_DestRegEither xPANDN;
+#endif
 #ifdef PCSX2_C89_EMITTER
 	static const shim_SimdRegSSE xPOR = {0x66, 0xeb};
 #else
@@ -422,10 +442,32 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_SimdRegSSE xPTEST = {0x66, 0x1738};
+#else
 	extern const xImplSimd_DestRegSSE xPTEST;
+#endif
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MinMax xMIN = {
+			{0x00, 0x5d}, // PS
+			{0x66, 0x5d}, // PD
+			{0xf3, 0x5d}, // SS
+			{0xf2, 0x5d}, // SD
+	};
+#else
 	extern const xImplSimd_MinMax xMIN;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_MinMax xMAX = {
+			{0x00, 0x5f}, // PS
+			{0x66, 0x5f}, // PD
+			{0xf3, 0x5f}, // SS
+			{0xf2, 0x5f}, // SD
+	};
+#else
 	extern const xImplSimd_MinMax xMAX;
+#endif
 
 	extern const xImplSimd_Compare xCMPEQ, xCMPLT,
 		xCMPNLT,
@@ -442,8 +484,32 @@ namespace x86Emitter
 #else
 	extern const xImplSimd_PCompare xPCMP;
 #endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PMinMax xPMIN = {
+			{0x66, 0xda}, // UB
+			{0x66, 0xea}, // SW
+			{0x66, 0x3838}, // SB
+			{0x66, 0x3938}, // SD
+
+			{0x66, 0x3a38}, // UW
+			{0x66, 0x3b38}, // UD
+	};
+#else
 	extern const xImplSimd_PMinMax xPMIN;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PMinMax xPMAX = {
+			{0x66, 0xde}, // UB
+			{0x66, 0xee}, // SW
+			{0x66, 0x3c38}, // SB
+			{0x66, 0x3d38}, // SD
+
+			{0x66, 0x3e38}, // UW
+			{0x66, 0x3f38}, // UD
+	};
+#else
 	extern const xImplSimd_PMinMax xPMAX;
+#endif
 
 	// ------------------------------------------------------------------------
 	//
@@ -473,7 +539,15 @@ namespace x86Emitter
 
 	// ------------------------------------------------------------------------
 
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Sqrt xSQRT = {
+			{0x00, 0x51}, // PS
+			{0xf3, 0x51}, // SS
+			{0xf2, 0x51} // SS
+	};
+#else
 	extern const xImplSimd_Sqrt xSQRT;
+#endif
 
 	extern const xImplSimd_Shift xPSLL;
 	extern const xImplSimd_Shift xPSRL;
@@ -485,9 +559,31 @@ namespace x86Emitter
 #else
 	extern const xImplSimd_PMul xPMUL;
 #endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PAbsolute xPABS = {
+			{0x66, 0x1c38}, // B
+			{0x66, 0x1d38}, // W
+			{0x66, 0x1e38} // D
+	};
+#else
 	extern const xImplSimd_PAbsolute xPABS;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_PMultAdd xPMADD = {
+			{0x66, 0xf5}, // WD
+			{0x66, 0xf438}, // UBSW
+	};
+#else
 	extern const xImplSimd_PMultAdd xPMADD;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_DotProduct xDP = {
+			{0x66, 0x403a}, // PS
+			{0x66, 0x413a}, // PD
+	};
+#else
 	extern const xImplSimd_DotProduct xDP;
+#endif
 
 #ifdef PCSX2_C89_EMITTER
 	static const shim_PShuffle xPSHUF = { {0x66,0x70},{0xf2,0x70},{0xf3,0x70},{0x66,0x0038} };
@@ -499,8 +595,26 @@ namespace x86Emitter
 #else
 	extern const SimdImpl_PUnpack xPUNPCK;
 #endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Unpack xUNPCK = {
+			{0x00, 0x15}, // HPS
+			{0x66, 0x15}, // HPD
+			{0x00, 0x14}, // LPS
+			{0x66, 0x14}, // LPD
+	};
+#else
 	extern const xImplSimd_Unpack xUNPCK;
+#endif
+#ifdef PCSX2_C89_EMITTER
+	static const shim_Pack xPACK = {
+			{0x66, 0x63}, // SSWB
+			{0x66, 0x6b}, // SSDW
+			{0x66, 0x67}, // USWB
+			{0x66, 0x2b38}, // USDW
+	};
+#else
 	extern const SimdImpl_Pack xPACK;
+#endif
 	extern const xImplSimd_PInsert xPINSR;
 	extern const SimdImpl_PExtract xPEXTR;
 
