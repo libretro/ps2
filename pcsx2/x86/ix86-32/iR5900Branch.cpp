@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -60,9 +61,9 @@ static u32 *recSetBranchEQ(int bne, int process)
 		_deleteGPRtoXMMreg(_Rt_, DELETE_REG_FLUSH_AND_FREE);
 		const int regt = _checkX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
 		if (regt >= 0)
-			xImm64Op(xCMP, xRegister64(regt), rax, g_cpuConstRegs[_Rs_].UD[0]);
+			xe_imm64op_cmp64_ri(regt, XE_AX, g_cpuConstRegs[_Rs_].UD[0]);
 		else
-			xImm64Op(xCMP, ptr64[&cpuRegs.GPR.r[_Rt_].UD[0]], rax, g_cpuConstRegs[_Rs_].UD[0]);
+			xe_imm64op_cmp64_mi(&cpuRegs.GPR.r[_Rt_].UD[0], XE_AX, g_cpuConstRegs[_Rs_].UD[0]);
 	}
 	else if (process & PROCESS_CONSTT)
 	{
@@ -71,9 +72,9 @@ static u32 *recSetBranchEQ(int bne, int process)
 		_deleteGPRtoXMMreg(_Rs_, DELETE_REG_FLUSH_AND_FREE);
 		const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 		if (regs >= 0)
-			xImm64Op(xCMP, xRegister64(regs), rax, g_cpuConstRegs[_Rt_].UD[0]);
+			xe_imm64op_cmp64_ri(regs, XE_AX, g_cpuConstRegs[_Rt_].UD[0]);
 		else
-			xImm64Op(xCMP, ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], rax, g_cpuConstRegs[_Rt_].UD[0]);
+			xe_imm64op_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], XE_AX, g_cpuConstRegs[_Rt_].UD[0]);
 	}
 	else
 	{
@@ -84,9 +85,9 @@ static u32 *recSetBranchEQ(int bne, int process)
 		_eeFlushAllDirty();
 
 		if (regt >= 0)
-			xCMP(xRegister64(regs), xRegister64(regt));
+			xe_cmp64_rr(regs, regt);
 		else
-			xCMP(xRegister64(regs), ptr64[&cpuRegs.GPR.r[_Rt_]]);
+			xe_cmp64_rm(regs, &cpuRegs.GPR.r[_Rt_]);
 	}
 
 	if (bne)
@@ -102,8 +103,8 @@ static u32 *recSetBranchL(int ltz)
 
 	if (regsxmm >= 0)
 	{
-		xMOVMSKPS(eax, xRegisterSSE(regsxmm));
-		xTEST(al, 2);
+		xe_movmskps_rx(XE_AX, regsxmm);
+		xe_test8_ri(0, 2);
 
 		if (ltz)
 			return JZ32(0);
@@ -111,9 +112,9 @@ static u32 *recSetBranchL(int ltz)
 	}
 
 	if (regs >= 0)
-		xCMP(xRegister64(regs), 0);
+		xe_cmp64_ri(regs, 0);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	if (ltz)
 		return JGE32(0);
@@ -340,8 +341,8 @@ void recBLTZAL(void)
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
-	xMOV64(rax, pc + 4);
-	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+	xe_mov64_ri(XE_AX, pc + 4);
+	xe_mov64_mr(&cpuRegs.GPR.n.ra.UD[0], XE_AX);
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -387,8 +388,8 @@ void recBGEZAL(void)
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
-	xMOV64(rax, pc + 4);
-	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+	xe_mov64_ri(XE_AX, pc + 4);
+	xe_mov64_mr(&cpuRegs.GPR.n.ra.UD[0], XE_AX);
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -434,8 +435,8 @@ void recBLTZALL(void)
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
-	xMOV64(rax, pc + 4);
-	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+	xe_mov64_ri(XE_AX, pc + 4);
+	xe_mov64_mr(&cpuRegs.GPR.n.ra.UD[0], XE_AX);
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -470,8 +471,8 @@ void recBGEZALL(void)
 	_eeFlushAllDirty();
 
 	_deleteEEreg(31, 0);
-	xMOV64(rax, pc + 4);
-	xMOV(ptr64[&cpuRegs.GPR.n.ra.UD[0]], rax);
+	xe_mov64_ri(XE_AX, pc + 4);
+	xe_mov64_mr(&cpuRegs.GPR.n.ra.UD[0], XE_AX);
 
 	if (GPR_IS_CONST1(_Rs_))
 	{
@@ -518,9 +519,9 @@ void recBLEZ(void)
 	_eeFlushAllDirty();
 
 	if (regs >= 0)
-		xCMP(xRegister64(regs), 0);
+		xe_cmp64_ri(regs, 0);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	u32 *j32Ptr = JG32(0);
 
@@ -565,9 +566,9 @@ void recBGTZ(void)
 	_eeFlushAllDirty();
 
 	if (regs >= 0)
-		xCMP(xRegister64(regs), 0);
+		xe_cmp64_ri(regs, 0);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	u32 *j32Ptr = JLE32(0);
 
@@ -762,9 +763,9 @@ void recBLEZL(void)
 	_eeFlushAllDirty();
 
 	if (regs >= 0)
-		xCMP(xRegister64(regs), 0);
+		xe_cmp64_ri(regs, 0);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	u32 *j32Ptr = JG32(0);
 
@@ -800,9 +801,9 @@ void recBGTZL(void)
 	_eeFlushAllDirty();
 
 	if (regs >= 0)
-		xCMP(xRegister64(regs), 0);
+		xe_cmp64_ri(regs, 0);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], 0);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], 0);
 
 	u32 *j32Ptr = JLE32(0);
 

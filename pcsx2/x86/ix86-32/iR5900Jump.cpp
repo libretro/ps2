@@ -16,6 +16,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -96,7 +97,7 @@ void recJALR(void)
 	//		}
 	//		else {
 	//			xMOV(eax, ptr[(void*)((int)&cpuRegs.GPR.r[_Rs_].UL[0])]);
-	//			xMOV(ptr[&cpuRegs.pc], eax);
+	//			xe_mov32_mr(&cpuRegs.pc, XE_AX);
 	//		}
 	//	}
 
@@ -108,9 +109,9 @@ void recJALR(void)
 
 		if (EmuConfig.Gamefixes.GoemonTlbHack)
 		{
-			xMOV(ecx, xRegister32(wbreg));
+			xe_mov32_rr(XE_CX, wbreg);
 			vtlb_DynV2P();
-			xMOV(xRegister32(wbreg), eax);
+			xe_mov32_rr(wbreg, XE_AX);
 		}
 	}
 
@@ -128,13 +129,13 @@ void recJALR(void)
 		// the next instruction may have flushed the register.. so reload it if so.
 		if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
 		{
-			xMOV(ptr[&cpuRegs.pc], xRegister32(wbreg));
+			xe_mov32_mr(&cpuRegs.pc, wbreg);
 			x86regs[wbreg].inuse = 0;
 		}
 		else
 		{
-			xMOV(eax, ptr[&cpuRegs.pcWriteback]);
-			xMOV(ptr[&cpuRegs.pc], eax);
+			xe_mov32_rm(XE_AX, &cpuRegs.pcWriteback);
+			xe_mov32_mr(&cpuRegs.pc, XE_AX);
 		}
 	}
 	else
@@ -142,7 +143,7 @@ void recJALR(void)
 		if (GPR_IS_DIRTY_CONST(_Rs_) || _hasX86reg(X86TYPE_GPR, _Rs_, 0))
 		{
 			const int x86reg = _allocX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
-			xMOV(ptr32[&cpuRegs.pc], xRegister32(x86reg));
+			xe_mov32_mr(&cpuRegs.pc, x86reg);
 		}
 		else
 		{

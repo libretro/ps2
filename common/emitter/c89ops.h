@@ -663,4 +663,13 @@ extern "C" unsigned long long xe_site_hits; /* ditto; both modes count */
 #define xe_test8_rr(a, b) XE_2(E_TEST_RR_SZ(xep, 1, (a), (b)), \
 	x86Emitter::xTEST(x86Emitter::xRegister8(a), x86Emitter::xRegister8(b)))
 
+
+#define xe_cmp64_ri(reg, imm)  XE_2(E_G1_RI(xep, 1, 7, (reg), (e_s32)(imm)), \
+	x86Emitter::xCMP(x86Emitter::xRegister64(reg), (imm)))
+#define xe_test8_ri(reg, imm)  XE_2(E_TEST_RI_SZ(xep, 1, (reg), (imm)), \
+	x86Emitter::xTEST(x86Emitter::xRegister8(reg), (imm)))
+/* movmskps r32, xmm: 0F 50 /r, gpr in the reg field */
+#define xe_movmskps_rx(gpr, xmm) XE_2(E_SSE_RR(xep, 0x00, 0x50, (gpr), (xmm)), \
+	x86Emitter::xMOVMSKPS(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(xmm)))
+
 #endif /* PCSX2_C89OPS_H */
