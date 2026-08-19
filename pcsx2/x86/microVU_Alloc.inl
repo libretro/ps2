@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -31,84 +32,84 @@ __fi static const x32& getFlagReg(uint fInst)
 
 __fi void setBitSFLAG(const x32& reg, const x32& regT, int bitTest, int bitSet)
 {
-	xTEST(regT, bitTest);
-	xForwardJZ8 skip;
-	xOR(reg, bitSet);
-	skip.SetTarget();
+	xe_test32_ri(regT.Id, bitTest);
+	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
+	xe_or32_ri(reg.Id, bitSet);
+	xe_fwd_set8(skip);
 }
 
 __fi void setBitFSEQ(const x32& reg, int bitX)
 {
-	xTEST(reg, bitX);
-	xForwardJump8 skip(Jcc_Zero);
-	xOR(reg, bitX);
-	skip.SetTarget();
+	xe_test32_ri(reg.Id, bitX);
+	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
+	xe_or32_ri(reg.Id, bitX);
+	xe_fwd_set8(skip);
 }
 
 __fi void mVUallocSFLAGa(const x32& reg, int fInstance)
 {
-	xMOV(reg, getFlagReg(fInstance));
+	xe_mov32_rr(reg.Id, getFlagReg(fInstance).Id);
 }
 
 __fi void mVUallocSFLAGb(const x32& reg, int fInstance)
 {
-	xMOV(getFlagReg(fInstance), reg);
+	xe_mov32_rr(getFlagReg(fInstance).Id, reg.Id);
 }
 
 // Normalize Status Flag
 __ri void mVUallocSFLAGc(const x32& reg, const x32& regT, int fInstance)
 {
-	xXOR(reg, reg);
+	xe_xor32_rr(reg.Id, reg.Id);
 	mVUallocSFLAGa(regT, fInstance);
 	setBitSFLAG(reg, regT, 0x0f00, 0x0001); // Z  Bit
 	setBitSFLAG(reg, regT, 0xf000, 0x0002); // S  Bit
 	setBitSFLAG(reg, regT, 0x000f, 0x0040); // ZS Bit
 	setBitSFLAG(reg, regT, 0x00f0, 0x0080); // SS Bit
-	xAND(regT, 0xffff0000); // DS/DI/OS/US/D/I/O/U Bits
-	xSHR(regT, 14);
-	xOR(reg, regT);
+	xe_and32_ri(regT.Id, 0xffff0000); // DS/DI/OS/US/D/I/O/U Bits
+	xe_shr32_ri(regT.Id, 14);
+	xe_or32_rr(reg.Id, regT.Id);
 }
 
 // Denormalizes Status Flag; destroys tmp1/tmp2
 __ri void mVUallocSFLAGd(u32* memAddr, const x32& reg = eax, const x32& tmp1 = ecx, const x32& tmp2 = edx)
 {
-	xMOV(tmp2, ptr32[memAddr]);
-	xMOV(reg, tmp2);
-	xSHR(reg, 3);
-	xAND(reg, 0x18);
+	xe_mov32_rm(tmp2.Id, memAddr);
+	xe_mov32_rr(reg.Id, tmp2.Id);
+	xe_shr32_ri(reg.Id, 3);
+	xe_and32_ri(reg.Id, 0x18);
 
-	xMOV(tmp1, tmp2);
-	xSHL(tmp1, 11);
-	xAND(tmp1, 0x1800);
-	xOR(reg, tmp1);
+	xe_mov32_rr(tmp1.Id, tmp2.Id);
+	xe_shl32_ri(tmp1.Id, 11);
+	xe_and32_ri(tmp1.Id, 0x1800);
+	xe_or32_rr(reg.Id, tmp1.Id);
 
-	xSHL(tmp2, 14);
-	xAND(tmp2, 0x3cf0000);
-	xOR(reg, tmp2);
+	xe_shl32_ri(tmp2.Id, 14);
+	xe_and32_ri(tmp2.Id, 0x3cf0000);
+	xe_or32_rr(reg.Id, tmp2.Id);
 }
 
 __fi void mVUallocMFLAGa(mV, const x32& reg, int fInstance)
 {
-	xMOVZX(reg, ptr16[&mVU.macFlag[fInstance]]);
+	xe_movzx32_rm16(reg.Id, &mVU.macFlag[fInstance]);
 }
 
 __fi void mVUallocMFLAGb(mV, const x32& reg, int fInstance)
 {
 	//xAND(reg, 0xffff);
-	if (fInstance < 4) xMOV(ptr32[&mVU.macFlag[fInstance]], reg);         // microVU
-	else               xMOV(ptr32[&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL], reg); // macroVU
+	if (fInstance < 4) xe_mov32_mr(&mVU.macFlag[fInstance], reg.Id);         // microVU
+	else               xe_mov32_mr(&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL, reg.Id); // macroVU
 }
 
 __fi void mVUallocCFLAGa(mV, const x32& reg, int fInstance)
 {
-	if (fInstance < 4) xMOV(reg, ptr32[&mVU.clipFlag[fInstance]]);         // microVU
-	else               xMOV(reg, ptr32[&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL]); // macroVU
+	if (fInstance < 4) xe_mov32_rm(reg.Id, &mVU.clipFlag[fInstance]);         // microVU
+	else               xe_mov32_rm(reg.Id, &vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL); // macroVU
 }
 
 __fi void mVUallocCFLAGb(mV, const x32& reg, int fInstance)
 {
-	if (fInstance < 4) xMOV(ptr32[&mVU.clipFlag[fInstance]], reg);         // microVU
-	else               xMOV(ptr32[&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL], reg); // macroVU
+	if (fInstance < 4) xe_mov32_mr(&mVU.clipFlag[fInstance], reg.Id);         // microVU
+	else               xe_mov32_mr(&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL, reg.Id); // macroVU
 }
 
 //------------------------------------------------------------------
@@ -118,7 +119,7 @@ __fi void mVUallocCFLAGb(mV, const x32& reg, int fInstance)
 void microRegAlloc::writeVIBackup(const xRegisterInt& reg)
 {
 	microVU& mVU = index ? microVU1 : microVU0;
-	xMOV(ptr32[&mVU.VIbackup], xRegister32(reg));
+	xe_mov32_mr(&mVU.VIbackup, reg.Id);
 }
 
 //------------------------------------------------------------------
@@ -127,6 +128,6 @@ void microRegAlloc::writeVIBackup(const xRegisterInt& reg)
 
 #define writeQreg(reg, qInstance) \
 	if (qInstance) \
-		xINSERTPS(xmmPQ, reg, _MM_MK_INSERTPS_NDX(0, 1, 0)); \
+		xe_insertps_xxi(xmmPQ.Id, (reg).Id, _MM_MK_INSERTPS_NDX(0, 1, 0)); \
 	else \
-		xMOVSS(xmmPQ, reg)
+		xe_movss_xx(xmmPQ.Id, (reg).Id)

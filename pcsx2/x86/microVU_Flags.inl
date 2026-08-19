@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -21,9 +22,9 @@ __fi void mVUdivSet(mV)
 	if (mVUinfo.doDivFlag)
 	{
 		if (!sFLAG.doFlag)
-			xMOV(getFlagReg(sFLAG.write), getFlagReg(sFLAG.lastWrite));
-		xAND(getFlagReg(sFLAG.write), 0xfff3ffff);
-		xOR(getFlagReg(sFLAG.write), ptr32[&mVU.divFlag]);
+			xe_mov32_rr(getFlagReg(sFLAG.write).Id, getFlagReg(sFLAG.lastWrite).Id);
+		xe_and32_ri(getFlagReg(sFLAG.write).Id, 0xfff3ffff);
+		xe_or32_rm(getFlagReg(sFLAG.write).Id, &mVU.divFlag);
 	}
 }
 
@@ -250,39 +251,39 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 		/* NOTE: Emitter will optimize out mov(reg1, reg1) cases... */
 		if (sortRegs == 1)
 		{
-			xMOV(gprF0, getFlagReg(bStatus[0]));
-			xMOV(gprF1, getFlagReg(bStatus[1]));
-			xMOV(gprF2, getFlagReg(bStatus[2]));
-			xMOV(gprF3, getFlagReg(bStatus[3]));
+			xe_mov32_rr(gprF0.Id, getFlagReg(bStatus[0]).Id);
+			xe_mov32_rr(gprF1.Id, getFlagReg(bStatus[1]).Id);
+			xe_mov32_rr(gprF2.Id, getFlagReg(bStatus[2]).Id);
+			xe_mov32_rr(gprF3.Id, getFlagReg(bStatus[3]).Id);
 		}
 		else if (sortRegs == 2)
 		{
-			xMOV(gprT1, getFlagReg (bStatus[3]));
-			xMOV(gprF0, getFlagReg (bStatus[0]));
-			xMOV(gprF1, getFlagReg2(bStatus[1]));
-			xMOV(gprF2, getFlagReg2(bStatus[2]));
-			xMOV(gprF3, gprT1);
+			xe_mov32_rr(gprT1.Id, getFlagReg (bStatus[3]).Id);
+			xe_mov32_rr(gprF0.Id, getFlagReg (bStatus[0]).Id);
+			xe_mov32_rr(gprF1.Id, getFlagReg2(bStatus[1]).Id);
+			xe_mov32_rr(gprF2.Id, getFlagReg2(bStatus[2]).Id);
+			xe_mov32_rr(gprF3.Id, gprT1.Id);
 		}
 		else if (sortRegs == 3)
 		{
 			int gFlag = (bStatus[0] == bStatus[1]) ? bStatus[2] : bStatus[1];
-			xMOV(gprT1, getFlagReg (gFlag));
-			xMOV(gprT2, getFlagReg (bStatus[3]));
-			xMOV(gprF0, getFlagReg (bStatus[0]));
-			xMOV(gprF1, getFlagReg3(bStatus[1]));
-			xMOV(gprF2, getFlagReg4(bStatus[2]));
-			xMOV(gprF3, gprT2);
+			xe_mov32_rr(gprT1.Id, getFlagReg (gFlag).Id);
+			xe_mov32_rr(gprT2.Id, getFlagReg (bStatus[3]).Id);
+			xe_mov32_rr(gprF0.Id, getFlagReg (bStatus[0]).Id);
+			xe_mov32_rr(gprF1.Id, getFlagReg3(bStatus[1]).Id);
+			xe_mov32_rr(gprF2.Id, getFlagReg4(bStatus[2]).Id);
+			xe_mov32_rr(gprF3.Id, gprT2.Id);
 		}
 		else
 		{
 			const xRegister32& temp3 = mVU.regAlloc->allocGPR();
-			xMOV(gprT1, getFlagReg(bStatus[0]));
-			xMOV(gprT2, getFlagReg(bStatus[1]));
-			xMOV(temp3, getFlagReg(bStatus[2]));
-			xMOV(gprF3, getFlagReg(bStatus[3]));
-			xMOV(gprF0, gprT1);
-			xMOV(gprF1, gprT2);
-			xMOV(gprF2, temp3);
+			xe_mov32_rr(gprT1.Id, getFlagReg(bStatus[0]).Id);
+			xe_mov32_rr(gprT2.Id, getFlagReg(bStatus[1]).Id);
+			xe_mov32_rr(temp3.Id, getFlagReg(bStatus[2]).Id);
+			xe_mov32_rr(gprF3.Id, getFlagReg(bStatus[3]).Id);
+			xe_mov32_rr(gprF0.Id, gprT1.Id);
+			xe_mov32_rr(gprF1.Id, gprT2.Id);
+			xe_mov32_rr(gprF2.Id, temp3.Id);
 			mVU.regAlloc->clearNeeded(temp3);
 		}
 	}
@@ -291,18 +292,18 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 	{
 		int bMac[4];
 		sortFlag(mFC.xMac, bMac, mFC.cycles);
-		xMOVAPS(xmmT1, ptr128[mVU.macFlag]);
-		xSHUF.PS(xmmT1, xmmT1, shuffleMac);
-		xMOVAPS(ptr128[mVU.macFlag], xmmT1);
+		xe_movaps_xm(xmmT1.Id, mVU.macFlag);
+		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, shuffleMac);
+		xe_movaps_mx(mVU.macFlag, xmmT1.Id);
 	}
 
 	if (doCFlagInsts && __Clip)
 	{
 		int bClip[4];
 		sortFlag(mFC.xClip, bClip, mFC.cycles);
-		xMOVAPS(xmmT2, ptr128[mVU.clipFlag]);
-		xSHUF.PS(xmmT2, xmmT2, shuffleClip);
-		xMOVAPS(ptr128[mVU.clipFlag], xmmT2);
+		xe_movaps_xm(xmmT2.Id, mVU.clipFlag);
+		xe_shufps_xxi(xmmT2.Id, xmmT2.Id, shuffleClip);
+		xe_movaps_mx(mVU.clipFlag, xmmT2.Id);
 	}
 }
 
