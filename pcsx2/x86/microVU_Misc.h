@@ -43,6 +43,6 @@ typedef xRegister32 x32;
 #define gprF2 r13d // Status Flag 2
 #define gprF3 r14d // Status Flag 3
 
-extern void mVUmergeRegs(const xmm& dest, const xmm& src, int xyzw, bool modXYZW = false);
-extern void mVUsaveReg(const xmm& reg, struct e_mem ptr, int xyzw, bool modXYZW);
-extern void mVUloadReg(const xmm& reg, struct e_mem ptr, int xyzw);
+extern void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW = false);
+extern void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW);
+extern void mVUloadReg(int reg, struct e_mem ptr, int xyzw);

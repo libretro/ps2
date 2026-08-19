@@ -22,116 +22,116 @@
 // Micro VU - Reg Loading/Saving/Shuffling/Unpacking/Merging...
 //------------------------------------------------------------------
 
-void mVUunpack_xyzw(const xmm& dstreg, const xmm& srcreg, int xyzw)
+void mVUunpack_xyzw(int dstreg, int srcreg, int xyzw)
 {
 	switch (xyzw)
 	{
-		case 0: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0x00); break; // XXXX
-		case 1: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0x55); break; // YYYY
-		case 2: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0xaa); break; // ZZZZ
-		case 3: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0xff); break; // WWWW
+		case 0: xe_pshufd_xxi(dstreg, srcreg, 0x00); break; // XXXX
+		case 1: xe_pshufd_xxi(dstreg, srcreg, 0x55); break; // YYYY
+		case 2: xe_pshufd_xxi(dstreg, srcreg, 0xaa); break; // ZZZZ
+		case 3: xe_pshufd_xxi(dstreg, srcreg, 0xff); break; // WWWW
 	}
 }
 
-void mVUloadReg(const xmm& reg, struct e_mem ptr, int xyzw)
+void mVUloadReg(int reg, struct e_mem ptr, int xyzw)
 {
 	switch (xyzw)
 	{
-		case 8:  { struct e_mem xm = e_mem_off(ptr, 0); xe_movss_xmemg(reg.Id, xm); } break; // X
-		case 4:  { struct e_mem xm = e_mem_off(ptr, 4); xe_movss_xmemg(reg.Id, xm); } break; // Y
-		case 2:  { struct e_mem xm = e_mem_off(ptr, 8); xe_movss_xmemg(reg.Id, xm); } break; // Z
-		case 1:  { struct e_mem xm = e_mem_off(ptr, 12); xe_movss_xmemg(reg.Id, xm); } break; // W
-		default: { struct e_mem xm = e_mem_off(ptr, 0); xe_movaps_xmemg(reg.Id, xm); } break;
+		case 8:  { struct e_mem xm = e_mem_off(ptr, 0); xe_movss_xmemg(reg, xm); } break; // X
+		case 4:  { struct e_mem xm = e_mem_off(ptr, 4); xe_movss_xmemg(reg, xm); } break; // Y
+		case 2:  { struct e_mem xm = e_mem_off(ptr, 8); xe_movss_xmemg(reg, xm); } break; // Z
+		case 1:  { struct e_mem xm = e_mem_off(ptr, 12); xe_movss_xmemg(reg, xm); } break; // W
+		default: { struct e_mem xm = e_mem_off(ptr, 0); xe_movaps_xmemg(reg, xm); } break;
 	}
 }
 
 // Modifies the Source Reg!
-void mVUsaveReg(const xmm& reg, struct e_mem ptr, int xyzw, bool modXYZW)
+void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW)
 {
 	switch (xyzw)
 	{
 		case 5: // YW
-			{ struct e_mem xm = e_mem_off(ptr, 4); xe_extractps_memxi(xm, reg.Id, 1); }
-			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_extractps_memxi(xm, reg, 1); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg, 3); }
 			break;
 		case 6: // YZ
-			xe_pshufd_xxi(reg.Id, reg.Id, 0xc9);
-			{ struct e_mem xm = e_mem_off(ptr, 4); xe_movlps_memxg(xm, reg.Id); }
+			xe_pshufd_xxi(reg, reg, 0xc9);
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_movlps_memxg(xm, reg); }
 			break;
 		case 7: // YZW
-			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg.Id); }
-			{ struct e_mem xm = e_mem_off(ptr, 4); xe_extractps_memxi(xm, reg.Id, 1); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_extractps_memxi(xm, reg, 1); }
 			break;
 		case 9: // XW
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
-			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg, 3); }
 			break;
 		case 10: // XZ
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
-			{ struct e_mem xm = e_mem_off(ptr, 8); xe_extractps_memxi(xm, reg.Id, 2); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_extractps_memxi(xm, reg, 2); }
 			break;
 		case 11: // XZW
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
-			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg); }
 			break;
 		case 13: // XYW
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg.Id); }
-			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg, 3); }
 			break;
 		case 14: // XYZ
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg.Id); }
-			{ struct e_mem xm = e_mem_off(ptr, 8); xe_extractps_memxi(xm, reg.Id, 2); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_extractps_memxi(xm, reg, 2); }
 			break;
 		case 4: // Y
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 1);
-			{ struct e_mem xm = e_mem_off(ptr, 4); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_movss_memxg(xm, reg); }
 			break;
 		case 2: // Z
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 2);
-			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movss_memxg(xm, reg); }
 			break;
 		case 1: // W
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 3);
-			{ struct e_mem xm = e_mem_off(ptr, 12); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_movss_memxg(xm, reg); }
 			break;
 		case 8: // X
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg); }
 			break;
 		case 12: // XY
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg); }
 			break;
 		case 3: // ZW
-			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg); }
 			break;
 		default: // XYZW
-			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movaps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movaps_memxg(xm, reg); }
 			break;
 	}
 }
 
 // Modifies the Source Reg! (ToDo: Optimize modXYZW = 1 cases)
-void mVUmergeRegs(const xmm& dest, const xmm& src, int xyzw, bool modXYZW)
+void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW)
 {
 	xyzw &= 0xf;
 	if ((dest != src) && (xyzw != 0))
 	{
 		if (xyzw == 0x8)
-			xe_movss_xx(dest.Id, src.Id);
+			xe_movss_xx(dest, src);
 		else if (xyzw == 0xf)
-			xe_movaps_xx(dest.Id, src.Id);
+			xe_movaps_xx(dest, src);
 		else
 		{
 			if (modXYZW)
 			{
-				if      (xyzw == 1) { xe_insertps_xxi(dest.Id, src.Id, _MM_MK_INSERTPS_NDX(0, 3, 0)); return; }
-				else if (xyzw == 2) { xe_insertps_xxi(dest.Id, src.Id, _MM_MK_INSERTPS_NDX(0, 2, 0)); return; }
-				else if (xyzw == 4) { xe_insertps_xxi(dest.Id, src.Id, _MM_MK_INSERTPS_NDX(0, 1, 0)); return; }
+				if      (xyzw == 1) { xe_insertps_xxi(dest, src, _MM_MK_INSERTPS_NDX(0, 3, 0)); return; }
+				else if (xyzw == 2) { xe_insertps_xxi(dest, src, _MM_MK_INSERTPS_NDX(0, 2, 0)); return; }
+				else if (xyzw == 4) { xe_insertps_xxi(dest, src, _MM_MK_INSERTPS_NDX(0, 1, 0)); return; }
 			}
 			xyzw = ((xyzw & 1) << 3) | ((xyzw & 2) << 1) | ((xyzw & 4) >> 1) | ((xyzw & 8) >> 3);
-			xe_blendps_xxi(dest.Id, src.Id, xyzw);
+			xe_blendps_xxi(dest, src, xyzw);
 		}
 	}
 }
@@ -341,30 +341,30 @@ alignas(16) static const SSEMasks sseMasks =
 
 
 // Warning: Modifies t1 and t2
-void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, const xmm& t2in, bool min)
+void MIN_MAX_PS(microVU& mVU, int to, int from, int t1in, int t2in, bool min)
 {
-	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
-	const xmm& t2 = t2in.IsEmpty() ? mVU.regAlloc->allocReg() : t2in;
+	int t1 = (t1in < 0) ? mVU.regAlloc->allocReg().Id : t1in;
+	int t2 = (t2in < 0) ? mVU.regAlloc->allocReg().Id : t2in;
 
 	/* Use integer comparison */
 	{
-		const xmm& c1 = min ? t2 : t1;
-		const xmm& c2 = min ? t1 : t2;
+		int c1 = min ? t2 : t1;
+		int c2 = min ? t1 : t2;
 
-		xe_movaps_xx(t1.Id, to.Id);
-		xe_psrad_xi(t1.Id, 31);
-		xe_psrld_xi(t1.Id, 1);
-		xe_pxor_xx(t1.Id, to.Id);
+		xe_movaps_xx(t1, to);
+		xe_psrad_xi(t1, 31);
+		xe_psrld_xi(t1, 1);
+		xe_pxor_xx(t1, to);
 
-		xe_movaps_xx(t2.Id, from.Id);
-		xe_psrad_xi(t2.Id, 31);
-		xe_psrld_xi(t2.Id, 1);
-		xe_pxor_xx(t2.Id, from.Id);
+		xe_movaps_xx(t2, from);
+		xe_psrad_xi(t2, 31);
+		xe_psrld_xi(t2, 1);
+		xe_pxor_xx(t2, from);
 
-		xe_pcmpgtd_xx(c1.Id, c2.Id);
-		xe_pand_xx(to.Id, c1.Id);
-		xe_pandn_xx(c1.Id, from.Id);
-		xe_por_xx(to.Id, c1.Id);
+		xe_pcmpgtd_xx(c1, c2);
+		xe_pand_xx(to, c1);
+		xe_pandn_xx(c1, from);
+		xe_por_xx(to, c1);
 	}
 
 	if (t1 != t1in) mVU.regAlloc->clearNeeded(t1);
@@ -372,25 +372,25 @@ void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, c
 }
 
 // Warning: Modifies to's upper 3 vectors, and t1
-void MIN_MAX_SS(mV, const xmm& to, const xmm& from, const xmm& t1in, bool min)
+void MIN_MAX_SS(mV, int to, int from, int t1in, bool min)
 {
-	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
-	xe_shufps_xxi(to.Id, from.Id, 0);
-	xe_pand_xm(to.Id, sseMasks.MIN_MAX_1);
-	xe_por_xm(to.Id, sseMasks.MIN_MAX_2);
-	xe_pshufd_xxi(t1.Id, to.Id, 0xee);
-	if (min) xe_minpd_xx(to.Id, t1.Id);
-	else	 xe_maxpd_xx(to.Id, t1.Id);
+	int t1 = (t1in < 0) ? mVU.regAlloc->allocReg().Id : t1in;
+	xe_shufps_xxi(to, from, 0);
+	xe_pand_xm(to, sseMasks.MIN_MAX_1);
+	xe_por_xm(to, sseMasks.MIN_MAX_2);
+	xe_pshufd_xxi(t1, to, 0xee);
+	if (min) xe_minpd_xx(to, t1);
+	else	 xe_maxpd_xx(to, t1);
 	if (t1 != t1in)
 		mVU.regAlloc->clearNeeded(t1);
 }
 
 // Turns out only this is needed to get TriAce games booting with mVU
 // Modifies from's lower vector
-void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
+void ADD_SS_TriAceHack(microVU& mVU, int to, int from)
 {
-	xe_movd_rx(XE_AX, to.Id);
-	xe_movd_rx(XE_CX, from.Id);
+	xe_movd_rx(XE_AX, to);
+	xe_movd_rx(XE_CX, from);
 	xe_shr32_ri(XE_AX, 23);
 	xe_shr32_ri(XE_CX, 23);
 	xe_and32_ri(XE_AX, 0xff);
@@ -403,43 +403,43 @@ void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 	e_u8* case_end1; xe_fwd_jcc8(Jcc_Less, case_end1);
 
 	// case_pos_big:
-	xe_pand_xm(to.Id, sseMasks.ADD_SS);
+	xe_pand_xm(to, sseMasks.ADD_SS);
 	e_u8* case_end2; xe_fwd_jcc8(Jcc_Unconditional, case_end2);
 
 	xe_fwd_set8(case_neg_big);
-	xe_pand_xm(from.Id, sseMasks.ADD_SS);
+	xe_pand_xm(from, sseMasks.ADD_SS);
 
 	xe_fwd_set8(case_end1);
 	xe_fwd_set8(case_end2);
 
-	xe_addss_xx(to.Id, from.Id);
+	xe_addss_xx(to, from);
 }
 
 #define clampOp(opX, isPS) \
 	do { \
 		mVUclamp3(mVU, to, t1, (isPS) ? 0xf : 0x8); \
 		mVUclamp3(mVU, from, t1, (isPS) ? 0xf : 0x8); \
-		opX((to).Id, (from).Id); \
+		opX((to), (from)); \
 		mVUclamp4(mVU, to, t1, (isPS) ? 0xf : 0x8); \
 	} while (0)
 
-void SSE_MAXPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MAXPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	MIN_MAX_PS(mVU, to, from, t1, t2, false);
 }
-void SSE_MINPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MINPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	MIN_MAX_PS(mVU, to, from, t1, t2, true);
 }
-void SSE_MAXSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MAXSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	MIN_MAX_SS(mVU, to, from, t1, false);
 }
-void SSE_MINSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MINSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	MIN_MAX_SS(mVU, to, from, t1, true);
 }
-void SSE_ADD2SS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADD2SS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	if (!CHECK_VUADDSUBHACK)
 		clampOp(xe_addss_xx, false);
@@ -448,39 +448,39 @@ void SSE_ADD2SS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, c
 }
 
 // Does same as SSE_ADDPS since tri-ace games only need SS implementation of VUADDSUBHACK...
-void SSE_ADD2PS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADD2PS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_addps_xx, true);
 }
-void SSE_ADDPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADDPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_addps_xx, true);
 }
-void SSE_ADDSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_ADDSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_addss_xx, false);
 }
-void SSE_SUBPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_SUBPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_subps_xx, true);
 }
-void SSE_SUBSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_subss_xx, false);
 }
-void SSE_MULPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MULPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_mulps_xx, true);
 }
-void SSE_MULSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_MULSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_mulss_xx, false);
 }
-void SSE_DIVPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_DIVPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_divps_xx, true);
 }
-void SSE_DIVSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
+void SSE_DIVSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	clampOp(xe_divss_xx, false);
 }

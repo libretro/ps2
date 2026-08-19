@@ -22,8 +22,8 @@
 
 using namespace x86Emitter;
 
-extern void  mVUmergeRegs(const xRegisterSSE& dest, const xRegisterSSE& src,  int xyzw, bool modXYZW = 0);
-extern void  mVUsaveReg(const xRegisterSSE& reg, struct e_mem ptr, int xyzw, bool modXYZW);
+extern void  mVUmergeRegs(int dest, int src,  int xyzw, bool modXYZW = 0);
+extern void  mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW);
 
 #define VUFT VIFUnpackFuncTable
 #define _v0 0

@@ -256,13 +256,13 @@ void VifUnpackSSE_Base::xUPK_V4_5() const
 	xe_movaps_xx(destReg.Id, workReg.Id);     // x|x|x|R
 	xe_psrld_xi(workReg.Id, 8);           // ABG
 	xe_pslld_xi(workReg.Id, 3);           // AB|G5.000
-	mVUmergeRegs(destReg, workReg, 0x4);// x|x|G|R
+	mVUmergeRegs(destReg.Id, workReg.Id, 0x4);// x|x|G|R
 	xe_psrld_xi(workReg.Id, 8);           // AB
 	xe_pslld_xi(workReg.Id, 3);           // A|B5.000
-	mVUmergeRegs(destReg, workReg, 0x2);// x|B|G|R
+	mVUmergeRegs(destReg.Id, workReg.Id, 0x2);// x|B|G|R
 	xe_psrld_xi(workReg.Id, 8);           // A
 	xe_pslld_xi(workReg.Id, 7);           // A.0000000
-	mVUmergeRegs(destReg, workReg, 0x1);// A|B|G|R
+	mVUmergeRegs(destReg.Id, workReg.Id, 0x1);// A|B|G|R
 	xe_pslld_xi(destReg.Id, 24); // can optimize to
 	xe_psrld_xi(destReg.Id, 24); // single AND...
 }

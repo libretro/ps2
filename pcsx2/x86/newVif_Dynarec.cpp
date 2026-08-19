@@ -102,11 +102,11 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 
 	if (doMask && m2) // Merge MaskRow
 	{
-		mVUmergeRegs(regX, xmmRow, m2);
+		mVUmergeRegs(regX.Id, xmmRow.Id, m2);
 	}
 	if (doMask && m3) // Merge MaskCol
 	{
-		mVUmergeRegs(regX, xRegisterSSE(xmmCol0.Id + cc), m3);
+		mVUmergeRegs(regX.Id, xRegisterSSE(xmmCol0.Id + cc).Id, m3);
 	}
 
 	if (doMode)
@@ -121,14 +121,14 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 			xe_pxor_xx(xmmTemp.Id, xmmTemp.Id);
 			if (doMode == 3)
 			{
-				mVUmergeRegs(xmmRow, regX, m5);
+				mVUmergeRegs(xmmRow.Id, regX.Id, m5);
 			}
 			else
 			{
-				mVUmergeRegs(xmmTemp, xmmRow, m5);
+				mVUmergeRegs(xmmTemp.Id, xmmRow.Id, m5);
 				xe_paddd_xx(regX.Id, xmmTemp.Id);
 				if (doMode == 2)
-					mVUmergeRegs(xmmRow, regX, m5);
+					mVUmergeRegs(xmmRow.Id, regX.Id, m5);
 			}
 		}
 		else
@@ -147,7 +147,7 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 	}
 	
 	if (doMask && m4) // Merge Write Protect
-		mVUsaveReg(regX, dstIndirect, m4 ^ 0xf, false);
+		mVUsaveReg(regX.Id, dstIndirect, m4 ^ 0xf, false);
 	else
 		xe_movaps_memxg(dstIndirect, regX.Id);
 }
