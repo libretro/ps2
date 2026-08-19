@@ -1094,7 +1094,7 @@ mVUop(mVU_ILW)
 	pass2
 	{
 		void* ptr = vuRegs[mVU.index].Mem + offsetSS;
-		std::optional<xAddressVoid> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, offsetSS));
+		std::optional<struct e_mem> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, offsetSS));
 		if (!optaddr.has_value())
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
@@ -1115,7 +1115,7 @@ mVUop(mVU_ILW)
 		}
 
 		const xRegister32& regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
-		{ const xAddressVoid av_ = optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, ptr, gprT1q); struct e_mem xm; XE_MEM_XAV(xm, av_, 0); xe_movzx32_rmemg16(regT.Id, xm); }
+		{ struct e_mem xm; if (optaddr.has_value()) xm = optaddr.value(); else xe_complexaddr_si(xm, gprT2q.Id, ptr, gprT1q.Id, 1); xe_movzx32_rmemg16(regT.Id, xm); }
 		mVU.regAlloc->clearNeeded(regT);
 	}
 }
@@ -1139,7 +1139,7 @@ mVUop(mVU_ILWR)
 			mVUaddrFix (mVU, gprT1q);
 
 			const xRegister32& regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
-			{ const xAddressVoid av_ = xComplexAddress(gprT2q, ptr, gprT1q); struct e_mem xm; XE_MEM_XAV(xm, av_, 0); xe_movzx32_rmemg16(regT.Id, xm); }
+			{ struct e_mem xm; xe_complexaddr_si(xm, gprT2q.Id, ptr, gprT1q.Id, 1); xe_movzx32_rmemg16(regT.Id, xm); }
 			mVU.regAlloc->clearNeeded(regT);
 		}
 		else
@@ -1165,7 +1165,7 @@ mVUop(mVU_ISW)
 	}
 	pass2
 	{
-		std::optional<xAddressVoid> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0));
+		std::optional<struct e_mem> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0));
 		if (!optaddr.has_value())
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
@@ -1187,11 +1187,11 @@ mVUop(mVU_ISW)
 
 		// If regT is dirty, the high bits might not be zero.
 		const xRegister32& regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
-		const xAddressVoid ptr(optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q));
-		if (_X) xe_mov32_memavr(ptr, 0, regT.Id);
-		if (_Y) xe_mov32_memavr(ptr, 4, regT.Id);
-		if (_Z) xe_mov32_memavr(ptr, 8, regT.Id);
-		if (_W) xe_mov32_memavr(ptr, 12, regT.Id);
+		struct e_mem mptr; if (optaddr.has_value()) mptr = optaddr.value(); else xe_complexaddr_si(mptr, gprT2q.Id, vuRegs[mVU.index].Mem, gprT1q.Id, 1);
+		if (_X) xe_mov32_memgr(mptr, regT.Id);
+		if (_Y) xe_mov32_memgr(e_mem_off(mptr, 4), regT.Id);
+		if (_Z) xe_mov32_memgr(e_mem_off(mptr, 8), regT.Id);
+		if (_W) xe_mov32_memgr(e_mem_off(mptr, 12), regT.Id);
 		mVU.regAlloc->clearNeeded(regT);
 	}
 }
@@ -1224,7 +1224,7 @@ mVUop(mVU_ISWR)
 					xe_lea64_m(gprT2q.Id, (void*)((sptr)base + offset));
 					register_offset = offset;
 				}
-				xe_mov32_memavr(gprT2q + is + (offset - register_offset), 0, regT.Id);
+				{ struct e_mem xm; E_MEM(xm, gprT2q.Id, is.Id, 1, (e_sptr)(offset - register_offset)); xe_mov32_memgr(xm, regT.Id); }
 			};
 			if (_X) writeBackAt(0);
 			if (_Y) writeBackAt(4);
@@ -1240,10 +1240,10 @@ mVUop(mVU_ISWR)
 		}
 		else
 		{
-			if (_X) xe_mov32_memavr(x86Emitter::xAddressVoid(base + is), 0, regT.Id);
-			if (_Y) xe_mov32_memavr(x86Emitter::xAddressVoid(base + is + 4), 0, regT.Id);
-			if (_Z) xe_mov32_memavr(x86Emitter::xAddressVoid(base + is + 8), 0, regT.Id);
-			if (_W) xe_mov32_memavr(x86Emitter::xAddressVoid(base + is + 12), 0, regT.Id);
+			if (_X) { struct e_mem xm; E_MEM(xm, E_NOREG, is.Id, 1, (e_sptr)(uptr)base + 0); xe_mov32_memgr(xm, regT.Id); }
+			if (_Y) { struct e_mem xm; E_MEM(xm, E_NOREG, is.Id, 1, (e_sptr)(uptr)base + 4); xe_mov32_memgr(xm, regT.Id); }
+			if (_Z) { struct e_mem xm; E_MEM(xm, E_NOREG, is.Id, 1, (e_sptr)(uptr)base + 8); xe_mov32_memgr(xm, regT.Id); }
+			if (_W) { struct e_mem xm; E_MEM(xm, E_NOREG, is.Id, 1, (e_sptr)(uptr)base + 12); xe_mov32_memgr(xm, regT.Id); }
 		}
 		mVU.regAlloc->clearNeeded(regT);
 	}
@@ -1258,7 +1258,7 @@ mVUop(mVU_LQ)
 	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, false); }
 	pass2
 	{
-		const std::optional<xAddressVoid> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0));
+		const std::optional<struct e_mem> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0));
 		if (!optaddr.has_value())
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
@@ -1279,7 +1279,8 @@ mVUop(mVU_LQ)
 		}
 
 		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-		mVUloadReg(Ft, e_mem_from_xav(optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q)), _X_Y_Z_W);
+		struct e_mem _mp; if (optaddr.has_value()) _mp = optaddr.value(); else xe_complexaddr_si(_mp, gprT2q.Id, vuRegs[mVU.index].Mem, gprT1q.Id, 1);
+		mVUloadReg(Ft, _mp, _X_Y_Z_W);
 		mVU.regAlloc->clearNeeded(Ft);
 	}
 }
@@ -1307,8 +1308,8 @@ mVUop(mVU_LQD)
 		if (!mVUlow.noWriteVF)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-			xAddressVoid _ptr = (is.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, is);
-			mVUloadReg(Ft, e_mem_from_xav(_ptr), _X_Y_Z_W);
+			struct e_mem _mp; if (is.IsEmpty()) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q.Id, ptr, is.Id, 1);
+			mVUloadReg(Ft, _mp, _X_Y_Z_W);
 			mVU.regAlloc->clearNeeded(Ft);
 		}
 	}
@@ -1333,8 +1334,8 @@ mVUop(mVU_LQI)
 		if (!mVUlow.noWriteVF)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-			xAddressVoid _ptr = (is.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, is);
-			mVUloadReg(Ft, e_mem_from_xav(_ptr), _X_Y_Z_W);
+			struct e_mem _mp; if (is.IsEmpty()) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q.Id, ptr, is.Id, 1);
+			mVUloadReg(Ft, _mp, _X_Y_Z_W);
 			mVU.regAlloc->clearNeeded(Ft);
 		}
 	}
@@ -1349,7 +1350,7 @@ mVUop(mVU_SQ)
 	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, false); }
 	pass2
 	{
-		const std::optional<xAddressVoid> optptr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _It_, _Imm11_, 0));
+		const std::optional<struct e_mem> optptr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _It_, _Imm11_, 0));
 		if (!optptr.has_value())
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _It_);
@@ -1370,7 +1371,8 @@ mVUop(mVU_SQ)
 		}
 
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		mVUsaveReg(Fs, e_mem_from_xav(optptr.has_value() ? optptr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q)), _X_Y_Z_W, 1);
+		struct e_mem _mp; if (optptr.has_value()) _mp = optptr.value(); else xe_complexaddr_si(_mp, gprT2q.Id, vuRegs[mVU.index].Mem, gprT1q.Id, 1);
+		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -1396,8 +1398,8 @@ mVUop(mVU_SQD)
 			ptr = (void*)((sptr)ptr + (0xffff & (mVU.microMemSize - 8)));
 		}
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		xAddressVoid _ptr = (it.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, it);
-		mVUsaveReg(Fs, e_mem_from_xav(_ptr), _X_Y_Z_W, 1);
+		struct e_mem _mp; if (it.IsEmpty()) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q.Id, ptr, it.Id, 1);
+		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -1417,8 +1419,8 @@ mVUop(mVU_SQI)
 			mVUaddrFix(mVU, gprT1q);
 		}
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		xAddressVoid _ptr = (_It_) ? xComplexAddress(gprT2q, ptr, gprT1q) : xAddressVoid(ptr);
-		mVUsaveReg(Fs, e_mem_from_xav(_ptr), _X_Y_Z_W, 1);
+		struct e_mem _mp; if (_It_) xe_complexaddr_si(_mp, gprT2q.Id, ptr, gprT1q.Id, 1); else _mp = e_mem_abs(ptr);
+		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }

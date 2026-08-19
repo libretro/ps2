@@ -846,11 +846,6 @@
  * object, factor form) into e_mem, with an extra displacement for the
  * lane offsets mVUsaveReg/mVUloadReg add at each site. E_MEM performs
  * the factor->SIB reduction, same as the xIndirect constructors. */
-#define XE_MEM_XAV(m, av, extra) E_MEM(m, \
-	(av).Base.IsEmpty()  ? E_NOREG : (av).Base.Id, \
-	(av).Index.IsEmpty() ? E_NOREG : (av).Index.Id, \
-	(av).Index.IsEmpty() ? 0 : (av).Factor, \
-	(e_sptr)(av).Displacement + (e_sptr)(extra))
 
 /* generic-e_mem SSE moves for address-object and rsp-relative operands */
 #define xe_movss_xmemg(x, m) do { XE_OPEN(); E_SSE_R_MEM(xep, 0xf3, 0x10, (x), (m)); XE_CLOSE(); } while (0)
@@ -959,13 +954,6 @@
 	{ E_REX_MEM(xep, 0, (dst), (m)); EW8(xep, 0x0f); EW8(xep, 0xb7); \
 	  E_MODRM_MEM(xep, (dst), (m), 0); }; XE_CLOSE(); } while (0)
 
-/* mov [xAddressVoid + off], r32 -- the ISW/ISWR store lanes carry an
- * address OBJECT (optaddr or a complexaddr result); route through
- * XE_MEM_XAV like the other object-operand forms. */
-#define xe_mov32_memavr(av, off, reg) do { XE_OPEN();  \
-	{ struct e_mem xm_; XE_MEM_XAV(xm_, av, off); \
-	  E_REX_MEM(xep, 0, (reg), xm_); EW8(xep, 0x89); \
-	  E_MODRM_MEM(xep, (reg), xm_, 0); }; XE_CLOSE(); } while (0)
 
 /* newVif vocabulary: the PMOVSX/PMOVZX byte/word-to-dword widening
  * loads from a generic e_mem (0F38-escape opcodes spelled high-byte
