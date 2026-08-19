@@ -88,7 +88,7 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 	}
 }
 
-void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
+void VifUnpackSSE_Dynarec::doMaskWrite(int regX) const
 {
 	const int cc = std::min(vCL, 3);
 	u32 m0 = (vB.mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
@@ -102,11 +102,11 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 
 	if (doMask && m2) // Merge MaskRow
 	{
-		mVUmergeRegs(regX.Id, xmmRow.Id, m2);
+		mVUmergeRegs(regX, xmmRow.Id, m2);
 	}
 	if (doMask && m3) // Merge MaskCol
 	{
-		mVUmergeRegs(regX.Id, xRegisterSSE(xmmCol0.Id + cc).Id, m3);
+		mVUmergeRegs(regX, xRegisterSSE(xmmCol0.Id + cc).Id, m3);
 	}
 
 	if (doMode)
@@ -121,35 +121,35 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 			xe_pxor_xx(xmmTemp.Id, xmmTemp.Id);
 			if (doMode == 3)
 			{
-				mVUmergeRegs(xmmRow.Id, regX.Id, m5);
+				mVUmergeRegs(xmmRow.Id, regX, m5);
 			}
 			else
 			{
 				mVUmergeRegs(xmmTemp.Id, xmmRow.Id, m5);
-				xe_paddd_xx(regX.Id, xmmTemp.Id);
+				xe_paddd_xx(regX, xmmTemp.Id);
 				if (doMode == 2)
-					mVUmergeRegs(xmmRow.Id, regX.Id, m5);
+					mVUmergeRegs(xmmRow.Id, regX, m5);
 			}
 		}
 		else
 		{
 			if (doMode == 3)
 			{
-				xe_movaps_xx(xmmRow.Id, regX.Id);
+				xe_movaps_xx(xmmRow.Id, regX);
 			}
 			else
 			{
-				xe_paddd_xx(regX.Id, xmmRow.Id);
+				xe_paddd_xx(regX, xmmRow.Id);
 				if (doMode == 2)
-					xe_movaps_xx(xmmRow.Id, regX.Id);
+					xe_movaps_xx(xmmRow.Id, regX);
 			}
 		}
 	}
 	
 	if (doMask && m4) // Merge Write Protect
-		mVUsaveReg(regX.Id, dstIndirect, m4 ^ 0xf, false);
+		mVUsaveReg(regX, dstIndirect, m4 ^ 0xf, false);
 	else
-		xe_movaps_memxg(dstIndirect, regX.Id);
+		xe_movaps_memxg(dstIndirect, regX);
 }
 
 static void ShiftDisplacementWindow(struct e_mem& addr, int modRegId)
@@ -244,12 +244,12 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 
 	// Need a zero register for V2_32/V3 unpacks.
 	if ((upkNum >= 8 && upkNum <= 10) || upkNum == 4)
-		xe_xorps_xx(zeroReg.Id, zeroReg.Id);
+		xe_xorps_xx(zeroReg, zeroReg);
 
 	while (vNum)
 	{
-		ShiftDisplacementWindow(dstIndirect, x86Emitter::arg1reg.Id);
-		ShiftDisplacementWindow(srcIndirect, x86Emitter::arg2reg.Id); //Don't need to do this otherwise as we arent reading the source.
+		ShiftDisplacementWindow(dstIndirect, XE_ARG1);
+		ShiftDisplacementWindow(srcIndirect, XE_ARG2); //Don't need to do this otherwise as we arent reading the source.
 		
 		// Determine if reads/processing can be skipped.
 		ProcessMasks();

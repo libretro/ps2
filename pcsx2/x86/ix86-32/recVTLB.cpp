@@ -55,7 +55,7 @@ namespace vtlb_private
 	 */
 	static void DynGen_PrepRegs(int addr_reg, int value_reg, u32 sz, bool xmm)
 	{
-		_freeX86reg(arg1regd);
+		_freeX86reg(XE_ARG1);
 		xe_mov32_rr(XE_ARG1, addr_reg);
 
 		if (value_reg >= 0)
@@ -70,7 +70,7 @@ namespace vtlb_private
 				// shadow space on Win64, which we own at this call boundary)
 				// and pass that pointer in arg2reg.
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, 0); xe_movaps_memxg(xm, value_reg); }
-				_freeX86reg(arg2reg.Id);
+				_freeX86reg(XE_ARG2);
 				xe_mov64_rr(XE_ARG2, XE_SP);
 #else
 				_freeXMMreg(xRegisterSSE::GetArgRegister(1, 0).Id);
@@ -80,12 +80,12 @@ namespace vtlb_private
 			else if (xmm)
 			{
 				// 32bit xmms are passed in GPRs
-				_freeX86reg(arg2regd);
+				_freeX86reg(XE_ARG2);
 				xe_movd_rx(XE_ARG2, value_reg);
 			}
 			else
 			{
-				_freeX86reg(arg2regd);
+				_freeX86reg(XE_ARG2);
 				xe_mov64_rr(XE_ARG2, value_reg);
 			}
 		}
@@ -517,7 +517,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 	{
 		iFlushCall(FLUSH_FULLVTLB);
 
-		DynGen_PrepRegs(arg1regd.Id, -1, bits, true);
+		DynGen_PrepRegs(XE_ARG1, -1, bits, true);
 		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); },  0, bits);
 
 		/* The call here needs to be after the above function calls. */
@@ -540,7 +540,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 
 		vtlb_AddLoadStoreInfo((uptr)codeStart, static_cast<u32>(x86Ptr - codeStart),
 				pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
-				static_cast<u8>(arg1reg.Id), static_cast<u8>(reg),
+				static_cast<u8>(XE_ARG1), static_cast<u8>(reg),
 				static_cast<u8>(bits), false, true, true);
 	}
 	return reg;
@@ -714,7 +714,7 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 
 		iFlushCall(FLUSH_FULLVTLB);
 
-		_freeX86reg(arg1regd);
+		_freeX86reg(XE_ARG1);
 		xe_mov32_ri(XE_ARG1, paddr);
 		if (bits == 128)
 		{
@@ -722,7 +722,7 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 			// MinGW: spill to [rsp] and pass pointer in arg2reg. See
 			// DynGen_PrepRegs for rationale.
 			{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, 0); xe_movaps_memxg(xm, value_reg); }
-			_freeX86reg(arg2reg.Id);
+			_freeX86reg(XE_ARG2);
 			xe_mov64_rr(XE_ARG2, XE_SP);
 #else
 			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
@@ -732,12 +732,12 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 		}
 		else if (xmm)
 		{
-			_freeX86reg(arg2regd);
+			_freeX86reg(XE_ARG2);
 			xe_movd_rx(XE_ARG2, value_reg);
 		}
 		else
 		{
-			_freeX86reg(arg2regd);
+			_freeX86reg(XE_ARG2);
 			xe_mov64_rr(XE_ARG2, value_reg);
 		}
 
@@ -782,9 +782,9 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	u32 num_fprs = 0;
 
 	const u32 rbxid = static_cast<u32>(rbx.Id);
-	const u32 arg1id = static_cast<u32>(arg1reg.Id);
-	const u32 arg2id = static_cast<u32>(arg2reg.Id);
-	const u32 arg3id = static_cast<u32>(arg3reg.Id);
+	const u32 arg1id = static_cast<u32>(XE_ARG1);
+	const u32 arg2id = static_cast<u32>(XE_ARG2);
+	const u32 arg3id = static_cast<u32>(XE_ARG3);
 
 	for (u32 i = 0; i < iREGCNT_GPR; i++)
 	{
@@ -848,7 +848,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	}
 	else
 	{
-		if (address_register != arg1reg.Id)
+		if (address_register != XE_ARG1)
 			xe_mov32_rr(XE_ARG1, address_register);
 
 		if (size_in_bits == 128)
@@ -867,7 +867,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 			}
 			else
 			{
-				if (data_register != arg2reg.Id)
+				if (data_register != XE_ARG2)
 					xe_mov64_rr(XE_ARG2, data_register);
 			}
 		}

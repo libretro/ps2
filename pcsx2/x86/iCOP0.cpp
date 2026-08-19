@@ -457,7 +457,7 @@ void recMTC0()
 		switch (_Rd_)
 		{
 			case 12:
-				_eeMoveGPRtoR64(x86Emitter::arg1reg.Id, _Rt_);
+				_eeMoveGPRtoR64(XE_ARG1, _Rt_);
 				iFlushCall(FLUSH_INTERPRETER);
 				xe_mov64_rm(XE_AX, &cpuRegs.cycle);
 				{ const u32 sbc_ = scaleblockcycles_clear(); /* side-effecting; hoisted so both XE_2 arms see one value */
@@ -467,7 +467,7 @@ void recMTC0()
 				break;
 
 			case 16:
-				_eeMoveGPRtoR64(x86Emitter::arg1reg.Id, _Rt_);
+				_eeMoveGPRtoR64(XE_ARG1, _Rt_);
 				iFlushCall(FLUSH_INTERPRETER);
 				xe_fastcall0(WriteCP0Config);
 				break;

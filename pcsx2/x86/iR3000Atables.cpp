@@ -1033,15 +1033,15 @@ static void rpsxCalcAddressOperand()
 	else
 		rs = _checkX86reg(X86TYPE_PSX, _Rs_, MODE_READ);
 
-	_freeX86reg(arg1regd);
+	_freeX86reg(XE_ARG1);
 
 	if (rs >= 0)
-		xe_mov32_rr(arg1regd.Id, rs);
+		xe_mov32_rr(XE_ARG1, rs);
 	else
-		xe_mov32_rm(arg1regd.Id, &psxRegs.GPR.r[_Rs_]);
+		xe_mov32_rm(XE_ARG1, &psxRegs.GPR.r[_Rs_]);
 
 	if (_Imm_)
-		xe_add32_ri(arg1regd.Id, _Imm_);
+		xe_add32_ri(XE_ARG1, _Imm_);
 }
 
 static void rpsxCalcStoreOperand()
@@ -1052,12 +1052,12 @@ static void rpsxCalcStoreOperand()
 	else
 		rt = _checkX86reg(X86TYPE_PSX, _Rt_, MODE_READ);
 
-	_freeX86reg(arg2regd);
+	_freeX86reg(XE_ARG2);
 
 	if (rt >= 0)
-		xe_mov32_rr(arg2regd.Id, rt);
+		xe_mov32_rr(XE_ARG2, rt);
 	else
-		xe_mov32_rm(arg2regd.Id, &psxRegs.GPR.r[_Rt_]);
+		xe_mov32_rm(XE_ARG2, &psxRegs.GPR.r[_Rt_]);
 }
 
 static void rpsxLoad(int size, bool sign)
@@ -1071,7 +1071,7 @@ static void rpsxLoad(int size, bool sign)
 	}
 
 	_psxFlushCall(FLUSH_FULLVTLB);
-	xe_test32_ri(arg1regd.Id, 0x10000000);
+	xe_test32_ri(XE_ARG1, 0x10000000);
 	e_u8* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
 
 	switch (size)
@@ -1100,10 +1100,10 @@ static void rpsxLoad(int size, bool sign)
 	xe_fwd_set8(is_ram_read);
 
 	// read from psM directly
-	xe_and32_ri(arg1regd.Id, 0x1fffff);
+	xe_and32_ri(XE_ARG1, 0x1fffff);
 
 	struct e_mem addr;
-	xe_complexaddr(addr, 0 /* rax */, iopMem->Main, x86Emitter::arg1reg.Id);
+	xe_complexaddr(addr, 0 /* rax */, iopMem->Main, XE_ARG1);
 	switch (size)
 	{
 		case 8:
@@ -1196,8 +1196,8 @@ static void rpsxLoadUnaligned(bool isLeft)
 		}
 	}
 
-	xe_mov32_mr(&s_psx_unaligned_addr, arg1regd.Id);
-	xe_and32_ri(arg1regd.Id, 0xfffffffc);
+	xe_mov32_mr(&s_psx_unaligned_addr, XE_ARG1);
+	xe_and32_ri(XE_ARG1, 0xfffffffc);
 
 	if (_Rt_ != 0)
 	{
@@ -1207,13 +1207,13 @@ static void rpsxLoadUnaligned(bool isLeft)
 
 	_psxFlushCall(FLUSH_FULLVTLB);
 
-	xe_test32_ri(arg1regd.Id, 0x10000000);
+	xe_test32_ri(XE_ARG1, 0x10000000);
 	e_u8* is_ram_read; xe_fwd_jcc8(Jcc_Zero, is_ram_read);
 	xe_fastcall0(iopMemRead32);
 	e_u8* done; xe_fwd_jmp8(done);
 	xe_fwd_set8(is_ram_read);
-	xe_and32_ri(arg1regd.Id, 0x1fffff);
-	{ struct e_mem xm; xe_complexaddr(xm, 0 /* rax */, iopMem->Main, x86Emitter::arg1reg.Id); xe_mov32_rmem(XE_AX, xm); }
+	xe_and32_ri(XE_ARG1, 0x1fffff);
+	{ struct e_mem xm; xe_complexaddr(xm, 0 /* rax */, iopMem->Main, XE_ARG1); xe_mov32_rmem(XE_AX, xm); }
 	xe_fwd_set8(done);
 	// EAX holds the aligned word; arg1regd is dead from here on.
 
@@ -1282,9 +1282,9 @@ static void rpsxStoreUnaligned(bool isLeft)
 	// arg1regd survives the flush (rpsxSW relies on the same), but ECX is
 	// arg1regd on Win64 and the variable shifts below need CL, so the
 	// address is parked before ECX is touched.
-	xe_mov32_mr(&s_psx_unaligned_addr, arg1regd.Id);
+	xe_mov32_mr(&s_psx_unaligned_addr, XE_ARG1);
 
-	xe_mov32_rr(XE_AX, arg1regd.Id);
+	xe_mov32_rr(XE_AX, XE_ARG1);
 	xe_test32_ri(XE_AX, 0x10000000);
 	e_u8* not_ram; xe_fwd_jcc8(Jcc_NotZero, not_ram);
 
@@ -1326,9 +1326,9 @@ static void rpsxStoreUnaligned(bool isLeft)
 	}
 
 	// Store through the real path so the code invalidation still happens.
-	xe_mov32_rm(arg1regd.Id, &s_psx_unaligned_addr);
-	xe_and32_ri(arg1regd.Id, 0xfffffffc);
-	xe_mov32_rr(arg2regd.Id, XE_AX);
+	xe_mov32_rm(XE_ARG1, &s_psx_unaligned_addr);
+	xe_and32_ri(XE_ARG1, 0xfffffffc);
+	xe_mov32_rr(XE_ARG2, XE_AX);
 	xe_fastcall0(iopMemWrite32);
 	e_u8* done; xe_fwd_jmp8(done);
 

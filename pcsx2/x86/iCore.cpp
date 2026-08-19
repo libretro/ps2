@@ -50,7 +50,7 @@ bool _isAllocatableX86reg(int x86reg)
 	// On windows, this is ecx/edx, and it's taken care of above, but on Linux, it uses rsi/rdi.
 	// The issue is when we do a load/store, the address register overlaps a cached register.
 	// TODO(Stenzek): Rework loadstores to handle this and allow caching.
-	if (x86reg == arg1reg.Id || x86reg == arg2reg.Id)
+	if (x86reg == XE_ARG1 || x86reg == XE_ARG2)
 		return false;
 
 	if (CHECK_FASTMEM)
@@ -62,7 +62,7 @@ bool _isAllocatableX86reg(int x86reg)
 	else
 	{
 		// arg3reg is also used for dispatching without fastmem
-		if (x86reg == arg3reg.Id)
+		if (x86reg == XE_ARG3)
 			return false;
 	}
 

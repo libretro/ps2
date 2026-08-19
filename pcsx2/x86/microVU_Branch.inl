@@ -313,32 +313,32 @@ void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 
 	if (isEvilJump)
 	{
-		xe_mov32_rm(arg1regd.Id, &mVU.evilBranch);
+		xe_mov32_rm(XE_ARG1, &mVU.evilBranch);
 		xe_mov32_rm(gprT1, &mVU.evilevilBranch);
 		xe_mov32_mr(&mVU.evilBranch, gprT1);
 	}
 	else
-		xe_mov32_rm(arg1regd.Id, &mVU.branch);
+		xe_mov32_rm(XE_ARG1, &mVU.branch);
 	if (doJumpCaching)
-		xe_lea_far(arg2reg.Id, mVUpBlock);
+		xe_lea_far(XE_ARG2, mVUpBlock);
 	else
-		xe_lea_far(arg2reg.Id, &mVUpBlock->pStateEnd);
+		xe_lea_far(XE_ARG2, &mVUpBlock->pStateEnd);
 
 	if (mVUup.eBit && isEvilJump) // E-bit EvilJump
 	{
 		//Xtreme G 3 does 2 conditional jumps, the first contains an E Bit on the first instruction
 		//So if it is taken, you need to end the program, else you get infinite loops.
 		mVUendProgram(mVU, &mFC, 2);
-		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, arg1regd.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, XE_ARG1);
 		if (mVU.index && THREAD_VU1)
 			xe_fastcall0(mVUEBit);
 		xe_jmp_to(mVU.exitFunct);
 	}
 
 	if (!mVU.index)
-		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<0>, arg1reg.Id, arg2reg.Id); //(u32 startPC, uptr pState)
+		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<0>, XE_ARG1, XE_ARG2); //(u32 startPC, uptr pState)
 	else
-		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<1>, arg1reg.Id, arg2reg.Id);
+		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<1>, XE_ARG1, XE_ARG2);
 
 	mVUrestoreRegs(mVU);
 	xe_jmp_r(gprT1q); // Jump to rec-code address

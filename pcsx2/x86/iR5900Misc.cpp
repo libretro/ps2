@@ -232,8 +232,8 @@ static void recTrap(JccComparisonType skip_cond, bool use_imm, bool is_unsigned)
 	e_u8* no_trap; xe_fwd_jcc8(skip_cond, no_trap);
 	// trap(): cpuRegs.pc -= 4; cpuException(0x34, cpuRegs.branch);
 	xe_sub32_mi(&cpuRegs.pc, 4);
-	xe_mov32_ri(arg1regd.Id, 0x34);
-	xe_mov32_rm(arg2regd.Id, &cpuRegs.branch);
+	xe_mov32_ri(XE_ARG1, 0x34);
+	xe_mov32_rm(XE_ARG2, &cpuRegs.branch);
 	xe_fastcall0(cpuException);
 	xe_fwd_set8(no_trap);
 

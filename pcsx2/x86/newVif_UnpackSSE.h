@@ -33,9 +33,9 @@ public:
 protected:
 	struct e_mem dstIndirect;
 	struct e_mem srcIndirect;
-	xRegisterSSE zeroReg;
-	xRegisterSSE workReg;
-	xRegisterSSE destReg;
+	int zeroReg;
+	int workReg;
+	int destReg;
 
 public:
 	VifUnpackSSE_Base();
@@ -48,10 +48,10 @@ public:
 	virtual void xMovDest() const;
 
 protected:
-	virtual void doMaskWrite(const xRegisterSSE& regX) const = 0;
+	virtual void doMaskWrite(int regX) const = 0;
 
-	virtual void xPMOVXX8(const xRegisterSSE& regX) const;
-	virtual void xPMOVXX16(const xRegisterSSE& regX) const;
+	virtual void xPMOVXX8(int regX) const;
+	virtual void xPMOVXX16(int regX) const;
 
 	virtual void xUPK_S_32() const;
 	virtual void xUPK_S_16() const;
@@ -90,7 +90,7 @@ public:
 	virtual bool IsUnmaskedOp() const { return !doMask; }
 
 protected:
-	virtual void doMaskWrite(const xRegisterSSE& regX) const;
+	virtual void doMaskWrite(int regX) const;
 };
 
 // --------------------------------------------------------------------------------------
@@ -134,6 +134,6 @@ public:
 
 
 protected:
-	virtual void doMaskWrite(const xRegisterSSE& regX) const;
+	virtual void doMaskWrite(int regX) const;
 	void SetMasks(int cS) const;
 };

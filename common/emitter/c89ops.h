@@ -821,9 +821,19 @@
 		xe_pop64_r(XE_ARG1); \
 	} \
 	xe_fastcall0(fn); } while (0)
-#define XE_ARG1 (x86Emitter::arg1reg.Id)
-#define XE_ARG2 (x86Emitter::arg2reg.Id)
-#define XE_ARG3 (x86Emitter::arg3reg.Id)
+/* Platform ABI argument registers as plain ids (previously read from the
+ * x86types arg*reg objects; values are identical). */
+#ifdef _WIN32
+#define XE_ARG1 1 /* rcx */
+#define XE_ARG2 2 /* rdx */
+#define XE_ARG3 8 /* r8  */
+#define XE_ARG4 9 /* r9  */
+#else
+#define XE_ARG1 7 /* rdi */
+#define XE_ARG2 6 /* rsi */
+#define XE_ARG3 2 /* rdx */
+#define XE_ARG4 1 /* rcx */
+#endif
 #define xe_push64_r(reg) do { XE_OPEN();  \
 	{ if ((reg) >= 8) EW8(xep, 0x41); EW8(xep, (e_u8)(0x50 | ((reg) & 7))); }; XE_CLOSE(); } while (0)
 #define xe_pop64_r(reg) do { XE_OPEN();  \

@@ -355,9 +355,9 @@ static void COP2_Interlock(bool mBitSync)
 					xe_sub64_rm(XE_AX, &vuRegs[0].nextBlockCycles);
 				xe_cmp64_ri(XE_AX, 4);
 				e_u8* skip; xe_fwd_jcc32(Jcc_Less, skip);
-				xe_lea_far(arg1reg.Id, CpuVU0);
-				xe_mov64_ri(arg2reg.Id, s_nBlockInterlocked);
-				xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, arg1reg.Id, arg2reg.Id);
+				xe_lea_far(XE_ARG1, CpuVU0);
+				xe_mov64_ri(XE_ARG2, s_nBlockInterlocked);
+				xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, XE_ARG1, XE_ARG2);
 				xe_fwd_set32(skip);
 
 				xe_fastcall0(_vu0WaitMicro);
@@ -384,9 +384,9 @@ static void mVUSyncVU0(void)
 		xe_sub64_rm(XE_AX, &vuRegs[0].nextBlockCycles);
 	xe_cmp64_ri(XE_AX, 4);
 	e_u8* skip; xe_fwd_jcc32(Jcc_Less, skip);
-	xe_lea_far(arg1reg.Id, CpuVU0);
-	xe_mov64_ri(arg2reg.Id, s_nBlockInterlocked);
-	xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, arg1reg.Id, arg2reg.Id);
+	xe_lea_far(XE_ARG1, CpuVU0);
+	xe_mov64_ri(XE_ARG2, s_nBlockInterlocked);
+	xe_fastcall2_rr(BaseVUmicroCPU::ExecuteBlockJIT, XE_ARG1, XE_ARG2);
 	xe_fwd_set32(skip);
 	xe_fwd_set32(skipvuidle);
 }
@@ -513,9 +513,9 @@ static void recCTC2(void)
 		}
 		case REG_CMSAR1: // Execute VU1 Micro SubRoutine
 			iFlushCall(FLUSH_NONE);
-			xe_mov32_ri(arg1regd.Id, 1);
+			xe_mov32_ri(XE_ARG1, 1);
 			xe_fastcall0(vu1Finish);
-			_eeMoveGPRtoR32(arg1regd.Id, _Rt_);
+			_eeMoveGPRtoR32(XE_ARG1, _Rt_);
 			iFlushCall(FLUSH_NONE);
 			xe_fastcall0(vu1ExecMicro);
 			break;
@@ -819,12 +819,12 @@ void recLQC2(void)
 	}
 	else
 	{
-		_eeMoveGPRtoR32(arg1regd.Id, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
 		if (_Imm_ != 0)
-			xe_add32_ri(arg1regd.Id, _Imm_);
-		xe_and32_ri(arg1regd.Id, ~0xF);
+			xe_add32_ri(XE_ARG1, _Imm_);
+		xe_and32_ri(XE_ARG1, ~0xF);
 
-		xmmreg = vtlb_DynGenReadQuad(128, arg1regd.Id, alloc_cb);
+		xmmreg = vtlb_DynGenReadQuad(128, XE_ARG1, alloc_cb);
 	}
 
 	// toss away if loading to vf00
@@ -853,12 +853,12 @@ void recSQC2(void)
 	}
 	else
 	{
-		_eeMoveGPRtoR32(arg1regd.Id, _Rs_);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_);
 		if (_Imm_ != 0)
-			xe_add32_ri(arg1regd.Id, _Imm_);
-		xe_and32_ri(arg1regd.Id, ~0xF);
+			xe_add32_ri(XE_ARG1, _Imm_);
+		xe_and32_ri(XE_ARG1, ~0xF);
 
-		vtlb_DynGenWrite(128, true, arg1regd.Id, ftreg);
+		vtlb_DynGenWrite(128, true, XE_ARG1, ftreg);
 	}
 
 	if (!_Rt_)
