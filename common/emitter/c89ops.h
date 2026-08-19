@@ -812,6 +812,7 @@
 	xe_fastcall0(fn); } while (0)
 #define XE_ARG1 (x86Emitter::arg1reg.Id)
 #define XE_ARG2 (x86Emitter::arg2reg.Id)
+#define XE_ARG3 (x86Emitter::arg3reg.Id)
 #define xe_push64_r(reg) do { XE_OPEN();  \
 	{ if ((reg) >= 8) EW8(xep, 0x41); EW8(xep, (e_u8)(0x50 | ((reg) & 7))); }; XE_CLOSE(); } while (0)
 #define xe_pop64_r(reg) do { XE_OPEN();  \
@@ -983,5 +984,75 @@
 		xe_mov64_ri((tmpreg), (imm)); \
 		xe_mov64_mr((addr), (tmpreg)); \
 	} } while (0)
+
+
+/* recVTLB vocabulary: sign/zero-extending loads at 64-bit width from
+ * generic e_mem and absolute addresses, generic 64-bit moves, byte
+ * register extends, an indirect near call through a generic memory
+ * operand, and nop. */
+#define xe_movsx64_rmemg8(reg, m) do { XE_OPEN(); \
+	E_REX_MEM(xep, 1, (reg), (m)); EW8(xep, 0x0f); EW8(xep, 0xbe); \
+	E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_movsx64_rmemg16(reg, m) do { XE_OPEN(); \
+	E_REX_MEM(xep, 1, (reg), (m)); EW8(xep, 0x0f); EW8(xep, 0xbf); \
+	E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_movsxd_rmemg(reg, m) do { XE_OPEN(); \
+	E_REX_MEM(xep, 1, (reg), (m)); EW8(xep, 0x63); \
+	E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_mov64_rmemg(reg, m) do { XE_OPEN(); \
+	E_REX_MEM(xep, 1, (reg), (m)); EW8(xep, 0x8b); \
+	E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_mov64_memgr(m, reg) do { XE_OPEN(); \
+	E_REX_MEM(xep, 1, (reg), (m)); EW8(xep, 0x89); \
+	E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_mov32_memgr(m, reg) do { XE_OPEN(); \
+	E_REX_MEM(xep, 0, (reg), (m)); EW8(xep, 0x89); \
+	E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_movsx64_rm8(reg, addr) do { XE_OPEN(); struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_REX_MEM(xep, 1, (reg), xm_); EW8(xep, 0x0f); EW8(xep, 0xbe); \
+	E_MODRM_MEM(xep, (reg), xm_, 0); XE_CLOSE(); } while (0)
+#define xe_movsx64_rm16(reg, addr) do { XE_OPEN(); struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_REX_MEM(xep, 1, (reg), xm_); EW8(xep, 0x0f); EW8(xep, 0xbf); \
+	E_MODRM_MEM(xep, (reg), xm_, 0); XE_CLOSE(); } while (0)
+#define xe_movzx32_rm8(reg, addr) do { XE_OPEN(); struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_REX_MEM(xep, 0, (reg), xm_); EW8(xep, 0x0f); EW8(xep, 0xb6); \
+	E_MODRM_MEM(xep, (reg), xm_, 0); XE_CLOSE(); } while (0)
+/* movsx r64, r8 / r16; movzx r32, r8 (register forms) */
+#define xe_movsx64_rr8(dst, src) do { XE_OPEN(); \
+	{ e_u8 rex_ = (e_u8)(0x48 | (((dst) > 7) ? 4 : 0) | (((src) > 7) ? 1 : 0)); \
+	  EW8(xep, rex_); } EW8(xep, 0x0f); EW8(xep, 0xbe); \
+	E_MODRM_RR(xep, (dst), (src)); XE_CLOSE(); } while (0)
+#define xe_movsx64_rr16(dst, src) do { XE_OPEN(); \
+	{ e_u8 rex_ = (e_u8)(0x48 | (((dst) > 7) ? 4 : 0) | (((src) > 7) ? 1 : 0)); \
+	  EW8(xep, rex_); } EW8(xep, 0x0f); EW8(xep, 0xbf); \
+	E_MODRM_RR(xep, (dst), (src)); XE_CLOSE(); } while (0)
+#define xe_movzx32_rr8(dst, src) do { XE_OPEN(); \
+	{ int nx_ = ((dst) > 7) || ((src) > 3); \
+	  if (nx_) EW8(xep, (e_u8)(0x40 | (((dst) > 7) ? 4 : 0) | (((src) > 7) ? 1 : 0))); } \
+	EW8(xep, 0x0f); EW8(xep, 0xb6); \
+	E_MODRM_RR(xep, (dst), (src)); XE_CLOSE(); } while (0)
+/* call near through a generic memory operand: FF /2 */
+#define xe_call_memg(m) do { XE_OPEN(); \
+	E_REX_MEM(xep, 0, 2, (m)); EW8(xep, 0xff); \
+	E_MODRM_MEM(xep, 2, (m), 0); XE_CLOSE(); } while (0)
+#define xe_nop() do { XE_OPEN(); EW8(xep, 0x90); XE_CLOSE(); } while (0)
+
+/* byte/word stores through a generic e_mem (REX for spl..dil bytes) */
+#define xe_mov8_memgr(m, reg) do { XE_OPEN(); \
+	{ int rx8_ = ((m).index != E_NOREG && (m).index >= 8) ? 1 : 0; \
+	  int rb8_ = ((m).base  != E_NOREG && (m).base  >= 8) ? 1 : 0; \
+	  e_u8 rex8_; \
+	  if (!E_NEEDS_SIB(m)) { rb8_ = rx8_; rx8_ = 0; } \
+	  rex8_ = (e_u8)(0x40 | ((((int)(reg) >= 8) ? 1 : 0) << 2) | (rx8_ << 1) | rb8_); \
+	  /* spl..dil (4-7) as byte operands force a bare REX */ \
+	  if (rex8_ != 0x40 || ((reg) >= 4 && (reg) <= 7)) EW8(xep, rex8_); } \
+	EW8(xep, 0x88); E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+#define xe_mov16_memgr(m, reg) do { XE_OPEN(); \
+	E_P16(xep); E_REX_MEM(xep, 0, (reg), (m)); \
+	EW8(xep, 0x89); E_MODRM_MEM(xep, (reg), (m), 0); XE_CLOSE(); } while (0)
+
+
+/* movq xmm, r64: 66 REX.W 0F 6E /r */
+#define xe_movq_xr(x, gpr) do { XE_OPEN(); E_SSE_RR_W(xep, 0x66, 0x6e, (x), (gpr), 1); XE_CLOSE(); } while (0)
 
 #endif /* PCSX2_C89OPS_H */
