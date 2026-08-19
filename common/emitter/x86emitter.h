@@ -42,10 +42,21 @@
 #pragma once
 
 #include "x86types.h"
-#include "instructions.h"
 
-// Including legacy items for now, but these should be removed eventually,
-// once most code is no longer dependent on them.
+#ifdef PCSX2_C89_EMITTER
+/* The instruction veneer and the shim are out of the compiled include
+ * chain: every recompiler emits through c89ops.h, and the few C++-spelled
+ * survivors (forward-jump typedefs, xInvertCond, the address helpers)
+ * live in c89compat.h with C89-backed bodies. instructions.h and
+ * x86emitter_shim.h remain in the tree for the byte suites, which
+ * include them explicitly. */
+#include "c89compat.h"
+#include "c89ops.h"
+#else
+#include "instructions.h"
+#endif
+
+// Legacy static helpers; their bodies emit through the C89 core directly.
 #include "legacy_instructions.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -56,50 +67,50 @@
 #ifdef _WIN32
 #define SCOPED_STACK_FRAME_BEGIN(m_offset) \
 	(m_offset) = sizeof(void*); \
-	xPUSH(rbp); \
+	xe_push64_r(5); \
 	(m_offset) += sizeof(void*); \
-	xPUSH(rbx); \
-	xPUSH(r12); \
-	xPUSH(r13); \
-	xPUSH(r14); \
-	xPUSH(r15); \
+	xe_push64_r(3); \
+	xe_push64_r(12); \
+	xe_push64_r(13); \
+	xe_push64_r(14); \
+	xe_push64_r(15); \
 	m_offset += 40; \
-	xPUSH(rdi); \
-	xPUSH(rsi); \
-	xSUB(rsp, 32); \
+	xe_push64_r(7); \
+	xe_push64_r(6); \
+	xe_sub64_ri(4, 32); \
 	m_offset += 48; \
-	xADD(rsp, (-((16 - ((m_offset) % 16)) % 16)))
+	xe_add64_ri(4, (-((16 - ((m_offset) % 16)) % 16)))
 
 #define SCOPED_STACK_FRAME_END(m_offset) \
-	xADD(rsp, ((16 - ((m_offset) % 16)) % 16)); \
-	xADD(rsp, 32); \
-	xPOP(rsi); \
-	xPOP(rdi); \
-	xPOP(r15); \
-	xPOP(r14); \
-	xPOP(r13); \
-	xPOP(r12); \
-	xPOP(rbx); \
-	xPOP(rbp)
+	xe_add64_ri(4, ((16 - ((m_offset) % 16)) % 16)); \
+	xe_add64_ri(4, 32); \
+	xe_pop64_r(6); \
+	xe_pop64_r(7); \
+	xe_pop64_r(15); \
+	xe_pop64_r(14); \
+	xe_pop64_r(13); \
+	xe_pop64_r(12); \
+	xe_pop64_r(3); \
+	xe_pop64_r(5)
 #else
 #define SCOPED_STACK_FRAME_BEGIN(m_offset) \
 	(m_offset) = sizeof(void*); \
-	xPUSH(rbp); \
+	xe_push64_r(5); \
 	(m_offset) += sizeof(void*); \
-	xPUSH(rbx); \
-	xPUSH(r12); \
-	xPUSH(r13); \
-	xPUSH(r14); \
-	xPUSH(r15); \
+	xe_push64_r(3); \
+	xe_push64_r(12); \
+	xe_push64_r(13); \
+	xe_push64_r(14); \
+	xe_push64_r(15); \
 	m_offset += 40; \
-	xADD(rsp, (-((16 - ((m_offset) % 16)) % 16)))
+	xe_add64_ri(4, (-((16 - ((m_offset) % 16)) % 16)))
 
 #define SCOPED_STACK_FRAME_END(m_offset) \
-	xADD(rsp, ((16 - ((m_offset) % 16)) % 16)); \
-	xPOP(r15); \
-	xPOP(r14); \
-	xPOP(r13); \
-	xPOP(r12); \
-	xPOP(rbx); \
-	xPOP(rbp)
+	xe_add64_ri(4, ((16 - ((m_offset) % 16)) % 16)); \
+	xe_pop64_r(15); \
+	xe_pop64_r(14); \
+	xe_pop64_r(13); \
+	xe_pop64_r(12); \
+	xe_pop64_r(3); \
+	xe_pop64_r(5)
 #endif

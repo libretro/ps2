@@ -464,6 +464,8 @@ namespace x86Emitter
 #ifdef PCSX2_C89_EMITTER
 	// Address and constant helpers: composition over xLEA/xMOV/xMOV64,
 	// moved verbatim from x86emitter.cpp so the switched build needs no
+#ifndef PCSX2_C89_COMPAT_HELPERS
+
 	// object file for them. Explicit inline: __fi is empty on MinGW.
 	inline xAddressVoid xComplexAddress(const xAddressReg& tmpRegister, void* base, const xAddressVoid& offset)
 	{
@@ -497,6 +499,7 @@ namespace x86Emitter
 	{
 		xImm64Op(xMOV, ptr64[addr], tmp, imm);
 	}
+#endif /* !PCSX2_C89_COMPAT_HELPERS */
 
 #endif
 
@@ -558,6 +561,7 @@ namespace x86Emitter
 		}
 	}
 
+#ifndef PCSX2_C89_COMPAT_HELPERS
 	// returns the inverted conditional type for this Jcc condition.  Ie, JNS will become JS.
 	inline JccComparisonType xInvertCond(JccComparisonType src)
 	{
@@ -611,6 +615,7 @@ namespace x86Emitter
 
 	typedef xForwardJS<s8> xForwardJS8;
 	typedef xForwardJNS<s32> xForwardJNS32;
+#endif /* !PCSX2_C89_COMPAT_HELPERS */
 
 	// ------------------------------------------------------------------------
 
