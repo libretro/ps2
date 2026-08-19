@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -25,7 +26,7 @@
 	do { \
 		if (_XYZW_SS && modXYZW && !_W) \
 		{ \
-			xSHL(gprReg, ADD_XYZW); \
+			xe_shl32_ri((gprReg).Id, ADD_XYZW); \
 		} \
 	} while (0)
 
@@ -52,7 +53,7 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 			regT2 = mVU.regAlloc->allocReg();
 			regT2b = true;
 		}
-		xPSHUF.D(regT2, reg, 0x1B); // Flip wzyx to xyzw
+		xe_pshufd_xxi(regT2.Id, reg.Id, 0x1B); // Flip wzyx to xyzw
 	}
 	else
 		regT2 = reg;
@@ -61,23 +62,23 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 	{
 		mVUallocSFLAGa(sReg, sFLAG.lastWrite); // Get Prev Status Flag
 		if (sFLAG.doNonSticky)
-			xAND(sReg, 0xfffc00ff); // Clear O,U,S,Z flags
+			xe_and32_ri(sReg.Id, 0xfffc00ff); // Clear O,U,S,Z flags
 	}
 
 	//-------------------------Check for Signed flags------------------------------
 
-	xMOVMSKPS(mReg,  regT2); // Move the Sign Bits of the t2reg
+	xe_movmskps_rx(mReg.Id,  regT2.Id); // Move the Sign Bits of the t2reg
 	xXOR.PS  (regT1, regT1); // Clear regT1
-	xCMPEQ.PS(regT1, regT2); // Set all F's if each vector is zero
-	xMOVMSKPS(gprT2, regT1); // Used for Zero Flag Calculation
+	xe_cmpeqps_xx(regT1.Id, regT2.Id); // Set all F's if each vector is zero
+	xe_movmskps_rx(gprT2.Id, regT1.Id); // Used for Zero Flag Calculation
 
-	xAND(mReg, AND_XYZW); // Grab "Is Signed" bits from the previous calculation
-	xSHL(mReg, 4);
+	xe_and32_ri(mReg.Id, AND_XYZW); // Grab "Is Signed" bits from the previous calculation
+	xe_shl32_ri(mReg.Id, 4);
 
 	//-------------------------Check for Zero flags------------------------------
 
-	xAND(gprT2, AND_XYZW); // Grab "Is Zero" bits from the previous calculation
-	xOR(mReg, gprT2);
+	xe_and32_ri(gprT2.Id, AND_XYZW); // Grab "Is Zero" bits from the previous calculation
+	xe_or32_rr(mReg.Id, gprT2.Id);
 
 	//-------------------------Overflow Flags-----------------------------------
 	// We can't really do this because of the limited range of x86 and the value MIGHT genuinely be FLT_MAX (x86)
@@ -90,18 +91,18 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 			{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}, //1111
 		};
 		//Calculate overflow
-		xMOVAPS(regT1, regT2);
-		xAND.PS(regT1, ptr128[&sse4_compvals[1][0]]); // Remove sign flags (we don't care)
-		xCMPNLT.PS(regT1, ptr128[&sse4_compvals[0][0]]); // Compare if T1 == FLT_MAX
-		xMOVMSKPS(gprT2, regT1); // Grab sign bits  for equal results
-		xAND(gprT2, AND_XYZW); // Grab "Is FLT_MAX" bits from the previous calculation
+		xe_movaps_xx(regT1.Id, regT2.Id);
+		xe_andps_xm(regT1.Id, &sse4_compvals[1][0]); // Remove sign flags (we don't care)
+		xe_cmpnltps_xm(regT1.Id, &sse4_compvals[0][0]); // Compare if T1 == FLT_MAX
+		xe_movmskps_rx(gprT2.Id, regT1.Id); // Grab sign bits  for equal results
+		xe_and32_ri(gprT2.Id, AND_XYZW); // Grab "Is FLT_MAX" bits from the previous calculation
 		xForwardJump32 oJMP(Jcc_Zero);
 
-		xOR(sReg, 0x820000);
+		xe_or32_ri(sReg.Id, 0x820000);
 		if (mFLAG.doFlag)
 		{
-			xSHL(gprT2, 12); // Add the results to the MAC Flag
-			xOR(mReg, gprT2);
+			xe_shl32_ri(gprT2.Id, 12); // Add the results to the MAC Flag
+			xe_or32_rr(mReg.Id, gprT2.Id);
 		}
 
 		oJMP.SetTarget();
@@ -115,12 +116,12 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 	}
 	if (sFLAG.doFlag)
 	{
-		xAND(mReg, 0xFF); // Ignore overflow bits, they're handled separately
-		xOR(sReg, mReg);
+		xe_and32_ri(mReg.Id, 0xFF); // Ignore overflow bits, they're handled separately
+		xe_or32_rr(sReg.Id, mReg.Id);
 		if (sFLAG.doNonSticky)
 		{
-			xSHL(mReg, 8);
-			xOR(sReg, mReg);
+			xe_shl32_ri(mReg.Id, 8);
+			xe_or32_rr(sReg.Id, mReg.Id);
 		}
 	}
 	if (regT1b)
@@ -178,7 +179,7 @@ static bool doSafeSub(microVU& mVU, int opCase, int opType, bool isACC)
 		if ((opType == 1) && (_Ft_ == _Fs_) && (opCase == 1)) // Don't do this with BC's!
 		{
 			const xmm& Fs = mVU.regAlloc->allocReg(-1, isACC ? 32 : _Fd_, _X_Y_Z_W);
-			xPXOR(Fs, Fs); // Set to Positive 0
+			xe_pxor_xx(Fs.Id, Fs.Id); // Set to Positive 0
 			mVUupdateFlags(mVU, Fs);
 			mVU.regAlloc->clearNeeded(Fs);
 			return true;
@@ -245,7 +246,7 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 			Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
 			ACC = mVU.regAlloc->allocReg((_X_Y_Z_W == 0xf) ? -1 : 32, 32, 0xf, 0);
 			if (_XYZW_SS2)
-				xPSHUF.D(ACC, ACC, shuffleSS(_X_Y_Z_W));
+				xe_pshufd_xxi(ACC.Id, ACC.Id, shuffleSS(_X_Y_Z_W));
 		}
 		else
 		{
@@ -261,12 +262,12 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 		if (isACC)
 		{
 			if (_XYZW_SS)
-				xMOVSS(ACC, Fs);
+				xe_movss_xx(ACC.Id, Fs.Id);
 			else
 				mVUmergeRegs(ACC, Fs, _X_Y_Z_W);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			if (_XYZW_SS2)
-				xPSHUF.D(ACC, ACC, shuffleSS(_X_Y_Z_W));
+				xe_pshufd_xxi(ACC.Id, ACC.Id, shuffleSS(_X_Y_Z_W));
 			mVU.regAlloc->clearNeeded(ACC);
 		}
 		else if (opType < 3 || opType == 5) // Not Min/Max or is ADDi(5) (TODO: Reorganise this so its < 4 including ADDi)
@@ -295,7 +296,7 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 		ACC = mVU.regAlloc->allocReg(32, 32, 0xf, false);
 
 		if (_XYZW_SS2)
-			xPSHUF.D(ACC, ACC, shuffleSS(_X_Y_Z_W));
+			xe_pshufd_xxi(ACC.Id, ACC.Id, shuffleSS(_X_Y_Z_W));
 
 		if (clampType & cFt) mVUclamp2(mVU, Ft, xEmptyReg, _X_Y_Z_W);
 		if (clampType & cFs) mVUclamp2(mVU, Fs, xEmptyReg, _X_Y_Z_W);
@@ -309,12 +310,12 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 			else          SSE_PS[opType](mVU, ACC, Fs, tempFt, xEmptyReg);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			if (_XYZW_SS && _X_Y_Z_W != 8)
-				xPSHUF.D(ACC, ACC, shuffleSS(_X_Y_Z_W));
+				xe_pshufd_xxi(ACC.Id, ACC.Id, shuffleSS(_X_Y_Z_W));
 		}
 		else
 		{
 			const xmm& tempACC = mVU.regAlloc->allocReg();
-			xMOVAPS(tempACC, ACC);
+			xe_movaps_xx(tempACC.Id, ACC.Id);
 			SSE_PS[opType](mVU, tempACC, Fs, tempFt, xEmptyReg);
 			mVUmergeRegs(ACC, tempACC, _X_Y_Z_W);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
@@ -341,7 +342,7 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, int clampType)
 		Fs = mVU.regAlloc->allocReg(_Fs_, _Fd_, _X_Y_Z_W);
 
 		if (_XYZW_SS2)
-			xPSHUF.D(ACC, ACC, shuffleSS(_X_Y_Z_W));
+			xe_pshufd_xxi(ACC.Id, ACC.Id, shuffleSS(_X_Y_Z_W));
 
 		if (clampType & cFt)  mVUclamp2(mVU, Ft,  xEmptyReg, _X_Y_Z_W);
 		if (clampType & cFs)  mVUclamp2(mVU, Fs,  xEmptyReg, _X_Y_Z_W);
@@ -352,7 +353,7 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, int clampType)
 		else          { SSE_PS[2](mVU, Fs, Ft, xEmptyReg, xEmptyReg); SSE_PS[0](mVU, Fs, ACC, tempFt, xEmptyReg); }
 
 		if (_XYZW_SS2)
-			xPSHUF.D(ACC, ACC, shuffleSS(_X_Y_Z_W));
+			xe_pshufd_xxi(ACC.Id, ACC.Id, shuffleSS(_X_Y_Z_W));
 
 		mVUupdateFlags(mVU, Fs, tempFt);
 
@@ -400,7 +401,7 @@ mVUop(mVU_ABS)
 		if (!_Ft_)
 			return;
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
-		xAND.PS(Fs, ptr128[mVUglob.absclip]);
+		xe_andps_xm(Fs.Id, mVUglob.absclip);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -414,8 +415,8 @@ mVUop(mVU_OPMULA)
 		const xmm& Ft = mVU.regAlloc->allocReg(_Ft_, 0, _X_Y_Z_W);
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 32, _X_Y_Z_W);
 
-		xPSHUF.D(Fs, Fs, 0xC9); // WXZY
-		xPSHUF.D(Ft, Ft, 0xD2); // WYXZ
+		xe_pshufd_xxi(Fs.Id, Fs.Id, 0xC9); // WXZY
+		xe_pshufd_xxi(Ft.Id, Ft.Id, 0xD2); // WYXZ
 		SSE_MULPS(mVU, Fs, Ft);
 		mVU.regAlloc->clearNeeded(Ft);
 		mVUupdateFlags(mVU, Fs);
@@ -434,8 +435,8 @@ mVUop(mVU_OPMSUB)
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
 		const xmm& ACC = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);
 
-		xPSHUF.D(Fs, Fs, 0xC9); // WXZY
-		xPSHUF.D(Ft, Ft, 0xD2); // WYXZ
+		xe_pshufd_xxi(Fs.Id, Fs.Id, 0xC9); // WXZY
+		xe_pshufd_xxi(Ft.Id, Ft.Id, 0xD2); // WYXZ
 		SSE_MULPS(mVU, Fs,  Ft);
 		SSE_SUBPS(mVU, ACC, Fs);
 		mVU.regAlloc->clearNeeded(Fs);
@@ -462,11 +463,11 @@ static void mVU_FTOIx(mP, const float* addr)
 		 * So for unrepresentable positive values, xor with 0xffffffff to 
 		 * turn 0x80000000 into 0x7fffffff. */
 		if (addr)
-			xMUL.PS(Fs, ptr128[addr]);
-		xMOVAPS(t1, Fs);
-		xPCMP.GTD(t1, ptr128[mVUglob.I32MAXF]);
-		xCVTTPS2DQ(Fs, Fs);
-		xPXOR(Fs, t1);
+			xe_mulps_xm(Fs.Id, addr);
+		xe_movaps_xx(t1.Id, Fs.Id);
+		xe_pcmpgtd_xm(t1.Id, mVUglob.I32MAXF);
+		xe_cvttps2dq_xx(Fs.Id, Fs.Id);
+		xe_pxor_xx(Fs.Id, t1.Id);
 
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(t1);
@@ -483,9 +484,9 @@ static void mVU_ITOFx(mP, const float* addr)
 			return;
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 
-		xCVTDQ2PS(Fs, Fs);
+		xe_cvtdq2ps_xx(Fs.Id, Fs.Id);
 		if (addr)
-			xMUL.PS(Fs, ptr128[addr]);
+			xe_mulps_xm(Fs.Id, addr);
 		//mVUclamp2(Fs, xmmT1, 15); // Clamp (not sure if this is needed)
 
 		mVU.regAlloc->clearNeeded(Fs);
@@ -505,26 +506,26 @@ mVUop(mVU_CLIP)
 
 		mVUunpack_xyzw(Ft, Ft, 0);
 		mVUallocCFLAGa(mVU, gprT1, cFLAG.lastWrite);
-		xSHL(gprT1, 6);
+		xe_shl32_ri(gprT1.Id, 6);
 
 		xMOVAPS  (t1, ptr128[mVUglob.exponent]);
 		xPAND    (t1, Fs);
 		xPXOR    (t2, t2);
-		xPCMP.EQD(t1, t2); // Denormal check
+		xe_pcmpeqd_xx(t1.Id, t2.Id); // Denormal check
 		xPANDN   (t1, Fs); // If denormal, set to zero, which can't be greater than any nonnegative denormal in Ft
 		xPAND    (Ft, ptr128[mVUglob.absclip]);
 
 		xMOVAPS  (Fs, ptr128[mVUglob.signbit]);
 		xPXOR    (Fs, t1); // Negate
-		xPCMP.GTD(t1, Ft); // +w, +z, +y, +x
-		xPCMP.GTD(Fs, Ft); // -w, -z, -y, -x
+		xe_pcmpgtd_xx(t1.Id, Ft.Id); // +w, +z, +y, +x
+		xe_pcmpgtd_xx(Fs.Id, Ft.Id); // -w, -z, -y, -x
 
-		xPBLEND.W (Fs, t1, 0x55); // Squish together
-		xPACK.SSWB(Fs, Fs);       // Convert u16 to u8
-		xPMOVMSKB (gprT2, Fs);    // Get bitmask
-		xAND      (gprT2, 0x3f);  // Mask unused stuff
-		xAND      (gprT1, 0xffffff);
-		xOR       (gprT1, gprT2);
+		xe_pblendw_xxi(Fs.Id, t1.Id, 0x55); // Squish together
+		xe_packsswb_xx(Fs.Id, Fs.Id);       // Convert u16 to u8
+		xe_pmovmskb_rx(gprT2.Id, Fs.Id);    // Get bitmask
+		xe_and32_ri(gprT2.Id, 0x3f);  // Mask unused stuff
+		xe_and32_ri(gprT1.Id, 0xffffff);
+		xe_or32_rr(gprT1.Id, gprT2.Id);
 
 		mVUallocCFLAGb(mVU, gprT1, cFLAG.write);
 		mVU.regAlloc->clearNeeded(Fs);

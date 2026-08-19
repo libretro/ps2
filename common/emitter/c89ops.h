@@ -1301,4 +1301,28 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	x86Emitter::xMIN.PD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
 #define xe_maxpd_xx(d, s2) XE_2(E_SSE_RR(xep, 0x66, 0x5f, (d), (s2)), \
 	x86Emitter::xMAX.PD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
+
+/* microVU_Upper vocabulary: packed compares (CMPPS with the type
+ * immediate, 0=EQ 5=NLT per SSE2_ComparisonType), packed multiply and
+ * gt-compare against memory, the float<->int packed converts, the clip
+ * pack/blend/movmsk trio, and movmskps into any gpr. */
+#define xe_cmpeqps_xx(d, s2)  XE_2(E_SSE_RRI(xep, 0x00, 0xc2, (d), (s2), 0), \
+	x86Emitter::xCMPEQ.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
+#define xe_cmpnltps_xm(x, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0xc2, (x), xm_); EW8(xep, 5); }, \
+	x86Emitter::xCMPNLT.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr128[(void*)(addr)]))
+#define xe_mulps_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x00, 0x59, (x), xm_); }, \
+	x86Emitter::xMUL.PS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr128[(void*)(addr)]))
+#define xe_pcmpgtd_xm(x, addr) XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x66, (x), xm_); }, \
+	x86Emitter::xPCMP.GTD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr128[(void*)(addr)]))
+#define xe_cvttps2dq_xx(d, s2) XE_2(E_SSE_RR(xep, 0xf3, 0x5b, (d), (s2)), \
+	x86Emitter::xCVTTPS2DQ(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
+#define xe_pblendw_xxi(d, s2, i) XE_2(E_SSE_RRI(xep, 0x66, 0x0e3a, (d), (s2), (i)), \
+	x86Emitter::xPBLEND.W(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2), (i)))
+#define xe_packsswb_xx(d, s2) XE_2(E_SSE_RR(xep, 0x66, 0x63, (d), (s2)), \
+	x86Emitter::xPACK.SSWB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
+#define xe_pmovmskb_rx(gpr, x) XE_2(E_SSE_RR(xep, 0x66, 0xd7, (gpr), (x)), \
+	x86Emitter::xPMOVMSKB(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(x)))
 #endif /* PCSX2_C89OPS_H */
