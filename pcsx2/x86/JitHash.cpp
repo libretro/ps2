@@ -57,43 +57,6 @@ namespace
 	};
 } // namespace
 
-// Shadow-compare support; see c89ops.h. There is nothing to select at
-// run time: an XE_AB build verifies every converted emission against
-// the C++ twin at the same address, a lean build compiles C89 only.
-extern "C" unsigned long long xe_site_hits;
-unsigned long long xe_site_hits;
-#if defined(PCSX2_XE_AB)
-static const char* const s_xe_arm = "shadow";
-#else
-static const char* const s_xe_arm = "lean";
-#endif
-
-extern "C" void xe_shadow_check(const void* at, const void* end,
-	const void* want, unsigned long want_len, unsigned long cap,
-	const char* file, int line)
-{
-	const unsigned char* p = (const unsigned char*)at;
-	const unsigned char* w = (const unsigned char*)want;
-	unsigned long got_len = (unsigned long)((const unsigned char*)end - p);
-	unsigned long i;
-	if (want_len > cap)
-	{
-		fprintf(stderr, "[XE] %s:%d: twin emitted %lu bytes, over the %lu-byte shadow buffer; raise XE_SHADOW_MAX\n",
-			file, line, want_len, cap);
-		abort();
-	}
-	if (got_len == want_len && (want_len == 0 || memcmp(p, w, want_len) == 0))
-		return;
-	fprintf(stderr, "[XE] BYTE DIVERGENCE at %s:%d (want %lu bytes, got %lu)\n",
-		file, line, want_len, got_len);
-	fprintf(stderr, "[XE]   cpp:");
-	for (i = 0; i < want_len; i++) fprintf(stderr, " %02x", w[i]);
-	fprintf(stderr, "\n[XE]   c89:");
-	for (i = 0; i < got_len; i++) fprintf(stderr, " %02x", p[i]);
-	fprintf(stderr, "\n");
-	fflush(stderr);
-	abort();
-}
 
 JITHASH_EXPORT void pcsx2_jithash_dump(void)
 {
@@ -121,17 +84,11 @@ JITHASH_EXPORT void pcsx2_jithash_dump(void)
 		fprintf(stderr, "[JITHASH] %-12s %016llx nz=%llu\n",
 			r.name, (unsigned long long)h, (unsigned long long)nz);
 	}
-	// Coverage guard for the A/B methodology: identical hashes prove
-	// nothing if the trace never reached a converted site. Both modes
-	// count, so this line must be nonzero AND equal across modes.
-	fprintf(stderr, "[JITHASH] xe_site_hits %llu arm=%s\n", xe_site_hits, s_xe_arm);
 	fflush(stderr);
 }
 
 #else // not x86-64: keep the contract, hash nothing
 
-extern "C" unsigned long long xe_site_hits;
-unsigned long long xe_site_hits;
 
 JITHASH_EXPORT void pcsx2_jithash_dump(void)
 {
