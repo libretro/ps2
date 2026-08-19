@@ -17,6 +17,7 @@
 #include "Common.h"
 #include "R5900OpcodeTables.h"
 #include "x86/iR5900.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -111,14 +112,14 @@ static void recSLTIU_(int info)
 {
 	// TODO(Stenzek): this can be made to suck less by turning Rs into a temp and reallocating Rt.
 	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
-	xXOR(dreg, dreg);
+	xe_xor32_rr(dreg.Id, dreg.Id);
 
 	if (info & PROCESS_EE_S)
-		xCMP(xRegister64(EEREC_S), _Imm_);
+		xe_cmp64_ri(EEREC_S, _Imm_);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], _Imm_);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], _Imm_);
 
-	xSETB(xRegister8(dreg));
+	xe_setcc_r8(x86Emitter::Jcc_Below, dreg.Id);
 
 	if (dreg.Id != EEREC_T)
 	{
@@ -138,14 +139,14 @@ static void recSLTI_const()
 static void recSLTI_(int info)
 {
 	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
-	xXOR(dreg, dreg);
+	xe_xor32_rr(dreg.Id, dreg.Id);
 
 	if (info & PROCESS_EE_S)
-		xCMP(xRegister64(EEREC_S), _Imm_);
+		xe_cmp64_ri(EEREC_S, _Imm_);
 	else
-		xCMP(ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]], _Imm_);
+		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], _Imm_);
 
-	xSETL(xRegister8(dreg));
+	xe_setcc_r8(x86Emitter::Jcc_Less, dreg.Id);
 
 	if (dreg.Id != EEREC_T)
 	{

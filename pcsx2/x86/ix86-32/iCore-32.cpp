@@ -23,6 +23,7 @@
 #include "../iR5900.h"
 
 #include "common/emitter/x86emitter.h"
+#include "common/emitter/c89ops.h"
 
 using namespace x86Emitter;
 
@@ -108,7 +109,7 @@ void _flushConstReg(int reg)
 {
 	if (GPR_IS_CONST1(reg) && !(g_cpuFlushedConstReg & (1 << reg)))
 	{
-		xWriteImm64ToMem(&cpuRegs.GPR.r[reg].UD[0], rax, g_cpuConstRegs[reg].SD[0]);
+		xe_imm64op_mov64_mi(&cpuRegs.GPR.r[reg].UD[0], XE_AX, g_cpuConstRegs[reg].SD[0]);
 		g_cpuFlushedConstReg |= (1 << reg);
 	}
 }
@@ -132,7 +133,7 @@ void _flushConstRegs(void)
 	bool rax_is_zero = false;
 	if (zero_reg_count > 1)
 	{
-		xXOR(eax, eax);
+		xe_xor32_rr(XE_AX, XE_AX);
 		for (u32 i = 0; i < 32; i++)
 		{
 			if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
@@ -140,7 +141,7 @@ void _flushConstRegs(void)
 
 			if (g_cpuConstRegs[i].SD[0] == 0)
 			{
-				xMOV(ptr64[&cpuRegs.GPR.r[i].UD[0]], rax);
+				xe_mov64_mr(&cpuRegs.GPR.r[i].UD[0], XE_AX);
 				g_cpuFlushedConstReg |= 1u << i;
 			}
 		}
@@ -149,9 +150,9 @@ void _flushConstRegs(void)
 	if (minusone_reg_count > 1)
 	{
 		if (!rax_is_zero)
-			xMOV(rax, -1);
+			xe_mov64_ri(XE_AX, -1);
 		else
-			xNOT(rax);
+			xe_not64_r(XE_AX);
 
 		for (u32 i = 0; i < 32; i++)
 		{
@@ -160,7 +161,7 @@ void _flushConstRegs(void)
 
 			if (g_cpuConstRegs[i].SD[0] == -1)
 			{
-				xMOV(ptr64[&cpuRegs.GPR.r[i].UD[0]], rax);
+				xe_mov64_mr(&cpuRegs.GPR.r[i].UD[0], XE_AX);
 				g_cpuFlushedConstReg |= 1u << i;
 			}
 		}
@@ -172,7 +173,7 @@ void _flushConstRegs(void)
 		if (!GPR_IS_CONST1(i) || g_cpuFlushedConstReg & (1u << i))
 			continue;
 
-		xWriteImm64ToMem(&cpuRegs.GPR.r[i].UD[0], rax, g_cpuConstRegs[i].UD[0]);
+		xe_imm64op_mov64_mi(&cpuRegs.GPR.r[i].UD[0], XE_AX, g_cpuConstRegs[i].UD[0]);
 		g_cpuFlushedConstReg |= 1u << i;
 	}
 }
@@ -249,7 +250,7 @@ int _allocX86reg(int type, int reg, int mode)
 					if (hostXMMreg >= 0)
 					{
 						// is in a XMM. we don't need to free the XMM since we're not writing, and it's still valid
-						xMOVD(new_reg, xRegisterSSE(hostXMMreg)); // actually MOVQ
+						xe_movq_rx(new_reg.Id, hostXMMreg); // actually MOVQ
 
 						// if the XMM was dirty, just get rid of it, we don't want to try to sync the values up...
 						if (xmmregs[hostXMMreg].mode & MODE_WRITE)
@@ -259,14 +260,14 @@ int _allocX86reg(int type, int reg, int mode)
 					}
 					else if (GPR_IS_CONST1(reg))
 					{
-						xMOV64(new_reg, g_cpuConstRegs[reg].SD[0]);
+						xe_mov64_ri(new_reg.Id, g_cpuConstRegs[reg].SD[0]);
 						g_cpuFlushedConstReg |= (1u << reg);
 						x86regs[regnum].mode |= MODE_WRITE; // reg is dirty
 					}
 					else
 					{
 						// not loaded
-						xMOV(new_reg, ptr64[&_eeGetGPRPtr(reg)->UD[0]]);
+						xe_mov64_rm(new_reg.Id, &_eeGetGPRPtr(reg)->UD[0]);
 					}
 				}
 			}
@@ -281,19 +282,19 @@ int _allocX86reg(int type, int reg, int mode)
 				const xRegister32 new_reg32(regnum);
 				if (reg == 0)
 				{
-					xXOR(new_reg32, new_reg32);
+					xe_xor32_rr(new_reg32.Id, new_reg32.Id);
 				}
 				else
 				{
 					if (PSX_IS_CONST1(reg))
 					{
-						xMOV(new_reg32, g_psxConstRegs[reg]);
+						xe_mov32_ri(new_reg32.Id, g_psxConstRegs[reg]);
 						g_psxFlushedConstReg |= (1u << reg);
 						x86regs[regnum].mode |= MODE_WRITE; // reg is dirty
 					}
 					else
 					{
-						xMOV(new_reg32, ptr32[&psxRegs.GPR.r[reg]]);
+						xe_mov32_rm(new_reg32.Id, &psxRegs.GPR.r[reg]);
 					}
 				}
 			}
@@ -343,7 +344,7 @@ void _writebackX86Reg(int x86reg)
 			break;
 
 		case X86TYPE_VIREG:
-			xMOV(ptr16[&vuRegs[0].VI[x86regs[x86reg].reg].UL], xRegister16(x86reg));
+			xe_mov16_mr(&vuRegs[0].VI[x86regs[x86reg].reg].UL, x86reg);
 			break;
 
 		case X86TYPE_PCWRITEBACK:

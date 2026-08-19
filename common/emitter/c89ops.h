@@ -967,4 +967,21 @@
 #define xe_pmovsxwd_xmemg(x, m) do { XE_OPEN(); E_SSE_R_MEM_W(xep, 0x66, 0x2338, (x), (m), 1); XE_CLOSE(); } while (0)
 #define xe_pmovzxwd_xmemg(x, m) do { XE_OPEN(); E_SSE_R_MEM_W(xep, 0x66, 0x3338, (x), (m), 1); XE_CLOSE(); } while (0)
 #define xe_movups_xmemg(x, m) do { XE_OPEN(); E_SSE_R_MEM(xep, 0x00, 0x10, (x), (m)); XE_CLOSE(); } while (0)
+
+#define xe_movdqa_xm(x, addr) do { XE_OPEN(); struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x6f, (x), xm_); XE_CLOSE(); } while (0)
+#define xe_movdqa_mx(addr, x) do { XE_OPEN(); struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0x66, 0x7f, (x), xm_); XE_CLOSE(); } while (0)
+
+
+/* mov qword [abs], imm64 -- the xWriteImm64ToMem contract: C7 sign-
+ * extends 32, so a wide immediate stages through tmp then stores. */
+#define xe_imm64op_mov64_mi(addr, tmpreg, imm) do { \
+	if ((e_s64)(imm) == (e_s64)(e_s32)(imm)) { \
+		xe_mov64_mi_s32((addr), (e_s32)(imm)); \
+	} else { \
+		xe_mov64_ri((tmpreg), (imm)); \
+		xe_mov64_mr((addr), (tmpreg)); \
+	} } while (0)
+
 #endif /* PCSX2_C89OPS_H */

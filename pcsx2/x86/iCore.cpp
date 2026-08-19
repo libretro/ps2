@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -234,7 +235,7 @@ int _allocFPtoXMMreg(int fpreg, int mode)
 
 		if (!(xmmregs[i].mode & MODE_READ) && (mode & MODE_READ))
 		{
-			xMOVSSZX(xRegisterSSE(i), ptr[&fpuRegs.fpr[fpreg].f]);
+			xe_movss_xm(i, &fpuRegs.fpr[fpreg].f);
 			xmmregs[i].mode |= MODE_READ;
 		}
 
@@ -256,7 +257,7 @@ int _allocFPtoXMMreg(int fpreg, int mode)
 	xmmregs[xmmreg].counter = g_xmmAllocCounter++;
 
 	if (mode & MODE_READ)
-		xMOVSSZX(xRegisterSSE(xmmreg), ptr[&fpuRegs.fpr[fpreg].f]);
+		xe_movss_xm(xmmreg, &fpuRegs.fpr[fpreg].f);
 
 	return xmmreg;
 }
@@ -307,16 +308,16 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 	{
 		if (gprreg == 0)
 		{
-			xPXOR(xRegisterSSE(xmmreg), xRegisterSSE(xmmreg));
+			xe_pxor_xx(xmmreg, xmmreg);
 		}
 		else
 		{
 			if (GPR_IS_CONST1(gprreg))
 			{
 				// load lower+upper, replace lower
-				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&_eeGetGPRPtr(gprreg)->UQ]);
-				xMOV64(rax, g_cpuConstRegs[gprreg].SD[0]);
-				xPINSR.Q(xRegisterSSE(xmmreg), rax, 0);
+				xe_movdqa_xm(xmmreg, &_eeGetGPRPtr(gprreg)->UQ);
+				xe_mov64_ri(XE_AX, g_cpuConstRegs[gprreg].SD[0]);
+				xe_pinsrq(xmmreg, XE_AX, 0);
 				xmmregs[xmmreg].mode |= MODE_WRITE; // reg is dirty
 				g_cpuFlushedConstReg |= (1u << gprreg);
 
@@ -327,12 +328,12 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			else if (hostx86reg >= 0)
 			{
 				// load lower+upper, replace lower if dirty
-				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&_eeGetGPRPtr(gprreg)->UQ]);
+				xe_movdqa_xm(xmmreg, &_eeGetGPRPtr(gprreg)->UQ);
 
 				// if the gpr was written to (dirty), we need to invalidate it
 				if (x86regs[hostx86reg].mode & MODE_WRITE)
 				{
-					xPINSR.Q(xRegisterSSE(xmmreg), xRegister64(hostx86reg), 0);
+					xe_pinsrq(xmmreg, hostx86reg, 0);
 					_freeX86regWithoutWriteback(hostx86reg);
 					xmmregs[xmmreg].mode |= MODE_WRITE;
 				}
@@ -340,7 +341,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 			else
 			{
 				// not loaded
-				xMOVDQA(xRegisterSSE(xmmreg), ptr128[&_eeGetGPRPtr(gprreg)->UQ]);
+				xe_movdqa_xm(xmmreg, &_eeGetGPRPtr(gprreg)->UQ);
 			}
 		}
 	}
@@ -371,7 +372,7 @@ int _allocFPACCtoXMMreg(int mode)
 
 		if (!(xmmregs[i].mode & MODE_READ) && (mode & MODE_READ))
 		{
-			xMOVSSZX(xRegisterSSE(i), ptr[&fpuRegs.ACC.f]);
+			xe_movss_xm(i, &fpuRegs.ACC.f);
 			xmmregs[i].mode |= MODE_READ;
 		}
 
@@ -394,7 +395,7 @@ int _allocFPACCtoXMMreg(int mode)
 
 	if (mode & MODE_READ)
 	{
-		xMOVSSZX(xRegisterSSE(xmmreg), ptr[&fpuRegs.ACC.f]);
+		xe_movss_xm(xmmreg, &fpuRegs.ACC.f);
 	}
 
 	return xmmreg;
@@ -539,7 +540,7 @@ void _deleteGPRtoX86reg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (x86regs[i].mode & MODE_WRITE)
 					{
-						xMOV(ptr64[&_eeGetGPRPtr(reg)->UL[0]], xRegister64(i));
+						xe_mov64_mr(&_eeGetGPRPtr(reg)->UL[0], i);
 
 						// get rid of MODE_WRITE since don't want to flush again
 						x86regs[i].mode &= ~MODE_WRITE;
@@ -576,7 +577,7 @@ void _deletePSXtoX86reg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (x86regs[i].mode & MODE_WRITE)
 					{
-						xMOV(ptr32[&psxRegs.GPR.r[reg]], xRegister32(i));
+						xe_mov32_mr(&psxRegs.GPR.r[reg], i);
 
 						// get rid of MODE_WRITE since don't want to flush again
 						x86regs[i].mode &= ~MODE_WRITE;
@@ -614,7 +615,7 @@ void _deleteGPRtoXMMreg(int reg, int flush)
 				case DELETE_REG_FLUSH_AND_FREE:
 					if (xmmregs[i].mode & MODE_WRITE)
 					{
-						xMOVDQA(ptr[&_eeGetGPRPtr(reg)->UL[0]], xRegisterSSE(i));
+						xe_movdqa_mx(&_eeGetGPRPtr(reg)->UL[0], i);
 
 						// get rid of MODE_WRITE since don't want to flush again
 						xmmregs[i].mode &= ~MODE_WRITE;
@@ -654,7 +655,7 @@ void _deleteFPtoXMMreg(int reg, int flush)
 				case DELETE_REG_FLUSH:
 					if (xmmregs[i].mode & MODE_WRITE)
 					{
-						xMOVSS(ptr[&fpuRegs.fpr[reg].UL], xRegisterSSE(i));
+						xe_movss_mx(&fpuRegs.fpr[reg].UL, i);
 						// get rid of MODE_WRITE since don't want to flush again
 						xmmregs[i].mode &= ~MODE_WRITE;
 						xmmregs[i].mode |= MODE_READ;
@@ -676,24 +677,24 @@ void _writebackXMMreg(int xmmreg)
 		case XMMTYPE_VFREG:
 		{
 			if (xmmregs[xmmreg].reg == 33)
-				xMOVSS(ptr[&vuRegs[0].VI[REG_I].F], xRegisterSSE(xmmreg));
+				xe_movss_mx(&vuRegs[0].VI[REG_I].F, xmmreg);
 			else if (xmmregs[xmmreg].reg == 32)
-				xMOVAPS(ptr[vuRegs[0].ACC.F], xRegisterSSE(xmmreg));
+				xe_movaps_mx(vuRegs[0].ACC.F, xmmreg);
 			else if (xmmregs[xmmreg].reg > 0)
-				xMOVAPS(ptr[vuRegs[0].VF[xmmregs[xmmreg].reg].F], xRegisterSSE(xmmreg));
+				xe_movaps_mx(vuRegs[0].VF[xmmregs[xmmreg].reg].F, xmmreg);
 		}
 		break;
 
 		case XMMTYPE_GPRREG:
-			xMOVDQA(ptr[&_eeGetGPRPtr(xmmregs[xmmreg].reg)->UL[0]], xRegisterSSE(xmmreg));
+			xe_movdqa_mx(&_eeGetGPRPtr(xmmregs[xmmreg].reg)->UL[0], xmmreg);
 			break;
 
 		case XMMTYPE_FPREG:
-			xMOVSS(ptr[&fpuRegs.fpr[xmmregs[xmmreg].reg]], xRegisterSSE(xmmreg));
+			xe_movss_mx(&fpuRegs.fpr[xmmregs[xmmreg].reg], xmmreg);
 			break;
 
 		case XMMTYPE_FPACC:
-			xMOVSS(ptr[&fpuRegs.ACC.f], xRegisterSSE(xmmreg));
+			xe_movss_mx(&fpuRegs.ACC.f, xmmreg);
 			break;
 
 		default:
@@ -759,11 +760,11 @@ int _allocVFtoXMMreg(int vfreg, int mode)
 	if (mode & MODE_READ)
 	{
 		if (vfreg == 33)
-			xMOVSSZX(xRegisterSSE(xmmreg), ptr[&vuRegs[0].VI[REG_I].F]);
+			xe_movss_xm(xmmreg, &vuRegs[0].VI[REG_I].F);
 		else if (vfreg == 32)
-			xMOVAPS(xRegisterSSE(xmmreg), ptr[vuRegs[0].ACC.F]);
+			xe_movaps_xm(xmmreg, vuRegs[0].ACC.F);
 		else
-			xMOVAPS(xRegisterSSE(xmmreg), ptr[vuRegs[0].VF[xmmregs[xmmreg].reg].F]);
+			xe_movaps_xm(xmmreg, vuRegs[0].VF[xmmregs[xmmreg].reg].F);
 	}
 
 	return xmmreg;
