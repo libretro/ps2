@@ -602,9 +602,17 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
  * Reduce with factor 3, which rewrites the operand (base = index) and the
  * dispatcher loaded from the wrong slot; the cpp-mode run aborted before
  * ever reaching the hash dump. */
+/* e_mem -> xAddressVoid for twin arms. Two representational hazards:
+ * .scale holds SIB bits, the address object wants the factor back
+ * (1 << bits); and index==4 is Reduce's rsp artifact meaning NO index
+ * (rsp cannot index), which must map to the empty register or the
+ * round-trip re-enters Reduce's rsp-index early-return with a factor
+ * of 1 and emits ss=01 mod00 -- a corrupt operand. The shadow oracle
+ * caught that as 0f 29 04 64 against 0f 29 4c 24 10 at the thunk
+ * generators' [rsp+disp] spills. */
 #define XE_MEM_TO_ADDR(m) x86Emitter::xAddressVoid( \
 	(m).base  == E_NOREG ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).base), \
-	(m).index == E_NOREG ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).index), \
+	((m).index == E_NOREG || (m).index == 4) ? x86Emitter::xEmptyReg : x86Emitter::xAddressReg((m).index), \
 	1 << (m).scale, (sptr)(m).disp)
 #define xe_complexaddr(m, tmpreg, baseptr, idxreg) do { \
 	if ((e_sptr)(baseptr) == (e_sptr)(e_s32)(e_sptr)(baseptr)) { \
@@ -1325,4 +1333,53 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	x86Emitter::xPACK.SSWB(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
 #define xe_pmovmskb_rx(gpr, x) XE_2(E_SSE_RR(xep, 0x66, 0xd7, (gpr), (x)), \
 	x86Emitter::xPMOVMSKB(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE(x)))
+
+/* microVU_Execute vocabulary: the state copy/compare thunks. AVX forms
+ * ride the existing E_VEX_* core exactly as the shim's AVX objects do;
+ * the twins ARE those objects, so both arms share one opcode table. */
+#define xe_vmovaps_xmemg(x, m, L) XE_2(E_VEX_RRMEM(xep, 0x00, 0x28, (x), E_NOREG, (m), (L)), \
+	x86Emitter::xVMOVAPS(x86Emitter::xRegisterSSE::GetYMMInstance(x), x86Emitter::ptr[XE_MEM_TO_ADDR(m)]))
+#define xe_vmovups_xmemg(x, m, L) XE_2(E_VEX_RRMEM(xep, 0x00, 0x10, (x), E_NOREG, (m), (L)), \
+	x86Emitter::xVMOVUPS(x86Emitter::xRegisterSSE::GetYMMInstance(x), x86Emitter::ptr[XE_MEM_TO_ADDR(m)]))
+#define xe_vmovups_memxg(m, x, L) XE_2(E_VEX_RRMEM(xep, 0x00, 0x11, (x), E_NOREG, (m), (L)), \
+	x86Emitter::xVMOVUPS(x86Emitter::ptr[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE::GetYMMInstance(x)))
+#define xe_vpcmpeqd_xxmemg(d, s1, m, L) XE_2(E_VEX_RRMEM(xep, 0x66, 0x76, (d), (s1), (m), (L)), \
+	x86Emitter::xVPCMP.EQD(x86Emitter::xRegisterSSE::GetYMMInstance(d), \
+		x86Emitter::xRegisterSSE::GetYMMInstance(s1), x86Emitter::ptr[XE_MEM_TO_ADDR(m)]))
+#define xe_vpand_xxx(d, s1, s2, L) XE_2(E_VEX_RRR(xep, 0x66, 0xdb, (d), (s1), (s2), (L)), \
+	x86Emitter::xVPAND(x86Emitter::xRegisterSSE::GetYMMInstance(d), \
+		x86Emitter::xRegisterSSE::GetYMMInstance(s1), x86Emitter::xRegisterSSE::GetYMMInstance(s2)))
+#define xe_vpmovmskb_rx(gpr, x, L) XE_2( \
+	{ E_VEX(xep, 0x66, 0xd7, (gpr), E_NOREG, (L), 0, ((((x) & 0x0F) > 7) ? 1 : 0)); \
+	  E_MODRM_RR(xep, (gpr), (x)); }, \
+	xVPMOVMSKB(x86Emitter::xRegister32(gpr), x86Emitter::xRegisterSSE::GetYMMInstance(x)))
+#define xe_vzeroupper() XE_2( \
+	{ EW8(xep, 0xc5); EW8(xep, 0xf8); EW8(xep, 0x77); }, \
+	xVZEROUPPER())
+/* SSE fallback path pieces */
+#define xe_pcmpeqd_xmemg(x, m) XE_2(E_SSE_R_MEM(xep, 0x66, 0x76, (x), (m)), \
+	x86Emitter::xPCMP.EQD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]))
+#define xe_movups_memxg(m, x) XE_2(E_SSE_R_MEM(xep, 0x00, 0x11, (x), (m)), \
+	x86Emitter::xMOVUPS(x86Emitter::ptr[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE(x)))
+#define xe_jmp_r(reg) XE_2( \
+	{ E_REX(xep, 0, 0, 0, (reg)); EW8(xep, 0xff); \
+	  EW8(xep, (e_u8)(0xe0 | ((reg) & 7))); }, \
+	x86Emitter::xJMP(x86Emitter::xAddressReg(reg)))
+
+#define xe_movdzx_xmemg(x, m) XE_2(E_SSE_R_MEM_W(xep, 0x66, 0x6e, (x), (m), 0), \
+	x86Emitter::xMOVDZX(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]))
+#define xe_jmp_mem_abs(addr) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_REX_MEM(xep, 0, 4, xm_); EW8(xep, 0xff); \
+	  E_MODRM_MEM(xep, 4, xm_, 0); }, \
+	x86Emitter::xJMP(x86Emitter::ptrNative[(void*)(addr)]))
+
+
+/* [rsp + disp]: the reference's operand translation for rsp-based
+ * addresses has quirks (Reduce leaves rsp in both slots and the scale
+ * field's journey is nontrivial); rather than re-deriving them, sites
+ * build the e_mem by running shim_mem over the SAME ptr128[rsp + off]
+ * expression the twin uses, inheriting the reference translation by
+ * construction. The shadow oracle caught two successive re-derivations
+ * (SIB 24 vs 64, then 64 vs a4) before this lesson stuck. */
 #endif /* PCSX2_C89OPS_H */

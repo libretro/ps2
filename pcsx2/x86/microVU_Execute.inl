@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -41,61 +42,61 @@ void mVUdispatcherAB(mV)
 		SCOPED_STACK_FRAME_BEGIN(m_offset);
 
 		// = The caller has already put the needed parameters in ecx/edx:
-		if (!isVU1) xFastCall((void*)mVUexecuteVU0, arg1reg, arg2reg);
-		else        xFastCall((void*)mVUexecuteVU1, arg1reg, arg2reg);
+		if (!isVU1) xe_fastcall2_rr(mVUexecuteVU0, arg1reg.Id, arg2reg.Id);
+		else        xe_fastcall2_rr(mVUexecuteVU1, arg1reg.Id, arg2reg.Id);
 
 		// Load VU's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
-			xLDMXCSR(ptr32[isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask]);
+			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		// Load Regs
 		xMOVAPS (xmmT1, ptr128[&vuRegs[mVU.index].VI[REG_P].UL]);
 		xMOVAPS (xmmPQ, ptr128[&vuRegs[mVU.index].VI[REG_Q].UL]);
 		xMOVDZX (xmmT2, ptr32 [&vuRegs[mVU.index].pending_q]);
-		xSHUF.PS(xmmPQ, xmmT1, 0); // wzyx = PPQQ
+		xe_shufps_xxi(xmmPQ.Id, xmmT1.Id, 0); // wzyx = PPQQ
 		//Load in other Q instance
-		xPSHUF.D(xmmPQ, xmmPQ, 0xe1);
-		xMOVSS(xmmPQ, xmmT2);
-		xPSHUF.D(xmmPQ, xmmPQ, 0xe1);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
+		xe_movss_xx(xmmPQ.Id, xmmT2.Id);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
 
 		if (isVU1)
 		{
 			//Load in other P instance
-			xMOVDZX(xmmT2, ptr32[&vuRegs[mVU.index].pending_p]);
-			xPSHUF.D(xmmPQ, xmmPQ, 0x1B);
-			xMOVSS(xmmPQ, xmmT2);
-			xPSHUF.D(xmmPQ, xmmPQ, 0x1B);
+			{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_p); xe_movdzx_xmemg(xmmT2.Id, xm); }
+			xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x1B);
+			xe_movss_xx(xmmPQ.Id, xmmT2.Id);
+			xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x1B);
 		}
 
-		xMOVAPS(xmmT1, ptr128[&vuRegs[mVU.index].micro_macflags]);
-		xMOVAPS(ptr128[mVU.macFlag], xmmT1);
+		xe_movaps_xm(xmmT1.Id, &vuRegs[mVU.index].micro_macflags);
+		xe_movaps_mx(mVU.macFlag, xmmT1.Id);
 
 
-		xMOVAPS(xmmT1, ptr128[&vuRegs[mVU.index].micro_clipflags]);
-		xMOVAPS(ptr128[mVU.clipFlag], xmmT1);
+		xe_movaps_xm(xmmT1.Id, &vuRegs[mVU.index].micro_clipflags);
+		xe_movaps_mx(mVU.clipFlag, xmmT1.Id);
 
-		xMOV(gprF0, ptr32[&vuRegs[mVU.index].micro_statusflags[0]]);
-		xMOV(gprF1, ptr32[&vuRegs[mVU.index].micro_statusflags[1]]);
-		xMOV(gprF2, ptr32[&vuRegs[mVU.index].micro_statusflags[2]]);
-		xMOV(gprF3, ptr32[&vuRegs[mVU.index].micro_statusflags[3]]);
+		xe_mov32_rm(gprF0.Id, &vuRegs[mVU.index].micro_statusflags[0]);
+		xe_mov32_rm(gprF1.Id, &vuRegs[mVU.index].micro_statusflags[1]);
+		xe_mov32_rm(gprF2.Id, &vuRegs[mVU.index].micro_statusflags[2]);
+		xe_mov32_rm(gprF3.Id, &vuRegs[mVU.index].micro_statusflags[3]);
 
 		// Jump to Recompiled Code Block
-		xJMP(rax);
+		xe_jmp_r(XE_AX);
 
 		mVU.exitFunct = xGetAlignedCallTarget();
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
-			xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUFPCR.bitmask]);
+			xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
 
 		// = The first two DWORD or smaller arguments are passed in ECX and EDX registers;
 		//              all other arguments are passed right to left.
-		if (!isVU1) xFastCall((void*)mVUcleanUpVU0);
-		else        xFastCall((void*)mVUcleanUpVU1);
+		if (!isVU1) xe_fastcall0(mVUcleanUpVU0);
+		else        xe_fastcall0(mVUcleanUpVU1);
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	xRET();
+	xe_ret();
 }
 
 // Generates the code for resuming/exit xgkick
@@ -109,32 +110,32 @@ void mVUdispatcherCD(mV)
 
 		// Load VU's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
-			xLDMXCSR(ptr32[isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask]);
+			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		mVUrestoreRegs(mVU);
-		xMOV(gprF0, ptr32[&vuRegs[mVU.index].micro_statusflags[0]]);
-		xMOV(gprF1, ptr32[&vuRegs[mVU.index].micro_statusflags[1]]);
-		xMOV(gprF2, ptr32[&vuRegs[mVU.index].micro_statusflags[2]]);
-		xMOV(gprF3, ptr32[&vuRegs[mVU.index].micro_statusflags[3]]);
+		xe_mov32_rm(gprF0.Id, &vuRegs[mVU.index].micro_statusflags[0]);
+		xe_mov32_rm(gprF1.Id, &vuRegs[mVU.index].micro_statusflags[1]);
+		xe_mov32_rm(gprF2.Id, &vuRegs[mVU.index].micro_statusflags[2]);
+		xe_mov32_rm(gprF3.Id, &vuRegs[mVU.index].micro_statusflags[3]);
 
 		// Jump to Recompiled Code Block
-		xJMP(ptrNative[&mVU.resumePtrXG]);
+		xe_jmp_mem_abs(&mVU.resumePtrXG);
 
 		mVU.exitFunctXG = xGetAlignedCallTarget();
 
 		// Backup Status Flag (other regs were backed up on xgkick)
-		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[0]], gprF0);
-		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[1]], gprF1);
-		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[2]], gprF2);
-		xMOV(ptr32[&vuRegs[mVU.index].micro_statusflags[3]], gprF3);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3.Id);
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
-			xLDMXCSR(ptr32[&EmuConfig.Cpu.FPUFPCR.bitmask]);
+			xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
 		SCOPED_STACK_FRAME_END(m_offset);
 	}
 
-	xRET();
+	xe_ret();
 }
 
 static void mVUGenerateWaitMTVU(mV)
@@ -153,7 +154,7 @@ static void mVUGenerateWaitMTVU(mV)
 		if (i == gprT2.Id)
 			continue;
 
-		xPUSH(xRegister64(i));
+		xe_push64_r(i);
 		num_gprs++;
 	}
 
@@ -172,18 +173,18 @@ static void mVUGenerateWaitMTVU(mV)
 
 	if (stack_size > 0)
 	{
-		xSUB(rsp, stack_size);
+		xe_sub64_ri(XE_SP, stack_size);
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
 			if (!xRegisterSSE::IsCallerSaved(i))
 				continue;
 
-			xMOVAPS(ptr128[rsp + stack_offset], xRegisterSSE(i));
+			{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_memxg(xm, i); }
 			stack_offset += sizeof(u128);
 		}
 	}
 
-	xFastCall((void*)mVUwaitMTVU);
+	xe_fastcall0(mVUwaitMTVU);
 
 	stack_offset = (num_xmms - 1) * sizeof(u128) + SHADOW_STACK_SIZE;
 	for (int i = static_cast<int>(iREGCNT_XMM - 1); i >= 0; i--)
@@ -191,10 +192,10 @@ static void mVUGenerateWaitMTVU(mV)
 		if (!xRegisterSSE::IsCallerSaved(i))
 			continue;
 
-		xMOVAPS(xRegisterSSE(i), ptr128[rsp + stack_offset]);
+		{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_xmemg(i, xm); }
 		stack_offset -= sizeof(u128);
 	}
-	xADD(rsp, stack_size);
+	xe_add64_ri(XE_SP, stack_size);
 
 	for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
 	{
@@ -204,10 +205,10 @@ static void mVUGenerateWaitMTVU(mV)
 		if (i == gprT2.Id)
 			continue;
 
-		xPOP(xRegister64(i));
+		xe_pop64_r(i);
 	}
 
-	xRET();
+	xe_ret();
 }
 
 static void mVUGenerateCopyPipelineState(mV)
@@ -216,34 +217,34 @@ static void mVUGenerateCopyPipelineState(mV)
 
 	if (cpuinfo_has_x86_avx2())
 	{
-		xVMOVAPS(ymm0, ptr[rax]);
-		xVMOVAPS(ymm1, ptr[rax + 32u]);
-		xVMOVAPS(ymm2, ptr[rax + 64u]);
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 0); xe_vmovaps_xmemg(0, xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 32); xe_vmovaps_xmemg(1, xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 64); xe_vmovaps_xmemg(2, xm, 1); }
 
-		xVMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState)], ymm0);
-		xVMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 32u], ymm1);
-		xVMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 64u], ymm2);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU.prog.lpState); xe_vmovups_memxg(xm, 0, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 32); xe_vmovups_memxg(xm, 1, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 64); xe_vmovups_memxg(xm, 2, 1); }
 
-		xVZEROUPPER();
+		xe_vzeroupper();
 	}
 	else
 	{
-		xMOVAPS(xmm0, ptr[rax]);
-		xMOVAPS(xmm1, ptr[rax + 16u]);
-		xMOVAPS(xmm2, ptr[rax + 32u]);
-		xMOVAPS(xmm3, ptr[rax + 48u]);
-		xMOVAPS(xmm4, ptr[rax + 64u]);
-		xMOVAPS(xmm5, ptr[rax + 80u]);
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 0); xe_movaps_xmemg(0, xm); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 16); xe_movaps_xmemg(1, xm); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 32); xe_movaps_xmemg(2, xm); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 48); xe_movaps_xmemg(3, xm); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 64); xe_movaps_xmemg(4, xm); }
+		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 80); xe_movaps_xmemg(5, xm); }
 
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState)], xmm0);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 16u], xmm1);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 32u], xmm2);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 48u], xmm3);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 64u], xmm4);
-		xMOVUPS(ptr[reinterpret_cast<u8*>(&mVU.prog.lpState) + 80u], xmm5);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU.prog.lpState); xe_movups_memxg(xm, 0); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 16); xe_movups_memxg(xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 32); xe_movups_memxg(xm, 2); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 48); xe_movups_memxg(xm, 3); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 64); xe_movups_memxg(xm, 4); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 80); xe_movups_memxg(xm, 5); }
 	}
 
-	xRET();
+	xe_ret();
 }
 
 //------------------------------------------------------------------
@@ -259,56 +260,56 @@ static void mVUGenerateCompareState(mV)
 	if (cpuinfo_has_x86_avx2())
 	{
 		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
-		xVMOVUPS(ymm0, ptr[arg1reg]);
-		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg]);
-		xVPMOVMSKB(eax, ymm0);
-		xXOR(eax, 0xffffffff);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0); xe_vmovups_xmemg(0, xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0); xe_vpcmpeqd_xxmemg(0, 0, xm, 1); }
+		xe_vpmovmskb_rx(XE_AX, 0, 1);
+		xe_xor32_ri(XE_AX, 0xffffffff);
 		xForwardJNZ8 exitPoint;
 
-		xVMOVUPS(ymm0, ptr[arg1reg + 0x20]);
-		xVMOVUPS(ymm1, ptr[arg1reg + 0x40]);
-		xVPCMP.EQD(ymm0, ymm0, ptr[arg2reg + 0x20]);
-		xVPCMP.EQD(ymm1, ymm1, ptr[arg2reg + 0x40]);
-		xVPAND(ymm0, ymm0, ymm1);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x20); xe_vmovups_xmemg(0, xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x40); xe_vmovups_xmemg(1, xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x20); xe_vpcmpeqd_xxmemg(0, 0, xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x40); xe_vpcmpeqd_xxmemg(1, 1, xm, 1); }
+		xe_vpand_xxx(0, 0, 1, 1);
 
-		xVPMOVMSKB(eax, ymm0);
-		xNOT(eax);
+		xe_vpmovmskb_rx(XE_AX, 0, 1);
+		xe_not32_r(XE_AX);
 
 		exitPoint.SetTarget();
-		xVZEROUPPER();
+		xe_vzeroupper();
 	}
 	else
 	{
 		xMOVAPS  (xmm0, ptr32[arg1reg]);
-		xPCMP.EQD(xmm0, ptr32[arg2reg]);
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0); xe_pcmpeqd_xmemg(0, xm); }
 		xMOVAPS  (xmm1, ptr32[arg1reg + 0x10]);
-		xPCMP.EQD(xmm1, ptr32[arg2reg + 0x10]);
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x10); xe_pcmpeqd_xmemg(1, xm); }
 		xPAND    (xmm0, xmm1);
 
-		xMOVMSKPS(eax, xmm0);
+		xe_movmskps_rx(XE_AX, 0);
 		xXOR     (eax, 0xf);
 		xForwardJNZ8 exitPoint;
 
 		xMOVAPS  (xmm0, ptr32[arg1reg + 0x20]);
-		xPCMP.EQD(xmm0, ptr32[arg2reg + 0x20]);
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x20); xe_pcmpeqd_xmemg(0, xm); }
 		xMOVAPS  (xmm1, ptr32[arg1reg + 0x30]);
-		xPCMP.EQD(xmm1, ptr32[arg2reg + 0x30]);
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x30); xe_pcmpeqd_xmemg(1, xm); }
 		xPAND    (xmm0, xmm1);
 
 		xMOVAPS  (xmm1, ptr32[arg1reg + 0x40]);
-		xPCMP.EQD(xmm1, ptr32[arg2reg + 0x40]);
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x40); xe_pcmpeqd_xmemg(1, xm); }
 		xMOVAPS  (xmm2, ptr32[arg1reg + 0x50]);
-		xPCMP.EQD(xmm2, ptr32[arg2reg + 0x50]);
+		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x50); xe_pcmpeqd_xmemg(2, xm); }
 		xPAND    (xmm1, xmm2);
 		xPAND    (xmm0, xmm1);
 
-		xMOVMSKPS(eax, xmm0);
-		xXOR(eax, 0xf);
+		xe_movmskps_rx(XE_AX, 0);
+		xe_xor32_ri(XE_AX, 0xf);
 
 		exitPoint.SetTarget();
 	}
 
-	xRET();
+	xe_ret();
 }
 
 //------------------------------------------------------------------
