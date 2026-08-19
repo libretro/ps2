@@ -1279,7 +1279,7 @@ mVUop(mVU_LQ)
 		}
 
 		const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-		mVUloadReg(Ft, optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q), _X_Y_Z_W);
+		mVUloadReg(Ft, e_mem_from_xav(optaddr.has_value() ? optaddr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q)), _X_Y_Z_W);
 		mVU.regAlloc->clearNeeded(Ft);
 	}
 }
@@ -1308,7 +1308,7 @@ mVUop(mVU_LQD)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 			xAddressVoid _ptr = (is.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, is);
-			mVUloadReg(Ft, _ptr, _X_Y_Z_W);
+			mVUloadReg(Ft, e_mem_from_xav(_ptr), _X_Y_Z_W);
 			mVU.regAlloc->clearNeeded(Ft);
 		}
 	}
@@ -1334,7 +1334,7 @@ mVUop(mVU_LQI)
 		{
 			const xmm& Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
 			xAddressVoid _ptr = (is.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, is);
-			mVUloadReg(Ft, _ptr, _X_Y_Z_W);
+			mVUloadReg(Ft, e_mem_from_xav(_ptr), _X_Y_Z_W);
 			mVU.regAlloc->clearNeeded(Ft);
 		}
 	}
@@ -1370,7 +1370,7 @@ mVUop(mVU_SQ)
 		}
 
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		mVUsaveReg(Fs, optptr.has_value() ? optptr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q), _X_Y_Z_W, 1);
+		mVUsaveReg(Fs, e_mem_from_xav(optptr.has_value() ? optptr.value() : xComplexAddress(gprT2q, vuRegs[mVU.index].Mem, gprT1q)), _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -1397,7 +1397,7 @@ mVUop(mVU_SQD)
 		}
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		xAddressVoid _ptr = (it.IsEmpty()) ? xAddressVoid(ptr) : xComplexAddress(gprT2q, ptr, it);
-		mVUsaveReg(Fs, _ptr, _X_Y_Z_W, 1);
+		mVUsaveReg(Fs, e_mem_from_xav(_ptr), _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -1418,7 +1418,7 @@ mVUop(mVU_SQI)
 		}
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
 		xAddressVoid _ptr = (_It_) ? xComplexAddress(gprT2q, ptr, gprT1q) : xAddressVoid(ptr);
-		mVUsaveReg(Fs, _ptr, _X_Y_Z_W, 1);
+		mVUsaveReg(Fs, e_mem_from_xav(_ptr), _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }

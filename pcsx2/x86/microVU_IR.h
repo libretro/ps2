@@ -364,9 +364,9 @@ public:
 				if (mapX.VFreg == 33)
 					xe_movss_mx(&::vuRegs[index].VI[REG_I], i);
 				else if (mapX.VFreg == 32)
-					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].ACC], mapX.xyzw, 1);
+					mVUsaveReg(xmm(i), e_mem_abs(&::vuRegs[index].ACC), mapX.xyzw, 1);
 				else
-					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].VI[mapX.VFreg]], mapX.xyzw, 1);
+					mVUsaveReg(xmm(i), e_mem_abs(&::vuRegs[index].VI[mapX.VFreg]), mapX.xyzw, 1);
 			}
 		}
 
@@ -446,9 +446,9 @@ public:
 			if (mapX.VFreg == 33)
 				xe_movss_mx(&::vuRegs[index].VI[REG_I], reg.Id);
 			else if (mapX.VFreg == 32)
-				mVUsaveReg(reg, ptr[&::vuRegs[index].ACC], mapX.xyzw, true);
+				mVUsaveReg(reg, e_mem_abs(&::vuRegs[index].ACC), mapX.xyzw, true);
 			else
-				mVUsaveReg(reg, ptr[&::vuRegs[index].VF[mapX.VFreg]], mapX.xyzw, true);
+				mVUsaveReg(reg, e_mem_abs(&::vuRegs[index].VF[mapX.VFreg]), mapX.xyzw, true);
 
 			if (invalidateRegs)
 			{
@@ -611,9 +611,9 @@ public:
 			else if (vfLoadReg == 33)
 				loadIreg(xmmX, xyzw);
 			else if (vfLoadReg == 32)
-				mVUloadReg(xmmX, ptr[&::vuRegs[index].ACC], xyzw);
+				mVUloadReg(xmmX, e_mem_abs(&::vuRegs[index].ACC), xyzw);
 			else if (vfLoadReg >= 0)
-				mVUloadReg(xmmX, ptr[&::vuRegs[index].VF[vfLoadReg]], xyzw);
+				mVUloadReg(xmmX, e_mem_abs(&::vuRegs[index].VF[vfLoadReg]), xyzw);
 
 			xmmMap[x].VFreg = vfWriteReg;
 			xmmMap[x].xyzw  = xyzw;

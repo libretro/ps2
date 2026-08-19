@@ -147,25 +147,25 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 	}
 	
 	if (doMask && m4) // Merge Write Protect
-		mVUsaveReg(regX, ptr32[dstIndirect], m4 ^ 0xf, false);
+		mVUsaveReg(regX, dstIndirect, m4 ^ 0xf, false);
 	else
-		{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, regX.Id); }
+		xe_movaps_memxg(dstIndirect, regX.Id);
 }
 
-static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& modReg)
+static void ShiftDisplacementWindow(struct e_mem& addr, int modRegId)
 {
 	// Shifts the displacement factor of a given indirect address, so that the address
 	// remains in the optimal 0xf0 range (which allows for byte-form displacements when
 	// generating instructions).
 
 	int addImm = 0;
-	while (addr.Displacement >= 0x80)
+	while (addr.disp >= 0x80)
 	{
-		addImm += 0xf0;
-		addr   -= 0xf0;
+		addImm    += 0xf0;
+		addr.disp -= 0xf0;
 	}
 	if (addImm)
-		xe_add64_ri(modReg.Id, addImm);
+		xe_add64_ri(modRegId, addImm);
 }
 
 void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
@@ -248,8 +248,8 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 
 	while (vNum)
 	{
-		ShiftDisplacementWindow(dstIndirect, arg1reg);
-		ShiftDisplacementWindow(srcIndirect, arg2reg); //Don't need to do this otherwise as we arent reading the source.
+		ShiftDisplacementWindow(dstIndirect, x86Emitter::arg1reg.Id);
+		ShiftDisplacementWindow(srcIndirect, x86Emitter::arg2reg.Id); //Don't need to do this otherwise as we arent reading the source.
 		
 		// Determine if reads/processing can be skipped.
 		ProcessMasks();
@@ -261,8 +261,8 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 			xMovDest();
 			ModUnpack(upkNum, true);
 
-			dstIndirect += 16;
-			srcIndirect += vift;
+			dstIndirect.disp += 16;
+			srcIndirect.disp += vift;
 
 			vNum--;
 			if (++vCL == blockSize)
@@ -274,7 +274,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 			xUnpack(upkNum);
 			xMovDest();
 
-			dstIndirect += 16;
+			dstIndirect.disp += 16;
 
 			vNum--;
 			if (++vCL == blockSize)
@@ -282,7 +282,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 		}
 		else
 		{
-			dstIndirect += (16 * skipSize);
+			dstIndirect.disp += (16 * skipSize);
 			vCL = 0;
 		}
 	}

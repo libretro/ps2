@@ -31,8 +31,8 @@ public:
 	int  IsAligned;
 
 protected:
-	xAddressVoid dstIndirect;
-	xAddressVoid srcIndirect;
+	struct e_mem dstIndirect;
+	struct e_mem srcIndirect;
 	xRegisterSSE zeroReg;
 	xRegisterSSE workReg;
 	xRegisterSSE destReg;

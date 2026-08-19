@@ -27,8 +27,8 @@ VifUnpackSSE_Base::VifUnpackSSE_Base()
 	, doMask(false)
 	, UnpkLoopIteration(0)
 	, IsAligned(0)
-	, dstIndirect(arg1reg)
-	, srcIndirect(arg2reg)
+	, dstIndirect(e_mem_bd(x86Emitter::arg1reg.Id, 0))
+	, srcIndirect(e_mem_bd(x86Emitter::arg2reg.Id, 0))
 	, zeroReg(xmm15)
 	, workReg(xmm1)
 	, destReg(xmm0)
@@ -40,7 +40,7 @@ void VifUnpackSSE_Base::xMovDest() const
 	if (!IsWriteProtectedOp())
 	{
 		if (IsUnmaskedOp())
-			{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, destReg.Id); }
+			xe_movaps_memxg(dstIndirect, destReg.Id);
 		else
 			doMaskWrite(destReg);
 	}
@@ -48,14 +48,14 @@ void VifUnpackSSE_Base::xMovDest() const
 
 void VifUnpackSSE_Base::xPMOVXX8(const xRegisterSSE& regX) const
 {
-	if (usn) { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovzxbd_xmemg(regX.Id, xm); }
-	else     { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovsxbd_xmemg(regX.Id, xm); }
+	if (usn) xe_pmovzxbd_xmemg(regX.Id, srcIndirect);
+	else     xe_pmovsxbd_xmemg(regX.Id, srcIndirect);
 }
 
 void VifUnpackSSE_Base::xPMOVXX16(const xRegisterSSE& regX) const
 {
-	if (usn) { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovzxwd_xmemg(regX.Id, xm); }
-	else     { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovsxwd_xmemg(regX.Id, xm); }
+	if (usn) xe_pmovzxwd_xmemg(regX.Id, srcIndirect);
+	else     xe_pmovsxwd_xmemg(regX.Id, srcIndirect);
 }
 
 void VifUnpackSSE_Base::xUPK_S_32() const
@@ -63,7 +63,7 @@ void VifUnpackSSE_Base::xUPK_S_32() const
 	switch (UnpkLoopIteration)
 	{
 		case 0:
-			{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(workReg.Id, xm); }
+			xe_movups_xmemg(workReg.Id, srcIndirect);
 			if (!IsInputMasked())
 				xe_pshufd_xxi(destReg.Id, workReg.Id, _v0);
 			break;
@@ -139,7 +139,7 @@ void VifUnpackSSE_Base::xUPK_V2_32() const
 {
 	if (UnpkLoopIteration == 0)
 	{
-		{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(workReg.Id, xm); }
+		xe_movups_xmemg(workReg.Id, srcIndirect);
 		if (IsInputMasked())
 			return;
 		xe_pshufd_xxi(destReg.Id, workReg.Id, 0x44); //v1v0v1v0
@@ -195,7 +195,7 @@ void VifUnpackSSE_Base::xUPK_V3_32() const
 	if (IsInputMasked())
 		return;
 
-	{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(destReg.Id, xm); }
+	xe_movups_xmemg(destReg.Id, srcIndirect);
 	if (UnpkLoopIteration != IsAligned)
 		xe_blendps_xxi(destReg.Id, zeroReg.Id, 0x8); //zero last word - tested on ps2
 }
@@ -230,7 +230,7 @@ void VifUnpackSSE_Base::xUPK_V3_8() const
 void VifUnpackSSE_Base::xUPK_V4_32() const
 {
 	if (!IsInputMasked())
-		{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(destReg.Id, xm); }
+		xe_movups_xmemg(destReg.Id, srcIndirect);
 }
 
 void VifUnpackSSE_Base::xUPK_V4_16() const
@@ -250,7 +250,7 @@ void VifUnpackSSE_Base::xUPK_V4_5() const
 	if (IsInputMasked())
 		return;
 
-	{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movss_xmemg(workReg.Id, xm); }
+	xe_movss_xmemg(workReg.Id, srcIndirect);
 	xe_pshufd_xxi(workReg.Id, workReg.Id, _v0);
 	xe_pslld_xi(workReg.Id, 3);           // ABG|R5.000
 	xe_movaps_xx(destReg.Id, workReg.Id);     // x|x|x|R
@@ -301,13 +301,13 @@ void VifUnpackSSE_Base::xUnpack(int upknum) const
 
 void VifUnpackSSE_Simple::doMaskWrite(const xRegisterSSE& regX) const
 {
-	{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_xmemg(7, xm); }
+	xe_movaps_xmemg(7, dstIndirect);
 	int offX = std::min(curCycle, 3);
 	xe_pand_xm(regX.Id, nVifMask[0][offX]);
 	xe_pand_xm(7, nVifMask[1][offX]);
 	xe_por_xm(regX.Id, nVifMask[2][offX]);
 	xe_por_xx(regX.Id, 7);
-	{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, regX.Id); }
+	xe_movaps_memxg(dstIndirect, regX.Id);
 }
 
 // ecx = dest, edx = src

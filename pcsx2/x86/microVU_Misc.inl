@@ -33,81 +33,81 @@ void mVUunpack_xyzw(const xmm& dstreg, const xmm& srcreg, int xyzw)
 	}
 }
 
-void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
+void mVUloadReg(const xmm& reg, struct e_mem ptr, int xyzw)
 {
 	switch (xyzw)
 	{
-		case 8:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 0);  xe_movss_xmemg(reg.Id, xm); } break; // X
-		case 4:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_movss_xmemg(reg.Id, xm); } break; // Y
-		case 2:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_movss_xmemg(reg.Id, xm); } break; // Z
-		case 1:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_movss_xmemg(reg.Id, xm); } break; // W
-		default: { struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movaps_xmemg(reg.Id, xm); } break;
+		case 8:  { struct e_mem xm = e_mem_off(ptr, 0); xe_movss_xmemg(reg.Id, xm); } break; // X
+		case 4:  { struct e_mem xm = e_mem_off(ptr, 4); xe_movss_xmemg(reg.Id, xm); } break; // Y
+		case 2:  { struct e_mem xm = e_mem_off(ptr, 8); xe_movss_xmemg(reg.Id, xm); } break; // Z
+		case 1:  { struct e_mem xm = e_mem_off(ptr, 12); xe_movss_xmemg(reg.Id, xm); } break; // W
+		default: { struct e_mem xm = e_mem_off(ptr, 0); xe_movaps_xmemg(reg.Id, xm); } break;
 	}
 }
 
 // Modifies the Source Reg!
-void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW)
+void mVUsaveReg(const xmm& reg, struct e_mem ptr, int xyzw, bool modXYZW)
 {
 	switch (xyzw)
 	{
 		case 5: // YW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_extractps_memxi(xm, reg.Id, 1); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_extractps_memxi(xm, reg.Id, 1); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
 			break;
 		case 6: // YZ
 			xe_pshufd_xxi(reg.Id, reg.Id, 0xc9);
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_movlps_memxg(xm, reg.Id); }
 			break;
 		case 7: // YZW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movhps_memxg(xm, reg.Id); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_extractps_memxi(xm, reg.Id, 1); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_extractps_memxi(xm, reg.Id, 1); }
 			break;
 		case 9: // XW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
 			break;
 		case 10: // XZ
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_extractps_memxi(xm, reg.Id, 2); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_extractps_memxi(xm, reg.Id, 2); }
 			break;
 		case 11: // XZW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movhps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg.Id); }
 			break;
 		case 13: // XYW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movlps_memxg(xm, reg.Id); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
 			break;
 		case 14: // XYZ
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movlps_memxg(xm, reg.Id); }
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_extractps_memxi(xm, reg.Id, 2); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_extractps_memxi(xm, reg.Id, 2); }
 			break;
 		case 4: // Y
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 1);
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 4); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 2: // Z
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 2);
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 1: // W
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 3);
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 12); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 8: // X
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 12: // XY
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movlps_memxg(xm, reg.Id); }
 			break;
 		case 3: // ZW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movhps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 8); xe_movhps_memxg(xm, reg.Id); }
 			break;
 		default: // XYZW
-			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movaps_memxg(xm, reg.Id); }
+			{ struct e_mem xm = e_mem_off(ptr, 0); xe_movaps_memxg(xm, reg.Id); }
 			break;
 	}
 }

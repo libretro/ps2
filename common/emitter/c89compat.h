@@ -41,3 +41,15 @@ namespace x86Emitter
 		xe_imm64op_mov64_mi(addr, tmp.Id, imm);
 	}
 } // namespace x86Emitter
+
+/* C++-side bridge while callers still build xAddressVoid expressions:
+ * collapse the object into the plain integer e_mem. Mirrors XE_MEM_XAV. */
+static inline struct e_mem e_mem_from_xav(const x86Emitter::xAddressVoid& av)
+{
+	struct e_mem m;
+	m.base  = av.Base.IsEmpty()  ? E_NOREG : av.Base.Id;
+	m.index = av.Index.IsEmpty() ? E_NOREG : av.Index.Id;
+	m.scale = av.Index.IsEmpty() ? 0 : av.Factor;
+	m.disp  = (e_sptr)av.Displacement;
+	return m;
+}

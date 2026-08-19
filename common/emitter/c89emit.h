@@ -87,6 +87,7 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
             EW32((p), (e_u32)(e_sptr)(addr)); \
         } } while (0)
 
+
 /* --- instructions used by the benchmark block --- */
 
 /* mov r32, [abs] / mov r64, [abs] */
@@ -329,7 +330,9 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 
 #define E_NOREG (-1)
 
+
 struct e_mem { int base; int index; int scale; e_sptr disp; };
+
 
 /* xIndirectVoid::Reduce, verbatim in behaviour. Note it is applied once at
  * construction, exactly as the C++ constructor does. */
@@ -351,6 +354,29 @@ struct e_mem { int base; int index; int scale; e_sptr disp; };
             default: break; \
             } \
         } } while (0)
+
+/* e_mem value builders: construct operands directly, no xAddressVoid.
+ * e_mem_bd routes through E_MEM so the operand carries the same Reduce()d
+ * form every emission helper was written against; e_mem_off only shifts the
+ * displacement, which commutes with the reduction. By-value struct returns
+ * are plain C89. */
+static struct e_mem e_mem_bd(int base_reg, e_sptr disp)
+{
+	struct e_mem m;
+	E_MEM(m, base_reg, E_NOREG, 0, disp);
+	return m;
+}
+static struct e_mem e_mem_off(struct e_mem m, e_sptr extra)
+{
+	m.disp += extra;
+	return m;
+}
+static struct e_mem e_mem_abs(const void* addr)
+{
+	struct e_mem m;
+	E_MEM(m, E_NOREG, E_NOREG, 0, (e_sptr)(e_uptr)addr);
+	return m;
+}
 
 #define E_NEEDS_SIB(m) \
         (((m).index != E_NOREG) && (((m).scale != 0) || ((m).base != E_NOREG)))
