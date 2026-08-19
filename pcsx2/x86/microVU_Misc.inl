@@ -1,3 +1,4 @@
+#include "common/emitter/c89ops.h"
 /*  PCSX2 - PS2 Emulator for PCs
  *  Copyright (C) 2002-2010  PCSX2 Dev Team
  *
@@ -25,10 +26,10 @@ void mVUunpack_xyzw(const xmm& dstreg, const xmm& srcreg, int xyzw)
 {
 	switch (xyzw)
 	{
-		case 0: xPSHUF.D(dstreg, srcreg, 0x00); break; // XXXX
-		case 1: xPSHUF.D(dstreg, srcreg, 0x55); break; // YYYY
-		case 2: xPSHUF.D(dstreg, srcreg, 0xaa); break; // ZZZZ
-		case 3: xPSHUF.D(dstreg, srcreg, 0xff); break; // WWWW
+		case 0: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0x00); break; // XXXX
+		case 1: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0x55); break; // YYYY
+		case 2: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0xaa); break; // ZZZZ
+		case 3: xe_pshufd_xxi(dstreg.Id, srcreg.Id, 0xff); break; // WWWW
 	}
 }
 
@@ -36,10 +37,10 @@ void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
 {
 	switch (xyzw)
 	{
-		case 8:  xMOVSSZX(reg, ptr32[ptr     ]); break; // X
-		case 4:  xMOVSSZX(reg, ptr32[ptr +  4]); break; // Y
-		case 2:  xMOVSSZX(reg, ptr32[ptr +  8]); break; // Z
-		case 1:  xMOVSSZX(reg, ptr32[ptr + 12]); break; // W
+		case 8:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 0);  xe_movss_xmemg(reg.Id, xm); } break; // X
+		case 4:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_movss_xmemg(reg.Id, xm); } break; // Y
+		case 2:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_movss_xmemg(reg.Id, xm); } break; // Z
+		case 1:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_movss_xmemg(reg.Id, xm); } break; // W
 		default: xMOVAPS (reg, ptr128[ptr]);     break;
 	}
 }
@@ -50,63 +51,63 @@ void mVUsaveReg(const xmm& reg, xAddressVoid ptr, int xyzw, bool modXYZW)
 	switch (xyzw)
 	{
 		case 5: // YW
-			xEXTRACTPS(ptr32[ptr + 4], reg, 1);
-			xEXTRACTPS(ptr32[ptr + 12], reg, 3);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_extractps_memxi(xm, reg.Id, 1); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
 			break;
 		case 6: // YZ
-			xPSHUF.D(reg, reg, 0xc9);
-			xMOVL.PS(ptr64[ptr + 4], reg);
+			xe_pshufd_xxi(reg.Id, reg.Id, 0xc9);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4); xe_movlps_memxg(xm, reg.Id); }
 			break;
 		case 7: // YZW
-			xMOVH.PS(ptr64[ptr + 8], reg);
-			xEXTRACTPS(ptr32[ptr + 4], reg, 1);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movhps_memxg(xm, reg.Id); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_extractps_memxi(xm, reg.Id, 1); }
 			break;
 		case 9: // XW
-			xMOVSS(ptr32[ptr], reg);
-			xEXTRACTPS(ptr32[ptr + 12], reg, 3);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
 			break;
 		case 10: // XZ
-			xMOVSS(ptr32[ptr], reg);
-			xEXTRACTPS(ptr32[ptr + 8], reg, 2);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_extractps_memxi(xm, reg.Id, 2); }
 			break;
 		case 11: // XZW
-			xMOVSS(ptr32[ptr], reg);
-			xMOVH.PS(ptr64[ptr + 8], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movhps_memxg(xm, reg.Id); }
 			break;
 		case 13: // XYW
-			xMOVL.PS(ptr64[ptr], reg);
-			xEXTRACTPS(ptr32[ptr + 12], reg, 3);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_extractps_memxi(xm, reg.Id, 3); }
 			break;
 		case 14: // XYZ
-			xMOVL.PS(ptr64[ptr], reg);
-			xEXTRACTPS(ptr32[ptr + 8], reg, 2);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movlps_memxg(xm, reg.Id); }
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_extractps_memxi(xm, reg.Id, 2); }
 			break;
 		case 4: // Y
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 1);
-			xMOVSS(ptr32[ptr + 4], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 4); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 2: // Z
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 2);
-			xMOVSS(ptr32[ptr + 8], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 1: // W
 			if (!modXYZW)
 				mVUunpack_xyzw(reg, reg, 3);
-			xMOVSS(ptr32[ptr + 12], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 8: // X
-			xMOVSS(ptr32[ptr], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movss_memxg(xm, reg.Id); }
 			break;
 		case 12: // XY
-			xMOVL.PS(ptr64[ptr], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movlps_memxg(xm, reg.Id); }
 			break;
 		case 3: // ZW
-			xMOVH.PS(ptr64[ptr + 8], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 8); xe_movhps_memxg(xm, reg.Id); }
 			break;
 		default: // XYZW
-			xMOVAPS(ptr128[ptr], reg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movaps_memxg(xm, reg.Id); }
 			break;
 	}
 }
@@ -118,19 +119,19 @@ void mVUmergeRegs(const xmm& dest, const xmm& src, int xyzw, bool modXYZW)
 	if ((dest != src) && (xyzw != 0))
 	{
 		if (xyzw == 0x8)
-			xMOVSS(dest, src);
+			xe_movss_xx(dest.Id, src.Id);
 		else if (xyzw == 0xf)
-			xMOVAPS(dest, src);
+			xe_movaps_xx(dest.Id, src.Id);
 		else
 		{
 			if (modXYZW)
 			{
-				if      (xyzw == 1) { xINSERTPS(dest, src, _MM_MK_INSERTPS_NDX(0, 3, 0)); return; }
-				else if (xyzw == 2) { xINSERTPS(dest, src, _MM_MK_INSERTPS_NDX(0, 2, 0)); return; }
-				else if (xyzw == 4) { xINSERTPS(dest, src, _MM_MK_INSERTPS_NDX(0, 1, 0)); return; }
+				if      (xyzw == 1) { xe_insertps_xxi(dest.Id, src.Id, _MM_MK_INSERTPS_NDX(0, 3, 0)); return; }
+				else if (xyzw == 2) { xe_insertps_xxi(dest.Id, src.Id, _MM_MK_INSERTPS_NDX(0, 2, 0)); return; }
+				else if (xyzw == 4) { xe_insertps_xxi(dest.Id, src.Id, _MM_MK_INSERTPS_NDX(0, 1, 0)); return; }
 			}
 			xyzw = ((xyzw & 1) << 3) | ((xyzw & 2) << 1) | ((xyzw & 4) >> 1) | ((xyzw & 8) >> 3);
-			xBLEND.PS(dest, src, xyzw);
+			xe_blendps_xxi(dest.Id, src.Id, xyzw);
 		}
 	}
 }
@@ -154,7 +155,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 			if (!onlyNeeded || mVU.regAlloc->checkCachedGPR(i))
 			{
 				num_gprs++;
-				xPUSH(xRegister64(i));
+				xe_push64_r(i);
 			}
 		}
 
@@ -181,12 +182,12 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 #endif
 		if (stack_size > 0)
 		{
-			xSUB(rsp, stack_size);
+			xe_sub64_ri(XE_SP, stack_size);
 			for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 			{
 				if (save_xmms[i])
 				{
-					xMOVAPS(ptr128[rsp + stack_offset], xRegisterSSE(i));
+					{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_memxg(xm, i); }
 					stack_offset += sizeof(u128);
 				}
 			}
@@ -196,7 +197,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 	{
 		// TODO(Stenzek): get rid of xmmbackup
 		mVU.regAlloc->flushAll(); // Flush Regalloc
-		xMOVAPS(ptr128[&mVU.xmmBackup[xmmPQ.Id][0]], xmmPQ);
+		xe_movaps_mx(&mVU.xmmBackup[xmmPQ.Id][0], xmmPQ.Id);
 	}
 }
 
@@ -247,22 +248,22 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 				if (!save_xmms[i])
 					continue;
 
-				xMOVAPS(xRegisterSSE(i), ptr128[rsp + stack_offset]);
+				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_xmemg(i, xm); }
 				stack_offset -= sizeof(u128);
 			}
 		}
 		if (stack_size > 0)
-			xADD(rsp, stack_size);
+			xe_add64_ri(XE_SP, stack_size);
 
 		for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
 		{
 			if (save_gprs[i])
-				xPOP(xRegister64(i));
+				xe_pop64_r(i);
 		}
 	}
 	else
 	{
-		xMOVAPS(xmmPQ, ptr128[&mVU.xmmBackup[xmmPQ.Id][0]]);
+		xe_movaps_xm(xmmPQ.Id, &mVU.xmmBackup[xmmPQ.Id][0]);
 	}
 }
 
@@ -288,24 +289,24 @@ __fi void mVUaddrFix(mV, const xAddressReg& gprReg)
 {
 	if (isVU1)
 	{
-		xAND(xRegister32(gprReg.Id), 0x3ff); // wrap around
-		xSHL(xRegister32(gprReg.Id), 4);
+		xe_and32_ri(gprReg.Id, 0x3ff); // wrap around
+		xe_shl32_ri(gprReg.Id, 4);
 	}
 	else
 	{
-		xTEST(xRegister32(gprReg.Id), 0x400);
+		xe_test32_ri(gprReg.Id, 0x400);
 		xForwardJNZ8 jmpA; // if addr & 0x4000, reads VU1's VF regs and VI regs
-			xAND(xRegister32(gprReg.Id), 0xff); // if !(addr & 0x4000), wrap around
+			xe_and32_ri(gprReg.Id, 0xff); // if !(addr & 0x4000), wrap around
 			xForwardJump32 jmpB;
 		jmpA.SetTarget();
 			if (THREAD_VU1)
 			{
-				xFastCall((void*)mVU.waitMTVU);
+				xe_fastcall0(mVU.waitMTVU);
 			}
-			xAND(xRegister32(gprReg.Id), 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!
-			xADD(gprReg, (u128*)vuRegs[1].VF - (u128*)vuRegs[0].Mem);
+			xe_and32_ri(gprReg.Id, 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!
+			xe_add64_ri(gprReg.Id, (u128*)vuRegs[1].VF - (u128*)vuRegs[0].Mem);
 		jmpB.SetTarget();
-		xSHL(gprReg, 4); // multiply by 16 (shift left by 4)
+		xe_shl64_ri(gprReg.Id, 4); // multiply by 16 (shift left by 4)
 	}
 }
 
@@ -360,7 +361,7 @@ void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, c
 		xPSRL.D  (t2,  1);
 		xPXOR    (t2, from);
 
-		xPCMP.GTD(c1, c2);
+		xe_pcmpgtd_xx(c1.Id, c2.Id);
 		xPAND    (to, c1);
 		xPANDN   (c1, from);
 		xPOR     (to, c1);
@@ -374,12 +375,12 @@ void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, c
 void MIN_MAX_SS(mV, const xmm& to, const xmm& from, const xmm& t1in, bool min)
 {
 	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
-	xSHUF.PS(to, from, 0);
+	xe_shufps_xxi(to.Id, from.Id, 0);
 	xPAND   (to, ptr128[sseMasks.MIN_MAX_1]);
 	xPOR    (to, ptr128[sseMasks.MIN_MAX_2]);
-	xPSHUF.D(t1, to, 0xee);
-	if (min) xMIN.PD(to, t1);
-	else	 xMAX.PD(to, t1);
+	xe_pshufd_xxi(t1.Id, to.Id, 0xee);
+	if (min) xe_minpd_xx(to.Id, t1.Id);
+	else	 xe_maxpd_xx(to.Id, t1.Id);
 	if (t1 != t1in)
 		mVU.regAlloc->clearNeeded(t1);
 }
@@ -388,8 +389,8 @@ void MIN_MAX_SS(mV, const xmm& to, const xmm& from, const xmm& t1in, bool min)
 // Modifies from's lower vector
 void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 {
-	xMOVD(eax, to);
-	xMOVD(ecx, from);
+	xe_movd_rx(XE_AX, to.Id);
+	xe_movd_rx(XE_CX, from.Id);
 	xSHR (eax, 23);
 	xSHR (ecx, 23);
 	xAND (eax, 0xff);
@@ -402,16 +403,16 @@ void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 	xForwardJL8  case_end1;
 
 	// case_pos_big:
-	xPAND(to, ptr128[sseMasks.ADD_SS]);
+	xe_pand_xm(to.Id, sseMasks.ADD_SS);
 	xForwardJump8 case_end2;
 
 	case_neg_big.SetTarget();
-	xPAND(from, ptr128[sseMasks.ADD_SS]);
+	xe_pand_xm(from.Id, sseMasks.ADD_SS);
 
 	case_end1.SetTarget();
 	case_end2.SetTarget();
 
-	xADD.SS(to, from);
+	xe_addss_xx(to.Id, from.Id);
 }
 
 #define clampOp(opX, isPS) \

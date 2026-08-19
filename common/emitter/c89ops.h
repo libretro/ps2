@@ -1267,4 +1267,38 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 #define xe_mov64_mi_s32(addr, imm) XE_2( \
 	E_MOV_M_I64(xep, (e_uptr)(addr), (e_s32)(imm)), \
 	x86Emitter::xMOV(x86Emitter::ptr64[(void*)(addr)], (imm)))
+
+/* Bridge from the C++ xAddressVoid (base+index*factor+disp address
+ * object, factor form) into e_mem, with an extra displacement for the
+ * lane offsets mVUsaveReg/mVUloadReg add at each site. E_MEM performs
+ * the factor->SIB reduction, same as the xIndirect constructors. */
+#define XE_MEM_XAV(m, av, extra) E_MEM(m, \
+	(av).Base.IsEmpty()  ? E_NOREG : (av).Base.Id, \
+	(av).Index.IsEmpty() ? E_NOREG : (av).Index.Id, \
+	(av).Index.IsEmpty() ? 0 : (av).Factor, \
+	(e_sptr)(av).Displacement + (e_sptr)(extra))
+
+/* generic-e_mem SSE moves for address-object and rsp-relative operands */
+#define xe_movss_xmemg(x, m) XE_2(E_SSE_R_MEM(xep, 0xf3, 0x10, (x), (m)), \
+	x86Emitter::xMOVSSZX(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]))
+#define xe_movss_memxg(m, x) XE_2(E_SSE_R_MEM(xep, 0xf3, 0x11, (x), (m)), \
+	x86Emitter::xMOVSS(x86Emitter::ptr32[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE(x)))
+#define xe_movaps_xmemg(x, m) XE_2(E_SSE_R_MEM(xep, 0x00, 0x28, (x), (m)), \
+	x86Emitter::xMOVAPS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr128[XE_MEM_TO_ADDR(m)]))
+#define xe_movaps_memxg(m, x) XE_2(E_SSE_R_MEM(xep, 0x00, 0x29, (x), (m)), \
+	x86Emitter::xMOVAPS(x86Emitter::ptr128[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE(x)))
+#define xe_movlps_memxg(m, x) XE_2(E_SSE_R_MEM(xep, 0x00, 0x13, (x), (m)), \
+	x86Emitter::xMOVL.PS(x86Emitter::ptr64[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE(x)))
+#define xe_movhps_memxg(m, x) XE_2(E_SSE_R_MEM(xep, 0x00, 0x17, (x), (m)), \
+	x86Emitter::xMOVH.PS(x86Emitter::ptr64[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE(x)))
+/* extractps [mem], xmm, imm: 66 0F 3A 17, xmm in the reg field */
+#define xe_extractps_memxi(m, x, i) XE_2( \
+	{ EW8(xep, 0x66); E_REX_MEM(xep, 0, (x), (m)); \
+	  EW8(xep, 0x0f); EW8(xep, 0x3a); EW8(xep, 0x17); \
+	  E_MODRM_MEM(xep, (x), (m), 1); EW8(xep, (e_u8)(i)); }, \
+	x86Emitter::xEXTRACTPS(x86Emitter::ptr32[XE_MEM_TO_ADDR(m)], x86Emitter::xRegisterSSE(x), (i)))
+#define xe_minpd_xx(d, s2) XE_2(E_SSE_RR(xep, 0x66, 0x5d, (d), (s2)), \
+	x86Emitter::xMIN.PD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
+#define xe_maxpd_xx(d, s2) XE_2(E_SSE_RR(xep, 0x66, 0x5f, (d), (s2)), \
+	x86Emitter::xMAX.PD(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2)))
 #endif /* PCSX2_C89OPS_H */
