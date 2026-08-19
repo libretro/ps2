@@ -367,7 +367,12 @@
 #define xe_fwd_jmp8(slot) do { XE_OPEN();  \
 	EW8(xep, 0xeb); (slot) = xep; EW8(xep, 0); XE_CLOSE(); } while (0)
 #define xe_fwd_jcc8(cc, slot) do { XE_OPEN();  \
-	EW8(xep, (e_u8)(0x70 | (cc))); (slot) = xep; EW8(xep, 0); XE_CLOSE(); } while (0)
+	/* mirror xForwardJump<s8> exactly: unconditional is EB, not 0x70|cc. \
+	 * Jcc_Unconditional is -1, and 0x70 | -1 truncates to 0xFF -- a real \
+	 * opcode byte, and a crash the first time the block runs. */ \
+	EW8(xep, ((cc) == x86Emitter::Jcc_Unconditional) ? (e_u8)0xeb \
+	                                                 : (e_u8)(0x70 | (cc))); \
+	(slot) = xep; EW8(xep, 0); XE_CLOSE(); } while (0)
 #define xe_fwd_set8(slot) do { XE_OPEN();  \
 	*(slot) = (e_u8)(xep - ((slot) + 1)); XE_CLOSE(); } while (0)
 
