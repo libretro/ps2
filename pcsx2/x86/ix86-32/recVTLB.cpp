@@ -654,19 +654,19 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 			switch (bits)
 			{
 				case 8:
-					xMOV(ptr[(void*)ppf], xRegister8(xRegister32(value_reg)));
+					xe_mov8_mr((void*)ppf, value_reg);
 					break;
 
 				case 16:
-					xMOV(ptr[(void*)ppf], xRegister16(value_reg));
+					xe_mov16_mr((void*)ppf, value_reg);
 					break;
 
 				case 32:
-					xMOV(ptr[(void*)ppf], xRegister32(value_reg));
+					xe_mov32_mr((void*)ppf, value_reg);
 					break;
 
 				case 64:
-					xMOV(ptr64[(void*)ppf], xRegister64(value_reg));
+					xe_mov64_mr((void*)ppf, value_reg);
 					break;
 				default:
 					break;
@@ -677,11 +677,11 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 			switch (bits)
 			{
 				case 32:
-					xMOVSS(ptr[(void*)ppf], xRegisterSSE(value_reg));
+					xe_movss_mx((void*)ppf, value_reg);
 					break;
 
 				case 128:
-					xMOVAPS(ptr128[(void*)ppf], xRegisterSSE(value_reg));
+					xe_movaps_mx((void*)ppf, value_reg);
 					break;
 				default:
 					break;

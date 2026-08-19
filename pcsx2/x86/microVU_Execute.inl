@@ -50,9 +50,9 @@ void mVUdispatcherAB(mV)
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		// Load Regs
-		xMOVAPS (xmmT1, ptr128[&vuRegs[mVU.index].VI[REG_P].UL]);
-		xMOVAPS (xmmPQ, ptr128[&vuRegs[mVU.index].VI[REG_Q].UL]);
-		xMOVDZX (xmmT2, ptr32 [&vuRegs[mVU.index].pending_q]);
+		xe_movaps_xm(xmmT1.Id, &vuRegs[mVU.index].VI[REG_P].UL);
+		xe_movaps_xm(xmmPQ.Id, &vuRegs[mVU.index].VI[REG_Q].UL);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_q); xe_movdzx_xmemg(xmmT2.Id, xm); }
 		xe_shufps_xxi(xmmPQ.Id, xmmT1.Id, 0); // wzyx = PPQQ
 		//Load in other Q instance
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
@@ -280,28 +280,28 @@ static void mVUGenerateCompareState(mV)
 	}
 	else
 	{
-		xMOVAPS  (xmm0, ptr32[arg1reg]);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0); xe_movaps_xmemg(0, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0); xe_pcmpeqd_xmemg(0, xm); }
-		xMOVAPS  (xmm1, ptr32[arg1reg + 0x10]);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x10); xe_movaps_xmemg(1, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x10); xe_pcmpeqd_xmemg(1, xm); }
-		xPAND    (xmm0, xmm1);
+		xe_pand_xx(0, 1);
 
 		xe_movmskps_rx(XE_AX, 0);
-		xXOR     (eax, 0xf);
+		xe_xor32_ri(XE_AX, 0xf);
 		xForwardJNZ8 exitPoint;
 
-		xMOVAPS  (xmm0, ptr32[arg1reg + 0x20]);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x20); xe_movaps_xmemg(0, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x20); xe_pcmpeqd_xmemg(0, xm); }
-		xMOVAPS  (xmm1, ptr32[arg1reg + 0x30]);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x30); xe_movaps_xmemg(1, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x30); xe_pcmpeqd_xmemg(1, xm); }
-		xPAND    (xmm0, xmm1);
+		xe_pand_xx(0, 1);
 
-		xMOVAPS  (xmm1, ptr32[arg1reg + 0x40]);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x40); xe_movaps_xmemg(1, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x40); xe_pcmpeqd_xmemg(1, xm); }
-		xMOVAPS  (xmm2, ptr32[arg1reg + 0x50]);
+		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x50); xe_movaps_xmemg(2, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x50); xe_pcmpeqd_xmemg(2, xm); }
-		xPAND    (xmm1, xmm2);
-		xPAND    (xmm0, xmm1);
+		xe_pand_xx(1, 2);
+		xe_pand_xx(0, 1);
 
 		xe_movmskps_rx(XE_AX, 0);
 		xe_xor32_ri(XE_AX, 0xf);

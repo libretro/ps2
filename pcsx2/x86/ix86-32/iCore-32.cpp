@@ -243,7 +243,7 @@ int _allocX86reg(int type, int reg, int mode)
 			{
 				if (reg == 0)
 				{
-					xXOR(xRegister32(new_reg), xRegister32(new_reg)); // 32-bit is smaller and zexts anyway
+					xe_xor32_rr(new_reg.Id, new_reg.Id); // 32-bit is smaller and zexts anyway
 				}
 				else
 				{
@@ -274,7 +274,7 @@ int _allocX86reg(int type, int reg, int mode)
 			break;
 
 			case X86TYPE_FPRC:
-				xMOV(xRegister32(regnum), ptr32[&fpuRegs.fprc[reg]]);
+				xe_mov32_rm(regnum, &fpuRegs.fprc[reg]);
 				break;
 
 			case X86TYPE_PSX:
@@ -302,7 +302,7 @@ int _allocX86reg(int type, int reg, int mode)
 
 			case X86TYPE_VIREG:
 			{
-				xMOVZX(xRegister32(regnum), ptr16[&vuRegs[0].VI[reg].US[0]]);
+				xe_movzx32_rm16(regnum, &vuRegs[0].VI[reg].US[0]);
 			}
 			break;
 
@@ -336,11 +336,11 @@ void _writebackX86Reg(int x86reg)
 	switch (x86regs[x86reg].type)
 	{
 		case X86TYPE_GPR:
-			xMOV(ptr64[&_eeGetGPRPtr(x86regs[x86reg].reg)->UD[0]], xRegister64(x86reg));
+			xe_mov64_mr(&_eeGetGPRPtr(x86regs[x86reg].reg)->UD[0], x86reg);
 			break;
 
 		case X86TYPE_FPRC:
-			xMOV(ptr32[&fpuRegs.fprc[x86regs[x86reg].reg]], xRegister32(x86reg));
+			xe_mov32_mr(&fpuRegs.fprc[x86regs[x86reg].reg], x86reg);
 			break;
 
 		case X86TYPE_VIREG:
@@ -348,15 +348,15 @@ void _writebackX86Reg(int x86reg)
 			break;
 
 		case X86TYPE_PCWRITEBACK:
-			xMOV(ptr32[&cpuRegs.pcWriteback], xRegister32(x86reg));
+			xe_mov32_mr(&cpuRegs.pcWriteback, x86reg);
 			break;
 
 		case X86TYPE_PSX:
-			xMOV(ptr32[&psxRegs.GPR.r[x86regs[x86reg].reg]], xRegister32(x86reg));
+			xe_mov32_mr(&psxRegs.GPR.r[x86regs[x86reg].reg], x86reg);
 			break;
 
 		case X86TYPE_PSX_PCWRITEBACK:
-			xMOV(ptr32[&psxRegs.pcWriteback], xRegister32(x86reg));
+			xe_mov32_mr(&psxRegs.pcWriteback, x86reg);
 			break;
 
 		default:

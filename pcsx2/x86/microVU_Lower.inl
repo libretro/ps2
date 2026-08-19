@@ -67,7 +67,7 @@ mVUop(mVU_DIV)
 
 		xe_xorps_xx(Fs.Id, Ft.Id);
 		xe_andps_xm(Fs.Id, mVUglob.signbit);
-		xOR.PS (Fs, ptr128[mVUglob.maxvals]); // If division by zero, then xmmFs = +/- fmax
+		xe_orps_xm(Fs.Id, mVUglob.maxvals); // If division by zero, then xmmFs = +/- fmax
 
 		xForwardJump8 djmp;
 
@@ -214,7 +214,7 @@ mVUop(mVU_EATAN)
 		const xmm& t1 = mVU.regAlloc->allocReg();
 		const xmm& t2 = mVU.regAlloc->allocReg();
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xMOVSS (xmmPQ, Fs);
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
 		xe_subss_xm(Fs.Id, mVUglob.one);
 		xe_addss_xm(xmmPQ.Id, mVUglob.one);
 		SSE_DIVSS(mVU, Fs, xmmPQ);
@@ -243,7 +243,7 @@ mVUop(mVU_EATANxy)
 		const xmm& t2 = mVU.regAlloc->allocReg();
 		xe_pshufd_xxi(Fs.Id, t1.Id, 0x01);
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xMOVSS  (xmmPQ, Fs);
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
 		SSE_SUBSS (mVU, Fs, t1); // y-x, not y-1? ><
 		SSE_ADDSS (mVU, t1, xmmPQ);
 		SSE_DIVSS (mVU, Fs, t1);
@@ -272,7 +272,7 @@ mVUop(mVU_EATANxz)
 		const xmm& t2 = mVU.regAlloc->allocReg();
 		xe_pshufd_xxi(Fs.Id, t1.Id, 0x02);
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xMOVSS  (xmmPQ, Fs);
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
 		SSE_SUBSS (mVU, Fs, t1);
 		SSE_ADDSS (mVU, t1, xmmPQ);
 		SSE_DIVSS (mVU, Fs, t1);
@@ -308,9 +308,9 @@ mVUop(mVU_EEXP)
 		const xmm& t1 = mVU.regAlloc->allocReg();
 		const xmm& t2 = mVU.regAlloc->allocReg();
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xMOVSS  (xmmPQ, Fs);
-		xMUL.SS (xmmPQ, ptr32[mVUglob.E1]);
-		xADD.SS (xmmPQ, ptr32[mVUglob.one]);
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
+		xe_mulss_xm(xmmPQ.Id, mVUglob.E1);
+		xe_addss_xm(xmmPQ.Id, mVUglob.one);
 		xe_movaps_xx(t1.Id, Fs.Id);
 		SSE_MULSS(mVU, t1, Fs);
 		xe_movaps_xx(t2.Id, t1.Id);
@@ -355,10 +355,10 @@ mVUop(mVU_ELENG)
 	pass2
 	{
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
-		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
-		xSQRT.SS       (xmmPQ, xmmPQ);
-		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
+		xe_sqrtss_xx(xmmPQ.Id, xmmPQ.Id);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -377,12 +377,12 @@ mVUop(mVU_ERCPR)
 	pass2
 	{
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xMOVSS        (xmmPQ, Fs);
-		xMOVSSZX      (Fs, ptr32[mVUglob.one]);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
+		xe_movss_xm(Fs.Id, mVUglob.one);
 		SSE_DIVSS(mVU, Fs, xmmPQ);
-		xMOVSS        (xmmPQ, Fs);
-		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -401,13 +401,13 @@ mVUop(mVU_ERLENG)
 	pass2
 	{
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
-		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
-		xSQRT.SS       (xmmPQ, xmmPQ);
-		xMOVSSZX       (Fs, ptr32[mVUglob.one]);
+		xe_sqrtss_xx(xmmPQ.Id, xmmPQ.Id);
+		xe_movss_xm(Fs.Id, mVUglob.one);
 		SSE_DIVSS (mVU, Fs, xmmPQ);
-		xMOVSS         (xmmPQ, Fs);
-		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -426,12 +426,12 @@ mVUop(mVU_ERSADD)
 	pass2
 	{
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
-		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
-		xMOVSSZX       (Fs, ptr32[mVUglob.one]);
+		xe_movss_xm(Fs.Id, mVUglob.one);
 		SSE_DIVSS (mVU, Fs, xmmPQ);
-		xMOVSS         (xmmPQ, Fs);
-		xPSHUF.D       (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -450,13 +450,13 @@ mVUop(mVU_ERSQRT)
 	pass2
 	{
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
-		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xAND.PS       (Fs, ptr128[mVUglob.absclip]);
-		xSQRT.SS      (xmmPQ, Fs);
-		xMOVSSZX      (Fs, ptr32[mVUglob.one]);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
+		xe_andps_xm(Fs.Id, mVUglob.absclip);
+		xe_sqrtss_xx(xmmPQ.Id, Fs.Id);
+		xe_movss_xm(Fs.Id, mVUglob.one);
 		SSE_DIVSS(mVU, Fs, xmmPQ);
-		xMOVSS        (xmmPQ, Fs);
-		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
+		xe_movss_xx(xmmPQ.Id, Fs.Id);
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
 	}
 }
@@ -498,29 +498,29 @@ mVUop(mVU_ESIN)
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		const xmm& t1 = mVU.regAlloc->allocReg();
 		const xmm& t2 = mVU.regAlloc->allocReg();
-		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xMOVSS        (xmmPQ, Fs); // pq = X
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
+		xe_movss_xx(xmmPQ.Id, Fs.Id); // pq = X
 		SSE_MULSS(mVU, Fs, Fs);    // fs = X^2
-		xMOVAPS       (t1, Fs);    // t1 = X^2
+		xe_movaps_xx(t1.Id, Fs.Id);    // t1 = X^2
 		SSE_MULSS(mVU, Fs, xmmPQ); // fs = X^3
-		xMOVAPS       (t2, Fs);    // t2 = X^3
-		xMUL.SS       (Fs, ptr32[mVUglob.S2]); // fs = s2 * X^3
+		xe_movaps_xx(t2.Id, Fs.Id);    // t2 = X^3
+		xe_mulss_xm(Fs.Id, mVUglob.S2); // fs = s2 * X^3
 		SSE_ADDSS(mVU, xmmPQ, Fs); // pq = X + s2 * X^3
 
 		SSE_MULSS(mVU, t2, t1);    // t2 = X^3 * X^2
-		xMOVAPS       (Fs, t2);    // fs = X^5
-		xMUL.SS       (Fs, ptr32[mVUglob.S3]); // ps = s3 * X^5
+		xe_movaps_xx(Fs.Id, t2.Id);    // fs = X^5
+		xe_mulss_xm(Fs.Id, mVUglob.S3); // ps = s3 * X^5
 		SSE_ADDSS(mVU, xmmPQ, Fs); // pq = X + s2 * X^3 + s3 * X^5
 
 		SSE_MULSS(mVU, t2, t1);    // t2 = X^5 * X^2
-		xMOVAPS       (Fs, t2);    // fs = X^7
-		xMUL.SS       (Fs, ptr32[mVUglob.S4]); // fs = s4 * X^7
+		xe_movaps_xx(Fs.Id, t2.Id);    // fs = X^7
+		xe_mulss_xm(Fs.Id, mVUglob.S4); // fs = s4 * X^7
 		SSE_ADDSS(mVU, xmmPQ, Fs); // pq = X + s2 * X^3 + s3 * X^5 + s4 * X^7
 
 		SSE_MULSS(mVU, t2, t1);    // t2 = X^7 * X^2
-		xMUL.SS       (t2, ptr32[mVUglob.S5]); // t2 = s5 * X^9
+		xe_mulss_xm(t2.Id, mVUglob.S5); // t2 = s5 * X^9
 		SSE_ADDSS(mVU, xmmPQ, t2); // pq = X + s2 * X^3 + s3 * X^5 + s4 * X^7 + s5 * X^9
-		xPSHUF.D      (xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
+		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
 		mVU.regAlloc->clearNeeded(t1);
 		mVU.regAlloc->clearNeeded(t2);
@@ -542,7 +542,7 @@ mVUop(mVU_ESQRT)
 	{
 		const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
-		xAND.PS (Fs, ptr128[mVUglob.absclip]);
+		xe_andps_xm(Fs.Id, mVUglob.absclip);
 		xe_sqrtss_xx(xmmPQ.Id, Fs.Id);
 		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
 		mVU.regAlloc->clearNeeded(Fs);
@@ -1437,7 +1437,7 @@ mVUop(mVU_RINIT)
 			const xmm& Fs = mVU.regAlloc->allocReg(_Fs_, 0, (1 << (3 - _Fsf_)));
 			xe_movd_rx(gprT1.Id, Fs.Id);
 			xe_and32_ri(gprT1.Id, 0x007fffff);
-			xOR (gprT1, 0x3f800000);
+			xe_or32_ri(gprT1.Id, 0x3f800000);
 			xe_mov32_mr(Rmem, gprT1.Id);
 			mVU.regAlloc->clearNeeded(Fs);
 		}
@@ -1488,7 +1488,7 @@ mVUop(mVU_RNEXT)
 		xe_xor32_rr(gprT1.Id, gprT2.Id);
 		xe_xor32_rr(temp3.Id, gprT1.Id);
 		xe_and32_ri(temp3.Id, 0x007fffff);
-		xOR (temp3, 0x3f800000);
+		xe_or32_ri(temp3.Id, 0x3f800000);
 		xe_mov32_mr(Rmem, temp3.Id);
 		mVU_RGET_(mVU, temp3);
 		mVU.regAlloc->clearNeeded(temp3);
@@ -1674,7 +1674,7 @@ static __fi void mVU_XGKICK_SYNC(mV, bool flush)
 	// on the second instruction after the kick and that needs to go through first
 	// but that's VERY close..
 	xe_test32_mi(&vuRegs[1].xgkickenable, 0x1);
-	xForwardJZ32 skipxgkick;
+	e_u8* skipxgkick; xe_fwd_jcc32(Jcc_Zero, skipxgkick);
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, mVUlow.kickcycles-1);
 	xe_cmp32_mi(&vuRegs[1].xgkickcyclecount, 2);
 	xForwardJL32 needcycles;
@@ -1683,7 +1683,7 @@ static __fi void mVU_XGKICK_SYNC(mV, bool flush)
 	mVUrestoreRegs(mVU, true, true);
 	needcycles.SetTarget();
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, 1);
-	skipxgkick.SetTarget();
+	xe_fwd_set32(skipxgkick);
 }
 
 static __fi void mVU_XGKICK_DELAY(mV)
@@ -1692,8 +1692,8 @@ static __fi void mVU_XGKICK_DELAY(mV)
 
 	mVUbackupRegs(mVU, true, true);
 #if 0 // XGkick Break - ToDo: Change "SomeGifPathValue" to w/e needs to be tested
-	xTEST (ptr32[&SomeGifPathValue], 1); // If '1', breaks execution
-	xMOV  (ptr32[&mVU.resumePtrXG], (uptr)xGetPtr() + 10 + 6);
+	xTEST(ptr32[&SomeGifPathValue], 1); // If '1', breaks execution
+	xMOV(ptr32[&mVU.resumePtrXG], (uptr)xGetPtr() + 10 + 6);
 	xJcc32(Jcc_NotZero, (uptr)mVU.exitFunctXG - ((uptr)xGetPtr()+6));
 #endif
 	xe_fastcall1_m32(mVU_XGKICK_, &mVU.VIxgkick);

@@ -41,7 +41,7 @@ void mVUloadReg(const xmm& reg, xAddressVoid ptr, int xyzw)
 		case 4:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 4);  xe_movss_xmemg(reg.Id, xm); } break; // Y
 		case 2:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 8);  xe_movss_xmemg(reg.Id, xm); } break; // Z
 		case 1:  { struct e_mem xm; XE_MEM_XAV(xm, ptr, 12); xe_movss_xmemg(reg.Id, xm); } break; // W
-		default: xMOVAPS (reg, ptr128[ptr]);     break;
+		default: { struct e_mem xm; XE_MEM_XAV(xm, ptr, 0); xe_movaps_xmemg(reg.Id, xm); } break;
 	}
 }
 
@@ -351,20 +351,20 @@ void MIN_MAX_PS(microVU& mVU, const xmm& to, const xmm& from, const xmm& t1in, c
 		const xmm& c1 = min ? t2 : t1;
 		const xmm& c2 = min ? t1 : t2;
 
-		xMOVAPS  (t1, to);
-		xPSRA.D  (t1, 31);
-		xPSRL.D  (t1,  1);
-		xPXOR    (t1, to);
+		xe_movaps_xx(t1.Id, to.Id);
+		xe_psrad_xi(t1.Id, 31);
+		xe_psrld_xi(t1.Id, 1);
+		xe_pxor_xx(t1.Id, to.Id);
 
-		xMOVAPS  (t2, from);
-		xPSRA.D  (t2, 31);
-		xPSRL.D  (t2,  1);
-		xPXOR    (t2, from);
+		xe_movaps_xx(t2.Id, from.Id);
+		xe_psrad_xi(t2.Id, 31);
+		xe_psrld_xi(t2.Id, 1);
+		xe_pxor_xx(t2.Id, from.Id);
 
 		xe_pcmpgtd_xx(c1.Id, c2.Id);
-		xPAND    (to, c1);
-		xPANDN   (c1, from);
-		xPOR     (to, c1);
+		xe_pand_xx(to.Id, c1.Id);
+		xe_pandn_xx(c1.Id, from.Id);
+		xe_por_xx(to.Id, c1.Id);
 	}
 
 	if (t1 != t1in) mVU.regAlloc->clearNeeded(t1);
@@ -376,8 +376,8 @@ void MIN_MAX_SS(mV, const xmm& to, const xmm& from, const xmm& t1in, bool min)
 {
 	const xmm& t1 = t1in.IsEmpty() ? mVU.regAlloc->allocReg() : t1in;
 	xe_shufps_xxi(to.Id, from.Id, 0);
-	xPAND   (to, ptr128[sseMasks.MIN_MAX_1]);
-	xPOR    (to, ptr128[sseMasks.MIN_MAX_2]);
+	xe_pand_xm(to.Id, sseMasks.MIN_MAX_1);
+	xe_por_xm(to.Id, sseMasks.MIN_MAX_2);
 	xe_pshufd_xxi(t1.Id, to.Id, 0xee);
 	if (min) xe_minpd_xx(to.Id, t1.Id);
 	else	 xe_maxpd_xx(to.Id, t1.Id);
@@ -391,15 +391,15 @@ void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 {
 	xe_movd_rx(XE_AX, to.Id);
 	xe_movd_rx(XE_CX, from.Id);
-	xSHR (eax, 23);
-	xSHR (ecx, 23);
-	xAND (eax, 0xff);
-	xAND (ecx, 0xff);
-	xSUB (ecx, eax); // Exponent Difference
+	xe_shr32_ri(XE_AX, 23);
+	xe_shr32_ri(XE_CX, 23);
+	xe_and32_ri(XE_AX, 0xff);
+	xe_and32_ri(XE_CX, 0xff);
+	xe_sub32_rr(XE_CX, XE_AX); // Exponent Difference
 
-	xCMP (ecx, -25);
+	xe_cmp32_ri(XE_CX, -25);
 	xForwardJLE8 case_neg_big;
-	xCMP (ecx,  25);
+	xe_cmp32_ri(XE_CX, 25);
 	xForwardJL8  case_end1;
 
 	// case_pos_big:
@@ -419,7 +419,7 @@ void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 	do { \
 		mVUclamp3(mVU, to, t1, (isPS) ? 0xf : 0x8); \
 		mVUclamp3(mVU, from, t1, (isPS) ? 0xf : 0x8); \
-		opX(to, from); \
+		opX((to).Id, (from).Id); \
 		mVUclamp4(mVU, to, t1, (isPS) ? 0xf : 0x8); \
 	} while (0)
 
@@ -442,7 +442,7 @@ void SSE_MINSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, co
 void SSE_ADD2SS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
 	if (!CHECK_VUADDSUBHACK)
-		clampOp(xADD.SS, false);
+		clampOp(xe_addss_xx, false);
 	else
 		ADD_SS_TriAceHack(mVU, to, from);
 }
@@ -450,37 +450,37 @@ void SSE_ADD2SS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, c
 // Does same as SSE_ADDPS since tri-ace games only need SS implementation of VUADDSUBHACK...
 void SSE_ADD2PS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xADD.PS, true);
+	clampOp(xe_addps_xx, true);
 }
 void SSE_ADDPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xADD.PS, true);
+	clampOp(xe_addps_xx, true);
 }
 void SSE_ADDSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xADD.SS, false);
+	clampOp(xe_addss_xx, false);
 }
 void SSE_SUBPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xSUB.PS, true);
+	clampOp(xe_subps_xx, true);
 }
 void SSE_SUBSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xSUB.SS, false);
+	clampOp(xe_subss_xx, false);
 }
 void SSE_MULPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xMUL.PS, true);
+	clampOp(xe_mulps_xx, true);
 }
 void SSE_MULSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xMUL.SS, false);
+	clampOp(xe_mulss_xx, false);
 }
 void SSE_DIVPS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xDIV.PS, true);
+	clampOp(xe_divps_xx, true);
 }
 void SSE_DIVSS(mV, const xmm& to, const xmm& from, const xmm& t1 = xEmptyReg, const xmm& t2 = xEmptyReg)
 {
-	clampOp(xDIV.SS, false);
+	clampOp(xe_divss_xx, false);
 }

@@ -306,6 +306,7 @@
 	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
 	  E_G1_MEM_I(xep, 4, 0, xm_, (e_s32)(imm)); }; XE_CLOSE(); } while (0)
 #define xe_g1op32_ri(g1op, reg, imm) do { XE_OPEN(); E_G1_RI(xep, 0, (g1op), (reg), (e_s32)(imm)); XE_CLOSE(); } while (0)
+#define xe_g1op64_ri(g1op, reg, imm) do { XE_OPEN(); E_G1_RI(xep, 1, (g1op), (reg), (e_s32)(imm)); XE_CLOSE(); } while (0)
 #define xe_g1op32_rr(g1op, dst, src)  do { XE_OPEN(); E_G1_RR(xep, 0, (g1op), (dst), (src)); XE_CLOSE(); } while (0)
 #define xe_g1op32_rm(g1op, reg, addr) do { XE_OPEN(); E_G1_RM(xep, 0, (g1op), (reg), (e_uptr)(addr)); XE_CLOSE(); } while (0)
 
@@ -1054,5 +1055,22 @@
 
 /* movq xmm, r64: 66 REX.W 0F 6E /r */
 #define xe_movq_xr(x, gpr) do { XE_OPEN(); E_SSE_RR_W(xep, 0x66, 0x6e, (x), (gpr), 1); XE_CLOSE(); } while (0)
+
+
+#define xe_addps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x58, (d), (s)); XE_CLOSE(); } while (0)
+#define xe_subps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x5c, (d), (s)); XE_CLOSE(); } while (0)
+#define xe_mulps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x59, (d), (s)); XE_CLOSE(); } while (0)
+#define xe_divps_xx(d, s) do { XE_OPEN(); E_SSE_RR(xep, 0x00, 0x5e, (d), (s)); XE_CLOSE(); } while (0)
+
+
+/* byte store to an absolute address; spl..dil force a bare REX. */
+#define xe_mov8_mr(addr, reg) do { XE_OPEN(); struct e_mem xm8_; XE_MEM_ABS(xm8_, addr); \
+	{ int rx8_ = (xm8_.index != E_NOREG && xm8_.index >= 8) ? 1 : 0; \
+	  int rb8_ = (xm8_.base  != E_NOREG && xm8_.base  >= 8) ? 1 : 0; \
+	  e_u8 rex8_; \
+	  if (!E_NEEDS_SIB(xm8_)) { rb8_ = rx8_; rx8_ = 0; } \
+	  rex8_ = (e_u8)(0x40 | ((((int)(reg) >= 8) ? 1 : 0) << 2) | (rx8_ << 1) | rb8_); \
+	  if (rex8_ != 0x40 || ((reg) >= 4 && (reg) <= 7)) EW8(xep, rex8_); } \
+	EW8(xep, 0x88); E_MODRM_MEM(xep, (reg), xm8_, 0); XE_CLOSE(); } while (0)
 
 #endif /* PCSX2_C89OPS_H */

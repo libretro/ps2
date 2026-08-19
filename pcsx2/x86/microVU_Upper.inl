@@ -68,7 +68,7 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 	//-------------------------Check for Signed flags------------------------------
 
 	xe_movmskps_rx(mReg.Id,  regT2.Id); // Move the Sign Bits of the t2reg
-	xXOR.PS  (regT1, regT1); // Clear regT1
+	xe_xorps_xx(regT1.Id, regT1.Id); // Clear regT1
 	xe_cmpeqps_xx(regT1.Id, regT2.Id); // Set all F's if each vector is zero
 	xe_movmskps_rx(gprT2.Id, regT1.Id); // Used for Zero Flag Calculation
 
@@ -508,15 +508,15 @@ mVUop(mVU_CLIP)
 		mVUallocCFLAGa(mVU, gprT1, cFLAG.lastWrite);
 		xe_shl32_ri(gprT1.Id, 6);
 
-		xMOVAPS  (t1, ptr128[mVUglob.exponent]);
-		xPAND    (t1, Fs);
-		xPXOR    (t2, t2);
+		xe_movaps_xm(t1.Id, mVUglob.exponent);
+		xe_pand_xx(t1.Id, Fs.Id);
+		xe_pxor_xx(t2.Id, t2.Id);
 		xe_pcmpeqd_xx(t1.Id, t2.Id); // Denormal check
-		xPANDN   (t1, Fs); // If denormal, set to zero, which can't be greater than any nonnegative denormal in Ft
-		xPAND    (Ft, ptr128[mVUglob.absclip]);
+		xe_pandn_xx(t1.Id, Fs.Id); // If denormal, set to zero, which can't be greater than any nonnegative denormal in Ft
+		xe_pand_xm(Ft.Id, mVUglob.absclip);
 
-		xMOVAPS  (Fs, ptr128[mVUglob.signbit]);
-		xPXOR    (Fs, t1); // Negate
+		xe_movaps_xm(Fs.Id, mVUglob.signbit);
+		xe_pxor_xx(Fs.Id, t1.Id); // Negate
 		xe_pcmpgtd_xx(t1.Id, Ft.Id); // +w, +z, +y, +x
 		xe_pcmpgtd_xx(Fs.Id, Ft.Id); // -w, -z, -y, -x
 

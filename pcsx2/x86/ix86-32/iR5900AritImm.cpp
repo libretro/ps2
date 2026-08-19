@@ -48,17 +48,17 @@ REC_FUNC_DEL(SLTIU, _Rt_);
 static void recMoveStoT(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOV(xRegister32(EEREC_T), xRegister32(EEREC_S));
+		xe_mov32_rr(EEREC_T, EEREC_S);
 	else
-		xMOV(xRegister32(EEREC_T), ptr32[&cpuRegs.GPR.r[_Rs_].UL[0]]);
+		xe_mov32_rm(EEREC_T, &cpuRegs.GPR.r[_Rs_].UL[0]);
 }
 
 static void recMoveStoT64(int info)
 {
 	if (info & PROCESS_EE_S)
-		xMOV(xRegister64(EEREC_T), xRegister64(EEREC_S));
+		xe_mov64_rr(EEREC_T, EEREC_S);
 	else
-		xMOV(xRegister64(EEREC_T), ptr64[&cpuRegs.GPR.r[_Rs_].UD[0]]);
+		xe_mov64_rm(EEREC_T, &cpuRegs.GPR.r[_Rs_].UD[0]);
 }
 
 //// ADDI
@@ -70,8 +70,8 @@ static void recADDI_const(void)
 static void recADDI_(int info)
 {
 	recMoveStoT(info);
-	xADD(xRegister32(EEREC_T), _Imm_);
-	xMOVSX(xRegister64(EEREC_T), xRegister32(EEREC_T));
+	xe_add32_ri(EEREC_T, _Imm_);
+	xe_movsxd_rr(EEREC_T, EEREC_T);
 }
 
 EERECOMPILE_CODEX(eeRecompileCodeRC1, ADDI, XMMINFO_WRITET | XMMINFO_READS);
@@ -91,7 +91,7 @@ static void recDADDI_const()
 static void recDADDI_(int info)
 {
 	recMoveStoT64(info);
-	xADD(xRegister64(EEREC_T), _Imm_);
+	xe_add64_ri(EEREC_T, _Imm_);
 }
 
 EERECOMPILE_CODEX(eeRecompileCodeRC1, DADDI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
@@ -175,23 +175,17 @@ enum class LogicalOp
 
 static void recLogicalOpI(int info, LogicalOp op)
 {
-	// `auto` rather than the concrete type: the object's type is a
-	// detail of the emitter, and naming it here pins this code to one
-	// implementation of it for no benefit.
-	std::remove_reference<decltype(xAND)>::type *bad = nullptr;
-	const auto& xOP = op == LogicalOp::AND ? xAND : op == LogicalOp::OR ? xOR :
-		op == LogicalOp::XOR    ? xXOR :
-		*bad;
+	const int g1op = op == LogicalOp::AND ? 4 : op == LogicalOp::OR ? 1 : 6;
 	if (_ImmU_ != 0)
 	{
 		recMoveStoT64(info);
-		xOP(xRegister64(EEREC_T), _ImmU_);
+		xe_g1op64_ri(g1op, EEREC_T, _ImmU_);
 	}
 	else
 	{
 		if (op == LogicalOp::AND)
 		{
-			xXOR(xRegister32(EEREC_T), xRegister32(EEREC_T));
+			xe_xor32_rr(EEREC_T, EEREC_T);
 		}
 		else
 		{

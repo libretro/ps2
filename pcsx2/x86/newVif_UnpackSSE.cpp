@@ -250,21 +250,21 @@ void VifUnpackSSE_Base::xUPK_V4_5() const
 	if (IsInputMasked())
 		return;
 
-	xMOVSSZX    (workReg, ptr32[srcIndirect]);
-	xPSHUF.D    (workReg, workReg, _v0);
-	xPSLL.D     (workReg, 3);           // ABG|R5.000
-	xMOVAPS     (destReg, workReg);     // x|x|x|R
-	xPSRL.D     (workReg, 8);           // ABG
-	xPSLL.D     (workReg, 3);           // AB|G5.000
+	{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movss_xmemg(workReg.Id, xm); }
+	xe_pshufd_xxi(workReg.Id, workReg.Id, _v0);
+	xe_pslld_xi(workReg.Id, 3);           // ABG|R5.000
+	xe_movaps_xx(destReg.Id, workReg.Id);     // x|x|x|R
+	xe_psrld_xi(workReg.Id, 8);           // ABG
+	xe_pslld_xi(workReg.Id, 3);           // AB|G5.000
 	mVUmergeRegs(destReg, workReg, 0x4);// x|x|G|R
-	xPSRL.D     (workReg, 8);           // AB
-	xPSLL.D     (workReg, 3);           // A|B5.000
+	xe_psrld_xi(workReg.Id, 8);           // AB
+	xe_pslld_xi(workReg.Id, 3);           // A|B5.000
 	mVUmergeRegs(destReg, workReg, 0x2);// x|B|G|R
-	xPSRL.D     (workReg, 8);           // A
-	xPSLL.D     (workReg, 7);           // A.0000000
+	xe_psrld_xi(workReg.Id, 8);           // A
+	xe_pslld_xi(workReg.Id, 7);           // A.0000000
 	mVUmergeRegs(destReg, workReg, 0x1);// A|B|G|R
-	xPSLL.D     (destReg, 24); // can optimize to
-	xPSRL.D     (destReg, 24); // single AND...
+	xe_pslld_xi(destReg.Id, 24); // can optimize to
+	xe_psrld_xi(destReg.Id, 24); // single AND...
 }
 
 void VifUnpackSSE_Base::xUnpack(int upknum) const
@@ -305,8 +305,8 @@ void VifUnpackSSE_Simple::doMaskWrite(const xRegisterSSE& regX) const
 	int offX = std::min(curCycle, 3);
 	xe_pand_xm(regX.Id, nVifMask[0][offX]);
 	xe_pand_xm(7, nVifMask[1][offX]);
-	xPOR (regX, ptr32[nVifMask[2][offX]]);
-	xPOR (regX, xmm7);
+	xe_por_xm(regX.Id, nVifMask[2][offX]);
+	xe_por_xx(regX.Id, 7);
 	{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, regX.Id); }
 }
 

@@ -623,9 +623,9 @@ public:
 			if (vfLoadReg == 33)
 				loadIreg(xmmX, 0xf);
 			else if (vfLoadReg == 32)
-				xMOVAPS (xmmX, ptr128[&::vuRegs[index].ACC]);
+				xe_movaps_xm(xmmX.Id, &::vuRegs[index].ACC);
 			else if (vfLoadReg >= 0)
-				xMOVAPS (xmmX, ptr128[&::vuRegs[index].VF[vfLoadReg]]);
+				xe_movaps_xm(xmmX.Id, &::vuRegs[index].VF[vfLoadReg]);
 
 			xmmMap[x].VFreg = vfLoadReg;
 			xmmMap[x].xyzw  = 0;
@@ -790,7 +790,7 @@ public:
 							if (zext_if_dirty)
 								xe_movzx32_rr16(gprX.Id, i);
 							else
-								xMOV(gprX, xRegister32(i));
+								xe_mov32_rr(gprX.Id, i);
 							gprMap[x].isZeroExtended = zext_if_dirty;
 							std::swap(x, i);
 						}
@@ -879,7 +879,7 @@ public:
 	{
 		if (vi == 0)
 		{
-			xXOR(xRegister32(reg), xRegister32(reg));
+			xe_xor32_rr(reg.Id, reg.Id);
 			return;
 		}
 
