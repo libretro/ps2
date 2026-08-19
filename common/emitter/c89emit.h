@@ -48,6 +48,13 @@ typedef unsigned long      e_uptr;
  * truncated displacements. A negative array size is the C89 way to assert. */
 typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 
+/* Fired when a forward jump's 8-bit displacement would not fit. Emitting a
+ * wrapped displacement silently corrupts the following instruction (see the
+ * FBRST incident); the reference class asserted here. Deterministic trap,
+ * no libc dependency, pure C89. */
+#define E_FWD_OVERFLOW_TRAP() do { \
+	volatile int* e_fwd_null_ = (volatile int*)0; *e_fwd_null_ = 0; } while (0)
+
 #define EW8(p, v)  do { *(p) = (e_u8)(v); (p) += 1; } while (0)
 #define EW32(p, v) do { e_u32 v_ = (e_u32)(v); \
         (p)[0]=(e_u8)(v_); (p)[1]=(e_u8)(v_>>8); \

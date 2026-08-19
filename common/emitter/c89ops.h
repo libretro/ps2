@@ -373,8 +373,13 @@
 	EW8(xep, ((cc) == x86Emitter::Jcc_Unconditional) ? (e_u8)0xeb \
 	                                                 : (e_u8)(0x70 | (cc))); \
 	(slot) = xep; EW8(xep, 0); XE_CLOSE(); } while (0)
+/* The reference class asserted the displacement fit; the pair must too,
+ * because a silent wrap here is exactly the FBRST class of bug: bytes that
+ * look plausible and jump somewhere real. Trap hard at recompile time. */
 #define xe_fwd_set8(slot) do { XE_OPEN();  \
-	*(slot) = (e_u8)(xep - ((slot) + 1)); XE_CLOSE(); } while (0)
+	e_sptr xfd_ = (e_sptr)(xep - ((slot) + 1)); \
+	if (xfd_ != (e_sptr)(e_s8)xfd_) E_FWD_OVERFLOW_TRAP(); \
+	*(slot) = (e_u8)xfd_; XE_CLOSE(); } while (0)
 
 /* complex-address loads. The builder mirrors xComplexAddress: fold the
  * absolute base into the displacement when it fits s32, else lea
