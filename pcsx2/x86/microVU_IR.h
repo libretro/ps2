@@ -14,6 +14,7 @@
  */
 
 #pragma once
+#include "common/emitter/c89ops.h"
 #include "microVU.h"
 
 #include "../microVU/microVU_Types.h"
@@ -51,17 +52,17 @@ protected:
 		{
 			if (gprMap[i].VIreg == REG_I)
 			{
-				xMOVDZX(reg, xRegister32(i));
+				xe_movdzx_xr(reg.Id, i);
 				if (!_XYZWss(xyzw))
-					xSHUF.PS(reg, reg, 0);
+					xe_shufps_xxi(reg.Id, reg.Id, 0);
 
 				return;
 			}
 		}
 
-		xMOVSSZX(reg, ptr32[&::vuRegs[index].VI[REG_I]]);
+		xe_movss_xm(reg.Id, &::vuRegs[index].VI[REG_I]);
 		if (!_XYZWss(xyzw))
-			xSHUF.PS(reg, reg, 0);
+			xe_shufps_xxi(reg.Id, reg.Id, 0);
 	}
 
 	int findFreeRegRec(int startIdx)
@@ -361,7 +362,7 @@ public:
 			if ((mapX.VFreg > 0) && mapX.xyzw) // Reg was modified and not Temp or vf0
 			{
 				if (mapX.VFreg == 33)
-					xMOVSS(ptr32[&::vuRegs[index].VI[REG_I]], xmm(i));
+					xe_movss_mx(&::vuRegs[index].VI[REG_I], i);
 				else if (mapX.VFreg == 32)
 					mVUsaveReg(xmm(i), ptr[&::vuRegs[index].ACC], mapX.xyzw, 1);
 				else
@@ -443,7 +444,7 @@ public:
 		if ((mapX.VFreg > 0) && mapX.xyzw) // Reg was modified and not Temp or vf0
 		{
 			if (mapX.VFreg == 33)
-				xMOVSS(ptr32[&::vuRegs[index].VI[REG_I]], reg);
+				xe_movss_mx(&::vuRegs[index].VI[REG_I], reg.Id);
 			else if (mapX.VFreg == 32)
 				mVUsaveReg(reg, ptr[&::vuRegs[index].ACC], mapX.xyzw, true);
 			else
@@ -565,13 +566,13 @@ public:
 							writeBackReg(xmmZ);
 
 							if (xyzw == 4)
-								xPSHUF.D(xmmZ, xmmI, 1);
+								xe_pshufd_xxi(xmmZ.Id, xmmI.Id, 1);
 							else if (xyzw == 2)
-								xPSHUF.D(xmmZ, xmmI, 2);
+								xe_pshufd_xxi(xmmZ.Id, xmmI.Id, 2);
 							else if (xyzw == 1)
-								xPSHUF.D(xmmZ, xmmI, 3);
+								xe_pshufd_xxi(xmmZ.Id, xmmI.Id, 3);
 							else if (z != i)
-								xMOVAPS(xmmZ, xmmI);
+								xe_movaps_xx(xmmZ.Id, xmmI.Id);
 
 							mapI.count = counter; // Reg i was used, so update counter
 						}
@@ -581,11 +582,11 @@ public:
 								writeBackReg(xmmI);
 
 							if (xyzw == 4)
-								xPSHUF.D(xmmI, xmmI, 1);
+								xe_pshufd_xxi(xmmI.Id, xmmI.Id, 1);
 							else if (xyzw == 2)
-								xPSHUF.D(xmmI, xmmI, 2);
+								xe_pshufd_xxi(xmmI.Id, xmmI.Id, 2);
 							else if (xyzw == 1)
-								xPSHUF.D(xmmI, xmmI, 3);
+								xe_pshufd_xxi(xmmI.Id, xmmI.Id, 3);
 						}
 						xmmMap[z].VFreg = vfWriteReg;
 						xmmMap[z].xyzw = xyzw;
@@ -606,7 +607,7 @@ public:
 		if (vfWriteReg >= 0) // Reg Will Be Modified (allow partial reg loading)
 		{
 			if ((vfLoadReg == 0) && !(xyzw & 1))
-				xPXOR(xmmX, xmmX);
+				xe_pxor_xx(xmmX.Id, xmmX.Id);
 			else if (vfLoadReg == 33)
 				loadIreg(xmmX, xyzw);
 			else if (vfLoadReg == 32)
@@ -680,7 +681,7 @@ public:
 		if (mapX.dirty)
 		{
 			if (mapX.VIreg < 16)
-				xMOV(ptr16[&::vuRegs[index].VI[mapX.VIreg]], xRegister16(reg));
+				xe_mov16_mr(&::vuRegs[index].VI[mapX.VIreg], reg.Id);
 			if (clearDirty)
 			{
 				mapX.dirty = false;
@@ -745,7 +746,7 @@ public:
 				int x = findFreeGPR(-1);
 				const xRegister32& gprX = xRegister32::GetInstance(x);
 				writeBackReg(gprX, true);
-				xXOR(gprX, gprX);
+				xe_xor32_rr(gprX.Id, gprX.Id);
 				gprMap[x].VIreg = -1;
 				gprMap[x].dirty = false;
 				gprMap[x].count = this_counter;
@@ -781,13 +782,13 @@ public:
 							// writeReg not cached, needs backing up
 							if (backup && gprMap[x].VIreg != viWriteReg)
 							{
-								xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viWriteReg]]);
+								xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viWriteReg]);
 								writeVIBackup(gprX);
 								backup = false;
 							}
 
 							if (zext_if_dirty)
-								xMOVZX(gprX, xRegister16(i));
+								xe_movzx32_rr16(gprX.Id, i);
 							else
 								xMOV(gprX, xRegister32(i));
 							gprMap[x].isZeroExtended = zext_if_dirty;
@@ -804,7 +805,7 @@ public:
 					}
 					else if (zext_if_dirty && !gprMap[i].isZeroExtended)
 					{
-						xMOVZX(xRegister32(i), xRegister16(i));
+						xe_movzx32_rr16(i, i);
 						gprMap[i].isZeroExtended = true;
 					}
 
@@ -836,15 +837,15 @@ public:
 		// it's going to get lost when we eventually write this register back.
 		if (backup && viLoadReg >= 0 && viWriteReg > 0 && viLoadReg != viWriteReg)
 		{
-			xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viWriteReg]]);
+			xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viWriteReg]);
 			writeVIBackup(gprX);
 			backup = false;
 		}
 
 		if (viLoadReg > 0)
-			xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viLoadReg]]);
+			xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viLoadReg]);
 		else if (viLoadReg == 0)
-			xXOR(gprX, gprX);
+			xe_xor32_rr(gprX.Id, gprX.Id);
 
 		gprMap[x].VIreg = viLoadReg;
 		gprMap[x].isZeroExtended = true;
@@ -857,7 +858,7 @@ public:
 			if (backup)
 			{
 				if (viLoadReg < 0 && viWriteReg > 0)
-					xMOVZX(gprX, ptr16[&::vuRegs[index].VI[viWriteReg]]);
+					xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viWriteReg]);
 				writeVIBackup(gprX);
 			}
 		}
@@ -886,9 +887,9 @@ public:
 		// TODO: Check whether zero-extend is needed everywhere heae. Loadstores are.
 		const xRegister32& srcreg = allocGPR(vi);
 		if (signext)
-			xMOVSX(xRegister32(reg), xRegister16(srcreg));
+			xe_movsx32_rr16(reg.Id, srcreg.Id);
 		else
-			xMOVZX(xRegister32(reg), xRegister16(srcreg));
+			xe_movzx32_rr16(reg.Id, srcreg.Id);
 		clearNeeded(srcreg);
 	}
 };
