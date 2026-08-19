@@ -165,7 +165,7 @@ static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& mod
 		addr   -= 0xf0;
 	}
 	if (addImm)
-		xe_add32_ri(modReg.Id, addImm);
+		xe_add64_ri(modReg.Id, addImm);
 }
 
 void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
