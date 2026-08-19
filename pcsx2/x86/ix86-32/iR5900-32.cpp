@@ -301,6 +301,11 @@ alignas(__pagesize) static u8 eeRecDispatchers[__pagesize];
 static const void* DispatcherEvent = NULL;
 static const void* DispatcherReg = NULL;
 static const void* JITCompile = NULL;
+static const void* InvalidPCDispatch = NULL;
+/* One shared 64k-page worth of BASEBLOCK slots for every guest page the
+ * recompiler does not map. recLUT_SetPage's negative-delta arithmetic makes
+ * one table serve all pages: entry_i = table - i*(page stride). */
+alignas(16) static BASEBLOCK s_invalidBlockLUT[0x4000];
 static const void* EnterRecompiledCode = NULL;
 static const void* DispatchBlockDiscard = NULL;
 static const void* DispatchPageReset = NULL;
@@ -322,12 +327,29 @@ static void recEventTest(void)
 // When called from _DynGen_DispatchBlockDiscard, called when a block under manual protection fails it's pre-execution integrity check.
 // (meaning the actual code area has been modified -- ie 
 // dynamic modules being loaded or, less likely, self-modifying code)
+/* Fetch from a page the recompiler has no mapping for. The interpreter path
+ * for the same situation is execI: pre-increment pc (exceptions expect it),
+ * then the unmapped read raises the TLB-load exception and the vector
+ * (BFC00380 with BEV set at boot) takes over. vtlb_Miss only raises for the
+ * interpreter, so the recompiler raises here directly with the same
+ * arguments; without this, a wild guest jump -- the BIOS NOP-sliding off
+ * the end of RAM through zero-filled pages is the reproducer -- walked the
+ * dispatcher into a recLUT hole and host-faulted. */
+static void recInvalidPCFetch(void)
+{
+	const u32 pc = cpuRegs.pc;
+	cpuRegs.pc += 4;
+	cpuTlbMiss(pc, cpuRegs.branch, EXC_CODE_TLBL);
+}
+
 static void recClear(u32 addr, u32 size)
 {
 #ifdef PCSX2_REC_PROFILE
 	s_prof_clear_n++;
 #endif
-	if ((addr) >= maxrecmem || !(recLUT[(addr) >> 16] + (addr & ~0xFFFFUL)))
+	if ((addr) >= maxrecmem ||
+		recLUT[(addr) >> 16] == (uptr)s_invalidBlockLUT +
+			(uptr)(0 - (sptr)(addr >> 16)) * (sptr)0x4000 * (sptr)sizeof(BASEBLOCK))
 		return;
 	addr = HWADDR(addr);
 
@@ -385,6 +407,14 @@ static void recClear(u32 addr, u32 size)
 
 // The address for all cleared blocks.  It recompiles the current pc and then
 // dispatches to the recompiled block address.
+static const void* _DynGen_InvalidPCDispatch(void)
+{
+	u8* retval = xGetAlignedCallTarget();
+	xe_fastcall0(recInvalidPCFetch);
+	xe_jmp_to(DispatcherReg);
+	return retval;
+}
+
 static const void* _DynGen_JITCompile(void)
 {
 	u8* retval = xGetAlignedCallTarget();
@@ -491,6 +521,7 @@ static void _DynGen_Dispatchers(void)
 	DispatcherReg = _DynGen_DispatcherReg();
 
 	JITCompile = _DynGen_JITCompile();
+	InvalidPCDispatch = _DynGen_InvalidPCDispatch();
 	EnterRecompiledCode = _DynGen_EnterRecompiledCode();
 	DispatchBlockDiscard = _DynGen_DispatchBlockDiscard();
 	DispatchPageReset = _DynGen_DispatchPageReset();
@@ -500,6 +531,9 @@ static void _DynGen_Dispatchers(void)
 	HostSys::MemProtect(eeRecDispatchers, __pagesize, mode);
 
 	recBlocks.SetJITCompile(JITCompile);
+
+	for (size_t i = 0; i < std::size(s_invalidBlockLUT); i++)
+		s_invalidBlockLUT[i].m_pFnptr = (uptr)InvalidPCDispatch;
 }
 
 
@@ -541,7 +575,7 @@ static void recAlloc(void)
 	basepos += (Ps2MemSize::Rom2 / 4);
 
 	for (int i = 0; i < 0x10000; i++)
-		recLUT_SetPage(recLUT, 0, 0, 0, i, 0);
+		recLUT_SetPage(recLUT, 0, s_invalidBlockLUT, 0, i, 0);
 
 	for (int i = 0x0000; i < (int)(Ps2MemSize::MainRam / 0x10000); i++)
 	{
