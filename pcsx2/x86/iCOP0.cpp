@@ -105,9 +105,9 @@ void recBC0TL()
 // both EntryLo halves.
 void recTLBR()
 {
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
-	_freeX86reg(edx);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
+	_freeX86reg(XE_DX);
 
 	xe_mov32_rm(XE_AX, &cpuRegs.CP0.n.Index);
 	xe_and32_ri(XE_AX, 0x3f);
@@ -157,12 +157,12 @@ void recTLBR()
 // six are caller-saved under both ABIs.
 void recTLBP()
 {
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
-	_freeX86reg(edx);
-	_freeX86reg(r8d);
-	_freeX86reg(r9d);
-	_freeX86reg(r10d);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
+	_freeX86reg(XE_DX);
+	_freeX86reg(8);
+	_freeX86reg(9);
+	_freeX86reg(10);
 
 	xe_mov32_rm(XE_AX, &cpuRegs.CP0.n.EntryHi);
 	xe_mov32_rr(8, XE_AX);

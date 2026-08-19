@@ -111,19 +111,19 @@ static void recSLTIU_const()
 static void recSLTIU_(int info)
 {
 	// TODO(Stenzek): this can be made to suck less by turning Rs into a temp and reallocating Rt.
-	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
-	xe_xor32_rr(dreg.Id, dreg.Id);
+	const int dreg = (_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T;
+	xe_xor32_rr(dreg, dreg);
 
 	if (info & PROCESS_EE_S)
 		xe_cmp64_ri(EEREC_S, _Imm_);
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], _Imm_);
 
-	xe_setcc_r8(x86Emitter::Jcc_Below, dreg.Id);
+	xe_setcc_r8(x86Emitter::Jcc_Below, dreg);
 
-	if (dreg.Id != EEREC_T)
+	if (dreg != EEREC_T)
 	{
-		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
+		std::swap(x86regs[dreg], x86regs[EEREC_T]);
 		_freeX86reg(EEREC_T);
 	}
 }
@@ -138,19 +138,19 @@ static void recSLTI_const()
 
 static void recSLTI_(int info)
 {
-	const xRegister32 dreg((_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T);
-	xe_xor32_rr(dreg.Id, dreg.Id);
+	const int dreg = (_Rt_ == _Rs_) ? _allocX86reg(X86TYPE_TEMP, 0, 0) : EEREC_T;
+	xe_xor32_rr(dreg, dreg);
 
 	if (info & PROCESS_EE_S)
 		xe_cmp64_ri(EEREC_S, _Imm_);
 	else
 		xe_cmp64_mi(&cpuRegs.GPR.r[_Rs_].UD[0], _Imm_);
 
-	xe_setcc_r8(x86Emitter::Jcc_Less, dreg.Id);
+	xe_setcc_r8(x86Emitter::Jcc_Less, dreg);
 
-	if (dreg.Id != EEREC_T)
+	if (dreg != EEREC_T)
 	{
-		std::swap(x86regs[dreg.Id], x86regs[EEREC_T]);
+		std::swap(x86regs[dreg], x86regs[EEREC_T]);
 		_freeX86reg(EEREC_T);
 	}
 }

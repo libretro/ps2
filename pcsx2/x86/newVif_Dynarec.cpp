@@ -76,15 +76,15 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 
 	if ((doMask && m2) || doMode)
 	{
-		xe_movaps_xm(xmmRow.Id, &vif.MaskRow);
+		xe_movaps_xm(xmmRow, &vif.MaskRow);
 	}
 	if (doMask && m3)
 	{
-		xe_movaps_xm(xmmCol0.Id, &vif.MaskCol);
-		if ((cS >= 2) && (m3 & 0x0000ff00)) xe_pshufd_xxi(xmmCol1.Id, xmmCol0.Id, _v1);
-		if ((cS >= 3) && (m3 & 0x00ff0000)) xe_pshufd_xxi(xmmCol2.Id, xmmCol0.Id, _v2);
-		if ((cS >= 4) && (m3 & 0xff000000)) xe_pshufd_xxi(xmmCol3.Id, xmmCol0.Id, _v3);
-		if ((cS >= 1) && (m3 & 0x000000ff)) xe_pshufd_xxi(xmmCol0.Id, xmmCol0.Id, _v0);
+		xe_movaps_xm(xmmCol0, &vif.MaskCol);
+		if ((cS >= 2) && (m3 & 0x0000ff00)) xe_pshufd_xxi(xmmCol1, xmmCol0, _v1);
+		if ((cS >= 3) && (m3 & 0x00ff0000)) xe_pshufd_xxi(xmmCol2, xmmCol0, _v2);
+		if ((cS >= 4) && (m3 & 0xff000000)) xe_pshufd_xxi(xmmCol3, xmmCol0, _v3);
+		if ((cS >= 1) && (m3 & 0x000000ff)) xe_pshufd_xxi(xmmCol0, xmmCol0, _v0);
 	}
 }
 
@@ -102,11 +102,11 @@ void VifUnpackSSE_Dynarec::doMaskWrite(int regX) const
 
 	if (doMask && m2) // Merge MaskRow
 	{
-		mVUmergeRegs(regX, xmmRow.Id, m2);
+		mVUmergeRegs(regX, xmmRow, m2);
 	}
 	if (doMask && m3) // Merge MaskCol
 	{
-		mVUmergeRegs(regX, xRegisterSSE(xmmCol0.Id + cc).Id, m3);
+		mVUmergeRegs(regX, xmmCol0 + cc, m3);
 	}
 
 	if (doMode)
@@ -118,30 +118,30 @@ void VifUnpackSSE_Dynarec::doMaskWrite(int regX) const
 
 		if (m5 < 0xf)
 		{
-			xe_pxor_xx(xmmTemp.Id, xmmTemp.Id);
+			xe_pxor_xx(xmmTemp, xmmTemp);
 			if (doMode == 3)
 			{
-				mVUmergeRegs(xmmRow.Id, regX, m5);
+				mVUmergeRegs(xmmRow, regX, m5);
 			}
 			else
 			{
-				mVUmergeRegs(xmmTemp.Id, xmmRow.Id, m5);
-				xe_paddd_xx(regX, xmmTemp.Id);
+				mVUmergeRegs(xmmTemp, xmmRow, m5);
+				xe_paddd_xx(regX, xmmTemp);
 				if (doMode == 2)
-					mVUmergeRegs(xmmRow.Id, regX, m5);
+					mVUmergeRegs(xmmRow, regX, m5);
 			}
 		}
 		else
 		{
 			if (doMode == 3)
 			{
-				xe_movaps_xx(xmmRow.Id, regX);
+				xe_movaps_xx(xmmRow, regX);
 			}
 			else
 			{
-				xe_paddd_xx(regX, xmmRow.Id);
+				xe_paddd_xx(regX, xmmRow);
 				if (doMode == 2)
-					xe_movaps_xx(xmmRow.Id, regX);
+					xe_movaps_xx(xmmRow, regX);
 			}
 		}
 	}
@@ -290,7 +290,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	if (doMode >= 2)
 	{
 		const int idx = v.idx;
-		xe_movaps_mx(&(MTVU_VifX.MaskRow), xmmRow.Id);
+		xe_movaps_mx(&(MTVU_VifX.MaskRow), xmmRow);
 	}
 
 	xe_ret();

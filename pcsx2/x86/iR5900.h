@@ -21,7 +21,7 @@
 #include "iCore.h"
 
 // Register containing a pointer to our fastmem (4GB) area
-#define RFASTMEMBASE x86Emitter::rbp
+#define RFASTMEMBASE XE_BP /* rbp: fastmem base */
 
 extern u32 pc;             // recompiler pc
 extern int g_branch;       // set for branch

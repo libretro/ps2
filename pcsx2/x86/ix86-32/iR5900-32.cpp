@@ -73,7 +73,7 @@ bool g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalExcept
 static RecompiledCodeReserve* recMem = NULL;
 static u8* recRAMCopy = NULL;
 static u8* recLutReserve_RAM = NULL;
-static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * wordsize / 4;
+static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * XE_WORDSIZE / 4;
 
 static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
 static BASEBLOCK* recROM = NULL; // and here
@@ -428,8 +428,8 @@ static const void* _DynGen_JITCompile(void)
 	xe_mov32_rm(XE_AX, &cpuRegs.pc);
 	xe_mov32_rr(XE_BX, XE_AX);
 	xe_shr32_ri(XE_AX, 16);
-	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, recLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
-	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, recLUT, XE_AX, XE_WORDSIZE); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, XE_WORDSIZE / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -446,8 +446,8 @@ static const void* _DynGen_DispatcherReg(void)
 	xe_mov32_rm(XE_AX, &cpuRegs.pc);
 	xe_mov32_rr(XE_BX, XE_AX);
 	xe_shr32_ri(XE_AX, 16);
-	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, recLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
-	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, recLUT, XE_AX, XE_WORDSIZE); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, XE_WORDSIZE / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -478,7 +478,7 @@ static const void* _DynGen_EnterRecompiledCode(void)
 	xe_sub64_ri(XE_SP, stack_size);
 
 	if (CHECK_FASTMEM)
-		xe_mov64_rm(RFASTMEMBASE.Id, &vtlb_private::vtlbdata.fastmem_base);
+		xe_mov64_rm(RFASTMEMBASE, &vtlb_private::vtlbdata.fastmem_base);
 
 	xe_jmp_to(DispatcherReg);
 
@@ -1086,7 +1086,7 @@ void iFlushCall(int flushtype)
 		if (!x86regs[i].inuse)
 			continue;
 
-		if (xRegisterBase::IsCallerSaved(i) ||
+		if (XE_IS_CALLER_SAVED(i) ||
 			((flushtype & FLUSH_FREE_VU0) && x86regs[i].type == X86TYPE_VIREG) ||
 			((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP) ||
 			((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
@@ -1100,7 +1100,7 @@ void iFlushCall(int flushtype)
 		if (!xmmregs[i].inuse)
 			continue;
 
-		if (xRegisterSSE::IsCallerSaved(i) ||
+		if (XE_XMM_CALLER_SAVED(i) ||
 			(flushtype & FLUSH_FREE_XMM) ||
 			((flushtype & FLUSH_FREE_VU0) && xmmregs[i].type == XMMTYPE_VFREG))
 		{

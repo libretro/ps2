@@ -23,6 +23,7 @@ namespace x86Emitter
 		return (src == Jcc_Unconditional) ? Jcc_Unconditional : (JccComparisonType)((int)src ^ 1);
 	}
 
+#if !defined(PCSX2_C89_EMITTER) || defined(PCSX2_C89_KEEP_TYPES)
 	inline void xLoadFarAddr(const xAddressReg& dst, void* addr)
 	{
 		xe_lea_far(dst.Id, addr);
@@ -40,5 +41,6 @@ namespace x86Emitter
 	{
 		xe_imm64op_mov64_mi(addr, tmp.Id, imm);
 	}
+#endif /* object-typed compat helpers: no users in the switched build */
 } // namespace x86Emitter
 

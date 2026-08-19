@@ -337,7 +337,7 @@ static void COP2_Interlock(bool mBitSync)
 		if (g_pCurInstInfo->info & EEINST_COP2_SYNC_VU0)
 		{
 			iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
-			_freeX86reg(eax);
+			_freeX86reg(XE_AX);
 			xe_mov64_rm(XE_AX, &cpuRegs.cycle);
 			{ const u32 sbc_ = scaleblockcycles_clear(); xe_add64_ri(XE_AX, sbc_); }
 			xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles
@@ -372,7 +372,7 @@ static void COP2_Interlock(bool mBitSync)
 static void mVUSyncVU0(void)
 {
 	iFlushCall(FLUSH_FOR_POSSIBLE_MICRO_EXEC);
-	_freeX86reg(eax);
+	_freeX86reg(XE_AX);
 	xe_mov64_rm(XE_AX, &cpuRegs.cycle);
 	{ const u32 sbc_ = scaleblockcycles_clear(); xe_add64_ri(XE_AX, sbc_); }
 	xe_mov64_mr(&cpuRegs.cycle, XE_AX); // update cycles

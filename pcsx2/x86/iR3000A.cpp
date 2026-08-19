@@ -126,8 +126,8 @@ static const void* _DynGen_JITCompile(void)
 	xe_mov32_rm(XE_AX, &psxRegs.pc);
 	xe_mov32_rr(XE_BX, XE_AX);
 	xe_shr32_ri(XE_AX, 16);
-	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, psxRecLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
-	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, psxRecLUT, XE_AX, XE_WORDSIZE); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, XE_WORDSIZE / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -140,8 +140,8 @@ static const void* _DynGen_DispatcherReg(void)
 	xe_mov32_rm(XE_AX, &psxRegs.pc);
 	xe_mov32_rr(XE_BX, XE_AX);
 	xe_shr32_ri(XE_AX, 16);
-	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, psxRecLUT, XE_AX, wordsize); xe_mov64_rmem(XE_CX, xm); }
-	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, wordsize / 4, 0); xe_jmp_mem(xm); }
+	{ struct e_mem xm; xe_complexaddr_si(xm, XE_CX, psxRecLUT, XE_AX, XE_WORDSIZE); xe_mov64_rmem(XE_CX, xm); }
+	{ struct e_mem xm; E_MEM(xm, XE_CX, XE_BX, XE_WORDSIZE / 4, 0); xe_jmp_mem(xm); }
 
 	return retval;
 }
@@ -297,7 +297,7 @@ void _psxFlushCall(int flushtype)
 		if (!x86regs[i].inuse)
 			continue;
 
-		if (xRegisterBase::IsCallerSaved(i) ||
+		if (XE_IS_CALLER_SAVED(i) ||
 			((flushtype & FLUSH_FREE_NONTEMP_X86) && x86regs[i].type != X86TYPE_TEMP) ||
 			((flushtype & FLUSH_FREE_TEMP_X86) && x86regs[i].type == X86TYPE_TEMP))
 		{

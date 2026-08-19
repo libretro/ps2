@@ -30,9 +30,9 @@ extern void  mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW);
 #define _v1 0x55
 #define _v2 0xaa
 #define _v3 0xff
-#define xmmCol0 xmm2
-#define xmmCol1 xmm3
-#define xmmCol2 xmm4
-#define xmmCol3 xmm5
-#define xmmRow  xmm6
-#define xmmTemp xmm7
+#define xmmCol0 2
+#define xmmCol1 3
+#define xmmCol2 4
+#define xmmCol3 5
+#define xmmRow 6
+#define xmmTemp 7

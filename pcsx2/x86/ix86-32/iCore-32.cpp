@@ -54,7 +54,7 @@ static int _getFreeX86reg(int mode)
 		if (x86regs[reg].inuse || !_isAllocatableX86reg(reg))
 			continue;
 
-		if ((mode & MODE_CALLEESAVED) && xRegister32::IsCallerSaved(reg))
+		if ((mode & MODE_CALLEESAVED) && XE_GPR_CALLER_SAVED(reg))
 			continue;
 
 		if ((mode & MODE_COP2) && mVUIsReservedCOP2(reg))
@@ -72,7 +72,7 @@ static int _getFreeX86reg(int mode)
 		if (!_isAllocatableX86reg(i))
 			continue;
 
-		if ((mode & MODE_CALLEESAVED) && xRegister32::IsCallerSaved(i))
+		if ((mode & MODE_CALLEESAVED) && XE_GPR_CALLER_SAVED(i))
 			continue;
 
 		if ((mode & MODE_COP2) && mVUIsReservedCOP2(i))
@@ -227,7 +227,7 @@ int _allocX86reg(int type, int reg, int mode)
 	}
 
 	const int regnum = _getFreeX86reg(mode);
-	xRegister64 new_reg(regnum);
+	const int new_reg = regnum;
 	x86regs[regnum].type = type;
 	x86regs[regnum].reg = reg;
 	x86regs[regnum].mode = mode & ~MODE_CALLEESAVED;
@@ -243,14 +243,14 @@ int _allocX86reg(int type, int reg, int mode)
 			{
 				if (reg == 0)
 				{
-					xe_xor32_rr(new_reg.Id, new_reg.Id); // 32-bit is smaller and zexts anyway
+					xe_xor32_rr(new_reg, new_reg); // 32-bit is smaller and zexts anyway
 				}
 				else
 				{
 					if (hostXMMreg >= 0)
 					{
 						// is in a XMM. we don't need to free the XMM since we're not writing, and it's still valid
-						xe_movq_rx(new_reg.Id, hostXMMreg); // actually MOVQ
+						xe_movq_rx(new_reg, hostXMMreg); // actually MOVQ
 
 						// if the XMM was dirty, just get rid of it, we don't want to try to sync the values up...
 						if (xmmregs[hostXMMreg].mode & MODE_WRITE)
@@ -260,14 +260,14 @@ int _allocX86reg(int type, int reg, int mode)
 					}
 					else if (GPR_IS_CONST1(reg))
 					{
-						xe_mov64_ri(new_reg.Id, g_cpuConstRegs[reg].SD[0]);
+						xe_mov64_ri(new_reg, g_cpuConstRegs[reg].SD[0]);
 						g_cpuFlushedConstReg |= (1u << reg);
 						x86regs[regnum].mode |= MODE_WRITE; // reg is dirty
 					}
 					else
 					{
 						// not loaded
-						xe_mov64_rm(new_reg.Id, &_eeGetGPRPtr(reg)->UD[0]);
+						xe_mov64_rm(new_reg, &_eeGetGPRPtr(reg)->UD[0]);
 					}
 				}
 			}
@@ -279,22 +279,22 @@ int _allocX86reg(int type, int reg, int mode)
 
 			case X86TYPE_PSX:
 			{
-				const xRegister32 new_reg32(regnum);
+				const int new_reg32 = regnum;
 				if (reg == 0)
 				{
-					xe_xor32_rr(new_reg32.Id, new_reg32.Id);
+					xe_xor32_rr(new_reg32, new_reg32);
 				}
 				else
 				{
 					if (PSX_IS_CONST1(reg))
 					{
-						xe_mov32_ri(new_reg32.Id, g_psxConstRegs[reg]);
+						xe_mov32_ri(new_reg32, g_psxConstRegs[reg]);
 						g_psxFlushedConstReg |= (1u << reg);
 						x86regs[regnum].mode |= MODE_WRITE; // reg is dirty
 					}
 					else
 					{
-						xe_mov32_rm(new_reg32.Id, &psxRegs.GPR.r[reg]);
+						xe_mov32_rm(new_reg32, &psxRegs.GPR.r[reg]);
 					}
 				}
 			}
@@ -418,10 +418,6 @@ void _clearNeededX86regs(void)
 	}
 }
 
-void _freeX86reg(const x86Emitter::xRegister32& x86reg)
-{
-	_freeX86reg(x86reg.Id);
-}
 
 void _freeX86reg(int x86reg)
 {

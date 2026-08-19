@@ -64,7 +64,16 @@
 #define XE_CX 1
 #define XE_DX 2
 #define XE_BX 3
+#define XE_WORDSIZE 8
 #define XE_SP 4
+
+/* Caller-saved (volatile) GPR predicate, mirroring
+ * xRegisterBase::IsCallerSaved exactly. */
+#ifdef _WIN32
+#define XE_IS_CALLER_SAVED(id) ((id) <= 2 || ((id) >= 8 && (id) <= 11))
+#else
+#define XE_IS_CALLER_SAVED(id) ((id) <= 2 || (id) == 6 || (id) == 7 || ((id) >= 8 && (id) <= 11))
+#endif
 #define XE_BP 5
 #define XE_SI 6
 #define XE_DI 7
@@ -455,11 +464,11 @@
  * (mem32) argument shapes -- transcribed from the reference overloads,
  * which stage arg1/arg2 then call near. */
 #define xe_fastcall2_ii(fn, a1, a2) do { \
-	xe_mov32_ri(x86Emitter::arg1regd.Id, (a1)); \
-	xe_mov32_ri(x86Emitter::arg2regd.Id, (a2)); \
+	xe_mov32_ri(XE_ARG1, (a1)); \
+	xe_mov32_ri(XE_ARG2, (a2)); \
 	xe_fastcall0(fn); } while (0)
 #define xe_fastcall1_m32(fn, addr) do { \
-	xe_mov32_rm(x86Emitter::arg1regd.Id, (addr)); \
+	xe_mov32_rm(XE_ARG1, (addr)); \
 	xe_fastcall0(fn); } while (0)
 
 #define xe_ret() do { XE_OPEN(); EW8(xep, 0xc3); XE_CLOSE(); } while (0)  /* xRET is a macro */
@@ -512,7 +521,7 @@
 /* lea r64, [base + index*scale + disp] from an e_mem */
 #define xe_lea64_mem(reg, m)   do { XE_OPEN(); E_LEA(xep, 1, 0, (reg), (m)); XE_CLOSE(); } while (0)
 #define xe_fastcall1_i(fn, a1) do { \
-	xe_mov32_ri(x86Emitter::arg1regd.Id, (a1)); \
+	xe_mov32_ri(XE_ARG1, (a1)); \
 	xe_fastcall0(fn); } while (0)
 
 
@@ -833,6 +842,19 @@
 #define XE_ARG2 6 /* rsi */
 #define XE_ARG3 2 /* rdx */
 #define XE_ARG4 1 /* rcx */
+#endif
+
+/* ABI volatility predicates and the SSE argument register, as plain C89.
+ * Byte-for-byte the logic of xRegisterBase/xRegisterSSE::IsCallerSaved and
+ * xRegisterSSE::GetArgRegister(arg, sse).Id. */
+#ifdef _WIN32
+#define XE_GPR_CALLER_SAVED(id) ((unsigned)(id) <= 2 || ((unsigned)(id) >= 8 && (unsigned)(id) <= 11))
+#define XE_XMM_CALLER_SAVED(id) ((unsigned)(id) < 6)
+#define XE_XMM_ARG(argn, ssen)  (argn)
+#else
+#define XE_GPR_CALLER_SAVED(id) ((unsigned)(id) <= 2 || (id) == 6 || (id) == 7 || ((unsigned)(id) >= 8 && (unsigned)(id) <= 11))
+#define XE_XMM_CALLER_SAVED(id) (1)
+#define XE_XMM_ARG(argn, ssen)  (ssen)
 #endif
 #define xe_push64_r(reg) do { XE_OPEN();  \
 	{ if ((reg) >= 8) EW8(xep, 0x41); EW8(xep, (e_u8)(0x50 | ((reg) & 7))); }; XE_CLOSE(); } while (0)

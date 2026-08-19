@@ -224,6 +224,14 @@ namespace x86Emitter
 
 	JccComparisonType xInvertCond(JccComparisonType src); // defined inline in instructions.h
 
+/* ============================ THE OBJECT WORLD ============================
+ * Everything below -- the register class hierarchy, the singleton tables,
+ * the address objects and their operator algebra -- exists for the
+ * reference emitter and the byte suites. The switched build emits through
+ * the C89 macros and needs none of it; the reference build and byte suites
+ * keep it via PCSX2_C89_KEEP_TYPES. */
+#if !defined(PCSX2_C89_EMITTER) || defined(PCSX2_C89_KEEP_TYPES)
+
 	class xAddressVoid;
 
 	// --------------------------------------------------------------------------------------
@@ -1240,7 +1248,7 @@ inline constexpr xRegister32
 	inline const xAddressIndexer<xIndirect16> ptr16 = {};
 	inline const xAddressIndexer<xIndirect8> ptr8 = {};
 
-#if !defined(PCSX2_C89_EMITTER) || defined(PCSX2_C89_KEEP_FWDJUMP)
+#if !defined(PCSX2_C89_EMITTER) || defined(PCSX2_C89_KEEP_FWDJUMP) || defined(PCSX2_C89_KEEP_TYPES)
 	// --------------------------------------------------------------------------------------
 	//  xForwardJump
 	// --------------------------------------------------------------------------------------
@@ -1310,12 +1318,13 @@ inline constexpr xRegister32
 	{
 		return reg + (sptr)addr;
 	}
+#endif /* object world (cut under PCSX2_C89_EMITTER unless PCSX2_C89_KEEP_TYPES) */
 } // namespace x86Emitter
 
 // Reference-emitter implementation headers (xImpl_* struct declarations
 // and the xOpWrite* encoders). The C89 build has no use for them; the
 // reference build and the byte oracles pull them from the harness tree.
-#ifndef PCSX2_C89_EMITTER
+#if !defined(PCSX2_C89_EMITTER) || defined(PCSX2_C89_KEEP_TYPES)
 #include "tests/emitter/reference/implement/simd_helpers.h"
 #include "tests/emitter/reference/implement/simd_moremovs.h"
 #include "tests/emitter/reference/implement/simd_arithmetic.h"

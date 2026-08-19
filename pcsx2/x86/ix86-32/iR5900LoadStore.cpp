@@ -26,7 +26,7 @@ using namespace x86Emitter;
 
 static int RETURN_READ_IN_RAX(void)
 {
-	return rax.Id;
+	return 0; /* rax */
 }
 
 namespace R5900::Dynarec::OpcodeImpl
@@ -250,9 +250,9 @@ void recSQ(void)
 void recLWL(void)
 {
 #ifdef REC_LOADS
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
-	_freeX86reg(edx);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
+	_freeX86reg(XE_DX);
 	_freeX86reg(XE_ARG1);
 
 	// avoid flushing and immediately reading back
@@ -309,9 +309,9 @@ void recLWL(void)
 void recLWR()
 {
 #ifdef REC_LOADS
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
-	_freeX86reg(edx);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
+	_freeX86reg(XE_DX);
 	_freeX86reg(XE_ARG1);
 
 	// avoid flushing and immediately reading back
@@ -385,8 +385,8 @@ void recSWL()
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
 
 	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
 	_freeX86reg(XE_ARG1);
 	_freeX86reg(XE_ARG2);
 
@@ -460,7 +460,7 @@ void recSWR()
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
 
 	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-	_freeX86reg(ecx);
+	_freeX86reg(XE_CX);
 	_freeX86reg(XE_ARG1);
 	_freeX86reg(XE_ARG2);
 
@@ -562,9 +562,9 @@ void recLDL()
 		_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
 	const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
-	_freeX86reg(edx);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
+	_freeX86reg(XE_DX);
 	_freeX86reg(XE_ARG1);
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -647,9 +647,9 @@ void recLDR()
 		_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
 	const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-	_freeX86reg(eax);
-	_freeX86reg(ecx);
-	_freeX86reg(edx);
+	_freeX86reg(XE_AX);
+	_freeX86reg(XE_CX);
+	_freeX86reg(XE_DX);
 	_freeX86reg(XE_ARG1);
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -752,7 +752,7 @@ void recSDL(void)
 	if (_Rt_)
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
 
-	_freeX86reg(ecx);
+	_freeX86reg(XE_CX);
 	_freeX86reg(XE_ARG2);
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -783,8 +783,8 @@ void recSDL(void)
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
-		_freeX86reg(ecx);
-		_freeX86reg(edx);
+		_freeX86reg(XE_CX);
+		_freeX86reg(XE_DX);
 		_freeX86reg(XE_ARG2);
 		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
@@ -838,7 +838,7 @@ void recSDR(void)
 	if (_Rt_)
 		_addNeededX86reg(X86TYPE_GPR, _Rt_);
 
-	_freeX86reg(ecx);
+	_freeX86reg(XE_CX);
 	_freeX86reg(XE_ARG2);
 
 	if (GPR_IS_CONST1(_Rs_))
@@ -869,8 +869,8 @@ void recSDR(void)
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
-		_freeX86reg(ecx);
-		_freeX86reg(edx);
+		_freeX86reg(XE_CX);
+		_freeX86reg(XE_DX);
 		_freeX86reg(XE_ARG2);
 		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);

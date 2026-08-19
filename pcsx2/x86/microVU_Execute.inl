@@ -146,7 +146,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
 	{
-		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
+		if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 			continue;
 
 		// T1 often contains the address we're loading when waiting for VU1.
@@ -160,7 +160,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 	{
-		if (!xRegisterSSE::IsCallerSaved(i))
+		if (!XE_XMM_CALLER_SAVED(i))
 			continue;
 
 		num_xmms++;
@@ -176,7 +176,7 @@ static void mVUGenerateWaitMTVU(mV)
 		xe_sub64_ri(XE_SP, stack_size);
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
-			if (!xRegisterSSE::IsCallerSaved(i))
+			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
 
 			{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_memxg(xm, i); }
@@ -189,7 +189,7 @@ static void mVUGenerateWaitMTVU(mV)
 	stack_offset = (num_xmms - 1) * sizeof(u128) + SHADOW_STACK_SIZE;
 	for (int i = static_cast<int>(iREGCNT_XMM - 1); i >= 0; i--)
 	{
-		if (!xRegisterSSE::IsCallerSaved(i))
+		if (!XE_XMM_CALLER_SAVED(i))
 			continue;
 
 		{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_xmemg(i, xm); }
@@ -199,7 +199,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 	for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
 	{
-		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
+		if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 			continue;
 
 		if (i == gprT2)

@@ -73,8 +73,8 @@ namespace vtlb_private
 				_freeX86reg(XE_ARG2);
 				xe_mov64_rr(XE_ARG2, XE_SP);
 #else
-				_freeXMMreg(xRegisterSSE::GetArgRegister(1, 0).Id);
-				xe_movaps_xx(xRegisterSSE::GetArgRegister(1, 0).Id, value_reg);
+				_freeXMMreg(XE_XMM_ARG(1, 0));
+				xe_movaps_xx(XE_XMM_ARG(1, 0), value_reg);
 #endif
 			}
 			else if (xmm)
@@ -92,7 +92,7 @@ namespace vtlb_private
 
 		xe_mov32_rr(XE_AX, XE_ARG1);
 		xe_shr32_ri(XE_AX, VTLB_PAGE_BITS);
-		{ struct e_mem xm; xe_complexaddr_si(xm, XE_ARG3, vtlbdata.vmap, XE_AX, wordsize); xe_mov64_rmemg(XE_AX, xm); }
+		{ struct e_mem xm; xe_complexaddr_si(xm, XE_ARG3, vtlbdata.vmap, XE_AX, XE_WORDSIZE); xe_mov64_rmemg(XE_AX, xm); }
 		xe_add64_rr(XE_ARG1, XE_AX);
 	}
 
@@ -161,7 +161,7 @@ namespace vtlb_private
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, 0); xe_movaps_xmemg(0, xm); }
 				{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0); xe_movaps_memxg(xm, 0); }
 #else
-				{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0); xe_movaps_memxg(xm, xRegisterSSE::GetArgRegister(1, 0).Id); }
+				{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0); xe_movaps_memxg(xm, XE_XMM_ARG(1, 0)); }
 #endif
 				break;
 		}
@@ -234,7 +234,7 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 #endif
 
 	xe_movzx32_rr8(XE_AX, XE_AX);
-	if (wordsize != 8)
+	if (XE_WORDSIZE != 8)
 		xe_sub32_ri(XE_ARG1, 0x80000000);
 	xe_sub32_rr(XE_ARG1, XE_AX);
 
@@ -243,12 +243,12 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, bool sign)
 	sptr table = (sptr)vtlbdata.RWFT[bits][mode];
 	if (table == (s32)table)
 	{
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, XE_AX, wordsize, (e_sptr)table); xe_call_memg(xm); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, XE_AX, XE_WORDSIZE, (e_sptr)table); xe_call_memg(xm); }
 	}
 	else
 	{
 		xe_lea64_m(XE_ARG3, (void*)table);
-		{ struct e_mem xm; E_MEM(xm, XE_ARG3, XE_AX, wordsize, 0); xe_call_memg(xm); }
+		{ struct e_mem xm; E_MEM(xm, XE_ARG3, XE_AX, XE_WORDSIZE, 0); xe_call_memg(xm); }
 	}
 
 	if (!mode)
@@ -339,7 +339,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 
 		if (!xmm)
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
 			xe_mov64_rr(x86_dest_reg, XE_AX);
 		}
 		else
@@ -354,25 +354,25 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 	}
 
 	const u8* codeStart;
-	const xAddressReg x86addr(addr_reg);
+	const int x86addr = addr_reg;
 	if (!xmm)
 	{
-		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
 		codeStart = x86Ptr;
-		const xRegister64 x86reg(x86_dest_reg);
+		const int x86reg = x86_dest_reg;
 		switch (bits)
 		{
 		case 8:
-			{ struct e_mem xm; E_MEM(xm, 5, x86addr.Id, 1, 0); if (sign) xe_movsx64_rmemg8(x86reg.Id, xm); else xe_movzx32_mem8(x86reg.Id, xm); }
+			{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); if (sign) xe_movsx64_rmemg8(x86reg, xm); else xe_movzx32_mem8(x86reg, xm); }
 			break;
 		case 16:
-			{ struct e_mem xm; E_MEM(xm, 5, x86addr.Id, 1, 0); if (sign) xe_movsx64_rmemg16(x86reg.Id, xm); else xe_movzx32_mem16(x86reg.Id, xm); }
+			{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); if (sign) xe_movsx64_rmemg16(x86reg, xm); else xe_movzx32_mem16(x86reg, xm); }
 			break;
 		case 32:
-			{ struct e_mem xm; E_MEM(xm, 5, x86addr.Id, 1, 0); if (sign) xe_movsxd_rmemg(x86reg.Id, xm); else xe_mov32_rmem(x86reg.Id, xm); }
+			{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); if (sign) xe_movsxd_rmemg(x86reg, xm); else xe_mov32_rmem(x86reg, xm); }
 			break;
 		case 64:
-			{ struct e_mem xm; E_MEM(xm, 5, x86addr.Id, 1, 0); xe_mov64_rmemg(x86reg.Id, xm); }
+			{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); xe_mov64_rmemg(x86reg, xm); }
 			break;
 		default:
 			break;
@@ -382,8 +382,8 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 	{
 		x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
 		codeStart = x86Ptr;
-		const xRegisterSSE xmmreg(x86_dest_reg);
-		{ struct e_mem xm; E_MEM(xm, 5, x86addr.Id, 1, 0); xe_movss_xmemg(xmmreg.Id, xm); }
+		const int xmmreg = x86_dest_reg;
+		{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); xe_movss_xmemg(xmmreg, xm); }
 	}
 
 	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
@@ -415,7 +415,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 		auto ppf = vmv.assumePtr(addr_const);
 		if (!xmm)
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
 			switch (bits)
 			{
 			case 8:
@@ -458,7 +458,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 		// Shortcut for the INTC_STAT register, which many games like to spin on heavily.
 		if ((bits == 32) && !EmuConfig.Speedhacks.IntcStat && (paddr == INTC_STAT))
 		{
-			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
 			if (!xmm)
 			{
 				if (sign)
@@ -478,7 +478,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, 
 
 			if (!xmm)
 			{
-				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(eax), eax.Id);
+				x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
 				switch (bits)
 				{
 					// save REX prefix by using 32bit dest for zext
@@ -591,22 +591,22 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 	{
 		const u8* codeStart = x86Ptr;
 
-		const xAddressReg vaddr_reg(addr_reg);
+		const int vaddr_reg = addr_reg;
 		if (!xmm)
 		{
 			switch (sz)
 			{
 				case 8:
-					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg.Id, 1, 0); xe_mov8_memgr(xm, value_reg); }
+					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg, 1, 0); xe_mov8_memgr(xm, value_reg); }
 					break;
 				case 16:
-					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg.Id, 1, 0); xe_mov16_memgr(xm, value_reg); }
+					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg, 1, 0); xe_mov16_memgr(xm, value_reg); }
 					break;
 				case 32:
-					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg.Id, 1, 0); xe_mov32_memgr(xm, value_reg); }
+					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg, 1, 0); xe_mov32_memgr(xm, value_reg); }
 					break;
 				case 64:
-					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg.Id, 1, 0); xe_mov64_memgr(xm, value_reg); }
+					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg, 1, 0); xe_mov64_memgr(xm, value_reg); }
 					break;
 				default:
 					break;
@@ -617,10 +617,10 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 			switch (sz)
 			{
 				case 32:
-					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg.Id, 1, 0); xe_movss_memxg(xm, value_reg); }
+					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg, 1, 0); xe_movss_memxg(xm, value_reg); }
 					break;
 				case 128:
-					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg.Id, 1, 0); xe_movaps_memxg(xm, value_reg); }
+					{ struct e_mem xm; E_MEM(xm, 5, vaddr_reg, 1, 0); xe_movaps_memxg(xm, value_reg); }
 					break;
 				default:
 					break;
@@ -725,9 +725,9 @@ void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 			_freeX86reg(XE_ARG2);
 			xe_mov64_rr(XE_ARG2, XE_SP);
 #else
-			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
-			_freeXMMreg(argreg.Id);
-			xe_movaps_xx(argreg.Id, value_reg);
+			const int argreg = XE_XMM_ARG(1, 0);
+			_freeXMMreg(argreg);
+			xe_movaps_xx(argreg, value_reg);
 #endif
 		}
 		else if (xmm)
@@ -781,19 +781,19 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	u32 num_gprs = 0;
 	u32 num_fprs = 0;
 
-	const u32 rbxid = static_cast<u32>(rbx.Id);
+	const u32 rbxid = static_cast<u32>(3 /* rbx */);
 	const u32 arg1id = static_cast<u32>(XE_ARG1);
 	const u32 arg2id = static_cast<u32>(XE_ARG2);
 	const u32 arg3id = static_cast<u32>(XE_ARG3);
 
 	for (u32 i = 0; i < iREGCNT_GPR; i++)
 	{
-		if ((gpr_bitmask & (1u << i)) && (i == rbxid || i == arg1id || i == arg2id || xRegisterBase::IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+		if ((gpr_bitmask & (1u << i)) && (i == rbxid || i == arg1id || i == arg2id || XE_IS_CALLER_SAVED(i)) && (!is_load || is_xmm || data_register != i))
 			num_gprs++;
 	}
 	for (u32 i = 0; i < iREGCNT_XMM; i++)
 	{
-		if (fpr_bitmask & (1u << i) && xRegisterSSE::IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+		if (fpr_bitmask & (1u << i) && XE_XMM_CALLER_SAVED(i) && (!is_load || !is_xmm || data_register != i))
 			num_fprs++;
 	}
 
@@ -806,7 +806,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		u32 stack_offset = SHADOW_SIZE;
 		for (u32 i = 0; i < iREGCNT_XMM; i++)
 		{
-			if (fpr_bitmask & (1u << i) && xRegisterSSE::IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			if (fpr_bitmask & (1u << i) && XE_XMM_CALLER_SAVED(i) && (!is_load || !is_xmm || data_register != i))
 			{
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_memxg(xm, i); }
 				stack_offset += XMM_SIZE;
@@ -815,7 +815,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 		for (u32 i = 0; i < iREGCNT_GPR; i++)
 		{
-			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || xRegisterBase::IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || XE_IS_CALLER_SAVED(i)) && (!is_load || is_xmm || data_register != i))
 			{
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_mov64_memgr(xm, i); }
 				stack_offset += GPR_SIZE;
@@ -830,7 +830,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 		if (size_in_bits == 128)
 		{
-			if (data_register != xmm0.Id)
+			if (data_register != 0 /* xmm0 */)
 				xe_movaps_xx(data_register, 0);
 		}
 		else
@@ -841,7 +841,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 			}
 			else
 			{
-				if (data_register != eax.Id)
+				if (data_register != 0 /* rax */)
 					xe_mov64_rr(data_register, XE_AX);
 			}
 		}
@@ -854,9 +854,9 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		if (size_in_bits == 128)
 		{
 #if !PCSX2_MINGW_R128_BY_PTR
-			const xRegisterSSE argreg(xRegisterSSE::GetArgRegister(1, 0));
-			if (data_register != argreg.Id)
-				xe_movaps_xx(argreg.Id, data_register);
+			const int argreg = XE_XMM_ARG(1, 0);
+			if (data_register != argreg)
+				xe_movaps_xx(argreg, data_register);
 #endif
 		}
 		else
@@ -882,7 +882,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		u32 stack_offset = SHADOW_SIZE;
 		for (u32 i = 0; i < iREGCNT_XMM; i++)
 		{
-			if (fpr_bitmask & (1u << i) && xRegisterSSE::IsCallerSaved(i) && (!is_load || !is_xmm || data_register != i))
+			if (fpr_bitmask & (1u << i) && XE_XMM_CALLER_SAVED(i) && (!is_load || !is_xmm || data_register != i))
 			{
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_xmemg(i, xm); }
 				stack_offset += XMM_SIZE;
@@ -891,7 +891,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 
 		for (u32 i = 0; i < iREGCNT_GPR; i++)
 		{
-			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || xRegisterBase::IsCallerSaved(i)) && (!is_load || is_xmm || data_register != i))
+			if ((gpr_bitmask & (1u << i)) && (i == arg1id || i == arg2id || i == arg3id || XE_IS_CALLER_SAVED(i)) && (!is_load || is_xmm || data_register != i))
 			{
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_mov64_rmemg(i, xm); }
 				stack_offset += GPR_SIZE;
