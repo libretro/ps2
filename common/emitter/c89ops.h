@@ -1446,4 +1446,22 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 	  E_REX_MEM(xep, 0, (reg), xm_); EW8(xep, 0x89); \
 	  E_MODRM_MEM(xep, (reg), xm_, 0); }, \
 	x86Emitter::xMOV(x86Emitter::ptr32[(av) + (sptr)(off)], x86Emitter::xRegister32(reg)))
+
+/* newVif vocabulary: the PMOVSX/PMOVZX byte/word-to-dword widening
+ * loads from a generic e_mem (0F38-escape opcodes spelled high-byte
+ * first, as everywhere in this core), and the unaligned load twin. */
+#define xe_pmovsxbd_xmemg(x, m) XE_2(E_SSE_R_MEM(xep, 0x66, 0x2138, (x), (m)), \
+	x86Emitter::xPMOVSX.BD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]))
+#define xe_pmovzxbd_xmemg(x, m) XE_2(E_SSE_R_MEM(xep, 0x66, 0x3138, (x), (m)), \
+	x86Emitter::xPMOVZX.BD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[XE_MEM_TO_ADDR(m)]))
+/* The reference emits REX.W on the WD widening loads -- the ptr64
+ * operand size flows into the W bit by the param3 rule, meaningless to
+ * the CPU for pmovsx/zx but part of the byte contract (caught by the
+ * shadow oracle: 66 48 0f 38 23 vs 66 0f 38 23). */
+#define xe_pmovsxwd_xmemg(x, m) XE_2(E_SSE_R_MEM_W(xep, 0x66, 0x2338, (x), (m), 1), \
+	x86Emitter::xPMOVSX.WD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr64[XE_MEM_TO_ADDR(m)]))
+#define xe_pmovzxwd_xmemg(x, m) XE_2(E_SSE_R_MEM_W(xep, 0x66, 0x3338, (x), (m), 1), \
+	x86Emitter::xPMOVZX.WD(x86Emitter::xRegisterSSE(x), x86Emitter::ptr64[XE_MEM_TO_ADDR(m)]))
+#define xe_movups_xmemg(x, m) XE_2(E_SSE_R_MEM(xep, 0x00, 0x10, (x), (m)), \
+	x86Emitter::xMOVUPS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr[XE_MEM_TO_ADDR(m)]))
 #endif /* PCSX2_C89OPS_H */

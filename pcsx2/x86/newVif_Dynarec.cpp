@@ -18,6 +18,7 @@
 //			Jake.Stine (@gmail.com)
 
 #include "newVif_UnpackSSE.h"
+#include "common/emitter/c89ops.h"
 #include "../MTVU.h"
 
 void dVifReserve(int idx)
@@ -75,15 +76,15 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 
 	if ((doMask && m2) || doMode)
 	{
-		xMOVAPS(xmmRow, ptr128[&vif.MaskRow]);
+		xe_movaps_xm(xmmRow.Id, &vif.MaskRow);
 	}
 	if (doMask && m3)
 	{
-		xMOVAPS(xmmCol0, ptr128[&vif.MaskCol]);
-		if ((cS >= 2) && (m3 & 0x0000ff00)) xPSHUF.D(xmmCol1, xmmCol0, _v1);
-		if ((cS >= 3) && (m3 & 0x00ff0000)) xPSHUF.D(xmmCol2, xmmCol0, _v2);
-		if ((cS >= 4) && (m3 & 0xff000000)) xPSHUF.D(xmmCol3, xmmCol0, _v3);
-		if ((cS >= 1) && (m3 & 0x000000ff)) xPSHUF.D(xmmCol0, xmmCol0, _v0);
+		xe_movaps_xm(xmmCol0.Id, &vif.MaskCol);
+		if ((cS >= 2) && (m3 & 0x0000ff00)) xe_pshufd_xxi(xmmCol1.Id, xmmCol0.Id, _v1);
+		if ((cS >= 3) && (m3 & 0x00ff0000)) xe_pshufd_xxi(xmmCol2.Id, xmmCol0.Id, _v2);
+		if ((cS >= 4) && (m3 & 0xff000000)) xe_pshufd_xxi(xmmCol3.Id, xmmCol0.Id, _v3);
+		if ((cS >= 1) && (m3 & 0x000000ff)) xe_pshufd_xxi(xmmCol0.Id, xmmCol0.Id, _v0);
 	}
 }
 
@@ -117,7 +118,7 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 
 		if (m5 < 0xf)
 		{
-			xPXOR(xmmTemp, xmmTemp);
+			xe_pxor_xx(xmmTemp.Id, xmmTemp.Id);
 			if (doMode == 3)
 			{
 				mVUmergeRegs(xmmRow, regX, m5);
@@ -125,7 +126,7 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 			else
 			{
 				mVUmergeRegs(xmmTemp, xmmRow, m5);
-				xPADD.D(regX, xmmTemp);
+				xe_paddd_xx(regX.Id, xmmTemp.Id);
 				if (doMode == 2)
 					mVUmergeRegs(xmmRow, regX, m5);
 			}
@@ -134,13 +135,13 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 		{
 			if (doMode == 3)
 			{
-				xMOVAPS(xmmRow, regX);
+				xe_movaps_xx(xmmRow.Id, regX.Id);
 			}
 			else
 			{
-				xPADD.D(regX, xmmRow);
+				xe_paddd_xx(regX.Id, xmmRow.Id);
 				if (doMode == 2)
-					xMOVAPS(xmmRow, regX);
+					xe_movaps_xx(xmmRow.Id, regX.Id);
 			}
 		}
 	}
@@ -148,7 +149,7 @@ void VifUnpackSSE_Dynarec::doMaskWrite(const xRegisterSSE& regX) const
 	if (doMask && m4) // Merge Write Protect
 		mVUsaveReg(regX, ptr32[dstIndirect], m4 ^ 0xf, false);
 	else
-		xMOVAPS(ptr32[dstIndirect], regX);
+		{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, regX.Id); }
 }
 
 static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& modReg)
@@ -164,7 +165,7 @@ static void ShiftDisplacementWindow(xAddressVoid& addr, const xRegisterLong& mod
 		addr   -= 0xf0;
 	}
 	if (addImm)
-		xADD(modReg, addImm);
+		xe_add32_ri(modReg.Id, addImm);
 }
 
 void VifUnpackSSE_Dynarec::ModUnpack(int upknum, bool PostOp)
@@ -243,7 +244,7 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 
 	// Need a zero register for V2_32/V3 unpacks.
 	if ((upkNum >= 8 && upkNum <= 10) || upkNum == 4)
-		xXOR.PS(zeroReg, zeroReg);
+		xe_xorps_xx(zeroReg.Id, zeroReg.Id);
 
 	while (vNum)
 	{
@@ -289,10 +290,10 @@ void VifUnpackSSE_Dynarec::CompileRoutine()
 	if (doMode >= 2)
 	{
 		const int idx = v.idx;
-		xMOVAPS(ptr128[&(MTVU_VifX.MaskRow)], xmmRow);
+		xe_movaps_mx(&(MTVU_VifX.MaskRow), xmmRow.Id);
 	}
 
-	xRET();
+	xe_ret();
 }
 
 static u16 dVifComputeLength(uint cl, uint wl, u8 num, bool isFill)

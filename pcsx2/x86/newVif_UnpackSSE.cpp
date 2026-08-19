@@ -14,6 +14,7 @@
  */
 
 #include "newVif_UnpackSSE.h"
+#include "common/emitter/c89ops.h"
 
 //alignas(__pagesize) static u8 nVifUpkExec[__pagesize*4];
 static RecompiledCodeReserve* nVifUpkExec = NULL;
@@ -39,7 +40,7 @@ void VifUnpackSSE_Base::xMovDest() const
 	if (!IsWriteProtectedOp())
 	{
 		if (IsUnmaskedOp())
-			xMOVAPS(ptr[dstIndirect], destReg);
+			{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, destReg.Id); }
 		else
 			doMaskWrite(destReg);
 	}
@@ -47,14 +48,14 @@ void VifUnpackSSE_Base::xMovDest() const
 
 void VifUnpackSSE_Base::xPMOVXX8(const xRegisterSSE& regX) const
 {
-	if (usn) xPMOVZX.BD(regX, ptr32[srcIndirect]);
-	else     xPMOVSX.BD(regX, ptr32[srcIndirect]);
+	if (usn) { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovzxbd_xmemg(regX.Id, xm); }
+	else     { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovsxbd_xmemg(regX.Id, xm); }
 }
 
 void VifUnpackSSE_Base::xPMOVXX16(const xRegisterSSE& regX) const
 {
-	if (usn) xPMOVZX.WD(regX, ptr64[srcIndirect]);
-	else     xPMOVSX.WD(regX, ptr64[srcIndirect]);
+	if (usn) { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovzxwd_xmemg(regX.Id, xm); }
+	else     { struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_pmovsxwd_xmemg(regX.Id, xm); }
 }
 
 void VifUnpackSSE_Base::xUPK_S_32() const
@@ -62,21 +63,21 @@ void VifUnpackSSE_Base::xUPK_S_32() const
 	switch (UnpkLoopIteration)
 	{
 		case 0:
-			xMOVUPS(workReg, ptr32[srcIndirect]);
+			{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(workReg.Id, xm); }
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v0);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v0);
 			break;
 		case 1:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v1);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v1);
 			break;
 		case 2:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v2);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v2);
 			break;
 		case 3:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v3);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v3);
 			break;
 	}
 }
@@ -88,19 +89,19 @@ void VifUnpackSSE_Base::xUPK_S_16() const
 		case 0:
 			xPMOVXX16(workReg);
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v0);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v0);
 			break;
 		case 1:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v1);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v1);
 			break;
 		case 2:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v2);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v2);
 			break;
 		case 3:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v3);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v3);
 			break;
 	}
 }
@@ -112,19 +113,19 @@ void VifUnpackSSE_Base::xUPK_S_8() const
 		case 0:
 			xPMOVXX8(workReg);
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v0);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v0);
 			break;
 		case 1:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v1);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v1);
 			break;
 		case 2:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v2);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v2);
 			break;
 		case 3:
 			if (!IsInputMasked())
-				xPSHUF.D(destReg, workReg, _v3);
+				xe_pshufd_xxi(destReg.Id, workReg.Id, _v3);
 			break;
 	}
 }
@@ -138,19 +139,19 @@ void VifUnpackSSE_Base::xUPK_V2_32() const
 {
 	if (UnpkLoopIteration == 0)
 	{
-		xMOVUPS(workReg, ptr32[srcIndirect]);
+		{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(workReg.Id, xm); }
 		if (IsInputMasked())
 			return;
-		xPSHUF.D(destReg, workReg, 0x44); //v1v0v1v0
+		xe_pshufd_xxi(destReg.Id, workReg.Id, 0x44); //v1v0v1v0
 	}
 	else
 	{
 		if (IsInputMasked())
 			return;
-		xPSHUF.D(destReg, workReg, 0xEE); //v3v2v3v2
+		xe_pshufd_xxi(destReg.Id, workReg.Id, 0xEE); //v3v2v3v2
 	}
 	if (IsAligned)
-		xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
+		xe_blendps_xxi(destReg.Id, zeroReg.Id, 0x8); //zero last word - tested on ps2
 }
 
 void VifUnpackSSE_Base::xUPK_V2_16() const
@@ -162,14 +163,14 @@ void VifUnpackSSE_Base::xUPK_V2_16() const
 		if (IsInputMasked())
 			return;
 
-		xPSHUF.D(destReg, workReg, 0x44); //v1v0v1v0
+		xe_pshufd_xxi(destReg.Id, workReg.Id, 0x44); //v1v0v1v0
 	}
 	else
 	{
 		if (IsInputMasked())
 			return;
 		
-		xPSHUF.D(destReg, workReg, 0xEE); //v3v2v3v2
+		xe_pshufd_xxi(destReg.Id, workReg.Id, 0xEE); //v3v2v3v2
 	}
 }
 
@@ -180,12 +181,12 @@ void VifUnpackSSE_Base::xUPK_V2_8() const
 		xPMOVXX8(workReg);
 
 		if (!IsInputMasked())
-			xPSHUF.D(destReg, workReg, 0x44); //v1v0v1v0
+			xe_pshufd_xxi(destReg.Id, workReg.Id, 0x44); //v1v0v1v0
 	}
 	else
 	{
 		if (!IsInputMasked())
-			xPSHUF.D(destReg, workReg, 0xEE); //v3v2v3v2
+			xe_pshufd_xxi(destReg.Id, workReg.Id, 0xEE); //v3v2v3v2
 	}
 }
 
@@ -194,9 +195,9 @@ void VifUnpackSSE_Base::xUPK_V3_32() const
 	if (IsInputMasked())
 		return;
 
-	xMOVUPS(destReg, ptr128[srcIndirect]);
+	{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(destReg.Id, xm); }
 	if (UnpkLoopIteration != IsAligned)
-		xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
+		xe_blendps_xxi(destReg.Id, zeroReg.Id, 0x8); //zero last word - tested on ps2
 }
 
 void VifUnpackSSE_Base::xUPK_V3_16() const
@@ -213,7 +214,7 @@ void VifUnpackSSE_Base::xUPK_V3_16() const
 	int result = (((UnpkLoopIteration / 4) + 1 + (4 - IsAligned)) & 0x3);
 
 	if ((UnpkLoopIteration & 0x1) == 0 && result == 0)
-		xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
+		xe_blendps_xxi(destReg.Id, zeroReg.Id, 0x8); //zero last word - tested on ps2
 }
 
 void VifUnpackSSE_Base::xUPK_V3_8() const
@@ -223,13 +224,13 @@ void VifUnpackSSE_Base::xUPK_V3_8() const
 
 	xPMOVXX8(destReg);
 	if (UnpkLoopIteration != IsAligned)
-		xBLEND.PS(destReg, zeroReg, 0x8); //zero last word - tested on ps2
+		xe_blendps_xxi(destReg.Id, zeroReg.Id, 0x8); //zero last word - tested on ps2
 }
 
 void VifUnpackSSE_Base::xUPK_V4_32() const
 {
 	if (!IsInputMasked())
-		xMOVUPS(destReg, ptr32[srcIndirect]);
+		{ struct e_mem xm; XE_MEM_XAV(xm, srcIndirect, 0); xe_movups_xmemg(destReg.Id, xm); }
 }
 
 void VifUnpackSSE_Base::xUPK_V4_16() const
@@ -300,13 +301,13 @@ void VifUnpackSSE_Base::xUnpack(int upknum) const
 
 void VifUnpackSSE_Simple::doMaskWrite(const xRegisterSSE& regX) const
 {
-	xMOVAPS(xmm7, ptr[dstIndirect]);
+	{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_xmemg(7, xm); }
 	int offX = std::min(curCycle, 3);
-	xPAND(regX, ptr32[nVifMask[0][offX]]);
-	xPAND(xmm7, ptr32[nVifMask[1][offX]]);
+	xe_pand_xm(regX.Id, nVifMask[0][offX]);
+	xe_pand_xm(7, nVifMask[1][offX]);
 	xPOR (regX, ptr32[nVifMask[2][offX]]);
 	xPOR (regX, xmm7);
-	xMOVAPS(ptr[dstIndirect], regX);
+	{ struct e_mem xm; XE_MEM_XAV(xm, dstIndirect, 0); xe_movaps_memxg(xm, regX.Id); }
 }
 
 // ecx = dest, edx = src
@@ -331,7 +332,7 @@ static void nVifGen(int usn, int mask, int curCycle)
 		ucall = (nVifCall)xGetAlignedCallTarget();
 		vpugen.xUnpack(i);
 		vpugen.xMovDest();
-		xRET();
+		xe_ret();
 	}
 }
 
