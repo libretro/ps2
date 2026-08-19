@@ -76,56 +76,56 @@ void mVUDTendProgram(mV, microFlagCycles* mFC, int isEbit)
 
 	// Save P/Q Regs
 	if (qInst)
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
-	xe_movss_mx(&vuRegs[mVU.index].VI[REG_Q].UL, xmmPQ.Id);
-	xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
-	xe_movss_mx(&vuRegs[mVU.index].pending_q, xmmPQ.Id);
-	xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
+	xe_movss_mx(&vuRegs[mVU.index].VI[REG_Q].UL, xmmPQ);
+	xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
+	xe_movss_mx(&vuRegs[mVU.index].pending_q, xmmPQ);
+	xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
 
 	if (isVU1)
 	{
 		if (pInst)
-			xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xb4); // Swap Pending/Active P
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xC6); // 3 0 1 2
-		xe_movss_mx(&vuRegs[mVU.index].VI[REG_P].UL, xmmPQ.Id);
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x87); // 0 2 1 3
-		xe_movss_mx(&vuRegs[mVU.index].pending_p, xmmPQ.Id);
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x27); // 3 2 1 0
+			xe_pshufd_xxi(xmmPQ, xmmPQ, 0xb4); // Swap Pending/Active P
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xC6); // 3 0 1 2
+		xe_movss_mx(&vuRegs[mVU.index].VI[REG_P].UL, xmmPQ);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0x87); // 0 2 1 3
+		xe_movss_mx(&vuRegs[mVU.index].pending_p, xmmPQ);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0x27); // 3 2 1 0
 	}
 
 	// Save MAC, Status and CLIP Flag Instances
 	mVUallocSFLAGc(gprT1, gprT2, fStatus);
-	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_STATUS_FLAG].UL, gprT1.Id);
+	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_STATUS_FLAG].UL, gprT1);
 	mVUallocMFLAGa(mVU, gprT1, fMac);
 	mVUallocCFLAGa(mVU, gprT2, fClip);
-	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL, gprT1.Id);
-	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL, gprT2.Id);
+	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL, gprT1);
+	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL, gprT2);
 
 	if (!isEbit) // Backup flag instances
 	{
-		xe_movaps_xm(xmmT1.Id, mVU.macFlag);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1.Id);
-		xe_movaps_xm(xmmT1.Id, mVU.clipFlag);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1.Id);
+		xe_movaps_xm(xmmT1, mVU.macFlag);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1);
+		xe_movaps_xm(xmmT1, mVU.clipFlag);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1);
 
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3);
 	}
 	else // Flush flag instances
 	{
-		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL); xe_movdzx_xmemg(xmmT1.Id, xm); }
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, 0);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1.Id);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL); xe_movdzx_xmemg(xmmT1, xm); }
+		xe_shufps_xxi(xmmT1, xmmT1, 0);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1);
 
-		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_MAC_FLAG].UL); xe_movdzx_xmemg(xmmT1.Id, xm); }
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, 0);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1.Id);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_MAC_FLAG].UL); xe_movdzx_xmemg(xmmT1, xm); }
+		xe_shufps_xxi(xmmT1, xmmT1, 0);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1);
 
-		xe_movdzx_xr(xmmT1.Id, getFlagReg(fStatus).Id);
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, 0);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_statusflags, xmmT1.Id);
+		xe_movdzx_xr(xmmT1, getFlagReg(fStatus));
+		xe_shufps_xxi(xmmT1, xmmT1, 0);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_statusflags, xmmT1);
 	}
 
 	if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
@@ -199,56 +199,56 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 
 	// Save P/Q Regs
 	if (qInst)
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
-	xe_movss_mx(&vuRegs[mVU.index].VI[REG_Q].UL, xmmPQ.Id);
-	xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
-	xe_movss_mx(&vuRegs[mVU.index].pending_q, xmmPQ.Id);
-	xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
+	xe_movss_mx(&vuRegs[mVU.index].VI[REG_Q].UL, xmmPQ);
+	xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
+	xe_movss_mx(&vuRegs[mVU.index].pending_q, xmmPQ);
+	xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
 
 	if (isVU1)
 	{
 		if (pInst)
-			xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xb4); // Swap Pending/Active P
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xC6); // 3 0 1 2
-		xe_movss_mx(&vuRegs[mVU.index].VI[REG_P].UL, xmmPQ.Id);
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x87); // 0 2 1 3
-		xe_movss_mx(&vuRegs[mVU.index].pending_p, xmmPQ.Id);
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x27); // 3 2 1 0
+			xe_pshufd_xxi(xmmPQ, xmmPQ, 0xb4); // Swap Pending/Active P
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xC6); // 3 0 1 2
+		xe_movss_mx(&vuRegs[mVU.index].VI[REG_P].UL, xmmPQ);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0x87); // 0 2 1 3
+		xe_movss_mx(&vuRegs[mVU.index].pending_p, xmmPQ);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0x27); // 3 2 1 0
 	}
 
 	// Save MAC, Status and CLIP Flag Instances
 	mVUallocSFLAGc(gprT1, gprT2, fStatus);
-	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_STATUS_FLAG].UL, gprT1.Id);
+	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_STATUS_FLAG].UL, gprT1);
 	mVUallocMFLAGa(mVU, gprT1, fMac);
 	mVUallocCFLAGa(mVU, gprT2, fClip);
-	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL, gprT1.Id);
-	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL, gprT2.Id);
+	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL, gprT1);
+	xe_mov32_mr(&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL, gprT2);
 
 	if (!isEbit || isEbit == 3) // Backup flag instances
 	{
-		xe_movaps_xm(xmmT1.Id, mVU.macFlag);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1.Id);
-		xe_movaps_xm(xmmT1.Id, mVU.clipFlag);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1.Id);
+		xe_movaps_xm(xmmT1, mVU.macFlag);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1);
+		xe_movaps_xm(xmmT1, mVU.clipFlag);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1);
 
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3);
 	}
 	else // Flush flag instances
 	{
-		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL); xe_movdzx_xmemg(xmmT1.Id, xm); }
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, 0);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1.Id);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL); xe_movdzx_xmemg(xmmT1, xm); }
+		xe_shufps_xxi(xmmT1, xmmT1, 0);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_clipflags, xmmT1);
 
-		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_MAC_FLAG].UL); xe_movdzx_xmemg(xmmT1.Id, xm); }
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, 0);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1.Id);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].VI[REG_MAC_FLAG].UL); xe_movdzx_xmemg(xmmT1, xm); }
+		xe_shufps_xxi(xmmT1, xmmT1, 0);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_macflags, xmmT1);
 
-		xe_movdzx_xr(xmmT1.Id, getFlagReg(fStatus).Id);
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, 0);
-		xe_movaps_mx(&vuRegs[mVU.index].micro_statusflags, xmmT1.Id);
+		xe_movdzx_xr(xmmT1, getFlagReg(fStatus));
+		xe_shufps_xxi(xmmT1, xmmT1, 0);
+		xe_movaps_mx(&vuRegs[mVU.index].micro_statusflags, xmmT1);
 	}
 
 	xe_mov32_mi(&vuRegs[mVU.index].VI[REG_TPC].UL, xPC);
@@ -285,7 +285,7 @@ void mVUsetupBranch(mV, microFlagCycles& mFC)
 
 	// Shuffle P/Q regs since every block starts at instance #0
 	if (mVU.p || mVU.q)
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, shufflePQ);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, shufflePQ);
 	mVU.p = 0, mVU.q = 0;
 }
 
@@ -314,8 +314,8 @@ void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 	if (isEvilJump)
 	{
 		xe_mov32_rm(arg1regd.Id, &mVU.evilBranch);
-		xe_mov32_rm(gprT1.Id, &mVU.evilevilBranch);
-		xe_mov32_mr(&mVU.evilBranch, gprT1.Id);
+		xe_mov32_rm(gprT1, &mVU.evilevilBranch);
+		xe_mov32_mr(&mVU.evilBranch, gprT1);
 	}
 	else
 		xe_mov32_rm(arg1regd.Id, &mVU.branch);
@@ -341,7 +341,7 @@ void normJumpCompile(mV, microFlagCycles& mFC, bool isEvilJump)
 		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<1>, arg1reg.Id, arg2reg.Id);
 
 	mVUrestoreRegs(mVU);
-	xe_jmp_r(gprT1q.Id); // Jump to rec-code address
+	xe_jmp_r(gprT1q); // Jump to rec-code address
 }
 
 void normBranch(mV, microFlagCycles& mFC)
@@ -593,8 +593,8 @@ void normJump(mV, microFlagCycles& mFC)
 			xe_or32_mi(&vuRegs[mVU.index].flags, VUFLAG_INTCINTERRUPT);
 		}
 		mVUDTendProgram(mVU, &mFC, 2);
-		xe_mov32_rm(gprT1.Id, &mVU.branch);
-		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, gprT1.Id);
+		xe_mov32_rm(gprT1, &mVU.branch);
+		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, gprT1);
 		xe_jmp_to(mVU.exitFunct);
 		xe_fwd_set32(eJMP);
 	}
@@ -614,8 +614,8 @@ void normJump(mV, microFlagCycles& mFC)
 			xe_or32_mi(&vuRegs[mVU.index].flags, VUFLAG_INTCINTERRUPT);
 		}
 		mVUDTendProgram(mVU, &mFC, 2);
-		xe_mov32_rm(gprT1.Id, &mVU.branch);
-		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, gprT1.Id);
+		xe_mov32_rm(gprT1, &mVU.branch);
+		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, gprT1);
 		if (mVU.index && THREAD_VU1)
 			xe_fastcall0(mVUTBit);
 		xe_jmp_to(mVU.exitFunct);
@@ -624,8 +624,8 @@ void normJump(mV, microFlagCycles& mFC)
 	if (mVUup.eBit) // E-bit Jump
 	{
 		mVUendProgram(mVU, &mFC, 2);
-		xe_mov32_rm(gprT1.Id, &mVU.branch);
-		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, gprT1.Id);
+		xe_mov32_rm(gprT1, &mVU.branch);
+		xe_mov32_mr(&vuRegs[mVU.index].VI[REG_TPC].UL, gprT1);
 		if (mVU.index && THREAD_VU1)
 			xe_fastcall0(mVUEBit);
 		xe_jmp_to(mVU.exitFunct);

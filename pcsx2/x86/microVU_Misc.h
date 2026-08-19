@@ -22,26 +22,26 @@ typedef xRegister32 x32;
 
 #include "../microVU/microVU_Const.h"
 
-#define xmmT1  xmm0 // Used for regAlloc
-#define xmmT2  xmm1 // Used for regAlloc
-#define xmmT3  xmm2 // Used for regAlloc
-#define xmmT4  xmm3 // Used for regAlloc
-#define xmmT5  xmm4 // Used for regAlloc
-#define xmmT6  xmm5 // Used for regAlloc
-#define xmmT7  xmm6 // Used for regAlloc
-#define xmmPQ  xmm15 // Holds the Value and Backup Values of P and Q regs
+#define xmmT1  0  // Used for regAlloc
+#define xmmT2  1  // Used for regAlloc
+#define xmmT3  2  // Used for regAlloc
+#define xmmT4  3  // Used for regAlloc
+#define xmmT5  4  // Used for regAlloc
+#define xmmT6  5  // Used for regAlloc
+#define xmmT7  6  // Used for regAlloc
+#define xmmPQ  15 // Holds the Value and Backup Values of P and Q regs
 
-#define gprT1  eax // eax - Temp Reg
-#define gprT2  ecx // ecx - Temp Reg
-#define gprT1q rax // eax - Temp Reg
-#define gprT2q rcx // ecx - Temp Reg
-#define gprT1b ax  // Low 16-bit of gprT1 (eax)
-#define gprT2b cx  // Low 16-bit of gprT2 (ecx)
+#define gprT1  XE_AX // eax - Temp Reg
+#define gprT2  XE_CX // ecx - Temp Reg
+#define gprT1q XE_AX // eax - Temp Reg
+#define gprT2q XE_CX // ecx - Temp Reg
+#define gprT1b XE_AX // Low 16-bit of gprT1 (eax)
+#define gprT2b XE_CX // Low 16-bit of gprT2 (ecx)
 
-#define gprF0  ebx // Status Flag 0
-#define gprF1 r12d // Status Flag 1
-#define gprF2 r13d // Status Flag 2
-#define gprF3 r14d // Status Flag 3
+#define gprF0  XE_BX // Status Flag 0
+#define gprF1  12 // Status Flag 1
+#define gprF2  13 // Status Flag 2
+#define gprF3  14 // Status Flag 3
 
 extern void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW = false);
 extern void mVUsaveReg(int reg, struct e_mem ptr, int xyzw, bool modXYZW);

@@ -36,7 +36,7 @@ void setupMacroOp(int mode, const char* opName)
 	microVU0.regAlloc->reset(true);
 
 	if (mode & 0x03) // Q will be read/written
-		_freeXMMreg(xmmPQ.Id);
+		_freeXMMreg(xmmPQ);
 
 	// Set up MicroVU ready for new op
 	microVU0.cop2 = 1;
@@ -46,7 +46,7 @@ void setupMacroOp(int mode, const char* opName)
 
 	if (mode & 0x01) // Q-Reg will be Read
 	{
-		xe_movss_xm(xmmPQ.Id, &vuRegs[0].VI[REG_Q].UL);
+		xe_movss_xm(xmmPQ, &vuRegs[0].VI[REG_Q].UL);
 	}
 	if (mode & 0x08 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_CLIP_FLAG)) // Clip Instruction
 	{
@@ -72,13 +72,13 @@ void setupMacroOp(int mode, const char* opName)
 		if (!CHECK_VU_FLAGHACK || (g_pCurInstInfo->info & EEINST_COP2_DENORMALIZE_STATUS_FLAG))
 		{
 			// flags are normalized, so denormalize before running the first instruction
-			mVUallocSFLAGd(&vuRegs[0].VI[REG_STATUS_FLAG].UL, gprF0, eax, ecx);
+			mVUallocSFLAGd(&vuRegs[0].VI[REG_STATUS_FLAG].UL, gprF0, XE_AX, XE_CX);
 		}
 		else
 		{
 			// load denormalized status flag
 			// ideally we'd keep this in a register, but 32-bit...
-			xe_mov32_rm(gprF0.Id, &vuRegs->VI[REG_STATUS_FLAG].UL);
+			xe_mov32_rm(gprF0, &vuRegs->VI[REG_STATUS_FLAG].UL);
 		}
 	}
 }
@@ -87,7 +87,7 @@ void endMacroOp(int mode)
 {
 	if (mode & 0x02) // Q-Reg was Written To
 	{
-		xe_movss_mx(&vuRegs[0].VI[REG_Q].UL, xmmPQ.Id);
+		xe_movss_mx(&vuRegs[0].VI[REG_Q].UL, xmmPQ);
 	}
 
 	microVU0.regAlloc->flushPartialForCOP2();
@@ -97,14 +97,14 @@ void endMacroOp(int mode)
 		if (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_NORMALIZE_STATUS_FLAG)
 		{
 			// Normalize
-			mVUallocSFLAGc(eax, gprF0, 0);
+			mVUallocSFLAGc(XE_AX, gprF0, 0);
 			xe_mov32_mr(&vuRegs[0].VI[REG_STATUS_FLAG].UL, XE_AX);
 		}
 		else if (g_pCurInstInfo->info & (EEINST_COP2_STATUS_FLAG | EEINST_COP2_DENORMALIZE_STATUS_FLAG))
 		{
 			// backup denormalized flags for the next instruction
 			// this is fine, because we'll normalize them again before this reg is accessed
-			xe_mov32_mr(&vuRegs->VI[REG_STATUS_FLAG].UL, gprF0.Id);
+			xe_mov32_mr(&vuRegs->VI[REG_STATUS_FLAG].UL, gprF0);
 		}
 	}
 
@@ -125,7 +125,7 @@ void mVUFreeCOP2GPR(int hostreg)
 bool mVUIsReservedCOP2(int hostreg)
 {
 	// gprF1 through 3 is not correctly used in COP2 mode.
-	return (hostreg == gprT1.Id || hostreg == gprT2.Id || hostreg == gprF0.Id);
+	return (hostreg == gprT1 || hostreg == gprT2 || hostreg == gprF0);
 }
 
 #define REC_COP2_mVU0(f, opName, mode) \
@@ -705,7 +705,7 @@ static void recQMTC2(void)
 		
 		// NOTE: can't transfer xmm15 to VF, it's reserved for PQ.
 		int vfreg = _checkXMMreg(XMMTYPE_VFREG, _Rd_, MODE_WRITE);
-		if (can_rename && rtreg >= 0 && rtreg != xmmPQ.Id)
+		if (can_rename && rtreg >= 0 && rtreg != xmmPQ)
 		{
 			// rt is no longer needed, so transfer to VF.
 			if (vfreg >= 0)

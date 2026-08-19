@@ -41,8 +41,8 @@ void doIbit(mV)
 		mVU.regAlloc->clearRegVF(33);
 		if (EmuConfig.Gamefixes.IbitHack)
 		{
-			xe_mov32_rm(gprT1.Id, &curI);
-			xe_mov32_mr(&::vuRegs[mVU.index].VI[REG_I], gprT1.Id);
+			xe_mov32_rm(gprT1, &curI);
+			xe_mov32_mr(&::vuRegs[mVU.index].VI[REG_I], gprT1);
 		}
 		else
 		{
@@ -63,26 +63,26 @@ void doSwapOp(mV)
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
 		// Allocate t1 first for better chance of reg-alloc
-		const xmm& t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
-		const xmm& t2 = mVU.regAlloc->allocReg();
-		xe_movaps_xx(t2.Id, t1.Id); // Backup VF reg
-		mVU.regAlloc->clearNeeded(t1);
+		const int t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
+		const int t2 = mVU.regAlloc->allocReg();
+		xe_movaps_xx(t2, t1); // Backup VF reg
+		mVU.regAlloc->clearNeededXMM(t1);
 
 		mVUopL(mVU, 1);
 
-		const xmm& t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
-		xe_xorps_xx(t2.Id, t3.Id); // Swap new and old values of the register
-		xe_xorps_xx(t3.Id, t2.Id); // Uses xor swap trick...
-		xe_xorps_xx(t2.Id, t3.Id);
-		mVU.regAlloc->clearNeeded(t3);
+		const int t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
+		xe_xorps_xx(t2, t3); // Swap new and old values of the register
+		xe_xorps_xx(t3, t2); // Uses xor swap trick...
+		xe_xorps_xx(t2, t3);
+		mVU.regAlloc->clearNeededXMM(t3);
 
 		incPC(1);
 		doUpperOp(mVU);
 
-		const xmm& t4 = mVU.regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
-		xe_movaps_xx(t4.Id, t2.Id);
-		mVU.regAlloc->clearNeeded(t4);
-		mVU.regAlloc->clearNeeded(t2);
+		const int t4 = mVU.regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
+		xe_movaps_xx(t4, t2);
+		mVU.regAlloc->clearNeededXMM(t4);
+		mVU.regAlloc->clearNeededXMM(t2);
 	}
 	else
 	{
@@ -310,7 +310,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 		if (free_regs <= REQUIRED_FREE_XMMS || reg == 0 || (vfs_loaded & (1u << reg)) != 0)
 			return;
 
-		mVU.regAlloc->clearNeeded(mVU.regAlloc->allocReg(reg));
+		mVU.regAlloc->clearNeededXMM(mVU.regAlloc->allocReg(reg));
 		vfs_loaded |= (1u << reg);
 		free_regs--;
 	};
@@ -320,7 +320,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 		if (free_gprs <= REQUIRED_FREE_GPRS || reg == 0 || (vis_loaded & (1u << reg)) != 0)
 			return;
 
-		mVU.regAlloc->clearNeeded(mVU.regAlloc->allocGPR(reg));
+		mVU.regAlloc->clearNeededGPR(mVU.regAlloc->allocGPR(reg));
 		vis_loaded |= (1u << reg);
 		free_gprs--;
 	};

@@ -127,7 +127,7 @@ protected:
 		return findFreeGPRRec(0);
 	}
 
-	void writeVIBackup(const xRegisterInt& reg);
+	void writeVIBackup(int reg);
 
 public:
 	microRegAlloc(int _index)
@@ -145,8 +145,8 @@ public:
 			gprMap[i].isZeroExtended = false;
 			gprMap[i].usable         = false;
 
-			if (i == gprT1.Id || i == gprT2.Id ||
-				i == gprF0.Id || i == gprF1.Id || i == gprF2.Id || i == gprF3.Id ||
+			if (i == gprT1 || i == gprT2 ||
+				i == gprF0 || i == gprF1 || i == gprF2 || i == gprF3 ||
 				i == rsp.Id)
 				continue;
 
@@ -290,7 +290,7 @@ public:
 
 		for (int i = 0; i < gprTotal; i++)
 		{
-			writeBackReg(xRegister32(i), true);
+			writeBackReg(i, true);
 			if (clearState)
 				clearGPR(i);
 		}
@@ -313,7 +313,7 @@ public:
 			if (!xRegister32::IsCallerSaved(i))
 				continue;
 
-			writeBackReg(xRegister32(i), true);
+			writeBackReg(i, true);
 			if (clearNeeded || !gprMap[i].isNeeded)
 				clearGPR(i);
 		}
@@ -371,12 +371,12 @@ public:
 		}
 
 		for (int i = 0; i < gprTotal; i++)
-			writeBackReg(xRegister32(i), false);
+			writeBackReg(i, false);
 	}
 
 	bool checkVFClamp(int regId)
 	{
-		if (regId != xmmPQ.Id && ((xmmMap[regId].VFreg == 33 && !EmuConfig.Gamefixes.IbitHack) || xmmMap[regId].isZero))
+		if (regId != xmmPQ && ((xmmMap[regId].VFreg == 33 && !EmuConfig.Gamefixes.IbitHack) || xmmMap[regId].isZero))
 			return false;
 		else
 			return true;
@@ -486,14 +486,13 @@ public:
 	// This is to guarantee proper merging between registers... When a written-to reg is cleared,
 	// it invalidates other cached registers of the same VF reg, and merges partial-vector
 	// writes into them.
-	void clearNeeded(int reg) { clearNeeded(xmm(reg)); }
-	void clearNeeded(const xmm& reg)
+	void clearNeededXMM(int reg)
 	{
 
-		if ((reg.Id < 0) || (reg.Id >= xmmTotal)) // Sometimes xmmPQ hits this
+		if ((reg < 0) || (reg >= xmmTotal)) // Sometimes xmmPQ hits this
 			return;
 
-		microMapXMM& clear = xmmMap[reg.Id];
+		microMapXMM& clear = xmmMap[reg];
 		clear.isNeeded = false;
 		if (clear.xyzw) // Reg was modified
 		{
@@ -504,14 +503,14 @@ public:
 					mergeRegs = 1;
 				for (int i = 0; i < xmmTotal; i++) // Invalidate any other read-only regs of same vfReg
 				{
-					if (i == reg.Id)
+					if (i == reg)
 						continue;
 					microMapXMM& mapI = xmmMap[i];
 					if (mapI.VFreg == clear.VFreg)
 					{
 						if (mergeRegs == 1)
 						{
-							mVUmergeRegs(xmm(i).Id, reg.Id, clear.xyzw, true);
+							mVUmergeRegs(xmm(i).Id, reg, clear.xyzw, true);
 							mapI.xyzw  = 0xf;
 							mapI.count = counter;
 							mergeRegs  = 2;
@@ -524,7 +523,7 @@ public:
 				if (mergeRegs == 2) // Clear Current Reg if Merged
 					clearReg(reg);
 				else if (mergeRegs == 1) // Write Back Partial Writes if couldn't merge
-					writeBackReg(reg);
+					writeBackReg(xmm::GetInstance(reg));
 			}
 			else
 				clearReg(reg); // If Reg was temp or vf0, then invalidate itself
@@ -532,7 +531,7 @@ public:
 		else if (regAllocCOP2 && clear.VFreg < 0)
 		{
 			// free on the EE side
-			pxmmregs[reg.Id].inuse = false;
+			pxmmregs[reg].inuse = false;
 		}
 	}
 
@@ -544,7 +543,7 @@ public:
 	// To load a temp reg use the default param values, vfLoadReg = -1 and vfWriteReg = -1.
 	// To load a full reg which won't be modified and you want cached, specify vfLoadReg >= 0 and vfWriteReg = -1
 	// To load a reg which you don't want written back or cached, specify vfLoadReg >= 0 and vfWriteReg = 0
-	const xmm& allocReg(int vfLoadReg = -1, int vfWriteReg = -1, int xyzw = 0, bool cloneWrite = true)
+	int allocReg(int vfLoadReg = -1, int vfWriteReg = -1, int xyzw = 0, bool cloneWrite = true)
 	{
 		counter++;
 		if (vfLoadReg >= 0) // Search For Cached Regs
@@ -597,7 +596,7 @@ public:
 					xmmMap[z].isNeeded = true;
 					updateCOP2AllocState(z);
 
-					return xmm::GetInstance(z);
+					return z;
 				}
 			}
 		}
@@ -635,7 +634,7 @@ public:
 		xmmMap[x].count    = counter;
 		xmmMap[x].isNeeded = true;
 		updateCOP2AllocState(x);
-		return xmmX;
+		return x;
 	}
 
 	void clearGPR(const xRegisterInt& reg) { clearGPR(reg.Id); }
@@ -676,13 +675,13 @@ public:
 		x86regs[rn].needed = gprMap[rn].isNeeded;
 	}
 
-	void writeBackReg(const xRegisterInt& reg, bool clearDirty)
+	void writeBackReg(int reg, bool clearDirty)
 	{
-		microMapGPR& mapX = gprMap[reg.Id];
+		microMapGPR& mapX = gprMap[reg];
 		if (mapX.dirty)
 		{
 			if (mapX.VIreg < 16)
-				xe_mov16_mr(&::vuRegs[index].VI[mapX.VIreg], reg.Id);
+				xe_mov16_mr(&::vuRegs[index].VI[mapX.VIreg], reg);
 			if (clearDirty)
 			{
 				mapX.dirty = false;
@@ -691,12 +690,12 @@ public:
 		}
 	}
 
-	void clearNeeded(const xRegisterInt& reg)
+	void clearNeededGPR(int reg)
 	{
-		microMapGPR& clear = gprMap[reg.Id];
+		microMapGPR& clear = gprMap[reg];
 		clear.isNeeded = false;
 		if (regAllocCOP2)
-			x86regs[reg.Id].needed = false;
+			x86regs[reg].needed = false;
 	}
 
 	void unbindAnyVIAllocations(int reg, bool& backup)
@@ -708,7 +707,7 @@ public:
 			{
 				if (backup)
 				{
-					writeVIBackup(xRegister32(i));
+					writeVIBackup(i);
 					backup = false;
 				}
 
@@ -734,7 +733,7 @@ public:
 		}
 	}
 
-	const xRegister32& allocGPR(int viLoadReg = -1, int viWriteReg = -1, bool backup = false, bool zext_if_dirty = false)
+	int allocGPR(int viLoadReg = -1, int viWriteReg = -1, bool backup = false, bool zext_if_dirty = false)
 	{
 		// TODO: When load != write, we should check whether load is used later, and if so, copy it.
 
@@ -745,9 +744,9 @@ public:
 			if (viWriteReg == 0)
 			{
 				int x = findFreeGPR(-1);
-				const xRegister32& gprX = xRegister32::GetInstance(x);
+				const int gprX = x;
 				writeBackReg(gprX, true);
-				xe_xor32_rr(gprX.Id, gprX.Id);
+				xe_xor32_rr(gprX, gprX);
 				gprMap[x].VIreg = -1;
 				gprMap[x].dirty = false;
 				gprMap[x].count = this_counter;
@@ -776,22 +775,22 @@ public:
 
 							// allocate a new register for writing to
 							int x = findFreeGPR(viWriteReg);
-							const xRegister32& gprX = xRegister32::GetInstance(x);
+							const int gprX = x;
 
 							writeBackReg(gprX, true);
 
 							// writeReg not cached, needs backing up
 							if (backup && gprMap[x].VIreg != viWriteReg)
 							{
-								xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viWriteReg]);
+								xe_movzx32_rm16(gprX, &::vuRegs[index].VI[viWriteReg]);
 								writeVIBackup(gprX);
 								backup = false;
 							}
 
 							if (zext_if_dirty)
-								xe_movzx32_rr16(gprX.Id, i);
+								xe_movzx32_rr16(gprX, i);
 							else
-								xe_mov32_rr(gprX.Id, i);
+								xe_mov32_rr(gprX, i);
 							gprMap[x].isZeroExtended = zext_if_dirty;
 							std::swap(x, i);
 						}
@@ -813,7 +812,7 @@ public:
 					gprMap[i].isNeeded = true;
 
 					if (backup)
-						writeVIBackup(xRegister32(i));
+						writeVIBackup(i);
 
 					if (regAllocCOP2)
 					{
@@ -821,7 +820,7 @@ public:
 						x86regs[i].mode = gprMap[i].dirty ? (MODE_WRITE | MODE_READ) : (MODE_READ);
 					}
 
-					return xRegister32::GetInstance(i);
+					return i;
 				}
 			}
 		}
@@ -830,7 +829,7 @@ public:
 			unbindAnyVIAllocations(viWriteReg, backup);
 
 		int x = findFreeGPR(viLoadReg);
-		const xRegister32& gprX = xRegister32::GetInstance(x);
+		const int gprX = x;
 		writeBackReg(gprX, true);
 
 		// Special case: we need to back up the destination register, but it might not have already
@@ -838,15 +837,15 @@ public:
 		// it's going to get lost when we eventually write this register back.
 		if (backup && viLoadReg >= 0 && viWriteReg > 0 && viLoadReg != viWriteReg)
 		{
-			xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viWriteReg]);
+			xe_movzx32_rm16(gprX, &::vuRegs[index].VI[viWriteReg]);
 			writeVIBackup(gprX);
 			backup = false;
 		}
 
 		if (viLoadReg > 0)
-			xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viLoadReg]);
+			xe_movzx32_rm16(gprX, &::vuRegs[index].VI[viLoadReg]);
 		else if (viLoadReg == 0)
-			xe_xor32_rr(gprX.Id, gprX.Id);
+			xe_xor32_rr(gprX, gprX);
 
 		gprMap[x].VIreg = viLoadReg;
 		gprMap[x].isZeroExtended = true;
@@ -859,7 +858,7 @@ public:
 			if (backup)
 			{
 				if (viLoadReg < 0 && viWriteReg > 0)
-					xe_movzx32_rm16(gprX.Id, &::vuRegs[index].VI[viWriteReg]);
+					xe_movzx32_rm16(gprX, &::vuRegs[index].VI[viWriteReg]);
 				writeVIBackup(gprX);
 			}
 		}
@@ -876,21 +875,21 @@ public:
 		return gprX;
 	}
 
-	void moveVIToGPR(const xRegisterInt& reg, int vi, bool signext = false)
+	void moveVIToGPR(int reg, int vi, bool signext = false)
 	{
 		if (vi == 0)
 		{
-			xe_xor32_rr(reg.Id, reg.Id);
+			xe_xor32_rr(reg, reg);
 			return;
 		}
 
 		// TODO: Check liveness/usedness before allocating.
 		// TODO: Check whether zero-extend is needed everywhere heae. Loadstores are.
-		const xRegister32& srcreg = allocGPR(vi);
+		const int srcreg = allocGPR(vi);
 		if (signext)
-			xe_movsx32_rr16(reg.Id, srcreg.Id);
+			xe_movsx32_rr16(reg, srcreg);
 		else
-			xe_movzx32_rr16(reg.Id, srcreg.Id);
-		clearNeeded(srcreg);
+			xe_movzx32_rr16(reg, srcreg);
+		clearNeededGPR(srcreg);
 	}
 };

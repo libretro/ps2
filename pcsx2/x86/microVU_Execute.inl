@@ -50,35 +50,35 @@ void mVUdispatcherAB(mV)
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		// Load Regs
-		xe_movaps_xm(xmmT1.Id, &vuRegs[mVU.index].VI[REG_P].UL);
-		xe_movaps_xm(xmmPQ.Id, &vuRegs[mVU.index].VI[REG_Q].UL);
-		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_q); xe_movdzx_xmemg(xmmT2.Id, xm); }
-		xe_shufps_xxi(xmmPQ.Id, xmmT1.Id, 0); // wzyx = PPQQ
+		xe_movaps_xm(xmmT1, &vuRegs[mVU.index].VI[REG_P].UL);
+		xe_movaps_xm(xmmPQ, &vuRegs[mVU.index].VI[REG_Q].UL);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_q); xe_movdzx_xmemg(xmmT2, xm); }
+		xe_shufps_xxi(xmmPQ, xmmT1, 0); // wzyx = PPQQ
 		//Load in other Q instance
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
-		xe_movss_xx(xmmPQ.Id, xmmT2.Id);
-		xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0xe1);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
+		xe_movss_xx(xmmPQ, xmmT2);
+		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
 
 		if (isVU1)
 		{
 			//Load in other P instance
-			{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_p); xe_movdzx_xmemg(xmmT2.Id, xm); }
-			xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x1B);
-			xe_movss_xx(xmmPQ.Id, xmmT2.Id);
-			xe_pshufd_xxi(xmmPQ.Id, xmmPQ.Id, 0x1B);
+			{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_p); xe_movdzx_xmemg(xmmT2, xm); }
+			xe_pshufd_xxi(xmmPQ, xmmPQ, 0x1B);
+			xe_movss_xx(xmmPQ, xmmT2);
+			xe_pshufd_xxi(xmmPQ, xmmPQ, 0x1B);
 		}
 
-		xe_movaps_xm(xmmT1.Id, &vuRegs[mVU.index].micro_macflags);
-		xe_movaps_mx(mVU.macFlag, xmmT1.Id);
+		xe_movaps_xm(xmmT1, &vuRegs[mVU.index].micro_macflags);
+		xe_movaps_mx(mVU.macFlag, xmmT1);
 
 
-		xe_movaps_xm(xmmT1.Id, &vuRegs[mVU.index].micro_clipflags);
-		xe_movaps_mx(mVU.clipFlag, xmmT1.Id);
+		xe_movaps_xm(xmmT1, &vuRegs[mVU.index].micro_clipflags);
+		xe_movaps_mx(mVU.clipFlag, xmmT1);
 
-		xe_mov32_rm(gprF0.Id, &vuRegs[mVU.index].micro_statusflags[0]);
-		xe_mov32_rm(gprF1.Id, &vuRegs[mVU.index].micro_statusflags[1]);
-		xe_mov32_rm(gprF2.Id, &vuRegs[mVU.index].micro_statusflags[2]);
-		xe_mov32_rm(gprF3.Id, &vuRegs[mVU.index].micro_statusflags[3]);
+		xe_mov32_rm(gprF0, &vuRegs[mVU.index].micro_statusflags[0]);
+		xe_mov32_rm(gprF1, &vuRegs[mVU.index].micro_statusflags[1]);
+		xe_mov32_rm(gprF2, &vuRegs[mVU.index].micro_statusflags[2]);
+		xe_mov32_rm(gprF3, &vuRegs[mVU.index].micro_statusflags[3]);
 
 		// Jump to Recompiled Code Block
 		xe_jmp_r(XE_AX);
@@ -113,10 +113,10 @@ void mVUdispatcherCD(mV)
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		mVUrestoreRegs(mVU);
-		xe_mov32_rm(gprF0.Id, &vuRegs[mVU.index].micro_statusflags[0]);
-		xe_mov32_rm(gprF1.Id, &vuRegs[mVU.index].micro_statusflags[1]);
-		xe_mov32_rm(gprF2.Id, &vuRegs[mVU.index].micro_statusflags[2]);
-		xe_mov32_rm(gprF3.Id, &vuRegs[mVU.index].micro_statusflags[3]);
+		xe_mov32_rm(gprF0, &vuRegs[mVU.index].micro_statusflags[0]);
+		xe_mov32_rm(gprF1, &vuRegs[mVU.index].micro_statusflags[1]);
+		xe_mov32_rm(gprF2, &vuRegs[mVU.index].micro_statusflags[2]);
+		xe_mov32_rm(gprF3, &vuRegs[mVU.index].micro_statusflags[3]);
 
 		// Jump to Recompiled Code Block
 		xe_jmp_mem_abs(&mVU.resumePtrXG);
@@ -124,10 +124,10 @@ void mVUdispatcherCD(mV)
 		mVU.exitFunctXG = xGetAlignedCallTarget();
 
 		// Backup Status Flag (other regs were backed up on xgkick)
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2.Id);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3.Id);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2);
+		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3);
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -151,7 +151,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 		// T1 often contains the address we're loading when waiting for VU1.
 		// T2 isn't used until afterwards, so don't bother saving it.
-		if (i == gprT2.Id)
+		if (i == gprT2)
 			continue;
 
 		xe_push64_r(i);
@@ -202,7 +202,7 @@ static void mVUGenerateWaitMTVU(mV)
 		if (!xRegister32::IsCallerSaved(i) || i == rsp.Id)
 			continue;
 
-		if (i == gprT2.Id)
+		if (i == gprT2)
 			continue;
 
 		xe_pop64_r(i);

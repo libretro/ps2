@@ -22,9 +22,9 @@ __fi void mVUdivSet(mV)
 	if (mVUinfo.doDivFlag)
 	{
 		if (!sFLAG.doFlag)
-			xe_mov32_rr(getFlagReg(sFLAG.write).Id, getFlagReg(sFLAG.lastWrite).Id);
-		xe_and32_ri(getFlagReg(sFLAG.write).Id, 0xfff3ffff);
-		xe_or32_rm(getFlagReg(sFLAG.write).Id, &mVU.divFlag);
+			xe_mov32_rr(getFlagReg(sFLAG.write), getFlagReg(sFLAG.lastWrite));
+		xe_and32_ri(getFlagReg(sFLAG.write), 0xfff3ffff);
+		xe_or32_rm(getFlagReg(sFLAG.write), &mVU.divFlag);
 	}
 }
 
@@ -251,40 +251,40 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 		/* NOTE: Emitter will optimize out mov(reg1, reg1) cases... */
 		if (sortRegs == 1)
 		{
-			xe_mov32_rr(gprF0.Id, getFlagReg(bStatus[0]).Id);
-			xe_mov32_rr(gprF1.Id, getFlagReg(bStatus[1]).Id);
-			xe_mov32_rr(gprF2.Id, getFlagReg(bStatus[2]).Id);
-			xe_mov32_rr(gprF3.Id, getFlagReg(bStatus[3]).Id);
+			xe_mov32_rr(gprF0, getFlagReg(bStatus[0]));
+			xe_mov32_rr(gprF1, getFlagReg(bStatus[1]));
+			xe_mov32_rr(gprF2, getFlagReg(bStatus[2]));
+			xe_mov32_rr(gprF3, getFlagReg(bStatus[3]));
 		}
 		else if (sortRegs == 2)
 		{
-			xe_mov32_rr(gprT1.Id, getFlagReg (bStatus[3]).Id);
-			xe_mov32_rr(gprF0.Id, getFlagReg (bStatus[0]).Id);
-			xe_mov32_rr(gprF1.Id, getFlagReg2(bStatus[1]).Id);
-			xe_mov32_rr(gprF2.Id, getFlagReg2(bStatus[2]).Id);
-			xe_mov32_rr(gprF3.Id, gprT1.Id);
+			xe_mov32_rr(gprT1, getFlagReg (bStatus[3]));
+			xe_mov32_rr(gprF0, getFlagReg (bStatus[0]));
+			xe_mov32_rr(gprF1, getFlagReg2(bStatus[1]));
+			xe_mov32_rr(gprF2, getFlagReg2(bStatus[2]));
+			xe_mov32_rr(gprF3, gprT1);
 		}
 		else if (sortRegs == 3)
 		{
 			int gFlag = (bStatus[0] == bStatus[1]) ? bStatus[2] : bStatus[1];
-			xe_mov32_rr(gprT1.Id, getFlagReg (gFlag).Id);
-			xe_mov32_rr(gprT2.Id, getFlagReg (bStatus[3]).Id);
-			xe_mov32_rr(gprF0.Id, getFlagReg (bStatus[0]).Id);
-			xe_mov32_rr(gprF1.Id, getFlagReg3(bStatus[1]).Id);
-			xe_mov32_rr(gprF2.Id, getFlagReg4(bStatus[2]).Id);
-			xe_mov32_rr(gprF3.Id, gprT2.Id);
+			xe_mov32_rr(gprT1, getFlagReg (gFlag));
+			xe_mov32_rr(gprT2, getFlagReg (bStatus[3]));
+			xe_mov32_rr(gprF0, getFlagReg (bStatus[0]));
+			xe_mov32_rr(gprF1, getFlagReg3(bStatus[1]));
+			xe_mov32_rr(gprF2, getFlagReg4(bStatus[2]));
+			xe_mov32_rr(gprF3, gprT2);
 		}
 		else
 		{
-			const xRegister32& temp3 = mVU.regAlloc->allocGPR();
-			xe_mov32_rr(gprT1.Id, getFlagReg(bStatus[0]).Id);
-			xe_mov32_rr(gprT2.Id, getFlagReg(bStatus[1]).Id);
-			xe_mov32_rr(temp3.Id, getFlagReg(bStatus[2]).Id);
-			xe_mov32_rr(gprF3.Id, getFlagReg(bStatus[3]).Id);
-			xe_mov32_rr(gprF0.Id, gprT1.Id);
-			xe_mov32_rr(gprF1.Id, gprT2.Id);
-			xe_mov32_rr(gprF2.Id, temp3.Id);
-			mVU.regAlloc->clearNeeded(temp3);
+			const int temp3 = mVU.regAlloc->allocGPR();
+			xe_mov32_rr(gprT1, getFlagReg(bStatus[0]));
+			xe_mov32_rr(gprT2, getFlagReg(bStatus[1]));
+			xe_mov32_rr(temp3, getFlagReg(bStatus[2]));
+			xe_mov32_rr(gprF3, getFlagReg(bStatus[3]));
+			xe_mov32_rr(gprF0, gprT1);
+			xe_mov32_rr(gprF1, gprT2);
+			xe_mov32_rr(gprF2, temp3);
+			mVU.regAlloc->clearNeededGPR(temp3);
 		}
 	}
 
@@ -292,18 +292,18 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 	{
 		int bMac[4];
 		sortFlag(mFC.xMac, bMac, mFC.cycles);
-		xe_movaps_xm(xmmT1.Id, mVU.macFlag);
-		xe_shufps_xxi(xmmT1.Id, xmmT1.Id, shuffleMac);
-		xe_movaps_mx(mVU.macFlag, xmmT1.Id);
+		xe_movaps_xm(xmmT1, mVU.macFlag);
+		xe_shufps_xxi(xmmT1, xmmT1, shuffleMac);
+		xe_movaps_mx(mVU.macFlag, xmmT1);
 	}
 
 	if (doCFlagInsts && __Clip)
 	{
 		int bClip[4];
 		sortFlag(mFC.xClip, bClip, mFC.cycles);
-		xe_movaps_xm(xmmT2.Id, mVU.clipFlag);
-		xe_shufps_xxi(xmmT2.Id, xmmT2.Id, shuffleClip);
-		xe_movaps_mx(mVU.clipFlag, xmmT2.Id);
+		xe_movaps_xm(xmmT2, mVU.clipFlag);
+		xe_shufps_xxi(xmmT2, xmmT2, shuffleClip);
+		xe_movaps_mx(mVU.clipFlag, xmmT2);
 	}
 }
 

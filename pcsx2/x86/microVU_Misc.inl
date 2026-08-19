@@ -165,7 +165,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 			if (!xRegisterSSE::IsCallerSaved(i))
 				continue;
 
-			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ.Id == i)
+			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ == i)
 			{
 				save_xmms[i] = true;
 				num_xmms++;
@@ -197,7 +197,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 	{
 		// TODO(Stenzek): get rid of xmmbackup
 		mVU.regAlloc->flushAll(); // Flush Regalloc
-		xe_movaps_mx(&mVU.xmmBackup[xmmPQ.Id][0], xmmPQ.Id);
+		xe_movaps_mx(&mVU.xmmBackup[xmmPQ][0], xmmPQ);
 	}
 }
 
@@ -227,7 +227,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 			if (!xRegisterSSE::IsCallerSaved(i))
 				continue;
 
-			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ.Id == i)
+			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ == i)
 			{
 				save_xmms[i] = true;
 				num_xmms++;
@@ -263,7 +263,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 	}
 	else
 	{
-		xe_movaps_xm(xmmPQ.Id, &mVU.xmmBackup[xmmPQ.Id][0]);
+		xe_movaps_xm(xmmPQ, &mVU.xmmBackup[xmmPQ][0]);
 	}
 }
 
@@ -285,28 +285,28 @@ static inline u32 branchAddr(const mV)
 static void mVUwaitMTVU(void) { vu1Thread.WaitVU(); }
 
 /* Transforms the Address in gprReg to valid VU0/VU1 Address */
-__fi void mVUaddrFix(mV, const xAddressReg& gprReg)
+__fi void mVUaddrFix(mV, int gprReg)
 {
 	if (isVU1)
 	{
-		xe_and32_ri(gprReg.Id, 0x3ff); // wrap around
-		xe_shl32_ri(gprReg.Id, 4);
+		xe_and32_ri(gprReg, 0x3ff); // wrap around
+		xe_shl32_ri(gprReg, 4);
 	}
 	else
 	{
-		xe_test32_ri(gprReg.Id, 0x400);
+		xe_test32_ri(gprReg, 0x400);
 		e_u8* jmpA; xe_fwd_jcc8(Jcc_NotZero, jmpA); // if addr & 0x4000, reads VU1's VF regs and VI regs
-			xe_and32_ri(gprReg.Id, 0xff); // if !(addr & 0x4000), wrap around
+			xe_and32_ri(gprReg, 0xff); // if !(addr & 0x4000), wrap around
 			e_u8* jmpB; xe_fwd_jcc32(Jcc_Unconditional, jmpB);
 		xe_fwd_set8(jmpA);
 			if (THREAD_VU1)
 			{
 				xe_fastcall0(mVU.waitMTVU);
 			}
-			xe_and32_ri(gprReg.Id, 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!
-			xe_add64_ri(gprReg.Id, (u128*)vuRegs[1].VF - (u128*)vuRegs[0].Mem);
+			xe_and32_ri(gprReg, 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!
+			xe_add64_ri(gprReg, (u128*)vuRegs[1].VF - (u128*)vuRegs[0].Mem);
 		xe_fwd_set32(jmpB);
-		xe_shl64_ri(gprReg.Id, 4); // multiply by 16 (shift left by 4)
+		xe_shl64_ri(gprReg, 4); // multiply by 16 (shift left by 4)
 	}
 }
 
@@ -343,8 +343,8 @@ alignas(16) static const SSEMasks sseMasks =
 // Warning: Modifies t1 and t2
 void MIN_MAX_PS(microVU& mVU, int to, int from, int t1in, int t2in, bool min)
 {
-	int t1 = (t1in < 0) ? mVU.regAlloc->allocReg().Id : t1in;
-	int t2 = (t2in < 0) ? mVU.regAlloc->allocReg().Id : t2in;
+	int t1 = (t1in < 0) ? mVU.regAlloc->allocReg() : t1in;
+	int t2 = (t2in < 0) ? mVU.regAlloc->allocReg() : t2in;
 
 	/* Use integer comparison */
 	{
@@ -367,14 +367,14 @@ void MIN_MAX_PS(microVU& mVU, int to, int from, int t1in, int t2in, bool min)
 		xe_por_xx(to, c1);
 	}
 
-	if (t1 != t1in) mVU.regAlloc->clearNeeded(t1);
-	if (t2 != t2in) mVU.regAlloc->clearNeeded(t2);
+	if (t1 != t1in) mVU.regAlloc->clearNeededXMM(t1);
+	if (t2 != t2in) mVU.regAlloc->clearNeededXMM(t2);
 }
 
 // Warning: Modifies to's upper 3 vectors, and t1
 void MIN_MAX_SS(mV, int to, int from, int t1in, bool min)
 {
-	int t1 = (t1in < 0) ? mVU.regAlloc->allocReg().Id : t1in;
+	int t1 = (t1in < 0) ? mVU.regAlloc->allocReg() : t1in;
 	xe_shufps_xxi(to, from, 0);
 	xe_pand_xm(to, sseMasks.MIN_MAX_1);
 	xe_por_xm(to, sseMasks.MIN_MAX_2);
@@ -382,7 +382,7 @@ void MIN_MAX_SS(mV, int to, int from, int t1in, bool min)
 	if (min) xe_minpd_xx(to, t1);
 	else	 xe_maxpd_xx(to, t1);
 	if (t1 != t1in)
-		mVU.regAlloc->clearNeeded(t1);
+		mVU.regAlloc->clearNeededXMM(t1);
 }
 
 // Turns out only this is needed to get TriAce games booting with mVU
