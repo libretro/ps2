@@ -1382,4 +1382,23 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
  * expression the twin uses, inheriting the reference translation by
  * construction. The shadow oracle caught two successive re-derivations
  * (SIB 24 vs 64, then 64 vs a4) before this lesson stuck. */
+
+/* cmp word [abs], imm8/imm16 -- 66-prefixed group1 with the s8 narrowing */
+#define xe_cmp16_mi(addr, imm) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 2, 7, xm_, (e_s32)(imm)); }, \
+	x86Emitter::xCMP(x86Emitter::ptr16[(void*)(addr)], (u16)(imm)))
+
+/* 32-bit forward jump pair, mirroring xForwardJump32: jcc rel32 (or e9
+ * for unconditional) with a zero placeholder, patched by set32. Both
+ * shadow arms patch the same dword from the same anchor. */
+#define xe_fwd_jcc32(cc, slot) XE_2( \
+	{ if ((cc) == x86Emitter::Jcc_Unconditional) { EW8(xep, 0xe9); } \
+	  else { EW8(xep, 0x0f); EW8(xep, (e_u8)(0x80 | (cc))); } \
+	  (slot) = xep; EW32(xep, 0); }, \
+	{ x86Emitter::xForwardJump32 xf_((x86Emitter::JccComparisonType)(cc)); \
+	  (slot) = (e_u8*)x86Ptr - 4; })
+#define xe_fwd_set32(slot) XE_2( \
+	{ *(e_s32*)(slot) = (e_s32)(xep - ((slot) + 4)); }, \
+	{ *(s32*)(slot) = (s32)((u8*)x86Ptr - ((u8*)(slot) + 4)); })
 #endif /* PCSX2_C89OPS_H */
