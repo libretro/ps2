@@ -264,7 +264,7 @@ static void mVUGenerateCompareState(mV)
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0); xe_vpcmpeqd_xxmemg(0, 0, xm, 1); }
 		xe_vpmovmskb_rx(XE_AX, 0, 1);
 		xe_xor32_ri(XE_AX, 0xffffffff);
-		xForwardJNZ8 exitPoint;
+		e_u8* exitPoint; xe_fwd_jcc8(Jcc_NotZero, exitPoint);
 
 		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x20); xe_vmovups_xmemg(0, xm, 1); }
 		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x40); xe_vmovups_xmemg(1, xm, 1); }
@@ -275,7 +275,7 @@ static void mVUGenerateCompareState(mV)
 		xe_vpmovmskb_rx(XE_AX, 0, 1);
 		xe_not32_r(XE_AX);
 
-		exitPoint.SetTarget();
+		xe_fwd_set8(exitPoint);
 		xe_vzeroupper();
 	}
 	else
@@ -288,7 +288,7 @@ static void mVUGenerateCompareState(mV)
 
 		xe_movmskps_rx(XE_AX, 0);
 		xe_xor32_ri(XE_AX, 0xf);
-		xForwardJNZ8 exitPoint;
+		e_u8* exitPoint; xe_fwd_jcc8(Jcc_NotZero, exitPoint);
 
 		{ struct e_mem xm; E_MEM(xm, arg1reg.Id, E_NOREG, 0, 0x20); xe_movaps_xmemg(0, xm); }
 		{ struct e_mem xm; E_MEM(xm, arg2reg.Id, E_NOREG, 0, 0x20); xe_pcmpeqd_xmemg(0, xm); }
@@ -306,7 +306,7 @@ static void mVUGenerateCompareState(mV)
 		xe_movmskps_rx(XE_AX, 0);
 		xe_xor32_ri(XE_AX, 0xf);
 
-		exitPoint.SetTarget();
+		xe_fwd_set8(exitPoint);
 	}
 
 	xe_ret();

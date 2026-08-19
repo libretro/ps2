@@ -1672,11 +1672,11 @@ static bool recSkipTimeoutLoop(s32 reg, bool is_timeout_loop)
 	// TODO: In the case where nextEventCycle < cycle because it's overflowed, tack 8
 	// cycles onto the event count, so hopefully it'll wrap around. This is pretty
 	// gross, but until we switch to 64-bit counters, not many better options.
-	xForwardJB8 not_dispatcher;
+	e_u8* not_dispatcher; xe_fwd_jcc8(Jcc_Below, not_dispatcher);
 	xe_add64_ri(XE_BX, 8);
 	xe_mov64_mr(&cpuRegs.cycle, XE_BX);
 	xe_jmp_to(DispatcherEvent);
-	not_dispatcher.SetTarget();
+	xe_fwd_set8(not_dispatcher);
 
 	xe_mov32_rm(XE_DX, &cpuRegs.GPR.r[reg].UL[0]); // edx = v0
 	{ struct e_mem xm; E_MEM(xm, XE_BX, XE_DX, 8, 0); xe_lea64_mem(XE_AX, xm); } // rax = v0 * 8 + cycle

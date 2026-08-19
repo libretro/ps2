@@ -14,6 +14,9 @@
  */
 
 #pragma once
+/* the reference emitter is the C++ emitter; it keeps the class the
+ * switched build compiles out. Must precede any x86types.h include. */
+#define PCSX2_C89_KEEP_FWDJUMP
 
 #include "common/emitter/x86types.h"
 #include "common/emitter/instructions.h"

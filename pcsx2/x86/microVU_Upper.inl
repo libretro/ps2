@@ -96,7 +96,7 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 		xe_cmpnltps_xm(regT1.Id, &sse4_compvals[0][0]); // Compare if T1 == FLT_MAX
 		xe_movmskps_rx(gprT2.Id, regT1.Id); // Grab sign bits  for equal results
 		xe_and32_ri(gprT2.Id, AND_XYZW); // Grab "Is FLT_MAX" bits from the previous calculation
-		xForwardJump32 oJMP(Jcc_Zero);
+		e_u8* oJMP; xe_fwd_jcc32(Jcc_Zero, oJMP);
 
 		xe_or32_ri(sReg.Id, 0x820000);
 		if (mFLAG.doFlag)
@@ -105,7 +105,7 @@ static void mVUupdateFlags(mV, const xmm& reg, const xmm& regT1in = xEmptyReg, c
 			xe_or32_rr(mReg.Id, gprT2.Id);
 		}
 
-		oJMP.SetTarget();
+		xe_fwd_set32(oJMP);
 	}
 
 	//-------------------------Write back flags------------------------------

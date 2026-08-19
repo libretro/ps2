@@ -341,7 +341,7 @@ void recLWR()
 	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
 	xe_and32_ri(temp, 3);
 
-	xForwardJE8 nomask;
+	e_u8* nomask; xe_fwd_jcc8(Jcc_Equal, nomask);
 	xe_shl32_ri(temp, 3);
 	// mask off bytes loaded
 	xe_mov32_ri(XE_CX, 24);
@@ -355,11 +355,11 @@ void recLWR()
 	xe_shr32_rcl(XE_AX);
 	xe_or32_rr(treg, XE_AX);
 
-	xForwardJump8 end;
-	nomask.SetTarget();
+	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
+	xe_fwd_set8(nomask);
 	// NOTE: This might look wrong, but it's correct - see interpreter.
 	xe_movsxd_rr(treg, XE_AX);
-	end.SetTarget();
+	xe_fwd_set8(end);
 	_freeX86reg(temp);
 #else
 	iFlushCall(FLUSH_INTERPRETER);
@@ -405,7 +405,7 @@ void recSWL()
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 		iFlushCall(FLUSH_FULLVTLB);
 
-	xForwardJE8 skip;
+	e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 	xe_shl32_ri(temp, 3);
 
 	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
@@ -431,10 +431,10 @@ void recSWL()
 		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
 
-	xForwardJump8 end;
-	skip.SetTarget();
+	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
+	xe_fwd_set8(skip);
 	_eeMoveGPRtoR32(x86Emitter::arg2regd.Id, _Rt_, false);
-	end.SetTarget();
+	xe_fwd_set8(end);
 
 	_freeX86reg(temp);
 	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
@@ -478,7 +478,7 @@ void recSWR()
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 		iFlushCall(FLUSH_FULLVTLB);
 
-	xForwardJE8 skip;
+	e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 	xe_shl32_ri(temp, 3);
 
 	vtlb_DynGenReadNonQuad(32, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
@@ -504,10 +504,10 @@ void recSWR()
 		xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 	xe_and32_ri(x86Emitter::arg1regd.Id, ~3);
 
-	xForwardJump8 end;
-	skip.SetTarget();
+	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
+	xe_fwd_set8(skip);
 	_eeMoveGPRtoR32(x86Emitter::arg2regd.Id, _Rt_, false);
-	end.SetTarget();
+	xe_fwd_set8(end);
 
 	_freeX86reg(temp);
 	vtlb_DynGenWrite(32, false, arg1regd.Id, arg2regd.Id);
@@ -613,7 +613,7 @@ void recLDL()
 		xe_and32_ri(temp1, 0x7);
 		xe_cmp32_ri(temp1, 7);
 		xe_cmovcc64_rr(Jcc_Equal, treg, XE_AX); // swap register with memory when not shifting
-		xForwardJE8 skip;
+		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		// Calculate the shift from top bit to lowest.
 		xe_add32_ri(temp1, 1);
 		xe_mov32_ri(XE_DX, 64);
@@ -621,7 +621,7 @@ void recLDL()
 		xe_sub32_rr(XE_DX, temp1);
 
 		ldlrhelper(temp1, 5, XE_DX, 4, XE_AX, treg);
-		skip.SetTarget();
+		xe_fwd_set8(skip);
 	}
 
 	_freeX86reg(temp1);
@@ -697,14 +697,14 @@ void recLDR()
 	{
 		xe_and32_ri(temp1, 0x7);
 		xe_cmovcc64_rr(Jcc_Equal, treg, XE_AX); // swap register with memory when not shifting
-		xForwardJE8 skip;
+		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		// Calculate the shift from top bit to lowest.
 		xe_mov32_ri(XE_DX, 64);
 		xe_shl32_ri(temp1, 3);
 		xe_sub32_rr(XE_DX, temp1);
 
 		ldlrhelper(XE_DX, 4, temp1, 5, XE_AX, treg);
-		skip.SetTarget();
+		xe_fwd_set8(skip);
 	}
 
 	_freeX86reg(temp1);
@@ -801,7 +801,7 @@ void recSDL(void)
 		if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 			iFlushCall(FLUSH_FULLVTLB);
 
-		xForwardJE8 skip;
+		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		xe_add32_ri(temp1, 1);
 		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
@@ -816,7 +816,7 @@ void recSDL(void)
 		if (_Imm_ != 0)
 			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x7);
-		skip.SetTarget();
+		xe_fwd_set8(skip);
 
 		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2);
 		_freeX86reg(temp2);
@@ -886,7 +886,7 @@ void recSDR(void)
 		if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 			iFlushCall(FLUSH_FULLVTLB);
 
-		xForwardJE8 skip;
+		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		vtlb_DynGenReadNonQuad(64, false, false, arg1regd.Id, RETURN_READ_IN_RAX);
 
 		xe_mov32_ri(XE_DX, 64);
@@ -900,7 +900,7 @@ void recSDR(void)
 			xe_add32_ri(x86Emitter::arg1regd.Id, _Imm_);
 		xe_and32_ri(x86Emitter::arg1regd.Id, ~0x7);
 		xe_mov64_rr(x86Emitter::arg2reg.Id, temp2);
-		skip.SetTarget();
+		xe_fwd_set8(skip);
 
 		vtlb_DynGenWrite(64, false, arg1regd.Id, temp2);
 		_freeX86reg(temp2);

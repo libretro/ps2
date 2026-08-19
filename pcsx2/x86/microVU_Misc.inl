@@ -295,17 +295,17 @@ __fi void mVUaddrFix(mV, const xAddressReg& gprReg)
 	else
 	{
 		xe_test32_ri(gprReg.Id, 0x400);
-		xForwardJNZ8 jmpA; // if addr & 0x4000, reads VU1's VF regs and VI regs
+		e_u8* jmpA; xe_fwd_jcc8(Jcc_NotZero, jmpA); // if addr & 0x4000, reads VU1's VF regs and VI regs
 			xe_and32_ri(gprReg.Id, 0xff); // if !(addr & 0x4000), wrap around
-			xForwardJump32 jmpB;
-		jmpA.SetTarget();
+			e_u8* jmpB; xe_fwd_jcc32(Jcc_Unconditional, jmpB);
+		xe_fwd_set8(jmpA);
 			if (THREAD_VU1)
 			{
 				xe_fastcall0(mVU.waitMTVU);
 			}
 			xe_and32_ri(gprReg.Id, 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!
 			xe_add64_ri(gprReg.Id, (u128*)vuRegs[1].VF - (u128*)vuRegs[0].Mem);
-		jmpB.SetTarget();
+		xe_fwd_set32(jmpB);
 		xe_shl64_ri(gprReg.Id, 4); // multiply by 16 (shift left by 4)
 	}
 }
@@ -398,19 +398,19 @@ void ADD_SS_TriAceHack(microVU& mVU, const xmm& to, const xmm& from)
 	xe_sub32_rr(XE_CX, XE_AX); // Exponent Difference
 
 	xe_cmp32_ri(XE_CX, -25);
-	xForwardJLE8 case_neg_big;
+	e_u8* case_neg_big; xe_fwd_jcc8(Jcc_LessOrEqual, case_neg_big);
 	xe_cmp32_ri(XE_CX, 25);
-	xForwardJL8  case_end1;
+	e_u8* case_end1; xe_fwd_jcc8(Jcc_Less, case_end1);
 
 	// case_pos_big:
 	xe_pand_xm(to.Id, sseMasks.ADD_SS);
-	xForwardJump8 case_end2;
+	e_u8* case_end2; xe_fwd_jcc8(Jcc_Unconditional, case_end2);
 
-	case_neg_big.SetTarget();
+	xe_fwd_set8(case_neg_big);
 	xe_pand_xm(from.Id, sseMasks.ADD_SS);
 
-	case_end1.SetTarget();
-	case_end2.SetTarget();
+	xe_fwd_set8(case_end1);
+	xe_fwd_set8(case_end2);
 
 	xe_addss_xx(to.Id, from.Id);
 }

@@ -1069,7 +1069,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 
 		// check if an event is pending
 		xe_sub32_rm(XE_AX, &psxRegs.iopNextEventCycle);
-		xForwardJS<u8> nointerruptpending;
+		e_u8* nointerruptpending; xe_fwd_jcc8(Jcc_Signed, nointerruptpending);
 
 		xe_fastcall0(iopEventTest);
 
@@ -1079,7 +1079,7 @@ static void iPsxBranchTest(u32 newpc, u32 cpuBranch)
 			xe_jcc_to(Jcc_NotEqual, iopDispatcherReg);
 		}
 
-		nointerruptpending.SetTarget();
+		xe_fwd_set8(nointerruptpending);
 	}
 }
 

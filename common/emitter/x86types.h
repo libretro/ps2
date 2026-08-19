@@ -1240,6 +1240,7 @@ inline constexpr xRegister32
 	inline const xAddressIndexer<xIndirect16> ptr16 = {};
 	inline const xAddressIndexer<xIndirect8> ptr8 = {};
 
+#if !defined(PCSX2_C89_EMITTER) || defined(PCSX2_C89_KEEP_FWDJUMP)
 	// --------------------------------------------------------------------------------------
 	//  xForwardJump
 	// --------------------------------------------------------------------------------------
@@ -1298,6 +1299,7 @@ inline constexpr xRegister32
 			}
 		}
 	};
+#endif /* !PCSX2_C89_EMITTER: converted code uses the xe_fwd_* pairs */
 
 	static __fi xAddressVoid operator+(const void* addr, const xAddressReg& reg)
 	{

@@ -37,10 +37,10 @@ static __fi void testNeg(mV, const xmm& xmmReg, const x32& gprTemp)
 {
 	xe_movmskps_rx(gprTemp.Id, xmmReg.Id);
 	xe_test32_ri(gprTemp.Id, 1);
-	xForwardJZ8 skip;
+	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
 		xe_mov32_mi(&mVU.divFlag, divI);
 		xe_andps_xm(xmmReg.Id, mVUglob.absclip);
-	skip.SetTarget();
+	xe_fwd_set8(skip);
 }
 
 mVUop(mVU_DIV)
@@ -55,29 +55,29 @@ mVUop(mVU_DIV)
 		const xmm& t1 = mVU.regAlloc->allocReg();
 
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
-		xForwardJZ8 cjmp; // Skip if not zero
+		e_u8* cjmp; xe_fwd_jcc8(Jcc_Zero, cjmp); // Skip if not zero
 
 		testZero(Fs, t1, gprT1); // Test if Fs is zero
-		xForwardJZ8 ajmp;
+		e_u8* ajmp; xe_fwd_jcc8(Jcc_Zero, ajmp);
 		xe_mov32_mi(&mVU.divFlag, divI); // Set invalid flag (0/0)
-		xForwardJump8 bjmp;
-		ajmp.SetTarget();
+		e_u8* bjmp; xe_fwd_jcc8(Jcc_Unconditional, bjmp);
+		xe_fwd_set8(ajmp);
 		xe_mov32_mi(&mVU.divFlag, divD); // Zero divide (only when not 0/0)
-		bjmp.SetTarget();
+		xe_fwd_set8(bjmp);
 
 		xe_xorps_xx(Fs.Id, Ft.Id);
 		xe_andps_xm(Fs.Id, mVUglob.signbit);
 		xe_orps_xm(Fs.Id, mVUglob.maxvals); // If division by zero, then xmmFs = +/- fmax
 
-		xForwardJump8 djmp;
+		e_u8* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
 
-		cjmp.SetTarget();
+		xe_fwd_set8(cjmp);
 
 		xe_mov32_mi(&mVU.divFlag, 0); // Clear I/D flags
 		SSE_DIVSS(mVU, Fs, Ft);
 		mVUclamp1(mVU, Fs, t1, 8, true);
 
-		djmp.SetTarget();
+		xe_fwd_set8(djmp);
 
 		writeQreg(Fs, mVUinfo.writeQ);
 
@@ -134,24 +134,24 @@ mVUop(mVU_RSQRT)
 
 		xe_sqrtss_xx(Ft.Id, Ft.Id);
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
-		xForwardJZ8 ajmp; // Skip if not zero
+		e_u8* ajmp; xe_fwd_jcc8(Jcc_Zero, ajmp); // Skip if not zero
 
 			testZero(Fs, t1, gprT1); // Test if Fs is zero
-			xForwardJZ8 bjmp; // Skip if none are
+			e_u8* bjmp; xe_fwd_jcc8(Jcc_Zero, bjmp); // Skip if none are
 				xe_mov32_mi(&mVU.divFlag, divI); // Set invalid flag (0/0)
-				xForwardJump8 cjmp;
-			bjmp.SetTarget();
+				e_u8* cjmp; xe_fwd_jcc8(Jcc_Unconditional, cjmp);
+			xe_fwd_set8(bjmp);
 				xe_mov32_mi(&mVU.divFlag, divD); // Zero divide flag (only when not 0/0)
-			cjmp.SetTarget();
+			xe_fwd_set8(cjmp);
 
 			xe_andps_xm(Fs.Id, mVUglob.signbit);
 			xe_orps_xm(Fs.Id, mVUglob.maxvals); // xmmFs = +/-Max
 
-			xForwardJump8 djmp;
-		ajmp.SetTarget();
+			e_u8* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
+		xe_fwd_set8(ajmp);
 			SSE_DIVSS(mVU, Fs, Ft);
 			mVUclamp1(mVU, Fs, t1, 8, true);
-		djmp.SetTarget();
+		xe_fwd_set8(djmp);
 
 		writeQreg(Fs, mVUinfo.writeQ);
 
@@ -1677,11 +1677,11 @@ static __fi void mVU_XGKICK_SYNC(mV, bool flush)
 	e_u8* skipxgkick; xe_fwd_jcc32(Jcc_Zero, skipxgkick);
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, mVUlow.kickcycles-1);
 	xe_cmp32_mi(&vuRegs[1].xgkickcyclecount, 2);
-	xForwardJL32 needcycles;
+	e_u8* needcycles; xe_fwd_jcc32(Jcc_Less, needcycles);
 	mVUbackupRegs(mVU, true, true);
 	xe_fastcall1_i(_vuXGKICKTransfermVU, flush);
 	mVUrestoreRegs(mVU, true, true);
-	needcycles.SetTarget();
+	xe_fwd_set32(needcycles);
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, 1);
 	xe_fwd_set32(skipxgkick);
 }
@@ -1784,32 +1784,32 @@ void condEvilBranch(mV, int JMPcc)
 		xe_mov32_mi(&mVU.badBranch, branchAddr(mVU));
 
 		xe_cmp8_ri(gprT1b.Id, 0);
-		xForwardJump8 cJMP((JccComparisonType)JMPcc);
+		e_u8* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
 			incPC(4); // Branch Not Taken Addr
 			xe_mov32_mi(&mVU.badBranch, xPC);
 			incPC(-4);
-		cJMP.SetTarget();
+		xe_fwd_set8(cJMP);
 		return;
 	}
 	if (isEvilBlock)
 	{
 		xe_mov32_mi(&mVU.evilevilBranch, branchAddr(mVU));
 		xe_cmp8_ri(gprT1b.Id, 0);
-		xForwardJump8 cJMP((JccComparisonType)JMPcc);
+		e_u8* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
 		xe_mov32_rm(gprT1.Id, &mVU.evilBranch); // Branch Not Taken
 		xe_add32_ri(gprT1.Id, 8); // We have already executed 1 instruction from the original branch
 		xe_mov32_mr(&mVU.evilevilBranch, gprT1.Id);
-		cJMP.SetTarget();
+		xe_fwd_set8(cJMP);
 	}
 	else
 	{
 		xe_mov32_mi(&mVU.evilBranch, branchAddr(mVU));
 		xe_cmp8_ri(gprT1b.Id, 0);
-		xForwardJump8 cJMP((JccComparisonType)JMPcc);
+		e_u8* cJMP; xe_fwd_jcc8((JccComparisonType)JMPcc, cJMP);
 		xe_mov32_rm(gprT1.Id, &mVU.badBranch); // Branch Not Taken
 		xe_add32_ri(gprT1.Id, 8); // We have already executed 1 instruction from the original branch
 		xe_mov32_mr(&mVU.evilBranch, gprT1.Id);
-		cJMP.SetTarget();
+		xe_fwd_set8(cJMP);
 		incPC(-2);
 		incPC(2);
 	}

@@ -196,7 +196,7 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 	else
 		xe_sub32_ri(XE_AX, 1); /* Running ahead, make sure cycles left are above 0 */
 
-	xForwardJNS32 skip;
+	e_u8* skip; xe_fwd_jcc32(Jcc_Unsigned, skip);
 
 	xe_lea_far(XE_AX, &mVUpBlock->pState);
 	xe_call_ptr(mVU.copyPLState);
@@ -205,7 +205,7 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 		xe_mov64_mi_s32(&vuRegs[mVU.index].nextBlockCycles, mVUcycles);
 	mVUendProgram(mVU, &mFC, 0);
 
-	skip.SetTarget();
+	xe_fwd_set32(skip);
 
 	xe_sub32_mi(&mVU.cycles, mVUcycles);
 }
@@ -247,7 +247,7 @@ static void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 		xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
 	else
 		xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x400 : 0x4));
-	xForwardJump32 eJMP(Jcc_Zero);
+	e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 	if (!isVU1 || !THREAD_VU1)
 	{
 		xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x200 : 0x2));
@@ -256,7 +256,7 @@ static void mVUDoDBit(microVU& mVU, microFlagCycles* mFC)
 	incPC(1);
 	mVUDTendProgram(mVU, mFC, 1);
 	incPC(-1);
-	eJMP.SetTarget();
+	xe_fwd_set32(eJMP);
 }
 
 static void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
@@ -265,7 +265,7 @@ static void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 		xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));
 	else
 		xe_test32_mi(&vuRegs[0].VI[REG_FBRST].UL, (isVU1 ? 0x800 : 0x8));
-	xForwardJump32 eJMP(Jcc_Zero);
+	e_u8* eJMP; xe_fwd_jcc32(Jcc_Zero, eJMP);
 	if (!isVU1 || !THREAD_VU1)
 	{
 		xe_or32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, (isVU1 ? 0x400 : 0x4));
@@ -275,7 +275,7 @@ static void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 	mVUDTendProgram(mVU, mFC, 1);
 	incPC(-1);
 
-	eJMP.SetTarget();
+	xe_fwd_set32(eJMP);
 }
 
 static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
