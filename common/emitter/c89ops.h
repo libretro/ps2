@@ -138,6 +138,9 @@
  * s8 narrowing to 0x83 and the AX short form; rm is the absolute-address
  * load form (op reg, [abs]). */
 #define xe_add32_ri(reg, imm)  do { XE_OPEN(); E_G1_RI(xep, 0, 0, (reg), (e_s32)(imm)); XE_CLOSE(); } while (0)
+#define xe_adc32_mi(addr, imm) do { XE_OPEN();  \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_I(xep, 4, 2, xm_, (e_s32)(imm)); }; XE_CLOSE(); } while (0)
 #define xe_adc32_ri(reg, imm)  do { XE_OPEN(); E_G1_RI(xep, 0, 2, (reg), (e_s32)(imm)); XE_CLOSE(); } while (0)
 #define xe_cmp32_ri(reg, imm)  do { XE_OPEN(); E_G1_RI(xep, 0, 7, (reg), (e_s32)(imm)); XE_CLOSE(); } while (0)
 #define xe_xor32_rr(dst, src)  do { XE_OPEN(); E_G1_RR(xep, 0, 6, (dst), (src)); XE_CLOSE(); } while (0)
@@ -382,8 +385,8 @@
 	EW8(xep, ((cc) == x86Emitter::Jcc_Unconditional) ? (e_u8)0xeb \
 	                                                 : (e_u8)(0x70 | (cc))); \
 	(slot) = xep; EW8(xep, 0); XE_CLOSE(); } while (0)
-/* The reference class asserted the displacement fit; the pair must too,
- * because a silent wrap here is exactly the FBRST class of bug: bytes that
+/* The reference emitter asserted the displacement fit; the pair must too,
+ * because a silent wrap here is exactly the FBRST family of bug: bytes that
  * look plausible and jump somewhere real. Trap hard at recompile time. */
 #define xe_fwd_set8(slot) do { XE_OPEN();  \
 	e_sptr xfd_ = (e_sptr)(xep - ((slot) + 1)); \

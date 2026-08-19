@@ -1,5 +1,5 @@
 #include "common/emitter/x86emitter.h"
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 #include "common/emitter/legacy_instructions.h"
 #include <cstdio>
 #include <cstring>

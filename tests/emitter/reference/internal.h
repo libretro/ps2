@@ -19,8 +19,8 @@
 #define PCSX2_C89_KEEP_FWDJUMP
 #define PCSX2_C89_KEEP_TYPES /* the object world stays for the reference build */
 
-#include "common/emitter/x86types.h"
-#include "common/emitter/instructions.h"
+#include "tests/emitter/reference/x86types.h"
+#include "tests/emitter/reference/instructions.h"
 
 // The xImpl_* struct declarations. x86types.h includes these only for the
 // reference (default) configuration; this file is reference-only, so it

@@ -50,7 +50,7 @@ typedef char e_sptr_fits_a_pointer[(sizeof(e_sptr) == sizeof(void *)) ? 1 : -1];
 
 /* Fired when a forward jump's 8-bit displacement would not fit. Emitting a
  * wrapped displacement silently corrupts the following instruction (see the
- * FBRST incident); the reference class asserted here. Deterministic trap,
+ * FBRST incident); the reference emitter asserted here. Deterministic trap,
  * no libc dependency, pure C89. */
 #define E_FWD_OVERFLOW_TRAP() do { \
 	volatile int* e_fwd_null_ = (volatile int*)0; *e_fwd_null_ = 0; } while (0)

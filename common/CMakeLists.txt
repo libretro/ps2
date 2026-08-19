@@ -80,10 +80,8 @@ target_sources(common PRIVATE
 	emitter/c89compat.h
 	emitter/c89emit.h
 	emitter/c89ops.h
-	emitter/instructions.h
 	emitter/legacy_instructions.h
 	emitter/x86emitter.h
-	emitter/x86emitter_shim.h
 	emitter/x86types.h
 )
 

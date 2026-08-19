@@ -4,7 +4,7 @@
  * struct declares PS, SS, SD, and trusting the comment generated a call to the
  * wrong member. Order is authoritative; comments are documentation. */
 #include "common/emitter/x86emitter.h"
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 #include <cstdio>
 #include <cstring>
 #include <sys/mman.h>

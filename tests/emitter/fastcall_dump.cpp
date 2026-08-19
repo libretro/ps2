@@ -1,6 +1,6 @@
 #include "common/emitter/x86emitter.h"
 #ifdef USE_SHIM
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 #endif
 #include <cstdio>
 #include <sys/mman.h>

@@ -101,8 +101,8 @@ struct microProfiler
 	}
 	void EmitOp(microOpcode op)
 	{
-		xADD(ptr32[&(((u32*)opStats)[op * 2 + 0])], 1);
-		xADC(ptr32[&(((u32*)opStats)[op * 2 + 1])], 0);
+		xe_add32_mi(&(((u32*)opStats)[op * 2 + 0]), 1);
+		xe_adc32_mi(&(((u32*)opStats)[op * 2 + 1]), 0);
 	}
 	void Print()
 	{

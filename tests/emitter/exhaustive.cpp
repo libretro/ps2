@@ -5,7 +5,7 @@
  * carry the 0x10 REX marker), every addressing shape, every scale, and
  * immediates on both sides of the s8 boundary. */
 #include "common/emitter/x86emitter.h"
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 #include <cstdio>
 #include <cstring>
 #include <sys/mman.h>

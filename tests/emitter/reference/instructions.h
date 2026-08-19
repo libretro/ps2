@@ -121,7 +121,7 @@
 // Ahead of the namespace so a binding can sit next to the declaration it
 // replaces. mov's has to: the xImm64Op template below names xMOV64, and a
 // non-dependent name must be declared before the template body.
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 #endif
 
 namespace x86Emitter
@@ -1190,7 +1190,7 @@ namespace x86Emitter
 // declarations, so this block needs one of its own.
 #if defined(PCSX2_C89_EMITTER) && !defined(PCSX2_C89_EMITTER_BOUND)
 #define PCSX2_C89_EMITTER_BOUND 1
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 
 namespace x86Emitter
 {

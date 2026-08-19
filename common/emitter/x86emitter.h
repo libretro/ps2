@@ -33,7 +33,7 @@
 // To use it just include the x86Emitter namespace into your file/class/function off choice.
 //
 // This header file is intended for use by public code.  It includes the appropriate
-// inlines and class definitions for efficient codegen.  (code internal to the emitter
+// inlines and macro definitions for efficient codegen.  (code internal to the emitter
 // should usually use ix86_internal.h instead, and manually include the
 // ix86_inlines.inl file when it is known that inlining of ModSib functions are
 // wanted).
@@ -43,18 +43,13 @@
 
 #include "x86types.h"
 
-#ifdef PCSX2_C89_EMITTER
-/* The instruction veneer and the shim are out of the compiled include
- * chain: every recompiler emits through c89ops.h, and the few C++-spelled
- * survivors (forward-jump typedefs, xInvertCond, the address helpers)
- * live in c89compat.h with C89-backed bodies. instructions.h and
- * x86emitter_shim.h remain in the tree for the byte suites, which
- * include them explicitly. */
+/* Every recompiler emits through c89ops.h; the few C++-spelled survivors
+ * (forward-jump typedefs, xInvertCond) live in c89compat.h with C89-backed
+ * bodies. The reference emitter -- the instruction veneer, the shim, and
+ * the object type system -- lives under tests/emitter/reference/ and is
+ * compiled only by the byte suites, which include it explicitly. */
 #include "c89compat.h"
 #include "c89ops.h"
-#else
-#include "instructions.h"
-#endif
 
 // Legacy static helpers; their bodies emit through the C89 core directly.
 #include "legacy_instructions.h"

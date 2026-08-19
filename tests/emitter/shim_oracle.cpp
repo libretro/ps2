@@ -3,7 +3,7 @@
  * bridging (operand-type mapping, cursor store-back, width selection) is
  * verified too and not just the encoders underneath it. */
 #include "common/emitter/x86emitter.h"
-#include "common/emitter/x86emitter_shim.h"
+#include "tests/emitter/reference/x86emitter_shim.h"
 #include <cstdio>
 #include <cstring>
 #include <vector>
