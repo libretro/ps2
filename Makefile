@@ -853,9 +853,6 @@ endif
 # converted site, runtime-selected by PCSX2_XE_CPP=1, for the emission-hash
 # oracle. Roughly +40% text and real compile time in the recompiler TUs;
 # verification workflow only, never release.
-ifeq ($(XE_AB), 1)
-   CXXFLAGS += -DPCSX2_XE_AB
-endif
 
 LDFLAGS += $(fpic) $(SHARED)
 # Opt-in EE recompiler profiling. Off by default and entirely inside
