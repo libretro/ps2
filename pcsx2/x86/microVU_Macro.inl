@@ -405,7 +405,7 @@ static void TEST_FBRST_RESET(int flagreg, void(*resetFunct)(), int vuIndex)
 	xe_test32_ri(flagreg, (vuIndex) ? 0x200 : 0x002);
 	e_u8* skip; xe_fwd_jcc8(Jcc_Zero, skip);
 	xe_fastcall0(resetFunct);
-	xe_fwd_set32(skip);
+	xe_fwd_set8(skip);
 }
 
 static void recCFC2(void)
