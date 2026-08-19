@@ -1401,4 +1401,49 @@ extern "C" void xe_shadow_check(const void* at, const void* end,
 #define xe_fwd_set32(slot) XE_2( \
 	{ *(e_s32*)(slot) = (e_s32)(xep - ((slot) + 4)); }, \
 	{ *(s32*)(slot) = (s32)((u8*)x86Ptr - ((u8*)(slot) + 4)); })
+
+/* microVU_Lower vocabulary */
+#define xe_mulss_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x59, (x), xm_); }, \
+	x86Emitter::xMUL.SS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_addss_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x58, (x), xm_); }, \
+	x86Emitter::xADD.SS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_subss_xm(x, addr)  XE_2({ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	E_SSE_R_MEM(xep, 0xf3, 0x5c, (x), xm_); }, \
+	x86Emitter::xSUB.SS(x86Emitter::xRegisterSSE(x), x86Emitter::ptr32[(void*)(addr)]))
+#define xe_ptest_xx(a, b) XE_2(E_SSE_RR(xep, 0x66, 0x1738, (a), (b)), \
+	x86Emitter::xPTEST(x86Emitter::xRegisterSSE(a), x86Emitter::xRegisterSSE(b)))
+#define xe_dpps_xxi(d, s2, i) XE_2(E_SSE_RRI(xep, 0x66, 0x403a, (d), (s2), (i)), \
+	x86Emitter::xDP.PS(x86Emitter::xRegisterSSE(d), x86Emitter::xRegisterSSE(s2), (i)))
+#define xe_inc32_r(reg) XE_2(E_INCDEC_R_SZ(xep, 4, 0, (reg)), \
+	x86Emitter::xINC(x86Emitter::xRegister32(reg)))
+#define xe_movsx32_rr16(dst, src) XE_2( \
+	{ E_REX(xep, 0, (dst), 0, (src)); EW8(xep, 0x0f); EW8(xep, 0xbf); \
+	  E_MODRM_RR(xep, (dst), (src)); }, \
+	x86Emitter::xMOVSX(x86Emitter::xRegister32(dst), x86Emitter::xRegister16(src)))
+
+#define xe_cmp8_ri(reg, imm) XE_2( \
+	{ E_REX8_RM(xep, (reg)); \
+	  if ((reg) == 0) { EW8(xep, 0x3c); } \
+	  else { EW8(xep, 0x80); E_MODRM_RR(xep, 7, (reg)); } \
+	  EW8(xep, (e_u8)(imm)); }, \
+	x86Emitter::xCMP(x86Emitter::xRegister8(reg), (u8)(imm)))
+#define xe_xor32_mr(addr, reg) XE_2( \
+	{ struct e_mem xm_; XE_MEM_ABS(xm_, addr); \
+	  E_G1_MEM_R_SZ(xep, 4, 6, (reg), xm_); }, \
+	x86Emitter::xXOR(x86Emitter::ptr32[(void*)(addr)], x86Emitter::xRegister32(reg)))
+#define xe_movzx32_rmemg16(dst, m) XE_2( \
+	{ E_REX_MEM(xep, 0, (dst), (m)); EW8(xep, 0x0f); EW8(xep, 0xb7); \
+	  E_MODRM_MEM(xep, (dst), (m), 0); }, \
+	x86Emitter::xMOVZX(x86Emitter::xRegister32(dst), x86Emitter::ptr16[XE_MEM_TO_ADDR(m)]))
+
+/* mov [xAddressVoid + off], r32 -- the ISW/ISWR store lanes carry an
+ * address OBJECT (optaddr or a complexaddr result); route through
+ * XE_MEM_XAV like the other object-operand forms. */
+#define xe_mov32_memavr(av, off, reg) XE_2( \
+	{ struct e_mem xm_; XE_MEM_XAV(xm_, av, off); \
+	  E_REX_MEM(xep, 0, (reg), xm_); EW8(xep, 0x89); \
+	  E_MODRM_MEM(xep, (reg), xm_, 0); }, \
+	x86Emitter::xMOV(x86Emitter::ptr32[(av) + (sptr)(off)], x86Emitter::xRegister32(reg)))
 #endif /* PCSX2_C89OPS_H */
