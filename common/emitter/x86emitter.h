@@ -64,35 +64,24 @@
 // All x86-64 calling conventions ensure/require stack to be 16 bytes aligned
 // I couldn't find documentation on when, but compilers would indicate it's before the call: https://gcc.godbolt.org/z/KzTfsz
 
+/* Shadow space and the two extra callee-saved registers are the only
+ * Win64/SysV differences; the shared skeleton lives once and the
+ * platform inserts its extra chunk at the marked points. */
 #ifdef _WIN32
-#define SCOPED_STACK_FRAME_BEGIN(m_offset) \
-	(m_offset) = sizeof(void*); \
-	xe_push64_r(5); \
-	(m_offset) += sizeof(void*); \
-	xe_push64_r(3); \
-	xe_push64_r(12); \
-	xe_push64_r(13); \
-	xe_push64_r(14); \
-	xe_push64_r(15); \
-	m_offset += 40; \
+#define SCOPED_STACK_FRAME_WIN_BEGIN(m_offset) \
 	xe_push64_r(7); \
 	xe_push64_r(6); \
 	xe_sub64_ri(4, 32); \
-	m_offset += 48; \
-	xe_add64_ri(4, (-((16 - ((m_offset) % 16)) % 16)))
-
-#define SCOPED_STACK_FRAME_END(m_offset) \
-	xe_add64_ri(4, ((16 - ((m_offset) % 16)) % 16)); \
+	(m_offset) += 48;
+#define SCOPED_STACK_FRAME_WIN_END() \
 	xe_add64_ri(4, 32); \
 	xe_pop64_r(6); \
-	xe_pop64_r(7); \
-	xe_pop64_r(15); \
-	xe_pop64_r(14); \
-	xe_pop64_r(13); \
-	xe_pop64_r(12); \
-	xe_pop64_r(3); \
-	xe_pop64_r(5)
+	xe_pop64_r(7);
 #else
+#define SCOPED_STACK_FRAME_WIN_BEGIN(m_offset)
+#define SCOPED_STACK_FRAME_WIN_END()
+#endif
+
 #define SCOPED_STACK_FRAME_BEGIN(m_offset) \
 	(m_offset) = sizeof(void*); \
 	xe_push64_r(5); \
@@ -102,15 +91,16 @@
 	xe_push64_r(13); \
 	xe_push64_r(14); \
 	xe_push64_r(15); \
-	m_offset += 40; \
+	(m_offset) += 40; \
+	SCOPED_STACK_FRAME_WIN_BEGIN(m_offset) \
 	xe_add64_ri(4, (-((16 - ((m_offset) % 16)) % 16)))
 
 #define SCOPED_STACK_FRAME_END(m_offset) \
 	xe_add64_ri(4, ((16 - ((m_offset) % 16)) % 16)); \
+	SCOPED_STACK_FRAME_WIN_END() \
 	xe_pop64_r(15); \
 	xe_pop64_r(14); \
 	xe_pop64_r(13); \
 	xe_pop64_r(12); \
 	xe_pop64_r(3); \
 	xe_pop64_r(5)
-#endif
