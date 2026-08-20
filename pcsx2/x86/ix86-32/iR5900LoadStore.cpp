@@ -29,16 +29,13 @@ static int RETURN_READ_IN_RAX(void)
 	return 0; /* rax */
 }
 
-namespace R5900::Dynarec::OpcodeImpl
-{
-
 /*********************************************************
 * Load and store for GPR                                 *
 * Format:  OP rt, offset(base)                           *
 *********************************************************/
 #ifndef LOADSTORE_RECOMPILE
 
-namespace Interp = R5900::Interpreter::OpcodeImpl;
+namespace Interp = ::R5900::Interpreter::OpcodeImpl;
 
 REC_FUNC_DEL(LB, _Rt_);
 REC_FUNC_DEL(LBU, _Rt_);
@@ -68,7 +65,7 @@ REC_FUNC(SQC2);
 
 #else
 
-using namespace Interpreter::OpcodeImpl;
+using namespace ::R5900::Interpreter::OpcodeImpl;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -973,4 +970,3 @@ void recSWC1(void)
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

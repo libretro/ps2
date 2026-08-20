@@ -20,9 +20,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
-
 /*********************************************************
 * Jump to target                                         *
 * Format:  OP target                                     *
@@ -156,4 +153,3 @@ void recJALR(void)
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

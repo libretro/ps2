@@ -20,9 +20,6 @@
 * Format:  OP rd, rs, rt                                 *
 *********************************************************/
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
 
 	void recADD();
 	void recADDU();
@@ -39,6 +36,3 @@ namespace OpcodeImpl {
 	void recSLT();
 	void recSLTU();
 
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

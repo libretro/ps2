@@ -45,10 +45,6 @@ using namespace x86Emitter;
 #ifdef FPU_RECOMPILE
 
 //------------------------------------------------------------------
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
-namespace COP1 {
 
 namespace DOUBLE {
 
@@ -975,9 +971,5 @@ void recRSQRT_S_xmm(int info)
 FPURECOMPILE_CONSTCODE(RSQRT_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 
-} // namespace DOUBLE
-} // namespace COP1
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900
 #endif
+} // namespace DOUBLE

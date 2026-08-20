@@ -20,8 +20,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
 /*********************************************************
 * Register branch logic                                  *
 * Format:  OP rs, rt, offset                             *
@@ -819,4 +817,3 @@ void recBGTZL(void)
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

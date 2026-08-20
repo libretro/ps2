@@ -27,10 +27,6 @@ alignas(16) const u32 g_minvals[4] = {0xff7fffff, 0xff7fffff, 0xff7fffff, 0xff7f
 alignas(16) const u32 g_maxvals[4] = {0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7fffff};
 
 //------------------------------------------------------------------
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
-namespace COP1 {
 
 namespace DOUBLE
 {
@@ -1803,7 +1799,3 @@ FPURECOMPILE_CONSTCODE(RSQRT_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 #endif // FPU_RECOMPILE
 
-} // namespace COP1
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

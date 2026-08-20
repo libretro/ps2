@@ -17,7 +17,7 @@
 #include "Memory.h"
 #include "Config.h"
 
-using namespace R5900;
+
 
 // This should be moved to analysis...
 extern int cop2flags(u32 code);
@@ -33,7 +33,7 @@ extern int cop2flags(u32 code);
  * last fetched instruction. That behavior is preserved exactly; do not
  * "fix" it without a byte gate. */
 
-void R5900::COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
+void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
 	bool status_denormalized  = false;
 	EEINST* last_status_write = nullptr;
@@ -191,7 +191,7 @@ void R5900::COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		last_clip_write->info |= EEINST_COP2_CLIP_FLAG;
 }
 
-void R5900::COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
+void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
 	bool needs_vu0_sync    = true;
 	bool needs_vu0_finish  = true;

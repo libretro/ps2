@@ -21,8 +21,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
 /*********************************************************
 * Register arithmetic                                    *
 * Format:  OP rd, rs, rt                                 *
@@ -674,4 +672,3 @@ EERECOMPILE_CODERC0(SLTU, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMIN
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

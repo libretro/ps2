@@ -20,15 +20,9 @@
 * Format:  OP rs, rt                                     *
 *********************************************************/
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
 
 	void recMULT();
 	void recMULTU();
 	void recDIV();
 	void recDIVU();
 
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

@@ -20,9 +20,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
-
 /*********************************************************
 * Shift arithmetic with constant shift                   *
 * Format:  OP rd, rt, sa                                 *
@@ -415,4 +412,3 @@ EERECOMPILE_CODERC0(DSRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMI
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

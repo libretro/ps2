@@ -79,13 +79,7 @@ void recBranchCall(void (*func)(void));
 void recCall(void (*func)(void));
 u32 scaleblockcycles_clear(void);
 
-namespace R5900
-{
-	namespace Dynarec
-	{
 		extern void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely = false, bool swappedDelaySlot = false);
-	} // namespace Dynarec
-} // namespace R5900
 
 ////////////////////////////////////////////////////////////////////
 // Constant Propagation - From here to the end of the header!

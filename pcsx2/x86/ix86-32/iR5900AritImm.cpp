@@ -21,8 +21,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
 /*********************************************************
 * Arithmetic with immediate operand                      *
 * Format:  OP rt, rs, immediate                          *
@@ -229,4 +227,3 @@ EERECOMPILE_CODEX(eeRecompileCodeRC1, XORI, XMMINFO_WRITET | XMMINFO_READS | XMM
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

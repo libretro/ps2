@@ -20,9 +20,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
-
 /*********************************************************
 * Shift arithmetic with constant shift                   *
 * Format:  OP rd, rt, sa                                 *
@@ -354,4 +351,3 @@ void recMOVN(void)
 
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

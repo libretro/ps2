@@ -20,9 +20,6 @@
 *********************************************************/
 #pragma once
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
 
 	// These are instructions contained the MMI "opcode space" but are not
 	// actually MMI instructions.  They are just specialized versions of standard
@@ -42,7 +39,6 @@ namespace OpcodeImpl {
 	void recDIV1();
 	void recDIVU1();
 
-namespace MMI {
 
 	void recPLZCW();
 	void recMMI0();
@@ -137,7 +133,3 @@ namespace MMI {
 	void recPOR();
 	void recPCPYH();
 
-} // namespace MMI
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

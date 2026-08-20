@@ -20,8 +20,6 @@
 
 using namespace x86Emitter;
 
-namespace R5900 {
-namespace Dynarec {
 
 // R5900 branch helper!
 // Recompiles code for a branch test and/or skip, complete with delay slot
@@ -63,7 +61,6 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, bool isLikely, bool swappedDelay
 	SetBranchImm(pc); // start a new recompiled block.
 }
 
-namespace OpcodeImpl {
 
 void recPREF()
 {
@@ -264,6 +261,3 @@ void recTEQI() { recTrap(Jcc_NotEqual,       true,  false); }
 
 void recTNEI() { recTrap(Jcc_Equal,          true,  false); }
 
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

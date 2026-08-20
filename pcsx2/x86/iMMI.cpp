@@ -34,10 +34,6 @@ using namespace x86Emitter;
 
 namespace Interp = R5900::Interpreter::OpcodeImpl::MMI;
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
-namespace MMI {
 
 #ifndef MMI_RECOMPILE
 
@@ -3121,7 +3117,3 @@ void recPCPYH(void)
 
 #endif // else MMI3_RECOMPILE
 
-} // namespace MMI
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

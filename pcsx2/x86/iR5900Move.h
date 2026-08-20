@@ -15,9 +15,6 @@
 
 #pragma once
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
 
 	void recLUI();
 	void recMFLO();
@@ -27,6 +24,3 @@ namespace OpcodeImpl {
 	void recMOVN();
 	void recMOVZ();
 
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

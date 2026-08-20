@@ -24,7 +24,6 @@ static VURegs& vu0Regs = vuRegs[0];
 // Macro VU - Helper Macros / Functions
 //------------------------------------------------------------------
 
-using namespace R5900::Dynarec;
 
 // For now, we need to free all XMMs. Because we're not saving the nonvolatile registers when
 // we enter micro mode, they will get overriden otherwise...
@@ -785,9 +784,6 @@ void (*recCOP2SPECIAL2t[128])() = {
 	rec_C2UNK,  rec_C2UNK, rec_C2UNK,  rec_C2UNK,  rec_C2UNK,  rec_C2UNK,  rec_C2UNK,  rec_C2UNK,
 };
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
 void recCOP2(void) { recCOP2t[_Rs_](); }
 
 #if defined(LOADSTORE_RECOMPILE) && defined(CP2_RECOMPILE)
@@ -873,9 +869,6 @@ REC_FUNC(SQC2);
 
 #endif
 
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900
 void recCOP2_BC2(void) { recCOP2_BC2t[_Rt_](); }
 void recCOP2_SPEC1(void)
 {

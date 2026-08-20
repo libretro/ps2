@@ -18,12 +18,9 @@
 #include "iR5900.h"
 #include "iCore.h"
 
-namespace R5900
-{
 	/* Block-analysis passes, C89 shape: free functions, stack state.
 	 * Both scan [start, end) with inst_cache aligned to start. */
 	void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache);
 	void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache);
-} // namespace R5900
 
 void recBackpropBSC(u32 code, EEINST* prev, EEINST* pinst);

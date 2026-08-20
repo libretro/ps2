@@ -22,9 +22,6 @@ using namespace x86Emitter;
 
 namespace Interp = R5900::Interpreter::OpcodeImpl;
 
-namespace R5900::Dynarec::OpcodeImpl
-{
-
 /*********************************************************
 * Register mult/div & Register trap logic                *
 * Format:  OP rs, rt                                     *
@@ -699,4 +696,3 @@ void recMADDU1()
 }
 #endif
 
-} // namespace R5900::Dynarec::OpcodeImpl

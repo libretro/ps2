@@ -29,10 +29,6 @@
 namespace Interp = R5900::Interpreter::OpcodeImpl::COP0;
 using namespace x86Emitter;
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
-namespace COP0 {
 
 /*********************************************************
 *   COP0 opcodes                                         *
@@ -525,7 +521,3 @@ void recMTC0()
 }
 #endif
 
-} // namespace COP0
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

@@ -88,44 +88,39 @@ void COP2_Unknown();
 #define IS_LEFT         0x00080000
 #define IS_RIGHT        0x00100000
 
+/* Dynarec opcode handlers: plain global names; the R5900::Dynarec::
+ * OpcodeImpl namespaces are gone from the recompiler sources. */
+void recNULL(void);
+void recUnknown(void);
+void recMMI_Unknown(void);
+void recCOP0_Unknown(void);
+void recCOP1_Unknown(void);
+void recCOP2(void);
+void recCACHE(void);
+void recPREF(void);
+void recSYSCALL(void);
+void recBREAK(void);
+void recSYNC(void);
+void recMFSA(void);
+void recMTSA(void);
+void recMTSAB(void);
+void recMTSAH(void);
+void recTGE(void);
+void recTGEU(void);
+void recTLT(void);
+void recTLTU(void);
+void recTEQ(void);
+void recTNE(void);
+void recTGEI(void);
+void recTGEIU(void);
+void recTLTI(void);
+void recTLTIU(void);
+void recTEQI(void);
+void recTNEI(void);
+
 namespace R5900
 {
-	namespace Dynarec {
-	namespace OpcodeImpl
-	{
-		void recNULL();
-		void recUnknown();
-		void recMMI_Unknown();
-		void recCOP0_Unknown();
-		void recCOP1_Unknown();
 
-		void recCOP2();
-
-		void recCACHE();
-		void recPREF();
-		void recSYSCALL();
-		void recBREAK();
-		void recSYNC();
-
-		void recMFSA();
-		void recMTSA();
-		void recMTSAB();
-		void recMTSAH();
-
-		void recTGE();
-		void recTGEU();
-		void recTLT();
-		void recTLTU();
-		void recTEQ();
-		void recTNE();
-		void recTGEI();
-		void recTGEIU();
-		void recTLTI();
-		void recTLTIU();
-		void recTEQI();
-		void recTNEI();
-
-	} }
 
 	///////////////////////////////////////////////////////////////////////////
 	// Encapsulates information about every opcode on the Emotion Engine and

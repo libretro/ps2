@@ -740,7 +740,7 @@ static void recExecute(void)
 }
 
 ////////////////////////////////////////////////////
-void R5900::Dynarec::OpcodeImpl::recSYSCALL(void)
+void recSYSCALL(void)
 {
 	if (GPR_IS_CONST1(3))
 	{
@@ -758,7 +758,7 @@ void R5900::Dynarec::OpcodeImpl::recSYSCALL(void)
 }
 
 ////////////////////////////////////////////////////
-void R5900::Dynarec::OpcodeImpl::recBREAK(void)
+void recBREAK(void)
 {
 	recCall(R5900::Interpreter::OpcodeImpl::BREAK);
 	g_branch = 2; // Indirect branch with event check.

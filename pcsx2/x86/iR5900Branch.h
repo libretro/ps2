@@ -20,9 +20,6 @@
 * Format:  OP rd, rt, sa                                 *
 *********************************************************/
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
 
 	void recBEQ();
 	void recBEQL();
@@ -41,6 +38,3 @@ namespace OpcodeImpl {
 	void recBGEZAL();
 	void recBGEZALL();
 
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900

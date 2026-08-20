@@ -18,10 +18,6 @@
 alignas(16) extern const u32 g_minvals[4];
 alignas(16) extern const u32 g_maxvals[4];
 
-namespace R5900 {
-namespace Dynarec {
-namespace OpcodeImpl {
-namespace COP1 {
 
 	void recMFC1();
 	void recCFC1();
@@ -59,7 +55,3 @@ namespace COP1 {
 	void recBC1FL();
 	void recBC1TL();
 
-} // namespace COP1
-} // namespace OpcodeImpl
-} // namespace Dynarec
-} // namespace R5900
