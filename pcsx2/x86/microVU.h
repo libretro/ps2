@@ -51,7 +51,7 @@ struct microVU
 	microProgManager               prog;     // Micro Program Data
 	struct microRegAlloc* regAlloc; // Reg Alloc state
 
-	RecompiledCodeReserve* cache_reserve;
+	struct CodeReserve* cache_reserve;
 	u8* cache;        // Dynarec Cache Start (where we will start writing the recompiled code to)
 	u8* dispCache;    // Dispatchers Cache (where startFunct and exitFunct are written to)
 	u8* startFunct;   // Function Ptr to the recompiler dispatcher (start)

@@ -311,6 +311,62 @@ static void CheckRipRelativeReach(const char* what, const u8* base, size_t size)
 	              what, (void*)lo, (void*)hi, (void*)anchor);
 }
 
+void code_reserve_init(struct CodeReserve* r)
+{
+	r->baseptr   = NULL;
+	r->size      = 0;
+	r->allocator = NULL;
+}
+
+void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManagerPtr& allocator, size_t offset, size_t size)
+{
+	u8* base;
+
+	/* Anything passed to the memory allocator must be page aligned. */
+	size = Common::PageAlign(size);
+
+	/* Since the memory has already been allocated as part of the main memory
+	 * map, this should never fail. */
+	base = allocator->Alloc(offset, size);
+	if (!base)
+		Console.Error("(CodeReserve) Failed to allocate %zu bytes at offset %zu", size, offset);
+	else
+		CheckRipRelativeReach("CodeReserve", base, size);
+
+	r->baseptr   = base;
+	r->size      = size;
+	r->allocator = allocator.get();
+}
+
+void code_reserve_release(struct CodeReserve* r)
+{
+	if (!r->baseptr)
+		return;
+
+	r->allocator->Free(r->baseptr, r->size);
+	r->baseptr   = NULL;
+	r->size      = 0;
+	r->allocator = NULL;
+}
+
+void code_reserve_allow_modification(struct CodeReserve* r)
+{
+	PageProtectionMode pg;
+	pg.m_read  = true;
+	pg.m_exec  = true;
+	pg.m_write = true;
+	HostSys::MemProtect(r->baseptr, r->size, pg);
+}
+
+void code_reserve_forbid_modification(struct CodeReserve* r)
+{
+	PageProtectionMode pg;
+	pg.m_read  = true;
+	pg.m_exec  = true;
+	pg.m_write = false;
+	HostSys::MemProtect(r->baseptr, r->size, pg);
+}
+
 void RecompiledCodeReserve::Assign(VirtualMemoryManagerPtr allocator, size_t offset, size_t size)
 {
 	// Anything passed to the memory allocator must be page aligned.

@@ -17,7 +17,8 @@
 #include "common/emitter/c89ops.h"
 
 //alignas(__pagesize) static u8 nVifUpkExec[__pagesize*4];
-static RecompiledCodeReserve* nVifUpkExec = NULL;
+static struct CodeReserve nVifUpkExec;
+static int nVifUpkAssigned = 0;
 
 extern void VifUnpackSSE_doMaskWrite_Dynarec(const struct VifUnpackSSE* p, int regX);
 
@@ -365,23 +366,24 @@ static void nVifGen(int usn, int mask, int curCycle)
 
 void VifUnpackSSE_Init(void)
 {
-	if (nVifUpkExec)
+	if (nVifUpkAssigned)
 		return;
 
-	nVifUpkExec = new RecompiledCodeReserve();
-	nVifUpkExec->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
-	xSetPtr(*nVifUpkExec);
+	code_reserve_init(&nVifUpkExec);
+	nVifUpkAssigned = 1;
+	code_reserve_assign(&nVifUpkExec, GetVmMemory().CodeMemory(), HostMemoryMap::VIFUnpackRecOffset, _1mb);
+	xSetPtr(nVifUpkExec.baseptr);
 
 	for (int a = 0; a < 2; a++)
 		for (int b = 0; b < 2; b++)
 			for (int c = 0; c < 4; c++)
 				nVifGen(a, b, c);
 
-	nVifUpkExec->ForbidModification();
+	code_reserve_forbid_modification(&nVifUpkExec);
 }
 
 void VifUnpackSSE_Destroy(void)
 {
-	delete nVifUpkExec;
-	nVifUpkExec = NULL;
+	code_reserve_release(&nVifUpkExec);
+	nVifUpkAssigned = 0;
 }

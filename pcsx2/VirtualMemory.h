@@ -129,12 +129,36 @@ public:
 	}
 };
 
-// --------------------------------------------------------------------------------------
-//  RecompiledCodeReserve
-// --------------------------------------------------------------------------------------
-// A recompiled code reserve is a simple sequential-growth block of memory which is auto-
-// cleared to INT 3 (0xcc) as needed.
-//
+/* --------------------------------------------------------------------------
+ *  Code reserve
+ * --------------------------------------------------------------------------
+ * A recompiled-code reserve is a sequential-growth block of executable memory
+ * carved out of the main code map. C89 shape: a plain struct plus functions.
+ * It added no state of its own over VirtualMemoryReserve -- only the Assign
+ * that resolves an offset into the code map, and the two MemProtect helpers --
+ * so it does not need to derive from anything.
+ *
+ * The manager pointer is held as a raw pointer rather than the shared_ptr the
+ * C++ reserve kept: every code reserve is owned by a recompiler that is torn
+ * down before the VM's memory map, so the reserve never outlives its manager.
+ * code_reserve_release still calls Free through it, exactly as the old
+ * destructor did.
+ */
+struct CodeReserve
+{
+	u8*    baseptr;
+	size_t size;
+	const VirtualMemoryManager* allocator;
+};
+
+void code_reserve_init(struct CodeReserve* r);
+void code_reserve_assign(struct CodeReserve* r, const VirtualMemoryManagerPtr& allocator, size_t offset, size_t size);
+void code_reserve_release(struct CodeReserve* r);
+void code_reserve_allow_modification(struct CodeReserve* r);
+void code_reserve_forbid_modification(struct CodeReserve* r);
+
+/* The GS software JIT keeps the C++ reserve: GSCodeReserve derives from it and
+ * the GS code map is not part of this conversion. */
 class RecompiledCodeReserve : public VirtualMemoryReserve
 {
 	typedef VirtualMemoryReserve _parent;

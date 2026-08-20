@@ -50,7 +50,8 @@ u32 psxhwLUT[0x10000];
 
 static __fi u32 HWADDR(u32 mem) { return psxhwLUT[mem >> 16] + mem; }
 
-static RecompiledCodeReserve* recMem = NULL;
+static struct CodeReserve recMem;
+static int recMemAssigned = 0;
 
 static BASEBLOCK* recRAM = NULL; // and the ptr to the blocks here
 static BASEBLOCK* recROM = NULL; // and here
@@ -780,12 +781,13 @@ static const uint m_recBlockAllocSize =
 
 static void recReserve(void)
 {
-	if (recMem)
+	if (recMemAssigned)
 		return;
 
 	/* R3000A Recompiler Cache */
-	recMem = new RecompiledCodeReserve();
-	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
+	code_reserve_init(&recMem);
+	recMemAssigned = 1;
+	code_reserve_assign(&recMem, GetVmMemory().CodeMemory(), HostMemoryMap::IOPrecOffset, 32 * _1mb);
 }
 
 static void recAlloc(void)
@@ -821,7 +823,7 @@ static void recAlloc(void)
 void recResetIOP(void)
 {
 	recAlloc();
-	recMem->Reset();
+	/* code reserves have no reset state */
 
 	iopClearRecLUT((BASEBLOCK*)m_recBlockAlloc,
 		(((Ps2MemSize::IopRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) / 4)));
@@ -871,14 +873,14 @@ void recResetIOP(void)
 	BaseBlocks_Reset(&recBlocks);
 	g_psxMaxRecMem = 0;
 
-	recPtr = *recMem;
+	recPtr = recMem.baseptr;
 	psxbranch = 0;
 }
 
 static void recShutdown(void)
 {
-	delete recMem;
-	recMem = NULL;
+	code_reserve_release(&recMem);
+	recMemAssigned = 0;
 
 	safe_aligned_free(m_recBlockAlloc);
 
@@ -1174,7 +1176,7 @@ static void iopRecRecompile(const u32 startpc)
 	}
 
 	// if recPtr reached the mem limit reset whole mem
-	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
+	if (recPtr >= ((recMem.baseptr + recMem.size) - _64kb))
 	{
 		recResetIOP();
 	}

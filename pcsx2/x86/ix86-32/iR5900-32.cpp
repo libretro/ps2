@@ -70,7 +70,8 @@ int g_cpuFlushedPC, g_cpuFlushedCode, g_recompilingDelaySlot, g_maySignalExcepti
 
 #define X86
 
-static RecompiledCodeReserve* recMem = NULL;
+static struct CodeReserve recMem;
+static int recMemAssigned = 0;
 static u8* recRAMCopy = NULL;
 static u8* recLutReserve_RAM = NULL;
 static const size_t recLutSize = (Ps2MemSize::MainRam + Ps2MemSize::Rom + Ps2MemSize::Rom1 + Ps2MemSize::Rom2) * XE_WORDSIZE / 4;
@@ -551,12 +552,13 @@ static __ri void ClearRecLUT(BASEBLOCK* base, int count)
 
 static void recReserve(void)
 {
-	if (recMem)
+	if (recMemAssigned)
 		return;
 
 	/* R5900 Recompiler Cache */
-	recMem = new RecompiledCodeReserve();
-	recMem->Assign(GetVmMemory().CodeMemory(), HostMemoryMap::EErecOffset, 64 * _1mb);
+	code_reserve_init(&recMem);
+	recMemAssigned = 1;
+	code_reserve_assign(&recMem, GetVmMemory().CodeMemory(), HostMemoryMap::EErecOffset, 64 * _1mb);
 }
 
 static void recAlloc(void)
@@ -632,7 +634,7 @@ static void recResetRaw(void)
 #endif
 	recAlloc();
 
-	recMem->Reset();
+	/* code reserves have no reset state */
 	_DynGen_Dispatchers();
 	vtlb_DynGenDispatchers();
 	ClearRecLUT((BASEBLOCK*)recLutReserve_RAM, recLutSize / sizeof(BASEBLOCK));
@@ -650,7 +652,7 @@ static void recResetRaw(void)
 	memset(manual_page, 0, sizeof(manual_page));
 	memset(manual_counter, 0, sizeof(manual_counter));
 
-	xSetPtr(*recMem);
+	xSetPtr(recMem.baseptr);
 	recPtr = xGetPtr();
 
 	g_branch = 0;
@@ -659,8 +661,8 @@ static void recResetRaw(void)
 
 static void recShutdown(void)
 {
-	delete recMem;
-	recMem = NULL;
+	code_reserve_release(&recMem);
+	recMemAssigned = 0;
 	safe_aligned_free(recRAMCopy);
 	safe_aligned_free(recLutReserve_RAM);
 
@@ -829,7 +831,7 @@ void SetBranchImm(u32 imm)
 u8* recBeginThunk(void)
 {
 	// if recPtr reached the mem limit reset whole mem
-	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
+	if (recPtr >= ((recMem.baseptr + recMem.size) - _64kb))
 		eeRecNeedsReset = 1;
 
 	xSetPtr(recPtr);
@@ -1781,7 +1783,7 @@ static void recRecompile(const u32 startpc)
 	u32 willbranch3 = 0;
 
 	// if recPtr reached the mem limit reset whole mem
-	if (recPtr >= (recMem->GetPtrEnd() - _64kb))
+	if (recPtr >= ((recMem.baseptr + recMem.size) - _64kb))
 		eeRecNeedsReset = 1;
 
 	if (eeRecNeedsReset)

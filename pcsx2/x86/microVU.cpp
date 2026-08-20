@@ -30,11 +30,12 @@ alignas(__pagesize) static u8 vu1_RecDispatchers[mVUdispCacheSize];
 static void mVUreserveCache(microVU* mVU)
 {
 	/* Micro VU Recompiler Cache */
-	mVU->cache_reserve = new RecompiledCodeReserve();
+	mVU->cache_reserve = (struct CodeReserve*)malloc(sizeof(struct CodeReserve));
+	code_reserve_init(mVU->cache_reserve);
 
 	const size_t alloc_offset = mVU->index ? HostMemoryMap::mVU0recOffset : HostMemoryMap::mVU1recOffset;
-	mVU->cache_reserve->Assign(GetVmMemory().CodeMemory(), alloc_offset, mVU->cacheSize * _1mb);
-	mVU->cache = mVU->cache_reserve->GetPtr();
+	code_reserve_assign(mVU->cache_reserve, GetVmMemory().CodeMemory(), alloc_offset, mVU->cacheSize * _1mb);
+	mVU->cache = mVU->cache_reserve->baseptr;
 }
 
 // Only run this once per VU! ;)
@@ -80,7 +81,7 @@ void mVUreset(microVU* mVU, int resetReserve)
 	}
 	// Restore reserve to uncommitted state
 	if (resetReserve)
-		mVU->cache_reserve->Reset();
+		/* code reserves have no reset state */
 
 	mode.m_read  = 1;
 	mode.m_write = 1;
@@ -136,7 +137,9 @@ void mVUreset(microVU* mVU, int resetReserve)
 void mVUclose(microVU* mVU)
 {
 
-	delete mVU->cache_reserve;
+	code_reserve_release(mVU->cache_reserve);
+	free(mVU->cache_reserve);
+	mVU->cache_reserve = NULL;
 	mVU->cache_reserve = NULL;
 
 	// Delete Programs and Block Managers
