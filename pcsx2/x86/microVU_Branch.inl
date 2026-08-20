@@ -54,7 +54,7 @@ void mVUDTendProgram(mV, microFlagCycles* mFC, int isEbit)
 		mVUregs.xgkickcycles = 0;
 		if (mVUinfo.doDivFlag)
 		{
-			sFLAG.doFlag = true;
+			sFLAG.doFlag = 1;
 			sFLAG.write = fStatus;
 			mVUdivSet(mVU);
 		}
@@ -66,7 +66,7 @@ void mVUDTendProgram(mV, microFlagCycles* mFC, int isEbit)
 		if (isVU1 && CHECK_XGKICKHACK)
 		{
 			mVUlow.kickcycles = 99;
-			mVU_XGKICK_SYNC(mVU, true);
+			mVU_XGKICK_SYNC(mVU, 1);
 		}
 		if (!isVU1)
 			xe_fastcall0(mVU0clearlpStateJIT);
@@ -165,7 +165,7 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 	if (!isEbit || isEbit == 3)
 		mVUra_TDwritebackAll(mVU->regAlloc); //Writing back ok, invalidating early kills the rec, so don't do it :P
 	else
-		mVUra_flushAll(mVU->regAlloc, true);
+		mVUra_flushAll(mVU->regAlloc, 1);
 
 	if (isEbit && isEbit != 3)
 	{
@@ -178,7 +178,7 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 		mVUregs.xgkickcycles = 0;
 		if (mVUinfo.doDivFlag)
 		{
-			sFLAG.doFlag = true;
+			sFLAG.doFlag = 1;
 			sFLAG.write = fStatus;
 			mVUdivSet(mVU);
 		}
@@ -189,7 +189,7 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 		if (isVU1 && CHECK_XGKICKHACK)
 		{
 			mVUlow.kickcycles = 99;
-			mVU_XGKICK_SYNC(mVU, true);
+			mVU_XGKICK_SYNC(mVU, 1);
 		}
 		if (!isVU1)
 			xe_fastcall0(mVU0clearlpStateJIT);
@@ -280,7 +280,7 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 // Recompiles Code for Proper Flags and Q/P regs on Block Linkings
 void mVUsetupBranch(mV, microFlagCycles* mFC)
 {
-	mVUra_flushAll(mVU->regAlloc, true); // Flush Allocated Regs
+	mVUra_flushAll(mVU->regAlloc, 1); // Flush Allocated Regs
 	mVUsetupFlags(mVU, mFC);  // Shuffle Flag Instances
 
 	// Shuffle P/Q regs since every block starts at instance #0
@@ -304,7 +304,7 @@ void normJumpCompile(mV, microFlagCycles* mFC, int isEvilJump)
 {
 	memcpy(&mVUpBlock->pStateEnd, &mVUregs, sizeof(microRegInfo));
 	mVUsetupBranch(mVU, mFC);
-	mVUbackupRegs(mVU, false, false);
+	mVUbackupRegs(mVU, 0, 0);
 
 	if (!mVUpBlock->jumpCache) // Create the jump cache for this block
 	{
@@ -340,7 +340,7 @@ void normJumpCompile(mV, microFlagCycles* mFC, int isEvilJump)
 	else
 		xe_fastcall2_rr((void*)(void (*)())mVUcompileJIT<1>, XE_ARG1, XE_ARG2);
 
-	mVUrestoreRegs(mVU, false, false);
+	mVUrestoreRegs(mVU, 0, 0);
 	xe_jmp_r(gprT1q); // Jump to rec-code address
 }
 
@@ -350,7 +350,7 @@ void normBranch(mV, microFlagCycles* mFC)
 	if (mVUup.dBit && doDBitHandling)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVUra_flushAll(mVU->regAlloc, false);
+		mVUra_flushAll(mVU->regAlloc, 0);
 
 		u32 tempPC = iPC;
 		if (mVU->index && THREAD_VU1)
@@ -371,7 +371,7 @@ void normBranch(mV, microFlagCycles* mFC)
 	if (mVUup.tBit)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVUra_flushAll(mVU->regAlloc, false);
+		mVUra_flushAll(mVU->regAlloc, 0);
 
 		u32 tempPC = iPC;
 		if (mVU->index && THREAD_VU1)
@@ -580,7 +580,7 @@ void normJump(mV, microFlagCycles* mFC)
 	if (mVUup.dBit && doDBitHandling)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVUra_flushAll(mVU->regAlloc, false);
+		mVUra_flushAll(mVU->regAlloc, 0);
 
 		if (THREAD_VU1)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
@@ -601,7 +601,7 @@ void normJump(mV, microFlagCycles* mFC)
 	if (mVUup.tBit)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVUra_flushAll(mVU->regAlloc, false);
+		mVUra_flushAll(mVU->regAlloc, 0);
 
 		if (mVU->index && THREAD_VU1)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));
@@ -632,6 +632,6 @@ void normJump(mV, microFlagCycles* mFC)
 	}
 	else
 	{
-		normJumpCompile(mVU, mFC, false);
+		normJumpCompile(mVU, mFC, 0);
 	}
 }

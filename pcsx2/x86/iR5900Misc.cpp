@@ -37,7 +37,7 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySl
 	if (!swappedDelaySlot)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -54,7 +54,7 @@ void recDoBranchImm(u32 branchTo, u32* jmpSkip, int isLikely, int swappedDelaySl
 		if (!isLikely)
 		{
 			pc -= 4; // instruction rewinder for delay slot, if non-likely.
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 		}
 	}
 
@@ -132,7 +132,7 @@ void recMTSAB()
 	}
 	else
 	{
-		_eeMoveGPRtoR32(0 /* eax */, _Rs_, true);
+		_eeMoveGPRtoR32(0 /* eax */, _Rs_, 1);
 		xe_and32_ri(XE_AX, 0xF);
 		xe_xor32_ri(XE_AX, _Imm_ & 0xf);
 		xe_mov32_mr(&cpuRegs.sa, XE_AX);
@@ -147,7 +147,7 @@ void recMTSAH()
 	}
 	else
 	{
-		_eeMoveGPRtoR32(0 /* eax */, _Rs_, true);
+		_eeMoveGPRtoR32(0 /* eax */, _Rs_, 1);
 		xe_and32_ri(XE_AX, 0x7);
 		xe_xor32_ri(XE_AX, _Imm_ & 0x7);
 		xe_shl32_ri(XE_AX, 1);
@@ -237,27 +237,27 @@ static void recTrap(JccComparisonType skip_cond, int use_imm, int is_unsigned)
 	g_branch = 2;
 }
 
-void recTGE()  { recTrap(Jcc_Less,           false, false); }
+void recTGE()  { recTrap(Jcc_Less,           0, 0); }
 
-void recTGEU() { recTrap(Jcc_Below,          false, true ); }
+void recTGEU() { recTrap(Jcc_Below,          0, 1 ); }
 
-void recTLT()  { recTrap(Jcc_GreaterOrEqual, false, false); }
+void recTLT()  { recTrap(Jcc_GreaterOrEqual, 0, 0); }
 
-void recTLTU() { recTrap(Jcc_AboveOrEqual,   false, true ); }
+void recTLTU() { recTrap(Jcc_AboveOrEqual,   0, 1 ); }
 
-void recTEQ()  { recTrap(Jcc_NotEqual,       false, false); }
+void recTEQ()  { recTrap(Jcc_NotEqual,       0, 0); }
 
-void recTNE()  { recTrap(Jcc_Equal,          false, false); }
+void recTNE()  { recTrap(Jcc_Equal,          0, 0); }
 
-void recTGEI() { recTrap(Jcc_Less,           true,  false); }
+void recTGEI() { recTrap(Jcc_Less,           1,  0); }
 
-void recTGEIU(){ recTrap(Jcc_Below,          true,  true ); }
+void recTGEIU(){ recTrap(Jcc_Below,          1,  1 ); }
 
-void recTLTI() { recTrap(Jcc_GreaterOrEqual, true,  false); }
+void recTLTI() { recTrap(Jcc_GreaterOrEqual, 1,  0); }
 
-void recTLTIU(){ recTrap(Jcc_AboveOrEqual,   true,  true ); }
+void recTLTIU(){ recTrap(Jcc_AboveOrEqual,   1,  1 ); }
 
-void recTEQI() { recTrap(Jcc_NotEqual,       true,  false); }
+void recTEQI() { recTrap(Jcc_NotEqual,       1,  0); }
 
-void recTNEI() { recTrap(Jcc_Equal,          true,  false); }
+void recTNEI() { recTrap(Jcc_Equal,          1,  0); }
 

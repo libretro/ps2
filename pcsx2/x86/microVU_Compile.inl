@@ -31,7 +31,7 @@
 	mVUopL(mVU, 1); \
 	incPC(1)
 
-#define flushRegs(mV) if (!doRegAlloc) mVUra_flushAll(mVU->regAlloc, true);
+#define flushRegs(mV) if (!doRegAlloc) mVUra_flushAll(mVU->regAlloc, 1);
 
 void doIbit(mV)
 {
@@ -63,8 +63,8 @@ void doSwapOp(mV)
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
 		// Allocate t1 first for better chance of reg-alloc
-		const int t1 = mVUra_allocReg(mVU->regAlloc, mVUlow.VF_write.reg, -1, 0, true);
-		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, mVUlow.VF_write.reg, -1, 0, 1);
+		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_movaps_xx(t2, t1); // Backup VF reg
 		mVUra_clearNeededXMM(mVU->regAlloc, t1);
 
@@ -79,7 +79,7 @@ void doSwapOp(mV)
 		incPC(1);
 		doUpperOp(mVU);
 
-		const int t4 = mVUra_allocReg(mVU->regAlloc, -1, mVUlow.VF_write.reg, 0xf, true);
+		const int t4 = mVUra_allocReg(mVU->regAlloc, -1, mVUlow.VF_write.reg, 0xf, 1);
 		xe_movaps_xx(t4, t2);
 		mVUra_clearNeededXMM(mVU->regAlloc, t4);
 		mVUra_clearNeededXMM(mVU->regAlloc, t2);
@@ -125,21 +125,21 @@ void mVUexecuteInstruction(mV)
 // The BIOS writes upper and lower NOPs in reversed slots (bug)
 //So to prevent spamming we ignore these, however its possible the real VU will bomb out if
 //this happens, so we will bomb out without warning.
-#define mVUcheckBadOp(mV) if (mVUinfo.isBadOp && mVU->code != 0x8000033c) mVUinfo.isEOB = true
+#define mVUcheckBadOp(mV) if (mVUinfo.isBadOp && mVU->code != 0x8000033c) mVUinfo.isEOB = 1
 
 __ri void branchWarning(mV)
 {
 	incPC(-2);
 	incPC(2);
 	if (mVUup.eBit && mVUbranch)
-		mVUlow.isNOP = true;
+		mVUlow.isNOP = 1;
 
 	/* Check if VI Reg Written to on Branch Delay Slot Instruction */
 	if (mVUinfo.isBdelay && !mVUlow.evilBranch)
 	{
 		if (mVUlow.VI_write.reg && mVUlow.VI_write.used && !mVUlow.readFlags)
 		{
-			mVUlow.backupVI = true;
+			mVUlow.backupVI = 1;
 			mVUregs.viBackUp = mVUlow.VI_write.reg;
 		}
 	}
@@ -149,7 +149,7 @@ __ri void branchWarning(mV)
 	if (mVUregs.blockType != 1) \
 	{ \
 		branch     = 1; \
-		mVUup.eBit = true; \
+		mVUup.eBit = 1; \
 	}
 
 #define eBitWarning(mV) \
@@ -310,7 +310,7 @@ static void mvuPreloadRegisters(microVU* mVU, u32 endCount)
 #define MVU_PRELOAD_VF(reg) do { \
 		if (!(free_regs <= REQUIRED_FREE_XMMS || (reg) == 0 || (vfs_loaded & (1u << (reg))) != 0)) \
 		{ \
-			mVUra_clearNeededXMM(mVU->regAlloc, mVUra_allocReg(mVU->regAlloc, reg, -1, 0, true)); \
+			mVUra_clearNeededXMM(mVU->regAlloc, mVUra_allocReg(mVU->regAlloc, reg, -1, 0, 1)); \
 			vfs_loaded |= (1u << (reg)); \
 			free_regs--; \
 		} \
@@ -318,7 +318,7 @@ static void mvuPreloadRegisters(microVU* mVU, u32 endCount)
 #define MVU_PRELOAD_VI(reg) do { \
 		if (!(free_gprs <= REQUIRED_FREE_GPRS || (reg) == 0 || (vis_loaded & (1u << (reg))) != 0)) \
 		{ \
-			mVUra_clearNeededGPR(mVU->regAlloc, mVUra_allocGPR(mVU->regAlloc, reg, -1, false, false)); \
+			mVUra_clearNeededGPR(mVU->regAlloc, mVUra_allocGPR(mVU->regAlloc, reg, -1, 0, 0)); \
 			vis_loaded |= (1u << (reg)); \
 			free_gprs--; \
 		} \
@@ -375,7 +375,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 	/* First Pass */
 	iPC = startPC / 4;
 	mVUsetupRange(mVU, startPC, 1); /* Setup Program Bounds/Range */
-	mVUra_reset(mVU->regAlloc, false); /* Reset regAlloc */
+	mVUra_reset(mVU->regAlloc, 0); /* Reset regAlloc */
 	mVUinitFirstPass(mVU, pState, thisPtr);
 	mVUbranch = 0;
 	for (int branch = 0; mVUcount < endCount;)
@@ -402,24 +402,24 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 				if (!(curI & _Mbit_)) //If the last instruction was also M-Bit we don't need to sync again
 				{
 					incPC(2);
-					mVUup.mBit = true;
+					mVUup.mBit = 1;
 				}
 				else
 					incPC(2);
 			}
 			else
-				mVUup.mBit = true;
+				mVUup.mBit = 1;
 		}
 
 		if (curI & _Ibit_)
 		{
-			mVUlow.isNOP = true;
-			mVUup.iBit = true;
+			mVUlow.isNOP = 1;
+			mVUup.iBit = 1;
 			if (EmuConfig.Gamefixes.IbitHack)
 			{
-				mVUsetupRange(mVU, xPC, false);
+				mVUsetupRange(mVU, xPC, 0);
 				if (branch < 2)
-					mVUsetupRange(mVU, xPC + 8, true); // Ideally we'd do +4 but the mmx compare only works in 64bits, this should be fine
+					mVUsetupRange(mVU, xPC + 8, 1); // Ideally we'd do +4 but the mmx compare only works in 64bits, this should be fine
 			}
 		}
 		else
@@ -429,9 +429,9 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 			incPC(1);
 		}
 		if (curI & _Dbit_)
-			mVUup.dBit = true;
+			mVUup.dBit = 1;
 		if (curI & _Tbit_)
-			mVUup.tBit = true;
+			mVUup.tBit = 1;
 		mVUsetCycles(mVU);
 		// Update XGKick information
 		if (!mVUlow.isKick)
@@ -459,11 +459,11 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 
 		if (branch >= 2)
 		{
-			mVUinfo.isEOB = true;
+			mVUinfo.isEOB = 1;
 
 			if (branch == 3)
 			{
-				mVUinfo.isBdelay = true;
+				mVUinfo.isBdelay = 1;
 			}
 
 			branchWarning(mVU);
@@ -537,7 +537,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 
 		if (isVU1 && mVUlow.kickcycles && CHECK_XGKICKHACK)
 		{
-			mVU_XGKICK_SYNC(mVU, false);
+			mVU_XGKICK_SYNC(mVU, 0);
 		}
 
 		mVUexecuteInstruction(mVU);
@@ -565,7 +565,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 					xe_mov32_mi(lpS, cpS[0]);
 				}
 				incPC(2);
-				mVUsetupRange(mVU, xPC, false);
+				mVUsetupRange(mVU, xPC, 0);
 				if (EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Gamefixes.FullVU0SyncHack)
 					xe_mov64_mi_s32(&vuRegs[mVU->index].nextBlockCycles, 0);
 				mVUendProgram(mVU, &mFC, 0);
@@ -582,8 +582,8 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 
 		if (isEvilBlock)
 		{
-			mVUsetupRange(mVU, xPC + 8, false);
-			normJumpCompile(mVU, &mFC, true);
+			mVUsetupRange(mVU, xPC + 8, 0);
+			normJumpCompile(mVU, &mFC, 1);
 			return thisPtr;
 		}
 		else if (!mVUinfo.isBdelay)
@@ -591,7 +591,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 			// Handle range wrapping
 			if ((xPC + 8) == mVU->microMemSize)
 			{
-				mVUsetupRange(mVU, xPC + 8, false);
+				mVUsetupRange(mVU, xPC + 8, 0);
 				mVUsetupRange(mVU, 0, 1);
 			}
 			incPC(1);
@@ -599,7 +599,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 		else
 		{
 			incPC(1);
-			mVUsetupRange(mVU, xPC, false);
+			mVUsetupRange(mVU, xPC, 0);
 			incPC(-4); // Go back to branch opcode
 
 			switch (mVUlow.branch)
@@ -635,7 +635,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 	}
 
 	/* E-bit End */
-	mVUsetupRange(mVU, xPC, false);
+	mVUsetupRange(mVU, xPC, 0);
 	mVUendProgram(mVU, &mFC, 1);
 
 	return thisPtr;

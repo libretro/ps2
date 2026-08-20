@@ -40,7 +40,7 @@ void recJ(void)
 {
 	// SET_FPUSTATE;
 	u32 newpc = (_InstrucTarget_ << 2) + (pc & 0xf0000000);
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	if (EmuConfig.Gamefixes.GoemonTlbHack)
 		SetBranchImm(vtlb_V2P(newpc));
 	else
@@ -56,7 +56,7 @@ void recJAL(void)
 	g_cpuConstRegs[31].UL[0] = pc + 4;
 	g_cpuConstRegs[31].UL[1] = 0;
 
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	if (EmuConfig.Gamefixes.GoemonTlbHack)
 		SetBranchImm(vtlb_V2P(newpc));
 	else
@@ -78,7 +78,7 @@ void recJR(void)
 void recJALR(void)
 {
 	const u32 newpc = pc + 4;
-	const int swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? false : TrySwapDelaySlot(_Rs_, 0, _Rd_, true);
+	const int swap = (EmuConfig.Gamefixes.GoemonTlbHack || _Rd_ == _Rs_) ? 0 : TrySwapDelaySlot(_Rs_, 0, _Rd_, 1);
 
 	// uncomment when there are NO instructions that need to call interpreter
 	//	int mmreg;
@@ -102,7 +102,7 @@ void recJALR(void)
 	if (!swap)
 	{
 		wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
-		_eeMoveGPRtoR32(wbreg, _Rs_, true);
+		_eeMoveGPRtoR32(wbreg, _Rs_, 1);
 
 		if (EmuConfig.Gamefixes.GoemonTlbHack)
 		{
@@ -121,7 +121,7 @@ void recJALR(void)
 
 	if (!swap)
 	{
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 
 		// the next instruction may have flushed the register.. so reload it if so.
 		if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)

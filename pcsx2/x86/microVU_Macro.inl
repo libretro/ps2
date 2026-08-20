@@ -32,7 +32,7 @@ static VURegs& vu0Regs = vuRegs[0];
 void setupMacroOp(int mode, const char* opName)
 {
 	// Set up reg allocation
-	mVUra_reset(microVU0.regAlloc, true);
+	mVUra_reset(microVU0.regAlloc, 1);
 
 	if (mode & 0x03) // Q will be read/written
 		_freeXMMreg(xmmPQ);
@@ -54,14 +54,14 @@ void setupMacroOp(int mode, const char* opName)
 	}
 	if (mode & 0x10 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_STATUS_FLAG)) // Update Status Flag
 	{
-		microVU0.prog.IRinfo.info[0].sFlag.doFlag      = true;
-		microVU0.prog.IRinfo.info[0].sFlag.doNonSticky = true;
+		microVU0.prog.IRinfo.info[0].sFlag.doFlag      = 1;
+		microVU0.prog.IRinfo.info[0].sFlag.doNonSticky = 1;
 		microVU0.prog.IRinfo.info[0].sFlag.write       = 0;
 		microVU0.prog.IRinfo.info[0].sFlag.lastWrite   = 0;
 	}
 	if (mode & 0x10 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & EEINST_COP2_MAC_FLAG)) // Update Mac Flags
 	{
-		microVU0.prog.IRinfo.info[0].mFlag.doFlag      = true;
+		microVU0.prog.IRinfo.info[0].mFlag.doFlag      = 1;
 		microVU0.prog.IRinfo.info[0].mFlag.write       = 0xff;
 	}
 	if (mode & 0x10 && (!CHECK_VU_FLAGHACK || g_pCurInstInfo->info & (EEINST_COP2_STATUS_FLAG | EEINST_COP2_DENORMALIZE_STATUS_FLAG)))
@@ -108,7 +108,7 @@ void endMacroOp(int mode)
 	}
 
 	microVU0.cop2 = 0;
-	mVUra_reset(microVU0.regAlloc, false);
+	mVUra_reset(microVU0.regAlloc, 0);
 }
 
 void mVUFreeCOP2XMMreg(int hostreg)
@@ -310,16 +310,16 @@ INTERPRETATE_COP2_FUNC(CALLMSR);
 static void _setupBranchTest(u32*(jmpType)(u32), int isLikely)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const int swap = !!(isLikely ? false : TrySwapDelaySlot(0, 0, 0, false));
+	const int swap = !!(isLikely ? 0 : TrySwapDelaySlot(0, 0, 0, 0));
 	_eeFlushAllDirty();
 	xe_test32_mi(&vuRegs[0].VI[REG_VPU_STAT].UL, 0x100);
 	recDoBranchImm(branchTo, jmpType(0), isLikely, swap);
 }
 
-void recBC2F(void)  { _setupBranchTest(JNZ32, false); }
-void recBC2T(void)  { _setupBranchTest(JZ32,  false); }
-void recBC2FL(void) { _setupBranchTest(JNZ32, true);  }
-void recBC2TL(void) { _setupBranchTest(JZ32,  true);  }
+void recBC2F(void)  { _setupBranchTest(JNZ32, 0); }
+void recBC2T(void)  { _setupBranchTest(JZ32,  0); }
+void recBC2FL(void) { _setupBranchTest(JNZ32, 1);  }
+void recBC2TL(void) { _setupBranchTest(JZ32,  1);  }
 
 //------------------------------------------------------------------
 // Macro VU - COP2 Transfer Instructions
@@ -329,7 +329,7 @@ static void COP2_Interlock(int mBitSync)
 {
 	if (cpuRegs.code & 1)
 	{
-		s_nBlockInterlocked = true;
+		s_nBlockInterlocked = 1;
 
 		// We can safely skip the _vu0FinishMicro() call, when there's nothing
 		// that can trigger a VU0 program between CFC2/CTC2/COP2 instructions.
@@ -409,7 +409,7 @@ static void TEST_FBRST_RESET(int flagreg, void(*resetFunct)(), int vuIndex)
 
 static void recCFC2(void)
 {
-	COP2_Interlock(false);
+	COP2_Interlock(0);
 
 	if (!_Rt_)
 		return;
@@ -482,7 +482,7 @@ static void recCTC2(void)
 		case REG_VPU_STAT:
 			break; // Read Only Regs
 		case REG_R:
-			_eeMoveGPRtoR32(0 /* eax */, _Rt_, true);
+			_eeMoveGPRtoR32(0 /* eax */, _Rt_, 1);
 			xe_and32_ri(XE_AX, 0x7FFFFF);
 			xe_or32_ri(XE_AX, 0x3f800000);
 			xe_mov32_mr(&vu0Regs.VI[REG_R].UL, XE_AX);
@@ -491,7 +491,7 @@ static void recCTC2(void)
 		{
 			if (_Rt_)
 			{
-				_eeMoveGPRtoR32(0 /* eax */, _Rt_, true);
+				_eeMoveGPRtoR32(0 /* eax */, _Rt_, 1);
 				xe_and32_ri(XE_AX, 0xFC0);
 				xe_and32_mi(&vu0Regs.VI[REG_STATUS_FLAG].UL, 0x3F);
 				xe_or32_mr(&vu0Regs.VI[REG_STATUS_FLAG].UL, XE_AX);
@@ -514,7 +514,7 @@ static void recCTC2(void)
 			iFlushCall(FLUSH_NONE);
 			xe_mov32_ri(XE_ARG1, 1);
 			xe_fastcall0(vu1Finish);
-			_eeMoveGPRtoR32(XE_ARG1, _Rt_, true);
+			_eeMoveGPRtoR32(XE_ARG1, _Rt_, 1);
 			iFlushCall(FLUSH_NONE);
 			xe_fastcall0(vu1ExecMicro);
 			break;
@@ -527,7 +527,7 @@ static void recCTC2(void)
 				}
 
 				const int flagreg = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-				_eeMoveGPRtoR32(flagreg, _Rt_, true);
+				_eeMoveGPRtoR32(flagreg, _Rt_, 1);
 
 				iFlushCall(FLUSH_FREE_VU0);
 				TEST_FBRST_RESET(flagreg, vu0ResetRegs, 0);
@@ -597,7 +597,7 @@ static void recCTC2(void)
 						}
 						else
 						{
-							_eeMoveGPRtoR32(0 /* eax */, _Rt_, true);
+							_eeMoveGPRtoR32(0 /* eax */, _Rt_, 1);
 							xe_mov16_mr(&vu0Regs.VI[_Rd_].US[0], XE_AX);
 						}
 					}
@@ -642,7 +642,7 @@ static void recCTC2(void)
 
 static void recQMFC2(void)
 {
-	COP2_Interlock(false);
+	COP2_Interlock(0);
 
 	if (!_Rt_)
 		return;
@@ -674,13 +674,13 @@ static void recQMFC2(void)
 	}
 	else
 	{
-		_reallocateXMMreg(ftreg, XMMTYPE_GPRREG, _Rt_, MODE_WRITE, true);
+		_reallocateXMMreg(ftreg, XMMTYPE_GPRREG, _Rt_, MODE_WRITE, 1);
 	}
 }
 
 static void recQMTC2(void)
 {
-	COP2_Interlock(true);
+	COP2_Interlock(1);
 
 	if (!_Rd_)
 		return;
@@ -709,7 +709,7 @@ static void recQMTC2(void)
 			// rt is no longer needed, so transfer to VF.
 			if (vfreg >= 0)
 				_freeXMMregWithoutWriteback(vfreg);
-			_reallocateXMMreg(rtreg, XMMTYPE_VFREG, _Rd_, MODE_WRITE, true);
+			_reallocateXMMreg(rtreg, XMMTYPE_VFREG, _Rd_, MODE_WRITE, 1);
 		}
 		else
 		{
@@ -800,7 +800,7 @@ void recLQC2(void)
 	else if (g_pCurInstInfo->info & EEINST_COP2_FINISH_VU0)
 		mVUFinishVU0();
 
-	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
+	vtlb_ReadRegAllocCallback alloc_cb = NULL;
 	if (_Rt_)
 	{
 		// init regalloc after flush
@@ -815,7 +815,7 @@ void recLQC2(void)
 	}
 	else
 	{
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 		xe_and32_ri(XE_ARG1, ~0xF);
@@ -845,16 +845,16 @@ void recSQC2(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 addr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0xFu;
-		vtlb_DynGenWrite_Const(128, true, addr, ftreg);
+		vtlb_DynGenWrite_Const(128, 1, addr, ftreg);
 	}
 	else
 	{
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 		xe_and32_ri(XE_ARG1, ~0xF);
 
-		vtlb_DynGenWrite(128, true, XE_ARG1, ftreg);
+		vtlb_DynGenWrite(128, 1, XE_ARG1, ftreg);
 	}
 
 	if (!_Rt_)

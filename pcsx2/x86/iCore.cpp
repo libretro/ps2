@@ -44,33 +44,33 @@ int _isAllocatableX86reg(int x86reg)
 {
 	// we use rax, rcx and rdx as scratch (they have special purposes...)
 	if (x86reg <= 2)
-		return false;
+		return 0;
 
 	// We keep the first two argument registers free.
 	// On windows, this is ecx/edx, and it's taken care of above, but on Linux, it uses rsi/rdi.
 	// The issue is when we do a load/store, the address register overlaps a cached register.
 	// TODO(Stenzek): Rework loadstores to handle this and allow caching.
 	if (x86reg == XE_ARG1 || x86reg == XE_ARG2)
-		return false;
+		return 0;
 
 	if (CHECK_FASTMEM)
 	{
 		// rbp is used as the fastmem base
 		if (x86reg == 5)
-			return false;
+			return 0;
 	}
 	else
 	{
 		// arg3reg is also used for dispatching without fastmem
 		if (x86reg == XE_ARG3)
-			return false;
+			return 0;
 	}
 
 	// rsp is never allocatable..
 	if (x86reg == 4)
-		return false;
+		return 0;
 
-	return true;
+	return 1;
 }
 
 int _hasX86reg(int type, int reg, int required_mode /*= 0*/)
@@ -81,7 +81,7 @@ int _hasX86reg(int type, int reg, int required_mode /*= 0*/)
 			return ((x86regs[i].mode & required_mode) == required_mode);
 	}
 
-	return false;
+	return 0;
 }
 
 // Get the index of a free register
@@ -212,7 +212,7 @@ int _hasXMMreg(int type, int reg, int required_mode /*= 0*/)
 			return ((xmmregs[i].mode & required_mode) == required_mode);
 	}
 
-	return false;
+	return 0;
 }
 
 // Fully allocate a FPU register
@@ -290,7 +290,7 @@ int _allocGPRtoXMMreg(int gprreg, int mode)
 		}
 
 		xmmregs[i].counter = g_xmmAllocCounter++; // update counter
-		xmmregs[i].needed  = true;
+		xmmregs[i].needed  = 1;
 		xmmregs[i].mode   |= mode;
 		return i;
 	}
@@ -401,17 +401,17 @@ int _allocFPACCtoXMMreg(int mode)
 	return xmmreg;
 }
 
-void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, int writeback /*= true*/)
+void _reallocateXMMreg(int xmmreg, int newtype, int newreg, int newmode, int writeback /*= 1*/)
 {
 	_xmmregs& xr = xmmregs[xmmreg];
 	if (writeback)
 		_freeXMMreg(xmmreg);
 
-	xr.inuse  = true;
+	xr.inuse  = 1;
 	xr.type   = newtype;
 	xr.reg    = newreg;
 	xr.mode   = newmode;
-	xr.needed = true;
+	xr.needed = 1;
 }
 
 // Mark reserved GPR reg as needed. It won't be evicted anymore.
@@ -750,10 +750,10 @@ int _allocVFtoXMMreg(int vfreg, int mode)
 
 	// -1 here because we don't want to allocate PQ.
 	const int xmmreg        = _getFreeXMMreg(iREGCNT_XMM - 1);
-	xmmregs[xmmreg].inuse   = true;
+	xmmregs[xmmreg].inuse   = 1;
 	xmmregs[xmmreg].type    = XMMTYPE_VFREG;
 	xmmregs[xmmreg].counter = g_xmmAllocCounter++;
-	xmmregs[xmmreg].needed  = true;
+	xmmregs[xmmreg].needed  = 1;
 	xmmregs[xmmreg].reg     = vfreg;
 	xmmregs[xmmreg].mode    = mode;
 

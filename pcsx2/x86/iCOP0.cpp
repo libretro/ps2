@@ -60,31 +60,31 @@ static void _setupBranchTest()
 void recBC0F()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const int swap = !!(TrySwapDelaySlot(0, 0, 0, false));
+	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 0));
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JE32(0), false, swap);
+	recDoBranchImm(branchTo, JE32(0), 0, swap);
 }
 
 void recBC0T()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const int swap = !!(TrySwapDelaySlot(0, 0, 0, false));
+	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 0));
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNE32(0), false, swap);
+	recDoBranchImm(branchTo, JNE32(0), 0, swap);
 }
 
 void recBC0FL()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JE32(0), true, false);
+	recDoBranchImm(branchTo, JE32(0), 1, 0);
 }
 
 void recBC0TL()
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNE32(0), true, false);
+	recDoBranchImm(branchTo, JNE32(0), 1, 0);
 }
 
 // TLBR copies one TLB entry into the CP0 registers. It is pure register
@@ -293,7 +293,7 @@ void recDI()
 	// Jak X, Namco 50th anniversary, Spongebob the Movie, Spongebob Battle for Bikini Bottom,
 	// The Incredibles, The Incredibles rize of the underminer, Soukou kihei armodyne, Garfield Saving Arlene, Tales of Fandom Vol. 2.
 	if (!g_recompilingDelaySlot)
-		recompileNextInstruction(false, false); // DI execution is delayed by one instruction
+		recompileNextInstruction(0, 0); // DI execution is delayed by one instruction
 
 	xe_mov32_rm(XE_AX, &cpuRegs.CP0.n.Status);
 	xe_test32_ri(XE_AX, 0x20006); // EXL | ERL | EDI
@@ -453,7 +453,7 @@ void recMTC0()
 		switch (_Rd_)
 		{
 			case 12:
-				_eeMoveGPRtoR64(XE_ARG1, _Rt_, true);
+				_eeMoveGPRtoR64(XE_ARG1, _Rt_, 1);
 				iFlushCall(FLUSH_INTERPRETER);
 				xe_mov64_rm(XE_AX, &cpuRegs.cycle);
 				{ const u32 sbc_ = scaleblockcycles_clear(); /* side-effecting; hoisted so both XE_2 arms see one value */
@@ -463,7 +463,7 @@ void recMTC0()
 				break;
 
 			case 16:
-				_eeMoveGPRtoR64(XE_ARG1, _Rt_, true);
+				_eeMoveGPRtoR64(XE_ARG1, _Rt_, 1);
 				iFlushCall(FLUSH_INTERPRETER);
 				xe_fastcall0(WriteCP0Config);
 				break;

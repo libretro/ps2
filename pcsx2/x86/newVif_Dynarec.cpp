@@ -149,7 +149,7 @@ void VifUnpackSSE_doMaskWrite_Dynarec(const struct VifUnpackSSE* p, int regX)
 	}
 	
 	if (p->doMask && m4) // Merge Write Protect
-		mVUsaveReg(regX, p->dstIndirect, m4 ^ 0xf, false);
+		mVUsaveReg(regX, p->dstIndirect, m4 ^ 0xf, 0);
 	else
 		xe_movaps_memxg(p->dstIndirect, regX);
 }
@@ -213,8 +213,8 @@ void VifUnpackSSE_ModUnpack(struct VifUnpackSSE* p, int upknum, int PostOp)
 
 void VifUnpackSSE_ProcessMasks(struct VifUnpackSSE* p)
 {
-	p->skipProcessing = false;
-	p->inputMasked = false;
+	p->skipProcessing = 0;
+	p->inputMasked = 0;
 
 	if (!p->doMask)
 		return;
@@ -258,10 +258,10 @@ void VifUnpackSSE_CompileRoutine(struct VifUnpackSSE* p)
 
 		if (p->vCL < cycleSize)
 		{
-			VifUnpackSSE_ModUnpack(p, upkNum, false);
+			VifUnpackSSE_ModUnpack(p, upkNum, 0);
 			VifUnpackSSE_xUnpack(p, upkNum);
 			VifUnpackSSE_xMovDest(p);
-			VifUnpackSSE_ModUnpack(p, upkNum, true);
+			VifUnpackSSE_ModUnpack(p, upkNum, 1);
 
 			p->dstIndirect.disp += 16;
 			p->srcIndirect.disp += vift;
@@ -367,7 +367,7 @@ _vifT __fi void dVifUnpack(const u8* data, int isFill)
 
 	// Seach in cache before trying to compile the block
 	nVifBlock* b = v.vifBlocks.find(block);
-	if (unlikely(b == nullptr))
+	if (unlikely(b == NULL))
 		b = dVifCompile<idx>(&block, isFill);
 
 	/* Execute the block */

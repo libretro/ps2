@@ -130,7 +130,7 @@ void _flushConstRegs(void)
 	}
 
 	// if we have more than one of zero/minus-one, precompute
-	int rax_is_zero = false;
+	int rax_is_zero = 0;
 	if (zero_reg_count > 1)
 	{
 		xe_xor32_rr(XE_AX, XE_AX);
@@ -145,7 +145,7 @@ void _flushConstRegs(void)
 				g_cpuFlushedConstReg |= 1u << i;
 			}
 		}
-		rax_is_zero = true;
+		rax_is_zero = 1;
 	}
 	if (minusone_reg_count > 1)
 	{
@@ -221,7 +221,7 @@ int _allocX86reg(int type, int reg, int mode)
 
 			x86regs[i].counter = g_x86AllocCounter++;
 			x86regs[i].mode |= mode & ~MODE_CALLEESAVED;
-			x86regs[i].needed = true;
+			x86regs[i].needed = 1;
 			return i;
 		}
 	}
@@ -232,8 +232,8 @@ int _allocX86reg(int type, int reg, int mode)
 	x86regs[regnum].reg = reg;
 	x86regs[regnum].mode = mode & ~MODE_CALLEESAVED;
 	x86regs[regnum].counter = g_x86AllocCounter++;
-	x86regs[regnum].needed = true;
-	x86regs[regnum].inuse = true;
+	x86regs[regnum].needed = 1;
+	x86regs[regnum].inuse = 1;
 
 	if (mode & MODE_READ)
 	{

@@ -215,6 +215,6 @@ mVUop(mVUunknown)
 	pass1
 	{
 		if (mVU->code != 0x8000033c)
-			mVUinfo.isBadOp = true;
+			mVUinfo.isBadOp = 1;
 	}
 }

@@ -146,20 +146,20 @@ void mVUra_init(struct microRegAlloc* r, int _index)
 		{
 			r->gprMap[i].VIreg          = 0;
 			r->gprMap[i].count          = 0;
-			r->gprMap[i].isNeeded       = false;
-			r->gprMap[i].dirty          = false;
-			r->gprMap[i].isZeroExtended = false;
-			r->gprMap[i].usable         = false;
+			r->gprMap[i].isNeeded       = 0;
+			r->gprMap[i].dirty          = 0;
+			r->gprMap[i].isZeroExtended = 0;
+			r->gprMap[i].usable         = 0;
 
 			if (i == gprT1 || i == gprT2 ||
 				i == gprF0 || i == gprF1 || i == gprF2 || i == gprF3 ||
 				i == XE_SP)
 				continue;
 
-			r->gprMap[i].usable = true;
+			r->gprMap[i].usable = 1;
 		}
 
-		mVUra_reset(r, false);
+		mVUra_reset(r, 0);
 	}
 
 __ri void mVUra_loadIreg(struct microRegAlloc* r, int reg, int xyzw)
@@ -246,7 +246,7 @@ int mVUra_findFreeGPR(struct microRegAlloc* r, int vireg)
 void mVUra_reset(struct microRegAlloc* r, int cop2mode)
 {
 		// we run this at the of cop2, so don't free fprs
-		r->regAllocCOP2 = false;
+		r->regAllocCOP2 = 0;
 
 		for (int i = 0; i < xmmTotal; i++)
 			mVUra_clearReg(r, i);
@@ -255,7 +255,7 @@ void mVUra_reset(struct microRegAlloc* r, int cop2mode)
 
 		r->counter = 0;
 		r->regAllocCOP2 = cop2mode;
-		r->pxmmregs = cop2mode ? xmmregs : nullptr;
+		r->pxmmregs = cop2mode ? xmmregs : NULL;
 
 		if (cop2mode)
 		{
@@ -268,8 +268,8 @@ void mVUra_reset(struct microRegAlloc* r, int cop2mode)
 				// isn't allocated here yet.
 				if (r->pxmmregs[i].reg >= 0)
 				{
-					r->pxmmregs[i].needed = false;
-					r->xmmMap[i].isNeeded = false;
+					r->pxmmregs[i].needed = 0;
+					r->xmmMap[i].isNeeded = 0;
 					r->xmmMap[i].VFreg = r->pxmmregs[i].reg;
 					r->xmmMap[i].xyzw = ((r->pxmmregs[i].mode & MODE_WRITE) != 0) ? 0xf : 0x0;
 				}
@@ -282,9 +282,9 @@ void mVUra_reset(struct microRegAlloc* r, int cop2mode)
 
 				if (x86regs[i].reg >= 0)
 				{
-					x86regs[i].needed = false;
-					r->gprMap[i].isNeeded = false;
-					r->gprMap[i].isZeroExtended = false;
+					x86regs[i].needed = 0;
+					r->gprMap[i].isNeeded = 0;
+					r->gprMap[i].isZeroExtended = 0;
 					r->gprMap[i].VIreg = x86regs[i].reg;
 					r->gprMap[i].dirty = ((x86regs[i].mode & MODE_WRITE) != 0);
 				}
@@ -317,10 +317,10 @@ int mVUra_hasRegVF(struct microRegAlloc* r, int vfreg)
 		for (int i = 0; i < xmmTotal; i++)
 		{
 			if (r->xmmMap[i].VFreg == vfreg)
-				return true;
+				return 1;
 		}
 
-		return false;
+		return 0;
 	}
 
 int mVUra_getRegVF(struct microRegAlloc* r, int i)
@@ -351,10 +351,10 @@ int mVUra_hasRegVI(struct microRegAlloc* r, int vireg)
 		for (int i = 0; i < gprTotal; i++)
 		{
 			if (r->gprMap[i].VIreg == vireg)
-				return true;
+				return 1;
 		}
 
-		return false;
+		return 0;
 	}
 
 int mVUra_getRegVI(struct microRegAlloc* r, int i)
@@ -366,14 +366,14 @@ void mVUra_flushAll(struct microRegAlloc* r, int clearState)
 {
 		for (int i = 0; i < xmmTotal; i++)
 		{
-			mVUra_writeBackRegXMM(r, i, true);
+			mVUra_writeBackRegXMM(r, i, 1);
 			if (clearState)
 				mVUra_clearReg(r, i);
 		}
 
 		for (int i = 0; i < gprTotal; i++)
 		{
-			mVUra_writeBackRegGPR(r, i, true);
+			mVUra_writeBackRegGPR(r, i, 1);
 			if (clearState)
 				mVUra_clearGPR(r, i);
 		}
@@ -386,7 +386,7 @@ void mVUra_flushCallerSavedRegisters(struct microRegAlloc* r, int clearNeeded)
 			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
 
-			mVUra_writeBackRegXMM(r, i, true);
+			mVUra_writeBackRegXMM(r, i, 1);
 			if (clearNeeded || !r->xmmMap[i].isNeeded)
 				mVUra_clearReg(r, i);
 		}
@@ -396,7 +396,7 @@ void mVUra_flushCallerSavedRegisters(struct microRegAlloc* r, int clearNeeded)
 			if (!XE_GPR_CALLER_SAVED(i))
 				continue;
 
-			mVUra_writeBackRegGPR(r, i, true);
+			mVUra_writeBackRegGPR(r, i, 1);
 			if (clearNeeded || !r->gprMap[i].isNeeded)
 				mVUra_clearGPR(r, i);
 		}
@@ -413,7 +413,7 @@ void mVUra_flushPartialForCOP2(struct microRegAlloc* r)
 			{
 				// Should've been done in clearNeeded()
 				if (clear.xyzw != 0 && clear.xyzw != 0xf)
-					mVUra_writeBackRegXMM(r, i, false);
+					mVUra_writeBackRegXMM(r, i, 0);
 
 				if (clear.VFreg <= 0)
 				{
@@ -423,7 +423,7 @@ void mVUra_flushPartialForCOP2(struct microRegAlloc* r)
 			}
 
 			// needed gets cleared in iCore.
-			clear = {-1, 0, 0, false, false};
+			clear = {-1, 0, 0, 0, 0};
 		}
 
 		for (int i = 0; i < gprTotal; i++)
@@ -454,15 +454,15 @@ void mVUra_TDwritebackAll(struct microRegAlloc* r)
 		}
 
 		for (int i = 0; i < gprTotal; i++)
-			mVUra_writeBackRegGPR(r, i, false);
+			mVUra_writeBackRegGPR(r, i, 0);
 	}
 
 int mVUra_checkVFClamp(struct microRegAlloc* r, int regId)
 {
 		if (regId != xmmPQ && ((r->xmmMap[regId].VFreg == 33 && !EmuConfig.Gamefixes.IbitHack) || r->xmmMap[regId].isZero))
-			return false;
+			return 0;
 		else
-			return true;
+			return 1;
 	}
 
 int mVUra_checkCachedReg(struct microRegAlloc* r, int regId)
@@ -470,7 +470,7 @@ int mVUra_checkCachedReg(struct microRegAlloc* r, int regId)
 		if (regId < xmmTotal)
 			return r->xmmMap[regId].VFreg >= 0;
 		else
-			return false;
+			return 0;
 	}
 
 int mVUra_checkCachedGPR(struct microRegAlloc* r, int regId)
@@ -478,16 +478,16 @@ int mVUra_checkCachedGPR(struct microRegAlloc* r, int regId)
 		if (regId < gprTotal)
 			return r->gprMap[regId].VIreg >= 0 || r->gprMap[regId].isNeeded;
 		else
-			return false;
+			return 0;
 	}
 
 void mVUra_clearReg(struct microRegAlloc* r, int regId)
 {
 		microMapXMM& clear = r->xmmMap[regId];
 		if (r->regAllocCOP2 && (clear.isNeeded || clear.VFreg >= 0))
-			r->pxmmregs[regId].inuse = false;
+			r->pxmmregs[regId].inuse = 0;
 
-		clear = {-1, 0, 0, false, false};
+		clear = {-1, 0, 0, 0, 0};
 	}
 
 void mVUra_clearRegVF(struct microRegAlloc* r, int VFreg)
@@ -525,9 +525,9 @@ void mVUra_writeBackRegXMM(struct microRegAlloc* r, int reg, int invalidateRegs)
 			if (mapX.VFreg == 33)
 				xe_movss_mx(&::vuRegs[r->index].VI[REG_I], reg);
 			else if (mapX.VFreg == 32)
-				mVUsaveReg(reg, e_mem_abs(&::vuRegs[r->index].ACC), mapX.xyzw, true);
+				mVUsaveReg(reg, e_mem_abs(&::vuRegs[r->index].ACC), mapX.xyzw, 1);
 			else
-				mVUsaveReg(reg, e_mem_abs(&::vuRegs[r->index].VF[mapX.VFreg]), mapX.xyzw, true);
+				mVUsaveReg(reg, e_mem_abs(&::vuRegs[r->index].VF[mapX.VFreg]), mapX.xyzw, 1);
 
 			if (invalidateRegs)
 			{
@@ -548,7 +548,7 @@ void mVUra_writeBackRegXMM(struct microRegAlloc* r, int reg, int invalidateRegs)
 			{
 				mapX.count    = r->counter;
 				mapX.xyzw     = 0;
-				mapX.isNeeded = false;
+				mapX.isNeeded = 0;
 				mVUra_updateCOP2AllocState(r, reg);
 				return;
 			}
@@ -567,7 +567,7 @@ void mVUra_clearNeededXMM(struct microRegAlloc* r, int reg)
 			return;
 
 		microMapXMM& clear = r->xmmMap[reg];
-		clear.isNeeded = false;
+		clear.isNeeded = 0;
 		if (clear.xyzw) // Reg was modified
 		{
 			if (clear.VFreg > 0)
@@ -584,7 +584,7 @@ void mVUra_clearNeededXMM(struct microRegAlloc* r, int reg)
 					{
 						if (mergeRegs == 1)
 						{
-							mVUmergeRegs(i, reg, clear.xyzw, true);
+							mVUmergeRegs(i, reg, clear.xyzw, 1);
 							mapI.xyzw  = 0xf;
 							mapI.count = r->counter;
 							mergeRegs  = 2;
@@ -597,7 +597,7 @@ void mVUra_clearNeededXMM(struct microRegAlloc* r, int reg)
 				if (mergeRegs == 2) // Clear Current Reg if Merged
 					mVUra_clearReg(r, reg);
 				else if (mergeRegs == 1) // Write Back Partial Writes if couldn't merge
-					mVUra_writeBackRegXMM(r, reg, true);
+					mVUra_writeBackRegXMM(r, reg, 1);
 			}
 			else
 				mVUra_clearReg(r, reg); // If Reg was temp or vf0, then invalidate itself
@@ -605,7 +605,7 @@ void mVUra_clearNeededXMM(struct microRegAlloc* r, int reg)
 		else if (r->regAllocCOP2 && clear.VFreg < 0)
 		{
 			// free on the EE side
-			r->pxmmregs[reg].inuse = false;
+			r->pxmmregs[reg].inuse = 0;
 		}
 	}
 
@@ -629,7 +629,7 @@ int mVUra_allocReg(struct microRegAlloc* r, int vfLoadReg, int vfWriteReg, int x
 						{
 							z = mVUra_findFreeReg(r, vfWriteReg);
 							const int xmmZ = z;
-							mVUra_writeBackRegXMM(r, xmmZ, true);
+							mVUra_writeBackRegXMM(r, xmmZ, 1);
 
 							if (xyzw == 4)
 								xe_pshufd_xxi(xmmZ, xmmI, 1);
@@ -645,7 +645,7 @@ int mVUra_allocReg(struct microRegAlloc* r, int vfLoadReg, int vfWriteReg, int x
 						else // Don't clone reg, but shuffle to adjust for SS ops
 						{
 							if ((vfLoadReg != vfWriteReg) || (xyzw != 0xf))
-								mVUra_writeBackRegXMM(r, xmmI, true);
+								mVUra_writeBackRegXMM(r, xmmI, 1);
 
 							if (xyzw == 4)
 								xe_pshufd_xxi(xmmI, xmmI, 1);
@@ -659,7 +659,7 @@ int mVUra_allocReg(struct microRegAlloc* r, int vfLoadReg, int vfWriteReg, int x
 						r->xmmMap[z].isZero = (vfLoadReg == 0);
 					}
 					r->xmmMap[z].count = r->counter;
-					r->xmmMap[z].isNeeded = true;
+					r->xmmMap[z].isNeeded = 1;
 					mVUra_updateCOP2AllocState(r, z);
 
 					return z;
@@ -668,7 +668,7 @@ int mVUra_allocReg(struct microRegAlloc* r, int vfLoadReg, int vfWriteReg, int x
 		}
 		int x = mVUra_findFreeReg(r, (vfWriteReg >= 0) ? vfWriteReg : vfLoadReg);
 		const int xmmX = x;
-		mVUra_writeBackRegXMM(r, xmmX, true);
+		mVUra_writeBackRegXMM(r, xmmX, 1);
 
 		if (vfWriteReg >= 0) // Reg Will Be Modified (allow partial reg loading)
 		{
@@ -698,7 +698,7 @@ int mVUra_allocReg(struct microRegAlloc* r, int vfLoadReg, int vfWriteReg, int x
 		}
 		r->xmmMap[x].isZero = (vfLoadReg == 0);
 		r->xmmMap[x].count    = r->counter;
-		r->xmmMap[x].isNeeded = true;
+		r->xmmMap[x].isNeeded = 1;
 		mVUra_updateCOP2AllocState(r, x);
 		return x;
 	}
@@ -716,8 +716,8 @@ void mVUra_clearGPR(struct microRegAlloc* r, int regId)
 		clear.VIreg = -1;
 		clear.count = 0;
 		clear.isNeeded = 0;
-		clear.dirty = false;
-		clear.isZeroExtended = false;
+		clear.dirty = 0;
+		clear.isZeroExtended = 0;
 	}
 
 void mVUra_clearGPRCOP2(struct microRegAlloc* r, int regId)
@@ -735,7 +735,7 @@ void mVUra_writeBackRegGPR(struct microRegAlloc* r, int reg, int clearDirty)
 				xe_mov16_mr(&::vuRegs[r->index].VI[mapX.VIreg], reg);
 			if (clearDirty)
 			{
-				mapX.dirty = false;
+				mapX.dirty = 0;
 				mVUra_updateCOP2AllocState(r, reg);
 			}
 		}
@@ -744,9 +744,9 @@ void mVUra_writeBackRegGPR(struct microRegAlloc* r, int reg, int clearDirty)
 void mVUra_clearNeededGPR(struct microRegAlloc* r, int reg)
 {
 		microMapGPR& clear = r->gprMap[reg];
-		clear.isNeeded = false;
+		clear.isNeeded = 0;
 		if (r->regAllocCOP2)
-			x86regs[reg].needed = false;
+			x86regs[reg].needed = 0;
 	}
 
 void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, int* backup)
@@ -759,7 +759,7 @@ void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, int* backup)
 				if ((*backup))
 				{
 					mVUra_writeVIBackup(r, i);
-					(*backup) = false;
+					(*backup) = 0;
 				}
 
 				// if it's needed, we just unbind the allocation and preserve it, otherwise clear
@@ -771,8 +771,8 @@ void mVUra_unbindAnyVIAllocations(struct microRegAlloc* r, int reg, int* backup)
 					}
 
 					mapI.VIreg = -1;
-					mapI.dirty = false;
-					mapI.isZeroExtended = false;
+					mapI.dirty = 0;
+					mapI.isZeroExtended = 0;
 				}
 				else
 				{
@@ -796,13 +796,13 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 			{
 				int x = mVUra_findFreeGPR(r, -1);
 				const int gprX = x;
-				mVUra_writeBackRegGPR(r, gprX, true);
+				mVUra_writeBackRegGPR(r, gprX, 1);
 				xe_xor32_rr(gprX, gprX);
 				r->gprMap[x].VIreg = -1;
-				r->gprMap[x].dirty = false;
+				r->gprMap[x].dirty = 0;
 				r->gprMap[x].count = this_counter;
-				r->gprMap[x].isNeeded = true;
-				r->gprMap[x].isZeroExtended = true;
+				r->gprMap[x].isNeeded = 1;
+				r->gprMap[x].isZeroExtended = 1;
 				return gprX;
 			}
 		}
@@ -828,14 +828,14 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 							int x = mVUra_findFreeGPR(r, viWriteReg);
 							const int gprX = x;
 
-							mVUra_writeBackRegGPR(r, gprX, true);
+							mVUra_writeBackRegGPR(r, gprX, 1);
 
 							// writeReg not cached, needs backing up
 							if (backup && r->gprMap[x].VIreg != viWriteReg)
 							{
 								xe_movzx32_rm16(gprX, &::vuRegs[r->index].VI[viWriteReg]);
 								mVUra_writeVIBackup(r, gprX);
-								backup = false;
+								backup = 0;
 							}
 
 							if (zext_if_dirty)
@@ -848,19 +848,19 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 						else
 						{
 							// writing to it, no longer zero extended
-							r->gprMap[i].isZeroExtended = false;
+							r->gprMap[i].isZeroExtended = 0;
 						}
 
 						r->gprMap[i].VIreg = viWriteReg;
-						r->gprMap[i].dirty = true;
+						r->gprMap[i].dirty = 1;
 					}
 					else if (zext_if_dirty && !r->gprMap[i].isZeroExtended)
 					{
 						xe_movzx32_rr16(i, i);
-						r->gprMap[i].isZeroExtended = true;
+						r->gprMap[i].isZeroExtended = 1;
 					}
 
-					r->gprMap[i].isNeeded = true;
+					r->gprMap[i].isNeeded = 1;
 
 					if (backup)
 						mVUra_writeVIBackup(r, i);
@@ -881,7 +881,7 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 
 		int x = mVUra_findFreeGPR(r, viLoadReg);
 		const int gprX = x;
-		mVUra_writeBackRegGPR(r, gprX, true);
+		mVUra_writeBackRegGPR(r, gprX, 1);
 
 		// Special case: we need to back up the destination register, but it might not have already
 		// been cached. If so, we need to load the old value from state and back it up. Otherwise,
@@ -890,7 +890,7 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 		{
 			xe_movzx32_rm16(gprX, &::vuRegs[r->index].VI[viWriteReg]);
 			mVUra_writeVIBackup(r, gprX);
-			backup = false;
+			backup = 0;
 		}
 
 		if (viLoadReg > 0)
@@ -899,12 +899,12 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 			xe_xor32_rr(gprX, gprX);
 
 		r->gprMap[x].VIreg = viLoadReg;
-		r->gprMap[x].isZeroExtended = true;
+		r->gprMap[x].isZeroExtended = 1;
 		if (viWriteReg >= 0)
 		{
 			r->gprMap[x].VIreg = viWriteReg;
-			r->gprMap[x].dirty = true;
-			r->gprMap[x].isZeroExtended = false;
+			r->gprMap[x].dirty = 1;
+			r->gprMap[x].isZeroExtended = 0;
 
 			if (backup)
 			{
@@ -915,7 +915,7 @@ int mVUra_allocGPR(struct microRegAlloc* r, int viLoadReg, int viWriteReg, int b
 		}
 
 		r->gprMap[x].count = this_counter;
-		r->gprMap[x].isNeeded = true;
+		r->gprMap[x].isNeeded = 1;
 
 		if (r->regAllocCOP2)
 		{
@@ -936,7 +936,7 @@ void mVUra_moveVIToGPR(struct microRegAlloc* r, int reg, int vi, int signext)
 
 		// TODO: Check liveness/usedness before allocating.
 		// TODO: Check whether zero-extend is needed everywhere heae. Loadstores are.
-		const int srcreg = mVUra_allocGPR(r, vi, -1, false, false);
+		const int srcreg = mVUra_allocGPR(r, vi, -1, 0, 0);
 		if (signext)
 			xe_movsx32_rr16(reg, srcreg);
 		else

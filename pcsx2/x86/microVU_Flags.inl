@@ -34,10 +34,10 @@ __fi void mVUstatusFlagOp(mV)
 {
 	int curPC = iPC;
 	int i = mVUcount;
-	int runLoop = true;
+	int runLoop = 1;
 
 	if (sFLAG.doFlag)
-		sFLAG.doNonSticky = true;
+		sFLAG.doNonSticky = 1;
 	else
 	{
 		for (; i > 0; i--)
@@ -45,12 +45,12 @@ __fi void mVUstatusFlagOp(mV)
 			incPC2(-2);
 			if (sFLAG.doNonSticky)
 			{
-				runLoop = false;
+				runLoop = 0;
 				break;
 			}
 			else if (sFLAG.doFlag)
 			{
-				sFLAG.doNonSticky = true;
+				sFLAG.doNonSticky = 1;
 				break;
 			}
 		}
@@ -64,7 +64,7 @@ __fi void mVUstatusFlagOp(mV)
 			if (sFLAG.doNonSticky)
 				break;
 
-			sFLAG.doFlag = false;
+			sFLAG.doFlag = 0;
 		}
 	}
 	iPC = curPC;
@@ -118,9 +118,9 @@ __fi void mVUsetFlags(mV, microFlagCycles* mFC)
 		if (sFLAG.doFlag)
 		{
 			if (__Mac)
-				mFLAG.doFlag = true;
+				mFLAG.doFlag = 1;
 			if (__Status)
-				sFLAG.doNonSticky = true;
+				sFLAG.doNonSticky = 1;
 			if (aCount >= 3)
 				break;
 		}
@@ -195,15 +195,15 @@ __fi void mVUsetFlags(mV, microFlagCycles* mFC)
 
 		if (sHackCond)
 		{
-			sFLAG.doFlag = false;
+			sFLAG.doFlag = 0;
 		}
 
 		if (sFLAG.doFlag)
 		{
 			if (noFlagOpts)
 			{
-				sFLAG.doNonSticky = true;
-				mFLAG.doFlag = true;
+				sFLAG.doNonSticky = 1;
+				mFLAG.doFlag = 1;
 			}
 		}
 
@@ -276,7 +276,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles* mFC)
 		}
 		else
 		{
-			const int temp3 = mVUra_allocGPR(mVU->regAlloc, -1, -1, false, false);
+			const int temp3 = mVUra_allocGPR(mVU->regAlloc, -1, -1, 0, 0);
 			xe_mov32_rr(gprT1, getFlagReg(bStatus[0]));
 			xe_mov32_rr(gprT2, getFlagReg(bStatus[1]));
 			xe_mov32_rr(temp3, getFlagReg(bStatus[2]));

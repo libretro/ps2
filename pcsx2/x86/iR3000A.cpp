@@ -78,7 +78,7 @@ static EEINST* s_psaveInstInfo = NULL;
 
 u32 s_psxBlockCycles = 0; // cycles of current block recompiling
 static u32 s_savenBlockCycles = 0;
-static int s_recompilingDelaySlot = false;
+static int s_recompilingDelaySlot = 0;
 
 static void iPsxBranchTest(u32 newpc, u32 cpuBranch);
 void psxRecompileNextInstruction(int delayslot);
@@ -176,9 +176,9 @@ static const void* _DynGen_EnterRecompiledCode(void)
 static void _DynGen_Dispatchers(void)
 {
 	PageProtectionMode mode;
-	mode.m_read  = true;
-	mode.m_write = true;
-	mode.m_exec  = false;
+	mode.m_read  = 1;
+	mode.m_write = 1;
+	mode.m_exec  = 0;
 	// In case init gets called multiple times:
 	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
 
@@ -196,8 +196,8 @@ static void _DynGen_Dispatchers(void)
 	iopJITCompile = _DynGen_JITCompile();
 	iopEnterRecompiledCode = _DynGen_EnterRecompiledCode();
 
-	mode.m_write = false;
-	mode.m_exec  = true;
+	mode.m_write = 0;
+	mode.m_exec  = 1;
 	HostSys::MemProtect(iopRecDispatchers, __pagesize, mode);
 
 	/* Was the BaseBlocks constructor; the struct is POD now, so the
@@ -371,13 +371,13 @@ int psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd)
 {
 #if 1
 	if (s_recompilingDelaySlot)
-		return false;
+		return 0;
 
 	const u32 opcode_encoded = iopMemRead32(psxpc);
 	if (opcode_encoded == 0)
 	{
-		psxRecompileNextInstruction(true, true);
-		return true;
+		psxRecompileNextInstruction(1, 1);
+		return 1;
 	}
 
 	const u32 opcode_rs = ((opcode_encoded >> 21) & 0x1F);
@@ -491,12 +491,12 @@ int psxTrySwapDelaySlot(u32 rs, u32 rt, u32 rd)
 			goto is_unsafe;
 	}
 
-	psxRecompileNextInstruction(true, true);
-	return true;
+	psxRecompileNextInstruction(1, 1);
+	return 1;
 
 is_unsafe:
 #endif
-	return false;
+	return 0;
 }
 
 int psxTryRenameReg(int to, int from, int fromx86, int other, int xmminfo)
@@ -984,7 +984,7 @@ void psxSetBranchReg(u32 reg)
 			const int wbreg = _allocX86reg(X86TYPE_PCWRITEBACK, 0, MODE_WRITE | MODE_CALLEESAVED);
 			_psxMoveGPRtoR(wbreg, reg);
 
-			psxRecompileNextInstruction(true, false);
+			psxRecompileNextInstruction(1, 0);
 
 			if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
 			{
@@ -1273,10 +1273,10 @@ static void iopRecRecompile(const u32 startpc)
 
 StartRecomp:
 
-	s_nBlockFF = false;
+	s_nBlockFF = 0;
 	if (s_branchTo == startpc)
 	{
-		s_nBlockFF = true;
+		s_nBlockFF = 1;
 		for (i = startpc; i < s_nEndBlock; i += 4)
 		{
 			if (i != s_nEndBlock - 8)
@@ -1286,7 +1286,7 @@ StartRecomp:
 					case 0: // nop
 						break;
 					default:
-						s_nBlockFF = false;
+						s_nBlockFF = 0;
 				}
 			}
 		}
@@ -1319,7 +1319,7 @@ StartRecomp:
 	g_pCurInstInfo = s_pInstCache;
 	while (!psxbranch && psxpc < s_nEndBlock)
 	{
-		psxRecompileNextInstruction(false, false);
+		psxRecompileNextInstruction(0, 0);
 	}
 
 	s_pCurBlockEx->size = (psxpc - startpc) >> 2;

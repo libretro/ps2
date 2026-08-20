@@ -465,7 +465,7 @@ static void rpsxLogicalOp_constv(enum LogicalOp op, int info, int creg, u32 vreg
 	const int xopg1 = op == LOGICALOP_AND ? 4 : op == LOGICALOP_OR ? 1 :
 		op == LOGICALOP_XOR ? 6 : /* NOR */ 1;
 	s32 fixedInput, fixedOutput, identityInput;
-	int hasFixed = true;
+	int hasFixed = 1;
 	switch (op)
 	{
 		case LOGICALOP_AND:
@@ -479,7 +479,7 @@ static void rpsxLogicalOp_constv(enum LogicalOp op, int info, int creg, u32 vreg
 			identityInput = 0;
 			break;
 		case LOGICALOP_XOR:
-			hasFixed = false;
+			hasFixed = 0;
 			identityInput = 0;
 			break;
 		case LOGICALOP_NOR:
@@ -1020,7 +1020,7 @@ PSXRECOMPILE_CONSTCODE3_PENALTY(DIVU, 1, psxInstCycles_Div);
 
 static u8* rpsxGetConstantAddressOperand(int store)
 {
-	return nullptr;
+	return NULL;
 }
 
 static void rpsxCalcAddressOperand()
@@ -1253,8 +1253,8 @@ static void rpsxLoadUnaligned(int isLeft)
 	}
 }
 
-static void rpsxLWL() { rpsxLoadUnaligned(true); }
-static void rpsxLWR() { rpsxLoadUnaligned(false); }
+static void rpsxLWL() { rpsxLoadUnaligned(1); }
+static void rpsxLWR() { rpsxLoadUnaligned(0); }
 // SWL/SWR: unaligned stores. Read-modify-write, so unlike the loads they
 // cannot be fully inlined -- iopMemWrite32 does more than store. It gates on
 // the isolate-cache bit and calls psxCpu->Clear to invalidate recompiled IOP
@@ -1338,32 +1338,32 @@ static void rpsxStoreUnaligned(int isLeft)
 	xe_fwd_set8(done);
 }
 
-static void rpsxSWL() { rpsxStoreUnaligned(true); }
-static void rpsxSWR() { rpsxStoreUnaligned(false); }
+static void rpsxSWL() { rpsxStoreUnaligned(1); }
+static void rpsxSWR() { rpsxStoreUnaligned(0); }
 
 static void rpsxLB()
 {
-	rpsxLoad(8, true);
+	rpsxLoad(8, 1);
 }
 
 static void rpsxLBU()
 {
-	rpsxLoad(8, false);
+	rpsxLoad(8, 0);
 }
 
 static void rpsxLH()
 {
-	rpsxLoad(16, true);
+	rpsxLoad(16, 1);
 }
 
 static void rpsxLHU()
 {
-	rpsxLoad(16, false);
+	rpsxLoad(16, 0);
 }
 
 static void rpsxLW()
 {
-	rpsxLoad(32, false);
+	rpsxLoad(32, 0);
 }
 
 static void rpsxSB()
@@ -1384,7 +1384,7 @@ static void rpsxSH()
 
 static void rpsxSW()
 {
-	u8* ptr = rpsxGetConstantAddressOperand(true);
+	u8* ptr = rpsxGetConstantAddressOperand(1);
 	if (ptr)
 	{
 		const int rt = _allocX86reg(X86TYPE_PSX, _Rt_, MODE_READ);
@@ -1574,7 +1574,7 @@ static void rpsxJ()
 {
 	// j target
 	u32 newpc = _InstrucTarget_ * 4 + (psxpc & 0xf0000000);
-	psxRecompileNextInstruction(true, false);
+	psxRecompileNextInstruction(1, 0);
 	psxSetBranchImm(newpc);
 }
 
@@ -1585,7 +1585,7 @@ static void rpsxJAL()
 	PSX_SET_CONST(31);
 	g_psxConstRegs[31] = psxpc + 4;
 
-	psxRecompileNextInstruction(true, false);
+	psxRecompileNextInstruction(1, 0);
 	psxSetBranchImm(newpc);
 }
 
@@ -1597,7 +1597,7 @@ static void rpsxJR()
 static void rpsxJALR()
 {
 	const u32 newpc = psxpc + 4;
-	const int swap = (_Rd_ == _Rs_) ? false : psxTrySwapDelaySlot(_Rs_, 0, _Rd_);
+	const int swap = (_Rd_ == _Rs_) ? 0 : psxTrySwapDelaySlot(_Rs_, 0, _Rd_);
 
 	// jalr Rs
 	int wbreg = -1;
@@ -1616,7 +1616,7 @@ static void rpsxJALR()
 
 	if (!swap)
 	{
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 
 		if (x86regs[wbreg].inuse && x86regs[wbreg].type == X86TYPE_PCWRITEBACK)
 		{
@@ -1690,7 +1690,7 @@ static void rpsxBEQ_const()
 	else
 		branchTo = psxpc + 4;
 
-	psxRecompileNextInstruction(true, false);
+	psxRecompileNextInstruction(1, 0);
 	psxSetBranchImm(branchTo);
 }
 
@@ -1700,7 +1700,7 @@ static void rpsxBEQ_process(int process)
 
 	if (_Rs_ == _Rt_)
 	{
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 	}
 	else
@@ -1712,7 +1712,7 @@ static void rpsxBEQ_process(int process)
 		if (!swap)
 		{
 			psxSaveBranchState();
-			psxRecompileNextInstruction(true, false);
+			psxRecompileNextInstruction(1, 0);
 		}
 
 		psxSetBranchImm(branchTo);
@@ -1724,7 +1724,7 @@ static void rpsxBEQ_process(int process)
 			// recopy the next inst
 			psxpc -= 4;
 			psxLoadBranchState();
-			psxRecompileNextInstruction(true, false);
+			psxRecompileNextInstruction(1, 0);
 		}
 
 		psxSetBranchImm(psxpc);
@@ -1754,7 +1754,7 @@ static void rpsxBNE_const()
 	else
 		branchTo = psxpc + 4;
 
-	psxRecompileNextInstruction(true, false);
+	psxRecompileNextInstruction(1, 0);
 	psxSetBranchImm(branchTo);
 }
 
@@ -1764,7 +1764,7 @@ static void rpsxBNE_process(int process)
 
 	if (_Rs_ == _Rt_)
 	{
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(psxpc);
 		return;
 	}
@@ -1776,7 +1776,7 @@ static void rpsxBNE_process(int process)
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -1788,7 +1788,7 @@ static void rpsxBNE_process(int process)
 		// recopy the next inst
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);
@@ -1817,7 +1817,7 @@ static void rpsxBLTZ()
 		if ((int)g_psxConstRegs[_Rs_] >= 0)
 			branchTo = psxpc + 4;
 
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 		return;
 	}
@@ -1836,7 +1836,7 @@ static void rpsxBLTZ()
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -1848,7 +1848,7 @@ static void rpsxBLTZ()
 		// recopy the next inst
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);
@@ -1864,7 +1864,7 @@ static void rpsxBGEZ()
 		if ((int)g_psxConstRegs[_Rs_] < 0)
 			branchTo = psxpc + 4;
 
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 		return;
 	}
@@ -1883,7 +1883,7 @@ static void rpsxBGEZ()
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -1895,7 +1895,7 @@ static void rpsxBGEZ()
 		// recopy the next inst
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);
@@ -1917,7 +1917,7 @@ static void rpsxBLTZAL()
 		if ((int)g_psxConstRegs[_Rs_] >= 0)
 			branchTo = psxpc + 4;
 
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 		return;
 	}
@@ -1936,7 +1936,7 @@ static void rpsxBLTZAL()
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -1948,7 +1948,7 @@ static void rpsxBLTZAL()
 		// recopy the next inst
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);
@@ -1969,7 +1969,7 @@ static void rpsxBGEZAL()
 		if ((int)g_psxConstRegs[_Rs_] < 0)
 			branchTo = psxpc + 4;
 
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 		return;
 	}
@@ -1988,7 +1988,7 @@ static void rpsxBGEZAL()
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -2000,7 +2000,7 @@ static void rpsxBGEZAL()
 		// recopy the next inst
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);
@@ -2017,7 +2017,7 @@ static void rpsxBLEZ()
 		if ((int)g_psxConstRegs[_Rs_] > 0)
 			branchTo = psxpc + 4;
 
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 		return;
 	}
@@ -2036,7 +2036,7 @@ static void rpsxBLEZ()
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -2047,7 +2047,7 @@ static void rpsxBLEZ()
 	{
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);
@@ -2066,7 +2066,7 @@ static void rpsxBGTZ()
 		if ((int)g_psxConstRegs[_Rs_] <= 0)
 			branchTo = psxpc + 4;
 
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 		psxSetBranchImm(branchTo);
 		return;
 	}
@@ -2085,7 +2085,7 @@ static void rpsxBGTZ()
 	if (!swap)
 	{
 		psxSaveBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(psxpc);
@@ -2096,7 +2096,7 @@ static void rpsxBGTZ()
 	{
 		psxpc -= 4;
 		psxLoadBranchState();
-		psxRecompileNextInstruction(true, false);
+		psxRecompileNextInstruction(1, 0);
 	}
 
 	psxSetBranchImm(branchTo);

@@ -194,7 +194,7 @@ __fi void mVUbackupRegs(microVU* mVU, int toMemory, int onlyNeeded)
 	else
 	{
 		// TODO(Stenzek): get rid of xmmbackup
-		mVUra_flushAll(mVU->regAlloc, true); // Flush Regalloc
+		mVUra_flushAll(mVU->regAlloc, 1); // Flush Regalloc
 		xe_movaps_mx(&mVU->xmmBackup[xmmPQ][0], xmmPQ);
 	}
 }
@@ -341,8 +341,8 @@ alignas(16) static const SSEMasks sseMasks =
 // Warning: Modifies t1 and t2
 void MIN_MAX_PS(microVU* mVU, int to, int from, int t1in, int t2in, int min)
 {
-	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t1in;
-	int t2 = (t2in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t2in;
+	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1) : t1in;
+	int t2 = (t2in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1) : t2in;
 
 	/* Use integer comparison */
 	{
@@ -372,7 +372,7 @@ void MIN_MAX_PS(microVU* mVU, int to, int from, int t1in, int t2in, int min)
 // Warning: Modifies to's upper 3 vectors, and t1
 void MIN_MAX_SS(mV, int to, int from, int t1in, int min)
 {
-	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t1in;
+	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1) : t1in;
 	xe_shufps_xxi(to, from, 0);
 	xe_pand_xm(to, sseMasks.MIN_MAX_1);
 	xe_por_xm(to, sseMasks.MIN_MAX_2);
@@ -423,24 +423,24 @@ void ADD_SS_TriAceHack(microVU* mVU, int to, int from)
 
 void SSE_MAXPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	MIN_MAX_PS(mVU, to, from, t1, t2, false);
+	MIN_MAX_PS(mVU, to, from, t1, t2, 0);
 }
 void SSE_MINPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	MIN_MAX_PS(mVU, to, from, t1, t2, true);
+	MIN_MAX_PS(mVU, to, from, t1, t2, 1);
 }
 void SSE_MAXSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	MIN_MAX_SS(mVU, to, from, t1, false);
+	MIN_MAX_SS(mVU, to, from, t1, 0);
 }
 void SSE_MINSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	MIN_MAX_SS(mVU, to, from, t1, true);
+	MIN_MAX_SS(mVU, to, from, t1, 1);
 }
 void SSE_ADD2SS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
 	if (!CHECK_VUADDSUBHACK)
-		clampOp(xe_addss_xx, false);
+		clampOp(xe_addss_xx, 0);
 	else
 		ADD_SS_TriAceHack(mVU, to, from);
 }
@@ -448,37 +448,37 @@ void SSE_ADD2SS(mV, int to, int from, int t1 = -1, int t2 = -1)
 // Does same as SSE_ADDPS since tri-ace games only need SS implementation of VUADDSUBHACK...
 void SSE_ADD2PS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_addps_xx, true);
+	clampOp(xe_addps_xx, 1);
 }
 void SSE_ADDPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_addps_xx, true);
+	clampOp(xe_addps_xx, 1);
 }
 void SSE_ADDSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_addss_xx, false);
+	clampOp(xe_addss_xx, 0);
 }
 void SSE_SUBPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_subps_xx, true);
+	clampOp(xe_subps_xx, 1);
 }
 void SSE_SUBSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_subss_xx, false);
+	clampOp(xe_subss_xx, 0);
 }
 void SSE_MULPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_mulps_xx, true);
+	clampOp(xe_mulps_xx, 1);
 }
 void SSE_MULSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_mulss_xx, false);
+	clampOp(xe_mulss_xx, 0);
 }
 void SSE_DIVPS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_divps_xx, true);
+	clampOp(xe_divps_xx, 1);
 }
 void SSE_DIVSS(mV, int to, int from, int t1 = -1, int t2 = -1)
 {
-	clampOp(xe_divss_xx, false);
+	clampOp(xe_divss_xx, 0);
 }

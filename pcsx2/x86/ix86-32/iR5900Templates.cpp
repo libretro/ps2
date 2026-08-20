@@ -98,7 +98,7 @@ static int FitsInImmediate(int reg, int fprinfo)
 {
 	if (fprinfo & XMMINFO_64BITOP)
 		return (s32)g_cpuConstRegs[reg].SD[0] == g_cpuConstRegs[reg].SD[0];
-	return true; // all 32bit ops fit
+	return 1; // all 32bit ops fit
 }
 
 void eeRecompileCodeRC0(R5900FNPTR constcode, R5900FNPTR_INFO constscode, R5900FNPTR_INFO consttcode, R5900FNPTR_INFO noconstcode, int xmminfo)
@@ -295,13 +295,13 @@ int eeRecompileCodeXMM(int xmminfo)
 			if (!(xmminfo & XMMINFO_READD) && (xmminfo & XMMINFO_READT) && EEINST_RENAMETEST(_Rt_))
 			{
 				_deleteEEreg128(_Rd_);
-				_reallocateXMMreg(EEREC_T, XMMTYPE_GPRREG, _Rd_, readd, true);
+				_reallocateXMMreg(EEREC_T, XMMTYPE_GPRREG, _Rd_, readd, 1);
 				regd = EEREC_T;
 			}
 			else if (!(xmminfo & XMMINFO_READD) && (xmminfo & XMMINFO_READS) && EEINST_RENAMETEST(_Rs_))
 			{
 				_deleteEEreg128(_Rd_);
-				_reallocateXMMreg(EEREC_S, XMMTYPE_GPRREG, _Rd_, readd, true);
+				_reallocateXMMreg(EEREC_S, XMMTYPE_GPRREG, _Rd_, readd, 1);
 				regd = EEREC_S;
 			}
 			else

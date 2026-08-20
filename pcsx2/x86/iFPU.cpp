@@ -28,32 +28,29 @@ alignas(16) const u32 g_maxvals[4] = {0x7f7fffff, 0x7f7fffff, 0x7f7fffff, 0x7f7f
 
 //------------------------------------------------------------------
 
-namespace DOUBLE
-{
-
-	void recABS_S_xmm(int info);
-	void recADD_S_xmm(int info);
-	void recADDA_S_xmm(int info);
-	void recC_EQ_xmm(int info);
-	void recC_LE_xmm(int info);
-	void recC_LT_xmm(int info);
-	void recDIV_S_xmm(int info);
-	void recMADD_S_xmm(int info);
-	void recMADDA_S_xmm(int info);
-	void recMAX_S_xmm(int info);
-	void recMIN_S_xmm(int info);
-	void recMOV_S_xmm(int info);
-	void recMSUB_S_xmm(int info);
-	void recMSUBA_S_xmm(int info);
-	void recMUL_S_xmm(int info);
-	void recMULA_S_xmm(int info);
-	void recNEG_S_xmm(int info);
-	void recSUB_S_xmm(int info);
-	void recSUBA_S_xmm(int info);
-	void recSQRT_S_xmm(int info);
-	void recRSQRT_S_xmm(int info);
-
-}; // namespace DOUBLE
+/* Forward declarations of the full-mode (DOUBLE) FPU emitters; the
+ * namespace is gone, the prefix carries the distinction. */
+void DOUBLE_recABS_S_xmm(int info);
+void DOUBLE_recADD_S_xmm(int info);
+void DOUBLE_recADDA_S_xmm(int info);
+void DOUBLE_recC_EQ_xmm(int info);
+void DOUBLE_recC_LE_xmm(int info);
+void DOUBLE_recC_LT_xmm(int info);
+void DOUBLE_recDIV_S_xmm(int info);
+void DOUBLE_recMADD_S_xmm(int info);
+void DOUBLE_recMADDA_S_xmm(int info);
+void DOUBLE_recMAX_S_xmm(int info);
+void DOUBLE_recMIN_S_xmm(int info);
+void DOUBLE_recMOV_S_xmm(int info);
+void DOUBLE_recMSUB_S_xmm(int info);
+void DOUBLE_recMSUBA_S_xmm(int info);
+void DOUBLE_recMUL_S_xmm(int info);
+void DOUBLE_recMULA_S_xmm(int info);
+void DOUBLE_recNEG_S_xmm(int info);
+void DOUBLE_recSUB_S_xmm(int info);
+void DOUBLE_recSUBA_S_xmm(int info);
+void DOUBLE_recSQRT_S_xmm(int info);
+void DOUBLE_recRSQRT_S_xmm(int info);
 
 //------------------------------------------------------------------
 // Helper Macros
@@ -244,7 +241,7 @@ void recMTC1(void)
 			{
 				// transfer the reg directly
 				_deleteFPtoXMMreg(_Fs_, DELETE_REG_FREE_NO_WRITEBACK);
-				_reallocateXMMreg(xmmgpr, XMMTYPE_FPREG, _Fs_, MODE_WRITE, true);
+				_reallocateXMMreg(xmmgpr, XMMTYPE_FPREG, _Fs_, MODE_WRITE, 1);
 			}
 			else
 			{
@@ -327,7 +324,7 @@ static int fpuCopyToTempForClamp(int fpureg, int xmmreg)
 
 	/* turn it into a temp, so in case the liveness was incorrect, 
 	 * we don't reuse it after clamp */
-	_reallocateXMMreg(xmmreg, XMMTYPE_TEMP, 0, 0, true);
+	_reallocateXMMreg(xmmreg, XMMTYPE_TEMP, 0, 0, 1);
 	return xmmreg;
 }
 
@@ -513,7 +510,7 @@ static void FPU_SUB(int regd, int regt)
 //------------------------------------------------------------------
 static void FPU_MUL(int regd, int regt, int reverseOperands)
 {
-	u8 *endMul = nullptr;
+	u8 *endMul = NULL;
 
 	if (CHECK_FPUMULHACK)
 	{
@@ -544,8 +541,8 @@ static void FPU_MUL(int regd, int regt, int reverseOperands)
 		x86SetJ8(endMul);
 }
 
-static void FPU_MUL_WRAP(int regd, int regt) { FPU_MUL(regd, regt, false); }
-static void FPU_MUL_WRAP_REV(int regd, int regt) { FPU_MUL(regd, regt, true); } //reversed operands
+static void FPU_MUL_WRAP(int regd, int regt) { FPU_MUL(regd, regt, 0); }
+static void FPU_MUL_WRAP_REV(int regd, int regt) { FPU_MUL(regd, regt, 1); } //reversed operands
 
 //------------------------------------------------------------------
 // CommutativeOp XMM (used for ADD, MUL, MAX, and MIN opcodes)
@@ -684,31 +681,31 @@ FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 void recBC1F(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const int swap = !!(TrySwapDelaySlot(0, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 1));
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNZ32(0), false, swap);
+	recDoBranchImm(branchTo, JNZ32(0), 0, swap);
 }
 
 void recBC1T(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
-	const int swap = !!(TrySwapDelaySlot(0, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(0, 0, 0, 1));
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JZ32(0), false, swap);
+	recDoBranchImm(branchTo, JZ32(0), 0, swap);
 }
 
 void recBC1FL(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JNZ32(0), true, false);
+	recDoBranchImm(branchTo, JNZ32(0), 1, 0);
 }
 
 void recBC1TL(void)
 {
 	const u32 branchTo = ((s32)_Imm_ * 4) + pc;
 	_setupBranchTest();
-	recDoBranchImm(branchTo, JZ32(0), true, false);
+	recDoBranchImm(branchTo, JZ32(0), 1, 0);
 }
 //------------------------------------------------------------------
 
@@ -1663,7 +1660,7 @@ FPURECOMPILE_CONSTCODE(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT)
 //------------------------------------------------------------------
 void recSQRT_S_xmm(int info)
 {
-	int roundmodeFlag = false;
+	int roundmodeFlag = 0;
 	alignas(16) static FPControlRegister roundmode_nearest;
 
 	if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::Nearest)
@@ -1672,7 +1669,7 @@ void recSQRT_S_xmm(int info)
 		roundmode_nearest = EmuConfig.Cpu.FPUFPCR;
 		roundmode_nearest.SetRoundMode(FPRoundMode::Nearest);
 		xe_ldmxcsr_m(&roundmode_nearest.bitmask);
-		roundmodeFlag = true;
+		roundmodeFlag = 1;
 	}
 
 	if (info & PROCESS_EE_T)

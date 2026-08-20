@@ -198,8 +198,15 @@ static u8* GetIndirectDispatcherPtr(int mode, int operandsize, int sign)
 // the vtlb Indirect Dispatcher.
 //
 
-template <typename GenDirectFn>
-static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits, int sign)
+/* Which direct-path generator the caller wants; replaces the lambda the
+ * old template took, so this is a plain function again. */
+enum DynGenDirect
+{
+	DYNGEN_DIRECT_READ = 0,
+	DYNGEN_DIRECT_WRITE = 1
+};
+
+static void DynGen_HandlerTest(int direct_kind, u32 direct_bits, int direct_sign, int mode, int bits, int sign)
 {
 	int szidx = 0;
 	switch (bits)
@@ -213,7 +220,10 @@ static void DynGen_HandlerTest(const GenDirectFn& gen_direct, int mode, int bits
 			  break;
 	}
 	e_u8* to_handler; xe_fwd_jcc8(Jcc_Signed, to_handler);
-	gen_direct();
+	if (direct_kind == DYNGEN_DIRECT_WRITE)
+		vtlb_private::DynGen_DirectWrite(direct_bits);
+	else
+		vtlb_private::DynGen_DirectRead(direct_bits, direct_sign);
 	e_u8* done; xe_fwd_jcc8(Jcc_Unconditional, done);
 	xe_fwd_set8(to_handler);
 	xe_fastcall0(GetIndirectDispatcherPtr(mode, szidx, sign));
@@ -289,14 +299,14 @@ static void DynGen_IndirectTlbDispatcher(int mode, int bits, int sign)
 void vtlb_DynGenDispatchers(void)
 {
 	PageProtectionMode mode;
-	static int hasBeenCalled = false;
+	static int hasBeenCalled = 0;
 	if (hasBeenCalled)
 		return;
-	hasBeenCalled = true;
+	hasBeenCalled = 1;
 
-	mode.m_read   = true;
-	mode.m_write  = true;
-	mode.m_exec   = false;
+	mode.m_read   = 1;
+	mode.m_write  = 1;
+	mode.m_exec   = 0;
 	// In case init gets called multiple times:
 	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
 
@@ -316,8 +326,8 @@ void vtlb_DynGenDispatchers(void)
 		}
 	}
 
-	mode.m_write  = false;
-	mode.m_exec   = true;
+	mode.m_write  = 0;
+	mode.m_exec   = 1;
 	HostSys::MemProtect(m_IndirectDispatchers, __pagesize, mode);
 }
 
@@ -335,7 +345,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, int sign, int xmm, int addr_reg, vtlb_ReadR
 		iFlushCall(FLUSH_FULLVTLB);
 
 		DynGen_PrepRegs(addr_reg, -1, bits, xmm);
-		DynGen_HandlerTest([bits, sign]() { DynGen_DirectRead(bits, sign); }, 0, bits, sign && bits < 64);
+		DynGen_HandlerTest(DYNGEN_DIRECT_READ, bits, sign, 0, bits, sign && bits < 64);
 
 		if (!xmm)
 		{
@@ -393,7 +403,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, int sign, int xmm, int addr_reg, vtlb_ReadR
 	vtlb_AddLoadStoreInfo((uptr)codeStart, (u32)(x86Ptr - codeStart),
 		pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 		(u8)(addr_reg), (u8)(x86_dest_reg),
-		(u8)(bits), sign, true, xmm);
+		(u8)(bits), sign, 1, xmm);
 
 	return x86_dest_reg;
 }
@@ -474,7 +484,7 @@ int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vt
 		else
 		{
 			iFlushCall(FLUSH_FULLVTLB);
-			xe_fastcall1_i(vmv.assumeHandlerGetRaw(szidx, false), paddr);
+			xe_fastcall1_i(vmv.assumeHandlerGetRaw(szidx, 0), paddr);
 
 			if (!xmm)
 			{
@@ -517,8 +527,8 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 	{
 		iFlushCall(FLUSH_FULLVTLB);
 
-		DynGen_PrepRegs(XE_ARG1, -1, bits, true);
-		DynGen_HandlerTest([bits]() {DynGen_DirectRead(bits, false); }, 0, bits, false);
+		DynGen_PrepRegs(XE_ARG1, -1, bits, 1);
+		DynGen_HandlerTest(DYNGEN_DIRECT_READ, bits, 0, 0, bits, 0);
 
 		/* The call here needs to be after the above function calls. */
 		reg = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0); /* Handler returns in xmm0 */
@@ -541,7 +551,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 		vtlb_AddLoadStoreInfo((uptr)codeStart, (u32)(x86Ptr - codeStart),
 				pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 				(u8)(XE_ARG1), (u8)(reg),
-				(u8)(bits), false, true, true);
+				(u8)(bits), 0, 1, 1);
 	}
 	return reg;
 }
@@ -585,7 +595,7 @@ void vtlb_DynGenWrite(u32 sz, int xmm, int addr_reg, int value_reg)
 		iFlushCall(FLUSH_FULLVTLB);
 
 		DynGen_PrepRegs(addr_reg, value_reg, sz, xmm);
-		DynGen_HandlerTest([sz]() { DynGen_DirectWrite(sz); }, 1, sz, false);
+		DynGen_HandlerTest(DYNGEN_DIRECT_WRITE, sz, 0, 1, sz, 0);
 	}
 	else
 	{
@@ -634,7 +644,7 @@ void vtlb_DynGenWrite(u32 sz, int xmm, int addr_reg, int value_reg)
 		vtlb_AddLoadStoreInfo((uptr)codeStart, (u32)(x86Ptr - codeStart),
 				pc, GetAllocatedGPRBitmask(), GetAllocatedXMMBitmask(),
 				(u8)(addr_reg), (u8)(value_reg),
-				(u8)(sz), false, false, xmm);
+				(u8)(sz), 0, 0, xmm);
 	}
 }
 
@@ -741,7 +751,7 @@ void vtlb_DynGenWrite_Const(u32 bits, int xmm, u32 addr_const, int value_reg)
 			xe_mov64_rr(XE_ARG2, value_reg);
 		}
 
-		xe_fastcall0(vmv.assumeHandlerGetRaw(szidx, true));
+		xe_fastcall0(vmv.assumeHandlerGetRaw(szidx, 1));
 	}
 }
 
@@ -824,7 +834,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	if (is_load)
 	{
 		DynGen_PrepRegs(address_register, -1, size_in_bits, is_xmm);
-		DynGen_HandlerTest([size_in_bits, is_signed]() {DynGen_DirectRead(size_in_bits, is_signed); },  0, size_in_bits, is_signed && size_in_bits <= 32);
+		DynGen_HandlerTest(DYNGEN_DIRECT_READ, size_in_bits, is_signed, 0, size_in_bits, is_signed && size_in_bits <= 32);
 
 		if (size_in_bits == 128)
 		{
@@ -871,7 +881,7 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 		}
 
 		DynGen_PrepRegs(address_register, data_register, size_in_bits, is_xmm);
-		DynGen_HandlerTest([size_in_bits]() { DynGen_DirectWrite(size_in_bits); }, 1, size_in_bits, false);
+		DynGen_HandlerTest(DYNGEN_DIRECT_WRITE, size_in_bits, 0, 1, size_in_bits, 0);
 	}
 
 	// restore regs

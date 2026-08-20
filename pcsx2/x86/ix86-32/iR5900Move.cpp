@@ -190,7 +190,7 @@ static void recMTHILO(int hi, int upper)
 			const int gprreg = upper ? -1 : _allocIfUsedGPRtoX86(reg, MODE_WRITE);
 			if (gprreg >= 0)
 			{
-				_eeMoveGPRtoR64(gprreg, _Rs_, true);
+				_eeMoveGPRtoR64(gprreg, _Rs_, 1);
 			}
 			else
 			{
@@ -205,42 +205,42 @@ static void recMTHILO(int hi, int upper)
 
 void recMFHI(void)
 {
-	recMFHILO(true, false);
+	recMFHILO(1, 0);
 }
 
 void recMFLO(void)
 {
-	recMFHILO(false, false);
+	recMFHILO(0, 0);
 }
 
 void recMTHI(void)
 {
-	recMTHILO(true, false);
+	recMTHILO(1, 0);
 }
 
 void recMTLO(void)
 {
-	recMTHILO(false, false);
+	recMTHILO(0, 0);
 }
 
 void recMFHI1(void)
 {
-	recMFHILO(true, true);
+	recMFHILO(1, 1);
 }
 
 void recMFLO1(void)
 {
-	recMFHILO(false, true);
+	recMFHILO(0, 1);
 }
 
 void recMTHI1(void)
 {
-	recMTHILO(true, true);
+	recMTHILO(1, 1);
 }
 
 void recMTLO1(void)
 {
-	recMTHILO(false, true);
+	recMTHILO(0, 1);
 }
 
 //// MOVZ

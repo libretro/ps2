@@ -26,7 +26,7 @@ static int mvuNeedsFPCRUpdate(mV)
 {
 	// always update on the vu1 thread
 	if (isVU1 && THREAD_VU1)
-		return true;
+		return 1;
 
 	// otherwise only emit when it's different to the EE
 	return EmuConfig.Cpu.FPUFPCR.bitmask != (isVU0 ? EmuConfig.Cpu.VU0FPCR.bitmask : EmuConfig.Cpu.VU1FPCR.bitmask);
@@ -112,7 +112,7 @@ void mVUdispatcherCD(mV)
 		if (mvuNeedsFPCRUpdate(mVU))
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
-		mVUrestoreRegs(mVU, false, false);
+		mVUrestoreRegs(mVU, 0, 0);
 		xe_mov32_rm(gprF0, &vuRegs[mVU->index].micro_statusflags[0]);
 		xe_mov32_rm(gprF1, &vuRegs[mVU->index].micro_statusflags[1]);
 		xe_mov32_rm(gprF2, &vuRegs[mVU->index].micro_statusflags[2]);
@@ -338,7 +338,7 @@ _mVUt void mVUcleanUp(void)
 	mVU->prog.codePtr = xGetAlignedCallTarget();
 
 	if ((xGetPtr() < mVU->prog.codeStart) || (xGetPtr() >= mVU->prog.codeEnd))
-		mVUreset(mVU, false);
+		mVUreset(mVU, 0);
 
 	mVU->cycles = mVU->totalCycles - C89_MAX(0, mVU->cycles);
 	vuRegs[mVU->index].cycle += mVU->cycles;

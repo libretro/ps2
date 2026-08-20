@@ -35,10 +35,10 @@ extern int cop2flags(u32 code);
 
 void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
-	int status_denormalized = false;
-	EEINST* last_status_write = nullptr;
-	EEINST* last_mac_write    = nullptr;
-	EEINST* last_clip_write   = nullptr;
+	int status_denormalized = 0;
+	EEINST* last_status_write = NULL;
+	EEINST* last_mac_write    = NULL;
+	EEINST* last_clip_write   = NULL;
 	u32 cfc2_pc               = start;
 
 	EEINST* inst = inst_cache;
@@ -53,7 +53,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 			if (last_status_write)
 			{
 				last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
-				status_denormalized = false;
+				status_denormalized = 0;
 			}
 			if (last_mac_write)
 				last_mac_write->info  |= EEINST_COP2_MAC_FLAG;
@@ -88,7 +88,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 						if (last_status_write)
 						{
 							last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
-							status_denormalized = false;
+							status_denormalized = 0;
 						}
 						break;
 					case REG_MAC_FLAG:
@@ -107,7 +107,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 								if (last_status_write)
 								{
 									last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
-									status_denormalized = false;
+									status_denormalized = 0;
 								}
 								if (last_mac_write)
 									last_mac_write->info  |= EEINST_COP2_MAC_FLAG;
@@ -125,7 +125,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 				if (last_status_write)
 				{
 					last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
-					status_denormalized = false;
+					status_denormalized = 0;
 				}
 				if (last_mac_write)
 					last_mac_write->info  |= EEINST_COP2_MAC_FLAG;
@@ -144,7 +144,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 						if (!status_denormalized)
 						{
 							inst->info |= EEINST_COP2_DENORMALIZE_STATUS_FLAG;
-							status_denormalized = true;
+							status_denormalized = 1;
 						}
 
 						/* If we're still behind the next CFC2 after the sticky bits got cleared,
@@ -183,7 +183,7 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 	if (last_status_write)
 	{
 		last_status_write->info |= EEINST_COP2_STATUS_FLAG | EEINST_COP2_NORMALIZE_STATUS_FLAG;
-		status_denormalized      = false;
+		status_denormalized      = 0;
 	}
 	if (last_mac_write)
 		last_mac_write->info  |= EEINST_COP2_MAC_FLAG;
@@ -193,8 +193,8 @@ void COP2FlagHackPass_Run(u32 start, u32 end, EEINST* inst_cache)
 
 void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 {
-	int needs_vu0_sync = true;
-	int needs_vu0_finish = true;
+	int needs_vu0_sync = 1;
+	int needs_vu0_finish = 1;
 	int block_interlocked = !!(CHECK_FULLVU0SYNCHACK);
 
 	// First pass through the block to find out if it's interlocked or not. If it is, we need to use tighter
@@ -205,7 +205,7 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 			cpuRegs.code = memRead32(apc);
 			if (_Opcode_ == 022 && (_Rs_ == 001 || _Rs_ == 002 || _Rs_ == 005 || _Rs_ == 006) && cpuRegs.code & 1)
 			{
-				block_interlocked = true;
+				block_interlocked = 1;
 				break;
 			}
 		}
@@ -221,8 +221,8 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		if (_Opcode_ == 050 || _Opcode_ == 051 || _Opcode_ == 053 || _Opcode_ == 077 || (_Opcode_ == 022 && _Rs_ >= 020 && (_Funct_ == 070 || _Funct_ == 071)))
 		{
 			// If we started a micro, we'll need to finish it before the first COP2 instruction.
-			needs_vu0_sync = true;
-			needs_vu0_finish = true;
+			needs_vu0_sync = 1;
+			needs_vu0_finish = 1;
 			inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS;
 			continue;
 		}
@@ -241,7 +241,7 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 		const int likely_clear = _Opcode_ == 022 && _Rs_ < 020 && _Rs_ > 004 && _Rt_ == 000;
 		if ((needs_vu0_sync && (is_lqc_sqc || is_non_interlocked_move)) || likely_clear)
 		{
-			int following_needs_finish = false;
+			int following_needs_finish = 0;
 			for (u32 apc2 = apc + 4; apc2 < end; apc2 += 4)
 			{
 				cpuRegs.code = memRead32(apc2);
@@ -265,14 +265,14 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 			if (following_needs_finish && !block_interlocked)
 			{
 				inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_FINISH_VU0;
-				needs_vu0_sync   = false;
-				needs_vu0_finish = false;
+				needs_vu0_sync   = 0;
+				needs_vu0_finish = 0;
 			}
 			else
 			{
 				inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_SYNC_VU0;
 				needs_vu0_sync   = block_interlocked || (is_non_interlocked_move && likely_clear);
-				needs_vu0_finish = true;
+				needs_vu0_finish = 1;
 			}
 		}
 		/* Look for COP2 instructions. */
@@ -282,8 +282,8 @@ void COP2MicroFinishPass_Run(u32 start, u32 end, EEINST* inst_cache)
 			if (_Rs_ >= 020 && needs_vu0_finish)
 			{
 				inst->info |= EEINST_COP2_FLUSH_VU0_REGISTERS | EEINST_COP2_FINISH_VU0;
-				needs_vu0_finish = false;
-				needs_vu0_sync   = false;
+				needs_vu0_finish = 0;
+				needs_vu0_sync   = 0;
 			}
 			else if (needs_vu0_sync)
 			{

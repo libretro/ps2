@@ -72,7 +72,7 @@ using namespace ::R5900::Interpreter::OpcodeImpl;
 static void recLoadQuad(u32 bits, int sign)
 {
 	// This mess is so we allocate *after* the vtlb flush, not before.
-	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
+	vtlb_ReadRegAllocCallback alloc_cb = NULL;
 	if (_Rt_)
 		alloc_cb = []() { return _allocGPRtoXMMreg(_Rt_, MODE_WRITE); };
 
@@ -80,20 +80,20 @@ static void recLoadQuad(u32 bits, int sign)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 srcadr = (g_cpuConstRegs[_Rs_].UL[0] + _Imm_) & ~0x0f;
-		xmmreg = vtlb_DynGenReadQuad_Const(bits, srcadr, _Rt_ ? alloc_cb : nullptr);
+		xmmreg = vtlb_DynGenReadQuad_Const(bits, srcadr, _Rt_ ? alloc_cb : NULL);
 	}
 	else
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR64(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR64(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
 		// force 16 byte alignment on 128 bit reads
 		xe_and32_ri(XE_ARG1, ~0x0F);
 
-		xmmreg = vtlb_DynGenReadQuad(bits, XE_ARG1, _Rt_ ? alloc_cb : nullptr);
+		xmmreg = vtlb_DynGenReadQuad(bits, XE_ARG1, _Rt_ ? alloc_cb : NULL);
 	}
 
 	// if there was a constant, it should have been invalidated.
@@ -107,7 +107,7 @@ static void recLoad(u32 bits, int sign)
 {
 	// This mess is so we allocate *after* the vtlb flush, not before.
 	// TODO(Stenzek): If not live, save directly to state, and delete constant.
-	vtlb_ReadRegAllocCallback alloc_cb = nullptr;
+	vtlb_ReadRegAllocCallback alloc_cb = NULL;
 	if (_Rt_)
 		alloc_cb = []() { return _allocX86reg(X86TYPE_GPR, _Rt_, MODE_WRITE); };
 
@@ -115,17 +115,17 @@ static void recLoad(u32 bits, int sign)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 srcadr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		x86reg = vtlb_DynGenReadNonQuad_Const(bits, sign, false, srcadr, alloc_cb);
+		x86reg = vtlb_DynGenReadNonQuad_Const(bits, sign, 0, srcadr, alloc_cb);
 	}
 	else
 	{
 		// Load arg1 with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
-		x86reg = vtlb_DynGenReadNonQuad(bits, sign, false, XE_ARG1, alloc_cb);
+		x86reg = vtlb_DynGenReadNonQuad(bits, sign, 0, XE_ARG1, alloc_cb);
 	}
 
 	// if there was a constant, it should have been invalidated.
@@ -143,13 +143,13 @@ static void recStore(u32 bits)
 	// allocation -- simpler code and just as fast)
 
 	int regt;
-	int xmm = false;
+	int xmm = 0;
 	if (bits < 128)
 		regt = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ);
 	else
 	{
 		regt = _allocGPRtoXMMreg(_Rt_, MODE_READ);
-		xmm  = true;
+		xmm  = 1;
 	}
 
 	// Load ECX with the destination address, or issue a direct optimized write
@@ -168,7 +168,7 @@ static void recStore(u32 bits)
 		if (_Rs_ != 0)
 		{
 			// TODO(Stenzek): Preload Rs when it's live. Turn into LEA.
-			_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+			_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 			if (_Imm_ != 0)
 				xe_add32_ri(XE_ARG1, _Imm_);
 		}
@@ -190,35 +190,35 @@ static void recStore(u32 bits)
 //
 void recLB(void)
 {
-	recLoad(8, true);
+	recLoad(8, 1);
 }
 void recLBU(void)
 {
-	recLoad(8, false);
+	recLoad(8, 0);
 }
 void recLH(void)
 {
-	recLoad(16, true);
+	recLoad(16, 1);
 }
 void recLHU(void)
 {
-	recLoad(16, false);
+	recLoad(16, 0);
 }
 void recLW(void)
 {
-	recLoad(32, true);
+	recLoad(32, 1);
 }
 void recLWU(void)
 {
-	recLoad(32, false);
+	recLoad(32, 0);
 }
 void recLD(void)
 {
-	recLoad(64, false);
+	recLoad(64, 0);
 }
 void recLQ(void)
 {
-	recLoadQuad(128, false);
+	recLoadQuad(128, 0);
 }
 
 void recSB(void)
@@ -260,7 +260,7 @@ void recLWL(void)
 
 	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -270,7 +270,7 @@ void recLWL(void)
 	xe_shl32_ri(temp, 3);
 
 	xe_and32_ri(XE_ARG1, ~3);
-	vtlb_DynGenReadNonQuad(32, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 	if (!_Rt_)
 	{
@@ -319,7 +319,7 @@ void recLWR()
 
 	const int temp = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -327,7 +327,7 @@ void recLWR()
 	xe_mov32_rr(temp, XE_ARG1);
 
 	xe_and32_ri(XE_ARG1, ~3);
-	vtlb_DynGenReadNonQuad(32, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 	if (!_Rt_)
 	{
@@ -387,7 +387,7 @@ void recSWL()
 	_freeX86reg(XE_ARG1);
 	_freeX86reg(XE_ARG2);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -405,7 +405,7 @@ void recSWL()
 	e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 	xe_shl32_ri(temp, 3);
 
-	vtlb_DynGenReadNonQuad(32, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 	// mask read -> arg2
 	xe_mov32_rr(XE_CX, temp);
@@ -418,23 +418,23 @@ void recSWL()
 		// mask write and OR -> edx
 		xe_neg32_r(XE_CX);
 		xe_add32_ri(XE_CX, 24);
-		_eeMoveGPRtoR32(0 /* eax */, _Rt_, false);
+		_eeMoveGPRtoR32(0 /* eax */, _Rt_, 0);
 		xe_shr32_rcl(XE_AX);
 		xe_or32_rr(XE_ARG2, XE_AX);
 	}
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_, false);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, 0);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 	xe_and32_ri(XE_ARG1, ~3);
 
 	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
 	xe_fwd_set8(skip);
-	_eeMoveGPRtoR32(XE_ARG2, _Rt_, false);
+	_eeMoveGPRtoR32(XE_ARG2, _Rt_, 0);
 	xe_fwd_set8(end);
 
 	_freeX86reg(temp);
-	vtlb_DynGenWrite(32, false, XE_ARG1, XE_ARG2);
+	vtlb_DynGenWrite(32, 0, XE_ARG1, XE_ARG2);
 #else
 	iFlushCall(FLUSH_INTERPRETER);
 	_deleteEEreg(_Rs_, 1);
@@ -461,7 +461,7 @@ void recSWR()
 	_freeX86reg(XE_ARG1);
 	_freeX86reg(XE_ARG2);
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -478,7 +478,7 @@ void recSWR()
 	e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 	xe_shl32_ri(temp, 3);
 
-	vtlb_DynGenReadNonQuad(32, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+	vtlb_DynGenReadNonQuad(32, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 	// mask read -> edx
 	xe_mov32_ri(XE_CX, 24);
@@ -491,23 +491,23 @@ void recSWR()
 	{
 		// mask write and OR -> edx
 		xe_mov32_rr(XE_CX, temp);
-		_eeMoveGPRtoR32(0 /* eax */, _Rt_, false);
+		_eeMoveGPRtoR32(0 /* eax */, _Rt_, 0);
 		xe_shl32_rcl(XE_AX);
 		xe_or32_rr(XE_ARG2, XE_AX);
 	}
 
-	_eeMoveGPRtoR32(XE_ARG1, _Rs_, false);
+	_eeMoveGPRtoR32(XE_ARG1, _Rs_, 0);
 	if (_Imm_ != 0)
 		xe_add32_ri(XE_ARG1, _Imm_);
 	xe_and32_ri(XE_ARG1, ~3);
 
 	e_u8* end; xe_fwd_jcc8(Jcc_Unconditional, end);
 	xe_fwd_set8(skip);
-	_eeMoveGPRtoR32(XE_ARG2, _Rt_, false);
+	_eeMoveGPRtoR32(XE_ARG2, _Rt_, 0);
 	xe_fwd_set8(end);
 
 	_freeX86reg(temp);
-	vtlb_DynGenWrite(32, false, XE_ARG1, XE_ARG2);
+	vtlb_DynGenWrite(32, 0, XE_ARG1, XE_ARG2);
 #else
 	iFlushCall(FLUSH_INTERPRETER);
 	_deleteEEreg(_Rs_, 1);
@@ -574,20 +574,20 @@ void recLDL()
 
 		srcadr &= ~0x07;
 
-		vtlb_DynGenReadNonQuad_Const(64, false, false, srcadr, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad_Const(64, 0, 0, srcadr, RETURN_READ_IN_RAX);
 	}
 	else
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
 		xe_mov32_rr(temp1, XE_ARG1);
 		xe_and32_ri(XE_ARG1, ~0x07);
 
-		vtlb_DynGenReadNonQuad(64, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 	}
 
 	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
@@ -659,20 +659,20 @@ void recLDR()
 
 		srcadr &= ~0x07;
 
-		vtlb_DynGenReadNonQuad_Const(64, false, false, srcadr, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad_Const(64, 0, 0, srcadr, RETURN_READ_IN_RAX);
 	}
 	else
 	{
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
 		xe_mov32_rr(temp1, XE_ARG1);
 		xe_and32_ri(XE_ARG1, ~0x07);
 
-		vtlb_DynGenReadNonQuad(64, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 	}
 
 	const int treg = _allocX86reg(X86TYPE_GPR, _Rt_, MODE_READ | MODE_WRITE);
@@ -759,15 +759,15 @@ void recSDL(void)
 		u32 shift = ((adr & 0x7) + 1) * 8;
 		if (shift == 64)
 		{
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, 1);
 		}
 		else
 		{
-			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
+			vtlb_DynGenReadNonQuad_Const(64, 0, 0, aligned, RETURN_READ_IN_RAX);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, 1);
 			sdlrhelper_const(shift, 4, 64 - shift, 5, XE_AX, XE_ARG2);
 		}
-		vtlb_DynGenWrite_Const(64, false, aligned, XE_ARG2);
+		vtlb_DynGenWrite_Const(64, 0, aligned, XE_ARG2);
 	}
 	else
 	{
@@ -776,7 +776,7 @@ void recSDL(void)
 
 		// Load ECX with the source memory address that we're reading from.
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -785,7 +785,7 @@ void recSDL(void)
 		_freeX86reg(XE_ARG2);
 		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-		_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
+		_eeMoveGPRtoR64(XE_ARG2, _Rt_, 1);
 
 		xe_mov32_rr(temp1, XE_ARG1);
 		xe_mov64_rr(temp2, XE_ARG2);
@@ -800,7 +800,7 @@ void recSDL(void)
 
 		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
 		xe_add32_ri(temp1, 1);
-		vtlb_DynGenReadNonQuad(64, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 		//Calculate the shift from top bit to lowest
 		xe_mov32_ri(XE_DX, 64);
@@ -809,13 +809,13 @@ void recSDL(void)
 
 		sdlrhelper(temp1, 4, XE_DX, 5, XE_AX, temp2);
 
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, false);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 0);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 		xe_and32_ri(XE_ARG1, ~0x7);
 		xe_fwd_set8(skip);
 
-		vtlb_DynGenWrite(64, false, XE_ARG1, temp2);
+		vtlb_DynGenWrite(64, 0, XE_ARG1, temp2);
 		_freeX86reg(temp2);
 		_freeX86reg(temp1);
 	}
@@ -845,16 +845,16 @@ void recSDR(void)
 		u32 shift = (adr & 0x7) * 8;
 		if (shift == 0)
 		{
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, 1);
 		}
 		else
 		{
-			vtlb_DynGenReadNonQuad_Const(64, false, false, aligned, RETURN_READ_IN_RAX);
-			_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
+			vtlb_DynGenReadNonQuad_Const(64, 0, 0, aligned, RETURN_READ_IN_RAX);
+			_eeMoveGPRtoR64(XE_ARG2, _Rt_, 1);
 			sdlrhelper_const(64 - shift, 5, shift, 4, XE_AX, XE_ARG2);
 		}
 
-		vtlb_DynGenWrite_Const(64, false, aligned, XE_ARG2);
+		vtlb_DynGenWrite_Const(64, 0, aligned, XE_ARG2);
 	}
 	else
 	{
@@ -862,7 +862,7 @@ void recSDR(void)
 			_addNeededX86reg(X86TYPE_GPR, _Rs_);
 
 		// Load ECX with the source memory address that we're reading from.
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
@@ -871,7 +871,7 @@ void recSDR(void)
 		_freeX86reg(XE_ARG2);
 		const int temp1 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
 		const int temp2 = _allocX86reg(X86TYPE_TEMP, 0, MODE_CALLEESAVED);
-		_eeMoveGPRtoR64(XE_ARG2, _Rt_, true);
+		_eeMoveGPRtoR64(XE_ARG2, _Rt_, 1);
 
 		xe_mov32_rr(temp1, XE_ARG1);
 		xe_mov64_rr(temp2, XE_ARG2);
@@ -884,7 +884,7 @@ void recSDR(void)
 			iFlushCall(FLUSH_FULLVTLB);
 
 		e_u8* skip; xe_fwd_jcc8(Jcc_Equal, skip);
-		vtlb_DynGenReadNonQuad(64, false, false, XE_ARG1, RETURN_READ_IN_RAX);
+		vtlb_DynGenReadNonQuad(64, 0, 0, XE_ARG1, RETURN_READ_IN_RAX);
 
 		xe_mov32_ri(XE_DX, 64);
 		xe_shl32_ri(temp1, 3);
@@ -892,14 +892,14 @@ void recSDR(void)
 
 		sdlrhelper(XE_DX, 5, temp1, 4, XE_AX, temp2);
 
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, false);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 0);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 		xe_and32_ri(XE_ARG1, ~0x7);
 		xe_mov64_rr(XE_ARG2, temp2);
 		xe_fwd_set8(skip);
 
-		vtlb_DynGenWrite(64, false, XE_ARG1, temp2);
+		vtlb_DynGenWrite(64, 0, XE_ARG1, temp2);
 		_freeX86reg(temp2);
 		_freeX86reg(temp1);
 	}
@@ -929,16 +929,16 @@ void recLWC1(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		vtlb_DynGenReadNonQuad_Const(32, false, true, addr, alloc_cb);
+		vtlb_DynGenReadNonQuad_Const(32, 0, 1, addr, alloc_cb);
 	}
 	else
 	{
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
-		vtlb_DynGenReadNonQuad(32, false, true, XE_ARG1, alloc_cb);
+		vtlb_DynGenReadNonQuad(32, 0, 1, XE_ARG1, alloc_cb);
 	}
 #endif
 }
@@ -954,16 +954,16 @@ void recSWC1(void)
 	if (GPR_IS_CONST1(_Rs_))
 	{
 		const u32 addr = g_cpuConstRegs[_Rs_].UL[0] + _Imm_;
-		vtlb_DynGenWrite_Const(32, true, addr, regt);
+		vtlb_DynGenWrite_Const(32, 1, addr, regt);
 	}
 	else
 	{
 		_freeX86reg(XE_ARG1);
-		_eeMoveGPRtoR32(XE_ARG1, _Rs_, true);
+		_eeMoveGPRtoR32(XE_ARG1, _Rs_, 1);
 		if (_Imm_ != 0)
 			xe_add32_ri(XE_ARG1, _Imm_);
 
-		vtlb_DynGenWrite(32, true, XE_ARG1, regt);
+		vtlb_DynGenWrite(32, 1, XE_ARG1, regt);
 	}
 #endif
 }

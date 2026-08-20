@@ -251,7 +251,7 @@ extern u32 _recIsRegReadOrWritten(EEINST* pinst, int size, u8 xmmtype, u8 reg);
 
 extern void _recFillRegister(EEINST* pinst, int type, int reg, int write);
 
-/*  Returns true if the register is used later in the block, 
+/*  Returns 1 if the register is used later in the block, 
  *  and this isn't the last instruction to use it.
  *  In other words, the register is worth keeping in a 
  *  host register/caching it.
@@ -261,13 +261,13 @@ static __fi int EEINST_USEDTEST(u32 reg)
 	return (g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;
 }
 
-/* Returns true if the register is used later in the block as an XMM/128-bit value. */
+/* Returns 1 if the register is used later in the block as an XMM/128-bit value. */
 static __fi int EEINST_XMMUSEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->regs[reg] & (EEINST_USED | EEINST_XMM | EEINST_LASTUSE)) == (EEINST_USED | EEINST_XMM);
 }
 
-/* Returns true if the specified VF register is used later in the block. */
+/* Returns 1 if the specified VF register is used later in the block. */
 static __fi int EEINST_VFUSEDTEST(u32 reg)
 {
 	return (g_pCurInstInfo->vfregs[reg] & (EEINST_USED | EEINST_LASTUSE)) == EEINST_USED;

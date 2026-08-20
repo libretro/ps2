@@ -49,10 +49,10 @@ mVUop(mVU_DIV)
 	pass2
 	{
 		int Ft;
-		if (_Ftf_) Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), true);
-		else       Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, -1, 0, true);
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
-		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		if (_Ftf_) Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), 1);
+		else       Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, -1, 0, 1);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 
 		testZero(Ft, t1, gprT1); // Test if Ft is zero
 		e_u8* cjmp; xe_fwd_jcc8(Jcc_Zero, cjmp); // Skip if not zero
@@ -75,7 +75,7 @@ mVUop(mVU_DIV)
 
 		xe_mov32_mi(&mVU->divFlag, 0); // Clear I/D flags
 		SSE_DIVSS(mVU, Fs, Ft);
-		mVUclamp1(mVU, Fs, t1, 8, true);
+		mVUclamp1(mVU, Fs, t1, 8, 1);
 
 		xe_fwd_set8(djmp);
 
@@ -98,7 +98,7 @@ mVUop(mVU_SQRT)
 	pass1 { mVUanalyzeFDIV(mVU, 0, 0, _Ft_, _Ftf_, 7); }
 	pass2
 	{
-		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), true);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), 1);
 
 		xe_mov32_mi(&mVU->divFlag, 0); /* Clear I/D flags */
 		testNeg(mVU, Ft, gprT1); /* Check for negative sqrt */
@@ -125,9 +125,9 @@ mVUop(mVU_RSQRT)
 	pass1 { mVUanalyzeFDIV(mVU, _Fs_, _Fsf_, _Ft_, _Ftf_, 13); }
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
-		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), true);
-		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, _Ft_, 0, (1 << (3 - _Ftf_)), 1);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 
 		xe_mov32_mi(&mVU->divFlag, 0); // Clear I/D flags
 		testNeg(mVU, Ft, gprT1); // Check for negative sqrt
@@ -150,7 +150,7 @@ mVUop(mVU_RSQRT)
 			e_u8* djmp; xe_fwd_jcc8(Jcc_Unconditional, djmp);
 		xe_fwd_set8(ajmp);
 			SSE_DIVSS(mVU, Fs, Ft);
-			mVUclamp1(mVU, Fs, t1, 8, true);
+			mVUclamp1(mVU, Fs, t1, 8, 1);
 		xe_fwd_set8(djmp);
 
 		writeQreg(Fs, mVUinfo.writeQ);
@@ -203,16 +203,16 @@ mVUop(mVU_EATAN)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU1(mVU, _Fs_, _Fsf_, 54);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
-		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_movss_xx(xmmPQ, Fs);
 		xe_subss_xm(Fs, mVUglob.one);
@@ -231,16 +231,16 @@ mVUop(mVU_EATANxy)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 54);
 	}
 	pass2
 	{
-		const int t1 = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, 0xf, true);
-		const int Fs = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, 0xf, 1);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_pshufd_xxi(Fs, t1, 0x01);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_movss_xx(xmmPQ, Fs);
@@ -260,16 +260,16 @@ mVUop(mVU_EATANxz)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 54);
 	}
 	pass2
 	{
-		const int t1 = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, 0xf, true);
-		const int Fs = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, 0xf, 1);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_pshufd_xxi(Fs, t1, 0x02);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_movss_xx(xmmPQ, Fs);
@@ -297,16 +297,16 @@ mVUop(mVU_EEXP)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU1(mVU, _Fs_, _Fsf_, 44);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
-		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_movss_xx(xmmPQ, Fs);
 		xe_mulss_xm(xmmPQ, mVUglob.E1);
@@ -347,14 +347,14 @@ mVUop(mVU_ELENG)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 18);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xe_sqrtss_xx(xmmPQ, xmmPQ);
@@ -369,14 +369,14 @@ mVUop(mVU_ERCPR)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU1(mVU, _Fs_, _Fsf_, 12);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_movss_xx(xmmPQ, Fs);
 		xe_movss_xm(Fs, mVUglob.one);
@@ -393,14 +393,14 @@ mVUop(mVU_ERLENG)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 24);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xe_sqrtss_xx(xmmPQ, xmmPQ);
@@ -418,14 +418,14 @@ mVUop(mVU_ERSADD)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 18);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xe_movss_xm(Fs, mVUglob.one);
@@ -442,14 +442,14 @@ mVUop(mVU_ERSQRT)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU1(mVU, _Fs_, _Fsf_, 18);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_andps_xm(Fs, mVUglob.absclip);
 		xe_sqrtss_xx(xmmPQ, Fs);
@@ -467,14 +467,14 @@ mVUop(mVU_ESADD)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 11);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		mVU_sumXYZ(mVU, xmmPQ, Fs);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip back
@@ -488,16 +488,16 @@ mVUop(mVU_ESIN)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU1(mVU, _Fs_, _Fsf_, 29);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
-		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
-		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
+		const int t2 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_movss_xx(xmmPQ, Fs); // pq = X
 		SSE_MULSS(mVU, Fs, Fs);    // fs = X^2
@@ -533,14 +533,14 @@ mVUop(mVU_ESQRT)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU1(mVU, _Fs_, _Fsf_, 12);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_andps_xm(Fs, mVUglob.absclip);
 		xe_sqrtss_xx(xmmPQ, Fs);
@@ -555,15 +555,15 @@ mVUop(mVU_ESUM)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeEFU2(mVU, _Fs_, 12);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, true);
-		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, _X_Y_Z_W, 1);
+		const int t1 = mVUra_allocReg(mVU->regAlloc, -1, -1, 0, 1);
 		xe_pshufd_xxi(xmmPQ, xmmPQ, mVUinfo.writeP ? 0x27 : 0xC6); // Flip xmmPQ to get Valid P instance
 		xe_pshufd_xxi(t1, Fs, 0x1b);
 		SSE_ADDPS(mVU, Fs, t1);
@@ -585,7 +585,7 @@ mVUop(mVU_FCAND)
 	pass1 { mVUanalyzeCflag(mVU, 1); }
 	pass2
 	{
-		const int dst = mVUra_allocGPR(mVU->regAlloc, -1, 1, mVUlow.backupVI, false);
+		const int dst = mVUra_allocGPR(mVU->regAlloc, -1, 1, mVUlow.backupVI, 0);
 		mVUallocCFLAGa(mVU, dst, cFLAG.read);
 		xe_and32_ri(dst, _Imm24_);
 		xe_add32_ri(dst, 0xffffff);
@@ -600,7 +600,7 @@ mVUop(mVU_FCEQ)
 	pass1 { mVUanalyzeCflag(mVU, 1); }
 	pass2
 	{
-		const int dst = mVUra_allocGPR(mVU->regAlloc, -1, 1, mVUlow.backupVI, false);
+		const int dst = mVUra_allocGPR(mVU->regAlloc, -1, 1, mVUlow.backupVI, 0);
 		mVUallocCFLAGa(mVU, dst, cFLAG.read);
 		xe_xor32_ri(dst, _Imm24_);
 		xe_sub32_ri(dst, 1);
@@ -615,7 +615,7 @@ mVUop(mVU_FCGET)
 	pass1 { mVUanalyzeCflag(mVU, _It_); }
 	pass2
 	{
-		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		mVUallocCFLAGa(mVU, regT, cFLAG.read);
 		xe_and32_ri(regT, 0xfff);
 		mVUra_clearNeededGPR(mVU->regAlloc, regT);
@@ -628,7 +628,7 @@ mVUop(mVU_FCOR)
 	pass1 { mVUanalyzeCflag(mVU, 1); }
 	pass2
 	{
-		const int dst = mVUra_allocGPR(mVU->regAlloc, -1, 1, mVUlow.backupVI, false);
+		const int dst = mVUra_allocGPR(mVU->regAlloc, -1, 1, mVUlow.backupVI, 0);
 		mVUallocCFLAGa(mVU, dst, cFLAG.read);
 		xe_or32_ri(dst, _Imm24_);
 		xe_add32_ri(dst, 1);  // If 24 1's will make 25th bit 1, else 0
@@ -640,7 +640,7 @@ mVUop(mVU_FCOR)
 
 mVUop(mVU_FCSET)
 {
-	pass1 { cFLAG.doFlag = true; }
+	pass1 { cFLAG.doFlag = 1; }
 	pass2
 	{
 		xe_mov32_ri(gprT1, _Imm24_);
@@ -658,7 +658,7 @@ mVUop(mVU_FMAND)
 	pass2
 	{
 		mVUallocMFLAGa(mVU, gprT1, mFLAG.read);
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, 0);
 		xe_and32_rr(regT, gprT1);
 		mVUra_clearNeededGPR(mVU->regAlloc, regT);
 	}
@@ -671,7 +671,7 @@ mVUop(mVU_FMEQ)
 	pass2
 	{
 		mVUallocMFLAGa(mVU, gprT1, mFLAG.read);
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, 0);
 		xe_xor32_rr(regT, gprT1);
 		xe_sub32_ri(regT, 1);
 		xe_shr32_ri(regT, 31);
@@ -686,7 +686,7 @@ mVUop(mVU_FMOR)
 	pass2
 	{
 		mVUallocMFLAGa(mVU, gprT1, mFLAG.read);
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, 0);
 		xe_or32_rr(regT, gprT1);
 		mVUra_clearNeededGPR(mVU->regAlloc, regT);
 	}
@@ -702,7 +702,7 @@ mVUop(mVU_FSAND)
 	pass1 { mVUanalyzeSflag(mVU, _It_); }
 	pass2
 	{
-		const int reg = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int reg = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		mVUallocSFLAGc(reg, gprT1, sFLAG.read);
 		xe_and32_ri(reg, _Imm12_);
 		mVUra_clearNeededGPR(mVU->regAlloc, reg);
@@ -715,7 +715,7 @@ mVUop(mVU_FSOR)
 	pass1 { mVUanalyzeSflag(mVU, _It_); }
 	pass2
 	{
-		const int reg = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int reg = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		mVUallocSFLAGc(reg, gprT2, sFLAG.read);
 		xe_or32_ri(reg, _Imm12_);
 		mVUra_clearNeededGPR(mVU->regAlloc, reg);
@@ -742,7 +742,7 @@ mVUop(mVU_FSEQ)
 		if (_Imm12_ & 0x0400) imm |= 0x1000000; // IS
 		if (_Imm12_ & 0x0800) imm |= 0x2000000; // DS
 
-		const int reg = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int reg = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		mVUallocSFLAGa(reg, sFLAG.read);
 		setBitFSEQ(reg, 0x0f00); // Z  bit
 		setBitFSEQ(reg, 0xf000); // S  bit
@@ -789,16 +789,16 @@ mVUop(mVU_IADD)
 	{
 		if (_Is_ == 0 || _It_ == 0)
 		{
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_ ? _Is_ : _It_, -1, false, false);
-			const int regD = mVUra_allocGPR(mVU->regAlloc, -1, _Id_, mVUlow.backupVI, false);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_ ? _Is_ : _It_, -1, 0, 0);
+			const int regD = mVUra_allocGPR(mVU->regAlloc, -1, _Id_, mVUlow.backupVI, 0);
 			xe_mov32_rr(regD, regS);
 			mVUra_clearNeededGPR(mVU->regAlloc, regD);
 			mVUra_clearNeededGPR(mVU->regAlloc, regS);
 		}
 		else
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, false);
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 0);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, 0);
 			xe_add32_rr(regS, regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regS);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
@@ -813,7 +813,7 @@ mVUop(mVU_IADDI)
 	{
 		if (_Is_ == 0)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm5_ != 0)
@@ -831,7 +831,7 @@ mVUop(mVU_IADDI)
 		}
 		else
 		{
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, false);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm5_ != 0)
@@ -857,7 +857,7 @@ mVUop(mVU_IADDIU)
 	{
 		if (_Is_ == 0)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm15_ != 0)
@@ -878,7 +878,7 @@ mVUop(mVU_IADDIU)
 		}
 		else
 		{
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, false);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm15_ != 0)
@@ -905,8 +905,8 @@ mVUop(mVU_IAND)
 	pass1 { mVUanalyzeIALU1(mVU, _Id_, _Is_, _It_); }
 	pass2
 	{
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, false);
-		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 0);
+		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, 0);
 		if (_It_ != _Is_)
 			xe_and32_rr(regS, regT);
 		mVUra_clearNeededGPR(mVU->regAlloc, regS);
@@ -919,8 +919,8 @@ mVUop(mVU_IOR)
 	pass1 { mVUanalyzeIALU1(mVU, _Id_, _Is_, _It_); }
 	pass2
 	{
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, false);
-		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 0);
+		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, 0);
 		if (_It_ != _Is_)
 			xe_or32_rr(regS, regT);
 		mVUra_clearNeededGPR(mVU->regAlloc, regS);
@@ -935,15 +935,15 @@ mVUop(mVU_ISUB)
 	{
 		if (_It_ != _Is_)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, false);
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 0);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Id_, mVUlow.backupVI, 0);
 			xe_sub32_rr(regS, regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regS);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
 		else
 		{
-			const int regD = mVUra_allocGPR(mVU->regAlloc, -1, _Id_, mVUlow.backupVI, false);
+			const int regD = mVUra_allocGPR(mVU->regAlloc, -1, _Id_, mVUlow.backupVI, 0);
 			xe_xor32_rr(regD, regD);
 			mVUra_clearNeededGPR(mVU->regAlloc, regD);
 		}
@@ -955,7 +955,7 @@ mVUop(mVU_ISUBIU)
 	pass1 { mVUanalyzeIALU2(mVU, _Is_, _It_); }
 	pass2
 	{
-		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, false);
+		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _It_, mVUlow.backupVI, 0);
 		if (!EmuConfig.Gamefixes.IbitHack)
 		{
 			if (_Imm15_ != 0)
@@ -986,17 +986,17 @@ mVUop(mVU_MFIR)
 	{
 		if (!_Ft_)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 		}
 		analyzeVIreg1(mVU, _Is_, mVUlow.VI_read[0]);
 		analyzeReg2  (mVU, _Ft_, mVUlow.VF_write, 1);
 	}
 	pass2
 	{
-		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 		if (_Is_ != 0)
 		{
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, -1, false, false);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, -1, 0, 0);
 			xe_movsx32_rr16(regS, regS);
 			// TODO: Broadcast instead
 			xe_movdzx_xr(Ft, regS);
@@ -1018,14 +1018,14 @@ mVUop(mVU_MFP)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeMFP(mVU, _Ft_);
 	}
 	pass2
 	{
-		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 		mVUunpack_xyzw(Ft, xmmPQ, (2 + mVUinfo.readP));
 		mVUra_clearNeededXMM(mVU->regAlloc, Ft);
 	}
@@ -1036,7 +1036,7 @@ mVUop(mVU_MOVE)
 	pass1 { mVUanalyzeMOVE(mVU, _Fs_, _Ft_); }
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _Ft_, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _Ft_, _X_Y_Z_W, 1);
 		mVUra_clearNeededXMM(mVU->regAlloc, Fs);
 	}
 }
@@ -1046,8 +1046,8 @@ mVUop(mVU_MR32)
 	pass1 { mVUanalyzeMR32(mVU, _Fs_, _Ft_); }
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, -1, 0, true);
-		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, -1, 0, 1);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 		if (_XYZW_SS)
 			mVUunpack_xyzw(Ft, Fs, (_X ? 1 : (_Y ? 2 : (_Z ? 3 : 0))));
 		else
@@ -1062,15 +1062,15 @@ mVUop(mVU_MTIR)
 	pass1
 	{
 		if (!_It_)
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 
 		analyzeReg5(mVU, _Fs_, _Fsf_, mVUlow.VF_read[0]);
 		analyzeVIreg2(mVU, _It_, mVUlow.VI_write, 1);
 	}
 	pass2
 	{
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
-		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		xe_movd_rx(regT, Fs);
 		mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		mVUra_clearNeededXMM(mVU->regAlloc, Fs);
@@ -1086,7 +1086,7 @@ mVUop(mVU_ILW)
 	pass1
 	{
 		if (!_It_)
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 
 		analyzeVIreg1(mVU, _Is_, mVUlow.VI_read[0]);
 		analyzeVIreg2(mVU, _It_, mVUlow.VI_write, 4);
@@ -1097,7 +1097,7 @@ mVUop(mVU_ILW)
 		const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, offsetSS);
 		if (!optaddr.has)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm11_ != 0)
@@ -1114,7 +1114,7 @@ mVUop(mVU_ILW)
 			mVUaddrFix(mVU, gprT1q);
 		}
 
-		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		{ struct e_mem xm; if (optaddr.has) xm = optaddr.m; else xe_complexaddr_si(xm, gprT2q, ptr, gprT1q, 1); xe_movzx32_rmemg16(regT, xm); }
 		mVUra_clearNeededGPR(mVU->regAlloc, regT);
 	}
@@ -1125,7 +1125,7 @@ mVUop(mVU_ILWR)
 	pass1
 	{
 		if (!_It_)
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 
 		analyzeVIreg1(mVU, _Is_, mVUlow.VI_read[0]);
 		analyzeVIreg2(mVU, _It_, mVUlow.VI_write, 4);
@@ -1135,16 +1135,16 @@ mVUop(mVU_ILWR)
 		void* ptr = vuRegs[mVU->index].Mem + offsetSS;
 		if (_Is_)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 			mVUaddrFix (mVU, gprT1q);
 
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			{ struct e_mem xm; xe_complexaddr_si(xm, gprT2q, ptr, gprT1q, 1); xe_movzx32_rmemg16(regT, xm); }
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
 		else
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			xe_movzx32_rm16(regT, ptr);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
@@ -1159,7 +1159,7 @@ mVUop(mVU_ISW)
 {
 	pass1
 	{
-		mVUlow.isMemWrite = true;
+		mVUlow.isMemWrite = 1;
 		analyzeVIreg1(mVU, _Is_, mVUlow.VI_read[0]);
 		analyzeVIreg1(mVU, _It_, mVUlow.VI_read[1]);
 	}
@@ -1168,7 +1168,7 @@ mVUop(mVU_ISW)
 		const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0);
 		if (!optaddr.has)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm11_ != 0)
@@ -1186,7 +1186,7 @@ mVUop(mVU_ISW)
 		}
 
 		// If regT is dirty, the high bits might not be zero.
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, true);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 1);
 		struct e_mem mptr; if (optaddr.has) mptr = optaddr.m; else xe_complexaddr_si(mptr, gprT2q, vuRegs[mVU->index].Mem, gprT1q, 1);
 		if (_X) xe_mov32_memgr(mptr, regT);
 		if (_Y) xe_mov32_memgr(e_mem_off(mptr, 4), regT);
@@ -1200,7 +1200,7 @@ mVUop(mVU_ISWR)
 {
 	pass1
 	{
-		mVUlow.isMemWrite = true;
+		mVUlow.isMemWrite = 1;
 		analyzeVIreg1(mVU, _Is_, mVUlow.VI_read[0]);
 		analyzeVIreg1(mVU, _It_, mVUlow.VI_read[1]);
 	}
@@ -1210,11 +1210,11 @@ mVUop(mVU_ISWR)
 		int is = -1;
 		if (_Is_)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 			mVUaddrFix(mVU, gprT1q);
 			is = gprT1q;
 		}
-		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, true);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 1);
 		if (!(is < 0) && (sptr)base != (s32)(sptr)base)
 		{
 			/* First live lane materializes the far base with lea; later lanes
@@ -1258,13 +1258,13 @@ mVUop(mVU_ISWR)
 
 mVUop(mVU_LQ)
 {
-	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, false); }
+	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, 0); }
 	pass2
 	{
 		const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0);
 		if (!optaddr.has)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm11_ != 0)
@@ -1281,7 +1281,7 @@ mVUop(mVU_LQ)
 			mVUaddrFix(mVU, gprT1q);
 		}
 
-		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 		struct e_mem _mp; if (optaddr.has) _mp = optaddr.m; else xe_complexaddr_si(_mp, gprT2q, vuRegs[mVU->index].Mem, gprT1q, 1);
 		mVUloadReg(Ft, _mp, _X_Y_Z_W);
 		mVUra_clearNeededXMM(mVU->regAlloc, Ft);
@@ -1290,14 +1290,14 @@ mVUop(mVU_LQ)
 
 mVUop(mVU_LQD)
 {
-	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, true); }
+	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, 1); }
 	pass2
 	{
 		void* ptr = vuRegs[mVU->index].Mem;
 		int is = -1;
 		if (_Is_ || isVU0) // Access VU1 regs mem-map in !_Is_ case
 		{
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Is_, mVUlow.backupVI, false);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Is_, mVUlow.backupVI, 0);
 			xe_dec32_r(regS);
 			xe_movsx32_rr16(gprT1, regS); // TODO: Confirm
 			mVUra_clearNeededGPR(mVU->regAlloc, regS);
@@ -1310,7 +1310,7 @@ mVUop(mVU_LQD)
 		}
 		if (!mVUlow.noWriteVF)
 		{
-			const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+			const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 			struct e_mem _mp; if ((is < 0)) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q, ptr, is, 1);
 			mVUloadReg(Ft, _mp, _X_Y_Z_W);
 			mVUra_clearNeededXMM(mVU->regAlloc, Ft);
@@ -1320,14 +1320,14 @@ mVUop(mVU_LQD)
 
 mVUop(mVU_LQI)
 {
-	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, true); }
+	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, 1); }
 	pass2
 	{
 		void* ptr = vuRegs[mVU->index].Mem;
 		int is = -1;
 		if (_Is_)
 		{
-			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Is_, mVUlow.backupVI, false);
+			const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, _Is_, mVUlow.backupVI, 0);
 			xe_movsx32_rr16(gprT1, regS); // TODO: Confirm
 			xe_inc32_r(regS);
 			mVUra_clearNeededGPR(mVU->regAlloc, regS);
@@ -1336,7 +1336,7 @@ mVUop(mVU_LQI)
 		}
 		if (!mVUlow.noWriteVF)
 		{
-			const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+			const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 			struct e_mem _mp; if ((is < 0)) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q, ptr, is, 1);
 			mVUloadReg(Ft, _mp, _X_Y_Z_W);
 			mVUra_clearNeededXMM(mVU->regAlloc, Ft);
@@ -1350,13 +1350,13 @@ mVUop(mVU_LQI)
 
 mVUop(mVU_SQ)
 {
-	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, false); }
+	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, 0); }
 	pass2
 	{
 		const struct e_memopt optptr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _It_, _Imm11_, 0);
 		if (!optptr.has)
 		{
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _It_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _It_, 0);
 			if (!EmuConfig.Gamefixes.IbitHack)
 			{
 				if (_Imm11_ != 0)
@@ -1373,7 +1373,7 @@ mVUop(mVU_SQ)
 			mVUaddrFix(mVU, gprT1q);
 		}
 
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, 1);
 		struct e_mem _mp; if (optptr.has) _mp = optptr.m; else xe_complexaddr_si(_mp, gprT2q, vuRegs[mVU->index].Mem, gprT1q, 1);
 		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVUra_clearNeededXMM(mVU->regAlloc, Fs);
@@ -1382,14 +1382,14 @@ mVUop(mVU_SQ)
 
 mVUop(mVU_SQD)
 {
-	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, true); }
+	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, 1); }
 	pass2
 	{
 		void* ptr = vuRegs[mVU->index].Mem;
 		int it = -1;
 		if (_It_ || isVU0) // Access VU1 regs mem-map in !_It_ case
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, _It_, mVUlow.backupVI, 0);
 			xe_dec32_r(regT);
 			xe_movzx32_rr16(gprT1, regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
@@ -1400,7 +1400,7 @@ mVUop(mVU_SQD)
 		{
 			ptr = (void*)((sptr)ptr + (0xffff & (mVU->microMemSize - 8)));
 		}
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, 1);
 		struct e_mem _mp; if ((it < 0)) _mp = e_mem_abs(ptr); else xe_complexaddr_si(_mp, gprT2q, ptr, it, 1);
 		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVUra_clearNeededXMM(mVU->regAlloc, Fs);
@@ -1409,19 +1409,19 @@ mVUop(mVU_SQD)
 
 mVUop(mVU_SQI)
 {
-	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, true); }
+	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, 1); }
 	pass2
 	{
 		void* ptr = vuRegs[mVU->index].Mem;
 		if (_It_)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, _It_, mVUlow.backupVI, 0);
 			xe_movzx32_rr16(gprT1, regT);
 			xe_inc32_r(regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 			mVUaddrFix(mVU, gprT1q);
 		}
-		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W, 1);
 		struct e_mem _mp; if (_It_) xe_complexaddr_si(_mp, gprT2q, ptr, gprT1q, 1); else _mp = e_mem_abs(ptr);
 		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVUra_clearNeededXMM(mVU->regAlloc, Fs);
@@ -1439,7 +1439,7 @@ mVUop(mVU_RINIT)
 	{
 		if (_Fs_ || (_Fsf_ == 3))
 		{
-			const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
+			const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 			xe_movd_rx(gprT1, Fs);
 			xe_and32_ri(gprT1, 0x007fffff);
 			xe_or32_ri(gprT1, 0x3f800000);
@@ -1455,7 +1455,7 @@ static __fi void mVU_RGET_(mV, int Rreg)
 {
 	if (!mVUlow.noWriteVF)
 	{
-		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, true);
+		const int Ft = mVUra_allocReg(mVU->regAlloc, -1, _Ft_, _X_Y_Z_W, 1);
 		xe_movdzx_xr(Ft, Rreg);
 		if (!_XYZW_SS)
 			mVUunpack_xyzw(Ft, Ft, 0);
@@ -1465,7 +1465,7 @@ static __fi void mVU_RGET_(mV, int Rreg)
 
 mVUop(mVU_RGET)
 {
-	pass1 { mVUanalyzeR2(mVU, _Ft_, true); }
+	pass1 { mVUanalyzeR2(mVU, _Ft_, 1); }
 	pass2
 	{
 		xe_mov32_rm(gprT1, Rmem);
@@ -1475,11 +1475,11 @@ mVUop(mVU_RGET)
 
 mVUop(mVU_RNEXT)
 {
-	pass1 { mVUanalyzeR2(mVU, _Ft_, false); }
+	pass1 { mVUanalyzeR2(mVU, _Ft_, 0); }
 	pass2
 	{
 		// algorithm from www.project-fao.org
-		const int temp3 = mVUra_allocGPR(mVU->regAlloc, -1, -1, false, false);
+		const int temp3 = mVUra_allocGPR(mVU->regAlloc, -1, -1, 0, 0);
 		xe_mov32_rm(temp3, Rmem);
 		xe_mov32_rr(gprT1, temp3);
 		xe_shr32_ri(gprT1, 4);
@@ -1507,7 +1507,7 @@ mVUop(mVU_RXOR)
 	{
 		if (_Fs_ || (_Fsf_ == 3))
 		{
-			const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), true);
+			const int Fs = mVUra_allocReg(mVU->regAlloc, _Fs_, 0, (1 << (3 - _Fsf_)), 1);
 			xe_movd_rx(gprT1, Fs);
 			xe_and32_ri(gprT1, 0x7fffff);
 			xe_xor32_mr(Rmem, gprT1);
@@ -1526,7 +1526,7 @@ mVUop(mVU_WAITP)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUstall = C89_MAX(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0));
@@ -1548,18 +1548,18 @@ mVUop(mVU_XTOP)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 
 		if (!_It_)
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 
 		analyzeVIreg2(mVU, _It_, mVUlow.VI_write, 1);
 	}
 	pass2
 	{
-		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		if (mVU->index && THREAD_VU1)
 		{
 			xe_movzx32_rm16(regT, &vu1Thread.vifRegs.top);
@@ -1580,13 +1580,13 @@ mVUop(mVU_XITOP)
 	pass1
 	{
 		if (!_It_)
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 
 		analyzeVIreg2(mVU, _It_, mVUlow.VI_write, 1);
 	}
 	pass2
 	{
-		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+		const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 		if (mVU->index && THREAD_VU1)
 		{
 			xe_movzx32_rm16(regT, &vu1Thread.vifRegs.itop);
@@ -1611,16 +1611,16 @@ void mVU_XGKICK_(u32 addr)
 {
 	addr = (addr & 0x3ff) * 16;
 	u32 diff = 0x4000 - addr;
-	u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, addr, ~0u, true);
+	u32 size = gifUnit.GetGSPacketSize(GIF_PATH_1, vuRegs[1].Mem, addr, ~0u, 1);
 
 	if (size > diff)
 	{
-		gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[addr], diff, true);
-		gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[0], size - diff, true);
+		gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[addr], diff, 1);
+		gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[0], size - diff, 1);
 	}
 	else
 	{
-		gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[addr], size, true);
+		gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[addr], size, 1);
 	}
 }
 
@@ -1639,7 +1639,7 @@ void _vuXGKICKTransfermVU(int flush)
 
 			if (vuRegs[1].xgkicksizeremaining == 0)
 			{
-				vuRegs[1].xgkickenable = false;
+				vuRegs[1].xgkickenable = 0;
 				break;
 			}
 		}
@@ -1653,9 +1653,9 @@ void _vuXGKICKTransfermVU(int flush)
 		// Would be "nicer" to do the copy until it's all up, however this really screws up PATH3 masking stuff
 		// So lets just do it the other way :)
 		if (THREAD_VU1 && (transfersize < vuRegs[1].xgkicksizeremaining))
-			gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
+			gifUnit.gifPath[GIF_PATH_1].CopyGSPacketData(&vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, 1);
 		else
-			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, true);
+			gifUnit.TransferGSPacketData(GIF_TRANS_XGKICK, &vuRegs[1].Mem[vuRegs[1].xgkickaddr], transfersize, 1);
 
 		if (flush)
 			vuRegs[1].cycle += transfersize / 8;
@@ -1667,13 +1667,13 @@ void _vuXGKICKTransfermVU(int flush)
 		vuRegs[1].xgkickdiff = 0x4000 - vuRegs[1].xgkickaddr;
 
 		if (vuRegs[1].xgkickendpacket && !vuRegs[1].xgkicksizeremaining)
-			vuRegs[1].xgkickenable = false;
+			vuRegs[1].xgkickenable = 0;
 	}
 }
 
 static __fi void mVU_XGKICK_SYNC(mV, int flush)
 {
-	mVUra_flushCallerSavedRegisters(mVU->regAlloc, false);
+	mVUra_flushCallerSavedRegisters(mVU->regAlloc, 0);
 
 	// Add the single cycle remainder after this instruction, some games do the store
 	// on the second instruction after the kick and that needs to go through first
@@ -1683,9 +1683,9 @@ static __fi void mVU_XGKICK_SYNC(mV, int flush)
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, mVUlow.kickcycles-1);
 	xe_cmp32_mi(&vuRegs[1].xgkickcyclecount, 2);
 	e_u8* needcycles; xe_fwd_jcc32(Jcc_Less, needcycles);
-	mVUbackupRegs(mVU, true, true);
+	mVUbackupRegs(mVU, 1, 1);
 	xe_fastcall1_i(_vuXGKICKTransfermVU, flush);
-	mVUrestoreRegs(mVU, true, true);
+	mVUrestoreRegs(mVU, 1, 1);
 	xe_fwd_set32(needcycles);
 	xe_add32_mi(&vuRegs[1].xgkickcyclecount, 1);
 	xe_fwd_set32(skipxgkick);
@@ -1693,16 +1693,16 @@ static __fi void mVU_XGKICK_SYNC(mV, int flush)
 
 static __fi void mVU_XGKICK_DELAY(mV)
 {
-	mVUra_flushCallerSavedRegisters(mVU->regAlloc, false);
+	mVUra_flushCallerSavedRegisters(mVU->regAlloc, 0);
 
-	mVUbackupRegs(mVU, true, true);
+	mVUbackupRegs(mVU, 1, 1);
 #if 0 // XGkick Break - ToDo: Change "SomeGifPathValue" to w/e needs to be tested
 	xTEST(ptr32[&SomeGifPathValue], 1); // If '1', breaks execution
 	xMOV(ptr32[&mVU->resumePtrXG], (uptr)xGetPtr() + 10 + 6);
 	xJcc32(Jcc_NotZero, (uptr)mVU->exitFunctXG - ((uptr)xGetPtr()+6));
 #endif
 	xe_fastcall1_m32(mVU_XGKICK_, &mVU->VIxgkick);
-	mVUrestoreRegs(mVU, true, true);
+	mVUrestoreRegs(mVU, 1, 1);
 }
 
 mVUop(mVU_XGKICK)
@@ -1711,7 +1711,7 @@ mVUop(mVU_XGKICK)
 	{
 		if (isVU0)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUanalyzeXGkick(mVU, _Is_, 1);
@@ -1721,16 +1721,16 @@ mVUop(mVU_XGKICK)
 		if (CHECK_XGKICKHACK)
 		{
 			mVUlow.kickcycles = 99;
-			mVU_XGKICK_SYNC(mVU, true);
+			mVU_XGKICK_SYNC(mVU, 1);
 			mVUlow.kickcycles = 0;
 		}
 		if (mVUinfo.doXGKICK) // check for XGkick Transfer
 		{
 			mVU_XGKICK_DELAY(mVU);
-			mVUinfo.doXGKICK = false;
+			mVUinfo.doXGKICK = 0;
 		}
 
-		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, -1, false, false);
+		const int regS = mVUra_allocGPR(mVU->regAlloc, _Is_, -1, 0, 0);
 		if (!CHECK_XGKICKHACK)
 		{
 			xe_mov32_mr(&mVU->VIxgkick, regS);
@@ -1760,18 +1760,18 @@ mVUop(mVU_XGKICK)
 
 void setBranchA(mP, int x, int _x_)
 {
-	int isBranchDelaySlot = false;
+	int isBranchDelaySlot = 0;
 
 	incPC(-2);
 	if (mVUlow.branch)
-		isBranchDelaySlot = true;
+		isBranchDelaySlot = 1;
 	incPC(2);
 
 	pass1
 	{
 		if (_Imm11_ == 1 && !_x_ && !isBranchDelaySlot)
 		{
-			mVUlow.isNOP = true;
+			mVUlow.isNOP = 1;
 			return;
 		}
 		mVUbranch     = x;
@@ -1823,7 +1823,7 @@ void condEvilBranch(mV, int JMPcc)
 mVUop(mVU_B)
 {
 	setBranchA(mX, 1, 0);
-	pass1 { mVUanalyzeNormBranch(mVU, 0, false); }
+	pass1 { mVUanalyzeNormBranch(mVU, 0, 0); }
 	pass2
 	{
 		if (mVUlow.badBranch)  { xe_mov32_mi(&mVU->badBranch,  branchAddr(mVU)); }
@@ -1834,12 +1834,12 @@ mVUop(mVU_B)
 mVUop(mVU_BAL)
 {
 	setBranchA(mX, 2, _It_);
-	pass1 { mVUanalyzeNormBranch(mVU, _It_, true); }
+	pass1 { mVUanalyzeNormBranch(mVU, _It_, 1); }
 	pass2
 	{
 		if (!mVUlow.evilBranch)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			xe_mov32_ri(regT, bSaveAddr);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
@@ -1848,7 +1848,7 @@ mVUop(mVU_BAL)
 			incPC(-2);
 			incPC(2);
 
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			if (isEvilBlock)
 				xe_mov32_rm(regT, &mVU->evilBranch);
 			else
@@ -1873,13 +1873,13 @@ mVUop(mVU_IBEQ)
 		if (mVUlow.memReadIs)
 			xe_mov32_rm(gprT1, &mVU->VIbackup);
 		else
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 
 		if (mVUlow.memReadIt)
 			xe_xor32_rm(gprT1, &mVU->VIbackup);
 		else
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 0);
 			xe_xor32_rr(gprT1, regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
@@ -1900,7 +1900,7 @@ mVUop(mVU_IBGEZ)
 		if (mVUlow.memReadIs)
 			xe_mov32_rm(gprT1, &mVU->VIbackup);
 		else
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 		if (!(isBadOrEvil))
 			xe_mov32_mr(&mVU->branch, gprT1);
 		else
@@ -1917,7 +1917,7 @@ mVUop(mVU_IBGTZ)
 		if (mVUlow.memReadIs)
 			xe_mov32_rm(gprT1, &mVU->VIbackup);
 		else
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 		if (!(isBadOrEvil))
 			xe_mov32_mr(&mVU->branch, gprT1);
 		else
@@ -1934,7 +1934,7 @@ mVUop(mVU_IBLEZ)
 		if (mVUlow.memReadIs)
 			xe_mov32_rm(gprT1, &mVU->VIbackup);
 		else
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 		if (!(isBadOrEvil))
 			xe_mov32_mr(&mVU->branch, gprT1);
 		else
@@ -1951,7 +1951,7 @@ mVUop(mVU_IBLTZ)
 		if (mVUlow.memReadIs)
 			xe_mov32_rm(gprT1, &mVU->VIbackup);
 		else
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 		if (!(isBadOrEvil))
 			xe_mov32_mr(&mVU->branch, gprT1);
 		else
@@ -1968,13 +1968,13 @@ mVUop(mVU_IBNE)
 		if (mVUlow.memReadIs)
 			xe_mov32_rm(gprT1, &mVU->VIbackup);
 		else
-			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+			mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 
 		if (mVUlow.memReadIt)
 			xe_xor32_rm(gprT1, &mVU->VIbackup);
 		else
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, false, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, _It_, -1, 0, 0);
 			xe_xor32_rr(gprT1, regT);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
@@ -1990,7 +1990,7 @@ void normJumpPass2(mV)
 {
 	if (!mVUlow.constJump.isValid || mVUlow.evilBranch)
 	{
-		mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, false);
+		mVUra_moveVIToGPR(mVU->regAlloc, gprT1, _Is_, 0);
 		xe_shl32_ri(gprT1, 3);
 		xe_and32_ri(gprT1, mVU->microMemSize - 8);
 
@@ -2016,7 +2016,7 @@ void normJumpPass2(mV)
 mVUop(mVU_JR)
 {
 	mVUbranch = 9;
-	pass1 { mVUanalyzeJump(mVU, _Is_, 0, false); }
+	pass1 { mVUanalyzeJump(mVU, _Is_, 0, 0); }
 	pass2
 	{
 		normJumpPass2(mVU);
@@ -2032,13 +2032,13 @@ mVUop(mVU_JALR)
 		normJumpPass2(mVU);
 		if (!mVUlow.evilBranch)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			xe_mov32_ri(regT, bSaveAddr);
 			mVUra_clearNeededGPR(mVU->regAlloc, regT);
 		}
 		if (mVUlow.evilBranch)
 		{
-			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, false);
+			const int regT = mVUra_allocGPR(mVU->regAlloc, -1, _It_, mVUlow.backupVI, 0);
 			if (isEvilBlock)
 			{
 				xe_mov32_rm(regT, &mVU->evilBranch);

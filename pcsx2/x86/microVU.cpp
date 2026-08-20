@@ -84,9 +84,9 @@ void mVUreset(microVU* mVU, int resetReserve)
 	if (resetReserve)
 		mVU->cache_reserve->Reset();
 
-	mode.m_read  = true;
-	mode.m_write = true;
-	mode.m_exec  = false;
+	mode.m_read  = 1;
+	mode.m_write = 1;
+	mode.m_exec  = 0;
 	HostSys::MemProtect(mVU->dispCache, mVUdispCacheSize, mode);
 	memset(mVU->dispCache, 0xcc, mVUdispCacheSize);
 
@@ -129,8 +129,8 @@ void mVUreset(microVU* mVU, int resetReserve)
 		mVU->prog.quick[i].prog = NULL;
 	}
 
-	mode.m_write = false;
-	mode.m_exec  = true;
+	mode.m_write = 0;
+	mode.m_exec  = 1;
 	HostSys::MemProtect(mVU->dispCache, mVUdispCacheSize, mode);
 }
 
@@ -243,7 +243,7 @@ __fi int mVUcmpProg(microVU* mVU, microProgram* prog)
 	if (doWholeProgCompare)
 	{
 		if (memcmp((u8*)prog->data, vuRegs[mVU->index].Micro, mVU->microMemSize))
-			return false;
+			return 0;
 	}
 	else
 	{
@@ -253,13 +253,13 @@ __fi int mVUcmpProg(microVU* mVU, microProgram* prog)
 			if (memcmp((u8*)prog->data + range.start,
 			           (u8*)vuRegs[mVU->index].Micro + range.start,
 			           (range.end - range.start)))
-				return false;
+				return 0;
 		}
 	}
 	mVU->prog.cleared = 0;
 	mVU->prog.cur = prog;
 	mVU->prog.isSame = doWholeProgCompare ? 1 : -1;
-	return true;
+	return 1;
 }
 
 // Searches for Cached Micro Program and sets prog.cur to it (returns entry-point to program)
@@ -284,7 +284,7 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 				mvu_proglist_push_front(list, quick.prog);
 
 				// Sanity check, in case for some reason the program compilation aborted half way through (JALR for example)
-				if (quick.block == nullptr)
+				if (quick.block == NULL)
 				{
 					void* entryPoint = mVUblockFetch(mVU, startPC, pState);
 					return entryPoint;
@@ -312,7 +312,7 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 	quick.block = mVU->prog.cur->block[startPC / 8];
 
 	// Sanity check, in case for some reason the program compilation aborted half way through
-	if (quick.block == nullptr)
+	if (quick.block == NULL)
 	{
 		void* entryPoint = mVUblockFetch(mVU, startPC, pState);
 		return entryPoint;
@@ -327,8 +327,8 @@ _mVUt __fi void* mVUsearchProg(u32 startPC, uptr pState)
 recMicroVU0 CpuMicroVU0;
 recMicroVU1 CpuMicroVU1;
 
-recMicroVU0::recMicroVU0() { m_Idx = 0; IsInterpreter = false; }
-recMicroVU1::recMicroVU1() { m_Idx = 1; IsInterpreter = false; }
+recMicroVU0::recMicroVU0() { m_Idx = 0; IsInterpreter = 0; }
+recMicroVU1::recMicroVU1() { m_Idx = 1; IsInterpreter = 0; }
 
 void recMicroVU0::Reserve()
 {
@@ -353,14 +353,14 @@ void recMicroVU1::Shutdown()
 
 void recMicroVU0::Reset()
 {
-	mVUreset(&microVU0, true);
+	mVUreset(&microVU0, 1);
 }
 
 void recMicroVU1::Reset()
 {
 	vu1Thread.WaitVU();
 	vu1Thread.Get_MTVUChanges();
-	mVUreset(&microVU1, true);
+	mVUreset(&microVU1, 1);
 }
 
 void recMicroVU0::SetStartPC(u32 startPC)

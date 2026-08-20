@@ -401,7 +401,7 @@ static void recLogicalOp_constv(enum LogicalOp op, int info, int creg, u32 vreg,
 		op == LOGICALOP_XOR    ? 6 :
 		/* LOGICALOP_NOR */      1;
 	s64 fixedInput, fixedOutput, identityInput;
-	int hasFixed = true;
+	int hasFixed = 1;
 	switch (op)
 	{
 		case LOGICALOP_AND:
@@ -415,7 +415,7 @@ static void recLogicalOp_constv(enum LogicalOp op, int info, int creg, u32 vreg,
 			identityInput = 0;
 			break;
 		case LOGICALOP_XOR:
-			hasFixed = false;
+			hasFixed = 0;
 			identityInput = 0;
 			break;
 		case LOGICALOP_NOR:

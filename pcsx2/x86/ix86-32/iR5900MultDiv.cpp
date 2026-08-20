@@ -48,7 +48,7 @@ REC_FUNC_DEL(MADDU1, _Rd_);
 static void recWritebackHILO(int info, int writed, int upper)
 {
 	// writeback low 32 bits, sign extended to 64 bits
-	int eax_sign_extended = false;
+	int eax_sign_extended = 0;
 
 	// case 1: LO is already in an XMM - use the xmm
 	// case 2: LO is used as an XMM later in the block - use or allocate the XMM
@@ -76,7 +76,7 @@ static void recWritebackHILO(int info, int writed, int upper)
 			else
 			{
 				xe_cdqe();
-				eax_sign_extended = true;
+				eax_sign_extended = 1;
 				xe_mov64_mr(&cpuRegs.LO.UD[upper], XE_AX);
 			}
 		}
@@ -233,17 +233,17 @@ static void recMULTsuper(int info, int sign, int upper, int process)
 
 static void recMULT_(int info)
 {
-	recMULTsuper(info, true, false, 0);
+	recMULTsuper(info, 1, 0, 0);
 }
 
 static void recMULT_consts(int info)
 {
-	recMULTsuper(info, true, false, PROCESS_CONSTS);
+	recMULTsuper(info, 1, 0, PROCESS_CONSTS);
 }
 
 static void recMULT_constt(int info)
 {
-	recMULTsuper(info, true, false, PROCESS_CONSTT);
+	recMULTsuper(info, 1, 0, PROCESS_CONSTT);
 }
 
 // lo/hi allocation are taken care of in recWritebackHILO().
@@ -259,17 +259,17 @@ static void recMULTU_const(void)
 
 static void recMULTU_(int info)
 {
-	recMULTsuper(info, false, false, 0);
+	recMULTsuper(info, 0, 0, 0);
 }
 
 static void recMULTU_consts(int info)
 {
-	recMULTsuper(info, false, false, PROCESS_CONSTS);
+	recMULTsuper(info, 0, 0, PROCESS_CONSTS);
 }
 
 static void recMULTU_constt(int info)
 {
-	recMULTsuper(info, false, false, PROCESS_CONSTT);
+	recMULTsuper(info, 0, 0, PROCESS_CONSTT);
 }
 
 // don't specify XMMINFO_WRITELO or XMMINFO_WRITEHI, that is taken care of
@@ -285,17 +285,17 @@ static void recMULT1_const(void)
 
 static void recMULT1_(int info)
 {
-	recMULTsuper(info, true, true, 0);
+	recMULTsuper(info, 1, 1, 0);
 }
 
 static void recMULT1_consts(int info)
 {
-	recMULTsuper(info, true, true, PROCESS_CONSTS);
+	recMULTsuper(info, 1, 1, PROCESS_CONSTS);
 }
 
 static void recMULT1_constt(int info)
 {
-	recMULTsuper(info, true, true, PROCESS_CONSTT);
+	recMULTsuper(info, 1, 1, PROCESS_CONSTT);
 }
 
 EERECOMPILE_CODERC0(MULT1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
@@ -310,17 +310,17 @@ static void recMULTU1_const(void)
 
 static void recMULTU1_(int info)
 {
-	recMULTsuper(info, false, true, 0);
+	recMULTsuper(info, 0, 1, 0);
 }
 
 static void recMULTU1_consts(int info)
 {
-	recMULTsuper(info, false, true, PROCESS_CONSTS);
+	recMULTsuper(info, 0, 1, PROCESS_CONSTS);
 }
 
 static void recMULTU1_constt(int info)
 {
-	recMULTsuper(info, false, true, PROCESS_CONSTT);
+	recMULTsuper(info, 0, 1, PROCESS_CONSTT);
 }
 
 EERECOMPILE_CODERC0(MULTU1, XMMINFO_READS | XMMINFO_READT | (_Rd_ ? XMMINFO_WRITED : 0));
@@ -364,7 +364,7 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	if (process & PROCESS_CONSTS)
 		xe_mov32_ri(XE_AX, g_cpuConstRegs[_Rs_].UL[0]);
 	else
-		_eeMoveGPRtoR64(XE_AX, _Rs_, true);
+		_eeMoveGPRtoR64(XE_AX, _Rs_, 1);
 
 	u8* end1;
 	if (sign) //test for overflow (x86 will just throw an exception)
@@ -412,7 +412,7 @@ static void recDIVsuper(int info, int sign, int upper, int process)
 	x86SetJ8(end2);
 
 	// need to execute regardless of bad divide
-	recWritebackHILO(info, false, upper);
+	recWritebackHILO(info, 0, upper);
 }
 
 static void recDIV_(int info)
@@ -458,17 +458,17 @@ static void recDIVU_const(void)
 
 static void recDIVU_(int info)
 {
-	recDIVsuper(info, false, false, 0);
+	recDIVsuper(info, 0, 0, 0);
 }
 
 static void recDIVU_consts(int info)
 {
-	recDIVsuper(info, false, false, PROCESS_CONSTS);
+	recDIVsuper(info, 0, 0, PROCESS_CONSTS);
 }
 
 static void recDIVU_constt(int info)
 {
-	recDIVsuper(info, false, false, PROCESS_CONSTT);
+	recDIVsuper(info, 0, 0, PROCESS_CONSTT);
 }
 
 EERECOMPILE_CODERC0(DIVU, /*XMMINFO_READS |*/ XMMINFO_READT);
@@ -480,17 +480,17 @@ static void recDIV1_const(void)
 
 static void recDIV1_(int info)
 {
-	recDIVsuper(info, true, true, 0);
+	recDIVsuper(info, 1, 1, 0);
 }
 
 static void recDIV1_consts(int info)
 {
-	recDIVsuper(info, true, true, PROCESS_CONSTS);
+	recDIVsuper(info, 1, 1, PROCESS_CONSTS);
 }
 
 static void recDIV1_constt(int info)
 {
-	recDIVsuper(info, true, true, PROCESS_CONSTT);
+	recDIVsuper(info, 1, 1, PROCESS_CONSTT);
 }
 
 EERECOMPILE_CODERC0(DIV1, /*XMMINFO_READS |*/ XMMINFO_READT);
@@ -502,17 +502,17 @@ static void recDIVU1_const()
 
 static void recDIVU1_(int info)
 {
-	recDIVsuper(info, false, true, 0);
+	recDIVsuper(info, 0, 1, 0);
 }
 
 static void recDIVU1_consts(int info)
 {
-	recDIVsuper(info, false, true, PROCESS_CONSTS);
+	recDIVsuper(info, 0, 1, PROCESS_CONSTS);
 }
 
 static void recDIVU1_constt(int info)
 {
-	recDIVsuper(info, false, true, PROCESS_CONSTT);
+	recDIVsuper(info, 0, 1, PROCESS_CONSTT);
 }
 
 EERECOMPILE_CODERC0(DIVU1, /*XMMINFO_READS |*/ XMMINFO_READT);

@@ -129,7 +129,7 @@ static void recBEQ_const(void)
 	else
 		branchTo = pc + 4;
 
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 }
 
@@ -139,18 +139,18 @@ static void recBEQ_process(int process)
 
 	if (_Rs_ == _Rt_)
 	{
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 	}
 	else
 	{
-		const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, true));
+		const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, 1));
 		u32 *j32Ptr = recSetBranchEQ(0, process);
 
 		if (!swap)
 		{
 			SaveBranchState();
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 		}
 
 		SetBranchImm(branchTo);
@@ -162,7 +162,7 @@ static void recBEQ_process(int process)
 			// recopy the next inst
 			pc -= 4;
 			LoadBranchState();
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 		}
 
 		SetBranchImm(pc);
@@ -192,7 +192,7 @@ static void recBNE_const(void)
 	else
 		branchTo = pc + 4;
 
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 }
 
@@ -202,19 +202,19 @@ static void recBNE_process(int process)
 
 	if (_Rs_ == _Rt_)
 	{
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(pc);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, _Rt_, 0, 1));
 
 	u32 *j32Ptr = recSetBranchEQ(1, process);
 
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -226,7 +226,7 @@ static void recBNE_process(int process)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -250,7 +250,7 @@ static void recBEQL_const(void)
 	if (g_cpuConstRegs[_Rs_].SD[0] == g_cpuConstRegs[_Rt_].SD[0])
 	{
 		u32 branchTo = ((s32)_Imm_ * 4) + pc;
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 	}
 	else
@@ -265,7 +265,7 @@ static void recBEQL_process(int process)
 	u32 *j32Ptr = recSetBranchEQ(0, process);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);
@@ -292,7 +292,7 @@ static void recBNEL_const(void)
 	if (g_cpuConstRegs[_Rs_].SD[0] != g_cpuConstRegs[_Rt_].SD[0])
 	{
 		u32 branchTo = ((s32)_Imm_ * 4) + pc;
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 	}
 	else
@@ -314,7 +314,7 @@ static void recBNEL_process(int process)
 
 	// recopy the next inst
 	LoadBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 }
 
@@ -347,19 +347,19 @@ void recBLTZAL(void)
 		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
 			branchTo = pc + 4;
 
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 
 	u32 *j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -371,7 +371,7 @@ void recBLTZAL(void)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -394,19 +394,19 @@ void recBGEZAL(void)
 		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
 			branchTo = pc + 4;
 
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 
 	u32 *j32Ptr = recSetBranchL(0);
 
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -418,7 +418,7 @@ void recBGEZAL(void)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -442,7 +442,7 @@ void recBLTZALL(void)
 			SetBranchImm(pc + 4);
 		else
 		{
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 			SetBranchImm(branchTo);
 		}
 		return;
@@ -451,7 +451,7 @@ void recBLTZALL(void)
 	u32 *j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);
@@ -478,7 +478,7 @@ void recBGEZALL(void)
 			SetBranchImm(pc + 4);
 		else
 		{
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 			SetBranchImm(branchTo);
 		}
 		return;
@@ -487,7 +487,7 @@ void recBGEZALL(void)
 	u32 *j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);
@@ -507,12 +507,12 @@ void recBLEZ(void)
 		if (!(g_cpuConstRegs[_Rs_].SD[0] <= 0))
 			branchTo = pc + 4;
 
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	_eeFlushAllDirty();
 
@@ -526,7 +526,7 @@ void recBLEZ(void)
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -538,7 +538,7 @@ void recBLEZ(void)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -554,12 +554,12 @@ void recBGTZ(void)
 		if (!(g_cpuConstRegs[_Rs_].SD[0] > 0))
 			branchTo = pc + 4;
 
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	const int regs = _checkX86reg(X86TYPE_GPR, _Rs_, MODE_READ);
 	_eeFlushAllDirty();
 
@@ -573,7 +573,7 @@ void recBGTZ(void)
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -585,7 +585,7 @@ void recBGTZ(void)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -601,19 +601,19 @@ void recBLTZ(void)
 		if (!(g_cpuConstRegs[_Rs_].SD[0] < 0))
 			branchTo = pc + 4;
 
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	_eeFlushAllDirty();
 	u32 *j32Ptr = recSetBranchL(1);
 
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -625,7 +625,7 @@ void recBLTZ(void)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -641,12 +641,12 @@ void recBGEZ(void)
 		if (!(g_cpuConstRegs[_Rs_].SD[0] >= 0))
 			branchTo = pc + 4;
 
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 		SetBranchImm(branchTo);
 		return;
 	}
 
-	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, true));
+	const int swap = !!(TrySwapDelaySlot(_Rs_, 0, 0, 1));
 	_eeFlushAllDirty();
 
 	u32 *j32Ptr = recSetBranchL(0);
@@ -654,7 +654,7 @@ void recBGEZ(void)
 	if (!swap)
 	{
 		SaveBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(branchTo);
@@ -666,7 +666,7 @@ void recBGEZ(void)
 		// recopy the next inst
 		pc -= 4;
 		LoadBranchState();
-		recompileNextInstruction(true, false);
+		recompileNextInstruction(1, 0);
 	}
 
 	SetBranchImm(pc);
@@ -683,7 +683,7 @@ void recBLTZL(void)
 			SetBranchImm(pc + 4);
 		else
 		{
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 			SetBranchImm(branchTo);
 		}
 		return;
@@ -693,7 +693,7 @@ void recBLTZL(void)
 	u32 *j32Ptr = recSetBranchL(1);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);
@@ -714,7 +714,7 @@ void recBGEZL(void)
 			SetBranchImm(pc + 4);
 		else
 		{
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 			SetBranchImm(branchTo);
 		}
 		return;
@@ -724,7 +724,7 @@ void recBGEZL(void)
 	u32 *j32Ptr = recSetBranchL(0);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);
@@ -751,7 +751,7 @@ void recBLEZL(void)
 			SetBranchImm(pc + 4);
 		else
 		{
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 			SetBranchImm(branchTo);
 		}
 		return;
@@ -768,7 +768,7 @@ void recBLEZL(void)
 	u32 *j32Ptr = JG32(0);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);
@@ -789,7 +789,7 @@ void recBGTZL(void)
 		else
 		{
 			_clearNeededXMMregs();
-			recompileNextInstruction(true, false);
+			recompileNextInstruction(1, 0);
 			SetBranchImm(branchTo);
 		}
 		return;
@@ -806,7 +806,7 @@ void recBGTZL(void)
 	u32 *j32Ptr = JLE32(0);
 
 	SaveBranchState();
-	recompileNextInstruction(true, false);
+	recompileNextInstruction(1, 0);
 	SetBranchImm(branchTo);
 
 	x86SetJ32(j32Ptr);

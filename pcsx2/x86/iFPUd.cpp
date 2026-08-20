@@ -44,9 +44,15 @@ using namespace x86Emitter;
 
 #ifdef FPU_RECOMPILE
 
+/* This file provides only the full-mode (DOUBLE_*) emitter bodies. The
+ * FPURECOMPILE_CONSTCODE dispatchers used to be expanded here too, but
+ * inside namespace DOUBLE, which made them duplicates of the global ones
+ * in iFPU.cpp that the opcode tables actually use -- eighteen functions
+ * that were compiled, linked and never called. With the namespace gone
+ * they would collide, so they are deleted rather than renamed. */
+
 //------------------------------------------------------------------
 
-namespace DOUBLE {
 
 //------------------------------------------------------------------
 // Helper Macros
@@ -202,7 +208,7 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 	u8* end3 = JMP8(0);
 
 	x86SetJ8(to_underflow);
-	u8* end4 = nullptr;
+	u8* end4 = NULL;
 	if (flags) //set underflow flags if not zero
 	{
 		xe_xorpd_xx(absreg, absreg);
@@ -291,7 +297,7 @@ static void ToPS2FPU_Full(int reg, int flags, int absreg, int acc, int addsub)
 //------------------------------------------------------------------
 // ABS XMM
 //------------------------------------------------------------------
-void recABS_S_xmm(int info)
+void DOUBLE_recABS_S_xmm(int info)
 {
 	GET_S(EEREC_D);
 
@@ -300,7 +306,6 @@ void recABS_S_xmm(int info)
 	xe_andps_xm(EEREC_D, s_const.pos);
 }
 
-FPURECOMPILE_CONSTCODE(ABS_S, XMMINFO_WRITED | XMMINFO_READS);
 //------------------------------------------------------------------
 
 
@@ -375,7 +380,7 @@ static void FPU_ADD_SUB(int tempd, int tempt) //tempd and tempt are overwritten,
 
 static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 {
-	u32* endMul = nullptr;
+	u32* endMul = NULL;
 
 	if (CHECK_FPUMULHACK)
 	{
@@ -403,7 +408,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, int acc)
 	ToDouble(sreg);
 	ToDouble(treg);
 	xe_mulsd_xx(sreg, treg);
-	ToPS2FPU_Full(sreg, true, treg, acc, false);
+	ToPS2FPU_Full(sreg, 1, treg, acc, 0);
 	xe_movss_xx(regd, sreg);
 
 	if (CHECK_FPUMULHACK)
@@ -429,7 +434,7 @@ static void recFPUOp(int info, int regd, int op, int acc)
 
 	recFPUOpXMM_to_XMM[op](sreg, treg);
 
-	ToPS2FPU_Full(sreg, true, treg, acc, true);
+	ToPS2FPU_Full(sreg, 1, treg, acc, 1);
 	xe_movss_xx(regd, sreg);
 
 	_freeXMMreg(sreg); _freeXMMreg(treg);
@@ -440,19 +445,17 @@ static void recFPUOp(int info, int regd, int op, int acc)
 //------------------------------------------------------------------
 // ADD XMM
 //------------------------------------------------------------------
-void recADD_S_xmm(int info)
+void DOUBLE_recADD_S_xmm(int info)
 {
-	recFPUOp(info, EEREC_D, 0, false);
+	recFPUOp(info, EEREC_D, 0, 0);
 }
 
-FPURECOMPILE_CONSTCODE(ADD_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
-void recADDA_S_xmm(int info)
+void DOUBLE_recADDA_S_xmm(int info)
 {
-	recFPUOp(info, EEREC_ACC, 0, true);
+	recFPUOp(info, EEREC_ACC, 0, 1);
 }
 
-FPURECOMPILE_CONSTCODE(ADDA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 void recCMP(int info)
@@ -472,7 +475,7 @@ void recCMP(int info)
 //------------------------------------------------------------------
 // C.x.S XMM
 //------------------------------------------------------------------
-void recC_EQ_xmm(int info)
+void DOUBLE_recC_EQ_xmm(int info)
 {
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
@@ -485,9 +488,8 @@ void recC_EQ_xmm(int info)
 	x86SetJ8(j8Ptr1);
 }
 
-FPURECOMPILE_CONSTCODE(C_EQ, XMMINFO_READS | XMMINFO_READT);
 
-void recC_LE_xmm(int info)
+void DOUBLE_recC_LE_xmm(int info)
 {
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
@@ -500,9 +502,8 @@ void recC_LE_xmm(int info)
 	x86SetJ8(j8Ptr1);
 }
 
-FPURECOMPILE_CONSTCODE(C_LE, XMMINFO_READS | XMMINFO_READT);
 
-void recC_LT_xmm(int info)
+void DOUBLE_recC_LT_xmm(int info)
 {
 	u8 *j8Ptr0, *j8Ptr1;
 	recCMP(info);
@@ -515,7 +516,6 @@ void recC_LT_xmm(int info)
 	x86SetJ8(j8Ptr1);
 }
 
-FPURECOMPILE_CONSTCODE(C_LT, XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
@@ -570,7 +570,7 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 
 	xe_divsd_xx(regd, regt);
 
-	ToPS2FPU_Full(regd, false, regt, false, false);
+	ToPS2FPU_Full(regd, 0, regt, 0, 0);
 
 	x86SetJ32(bjmp32);
 
@@ -579,7 +579,7 @@ static void recDIVhelper1(int regd, int regt) // Sets flags
 
 alignas(16) static FPControlRegister roundmode_nearest;
 
-void recDIV_S_xmm(int info)
+void DOUBLE_recDIV_S_xmm(int info)
 {
 	int sreg, treg;
 
@@ -600,7 +600,6 @@ void recDIV_S_xmm(int info)
 	_freeXMMreg(treg);
 }
 
-FPURECOMPILE_CONSTCODE(DIV_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
@@ -620,7 +619,7 @@ static void recMaddsub(int info, int regd, int op, int acc)
 	ALLOC_S(sreg);
 	ALLOC_T(treg);
 
-	FPU_MUL(info, sreg, sreg, treg, false);
+	FPU_MUL(info, sreg, sreg, treg, 0);
 
 	GET_ACC(treg);
 
@@ -658,7 +657,7 @@ static void recMaddsub(int info, int regd, int op, int acc)
 	else
 		xe_addsd_xx(treg, sreg);
 
-	ToPS2FPU_Full(treg, true, sreg, acc, true);
+	ToPS2FPU_Full(treg, 1, sreg, acc, 1);
 	x86SetJ32(skipall);
 
 	xe_movss_xx(regd, treg);
@@ -667,19 +666,17 @@ static void recMaddsub(int info, int regd, int op, int acc)
 	_freeXMMreg(treg);
 }
 
-void recMADD_S_xmm(int info)
+void DOUBLE_recMADD_S_xmm(int info)
 {
-	recMaddsub(info, EEREC_D, 0, false);
+	recMaddsub(info, EEREC_D, 0, 0);
 }
 
-FPURECOMPILE_CONSTCODE(MADD_S, XMMINFO_WRITED | XMMINFO_READACC | XMMINFO_READS | XMMINFO_READT);
 
-void recMADDA_S_xmm(int info)
+void DOUBLE_recMADDA_S_xmm(int info)
 {
-	recMaddsub(info, EEREC_ACC, 0, true);
+	recMaddsub(info, EEREC_ACC, 0, 1);
 }
 
-FPURECOMPILE_CONSTCODE(MADDA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
@@ -718,31 +715,28 @@ static void recMINMAX(int info, int ismin)
 	_freeXMMreg(treg);
 }
 
-void recMAX_S_xmm(int info)
+void DOUBLE_recMAX_S_xmm(int info)
 {
-	recMINMAX(info, false);
+	recMINMAX(info, 0);
 }
 
-FPURECOMPILE_CONSTCODE(MAX_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
-void recMIN_S_xmm(int info)
+void DOUBLE_recMIN_S_xmm(int info)
 {
-	recMINMAX(info, true);
+	recMINMAX(info, 1);
 }
 
-FPURECOMPILE_CONSTCODE(MIN_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
 //------------------------------------------------------------------
 // MOV XMM
 //------------------------------------------------------------------
-void recMOV_S_xmm(int info)
+void DOUBLE_recMOV_S_xmm(int info)
 {
 	GET_S(EEREC_D);
 }
 
-FPURECOMPILE_CONSTCODE(MOV_S, XMMINFO_WRITED | XMMINFO_READS);
 //------------------------------------------------------------------
 
 
@@ -750,56 +744,52 @@ FPURECOMPILE_CONSTCODE(MOV_S, XMMINFO_WRITED | XMMINFO_READS);
 // MSUB XMM
 //------------------------------------------------------------------
 
-void recMSUB_S_xmm(int info)
+void DOUBLE_recMSUB_S_xmm(int info)
 {
-	recMaddsub(info, EEREC_D, 1, false);
+	recMaddsub(info, EEREC_D, 1, 0);
 }
 
-FPURECOMPILE_CONSTCODE(MSUB_S, XMMINFO_WRITED | XMMINFO_READACC | XMMINFO_READS | XMMINFO_READT);
 
-void recMSUBA_S_xmm(int info)
+void DOUBLE_recMSUBA_S_xmm(int info)
 {
-	recMaddsub(info, EEREC_ACC, 1, true);
+	recMaddsub(info, EEREC_ACC, 1, 1);
 }
 
-FPURECOMPILE_CONSTCODE(MSUBA_S, XMMINFO_WRITEACC | XMMINFO_READACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 //------------------------------------------------------------------
 // MUL XMM
 //------------------------------------------------------------------
-void recMUL_S_xmm(int info)
+void DOUBLE_recMUL_S_xmm(int info)
 {
 	int sreg, treg;
 	ALLOC_S(sreg);
 	ALLOC_T(treg);
 
-	FPU_MUL(info, EEREC_D, sreg, treg, false);
+	FPU_MUL(info, EEREC_D, sreg, treg, 0);
 	_freeXMMreg(sreg);
 	_freeXMMreg(treg);
 }
 
-FPURECOMPILE_CONSTCODE(MUL_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
-void recMULA_S_xmm(int info)
+void DOUBLE_recMULA_S_xmm(int info)
 {
 	int sreg, treg;
 	ALLOC_S(sreg);
 	ALLOC_T(treg);
 
-	FPU_MUL(info, EEREC_ACC, sreg, treg, true);
+	FPU_MUL(info, EEREC_ACC, sreg, treg, 1);
 	_freeXMMreg(sreg);
 	_freeXMMreg(treg);
 }
 
-FPURECOMPILE_CONSTCODE(MULA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
 //------------------------------------------------------------------
 // NEG XMM
 //------------------------------------------------------------------
-void recNEG_S_xmm(int info)
+void DOUBLE_recNEG_S_xmm(int info)
 {
 	GET_S(EEREC_D);
 
@@ -808,7 +798,6 @@ void recNEG_S_xmm(int info)
 	xe_xorps_xm(EEREC_D, &s_const.neg[0]);
 }
 
-FPURECOMPILE_CONSTCODE(NEG_S, XMMINFO_WRITED | XMMINFO_READS);
 //------------------------------------------------------------------
 
 
@@ -816,27 +805,25 @@ FPURECOMPILE_CONSTCODE(NEG_S, XMMINFO_WRITED | XMMINFO_READS);
 // SUB XMM
 //------------------------------------------------------------------
 
-void recSUB_S_xmm(int info)
+void DOUBLE_recSUB_S_xmm(int info)
 {
-	recFPUOp(info, EEREC_D, 1, false);
+	recFPUOp(info, EEREC_D, 1, 0);
 }
 
-FPURECOMPILE_CONSTCODE(SUB_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 
-void recSUBA_S_xmm(int info)
+void DOUBLE_recSUBA_S_xmm(int info)
 {
-	recFPUOp(info, EEREC_ACC, 1, true);
+	recFPUOp(info, EEREC_ACC, 1, 1);
 }
 
-FPURECOMPILE_CONSTCODE(SUBA_S, XMMINFO_WRITEACC | XMMINFO_READS | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
 //------------------------------------------------------------------
 // SQRT XMM
 //------------------------------------------------------------------
-void recSQRT_S_xmm(int info)
+void DOUBLE_recSQRT_S_xmm(int info)
 {
 	int roundmodeFlag = 0;
 	const int t1reg = _allocTempXMMreg(XMMT_FPS);
@@ -869,7 +856,7 @@ void recSQRT_S_xmm(int info)
 
 	xe_sqrtsd_xx(EEREC_D, EEREC_D);
 
-	ToPS2FPU_Full(EEREC_D, false, t1reg, false, false);
+	ToPS2FPU_Full(EEREC_D, 0, t1reg, 0, 0);
 
 	if (roundmodeFlag == 1)
 		xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
@@ -877,7 +864,6 @@ void recSQRT_S_xmm(int info)
 	_freeXMMreg(t1reg);
 }
 
-FPURECOMPILE_CONSTCODE(SQRT_S, XMMINFO_WRITED | XMMINFO_READT);
 //------------------------------------------------------------------
 
 
@@ -930,13 +916,13 @@ static void recRSQRThelper1(int regd, int regt) // Preforms the RSQRT function w
 	xe_sqrtsd_xx(regt, regt);
 	xe_divsd_xx(regd, regt);
 
-	ToPS2FPU_Full(regd, false, regt, false, false);
+	ToPS2FPU_Full(regd, 0, regt, 0, 0);
 	x86SetJ32(pjmp32);
 
 	_freeXMMreg(t1reg);
 }
 
-void recRSQRT_S_xmm(int info)
+void DOUBLE_recRSQRT_S_xmm(int info)
 {
 	int sreg, treg;
 
@@ -944,14 +930,14 @@ void recRSQRT_S_xmm(int info)
 	// Should this do the same?  or is changing the roundmode to nearest the better
 	// behavior for both recs? --air
 
-	int roundmodeFlag = false;
+	int roundmodeFlag = 0;
 	if (EmuConfig.Cpu.FPUFPCR.GetRoundMode() != FPRoundMode::Nearest)
 	{
 		// Set roundmode to nearest if it isn't already
 		roundmode_nearest = EmuConfig.Cpu.FPUFPCR;
 		roundmode_nearest.SetRoundMode(FPRoundMode::Nearest);
 		xe_ldmxcsr_m(&roundmode_nearest.bitmask);
-		roundmodeFlag = true;
+		roundmodeFlag = 1;
 	}
 
 	ALLOC_S(sreg);
@@ -968,8 +954,6 @@ void recRSQRT_S_xmm(int info)
 		xe_ldmxcsr_m(&EmuConfig.Cpu.FPUFPCR.bitmask);
 }
 
-FPURECOMPILE_CONSTCODE(RSQRT_S, XMMINFO_WRITED | XMMINFO_READS | XMMINFO_READT);
 
 
 #endif
-} // namespace DOUBLE
