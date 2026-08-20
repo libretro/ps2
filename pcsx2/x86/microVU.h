@@ -86,8 +86,8 @@ alignas(16) microVU microVU1;
 
 // Main Functions
 extern void mVUclear(mV, u32, u32);
-extern void mVUreset(microVU& mVU, bool resetReserve);
-extern void* mVUblockFetch(microVU& mVU, u32 startPC, uptr pState);
+extern void mVUreset(microVU* mVU, bool resetReserve);
+extern void* mVUblockFetch(microVU* mVU, u32 startPC, uptr pState);
 _mVUt extern void* mVUcompileJIT(u32 startPC, uptr ptr);
 
 // Prototypes for Linux
@@ -97,8 +97,8 @@ mVUop(mVUopU);
 mVUop(mVUopL);
 
 // Private Functions
-extern void mVUcacheProg(microVU& mVU, microProgram& prog);
-extern void mVUdeleteProg(microVU& mVU, microProgram*& prog);
+extern void mVUcacheProg(microVU* mVU, microProgram& prog);
+extern void mVUdeleteProg(microVU* mVU, microProgram*& prog);
 _mVUt extern void* mVUsearchProg(u32 startPC, uptr pState);
 extern void* mVUexecuteVU0(u32 startPC, u32 cycles);
 extern void* mVUexecuteVU1(u32 startPC, u32 cycles);

@@ -141,7 +141,7 @@ void mVUmergeRegs(int dest, int src, int xyzw, bool modXYZW)
 //------------------------------------------------------------------
 
 // Backup Volatile Regs (EAX, ECX, EDX, MM0~7, XMM0~7, are all volatile according to 32bit Win/Linux ABI)
-__fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = false)
+__fi void mVUbackupRegs(microVU* mVU, bool toMemory = false, bool onlyNeeded = false)
 {
 	if (toMemory)
 	{
@@ -152,7 +152,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 			if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 				continue;
 
-			if (!onlyNeeded || mVUra_checkCachedGPR(mVU.regAlloc, i))
+			if (!onlyNeeded || mVUra_checkCachedGPR(mVU->regAlloc, i))
 			{
 				num_gprs++;
 				xe_push64_r(i);
@@ -165,7 +165,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
 
-			if (!onlyNeeded || mVUra_checkCachedReg(mVU.regAlloc, i) || xmmPQ == i)
+			if (!onlyNeeded || mVUra_checkCachedReg(mVU->regAlloc, i) || xmmPQ == i)
 			{
 				save_xmms |= (1u << i);
 				num_xmms++;
@@ -196,13 +196,13 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 	else
 	{
 		// TODO(Stenzek): get rid of xmmbackup
-		mVUra_flushAll(mVU.regAlloc, true); // Flush Regalloc
-		xe_movaps_mx(&mVU.xmmBackup[xmmPQ][0], xmmPQ);
+		mVUra_flushAll(mVU->regAlloc, true); // Flush Regalloc
+		xe_movaps_mx(&mVU->xmmBackup[xmmPQ][0], xmmPQ);
 	}
 }
 
 /* Restore Volatile Regs */
-__fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded = false)
+__fi void mVUrestoreRegs(microVU* mVU, bool fromMemory = false, bool onlyNeeded = false)
 {
 	if (fromMemory)
 	{
@@ -214,7 +214,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 			if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
 				continue;
 
-			if (!onlyNeeded || mVUra_checkCachedGPR(mVU.regAlloc, i))
+			if (!onlyNeeded || mVUra_checkCachedGPR(mVU->regAlloc, i))
 			{
 				save_gprs |= (1u << i);
 				num_gprs++;
@@ -227,7 +227,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 			if (!XE_XMM_CALLER_SAVED(i))
 				continue;
 
-			if (!onlyNeeded || mVUra_checkCachedReg(mVU.regAlloc, i) || xmmPQ == i)
+			if (!onlyNeeded || mVUra_checkCachedReg(mVU->regAlloc, i) || xmmPQ == i)
 			{
 				save_xmms |= (1u << i);
 				num_xmms++;
@@ -263,7 +263,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 	}
 	else
 	{
-		xe_movaps_xm(xmmPQ, &mVU.xmmBackup[xmmPQ][0]);
+		xe_movaps_xm(xmmPQ, &mVU->xmmBackup[xmmPQ][0]);
 	}
 }
 
@@ -279,7 +279,7 @@ static void mVUEBit(void)
 
 static inline u32 branchAddr(const mV)
 {
-	return ((((iPC + 2) + (_Imm11_ * 2)) & mVU.progMemMask) * 4);
+	return ((((iPC + 2) + (_Imm11_ * 2)) & mVU->progMemMask) * 4);
 }
 
 static void mVUwaitMTVU(void) { vu1Thread.WaitVU(); }
@@ -301,7 +301,7 @@ __fi void mVUaddrFix(mV, int gprReg)
 		xe_fwd_set8(jmpA);
 			if (THREAD_VU1)
 			{
-				xe_fastcall0(mVU.waitMTVU);
+				xe_fastcall0(mVU->waitMTVU);
 			}
 			xe_and32_ri(gprReg, 0x3f); // ToDo: theres a potential problem if VU0 overrides VU1's VF0/VI0 regs!
 			xe_add64_ri(gprReg, (u128*)vuRegs[1].VF - (u128*)vuRegs[0].Mem);
@@ -317,10 +317,10 @@ __fi struct e_memopt mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 off
 		return e_memopt_none();
 	const s32 addr = 0 + offset;
 	if (isVU1)
-		return e_memopt_of(e_mem_abs(vuRegs[mVU.index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_));
+		return e_memopt_of(e_mem_abs(vuRegs[mVU->index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_));
 	if (addr & 0x400)
 		return e_memopt_none();
-	return e_memopt_of(e_mem_abs(vuRegs[mVU.index].Mem + ((addr & 0xFFu) << 4) + offsetSS_));
+	return e_memopt_of(e_mem_abs(vuRegs[mVU->index].Mem + ((addr & 0xFFu) << 4) + offsetSS_));
 }
 
 //------------------------------------------------------------------
@@ -341,10 +341,10 @@ alignas(16) static const SSEMasks sseMasks =
 
 
 // Warning: Modifies t1 and t2
-void MIN_MAX_PS(microVU& mVU, int to, int from, int t1in, int t2in, bool min)
+void MIN_MAX_PS(microVU* mVU, int to, int from, int t1in, int t2in, bool min)
 {
-	int t1 = (t1in < 0) ? mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true) : t1in;
-	int t2 = (t2in < 0) ? mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true) : t2in;
+	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t1in;
+	int t2 = (t2in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t2in;
 
 	/* Use integer comparison */
 	{
@@ -367,14 +367,14 @@ void MIN_MAX_PS(microVU& mVU, int to, int from, int t1in, int t2in, bool min)
 		xe_por_xx(to, c1);
 	}
 
-	if (t1 != t1in) mVUra_clearNeededXMM(mVU.regAlloc, t1);
-	if (t2 != t2in) mVUra_clearNeededXMM(mVU.regAlloc, t2);
+	if (t1 != t1in) mVUra_clearNeededXMM(mVU->regAlloc, t1);
+	if (t2 != t2in) mVUra_clearNeededXMM(mVU->regAlloc, t2);
 }
 
 // Warning: Modifies to's upper 3 vectors, and t1
 void MIN_MAX_SS(mV, int to, int from, int t1in, bool min)
 {
-	int t1 = (t1in < 0) ? mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true) : t1in;
+	int t1 = (t1in < 0) ? mVUra_allocReg(mVU->regAlloc, -1, -1, 0, true) : t1in;
 	xe_shufps_xxi(to, from, 0);
 	xe_pand_xm(to, sseMasks.MIN_MAX_1);
 	xe_por_xm(to, sseMasks.MIN_MAX_2);
@@ -382,12 +382,12 @@ void MIN_MAX_SS(mV, int to, int from, int t1in, bool min)
 	if (min) xe_minpd_xx(to, t1);
 	else	 xe_maxpd_xx(to, t1);
 	if (t1 != t1in)
-		mVUra_clearNeededXMM(mVU.regAlloc, t1);
+		mVUra_clearNeededXMM(mVU->regAlloc, t1);
 }
 
 // Turns out only this is needed to get TriAce games booting with mVU
 // Modifies from's lower vector
-void ADD_SS_TriAceHack(microVU& mVU, int to, int from)
+void ADD_SS_TriAceHack(microVU* mVU, int to, int from)
 {
 	xe_movd_rx(XE_AX, to);
 	xe_movd_rx(XE_CX, from);

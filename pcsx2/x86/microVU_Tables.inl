@@ -199,22 +199,22 @@ static const Fnptr_mVUrecInst mVU_UPPER_FD_11_TABLE [32] = {
 // Table Functions
 //------------------------------------------------------------------
 
-mVUop(mVU_UPPER_FD_00)  { mVU_UPPER_FD_00_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVU_UPPER_FD_01)  { mVU_UPPER_FD_01_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVU_UPPER_FD_10)  { mVU_UPPER_FD_10_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVU_UPPER_FD_11)  { mVU_UPPER_FD_11_TABLE   [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP)       { mVULowerOP_OPCODE       [ (mVU.code & 0x3f) ](mX); }
-mVUop(mVULowerOP_T3_00) { mVULowerOP_T3_00_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP_T3_01) { mVULowerOP_T3_01_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP_T3_10) { mVULowerOP_T3_10_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVULowerOP_T3_11) { mVULowerOP_T3_11_OPCODE [((mVU.code >> 6) & 0x1f)](mX); }
-mVUop(mVUopU)           { mVU_UPPER_OPCODE        [ (mVU.code & 0x3f) ](mX); } // Gets Upper Opcode
-mVUop(mVUopL)           { mVULOWER_OPCODE         [ (mVU.code >>  25) ](mX); } // Gets Lower Opcode
+mVUop(mVU_UPPER_FD_00)  { mVU_UPPER_FD_00_TABLE   [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVU_UPPER_FD_01)  { mVU_UPPER_FD_01_TABLE   [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVU_UPPER_FD_10)  { mVU_UPPER_FD_10_TABLE   [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVU_UPPER_FD_11)  { mVU_UPPER_FD_11_TABLE   [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVULowerOP)       { mVULowerOP_OPCODE       [ (mVU->code & 0x3f) ](mX); }
+mVUop(mVULowerOP_T3_00) { mVULowerOP_T3_00_OPCODE [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVULowerOP_T3_01) { mVULowerOP_T3_01_OPCODE [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVULowerOP_T3_10) { mVULowerOP_T3_10_OPCODE [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVULowerOP_T3_11) { mVULowerOP_T3_11_OPCODE [((mVU->code >> 6) & 0x1f)](mX); }
+mVUop(mVUopU)           { mVU_UPPER_OPCODE        [ (mVU->code & 0x3f) ](mX); } // Gets Upper Opcode
+mVUop(mVUopL)           { mVULOWER_OPCODE         [ (mVU->code >>  25) ](mX); } // Gets Lower Opcode
 mVUop(mVUunknown)
 {
 	pass1
 	{
-		if (mVU.code != 0x8000033c)
+		if (mVU->code != 0x8000033c)
 			mVUinfo.isBadOp = true;
 	}
 }

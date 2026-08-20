@@ -24,7 +24,7 @@ __fi void mVUdivSet(mV)
 		if (!sFLAG.doFlag)
 			xe_mov32_rr(getFlagReg(sFLAG.write), getFlagReg(sFLAG.lastWrite));
 		xe_and32_ri(getFlagReg(sFLAG.write), 0xfff3ffff);
-		xe_or32_rm(getFlagReg(sFLAG.write), &mVU.divFlag);
+		xe_or32_rm(getFlagReg(sFLAG.write), &mVU->divFlag);
 	}
 }
 
@@ -276,7 +276,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 		}
 		else
 		{
-			const int temp3 = mVUra_allocGPR(mVU.regAlloc, -1, -1, false, false);
+			const int temp3 = mVUra_allocGPR(mVU->regAlloc, -1, -1, false, false);
 			xe_mov32_rr(gprT1, getFlagReg(bStatus[0]));
 			xe_mov32_rr(gprT2, getFlagReg(bStatus[1]));
 			xe_mov32_rr(temp3, getFlagReg(bStatus[2]));
@@ -284,7 +284,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 			xe_mov32_rr(gprF0, gprT1);
 			xe_mov32_rr(gprF1, gprT2);
 			xe_mov32_rr(gprF2, temp3);
-			mVUra_clearNeededGPR(mVU.regAlloc, temp3);
+			mVUra_clearNeededGPR(mVU->regAlloc, temp3);
 		}
 	}
 
@@ -292,18 +292,18 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 	{
 		int bMac[4];
 		sortFlag(mFC.xMac, bMac, mFC.cycles);
-		xe_movaps_xm(xmmT1, mVU.macFlag);
+		xe_movaps_xm(xmmT1, mVU->macFlag);
 		xe_shufps_xxi(xmmT1, xmmT1, shuffleMac);
-		xe_movaps_mx(mVU.macFlag, xmmT1);
+		xe_movaps_mx(mVU->macFlag, xmmT1);
 	}
 
 	if (doCFlagInsts && __Clip)
 	{
 		int bClip[4];
 		sortFlag(mFC.xClip, bClip, mFC.cycles);
-		xe_movaps_xm(xmmT2, mVU.clipFlag);
+		xe_movaps_xm(xmmT2, mVU->clipFlag);
 		xe_shufps_xxi(xmmT2, xmmT2, shuffleClip);
-		xe_movaps_mx(mVU.clipFlag, xmmT2);
+		xe_movaps_mx(mVU->clipFlag, xmmT2);
 	}
 }
 
@@ -433,7 +433,7 @@ void mVUsetFlagInfo(mV)
 		if (!doConstProp || !mVUlow.constJump.isValid)
 			mVUregs.needExactMatch |= 0x7;
 		else
-			mVUflagPass(mVU, (mVUlow.constJump.regValue * 8) & (mVU.microMemSize - 8));
+			mVUflagPass(mVU, (mVUlow.constJump.regValue * 8) & (mVU->microMemSize - 8));
 		mVUregs.needExactMatch &= 0x7;
 	}
 }

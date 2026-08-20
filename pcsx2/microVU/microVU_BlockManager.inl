@@ -14,7 +14,7 @@
  */
 
 // Must be included after the backend-specific 'struct microVU' is defined,
-// since the add() and search() methods access mVU.compareStateF.
+// since the add() and search() methods access mVU->compareStateF.
 
 #pragma once
 
@@ -56,7 +56,7 @@ public:
 		fBlockEnd = fBlockList = nullptr;
 		quickLookup.clear();
 	};
-	microBlock* add(microVU& mVU, microBlock* pBlock)
+	microBlock* add(microVU* mVU, microBlock* pBlock)
 	{
 		microBlock* thisBlock = search(mVU, &pBlock->pState);
 		if (!thisBlock)
@@ -84,14 +84,14 @@ public:
 		}
 		return thisBlock;
 	}
-	__ri microBlock* search(microVU& mVU, microRegInfo* pState)
+	__ri microBlock* search(microVU* mVU, microRegInfo* pState)
 	{
 		if (pState->needExactMatch) // Needs Detailed Search (Exact Match of Pipeline State)
 		{
 			microBlockLink* prevI = nullptr;
 			for (microBlockLink* linkI = fBlockList; linkI != nullptr; prevI = linkI, linkI = linkI->next)
 			{
-				if (reinterpret_cast<u32(*)(void*, void*)>(mVU.compareStateF)(pState, &linkI->block.pState) == 0)
+				if (reinterpret_cast<u32(*)(void*, void*)>(mVU->compareStateF)(pState, &linkI->block.pState) == 0)
 				{
 					if (linkI != fBlockList)
 					{

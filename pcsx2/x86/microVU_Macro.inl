@@ -134,15 +134,15 @@ bool mVUIsReservedCOP2(int hostreg)
 		setupMacroOp(_mode, opName); \
 		if (_mode & 4) \
 		{ \
-			mVU_##f(microVU0, 0); \
+			mVU_##f(&microVU0, 0); \
 			if (!microVU0.prog.IRinfo.info[0].lOp.isNOP) \
 			{ \
-				mVU_##f(microVU0, 1); \
+				mVU_##f(&microVU0, 1); \
 			} \
 		} \
 		else \
 		{ \
-			mVU_##f(microVU0, 1); \
+			mVU_##f(&microVU0, 1); \
 		} \
 		endMacroOp(_mode); \
 	}

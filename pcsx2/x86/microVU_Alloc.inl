@@ -90,26 +90,26 @@ __ri void mVUallocSFLAGd(u32* memAddr, int reg = XE_AX, int tmp1 = XE_CX, int tm
 
 __fi void mVUallocMFLAGa(mV, int reg, int fInstance)
 {
-	xe_movzx32_rm16(reg, &mVU.macFlag[fInstance]);
+	xe_movzx32_rm16(reg, &mVU->macFlag[fInstance]);
 }
 
 __fi void mVUallocMFLAGb(mV, int reg, int fInstance)
 {
 	//xAND(reg, 0xffff);
-	if (fInstance < 4) xe_mov32_mr(&mVU.macFlag[fInstance], reg);         // microVU
-	else               xe_mov32_mr(&vuRegs[mVU.index].VI[REG_MAC_FLAG].UL, reg); // macroVU
+	if (fInstance < 4) xe_mov32_mr(&mVU->macFlag[fInstance], reg);         // microVU
+	else               xe_mov32_mr(&vuRegs[mVU->index].VI[REG_MAC_FLAG].UL, reg); // macroVU
 }
 
 __fi void mVUallocCFLAGa(mV, int reg, int fInstance)
 {
-	if (fInstance < 4) xe_mov32_rm(reg, &mVU.clipFlag[fInstance]);         // microVU
-	else               xe_mov32_rm(reg, &vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL); // macroVU
+	if (fInstance < 4) xe_mov32_rm(reg, &mVU->clipFlag[fInstance]);         // microVU
+	else               xe_mov32_rm(reg, &vuRegs[mVU->index].VI[REG_CLIP_FLAG].UL); // macroVU
 }
 
 __fi void mVUallocCFLAGb(mV, int reg, int fInstance)
 {
-	if (fInstance < 4) xe_mov32_mr(&mVU.clipFlag[fInstance], reg);         // microVU
-	else               xe_mov32_mr(&vuRegs[mVU.index].VI[REG_CLIP_FLAG].UL, reg); // macroVU
+	if (fInstance < 4) xe_mov32_mr(&mVU->clipFlag[fInstance], reg);         // microVU
+	else               xe_mov32_mr(&vuRegs[mVU->index].VI[REG_CLIP_FLAG].UL, reg); // macroVU
 }
 
 //------------------------------------------------------------------
@@ -118,8 +118,8 @@ __fi void mVUallocCFLAGb(mV, int reg, int fInstance)
 
 void mVUra_writeVIBackup(struct microRegAlloc* r, int reg)
 {
-	microVU& mVU = r->index ? microVU1 : microVU0;
-	xe_mov32_mr(&mVU.VIbackup, reg);
+	microVU* mVU = r->index ? &microVU1 : &microVU0;
+	xe_mov32_mr(&mVU->VIbackup, reg);
 }
 
 //------------------------------------------------------------------

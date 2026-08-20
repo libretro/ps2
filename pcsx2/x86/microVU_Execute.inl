@@ -35,7 +35,7 @@ static bool mvuNeedsFPCRUpdate(mV)
 // Generates the code for entering/exit recompiled blocks
 void mVUdispatcherAB(mV)
 {
-	mVU.startFunct = xGetAlignedCallTarget();
+	mVU->startFunct = xGetAlignedCallTarget();
 
 	{
 		int m_offset;
@@ -50,9 +50,9 @@ void mVUdispatcherAB(mV)
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		// Load Regs
-		xe_movaps_xm(xmmT1, &vuRegs[mVU.index].VI[REG_P].UL);
-		xe_movaps_xm(xmmPQ, &vuRegs[mVU.index].VI[REG_Q].UL);
-		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_q); xe_movdzx_xmemg(xmmT2, xm); }
+		xe_movaps_xm(xmmT1, &vuRegs[mVU->index].VI[REG_P].UL);
+		xe_movaps_xm(xmmPQ, &vuRegs[mVU->index].VI[REG_Q].UL);
+		{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU->index].pending_q); xe_movdzx_xmemg(xmmT2, xm); }
 		xe_shufps_xxi(xmmPQ, xmmT1, 0); // wzyx = PPQQ
 		//Load in other Q instance
 		xe_pshufd_xxi(xmmPQ, xmmPQ, 0xe1);
@@ -62,28 +62,28 @@ void mVUdispatcherAB(mV)
 		if (isVU1)
 		{
 			//Load in other P instance
-			{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU.index].pending_p); xe_movdzx_xmemg(xmmT2, xm); }
+			{ struct e_mem xm; XE_MEM_ABS(xm, &vuRegs[mVU->index].pending_p); xe_movdzx_xmemg(xmmT2, xm); }
 			xe_pshufd_xxi(xmmPQ, xmmPQ, 0x1B);
 			xe_movss_xx(xmmPQ, xmmT2);
 			xe_pshufd_xxi(xmmPQ, xmmPQ, 0x1B);
 		}
 
-		xe_movaps_xm(xmmT1, &vuRegs[mVU.index].micro_macflags);
-		xe_movaps_mx(mVU.macFlag, xmmT1);
+		xe_movaps_xm(xmmT1, &vuRegs[mVU->index].micro_macflags);
+		xe_movaps_mx(mVU->macFlag, xmmT1);
 
 
-		xe_movaps_xm(xmmT1, &vuRegs[mVU.index].micro_clipflags);
-		xe_movaps_mx(mVU.clipFlag, xmmT1);
+		xe_movaps_xm(xmmT1, &vuRegs[mVU->index].micro_clipflags);
+		xe_movaps_mx(mVU->clipFlag, xmmT1);
 
-		xe_mov32_rm(gprF0, &vuRegs[mVU.index].micro_statusflags[0]);
-		xe_mov32_rm(gprF1, &vuRegs[mVU.index].micro_statusflags[1]);
-		xe_mov32_rm(gprF2, &vuRegs[mVU.index].micro_statusflags[2]);
-		xe_mov32_rm(gprF3, &vuRegs[mVU.index].micro_statusflags[3]);
+		xe_mov32_rm(gprF0, &vuRegs[mVU->index].micro_statusflags[0]);
+		xe_mov32_rm(gprF1, &vuRegs[mVU->index].micro_statusflags[1]);
+		xe_mov32_rm(gprF2, &vuRegs[mVU->index].micro_statusflags[2]);
+		xe_mov32_rm(gprF3, &vuRegs[mVU->index].micro_statusflags[3]);
 
 		// Jump to Recompiled Code Block
 		xe_jmp_r(XE_AX);
 
-		mVU.exitFunct = xGetAlignedCallTarget();
+		mVU->exitFunct = xGetAlignedCallTarget();
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -102,7 +102,7 @@ void mVUdispatcherAB(mV)
 // Generates the code for resuming/exit xgkick
 void mVUdispatcherCD(mV)
 {
-	mVU.startFunctXG = xGetAlignedCallTarget();
+	mVU->startFunctXG = xGetAlignedCallTarget();
 
 	{
 		int m_offset;
@@ -113,21 +113,21 @@ void mVUdispatcherCD(mV)
 			xe_ldmxcsr_m(isVU0 ? &EmuConfig.Cpu.VU0FPCR.bitmask : &EmuConfig.Cpu.VU1FPCR.bitmask);
 
 		mVUrestoreRegs(mVU);
-		xe_mov32_rm(gprF0, &vuRegs[mVU.index].micro_statusflags[0]);
-		xe_mov32_rm(gprF1, &vuRegs[mVU.index].micro_statusflags[1]);
-		xe_mov32_rm(gprF2, &vuRegs[mVU.index].micro_statusflags[2]);
-		xe_mov32_rm(gprF3, &vuRegs[mVU.index].micro_statusflags[3]);
+		xe_mov32_rm(gprF0, &vuRegs[mVU->index].micro_statusflags[0]);
+		xe_mov32_rm(gprF1, &vuRegs[mVU->index].micro_statusflags[1]);
+		xe_mov32_rm(gprF2, &vuRegs[mVU->index].micro_statusflags[2]);
+		xe_mov32_rm(gprF3, &vuRegs[mVU->index].micro_statusflags[3]);
 
 		// Jump to Recompiled Code Block
-		xe_jmp_mem_abs(&mVU.resumePtrXG);
+		xe_jmp_mem_abs(&mVU->resumePtrXG);
 
-		mVU.exitFunctXG = xGetAlignedCallTarget();
+		mVU->exitFunctXG = xGetAlignedCallTarget();
 
 		// Backup Status Flag (other regs were backed up on xgkick)
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[0], gprF0);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[1], gprF1);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[2], gprF2);
-		xe_mov32_mr(&vuRegs[mVU.index].micro_statusflags[3], gprF3);
+		xe_mov32_mr(&vuRegs[mVU->index].micro_statusflags[0], gprF0);
+		xe_mov32_mr(&vuRegs[mVU->index].micro_statusflags[1], gprF1);
+		xe_mov32_mr(&vuRegs[mVU->index].micro_statusflags[2], gprF2);
+		xe_mov32_mr(&vuRegs[mVU->index].micro_statusflags[3], gprF3);
 
 		// Load EE's MXCSR state
 		if (mvuNeedsFPCRUpdate(mVU))
@@ -140,7 +140,7 @@ void mVUdispatcherCD(mV)
 
 static void mVUGenerateWaitMTVU(mV)
 {
-	mVU.waitMTVU = xGetAlignedCallTarget();
+	mVU->waitMTVU = xGetAlignedCallTarget();
 
 	int num_xmms = 0, num_gprs = 0;
 
@@ -213,7 +213,7 @@ static void mVUGenerateWaitMTVU(mV)
 
 static void mVUGenerateCopyPipelineState(mV)
 {
-	mVU.copyPLState = xGetAlignedCallTarget();
+	mVU->copyPLState = xGetAlignedCallTarget();
 
 	if (cpuinfo_has_x86_avx2())
 	{
@@ -221,9 +221,9 @@ static void mVUGenerateCopyPipelineState(mV)
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 32); xe_vmovaps_xmemg(1, xm, 1); }
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 64); xe_vmovaps_xmemg(2, xm, 1); }
 
-		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU.prog.lpState); xe_vmovups_memxg(xm, 0, 1); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 32); xe_vmovups_memxg(xm, 1, 1); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 64); xe_vmovups_memxg(xm, 2, 1); }
+		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU->prog.lpState); xe_vmovups_memxg(xm, 0, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 32); xe_vmovups_memxg(xm, 1, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 64); xe_vmovups_memxg(xm, 2, 1); }
 
 		xe_vzeroupper();
 	}
@@ -236,12 +236,12 @@ static void mVUGenerateCopyPipelineState(mV)
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 64); xe_movaps_xmemg(4, xm); }
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 80); xe_movaps_xmemg(5, xm); }
 
-		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU.prog.lpState); xe_movups_memxg(xm, 0); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 16); xe_movups_memxg(xm, 1); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 32); xe_movups_memxg(xm, 2); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 48); xe_movups_memxg(xm, 3); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 64); xe_movups_memxg(xm, 4); }
-		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU.prog.lpState + 80); xe_movups_memxg(xm, 5); }
+		{ struct e_mem xm; XE_MEM_ABS(xm, &mVU->prog.lpState); xe_movups_memxg(xm, 0); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 16); xe_movups_memxg(xm, 1); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 32); xe_movups_memxg(xm, 2); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 48); xe_movups_memxg(xm, 3); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 64); xe_movups_memxg(xm, 4); }
+		{ struct e_mem xm; E_MEM(xm, E_NOREG, E_NOREG, 0, (e_sptr)&mVU->prog.lpState + 80); xe_movups_memxg(xm, 5); }
 	}
 
 	xe_ret();
@@ -255,7 +255,7 @@ static void mVUGenerateCopyPipelineState(mV)
 // Note: Structs must be 16-byte aligned! (GCC doesn't guarantee this)
 static void mVUGenerateCompareState(mV)
 {
-	mVU.compareStateF = xGetAlignedCallTarget();
+	mVU->compareStateF = xGetAlignedCallTarget();
 
 	if (cpuinfo_has_x86_avx2())
 	{
@@ -319,12 +319,12 @@ static void mVUGenerateCompareState(mV)
 // Executes for number of cycles
 _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 {
-	microVU& mVU    = mVUx;
+	microVU* mVU    = mVUx;
 	u32 vuLimit     = vuIndex ? 0x3ff8 : 0xff8;
-	mVU.cycles      = cycles;
-	mVU.totalCycles = cycles;
-	xSetPtr(mVU.prog.codePtr); // Set codePtr to where last program left off
-	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uptr)&mVU.prog.lpState); // Find and set correct program
+	mVU->cycles      = cycles;
+	mVU->totalCycles = cycles;
+	xSetPtr(mVU->prog.codePtr); // Set codePtr to where last program left off
+	return mVUsearchProg<vuIndex>(startPC & vuLimit, (uptr)&mVU->prog.lpState); // Find and set correct program
 }
 
 //------------------------------------------------------------------
@@ -333,19 +333,19 @@ _mVUt void* mVUexecute(u32 startPC, u32 cycles)
 
 _mVUt void mVUcleanUp(void)
 {
-	microVU& mVU = mVUx;
+	microVU* mVU = mVUx;
 
-	mVU.prog.codePtr = xGetAlignedCallTarget();
+	mVU->prog.codePtr = xGetAlignedCallTarget();
 
-	if ((xGetPtr() < mVU.prog.codeStart) || (xGetPtr() >= mVU.prog.codeEnd))
+	if ((xGetPtr() < mVU->prog.codeStart) || (xGetPtr() >= mVU->prog.codeEnd))
 		mVUreset(mVU, false);
 
-	mVU.cycles = mVU.totalCycles - C89_MAX(0, mVU.cycles);
-	vuRegs[mVU.index].cycle += mVU.cycles;
+	mVU->cycles = mVU->totalCycles - C89_MAX(0, mVU->cycles);
+	vuRegs[mVU->index].cycle += mVU->cycles;
 
 	if (!vuIndex || !THREAD_VU1)
 	{
-		u32 cycles_passed = C89_MIN(mVU.cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
+		u32 cycles_passed = C89_MIN(mVU->cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
 		if (cycles_passed > 0)
 		{
 			s64 vu0_offset = vuRegs[0].cycle - cpuRegs.cycle;

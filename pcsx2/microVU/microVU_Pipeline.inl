@@ -22,24 +22,24 @@
 // Used by mVUsetupRange
 __fi void mVUcheckIsSame(mV)
 {
-	if (mVU.prog.isSame == -1)
-		mVU.prog.isSame = !memcmp((u8*)mVUcurProg.data, vuRegs[mVU.index].Micro, mVU.microMemSize);
-	if (mVU.prog.isSame == 0)
+	if (mVU->prog.isSame == -1)
+		mVU->prog.isSame = !memcmp((u8*)mVUcurProg.data, vuRegs[mVU->index].Micro, mVU->microMemSize);
+	if (mVU->prog.isSame == 0)
 	{
-		mVUcacheProg(mVU, *mVU.prog.cur);
-		mVU.prog.isSame = 1;
+		mVUcacheProg(mVU, *mVU->prog.cur);
+		mVU->prog.isSame = 1;
 	}
 }
 
 // Sets up microProgram PC ranges based on whats been recompiled
-void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
+void mVUsetupRange(microVU* mVU, s32 pc, bool isStartPC)
 {
 	microRangeList* ranges = mVUcurProg.ranges;
 
 	/* The PC handling will prewrap the PC so we need to
 	 * set the end PC to the end of the micro memory,
 	 * but only if it wraps, no more. */
-	const s32 cur_pc = (!isStartPC && mVUrange.start > pc && pc == 0) ? mVU.microMemSize : pc;
+	const s32 cur_pc = (!isStartPC && mVUrange.start > pc && pc == 0) ? mVU->microMemSize : pc;
 
 	if (isStartPC) /* Check if startPC is already within a block we've recompiled */
 	{
@@ -94,13 +94,13 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 		}
 		else
 		{
-			mVUrange.end = mVU.microMemSize;
+			mVUrange.end = mVU->microMemSize;
 			microRange mRange = {0, cur_pc };
 			mvu_rangelist_push_front(ranges, mRange);
 		}
 
 		if(!doWholeProgCompare)
-			mVUcacheProg(mVU, *mVU.prog.cur);
+			mVUcacheProg(mVU, *mVU->prog.cur);
 	}
 }
 
@@ -109,8 +109,8 @@ void mVUsetupRange(microVU& mVU, s32 pc, bool isStartPC)
 //------------------------------------------------------------------
 __fi u8 optimizeReg(u8 rState) { return (rState == 1) ? 0 : rState; }
 __fi u8 calcCycles(u8 reg, u8 x) { return ((reg > x) ? (reg - x) : 0); }
-#define incP(mV) mVU.p ^= 1
-#define incQ(mV) mVU.q ^= 1
+#define incP(mV) mVU->p ^= 1
+#define incQ(mV) mVU->q ^= 1
 
 /* Optimizes the End Pipeline State Removing Unnecessary Info
  * If the cycles remaining is just '1', we don't have to transfer

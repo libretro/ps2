@@ -179,7 +179,7 @@ struct microProgManager
 	microProgramQuick  quick[mProgSize/2]; // Quick reference to valid microPrograms for current execution
 	microProgram*      cur;                // Pointer to currently running MicroProgram
 	int                total;              // Total Number of valid MicroPrograms
-	int                isSame;             // Current cached microProgram is Exact Same program as vuRegs[mVU.index].Micro (-1 = unknown, 0 = No, 1 = Yes)
+	int                isSame;             // Current cached microProgram is Exact Same program as vuRegs[mVU->index].Micro (-1 = unknown, 0 = No, 1 = Yes)
 	int                cleared;            // Micro Program is Indeterminate so must be searched for (and if no matches are found then recompile a new one)
 	u32                curFrame;           // Frame Counter
 	u8*                codePtr;            // Pointer to program's recompilation code
