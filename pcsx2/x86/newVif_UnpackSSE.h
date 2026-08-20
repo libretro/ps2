@@ -20,120 +20,58 @@
 #include "newVif.h"
 
 // --------------------------------------------------------------------------------------
-//  VifUnpackSSE_Base
+//  VifUnpackSSE
 // --------------------------------------------------------------------------------------
-class VifUnpackSSE_Base
-{
-public:
-	bool usn;    // unsigned flag
-	bool doMask; // masking write enable flag
-	int  UnpkLoopIteration;
-	int  IsAligned;
+// One state struct for both unpack generators; `kind` selects the four
+// behaviours that used to be virtual overrides (write-protect, input-mask,
+// unmasked-op, and the masked write itself). Everything else was virtual by
+// declaration but never overridden, so those are plain functions now.
 
-protected:
+enum VifUnpackKind
+{
+	VIFUNPACK_SIMPLE = 0,
+	VIFUNPACK_DYNAREC = 1
+};
+
+struct VifUnpackSSE
+{
+	int kind;
+
+	int usn;    /* unsigned flag */
+	int doMask; /* masking write enable flag */
+	int UnpkLoopIteration;
+	int IsAligned;
+
 	struct e_mem dstIndirect;
 	struct e_mem srcIndirect;
 	int zeroReg;
 	int workReg;
 	int destReg;
 
-public:
-	VifUnpackSSE_Base();
-	virtual ~VifUnpackSSE_Base() = default;
-
-	virtual void xUnpack(int upktype) const;
-	virtual bool IsWriteProtectedOp() const = 0;
-	virtual bool IsInputMasked() const = 0;
-	virtual bool IsUnmaskedOp() const = 0;
-	virtual void xMovDest() const;
-
-protected:
-	virtual void doMaskWrite(int regX) const = 0;
-
-	virtual void xPMOVXX8(int regX) const;
-	virtual void xPMOVXX16(int regX) const;
-
-	virtual void xUPK_S_32() const;
-	virtual void xUPK_S_16() const;
-	virtual void xUPK_S_8() const;
-
-	virtual void xUPK_V2_32() const;
-	virtual void xUPK_V2_16() const;
-	virtual void xUPK_V2_8() const;
-
-	virtual void xUPK_V3_32() const;
-	virtual void xUPK_V3_16() const;
-	virtual void xUPK_V3_8() const;
-
-	virtual void xUPK_V4_32() const;
-	virtual void xUPK_V4_16() const;
-	virtual void xUPK_V4_8() const;
-	virtual void xUPK_V4_5() const;
-};
-
-// --------------------------------------------------------------------------------------
-//  VifUnpackSSE_Simple
-// --------------------------------------------------------------------------------------
-class VifUnpackSSE_Simple : public VifUnpackSSE_Base
-{
-	typedef VifUnpackSSE_Base _parent;
-
-public:
+	/* SIMPLE */
 	int curCycle;
 
-public:
-	VifUnpackSSE_Simple() = default;
-	virtual ~VifUnpackSSE_Simple() = default;
-
-	virtual bool IsWriteProtectedOp() const { return false; }
-	virtual bool IsInputMasked() const { return false; }
-	virtual bool IsUnmaskedOp() const { return !doMask; }
-
-protected:
-	virtual void doMaskWrite(int regX) const;
+	/* DYNAREC */
+	int isFill;
+	int doMode; /* two bit value representing difference mode */
+	int skipProcessing;
+	int inputMasked;
+	const nVifStruct* v;  /* vif0 or vif1 */
+	const nVifBlock*  vB; /* some pre-collected data from VifStruct */
+	int vCL;              /* internal copy of vif->cl */
 };
 
-// --------------------------------------------------------------------------------------
-//  VifUnpackSSE_Dynarec
-// --------------------------------------------------------------------------------------
-class VifUnpackSSE_Dynarec : public VifUnpackSSE_Base
-{
-	typedef VifUnpackSSE_Base _parent;
+void VifUnpackSSE_Init_State(struct VifUnpackSSE* p, int kind);
+void VifUnpackSSE_InitDynarec(struct VifUnpackSSE* p, const nVifStruct* vif_, const nVifBlock* vifBlock_);
 
-public:
-	bool isFill;
-	int  doMode; // two bit value representing difference mode
-	bool skipProcessing;
-	bool inputMasked;
+int  VifUnpackSSE_IsWriteProtectedOp(const struct VifUnpackSSE* p);
+int  VifUnpackSSE_IsInputMasked(const struct VifUnpackSSE* p);
+int  VifUnpackSSE_IsUnmaskedOp(const struct VifUnpackSSE* p);
 
-protected:
-	const nVifStruct& v;   // vif0 or vif1
-	const nVifBlock&  vB;  // some pre-collected data from VifStruct
-	int               vCL; // internal copy of vif->cl
+void VifUnpackSSE_xUnpack(const struct VifUnpackSSE* p, int upktype);
+void VifUnpackSSE_xMovDest(const struct VifUnpackSSE* p);
+void VifUnpackSSE_doMaskWrite(const struct VifUnpackSSE* p, int regX);
 
-public:
-	VifUnpackSSE_Dynarec(const nVifStruct& vif_, const nVifBlock& vifBlock_);
-	VifUnpackSSE_Dynarec(const VifUnpackSSE_Dynarec& src) // copy constructor
-		: _parent(src)
-		, v(src.v)
-		, vB(src.vB)
-	{
-		isFill = src.isFill;
-		vCL    = src.vCL;
-	}
-
-	virtual ~VifUnpackSSE_Dynarec() = default;
-
-	virtual bool IsWriteProtectedOp() const { return skipProcessing; }
-	virtual bool IsInputMasked() const { return inputMasked; }
-	virtual bool IsUnmaskedOp() const { return !doMode && !doMask; }
-
-	void ModUnpack(int upknum, bool PostOp);
-	void ProcessMasks();
-	void CompileRoutine();
-
-
-protected:
-	virtual void doMaskWrite(int regX) const;
-	void SetMasks(int cS) const;
-};
+void VifUnpackSSE_ModUnpack(struct VifUnpackSSE* p, int upknum, int PostOp);
+void VifUnpackSSE_ProcessMasks(struct VifUnpackSSE* p);
+void VifUnpackSSE_CompileRoutine(struct VifUnpackSSE* p);
