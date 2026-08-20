@@ -293,7 +293,7 @@ void normBranchCompile(microVU* mVU, u32 branchPC)
 {
 	microBlock* pBlock;
 	blockCreate(branchPC / 8);
-	pBlock = mVUblocks[branchPC / 8]->search(mVU, (microRegInfo*)&mVUregs);
+	pBlock = mVUbm_search(mVUblocks[branchPC / 8], mVU, (microRegInfo*)&mVUregs);
 	if (pBlock)
 		xe_jmp_to(pBlock->x86ptrStart);
 	else
@@ -308,7 +308,7 @@ void normJumpCompile(mV, microFlagCycles* mFC, int isEvilJump)
 
 	if (!mVUpBlock->jumpCache) // Create the jump cache for this block
 	{
-		mVUpBlock->jumpCache = new microJumpCache[mProgSize / 2];
+		mVUpBlock->jumpCache = (microJumpCache*)calloc(mProgSize / 2, sizeof(microJumpCache));
 	}
 
 	if (isEvilJump)
@@ -535,7 +535,7 @@ void condBranch(mV, microFlagCycles* mFC, int JMPcc)
 		microBlock* bBlock;
 		incPC2(1); // Check if Branch Non-Taken Side has already been recompiled
 		blockCreate(iPC / 2);
-		bBlock = mVUblocks[iPC / 2]->search(mVU, (microRegInfo*)&mVUregs);
+		bBlock = mVUbm_search(mVUblocks[iPC / 2], mVU, (microRegInfo*)&mVUregs);
 		incPC2(-1);
 		if (bBlock) // Branch non-taken has already been compiled
 		{

@@ -195,7 +195,10 @@ typedef Fntype_mVUrecInst* Fnptr_mVUrecInst;
 #define blockCreate(addr) \
 	{ \
 		if (!mVUblocks[addr]) \
-			mVUblocks[addr] = new microBlockManager(); \
+		{ \
+			mVUblocks[addr] = (microBlockManager*)malloc(sizeof(microBlockManager)); \
+			mVUbm_init(mVUblocks[addr]); \
+		} \
 	}
 
 // Fetches the PC and instruction opcode relative to the current PC.  Used to rewind and

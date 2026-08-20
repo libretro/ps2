@@ -177,7 +177,7 @@ __ri void mVUdeleteProg(microVU* mVU, microProgram** prog)
 {
 	for (u32 i = 0; i < (mVU->progSize / 2); i++)
 	{
-		delete (*prog)->block[i];
+		if ((*prog)->block[i]) { mVUbm_destroy((*prog)->block[i]); free((*prog)->block[i]); }
 		(*prog)->block[i] = NULL;
 	}
 	mvu_rangelist_delete((*prog)->ranges);

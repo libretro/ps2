@@ -21,7 +21,7 @@
 #include <cstring>
 #include <cstdlib>
 
-class microBlockManager;
+struct microBlockManager;
 
 struct microBlockLink
 {

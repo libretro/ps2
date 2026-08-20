@@ -71,9 +71,10 @@ union alignas(16) microRegInfo
 };
 
 struct microProgram;
+/* POD: the old default constructor only zeroed the three pointers, which
+ * the calloc at the single allocation site does. */
 struct microJumpCache
 {
-	microJumpCache() : prog(NULL), x86ptrStart(NULL), linkedEntry(NULL) {}
 	microProgram* prog; // Program to which the entry point below is part of
 	void* x86ptrStart;  // Start of code (Entry point for block)
 	void* linkedEntry;  // Linked entry (skips cold setup)

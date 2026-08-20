@@ -228,7 +228,7 @@ __fi void mVUinitFirstPass(microVU* mVU, uptr pState, u8* thisPtr)
 	if (((uptr)&mVU->prog.lpState != pState))
 		memcpy((u8*)&mVU->prog.lpState, (u8*)pState, sizeof(microRegInfo));
 	mVUblock.x86ptrStart = thisPtr;
-	mVUpBlock = mVUblocks[mVUstartPC / 2]->add(mVU, &mVUblock); // Add this block to block manager
+	mVUpBlock = mVUbm_add(mVUblocks[mVUstartPC / 2], mVU, &mVUblock); // Add this block to block manager
 	mVUregs.needExactMatch = (mVUpBlock->pState.blockType) ? 7 : 0; // ToDo: Fix 1-Op block flag linking (MGS2:Demo/Sly Cooper)
 	mVUregs.blockType = 0;
 	mVUregs.viBackUp  = 0;
@@ -645,7 +645,7 @@ void* mVUcompile(microVU* mVU, u32 startPC, uptr pState)
 /* Returns the entry point of the block (compiles it if not found) */
 __fi void* mVUentryGet(microVU* mVU, microBlockManager* block, u32 startPC, uptr pState)
 {
-	microBlock* pBlock = block->search(mVU, (microRegInfo*)pState);
+	microBlock* pBlock = mVUbm_search(block, mVU, (microRegInfo*)pState);
 	if (pBlock)
 		return pBlock->x86ptrStart;
 	return mVUcompile(mVU, startPC, pState);
