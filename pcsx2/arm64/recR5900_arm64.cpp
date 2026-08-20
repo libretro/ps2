@@ -1738,13 +1738,46 @@ namespace {
 		// write live so the sticky bits accumulate accurately. The peeks stay
 		// inside RAM: one word past either end of a block could leave the
 		// mapped range, and a compile-time vtlb miss is not an option.
-		const u32 np   = Norm(pc);
-		const u32 prev = (np >= 4 && InRam(np - 4)) ? memRead32(pc - 4) : 0;
-		const u32 next = InRam(Norm(p)) ? memRead32(p) : 0;
 		const auto is_status_move = [](u32 i, u32 rs) {
 			return (i >> 26) == 0x12 && ((i >> 21) & 31) == rs && ((i >> 11) & 31) == REG_STATUS_FLAG;
 		};
-		const bool all_status = is_status_move(prev, 6) || is_status_move(next, 2);
+
+		// x86's COP2FlagHackPass tracks a HORIZON, not adjacency: a CTC2 to
+		// REG_STATUS starts it and it runs to the matching CFC2 from
+		// REG_STATUS, so every status write in between stays live even when
+		// other instructions (a store, a NOP, an interp-pinned VU op) split
+		// the macro ops into several runs. Peeking only one word either side
+		// of the run misses that, and the sticky bits the CFC2 reads never
+		// accumulate. Scan instead, bounded, and stop at whichever comes
+		// first. The scans stay inside mapped RAM: a compile-time vtlb miss
+		// is not an option.
+		const int kHorizonScan = 64;
+		bool all_status = false;
+		{
+			int k;
+			for (k = 1; k <= kHorizonScan; k++)   // backwards: CTC2 Status?
+			{
+				const u32 a = Norm(pc) - (u32)k * 4;
+				u32 w;
+				if (!InRam(a))
+					break;
+				w = memRead32(pc - (u32)k * 4);
+				if (is_status_move(w, 2))         // an earlier CFC2 closed it
+					break;
+				if (is_status_move(w, 6)) { all_status = true; break; }
+			}
+			for (k = 0; !all_status && k < kHorizonScan; k++) // forwards: CFC2 Status?
+			{
+				const u32 a = Norm(p) + (u32)k * 4;
+				u32 w;
+				if (!InRam(a))
+					break;
+				w = memRead32(p + (u32)k * 4);
+				if (is_status_move(w, 2)) { all_status = true; break; }
+				if (is_status_move(w, 6))         // a later CTC2 reopens it
+					break;
+			}
+		}
 
 		bool denormalized = false;
 		int last_status = -1, last_mac = -1;
