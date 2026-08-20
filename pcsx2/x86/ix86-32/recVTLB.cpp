@@ -327,7 +327,7 @@ void vtlb_DynGenDispatchers(void)
 // Recompiled input registers:
 //   ecx - source address to read from
 //   Returns read value in eax.
-int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
+int vtlb_DynGenReadNonQuad(u32 bits, int sign, int xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
@@ -406,7 +406,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
 //
-int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
+int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
 	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
@@ -578,7 +578,7 @@ int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallbac
 //////////////////////////////////////////////////////////////////////////////////////////
 //                            Dynarec Store Implementations
 
-void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
+void vtlb_DynGenWrite(u32 sz, int xmm, int addr_reg, int value_reg)
 {
 	if (!CHECK_FASTMEM || vtlb_IsFaultingPC(pc))
 	{
@@ -643,7 +643,7 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 // Generates code for a store instruction, where the address is a known constant.
 // TLB lookup is performed in const, with the assumption that the COP0/TLB will clear the
 // recompiler if the TLB is changed.
-void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
+void vtlb_DynGenWrite_Const(u32 bits, int xmm, u32 addr_const, int value_reg)
 {
 	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
@@ -762,7 +762,7 @@ void vtlb_DynV2P(void)
 	xe_or32_rr(XE_AX, XE_CX);
 }
 
-void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
+void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, int is_signed, int is_load, int is_xmm)
 {
 	static const u32 GPR_SIZE = 8;
 	static const u32 XMM_SIZE = 16;

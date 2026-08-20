@@ -33,7 +33,7 @@ extern void  dVifRelease (int idx);
 extern void  VifUnpackSSE_Init();
 extern void  VifUnpackSSE_Destroy();
 
-_vifT extern void dVifUnpack(const u8* data, bool isFill);
+_vifT extern void dVifUnpack(const u8* data, int isFill);
 
 struct nVifStruct
 {

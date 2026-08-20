@@ -87,7 +87,7 @@ extern void vtlb_VMapUnmap(u32 vaddr,u32 sz);
 
 extern void vtlb_ClearLoadStoreInfo(void);
 extern void vtlb_AddLoadStoreInfo(uptr code_address, u32 code_size, u32 guest_pc, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
-extern void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, bool is_signed, bool is_load, bool is_fpr);
+extern void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, u32 guest_addr, u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register, u8 size_in_bits, int is_signed, int is_load, int is_fpr);
 extern bool vtlb_IsFaultingPC(u32 guest_pc);
 
 //Memory functions
@@ -111,13 +111,13 @@ template <typename DataType>
 extern DataType vtlb_ramRead(u32 mem);
 
 using vtlb_ReadRegAllocCallback = int(*)(void);
-extern int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
-extern int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
+extern int vtlb_DynGenReadNonQuad(u32 bits, int sign, int xmm, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
+extern int vtlb_DynGenReadNonQuad_Const(u32 bits, int sign, int xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
 extern int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
 extern int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc = nullptr);
 
-extern void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg);
-extern void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg);
+extern void vtlb_DynGenWrite(u32 sz, int xmm, int addr_reg, int value_reg);
+extern void vtlb_DynGenWrite_Const(u32 bits, int xmm, u32 addr_const, int value_reg);
 
 extern void vtlb_DynGenDispatchers(void);
 
