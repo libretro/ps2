@@ -24,28 +24,6 @@ using namespace x86Emitter;
 * Register branch logic                                  *
 * Format:  OP rs, rt, offset                             *
 *********************************************************/
-#ifndef BRANCH_RECOMPILE
-
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_SYS(BEQ);
-REC_SYS(BEQL);
-REC_SYS(BNE);
-REC_SYS(BNEL);
-REC_SYS(BLTZ);
-REC_SYS(BGTZ);
-REC_SYS(BLEZ);
-REC_SYS(BGEZ);
-REC_SYS(BGTZL);
-REC_SYS(BLTZL);
-REC_SYS_DEL(BLTZAL, 31);
-REC_SYS_DEL(BLTZALL, 31);
-REC_SYS(BLEZL);
-REC_SYS(BGEZL);
-REC_SYS_DEL(BGEZAL, 31);
-REC_SYS_DEL(BGEZALL, 31);
-
-#else
 
 static u32 *recSetBranchEQ(int bne, int process)
 {
@@ -815,5 +793,4 @@ void recBGTZL(void)
 	SetBranchImm(pc);
 }
 
-#endif
 

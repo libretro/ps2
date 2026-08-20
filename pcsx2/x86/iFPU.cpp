@@ -99,14 +99,6 @@ alignas(16) static const u32 s_pos[4] = {0x7fffffff, 0xffffffff, 0xffffffff, 0xf
 //------------------------------------------------------------------
 
 // Those opcode are marked as special ! But I don't understand why we can't run them in the interpreter
-#ifndef FPU_RECOMPILE
-
-REC_FPUFUNC(CFC1);
-REC_FPUFUNC(CTC1);
-REC_FPUFUNC(MFC1);
-REC_FPUFUNC(MTC1);
-
-#else
 
 //------------------------------------------------------------------
 // CFC1 / CTC1
@@ -269,7 +261,6 @@ void recMTC1(void)
 		}
 	}
 }
-#endif
 //------------------------------------------------------------------
 
 

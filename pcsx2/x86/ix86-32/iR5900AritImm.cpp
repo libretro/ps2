@@ -25,22 +25,6 @@ using namespace x86Emitter;
 * Format:  OP rt, rs, immediate                          *
 *********************************************************/
 
-#ifndef ARITHMETICIMM_RECOMPILE
-
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_FUNC_DEL(ADDI, _Rt_);
-REC_FUNC_DEL(ADDIU, _Rt_);
-REC_FUNC_DEL(DADDI, _Rt_);
-REC_FUNC_DEL(DADDIU, _Rt_);
-REC_FUNC_DEL(ANDI, _Rt_);
-REC_FUNC_DEL(ORI, _Rt_);
-REC_FUNC_DEL(XORI, _Rt_);
-
-REC_FUNC_DEL(SLTI, _Rt_);
-REC_FUNC_DEL(SLTIU, _Rt_);
-
-#else
 
 static void recMoveStoT(int info)
 {
@@ -224,5 +208,4 @@ static void recXORI_(int info)
 
 EERECOMPILE_CODEX(eeRecompileCodeRC1, XORI, XMMINFO_WRITET | XMMINFO_READS | XMMINFO_64BITOP);
 
-#endif
 

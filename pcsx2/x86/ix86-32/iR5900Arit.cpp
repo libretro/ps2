@@ -27,26 +27,6 @@ using namespace x86Emitter;
 
 // TODO: overflow checks
 
-#ifndef ARITHMETIC_RECOMPILE
-
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_FUNC_DEL(ADD, _Rd_);
-REC_FUNC_DEL(ADDU, _Rd_);
-REC_FUNC_DEL(DADD, _Rd_);
-REC_FUNC_DEL(DADDU, _Rd_);
-REC_FUNC_DEL(SUB, _Rd_);
-REC_FUNC_DEL(SUBU, _Rd_);
-REC_FUNC_DEL(DSUB, _Rd_);
-REC_FUNC_DEL(DSUBU, _Rd_);
-REC_FUNC_DEL(AND, _Rd_);
-REC_FUNC_DEL(OR, _Rd_);
-REC_FUNC_DEL(XOR, _Rd_);
-REC_FUNC_DEL(NOR, _Rd_);
-REC_FUNC_DEL(SLT, _Rd_);
-REC_FUNC_DEL(SLTU, _Rd_);
-
-#else
 
 static void recMoveStoD(int info)
 {
@@ -669,5 +649,4 @@ static void recSLTU_(int info)
 
 EERECOMPILE_CODERC0(SLTU, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_NORENAME);
 
-#endif
 

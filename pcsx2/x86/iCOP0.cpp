@@ -307,12 +307,6 @@ void recDI()
 }
 
 
-#ifndef CP0_RECOMPILE
-
-REC_SYS(MFC0);
-REC_SYS(MTC0);
-
-#else
 
 void recMFC0()
 {
@@ -519,5 +513,4 @@ void recMTC0()
 		}
 	}
 }
-#endif
 

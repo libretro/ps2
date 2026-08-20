@@ -786,7 +786,6 @@ void (*recCOP2SPECIAL2t[128])() = {
 
 void recCOP2(void) { recCOP2t[_Rs_](); }
 
-#if defined(LOADSTORE_RECOMPILE) && defined(CP2_RECOMPILE)
 
 /*********************************************************
 * Load and store for COP2 (VU0 unit)                     *
@@ -861,13 +860,6 @@ void recSQC2(void)
 		_freeXMMreg(ftreg);
 }
 
-#else
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_FUNC(LQC2);
-REC_FUNC(SQC2);
-
-#endif
 
 void recCOP2_BC2(void) { recCOP2_BC2t[_Rt_](); }
 void recCOP2_SPEC1(void)

@@ -32,26 +32,8 @@
 
 using namespace x86Emitter;
 
-namespace Interp = R5900::Interpreter::OpcodeImpl::MMI;
 
 
-#ifndef MMI_RECOMPILE
-
-REC_FUNC_DEL(PLZCW, _Rd_);
-
-REC_FUNC_DEL(PMFHL, _Rd_);
-REC_FUNC_DEL(PMTHL, _Rd_);
-
-REC_FUNC_DEL(PSRLW, _Rd_);
-REC_FUNC_DEL(PSRLH, _Rd_);
-
-REC_FUNC_DEL(PSRAH, _Rd_);
-REC_FUNC_DEL(PSRAW, _Rd_);
-
-REC_FUNC_DEL(PSLLH, _Rd_);
-REC_FUNC_DEL(PSLLW, _Rd_);
-
-#else
 
 void recPLZCW()
 {
@@ -391,45 +373,11 @@ void recPSLLW()
 	_clearNeededXMMregs();
 }
 
-#endif
 
 /*********************************************************
 *   MMI0 opcodes                                         *
 *                                                        *
 *********************************************************/
-#ifndef MMI0_RECOMPILE
-
-REC_FUNC_DEL(PADDB,  _Rd_);
-REC_FUNC_DEL(PADDH,  _Rd_);
-REC_FUNC_DEL(PADDW,  _Rd_);
-REC_FUNC_DEL(PADDSB, _Rd_);
-REC_FUNC_DEL(PADDSH, _Rd_);
-REC_FUNC_DEL(PADDSW, _Rd_);
-REC_FUNC_DEL(PSUBB,  _Rd_);
-REC_FUNC_DEL(PSUBH,  _Rd_);
-REC_FUNC_DEL(PSUBW,  _Rd_);
-REC_FUNC_DEL(PSUBSB, _Rd_);
-REC_FUNC_DEL(PSUBSH, _Rd_);
-REC_FUNC_DEL(PSUBSW, _Rd_);
-
-REC_FUNC_DEL(PMAXW,  _Rd_);
-REC_FUNC_DEL(PMAXH,  _Rd_);
-
-REC_FUNC_DEL(PCGTW,  _Rd_);
-REC_FUNC_DEL(PCGTH,  _Rd_);
-REC_FUNC_DEL(PCGTB,  _Rd_);
-
-REC_FUNC_DEL(PEXTLW, _Rd_);
-
-REC_FUNC_DEL(PPACW,  _Rd_);
-REC_FUNC_DEL(PEXTLH, _Rd_);
-REC_FUNC_DEL(PPACH,  _Rd_);
-REC_FUNC_DEL(PEXTLB, _Rd_);
-REC_FUNC_DEL(PPACB,  _Rd_);
-REC_FUNC_DEL(PEXT5,  _Rd_);
-REC_FUNC_DEL(PPAC5,  _Rd_);
-
-#else
 
 ////////////////////////////////////////////////////
 void recPMAXW()
@@ -1181,38 +1129,11 @@ void recPEXTLH(void)
 	_clearNeededXMMregs();
 }
 
-#endif
 
 /*********************************************************
 *   MMI1 opcodes                                         *
 *                                                        *
 *********************************************************/
-#ifndef MMI1_RECOMPILE
-
-REC_FUNC_DEL(PABSW,  _Rd_);
-REC_FUNC_DEL(PABSH,  _Rd_);
-
-REC_FUNC_DEL(PMINW,  _Rd_);
-REC_FUNC_DEL(PADSBH, _Rd_);
-REC_FUNC_DEL(PMINH,  _Rd_);
-REC_FUNC_DEL(PCEQB,  _Rd_);
-REC_FUNC_DEL(PCEQH,  _Rd_);
-REC_FUNC_DEL(PCEQW,  _Rd_);
-
-REC_FUNC_DEL(PADDUB, _Rd_);
-REC_FUNC_DEL(PADDUH, _Rd_);
-REC_FUNC_DEL(PADDUW, _Rd_);
-
-REC_FUNC_DEL(PSUBUB, _Rd_);
-REC_FUNC_DEL(PSUBUH, _Rd_);
-REC_FUNC_DEL(PSUBUW, _Rd_);
-
-REC_FUNC_DEL(PEXTUW, _Rd_);
-REC_FUNC_DEL(PEXTUH, _Rd_);
-REC_FUNC_DEL(PEXTUB, _Rd_);
-REC_FUNC_DEL(QFSRV,  _Rd_);
-
-#else
 
 ////////////////////////////////////////////////////
 
@@ -1718,38 +1639,10 @@ void recPADDUH(void)
 	_clearNeededXMMregs();
 }
 
-#endif
 /*********************************************************
 *   MMI2 opcodes                                         *
 *                                                        *
 *********************************************************/
-#ifndef MMI2_RECOMPILE
-
-REC_FUNC_DEL(PMFHI,  _Rd_);
-REC_FUNC_DEL(PMFLO,  _Rd_);
-REC_FUNC_DEL(PCPYLD, _Rd_);
-REC_FUNC_DEL(PAND,  _Rd_);
-REC_FUNC_DEL(PXOR,  _Rd_);
-
-REC_FUNC_DEL(PMADDW, _Rd_);
-REC_FUNC_DEL(PSLLVW, _Rd_);
-REC_FUNC_DEL(PSRLVW, _Rd_);
-REC_FUNC_DEL(PMSUBW, _Rd_);
-REC_FUNC_DEL(PINTH,  _Rd_);
-REC_FUNC_DEL(PMULTW, _Rd_);
-REC_FUNC_DEL(PDIVW,  _Rd_);
-REC_FUNC_DEL(PMADDH, _Rd_);
-REC_FUNC_DEL(PHMADH, _Rd_);
-REC_FUNC_DEL(PMSUBH, _Rd_);
-REC_FUNC_DEL(PHMSBH, _Rd_);
-REC_FUNC_DEL(PEXEH,  _Rd_);
-REC_FUNC_DEL(PREVH,  _Rd_);
-REC_FUNC_DEL(PMULTH, _Rd_);
-REC_FUNC_DEL(PDIVBW, _Rd_);
-REC_FUNC_DEL(PEXEW,  _Rd_);
-REC_FUNC_DEL(PROT3W, _Rd_);
-
-#else
 
 ////////////////////////////////////////////////////
 void recPMADDW(void)
@@ -2581,28 +2474,10 @@ void recPMADDH(void)
 	_clearNeededXMMregs();
 }
 
-#endif
 /*********************************************************
 *   MMI3 opcodes                                         *
 *                                                        *
 *********************************************************/
-#ifndef MMI3_RECOMPILE
-
-REC_FUNC_DEL(PMADDUW, _Rd_);
-REC_FUNC_DEL(PSRAVW,  _Rd_);
-REC_FUNC_DEL(PMTHI,   _Rd_);
-REC_FUNC_DEL(PMTLO,   _Rd_);
-REC_FUNC_DEL(PINTEH,  _Rd_);
-REC_FUNC_DEL(PMULTUW, _Rd_);
-REC_FUNC_DEL(PDIVUW,  _Rd_);
-REC_FUNC_DEL(PCPYUD,  _Rd_);
-REC_FUNC_DEL(POR,     _Rd_);
-REC_FUNC_DEL(PNOR,    _Rd_);
-REC_FUNC_DEL(PCPYH,   _Rd_);
-REC_FUNC_DEL(PEXCW,   _Rd_);
-REC_FUNC_DEL(PEXCH,   _Rd_);
-
-#else
 
 ////////////////////////////////////////////////////
 //REC_FUNC( PSRAVW, _Rd_ );
@@ -3115,5 +2990,4 @@ void recPCPYH(void)
 	_clearNeededXMMregs();
 }
 
-#endif // else MMI3_RECOMPILE
 

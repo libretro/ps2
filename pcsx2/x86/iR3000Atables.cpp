@@ -28,15 +28,6 @@ extern int g_psxWriteOk;
 extern u32 g_psxMaxRecMem;
 
 // R3000A instruction implementation
-#define REC_FUNC(f) \
-	static void rpsx##f() \
-	{ \
-		xe_mov32_mi(&psxRegs.code, (u32)psxRegs.code); \
-		_psxFlushCall(FLUSH_EVERYTHING); \
-		xe_fastcall0((uptr)psx##f); \
-		PSX_DEL_CONST(_Rt_); \
-		/*	branch = 2; */ \
-	}
 
 // Same as above but with a different naming convension (to avoid various rename)
 #define REC_GTE_FUNC(f) \

@@ -31,33 +31,6 @@ extern int s_nBlockInterlocked; // Current block has VU0 interlocking
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 
-#define REC_FUNC(f) \
-	void rec##f() \
-	{ \
-		recCall(Interp::f); \
-	}
-
-#define REC_FUNC_DEL(f, delreg) \
-	void rec##f() \
-	{ \
-		if ((delreg) > 0) \
-			_deleteEEreg(delreg, 1); \
-		recCall(Interp::f); \
-	}
-
-#define REC_SYS(f) \
-	void rec##f() \
-	{ \
-		recBranchCall(Interp::f); \
-	}
-
-#define REC_SYS_DEL(f, delreg) \
-	void rec##f() \
-	{ \
-		if ((delreg) > 0) \
-			_deleteEEreg(delreg, 1); \
-		recBranchCall(Interp::f); \
-	}
 
 extern int g_recompilingDelaySlot;
 

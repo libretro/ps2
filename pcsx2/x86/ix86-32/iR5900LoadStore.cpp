@@ -33,37 +33,6 @@ static int RETURN_READ_IN_RAX(void)
 * Load and store for GPR                                 *
 * Format:  OP rt, offset(base)                           *
 *********************************************************/
-#ifndef LOADSTORE_RECOMPILE
-
-namespace Interp = ::R5900::Interpreter::OpcodeImpl;
-
-REC_FUNC_DEL(LB, _Rt_);
-REC_FUNC_DEL(LBU, _Rt_);
-REC_FUNC_DEL(LH, _Rt_);
-REC_FUNC_DEL(LHU, _Rt_);
-REC_FUNC_DEL(LW, _Rt_);
-REC_FUNC_DEL(LWU, _Rt_);
-REC_FUNC_DEL(LWL, _Rt_);
-REC_FUNC_DEL(LWR, _Rt_);
-REC_FUNC_DEL(LD, _Rt_);
-REC_FUNC_DEL(LDR, _Rt_);
-REC_FUNC_DEL(LDL, _Rt_);
-REC_FUNC_DEL(LQ, _Rt_);
-REC_FUNC(SB);
-REC_FUNC(SH);
-REC_FUNC(SW);
-REC_FUNC(SWL);
-REC_FUNC(SWR);
-REC_FUNC(SD);
-REC_FUNC(SDL);
-REC_FUNC(SDR);
-REC_FUNC(SQ);
-REC_FUNC(LWC1);
-REC_FUNC(SWC1);
-REC_FUNC(LQC2);
-REC_FUNC(SQC2);
-
-#else
 
 using namespace ::R5900::Interpreter::OpcodeImpl;
 
@@ -968,5 +937,4 @@ void recSWC1(void)
 #endif
 }
 
-#endif
 

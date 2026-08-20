@@ -24,16 +24,6 @@ using namespace x86Emitter;
 * Jump to target                                         *
 * Format:  OP target                                     *
 *********************************************************/
-#ifndef JUMP_RECOMPILE
-
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_SYS(J);
-REC_SYS_DEL(JAL, 31);
-REC_SYS(JR);
-REC_SYS_DEL(JALR, _Rd_);
-
-#else
 
 ////////////////////////////////////////////////////
 void recJ(void)
@@ -151,5 +141,4 @@ void recJALR(void)
 	SetBranchReg(0xffffffff);
 }
 
-#endif
 

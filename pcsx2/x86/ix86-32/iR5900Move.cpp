@@ -24,25 +24,6 @@ using namespace x86Emitter;
 * Shift arithmetic with constant shift                   *
 * Format:  OP rd, rt, sa                                 *
 *********************************************************/
-#ifndef MOVE_RECOMPILE
-
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_FUNC_DEL(LUI, _Rt_);
-REC_FUNC_DEL(MFLO, _Rd_);
-REC_FUNC_DEL(MFHI, _Rd_);
-REC_FUNC(MTLO);
-REC_FUNC(MTHI);
-
-REC_FUNC_DEL(MFLO1, _Rd_);
-REC_FUNC_DEL(MFHI1, _Rd_);
-REC_FUNC(MTHI1);
-REC_FUNC(MTLO1);
-
-REC_FUNC_DEL(MOVZ, _Rd_);
-REC_FUNC_DEL(MOVN, _Rd_);
-
-#else
 
 /*********************************************************
 * Load higher 16 bits of the first word in GPR with imm  *
@@ -349,5 +330,4 @@ void recMOVN(void)
 	recMOVNtemp();
 }
 
-#endif
 

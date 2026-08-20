@@ -24,28 +24,6 @@ using namespace x86Emitter;
 * Shift arithmetic with constant shift                   *
 * Format:  OP rd, rt, sa                                 *
 *********************************************************/
-#ifndef SHIFT_RECOMPILE
-
-namespace Interp = R5900::Interpreter::OpcodeImpl;
-
-REC_FUNC_DEL(SLL, _Rd_);
-REC_FUNC_DEL(SRL, _Rd_);
-REC_FUNC_DEL(SRA, _Rd_);
-REC_FUNC_DEL(DSLL, _Rd_);
-REC_FUNC_DEL(DSRL, _Rd_);
-REC_FUNC_DEL(DSRA, _Rd_);
-REC_FUNC_DEL(DSLL32, _Rd_);
-REC_FUNC_DEL(DSRL32, _Rd_);
-REC_FUNC_DEL(DSRA32, _Rd_);
-
-REC_FUNC_DEL(SLLV, _Rd_);
-REC_FUNC_DEL(SRLV, _Rd_);
-REC_FUNC_DEL(SRAV, _Rd_);
-REC_FUNC_DEL(DSLLV, _Rd_);
-REC_FUNC_DEL(DSRLV, _Rd_);
-REC_FUNC_DEL(DSRAV, _Rd_);
-
-#else
 
 static void recMoveTtoD(int info)
 {
@@ -410,5 +388,4 @@ static void recDSRAV_(int info)
 
 EERECOMPILE_CODERC0(DSRAV, XMMINFO_READS | XMMINFO_READT | XMMINFO_WRITED | XMMINFO_64BITOP);
 
-#endif
 

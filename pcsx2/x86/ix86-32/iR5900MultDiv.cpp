@@ -20,30 +20,11 @@
 
 using namespace x86Emitter;
 
-namespace Interp = R5900::Interpreter::OpcodeImpl;
 
 /*********************************************************
 * Register mult/div & Register trap logic                *
 * Format:  OP rs, rt                                     *
 *********************************************************/
-#ifndef MULTDIV_RECOMPILE
-
-REC_FUNC_DEL(MULT, _Rd_);
-REC_FUNC_DEL(MULTU, _Rd_);
-REC_FUNC_DEL(MULT1, _Rd_);
-REC_FUNC_DEL(MULTU1, _Rd_);
-
-REC_FUNC(DIV);
-REC_FUNC(DIVU);
-REC_FUNC(DIV1);
-REC_FUNC(DIVU1);
-
-REC_FUNC_DEL(MADD, _Rd_);
-REC_FUNC_DEL(MADDU, _Rd_);
-REC_FUNC_DEL(MADD1, _Rd_);
-REC_FUNC_DEL(MADDU1, _Rd_);
-
-#else
 
 static void recWritebackHILO(int info, int writed, int upper)
 {
@@ -694,5 +675,4 @@ void recMADDU1()
 
 	addEaxEdxAndWriteBackToHiLoRd(1);
 }
-#endif
 
