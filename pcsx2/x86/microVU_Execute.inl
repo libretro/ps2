@@ -17,7 +17,7 @@
 #pragma once
 
 #include "Config.h"
-#include <cpuinfo.h>
+#include "common/CpuFeatures.h"
 
 //------------------------------------------------------------------
 // Dispatcher Functions
@@ -215,7 +215,7 @@ static void mVUGenerateCopyPipelineState(mV)
 {
 	mVU->copyPLState = xGetAlignedCallTarget();
 
-	if (cpuinfo_has_x86_avx2())
+	if (CpuHasAVX2())
 	{
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 0); xe_vmovaps_xmemg(0, xm, 1); }
 		{ struct e_mem xm; E_MEM(xm, XE_AX, E_NOREG, 0, 32); xe_vmovaps_xmemg(1, xm, 1); }
@@ -257,7 +257,7 @@ static void mVUGenerateCompareState(mV)
 {
 	mVU->compareStateF = xGetAlignedCallTarget();
 
-	if (cpuinfo_has_x86_avx2())
+	if (CpuHasAVX2())
 	{
 		// We have to use unaligned loads here, because the blocks are only 16 byte aligned.
 		{ struct e_mem xm; E_MEM(xm, XE_ARG1, E_NOREG, 0, 0); xe_vmovups_xmemg(0, xm, 1); }

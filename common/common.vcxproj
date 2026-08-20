@@ -88,6 +88,7 @@
   <ItemGroup>
     <ClInclude Include="Align.h" />
     <ClInclude Include="AlignedMalloc.h" />
+    <ClInclude Include="CpuFeatures.h" />
     <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="FPControl.h" />
     <ClInclude Include="boost_spsc_queue.hpp" />

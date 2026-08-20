@@ -201,6 +201,9 @@
     <ClInclude Include="Align.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CpuFeatures.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="SingleRegisterTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>

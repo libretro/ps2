@@ -11,10 +11,16 @@
 set -e
 SANFLAGS=""
 [ -n "$SANITIZER" ] && SANFLAGS="-fsanitize=$SANITIZER"
-INC="-I pcsx2 -I . -I common -I 3rdparty/include -I 3rdparty/cpuinfo/include -I libretro/libretro-common/include -I libretro"
+INC="-I pcsx2 -I . -I common -I 3rdparty/include -I libretro/libretro-common/include -I libretro"
 g++ -O2 -msse4.1 -std=c++17 $SANFLAGS $INC -c tests/ipu/main.cpp  -o tests/ipu/main.o
 g++ -O2 -msse4.1 -std=c++17 $SANFLAGS $INC -c tests/ipu/stubs.cpp -o tests/ipu/stubs.o
-CPUOBJS=$(find 3rdparty/cpuinfo -name "*.o")
+# MULTI_ISA_SELECT resolves through features_cpu, so the object carrying
+# cpu_features_get() has to be on the link line.
+CPUOBJS=libretro/libretro-common/features/features_cpu.o
+if [ ! -f "$CPUOBJS" ]; then
+  echo "missing $CPUOBJS - build the core first" >&2
+  exit 1
+fi
 g++ $SANFLAGS -o tests/ipu/ipu_test tests/ipu/main.o tests/ipu/stubs.o \
   pcsx2/IPU/IPU.o pcsx2/IPU/IPU_Fifo.o \
   pcsx2/IPU/IPU_MultiISA.sse4.o pcsx2/IPU/IPU_MultiISA.avx.o pcsx2/IPU/IPU_MultiISA.avx2.o \

@@ -89,7 +89,7 @@ sse4 path becomes a hard error at the moment of execution.
     # Fail: SDE reports an unsupported-instruction fault -> AVX on sse4 path.
 
 Also confirm the selection logic chose sse4 under -nhm (add a one-off log in
-MULTI_ISA_SELECT or check cpuinfo output): cpuinfo_has_x86_avx() must be false
+MULTI_ISA_SELECT or check the reported CPU features): CpuHasAVX() must be false
 and the sse4 namespace functions must be the ones called.
 
 ### 2c. (Ideal) real hardware
