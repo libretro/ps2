@@ -62,6 +62,7 @@ target_sources(common PRIVATE
 	AlignedMalloc.h
 	boost_spsc_queue.hpp
 	Console.h
+	CpuFeatures.h
 	FastJmp.h
 	FileSystem.h
 	General.h

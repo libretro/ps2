@@ -1243,77 +1243,41 @@ static std::vector<u32> s_processor_list;
 static Threading::Mutex s_processor_list_mutex;
 static bool s_processor_list_initialized = false;
 
-#if defined(__linux__) || defined(_WIN32)
-
-#include "cpuinfo.h"
-
-static u32 GetProcessorIdForProcessor(const cpuinfo_processor* proc)
-{
-#if defined(__linux__)
-	return static_cast<u32>(proc->linux_id);
-#elif defined(_WIN32)
-	return static_cast<u32>(proc->windows_processor_id);
-#else
-	return 0;
-#endif
-}
-
 static void InitializeCPUInfo(void)
 {
-	// Use the default rounding mode, just in case it differs on some platform.
 	FPControlRegister::SetCurrent(FPControlRegister::GetDefault());
 
-	if (!cpuinfo_initialize())
+	// features_cpu ranks the processors for us: strongest core first, and an
+	// SMT sibling behind the processor it shares a core with, which is the
+	// order the affinity assignment below indexes into. Platforms that
+	// publish no topology answer with the plain ascending order, and one that
+	// cannot name its processors at all answers with nothing, leaving
+	// affinity control switched off exactly as before.
+	unsigned order[64];
+	const size_t count = cpu_features_get_processor_order(order, std::size(order));
+	if (count == 0)
 	{
-		Console.Error("Failed to initialize cpuinfo");
+		Console.Error("No processor list available");
 		return;
 	}
 
-	const u32 cluster_count = cpuinfo_get_clusters_count();
-	if (cluster_count == 0)
-	{
-		Console.Error("Invalid CPU count returned");
-		return;
-	}
-
-	static std::vector<const cpuinfo_processor*> ordered_processors;
-	for (u32 i = 0; i < cluster_count; i++)
-	{
-		const cpuinfo_cluster* cluster = cpuinfo_get_cluster(i);
-		for (u32 j = 0; j < cluster->processor_count; j++)
-		{
-			const cpuinfo_processor* proc = cpuinfo_get_processor(cluster->processor_start + j);
-			if (!proc)
-				continue;
-
-			ordered_processors.push_back(proc);
-		}
-	}
-	// find the large and small clusters based on frequency
-	// this is assuming the large cluster is always clocked higher
-	// sort based on core, so that hyperthreads get pushed down
-	std::sort(ordered_processors.begin(), ordered_processors.end(), [](const cpuinfo_processor* lhs, const cpuinfo_processor* rhs) {
-		return (lhs->core->frequency > rhs->core->frequency || lhs->smt_id < rhs->smt_id);
-	});
-
-	s_processor_list.reserve(ordered_processors.size());
+	s_processor_list.reserve(count);
 	std::stringstream ss;
 	ss << "Ordered processor list: ";
-	for (const cpuinfo_processor* proc : ordered_processors)
+	for (size_t i = 0; i < count; i++)
 	{
-		if (proc != ordered_processors.front())
+		if (i != 0)
 			ss << ", ";
-
-		const u32 procid = GetProcessorIdForProcessor(proc);
-		ss << procid;
-		if (proc->smt_id != 0)
-			ss << "[SMT " << proc->smt_id << "]";
-
-		s_processor_list.push_back(procid);
+		ss << order[i];
+		s_processor_list.push_back(static_cast<u32>(order[i]));
 	}
 	Console.WriteLn("%s", ss.str().c_str());
 }
 
+/* The MTVU and instant-VU1 defaults keep the platform guard they had: the
+ * processor list is available everywhere now, but which platforms write
+ * these defaults is a separate question from how the CPU is queried. */
+#if defined(__linux__) || defined(_WIN32)
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 {
 	VMManager::EnsureCPUInfoInitialized();
@@ -1348,10 +1312,6 @@ static void SetMTVUAndAffinityControlDefault(SettingsInterface& si)
 }
 
 #else
-static void InitializeCPUInfo(void)
-{
-	Console.WriteLn("(VMManager) InitializeCPUInfo() not implemented.");
-}
 static void SetMTVUAndAffinityControlDefault(SettingsInterface& si) { }
 #endif
 

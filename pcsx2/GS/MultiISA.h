@@ -18,7 +18,7 @@
 #include "common/Pcsx2Defs.h"
 #include "common/VectorIntrin.h"
 
-#include <cpuinfo.h>
+#include "common/CpuFeatures.h"
 
 // For multiple-isa compilation
 #ifdef MULTI_ISA_UNSHARED_COMPILATION
@@ -68,8 +68,8 @@
 		friend class isa_avx2::klass;
 
 	#define MULTI_ISA_SELECT(fn) (\
-		cpuinfo_has_x86_avx2() ? isa_avx2::fn : \
-		cpuinfo_has_x86_avx()  ? isa_avx ::fn : isa_sse4::fn)
+		CpuHasAVX2() ? isa_avx2::fn : \
+		CpuHasAVX()  ? isa_avx ::fn : isa_sse4::fn)
 #else
 	#define MULTI_ISA_DEF(...) namespace isa_native { __VA_ARGS__ }
 	#define MULTI_ISA_FRIEND(klass) friend class isa_native::klass;

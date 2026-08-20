@@ -19,7 +19,7 @@
 *                                                        *
 *********************************************************/
 
-#include <cpuinfo.h>
+#include "common/CpuFeatures.h"
 
 #include "../Common.h"
 #include "../R5900OpcodeTables.h"
@@ -2528,7 +2528,7 @@ void recPSRAVW(void)
 
 		// merge & sign extend
 		xe_punpckldq_xx(EEREC_D, t1reg);
-		if (cpuinfo_has_x86_sse4_1())
+		if (CpuHasSSE41())
 		{
 			xe_pmovsxdq_xx(EEREC_D, EEREC_D);
 		}
@@ -2642,7 +2642,7 @@ void recPMULTUW(void)
 		}
 
 		// interleave & sign extend
-		if (cpuinfo_has_x86_sse4_1())
+		if (CpuHasSSE41())
 		{
 			xe_pshufd_xxi(EEREC_LO, EEREC_HI, 0x88);
 			xe_pshufd_xxi(EEREC_HI, EEREC_HI, 0xdd);
@@ -2706,7 +2706,7 @@ void recPMADDUW(void)
 		xe_paddq_xx(EEREC_HI, EEREC_LO);
 
 	// interleave & sign extend
-	if (cpuinfo_has_x86_sse4_1())
+	if (CpuHasSSE41())
 	{
 		xe_pshufd_xxi(EEREC_LO, EEREC_HI, 0x88);
 		xe_pshufd_xxi(EEREC_HI, EEREC_HI, 0xdd);

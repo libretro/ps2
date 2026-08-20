@@ -33,9 +33,6 @@ INCFLAGS := \
 	-I$(DEPS_DIR)/rapidyaml/rapidyaml/src \
 	-I$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src \
 	-I$(DEPS_DIR)/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include \
-	-I$(DEPS_DIR)/cpuinfo/include \
-	-I$(DEPS_DIR)/cpuinfo/src \
-	-I$(DEPS_DIR)/cpuinfo/deps/clog/include \
 	-I$(DEPS_DIR)/d3d12memalloc/include
 
 ifeq ($(HAVE_OPENGL), 1)
@@ -572,62 +569,6 @@ SOURCES_C += \
 # four codecs are named here.
 FLAGS += -DHAVE_RCHD_DEFLATE -DHAVE_RCHD_LZMA \
          -DHAVE_RCHD_FLAC -DHAVE_RCHD_ZSTD
-
-# cpuinfo + clog. Arch- and OS-specific backends mirror the selection in
-# 3rdparty/cpuinfo/CMakeLists.txt. The x86 path keeps the existing Windows init
-# (the static Makefile's historical target); the arm64 path adds the ARM core
-# plus the Mach (Apple) or Linux backend so Apple Silicon / Linux aarch64 builds
-# resolve cpuinfo_initialize().
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/api.c \
-	$(DEPS_DIR)/cpuinfo/src/cache.c \
-	$(DEPS_DIR)/cpuinfo/src/init.c \
-	$(DEPS_DIR)/cpuinfo/deps/clog/src/clog.c
-
-ifeq ($(IS_ARM64), 1)
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/arm/uarch.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/cache.c
-ifneq (,$(findstring Darwin,$(shell uname -s)))
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/arm/mach/init.c \
-	$(DEPS_DIR)/cpuinfo/src/mach/topology.c
-else
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/init.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/cpuinfo.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/clusters.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/chipset.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/midr.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/hwcap.c \
-	$(DEPS_DIR)/cpuinfo/src/arm/linux/aarch64-isa.c
-endif
-else
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/x86/cache/descriptor.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/cache/deterministic.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/cache/init.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/info.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/init.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/isa.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/name.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/topology.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/uarch.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/vendor.c 
-ifeq ($(IS_WINDOWS), 1)
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/x86/windows/init.c
-else
-# Linux x86 backend: OS init + the /proc parsing core it pulls in.
-SOURCES_C += \
-	$(DEPS_DIR)/cpuinfo/src/x86/linux/init.c \
-	$(DEPS_DIR)/cpuinfo/src/x86/linux/cpuinfo.c \
-	$(DEPS_DIR)/cpuinfo/src/linux/smallfile.c \
-	$(DEPS_DIR)/cpuinfo/src/linux/multiline.c \
-	$(DEPS_DIR)/cpuinfo/src/linux/cpulist.c \
-	$(DEPS_DIR)/cpuinfo/src/linux/processors.c
-endif
-endif
 
 # ----------------------------------------------------------------------------
 # VIXL - vendored aarch64-only subset (3rdparty/vixl); the AArch64 code emitter

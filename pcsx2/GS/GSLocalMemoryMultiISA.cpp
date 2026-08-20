@@ -18,7 +18,7 @@
 #include "GSBlock.h"
 #include "GSExtra.h"
 
-#include <cpuinfo.h>
+#include "common/CpuFeatures.h"
 
 class CURRENT_ISA::GSLocalMemoryFunctions
 {
@@ -178,7 +178,7 @@ void GSLocalMemoryFunctions::PopulateFunctions(GSLocalMemory& mem)
 	mem.m_psm[PSMZ16].rtxbP = ReadTextureBlock16;
 	mem.m_psm[PSMZ16S].rtxbP = ReadTextureBlock16;
 
-	if (cpuinfo_has_x86_avx2())
+	if (CpuHasAVX2())
 	{
 		mem.m_psm[PSMT8].rtx   = ReadTexture8HSW;
 		mem.m_psm[PSMT8H].rtx  = ReadTexture8HHSW;

@@ -17,7 +17,7 @@
 
 #define XBYAK_NO_OP_NAMES
 
-#include <cpuinfo.h>
+#include "common/CpuFeatures.h"
 
 #if defined(__GNUC__) && !defined(__clang__)
 // GCC's -Warray-bounds flags the isMEM()-guarded Operand -> Address downcast
@@ -81,9 +81,9 @@ public:
 
 	GSNewCodeGenerator(Xbyak::CodeGenerator* actual)
 		: actual(*actual)
-		, hasAVX(cpuinfo_has_x86_avx())
-		, hasAVX2(cpuinfo_has_x86_avx2())
-		, hasFMA(cpuinfo_has_x86_fma3() || cpuinfo_has_x86_fma4())
+		, hasAVX(CpuHasAVX())
+		, hasAVX2(CpuHasAVX2())
+		, hasFMA(CpuHasFMA())
 	{
 	}
 

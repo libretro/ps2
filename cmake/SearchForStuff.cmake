@@ -58,7 +58,6 @@ find_optional_system_library(ryml 3rdparty/rapidyaml/rapidyaml 0.11.1)
 add_library(fast_float INTERFACE)
 target_include_directories(fast_float INTERFACE 3rdparty/rapidyaml/rapidyaml/ext/c4core/src/c4/ext/fast_float/include)
 
-add_subdirectory(3rdparty/cpuinfo EXCLUDE_FROM_ALL)
 
 # arm64 recompiler port (Phase C): VIXL is the AArch64 code emitter. x86 builds
 # use the in-tree x86 emitter (common/emitter) instead, so this is arm64-only.

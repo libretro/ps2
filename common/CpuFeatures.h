@@ -1,0 +1,33 @@
+// SPDX-FileCopyrightText: 2002-2025 PCSX2 Dev Team
+// SPDX-License-Identifier: GPL-3.0+
+
+#pragma once
+
+/* The instruction set questions the emulator asks, over the probe in
+ * libretro-common. cpu_features_get() runs the probe once and hands out
+ * a cached mask thereafter, so these are a load and a test. */
+
+#include <features/features_cpu.h>
+#include <libretro.h>
+
+static inline bool CpuHasSSE41(void)
+{
+	return (cpu_features_get() & RETRO_SIMD_SSE4) != 0;
+}
+
+static inline bool CpuHasAVX(void)
+{
+	return (cpu_features_get() & RETRO_SIMD_AVX) != 0;
+}
+
+static inline bool CpuHasAVX2(void)
+{
+	return (cpu_features_get() & RETRO_SIMD_AVX2) != 0;
+}
+
+/* Either encoding answers for a caller that only needs a fused
+ * multiply-add to exist. */
+static inline bool CpuHasFMA(void)
+{
+	return (cpu_features_get() & (RETRO_SIMD_FMA3 | RETRO_SIMD_FMA4)) != 0;
+}

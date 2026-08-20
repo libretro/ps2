@@ -81,7 +81,7 @@ endif
 ifneq (,$(findstring unix,$(platform)))
    # local VFS may mmap FREQUENT_ACCESS files (CDVD zero-copy)
    FLAGS += -DHAVE_MMAP
-   # cpuinfo Linux /proc parser needs CPU_SETSIZE (sched.h, GNU)
+   # libretro-common reads the CPU topology out of sysfs
    FLAGS += -D_GNU_SOURCE
    TARGET := $(TARGET_NAME)_libretro.so
    fpic   := -fPIC
@@ -563,8 +563,9 @@ include Makefile.common
 # out and get the single-ISA SSE4.1 build).
 #
 # When ON (default), the unshared MultiISA sources are compiled three times
-# (sse4/avx/avx2) into separate objects and all tiers are linked; cpuinfo
-# selects the best path the host CPU supports at runtime (MULTI_ISA_SELECT in
+# (sse4/avx/avx2) into separate objects and all tiers are linked;
+# features_cpu selects the best path the host CPU supports at runtime
+# (MULTI_ISA_SELECT in
 # MultiISA.h). The sse4 tier remains and is the path chosen on any CPU lacking
 # AVX/AVX2, so this does NOT regress support for SSE4-or-earlier hosts -- those
 # CPUs run exactly the SSE4.1 code they did before.
