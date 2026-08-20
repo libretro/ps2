@@ -33,7 +33,7 @@ using namespace R5900::Dynarec;
 void setupMacroOp(int mode, const char* opName)
 {
 	// Set up reg allocation
-	microVU0.regAlloc->reset(true);
+	mVUra_reset(microVU0.regAlloc, true);
 
 	if (mode & 0x03) // Q will be read/written
 		_freeXMMreg(xmmPQ);
@@ -90,7 +90,7 @@ void endMacroOp(int mode)
 		xe_movss_mx(&vuRegs[0].VI[REG_Q].UL, xmmPQ);
 	}
 
-	microVU0.regAlloc->flushPartialForCOP2();
+	mVUra_flushPartialForCOP2(microVU0.regAlloc);
 
 	if (mode & 0x10)
 	{
@@ -109,17 +109,17 @@ void endMacroOp(int mode)
 	}
 
 	microVU0.cop2 = 0;
-	microVU0.regAlloc->reset(false);
+	mVUra_reset(microVU0.regAlloc, false);
 }
 
 void mVUFreeCOP2XMMreg(int hostreg)
 {
-	microVU0.regAlloc->clearRegCOP2(hostreg);
+	mVUra_clearRegCOP2(microVU0.regAlloc, hostreg);
 }
 
 void mVUFreeCOP2GPR(int hostreg)
 {
-	microVU0.regAlloc->clearGPRCOP2(hostreg);
+	mVUra_clearGPRCOP2(microVU0.regAlloc, hostreg);
 }
 
 bool mVUIsReservedCOP2(int hostreg)

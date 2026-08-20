@@ -37,7 +37,7 @@ alignas(16) const u32 sse4_maxvals[2][4] = {
 // and its faster... so just always make NaNs into positive infinity.
 void mVUclamp1(microVU& mVU, int reg, int regT1, int xyzw, bool bClampE = 0)
 {
-	if (((!clampE && CHECK_VU_OVERFLOW(mVU.index)) || (clampE && bClampE)) && mVU.regAlloc->checkVFClamp(reg))
+	if (((!clampE && CHECK_VU_OVERFLOW(mVU.index)) || (clampE && bClampE)) && mVUra_checkVFClamp(mVU.regAlloc, reg))
 	{
 		switch (xyzw)
 		{
@@ -60,7 +60,7 @@ void mVUclamp1(microVU& mVU, int reg, int regT1, int xyzw, bool bClampE = 0)
 // so we just use a temporary mem location for our backup for now... (non-sse4 version only)
 void mVUclamp2(microVU& mVU, int reg, int regT1in, int xyzw, bool bClampE = 0)
 {
-	if (((!clampE && CHECK_VU_SIGN_OVERFLOW(mVU.index)) || (clampE && bClampE && CHECK_VU_SIGN_OVERFLOW(mVU.index))) && mVU.regAlloc->checkVFClamp(reg))
+	if (((!clampE && CHECK_VU_SIGN_OVERFLOW(mVU.index)) || (clampE && bClampE && CHECK_VU_SIGN_OVERFLOW(mVU.index))) && mVUra_checkVFClamp(mVU.regAlloc, reg))
 	{
 		int i = (xyzw == 1 || xyzw == 2 || xyzw == 4 || xyzw == 8) ? 0 : 1;
 		xe_pminsd_xm(reg, &sse4_maxvals[i][0]);
@@ -73,7 +73,7 @@ void mVUclamp2(microVU& mVU, int reg, int regT1in, int xyzw, bool bClampE = 0)
 // Used for operand clamping on every SSE instruction (add/sub/mul/div)
 void mVUclamp3(microVU& mVU, int reg, int regT1, int xyzw)
 {
-	if (clampE && mVU.regAlloc->checkVFClamp(reg))
+	if (clampE && mVUra_checkVFClamp(mVU.regAlloc, reg))
 		mVUclamp2(mVU, reg, regT1, xyzw, 1);
 }
 
@@ -85,6 +85,6 @@ void mVUclamp3(microVU& mVU, int reg, int regT1, int xyzw)
 // but this clamp is just a precaution just-in-case.
 void mVUclamp4(microVU& mVU, int reg, int regT1, int xyzw)
 {
-	if (clampE && !CHECK_VU_SIGN_OVERFLOW(mVU.index) && mVU.regAlloc->checkVFClamp(reg))
+	if (clampE && !CHECK_VU_SIGN_OVERFLOW(mVU.index) && mVUra_checkVFClamp(mVU.regAlloc, reg))
 		mVUclamp1(mVU, reg, regT1, xyzw, 1);
 }

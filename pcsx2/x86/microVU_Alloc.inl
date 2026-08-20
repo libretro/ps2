@@ -116,9 +116,9 @@ __fi void mVUallocCFLAGb(mV, int reg, int fInstance)
 // VI Reg Allocators
 //------------------------------------------------------------------
 
-void microRegAlloc::writeVIBackup(int reg)
+void mVUra_writeVIBackup(struct microRegAlloc* r, int reg)
 {
-	microVU& mVU = index ? microVU1 : microVU0;
+	microVU& mVU = r->index ? microVU1 : microVU0;
 	xe_mov32_mr(&mVU.VIbackup, reg);
 }
 

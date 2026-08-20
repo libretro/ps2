@@ -51,7 +51,7 @@ struct microVU
 	u32 cacheSize;    // VU Cache Size
 
 	microProgManager               prog;     // Micro Program Data
-	std::unique_ptr<microRegAlloc> regAlloc; // Reg Alloc Class
+	struct microRegAlloc* regAlloc; // Reg Alloc state
 
 	RecompiledCodeReserve* cache_reserve;
 	u8* cache;        // Dynarec Cache Start (where we will start writing the recompiled code to)

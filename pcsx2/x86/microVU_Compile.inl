@@ -31,14 +31,14 @@
 	mVUopL(mVU, 1); \
 	incPC(1)
 
-#define flushRegs(mV) if (!doRegAlloc) mVU.regAlloc->flushAll();
+#define flushRegs(mV) if (!doRegAlloc) mVUra_flushAll(mVU.regAlloc, true);
 
 void doIbit(mV)
 {
 	if (mVUup.iBit)
 	{
 		incPC(-1);
-		mVU.regAlloc->clearRegVF(33);
+		mVUra_clearRegVF(mVU.regAlloc, 33);
 		if (EmuConfig.Gamefixes.IbitHack)
 		{
 			xe_mov32_rm(gprT1, &curI);
@@ -63,26 +63,26 @@ void doSwapOp(mV)
 	if (mVUinfo.backupVF && !mVUlow.noWriteVF)
 	{
 		// Allocate t1 first for better chance of reg-alloc
-		const int t1 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg);
-		const int t2 = mVU.regAlloc->allocReg();
+		const int t1 = mVUra_allocReg(mVU.regAlloc, mVUlow.VF_write.reg, -1, 0, true);
+		const int t2 = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 		xe_movaps_xx(t2, t1); // Backup VF reg
-		mVU.regAlloc->clearNeededXMM(t1);
+		mVUra_clearNeededXMM(mVU.regAlloc, t1);
 
 		mVUopL(mVU, 1);
 
-		const int t3 = mVU.regAlloc->allocReg(mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
+		const int t3 = mVUra_allocReg(mVU.regAlloc, mVUlow.VF_write.reg, mVUlow.VF_write.reg, 0xf, 0);
 		xe_xorps_xx(t2, t3); // Swap new and old values of the register
 		xe_xorps_xx(t3, t2); // Uses xor swap trick...
 		xe_xorps_xx(t2, t3);
-		mVU.regAlloc->clearNeededXMM(t3);
+		mVUra_clearNeededXMM(mVU.regAlloc, t3);
 
 		incPC(1);
 		doUpperOp(mVU);
 
-		const int t4 = mVU.regAlloc->allocReg(-1, mVUlow.VF_write.reg, 0xf);
+		const int t4 = mVUra_allocReg(mVU.regAlloc, -1, mVUlow.VF_write.reg, 0xf, true);
 		xe_movaps_xx(t4, t2);
-		mVU.regAlloc->clearNeededXMM(t4);
-		mVU.regAlloc->clearNeededXMM(t2);
+		mVUra_clearNeededXMM(mVU.regAlloc, t4);
+		mVUra_clearNeededXMM(mVU.regAlloc, t2);
 	}
 	else
 	{
@@ -286,31 +286,31 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 	u32 vfs_loaded = 0;
 	u32 vis_loaded = 0;
 
-	for (int reg = 0; reg < mVU.regAlloc->getXmmCount(); reg++)
+	for (int reg = 0; reg < mVUra_getXmmCount(mVU.regAlloc); reg++)
 	{
-		const int vf = mVU.regAlloc->getRegVF(reg);
+		const int vf = mVUra_getRegVF(mVU.regAlloc, reg);
 		if (vf >= 0)
 			vfs_loaded |= (1u << vf);
 	}
 
-	for (int reg = 0; reg < mVU.regAlloc->getGPRCount(); reg++)
+	for (int reg = 0; reg < mVUra_getGPRCount(mVU.regAlloc); reg++)
 	{
-		const int vi = mVU.regAlloc->getRegVI(reg);
+		const int vi = mVUra_getRegVI(mVU.regAlloc, reg);
 		if (vi >= 0)
 			vis_loaded |= (1u << vi);
 	}
 
 	const u32 orig_pc = iPC;
 	const u32 orig_code = mVU.code;
-	int free_regs = mVU.regAlloc->getFreeXmmCount();
-	int free_gprs = mVU.regAlloc->getFreeGPRCount();
+	int free_regs = mVUra_getFreeXmmCount(mVU.regAlloc);
+	int free_gprs = mVUra_getFreeGPRCount(mVU.regAlloc);
 
 	/* C89 spellings of the old capture lambdas: everything they captured is
 	 * passed or visible; the counters live in this frame. */
 #define MVU_PRELOAD_VF(reg) do { \
 		if (!(free_regs <= REQUIRED_FREE_XMMS || (reg) == 0 || (vfs_loaded & (1u << (reg))) != 0)) \
 		{ \
-			mVU.regAlloc->clearNeededXMM(mVU.regAlloc->allocReg(reg)); \
+			mVUra_clearNeededXMM(mVU.regAlloc, mVUra_allocReg(mVU.regAlloc, reg, -1, 0, true)); \
 			vfs_loaded |= (1u << (reg)); \
 			free_regs--; \
 		} \
@@ -318,7 +318,7 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 #define MVU_PRELOAD_VI(reg) do { \
 		if (!(free_gprs <= REQUIRED_FREE_GPRS || (reg) == 0 || (vis_loaded & (1u << (reg))) != 0)) \
 		{ \
-			mVU.regAlloc->clearNeededGPR(mVU.regAlloc->allocGPR(reg)); \
+			mVUra_clearNeededGPR(mVU.regAlloc, mVUra_allocGPR(mVU.regAlloc, reg, -1, false, false)); \
 			vis_loaded |= (1u << (reg)); \
 			free_gprs--; \
 		} \
@@ -375,7 +375,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 	/* First Pass */
 	iPC = startPC / 4;
 	mVUsetupRange(mVU, startPC, 1); /* Setup Program Bounds/Range */
-	mVU.regAlloc->reset(false); /* Reset regAlloc */
+	mVUra_reset(mVU.regAlloc, false); /* Reset regAlloc */
 	mVUinitFirstPass(mVU, pState, thisPtr);
 	mVUbranch = 0;
 	for (int branch = 0; mVUcount < endCount;)
@@ -640,6 +640,7 @@ void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)
 
 	return thisPtr;
 }
+
 
 /* Returns the entry point of the block (compiles it if not found) */
 __fi void* mVUentryGet(microVU& mVU, microBlockManager* block, u32 startPC, uptr pState)

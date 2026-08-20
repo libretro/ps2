@@ -43,7 +43,7 @@ void mVUDTendProgram(mV, microFlagCycles* mFC, int isEbit)
 	microBlock stateBackup;
 	memcpy(&stateBackup, &mVUregs, sizeof(mVUregs)); //backup the state, it's about to get screwed with.
 
-	mVU.regAlloc->TDwritebackAll(); //Writing back ok, invalidating early kills the rec, so don't do it :P
+	mVUra_TDwritebackAll(mVU.regAlloc); //Writing back ok, invalidating early kills the rec, so don't do it :P
 
 	if (isEbit)
 	{
@@ -163,9 +163,9 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 	microBlock stateBackup;
 	memcpy(&stateBackup, &mVUregs, sizeof(mVUregs)); //backup the state, it's about to get screwed with.
 	if (!isEbit || isEbit == 3)
-		mVU.regAlloc->TDwritebackAll(); //Writing back ok, invalidating early kills the rec, so don't do it :P
+		mVUra_TDwritebackAll(mVU.regAlloc); //Writing back ok, invalidating early kills the rec, so don't do it :P
 	else
-		mVU.regAlloc->flushAll();
+		mVUra_flushAll(mVU.regAlloc, true);
 
 	if (isEbit && isEbit != 3)
 	{
@@ -280,7 +280,7 @@ void mVUendProgram(mV, microFlagCycles* mFC, int isEbit)
 // Recompiles Code for Proper Flags and Q/P regs on Block Linkings
 void mVUsetupBranch(mV, microFlagCycles& mFC)
 {
-	mVU.regAlloc->flushAll(); // Flush Allocated Regs
+	mVUra_flushAll(mVU.regAlloc, true); // Flush Allocated Regs
 	mVUsetupFlags(mVU, mFC);  // Shuffle Flag Instances
 
 	// Shuffle P/Q regs since every block starts at instance #0
@@ -350,7 +350,7 @@ void normBranch(mV, microFlagCycles& mFC)
 	if (mVUup.dBit && doDBitHandling)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVU.regAlloc->flushAll(false);
+		mVUra_flushAll(mVU.regAlloc, false);
 
 		u32 tempPC = iPC;
 		if (mVU.index && THREAD_VU1)
@@ -371,7 +371,7 @@ void normBranch(mV, microFlagCycles& mFC)
 	if (mVUup.tBit)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVU.regAlloc->flushAll(false);
+		mVUra_flushAll(mVU.regAlloc, false);
 
 		u32 tempPC = iPC;
 		if (mVU.index && THREAD_VU1)
@@ -580,7 +580,7 @@ void normJump(mV, microFlagCycles& mFC)
 	if (mVUup.dBit && doDBitHandling)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVU.regAlloc->flushAll(false);
+		mVUra_flushAll(mVU.regAlloc, false);
 
 		if (THREAD_VU1)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x400 : 0x4));
@@ -601,7 +601,7 @@ void normJump(mV, microFlagCycles& mFC)
 	if (mVUup.tBit)
 	{
 		// Flush register cache early to avoid double flush on both paths
-		mVU.regAlloc->flushAll(false);
+		mVUra_flushAll(mVU.regAlloc, false);
 
 		if (mVU.index && THREAD_VU1)
 			xe_test32_mi(&vu1Thread.vuFBRST, (isVU1 ? 0x800 : 0x8));

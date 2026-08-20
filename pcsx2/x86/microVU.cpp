@@ -63,7 +63,9 @@ void mVUinit(microVU& mVU, uint vuIndex)
 	else
 		mVU.dispCache = vu0_RecDispatchers;
 
-	mVU.regAlloc.reset(new microRegAlloc(mVU.index));
+	if (!mVU.regAlloc)
+		mVU.regAlloc = (struct microRegAlloc*)malloc(sizeof(struct microRegAlloc));
+	mVUra_init(mVU.regAlloc, mVU.index);
 }
 
 // Resets Rec Data

@@ -42,7 +42,7 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, bool
 	if (!sFLAG.doFlag && !mFLAG.doFlag)
 		return;
 
-	const int regT1 = regT1b ? mVU.regAlloc->allocReg() : regT1in;
+	const int regT1 = regT1b ? mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true) : regT1in;
 
 	int regT2 = reg;
 	if ((mFLAG.doFlag && !(_XYZW_SS && modXYZW)))
@@ -50,7 +50,7 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, bool
 		regT2 = regT2in;
 		if (regT2 < 0)
 		{
-			regT2 = mVU.regAlloc->allocReg();
+			regT2 = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 			regT2b = true;
 		}
 		xe_pshufd_xxi(regT2, reg, 0x1B); // Flip wzyx to xyzw
@@ -125,9 +125,9 @@ static void mVUupdateFlags(mV, int reg, int regT1in = -1, int regT2in = -1, bool
 		}
 	}
 	if (regT1b)
-		mVU.regAlloc->clearNeededXMM(regT1);
+		mVUra_clearNeededXMM(mVU.regAlloc, regT1);
 	if (regT2b)
-		mVU.regAlloc->clearNeededXMM(regT2);
+		mVUra_clearNeededXMM(mVU.regAlloc, regT2);
 }
 
 //------------------------------------------------------------------
@@ -178,10 +178,10 @@ static bool doSafeSub(microVU& mVU, int opCase, int opType, bool isACC)
 	{
 		if ((opType == 1) && (_Ft_ == _Fs_) && (opCase == 1)) // Don't do this with BC's!
 		{
-			const int Fs = mVU.regAlloc->allocReg(-1, isACC ? 32 : _Fd_, _X_Y_Z_W);
+			const int Fs = mVUra_allocReg(mVU.regAlloc, -1, isACC ? 32 : _Fd_, _X_Y_Z_W, true);
 			xe_pxor_xx(Fs, Fs); // Set to Positive 0
 			mVUupdateFlags(mVU, Fs);
-			mVU.regAlloc->clearNeededXMM(Fs);
+			mVUra_clearNeededXMM(mVU.regAlloc, Fs);
 			return true;
 		}
 	}
@@ -196,21 +196,21 @@ static void setupFtReg(microVU& mVU, int& Ft, int& tempFt, int opCase, int clamp
 		// Based on mVUclamp2 -> mVUclamp1 below.
 		const bool willClamp = (clampE || ((clampType & cFt) && !clampE && (CHECK_VU_OVERFLOW(mVU.index) || CHECK_VU_SIGN_OVERFLOW(mVU.index))));
 
-		if (_XYZW_SS2)      { Ft = mVU.regAlloc->allocReg(_Ft_, 0, _X_Y_Z_W); tempFt = Ft; }
-		else if (willClamp) { Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0xf);      tempFt = Ft; }
-		else                { Ft = mVU.regAlloc->allocReg(_Ft_);              tempFt = -1;  }
+		if (_XYZW_SS2)      { Ft = mVUra_allocReg(mVU.regAlloc, _Ft_, 0, _X_Y_Z_W, true); tempFt = Ft; }
+		else if (willClamp) { Ft = mVUra_allocReg(mVU.regAlloc, _Ft_, 0, 0xf, true);      tempFt = Ft; }
+		else                { Ft = mVUra_allocReg(mVU.regAlloc, _Ft_, -1, 0, true);              tempFt = -1;  }
 	}
 	opCase2
 	{
-		tempFt = mVU.regAlloc->allocReg(_Ft_);
-		Ft     = mVU.regAlloc->allocReg();
+		tempFt = mVUra_allocReg(mVU.regAlloc, _Ft_, -1, 0, true);
+		Ft     = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 		mVUunpack_xyzw(Ft, tempFt, _bc_);
-		mVU.regAlloc->clearNeededXMM(tempFt);
+		mVUra_clearNeededXMM(mVU.regAlloc, tempFt);
 		tempFt = Ft;
 	}
 	opCase3
 	{
-		Ft = mVU.regAlloc->allocReg(33, 0, _X_Y_Z_W);
+		Ft = mVUra_allocReg(mVU.regAlloc, 33, 0, _X_Y_Z_W, true);
 		tempFt = Ft;
 	}
 	opCase4
@@ -222,7 +222,7 @@ static void setupFtReg(microVU& mVU, int& Ft, int& tempFt, int opCase, int clamp
 		}
 		else
 		{
-			Ft = mVU.regAlloc->allocReg();
+			Ft = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 			tempFt = Ft;
 			mVUunpack_xyzw(Ft, xmmPQ, mVUinfo.readQ);
 		}
@@ -243,14 +243,14 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 
 		if (isACC)
 		{
-			Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
-			ACC = mVU.regAlloc->allocReg((_X_Y_Z_W == 0xf) ? -1 : 32, 32, 0xf, 0);
+			Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, 0, _X_Y_Z_W, true);
+			ACC = mVUra_allocReg(mVU.regAlloc, (_X_Y_Z_W == 0xf) ? -1 : 32, 32, 0xf, 0);
 			if (_XYZW_SS2)
 				xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
 		}
 		else
 		{
-			Fs = mVU.regAlloc->allocReg(_Fs_, _Fd_, _X_Y_Z_W);
+			Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, _Fd_, _X_Y_Z_W, true);
 		}
 
 		if (clampType & cFt) mVUclamp2(mVU, Ft, -1, _X_Y_Z_W);
@@ -268,13 +268,13 @@ static void mVU_FMACa(microVU& mVU, int recPass, int opCase, int opType, bool is
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
 			if (_XYZW_SS2)
 				xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
-			mVU.regAlloc->clearNeededXMM(ACC);
+			mVUra_clearNeededXMM(mVU.regAlloc, ACC);
 		}
 		else if (opType < 3 || opType == 5) // Not Min/Max or is ADDi(5) (TODO: Reorganise this so its < 4 including ADDi)
 			mVUupdateFlags(mVU, Fs, tempFt);
 
-		mVU.regAlloc->clearNeededXMM(Fs); // Always Clear Written Reg First
-		mVU.regAlloc->clearNeededXMM(Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs); // Always Clear Written Reg First
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
 	}
 	pass4
 	{
@@ -292,8 +292,8 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 		int Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
-		Fs = mVU.regAlloc->allocReg(_Fs_, 0, _X_Y_Z_W);
-		ACC = mVU.regAlloc->allocReg(32, 32, 0xf, false);
+		Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, 0, _X_Y_Z_W, true);
+		ACC = mVUra_allocReg(mVU.regAlloc, 32, 32, 0xf, false);
 
 		if (_XYZW_SS2)
 			xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
@@ -314,17 +314,17 @@ static void mVU_FMACb(microVU& mVU, int recPass, int opCase, int opType, int cla
 		}
 		else
 		{
-			const int tempACC = mVU.regAlloc->allocReg();
+			const int tempACC = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 			xe_movaps_xx(tempACC, ACC);
 			SSE_PS[opType](mVU, tempACC, Fs, tempFt, -1);
 			mVUmergeRegs(ACC, tempACC, _X_Y_Z_W);
 			mVUupdateFlags(mVU, ACC, Fs, tempFt);
-			mVU.regAlloc->clearNeededXMM(tempACC);
+			mVUra_clearNeededXMM(mVU.regAlloc, tempACC);
 		}
 
-		mVU.regAlloc->clearNeededXMM(ACC);
-		mVU.regAlloc->clearNeededXMM(Fs);
-		mVU.regAlloc->clearNeededXMM(Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, ACC);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -338,8 +338,8 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, int clampType)
 		int Fs, Ft, ACC, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
-		ACC = mVU.regAlloc->allocReg(32);
-		Fs = mVU.regAlloc->allocReg(_Fs_, _Fd_, _X_Y_Z_W);
+		ACC = mVUra_allocReg(mVU.regAlloc, 32, -1, 0, true);
+		Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, _Fd_, _X_Y_Z_W, true);
 
 		if (_XYZW_SS2)
 			xe_pshufd_xxi(ACC, ACC, shuffleSS(_X_Y_Z_W));
@@ -357,9 +357,9 @@ static void mVU_FMACc(microVU& mVU, int recPass, int opCase, int clampType)
 
 		mVUupdateFlags(mVU, Fs, tempFt);
 
-		mVU.regAlloc->clearNeededXMM(Fs); // Always Clear Written Reg First
-		mVU.regAlloc->clearNeededXMM(Ft);
-		mVU.regAlloc->clearNeededXMM(ACC);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs); // Always Clear Written Reg First
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, ACC);
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -373,8 +373,8 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, int clampType)
 		int Fs, Ft, Fd, tempFt;
 		setupFtReg(mVU, Ft, tempFt, opCase, clampType);
 
-		Fs = mVU.regAlloc->allocReg(_Fs_,  0, _X_Y_Z_W);
-		Fd = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);
+		Fs = mVUra_allocReg(mVU.regAlloc, _Fs_,  0, _X_Y_Z_W, true);
+		Fd = mVUra_allocReg(mVU.regAlloc, 32, _Fd_, _X_Y_Z_W, true);
 
 		if (clampType & cFt)  mVUclamp2(mVU, Ft, -1, _X_Y_Z_W);
 		if (clampType & cFs)  mVUclamp2(mVU, Fs, -1, _X_Y_Z_W);
@@ -385,9 +385,9 @@ static void mVU_FMACd(microVU& mVU, int recPass, int opCase, int clampType)
 
 		mVUupdateFlags(mVU, Fd, Fs, tempFt);
 
-		mVU.regAlloc->clearNeededXMM(Fd); // Always Clear Written Reg First
-		mVU.regAlloc->clearNeededXMM(Ft);
-		mVU.regAlloc->clearNeededXMM(Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fd); // Always Clear Written Reg First
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -400,9 +400,9 @@ mVUop(mVU_ABS)
 	{
 		if (!_Ft_)
 			return;
-		const int Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
+		const int Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 		xe_andps_xm(Fs, mVUglob.absclip);
-		mVU.regAlloc->clearNeededXMM(Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
 	}
 }
 
@@ -412,15 +412,15 @@ mVUop(mVU_OPMULA)
 	pass1 { mVUanalyzeFMAC1(mVU, 0, _Fs_, _Ft_); }
 	pass2
 	{
-		const int Ft = mVU.regAlloc->allocReg(_Ft_, 0, _X_Y_Z_W);
-		const int Fs = mVU.regAlloc->allocReg(_Fs_, 32, _X_Y_Z_W);
+		const int Ft = mVUra_allocReg(mVU.regAlloc, _Ft_, 0, _X_Y_Z_W, true);
+		const int Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, 32, _X_Y_Z_W, true);
 
 		xe_pshufd_xxi(Fs, Fs, 0xC9); // WXZY
 		xe_pshufd_xxi(Ft, Ft, 0xD2); // WYXZ
 		SSE_MULPS(mVU, Fs, Ft);
-		mVU.regAlloc->clearNeededXMM(Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
 		mVUupdateFlags(mVU, Fs);
-		mVU.regAlloc->clearNeededXMM(Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -431,18 +431,18 @@ mVUop(mVU_OPMSUB)
 	pass1 { mVUanalyzeFMAC1(mVU, _Fd_, _Fs_, _Ft_); }
 	pass2
 	{
-		const int Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0xf);
-		const int Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
-		const int ACC = mVU.regAlloc->allocReg(32, _Fd_, _X_Y_Z_W);
+		const int Ft = mVUra_allocReg(mVU.regAlloc, _Ft_, 0, 0xf, true);
+		const int Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, 0, 0xf, true);
+		const int ACC = mVUra_allocReg(mVU.regAlloc, 32, _Fd_, _X_Y_Z_W, true);
 
 		xe_pshufd_xxi(Fs, Fs, 0xC9); // WXZY
 		xe_pshufd_xxi(Ft, Ft, 0xD2); // WYXZ
 		SSE_MULPS(mVU, Fs,  Ft);
 		SSE_SUBPS(mVU, ACC, Fs);
-		mVU.regAlloc->clearNeededXMM(Fs);
-		mVU.regAlloc->clearNeededXMM(Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
 		mVUupdateFlags(mVU, ACC);
-		mVU.regAlloc->clearNeededXMM(ACC);
+		mVUra_clearNeededXMM(mVU.regAlloc, ACC);
 	}
 	pass4 { mVUregs.needExactMatch |= 8; }
 }
@@ -455,8 +455,8 @@ static void mVU_FTOIx(mP, const float* addr)
 	{
 		if (!_Ft_)
 			return;
-		const int Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
-		const int t1 = mVU.regAlloc->allocReg();
+		const int Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
+		const int t1 = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 
 		/* cvttps2dq returns 0x8000000 for any unrepresentable values.
 		 * We want it to return 0x8000000 for negative and 0x7fffffff for positive.
@@ -469,8 +469,8 @@ static void mVU_FTOIx(mP, const float* addr)
 		xe_cvttps2dq_xx(Fs, Fs);
 		xe_pxor_xx(Fs, t1);
 
-		mVU.regAlloc->clearNeededXMM(Fs);
-		mVU.regAlloc->clearNeededXMM(t1);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, t1);
 	}
 }
 
@@ -482,14 +482,14 @@ static void mVU_ITOFx(mP, const float* addr)
 	{
 		if (!_Ft_)
 			return;
-		const int Fs = mVU.regAlloc->allocReg(_Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
+		const int Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, _Ft_, _X_Y_Z_W, !((_Fs_ == _Ft_) && (_X_Y_Z_W == 0xf)));
 
 		xe_cvtdq2ps_xx(Fs, Fs);
 		if (addr)
 			xe_mulps_xm(Fs, addr);
 		//mVUclamp2(Fs, xmmT1.Id, 15); // Clamp (not sure if this is needed)
 
-		mVU.regAlloc->clearNeededXMM(Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
 	}
 }
 
@@ -499,10 +499,10 @@ mVUop(mVU_CLIP)
 	pass1 { mVUanalyzeFMAC4(mVU, _Fs_, _Ft_); }
 	pass2
 	{
-		const int Fs = mVU.regAlloc->allocReg(_Fs_, 0, 0xf);
-		const int Ft = mVU.regAlloc->allocReg(_Ft_, 0, 0x1);
-		const int t1 = mVU.regAlloc->allocReg();
-		const int t2 = mVU.regAlloc->allocReg();
+		const int Fs = mVUra_allocReg(mVU.regAlloc, _Fs_, 0, 0xf, true);
+		const int Ft = mVUra_allocReg(mVU.regAlloc, _Ft_, 0, 0x1, true);
+		const int t1 = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
+		const int t2 = mVUra_allocReg(mVU.regAlloc, -1, -1, 0, true);
 
 		mVUunpack_xyzw(Ft, Ft, 0);
 		mVUallocCFLAGa(mVU, gprT1, cFLAG.lastWrite);
@@ -528,10 +528,10 @@ mVUop(mVU_CLIP)
 		xe_or32_rr(gprT1, gprT2);
 
 		mVUallocCFLAGb(mVU, gprT1, cFLAG.write);
-		mVU.regAlloc->clearNeededXMM(Fs);
-		mVU.regAlloc->clearNeededXMM(Ft);
-		mVU.regAlloc->clearNeededXMM(t1);
-		mVU.regAlloc->clearNeededXMM(t2);
+		mVUra_clearNeededXMM(mVU.regAlloc, Fs);
+		mVUra_clearNeededXMM(mVU.regAlloc, Ft);
+		mVUra_clearNeededXMM(mVU.regAlloc, t1);
+		mVUra_clearNeededXMM(mVU.regAlloc, t2);
 	}
 }
 

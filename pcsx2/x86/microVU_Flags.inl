@@ -276,7 +276,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 		}
 		else
 		{
-			const int temp3 = mVU.regAlloc->allocGPR();
+			const int temp3 = mVUra_allocGPR(mVU.regAlloc, -1, -1, false, false);
 			xe_mov32_rr(gprT1, getFlagReg(bStatus[0]));
 			xe_mov32_rr(gprT2, getFlagReg(bStatus[1]));
 			xe_mov32_rr(temp3, getFlagReg(bStatus[2]));
@@ -284,7 +284,7 @@ __fi void mVUsetupFlags(mV, microFlagCycles& mFC)
 			xe_mov32_rr(gprF0, gprT1);
 			xe_mov32_rr(gprF1, gprT2);
 			xe_mov32_rr(gprF2, temp3);
-			mVU.regAlloc->clearNeededGPR(temp3);
+			mVUra_clearNeededGPR(mVU.regAlloc, temp3);
 		}
 	}
 
