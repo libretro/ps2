@@ -1094,8 +1094,8 @@ mVUop(mVU_ILW)
 	pass2
 	{
 		void* ptr = vuRegs[mVU.index].Mem + offsetSS;
-		std::optional<struct e_mem> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, offsetSS));
-		if (!optaddr.has_value())
+		const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, offsetSS);
+		if (!optaddr.has)
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
 			if (!EmuConfig.Gamefixes.IbitHack)
@@ -1115,7 +1115,7 @@ mVUop(mVU_ILW)
 		}
 
 		const int regT = mVU.regAlloc->allocGPR(-1, _It_, mVUlow.backupVI);
-		{ struct e_mem xm; if (optaddr.has_value()) xm = optaddr.value(); else xe_complexaddr_si(xm, gprT2q, ptr, gprT1q, 1); xe_movzx32_rmemg16(regT, xm); }
+		{ struct e_mem xm; if (optaddr.has) xm = optaddr.m; else xe_complexaddr_si(xm, gprT2q, ptr, gprT1q, 1); xe_movzx32_rmemg16(regT, xm); }
 		mVU.regAlloc->clearNeededGPR(regT);
 	}
 }
@@ -1165,8 +1165,8 @@ mVUop(mVU_ISW)
 	}
 	pass2
 	{
-		std::optional<struct e_mem> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0));
-		if (!optaddr.has_value())
+		const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0);
+		if (!optaddr.has)
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
 			if (!EmuConfig.Gamefixes.IbitHack)
@@ -1187,7 +1187,7 @@ mVUop(mVU_ISW)
 
 		// If regT is dirty, the high bits might not be zero.
 		const int regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
-		struct e_mem mptr; if (optaddr.has_value()) mptr = optaddr.value(); else xe_complexaddr_si(mptr, gprT2q, vuRegs[mVU.index].Mem, gprT1q, 1);
+		struct e_mem mptr; if (optaddr.has) mptr = optaddr.m; else xe_complexaddr_si(mptr, gprT2q, vuRegs[mVU.index].Mem, gprT1q, 1);
 		if (_X) xe_mov32_memgr(mptr, regT);
 		if (_Y) xe_mov32_memgr(e_mem_off(mptr, 4), regT);
 		if (_Z) xe_mov32_memgr(e_mem_off(mptr, 8), regT);
@@ -1217,19 +1217,22 @@ mVUop(mVU_ISWR)
 		const int regT = mVU.regAlloc->allocGPR(_It_, -1, false, true);
 		if (!(is < 0) && (sptr)base != (s32)(sptr)base)
 		{
+			/* First live lane materializes the far base with lea; later lanes
+			 * address relative to it. C89 spelling of the old local lambda. */
 			int register_offset = -1;
-			auto writeBackAt = [&](int offset) {
-				if (register_offset == -1)
-				{
-					xe_lea64_m(gprT2q, (void*)((sptr)base + offset));
-					register_offset = offset;
-				}
-				{ struct e_mem xm; E_MEM(xm, gprT2q, is, 1, (e_sptr)(offset - register_offset)); xe_mov32_memgr(xm, regT); }
-			};
-			if (_X) writeBackAt(0);
-			if (_Y) writeBackAt(4);
-			if (_Z) writeBackAt(8);
-			if (_W) writeBackAt(12);
+#define MVU_ISW_LANE(offset) do { \
+				if (register_offset == -1) \
+				{ \
+					xe_lea64_m(gprT2q, (void*)((sptr)base + (offset))); \
+					register_offset = (offset); \
+				} \
+				{ struct e_mem xm; E_MEM(xm, gprT2q, is, 1, (e_sptr)((offset) - register_offset)); xe_mov32_memgr(xm, regT); } \
+			} while (0)
+			if (_X) MVU_ISW_LANE(0);
+			if (_Y) MVU_ISW_LANE(4);
+			if (_Z) MVU_ISW_LANE(8);
+			if (_W) MVU_ISW_LANE(12);
+#undef MVU_ISW_LANE
 		}
 		else if ((is < 0))
 		{
@@ -1258,8 +1261,8 @@ mVUop(mVU_LQ)
 	pass1 { mVUanalyzeLQ(mVU, _Ft_, _Is_, false); }
 	pass2
 	{
-		const std::optional<struct e_mem> optaddr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0));
-		if (!optaddr.has_value())
+		const struct e_memopt optaddr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _Is_, _Imm11_, 0);
+		if (!optaddr.has)
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _Is_);
 			if (!EmuConfig.Gamefixes.IbitHack)
@@ -1279,7 +1282,7 @@ mVUop(mVU_LQ)
 		}
 
 		const int Ft = mVU.regAlloc->allocReg(-1, _Ft_, _X_Y_Z_W);
-		struct e_mem _mp; if (optaddr.has_value()) _mp = optaddr.value(); else xe_complexaddr_si(_mp, gprT2q, vuRegs[mVU.index].Mem, gprT1q, 1);
+		struct e_mem _mp; if (optaddr.has) _mp = optaddr.m; else xe_complexaddr_si(_mp, gprT2q, vuRegs[mVU.index].Mem, gprT1q, 1);
 		mVUloadReg(Ft, _mp, _X_Y_Z_W);
 		mVU.regAlloc->clearNeededXMM(Ft);
 	}
@@ -1350,8 +1353,8 @@ mVUop(mVU_SQ)
 	pass1 { mVUanalyzeSQ(mVU, _Fs_, _It_, false); }
 	pass2
 	{
-		const std::optional<struct e_mem> optptr(EmuConfig.Gamefixes.IbitHack ? std::nullopt : mVUoptimizeConstantAddr(mVU, _It_, _Imm11_, 0));
-		if (!optptr.has_value())
+		const struct e_memopt optptr = EmuConfig.Gamefixes.IbitHack ? e_memopt_none() : mVUoptimizeConstantAddr(mVU, _It_, _Imm11_, 0);
+		if (!optptr.has)
 		{
 			mVU.regAlloc->moveVIToGPR(gprT1, _It_);
 			if (!EmuConfig.Gamefixes.IbitHack)
@@ -1371,7 +1374,7 @@ mVUop(mVU_SQ)
 		}
 
 		const int Fs = mVU.regAlloc->allocReg(_Fs_, _XYZW_PS ? -1 : 0, _X_Y_Z_W);
-		struct e_mem _mp; if (optptr.has_value()) _mp = optptr.value(); else xe_complexaddr_si(_mp, gprT2q, vuRegs[mVU.index].Mem, gprT1q, 1);
+		struct e_mem _mp; if (optptr.has) _mp = optptr.m; else xe_complexaddr_si(_mp, gprT2q, vuRegs[mVU.index].Mem, gprT1q, 1);
 		mVUsaveReg(Fs, _mp, _X_Y_Z_W, 1);
 		mVU.regAlloc->clearNeededXMM(Fs);
 	}
@@ -1526,13 +1529,13 @@ mVUop(mVU_WAITP)
 			mVUlow.isNOP = true;
 			return;
 		}
-		mVUstall = std::max(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0));
+		mVUstall = C89_MAX(mVUstall, (u8)((mVUregs.p) ? (mVUregs.p - 1) : 0));
 	}
 }
 
 mVUop(mVU_WAITQ)
 {
-	pass1 { mVUstall = std::max(mVUstall, mVUregs.q); }
+	pass1 { mVUstall = C89_MAX(mVUstall, mVUregs.q); }
 }
 
 //------------------------------------------------------------------
@@ -1642,10 +1645,10 @@ void _vuXGKICKTransfermVU(bool flush)
 		}
 
 		if (!flush)
-			transfersize = std::min(vuRegs[1].xgkicksizeremaining, vuRegs[1].xgkickcyclecount * 8);
+			transfersize = C89_MIN(vuRegs[1].xgkicksizeremaining, vuRegs[1].xgkickcyclecount * 8);
 		else
 			transfersize = vuRegs[1].xgkicksizeremaining;
-		transfersize = std::min(transfersize, vuRegs[1].xgkickdiff);
+		transfersize = C89_MIN(transfersize, vuRegs[1].xgkickdiff);
 
 		// Would be "nicer" to do the copy until it's all up, however this really screws up PATH3 masking stuff
 		// So lets just do it the other way :)

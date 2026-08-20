@@ -526,7 +526,7 @@ static void FPU_MUL(int regd, int regt, bool reverseOperands)
 		// 	else
 		// 		return 0;
 
-		alignas(16) static constexpr const u32 result[4] = { 0x3f490fda };
+		alignas(16) static const u32 result[4] = { 0x3f490fda };
 
 		xe_movd_rx(XE_CX, reverseOperands ? regt : regd);
 		xe_movd_rx(XE_DX, reverseOperands ? regd : regt);

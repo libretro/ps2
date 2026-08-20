@@ -459,8 +459,8 @@ static void recLogicalOp(LogicalOp op, int info)
 	int regs = (info & PROCESS_EE_S) ? EEREC_S : -1, regt = (info & PROCESS_EE_T) ? EEREC_T : -1;
 	if (_Rd_ == _Rt_)
 	{
-		std::swap(rs, rt);
-		std::swap(regs, regt);
+		{ const int swap_tmp_ = rs; rs = rt; rt = swap_tmp_; }
+		{ const int swap_tmp_ = regs; regs = regt; regt = swap_tmp_; }
 	}
 
 	if (op == LogicalOp::XOR && rs == rt)
@@ -602,7 +602,7 @@ static void recSLTs_const(int info, int sign, int st)
 
 	if (dreg != EEREC_D)
 	{
-		std::swap(x86regs[dreg], x86regs[EEREC_D]);
+		{ const _x86regs swap_tmp_ = x86regs[dreg]; x86regs[dreg] = x86regs[EEREC_D]; x86regs[EEREC_D] = swap_tmp_; }
 		_freeX86reg(EEREC_D);
 	}
 }
@@ -627,7 +627,7 @@ static void recSLTs_(int info, int sign)
 
 	if (dreg != EEREC_D)
 	{
-		std::swap(x86regs[dreg], x86regs[EEREC_D]);
+		{ const _x86regs swap_tmp_ = x86regs[dreg]; x86regs[dreg] = x86regs[EEREC_D]; x86regs[EEREC_D] = swap_tmp_; }
 		_freeX86reg(EEREC_D);
 	}
 }

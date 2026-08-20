@@ -878,8 +878,8 @@ void recBackpropCOP2(u32 code, EEINST* prev, EEINST* pinst)
 	const u32 fd = ((code >> 6) & 0x1F);
 	const u32 funct = (code & 0x3F);
 
-	constexpr u32 VF_ACC = 32;
-	constexpr u32 VF_I = 33;
+	const u32 VF_ACC = 32;
+	const u32 VF_I = 33;
 
 	switch (fmt)
 	{

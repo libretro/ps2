@@ -23,7 +23,7 @@ using namespace vtlb_private;
 using namespace x86Emitter;
 
 // we need enough for a 32-bit jump forwards (5 bytes)
-static constexpr u32 LOADSTORE_PADDING = 5;
+static const u32 LOADSTORE_PADDING = 5;
 
 static u32 GetAllocatedGPRBitmask(void)
 {
@@ -386,7 +386,7 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 		{ struct e_mem xm; E_MEM(xm, 5, x86addr, 1, 0); xe_movss_xmemg(xmmreg, xm); }
 	}
 
-	const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
+	const u32 padding = LOADSTORE_PADDING - MIN_U32(static_cast<u32>(x86Ptr - codeStart), 5);
 	for (u32 i = 0; i < padding; i++)
 		xe_nop();
 
@@ -409,10 +409,10 @@ int vtlb_DynGenReadNonQuad(u32 bits, bool sign, bool xmm, int addr_reg, vtlb_Rea
 int vtlb_DynGenReadNonQuad_Const(u32 bits, bool sign, bool xmm, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int x86_dest_reg;
-	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
 	{
-		auto ppf = vmv.assumePtr(addr_const);
+		const uptr ppf = vmv.assumePtr(addr_const);
 		if (!xmm)
 		{
 			x86_dest_reg = dest_reg_alloc ? dest_reg_alloc() : (_freeX86reg(XE_AX), XE_AX);
@@ -534,7 +534,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 
 		{ struct e_mem xm; E_MEM(xm, 5, XE_ARG1, 1, 0); xe_movaps_xmemg(reg, xm); }
 
-		const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
+		const u32 padding = LOADSTORE_PADDING - MIN_U32(static_cast<u32>(x86Ptr - codeStart), 5);
 		for (u32 i = 0; i < padding; i++)
 			xe_nop();
 
@@ -553,7 +553,7 @@ int vtlb_DynGenReadQuad(u32 bits, int addr_reg, vtlb_ReadRegAllocCallback dest_r
 int vtlb_DynGenReadQuad_Const(u32 bits, u32 addr_const, vtlb_ReadRegAllocCallback dest_reg_alloc)
 {
 	int reg  = dest_reg_alloc ? dest_reg_alloc() : (_freeXMMreg(0), 0);
-	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
 	{
 		void* ppf = reinterpret_cast<void*>(vmv.assumePtr(addr_const));
@@ -627,7 +627,7 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 			}
 		}
 
-		const u32 padding = LOADSTORE_PADDING - std::min<u32>(static_cast<u32>(x86Ptr - codeStart), 5);
+		const u32 padding = LOADSTORE_PADDING - MIN_U32(static_cast<u32>(x86Ptr - codeStart), 5);
 		for (u32 i = 0; i < padding; i++)
 			xe_nop();
 
@@ -645,10 +645,10 @@ void vtlb_DynGenWrite(u32 sz, bool xmm, int addr_reg, int value_reg)
 // recompiler if the TLB is changed.
 void vtlb_DynGenWrite_Const(u32 bits, bool xmm, u32 addr_const, int value_reg)
 {
-	auto vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
+	const VTLBVirtual vmv = vtlbdata.vmap[addr_const >> VTLB_PAGE_BITS];
 	if (!vmv.isHandler(addr_const))
 	{
-		auto ppf = vmv.assumePtr(addr_const);
+		const uptr ppf = vmv.assumePtr(addr_const);
 		if (!xmm)
 		{
 			switch (bits)
@@ -766,14 +766,14 @@ void vtlb_DynBackpatchLoadStore(uptr code_address, u32 code_size, u32 guest_pc, 
 	u32 gpr_bitmask, u32 fpr_bitmask, u8 address_register, u8 data_register,
 	u8 size_in_bits, bool is_signed, bool is_load, bool is_xmm)
 {
-	static constexpr u32 GPR_SIZE = 8;
-	static constexpr u32 XMM_SIZE = 16;
+	static const u32 GPR_SIZE = 8;
+	static const u32 XMM_SIZE = 16;
 
 	// on win32, we need to reserve an additional 32 bytes shadow space when calling out to C
 #ifdef _WIN32
-	static constexpr u32 SHADOW_SIZE = 32;
+	static const u32 SHADOW_SIZE = 32;
 #else
-	static constexpr u32 SHADOW_SIZE = 0;
+	static const u32 SHADOW_SIZE = 0;
 #endif
 	u8* thunk = recBeginThunk();
 

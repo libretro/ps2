@@ -90,7 +90,7 @@ __fi void VifUnpackSSE_Dynarec::SetMasks(int cS) const
 
 void VifUnpackSSE_Dynarec::doMaskWrite(int regX) const
 {
-	const int cc = std::min(vCL, 3);
+	const int cc = C89_MIN(vCL, 3);
 	u32 m0 = (vB.mask >> (cc * 8)) & 0xff; //The actual mask example 0xE4 (protect, col, row, clear)
 	u32 m3 = ((m0 & 0xaa) >> 1) & ~m0; //all the upper bits (cols shifted right) cancelling out any write protects 0x10
 	u32 m2 = (m0 & 0x55) & (~m0 >> 1); // all the lower bits (rows)cancelling out any write protects 0x04
@@ -217,7 +217,7 @@ void VifUnpackSSE_Dynarec::ProcessMasks()
 	if (!doMask)
 		return;
 
-	const int cc = std::min(vCL, 3);
+	const int cc = C89_MIN(vCL, 3);
 	const u32 full_mask   = (vB.mask >> (cc * 8)) & 0xff;
 	const u32 rowcol_mask = ((full_mask >> 1) | full_mask) & 0x55; // Rows or Cols being written instead of data, or protected.
 
@@ -307,7 +307,7 @@ static u16 dVifComputeLength(uint cl, uint wl, u8 num, bool isFill)
 		length += (blocks - 1) * skipSize;
 	}
 
-	return std::min(length, 0xFFFFu);
+	return C89_MIN(length, 0xFFFFu);
 }
 
 _vifT __fi nVifBlock* dVifCompile(nVifBlock& block, bool isFill)

@@ -120,6 +120,8 @@ extern void iopMemWrite16(u32 mem, u16 value);
 extern void iopMemWrite32(u32 mem, u32 value);
 
 std::string iopMemReadString(u32 mem, int maxlen = 65536);
+/* C89-callable variant: fills dst (NUL-terminated, cap includes the NUL). */
+void iopMemReadStringBuf(char* dst, int cap, u32 mem, int maxlen);
 
 namespace IopMemory
 {

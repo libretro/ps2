@@ -64,6 +64,12 @@
 #define XE_CX 1
 #define XE_DX 2
 #define XE_BX 3
+/* C89 min/max, evaluate-twice caveat accepted at the converted sites
+ * (all operands there are plain locals or fields). */
+#define C89_MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define C89_MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define MIN_U32(a, b) ((((u32)(a)) < ((u32)(b))) ? ((u32)(a)) : ((u32)(b)))
+
 #define XE_WORDSIZE 8
 #define XE_SP 4
 

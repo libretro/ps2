@@ -166,7 +166,7 @@ void mVUtestCycles(microVU& mVU, microFlagCycles& mFC)
 	// If the VUSyncHack is on, we want the VU to run behind, to avoid conditions where the VU is sped up.
 	if (isVU0 && EmuConfig.Speedhacks.EECycleRate != 0 && (!EmuConfig.Gamefixes.VUSyncHack || EmuConfig.Speedhacks.EECycleRate < 0))
 	{
-		switch (std::min(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(mVUcycles)))
+		switch (C89_MIN(static_cast<int>(EmuConfig.Speedhacks.EECycleRate), static_cast<int>(mVUcycles)))
 		{
 			case -3: // 50%
 				mVUcycles *= 2.0f;
@@ -280,8 +280,8 @@ static void mVUDoTBit(microVU& mVU, microFlagCycles* mFC)
 
 static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 {
-	static constexpr const int REQUIRED_FREE_XMMS = 3; // some space for temps
-	static constexpr const int REQUIRED_FREE_GPRS = 1; // some space for temps
+	static const int REQUIRED_FREE_XMMS = 3; // some space for temps
+	static const int REQUIRED_FREE_GPRS = 1; // some space for temps
 
 	u32 vfs_loaded = 0;
 	u32 vis_loaded = 0;
@@ -305,31 +305,27 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 	int free_regs = mVU.regAlloc->getFreeXmmCount();
 	int free_gprs = mVU.regAlloc->getFreeGPRCount();
 
-	auto preloadVF = [&mVU, &vfs_loaded, &free_regs](u8 reg)
-	{
-		if (free_regs <= REQUIRED_FREE_XMMS || reg == 0 || (vfs_loaded & (1u << reg)) != 0)
-			return;
+	/* C89 spellings of the old capture lambdas: everything they captured is
+	 * passed or visible; the counters live in this frame. */
+#define MVU_PRELOAD_VF(reg) do { \
+		if (!(free_regs <= REQUIRED_FREE_XMMS || (reg) == 0 || (vfs_loaded & (1u << (reg))) != 0)) \
+		{ \
+			mVU.regAlloc->clearNeededXMM(mVU.regAlloc->allocReg(reg)); \
+			vfs_loaded |= (1u << (reg)); \
+			free_regs--; \
+		} \
+	} while (0)
+#define MVU_PRELOAD_VI(reg) do { \
+		if (!(free_gprs <= REQUIRED_FREE_GPRS || (reg) == 0 || (vis_loaded & (1u << (reg))) != 0)) \
+		{ \
+			mVU.regAlloc->clearNeededGPR(mVU.regAlloc->allocGPR(reg)); \
+			vis_loaded |= (1u << (reg)); \
+			free_gprs--; \
+		} \
+	} while (0)
+#define MVU_CAN_PRELOAD() (free_regs >= REQUIRED_FREE_XMMS || free_gprs >= REQUIRED_FREE_GPRS)
 
-		mVU.regAlloc->clearNeededXMM(mVU.regAlloc->allocReg(reg));
-		vfs_loaded |= (1u << reg);
-		free_regs--;
-	};
-
-	auto preloadVI = [&mVU, &vis_loaded, &free_gprs](u8 reg)
-	{
-		if (free_gprs <= REQUIRED_FREE_GPRS || reg == 0 || (vis_loaded & (1u << reg)) != 0)
-			return;
-
-		mVU.regAlloc->clearNeededGPR(mVU.regAlloc->allocGPR(reg));
-		vis_loaded |= (1u << reg);
-		free_gprs--;
-	};
-
-	auto canPreload = [&free_regs, &free_gprs]() {
-		return (free_regs >= REQUIRED_FREE_XMMS || free_gprs >= REQUIRED_FREE_GPRS);
-	};
-
-	for (u32 x = 0; x < endCount && canPreload(); x++)
+	for (u32 x = 0; x < endCount && MVU_CAN_PRELOAD(); x++)
 	{
 		incPC(1);
 
@@ -339,24 +335,24 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 
 		for (u32 i = 0; i < 2; i++)
 		{
-			preloadVF(info->uOp.VF_read[i].reg);
-			preloadVF(info->lOp.VF_read[i].reg);
+			MVU_PRELOAD_VF(info->uOp.VF_read[i].reg);
+			MVU_PRELOAD_VF(info->lOp.VF_read[i].reg);
 			if (info->lOp.VI_read[i].used)
-				preloadVI(info->lOp.VI_read[i].reg);
+				MVU_PRELOAD_VI(info->lOp.VI_read[i].reg);
 		}
 
 		const microVFreg& uvfr = info->uOp.VF_write;
 		if (uvfr.reg != 0 && (!uvfr.x || !uvfr.y || !uvfr.z || !uvfr.w))
 		{
 			// not writing entire vector
-			preloadVF(uvfr.reg);
+			MVU_PRELOAD_VF(uvfr.reg);
 		}
 
 		const microVFreg& lvfr = info->lOp.VF_write;
 		if (lvfr.reg != 0 && (!lvfr.x || !lvfr.y || !lvfr.z || !lvfr.w))
 		{
 			// not writing entire vector
-			preloadVF(lvfr.reg);
+			MVU_PRELOAD_VF(lvfr.reg);
 		}
 
 		if (info->lOp.branch)
@@ -365,6 +361,9 @@ static void mvuPreloadRegisters(microVU& mVU, u32 endCount)
 
 	iPC = orig_pc;
 	mVU.code = orig_code;
+#undef MVU_PRELOAD_VF
+#undef MVU_PRELOAD_VI
+#undef MVU_CAN_PRELOAD
 }
 
 void* mVUcompile(microVU& mVU, u32 startPC, uptr pState)

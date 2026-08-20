@@ -74,6 +74,7 @@ namespace R3000A
 	u32 irxImportTableAddr(u32 entrypc);
 	const char* irxImportFuncname(const std::string& libname, u16 index);
 	irxHLE irxImportHLE(const std::string& libnam, u16 index);
+	irxHLE irxImportHLECh(const char* libname, u16 index); /* C89-callable */
 	irxDEBUG irxImportDebug(const std::string& libname, u16 index);
 	void irxImportLog(const std::string& libnameptr, u16 index, const char* funcname);
 	void irxImportLog_rec(u32 import_table, u16 index, const char* funcname);

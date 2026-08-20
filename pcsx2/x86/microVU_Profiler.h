@@ -96,7 +96,7 @@ struct microProfiler
 	int index;
 	void Reset(int _index)
 	{
-		std::memset(this, 0, sizeof(*this));
+		memset(this, 0, sizeof(*this));
 		index = _index;
 	}
 	void EmitOp(microOpcode op)
@@ -109,25 +109,37 @@ struct microProfiler
 		progCount++;
 		if ((progCount % progLimit) == 0)
 		{
+			/* C89 shape: fixed table + insertion sort descending by count. */
 			u64 total = 0;
-			std::vector<std::pair<u32, u32>> v;
-			for (int i = 0; i < opLastOpcode; i++)
+			u64 counts[opLastOpcode];
+			int order[opLastOpcode];
+			int i, j;
+			char name[16];
+			for (i = 0; i < opLastOpcode; i++)
 			{
-				total += opStats[i];
-				v.push_back(std::make_pair(opStats[i], i));
+				counts[i] = opStats[i];
+				order[i] = i;
+				total += counts[i];
 			}
-			std::sort(v.begin(), v.end());
-			std::reverse(v.begin(), v.end());
-			double dTotal = (double)total;
-			DevCon.WriteLn("microVU%d Profiler:", index);
-			for (u32 i = 0; i < v.size(); i++)
+			for (i = 1; i < opLastOpcode; i++)
 			{
-				u64 count = v[i].first;
-				double stat = (double)count / dTotal * 100.0;
-				std::string str = microOpcodeName[v[i].second];
-				str.resize(8, ' ');
-				DevCon.WriteLn("%s - [%3.4f%%][count=%u]",
-					str.c_str(), stat, (u32)count);
+				const int oi = order[i];
+				const u64 ci = counts[oi];
+				for (j = i; j > 0 && counts[order[j - 1]] < ci; j--)
+					order[j] = order[j - 1];
+				order[j] = oi;
+			}
+			DevCon.WriteLn("microVU%d Profiler:", index);
+			for (i = 0; i < opLastOpcode; i++)
+			{
+				const int op = order[i];
+				const u64 count = counts[op];
+				const double stat = (double)count / (double)total * 100.0;
+				int n = 0;
+				while (n < 8 && microOpcodeName[op][n]) { name[n] = microOpcodeName[op][n]; n++; }
+				while (n < 8) name[n++] = ' ';
+				name[n] = 0;
+				DevCon.WriteLn("%s - [%3.4f%%][count=%u]", name, stat, (u32)count);
 			}
 			DevCon.WriteLn("Total = 0x%x%x\n\n", (u32)(u64)(total >> 32), (u32)total);
 		}

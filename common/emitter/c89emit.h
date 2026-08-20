@@ -371,6 +371,17 @@ static struct e_mem e_mem_off(struct e_mem m, e_sptr extra)
 	m.disp += extra;
 	return m;
 }
+/* Optional e_mem, C89-style: has==0 means absent. */
+struct e_memopt { int has; struct e_mem m; };
+static struct e_memopt e_memopt_none(void)
+{
+	struct e_memopt o; o.has = 0; o.m.base = E_NOREG; o.m.index = E_NOREG; o.m.scale = 0; o.m.disp = 0; return o;
+}
+static struct e_memopt e_memopt_of(struct e_mem m)
+{
+	struct e_memopt o; o.has = 1; o.m = m; return o;
+}
+
 static struct e_mem e_mem_abs(const void* addr)
 {
 	struct e_mem m;

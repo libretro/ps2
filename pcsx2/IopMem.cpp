@@ -482,3 +482,18 @@ std::string iopMemReadString(u32 mem, int maxlen)
 
     return ret;
 }
+
+void iopMemReadStringBuf(char* dst, int cap, u32 mem, int maxlen)
+{
+	int n = 0;
+	if (cap <= 0)
+		return;
+	while (n < cap - 1 && n < maxlen)
+	{
+		const char c = (char)iopMemRead8(mem + n);
+		if (c == 0)
+			break;
+		dst[n++] = c;
+	}
+	dst[n] = 0;
+}

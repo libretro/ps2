@@ -1115,3 +1115,11 @@ namespace R3000A
 	}
 
 } // end namespace R3000A
+
+namespace R3000A
+{
+	irxHLE irxImportHLECh(const char* libname, u16 index)
+	{
+		return irxImportHLE(std::string(libname), index);
+	}
+} // namespace R3000A

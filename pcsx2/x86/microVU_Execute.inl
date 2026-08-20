@@ -340,12 +340,12 @@ _mVUt void mVUcleanUp(void)
 	if ((xGetPtr() < mVU.prog.codeStart) || (xGetPtr() >= mVU.prog.codeEnd))
 		mVUreset(mVU, false);
 
-	mVU.cycles = mVU.totalCycles - std::max(0, mVU.cycles);
+	mVU.cycles = mVU.totalCycles - C89_MAX(0, mVU.cycles);
 	vuRegs[mVU.index].cycle += mVU.cycles;
 
 	if (!vuIndex || !THREAD_VU1)
 	{
-		u32 cycles_passed = std::min(mVU.cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
+		u32 cycles_passed = C89_MIN(mVU.cycles, 3000) * EmuConfig.Speedhacks.EECycleSkip;
 		if (cycles_passed > 0)
 		{
 			s64 vu0_offset = vuRegs[0].cycle - cpuRegs.cycle;

@@ -201,8 +201,9 @@ __ri void mVUcacheProg(microVU& mVU, microProgram& prog)
 {
 	if (!doWholeProgCompare)
 	{
-		auto cmpOffset = [&](void* x) { return (u8*)x + mVUrange.start; };
-		memcpy(cmpOffset(prog.data), cmpOffset(vuRegs[mVU.index].Micro), (mVUrange.end - mVUrange.start));
+		memcpy((u8*)prog.data + mVUrange.start,
+		       (u8*)vuRegs[mVU.index].Micro + mVUrange.start,
+		       (mVUrange.end - mVUrange.start));
 	}
 	else
 	{
@@ -247,9 +248,9 @@ __fi bool mVUcmpProg(microVU& mVU, microProgram& prog)
 		for (u32 r = 0; r < prog.ranges->count; r++)
 		{
 			const microRange& range = prog.ranges->data[r];
-			auto cmpOffset = [&](void* x) { return (u8*)x + range.start; };
-
-			if (memcmp(cmpOffset(prog.data), cmpOffset(vuRegs[mVU.index].Micro), (range.end - range.start)))
+			if (memcmp((u8*)prog.data + range.start,
+			           (u8*)vuRegs[mVU.index].Micro + range.start,
+			           (range.end - range.start)))
 				return false;
 		}
 	}

@@ -388,7 +388,7 @@ static void FPU_MUL(int info, int regd, int sreg, int treg, bool acc)
 		// 	else
 		// 		return 0;
 
-		alignas(16) static constexpr const u32 result[4] = { 0x3f490fda };
+		alignas(16) static const u32 result[4] = { 0x3f490fda };
 
 		xe_movd_rx(XE_CX, sreg);
 		xe_movd_rx(XE_DX, treg);

@@ -384,12 +384,12 @@ static void recClear(u32 addr, u32 size)
 
 		if (blockend <= addr)
 		{
-			lowerextent = std::max(lowerextent, blockend);
+			lowerextent = C89_MAX(lowerextent, blockend);
 			break;
 		}
 
-		lowerextent = std::min(lowerextent, blockstart);
-		upperextent = std::max(upperextent, blockend);
+		lowerextent = C89_MIN(lowerextent, blockstart);
+		upperextent = C89_MAX(upperextent, blockend);
 		pblock->m_pFnptr = ((uptr)JITCompile);
 
 		blockidx--;
@@ -398,7 +398,7 @@ static void recClear(u32 addr, u32 size)
 	if (toRemoveLast != blockidx)
 		recBlocks.Remove((blockidx + 1), toRemoveLast);
 
-	upperextent = std::min(upperextent, ceiling);
+	upperextent = C89_MIN(upperextent, ceiling);
 
 	if (upperextent > lowerextent)
 		ClearRecLUT(PC_GETBLOCK(lowerextent), (upperextent - lowerextent) / 4);
@@ -467,10 +467,10 @@ static const void* _DynGen_EnterRecompiledCode(void)
 
 #ifdef _WIN32
 	// Shadow space for Win32
-	static constexpr u32 stack_size = 32 + 8;
+	static const u32 stack_size = 32 + 8;
 #else
 	// Stack still needs to be aligned
-	static constexpr u32 stack_size = 8;
+	static const u32 stack_size = 8;
 #endif
 
 	// We never return through this function, instead we fastjmp() out.
@@ -2187,7 +2187,7 @@ StartRecomp:
 			// page ends one instruction into the next page, so a block sitting in
 			// the last page of RAM can extend past Ps2MemSize::MainRam. recRAMCopy
 			// is exactly Ps2MemSize::MainRam bytes, so bound the compare to it.
-			const u32 cmpsize = std::min<u32>(oldBlock->size * 4,
+			const u32 cmpsize = MIN_U32(oldBlock->size * 4,
 					Ps2MemSize::MainRam - oldBlock->startpc);
 			if (memcmp(&recRAMCopy[oldBlock->startpc], PSM(oldBlock->startpc),
 					cmpsize))
@@ -2203,7 +2203,7 @@ StartRecomp:
 	s_pCurBlock->m_pFnptr = ((uptr)recPtr);
 
 	if (!(pc & 0x10000000))
-		maxrecmem = std::max((pc & ~0xa0000000), maxrecmem);
+		maxrecmem = C89_MAX((pc & ~0xa0000000), maxrecmem);
 
 	if (g_branch == 2)
 	{

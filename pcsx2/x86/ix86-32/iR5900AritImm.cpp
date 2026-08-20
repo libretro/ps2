@@ -123,7 +123,7 @@ static void recSLTIU_(int info)
 
 	if (dreg != EEREC_T)
 	{
-		std::swap(x86regs[dreg], x86regs[EEREC_T]);
+		{ const _x86regs swap_tmp_ = x86regs[dreg]; x86regs[dreg] = x86regs[EEREC_T]; x86regs[EEREC_T] = swap_tmp_; }
 		_freeX86reg(EEREC_T);
 	}
 }
@@ -150,7 +150,7 @@ static void recSLTI_(int info)
 
 	if (dreg != EEREC_T)
 	{
-		std::swap(x86regs[dreg], x86regs[EEREC_T]);
+		{ const _x86regs swap_tmp_ = x86regs[dreg]; x86regs[dreg] = x86regs[EEREC_T]; x86regs[EEREC_T] = swap_tmp_; }
 		_freeX86reg(EEREC_T);
 	}
 }

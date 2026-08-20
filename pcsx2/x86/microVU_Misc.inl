@@ -159,7 +159,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 			}
 		}
 
-		std::bitset<iREGCNT_XMM> save_xmms;
+		u32 save_xmms = 0; /* bit per xmm */
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
 			if (!XE_XMM_CALLER_SAVED(i))
@@ -167,7 +167,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ == i)
 			{
-				save_xmms[i] = true;
+				save_xmms |= (1u << i);
 				num_xmms++;
 			}
 		}
@@ -185,7 +185,7 @@ __fi void mVUbackupRegs(microVU& mVU, bool toMemory = false, bool onlyNeeded = f
 			xe_sub64_ri(XE_SP, stack_size);
 			for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 			{
-				if (save_xmms[i])
+				if ((save_xmms & (1u << i)))
 				{
 					{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_memxg(xm, i); }
 					stack_offset += sizeof(u128);
@@ -208,7 +208,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 	{
 		int num_xmms = 0, num_gprs = 0;
 
-		std::bitset<iREGCNT_GPR> save_gprs;
+		u32 save_gprs = 0; /* bit per gpr */
 		for (int i = 0; i < static_cast<int>(iREGCNT_GPR); i++)
 		{
 			if (!XE_GPR_CALLER_SAVED(i) || i == XE_SP)
@@ -216,12 +216,12 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedGPR(i))
 			{
-				save_gprs[i] = true;
+				save_gprs |= (1u << i);
 				num_gprs++;
 			}
 		}
 
-		std::bitset<iREGCNT_XMM> save_xmms;
+		u32 save_xmms = 0; /* bit per xmm */
 		for (int i = 0; i < static_cast<int>(iREGCNT_XMM); i++)
 		{
 			if (!XE_XMM_CALLER_SAVED(i))
@@ -229,7 +229,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 
 			if (!onlyNeeded || mVU.regAlloc->checkCachedReg(i) || xmmPQ == i)
 			{
-				save_xmms[i] = true;
+				save_xmms |= (1u << i);
 				num_xmms++;
 			}
 		}
@@ -245,7 +245,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 			int stack_offset = (num_xmms - 1) * sizeof(u128) + stack_extra;
 			for (int i = static_cast<int>(iREGCNT_XMM - 1); i >= 0; i--)
 			{
-				if (!save_xmms[i])
+				if (!(save_xmms & (1u << i)))
 					continue;
 
 				{ struct e_mem xm; E_MEM(xm, XE_SP, E_NOREG, 0, stack_offset); xe_movaps_xmemg(i, xm); }
@@ -257,7 +257,7 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 
 		for (int i = static_cast<int>(iREGCNT_GPR - 1); i >= 0; i--)
 		{
-			if (save_gprs[i])
+			if ((save_gprs & (1u << i)))
 				xe_pop64_r(i);
 		}
 	}
@@ -269,12 +269,12 @@ __fi void mVUrestoreRegs(microVU& mVU, bool fromMemory = false, bool onlyNeeded 
 
 static void mVUTBit(void)
 {
-	vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUTBit, std::memory_order_release);
+	retro_atomic_fetch_or_int(&vu1Thread.mtvuInterrupts, VU_Thread::InterruptFlagVUTBit); /* acq_rel >= release */
 }
 
 static void mVUEBit(void)
 {
-	vu1Thread.mtvuInterrupts.fetch_or(VU_Thread::InterruptFlagVUEBit, std::memory_order_release);
+	retro_atomic_fetch_or_int(&vu1Thread.mtvuInterrupts, VU_Thread::InterruptFlagVUEBit); /* acq_rel >= release */
 }
 
 static inline u32 branchAddr(const mV)
@@ -310,17 +310,17 @@ __fi void mVUaddrFix(mV, int gprReg)
 	}
 }
 
-__fi std::optional<struct e_mem> mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 offsetSS_)
+__fi struct e_memopt mVUoptimizeConstantAddr(mV, u32 srcreg, s32 offset, s32 offsetSS_)
 {
 	// if we had const prop for VIs, we could do that here..
 	if (srcreg != 0)
-		return std::nullopt;
+		return e_memopt_none();
 	const s32 addr = 0 + offset;
 	if (isVU1)
-		return e_mem_abs(vuRegs[mVU.index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_);
+		return e_memopt_of(e_mem_abs(vuRegs[mVU.index].Mem + ((addr & 0x3FFu) << 4) + offsetSS_));
 	if (addr & 0x400)
-		return std::nullopt;
-	return e_mem_abs(vuRegs[mVU.index].Mem + ((addr & 0xFFu) << 4) + offsetSS_);
+		return e_memopt_none();
+	return e_memopt_of(e_mem_abs(vuRegs[mVU.index].Mem + ((addr & 0xFFu) << 4) + offsetSS_));
 }
 
 //------------------------------------------------------------------

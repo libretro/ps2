@@ -778,7 +778,7 @@ public:
 							else
 								xe_mov32_rr(gprX, i);
 							gprMap[x].isZeroExtended = zext_if_dirty;
-							std::swap(x, i);
+							{ const int swap_tmp_ = x; x = i; i = swap_tmp_; }
 						}
 						else
 						{
